@@ -1,0 +1,8 @@
+# services/ingest Python'dur, workspace uyesi degildir.
+packages:
+  - "apps/*"
+  - "packages/*"
+
+# drizzle-kit esbuild ile calisir; yerel ikili dosyasini kurmasi gerekir.
+allowBuilds:
+  esbuild: true
