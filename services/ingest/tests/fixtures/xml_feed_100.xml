@@ -1,0 +1,2608 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Ornek feed. Gercek bir magazaya ait DEGILDIR; alan adlari Google Merchant
+     bicimini taklit eder ama eslemesi feed_config icinden gelir. -->
+<rss version="2.0" xmlns:g="http://base.google.com/ns/1.0">
+  <channel>
+    <title>Ornek Magaza test feed</title>
+    <item>
+      <g:id>SKU-0001</g:id>
+      <g:title>Kuzey Deri Bilekli Bot Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0001</g:link>
+      <g:price>2074.00 TL</g:price>
+      <g:sale_price>2385.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0001.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0002</g:id>
+      <g:title>Lodos Deri Omuz Cantasi Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0002</g:link>
+      <g:price>1437.00 TL</g:price>
+      <g:sale_price>1652.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0002.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0003</g:id>
+      <g:title>Ela Studio Bilekli Bot Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0003</g:link>
+      <g:price>971.00 TL</g:price>
+      <g:sale_price>1116.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0003.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0004</g:id>
+      <g:title>Ela Studio Oversize Triko Kazak Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0004</g:link>
+      <g:price>2632.00 TL</g:price>
+      <g:sale_price>3026.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0004.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0005</g:id>
+      <g:title>Vira Oversize Triko Kazak Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0005</g:link>
+      <g:price>2339.00 TL</g:price>
+      <g:sale_price>2689.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0005.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0006</g:id>
+      <g:title>Ela Studio Deri Loafer Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0006</g:link>
+      <g:price>2188.00 TL</g:price>
+      <g:sale_price>2516.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0006.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0007</g:id>
+      <g:title>Lodos Deri Omuz Cantasi Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0007</g:link>
+      <g:price>2566.00 TL</g:price>
+      <g:sale_price>2950.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0007.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0008</g:id>
+      <g:title>Ayda Bilekli Bot Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0008</g:link>
+      <g:price>900.00 TL</g:price>
+      <g:sale_price>1034.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0008.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0009</g:id>
+      <g:title>Vira Deri Omuz Cantasi Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0009</g:link>
+      <g:price>3761.00 TL</g:price>
+      <g:sale_price>4325.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0009.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0010</g:id>
+      <g:title>Kuzey Deri Bilekli Bot Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0010</g:link>
+      <g:price>1669.00 TL</g:price>
+      <g:sale_price>1919.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0010.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0011</g:id>
+      <g:title>Ayda Poplin Gomlek Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0011</g:link>
+      <g:price>2902.00 TL</g:price>
+      <g:sale_price>3337.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0011.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>out of stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0012</g:id>
+      <g:title>Lodos Nemlendirici Krem Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0012</g:link>
+      <g:price>526.00 TL</g:price>
+      <g:sale_price>604.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0012.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0013</g:id>
+      <g:title>Ayda Oversize Triko Kazak Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0013</g:link>
+      <g:price>536.00 TL</g:price>
+      <g:sale_price>616.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0013.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0014</g:id>
+      <g:title>Lodos Kapitone Mont Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0014</g:link>
+      <g:price>3364.00 TL</g:price>
+      <g:sale_price>3868.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0014.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0015</g:id>
+      <g:title>Ela Studio Deri Loafer Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0015</g:link>
+      <g:price>2434.00 TL</g:price>
+      <g:sale_price>2799.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0015.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0016</g:id>
+      <g:title>Ayda Poplin Gomlek Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0016</g:link>
+      <g:price>1670.00 TL</g:price>
+      <g:sale_price>1920.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0016.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0017</g:id>
+      <g:title>Lodos Deri Loafer Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0017</g:link>
+      <g:price>3430.00 TL</g:price>
+      <g:sale_price>3944.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0017.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0018</g:id>
+      <g:title>Ayda Bilekli Bot Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0018</g:link>
+      <g:price>1766.00 TL</g:price>
+      <g:sale_price>2030.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0018.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0019</g:id>
+      <g:title>Ela Studio Nemlendirici Krem Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0019</g:link>
+      <g:price>1959.00 TL</g:price>
+      <g:sale_price>2252.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0019.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0020</g:id>
+      <g:title>Vira Kapitone Mont Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0020</g:link>
+      <g:price>3348.00 TL</g:price>
+      <g:sale_price>3850.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0020.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0021</g:id>
+      <g:title>Kuzey Deri Deri Loafer Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0021</g:link>
+      <g:price>1410.00 TL</g:price>
+      <g:sale_price>1621.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0021.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0022</g:id>
+      <g:title>Ela Studio Nemlendirici Krem Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0022</g:link>
+      <g:price>384.00 TL</g:price>
+      <g:sale_price>441.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0022.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>out of stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0023</g:id>
+      <g:title>Vira Nemlendirici Krem Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0023</g:link>
+      <g:price>2223.00 TL</g:price>
+      <g:sale_price>2556.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0023.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0024</g:id>
+      <g:title>Lodos Suet Spor Ayakkabi Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0024</g:link>
+      <g:price>422.00 TL</g:price>
+      <g:sale_price>485.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0024.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0025</g:id>
+      <g:title>Ayda Kapitone Mont Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0025</g:link>
+      <g:price>1574.00 TL</g:price>
+      <g:sale_price>1810.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0025.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0026</g:id>
+      <g:title>Ela Studio Nemlendirici Krem Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0026</g:link>
+      <g:price>1973.00 TL</g:price>
+      <g:sale_price>2268.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0026.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0027</g:id>
+      <g:title>Ayda Poplin Gomlek Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0027</g:link>
+      <g:price>1488.00 TL</g:price>
+      <g:sale_price>1711.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0027.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0028</g:id>
+      <g:title>Ela Studio Poplin Gomlek Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0028</g:link>
+      <g:price>2050.00 TL</g:price>
+      <g:sale_price>2357.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0028.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0029</g:id>
+      <g:title>Lodos Deri Omuz Cantasi Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0029</g:link>
+      <g:price>1782.00 TL</g:price>
+      <g:sale_price>2049.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0029.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0030</g:id>
+      <g:title>Lodos Bilekli Bot Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0030</g:link>
+      <g:price>2175.00 TL</g:price>
+      <g:sale_price>2501.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0030.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0031</g:id>
+      <g:title>Ela Studio Midi Saten Elbise Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0031</g:link>
+      <g:price>3664.00 TL</g:price>
+      <g:sale_price>4213.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0031.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0032</g:id>
+      <g:title>Lodos Suet Spor Ayakkabi Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0032</g:link>
+      <g:price>1828.00 TL</g:price>
+      <g:sale_price>2102.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0032.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0033</g:id>
+      <g:title>Lodos Bilekli Bot Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0033</g:link>
+      <g:price>3558.00 TL</g:price>
+      <g:sale_price>4091.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0033.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>out of stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0034</g:id>
+      <g:title>Lodos Deri Loafer Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0034</g:link>
+      <g:price>1757.00 TL</g:price>
+      <g:sale_price>2020.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0034.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0035</g:id>
+      <g:title>Ayda Cicek Notali Parfum Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0035</g:link>
+      <g:price>2425.00 TL</g:price>
+      <g:sale_price>2788.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0035.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0036</g:id>
+      <g:title>Kuzey Deri Midi Saten Elbise Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0036</g:link>
+      <g:price>2932.00 TL</g:price>
+      <g:sale_price>3371.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0036.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0037</g:id>
+      <g:title>Ela Studio Midi Saten Elbise Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0037</g:link>
+      <g:price>3875.00 TL</g:price>
+      <g:sale_price>4456.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0037.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0038</g:id>
+      <g:title>Ayda Deri Omuz Cantasi Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0038</g:link>
+      <g:price>1731.00 TL</g:price>
+      <g:sale_price>1990.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0038.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0039</g:id>
+      <g:title>Ayda Deri Omuz Cantasi Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0039</g:link>
+      <g:price>989.00 TL</g:price>
+      <g:sale_price>1137.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0039.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0040</g:id>
+      <g:title>Ayda Cicek Notali Parfum Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0040</g:link>
+      <g:price>682.00 TL</g:price>
+      <g:sale_price>784.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0040.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0041</g:id>
+      <g:title>Kuzey Deri Deri Loafer Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0041</g:link>
+      <g:price>285.00 TL</g:price>
+      <g:sale_price>327.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0041.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0042</g:id>
+      <g:title>Lodos Deri Omuz Cantasi Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0042</g:link>
+      <g:price>3675.00 TL</g:price>
+      <g:sale_price>4226.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0042.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0043</g:id>
+      <g:title>Ayda Deri Omuz Cantasi Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0043</g:link>
+      <g:price>288.00 TL</g:price>
+      <g:sale_price>331.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0043.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0044</g:id>
+      <g:title>Vira Deri Loafer Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0044</g:link>
+      <g:price>1306.00 TL</g:price>
+      <g:sale_price>1501.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0044.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>out of stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0045</g:id>
+      <g:title>Vira Bilekli Bot Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0045</g:link>
+      <g:price>2885.00 TL</g:price>
+      <g:sale_price>3317.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0045.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0046</g:id>
+      <g:title>Kuzey Deri Kapitone Mont Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0046</g:link>
+      <g:price>342.00 TL</g:price>
+      <g:sale_price>393.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0046.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0047</g:id>
+      <g:title>Vira Kapitone Mont Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0047</g:link>
+      <g:price>2584.00 TL</g:price>
+      <g:sale_price>2971.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0047.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0048</g:id>
+      <g:title>Ayda Nemlendirici Krem Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0048</g:link>
+      <g:price>2536.00 TL</g:price>
+      <g:sale_price>2916.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0048.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0049</g:id>
+      <g:title>Lodos Midi Saten Elbise Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0049</g:link>
+      <g:price>2887.00 TL</g:price>
+      <g:sale_price>3320.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0049.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0050</g:id>
+      <g:title>Vira Kapitone Mont Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0050</g:link>
+      <g:price>3571.00 TL</g:price>
+      <g:sale_price>4106.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0050.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0051</g:id>
+      <g:title>Lodos Suet Spor Ayakkabi Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0051</g:link>
+      <g:price>3964.00 TL</g:price>
+      <g:sale_price>4558.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0051.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0052</g:id>
+      <g:title>Kuzey Deri Kapitone Mont Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0052</g:link>
+      <g:price>3932.00 TL</g:price>
+      <g:sale_price>4521.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0052.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0053</g:id>
+      <g:title>Ela Studio Deri Omuz Cantasi Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0053</g:link>
+      <g:price>1984.00 TL</g:price>
+      <g:sale_price>2281.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0053.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0054</g:id>
+      <g:title>Ela Studio Oversize Triko Kazak Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0054</g:link>
+      <g:price>3796.00 TL</g:price>
+      <g:sale_price>4365.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0054.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0055</g:id>
+      <g:title>Kuzey Deri Poplin Gomlek Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0055</g:link>
+      <g:price>3969.00 TL</g:price>
+      <g:sale_price>4564.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0055.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>out of stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0056</g:id>
+      <g:title>Kuzey Deri Nemlendirici Krem Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0056</g:link>
+      <g:price>601.00 TL</g:price>
+      <g:sale_price>691.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0056.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0057</g:id>
+      <g:title>Ela Studio Oversize Triko Kazak Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0057</g:link>
+      <g:price>3844.00 TL</g:price>
+      <g:sale_price>4420.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0057.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0058</g:id>
+      <g:title>Kuzey Deri Cicek Notali Parfum Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0058</g:link>
+      <g:price>2408.00 TL</g:price>
+      <g:sale_price>2769.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0058.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0059</g:id>
+      <g:title>Lodos Cicek Notali Parfum Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0059</g:link>
+      <g:price>360.00 TL</g:price>
+      <g:sale_price>414.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0059.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0060</g:id>
+      <g:title>Ela Studio Suet Spor Ayakkabi Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0060</g:link>
+      <g:price>3153.00 TL</g:price>
+      <g:sale_price>3625.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0060.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0061</g:id>
+      <g:title>Lodos Kapitone Mont Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0061</g:link>
+      <g:price>1511.00 TL</g:price>
+      <g:sale_price>1737.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0061.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0062</g:id>
+      <g:title>Lodos Deri Loafer Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0062</g:link>
+      <g:price>349.00 TL</g:price>
+      <g:sale_price>401.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0062.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0063</g:id>
+      <g:title>Kuzey Deri Oversize Triko Kazak Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0063</g:link>
+      <g:price>3684.00 TL</g:price>
+      <g:sale_price>4236.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0063.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0064</g:id>
+      <g:title>Lodos Oversize Triko Kazak Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0064</g:link>
+      <g:price>1380.00 TL</g:price>
+      <g:sale_price>1587.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0064.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0065</g:id>
+      <g:title>Vira Bilekli Bot Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0065</g:link>
+      <g:price>2495.00 TL</g:price>
+      <g:sale_price>2869.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0065.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0066</g:id>
+      <g:title>Lodos Bilekli Bot Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0066</g:link>
+      <g:price>326.00 TL</g:price>
+      <g:sale_price>374.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0066.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>out of stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0067</g:id>
+      <g:title>Ayda Oversize Triko Kazak Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0067</g:link>
+      <g:price>2090.00 TL</g:price>
+      <g:sale_price>2403.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0067.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0068</g:id>
+      <g:title>Kuzey Deri Oversize Triko Kazak Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0068</g:link>
+      <g:price>303.00 TL</g:price>
+      <g:sale_price>348.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0068.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0069</g:id>
+      <g:title>Lodos Deri Omuz Cantasi Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0069</g:link>
+      <g:price>3469.00 TL</g:price>
+      <g:sale_price>3989.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0069.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0070</g:id>
+      <g:title>Lodos Midi Saten Elbise Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0070</g:link>
+      <g:price>2728.00 TL</g:price>
+      <g:sale_price>3137.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0070.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0071</g:id>
+      <g:title>Ela Studio Poplin Gomlek Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0071</g:link>
+      <g:price>2084.00 TL</g:price>
+      <g:sale_price>2396.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0071.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0072</g:id>
+      <g:title>Ayda Nemlendirici Krem Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0072</g:link>
+      <g:price>1805.00 TL</g:price>
+      <g:sale_price>2075.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0072.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0073</g:id>
+      <g:title>Ayda Poplin Gomlek Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0073</g:link>
+      <g:price>1029.00 TL</g:price>
+      <g:sale_price>1183.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0073.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0074</g:id>
+      <g:title>Ela Studio Kapitone Mont Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0074</g:link>
+      <g:price>1277.00 TL</g:price>
+      <g:sale_price>1468.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0074.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0075</g:id>
+      <g:title>Ela Studio Deri Omuz Cantasi Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0075</g:link>
+      <g:price>3232.00 TL</g:price>
+      <g:sale_price>3716.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0075.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0076</g:id>
+      <g:title>Lodos Midi Saten Elbise Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0076</g:link>
+      <g:price>869.00 TL</g:price>
+      <g:sale_price>999.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0076.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0077</g:id>
+      <g:title>Vira Bilekli Bot Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0077</g:link>
+      <g:price>1305.00 TL</g:price>
+      <g:sale_price>1500.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0077.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>out of stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0078</g:id>
+      <g:title>Ela Studio Deri Omuz Cantasi Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0078</g:link>
+      <g:price>2843.00 TL</g:price>
+      <g:sale_price>3269.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0078.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0079</g:id>
+      <g:title>Vira Deri Loafer Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0079</g:link>
+      <g:price>1241.00 TL</g:price>
+      <g:sale_price>1427.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0079.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0080</g:id>
+      <g:title>Kuzey Deri Kapitone Mont Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0080</g:link>
+      <g:price>2927.00 TL</g:price>
+      <g:sale_price>3366.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0080.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0081</g:id>
+      <g:title>Ela Studio Poplin Gomlek Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0081</g:link>
+      <g:price>3140.00 TL</g:price>
+      <g:sale_price>3611.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0081.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0082</g:id>
+      <g:title>Ela Studio Deri Loafer Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0082</g:link>
+      <g:price>3906.00 TL</g:price>
+      <g:sale_price>4491.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0082.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0083</g:id>
+      <g:title>Ela Studio Deri Omuz Cantasi Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0083</g:link>
+      <g:price>1709.00 TL</g:price>
+      <g:sale_price>1965.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0083.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0084</g:id>
+      <g:title>Kuzey Deri Nemlendirici Krem Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0084</g:link>
+      <g:price>3750.00 TL</g:price>
+      <g:sale_price>4312.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0084.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0085</g:id>
+      <g:title>Ela Studio Oversize Triko Kazak Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0085</g:link>
+      <g:price>2077.00 TL</g:price>
+      <g:sale_price>2388.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0085.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0086</g:id>
+      <g:title>Ayda Bilekli Bot Lacivert</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0086</g:link>
+      <g:price>573.00 TL</g:price>
+      <g:sale_price>658.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0086.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0087</g:id>
+      <g:title>Ayda Suet Spor Ayakkabi Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0087</g:link>
+      <g:price>924.00 TL</g:price>
+      <g:sale_price>1062.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0087.jpg</g:image_link>
+      <g:brand>Ayda</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0088</g:id>
+      <g:title>Ela Studio Suet Spor Ayakkabi Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0088</g:link>
+      <g:price>1820.00 TL</g:price>
+      <g:sale_price>2092.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0088.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>out of stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0089</g:id>
+      <g:title>Lodos Deri Loafer Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0089</g:link>
+      <g:price>625.00 TL</g:price>
+      <g:sale_price>718.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0089.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0090</g:id>
+      <g:title>Vira Nemlendirici Krem Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0090</g:link>
+      <g:price>3153.00 TL</g:price>
+      <g:sale_price>3625.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0090.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0091</g:id>
+      <g:title>Lodos Cicek Notali Parfum Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0091</g:link>
+      <g:price>2885.00 TL</g:price>
+      <g:sale_price>3317.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0091.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0092</g:id>
+      <g:title>Kuzey Deri Bilekli Bot Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0092</g:link>
+      <g:price>3552.00 TL</g:price>
+      <g:sale_price>4084.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0092.jpg</g:image_link>
+      <g:brand>Kuzey</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0093</g:id>
+      <g:title>Lodos Midi Saten Elbise Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0093</g:link>
+      <g:price>2786.00 TL</g:price>
+      <g:sale_price>3203.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0093.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0094</g:id>
+      <g:title>Lodos Deri Omuz Cantasi Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0094</g:link>
+      <g:price>694.00 TL</g:price>
+      <g:sale_price>798.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0094.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0095</g:id>
+      <g:title>Lodos Cicek Notali Parfum Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0095</g:link>
+      <g:price>3697.00 TL</g:price>
+      <g:sale_price>4251.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0095.jpg</g:image_link>
+      <g:brand>Lodos</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0096</g:id>
+      <g:title>Vira Deri Omuz Cantasi Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0096</g:link>
+      <g:price>3269.00 TL</g:price>
+      <g:sale_price>3759.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0096.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0097</g:id>
+      <g:title>Ela Studio Deri Loafer Siyah</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0097</g:link>
+      <g:price>1548.00 TL</g:price>
+      <g:sale_price>1780.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0097.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0098</g:id>
+      <g:title>Vira Poplin Gomlek Beyaz</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0098</g:link>
+      <g:price>242.00 TL</g:price>
+      <g:sale_price>278.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0098.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>40</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0099</g:id>
+      <g:title>Vira Bilekli Bot Bej</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0099</g:link>
+      <g:price>1361.00 TL</g:price>
+      <g:sale_price>1565.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0099.jpg</g:image_link>
+      <g:brand>Vira</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>36</g:size>
+        <g:stock>out of stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+    <item>
+      <g:id>SKU-0100</g:id>
+      <g:title>Ela Studio Deri Omuz Cantasi Bordo</g:title>
+      <g:link>https://ornekmagaza.example/urun/sku-0100</g:link>
+      <g:price>721.00 TL</g:price>
+      <g:sale_price>829.00 TL</g:sale_price>
+      <g:image_link>https://ornekmagaza.example/img/sku-0100.jpg</g:image_link>
+      <g:brand>Ela</g:brand>
+      <g:product_type>moda/ayakkabi</g:product_type>
+      <g:availability>in stock</g:availability>
+      <g:shipping_days>2</g:shipping_days>
+      <g:sizes>
+      <g:variant>
+        <g:size>37</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>38</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      <g:variant>
+        <g:size>39</g:size>
+        <g:stock>in stock</g:stock>
+      </g:variant>
+      </g:sizes>
+    </item>
+  </channel>
+</rss>

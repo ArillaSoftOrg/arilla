@@ -1,0 +1,37 @@
+[project]
+name = "arilla-ingest"
+version = "0.0.0"
+description = "Toplu isler: feed toplama, zenginlestirme, eslestirme, benzerlik."
+requires-python = ">=3.12"
+dependencies = [
+    "psycopg[binary]>=3.2",
+    "httpx>=0.28",
+]
+
+[project.optional-dependencies]
+dev = [
+    "ruff>=0.14.0",
+    "pytest>=8.3",
+]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["db", "collect", "collect.sources", "enrich", "resolve", "similarity"]
+
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+# Entegrasyon testleri yerel veritabanina baglanir; isaretli olsunlar ki
+# veritabani olmadan `-m "not integration"` ile atlanabilsinler.
+markers = [
+    "integration: yerel PostgreSQL gerektirir",
+]
