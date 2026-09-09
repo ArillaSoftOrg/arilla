@@ -19,7 +19,15 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["db", "collect", "collect.sources", "enrich", "resolve", "similarity"]
+packages = [
+    "db",
+    "collect",
+    "collect.sources",
+    "collect.link",
+    "enrich",
+    "resolve",
+    "similarity",
+]
 
 [tool.ruff]
 target-version = "py312"

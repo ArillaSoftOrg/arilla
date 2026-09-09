@@ -21,7 +21,8 @@ veritabani tarafindan reddedilir.
 
 | Klasor | Ne yapar | Gorev |
 | --- | --- | --- |
-| `collect/` | Feed, API ve ag dokumu okuma; kullanici linki cozumleme | B1 ✅, B2 |
+| `collect/` | Feed, API ve ag dokumu okuma (Katman 1) | B1 ✅ |
+| `collect/link/` | Kullanici linki cozumleme (Katman 2) | B2 ✅ |
 | `enrich/` | Gorsel indirme, hash, embedding, oznitelik cikarimi | B3 |
 | `resolve/` | Katmanli eslestirme, `match_candidate` yazimi | B4 |
 | `similarity/` | Gecelik `similarity_edge` ve `product_price_stats` | B5 |
@@ -140,3 +141,50 @@ Yeni bir tasima eklemek: `collect/sources/` altina modul yaz ve
    sistemde yasayabilir.
 5. **Reddedilen kayit kosuyu durdurmaz.** Sayilir, kosu `partial` biter. Tek
    bozuk satir yuzunden 10.000 urun birakilmaz.
+
+---
+
+## Katman 2 — kullanici linki cozumleme
+
+Kullanici katalogda olmayan bir urun linki yapistirdiginda **yalnizca o URL**
+getirilir. Sonuc cache degil, kalici katalog kaydidir
+(`discovery_source = 'user_link'`).
+
+```bash
+python -m collect.link "https://magaza.example/urun/canta"   # tek link
+python -m collect.link --refresh                              # fiyat rotasyonu
+```
+
+### Sinirlar
+
+- **Yalnizca kullanici istegiyle.** Zamanlanmis tarama yoktur.
+- **Yalnizca verilen URL.** Sayfadaki linkler izlenmez; bu bir tarayici degil.
+- **`robots.txt` atlatilmaz.** Izin yoksa cozumleme reddedilir ve kataloga
+  hicbir sey yazilmaz. Atlatma bayragi yoktur.
+- **Toplu kazima yoktur** ve eklenmeyecektir (`docs/decisions/0004`).
+
+### Cikarim sirasi
+
+| Sira | Kaynak | Guven |
+| --- | --- | --- |
+| 1 | JSON-LD (`schema.org/Product`) | yuksek — yayinlanmis standart |
+| 2 | OpenGraph / microdata | orta |
+| 3 | HTML sezgisel | **dusuk** — `attributes_raw.low_confidence = "true"` |
+
+Ucuncu katman son caredir ve ciktisi kalici olarak isaretlenir: yanlis fiyat
+gostermek, fiyat gostermemekten kotudur.
+
+### Kimlik ve idempotentlik
+
+`external_id` normalize URL'den turetilir: izleme parametreleri (`utm_*`,
+`gclid`, `fbclid`, `ref`) atilir, `www.` ve fragment duser, kalan parametreler
+siralanir. Boylece ayni urun farkli paylasim linkleriyle geldiginde tek bir
+`offer` olur — ama her cozumleme bir `price_point` ekler.
+
+Standart disi port korunur; `merchant.domain` porta bagli degildir.
+
+### Bilinmeyen magaza
+
+Taninmayan alan adi icin `source_type = 'user_discovered'`,
+`affiliate_status = 'none'` ile yeni bir `merchant` acilir. Katalog talebe gore
+buyur. Gerekce: `docs/decisions/0014`.

@@ -91,9 +91,19 @@ class WriteCounts:
 class OfferWriter:
     """Tek bir merchant kosusu icin yazma islemleri."""
 
-    def __init__(self, conn: psycopg.Connection, merchant_id: int, observed_at: datetime) -> None:
+    def __init__(
+        self,
+        conn: psycopg.Connection,
+        merchant_id: int,
+        observed_at: datetime,
+        discovery_source: str = "feed",
+    ) -> None:
         self.conn = conn
         self.merchant_id = merchant_id
+        #: Kaydin nereden geldigi. YALNIZCA INSERT'te yazilir — upsert'in
+        #: DO UPDATE listesinde yok: feed'den gelmis bir teklif, kullanici
+        #: linkini yapistirdi diye user_link'e donmemeli, tersi de gecerli.
+        self.discovery_source = discovery_source
         #: Kosunun tum satirlari ayni ani tasir; grafik ve karsilastirma
         #: boylece tutarli olur.
         self.observed_at = observed_at
@@ -114,6 +124,14 @@ class OfferWriter:
         return offer_id
 
     def _upsert_offer(self, offer: NormalizedOffer) -> tuple[int, bool]:
+        # `offer` tablosunda gtin/mpn kolonu YOKTUR — barkod kanonik `product`
+        # uzerinde durur (docs/schema.sql). Ama eslestirme (B4) ilk adimda
+        # gtin'e bakiyor, o yuzden kaynaktan geldiginde kaybedilmemeli:
+        # `attributes_raw` icinde saklanir.
+        attributes = dict(offer.attributes_raw)
+        if offer.gtin:
+            attributes.setdefault("gtin", offer.gtin)
+
         with self.conn.cursor() as cur:
             cur.execute(
                 UPSERT_OFFER,
@@ -125,7 +143,7 @@ class OfferWriter:
                     "brand_raw": offer.brand_raw,
                     "category_raw": offer.category_raw,
                     "image_url": offer.image_url,
-                    "attributes_raw": json.dumps(offer.attributes_raw, ensure_ascii=False),
+                    "attributes_raw": json.dumps(attributes, ensure_ascii=False),
                     "current_price": offer.current_price,
                     "list_price": offer.list_price,
                     "currency": offer.currency,
@@ -133,7 +151,7 @@ class OfferWriter:
                     "shipping_days": offer.shipping_days,
                     "shipping_cost": offer.shipping_cost,
                     "free_shipping_threshold": offer.free_shipping_threshold,
-                    "discovery_source": "feed",
+                    "discovery_source": self.discovery_source,
                     "observed_at": self.observed_at,
                 },
             )
