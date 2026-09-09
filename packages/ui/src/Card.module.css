@@ -1,0 +1,5 @@
+.card {
+  background: var(--surface-raised);
+  border-radius: var(--radius);
+  padding: var(--space-4);
+}

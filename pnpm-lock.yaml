@@ -23,6 +23,9 @@ importers:
       '@arilla/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@arilla/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@arilla/ui':
         specifier: workspace:*
         version: link:../../packages/ui

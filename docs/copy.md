@@ -6,6 +6,12 @@ anılır. Yeni metin eklenecekse önce bu dosyaya yazılır.
 Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 "dupe" yok, "ucuz" yerine "daha uygun fiyatlı".
 
+## Ana sayfa
+
+| Anahtar | Metin |
+| --- | --- |
+| `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
+
 ## Eylemler
 
 | Anahtar | Metin |
@@ -37,6 +43,7 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `search.tab_match` | En yakın eşleşmeler |
 | `search.clarify_intro` | Hangisini arıyorsun? |
 | `search.clarify_other` | Başka bir şey |
+| `search.clarify_other_placeholder` | Ne arıyorsun? |
 | `search.loading` | Benzerlerini arıyoruz |
 | `search.empty` | Bu aramada sonuç bulamadık. Filtreleri gevşetmeyi deneyebilirsin. |
 | `search.empty_nearest` | Sana en yakın bulduklarımız |

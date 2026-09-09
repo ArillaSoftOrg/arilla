@@ -44,6 +44,7 @@ type RawRow = Record<string, unknown> & {
   trust_score: number | null;
   current_percentile: number | null;
   list_price_inflated: boolean | null;
+  offer_count: number;
   total_count: string;
   score: number;
 };
@@ -62,6 +63,7 @@ function toResultItem(row: RawRow): SearchResultItem {
     inStock: row.in_stock,
     currentPercentile: row.current_percentile,
     listPriceInflated: row.list_price_inflated ?? false,
+    offerCount: Number(row.offer_count),
     score: row.score,
   };
 }
@@ -143,7 +145,7 @@ async function searchByBalanced(
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
            b.name AS brand_name, c.path AS category_path,
            bo.current_price, bo.in_stock, bo.trust_score,
-           pps.current_percentile, pps.list_price_inflated,
+           pps.current_percentile, pps.list_price_inflated, p.offer_count,
            count(*) OVER()::text AS total_count,
            ${score} AS score
     FROM product p
@@ -175,7 +177,7 @@ async function searchByBestDeal(
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
            b.name AS brand_name, c.path AS category_path,
            bo.current_price, bo.in_stock, bo.trust_score,
-           pps.current_percentile, pps.list_price_inflated,
+           pps.current_percentile, pps.list_price_inflated, p.offer_count,
            count(*) OVER()::text AS total_count,
            (100 - COALESCE(pps.current_percentile, 100))::double precision AS score
     FROM product p
@@ -217,7 +219,7 @@ async function searchByClosestMatch(
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
            b.name AS brand_name, c.path AS category_path,
            bo.current_price, bo.in_stock, bo.trust_score,
-           pps.current_percentile, pps.list_price_inflated,
+           pps.current_percentile, pps.list_price_inflated, p.offer_count,
            count(*) OVER()::text AS total_count,
            e.score::double precision AS score
     FROM product p

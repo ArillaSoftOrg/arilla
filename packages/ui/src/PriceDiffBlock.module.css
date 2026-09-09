@@ -1,0 +1,23 @@
+.block {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.listPrice {
+  font-size: var(--font-size-sm);
+  color: var(--ink-muted);
+  text-decoration: line-through;
+}
+
+.currentPrice {
+  font-size: var(--font-size-xl);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.saving {
+  font-size: var(--font-size-sm);
+  color: var(--save);
+}

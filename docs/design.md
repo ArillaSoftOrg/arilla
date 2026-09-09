@@ -87,6 +87,23 @@ yanlış harf üretir. Etiketler cümle düzeninde yazılır.
 
 Sola hizalı, fotoğrafın hemen altında. Kutu yok, gölge yok, kenarlık yok.
 
+## Kart ve buton kutu modeli
+
+Fiyat farkı bileşenindeki "kutu yok, gölge yok, kenarlık yok" kuralı genele
+uygulanır:
+
+- **Köşe yarıçapı: 0.** Hiçbir bileşende `border-radius` kullanılmaz.
+- **`box-shadow` hiçbir yerde kullanılmaz** — hiçbir temada.
+- **Etkileşimli öğeler** (buton, girdi): 1px `--line` kenarlık. Dokunma
+  hedefi ve klavye odağı sınırı burada başlar.
+- **Statik yüzeyler** (kart): kenarlık yok. Ayrım `--surface-raised`
+  dolgusunun `--surface`/`--paper` zeminden renk kontrastıyla sağlanır
+  (bkz. yukarıdaki "Tema" bölümü, karar 0007).
+- **Rozet:** dolgu yok, 1px `--line` kenarlık, `--ink-muted` metin.
+
+Bu kural `packages/ui`'deki her bileşen ve bu bileşenleri kullanan her sayfa
+(D2, D3, D5 dahil) için geçerlidir.
+
 ## Bileşen envanteri
 
 | Bileşen | Nerede | Not |

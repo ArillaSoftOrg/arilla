@@ -1,5 +1,8 @@
 import type { Metadata, Viewport } from "next";
+import { cookies } from "next/headers";
 import type { ReactNode } from "react";
+import "./globals.css";
+import { ThemeToggleClient } from "./theme-toggle-client.tsx";
 
 export const metadata: Metadata = {
   title: "Arilla",
@@ -7,14 +10,25 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  // Iki tema da ilk gunden tanimli; belirtecler D1'de gelir.
+  // Iki tema da ilk gunden tanimli; belirtecler packages/ui/src/tokens.css'te.
   colorScheme: "light dark",
 };
 
-export default function RootLayout({ children }: { children: ReactNode }) {
+function readThemeCookie(value: string | undefined): "light" | "dark" | null {
+  return value === "light" || value === "dark" ? value : null;
+}
+
+export default async function RootLayout({ children }: { children: ReactNode }) {
+  const store = await cookies();
+  const theme = readThemeCookie(store.get("theme")?.value);
+
   return (
-    <html lang="tr">
-      <body>{children}</body>
+    <html lang="tr" data-theme={theme ?? undefined}>
+      <body>
+        {children}
+        {/* Gecici: /hesap yapilana kadar (E3) buradan test edilir. */}
+        <ThemeToggleClient current={theme} />
+      </body>
     </html>
   );
 }

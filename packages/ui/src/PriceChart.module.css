@@ -1,0 +1,30 @@
+.details {
+  border-top: 1px solid var(--line);
+  padding-top: var(--space-2);
+}
+
+.summary {
+  cursor: pointer;
+  color: var(--ink);
+  font-size: var(--font-size-sm);
+}
+
+.chart {
+  display: block;
+  width: 100%;
+  height: auto;
+  margin-top: var(--space-2);
+}
+
+.line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+}
+
+.axisLabels {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--font-size-xs);
+  color: var(--ink-muted);
+}

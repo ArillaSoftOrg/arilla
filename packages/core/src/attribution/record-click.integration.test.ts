@@ -26,10 +26,16 @@ describe("recordClick() - integration (real seeded Postgres)", () => {
 
     beforeAll(async () => {
       const row = await withOwnerClient(async (client) => {
+        // ORDER BY o.id ASC: diger entegrasyon test dosyalari (search/,
+        // compare-merchants) ayni suite calisirken sentetik merchant/offer
+        // fixture'lari ekleyebiliyor - ORDER BY olmadan bu sorgu bazen o
+        // taze eklenen fixture'i secip, o testin kendi cleanup'inda FK
+        // ihlaline yol aciyordu. En kucuk id her zaman gercek seed verisi.
         const result = await client.query(
           `SELECT o.id, o.url FROM offer o
            JOIN merchant m ON m.id = o.merchant_id
-           WHERE m.affiliate_status = 'active' AND o.is_active LIMIT 1`,
+           WHERE m.affiliate_status = 'active' AND o.is_active
+           ORDER BY o.id ASC LIMIT 1`,
         );
         return result.rows[0];
       });

@@ -20,6 +20,8 @@ export interface SearchResultItem {
   inStock: boolean | null;
   currentPercentile: number | null;
   listPriceInflated: boolean;
+  /** docs/pages.md "Urun karti": foto, baslik, fiyat, magaza sayisi. */
+  offerCount: number;
   /** Sekmeye ozel siralama skoru - hata ayiklama ve test icin acik. */
   score: number;
 }
