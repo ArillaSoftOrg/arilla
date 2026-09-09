@@ -7,4 +7,5 @@
  */
 
 export { MIGRATIONS_DIR } from "@arilla/db";
+export * from "./attribution/index.ts";
 export * from "./search/index.ts";

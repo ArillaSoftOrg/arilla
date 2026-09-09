@@ -1,5 +1,14 @@
 /** 0007_attribution.sql karsiligi. */
-import { bigint, boolean, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  integer,
+  pgTable,
+  smallint,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 /** Merchant'a giden her cikis buradan gecer. Attribution kaydi olmadan link yok. */
 export const click = pgTable("click", {
@@ -14,6 +23,10 @@ export const click = pgTable("click", {
   surface: text("surface"),
   priceAtClick: bigint("price_at_click", { mode: "number" }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  sourceSimilarityKind: text("source_similarity_kind").$type<
+    "same" | "visual" | "semantic" | "substitute"
+  >(),
+  resultPosition: smallint("result_position"),
 });
 
 export const conversion = pgTable("conversion", {

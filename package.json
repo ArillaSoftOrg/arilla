@@ -11,6 +11,7 @@
     "dev": "pnpm --filter @arilla/web dev",
     "typecheck": "pnpm -r typecheck",
     "test": "pnpm -r test",
+    "test:integration": "pnpm -r test:integration",
     "db:migrate": "pnpm --filter @arilla/db db:migrate",
     "db:bootstrap-role": "pnpm --filter @arilla/db db:bootstrap-role",
     "db:partitions": "pnpm --filter @arilla/db db:partitions",
