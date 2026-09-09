@@ -55,6 +55,34 @@ geriye dönük üretilemez.
 Kural: `input_hash` değişmediyse yeniden üretilmez. Aynı içerik iki kez
 işlenmez.
 
+#### Embedding nereden gelir, nerede üretilir
+
+Embedding'ler **barındırılan çok-kipli bir API'den** alınır (Jina CLIP v2);
+kendi modelimizi çalıştırmıyoruz, altyapıda GPU servisi yok. Metin ve görsel
+aynı vektör uzayına düşer, çıktı 768 boyuta kırpılır. Gerekçe ve reddedilen
+alternatifler: `docs/decisions/0015-embedding-saglayici.md`.
+
+Çağrı **iki ayrı yerden** yapılır ve bu ayrım kasıtlıdır:
+
+| Ne | Nerede | Ne zaman |
+| --- | --- | --- |
+| Katalog görselleri ve metinleri | Python toplu işi (`services/ingest/enrich`) | Zamanlanmış; istek yolunun dışında |
+| Kullanıcının yüklediği görsel | TypeScript istek yolu, `EmbeddingService` arkasından | İstek anında, görsel hash'i ile cache'li |
+
+Katalog tarafı toplu iş olarak kalır çünkü maliyet katalog büyüklüğüyle
+ölçeklenir, kullanıcı sayısıyla değil — bir kez üretilir, bin kez okunur.
+
+İkinci satır `CLAUDE.md` 1. kuralın **tek istisnasıdır**: istek yolundaki tek
+model çağrısı budur ve kuralın kendisi onu `EmbeddingService` arkasına ve
+hash cache'ine bağlar.
+
+**Bu, mimari sınırı bozmaz.** Python ile TypeScript birbirini çağırmıyor;
+ikisi de aynı dış API'yi bağımsız olarak çağırıyor. Aralarındaki tek kanal
+hâlâ PostgreSQL ve Redis kuyruğu.
+
+Her iki çağrı da `api_usage` tablosuna yazılır (`CLAUDE.md` 9. kural):
+ölçülmeyen maliyet kontrol edilemez.
+
 ### 3. Eşleştirme (Python, `services/ingest/resolve`)
 
 Katmanlı, sırayla dener ve ilk kesin sonuçta durur:
@@ -65,7 +93,17 @@ Katmanlı, sırayla dener ve ilk kesin sonuçta durur:
 4. Öznitelik uyumu
 
 Sonuç `match_candidate` tablosuna skorla yazılır. Eşiğin üstü
-`auto_accepted`, altı `pending` olarak insan kuyruğuna düşer.
+`auto_accepted` — offer o ürüne bağlanır; altı `pending` olarak insan
+kuyruğuna düşer ve **bağlanmaz**.
+
+Renk, hacim, beden, model kademesi ve marka uyuşmazlıkları eşleşmeyi VETO
+eder — skoru düşürmez, sıfırlar. Renk vetosu zorunludur çünkü `product` renk
+düzeyinde kanoniktir: "Bilekli Bot Siyah" ile "Bilekli Bot Bej" başlıkta
+neredeyse aynıdır.
+
+**Hiçbir adaya ulaşamayan offer için yeni `product` açılır** ve offer ona
+bağlanır; aksi hâlde feed'den gelen katalog hiç büyümezdi. Kategori yoktan
+açılmaz, yalnızca mevcut bir yola bağlanır.
 
 **Eşik değerleri `docs/decisions/` altında kayıtlıdır.** Yanlış "aynı ürün"
 iddiası kullanıcı güvenini bir kerede yok eder; temkinli olmak pahalı değildir.
@@ -75,6 +113,13 @@ iddiası kullanıcı güvenini bir kerede yok eder; temkinli olmak pahalı deği
 `product_price_stats` doldurulur: 30/90 günlük min, medyan, güncel yüzdelik
 dilim, düşüş sayısı ve sahte indirim sinyali. İstek yolu fiyat geçmişini asla
 taramaz, sadece bu tabloyu okur.
+
+**Tek istisna: ürün sayfasının fiyat grafiği.** Tek bir ürünün tekliflerine
+sınırlı, 90 günlük, `offer_product_idx` ve `price_point_offer_time_idx`
+üzerinden tam indeksli bir sorgu (sıralı tarama yok, `EXPLAIN` ile
+doğrulanır). Kural asıl olarak katalog geneli veya sıralama amaçlı
+tekrarlanan taramaları önlemek için var; tek ürünün sınırlı geçmişini sayfa
+başına bir kere okumak bu riski taşımaz. Bkz. `docs/decisions/0019`.
 
 Buradan doğan kullanıcıya dönük özellikler: "şu an son 90 günün en düşük
 fiyatı", "son 3 ayda 12 kez daha ucuzdu", ve liste fiyatı indirimden hemen önce

@@ -76,6 +76,17 @@ yerde Avrupa bölgesinin seçilmesi.
 
 Bu kalem sık atlanıyor ve denetimde ilk sorulanlardan biri.
 
+**Model sağlayıcısı bu kalemin en hassas parçası**, çünkü kullanıcının
+yüklediği fotoğraf embedding üretimi için sağlayıcıya gidiyor. Seçim bu
+gerekçeyle yapıldı: embedding sağlayıcısı **Jina AI GmbH (Berlin)**, yani AB
+merkezli bir tüzel kişi — "mümkün olan yerde Avrupa bölgesinin seçilmesi"
+kuralının doğrudan uygulanması. Gerekçe ve reddedilen alternatifler:
+`docs/decisions/0015-embedding-saglayici.md`.
+
+Bu, aktarımı ortadan kaldırmaz; standart sözleşme hükümleri ve aydınlatma
+metnindeki açık beyan yine gerekli. Yalnızca aktarımın gittiği yeri
+denetlenebilir bir hukuki çerçeveye taşır.
+
 ## Ticari elektronik ileti (İYS)
 
 Türkiye'deki alıcılara ticari e-posta göndermek **İYS kaydı** gerektirir.
