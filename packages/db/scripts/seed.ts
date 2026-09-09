@@ -7,17 +7,20 @@
  *
  * Uretilenler:
  *   3 merchant, 12 brand, kategori agaci, 200 product, 400 offer,
- *   beden varyantlari, 60 gunluk fiyat gecmisi, product_price_stats,
- *   similarity_edge.
+ *   beden varyantlari, 60 gunluk fiyat gecmisi.
+ *
+ * `product_price_stats` ve `similarity_edge` BURADA URETILMEZ — onlar B5'in
+ * isi (services/ingest/similarity). Tohumdan sonra `python -m enrich` ve
+ * `python -m similarity` calistirin.
  *
  * Iki ozel durum bilerek uretilir:
  *   1. Fiyat gecmisi 60 gun geriye gider, yani BIRDEN FAZLA AYA yayilir ve
  *      partition sinirini gercekten gecer. Gerekli gecmis partition'lar
  *      `ensureMonthlyPartitions` ile acilir — aksi halde satirlar
  *      `price_point_default` icine duser ve kritik uyari uretirdi.
- *   2. Birkac urunde `list_price_inflated = true`: liste fiyati indirimden
- *      hemen once yukseltilmis. Sahte indirim uyarisinin arayuzu gercek veri
- *      gelmeden test edilebilsin diye.
+ *   2. Birkac teklifte liste fiyati indirimden hemen once yukseltilir.
+ *      B5 bunu `list_price_inflated` olarak TESPIT EDER; tohum bayragi elle
+ *      koymaz, yalnizca tespit edilebilir bir fiyat gecmisi uretir.
  *
  * Sozluk kurallari (docs/glossary.md) tohum metinlerinde de gecerlidir:
  * "satin al", "dupe" ve "ucuz" kelimeleri kullanilmaz.
@@ -31,6 +34,17 @@ const PRODUCT_COUNT = 200;
 const OFFER_COUNT = 400;
 /** Sabit tohum: her kosu ayni katalogu uretir, arayuz gelistirmesi kaymaz. */
 const RANDOM_SEED = 20260907;
+
+/**
+ * Gorsel URL tabani. Varsayilan `.example` alan adlari cozulmez; B3'u yerel
+ * fixture sunucusuna yoneltmek icin `SEED_IMAGE_BASE_URL` verilir.
+ */
+const IMAGE_BASE = (process.env.SEED_IMAGE_BASE_URL ?? "").replace(/\/+$/, "");
+
+/** Gorsel adresi: taban verilmisse ona, verilmemisse magazanin alan adina. */
+function imageUrl(domain: string, path: string): string {
+  return IMAGE_BASE ? `${IMAGE_BASE}/img/${path}` : `https://${domain}/img/${path}`;
+}
 
 // --- deterministik rastgelelik ----------------------------------------------
 
@@ -367,7 +381,14 @@ await withClient(ownerUrl(), async (client) => {
   await client.query(`
     TRUNCATE price_point, product_price_stats, similarity_edge, match_candidate,
              variant_stock_event, offer_variant, offer,
-             product_slug_history, product, brand, category, merchant
+             product_slug_history, product, brand, category, merchant,
+             -- embedding ve generated_content POLIMORFIKTIR: target_id bir
+             -- foreign key DEGIL (offer/product/query gosterebiliyor), bu
+             -- yuzden CASCADE onlara dokunmaz. RESTART IDENTITY yeni
+             -- offer'lara ayni ID'leri verdigi icin, temizlenmezlerse eski
+             -- vektorler sessizce BASKA urunlere yapisir. Sessiz yanlis veri,
+             -- eksik veriden kotudur.
+             embedding, generated_content
     RESTART IDENTITY CASCADE
   `);
 
@@ -492,7 +513,7 @@ await withClient(ownerUrl(), async (client) => {
         modelKey,
         color,
         JSON.stringify({ renk: color, kategori: category.path }),
-        `https://${MERCHANTS[0]?.domain}/img/${slug}.jpg`,
+        imageUrl(MERCHANTS[0]?.domain ?? "modadeposu.example", `${slug}.jpg`),
       ]);
     }
   }
@@ -560,7 +581,6 @@ await withClient(ownerUrl(), async (client) => {
       "brand_raw",
       "category_raw",
       "image_url",
-      "image_hash",
       "current_price",
       "list_price",
       "in_stock",
@@ -583,8 +603,7 @@ await withClient(ownerUrl(), async (client) => {
         offer.product.slug.replace(/-/g, " "),
         null,
         offer.product.category.path,
-        `https://${merchant?.domain ?? "modadeposu.example"}/img/${offer.externalId}.jpg`,
-        `hash-${offer.externalId}`,
+        imageUrl(merchant?.domain ?? "modadeposu.example", `${offer.externalId}.jpg`),
         last?.price ?? offer.basePrice,
         last?.listPrice ?? null,
         last?.inStock ?? true,
@@ -696,123 +715,16 @@ await withClient(ownerUrl(), async (client) => {
     WHERE p.id = agg.product_id
   `);
 
-  // --- product_price_stats ---
-  // B5 bunu gecelik toplu isle uretecek; burada tohum verisinden ayni
-  // sekilde hesaplanir ki arayuz gercek bir dagilim gorsun.
-  await client.query(`
-    WITH hist AS (
-      SELECT o.product_id, pp.offer_id, pp.price, pp.observed_at
-        FROM price_point pp
-        JOIN offer o ON o.id = pp.offer_id
-       WHERE o.product_id IS NOT NULL
-    ),
-    agg AS (
-      SELECT product_id,
-             min(price) FILTER (WHERE observed_at >= now() - interval '30 days') AS min_30d,
-             min(price) AS min_90d,
-             max(price) AS max_90d,
-             percentile_cont(0.5) WITHIN GROUP (ORDER BY price)::bigint AS median_90d
-        FROM hist GROUP BY product_id
-    ),
-    cur AS (
-      SELECT product_id, min(current_price) AS current_price
-        FROM offer WHERE product_id IS NOT NULL AND is_active GROUP BY product_id
-    ),
-    pct AS (
-      SELECT h.product_id,
-             (100.0 * count(*) FILTER (WHERE h.price < c.current_price)
-                    / nullif(count(*), 0))::smallint AS current_percentile
-        FROM hist h JOIN cur c ON c.product_id = h.product_id
-       GROUP BY h.product_id
-    ),
-    steps AS (
-      SELECT product_id, observed_at, price,
-             lag(price) OVER (PARTITION BY offer_id ORDER BY observed_at) AS prev
-        FROM hist
-    ),
-    drops AS (
-      SELECT product_id,
-             count(*)::smallint AS drop_count_90d,
-             max(observed_at)   AS last_drop_at
-        FROM steps WHERE prev IS NOT NULL AND price < prev
-       GROUP BY product_id
-    )
-    INSERT INTO product_price_stats
-      (product_id, min_30d, min_90d, max_90d, median_90d, current_percentile,
-       drop_count_90d, last_drop_at)
-    SELECT a.product_id, a.min_30d, a.min_90d, a.max_90d, a.median_90d,
-           p.current_percentile, coalesce(d.drop_count_90d, 0), d.last_drop_at
-      FROM agg a
-      LEFT JOIN pct p   ON p.product_id = a.product_id
-      LEFT JOIN drops d ON d.product_id = a.product_id
-  `);
-
-  // Sahte indirim sinyali: liste fiyati indirimden hemen once yukseltilmis
-  // urunler isaretlenir. Arayuzdeki notr bilgi notu bununla test edilir.
-  const inflated = await client.query<{ count: string }>(
-    `UPDATE product_price_stats s SET
-       list_price_inflated  = TRUE,
-       list_price_raised_at = now() - interval '12 days'
-     FROM offer o
-     WHERE o.product_id = s.product_id
-       AND o.external_id = ANY($1::text[])
-     RETURNING s.product_id`,
-    [[...inflatedOfferIndexes].map((index) => `ext-${String(index + 1).padStart(5, "0")}`)],
-  );
-
-  // --- similarity_edge ---
-  // Istek yolu alternatifleri SADECE bu tablodan okur; dolmadan alternatif
-  // onerisi calismaz. Kenarlar cift yonlu yazilir, cunku arama
-  // (product_a, kind, score DESC) indeksi uzerinden gider.
-  const products = (
-    await client.query<{ id: string; slug: string; model_key: string; category_id: string }>(
-      "SELECT id, slug, model_key, category_id FROM product ORDER BY id",
-    )
-  ).rows;
-
-  const byModel = new Map<string, number[]>();
-  const byCategory = new Map<string, number[]>();
-  for (const row of products) {
-    const id = Number(row.id);
-    byModel.set(row.model_key, [...(byModel.get(row.model_key) ?? []), id]);
-    byCategory.set(row.category_id, [...(byCategory.get(row.category_id) ?? []), id]);
-  }
-
-  const edges = new Map<string, unknown[]>();
-  function addEdge(a: number, b: number, kind: string, score: number): void {
-    if (a === b) return;
-    for (const [x, y] of [
-      [a, b],
-      [b, a],
-    ]) {
-      if (x === undefined || y === undefined) continue;
-      edges.set(`${x}-${y}-${kind}`, [x, y, kind, score]);
-    }
-  }
-
-  // Ayni model, farkli renk -> semantic ("diger renkler" bunun uzerine kurulur).
-  for (const ids of byModel.values()) {
-    for (const a of ids) for (const b of ids) addEdge(a, b, "semantic", 0.9 + rng() * 0.09);
-  }
-  // Ayni kategori, yakin fiyat -> visual. Her urune en az birkac alternatif.
-  for (const ids of byCategory.values()) {
-    for (let index = 0; index < ids.length; index++) {
-      const a = ids[index];
-      if (a === undefined) continue;
-      for (let step = 1; step <= 4; step++) {
-        const b = ids[(index + step) % ids.length];
-        if (b === undefined) continue;
-        addEdge(a, b, "visual", 0.6 + rng() * 0.3);
-      }
-    }
-  }
-
-  await insertRows(
-    client,
-    "similarity_edge",
-    ["product_a", "product_b", "kind", "score"],
-    [...edges.values()].map((edge) => edge as unknown[]),
-  );
+  // --- product_price_stats ve similarity_edge BURADA URETILMEZ ---
+  //
+  // Ikisi de B5'in (services/ingest/similarity) isi. Tohum da hesaplasaydi
+  // ayni mantik iki yerde yasar ve ayrisirdi; ustelik tohumun urettigi
+  // `list_price_inflated` gercek algoritmanin sonucu degil, elle secilmis
+  // birkac urundu.
+  //
+  // Tohumdan sonra calistirin:
+  //   python -m enrich --kind both     (embedding'ler)
+  //   python -m similarity             (kenarlar + fiyat istatistikleri)
 
   // --- ozet ---
   const summary = await client.query<{ label: string; count: string }>(`
@@ -846,5 +758,9 @@ await withClient(ownerUrl(), async (client) => {
   for (const row of months.rows) {
     console.log(`  ${row.partition.padEnd(22)} ${row.count}`);
   }
-  console.log(`\nSahte indirim isaretli urun: ${inflated.rowCount}`);
+  console.log(
+    "\nSonraki adim — bu tablolari tohum DOLDURMAZ:\n" +
+      "  python -m enrich --kind both   embedding'ler\n" +
+      "  python -m similarity           similarity_edge + product_price_stats",
+  );
 });

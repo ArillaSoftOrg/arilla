@@ -6,6 +6,7 @@
       "!**/node_modules",
       "!**/.venv",
       "!**/__pycache__",
+      "!services/ingest/tests/fixtures",
       "!**/.next",
       "!**/dist",
       "!**/next-env.d.ts",
