@@ -66,8 +66,13 @@ Sertleştirme, `SECURITY DEFINER`'ın standart gereği: `search_path` fonksiyon
 **Dürüst not:** `SECURITY DEFINER` *bugün* taşıyıcı değil — `0010`'un
 `GRANT ... ON ALL TABLES`'ı yüzünden `arilla_app`'in `embedding` üzerinde
 zaten DELETE'i var, `INVOKER` da çalışırdı. Taşıyıcı hale geldiği an
-`embedding`'i `price_point` gibi sıkılaştırdığımız gün. Bedeli sıfır,
-karşılığı gizli bir bağımlılığın kalkması.
+`embedding`'i `price_point` gibi sıkılaştırdığımız gün.
+
+Bedeli sıfır değil: `DEFINER` çağıranın yetkisini atladığı için yetki
+daraltmaları karşısında **sessiz kalır**. Bu, yetki modelinde duran bir
+istisnadır ve ayrı bir kayda bağlandı —
+[`0021`](0021-security-definer-yetki-istisnasi.md), yetkiler değiştirilirse
+bakılacak kontrol listesiyle birlikte.
 
 ### 3. Yazma yönü izlemeye bağlanır
 

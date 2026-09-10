@@ -63,6 +63,13 @@ ve hata verir.
 yetkisine bile sahip degildir (`PUBLIC`'ten `EXECUTE` geri alinmistir),
 trigger yine de calisir. `search_path` fonksiyon uzerinde sabitlenmistir.
 
+> **`arilla_app`'in yetkilerini degistirecekseniz once
+> `docs/decisions/0021-security-definer-yetki-istisnasi.md` okuyun.**
+> `DEFINER` cagiranin yetkisini atlar, yani yetki daraltmasi bu trigger'lari
+> SESSIZCE etkisiz birakmaz — calismaya devam ederler. `embedding` ya da
+> `generated_content` append-only yapilirsa `0014` o kuralin bilincli
+> istisnasi olur ve kendini ilan etmez. 0021 kontrol listesini icerir.
+
 `arilla_app` migration tarafindan parolasiz olusturulur; parola
 `APP_DB_PASSWORD` ortam degiskeninden `db:bootstrap-role` ile verilir. Parola
 depoya girmez (`docs/ops.md`).

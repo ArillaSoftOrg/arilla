@@ -33,6 +33,14 @@
 -- BAGLI DEGIL. `embedding` ileride `price_point` gibi sikilastirilirsa
 -- trigger sessizce bozulmaz.
 --
+-- BEDELI, ve neden ayri bir kayit var: DEFINER cagiranin yetkisini ATLAR.
+-- `arilla_app`'in yetkileri daraltildiginda bu trigger'lar ses cikarmaz,
+-- calismaya devam ederler. `embedding` ya da `generated_content` bir gun
+-- append-only yapilirsa (REVOKE DELETE) bu trigger'lar o kurali DELER ve
+-- bunu ilan etmezler. Yazili olmayan istisna, istisna degil hatadir:
+-- gerekce ve yetki degisikliginde bakilacak kontrol listesi
+-- `docs/decisions/0021-security-definer-yetki-istisnasi.md` icinde.
+--
 -- Sertlestirme (SECURITY DEFINER'in standart geregi):
 --   * search_path fonksiyon uzerinde sabitlenir — arama yolu ele gecirilemez.
 --   * PUBLIC'ten EXECUTE geri alinir — kimse dogrudan cagiramaz.
