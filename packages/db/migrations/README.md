@@ -29,6 +29,8 @@ migration'lar olusturur.
 | `0009_discovery.sql` | product_view, user_size_profile, user_consent, trend_snapshot, public_find, discovery_slot |
 | `0010_append_only_grants.sql` | arilla_app rolu, GRANT/REVOKE, append-only yetkileri |
 | `0011_click_result_position.sql` | click.source_similarity_kind, click.result_position |
+| `0013_user_intake.sql` | image_upload, link_resolution_request (D4: görsel arama, kök catch-all link çözümleme) |
+| `0014_polymorphic_integrity.sql` | embedding/generated_content polimorfik `target_id` icin silme yonu trigger'lari (0020) |
 
 ## Calistirma
 
@@ -36,7 +38,8 @@ migration'lar olusturur.
 pnpm db:migrate          # sirayla uygular, uygulananlari schema_migration'da tutar
 pnpm db:bootstrap-role   # arilla_app rolune LOGIN + parola verir (APP_DB_PASSWORD)
 pnpm db:partitions       # icinde bulunulan ay + 3 ay ileri
-pnpm db:verify           # Drizzle semasi uyumu + append-only yetki kaniti
+pnpm db:verify           # Drizzle semasi uyumu + append-only yetki kaniti + polimorfik butunluk
+pnpm db:orphans --check  # yetim embedding/generated_content satiri var mi (izleme)
 pnpm seed                # gelistirme katalogu (A3) — mevcut katalogu SILER
 ```
 
@@ -53,6 +56,12 @@ sonrakiler denenmez.
 Uygulama `arilla` ile baglanirsa append-only kurali **etkisiz kalir** —
 superuser butun yetki kontrollerini atlar. `pnpm db:verify` bu durumu yakalar
 ve hata verir.
+
+`0014`'un trigger fonksiyonlari `SECURITY DEFINER`'dir: sahip rolun
+(`arilla`) yetkisiyle kosarlar. Bu yuzden polimorfik butunluk icin
+`arilla_app`'e HICBIR ek yetki verilmez — rol fonksiyonu dogrudan cagirma
+yetkisine bile sahip degildir (`PUBLIC`'ten `EXECUTE` geri alinmistir),
+trigger yine de calisir. `search_path` fonksiyon uzerinde sabitlenmistir.
 
 `arilla_app` migration tarafindan parolasiz olusturulur; parola
 `APP_DB_PASSWORD` ortam degiskeninden `db:bootstrap-role` ile verilir. Parola

@@ -213,6 +213,13 @@ CREATE TABLE product_price_stats (
 
 -- Embedding offer üzerinden üretilir (her merchant'ın kendi fotoğrafı var),
 -- benzerlik product üzerinden hesaplanır.
+--
+-- DİKKAT: `target_id` POLİMORFİKTİR — `target_type`'a göre offer, product ya
+-- da query gösterir. Bir kolon üç tabloya birden referans veremeyeceği için
+-- burada FOREIGN KEY YOKTUR; yani `CASCADE` bu tabloya değmez ve Postgres
+-- referans bütünlüğünü kendiliğinden sağlamaz. Silme yönü migration `0014`
+-- içindeki trigger'lara, yazma yönü `pnpm db:orphans` izlemesine bağlıdır.
+-- Gerekçe ve bulunan arıza: `docs/decisions/0020-polimorfik-butunluk.md`.
 CREATE TABLE embedding (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     target_type   TEXT        NOT NULL CHECK (target_type IN ('offer','product','query')),
@@ -260,6 +267,11 @@ CREATE TABLE similarity_edge (
 CREATE INDEX similarity_lookup_idx ON similarity_edge (product_a, kind, score DESC);
 
 -- Üretilmiş ve saklanan AI çıktıları. Bir kez üretilir, bin kez okunur.
+--
+-- `embedding` ile aynı polimorfik kısıt geçerlidir: `target_id` bir foreign
+-- key değildir, bütünlük `0014` trigger'ları + `pnpm db:orphans` iledir.
+-- Ek olarak `target_type` burada SERBEST TEXT'tir (`embedding`'in aksine
+-- CHECK yok), o yüzden yetim izlemesi tanınmayan türü de sayar.
 CREATE TABLE generated_content (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     target_type   TEXT        NOT NULL,
@@ -273,6 +285,60 @@ CREATE TABLE generated_content (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT generated_content_uniq UNIQUE (target_type, target_id, kind, model_version)
 );
+
+-- ---------------------------------------------------------------------------
+-- GÖRSEL ARAMA VE LİNK ÖNEKİ — kullanıcı tetikli keşif (D4)
+-- routes.md: kök catch-all ve /ara/gorsel. İkisi de "bilinmeyen ürün akışı
+-- ilk günden çalışmalıdır" kuralının somutlaşmış hali.
+-- ---------------------------------------------------------------------------
+
+-- Yüklenen görselin izi. CLAUDE.md kural 1'in tek istisnası burada geçer:
+-- istek yolundaki tek model çağrısı, `EmbeddingService` arkasından ve
+-- `image_hash` ile cache'lenerek yapılır (architecture.md §2). KVKK
+-- (docs/kvkk.md): ham dosya en fazla 30 gün obje deposunda kalır,
+-- `purge_after` geçince silinir ve `object_key` NULL'a çekilir — embedding
+-- ve hash kalıcı kalabilir, ham dosya kalmaz.
+CREATE TABLE image_upload (
+    id               BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id          BIGINT      REFERENCES app_user(id),   -- anonim olabilir
+    session_id       TEXT        NOT NULL,
+    image_hash       TEXT        NOT NULL,                  -- sha256, embedding cache anahtarı
+    object_key       TEXT,                                  -- purge sonrası NULL
+    has_face         BOOLEAN     NOT NULL DEFAULT FALSE,
+    status           TEXT        NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending','embedded','rejected_not_product','rejected_moderation')),
+    rejection_reason TEXT,
+    embedding_id     BIGINT      REFERENCES embedding(id),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    purge_after      TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '30 days'
+);
+-- Ayni gorsel iki kez islenmiyor: embed edilmis bir hash bulunursa yeniden
+-- API'ye gidilmez, api_usage.cache_hit=true yazilir.
+CREATE INDEX image_upload_hash_idx    ON image_upload (image_hash) WHERE status = 'embedded';
+CREATE INDEX image_upload_user_idx    ON image_upload (user_id, created_at DESC) WHERE user_id IS NOT NULL;
+CREATE INDEX image_upload_session_idx ON image_upload (session_id, created_at DESC);
+CREATE INDEX image_upload_purge_idx   ON image_upload (purge_after) WHERE object_key IS NOT NULL;
+
+-- Kök catch-all'ın tekil link çözümleme durumu. `docs/decisions/0014`: tek
+-- çözümleme `ingest_run` yazmaz (o toplu iş kaydıdır); bekleme ekranı bu
+-- satırı poll'lar. Worker aynı `collect.link.resolver.resolve_url`'i Redis
+-- kuyruğundan tetikler (services/ingest/collect/link/__main__.py).
+-- `offer_id` doluyken `offer.product_id` henüz NULL olabilir — B4'ün
+-- gecelik eşleştirmesi ayrı çalışır; bu satır yalnızca offer'ın yazıldığını
+-- doğrular, ürün sayfasının varlığını değil.
+CREATE TABLE link_resolution_request (
+    id           UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    url_raw      TEXT        NOT NULL,
+    session_id   TEXT        NOT NULL,
+    user_id      BIGINT      REFERENCES app_user(id),
+    status       TEXT        NOT NULL DEFAULT 'queued'
+                 CHECK (status IN ('queued','processing','resolved','failed')),
+    offer_id     BIGINT      REFERENCES offer(id),
+    error_text   TEXT,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at  TIMESTAMPTZ
+);
+CREATE INDEX link_resolution_request_session_idx ON link_resolution_request (session_id, created_at DESC);
 
 -- ---------------------------------------------------------------------------
 -- KULLANICI VE CREATOR

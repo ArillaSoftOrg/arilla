@@ -53,6 +53,7 @@ tamamı kaybedilir. Bu yüzden yedekleme isteğe bağlı bir konu değildir.
 | Yanıt süresi (p95) | 1,5 sn | İnceleme |
 | Hata oranı | %1 | Uyarı |
 | `price_point_default` satır sayısı | 0'dan büyük | **Kritik** — aşağıdaki runbook |
+| `embedding` / `generated_content` yetim satırı | 0'dan büyük | **Kritik** — aşağıdaki runbook |
 
 Maliyet uyarısı diğerleri kadar önemlidir. `api_usage` tablosundan günlük
 oturum başına maliyet raporu üretilir ve eşiği aşınca bildirim gider.
@@ -78,6 +79,45 @@ Postgres "default partition kısıtı ihlal edilirdi" hatası verir.
 
 Sonra cron'un neden çalışmadığını bul. Fiyat geçmişi geriye dönük
 üretilemez — bu uyarı ertelenmez.
+
+### Runbook — yetim `embedding` / `generated_content` satırı
+
+Bu iki tabloda `target_id` bir foreign key **değildir**: `target_type`'a göre
+`offer`, `product` ya da `query` gösterir, bir kolon üç tabloya birden
+referans veremez. Yani referans bütünlüğünü Postgres sağlamıyor.
+
+Migration `0014` **silme** yönünü trigger'a bağladı: `offer` veya `product`
+satırı silindiğinde ya da tablo `TRUNCATE` edildiğinde bağlı satırlar
+temizlenir. Geriye üç yol kalıyor ve bu uyarı onları ölçüyor:
+
+1. **Yazma yönü** — var olmayan bir `target_id` ile INSERT.
+2. `ALTER TABLE ... DISABLE TRIGGER` veya `session_replication_role = replica`.
+3. `generated_content.target_type` **serbest TEXT**'tir (`embedding`'in aksine
+   CHECK kısıtı yok): `'ofer'` yazımı hem trigger'dan hem de naif bir yetim
+   sorgusundan kaçar.
+
+Kontrol: `pnpm db:orphans --check` (yetim varsa sıfırdan farklı çıkış kodu
+döner, izleme bunu kullanır). `pnpm db:verify` de aynı sorguyu koşar.
+
+1. `pnpm db:orphans` — kaç satır, hangi tabloda, hangi `target_type`.
+2. **Satırlar silinir, bırakılmaz.** `price_point_default`'ta satırların
+   taşınacağı doğru bir partition vardı; burada taşınacak yer yok — satırın
+   işaret ettiği hedef artık mevcut değil.
+   `DELETE FROM embedding WHERE target_type = 'offer' AND NOT EXISTS
+   (SELECT 1 FROM offer o WHERE o.id = target_id);`
+3. Trigger'lar yerinde ve etkin mi:
+   `SELECT tgname, tgenabled FROM pg_trigger WHERE tgname LIKE '%_polymorphic_%';`
+   `tgenabled` **`O`** olmalı; `D` ise devre dışıdır ve sebebi bulunur.
+4. Trigger'lar etkinse arıza **yazma** yönündedir: son `enrich` ya da
+   `similarity` koşusunda hangi kodun var olmayan bir `target_id` yazdığını
+   bul. `tanimsiz_tur` raporlanıyorsa `target_type` yazımı bozuk demektir.
+
+`target_type = 'query'` yetim **sayılmaz**: şema kullanıcı sorgusu
+embedding'ine izin veriyor, karşılık gelen bir tablo yok.
+
+`price_point` uyarısı gibi ertelenmez ve daha sinsidir: kimlikler yeniden
+kullanıldığında yetim vektör sessizce **yanlış ürüne** bağlanır. Eksik veri
+değil, yanlış veri üretir — B3'te tam olarak bu oldu.
 
 ## Hata takibi
 

@@ -43,6 +43,22 @@ export function ownerUrl(): string {
   return requireEnv("DATABASE_URL_OWNER");
 }
 
+/**
+ * Baglanti yerel gelistirme veritabanina mi gidiyor.
+ *
+ * Yikici ya da kilit alan islemler bununla korunur: `seed.ts` katalogu
+ * silmeden once, `verify-schema.ts` ise ACCESS EXCLUSIVE kilit alan TRUNCATE
+ * probunu kosmadan once bakar. Tek yerde durur ki iki betikte ayrismasin.
+ */
+export function isLocal(url: string): boolean {
+  try {
+    const host = new URL(url).hostname;
+    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+  } catch {
+    return false;
+  }
+}
+
 export async function withClient<T>(url: string, fn: (client: Client) => Promise<T>): Promise<T> {
   const client = new Client({ connectionString: url });
   await client.connect();

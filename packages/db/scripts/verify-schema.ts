@@ -1,20 +1,25 @@
 /**
- * Iki seyi kanitlar:
+ * Uc seyi kanitlar:
  *
  * 1. Elle yazilan Drizzle semasi gercek semayla ortusuyor. Her tabloya Drizzle
  *    uzerinden SELECT atilir; kolon adi veya tipi ayrismissa sorgu patlar.
  * 2. Append-only kurali VERITABANINDA gecerli. `arilla_app` rolu ile
  *    `price_point` ve `variant_stock_event` uzerinde UPDATE/DELETE denenir;
  *    42501 (insufficient_privilege) beklenir. Gelmezse betik hata verir.
+ * 3. Polimorfik `target_id` butunlugu ayakta (migration 0014): trigger'lar
+ *    yerinde ve ETKIN, DELETE ve TRUNCATE yollari gercekten temizliyor,
+ *    su anda yetim satir yok.
  *
- * Ikinci madde onemli: kural kod incelemesine degil motora birakildi, o yuzden
- * motorun gercekten uyguladigi her kosuda dogrulanir.
+ * Ortak gerekce: bu kurallarin hicbiri kod incelemesine birakilmadi, motora
+ * verildi — o yuzden motorun gercekten uyguladigi her kosuda dogrulanir.
+ * Ucuncu madde B3'te elle yakalanan bir arizanin kalici kapisidir.
  */
 import { getTableName, is } from "drizzle-orm";
 import { PgTable } from "drizzle-orm/pg-core";
 import { createDatabase } from "../src/client.ts";
 import * as schema from "../src/schema/index.ts";
-import { ownerUrl, requireEnv, withClient } from "./lib.ts";
+import { isLocal, ownerUrl, requireEnv, withClient } from "./lib.ts";
+import { findOrphans, totalOrphans } from "./orphan-check.ts";
 
 const APPEND_ONLY = ["price_point", "variant_stock_event"] as const;
 const INSUFFICIENT_PRIVILEGE = "42501";
@@ -113,6 +118,165 @@ await withClient(requireEnv("DATABASE_URL"), async (client) => {
     } else {
       fail(`INSERT beklenmeyen hata verdi (${code}).`);
     }
+  }
+});
+
+// --- 3. Polimorfik butunluk (migration 0014) ---------------------------------
+// B3'te bulunan ariza: `embedding.target_id` bir foreign key DEGIL, o yuzden
+// `TRUNCATE offer ... RESTART IDENTITY CASCADE` vektorleri geride birakti ve
+// kimlikler yeniden dagitilinca eski vektorler BASKA urunlere yapisti. Hata
+// elle yakalanmisti; burasi onu kalici bir kapiya baglar.
+console.log("Polimorfik butunluk (embedding, generated_content):");
+await withClient(ownerUrl(), async (client) => {
+  // 3a. Dort trigger da var ve ETKIN mi. `tgenabled`: O = origin (etkin),
+  // D = disabled. Devre disi birakilmis bir trigger sessizce hicbir sey yapmaz.
+  const { rows: triggers } = await client.query<{ tgname: string; tgenabled: string }>(
+    `SELECT tgname, tgenabled FROM pg_trigger
+      WHERE NOT tgisinternal AND tgname LIKE '%_polymorphic_%'
+      ORDER BY tgname`,
+  );
+  const expected = [
+    "offer_polymorphic_delete",
+    "offer_polymorphic_truncate",
+    "product_polymorphic_delete",
+    "product_polymorphic_truncate",
+  ];
+  for (const name of expected) {
+    const trigger = triggers.find((row) => row.tgname === name);
+    if (!trigger) {
+      fail(`${name} trigger'i yok — migration 0014 uygulanmamis.`);
+    } else if (trigger.tgenabled !== "O") {
+      fail(`${name} devre disi (tgenabled=${trigger.tgenabled}).`);
+    }
+  }
+  if (failures === 0) {
+    console.log(`  ${expected.length} trigger yerinde ve etkin.`);
+  }
+
+  // 3b. DELETE yolu gercekten temizliyor mu. Tek kullanimlik satirlar acilir,
+  // silinir, sonuc olculur ve ROLLBACK ile hicbir iz birakilmaz. Tohum
+  // verisinden bagimsizdir: bos veritabaninda da ayni sonucu verir.
+  const ZERO_VECTOR = "('[1' || repeat(',0', 767) || ']')::vector";
+  try {
+    await client.query("BEGIN");
+    const { rows } = await client.query<{ offer_id: string; product_id: string }>(`
+      WITH m AS (
+        INSERT INTO merchant (slug, name, domain, source_type)
+        VALUES ('verify-probe', 'Verify Probe', 'verify.probe.invalid', 'xml_feed')
+        RETURNING id
+      ), p AS (
+        INSERT INTO product (slug, title) VALUES ('verify-probe-urun', 'Verify Probe')
+        RETURNING id
+      ), o AS (
+        INSERT INTO offer (merchant_id, product_id, external_id, url, title_raw)
+        SELECT m.id, p.id, 'verify-probe-1', 'https://verify.probe.invalid/1', 'Verify Probe'
+          FROM m, p
+        RETURNING id, product_id
+      )
+      SELECT o.id::text AS offer_id, o.product_id::text AS product_id FROM o
+    `);
+    const probe = rows[0];
+    if (!probe) throw new Error("probe satirlari acilamadi");
+
+    for (const [type, id] of [
+      ["offer", probe.offer_id],
+      ["product", probe.product_id],
+    ] as const) {
+      await client.query(
+        `INSERT INTO embedding (target_type, target_id, kind, model_version, vector)
+         VALUES ($1, $2, 'image', 'verify-probe', ${ZERO_VECTOR})`,
+        [type, id],
+      );
+      await client.query(
+        `INSERT INTO generated_content
+           (target_type, target_id, kind, model_version, content, input_hash)
+         VALUES ($1, $2, 'description', 'verify-probe', '{}'::jsonb, 'verify-probe')`,
+        [type, id],
+      );
+    }
+
+    const remaining = async (type: string, id: string): Promise<number> => {
+      const { rows: counted } = await client.query<{ adet: string }>(
+        `SELECT (
+            (SELECT count(*) FROM embedding         WHERE target_type = $1 AND target_id = $2) +
+            (SELECT count(*) FROM generated_content WHERE target_type = $1 AND target_id = $2)
+         )::text AS adet`,
+        [type, id],
+      );
+      return Number(counted[0]?.adet ?? "0");
+    };
+
+    if ((await remaining("offer", probe.offer_id)) !== 2) {
+      fail("probe satirlari yazilamadi — testin kendisi bozuk.");
+    }
+
+    await client.query("DELETE FROM offer WHERE id = $1", [probe.offer_id]);
+    const afterOffer = await remaining("offer", probe.offer_id);
+    if (afterOffer !== 0) {
+      fail(`offer silindi ama ${afterOffer} polimorfik satir kaldi — trigger calismadi.`);
+    } else {
+      console.log("  DELETE offer → bagli embedding/generated_content temizlendi");
+    }
+
+    await client.query("DELETE FROM product WHERE id = $1", [probe.product_id]);
+    const afterProduct = await remaining("product", probe.product_id);
+    if (afterProduct !== 0) {
+      fail(`product silindi ama ${afterProduct} polimorfik satir kaldi — trigger calismadi.`);
+    } else {
+      console.log("  DELETE product → bagli embedding/generated_content temizlendi");
+    }
+
+    await client.query("ROLLBACK");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    fail(`DELETE yolu probu patladi: ${(error as Error).message}`);
+  }
+
+  // 3c. TRUNCATE yolu — B3'te asil yanan yol. Islem icinde guvenlidir ama
+  // ACCESS EXCLUSIVE kilit alir ve CASCADE ile bircok tabloya yayilir, o
+  // yuzden yalnizca YEREL veritabaninda kosar. Atlandiginda ATLANDIGI YAZILIR;
+  // sessizce gecmis gibi gorunmez.
+  if (!isLocal(ownerUrl())) {
+    console.log("  TRUNCATE yolu ATLANDI (yerel veritabani degil, kilit alinmaz).");
+  } else {
+    try {
+      await client.query("BEGIN");
+      const { rows: before } = await client.query<{ adet: string }>(
+        "SELECT count(*)::text AS adet FROM embedding WHERE target_type = 'offer'",
+      );
+      await client.query(
+        `INSERT INTO embedding (target_type, target_id, kind, model_version, vector)
+         VALUES ('offer', 987654321, 'text', 'verify-probe', ${ZERO_VECTOR})`,
+      );
+      await client.query("TRUNCATE offer CASCADE");
+      const { rows: after } = await client.query<{ adet: string }>(
+        "SELECT count(*)::text AS adet FROM embedding WHERE target_type = 'offer'",
+      );
+      if (Number(after[0]?.adet ?? "-1") !== 0) {
+        fail(`TRUNCATE offer sonrasi ${after[0]?.adet} offer vektoru kaldi — B3 ariza duruyor.`);
+      } else {
+        console.log(
+          `  TRUNCATE offer CASCADE → ${Number(before[0]?.adet ?? "0") + 1} offer vektoru temizlendi`,
+        );
+      }
+      await client.query("ROLLBACK");
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      fail(`TRUNCATE yolu probu patladi: ${(error as Error).message}`);
+    }
+  }
+
+  // 3d. Su anda yetim yok. Trigger'in kapatmadigi yollari (yazma yonu,
+  // taninmayan target_type) olcer; `pnpm db:orphans --check` ile ayni sorgu.
+  const orphans = await findOrphans(client);
+  const total = totalOrphans(orphans);
+  if (total > 0) {
+    fail(
+      `${total} yetim satir var: ` +
+        orphans.map((g) => `${g.tablo}/${g.targetType} ${g.sebep} ${g.adet}`).join(", "),
+    );
+  } else {
+    console.log("  Yetim satir yok.");
   }
 });
 

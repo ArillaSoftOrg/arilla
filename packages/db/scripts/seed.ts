@@ -27,7 +27,7 @@
  */
 import type { Client } from "pg";
 import { ensureMonthlyPartitions } from "./ensure-partitions.ts";
-import { ownerUrl, withClient } from "./lib.ts";
+import { isLocal, ownerUrl, withClient } from "./lib.ts";
 
 const HISTORY_DAYS = 60;
 const PRODUCT_COUNT = 200;
@@ -354,15 +354,6 @@ function buildSeries(basePrice: number, inflated: boolean): PricePointRow[] {
 }
 
 // --- ana akis ----------------------------------------------------------------
-
-function isLocal(url: string): boolean {
-  try {
-    const host = new URL(url).hostname;
-    return host === "localhost" || host === "127.0.0.1" || host === "::1";
-  } catch {
-    return false;
-  }
-}
 
 await withClient(ownerUrl(), async (client) => {
   const url = ownerUrl();

@@ -16,6 +16,7 @@
     "db:bootstrap-role": "pnpm --filter @arilla/db db:bootstrap-role",
     "db:partitions": "pnpm --filter @arilla/db db:partitions",
     "db:verify": "pnpm --filter @arilla/db db:verify",
+    "db:orphans": "pnpm --filter @arilla/db db:orphans",
     "seed": "pnpm --filter @arilla/db seed",
     "lint": "biome check .",
     "format": "biome format --write ."
