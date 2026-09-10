@@ -115,6 +115,11 @@ MODEL_QUALIFIERS = frozenset(
     {"pro", "plus", "max", "mini", "lite", "ultra", "air", "premium", "classic", "sport", "xl"}
 )
 
+#: Surum eki: "V2", "Gen 3", "2. Nesil". Kelime listesiyle yakalanamaz cunku
+#: sayi degiskendir. Kademe eki gibi VETO edilir — "Kosu Ayakkabisi V2" ile
+#: "Kosu Ayakkabisi" ayri urunlerdir.
+VERSION = re.compile(r"\b(?:v\s*(\d+)|gen\s*(\d+)|(\d+)\s*\.?\s*nesil)\b")
+
 
 def strip_accents(value: str) -> str:
     """Turkce karakterleri ASCII karsiligina indirger.
@@ -200,10 +205,25 @@ def extract_numeric_size(value: str) -> str | None:
     return match.group(1) if match else None
 
 
-def extract_qualifier(tokens: frozenset[str]) -> str | None:
-    """Baslikta model kademesi eki var mi (pro, plus, mini...)."""
-    found = sorted(tokens & MODEL_QUALIFIERS)
-    return found[0] if found else None
+def extract_version(value: str) -> str | None:
+    """'V2', 'Gen 3', '2. Nesil' -> 'v2' / 'v3'."""
+    match = VERSION.search(strip_accents(value).lower())
+    if not match:
+        return None
+    number = next(group for group in match.groups() if group)
+    return f"v{number}"
+
+
+def extract_qualifier(tokens: frozenset[str], title: str = "") -> str | None:
+    """Baslikta model kademesi ya da surum eki var mi.
+
+    Iki kaynak birlestirilir: sabit kelime listesi (pro, plus, mini...) ve
+    surum orunt (v2, gen 3, 2. nesil). Sayi degisken oldugu icin ikincisi
+    kelime listesiyle yakalanamaz.
+    """
+    word = sorted(tokens & MODEL_QUALIFIERS)
+    parts = [part for part in (word[0] if word else None, extract_version(title)) if part]
+    return "+".join(parts) if parts else None
 
 
 @dataclass(frozen=True)
@@ -243,7 +263,7 @@ class ProductKey:
             color=resolved_color,
             volume=extract_volume(title),
             size=extract_numeric_size(title),
-            qualifier=extract_qualifier(tokens),
+            qualifier=extract_qualifier(tokens, title),
             gtin=(gtin or "").strip() or None,
             mpn=(mpn or "").strip() or None,
         )

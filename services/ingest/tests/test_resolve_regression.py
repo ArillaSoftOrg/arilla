@@ -21,10 +21,11 @@ from resolve.score import auto_accept_threshold, queue_threshold
 MATCHES, NON_MATCHES = distributions()
 
 
-def test_the_set_is_the_required_size() -> None:
+def test_the_set_meets_the_required_minimum() -> None:
+    """En AZ 30+30. Tuzak siniflari buyudukce set buyur, kuculmez."""
     data = load_pairs()
-    assert len(data["should_match"]) == 30
-    assert len(data["should_not_match"]) == 30
+    assert len(data["should_match"]) >= 30
+    assert len(data["should_not_match"]) >= 30
 
 
 @pytest.mark.parametrize("scored", MATCHES.scores, ids=lambda s: s.case)

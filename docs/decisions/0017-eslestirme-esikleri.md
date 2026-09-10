@@ -15,27 +15,32 @@ değil ölçümle koyar.
 ### Eşikler
 
 ```
-MATCH_AUTO_ACCEPT_THRESHOLD = 0.87
-MATCH_QUEUE_THRESHOLD       = 0.66
+MATCH_AUTO_ACCEPT_THRESHOLD = 0.84
+MATCH_QUEUE_THRESHOLD       = 0.63
 ```
 
-Bu değerler **60 çiftlik regresyon setinden ölçüldü**, seçilmedi.
+Bu değerler **regresyon setinden ölçüldü**, seçilmedi.
 `python -m resolve --calibrate` ölçümü yeniden üretir:
 
 | | min | medyan | max |
 | --- | --- | --- | --- |
-| 30 eşleşme | 0.747 | 1.000 | 1.000 |
-| 30 eşleşmeme | 0.000 | 0.111 | **0.580** |
+| 32 eşleşme | 0.680 | 1.000 | 1.000 |
+| 38 eşleşmeme | 0.000 | 0.111 | **0.580** |
 
-Aradaki boşluk **+0.167**. İki eşik farklı soruları yanıtlar ve aynı
-aralıktan türetilemezler:
+Aradaki boşluk **+0.100**.
 
-- **`QUEUE` = 0.66** — "insana göstermeye değer mi?" Boşluğun ortası: hiçbir
-  gerçek eşleşme düşmez (min 0.747), hiçbir yanlış eşleşme girmez (max 0.580).
-- **`AUTO_ACCEPT` = 0.87** — "insana hiç sormadan bağlayabilir miyiz?"
-  Eşleşmelerin kendi aralığının ortası. En zayıf gerçek eşleşmeler (renk ya da
-  hacim yalnızca bir tarafta bilindiğinde, 0.747) **bilerek insan onayına
-  düşer**; yalnızca kesin olanlar otomatik bağlanır.
+Set 30+30 olarak başladı; kademe/sürüm tuzak sınıfı sonradan yedi vakayla
+genişletildi (bkz. aşağıda) ve eşikler yeniden ölçüldü. Bu, eşiklerin
+sabit sayı değil **ölçüm çıktısı** olduğunun pratikteki karşılığı.
+
+İki eşik farklı soruları yanıtlar ve aynı aralıktan türetilemezler:
+
+- **`QUEUE` = 0.63** — "insana göstermeye değer mi?" Boşluğun ortası: hiçbir
+  gerçek eşleşme düşmez (min 0.680), hiçbir yanlış eşleşme girmez (max 0.580).
+- **`AUTO_ACCEPT` = 0.84** — "insana hiç sormadan bağlayabilir miyiz?"
+  Eşleşmelerin kendi aralığının ortası. En zayıf gerçek eşleşmeler (renk,
+  hacim ya da sürüm yazımı yalnızca bir tarafta bilindiğinde) **bilerek insan
+  onayına düşer**; yalnızca kesin olanlar otomatik bağlanır.
 
 Önceki değerler (0.92 / 0.70) korunmadı çünkü hiçbir ölçüme dayanmıyorlardı.
 
@@ -58,7 +63,11 @@ Beş uyuşmazlık eşleşmeyi **imkânsız** kılar:
    bej ayrı üründür."
 2. **Hacim / ağırlık** — 50 ml ≠ 100 ml.
 3. **Beden** — 40 numara ≠ 44 numara.
-4. **Model kademesi** — "Koşu Ayakkabısı **Pro**" ≠ "Koşu Ayakkabısı".
+4. **Model kademesi ve sürüm** — "Koşu Ayakkabısı **Pro**" ≠ "Koşu Ayakkabısı";
+   "Yün Kaban **V2**" ≠ "Yün Kaban". Kademe sabit bir kelime listesinden
+   (`pro`, `plus`, `mini`, `lite`, `max`, …), sürüm ise örüntüden gelir
+   (`V2`, `Gen 3`, `2. Nesil`) — sayı değişken olduğu için kelime listesiyle
+   yakalanamaz.
 5. **Marka** — marka kimliktir; "Ayda Poplin Gömlek Beyaz" ≠ "Vira Poplin
    Gömlek Beyaz", başlık birebir aynı olsa bile.
 
@@ -121,4 +130,21 @@ yok eder; temkinli olmak pahalı değildir." Bu yüzden o aralık
   `match_candidate` upsert'i o iki durumu korur.
 - Eşik değiştirilirse `python -m resolve --calibrate` yeniden çalıştırılır ve
   bu dosya güncellenir. Regresyon testi eşikleri ortamdan okur; eşik
-  bozulursa 90 parametrik iddia düşer.
+  bozulursa 110 parametrik iddia düşer.
+
+
+## Ek: tuzak sınıfının genişletilmesi
+
+İlk sette bu sınıftan **tek bir vaka** vardı ("Koşu Ayakkabısı Pro"). Tek
+örnek, bir sınıfı korumaz: kelime listesi `pro` içeriyordu ama `V2`,
+`Gen 3` ve `2. Nesil` hiç tespit edilmiyordu — yani aynı hata farklı bir ek
+biçimiyle sessizce geri gelebilirdi.
+
+Sınıf yedi negatif vakayla genişletildi (`plus`, `mini`, `max`, `lite`,
+`V2`, `2. Nesil`, ve iki tarafta farklı kademe) ve sürüm tespiti örüntüye
+bağlandı.
+
+Yanına **iki pozitif kontrol** eklendi: aynı kademe ya da aynı sürüm iki
+tarafta da varsa eşleşme DEVAM ETMELİ. Veto fazla geniş olsaydı bu ikisi
+düşerdi — "ayni surum iki tarafta" bugün setin en zayıf eşleşmesi (0.680) ve
+eşiği belirleyen vaka o.

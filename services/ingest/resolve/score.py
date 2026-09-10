@@ -180,9 +180,9 @@ def auto_accept_threshold() -> float:
     Varsayilan `python -m resolve --calibrate` ile 60 ciftlik regresyon
     setinden olculdu; bkz. docs/decisions/0017.
     """
-    return _env_float("MATCH_AUTO_ACCEPT_THRESHOLD", 0.87)
+    return _env_float("MATCH_AUTO_ACCEPT_THRESHOLD", 0.84)
 
 
 def queue_threshold() -> float:
     """Bu skorun altinda aday sayilmaz; insan kuyruguna bile girmez."""
-    return _env_float("MATCH_QUEUE_THRESHOLD", 0.66)
+    return _env_float("MATCH_QUEUE_THRESHOLD", 0.63)

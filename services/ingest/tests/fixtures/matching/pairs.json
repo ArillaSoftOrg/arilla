@@ -1,5 +1,5 @@
 {
-  "_aciklama": "B4 regresyon seti. CLAUDE.md: eslestirme mantigi icin zorunlu. Esik degistiginde neyin bozuldugu buradan gorulur. 30 eslesme + 30 eslesmeme.",
+  "_aciklama": "B4 regresyon seti. CLAUDE.md: eslestirme mantigi icin zorunlu. Esik degistiginde neyin bozuldugu buradan gorulur. En az 30 eslesme + 30 eslesmeme; tuzak siniflari buyudukce set buyur.",
 
   "should_match": [
     {"case": "marka bir tarafta baslikta", "a": {"title": "Kuzey Deri Bilekli Bot Siyah", "brand": "Kuzey Deri"}, "b": {"title": "Bilekli Bot Siyah", "brand": "Kuzey Deri"}},
@@ -31,7 +31,9 @@
     {"case": "renk es anlamli kirik beyaz", "a": {"title": "Ela Studio Gomlek Elbise Kirik Beyaz", "brand": "Ela Studio"}, "b": {"title": "Ela Studio Gomlek Elbise Beyaz", "brand": "Ela Studio"}},
     {"case": "renk es anlamli antrasit gri", "a": {"title": "Vira Kosu Ayakkabisi Antrasit", "brand": "Vira"}, "b": {"title": "Vira Kosu Ayakkabisi Gri", "brand": "Vira"}},
     {"case": "renk es anlamli haki yesil", "a": {"title": "Lodos Deri Ceket Haki", "brand": "Lodos"}, "b": {"title": "Lodos Deri Ceket Yesil", "brand": "Lodos"}},
-    {"case": "firsat eki ve sira", "a": {"title": "Firsat Bordo Baget Canta Ayda", "brand": "Ayda"}, "b": {"title": "Ayda Baget Canta Bordo", "brand": "Ayda"}}
+    {"case": "firsat eki ve sira", "a": {"title": "Firsat Bordo Baget Canta Ayda", "brand": "Ayda"}, "b": {"title": "Ayda Baget Canta Bordo", "brand": "Ayda"}},
+    {"case": "ayni kademe iki tarafta", "a": {"title": "Vira Kosu Ayakkabisi Pro Siyah", "brand": "Vira"}, "b": {"title": "Kosu Ayakkabisi Pro Siyah", "brand": "Vira"}},
+    {"case": "ayni surum iki tarafta", "a": {"title": "Lodos Yun Kaban V2 Gri", "brand": "Lodos"}, "b": {"title": "Lodos Yun Kaban Gen 2 Gri", "brand": "Lodos"}}
   ],
 
   "should_not_match": [
@@ -64,6 +66,14 @@
     {"case": "ayakkabi turu bot sandalet", "a": {"title": "Lodos Bilekli Bot Kahverengi", "brand": "Lodos"}, "b": {"title": "Lodos Sandalet Kahverengi", "brand": "Lodos"}},
     {"case": "ayakkabi turu babet kosu", "a": {"title": "Ayda Babet Siyah", "brand": "Ayda"}, "b": {"title": "Ayda Kosu Ayakkabisi Siyah", "brand": "Ayda"}},
     {"case": "dis giyim trenckot mont", "a": {"title": "Kuzey Deri Yagmurluk Trenckot Bej", "brand": "Kuzey Deri"}, "b": {"title": "Kuzey Deri Kapitone Mont Bej", "brand": "Kuzey Deri"}},
-    {"case": "tamamen ilgisiz", "a": {"title": "Ayda Poplin Gomlek Beyaz", "brand": "Ayda"}, "b": {"title": "Lodos Gunes Koruyucu 50 ml", "brand": "Lodos"}}
+    {"case": "tamamen ilgisiz", "a": {"title": "Ayda Poplin Gomlek Beyaz", "brand": "Ayda"}, "b": {"title": "Lodos Gunes Koruyucu 50 ml", "brand": "Lodos"}},
+    {"case": "KADEME plus", "a": {"title": "Lodos Sirt Cantasi Plus Siyah", "brand": "Lodos"}, "b": {"title": "Lodos Sirt Cantasi Siyah", "brand": "Lodos"}},
+    {"case": "KADEME mini", "a": {"title": "Ela Studio Baget Canta Mini Bej", "brand": "Ela Studio"}, "b": {"title": "Ela Studio Baget Canta Bej", "brand": "Ela Studio"}},
+    {"case": "KADEME max", "a": {"title": "Ayda Sirt Cantasi Max Lacivert", "brand": "Ayda"}, "b": {"title": "Ayda Sirt Cantasi Lacivert", "brand": "Ayda"}},
+    {"case": "KADEME lite", "a": {"title": "Kuzey Deri Bilekli Bot Lite Kahverengi", "brand": "Kuzey Deri"}, "b": {"title": "Kuzey Deri Bilekli Bot Kahverengi", "brand": "Kuzey Deri"}},
+    {"case": "SURUM v2", "a": {"title": "Vira Kosu Ayakkabisi V2 Siyah", "brand": "Vira"}, "b": {"title": "Vira Kosu Ayakkabisi Siyah", "brand": "Vira"}},
+    {"case": "SURUM nesil", "a": {"title": "Lodos Yun Kaban 2. Nesil Gri", "brand": "Lodos"}, "b": {"title": "Lodos Yun Kaban Gri", "brand": "Lodos"}},
+    {"case": "SURUM gen farkli numara", "a": {"title": "Ayda Sweatshirt Gen 2 Siyah", "brand": "Ayda"}, "b": {"title": "Ayda Sweatshirt Gen 3 Siyah", "brand": "Ayda"}},
+    {"case": "KADEME iki tarafta farkli", "a": {"title": "Vira Kosu Ayakkabisi Pro Siyah", "brand": "Vira"}, "b": {"title": "Vira Kosu Ayakkabisi Lite Siyah", "brand": "Vira"}}
   ]
 }
