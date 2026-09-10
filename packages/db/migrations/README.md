@@ -31,6 +31,7 @@ migration'lar olusturur.
 | `0011_click_result_position.sql` | click.source_similarity_kind, click.result_position |
 | `0013_user_intake.sql` | image_upload, link_resolution_request (D4: görsel arama, kök catch-all link çözümleme) |
 | `0014_polymorphic_integrity.sql` | embedding/generated_content polimorfik `target_id` icin silme yonu trigger'lari (0020) |
+| `0015_polymorphic_trigger_comments.sql` | 0014 trigger fonksiyonlarina `COMMENT ON` ile yetki notu (0021) |
 
 ## Calistirma
 

@@ -54,6 +54,14 @@
 --
 -- Iki trigger da gecis tablosuna ayni adi (`deleted`) verdigi icin tek
 -- fonksiyon ikisine de yeter; hedef tur TG_ARGV[0] ile gelir.
+--
+-- YETKI NOTU: asagidaki SECURITY DEFINER cagiranin yetkisini ATLAR. Bugun
+-- tasiyici degil (`arilla_app`'in `embedding` uzerinde DELETE'i zaten var);
+-- tasiyici hale gelecegi an bu iki tabloda `arilla_app` yetkilerinin
+-- daraltildigi gun. O gun bu fonksiyon SESSIZCE calismaya devam eder, hata
+-- vermez — `embedding` append-only yapilirsa kurali deler ve ilan etmez.
+-- `arilla_app` yetkileri her degistirildiginde bakilacak kontrol listesi:
+-- docs/decisions/0021-security-definer-yetki-istisnasi.md
 CREATE FUNCTION enforce_polymorphic_delete() RETURNS trigger
     LANGUAGE plpgsql
     SECURITY DEFINER
@@ -94,6 +102,10 @@ CREATE TRIGGER product_polymorphic_delete
 -- (`TRUNCATE product ... CASCADE` -> `offer` bosalir -> offer trigger'i kosar).
 -- Ayni ifadede `embedding` de truncate edilirse cakisma olmaz; AFTER TRUNCATE
 -- butun truncate'lerden SONRA kosar ve DELETE sifir satira deger.
+--
+-- YETKI NOTU: yukaridaki ile ayni — SECURITY DEFINER cagiranin yetkisini
+-- atlar, yetki daraltmasinda ses cikarmaz. Kontrol listesi:
+-- docs/decisions/0021-security-definer-yetki-istisnasi.md
 CREATE FUNCTION enforce_polymorphic_truncate() RETURNS trigger
     LANGUAGE plpgsql
     SECURITY DEFINER
