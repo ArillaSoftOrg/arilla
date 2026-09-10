@@ -1,7 +1,7 @@
 /**
  * Semanin TypeScript karsiligi. Dosya basina bir migration:
  * catalog↔0002, price↔0003, semantic↔0004, auth↔0005, creator↔0006,
- * attribution↔0007, search↔0008, discovery↔0009.
+ * attribution↔0007, search↔0008, discovery↔0009, user-intake↔0013.
  *
  * Bir migration degistiginde ayni adli dosya guncellenir. Uyumu
  * `pnpm db:verify` calistirarak kanitlar — elle yazilan semanin tek riski
@@ -16,3 +16,4 @@ export * from "./discovery.ts";
 export * from "./price.ts";
 export * from "./search.ts";
 export * from "./semantic.ts";
+export * from "./user-intake.ts";
