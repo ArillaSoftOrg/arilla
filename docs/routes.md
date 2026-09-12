@@ -145,6 +145,13 @@ platform sorununu hafifletir.
 `/yonetim/eslestirme` MVP'de gereklidir. Eşleştirme kuyruğunu onaylayacak bir
 ekran olmadan katalog kalitesi yönetilemez.
 
+### İç uçlar
+
+```
+/api/cron/trigger-alerts   Vercel Cron (apps/web/vercel.json). CRON_SECRET
+                           ile korunur, tarayıcıdan çağrılmaz.
+```
+
 `/yonetim/sozluk` ürünün en çok bakım gören ekranı olacak. Sözlük
 veritabanında tutulduğu için buradan eklenen bir eşanlamlı aramayı anında
 iyileştirir, sürüm çıkmaya gerek kalmaz.

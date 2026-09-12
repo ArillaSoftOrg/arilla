@@ -17,10 +17,11 @@ import {
   PriceDiffBlock,
   PricePositionText,
   ProductCard,
-  SizeSelector,
   UpdatedAt,
 } from "@arilla/ui";
 import { notFound, permanentRedirect } from "next/navigation";
+import { ProductActionsClient } from "./product-actions-client.tsx";
+import { SizeSelectorClient } from "./size-selector-client.tsx";
 
 /** docs/copy.md `product.price_lowest_90d`: yalnizca gercekten dusukse gosterilir. */
 const LOWEST_PERCENTILE_THRESHOLD = 5;
@@ -127,13 +128,13 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       {listPriceNoteText ? <ListPriceNote text={listPriceNoteText} /> : null}
 
       {/* 6. Beden seçici + rozet */}
-      <SizeSelector
+      <SizeSelectorClient
+        productId={product.productId}
         sizes={sizeOptions.map((size) => ({
           sizeNorm: size.sizeNorm,
           label: size.sizeLabel ?? size.sizeNorm,
           available: size.inStock,
         }))}
-        unavailableLabel="Bu beden şu an yok"
       />
 
       {/* 7. Mağaza listesi - tek teklif varsa atlanır (pages.md), noindex D6'nın işi */}
@@ -164,11 +165,12 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </>
       ) : null}
 
-      {/* 8. Kaydet / alarm kur - auth yok (E1/E2/E3), /giris'e duz link */}
-      <div style={{ display: "flex", gap: 8 }}>
-        <a href="/giris">Kaydet</a>
-        <a href="/giris">Fiyat alarmı kur</a>
-      </div>
+      {/* 8. Kaydet / alarm kur */}
+      <ProductActionsClient
+        productId={product.productId}
+        isInStock={merchantOffers.some((offer) => offer.inStock)}
+        currentPriceTRY={cheapest ? Math.floor(cheapest.currentPrice / 100) : null}
+      />
 
       {/* 9. Diğer renkler */}
       <ColorSwatches
