@@ -104,6 +104,36 @@ uygulanır:
 Bu kural `packages/ui`'deki her bileşen ve bu bileşenleri kullanan her sayfa
 (D2, D3, D5 dahil) için geçerlidir.
 
+## Duyarlı tasarım
+
+Ayrı bir mobil görünüm yok, **tek akışkan düzen** var. Kırılma noktası
+(breakpoint) tanımlanmaz; genişlik `flex`/`grid` ve `max-width` ile akışkan
+tutulur, hiçbir bileşene sabit piksel genişlik verilmez. Etkileşimli öğeler
+dokunma hedefi için `min-height: 44px` taşır (bkz. "Kalite tabanı"), genişlik
+değil.
+
+Sayfa gövdesi bir `max-width` ile sınırlanır ama bu değer sayfanın içeriğine
+göre değişir — tek, zorunlu bir sabit değil:
+
+| Bağlam | `max-width` | Örnek |
+| --- | --- | --- |
+| Tek sütun form (giriş) | 360px | `/giris` |
+| Okuma akışı (arama, ana sayfa) | 640px | `/`, `/ara` |
+| Karşılaştırma/yan yana içerik | 720px | `/urun/<slug>`, `/yonetim/eslestirme` |
+| Tablo/yönetim ekranı | 960px | `/yonetim/sozluk` |
+
+Bu dört değer kasıtlıdır (içerik türüne göre), yoksayılan bir standart değil —
+yeni bir sayfa eklenirken en yakın kategoriye göre seçilir, rastgele bir
+sayı uydurulmaz. 390px (iPhone) ve 360px (yaygın Android) genişliklerinde
+hiçbir metin taşmamalı/kırpılmamalı; flex satırlarındaki metin girdileri
+`min-width: 0` taşır ki flex'in varsayılan küçülmeme davranışı satırı
+taşırmasın (bkz. `packages/ui/src/SearchForm.module.css`).
+
+Tek satırlık `<input>` placeholder'ları dar ekranlarda kırpılabilir — bu bir
+düzen hatası değildir, tarayıcıların placeholder'ı sarmama (no-wrap)
+davranışının doğal sonucudur. Placeholder metni yazarken bunu göz önünde
+bulundur.
+
 ## Bileşen envanteri
 
 | Bileşen | Nerede | Not |

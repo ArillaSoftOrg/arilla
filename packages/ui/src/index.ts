@@ -15,6 +15,7 @@ export * from "./EmptyState.tsx";
 export * from "./format.ts";
 export * from "./Input.tsx";
 export * from "./ListPriceNote.tsx";
+export * from "./LoginModal.tsx";
 export * from "./MerchantList.tsx";
 export * from "./PriceChart.tsx";
 export * from "./PriceDiffBlock.tsx";

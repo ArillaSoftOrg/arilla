@@ -1,6 +1,9 @@
-import { resolveQuery, type SortMode, search } from "@arilla/core";
+import { recordSearchAndCheckWall, resolveQuery, type SortMode, search } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ClarificationBar, ProductCard, SearchForm, SortTabs } from "@arilla/ui";
+import { cookies } from "next/headers";
+import { verifySession } from "../lib/dal.ts";
+import { SearchWallGateClient } from "./search-wall-gate-client.tsx";
 
 const SORT_MODES: readonly SortMode[] = ["balanced", "best_deal", "closest_match"];
 
@@ -18,8 +21,8 @@ interface AramaSearchParams {
 
 /**
  * docs/pages.md "/ara": arama girdisi -> netleştirme çubuğu (varsa) ->
- * sonuç sayısı -> sekmeler -> sonuç ızgarası -> sayfalama. Görsel arama
- * (/ara/gorsel) ve giriş modali bu görevin kapsamı dışında (D4, E1/E2).
+ * sonuç sayısı -> sekmeler -> sonuç ızgarası -> sayfalama. Giriş modali
+ * (decision 0002, E2) burada; görsel arama (/ara/gorsel) hâlâ kapsam dışı.
  */
 export default async function AramaPage({
   searchParams,
@@ -39,6 +42,20 @@ export default async function AramaPage({
   }
 
   const db = getDatabase();
+
+  // decision 0002: ilk N sorgu serbest, sonrasında modal. Girişi olanlar için
+  // hiç sayılmaz; session_id proxy.ts tarafından garanti edilir ama bu istek
+  // proxy'nin ilk kez yazdığı çerezi henüz görmüyor olabilir (Next: Server
+  // Component render sırasında çerez okunur, o istekte YAZILAMAZ).
+  let shouldShowWall = false;
+  const user = await verifySession();
+  if (!user) {
+    const sessionId = (await cookies()).get("session_id")?.value;
+    if (sessionId) {
+      shouldShowWall = (await recordSearchAndCheckWall(sessionId)).shouldShowWall;
+    }
+  }
+
   const { parsed, needsClarification, candidateCategories } = await resolveQuery(db, query);
 
   const requestedSort = isSortMode(sortParam) ? sortParam : "balanced";
@@ -95,6 +112,7 @@ export default async function AramaPage({
 
   return (
     <main style={{ padding: 24, display: "grid", gap: 16 }}>
+      <SearchWallGateClient show={shouldShowWall} />
       <SearchForm defaultValue={query} placeholder={SEARCH_PLACEHOLDER} submitLabel="Ara" />
 
       {needsClarification && candidateCategories && candidateCategories.length > 0 ? (

@@ -27,6 +27,7 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `action.follow` | Takip et |
 | `action.following` | Takip ediliyor |
 | `action.login` | Giriş yap |
+| `action.close` | Kapat |
 | `action.send_link` | Bağlantı gönder |
 | `action.retry` | Tekrar dene |
 | `action.clear_history` | Geçmişi sil |
@@ -37,7 +38,9 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | Anahtar | Metin |
 | --- | --- |
 | `search.placeholder` | Ürün adı yaz, link yapıştır veya fotoğraf yükle |
+| `search.empty_query` | Aramak için yukarıya bir şey yaz. |
 | `search.result_count` | {n} sonuç |
+| `search.offer_count` | {n} mağaza |
 | `search.tab_balanced` | Bizim seçtiklerimiz |
 | `search.tab_deals` | En iyi fırsatlar |
 | `search.tab_match` | En yakın eşleşmeler |
@@ -47,6 +50,8 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `search.loading` | Benzerlerini arıyoruz |
 | `search.empty` | Bu aramada sonuç bulamadık. Filtreleri gevşetmeyi deneyebilirsin. |
 | `search.empty_nearest` | Sana en yakın bulduklarımız |
+| `search.page_previous` | Önceki |
+| `search.page_next` | Sonraki |
 | `search.error` | Arama şu an çalışmıyor. Birazdan tekrar dener misin? |
 
 ## Ürün
@@ -109,6 +114,31 @@ durumda da aynı metin gösterilir.
 
 Giriş, fiyat alarmı ve stok bildirimi **işlemsel iletidir.** Haftalık özet
 **ticari iletidir** ve ayrı izin gerektirir (`kvkk.md`).
+
+## Yönetim
+
+Rol gerektiren `/yonetim/*` ekranları için. `docs/routes.md` erişim kontrolünü
+E1'e (gerçek kullanıcı girişi) bırakır; bu ekranlar şimdilik korumasızdır.
+
+| Anahtar | Metin |
+| --- | --- |
+| `admin.matching.title` | Eşleştirme kuyruğu |
+| `admin.matching.queue_count` | Kuyrukta {n} eşleştirme bekliyor |
+| `admin.matching.offer_label` | Mağaza teklifi |
+| `admin.matching.product_label` | Kayıtlı ürün |
+| `admin.matching.approve` | Onayla |
+| `admin.matching.reject` | Reddet |
+| `admin.matching.skip` | Atla |
+| `admin.matching.shortcuts` | Kısayollar: A onayla, R reddet, S atla |
+| `admin.matching.empty` | Kuyruk boş. |
+| `admin.lexicon.title` | Sözlük |
+| `admin.lexicon.add` | Yeni satır ekle |
+| `admin.lexicon.save` | Kaydet |
+| `admin.lexicon.search_placeholder` | Ara |
+| `admin.lexicon.kind_all` | Tümü |
+| `admin.lexicon.empty` | Sözlükte satır yok. |
+| `admin.lexicon.tier3_heading` | Son 7 günde kademe 3'e düşen sorgular |
+| `admin.lexicon.tier3_empty` | Şu an aday yok. |
 
 ## Hukuki
 
