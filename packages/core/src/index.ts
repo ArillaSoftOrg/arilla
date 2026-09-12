@@ -12,6 +12,7 @@ export * from "./admin/index.ts";
 export * from "./attribution/index.ts";
 export * from "./auth/index.ts";
 export * from "./discovery/index.ts";
+export * from "./discovery-feed/index.ts";
 export * from "./embedding/index.ts";
 export * from "./product/index.ts";
 export * from "./search/index.ts";

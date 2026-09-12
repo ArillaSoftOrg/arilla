@@ -148,8 +148,8 @@ ekran olmadan katalog kalitesi yönetilemez.
 ### İç uçlar
 
 ```
-/api/cron/trigger-alerts   Vercel Cron (apps/web/vercel.json). CRON_SECRET
-                           ile korunur, tarayıcıdan çağrılmaz.
+/api/cron/trigger-alerts            Vercel Cron. CRON_SECRET ile korunur.
+/api/cron/generate-discovery-slots  Vercel Cron, gece yarısı. CRON_SECRET.
 ```
 
 `/yonetim/sozluk` ürünün en çok bakım gören ekranı olacak. Sözlük
