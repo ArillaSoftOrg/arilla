@@ -5,9 +5,8 @@ import { useRouter } from "next/navigation";
 import { setTheme } from "./theme-actions.ts";
 
 /**
- * Gecici: /hesap yapilana kadar (E3) tema tercihini test edebilmek icin
- * layout'a eklendi. `ThemeToggle` framework-bagimsiz oldugu icin cerez
- * yazma islemini burada, apps/web tarafinda saglariz.
+ * `/hesap` "Tema" bölümü (docs/pages.md). `ThemeToggle` framework-bağımsız
+ * olduğu için çerez yazma işlemini burada, apps/web tarafında sağlarız.
  */
 export function ThemeToggleClient({ current }: { current: "light" | "dark" | null }) {
   const router = useRouter();

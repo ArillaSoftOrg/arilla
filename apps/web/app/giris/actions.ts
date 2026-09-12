@@ -3,6 +3,7 @@
 import { RateLimitExceededError, requestLoginLink } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { headers } from "next/headers";
+import { clientIp } from "../lib/client-ip.ts";
 
 export type RequestLoginLinkState =
   | { status: "idle" }
@@ -11,10 +12,6 @@ export type RequestLoginLinkState =
   | { status: "invalid_email" };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-
-function clientIp(forwardedFor: string | null): string | null {
-  return forwardedFor?.split(",")[0]?.trim() || null;
-}
 
 /**
  * decision 0006 / copy.md: `auth.rate_limited` mesajı hesabın var olup

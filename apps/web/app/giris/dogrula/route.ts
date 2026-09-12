@@ -7,11 +7,8 @@ import {
 import { getDatabase } from "@arilla/db";
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
+import { clientIp } from "../../lib/client-ip.ts";
 import { setSessionCookie } from "../../lib/session-cookie.ts";
-
-function clientIp(forwardedFor: string | null): string | null {
-  return forwardedFor?.split(",")[0]?.trim() || null;
-}
 
 /**
  * docs/routes.md `/giris/dogrula?token=...`: tek kullanımlık, 15 dk. Aynı
