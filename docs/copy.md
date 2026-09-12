@@ -173,6 +173,17 @@ dal.ts`) - `docs/routes.md`'nin öngördüğü gibi.
 
 Rıza kutuları **işaretsiz** gelir ve girişin ön koşulu değildir.
 
+## SEO
+
+Arama sonucunda görünen ama sayfada gösterilmeyen metinler (D6). `{ürün}` ve
+`{marka}` ham veriden gelir, yazılı metin değildir.
+
+| Anahtar | Metin |
+| --- | --- |
+| `seo.product_title` | {ürün} – {marka} fiyat karşılaştırma |
+| `seo.product_title_no_brand` | {ürün} fiyat karşılaştırma |
+| `seo.product_description` | {ürün} fiyatlarını karşılaştır, en uygun fiyatlı mağazayı bul. |
+
 ## Hata
 
 | Anahtar | Metin |

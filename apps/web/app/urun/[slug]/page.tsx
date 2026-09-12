@@ -5,6 +5,7 @@ import {
   getPriceHistory,
   getPriceStats,
   getSizeOptions,
+  isProductSitemapEligible,
   resolveProductSlug,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -19,7 +20,9 @@ import {
   ProductCard,
   UpdatedAt,
 } from "@arilla/ui";
+import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
+import { cache } from "react";
 import { ProductActionsClient } from "./product-actions-client.tsx";
 import { SizeSelectorClient } from "./size-selector-client.tsx";
 
@@ -34,11 +37,45 @@ function formatSure(from: Date, now: Date): string {
   return `${Math.floor(hours / 24)} gün`;
 }
 
+/** `generateMetadata` ve sayfa bileşeni ayni istekte ayni sluğu iki kez çözmesin. */
+const getResolution = cache((slug: string) => resolveProductSlug(getDatabase(), slug));
+
+/**
+ * D6: docs/sitemap.md "Hangi sayfa haritaya girer" - eşiği geçmeyen ürün
+ * `noindex` alır ama sayfa yayında kalır (docs/sitemap.md: "Şartı sağlamayan
+ * sayfa yayında kalır ama haritaya girmez ve noindex alır").
+ */
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ slug: string }>;
+}): Promise<Metadata> {
+  const { slug } = await params;
+  const resolution = await getResolution(slug);
+  if (resolution.status !== "found") return {};
+
+  const { product } = resolution;
+  const eligible = await isProductSitemapEligible(getDatabase(), product.productId);
+
+  // docs/copy.md `seo.product_title` / `seo.product_title_no_brand` / `seo.product_description`
+  const title = product.brandName
+    ? `${product.title} – ${product.brandName} fiyat karşılaştırma`
+    : `${product.title} fiyat karşılaştırma`;
+  const description = `${product.title} fiyatlarını karşılaştır, en uygun fiyatlı mağazayı bul.`;
+
+  return {
+    title,
+    description,
+    alternates: { canonical: `/urun/${product.slug}` },
+    ...(eligible ? {} : { robots: { index: false, follow: true } }),
+  };
+}
+
 export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
   const db = getDatabase();
 
-  const resolution = await resolveProductSlug(db, slug);
+  const resolution = await getResolution(slug);
   if (resolution.status === "not_found") {
     notFound();
   }
@@ -82,8 +119,40 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       ? `Liste fiyatı ${formatSure(priceStats.listPriceRaisedAt, now)} önce ${formatTRY(cheapest.listPrice)} idi.`
       : null;
 
+  // docs/routes.md "Teknik kurallar": Product ve Offer yapılandırılmış verisi.
+  // schema.org `url` mutlak olmalı - APP_URL yoksa alan tamamen atlanır,
+  // göreli bir URL yazmaktan iyidir (Rich Results Test göreli url'i reddeder).
+  const siteUrl = process.env.APP_URL;
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.title,
+    ...(product.brandName ? { brand: { "@type": "Brand", name: product.brandName } } : {}),
+    ...(product.primaryImageUrl ? { image: [product.primaryImageUrl] } : {}),
+    ...(siteUrl ? { url: `${siteUrl}/urun/${product.slug}` } : {}),
+    ...(merchantOffers.length > 0
+      ? {
+          offers: merchantOffers.map((offer) => ({
+            "@type": "Offer",
+            price: (offer.currentPrice / 100).toFixed(2),
+            priceCurrency: "TRY",
+            availability: offer.inStock
+              ? "https://schema.org/InStock"
+              : "https://schema.org/OutOfStock",
+            ...(siteUrl ? { url: `${siteUrl}/git/${offer.offerId}?surface=structured_data` } : {}),
+          })),
+        }
+      : {}),
+  };
+
   return (
     <main style={{ padding: 24, display: "grid", gap: 24, maxWidth: 720 }}>
+      <script
+        type="application/ld+json"
+        // biome-ignore lint/security/noDangerouslySetInnerHtml: schema.org JSON-LD, kullanici girdisi degil - sunucu tarafinda kendi verimizden uretiliyor.
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+
       {/* 1. Ürün görseli */}
       {product.primaryImageUrl ? (
         // biome-ignore lint/performance/noImgElement: ProductCard.tsx ile ayni desen, keyfi merchant host'lari icin next/image remotePatterns pratik degil.
