@@ -8,8 +8,9 @@
  * (LINK_OFFER: `offer.product_id` bağlama) insan tetikli aynısıdır — ikisi
  * de aynı etkiyi üretir, biri eşik üstü otomatik, diğeri insan kararıyla.
  */
-import { and, asc, eq } from "drizzle-orm";
+
 import { brand, type Database, matchCandidate, merchant, offer, product } from "@arilla/db";
+import { and, asc, eq } from "drizzle-orm";
 
 export interface MatchQueueItem {
   matchCandidateId: number;

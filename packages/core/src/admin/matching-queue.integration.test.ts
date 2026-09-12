@@ -155,9 +155,7 @@ describe("eşleştirme kuyruğu - entegrasyon (gerçek Postgres)", () => {
     expect(row.status).toBe("rejected");
 
     const offerRow = await withOwnerClient(async (client) => {
-      const res = await client.query("SELECT product_id FROM offer WHERE id = $1", [
-        rejectOfferId,
-      ]);
+      const res = await client.query("SELECT product_id FROM offer WHERE id = $1", [rejectOfferId]);
       return res.rows[0];
     });
     expect(offerRow.product_id).toBeNull();

@@ -3,8 +3,9 @@
  * satır içi düzenleme, tür filtresi, arama; ekranın üstünde son 7 günde
  * kademe 3'e düşen sorgular.
  */
-import { and, desc, eq, gte, ilike, or } from "drizzle-orm";
+
 import { type Database, lexicon, queryResolution } from "@arilla/db";
+import { and, desc, eq, gte, ilike, or } from "drizzle-orm";
 import type { LexiconKind } from "../search/lexicon.ts";
 
 export interface LexiconFilter {
