@@ -125,8 +125,9 @@ Giriş, fiyat alarmı ve stok bildirimi **işlemsel iletidir.** Haftalık özet
 
 ## Yönetim
 
-Rol gerektiren `/yonetim/*` ekranları için. `docs/routes.md` erişim kontrolünü
-E1'e (gerçek kullanıcı girişi) bırakır; bu ekranlar şimdilik korumasızdır.
+Rol gerektiren `/yonetim/*` ekranları için. Erişim `requireRole(["moderator",
+"admin"])` ile her sayfa ve server action'da ayrı ayrı zorlanır (`app/lib/
+dal.ts`) - `docs/routes.md`'nin öngördüğü gibi.
 
 | Anahtar | Metin |
 | --- | --- |
@@ -139,9 +140,19 @@ E1'e (gerçek kullanıcı girişi) bırakır; bu ekranlar şimdilik korumasızd�
 | `admin.matching.skip` | Atla |
 | `admin.matching.shortcuts` | Kısayollar: A onayla, R reddet, S atla |
 | `admin.matching.empty` | Kuyruk boş. |
+| `admin.matching.batch_done` | Bu grup bitti. Yeni bir grup için sayfayı yenile. |
+| `admin.matching.reload` | Yenile |
 | `admin.lexicon.title` | Sözlük |
 | `admin.lexicon.add` | Yeni satır ekle |
 | `admin.lexicon.save` | Kaydet |
+| `admin.lexicon.cancel` | Vazgeç |
+| `admin.lexicon.edit` | Düzenle |
+| `admin.lexicon.filter` | Filtrele |
+| `admin.lexicon.clear_filter` | Temizle |
+| `admin.lexicon.field_kind` | Tür |
+| `admin.lexicon.field_surface` | Yüzey |
+| `admin.lexicon.field_normalized` | Normalize |
+| `admin.lexicon.field_weight` | Ağırlık |
 | `admin.lexicon.search_placeholder` | Ara |
 | `admin.lexicon.kind_all` | Tümü |
 | `admin.lexicon.empty` | Sözlükte satır yok. |

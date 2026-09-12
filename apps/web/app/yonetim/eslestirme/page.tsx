@@ -17,11 +17,11 @@ export default async function MatchingQueuePage() {
     <main style={{ padding: 24, display: "grid", gap: 16, maxWidth: 720 }}>
       <div>
         <h1 style={{ margin: 0 }}>Eşleştirme kuyruğu</h1>
-        <p style={{ margin: "4px 0 0", color: "var(--ink-muted)" }}>
-          {items.length > 0
-            ? `Kuyrukta ${items.length} eşleştirme bekliyor`
-            : "Kuyrukta eşleştirme yok"}
-        </p>
+        {items.length > 0 ? (
+          <p style={{ margin: "4px 0 0", color: "var(--ink-muted)" }}>
+            {`Kuyrukta ${items.length} eşleştirme bekliyor`}
+          </p>
+        ) : null}
         <p style={{ margin: "4px 0 0", fontSize: 13, color: "var(--ink-muted)" }}>
           Kısayollar: A onayla, R reddet, S atla
         </p>
