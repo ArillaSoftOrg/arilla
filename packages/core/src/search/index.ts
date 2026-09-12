@@ -10,3 +10,4 @@ export * from "./query-resolution.ts";
 export * from "./result-types.ts";
 export * from "./search.ts";
 export * from "./types.ts";
+export * from "./visual-search.ts";

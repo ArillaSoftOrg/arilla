@@ -54,6 +54,14 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `search.page_next` | Sonraki |
 | `search.error` | Arama şu an çalışmıyor. Birazdan tekrar dener misin? |
 
+## Link öneki
+
+| Anahtar | Metin |
+| --- | --- |
+| `link.resolving` | Bu ürünü arıyoruz, birazdan hazır olur. |
+| `link.not_found` | Bu bağlantıyı çözemedik. Ürünü mağazada açabilirsin. |
+| `link.open_original` | Orijinal bağlantıyı aç |
+
 ## Ürün
 
 | Anahtar | Metin |

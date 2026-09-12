@@ -2,9 +2,11 @@
 
     python -m collect.link <url>        tek bir linki cozumler
     python -m collect.link --refresh    suresi gelen user_link tekliflerini yeniler
+    python -m collect.link --worker     web'in Redis kuyrugunu tuketir (D4)
 
-Bu servis hicbir HTTP endpoint sunmaz. Web tarafi ileride (D4) isi Redis
-kuyruguna birakacak; bu CLI ayni cozumleyiciyi elle tetikler.
+Bu servis hicbir HTTP endpoint sunmaz. Web tarafi (D4) isi Redis kuyruguna
+birakir (`packages/core/src/discovery/link-resolution.ts`); `--worker` ayni
+cozumleyiciyi kuyruktan tetikler, `--refresh` ve argumansiz cagri elle tetikler.
 """
 
 from __future__ import annotations
@@ -14,12 +16,14 @@ import logging
 import sys
 
 import httpx
+import redis
 
 from collect.link.refresh import refresh_user_links
 from collect.link.resolver import ResolutionFailed, resolve_url
 from collect.link.urls import InvalidUrl
+from collect.link.worker import run_worker
 from collect.records import RecordRejected
-from db.connection import connect
+from db.connection import connect, env
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -28,6 +32,7 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("url", nargs="?", help="cozumlenecek urun adresi")
     parser.add_argument("--refresh", action="store_true", help="suresi gelen linkleri yenile")
+    parser.add_argument("--worker", action="store_true", help="Redis kuyrugunu surekli tuket")
     parser.add_argument("--limit", type=int, default=100, help="--refresh icin ust sinir")
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)
@@ -37,10 +42,18 @@ def main(argv: list[str] | None = None) -> int:
         format="%(levelname)s %(message)s",
     )
 
-    if args.refresh == bool(args.url):
-        parser.error("ya bir url verin ya da --refresh kullanin")
+    modes = [args.refresh, args.worker, bool(args.url)]
+    if sum(modes) != 1:
+        parser.error("tam olarak birini secin: bir url, --refresh ya da --worker")
 
     with connect() as conn:
+        if args.worker:
+            redis_url = env("REDIS_URL", "redis://localhost:6379")
+            redis_client = redis.Redis.from_url(redis_url, decode_responses=True)
+            logging.info("worker basladi, kuyruk: queue:link_resolution")
+            run_worker(conn, redis_client)
+            return 0
+
         if args.refresh:
             result = refresh_user_links(conn, limit=args.limit)
             print(f"suresi gelen     {result.considered}")

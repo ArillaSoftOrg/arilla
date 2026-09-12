@@ -3,6 +3,7 @@ import { getDatabase } from "@arilla/db";
 import { ClarificationBar, ProductCard, SearchForm, SortTabs } from "@arilla/ui";
 import { cookies } from "next/headers";
 import { verifySession } from "../lib/dal.ts";
+import { PhotoSearchButton } from "../photo-search-client.tsx";
 import { SearchWallGateClient } from "./search-wall-gate-client.tsx";
 
 const SORT_MODES: readonly SortMode[] = ["balanced", "best_deal", "closest_match"];
@@ -22,7 +23,8 @@ interface AramaSearchParams {
 /**
  * docs/pages.md "/ara": arama girdisi -> netleştirme çubuğu (varsa) ->
  * sonuç sayısı -> sekmeler -> sonuç ızgarası -> sayfalama. Giriş modali
- * (decision 0002, E2) burada; görsel arama (/ara/gorsel) hâlâ kapsam dışı.
+ * (decision 0002, E2) burada; görsel arama sonucu ayrı bir rotada
+ * (`/ara/gorsel`), yükleme girdisi burada (D4).
  */
 export default async function AramaPage({
   searchParams,
@@ -36,6 +38,7 @@ export default async function AramaPage({
     return (
       <main style={{ padding: 24, display: "grid", gap: 16 }}>
         <SearchForm placeholder={SEARCH_PLACEHOLDER} submitLabel="Ara" />
+        <PhotoSearchButton />
         <p>Aramak için yukarıya bir şey yaz.</p>
       </main>
     );
@@ -114,6 +117,7 @@ export default async function AramaPage({
     <main style={{ padding: 24, display: "grid", gap: 16 }}>
       <SearchWallGateClient show={shouldShowWall} />
       <SearchForm defaultValue={query} placeholder={SEARCH_PLACEHOLDER} submitLabel="Ara" />
+      <PhotoSearchButton />
 
       {needsClarification && candidateCategories && candidateCategories.length > 0 ? (
         <ClarificationBar

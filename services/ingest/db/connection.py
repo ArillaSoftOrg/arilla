@@ -35,9 +35,14 @@ def _load_dotenv() -> None:
                 os.environ[key] = value.strip().strip("\"'")
 
 
-def database_url(variable: str = "DATABASE_URL") -> str:
+def env(name: str, default: str | None = None) -> str | None:
+    """`.env`'i yukleyip herhangi bir degiskeni okur - `database_url` disindaki cagiranlar icin."""
     _load_dotenv()
-    url = os.environ.get(variable)
+    return os.environ.get(name, default)
+
+
+def database_url(variable: str = "DATABASE_URL") -> str:
+    url = env(variable)
     if not url:
         raise RuntimeError(f"{variable} tanimli degil. .env.example dosyasina bakin.")
     return url
