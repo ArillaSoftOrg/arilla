@@ -1,0 +1,25 @@
+name: Trigger alerts cron
+
+# Vercel Hobby plan limits a cron job to one run per day, but this endpoint
+# needs to run every 15 minutes (apps/web/app/api/cron/trigger-alerts/route.ts).
+# This workflow replaces the Vercel Cron entry that used to call it.
+
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch: {}
+
+jobs:
+  trigger-alerts:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Call trigger-alerts endpoint
+        env:
+          ALERT_CRON_URL: ${{ secrets.ALERT_CRON_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          curl --fail-with-body \
+            --retry 2 \
+            --retry-delay 5 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$ALERT_CRON_URL"
