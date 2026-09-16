@@ -100,6 +100,10 @@ class VariantMapping:
     size: str
     availability: str | None = None
     external_id: str | None = None
+    #: nadir per-varyant fiyat/SKU (orn. Shopify: her beden/renk kombinasyonunun
+    #: kendi fiyati ve SKU'su olabilir). Yoksa NormalizedVariant'ta None kalir.
+    price: str | None = None
+    sku: str | None = None
 
 
 @dataclass(frozen=True)
@@ -129,6 +133,8 @@ class FieldMapping:
                 size=variant_config["size"],
                 availability=variant_config.get("availability"),
                 external_id=variant_config.get("external_id"),
+                price=variant_config.get("price"),
+                sku=variant_config.get("sku"),
             )
 
         return cls(
