@@ -63,13 +63,19 @@ ON CONFLICT (offer_id, observed_at) DO NOTHING
 """
 
 UPSERT_VARIANT = """
-INSERT INTO offer_variant (offer_id, external_id, size_label, size_norm, in_stock, last_seen_at)
-VALUES (%(offer_id)s, %(external_id)s, %(size_label)s, %(size_norm)s, %(in_stock)s, %(observed_at)s)
+INSERT INTO offer_variant (
+    offer_id, external_id, size_label, size_norm, in_stock, price_override, sku, last_seen_at
+) VALUES (
+    %(offer_id)s, %(external_id)s, %(size_label)s, %(size_norm)s, %(in_stock)s,
+    %(price_override)s, %(sku)s, %(observed_at)s
+)
 ON CONFLICT (offer_id, external_id) DO UPDATE SET
-    size_label   = EXCLUDED.size_label,
-    size_norm    = EXCLUDED.size_norm,
-    in_stock     = EXCLUDED.in_stock,
-    last_seen_at = EXCLUDED.last_seen_at
+    size_label     = EXCLUDED.size_label,
+    size_norm      = EXCLUDED.size_norm,
+    in_stock       = EXCLUDED.in_stock,
+    price_override = EXCLUDED.price_override,
+    sku            = EXCLUDED.sku,
+    last_seen_at   = EXCLUDED.last_seen_at
 RETURNING id
 """
 
@@ -191,6 +197,8 @@ class OfferWriter:
                     "size_label": variant.size_label,
                     "size_norm": variant.size_norm,
                     "in_stock": variant.in_stock,
+                    "price_override": variant.price_override,
+                    "sku": variant.sku,
                     "observed_at": self.observed_at,
                 },
             )

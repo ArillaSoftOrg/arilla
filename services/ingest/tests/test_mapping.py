@@ -63,6 +63,39 @@ def test_missing_required_mapping_is_a_config_error() -> None:
         FieldMapping.from_config({"mapping": {"title": "t"}})
 
 
+def test_variant_mapping_reads_optional_price_and_sku() -> None:
+    """docs/decisions/0024 — per-varyant fiyat/SKU opsiyonel, yoksa None kalir."""
+    mapping = FieldMapping.from_config(
+        {
+            "mapping": {
+                "external_id": "id",
+                "url": "url",
+                "title": "title",
+                "variants": {"path": "sizes", "size": "label", "price": "price", "sku": "sku"},
+            }
+        }
+    )
+    assert mapping.variants is not None
+    assert mapping.variants.price == "price"
+    assert mapping.variants.sku == "sku"
+
+
+def test_variant_mapping_price_and_sku_default_to_none() -> None:
+    mapping = FieldMapping.from_config(
+        {
+            "mapping": {
+                "external_id": "id",
+                "url": "url",
+                "title": "title",
+                "variants": {"path": "sizes", "size": "label"},
+            }
+        }
+    )
+    assert mapping.variants is not None
+    assert mapping.variants.price is None
+    assert mapping.variants.sku is None
+
+
 @pytest.mark.parametrize(
     ("label", "expected"),
     [("38", "38"), (" M ", "m"), ("Tek Ebat", "tek-ebat"), ("XL", "xl"), ("", None)],

@@ -32,6 +32,8 @@ migration'lar olusturur.
 | `0013_user_intake.sql` | image_upload, link_resolution_request (D4: görsel arama, kök catch-all link çözümleme) |
 | `0014_polymorphic_integrity.sql` | embedding/generated_content polimorfik `target_id` icin silme yonu trigger'lari (0020) |
 | `0015_polymorphic_trigger_comments.sql` | 0014 trigger fonksiyonlarina `COMMENT ON` ile yetki notu (0021) |
+| `0017_offer_variant_sku_and_shopify_source.sql` | `offer_variant.sku` kolonu + `merchant.source_type` CHECK'ine `'shopify'` eklendi (0024 — Shopify connector'i renk/beden/SKU'yu destekliyor) |
+| `0018_merchant_shopify_discovery.sql` | brand-discovery/endpoint-verification zincirinden 19 merchant kaydi, `is_active = FALSE` (0023; `source_type`/`feed_config.mapping` 0024 icin yerinde guncellendi — para birimi hala dogrulanmadigi icin `is_active` FALSE kaldi). 0017'den SONRA calismali: source_type='shopify' 0017'nin genislettigi CHECK'e bagli. |
 
 ## Calistirma
 

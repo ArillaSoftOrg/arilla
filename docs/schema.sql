@@ -24,7 +24,7 @@ CREATE TABLE merchant (
     logo_url        TEXT,
     -- veri erişimi
     source_type     TEXT        NOT NULL
-                    CHECK (source_type IN ('xml_feed','api','affiliate_network','user_discovered')),
+                    CHECK (source_type IN ('xml_feed','api','affiliate_network','user_discovered','shopify')),
     feed_url        TEXT,
     feed_config     JSONB       NOT NULL DEFAULT '{}'::jsonb,
     refresh_minutes INTEGER     NOT NULL DEFAULT 360,
@@ -148,6 +148,7 @@ CREATE TABLE offer_variant (
     size_norm      TEXT,                    -- normalize edilmiş karşılaştırma anahtarı
     in_stock       BOOLEAN NOT NULL DEFAULT TRUE,
     price_override BIGINT,                  -- nadir. NULL ise offer.current_price geçerli.
+    sku            TEXT,                    -- merchant'ın kendi SKU'su, varsa
     last_seen_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT offer_variant_uniq UNIQUE (offer_id, external_id)
 );

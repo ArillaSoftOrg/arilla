@@ -25,7 +25,7 @@ export const merchant = pgTable("merchant", {
   domain: text("domain").notNull(),
   logoUrl: text("logo_url"),
   sourceType: text("source_type")
-    .$type<"xml_feed" | "api" | "affiliate_network" | "user_discovered">()
+    .$type<"xml_feed" | "api" | "affiliate_network" | "user_discovered" | "shopify">()
     .notNull(),
   feedUrl: text("feed_url"),
   feedConfig: jsonb("feed_config").notNull().default({}),
@@ -128,6 +128,7 @@ export const offerVariant = pgTable("offer_variant", {
   sizeNorm: text("size_norm"),
   inStock: boolean("in_stock").notNull().default(true),
   priceOverride: bigint("price_override", { mode: "number" }),
+  sku: text("sku"),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

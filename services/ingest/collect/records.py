@@ -33,6 +33,9 @@ class NormalizedVariant:
     size_label: str | None
     size_norm: str | None
     in_stock: bool
+    #: nadir. NULL ise offer.current_price gecerli (docs/decisions/0005).
+    price_override: int | None = None
+    sku: str | None = None
 
 
 @dataclass(frozen=True)

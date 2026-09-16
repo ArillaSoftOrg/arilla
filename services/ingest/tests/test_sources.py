@@ -123,6 +123,64 @@ def test_rest_api_nested_lists_become_groups() -> None:
     assert record.groups["sizes"][0]["label"] == "38"
 
 
+def test_xml_feed_variant_price_and_sku_default_to_none(
+    feed_v1: Path, xml_feed_config: dict
+) -> None:
+    """docs/decisions/0024 — price/sku ayarlanmazsa mevcut davranis (None) korunur."""
+    mapping = FieldMapping.from_config(xml_feed_config)
+    record = next(iter(XmlFeedConnector(source=feed_v1, config=xml_feed_config).fetch()))
+    offer = normalize(record, mapping)
+    assert offer.variants[0].price_override is None
+    assert offer.variants[0].sku is None
+
+
+def test_per_variant_price_and_sku_are_populated_when_mapped() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "items": [
+                    {
+                        "id": "A",
+                        "url": "https://merchant.example/a",
+                        "title": "Urun A",
+                        "price": "1.234,56",
+                        "sizes": [
+                            {"label": "38", "stock": "1", "price": "1.234,56", "sku": "SKU-38"}
+                        ],
+                    }
+                ]
+            },
+        )
+
+    config = {
+        "transport": {"record_path": "items", "pagination": {"kind": "cursor"}},
+        "mapping": {
+            "external_id": "id",
+            "url": "url",
+            "title": "title",
+            "price": "price",
+            "variants": {
+                "path": "sizes",
+                "size": "label",
+                "availability": "stock",
+                "price": "price",
+                "sku": "sku",
+            },
+        },
+    }
+    connector = RestApiConnector(
+        base_url="https://api.example/p",
+        config=config,
+        client=httpx.Client(transport=httpx.MockTransport(handler)),
+    )
+    mapping = FieldMapping.from_config(config)
+    record = next(iter(connector.fetch()))
+    offer = normalize(record, mapping)
+    assert offer.variants[0].price_override == 123456
+    assert offer.variants[0].sku == "SKU-38"
+
+
 def test_rest_api_refuses_missing_credentials(monkeypatch: pytest.MonkeyPatch) -> None:
     """Anahtar deger olarak config'te DURMAZ; ortam degiskeni bossa kosu baslamaz."""
     monkeypatch.delenv("MERCHANT_TEST_TOKEN", raising=False)
