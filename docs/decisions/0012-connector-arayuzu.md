@@ -67,3 +67,13 @@ adımdır.
 - Toplama katmanı `offer.product_id`'ye **dokunmaz** — eşleştirme B4'ün işi.
 - Python tarafı `arilla_app` rolüyle bağlanır; `price_point` üzerinde UPDATE
   denemesi veritabanı tarafından reddedilir (`0011`).
+
+## Ek: dördüncü taşıma — Shopify (bkz. 0024)
+
+2026-09: `collect/sources/shopify.py` eklendi. Bu bir MERCHANT'a değil bir
+PLATFORM'a özel (Shopify altyapılı herhangi bir mağaza) — yukarıdaki
+"merchant başına elle yazılmış connector" reddiyle çelişmiyor, tıpkı
+`rest_api.py`'nin tek bir REST API biçimini kapsaması gibi. Alan eşlemesi
+yine `feed_config.mapping`'ten gelir; koda taşınan tek şey Shopify'ın
+renk+beden'i tek JSON girdisinde iç içe barındırmasının YAPISAL çözümü
+(bir girdiyi renk grubuna göre birden fazla ham kayda bölmek).

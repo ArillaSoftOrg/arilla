@@ -1,0 +1,29 @@
+.wrapper {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--content-width-reading);
+  margin-inline: auto;
+  width: 100%;
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+  color: var(--ink-muted);
+}

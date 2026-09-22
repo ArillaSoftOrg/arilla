@@ -80,8 +80,9 @@ def resolve_category(conn: psycopg.Connection, path: str | None) -> int | None:
     """Kategori YALNIZCA varsa baglanir, yoktan acilmaz.
 
     Kategori agaci kurumsal bir karar: `is_discoverable` bayragi kesfet
-    akisini yonetiyor ve elektronik gibi kategoriler bilerek disarida.
-    Feed'in ham metninden kategori uretmek o kararlari delerdi.
+    akisini yonetiyor, hangi ana kategorilerin MVP kapsaminda oldugu ise
+    docs/decisions/0023 ile bilincli belirleniyor. Feed'in ham metninden
+    kategori uretmek bu kararlari delerdi.
     """
     if not path or not path.strip():
         return None

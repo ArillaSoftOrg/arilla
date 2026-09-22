@@ -1,0 +1,21 @@
+.hero {
+  display: grid;
+  gap: var(--space-3);
+  text-align: center;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  line-height: var(--line-height-heading);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.subtitle {
+  margin: 0 auto;
+  max-width: 52ch;
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-body);
+  color: var(--ink-muted);
+}

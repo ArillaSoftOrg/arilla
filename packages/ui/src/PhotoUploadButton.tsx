@@ -1,13 +1,20 @@
 "use client";
 
-import type { ChangeEvent } from "react";
+import type { ChangeEvent, ReactNode } from "react";
 import { useRef } from "react";
-import { Button } from "./Button.tsx";
+import { Button, type ButtonProps } from "./Button.tsx";
 
 export interface PhotoUploadButtonProps {
   label: string;
   onFileSelected: (file: File) => void;
   disabled?: boolean;
+  /** Yeni, opsiyonel - varsayilan false: bugunku etiketli buton korunur. */
+  iconOnly?: boolean;
+  /** iconOnly=true iken gorunen icerik; label erisilebilir isim olarak kalir. */
+  icon?: ReactNode;
+  className?: string;
+  /** Yeni, opsiyonel - varsayilan "secondary": bugunku gorunum korunur. */
+  variant?: ButtonProps["variant"];
 }
 
 /**
@@ -15,7 +22,15 @@ export interface PhotoUploadButtonProps {
  * yalnızca dosya seçimini dışarı verir; yükleme/embedding mantığı apps/web'in
  * ince istemci katmanındadır.
  */
-export function PhotoUploadButton({ label, onFileSelected, disabled }: PhotoUploadButtonProps) {
+export function PhotoUploadButton({
+  label,
+  onFileSelected,
+  disabled,
+  iconOnly = false,
+  icon,
+  className,
+  variant = "secondary",
+}: PhotoUploadButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
@@ -36,11 +51,13 @@ export function PhotoUploadButton({ label, onFileSelected, disabled }: PhotoUplo
       />
       <Button
         type="button"
-        variant="secondary"
+        variant={variant}
+        className={className}
         disabled={disabled}
+        aria-label={iconOnly ? label : undefined}
         onClick={() => inputRef.current?.click()}
       >
-        {label}
+        {iconOnly ? icon : label}
       </Button>
     </>
   );

@@ -16,12 +16,36 @@ Bileşen adları `design.md` envanteriyle aynıdır. Metinler `copy.md` içinded
 | 1 | Logo + üst çubuk | Giriş yapmamışsa "Giriş yap" bağlantısı |
 | 2 | Arama girdisi | Fotoğraf yükleme aynı girdinin içinde. Otomatik odaklanır. |
 | 3 | Kısa açıklama | Tek satır. Uzun karşılama metni yok. |
-| 4 | Keşfet ızgarası | `discovery_slot` bugünün kaydı, 20 ürün |
-| 5 | Altbilgi | Affiliate bildirimi, hukuki bağlantılar |
+| 4 | Trendler | Editorial koleksiyon kartları (`id="trendler"`, header nav'ından anchor). Faz 2: geçici demo veri seti, bkz. `apps/web/data/demo/homepage-trends.ts` ve `SOURCES.md`. Admitad/feed entegrasyonu gelince gerçek veriyle değişir. |
+| 5 | Keşif ızgarası | `id="kesfet"`. Masonry düzeni, `DiscoveryCard`. Veri `discovery_slot`'tan (`getDiscoverySlots`) gelir; adapter gerçek satırları `DiscoveryItem`'a çevirir. Faz 3.1: `discovery_slot` boşsa VE `HOMEPAGE_DEMO_CONTENT=true` ise (bkz. `.env.example`) `apps/web/data/demo/homepage-discovery.ts`teki demo veri setine düşer — `NODE_ENV`'e bağlı değil, açıkça etkinleştirilen bir içerik kararı (Admitad öncesi vitrin deploy'u için). Gerçek veri her zaman demo'nun önündedir. |
+| 6 | Nasıl Çalışır | `id="nasil-calisir"`, header nav'ından anchor. Üç kart: metinle ara, fotoğrafla ara (ikisi de aktif), bağlantıyla bul (Faz 4: backend'de kök catch-all link çözümleme var ama arama kutusuna bağlı değil — "Yakında" etiketiyle gösterilir, sahte CTA yok). `HowItWorksCard`, veri `home-copy.ts`. |
+| 7 | Şeffaflık | Faz 5: `HomeTrustSection`. Sosyal kanıt değil — doğrulanmamış kullanıcı/mağaza sayısı yok, yalnızca gerçek kabiliyetler (aynı/benzer ürün bulma, mağaza tekliflerini karşılaştırma, fiyat-stok bilgisinin mağaza kaynaklı ve güncellenme zamanlı olması). |
+| 8 | Altbilgi | Faz 5: `SiteFooter`. Yalnızca gerçekten var olan route'lara link (`#trendler`, `/kesfet`, `#nasil-calisir`, `/firsatlar`, `/giris`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`, Faz 6 sonrası `/gizlilik`, `/kosullar`, `/cerez`). `/iletisim` ve `/hakkinda` yok — doğrulanabilir iletişim bilgisi repoda olmadığı için footer'da BUNLARA link YOK. Affiliate bildirimi (`legal.affiliate_notice`) ve fiyat/stok uyarısı (`legal.price_disclaimer`) tek, düzenli bir disclosure bandında — homepage'te başka hiçbir yerde tekrar edilmez. |
 
 Kayıt istenmez. Kaydırma gerektiren tanıtım bölümleri yok.
 
-**Boş durum:** yok. Keşfet ızgarası her zaman doludur (curated havuz).
+**Boş durum:** `discovery_slot` doluysa yok — keşif ızgarası her zaman
+doludur (curated havuz). Boşsa (`discovery_slot` henüz üretilmemişse, cron
+hiç çalışmadıysa) ve `HOMEPAGE_DEMO_CONTENT=false` (varsayılan) ise bölüm hiç
+render edilmez, sessizce atlanır. `HOMEPAGE_DEMO_CONTENT=true` ise aynı boş
+durumda demo veri seti devreye girer, sayfa görsel olarak boş kalmaz.
+
+---
+
+## `/gizlilik`, `/kosullar`, `/cerez` — Yasal/bilgi sayfaları (Faz 6)
+
+`LegalPageLayout` (packages/ui) paylaşılan sarmalayıcı — okuma genişliği
+(`--content-width-reading`), başlık + "son güncelleme" etiketi + içerik.
+
+| Route | İçerik | Durum |
+| --- | --- | --- |
+| `/gizlilik` | Hangi veri, neden, ne kadar saklanıyor; fotoğraf yükleme davranışı; üçüncü taraflar; `/hesap` üzerinden kullanılabilen haklar | **Taslak** — veri sorumlusu tüzel kişi bilgisi yok, hukukçu onayı bekliyor (`docs/kvkk.md`) |
+| `/kosullar` | Ürünün ne yaptığı/yapmadığı, fiyat-stok sorumluluğu, affiliate ilişkisi, hesap/e-posta temelli giriş, marka-görsel kullanımı notu | **Taslak** — sorumluluk sınırlaması, uygulanacak hukuk, uyuşmazlık çözümü hükümleri yok |
+| `/cerez` | Kullanılan 3 çerezin (`session`, `session_id`, `theme`) amacı ve süresi | Tam — kod düzeyinde doğrulandı, analitik/pazarlama çerezi yok |
+
+`/hakkinda`, `/iletisim`, `/sss` (docs/sitemap.md aday listesinde) bu fazda
+**yazılmadı** — özellikle `/iletisim` için doğrulanabilir gerçek iletişim
+bilgisi (e-posta/telefon/adres) repoda yok, uydurulmadı.
 
 ---
 

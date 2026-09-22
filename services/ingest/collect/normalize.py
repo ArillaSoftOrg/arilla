@@ -50,12 +50,18 @@ def _variants(record: RawRecord, mapping: FieldMapping) -> tuple[NormalizedVaria
         in_stock = mapping.formats.parse_in_stock(
             entry.get(spec.availability) if spec.availability else None
         )
+        price_override = (
+            mapping.formats.parse_price(entry.get(spec.price)) if spec.price else None
+        )
+        sku = (entry.get(spec.sku) or None) if spec.sku else None
         variants.append(
             NormalizedVariant(
                 external_id=str(external_id),
                 size_label=label,
                 size_norm=normalize_size(label),
                 in_stock=in_stock,
+                price_override=price_override,
+                sku=sku,
             )
         )
     return tuple(variants)

@@ -70,7 +70,6 @@ tamamı anlamını yitirir.
 - Ayrı vektör veritabanı eklemek. pgvector yeterli; sınıra gelindiğinde ayrıca konuşulur.
 - Mikroservis bölmek, Kubernetes, Kafka, event bus, GraphQL, CQRS eklemek.
 - `localStorage` veya `sessionStorage` kullanımı olmadan çalışamayan bir akış kurmak.
-- Elektronik kategorisini eklemek. Komisyon ekonomisi bu kategoride çalışmıyor.
 - SEO rotalarında giriş modali göstermek. Bkz. `docs/decisions/0002`.
 - Trend sayfalarını günlük değiştirmek. Günlük rotasyon yalnızca `/kesfet` içindir.
 - Analitik yüküne veya hata kayıtlarına kişisel veri koymak.

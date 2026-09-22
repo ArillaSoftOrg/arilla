@@ -1,0 +1,51 @@
+/* Karar 0025 (Faz 3 eki): sadece .image'in radius'u icin istisna - border ve
+   shadow YOK, "image-first" hedefi geregi sayfanin zeminiyle kaynasir. */
+.card {
+  display: block;
+  break-inside: avoid;
+  /* <figure> varsayilan tarayici margin'i sifirlanir. */
+  margin: 0 0 var(--space-4) 0;
+  color: inherit;
+  text-decoration: none;
+  /* Interactive olmayan (figure) durumda da ayni kutu modeli - link gibi
+     gorunmemesi icin ayrica cursor/hover eklenmez. */
+  cursor: inherit;
+}
+
+a.card {
+  cursor: pointer;
+}
+
+.card:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.image {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  display: block;
+  background: var(--surface);
+  border-radius: var(--radius-md);
+}
+
+.meta {
+  display: block;
+  padding-block: var(--space-2);
+}
+
+.badge {
+  display: block;
+  font-size: var(--font-size-xs);
+  color: var(--ink-muted);
+}
+
+.title {
+  display: block;
+  font-size: var(--font-size-sm);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

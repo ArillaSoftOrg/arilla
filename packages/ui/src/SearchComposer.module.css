@@ -1,0 +1,88 @@
+.wrapper {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.box {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 56px;
+  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
+  /* Karar 0025: ana sayfa kabugu istisnasi - digerinde --radius:0/golge yok. */
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+}
+
+.box:focus-within {
+  border-color: var(--ink);
+  box-shadow:
+    var(--shadow-sm),
+    0 0 0 3px rgba(22, 24, 29, 0.06);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .box {
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+}
+
+.input {
+  flex: 1;
+  /* Flex varsayilani min-width:auto - icerik genisligi altina kucultmez,
+     bu da placeholder/buton uzayinca satirin tasmasini onler. */
+  min-width: 0;
+  border: none;
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--font-size-md);
+  outline: none;
+}
+
+.input::placeholder {
+  color: var(--ink-muted);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-shrink: 0;
+}
+
+/* Fotograf tetikleyicisinin hover'ini Button.module.css'in paylasilan
+   .secondary sinifina dokunmadan, sadece bu composer icinde iyilestirir. */
+.photoSlot {
+  display: flex;
+  align-items: center;
+}
+
+.photoSlot > button:hover {
+  background: var(--surface);
+}
+
+.submitLabel {
+  display: inline-block;
+}
+
+.status {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--alert);
+}
+
+.chipsSection {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.chipsTitle {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--ink-muted);
+}

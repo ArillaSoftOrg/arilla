@@ -15,8 +15,12 @@ const ERROR_COPY: Record<string, string> = {
   error: "Bir şeyler ters gitti. Tekrar dener misin?",
 };
 
-/** docs/pages.md "/" ve "/ara": fotoğraf yükleme aynı arama girdisinin yanında. */
-export function PhotoSearchButton() {
+/**
+ * docs/pages.md "/" ve "/ara": fotoğraf yükleme akışı. JSX/davranışı
+ * `PhotoSearchButton` ve homepage'in yeni composer entegrasyonu arasında
+ * tekrar yazılmadan paylaşılır.
+ */
+export function usePhotoSearchUpload() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
   const [error, setError] = useState<string | null>(null);
@@ -38,6 +42,13 @@ export function PhotoSearchButton() {
       );
     });
   }
+
+  return { pending, error, handleFile };
+}
+
+/** docs/pages.md "/" ve "/ara": fotoğraf yükleme aynı arama girdisinin yanında. */
+export function PhotoSearchButton() {
+  const { pending, error, handleFile } = usePhotoSearchUpload();
 
   return (
     <div style={{ display: "grid", gap: 8 }}>

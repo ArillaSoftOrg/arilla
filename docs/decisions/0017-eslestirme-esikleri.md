@@ -148,3 +148,11 @@ Yanına **iki pozitif kontrol** eklendi: aynı kademe ya da aynı sürüm iki
 tarafta da varsa eşleşme DEVAM ETMELİ. Veto fazla geniş olsaydı bu ikisi
 düşerdi — "ayni surum iki tarafta" bugün setin en zayıf eşleşmesi (0.680) ve
 eşiği belirleyen vaka o.
+
+## Ek: kategori kapsamı genişletildi (bkz. 0023)
+
+2026-09, bkz. `docs/decisions/0023`: MVP kategori kapsamı bilinçli olarak
+genişletildi (Elektronik dahil). Yukarıdaki "elektronik gibi kategoriler
+bilerek dışarıda" örneği artık geçerli değil. Bu bölümün asıl ilkesi
+değişmedi: eşleşme eşiğinin altında kalan offer için kategori hâlâ otomatik
+açılmaz, yalnızca mevcut bir `category.path` ile eşleşirse bağlanır.
