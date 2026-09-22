@@ -38,8 +38,27 @@
   --space-6: 24px;
   --space-8: 32px;
 
+  /* docs/design.md "Duyarlı tasarım" tablosu: "Okuma akışı (arama, ana
+     sayfa)" = 640px. Tek yerde tanimlanir ki her bilesen ayni degeri
+     hard-code etmesin (HomeHeader ic sarmalayici, hero+composer sutunu,
+     alt bilgi hizasi). */
+  --content-width-reading: 640px;
+
+  /* docs/design.md "Duyarlı tasarım" tablosu: "Geniş görsel içerik (keşif
+     ızgarası)" = 1280px (Faz 3). Okuma akışı (640) ve tablo (960) disinda,
+     gorsel-agirlikli bolumler icin. */
+  --content-width-wide: 1280px;
+
   /* Kart ve buton kutu modeli (docs/design.md): kose yok, golge yok. */
   --radius: 0;
+
+  /* Karar 0025: sadece ana sayfa kabugu (HomeHeader, SearchComposer,
+     ContinueShoppingChips, Button "accent" varyanti) icin - digerleri
+     --radius:0 kullanmaya devam eder. */
+  --radius-md: 12px;
+  --accent: #16181d;
+  --accent-foreground: #ffffff;
+  --shadow-sm: 0 1px 2px rgba(22, 24, 29, 0.06), 0 10px 24px rgba(22, 24, 29, 0.08);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -53,6 +72,9 @@
     --save: #4fbf8b;
     --alert: #e5705c;
     --on-save: #0e0f11;
+    --accent: #f2f3f4;
+    --accent-foreground: #16181d;
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.35);
   }
 }
 
@@ -66,4 +88,7 @@
   --save: #4fbf8b;
   --alert: #e5705c;
   --on-save: #0e0f11;
+  --accent: #f2f3f4;
+  --accent-foreground: #16181d;
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.35);
 }

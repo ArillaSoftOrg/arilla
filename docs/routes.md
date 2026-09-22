@@ -16,7 +16,8 @@ yapıştırılan link öneki. Karar:
 
 Rezerve slug listesi tutulur: `ara`, `urun`, `kategori`, `marka`, `alternatif`,
 `trend`, `firsatlar`, `kesfet`, `gecmis`, `alarmlar`, `kaydettiklerim`, `git`,
-`api`, `panel`, `yonetim`, `hesap`, `giris`, `hakkinda`, `gizlilik`, `kosullar`.
+`api`, `panel`, `yonetim`, `hesap`, `giris`, `hakkinda`, `gizlilik`, `kosullar`,
+`cerez`.
 
 ## Kayıt duvarı
 
@@ -53,6 +54,20 @@ Modal metni kaydolmayı engel değil kazanç olarak sunar: "Hesabın yok mu?
 Fiyat geçmişi ayrı sayfa değil, ürün sayfasının bir bölümüdür. Ayrı sayfa hem
 SEO değerini böler hem kullanıcıyı gereksiz bir tıklamaya zorlar.
 
+### Yasal / bilgi (Faz 6)
+
+```
+/gizlilik                  Veri kullanımı - taslak, hukukçu onayı bekliyor
+/kosullar                  Kullanım koşulları - taslak, hukukçu onayı bekliyor
+/cerez                     Çerez listesi ve amaçları
+```
+
+`docs/sitemap.md`'nin statik sayfa aday listesindeki `/hakkinda`, `/iletisim`,
+`/sss` bu fazda **yazılmadı** — `/iletisim` için doğrulanabilir gerçek bir
+iletişim kanalı (e-posta/telefon/adres) repoda yok, uydurulmadı. Bu üçü henüz
+`STATIC_PAGES` listesine ve footer'a eklenmedi; gerçek bilgi doğrulanmadan
+eklenmeyecek.
+
 ### Keşif
 
 ```
@@ -81,7 +96,9 @@ az birkaç farklı kullanıcı tarafından bulunmuş olmalı, ve zaman damgası
 bulanıklaştırılır ("bu hafta", "7 saat önce" değil). Kullanıcı `/hesap`
 altından tamamen dışında kalabilir.
 
-İç giyim, sağlık ve mahrem ürün kategorileri bu akışa hiç girmez.
+İç giyim ve mahrem ürün kategorileri (örn. `ic-giyim`) bu akışa hiç girmez;
+Süpermarket ve Petshop ise `is_discoverable = false` olduğu için aynı şekilde
+dışarıda kalır (bkz. `docs/decisions/0023`).
 
 ### Soğuk başlangıç ve etiket dürüstlüğü
 

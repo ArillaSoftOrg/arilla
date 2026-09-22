@@ -7,7 +7,7 @@ import { buildUrlSetXml } from "../lib/sitemap-xml.ts";
  * olan genel-erişimli sayfalar listelenir; yeni statik sayfa eklendikçe
  * bu dizi büyür.
  */
-const STATIC_PAGES = ["/", "/kesfet", "/firsatlar"];
+const STATIC_PAGES = ["/", "/kesfet", "/firsatlar", "/gizlilik", "/kosullar", "/cerez"];
 
 export async function GET(): Promise<Response> {
   const appUrl = process.env.APP_URL;

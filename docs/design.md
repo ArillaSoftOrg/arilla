@@ -104,6 +104,32 @@ uygulanır:
 Bu kural `packages/ui`'deki her bileşen ve bu bileşenleri kullanan her sayfa
 (D2, D3, D5 dahil) için geçerlidir.
 
+### İstisna: ana sayfa kabuğu (karar 0025)
+
+Yukarıdaki kural (`--radius: 0`, gölge yok) `packages/ui`'deki tüm bileşenler
+için geçerliliğini korur. Tek istisna: ana sayfanın header + hero + arama
+kutusu "kabuğu" (`HomeHeader`, `SearchComposer`, `ContinueShoppingChips`,
+`Button`'ın `accent` varyantı), `--radius-md` (12px) ve `--shadow-sm`
+belirteçlerini kullanabilir. Bu, geçici ve dar kapsamlı bir genişlemedir —
+`Card`, `Badge`, `ProductCard`, ürün sayfası, yönetim ekranları buna dahil
+değildir ve köşesiz/gölgesiz kalmaya devam eder. Yeni bir yüzey bu istisnadan
+yararlanmak istiyorsa önce bir karar dosyası açılır.
+
+Faz 2'de editorial trend kartı `TrendCollectionCard` bu listeye eklendi, ama
+yalnızca `--radius-md` için — kart `--shadow-sm` kullanmaz, sadece ince
+(`1px --line`) border ve `--surface-raised` zemin kontrastıyla ayrışır.
+
+Faz 3'te keşif ızgarası kartı `DiscoveryCard` de yalnızca `--radius-md` için
+eklendi. `DiscoveryCard` border veya shadow KULLANMAZ — görsel bilerek
+sayfanın beyaz/off-white zeminiyle kaynaşır, tek ayrım görselin kendi
+köşesindeki hafif yuvarlaklıktır.
+
+Faz 4'te "Nasıl Çalışır" kartı `HowItWorksCard` ve onu saran panel
+(`--surface` zemin) bu listeye eklendi — yalnızca `--radius-md` için,
+`--shadow-sm` yok, ince `1px --line` border. Bu bölüm bilerek "sakin/açıklayıcı"
+— keşif ızgarasının "yoğun/görsel" karakteriyle kontrast oluşturur, ama aynı
+belirteç ailesini kullanmaya devam eder.
+
 ## Duyarlı tasarım
 
 Ayrı bir mobil görünüm yok, **tek akışkan düzen** var. Kırılma noktası
@@ -111,6 +137,13 @@ Ayrı bir mobil görünüm yok, **tek akışkan düzen** var. Kırılma noktası
 tutulur, hiçbir bileşene sabit piksel genişlik verilmez. Etkileşimli öğeler
 dokunma hedefi için `min-height: 44px` taşır (bkz. "Kalite tabanı"), genişlik
 değil.
+
+**İstisna — keşif masonry ızgarası (Faz 3):** CSS multi-column (`column-count`)
+akışkan bir "auto-fit" karşılığı sunmaz, bu yüzden `/` sayfasının keşif
+bölümü (`home-discovery.module.css`) sütun sayısını değiştirmek için dar,
+sadece bu bölüme özgü birkaç `@media` noktası kullanır (2/3/4/5 sütun). Bu,
+metin/okuma akışı bileşenlerinin (arama, form, hero) akışkan ilkesine bir
+istisna değildir — sadece görsel ızgara düzenine özgüdür.
 
 Sayfa gövdesi bir `max-width` ile sınırlanır ama bu değer sayfanın içeriğine
 göre değişir — tek, zorunlu bir sabit değil:
@@ -121,8 +154,9 @@ göre değişir — tek, zorunlu bir sabit değil:
 | Okuma akışı (arama, ana sayfa) | 640px | `/`, `/ara` |
 | Karşılaştırma/yan yana içerik | 720px | `/urun/<slug>`, `/yonetim/eslestirme` |
 | Tablo/yönetim ekranı | 960px | `/yonetim/sozluk` |
+| Geniş görsel içerik (keşif ızgarası) | 1280px | `/` keşif bölümü (Faz 3) |
 
-Bu dört değer kasıtlıdır (içerik türüne göre), yoksayılan bir standart değil —
+Bu beş değer kasıtlıdır (içerik türüne göre), yoksayılan bir standart değil —
 yeni bir sayfa eklenirken en yakın kategoriye göre seçilir, rastgele bir
 sayı uydurulmaz. 390px (iPhone) ve 360px (yaygın Android) genişliklerinde
 hiçbir metin taşmamalı/kırpılmamalı; flex satırlarındaki metin girdileri

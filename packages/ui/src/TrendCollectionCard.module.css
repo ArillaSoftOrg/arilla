@@ -1,0 +1,82 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  background: var(--surface-raised);
+  border: 1px solid var(--line);
+  /* Karar 0025 (Faz 2 eki): sadece radius, golge yok - "ince border, agir
+     golge yok" hedefi. */
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.heroImage {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  display: block;
+  background: var(--surface);
+}
+
+.body {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4);
+}
+
+.eyebrow {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  color: var(--ink-muted);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--font-size-lg);
+  font-weight: 500;
+  line-height: var(--line-height-heading);
+  color: var(--ink);
+}
+
+.description {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+  color: var(--ink-muted);
+  /* 2-3 satiri gecmesin. */
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.productList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.productItem {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.productImage {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  object-fit: cover;
+  background: var(--surface);
+}
+
+.productLabel {
+  font-size: var(--font-size-xs);
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

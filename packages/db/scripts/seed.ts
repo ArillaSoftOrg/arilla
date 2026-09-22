@@ -157,7 +157,6 @@ type CategoryDef = {
 const APPAREL_SIZES = ["XS", "S", "M", "L", "XL"] as const;
 const SHOE_SIZES = ["36", "37", "38", "39", "40", "41", "42"] as const;
 
-/** Elektronik kategorisi YOKTUR — komisyon ekonomisi orada calismiyor. */
 const CATEGORIES: readonly CategoryDef[] = [
   {
     slug: "moda",
@@ -280,6 +279,39 @@ const CATEGORIES: readonly CategoryDef[] = [
     minPrice: 14900,
     maxPrice: 59900,
     titles: ["Pamuklu Takim", "Sutyen", "Bralet"],
+  },
+  // docs/decisions/0023: kategori kapsami genisletildi.
+  {
+    slug: "elektronik",
+    name: "Elektronik",
+    path: "elektronik",
+    discoverable: true,
+    sizes: [],
+    minPrice: 99900,
+    maxPrice: 4999900,
+    titles: ["Kablosuz Kulaklik", "Akilli Saat", "Tasinabilir Sarj Cihazi"],
+  },
+  // is_discoverable = FALSE: kesfet ve sitemap kapsami disinda (docs/decisions/0023),
+  // eslestirme/alternatif bulma mantigini etkilemez.
+  {
+    slug: "petshop",
+    name: "Petshop",
+    path: "petshop",
+    discoverable: false,
+    sizes: [],
+    minPrice: 9900,
+    maxPrice: 79900,
+    titles: ["Kedi Mamasi", "Kopek Tasmasi", "Kum Kabi"],
+  },
+  {
+    slug: "supermarket",
+    name: "Supermarket",
+    path: "supermarket",
+    discoverable: false,
+    sizes: [],
+    minPrice: 2900,
+    maxPrice: 49900,
+    titles: ["Zeytinyagi", "Bulasik Deterjani", "Kahve"],
   },
 ];
 

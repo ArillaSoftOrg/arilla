@@ -1,0 +1,96 @@
+.footer {
+  border-top: 1px solid var(--line);
+}
+
+.inner {
+  display: grid;
+  gap: var(--space-8);
+  max-width: var(--content-width-wide);
+  margin-inline: auto;
+  padding: var(--space-8) var(--space-6);
+}
+
+.columns {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: var(--space-6);
+}
+
+.brand {
+  display: grid;
+  gap: var(--space-2);
+  /* Marka blogu digerlerinden biraz daha genis - kisa aciklama tek satira sikismasin. */
+  max-width: 32ch;
+}
+
+.brandLabel {
+  margin: 0;
+  font-size: var(--font-size-md);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.brandDescription {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+  color: var(--ink-muted);
+}
+
+.group {
+  display: grid;
+  gap: var(--space-3);
+  /* min-width:0 - grup basligi/linkler flex/grid daralinca tasmasin. */
+  min-width: 0;
+}
+
+.groupTitle {
+  margin: 0;
+  font-size: var(--font-size-xs);
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.linkList {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.link {
+  font-size: var(--font-size-sm);
+  color: var(--ink-muted);
+  text-decoration: none;
+}
+
+.link:hover {
+  color: var(--ink);
+}
+
+.link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.disclosure {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--line);
+}
+
+.disclosureText {
+  margin: 0;
+  /* Affiliate/fiyat-stok bildirimi okunabilir kalir - xs'e dusurulmez. */
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+  color: var(--ink-muted);
+}
+
+.copyright {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--ink-muted);
+}

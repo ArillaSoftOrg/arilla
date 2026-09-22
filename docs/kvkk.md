@@ -139,3 +139,12 @@ hakları açısından değerlendirilmesi gerekir. Bu konu hukukçuya ayrıca sor
 - [ ] İYS kaydı
 - [ ] Yurt dışı aktarım için sağlayıcı sözleşmeleri
 - [ ] Veri sahibi talep akışının uçtan uca testi
+
+**Faz 6 notu:** `/gizlilik` ve `/kosullar` altında, yukarıdaki maddeler
+tamamlanana kadar geçerli olacak **taslak** sayfalar eklendi — yalnızca bu
+dosyadaki ve koddaki doğrulanmış veri akışlarını açıklar, veri sorumlusu
+tüzel kişi bilgisi içermez. Yukarıdaki kutucuklar bu yüzden işaretlenmedi;
+sayfalar hukukçu onayı ve şirket kuruluşu sonrası güncellenmelidir. `/cerez`
+sayfası ise mevcut (yalnızca zorunlu: `session`, `session_id`, `theme`) çerez
+envanterini listeler — analitik/pazarlama çerezi olmadığı için consent bandı
+kurulmadı.

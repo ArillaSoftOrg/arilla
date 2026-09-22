@@ -11,6 +11,65 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | Anahtar | Metin |
 | --- | --- |
 | `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
+| `home.hero_title` | Aradığın ürünü bul |
+| `home.continue_shopping_title` | Alışverişe devam et |
+| `home.trends_title` | Trendler |
+| `home.trends_subtitle` | Arilla'da öne çıkan stiller ve ürün fikirleri. |
+| `home.discovery_title` | Arilla'da keşfedilenler |
+| `home.discovery_subtitle` | Farklı kategorilerden öne çıkan ürünler, tek bakışta. |
+
+## Nasıl çalışır
+
+| Anahtar | Metin |
+| --- | --- |
+| `home.how_it_works_title` | Arilla nasıl çalışır? |
+| `home.how_it_works_subtitle` | Ürünü tarif et veya fotoğrafını yükle. Arilla aynı ve benzer seçenekleri farklı mağazalarda karşılaştırmana yardımcı olur. |
+| `home.how_it_works_text_search_title` | Metinle ara |
+| `home.how_it_works_text_search_description` | Ürün adını, markayı ya da kısa bir tarifle ara. Arilla fiyat aralığı ve kategori gibi ayrıntıları anlar. |
+| `home.how_it_works_photo_search_title` | Fotoğrafla ara |
+| `home.how_it_works_photo_search_description` | Ürünün fotoğrafını yükle, Arilla aynı veya benzer seçenekleri bulsun. Fotoğrafın sistemde kalıcı olarak saklanmaz. |
+| `home.how_it_works_link_search_title` | Bağlantıyla bul |
+| `home.how_it_works_link_search_description` | Beğendiğin bir ürünün bağlantısını paylaşarak arama. |
+| `home.how_it_works_link_search_status` | Yakında |
+| `home.how_it_works_outcome` | Hangi yolu seçersen seç, sonuçlarda aynı ve benzer ürünleri inceleyebilir, farklı mağaza tekliflerini ve stok durumunu karşılaştırabilirsin. |
+
+## Şeffaflık (Faz 5)
+
+Bu bölüm sosyal kanıt değildir - doğrulanmamış sayı/istatistik içermez
+(bkz. docs/design.md, görev talimatı). Affiliate ve fiyat/stok metinleri
+`legal.*` anahtarlarıyla AYNI, tekrar yazılmaz.
+
+| Anahtar | Metin |
+| --- | --- |
+| `home.trust_title` | Karar vermene nasıl yardımcı oluyoruz |
+| `home.trust_point_alternatives` | Aynı ürünü veya görsel ve metin olarak benzer alternatiflerini bulursun. |
+| `home.trust_point_compare` | Farklı mağazalardaki teklifleri kargo dahil toplam fiyata ve stok durumuna göre karşılaştırırsın. |
+| `home.trust_point_freshness` | Fiyat ve stok bilgisi doğrudan mağaza kaynaklarından gelir, güncellenme zamanıyla birlikte gösterilir. |
+
+## Altbilgi (Faz 5-6)
+
+| Anahtar | Metin |
+| --- | --- |
+| `footer.product_group_title` | Ürün |
+| `footer.account_group_title` | Hesap |
+| `footer.info_group_title` | Bilgi |
+| `footer.last_updated_prefix` | Son güncelleme: |
+
+## Gezinme
+
+| Anahtar | Metin |
+| --- | --- |
+| `nav.trends` | Trendler |
+| `nav.discover` | Keşfet |
+| `nav.how_it_works` | Nasıl Çalışır |
+| `nav.account` | Hesabım |
+| `nav.deals` | Fırsatlar |
+| `nav.saved` | Kaydettiklerim |
+| `nav.alerts` | Alarmlarım |
+| `nav.history` | Geçmişim |
+| `nav.privacy` | Gizlilik |
+| `nav.terms` | Kullanım Koşulları |
+| `nav.cookies` | Çerezler |
 
 ## Eylemler
 

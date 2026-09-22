@@ -2,6 +2,7 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  gap: var(--space-2);
   min-height: 44px;
   padding: var(--space-3) var(--space-4);
   border-radius: var(--radius);
@@ -34,4 +35,23 @@
   background: var(--paper);
   color: var(--ink);
   border: 1px solid var(--line);
+}
+
+/* Karar 0025: sadece ana sayfa kabugu icin - --save'in tasarruf/onay
+   anlamiyla cakismayan, gecici, notr bir birincil eylem rengi. */
+.accent {
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border: 1px solid var(--accent);
+  border-radius: var(--radius-md);
+}
+
+.accent:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .accent {
+    transition: filter 0.15s ease;
+  }
 }
