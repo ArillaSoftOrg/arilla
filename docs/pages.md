@@ -20,7 +20,7 @@ Bileşen adları `design.md` envanteriyle aynıdır. Metinler `copy.md` içinded
 | 5 | Keşif ızgarası | `id="kesfet"`. Masonry düzeni, `DiscoveryCard`. Veri `discovery_slot`'tan (`getDiscoverySlots`) gelir; adapter gerçek satırları `DiscoveryItem`'a çevirir. Faz 3.1: `discovery_slot` boşsa VE `HOMEPAGE_DEMO_CONTENT=true` ise (bkz. `.env.example`) `apps/web/data/demo/homepage-discovery.ts`teki demo veri setine düşer — `NODE_ENV`'e bağlı değil, açıkça etkinleştirilen bir içerik kararı (Admitad öncesi vitrin deploy'u için). Gerçek veri her zaman demo'nun önündedir. |
 | 6 | Nasıl Çalışır | `id="nasil-calisir"`, header nav'ından anchor. Üç kart: metinle ara, fotoğrafla ara (ikisi de aktif), bağlantıyla bul (Faz 4: backend'de kök catch-all link çözümleme var ama arama kutusuna bağlı değil — "Yakında" etiketiyle gösterilir, sahte CTA yok). `HowItWorksCard`, veri `home-copy.ts`. |
 | 7 | Şeffaflık | Faz 5: `HomeTrustSection`. Sosyal kanıt değil — doğrulanmamış kullanıcı/mağaza sayısı yok, yalnızca gerçek kabiliyetler (aynı/benzer ürün bulma, mağaza tekliflerini karşılaştırma, fiyat-stok bilgisinin mağaza kaynaklı ve güncellenme zamanlı olması). |
-| 8 | Altbilgi | Faz 5: `SiteFooter`. Yalnızca gerçekten var olan route'lara link (`#trendler`, `/kesfet`, `#nasil-calisir`, `/firsatlar`, `/giris`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`, Faz 6 sonrası `/gizlilik`, `/kosullar`, `/cerez`). `/iletisim` ve `/hakkinda` yok — doğrulanabilir iletişim bilgisi repoda olmadığı için footer'da BUNLARA link YOK. Affiliate bildirimi (`legal.affiliate_notice`) ve fiyat/stok uyarısı (`legal.price_disclaimer`) tek, düzenli bir disclosure bandında — homepage'te başka hiçbir yerde tekrar edilmez. Faz 7: header ve footer'daki "Keşfet", keşif bölümü bu sayfada render edildiyse `#kesfet`'e, edilmediyse `/kesfet`'e gider — `/kesfet` bugün için `discovery_slot` yokken yalnızca boş durum gösterir. Faz 8: aynı header/footer public alt sayfalarda da kullanılır (`apps/web/app/public-site-shell.tsx`, route başına ince `layout.tsx`: `/kesfet`, `/firsatlar`, `/ara`, `/giris`, `/urun/[slug]`, `/gizlilik`, `/kosullar`, `/cerez`); orada bölüm linkleri `/#trendler`, `/kesfet`, `/#nasil-calisir`. Giriş gerektiren sayfalar ve `/yonetim` kabuk kullanmaz. |
+| 8 | Altbilgi | Faz 5: `SiteFooter`. Yalnızca gerçekten var olan route'lara link (`#trendler`, `/kesfet`, `#nasil-calisir`, `/firsatlar`, `/giris`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`, Faz 6 sonrası `/gizlilik`, `/kosullar`, `/cerez`). `/hakkinda` yok, footer'da link YOK. Faz 8.1: `/iletisim` eklendi, Bilgi grubunda. Affiliate bildirimi (`legal.affiliate_notice`) ve fiyat/stok uyarısı (`legal.price_disclaimer`) tek, düzenli bir disclosure bandında — homepage'te başka hiçbir yerde tekrar edilmez. Faz 7: header ve footer'daki "Keşfet", keşif bölümü bu sayfada render edildiyse `#kesfet`'e, edilmediyse `/kesfet`'e gider — `/kesfet` bugün için `discovery_slot` yokken yalnızca boş durum gösterir. Faz 8: aynı header/footer public alt sayfalarda da kullanılır (`apps/web/app/public-site-shell.tsx`, route başına ince `layout.tsx`: `/kesfet`, `/firsatlar`, `/ara`, `/giris`, `/urun/[slug]`, `/gizlilik`, `/kosullar`, `/cerez`); orada bölüm linkleri `/#trendler`, `/kesfet`, `/#nasil-calisir`. Giriş gerektiren sayfalar ve `/yonetim` kabuk kullanmaz. |
 
 Kayıt istenmez. Kaydırma gerektiren tanıtım bölümleri yok.
 
@@ -43,11 +43,12 @@ footer) kullanır — önceden header/footer'sız, çıkmaz sokak sayfalardı.
 | --- | --- | --- |
 | `/gizlilik` | Hangi veri, neden, ne kadar saklanıyor; fotoğraf yükleme davranışı; üçüncü taraflar; `/hesap` üzerinden kullanılabilen haklar | **Taslak** — veri sorumlusu tüzel kişi bilgisi yok, hukukçu onayı bekliyor (`docs/kvkk.md`) |
 | `/kosullar` | Ürünün ne yaptığı/yapmadığı, fiyat-stok sorumluluğu, affiliate ilişkisi, hesap/e-posta temelli giriş, marka-görsel kullanımı notu | **Taslak** — sorumluluk sınırlaması, uygulanacak hukuk, uyuşmazlık çözümü hükümleri yok |
+| `/iletisim` | Kısa açıklama + `mailto:` e-posta (Faz 8.1). Adres `apps/web/app/site-config.ts` içinde tek yerde; `/gizlilik` "Haklarınız" da oradan okur. Telefon/adres/unvan yok | **Geçici** — kurumsal e-posta alınınca yalnızca `site-config.ts` değişir |
 | `/cerez` | Kullanılan 3 çerezin (`session`, `session_id`, `theme`) amacı ve süresi | Tam — kod düzeyinde doğrulandı, analitik/pazarlama çerezi yok |
 
-`/hakkinda`, `/iletisim`, `/sss` (docs/sitemap.md aday listesinde) bu fazda
-**yazılmadı** — özellikle `/iletisim` için doğrulanabilir gerçek iletişim
-bilgisi (e-posta/telefon/adres) repoda yok, uydurulmadı.
+`/hakkinda` ve `/sss` (docs/sitemap.md aday listesinde) henüz **yazılmadı**.
+`/iletisim` Faz 8.1'de, kullanıcının onayladığı geçici public e-posta ile
+eklendi; telefon/adres hâlâ yok, uydurulmadı.
 
 ---
 

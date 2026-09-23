@@ -6,8 +6,9 @@ export interface LegalPageLayoutProps {
   /** Cagiran taraf tam metni verir (orn. "Son guncelleme: 17 Eylul 2026") -
    * gercek, sabit bir tarih olmali; `new Date()` ile hesaplanmaz (her
    * ziyarette "bugun guncellendi" demek yalan sinyal olur, bkz. docs/
-   * sitemap.md "lastmod gercek degisiklik zamanidir"). */
-  lastUpdatedLabel: string;
+   * sitemap.md "lastmod gercek degisiklik zamanidir"). Faz 8.1: istege
+   * bagli - /iletisim gibi bilgi sayfasinin guncelleme tarihi yoktur. */
+  lastUpdatedLabel?: string;
   children: ReactNode;
 }
 
@@ -20,7 +21,7 @@ export function LegalPageLayout({ title, lastUpdatedLabel, children }: LegalPage
   return (
     <main className={styles.main}>
       <h1 className={styles.title}>{title}</h1>
-      <p className={styles.lastUpdated}>{lastUpdatedLabel}</p>
+      {lastUpdatedLabel ? <p className={styles.lastUpdated}>{lastUpdatedLabel}</p> : null}
       <div className={styles.content}>{children}</div>
     </main>
   );

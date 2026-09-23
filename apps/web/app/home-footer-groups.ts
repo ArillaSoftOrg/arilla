@@ -46,8 +46,10 @@ export function siteNavItems(links: SiteSectionLinks): readonly HomeHeaderNavIte
  *
  * Faz 6: /gizlilik ve /kosullar TASLAK sayfalar (bkz. docs/kvkk.md "Faz 6
  * notu") - yine de gercekten var olan, calisan route'lar oldugundan dead
- * link degil. "Destek"/iletisim grubu HALA eklenmedi - dogrulanabilir
- * gercek iletisim bilgisi (e-posta/telefon/adres) repoda yok.
+ * link degil.
+ *
+ * Faz 8.1: /iletisim eklendi (gecici public e-posta, site-config.ts).
+ * Ayri bir "Destek" grubu yok - tek link, Bilgi grubunda.
  *
  * Faz 7-8: bolum linkleri cagirandan gelir (`homeSectionLinks` veya
  * `SUBPAGE_SECTION_LINKS`) - header ile ayni hedefler.
@@ -78,6 +80,7 @@ export function homeFooterGroups(links: SiteSectionLinks): readonly FooterGroup[
         { label: HOME_COPY.navPrivacy, href: "/gizlilik" },
         { label: HOME_COPY.navTerms, href: "/kosullar" },
         { label: HOME_COPY.navCookies, href: "/cerez" },
+        { label: HOME_COPY.navContact, href: "/iletisim" },
       ],
     },
   ];

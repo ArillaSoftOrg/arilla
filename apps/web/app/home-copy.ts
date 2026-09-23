@@ -37,6 +37,13 @@ export const HOME_COPY = {
   navPrivacy: "Gizlilik", // nav.privacy
   navTerms: "Kullanım Koşulları", // nav.terms
   navCookies: "Çerezler", // nav.cookies
+  navContact: "İletişim", // nav.contact
+  contactTitle: "İletişim", // contact.title
+  contactDescription:
+    "Arilla ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz.", // contact.description
+  contactEmailLabel: "E-posta", // contact.email_label
+  privacyContactPrefix: "Verilerinle ilgili soruların için", // privacy.contact_prefix
+  privacyContactSuffix: "adresine yazabilirsin.", // privacy.contact_suffix
   navTrends: "Trendler", // nav.trends
   navDiscover: "Keşfet", // nav.discover
   navHowItWorks: "Nasıl Çalışır", // nav.how_it_works

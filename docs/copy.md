@@ -70,6 +70,22 @@ Bu bölüm sosyal kanıt değildir - doğrulanmamış sayı/istatistik içermez
 | `nav.privacy` | Gizlilik |
 | `nav.terms` | Kullanım Koşulları |
 | `nav.cookies` | Çerezler |
+| `nav.contact` | İletişim |
+
+## İletişim (Faz 8.1)
+
+E-posta adresi metin değil yapılandırmadır: tek kaynağı
+`apps/web/app/site-config.ts` (`PUBLIC_CONTACT_EMAIL`). Geçici adres;
+kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
+çalışma saati bilerek yok — doğrulanmış bilgi değil.
+
+| Anahtar | Metin |
+| --- | --- |
+| `contact.title` | İletişim |
+| `contact.description` | Arilla ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz. |
+| `contact.email_label` | E-posta |
+| `privacy.contact_prefix` | Verilerinle ilgili soruların için |
+| `privacy.contact_suffix` | adresine yazabilirsin. |
 
 ## Eylemler
 
