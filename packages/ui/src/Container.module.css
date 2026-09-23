@@ -1,0 +1,29 @@
+/* docs/design.md "Düzen ve kapsayıcılar". max-width, gutter dahil edilerek
+   hesaplanir: icerik alani tam olarak belirtec genisliginde kalir. */
+.container {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--container-width) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+.compact {
+  --container-width: var(--content-width-compact);
+}
+
+.reading {
+  --container-width: var(--content-width-reading);
+}
+
+.comparison {
+  --container-width: var(--content-width-comparison);
+}
+
+.standard {
+  --container-width: var(--content-width-standard);
+}
+
+.wide {
+  --container-width: var(--content-width-wide);
+}

@@ -71,6 +71,7 @@ Bu bölüm sosyal kanıt değildir - doğrulanmamış sayı/istatistik içermez
 | `nav.terms` | Kullanım Koşulları |
 | `nav.cookies` | Çerezler |
 | `nav.contact` | İletişim |
+| `nav.skip_to_content` | İçeriğe geç |
 
 ## İletişim (Faz 8.1)
 

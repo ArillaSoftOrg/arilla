@@ -1,0 +1,26 @@
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--layout-gap);
+  /* `ul`/`ol` olarak kullanildiginda tarayici varsayilanlari. */
+  margin: 0;
+  padding: 0;
+  min-width: 0;
+  list-style: none;
+}
+
+.align-start {
+  align-items: flex-start;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.align-end {
+  align-items: flex-end;
+}
+
+.align-stretch {
+  align-items: stretch;
+}

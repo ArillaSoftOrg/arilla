@@ -1,0 +1,17 @@
+/* docs/design.md "Boşluk": bolum boslugu akiskan, sayfa kendi degerini
+   uydurmaz. */
+.section {
+  margin: 0;
+}
+
+.default {
+  padding-block: var(--section-space);
+}
+
+.compact {
+  padding-block: var(--section-space-compact);
+}
+
+.none {
+  padding-block: 0;
+}
