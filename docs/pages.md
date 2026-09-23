@@ -20,7 +20,7 @@ Bileşen adları `design.md` envanteriyle aynıdır. Metinler `copy.md` içinded
 | 5 | Keşif ızgarası | `id="kesfet"`. Masonry düzeni, `DiscoveryCard`. Veri `discovery_slot`'tan (`getDiscoverySlots`) gelir; adapter gerçek satırları `DiscoveryItem`'a çevirir. Faz 3.1: `discovery_slot` boşsa VE `HOMEPAGE_DEMO_CONTENT=true` ise (bkz. `.env.example`) `apps/web/data/demo/homepage-discovery.ts`teki demo veri setine düşer — `NODE_ENV`'e bağlı değil, açıkça etkinleştirilen bir içerik kararı (Admitad öncesi vitrin deploy'u için). Gerçek veri her zaman demo'nun önündedir. |
 | 6 | Nasıl Çalışır | `id="nasil-calisir"`, header nav'ından anchor. Üç kart: metinle ara, fotoğrafla ara (ikisi de aktif), bağlantıyla bul (Faz 4: backend'de kök catch-all link çözümleme var ama arama kutusuna bağlı değil — "Yakında" etiketiyle gösterilir, sahte CTA yok). `HowItWorksCard`, veri `home-copy.ts`. |
 | 7 | Şeffaflık | Faz 5: `HomeTrustSection`. Sosyal kanıt değil — doğrulanmamış kullanıcı/mağaza sayısı yok, yalnızca gerçek kabiliyetler (aynı/benzer ürün bulma, mağaza tekliflerini karşılaştırma, fiyat-stok bilgisinin mağaza kaynaklı ve güncellenme zamanlı olması). |
-| 8 | Altbilgi | Faz 5: `SiteFooter`. Yalnızca gerçekten var olan route'lara link (`#trendler`, `/kesfet`, `#nasil-calisir`, `/firsatlar`, `/giris`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`, Faz 6 sonrası `/gizlilik`, `/kosullar`, `/cerez`). `/iletisim` ve `/hakkinda` yok — doğrulanabilir iletişim bilgisi repoda olmadığı için footer'da BUNLARA link YOK. Affiliate bildirimi (`legal.affiliate_notice`) ve fiyat/stok uyarısı (`legal.price_disclaimer`) tek, düzenli bir disclosure bandında — homepage'te başka hiçbir yerde tekrar edilmez. |
+| 8 | Altbilgi | Faz 5: `SiteFooter`. Yalnızca gerçekten var olan route'lara link (`#trendler`, `/kesfet`, `#nasil-calisir`, `/firsatlar`, `/giris`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`, Faz 6 sonrası `/gizlilik`, `/kosullar`, `/cerez`). `/iletisim` ve `/hakkinda` yok — doğrulanabilir iletişim bilgisi repoda olmadığı için footer'da BUNLARA link YOK. Affiliate bildirimi (`legal.affiliate_notice`) ve fiyat/stok uyarısı (`legal.price_disclaimer`) tek, düzenli bir disclosure bandında — homepage'te başka hiçbir yerde tekrar edilmez. Faz 7: header ve footer'daki "Keşfet", keşif bölümü bu sayfada render edildiyse `#kesfet`'e, edilmediyse `/kesfet`'e gider — `/kesfet` bugün için `discovery_slot` yokken yalnızca boş durum gösterir. Faz 8: aynı header/footer public alt sayfalarda da kullanılır (`apps/web/app/public-site-shell.tsx`, route başına ince `layout.tsx`: `/kesfet`, `/firsatlar`, `/ara`, `/giris`, `/urun/[slug]`, `/gizlilik`, `/kosullar`, `/cerez`); orada bölüm linkleri `/#trendler`, `/kesfet`, `/#nasil-calisir`. Giriş gerektiren sayfalar ve `/yonetim` kabuk kullanmaz. |
 
 Kayıt istenmez. Kaydırma gerektiren tanıtım bölümleri yok.
 
@@ -36,6 +36,8 @@ durumda demo veri seti devreye girer, sayfa görsel olarak boş kalmaz.
 
 `LegalPageLayout` (packages/ui) paylaşılan sarmalayıcı — okuma genişliği
 (`--content-width-reading`), başlık + "son güncelleme" etiketi + içerik.
+Faz 8: bu sayfalar public site kabuğunu (`public-site-shell.tsx`, header +
+footer) kullanır — önceden header/footer'sız, çıkmaz sokak sayfalardı.
 
 | Route | İçerik | Durum |
 | --- | --- | --- |

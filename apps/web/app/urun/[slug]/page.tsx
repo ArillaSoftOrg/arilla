@@ -6,6 +6,7 @@ import {
   getPriceStats,
   getSizeOptions,
   isProductSitemapEligible,
+  readAppUrl,
   resolveProductSlug,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -122,7 +123,7 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   // docs/routes.md "Teknik kurallar": Product ve Offer yapılandırılmış verisi.
   // schema.org `url` mutlak olmalı - APP_URL yoksa alan tamamen atlanır,
   // göreli bir URL yazmaktan iyidir (Rich Results Test göreli url'i reddeder).
-  const siteUrl = process.env.APP_URL;
+  const siteUrl = readAppUrl();
   const productJsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",

@@ -9,6 +9,9 @@ export interface ProductImageProps {
   alt: string;
   className?: string;
   style?: CSSProperties;
+  /** Varsayilan "lazy". Yalnizca ilk ekranda gorunen gorsel icin "eager"
+   * (Faz 7 - LCP gorseli lazy olunca gec baslar). */
+  loading?: "lazy" | "eager";
 }
 
 /**
@@ -19,7 +22,7 @@ export interface ProductImageProps {
  * degisebilir/kaldirilabilir. ProductCard.module.css .imagePlaceholder ile
  * ayni notr desen.
  */
-export function ProductImage({ src, alt, className, style }: ProductImageProps) {
+export function ProductImage({ src, alt, className, style, loading = "lazy" }: ProductImageProps) {
   const [failed, setFailed] = useState(false);
 
   if (failed) {
@@ -37,7 +40,7 @@ export function ProductImage({ src, alt, className, style }: ProductImageProps) 
     <img
       src={src}
       alt={alt}
-      loading="lazy"
+      loading={loading}
       className={className}
       style={style}
       onError={() => setFailed(true)}

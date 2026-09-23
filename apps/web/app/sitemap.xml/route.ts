@@ -1,3 +1,4 @@
+import { readAppUrl } from "@arilla/core";
 import { buildSitemapIndexXml } from "../lib/sitemap-xml.ts";
 
 /**
@@ -10,7 +11,7 @@ import { buildSitemapIndexXml } from "../lib/sitemap-xml.ts";
  * belgenin istediği `/sitemaps/urun/N.xml` yolunu veremez.
  */
 export async function GET(): Promise<Response> {
-  const appUrl = process.env.APP_URL;
+  const appUrl = readAppUrl();
   if (!appUrl) {
     return new Response("APP_URL tanimli degil. .env.example dosyasina bakin.", { status: 500 });
   }

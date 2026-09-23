@@ -1,6 +1,13 @@
 import { getDiscoverySlots, todaySlotDate } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState, ProductCard } from "@arilla/ui";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Keşfet – Arilla",
+  description: "Farklı kategorilerden bugün öne çıkan ürünler.",
+  alternates: { canonical: "/kesfet" },
+};
 
 /**
  * docs/pages.md "/kesfet": "Bugün öne çıkanlar" (curated) -> "Kullanıcıların

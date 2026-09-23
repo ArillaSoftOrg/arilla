@@ -70,7 +70,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "MARKUS ofis koltuğu",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/markus-office-chair-vissle-dark-gray__0724714_pe734597_s5.jpg?f=u",
+      "https://www.ikea.com/us/en/images/products/markus-office-chair-vissle-dark-gray__0724714_pe734597_s5.jpg",
     imageAlt: "IKEA MARKUS ofis koltuğu, koyu gri",
     aspectRatio: 1,
     category: "çalışma koltuğu",
@@ -80,7 +80,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "FORSÅ masa lambası",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/forsa-work-lamp-nickel-plated__0121576_pe278160_s5.jpg?f=u",
+      "https://www.ikea.com/us/en/images/products/forsa-work-lamp-nickel-plated__0121576_pe278160_s5.jpg",
     imageAlt: "IKEA FORSÅ nikel kaplama masa lambası",
     aspectRatio: 1,
     category: "aydınlatma",
@@ -90,7 +90,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "ÖVNING masaüstü düzenleyici",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/oevning-desk-accessories-organizer__1160249_pe888822_s5.jpg?f=u",
+      "https://www.ikea.com/us/en/images/products/oevning-desk-accessories-organizer__1160249_pe888822_s5.jpg",
     imageAlt: "IKEA ÖVNING masaüstü düzenleyici",
     aspectRatio: 1,
     category: "küçük ev ürünü",

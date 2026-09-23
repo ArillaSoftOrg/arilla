@@ -2,22 +2,25 @@ import { getDiscoverySlots, todaySlotDate } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import {
   DiscoveryCard,
-  HomeHeader,
   HomeHero,
   HomeTrustSection,
   HowItWorksCard,
-  SiteFooter,
   TrendCollectionCard,
 } from "@arilla/ui";
+import type { Metadata } from "next";
 import { DEMO_HOMEPAGE_TRENDS } from "../data/demo/homepage-trends.ts";
 import { resolveDiscoveryItems } from "./discovery-adapter.ts";
 import { HOME_COPY } from "./home-copy.ts";
 import discoveryStyles from "./home-discovery.module.css";
-import { HOME_FOOTER_GROUPS } from "./home-footer-groups.ts";
+import { homeSectionLinks } from "./home-footer-groups.ts";
 import { HOME_HOW_IT_WORKS_STEPS } from "./home-how-it-works-steps.tsx";
 import { HomeSearchComposer } from "./home-search-composer-client.tsx";
 import { HOME_TRUST_POINTS } from "./home-trust-points.ts";
-import { verifySession } from "./lib/dal.ts";
+import { PublicSiteShell } from "./public-site-shell.tsx";
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
 
 /**
  * docs/pages.md "/" tablosu: logo + giris linki, arama girdisi, kisa
@@ -81,30 +84,24 @@ async function loadDiscoveryItems(): Promise<Awaited<ReturnType<typeof getDiscov
 }
 
 export default async function HomePage() {
-  const [items, user] = await Promise.all([loadDiscoveryItems(), verifySession()]);
+  const items = await loadDiscoveryItems();
   const discoveryItems = resolveDiscoveryItems(items);
+  // Faz 7: kesif bolumu bu sayfada varsa "Kesfet" oraya gider; yoksa (gercek
+  // veri ve demo ikisi de bos) /kesfet sayfasina. /kesfet bugun icin veri
+  // yokken yalnizca bos durum gosteriyor.
+  const discoverHref = discoveryItems.length > 0 ? "#kesfet" : "/kesfet";
 
   return (
-    <>
-      <HomeHeader
-        brandLabel="Arilla"
-        navItems={[
-          // Trendler ve Nasil Calisir ayni sayfa ici anchor - ikisi de
-          // gercek section'lara gider (id="trendler", id="nasil-calisir").
-          { label: HOME_COPY.navTrends, href: "#trendler" },
-          { label: HOME_COPY.navDiscover, href: "/kesfet" },
-          { label: HOME_COPY.navHowItWorks, href: "#nasil-calisir" },
-        ]}
-        navAriaLabel="Ana gezinme"
-        accountHref={user ? "/hesap" : null}
-        accountLabel={HOME_COPY.navAccount}
-        loginHref="/giris"
-        loginLabel={HOME_COPY.loginLabel}
-      />
-
+    // Faz 8: header/footer paylasilan public site kabugundan gelir. Ana
+    // sayfada Trendler ve Nasil Calisir ayni sayfa ici anchor (id="trendler",
+    // id="nasil-calisir"); alt sayfalar ayni kabugu `/#...` ile kullanir.
+    <PublicSiteShell links={homeSectionLinks(discoverHref)}>
       <main
         style={{
           display: "grid",
+          // minmax(0, 1fr): chip satiri gibi nowrap icerik tek kolonu
+          // viewport'tan genis acmasin (Faz 7 - yatay tasma).
+          gridTemplateColumns: "minmax(0, 1fr)",
           gap: "var(--space-8)",
           paddingBlock: "var(--space-8) var(--space-6)",
           paddingInline: "var(--space-6)",
@@ -116,6 +113,7 @@ export default async function HomePage() {
         <div
           style={{
             display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr)",
             gap: "var(--space-6)",
             maxWidth: "var(--content-width-reading)",
             marginInline: "auto",
@@ -130,7 +128,11 @@ export default async function HomePage() {
           <section
             id="trendler"
             aria-labelledby="trendler-heading"
-            style={{ display: "grid", gap: "var(--space-6)" }}
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr)",
+              gap: "var(--space-6)",
+            }}
           >
             <div style={{ display: "grid", gap: "var(--space-2)" }}>
               <h2
@@ -156,7 +158,9 @@ export default async function HomePage() {
               }}
             >
               {DEMO_HOMEPAGE_TRENDS.map((collection) => (
-                <TrendCollectionCard key={collection.id} {...collection} />
+                // Trendler hero'nun hemen altinda - masaustunde uc kartin ana
+                // gorseli ilk ekranda (LCP adayi), lazy yuklenmez (Faz 7).
+                <TrendCollectionCard key={collection.id} {...collection} heroImageLoading="eager" />
               ))}
             </div>
           </section>
@@ -166,7 +170,13 @@ export default async function HomePage() {
           <section
             id="kesfet"
             aria-labelledby="discovery-heading"
-            style={{ display: "grid", gap: "var(--space-6)" }}
+            // minmax(0, 1fr): multi-column masonry'nin dogal genisligi
+            // section kolonunu viewport'tan genis acmasin (Faz 7).
+            style={{
+              display: "grid",
+              gridTemplateColumns: "minmax(0, 1fr)",
+              gap: "var(--space-6)",
+            }}
           >
             <div style={{ display: "grid", gap: "var(--space-2)" }}>
               <h2
@@ -197,6 +207,7 @@ export default async function HomePage() {
           aria-labelledby="how-it-works-heading"
           style={{
             display: "grid",
+            gridTemplateColumns: "minmax(0, 1fr)",
             gap: "var(--space-6)",
             background: "var(--surface)",
             borderRadius: "var(--radius-md)",
@@ -254,15 +265,6 @@ export default async function HomePage() {
           <HomeTrustSection title={HOME_COPY.trustTitle} points={HOME_TRUST_POINTS} />
         </section>
       </main>
-
-      <SiteFooter
-        brandLabel="Arilla"
-        brandDescription={HOME_COPY.heroSubtitle}
-        groups={HOME_FOOTER_GROUPS}
-        affiliateNotice={HOME_COPY.affiliateNotice}
-        priceDisclaimer={HOME_COPY.priceDisclaimer}
-        copyrightLabel={`© ${new Date().getFullYear()} Arilla`}
-      />
-    </>
+    </PublicSiteShell>
   );
 }

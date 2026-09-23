@@ -5,6 +5,7 @@
  * notu: "hesabin var olup olmadigini belli etmez").
  */
 import { authToken, type Database } from "@arilla/db";
+import { requireAppUrl } from "../config/app-url.ts";
 import { checkAuthRateLimit } from "./rate-limit.ts";
 import { sendLoginEmail } from "./send-login-email.ts";
 import { generateRawToken, hashToken } from "./token.ts";
@@ -38,10 +39,7 @@ export async function requestLoginLink(
     throw new Error("auth_token insert bos sonuc dondurdu");
   }
 
-  const appUrl = process.env.APP_URL;
-  if (!appUrl) {
-    throw new Error("APP_URL tanimli degil. .env.example dosyasina bakin.");
-  }
+  const appUrl = requireAppUrl();
   const loginUrl = `${appUrl}/giris/dogrula?token=${rawToken}`;
 
   await sendLoginEmail({ email: input.email, loginUrl });

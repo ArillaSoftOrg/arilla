@@ -1,6 +1,13 @@
 import { getDeals } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { Badge, EmptyState, formatTRY, ProductCard } from "@arilla/ui";
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Fırsatlar – Arilla",
+  description: "Fiyatı düşen ürünler, düşüş tutarı ve yüzdesiyle.",
+  alternates: { canonical: "/firsatlar" },
+};
 
 /**
  * docs/pages.md "/firsatlar": "Fiyatı düşen ürünler, günlük üretilir. Her

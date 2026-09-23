@@ -16,6 +16,7 @@
 
 import { alert, appUser, type Database, offer, offerVariant, product } from "@arilla/db";
 import { and, eq, exists, sql } from "drizzle-orm";
+import { requireAppUrl } from "../config/app-url.ts";
 import { sendAlertEmail } from "./send-alert-email.ts";
 import type { AlertKind } from "./types.ts";
 
@@ -115,11 +116,7 @@ async function qualifyingSizeRestockAlerts(db: Database): Promise<QualifyingAler
 }
 
 function appUrl(): string {
-  const value = process.env.APP_URL;
-  if (!value) {
-    throw new Error("APP_URL tanimli degil. .env.example dosyasina bakin.");
-  }
-  return value;
+  return requireAppUrl();
 }
 
 export async function triggerAlerts(db: Database): Promise<TriggerAlertsResult> {

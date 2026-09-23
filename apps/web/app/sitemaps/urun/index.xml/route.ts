@@ -1,4 +1,4 @@
-import { maxSitemapProductId, SITEMAP_PRODUCT_SHARD_SIZE } from "@arilla/core";
+import { maxSitemapProductId, readAppUrl, SITEMAP_PRODUCT_SHARD_SIZE } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { unstable_cache } from "next/cache";
 import { buildSitemapIndexXml } from "../../../lib/sitemap-xml.ts";
@@ -16,7 +16,7 @@ const getMaxProductId = unstable_cache(
 );
 
 export async function GET(): Promise<Response> {
-  const appUrl = process.env.APP_URL;
+  const appUrl = readAppUrl();
   if (!appUrl) {
     return new Response("APP_URL tanimli degil. .env.example dosyasina bakin.", { status: 500 });
   }

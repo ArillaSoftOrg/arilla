@@ -18,6 +18,8 @@
 
 .brand {
   display: grid;
+  /* Faz 7: satirlar en uzun sutunun yuksekligine yayilmasin. */
+  align-content: start;
   gap: var(--space-2);
   /* Marka blogu digerlerinden biraz daha genis - kisa aciklama tek satira sikismasin. */
   max-width: 32ch;
@@ -39,6 +41,7 @@
 
 .group {
   display: grid;
+  align-content: start;
   gap: var(--space-3);
   /* min-width:0 - grup basligi/linkler flex/grid daralinca tasmasin. */
   min-width: 0;

@@ -2,14 +2,16 @@
   border-bottom: 1px solid var(--line);
 }
 
-/* Bar tam genislik, icerik ortak "okuma akisi" konteynerine hizali - hero ve
-   altbilgiyle ayni sol/sag baslangic noktasi (docs/design.md, karar 0025). */
+/* Bar tam genislik, icerik genis konteynere hizali - Trendler, Kesif
+   izgarasi ve altbilgiyle ayni sol/sag baslangic noktasi (docs/design.md,
+   karar 0025). Faz 7: eskiden okuma genisligindeydi, genis ekranda logo
+   icerik kenarindan kopuk kaliyordu. */
 .inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
-  max-width: var(--content-width-reading);
+  max-width: var(--content-width-wide);
   margin-inline: auto;
   padding: var(--space-3) var(--space-6);
 }
@@ -29,6 +31,15 @@
   flex: 1;
   min-width: 0;
   overflow-x: auto;
+  /* Faz 7: dar ekranda sigmayan son link kaba bir kesikle bitmesin - sag
+     kenar soner, kaydirilabilir oldugu okunur. Genis ekranda nav'in sagi bos
+     oldugu icin gorunur etkisi yok. Breakpoint yok. */
+  scrollbar-width: none;
+  mask-image: linear-gradient(to right, #000 calc(100% - var(--space-6)), transparent);
+}
+
+.nav::-webkit-scrollbar {
+  display: none;
 }
 
 .navLink {

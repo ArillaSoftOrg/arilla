@@ -1,5 +1,9 @@
+/* Faz 7: satira sarilir - yatay kaydirmada son chip her genislikte yarim
+   kesiliyordu. Breakpoint yok (docs/design.md "Duyarli tasarim"); asagidaki
+   kaydirma kurallari sarma nedeniyle artik devreye girmez, zararsizdir. */
 .row {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;

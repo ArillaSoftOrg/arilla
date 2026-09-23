@@ -41,11 +41,15 @@ a.card {
   color: var(--ink-muted);
 }
 
+/* Faz 7: tek satir ellipsis mobil 2 kolonda neredeyse her basligi kesiyordu -
+   en fazla iki satir. */
 .title {
-  display: block;
-  font-size: var(--font-size-sm);
-  color: var(--ink);
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-heading);
+  color: var(--ink);
 }

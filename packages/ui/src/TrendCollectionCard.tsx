@@ -19,7 +19,10 @@ export interface TrendCollection {
   products?: readonly TrendCollectionProduct[];
 }
 
-export type TrendCollectionCardProps = TrendCollection;
+export type TrendCollectionCardProps = TrendCollection & {
+  /** Faz 7: ilk ekrandaki kartlar icin "eager"; varsayilan "lazy". */
+  heroImageLoading?: "lazy" | "eager";
+};
 
 /**
  * docs/pages.md "/" Faz 2: editorial kesif karti. Veri kaynagini bilmez -
@@ -34,10 +37,16 @@ export function TrendCollectionCard({
   heroImageUrl,
   heroImageAlt,
   products,
+  heroImageLoading,
 }: TrendCollectionCardProps) {
   return (
     <article className={styles.card}>
-      <ProductImage src={heroImageUrl} alt={heroImageAlt} className={styles.heroImage} />
+      <ProductImage
+        src={heroImageUrl}
+        alt={heroImageAlt}
+        className={styles.heroImage}
+        loading={heroImageLoading}
+      />
       <div className={styles.body}>
         {eyebrow ? <p className={styles.eyebrow}>{eyebrow}</p> : null}
         <h3 className={styles.title}>{title}</h3>

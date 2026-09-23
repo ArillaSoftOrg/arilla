@@ -1,10 +1,17 @@
 .wrapper {
   display: grid;
+  /* minmax(0, 1fr): yatay kayan chip satirinin dogal genisligi kolonu
+     ve ebeveyn grid'leri genisletmesin. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
 }
 
 .box {
   display: flex;
+  /* Faz 7: dar ekranda girdi ~90px'e sikisiyordu. Girdinin minimum esas
+     genisligi sigmazsa butonlar alt satira sarilir, girdi tam genislik alir.
+     Breakpoint yok (docs/design.md "Duyarli tasarim"). */
+  flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
   min-height: 56px;
@@ -32,7 +39,8 @@
 }
 
 .input {
-  flex: 1;
+  flex: 1 1 10rem;
+  min-height: 40px;
   /* Flex varsayilani min-width:auto - icerik genisligi altina kucultmez,
      bu da placeholder/buton uzayinca satirin tasmasini onler. */
   min-width: 0;
@@ -53,6 +61,7 @@
   align-items: center;
   gap: var(--space-2);
   flex-shrink: 0;
+  margin-inline-start: auto;
 }
 
 /* Fotograf tetikleyicisinin hover'ini Button.module.css'in paylasilan
@@ -78,6 +87,7 @@
 
 .chipsSection {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
 }
 
