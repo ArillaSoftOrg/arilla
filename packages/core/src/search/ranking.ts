@@ -26,17 +26,6 @@ export const OUT_OF_STOCK_PENALTY = 0.3;
 export const MISSING_PERCENTILE_FALLBACK = 50;
 
 /**
- * `query.text` doluysa pg_trgm `similarity()` ile baslik benzerligi; bosca
- * sabit `1.0` - filtreler zaten alakayi garanti ettigi icin uydurma bir
- * kesinlik eklenmez.
- */
-export function relevanceExpr(titleColumn: SQL, text: string | undefined): SQL {
-  const trimmed = text?.trim();
-  if (!trimmed) return sql`1.0`;
-  return sql`similarity(${titleColumn}, ${trimmed})`;
-}
-
-/**
  * Sonuc `::double precision`e cast edilir: aksi halde Postgres'in `numeric`
  * ciktisi node-postgres tarafindan (hassasiyet kaybini onlemek icin) JS
  * string'i olarak donuyor - biz burada tam JS number istiyoruz.

@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import base64
+import io
 from pathlib import Path
 
 import httpx
 import pytest
+from PIL import Image
 
 from enrich.images import MAX_BYTES, FetchedImage, ImageRejected, content_hash, fetch
 
@@ -41,10 +43,12 @@ def test_fetch_returns_hash_and_data_url() -> None:
 
     assert isinstance(result, FetchedImage)
     assert result.sha256 == content_hash(payload)
-    assert result.data_url.startswith("data:image/png;base64,")
-    # data URL gercekten ayni baytlari tasimali.
+    # Hash ORIJINAL baytlarin; data URL ise on islenmis (yeniden kodlanmis) cikti.
+    assert result.data_url.startswith("data:image/jpeg;base64,")
     encoded = result.data_url.split(",", 1)[1]
-    assert base64.b64decode(encoded) == payload
+    decoded = Image.open(io.BytesIO(base64.b64decode(encoded)))
+    assert decoded.format == "JPEG"
+    assert decoded.size == (result.width, result.height)
 
 
 def test_non_image_content_type_is_rejected() -> None:

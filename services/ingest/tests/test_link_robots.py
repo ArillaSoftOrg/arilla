@@ -2,10 +2,12 @@
 
 from __future__ import annotations
 
+from urllib.robotparser import RobotFileParser
+
 import httpx
 import pytest
 
-from collect.link.robots import RobotsCache, RobotsDisallowed
+from collect.link.robots import USER_AGENT, RobotsCache, RobotsDisallowed, build_user_agent
 
 ROBOTS = """
 User-agent: *
@@ -81,3 +83,52 @@ def test_specific_group_wins_entirely_over_star() -> None:
     """
     cache = RobotsCache(client=_client())
     assert cache.crawl_delay("https://magaza.example") is None
+
+
+# --- user-agent: alan adi koda gomulmez, APP_URL'den turetilir ---------------
+
+
+def test_user_agent_without_app_url_has_no_url() -> None:
+    assert build_user_agent(None) == "ArillaBot/1.0"
+    assert build_user_agent("") == "ArillaBot/1.0"
+    assert build_user_agent("   ") == "ArillaBot/1.0"
+
+
+def test_user_agent_uses_normalized_app_url() -> None:
+    expected = "ArillaBot/1.0 (+https://site.test)"
+    assert build_user_agent("https://site.test") == expected
+    assert build_user_agent("https://site.test/") == expected
+    assert build_user_agent('  "https://site.test/"  ') == expected
+    assert build_user_agent("'https://site.test'") == expected
+
+
+def test_user_agent_keeps_port() -> None:
+    assert build_user_agent("http://site.test:8080/") == "ArillaBot/1.0 (+http://site.test:8080)"
+
+
+def test_user_agent_ignores_invalid_or_local_app_url() -> None:
+    for value in (
+        "site.test",
+        "ftp://site.test",
+        "http://localhost:3000",
+        "http://127.0.0.1:3000",
+        "https://user:pw@site.test",
+        "https://:gizli-parola@site.test",
+    ):
+        assert build_user_agent(value) == "ArillaBot/1.0", value
+
+
+def test_user_agent_never_contains_placeholder_domain() -> None:
+    # Yerel .env'den bagimsiz: modul sabiti degil, fonksiyonun kendisi sinanir.
+    assert ".example" not in build_user_agent(None)
+    assert build_user_agent(None) == "ArillaBot/1.0"
+    assert ".example" not in USER_AGENT
+
+
+def test_robots_group_still_matches_versioned_user_agent() -> None:
+    """robots.txt `ArillaBot` grubu, URL'li UA icin de gecerli kalir."""
+    parser = RobotFileParser()
+    parser.parse(["User-agent: ArillaBot", "Disallow: /gizli", "", "User-agent: *", "Allow: /"])
+    agent = build_user_agent("https://site.test")
+    assert not parser.can_fetch(agent, "https://merchant.test/gizli/urun")
+    assert parser.can_fetch(agent, "https://merchant.test/urun")

@@ -10,7 +10,7 @@
  */
 import { type Database, linkResolutionRequest, offer, product } from "@arilla/db";
 import { and, desc, eq, gt, inArray } from "drizzle-orm";
-import { getRedis } from "../redis/client.ts";
+import { getRedis, RedisUnavailableError } from "../redis/client.ts";
 import { normalizeUrl } from "./normalize-url.ts";
 
 export const LINK_RESOLUTION_QUEUE_KEY = "queue:link_resolution";
@@ -59,8 +59,19 @@ export async function enqueueLinkResolution(
     throw new Error("link_resolution_request insert boş sonuç döndürdü");
   }
 
-  const redis = getRedis();
-  await redis.lpush(LINK_RESOLUTION_QUEUE_KEY, JSON.stringify({ request_id: created.id }));
+  try {
+    await getRedis().lpush(LINK_RESOLUTION_QUEUE_KEY, JSON.stringify({ request_id: created.id }));
+  } catch (error) {
+    // Satır 'queued' kalırsa hiçbir worker onu almaz ve dedupe penceresi
+    // boyunca aynı sayfa yeniden yüklemesi bu ölü satıra bağlanırdı. Satır
+    // 'failed' işaretlenir (best-effort) ve hata çağırana iletilir.
+    await db
+      .update(linkResolutionRequest)
+      .set({ status: "failed", errorText: "queue_unavailable", finishedAt: new Date() })
+      .where(eq(linkResolutionRequest.id, created.id))
+      .catch(() => undefined);
+    throw new RedisUnavailableError("link cozumleme kuyrugu", { cause: error });
+  }
 
   return { requestId: created.id };
 }

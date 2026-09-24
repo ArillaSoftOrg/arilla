@@ -41,6 +41,21 @@ def slugify(value: str) -> str:
     return "-".join(part for part in cleaned.split("-") if part)[:200] or "urun"
 
 
+def slug_base(*, title: str, brand: str | None, color: str | None) -> str:
+    """Slug girdisi: marka + baslik (+ renk, baslikta yoksa).
+
+    Urun renk duzeyinde kanonik (0005) ama Shopify renk kardeslerinin
+    basligi ayni (0024): renk eklenmezse kardesler `-2`, `-3` ekiyle ayrisir
+    ve URL urunu anlatmaz, siralamaya da bagli olur (docs/decisions/0029).
+    """
+    base = f"{brand or ''} {title}".strip()
+    if color:
+        color_words = slugify(color).split("-")
+        if not set(color_words) <= set(slugify(base).split("-")):
+            base = f"{base} {color}"
+    return base
+
+
 def unique_slug(conn: psycopg.Connection, base: str) -> str:
     """`product.slug` UNIQUE; cakisirsa sonuna sayi eklenir.
 
@@ -101,10 +116,17 @@ def create_from_offer(
     image_url: str | None,
     gtin: str | None,
     mpn: str | None,
+    fallback_category_path: str | None = None,
+    color: str | None = None,
 ) -> int:
     brand_id = resolve_brand(conn, brand)
-    category_id = resolve_category(conn, category_path)
-    slug = unique_slug(conn, slugify(f"{brand or ''} {title}".strip()))
+    # Ham kategori agacta yoksa merchant'in `feed_config.category_hint`i
+    # denenir (orn. Shopify `product_type` serbest metindir). Hint de yalnizca
+    # MEVCUT bir yola baglanir; kategori yine yoktan acilmaz (0017).
+    category_id = resolve_category(conn, category_path) or resolve_category(
+        conn, fallback_category_path
+    )
+    slug = unique_slug(conn, slugify(slug_base(title=title, brand=brand, color=color)))
 
     with conn.cursor() as cur:
         cur.execute(
@@ -117,7 +139,7 @@ def create_from_offer(
                 "gtin": gtin,
                 "mpn": mpn,
                 # Renk kanonik kimligin parcasi: siyah ve bej ayri urundur.
-                "color": extract_color(title),
+                "color": color or extract_color(title),
                 "image_url": image_url,
             },
         )

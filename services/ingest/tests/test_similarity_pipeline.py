@@ -207,3 +207,26 @@ def test_price_stats_are_populated_for_every_product(catalogue: list[int]) -> No
         assert percentile is not None
         # Her teklifte fiyat bir kez dustu.
         assert drops == 1
+
+
+def test_product_aggregates_follow_active_offers(catalogue: list[int]) -> None:
+    with _owner() as conn:
+        refresh_price_stats(conn)
+        conn.commit()
+        # Ilk urunun tek teklifi pasiflesir: ozet sifirlanmali.
+        with conn.cursor() as cur:
+            cur.execute("UPDATE offer SET is_active = FALSE WHERE product_id = %s", (catalogue[0],))
+        refresh_price_stats(conn)
+        conn.commit()
+
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT id, min_price, max_price, offer_count, in_stock_count
+                 FROM product WHERE id = ANY(%s) ORDER BY id""",
+            (catalogue,),
+        )
+        rows = {row[0]: row[1:] for row in cur.fetchall()}
+
+    assert rows[catalogue[0]] == (None, None, 0, 0)
+    assert rows[catalogue[1]] == (10001, 10001, 1, 1)
+    assert rows[catalogue[2]] == (10002, 10002, 1, 1)

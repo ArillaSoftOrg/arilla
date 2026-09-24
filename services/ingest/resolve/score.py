@@ -21,7 +21,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
-from resolve.normalize import ProductKey
+from resolve.normalize import COLOR_SYNONYMS, ProductKey
 
 #: gtin/mpn tam eslesmesi kesindir; katmanli akis burada durur.
 EXACT_SCORE = 1.0
@@ -43,6 +43,9 @@ class ScoreResult:
     method: str
     #: Veto uygulandiysa sebebi — log ve `/yonetim/eslestirme` icin.
     veto: str | None = None
+    #: Esik ne olursa olsun OTOMATIK KABUL EDILMEZ, insan kuyruguna gider.
+    #: Veto degil: ayni urun olabilir ama kanitlanamiyor (0029).
+    review: str | None = None
 
     @property
     def vetoed(self) -> bool:
@@ -60,7 +63,7 @@ def veto_reason(left: ProductKey, right: ProductKey) -> str | None:
     eksiklik degil FARKTIR — "Kosu Ayakkabisi Pro" ile "Kosu Ayakkabisi" ayri
     urunlerdir.
     """
-    if left.color and right.color and left.color != right.color:
+    if left.color and right.color and not colors_consistent(left, right):
         return f"renk: {left.color} != {right.color}"
     if left.volume and right.volume and left.volume != right.volume:
         return f"hacim: {left.volume} != {right.volume}"
@@ -130,6 +133,47 @@ def image_similarity(left_vector: list[float], right_vector: list[float]) -> flo
     return max(0.0, dot / (left_norm * right_norm))
 
 
+def _color_words(color: str) -> set[str]:
+    """'spring-green' -> {'spring', 'yesil'}: basliktaki tokenlarla ayni
+    sozluk eslemesi (title_tokens renk kelimelerini kanonik ada cevirir)."""
+    return {COLOR_SYNONYMS.get(word, word) for word in color.split("-") if word}
+
+
+def colors_consistent(left: ProductKey, right: ProductKey) -> bool:
+    """Iki bilinen renk ayni mi (0029).
+
+    Acik renk alani cok kelimeli olabilir ("Spring Green"), basliktan
+    cikarilan renk tek kanonik kelimedir ("yesil"). Kelime kumeleri esitse
+    ya da biri tek kelimeyken digerinin tum kelimeleri o tarafin basliginda
+    geciyorsa ayni renktir. "Hammertone Green" ile "Spring Green" ayri kalir.
+    """
+    left_words, right_words = _color_words(left.color or ""), _color_words(right.color or "")
+    if left_words == right_words:
+        return True
+    for phrase, other in ((left_words, right), (right_words, left)):
+        other_words = _color_words(other.color or "")
+        if len(other_words) == 1 and other_words <= phrase and phrase <= set(other.tokens):
+            return True
+    return False
+
+
+def unverified_color(left: ProductKey, right: ProductKey) -> str | None:
+    """Renk yalnizca BIR tarafta biliniyor ve diger tarafin basliginda yok.
+
+    Bootstrap'ta gorulen hata (0029): Stanley offer'i acik renk tasiyor
+    ("Spring Green"), Termos Dunyasi urununun rengi yalnizca basliginda
+    ("... 0.59L Ash") ve sozlukte yok -> iki tarafta da bilinen renk olmadigi
+    icin veto calismadi, farkli renkler otomatik birlesti. Urun renk
+    duzeyinde kanonik (0005): renk dogrulanamiyorsa karar insana kalir.
+    """
+    for known, other in ((left, right), (right, left)):
+        if known.color and not other.color:
+            words = _color_words(known.color)
+            if words and not words <= set(other.tokens):
+                return f"renk dogrulanamadi: {known.color}"
+    return None
+
+
 def combine(
     left: ProductKey,
     right: ProductKey,
@@ -152,10 +196,11 @@ def combine(
         return ScoreResult(score=0.0, method="text", veto=veto)
 
     text = text_similarity(left, right)
+    review = unverified_color(left, right)
 
     has_vectors = bool(left_vector) and bool(right_vector)
     if not has_vectors:
-        return ScoreResult(score=text, method="text")
+        return ScoreResult(score=text, method="text", review=review)
 
     image = image_similarity(left_vector or [], right_vector or [])
     blended = HYBRID_TEXT_WEIGHT * text + HYBRID_IMAGE_WEIGHT * image
@@ -163,7 +208,7 @@ def combine(
     if text >= 0.6 and image >= 0.6:
         blended += HYBRID_AGREEMENT_BONUS
 
-    return ScoreResult(score=max(0.0, min(1.0, blended)), method="hybrid")
+    return ScoreResult(score=max(0.0, min(1.0, blended)), method="hybrid", review=review)
 
 
 def _env_float(name: str, default: float) -> float:

@@ -62,11 +62,18 @@ export async function searchByImageVector(
       LIMIT ${candidateLimit}
     ),
     by_product AS (
-      SELECT DISTINCT ON (o.product_id) o.product_id, n.similarity
+      SELECT DISTINCT ON (o.product_id) o.product_id, n.similarity, o.image_hash
       FROM nearest n
       JOIN offer o ON o.id = n.offer_id
       WHERE o.product_id IS NOT NULL
       ORDER BY o.product_id, n.similarity DESC
+    ),
+    -- Ayni gorsel (ayni hash) tek sonuc: Normod'da kumas renkleri tek
+    -- fotografi paylasir, birebir ayni vektor en ust siralari doldururdu (0029).
+    by_image AS (
+      SELECT DISTINCT ON (COALESCE(bp.image_hash, bp.product_id::text)) bp.product_id, bp.similarity
+      FROM by_product bp
+      ORDER BY COALESCE(bp.image_hash, bp.product_id::text), bp.similarity DESC, bp.product_id
     ),
     best_offer AS (
       SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
@@ -76,7 +83,7 @@ export async function searchByImageVector(
     )
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
            bo.current_price, p.offer_count, bp.similarity
-    FROM by_product bp
+    FROM by_image bp
     JOIN product p ON p.id = bp.product_id
     LEFT JOIN best_offer bo ON bo.product_id = p.id
     WHERE p.offer_count > 0

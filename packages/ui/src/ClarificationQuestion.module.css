@@ -1,0 +1,130 @@
+/* Sonuclarin ustunde sakin bir panel; ClarificationBar ile ayni dil. */
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.question {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
+  min-width: 0;
+}
+
+.option {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: var(--size-touch-target);
+  max-width: 100%;
+  padding-inline: var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  text-decoration: none;
+  overflow-wrap: anywhere;
+  cursor: pointer;
+}
+
+.option:hover {
+  background: var(--surface-hover);
+}
+
+.option:focus-visible,
+.input:focus-visible,
+.showResults:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Secili: renk tek isaret degil - onay isareti ve kalin yazi da var. */
+.selected {
+  border-color: var(--accent);
+  font-weight: var(--font-weight-semibold);
+}
+
+.check {
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Atlama: kesik cizgi ile bicimce ayrisir. */
+.skip {
+  border-style: dashed;
+  color: var(--ink-secondary);
+}
+
+.freeText {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.freeTextLabel {
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+}
+
+.freeTextRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.input {
+  flex: 1 1 12rem;
+  min-width: 0;
+  min-height: var(--size-touch-target);
+  padding-inline: var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-body);
+}
+
+.input::placeholder {
+  color: var(--ink-muted);
+}
+
+.showResults {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .option {
+    transition: background-color var(--duration-fast) var(--ease-standard);
+  }
+}

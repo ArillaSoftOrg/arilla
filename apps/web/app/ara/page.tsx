@@ -1,4 +1,10 @@
-import { recordSearchAndCheckWall, resolveQuery, type SortMode, search } from "@arilla/core";
+import {
+  isRedisUnavailableError,
+  recordSearchAndCheckWall,
+  resolveQuery,
+  type SortMode,
+  search,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ClarificationBar, EmptyState, SearchForm, SortTabs } from "@arilla/ui";
 import { cookies } from "next/headers";
@@ -72,7 +78,14 @@ export default async function AramaPage({
   if (!user) {
     const sessionId = (await cookies()).get("session_id")?.value;
     if (sessionId) {
-      shouldShowWall = (await recordSearchAndCheckWall(sessionId)).shouldShowWall;
+      // Arama duvari yalnizca surtunme (karar 0002): Redis erisilemezse arama
+      // calismaya devam eder, duvar bu istekte atlanir ve durum loglanir.
+      try {
+        shouldShowWall = (await recordSearchAndCheckWall(sessionId)).shouldShowWall;
+      } catch (error) {
+        if (!isRedisUnavailableError(error)) throw error;
+        console.error("[ara] search wall skipped: redis unavailable");
+      }
     }
   }
 

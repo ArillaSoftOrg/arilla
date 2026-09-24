@@ -9,12 +9,20 @@
  */
 import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
-import { arrayParam, balancedScoreExpr, relevanceExpr } from "./ranking.ts";
+import { arrayParam, balancedScoreExpr } from "./ranking.ts";
 import {
   type SearchResult,
   type SearchResultItem,
   UnsupportedSortForIntentError,
 } from "./result-types.ts";
+import {
+  foldedDocumentExpr,
+  headPrefilter,
+  matchTokens,
+  rootCategoryJoin,
+  tokenMatchGate,
+  tokenMatchLateral,
+} from "./text-match.ts";
 import type { QueryFilters, QueryObject } from "./types.ts";
 
 export interface SearchPagination {
@@ -93,6 +101,27 @@ function bestOfferCte(inStockOnly: boolean, merchantIds: number[] | null): SQL {
   `;
 }
 
+/**
+ * Ayni gorseli tasiyan sonuclardan yalnizca en yuksek skorlusu (0029).
+ * Normod'da 16 kumas rengi tek fotografi paylasiyor: kullaniciya ayni resmi
+ * 16 kez gostermek 24'luk listeyi doldurur ama bilgi eklemez. Urun modeli
+ * degismez (renk hala kanonik, 0005); yalnizca liste cesitlenir. Gorseli
+ * olmayan urunler kendi basina bir gruptur.
+ */
+function distinctImage(scored: SQL): SQL {
+  return sql`
+    SELECT * FROM (
+      SELECT x.*, row_number() OVER (
+        -- COLLATE "C": URL'ler bayt olarak karsilastirilir; yerel duyarli
+        -- siralama 4 bin satirda ~70 ms suruyordu (olculdu).
+        PARTITION BY COALESCE(x.primary_image_url, x.id::text) COLLATE "C"
+        ORDER BY x.score DESC, x.id ASC
+      ) AS image_rank
+      FROM ${scored} x
+    ) ranked WHERE ranked.image_rank = 1
+  `;
+}
+
 /** docs/search.md filtre tablosu: her alan bir indekse karsilik gelir. */
 function buildFilterClause(filters: QueryFilters): SQL {
   const categoryPath = filters.category_path ?? null;
@@ -121,6 +150,33 @@ function buildFilterClause(filters: QueryFilters): SQL {
   `;
 }
 
+/**
+ * Metin kosulu (docs/decisions/0029). Ayristiricinin filtreye cevirdigi
+ * kelimeler (fiyat, beden, renk, marka) `unparsed`'ta yoktur; kapi yalnizca
+ * geriye kalan metne uygulanir. Metin yoksa kapi ve LATERAL yoktur.
+ */
+function textMatch(query: QueryObject): {
+  products: SQL;
+  lateral: SQL;
+  gate: SQL;
+  relevance: SQL;
+} {
+  const slots = query.text_slots ?? matchTokens(query.unparsed).map((token) => [token]);
+  if (slots.length === 0) {
+    return { products: sql`product p`, lateral: sql``, gate: sql`TRUE`, relevance: sql`1.0` };
+  }
+  const document = foldedDocumentExpr(sql`p.title`, sql`b.name`, sql`p.color`, sql`rc.name`);
+  return {
+    // Indeksli on filtre ONCE: `OFFSET 0` planlayicinin alt sorguyu
+    // duzlestirip pahali token LATERAL'ini tum katalogda kosmasini engeller
+    // (olculdu: 4.5 bin urunde 270 ms -> ~20 ms).
+    products: sql`(SELECT * FROM product pr WHERE ${headPrefilter(slots, sql`pr.id`)} OFFSET 0) p`,
+    lateral: sql`${rootCategoryJoin(sql`c.path`)} ${tokenMatchLateral(slots, document)}`,
+    gate: tokenMatchGate(slots),
+    relevance: sql`tm.rel`,
+  };
+}
+
 async function searchByBalanced(
   db: Database,
   query: QueryObject,
@@ -132,29 +188,34 @@ async function searchByBalanced(
       ? query.filters.merchant_ids
       : null;
   const inStockOnly = query.filters.in_stock_only ?? false;
-  const relevance = relevanceExpr(sql`p.title`, query.text);
+  const text = textMatch(query);
   const score = balancedScoreExpr(
-    relevance,
+    text.relevance,
     sql`bo.trust_score`,
     sql`bo.in_stock`,
     sql`pps.current_percentile`,
   );
 
   const result = await db.execute<RawRow>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)}
-    SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
-           b.name AS brand_name, c.path AS category_path,
-           bo.current_price, bo.in_stock, bo.trust_score,
-           pps.current_percentile, pps.list_price_inflated, p.offer_count,
-           count(*) OVER()::text AS total_count,
-           ${score} AS score
-    FROM product p
-    JOIN best_offer bo ON bo.product_id = p.id
-    LEFT JOIN product_price_stats pps ON pps.product_id = p.id
-    LEFT JOIN brand b ON b.id = p.brand_id
-    LEFT JOIN category c ON c.id = p.category_id
-    WHERE ${buildFilterClause(query.filters)}
-    ORDER BY score DESC, p.id ASC
+    WITH ${bestOfferCte(inStockOnly, merchantIds)},
+    scored AS (
+      SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
+             b.name AS brand_name, c.path AS category_path,
+             bo.current_price, bo.in_stock, bo.trust_score,
+             pps.current_percentile, pps.list_price_inflated, p.offer_count,
+             ${score} AS score
+      FROM ${text.products}
+      JOIN best_offer bo ON bo.product_id = p.id
+      LEFT JOIN product_price_stats pps ON pps.product_id = p.id
+      LEFT JOIN brand b ON b.id = p.brand_id
+      LEFT JOIN category c ON c.id = p.category_id
+      ${text.lateral}
+      WHERE ${buildFilterClause(query.filters)}
+        AND ${text.gate}
+    )
+    SELECT s.*, count(*) OVER()::text AS total_count
+    FROM (${distinctImage(sql`scored`)}) s
+    ORDER BY s.score DESC, s.id ASC
     LIMIT ${limit} OFFSET ${offset}
   `);
   return toResult(result.rows, "balanced");
@@ -171,23 +232,31 @@ async function searchByBestDeal(
       ? query.filters.merchant_ids
       : null;
   const inStockOnly = query.filters.in_stock_only ?? false;
+  // "En iyi fiyat" sekmesi de ayni metin kapisindan gecer: alakasiz ama
+  // indirimli bir urun bu sekmede de one cikmamali.
+  const text = textMatch(query);
 
   const result = await db.execute<RawRow>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)}
-    SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
-           b.name AS brand_name, c.path AS category_path,
-           bo.current_price, bo.in_stock, bo.trust_score,
-           pps.current_percentile, pps.list_price_inflated, p.offer_count,
-           count(*) OVER()::text AS total_count,
-           (100 - COALESCE(pps.current_percentile, 100))::double precision AS score
-    FROM product p
-    JOIN best_offer bo ON bo.product_id = p.id
-    JOIN product_price_stats pps ON pps.product_id = p.id
-    LEFT JOIN brand b ON b.id = p.brand_id
-    LEFT JOIN category c ON c.id = p.category_id
-    WHERE pps.list_price_inflated = FALSE
-      AND ${buildFilterClause(query.filters)}
-    ORDER BY pps.current_percentile ASC NULLS LAST, p.id ASC
+    WITH ${bestOfferCte(inStockOnly, merchantIds)},
+    scored AS (
+      SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
+             b.name AS brand_name, c.path AS category_path,
+             bo.current_price, bo.in_stock, bo.trust_score,
+             pps.current_percentile, pps.list_price_inflated, p.offer_count,
+             (100 - COALESCE(pps.current_percentile, 100))::double precision AS score
+      FROM ${text.products}
+      JOIN best_offer bo ON bo.product_id = p.id
+      JOIN product_price_stats pps ON pps.product_id = p.id
+      LEFT JOIN brand b ON b.id = p.brand_id
+      LEFT JOIN category c ON c.id = p.category_id
+      ${text.lateral}
+      WHERE pps.list_price_inflated = FALSE
+        AND ${buildFilterClause(query.filters)}
+        AND ${text.gate}
+    )
+    SELECT s.*, count(*) OVER()::text AS total_count
+    FROM (${distinctImage(sql`scored`)}) s
+    ORDER BY s.current_percentile ASC NULLS LAST, s.id ASC
     LIMIT ${limit} OFFSET ${offset}
   `);
   return toResult(result.rows, "best_deal");

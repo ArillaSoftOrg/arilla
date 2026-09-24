@@ -9,10 +9,14 @@ import styles from "./photo-search-client.module.css";
 export const PHOTO_SEARCH_UPLOAD_LABEL = "Fotoğraf yükle"; // action.upload_photo
 export const PHOTO_SEARCH_LOADING_LABEL = "Benzerlerini arıyoruz"; // search.loading
 
+/** `ara/gorsel/actions.ts` MAX_UPLOAD_BYTES ile aynı; gövde sınırına takılmadan önce yakalanır. */
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
+
 const ERROR_COPY: Record<string, string> = {
-  too_large: "Fotoğraf çok büyük. Daha küçük bir dosya dener misin?",
+  too_large: "Fotoğraf çok büyük. 4 MB'tan küçük bir dosya dener misin?",
   invalid_type: "Bir şeyler ters gitti. Tekrar dener misin?",
   daily_limit: "Bugünlük görsel arama hakkın doldu. Yarın tekrar bekleriz.",
+  unavailable: "Fotoğrafla arama şu an kullanılamıyor. Biraz sonra tekrar dener misin?",
   error: "Bir şeyler ters gitti. Tekrar dener misin?",
 };
 
@@ -28,6 +32,10 @@ export function usePhotoSearchUpload() {
 
   function handleFile(file: File) {
     setError(null);
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(ERROR_COPY.too_large ?? null);
+      return;
+    }
     const formData = new FormData();
     formData.set("photo", file);
     startTransition(async () => {

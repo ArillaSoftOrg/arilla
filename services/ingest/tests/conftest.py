@@ -24,6 +24,9 @@ XML_FEED_CONFIG = {
         "variants": {"path": "g:sizes", "size": "g:size", "availability": "g:stock"},
     },
     "value_formats": {"decimal_separator": ".", "thousands_separator": ""},
+    # Fixture feed'leri TL; para birimi merchant duzeyinde dogrulanmis (0029).
+    "currency": "TRY",
+    "currency_verified": True,
 }
 
 #: Ag dokumu eslemesi: kolon adlari tamamen farkli, kod degismiyor.
@@ -37,6 +40,8 @@ NETWORK_DUMP_CONFIG = {
         "availability": "stok_durumu",
     },
     "value_formats": {"decimal_separator": ",", "thousands_separator": "."},
+    "currency": "TRY",
+    "currency_verified": True,
 }
 
 

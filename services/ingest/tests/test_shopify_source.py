@@ -13,6 +13,9 @@ from collect.sources.shopify import ShopifyConnector
 # buyuk okunur).
 _SHOPIFY_CONFIG = {
     "value_formats": {"decimal_separator": ".", "thousands_separator": ","},
+    # /products.json para birimi tasimaz; merchant duzeyinde dogrulanmis (0029).
+    "currency": "TRY",
+    "currency_verified": True,
     "mapping": {
         "external_id": "external_id",
         "url": "url",
@@ -131,9 +134,7 @@ def test_single_variant_product_normalizes_without_size_variant() -> None:
 
 
 def test_color_option_splits_product_into_multiple_records() -> None:
-    config = {
-        "transport": {"pagination": {"size": 50}, "shopify": {"color_option": "option1"}}
-    }
+    config = {"transport": {"pagination": {"size": 50}, "shopify": {"color_option": "option1"}}}
     connector = ShopifyConnector(
         base_url="https://north-sails-turkey.myshopify.com/products.json",
         config=config,
@@ -167,9 +168,7 @@ def test_color_option_absent_keeps_single_record() -> None:
 
 def test_multi_color_normalizes_with_per_variant_price_and_sku() -> None:
     mapping = FieldMapping.from_config(_SHOPIFY_CONFIG)
-    config = {
-        "transport": {"pagination": {"size": 50}, "shopify": {"color_option": "option1"}}
-    }
+    config = {"transport": {"pagination": {"size": 50}, "shopify": {"color_option": "option1"}}}
     connector = ShopifyConnector(
         base_url="https://north-sails-turkey.myshopify.com/products.json",
         config=config,
@@ -188,3 +187,227 @@ def test_multi_color_normalizes_with_per_variant_price_and_sku() -> None:
     assert by_size["M"].in_stock is True
     assert by_size["M"].sku == "NS0000692462"
     assert by_size["M"].price_override == 348600
+
+
+def _paged_client(total: int, calls: list[int]) -> httpx.Client:
+    """`total` tek varyantli urunu Shopify gibi sayfalar; istenen sayfalari kaydeder."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params["page"])
+        limit = int(request.url.params["limit"])
+        calls.append(page)
+        start = (page - 1) * limit
+        products = []
+        for index in range(start, min(start + limit, total)):
+            product = _single_variant_product()
+            product["id"] = index + 1
+            product["handle"] = f"urun-{index + 1}"
+            products.append(product)
+        return httpx.Response(200, json={"products": products})
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_max_products_caps_canonical_products_and_stops_paging() -> None:
+    calls: list[int] = []
+    config = {
+        **_SHOPIFY_CONFIG,
+        "transport": {"pagination": {"size": 10}, "shopify": {"max_products": 25}},
+    }
+    connector = ShopifyConnector(
+        base_url="https://shop.example/products.json",
+        config=config,
+        client=_paged_client(100, calls),
+    )
+
+    records = list(connector.fetch())
+
+    assert len(records) == 25
+    # 3. sayfa tavani doldurur; 4. sayfa hic istenmez.
+    assert calls == [1, 2, 3]
+
+
+def test_max_products_counts_products_not_color_records() -> None:
+    """Renk bolmesi tavani yemez: tavan kanonik Shopify urunu sayisidir."""
+    config = {
+        **_SHOPIFY_CONFIG,
+        "transport": {"shopify": {"color_option": "option1", "max_products": 1}},
+    }
+    connector = ShopifyConnector(
+        base_url="https://shop.example/products.json",
+        config=config,
+        client=_client([_multi_color_product(), _single_variant_product()]),
+    )
+
+    records = list(connector.fetch())
+
+    assert len(records) > 1
+    assert {record.fields["id"] for record in records} == {str(_multi_color_product()["id"])}
+
+
+def _flaky_client(statuses: list[int], calls: list[int]) -> httpx.Client:
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(1)
+        status = statuses.pop(0) if statuses else 200
+        if status != 200:
+            return httpx.Response(status, headers={"Retry-After": "1"})
+        return httpx.Response(200, json={"products": []})
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def test_retries_transient_errors_with_bounded_backoff(monkeypatch) -> None:
+    sleeps: list[float] = []
+    monkeypatch.setattr("collect.sources.shopify.time.sleep", sleeps.append)
+    calls: list[int] = []
+    config = {
+        **_SHOPIFY_CONFIG,
+        "transport": {"retry": {"max_retries": 2, "backoff_seconds": 2, "max_backoff_seconds": 3}},
+    }
+    connector = ShopifyConnector(
+        base_url="https://shop.example/products.json",
+        config=config,
+        client=_flaky_client([429, 503], calls),
+    )
+
+    assert list(connector.fetch()) == []
+    assert len(calls) == 3
+    # 2 * 2**0 = 2, 2 * 2**1 = 4 -> 3 ile sinirlanir.
+    assert sleeps == [2, 3]
+
+
+def test_does_not_retry_forbidden_or_without_retry_config(monkeypatch) -> None:
+    monkeypatch.setattr("collect.sources.shopify.time.sleep", lambda _: None)
+    for statuses, config in (
+        ([403], {"retry": {"max_retries": 3}}),  # bot korumasi: israr yok
+        ([503], {}),  # ayar yoksa tek deneme (0023)
+    ):
+        calls: list[int] = []
+        connector = ShopifyConnector(
+            base_url="https://shop.example/products.json",
+            config={**_SHOPIFY_CONFIG, "transport": config},
+            client=_flaky_client(list(statuses), calls),
+        )
+        try:
+            list(connector.fetch())
+        except httpx.HTTPStatusError:
+            pass
+        else:
+            raise AssertionError("hata bekleniyordu")
+        assert len(calls) == 1
+
+
+def test_zero_price_record_is_rejected() -> None:
+    import pytest
+
+    from collect.records import RecordRejected
+
+    product = _single_variant_product()
+    product["variants"][0]["price"] = "0.00"
+    connector = ShopifyConnector(
+        base_url="https://shop.example/products.json",
+        config=_SHOPIFY_CONFIG,
+        client=_client([product]),
+    )
+    (record,) = list(connector.fetch())
+    with pytest.raises(RecordRejected, match="gecersiz fiyat"):
+        normalize(record, FieldMapping.from_config(_SHOPIFY_CONFIG))
+
+
+_BY_NAME_CONFIG = {
+    **_SHOPIFY_CONFIG,
+    "mapping": {
+        **_SHOPIFY_CONFIG["mapping"],
+        "variants": {**_SHOPIFY_CONFIG["mapping"]["variants"], "size": "size"},
+    },
+    "transport": {
+        "shopify": {
+            "color_option_names": ["Renk", "Color", "Kumaş"],
+            "size_option_names": ["Beden", "Size"],
+        }
+    },
+}
+
+
+def _product_with_options(options: list[str], variants: list[tuple]) -> dict:
+    return {
+        "id": 7,
+        "handle": "urun",
+        "title": "Urun",
+        "vendor": "Marka",
+        "product_type": "Tip",
+        "options": [{"name": name} for name in options],
+        "variants": [
+            {
+                "id": 700 + index,
+                "option1": values[0],
+                "option2": values[1] if len(values) > 1 else None,
+                "available": True,
+                "price": "100.00",
+            }
+            for index, values in enumerate(variants)
+        ],
+        "images": [{"src": "https://cdn.example/u.png"}],
+    }
+
+
+def _normalized(product: dict) -> list:
+    connector = ShopifyConnector(
+        base_url="https://shop.example/products.json",
+        config=_BY_NAME_CONFIG,
+        client=_client([product]),
+    )
+    mapping = FieldMapping.from_config(_BY_NAME_CONFIG)
+    return [normalize(record, mapping) for record in connector.fetch()]
+
+
+def test_size_in_option1_is_not_split_into_products() -> None:
+    """Casadora Baby: tek secenek `Beden`, option1'de. Beden kardesleri ayri urun degil."""
+    offers = _normalized(_product_with_options(["Beden"], [("0-3 Ay",), ("3-6 Ay",)]))
+
+    assert len(offers) == 1
+    assert [v.size_label for v in offers[0].variants] == ["0-3 Ay", "3-6 Ay"]
+
+
+def test_color_found_by_name_even_when_second() -> None:
+    """For Fun: (`Beden`, `Renk`) sirasi. Renge gore bolunur, beden varyant olur."""
+    offers = _normalized(
+        _product_with_options(["Beden", "Renk"], [("S", "Siyah"), ("M", "Siyah"), ("S", "Bej")])
+    )
+
+    assert sorted(o.attributes_raw["color"] for o in offers) == ["Bej", "Siyah"]
+    black = next(o for o in offers if o.attributes_raw["color"] == "Siyah")
+    assert [v.size_label for v in black.variants] == ["S", "M"]
+
+
+def test_non_size_option_is_not_stored_as_size() -> None:
+    """Normod: (`Kumaş`, `Ayak`). Ayak tipi beden degildir."""
+    offers = _normalized(
+        _product_with_options(["Kumaş", "Ayak"], [("Granit", "Ahşap"), ("Granit", "Metal")])
+    )
+
+    assert len(offers) == 1
+    assert offers[0].variants == ()
+
+
+def test_unverified_currency_is_rejected_not_assumed_try() -> None:
+    """0029: kaynak para birimi tasimiyorsa ve merchant icin dogrulanmamissa
+    kayit reddedilir; TRY varsayilmaz."""
+    import pytest
+
+    from collect.records import RecordRejected
+
+    connector = ShopifyConnector(
+        base_url="https://shop.example/products.json",
+        config=_SHOPIFY_CONFIG,
+        client=_client([_single_variant_product()]),
+    )
+    (record,) = list(connector.fetch())
+    for config in (
+        {**_SHOPIFY_CONFIG, "currency_verified": False},
+        {key: value for key, value in _SHOPIFY_CONFIG.items() if key != "currency"},
+    ):
+        with pytest.raises(RecordRejected, match="para birimi bilinmiyor"):
+            normalize(record, FieldMapping.from_config(config))
+
+    assert normalize(record, FieldMapping.from_config(_SHOPIFY_CONFIG)).currency == "TRY"

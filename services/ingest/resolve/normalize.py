@@ -253,8 +253,14 @@ class ProductKey:
         mpn: str | None = None,
     ) -> ProductKey:
         # Renk acik alanda verilmisse ona guvenilir; yoksa basliktan cikarilir.
-        resolved_color = COLOR_SYNONYMS.get(strip_accents(color or "").lower()) or extract_color(
-            title
+        # Sozlukte olmayan acik renk ("Defne Yesili", "Navy/Beige") atilmaz:
+        # normalize edilmis haliyle tutulur ki renk vetosu calissin (0005:
+        # urun renk duzeyinde kanonik).
+        explicit = strip_accents(color or "").lower().strip()
+        resolved_color = (
+            COLOR_SYNONYMS.get(explicit)
+            or ("-".join(re.sub(r"[^a-z0-9]+", " ", explicit).split()) or None)
+            or extract_color(title)
         )
         tokens = title_tokens(title, brand)
         return cls(

@@ -6,7 +6,7 @@
  */
 import { authToken, type Database } from "@arilla/db";
 import { requireAppUrl } from "../config/app-url.ts";
-import { checkAuthRateLimit } from "./rate-limit.ts";
+import { checkAuthRateLimit, releaseEmailRateLimit } from "./rate-limit.ts";
 import { sendLoginEmail } from "./send-login-email.ts";
 import { generateRawToken, hashToken } from "./token.ts";
 import type { RequestLoginLinkInput, RequestLoginLinkResult } from "./types.ts";
@@ -15,6 +15,10 @@ export async function requestLoginLink(
   db: Database,
   input: RequestLoginLinkInput,
 ): Promise<RequestLoginLinkResult> {
+  // Yapilandirma hatasi (APP_URL) token yazilmadan ve oran hakki harcanmadan
+  // once yakalanir.
+  const appUrl = requireAppUrl();
+
   await checkAuthRateLimit({ email: input.email, ip: input.ip });
 
   const rawToken = generateRawToken();
@@ -39,10 +43,16 @@ export async function requestLoginLink(
     throw new Error("auth_token insert bos sonuc dondurdu");
   }
 
-  const appUrl = requireAppUrl();
   const loginUrl = `${appUrl}/giris/dogrula?token=${rawToken}`;
 
-  await sendLoginEmail({ email: input.email, loginUrl });
+  try {
+    await sendLoginEmail({ email: input.email, loginUrl });
+  } catch (error) {
+    // Gonderilemeyen baglanti icin e-posta hakki geri verilir; tekrar deneme
+    // "az once gonderdik" yanitiyla karsilasmaz (sessiz basari yok).
+    await releaseEmailRateLimit(input.email);
+    throw error;
+  }
 
   return { authTokenId };
 }

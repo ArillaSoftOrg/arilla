@@ -74,6 +74,9 @@
     {"case": "SURUM v2", "a": {"title": "Vira Kosu Ayakkabisi V2 Siyah", "brand": "Vira"}, "b": {"title": "Vira Kosu Ayakkabisi Siyah", "brand": "Vira"}},
     {"case": "SURUM nesil", "a": {"title": "Lodos Yun Kaban 2. Nesil Gri", "brand": "Lodos"}, "b": {"title": "Lodos Yun Kaban Gri", "brand": "Lodos"}},
     {"case": "SURUM gen farkli numara", "a": {"title": "Ayda Sweatshirt Gen 2 Siyah", "brand": "Ayda"}, "b": {"title": "Ayda Sweatshirt Gen 3 Siyah", "brand": "Ayda"}},
-    {"case": "KADEME iki tarafta farkli", "a": {"title": "Vira Kosu Ayakkabisi Pro Siyah", "brand": "Vira"}, "b": {"title": "Vira Kosu Ayakkabisi Lite Siyah", "brand": "Vira"}}
+    {"case": "KADEME iki tarafta farkli", "a": {"title": "Vira Kosu Ayakkabisi Pro Siyah", "brand": "Vira"}, "b": {"title": "Vira Kosu Ayakkabisi Lite Siyah", "brand": "Vira"}},
+    {"case": "SHOPIFY RENK KARDESI sozlukte olmayan renk (0027)", "a": {"title": "North Tech Regular Fit Bisiklet Yaka COOLMAX® Erkek Tişört", "brand": "North Sails Erkek", "color": "Defne Yeşili"}, "b": {"title": "North Tech Regular Fit Bisiklet Yaka COOLMAX® Erkek Tişört", "brand": "North Sails Erkek", "color": "Deniz Laciverti"}},
+    {"case": "SHOPIFY RENK KARDESI mobilya kumasi (0027)", "a": {"title": "Carle Small Tekli Koltuk Çift Kollu - Melanj Keten", "brand": "Normod", "color": "Kumtaşı"}, "b": {"title": "Carle Small Tekli Koltuk Çift Kollu - Melanj Keten", "brand": "Normod", "color": "Granit"}},
+    {"case": "SHOPIFY RENK KARDESI bilesik renk (0027)", "a": {"title": "WLMouse Huan M Magnezyum Wireless Mouse", "brand": "WLmouse", "color": "Siyah/Altın (Limited Edition)"}, "b": {"title": "WLMouse Huan M Magnezyum Wireless Mouse", "brand": "WLmouse", "color": "Beyaz/Gümüş (Limited Edition)"}}
   ]
 }

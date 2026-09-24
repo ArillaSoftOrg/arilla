@@ -9,8 +9,10 @@
  * değişimi dahil), yalnızca yeni bir sorgu metninde değil - decision 0002
  * bu ayrımı yapmıyor ve bu, salt sürtünme amaçlı bir mekanizma için gereksiz
  * karmaşıklık olurdu.
+ *
+ * Redis erişilemezse `RedisUnavailableError` fırlatır (bkz. `redis/client.ts`).
  */
-import { getRedis } from "../redis/client.ts";
+import { incrementFixedWindow } from "../redis/counter.ts";
 
 const WINDOW_SECONDS = 60 * 60 * 24;
 
@@ -22,13 +24,12 @@ export interface SearchWallResult {
   shouldShowWall: boolean;
 }
 
+export function searchWallKey(sessionId: string): string {
+  return `search-wall:${sessionId}`;
+}
+
 /** Girişi olan kullanıcılar için çağrılmamalı - duvar yalnızca anonim ziyaretçiler içindir. */
 export async function recordSearchAndCheckWall(sessionId: string): Promise<SearchWallResult> {
-  const redis = getRedis();
-  const key = `search-wall:${sessionId}`;
-  const count = await redis.incr(key);
-  if (count === 1) {
-    await redis.expire(key, WINDOW_SECONDS);
-  }
+  const count = await incrementFixedWindow(searchWallKey(sessionId), WINDOW_SECONDS);
   return { shouldShowWall: count > freeSearchLimit() };
 }

@@ -51,9 +51,14 @@ async function loadDiscoveryItems(): Promise<Awaited<ReturnType<typeof getDiscov
   try {
     return await getDiscoverySlots(getDatabase(), todaySlotDate());
   } catch (error) {
+    // Yalnizca hata sinifi/kodu - sorgu ayrintisi veya baglanti bilgisi loga
+    // dusmez (CLAUDE.md: hata kayitlarinda kisisel veri yok).
+    const code =
+      error instanceof Error
+        ? `${error.name}${"code" in error ? `:${String(error.code)}` : ""}`
+        : "unknown";
     console.error(
-      "[anasayfa] discovery_slot sorgusu basarisiz, bos liste ile devam ediliyor:",
-      error,
+      `[anasayfa] discovery_slot sorgusu basarisiz, bos liste ile devam ediliyor (${code})`,
     );
     return [];
   }

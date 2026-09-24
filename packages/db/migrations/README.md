@@ -35,6 +35,8 @@ migration'lar olusturur.
 | `0016_category_expansion.sql` | `category.slug` UNIQUE kisiti (eksik kalmisti) + 8 yeni ana kategori + kozmetik→saglik-kozmetik yeniden ebeveynleme (0023) |
 | `0017_offer_variant_sku_and_shopify_source.sql` | `offer_variant.sku` kolonu + `merchant.source_type` CHECK'ine `'shopify'` eklendi (0024 — Shopify connector'i renk/beden/SKU'yu destekliyor) |
 | `0018_merchant_shopify_discovery.sql` | brand-discovery/endpoint-verification zincirinden 19 merchant kaydi, `is_active = FALSE` (0023; `source_type`/`feed_config.mapping` 0024 icin yerinde guncellendi — para birimi hala dogrulanmadigi icin `is_active` FALSE kaldi). 0017'den SONRA calismali: source_type='shopify' 0017'nin genislettigi CHECK'e bagli. |
+| `0019_product_title_fold_trgm.sql` | Katlanmis (Turkce+ASCII) `product.title` uzerinde trigram GIN indeksi; metin aramasinin aday kapisi icin (0029). Yalnizca ekleme. |
+| `0020_lexicon_synonym_kind.sql` | `lexicon.kind` CHECK'ine `'synonym'` + gercek katalog bosluklarindan baslangic esanlam seti (0029). Genisletici. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

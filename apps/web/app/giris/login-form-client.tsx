@@ -17,6 +17,7 @@ const COPY = {
   sentHint: "Birkaç dakika içinde gelmezse gereksiz klasörüne de göz at.", // auth.link_sent_hint
   rateLimited: "Az önce bir bağlantı gönderdik. Birkaç dakika sonra tekrar dene.", // auth.rate_limited
   invalidEmail: "Geçerli bir e-posta adresi gir.", // auth.invalid_email
+  sendFailed: "Bağlantıyı şu an gönderemedik. Biraz sonra tekrar dene.", // auth.send_failed
 } as const;
 
 export function LoginFormClient() {
@@ -55,6 +56,12 @@ export function LoginFormClient() {
       {state.status === "rate_limited" ? (
         <p role="alert" className={styles.notice}>
           {COPY.rateLimited}
+        </p>
+      ) : null}
+      {/* E-posta gonderilemediyse "gonderdik" denmez (sessiz basari yok). */}
+      {state.status === "send_failed" ? (
+        <p role="alert" className={styles.notice}>
+          {COPY.sendFailed}
         </p>
       ) : null}
       <Button type="submit" variant="primary" size="lg" fullWidth disabled={pending}>

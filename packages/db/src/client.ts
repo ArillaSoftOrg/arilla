@@ -12,8 +12,34 @@ import * as schema from "./schema/index.ts";
 
 export type Database = ReturnType<typeof createDatabase>;
 
+/**
+ * Serverless (Vercel) ortaminda her fonksiyon ornegi kendi havuzunu acar;
+ * pg'nin varsayilan 10 baglantisi Supabase pooler istemci sinirini hizla
+ * doldurur. Kucuk, ortamdan ayarlanabilir bir ust sinir ve bos baglantilarin
+ * kapanmasi. SSL ayari baglanti adresinden gelir (ör. `sslmode`).
+ */
+const DEFAULT_POOL_MAX = 5;
+
+function poolMaxFromEnv(): number {
+  const raw = process.env.DATABASE_POOL_MAX;
+  if (raw === undefined || raw.trim() === "") return DEFAULT_POOL_MAX;
+  const value = Number(raw);
+  if (!Number.isInteger(value) || value < 1) {
+    throw new Error("DATABASE_POOL_MAX pozitif bir tamsayi olmali.");
+  }
+  return value;
+}
+
 export function createDatabase(connectionString: string) {
-  return drizzle(new Pool({ connectionString }), { schema });
+  return drizzle(
+    new Pool({
+      connectionString,
+      max: poolMaxFromEnv(),
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 10_000,
+    }),
+    { schema },
+  );
 }
 
 let cached: Database | undefined;

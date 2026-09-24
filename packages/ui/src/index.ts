@@ -10,6 +10,7 @@ export * from "./Badge.tsx";
 export * from "./Button.tsx";
 export * from "./Card.tsx";
 export * from "./ClarificationBar.tsx";
+export * from "./ClarificationQuestion.tsx";
 export * from "./Cluster.tsx";
 export * from "./ColorSwatches.tsx";
 export * from "./Container.tsx";

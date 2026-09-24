@@ -240,6 +240,7 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `auth.submitting` | Gönderiliyor… |
 | `auth.link_sent_hint` | Birkaç dakika içinde gelmezse gereksiz klasörüne de göz at. |
 | `auth.invalid_email` | Geçerli bir e-posta adresi gir. |
+| `auth.send_failed` | Bağlantıyı şu an gönderemedik. Biraz sonra tekrar dene. |
 
 `auth.rate_limited` mesajı hesabın var olup olmadığını belli etmez; her iki
 durumda da aynı metin gösterilir.
@@ -348,7 +349,8 @@ Arama sonucunda görünen ama sayfada gösterilmeyen metinler (D6). `{ürün}` v
 | `error.document_title` | Bir hata oluştu – Arilla |
 | `action.retry` | Tekrar dene |
 | `error.rate_limited` | Çok hızlı gidiyorsun. Biraz bekleyip tekrar dene. |
-| `error.upload_too_large` | Fotoğraf çok büyük. Daha küçük bir dosya dener misin? |
+| `error.upload_too_large` | Fotoğraf çok büyük. 4 MB'tan küçük bir dosya dener misin? |
+| `error.visual_search_unavailable` | Fotoğrafla arama şu an kullanılamıyor. Biraz sonra tekrar dener misin? |
 | `error.upload_not_product` | Bu fotoğrafta bir ürün göremedik. Ürünün net göründüğü bir fotoğraf dener misin? |
 | `error.daily_limit` | Bugünlük görsel arama hakkın doldu. Yarın tekrar bekleriz. |
 

@@ -17,6 +17,8 @@
 import { alert, appUser, type Database, offer, offerVariant, product } from "@arilla/db";
 import { and, eq, exists, sql } from "drizzle-orm";
 import { requireAppUrl } from "../config/app-url.ts";
+import { toEmailDeliveryError } from "../email/delivery-error.ts";
+import { emailFrom, smtpConfigFromEnv } from "../email/transport.ts";
 import { sendAlertEmail } from "./send-alert-email.ts";
 import type { AlertKind } from "./types.ts";
 
@@ -120,6 +122,21 @@ function appUrl(): string {
 }
 
 export async function triggerAlerts(db: Database): Promise<TriggerAlertsResult> {
+  // Yapilandirma (site adresi, SMTP) dongu ONCESI dogrulanir: eksikse hicbir
+  // alarm "tetiklendi" isaretlenmez - aksi halde her alarm pasiflesir ama tek
+  // e-posta gitmez ve bu sessizce kaybolurdu. Bir sonraki cron calismasi
+  // yapilandirma duzeldiginde ayni alarmlari yeniden dener.
+  try {
+    appUrl();
+    emailFrom();
+    smtpConfigFromEnv(process.env);
+  } catch (error) {
+    console.error(
+      `[alarm] yapilandirma eksik, alarmlar islenmedi: ${toEmailDeliveryError(error).code}`,
+    );
+    return { triggeredCount: 0, notifiedCount: 0 };
+  }
+
   const candidates = [
     ...(await qualifyingPriceDropAlerts(db)),
     ...(await qualifyingRestockAlerts(db)),
@@ -148,8 +165,10 @@ export async function triggerAlerts(db: Database): Promise<TriggerAlertsResult> 
       });
       await db.update(alert).set({ notifiedAt: new Date() }).where(eq(alert.id, row.alertId));
       notifiedCount++;
-    } catch {
-      // triggered ama e-posta gitmedi; notified_at NULL kalir.
+    } catch (error) {
+      // triggered ama e-posta gitmedi; notified_at NULL kalir. Yalnizca hata
+      // kodu loglanir - alici adresi ve urun bilgisi loga girmez.
+      console.error(`[alarm] e-posta gonderilemedi: ${toEmailDeliveryError(error).code}`);
     }
   }
 

@@ -14,14 +14,53 @@ from __future__ import annotations
 import logging
 import time
 from dataclasses import dataclass, field
+from urllib.parse import urlsplit
 from urllib.robotparser import RobotFileParser
 
 import httpx
 
+from db.connection import env
+
 logger = logging.getLogger(__name__)
 
-#: Kim oldugumuzu soyleyen user-agent. APP_URL uretimde gercek alan adi olur.
-USER_AGENT = "ArillaBot/0.1 (+https://arilla.example/bot)"
+#: robots.txt gruplarinda eslesen urun belirteci. Merchant bizi bu adla
+#: engelleyebilir veya izin verebilir.
+BOT_NAME = "ArillaBot"
+BOT_VERSION = "1.0"
+
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "0.0.0.0", "::1"}
+
+
+def build_user_agent(app_url: str | None) -> str:
+    """Kim oldugumuzu soyleyen user-agent.
+
+    Alan adi koda gomulmez: `APP_URL` (web tarafiyla ayni normalizasyon -
+    bosluk, tirnak ve sondaki slash kirpilir) tanimliysa site adresi
+    olarak eklenir; tanimsizsa URL'siz `ArillaBot/1.0` kullanilir.
+    Uydurma bir alan adi yazmaktansa hic yazmamak dogrudur.
+    """
+    base = f"{BOT_NAME}/{BOT_VERSION}"
+    value = (app_url or "").strip().strip("\"'").rstrip("/")
+    parts = urlsplit(value)
+    # Kullanici adi VEYA parola iceren adres UA'ya (merchant'a giden istege)
+    # asla yazilmaz: `https://:parola@host` bos kullanici adiyla gecerdi.
+    if (
+        parts.scheme not in {"https", "http"}
+        or not parts.hostname
+        or parts.username
+        or parts.password
+    ):
+        return base
+    # Yerel gelistirme adresi merchant icin anlamsiz; yazilmaz.
+    if parts.hostname in _LOCAL_HOSTS or parts.hostname.endswith(".localhost"):
+        return base
+    # netloc yerine yalnizca host + port: kimlik bilgisi hicbir yoldan sizmaz.
+    host = f"{parts.hostname}:{parts.port}" if parts.port else parts.hostname
+    return f"{base} (+{parts.scheme}://{host})"
+
+
+#: Surec basina bir kez hesaplanir; `.env` `db.connection.env` ile okunur.
+USER_AGENT = build_user_agent(env("APP_URL"))
 
 #: robots.txt onbellek suresi. Ayni host'a arka arkaya sorulmaz.
 CACHE_TTL_SECONDS = 3600

@@ -130,12 +130,26 @@ sonuçların önüne alınır — ama yine sonuçların yerine geçmez.
 
 `başka bir şey` seçeneği serbest metin girişi açar; her netleştirmede bulunur.
 
+**Faset netleştirmesi** ("hangi tür kask?", "hediye kimin için?") bu kategori
+netleştirmesinin yanında duran ayrı bir katmandır. Bkz.
+`docs/decisions/0030-konusmali-netlestirme.md`. Sonuçları bekletmeme kuralı
+orada da geçerlidir.
+
 ### Yardımcı cümle
 
 "Bisiklet kasklarında şehir modeliyle daha korumacı seçenekler yan yana
 duruyor" tipi yönlendirici cümle **kategori başına bir kez** üretilir ve
 `generated_content` tablosuna yazılır. Her kullanıcı için üretilmez. Maliyet
 kategori sayısına bağlanır, kullanıcı sayısına değil.
+
+## Aday kapısı
+
+Metin sorgusunda yalnızca **alakalı** ürünler sıralamaya girer; liste 24'ü
+doldurmak için alakasız ürünle tamamlanmaz. Katalogda karşılığı olmayan sorgu
+0 sonuç verir. Kural (token düzeyinde, Türkçe/ASCII katlanmış, baş isim
+zorunlu), eşanlam sözlüğü (`lexicon.kind = 'synonym'`) ve aynı görselli
+sonuçların tekilleştirilmesi: `docs/decisions/0029`. Değerlendirme seti:
+`packages/core/src/search/eval/`.
 
 ## Sıralama
 

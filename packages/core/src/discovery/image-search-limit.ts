@@ -1,11 +1,15 @@
 /**
- * D4 "kullanıcı başına günlük limit". `auth/search-wall.ts` ile aynı
- * INCR+EXPIRE deseni, ama bu bir sürtünme değil sert bir duraktır - embedding
- * çağrısı gerçek para maliyeti taşır (`docs/decisions/0015`), metin
- * aramasının aksine. Anahtar girişliyse `user_id`, değilse `session_id`
- * üzerinden tutulur - görsel arama anonim de çalışır.
+ * D4 "kullanıcı başına günlük limit". `auth/search-wall.ts` ile aynı sabit
+ * pencereli sayaç (`redis/counter.ts`), ama bu bir sürtünme değil sert bir
+ * duraktır - embedding çağrısı gerçek para maliyeti taşır
+ * (`docs/decisions/0015`), metin aramasının aksine. Anahtar girişliyse
+ * `user_id`, değilse `session_id` üzerinden tutulur - görsel arama anonim de
+ * çalışır.
+ *
+ * Redis erişilemezse `RedisUnavailableError` fırlatır; limit
+ * doğrulanamadığı için embedding çağrısı yapılmamalıdır (fail-closed).
  */
-import { getRedis } from "../redis/client.ts";
+import { incrementFixedWindow } from "../redis/counter.ts";
 
 const WINDOW_SECONDS = 60 * 60 * 24;
 
@@ -17,16 +21,15 @@ export interface ImageSearchLimitResult {
   allowed: boolean;
 }
 
+export function imageSearchLimitKey(key: { userId: number | null; sessionId: string }): string {
+  const scope = key.userId !== null ? `user:${key.userId}` : `session:${key.sessionId}`;
+  return `image-search-limit:${scope}`;
+}
+
 export async function recordImageSearchAndCheckLimit(key: {
   userId: number | null;
   sessionId: string;
 }): Promise<ImageSearchLimitResult> {
-  const redis = getRedis();
-  const scope = key.userId !== null ? `user:${key.userId}` : `session:${key.sessionId}`;
-  const redisKey = `image-search-limit:${scope}`;
-  const count = await redis.incr(redisKey);
-  if (count === 1) {
-    await redis.expire(redisKey, WINDOW_SECONDS);
-  }
+  const count = await incrementFixedWindow(imageSearchLimitKey(key), WINDOW_SECONDS);
   return { allowed: count <= dailyLimit() };
 }

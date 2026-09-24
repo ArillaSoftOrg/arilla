@@ -7,6 +7,8 @@ dependencies = [
     "psycopg[binary]>=3.2",
     "httpx>=0.28",
     "redis>=5.0",
+    # Gorsel on isleme (karar 0028): cozme, EXIF, kucultme, yeniden kodlama.
+    "pillow>=11.3",
 ]
 
 [project.optional-dependencies]

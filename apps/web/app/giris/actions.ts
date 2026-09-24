@@ -1,6 +1,11 @@
 "use server";
 
-import { RateLimitExceededError, requestLoginLink } from "@arilla/core";
+import {
+  EmailDeliveryError,
+  isRedisUnavailableError,
+  RateLimitExceededError,
+  requestLoginLink,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { headers } from "next/headers";
 import { clientIp } from "../lib/client-ip.ts";
@@ -9,15 +14,20 @@ export type RequestLoginLinkState =
   | { status: "idle" }
   | { status: "sent" }
   | { status: "rate_limited" }
-  | { status: "invalid_email" };
+  | { status: "invalid_email" }
+  | { status: "send_failed" };
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * decision 0006 / copy.md: `auth.rate_limited` mesajı hesabın var olup
  * olmadığını hiçbir zaman belli etmez - `requestLoginLink` zaten `app_user`
- * tablosuna dokunmuyor, burada da yalnızca "gönderildi" veya "oran sınırı"
- * durumları var, "böyle bir hesap yok" gibi bir dal yok.
+ * tablosuna dokunmuyor, burada da "gönderildi", "oran sınırı" ve "gönderim
+ * başarısız" durumları var, "böyle bir hesap yok" gibi bir dal yok.
+ *
+ * `send_failed`: e-posta gerçekten gönderilemediyse "gönderdik" denmez.
+ * Bu dal da hesap varlığından bağımsızdır (gönderim her e-posta için aynı
+ * yoldan denenir).
  */
 export async function requestLoginLinkAction(
   _prevState: RequestLoginLinkState,
@@ -38,6 +48,18 @@ export async function requestLoginLinkAction(
   } catch (error) {
     if (error instanceof RateLimitExceededError) {
       return { status: "rate_limited" };
+    }
+    if (error instanceof EmailDeliveryError) {
+      // Yalnizca hata kodu loglanir: alici adresi ve token'li baglanti
+      // (kisisel veri / gizli) hata kayitlarina girmez.
+      console.error(`[giris] login email delivery failed: ${error.code}`);
+      return { status: "send_failed" };
+    }
+    if (isRedisUnavailableError(error)) {
+      // Oran siniri kontrol edilemiyorsa kapali kalinir: sinirsiz giris
+      // e-postasi gonderilmez.
+      console.error("[giris] rate limit unavailable");
+      return { status: "send_failed" };
     }
     throw error;
   }

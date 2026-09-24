@@ -32,7 +32,18 @@ loadDotEnv();
 
 const nextConfig: NextConfig = {
   // Workspace paketleri ham TypeScript disa aktarir; derlemesini Next yapar.
-  transpilePackages: ["@arilla/core", "@arilla/ui"],
+  // @arilla/db de ham .ts disa aktarir - listede olmazsa derleme yalnizca
+  // pnpm'in paketi node_modules disina baglamasi sayesinde calisir.
+  transpilePackages: ["@arilla/core", "@arilla/db", "@arilla/ui"],
+  experimental: {
+    serverActions: {
+      // Gorsel arama yuklemesi 4 MB ile sinirli (ara/gorsel/actions.ts).
+      // Limit ham multipart govdeye uygulanir (sinir + parca basliklari
+      // ~10-20 KB ekler), bu yuzden 4 MB dosya icin 4mb yetmez. 4.5mb
+      // Vercel Function istek govdesi ust siniriyla da ayni.
+      bodySizeLimit: "4.5mb",
+    },
+  },
 };
 
 export default nextConfig;

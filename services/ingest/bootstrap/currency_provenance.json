@@ -1,0 +1,946 @@
+{
+  "generated_at": "2026-09-24T12:08:14+00:00",
+  "purpose": "Currency provenance for bootstrap_shopify merchants (docs/decisions/0023, 0024, 0027). /products.json carries no currency; currency must not be inferred from price magnitude.",
+  "method": "Per store, strictly sequential (>=1.2s gap), no retries, default client headers, <=4 requests: /robots.txt, product page HTML, /products/<handle>.js, /meta.json. /cart.js skipped everywhere because robots.txt disallows it. Requests originated from a Turkish IP (Shopify.country=TR on every store).",
+  "confidence_rule": "high = shop base currency (meta.json) + active presentment currency (rate 1.0) + JSON-LD priceCurrency all agree AND product .js price equals our stored kurus; medium = same but the store runs Shopify Markets with country-specific alternates, so a non-TR vantage or localization cookie could yield a different presentment currency; UNKNOWN/none = missing or conflicting evidence.",
+  "merchants": [
+    {
+      "slug": "casadora-baby",
+      "ingest_domain": "casadora-baby.myshopify.com",
+      "canonical_host": "casadora-baby.myshopify.com",
+      "shop_domain_from_meta": "www.casadorababy.com",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:06:58+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/night-night-100-organik-pamuk-saten-bebek-lastikli-carsaf-70-x-140-cm",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:06:55+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/night-night-100-organik-pamuk-saten-bebek-lastikli-carsaf-70-x-140-cm",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:06:55+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/night-night-100-organik-pamuk-saten-bebek-lastikli-carsaf-70-x-140-cm",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:06:55+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "night-night-100-organik-pamuk-saten-bebek-lastikli-carsaf-70-x-140-cm",
+        "offer_url": "https://casadora-baby.myshopify.com/products/night-night-100-organik-pamuk-saten-bebek-lastikli-carsaf-70-x-140-cm",
+        "our_kurus": 129000,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            129000
+          ],
+          "og_price_amount": "1,290.00",
+          "source_path": "/products/night-night-100-organik-pamuk-saten-bebek-lastikli-carsaf-70-x-140-cm.js",
+          "fetched_at": "2026-09-24T12:06:57+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify Markets country-specific hreflang alternates (19+ e.g. en-AE, en-AT, en-AU)",
+        "country selector on page with 40+ countries",
+        "meta.json ships_to_countries has 29 entries (international shipping enabled)",
+        "Shopify.country=TR for this (Turkish IP) request"
+      ],
+      "money_format": "{{amount}}TL",
+      "confidence": "medium"
+    },
+    {
+      "slug": "derimod",
+      "ingest_domain": "derimod.com.tr",
+      "canonical_host": "derimod.com.tr",
+      "shop_domain_from_meta": "derimod.com.tr",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:04+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/kadin-siyah-klasik-omuz-cantasi-wb550003sf-5637145339",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:07:01+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/kadin-siyah-klasik-omuz-cantasi-wb550003sf-5637145339",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:01+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/kadin-siyah-klasik-omuz-cantasi-wb550003sf-5637145339",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:01+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "kadin-siyah-klasik-omuz-cantasi-wb550003sf-5637145339",
+        "offer_url": "https://derimod.com.tr/products/kadin-siyah-klasik-omuz-cantasi-wb550003sf-5637145339",
+        "our_kurus": 524900,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            524900
+          ],
+          "og_price_amount": "5,249.00",
+          "source_path": "/products/kadin-siyah-klasik-omuz-cantasi-wb550003sf-5637145339.js",
+          "fetched_at": "2026-09-24T12:07:03+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "meta.json ships_to_countries has 29 entries (international shipping enabled)",
+        "Shopify.country=TR for this (Turkish IP) request",
+        "language-only hreflang alternates (tr/en), no country-specific market alternates"
+      ],
+      "money_format": "{{amount}}TL",
+      "confidence": "high"
+    },
+    {
+      "slug": "eubos-turkiye",
+      "ingest_domain": "eubos-turkiye.myshopify.com",
+      "canonical_host": "eubos-turkiye.myshopify.com",
+      "shop_domain_from_meta": "eubos-turkiye.myshopify.com",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:10+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/diyabetik-yuz-kremi-50-ml",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:07:08+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/diyabetik-yuz-kremi-50-ml",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:08+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/diyabetik-yuz-kremi-50-ml",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:08+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "diyabetik-yuz-kremi-50-ml",
+        "offer_url": "https://eubos-turkiye.myshopify.com/products/diyabetik-yuz-kremi-50-ml",
+        "our_kurus": 210000,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            210000
+          ],
+          "og_price_amount": "2,100.00",
+          "source_path": "/products/diyabetik-yuz-kremi-50-ml.js",
+          "fetched_at": "2026-09-24T12:07:09+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "meta.json ships_to_countries has 2 entries (international shipping enabled)",
+        "Shopify.country=TR for this (Turkish IP) request",
+        "language-only hreflang alternates (tr/en), no country-specific market alternates"
+      ],
+      "money_format": "{{amount}} TL",
+      "confidence": "high"
+    },
+    {
+      "slug": "flavus",
+      "ingest_domain": "flavus.com",
+      "canonical_host": "flavus.com",
+      "shop_domain_from_meta": "flavus.com",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:17+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/skin401-pro-10-azelaic-acid-intensive-gel-serum",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:07:14+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/skin401-pro-10-azelaic-acid-intensive-gel-serum",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:14+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/skin401-pro-10-azelaic-acid-intensive-gel-serum",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:14+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "skin401-pro-10-azelaic-acid-intensive-gel-serum",
+        "offer_url": "https://flavus.com/products/skin401-pro-10-azelaic-acid-intensive-gel-serum",
+        "our_kurus": 49990,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            49990
+          ],
+          "og_price_amount": "499.90",
+          "source_path": "/products/skin401-pro-10-azelaic-acid-intensive-gel-serum.js",
+          "fetched_at": "2026-09-24T12:07:15+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify.country=TR for this (Turkish IP) request"
+      ],
+      "money_format": "{{amount}}TL",
+      "confidence": "high"
+    },
+    {
+      "slug": "halicizade-hali-kilim",
+      "ingest_domain": "halicizade-rug-store.myshopify.com",
+      "canonical_host": "www.halicizade.com",
+      "shop_domain_from_meta": "www.halicizade.com",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:24+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/sade-desenli-bej-sentetik-hali",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:07:21+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/sade-desenli-bej-sentetik-hali",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:21+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/sade-desenli-bej-sentetik-hali",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:21+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "sade-desenli-bej-sentetik-hali",
+        "offer_url": "https://halicizade-rug-store.myshopify.com/products/sade-desenli-bej-sentetik-hali",
+        "our_kurus": 720000,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            720000
+          ],
+          "og_price_amount": "7.200",
+          "source_path": "/products/sade-desenli-bej-sentetik-hali.js",
+          "fetched_at": "2026-09-24T12:07:22+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "meta.json ships_to_countries has 49 entries (international shipping enabled)",
+        "Shopify.country=TR for this (Turkish IP) request",
+        "language-only hreflang alternates (tr/en), no country-specific market alternates"
+      ],
+      "money_format": "<span class=\"tlab-currency-format\">{{ amount_no_decimals_with_comma_separator }} TL</span>",
+      "confidence": "high"
+    },
+    {
+      "slug": "korendy",
+      "ingest_domain": "korendy.com.tr",
+      "canonical_host": "www.korendy.com.tr",
+      "shop_domain_from_meta": "www.korendy.com.tr",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:30+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/offlow-knot-glazed-liquid",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:07:27+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/offlow-knot-glazed-liquid",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:27+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/offlow-knot-glazed-liquid",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:27+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "offlow-knot-glazed-liquid",
+        "offer_url": "https://korendy.com.tr/products/offlow-knot-glazed-liquid?variant=45628201041943",
+        "our_kurus": 110890,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            110890
+          ],
+          "og_price_amount": "1,108.90",
+          "source_path": "/products/offlow-knot-glazed-liquid.js",
+          "fetched_at": "2026-09-24T12:07:29+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify.country=TR for this (Turkish IP) request"
+      ],
+      "money_format": "{{amount}}TL",
+      "confidence": "high"
+    },
+    {
+      "slug": "manu-atelier-tr",
+      "ingest_domain": "tr.manuatelier.com",
+      "canonical_host": "tr.manuatelier.com",
+      "shop_domain_from_meta": "tr.manuatelier.com",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:36+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/xx-mini-cylinder-silk-grey-nubuck",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:07:33+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/xx-mini-cylinder-silk-grey-nubuck",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:33+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/xx-mini-cylinder-silk-grey-nubuck",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:33+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "xx-mini-cylinder-silk-grey-nubuck",
+        "offer_url": "https://tr.manuatelier.com/products/xx-mini-cylinder-silk-grey-nubuck",
+        "our_kurus": 2785000,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            2785000
+          ],
+          "og_price_amount": "27,850.00",
+          "source_path": "/products/xx-mini-cylinder-silk-grey-nubuck.js",
+          "fetched_at": "2026-09-24T12:07:35+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify.country=TR for this (Turkish IP) request"
+      ],
+      "money_format": "{{amount}}₺",
+      "confidence": "high"
+    },
+    {
+      "slug": "normod",
+      "ingest_domain": "normod.com",
+      "canonical_host": "normod.com",
+      "shop_domain_from_meta": "normod.com",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:42+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/klem-uclu-ve-modsy-berjer-tas-gri-vanilya-koltuk-takimi-kadife",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:07:40+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/klem-uclu-ve-modsy-berjer-tas-gri-vanilya-koltuk-takimi-kadife",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:40+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/klem-uclu-ve-modsy-berjer-tas-gri-vanilya-koltuk-takimi-kadife",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:40+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "klem-uclu-ve-modsy-berjer-tas-gri-vanilya-koltuk-takimi-kadife",
+        "offer_url": "https://normod.com/products/klem-uclu-ve-modsy-berjer-tas-gri-vanilya-koltuk-takimi-kadife",
+        "our_kurus": 6243000,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            6243000
+          ],
+          "og_price_amount": "62,430",
+          "source_path": "/products/klem-uclu-ve-modsy-berjer-tas-gri-vanilya-koltuk-takimi-kadife.js",
+          "fetched_at": "2026-09-24T12:07:41+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify.country=TR for this (Turkish IP) request"
+      ],
+      "money_format": "{{amount_no_decimals}}TL",
+      "confidence": "high"
+    },
+    {
+      "slug": "north-sails-turkiye",
+      "ingest_domain": "north-sails-turkey.myshopify.com",
+      "canonical_host": "collection.northsails.com.tr",
+      "shop_domain_from_meta": "collection.northsails.com.tr",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:49+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/north-tech-regular-fit-esnek-kisa-kollu-erkek-polo-yaka-tisort-692710",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:07:46+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/north-tech-regular-fit-esnek-kisa-kollu-erkek-polo-yaka-tisort-692710",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:46+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/north-tech-regular-fit-esnek-kisa-kollu-erkek-polo-yaka-tisort-692710",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:46+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "north-tech-regular-fit-esnek-kisa-kollu-erkek-polo-yaka-tisort-692710",
+        "offer_url": "https://north-sails-turkey.myshopify.com/products/north-tech-regular-fit-esnek-kisa-kollu-erkek-polo-yaka-tisort-692710?variant=47939672211627",
+        "our_kurus": 598000,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            598000
+          ],
+          "og_price_amount": "5,980.00",
+          "source_path": "/products/north-tech-regular-fit-esnek-kisa-kollu-erkek-polo-yaka-tisort-692710.js",
+          "fetched_at": "2026-09-24T12:07:47+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "meta.json ships_to_countries has 29 entries (international shipping enabled)",
+        "Shopify.country=TR for this (Turkish IP) request",
+        "language-only hreflang alternates (tr/en), no country-specific market alternates"
+      ],
+      "money_format": "{{amount}}TL",
+      "confidence": "high"
+    },
+    {
+      "slug": "quzu",
+      "ingest_domain": "quzu.com.tr",
+      "canonical_host": "quzu.com.tr",
+      "shop_domain_from_meta": "quzu.com.tr",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:55+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/cizgili-seritli-asimetrik-mini-etek-bej",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:07:52+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/cizgili-seritli-asimetrik-mini-etek-bej",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:52+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "cizgili-seritli-asimetrik-mini-etek-bej",
+        "offer_url": "https://quzu.com.tr/products/cizgili-seritli-asimetrik-mini-etek-bej",
+        "our_kurus": 96000,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            96000
+          ],
+          "og_price_amount": null,
+          "source_path": "/products/cizgili-seritli-asimetrik-mini-etek-bej.js",
+          "fetched_at": "2026-09-24T12:07:54+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify.country=TR for this (Turkish IP) request",
+        "language-only hreflang alternates (tr/en), no country-specific market alternates"
+      ],
+      "money_format": "{{amount}}TL",
+      "confidence": "high"
+    },
+    {
+      "slug": "termos-dunyasi",
+      "ingest_domain": "termos-dunyasi.myshopify.com",
+      "canonical_host": "termos-dunyasi.myshopify.com",
+      "shop_domain_from_meta": "www.termosdunyasi.com.tr",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:08:01+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/stanley-classic-legendary-yemek-termosu-0-4l-spring-green",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:07:58+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/stanley-classic-legendary-yemek-termosu-0-4l-spring-green",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:58+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/stanley-classic-legendary-yemek-termosu-0-4l-spring-green",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:07:58+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "stanley-classic-legendary-yemek-termosu-0-4l-spring-green",
+        "offer_url": "https://termos-dunyasi.myshopify.com/products/stanley-classic-legendary-yemek-termosu-0-4l-spring-green",
+        "our_kurus": 262500,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            262500
+          ],
+          "og_price_amount": "2,625.00",
+          "source_path": "/products/stanley-classic-legendary-yemek-termosu-0-4l-spring-green.js",
+          "fetched_at": "2026-09-24T12:08:00+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify.country=TR for this (Turkish IP) request"
+      ],
+      "money_format": "{{amount}} TL",
+      "confidence": "high"
+    },
+    {
+      "slug": "wraith-esports",
+      "ingest_domain": "wraithesports.myshopify.com",
+      "canonical_host": "wraithesports.com",
+      "shop_domain_from_meta": "wraithesports.com",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:08:07+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/ttc-x-pantheonkeys-pt-black-mekanik-switch",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:08:05+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/ttc-x-pantheonkeys-pt-black-mekanik-switch",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:08:05+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/ttc-x-pantheonkeys-pt-black-mekanik-switch",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:08:05+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "ttc-x-pantheonkeys-pt-black-mekanik-switch",
+        "offer_url": "https://wraithesports.myshopify.com/products/ttc-x-pantheonkeys-pt-black-mekanik-switch",
+        "our_kurus": 84900,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            84900
+          ],
+          "og_price_amount": "849.00",
+          "source_path": "/products/ttc-x-pantheonkeys-pt-black-mekanik-switch.js",
+          "fetched_at": "2026-09-24T12:08:06+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify Markets country-specific hreflang alternates (20+ e.g. en-AL, en-AT, en-BA)",
+        "Shopify.country=TR for this (Turkish IP) request"
+      ],
+      "money_format": "<span class=money>{{amount}}TL</span>",
+      "confidence": "medium"
+    },
+    {
+      "slug": "yutas-yapi-urunleri",
+      "ingest_domain": "yutas-yapi-urunleri.myshopify.com",
+      "canonical_host": "lavabo.com.tr",
+      "shop_domain_from_meta": "lavabo.com.tr",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:08:14+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/motek-cop-kutusu-geri-donusum-cam-ve-kagit-atik-yesil-mavi-40-40-80-litre-i%CC%87kili-55-x-35-5-x-59-cm",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:08:11+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/motek-cop-kutusu-geri-donusum-cam-ve-kagit-atik-yesil-mavi-40-40-80-litre-i%CC%87kili-55-x-35-5-x-59-cm",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:08:11+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/motek-cop-kutusu-geri-donusum-cam-ve-kagit-atik-yesil-mavi-40-40-80-litre-i%CC%87kili-55-x-35-5-x-59-cm",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:08:11+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "motek-cop-kutusu-geri-donusum-cam-ve-kagit-atik-yesil-mavi-40-40-80-litre-i̇kili-55-x-35-5-x-59-cm",
+        "offer_url": "https://yutas-yapi-urunleri.myshopify.com/products/motek-cop-kutusu-geri-donusum-cam-ve-kagit-atik-yesil-mavi-40-40-80-litre-i̇kili-55-x-35-5-x-59-cm",
+        "our_kurus": 139230,
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            139230
+          ],
+          "og_price_amount": "1,392.30",
+          "source_path": "/products/motek-cop-kutusu-geri-donusum-cam-ve-kagit-atik-yesil-mavi-40-40-80-litre-i%CC%87kili-55-x-35-5-x-59-cm.js",
+          "fetched_at": "2026-09-24T12:08:12+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "meta.json ships_to_countries has 29 entries (international shipping enabled)",
+        "Shopify.country=TR for this (Turkish IP) request"
+      ],
+      "money_format": "{{amount}}TL",
+      "confidence": "high"
+    },
+    {
+      "slug": "vionine",
+      "ingest_domain": "vionine.com",
+      "canonical_host": "vionine.com",
+      "shop_domain_from_meta": "vionine.com",
+      "corpus": "overlap (services/ingest/bootstrap/overlap_merchants.json); not in DB",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:24:22+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/vionine-4-lu-leke-bariyer-bakim-seti-retinal-txa-pdrn-madeca-goz-kremi",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:24:19+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/vionine-4-lu-leke-bariyer-bakim-seti-retinal-txa-pdrn-madeca-goz-kremi",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:24:19+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/vionine-4-lu-leke-bariyer-bakim-seti-retinal-txa-pdrn-madeca-goz-kremi",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:24:19+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "vionine-4-lu-leke-bariyer-bakim-seti-retinal-txa-pdrn-madeca-goz-kremi",
+        "offer_url": "https://vionine.com/products/vionine-4-lu-leke-bariyer-bakim-seti-retinal-txa-pdrn-madeca-goz-kremi",
+        "our_kurus": 500000,
+        "our_kurus_source": "raw /products.json page 1 (limit 250) captured 2026-09-24 in scratchpad/overlap, variant price decimal * 100 (not in DB yet)",
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            500000
+          ],
+          "og_price_amount": "5,000",
+          "source_path": "/products/vionine-4-lu-leke-bariyer-bakim-seti-retinal-txa-pdrn-madeca-goz-kremi.js",
+          "fetched_at": "2026-09-24T12:24:20+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify.country=TR for this (Turkish IP) request",
+        "meta.json ships_to_countries has 2 entries (*, TR)",
+        "money_format wraps amounts in a 'transcy-money' span: Transcy client-side currency-converter app installed; affects browser display only, JSON endpoints and base currency remain TRY"
+      ],
+      "money_format": "<span class=transcy-money><span class=money>{{amount_no_decimals}} TL</span></span>",
+      "confidence": "high"
+    },
+    {
+      "slug": "sasha-kozmetik",
+      "ingest_domain": "sashakozmetik.com",
+      "canonical_host": "sashakozmetik.com",
+      "shop_domain_from_meta": "sashakozmetik.com",
+      "corpus": "overlap (services/ingest/bootstrap/overlap_merchants.json); not in DB",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:24:27+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/mixsoon-bean-eye-cream-hassas-goz-cevresi-i%CC%87cin-ferahlatici-nemlendirici-ve-yaslanma-karsiti-bakim-kremi",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:24:25+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/mixsoon-bean-eye-cream-hassas-goz-cevresi-i%CC%87cin-ferahlatici-nemlendirici-ve-yaslanma-karsiti-bakim-kremi",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:24:25+00:00"
+        },
+        {
+          "source": "product_page meta og:price:currency / product:price:currency",
+          "url_path": "/products/mixsoon-bean-eye-cream-hassas-goz-cevresi-i%CC%87cin-ferahlatici-nemlendirici-ve-yaslanma-karsiti-bakim-kremi",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:24:25+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "mixsoon-bean-eye-cream-hassas-goz-cevresi-i̇cin-ferahlatici-nemlendirici-ve-yaslanma-karsiti-bakim-kremi",
+        "offer_url": "https://sashakozmetik.com/products/mixsoon-bean-eye-cream-hassas-goz-cevresi-i̇cin-ferahlatici-nemlendirici-ve-yaslanma-karsiti-bakim-kremi",
+        "our_kurus": 132000,
+        "our_kurus_source": "raw /products.json page 1 (limit 250) captured 2026-09-24 in scratchpad/overlap, variant price decimal * 100 (not in DB yet)",
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            132000
+          ],
+          "og_price_amount": "1,320.00",
+          "source_path": "/products/mixsoon-bean-eye-cream-hassas-goz-cevresi-i%CC%87cin-ferahlatici-nemlendirici-ve-yaslanma-karsiti-bakim-kremi.js",
+          "fetched_at": "2026-09-24T12:24:26+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify.country=TR for this (Turkish IP) request"
+      ],
+      "money_format": "{{amount}}TL",
+      "confidence": "high"
+    },
+    {
+      "slug": "stanley-turkiye",
+      "ingest_domain": "tr.stanley1913.com",
+      "canonical_host": "tr.stanley1913.com",
+      "shop_domain_from_meta": "tr.stanley1913.com",
+      "corpus": "overlap (services/ingest/bootstrap/overlap_merchants.json); not in DB",
+      "currency": "TRY",
+      "evidence": [
+        {
+          "source": "shop_meta_json.currency (shop base currency)",
+          "url_path": "/meta.json",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:24:33+00:00"
+        },
+        {
+          "source": "storefront_html Shopify.currency (presentment; rate 1.0 => equals base)",
+          "url_path": "/products/stanley-everyday-pet-bowl-0-71l",
+          "value": "active=TRY rate=1.0",
+          "fetched_at": "2026-09-24T12:24:30+00:00"
+        },
+        {
+          "source": "product_page JSON-LD Offer.priceCurrency",
+          "url_path": "/products/stanley-everyday-pet-bowl-0-71l",
+          "value": "TRY",
+          "fetched_at": "2026-09-24T12:24:30+00:00"
+        }
+      ],
+      "not_fetched": [
+        {
+          "url_path": "/cart.js",
+          "reason": "robots.txt disallow (/cart.js)"
+        }
+      ],
+      "price_crosscheck": {
+        "handle": "stanley-everyday-pet-bowl-0-71l",
+        "offer_url": "https://tr.stanley1913.com/products/stanley-everyday-pet-bowl-0-71l",
+        "our_kurus": 379900,
+        "our_kurus_source": "raw /products.json page 1 (limit 250) captured 2026-09-24 in scratchpad/overlap, variant price decimal * 100 (not in DB yet)",
+        "observed_price": {
+          "product_js_variant_prices_minor_units": [
+            379900
+          ],
+          "og_price_amount": null,
+          "source_path": "/products/stanley-everyday-pet-bowl-0-71l.js",
+          "fetched_at": "2026-09-24T12:24:32+00:00"
+        },
+        "match": true
+      },
+      "multi_currency_signals": [
+        "Shopify.country=TR for this (Turkish IP) request"
+      ],
+      "money_format": "{{amount}}TL",
+      "confidence": "high"
+    }
+  ]
+}
