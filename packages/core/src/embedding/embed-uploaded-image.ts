@@ -53,6 +53,12 @@ function costMicros(tokens: number): number {
  * Yükleme kaydı her zaman oluşturulur (KVKK izlenebilirliği ve
  * `purge_after`), ama sağlayıcı çağrısı yalnızca aynı hash'te önceden
  * embed edilmiş bir satır yoksa yapılır.
+ *
+ * Varsayılan `client` argümanı gövdeden önce çözülür: sağlayıcı
+ * yapılandırılmamışsa `EmbeddingUnavailableError` hiçbir satır yazılmadan
+ * atılır. Sağlayıcı çağrısı başarısız olursa `image_upload` `pending` kalır,
+ * `embedding` ve `api_usage` yazılmaz — başarılı embedding iddia eden kayıt
+ * yalnızca gerçek bir vektör döndüğünde oluşur.
  */
 export async function embedUploadedImage(
   db: Database,

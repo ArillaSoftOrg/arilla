@@ -113,6 +113,11 @@ class FieldMapping:
     fields: dict[str, str]
     formats: ValueFormats = field(default_factory=ValueFormats)
     variants: VariantMapping | None = None
+    #: Kaynak para birimi tasimiyorsa (Shopify /products.json) kullanilacak
+    #: DOGRULANMIS para birimi: `feed_config.currency` yalnizca
+    #: `currency_verified = true` ise gecerlidir (docs/decisions/0029).
+    #: Yoksa `normalize` kaydi reddeder — TRY varsayilmaz.
+    default_currency: str | None = None
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> FieldMapping:
@@ -137,10 +142,14 @@ class FieldMapping:
                 sku=variant_config.get("sku"),
             )
 
+        currency = str(config.get("currency") or "").strip().upper()
+        verified = config.get("currency_verified") is True
+
         return cls(
             fields={name: str(source) for name, source in mapping.items()},
             formats=ValueFormats.from_config(config),
             variants=variants,
+            default_currency=currency if verified and currency else None,
         )
 
     def get(self, record_fields: dict[str, str], name: str) -> str | None:

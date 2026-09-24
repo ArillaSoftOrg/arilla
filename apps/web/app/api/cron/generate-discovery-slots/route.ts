@@ -1,4 +1,4 @@
-import { generateDiscoverySlots, todaySlotDate } from "@arilla/core";
+import { cronAuthFailureResponse, generateDiscoverySlots, todaySlotDate } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 
 /**
@@ -8,10 +8,13 @@ import { getDatabase } from "@arilla/db";
  * - bu route ince bir istemci (CLAUDE.md kural 6).
  */
 export async function GET(request: Request): Promise<Response> {
-  const authHeader = request.headers.get("authorization");
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return new Response("Unauthorized", { status: 401 });
-  }
+  // Sabit zamanli karsilastirma; CRON_SECRET tanimsiz/kisa ise 500 (uc acik
+  // kalmaz). Sir ve baslik loglanmaz, yanita konmaz.
+  const denied = cronAuthFailureResponse(
+    request.headers.get("authorization"),
+    process.env.CRON_SECRET,
+  );
+  if (denied) return denied;
 
   const result = await generateDiscoverySlots(getDatabase(), todaySlotDate());
   return Response.json(result);

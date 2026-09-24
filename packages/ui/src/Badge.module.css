@@ -1,11 +1,22 @@
+/* docs/design.md "Kutu modeli": rozet dolgusuz, 1px --line kenarlik,
+   --ink-muted metin, --radius-sm. Sponsor rozeti bu bilesenle gizlenemez
+   bicimde gosterilir (CLAUDE.md kural 12). */
 .badge {
   display: inline-flex;
   align-items: center;
+  gap: var(--space-1);
   padding: var(--space-1) var(--space-2);
-  border-radius: var(--radius);
-  border: 1px solid var(--line);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-sm);
   color: var(--ink-muted);
-  font-size: var(--font-size-xs);
-  line-height: 1;
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  white-space: nowrap;
   text-transform: none;
+}
+
+/* Tasarruf yuzdesi gibi olumlu olgu; yine dolgusuz. */
+.save {
+  color: var(--save);
 }

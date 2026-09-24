@@ -2,21 +2,28 @@
 
 import { randomUUID } from "node:crypto";
 import {
+  type EmbeddingClient,
   EmbeddingProviderError,
+  EmbeddingUnavailableError,
   embedUploadedImage,
+  getEmbeddingClient,
+  isRedisUnavailableError,
   recordImageSearchAndCheckLimit,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
 import { verifySession } from "../../lib/dal.ts";
 
-const MAX_UPLOAD_BYTES = 8 * 1024 * 1024;
+// Vercel Functions istek govdesini 4.5 MB ile sinirlar; next.config.ts'teki
+// serverActions.bodySizeLimit "4.5mb" (4 MB dosya + multipart payi) ile hizali. photo-search-client.tsx ayni
+// siniri istemci tarafinda da uygular.
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 export type UploadImageResult =
   | { status: "ok"; imageUploadId: number }
-  | { status: "too_large" | "invalid_type" | "daily_limit" | "error" };
+  | { status: "too_large" | "invalid_type" | "daily_limit" | "unavailable" | "error" };
 
 /**
  * `/ara`'nın aksine bu sayfa `proxy.ts`'in `session_id` çerezine bağımlı
@@ -50,31 +57,64 @@ export async function uploadImageForSearch(formData: FormData): Promise<UploadIm
     return { status: "too_large" };
   }
 
+  // Saglayici yapilandirilmamissa (anahtar yok / production'da sahte bayrak)
+  // gunluk hak harcanmadan ve hicbir satir yazilmadan durulur. Sahte sonuc
+  // uretilmez; kullaniciya "su an kullanilamiyor" gosterilir.
+  let client: EmbeddingClient;
+  try {
+    client = getEmbeddingClient();
+  } catch (error) {
+    if (error instanceof EmbeddingUnavailableError) {
+      // Yalnizca sebep kodu - kisisel veri veya gizli deger yok.
+      console.error(`visual search unavailable: ${error.reason}`);
+      return { status: "unavailable" };
+    }
+    throw error;
+  }
+
   const sessionId = await ensureSessionId();
   const user = await verifySession();
 
   // Gunluk limit, sagladigi/harcadigi maliyet nedeniyle embed cagrisindan
   // ONCE kontrol edilir (docs/decisions/0015 - gercek para maliyeti).
-  const limit = await recordImageSearchAndCheckLimit({
-    userId: user?.id ?? null,
-    sessionId,
-  });
+  // Limit kontrol edilemiyorsa (Redis erisilemez) kapali kalinir: ucretli
+  // embedding cagrisi limitsiz yapilmaz.
+  let limit: Awaited<ReturnType<typeof recordImageSearchAndCheckLimit>>;
+  try {
+    limit = await recordImageSearchAndCheckLimit({
+      userId: user?.id ?? null,
+      sessionId,
+    });
+  } catch (error) {
+    if (!isRedisUnavailableError(error)) throw error;
+    console.error("visual search unavailable: limit store unavailable");
+    return { status: "unavailable" };
+  }
   if (!limit.allowed) {
     return { status: "daily_limit" };
   }
 
   const bytes = Buffer.from(await file.arrayBuffer());
   try {
-    const result = await embedUploadedImage(getDatabase(), {
-      bytes,
-      mimeType: file.type,
-      sessionId,
-      userId: user?.id ?? null,
-    });
+    const result = await embedUploadedImage(
+      getDatabase(),
+      {
+        bytes,
+        mimeType: file.type,
+        sessionId,
+        userId: user?.id ?? null,
+      },
+      client,
+    );
     return { status: "ok", imageUploadId: result.imageUploadId };
   } catch (error) {
+    if (error instanceof EmbeddingUnavailableError) {
+      return { status: "unavailable" };
+    }
     if (error instanceof EmbeddingProviderError) {
-      return { status: "error" };
+      // Saglayici hatasi (ag, 4xx/5xx, bozuk yanit): sahte sonuca dusulmez.
+      console.error("visual search provider failure");
+      return { status: "unavailable" };
     }
     throw error;
   }

@@ -1,4 +1,7 @@
 .text {
-  font-size: var(--font-size-xs);
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
   color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
 }

@@ -1,7 +1,7 @@
 "use client";
 
-import { Button, EmptyState } from "@arilla/ui";
 import { useEffect } from "react";
+import { SearchErrorState } from "../search-error.tsx";
 
 /** docs/pages.md "/ara" Hata satırının görsel arama karşılığı. */
 export default function GorselAramaError({
@@ -15,12 +15,5 @@ export default function GorselAramaError({
     console.error(error);
   }, [error]);
 
-  return (
-    <main style={{ padding: 24 }}>
-      <EmptyState
-        title="Arama şu an çalışmıyor. Birazdan tekrar dener misin?"
-        action={<Button onClick={() => retry()}>Tekrar dene</Button>}
-      />
-    </main>
-  );
+  return <SearchErrorState onRetry={() => retry()} />;
 }

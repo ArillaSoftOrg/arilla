@@ -35,6 +35,34 @@ SELECT product_id, min(current_price) FROM offer
  GROUP BY product_id
 """
 
+#: `product` uzerindeki denormalize alanlar (docs/schema.sql: "toplu isle
+#: guncellenir, istek yolu bunlari okur"). Kesfet slotlari `in_stock_count`,
+#: kartlar `min_price`/`offer_count`, alternatifler `offer_count > 0` okur.
+#: Aktif teklifi kalmayan urun sifirlanir; degismeyen satir yazilmaz.
+REFRESH_PRODUCT_AGGREGATES = """
+UPDATE product p SET
+    min_price        = agg.min_price,
+    max_price        = agg.max_price,
+    offer_count      = agg.offer_count,
+    in_stock_count   = agg.in_stock_count,
+    price_updated_at = now(),
+    updated_at       = now()
+FROM (
+    SELECT p2.id AS product_id,
+           min(o.current_price)                           AS min_price,
+           max(o.current_price)                           AS max_price,
+           count(o.id)::int                               AS offer_count,
+           count(o.id) FILTER (WHERE o.in_stock)::int     AS in_stock_count
+      FROM product p2
+      LEFT JOIN offer o
+        ON o.product_id = p2.id AND o.is_active AND o.current_price IS NOT NULL
+     GROUP BY p2.id
+) agg
+WHERE p.id = agg.product_id
+  AND (p.min_price, p.max_price, p.offer_count, p.in_stock_count)
+      IS DISTINCT FROM (agg.min_price, agg.max_price, agg.offer_count, agg.in_stock_count)
+"""
+
 UPSERT_STATS = """
 INSERT INTO product_price_stats
     (product_id, min_30d, min_90d, max_90d, median_90d, current_percentile,
@@ -61,6 +89,7 @@ ON CONFLICT (product_id) DO UPDATE SET
 class PriceCounts:
     products: int = 0
     inflated: int = 0
+    aggregates_updated: int = 0
 
 
 @dataclass
@@ -70,8 +99,15 @@ class SimilarityCounts:
     prices: PriceCounts = field(default_factory=PriceCounts)
 
 
+def refresh_product_aggregates(conn: psycopg.Connection) -> int:
+    with conn.cursor() as cur:
+        cur.execute(REFRESH_PRODUCT_AGGREGATES)
+        return cur.rowcount
+
+
 def refresh_price_stats(conn: psycopg.Connection) -> PriceCounts:
     counts = PriceCounts()
+    counts.aggregates_updated = refresh_product_aggregates(conn)
 
     with conn.cursor() as cur:
         cur.execute(CURRENT_PRICES)

@@ -12,7 +12,7 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | --- | --- |
 | `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
 | `home.hero_title` | Aradığın ürünü bul |
-| `home.continue_shopping_title` | Alışverişe devam et |
+| `home.search_ideas_title` | Arama fikirleri |
 | `home.trends_title` | Trendler |
 | `home.trends_subtitle` | Arilla'da öne çıkan stiller ve ürün fikirleri. |
 | `home.discovery_title` | Arilla'da keşfedilenler |
@@ -45,6 +45,15 @@ Bu bölüm sosyal kanıt değildir - doğrulanmamış sayı/istatistik içermez
 | `home.trust_point_alternatives` | Aynı ürünü veya görsel ve metin olarak benzer alternatiflerini bulursun. |
 | `home.trust_point_compare` | Farklı mağazalardaki teklifleri kargo dahil toplam fiyata ve stok durumuna göre karşılaştırırsın. |
 | `home.trust_point_freshness` | Fiyat ve stok bilgisi doğrudan mağaza kaynaklarından gelir, güncellenme zamanıyla birlikte gösterilir. |
+| `home.trust_point_commission` | Bazı mağaza bağlantılarından komisyon kazanabiliriz. Bu, gösterilen fiyatı değiştirmez; sıralamada komisyon belirleyici değildir. |
+| `home.trust_point_alternatives_title` | Aynı ve benzer ürünler |
+| `home.trust_point_compare_title` | Mağazaları karşılaştır |
+| `home.trust_point_freshness_title` | Kaynağı ve zamanı belli |
+| `home.trust_point_commission_title` | Açık komisyon bildirimi |
+
+`home.trust_point_commission` altbilgideki `legal.affiliate_notice`'in tekrarı
+değil, sıralama ilkesinin açıklamasıdır (CLAUDE.md: komisyon sıralamada
+belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 
 ## Altbilgi (Faz 5-6)
 
@@ -70,6 +79,23 @@ Bu bölüm sosyal kanıt değildir - doğrulanmamış sayı/istatistik içermez
 | `nav.privacy` | Gizlilik |
 | `nav.terms` | Kullanım Koşulları |
 | `nav.cookies` | Çerezler |
+| `nav.contact` | İletişim |
+| `nav.skip_to_content` | İçeriğe geç |
+
+## İletişim (Faz 8.1)
+
+E-posta adresi metin değil yapılandırmadır: tek kaynağı
+`apps/web/app/site-config.ts` (`PUBLIC_CONTACT_EMAIL`). Geçici adres;
+kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
+çalışma saati bilerek yok — doğrulanmış bilgi değil.
+
+| Anahtar | Metin |
+| --- | --- |
+| `contact.title` | İletişim |
+| `contact.description` | Arilla ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz. |
+| `contact.email_label` | E-posta |
+| `privacy.contact_prefix` | Verilerinle ilgili soruların için |
+| `privacy.contact_suffix` | adresine yazabilirsin. |
 
 ## Eylemler
 
@@ -96,9 +122,20 @@ Bu bölüm sosyal kanıt değildir - doğrulanmamış sayı/istatistik içermez
 
 | Anahtar | Metin |
 | --- | --- |
-| `search.placeholder` | Ürün adı yaz, link yapıştır veya fotoğraf yükle |
-| `search.empty_query` | Aramak için yukarıya bir şey yaz. |
-| `search.result_count` | {n} sonuç |
+| `search.placeholder` | Ürün adı veya kısa bir tarif yaz |
+| `search.placeholder_results` | Ürün adı, marka ya da kısa bir tarif yaz |
+| `search.input_label` | Ürün ara |
+| `search.title_empty_query` | Ne arıyorsun? |
+| `search.title` | “{q}” için sonuçlar |
+| `search.empty_query` | Aramak için aşağıya bir şey yaz ya da fotoğraf yükle. |
+| `search.result_count` | {n} sonuç (binlik ayraçlı) |
+| `search.loading_results` | Sonuçlar yükleniyor (yalnızca ekran okuyucu) |
+| `search.tab_match_unavailable` | Bu arama için kullanılamıyor |
+| `search.pagination_label` | Sayfalama |
+| `search.page_status` | Sayfa {n} / {total} |
+| `search.page_previous_label` | Önceki sayfa |
+| `search.page_next_label` | Sonraki sayfa |
+| `search.retry` | Tekrar dene |
 | `search.offer_count` | {n} mağaza |
 | `search.tab_balanced` | Bizim seçtiklerimiz |
 | `search.tab_deals` | En iyi fırsatlar |
@@ -107,11 +144,17 @@ Bu bölüm sosyal kanıt değildir - doğrulanmamış sayı/istatistik içermez
 | `search.clarify_other` | Başka bir şey |
 | `search.clarify_other_placeholder` | Ne arıyorsun? |
 | `search.loading` | Benzerlerini arıyoruz |
-| `search.empty` | Bu aramada sonuç bulamadık. Filtreleri gevşetmeyi deneyebilirsin. |
+| `search.empty` | Bu aramada sonuç bulamadık. |
+| `search.empty_hint` | Daha genel bir arama dene: fiyat, renk ya da beden gibi ayrıntıları çıkarabilir veya farklı kelimeler kullanabilirsin. |
 | `search.empty_nearest` | Sana en yakın bulduklarımız |
 | `search.page_previous` | Önceki |
 | `search.page_next` | Sonraki |
-| `search.error` | Arama şu an çalışmıyor. Birazdan tekrar dener misin? |
+| `search.error` | Arama şu an çalışmıyor. |
+| `search.error_body` | Birazdan tekrar dener misin? |
+| `visual_search.title` | Fotoğrafına benzeyen ürünler |
+| `visual_search.empty` | Bu fotoğrafa benzeyen ürün bulamadık. |
+| `visual_search.empty_hint` | Ürünün tek başına ve net göründüğü başka bir fotoğraf dene ya da ürünün adını yazarak ara. |
+| `visual_search.new_search` | Yeni bir arama yap |
 
 ## Link öneki
 
@@ -138,6 +181,46 @@ Bu bölüm sosyal kanıt değildir - doğrulanmamış sayı/istatistik içermez
 | `product.shipping_included` | Kargo dahil {tutar} |
 | `product.free_shipping` | Kargo bedava |
 | `product.merchant_error` | Bu mağazadan fiyat alamadık. Ürünü mağazada açabilirsin. |
+| `product.offer_count_suffix` | mağaza (ör. "3 mağaza") |
+| `product.sr_list_price` | Liste fiyatı (yalnızca ekran okuyucu) |
+| `product.sr_current_price` | En uygun teklif (yalnızca ekran okuyucu) |
+| `product.no_offers` | Şu an bu ürün için mağaza fiyatı yok. |
+| `product.compare_offers_link` | {n} mağazanın fiyatını karşılaştır |
+| `product.offers_title` | Mağaza fiyatları |
+| `product.offers_sorted_note` | Fiyatlar kargo dahil toplamdır, en uygundan sıralanır. |
+| `product.shipping_cost` | {tutar} kargo |
+| `product.in_stock` | Stokta |
+| `product.best_offer` | En uygun fiyat |
+| `product.size_label` | Beden |
+| `product.color_fallback` | Renk {n} |
+| `product.price_history_title` | Fiyat geçmişi |
+| `product.price_chart_toggle` | Fiyat grafiği |
+| `product.price_range_90d` | Son 90 günde {min} ile {max} arasında değişti. |
+| `product.price_flat_90d` | Son 90 günde fiyat {tutar} olarak kaldı. |
+
+Çıkış eylemi "{Mağaza}'da aç" ünlü uyumuyla yazılır ('da/'de/'ta/'te):
+`packages/ui/src/locative.ts` `withLocativeSuffix`.
+
+## Fırsatlar
+
+| Anahtar | Metin |
+| --- | --- |
+| `deals.title` | Fırsatlar |
+| `deals.lead` | Fiyatı son günlerde düşen ürünler. Düşüş, ürünün son 90 gündeki olağan fiyatına göre hesaplanır. |
+| `deals.list_label` | Fiyatı düşen ürünler |
+| `deals.empty_title` | Şu an öne çıkan bir fırsat yok. |
+| `deals.empty_body` | Fiyatı gerçekten düşen ürünler her gün yeniden belirlenir. Bu arada aradığın ürünü arayabilir veya keşfedilen ürünlere göz atabilirsin. |
+| `deals.empty_search_action` | Ürün ara |
+| `deals.savings_percent` | %{n} daha uygun |
+| `deals.savings_amount` | {tutar} tasarruf |
+
+## Keşfet
+
+| Anahtar | Metin |
+| --- | --- |
+| `discover.description` | Farklı kategorilerden bugün öne çıkan ürünler. |
+| `discover.curated_title` | Bugün öne çıkanlar |
+| `discover.organic_title` | Kullanıcıların bulduğu |
 
 ## Giriş
 
@@ -151,6 +234,13 @@ Bu bölüm sosyal kanıt değildir - doğrulanmamış sayı/istatistik içermez
 | `auth.rate_limited` | Az önce bir bağlantı gönderdik. Birkaç dakika sonra tekrar dene. |
 | `auth.token_expired` | Bu bağlantının süresi dolmuş. Yeni bir tane isteyebilirsin. |
 | `auth.token_used` | Bu bağlantı zaten kullanılmış. |
+| `auth.login_title` | Giriş yap |
+| `auth.login_intro` | E-posta adresini yaz, sana tek kullanımlık bir giriş bağlantısı gönderelim. Şifre gerekmez. |
+| `auth.submit` | Bağlantı gönder |
+| `auth.submitting` | Gönderiliyor… |
+| `auth.link_sent_hint` | Birkaç dakika içinde gelmezse gereksiz klasörüne de göz at. |
+| `auth.invalid_email` | Geçerli bir e-posta adresi gir. |
+| `auth.send_failed` | Bağlantıyı şu an gönderemedik. Biraz sonra tekrar dene. |
 
 `auth.rate_limited` mesajı hesabın var olup olmadığını belli etmez; her iki
 durumda da aynı metin gösterilir.
@@ -165,6 +255,8 @@ durumda da aynı metin gösterilir.
 | `empty.creator_visitor` | Bu vitrin hazırlanıyor. |
 | `empty.creator_owner` | İlk koleksiyonunu oluştur ve beğendiğin ürünleri ekle. |
 | `empty.discovery` | Bugünlük içerik hazırlanıyor. |
+| `empty.discovery_description` | Bu sırada aradığın ürünü yazarak ya da fotoğrafını yükleyerek başlayabilirsin. |
+| `empty.discovery_action` | Aramaya başla |
 
 ## Alarm ve e-posta
 
@@ -249,8 +341,16 @@ Arama sonucunda görünen ama sayfada gösterilmeyen metinler (D6). `{ürün}` v
 | --- | --- |
 | `error.generic` | Bir şeyler ters gitti. Tekrar dener misin? |
 | `error.not_found` | Aradığın sayfayı bulamadık. |
+| `error.not_found_code` | Hata 404 |
+| `error.not_found_body` | Bağlantı eskimiş ya da sayfa taşınmış olabilir. Aramaya ana sayfadan yeniden başlayabilir veya keşfedilen ürünlere göz atabilirsin. |
+| `error.home_action` | Ana sayfaya dön |
+| `error.generic_title` | Bu sayfa şu an açılamadı. |
+| `error.global_title` | Arilla şu an açılamadı. |
+| `error.document_title` | Bir hata oluştu – Arilla |
+| `action.retry` | Tekrar dene |
 | `error.rate_limited` | Çok hızlı gidiyorsun. Biraz bekleyip tekrar dene. |
-| `error.upload_too_large` | Fotoğraf çok büyük. Daha küçük bir dosya dener misin? |
+| `error.upload_too_large` | Fotoğraf çok büyük. 4 MB'tan küçük bir dosya dener misin? |
+| `error.visual_search_unavailable` | Fotoğrafla arama şu an kullanılamıyor. Biraz sonra tekrar dener misin? |
 | `error.upload_not_product` | Bu fotoğrafta bir ürün göremedik. Ürünün net göründüğü bir fotoğraf dener misin? |
 | `error.daily_limit` | Bugünlük görsel arama hakkın doldu. Yarın tekrar bekleriz. |
 

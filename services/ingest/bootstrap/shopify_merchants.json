@@ -1,0 +1,27 @@
+{
+  "_comment": "Gecici bootstrap katalogu (docs/decisions/0027). Yalnizca yerel veritabani. Kaynak nitelendirmesi: robots.txt /products.json'a izin veriyor, tek istekli smoke test 2026-09-24.",
+  "defaults": {
+    "page_size": 250,
+    "requests_per_second": 0.5,
+    "max_retries": 2,
+    "backoff_seconds": 5,
+    "max_backoff_seconds": 60,
+    "color_option_names": ["Renk", "Color", "Colour", "Kumaş", "Renk Seçeneği"],
+    "size_option_names": ["Beden", "Size", "Boyut", "Numara", "Ölçü"]
+  },
+  "merchants": [
+    {"slug": "derimod", "name": "Derimod", "domain": "derimod.com.tr", "category_hint": "moda/ayakkabi", "max_products": 300},
+    {"slug": "quzu", "name": "Quzu", "domain": "quzu.com.tr", "category_hint": "moda", "max_products": 250},
+    {"slug": "north-sails-turkiye", "name": "North Sails Türkiye", "domain": "north-sails-turkey.myshopify.com", "category_hint": "moda", "max_products": 200},
+    {"slug": "manu-atelier-tr", "name": "Manu Atelier", "domain": "tr.manuatelier.com", "category_hint": "moda/canta", "max_products": 150},
+    {"slug": "normod", "name": "Normod", "domain": "normod.com", "category_hint": "ev-yasam", "max_products": 200},
+    {"slug": "halicizade-hali-kilim", "name": "Halıcızade Halı Kilim", "domain": "halicizade-rug-store.myshopify.com", "category_hint": "ev-yasam", "max_products": 200},
+    {"slug": "yutas-yapi-urunleri", "name": "Yütaş Yapı Ürünleri", "domain": "yutas-yapi-urunleri.myshopify.com", "category_hint": "ev-yasam", "max_products": 200},
+    {"slug": "termos-dunyasi", "name": "Termos Dünyası", "domain": "termos-dunyasi.myshopify.com", "category_hint": "spor-outdoor", "max_products": 250},
+    {"slug": "casadora-baby", "name": "Casadora Baby", "domain": "casadora-baby.myshopify.com", "category_hint": "anne-bebek", "max_products": 250},
+    {"slug": "wraith-esports", "name": "Wraith Esports", "domain": "wraithesports.myshopify.com", "category_hint": "elektronik", "max_products": 250},
+    {"slug": "korendy", "name": "Korendy", "domain": "korendy.com.tr", "category_hint": "saglik-kozmetik/kozmetik/cilt-bakimi", "max_products": 250},
+    {"slug": "flavus", "name": "Flavus", "domain": "flavus.com", "category_hint": "saglik-kozmetik/kozmetik", "max_products": 250},
+    {"slug": "eubos-turkiye", "name": "Eubos Türkiye", "domain": "eubos-turkiye.myshopify.com", "category_hint": "saglik-kozmetik/kozmetik/cilt-bakimi", "max_products": 50}
+  ]
+}

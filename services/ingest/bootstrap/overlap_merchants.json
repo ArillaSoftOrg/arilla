@@ -1,0 +1,48 @@
+{
+  "_comment": "Gecici overlap katalogu (docs/decisions/0027 kapsaminda, yalnizca yerel veritabani). Amac: eslestirmenin gercek-pozitif tarafini gercek veriyle olcmek; ground truth services/ingest/tests/fixtures/matching/overlap_pairs.json. Kaynak nitelendirmesi 2026-09-24: robots.txt /products.json'a izin veriyor, sirali tek denemeli istekler. max_products ortusen urunlerin /products.json sayfa sirasindaki konumuna gore secildi (vionine: son ortusme 199. sira; sasha: 53; stanley: 32). Magaza yeni urun eklerse ortusmeler tavanin disina kayabilir; yuklemeden once yeniden dogrula. Toplam 294 kanonik urun.",
+  "defaults": {
+    "page_size": 250,
+    "requests_per_second": 0.5,
+    "max_retries": 2,
+    "backoff_seconds": 5,
+    "max_backoff_seconds": 60,
+    "color_option_names": [
+      "Renk",
+      "Color",
+      "Colour",
+      "Kumaş",
+      "Renk Seçeneği"
+    ],
+    "size_option_names": [
+      "Beden",
+      "Size",
+      "Boyut",
+      "Numara",
+      "Ölçü"
+    ]
+  },
+  "merchants": [
+    {
+      "slug": "vionine",
+      "name": "Vionine",
+      "domain": "vionine.com",
+      "category_hint": "saglik-kozmetik/kozmetik/cilt-bakimi",
+      "max_products": 200
+    },
+    {
+      "slug": "sasha-kozmetik",
+      "name": "Sasha Kozmetik",
+      "domain": "sashakozmetik.com",
+      "category_hint": "saglik-kozmetik/kozmetik/cilt-bakimi",
+      "max_products": 58,
+      "map_brand": false
+    },
+    {
+      "slug": "stanley-turkiye",
+      "name": "Stanley Türkiye",
+      "domain": "tr.stanley1913.com",
+      "category_hint": "spor-outdoor",
+      "max_products": 36
+    }
+  ]
+}

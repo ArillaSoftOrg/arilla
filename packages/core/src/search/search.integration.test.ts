@@ -91,15 +91,22 @@ describe("search() - integration (real seeded Postgres)", () => {
   });
 
   it("matches category_path as a prefix (parent category), not only exact equality", async () => {
+    // search() yalnizca aktif merchant'in aktif teklifi olan urunleri dondurur;
+    // beklenen sayi da ayni kosulla sayilir (bootstrap katalogu, 0027, pasif
+    // merchant'lar da iceriyor).
     const countRow = await db.execute(
-      sql`SELECT count(*) AS count FROM product p JOIN category c ON c.id = p.category_id
-          WHERE c.path = 'moda' OR c.path LIKE 'moda/%'`,
+      // Ayni gorseli tasiyan urunler tek sonuca iner (0029): gorsel basina say.
+      sql`SELECT count(DISTINCT COALESCE(p.primary_image_url, p.id::text)) AS count
+          FROM product p JOIN category c ON c.id = p.category_id
+          WHERE (c.path = 'moda' OR c.path LIKE 'moda/%')
+            AND EXISTS (SELECT 1 FROM offer o JOIN merchant m ON m.id = o.merchant_id
+                         WHERE o.product_id = p.id AND o.is_active AND m.is_active)`,
     );
     const expectedCount = Number(countRow.rows[0]?.count ?? 0);
     expect(expectedCount).toBeGreaterThan(0);
 
     const result = await search(db, baseQuery({ filters: { category_path: "moda" } }), {
-      limit: 500,
+      limit: 10_000,
     });
     expect(result.items.length).toBe(expectedCount);
   });
@@ -110,7 +117,9 @@ describe("search() - integration (real seeded Postgres)", () => {
 
     beforeAll(async () => {
       await withOwnerClient(async (client) => {
-        const merchantResult = await client.query("SELECT id FROM merchant LIMIT 1");
+        const merchantResult = await client.query(
+          "SELECT id FROM merchant WHERE is_active ORDER BY id LIMIT 1",
+        );
         const merchantId = merchantResult.rows[0]?.id;
         const productResult = await client.query(
           `INSERT INTO product (slug, title, color, min_price, offer_count, in_stock_count)
@@ -134,7 +143,9 @@ describe("search() - integration (real seeded Postgres)", () => {
     });
 
     it("filters by normalized color", async () => {
-      const result = await search(db, baseQuery({ filters: { color: ["black"] } }), { limit: 500 });
+      const result = await search(db, baseQuery({ filters: { color: ["black"] } }), {
+        limit: 10_000,
+      });
       expect(result.items.some((item) => item.productId === fixtureProductId)).toBe(true);
     });
   });

@@ -27,8 +27,10 @@ from resolve.score import ScoreResult, auto_accept_threshold, combine, queue_thr
 logger = logging.getLogger(__name__)
 
 PENDING_OFFERS = """
-SELECT o.id, o.title_raw, o.brand_raw, o.category_raw, o.image_url, o.attributes_raw
+SELECT o.id, o.title_raw, o.brand_raw, o.category_raw, o.image_url, o.attributes_raw,
+       m.feed_config->>'category_hint', o.merchant_id
   FROM offer o
+  JOIN merchant m ON m.id = o.merchant_id
  WHERE o.is_active AND o.product_id IS NULL
    AND (%(merchant_id)s::bigint IS NULL OR o.merchant_id = %(merchant_id)s)
  ORDER BY o.id
@@ -53,6 +55,15 @@ ON CONFLICT (offer_id, product_id) DO UPDATE SET
 RETURNING id
 """
 
+#: Ayni merchant'in ZATEN bagli teklifi olan urunler. Bir magaza ayni kanonik
+#: urunu iki ayri kayitla satmaz; ayni magazadaki iki kayit ayni urun
+#: iddiasi pratikte renk kardesi ya da tekil parca (hali, vintage) demektir.
+SAME_MERCHANT_PRODUCTS = """
+SELECT DISTINCT product_id FROM offer
+ WHERE merchant_id = %(merchant_id)s AND product_id = ANY(%(product_ids)s)
+   AND id <> %(offer_id)s
+"""
+
 LINK_OFFER = "UPDATE offer SET product_id = %(product_id)s WHERE id = %(offer_id)s"
 
 
@@ -70,6 +81,8 @@ def _offer_key(title: str, brand: str | None, attributes: dict | None) -> Produc
     return ProductKey.build(
         title=title,
         brand=brand,
+        # Shopify connector'i renk grubunu `color` olarak yazar (0024).
+        color=extra.get("color"),
         # B2 barkodu `attributes_raw` icine yaziyor: `offer` tablosunda gtin
         # kolonu yok, barkod kanonik `product` uzerinde durur.
         gtin=extra.get("gtin"),
@@ -88,7 +101,11 @@ def _candidate_key(candidate: candidate_channels.Candidate) -> ProductKey:
 
 
 def best_match(
-    conn: psycopg.Connection, offer_id: int, key: ProductKey, title: str
+    conn: psycopg.Connection,
+    offer_id: int,
+    key: ProductKey,
+    title: str,
+    merchant_id: int | None = None,
 ) -> tuple[candidate_channels.Candidate, ScoreResult] | None:
     """Katmanli akis: gtin/mpn kesin sonuc verirse orada durur."""
     exact = candidate_channels.by_exact_identifier(conn, key.gtin, key.mpn)
@@ -110,6 +127,18 @@ def best_match(
     pool = candidate_channels.deduplicate(
         [exact, candidate_channels.by_title(conn, title), image_candidates]
     )
+    if pool and merchant_id is not None:
+        with conn.cursor() as cur:
+            cur.execute(
+                SAME_MERCHANT_PRODUCTS,
+                {
+                    "merchant_id": merchant_id,
+                    "product_ids": [c.product_id for c in pool],
+                    "offer_id": offer_id,
+                },
+            )
+            taken = {int(row[0]) for row in cur.fetchall()}
+        pool = [candidate for candidate in pool if candidate.product_id not in taken]
     if not pool:
         return None
 
@@ -134,7 +163,16 @@ def resolve_offers(
         rows = cur.fetchall()
     counts.considered = len(rows)
 
-    for offer_id, title, brand, category, image_url, attributes_raw in rows:
+    for (
+        offer_id,
+        title,
+        brand,
+        category,
+        image_url,
+        attributes_raw,
+        category_hint,
+        offer_merchant_id,
+    ) in rows:
         attributes = (
             attributes_raw
             if isinstance(attributes_raw, dict)
@@ -143,7 +181,7 @@ def resolve_offers(
         key = _offer_key(title, brand, attributes)
 
         try:
-            found = best_match(conn, int(offer_id), key, title)
+            found = best_match(conn, int(offer_id), key, title, int(offer_merchant_id))
         except psycopg.Error as error:
             counts.errors.append(f"offer {offer_id}: {error}")
             logger.warning("aday uretilemedi %s: %s", offer_id, error)
@@ -151,7 +189,9 @@ def resolve_offers(
 
         if found is not None and found[1].score >= queue:
             candidate, result = found
-            status = "auto_accepted" if result.score >= auto else "pending"
+            # Gorsel ya da metin skoru ne kadar yuksek olursa olsun, dogrulanamayan
+            # renk otomatik kabul edilmez (0029).
+            status = "auto_accepted" if result.score >= auto and not result.review else "pending"
             with conn.cursor() as cur:
                 cur.execute(
                     UPSERT_CANDIDATE,
@@ -182,6 +222,8 @@ def resolve_offers(
             title=title,
             brand=brand,
             category_path=category,
+            fallback_category_path=category_hint,
+            color=key.color,
             image_url=image_url,
             gtin=key.gtin,
             mpn=key.mpn,

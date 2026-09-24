@@ -38,9 +38,14 @@ export function LinkWaitClient({ urlRaw }: { urlRaw: string }) {
       }, POLL_INTERVAL_MS);
     }
 
-    enqueueLinkResolutionAction(urlRaw).then(({ requestId }) => {
-      if (!cancelled) schedulePoll(requestId);
-    });
+    enqueueLinkResolutionAction(urlRaw)
+      .then(({ requestId }) => {
+        if (!cancelled) schedulePoll(requestId);
+      })
+      // Kuyruk erisilemezse sonsuz bekleme yerine bos durum gosterilir.
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
 
     return () => {
       cancelled = true;

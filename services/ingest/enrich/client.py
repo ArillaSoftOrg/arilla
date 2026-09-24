@@ -6,7 +6,10 @@ cikti 768 boyuta kirpilir.
 
 Istemci **enjekte edilebilir**: B1 ve B2'deki desenin aynisi. Testler ve
 fixture gosterimi `FakeEmbeddingClient` ile kosar, hicbir test aga cikmaz.
-Gercek API yolu yazili ama bu asamada calistirilmadi — hesap henuz yok.
+
+Hiz: istek gondermeden ONCE `TokenBudget` beklenir (dakikalik token
+butcesi); 429 artik normal akis degil, istisnadir. 429'da `Retry-After`
+dinlenir, deneme sayisi sinirlidir. Bkz. karar 0028.
 """
 
 from __future__ import annotations
@@ -16,11 +19,14 @@ import logging
 import math
 import os
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
+from email.utils import parsedate_to_datetime
 from typing import Any, Protocol
 
 import httpx
+
+from enrich.ratelimit import TokenBudget
 
 logger = logging.getLogger(__name__)
 
@@ -30,16 +36,28 @@ MODEL = "jina-clip-v2"
 #: Sema `vector(768)` taahhut ediyor; jina-clip-v2 icin gecerli aralik 64-1024.
 DIMENSIONS = 768
 
-#: Tek istekte gonderilen girdi sayisi. Gorseller base64 oldugu icin govde
-#: hizla buyur; kucuk tutuyoruz.
+#: Tek istekte gonderilen girdi sayisi. On isleme sonrasi bir gorsel ~4.000
+#: token ve ~50 KB base64; 8'lik parti ~32.000 token, butcenin yarisindan az.
 IMAGE_BATCH = 8
 TEXT_BATCH = 64
 
-MAX_RETRIES = 4
+#: Toplam deneme sayisi (ilk istek dahil). Sonsuz deneme yok: basarisiz
+#: parti `EmbeddingError` ile doner, boru hatti o offer'lari embedding'siz
+#: birakir ve bir sonraki kosu kaldigi yerden devam eder.
+MAX_ATTEMPTS = 5
+BACKOFF_BASE = 2.0
+BACKOFF_CAP = 60.0
+#: Saglayici absurt bir Retry-After donerse bile bundan uzun beklenmez.
+RETRY_AFTER_CAP = 120.0
+
+#: Tahmin verilmezse gorsel basina varsayim (uzun kenar <= 512 -> tek karo).
+DEFAULT_IMAGE_TOKENS = 4000
+#: Metin icin kaba token tahmini (karakter / 3); gercek sayi yanittan gelir.
+TEXT_CHARS_PER_TOKEN = 3
 
 
 class EmbeddingError(RuntimeError):
-    """Saglayici cagrisi basarisiz. Kosuyu durdurur."""
+    """Saglayici cagrisi basarisiz. Boru hatti partiyi atlar, kosu devam eder."""
 
 
 @dataclass(frozen=True)
@@ -53,7 +71,9 @@ class EmbeddingBatch:
 
 
 class EmbeddingClient(Protocol):
-    def embed_images(self, data_urls: Sequence[str]) -> EmbeddingBatch: ...
+    def embed_images(
+        self, data_urls: Sequence[str], *, estimated_tokens: int | None = None
+    ) -> EmbeddingBatch: ...
     def embed_texts(self, texts: Sequence[str]) -> EmbeddingBatch: ...
 
     @property
@@ -75,11 +95,41 @@ def api_key() -> str:
     return key
 
 
+def retry_after_seconds(value: str | None, now: float | None = None) -> float | None:
+    """`Retry-After` basligi: saniye ya da HTTP tarihi. Anlasilmazsa None."""
+    if not value:
+        return None
+    value = value.strip()
+    try:
+        return max(0.0, float(value))
+    except ValueError:
+        pass
+    try:
+        when = parsedate_to_datetime(value)
+    except (TypeError, ValueError, IndexError):
+        return None
+    current = time.time() if now is None else now
+    return max(0.0, when.timestamp() - current)
+
+
+def backoff_seconds(attempt: int) -> float:
+    """0 tabanli deneme icin ustel bekleme: 2, 4, 8, ... en fazla BACKOFF_CAP."""
+    return min(BACKOFF_CAP, BACKOFF_BASE * (2**attempt))
+
+
 @dataclass
 class JinaEmbeddingClient(EmbeddingClient):
     client: httpx.Client | None = None
     dimensions: int = DIMENSIONS
     model: str = MODEL
+    #: None -> butce yok (birim testleri). CLI her zaman bir butce verir.
+    budget: TokenBudget | None = None
+    sleep: Callable[[float], None] = time.sleep
+    max_attempts: int = MAX_ATTEMPTS
+    image_batch: int = IMAGE_BATCH
+    #: Gozlem sayaclari — kosu raporu buradan okur.
+    rate_limited: int = 0
+    retries: int = 0
 
     @property
     def model_version(self) -> str:
@@ -87,22 +137,32 @@ class JinaEmbeddingClient(EmbeddingClient):
 
     @property
     def image_batch_size(self) -> int:
-        return IMAGE_BATCH
+        return self.image_batch
 
     @property
     def text_batch_size(self) -> int:
         return TEXT_BATCH
 
     def _client(self) -> httpx.Client:
-        return self.client or httpx.Client(timeout=120.0)
+        if self.client is None:
+            self.client = httpx.Client(timeout=120.0)
+        return self.client
 
-    def embed_images(self, data_urls: Sequence[str]) -> EmbeddingBatch:
-        return self._post([{"image": url} for url in data_urls])
+    def embed_images(
+        self, data_urls: Sequence[str], *, estimated_tokens: int | None = None
+    ) -> EmbeddingBatch:
+        estimate = (
+            estimated_tokens
+            if estimated_tokens is not None
+            else DEFAULT_IMAGE_TOKENS * len(data_urls)
+        )
+        return self._post([{"image": url} for url in data_urls], estimate)
 
     def embed_texts(self, texts: Sequence[str]) -> EmbeddingBatch:
-        return self._post([{"text": text} for text in texts])
+        estimate = sum(max(1, len(text) // TEXT_CHARS_PER_TOKEN) for text in texts)
+        return self._post([{"text": text} for text in texts], estimate)
 
-    def _post(self, inputs: list[dict[str, str]]) -> EmbeddingBatch:
+    def _post(self, inputs: list[dict[str, str]], estimate: int) -> EmbeddingBatch:
         if not inputs:
             return EmbeddingBatch(vectors=[], model_version=self.model, total_tokens=0)
 
@@ -120,32 +180,68 @@ class JinaEmbeddingClient(EmbeddingClient):
             "Content-Type": "application/json",
         }
 
-        payload = self._post_with_retry(body, headers)
-        return self._parse(payload, len(inputs))
+        payload, entry = self._post_with_retry(body, headers, estimate)
+        batch = self._parse(payload, len(inputs))
+        if self.budget is not None and entry is not None:
+            # Pencerede tahmin degil, saglayicinin saydigi gercek token kalsin.
+            self.budget.settle(entry, batch.total_tokens or estimate)
+        return batch
 
-    def _post_with_retry(self, body: dict[str, Any], headers: dict[str, str]) -> dict[str, Any]:
+    def _pause(self, seconds: float) -> None:
+        if self.budget is not None:
+            self.budget.pause(seconds)
+        else:
+            self.sleep(seconds)
+
+    def _post_with_retry(
+        self, body: dict[str, Any], headers: dict[str, str], estimate: int
+    ) -> tuple[dict[str, Any], Any]:
         client = self._client()
-        for attempt in range(MAX_RETRIES):
-            response = client.post(API_URL, json=body, headers=headers)
-            if response.status_code == 429 or response.status_code >= 500:
-                if attempt == MAX_RETRIES - 1:
-                    raise EmbeddingError(
-                        f"saglayici {response.status_code} dondu, {MAX_RETRIES} denemede gecmedi"
-                    )
-                # Ustel geri cekilme. Oran siniri saglayicinin isi, biz uyariz.
-                wait = 2**attempt
-                logger.warning("saglayici %s dondu, %s sn sonra tekrar", response.status_code, wait)
-                time.sleep(wait)
-                continue
-            if response.status_code >= 400:
-                raise EmbeddingError(f"saglayici {response.status_code}: {response.text[:200]}")
-            return response.json()
-        raise EmbeddingError("beklenmeyen durum: yeniden deneme dongusu bitti")
+        last = "bilinmiyor"
+        for attempt in range(self.max_attempts):
+            entry = self.budget.acquire(estimate) if self.budget is not None else None
+            wait: float | None = None
+            try:
+                response = client.post(API_URL, json=body, headers=headers)
+            except httpx.TransportError as error:
+                last = f"baglanti hatasi ({type(error).__name__})"
+            else:
+                if response.status_code < 400:
+                    return response.json(), entry
+                if response.status_code == 429:
+                    self.rate_limited += 1
+                    last = "429"
+                    hinted = retry_after_seconds(response.headers.get("retry-after"))
+                    if hinted is not None:
+                        wait = min(RETRY_AFTER_CAP, hinted)
+                elif response.status_code >= 500:
+                    last = str(response.status_code)
+                else:
+                    # 429 disindaki 4xx kalicidir: tekrar denemek ayni hatayi alir.
+                    raise EmbeddingError(f"saglayici {response.status_code}: {response.text[:200]}")
+
+            if attempt == self.max_attempts - 1:
+                break
+            if wait is None:
+                wait = backoff_seconds(attempt)
+            self.retries += 1
+            logger.warning(
+                "saglayici %s, %.1f sn sonra tekrar (deneme %s/%s)",
+                last,
+                wait,
+                attempt + 2,
+                self.max_attempts,
+            )
+            # Basarisiz denemenin tahmini pencerede kalir: saglayici o token'i
+            # saymis olabilir, ihtiyatli taraf bu.
+            self._pause(wait)
+
+        raise EmbeddingError(f"saglayici {last} dondu, {self.max_attempts} denemede gecmedi")
 
     def _parse(self, payload: dict[str, Any], expected: int) -> EmbeddingBatch:
-        # Yanit bicimi OpenAI uyumlu olarak belgeleniyor ama anahtar olmadigi
-        # icin gercek bir yanitla DOGRULANMADI. Ilk gercek kosuda teyit edilecek;
-        # burada acikca patlamasi, sessizce yanlis vektor yazmasindan iyidir.
+        # Yanit bicimi OpenAI uyumlu; ilk gercek kosularda (2026-09) teyit edildi.
+        # Beklenmeyen bicimde acikca patlamasi, sessizce yanlis vektor
+        # yazmasindan iyidir.
         rows = payload.get("data")
         if not isinstance(rows, list) or len(rows) != expected:
             raise EmbeddingError(
@@ -196,7 +292,9 @@ class FakeEmbeddingClient(EmbeddingClient):
     def text_batch_size(self) -> int:
         return TEXT_BATCH
 
-    def embed_images(self, data_urls: Sequence[str]) -> EmbeddingBatch:
+    def embed_images(
+        self, data_urls: Sequence[str], *, estimated_tokens: int | None = None
+    ) -> EmbeddingBatch:
         return self._embed(data_urls)
 
     def embed_texts(self, texts: Sequence[str]) -> EmbeddingBatch:

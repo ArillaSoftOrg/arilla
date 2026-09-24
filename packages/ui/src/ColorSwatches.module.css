@@ -1,19 +1,71 @@
+/* docs/design.md "Kutu modeli": kucuk gorsel --radius-sm, etkilesimli
+   sinir --line-strong, 44px+ dokunma hedefi. */
+.group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.label {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--ink);
+}
+
 .list {
   display: flex;
+  flex-wrap: wrap;
   gap: var(--space-2);
+  list-style: none;
+  margin: 0;
+  padding: 0;
 }
 
 .swatch {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 56px;
-  height: 56px;
-  background: var(--surface);
-  color: var(--ink-muted);
-  font-size: var(--font-size-xs);
+  width: calc(var(--size-touch-target) + var(--space-3));
+  height: calc(var(--size-touch-target) + var(--space-3));
+  padding: var(--space-1);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--ink-secondary);
+  font-size: var(--text-meta);
+  line-height: var(--line-height-heading);
   text-align: center;
   text-decoration: none;
   overflow: hidden;
-  object-fit: cover;
+  overflow-wrap: anywhere;
+}
+
+.swatch:hover {
+  border-color: var(--ink);
+}
+
+.swatch:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .swatch {
+    transition: border-color var(--duration-fast) var(--ease-standard);
+  }
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.text {
+  width: auto;
+  min-width: calc(var(--size-touch-target) + var(--space-3));
+  padding-inline: var(--space-3);
 }

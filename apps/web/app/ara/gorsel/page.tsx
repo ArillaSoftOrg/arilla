@@ -1,9 +1,12 @@
 import { getUploadedImageEmbeddingForSearch, searchByImageVector } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { ProductCard } from "@arilla/ui";
+import { EmptyState, SearchForm } from "@arilla/ui";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
 import { verifySession } from "../../lib/dal.ts";
+import { PhotoSearchButton } from "../../photo-search-client.tsx";
+import styles from "../ara.module.css";
+import { ResultGrid, resultCountLabel } from "../search-results.tsx";
 
 interface GorselSearchParams {
   id?: string;
@@ -38,30 +41,38 @@ export default async function GorselAramaPage({
   const items = await searchByImageVector(db, queryEmbedding.vector, queryEmbedding.modelVersion);
 
   return (
-    <main style={{ padding: 24, display: "grid", gap: 16 }}>
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>Fotoğrafına benzeyen ürünler</h1>
+        {items.length > 0 ? (
+          <p className={styles.count} role="status">
+            {resultCountLabel(items.length)}
+          </p>
+        ) : null}
+      </header>
+
       {items.length === 0 ? (
-        <p>Bu aramada sonuç bulamadık. Filtreleri gevşetmeyi deneyebilirsin.</p>
+        <EmptyState
+          className={styles.emptyPanel}
+          title="Bu fotoğrafa benzeyen ürün bulamadık."
+          description="Ürünün tek başına ve net göründüğü başka bir fotoğraf dene ya da ürünün adını yazarak ara."
+          headingLevel={2}
+        />
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-            gap: 16,
-          }}
-        >
-          {items.map((item) => (
-            <ProductCard
-              key={item.productId}
-              href={`/urun/${item.slug}`}
-              title={item.title}
-              imageUrl={item.primaryImageUrl}
-              minPrice={item.minPrice}
-              offerCount={item.offerCount}
-              offerCountLabel={(count) => `${count} mağaza`}
-            />
-          ))}
-        </div>
+        <ResultGrid items={items} />
       )}
-    </main>
+
+      <section className={styles.section} aria-labelledby="yeni-arama">
+        <h2 id="yeni-arama" className={styles.sectionTitle}>
+          Yeni bir arama yap
+        </h2>
+        <div className={styles.toolbar}>
+          <div className={styles.toolbarSearch}>
+            <SearchForm placeholder="Ürün adı, marka ya da kısa bir tarif yaz" submitLabel="Ara" />
+          </div>
+          <PhotoSearchButton />
+        </div>
+      </section>
+    </div>
   );
 }

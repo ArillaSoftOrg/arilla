@@ -1,3 +1,29 @@
-.fallback {
+/* Tuketicinin className'i boyut/kose/oran/konum belirler; buradaki kurallar
+   yalnizca guvenli varsayilanlardir. `:where()` ozgullugu sifirlar: CSS
+   parca sirasi ne olursa olsun tuketicinin sinifi kazanir. */
+:where(.image) {
+  position: relative;
+  display: block;
+  max-width: 100%;
+  height: auto;
+  overflow: hidden;
+  object-fit: cover;
+  /* Yuklenirken ve kirikken ayni notr kutu. */
   background: var(--surface);
+  /* Kirik gorselde tarayicinin cizdigi alt metni gizler; alt, erisilebilirlik
+     agacinda kalir. */
+  color: transparent;
+}
+
+/* Yalnizca kirik gorselde cizilir (gecerli gorsel pseudo-oge uretmez):
+   kirik ikon ve alt metin yerine ayni boyutta notr yuzey. */
+:where(.image)::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--surface);
+}
+
+:where(.contain) {
+  object-fit: contain;
 }

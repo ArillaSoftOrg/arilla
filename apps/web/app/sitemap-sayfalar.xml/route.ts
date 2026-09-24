@@ -1,3 +1,4 @@
+import { readAppUrl } from "@arilla/core";
 import { buildUrlSetXml } from "../lib/sitemap-xml.ts";
 
 /**
@@ -7,10 +8,18 @@ import { buildUrlSetXml } from "../lib/sitemap-xml.ts";
  * olan genel-erişimli sayfalar listelenir; yeni statik sayfa eklendikçe
  * bu dizi büyür.
  */
-const STATIC_PAGES = ["/", "/kesfet", "/firsatlar", "/gizlilik", "/kosullar", "/cerez"];
+const STATIC_PAGES = [
+  "/",
+  "/kesfet",
+  "/firsatlar",
+  "/gizlilik",
+  "/kosullar",
+  "/cerez",
+  "/iletisim",
+];
 
 export async function GET(): Promise<Response> {
-  const appUrl = process.env.APP_URL;
+  const appUrl = readAppUrl();
   if (!appUrl) {
     return new Response("APP_URL tanimli degil. .env.example dosyasina bakin.", { status: 500 });
   }

@@ -11,6 +11,7 @@ import {
   tokenizeWithOffsets,
 } from "./normalize.ts";
 import { extractPricePatterns } from "./price-patterns.ts";
+import { buildTextSlots } from "./text-match.ts";
 import type { QueryFilters, QueryObject } from "./types.ts";
 
 export interface ParseQueryOptions {
@@ -178,5 +179,6 @@ export function parseQueryText(
     sort: "balanced",
     unparsed,
     confidence,
+    text_slots: buildTextSlots(unparsed, lexiconEntries),
   };
 }

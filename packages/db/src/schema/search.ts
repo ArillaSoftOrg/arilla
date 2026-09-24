@@ -28,7 +28,7 @@ export const queryResolution = pgTable("query_resolution", {
 export const lexicon = pgTable("lexicon", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
   kind: text("kind")
-    .$type<"color" | "category" | "brand" | "size" | "material" | "style">()
+    .$type<"color" | "category" | "brand" | "size" | "material" | "style" | "synonym">()
     .notNull(),
   /** 'spor ayakkabi' */
   surface: text("surface").notNull(),

@@ -1,30 +1,103 @@
+/* docs/design.md "Fiyat grafiği": tek cizgi, eksen etiketi minimum. Renkler
+   belirtecten - koyu temada --ink acilir, cizgi okunur kalir. */
 .details {
-  border-top: 1px solid var(--line);
-  padding-top: var(--space-2);
+  border-top: var(--border-width) solid var(--line);
+  border-bottom: var(--border-width) solid var(--line);
 }
 
 .summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  min-height: var(--size-touch-target);
+  padding-block: var(--space-2);
   cursor: pointer;
+  list-style: none;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
   color: var(--ink);
-  font-size: var(--font-size-sm);
+}
+
+.summary::-webkit-details-marker {
+  display: none;
+}
+
+.summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Kenarliklardan cizilen ok; ikon dosyasi gerektirmez, renk --ink-muted. */
+.chevron {
+  flex: none;
+  width: var(--space-2);
+  height: var(--space-2);
+  border-right: var(--focus-ring-width) solid var(--ink-muted);
+  border-bottom: var(--focus-ring-width) solid var(--ink-muted);
+  transform: translateY(-25%) rotate(45deg);
+}
+
+.details[open] .chevron {
+  transform: translateY(25%) rotate(-135deg);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .chevron {
+    transition: transform var(--duration-base) var(--ease-standard);
+  }
+}
+
+.figure {
+  margin: 0;
+  padding-block: var(--space-2) var(--space-4);
+}
+
+.plot {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: var(--space-3);
 }
 
 .chart {
   display: block;
   width: 100%;
-  height: auto;
-  margin-top: var(--space-2);
+  height: calc(var(--space-32) + var(--space-8));
+}
+
+.grid {
+  stroke: var(--line);
+  stroke-width: var(--border-width);
+  vector-effect: non-scaling-stroke;
 }
 
 .line {
   fill: none;
   stroke: var(--ink);
   stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
 }
 
-.axisLabels {
+.yLabels {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  color: var(--ink-muted);
+  text-align: end;
+  font-variant-numeric: tabular-nums;
+}
+
+.xLabels {
   display: flex;
   justify-content: space-between;
-  font-size: var(--font-size-xs);
+  margin-top: var(--space-2);
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
   color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
 }

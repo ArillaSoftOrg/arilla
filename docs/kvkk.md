@@ -148,3 +148,8 @@ sayfalar hukukçu onayı ve şirket kuruluşu sonrası güncellenmelidir. `/cere
 sayfası ise mevcut (yalnızca zorunlu: `session`, `session_id`, `theme`) çerez
 envanterini listeler — analitik/pazarlama çerezi olmadığı için consent bandı
 kurulmadı.
+
+**Faz 8.1 notu:** Geçici public iletişim adresi (`apps/web/app/site-config.ts`)
+`/iletisim` sayfasında ve `/gizlilik` "Haklarınız" bölümünde soru kanalı olarak
+gösterilir. Bu, veri sorumlusu bildirimi **değildir** — "Veri sorumlusu"
+bölümü ve yukarıdaki kutucuklar tüzel kişi kurulana kadar açık kalır.

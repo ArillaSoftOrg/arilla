@@ -1,4 +1,4 @@
-import { listSitemapEligibleProducts, SITEMAP_PRODUCT_SHARD_SIZE } from "@arilla/core";
+import { listSitemapEligibleProducts, readAppUrl, SITEMAP_PRODUCT_SHARD_SIZE } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { unstable_cache } from "next/cache";
 import { buildUrlSetXml } from "../../../lib/sitemap-xml.ts";
@@ -25,7 +25,7 @@ export async function GET(
     return new Response("Bulunamadı", { status: 404 });
   }
 
-  const appUrl = process.env.APP_URL;
+  const appUrl = readAppUrl();
   if (!appUrl) {
     return new Response("APP_URL tanimli degil. .env.example dosyasina bakin.", { status: 500 });
   }

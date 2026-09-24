@@ -7,13 +7,21 @@ import { saveLexiconEntryAction } from "./actions.ts";
 
 export interface LexiconRow {
   id: number;
-  kind: "color" | "category" | "brand" | "size" | "material" | "style";
+  kind: "color" | "category" | "brand" | "size" | "material" | "style" | "synonym";
   surface: string;
   normalized: string;
   weight: number;
 }
 
-const KINDS: LexiconRow["kind"][] = ["color", "category", "brand", "size", "material", "style"];
+const KINDS: LexiconRow["kind"][] = [
+  "color",
+  "category",
+  "brand",
+  "size",
+  "material",
+  "style",
+  "synonym",
+];
 
 interface DraftFields {
   kind: LexiconRow["kind"];

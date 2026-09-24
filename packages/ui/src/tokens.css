@@ -1,64 +1,175 @@
 /**
- * Renk belirtecleri, tipografi olcegi ve bosluk olcegi. docs/design.md.
+ * Tasarim belirtecleri - tek kaynak. docs/design.md, karar 0026.
  * Renkler koda gomulmez - burada tek yerde tanimlanir, bilesenler
  * `var(--...)` ile okur.
  *
  * Acik tema `:root`'ta varsayilan. Koyu tema iki yoldan biriyle devreye
  * girer: cihaz tercihi (`prefers-color-scheme`) veya elle secim
- * (`[data-theme]` - karar 0007, tercih cereze yazilir).
+ * (`[data-theme]` - karar 0007, tercih cereze yazilir). Iki koyu blok
+ * bilerek ayni degerleri tasir: CSS bir medya sorgusunu ve bir secicinin
+ * yoklugunu tek kuralda birlestiremez. Koyu bloklara yalnizca temaya gore
+ * degisen renk/golge degerleri yazilir; digerleri tek yerde kalir.
  */
 
 :root {
   color-scheme: light dark;
 
+  /* --- Renk rolleri (design.md "Renk belirteçleri", kontrast orada) --- */
   --paper: #ffffff;
   --surface: #f4f5f6;
   --surface-raised: #ffffff;
+  --surface-hover: #ebedef;
   --ink: #16181d;
-  --ink-muted: #6e7278;
+  --ink-secondary: #41454c;
+  /* Faz 0: eski #6e7278 --surface uzerinde 4.43:1 idi (AA alti). */
+  --ink-muted: #676b72;
+  /* Dekoratif ayirici; kontrol siniri icin --line-strong. */
   --line: #e3e5e8;
+  /* Kontrol siniri, WCAG 1.4.11 icin >= 3:1. */
+  --line-strong: #82878e;
   --save: #1f6f4a;
-  --alert: #a8321f;
-  /* design.md'de yok: Button'un --save zeminindeki metin rengi icin eklendi. */
   --on-save: #ffffff;
+  --warning: #8a5300;
+  --alert: #a8321f;
+  /* Karar 0025: --ink'in ters rolu, notr birincil eylem. */
+  --accent: #16181d;
+  --accent-foreground: #ffffff;
+  --accent-hover: #2e3138;
+  --focus-ring-color: var(--ink);
 
+  /* --- Golge (design.md "Gölge") --- */
+  --shadow-xs: 0 1px 2px rgba(22, 24, 29, 0.06);
+  --shadow-sm: 0 1px 2px rgba(22, 24, 29, 0.06), 0 10px 24px rgba(22, 24, 29, 0.08);
+  --shadow-md: 0 2px 6px rgba(22, 24, 29, 0.06), 0 20px 48px rgba(22, 24, 29, 0.12);
+  /* Modal ortusu: iki temada da koyu, yari saydam; arkadaki icerik okunur
+     kalir (karar 0002). design.md "Katmanlar". */
+  --scrim: rgba(14, 15, 17, 0.45);
+
+  /* --- Tipografi --- */
+  /* Sabit olcek: mevcut bilesenler icin korunur. */
   --font-size-xl: 32px;
   --font-size-lg: 24px;
   --font-size-md: 18px;
   --font-size-base: 16px;
   --font-size-sm: 14px;
   --font-size-xs: 13px;
-  --line-height-body: 1.6;
-  --line-height-heading: 1.25;
 
+  /* Tip rolleri. Buyuk basliklar 360px -> 1440px arasinda dogrusal buyur. */
+  --text-display: clamp(2.5rem, 2rem + 2.222vw, 4rem); /* 40 -> 64 */
+  --text-h1: clamp(2rem, 1.8333rem + 0.7407vw, 2.5rem); /* 32 -> 40 */
+  --text-h2: clamp(1.5rem, 1.3333rem + 0.7407vw, 2rem); /* 24 -> 32 */
+  --text-h3: 1.25rem; /* 20 */
+  --text-body-lg: var(--font-size-md);
+  --text-body: var(--font-size-base);
+  --text-small: var(--font-size-sm);
+  --text-meta: var(--font-size-xs);
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  /* Yalnizca display/h1. Degisken font dosyasi 100-700 tasir. */
+  --font-weight-semibold: 600;
+
+  --line-height-tight: 1.1;
+  --line-height-snug: 1.15;
+  --line-height-heading: 1.25;
+  --line-height-normal: 1.5;
+  --line-height-body: 1.6;
+
+  --letter-spacing-display: -0.02em;
+  --letter-spacing-h1: -0.015em;
+  --letter-spacing-h2: -0.01em;
+
+  /* --- Bosluk: 4px tabani, ad = 4px'in kati --- */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
   --space-4: 16px;
+  --space-5: 20px;
   --space-6: 24px;
   --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-24: 96px;
+  --space-32: 128px;
 
-  /* docs/design.md "Duyarlı tasarım" tablosu: "Okuma akışı (arama, ana
-     sayfa)" = 640px. Tek yerde tanimlanir ki her bilesen ayni degeri
-     hard-code etmesin (HomeHeader ic sarmalayici, hero+composer sutunu,
-     alt bilgi hizasi). */
+  /* Bolum dikey boslugu, 360px -> 1440px arasinda akiskan. */
+  --section-space: clamp(3rem, 2rem + 4.444vw, 6rem); /* 48 -> 96 */
+  --section-space-compact: clamp(2rem, 1.3333rem + 2.963vw, 4rem); /* 32 -> 64 */
+
+  /* --- Kapsayicilar (design.md "Düzen ve kapsayıcılar") --- */
+  --content-width-compact: 360px;
   --content-width-reading: 640px;
-
-  /* docs/design.md "Duyarlı tasarım" tablosu: "Geniş görsel içerik (keşif
-     ızgarası)" = 1280px (Faz 3). Okuma akışı (640) ve tablo (960) disinda,
-     gorsel-agirlikli bolumler icin. */
+  --content-width-comparison: 720px;
+  --content-width-standard: 960px;
   --content-width-wide: 1280px;
 
-  /* Kart ve buton kutu modeli (docs/design.md): kose yok, golge yok. */
-  --radius: 0;
+  /* Kenar boslugu: telefon 16, tablet 24 (>= 640), laptop+ 32 (>= 1024). */
+  --gutter: var(--space-4);
 
-  /* Karar 0025: sadece ana sayfa kabugu (HomeHeader, SearchComposer,
-     ContinueShoppingChips, Button "accent" varyanti) icin - digerleri
-     --radius:0 kullanmaya devam eder. */
+  /* --- Kose yaricapi (design.md "Kutu modeli") --- */
+  /* Eski koseli bilesenler; yeni modele tasindikca kullanimdan kalkar. */
+  --radius: 0;
+  --radius-sm: 6px;
   --radius-md: 12px;
-  --accent: #16181d;
-  --accent-foreground: #ffffff;
-  --shadow-sm: 0 1px 2px rgba(22, 24, 29, 0.06), 0 10px 24px rgba(22, 24, 29, 0.08);
+  --radius-lg: 20px;
+  --radius-pill: 999px;
+
+  /* --- Kenarlik --- */
+  --border-width: 1px;
+
+  /* --- Boyut --- */
+  /* design.md "Kalite tabanı": etkilesimli ogenin en kucuk dokunma hedefi. */
+  --size-touch-target: 44px;
+
+  /* --- Odak --- */
+  --focus-ring-width: 2px;
+  --focus-ring-offset: 2px;
+  --focus-ring: var(--focus-ring-width) solid var(--focus-ring-color);
+
+  /* --- Hareket --- */
+  --duration-fast: 120ms;
+  --duration-base: 200ms;
+  --duration-slow: 320ms;
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-exit: cubic-bezier(0.4, 0, 1, 1);
+
+  /* --- Katmanlar --- */
+  --z-base: 0;
+  --z-raised: 1;
+  --z-sticky: 100;
+  --z-dropdown: 200;
+  --z-overlay: 300;
+  --z-modal: 400;
+  --z-toast: 500;
+}
+
+/* design.md "Duyarlı tasarım": referans noktalar yalnizca 640 / 1024 / 1440. */
+@media (min-width: 640px) {
+  :root {
+    --gutter: var(--space-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  :root {
+    --gutter: var(--space-8);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-fast: 0ms;
+    --duration-base: 0ms;
+    --duration-slow: 0ms;
+  }
+}
+
+/* Tema elle zorlandiginda yerel kontroller (form, kaydirma cubugu) de o
+   temada cizilir - Faz 0: koyu cihazda zorlanmis acik tema koyu kontrol
+   gosteriyordu. */
+:root[data-theme="light"] {
+  color-scheme: light;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -66,29 +177,47 @@
     --paper: #0e0f11;
     --surface: #17191c;
     --surface-raised: #1e2125;
+    --surface-hover: #262a2f;
     --ink: #f2f3f4;
+    --ink-secondary: #c9cdd1;
     --ink-muted: #9ba0a6;
     --line: #2a2e33;
+    --line-strong: #737982;
     --save: #4fbf8b;
-    --alert: #e5705c;
     --on-save: #0e0f11;
+    --warning: #e2a64a;
+    --alert: #e5705c;
     --accent: #f2f3f4;
     --accent-foreground: #16181d;
+    --accent-hover: #d6d9dc;
+    --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.35);
+    --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.5);
+    --scrim: rgba(0, 0, 0, 0.6);
   }
 }
 
 :root[data-theme="dark"] {
+  color-scheme: dark;
+
   --paper: #0e0f11;
   --surface: #17191c;
   --surface-raised: #1e2125;
+  --surface-hover: #262a2f;
   --ink: #f2f3f4;
+  --ink-secondary: #c9cdd1;
   --ink-muted: #9ba0a6;
   --line: #2a2e33;
+  --line-strong: #737982;
   --save: #4fbf8b;
-  --alert: #e5705c;
   --on-save: #0e0f11;
+  --warning: #e2a64a;
+  --alert: #e5705c;
   --accent: #f2f3f4;
   --accent-foreground: #16181d;
+  --accent-hover: #d6d9dc;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.5);
+  --scrim: rgba(0, 0, 0, 0.6);
 }

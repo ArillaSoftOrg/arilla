@@ -7,14 +7,19 @@ her grubun güncellenme sıklığı farklı, tek dosyada toplanırsa her ürün
 değişiminde 2 MB'lık dosya yeniden üretilir.
 
 ```
-/sitemap.xml                        index
+/sitemap.xml                        index (tek seviye)
 ├── /sitemap-sayfalar.xml           statik sayfalar + kategoriler (~150 URL)
-├── /sitemaps/urun/index.xml        → 1.xml … N.xml
-├── /sitemaps/alternatif/index.xml  → 1.xml … N.xml
-├── /sitemaps/magaza/index.xml      mağaza bazlı sayfalar
-├── /sitemaps/trend/index.xml       dönemsel trend sayfaları
-└── /sitemaps/creator/index.xml     creator vitrinleri ve koleksiyonlar
+├── /sitemaps/urun/1.xml … N.xml    ürün parçaları (doğrudan index'te)
+├── /sitemaps/alternatif/1.xml … N.xml
+├── /sitemaps/magaza/…              mağaza bazlı sayfalar
+├── /sitemaps/trend/…               dönemsel trend sayfaları
+└── /sitemaps/creator/…             creator vitrinleri ve koleksiyonlar
 ```
+
+Sitemap protokolü bir index'in başka bir index'i listelemesine izin vermez;
+bu yüzden parçalar doğrudan `/sitemap.xml`'de listelenir. Eski
+`/sitemaps/urun/index.xml` geriye dönük uyumluluk için çalışmaya devam eder
+ama `/sitemap.xml` ona bağlanmaz (bkz. `apps/web/app/sitemaps/urun/shards.ts`).
 
 ## Parçalama kuralları
 

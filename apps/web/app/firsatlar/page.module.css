@@ -1,0 +1,93 @@
+/* Genislik ve yatay bosluk kabuktan (`Container size="wide"`); burada
+   yalnizca dikey ritim ve izgara. */
+.page {
+  display: grid;
+  gap: var(--space-10);
+  padding-block: var(--section-space-compact) var(--section-space);
+}
+
+.intro {
+  display: grid;
+  gap: var(--space-3);
+  max-width: var(--content-width-reading);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+  color: var(--ink);
+}
+
+.lead {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+  text-wrap: pretty;
+}
+
+/* design.md "Duyarlı tasarım": 2 / 3 / 4 / 5 sutun, yalnizca 640 / 1024 /
+   1440 referans noktalarinda. `list-style: none` VoiceOver'da liste rolunu
+   dusurdugu icin `role="list"` sayfada acikca verilir. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: var(--space-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1440px) {
+  .grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.item {
+  display: grid;
+  align-content: start;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Dusus olgusu: yuzde rozeti + tasarruf tutari. `--save` yalnizca tasarruf
+   tutarinda (design.md "Renk belirteçleri"). */
+.savings {
+  display: flex;
+  margin: 0;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+}
+
+.savingsAmount {
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--save);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Bos durum: yarim kalmis sayfa gibi durmasin diye sakin bir panel. */
+.emptyPanel {
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}

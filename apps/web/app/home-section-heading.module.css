@@ -1,0 +1,42 @@
+/* design.md "Tip rolleri": bolum basligi H2, sayfa basligi H1; aciklama
+   gövde metni, okuma genisligini asmaz. */
+.heading {
+  display: grid;
+  gap: var(--space-2);
+  max-width: var(--content-width-reading);
+  margin-block-end: var(--space-8);
+}
+
+@media (min-width: 1024px) {
+  .heading {
+    margin-block-end: var(--space-10);
+  }
+}
+
+.title,
+.titleH1 {
+  margin: 0;
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.title {
+  font-size: var(--text-h2);
+  letter-spacing: var(--letter-spacing-h2);
+}
+
+.titleH1 {
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+}
+
+.description {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+}

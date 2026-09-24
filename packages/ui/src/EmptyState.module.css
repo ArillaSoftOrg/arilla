@@ -1,20 +1,57 @@
+/* docs/design.md "Boş durum": sakin, ortali, yonlendirme metni. */
 .emptyState {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--space-2);
-  padding: var(--space-8) var(--space-4);
+  padding: var(--space-12) var(--space-4);
   text-align: center;
 }
 
+.compact {
+  padding: var(--space-8) var(--space-4);
+}
+
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch-target);
+  height: var(--size-touch-target);
+  margin-bottom: var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink-muted);
+}
+
 .title {
-  font-size: var(--font-size-md);
-  font-weight: 500;
+  margin: 0;
+  max-width: 32ch;
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  letter-spacing: 0;
   color: var(--ink);
+  text-wrap: balance;
+}
+
+.compact .title {
+  font-size: var(--text-body-lg);
 }
 
 .description {
-  font-size: var(--font-size-sm);
+  margin: 0;
+  max-width: 44ch;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
   color: var(--ink-muted);
-  max-width: 40ch;
+  text-wrap: pretty;
+}
+
+.action {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+  margin-top: var(--space-4);
 }

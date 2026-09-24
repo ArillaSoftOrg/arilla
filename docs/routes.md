@@ -17,7 +17,7 @@ yapıştırılan link öneki. Karar:
 Rezerve slug listesi tutulur: `ara`, `urun`, `kategori`, `marka`, `alternatif`,
 `trend`, `firsatlar`, `kesfet`, `gecmis`, `alarmlar`, `kaydettiklerim`, `git`,
 `api`, `panel`, `yonetim`, `hesap`, `giris`, `hakkinda`, `gizlilik`, `kosullar`,
-`cerez`.
+`cerez`, `iletisim`.
 
 ## Kayıt duvarı
 
@@ -60,13 +60,13 @@ SEO değerini böler hem kullanıcıyı gereksiz bir tıklamaya zorlar.
 /gizlilik                  Veri kullanımı - taslak, hukukçu onayı bekliyor
 /kosullar                  Kullanım koşulları - taslak, hukukçu onayı bekliyor
 /cerez                     Çerez listesi ve amaçları
+/iletisim                  Geçici public e-posta (Faz 8.1) - tek kaynak site-config.ts
 ```
 
-`docs/sitemap.md`'nin statik sayfa aday listesindeki `/hakkinda`, `/iletisim`,
-`/sss` bu fazda **yazılmadı** — `/iletisim` için doğrulanabilir gerçek bir
-iletişim kanalı (e-posta/telefon/adres) repoda yok, uydurulmadı. Bu üçü henüz
-`STATIC_PAGES` listesine ve footer'a eklenmedi; gerçek bilgi doğrulanmadan
-eklenmeyecek.
+`docs/sitemap.md`'nin statik sayfa aday listesindeki `/hakkinda` ve `/sss`
+henüz **yazılmadı**, `STATIC_PAGES` listesinde ve footer'da yok. `/iletisim`
+Faz 8.1'de eklendi (`STATIC_PAGES` ve footer'da); yalnızca kullanıcının
+onayladığı geçici e-postayı içerir, telefon/adres uydurulmadı.
 
 ### Keşif
 

@@ -22,6 +22,10 @@ import psycopg
 from collect.records import NormalizedOffer
 
 UPSERT_OFFER = """
+WITH previous AS (
+    SELECT image_url FROM offer
+     WHERE merchant_id = %(merchant_id)s AND external_id = %(external_id)s
+)
 INSERT INTO offer (
     merchant_id, external_id, url, title_raw, brand_raw, category_raw,
     image_url, attributes_raw, current_price, list_price, currency, in_stock,
@@ -48,10 +52,22 @@ ON CONFLICT (merchant_id, external_id) DO UPDATE SET
     shipping_cost           = EXCLUDED.shipping_cost,
     free_shipping_threshold = EXCLUDED.free_shipping_threshold,
     last_seen_at            = EXCLUDED.last_seen_at,
-    is_active               = TRUE
+    is_active               = TRUE,
+    -- Gorsel degistiyse eski hash (ve vektor, bkz. write()) bayattir (0029).
+    image_hash              = CASE WHEN offer.image_url IS DISTINCT FROM EXCLUDED.image_url
+                                   THEN NULL ELSE offer.image_hash END
 -- product_id KASITLI OLARAK DOKUNULMAZ: eslestirme B4'un isi. Toplama
 -- katmani bir offer'i urune baglamaz, bagli olani da koparmaz.
-RETURNING id, (xmax = 0) AS inserted
+RETURNING id, (xmax = 0) AS inserted,
+          (SELECT image_url FROM previous) IS DISTINCT FROM offer.image_url AS image_changed
+"""
+
+#: Gorseli degisen offer'in gorsel vektoru silinir; `enrich` onu yeniden
+#: bekleyen sayar ve yeni gorselle uretir. Silinmezse vektor eski gorselde
+#: kalirdi: offer embedding'i olan hic secilmiyor (0029).
+DELETE_STALE_IMAGE_EMBEDDING = """
+DELETE FROM embedding
+ WHERE target_type = 'offer' AND target_id = %(offer_id)s AND kind = 'image'
 """
 
 # Fiyat degismese bile yazilir. Ayni kosu yeniden denenirse (offer_id,
@@ -92,6 +108,7 @@ class WriteCounts:
     price_points_written: int = 0
     variants_written: int = 0
     stock_events_written: int = 0
+    stale_image_embeddings: int = 0
 
 
 class OfferWriter:
@@ -117,7 +134,11 @@ class OfferWriter:
         self.seen_offer_ids: set[int] = set()
 
     def write(self, offer: NormalizedOffer) -> int:
-        offer_id, inserted = self._upsert_offer(offer)
+        offer_id, inserted, image_changed = self._upsert_offer(offer)
+        if image_changed and not inserted:
+            with self.conn.cursor() as cur:
+                cur.execute(DELETE_STALE_IMAGE_EMBEDDING, {"offer_id": offer_id})
+                self.counts.stale_image_embeddings += cur.rowcount
         self.seen_offer_ids.add(offer_id)
         if inserted:
             self.counts.offers_created += 1
@@ -129,7 +150,7 @@ class OfferWriter:
             self._write_variant(offer_id, variant)
         return offer_id
 
-    def _upsert_offer(self, offer: NormalizedOffer) -> tuple[int, bool]:
+    def _upsert_offer(self, offer: NormalizedOffer) -> tuple[int, bool, bool]:
         # `offer` tablosunda gtin/mpn kolonu YOKTUR — barkod kanonik `product`
         # uzerinde durur (docs/schema.sql). Ama eslestirme (B4) ilk adimda
         # gtin'e bakiyor, o yuzden kaynaktan geldiginde kaybedilmemeli:
@@ -163,7 +184,7 @@ class OfferWriter:
             )
             row = cur.fetchone()
         assert row is not None
-        return int(row[0]), bool(row[1])
+        return int(row[0]), bool(row[1]), bool(row[2])
 
     def _insert_price_point(self, offer_id: int, offer: NormalizedOffer) -> None:
         with self.conn.cursor() as cur:

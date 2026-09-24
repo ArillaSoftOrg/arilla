@@ -168,6 +168,8 @@ def test_per_variant_price_and_sku_are_populated_when_mapped() -> None:
                 "sku": "sku",
             },
         },
+        "currency": "TRY",
+        "currency_verified": True,
     }
     connector = RestApiConnector(
         base_url="https://api.example/p",

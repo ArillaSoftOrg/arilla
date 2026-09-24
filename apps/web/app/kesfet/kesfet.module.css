@@ -1,0 +1,11 @@
+/* Ardisik bolumler arasinda iki kat bosluk olmasin (ana sayfayla ayni
+   ritim, bkz. ../home.module.css). */
+.page > section + section {
+  padding-block-start: 0;
+}
+
+/* Bos durum sayfa basliginin altinda, ortalanmis panel. */
+.empty {
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}

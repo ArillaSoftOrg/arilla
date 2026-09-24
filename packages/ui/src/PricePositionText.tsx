@@ -1,3 +1,5 @@
+import styles from "./PricePositionText.module.css";
+
 export interface PricePositionTextProps {
   /** 0-2 hazir cumle - hangi cumlelerin dahil edilecegine sayfa karar verir. */
   lines: readonly string[];
@@ -7,9 +9,11 @@ export interface PricePositionTextProps {
 export function PricePositionText({ lines }: PricePositionTextProps) {
   if (lines.length === 0) return null;
   return (
-    <div>
+    <div className={styles.block}>
       {lines.map((line) => (
-        <p key={line}>{line}</p>
+        <p key={line} className={styles.line}>
+          {line}
+        </p>
       ))}
     </div>
   );

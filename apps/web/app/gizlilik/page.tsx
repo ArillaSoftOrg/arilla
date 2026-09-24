@@ -1,5 +1,7 @@
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
+import { HOME_COPY } from "../home-copy.ts";
+import { PUBLIC_CONTACT_EMAIL } from "../site-config.ts";
 
 export const metadata: Metadata = {
   title: "Gizlilik ve Veri Kullanımı – Arilla",
@@ -17,7 +19,7 @@ export default function GizlilikPage() {
   return (
     <LegalPageLayout
       title="Gizlilik ve Veri Kullanımı"
-      lastUpdatedLabel="Son güncelleme: 17 Eylül 2026"
+      lastUpdatedLabel="Son güncelleme: 23 Eylül 2026"
     >
       <section>
         <p>
@@ -100,6 +102,11 @@ export default function GizlilikPage() {
             gelir.
           </li>
         </ul>
+        <p>
+          {HOME_COPY.privacyContactPrefix}{" "}
+          <a href={`mailto:${PUBLIC_CONTACT_EMAIL}`}>{PUBLIC_CONTACT_EMAIL}</a>{" "}
+          {HOME_COPY.privacyContactSuffix}
+        </p>
       </section>
 
       <section>

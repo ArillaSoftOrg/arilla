@@ -1,0 +1,16 @@
+/* Kisa sayfalarda footer ekranin altina yaslanir. */
+.shell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main {
+  flex: 1;
+}
+
+/* Yalnizca SkipLink'in programatik odagi icin odaklanabilir; klavye sirasinda
+   yer almaz, bu yuzden tum bolge etrafinda halka cizilmez. */
+.main:focus {
+  outline: none;
+}

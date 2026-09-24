@@ -1,23 +1,37 @@
+/* docs/design.md "Fiyat farkı bileşeni": tipografik olay - kutu, golge,
+   kenarlik yok. 16px ustu cizili --ink-muted / 32px 500 --ink / 14px
+   --save. */
 .block {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: var(--space-1);
 }
 
 .listPrice {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-body);
+  line-height: var(--line-height-normal);
   color: var(--ink-muted);
-  text-decoration: line-through;
+  font-variant-numeric: tabular-nums;
+}
+
+.listPrice s {
+  text-decoration-thickness: var(--border-width);
 }
 
 .currentPrice {
   font-size: var(--font-size-xl);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h2);
   color: var(--ink);
+  font-variant-numeric: tabular-nums;
 }
 
 .saving {
-  font-size: var(--font-size-sm);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
   color: var(--save);
+  font-variant-numeric: tabular-nums;
 }

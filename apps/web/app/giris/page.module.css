@@ -1,0 +1,79 @@
+/* docs/design.md "Düzen ve kapsayıcılar": `/giris` kompakt form genisligi
+   (`--content-width-compact`), kabugun `Container`'i icinde ortalanir. */
+.page {
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--content-width-compact);
+  margin-inline: auto;
+  padding-block: var(--section-space) var(--section-space);
+}
+
+.intro {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+  color: var(--ink);
+}
+
+.lead {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+}
+
+/* Gecersiz/suresi dolmus baglanti bildirimi: sakin, alarm rengi yok -
+   kullanici bir sey kirmadi, yeni baglanti isteyebilir. */
+.notice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  color: var(--ink);
+}
+
+/* --- Form (login-form-client.tsx) --- */
+.form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.sent {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.sentTitle {
+  margin: 0;
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  color: var(--ink);
+}
+
+.sentBody,
+.sentHint {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+}
+
+.sentHint {
+  font-size: var(--text-small);
+  color: var(--ink-muted);
+}

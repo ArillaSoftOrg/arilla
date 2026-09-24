@@ -1,6 +1,7 @@
 # 0025 — Ana sayfa kabuğu için sınırlı köşe yarıçapı ve geçici vurgu rengi
 
-**Tarih:** 2026-09 · **Durum:** kabul edildi
+**Tarih:** 2026-09 · **Durum:** kabul edildi · kutu modeli istisnası karar
+0026 ile yerini aldı (`--accent` kararı geçerli)
 
 ## Karar
 

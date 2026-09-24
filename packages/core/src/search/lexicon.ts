@@ -5,7 +5,15 @@
  */
 import { foldTurkish } from "./normalize.ts";
 
-export type LexiconKind = "color" | "category" | "brand" | "size" | "material" | "style";
+export type LexiconKind =
+  | "color"
+  | "category"
+  | "brand"
+  | "size"
+  | "material"
+  | "style"
+  /** Filtre uretmez; metin kapisinda ayni `normalized`i paylasan yuzeyler alternatif olur (0029). */
+  | "synonym";
 
 export interface LexiconEntry {
   kind: LexiconKind;

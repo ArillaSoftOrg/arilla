@@ -1,9 +1,10 @@
 "use client";
 
-import { Button } from "@arilla/ui";
-import { useState } from "react";
+import { Button, Input } from "@arilla/ui";
+import { useRef, useState } from "react";
 import { LoginGateModal } from "../../login-gate-modal-client.tsx";
 import { createAlertAction, saveItemAction } from "./actions.ts";
+import styles from "./product-page.module.css";
 
 export interface ProductActionsClientProps {
   productId: number;
@@ -36,8 +37,12 @@ export function ProductActionsClient({
     currentPriceTRY !== null ? String(currentPriceTRY) : "",
   );
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  // Istek sirasinda dugme `disabled` olur ve tarayici odagi <body>'ye tasir;
+  // modal kapaninca odagin donecegi dugme burada tutulur.
+  const modalTriggerRef = useRef<HTMLElement | null>(null);
 
-  async function handleSave() {
+  async function handleSave(event: React.MouseEvent<HTMLButtonElement>) {
+    modalTriggerRef.current = event.currentTarget;
     if (saveState === "pending" || saveState === "saved") return;
     setSaveState("pending");
     const status = await saveItemAction(productId);
@@ -49,7 +54,9 @@ export function ProductActionsClient({
     setSaveState("saved");
   }
 
-  async function handleAlertButtonClick() {
+  async function handleAlertButtonClick(event: React.MouseEvent<HTMLButtonElement>) {
+    // Fiyat formu gonderiminde "Kur" dugmesi kaldirilir; odak alarm dugmesine doner.
+    modalTriggerRef.current = event.currentTarget;
     if (alertState !== "idle") return;
     if (isInStock) {
       setShowPriceForm(true);
@@ -78,13 +85,14 @@ export function ProductActionsClient({
   }
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
-      <div style={{ display: "flex", gap: 8 }}>
+    <div className={styles.actions}>
+      <div className={styles.actionButtons}>
         <Button
           type="button"
           variant="secondary"
           disabled={saveState !== "idle"}
           onClick={handleSave}
+          className={styles.actionButton}
         >
           {saveState === "saved" ? "Kaydedildi" : "Kaydet"}
         </Button>
@@ -93,43 +101,47 @@ export function ProductActionsClient({
           variant="secondary"
           disabled={alertState !== "idle"}
           onClick={handleAlertButtonClick}
+          className={styles.actionButton}
         >
           {alertState === "created" ? "Alarm kuruldu" : "Fiyat alarmı kur"}
         </Button>
       </div>
 
-      {alertState === "created" ? (
-        <p style={{ margin: 0, fontSize: 13, color: "var(--ink-muted)" }}>
-          {isInStock
+      {/* Canli bolge once bos olarak var olmali ki sonradan gelen metin okunsun. */}
+      <p role="status" className={styles.statusText}>
+        {alertState === "created"
+          ? isInStock
             ? `${targetPrice} TL altına düşünce haber vereceğiz.`
-            : "Stoğa girince haber vereceğiz."}
-        </p>
-      ) : null}
+            : "Stoğa girince haber vereceğiz."
+          : null}
+      </p>
 
       {showPriceForm ? (
-        <form
-          onSubmit={handlePriceFormSubmit}
-          style={{ display: "flex", gap: 8, alignItems: "center" }}
-        >
-          <input
-            type="number"
-            min={1}
-            step={1}
-            value={targetPrice}
-            onChange={(event) => setTargetPrice(event.target.value)}
-            aria-label="Hedef fiyat (TL)"
-            style={{ width: 100, minHeight: 44 }}
-          />
-          <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>
-            TL altına düşünce haber ver
-          </span>
-          <Button type="submit" variant="primary">
+        <form onSubmit={handlePriceFormSubmit} className={styles.alertForm}>
+          <div className={styles.alertField}>
+            <Input
+              label="Hedef fiyat (TL)"
+              hint="TL altına düşünce haber ver"
+              type="number"
+              inputMode="numeric"
+              min={1}
+              step={1}
+              value={targetPrice}
+              onChange={(event) => setTargetPrice(event.target.value)}
+              className="tabular-nums"
+            />
+          </div>
+          <Button type="submit" variant="primary" className={styles.alertSubmit}>
             Kur
           </Button>
         </form>
       ) : null}
 
-      <LoginGateModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
+      <LoginGateModal
+        open={loginModalOpen}
+        onClose={() => setLoginModalOpen(false)}
+        returnFocusRef={modalTriggerRef}
+      />
     </div>
   );
 }

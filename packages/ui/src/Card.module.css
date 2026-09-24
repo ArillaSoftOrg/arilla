@@ -1,5 +1,14 @@
+/* docs/design.md "Kutu modeli": kart --surface-raised zemin, --radius-md,
+   statik yuzey kenari --line, golge yok. */
 .card {
   background: var(--surface-raised);
-  border-radius: var(--radius);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
   padding: var(--space-4);
+}
+
+@media (min-width: 640px) {
+  .card {
+    padding: var(--space-5);
+  }
 }

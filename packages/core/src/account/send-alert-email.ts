@@ -6,7 +6,13 @@
  * docs/kvkk.md: alarm e-postaları işlemsel ileti (İYS gerekmez), bu yüzden
  * `email.unsubscribe` metni buraya eklenmiyor - o metin ticari ileti olan
  * haftalık özet için.
+ *
+ * `productTitle` merchant feed'inden veya kullanıcı linkinden gelir: HTML
+ * gövdesine giren her dinamik değer `escapeHtml`'den geçer. Konu ve düz
+ * metin gövde HTML değildir, kaçırılmaz.
  */
+import { toEmailDeliveryError } from "../email/delivery-error.ts";
+import { escapeHtml } from "../email/escape-html.ts";
 import { emailFrom, getSmtpTransport } from "../email/transport.ts";
 import type { AlertKind } from "./types.ts";
 
@@ -18,7 +24,10 @@ export interface SendAlertEmailInput {
   sizeNorm?: string | null;
 }
 
-function subjectAndBody(input: SendAlertEmailInput): { subject: string; bodyLine: string } {
+function subjectAndBody(input: Pick<SendAlertEmailInput, "kind" | "productTitle" | "sizeNorm">): {
+  subject: string;
+  bodyLine: string;
+} {
   if (input.kind === "restock" || input.kind === "size_restock") {
     const subject = `${input.productTitle} yeniden stokta`;
     const bodyLine =
@@ -30,13 +39,32 @@ function subjectAndBody(input: SendAlertEmailInput): { subject: string; bodyLine
   return { subject: `${input.productTitle} ucuzladı`, bodyLine: `${input.productTitle} ucuzladı.` };
 }
 
-export async function sendAlertEmail(input: SendAlertEmailInput): Promise<void> {
+export function buildAlertEmail(input: Omit<SendAlertEmailInput, "email">): {
+  subject: string;
+  text: string;
+  html: string;
+} {
   const { subject, bodyLine } = subjectAndBody(input);
-  await getSmtpTransport().sendMail({
-    from: emailFrom(),
-    to: input.email,
+  // Metin satiri ham degerlerle kurulur, sonra butunuyle kacirilir - boylece
+  // hem baslik hem beden (sizeNorm) HTML'e ham girmez.
+  const safeLine = escapeHtml(bodyLine);
+  const safeUrl = escapeHtml(input.productUrl);
+  return {
     subject,
     text: `${bodyLine} ${input.productUrl}`,
-    html: `<p>${bodyLine}</p><p><a href="${input.productUrl}">${input.productUrl}</a></p>`,
-  });
+    html: `<p>${safeLine}</p><p><a href="${safeUrl}">${safeUrl}</a></p>`,
+  };
+}
+
+export async function sendAlertEmail(input: SendAlertEmailInput): Promise<void> {
+  const { email, ...content } = input;
+  try {
+    await getSmtpTransport().sendMail({
+      from: emailFrom(),
+      to: email,
+      ...buildAlertEmail(content),
+    });
+  } catch (error) {
+    throw toEmailDeliveryError(error);
+  }
 }

@@ -7,9 +7,11 @@
  * istemcinin ürettiği sorgu vektörü aynı sahte model uzayına düşmezse görsel
  * arama hiçbir sonuç bulamaz.
  *
- * Sağlayıcı kararı: `docs/decisions/0015-embedding-saglayici.md`. Gerçek API
- * yolu yazılı ama `JINA_API_KEY` boşken hiç çağrılmaz — B3'teki emsalin
- * aynısı.
+ * Sağlayıcı kararı: `docs/decisions/0015-embedding-saglayici.md`. İstemci
+ * seçimi `getEmbeddingClient` içinde: anahtar yoksa sessizce sahte istemciye
+ * DÜŞÜLMEZ (anlamsız sonuç gerçek sonuç gibi görünürdü); sahte istemci yalnızca
+ * `EMBEDDING_FAKE_CLIENT=true` ile ve production dışında açılır — Python
+ * tarafındaki açık `--fake-client` bayrağının karşılığı.
  */
 import { createHash } from "node:crypto";
 
@@ -152,8 +154,45 @@ export class FakeEmbeddingClient implements EmbeddingClient {
   }
 }
 
-/** `JINA_API_KEY` boşsa sahte istemciye düşer - B3'ün `--fake-client` emsali. */
-export function getEmbeddingClient(): EmbeddingClient {
-  const apiKey = process.env.JINA_API_KEY;
-  return apiKey ? new JinaEmbeddingClient(apiKey) : new FakeEmbeddingClient();
+export type EmbeddingUnavailableReason = "missing_api_key" | "fake_client_in_production";
+
+/**
+ * Sağlayıcı yapılandırılmamış: görsel arama bu ortamda çalışamaz. Sahte
+ * sonuç üretmek yerine atılır; çağıran taraf kullanıcıya dürüst bir
+ * "şu an kullanılamıyor" durumu gösterir. Mesaj gizli değer içermez.
+ */
+export class EmbeddingUnavailableError extends EmbeddingError {
+  constructor(readonly reason: EmbeddingUnavailableReason) {
+    super(
+      reason === "missing_api_key"
+        ? "JINA_API_KEY tanımlı değil; görsel embedding sağlayıcısı kullanılamıyor"
+        : "EMBEDDING_FAKE_CLIENT=true production ortamında kullanılamaz",
+    );
+    this.name = "EmbeddingUnavailableError";
+  }
+}
+
+type EmbeddingEnv = Readonly<Record<string, string | undefined>>;
+
+function fakeClientRequested(env: EmbeddingEnv): boolean {
+  return env.EMBEDDING_FAKE_CLIENT?.trim().toLowerCase() === "true";
+}
+
+/**
+ * - `JINA_API_KEY` dolu → gerçek Jina istemcisi.
+ * - `EMBEDDING_FAKE_CLIENT=true` ve `NODE_ENV` production değil → sahte istemci
+ *   (yalnızca yerel geliştirme ve testler; anahtar varsa anahtar kazanır).
+ * - `EMBEDDING_FAKE_CLIENT=true` production'da → `EmbeddingUnavailableError`
+ *   (yapılandırma hatası; anahtar olsa bile, bayrağın kendisi yanlış).
+ * - Anahtar yok, bayrak yok → `EmbeddingUnavailableError`. Sessiz düşüş yok.
+ */
+export function getEmbeddingClient(env: EmbeddingEnv = process.env): EmbeddingClient {
+  const fakeRequested = fakeClientRequested(env);
+  if (fakeRequested && env.NODE_ENV === "production") {
+    throw new EmbeddingUnavailableError("fake_client_in_production");
+  }
+  const apiKey = env.JINA_API_KEY?.trim();
+  if (apiKey) return new JinaEmbeddingClient(apiKey);
+  if (fakeRequested) return new FakeEmbeddingClient();
+  throw new EmbeddingUnavailableError("missing_api_key");
 }

@@ -12,24 +12,89 @@
   font-display: swap;
 }
 
-* {
+*,
+*::before,
+*::after {
   box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
 }
 
 body {
   margin: 0;
   font-family: "IBM Plex Sans", system-ui, sans-serif;
-  font-size: var(--font-size-base);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-regular);
   line-height: var(--line-height-body);
   background: var(--paper);
   color: var(--ink);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
 }
 
+/* Taban baslik ritmi (design.md "Tip rolleri"). Bilesen/sayfa kendi
+   rolunu (ör. Display) sinifla verir; bu yalnizca guvenli varsayilandir. */
 h1,
 h2,
 h3 {
   line-height: var(--line-height-heading);
-  font-weight: 500;
+  font-weight: var(--font-weight-medium);
+  text-wrap: balance;
+}
+
+h1 {
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+}
+
+h2 {
+  font-size: var(--text-h2);
+  letter-spacing: var(--letter-spacing-h2);
+}
+
+h3 {
+  font-size: var(--text-h3);
+}
+
+p {
+  text-wrap: pretty;
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
+img,
+video {
+  height: auto;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+/* Guvenlik agi: kendi odak stilini tanimlamayan her etkilesimli oge de
+   tek odak sistemini kullanir (design.md "Odak"). */
+:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
 /** Fiyat gosterilen her yerde acik: docs/design.md, "Tipografi". */

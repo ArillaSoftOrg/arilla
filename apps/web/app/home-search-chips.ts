@@ -1,5 +1,6 @@
 /**
- * Ana sayfa "Alisverise devam et" ornek arama verisi. UI-metni degil,
+ * Ana sayfa "Arama fikirleri" ornek sorgulari - kisisel gecmis degil,
+ * sabit ornekler. UI-metni degil,
  * ornek sorgu verisi - docs/copy.md'ye eklenmez.
  */
 export const HOME_SEARCH_CHIPS: readonly { label: string }[] = [

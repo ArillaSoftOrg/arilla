@@ -1,9 +1,10 @@
 "use client";
 
 import { SizeSelector, type SizeSelectorOption } from "@arilla/ui";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { LoginGateModal } from "../../login-gate-modal-client.tsx";
 import { createAlertAction } from "./actions.ts";
+import styles from "./product-page.module.css";
 
 export interface SizeSelectorClientProps {
   productId: number;
@@ -14,6 +15,9 @@ export interface SizeSelectorClientProps {
 export function SizeSelectorClient({ productId, sizes }: SizeSelectorClientProps) {
   const [notifiedSizes, setNotifiedSizes] = useState<ReadonlySet<string>>(new Set());
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  // Durum mesaji listedeki ilk degil, en son tiklanan bedeni soyler.
+  const [lastNotifiedSizeNorm, setLastNotifiedSizeNorm] = useState<string | null>(null);
+  const labelId = useId();
 
   async function handleNotifyMe(sizeNorm: string) {
     if (notifiedSizes.has(sizeNorm)) return;
@@ -23,23 +27,29 @@ export function SizeSelectorClient({ productId, sizes }: SizeSelectorClientProps
       return;
     }
     setNotifiedSizes((prev) => new Set(prev).add(sizeNorm));
+    setLastNotifiedSizeNorm(sizeNorm);
   }
 
-  const lastNotifiedSize = sizes.find((size) => notifiedSizes.has(size.sizeNorm));
+  if (sizes.length === 0) return null;
+
+  const lastNotifiedSize = sizes.find((size) => size.sizeNorm === lastNotifiedSizeNorm);
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
+    <div className={styles.fieldGroup}>
+      <p id={labelId} className={styles.fieldLabel}>
+        Beden
+      </p>
       <SizeSelector
         sizes={sizes}
         unavailableLabel="Bu beden şu an yok"
         notifyMeLabel="Bu beden gelince haber ver"
         onNotifyMe={handleNotifyMe}
+        aria-labelledby={labelId}
       />
-      {lastNotifiedSize ? (
-        <p style={{ margin: 0, fontSize: 13, color: "var(--ink-muted)" }}>
-          {lastNotifiedSize.label} bedeni gelince haber vereceğiz.
-        </p>
-      ) : null}
+      {/* Canli bolge once bos olarak var olmali ki sonradan gelen metin okunsun. */}
+      <p role="status" className={styles.statusText}>
+        {lastNotifiedSize ? `${lastNotifiedSize.label} bedeni gelince haber vereceğiz.` : null}
+      </p>
       <LoginGateModal open={loginModalOpen} onClose={() => setLoginModalOpen(false)} />
     </div>
   );

@@ -30,6 +30,29 @@ Postgres. AWS'ye geçiş bir bağlantı dizesi değişikliğine inmelidir.
 - Anahtar sızarsa: iptal, yenile, `api_usage` tablosundan anormal kullanım
   kontrolü.
 
+## Ortam değişkenleri
+
+Sözleşmenin tek kaynağı `.env.example`; her anahtar orada dört gruptan
+birindedir ve okuyan dosya yanında yazar:
+
+| Grup | Anlamı | Anahtarlar |
+| --- | --- | --- |
+| `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
+| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `VISUAL_SEARCH_DAILY_LIMIT_PER_USER`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT` |
+| `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
+| `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
+
+\* `APP_URL` boşsa Vercel'in verdiği `VERCEL_PROJECT_PRODUCTION_URL`
+kullanılır (`https://` eklenir). `VERCEL_ENV=production` iken sonuç https ve
+localhost dışı olmak zorundadır; hiçbir değer çözülmezse hata fırlatılır —
+Vercel production'da localhost canonical üretilemez. Yerel `next build` /
+`next start` (VERCEL_ENV yok) `http://localhost` kabul eder. Kodda hiçbir alan
+adı gömülü değildir.
+
+`VERCEL_ENV`, `VERCEL_PROJECT_PRODUCTION_URL` ve `NODE_ENV` sistem
+değişkenleridir; elle ayarlanmaz. Vercel'de `DATABASE_URL` Supabase transaction
+pooler adresidir (port 6543).
+
 ## Yedekleme
 
 **Fiyat geçmişi geriye dönük üretilemez.** Kaybedilirse savunulabilirliğin
@@ -136,6 +159,79 @@ Siz feed'lerden veri topluyorsunuz; rakip de sizden toplamaya çalışacak.
   grafikte gösterilecek örneklenmiş hali döner
 - Sıradışı gezinme örüntüsü tespitinde yavaşlatma
 - `robots.txt` ve arama motoru botları için ayrı kural
+
+## Bootstrap kataloğu (geçici, yalnızca yerel)
+
+`docs/decisions/0027`. Admitad öncesi test kataloğu; Shopify `/products.json`
+üzerinden, **yalnızca yerel veritabanına**. `collect.bootstrap` localhost
+dışındaki bir `DATABASE_URL`'e yazmayı reddeder.
+
+```bash
+cd services/ingest
+.venv/Scripts/python -m collect.bootstrap --manifest bootstrap/shopify_merchants.json --report rapor.json
+.venv/Scripts/python -m resolve --limit 5000        # offer -> product
+.venv/Scripts/python -m similarity --prices          # product özetleri + fiyat istatistikleri
+.venv/Scripts/python -m enrich --kind image --limit 50   # JINA_API_KEY gerekir; küçük parti
+.venv/Scripts/python -m similarity --edges
+```
+
+Rapor dosyası kaynak başına başlangıç, keşfedilen kayıt, yeni/güncellenen
+offer, reddedilen kayıt, hata ve süreyi içerir. Tekrar çalıştırmak
+idempotenttir (`(merchant_id, external_id)` upsert).
+
+**Para birimi (0029).** Kayıtlar yalnızca `feed_config.currency_verified =
+true` ise yazılır. Kanıt manifestin yanındaki `currency_provenance.json`
+dosyasından okunur; dosyada olmayan mağaza reddedilir. Mağaza çekmeden yalnızca
+merchant ayarını güncellemek: `--register-only`.
+
+**Çakışma corpus'u (0029).** `bootstrap/overlap_merchants.json`: eşleştirmenin
+doğru-pozitif tarafını ölçmek için 3 mağaza. Ölçüm: `python -m resolve.overlap_eval`.
+
+**Tohum verisinden ayırma.** Geliştirme tohumu (`pnpm seed`) yalnızca yerel
+veritabanına yazar. Merchant'ları `.example` alan adlıdır (RFC 2606, gerçek
+mağaza olamaz). Bootstrap QA sırasında aramayı kirletmesin diye yerelde:
+`UPDATE merchant SET is_active = FALSE WHERE domain LIKE '%.example';`
+(geri almak: `TRUE`). Metin arama ölçümü (`node packages/core/scripts/search-eval.ts`)
+kapsamı zaten bootstrap merchant'larıyla sınırlar.
+
+**Nasıl ayırt edilir.** Şema değişmedi; işaret merchant üzerindedir:
+
+```sql
+-- bootstrap merchant'lari
+SELECT id, slug, domain FROM merchant
+ WHERE feed_config->>'bootstrap_source' = 'bootstrap_shopify';
+-- bootstrap offer'lari
+SELECT o.* FROM offer o JOIN merchant m ON m.id = o.merchant_id
+ WHERE m.feed_config->>'bootstrap_source' = 'bootstrap_shopify';
+-- YALNIZCA bootstrap offer'larina bagli urunler (baska kaynaktan offer'i
+-- olan urun bootstrap sayilmaz)
+SELECT p.id FROM product p
+ WHERE EXISTS (SELECT 1 FROM offer o JOIN merchant m ON m.id = o.merchant_id
+                WHERE o.product_id = p.id
+                  AND m.feed_config->>'bootstrap_source' = 'bootstrap_shopify')
+   AND NOT EXISTS (SELECT 1 FROM offer o JOIN merchant m ON m.id = o.merchant_id
+                    WHERE o.product_id = p.id
+                      AND m.feed_config->>'bootstrap_source' IS DISTINCT FROM 'bootstrap_shopify');
+```
+
+**Temizlik — hiçbir betik bunu otomatik çalıştırmaz.** İki yol:
+
+1. **Yumuşak emeklilik (her ortamda geçerli).** `price_point` ve `click`
+   append-only olduğu için (CLAUDE.md kural 4 ve 8) önce bu tercih edilir:
+   `UPDATE merchant SET is_active = FALSE` ve bu merchant'ların offer'larında
+   `is_active = FALSE`; ardından `public_find` / `discovery_slot` satırlarından
+   bootstrap ürünleri çıkarılır ve `python -m similarity --prices` özetleri
+   sıfırlar. Arama `m.is_active` ile zaten dışarıda bırakır.
+2. **Tam silme (yalnızca hiçbir yere taşınmamış yerel veritabanı).** En temizi
+   yerel veritabanını sıfırlamaktır: `docker compose -f infra/docker-compose.yml
+   down -v`, ardından `pnpm db:migrate`, `pnpm db:bootstrap-role`, `pnpm seed`.
+   Satır satır silmek gerekirse sahip rolüyle, tek transaction'da, şu sırayla
+   (yukarıdaki kimlik sorgularıyla daraltılarak): `similarity_edge`,
+   `product_price_stats`, `match_candidate`, `public_find`, `discovery_slot`,
+   `click`, `product_view`, `saved_item`, `collection_item`, `alert`,
+   `product_slug_history`, `price_point`, `offer` (varyant ve stok olayları
+   cascade), `product`, `ingest_run`, `merchant`. `embedding` satırları
+   `0014` trigger'ı ile düşer; sonra `pnpm db:orphans --check`.
 
 ## Dağıtım
 

@@ -58,6 +58,7 @@ def main(argv: list[str] | None = None) -> int:
         print("--- fiyat istatistikleri ---")
         print(f"  urun             {counts.prices.products}")
         print(f"  sahte indirim    {counts.prices.inflated}")
+        print(f"  urun ozeti       {counts.prices.aggregates_updated}")
 
     return 0
 

@@ -35,4 +35,11 @@ export interface QueryObject {
   sort: SortMode;
   unparsed: string;
   confidence: number;
+  /**
+   * Metin kapisinin slotlari (docs/decisions/0029): `unparsed`in katlanmis
+   * tokenlari, `synonym` sozluk satirlariyla genisletilmis. Her slot bir
+   * alternatif listesi; son slot bas isimdir. Eski onbellek satirlarinda
+   * yoktur — o zaman `unparsed` tokenlarindan uretilir.
+   */
+  text_slots?: string[][];
 }

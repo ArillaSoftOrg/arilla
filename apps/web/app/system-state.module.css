@@ -1,0 +1,99 @@
+/*
+ * 404 / hata / global hata sayfalarinin ortak duzeni. Okuma genisliginde,
+ * sola hizali editoryal blok: kod etiketi -> H1 -> aciklama -> eylemler.
+ * Illustrasyon yok (design.md "Boş durum").
+ */
+.page {
+  display: grid;
+  align-content: center;
+  gap: var(--space-6);
+  max-width: var(--content-width-reading);
+  margin-inline: auto;
+  padding-block: var(--section-space);
+}
+
+.code {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.text {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.body {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+  text-wrap: pretty;
+}
+
+/* --- Kabuk disi hata sayfalari (error.tsx, global-error.tsx) --- */
+
+/* Kok hata sinirina dusuldugunde public kabuk da yer degistirir; sayfa
+   kendi minimal ust cubugunu ve tek `<main>`'ini cizer. */
+.bareShell {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.bareHeader {
+  border-bottom: var(--border-width) solid var(--line);
+}
+
+.bareHeaderInner {
+  display: flex;
+  align-items: center;
+  padding-block: var(--space-2);
+}
+
+.bareBrand {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  letter-spacing: var(--letter-spacing-h1);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.bareBrand:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+.bareMain {
+  flex: 1;
+}
+
+/* Yalnizca SkipLink'in programatik odagi icin; halka tum bolgeye cizilmez. */
+.bareMain:focus {
+  outline: none;
+}
+
+/* global-error: ust cubuk yok, blok kenar boslugu `--gutter`'dan. */
+.gutter {
+  padding-inline: var(--gutter);
+}

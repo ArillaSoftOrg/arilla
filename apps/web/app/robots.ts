@@ -1,3 +1,4 @@
+import { readAppUrl } from "@arilla/core";
 import type { MetadataRoute } from "next";
 
 /**
@@ -8,7 +9,7 @@ import type { MetadataRoute } from "next";
  * eklendi - belgenin kendi listesinde unutulmuş görünüyor.
  */
 export default function robots(): MetadataRoute.Robots {
-  const appUrl = process.env.APP_URL;
+  const appUrl = readAppUrl();
   return {
     rules: {
       userAgent: "*",

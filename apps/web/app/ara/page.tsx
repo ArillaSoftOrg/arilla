@@ -1,9 +1,17 @@
-import { recordSearchAndCheckWall, resolveQuery, type SortMode, search } from "@arilla/core";
+import {
+  isRedisUnavailableError,
+  recordSearchAndCheckWall,
+  resolveQuery,
+  type SortMode,
+  search,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { ClarificationBar, ProductCard, SearchForm, SortTabs } from "@arilla/ui";
+import { ClarificationBar, EmptyState, SearchForm, SortTabs } from "@arilla/ui";
 import { cookies } from "next/headers";
 import { verifySession } from "../lib/dal.ts";
 import { PhotoSearchButton } from "../photo-search-client.tsx";
+import styles from "./ara.module.css";
+import { ResultGrid, resultCountLabel } from "./search-results.tsx";
 import { SearchWallGateClient } from "./search-wall-gate-client.tsx";
 
 const SORT_MODES: readonly SortMode[] = ["balanced", "best_deal", "closest_match"];
@@ -12,7 +20,20 @@ function isSortMode(value: string | undefined): value is SortMode {
   return SORT_MODES.includes(value as SortMode);
 }
 
-const SEARCH_PLACEHOLDER = "Ürün adı yaz, link yapıştır veya fotoğraf yükle";
+const SEARCH_PLACEHOLDER = "Ürün adı, marka ya da kısa bir tarif yaz";
+const PAGE_SIZE = 24;
+
+/** Arama kutusu + fotoğraf eylemi; tüm /ara durumlarında aynı yerde. */
+function SearchToolbar({ query }: { query?: string }) {
+  return (
+    <div className={styles.toolbar}>
+      <div className={styles.toolbarSearch}>
+        <SearchForm defaultValue={query} placeholder={SEARCH_PLACEHOLDER} submitLabel="Ara" />
+      </div>
+      <PhotoSearchButton />
+    </div>
+  );
+}
 
 interface AramaSearchParams {
   q?: string;
@@ -36,11 +57,13 @@ export default async function AramaPage({
 
   if (!query) {
     return (
-      <main style={{ padding: 24, display: "grid", gap: 16 }}>
-        <SearchForm placeholder={SEARCH_PLACEHOLDER} submitLabel="Ara" />
-        <PhotoSearchButton />
-        <p>Aramak için yukarıya bir şey yaz.</p>
-      </main>
+      <div className={styles.page}>
+        <header className={styles.header}>
+          <h1 className={styles.title}>Ne arıyorsun?</h1>
+          <p className={styles.lede}>Aramak için aşağıya bir şey yaz ya da fotoğraf yükle.</p>
+        </header>
+        <SearchToolbar />
+      </div>
     );
   }
 
@@ -55,7 +78,14 @@ export default async function AramaPage({
   if (!user) {
     const sessionId = (await cookies()).get("session_id")?.value;
     if (sessionId) {
-      shouldShowWall = (await recordSearchAndCheckWall(sessionId)).shouldShowWall;
+      // Arama duvari yalnizca surtunme (karar 0002): Redis erisilemezse arama
+      // calismaya devam eder, duvar bu istekte atlanir ve durum loglanir.
+      try {
+        shouldShowWall = (await recordSearchAndCheckWall(sessionId)).shouldShowWall;
+      } catch (error) {
+        if (!isRedisUnavailableError(error)) throw error;
+        console.error("[ara] search wall skipped: redis unavailable");
+      }
     }
   }
 
@@ -110,74 +140,96 @@ export default async function AramaPage({
       href: sortHref("closest_match"),
       active: effectiveSort === "closest_match",
       disabled: !hasAnchor,
+      disabledHint: "Bu arama için kullanılamıyor",
     },
   ];
 
+  const totalPages = Math.ceil(result.total / PAGE_SIZE);
+
+  function pageHref(target: number): string {
+    return `/ara?q=${encodeURIComponent(query)}&sort=${effectiveSort}&sayfa=${target}`;
+  }
+
   return (
-    <main style={{ padding: 24, display: "grid", gap: 16 }}>
+    <div className={styles.page}>
       <SearchWallGateClient show={shouldShowWall} />
-      <SearchForm defaultValue={query} placeholder={SEARCH_PLACEHOLDER} submitLabel="Ara" />
-      <PhotoSearchButton />
+      <SearchToolbar query={query} />
 
-      {needsClarification && candidateCategories && candidateCategories.length > 0 ? (
-        <ClarificationBar
-          intro="Hangisini arıyorsun?"
-          candidates={candidateCategories.map((id) => ({
-            label: `Kategori ${id}`,
-            href: `/ara?q=${encodeURIComponent(query)}&kategori=${id}`,
-          }))}
-          otherLabel="Başka bir şey"
-          otherPlaceholder="Ne arıyorsun?"
-          searchAction="/ara"
-          queryParamName="q"
-        />
-      ) : null}
+      <header className={styles.header}>
+        <h1 className={styles.title}>“{query}” için sonuçlar</h1>
+        {!isFallback ? (
+          <p className={styles.count} role="status">
+            {resultCountLabel(result.total)}
+          </p>
+        ) : null}
+      </header>
 
-      {!isFallback ? <p>{result.total} sonuç</p> : null}
-
-      <SortTabs tabs={tabs} />
-
-      {isFallback ? (
-        <div>
-          <p>Bu aramada sonuç bulamadık. Filtreleri gevşetmeyi deneyebilirsin.</p>
-          <p>Sana en yakın bulduklarımız</p>
-        </div>
-      ) : null}
-
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-          gap: 16,
-        }}
-      >
-        {items.map((item) => (
-          <ProductCard
-            key={item.productId}
-            href={`/urun/${item.slug}`}
-            title={item.title}
-            imageUrl={item.primaryImageUrl}
-            minPrice={item.minPrice}
-            offerCount={item.offerCount}
-            offerCountLabel={(count) => `${count} mağaza`}
+      <div className={styles.controls}>
+        {needsClarification && candidateCategories && candidateCategories.length > 0 ? (
+          <ClarificationBar
+            intro="Hangisini arıyorsun?"
+            candidates={candidateCategories.map((id) => ({
+              label: `Kategori ${id}`,
+              href: `/ara?q=${encodeURIComponent(query)}&kategori=${id}`,
+            }))}
+            otherLabel="Başka bir şey"
+            otherPlaceholder="Ne arıyorsun?"
+            searchAction="/ara"
+            queryParamName="q"
           />
-        ))}
+        ) : null}
+
+        <SortTabs tabs={tabs} />
       </div>
 
-      {!isFallback && result.total > 24 ? (
-        <nav style={{ display: "flex", gap: 8 }}>
+      {isFallback ? (
+        <>
+          <EmptyState
+            className={styles.emptyPanel}
+            title="Bu aramada sonuç bulamadık."
+            description="Daha genel bir arama dene: fiyat, renk ya da beden gibi ayrıntıları çıkarabilir veya farklı kelimeler kullanabilirsin."
+            headingLevel={2}
+          />
+          {items.length > 0 ? (
+            <section className={styles.section} aria-labelledby="en-yakin-sonuclar">
+              <h2 id="en-yakin-sonuclar" className={styles.sectionTitle}>
+                Sana en yakın bulduklarımız
+              </h2>
+              <ResultGrid items={items} labelledBy="en-yakin-sonuclar" />
+            </section>
+          ) : null}
+        </>
+      ) : (
+        <ResultGrid items={items} />
+      )}
+
+      {!isFallback && result.total > PAGE_SIZE ? (
+        <nav className={styles.pagination} aria-label="Sayfalama">
           {page > 1 ? (
-            <a href={`/ara?q=${encodeURIComponent(query)}&sort=${effectiveSort}&sayfa=${page - 1}`}>
+            <a
+              href={pageHref(page - 1)}
+              rel="prev"
+              className={styles.pageLink}
+              aria-label="Önceki sayfa"
+            >
               Önceki
             </a>
           ) : null}
-          {page * 24 < result.total ? (
-            <a href={`/ara?q=${encodeURIComponent(query)}&sort=${effectiveSort}&sayfa=${page + 1}`}>
+          <p className={styles.pageStatus}>
+            Sayfa {page} / {totalPages}
+          </p>
+          {page * PAGE_SIZE < result.total ? (
+            <a
+              href={pageHref(page + 1)}
+              rel="next"
+              className={styles.pageLink}
+              aria-label="Sonraki sayfa"
+            >
               Sonraki
             </a>
           ) : null}
         </nav>
       ) : null}
-    </main>
+    </div>
   );
 }

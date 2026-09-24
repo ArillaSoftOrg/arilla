@@ -1,52 +1,82 @@
+/* Telefon: tek satir, yatay dokunmatik kaydirma. Satir gutter'a kadar
+   tasar (kenara degen kaydirma), icerik yine gutter'dan baslar. */
 .row {
   display: flex;
+  flex-wrap: nowrap;
   gap: var(--space-2);
+  margin-block: 0;
+  margin-inline: calc(-1 * var(--gutter));
+  list-style: none;
+  padding-inline: var(--gutter);
+  /* Odak halkasi (2px + 2px) kaydirma kutusunda kesilmesin. */
+  padding-block: var(--space-1);
   overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
   scroll-snap-type: x proximity;
-  /* Kaba native scrollbar gizlenir; kaydirma touch/trackpad/klavye ile
-     calismaya devam eder - gorunurluk kaldirilir, islevsellik korunur. */
+  scroll-padding-inline: var(--gutter);
+  /* Native kaydirma cubugu gizlenir; kaydirma touch/trackpad/klavye ile
+     calisir. */
   scrollbar-width: none;
-  -ms-overflow-style: none;
-  /* <fieldset> varsayilan border/padding/margin'i sifirlanir - bu bir form
-     alani degil, chip satiri. */
-  margin: 0;
-  border: none;
-  padding: var(--space-1);
-  min-width: 0;
 }
 
 .row::-webkit-scrollbar {
   display: none;
 }
 
-.chip {
+/* Tablet+: gereksiz kaydirma yok, ortali sarilir. */
+@media (min-width: 640px) {
+  .row {
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-inline: 0;
+    padding-inline: 0;
+    overflow-x: visible;
+  }
+}
+
+.item {
   flex-shrink: 0;
+  max-width: 100%;
   scroll-snap-align: start;
-  min-height: 44px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  max-width: 100%;
+  min-height: var(--size-touch-target);
   padding: var(--space-2) var(--space-4);
-  /* Karar 0025: ana sayfa kabugu istisnasi - pill sekli. */
-  border-radius: 999px;
-  border: 1px solid var(--line);
-  background: var(--paper);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
   color: var(--ink);
   font-family: inherit;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .chip:hover {
-  border-color: var(--ink-muted);
+  background: var(--surface-hover);
+}
+
+.chip:active {
+  border-color: var(--ink);
 }
 
 .chip:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .chip {
-    transition: border-color 0.15s ease;
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard);
   }
 }

@@ -83,6 +83,10 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
 
     if current_price is None:
         raise RecordRejected(f"fiyat yok: {external_id}")
+    # Sifir fiyat bir teklif degildir: numune, hediye, muhasebe satiri ya da
+    # feed hatasi. Karsilastirmada "en uygun" diye one cikardi.
+    if current_price <= 0:
+        raise RecordRejected(f"gecersiz fiyat {current_price}: {external_id}")
 
     shipping_cost = formats.parse_price(mapping.get(fields, "shipping_cost"))
     threshold = formats.parse_price(mapping.get(fields, "free_shipping_threshold"))
@@ -92,6 +96,13 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
         shipping_days = int(shipping_days_raw) if shipping_days_raw else None
     except ValueError:
         shipping_days = None
+
+    # Para birimi uydurulmaz (docs/decisions/0029): kaynagin kendi alani ya da
+    # merchant icin kanitla dogrulanmis sabit. Ikisi de yoksa fiyat
+    # karsilastirilamaz; kayit reddedilir.
+    currency = (mapping.get(fields, "currency") or mapping.default_currency or "").upper()
+    if len(currency) != 3 or not currency.isalpha():
+        raise RecordRejected(f"para birimi bilinmiyor: {external_id}")
 
     variants = _variants(record, mapping)
     # Varyant varsa stok bilgisi bedenlerden gelir: hicbir beden yoksa teklif
@@ -113,7 +124,7 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
         category_raw=mapping.get(fields, "category"),
         image_url=mapping.get(fields, "image_url"),
         gtin=mapping.get(fields, "gtin"),
-        currency=mapping.get(fields, "currency") or "TRY",
+        currency=currency,
         shipping_days=shipping_days,
         shipping_cost=shipping_cost,
         free_shipping_threshold=threshold,

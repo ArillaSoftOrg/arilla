@@ -1,0 +1,56 @@
+.cluster {
+  display: flex;
+  gap: var(--layout-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.wrap {
+  flex-wrap: wrap;
+}
+
+.nowrap {
+  flex-wrap: nowrap;
+}
+
+/* Sarilmayan satirda uzun icerik 320px'te tasmasin diye cocuklar kuculebilir. */
+.nowrap > * {
+  min-width: 0;
+}
+
+.align-start {
+  align-items: flex-start;
+}
+
+.align-center {
+  align-items: center;
+}
+
+.align-end {
+  align-items: flex-end;
+}
+
+.align-baseline {
+  align-items: baseline;
+}
+
+.align-stretch {
+  align-items: stretch;
+}
+
+.justify-start {
+  justify-content: flex-start;
+}
+
+.justify-center {
+  justify-content: center;
+}
+
+.justify-end {
+  justify-content: flex-end;
+}
+
+.justify-between {
+  justify-content: space-between;
+}

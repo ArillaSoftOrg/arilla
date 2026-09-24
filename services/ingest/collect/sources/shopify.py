@@ -36,6 +36,10 @@ from collect.records import RawRecord
 #: docs/routes.md: "Slug'lar Turkce karakter icermez."
 _TR_TRANSLIT = str.maketrans("çÇğĞıİöÖşŞüÜ", "cCgGiIoOsSuU")
 
+#: Gecici sayilan yanitlar. 4xx'in geri kalani (403 bot korumasi dahil)
+#: tekrar denenmez: engellendiysek israr etmeyiz.
+_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+
 
 def _slugify(value: str) -> str:
     text = value.strip().translate(_TR_TRANSLIT)
@@ -45,6 +49,25 @@ def _slugify(value: str) -> str:
     return text.strip("-") or "varyant"
 
 
+def _option_key(name: str) -> str:
+    """'Kumaş' -> 'kumas', 'Beden ' -> 'beden': secenek adlari karsilastirmasi."""
+    return name.strip().translate(_TR_TRANSLIT).lower()
+
+
+def _option_by_name(product: dict[str, Any], names: list[str] | None) -> str | None:
+    """Urunun `options` listesinde adi `names` icinde olan ilk secenegin
+    varyant alani (`option1`..`option3`). Shopify secenek SIRASI magazaya
+    gore degisir (Casadora'da option1 beden, Derimod'da renk); ad degismez.
+    """
+    if not names:
+        return None
+    wanted = {_option_key(name) for name in names}
+    for index, option in enumerate(product.get("options") or [], start=1):
+        if isinstance(option, dict) and _option_key(str(option.get("name") or "")) in wanted:
+            return f"option{index}"
+    return None
+
+
 def _flatten_scalars(entry: dict[str, Any]) -> dict[str, str]:
     """rest_api.py'deki `fields` ayrimiyla ayni kural: duz skaler alanlar."""
     return {
@@ -52,6 +75,18 @@ def _flatten_scalars(entry: dict[str, Any]) -> dict[str, str]:
         for key, value in entry.items()
         if value is not None and not isinstance(value, list | dict)
     }
+
+
+def _with_size(
+    entry: dict[str, str], variant: dict[str, Any], size_option: str | None
+) -> dict[str, str]:
+    """Beden secenegi ADIYLA bulunduysa degeri `size` alanina da yazilir ki
+    esleme (`variants.size = "size"`) magazanin secenek sirasindan bagimsiz
+    olsun. Bulunamadiysa alan eklenmez: beden olmayan bir secenek (ayak tipi,
+    kapasite) beden diye yazilmaz."""
+    if size_option and variant.get(size_option) is not None:
+        return {**entry, "size": str(variant[size_option])}
+    return entry
 
 
 def _price_key(variant: dict[str, Any]) -> float:
@@ -80,9 +115,46 @@ class ShopifyConnector(Connector):
     def _client(self) -> httpx.Client:
         return self.client or httpx.Client(timeout=60.0, follow_redirects=True)
 
+    def _get(self, client: httpx.Client, params: dict[str, Any]) -> httpx.Response:
+        """Tek sayfa istegi; yalnizca gecici hatalarda sinirli, ussel geri cekilme.
+
+        `transport.retry.max_retries` varsayilani 0: ayar yoksa davranis
+        eskisiyle ayni (tek deneme, docs/decisions/0023). 429'da magazanin
+        `Retry-After` degeri dinlenir ama `max_backoff_seconds` ile sinirlanir.
+        """
+        retry = self._transport.get("retry") or {}
+        max_retries = int(retry.get("max_retries", 0))
+        backoff = float(retry.get("backoff_seconds", 2.0))
+        max_backoff = float(retry.get("max_backoff_seconds", 30.0))
+
+        for attempt in range(max_retries + 1):
+            delay = backoff * (2**attempt)
+            try:
+                response = client.get(self.base_url, params=params)
+            except httpx.TransportError:
+                if attempt >= max_retries:
+                    raise
+            else:
+                if response.status_code not in _RETRYABLE_STATUS or attempt >= max_retries:
+                    response.raise_for_status()
+                    return response
+                retry_after = response.headers.get("Retry-After", "")
+                if response.status_code == 429 and retry_after.isdigit():
+                    delay = max(delay, float(retry_after))
+            time.sleep(min(delay, max_backoff))
+        raise AssertionError("unreachable")
+
     def fetch(self) -> Iterator[RawRecord]:
         transport = self._transport
-        color_option = (transport.get("shopify") or {}).get("color_option")
+        shopify = transport.get("shopify") or {}
+        color_option = shopify.get("color_option")
+        # Ada gore secim, konuma gore secimden onceliklidir (bkz. _option_by_name).
+        color_names = shopify.get("color_option_names")
+        size_names = shopify.get("size_option_names")
+        # Kanonik Shopify urunu sayisi (renk bolmesinden ONCE). Bootstrap
+        # katalogu icin magaza basina tavan (docs/decisions/0027).
+        max_products = shopify.get("max_products")
+        max_products = int(max_products) if max_products else None
         page_size = int((transport.get("pagination") or {}).get("size", 50))
         min_interval = 0.0
         rate = (transport.get("rate_limit") or {}).get("requests_per_second")
@@ -92,6 +164,7 @@ class ShopifyConnector(Connector):
         client = self._client()
         page = 1
         last_request = 0.0
+        products_seen = 0
 
         for _ in range(self.max_pages):
             if min_interval:
@@ -100,16 +173,24 @@ class ShopifyConnector(Connector):
                     time.sleep(min_interval - elapsed)
             last_request = time.monotonic()
 
-            response = client.get(self.base_url, params={"page": page, "limit": page_size})
-            response.raise_for_status()
+            response = self._get(client, {"page": page, "limit": page_size})
             products = response.json().get("products") or []
             if not products:
                 return
 
             for product in products:
-                yield from self._records_for_product(product, color_option)
+                if max_products is not None and products_seen >= max_products:
+                    return
+                products_seen += 1
+                yield from self._records_for_product(
+                    product,
+                    _option_by_name(product, color_names) if color_names else color_option,
+                    _option_by_name(product, size_names),
+                )
 
             if len(products) < page_size:
+                return
+            if max_products is not None and products_seen >= max_products:
                 return
             page += 1
 
@@ -118,7 +199,10 @@ class ShopifyConnector(Connector):
         )
 
     def _records_for_product(
-        self, product: dict[str, Any], color_option: str | None
+        self,
+        product: dict[str, Any],
+        color_option: str | None,
+        size_option: str | None = None,
     ) -> Iterator[RawRecord]:
         variants = product.get("variants") or []
         if not variants:
@@ -135,6 +219,7 @@ class ShopifyConnector(Connector):
                 product=product,
                 color=color if multi else None,
                 group_variants=group_variants,
+                size_option=size_option,
             )
 
     def _record_for_group(
@@ -143,6 +228,7 @@ class ShopifyConnector(Connector):
         product: dict[str, Any],
         color: Any | None,
         group_variants: list[dict[str, Any]],
+        size_option: str | None = None,
     ) -> RawRecord:
         # Temsili varyant: bu renk grubundaki EN DUSUK fiyatli. price/list_price/
         # image_url ayni varyanttan gelir ki tutarli olsun (bkz. docs/decisions/0024).
@@ -174,7 +260,10 @@ class ShopifyConnector(Connector):
         if color is not None:
             fields["color"] = str(color)
 
-        variant_entries = tuple(_flatten_scalars(variant) for variant in group_variants)
+        variant_entries = tuple(
+            _with_size(_flatten_scalars(variant), variant, size_option)
+            for variant in group_variants
+        )
 
         return RawRecord(
             fields=fields,

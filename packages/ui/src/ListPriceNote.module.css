@@ -1,4 +1,8 @@
+/* docs/design.md "Sahte indirim notu": notr olgu, uyari rengi yok. */
 .note {
-  font-size: var(--font-size-sm);
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
   color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
 }

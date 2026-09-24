@@ -1,0 +1,987 @@
+{
+  "_aciklama": "Capraz-merchant eslestirme icin elle dogrulanmis ground truth (docs/decisions/0017, 0027). a/b: merchant slug + Shopify urun id (products.json 'id'; mevcut merchantlarda offer.attributes_raw->>'id'). 'variant' varsa esleme o varyant/renk icin gecerlidir. barcode yalnizca herkese acik /products/<handle>.js ile goruldugunde ya da magaza SKU alanina EAN-13 yazdiginda (vionine) doludur; /products.json barkod icermez, yani connector barkodu gormez ve bu ciftler metin/gorsel katmanlarini sinar. Stanley ciftleri 26 dogrulanmis renk/kapasite eslesmesinden 12 temsilci secildi (set tek sinifa yaslanmasin diye). Kanit onceligi: barcode > uretici SKU/model > marka+model+hacim/renk; yalnizca gorsel benzerlik kanit sayilmadi. Veri 2026-09-24 cekildi; yeni merchantlar services/ingest/bootstrap/overlap_merchants.json icinde.",
+  "same_product": [
+    {
+      "a": {
+        "merchant": "korendy",
+        "shopify_product_id": "8915218956311",
+        "title": "Dr. Althea - Retinol Flat Iron Eye Roller (Elastikiyet Koruyucu Masaj Başlıklı Retinollü Göz Serumu) 25ml",
+        "brand": "Dr. Althea",
+        "sku": "KRNDY3004",
+        "barcode": "8809447256658"
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9465994117338",
+        "title": "Dr. Althea Retinol Eye Roller - Kırışıklık Karşıtı Göz Bakımı 25ml",
+        "brand": "Dr.Althea",
+        "sku": "8809447256658",
+        "barcode": "8809447256658"
+      },
+      "evidence": "barcode",
+      "note": "8809447256658 iki tarafta. Basliklar farkli: 'Retinol Flat Iron Eye Roller' vs 'Retinol Eye Roller' - metin katmani icin zor gercek eslesme."
+    },
+    {
+      "a": {
+        "merchant": "flavus",
+        "shopify_product_id": "9066904748230",
+        "title": "Dr. Althea Pdrn Reju 5000 Cream 20 gr",
+        "brand": "DR. ALTHEA",
+        "sku": "FLVS00906433",
+        "barcode": "8809447256412"
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9268949319898",
+        "title": "Dr. Althea PDRN Reju 5000 EGF Cream - Yaşlanma Karşıtı 20gr",
+        "brand": "Dr.Althea",
+        "sku": "8809447256412",
+        "barcode": "8809447256412"
+      },
+      "evidence": "barcode",
+      "note": "8809447256412 iki tarafta. Vionine basliginda fazladan 'EGF'; '20 gr' vs '20gr'."
+    },
+    {
+      "a": {
+        "merchant": "flavus",
+        "shopify_product_id": "9066905043142",
+        "title": "Numbuzin No.9 NAD Bio Lifting-sil Essence 50 ml",
+        "brand": "NUMBUZIN",
+        "sku": "FLVS0090642",
+        "barcode": "8809652587639"
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264807575770",
+        "title": "Numbuzin No.9 NAD Bio Lifting-Sil Essence - Sıkılaştırıcı 50ml",
+        "brand": "Numbuzin",
+        "sku": "8809652587639",
+        "barcode": "8809652587639"
+      },
+      "evidence": "barcode",
+      "note": "8809652587639 iki tarafta."
+    },
+    {
+      "a": {
+        "merchant": "korendy",
+        "shopify_product_id": "8915218989079",
+        "title": "Dr. Althea - Rapid Hypochlorous Acid Rescue Mist (Tazeleyici ve Dengeleyici Hipokloröz Asitli Mist)",
+        "brand": "Dr. Althea",
+        "sku": "KRNDY3183",
+        "barcode": null,
+        "variant": "100ml"
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9433043271898",
+        "title": "Dr. Althea Rapid Hypochlorous Acid Rescue Mist - Yatıştırıcı Yüz Misti 100 ml",
+        "brand": "Dr.Althea",
+        "sku": "8809447257440",
+        "barcode": "8809447257440"
+      },
+      "evidence": "brand+model+size",
+      "note": "Korendy'de hacim yalnizca varyant seceneginde (100ml), baslikta yok. Vionine EAN 8809447257440; korendy barkodu cekilmedi."
+    },
+    {
+      "a": {
+        "merchant": "korendy",
+        "shopify_product_id": "8915218989079",
+        "title": "Dr. Althea - Rapid Hypochlorous Acid Rescue Mist (Tazeleyici ve Dengeleyici Hipokloröz Asitli Mist)",
+        "brand": "Dr. Althea",
+        "sku": "KRNDY3003",
+        "barcode": null,
+        "variant": "60ml"
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9433043108058",
+        "title": "Dr. Althea Rapid Hypochlorous Acid Rescue Mist - Yatıştırıcı Yüz Misti 60 ml",
+        "brand": "Dr.Althea",
+        "sku": "8809447257433",
+        "barcode": "8809447257433"
+      },
+      "evidence": "brand+model+size",
+      "note": "Ayni urunun 60ml varyanti. Vionine EAN 8809447257433."
+    },
+    {
+      "a": {
+        "merchant": "korendy",
+        "shopify_product_id": "8915218399255",
+        "title": "Dr. Althea - 345 Relief Serum (Nemlendirici ve Bariyer Destekleyici PDRN ve Seramidli Serum)",
+        "brand": "Dr. Althea",
+        "sku": "KRNDY2989",
+        "barcode": null,
+        "variant": "30ml"
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9433042911450",
+        "title": "Dr. Althea 345 Relief Serum - PDRN & Seramid Serum 30ml",
+        "brand": "Dr.Althea",
+        "sku": "8809447257051",
+        "barcode": "8809447257051"
+      },
+      "evidence": "brand+model+size",
+      "note": "Korendy urununun 30ml varyanti (15ml varyanti ayri SKU KRNDY3182). Vionine EAN 8809447257051."
+    },
+    {
+      "a": {
+        "merchant": "korendy",
+        "shopify_product_id": "8943352250391",
+        "title": "Dr.Althea - Pure Retinol 0.15% Cream (Pürüzsüzlük ve Elastikiyet Koruyucu %0,15 Retinollü Krem) 20g",
+        "brand": "Dr.Althea",
+        "sku": "KRNDY3181",
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9426673238234",
+        "title": "Dr. Althea Pure Retinol 0.15% Cream - Cilt Yenileme Kremi 20g",
+        "brand": "Dr.Althea",
+        "sku": "8809447257068",
+        "barcode": "8809447257068"
+      },
+      "evidence": "brand+model+size",
+      "note": "Pure Retinol 0.15% Cream 20g; marka yazimi 'Dr.Althea' vs 'Dr. Althea'."
+    },
+    {
+      "a": {
+        "merchant": "korendy",
+        "shopify_product_id": "8943352315927",
+        "title": "Dr.Althea - PDRN Reju 2000 Cream (Hafif Dokulu Günlük %0,2 Somon PDRN İçeren Krem) 20g",
+        "brand": "Dr.Althea",
+        "sku": "KRNDY3179",
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9426673008858",
+        "title": "Dr. Althea PDRN Reju 2000 Cream - PDRN Yenileyici Kremi 20g",
+        "brand": "Dr.Althea",
+        "sku": "8809447257129",
+        "barcode": "8809447257129"
+      },
+      "evidence": "brand+model+size",
+      "note": "PDRN Reju 2000 Cream 20g. Ayni serinin 5000/10000 kademeleri hard negative listesinde."
+    },
+    {
+      "a": {
+        "merchant": "flavus",
+        "shopify_product_id": "8664979374278",
+        "title": "Anua Heartleaf 77% Soothing Toner - Nemlendirici, Yatıştırıcı Toner 250ml",
+        "brand": "ANUA",
+        "sku": "FLVS3002194",
+        "barcode": null
+      },
+      "b": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8939085136123",
+        "title": "ANUA Heartleaf %77 Soothing Toner Nemlendiren ve Cilt Işıltısı Sağlayan Tonik 250ml",
+        "brand": "Anua",
+        "sku": null,
+        "barcode": null
+      },
+      "evidence": "brand+model+size",
+      "note": "Anua Heartleaf 77% Soothing Toner 250ml. Sasha'da vendor magaza adi, marka yalnizca baslikta; '%77' vs '77%'."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "9019187495163",
+        "title": "Cosrx - AHA 7 Whitehead Power Liquid (Beyaz Nokta, Pürüz ve Komedon Önleyici %7 Asitli Tonik) 100 ml",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9391464022234",
+        "title": "COSRX AHA 7 Whitehead Power Liquid - AHA Tonik 100ml",
+        "brand": "Cosrx",
+        "sku": "8809416470047",
+        "barcode": "8809416470047"
+      },
+      "evidence": "brand+model+size",
+      "note": "AHA 7 Whitehead Power Liquid 100ml. Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "9019185758459",
+        "title": "Cosrx - Aloe Soothing Sun Cream SPF50 Pa+++ (Aloe Veralı Hibrit Güneş Koruyucu) 50ml",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264781426906",
+        "title": "COSRX Aloe Soothing Sun Cream SPF50+ PA+++ - Güneş Kremi 50ml",
+        "brand": "Cosrx",
+        "sku": "8809416470191",
+        "barcode": "8809416470191"
+      },
+      "evidence": "brand+model+size",
+      "note": "Aloe Soothing Sun Cream 50ml; 'SPF50 Pa+++' vs 'SPF50+ PA+++' yazim farki. Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "9019184677115",
+        "title": "Cosrx - Advanced Snail 92 All In One Cream (Besleyici Salyangoz Müsin Kremi) 100 gr",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264782508250",
+        "title": "COSRX Advanced Snail 92 All In One Cream - Onarıcı 100gr",
+        "brand": "Cosrx",
+        "sku": "8809416470016",
+        "barcode": "8809416470016"
+      },
+      "evidence": "brand+model+size",
+      "note": "Advanced Snail 92 All In One Cream 100g ('100 gr' vs '100gr'). Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8952218419451",
+        "title": "Cosrx Oil Free Ultra Moisturizing Lotion - Huş Ağacı Özlü, Yağlı Ciltler İçin Nemlendirici Losyon (100 mL)",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264780804314",
+        "title": "COSRX Oil-Free Ultra-Moisturizing Lotion - Yağsız Losyon 100ml",
+        "brand": "Cosrx",
+        "sku": "8809416470559",
+        "barcode": "8809416470559"
+      },
+      "evidence": "brand+model+size",
+      "note": "Oil Free Ultra Moisturizing Lotion 100ml; tire farki 'Oil-Free Ultra-Moisturizing'. Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8952217633019",
+        "title": "Cosrx - Advanced Snail 96 Mucin Power Essence - Besleyici Salyangoz Salgısı Özlü Esans (100 mL)",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264782213338",
+        "title": "COSRX Advanced Snail 96 Mucin Power Essence - Bariyer Koruma 100ml",
+        "brand": "Cosrx",
+        "sku": "8809416470009",
+        "barcode": "8809416470009"
+      },
+      "evidence": "brand+model+size",
+      "note": "Advanced Snail 96 Mucin Power Essence 100ml. Sasha fiyati (349 TL) belirgin dusuk; urun kimligi yine ayni. Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8952216191227",
+        "title": "Cosrx AHA BHA Clarifying Treatment Toner - Arındırıcı Bakım Toniği (150 mL)",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264781656282",
+        "title": "COSRX AHA/BHA Clarifying Treatment Toner - AHA/BHA Tonik 150ml",
+        "brand": "Cosrx",
+        "sku": "8809416470030",
+        "barcode": "8809416470030"
+      },
+      "evidence": "brand+model+size",
+      "note": "AHA/BHA Clarifying Treatment Toner 150ml ('AHA BHA' vs 'AHA/BHA'). Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8952214651131",
+        "title": "Cosrx Acne Pimple Master Patch (24EA) - Sivilce Bandı - Akne Söndürücü Şeffaf Bant (24'lü)",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264782737626",
+        "title": "COSRX Acne Pimple Master Patch - Sivilce Bandı 24 Adet",
+        "brand": "Cosrx",
+        "sku": "8809416470245",
+        "barcode": "8809416470245"
+      },
+      "evidence": "brand+model+size",
+      "note": "Acne Pimple Master Patch 24 adet ('24EA' vs '24 Adet'). Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8952212652283",
+        "title": "Cosrx - BHA Blackhead Power Liquid - Siyah Nokta Önleyici Tonik (100 mL)",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264781099226",
+        "title": "COSRX BHA Blackhead Power Liquid - Siyah Nokta Solüsyonu 100ml",
+        "brand": "Cosrx",
+        "sku": "8809416470054",
+        "barcode": "8809416470054"
+      },
+      "evidence": "brand+model+size",
+      "note": "BHA Blackhead Power Liquid 100ml. Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8952209408251",
+        "title": "Cosrx - Advanced Snail Peptide Eye Cream - Salyangoz Özlü ve Peptitli Göz Kremi (25 mL)",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264781983962",
+        "title": "COSRX Advanced Snail Peptide Eye Cream - Göz Kremi 25ml",
+        "brand": "Cosrx",
+        "sku": "8809598451070",
+        "barcode": "8809598451070"
+      },
+      "evidence": "brand+model+size",
+      "note": "Advanced Snail Peptide Eye Cream 25ml. Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8929922121979",
+        "title": "Cosrx - Low Ph Good Morning Gel Cleanser - Çay Ağacı Özlü Nazik Temizleyici Jel (150 mL)",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264780869850",
+        "title": "COSRX Low pH Good Morning Gel Cleanser - Temizleme Jeli 150ml",
+        "brand": "Cosrx",
+        "sku": "8809416470511",
+        "barcode": "8809416470511"
+      },
+      "evidence": "brand+model+size",
+      "note": "Low pH Good Morning Gel Cleanser 150ml. Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8929920090363",
+        "title": "Cosrx - Salicylic Acid Daily Gentle Cleanser (Salisilik Asitli Geniş Gözenek Karşıtı Temizleyici Jel) 150ml",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9432953061594",
+        "title": "COSRX Salicylic Acid Daily Gentle Cleanser - Salisilik Asitli Temizleyici 150ml",
+        "brand": "Cosrx",
+        "sku": "8809416471112",
+        "barcode": "8809416471112"
+      },
+      "evidence": "brand+model+size",
+      "note": "Salicylic Acid Daily Gentle Cleanser 150ml. Sasha barkod/SKU yayinlamiyor; vionine tarafinda EAN var."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9319156941026",
+        "title": "Stanley The Transit Fliptop Mug 0.59L Peach Rose",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428695400",
+        "title": "The Transit Fliptop Mug 0.59L",
+        "brand": "Stanley",
+        "sku": "10-13061-0076",
+        "barcode": null,
+        "variant": "Peach Rose / 0.59 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9319064338658",
+        "title": "Stanley Quencher Pipetli Termos Bardak 0.59 LT Spring Green",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973476602216",
+        "title": "Stanley Quencher Pipetli Termos Bardak 0.59 LT",
+        "brand": "Stanley",
+        "sku": "10-21041-0073",
+        "barcode": null,
+        "variant": "Spring Green / 0.59 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9319060242658",
+        "title": "Stanley Quencher Pipetli Termos Bardak 0.59 LT Purple Dust",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973476602216",
+        "title": "Stanley Quencher Pipetli Termos Bardak 0.59 LT",
+        "brand": "Stanley",
+        "sku": "10-21041-0079",
+        "barcode": null,
+        "variant": "Purple Dust / 0.59 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9203201474786",
+        "title": "Stanley The Transit Fliptop Mug 0.35L Ash",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428760936",
+        "title": "The Transit Fliptop Mug 0.35L",
+        "brand": "Stanley",
+        "sku": "10-13063-012",
+        "barcode": null,
+        "variant": "Ash / 0.35 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9203201048802",
+        "title": "Stanley The Transit Fliptop Mug 0.35L Hammertone Green",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428760936",
+        "title": "The Transit Fliptop Mug 0.35L",
+        "brand": "Stanley",
+        "sku": "10-13063-020",
+        "barcode": null,
+        "variant": "Hammertone Green / 0.35 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9203189416162",
+        "title": "Stanley The Transit Fliptop Mug 0.35L Rose Quartz",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428760936",
+        "title": "The Transit Fliptop Mug 0.35L",
+        "brand": "Stanley",
+        "sku": "10-13063-014",
+        "barcode": null,
+        "variant": "Rose Quartz / 0.35 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9203187941602",
+        "title": "Stanley The Transit Fliptop Mug 0.47L Rose Quartz",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": "1210001906631"
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428728168",
+        "title": "The Transit Fliptop Mug 0.47 L",
+        "brand": "Stanley",
+        "sku": "10-13062-014",
+        "barcode": "1210001906631",
+        "variant": "Rose Quartz / 0.47 LT"
+      },
+      "evidence": "barcode",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu. Barkod iki tarafta 1210001906631."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9203186729186",
+        "title": "Stanley The Transit Fliptop Mug 0.47L Blue Sky (Açık Mavi)",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428728168",
+        "title": "The Transit Fliptop Mug 0.47 L",
+        "brand": "Stanley",
+        "sku": "10-13062-0056",
+        "barcode": "1200185025600",
+        "variant": "Blue Sky / 0.47 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9203185549538",
+        "title": "Stanley The Transit Fliptop Mug 0.47L Dried Pine (Haki)",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428728168",
+        "title": "The Transit Fliptop Mug 0.47 L",
+        "brand": "Stanley",
+        "sku": "10-13062-0048",
+        "barcode": "1200185025570",
+        "variant": "Dried Pine / 0.47 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9203184566498",
+        "title": "Stanley The Transit Fliptop Mug 0.47L Cream Gloss",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428728168",
+        "title": "The Transit Fliptop Mug 0.47 L",
+        "brand": "Stanley",
+        "sku": "10-13062-013",
+        "barcode": "1210001906624",
+        "variant": "Cream Gloss / 0.47 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9203183976674",
+        "title": "Stanley The Transit Fliptop Mug 0.59L Blue Sky",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428695400",
+        "title": "The Transit Fliptop Mug 0.59L",
+        "brand": "Stanley",
+        "sku": "10-13061-0026",
+        "barcode": null,
+        "variant": "Blue Sky / 0.59 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9319156383970",
+        "title": "Stanley The Transit Fliptop Mug 0.59L Spring Green",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428695400",
+        "title": "The Transit Fliptop Mug 0.59L",
+        "brand": "Stanley",
+        "sku": "10-13061-0028",
+        "barcode": null,
+        "variant": "Spring Green / 0.59 LT"
+      },
+      "evidence": "brand+model+size+color",
+      "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    }
+  ],
+  "different_but_similar": [
+    {
+      "a": {
+        "merchant": "vionine",
+        "shopify_product_id": "9433043042522",
+        "title": "Dr. Althea Vitamin C Boosting Serum - Aydınlatıcı  Serum 30ml",
+        "brand": "Dr.Althea",
+        "sku": "8809447255385",
+        "barcode": "8809447255385"
+      },
+      "b": {
+        "merchant": "korendy",
+        "shopify_product_id": "8915218563095",
+        "title": "Dr. Althea - Gentle Vitamin C Serum (Parlatıcı ve Nemlendirici Vitamin Ağacı Suyu ve C Vitaminli Serum) 30ml",
+        "brand": "Dr. Althea",
+        "sku": "KRNDY2994",
+        "barcode": null
+      },
+      "evidence": "brand+model",
+      "note": "Ikisi de Dr. Althea C vitamini serumu 30ml ama 'Vitamin C Boosting Serum' (EAN 8809447255385) != 'Gentle Vitamin C Serum'."
+    },
+    {
+      "a": {
+        "merchant": "vionine",
+        "shopify_product_id": "9426673008858",
+        "title": "Dr. Althea PDRN Reju 2000 Cream - PDRN Yenileyici Kremi 20g",
+        "brand": "Dr.Althea",
+        "sku": "8809447257129",
+        "barcode": "8809447257129"
+      },
+      "b": {
+        "merchant": "flavus",
+        "shopify_product_id": "9066904748230",
+        "title": "Dr. Althea Pdrn Reju 5000 Cream 20 gr",
+        "brand": "DR. ALTHEA",
+        "sku": "FLVS00906433",
+        "barcode": "8809447256412"
+      },
+      "evidence": "barcode",
+      "note": "Reju 2000 (8809447257129) vs Reju 5000 (8809447256412); ikisi de 20g. Sayi kademesi."
+    },
+    {
+      "a": {
+        "merchant": "korendy",
+        "shopify_product_id": "8943352283159",
+        "title": "Dr.Althea - PDRN Reju 10000 Cream (Yoğun Nemlendirici ve Sıkılık Koruyucu 10.000 ppm PDRN İçeren Krem) 20g",
+        "brand": "Dr.Althea",
+        "sku": "KRNDY3180",
+        "barcode": null
+      },
+      "b": {
+        "merchant": "flavus",
+        "shopify_product_id": "9066904748230",
+        "title": "Dr. Althea Pdrn Reju 5000 Cream 20 gr",
+        "brand": "DR. ALTHEA",
+        "sku": "FLVS00906433",
+        "barcode": "8809447256412"
+      },
+      "evidence": "brand+model",
+      "note": "Reju 10000 vs Reju 5000, ikisi de 20g; mevcut iki merchant arasinda."
+    },
+    {
+      "a": {
+        "merchant": "korendy",
+        "shopify_product_id": "8943352315927",
+        "title": "Dr.Althea - PDRN Reju 2000 Cream (Hafif Dokulu Günlük %0,2 Somon PDRN İçeren Krem) 20g",
+        "brand": "Dr.Althea",
+        "sku": "KRNDY3179",
+        "barcode": null
+      },
+      "b": {
+        "merchant": "flavus",
+        "shopify_product_id": "9066904748230",
+        "title": "Dr. Althea Pdrn Reju 5000 Cream 20 gr",
+        "brand": "DR. ALTHEA",
+        "sku": "FLVS00906433",
+        "barcode": "8809447256412"
+      },
+      "evidence": "brand+model",
+      "note": "Reju 2000 vs Reju 5000, ikisi de 20g; mevcut iki merchant arasinda."
+    },
+    {
+      "a": {
+        "merchant": "vionine",
+        "shopify_product_id": "9430718382298",
+        "title": "Numbuzin No.9 NAD+ 9 Peptides Dewy Sun Essence - Anti-Aging Güneş Koruyucu 50ml",
+        "brand": "Numbuzin",
+        "sku": "8800312065429",
+        "barcode": "8800312065429"
+      },
+      "b": {
+        "merchant": "flavus",
+        "shopify_product_id": "9066905043142",
+        "title": "Numbuzin No.9 NAD Bio Lifting-sil Essence 50 ml",
+        "brand": "NUMBUZIN",
+        "sku": "FLVS0090642",
+        "barcode": "8809652587639"
+      },
+      "evidence": "barcode",
+      "note": "Numbuzin No.9 NAD+ 9 Peptides Dewy Sun Essence (8800312065429) vs No.9 NAD Bio Lifting-sil Essence (8809652587639); ikisi de 50ml."
+    },
+    {
+      "a": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264807280858",
+        "title": "Numbuzin No.9 NAD+ Peptide Toner - Gözenek Karşıtı 150ml",
+        "brand": "Numbuzin",
+        "sku": "8809652589794",
+        "barcode": "8809652589794"
+      },
+      "b": {
+        "merchant": "flavus",
+        "shopify_product_id": "9066904682694",
+        "title": "Numbuzin No.9 Glow Boosting Toner 150 ml",
+        "brand": "NUMBUZIN",
+        "sku": "FLVS00906488",
+        "barcode": null
+      },
+      "evidence": "brand+model",
+      "note": "Numbuzin No.9 NAD+ Peptide Toner 150ml vs No.9 Glow Boosting Toner 150ml."
+    },
+    {
+      "a": {
+        "merchant": "vionine",
+        "shopify_product_id": "9433043108058",
+        "title": "Dr. Althea Rapid Hypochlorous Acid Rescue Mist - Yatıştırıcı Yüz Misti 60 ml",
+        "brand": "Dr.Althea",
+        "sku": "8809447257433",
+        "barcode": "8809447257433"
+      },
+      "b": {
+        "merchant": "korendy",
+        "shopify_product_id": "8915218989079",
+        "title": "Dr. Althea - Rapid Hypochlorous Acid Rescue Mist (Tazeleyici ve Dengeleyici Hipokloröz Asitli Mist)",
+        "brand": "Dr. Althea",
+        "sku": "KRNDY3183",
+        "barcode": null,
+        "variant": "100ml"
+      },
+      "evidence": "brand+model+size",
+      "note": "Ayni HOCl mist, farkli hacim: 60ml vs 100ml (korendy'de hacim yalnizca varyantta)."
+    },
+    {
+      "a": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264779460826",
+        "title": "Anua PDRN Hyaluronic Acid Capsule 100 - Nemlendirici Serum 30ml",
+        "brand": "Anua",
+        "sku": "8809640736667",
+        "barcode": "8809640736667"
+      },
+      "b": {
+        "merchant": "korendy",
+        "shopify_product_id": "8936917106711",
+        "title": "Anua - PDRN Hyaluronic Acid Hydrating Capsule Mist (Nemlendirici ve Parlatıcı PDRN Kapsülü ve Kolajenli Mist)",
+        "brand": "Anua",
+        "sku": "KRNDY3153",
+        "barcode": null,
+        "variant": "30ml"
+      },
+      "evidence": "brand+model",
+      "note": "Anua PDRN Hyaluronic Acid Capsule 100 serum 30ml vs PDRN Hyaluronic Acid Hydrating Capsule Mist 30ml: ayni hacim, farkli urun (serum vs mist)."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "9019189330171",
+        "title": "Dr. Althea - 345 Relief Cream (Akne Sonrası Bakım Yapan Besleyici ve Nemlendirici Resveratrollü Krem) 50 ml",
+        "brand": "Dr. Althea",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "korendy",
+        "shopify_product_id": "8943356018711",
+        "title": "Dr. Althea - 345 Relief Cream (Akne Sonrası Bakım Yapan Besleyici ve Nemlendirici Resveratrollü Krem) 15ml",
+        "brand": "Dr. Althea",
+        "sku": "KRNDY3184",
+        "barcode": null
+      },
+      "evidence": "brand+model+size",
+      "note": "345 Relief Cream 50ml vs 15ml; basliklar neredeyse birebir ayni, yalnizca hacim farkli."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "9019189330171",
+        "title": "Dr. Althea - 345 Relief Cream (Akne Sonrası Bakım Yapan Besleyici ve Nemlendirici Resveratrollü Krem) 50 ml",
+        "brand": "Dr. Althea",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9279363842266",
+        "title": "Dr. Althea 345 Relief Cream Mask - Yatıştırıcı Maske 4’lü",
+        "brand": "Dr.Althea",
+        "sku": "8809447256290",
+        "barcode": "8809447256290"
+      },
+      "evidence": "brand+model",
+      "note": "345 Relief Cream vs 345 Relief Cream Mask (4'lu)."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8952212652283",
+        "title": "Cosrx - BHA Blackhead Power Liquid - Siyah Nokta Önleyici Tonik (100 mL)",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9391464022234",
+        "title": "COSRX AHA 7 Whitehead Power Liquid - AHA Tonik 100ml",
+        "brand": "Cosrx",
+        "sku": "8809416470047",
+        "barcode": "8809416470047"
+      },
+      "evidence": "barcode",
+      "note": "BHA Blackhead Power Liquid vs AHA 7 Whitehead Power Liquid (8809416470047); ikisi de 100ml tonik."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "8952217633019",
+        "title": "Cosrx - Advanced Snail 96 Mucin Power Essence - Besleyici Salyangoz Salgısı Özlü Esans (100 mL)",
+        "brand": "Cosrx",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264782508250",
+        "title": "COSRX Advanced Snail 92 All In One Cream - Onarıcı 100gr",
+        "brand": "Cosrx",
+        "sku": "8809416470016",
+        "barcode": "8809416470016"
+      },
+      "evidence": "brand+model",
+      "note": "Advanced Snail 96 Mucin Power Essence vs Advanced Snail 92 All In One Cream; ikisi de '100'."
+    },
+    {
+      "a": {
+        "merchant": "sasha-kozmetik",
+        "shopify_product_id": "9018445758715",
+        "title": "Numbuzin - No.1 Clear Filter Sun Essence SPF50+ PA++++ (Serinletici Bitkisel Özlü Güneş Koruyucu) 50 mL",
+        "brand": "Numbuzin",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "vionine",
+        "shopify_product_id": "9430718382298",
+        "title": "Numbuzin No.9 NAD+ 9 Peptides Dewy Sun Essence - Anti-Aging Güneş Koruyucu 50ml",
+        "brand": "Numbuzin",
+        "sku": "8800312065429",
+        "barcode": "8800312065429"
+      },
+      "evidence": "brand+model",
+      "note": "No.1 Clear Filter Sun Essence vs No.9 NAD+ 9 Peptides Dewy Sun Essence; ikisi de 50ml SPF50+ gunes esansi."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9203187941602",
+        "title": "Stanley The Transit Fliptop Mug 0.47L Rose Quartz",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": "1210001906631"
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428695400",
+        "title": "The Transit Fliptop Mug 0.59L",
+        "brand": "Stanley",
+        "sku": "10-13061-014",
+        "barcode": null,
+        "variant": "Rose Quartz / 0.59 LT"
+      },
+      "evidence": "brand+model+color",
+      "note": "Ayni model ve renk, farkli kapasite: 0.47L vs 0.59L (10-13061-014)."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9203187941602",
+        "title": "Stanley The Transit Fliptop Mug 0.47L Rose Quartz",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": "1210001906631"
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973428728168",
+        "title": "The Transit Fliptop Mug 0.47 L",
+        "brand": "Stanley",
+        "sku": "10-13062-013",
+        "barcode": "1210001906624",
+        "variant": "Cream Gloss / 0.47 LT"
+      },
+      "evidence": "barcode",
+      "note": "Ayni model ve kapasite, farkli renk: Rose Quartz (1210001906631) vs Cream Gloss (1210001906624)."
+    },
+    {
+      "a": {
+        "merchant": "termos-dunyasi",
+        "shopify_product_id": "9319063945442",
+        "title": "Stanley Quencher Pipetli Termos Bardak 0.59 LT Daffodil",
+        "brand": "Stanley",
+        "sku": null,
+        "barcode": null
+      },
+      "b": {
+        "merchant": "stanley-turkiye",
+        "shopify_product_id": "14973476602216",
+        "title": "Stanley Quencher Pipetli Termos Bardak 0.59 LT",
+        "brand": "Stanley",
+        "sku": "10-21041-0077",
+        "barcode": null,
+        "variant": "Peach Rose / 0.59 LT"
+      },
+      "evidence": "brand+model+size",
+      "note": "Quencher 0.59 LT, farkli renk: Daffodil vs Peach Rose (10-21041-0077)."
+    }
+  ]
+}

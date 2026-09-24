@@ -1,64 +1,107 @@
-.main {
+/* Yatay bosluk kabugun `Container`'indan gelir; burada yalnizca okuma
+   genisligi ve dikey ritim (docs/design.md "Düzen ve kapsayıcılar"). */
+.page {
   display: grid;
-  gap: var(--space-2);
+  gap: var(--space-10);
   max-width: var(--content-width-reading);
   margin-inline: auto;
-  padding: var(--space-8) var(--space-6);
+  padding-block: var(--section-space-compact) var(--section-space);
+}
+
+.header {
+  display: grid;
+  gap: var(--space-3);
+  padding-bottom: var(--space-8);
+  border-bottom: var(--border-width) solid var(--line);
 }
 
 .title {
   margin: 0;
-  font-size: var(--font-size-xl);
-  line-height: var(--line-height-heading);
-  font-weight: 500;
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
   color: var(--ink);
+  text-wrap: balance;
 }
 
 .lastUpdated {
-  margin: 0 0 var(--space-4);
-  font-size: var(--font-size-xs);
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
   color: var(--ink-muted);
 }
 
+/* Bolumler arasi bosluk grid'den; bolum ici akis asagidaki kurallardan. */
 .content {
   display: grid;
-  gap: var(--space-6);
-  font-size: var(--font-size-base);
+  gap: var(--space-10);
+  font-size: var(--text-body);
   line-height: var(--line-height-body);
-  color: var(--ink);
+  color: var(--ink-secondary);
 }
 
+.content :global(section) {
+  display: grid;
+  gap: var(--space-3);
+  /* Baglantili baslik (`#...`) hedef alindiginda ust kenara yapismasin. */
+  scroll-margin-top: var(--space-8);
+}
+
+/* Gorsel rol ile HTML seviyesi ayri (design.md "Tip rolleri"): uzun metin
+   sayfasinda bolum basligi H3 rolunde - H2 rolu okuma akisina fazla agir. */
 .content :global(h2) {
-  margin: 0 0 var(--space-2);
-  font-size: var(--font-size-md);
-  font-weight: 500;
+  margin: 0;
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.content :global(h3) {
+  margin: var(--space-2) 0 0;
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
   color: var(--ink);
 }
 
 .content :global(p) {
-  margin: 0 0 var(--space-2);
-  color: var(--ink-muted);
-}
-
-.content :global(p:last-child) {
-  margin-bottom: 0;
+  margin: 0;
+  text-wrap: pretty;
 }
 
 .content :global(ul) {
+  display: grid;
+  gap: var(--space-2);
   margin: 0;
   padding-left: var(--space-6);
+}
+
+.content :global(li::marker) {
   color: var(--ink-muted);
 }
 
-.content :global(li) {
-  margin-bottom: var(--space-1);
+.content :global(strong) {
+  font-weight: var(--font-weight-medium);
+  color: var(--ink);
 }
 
 .content :global(a) {
   color: var(--ink);
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--border-width);
+  text-underline-offset: 0.2em;
+  overflow-wrap: anywhere;
+}
+
+.content :global(a:hover) {
+  text-decoration-thickness: var(--focus-ring-width);
 }
 
 .content :global(a:focus-visible) {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }

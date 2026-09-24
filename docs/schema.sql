@@ -92,6 +92,10 @@ CREATE INDEX product_brand_idx    ON product (brand_id);
 CREATE INDEX product_category_idx ON product (category_id);
 CREATE INDEX product_gtin_idx     ON product (gtin) WHERE gtin IS NOT NULL;
 CREATE INDEX product_title_trgm   ON product USING gin (title gin_trgm_ops);
+-- Metin aramasinin aday kapisi (0029): katlanmis baslik. Ifade
+-- packages/core/src/search/text-match.ts foldedTitleExpr ile birebir ayni.
+CREATE INDEX product_title_fold_trgm ON product
+    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops);
 CREATE INDEX product_min_price_idx ON product (min_price) WHERE min_price IS NOT NULL;
 CREATE INDEX product_model_key_idx ON product (model_key) WHERE model_key IS NOT NULL;
 
@@ -575,7 +579,7 @@ CREATE INDEX query_resolution_popular_idx ON query_resolution (hit_count DESC);
 CREATE TABLE lexicon (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     kind        TEXT   NOT NULL
-                CHECK (kind IN ('color','category','brand','size','material','style')),
+                CHECK (kind IN ('color','category','brand','size','material','style','synonym')),
     surface     TEXT   NOT NULL,              -- 'spor ayakkabı'
     normalized  TEXT   NOT NULL,              -- 'ayakkabi/sneaker'
     weight      REAL   NOT NULL DEFAULT 1.0,

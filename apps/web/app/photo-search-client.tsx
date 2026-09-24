@@ -1,23 +1,28 @@
 "use client";
 
-import { PhotoUploadButton } from "@arilla/ui";
+import { PhotoUploadButton, Stack } from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { uploadImageForSearch } from "./ara/gorsel/actions.ts";
+import styles from "./photo-search-client.module.css";
 
-const UPLOAD_LABEL = "Fotoğraf yükle";
-const LOADING_LABEL = "Benzerlerini arıyoruz";
+export const PHOTO_SEARCH_UPLOAD_LABEL = "Fotoğraf yükle"; // action.upload_photo
+export const PHOTO_SEARCH_LOADING_LABEL = "Benzerlerini arıyoruz"; // search.loading
+
+/** `ara/gorsel/actions.ts` MAX_UPLOAD_BYTES ile aynı; gövde sınırına takılmadan önce yakalanır. */
+const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 
 const ERROR_COPY: Record<string, string> = {
-  too_large: "Fotoğraf çok büyük. Daha küçük bir dosya dener misin?",
+  too_large: "Fotoğraf çok büyük. 4 MB'tan küçük bir dosya dener misin?",
   invalid_type: "Bir şeyler ters gitti. Tekrar dener misin?",
   daily_limit: "Bugünlük görsel arama hakkın doldu. Yarın tekrar bekleriz.",
+  unavailable: "Fotoğrafla arama şu an kullanılamıyor. Biraz sonra tekrar dener misin?",
   error: "Bir şeyler ters gitti. Tekrar dener misin?",
 };
 
 /**
  * docs/pages.md "/" ve "/ara": fotoğraf yükleme akışı. JSX/davranışı
- * `PhotoSearchButton` ve homepage'in yeni composer entegrasyonu arasında
+ * `PhotoSearchButton` ve homepage'in composer entegrasyonu arasında
  * tekrar yazılmadan paylaşılır.
  */
 export function usePhotoSearchUpload() {
@@ -27,6 +32,10 @@ export function usePhotoSearchUpload() {
 
   function handleFile(file: File) {
     setError(null);
+    if (file.size > MAX_UPLOAD_BYTES) {
+      setError(ERROR_COPY.too_large ?? null);
+      return;
+    }
     const formData = new FormData();
     formData.set("photo", file);
     startTransition(async () => {
@@ -46,22 +55,22 @@ export function usePhotoSearchUpload() {
   return { pending, error, handleFile };
 }
 
-/** docs/pages.md "/" ve "/ara": fotoğraf yükleme aynı arama girdisinin yanında. */
+/** docs/pages.md "/ara": fotoğraf yükleme aynı arama girdisinin yanında. */
 export function PhotoSearchButton() {
   const { pending, error, handleFile } = usePhotoSearchUpload();
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
+    <Stack gap={2}>
       <PhotoUploadButton
-        label={pending ? LOADING_LABEL : UPLOAD_LABEL}
+        label={pending ? PHOTO_SEARCH_LOADING_LABEL : PHOTO_SEARCH_UPLOAD_LABEL}
         onFileSelected={handleFile}
         disabled={pending}
       />
       {error ? (
-        <p role="alert" style={{ margin: 0 }}>
+        <p role="alert" className={styles.error}>
           {error}
         </p>
       ) : null}
-    </div>
+    </Stack>
   );
 }

@@ -1,0 +1,66 @@
+/*
+ * Buton gorunumlu gezinme linkleri - bos durum ve sistem sayfalarinda
+ * (/firsatlar bos durumu, 404, hata). `Button` bir `<button>`'dir; sayfa
+ * degistiren eylem ise `<a>` olmali. Gorunum `Button`'in `accent` /
+ * `secondary` varyantlariyla ayni belirteclerden gelir (design.md
+ * "Kutu modeli", karar 0025).
+ */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.primary,
+.secondary {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch-target);
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.primary:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* Etkilesimli kontrol siniri: `--line-strong` (WCAG 1.4.11). */
+.secondary {
+  background: var(--paper);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.secondary:hover {
+  background: var(--surface-hover);
+}
+
+.primary:focus-visible,
+.secondary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .primary,
+  .secondary {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard);
+  }
+}

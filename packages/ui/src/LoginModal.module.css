@@ -1,45 +1,121 @@
+/* docs/design.md "Katmanlar" ve "Kutu modeli": ortu --z-overlay, diyalog
+   --z-modal; modal --radius-lg + --shadow-md (katman ustu oge).
+   Ortu --scrim: iki temada da koyu, yari saydam; sonuclar arkada okunur
+   halde kalir (karar 0002). */
 .overlay {
   position: fixed;
   inset: 0;
-  background: color-mix(in srgb, var(--ink) 50%, transparent);
+  z-index: var(--z-overlay);
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
   padding: var(--space-4);
-  z-index: 100;
+  background: var(--scrim);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 640px) {
+  .overlay {
+    align-items: center;
+    padding: var(--space-6);
+  }
 }
 
 .dialog {
   position: relative;
-  background: var(--surface-raised);
-  border-radius: var(--radius);
-  padding: var(--space-6);
-  max-width: 360px;
-  width: 100%;
+  z-index: var(--z-modal);
   display: grid;
   gap: var(--space-3);
+  width: 100%;
+  max-width: calc(var(--content-width-compact) + var(--space-16));
+  padding: var(--space-8) var(--space-6) var(--space-6);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-md);
+}
+
+/* Diyalogun kendisi yalnizca programatik odak alir (icinde odaklanabilir
+   alan yoksa); gorunur halka icerikteki kontrollerdedir. */
+.dialog:focus {
+  outline: none;
 }
 
 .close {
   position: absolute;
   top: var(--space-2);
   right: var(--space-2);
-  border: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-touch-target);
+  min-height: var(--size-touch-target);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--ink-muted);
-  font-size: var(--font-size-lg);
-  line-height: 1;
   cursor: pointer;
-  min-height: 44px;
-  min-width: 44px;
+}
+
+.close:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.close:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .title {
   margin: 0;
-  font-size: var(--font-size-md);
+  padding-right: var(--space-8);
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  color: var(--ink);
+  text-wrap: balance;
 }
 
 .description {
   margin: 0;
-  color: var(--ink-muted);
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+}
+
+.body {
+  margin-top: var(--space-2);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .overlay {
+    animation: overlay-in var(--duration-base) var(--ease-standard);
+  }
+
+  .dialog {
+    animation: dialog-in var(--duration-slow) var(--ease-standard);
+  }
+
+  .close {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
+  }
+}
+
+@keyframes overlay-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--space-2));
+  }
 }

@@ -1,14 +1,19 @@
 import type { HTMLAttributes, ReactNode } from "react";
 import styles from "./Badge.module.css";
+import { joinClassNames } from "./layout.ts";
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
+  /** `neutral` (varsayilan) veya `save`: tasarruf olgusu, `--save` metin. */
+  tone?: "neutral" | "save";
   children: ReactNode;
 }
 
-export function Badge({ className, children, ...rest }: BadgeProps) {
-  const classes = [styles.badge, className].filter(Boolean).join(" ");
+export function Badge({ tone = "neutral", className, children, ...rest }: BadgeProps) {
   return (
-    <span {...rest} className={classes}>
+    <span
+      {...rest}
+      className={joinClassNames(styles.badge, tone === "save" && styles.save, className)}
+    >
       {children}
     </span>
   );

@@ -15,7 +15,7 @@ import psycopg
 import pytest
 
 from db.connection import database_url
-from enrich.client import FakeEmbeddingClient
+from enrich.client import EmbeddingError, FakeEmbeddingClient
 from enrich.pipeline import embed_images, embed_texts
 
 pytestmark = pytest.mark.integration
@@ -261,3 +261,102 @@ def test_unreachable_image_is_skipped_not_fatal(offers: int) -> None:
     assert counts.skipped > 0
     assert counts.embedded == OFFER_COUNT - counts.skipped
     assert counts.errors
+
+
+class _FailingOnceClient(FakeEmbeddingClient):
+    """Ilk gorsel cagrisinda saglayici hatasi; sonrakiler basarili."""
+
+    failures_left: int = 1
+
+    def embed_images(self, data_urls, *, estimated_tokens=None):  # type: ignore[override]
+        if self.failures_left > 0:
+            self.failures_left -= 1
+            raise EmbeddingError("saglayici 429 dondu, 5 denemede gecmedi")
+        return super().embed_images(data_urls, estimated_tokens=estimated_tokens)
+
+
+def test_failed_batch_is_left_pending_and_rerun_resumes(offers: int) -> None:
+    """Basarisiz parti kosuyu durdurmaz, o offer'lar embedding'siz kalir;
+    ikinci kosu yalnizca onlari alir ve api_usage her BASARILI cagri icin yazilir.
+    """
+    before = _count("SELECT count(*) FROM api_usage WHERE operation = 'image_embedding'")
+
+    flaky = _FailingOnceClient(model="jina-clip-v2-fake")
+    with _app() as conn:
+        # Parti boyu 8, 3 farkli gorsel -> tek parti; o parti basarisiz.
+        first = embed_images(conn, flaky, merchant_id=offers, http=_image_client())
+        conn.commit()
+
+    assert first.failed == OFFER_COUNT
+    assert first.embedded == 0
+    assert first.api_calls == 0
+    assert not first.aborted
+    assert _count(EMBEDDINGS, ("image", DOMAIN)) == 0
+    # Hash yine de yazildi (icerik kimligi, cagridan bagimsiz).
+    assert _count(DISTINCT_HASHES, (DOMAIN,)) == DISTINCT_IMAGES
+
+    with _app() as conn:
+        second = embed_images(conn, flaky, merchant_id=offers, http=_image_client())
+        conn.commit()
+
+    assert second.considered == OFFER_COUNT
+    assert second.embedded == OFFER_COUNT
+    assert second.failed == 0
+    assert _count(EMBEDDINGS, ("image", DOMAIN)) == OFFER_COUNT
+    after = _count("SELECT count(*) FROM api_usage WHERE operation = 'image_embedding'")
+    assert after - before == second.api_calls == 1
+
+
+def test_consecutive_failures_abort_the_run(offers: int) -> None:
+    from enrich import pipeline
+
+    class _Down(FakeEmbeddingClient):
+        def embed_images(self, data_urls, *, estimated_tokens=None):  # type: ignore[override]
+            self.calls += 1
+            raise EmbeddingError("saglayici 503 dondu")
+
+        @property
+        def image_batch_size(self) -> int:
+            return 1
+
+    down = _Down()
+    with _app() as conn:
+        counts = embed_images(conn, down, merchant_id=offers, http=_image_client())
+        conn.commit()
+
+    assert counts.aborted
+    assert down.calls == pipeline.MAX_CONSECUTIVE_FAILURES
+    assert counts.embedded == 0
+
+
+def test_vectors_older_than_valid_from_are_reembedded_not_reused(offers: int) -> None:
+    """On isleme anlamli degistiginde eski vektor sessizce yeniden kullanilmaz."""
+    with _app() as conn:
+        embed_images(conn, FakeEmbeddingClient(), merchant_id=offers, http=_image_client())
+        conn.commit()
+
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute("SELECT clock_timestamp()")
+        row = cur.fetchone()
+    assert row is not None
+    cutoff = row[0]
+
+    # Varsayilan (None): hicbir sey bayat degil, ikinci kosu bos.
+    idle = FakeEmbeddingClient()
+    with _app() as conn:
+        assert embed_images(conn, idle, merchant_id=offers, http=_image_client()).considered == 0
+
+    again = FakeEmbeddingClient()
+    with _app() as conn:
+        counts = embed_images(
+            conn, again, merchant_id=offers, http=_image_client(), valid_from=cutoff
+        )
+        conn.commit()
+
+    assert counts.considered == OFFER_COUNT
+    # Veritabanindaki eski vektorler yineleme icin kullanilmadi: 3 gorsel yeniden gitti.
+    assert counts.images_sent == DISTINCT_IMAGES
+    assert counts.embedded == OFFER_COUNT
+    # Satir sayisi degismedi (yerinde yenilendi), hepsi artik kesimden yeni.
+    assert _count(EMBEDDINGS, ("image", DOMAIN)) == OFFER_COUNT
+    assert _count(EMBEDDINGS + " AND e.created_at >= %s", ("image", DOMAIN, cutoff)) == OFFER_COUNT

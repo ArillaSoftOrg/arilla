@@ -1,0 +1,48 @@
+{
+  "_aciklama": "Metin arama degerlendirme seti (docs/decisions/0029). Gercek bootstrap katalogu (docs/decisions/0027) uzerinde olculur; kapsam feed_config.bootstrap_source = 'bootstrap_shopify' merchant'lari. Yargi algoritmadan bagimsizdir: bir sonuc 'all' listesindeki HER desen baslikta (ya da 'brand' deseni marka adinda) geciyorsa ilgilidir. Desenler PostgreSQL ~* (buyuk/kucuk harf duyarsiz) ile, katlanmamis (Turkce karakterli) basliga uygulanir. 'absent': katalogda gercekten karsiligi yok, dogru davranis 0 sonuctur.",
+  "queries": [
+    { "group": "exact", "q": "termos", "all": ["termos|thermos"] },
+    { "group": "exact", "q": "mouse", "all": ["\\mmouse\\M"] },
+    { "group": "exact", "q": "halı", "all": ["\\mhalı|kilim"] },
+    { "group": "exact", "q": "çanta", "all": ["çanta"] },
+    { "group": "exact", "q": "nemlendirici", "all": ["nemlendir|moistur"] },
+    { "group": "exact", "q": "klavye", "all": ["klavye|keyboard"] },
+    { "group": "exact", "q": "elbise", "all": ["elbise"] },
+    { "group": "exact", "q": "parfüm", "all": ["parfüm|parfum"] },
+    { "group": "exact", "q": "şampuan", "all": ["şampuan|shampoo"] },
+    { "group": "exact", "q": "hali", "all": ["\\mhalı|kilim"], "note": "ASCII klavye ile yazilmis 'halı'" },
+
+    { "group": "brand", "q": "grohe", "brand": "grohe" },
+    { "group": "brand", "q": "stanley", "brand": "stanley", "all": ["stanley"] },
+    { "group": "brand", "q": "anua", "brand": "anua" },
+    { "group": "brand", "q": "derimod", "brand": "derimod" },
+    { "group": "brand", "q": "north sails", "brand": "north sails" },
+
+    { "group": "descriptive", "q": "siyah spor ayakkabı", "all": ["sneaker|spor ayakkab|koşu ayakkab", "siyah"] },
+    { "group": "descriptive", "q": "kadın omuz çantası", "all": ["omuz", "çanta"] },
+    { "group": "descriptive", "q": "kablosuz mouse", "all": ["\\mmouse\\M", "kablosuz|wireless"] },
+    { "group": "descriptive", "q": "erkek sweatshirt", "all": ["sweatshirt", "erkek"] },
+    { "group": "descriptive", "q": "mekanik klavye", "all": ["klavye|keyboard", "mekanik"] },
+    { "group": "descriptive", "q": "yün halı", "all": ["\\mhalı|kilim", "yün"] },
+    { "group": "descriptive", "q": "güneş kremi", "all": ["güneş|sun|spf", "krem|cream|losyon|lotion|koruyucu|sunscreen"] },
+    { "group": "descriptive", "q": "siyah elbise", "all": ["elbise", "siyah"] },
+
+    { "group": "color_category", "q": "beyaz sneaker", "all": ["sneaker", "beyaz"] },
+    { "group": "color_category", "q": "kahverengi kemer", "all": ["kemer", "kahverengi"] },
+    { "group": "color_category", "q": "mavi gömlek", "all": ["gömlek", "mavi"] },
+
+    { "group": "difficult", "q": "çocuk montu", "all": ["mont|ceket", "çocuk|bebek|kids"] },
+    { "group": "difficult", "q": "masa lambası", "all": ["lamba"] },
+    { "group": "difficult", "q": "deri cüzdan", "all": ["cüzdan|wallet|cardholder|kartlık"] },
+    { "group": "difficult", "q": "bebek battaniyesi", "all": ["battaniye|blanket"] },
+
+    { "group": "absent", "q": "yoga matı", "absent": true },
+    { "group": "absent", "q": "telefon kılıfı", "absent": true },
+    { "group": "absent", "q": "buzdolabı", "absent": true },
+    { "group": "absent", "q": "kahve makinesi", "absent": true },
+    { "group": "absent", "q": "kol saati", "absent": true },
+    { "group": "absent", "q": "güneş gözlüğü", "absent": true },
+    { "group": "absent", "q": "tencere seti", "absent": true },
+    { "group": "absent", "q": "çalışma koltuğu", "absent": true, "note": "katalogda ofis/calisma koltugu yok; Normod koltuklari berjer/kanepe" }
+  ]
+}
