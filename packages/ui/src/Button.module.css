@@ -1,18 +1,24 @@
+/* docs/design.md "Kutu modeli": buton --radius-md, kontrol siniri
+   --line-strong, odak --focus-ring, 44px dokunma hedefi. */
 .button {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: var(--space-2);
-  min-height: 44px;
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius);
+  min-height: var(--size-touch-target);
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-md);
   font-family: inherit;
-  font-size: var(--font-size-base);
-  font-weight: 500;
-  line-height: 1;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  text-align: center;
+  text-decoration: none;
   cursor: pointer;
   /* Turkce'de text-transform: uppercase i/I - ı/İ harflerini bozar. */
   text-transform: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .button:disabled {
@@ -21,37 +27,76 @@
 }
 
 .button:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
+/* Olumlu birincil eylem. Hover tonu belirteclerden turetilir: acik temada
+   koyulasir, koyu temada acilir; iki yonde de --on-save kontrasti artar. */
 .primary {
   background: var(--save);
   color: var(--on-save);
-  border: 1px solid var(--save);
+  border-color: var(--save);
+}
+
+.primary:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--save) 88%, var(--ink));
+  border-color: color-mix(in srgb, var(--save) 88%, var(--ink));
 }
 
 .secondary {
-  background: var(--paper);
+  background: var(--surface-raised);
   color: var(--ink);
-  border: 1px solid var(--line);
+  border-color: var(--line-strong);
 }
 
-/* Karar 0025: sadece ana sayfa kabugu icin - --save'in tasarruf/onay
-   anlamiyla cakismayan, gecici, notr bir birincil eylem rengi. */
+.secondary:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+/* Karar 0025: --save'in tasarruf/onay anlamiyla cakismayan notr birincil
+   eylem. */
 .accent {
   background: var(--accent);
   color: var(--accent-foreground);
-  border: 1px solid var(--accent);
-  border-radius: var(--radius-md);
+  border-color: var(--accent);
 }
 
 .accent:hover:not(:disabled) {
-  filter: brightness(0.92);
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+/* Ucuncul eylem: tek basina kontrol siniri tasimaz, bulunabilirligi metin
+   veya ikonla saglanir; hover'da yuzey tonu alir. */
+.ghost {
+  background: transparent;
+  color: var(--ink);
+}
+
+.ghost:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.lg {
+  min-height: calc(var(--size-touch-target) + var(--space-2));
+  padding-inline: var(--space-6);
+  font-size: var(--text-body-lg);
+}
+
+.pill {
+  border-radius: var(--radius-pill);
+}
+
+.fullWidth {
+  width: 100%;
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .accent {
-    transition: filter 0.15s ease;
+  .button {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
   }
 }

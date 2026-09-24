@@ -1,4 +1,5 @@
-import { HomeHeader, SiteFooter } from "@arilla/ui";
+import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
+import { Container, HomeHeader, SiteFooter, SkipLink } from "@arilla/ui";
 import type { ReactNode } from "react";
 import { HOME_COPY } from "./home-copy.ts";
 import {
@@ -8,42 +9,76 @@ import {
   siteNavItems,
 } from "./home-footer-groups.ts";
 import { verifySession } from "./lib/dal.ts";
+import styles from "./public-site-shell.module.css";
+
+/** docs/design.md "Kalite tabanı": SkipLink'in hedefi, sayfada tek. */
+const MAIN_ID = "icerik";
 
 /**
  * Faz 8: public site kabugu - ana sayfa ile public alt sayfalar (`/kesfet`,
  * `/firsatlar`, `/ara`, `/giris`, `/urun/[slug]`, yasal sayfalar) ayni header
- * ve footer'i paylasir. Alt sayfaya dogrudan girilince "bitmemis sayfa"
- * hissi olmasin diye. Giris gerektiren (`/hesap`, `/kaydettiklerim`, ...) ve
+ * ve footer'i paylasir. Giris gerektiren (`/hesap`, `/kaydettiklerim`, ...) ve
  * yonetim sayfalari bu kabugu kullanmaz.
  *
- * `<main>` icermez - her sayfa kendi `<main>`'ini render eder. Kisa
- * sayfalarda (bos durum) footer ekranin altina yaslanir.
+ * Faz 1B: kabuk `SkipLink -> header -> <main id="icerik"> -> footer`
+ * yapisinin tek sahibidir. `<main>` ve genis `Container` (yatay `--gutter`)
+ * buradan gelir; sayfalar ikinci bir `<main>` veya kendi yatay kenar
+ * boslugunu uretmez, daha dar genislik gerekiyorsa yalnizca
+ * `max-width: var(--content-width-*)` kullanir. Kisa sayfalarda footer
+ * ekranin altina yaslanir.
  */
+/**
+ * `aria-current="page"` icin: yalnizca `href`'i tam olarak su anki yola
+ * esit olan linkler etkin sayilir (`/#trendler` gibi anchor'lar asla).
+ * Yol cagirandan gelir - kabuk URL okumaz, istemci JS'i yok.
+ */
+function markCurrent<T extends { href: string }>(
+  items: readonly T[],
+  currentPath: string | undefined,
+): readonly (T & { current?: boolean })[] {
+  if (!currentPath) return items;
+  return items.map((item) => (item.href === currentPath ? { ...item, current: true } : item));
+}
+
 export async function PublicSiteShell({
   links,
+  currentPath,
   children,
 }: {
   links: SiteSectionLinks;
+  /** Su anki route (orn. "/kesfet"); verilirse eslesen header/footer linki `aria-current` alir. */
+  currentPath?: string;
   children: ReactNode;
 }) {
   const user = await verifySession();
+  const navItems: readonly HomeHeaderNavItem[] = markCurrent(siteNavItems(links), currentPath);
+  const footerGroups: readonly FooterGroup[] = homeFooterGroups(links).map((group) => ({
+    ...group,
+    links: markCurrent(group.links, currentPath),
+  }));
+  const loginHref = "/giris";
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+    <div className={styles.shell}>
+      <SkipLink targetId={MAIN_ID}>{HOME_COPY.skipToContent}</SkipLink>
       <HomeHeader
         brandLabel="Arilla"
-        navItems={siteNavItems(links)}
+        navItems={navItems}
         navAriaLabel="Ana gezinme"
         accountHref={user ? "/hesap" : null}
         accountLabel={HOME_COPY.navAccount}
-        loginHref="/giris"
+        loginHref={loginHref}
         loginLabel={HOME_COPY.loginLabel}
+        accountCurrent={currentPath === (user ? "/hesap" : loginHref)}
       />
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>{children}</div>
+      {/* tabIndex -1: SkipLink'ten sonra odak tum tarayicilarda ana icerige tasinir. */}
+      <main id={MAIN_ID} tabIndex={-1} className={styles.main}>
+        <Container size="wide">{children}</Container>
+      </main>
       <SiteFooter
         brandLabel="Arilla"
         brandDescription={HOME_COPY.heroSubtitle}
-        groups={homeFooterGroups(links)}
+        groups={footerGroups}
         affiliateNotice={HOME_COPY.affiliateNotice}
         priceDisclaimer={HOME_COPY.priceDisclaimer}
         copyrightLabel={`© ${new Date().getFullYear()} Arilla`}
@@ -52,25 +87,18 @@ export async function PublicSiteShell({
   );
 }
 
-/**
- * Alt sayfa icerigini header/footer ile ayni genis konteynere hizalar. Alt
- * sayfalarin mevcut `<main style={{ padding: 24 }}>`'i bu konteynerin
- * icinde kalir - header'in ic boslugu da 24px oldugu icin sol kenarlar
- * ust uste gelir.
- */
-export function SubpageShell({ children }: { children: ReactNode }) {
+/** Public alt sayfalar: bolum linkleri ana sayfaya doner (`/#trendler`, ...). */
+export function SubpageShell({
+  currentPath,
+  children,
+}: {
+  /** Bkz. `PublicSiteShell.currentPath` - route'un ince `layout.tsx`'i verir. */
+  currentPath?: string;
+  children: ReactNode;
+}) {
   return (
-    <PublicSiteShell links={SUBPAGE_SECTION_LINKS}>
-      <div
-        style={{
-          flex: 1,
-          width: "100%",
-          maxWidth: "var(--content-width-wide)",
-          marginInline: "auto",
-        }}
-      >
-        {children}
-      </div>
+    <PublicSiteShell links={SUBPAGE_SECTION_LINKS} currentPath={currentPath}>
+      {children}
     </PublicSiteShell>
   );
 }

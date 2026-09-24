@@ -1,0 +1,45 @@
+/* docs/design.md "Duyarlı tasarım": kesif masonry'si yalnizca 640 / 1024 /
+   1440 noktalarinda sutun sayisini degistirir (2 / 3 / 4 / 5). Yatay ve
+   dikey aralik ayni belirtecten gelir. */
+.grid {
+  --discovery-gap: var(--space-3);
+
+  column-count: 2;
+  column-gap: var(--discovery-gap);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Dikey aralik margin degil padding: sutun kiriminda margin bolunup
+   sutun basinda bosluk birakabilir. */
+.item {
+  break-inside: avoid;
+  padding-block-end: var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .grid {
+    --discovery-gap: var(--space-4);
+
+    column-count: 3;
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    --discovery-gap: var(--space-6);
+
+    column-count: 4;
+  }
+
+  .item {
+    padding-block-end: var(--space-8);
+  }
+}
+
+@media (min-width: 1440px) {
+  .grid {
+    column-count: 5;
+  }
+}

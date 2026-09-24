@@ -1,4 +1,5 @@
 import { LoginFormClient } from "./login-form-client.tsx";
+import styles from "./page.module.css";
 
 interface GirisSearchParams {
   error?: string;
@@ -10,6 +11,11 @@ const ERROR_COPY: Record<string, string> = {
   used: "Bu bağlantı zaten kullanılmış.",
 };
 
+/** docs/copy.md `auth.login_title` / `auth.login_intro`. */
+const LOGIN_TITLE = "Giriş yap";
+const LOGIN_INTRO =
+  "E-posta adresini yaz, sana tek kullanımlık bir giriş bağlantısı gönderelim. Şifre gerekmez.";
+
 /** docs/routes.md `/giris`: e-posta bağlantısı isteme. `/giris/dogrula` başarısızlıkları buraya `?error=` ile döner. */
 export default async function GirisPage({
   searchParams,
@@ -20,10 +26,17 @@ export default async function GirisPage({
   const errorText = error ? ERROR_COPY[error] : undefined;
 
   return (
-    <main style={{ padding: 24, display: "grid", gap: 16, maxWidth: 360 }}>
-      <h1 style={{ margin: 0 }}>Giriş yap</h1>
-      {errorText ? <p style={{ margin: 0, color: "var(--ink-muted)" }}>{errorText}</p> : null}
+    <div className={styles.page}>
+      <header className={styles.intro}>
+        <h1 className={styles.title}>{LOGIN_TITLE}</h1>
+        <p className={styles.lead}>{LOGIN_INTRO}</p>
+      </header>
+      {errorText ? (
+        <p role="alert" className={styles.notice}>
+          {errorText}
+        </p>
+      ) : null}
       <LoginFormClient />
-    </main>
+    </div>
   );
 }

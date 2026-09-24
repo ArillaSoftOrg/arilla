@@ -1,0 +1,19 @@
+/* /iletisim: tek kanal (e-posta) belirgin bir iletisim kartinda. Kart
+   gorunumu yalnizca zemin tonu + ince ayiricidan gelir; golge yok
+   (design.md "Gölge": kartlar golge kullanmaz). */
+.card {
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+/* LegalPageLayout'un genel link bicimi korunur; burada yalnizca boyut ve
+   44px dokunma hedefi. */
+.emailLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-medium);
+}

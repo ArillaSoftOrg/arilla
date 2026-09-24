@@ -1,0 +1,363 @@
+/*
+ * /urun/[slug] - docs/pages.md "Ürün sayfası", docs/design.md "Ana ekranlar".
+ * Kabuk genis Container'i (yatay --gutter) ve <main>'i verir; burada yalnizca
+ * ic duzen var. Mobilde tek sutun (gorsel -> baslik -> fiyat -> cikis),
+ * 1024px'ten itibaren gorsel solda, ozet sagda. Altta magaza listesi,
+ * alternatifler ve fiyat gecmisi bolumleri.
+ */
+
+.page {
+  display: flex;
+  flex-direction: column;
+  padding-top: var(--space-6);
+}
+
+/* ---------- Ust bolum: gorsel + ozet ---------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+  align-items: start;
+}
+
+.media {
+  min-width: 0;
+}
+
+/* design.md "Ürün fotoğrafı ve koyu tema": fotograf --surface-raised
+   panelin icinde kalir; beyaz zeminli gorsel koyu temada yuzmez. */
+.mediaFrame {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1 / 1;
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  overflow: hidden;
+}
+
+.image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  border-radius: var(--radius-md);
+  /* ProductImage varsayilan --surface zemini contain'de gorselin yanlarinda
+     serit olarak gorunurdu; panel zemini (--surface-raised) kalsin. Kirik
+     gorselde ProductImage'in ::before katmani yine --surface cizer. */
+  background: transparent;
+}
+
+.mediaPlaceholder {
+  width: 100%;
+  height: 100%;
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.summary {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-8);
+  min-width: 0;
+}
+
+.titleBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.brand {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--ink-secondary);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.priceBlock {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.priceBlock > p {
+  margin: 0;
+}
+
+.noOffers {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+}
+
+/* ---------- Birincil cikis ---------- */
+
+.primaryOffer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+/* Karar 0025: notr birincil eylem --accent. Tek teklifte de gorunen cikis
+   bu; href her zaman /git uzerinden (CLAUDE.md kural 8). */
+.primaryCta {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: calc(var(--size-touch-target) + var(--space-2));
+  padding: var(--space-3) var(--space-6);
+  border: var(--border-width) solid var(--accent);
+  border-radius: var(--radius-md);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  text-align: center;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+
+.primaryCta:hover {
+  border-color: var(--accent-hover);
+  background: var(--accent-hover);
+}
+
+.primaryCta:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .primaryCta {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard);
+  }
+}
+
+.primaryMeta {
+  display: flex;
+  flex-wrap: wrap;
+  column-gap: var(--space-3);
+  row-gap: var(--space-1);
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  color: var(--ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.outOfStock {
+  color: var(--alert);
+}
+
+.compareLink {
+  display: inline-flex;
+  align-items: center;
+  align-self: flex-start;
+  min-height: var(--size-touch-target);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+
+.compareLink:hover {
+  color: var(--ink-secondary);
+}
+
+.compareLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.notice {
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  color: var(--ink-muted);
+}
+
+/* ---------- Beden, kaydet / alarm (istemci bilesenleri) ---------- */
+
+.fieldGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.fieldLabel {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--ink);
+}
+
+.statusText {
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  color: var(--ink-secondary);
+}
+
+/* Bos canli bolge erisilebilirlik agacinda kalir ama akista bosluk
+   (flex gap) uretmez. */
+.statusText:empty {
+  position: absolute;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.actionButtons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.actionButton {
+  flex: 1 1 auto;
+}
+
+.alertForm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: var(--space-3);
+}
+
+.alertField {
+  flex: 1 1 calc(var(--space-32) + var(--space-8));
+  min-width: 0;
+}
+
+/* Input etiketinin (--text-small x normal) ve etiket-girdi araliginin
+   (--space-2) altina hizalanir; ipucu satiri dugmeyi asagi itmez. */
+.alertSubmit {
+  flex: none;
+  margin-top: calc(var(--text-small) * var(--line-height-normal) + var(--space-2));
+}
+
+/* ---------- Alt bolumler ---------- */
+
+.sectionHeader {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  column-gap: var(--space-4);
+  row-gap: var(--space-1);
+  margin-bottom: var(--space-6);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--text-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  letter-spacing: var(--letter-spacing-h2);
+  color: var(--ink);
+}
+
+.sectionMeta {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  color: var(--ink-muted);
+}
+
+.offers {
+  max-width: var(--content-width-standard);
+  scroll-margin-top: var(--space-24);
+}
+
+.disclaimer {
+  margin: var(--space-4) 0 0;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  color: var(--ink-muted);
+}
+
+.history {
+  max-width: var(--content-width-comparison);
+}
+
+.historyText {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* docs/pages.md "Alternatif şeridi": mobilde yatay kaydirma (serit sayfa
+   genisligini tasirmaz, kendi icinde kayar), genis ekranda izgara. */
+.altList {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: calc((100% - var(--space-4)) / 2.2);
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0 0 var(--space-2);
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x mandatory;
+}
+
+.altList > li {
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+@media (min-width: 640px) {
+  .altList {
+    grid-auto-columns: calc((100% - 2 * var(--space-4)) / 3.2);
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    padding-top: var(--space-10);
+  }
+
+  .hero {
+    grid-template-columns: minmax(0, 6fr) minmax(0, 5fr);
+    gap: var(--space-16);
+  }
+
+  .mediaFrame {
+    padding: var(--space-10);
+  }
+
+  .altList {
+    grid-auto-flow: row;
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    overflow-x: visible;
+    padding-bottom: 0;
+  }
+}

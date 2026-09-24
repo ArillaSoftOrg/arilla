@@ -1,21 +1,42 @@
+/* docs/design.md "Tip rolleri" + "Düzen": hero okuma genisliginde (640px)
+   ortalanir; genis Container ve gutter kabuktan gelir. */
 .hero {
   display: grid;
-  gap: var(--space-3);
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+  width: 100%;
+  max-width: var(--content-width-reading);
+  margin-inline: auto;
+}
+
+.intro {
+  display: grid;
+  gap: var(--space-4);
   text-align: center;
 }
 
 .title {
   margin: 0;
-  font-size: var(--font-size-xl);
-  line-height: var(--line-height-heading);
-  font-weight: 500;
+  font-size: var(--text-display);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-display);
   color: var(--ink);
+  text-wrap: balance;
 }
 
 .subtitle {
   margin: 0 auto;
-  max-width: 52ch;
-  font-size: var(--font-size-md);
+  max-width: 44ch;
+  font-size: var(--text-body-lg);
   line-height: var(--line-height-body);
-  color: var(--ink-muted);
+  color: var(--ink-secondary);
+  text-wrap: pretty;
+}
+
+/* minmax(0, 1fr): chip satiri gibi nowrap icerik kolonu viewport'tan genis
+   acmasin. */
+.action {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
 }

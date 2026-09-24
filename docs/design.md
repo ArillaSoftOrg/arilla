@@ -77,10 +77,14 @@ Mevcut adlar korunur; yeni roller için yeni ad eklenir. Tek kaynak
 | `--save` üstü metin | `--on-save` | `#FFFFFF` | `#0E0F11` |
 | Uyarı | `--warning` | `#8A5300` | `#E2A64A` |
 | Hata / yıkıcı | `--alert` | `#A8321F` | `#E5705C` |
+| Modal örtüsü | `--scrim` | `rgba(14,15,17,.45)` | `rgba(0,0,0,.6)` |
 
 Koyu temada `--save`, `--warning` ve `--alert` açılır, yoksa koyu zeminde
-okunmaz. Aynı hex değeri iki temada kullanılmaz (tek istisna: `--accent`
-ailesi bilerek `--ink`'in ters rolüdür, karar 0025).
+okunmaz. `--scrim` metin rolü değildir, kontrastı ölçülmez; iki temada da
+koyudur (açık bir örtü koyu temada içeriği beyaza boğardı) ve arkadaki
+içeriği okunur bırakacak kadar saydamdır. Aynı hex değeri iki temada
+kullanılmaz (tek istisna: `--accent` ailesi bilerek `--ink`'in ters rolüdür,
+karar 0025).
 
 **Kontrast (WCAG 2.2 AA, hesaplanmış):**
 
@@ -183,9 +187,12 @@ listesi bunun yerine aşağıdaki **belirteç tabanlı** modelle değişir. Fiya
 farkı bileşeni için "kutu yok, gölge yok, kenarlık yok" kuralı aynen geçerli.
 
 **Geçiş kuralı:** Belirteçler Faz 1A'da tanımlandı; mevcut bileşenler
-yeniden tasarlandıkları fazda bu modele taşınır. Taşınana kadar bugünkü
-görünümleri (köşesiz `Card`, `Badge`, `ProductCard`, ürün sayfası, yönetim
-ekranları) değişmez — toplu, tek adımlık bir görsel değişim yapılmaz.
+yeniden tasarlandıkları fazda bu modele taşınır. Paylaşılan temel
+bileşenler (`Button`, `Input`, `Badge`, `Card`, `EmptyState`, `LoginModal`,
+`ThemeToggle`, `ProductImage`, `UpdatedAt`) public arayüz yeniden tasarımında
+taşındı (bkz. "Paylaşılan temel bileşenler"); bunları kullanan yönetim
+ekranları da yeni görünümü bu bileşenler üzerinden alır. Henüz taşınmayan
+sayfaya özgü bileşenler kendi fazlarında taşınır.
 
 ### Köşe yarıçapı
 
@@ -281,7 +288,9 @@ kasıtlıdır; yeni bir sayfa en yakın kategoriyi seçer, sayı uydurmaz.
 | Geniş | `--content-width-wide` | 1280px | ana sayfa bölümleri, keşif ızgarası |
 
 Genişlik `Container` ilkeliyle uygulanır (`packages/ui/src/Container.tsx`);
-`max-width` sayfaya satır içi yazılmaz. Mevcut sayfalardaki satır içi
+`max-width` sayfaya satır içi yazılmaz. Public sayfalarda geniş `Container`
+kabuktan gelir; sayfa içindeki daha dar bölüm yalnızca ilgili
+`--content-width-*` belirtecini `max-width` olarak kullanır. Mevcut sayfalardaki satır içi
 `maxWidth: 360/720/960` değerleri ilgili sayfa yeniden tasarlanırken
 `Container`'a taşınır.
 
@@ -325,7 +334,7 @@ satırlarındaki metin girdileri `min-width: 0` taşır ki flex'in varsayılan
 küçülmeme davranışı satırı taşırmasın (bkz.
 `packages/ui/src/SearchForm.module.css`).
 
-Keşif masonry ızgarası (`home-discovery.module.css`, 2/3/4/5 sütun) bu üç
+Keşif masonry ızgarası (`packages/ui/src/DiscoveryGrid.module.css`, 2/3/4/5 sütun) bu üç
 noktayı zaten kullanır; artık istisna değil, kuralın örneğidir (dosyadaki
 "istisna" yorumu bileşen yeniden tasarlanırken güncellenir).
 
@@ -343,8 +352,8 @@ noktayı zaten kullanır; artık istisna değil, kuralın örneğidir (dosyadaki
 | `--z-modal` | 400 | Modal, diyalog |
 | `--z-toast` | 500 | Bildirim / kritik katman |
 
-Mevcut `LoginModal` (`z-index: 100`) yapışkan üst çubukla aynı katmanda;
-modal yeniden tasarlanırken `--z-modal`'a taşınır (Faz 1B).
+`LoginModal` örtüsü (`--scrim`) `--z-overlay`, diyaloğu `--z-modal` kullanır; yapışkan
+üst çubuğun üstünde kalır.
 
 Tek satırlık `<input>` placeholder'ları dar ekranlarda kırpılabilir — bu bir
 düzen hatası değildir, tarayıcıların placeholder'ı sarmama (no-wrap)
@@ -376,6 +385,87 @@ bulundur.
 | Boş durum | her liste | Yönlendirme metni, illüstrasyon yok |
 | Yükleniyor | görsel arama | İskelet kart, spinner değil |
 | Affiliate bildirimi | çıkış öncesi ve altbilgi | Yasal zorunluluk |
+
+## Paylaşılan temel bileşenler (packages/ui)
+
+Aşağıdaki bileşenler kutu modeline taşınmıştır; sayfa bunları yeniden
+stillemez, yalnızca yerleşim sınıfı verir. Tüm renkler, köşeler, boşluklar,
+odak ve süreler belirteçtir; iki koyu tema yolu yalnızca belirteçlerle
+çalışır.
+
+**Button.** Hepsi `--radius-md`, `min-height: var(--size-touch-target)`,
+odakta `--focus-ring`; renk geçişleri `--duration-fast` / `--ease-standard`,
+yalnızca `prefers-reduced-motion: no-preference` içinde. Hover'da
+`filter` kullanılmaz, zemin belirteci değişir.
+
+| `variant` | Kullanım | Dinlenme | Hover |
+| --- | --- | --- | --- |
+| `primary` | Olumlu birincil eylem (giriş bağlantısı gönder, alarm kur, onayla) | `--save` / `--on-save` | `--save` ile `--ink` karışımı (%12) — açıkta koyulaşır, koyuda açılır |
+| `secondary` (varsayılan) | İkincil eylem | `--surface-raised`, `--line-strong` kenarlık | `--surface-hover` |
+| `accent` | Nötr birincil eylem (karar 0025): arama, keşfet | `--accent` / `--accent-foreground` | `--accent-hover` |
+| `ghost` | Üçüncül eylem, ikon düğmesi, "Tümünü gör" | Zeminsiz, kenarlıksız | `--surface-hover` |
+
+Ek, isteğe bağlı prop'lar: `size="lg"` (hero/form ana eylemi; 44px + 8px,
+`--text-body-lg`), `shape="pill"` (`--radius-pill`, chip benzeri eylem),
+`fullWidth` (mobil form eylemi). `ghost` tek başına kontrol sınırı
+taşımadığı için yalnızca metni veya ikonu kendini açıkça belli eden yerde
+kullanılır (ikon düğmesinde `aria-label` zorunlu).
+
+**Input.** Etiket her zaman görünür (`--text-small`, orta ağırlık), girdi
+`--surface-raised` zeminli, `--line-strong` kenarlık, `--radius-md`, 44px,
+16px yazı (iOS odak yakınlaştırmasını önler). Hata `--alert` kenarlık + altta
+`--alert` metin; isteğe bağlı `hint` yardım metni. İkisi de
+`aria-describedby` ile girdiye bağlıdır, hata `aria-invalid` verir.
+
+**Badge.** Dolgusuz, 1px `--line`, `--radius-sm`, `--text-meta`, orta
+ağırlık. `tone="save"` yalnızca tasarruf olgusu (ör. "%20 daha uygun") için
+metni `--save` yapar; yine dolgusuzdur. Sponsor rozeti bu bileşenle ve
+gizlenemez biçimde gösterilir.
+
+**Card.** `--surface-raised`, 1px `--line`, `--radius-md`, gölge yok; iç
+boşluk `--space-4`, ≥ 640px `--space-5`.
+
+**EmptyState.** Ortalı, sakin; başlık `--text-h3` (compact'ta
+`--text-body-lg`), açıklama `--ink-muted` ve en fazla 44 karakter
+genişliğinde, eylem(ler) altta. `headingLevel={1|2|3}` verilirse başlık
+gerçek başlık öğesi olur (sayfada başka `<h1>` yoksa `1`, bölümün tek
+içeriğiyse `2`/`3`); verilmezse `<p>` kalır. Görsel boyut seviyeden
+bağımsızdır.
+`tone="compact"` liste/panel içinde, `icon` isteğe bağlı dekoratif ikon
+(illüstrasyon değil).
+
+**LoginModal.** Örtü `--scrim`: iki temada da koyu, yarı saydam; sonuçlar
+arkada okunur kalır (karar 0002). Diyalog
+`--surface-raised`, `--radius-lg`, `--shadow-md`; telefonda alta, ≥ 640px'te
+ortaya yerleşir. Davranış:
+
+- `aria-modal`, başlığa `aria-labelledby`, açıklamaya `aria-describedby`.
+- Açılınca odak ilk içerik alanına (ör. e-posta girdisi) gider; yoksa ×
+  düğmesine.
+- Tab / Shift+Tab diyalog içinde döner; odak dışarı kaçarsa geri alınır.
+- Esc ve görünür × düğmesi kapatır; örtüye tıklama kasıtlı olarak kapatmaz.
+- Kapanınca odak modalı açan öğeye döner.
+- Açıkken sayfa kaydırması kilitlenir (kaydırma çubuğu genişliği korunur,
+  içerik yana kaymaz).
+
+**ProductImage.** Server Component (istemci durumu yok, kart başına
+hidrasyon adası oluşmaz). Varsayılan `loading="lazy"`, her zaman
+`decoding="async"`. Düzen kayması olmaması için `aspectRatio` (veya
+`width`/`height`) verilir. Görsel yüklenirken ve kırıkken aynı kutu
+`--surface` zeminli kalır: alt metin görsel olarak saydamdır (ekran okuyucu
+okur), kırık görselde `::before` kutuyu `--surface` ile kaplar (Chromium,
+Firefox; Safari'de küçük kırık ikon nötr kutuda kalır). `fit="contain"` beyaz zeminli ürün fotoğrafını kırpmadan
+gösterir; LCP görseli `loading="eager"` + `fetchPriority="high"` alır.
+Varsayılan stiller sıfır özgüllüklüdür; tüketicinin sınıfı her zaman kazanır.
+
+**İkonlar (`icons.tsx`).** Satır içi SVG, `currentColor`, `aria-hidden`;
+isteğe bağlı `size` (px). Erişilebilir ad taşıyıcı düğmede durur.
+
+**Taban stiller (`apps/web/app/globals.css`).** Gövde `--text-body` /
+`--line-height-body`; `h1` `--text-h1` yarı kalın, `h2` `--text-h2`, `h3`
+`--text-h3` orta ağırlık (sınıf her zaman üstüne yazar); `img` taşmaz;
+form öğeleri fontu miras alır; `:focus-visible` güvenlik ağı olarak
+`--focus-ring` çizer; `::selection` `--accent` ailesini kullanır.
 
 ## Ana ekranlar
 
@@ -437,9 +527,18 @@ yeterli (bkz. "Renk belirteçleri"), fotoğraflar `alt` metinli, dokunma
 hedefleri 44px. Ekranda görünmeyen ama ekran okuyucuya söylenmesi gereken
 metin `VisuallyHidden` ile yazılır.
 
-**Hedef (Faz 1B'de site kabuğuna bağlanır, bugün henüz yok):** her sayfa ilk
-odaklanabilir öğe olarak `SkipLink` ("İçeriğe geç") taşır ve tek
-`<main id="icerik">` içerir. `SkipLink`'in varsayılan hedefi bu id'dir.
+Dokunma hedefi belirteci `--size-touch-target` (44px); `44px` koda yeni
+yazılmaz, mevcut kullanımlar bileşen taşındıkça belirtece geçer.
+
+**Public site kabuğu (Faz 1B, `apps/web/app/public-site-shell.tsx`):** her
+public sayfa `SkipLink` ("İçeriğe geç", ilk odaklanabilir öğe) → üst çubuk →
+`<main id="icerik">` → altbilgi yapısını bu kabuktan alır. `<main>` ve
+`Container size="wide"` (yatay `--gutter`) kabuğa aittir; sayfa ikinci bir
+`<main>` veya kendi yatay kenar boşluğunu üretmez, daha dar içerik yalnızca
+`max-width: var(--content-width-*)` kullanır (`Container` iç içe konmaz,
+gutter iki kez uygulanırdı). Kabuk dışındaki sayfalar (giriş gerektiren
+hesap sayfaları, `/yonetim`, `[...link]` bekleme ekranı) kendi `<main>`'ini
+taşır; bunlar Faz 1B kapsamı dışında, atla bağlantısı henüz yok.
 
 ## Düzen ilkeleri (packages/ui)
 

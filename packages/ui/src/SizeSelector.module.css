@@ -8,24 +8,47 @@
 }
 
 .size {
-  min-width: 44px;
-  min-height: 44px;
+  min-width: var(--size-touch-target);
+  min-height: var(--size-touch-target);
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  padding: var(--space-1) var(--space-2);
-  border: 1px solid var(--line);
-  background: transparent;
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
   color: var(--ink);
-  font-size: var(--font-size-sm);
   font-family: inherit;
-}
-
-button.size {
-  cursor: pointer;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  font-variant-numeric: tabular-nums;
 }
 
 .unavailable {
+  background: var(--surface);
   color: var(--ink-muted);
   text-decoration: line-through;
+}
+
+/* Etkilesimli: kontrol siniri --line-strong (design.md "Kenarlık"). */
+.button {
+  border-style: dashed;
+  border-color: var(--line-strong);
+  cursor: pointer;
+}
+
+.button:hover {
+  background: var(--surface-hover);
+}
+
+.button:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .button {
+    transition: background-color var(--duration-fast) var(--ease-standard);
+  }
 }

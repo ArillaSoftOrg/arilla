@@ -16,6 +16,8 @@ export interface SearchFormProps {
  * JS'siz calisir (native GET form) - docs/pages.md "Arama girdisi": ana
  * sayfa ve /ara'da ayni bilesen. D1'in `Input`'unu kullanmaz cunku bu
  * girdi gorunur etiket degil placeholder tasir (arama kutusu deseni).
+ * Gorunum ana sayfa composer'inin kompakt karsiligi: tek kutu, icinde
+ * kenarliksiz girdi ve notr birincil eylem.
  */
 export function SearchForm({
   action = "/ara",
@@ -28,16 +30,17 @@ export function SearchForm({
   return (
     <form action={action} method="get" className={styles.form}>
       <input
-        type="text"
+        type="search"
         name={name}
         defaultValue={defaultValue}
         placeholder={placeholder}
         aria-label={placeholder}
+        enterKeyHint="search"
         // biome-ignore lint/a11y/noAutofocus: opt-in prop, sadece ana sayfada true - docs/pages.md gereksinimi.
         autoFocus={autoFocus}
         className={styles.input}
       />
-      <Button type="submit" variant="primary">
+      <Button type="submit" variant="accent" shape="pill" className={styles.submit}>
         {submitLabel}
       </Button>
     </form>

@@ -1,17 +1,28 @@
 import { type InputHTMLAttributes, useId } from "react";
 import styles from "./Input.module.css";
+import { joinClassNames } from "./layout.ts";
 
 export interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
+  /** Opsiyonel yardim metni; etiketin altinda degil, girdinin altinda durur. */
+  hint?: string;
 }
 
-export function Input({ label, error, className, id, ...rest }: InputProps) {
+export function Input({
+  label,
+  error,
+  hint,
+  className,
+  id,
+  "aria-describedby": describedBy,
+  ...rest
+}: InputProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
-  const inputClasses = [styles.input, error ? styles.error : undefined, className]
-    .filter(Boolean)
-    .join(" ");
+  const hintId = hint ? `${inputId}-hint` : undefined;
+  const errorId = error ? `${inputId}-error` : undefined;
+  const describedByIds = [describedBy, hintId, errorId].filter(Boolean).join(" ") || undefined;
 
   return (
     <div className={styles.field}>
@@ -21,10 +32,20 @@ export function Input({ label, error, className, id, ...rest }: InputProps) {
       <input
         {...rest}
         id={inputId}
-        className={inputClasses}
+        className={joinClassNames(styles.input, error && styles.error, className)}
         aria-invalid={error ? true : undefined}
+        aria-describedby={describedByIds}
       />
-      {error ? <span className={styles.errorText}>{error}</span> : null}
+      {hint ? (
+        <span id={hintId} className={styles.hint}>
+          {hint}
+        </span>
+      ) : null}
+      {error ? (
+        <span id={errorId} className={styles.errorText}>
+          {error}
+        </span>
+      ) : null}
     </div>
   );
 }

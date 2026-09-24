@@ -1,5 +1,6 @@
 import { ProductImage } from "./ProductImage.tsx";
 import styles from "./TrendCollectionCard.module.css";
+import { VisuallyHidden } from "./VisuallyHidden.tsx";
 
 export interface TrendCollectionProduct {
   id: string;
@@ -20,15 +21,19 @@ export interface TrendCollection {
 }
 
 export type TrendCollectionCardProps = TrendCollection & {
-  /** Faz 7: ilk ekrandaki kartlar icin "eager"; varsayilan "lazy". */
+  /** Varsayilan "lazy"; yalnizca ilk ekrandaki ilk kart "eager". */
   heroImageLoading?: "lazy" | "eager";
+  /** LCP adayi olan ilk kart icin "high". */
+  heroImageFetchPriority?: "high" | "low" | "auto";
 };
 
 /**
- * docs/pages.md "/" Faz 2: editorial kesif karti. Veri kaynagini bilmez -
- * bugun `apps/web/data/demo/homepage-trends.ts` dolduruyor, ileride ayni
- * sekli bir DB/API sonucu doldurabilir (CLAUDE.md kural 6: is mantigi
- * disarida, bilesen sadece sunum).
+ * Editoryal trend karti (design.md "Trend kartı": kapak, baslik, urun
+ * onizlemeleri). Veri kaynagini bilmez - bugun
+ * `apps/web/data/demo/homepage-trends.ts`, ileride bir DB sonucu.
+ *
+ * Bugun trend sayfasi (`/trend/<slug>`) olmadigi icin kart baglanti DEGIL -
+ * sahte href uretilmez. Rota geldiginde `href` eklenir.
  */
 export function TrendCollectionCard({
   eyebrow,
@@ -37,32 +42,40 @@ export function TrendCollectionCard({
   heroImageUrl,
   heroImageAlt,
   products,
-  heroImageLoading,
+  heroImageLoading = "lazy",
+  heroImageFetchPriority,
 }: TrendCollectionCardProps) {
   return (
     <article className={styles.card}>
-      <ProductImage
-        src={heroImageUrl}
-        alt={heroImageAlt}
-        className={styles.heroImage}
-        loading={heroImageLoading}
-      />
+      <div className={styles.frame}>
+        <ProductImage
+          src={heroImageUrl}
+          alt={heroImageAlt}
+          className={styles.heroImage}
+          fit="contain"
+          loading={heroImageLoading}
+          fetchPriority={heroImageFetchPriority}
+        />
+      </div>
       <div className={styles.body}>
         {eyebrow ? <p className={styles.eyebrow}>{eyebrow}</p> : null}
         <h3 className={styles.title}>{title}</h3>
         <p className={styles.description}>{description}</p>
         {products && products.length > 0 ? (
-          <ul className={styles.productList}>
+          // biome-ignore lint/a11y/noRedundantRoles: list-style:none WebKit'te liste rolunu dusurur.
+          <ul role="list" className={styles.productList}>
             {products.map((product) => (
               <li key={product.id} className={styles.productItem}>
+                {/* Ad hemen yaninda (gizli metin) - gorsel dekoratif, alt="". */}
                 <ProductImage
                   src={product.imageUrl}
-                  alt={product.imageAlt}
+                  alt=""
                   className={styles.productImage}
+                  fit="contain"
                 />
-                <span className={styles.productLabel}>
+                <VisuallyHidden>
                   {product.brand ? `${product.brand} ${product.title}` : product.title}
-                </span>
+                </VisuallyHidden>
               </li>
             ))}
           </ul>

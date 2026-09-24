@@ -1,99 +1,160 @@
+/* Zemin `--surface`: footer icerikten ayrilir, ek cizgi/golge gerekmez.
+   `--ink-muted` bu zeminde 4.90:1 (design.md "Kontrast"). */
 .footer {
-  border-top: 1px solid var(--line);
+  background: var(--surface);
+  border-top: var(--border-width) solid var(--line);
 }
 
+/* Genislik ve yatay bosluk `Container size="wide"`'dan gelir - ust cubuk
+   ve ana icerikle ayni kenarlar (docs/design.md "Düzen ve kapsayıcılar").
+   Dikey ritim bolum boslugu belirteciyle akiskan (32 -> 64px). */
 .inner {
   display: grid;
   gap: var(--space-8);
-  max-width: var(--content-width-wide);
-  margin-inline: auto;
-  padding: var(--space-8) var(--space-6);
+  padding-block: var(--section-space-compact) var(--space-8);
 }
 
-.columns {
+/* Marka blogu + link gruplari. Telefonda alt alta; `lg` (1024px) ve
+   ustunde marka solda, gruplar sagda ayni satirda. */
+.top {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: var(--space-6);
+  gap: var(--space-10);
+}
+
+@media (min-width: 1024px) {
+  .top {
+    grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
+    gap: var(--space-16);
+  }
 }
 
 .brand {
   display: grid;
-  /* Faz 7: satirlar en uzun sutunun yuksekligine yayilmasin. */
   align-content: start;
-  gap: var(--space-2);
-  /* Marka blogu digerlerinden biraz daha genis - kisa aciklama tek satira sikismasin. */
-  max-width: 32ch;
+  gap: var(--space-3);
+  /* Kisa aciklama okunur satir uzunlugunda kalir (kompakt icerik genisligi). */
+  max-width: var(--content-width-compact);
 }
 
 .brandLabel {
-  margin: 0;
-  font-size: var(--font-size-md);
-  font-weight: 500;
+  justify-self: start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  letter-spacing: var(--letter-spacing-h1);
   color: var(--ink);
+  text-decoration: none;
 }
 
 .brandDescription {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-small);
   line-height: var(--line-height-body);
   color: var(--ink-muted);
+}
+
+/* Gruplar: telefonda iki sutun, `sm` (640px) ve ustunde grup sayisi kadar
+   esit sutun - sabit piksel minimum genislik yok (design.md "Duyarlı
+   tasarım"). */
+.groups {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8) var(--space-6);
+}
+
+@media (min-width: 640px) {
+  .groups {
+    grid-template-columns: none;
+    grid-auto-flow: column;
+    grid-auto-columns: minmax(0, 1fr);
+  }
 }
 
 .group {
   display: grid;
   align-content: start;
-  gap: var(--space-3);
+  gap: var(--space-2);
   /* min-width:0 - grup basligi/linkler flex/grid daralinca tasmasin. */
   min-width: 0;
 }
 
 .groupTitle {
   margin: 0;
-  font-size: var(--font-size-xs);
-  font-weight: 500;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
   color: var(--ink);
 }
 
+/* Linkler 44px dokunma hedefi tasir (design.md "Kalite tabanı"); aralarindaki
+   gorsel bosluk hedefin kendi yuksekliginden gelir. */
 .linkList {
   display: grid;
-  gap: var(--space-2);
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .link {
-  font-size: var(--font-size-sm);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
   color: var(--ink-muted);
-  text-decoration: none;
+  text-decoration-line: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: var(--border-width);
+  text-underline-offset: 0.3em;
 }
 
 .link:hover {
   color: var(--ink);
+  text-decoration-color: currentColor;
 }
 
+.link[aria-current="page"] {
+  color: var(--ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .link {
+    transition:
+      color var(--duration-fast) var(--ease-standard),
+      text-decoration-color var(--duration-fast) var(--ease-standard);
+  }
+}
+
+.brandLabel:focus-visible,
 .link:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
+/* Disclosure bandi: affiliate bildirimi + fiyat/stok uyarisi tek yerde.
+   Yasal zorunluluk - meta boyutuna dusurulmez, okuma genisliginde kalir. */
 .disclosure {
   display: grid;
   gap: var(--space-2);
-  padding-top: var(--space-6);
-  border-top: 1px solid var(--line);
+  padding-top: var(--space-8);
+  border-top: var(--border-width) solid var(--line);
 }
 
 .disclosureText {
   margin: 0;
-  /* Affiliate/fiyat-stok bildirimi okunabilir kalir - xs'e dusurulmez. */
-  font-size: var(--font-size-sm);
+  max-width: var(--content-width-reading);
+  font-size: var(--text-small);
   line-height: var(--line-height-body);
   color: var(--ink-muted);
 }
 
 .copyright {
-  margin: var(--space-2) 0 0;
-  font-size: var(--font-size-xs);
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
   color: var(--ink-muted);
 }

@@ -6,93 +6,163 @@
   gap: var(--space-4);
 }
 
+/* design.md "Kutu modeli": arama kutusu --radius-lg; kontrol siniri
+   --line-strong (>= 3:1); dinlenmede --shadow-xs, vurguluyken --shadow-sm. */
 .box {
   display: flex;
-  /* Faz 7: dar ekranda girdi ~90px'e sikisiyordu. Girdinin minimum esas
-     genisligi sigmazsa butonlar alt satira sarilir, girdi tam genislik alir.
-     Breakpoint yok (docs/design.md "Duyarli tasarim"). */
+  /* Guvenlik agi: girdinin esas genisligi sigmazsa eylemler alt satira
+     sarilir. 320px'te sarma olmaz (mobilde gonder dugmesi yalnizca ikon). */
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--space-2);
-  min-height: 56px;
-  padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
-  /* Karar 0025: ana sayfa kabugu istisnasi - digerinde --radius:0/golge yok. */
-  border: 1px solid var(--line);
-  border-radius: var(--radius-md);
+  gap: var(--space-1);
+  padding: var(--space-2);
+  padding-inline-start: var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-lg);
   background: var(--surface-raised);
-  box-shadow: var(--shadow-sm);
+  box-shadow: var(--shadow-xs);
+}
+
+.box:hover {
+  border-color: var(--ink-muted);
 }
 
 .box:focus-within {
   border-color: var(--ink);
-  box-shadow:
-    var(--shadow-sm),
-    0 0 0 3px rgba(22, 24, 29, 0.06);
+  box-shadow: var(--shadow-sm);
+}
+
+/* Girdinin kendi outline'i yok; esdeger gorunurlukte halka kutuya cizilir
+   (design.md "Odak"). Dugmeler kendi --focus-ring'ini tasir. */
+.box:has(.input:focus-visible) {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 @media (prefers-reduced-motion: no-preference) {
   .box {
     transition:
-      border-color 0.15s ease,
-      box-shadow 0.15s ease;
+      border-color var(--duration-fast) var(--ease-standard),
+      box-shadow var(--duration-base) var(--ease-standard);
   }
 }
 
 .input {
-  flex: 1 1 10rem;
-  min-height: 40px;
-  /* Flex varsayilani min-width:auto - icerik genisligi altina kucultmez,
-     bu da placeholder/buton uzayinca satirin tasmasini onler. */
+  flex: 1 1 8rem;
+  /* Flex varsayilani min-width:auto - satir tasmasin (design.md). */
   min-width: 0;
+  min-height: var(--size-touch-target);
+  padding: 0;
   border: none;
   background: transparent;
   color: var(--ink);
   font-family: inherit;
-  font-size: var(--font-size-md);
+  font-size: var(--text-body-lg);
+  line-height: var(--line-height-normal);
   outline: none;
+  text-overflow: ellipsis;
+  /* type="search": WebKit'in yuvarlak/golgeli yerel gorunumu kapatilir. */
+  appearance: none;
+}
+
+.input::-webkit-search-decoration {
+  appearance: none;
 }
 
 .input::placeholder {
   color: var(--ink-muted);
+  opacity: 1;
 }
 
 .actions {
   display: flex;
   align-items: center;
-  gap: var(--space-2);
+  gap: var(--space-1);
   flex-shrink: 0;
   margin-inline-start: auto;
 }
 
-/* Fotograf tetikleyicisinin hover'ini Button.module.css'in paylasilan
-   .secondary sinifina dokunmadan, sadece bu composer icinde iyilestirir. */
-.photoSlot {
-  display: flex;
-  align-items: center;
+/* Ikon dugmesi: kare 44px dokunma hedefi, --radius-md (kutunun --radius-lg
+   kosesinden kucuk - ic ice yuzey kurali). */
+.box .photoButton {
+  width: var(--size-touch-target);
+  min-width: var(--size-touch-target);
+  padding: 0;
+  color: var(--ink-secondary);
 }
 
-.photoSlot > button:hover {
-  background: var(--surface);
+.box .photoButton:hover:not(:disabled) {
+  color: var(--ink);
 }
 
+.box .submit {
+  padding-inline: var(--space-3);
+}
+
+/* Mobilde gonder dugmesi yalnizca ok ikonu; erisilebilir ad aria-label'da. */
 .submitLabel {
-  display: inline-block;
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .box {
+    padding: var(--space-2);
+    padding-inline-start: var(--space-5);
+  }
+
+  .box .submit {
+    padding-inline: var(--space-5);
+  }
+
+  .submitLabel {
+    display: inline;
+  }
 }
 
 .status {
   margin: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
   color: var(--alert);
+  text-align: center;
+}
+
+.busy {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  color: var(--ink-muted);
+  text-align: center;
+}
+
+/* Bos canli bolge erisilebilirlik agacinda kalir (duyuru icin onceden var
+   olmali) ama akista yer kaplamaz. */
+.busy:empty {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .chipsSection {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-2);
+  gap: var(--space-3);
 }
 
 .chipsTitle {
   margin: 0;
-  font-size: var(--font-size-sm);
+  text-align: start;
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
   color: var(--ink-muted);
+}
+
+@media (min-width: 640px) {
+  .chipsTitle {
+    text-align: center;
+  }
 }

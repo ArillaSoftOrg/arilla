@@ -19,13 +19,44 @@ import {
   PriceDiffBlock,
   PricePositionText,
   ProductCard,
+  ProductImage,
+  Section,
   UpdatedAt,
+  withLocativeSuffix,
 } from "@arilla/ui";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
+import { HOME_COPY } from "../../home-copy.ts";
 import { ProductActionsClient } from "./product-actions-client.tsx";
+import styles from "./product-page.module.css";
 import { SizeSelectorClient } from "./size-selector-client.tsx";
+
+/** Mağaza satırı ve birincil çıkışın ortak metinleri (docs/copy.md `product.*`). */
+interface OfferLike {
+  merchantName: string;
+  effectiveShipping: number;
+  effectiveTotal: number;
+}
+
+/** docs/copy.md `action.open_at_merchant`: "{mağaza}'da aç", ek ünlü uyumuyla. */
+function openAtMerchantLabel(offer: OfferLike): string {
+  return `${withLocativeSuffix(offer.merchantName)} aç`;
+}
+
+/** Liste satırı: kargo dahil toplam ayrı sütunda durur, burada yalnızca kargo payı. */
+function offerShippingLabel(offer: OfferLike): string {
+  return offer.effectiveShipping === 0
+    ? "Kargo bedava"
+    : `${formatTRY(offer.effectiveShipping)} kargo`;
+}
+
+/** Birincil çıkış: başlıktaki fiyat kargosuz ürün fiyatıdır, burada kargo dahil toplam. */
+function offerTotalLabel(offer: OfferLike): string {
+  return offer.effectiveShipping === 0
+    ? "Kargo bedava"
+    : `Kargo dahil ${formatTRY(offer.effectiveTotal)}`;
+}
 
 /** docs/copy.md `product.price_lowest_90d`: yalnizca gercekten dusukse gosterilir. */
 const LOWEST_PERCENTILE_THRESHOLD = 5;
@@ -100,6 +131,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     merchantOffers.length > 0 ? await getPriceHistory(db, product.productId) : [];
 
   const cheapest = merchantOffers[0];
+  // compareMerchants yalnizca kargo dahil toplama gore siralar (stok bilmez).
+  // Birincil cikis ve "En uygun fiyat" etiketi stokta olan en uygun teklife
+  // gider; hic stokta teklif yoksa en uygun teklif kalir.
+  const primaryOffer = merchantOffers.find((offer) => offer.inStock) ?? cheapest;
   const singleOffer = merchantOffers.length === 1;
 
   const positionLines: string[] = [];
@@ -146,152 +181,224 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
       : {}),
   };
 
+  // Fiyat geçmişi özeti: grafikle aynı seriden (decision 0019, son 90 gün).
+  const historyPrices = priceHistory.map((point) => point.minPriceKurus);
+  const historyMin = historyPrices.length > 0 ? Math.min(...historyPrices) : null;
+  const historyMax = historyPrices.length > 0 ? Math.max(...historyPrices) : null;
+  const historySentence =
+    historyMin === null || historyMax === null
+      ? null
+      : historyMin === historyMax
+        ? `Son 90 günde fiyat ${formatTRY(historyMin)} olarak kaldı.`
+        : `Son 90 günde ${formatTRY(historyMin)} ile ${formatTRY(historyMax)} arasında değişti.`;
+
+  const showOffers = !singleOffer && merchantOffers.length > 0;
+  const showHistory = priceHistory.length >= 2;
+
   return (
-    <main style={{ padding: 24, display: "grid", gap: 24, maxWidth: 720 }}>
+    <div className={styles.page}>
       <script
         type="application/ld+json"
         // biome-ignore lint/security/noDangerouslySetInnerHtml: schema.org JSON-LD, kullanici girdisi degil - sunucu tarafinda kendi verimizden uretiliyor.
         dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
       />
 
-      {/* 1. Ürün görseli */}
-      {product.primaryImageUrl ? (
-        // biome-ignore lint/performance/noImgElement: ProductCard.tsx ile ayni desen, keyfi merchant host'lari icin next/image remotePatterns pratik degil.
-        <img
-          src={product.primaryImageUrl}
-          alt={product.title}
-          style={{
-            width: "100%",
-            aspectRatio: "1 / 1",
-            objectFit: "cover",
-            background: "var(--surface)",
-          }}
-        />
-      ) : (
-        <div
-          style={{ width: "100%", aspectRatio: "1 / 1", background: "var(--surface)" }}
-          aria-hidden="true"
-        />
-      )}
+      <div className={styles.hero}>
+        {/* 1. Ürün görseli */}
+        <div className={styles.media}>
+          <div className={styles.mediaFrame}>
+            {product.primaryImageUrl ? (
+              <ProductImage
+                src={product.primaryImageUrl}
+                alt={product.title}
+                // LCP: ürün görseli ilk ekranda - lazy değil, yüksek öncelikli.
+                loading="eager"
+                fetchPriority="high"
+                fit="contain"
+                className={styles.image}
+              />
+            ) : (
+              <div className={styles.mediaPlaceholder} aria-hidden="true" />
+            )}
+          </div>
+        </div>
 
-      {/* 2. Başlık, marka */}
-      <div>
-        <h1 style={{ margin: 0 }}>{product.title}</h1>
-        {product.brandName ? (
-          <p style={{ margin: 0, color: "var(--ink-muted)" }}>{product.brandName}</p>
-        ) : null}
+        <div className={styles.summary}>
+          {/* 2. Marka, başlık */}
+          <div className={styles.titleBlock}>
+            {product.brandName ? <p className={styles.brand}>{product.brandName}</p> : null}
+            <h1 className={styles.title}>{product.title}</h1>
+          </div>
+
+          <div className={styles.priceBlock}>
+            {/* 3. Fiyat farkı bloğu */}
+            {cheapest ? (
+              <PriceDiffBlock
+                currentPriceKurus={cheapest.currentPrice}
+                listPriceKurus={cheapest.listPrice}
+                savingLabel={(saving) => `${formatTRY(saving)} tasarruf`}
+                listPriceLabel="Liste fiyatı"
+                currentPriceLabel="En uygun teklif"
+              />
+            ) : (
+              <p className={styles.noOffers}>Şu an bu ürün için mağaza fiyatı yok.</p>
+            )}
+
+            {/* 4. Fiyat konumu cümlesi */}
+            <PricePositionText lines={positionLines} />
+
+            {/* 5. Sahte indirim notu */}
+            {listPriceNoteText ? <ListPriceNote text={listPriceNoteText} /> : null}
+
+            {/* 12. Son güncelleme - design.md: "Fiyatın yanında güncellenme zamanı yazılır". */}
+            {product.priceUpdatedAt ? (
+              <UpdatedAt text={`${formatSure(product.priceUpdatedAt, now)} önce güncellendi`} />
+            ) : null}
+          </div>
+
+          {/* Birincil çıkış: stokta olan en uygun teklif (tek teklifte o teklif).
+              Mağaza listesi tek teklifte gizlendiği için (pages.md) görünen çıkış budur. */}
+          {primaryOffer ? (
+            <div className={styles.primaryOffer}>
+              {/* attribution: CLAUDE.md kural 8 - dogrudan offer.url'e degil, /git uzerinden. */}
+              <a
+                href={`/git/${primaryOffer.offerId}?surface=product_primary`}
+                className={styles.primaryCta}
+              >
+                {openAtMerchantLabel(primaryOffer)}
+              </a>
+              <p className={styles.primaryMeta}>
+                <span>{offerTotalLabel(primaryOffer)}</span>
+                {primaryOffer.inStock ? null : (
+                  <span className={styles.outOfStock}>Şu an stokta yok</span>
+                )}
+              </p>
+              {showOffers ? (
+                <a href="#magazalar" className={styles.compareLink}>
+                  {`${merchantOffers.length} mağazanın fiyatını karşılaştır`}
+                </a>
+              ) : null}
+              {/* design.md envanteri: affiliate bildirimi çıkış öncesi ve altbilgide. */}
+              <p className={styles.notice}>{HOME_COPY.affiliateNotice}</p>
+            </div>
+          ) : null}
+
+          {/* 6. Beden seçici + rozet */}
+          <SizeSelectorClient
+            productId={product.productId}
+            sizes={sizeOptions.map((size) => ({
+              sizeNorm: size.sizeNorm,
+              label: size.sizeLabel ?? size.sizeNorm,
+              available: size.inStock,
+            }))}
+          />
+
+          {/* 8. Kaydet / alarm kur */}
+          <ProductActionsClient
+            productId={product.productId}
+            isInStock={merchantOffers.some((offer) => offer.inStock)}
+            currentPriceTRY={cheapest ? Math.floor(cheapest.currentPrice / 100) : null}
+          />
+
+          {/* 9. Diğer renkler */}
+          <ColorSwatches
+            variants={colorVariants.map((variant, index) => ({
+              href: `/urun/${variant.slug}`,
+              color: variant.color ?? `Renk ${index + 1}`,
+              imageUrl: variant.primaryImageUrl,
+            }))}
+            label="Diğer renkler"
+            labelAs="h2"
+          />
+        </div>
       </div>
 
-      {/* 3. Fiyat farkı bloğu */}
-      {cheapest ? (
-        <PriceDiffBlock
-          currentPriceKurus={cheapest.currentPrice}
-          listPriceKurus={cheapest.listPrice}
-          savingLabel={(saving) => `${formatTRY(saving)} tasarruf`}
-        />
-      ) : null}
-
-      {/* 4. Fiyat konumu cümlesi */}
-      <PricePositionText lines={positionLines} />
-
-      {/* 5. Sahte indirim notu */}
-      {listPriceNoteText ? <ListPriceNote text={listPriceNoteText} /> : null}
-
-      {/* 6. Beden seçici + rozet */}
-      <SizeSelectorClient
-        productId={product.productId}
-        sizes={sizeOptions.map((size) => ({
-          sizeNorm: size.sizeNorm,
-          label: size.sizeLabel ?? size.sizeNorm,
-          available: size.inStock,
-        }))}
-      />
-
       {/* 7. Mağaza listesi - tek teklif varsa atlanır (pages.md), noindex D6'nın işi */}
-      {!singleOffer && merchantOffers.length > 0 ? (
-        <>
+      {showOffers ? (
+        <Section
+          spacing="compact"
+          id="magazalar"
+          aria-labelledby="magazalar-baslik"
+          className={styles.offers}
+        >
+          <div className={styles.sectionHeader}>
+            <h2 id="magazalar-baslik" className={styles.sectionTitle}>
+              Mağaza fiyatları
+            </h2>
+            <p className={styles.sectionMeta}>{`${merchantOffers.length} mağaza`}</p>
+          </div>
           <MerchantList
+            aria-labelledby="magazalar-baslik"
             offers={merchantOffers.map((offer) => ({
               offerId: offer.offerId,
               merchantName: offer.merchantName,
               totalLabel: formatTRY(offer.effectiveTotal),
-              shippingLabel:
-                offer.effectiveShipping === 0
-                  ? "Kargo bedava"
-                  : `Kargo dahil ${formatTRY(offer.effectiveTotal)}`,
+              shippingLabel: offerShippingLabel(offer),
               inStock: offer.inStock,
               exitHref: `/git/${offer.offerId}?surface=compare`,
-              exitLabel: `${offer.merchantName}'da aç`,
+              exitLabel: openAtMerchantLabel(offer),
             }))}
             outOfStockLabel="Şu an stokta yok"
+            inStockLabel="Stokta"
+            bestOfferLabel="En uygun fiyat"
+            bestOfferId={primaryOffer?.offerId}
           />
-          <p style={{ fontSize: 13, color: "var(--ink-muted)" }}>
-            Bazı bağlantılardan alışveriş yaptığında komisyon kazanabiliriz. Bu, sana gösterdiğimiz
-            fiyatı değiştirmez.
+          <p className={styles.disclaimer}>
+            {`Fiyatlar kargo dahil toplamdır, en uygundan sıralanır. ${HOME_COPY.priceDisclaimer}`}
           </p>
-          <p style={{ fontSize: 13, color: "var(--ink-muted)" }}>
-            Fiyat ve stok bilgisi mağazalardan alınır, gecikmeli olabilir.
-          </p>
-        </>
+        </Section>
       ) : null}
-
-      {/* 8. Kaydet / alarm kur */}
-      <ProductActionsClient
-        productId={product.productId}
-        isInStock={merchantOffers.some((offer) => offer.inStock)}
-        currentPriceTRY={cheapest ? Math.floor(cheapest.currentPrice / 100) : null}
-      />
-
-      {/* 9. Diğer renkler */}
-      <ColorSwatches
-        variants={colorVariants.map((variant) => ({
-          href: `/urun/${variant.slug}`,
-          color: variant.color ?? "",
-          imageUrl: variant.primaryImageUrl,
-        }))}
-        label="Diğer renkler"
-      />
 
       {/* 10. Alternatif şeridi */}
       {alternatives.length > 0 ? (
-        <div>
-          <p>Daha uygun fiyatlı alternatifler</p>
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-              gap: 16,
-            }}
-          >
-            {alternatives.map((alt) => (
-              // AlternativeProduct'ta offerCount yok (C2 kapsami) - bos etiketle atlanir.
-              <ProductCard
-                key={alt.productId}
-                href={`/urun/${alt.slug}`}
-                title={alt.title}
-                imageUrl={alt.primaryImageUrl}
-                minPrice={alt.minPrice}
-                offerCount={0}
-                offerCountLabel={() => ""}
-              />
-            ))}
+        <Section spacing="compact" aria-labelledby="alternatifler-baslik">
+          <div className={styles.sectionHeader}>
+            <h2 id="alternatifler-baslik" className={styles.sectionTitle}>
+              Daha uygun fiyatlı alternatifler
+            </h2>
           </div>
-        </div>
+          {/* biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolunu dusurur. */}
+          <ul className={styles.altList} role="list" aria-labelledby="alternatifler-baslik">
+            {alternatives.map((alt) => (
+              <li key={alt.productId}>
+                {/* AlternativeProduct'ta offerCount yok (C2 kapsami) - meta satiri cizilmez. */}
+                <ProductCard
+                  href={`/urun/${alt.slug}`}
+                  title={alt.title}
+                  imageUrl={alt.primaryImageUrl}
+                  minPrice={alt.minPrice}
+                  brand={alt.brandName}
+                />
+              </li>
+            ))}
+          </ul>
+        </Section>
       ) : null}
 
       {/* 11. Fiyat grafiği - katlanmış, tıklayınca açılır */}
-      <PriceChart
-        points={priceHistory.map((point) => ({
-          date: point.date,
-          priceKurus: point.minPriceKurus,
-        }))}
-        summaryLabel="Fiyat geçmişi"
-      />
-
-      {/* 12. Son güncelleme */}
-      {product.priceUpdatedAt ? (
-        <UpdatedAt text={`${formatSure(product.priceUpdatedAt, now)} önce güncellendi`} />
+      {showHistory ? (
+        <Section
+          spacing="compact"
+          aria-labelledby="fiyat-gecmisi-baslik"
+          className={styles.history}
+        >
+          <div className={styles.sectionHeader}>
+            <h2 id="fiyat-gecmisi-baslik" className={styles.sectionTitle}>
+              Fiyat geçmişi
+            </h2>
+          </div>
+          {historySentence ? <p className={styles.historyText}>{historySentence}</p> : null}
+          <PriceChart
+            points={priceHistory.map((point) => ({
+              date: point.date,
+              priceKurus: point.minPriceKurus,
+            }))}
+            // Acik/kapali her iki durumda da dogru kalan notr etiket.
+            summaryLabel="Fiyat grafiği"
+            chartLabel={historySentence ?? "Fiyat geçmişi"}
+          />
+        </Section>
       ) : null}
-    </main>
+    </div>
   );
 }

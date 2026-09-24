@@ -1,0 +1,14 @@
+/* Olgu cumlesi: rozet degil, fiyatin altinda sakin bir satir. */
+.block {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.line {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  color: var(--ink-secondary);
+}

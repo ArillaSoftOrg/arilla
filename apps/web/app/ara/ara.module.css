@@ -1,0 +1,226 @@
+/* /ara ve /ara/gorsel ortak sunumu. Genislik ve yatay gutter kabuktan gelir
+   (public-site-shell.tsx); burada yalnizca dikey ritim ve dar bolumler. */
+.page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+  min-width: 0;
+  padding-block: var(--space-6) var(--section-space-compact);
+}
+
+@media (min-width: 1024px) {
+  .page {
+    gap: var(--space-8);
+    padding-block-start: var(--space-8);
+  }
+}
+
+/* Arama kutusu + fotograf eylemi: sigmazsa fotograf eylemi alt satira iner. */
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+  max-width: var(--content-width-comparison);
+}
+
+.toolbarSearch {
+  flex: 1 1 18rem;
+  min-width: 0;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+  /* Uzun, bosluksuz sorgu 320px'te tasmasin. */
+  overflow-wrap: anywhere;
+}
+
+.lede {
+  max-width: var(--content-width-reading);
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-body-lg);
+  line-height: var(--line-height-body);
+}
+
+.count {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.controls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+}
+
+.sectionTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+}
+
+/* docs/design.md "Duyarli tasarim": yalnizca 640/1024/1440. */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-4) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6) var(--space-4);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1440px) {
+  .grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.gridItem {
+  min-width: 0;
+}
+
+.emptyPanel {
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.pagination {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.pageLink {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-touch-target);
+  min-height: var(--size-touch-target);
+  padding-inline: var(--space-5);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.pageLink:hover {
+  background: var(--surface-hover);
+}
+
+.pageLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .pageLink {
+    transition: background-color var(--duration-fast) var(--ease-standard);
+  }
+}
+
+.pageStatus {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Yukleniyor: baslik ve sekme yer tutuculari (dekoratif). */
+.skeletonBar {
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.skeletonTitle {
+  width: min(28rem, 80%);
+  height: var(--space-10);
+}
+
+.skeletonCount {
+  width: 6rem;
+  height: var(--space-4);
+}
+
+.skeletonTabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.skeletonTab {
+  width: 9rem;
+  height: var(--size-touch-target);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+
+/* Hata: sakin, ortali durum bloku. */
+.status {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-4);
+  max-width: var(--content-width-reading);
+  margin-inline: auto;
+  padding-block: var(--section-space-compact);
+  text-align: center;
+}
+
+.statusTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-h2);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  letter-spacing: var(--letter-spacing-h2);
+}
+
+.statusText {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+}

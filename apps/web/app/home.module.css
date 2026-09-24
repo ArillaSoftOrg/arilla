@@ -1,0 +1,79 @@
+/* Ana sayfa duzeni. Genislik ve yatay gutter kabuktan (PublicSiteShell);
+   burada yalnizca dikey ritim ve bolum ici izgaralar. */
+
+/* Ardisik bolumler arasinda iki kat bosluk olmasin: her bolum ustundeki
+   --section-space'i birakir, aradaki bosluk oncekinin alt boslugudur. */
+.page > section + section {
+  padding-block-start: 0;
+}
+
+/* Hero: ilk ekranin odagi. Ustte tam bolum boslugu, trendlere gecis
+   kompakt. */
+.page > .hero {
+  padding-block: var(--section-space) var(--section-space-compact);
+}
+
+/* Header'daki anchor'lar (#trendler, #kesfet, #nasil-calisir) basligi
+   ekran kenarina yapistirmasin. */
+.anchored {
+  scroll-margin-block-start: var(--space-8);
+}
+
+/* Trendler: telefon 1, tablet+ 3 sutun (768'de 2+1 yetim kart olmaz). */
+.trendGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-10);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .trendGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+@media (min-width: 1024px) {
+  .trendGrid {
+    gap: var(--space-6);
+  }
+}
+
+.trendItem {
+  display: grid;
+  min-width: 0;
+}
+
+/* Nasil calisir: kompakt uc adim. Telefon 1, tablet+ 3 sutun. */
+.steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-8);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  .steps {
+    gap: var(--space-12);
+  }
+}
+
+.outcome {
+  margin: var(--space-10) 0 0;
+  max-width: var(--content-width-reading);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  color: var(--ink-muted);
+}

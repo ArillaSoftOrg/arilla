@@ -1,71 +1,144 @@
 .header {
-  border-bottom: 1px solid var(--line);
+  background: var(--paper);
+  border-bottom: var(--border-width) solid var(--line);
 }
 
-/* Bar tam genislik, icerik genis konteynere hizali - Trendler, Kesif
-   izgarasi ve altbilgiyle ayni sol/sag baslangic noktasi (docs/design.md,
-   karar 0025). Faz 7: eskiden okuma genisligindeydi, genis ekranda logo
-   icerik kenarindan kopuk kaliyordu. */
+/* Bar tam genislik, icerik `Container size="wide"` ile ana icerik ve
+   altbilgiyle ayni sol/sag baslangic noktasinda (docs/design.md "Düzen ve
+   kapsayıcılar"). Telefonda iki satir: wordmark + hesap ustte, gezinme
+   altta tam genislikte - 320px'te uc link tek satira sigmiyordu, hamburger
+   yerine ikinci satir (JS yok, tum linkler her zaman gorunur). */
 .inner {
-  display: flex;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-areas:
+    "brand account"
+    "nav nav";
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
-  max-width: var(--content-width-wide);
-  margin-inline: auto;
-  padding: var(--space-3) var(--space-6);
+  column-gap: var(--space-4);
+  padding-block: var(--space-2) 0;
 }
 
-.brand {
-  flex-shrink: 0;
-  font-size: var(--font-size-md);
-  font-weight: 500;
-  color: var(--ink);
+/* design.md "Duyarlı tasarım": `sm` = 640px. */
+@media (min-width: 640px) {
+  .inner {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas: "brand nav account";
+    column-gap: var(--space-8);
+    padding-block: var(--space-3);
+  }
+}
+
+.brand,
+.navLink,
+.account {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
   text-decoration: none;
+  white-space: nowrap;
+}
+
+/* Gecici wordmark (yeni logo yok): agirlik ve sikistirilmis harf araligi
+   ile kurulur, ikinci font ailesi yok (design.md "Tipografi"). */
+.brand {
+  grid-area: brand;
+  justify-self: start;
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  letter-spacing: var(--letter-spacing-h1);
+  color: var(--ink);
 }
 
 .nav {
+  grid-area: nav;
   display: flex;
   align-items: center;
-  gap: var(--space-4);
-  flex: 1;
+  gap: var(--space-5);
   min-width: 0;
   overflow-x: auto;
-  /* Faz 7: dar ekranda sigmayan son link kaba bir kesikle bitmesin - sag
-     kenar soner, kaydirilabilir oldugu okunur. Genis ekranda nav'in sagi bos
-     oldugu icin gorunur etkisi yok. Breakpoint yok. */
+  /* Buyuk yazi boyutu/yakinlastirmada sigmayan son link kaba bir kesikle
+     bitmesin - sag kenar soner, kaydirilabilir oldugu okunur. Maske yalnizca
+     alfa kanalini kullanir; opak herhangi bir belirtec yeterli. */
   scrollbar-width: none;
-  mask-image: linear-gradient(to right, #000 calc(100% - var(--space-6)), transparent);
+  mask-image: linear-gradient(to right, var(--ink) calc(100% - var(--space-6)), transparent);
 }
 
 .nav::-webkit-scrollbar {
   display: none;
 }
 
+@media (min-width: 640px) {
+  .nav {
+    gap: var(--space-6);
+  }
+}
+
 .navLink {
   flex-shrink: 0;
-  font-size: var(--font-size-sm);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
   color: var(--ink-muted);
-  text-decoration: none;
-  white-space: nowrap;
+  text-decoration-line: underline;
+  text-decoration-color: transparent;
+  text-decoration-thickness: var(--border-width);
+  text-underline-offset: 0.35em;
 }
 
 .navLink:hover {
   color: var(--ink);
 }
 
-.brand:focus-visible,
-.navLink:focus-visible,
-.account:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
+.navLink[aria-current="page"] {
+  color: var(--ink);
+  text-decoration-color: currentColor;
 }
 
+/* Hesap / giris: sinirli hap - ust cubugun tek eylem ogesi. Sinir
+   etkilesimli kontrol oldugu icin `--line-strong` (WCAG 1.4.11). */
 .account {
-  flex-shrink: 0;
-  font-size: var(--font-size-sm);
-  font-weight: 500;
+  grid-area: account;
+  justify-self: end;
+  padding-inline: var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
   color: var(--ink);
-  text-decoration: none;
-  white-space: nowrap;
+}
+
+.account:hover {
+  background: var(--surface-hover);
+}
+
+.account[aria-current="page"] {
+  border-color: var(--ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .navLink,
+  .account {
+    transition:
+      color var(--duration-fast) var(--ease-standard),
+      background-color var(--duration-fast) var(--ease-standard),
+      text-decoration-color var(--duration-fast) var(--ease-standard);
+  }
+}
+
+/* Kaydirilabilir nav icinde disari tasan halka kirpilir; iceri cekilir. */
+.navLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: calc(-1 * var(--focus-ring-width));
+  border-radius: var(--radius-sm);
+}
+
+.brand:focus-visible,
+.account:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.brand:focus-visible {
+  border-radius: var(--radius-sm);
 }

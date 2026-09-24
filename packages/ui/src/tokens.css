@@ -41,6 +41,9 @@
   --shadow-xs: 0 1px 2px rgba(22, 24, 29, 0.06);
   --shadow-sm: 0 1px 2px rgba(22, 24, 29, 0.06), 0 10px 24px rgba(22, 24, 29, 0.08);
   --shadow-md: 0 2px 6px rgba(22, 24, 29, 0.06), 0 20px 48px rgba(22, 24, 29, 0.12);
+  /* Modal ortusu: iki temada da koyu, yari saydam; arkadaki icerik okunur
+     kalir (karar 0002). design.md "Katmanlar". */
+  --scrim: rgba(14, 15, 17, 0.45);
 
   /* --- Tipografi --- */
   /* Sabit olcek: mevcut bilesenler icin korunur. */
@@ -115,6 +118,10 @@
   /* --- Kenarlik --- */
   --border-width: 1px;
 
+  /* --- Boyut --- */
+  /* design.md "Kalite tabanı": etkilesimli ogenin en kucuk dokunma hedefi. */
+  --size-touch-target: 44px;
+
   /* --- Odak --- */
   --focus-ring-width: 2px;
   --focus-ring-offset: 2px;
@@ -186,6 +193,7 @@
     --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
     --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.35);
     --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.5);
+    --scrim: rgba(0, 0, 0, 0.6);
   }
 }
 
@@ -211,4 +219,5 @@
   --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.35);
   --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.5);
+  --scrim: rgba(0, 0, 0, 0.6);
 }

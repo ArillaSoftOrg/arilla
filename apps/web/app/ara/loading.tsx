@@ -1,4 +1,4 @@
-import { ProductCardSkeleton } from "@arilla/ui";
+import { ResultsSkeleton } from "./search-results.tsx";
 
 /**
  * Next.js'in yerlesik Suspense mekanizmasi: sayfa verisi hazir olana kadar
@@ -6,20 +6,5 @@ import { ProductCardSkeleton } from "@arilla/ui";
  * değil."
  */
 export default function AramaLoading() {
-  return (
-    <main style={{ padding: 24, display: "grid", gap: 16 }}>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-          gap: 16,
-        }}
-      >
-        {Array.from({ length: 24 }, (_, i) => (
-          // biome-ignore lint/suspicious/noArrayIndexKey: sabit sayida, sirasiz iskelet karti.
-          <ProductCardSkeleton key={i} />
-        ))}
-      </div>
-    </main>
-  );
+  return <ResultsSkeleton statusLabel="Sonuçlar yükleniyor" />;
 }

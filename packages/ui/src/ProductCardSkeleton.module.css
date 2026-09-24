@@ -1,0 +1,72 @@
+/* ProductCard.module.css ile ayni kutu modeli ve oranlar. */
+.card {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.block {
+  background: var(--surface);
+}
+
+.media {
+  aspect-ratio: 1 / 1;
+}
+
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-3);
+}
+
+@media (min-width: 640px) {
+  .body {
+    padding: var(--space-4);
+  }
+}
+
+.line {
+  height: var(--space-3);
+  border-radius: var(--radius-sm);
+}
+
+.lineShort {
+  width: 60%;
+}
+
+.price {
+  width: 40%;
+  height: var(--space-5);
+  margin-top: var(--space-1);
+  border-radius: var(--radius-sm);
+}
+
+/* Sakin bir parilti; yalnizca hareket tercihi olmayanlarda. Sure belirtecten
+   turer: reduced-motion altinda belirtec 0'a cekilir, animasyon da durur. */
+@media (prefers-reduced-motion: no-preference) {
+  .block {
+    background: linear-gradient(
+      90deg,
+      var(--surface) 0%,
+      var(--surface-hover) 50%,
+      var(--surface) 100%
+    );
+    background-size: 200% 100%;
+    animation: shimmer calc(var(--duration-slow) * 5) var(--ease-standard) infinite;
+  }
+}
+
+@keyframes shimmer {
+  from {
+    background-position: 100% 0;
+  }
+
+  to {
+    background-position: -100% 0;
+  }
+}

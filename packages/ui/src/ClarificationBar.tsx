@@ -29,13 +29,18 @@ export function ClarificationBar({
   queryParamName,
 }: ClarificationBarProps) {
   return (
-    <div className={styles.bar}>
-      <span className={styles.intro}>{intro}</span>
-      {candidates.map((candidate) => (
-        <a key={candidate.href} href={candidate.href} className={styles.candidate}>
-          {candidate.label}
-        </a>
-      ))}
+    <section className={styles.bar} aria-label={intro}>
+      <p className={styles.intro}>{intro}</p>
+      {/* biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit'te liste rolunu dusurur. */}
+      <ul className={styles.candidates} role="list">
+        {candidates.map((candidate) => (
+          <li key={candidate.href} className={styles.item}>
+            <a href={candidate.href} className={styles.candidate}>
+              {candidate.label}
+            </a>
+          </li>
+        ))}
+      </ul>
       <form action={searchAction} method="get" className={styles.otherForm}>
         <input
           type="text"
@@ -48,6 +53,6 @@ export function ClarificationBar({
           {otherLabel}
         </button>
       </form>
-    </div>
+    </section>
   );
 }

@@ -50,7 +50,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "Campo Leather",
     brand: "Veja",
     imageUrl:
-      "https://media.veja-store.com/images/t_sfcc-pdp-desktop-v2/c_limit,w_1200/v1781690682/VEJA/PACKSHOTS/CP0501537_1/CP0501537_1.jpg",
+      "https://media.veja-store.com/images/t_sfcc-pdp-desktop-v2/c_limit,w_600/v1781690682/VEJA/PACKSHOTS/CP0501537_1/CP0501537_1.jpg",
     imageAlt: "Veja Campo Leather beyaz-siyah spor ayakkabı",
     aspectRatio: 1,
     category: "ayakkabı",
@@ -60,7 +60,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "Esplar Leather",
     brand: "Veja",
     imageUrl:
-      "https://media.veja-store.com/images/t_sfcc-pdp-desktop-v2/c_limit,w_1200/v1779892444/VEJA/PACKSHOTS/EO0200005_1/EO0200005_1.jpg",
+      "https://media.veja-store.com/images/t_sfcc-pdp-desktop-v2/c_limit,w_600/v1779892444/VEJA/PACKSHOTS/EO0200005_1/EO0200005_1.jpg",
     imageAlt: "Veja Esplar Leather kadın spor ayakkabı",
     aspectRatio: 1,
     category: "kadın ayakkabı",
@@ -70,7 +70,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "MARKUS ofis koltuğu",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/markus-office-chair-vissle-dark-gray__0724714_pe734597_s5.jpg",
+      "https://www.ikea.com/us/en/images/products/markus-office-chair-vissle-dark-gray__0724714_pe734597_s4.jpg",
     imageAlt: "IKEA MARKUS ofis koltuğu, koyu gri",
     aspectRatio: 1,
     category: "çalışma koltuğu",
@@ -80,7 +80,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "FORSÅ masa lambası",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/forsa-work-lamp-nickel-plated__0121576_pe278160_s5.jpg",
+      "https://www.ikea.com/us/en/images/products/forsa-work-lamp-nickel-plated__0121576_pe278160_s4.jpg",
     imageAlt: "IKEA FORSÅ nikel kaplama masa lambası",
     aspectRatio: 1,
     category: "aydınlatma",
@@ -90,7 +90,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "ÖVNING masaüstü düzenleyici",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/oevning-desk-accessories-organizer__1160249_pe888822_s5.jpg",
+      "https://www.ikea.com/us/en/images/products/oevning-desk-accessories-organizer__1160249_pe888822_s4.jpg",
     imageAlt: "IKEA ÖVNING masaüstü düzenleyici",
     aspectRatio: 1,
     category: "küçük ev ürünü",
@@ -100,7 +100,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "Detroit Ceket",
     brand: "Carhartt WIP",
     imageUrl:
-      "https://cdn.shopify.com/s/files/1/2193/5809/files/I033112_00E_02-OF-01.jpg?v=1776965443&width=1501&height=2251&crop=center",
+      "https://cdn.shopify.com/s/files/1/2193/5809/files/I033112_00E_02-OF-01.jpg?v=1776965443&width=600&height=900&crop=center",
     imageAlt: "Carhartt WIP Detroit ceket, siyah",
     aspectRatio: 0.67,
     category: "erkek giyim",
@@ -109,7 +109,8 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     id: "la-apparel-heavy-fleece-crewneck",
     title: "Heavy Fleece Crewneck",
     brand: "Los Angeles Apparel",
-    imageUrl: "https://losangelesapparel.net/cdn/shop/files/HF07BLACKBEDGEFRONT.jpg?v=1742861425",
+    imageUrl:
+      "https://losangelesapparel.net/cdn/shop/files/HF07BLACKBEDGEFRONT.jpg?v=1742861425&width=600",
     imageAlt: "Los Angeles Apparel Heavy Fleece Crewneck sweatshirt, siyah",
     aspectRatio: 0.67,
     category: "giyim",
@@ -119,7 +120,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "Little America Sırt Çantası",
     brand: "Herschel",
     imageUrl:
-      "https://herschel.com/cdn/shop/files/hero-11390-00001-os-desktop-Ums6JEJw.jpg?v=1781646193&width=1440",
+      "https://herschel.com/cdn/shop/files/hero-11390-00001-os-desktop-Ums6JEJw.jpg?v=1781646193&width=800",
     imageAlt: "Herschel Little America sırt çantası",
     aspectRatio: 1.6,
     category: "çanta",
@@ -129,7 +130,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "FEJKA yapay saksı bitkisi",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/fejka-artificial-potted-plant-indoor-outdoor-aralia__1389892_pe965297_s5.jpg",
+      "https://www.ikea.com/us/en/images/products/fejka-artificial-potted-plant-indoor-outdoor-aralia__1389892_pe965297_s4.jpg",
     imageAlt: "IKEA FEJKA yapay saksı bitkisi, aralia",
     aspectRatio: 1,
     category: "küçük ev ürünü",
@@ -139,7 +140,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "BILLY kitaplık",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/billy-bookcase-white__1590291_pe1038930_s5.jpg",
+      "https://www.ikea.com/us/en/images/products/billy-bookcase-white__1590291_pe1038930_s4.jpg",
     imageAlt: "IKEA BILLY kitaplık, beyaz",
     aspectRatio: 1,
     category: "ev mobilyası",
@@ -149,7 +150,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "VALLKRASSING yastık kılıfı",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/vallkrassing-cushion-cover-off-white__1338072_pe948186_s5.jpg",
+      "https://www.ikea.com/us/en/images/products/vallkrassing-cushion-cover-off-white__1338072_pe948186_s4.jpg",
     imageAlt: "IKEA VALLKRASSING yastık kılıfı, kırık beyaz",
     aspectRatio: 1,
     category: "küçük ev ürünü",
@@ -159,7 +160,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "LINDBYN ayna",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/lindbyn-mirror-black__0798815_pe767395_s5.jpg",
+      "https://www.ikea.com/us/en/images/products/lindbyn-mirror-black__0798815_pe767395_s4.jpg",
     imageAlt: "IKEA LINDBYN yuvarlak ayna, siyah",
     aspectRatio: 1,
     category: "ev aksesuarı",
@@ -169,7 +170,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "HEKTAR lambader",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/hektar-floor-lamp-dark-gray__0149974_pe308131_s5.jpg",
+      "https://www.ikea.com/us/en/images/products/hektar-floor-lamp-dark-gray__0149974_pe308131_s4.jpg",
     imageAlt: "IKEA HEKTAR lambader, koyu gri",
     aspectRatio: 1,
     category: "aydınlatma",
@@ -179,7 +180,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "LOHALS halı",
     brand: "IKEA",
     imageUrl:
-      "https://www.ikea.com/us/en/images/products/lohals-rug-flatwoven-natural__0280221_pe419173_s5.jpg",
+      "https://www.ikea.com/us/en/images/products/lohals-rug-flatwoven-natural__0280221_pe419173_s4.jpg",
     imageAlt: "IKEA LOHALS düz dokuma jüt halı",
     aspectRatio: 1,
     category: "ev mobilyası",
@@ -229,7 +230,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "Gabe Beanie",
     brand: "Carhartt WIP",
     imageUrl:
-      "https://cdn.shopify.com/s/files/1/2193/5809/files/I026222_00F_XX-OF-01.jpg?v=1786037460&width=1501&height=2251&crop=center",
+      "https://cdn.shopify.com/s/files/1/2193/5809/files/I026222_00F_XX-OF-01.jpg?v=1786037460&width=600&height=900&crop=center",
     imageAlt: "Carhartt WIP Gabe Beanie, siyah",
     aspectRatio: 0.67,
     category: "aksesuar",
@@ -239,7 +240,7 @@ export const DEMO_PRODUCTS: readonly DemoProduct[] = [
     title: "The 1801 Garment Dye Tee",
     brand: "Los Angeles Apparel",
     imageUrl:
-      "https://losangelesapparel.net/cdn/shop/files/1801VINTAGEBLACK1.jpg?v=1779395141&width=800",
+      "https://losangelesapparel.net/cdn/shop/files/1801VINTAGEBLACK1.jpg?v=1779395141&width=600",
     imageAlt: "Los Angeles Apparel The 1801 t-shirt, siyah",
     aspectRatio: 0.67,
     category: "giyim",

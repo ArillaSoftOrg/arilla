@@ -1,30 +1,66 @@
+.nav {
+  min-width: 0;
+}
+
+/* Hap sekmeler; dar ekranda alt satira sarilir, yatay kaydirma yok. */
 .tabs {
   display: flex;
-  gap: var(--space-4);
-  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.item {
+  display: flex;
 }
 
 .tab {
-  padding: var(--space-2) 0;
-  color: var(--ink-muted);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  padding-inline: var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
   text-decoration: none;
-  font-size: var(--font-size-sm);
-  border-bottom: 2px solid transparent;
+  white-space: nowrap;
+}
+
+a.tab:hover {
+  background: var(--surface-hover);
 }
 
 .tab:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 2px;
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
-.active {
-  color: var(--ink);
-  font-weight: 500;
-  border-bottom-color: var(--ink);
+.active,
+a.active:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 
+/* Tiklanamaz: ince dekoratif kenar + soluk metin; imlec degismez. Devre disi
+   kontroller WCAG 1.4.3/1.4.11 kontrast sartindan muaftir. */
 .disabled {
+  border-color: var(--line);
   color: var(--ink-muted);
-  opacity: 0.5;
   cursor: default;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .tab {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
+  }
 }
