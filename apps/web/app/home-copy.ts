@@ -7,7 +7,7 @@ export const HOME_COPY = {
   heroSubtitle: "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.", // home.tagline
   // Eski home.continue_shopping_title ("Alışverişe devam et") kisisel gecmis
   // ima ediyordu; chip'ler sabit ornek sorgular.
-  searchIdeasTitle: "Arama fikirleri", // home.search_ideas_title
+  searchIdeasTitle: "Alışverişe devam et", // home.search_ideas_title
   trendsTitle: "Trendler", // home.trends_title
   trendsSubtitle: "Arilla'da öne çıkan stiller ve ürün fikirleri.", // home.trends_subtitle
   discoveryTitle: "Arilla'da keşfedilenler", // home.discovery_title

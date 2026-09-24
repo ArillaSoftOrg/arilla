@@ -4,15 +4,7 @@ import { EmptyState } from "@arilla/ui";
 import { requireRole } from "../../lib/dal.ts";
 import { LexiconTableClient } from "./lexicon-table-client.tsx";
 
-const KINDS: LexiconKind[] = [
-  "color",
-  "category",
-  "brand",
-  "size",
-  "material",
-  "style",
-  "synonym",
-];
+const KINDS: LexiconKind[] = ["color", "category", "brand", "size", "material", "style", "synonym"];
 
 function isLexiconKind(value: string | undefined): value is LexiconKind {
   return KINDS.includes(value as LexiconKind);

@@ -3,9 +3,9 @@
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-8);
+  gap: var(--space-12);
   width: 100%;
-  max-width: var(--content-width-reading);
+  max-width: min(100%, 800px);
   margin-inline: auto;
 }
 
@@ -17,10 +17,10 @@
 
 .title {
   margin: 0;
-  font-size: var(--text-display);
-  font-weight: var(--font-weight-semibold);
+  font-size: clamp(2rem, 1.72rem + 1.25vw, 3rem);
+  font-weight: 700;
   line-height: var(--line-height-tight);
-  letter-spacing: var(--letter-spacing-display);
+  letter-spacing: 0;
   color: var(--ink);
   text-wrap: balance;
 }
@@ -28,7 +28,7 @@
 .subtitle {
   margin: 0 auto;
   max-width: 44ch;
-  font-size: var(--text-body-lg);
+  font-size: var(--text-body);
   line-height: var(--line-height-body);
   color: var(--ink-secondary);
   text-wrap: pretty;
