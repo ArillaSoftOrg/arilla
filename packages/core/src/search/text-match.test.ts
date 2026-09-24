@@ -52,7 +52,10 @@ describe("matchTokens", () => {
 
 describe("buildTextSlots", () => {
   it("expands synonym groups into one slot of alternatives", () => {
-    expect(buildTextSlots("kablosuz mouse", LEXICON)).toEqual([["kablosuz", "wireless"], ["mouse"]]);
+    expect(buildTextSlots("kablosuz mouse", LEXICON)).toEqual([
+      ["kablosuz", "wireless"],
+      ["mouse"],
+    ]);
   });
 
   it("matches multi-word surfaces as a single slot, longest first", () => {

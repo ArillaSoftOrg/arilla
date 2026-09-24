@@ -104,7 +104,11 @@ export async function evaluateQuery(
   let usedFallback = false;
   if (items.length === 0) {
     // /ara ile ayni: filtreler temizlenir (kapsam korunur), en yakin 6.
-    const fallback = { ...parsed, filters: { merchant_ids: merchantIds }, sort: "balanced" as const };
+    const fallback = {
+      ...parsed,
+      filters: { merchant_ids: merchantIds },
+      sort: "balanced" as const,
+    };
     items = (await search(db, fallback, { limit: 6 })).items;
     usedFallback = true;
   }
@@ -123,9 +127,7 @@ export async function evaluateQuery(
     relevantAt5: items.slice(0, 5).filter((item) => relevant.has(item.productId)).length,
     relevantAt10: top10.filter((item) => relevant.has(item.productId)).length,
     firstRelevant: firstIndex === -1 ? null : firstIndex + 1,
-    falsePositives: top10
-      .filter((item) => !relevant.has(item.productId))
-      .map((item) => item.title),
+    falsePositives: top10.filter((item) => !relevant.has(item.productId)).map((item) => item.title),
     relevantInCatalog: inCatalog,
     // Katalogda ilgili urun yoksa (acikca "absent" isaretli ya da yargiya
     // gore 0) dogru cevap bos sonuctur.

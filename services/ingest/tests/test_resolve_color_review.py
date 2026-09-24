@@ -62,9 +62,7 @@ def test_near_identical_images_alone_do_not_make_an_exact_match() -> None:
     rug_a = ProductKey.build(
         title="Zade Serisi Vintage Desenli Tezgah Dokuma Halı", brand="Halıcızade"
     )
-    rug_b = ProductKey.build(
-        title="El Dokuma Afgan Desenli Yün Bilicik Halı", brand="Halıcızade"
-    )
+    rug_b = ProductKey.build(title="El Dokuma Afgan Desenli Yün Bilicik Halı", brand="Halıcızade")
     vector = [1.0] + [0.0] * 767
     near = [0.99] + [0.14] + [0.0] * 766  # kosinus ~0.99
 

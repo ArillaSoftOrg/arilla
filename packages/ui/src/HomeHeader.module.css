@@ -1,32 +1,60 @@
 .header {
   background: var(--paper);
-  border-bottom: var(--border-width) solid var(--line);
 }
 
-/* Bar tam genislik, icerik `Container size="wide"` ile ana icerik ve
-   altbilgiyle ayni sol/sag baslangic noktasinda (docs/design.md "Düzen ve
-   kapsayıcılar"). Telefonda iki satir: wordmark + hesap ustte, gezinme
-   altta tam genislikte - 320px'te uc link tek satira sigmiyordu, hamburger
-   yerine ikinci satir (JS yok, tum linkler her zaman gorunur). */
+/* Referans app hissi: yalın tek satır üst çubuk; soldaki işaret menüyü açar. */
 .inner {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  grid-template-areas:
-    "brand account"
-    "nav nav";
+  display: flex;
   align-items: center;
-  column-gap: var(--space-4);
-  padding-block: var(--space-2) 0;
+  gap: var(--space-3);
+  min-height: 84px;
+  padding-block: var(--space-3);
 }
 
-/* design.md "Duyarlı tasarım": `sm` = 640px. */
-@media (min-width: 640px) {
-  .inner {
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    grid-template-areas: "brand nav account";
-    column-gap: var(--space-8);
-    padding-block: var(--space-3);
-  }
+.menuButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--size-touch-target);
+  min-height: var(--size-touch-target);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.menuButton:hover {
+  background: var(--surface);
+}
+
+.menuIcon {
+  position: relative;
+  display: block;
+  width: 24px;
+  height: 18px;
+}
+
+.menuIcon::before,
+.menuIcon::after {
+  position: absolute;
+  left: 0;
+  display: block;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+  content: "";
+}
+
+.menuIcon::before {
+  top: 1px;
+  width: 24px;
+}
+
+.menuIcon::after {
+  bottom: 1px;
+  width: 12px;
 }
 
 .brand,
@@ -39,47 +67,37 @@
   white-space: nowrap;
 }
 
-/* Gecici wordmark (yeni logo yok): agirlik ve sikistirilmis harf araligi
-   ile kurulur, ikinci font ailesi yok (design.md "Tipografi"). */
 .brand {
-  grid-area: brand;
-  justify-self: start;
-  font-size: var(--text-h3);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-heading);
-  letter-spacing: var(--letter-spacing-h1);
   color: var(--ink);
 }
 
+.brandText {
+  font-size: clamp(1.75rem, 1.6rem + 0.65vw, 2.25rem);
+  font-style: italic;
+  font-weight: 700;
+  line-height: var(--line-height-heading);
+  letter-spacing: 0;
+}
+
 .nav {
-  grid-area: nav;
   display: flex;
   align-items: center;
-  gap: var(--space-5);
+  gap: var(--space-8);
   min-width: 0;
+  margin-inline-start: var(--space-6);
   overflow-x: auto;
-  /* Buyuk yazi boyutu/yakinlastirmada sigmayan son link kaba bir kesikle
-     bitmesin - sag kenar soner, kaydirilabilir oldugu okunur. Maske yalnizca
-     alfa kanalini kullanir; opak herhangi bir belirtec yeterli. */
   scrollbar-width: none;
-  mask-image: linear-gradient(to right, var(--ink) calc(100% - var(--space-6)), transparent);
 }
 
 .nav::-webkit-scrollbar {
   display: none;
 }
 
-@media (min-width: 640px) {
-  .nav {
-    gap: var(--space-6);
-  }
-}
-
 .navLink {
   flex-shrink: 0;
-  font-size: var(--text-small);
+  font-size: var(--text-body-lg);
   font-weight: var(--font-weight-medium);
-  color: var(--ink-muted);
+  color: var(--ink);
   text-decoration-line: underline;
   text-decoration-color: transparent;
   text-decoration-thickness: var(--border-width);
@@ -87,7 +105,7 @@
 }
 
 .navLink:hover {
-  color: var(--ink);
+  color: var(--ink-secondary);
 }
 
 .navLink[aria-current="page"] {
@@ -95,16 +113,14 @@
   text-decoration-color: currentColor;
 }
 
-/* Hesap / giris: sinirli hap - ust cubugun tek eylem ogesi. Sinir
-   etkilesimli kontrol oldugu icin `--line-strong` (WCAG 1.4.11). */
 .account {
-  grid-area: account;
-  justify-self: end;
-  padding-inline: var(--space-4);
-  border: var(--border-width) solid var(--line-strong);
+  margin-inline-start: auto;
+  padding-inline: var(--space-5);
+  border: var(--border-width) solid transparent;
   border-radius: var(--radius-pill);
-  font-size: var(--text-small);
-  font-weight: var(--font-weight-medium);
+  background: var(--surface);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
   color: var(--ink);
 }
 
@@ -116,13 +132,174 @@
   border-color: var(--ink);
 }
 
+.mobileMenuLayer {
+  position: fixed;
+  inset: 0;
+  z-index: var(--z-overlay);
+  pointer-events: none;
+  visibility: hidden;
+}
+
+.mobileMenuLayer[data-open="true"] {
+  pointer-events: auto;
+  visibility: visible;
+}
+
+.mobileMenuScrim {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  background: rgb(0 0 0 / 64%);
+  opacity: 0;
+  cursor: default;
+}
+
+.mobileMenu {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  display: flex;
+  flex-direction: column;
+  width: min(84vw, 360px);
+  padding: var(--space-5);
+  background: var(--paper);
+  box-shadow: var(--shadow-md);
+  transform: translateX(-100%);
+}
+
+.mobileMenuHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding-block-end: var(--space-5);
+  border-block-end: var(--border-width) solid var(--line);
+}
+
+.mobileBrand {
+  font-size: 2rem;
+  font-style: italic;
+  font-weight: 700;
+  line-height: var(--line-height-heading);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.closeButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch-target);
+  min-height: var(--size-touch-target);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-secondary);
+  cursor: pointer;
+  font-size: 2rem;
+  line-height: 1;
+}
+
+.closeButton:hover {
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.mobileNav {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding-block: var(--space-5);
+}
+
+.mobileNavLink,
+.mobileAccountLink {
+  display: flex;
+  align-items: center;
+  min-height: 52px;
+  padding-inline: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.mobileNavLink:hover,
+.mobileAccountLink:hover {
+  background: var(--surface);
+}
+
+.mobileNavLink[aria-current="page"] {
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--border-width);
+  text-underline-offset: 0.35em;
+}
+
+.mobileAccountLink {
+  justify-content: center;
+  margin-block-start: var(--space-4);
+  padding-inline: var(--space-5);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+
+.mobileAccountLink[aria-current="page"] {
+  box-shadow: inset 0 0 0 var(--border-width) var(--ink);
+}
+
+.mobileMenuLayer[data-open="true"] .mobileMenuScrim {
+  opacity: 1;
+}
+
+.mobileMenuLayer[data-open="true"] .mobileMenu {
+  transform: translateX(0);
+}
+
+@media (max-width: 639.98px) {
+  .inner {
+    min-height: 80px;
+    gap: var(--space-3);
+  }
+
+  .nav {
+    display: none;
+  }
+
+  .brand {
+    min-width: 0;
+  }
+
+  .brandText {
+    font-size: 2rem;
+  }
+
+  .account {
+    min-height: 40px;
+    padding-inline: var(--space-4);
+    font-size: var(--text-small);
+  }
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .navLink,
-  .account {
+  .account,
+  .menuButton,
+  .closeButton,
+  .mobileNavLink,
+  .mobileAccountLink {
     transition:
       color var(--duration-fast) var(--ease-standard),
       background-color var(--duration-fast) var(--ease-standard),
       text-decoration-color var(--duration-fast) var(--ease-standard);
+  }
+
+  .mobileMenuScrim {
+    transition: opacity var(--duration-base) var(--ease-standard);
+  }
+
+  .mobileMenu {
+    transition: transform var(--duration-base) var(--ease-standard);
   }
 }
 
@@ -134,11 +311,17 @@
 }
 
 .brand:focus-visible,
+.menuButton:focus-visible,
+.closeButton:focus-visible,
+.mobileBrand:focus-visible,
+.mobileNavLink:focus-visible,
+.mobileAccountLink:focus-visible,
 .account:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
 
-.brand:focus-visible {
+.brand:focus-visible,
+.mobileBrand:focus-visible {
   border-radius: var(--radius-sm);
 }

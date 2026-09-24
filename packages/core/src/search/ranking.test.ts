@@ -1,10 +1,6 @@
 import { sql } from "drizzle-orm";
 import { describe, expect, it } from "vitest";
-import {
-  balancedScoreExpr,
-  MISSING_PERCENTILE_FALLBACK,
-  OUT_OF_STOCK_PENALTY,
-} from "./ranking.ts";
+import { balancedScoreExpr, MISSING_PERCENTILE_FALLBACK, OUT_OF_STOCK_PENALTY } from "./ranking.ts";
 
 describe("ranking constants", () => {
   it("are documented, tunable placeholders (docs/search.md gives no exact numbers)", () => {

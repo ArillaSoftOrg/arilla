@@ -3,7 +3,7 @@
 import { useId, useRef } from "react";
 import { Button } from "./Button.tsx";
 import { type ContinueShoppingChipItem, ContinueShoppingChips } from "./ContinueShoppingChips.tsx";
-import { ArrowRightIcon, ImageIcon } from "./icons.tsx";
+import { ArrowRightIcon, PlusIcon } from "./icons.tsx";
 import { PhotoUploadButton } from "./PhotoUploadButton.tsx";
 import styles from "./SearchComposer.module.css";
 
@@ -98,7 +98,7 @@ export function SearchComposer({
             {photo ? (
               <PhotoUploadButton
                 iconOnly
-                icon={<ImageIcon />}
+                icon={<PlusIcon />}
                 label={photo.label}
                 onFileSelected={photo.onFileSelected}
                 disabled={photo.disabled}

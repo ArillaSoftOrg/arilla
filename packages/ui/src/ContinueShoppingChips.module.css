@@ -23,6 +23,11 @@
   display: none;
 }
 
+.cardRow {
+  gap: var(--space-3);
+  padding-block: var(--space-2);
+}
+
 /* Tablet+: gereksiz kaydirma yok, ortali sarilir. */
 @media (min-width: 640px) {
   .row {
@@ -31,6 +36,12 @@
     margin-inline: 0;
     padding-inline: 0;
     overflow-x: visible;
+  }
+
+  .cardRow {
+    flex-wrap: nowrap;
+    justify-content: flex-start;
+    overflow-x: auto;
   }
 }
 
@@ -58,6 +69,60 @@
   text-overflow: ellipsis;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+}
+
+.card {
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr);
+  gap: var(--space-3);
+  width: min(74vw, 300px);
+  min-height: 84px;
+  padding: var(--space-3);
+  border-color: var(--line);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-xs);
+  text-align: start;
+}
+
+@media (min-width: 640px) {
+  .card {
+    width: clamp(220px, 19vw, 300px);
+  }
+}
+
+.thumb {
+  width: 44px;
+  height: 44px;
+  align-self: center;
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  object-fit: contain;
+}
+
+.copy {
+  display: grid;
+  align-self: center;
+  min-width: 0;
+  gap: var(--space-1);
+}
+
+.label {
+  overflow: hidden;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meta {
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .chip:hover {
