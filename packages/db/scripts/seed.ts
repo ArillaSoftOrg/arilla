@@ -24,6 +24,24 @@
  *
  * Sozluk kurallari (docs/glossary.md) tohum metinlerinde de gecerlidir:
  * "satin al", "dupe" ve "ucuz" kelimeleri kullanilmaz.
+ *
+ * Sahiplik — tohum yalnizca KENDI satirlarini yazar:
+ *   - Migration'larin yazdigi referans/konfigurasyon satirlari (0016'nin
+ *     kategorileri, 0018'in Shopify merchant'lari, 0020'nin sozluk satirlari)
+ *     tohumun degil, `packages/db/migrations`'in malidir. Tohum onlari
+ *     silmez, degistirmez; yalnizca var olduklarini dogrular ve urunlerini
+ *     altlarina koyar.
+ *   - `merchant`, `brand`, `category` TRUNCATE EDILMEZ. Tohumun kendi
+ *     satirlari slug uzerinden upsert edilir: ikinci kosu ayni satiri
+ *     gunceller, kopya uretmez, ID degismez.
+ *   - Katalog (product, offer, price_point ve bagimlilari) TRUNCATE ile
+ *     sifirlanir. `price_point`e DELETE yazilamaz (CLAUDE.md kural 4), bu
+ *     yuzden yalnizca tohum satirlarini silen kapsamli bir yol YOKTUR.
+ *   - Bu nedenle TRUNCATE'ten once, CASCADE'in ulasacagi her satirin tohuma
+ *     ait oldugu kanitlanir (bkz. `findNonSeedRows`). Kanitlanamayan tek bir
+ *     satir bile varsa tohum HICBIR SEY yazmadan durur. Uyarip silmek yok;
+ *     bu korumayi atlatan bir bayrak da yok (`--force` yalnizca yerel olmayan
+ *     sunucu kontrolunu gecer).
  */
 import type { Client } from "pg";
 import { ensureMonthlyPartitions } from "./ensure-partitions.ts";
@@ -119,6 +137,142 @@ async function insertRows(
   }
 }
 
+// --- sahiplik korumasi -------------------------------------------------------
+
+/**
+ * Tohumun sifirladigi tablolar. Bunlarin satirlari ya tohumun kendisidir
+ * (offer, product ve bagimlilari) ya da toplu islerin tohum satirlarindan
+ * turettigi veridir (similarity_edge, product_price_stats, embedding, ...).
+ */
+const SEED_RESET_TABLES = [
+  "price_point",
+  "product_price_stats",
+  "similarity_edge",
+  "match_candidate",
+  "variant_stock_event",
+  "offer_variant",
+  "offer",
+  "product_slug_history",
+  "product",
+  "embedding",
+  "generated_content",
+] as const;
+
+/**
+ * `TRUNCATE ... CASCADE`'in ulastigi tum tablolar: `SEED_RESET_TABLES` artı
+ * onlara foreign key ile (dolayli da olsa) baglanan her tablo. Katalogdan
+ * okunur, elle listelenmez — yeni bir migration yeni bir FK eklediginde
+ * koruma kendiliginden onu da kapsar. Partition'lar ust tablo ile gelir.
+ */
+async function truncateClosure(client: Client): Promise<string[]> {
+  const result = await client.query<{ name: string }>(
+    `WITH RECURSIVE closure(rel) AS (
+       SELECT unnest($1::text[]::regclass[])
+       UNION
+       SELECT c.conrelid::regclass
+         FROM pg_constraint c JOIN closure ON c.confrelid = closure.rel
+        WHERE c.contype = 'f'
+     )
+     SELECT closure.rel::text AS name
+       FROM closure JOIN pg_class k ON k.oid = closure.rel
+      WHERE NOT k.relispartition
+      ORDER BY 1`,
+    [SEED_RESET_TABLES],
+  );
+  return result.rows.map((row) => row.name);
+}
+
+/**
+ * TRUNCATE'in silecegi, tohuma ait oldugu KANITLANAMAYAN satirlari sayar.
+ * Bos dizi: silinecek her satir tohumun ya da tohumdan turetilmis veridir.
+ *
+ * Sahiplik kurallari:
+ *   - offer: merchant'i tohum merchant'idir (slug; alan adlari `.example`,
+ *     gercek bir feed'i yoktur).
+ *   - product: en az bir offer'i vardir ve TUM offer'lari tohum offer'idir.
+ *     Offer'siz urun belirsizdir; tohum her urune offer yazar, yani tohumun
+ *     degildir.
+ *   - embedding / generated_content: hedefi tohum offer'i ya da tohum
+ *     urunudur. `target_type='query'` (kullanici gorseli, arama) ve yetim
+ *     satirlar tohumun degildir.
+ *   - offer_variant, variant_stock_event, price_point, product_price_stats,
+ *     similarity_edge, match_candidate, product_slug_history: FK ile offer ya
+ *     da product'a baglidir; o satirlar tohumun ise bunlar da tohumdan
+ *     turetilmistir.
+ *   - CASCADE'in ulastigi diger her tablo (click, conversion, saved_item,
+ *     collection_item, public_find, image_upload, ...) tohumun yazmadigi
+ *     kullanici/attribution verisidir: BOS olmak zorundadir.
+ */
+async function findNonSeedRows(
+  client: Client,
+  cascadeTables: readonly string[],
+  seedMerchantSlugs: readonly string[],
+): Promise<string[]> {
+  const problems: string[] = [];
+
+  const owned = await client.query<{
+    offer: number;
+    product: number;
+    embedding: number;
+    generated_content: number;
+  }>(
+    `WITH seed_merchant AS (SELECT id FROM merchant WHERE slug = ANY($1)),
+     seed_offer AS (
+       SELECT id FROM offer WHERE merchant_id IN (SELECT id FROM seed_merchant)
+     ),
+     seed_product AS (
+       SELECT p.id FROM product p
+        WHERE EXISTS (SELECT 1 FROM offer o WHERE o.product_id = p.id)
+          AND NOT EXISTS (
+            SELECT 1 FROM offer o
+             WHERE o.product_id = p.id
+               AND o.merchant_id NOT IN (SELECT id FROM seed_merchant)
+          )
+     )
+     SELECT
+       (SELECT count(*) FROM offer WHERE id NOT IN (SELECT id FROM seed_offer))::int AS offer,
+       (SELECT count(*) FROM product WHERE id NOT IN (SELECT id FROM seed_product))::int
+         AS product,
+       (SELECT count(*) FROM embedding t
+         WHERE NOT ((t.target_type = 'offer' AND t.target_id IN (SELECT id FROM seed_offer))
+                 OR (t.target_type = 'product' AND t.target_id IN (SELECT id FROM seed_product)))
+       )::int AS embedding,
+       (SELECT count(*) FROM generated_content t
+         WHERE NOT ((t.target_type = 'offer' AND t.target_id IN (SELECT id FROM seed_offer))
+                 OR (t.target_type = 'product' AND t.target_id IN (SELECT id FROM seed_product)))
+       )::int AS generated_content`,
+    [seedMerchantSlugs],
+  );
+  const counts = owned.rows[0];
+  if (counts) {
+    if (counts.offer > 0) problems.push(`offer: ${counts.offer} satir tohum disi merchant'a ait`);
+    if (counts.product > 0) {
+      problems.push(`product: ${counts.product} urun tohum disi offer'a sahip ya da offer'siz`);
+    }
+    if (counts.embedding > 0) {
+      problems.push(`embedding: ${counts.embedding} satir tohum disi hedefe isaret ediyor`);
+    }
+    if (counts.generated_content > 0) {
+      problems.push(
+        `generated_content: ${counts.generated_content} satir tohum disi hedefe isaret ediyor`,
+      );
+    }
+  }
+
+  const resetTables = new Set<string>(SEED_RESET_TABLES);
+  for (const table of cascadeTables) {
+    if (resetTables.has(table)) continue;
+    // `table` pg_class'tan geldi (regclass::text), kullanici girdisi degil.
+    const result = await client.query<{ count: number }>(
+      `SELECT count(*)::int AS count FROM ${table}`,
+    );
+    const count = result.rows[0]?.count ?? 0;
+    if (count > 0) problems.push(`${table}: ${count} satir (tohum bu tabloya yazmaz)`);
+  }
+
+  return problems;
+}
+
 // --- katalog tanimlari -------------------------------------------------------
 
 const MERCHANTS = [
@@ -148,6 +302,12 @@ type CategoryDef = {
   path: string;
   parent?: string;
   discoverable: boolean;
+  /**
+   * `"migration"`: satiri bir migration yazar (0016). Tohum onu olusturmaz ve
+   * degistirmez, yalnizca varligini dogrular. `name`/`path`/`discoverable`
+   * burada yalnizca belge icindir.
+   */
+  owner?: "migration";
   sizes: readonly string[];
   minPrice: number;
   maxPrice: number;
@@ -236,10 +396,24 @@ const CATEGORIES: readonly CategoryDef[] = [
     maxPrice: 499900,
     titles: ["Yagmurluk Trenckot", "Kapitone Mont", "Yun Kaban", "Deri Ceket"],
   },
+  // 0016: `kozmetik` `saglik-kozmetik` altindadir. Ingest'in category_hint'leri
+  // (services/ingest/bootstrap) bu yolu kullanir; tohum ayni agaci kurar.
+  {
+    slug: "saglik-kozmetik",
+    name: "Saglik / Kozmetik",
+    path: "saglik-kozmetik",
+    discoverable: true,
+    owner: "migration",
+    sizes: [],
+    minPrice: 0,
+    maxPrice: 0,
+    titles: [],
+  },
   {
     slug: "kozmetik",
     name: "Kozmetik",
-    path: "kozmetik",
+    path: "saglik-kozmetik/kozmetik",
+    parent: "saglik-kozmetik",
     discoverable: true,
     sizes: [],
     minPrice: 0,
@@ -249,7 +423,7 @@ const CATEGORIES: readonly CategoryDef[] = [
   {
     slug: "parfum",
     name: "Parfum",
-    path: "kozmetik/parfum",
+    path: "saglik-kozmetik/kozmetik/parfum",
     parent: "kozmetik",
     discoverable: true,
     sizes: [],
@@ -260,7 +434,7 @@ const CATEGORIES: readonly CategoryDef[] = [
   {
     slug: "cilt-bakimi",
     name: "Cilt bakimi",
-    path: "kozmetik/cilt-bakimi",
+    path: "saglik-kozmetik/kozmetik/cilt-bakimi",
     parent: "kozmetik",
     discoverable: true,
     sizes: [],
@@ -280,12 +454,14 @@ const CATEGORIES: readonly CategoryDef[] = [
     maxPrice: 59900,
     titles: ["Pamuklu Takim", "Sutyen", "Bralet"],
   },
-  // docs/decisions/0023: kategori kapsami genisletildi.
+  // docs/decisions/0023: kategori kapsami genisletildi. Bu uc ana kategori
+  // 0016'nin satirlaridir; tohum yalnizca urunlerini altlarina koyar.
   {
     slug: "elektronik",
     name: "Elektronik",
     path: "elektronik",
     discoverable: true,
+    owner: "migration",
     sizes: [],
     minPrice: 99900,
     maxPrice: 4999900,
@@ -298,6 +474,7 @@ const CATEGORIES: readonly CategoryDef[] = [
     name: "Petshop",
     path: "petshop",
     discoverable: false,
+    owner: "migration",
     sizes: [],
     minPrice: 9900,
     maxPrice: 79900,
@@ -308,6 +485,7 @@ const CATEGORIES: readonly CategoryDef[] = [
     name: "Supermarket",
     path: "supermarket",
     discoverable: false,
+    owner: "migration",
     sizes: [],
     minPrice: 2900,
     maxPrice: 49900,
@@ -396,24 +574,64 @@ await withClient(ownerUrl(), async (client) => {
     );
   }
 
+  // --- migration satirlari yerinde mi ---
+  // Tohum migration'larin kategorilerini yazmaz; yoksa agac yarim kalir.
+  const migrationCategorySlugs = CATEGORIES.filter((c) => c.owner === "migration").map(
+    (c) => c.slug,
+  );
+  const presentCategories = new Set(
+    (
+      await client.query<{ slug: string }>("SELECT slug FROM category WHERE slug = ANY($1)", [
+        migrationCategorySlugs,
+      ])
+    ).rows.map((row) => row.slug),
+  );
+  const missingCategories = migrationCategorySlugs.filter((slug) => !presentCategories.has(slug));
+  if (missingCategories.length > 0) {
+    throw new Error(
+      `Migration kategorileri eksik: ${missingCategories.join(", ")}. ` +
+        "Once `pnpm db:migrate` calistirin (0016).",
+    );
+  }
+
   // --- temizlik ---
-  // CASCADE, product ve offer'a referans veren kullanici tablolarini da
-  // bosaltir (saved_item, alert, click, product_view, collection_item, ...).
-  // Gelistirme veritabaninda beklenen davranis budur.
-  console.log("Mevcut katalog siliniyor...");
-  await client.query(`
-    TRUNCATE price_point, product_price_stats, similarity_edge, match_candidate,
-             variant_stock_event, offer_variant, offer,
-             product_slug_history, product, brand, category, merchant,
-             -- embedding ve generated_content POLIMORFIKTIR: target_id bir
-             -- foreign key DEGIL (offer/product/query gosterebiliyor), bu
-             -- yuzden CASCADE onlara dokunmaz. RESTART IDENTITY yeni
-             -- offer'lara ayni ID'leri verdigi icin, temizlenmezlerse eski
-             -- vektorler sessizce BASKA urunlere yapisir. Sessiz yanlis veri,
-             -- eksik veriden kotudur.
-             embedding, generated_content
-    RESTART IDENTITY CASCADE
-  `);
+  // merchant, brand ve category bu listede YOK: migration satirlari onlarda
+  // yasar. Koruma ve TRUNCATE tek transaction'da, kilit altinda calisir:
+  // kontrol ile silme arasinda toplama isi yeni satir yazamaz.
+  const seedMerchantSlugs = MERCHANTS.map((merchant) => merchant.slug);
+  await client.query("BEGIN");
+  try {
+    await client.query("SET LOCAL lock_timeout = '10s'");
+    const cascadeTables = await truncateClosure(client);
+    await client.query(`LOCK TABLE ${cascadeTables.join(", ")} IN ACCESS EXCLUSIVE MODE`);
+
+    const nonSeed = await findNonSeedRows(client, cascadeTables, seedMerchantSlugs);
+    if (nonSeed.length > 0) {
+      throw new Error(
+        "Tohum durduruldu, hicbir satir degismedi. TRUNCATE CASCADE tohuma ait " +
+          "olmayan veriyi de silerdi:\n" +
+          nonSeed.map((line) => `  ${line}`).join("\n") +
+          "\n`price_point` append-only oldugu icin yalnizca tohum satirlarini silmek " +
+          "mumkun degil. Tohumu yalnizca tohum verisi iceren (ya da bos) bir gelistirme " +
+          "veritabaninda calistirin.",
+      );
+    }
+
+    console.log("Mevcut tohum katalogu siliniyor...");
+    await client.query(`
+      TRUNCATE ${SEED_RESET_TABLES.join(", ")}
+      -- embedding ve generated_content POLIMORFIKTIR: target_id bir foreign
+      -- key DEGIL (offer/product/query gosterebiliyor), bu yuzden CASCADE
+      -- onlara dokunmaz. RESTART IDENTITY yeni offer'lara ayni ID'leri
+      -- verdigi icin, temizlenmezlerse eski vektorler sessizce BASKA urunlere
+      -- yapisir. Sessiz yanlis veri, eksik veriden kotudur.
+      RESTART IDENTITY CASCADE
+    `);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  }
 
   // --- gecmis partition'lari ---
   // 60 gunluk gecmis birden fazla aya yayilir. O aylarin partition'lari
@@ -426,63 +644,67 @@ await withClient(ownerUrl(), async (client) => {
   );
 
   // --- merchant ---
-  await insertRows(
-    client,
-    "merchant",
-    [
-      "slug",
-      "name",
-      "domain",
-      "source_type",
-      "feed_url",
-      "refresh_minutes",
-      "affiliate_network",
-      "affiliate_status",
-      "commission_rate_bp",
-      "deeplink_template",
-      "trust_score",
-    ],
-    MERCHANTS.map((merchant, index) => [
-      merchant.slug,
-      merchant.name,
-      merchant.domain,
-      "xml_feed",
-      `https://${merchant.domain}/feed.xml`,
-      360,
-      "ornek-ag",
-      "active",
-      merchant.rate,
-      `https://${merchant.domain}/git?u={url}&ref={click_id}`,
-      70 + index * 5,
-    ]),
-  );
-  const merchantRows = (
-    await client.query<{ id: string; slug: string }>("SELECT id, slug FROM merchant ORDER BY id")
-  ).rows;
-  const merchantIds = merchantRows.map((row) => Number(row.id));
-  const merchantBySlug = new Map<string, (typeof MERCHANTS)[number]>(
-    MERCHANTS.map((merchant) => [merchant.slug, merchant]),
-  );
+  // Slug uzerinden upsert: ilk kosuda eklenir, sonrakilerde ayni satir ayni
+  // degerlere doner. Diger merchant'lar (0018 vb.) okunmaz bile.
+  const merchantIdBySlug = new Map<string, number>();
+  for (const [index, merchant] of MERCHANTS.entries()) {
+    const result = await client.query<{ id: string }>(
+      `INSERT INTO merchant (slug, name, domain, source_type, feed_url, refresh_minutes,
+                             affiliate_network, affiliate_status, commission_rate_bp,
+                             deeplink_template, trust_score, is_active)
+       VALUES ($1, $2, $3, 'xml_feed', $4, 360, 'ornek-ag', 'active', $5, $6, $7, TRUE)
+       ON CONFLICT (slug) DO UPDATE SET
+         name = EXCLUDED.name, domain = EXCLUDED.domain, source_type = EXCLUDED.source_type,
+         feed_url = EXCLUDED.feed_url, refresh_minutes = EXCLUDED.refresh_minutes,
+         affiliate_network = EXCLUDED.affiliate_network,
+         affiliate_status = EXCLUDED.affiliate_status,
+         commission_rate_bp = EXCLUDED.commission_rate_bp,
+         deeplink_template = EXCLUDED.deeplink_template,
+         trust_score = EXCLUDED.trust_score, is_active = EXCLUDED.is_active
+       RETURNING id`,
+      [
+        merchant.slug,
+        merchant.name,
+        merchant.domain,
+        `https://${merchant.domain}/feed.xml`,
+        merchant.rate,
+        `https://${merchant.domain}/git?u={url}&ref={click_id}`,
+        70 + index * 5,
+      ],
+    );
+    merchantIdBySlug.set(merchant.slug, Number(result.rows[0]?.id));
+  }
+  // Teklif dagitimi MERCHANTS sirasini izler, ID sirasini degil: tohum
+  // merchant'lari 0018'den sonra eklendiginde de ayni dagilim cikar.
+  const merchantIds = MERCHANTS.map((merchant) => merchantIdBySlug.get(merchant.slug) ?? 0);
   const merchantById = new Map(
-    merchantRows.map((row) => [Number(row.id), merchantBySlug.get(row.slug)]),
+    MERCHANTS.map((merchant) => [merchantIdBySlug.get(merchant.slug) ?? 0, merchant]),
   );
 
   // --- brand ---
-  await insertRows(
-    client,
-    "brand",
-    ["slug", "name", "name_norm"],
-    BRANDS.map((name) => [slugify(name), name, slugify(name).replace(/-/g, "")]),
-  );
-  const brandIds = (
-    await client.query<{ id: string }>("SELECT id FROM brand ORDER BY id")
-  ).rows.map((row) => Number(row.id));
+  const brandIds: number[] = [];
+  for (const name of BRANDS) {
+    const slug = slugify(name);
+    const result = await client.query<{ id: string }>(
+      `INSERT INTO brand (slug, name, name_norm) VALUES ($1, $2, $3)
+       ON CONFLICT (slug) DO UPDATE SET name = EXCLUDED.name, name_norm = EXCLUDED.name_norm
+       RETURNING id`,
+      [slug, name, slug.replace(/-/g, "")],
+    );
+    brandIds.push(Number(result.rows[0]?.id));
+  }
 
   // --- category ---
+  // Yalnizca tohumun kendi kategorileri yazilir; migration kategorileri
+  // yukarida dogrulandi ve oldugu gibi kalir.
   for (const category of CATEGORIES) {
+    if (category.owner === "migration") continue;
     await client.query(
       `INSERT INTO category (slug, name, parent_id, path, is_discoverable)
-       VALUES ($1, $2, (SELECT id FROM category WHERE slug = $3), $4, $5)`,
+       VALUES ($1, $2, (SELECT id FROM category WHERE slug = $3), $4, $5)
+       ON CONFLICT (slug) DO UPDATE SET
+         name = EXCLUDED.name, parent_id = EXCLUDED.parent_id,
+         path = EXCLUDED.path, is_discoverable = EXCLUDED.is_discoverable`,
       [category.slug, category.name, category.parent ?? null, category.path, category.discoverable],
     );
   }
