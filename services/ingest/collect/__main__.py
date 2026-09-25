@@ -34,6 +34,9 @@ def main(argv: list[str] | None = None) -> int:
     print(f"merchant           {result.merchant_slug}")
     print(f"ingest_run         {result.ingest_run_id}")
     print(f"status             {result.status}")
+    if result.refusal:
+        # Kapi reddetti: magazaya istek gitmedi, hicbir sey yazilmadi.
+        print(f"refused            {result.refusal}")
     print(f"offers_seen        {result.offers_seen}")
     print(f"offers_created     {counts.offers_created}")
     print(f"offers_updated     {counts.offers_updated}")

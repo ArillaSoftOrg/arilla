@@ -1,7 +1,11 @@
-"""Toplama boru hatti: tasima -> normalizasyon -> yazma -> `ingest_run`.
+"""Toplama boru hatti: kapi -> tasima -> normalizasyon -> yazma -> `ingest_run`.
 
 Her kosu `ingest_run` tablosuna yazilir. **Sessiz basarisizlik kabul edilmez**
 (architecture.md §1): kosu patlasa bile satir `failed` olarak kapanir.
+
+Kapi (`collect/gate.py`) connector kurulmadan once sorulur. Reddedilen kosu
+da `ingest_run`'a `failed` + `refused:<kod>` olarak yazilir; magazaya istek
+gitmez, offer ya da `price_point` yazilmaz.
 """
 
 from __future__ import annotations
@@ -15,9 +19,10 @@ import psycopg
 
 from collect import connector as connector_registry
 from collect import sources  # noqa: F401  — uc tasimayi kayda ekler
+from collect.gate import SHOPIFY_CURRENCY, ingest_refusal
 from collect.mapping import FieldMapping
 from collect.normalize import normalize
-from collect.records import RecordRejected
+from collect.records import NormalizedOffer, RecordRejected
 from collect.writer import OfferWriter, WriteCounts
 
 logger = logging.getLogger(__name__)
@@ -35,6 +40,8 @@ class IngestResult:
     counts: WriteCounts
     rejected: int
     deactivated: int
+    #: Kapi reddettiyse makine kodu (`merchant_inactive`, `currency_unverified`, ...).
+    refusal: str | None = None
 
 
 def _load_merchant(conn: psycopg.Connection, slug: str) -> dict[str, Any]:
@@ -75,6 +82,21 @@ def run_ingest(conn: psycopg.Connection, merchant_slug: str) -> IngestResult:
     # Kosu kaydi hemen gorunur olsun: sonrasinda ne olursa olsun izi kalir.
     conn.commit()
 
+    refusal = ingest_refusal(merchant)
+    if refusal is not None:
+        logger.warning("ingest reddedildi %s: %s", merchant_slug, refusal.error_text)
+        _close_run(conn, run_id, "failed", 0, WriteCounts(), [refusal.error_text], 0)
+        return IngestResult(
+            ingest_run_id=run_id,
+            merchant_slug=merchant_slug,
+            status="failed",
+            offers_seen=0,
+            counts=WriteCounts(),
+            rejected=0,
+            deactivated=0,
+            refusal=refusal.code,
+        )
+
     writer = OfferWriter(conn, merchant_id=merchant["id"], observed_at=started_at)
     offers_seen = 0
     rejected = 0
@@ -94,6 +116,7 @@ def run_ingest(conn: psycopg.Connection, merchant_slug: str) -> IngestResult:
             offers_seen += 1
             try:
                 offer = normalize(record, mapping)
+                _check_currency(merchant["source_type"], offer)
             except RecordRejected as error:
                 rejected += 1
                 if len(errors) < MAX_ERROR_SAMPLES:
@@ -137,6 +160,16 @@ def run_ingest(conn: psycopg.Connection, merchant_slug: str) -> IngestResult:
         rejected=rejected,
         deactivated=deactivated,
     )
+
+
+def _check_currency(source_type: str, offer: NormalizedOffer) -> None:
+    """Shopify teklifi TRY disinda yazilmaz (0031). Kapi `feed_config.currency`
+    TRY'yi zaten sart kosar; bu, esleme bir kaynak para birimi alani eklerse
+    diye kayit duzeyindeki ikinci kilittir."""
+    if source_type == "shopify" and offer.currency != SHOPIFY_CURRENCY:
+        raise RecordRejected(
+            f"Shopify teklifi {SHOPIFY_CURRENCY} disinda: {offer.currency} ({offer.external_id})"
+        )
 
 
 def _close_run(

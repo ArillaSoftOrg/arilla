@@ -53,11 +53,14 @@ class NormalizedOffer:
     current_price: int | None
     list_price: int | None
     in_stock: bool
+    #: Varsayilan YOK (0029/0031): para birimi kaynaktan ya da merchant icin
+    #: dogrulanmis `feed_config.currency`'den gelir. Sessiz bir "TRY"
+    #: varsayilani, dogrulanmamis fiyati TL diye yazmanin kapisiydi.
+    currency: str
     brand_raw: str | None = None
     category_raw: str | None = None
     image_url: str | None = None
     gtin: str | None = None
-    currency: str = "TRY"
     shipping_days: int | None = None
     shipping_cost: int | None = None
     free_shipping_threshold: int | None = None

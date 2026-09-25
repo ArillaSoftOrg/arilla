@@ -99,6 +99,15 @@ bağlamamak için `is_active` burada değiştirilmedi.
   paylaşılan sözleşmesi **değişmedi** — mevcut merchant'lar için regresyon
   beklenmiyor.
 
+## Ek: para birimi doğrulaması ve toplama kapısı (bkz. 0031)
+
+2026-09: Bu kararın açık bıraktığı para birimi konusu `0031` ile ele alındı.
+Salt okunur `python -m collect.verify_currency` komutu eklendi; `run_ingest`
+artık pasif merchant'ı ve `currency_verified = true` + `currency = "TRY"`
+taşımayan Shopify merchant'ını mağazaya istek atmadan reddediyor. 0018'in 19
+merchant'ı hâlâ `is_active = FALSE` ve `currency_verified: false`; canlı
+doğrulama ve aktivasyon ayrı, onaylı bir adım.
+
 ## Reddedilen alternatifler
 
 - **Jenerik `mapping.py`'ye dot-path/gruplama eklemek.** Yalnızca fiyat/
