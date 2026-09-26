@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./clarification": "./src/clarification/index.ts",
+    "./cookie-consent": "./src/consent/cookie-consent.ts",
     "./link-input": "./src/discovery/link-search-input.ts"
   },
   "scripts": {
