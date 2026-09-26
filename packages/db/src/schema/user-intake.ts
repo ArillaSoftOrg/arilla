@@ -1,5 +1,5 @@
 /** 0013_user_intake.sql karsiligi. D4: gorsel arama + kok catch-all link cozumleme. */
-import { bigint, boolean, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { bigint, boolean, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
 
 /**
  * Yuklenen gorselin izi. CLAUDE.md kural 1'in tek istisnasi: istek yolundaki
@@ -44,4 +44,12 @@ export const linkResolutionRequest = pgTable("link_resolution_request", {
   errorText: text("error_text"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   finishedAt: timestamp("finished_at", { withTimezone: true }),
+  /** 0021: izleme parametresiz kanonik adres - oturumlar arasi onbellek anahtari. */
+  normalizedUrl: text("normalized_url"),
+  /** 0021: worker'in sayfadan okudugu sinyaller; yalnizca bulunan alanlar. */
+  source: jsonb("source"),
+  /** 0021: kullaniciya gosterilecek durumun kararli kodu (docs/schema.sql). */
+  errorCode: text("error_code"),
+  /** 0021: kaynak gorselin `embedding` satiri; NULL ise arama metinle yurur. */
+  imageEmbeddingId: bigint("image_embedding_id", { mode: "number" }),
 });

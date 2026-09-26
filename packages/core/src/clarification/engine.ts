@@ -12,6 +12,9 @@
  *   sorulur. Sinyal: bir filtre fasetinin secimi, butce, renk/beden/marka,
  *   ya da ilk sorgudan kalan somut kelimeler.
  * - Bir domain'de en fazla `maxQuestions` farkli soru sorulur.
+ * - Kullanici bir soruyu atladiysa ("Fark etmez") artik `useful` soru
+ *   sorulmaz: atlama "beni sorguya cekme" demektir. Yalnizca aramanin
+ *   anlamli olmasi icin sart olan `essential` soru kalabilir.
  * - Ayni soru en fazla iki kez sorulur; ikinci kez de cevapsiz kalirsa
  *   kullanici soruyla ilgilenmiyor demektir: baska soru sorulmadan aranir.
  *   Kullanici sihirbazda hapsolmaz.
@@ -130,6 +133,7 @@ function nextQuestionId(
     if (asked >= MAX_ASKS_PER_QUESTION) continue;
     if (asked === 0 && questionsAsked >= domain.maxQuestions) continue;
     if (entry.importance === "essential") return id;
+    if (state.skippedFacets.length > 0) continue;
     if (signals < domain.readyAfterSignals) return id;
   }
   return null;

@@ -56,6 +56,7 @@ class ExtractedProduct:
     brand: str | None = None
     gtin: str | None = None
     mpn: str | None = None
+    sku: str | None = None
     category: str | None = None
     in_stock: bool | None = None
     #: Hangi katman verdi: 'json_ld' | 'opengraph' | 'heuristic'
@@ -68,7 +69,12 @@ class ExtractedProduct:
 
     @property
     def usable(self) -> bool:
+        """Kataloga `offer` olarak yazilabilir mi: baslik VE fiyat."""
         return bool(self.title and self.price_text)
+
+    @property
+    def has_price(self) -> bool:
+        return bool(self.price_text)
 
 
 class _PageParser(HTMLParser):
@@ -173,7 +179,14 @@ def _text(value: Any) -> str | None:
     return None
 
 
-def from_json_ld(blocks: list[str]) -> ExtractedProduct | None:
+def from_json_ld(blocks: list[str], *, allow_reference: bool = False) -> ExtractedProduct | None:
+    """Ilk kullanilabilir (baslik + fiyat) Product dugumu.
+
+    `allow_reference`: fiyati olmayan ama baslikli bir Product dugumu da
+    dondurulur — link aramasi icin "sayfa gercekten bir urun" kaniti yeter;
+    fiyat uydurulmaz, bilinmiyor kalir.
+    """
+    reference: ExtractedProduct | None = None
     for block in blocks:
         try:
             payload = json.loads(block)
@@ -193,16 +206,44 @@ def from_json_ld(blocks: list[str]) -> ExtractedProduct | None:
                 title=_text(node.get("name")),
                 price_text=price,
                 currency=_text(offer.get("priceCurrency")) if offer else None,
-                image_url=_text(node.get("image")),
+                image_url=_image(node.get("image")),
                 brand=_text(node.get("brand")),
-                gtin=_text(node.get("gtin13") or node.get("gtin") or node.get("gtin12")),
+                gtin=_text(
+                    node.get("gtin13")
+                    or node.get("gtin")
+                    or node.get("gtin12")
+                    or node.get("gtin14")
+                    or node.get("gtin8")
+                ),
                 mpn=_text(node.get("mpn")),
+                sku=_text(node.get("sku")),
                 category=_text(node.get("category")),
                 in_stock=_availability(availability),
                 source_layer="json_ld",
             )
             if product.usable:
                 return product
+            if reference is None and product.title:
+                reference = product
+    return reference if allow_reference else None
+
+
+def _image(value: Any) -> str | None:
+    """schema.org `image`: metin, dizi ya da ImageObject.
+
+    `_text` bir sozlukte once `name`e bakar — ImageObject'in adini gorsel
+    adresi sanirdi. Burada adres alanlari (`url`, `contentUrl`) once gelir.
+    """
+    if isinstance(value, str):
+        return value.strip() or None
+    if isinstance(value, list):
+        for item in value:
+            found = _image(item)
+            if found:
+                return found
+        return None
+    if isinstance(value, dict):
+        return _image(value.get("url") or value.get("contentUrl") or value.get("@id"))
     return None
 
 
@@ -225,13 +266,25 @@ def _availability(value: str | None) -> bool | None:
 # --- 2. katman: OpenGraph / microdata ---------------------------------------
 
 
-def from_meta(parser: _PageParser) -> ExtractedProduct | None:
+def _declares_product(parser: _PageParser) -> bool:
+    """Sayfa kendini urun olarak tanitiyor mu (og:type ya da product:* meta)?"""
+    og_type = parser.meta.get("og:type", "").lower()
+    return og_type in {"product", "og:product", "product.item"} or any(
+        key.startswith("product:") for key in parser.meta
+    )
+
+
+def from_meta(parser: _PageParser, *, allow_reference: bool = False) -> ExtractedProduct | None:
     meta = parser.meta
     micro = parser.microdata
 
     title = meta.get("og:title") or micro.get("name") or (parser.title or "").strip() or None
     price = meta.get("product:price:amount") or meta.get("og:price:amount") or micro.get("price")
-    if not (title and price):
+    if not title:
+        return None
+    # Fiyatsiz meta yalnizca sayfa kendini acikca urun olarak tanitiyorsa
+    # referans sayilir; her sayfanin og:title'i vardir.
+    if not price and not (allow_reference and _declares_product(parser)):
         return None
 
     availability = meta.get("product:availability") or micro.get("availability")
@@ -243,10 +296,11 @@ def from_meta(parser: _PageParser) -> ExtractedProduct | None:
         brand=meta.get("product:brand") or micro.get("brand"),
         gtin=micro.get("gtin13") or micro.get("gtin"),
         mpn=micro.get("mpn"),
+        sku=micro.get("sku"),
         in_stock=_availability(availability),
         source_layer="opengraph",
     )
-    return product if product.usable else None
+    return product if (product.usable or allow_reference) else None
 
 
 # --- 3. katman: son care ----------------------------------------------------
@@ -278,16 +332,30 @@ def from_heuristics(parser: _PageParser) -> ExtractedProduct | None:
     return None
 
 
-def extract(html: str) -> ExtractedProduct | None:
-    """Uc katmani sirayla dener, ilk kullanilabilir sonucta durur."""
+def extract(html: str, *, allow_reference: bool = False) -> ExtractedProduct | None:
+    """Uc katmani sirayla dener, ilk kullanilabilir sonucta durur.
+
+    `allow_reference=True` (link aramasi): yapilandirilmis katmanlar fiyatli
+    bir urun vermezse, fiyatsiz ama acikca urun olarak isaretlenmis bir sayfa
+    (Product JSON-LD ya da og:type=product) referans olarak doner — sezgisel
+    katmandan ONCE. Sezgisel katman fiyatsiz referans URETMEZ: `<title>` her
+    sayfada vardir, urun kaniti degildir.
+    """
     parser = _PageParser()
     parser.feed(html)
 
-    for layer in (
-        lambda: from_json_ld(parser.json_ld),
-        lambda: from_meta(parser),
-        lambda: from_heuristics(parser),
-    ):
+    layers = [lambda: from_json_ld(parser.json_ld), lambda: from_meta(parser)]
+    if allow_reference:
+        # Yapilandirilmis veri "bu bir urun" diyor ama fiyat vermiyorsa,
+        # gorunen metinden fiyat sezmek yerine fiyatsiz referans tercih edilir:
+        # sayfadaki herhangi bir "1299 TL" o urunun fiyati olmayabilir.
+        layers += [
+            lambda: from_json_ld(parser.json_ld, allow_reference=True),
+            lambda: from_meta(parser, allow_reference=True),
+        ]
+    layers.append(lambda: from_heuristics(parser))
+
+    for layer in layers:
         product = layer()
         if product is not None:
             return product

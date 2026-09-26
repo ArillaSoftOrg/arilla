@@ -24,6 +24,7 @@ import {
   type Provenance,
   type SearchState,
   type ShoppingIntent,
+  type TurnResult,
 } from "./types.ts";
 
 export class InvalidClarificationInputError extends Error {
@@ -153,11 +154,50 @@ function freshFromFacts(text: string, facts: ExtractedFacts, context: ExtractCon
   return state;
 }
 
-function applyText(state: SearchState, text: string, context: ExtractContext): SearchState {
+/** Aramaya etki eden alanlar ayni mi? Tur sayaci ve cevap gunlugu haric. */
+function sameSearchMeaning(a: SearchState, b: SearchState): boolean {
+  const facetKey = (state: SearchState) =>
+    Object.entries(state.facets)
+      .map(([id, assignment]) => `${id}=${assignment.optionId}`)
+      .sort()
+      .join("|");
+  return (
+    facetKey(a) === facetKey(b) &&
+    a.budget?.minKurus === b.budget?.minKurus &&
+    a.budget?.maxKurus === b.budget?.maxKurus &&
+    JSON.stringify(a.lexical) === JSON.stringify(b.lexical) &&
+    [...a.skippedFacets].sort().join("|") === [...b.skippedFacets].sort().join("|")
+  );
+}
+
+/**
+ * Suren konusmada domain tetiklemeyen ama hicbir fasete de dusmeyen metin
+ * yeni bir urun ailesi mi? Deterministik kural:
+ *
+ * - arama fiili + somut kelime: "masa lambası bakıyorum" -> evet
+ * - en az iki kelimelik isim obegi: "masa lambası" -> evet
+ * - tek kelime ya da tercih cumlesi ("marka önemli değil",
+ *   "yağmurda da kullanacağım") -> hayir; `unrecognized` olur ve arayuz
+ *   "yeni arama olarak kullan" secenegini acikca sunar.
+ */
+function startsNewProductFamily(facts: ReturnType<typeof extractFacts>): boolean {
+  if (facts.terms.length === 0) return false;
+  return facts.hasSearchVerb || (facts.isNounPhrase && facts.terms.length >= 2);
+}
+
+function applyText(state: SearchState, text: string, context: ExtractContext): TurnResult {
   const facts = extractFacts(text, context, { contextDomainId: state.domainId });
-  const switchesDomain = facts.domainId !== null && facts.domainId !== state.domainId;
+  const switchesDomain =
+    facts.detectedDomainId !== null && facts.detectedDomainId !== state.domainId;
   if (state.rawQuery === "" || state.domainId === null || switchesDomain) {
-    return freshFromFacts(text, facts, context);
+    // Yeni urun ailesi = yeni konusma. Uyumluluk kurali: onceki ailenin
+    // fasetleri, cevaplari, atlamalari, ima edilen degerleri ve butcesi
+    // tasinmaz (butce bantlari aileye ozgudur). Yalnizca bu metin kalir.
+    return {
+      state: freshFromFacts(text, facts, context),
+      outcome: "new_search",
+      ignoredPricePreference: false,
+    };
   }
 
   // Ayni domain'de takip metni: yalnizca faset, butce ve sozluk sinyalleri
@@ -180,7 +220,23 @@ function applyText(state: SearchState, text: string, context: ExtractContext): S
       next = logAnswer(next, facetId, optionId, turn);
     }
   }
-  return next;
+
+  if (!sameSearchMeaning(state, next)) {
+    return { state: next, outcome: "applied", ignoredPricePreference: facts.pricePreference !== null };
+  }
+  if (facts.pricePreference !== null) {
+    return { state: next, outcome: "unsupported_preference", ignoredPricePreference: false };
+  }
+  if (startsNewProductFamily(facts)) {
+    const standalone = extractFacts(text, context);
+    return {
+      state: freshFromFacts(text, standalone, context),
+      outcome: "new_search",
+      ignoredPricePreference: false,
+    };
+  }
+  // Hicbir sey anlasilmadi: durum AYNEN kalir (tur sayaci dahil).
+  return { state, outcome: "unrecognized", ignoredPricePreference: false };
 }
 
 function logAnswer(
@@ -276,19 +332,44 @@ function applySkip(
   return logAnswer(next, questionId, null, turn);
 }
 
+/**
+ * Girdiyi uygular ve etkisini soyler. Serbest metin icin `outcome`
+ * `unrecognized` olabilir; secenek, atlama ve "sonuçları göster" her zaman
+ * `applied`'dir (gecersizse hata firlatir).
+ */
+export function applyInputWithOutcome(
+  state: SearchState,
+  input: ClarificationInput,
+  context: ExtractContext,
+): TurnResult {
+  switch (input.type) {
+    case "text":
+      return applyText(state, input.text, context);
+    case "answer":
+      return {
+        state: applyAnswer(state, input.questionId, input.optionId, context.registry),
+        outcome: "applied",
+        ignoredPricePreference: false,
+      };
+    case "skip":
+      return {
+        state: applySkip(state, input.questionId, context.registry),
+        outcome: "applied",
+        ignoredPricePreference: false,
+      };
+    case "show_results":
+      return {
+        state: { ...state, turn: state.turn + 1, clarificationStatus: "user_requested_results" },
+        outcome: "applied",
+        ignoredPricePreference: false,
+      };
+  }
+}
+
 export function applyInput(
   state: SearchState,
   input: ClarificationInput,
   context: ExtractContext,
 ): SearchState {
-  switch (input.type) {
-    case "text":
-      return applyText(state, input.text, context);
-    case "answer":
-      return applyAnswer(state, input.questionId, input.optionId, context.registry);
-    case "skip":
-      return applySkip(state, input.questionId, context.registry);
-    case "show_results":
-      return { ...state, turn: state.turn + 1, clarificationStatus: "user_requested_results" };
-  }
+  return applyInputWithOutcome(state, input, context).state;
 }

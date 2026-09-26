@@ -3,33 +3,36 @@
   /* minmax(0, 1fr): yatay kayan chip satirinin dogal genisligi kolonu
      ve ebeveyn grid'leri genisletmesin. */
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-4);
+  gap: var(--space-3);
 }
 
 /* design.md "Kutu modeli": arama kutusu --radius-lg; kontrol siniri
    --line-strong (>= 3:1); dinlenmede --shadow-xs, vurguluyken --shadow-sm. */
 .box {
+  position: relative;
   display: flex;
-  /* Guvenlik agi: girdinin esas genisligi sigmazsa eylemler alt satira
-     sarilir. 320px'te sarma olmaz (mobilde gonder dugmesi yalnizca ikon). */
-  flex-wrap: wrap;
-  align-items: center;
-  gap: var(--space-1);
-  padding: var(--space-2);
-  padding-inline-start: var(--space-4);
-  border: var(--border-width) solid var(--line-strong);
-  border-radius: var(--radius-lg);
+  align-items: flex-start;
+  min-height: 192px;
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--line);
+  border-radius: 28px;
   background: var(--surface-raised);
-  box-shadow: var(--shadow-xs);
+  box-shadow:
+    0 34px 110px rgba(22, 24, 29, 0.1),
+    0 14px 38px rgba(22, 24, 29, 0.06),
+    var(--shadow-xs);
 }
 
 .box:hover {
-  border-color: var(--ink-muted);
+  border-color: var(--line-strong);
 }
 
 .box:focus-within {
   border-color: var(--ink);
-  box-shadow: var(--shadow-sm);
+  box-shadow:
+    0 34px 110px rgba(22, 24, 29, 0.13),
+    0 14px 38px rgba(22, 24, 29, 0.08),
+    var(--shadow-sm);
 }
 
 /* Girdinin kendi outline'i yok; esdeger gorunurlukte halka kutuya cizilir
@@ -48,11 +51,12 @@
 }
 
 .input {
-  flex: 1 1 8rem;
-  /* Flex varsayilani min-width:auto - satir tasmasin (design.md). */
+  flex: 1 1 auto;
   min-width: 0;
-  min-height: var(--size-touch-target);
+  min-height: 116px;
   padding: 0;
+  padding-block-start: var(--space-1);
+  padding-inline-end: calc(var(--size-touch-target) + var(--space-2));
   border: none;
   background: transparent;
   color: var(--ink);
@@ -75,20 +79,25 @@
 }
 
 .actions {
+  position: absolute;
+  inset-inline: var(--space-5);
+  inset-block-end: var(--space-4);
   display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex-shrink: 0;
-  margin-inline-start: auto;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--space-2);
+  pointer-events: none;
 }
 
-/* Ikon dugmesi: kare 44px dokunma hedefi, --radius-md (kutunun --radius-lg
+/* Ikon dugmeleri genis dokunma hedefi tasir; --radius-md (kutunun --radius-lg
    kosesinden kucuk - ic ice yuzey kurali). */
 .box .photoButton {
-  width: var(--size-touch-target);
-  min-width: var(--size-touch-target);
+  width: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
-  color: var(--ink-secondary);
+  color: var(--ink);
+  pointer-events: auto;
 }
 
 .box .photoButton:hover:not(:disabled) {
@@ -96,7 +105,21 @@
 }
 
 .box .submit {
-  padding-inline: var(--space-3);
+  width: 48px;
+  min-width: 48px;
+  min-height: 48px;
+  padding: 0;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  border-color: var(--surface);
+  color: var(--ink-muted);
+  pointer-events: auto;
+}
+
+.box .submit:hover:not(:disabled) {
+  background: var(--surface-hover);
+  border-color: var(--surface-hover);
+  color: var(--ink);
 }
 
 /* Mobilde gonder dugmesi yalnizca ok ikonu; erisilebilir ad aria-label'da. */
@@ -106,16 +129,42 @@
 
 @media (min-width: 640px) {
   .box {
-    padding: var(--space-2);
-    padding-inline-start: var(--space-5);
+    min-height: 192px;
   }
 
   .box .submit {
-    padding-inline: var(--space-5);
+    width: 52px;
+    min-width: 52px;
+    min-height: 52px;
   }
 
   .submitLabel {
-    display: inline;
+    display: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .box {
+    min-height: 172px;
+    padding: var(--space-5);
+    border-radius: 24px;
+  }
+
+  .input {
+    min-height: 96px;
+    padding-block-start: 0;
+  }
+
+  .actions {
+    inset-inline: var(--space-4);
+    inset-block-end: var(--space-3);
+  }
+
+  .box .photoButton,
+  .box .submit {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 
@@ -150,19 +199,26 @@
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
+  justify-self: center;
+  width: 100%;
+  margin-block-start: var(--space-12);
 }
 
 .chipsTitle {
   margin: 0;
   text-align: start;
-  font-size: var(--text-meta);
-  font-weight: var(--font-weight-medium);
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-normal);
-  color: var(--ink-muted);
+  color: var(--ink);
 }
 
 @media (min-width: 640px) {
+  .chipsSection {
+    width: min(calc(100vw - (2 * var(--gutter))), var(--content-width-wide));
+  }
+
   .chipsTitle {
-    text-align: center;
+    text-align: start;
   }
 }

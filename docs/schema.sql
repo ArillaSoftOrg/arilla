@@ -80,6 +80,9 @@ CREATE TABLE product (
     attributes      JSONB       NOT NULL DEFAULT '{}'::jsonb,  -- renk, malzeme, beden
     primary_image_url TEXT,
     -- denormalize edilmiş, toplu işle güncellenir. İstek yolu bunları okur.
+    -- min_price: aktif tekliflerin en düşüğü, TÜM varyantlar dahil (0033).
+    -- "Başlangıç fiyatı"dır; farklı boyutlar (60/100 ml) karşılaştırılabilir
+    -- "en ucuz" fiyat değildir. Varyant bazlı karşılaştırma ürün sayfasında.
     min_price       BIGINT,
     max_price       BIGINT,
     offer_count     INTEGER     NOT NULL DEFAULT 0,
@@ -154,9 +157,14 @@ CREATE TABLE offer_variant (
     price_override BIGINT,                  -- nadir. NULL ise offer.current_price geçerli.
     sku            TEXT,                    -- merchant'ın kendi SKU'su, varsa
     last_seen_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- 0022 (docs/decisions/0032): bu ticari varyantın barkodu. Yalnızca GS1
+    -- kontrol basamağı doğru değer; kaynak 'feed' | 'products_js' | 'sku'.
+    gtin           TEXT,
+    gtin_source    TEXT,
     CONSTRAINT offer_variant_uniq UNIQUE (offer_id, external_id)
 );
 CREATE INDEX offer_variant_offer_idx ON offer_variant (offer_id) WHERE in_stock;
+CREATE INDEX offer_variant_gtin_idx  ON offer_variant (gtin) WHERE gtin IS NOT NULL;
 
 -- Stok DEĞİŞİMİ olayları. Anlık görüntü değil — sadece durum değiştiğinde satır
 -- yazılır, yoksa tablo her toplama koşusunda şişer.
@@ -341,9 +349,29 @@ CREATE TABLE link_resolution_request (
     offer_id     BIGINT      REFERENCES offer(id),
     error_text   TEXT,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    finished_at  TIMESTAMPTZ
+    finished_at  TIMESTAMPTZ,
+    -- 0021 (docs/decisions/0031): link araması. `normalized_url` izleme
+    -- parametresiz, fragment'sız kanonik adres — oturumlar arası önbellek
+    -- anahtarı (aynı ürün linki TTL içinde yeniden getirilmez).
+    normalized_url     TEXT,
+    -- Worker'ın sayfadan okuduğu arama sinyalleri; YALNIZCA sayfada gerçekten
+    -- bulunan alanlar yazılır (title, brand, category, gtin, mpn, sku,
+    -- image_url, price+currency, extraction_layer, site, image_status).
+    -- Fiyat yalnızca yapılandırılmış katmandan ve para birimiyle birlikte gelir.
+    source             JSONB,
+    -- Kullanıcıya gösterilecek durumun kararlı kodu; `error_text` ayrıntıdır.
+    -- 'invalid_url','blocked_destination','robots_disallowed','access_denied',
+    -- 'not_found','rate_limited','upstream_error','http_error','timeout',
+    -- 'fetch_failed','too_many_redirects','unsupported_content','too_large',
+    -- 'no_product','queue_unavailable','unexpected'
+    error_code         TEXT,
+    -- Kaynak görselin vektörü (offer'ın `image` embedding'i). NULL: görsel yok,
+    -- işlenemedi ya da sağlayıcı yapılandırılmamış — arama metinle yürür.
+    image_embedding_id BIGINT      REFERENCES embedding(id)
 );
 CREATE INDEX link_resolution_request_session_idx ON link_resolution_request (session_id, created_at DESC);
+CREATE INDEX link_resolution_request_url_idx     ON link_resolution_request (normalized_url, created_at DESC)
+    WHERE normalized_url IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- KULLANICI VE CREATOR
@@ -392,6 +420,22 @@ CREATE TABLE session (
 );
 CREATE INDEX session_user_idx ON session (user_id);
 CREATE INDEX session_expiry_idx ON session (expires_at);
+
+CREATE TABLE user_identity (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id          BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    provider         TEXT        NOT NULL CHECK (provider IN ('google')),
+    provider_subject TEXT        NOT NULL,
+    email            TEXT,
+    email_verified   BOOLEAN     NOT NULL DEFAULT FALSE,
+    display_name     TEXT,
+    avatar_url       TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT user_identity_provider_subject_unique UNIQUE (provider, provider_subject)
+);
+CREATE INDEX user_identity_user_idx ON user_identity (user_id);
+CREATE INDEX user_identity_email_idx ON user_identity (email) WHERE email IS NOT NULL;
 
 CREATE TABLE creator (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

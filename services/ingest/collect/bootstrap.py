@@ -30,6 +30,8 @@ from urllib.parse import urlparse
 
 import psycopg
 
+from collect import identifiers
+from collect.link.robots import RobotsCache
 from collect.pipeline import run_ingest
 from db.connection import connect, database_url
 
@@ -136,6 +138,8 @@ class SourceReport:
     variants_written: int = 0
     duration_seconds: float = 0.0
     errors: list[str] = field(default_factory=list)
+    #: Barkod zenginlestirmesi ozeti (0032); atlandiysa None.
+    identifiers: dict[str, Any] | None = None
 
 
 #: Para birimi kanitinin kabul edildigi guven duzeyleri. "medium": taban para
@@ -231,8 +235,11 @@ def run(
     merchants: list[BootstrapMerchant],
     provenance: dict[str, dict[str, Any]] | None = None,
     register_only: bool = False,
+    enrich_identifiers: bool = True,
 ) -> list[SourceReport]:
     reports: list[SourceReport] = []
+    http = identifiers.http_client() if enrich_identifiers else None
+    robots = RobotsCache(client=http) if http else None
     for merchant in merchants:
         report = SourceReport(
             slug=merchant.slug,
@@ -260,6 +267,17 @@ def run(
             report.offers_updated = result.counts.offers_updated
             report.rejected = result.rejected
             report.variants_written = result.counts.variants_written
+            # Toplamanin hemen ardindan, ayni sirali akista (0032). Hata
+            # toplamayi dusurmez: rapora yazilir, sonraki magazaya gecilir.
+            # Bagimsiz zamanlanmis is (`python -m collect.identifiers`) ayni
+            # adimi tazelik onbellegiyle yeniden calistirir.
+            if http is not None and robots is not None:
+                try:
+                    enriched = identifiers.enrich_merchant(conn, slug, client=http, robots=robots)
+                    report.identifiers = asdict(enriched)
+                except Exception as error:  # noqa: BLE001
+                    conn.rollback()
+                    report.errors.append(f"barkod zenginlestirmesi: {str(error)[:200]}")
         report.duration_seconds = round(time.monotonic() - started, 1)
         logger.info(
             "kaynak bitti %s status=%s kesfedilen=%d yeni=%d guncellenen=%d atlanan=%d sure=%.1fs",
@@ -295,6 +313,11 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="yalnizca merchant satirlarini/feed_config'i guncelle, magazaya istek atma",
     )
+    parser.add_argument(
+        "--skip-identifiers",
+        action="store_true",
+        help="toplamadan sonra barkod zenginlestirmesini atla",
+    )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)
 
@@ -317,7 +340,14 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     with connect() as conn:
-        reports = run(conn, defaults, merchants, provenance, args.register_only)
+        reports = run(
+            conn,
+            defaults,
+            merchants,
+            provenance,
+            args.register_only,
+            enrich_identifiers=not args.skip_identifiers and not args.register_only,
+        )
 
     if args.report:
         args.report.write_text(

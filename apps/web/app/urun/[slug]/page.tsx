@@ -1,9 +1,10 @@
 import {
-  compareMerchants,
+  type ComparisonRow,
   findAlternatives,
   getColorVariants,
   getPriceHistory,
   getPriceStats,
+  getProductPriceComparison,
   getSizeOptions,
   isProductSitemapEligible,
   readAppUrl,
@@ -31,6 +32,19 @@ import { HOME_COPY } from "../../home-copy.ts";
 import { ProductActionsClient } from "./product-actions-client.tsx";
 import styles from "./product-page.module.css";
 import { SizeSelectorClient } from "./size-selector-client.tsx";
+
+/** docs/copy.md `product.unit_price`: birim fiyat tamamlayıcıdır, fiyatın yerine geçmez. */
+function unitPriceLabel(row: ComparisonRow): string | undefined {
+  return row.unitPriceKurus !== null && row.unitLabel
+    ? `${row.unitLabel}: ${formatTRY(row.unitPriceKurus)}`
+    : undefined;
+}
+
+/** `?boyut=` degeri: tek bir dize, yoksa null. */
+function readSelectedVariant(value: string | string[] | undefined): string | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  return raw?.trim() ? raw.trim() : null;
+}
 
 /** Mağaza satırı ve birincil çıkışın ortak metinleri (docs/copy.md `product.*`). */
 interface OfferLike {
@@ -103,8 +117,15 @@ export async function generateMetadata({
   };
 }
 
-export default async function ProductPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function ProductPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ slug: string }>;
+  searchParams: Promise<{ boyut?: string | string[] }>;
+}) {
   const { slug } = await params;
+  const requestedVariant = readSelectedVariant((await searchParams).boyut);
   const db = getDatabase();
 
   const resolution = await getResolution(slug);
@@ -117,12 +138,14 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
   const { product } = resolution;
 
-  const [merchantOffers, alternatives, sizeOptions, priceStats] = await Promise.all([
-    compareMerchants(db, product.productId),
-    findAlternatives(db, product.productId),
-    getSizeOptions(db, product.productId),
-    getPriceStats(db, product.productId),
-  ]);
+  const [{ merchantOffers, comparison }, alternatives, sizeOptions, priceStats] = await Promise.all(
+    [
+      getProductPriceComparison(db, product.productId, requestedVariant),
+      findAlternatives(db, product.productId),
+      getSizeOptions(db, product.productId),
+      getPriceStats(db, product.productId),
+    ],
+  );
 
   const colorVariants = product.modelKey
     ? await getColorVariants(db, product.modelKey, product.productId)
@@ -130,6 +153,10 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const priceHistory =
     merchantOffers.length > 0 ? await getPriceHistory(db, product.productId) : [];
 
+  // docs/decisions/0033: teklifler farkli ticari varyantlar (60 ml / 100 ml)
+  // satiyorsa fiyatlar yalnizca SECILI varyant icinde karsilastirilir. Basit
+  // modda (varyant fiyati etkilemiyor) eski akis aynen gecerli.
+  const variantMode = comparison.mode === "variants" ? comparison : null;
   const cheapest = merchantOffers[0];
   // compareMerchants yalnizca kargo dahil toplama gore siralar (stok bilmez).
   // Birincil cikis ve "En uygun fiyat" etiketi stokta olan en uygun teklife
@@ -138,20 +165,31 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
   const singleOffer = merchantOffers.length === 1;
 
   const positionLines: string[] = [];
+  // Urun duzeyi fiyat istatistigi boyutlari karistirir; varyant modunda
+  // "son 90 gunun en dusugu" iddiasi hangi boyut icin oldugunu bilmez.
   if (
+    !variantMode &&
     priceStats &&
     priceStats.currentPercentile !== null &&
     priceStats.currentPercentile <= LOWEST_PERCENTILE_THRESHOLD
   ) {
     positionLines.push("Son 90 günün en düşük fiyatı");
   }
-  if (priceStats && priceStats.dropCount90d !== null && priceStats.dropCount90d > 0) {
+  if (
+    !variantMode &&
+    priceStats &&
+    priceStats.dropCount90d !== null &&
+    priceStats.dropCount90d > 0
+  ) {
     positionLines.push(`Son 3 ayda ${priceStats.dropCount90d} kez daha uygun fiyatlıydı`);
   }
 
   const now = new Date();
   const listPriceNoteText =
-    priceStats?.listPriceInflated && priceStats.listPriceRaisedAt && cheapest?.listPrice
+    !variantMode &&
+    priceStats?.listPriceInflated &&
+    priceStats.listPriceRaisedAt &&
+    cheapest?.listPrice
       ? `Liste fiyatı ${formatSure(priceStats.listPriceRaisedAt, now)} önce ${formatTRY(cheapest.listPrice)} idi.`
       : null;
 
@@ -166,19 +204,36 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
     ...(product.brandName ? { brand: { "@type": "Brand", name: product.brandName } } : {}),
     ...(product.primaryImageUrl ? { image: [product.primaryImageUrl] } : {}),
     ...(siteUrl ? { url: `${siteUrl}/urun/${product.slug}` } : {}),
-    ...(merchantOffers.length > 0
+    ...(variantMode
       ? {
-          offers: merchantOffers.map((offer) => ({
+          // Her satir kendi ticari varyantiyla: farkli boyutlar ayni fiyat
+          // gibi gorunmesin.
+          offers: variantMode.rows.map((row) => ({
             "@type": "Offer",
-            price: (offer.currentPrice / 100).toFixed(2),
+            ...(row.variantLabel ? { name: row.variantLabel } : {}),
+            price: (row.priceKurus / 100).toFixed(2),
             priceCurrency: "TRY",
-            availability: offer.inStock
+            availability: row.inStock
               ? "https://schema.org/InStock"
               : "https://schema.org/OutOfStock",
-            ...(siteUrl ? { url: `${siteUrl}/git/${offer.offerId}?surface=structured_data` } : {}),
+            ...(siteUrl ? { url: `${siteUrl}/git/${row.offerId}?surface=structured_data` } : {}),
           })),
         }
-      : {}),
+      : merchantOffers.length > 0
+        ? {
+            offers: merchantOffers.map((offer) => ({
+              "@type": "Offer",
+              price: (offer.currentPrice / 100).toFixed(2),
+              priceCurrency: "TRY",
+              availability: offer.inStock
+                ? "https://schema.org/InStock"
+                : "https://schema.org/OutOfStock",
+              ...(siteUrl
+                ? { url: `${siteUrl}/git/${offer.offerId}?surface=structured_data` }
+                : {}),
+            })),
+          }
+        : {}),
   };
 
   // Fiyat geçmişi özeti: grafikle aynı seriden (decision 0019, son 90 gün).
@@ -193,7 +248,16 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         : `Son 90 günde ${formatTRY(historyMin)} ile ${formatTRY(historyMax)} arasında değişti.`;
 
   const showOffers = !singleOffer && merchantOffers.length > 0;
-  const showHistory = priceHistory.length >= 2;
+  // Gecmis grafigi gunluk en dusugu tum boyutlardan alir: varyant modunda
+  // yaniltici olur, gizlenir (varyant bazli gecmis henuz yok).
+  const showHistory = !variantMode && priceHistory.length >= 2;
+  const variantBest = variantMode?.best ?? null;
+  const variantFieldLabel = variantMode?.options.every((option) => option.key.startsWith("beden:"))
+    ? "Beden"
+    : "Boyut";
+  const selectedOption = variantMode?.options.find((o) => o.key === variantMode.selectedKey);
+  const variantRows = variantMode?.rows ?? [];
+  const variantOfferCount = new Set(variantRows.map((row) => row.offerId)).size;
 
   return (
     <div className={styles.page}>
@@ -231,8 +295,36 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
           </div>
 
           <div className={styles.priceBlock}>
-            {/* 3. Fiyat farkı bloğu */}
-            {cheapest ? (
+            {/* 3. Fiyat farkı bloğu. Varyant modunda: seçili varyantın en uygun
+                teklifi; seçim yoksa karşılaştırma değil "Başlangıç fiyatı". */}
+            {variantMode ? (
+              variantBest && selectedOption ? (
+                <>
+                  <PriceDiffBlock
+                    currentPriceKurus={variantBest.priceKurus}
+                    listPriceKurus={variantBest.listPriceKurus}
+                    savingLabel={(saving) => `${formatTRY(saving)} tasarruf`}
+                    listPriceLabel="Liste fiyatı"
+                    currentPriceLabel={`En uygun teklif, ${selectedOption.label}`}
+                  />
+                  {unitPriceLabel(variantBest) ? (
+                    <p className={styles.variantHint}>{unitPriceLabel(variantBest)}</p>
+                  ) : null}
+                </>
+              ) : (
+                <div className={styles.startingPrice}>
+                  <p className={styles.startingLabel}>Başlangıç fiyatı</p>
+                  <p className={styles.startingValue}>
+                    {formatTRY(variantMode.startingPriceKurus)}
+                  </p>
+                  <p className={styles.variantHint}>
+                    {variantMode.selectedMissing
+                      ? `Seçtiğin ${variantFieldLabel.toLocaleLowerCase("tr-TR")} şu an hiçbir mağazada yok. Başka bir seçenek dene.`
+                      : `Fiyat ${variantFieldLabel.toLocaleLowerCase("tr-TR")} seçimine göre değişir. Karşılaştırmak için bir seçenek seç.`}
+                  </p>
+                </div>
+              )
+            ) : cheapest ? (
               <PriceDiffBlock
                 currentPriceKurus={cheapest.currentPrice}
                 listPriceKurus={cheapest.listPrice}
@@ -258,7 +350,61 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
 
           {/* Birincil çıkış: stokta olan en uygun teklif (tek teklifte o teklif).
               Mağaza listesi tek teklifte gizlendiği için (pages.md) görünen çıkış budur. */}
-          {primaryOffer ? (
+          {/* Varyant modu: seçim + birincil çıkış yalnızca uyumlu teklife. */}
+          {variantMode ? (
+            <div className={styles.fieldGroup}>
+              <p id="varyant-baslik" className={styles.fieldLabel}>
+                {variantFieldLabel}
+              </p>
+              {/* biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolunu dusurur. */}
+              <ul className={styles.variantList} role="list" aria-labelledby="varyant-baslik">
+                {variantMode.options.map((option) => (
+                  <li key={option.key}>
+                    <a
+                      href={`/urun/${product.slug}?boyut=${encodeURIComponent(option.key)}`}
+                      className={styles.variantOption}
+                      aria-current={option.key === variantMode.selectedKey ? "true" : undefined}
+                      rel="nofollow"
+                    >
+                      <span>{option.label}</span>
+                      <span
+                        className={option.inStock ? styles.variantMeta : styles.variantUnavailable}
+                      >
+                        {option.inStock
+                          ? `${formatTRY(option.minPriceKurus)}'den`
+                          : "Şu an stokta yok"}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
+
+          {variantMode ? (
+            variantBest ? (
+              <div className={styles.primaryOffer}>
+                <a
+                  href={`/git/${variantBest.offerId}?surface=product_primary`}
+                  className={styles.primaryCta}
+                >
+                  {openAtMerchantLabel(variantBest)}
+                </a>
+                <p className={styles.primaryMeta}>
+                  <span>{offerTotalLabel(variantBest)}</span>
+                  {variantBest.inStock ? null : (
+                    <span className={styles.outOfStock}>Şu an stokta yok</span>
+                  )}
+                </p>
+                {variantOfferCount > 1 ? (
+                  <a href="#magazalar" className={styles.compareLink}>
+                    {`${variantOfferCount} mağazanın fiyatını karşılaştır`}
+                  </a>
+                ) : null}
+                <p className={styles.notice}>{HOME_COPY.affiliateNotice}</p>
+              </div>
+            ) : null
+          ) : primaryOffer ? (
             <div className={styles.primaryOffer}>
               {/* attribution: CLAUDE.md kural 8 - dogrudan offer.url'e degil, /git uzerinden. */}
               <a
@@ -283,21 +429,29 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
             </div>
           ) : null}
 
-          {/* 6. Beden seçici + rozet */}
-          <SizeSelectorClient
-            productId={product.productId}
-            sizes={sizeOptions.map((size) => ({
-              sizeNorm: size.sizeNorm,
-              label: size.sizeLabel ?? size.sizeNorm,
-              available: size.inStock,
-            }))}
-          />
+          {/* 6. Beden seçici + rozet (varyant modunda seçici yukarıda) */}
+          {variantMode ? null : (
+            <SizeSelectorClient
+              productId={product.productId}
+              sizes={sizeOptions.map((size) => ({
+                sizeNorm: size.sizeNorm,
+                label: size.sizeLabel ?? size.sizeNorm,
+                available: size.inStock,
+              }))}
+            />
+          )}
 
           {/* 8. Kaydet / alarm kur */}
           <ProductActionsClient
             productId={product.productId}
             isInStock={merchantOffers.some((offer) => offer.inStock)}
-            currentPriceTRY={cheapest ? Math.floor(cheapest.currentPrice / 100) : null}
+            currentPriceTRY={
+              variantMode
+                ? Math.floor((variantBest?.priceKurus ?? variantMode.startingPriceKurus) / 100)
+                : cheapest
+                  ? Math.floor(cheapest.currentPrice / 100)
+                  : null
+            }
           />
 
           {/* 9. Diğer renkler */}
@@ -313,8 +467,58 @@ export default async function ProductPage({ params }: { params: Promise<{ slug: 
         </div>
       </div>
 
+      {/* 7. Mağaza listesi, varyant modu: seçiliyse yalnızca uyumlu satırlar
+          ve "En uygun fiyat"; seçim yoksa her satır kendi boyutuyla, rozet yok. */}
+      {variantMode &&
+      variantRows.length > 0 &&
+      (variantOfferCount > 1 || !variantMode.selectedKey) ? (
+        <Section
+          spacing="compact"
+          id="magazalar"
+          aria-labelledby="magazalar-baslik"
+          className={styles.offers}
+        >
+          <div className={styles.sectionHeader}>
+            <h2 id="magazalar-baslik" className={styles.sectionTitle}>
+              {selectedOption ? `Mağaza fiyatları, ${selectedOption.label}` : "Mağaza fiyatları"}
+            </h2>
+            <p className={styles.sectionMeta}>{`${variantOfferCount} mağaza`}</p>
+          </div>
+          <MerchantList
+            aria-labelledby="magazalar-baslik"
+            offers={variantRows.map((row) => {
+              const note = unitPriceLabel(row);
+              return {
+                rowKey: row.rowKey,
+                offerId: row.offerId,
+                merchantName: row.merchantName,
+                ...(variantMode.selectedKey
+                  ? {}
+                  : { variantLabel: row.variantLabel ?? "Boyutu belirtilmemiş" }),
+                ...(note ? { note } : {}),
+                totalLabel: formatTRY(row.effectiveTotal),
+                shippingLabel: offerShippingLabel(row),
+                inStock: row.inStock,
+                exitHref: `/git/${row.offerId}?surface=compare`,
+                exitLabel: openAtMerchantLabel(row),
+              };
+            })}
+            outOfStockLabel="Şu an stokta yok"
+            inStockLabel="Stokta"
+            {...(variantBest
+              ? { bestOfferLabel: "En uygun fiyat", bestOfferId: variantBest.offerId }
+              : {})}
+          />
+          <p className={styles.disclaimer}>
+            {variantMode.selectedKey
+              ? `Fiyatlar kargo dahil toplamdır, yalnızca bu seçenek için en uygundan sıralanır. ${HOME_COPY.priceDisclaimer}`
+              : `Fiyatlar seçeneğe göre gruplanır; farklı boyutlar birbirinin daha uygun alternatifi değildir. ${HOME_COPY.priceDisclaimer}`}
+          </p>
+        </Section>
+      ) : null}
+
       {/* 7. Mağaza listesi - tek teklif varsa atlanır (pages.md), noindex D6'nın işi */}
-      {showOffers ? (
+      {!variantMode && showOffers ? (
         <Section
           spacing="compact"
           id="magazalar"

@@ -18,6 +18,8 @@ const COPY = {
   rateLimited: "Az önce bir bağlantı gönderdik. Birkaç dakika sonra tekrar dene.", // auth.rate_limited
   invalidEmail: "Geçerli bir e-posta adresi gir.", // auth.invalid_email
   sendFailed: "Bağlantıyı şu an gönderemedik. Biraz sonra tekrar dene.", // auth.send_failed
+  google: "Google ile devam et",
+  divider: "veya",
 } as const;
 
 export function LoginFormClient() {
@@ -40,33 +42,44 @@ export function LoginFormClient() {
   const fieldError = state.status === "invalid_email" ? COPY.invalidEmail : undefined;
 
   return (
-    <form action={action} className={styles.form} aria-busy={pending || undefined}>
-      <Input
-        label={COPY.emailLabel}
-        name="email"
-        type="email"
-        autoComplete="email"
-        inputMode="email"
-        required
-        error={fieldError}
-      />
-      {/* Girdinin altindaki hata metni canli bolge degil; gonderim sonrasi
-          ekran okuyucuya ayrica duyurulur (gorsel tekrar yok). */}
-      {fieldError ? <VisuallyHidden role="alert">{fieldError}</VisuallyHidden> : null}
-      {state.status === "rate_limited" ? (
-        <p role="alert" className={styles.notice}>
-          {COPY.rateLimited}
-        </p>
-      ) : null}
-      {/* E-posta gonderilemediyse "gonderdik" denmez (sessiz basari yok). */}
-      {state.status === "send_failed" ? (
-        <p role="alert" className={styles.notice}>
-          {COPY.sendFailed}
-        </p>
-      ) : null}
-      <Button type="submit" variant="primary" size="lg" fullWidth disabled={pending}>
-        {pending ? COPY.submitting : COPY.submit}
-      </Button>
-    </form>
+    <div className={styles.authChoices}>
+      <a className={styles.googleButton} href="/giris/google">
+        <span className={styles.googleMark} aria-hidden="true">
+          G
+        </span>
+        {COPY.google}
+      </a>
+      <div className={styles.divider}>
+        <span>{COPY.divider}</span>
+      </div>
+      <form action={action} className={styles.form} aria-busy={pending || undefined}>
+        <Input
+          label={COPY.emailLabel}
+          name="email"
+          type="email"
+          autoComplete="email"
+          inputMode="email"
+          required
+          error={fieldError}
+        />
+        {/* Girdinin altindaki hata metni canli bolge degil; gonderim sonrasi
+            ekran okuyucuya ayrica duyurulur (gorsel tekrar yok). */}
+        {fieldError ? <VisuallyHidden role="alert">{fieldError}</VisuallyHidden> : null}
+        {state.status === "rate_limited" ? (
+          <p role="alert" className={styles.notice}>
+            {COPY.rateLimited}
+          </p>
+        ) : null}
+        {/* E-posta gonderilemediyse "gonderdik" denmez (sessiz basari yok). */}
+        {state.status === "send_failed" ? (
+          <p role="alert" className={styles.notice}>
+            {COPY.sendFailed}
+          </p>
+        ) : null}
+        <Button type="submit" variant="primary" size="lg" fullWidth disabled={pending}>
+          {pending ? COPY.submitting : COPY.submit}
+        </Button>
+      </form>
+    </div>
   );
 }

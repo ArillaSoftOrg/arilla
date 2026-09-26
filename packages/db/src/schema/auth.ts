@@ -1,5 +1,14 @@
-/** 0005_auth.sql karsiligi. */
-import { bigint, inet, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+/** 0005_auth.sql + 0023_oauth_identity.sql karsiligi. */
+import {
+  bigint,
+  boolean,
+  inet,
+  pgTable,
+  text,
+  timestamp,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export const appUser = pgTable("app_user", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
@@ -34,3 +43,25 @@ export const session = pgTable("session", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export const userIdentity = pgTable(
+  "user_identity",
+  {
+    id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+    userId: bigint("user_id", { mode: "number" }).notNull(),
+    provider: text("provider").$type<"google">().notNull(),
+    providerSubject: text("provider_subject").notNull(),
+    email: text("email"),
+    emailVerified: boolean("email_verified").notNull().default(false),
+    displayName: text("display_name"),
+    avatarUrl: text("avatar_url"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => ({
+    providerSubjectUnique: uniqueIndex("user_identity_provider_subject_unique").on(
+      table.provider,
+      table.providerSubject,
+    ),
+  }),
+);

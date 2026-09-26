@@ -184,6 +184,16 @@ true` ise yazılır. Kanıt manifestin yanındaki `currency_provenance.json`
 dosyasından okunur; dosyada olmayan mağaza reddedilir. Mağaza çekmeden yalnızca
 merchant ayarını güncellemek: `--register-only`.
 
+**Barkod zenginleştirmesi (0030, 0032).** `collect.bootstrap` her mağazanın
+toplamasından hemen sonra otomatik çalıştırır (`--skip-identifiers` ile kapanır;
+hata toplamayı düşürmez, rapora yazılır). Bağımsız çalıştırma:
+`python -m collect.identifiers --merchant <slug> [--force]`. Kapsam: yalnızca
+birden fazla mağazada görülen markaların offer'ları. Kaynak: herkese açık
+`/products/<handle>.js`, robots.txt'e tabi, sıralı, ≤ 0,5 istek/sn, yeniden deneme
+yok, 401/403/429'da mağaza durur. Barkod varyant satırına (`offer_variant.gtin`)
+yazılır; offer düzeyinde yalnızca tek ticari varyantsa. 7 gün içinde kontrol
+edilen offer yeniden istenmez. Sonra `resolve`.
+
 **Çakışma corpus'u (0029).** `bootstrap/overlap_merchants.json`: eşleştirmenin
 doğru-pozitif tarafını ölçmek için 3 mağaza. Ölçüm: `python -m resolve.overlap_eval`.
 

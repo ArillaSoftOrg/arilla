@@ -206,6 +206,27 @@ export type ClarificationInput =
 
 export const SKIP_OPTION_ID = "skip";
 
+/**
+ * Bir girdinin duruma etkisi. Serbest metin hicbir zaman sessizce
+ * yutulmaz: arayuz her sonucu kullaniciya soyler.
+ */
+export type TurnOutcome =
+  /** Durum degisti (faset, butce, renk/marka/beden, atlama). */
+  | "applied"
+  /** Yeni bir urun ailesi ya da yeni sorgu: konusma sifirdan basladi. */
+  | "new_search"
+  /** Yalnizca "daha ucuzları" gibi, aramada karsiligi olmayan bir tercih. */
+  | "unsupported_preference"
+  /** Metinden aramaya uygulanabilecek hicbir sey cikmadi; durum aynen kaldi. */
+  | "unrecognized";
+
+export interface TurnResult {
+  state: SearchState;
+  outcome: TurnOutcome;
+  /** Uygulanan bir degisikligin yaninda karsiligi olmayan fiyat tercihi de vardi. */
+  ignoredPricePreference: boolean;
+}
+
 export interface ClarificationQuestionOption {
   id: string;
   label: string;

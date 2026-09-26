@@ -6,8 +6,27 @@
 
 import { appUser, type Database, session } from "@arilla/db";
 import { eq } from "drizzle-orm";
-import { hashToken } from "./token.ts";
+import { generateRawToken, hashToken } from "./token.ts";
 import type { SessionUser } from "./types.ts";
+
+export async function createSessionForUser(
+  db: Pick<Database, "insert">,
+  input: { userId: number; ip: string | null; userAgent: string | null },
+): Promise<string> {
+  const rawSessionToken = generateRawToken();
+  const sessionTtlDays = Number(process.env.SESSION_TTL_DAYS ?? 90);
+  const sessionExpiresAt = new Date(Date.now() + sessionTtlDays * 24 * 60 * 60 * 1000);
+
+  await db.insert(session).values({
+    userId: input.userId,
+    tokenHash: hashToken(rawSessionToken),
+    userAgent: input.userAgent,
+    ip: input.ip,
+    expiresAt: sessionExpiresAt,
+  });
+
+  return rawSessionToken;
+}
 
 export async function verifySessionToken(
   db: Database,

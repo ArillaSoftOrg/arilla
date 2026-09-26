@@ -19,7 +19,10 @@ from dataclasses import dataclass
 import psycopg
 
 #: Her kanaldan en fazla bu kadar aday; skorlama pahali degil ama sinirsiz da degil.
-PER_CHANNEL_LIMIT = 10
+#: 30: Stanley gibi ayni modelin onlarca renk/hacim kardesi olan markalarda
+#: dogru aday ilk 10'a giremiyordu (0030). Skorlama ucuz; karar skor ve
+#: vetolarda.
+PER_CHANNEL_LIMIT = 30
 
 PRODUCT_COLUMNS = """
     p.id, p.title, b.name AS brand, p.color, p.gtin, p.mpn

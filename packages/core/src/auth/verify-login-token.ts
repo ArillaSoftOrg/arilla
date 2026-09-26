@@ -8,9 +8,10 @@
  * farkli copy anahtari gosterir (`auth.token_expired` / `auth.token_used`).
  */
 
-import { appUser, authToken, type Database, session } from "@arilla/db";
+import { appUser, authToken, type Database } from "@arilla/db";
 import { and, eq, isNull } from "drizzle-orm";
-import { generateRawToken, hashToken } from "./token.ts";
+import { createSessionForUser } from "./session.ts";
+import { hashToken } from "./token.ts";
 import type { SessionUser, VerifyLoginTokenInput, VerifyLoginTokenResult } from "./types.ts";
 
 export class TokenNotFoundError extends Error {
@@ -93,16 +94,10 @@ export async function verifyLoginToken(
       user = { ...insertedUser, email: tokenRow.email };
     }
 
-    const rawSessionToken = generateRawToken();
-    // Cagri aninda okunur, modul yuklenirken degil - bkz. request-login-link.ts.
-    const sessionTtlDays = Number(process.env.SESSION_TTL_DAYS ?? 90);
-    const sessionExpiresAt = new Date(Date.now() + sessionTtlDays * 24 * 60 * 60 * 1000);
-    await tx.insert(session).values({
+    const rawSessionToken = await createSessionForUser(tx, {
       userId: user.id,
-      tokenHash: hashToken(rawSessionToken),
       userAgent: input.userAgent,
       ip: input.ip,
-      expiresAt: sessionExpiresAt,
     });
 
     return { rawSessionToken, user, isNewUser };

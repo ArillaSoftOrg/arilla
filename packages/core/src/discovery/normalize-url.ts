@@ -49,7 +49,7 @@ export class InvalidUrlError extends Error {
 }
 
 export interface NormalizedUrl {
-  /** Getirilecek adres — şema + host(+port) + yol + anlamlı parametreler. */
+  /** Getirilecek adres — şema + gerçek host (`www.` dahil) (+port) + yol + anlamlı parametreler. */
   url: string;
   /** `merchant.domain` ile eşleşen host. Port İÇERMEZ. */
   domain: string;
@@ -78,9 +78,11 @@ export function normalizeUrl(raw: string): NormalizedUrl {
     throw new InvalidUrlError(`yalnızca http/https desteklenir: ${parsed.protocol || "şema yok"}`);
   }
 
-  // Kimlik bilgisi ve port host'un parçası değil.
-  let host = parsed.hostname.toLowerCase();
-  if (host.startsWith("www.")) host = host.slice(4);
+  // Kimlik bilgisi ve port host'un parçası değil. `www.` yalnızca KİMLİKTEN
+  // düşer (`domain`); getirilen adres gerçek host'u korur - apeks alan adı
+  // çözülmeyen mağazalar var (docs/decisions/0031).
+  const fetchHost = parsed.hostname.toLowerCase().replace(/\.$/, "");
+  const host = fetchHost.startsWith("www.") ? fetchHost.slice(4) : fetchHost;
   if (!host || !host.includes(".")) {
     throw new InvalidUrlError(`geçersiz alan adı: ${host}`);
   }
@@ -98,7 +100,7 @@ export function normalizeUrl(raw: string): NormalizedUrl {
 
   const port = parsed.port ? Number(parsed.port) : null;
   const defaultPort = DEFAULT_PORT[parsed.protocol];
-  const netloc = port === null || port === defaultPort ? host : `${host}:${port}`;
+  const netloc = port === null || port === defaultPort ? fetchHost : `${fetchHost}:${port}`;
 
   const url = `${parsed.protocol}//${netloc}${path}${encoded ? `?${encoded}` : ""}`;
   const externalId = encoded ? `${path}?${encoded}` : path;

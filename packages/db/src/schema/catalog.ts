@@ -130,6 +130,10 @@ export const offerVariant = pgTable("offer_variant", {
   priceOverride: bigint("price_override", { mode: "number" }),
   sku: text("sku"),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  /** 0022: bu ticari varyantin GS1 dogrulanmis barkodu (docs/decisions/0032). */
+  gtin: text("gtin"),
+  /** 'feed' | 'products_js' | 'sku' */
+  gtinSource: text("gtin_source"),
 });
 
 /**

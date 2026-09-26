@@ -61,6 +61,9 @@ SELECT o.id, o.image_url, o.title_raw, o.brand_raw, o.category_raw
    -- gereken bir islem (model degisimi, bozuk gorseller, tek magazayi
    -- yeniden isleme). NULL verilirse tum katalog taranir.
    AND (%(merchant_id)s::bigint IS NULL OR o.merchant_id = %(merchant_id)s)
+   -- Tek offer: link aramasi worker'i yapistirilan urunun gorselini hemen
+   -- ister (docs/decisions/0031); toplu kosuyu beklemez, ayni yolu kullanir.
+   AND (%(offer_id)s::bigint IS NULL OR o.id = %(offer_id)s)
  ORDER BY o.id
  LIMIT %(limit)s
 """
@@ -125,6 +128,7 @@ def _pending(
     limit: int,
     merchant_id: int | None,
     valid_from: datetime | None = None,
+    offer_id: int | None = None,
 ) -> list[tuple]:
     with conn.cursor() as cur:
         cur.execute(
@@ -135,6 +139,7 @@ def _pending(
                 "needs_image": kind == "image",
                 "merchant_id": merchant_id,
                 "valid_from": valid_from,
+                "offer_id": offer_id,
                 "limit": limit,
             },
         )
@@ -175,10 +180,11 @@ def embed_images(
     merchant_id: int | None = None,
     http: httpx.Client | None = None,
     valid_from: datetime | None = IMAGE_VECTORS_VALID_FROM,
+    offer_id: int | None = None,
 ) -> EnrichCounts:
     counts = EnrichCounts()
     model_version = client.model_version
-    rows = _pending(conn, "image", model_version, limit, merchant_id, valid_from)
+    rows = _pending(conn, "image", model_version, limit, merchant_id, valid_from, offer_id)
     counts.considered = len(rows)
     if not rows:
         return counts
@@ -308,6 +314,37 @@ def embed_images(
     # onceki bir kosunun vektoru).
     counts.deduped = counts.embedded - counts.images_sent
     return counts
+
+
+EMBEDDING_ID = """
+SELECT id FROM embedding
+ WHERE target_type = 'offer' AND target_id = %(offer_id)s
+   AND kind = %(kind)s AND model_version = %(model_version)s
+"""
+
+
+def embed_offer_image(
+    conn: psycopg.Connection,
+    client: EmbeddingClient,
+    offer_id: int,
+    *,
+    http: httpx.Client | None = None,
+) -> tuple[int | None, EnrichCounts]:
+    """Tek offer'in gorsel embedding'i; varsa yeniden uretmez.
+
+    Toplu kosunun (`embed_images`) aynisi — on isleme `img512-v1`, hash ile
+    yineleme, `api_usage` kaydi — yalnizca tek offer'a daraltilmis. `http`
+    kullanici kaynakli gorsel adresi icin SSRF korumali istemci olmalidir.
+    Donen id `None` ise gorsel alinamadi ya da saglayici basarisiz oldu.
+    """
+    counts = embed_images(conn, client, limit=1, http=http, offer_id=offer_id)
+    with conn.cursor() as cur:
+        cur.execute(
+            EMBEDDING_ID,
+            {"offer_id": offer_id, "kind": "image", "model_version": client.model_version},
+        )
+        row = cur.fetchone()
+    return (int(row[0]) if row else None), counts
 
 
 def embed_texts(

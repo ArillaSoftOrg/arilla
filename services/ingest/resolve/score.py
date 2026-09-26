@@ -63,6 +63,10 @@ def veto_reason(left: ProductKey, right: ProductKey) -> str | None:
     eksiklik degil FARKTIR — "Kosu Ayakkabisi Pro" ile "Kosu Ayakkabisi" ayri
     urunlerdir.
     """
+    # Iki gecerli ve FARKLI barkod: farkli urun (orn. Reju 2000 / 5000,
+    # ayni modelin iki hacmi). Metin ne kadar benzese de birlesmez (0030).
+    if left.gtin and right.gtin and left.gtin != right.gtin:
+        return f"barkod: {left.gtin} != {right.gtin}"
     if left.color and right.color and not colors_consistent(left, right):
         return f"renk: {left.color} != {right.color}"
     if left.volume and right.volume and left.volume != right.volume:
@@ -152,7 +156,10 @@ def colors_consistent(left: ProductKey, right: ProductKey) -> bool:
         return True
     for phrase, other in ((left_words, right), (right_words, left)):
         other_words = _color_words(other.color or "")
-        if len(other_words) == 1 and other_words <= phrase and phrase <= set(other.tokens):
+        # Basliktan cikarilan tek kelimelik renk ("Dried Pine (Haki)" -> yesil)
+        # ile acik renk ifadesi: ifadenin tum kelimeleri o basligin icindeyse
+        # ayni renktir. "Hammertone Green" / "Spring Green" yine ayri kalir.
+        if len(other_words) == 1 and phrase <= set(other.all_tokens or other.tokens):
             return True
     return False
 
@@ -169,7 +176,7 @@ def unverified_color(left: ProductKey, right: ProductKey) -> str | None:
     for known, other in ((left, right), (right, left)):
         if known.color and not other.color:
             words = _color_words(known.color)
-            if words and not words <= set(other.tokens):
+            if words and not words <= set(other.all_tokens or other.tokens):
                 return f"renk dogrulanamadi: {known.color}"
     return None
 
@@ -209,6 +216,27 @@ def combine(
         blended += HYBRID_AGREEMENT_BONUS
 
     return ScoreResult(score=max(0.0, min(1.0, blended)), method="hybrid", review=review)
+
+
+def auto_eligible(result: ScoreResult, left: ProductKey, right: ProductKey) -> bool:
+    """AUTO_ACCEPT kademesi (docs/decisions/0030).
+
+    Otomatik birlestirme icin skor yetmez; kanit turu da gerekir:
+    - kesin kimlik (gtin/mpn), ya da
+    - metin/hibrit skor esigin ustunde VE marka iki tarafta biliniyor ve ayni
+      VE renk dogrulanabildi (`review` bos).
+    Gorsel benzerlik tek basina hicbir zaman yetmez: hibrit skorda bile marka
+    ve metin kosulu aranir. Geri kalan esik ustu adaylar REVIEW'a gider.
+    """
+    if result.vetoed or result.review:
+        return False
+    if result.method in {"gtin", "mpn"}:
+        return True
+    return (
+        result.score >= auto_accept_threshold()
+        and bool(left.brand_norm)
+        and left.brand_norm == right.brand_norm
+    )
 
 
 def _env_float(name: str, default: float) -> float:

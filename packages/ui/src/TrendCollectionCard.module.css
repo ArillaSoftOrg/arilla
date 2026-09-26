@@ -4,14 +4,18 @@
 .card {
   display: grid;
   grid-template-rows: auto 1fr;
-  gap: var(--space-4);
   min-width: 0;
+  overflow: hidden;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-xs);
 }
 
 .frame {
   position: relative;
   overflow: hidden;
-  border-radius: var(--radius-lg);
+  border-radius: 0;
   background: var(--surface-raised);
 }
 
@@ -37,7 +41,7 @@
 
 @media (min-width: 640px) {
   .heroImage {
-    aspect-ratio: 4 / 5;
+    aspect-ratio: 4 / 3;
   }
 }
 
@@ -46,10 +50,16 @@
   align-content: start;
   gap: var(--space-2);
   min-width: 0;
+  padding: var(--space-4);
 }
 
 .eyebrow {
+  width: max-content;
   margin: 0;
+  padding: 3px var(--space-2);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
   font-size: var(--text-meta);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-normal);
@@ -59,7 +69,7 @@
 .title {
   margin: 0;
   font-size: var(--text-h3);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-heading);
   color: var(--ink);
   text-wrap: balance;
@@ -92,7 +102,7 @@
 
 .productImage {
   display: block;
-  width: var(--space-10);
+  width: 38px;
   height: auto;
   aspect-ratio: 1;
   object-fit: contain;

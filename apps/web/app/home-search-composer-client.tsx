@@ -26,6 +26,7 @@ export function HomeSearchComposer() {
       placeholder={HOME_COPY.searchPlaceholder}
       inputLabel={HOME_COPY.searchInputLabel}
       submitLabel={HOME_COPY.searchSubmitLabel}
+      routeProductLinks
       chips={HOME_SEARCH_CHIPS}
       chipsTitle={HOME_COPY.searchIdeasTitle}
       statusMessage={error}

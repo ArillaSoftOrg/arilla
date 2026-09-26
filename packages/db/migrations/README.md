@@ -37,6 +37,9 @@ migration'lar olusturur.
 | `0018_merchant_shopify_discovery.sql` | brand-discovery/endpoint-verification zincirinden 19 merchant kaydi, `is_active = FALSE` (0023; `source_type`/`feed_config.mapping` 0024 icin yerinde guncellendi — para birimi hala dogrulanmadigi icin `is_active` FALSE kaldi). 0017'den SONRA calismali: source_type='shopify' 0017'nin genislettigi CHECK'e bagli. |
 | `0019_product_title_fold_trgm.sql` | Katlanmis (Turkce+ASCII) `product.title` uzerinde trigram GIN indeksi; metin aramasinin aday kapisi icin (0029). Yalnizca ekleme. |
 | `0020_lexicon_synonym_kind.sql` | `lexicon.kind` CHECK'ine `'synonym'` + gercek katalog bosluklarindan baslangic esanlam seti (0029). Genisletici. |
+| `0021_link_search_signals.sql` | `link_resolution_request`: `normalized_url` (onbellek anahtari) + `source` (sayfa sinyalleri) + `error_code` + `image_embedding_id` + kismi indeks (0031). Yalnizca ekleme. |
+| `0022_offer_variant_gtin.sql` | `offer_variant.gtin` + `gtin_source` + kismi indeks: varyant duzeyinde barkod (0032). Yalnizca ekleme. |
+| `0023_oauth_identity.sql` | `user_identity`: Google OAuth `sub` kimligini mevcut `app_user`/`session` modeline baglar; OAuth token'lari saklanmaz. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

@@ -58,7 +58,8 @@ def _is_tracking(name: str) -> bool:
 class NormalizedUrl:
     """Sadelestirilmis URL ve ondan turetilen kimlik."""
 
-    #: Getirilecek adres — sema + host(+port) + yol + anlamli parametreler.
+    #: Getirilecek adres — sema + gercek host (`www.` dahil) (+port) + yol +
+    #: anlamli parametreler. Fragment yok.
     url: str
     #: `merchant.domain` ile eslesen host. Port ICERMEZ: bir magaza, hangi
     #: portta servis edildiginden bagimsiz olarak ayni magazadir.
@@ -78,9 +79,11 @@ def normalize(raw: str) -> NormalizedUrl:
     if not parts.netloc:
         raise InvalidUrl("adreste alan adi yok")
 
-    # Kimlik bilgisi ve port host'un parcasi degil.
-    host = parts.hostname or ""
-    host = host.lower().removeprefix("www.")
+    # Kimlik bilgisi ve port host'un parcasi degil. `www.` yalnizca KIMLIKTEN
+    # duser (`domain`); getirilen adres gercek host'u korur — apeks alan adi
+    # cozulmeyen magazalar var (docs/decisions/0031).
+    fetch_host = (parts.hostname or "").lower().rstrip(".")
+    host = fetch_host.removeprefix("www.")
     if not host or "." not in host:
         raise InvalidUrl(f"gecersiz alan adi: {host!r}")
 
@@ -103,7 +106,7 @@ def normalize(raw: str) -> NormalizedUrl:
     except ValueError as error:
         raise InvalidUrl(f"gecersiz port: {parts.netloc!r}") from error
     default_port = {"http": 80, "https": 443}[parts.scheme]
-    netloc = host if port in (None, default_port) else f"{host}:{port}"
+    netloc = fetch_host if port in (None, default_port) else f"{fetch_host}:{port}"
 
     # Fragment her zaman dusurulur: sunucuya zaten gonderilmiyor.
     url = urlunsplit((parts.scheme, netloc, path, encoded, ""))

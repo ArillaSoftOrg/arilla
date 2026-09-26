@@ -2,8 +2,8 @@
 
 Yerel veritabaninda overlap merchant'lari (bootstrap/overlap_merchants.json)
 yuklu degilse atlanir. Guvenlik esigi mutlak: hicbir zor negatif otomatik
-birlesmez. Geri cagirma esigi 2026-09-24 olcumunun (2 oto + 3 kuyruk) alti
-degildir; dusmesi gerileme demektir.
+birlesmez. Geri cagirma esigi: 0029 olcumu 2 oto + 3 kuyruk idi; 0030 ile
+28 oto + 2 kuyruk (33 cift). Dusmesi gerileme demektir.
 """
 
 from __future__ import annotations
@@ -40,4 +40,5 @@ def test_no_hard_negative_is_auto_merged(conn: psycopg.Connection) -> None:
 
 def test_true_positive_side_does_not_regress(conn: psycopg.Connection) -> None:
     result = evaluate(conn)
-    assert result.counts["tp_auto"] + result.counts["tp_queued"] >= 5
+    assert result.counts["tp_auto"] >= 25
+    assert result.counts["tp_auto"] + result.counts["tp_queued"] >= 28

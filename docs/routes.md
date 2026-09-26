@@ -179,9 +179,20 @@ iyileştirir, sürüm çıkmaya gerek kalmaz.
 /<merchant-url>            Örn: /https://www.trendyol.com/...
 ```
 
-Akış: URL parse → merchant tanı → `offer` ara → bulunduysa `/urun/<slug>`
-adresine 302; bulunamadıysa kuyruğa al ve bekleme ekranı göster. Çözülen ürün
-`discovery_source = 'user_link'` ile kataloğa kalıcı olarak yazılır.
+Önek yalnızca bir **kısayoldur** (docs/decisions/0031): dış adres geri
+kurulur ve kanonik link araması adresine yönlendirilir. Arama kutusuna
+yapıştırılan link (`/ara?q=https://...` ya da ana sayfa kutusunun kodlu
+`/https%3A%2F%2F...` biçimi) de aynı adrese gelir:
+
+```
+/ara/link?url=<kodlanmış kanonik adres>    izleme parametresiz, fragment'sız
+```
+
+Akış: adres doğrula (SSRF yazım denetimi) → kanonik değilse kanonik adrese
+307 → katalogda eşleşmiş ürün varsa `/urun/<slug>` → önbellekte sonuç varsa
+göster → yoksa kuyruğa al, "Ürün inceleniyor…" bekle → sonuç ya da açık bir
+hata. Fiyatlı ürün sayfası `discovery_source = 'user_link'` ile kataloğa
+kalıcı olarak yazılır; fiyatsız ürün sayfası yalnızca arama sinyalidir.
 
 Bilinmeyen ürün akışı ilk günden çalışmalıdır. Paylaşılan linklerin önemli bir
 kısmı katalogda olmayan ürüne gidecek.

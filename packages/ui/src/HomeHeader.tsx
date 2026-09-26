@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useId, useState } from "react";
 import { Container } from "./Container.tsx";
 import styles from "./HomeHeader.module.css";
 
@@ -32,8 +35,8 @@ export interface HomeHeaderProps {
  * auth durumu. Framework-agnostik duz `<a>` - ProductCard ile ayni desen.
  * Public site kabugunun (ana sayfa + public alt sayfalar) ortak ust cubugu.
  *
- * Faz 1B duzeni korunur: 640px altinda iki satir (wordmark + hesap, altta
- * gezinme), 640px ve ustunde tek satir. Hamburger yok, JS yok.
+ * Faz 1B duzeni korunur: 640px altinda ana nav gizlenir; hamburger dugmesi
+ * ayni linkleri soldan acilan mobil panelde sunar.
  */
 export function HomeHeader({
   brandLabel,
@@ -46,11 +49,47 @@ export function HomeHeader({
   loginLabel,
   accountCurrent = false,
 }: HomeHeaderProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuId = useId();
+  const accountText = accountHref ? accountLabel : loginLabel;
+  const accountUrl = accountHref ?? loginHref;
+  const mobileMenuTabIndex = menuOpen ? undefined : -1;
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const previousOverflow = document.body.style.overflow;
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("keydown", handleKeyDown);
+    document.body.style.overflow = "hidden";
+
+    return () => {
+      document.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [menuOpen]);
+
   return (
     <header className={styles.header}>
       <Container size="wide" className={styles.inner}>
+        <button
+          type="button"
+          className={styles.menuButton}
+          aria-label={menuOpen ? "Menüyü kapat" : "Menüyü aç"}
+          aria-controls={menuId}
+          aria-expanded={menuOpen}
+          onClick={() => setMenuOpen((isOpen) => !isOpen)}
+        >
+          <span className={styles.menuIcon} aria-hidden="true" />
+        </button>
+
         <a href={brandHref} className={styles.brand}>
-          {brandLabel}
+          <span className={styles.brandText}>{brandLabel}</span>
         </a>
 
         {navItems.length > 0 ? (
@@ -69,13 +108,73 @@ export function HomeHeader({
         ) : null}
 
         <a
-          href={accountHref ?? loginHref}
+          href={accountUrl}
           className={styles.account}
           aria-current={accountCurrent ? "page" : undefined}
         >
-          {accountHref ? accountLabel : loginLabel}
+          {accountText}
         </a>
       </Container>
+
+      <div className={styles.mobileMenuLayer} data-open={menuOpen ? "true" : "false"}>
+        <button
+          type="button"
+          className={styles.mobileMenuScrim}
+          aria-label="Menüyü kapat"
+          tabIndex={menuOpen ? 0 : -1}
+          onClick={() => setMenuOpen(false)}
+        />
+        <aside
+          id={menuId}
+          className={styles.mobileMenu}
+          aria-label={navAriaLabel}
+          aria-hidden={!menuOpen}
+        >
+          <div className={styles.mobileMenuHeader}>
+            <a
+              href={brandHref}
+              className={styles.mobileBrand}
+              tabIndex={mobileMenuTabIndex}
+              onClick={() => setMenuOpen(false)}
+            >
+              {brandLabel}
+            </a>
+            <button
+              type="button"
+              className={styles.closeButton}
+              aria-label="Menüyü kapat"
+              tabIndex={mobileMenuTabIndex}
+              onClick={() => setMenuOpen(false)}
+            >
+              <span aria-hidden="true">x</span>
+            </button>
+          </div>
+
+          <nav className={styles.mobileNav} aria-label={navAriaLabel}>
+            {navItems.map((item) => (
+              <a
+                key={item.href}
+                href={item.href}
+                className={styles.mobileNavLink}
+                aria-current={item.current ? "page" : undefined}
+                tabIndex={mobileMenuTabIndex}
+                onClick={() => setMenuOpen(false)}
+              >
+                {item.label}
+              </a>
+            ))}
+            <a
+              href={accountUrl}
+              className={styles.mobileAccountLink}
+              aria-current={accountCurrent ? "page" : undefined}
+              tabIndex={mobileMenuTabIndex}
+              onClick={() => setMenuOpen(false)}
+            >
+              {accountText}
+            </a>
+          </nav>
+        </aside>
+      </div>
     </header>
   );
 }

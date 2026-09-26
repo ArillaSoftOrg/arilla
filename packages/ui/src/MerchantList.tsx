@@ -8,6 +8,15 @@ export interface MerchantOfferRow {
   inStock: boolean;
   exitHref: string;
   exitLabel: string;
+  /**
+   * Ayni teklif birden fazla varyantla listelenebilir (0033); verilmezse
+   * `offerId` anahtar olur.
+   */
+  rowKey?: string;
+  /** Satirin sattigi ticari varyant ("100 ml", "42"). */
+  variantLabel?: string;
+  /** Tamamlayici bilgi (orn. birim fiyat); gercek fiyatin yerine gecmez. */
+  note?: string;
 }
 
 export interface MerchantListProps {
@@ -53,9 +62,12 @@ export function MerchantList({
           bestOfferLabel !== undefined &&
           (bestOfferId !== undefined ? offer.offerId === bestOfferId : index === 0);
         return (
-          <li key={offer.offerId} className={styles.row}>
+          <li key={offer.rowKey ?? offer.offerId} className={styles.row}>
             <div className={styles.info}>
-              <span className={styles.merchantName}>{offer.merchantName}</span>
+              <span className={styles.merchantName}>
+                {offer.merchantName}
+                {offer.variantLabel ? ` · ${offer.variantLabel}` : null}
+              </span>
               {isBest ? <span className={styles.best}>{bestOfferLabel}</span> : null}
               <span className={styles.meta}>
                 <span>{offer.shippingLabel}</span>
@@ -66,6 +78,7 @@ export function MerchantList({
                 ) : (
                   <span className={styles.outOfStock}>{outOfStockLabel}</span>
                 )}
+                {offer.note ? <span>{offer.note}</span> : null}
               </span>
             </div>
             <span className={`${styles.total} tabular-nums`}>{offer.totalLabel}</span>

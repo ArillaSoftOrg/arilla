@@ -1,15 +1,54 @@
 /*
  * 404 / hata / global hata sayfalarinin ortak duzeni. Okuma genisliginde,
- * sola hizali editoryal blok: kod etiketi -> H1 -> aciklama -> eylemler.
+ * sola hizali editoryal blok: durum etiketi -> H1 -> aciklama -> eylemler.
  * Illustrasyon yok (design.md "Boş durum").
  */
 .page {
   display: grid;
+  justify-items: start;
   align-content: center;
   gap: var(--space-6);
-  max-width: var(--content-width-reading);
+  max-width: var(--content-width-comparison);
   margin-inline: auto;
   padding-block: var(--section-space);
+}
+
+.notFoundHero {
+  display: grid;
+  justify-items: inherit;
+  gap: var(--space-5);
+  width: 100%;
+  padding: var(--space-8);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-xs);
+}
+
+.notFoundMark {
+  position: relative;
+  width: 52px;
+  height: 38px;
+  color: var(--ink);
+}
+
+.notFoundMark span {
+  position: absolute;
+  left: 0;
+  display: block;
+  height: 6px;
+  border-radius: var(--radius-pill);
+  background: currentColor;
+}
+
+.notFoundMark span:first-child {
+  top: 6px;
+  width: 52px;
+}
+
+.notFoundMark span:last-child {
+  bottom: 6px;
+  width: 28px;
 }
 
 .code {
@@ -18,7 +57,6 @@
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-normal);
   color: var(--ink-muted);
-  font-variant-numeric: tabular-nums;
 }
 
 .text {
@@ -42,6 +80,80 @@
   line-height: var(--line-height-body);
   color: var(--ink-secondary);
   text-wrap: pretty;
+}
+
+.hint {
+  margin: 0;
+  max-width: 58ch;
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+  color: var(--ink-muted);
+}
+
+.technicalLinks {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  margin-block-start: var(--space-2);
+  padding-block-start: var(--space-6);
+  border-block-start: var(--border-width) solid var(--line);
+}
+
+.technicalTitle {
+  margin: 0;
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0;
+  color: var(--ink);
+}
+
+.technicalBody {
+  margin: 0;
+  max-width: 54ch;
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+  color: var(--ink-muted);
+}
+
+.inlineLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+}
+
+.inlineLinks a {
+  min-height: var(--size-touch-target);
+  display: inline-flex;
+  align-items: center;
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  text-underline-offset: 0.3em;
+}
+
+.inlineLinks a:hover {
+  color: var(--ink-secondary);
+}
+
+@media (min-width: 640px) {
+  .page {
+    justify-items: center;
+    text-align: center;
+  }
+
+  .technicalLinks {
+    justify-items: center;
+  }
+
+  .inlineLinks {
+    justify-content: center;
+  }
+}
+
+@media (max-width: 639.98px) {
+  .notFoundHero {
+    padding: var(--space-6);
+  }
 }
 
 /* --- Kabuk disi hata sayfalari (error.tsx, global-error.tsx) --- */

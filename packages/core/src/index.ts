@@ -12,6 +12,7 @@ export * from "./admin/index.ts";
 export * from "./attribution/index.ts";
 export * from "./auth/index.ts";
 export * from "./config/index.ts";
+export * from "./conversational-search/index.ts";
 export * from "./cron/index.ts";
 export * from "./discovery/index.ts";
 export * from "./discovery-feed/index.ts";

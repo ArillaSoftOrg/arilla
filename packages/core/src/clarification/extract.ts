@@ -13,6 +13,7 @@ import type { LexiconEntry } from "../search/lexicon.ts";
 import { foldTurkish } from "../search/normalize.ts";
 import { parseQueryText } from "../search/parse-query.ts";
 import { extractPricePatterns } from "../search/price-patterns.ts";
+import { extractConversationalBudget } from "./price-language.ts";
 import type {
   ClarificationRegistry,
   DomainDefinition,
@@ -107,6 +108,62 @@ const FILLER_WORDS: ReadonlySet<string> = new Set([
   "lira",
 ]);
 
+/**
+ * Arama niyeti bildiren fiiller ("masa lambası bakıyorum"). Suren bir
+ * konusmada, hicbir fasete dusmeyen somut kelimelerle birlikte gelirse yeni
+ * bir urun ailesine gecis olarak okunur. ASCII katli.
+ */
+const SEARCH_VERBS: ReadonlySet<string> = new Set([
+  "ariyorum",
+  "ariyom",
+  "arayisindayim",
+  "istiyorum",
+  "istiyom",
+  "bakiyorum",
+  "bakiyom",
+  "bakicam",
+  "lazim",
+  "alacagim",
+  "alicam",
+  "goster",
+  "gosterir",
+]);
+
+/**
+ * Urun adi olmayan, cumle kuran kelimeler. Bunlardan biri varsa metin bir
+ * urun ailesi adi ("masa lambası") degil, bir tercih cumlesidir ("marka
+ * önemli değil", "yağmurda da kullanacağım"). ASCII katli.
+ */
+const CLAUSE_WORDS: ReadonlySet<string> = new Set([
+  "olan",
+  "olanlar",
+  "olanlari",
+  "olsun",
+  "olmasin",
+  "olmayan",
+  "degil",
+  "cok",
+  "az",
+  "ama",
+  "fakat",
+  "gibi",
+  "kadar",
+  "hem",
+  "ki",
+  "hic",
+  "her",
+  "gerek",
+  "gerekmez",
+  "onemli",
+  "onemsiz",
+  "fark",
+  "etmez",
+  "farketmez",
+]);
+
+/** Cekimli fiil sonlari: "kullanacağım", "olmasın", "seviyor", "geçmesin". ASCII katli. */
+const VERB_ENDING_RE = /(?:iyor|iyorum|uyor|uyorum|yor|acak|ecek|acagim|ecegim|masin|mesin|mali|meli|madi|medi|mis|misti|lim|alim|elim)$/;
+
 /** "ucuz" bir sayiya cevrilmez; yalnizca tercih olarak saklanir. */
 const PRICE_PREFERENCE_TRIGGERS: readonly string[] = [
   "ucuz*",
@@ -197,6 +254,18 @@ export interface ExtractedBudget {
 export interface ExtractedFacts {
   /** Secilen birincil domain. */
   domainId: string | null;
+  /**
+   * Metnin KENDI tetikledigi domain; `contextDomainId`'den gelen degil.
+   * Takip metninin yeni bir urun ailesi acip acmadigini buradan anlariz.
+   */
+  detectedDomainId: string | null;
+  /** "bakıyorum", "lazım" gibi arama niyeti bildiren bir fiil var mi. */
+  hasSearchVerb: boolean;
+  /**
+   * Metin bir tercih cumlesi degil, cekimli fiil ve baglac icermeyen bir
+   * isim obegi mi ("masa lambası"). Arama fiilleri haric tutulur.
+   */
+  isNounPhrase: boolean;
   /** Birincil disinda eslesen domain'ler ("babama hediye kask" -> gift). */
   secondaryDomainIds: readonly string[];
   /** facetId -> optionId, yalnizca birincil domain'in fasetleri. */
@@ -224,13 +293,16 @@ export interface ExtractOptions {
 }
 
 function extractBudget(lower: string): { budget: ExtractedBudget | null; rest: string } {
-  let rest = lower;
-  let minKurus: number | null = null;
-  let maxKurus: number | null = null;
-  let found = false;
+  // Once konusma kaliplari ("5 bin lirayı geçmesin"); binler normalize edilir
+  // ve uzunluk korunur, asagidaki indeksler kaymaz.
+  const conversational = extractConversationalBudget(lower);
+  let rest = conversational.rest;
+  let minKurus: number | null = conversational.budget?.minKurus ?? null;
+  let maxKurus: number | null = conversational.budget?.maxKurus ?? null;
+  let found = conversational.budget !== null;
 
-  // Once mevcut arama kaliplari - ayni anlami tek yerde tutmak icin.
-  for (const match of extractPricePatterns(lower)) {
+  // Sonra mevcut arama kaliplari - ayni anlami tek yerde tutmak icin.
+  for (const match of extractPricePatterns(conversational.rest)) {
     found = true;
     if (match.priceMin !== undefined) minKurus = match.priceMin;
     if (match.priceMax !== undefined) maxKurus = match.priceMax;
@@ -365,6 +437,12 @@ export function extractFacts(
   const afterAge = extractAge(afterBudget.rest);
   const tokens = tokenize(afterAge.rest);
   const consumed = new Array<boolean>(tokens.length).fill(false);
+  const hasSearchVerb = tokens.some((token) => SEARCH_VERBS.has(token.folded));
+  const isNounPhrase = tokens.every(
+    (token) =>
+      SEARCH_VERBS.has(token.folded) ||
+      (!CLAUSE_WORDS.has(token.folded) && !VERB_ENDING_RE.test(token.folded)),
+  );
 
   let pricePreference: "lower" | null = null;
   for (const match of anyTriggerMatches(tokens, PRICE_PREFERENCE_TRIGGERS)) {
@@ -421,6 +499,9 @@ export function extractFacts(
 
   return {
     domainId: primary?.id ?? null,
+    detectedDomainId: detected.primary?.id ?? null,
+    hasSearchVerb,
+    isNounPhrase,
     secondaryDomainIds: secondary.map((domain) => domain.id),
     facets,
     budget: afterBudget.budget,

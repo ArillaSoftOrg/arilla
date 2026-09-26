@@ -26,6 +26,7 @@
   line-height: var(--line-height-normal);
   text-decoration: none;
   white-space: nowrap;
+  cursor: pointer;
 }
 
 .primary {
