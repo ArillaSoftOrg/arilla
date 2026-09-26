@@ -17,7 +17,8 @@ yapıştırılan link öneki. Karar:
 Rezerve slug listesi tutulur: `ara`, `urun`, `kategori`, `marka`, `alternatif`,
 `trend`, `firsatlar`, `kesfet`, `gecmis`, `alarmlar`, `kaydettiklerim`, `git`,
 `api`, `panel`, `yonetim`, `hesap`, `giris`, `hakkinda`, `gizlilik`, `kosullar`,
-`cerez`, `iletisim`.
+`cerez`, `iletisim`, `kvkk-aydinlatma`, `affiliate-aciklamasi`, `sirket-bilgileri`,
+`kullanim-kosullari`, `cerez-politikasi`.
 
 ## Kayıt duvarı
 
@@ -59,9 +60,19 @@ SEO değerini böler hem kullanıcıyı gereksiz bir tıklamaya zorlar.
 ```
 /gizlilik                  Veri kullanımı - taslak, hukukçu onayı bekliyor
 /kosullar                  Kullanım koşulları - taslak, hukukçu onayı bekliyor
-/cerez                     Çerez listesi ve amaçları
-/iletisim                  Geçici public e-posta (Faz 8.1) - tek kaynak site-config.ts
+/cerez                     Çerez politikası, envanter ve tercih formu (#tercihler)
+/iletisim                  Geçici public e-posta (Faz 8.1) - tek kaynak legal-identity.ts
+/kvkk-aydinlatma           KVKK aydınlatma metni (karar 0038)
+/affiliate-aciklamasi      Affiliate açıklaması (karar 0038)
+/sirket-bilgileri          Şirket bilgileri - yalnızca doğrulanmış alanlar (karar 0038)
+/kullanim-kosullari        Kalıcı yönlendirme (308) -> /kosullar
+/cerez-politikasi          Kalıcı yönlendirme (308) -> /cerez
 ```
+
+Karar 0038: hukuk paketi `/kullanim-kosullari` ve `/cerez-politikasi`
+adlarını önerdi; canlı ve sitemap'teki `/kosullar` ve `/cerez` korunur, yeni
+adlar yalnızca `next.config.ts` yönlendirmesidir. Yönlendirmeler sitemap'e
+girmez.
 
 `docs/sitemap.md`'nin statik sayfa aday listesindeki `/hakkinda` ve `/sss`
 henüz **yazılmadı**, `STATIC_PAGES` listesinde ve footer'da yok. `/iletisim`

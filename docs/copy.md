@@ -61,7 +61,7 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | --- | --- |
 | `footer.product_group_title` | Ürün |
 | `footer.account_group_title` | Hesap |
-| `footer.info_group_title` | Bilgi |
+| `footer.legal_group_title` | Yasal |
 | `footer.last_updated_prefix` | Son güncelleme: |
 
 ## Gezinme
@@ -78,7 +78,11 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `nav.history` | Geçmişim |
 | `nav.privacy` | Gizlilik |
 | `nav.terms` | Kullanım Koşulları |
-| `nav.cookies` | Çerezler |
+| `nav.cookies` | Çerez Politikası |
+| `nav.kvkk` | KVKK Aydınlatma |
+| `nav.affiliate` | Affiliate Açıklaması |
+| `nav.company` | Şirket Bilgileri |
+| `nav.cookie_preferences` | Çerez Tercihleri |
 | `nav.contact` | İletişim |
 | `nav.skip_to_content` | İçeriğe geç |
 
@@ -334,6 +338,44 @@ dal.ts`) - `docs/routes.md`'nin öngördüğü gibi.
 | `legal.delete_warning` | Bu işlem geri alınamaz. |
 
 Rıza kutuları **işaretsiz** gelir ve girişin ön koşulu değildir.
+
+Yasal sayfaların gövde metni (hitap "siz") sayfa dosyalarında durur:
+`apps/web/app/{gizlilik,kvkk-aydinlatma,cerez,kosullar,affiliate-aciklamasi,sirket-bilgileri}/page.tsx`.
+Şirket kimliği metin değil yapılandırmadır: tek kaynağı
+`packages/core/src/config/legal-identity.ts` (karar 0038).
+
+| Anahtar | Metin |
+| --- | --- |
+| `legal.affiliate_notice_link` | Affiliate açıklaması |
+| `legal.identity_pending` | Hizmeti işleten tüzel kişiliğin tescil bilgileri tamamlandığında bu sayfada yayımlanacaktır. |
+
+## Çerez rızası (karar 0038)
+
+Banner ve tercih paneli sitenin genel "sen" dilindedir. Üç düğme aynı görsel
+ağırlıktadır; hiçbiri vurgulanmaz.
+
+| Anahtar | Metin |
+| --- | --- |
+| `consent.banner_title` | Gizlilik tercihlerini yönet |
+| `consent.banner_body` | Sitenin çalışması için gerekli çerezleri kullanıyoruz. Analitik, işlevsel ve reklam/affiliate ölçüm teknolojilerini yalnızca izin verdiğin kategoriler için etkinleştiririz; şu an bu kategorilerde kullandığımız bir teknoloji yok. Tercihini istediğin zaman değiştirebilirsin. |
+| `consent.reject_all` | Tümünü Reddet |
+| `consent.manage` | Tercihleri Yönet |
+| `consent.accept_all` | Tümünü Kabul Et |
+| `consent.save` | Tercihleri Kaydet |
+| `consent.close` | Kapat |
+| `consent.panel_title` | Çerez tercihleri |
+| `consent.panel_description` | Kesinlikle gerekli çerezler her zaman açıktır. Diğer kategoriler sen açmadıkça kapalı kalır. |
+| `consent.necessary_title` | Kesinlikle gerekli |
+| `consent.necessary_body` | Oturum, güvenlik, giriş, arama limiti, tema ve bu tercihin kaydı. Kapatılamaz. |
+| `consent.functional_title` | İşlevsel |
+| `consent.functional_body` | İsteğe bağlı site özelliklerini hatırlar. |
+| `consent.analytics_title` | Analitik / performans |
+| `consent.analytics_body` | Sitenin nasıl kullanıldığını ve performansını ölçer. |
+| `consent.marketing_title` | Reklam / affiliate ölçüm |
+| `consent.marketing_body` | Reklam ve affiliate yönlendirmelerini cihazında ölçer. |
+| `consent.category_unused` | Şu an bu kategoride kullandığımız bir teknoloji yok. |
+| `consent.always_on` | Her zaman açık. |
+| `consent.links_label` | Ayrıntılar |
 
 ## SEO
 
