@@ -15,6 +15,7 @@ export * from "./Cluster.tsx";
 export * from "./ColorSwatches.tsx";
 export * from "./Container.tsx";
 export * from "./ContinueShoppingChips.tsx";
+export * from "./CookieConsent.tsx";
 export * from "./DiscoveryCard.tsx";
 export * from "./DiscoveryGrid.tsx";
 export * from "./EmptyState.tsx";

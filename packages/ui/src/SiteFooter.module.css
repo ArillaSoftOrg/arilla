@@ -120,6 +120,17 @@
   color: var(--ink);
 }
 
+/* Karar 0038: "Cerez Tercihleri" gibi `render` ile gelen dugme, link ile
+   ayni gorunur. */
+button.link {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
 @media (prefers-reduced-motion: no-preference) {
   .link {
     transition:
@@ -150,6 +161,23 @@
   font-size: var(--text-small);
   line-height: var(--line-height-body);
   color: var(--ink-muted);
+}
+
+.disclosureLink {
+  color: var(--ink-secondary);
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--border-width);
+  text-underline-offset: 0.2em;
+}
+
+.disclosureLink:hover {
+  color: var(--ink);
+}
+
+.disclosureLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
 }
 
 .copyright {

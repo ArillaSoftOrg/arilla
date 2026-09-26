@@ -1,0 +1,276 @@
+/* Karar 0038. Renkler yalnizca tokens.css belirteclerinden; banner modal
+   degil (0002), yapiskan bir alt serit. */
+.banner {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  border-top: var(--border-width) solid var(--line-strong);
+  background: var(--surface-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-sm);
+}
+
+.bannerInner {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--content-width-wide);
+  margin-inline: auto;
+  padding: var(--space-4) var(--gutter);
+}
+
+@media (min-width: 1024px) {
+  .bannerInner {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: var(--space-8);
+  }
+}
+
+.bannerText {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.bannerTitle {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  color: var(--ink);
+}
+
+.bannerBody {
+  margin: 0;
+  max-width: var(--content-width-reading);
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+  text-wrap: pretty;
+}
+
+.linkList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.inlineLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  font-size: var(--text-small);
+  color: var(--ink);
+  text-decoration-line: underline;
+  text-decoration-thickness: var(--border-width);
+  text-underline-offset: 0.2em;
+}
+
+.inlineLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+/* Telefonda uc eylem alt alta, tam genislik; 640px ustunde yan yana. */
+.actions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+@media (min-width: 640px) {
+  .actions {
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+}
+
+/* Uc eylem icin TEK stil - esit gorsel agirlik (karar 0038). */
+.action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch-target);
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  text-align: center;
+  text-decoration: none;
+  text-transform: none;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.action:hover {
+  background: var(--surface-hover);
+}
+
+.action:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.action:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+/* Tercih paneli (yerel <dialog>). */
+.dialog {
+  width: min(100% - 2 * var(--space-4), calc(var(--content-width-compact) + var(--space-16)));
+  max-height: calc(100dvh - 2 * var(--space-4));
+  padding: 0;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  color: var(--ink);
+  box-shadow: var(--shadow-md);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.dialog::backdrop {
+  background: var(--scrim);
+}
+
+.dialogInner {
+  position: relative;
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-8) var(--space-6) var(--space-6);
+}
+
+.close {
+  position: absolute;
+  top: var(--space-2);
+  right: var(--space-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: var(--size-touch-target);
+  min-height: var(--size-touch-target);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-muted);
+  cursor: pointer;
+}
+
+.close:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.close:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.dialogTitle {
+  margin: 0;
+  padding-right: var(--space-8);
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  color: var(--ink);
+}
+
+.dialogDescription {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+}
+
+/* Kategori listesi ve form eylemleri (panelde ve /cerez#tercihler'de ortak). */
+.form {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.categories {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.category {
+  display: grid;
+  gap: var(--space-1);
+  padding-block: var(--space-4);
+  border-top: var(--border-width) solid var(--line);
+}
+
+.categoryHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+}
+
+.categoryTitle {
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.checkbox {
+  flex: none;
+  width: var(--space-6);
+  height: var(--space-6);
+  margin: 0;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+.checkbox:disabled {
+  cursor: not-allowed;
+}
+
+.checkbox:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.categoryBody {
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+}
+
+.categoryNote {
+  color: var(--ink-muted);
+}
+
+.formActions {
+  display: grid;
+  gap: var(--space-2);
+}
+
+@media (min-width: 640px) {
+  .formActions {
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+  }
+}
+
+.status {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-secondary);
+}
