@@ -47,6 +47,23 @@ export async function requireCapability(
   return { user, actor: { userId: user.id, role: user.role } };
 }
 
+/** Hassas yönetim işlemi için oturum en fazla bu kadar eski olabilir. */
+export const FRESH_SESSION_MAX_AGE_MS = 12 * 60 * 60 * 1000;
+
+/**
+ * `requireCapability` + taze oturum. Uzun ömürlü (90 gün) bir oturumla
+ * mağaza kapatma gibi işlemler yapılamaz; kullanıcı yeniden giriş yapar.
+ * `fresh: false` dönerse çağıran işlemi yapmaz ve bunu kullanıcıya söyler.
+ */
+export async function requireFreshCapability(
+  capability: Capability,
+): Promise<{ user: SessionUser; actor: AdminActor; fresh: boolean }> {
+  const { user, actor } = await requireCapability(capability);
+  const createdAt = user.sessionCreatedAt?.getTime();
+  const fresh = createdAt !== undefined && Date.now() - createdAt <= FRESH_SESSION_MAX_AGE_MS;
+  return { user, actor, fresh };
+}
+
 /** `/kaydettiklerim`, `/alarmlar`, `/gecmis` (docs/routes.md "giriş gerekli") - rol farketmez. */
 export async function requireUser(): Promise<SessionUser> {
   const user = await verifySession();

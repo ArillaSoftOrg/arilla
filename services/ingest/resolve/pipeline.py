@@ -18,15 +18,18 @@ import logging
 from dataclasses import dataclass, field, replace
 
 import psycopg
+from psycopg.types.json import Jsonb
 
 from resolve import candidates as candidate_channels
 from resolve import identifiers, products
 from resolve.normalize import ProductKey
 from resolve.score import (
     ScoreResult,
+    auto_accept_threshold,
     auto_eligible,
     combine,
     queue_threshold,
+    text_similarity,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,11 +52,13 @@ SELECT e.vector::text, e.model_version FROM embedding e
 """
 
 UPSERT_CANDIDATE = """
-INSERT INTO match_candidate (offer_id, product_id, score, method, status)
-VALUES (%(offer_id)s, %(product_id)s, %(score)s, %(method)s, %(status)s)
+INSERT INTO match_candidate (offer_id, product_id, score, method, status, explain)
+VALUES (%(offer_id)s, %(product_id)s, %(score)s, %(method)s, %(status)s, %(explain)s)
 ON CONFLICT (offer_id, product_id) DO UPDATE SET
-    score  = EXCLUDED.score,
-    method = EXCLUDED.method,
+    score   = EXCLUDED.score,
+    method  = EXCLUDED.method,
+    -- Aciklama makine verisidir; insan karari olan satirda da guncellenir.
+    explain = EXCLUDED.explain,
     -- Insan bir karar verdiyse (accepted/rejected) makine onu EZMEZ.
     status = CASE WHEN match_candidate.status IN ('accepted', 'rejected')
                   THEN match_candidate.status ELSE EXCLUDED.status END
@@ -195,6 +200,29 @@ def best_match(
     return winner
 
 
+def explain_match(
+    result: ScoreResult, key: ProductKey, candidate_key: ProductKey, eligible: bool
+) -> dict:
+    """`match_candidate.explain` (0028, docs/decisions/0041): skorun nasil uretildigi.
+
+    `/yonetim/eslestirme` bunu gosterir. Kisisel veri yok; yalnizca skor
+    bilesenleri ve kararin gerekcesi. Esikler kaydedilir ki sonradan esik
+    degisirse eski kararin hangi esikle verildigi okunabilsin.
+    """
+    return {
+        "version": 1,
+        "method": result.method,
+        "score": round(result.score, 4),
+        "text_similarity": round(text_similarity(key, candidate_key), 4),
+        "review": result.review,
+        "auto_eligible": eligible,
+        "brand_known_both": bool(key.brand_norm) and bool(candidate_key.brand_norm),
+        "brand_equal": bool(key.brand_norm) and key.brand_norm == candidate_key.brand_norm,
+        "queue_threshold": queue_threshold(),
+        "auto_accept_threshold": auto_accept_threshold(),
+    }
+
+
 def resolve_offers(
     conn: psycopg.Connection,
     *,
@@ -241,7 +269,8 @@ def resolve_offers(
             # AUTO_ACCEPT / REVIEW kademesi (0034): skor tek basina yetmez;
             # kesin kimlik ya da iki tarafta bilinen ayni marka gerekir,
             # dogrulanamayan renk (0029) her zaman REVIEW.
-            eligible = auto_eligible(result, key, _candidate_key(candidate))
+            candidate_key = _candidate_key(candidate)
+            eligible = auto_eligible(result, key, candidate_key)
             status = "auto_accepted" if eligible else "pending"
             with conn.cursor() as cur:
                 cur.execute(
@@ -252,6 +281,7 @@ def resolve_offers(
                         "score": round(result.score, 4),
                         "method": result.method,
                         "status": status,
+                        "explain": Jsonb(explain_match(result, key, candidate_key, eligible)),
                     },
                 )
                 stored = cur.fetchone()

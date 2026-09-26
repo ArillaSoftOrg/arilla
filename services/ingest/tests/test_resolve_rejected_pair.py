@@ -106,10 +106,21 @@ def test_unrejected_pair_matches_the_product(seeded: tuple[int, int, int]) -> No
         counts = resolve_offers(conn, merchant_id=merchant_id)
         conn.commit()
         linked, status = _state(conn, offer_id, product_id)
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT explain FROM match_candidate WHERE offer_id = %s AND product_id = %s",
+                (offer_id, product_id),
+            )
+            explain = cur.fetchone()[0]  # type: ignore[index]
     assert counts.products_created == 0
     assert status in {"auto_accepted", "pending"}
     if status == "auto_accepted":
         assert linked == product_id
+    # 0028: skor aciklamasi yazilir; karar gerekcesi insan kuyrugunda gorunur.
+    assert explain["version"] == 1
+    assert explain["auto_eligible"] == (status == "auto_accepted")
+    assert explain["brand_equal"] is True
+    assert 0.0 <= explain["text_similarity"] <= 1.0
 
 
 def test_rejected_pair_is_never_proposed_or_linked_again(seeded: tuple[int, int, int]) -> None:

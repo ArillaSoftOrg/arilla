@@ -34,4 +34,9 @@ export interface SessionUser {
   /** 0025: telefonla ya da e-postasiz Apple ile giren kullanicida NULL. */
   email: string | null;
   role: UserRole;
+  /**
+   * Oturumun açıldığı an. Yalnızca `verifySessionToken` doldurur; yönetimde
+   * hassas işlemler taze oturum ister (docs/decisions/0041).
+   */
+  sessionCreatedAt?: Date;
 }

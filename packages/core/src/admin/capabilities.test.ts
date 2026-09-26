@@ -16,7 +16,13 @@ const MODERATOR: Capability[] = [
   "merchant.read",
   "ingest.read",
 ];
-const ADMIN_ONLY: Capability[] = ["merchant.manage", "catalog.write", "audit.read", "users.read"];
+const ADMIN_ONLY: Capability[] = [
+  "merchant.manage",
+  "catalog.write",
+  "audit.read",
+  "users.read",
+  "operations.read",
+];
 const ALL: Capability[] = [...MODERATOR, ...ADMIN_ONLY];
 
 describe("yetki haritası", () => {

@@ -165,11 +165,22 @@ platform sorununu hafifletir.
 ```
 /yonetim                   Genel bakış: yalnızca gerçek sayılar (kuyruk, eşleşmemiş
                            teklif, mağaza, koşu, link/görsel akışı, model maliyeti)
-/yonetim/eslestirme        match_candidate kuyruğu. Onayla / reddet.
+/yonetim/eslestirme        match_candidate kuyruğu. Onayla / reddet (nedenli). Filtreler.
+/yonetim/eslestirme/gecmis İnsan kararları: inceleyen, neden
 /yonetim/sozluk            lexicon düzenleme (sayfalı, silme onaylı)
+/yonetim/magazalar         Mağaza listesi: teklif sayıları, son koşu, son başarı
+/yonetim/magazalar/<slug>  Ayrıntı, koşu geçmişi, veri toplamayı aç/kapat (yalnızca admin)
+/yonetim/ingest            ingest_run geçmişi ve hatalar (salt okunur, "çalıştır" yok)
+/yonetim/katalog/urunler   Ürün arama (id/GTIN/başlık) + kalite filtreleri
+/yonetim/katalog/urunler/<id>  Teklifler, varyant barkodları, adaylar, fiyat istatistiği
+/yonetim/katalog/teklifler Eşleşmemiş / pasif / bayat teklifler
+/yonetim/arama/tani        Arama tanısı: gerçek boru hattı, salt okunur
+/yonetim/arama/link        link_resolution_request durumları ve hata kodları
+/yonetim/arama/gorsel      image_upload durumları (görsel gösterilmez)
+/yonetim/seo               İç SEO tanısı (Search Console değil)
+/yonetim/islemler          Partition, iş kanıtı, KVKK temizlik, maliyet (yalnızca admin)
+/yonetim/kullanicilar      Tam eşleşmeyle hesap bulma, denetimli (yalnızca admin)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
-/yonetim/magazalar         (Faz 2) Mağaza listesi, koşu geçmişi, aç/kapat
-/yonetim/ingest            (Faz 2) ingest_run durumu ve hatalar
 /yonetim/trend             (ertelendi) trend_snapshot yayınlama onayı
 ```
 
@@ -177,7 +188,8 @@ Tek kabuk (`app/yonetim/layout.tsx`), tek yetki kapısı: her sayfa ve server
 action `requireCapability(<yetenek>)` çağırır, core mutasyonu aynı yeteneği
 ikinci kez denetler (docs/decisions/0039). Anonim → `/giris`, girişli ama
 yetkisiz → 404. Rol → yetenek haritası: `packages/core/src/admin/capabilities.ts`.
-Her mutasyon `admin_audit_event`'e aynı işlemde yazılır.
+Her mutasyon `admin_audit_event`'e aynı işlemde yazılır. Faz 2–7 ekranları:
+docs/decisions/0041.
 
 `/yonetim/eslestirme` MVP'de gereklidir. Eşleştirme kuyruğunu onaylayacak bir
 ekran olmadan katalog kalitesi yönetilemez.

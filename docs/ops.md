@@ -66,6 +66,10 @@ tamamı kaybedilir. Bu yüzden yedekleme isteğe bağlı bir konu değildir.
 
 ## İzleme
 
+Veritabanından okunabilen eşikler `/yonetim/islemler` ekranındadır (yalnızca
+yönetici; docs/decisions/0041). Harici uyarı üretmez; ekran bakıldığında
+durumu gösterir.
+
 | Ne | Eşik | Aksiyon |
 | --- | --- | --- |
 | `ingest_run` başarısızlığı | Aynı merchant 2 kez üst üste | Uyarı |

@@ -233,6 +233,44 @@ değerleri düz metin gösterilir.
 
 ---
 
+## `/yonetim/magazalar`, `/yonetim/ingest`
+
+Mağaza listesi: kaynak, durum, para birimi kapısı (salt okunur kanıt),
+aktif/toplam/eşleşmemiş teklif, son koşu, son başarılı koşu, son başarıdan
+beri hata sayısı. Ayrıntıda izinli `feed_config` alanları (değerleri yalnızca
+`currency`, `currency_verified`, `category_hint`, `bootstrap_source`; diğer
+anahtarların yalnızca adı), sorgu dizisiz feed adresi ve koşu geçmişi.
+Yönetici veri toplamayı açıp kapatabilir: gerekçe + kısa adı yazarak onay +
+taze oturum (12 saat); denetime yazılır. "Şimdi çalıştır" yok.
+
+## `/yonetim/katalog/*`
+
+Ürün arama: sayı → kimlik, 8–14 hane → GTIN (ürün ya da varyant), diğer →
+katlanmış başlık (trigram indeksi). Kalite kutucukları: markasız,
+kategorisiz, görselsiz, teklifsiz, fiyatsız, fiyatı bayat. Ayrıntı: teklifler
+(sorgu dizisiz adres), varyant SKU/GTIN ve kaynağı, eşleştirme adayları,
+benzerlik kenarları, fiyat istatistiği, eski adresler. Teklifler: eşleşmemiş,
+pasif, bayat. Hepsi salt okunur.
+
+## `/yonetim/arama/*`, `/yonetim/seo`
+
+Arama tanısı bir sorgunun normalleştirmesini, önbellek durumunu (bayat mı),
+sözlük eşleşmelerini, netleştirme planını, aramaya giden sorgu nesnesini ve
+ilk 20 sonucu skorlarıyla gösterir; önbelleğe/sayaca/analitiğe yazmaz. Link
+araması: 7 günlük özet + istek bazında durum, hata kodu, süre, izinli sayfa
+sinyalleri. Görsel arama: durum, saklama süresi, KVKK gecikmesi. SEO: katalog
+eksikleri, sitemap parça uygunluğu, eski adres çakışmaları.
+
+## `/yonetim/islemler`, `/yonetim/kullanicilar`
+
+İşletim (yalnızca yönetici): partition kapsamı ve default doluluğu, işlerin
+son kanıtı, KVKK temizlik gecikmesi, 14 günlük model maliyeti, istenince yetim
+taraması. Kullanıcılar (yalnızca yönetici): tam eşleşmeyle bul, maskeli
+ayrıntı; arama ve görüntüleme denetime yazılır. Rol düzenleme, silme,
+kimliğe bürünme yok.
+
+---
+
 ## `/yonetim/eslestirme`
 
 | Sıra | Bileşen |
@@ -245,7 +283,11 @@ değerleri düz metin gösterilir.
 Kuyruk skora göre sıralanır, en belirsizler önce gelir. Klavye kısayolu şart:
 bu ekran günde yüzlerce kez kullanılacak.
 
-Kuyruk sayacı sayfadaki grubu değil gerçek toplamı gösterir. Onay, teklif bu
+Kuyruk sayacı sayfadaki grubu değil gerçek toplamı gösterir. Yöntem ve mağaza
+filtresi; kartta fiyat, stok, GTIN/MPN, varyant SKU/GTIN, sorgu dizisiz adres
+(kopyalanır, tıklanmaz — çıkış `click` üretmeli) ve resolver'ın skor
+açıklaması. Red nedeni: R, sonra 1–5 (farklı ürün, renk, boyut, bozuk veri,
+diğer), 0 nedensiz, Esc vazgeç. Onay, teklif bu
 arada başka bir ürüne bağlandıysa bağı ezmez; ekranda uyarı çıkar, satırda
 kalınır. Kaydedilemeyen karar sessizce atlanmaz. Onay ve red denetim kaydına
 yazılır; reddedilen çift veri toplama tarafında bir daha önerilmez (0040).

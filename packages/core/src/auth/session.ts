@@ -38,6 +38,7 @@ export async function verifySessionToken(
     .select({
       sessionId: session.id,
       expiresAt: session.expiresAt,
+      sessionCreatedAt: session.createdAt,
       userId: appUser.id,
       publicId: appUser.publicId,
       email: appUser.email,
@@ -55,7 +56,13 @@ export async function verifySessionToken(
 
   await db.update(session).set({ lastUsedAt: new Date() }).where(eq(session.id, row.sessionId));
 
-  return { id: row.userId, publicId: row.publicId, email: row.email, role: row.role };
+  return {
+    id: row.userId,
+    publicId: row.publicId,
+    email: row.email,
+    role: row.role,
+    sessionCreatedAt: row.sessionCreatedAt,
+  };
 }
 
 /** Cikis - `apps/web` bu asamada UI'a baglamiyor, E3'un hazirligi. */
