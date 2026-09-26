@@ -37,6 +37,7 @@ migration'lar olusturur.
 | `0018_merchant_shopify_discovery.sql` | brand-discovery/endpoint-verification zincirinden 19 merchant kaydi, `is_active = FALSE` (0023; `source_type`/`feed_config.mapping` 0024 icin yerinde guncellendi — para birimi hala dogrulanmadigi icin `is_active` FALSE kaldi). 0017'den SONRA calismali: source_type='shopify' 0017'nin genislettigi CHECK'e bagli. |
 | `0019_product_title_fold_trgm.sql` | Katlanmis (Turkce+ASCII) `product.title` uzerinde trigram GIN indeksi; metin aramasinin aday kapisi icin (0029). Yalnizca ekleme. |
 | `0020_lexicon_synonym_kind.sql` | `lexicon.kind` CHECK'ine `'synonym'` + gercek katalog bosluklarindan baslangic esanlam seti (0029). Genisletici. |
+| `0021_shopify_currency_verified.sql` | 0018'in 18 merchant'ina `feed_config.currency = "TRY"`, `currency_verified = true` (0031; kanit `services/ingest/bootstrap/currency_verification_20260926.json`). Yalnizca veri; `is_active` DEGISMEZ, `turkish-finds` (PHP) dokunulmaz. Beklenmeyen durumda RAISE EXCEPTION ile durur. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori
