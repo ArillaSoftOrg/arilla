@@ -1,0 +1,223 @@
+{
+  "checked_at": "2026-09-26T10:11:58+00:00",
+  "endpoint": "/meta.json",
+  "accepted_currency": "TRY",
+  "requests_per_second": 1.0,
+  "timeout_seconds": 10.0,
+  "summary": {
+    "total": 19,
+    "pass": 18,
+    "fail": 1
+  },
+  "results": [
+    {
+      "slug": "arifoglu-online",
+      "domain": "arifogluonline.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "assema",
+      "domain": "assema4455.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "bahs",
+      "domain": "bahsbartr-com.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "casadora-baby",
+      "domain": "casadora-baby.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "eubos-turkiye",
+      "domain": "eubos-turkiye.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "eveline-cosmetics-turkiye",
+      "domain": "eveline-tr-v2.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "for-fun",
+      "domain": "murat-cihan-kurtoglu.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "halicizade-hali-kilim",
+      "domain": "halicizade-rug-store.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "happy-place-home-decor",
+      "domain": "happy-place-home-decor-2.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "jura-store",
+      "domain": "745bb0.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "noir-parfum",
+      "domain": "noirparfum.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "north-sails-turkiye",
+      "domain": "north-sails-turkey.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "riva-istanbul",
+      "domain": "riva-istanbul.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "spor-plus",
+      "domain": "5i8abq-fn.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "termos-dunyasi",
+      "domain": "termos-dunyasi.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "turkish-finds",
+      "domain": "turkishbuys.myshopify.com",
+      "currency": "PHP",
+      "passed": false,
+      "reason": "currency_not_try",
+      "detail": "PHP != TRY",
+      "http_status": 200,
+      "requests": 1,
+      "result": "FAIL"
+    },
+    {
+      "slug": "uy-design",
+      "domain": "uydesign.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "wraith-esports",
+      "domain": "wraithesports.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    },
+    {
+      "slug": "yutas-yapi-urunleri",
+      "domain": "yutas-yapi-urunleri.myshopify.com",
+      "currency": "TRY",
+      "passed": true,
+      "reason": "ok",
+      "detail": "",
+      "http_status": 200,
+      "requests": 1,
+      "result": "PASS"
+    }
+  ]
+}
