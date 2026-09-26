@@ -83,6 +83,40 @@ Komut **hicbir sey yazmaz**: baglanti `read_only`, `currency_verified`,
 `is_active` ve `feed_config` degismez. Canli kosu ve sonucun veritabanina
 tasinmasi (migration) ayri, onayli adimlardir.
 
+### Shopify aktivasyon hazirligi (salt okunur, 0032)
+
+```bash
+python -m collect.verify_readiness                       # para birimi dogrulanmis tum Shopify merchant'lari
+python -m collect.verify_readiness --merchant <slug>     # tekrarlanabilir
+python -m collect.verify_readiness --report rapor.json   # JSON kanit dosyasi
+```
+
+Yalnizca `currency = "TRY"` ve `currency_verified = true` merchant'lar incelenir;
+digerleri `--merchant` ile istense de istek atilmadan reddedilir (cikis 2).
+Merchant basina **en fazla iki istek**, once robots:
+
+1. `GET /robots.txt` — `/products.json` yasaksa (joker `*`/`$` kurallari dahil),
+   3xx, 401/403, 5xx, zaman asimi ya da okunamayan yanit ise FAIL ve urun
+   istegi **yapilmaz**. 404 = kural yok (`collect/link/robots.py` ile ayni).
+2. `GET /products.json?limit=5&page=1` — tek sayfa, en fazla 5 urun; yapi,
+   fiyat (> 0) ve `available` alani denetlenir, ornek gercek connector +
+   `normalize` ile bellekte (agsiz, veritabanisiz) islenir.
+
+Yeniden deneme yok, yonlendirme izlenmez, saniyede en fazla 1 istek (robots
+`Crawl-delay` daha uzunsa o; 30 sn ustu ornegi atlar), 10 sn zaman asimi,
+`ArillaBot` user-agent. Secenekler bootstrap manifestindeki ad listeleriyle
+(`color_option_names`, `size_option_names`) siniflanir ve mevcut esleme ile
+karsilastirilir.
+
+| Sonuc | Anlami |
+| --- | --- |
+| `READY` | robots, ornek, fiyatlar ve esleme olumlu. Aktivasyon yine ayri, onayli adim. |
+| `NOT_READY` | en az bir olumsuz kanit (yasak, bozuk ornek, gecersiz fiyat, yanlis esleme — onerilen ad tabanli esleme raporda). |
+| `REVIEW` | olumsuz kanit yok ama yetersiz (taninmayan secenek adi, renk/beden iceremeyen ornek, uzun Crawl-delay). |
+
+Komut hicbir sey yazmaz (`read_only` baglanti, ag istekleri baslamadan kapanir).
+Canli kosu ayri onay ister.
+
 ## Test
 
 ```bash

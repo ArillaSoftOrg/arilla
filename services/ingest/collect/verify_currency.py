@@ -123,9 +123,10 @@ class RateLimiter:
         self._clock = clock
         self._last: float | None = None
 
-    def wait(self) -> None:
+    def wait(self, at_least: float = 0.0) -> None:
+        """`at_least`: bu istek icin daha uzun bir bekleme (robots `Crawl-delay`)."""
         if self._last is not None:
-            remaining = self.interval - (self._clock() - self._last)
+            remaining = max(self.interval, at_least) - (self._clock() - self._last)
             if remaining > 0:
                 self._sleep(remaining)
         self._last = self._clock()
