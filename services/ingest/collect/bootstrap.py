@@ -262,6 +262,8 @@ def run(
             report.errors.append(str(error)[:300])
         else:
             report.status = result.status
+            if result.refusal:
+                report.errors.append(f"refused:{result.refusal}")
             report.records_discovered = result.offers_seen
             report.offers_created = result.counts.offers_created
             report.offers_updated = result.counts.offers_updated

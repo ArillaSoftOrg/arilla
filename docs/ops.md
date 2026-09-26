@@ -179,8 +179,9 @@ Rapor dosyası kaynak başına başlangıç, keşfedilen kayıt, yeni/güncellen
 offer, reddedilen kayıt, hata ve süreyi içerir. Tekrar çalıştırmak
 idempotenttir (`(merchant_id, external_id)` upsert).
 
-**Para birimi (0029).** Kayıtlar yalnızca `feed_config.currency_verified =
-true` ise yazılır. Kanıt manifestin yanındaki `currency_provenance.json`
+**Para birimi (0029, 0031).** `currency_verified = true` ve `currency = "TRY"`
+taşımayan Shopify merchant'ı mağazaya istek atılmadan reddedilir
+(`ingest_run`: `refused:currency_unverified`). Kanıt manifestin yanındaki `currency_provenance.json`
 dosyasından okunur; dosyada olmayan mağaza reddedilir. Mağaza çekmeden yalnızca
 merchant ayarını güncellemek: `--register-only`.
 

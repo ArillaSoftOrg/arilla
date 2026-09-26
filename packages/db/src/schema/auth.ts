@@ -1,4 +1,4 @@
-/** 0005_auth.sql + 0023_oauth_identity.sql karsiligi. */
+/** 0005_auth.sql + 0024_oauth_identity.sql karsiligi. */
 import {
   bigint,
   boolean,

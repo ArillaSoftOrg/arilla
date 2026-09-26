@@ -40,6 +40,31 @@ _TR_TRANSLIT = str.maketrans("çÇğĞıİöÖşŞüÜ", "cCgGiIoOsSuU")
 #: tekrar denenmez: engellendiysek israr etmeyiz.
 _RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
 
+#: `transport.shopify.max_products` yoksa magaza basina kanonik urun tavani
+#: (0023: merchant basina 20-30 urun). Bootstrap bunu acikca yukseltir (0027).
+DEFAULT_MAX_PRODUCTS = 30
+
+#: Kabul edilen en buyuk tavan: 0027'nin TOPLAM sert tavani
+#: (`collect/bootstrap.HARD_CAP`). Tek magaza bunu asamaz.
+MAX_PRODUCTS_LIMIT = 3500
+
+
+def parse_max_products(raw: Any) -> int:
+    """`transport.shopify.max_products` -> pozitif tamsayi.
+
+    Yoksa `DEFAULT_MAX_PRODUCTS`. Yalnizca JSON tamsayisi kabul edilir:
+    `"30"`, `30.5`, `true`, `0` ya da negatif deger yapilandirma hatasidir —
+    tavan sessizce kalkmaz, kosu magazaya istek atmadan `failed` biter.
+    """
+    if raw is None:
+        return DEFAULT_MAX_PRODUCTS
+    if isinstance(raw, bool) or not isinstance(raw, int) or not 1 <= raw <= MAX_PRODUCTS_LIMIT:
+        raise ValueError(
+            f"transport.shopify.max_products gecersiz: {raw!r} "
+            f"(1..{MAX_PRODUCTS_LIMIT} arasi tamsayi olmali)"
+        )
+    return raw
+
 
 def _slugify(value: str) -> str:
     text = value.strip().translate(_TR_TRANSLIT)
@@ -103,6 +128,13 @@ class ShopifyConnector(Connector):
     client: httpx.Client | None = None
     #: Guvenlik freni: rest_api.py'deki ayniyla ayni gerekce.
     max_pages: int = 10_000
+    #: Kanonik urun tavani; `config`'ten `__post_init__` icinde okunur.
+    max_products: int = field(init=False, default=DEFAULT_MAX_PRODUCTS)
+
+    def __post_init__(self) -> None:
+        # Kurulumda dogrulanir: gecersiz tavan ilk istekten ONCE patlar.
+        shopify = self._transport.get("shopify") or {}
+        self.max_products = parse_max_products(shopify.get("max_products"))
 
     @property
     def _transport(self) -> dict[str, Any]:
@@ -151,11 +183,13 @@ class ShopifyConnector(Connector):
         # Ada gore secim, konuma gore secimden onceliklidir (bkz. _option_by_name).
         color_names = shopify.get("color_option_names")
         size_names = shopify.get("size_option_names")
-        # Kanonik Shopify urunu sayisi (renk bolmesinden ONCE). Bootstrap
-        # katalogu icin magaza basina tavan (docs/decisions/0027).
-        max_products = shopify.get("max_products")
-        max_products = int(max_products) if max_products else None
-        page_size = int((transport.get("pagination") or {}).get("size", 50))
+        # Kanonik Shopify urunu sayisi (renk bolmesinden ONCE). Her zaman
+        # vardir: ayar yoksa 30 (0023), bootstrap acikca yukseltir (0027).
+        max_products = self.max_products
+        # Tavandan buyuk sayfa istemenin anlami yok. Sayfa boyu kosu boyunca
+        # SABIT kalmali (`page=N` ofseti ona gore hesaplanir), bu yuzden
+        # yalnizca en basta kisilir.
+        page_size = min(int((transport.get("pagination") or {}).get("size", 50)), max_products)
         min_interval = 0.0
         rate = (transport.get("rate_limit") or {}).get("requests_per_second")
         if rate:
@@ -179,7 +213,7 @@ class ShopifyConnector(Connector):
                 return
 
             for product in products:
-                if max_products is not None and products_seen >= max_products:
+                if products_seen >= max_products:
                     return
                 products_seen += 1
                 yield from self._records_for_product(
@@ -190,7 +224,7 @@ class ShopifyConnector(Connector):
 
             if len(products) < page_size:
                 return
-            if max_products is not None and products_seen >= max_products:
+            if products_seen >= max_products:
                 return
             page += 1
 

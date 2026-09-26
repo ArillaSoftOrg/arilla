@@ -49,6 +49,74 @@ Cikis kodu: `success` icin 0, `partial` ve `failed` icin 1 — cron ve izleme
 bunu kullanir. Her kosu `ingest_run` tablosuna yazilir; kosu patlasa bile satir
 `failed` olarak kapanir. **Sessiz basarisizlik yoktur.**
 
+### Toplama kapisi (0031)
+
+Connector kurulmadan once `collect/gate.py` sorulur. Kapi kapaliysa magazaya
+istek gitmez, offer ve `price_point` yazilmaz; `ingest_run` `failed` kapanir,
+`error_text` `refused:<kod>` ile baslar, CLI `refused <kod>` basar.
+
+| Kosul | Kod |
+| --- | --- |
+| `merchant.is_active` false (her kaynak) | `merchant_inactive` |
+| Shopify: `feed_config.currency_verified` tam olarak JSON `true` degil | `currency_unverified` |
+| Shopify: `feed_config.currency` tam olarak `"TRY"` degil | `currency_not_try` |
+| Shopify: `feed_config` JSON nesnesi degil | `feed_config_invalid` |
+
+`collect.bootstrap` da `run_ingest` uzerinden ayni kapidan gecer.
+
+### Shopify para birimi dogrulamasi (salt okunur)
+
+```bash
+python -m collect.verify_currency                        # tum Shopify merchant'lari
+python -m collect.verify_currency --merchant <slug>      # tekrarlanabilir
+python -m collect.verify_currency --report rapor.json    # JSON kanit dosyasi
+```
+
+Merchant basina `https://<merchant.domain>/meta.json` adresine **tek istek**;
+yeniden deneme yok, yonlendirme izlenmez, saniyede en fazla 1 istek, 10 sn zaman
+asimi. Yalnizca `currency` tam olarak `"TRY"` ise PASS. Zaman asimi, ag hatasi,
+2xx disi yanit, bozuk JSON, eksik/TRY disi para birimi ve gecersiz alan adi o
+merchant icin FAIL; rapor devam eder. Cikis: hepsi PASS ise 0, FAIL varsa 1,
+bilinmeyen `--merchant` ise 2 (istek atilmaz).
+
+Komut **hicbir sey yazmaz**: baglanti `read_only`, `currency_verified`,
+`is_active` ve `feed_config` degismez. Canli kosu ve sonucun veritabanina
+tasinmasi (migration) ayri, onayli adimlardir.
+
+### Shopify aktivasyon hazirligi (salt okunur, 0032)
+
+```bash
+python -m collect.verify_readiness                       # para birimi dogrulanmis tum Shopify merchant'lari
+python -m collect.verify_readiness --merchant <slug>     # tekrarlanabilir
+python -m collect.verify_readiness --report rapor.json   # JSON kanit dosyasi
+```
+
+Yalnizca `currency = "TRY"` ve `currency_verified = true` merchant'lar incelenir;
+digerleri `--merchant` ile istense de istek atilmadan reddedilir (cikis 2).
+Merchant basina **en fazla iki istek**, once robots:
+
+1. `GET /robots.txt` — `/products.json` yasaksa (joker `*`/`$` kurallari dahil),
+   3xx, 401/403, 5xx, zaman asimi ya da okunamayan yanit ise FAIL ve urun
+   istegi **yapilmaz**. 404 = kural yok (`collect/link/robots.py` ile ayni).
+2. `GET /products.json?limit=5&page=1` — tek sayfa, en fazla 5 urun; yapi,
+   fiyat (> 0) ve `available` alani denetlenir, ornek gercek connector +
+   `normalize` ile bellekte (agsiz, veritabanisiz) islenir.
+
+Yeniden deneme yok, yonlendirme izlenmez, saniyede en fazla 1 istek (robots
+`Crawl-delay` daha uzunsa o; 30 sn ustu ornegi atlar), 10 sn zaman asimi,
+`ArillaBot` user-agent. Secenekler bootstrap manifestindeki ad listeleriyle
+(`color_option_names`, `size_option_names`) siniflanir ve mevcut esleme ile
+karsilastirilir.
+
+| Sonuc | Anlami |
+| --- | --- |
+| `READY` | robots, ornek, fiyatlar ve esleme olumlu. Aktivasyon yine ayri, onayli adim. |
+| `NOT_READY` | en az bir olumsuz kanit (yasak, bozuk ornek, gecersiz fiyat, yanlis esleme — onerilen ad tabanli esleme raporda). |
+| `REVIEW` | olumsuz kanit yok ama yetersiz (taninmayan secenek adi, renk/beden iceremeyen ornek, uzun Crawl-delay). |
+
+Komut hicbir sey yazmaz (`read_only` baglanti, ag istekleri baslamadan kapanir).
+Canli kosu ayri onay ister.
+
 ## Test
 
 ```bash
@@ -124,6 +192,7 @@ kullanilir, `float` hic devreye girmez — para tamsayidir.
 | `xml_feed` | `XmlFeedConnector` | Tek GET, `iterparse` ile akis |
 | `api` | `RestApiConnector` | Auth, sayfalama (`page_number` / `cursor`), oran siniri |
 | `affiliate_network` | `NetworkDumpConnector` | CSV/XML dokum, gzip, kodlama |
+| `shopify` | `ShopifyConnector` | `/products.json` sayfalama, renk bolme, urun tavani |
 | `user_discovered` | — | Toplu kaynak degil; kullanici linki B2'nin isi |
 
 Yeni bir tasima eklemek: `collect/sources/` altina modul yaz ve
@@ -141,6 +210,13 @@ Yeni bir tasima eklemek: `collect/sources/` altina modul yaz ve
    sistemde yasayabilir.
 5. **Reddedilen kayit kosuyu durdurmaz.** Sayilir, kosu `partial` biter. Tek
    bozuk satir yuzunden 10.000 urun birakilmaz.
+6. **Para birimi uydurulmaz.** `NormalizedOffer.currency` varsayilansizdir:
+   kaynagin alani ya da dogrulanmis `feed_config.currency` (0029). Shopify
+   teklifi TRY disinda yazilmaz (0031); doviz cevrimi yok.
+7. **Shopify urun tavani.** `transport.shopify.max_products` yoksa 30. Yalnizca
+   1–3500 arasi JSON tamsayisi; gecersiz deger istekten once hata verir. Tavan
+   kanonik urun sayisidir (renk bolmesinden once), sayfalar arasinda da gecerli;
+   tavan dolunca sonraki sayfa istenmez.
 
 ---
 

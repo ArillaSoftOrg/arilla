@@ -411,3 +411,106 @@ def test_unverified_currency_is_rejected_not_assumed_try() -> None:
             normalize(record, FieldMapping.from_config(config))
 
     assert normalize(record, FieldMapping.from_config(_SHOPIFY_CONFIG)).currency == "TRY"
+
+
+# --- max_products tavani (0031) ----------------------------------------------
+
+
+def _capped_client(
+    total: int, requests: list[tuple[int, int]], *, ignore_limit_with: int | None = None
+) -> httpx.Client:
+    """`total` urunluk magaza. Istenen (sayfa, limit) ciftlerini kaydeder.
+    `ignore_limit_with`: sunucu `limit`i yok sayip her sayfada bu kadar dondurur."""
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        page = int(request.url.params["page"])
+        limit = int(request.url.params["limit"])
+        requests.append((page, limit))
+        size = ignore_limit_with or limit
+        start = (page - 1) * size
+        products = []
+        for index in range(start, min(start + size, total)):
+            product = _single_variant_product()
+            product["id"] = index + 1
+            product["handle"] = f"urun-{index + 1}"
+            products.append(product)
+        return httpx.Response(200, json={"products": products})
+
+    return httpx.Client(transport=httpx.MockTransport(handler))
+
+
+def _capped(
+    total: int, transport: dict, **client_kwargs: int
+) -> tuple[list[str], list[tuple[int, int]]]:
+    requests: list[tuple[int, int]] = []
+    connector = ShopifyConnector(
+        base_url="https://shop.example/products.json",
+        config={**_SHOPIFY_CONFIG, "transport": transport},
+        client=_capped_client(total, requests, **client_kwargs),
+    )
+    return [record.fields["id"] for record in connector.fetch()], requests
+
+
+def test_default_cap_is_30_when_absent() -> None:
+    ids, requests = _capped(100, {"pagination": {"size": 50}})
+
+    assert ids == [str(i) for i in range(1, 31)]
+    # Sayfa boyu tavana kisilir; 30 urun tek istekte gelir, 2. sayfa istenmez.
+    assert requests == [(1, 30)]
+
+
+def test_fewer_products_than_cap() -> None:
+    ids, requests = _capped(7, {"pagination": {"size": 50}})
+
+    assert len(ids) == 7
+    assert requests == [(1, 30)]
+
+
+def test_exactly_cap_does_not_request_another_page() -> None:
+    ids, requests = _capped(20, {"pagination": {"size": 10}, "shopify": {"max_products": 20}})
+
+    assert len(ids) == 20
+    # 2. sayfa tavani tam doldurur; bos 3. sayfayi sormaya gerek yok.
+    assert requests == [(1, 10), (2, 10)]
+
+
+def test_cap_crossed_inside_a_page() -> None:
+    ids, requests = _capped(100, {"pagination": {"size": 10}, "shopify": {"max_products": 15}})
+
+    assert ids == [str(i) for i in range(1, 16)]
+    assert requests == [(1, 10), (2, 10)]
+
+
+def test_cap_crossed_between_pages_stops_paging() -> None:
+    ids, requests = _capped(100, {"pagination": {"size": 10}, "shopify": {"max_products": 20}})
+
+    assert len(ids) == 20
+    assert [page for page, _ in requests] == [1, 2]
+
+
+def test_cap_holds_even_when_server_ignores_limit() -> None:
+    ids, requests = _capped(100, {"pagination": {"size": 50}}, ignore_limit_with=50)
+
+    assert len(ids) == 30
+    assert requests == [(1, 30)]
+
+
+def test_configured_lower_cap() -> None:
+    ids, requests = _capped(100, {"shopify": {"max_products": 3}})
+
+    assert ids == ["1", "2", "3"]
+    assert requests == [(1, 3)]
+
+
+def test_invalid_cap_fails_before_any_request() -> None:
+    import pytest
+
+    for bad in ("30", 0, -5, 2.5, True, 3501):
+        requests: list[tuple[int, int]] = []
+        with pytest.raises(ValueError, match="max_products"):
+            ShopifyConnector(
+                base_url="https://shop.example/products.json",
+                config={**_SHOPIFY_CONFIG, "transport": {"shopify": {"max_products": bad}}},
+                client=_capped_client(100, requests),
+            )
+        assert requests == []
