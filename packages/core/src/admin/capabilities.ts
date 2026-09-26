@@ -23,7 +23,9 @@ export type Capability =
   | "merchant.manage"
   | "catalog.write"
   | "audit.read"
-  | "users.read";
+  | "users.read"
+  /** `/yonetim/islemler`: partition, yetim, maliyet, KVKK temizlik durumu. */
+  | "operations.read";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -47,6 +49,7 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "catalog.write",
   "audit.read",
   "users.read",
+  "operations.read",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

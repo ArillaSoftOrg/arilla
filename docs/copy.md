@@ -357,6 +357,43 @@ mutasyonu aynı yeteneği tekrar denetler (docs/decisions/0039).
 | `admin.audit.empty` | Kayıt yok. |
 | `admin.audit.older` | Daha eski kayıtlar |
 | `admin.audit.newest` | En yeniye dön |
+| `admin.matching.reject_reason_title` | Red nedeni |
+| `admin.matching.reason.not_same_product` | Farklı ürün |
+| `admin.matching.reason.different_color` | Farklı renk |
+| `admin.matching.reason.different_size` | Farklı boyut/hacim |
+| `admin.matching.reason.bad_data` | Bozuk veri |
+| `admin.matching.reason.other` | Diğer |
+| `admin.matching.reason.superseded` | Başka aday onaylandı |
+| `admin.matching.reject_without_reason` | 0 Belirtmeden reddet |
+| `admin.matching.copy_url` | Adresi kopyala |
+| `admin.matching.history_title` | İnceleme geçmişi |
+| `admin.merchants.title` | Mağazalar |
+| `admin.merchants.readonly_note` | Feed ayarları, komisyon ve para birimi kanıtı burada düzenlenmez; kaynakta ve komut satırında kalır. |
+| `admin.merchants.deactivate` | Veri toplamayı kapat |
+| `admin.merchants.activate` | Veri toplamayı aç |
+| `admin.merchants.deactivate_body` | Kapalı mağaza için sonraki toplama koşusu çalışmadan durur. Mevcut teklifler silinmez. |
+| `admin.merchants.activate_body` | Açmak Shopify para birimi kapısını atlamaz; doğrulanmamış mağaza yine toplanmaz. |
+| `admin.merchants.reason_label` | Gerekçe (denetim kaydına yazılır) |
+| `admin.merchants.confirm_label` | Onaylamak için mağazanın kısa adını yaz: {slug} |
+| `admin.merchants.stale_session` | Güvenlik için bu işlemden önce çıkış yapıp yeniden giriş yap (oturum 12 saatten eski). |
+| `admin.ingest.title` | Veri toplama |
+| `admin.ingest.note` | Koşular komut satırı ya da zamanlayıcıdan çalışır; bu ekran yalnızca izlerini gösterir. |
+| `admin.catalog.products_title` | Ürünler |
+| `admin.catalog.offers_title` | Teklifler |
+| `admin.search_diagnostics.title` | Arama tanısı |
+| `admin.search_diagnostics.note` | Bir sorgunun /ara'da nasıl işlendiğini gösterir. Gerçek arama çalışır ama önbelleğe, arama sayacına ve analitiğe yazılmaz. |
+| `admin.search_diagnostics.rate_limited` | Dakikada en fazla {n} tanı çalıştırılabilir. Biraz bekle. |
+| `admin.link.title` | Link araması |
+| `admin.images.title` | Görsel arama |
+| `admin.images.note` | Yüklenen görseller burada gösterilmez; ham dosya en fazla 30 gün saklanır. |
+| `admin.seo.title` | SEO tanısı |
+| `admin.seo.not_search_console` | Arilla'nın kendi katalog ve sitemap verisinden üretilir. Search Console verisi değildir: tarama, dizine ekleme, gösterim ya da tıklama sayısı burada yok. |
+| `admin.operations.title` | İşletim |
+| `admin.operations.note` | Veritabanından okunabilen sağlık sinyalleri. İş geçmişi tablosu olmadığı için işlerin durumu ürettikleri verinin tazeliğinden okunur ("son kanıt"). |
+| `admin.users.title` | Kullanıcılar |
+| `admin.users.note` | Destek için tek hesap bulma. Arama ve görüntüleme denetim kaydına yazılır; aranan değer yazılmaz. |
+| `admin.users.not_found` | Bu bilgiyle eşleşen hesap yok. |
+| `admin.users.input_invalid` | E-posta, telefon (+90…) ya da hesap kimliği gir. |
 
 ## Hukuki
 

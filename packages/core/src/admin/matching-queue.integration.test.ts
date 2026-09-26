@@ -5,7 +5,9 @@ import { type AdminActor, AdminForbiddenError } from "./capabilities.ts";
 import {
   approveMatch,
   countPendingMatches,
+  listMatchHistory,
   listMatchQueue,
+  ReviewReasonError,
   rejectMatch,
 } from "./matching-queue.ts";
 
@@ -138,6 +140,17 @@ describe("eşleştirme kuyruğu - entegrasyon (gerçek Postgres)", () => {
         return Number(result.rows[0].id);
       };
       lowScoreCandidateId = await makeCandidate(lowScoreOfferId, lowScoreProductId, 0.65);
+      await client.query(
+        `INSERT INTO offer_variant (offer_id, external_id, size_label, sku, gtin, gtin_source)
+         VALUES ($1, 'v1', '50 ml', 'SKU-50', '8690000000017', 'feed')`,
+        [lowScoreOfferId],
+      );
+      await client.query(
+        `UPDATE match_candidate
+            SET explain = '{"version":1,"method":"text","auto_eligible":false}'::jsonb
+          WHERE id = $1`,
+        [lowScoreCandidateId],
+      );
       highScoreCandidateId = await makeCandidate(highScoreOfferId, highScoreProductId, 0.8);
       rejectCandidateId = await makeCandidate(rejectOfferId, rejectProductId, 0.7);
       alreadyDecidedCandidateId = await makeCandidate(
@@ -270,5 +283,68 @@ describe("eşleştirme kuyruğu - entegrasyon (gerçek Postgres)", () => {
   it("var olmayan bir id için found:false döner", async () => {
     const result = await rejectMatch(db, moderator, 999_999_999);
     expect(result.found).toBe(false);
+  });
+
+  it("listMatchQueue: mağaza/yöntem filtresi, varyant kimlikleri, açıklama, güvenli adres", async () => {
+    const byMerchant = await listMatchQueue(db, 100, { merchantId });
+    expect(byMerchant.every((item) => item.offer.merchantId === merchantId)).toBe(true);
+    const low = byMerchant.find((item) => item.matchCandidateId === lowScoreCandidateId);
+    expect(low?.offer.variants).toEqual([
+      {
+        sizeLabel: "50 ml",
+        sku: "SKU-50",
+        gtin: "8690000000017",
+        gtinSource: "feed",
+        inStock: true,
+      },
+    ]);
+    expect(low?.explain?.auto_eligible).toBe(false);
+    expect(low?.offer.url).toBe(`https://admin-queue.test/low-${suffix}`);
+
+    const gtinOnly = await listMatchQueue(db, 100, { method: "gtin", merchantId });
+    expect(gtinOnly).toHaveLength(0);
+    expect(await countPendingMatches(db, { merchantId })).toBe(byMerchant.length);
+  });
+
+  it("rejectMatch: geçersiz neden reddedilir; geçerli neden saklanır", async () => {
+    await expect(
+      rejectMatch(db, moderator, lowScoreCandidateId, "superseded" as never),
+    ).rejects.toBeInstanceOf(ReviewReasonError);
+    expect((await candidate(lowScoreCandidateId)).status).toBe("pending");
+
+    await rejectMatch(db, moderator, lowScoreCandidateId, "different_color");
+    const row = await withOwnerClient(async (client) => {
+      const res = await client.query(
+        "SELECT status, review_reason FROM match_candidate WHERE id = $1",
+        [lowScoreCandidateId],
+      );
+      return res.rows[0];
+    });
+    expect(row).toEqual({ status: "rejected", review_reason: "different_color" });
+  });
+
+  it("onayın düşürdüğü kardeş 'superseded' nedenini taşır", async () => {
+    const row = await withOwnerClient(async (client) => {
+      const res = await client.query("SELECT review_reason FROM match_candidate WHERE id = $1", [
+        siblingLoserId,
+      ]);
+      return res.rows[0];
+    });
+    expect(row.review_reason).toBe("superseded");
+  });
+
+  it("listMatchHistory: insan kararları, maskeli inceleyen, neden filtresi", async () => {
+    const history = await listMatchHistory(db, moderator, { pageSize: 100 });
+    const ours = history.rows.filter((row) => offerIds.includes(row.offerId));
+    expect(ours.length).toBeGreaterThanOrEqual(4);
+    expect(ours.every((row) => row.reviewerLabel === "a***@test.local")).toBe(true);
+
+    const colored = await listMatchHistory(db, moderator, { reason: "different_color" });
+    expect(colored.rows.some((row) => row.matchCandidateId === lowScoreCandidateId)).toBe(true);
+    expect(colored.rows.every((row) => row.reviewReason === "different_color")).toBe(true);
+
+    await expect(
+      listMatchHistory(db, { userId: moderator.userId, role: "creator" }),
+    ).rejects.toBeInstanceOf(AdminForbiddenError);
   });
 });

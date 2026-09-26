@@ -44,6 +44,8 @@ migration'lar olusturur.
 | `0025_apple_phone_identity.sql` | `user_identity.provider`a `apple` + `phone`; `app_user.email` NULL olabilir; `phone_login_code` (HMAC kod, TTL, `consumed_at`, deneme sayisi). Geriye uyumlu. |
 | `0026_variant_price_event.sql` | `variant_price_event` (append-only): cok boyutlu tekliflerde boyut bazli fiyat gecmisi, yalnizca degisimde yazilir (0037). Yalnizca ekleme. |
 | `0027_admin_audit_event.sql` | `admin_audit_event` (append-only): `/yonetim` mutasyonlarinin denetim izi — aktor, eylem, hedef, izinli alanlarla once/sonra (0039). Yalnizca ekleme. |
+| `0028_match_review_reason_and_explain.sql` | `match_candidate.review_reason` (CHECK'li red nedeni) + `explain` JSONB (resolver skor aciklamasi) + `reviewed_by` FK (NOT VALID, sonra VALIDATE) (0041). Yalnizca ekleme. |
+| `0029_link_resolution_request_created_idx.sql` | `link_resolution_request (created_at DESC, id DESC)` indeksi: `/yonetim/arama/link` listesi tam tarama yerine indeksle okur (EXPLAIN kaniti migration icinde) (0041). Yalnizca ekleme. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

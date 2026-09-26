@@ -1,6 +1,6 @@
 "use server";
 
-import { approveMatch, rejectMatch } from "@arilla/core";
+import { approveMatch, isReviewReason, rejectMatch } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { requireCapability } from "../../lib/dal.ts";
 
@@ -21,8 +21,13 @@ export async function approveMatchAction(matchCandidateId: number): Promise<Revi
   return approveMatch(getDatabase(), actor, matchCandidateId);
 }
 
-export async function rejectMatchAction(matchCandidateId: number): Promise<ReviewActionResult> {
+/** `reason` istemciden gelir: izin listesinde değilse "belirtilmedi" sayılmaz, reddedilir. */
+export async function rejectMatchAction(
+  matchCandidateId: number,
+  reason: string | null = null,
+): Promise<ReviewActionResult> {
   const { actor } = await requireCapability("matching.review");
   if (!isId(matchCandidateId)) return { found: false };
-  return rejectMatch(getDatabase(), actor, matchCandidateId);
+  if (reason !== null && !isReviewReason(reason)) return { found: false };
+  return rejectMatch(getDatabase(), actor, matchCandidateId, reason);
 }

@@ -270,9 +270,17 @@ CREATE TABLE match_candidate (
                  CHECK (method IN ('gtin','mpn','text','image','hybrid')),
     status       TEXT        NOT NULL DEFAULT 'pending'
                  CHECK (status IN ('pending','auto_accepted','accepted','rejected')),
-    reviewed_by  BIGINT,
+    reviewed_by  BIGINT      REFERENCES app_user(id),      -- 0028: FK eklendi
     reviewed_at  TIMESTAMPTZ,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- 0028 (docs/decisions/0041): red nedeni; NULL = belirtilmedi.
+    -- 'superseded' = ayni teklifin baska adayi onaylandi.
+    review_reason TEXT
+                 CHECK (review_reason IN ('not_same_product','different_color','different_size',
+                                          'bad_data','other','superseded')),
+    -- 0028: resolver'in skor aciklamasi (yontem, metin benzerligi, inceleme
+    -- nedeni, otomatik kabul uygunlugu). Eski satirlarda NULL.
+    explain      JSONB,
     CONSTRAINT match_candidate_uniq UNIQUE (offer_id, product_id)
 );
 CREATE INDEX match_candidate_pending_idx ON match_candidate (score DESC)
@@ -384,6 +392,8 @@ CREATE TABLE link_resolution_request (
 CREATE INDEX link_resolution_request_session_idx ON link_resolution_request (session_id, created_at DESC);
 CREATE INDEX link_resolution_request_url_idx     ON link_resolution_request (normalized_url, created_at DESC)
     WHERE normalized_url IS NOT NULL;
+-- 0029: /yonetim/arama/link en yeniden eskiye okur (created_at ile baslayan tek indeks).
+CREATE INDEX link_resolution_request_created_idx ON link_resolution_request (created_at DESC, id DESC);
 
 -- ---------------------------------------------------------------------------
 -- KULLANICI VE CREATOR

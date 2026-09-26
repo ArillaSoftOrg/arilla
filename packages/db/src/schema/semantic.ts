@@ -33,6 +33,12 @@ export const matchCandidate = pgTable("match_candidate", {
     .default("pending"),
   reviewedBy: bigint("reviewed_by", { mode: "number" }),
   reviewedAt: timestamp("reviewed_at", { withTimezone: true }),
+  /** 0028: red nedeni; NULL = belirtilmedi. `superseded` onayin kardesleri icin. */
+  reviewReason: text("review_reason").$type<
+    "not_same_product" | "different_color" | "different_size" | "bad_data" | "other" | "superseded"
+  >(),
+  /** 0028: resolver'in skor aciklamasi (yontem, metin benzerligi, inceleme nedeni). */
+  explain: jsonb("explain"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 

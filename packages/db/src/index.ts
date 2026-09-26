@@ -7,6 +7,7 @@
  */
 
 export { createDatabase, type Database, getDatabase } from "./client.ts";
+export * from "./health.ts";
 export * as schema from "./schema/index.ts";
 export * from "./schema/index.ts";
 export * from "./types.ts";

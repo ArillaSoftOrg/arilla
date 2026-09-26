@@ -17,9 +17,14 @@ export type AdminAction =
   | "matching.reject"
   | "lexicon.create"
   | "lexicon.update"
-  | "lexicon.delete";
+  | "lexicon.delete"
+  | "merchant.activate"
+  | "merchant.deactivate"
+  /** Kişisel veriye erişim: aranan değer YAZILMAZ, yalnızca yöntem ve bulunan hesap. */
+  | "users.lookup"
+  | "users.view";
 
-export type AdminTargetType = "match_candidate" | "lexicon";
+export type AdminTargetType = "match_candidate" | "lexicon" | "merchant" | "app_user";
 
 export type AuditValue = string | number | boolean | null | AuditValue[];
 

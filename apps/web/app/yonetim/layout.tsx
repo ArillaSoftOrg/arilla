@@ -23,9 +23,12 @@ const ROLE_LABEL: Record<string, string> = {
  */
 export default async function YonetimLayout({ children }: { children: ReactNode }) {
   const { user } = await requireCapability("admin.access");
-  const items = ADMIN_NAV.filter((item) => hasCapability(user.role, item.capability)).map(
-    ({ href, label }) => ({ href, label }),
-  );
+  const sections = ADMIN_NAV.map((group) => ({
+    label: group.label,
+    items: group.items
+      .filter((item) => hasCapability(user.role, item.capability))
+      .map(({ href, label }) => ({ href, label })),
+  })).filter((group) => group.items.length > 0);
 
   return (
     <div className={styles.shell}>
@@ -36,7 +39,7 @@ export default async function YonetimLayout({ children }: { children: ReactNode 
           </a>
           <span className={styles.meta}>{ROLE_LABEL[user.role] ?? user.role}</span>
         </div>
-        <AdminNavClient items={items} />
+        <AdminNavClient sections={sections} />
         <div className={styles.sidebarFooter}>
           <a href="/" className={styles.navLink}>
             Siteye dön

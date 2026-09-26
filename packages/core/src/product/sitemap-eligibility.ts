@@ -78,3 +78,26 @@ export async function maxSitemapProductId(db: Database): Promise<number> {
   const result = await db.execute<{ max: string | null }>(sql`SELECT max(id) AS max FROM product`);
   return Number(result.rows[0]?.max ?? 0);
 }
+
+export interface SitemapShardEligibility {
+  shard: number;
+  eligible: number;
+}
+
+/**
+ * Parça başına uygun ürün sayısı (`/yonetim/seo`). Aynı `ELIGIBILITY_CONDITION`
+ * kullanılır; tanı ekranı sitemap'in gerçek davranışından sapamaz.
+ */
+export async function countSitemapEligibleByShard(
+  db: Database,
+): Promise<SitemapShardEligibility[]> {
+  const result = await db.execute<{ shard: string; eligible: string }>(sql`
+    SELECT ((p.id - 1) / ${SITEMAP_PRODUCT_SHARD_SIZE}) + 1 AS shard, count(*) AS eligible
+    FROM product p
+    LEFT JOIN category c ON c.id = p.category_id
+    WHERE ${ELIGIBILITY_CONDITION}
+    GROUP BY 1
+    ORDER BY 1
+  `);
+  return result.rows.map((row) => ({ shard: Number(row.shard), eligible: Number(row.eligible) }));
+}

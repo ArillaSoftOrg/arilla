@@ -3,27 +3,8 @@ import { getDatabase } from "@arilla/db";
 import Link from "next/link";
 import { requireCapability } from "../lib/dal.ts";
 import styles from "./admin.module.css";
+import { Tile } from "./admin-ui.tsx";
 import { formatCostMicros, formatCount, formatDateTime, statusLabel } from "./format.ts";
-
-function Tile({
-  label,
-  value,
-  note,
-  warning = false,
-}: {
-  label: string;
-  value: string;
-  note?: string;
-  warning?: boolean;
-}) {
-  return (
-    <div className={warning ? `${styles.tile} ${styles.tileWarning}` : styles.tile}>
-      <span className={styles.tileLabel}>{label}</span>
-      <span className={styles.tileValue}>{value}</span>
-      {note ? <span className={styles.tileNote}>{note}</span> : null}
-    </div>
-  );
-}
 
 function breakdown(record: Record<string, number>): string {
   const entries = Object.entries(record);
@@ -110,7 +91,15 @@ export default async function AdminOverviewPage() {
               <tbody>
                 {overview.ingest.attention.map((item) => (
                   <tr key={item.merchantId}>
-                    <td>{item.merchantName}</td>
+                    <td>
+                      {item.merchantSlug ? (
+                        <Link href={`/yonetim/magazalar/${item.merchantSlug}`}>
+                          {item.merchantName}
+                        </Link>
+                      ) : (
+                        item.merchantName
+                      )}
+                    </td>
                     <td>{statusLabel(item.status)}</td>
                     <td>{formatDateTime(item.startedAt)}</td>
                   </tr>
@@ -131,6 +120,12 @@ export default async function AdminOverviewPage() {
           </li>
           <li>
             <Link href="/yonetim/sozluk">Sözlük</Link>
+          </li>
+          <li>
+            <Link href="/yonetim/magazalar">Mağazalar</Link>
+          </li>
+          <li>
+            <Link href="/yonetim/arama/tani">Arama tanısı</Link>
           </li>
         </ul>
       </section>
