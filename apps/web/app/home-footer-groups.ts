@@ -1,4 +1,7 @@
 import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
+import { createElement } from "react";
+import { COOKIE_PREFERENCES_HREF } from "./consent-copy.ts";
+import { CookiePreferencesLink } from "./cookie-consent-client.tsx";
 import { HOME_COPY } from "./home-copy.ts";
 
 /**
@@ -51,6 +54,11 @@ export function siteNavItems(links: SiteSectionLinks): readonly HomeHeaderNavIte
  * Faz 8.1: /iletisim eklendi (gecici public e-posta, site-config.ts).
  * Ayri bir "Destek" grubu yok - tek link, Bilgi grubunda.
  *
+ * Karar 0038: "Bilgi" grubu "Yasal" oldu - yedi yasal baglanti + Iletisim.
+ * /kvkk-aydinlatma, /affiliate-aciklamasi, /sirket-bilgileri gercek
+ * route'lar. "Cerez Tercihleri" bir sayfa degil, paneli acan istemci
+ * linkidir (JS'siz /cerez#tercihler'e duser).
+ *
  * Faz 7-8: bolum linkleri cagirandan gelir (`homeSectionLinks` veya
  * `SUBPAGE_SECTION_LINKS`) - header ile ayni hedefler.
  */
@@ -75,11 +83,20 @@ export function homeFooterGroups(links: SiteSectionLinks): readonly FooterGroup[
       ],
     },
     {
-      title: HOME_COPY.footerInfoGroupTitle,
+      title: HOME_COPY.footerLegalGroupTitle,
       links: [
         { label: HOME_COPY.navPrivacy, href: "/gizlilik" },
-        { label: HOME_COPY.navTerms, href: "/kosullar" },
+        { label: HOME_COPY.navKvkk, href: "/kvkk-aydinlatma" },
         { label: HOME_COPY.navCookies, href: "/cerez" },
+        { label: HOME_COPY.navTerms, href: "/kosullar" },
+        { label: HOME_COPY.navAffiliate, href: "/affiliate-aciklamasi" },
+        { label: HOME_COPY.navCompany, href: "/sirket-bilgileri" },
+        {
+          label: HOME_COPY.navCookiePreferences,
+          href: COOKIE_PREFERENCES_HREF,
+          render: ({ className, children }) =>
+            createElement(CookiePreferencesLink, { className, children }),
+        },
         { label: HOME_COPY.navContact, href: "/iletisim" },
       ],
     },

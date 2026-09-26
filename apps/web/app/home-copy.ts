@@ -49,11 +49,16 @@ export const HOME_COPY = {
   offerCountLabel: "mağaza", // product.offer_count_suffix
   footerProductGroupTitle: "Ürün", // footer.product_group_title
   footerAccountGroupTitle: "Hesap", // footer.account_group_title
-  footerInfoGroupTitle: "Bilgi", // footer.info_group_title
+  footerLegalGroupTitle: "Yasal", // footer.legal_group_title
   navPrivacy: "Gizlilik", // nav.privacy
   navTerms: "Kullanım Koşulları", // nav.terms
-  navCookies: "Çerezler", // nav.cookies
+  navCookies: "Çerez Politikası", // nav.cookies
+  navKvkk: "KVKK Aydınlatma", // nav.kvkk
+  navAffiliate: "Affiliate Açıklaması", // nav.affiliate
+  navCompany: "Şirket Bilgileri", // nav.company
+  navCookiePreferences: "Çerez Tercihleri", // nav.cookie_preferences
   navContact: "İletişim", // nav.contact
+  affiliateNoticeLink: "Affiliate açıklaması", // legal.affiliate_notice_link
   skipToContent: "İçeriğe geç", // nav.skip_to_content
   contactTitle: "İletişim", // contact.title
   contactDescription:

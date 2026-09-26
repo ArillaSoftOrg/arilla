@@ -80,6 +80,7 @@ export async function PublicSiteShell({
         brandDescription={HOME_COPY.heroSubtitle}
         groups={footerGroups}
         affiliateNotice={HOME_COPY.affiliateNotice}
+        affiliateLink={{ label: HOME_COPY.affiliateNoticeLink, href: "/affiliate-aciklamasi" }}
         priceDisclaimer={HOME_COPY.priceDisclaimer}
         copyrightLabel={`© ${new Date().getFullYear()} Arilla`}
       />

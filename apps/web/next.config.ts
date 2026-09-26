@@ -35,6 +35,14 @@ const nextConfig: NextConfig = {
   // @arilla/db de ham .ts disa aktarir - listede olmazsa derleme yalnizca
   // pnpm'in paketi node_modules disina baglamasi sayesinde calisir.
   transpilePackages: ["@arilla/core", "@arilla/db", "@arilla/ui"],
+  // Karar 0038: hukuk paketinin onerdigi adlar, canli /kosullar ve /cerez'e
+  // kalici yonlendirilir (URL'ler geri alinamaz, docs/routes.md).
+  async redirects() {
+    return [
+      { source: "/kullanim-kosullari", destination: "/kosullar", permanent: true },
+      { source: "/cerez-politikasi", destination: "/cerez", permanent: true },
+    ];
+  },
   experimental: {
     serverActions: {
       // Gorsel arama yuklemesi 4 MB ile sinirli (ara/gorsel/actions.ts).

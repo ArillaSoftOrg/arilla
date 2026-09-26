@@ -1,12 +1,12 @@
+import { LEGAL_IDENTITY } from "@arilla/core";
+
 /**
- * Faz 8.1: public iletisim e-postasinin TEK kaynagi - footer'daki /iletisim
- * sayfasi ve /gizlilik buradan okur, adres baska yerde tekrar yazilmaz.
- *
- * GECICI: kurumsal alan adi ve e-posta alininca (Admitad basvurusu oncesi)
- * yalnizca bu satir degisir. Secret degildir, env'e konmaz - env'de tanimsiz
- * kalirsa iletisim sayfasi bos kalirdi.
+ * Faz 8.1 / karar 0038: public iletisim e-postasi. Tek kaynak
+ * `packages/core/src/config/legal-identity.ts` - adres burada tekrar
+ * yazilmaz; kurumsal e-posta alininca yalnizca o dosya degisir.
  *
  * Bu adres SMTP gondericisi DEGILDIR: giris/alarm e-postalari `EMAIL_FROM` ve
  * `SMTP_*` ile ayri yapilandirilir (bkz. .env.example).
  */
-export const PUBLIC_CONTACT_EMAIL = "arillasoft@gmail.com";
+export const PUBLIC_CONTACT_EMAIL: string = LEGAL_IDENTITY.supportEmail ?? "";
+export const PRIVACY_CONTACT_EMAIL: string = LEGAL_IDENTITY.privacyEmail ?? "";
