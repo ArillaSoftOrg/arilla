@@ -6,6 +6,7 @@
 
 import { type Database, discoverySlot, product, publicFind } from "@arilla/db";
 import { asc, eq } from "drizzle-orm";
+import { withStartingFrom } from "../product/get-price-comparison.ts";
 import type { DiscoveryFeedItem } from "./types.ts";
 
 export async function getDiscoverySlots(
@@ -29,5 +30,6 @@ export async function getDiscoverySlots(
     .where(eq(discoverySlot.slotDate, slotDate))
     .orderBy(asc(discoverySlot.position));
 
-  return rows;
+  // 0037: kart fiyati varyantlar arasi baslangic fiyatiysa isaretlenir.
+  return withStartingFrom(db, rows);
 }

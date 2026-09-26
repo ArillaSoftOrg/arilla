@@ -1,5 +1,5 @@
 /**
- * Link aramasının kuyruğa alma ve durum tarafı (docs/decisions/0014, 0031).
+ * Link aramasının kuyruğa alma ve durum tarafı (docs/decisions/0014, 0035).
  * `docs/schema.sql` "Kök catch-all'ın tekil link çözümleme durumu" notu:
  * Python worker aynı `collect.link.resolver.resolve_url`'i bu kuyruktan
  * tetikler (`services/ingest/collect/link/__main__.py --worker`).

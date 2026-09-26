@@ -1,5 +1,5 @@
 /**
- * Link araması (docs/decisions/0031) - gerçek Postgres. Redis gerektirmez:
+ * Link araması (docs/decisions/0035) - gerçek Postgres. Redis gerektirmez:
  * önbellek isabetleri kuyruğa hiç gitmez, limit kontrolü de kuyruktan önce
  * çalışır. Satırlar bu testin kendi adres ön ekiyle açılır ve silinir.
  */

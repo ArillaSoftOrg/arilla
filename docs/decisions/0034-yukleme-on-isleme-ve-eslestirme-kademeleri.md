@@ -1,4 +1,4 @@
-# 0030 — Kullanıcı yüklemesi ön işleme, barkod zenginleştirmesi ve eşleştirme kademeleri
+# 0034 — Kullanıcı yüklemesi ön işleme, barkod zenginleştirmesi ve eşleştirme kademeleri
 
 **Tarih:** 2026-09
 **Durum:** kabul edildi

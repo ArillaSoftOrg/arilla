@@ -17,6 +17,7 @@
  */
 import {
   appendInput,
+  applyInputWithOutcome,
   BUDGET_FACET_ID,
   type ClarificationInput,
   type CompileOptions,
@@ -29,6 +30,7 @@ import {
   MAX_FOLLOW_UP_TEXT_LENGTH,
   replayConversation,
   type SearchState,
+  type TurnOutcome,
 } from "../clarification/index.ts";
 import type { QueryObject } from "../search/types.ts";
 
@@ -67,11 +69,30 @@ export interface UnderstoodChip {
   removeSteps: string[] | null;
 }
 
+/**
+ * Serbest yanitin sonucu. Arayuz her birini kullaniciya soyler; hicbiri
+ * sessizce yutulmaz:
+ *
+ * - `applied`: durum degisti, URL'e yazildi.
+ * - `new_search`: yeni urun ailesi; konusma o metinle yeniden basladi.
+ * - `unrecognized`: hicbir sey uygulanmadi. URL'e YAZILMAZ; arayuz "yeni
+ *   arama olarak kullan" / "değiştir" sunar.
+ * - `unsupported_preference`: "daha ucuzları" gibi, aramada karsiligi
+ *   olmayan bir tercih. URL'e yazilmaz; arayuz bunu acikca soyler.
+ */
+export interface ReplyResult {
+  outcome: TurnOutcome;
+  text: string;
+  /** `applied` ile birlikte: yaninda karsiligi olmayan bir fiyat tercihi de vardi. */
+  ignoredPricePreference: boolean;
+}
+
 export type ConversationPlan =
   | {
       mode: "conventional";
       query: string;
       reason: "no_domain" | "empty";
+      reply: ReplyResult | null;
     }
   | {
       mode: "conversation";
@@ -83,14 +104,19 @@ export type ConversationPlan =
       /** Gelen adimlar arasinda reddedilen varsa (bayat link), atildi. */
       droppedInvalidStep: boolean;
       question: QuestionView | null;
-      understood: UnderstoodChip[];
+      /** Aramayi gercekten degistirenler: metin kapisi, kategori, fiyat, renk/marka/beden. */
+      constraints: UnderstoodChip[];
+      /**
+       * Yalnizca sonraki soruyu belirleyen tercihler ("Annem", "Şehir içi").
+       * Katalog bunlarla filtrelenmez; arayuz filtre gibi gostermemeli.
+       */
+      context: UnderstoodChip[];
+      reply: ReplyResult | null;
       /**
        * Konusmanin gecerli sorgusu. Yanit baska bir urun ailesine gectiyse
        * ("kask" -> "ayakkabı lazım") yeni konusma o metinle baslar.
        */
       query: string;
-      /** "daha ucuzlari": sayiya cevrilmez; siralama karari arayuzde. */
-      prefersLowerPrice: boolean;
     };
 
 export const SHOW_RESULTS_LABEL = "Sonuçları göster";
@@ -175,10 +201,11 @@ function understoodChips(
   state: SearchState,
   inputs: readonly ClarificationInput[],
   context: ExtractContext,
-): UnderstoodChip[] {
+): { constraints: UnderstoodChip[]; context: UnderstoodChip[] } {
   const domain = findDomain(context.registry, state.domainId);
-  if (!domain) return [];
   const chips: UnderstoodChip[] = [];
+  const contextChips: UnderstoodChip[] = [];
+  if (!domain) return { constraints: chips, context: contextChips };
 
   for (const facet of domain.facets) {
     const assignment = state.facets[facet.id];
@@ -189,7 +216,13 @@ function understoodChips(
     }
     const option = facet.options.find((candidate) => candidate.id === assignment.optionId);
     if (!option) continue;
-    chips.push({
+    // `compileQuery` ile ayni kural: aramaya katkisi olan filtre fasetleri
+    // kisittir; digerleri (alici, kullanim yeri) yalnizca konusma baglamidir.
+    const contribution = option.contribution;
+    const affectsRetrieval =
+      facet.role === "filter" &&
+      ((contribution?.terms?.length ?? 0) > 0 || contribution?.categoryPath !== undefined);
+    (affectsRetrieval ? chips : contextChips).push({
       key: `facet:${facet.id}`,
       label: option.label,
       removeSteps: appendInput(inputs, { type: "skip", questionId: facet.id }),
@@ -224,7 +257,7 @@ function understoodChips(
     chips.push({ key: "size", label: `Beden ${state.lexical.size_norm}`, removeSteps: null });
   }
 
-  return chips;
+  return { constraints: chips, context: contextChips };
 }
 
 /**
@@ -237,7 +270,7 @@ export function planConversation(
   compileOptions: CompileOptions = {},
 ): ConversationPlan {
   const query = request.query.trim();
-  if (!query) return { mode: "conventional", query, reason: "empty" };
+  if (!query) return { mode: "conventional", query, reason: "empty", reply: null };
 
   const first: ClarificationInput = { type: "text", text: query };
   let inputs = decodeInputs(request.steps);
@@ -251,12 +284,24 @@ export function planConversation(
   }
 
   let replyApplied = false;
+  let reply: ReplyResult | null = null;
   if (request.reply) {
     const next = replyToInput(request.reply, replayed.decision.state.pendingQuestionId);
     if (next !== null) {
-      inputs = decodeInputs(appendInput(inputs, next));
-      replayed = replayConversation([first, ...inputs], context);
-      replyApplied = true;
+      // Once etkisini olc; yalnizca bir sey degistiren yanit URL'e yazilir.
+      // Anlasilmayan metin adim listesine girmez: durumu degistirmedigi icin
+      // orada yalnizca gurultu ve adim siniri tuketimi olurdu.
+      const turn = applyInputWithOutcome(replayed.decision.state, next, context);
+      reply = {
+        outcome: turn.outcome,
+        text: request.reply.trim().slice(0, MAX_FOLLOW_UP_TEXT_LENGTH),
+        ignoredPricePreference: turn.ignoredPricePreference,
+      };
+      if (turn.outcome === "applied" || turn.outcome === "new_search") {
+        inputs = decodeInputs(appendInput(inputs, next));
+        replayed = replayConversation([first, ...inputs], context);
+        replyApplied = true;
+      }
     }
   }
 
@@ -267,7 +312,7 @@ export function planConversation(
     // "kask" konusmasinda "masa lambası" yazildiysa aranan artik o metindir.
     const conventionalQuery =
       replyApplied && decision.state.rawQuery ? decision.state.rawQuery : query;
-    return { mode: "conventional", query: conventionalQuery, reason: "no_domain" };
+    return { mode: "conventional", query: conventionalQuery, reason: "no_domain", reply };
   }
 
   // Yanit yeni bir konusma baslattiysa URL o metinden, adimsiz devam eder.
@@ -306,8 +351,8 @@ export function planConversation(
     steps,
     droppedInvalidStep,
     question,
-    understood: understoodChips(decision.state, inputs, context),
+    ...understoodChips(decision.state, inputs, context),
+    reply,
     query: restartedByReply ? decision.state.rawQuery : query,
-    prefersLowerPrice: decision.state.constraints.pricePreference === "lower",
   };
 }

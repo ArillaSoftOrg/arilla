@@ -17,6 +17,7 @@ import {
   type OfferInput,
   type PriceComparison,
   type VariantInput,
+  variantKey,
 } from "./variant-price.ts";
 
 export type OfferVariantRow = Record<string, unknown> & {
@@ -111,4 +112,117 @@ export async function getProductPriceComparison(
     merchantOffers,
     comparison: buildPriceComparison(toOfferInputs(merchantOffers, result.rows), selectedKey),
   };
+}
+
+type BatchRow = OfferVariantRow & {
+  product_id: string;
+  merchant_id: string;
+  merchant_name: string;
+  trust_score: number;
+  current_price: string;
+  list_price: string | null;
+  shipping_cost: string | null;
+  free_shipping_threshold: string | null;
+  offer_in_stock: boolean;
+};
+
+async function loadBatch(db: Database, productIds: readonly number[]) {
+  if (productIds.length === 0) return new Map<number, BatchRow[]>();
+  const result = await db.execute<BatchRow>(sql`
+    SELECT o.product_id, o.id AS offer_id, o.merchant_id, m.name AS merchant_name, m.trust_score,
+           o.current_price, o.list_price, o.shipping_cost, o.free_shipping_threshold,
+           o.in_stock AS offer_in_stock, o.title_raw,
+           ov.id AS variant_id, ov.size_label, ov.size_norm, ov.in_stock, ov.price_override
+      FROM offer o
+      JOIN merchant m ON m.id = o.merchant_id
+      LEFT JOIN offer_variant ov ON ov.offer_id = o.id
+     WHERE o.product_id = ANY(${sql.param([...productIds])}::bigint[])
+       AND o.is_active AND o.current_price IS NOT NULL
+     ORDER BY o.product_id, o.id, ov.id
+  `);
+  const byProduct = new Map<number, BatchRow[]>();
+  for (const row of result.rows) {
+    const list = byProduct.get(Number(row.product_id)) ?? [];
+    list.push(row);
+    byProduct.set(Number(row.product_id), list);
+  }
+  return byProduct;
+}
+
+function offerInputsFromBatch(rows: readonly BatchRow[]): OfferInput[] {
+  const offers = new Map<number, MerchantOffer>();
+  for (const row of rows) {
+    const offerId = Number(row.offer_id);
+    if (offers.has(offerId)) continue;
+    offers.set(offerId, {
+      offerId,
+      merchantId: Number(row.merchant_id),
+      merchantSlug: "",
+      merchantName: row.merchant_name,
+      merchantTrustScore: row.trust_score,
+      currentPrice: Number(row.current_price),
+      listPrice: row.list_price === null ? null : Number(row.list_price),
+      shippingCost: row.shipping_cost === null ? null : Number(row.shipping_cost),
+      freeShippingThreshold:
+        row.free_shipping_threshold === null ? null : Number(row.free_shipping_threshold),
+      effectiveShipping: 0,
+      effectiveTotal: 0,
+      inStock: row.offer_in_stock,
+      url: "",
+    });
+  }
+  return toOfferInputs([...offers.values()], rows);
+}
+
+/**
+ * Kartlar icin (0037): `min_price` bu urunlerde "baslangic fiyati"dir, cunku
+ * urun sayfasiyla AYNI kurala gore varyantlar fiyati etkiliyor
+ * (`buildPriceComparison(...).mode === "variants"`). Tek sorgu.
+ */
+export async function getStartingFromProductIds(
+  db: Database,
+  productIds: readonly number[],
+): Promise<Set<number>> {
+  const byProduct = await loadBatch(db, productIds);
+  const flagged = new Set<number>();
+  for (const [productId, rows] of byProduct) {
+    if (buildPriceComparison(offerInputsFromBatch(rows), null).mode === "variants") {
+      flagged.add(productId);
+    }
+  }
+  return flagged;
+}
+
+/**
+ * Varyant anahtari -> herhangi bir uyumlu teklifte stokta mi (0037). Stok
+ * alarmi bunu kullanir; anahtar kurali urun sayfasindakiyle aynidir.
+ */
+export async function getVariantStock(
+  db: Database,
+  productId: number,
+): Promise<Map<string, boolean>> {
+  const rows = (await loadBatch(db, [productId])).get(productId) ?? [];
+  const stock = new Map<string, boolean>();
+  for (const offer of offerInputsFromBatch(rows)) {
+    for (const variant of offer.variants) {
+      const info = variantKey(variant);
+      if (info) stock.set(info.key, (stock.get(info.key) ?? false) || variant.inStock);
+    }
+  }
+  return stock;
+}
+
+/**
+ * Kart listelerine `priceFromVariants` ekler (0037): true ise kartin fiyati
+ * "...'den baslayan" olarak okunmalidir. Tek toplu sorgu.
+ */
+export async function withStartingFrom<T extends { productId: number }>(
+  db: Database,
+  items: readonly T[],
+): Promise<(T & { priceFromVariants: boolean })[]> {
+  const flagged = await getStartingFromProductIds(
+    db,
+    items.map((item) => item.productId),
+  );
+  return items.map((item) => ({ ...item, priceFromVariants: flagged.has(item.productId) }));
 }

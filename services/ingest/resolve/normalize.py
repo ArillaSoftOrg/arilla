@@ -235,7 +235,7 @@ _DASH_SPLIT = re.compile(r"\s+[-–—]\s+")
 
 
 def commercial_title(title: str, brand: str | None = None) -> str:
-    """Basligin ticari cekirdegi (docs/decisions/0030).
+    """Basligin ticari cekirdegi (docs/decisions/0034).
 
     Kozmetik magazalari basliga uzun Turkce aciklama ekliyor:
     "Dr. Althea - Retinol Flat Iron Eye Roller (Elastikiyet Koruyucu ...) 25ml"

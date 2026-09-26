@@ -50,21 +50,16 @@ export function LoginFormClient() {
         </span>
         {COPY.google}
       </a>
-      <button className={styles.providerButton} type="button" disabled title="Apple girişi yakında">
+      <a className={styles.providerButton} href="/giris/apple">
         <span className={styles.appleMark} aria-hidden="true">
           
         </span>
         {COPY.apple}
-      </button>
-      <button
-        className={styles.providerButton}
-        type="button"
-        disabled
-        title="Telefon girişi yakında"
-      >
+      </a>
+      <a className={styles.providerButton} href="/giris/telefon">
         <span className={styles.phoneMark} aria-hidden="true" />
         {COPY.phone}
-      </button>
+      </a>
       <form action={action} className={styles.form} aria-busy={pending || undefined}>
         <Input
           label={COPY.emailLabel}

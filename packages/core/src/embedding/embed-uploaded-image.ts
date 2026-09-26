@@ -68,7 +68,7 @@ export async function embedUploadedImage(
   input: EmbedUploadedImageInput,
   client: EmbeddingClient = getEmbeddingClient(),
 ): Promise<EmbedUploadedImageResult> {
-  // On isleme HER SEYDEN ONCE (0030): decode edilemeyen ya da sozlesme
+  // On isleme HER SEYDEN ONCE (0034): decode edilemeyen ya da sozlesme
   // disi gorsel icin satir yazilmaz, saglayiciya gidilmez
   // (`ImageRejectedError`). Hash on islenmis ciktinin hash'idir: cikti
   // deterministik oldugu icin ayni fotograf ayni anahtari uretir ve on isleme

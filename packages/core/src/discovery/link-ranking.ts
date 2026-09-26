@@ -1,5 +1,5 @@
 /**
- * Link araması sıralaması (docs/decisions/0031) — saf fonksiyonlar, veritabanı yok.
+ * Link araması sıralaması (docs/decisions/0035) — saf fonksiyonlar, veritabanı yok.
  *
  * İki ayrı kavram:
  *

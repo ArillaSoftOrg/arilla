@@ -83,7 +83,7 @@ export async function uploadImageForSearch(formData: FormData): Promise<UploadIm
     throw error;
   }
 
-  // Gorsel gunluk hak harcanmadan ONCE dogrulanir ve on islenir (0030):
+  // Gorsel gunluk hak harcanmadan ONCE dogrulanir ve on islenir (0034):
   // decode edilemeyen ya da sozlesme disi gorsel hakki yakmaz, saglayiciya
   // gitmez. Bellekte kalir; diske yazilmaz.
   let prepared: PreparedImage;

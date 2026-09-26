@@ -12,6 +12,12 @@ import { VisuallyHidden } from "./VisuallyHidden.tsx";
  * - Kaldirma bir `<a>`'dir: JS olmadan calisir; gizli metni hangi
  *   filtrenin kaldirildigini soyler ("Kapalı (full face) filtresini kaldır").
  * - Kaldirilamayan cip (ilk sorgudan gelen renk gibi) duz metindir.
+ * - Odak halkasi tum cipi cevreler; "×" etiket metninin ustune binmez.
+ *
+ * Ayni bilesen iki anlamda kullanilir ve baslik bunu ayirir: aramayi
+ * gercekten degistirenler ("Aramada kullanılanlar") ve yalnizca sonraki
+ * soruyu belirleyen tercihler ("Tercihlerin"). Ikincisi filtre gibi
+ * adlandirilmaz (`removeLabelSuffix`).
  */
 
 export interface SearchIntentChip {
@@ -25,6 +31,8 @@ export interface SearchIntentChipsProps {
   headingId: string;
   heading: string;
   chips: readonly SearchIntentChip[];
+  /** Kaldirma baglantisinin gizli metni: "<etiket> filtresini kaldır". */
+  removeLabelSuffix?: string;
   className?: string;
 }
 
@@ -32,6 +40,7 @@ export function SearchIntentChips({
   headingId,
   heading,
   chips,
+  removeLabelSuffix = "filtresini kaldır",
   className,
 }: SearchIntentChipsProps) {
   if (chips.length === 0) return null;
@@ -48,7 +57,7 @@ export function SearchIntentChips({
             {chip.removeHref ? (
               <a href={chip.removeHref} className={styles.remove}>
                 <span aria-hidden="true">×</span>
-                <VisuallyHidden>{`${chip.label} filtresini kaldır`}</VisuallyHidden>
+                <VisuallyHidden>{`${chip.label} ${removeLabelSuffix}`}</VisuallyHidden>
               </a>
             ) : null}
           </li>

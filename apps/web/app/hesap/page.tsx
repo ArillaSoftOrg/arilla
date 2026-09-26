@@ -28,7 +28,8 @@ export default async function HesapPage() {
 
       <section style={{ display: "grid", gap: 8 }}>
         <h2 style={{ margin: 0, fontSize: 16 }}>Profil</h2>
-        <p style={{ margin: 0 }}>{user.email}</p>
+        {/* 0025: telefonla ya da e-postasız Apple ile giren kullanıcıda e-posta yok. */}
+        <p style={{ margin: 0 }}>{user.email ?? "Hesabına bağlı bir e-posta adresi yok."}</p>
       </section>
 
       <section style={{ display: "grid", gap: 8 }}>

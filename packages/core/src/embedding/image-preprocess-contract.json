@@ -1,5 +1,5 @@
 {
-  "_aciklama": "Jina'ya gonderilen gorselin on isleme sozlesmesi (docs/decisions/0028, 0030). Katalog (services/ingest/enrich/images.py, Pillow) ve kullanici yuklemesi (packages/core/src/embedding/preprocess-image.ts, sharp) ayni degerleri kullanir. Uygulamalar runtime'a gore ayri; bu dosya tek kaynak. Python testi (tests/test_enrich_preprocess_contract.py) enrich sabitlerinin bu dosyayla ayni oldugunu dogrular.",
+  "_aciklama": "Jina'ya gonderilen gorselin on isleme sozlesmesi (docs/decisions/0028, 0034). Katalog (services/ingest/enrich/images.py, Pillow) ve kullanici yuklemesi (packages/core/src/embedding/preprocess-image.ts, sharp) ayni degerleri kullanir. Uygulamalar runtime'a gore ayri; bu dosya tek kaynak. Python testi (tests/test_enrich_preprocess_contract.py) enrich sabitlerinin bu dosyayla ayni oldugunu dogrular.",
   "version": "img512-v1",
   "target_long_edge": 512,
   "max_source_pixels": 40000000,

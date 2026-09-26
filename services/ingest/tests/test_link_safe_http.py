@@ -1,4 +1,4 @@
-"""SSRF korumasi (docs/decisions/0031).
+"""SSRF korumasi (docs/decisions/0035).
 
 Iki katman ayri ayri ve birlikte dogrulanir:
 

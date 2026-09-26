@@ -81,7 +81,7 @@ def normalize(raw: str) -> NormalizedUrl:
 
     # Kimlik bilgisi ve port host'un parcasi degil. `www.` yalnizca KIMLIKTEN
     # duser (`domain`); getirilen adres gercek host'u korur — apeks alan adi
-    # cozulmeyen magazalar var (docs/decisions/0031).
+    # cozulmeyen magazalar var (docs/decisions/0035).
     fetch_host = (parts.hostname or "").lower().rstrip(".")
     host = fetch_host.removeprefix("www.")
     if not host or "." not in host:

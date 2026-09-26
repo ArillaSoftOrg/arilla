@@ -31,6 +31,7 @@ export interface VerifyLoginTokenResult {
 export interface SessionUser {
   id: number;
   publicId: string;
-  email: string;
+  /** 0025: telefonla ya da e-postasiz Apple ile giren kullanicida NULL. */
+  email: string | null;
   role: UserRole;
 }

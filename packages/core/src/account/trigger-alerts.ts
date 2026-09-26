@@ -15,10 +15,11 @@
  */
 
 import { alert, appUser, type Database, offer, offerVariant, product } from "@arilla/db";
-import { and, eq, exists, sql } from "drizzle-orm";
+import { and, eq, exists, inArray, sql } from "drizzle-orm";
 import { requireAppUrl } from "../config/app-url.ts";
 import { toEmailDeliveryError } from "../email/delivery-error.ts";
 import { emailFrom, smtpConfigFromEnv } from "../email/transport.ts";
+import { getVariantStock } from "../product/get-price-comparison.ts";
 import { sendAlertEmail } from "./send-alert-email.ts";
 import type { AlertKind } from "./types.ts";
 
@@ -29,7 +30,8 @@ export interface TriggerAlertsResult {
 
 interface QualifyingAlertRow {
   alertId: number;
-  email: string;
+  /** 0025: telefonla giren kullanicinin e-postasi yok; alarmi bildirilemez. */
+  email: string | null;
   kind: AlertKind;
   sizeNorm: string | null;
   productTitle: string;
@@ -95,7 +97,7 @@ async function qualifyingRestockAlerts(db: Database): Promise<QualifyingAlertRow
 }
 
 async function qualifyingSizeRestockAlerts(db: Database): Promise<QualifyingAlertRow[]> {
-  return baseQuery(db).where(
+  const byVariantRow = await baseQuery(db).where(
     and(
       eq(alert.kind, "size_restock"),
       eq(alert.isActive, true),
@@ -115,6 +117,32 @@ async function qualifyingSizeRestockAlerts(db: Database): Promise<QualifyingAler
       ),
     ),
   );
+
+  // 0037: varyant modundaki alarm `size_norm`'a urun sayfasiyla AYNI varyant
+  // anahtarini yazar ("100ml"). Tek boyutlu ayri listeler (varyant satiri
+  // yok, hacim basliktan) ve "60 ml" gibi etiketler yukaridaki esitlikle
+  // bulunamaz; ayni kural (`getVariantStock`) ile degerlendirilir.
+  const matched = new Set(byVariantRow.map((row) => row.alertId));
+  const remaining = await db
+    .select({ id: alert.id, productId: alert.productId, sizeNorm: alert.sizeNorm })
+    .from(alert)
+    .where(and(eq(alert.kind, "size_restock"), eq(alert.isActive, true)));
+  const stockByProduct = new Map<number, Map<string, boolean>>();
+  const extraIds: number[] = [];
+  for (const candidate of remaining) {
+    if (matched.has(candidate.id) || !candidate.sizeNorm) continue;
+    let stock = stockByProduct.get(candidate.productId);
+    if (!stock) {
+      stock = await getVariantStock(db, candidate.productId);
+      stockByProduct.set(candidate.productId, stock);
+    }
+    if (stock.get(candidate.sizeNorm) || stock.get(`beden:${candidate.sizeNorm}`)) {
+      extraIds.push(candidate.id);
+    }
+  }
+  if (extraIds.length === 0) return byVariantRow;
+  const extra = await baseQuery(db).where(inArray(alert.id, extraIds));
+  return [...byVariantRow, ...extra];
 }
 
 function appUrl(): string {
@@ -147,6 +175,10 @@ export async function triggerAlerts(db: Database): Promise<TriggerAlertsResult> 
   let notifiedCount = 0;
 
   for (const row of candidates) {
+    // E-postasi olmayan kullanicinin alarmi tuketilmez: bildirim kanali
+    // eklenene kadar aktif kalir (sessizce "tetiklendi" sayilmaz).
+    const email = row.email;
+    if (!email) continue;
     const claimed = await db
       .update(alert)
       .set({ isActive: false, triggeredAt: new Date() })
@@ -157,7 +189,7 @@ export async function triggerAlerts(db: Database): Promise<TriggerAlertsResult> 
 
     try {
       await sendAlertEmail({
-        email: row.email,
+        email,
         kind: row.kind,
         productTitle: row.productTitle,
         productUrl: `${appUrl()}/urun/${row.productSlug}`,

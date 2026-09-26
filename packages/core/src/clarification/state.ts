@@ -222,7 +222,11 @@ function applyText(state: SearchState, text: string, context: ExtractContext): T
   }
 
   if (!sameSearchMeaning(state, next)) {
-    return { state: next, outcome: "applied", ignoredPricePreference: facts.pricePreference !== null };
+    return {
+      state: next,
+      outcome: "applied",
+      ignoredPricePreference: facts.pricePreference !== null,
+    };
   }
   if (facts.pricePreference !== null) {
     return { state: next, outcome: "unsupported_preference", ignoredPricePreference: false };

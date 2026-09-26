@@ -1,6 +1,6 @@
 """Kullanici kaynakli URL'ler icin SSRF korumasi.
 
-Link aramasi (docs/decisions/0031) kullanicinin yapistirdigi adresi sunucudan
+Link aramasi (docs/decisions/0035) kullanicinin yapistirdigi adresi sunucudan
 getirir. Denetlenmezse bu, sunucunun ic agina acilan bir kapidir:
 `http://169.254.169.254/` (bulut metadata), `http://localhost:6379/`, ya da
 herkese acik gorunen bir adresin 302 ile `http://10.0.0.5/`e yonlendirmesi.

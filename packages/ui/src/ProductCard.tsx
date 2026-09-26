@@ -1,4 +1,4 @@
-import { formatTRY } from "./format.ts";
+import { formatStartingPrice, formatTRY } from "./format.ts";
 import styles from "./ProductCard.module.css";
 import { ProductImage } from "./ProductImage.tsx";
 
@@ -8,6 +8,11 @@ export interface ProductCardProps {
   imageUrl: string | null;
   /** Kurus cinsinden, docs/schema.sql: para asla float degil. */
   minPrice: number | null;
+  /**
+   * 0037: `minPrice` varyantlar arasi baslangic fiyatiysa true
+   * ("670 TL'den başlayan"); tek ticari varyantli urunde verilmez.
+   */
+  priceFrom?: boolean;
   /** Verilmezse magaza sayisi satiri cizilmez (orn. `/firsatlar`, alternatifler). */
   offerCount?: number;
   /**
@@ -34,6 +39,7 @@ export function ProductCard({
   title,
   imageUrl,
   minPrice,
+  priceFrom = false,
   offerCount,
   offerCountLabel,
   brand,
@@ -60,7 +66,13 @@ export function ProductCard({
       <span className={styles.body}>
         {brand ? <span className={styles.brand}>{brand}</span> : null}
         <span className={styles.title}>{title}</span>
-        <span className={styles.price}>{minPrice === null ? "—" : formatTRY(minPrice)}</span>
+        <span className={styles.price}>
+          {minPrice === null
+            ? "—"
+            : priceFrom
+              ? formatStartingPrice(minPrice)
+              : formatTRY(minPrice)}
+        </span>
         {metaLabel ? <span className={styles.meta}>{metaLabel}</span> : null}
       </span>
     </a>

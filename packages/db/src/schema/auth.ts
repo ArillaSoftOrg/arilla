@@ -1,9 +1,10 @@
-/** 0005_auth.sql + 0024_oauth_identity.sql karsiligi. */
+/** 0005_auth.sql + 0024_oauth_identity.sql + 0025_apple_phone_identity.sql karsiligi. */
 import {
   bigint,
   boolean,
   inet,
   pgTable,
+  smallint,
   text,
   timestamp,
   uniqueIndex,
@@ -13,7 +14,8 @@ import {
 export const appUser = pgTable("app_user", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
   publicId: uuid("public_id").notNull().defaultRandom(),
-  email: text("email").notNull(),
+  /** 0025: telefon ve e-postasiz Apple girisinde NULL. */
+  email: text("email"),
   emailVerifiedAt: timestamp("email_verified_at", { withTimezone: true }),
   displayName: text("display_name"),
   avatarUrl: text("avatar_url"),
@@ -44,12 +46,14 @@ export const session = pgTable("session", {
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+export type IdentityProvider = "google" | "apple" | "phone";
+
 export const userIdentity = pgTable(
   "user_identity",
   {
     id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
     userId: bigint("user_id", { mode: "number" }).notNull(),
-    provider: text("provider").$type<"google">().notNull(),
+    provider: text("provider").$type<IdentityProvider>().notNull(),
     providerSubject: text("provider_subject").notNull(),
     email: text("email"),
     emailVerified: boolean("email_verified").notNull().default(false),
@@ -65,3 +69,16 @@ export const userIdentity = pgTable(
     ),
   }),
 );
+
+/** 0025: telefonla giris kodu. Kod duz metin saklanmaz; tek kullanimlik, sureli. */
+export const phoneLoginCode = pgTable("phone_login_code", {
+  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+  /** E.164 */
+  phone: text("phone").notNull(),
+  codeHash: text("code_hash").notNull(),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  attempts: smallint("attempts").notNull().default(0),
+  requestIp: inet("request_ip"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});

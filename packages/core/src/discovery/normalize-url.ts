@@ -80,7 +80,7 @@ export function normalizeUrl(raw: string): NormalizedUrl {
 
   // Kimlik bilgisi ve port host'un parçası değil. `www.` yalnızca KİMLİKTEN
   // düşer (`domain`); getirilen adres gerçek host'u korur - apeks alan adı
-  // çözülmeyen mağazalar var (docs/decisions/0031).
+  // çözülmeyen mağazalar var (docs/decisions/0035).
   const fetchHost = parsed.hostname.toLowerCase().replace(/\.$/, "");
   const host = fetchHost.startsWith("www.") ? fetchHost.slice(4) : fetchHost;
   if (!host || !host.includes(".")) {

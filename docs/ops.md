@@ -185,7 +185,7 @@ taşımayan Shopify merchant'ı mağazaya istek atılmadan reddedilir
 dosyasından okunur; dosyada olmayan mağaza reddedilir. Mağaza çekmeden yalnızca
 merchant ayarını güncellemek: `--register-only`.
 
-**Barkod zenginleştirmesi (0030, 0032).** `collect.bootstrap` her mağazanın
+**Barkod zenginleştirmesi (0034, 0036).** `collect.bootstrap` her mağazanın
 toplamasından hemen sonra otomatik çalıştırır (`--skip-identifiers` ile kapanır;
 hata toplamayı düşürmez, rapora yazılır). Bağımsız çalıştırma:
 `python -m collect.identifiers --merchant <slug> [--force]`. Kapsam: yalnızca

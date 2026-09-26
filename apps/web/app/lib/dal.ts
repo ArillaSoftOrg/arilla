@@ -4,12 +4,18 @@
  * edilir (CLAUDE.md kural 6 - iş mantığı core'da).
  *
  * `apps/web/proxy.ts` yalnızca iyimser (çerez var mı) kontrol yapar; bu
- * dosyadaki `requireRole` her server action ve sayfada TEKRAR çağrılmalı -
+ * dosyadaki `requireCapability`/`requireUser` her server action ve sayfada TEKRAR çağrılmalı -
  * Next'in kendi rehberi proxy'nin tek başına yeterli olmadığını söylüyor.
  */
-import { type SessionUser, type UserRole, verifySessionToken } from "@arilla/core";
+import {
+  type AdminActor,
+  type Capability,
+  hasCapability,
+  type SessionUser,
+  verifySessionToken,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { cache } from "react";
 import { readSessionCookie } from "./session-cookie.ts";
 
@@ -19,13 +25,26 @@ export const verifySession = cache(async (): Promise<SessionUser | null> => {
   return verifySessionToken(getDatabase(), rawToken);
 });
 
-/** Yetkisizse `/giris`'e yönlendirir (redirect `never` döner, çağıran taraf her zaman kullanıcıyı alır). */
-export async function requireRole(roles: readonly UserRole[]): Promise<SessionUser> {
+/**
+ * `/yonetim` yetki kapısı (docs/decisions/0039). Her yönetim sayfası ve
+ * server action'ı kendi yeteneğiyle çağırır; layout'taki çağrı yalnızca
+ * kolaylıktır, action'ları korumaz.
+ *
+ * Anonim → `/giris`. Girişli ama yetkisiz → 404: yönetim alanının varlığı
+ * doğrulanmaz. Dönen `actor` core mutasyonlarına verilir; core aynı
+ * yeteneği ikinci kez denetler.
+ */
+export async function requireCapability(
+  capability: Capability,
+): Promise<{ user: SessionUser; actor: AdminActor }> {
   const user = await verifySession();
-  if (!user || !roles.includes(user.role)) {
+  if (!user) {
     redirect("/giris");
   }
-  return user;
+  if (!hasCapability(user.role, capability)) {
+    notFound();
+  }
+  return { user, actor: { userId: user.id, role: user.role } };
 }
 
 /** `/kaydettiklerim`, `/alarmlar`, `/gecmis` (docs/routes.md "giriş gerekli") - rol farketmez. */

@@ -38,9 +38,12 @@ migration'lar olusturur.
 | `0019_product_title_fold_trgm.sql` | Katlanmis (Turkce+ASCII) `product.title` uzerinde trigram GIN indeksi; metin aramasinin aday kapisi icin (0029). Yalnizca ekleme. |
 | `0020_lexicon_synonym_kind.sql` | `lexicon.kind` CHECK'ine `'synonym'` + gercek katalog bosluklarindan baslangic esanlam seti (0029). Genisletici. |
 | `0021_shopify_currency_verified.sql` | 0018'in 18 merchant'ina `feed_config.currency = "TRY"`, `currency_verified = true` (0031; kanit `services/ingest/bootstrap/currency_verification_20260926.json`). Yalnizca veri; `is_active` DEGISMEZ, `turkish-finds` (PHP) dokunulmaz. Beklenmeyen durumda RAISE EXCEPTION ile durur. |
-| `0022_link_search_signals.sql` | `link_resolution_request`: `normalized_url` (onbellek anahtari) + `source` (sayfa sinyalleri) + `error_code` + `image_embedding_id` + kismi indeks (0031). Yalnizca ekleme. |
-| `0023_offer_variant_gtin.sql` | `offer_variant.gtin` + `gtin_source` + kismi indeks: varyant duzeyinde barkod (0032). Yalnizca ekleme. |
+| `0022_link_search_signals.sql` | `link_resolution_request`: `normalized_url` (onbellek anahtari) + `source` (sayfa sinyalleri) + `error_code` + `image_embedding_id` + kismi indeks (0035). Yalnizca ekleme. |
+| `0023_offer_variant_gtin.sql` | `offer_variant.gtin` + `gtin_source` + kismi indeks: varyant duzeyinde barkod (0036). Yalnizca ekleme. |
 | `0024_oauth_identity.sql` | `user_identity`: Google OAuth `sub` kimligini mevcut `app_user`/`session` modeline baglar; OAuth token'lari saklanmaz. |
+| `0025_apple_phone_identity.sql` | `user_identity.provider`a `apple` + `phone`; `app_user.email` NULL olabilir; `phone_login_code` (HMAC kod, TTL, `consumed_at`, deneme sayisi). Geriye uyumlu. |
+| `0026_variant_price_event.sql` | `variant_price_event` (append-only): cok boyutlu tekliflerde boyut bazli fiyat gecmisi, yalnizca degisimde yazilir (0037). Yalnizca ekleme. |
+| `0027_admin_audit_event.sql` | `admin_audit_event` (append-only): `/yonetim` mutasyonlarinin denetim izi — aktor, eylem, hedef, izinli alanlarla once/sonra (0039). Yalnizca ekleme. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

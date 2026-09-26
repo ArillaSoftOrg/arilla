@@ -10,6 +10,7 @@ const ERROR_COPY: Record<string, string> = {
   expired: "Bu bağlantının süresi dolmuş. Yeni bir tane isteyebilirsin.",
   used: "Bu bağlantı zaten kullanılmış.",
   google: "Google ile giriş şu an tamamlanamadı. E-posta bağlantısıyla devam edebilirsin.",
+  apple: "Apple ile giriş şu an tamamlanamadı. Başka bir yöntemle devam edebilirsin.",
 };
 
 const LOGIN_TITLE = "Tasarruflarını en üst düzeye çıkarmak için giriş yap.";

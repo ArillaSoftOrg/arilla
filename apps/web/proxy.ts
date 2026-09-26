@@ -19,7 +19,7 @@ const USER_ROUTE_PREFIXES = ["/yonetim", "/hesap", "/kaydettiklerim", "/alarmlar
  * 1. `/yonetim/*`, `/hesap/*`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`:
  *    yalnızca iyimser kontrol - `session` çerezi yoksa `/giris`'e
  *    yönlendirir. Veritabanına gitmez, rolü doğrulamaz - gerçek kontrol
- *    `app/lib/dal.ts`'teki `requireRole`/`requireUser` her sayfa, route
+ *    `app/lib/dal.ts`'teki `requireCapability`/`requireUser` her sayfa, route
  *    handler ve server action'da tekrar yapılır (Next'in kendi rehberi:
  *    proxy tek başına yeterli değil).
  * 2. `/ara/*`: decision 0002'nin sorgu sayacı `session_id`'ye bağlı
@@ -31,7 +31,7 @@ const USER_ROUTE_PREFIXES = ["/yonetim", "/hesap", "/kaydettiklerim", "/alarmlar
  *    çalışmaya başlar; bu, "en az 2-3 sorgu" eşiğiyle zaten uyumludur.
  * 3. `/ara?q=https://...`: arama kutusuna yapıştırılan ürün linki metin
  *    aramasına gitmez, kanonik link araması adresine yönlendirilir
- *    (docs/decisions/0031). Ana sayfa ve /ara formları aynı GET'i yapar;
+ *    (docs/decisions/0035). Ana sayfa ve /ara formları aynı GET'i yapar;
  *    tek yakınsama noktası burası.
  */
 export function proxy(request: NextRequest): NextResponse {

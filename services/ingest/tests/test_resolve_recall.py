@@ -1,4 +1,4 @@
-"""Eslestirme geri cagirma ozellikleri ve kademeler (docs/decisions/0030).
+"""Eslestirme geri cagirma ozellikleri ve kademeler (docs/decisions/0034).
 
 Ciftler gercek catisma corpus'undan (tests/fixtures/matching/overlap_pairs.json).
 """

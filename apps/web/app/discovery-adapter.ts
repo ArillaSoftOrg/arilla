@@ -1,5 +1,5 @@
 import { resolveWithFallback } from "@arilla/core";
-import { type DiscoveryItem, formatTRY } from "@arilla/ui";
+import { type DiscoveryItem, formatStartingPrice, formatTRY } from "@arilla/ui";
 import { DEMO_DISCOVERY_ITEMS } from "../data/demo/homepage-discovery.ts";
 import { HOME_COPY } from "./home-copy.ts";
 
@@ -30,6 +30,8 @@ interface DiscoveryFeedRow {
   /** Kurus cinsinden tamsayi; yoksa fiyat gosterilmez. */
   minPrice?: number | null;
   offerCount?: number | null;
+  /** 0037: varyantlar arasi baslangic fiyati ("...'den başlayan"). */
+  priceFromVariants?: boolean;
 }
 
 export function toDiscoveryItems(rows: readonly DiscoveryFeedRow[]): DiscoveryItem[] {
@@ -44,7 +46,11 @@ export function toDiscoveryItems(rows: readonly DiscoveryFeedRow[]): DiscoveryIt
       imageAlt: row.title,
       href: `/urun/${row.slug}`,
       priceLabel:
-        row.minPrice !== null && row.minPrice !== undefined ? formatTRY(row.minPrice) : undefined,
+        row.minPrice !== null && row.minPrice !== undefined
+          ? row.priceFromVariants
+            ? formatStartingPrice(row.minPrice)
+            : formatTRY(row.minPrice)
+          : undefined,
       metaLabel:
         row.offerCount !== null && row.offerCount !== undefined && row.offerCount > 0
           ? `${row.offerCount} ${HOME_COPY.offerCountLabel}`

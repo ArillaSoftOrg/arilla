@@ -83,7 +83,7 @@ def test_broken_json_ld_does_not_break_the_page(html: str, expected_layer: str) 
     assert product.source_layer == expected_layer
 
 
-# --- link aramasi (docs/decisions/0031) -------------------------------------
+# --- link aramasi (docs/decisions/0035) -------------------------------------
 
 
 def test_shopify_image_object_gives_url_not_name() -> None:

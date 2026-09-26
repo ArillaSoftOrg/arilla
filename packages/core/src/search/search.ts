@@ -9,6 +9,7 @@
  */
 import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
+import { withStartingFrom } from "../product/get-price-comparison.ts";
 import { arrayParam, balancedScoreExpr } from "./ranking.ts";
 import {
   type SearchResult,
@@ -313,15 +314,18 @@ export async function search(
   const limit = pagination.limit ?? 24;
   const offset = pagination.offset ?? 0;
 
+  let result: SearchResult;
   if (query.sort === "closest_match") {
     const kinds = INTENT_KIND[query.intent];
     if (!kinds || query.anchor?.type !== "product") {
       throw new UnsupportedSortForIntentError(query.intent, query.sort);
     }
-    return searchByClosestMatch(db, query, query.anchor.id, kinds, limit, offset);
+    result = await searchByClosestMatch(db, query, query.anchor.id, kinds, limit, offset);
+  } else if (query.sort === "best_deal") {
+    result = await searchByBestDeal(db, query, limit, offset);
+  } else {
+    result = await searchByBalanced(db, query, limit, offset);
   }
-  if (query.sort === "best_deal") {
-    return searchByBestDeal(db, query, limit, offset);
-  }
-  return searchByBalanced(db, query, limit, offset);
+  // 0037: kart fiyati varyantlar arasi baslangic fiyatiysa isaretlenir.
+  return { ...result, items: await withStartingFrom(db, result.items) };
 }

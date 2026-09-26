@@ -5,7 +5,7 @@
 
 ## Sorun
 
-Ürün renk düzeyinde kanonik, beden/hacim ise varyanttır (0005). 0032'den beri
+Ürün renk düzeyinde kanonik, beden/hacim ise varyanttır (0005). 0036'den beri
 aynı ürünün teklifleri farklı ticari varyantları satabiliyor. Ürün 11023'te
 Korendy 60 ml (670 TL) ve 100 ml'yi (1.118 TL) tek offer'da satıyor, Vionine
 100 ml'yi ayrı bir listede satıyor (1.709 TL).

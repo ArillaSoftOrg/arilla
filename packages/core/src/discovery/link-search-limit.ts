@@ -1,5 +1,5 @@
 /**
- * Link araması günlük limiti (docs/decisions/0031). `image-search-limit.ts`
+ * Link araması günlük limiti (docs/decisions/0035). `image-search-limit.ts`
  * ile aynı sabit pencereli sayaç: her YENİ çözümleme bir dış sayfa isteği ve
  * çoğu zaman ücretli bir görsel embedding'i demek. Önbellekten dönen sonuç
  * (aynı link, TTL içinde) sayılmaz.

@@ -66,7 +66,12 @@
   color: var(--ink);
 }
 
+/* Halka "×" yerine tum cipte: dar cipte etiket metninin ustune binmez. */
 .remove:focus-visible {
+  outline: none;
+}
+
+.chip:has(.remove:focus-visible) {
   outline: var(--focus-ring);
-  outline-offset: calc(-1 * var(--focus-ring-offset));
+  outline-offset: var(--focus-ring-offset);
 }

@@ -29,8 +29,12 @@ function choose(current: Conversation, optionId: string): Conversation {
   return conversation(plan(current.query, option.steps));
 }
 
-function labels(current: Conversation): string[] {
-  return current.understood.map((chip) => chip.label);
+function constraints(current: Conversation): string[] {
+  return current.constraints.map((chip) => chip.label);
+}
+
+function context(current: Conversation): string[] {
+  return current.context.map((chip) => chip.label);
 }
 
 describe("planConversation: demo senaryolari", () => {
@@ -50,48 +54,56 @@ describe("planConversation: demo senaryolari", () => {
     expect(first.queryObject.unparsed).toBe("kask");
 
     const second = choose(first, "full_face");
-    expect(labels(second)).toEqual(["Kapalı (full face)"]);
+    expect(constraints(second)).toEqual(["Kapalı (full face)"]);
     expect(second.queryObject.unparsed).toBe("kapalı kask");
-    expect(second.action).toBe("clarify");
     expect(second.question?.id).toBe("use_case");
 
     const third = choose(second, "city");
     expect(third.action).toBe("search");
     expect(third.question).toBeNull();
-    expect(labels(third)).toEqual(["Kapalı (full face)", "Şehir içi"]);
+    // "Şehir içi" aramaya girmez: filtre degil, baglam.
+    expect(constraints(third)).toEqual(["Kapalı (full face)"]);
+    expect(context(third)).toEqual(["Şehir içi"]);
+    expect(third.queryObject.unparsed).toBe("kapalı kask");
   });
 
   it("B) kask -> kapalı -> 'aslında modüler olsun': tek deger kalir", () => {
     const answered = choose(conversation(plan("kask")), "full_face");
     const corrected = conversation(plan("kask", answered.steps, "aslında modüler olsun"));
-    expect(labels(corrected)).toContain("Modüler (çene açılır)");
-    expect(labels(corrected)).not.toContain("Kapalı (full face)");
+    expect(corrected.reply?.outcome).toBe("applied");
+    expect(constraints(corrected)).toEqual(["Modüler (çene açılır)"]);
     expect(corrected.queryObject.unparsed).toBe("çene açılır kask");
-    // Yanit URL adimlarina yazilir; tekrar oynatma ayni durumu kurar.
     expect(corrected.steps.at(-1)).toBe("t~aslında modüler olsun");
     const replayed = conversation(plan("kask", corrected.steps));
-    expect(labels(replayed)).toEqual(labels(corrected));
+    expect(constraints(replayed)).toEqual(constraints(corrected));
   });
 
-  it("C) hediye -> alici -> ilgi/butce -> arama", () => {
+  it("C) hediye -> anne -> ilgi -> butce: kisit ve baglam ayrisir", () => {
     const first = conversation(plan("hediye arıyorum"));
     expect(first.question?.id).toBe("recipient");
     const second = conversation(plan(first.query, first.steps, "annem için"));
-    expect(labels(second)).toEqual(["Annem"]);
-    expect(second.action).toBe("clarify");
-    expect(["interest", "budget"]).toContain(second.question?.id);
+    expect(second.reply?.outcome).toBe("applied");
+    // Alici katalogu filtrelemez; filtre gibi gosterilmez.
+    expect(constraints(second)).toEqual([]);
+    expect(context(second)).toEqual(["Annem"]);
 
     const third = choose(second, "beauty");
     const fourth = third.action === "clarify" ? choose(third, "500_1000") : third;
     expect(fourth.action).toBe("search");
     expect(fourth.queryObject.filters.category_path).toBe("saglik-kozmetik");
+    expect(context(fourth)).toEqual(["Annem"]);
+    expect(constraints(fourth)).toEqual(
+      expect.arrayContaining(["Bakım ve kozmetik", "500 TL – 1.000 TL"]),
+    );
+    expect(constraints(fourth)).not.toContain("Annem");
   });
 
   it("D) '1000 liraya anneme hediye': bilinen alici ve butce tekrar sorulmaz", () => {
     const first = conversation(plan("1000 liraya anneme hediye"));
     expect(first.question?.id).not.toBe("recipient");
     expect(first.question?.id).not.toBe("budget");
-    expect(labels(first)).toContain("Annem");
+    expect(context(first)).toContain("Annem");
+    expect(constraints(first)).toContain("En fazla 1.000 TL");
     if (first.action === "clarify") expect(first.question?.id).toBe("interest");
   });
 
@@ -102,7 +114,7 @@ describe("planConversation: demo senaryolari", () => {
   it("F) siyah erkek koşu ayakkabısı: soru sorulmadan aranir", () => {
     const result = conversation(plan("siyah erkek koşu ayakkabısı"));
     expect(result.action).toBe("search");
-    expect(labels(result)).toEqual(expect.arrayContaining(["Koşu", "Erkek", "Siyah"]));
+    expect(constraints(result)).toEqual(expect.arrayContaining(["Koşu", "Erkek", "Siyah"]));
   });
 
   it("G) ayakkabı: netlestirme sorusu", () => {
@@ -115,62 +127,119 @@ describe("planConversation: demo senaryolari", () => {
     expect(plan("masa lambası").mode).toBe("conventional");
   });
 
-  it("I) 'Emin değilim' / 'fark etmez' soruyu kapatir, arama genis kalir, kullanici hapsolmaz", () => {
+  it("I) kask -> 'Emin değilim' -> hemen genis arama; yazili 'fark etmez' de ayni", () => {
     const first = conversation(plan("kask"));
     const skipped = conversation(plan("kask", first.question?.skip.steps ?? []));
-    // Motor politikasi: atlanan soru bir daha sorulmaz; sinyal azsa bir
-    // "useful" soru daha gelebilir, ama sorgu en genis haliyle aranir.
-    expect(skipped.question?.id).not.toBe("helmet_type");
+    expect(skipped.action).toBe("search");
+    expect(skipped.question).toBeNull();
     expect(skipped.queryObject.unparsed).toBe("kask");
-    expect(skipped.understood).toEqual([]);
+    expect(skipped.constraints).toEqual([]);
 
     const typed = conversation(plan("kask", [], "fark etmez"));
     expect(typed.steps).toEqual(["s~helmet_type"]);
-    expect(typed.question?.id).not.toBe("helmet_type");
+    expect(typed.action).toBe("search");
+  });
 
-    // "Sonuçları göster" her zaman aramaya gecer.
-    const shown = conversation(plan("kask", skipped.question?.showResults.steps ?? []));
-    expect(shown.action).toBe("search");
-    expect(shown.queryObject.unparsed).toBe("kask");
+  it("atlama onceki cevaplari korur: kapalı -> 'Fark etmez' -> arama, kapalı kalir", () => {
+    const answered = choose(conversation(plan("kask")), "full_face");
+    const skipped = conversation(plan("kask", answered.question?.skip.steps ?? []));
+    expect(skipped.action).toBe("search");
+    expect(constraints(skipped)).toEqual(["Kapalı (full face)"]);
   });
 });
 
-describe("planConversation: sonuclar sonrasi ve dayaniklilik", () => {
+describe("serbest yanit: asla sessizce yutulmaz", () => {
+  it("'5 bin lirayı geçmesin' -> ust sinir uygulanir", () => {
+    const shoes = conversation(plan("erkek koşu ayakkabısı"));
+    const refined = conversation(plan(shoes.query, shoes.steps, "5 bin lirayı geçmesin"));
+    expect(refined.reply?.outcome).toBe("applied");
+    expect(refined.queryObject.filters.price_max).toBe(500_000);
+    expect(constraints(refined)).toContain("En fazla 5.000 TL");
+  });
+
+  it("anlasilmayan yanit -> unrecognized, durum ve URL degismez", () => {
+    const answered = choose(choose(conversation(plan("kask")), "full_face"), "city");
+    const result = conversation(plan("kask", answered.steps, "marka önemli değil"));
+    expect(result.reply).toEqual({
+      outcome: "unrecognized",
+      text: "marka önemli değil",
+      ignoredPricePreference: false,
+    });
+    expect(result.steps).toEqual(answered.steps);
+    expect(constraints(result)).toEqual(constraints(answered));
+  });
+
+  it("tek bilinmeyen kelime yeni arama sayilmaz, acikca sorulur", () => {
+    const result = conversation(plan("kask", [], "parfüm"));
+    expect(result.reply?.outcome).toBe("unrecognized");
+    expect(result.query).toBe("kask");
+  });
+
+  it("'daha ucuzları' uygulanmis gibi yapilmaz: unsupported_preference", () => {
+    const shoes = conversation(plan("erkek koşu ayakkabısı"));
+    const result = conversation(plan(shoes.query, shoes.steps, "daha ucuzları"));
+    expect(result.reply?.outcome).toBe("unsupported_preference");
+    expect(result.steps).toEqual(shoes.steps);
+    expect(result.queryObject.filters.price_max).toBeUndefined();
+  });
+
+  it("uygulanan degisiklige eklenen fiyat tercihi ayrica bildirilir", () => {
+    const result = conversation(plan("erkek koşu ayakkabısı", [], "siyah ve ucuz olsun"));
+    expect(result.reply?.outcome).toBe("applied");
+    expect(result.reply?.ignoredPricePreference).toBe(true);
+    expect(result.queryObject.filters.color).toEqual(["black"]);
+  });
+
   it("sonuclar gorunurken 'siyah olanlar' ayni durumu daraltir", () => {
     const shoes = conversation(plan("erkek koşu ayakkabısı"));
     const refined = conversation(plan(shoes.query, shoes.steps, "siyah olanlar"));
+    expect(refined.reply?.outcome).toBe("applied");
     expect(refined.queryObject.filters.color).toEqual(["black"]);
-    expect(labels(refined)).toEqual(expect.arrayContaining(["Koşu", "Erkek", "Siyah"]));
+  });
+});
+
+describe("urun ailesi degisimi", () => {
+  it("kask -> kapalı -> 'masa lambası': yeni arama, kask durumu tasinmaz", () => {
+    const answered = choose(conversation(plan("kask")), "full_face");
+    const result = plan("kask", answered.steps, "masa lambası");
+    expect(result).toMatchObject({
+      mode: "conventional",
+      query: "masa lambası",
+      reply: { outcome: "new_search" },
+    });
   });
 
-  it("'daha ucuzları' sayi uydurmaz, yalnizca tercih bildirir", () => {
-    const refined = conversation(plan("erkek koşu ayakkabısı", [], "daha ucuzları"));
-    expect(refined.prefersLowerPrice).toBe(true);
-    expect(refined.queryObject.filters.price_max).toBeUndefined();
+  it("kask -> 'masa lambası bakıyorum': arama fiili ile yeni arama", () => {
+    const result = plan("kask", [], "masa lambası bakıyorum");
+    expect(result).toMatchObject({ mode: "conventional", query: "masa lambası bakıyorum" });
   });
 
-  it("cip kaldirma o faseti atlar ve soruyu tekrar sormaz", () => {
-    const answered = choose(choose(conversation(plan("kask")), "full_face"), "city");
-    const chip = answered.understood.find((c) => c.key === "facet:helmet_type");
-    const removed = conversation(plan("kask", chip?.removeSteps ?? []));
-    expect(labels(removed)).not.toContain("Kapalı (full face)");
-    expect(removed.question?.id).not.toBe("helmet_type");
-  });
-
-  it("baska urun ailesine gecen yanit yeni konusma baslatir", () => {
-    const helmet = conversation(plan("kask"));
-    const shoes = conversation(plan("kask", helmet.steps, "ayakkabı bakıyorum"));
+  it("kask -> kapalı -> 'ayakkabı bakıyorum': yeni konusma, kask fasetleri yok", () => {
+    const answered = choose(conversation(plan("kask")), "full_face");
+    const shoes = conversation(plan("kask", answered.steps, "ayakkabı bakıyorum"));
+    expect(shoes.reply?.outcome).toBe("new_search");
     expect(shoes.query).toBe("ayakkabı bakıyorum");
     expect(shoes.steps).toEqual([]);
     expect(shoes.question?.id).toBe("shoe_type");
+    expect(shoes.constraints).toEqual([]);
+    expect(shoes.context).toEqual([]);
+    expect(shoes.queryObject.unparsed).toBe("ayakkabı");
   });
 
-  it("domain tetiklemeyen takip metni ayni konusmada kalir (yeni arama ust kutudan)", () => {
-    // Motor "masa lambası"nı kask konusmasinin takibi sayar; yeni bir arama
-    // icin arayuz ust arama kutusunu ayri tutar.
-    const result = conversation(plan("kask", [], "masa lambası"));
+  it("tercih cumlesi yeni arama sayilmaz: 'yağmurda da kullanacağım'", () => {
+    const result = conversation(plan("kask", [], "yağmurda da kullanacağım"));
+    expect(result.reply?.outcome).toBe("unrecognized");
     expect(result.query).toBe("kask");
-    expect(result.queryObject.unparsed).toBe("kask");
+  });
+});
+
+describe("planConversation: dayaniklilik", () => {
+  it("kisit cipini kaldirma o faseti atlar ve soruyu tekrar sormaz", () => {
+    const answered = choose(choose(conversation(plan("kask")), "full_face"), "city");
+    const chip = answered.constraints.find((c) => c.key === "facet:helmet_type");
+    const removed = conversation(plan("kask", chip?.removeSteps ?? []));
+    expect(constraints(removed)).toEqual([]);
+    expect(removed.question).toBeNull();
   });
 
   it("bozuk ya da bayat adimlar hataya dusurmez", () => {

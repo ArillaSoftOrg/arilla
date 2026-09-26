@@ -349,3 +349,12 @@ export function buildPriceComparison(
     startingPriceKurus,
   };
 }
+
+/**
+ * Stok alarminin `alert.size_norm` degeri (0037): `?boyut=` ile ayni anahtar.
+ * Beden anahtarinda onek atilir (eski beden alarmlariyla ayni deger), hacim
+ * anahtari oldugu gibi kalir ("100ml"). Tetikleme ayni kuralla yapilir.
+ */
+export function alertSizeNormForVariant(key: string): string {
+  return key.startsWith("beden:") ? key.slice("beden:".length) : key;
+}

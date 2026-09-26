@@ -1,5 +1,5 @@
 /**
- * Link araması girdisi (docs/decisions/0031) — hafif, bağımlılıksız modül.
+ * Link araması girdisi (docs/decisions/0035) — hafif, bağımlılıksız modül.
  * `proxy.ts` bunu `@arilla/core/link-input` alt yolundan içe aktarır; bu
  * yüzden yalnızca `normalize-url.ts`'e bağlıdır (veritabanı, Redis yok).
  *

@@ -1,4 +1,4 @@
-# 0032 — Varyant düzeyinde barkod ve zenginleştirme otomasyonu
+# 0036 — Varyant düzeyinde barkod ve zenginleştirme otomasyonu
 
 **Tarih:** 2026-09
 **Durum:** kabul edildi
@@ -7,7 +7,7 @@
 
 Tek bir offer birden fazla ticari varyant taşıyabilir. Örneğin Korendy'de
 aynı mist'in 60 ml ve 100 ml'si tek offer'ın iki `offer_variant` satırıdır.
-Her boyutun barkodu farklıdır. 0030 barkodu yalnızca offer düzeyinde
+Her boyutun barkodu farklıdır. 0034 barkodu yalnızca offer düzeyinde
 (`attributes_raw.gtin`) tutuyordu ve "gruptaki tek geçerli barkod" kuralı,
 barkodsuz boyutu yok sayıp 100 ml'nin barkodunu 60 ml'yi de içeren offer'a
 yazıyordu. Bu yanlış kimlik iki çifti kaçırıyordu, birinde yanlış bir barkod
@@ -46,7 +46,7 @@ giremez), zaman (`attributes_raw.identifiers_checked_at`).
 - Barkod kümesi **tam** olan aday (her aktif offer'ı ya offer düzeyinde ya da
   tüm varyantlarında barkodlu) offer'ın barkodunu içermiyorsa elenir. Offer o
   ürünün hiçbir ticari varyantı değildir.
-- İki farklı geçerli offer barkodu vetosu (0030) sürer.
+- İki farklı geçerli offer barkodu vetosu (0034) sürer.
 
 **Otomasyon.** C seçeneği (ikisi birden, artımlı):
 

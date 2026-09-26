@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  alertSizeNormForVariant,
   buildPriceComparison,
   type OfferInput,
   parseQuantity,
@@ -207,5 +208,40 @@ describe("buildPriceComparison", () => {
     if (result.mode !== "variants") throw new Error();
     expect(result.options.find((o) => o.key === "30ml")?.minPriceKurus).toBe(152_900);
     expect(result.options.find((o) => o.key === "15ml")?.minPriceKurus).toBe(46_000);
+  });
+});
+
+describe("card 'starting from' rule (0037)", () => {
+  it("multi-price variants => starting-from; same key across stores => normal price", () => {
+    // Kartlar urun sayfasiyla ayni kurali kullanir: mode === "variants".
+    expect(buildPriceComparison([KORENDY, VIONINE], null).mode).toBe("variants");
+    const a = offer(1, "A", [
+      {
+        label: "Termos 0.59 L",
+        sizeNorm: null,
+        priceKurus: 250_000,
+        inStock: true,
+        fromVariantRow: false,
+      },
+    ]);
+    const b = offer(2, "B", [
+      {
+        label: "Termos 590 ml",
+        sizeNorm: null,
+        priceKurus: 240_000,
+        inStock: true,
+        fromVariantRow: false,
+      },
+    ]);
+    expect(buildPriceComparison([a, b], null).mode).toBe("simple");
+  });
+});
+
+describe("alertSizeNormForVariant (0037)", () => {
+  it("selected variant restock alert uses the same resolved key as ?boyut=", () => {
+    expect(alertSizeNormForVariant("100ml")).toBe("100ml");
+    expect(alertSizeNormForVariant("2x100ml")).toBe("2x100ml");
+    // Beden: eski beden alarmlariyla ayni `size_norm` degeri.
+    expect(alertSizeNormForVariant("beden:42")).toBe("42");
   });
 });

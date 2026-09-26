@@ -33,9 +33,11 @@ import {
   follow,
   imageUpload,
   linkResolutionRequest,
+  phoneLoginCode,
   savedItem,
+  userIdentity,
 } from "@arilla/db";
-import { eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 
 export async function deleteAccount(db: Database, userId: number): Promise<void> {
   await db.transaction(async (tx) => {
@@ -74,7 +76,20 @@ export async function deleteAccount(db: Database, userId: number): Promise<void>
       .set({ userId: null })
       .where(eq(linkResolutionRequest.userId, userId));
 
-    await tx.delete(authToken).where(eq(authToken.email, user.email));
+    if (user.email) {
+      await tx.delete(authToken).where(eq(authToken.email, user.email));
+    }
+    // 0025: telefon kodlari numarayi tasir; kullanicinin telefon kimlikleriyle
+    // birlikte silinir (user_identity app_user ile CASCADE gider).
+    await tx.delete(phoneLoginCode).where(
+      inArray(
+        phoneLoginCode.phone,
+        tx
+          .select({ phone: userIdentity.providerSubject })
+          .from(userIdentity)
+          .where(and(eq(userIdentity.userId, userId), eq(userIdentity.provider, "phone"))),
+      ),
+    );
     await tx.delete(appUser).where(eq(appUser.id, userId));
   });
 }

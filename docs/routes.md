@@ -163,12 +163,21 @@ platform sorununu hafifletir.
 Önceki sürümde tamamen eksikti.
 
 ```
+/yonetim                   Genel bakış: yalnızca gerçek sayılar (kuyruk, eşleşmemiş
+                           teklif, mağaza, koşu, link/görsel akışı, model maliyeti)
 /yonetim/eslestirme        match_candidate kuyruğu. Onayla / reddet.
-/yonetim/merchant          Merchant ve feed konfigürasyonu
-/yonetim/sozluk            lexicon düzenleme
-/yonetim/trend             trend_snapshot yayınlama onayı
-/yonetim/ingest            ingest_run durumu ve hatalar
+/yonetim/sozluk            lexicon düzenleme (sayfalı, silme onaylı)
+/yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
+/yonetim/magazalar         (Faz 2) Mağaza listesi, koşu geçmişi, aç/kapat
+/yonetim/ingest            (Faz 2) ingest_run durumu ve hatalar
+/yonetim/trend             (ertelendi) trend_snapshot yayınlama onayı
 ```
+
+Tek kabuk (`app/yonetim/layout.tsx`), tek yetki kapısı: her sayfa ve server
+action `requireCapability(<yetenek>)` çağırır, core mutasyonu aynı yeteneği
+ikinci kez denetler (docs/decisions/0039). Anonim → `/giris`, girişli ama
+yetkisiz → 404. Rol → yetenek haritası: `packages/core/src/admin/capabilities.ts`.
+Her mutasyon `admin_audit_event`'e aynı işlemde yazılır.
 
 `/yonetim/eslestirme` MVP'de gereklidir. Eşleştirme kuyruğunu onaylayacak bir
 ekran olmadan katalog kalitesi yönetilemez.
@@ -190,7 +199,7 @@ iyileştirir, sürüm çıkmaya gerek kalmaz.
 /<merchant-url>            Örn: /https://www.trendyol.com/...
 ```
 
-Önek yalnızca bir **kısayoldur** (docs/decisions/0031): dış adres geri
+Önek yalnızca bir **kısayoldur** (docs/decisions/0035): dış adres geri
 kurulur ve kanonik link araması adresine yönlendirilir. Arama kutusuna
 yapıştırılan link (`/ara?q=https://...` ya da ana sayfa kutusunun kodlu
 `/https%3A%2F%2F...` biçimi) de aynı adrese gelir:

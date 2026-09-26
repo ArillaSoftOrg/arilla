@@ -1,4 +1,4 @@
-# 0031 — Ürün linkiyle arama: tek kanonik rota, SSRF koruması, hibrit benzerlik
+# 0035 — Ürün linkiyle arama: tek kanonik rota, SSRF koruması, hibrit benzerlik
 
 **Tarih:** 2026-09 · **Durum:** kabul edildi (arayüz QA'sı tamamlanana kadar ana sayfada "Yakında")
 

@@ -1,4 +1,4 @@
-"""Varyant barkodu: zenginlestirme -> kalicilik -> eslestirme (0032).
+"""Varyant barkodu: zenginlestirme -> kalicilik -> eslestirme (0036).
 
 Ag yok: `/products/<handle>.js` ve `robots.txt` sahte tasima ile gelir.
 Yerel veritabani gerektirir.

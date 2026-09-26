@@ -1,5 +1,5 @@
 /**
- * Kök catch-all (`docs/routes.md` "Link öneki") ve link araması (0031):
+ * Kök catch-all (`docs/routes.md` "Link öneki") ve link araması (0035):
  * yapıştırılan link katalogda zaten eşleşmiş bir ürüne aitse doğrudan
  * `/urun/<slug>`; yoksa kuyruğa alınır (`link-resolution.ts`). Bu dosya
  * yalnızca OKUR - katalog tablolarına hiçbir yazma yapmaz (`CLAUDE.md`).
@@ -8,7 +8,7 @@
  *  - `user_link` offer'ı: `external_id` normalize URL'den türetilmiştir (0014).
  *  - feed/Shopify offer'ı: `external_id` mağazanın KENDİ kimliğidir (ör. Shopify
  *    ürün numarası), URL'den türetilemez. Bu yüzden aynı mağazada offer
- *    adresinin YOLU da karşılaştırılır (şema, `www.` ve sorgu hariç). 0031
+ *    adresinin YOLU da karşılaştırılır (şema, `www.` ve sorgu hariç). 0035
  *    QA'sında bulundu: yalnızca `external_id` bakılınca katalogdaki bir
  *    ürünün linki bulunamıyor, yeniden getirilip kopya offer açılıyordu.
  */

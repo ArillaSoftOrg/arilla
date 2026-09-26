@@ -3,7 +3,12 @@
 import { Button, Input } from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { saveLexiconEntryAction } from "./actions.ts";
+import { ConfirmButton } from "../confirm-button-client.tsx";
+import {
+  deleteLexiconEntryAction,
+  type LexiconActionResult,
+  saveLexiconEntryAction,
+} from "./actions.ts";
 
 export interface LexiconRow {
   id: number;
@@ -22,6 +27,37 @@ const KINDS: LexiconRow["kind"][] = [
   "style",
   "synonym",
 ];
+
+/** Boş ya da sayı olmayan ağırlık sunucuya NaN gider ve orada reddedilir; sessizce 0 olmaz. */
+function parseWeight(raw: string): number {
+  return raw.trim() === "" ? Number.NaN : Number(raw.replace(",", "."));
+}
+
+function ErrorText({ message }: { message: string | null }) {
+  return message ? (
+    <p role="alert" style={{ margin: 0, color: "var(--alert)", fontSize: 13 }}>
+      {message}
+    </p>
+  ) : null;
+}
+
+async function run(
+  action: () => Promise<LexiconActionResult>,
+  setError: (message: string | null) => void,
+): Promise<boolean> {
+  setError(null);
+  try {
+    const result = await action();
+    if (!result.ok) {
+      setError(result.message);
+      return false;
+    }
+    return true;
+  } catch {
+    setError("Kaydedilemedi. Tekrar dene.");
+    return false;
+  }
+}
 
 interface DraftFields {
   kind: LexiconRow["kind"];
@@ -79,6 +115,7 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
   const router = useRouter();
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftFields>({
     kind: row.kind,
     surface: row.surface,
@@ -88,19 +125,29 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
 
   async function handleSave() {
     setPending(true);
-    try {
-      await saveLexiconEntryAction({
-        id: row.id,
-        kind: draft.kind,
-        surface: draft.surface,
-        normalized: draft.normalized,
-        weight: Number.parseFloat(draft.weight) || 0,
-      });
+    const saved = await run(
+      () =>
+        saveLexiconEntryAction({
+          id: row.id,
+          kind: draft.kind,
+          surface: draft.surface,
+          normalized: draft.normalized,
+          weight: parseWeight(draft.weight),
+        }),
+      setError,
+    );
+    setPending(false);
+    if (saved) {
       setEditing(false);
       router.refresh();
-    } finally {
-      setPending(false);
     }
+  }
+
+  async function handleDelete() {
+    setPending(true);
+    const deleted = await run(() => deleteLexiconEntryAction(row.id), setError);
+    setPending(false);
+    if (deleted) router.refresh();
   }
 
   if (editing) {
@@ -109,6 +156,7 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
         <td colSpan={5} style={{ padding: "8px 0" }}>
           <div style={{ display: "grid", gap: 8 }}>
             <EditableFields draft={draft} onChange={setDraft} />
+            <ErrorText message={error} />
             <div style={{ display: "flex", gap: 8 }}>
               <Button type="button" variant="primary" disabled={pending} onClick={handleSave}>
                 Kaydet
@@ -117,7 +165,10 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
                 type="button"
                 variant="secondary"
                 disabled={pending}
-                onClick={() => setEditing(false)}
+                onClick={() => {
+                  setError(null);
+                  setEditing(false);
+                }}
               >
                 Vazgeç
               </Button>
@@ -135,9 +186,20 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
       <td>{row.normalized}</td>
       <td>{row.weight}</td>
       <td>
-        <Button type="button" variant="secondary" onClick={() => setEditing(true)}>
-          Düzenle
-        </Button>
+        <div style={{ display: "flex", gap: 8 }}>
+          <Button type="button" variant="secondary" onClick={() => setEditing(true)}>
+            Düzenle
+          </Button>
+          <ConfirmButton
+            label="Sil"
+            title="Satırı sil"
+            description={`"${row.surface}" (${row.kind}) sözlükten silinecek. Arama hemen etkilenir; silinen değer denetim kaydında kalır.`}
+            confirmLabel="Sil"
+            disabled={pending}
+            onConfirm={() => void handleDelete()}
+          />
+        </div>
+        <ErrorText message={error} />
       </td>
     </tr>
   );
@@ -147,6 +209,7 @@ function NewLexiconRow() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const [draft, setDraft] = useState<DraftFields>({
     kind: "category",
     surface: "",
@@ -155,20 +218,22 @@ function NewLexiconRow() {
   });
 
   async function handleSave() {
-    if (!draft.surface.trim() || !draft.normalized.trim()) return;
     setPending(true);
-    try {
-      await saveLexiconEntryAction({
-        kind: draft.kind,
-        surface: draft.surface.trim(),
-        normalized: draft.normalized.trim(),
-        weight: Number.parseFloat(draft.weight) || 0,
-      });
+    const saved = await run(
+      () =>
+        saveLexiconEntryAction({
+          kind: draft.kind,
+          surface: draft.surface,
+          normalized: draft.normalized,
+          weight: parseWeight(draft.weight),
+        }),
+      setError,
+    );
+    setPending(false);
+    if (saved) {
       setDraft({ kind: draft.kind, surface: "", normalized: "", weight: "1.0" });
       setOpen(false);
       router.refresh();
-    } finally {
-      setPending(false);
     }
   }
 
@@ -183,6 +248,7 @@ function NewLexiconRow() {
   return (
     <div style={{ display: "grid", gap: 8, maxWidth: 720 }}>
       <EditableFields draft={draft} onChange={setDraft} />
+      <ErrorText message={error} />
       <div style={{ display: "flex", gap: 8 }}>
         <Button type="button" variant="primary" disabled={pending} onClick={handleSave}>
           Kaydet

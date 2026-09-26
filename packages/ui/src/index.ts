@@ -41,6 +41,7 @@ export * from "./ProductCardSkeleton.tsx";
 export * from "./ProductImage.tsx";
 export * from "./SearchComposer.tsx";
 export * from "./SearchConversationInput.tsx";
+export * from "./SearchConversationNotice.tsx";
 export * from "./SearchForm.tsx";
 export * from "./SearchIntentChips.tsx";
 export * from "./Section.tsx";

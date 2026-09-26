@@ -130,7 +130,7 @@ export const offerVariant = pgTable("offer_variant", {
   priceOverride: bigint("price_override", { mode: "number" }),
   sku: text("sku"),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
-  /** 0022: bu ticari varyantin GS1 dogrulanmis barkodu (docs/decisions/0032). */
+  /** 0022: bu ticari varyantin GS1 dogrulanmis barkodu (docs/decisions/0036). */
   gtin: text("gtin"),
   /** 'feed' | 'products_js' | 'sku' */
   gtinSource: text("gtin_source"),
@@ -144,5 +144,17 @@ export const variantStockEvent = pgTable("variant_stock_event", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
   variantId: bigint("variant_id", { mode: "number" }).notNull(),
   inStock: boolean("in_stock").notNull(),
+  observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * APPEND-ONLY (0026, docs/decisions/0037): varyantin etkin fiyati yalnizca
+ * DEGISTIGINDE (ve ilk gorulmede) yazilir. Cok boyutlu tekliflerde boyut
+ * bazli fiyat gecmisinin tek kaynagi.
+ */
+export const variantPriceEvent = pgTable("variant_price_event", {
+  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+  variantId: bigint("variant_id", { mode: "number" }).notNull(),
+  price: bigint("price", { mode: "number" }).notNull(),
   observedAt: timestamp("observed_at", { withTimezone: true }).notNull().defaultNow(),
 });

@@ -1,4 +1,4 @@
-"""Barkod zenginlestirmesi: GS1 dogrulamasi, varyant duzeyi eslemesi (0030, 0032)."""
+"""Barkod zenginlestirmesi: GS1 dogrulamasi, varyant duzeyi eslemesi (0034, 0036)."""
 
 from __future__ import annotations
 
@@ -35,12 +35,12 @@ def _hocl() -> dict:
 
 
 def test_one_offer_with_two_sizes_has_no_offer_level_barcode() -> None:
-    """0032: iki farkli boyut tek offer'da -> offer duzeyi barkod YOK."""
+    """0036: iki farkli boyut tek offer'da -> offer duzeyi barkod YOK."""
     assert offer_barcode(_hocl()["variants"]) is None
 
 
 def test_barcodeless_size_does_not_let_the_other_size_claim_the_offer() -> None:
-    """0030 hatasi: barkodsuz boyut yok sayiliyor, 100 ml barkodu tum offer'a
+    """0034 hatasi: barkodsuz boyut yok sayiliyor, 100 ml barkodu tum offer'a
     yaziliyordu."""
     variants = [
         {"id": 101, "option1": "60ml", "barcode": ""},

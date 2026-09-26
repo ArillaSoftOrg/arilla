@@ -1,4 +1,4 @@
-"""Varyant duzeyinde kesin kimlik ile eslestirme (docs/decisions/0032).
+"""Varyant duzeyinde kesin kimlik ile eslestirme (docs/decisions/0036).
 
 Bir offer'in barkodlari iki yerden gelir:
 

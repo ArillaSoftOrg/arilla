@@ -11,7 +11,7 @@ Kurallar (`docs/architecture.md` Katman 2, `docs/decisions/0004`):
 Kataloğun talebe gore buyumesini saglayan mekanizma budur — butun internet
 degil, insanlarin gercekten karsilastirdigi urunler indekslenir.
 
-Guvenlik (docs/decisions/0031): adres kullanicidan gelir. Varsayilan istemci
+Guvenlik (docs/decisions/0035): adres kullanicidan gelir. Varsayilan istemci
 `safe_http.guarded_client` — ic aga (localhost, RFC1918, metadata) giden her
 baglanti soket acilmadan reddedilir; yonlendirmeler elle, adim adim denetlenir.
 """
@@ -95,7 +95,7 @@ class ResolvedLink:
     merchant_id: int | None
     merchant_created: bool
     #: Fiyatsiz referans sayfada `None`: kataloga offer yazilmaz, arama
-    #: yalnizca sinyallerle yurur (docs/decisions/0031).
+    #: yalnizca sinyallerle yurur (docs/decisions/0035).
     offer_id: int | None
     offer_created: bool
     url: str

@@ -18,6 +18,8 @@ export interface DiscoveryFeedItem {
   source: PublicFindSource;
   /** Yalnizca organic icin dolu - "bu hafta" gibi bulaniklastirilmis. */
   foundLabel: string | null;
+  /** 0037: `minPrice` varyantlar arasi baslangic fiyati mi ("...'den baslayan"). */
+  priceFromVariants?: boolean;
 }
 
 export interface DealItem {

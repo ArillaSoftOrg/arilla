@@ -162,7 +162,8 @@ const CLAUSE_WORDS: ReadonlySet<string> = new Set([
 ]);
 
 /** Cekimli fiil sonlari: "kullanacağım", "olmasın", "seviyor", "geçmesin". ASCII katli. */
-const VERB_ENDING_RE = /(?:iyor|iyorum|uyor|uyorum|yor|acak|ecek|acagim|ecegim|masin|mesin|mali|meli|madi|medi|mis|misti|lim|alim|elim)$/;
+const VERB_ENDING_RE =
+  /(?:iyor|iyorum|uyor|uyorum|yor|acak|ecek|acagim|ecegim|masin|mesin|mali|meli|madi|medi|mis|misti|lim|alim|elim)$/;
 
 /** "ucuz" bir sayiya cevrilmez; yalnizca tercih olarak saklanir. */
 const PRICE_PREFERENCE_TRIGGERS: readonly string[] = [

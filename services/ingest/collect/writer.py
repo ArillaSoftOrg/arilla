@@ -45,13 +45,13 @@ ON CONFLICT (merchant_id, external_id) DO UPDATE SET
     image_url               = EXCLUDED.image_url,
     -- Kaynagin tasimadigi zenginlestirme anahtarlari (barkod,
     -- collect/identifiers.py) yeniden toplamada kaybolmaz; kaynak kendi gtin'ini
-    -- tasiyorsa o kazanir (0030).
+    -- tasiyorsa o kazanir (0034).
     attributes_raw          = EXCLUDED.attributes_raw
         || CASE WHEN offer.attributes_raw ? 'gtin' AND NOT (EXCLUDED.attributes_raw ? 'gtin')
                 THEN jsonb_build_object('gtin', offer.attributes_raw->'gtin',
                                         'gtin_source', offer.attributes_raw->'gtin_source')
                 ELSE '{}'::jsonb END
-        -- Tazelik isareti de korunur: yeniden toplama barkodu yeniden istetmez (0032).
+        -- Tazelik isareti de korunur: yeniden toplama barkodu yeniden istetmez (0036).
         || CASE WHEN offer.attributes_raw ? 'identifiers_checked_at'
                 THEN jsonb_build_object('identifiers_checked_at',
                                         offer.attributes_raw->'identifiers_checked_at')
@@ -107,6 +107,19 @@ ON CONFLICT (offer_id, external_id) DO UPDATE SET
 RETURNING id
 """
 
+#: Varyant fiyat olayi (0026, docs/decisions/0037): yalnizca ilk gorulmede ve
+#: etkin fiyat degistiginde. `price_point` teklifin en ucuz varyantini tasir;
+#: cok boyutlu teklifte boyut bazli gecmis buradan kurulur.
+LAST_VARIANT_PRICE = """
+SELECT price FROM variant_price_event
+ WHERE variant_id = %(variant_id)s ORDER BY observed_at DESC, id DESC LIMIT 1
+"""
+
+INSERT_VARIANT_PRICE_EVENT = """
+INSERT INTO variant_price_event (variant_id, price, observed_at)
+VALUES (%(variant_id)s, %(price)s, %(observed_at)s)
+"""
+
 INSERT_STOCK_EVENT = """
 INSERT INTO variant_stock_event (variant_id, in_stock, observed_at)
 VALUES (%(variant_id)s, %(in_stock)s, %(observed_at)s)
@@ -120,6 +133,7 @@ class WriteCounts:
     price_points_written: int = 0
     variants_written: int = 0
     stock_events_written: int = 0
+    variant_price_events_written: int = 0
     stale_image_embeddings: int = 0
 
 
@@ -159,7 +173,7 @@ class OfferWriter:
 
         self._insert_price_point(offer_id, offer)
         for variant in offer.variants:
-            self._write_variant(offer_id, variant)
+            self._write_variant(offer_id, variant, offer.current_price)
         return offer_id
 
     def _upsert_offer(self, offer: NormalizedOffer) -> tuple[int, bool, bool]:
@@ -212,7 +226,7 @@ class OfferWriter:
             )
             self.counts.price_points_written += cur.rowcount
 
-    def _write_variant(self, offer_id: int, variant) -> None:
+    def _write_variant(self, offer_id: int, variant, offer_price: int | None = None) -> None:
         with self.conn.cursor() as cur:
             # Olay yazmadan ONCE mevcut durumu oku. Degismediyse olay yok.
             cur.execute(
@@ -251,6 +265,18 @@ class OfferWriter:
                     },
                 )
                 self.counts.stock_events_written += 1
+
+            # Varyantin etkin fiyati: kendi fiyati, yoksa teklif fiyati (0005).
+            price = variant.price_override if variant.price_override is not None else offer_price
+            if price is not None:
+                cur.execute(LAST_VARIANT_PRICE, {"variant_id": variant_id})
+                last = cur.fetchone()
+                if last is None or int(last[0]) != int(price):
+                    cur.execute(
+                        INSERT_VARIANT_PRICE_EVENT,
+                        {"variant_id": variant_id, "price": price, "observed_at": self.observed_at},
+                    )
+                    self.counts.variant_price_events_written += 1
 
     def deactivate_missing(self) -> int:
         """Feed'de gorunmeyen teklifleri pasiflestirir.

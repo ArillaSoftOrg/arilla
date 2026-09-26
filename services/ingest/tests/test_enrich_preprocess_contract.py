@@ -1,4 +1,4 @@
-"""Katalog ve kullanici yuklemesi ayni on isleme sozlesmesini kullanir (0030).
+"""Katalog ve kullanici yuklemesi ayni on isleme sozlesmesini kullanir (0034).
 
 Tek kaynak `packages/core/src/embedding/image-preprocess-contract.json`.
 TypeScript onu dogrudan import eder; Python sabitleri burada karsilastirilir.

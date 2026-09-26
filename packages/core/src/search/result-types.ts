@@ -24,6 +24,11 @@ export interface SearchResultItem {
   offerCount: number;
   /** Sekmeye ozel siralama skoru - hata ayiklama ve test icin acik. */
   score: number;
+  /**
+   * 0037: true ise `minPrice` varyantlar arasi BASLANGIC fiyatidir (60/100 ml
+   * farkli fiyatli); kart "...'den baslayan" yazar.
+   */
+  priceFromVariants?: boolean;
 }
 
 export interface SearchResult {
@@ -51,6 +56,8 @@ export interface AlternativeProduct {
   brandName: string | null;
   similarityScore: number;
   similarityKind: "same" | "visual" | "semantic" | "substitute";
+  /** 0037: bkz. `SearchResultItem.priceFromVariants`. */
+  priceFromVariants?: boolean;
 }
 
 export interface MerchantOffer {

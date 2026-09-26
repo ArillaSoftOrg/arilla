@@ -157,7 +157,7 @@ CREATE TABLE offer_variant (
     price_override BIGINT,                  -- nadir. NULL ise offer.current_price geçerli.
     sku            TEXT,                    -- merchant'ın kendi SKU'su, varsa
     last_seen_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
-    -- 0022 (docs/decisions/0032): bu ticari varyantın barkodu. Yalnızca GS1
+    -- 0022 (docs/decisions/0036): bu ticari varyantın barkodu. Yalnızca GS1
     -- kontrol basamağı doğru değer; kaynak 'feed' | 'products_js' | 'sku'.
     gtin           TEXT,
     gtin_source    TEXT,
@@ -176,6 +176,18 @@ CREATE TABLE variant_stock_event (
     observed_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX variant_stock_event_idx ON variant_stock_event (variant_id, observed_at DESC);
+
+-- Varyant FİYAT değişimi olayları (0026, docs/decisions/0037). price_point
+-- teklif düzeyindedir (en ucuz varyant); çok boyutlu teklifte boyut bazlı
+-- geçmiş buradan kurulur. Yalnızca değişimde + ilk görülmede yazılır.
+-- APPEND-ONLY: arilla_app yalnızca SELECT + INSERT.
+CREATE TABLE variant_price_event (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    variant_id  BIGINT      NOT NULL REFERENCES offer_variant(id) ON DELETE CASCADE,
+    price       BIGINT      NOT NULL,          -- etkin fiyat: price_override ya da teklif fiyatı
+    observed_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX variant_price_event_idx ON variant_price_event (variant_id, observed_at DESC);
 
 -- ---------------------------------------------------------------------------
 -- FİYAT GEÇMİŞİ — sadece INSERT. Rakibin geriye dönük üretemeyeceği varlık.
@@ -350,7 +362,7 @@ CREATE TABLE link_resolution_request (
     error_text   TEXT,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     finished_at  TIMESTAMPTZ,
-    -- 0021 (docs/decisions/0031): link araması. `normalized_url` izleme
+    -- 0021 (docs/decisions/0035): link araması. `normalized_url` izleme
     -- parametresiz, fragment'sız kanonik adres — oturumlar arası önbellek
     -- anahtarı (aynı ürün linki TTL içinde yeniden getirilmez).
     normalized_url     TEXT,
@@ -380,7 +392,7 @@ CREATE INDEX link_resolution_request_url_idx     ON link_resolution_request (nor
 CREATE TABLE app_user (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     public_id     UUID        NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
-    email         TEXT        NOT NULL UNIQUE,      -- giriş e-posta bağlantısıyla
+    email         TEXT        UNIQUE,               -- giriş e-posta bağlantısıyla; telefon/Apple girişinde NULL olabilir (0025)
     email_verified_at TIMESTAMPTZ,
     display_name  TEXT,
     avatar_url    TEXT,
@@ -424,7 +436,7 @@ CREATE INDEX session_expiry_idx ON session (expires_at);
 CREATE TABLE user_identity (
     id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id          BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
-    provider         TEXT        NOT NULL CHECK (provider IN ('google')),
+    provider         TEXT        NOT NULL CHECK (provider IN ('google', 'apple', 'phone')),  -- 0025: apple=sub, phone=E.164
     provider_subject TEXT        NOT NULL,
     email            TEXT,
     email_verified   BOOLEAN     NOT NULL DEFAULT FALSE,
@@ -436,6 +448,20 @@ CREATE TABLE user_identity (
 );
 CREATE INDEX user_identity_user_idx ON user_identity (user_id);
 CREATE INDEX user_identity_email_idx ON user_identity (email) WHERE email IS NOT NULL;
+
+-- Telefonla giriş kodu (0025). Kod düz metin saklanmaz: HMAC(SESSION_SECRET,
+-- telefon + kod). Tek kullanımlık, süreli, yanlış deneme sayılı.
+CREATE TABLE phone_login_code (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    phone       TEXT        NOT NULL,          -- E.164
+    code_hash   TEXT        NOT NULL,
+    expires_at  TIMESTAMPTZ NOT NULL,
+    consumed_at TIMESTAMPTZ,
+    attempts    SMALLINT    NOT NULL DEFAULT 0,
+    request_ip  INET,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX phone_login_code_phone_idx ON phone_login_code (phone, created_at DESC);
 
 CREATE TABLE creator (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -603,6 +629,31 @@ CREATE TABLE ingest_run (
 CREATE INDEX ingest_run_merchant_idx ON ingest_run (merchant_id, started_at DESC);
 
 -- ---------------------------------------------------------------------------
+-- YÖNETİM DENETİM KAYDI (0027, docs/decisions/0039)
+-- /yonetim mutasyonları mutasyonla AYNI işlemde buraya yazılır. Yalnızca
+-- güvenlik/denetim olayları: işletim (ingest_run), hata ve analitik değil.
+-- Parola, token, çerez, IP, user agent YAZILMAZ; before/after yalnızca
+-- kodda izin listesine alınmış hassas olmayan alanlardır.
+-- APPEND-ONLY: arilla_app yalnızca SELECT + INSERT.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE admin_audit_event (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    actor_user_id BIGINT      NOT NULL REFERENCES app_user(id),   -- CASCADE yok, bilerek
+    actor_role    TEXT        NOT NULL,          -- işlem anındaki rol
+    action        TEXT        NOT NULL,          -- 'matching.approve', 'lexicon.update'
+    target_type   TEXT        NOT NULL,          -- 'match_candidate', 'lexicon'
+    target_id     TEXT        NOT NULL,
+    before        JSONB,
+    after         JSONB,
+    reason        TEXT,
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX admin_audit_event_time_idx   ON admin_audit_event (created_at DESC);
+CREATE INDEX admin_audit_event_target_idx ON admin_audit_event (target_type, target_id, created_at DESC);
+CREATE INDEX admin_audit_event_actor_idx  ON admin_audit_event (actor_user_id, created_at DESC);
+
+-- ---------------------------------------------------------------------------
 -- ARAMA — detaylar docs/search.md
 -- ---------------------------------------------------------------------------
 
@@ -758,10 +809,12 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO arilla_ap
 ALTER DEFAULT PRIVILEGES IN SCHEMA public
     GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO arilla_app;
 
--- CLAUDE.md 4. kural ve architecture.md: bu iki tablo yalnızca INSERT alır.
+-- CLAUDE.md 4. kural ve architecture.md: bu tablolar yalnızca INSERT alır.
 -- Düzeltme gerekiyorsa yeni satır eklenir.
 REVOKE UPDATE, DELETE, TRUNCATE ON price_point         FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_stock_event FROM arilla_app;
+REVOKE UPDATE, DELETE, TRUNCATE ON variant_price_event FROM arilla_app;   -- 0026
+REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit_event   FROM arilla_app;   -- 0027
 
 -- price_point partition'larına doğrudan erişim yoktur. Partitioned tabloya
 -- INSERT'te yetki ebeveyn üzerinde denetlenir; yönlendirme etkilenmez.

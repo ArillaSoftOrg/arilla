@@ -22,6 +22,8 @@ export interface ResultGridItem {
   title: string;
   primaryImageUrl: string | null;
   minPrice: number | null;
+  /** 0037: kart fiyati varyantlar arasi baslangic fiyati mi. */
+  priceFromVariants?: boolean;
   offerCount: number;
   brandName?: string | null;
 }
@@ -49,6 +51,7 @@ export function ResultGrid({
             imageUrl={item.primaryImageUrl}
             imageLoading={index < EAGER_IMAGE_COUNT ? "eager" : "lazy"}
             minPrice={item.minPrice}
+            priceFrom={item.priceFromVariants ?? false}
             offerCount={item.offerCount}
             offerCountLabel={offerCountLabel}
           />
@@ -59,6 +62,33 @@ export function ResultGrid({
 }
 
 const SKELETON_COUNT = 12;
+
+/**
+ * Yalnizca sonuca bagli bolgenin iskeleti (sayi, sekmeler, izgara). Sayfa
+ * kabugu, arama kutusu ve netlestirme sorusu yerinde kalir; sonuc gelince
+ * yalnizca bu alan degisir. Mobilde ilk iki satir kadar kart yeter.
+ */
+export function ResultsRegionSkeleton({ statusLabel }: { statusLabel: string }) {
+  return (
+    <>
+      <VisuallyHidden as="p" role="status">
+        {statusLabel}
+      </VisuallyHidden>
+      <div className={`${styles.skeletonBar} ${styles.skeletonCount}`} aria-hidden="true" />
+      <div className={styles.skeletonTabs} aria-hidden="true">
+        <div className={styles.skeletonTab} />
+        <div className={styles.skeletonTab} />
+        <div className={styles.skeletonTab} />
+      </div>
+      <div className={styles.grid} aria-hidden="true">
+        {Array.from({ length: 8 }, (_, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: sabit sayıda, sırasız iskelet kartı.
+          <ProductCardSkeleton key={i} />
+        ))}
+      </div>
+    </>
+  );
+}
 
 /**
  * docs/pages.md: "Yükleniyor: iskelet kart, spinner değil." Kartlar

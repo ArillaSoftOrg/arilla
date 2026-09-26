@@ -27,7 +27,7 @@ export class UserNotFoundError extends Error {
 export interface UserDataExport {
   profile: {
     publicId: string;
-    email: string;
+    email: string | null;
     displayName: string | null;
     role: string;
     createdAt: Date;

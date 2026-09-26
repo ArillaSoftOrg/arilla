@@ -1,4 +1,4 @@
-"""Tek sayfa getirmenin sinirlari ve hata kodlari (docs/decisions/0031).
+"""Tek sayfa getirmenin sinirlari ve hata kodlari (docs/decisions/0035).
 
 Ag yok: `httpx.MockTransport`. IP duzeyi denetim `test_link_safe_http.py`'de;
 burada yazim duzeyi denetimin yonlendirme dongusunde HER adimda calistigi,

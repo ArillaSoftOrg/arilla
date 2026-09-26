@@ -207,6 +207,32 @@ her iki durumda aynı mesaj gösterilir.
 
 ---
 
+## `/yonetim` (kabuk ve genel bakış)
+
+Tek iç uygulama (docs/decisions/0039). Masaüstü öncelikli yan menü; dar
+ekranda menü üste taşınır. Kabuk `<main id="icerik">`'i taşır, alt sayfalar
+ikinci bir `<main>` üretmez. Menü rolün yeteneklerine göre süzülür — bu
+yalnızca görünümdür, her sayfa ve action yetkiyi sunucuda ayrıca ister.
+`noindex`.
+
+| Sıra | Bileşen |
+| --- | --- |
+| 1 | Kuyruk ve katalog kutucukları: bekleyen eşleştirme (500 üstü uyarı, ops.md), eşleşmemiş aktif teklif, aktif/toplam mağaza, 7 günde yeni kullanıcı |
+| 2 | Akış kutucukları: 24 saatte veri toplama koşuları, 7 günde link araması ve görsel yükleme (duruma göre), model maliyeti (24 saat / 7 gün) |
+| 3 | Son koşusu başarısız ya da kısmi biten mağazalar |
+| 4 | Araç bağlantıları |
+
+Arama sayısı ve sonuçsuz arama oranı **gösterilmez**: arama günlüğü yok,
+tahmini sayı konmaz.
+
+## `/yonetim/denetim`
+
+`admin_audit_event`'in salt okunur listesi, yalnızca yönetici. Yeniden
+eskiye, eylem filtresi, `id` imleciyle sayfalama (COUNT yok). Önce/sonra
+değerleri düz metin gösterilir.
+
+---
+
 ## `/yonetim/eslestirme`
 
 | Sıra | Bileşen |
@@ -219,12 +245,20 @@ her iki durumda aynı mesaj gösterilir.
 Kuyruk skora göre sıralanır, en belirsizler önce gelir. Klavye kısayolu şart:
 bu ekran günde yüzlerce kez kullanılacak.
 
+Kuyruk sayacı sayfadaki grubu değil gerçek toplamı gösterir. Onay, teklif bu
+arada başka bir ürüne bağlandıysa bağı ezmez; ekranda uyarı çıkar, satırda
+kalınır. Kaydedilemeyen karar sessizce atlanmaz. Onay ve red denetim kaydına
+yazılır; reddedilen çift veri toplama tarafında bir daha önerilmez (0040).
+
 ---
 
 ## `/yonetim/sozluk`
 
 `lexicon` tablosunun tablo görünümü. Satır içi düzenleme, tür filtresi, arama.
-Yeni satır eklendiğinde ayrıştırıcı anında etkilenir; sürüm çıkmaz.
+Yeni satır eklendiğinde ayrıştırıcı anında etkilenir; sürüm çıkmaz. Liste 50'şer
+satırlık sayfalıdır; silme onay penceresi ister. Girdi sunucuda doğrulanır
+(tür, yüzey 1–80, karşılık 1–120, ağırlık 0–10); her değişiklik denetim
+kaydına önce/sonra ile yazılır.
 
 Ekranın üstünde son 7 günde kademe 3'e düşen sorguların listesi durur — sözlüğe
 eklenecek adaylar oradan seçilir.

@@ -62,7 +62,7 @@ SELECT o.id, o.image_url, o.title_raw, o.brand_raw, o.category_raw
    -- yeniden isleme). NULL verilirse tum katalog taranir.
    AND (%(merchant_id)s::bigint IS NULL OR o.merchant_id = %(merchant_id)s)
    -- Tek offer: link aramasi worker'i yapistirilan urunun gorselini hemen
-   -- ister (docs/decisions/0031); toplu kosuyu beklemez, ayni yolu kullanir.
+   -- ister (docs/decisions/0035); toplu kosuyu beklemez, ayni yolu kullanir.
    AND (%(offer_id)s::bigint IS NULL OR o.id = %(offer_id)s)
  ORDER BY o.id
  LIMIT %(limit)s

@@ -57,7 +57,7 @@ ON CONFLICT (offer_id, product_id) DO UPDATE SET
     -- Insan bir karar verdiyse (accepted/rejected) makine onu EZMEZ.
     status = CASE WHEN match_candidate.status IN ('accepted', 'rejected')
                   THEN match_candidate.status ELSE EXCLUDED.status END
-RETURNING id
+RETURNING id, status
 """
 
 #: Ayni merchant'in ZATEN bagli teklifi olan urunler. Bir magaza ayni kanonik
@@ -70,6 +70,15 @@ SELECT DISTINCT product_id FROM offer
 """
 
 LINK_OFFER = "UPDATE offer SET product_id = %(product_id)s WHERE id = %(offer_id)s"
+
+#: Insanin bu offer icin REDDETTIGI urunler (docs/decisions/0040). Hicbir
+#: katmanda (varyant barkodu, kesin kimlik, metin/gorsel havuzu) yeniden
+#: aday olmazlar; aksi halde red ya sonsuz bir kuyruk dongusu uretir ya da
+#: skor otomatik kabul esigindeyse offer reddedilen urune yine baglanir.
+REJECTED_PRODUCTS = """
+SELECT product_id FROM match_candidate
+ WHERE offer_id = %(offer_id)s AND status = 'rejected'
+"""
 
 
 @dataclass
@@ -112,13 +121,24 @@ def best_match(
     title: str,
     merchant_id: int | None = None,
 ) -> tuple[candidate_channels.Candidate, ScoreResult] | None:
-    """Katmanli akis: kesin kimlik (varyant barkodu dahil) sonuc verirse orada durur."""
+    """Katmanli akis: kesin kimlik (varyant barkodu dahil) sonuc verirse orada durur.
+
+    Insanin reddettigi (offer, urun) ciftleri her katmanda elenir (0040).
+    """
+    with conn.cursor() as cur:
+        cur.execute(REJECTED_PRODUCTS, {"offer_id": offer_id})
+        rejected = {int(row[0]) for row in cur.fetchall()}
+
     identity = identifiers.offer_identity(conn, offer_id, key)
     variant_exact = identifiers.exact_variant_match(conn, offer_id, key, identity)
-    if variant_exact is not None:
+    if variant_exact is not None and variant_exact[0].product_id not in rejected:
         return variant_exact
 
-    exact = candidate_channels.by_exact_identifier(conn, key.gtin, key.mpn)
+    exact = [
+        candidate
+        for candidate in candidate_channels.by_exact_identifier(conn, key.gtin, key.mpn)
+        if candidate.product_id not in rejected
+    ]
     for candidate in exact:
         result = combine(key, _candidate_key(candidate))
         if result.method in {"gtin", "mpn"} and not result.vetoed:
@@ -134,9 +154,13 @@ def best_match(
         if vector_text and model_version
         else []
     )
-    pool = candidate_channels.deduplicate(
-        [exact, candidate_channels.by_title(conn, title), image_candidates]
-    )
+    pool = [
+        candidate
+        for candidate in candidate_channels.deduplicate(
+            [exact, candidate_channels.by_title(conn, title), image_candidates]
+        )
+        if candidate.product_id not in rejected
+    ]
     if pool and merchant_id is not None:
         with conn.cursor() as cur:
             cur.execute(
@@ -150,7 +174,7 @@ def best_match(
             taken = {int(row[0]) for row in cur.fetchall()}
         pool = [candidate for candidate in pool if candidate.product_id not in taken]
     # Barkod kumesi tam olan ve offer'in barkodunu icermeyen aday bu offer'in
-    # hicbir ticari varyanti degildir (0032): metin ne kadar benzese de elenir.
+    # hicbir ticari varyanti degildir (0036): metin ne kadar benzese de elenir.
     disjoint = identifiers.disjoint_barcode_products(
         conn, identity, [candidate.product_id for candidate in pool]
     )
@@ -214,7 +238,7 @@ def resolve_offers(
 
         if found is not None and found[1].score >= queue:
             candidate, result = found
-            # AUTO_ACCEPT / REVIEW kademesi (0030): skor tek basina yetmez;
+            # AUTO_ACCEPT / REVIEW kademesi (0034): skor tek basina yetmez;
             # kesin kimlik ya da iki tarafta bilinen ayni marka gerekir,
             # dogrulanamayan renk (0029) her zaman REVIEW.
             eligible = auto_eligible(result, key, _candidate_key(candidate))
@@ -230,7 +254,9 @@ def resolve_offers(
                         "status": status,
                     },
                 )
-            if status == "auto_accepted":
+                stored = cur.fetchone()
+            # Saklanan durum insan karariysa (accepted/rejected) makine baglamaz.
+            if status == "auto_accepted" and stored is not None and stored[1] == "auto_accepted":
                 with conn.cursor() as cur:
                     cur.execute(
                         LINK_OFFER, {"product_id": candidate.product_id, "offer_id": offer_id}

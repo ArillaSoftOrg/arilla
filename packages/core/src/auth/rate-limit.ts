@@ -16,7 +16,7 @@ const IP_WINDOW_SECONDS = 60 * 60;
 const IP_MAX_REQUESTS = 10;
 
 export class RateLimitExceededError extends Error {
-  constructor(scope: "email" | "ip") {
+  constructor(scope: "email" | "ip" | "phone") {
     super(`giris istegi oran sinirina takildi: ${scope}`);
     this.name = "RateLimitExceededError";
   }

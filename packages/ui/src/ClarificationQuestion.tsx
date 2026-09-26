@@ -43,6 +43,10 @@ export interface ClarificationQuestionProps {
     submitLabel: string;
     /** Konusma durumunu tasiyan gizli alanlar (`q`, `n`). */
     hiddenFields: readonly { name: string; value: string }[];
+    /** Anlasilmayan yanit geri doldurulur; kullanici duzeltip tekrar gonderir. */
+    defaultValue?: string;
+    /** Girdiyi aciklayan bildirimin kimligi. */
+    describedBy?: string;
   };
   className?: string;
 }
@@ -110,6 +114,8 @@ export function ClarificationQuestion({
               type="text"
               name={freeText.inputName}
               placeholder={freeText.placeholder}
+              defaultValue={freeText.defaultValue}
+              aria-describedby={freeText.describedBy}
               className={styles.input}
               autoComplete="off"
             />

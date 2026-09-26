@@ -1,5 +1,5 @@
 /**
- * Kullanici yuklemesinin Jina'ya gitmeden once on islenmesi (docs/decisions/0030).
+ * Kullanici yuklemesinin Jina'ya gitmeden once on islenmesi (docs/decisions/0034).
  *
  * Katalog tarafinin (`services/ingest/enrich/images.py`, `img512-v1`) ayni
  * sozlesmesi: `image-preprocess-contract.json`. Uygulama runtime'a gore ayri

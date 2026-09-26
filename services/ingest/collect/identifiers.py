@@ -1,18 +1,18 @@
-"""Kesin urun kimligi zenginlestirmesi: varyant duzeyinde barkod (0030, 0032).
+"""Kesin urun kimligi zenginlestirmesi: varyant duzeyinde barkod (0034, 0036).
 
     python -m collect.identifiers --merchant korendy [--max-requests 200] [--force]
 
 Shopify `/products.json` barkod tasimaz; ayni urunun herkese acik
 `/products/<handle>.js` karsiligi her varyant icin `barcode` tasir.
 
-**Nereye yazilir (0032).** Barkod ticari varyantin kimligidir:
+**Nereye yazilir (0036).** Barkod ticari varyantin kimligidir:
 
 - `offer_variant.gtin` (+ `gtin_source`): her boyut satirina kendi barkodu.
   Eslesme anahtari guclu olandan zayifa: varyant kimligi (`external_id` =
   Shopify varyant id), SKU, beden secenegi degeri. Dizi sirasi ASLA kullanilmaz.
 - `offer.attributes_raw.gtin`: YALNIZCA offer tek ticari varyantsa (gruptaki
   tum varyantlar ayni gecerli barkodu tasiyorsa). Iki farkli boyut tek offer'da
-  ise offer duzeyinde barkod YOKTUR — 0030'daki kural "gruptaki tek gecerli
+  ise offer duzeyinde barkod YOKTUR — 0034'daki kural "gruptaki tek gecerli
   barkod" diyordu ve barkodu olmayan boyut yuzunden 100 ml'nin barkodunu 60 ml'yi
   de iceren offer'a yaziyordu. Bu yol eski yanlis degeri de temizler.
 - `product.gtin`: urunun offer'larindaki TEK tutarli offer barkodu; celiskide NULL.
@@ -149,8 +149,8 @@ def offer_barcode(variants: list[dict[str, Any]]) -> str | None:
     """Offer duzeyi barkod: gruptaki HER varyant ayni gecerli barkodu tasiyorsa.
 
     Bir varyant barkodsuz ya da barkodlar farkliysa offer birden fazla ticari
-    varyanttir ya da kimligi belirsizdir: None. (0030'daki "tek gecerli
-    barkod" kurali barkodsuz boyutu yok sayiyordu — 0032 duzeltmesi.)
+    varyanttir ya da kimligi belirsizdir: None. (0034'daki "tek gecerli
+    barkod" kurali barkodsuz boyutu yok sayiyordu — 0036 duzeltmesi.)
     """
     codes = [_clean(v.get("barcode")) for v in variants]
     if not codes or any(code is None for code in codes):

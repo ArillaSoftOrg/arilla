@@ -46,7 +46,8 @@ export function normalizeThousands(lower: string): string {
   return lower.replace(
     /(?<![\p{L}\p{N}.,])(\d{1,4})(?:[.,](\d))?\s?bin(\p{L}{0,4})(?!\p{L})/gu,
     (whole, int: string, decimal: string | undefined, suffix: string) => {
-      const value = Number.parseInt(int, 10) * 1000 + (decimal ? Number.parseInt(decimal, 10) * 100 : 0);
+      const value =
+        Number.parseInt(int, 10) * 1000 + (decimal ? Number.parseInt(decimal, 10) * 100 : 0);
       const replaced = `${value}${suffix}`;
       return replaced.length <= whole.length ? replaced.padEnd(whole.length, " ") : whole;
     },
@@ -117,7 +118,10 @@ export function extractConversationalBudget(lower: string): {
 
   for (const pattern of PATTERNS) {
     for (const m of rest.matchAll(pattern.re)) {
-      const amounts = m.slice(1).filter((g): g is string => g !== undefined).map(parseAmount);
+      const amounts = m
+        .slice(1)
+        .filter((g): g is string => g !== undefined)
+        .map(parseAmount);
       if (amounts.length === 0 || amounts.some((a) => a === null)) continue;
       const budget = pattern.apply(amounts as number[]);
       if (budget === null) continue;

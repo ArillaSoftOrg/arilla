@@ -84,6 +84,7 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
   const router = useRouter();
   const [index, setIndex] = useState(0);
   const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const current = items[index];
 
   const advance = useCallback(() => {
@@ -93,6 +94,7 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
   const decide = useCallback(
     async (action: "approve" | "reject" | "skip") => {
       if (!current || pending) return;
+      setMessage(null);
       if (action === "skip") {
         advance();
         return;
@@ -100,10 +102,24 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
       setPending(true);
       try {
         const runner = action === "approve" ? approveMatchAction : rejectMatchAction;
-        await runner(current.matchCandidateId);
+        const result = await runner(current.matchCandidateId);
+        if (result.conflict) {
+          // Hiçbir şey değişmedi: teklif başka bir ürüne bağlı. Satırda kal.
+          setMessage({
+            text: "Bu teklif bu arada başka bir ürüne bağlanmış. Reddedebilir ya da atlayabilirsin.",
+            error: true,
+          });
+          return;
+        }
+        if (!result.found) {
+          setMessage({ text: "Bu satır başka bir yerde zaten karara bağlanmış.", error: false });
+        }
+        advance();
+      } catch {
+        // Hata sessizce yutulup sonraki satıra geçilmez: karar kaydedilmedi.
+        setMessage({ text: "Karar kaydedilemedi. Tekrar dene.", error: true });
       } finally {
         setPending(false);
-        advance();
       }
     },
     [current, pending, advance],
@@ -128,7 +144,11 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
         <Button
           type="button"
           variant="secondary"
-          onClick={() => router.refresh()}
+          onClick={() => {
+            setIndex(0);
+            setMessage(null);
+            router.refresh();
+          }}
           style={{ marginTop: 12 }}
         >
           Yenile
@@ -139,6 +159,17 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
 
   return (
     <div style={{ display: "grid", gap: 16 }}>
+      <p
+        role="status"
+        aria-live="polite"
+        style={{
+          margin: 0,
+          minHeight: "1.5em",
+          color: message?.error ? "var(--alert)" : "var(--ink-muted)",
+        }}
+      >
+        {message?.text ?? ""}
+      </p>
       <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
         <Badge>{`${index + 1} / ${items.length}`}</Badge>
         <Badge>{`skor ${current.score.toFixed(2)}`}</Badge>

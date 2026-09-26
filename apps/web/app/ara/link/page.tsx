@@ -101,7 +101,7 @@ function SourceCard({ source, offerId }: { source: LinkSource; offerId: number |
 }
 
 /**
- * docs/decisions/0031 — link araması. Üç giriş (arama kutusuna yapıştırma,
+ * docs/decisions/0035 — link araması. Üç giriş (arama kutusuna yapıştırma,
  * `/https://...` öneki, doğrudan adres) buraya yakınsar. Adres kanonik
  * (izleme parametresiz) değilse önce kanonik adrese yönlendirilir: aynı ürün
  * için tek, paylaşılabilir bir sonuç sayfası.

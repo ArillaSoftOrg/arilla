@@ -1,32 +1,26 @@
 import {
   type ConversationPlan,
-  isRedisUnavailableError,
   loadLexicon,
   planConversation,
-  type QueryObject,
-  recordSearchAndCheckWall,
-  resolveQuery,
+  type ReplyResult,
   type SortMode,
-  search,
 } from "@arilla/core";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "@arilla/core/clarification";
 import { type Database, getDatabase } from "@arilla/db";
 import {
-  ClarificationBar,
   ClarificationQuestion,
-  EmptyState,
   SearchConversationInput,
+  SearchConversationNotice,
   SearchForm,
   SearchIntentChips,
-  SortTabs,
 } from "@arilla/ui";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { verifySession } from "../lib/dal.ts";
+import { Suspense } from "react";
 import { PhotoSearchButton } from "../photo-search-client.tsx";
 import styles from "./ara.module.css";
-import { ResultGrid, resultCountLabel } from "./search-results.tsx";
-import { SearchWallGateClient } from "./search-wall-gate-client.tsx";
+import { ConversationFocusClient } from "./conversation-focus-client.tsx";
+import { ResultsRegionSkeleton } from "./search-results.tsx";
+import { TextSearchResults } from "./text-search-results.tsx";
 
 const SORT_MODES: readonly SortMode[] = ["balanced", "best_deal", "closest_match"];
 
@@ -35,7 +29,19 @@ function isSortMode(value: string | undefined): value is SortMode {
 }
 
 const SEARCH_PLACEHOLDER = "Ürün adı, marka ya da kısa bir tarif yaz";
-const PAGE_SIZE = 24;
+
+/**
+ * Konusma eyleminden (secenek, cip kaldirma, serbest yanit) sonra odagi
+ * tasimak icin parca. Bkz. conversation-focus-client.tsx.
+ */
+const FOCUS_FRAGMENT = "#konusma";
+const NOTICE_ID = "konusma-bildirim";
+const QUESTION_HEADING_ID = "netlestirme-sorusu";
+const CONSTRAINTS_HEADING_ID = "aramada-kullanilanlar";
+const CONTEXT_HEADING_ID = "tercihlerin";
+const REFINE_INPUT_ID = "aramayi-daralt";
+const QUESTION_INPUT_ID = `${QUESTION_HEADING_ID}-serbest`;
+const TITLE_ID = "arama-basligi";
 
 /** Arama kutusu + fotoğraf eylemi; tüm /ara durumlarında aynı yerde. */
 function SearchToolbar({ query }: { query?: string }) {
@@ -55,8 +61,13 @@ interface AramaSearchParams {
   sayfa?: string;
   /** Konusma adimlari (docs/decisions/0030, `CONVERSATION_PARAM`). */
   n?: string | string[];
-  /** Soru ya da daraltma kutusundan gelen serbest yanit; kanonik URL'e yonlendirilir. */
+  /**
+   * Soru ya da daraltma kutusundan gelen serbest yanit. Uygulandiysa kanonik
+   * URL'e yonlendirilir; anlasilmadiysa URL'de kalir ve not gosterilir.
+   */
   yanit?: string;
+  /** Uygulanan yanitin yaninda karsiligi olmayan bir fiyat tercihi vardi. */
+  uyari?: string;
 }
 
 function toList(value: string | string[] | undefined): string[] {
@@ -70,17 +81,22 @@ function aramaHref({
   steps,
   sort,
   page,
+  notice,
+  focus,
 }: {
   query: string;
   steps: readonly string[];
   sort?: SortMode;
   page?: number;
+  notice?: "fiyat";
+  focus?: boolean;
 }): string {
   const params = new URLSearchParams({ q: query });
   for (const step of steps) params.append("n", step);
   if (sort && sort !== "balanced") params.set("sort", sort);
   if (page && page > 1) params.set("sayfa", String(page));
-  return `/ara?${params.toString()}`;
+  if (notice) params.set("uyari", notice);
+  return `/ara?${params.toString()}${focus ? FOCUS_FRAGMENT : ""}`;
 }
 
 /**
@@ -96,25 +112,69 @@ async function planSafely(
     return planConversation(request, { registry: DEFAULT_CLARIFICATION_REGISTRY, lexicon });
   } catch (error) {
     console.error("[ara] clarification unavailable, falling back to plain search", error);
-    return { mode: "conventional", query: request.query, reason: "no_domain" };
+    return { mode: "conventional", query: request.query, reason: "no_domain", reply: null };
   }
 }
 
+/** Yaniti uygulandigi icin URL'e yazilan ve yonlendirilen sonuclar. */
+function isStoredReply(reply: ReplyResult | null): boolean {
+  return reply?.outcome === "applied" || reply?.outcome === "new_search";
+}
+
 /**
- * docs/pages.md "/ara": arama girdisi -> netleştirme çubuğu (varsa) ->
- * sonuç sayısı -> sekmeler -> sonuç ızgarası -> sayfalama. Giriş modali
- * (decision 0002, E2) burada; görsel arama sonucu ayrı bir rotada
- * (`/ara/gorsel`), yükleme girdisi burada (D4).
+ * Serbest yanit hicbir zaman sessizce yutulmaz. Uygulananlar URL'e yazilir
+ * ve ciplerde gorunur; digerleri icin durustce ne oldugu soylenir.
+ */
+function replyNotice(
+  reply: ReplyResult | null,
+  priceNotice: boolean,
+  inputId: string,
+): { message: string; detail?: string; actions: { label: string; href: string }[] } | null {
+  if (reply?.outcome === "unrecognized") {
+    return {
+      message: `“${reply.text}” ifadesini bu aramaya nasıl uygulayacağımı anlayamadım.`,
+      detail: "İstersen bunu yeni bir arama olarak deneyebilir ya da yazdığını değiştirebilirsin.",
+      actions: [
+        {
+          label: "Yeni arama olarak kullan",
+          href: `/ara?${new URLSearchParams({ q: reply.text }).toString()}`,
+        },
+        { label: "Değiştir", href: `#${inputId}` },
+      ],
+    };
+  }
+  if (reply?.outcome === "unsupported_preference" || priceNotice) {
+    return {
+      message: "Sonuçları fiyata göre öne almayı henüz buradan yapamıyorum.",
+      detail: "Bir üst sınır yazarsan aramaya eklerim, örneğin “en fazla 2.000 TL”.",
+      actions:
+        reply?.outcome === "unsupported_preference"
+          ? [{ label: "Değiştir", href: `#${inputId}` }]
+          : [],
+    };
+  }
+  return null;
+}
+
+/**
+ * docs/pages.md "/ara": arama girdisi -> netleştirme (varsa) -> sonuç sayısı
+ * -> sekmeler -> sonuç ızgarası -> sayfalama. Giriş modali (decision 0002,
+ * E2) sonuç bölgesinde; görsel arama sonucu ayrı bir rotada (`/ara/gorsel`),
+ * yükleme girdisi burada (D4).
+ *
+ * Yükleniyor: yalnızca sonuca bağlı bölge (`TextSearchResults`) iskelete
+ * döner. Arama kutusu, soru ve anlaşılan çipler yerinde kalır; bu yüzden
+ * bu segmentte sayfa düzeyinde `loading.tsx` yok.
  */
 export default async function AramaPage({
   searchParams,
 }: {
   searchParams: Promise<AramaSearchParams>;
 }) {
-  const { q, sort: sortParam, sayfa, n, yanit } = await searchParams;
+  const { q, sort: sortParam, sayfa, n, yanit, uyari } = await searchParams;
   const requestedQuery = q?.trim() ?? "";
   const requestedSteps = toList(n);
-  const reply = yanit?.trim() || null;
+  const replyText = yanit?.trim() || null;
 
   if (!requestedQuery) {
     return (
@@ -129,254 +189,174 @@ export default async function AramaPage({
   }
 
   const db = getDatabase();
-  const plan = await planSafely(db, { query: requestedQuery, steps: requestedSteps, reply });
+  const plan = await planSafely(db, {
+    query: requestedQuery,
+    steps: requestedSteps,
+    reply: replyText,
+  });
   const query = plan.query;
   const steps = plan.mode === "conversation" ? plan.steps : [];
   const requestedSort = isSortMode(sortParam) ? sortParam : "balanced";
+  // Metin aramasinda "En yakın eşleşmeler" devre disi (anchor yok); konusma
+  // linkleri gecersiz bir siralamayi tasimasin.
+  const conversationSort: SortMode = requestedSort === "closest_match" ? "balanced" : requestedSort;
 
-  // Serbest yanit ve bayat adimlar kanonik URL'e cevrilir: geri tusu ve
-  // paylasilan link ayni konusmayi kurar, `yanit` URL'de kalmaz.
+  // Uygulanan yanit ve bayat adimlar kanonik URL'e cevrilir: geri tusu ve
+  // paylasilan link ayni konusmayi kurar, `yanit` URL'de kalmaz. Anlasilmayan
+  // yanit ise URL'de kalir ki not gosterilsin ve kutu geri doldurulsun.
+  const replyStored = isStoredReply(plan.reply);
   if (
-    reply !== null ||
+    (replyText !== null && (plan.reply === null || replyStored)) ||
     query !== requestedQuery ||
     (plan.mode === "conversation" && plan.droppedInvalidStep) ||
     (plan.mode === "conventional" && requestedSteps.length > 0)
   ) {
-    redirect(aramaHref({ query, steps, sort: requestedSort }));
+    redirect(
+      aramaHref({
+        query,
+        steps,
+        sort: conversationSort,
+        notice: replyStored && plan.reply?.ignoredPricePreference ? "fiyat" : undefined,
+        focus: replyText !== null,
+      }),
+    );
   }
-
-  // decision 0002: ilk N sorgu serbest, sonrasında modal. Girişi olanlar için
-  // hiç sayılmaz; session_id proxy.ts tarafından garanti edilir ama bu istek
-  // proxy'nin ilk kez yazdığı çerezi henüz görmüyor olabilir (Next: Server
-  // Component render sırasında çerez okunur, o istekte YAZILAMAZ).
-  // Bir sorunun cevabi ya da daraltma yeni bir arama degildir; duvar
-  // sayacina yalnizca konusmanin ilk istegi yazilir.
-  let shouldShowWall = false;
-  const user = await verifySession();
-  if (!user && steps.length === 0) {
-    const sessionId = (await cookies()).get("session_id")?.value;
-    if (sessionId) {
-      // Arama duvari yalnizca surtunme (karar 0002): Redis erisilemezse arama
-      // calismaya devam eder, duvar bu istekte atlanir ve durum loglanir.
-      try {
-        shouldShowWall = (await recordSearchAndCheckWall(sessionId)).shouldShowWall;
-      } catch (error) {
-        if (!isRedisUnavailableError(error)) throw error;
-        console.error("[ara] search wall skipped: redis unavailable");
-      }
-    }
-  }
-
-  let parsed: QueryObject;
-  let needsClarification = false;
-  let candidateCategories: Awaited<ReturnType<typeof resolveQuery>>["candidateCategories"] = null;
-  if (plan.mode === "conversation") {
-    parsed = plan.queryObject;
-  } else {
-    ({ parsed, needsClarification, candidateCategories } = await resolveQuery(db, query));
-  }
-
-  const hasAnchor = parsed.anchor !== null;
-  // C1'in metin ayristiricisi her zaman anchor: null uretir (kapsami disinda);
-  // C2'nin search()'u closest_match'i anchor'siz kabul etmez. Metin
-  // aramasinda bu sekme bu yuzden her zaman devre disi.
-  const effectiveSort: SortMode =
-    requestedSort === "closest_match" && !hasAnchor ? "balanced" : requestedSort;
 
   const page = Math.max(1, Number.parseInt(sayfa ?? "1", 10) || 1);
-  const result = await search(
-    db,
-    { ...parsed, sort: effectiveSort },
-    { limit: 24, offset: (page - 1) * 24 },
-  );
-
-  let items = result.items;
-  let isFallback = false;
-  if (items.length === 0) {
-    // docs/pages.md: "Boş sonuç: filtreleri gevşetme önerisi + en yakın 6
-    // sonuç." Gevşetme icin kesin algoritma belirtilmemis; en basit ve
-    // savunulabilir yorum: tum filtreleri temizle.
-    const fallback = await search(db, { ...parsed, filters: {}, sort: "balanced" }, { limit: 6 });
-    items = fallback.items;
-    isFallback = true;
-  }
-
-  function sortHref(target: SortMode): string {
-    return aramaHref({ query, steps, sort: target });
-  }
-
-  const tabs = [
-    {
-      value: "balanced",
-      label: "Bizim seçtiklerimiz",
-      href: sortHref("balanced"),
-      active: effectiveSort === "balanced",
-    },
-    {
-      value: "best_deal",
-      label: "En iyi fırsatlar",
-      href: sortHref("best_deal"),
-      active: effectiveSort === "best_deal",
-    },
-    {
-      value: "closest_match",
-      label: "En yakın eşleşmeler",
-      href: sortHref("closest_match"),
-      active: effectiveSort === "closest_match",
-      disabled: !hasAnchor,
-      disabledHint: "Bu arama için kullanılamıyor",
-    },
-  ];
-
-  const totalPages = Math.ceil(result.total / PAGE_SIZE);
-
-  function pageHref(target: number): string {
-    return aramaHref({ query, steps, sort: effectiveSort, page: target });
-  }
 
   function stepsHref(nextSteps: readonly string[]): string {
-    return aramaHref({ query, steps: nextSteps, sort: effectiveSort });
+    return aramaHref({ query, steps: nextSteps, sort: conversationSort, focus: true });
   }
 
   const conversationFields = [
     { name: "q", value: query },
     ...steps.map((value) => ({ name: "n", value })),
-    ...(effectiveSort !== "balanced" ? [{ name: "sort", value: effectiveSort }] : []),
+    ...(conversationSort !== "balanced" ? [{ name: "sort", value: conversationSort }] : []),
   ];
+
+  const question = plan.mode === "conversation" ? plan.question : null;
+  const inputId = question ? QUESTION_INPUT_ID : REFINE_INPUT_ID;
+  const notice =
+    plan.mode === "conversation" ? replyNotice(plan.reply, uyari === "fiyat", inputId) : null;
+  // Anlasilmayan yanit kutuya geri doldurulur; kullanici duzeltip tekrar gonderir.
+  const unrecognizedText =
+    plan.mode === "conversation" && plan.reply && !isStoredReply(plan.reply)
+      ? plan.reply.text
+      : undefined;
+  const noticeElement = notice ? (
+    <SearchConversationNotice
+      id={NOTICE_ID}
+      message={notice.message}
+      detail={notice.detail}
+      actions={notice.actions}
+    />
+  ) : null;
 
   return (
     <div className={styles.page}>
-      <SearchWallGateClient show={shouldShowWall} />
+      <ConversationFocusClient
+        targets={[
+          NOTICE_ID,
+          QUESTION_HEADING_ID,
+          CONSTRAINTS_HEADING_ID,
+          CONTEXT_HEADING_ID,
+          "sonuc-sayisi",
+          TITLE_ID,
+        ]}
+      />
       <SearchToolbar query={query} />
 
       <header className={styles.header}>
-        <h1 className={styles.title}>“{query}” için sonuçlar</h1>
-        {!isFallback ? (
-          <p className={styles.count} role="status">
-            {resultCountLabel(result.total)}
-          </p>
-        ) : null}
+        <h1 id={TITLE_ID} className={styles.title}>
+          “{query}” için sonuçlar
+        </h1>
       </header>
 
-      <div className={styles.controls}>
-        {plan.mode === "conversation" && plan.question ? (
-          <ClarificationQuestion
-            headingId="netlestirme-sorusu"
-            question={plan.question.text}
-            options={plan.question.options.map((option) => ({
-              id: option.id,
-              label: option.label,
-              selected: option.selected,
-              href: stepsHref(option.steps),
-            }))}
-            skip={{ label: plan.question.skip.label, href: stepsHref(plan.question.skip.steps) }}
-            showResults={{
-              label: plan.question.showResults.label,
-              href: stepsHref(plan.question.showResults.steps),
-            }}
-            freeText={{
-              label: "Ya da kendi cümlenle yaz",
-              placeholder: "Aklındakini kısaca anlat",
-              action: "/ara",
-              inputName: "yanit",
-              submitLabel: "Gönder",
-              hiddenFields: conversationFields,
-            }}
-          />
-        ) : null}
+      {plan.mode === "conversation" ? (
+        <div id="konusma" className={styles.controls}>
+          {question ? (
+            <>
+              {noticeElement}
+              <ClarificationQuestion
+                headingId={QUESTION_HEADING_ID}
+                question={question.text}
+                options={question.options.map((option) => ({
+                  id: option.id,
+                  label: option.label,
+                  selected: option.selected,
+                  href: stepsHref(option.steps),
+                }))}
+                skip={{ label: question.skip.label, href: stepsHref(question.skip.steps) }}
+                showResults={{
+                  label: question.showResults.label,
+                  href: stepsHref(question.showResults.steps),
+                }}
+                freeText={{
+                  label: "Ya da kendi cümlenle yaz",
+                  placeholder: "Kısaca yaz",
+                  action: `/ara${FOCUS_FRAGMENT}`,
+                  inputName: "yanit",
+                  submitLabel: "Gönder",
+                  hiddenFields: conversationFields,
+                  defaultValue: unrecognizedText,
+                  describedBy: notice ? NOTICE_ID : undefined,
+                }}
+              />
+            </>
+          ) : null}
 
-        {plan.mode === "conversation" ? (
           <SearchIntentChips
-            headingId="anlasilanlar"
-            heading="Aramanda dikkate alınanlar"
-            chips={plan.understood.map((chip) => ({
+            headingId={CONSTRAINTS_HEADING_ID}
+            heading="Aramada kullanılanlar"
+            chips={plan.constraints.map((chip) => ({
               key: chip.key,
               label: chip.label,
               removeHref: chip.removeSteps ? stepsHref(chip.removeSteps) : null,
             }))}
           />
-        ) : null}
 
-        {plan.mode === "conversation" && !plan.question ? (
-          <SearchConversationInput
-            id="aramayi-daralt"
-            label="Aramayı daralt"
-            placeholder="Örneğin: siyah olsun, 5.000 TL'yi geçmesin"
-            submitLabel="Uygula"
-            action="/ara"
-            inputName="yanit"
-            hiddenFields={conversationFields}
-          />
-        ) : null}
-
-        {plan.mode === "conventional" &&
-        needsClarification &&
-        candidateCategories &&
-        candidateCategories.length > 0 ? (
-          <ClarificationBar
-            intro="Hangisini arıyorsun?"
-            candidates={candidateCategories.map((id) => ({
-              label: `Kategori ${id}`,
-              href: `/ara?q=${encodeURIComponent(query)}&kategori=${id}`,
+          {/* Yalnizca sonraki soruyu belirleyen tercihler; katalog bunlarla
+              filtrelenmez, bu yuzden filtre gibi adlandirilmaz. */}
+          <SearchIntentChips
+            headingId={CONTEXT_HEADING_ID}
+            heading="Tercihlerin"
+            removeLabelSuffix="tercihini kaldır"
+            chips={plan.context.map((chip) => ({
+              key: chip.key,
+              label: chip.label,
+              removeHref: chip.removeSteps ? stepsHref(chip.removeSteps) : null,
             }))}
-            otherLabel="Başka bir şey"
-            otherPlaceholder="Ne arıyorsun?"
-            searchAction="/ara"
-            queryParamName="q"
           />
-        ) : null}
 
-        <SortTabs tabs={tabs} />
-      </div>
-
-      {isFallback ? (
-        <>
-          <EmptyState
-            className={styles.emptyPanel}
-            title="Bu aramada sonuç bulamadık."
-            description="Daha genel bir arama dene: fiyat, renk ya da beden gibi ayrıntıları çıkarabilir veya farklı kelimeler kullanabilirsin."
-            headingLevel={2}
-          />
-          {items.length > 0 ? (
-            <section className={styles.section} aria-labelledby="en-yakin-sonuclar">
-              <h2 id="en-yakin-sonuclar" className={styles.sectionTitle}>
-                Sana en yakın bulduklarımız
-              </h2>
-              <ResultGrid items={items} labelledBy="en-yakin-sonuclar" />
-            </section>
+          {!question ? (
+            <>
+              {noticeElement}
+              <SearchConversationInput
+                id={REFINE_INPUT_ID}
+                label="Aramayı daralt"
+                placeholder="Ek tercih yaz"
+                submitLabel="Uygula"
+                action={`/ara${FOCUS_FRAGMENT}`}
+                inputName="yanit"
+                hiddenFields={conversationFields}
+                defaultValue={unrecognizedText}
+                describedBy={notice ? NOTICE_ID : undefined}
+              />
+            </>
           ) : null}
-        </>
-      ) : (
-        <ResultGrid items={items} />
-      )}
-
-      {!isFallback && result.total > PAGE_SIZE ? (
-        <nav className={styles.pagination} aria-label="Sayfalama">
-          {page > 1 ? (
-            <a
-              href={pageHref(page - 1)}
-              rel="prev"
-              className={styles.pageLink}
-              aria-label="Önceki sayfa"
-            >
-              Önceki
-            </a>
-          ) : null}
-          <p className={styles.pageStatus}>
-            Sayfa {page} / {totalPages}
-          </p>
-          {page * PAGE_SIZE < result.total ? (
-            <a
-              href={pageHref(page + 1)}
-              rel="next"
-              className={styles.pageLink}
-              aria-label="Sonraki sayfa"
-            >
-              Sonraki
-            </a>
-          ) : null}
-        </nav>
+        </div>
       ) : null}
+
+      <Suspense fallback={<ResultsRegionSkeleton statusLabel="Sonuçlar yükleniyor" />}>
+        <TextSearchResults
+          query={query}
+          queryObject={plan.mode === "conversation" ? plan.queryObject : null}
+          isNewSearch={steps.length === 0 && replyText === null}
+          requestedSort={requestedSort}
+          page={page}
+          hrefFor={({ sort, page: target }) => aramaHref({ query, steps, sort, page: target })}
+        />
+      </Suspense>
     </div>
   );
 }

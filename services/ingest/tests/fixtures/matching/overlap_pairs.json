@@ -674,7 +674,7 @@
         "barcode": null
       },
       "evidence": "barcode",
-      "note": "DUZELTME (0030): ilk etiket 'farkli toner' idi. Iki magaza ayni barkodu tasiyor (8809652589794; Flavus /products/<handle>.js barcode, Vionine sku). Kamuya acik perakende kayitlari bu barkodu 'Numbuzin No.9 NAD+ PDRN Glow Boosting Toner 150ml' olarak listeliyor: ayni urun, magazalar farkli ad parcasi kullaniyor."
+      "note": "DUZELTME (0034): ilk etiket 'farkli toner' idi. Iki magaza ayni barkodu tasiyor (8809652589794; Flavus /products/<handle>.js barcode, Vionine sku). Kamuya acik perakende kayitlari bu barkodu 'Numbuzin No.9 NAD+ PDRN Glow Boosting Toner 150ml' olarak listeliyor: ayni urun, magazalar farkli ad parcasi kullaniyor."
     }
   ],
   "different_but_similar": [

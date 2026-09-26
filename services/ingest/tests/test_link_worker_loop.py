@@ -1,4 +1,4 @@
-"""Worker dongusu gecici Redis hatalarinda dusmez (0031 QA'sinda bulunan ariza).
+"""Worker dongusu gecici Redis hatalarinda dusmez (0035 QA'sinda bulunan ariza).
 
 redis-py'nin soket okuma suresi BRPOP bekleme suresine esitken bos kuyrukta
 ilk bekleme `TimeoutError` ile bitiyor ve worker sureci cikiyordu.

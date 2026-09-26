@@ -16,6 +16,10 @@ export interface SearchConversationInputProps {
   action: string;
   inputName: string;
   hiddenFields: readonly { name: string; value: string }[];
+  /** Anlasilmayan yanit geri doldurulur: kullanici duzeltip tekrar gonderebilir. */
+  defaultValue?: string;
+  /** Girdiyi aciklayan bildirimin kimligi (orn. "anlayamadım" notu). */
+  describedBy?: string;
   className?: string;
 }
 
@@ -27,6 +31,8 @@ export function SearchConversationInput({
   action,
   inputName,
   hiddenFields,
+  defaultValue,
+  describedBy,
   className,
 }: SearchConversationInputProps) {
   return (
@@ -45,6 +51,8 @@ export function SearchConversationInput({
           type="text"
           name={inputName}
           placeholder={placeholder}
+          defaultValue={defaultValue}
+          aria-describedby={describedBy}
           className={styles.input}
           autoComplete="off"
           enterKeyHint="send"

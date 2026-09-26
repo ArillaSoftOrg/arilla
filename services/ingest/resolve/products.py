@@ -86,7 +86,7 @@ def load_brand_index(conn: psycopg.Connection) -> dict[str, str]:
 
 
 def infer_brand(title: str, brands: dict[str, str]) -> str | None:
-    """Markasiz offer icin baslik ONEKINDEN bilinen marka (0030).
+    """Markasiz offer icin baslik ONEKINDEN bilinen marka (0034).
 
     Bazi magazalar `vendor` alanina markayi degil kendi adini yaziyor
     (Sasha Kozmetik, 0029'da eslenmedi). Marka eksik kalinca karsi taraf

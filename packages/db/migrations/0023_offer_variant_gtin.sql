@@ -1,9 +1,9 @@
--- 0022 — varyant duzeyinde barkod (docs/decisions/0032)
+-- 0022 — varyant duzeyinde barkod (docs/decisions/0036)
 --
 -- Tek offer birden fazla ticari varyant tasiyabilir (Korendy: ayni urunun
 -- 60 ml ve 100 ml'si tek offer'in iki `offer_variant` satiri). Her boyutun
 -- barkodu farklidir; offer duzeyinde tek bir barkod bu durumda YANLISTIR
--- (0030'daki "tek gecerli barkod" kurali bir boyutun barkodunu tum offer'a
+-- (0034'daki "tek gecerli barkod" kurali bir boyutun barkodunu tum offer'a
 -- yaziyordu). Barkod, varyantin zaten sahibi oldugu satira yazilir — `sku`
 -- 0017'de ayni gerekceyle buraya eklendi.
 --

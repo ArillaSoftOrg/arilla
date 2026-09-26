@@ -1,6 +1,6 @@
 /**
  * `/ara/link` — yapıştırılan ürün linkine benzer katalog ürünleri
- * (docs/decisions/0031). Bu dosya yalnızca OKUR.
+ * (docs/decisions/0035). Bu dosya yalnızca OKUR.
  *
  * İstek yolunda model çağrısı yok (CLAUDE.md kural 1): kaynak görselin
  * embedding'ini Python worker'ı üretir ve `link_resolution_request.image_embedding_id`
@@ -174,7 +174,7 @@ const RESULT_LIMIT = 24;
 
 /**
  * Görsel benzerlik tabanı (jina-clip-v2, img512-v1). Yerel katalogdaki gerçek
- * vektörlerin tüm çiftleri (0031): farklı kategori + farklı marka p90 0.650,
+ * vektörlerin tüm çiftleri (0035): farklı kategori + farklı marka p90 0.650,
  * p99 0.742; aynı kategori + farklı marka p90 0.718; aynı kategori + aynı
  * marka p50 0.748. 0.72 ilgisiz çiftlerin ~%95-99'unu eler, kategorideki
  * başka markaların üst dilimini (asıl "benzer ürün") tutar. Altındaki görsel
@@ -182,7 +182,7 @@ const RESULT_LIMIT = 24;
  */
 export const VISUAL_MIN_SIMILARITY = 0.72;
 
-/** pg_trgm `%` eşiği (varsayılan 0.3) indeksle çalışır; ölçüm: 0031. */
+/** pg_trgm `%` eşiği (varsayılan 0.3) indeksle çalışır; ölçüm: 0035. */
 async function textCandidates(
   db: Database,
   text: string,

@@ -1,4 +1,4 @@
-"""Link aramasi: worker'in `link_resolution_request`e yazdigi arama durumu (0031).
+"""Link aramasi: worker'in `link_resolution_request`e yazdigi arama durumu (0035).
 
 `test_link_worker.py` durum gecislerini dogrular; burada link aramasinin
 ihtiyac duydugu ciktilar: kararli hata kodu, sinyaller (`source`), fiyatsiz

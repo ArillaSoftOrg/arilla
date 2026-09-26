@@ -10,6 +10,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { withStartingFrom } from "../product/get-price-comparison.ts";
 import { arrayParam } from "./ranking.ts";
 import type { AlternativeProduct } from "./result-types.ts";
 
@@ -69,7 +70,7 @@ export async function findAlternatives(
     LIMIT ${limit}
   `);
 
-  return result.rows.map((row) => ({
+  const items = result.rows.map((row) => ({
     productId: Number(row.id),
     publicId: row.public_id,
     slug: row.slug,
@@ -80,4 +81,5 @@ export async function findAlternatives(
     similarityScore: row.score,
     similarityKind: row.kind,
   }));
+  return withStartingFrom(db, items);
 }

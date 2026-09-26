@@ -1,5 +1,5 @@
 -- 0021 — link araması: kaynak ürün sinyalleri, kararlı hata kodu, önbellek anahtarı
--- (docs/decisions/0031)
+-- (docs/decisions/0035)
 --
 -- Yapıştırılan ürün linki artık yalnızca bir `offer` yazmakla bitmiyor; worker
 -- sayfadan okuduğu sinyalleri (başlık, marka, barkod, görsel...) ve kaynak

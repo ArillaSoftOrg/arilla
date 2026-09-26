@@ -1,4 +1,4 @@
-"""Kok catch-all'in ve link aramasinin Redis tuketicisi (D4, docs/decisions/0031).
+"""Kok catch-all'in ve link aramasinin Redis tuketicisi (D4, docs/decisions/0035).
 
 `apps/web`'in `packages/core/src/discovery/link-resolution.ts`'i her yeni
 linki `queue:link_resolution` listesine `{"request_id": "<uuid>"}` olarak

@@ -1,18 +1,24 @@
-import { type LexiconKind, listLexicon, recentTier3Queries } from "@arilla/core";
+import { isLexiconKind, LEXICON_KINDS, listLexicon, recentTier3Queries } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState } from "@arilla/ui";
-import { requireRole } from "../../lib/dal.ts";
+import Link from "next/link";
+import { requireCapability } from "../../lib/dal.ts";
+import styles from "../admin.module.css";
 import { LexiconTableClient } from "./lexicon-table-client.tsx";
 
-const KINDS: LexiconKind[] = ["color", "category", "brand", "size", "material", "style", "synonym"];
-
-function isLexiconKind(value: string | undefined): value is LexiconKind {
-  return KINDS.includes(value as LexiconKind);
-}
+const PAGE_SIZE = 50;
+/** Ofset sayfalaması: çok derin sayfa isteği sınırlanır. */
+const MAX_PAGE = 1000;
 
 interface SozlukSearchParams {
   tur?: string;
   q?: string;
+  sayfa?: string;
+}
+
+function parsePage(value: string | undefined): number {
+  const n = Number(value);
+  return Number.isInteger(n) && n >= 1 ? Math.min(n, MAX_PAGE) : 1;
 }
 
 /**
@@ -25,38 +31,50 @@ export default async function LexiconPage({
 }: {
   searchParams: Promise<SozlukSearchParams>;
 }) {
-  await requireRole(["moderator", "admin"]);
+  await requireCapability("dictionary.write");
 
-  const { tur, q } = await searchParams;
+  const { tur, q, sayfa } = await searchParams;
   const kind = isLexiconKind(tur) ? tur : undefined;
-  const search = q?.trim() || undefined;
+  const search = q?.trim().slice(0, 80) || undefined;
+  const page = parsePage(sayfa);
 
   const db = getDatabase();
-  const [rows, tier3] = await Promise.all([
-    listLexicon(db, { kind, search }),
+  const [fetched, tier3] = await Promise.all([
+    // Bir fazlası: sonraki sayfa var mı, COUNT çalıştırmadan.
+    listLexicon(db, { kind, search, limit: PAGE_SIZE + 1, offset: (page - 1) * PAGE_SIZE }),
     recentTier3Queries(db),
   ]);
+  const rows = fetched.slice(0, PAGE_SIZE);
+  const hasNext = fetched.length > PAGE_SIZE;
 
-  function filterHref(nextKind?: string): string {
+  function href(next: { tur?: string; sayfa?: number }): string {
     const params = new URLSearchParams();
-    if (nextKind) params.set("tur", nextKind);
+    if (next.tur) params.set("tur", next.tur);
     if (search) params.set("q", search);
+    if (next.sayfa && next.sayfa > 1) params.set("sayfa", String(next.sayfa));
     const qs = params.toString();
     return qs ? `/yonetim/sozluk?${qs}` : "/yonetim/sozluk";
   }
 
   return (
-    <main style={{ padding: 24, display: "grid", gap: 24, maxWidth: 960 }}>
-      <div>
-        <h1 style={{ margin: 0 }}>Sözlük</h1>
-      </div>
+    <div className={styles.page}>
+      <header className={styles.pageHeader}>
+        <h1 className={styles.pageTitle}>Sözlük</h1>
+        <p className={styles.muted}>
+          Kaydedilen değişiklik aramayı hemen etkiler ve denetim kaydına yazılır.
+        </p>
+      </header>
 
-      <section style={{ display: "grid", gap: 8 }}>
-        <h2 style={{ margin: 0, fontSize: 16 }}>Son 7 günde kademe 3'e düşen sorgular</h2>
+      <section className={styles.pageHeader} aria-labelledby="kademe3">
+        <h2 id="kademe3" className={styles.sectionTitle}>
+          Son 7 günde kademe 3'e düşen sorgular
+        </h2>
         {tier3.length === 0 ? (
-          <p style={{ margin: 0, color: "var(--ink-muted)" }}>Şu an aday yok.</p>
+          <p className={styles.muted}>
+            Şu an aday yok. Kademe 3 (model) henüz devrede değil; o zamana kadar bu liste boş kalır.
+          </p>
         ) : (
-          <ul style={{ margin: 0, paddingLeft: 20 }}>
+          <ul className={styles.list}>
             {tier3.map((row) => (
               <li key={row.queryNorm}>
                 {row.queryNorm} — {row.hitCount} kez
@@ -66,28 +84,36 @@ export default async function LexiconPage({
         )}
       </section>
 
-      <form
-        action="/yonetim/sozluk"
-        method="get"
-        style={{ display: "flex", gap: 8, flexWrap: "wrap" }}
-      >
-        <select name="tur" defaultValue={kind ?? ""}>
-          <option value="">Tümü</option>
-          {KINDS.map((k) => (
-            <option key={k} value={k}>
-              {k}
-            </option>
-          ))}
-        </select>
-        <input type="text" name="q" defaultValue={search ?? ""} placeholder="Ara" />
+      <form action="/yonetim/sozluk" method="get" className={styles.filters}>
+        <label className={styles.pageHeader}>
+          <span className={styles.meta}>Tür</span>
+          <select name="tur" defaultValue={kind ?? ""}>
+            <option value="">Tümü</option>
+            {LEXICON_KINDS.map((k) => (
+              <option key={k} value={k}>
+                {k}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={styles.pageHeader}>
+          <span className={styles.meta}>Ara</span>
+          <input type="text" name="q" defaultValue={search ?? ""} maxLength={80} />
+        </label>
         <button type="submit">Filtrele</button>
-        {kind || search ? <a href={filterHref()}>Temizle</a> : null}
+        {kind || search ? <Link href="/yonetim/sozluk">Temizle</Link> : null}
       </form>
 
-      {rows.length === 0 ? (
+      {rows.length === 0 && page === 1 ? (
         <EmptyState title="Sözlükte satır yok." description="Yeni bir satır ekleyerek başla." />
       ) : null}
       <LexiconTableClient rows={rows} />
-    </main>
+
+      <nav className={styles.pager} aria-label="Sayfalar">
+        {page > 1 ? <Link href={href({ tur: kind, sayfa: page - 1 })}>Önceki</Link> : null}
+        {page > 1 || hasNext ? <span className={styles.meta}>{`Sayfa ${page}`}</span> : null}
+        {hasNext ? <Link href={href({ tur: kind, sayfa: page + 1 })}>Sonraki</Link> : null}
+      </nav>
+    </div>
   );
 }

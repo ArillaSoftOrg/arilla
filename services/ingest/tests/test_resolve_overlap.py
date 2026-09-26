@@ -2,7 +2,7 @@
 
 Yerel veritabaninda overlap merchant'lari (bootstrap/overlap_merchants.json)
 yuklu degilse atlanir. Guvenlik esigi mutlak: hicbir zor negatif otomatik
-birlesmez. Geri cagirma esigi: 0029 olcumu 2 oto + 3 kuyruk idi; 0030 ile
+birlesmez. Geri cagirma esigi: 0029 olcumu 2 oto + 3 kuyruk idi; 0034 ile
 28 oto + 2 kuyruk (33 cift). Dusmesi gerileme demektir.
 """
 

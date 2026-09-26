@@ -1,0 +1,282 @@
+/*
+ * /yonetim kabuğu ve ortak iç araç desenleri. Masaüstü öncelikli, yoğun;
+ * yalnızca packages/ui/src/tokens.css belirteçleri — renk gömülmez
+ * (CLAUDE.md "Tema ve tipografi"), iki tema da belirteçlerden gelir.
+ */
+
+.shell {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  min-height: 100vh;
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.sidebar {
+  position: sticky;
+  top: 0;
+  align-self: start;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-4) var(--space-3);
+  border-right: var(--border-width) solid var(--line);
+  background: var(--surface);
+  overflow-y: auto;
+}
+
+.brand {
+  display: grid;
+  gap: var(--space-1);
+  padding: 0 var(--space-2);
+}
+
+.brandTitle {
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.meta {
+  font-size: var(--font-size-xs);
+  color: var(--ink-muted);
+}
+
+.navList {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.navLink {
+  display: block;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  color: var(--ink-secondary);
+  text-decoration: none;
+  font-size: var(--font-size-sm);
+}
+
+.navLink:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.navLink:focus-visible,
+.focusable:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.navLinkActive {
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.sidebarFooter {
+  margin-top: auto;
+  padding: 0 var(--space-2);
+}
+
+.main {
+  min-width: 0;
+  padding: var(--space-6);
+}
+
+.page {
+  display: grid;
+  gap: var(--space-6);
+  max-width: var(--content-width-wide);
+}
+
+.pageNarrow {
+  display: grid;
+  gap: var(--space-4);
+  max-width: var(--content-width-comparison);
+}
+
+.pageHeader {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.pageTitle {
+  margin: 0;
+  font-size: var(--font-size-xl);
+  line-height: var(--line-height-heading);
+}
+
+.sectionTitle {
+  margin: 0;
+  font-size: var(--font-size-md);
+}
+
+.muted {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--font-size-sm);
+}
+
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  gap: var(--space-3);
+}
+
+.tile {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.tileWarning {
+  border-color: var(--warning);
+}
+
+.tileLabel {
+  font-size: var(--font-size-xs);
+  color: var(--ink-muted);
+}
+
+.tileValue {
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.tileNote {
+  font-size: var(--font-size-xs);
+  color: var(--ink-secondary);
+}
+
+.tableWrap {
+  overflow-x: auto;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width) solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.table th {
+  background: var(--surface);
+  color: var(--ink-secondary);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--font-size-xs);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-2);
+}
+
+.pager {
+  display: flex;
+  gap: var(--space-3);
+  align-items: center;
+  font-size: var(--font-size-sm);
+}
+
+.notice {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  border: var(--border-width) solid var(--line-strong);
+  background: var(--surface);
+  font-size: var(--font-size-sm);
+}
+
+.noticeError {
+  border-color: var(--alert);
+}
+
+.list {
+  display: grid;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.dialog {
+  max-width: 420px;
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.dialog::backdrop {
+  background: var(--scrim);
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+/* Masaüstü öncelikli; dar ekranda yan menü üste taşınır, sayfa yatay kaymaz. */
+@media (max-width: 800px) {
+  .shell {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sidebar {
+    position: static;
+    height: auto;
+    border-right: none;
+    border-bottom: var(--border-width) solid var(--line);
+  }
+
+  .navList {
+    display: flex;
+    flex-wrap: wrap;
+  }
+
+  .sidebarFooter {
+    margin-top: 0;
+  }
+
+  .main {
+    padding: var(--space-4);
+  }
+}

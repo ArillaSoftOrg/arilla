@@ -138,7 +138,7 @@ class SourceReport:
     variants_written: int = 0
     duration_seconds: float = 0.0
     errors: list[str] = field(default_factory=list)
-    #: Barkod zenginlestirmesi ozeti (0032); atlandiysa None.
+    #: Barkod zenginlestirmesi ozeti (0036); atlandiysa None.
     identifiers: dict[str, Any] | None = None
 
 
@@ -269,7 +269,7 @@ def run(
             report.offers_updated = result.counts.offers_updated
             report.rejected = result.rejected
             report.variants_written = result.counts.variants_written
-            # Toplamanin hemen ardindan, ayni sirali akista (0032). Hata
+            # Toplamanin hemen ardindan, ayni sirali akista (0036). Hata
             # toplamayi dusurmez: rapora yazilir, sonraki magazaya gecilir.
             # Bagimsiz zamanlanmis is (`python -m collect.identifiers`) ayni
             # adimi tazelik onbellegiyle yeniden calistirir.

@@ -206,6 +206,13 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `product.offers_for_variant` | Mağaza fiyatları, {varyant} |
 | `product.offers_sorted_variant_note` | Fiyatlar kargo dahil toplamdır, yalnızca bu seçenek için en uygundan sıralanır. |
 | `product.offers_grouped_note` | Fiyatlar seçeneğe göre gruplanır; farklı boyutlar birbirinin daha uygun alternatifi değildir. |
+| `product.card_price_from` | {fiyat}'den başlayan (yalnızca varyantları farklı fiyatlı ürünlerde) |
+| `product.variant_history_unavailable` | {varyant} için henüz yeterli fiyat geçmişi yok. |
+| `product.variant_history_needs_selection` | Fiyat geçmişi, bir boyut seçildiğinde yalnızca o boyut için gösterilir. |
+| `product.variant_history_coverage` | Geçmiş, bu boyutu satan {toplam} mağazanın {katılan} tanesinin verisini içeriyor. |
+| `product.variant_restock` | Stok gelince haber ver |
+| `product.variant_restock_created` | {varyant} stoğa gelince haber vereceğiz. |
+| `product.variant_restock_unavailable` | Bu seçenek hiçbir mağazada listelenmediği için stok alarmı kurulamaz. |
 | `product.size_label` | Beden |
 | `product.color_fallback` | Renk {n} |
 | `product.price_history_title` | Fiyat geçmişi |
@@ -291,9 +298,9 @@ Giriş, fiyat alarmı ve stok bildirimi **işlemsel iletidir.** Haftalık özet
 
 ## Yönetim
 
-Rol gerektiren `/yonetim/*` ekranları için. Erişim `requireRole(["moderator",
-"admin"])` ile her sayfa ve server action'da ayrı ayrı zorlanır (`app/lib/
-dal.ts`) - `docs/routes.md`'nin öngördüğü gibi.
+Rol gerektiren `/yonetim/*` ekranları için. Erişim `requireCapability(<yetenek>)`
+ile her sayfa ve server action'da ayrı ayrı zorlanır (`app/lib/dal.ts`); core
+mutasyonu aynı yeteneği tekrar denetler (docs/decisions/0039).
 
 | Anahtar | Metin |
 | --- | --- |
@@ -323,7 +330,33 @@ dal.ts`) - `docs/routes.md`'nin öngördüğü gibi.
 | `admin.lexicon.kind_all` | Tümü |
 | `admin.lexicon.empty` | Sözlükte satır yok. |
 | `admin.lexicon.tier3_heading` | Son 7 günde kademe 3'e düşen sorgular |
-| `admin.lexicon.tier3_empty` | Şu an aday yok. |
+| `admin.lexicon.tier3_empty` | Şu an aday yok. Kademe 3 (model) henüz devrede değil; o zamana kadar bu liste boş kalır. |
+| `admin.lexicon.intro` | Kaydedilen değişiklik aramayı hemen etkiler ve denetim kaydına yazılır. |
+| `admin.lexicon.delete` | Sil |
+| `admin.lexicon.delete_title` | Satırı sil |
+| `admin.lexicon.delete_body` | "{yüzey}" ({tür}) sözlükten silinecek. Arama hemen etkilenir; silinen değer denetim kaydında kalır. |
+| `admin.lexicon.duplicate` | Bu tür ve yüzeyle başka bir satır zaten var. |
+| `admin.lexicon.not_found` | Satır bulunamadı; başka bir yerde silinmiş olabilir. Sayfayı yenile. |
+| `admin.lexicon.save_failed` | Kaydedilemedi. Tekrar dene. |
+| `admin.lexicon.prev_page` | Önceki |
+| `admin.lexicon.next_page` | Sonraki |
+| `admin.matching.conflict` | Bu teklif bu arada başka bir ürüne bağlanmış. Reddedebilir ya da atlayabilirsin. |
+| `admin.matching.already_decided` | Bu satır başka bir yerde zaten karara bağlanmış. |
+| `admin.matching.save_failed` | Karar kaydedilemedi. Tekrar dene. |
+| `admin.shell.title` | Arilla yönetim |
+| `admin.shell.back_to_site` | Siteye dön |
+| `admin.shell.nav_overview` | Genel bakış |
+| `admin.shell.nav_audit` | Denetim kaydı |
+| `admin.confirm.cancel` | Vazgeç |
+| `admin.overview.title` | Genel bakış |
+| `admin.overview.no_search_metrics` | Arama sayısı ve sonuçsuz arama oranı burada yok: arama günlüğü henüz tutulmuyor. |
+| `admin.overview.attention_heading` | Dikkat gerektiren mağazalar |
+| `admin.overview.attention_empty` | Son koşusu başarısız ya da kısmi biten mağaza yok. |
+| `admin.audit.title` | Denetim kaydı |
+| `admin.audit.intro` | Yönetim ekranlarındaki her değişiklik burada, değiştirilemez olarak tutulur. Yeniden eskiye. |
+| `admin.audit.empty` | Kayıt yok. |
+| `admin.audit.older` | Daha eski kayıtlar |
+| `admin.audit.newest` | En yeniye dön |
 
 ## Hukuki
 
@@ -390,7 +423,7 @@ Arama sonucunda görünen ama sayfada gösterilmeyen metinler (D6). `{ürün}` v
 
 ## Link araması
 
-Kaynak: `apps/web/app/ara/link/link-search-copy.ts` (docs/decisions/0031).
+Kaynak: `apps/web/app/ara/link/link-search-copy.ts` (docs/decisions/0035).
 
 | Anahtar | Metin |
 | --- | --- |

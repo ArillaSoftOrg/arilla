@@ -64,7 +64,7 @@ def veto_reason(left: ProductKey, right: ProductKey) -> str | None:
     urunlerdir.
     """
     # Iki gecerli ve FARKLI barkod: farkli urun (orn. Reju 2000 / 5000,
-    # ayni modelin iki hacmi). Metin ne kadar benzese de birlesmez (0030).
+    # ayni modelin iki hacmi). Metin ne kadar benzese de birlesmez (0034).
     if left.gtin and right.gtin and left.gtin != right.gtin:
         return f"barkod: {left.gtin} != {right.gtin}"
     if left.color and right.color and not colors_consistent(left, right):
@@ -219,7 +219,7 @@ def combine(
 
 
 def auto_eligible(result: ScoreResult, left: ProductKey, right: ProductKey) -> bool:
-    """AUTO_ACCEPT kademesi (docs/decisions/0030).
+    """AUTO_ACCEPT kademesi (docs/decisions/0034).
 
     Otomatik birlestirme icin skor yetmez; kanit turu da gerekir:
     - kesin kimlik (gtin/mpn), ya da

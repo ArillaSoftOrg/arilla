@@ -8,7 +8,7 @@ import { notFound, redirect } from "next/navigation";
  * yeter; gerçek bir rota (örn. `/urun/x`) varsa Next önce ona gider, bu
  * dosyaya hiç düşmez.
  *
- * Bu rota yalnızca bir KISAYOLDUR (docs/decisions/0031): dış adresi geri
+ * Bu rota yalnızca bir KISAYOLDUR (docs/decisions/0035): dış adresi geri
  * kurar ve kanonik link araması adresine (`/ara/link?url=...`) yönlendirir.
  * Çözümleme, bekleme ve sonuç tek yerde - arama kutusuna yapıştırılan link de
  * aynı adrese gelir.
