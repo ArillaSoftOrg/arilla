@@ -15,6 +15,7 @@ const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const ERROR_COPY: Record<string, string> = {
   too_large: "Fotoğraf çok büyük. 4 MB'tan küçük bir dosya dener misin?",
   invalid_type: "Bir şeyler ters gitti. Tekrar dener misin?",
+  unprocessable: "Bu görseli işleyemedik. Başka bir fotoğrafla yeniden dener misin?",
   daily_limit: "Bugünlük görsel arama hakkın doldu. Yarın tekrar bekleriz.",
   unavailable: "Fotoğrafla arama şu an kullanılamıyor. Biraz sonra tekrar dener misin?",
   error: "Bir şeyler ters gitti. Tekrar dener misin?",

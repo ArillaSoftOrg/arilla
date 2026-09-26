@@ -7,7 +7,10 @@ import {
   EmbeddingUnavailableError,
   embedUploadedImage,
   getEmbeddingClient,
+  ImageRejectedError,
   isRedisUnavailableError,
+  type PreparedImage,
+  preprocessImage,
   recordImageSearchAndCheckLimit,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -23,7 +26,15 @@ const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 export type UploadImageResult =
   | { status: "ok"; imageUploadId: number }
-  | { status: "too_large" | "invalid_type" | "daily_limit" | "unavailable" | "error" };
+  | {
+      status:
+        | "too_large"
+        | "invalid_type"
+        | "unprocessable"
+        | "daily_limit"
+        | "unavailable"
+        | "error";
+    };
 
 /**
  * `/ara`'nın aksine bu sayfa `proxy.ts`'in `session_id` çerezine bağımlı
@@ -72,6 +83,20 @@ export async function uploadImageForSearch(formData: FormData): Promise<UploadIm
     throw error;
   }
 
+  // Gorsel gunluk hak harcanmadan ONCE dogrulanir ve on islenir (0030):
+  // decode edilemeyen ya da sozlesme disi gorsel hakki yakmaz, saglayiciya
+  // gitmez. Bellekte kalir; diske yazilmaz.
+  let prepared: PreparedImage;
+  try {
+    prepared = await preprocessImage(Buffer.from(await file.arrayBuffer()));
+  } catch (error) {
+    if (error instanceof ImageRejectedError) {
+      console.error(`visual search image rejected: ${error.reason}`);
+      return { status: "unprocessable" };
+    }
+    throw error;
+  }
+
   const sessionId = await ensureSessionId();
   const user = await verifySession();
 
@@ -94,13 +119,13 @@ export async function uploadImageForSearch(formData: FormData): Promise<UploadIm
     return { status: "daily_limit" };
   }
 
-  const bytes = Buffer.from(await file.arrayBuffer());
   try {
     const result = await embedUploadedImage(
       getDatabase(),
       {
-        bytes,
-        mimeType: file.type,
+        bytes: prepared.bytes,
+        prepared,
+        mimeType: prepared.mimeType,
         sessionId,
         userId: user?.id ?? null,
       },

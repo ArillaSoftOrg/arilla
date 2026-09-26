@@ -191,6 +191,17 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `product.shipping_cost` | {tutar} kargo |
 | `product.in_stock` | Stokta |
 | `product.best_offer` | En uygun fiyat |
+| `product.starting_price` | Başlangıç fiyatı |
+| `product.variant_label` | Boyut |
+| `product.variant_choose_hint` | Fiyat boyut seçimine göre değişir. Karşılaştırmak için bir seçenek seç. |
+| `product.variant_missing` | Seçtiğin boyut şu an hiçbir mağazada yok. Başka bir seçenek dene. |
+| `product.variant_from` | {fiyat}'den |
+| `product.best_offer_for_variant` | En uygun teklif, {varyant} |
+| `product.unit_price` | 100 ml: {fiyat} (tamamlayıcı; mağaza fiyatının yerine geçmez) |
+| `product.variant_unknown` | Boyutu belirtilmemiş |
+| `product.offers_for_variant` | Mağaza fiyatları, {varyant} |
+| `product.offers_sorted_variant_note` | Fiyatlar kargo dahil toplamdır, yalnızca bu seçenek için en uygundan sıralanır. |
+| `product.offers_grouped_note` | Fiyatlar seçeneğe göre gruplanır; farklı boyutlar birbirinin daha uygun alternatifi değildir. |
 | `product.size_label` | Beden |
 | `product.color_fallback` | Renk {n} |
 | `product.price_history_title` | Fiyat geçmişi |
@@ -335,6 +346,26 @@ Arama sonucunda görünen ama sayfada gösterilmeyen metinler (D6). `{ürün}` v
 | `seo.product_title_no_brand` | {ürün} fiyat karşılaştırma |
 | `seo.product_description` | {ürün} fiyatlarını karşılaştır, en uygun fiyatlı mağazayı bul. |
 
+## Link araması
+
+Kaynak: `apps/web/app/ara/link/link-search-copy.ts` (docs/decisions/0031).
+
+| Anahtar | Metin |
+| --- | --- |
+| `link_search.pending_title` | Ürün inceleniyor… |
+| `link_search.results_title` | Bu ürüne benzer sonuçlar |
+| `link_search.same_title` | Bu ürün Arilla'da da var |
+| `link_search.source_label` | İncelediğin ürün |
+| `link_search.source_note` | Bu ürün başka bir sitede. Aşağıdakiler Arilla kataloğundan. |
+| `link_search.empty_title` | Bu ürüne benzeyen bir şey bulamadık. |
+| `link_search.timeout_title` | İnceleme beklenenden uzun sürüyor. |
+| `link_search.robots_disallowed` | Bu site ürün sayfasının okunmasına izin vermiyor. |
+| `link_search.no_product` | Bu sayfada ürün bilgisi bulamadık. |
+| `link_search.daily_limit` | Bugünlük bağlantı arama hakkın doldu. |
+
+"Aynı ürün" yalnızca barkod ya da marka + üretici kodu eşleşmesinde yazılır;
+görsel benzerlik "aynı" diye etiketlenmez.
+
 ## Hata
 
 | Anahtar | Metin |
@@ -353,5 +384,6 @@ Arama sonucunda görünen ama sayfada gösterilmeyen metinler (D6). `{ürün}` v
 | `error.visual_search_unavailable` | Fotoğrafla arama şu an kullanılamıyor. Biraz sonra tekrar dener misin? |
 | `error.upload_not_product` | Bu fotoğrafta bir ürün göremedik. Ürünün net göründüğü bir fotoğraf dener misin? |
 | `error.daily_limit` | Bugünlük görsel arama hakkın doldu. Yarın tekrar bekleriz. |
+| `error.upload_unprocessable` | Bu görseli işleyemedik. Başka bir fotoğrafla yeniden dener misin? |
 
 Hatalar özür dilemez, ne olduğunu ve ne yapılacağını söyler.

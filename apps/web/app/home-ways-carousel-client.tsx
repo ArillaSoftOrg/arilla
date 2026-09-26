@@ -10,7 +10,10 @@ export interface HomeWayCard {
   imageUrl: string;
   imageAlt: string;
   tone: "aqua" | "mist" | "warm";
+  mode: "image" | "link" | "chat" | "compare";
   mockLabel?: string;
+  helperLabel?: string;
+  mockImageUrl?: string;
 }
 
 export function HomeWaysCarousel({
@@ -36,7 +39,7 @@ export function HomeWaysCarousel({
         <h2 id="nasil-calisir-baslik" className={styles.waysTitle}>
           {title}
         </h2>
-        <div className={styles.waysControls} aria-label={`${title} kartlarını gez`}>
+        <div className={styles.waysControls}>
           <button
             type="button"
             className={styles.waysControl}
@@ -61,14 +64,48 @@ export function HomeWaysCarousel({
         {items.map((item) => (
           <li key={item.id} className={styles.wayItem}>
             <article className={`${styles.wayCard} ${styles[`wayCard_${item.tone}`]}`}>
-              <div className={styles.wayVisual}>
-                {item.mockLabel ? <div className={styles.wayMockLabel}>{item.mockLabel}</div> : null}
-                <ProductImage
-                  src={item.imageUrl}
-                  alt={item.imageAlt}
-                  className={styles.wayImage}
-                  fit="contain"
-                />
+              <div
+                className={`${styles.wayVisual} ${item.mockImageUrl ? styles.wayVisual_bitmap : ""}`}
+              >
+                {item.mockImageUrl ? (
+                  <ProductImage
+                    src={item.mockImageUrl}
+                    alt=""
+                    className={styles.wayMockImage}
+                    fit="cover"
+                  />
+                ) : (
+                  <>
+                    <div className={`${styles.wayChrome} ${styles[`wayChrome_${item.mode}`]}`}>
+                      <div className={styles.wayChromeTop}>
+                        <span className={styles.wayDot} />
+                        <span className={styles.wayDot} />
+                        <span className={styles.wayDot} />
+                      </div>
+                      {item.mockLabel ? (
+                        <div className={styles.wayMockLabel}>
+                          <span className={styles.wayMockIcon} aria-hidden="true">
+                            {item.mode === "link" ? "/" : item.mode === "chat" ? "“" : "+"}
+                          </span>
+                          <span className={styles.wayMockText}>{item.mockLabel}</span>
+                        </div>
+                      ) : null}
+                    </div>
+                    <ProductImage
+                      src={item.imageUrl}
+                      alt={item.imageAlt}
+                      className={styles.wayImage}
+                      fit="contain"
+                    />
+                    {item.helperLabel ? (
+                      <div className={styles.wayResultRail} aria-hidden="true">
+                        <span className={styles.wayResultTitle}>{item.helperLabel}</span>
+                        <span className={styles.wayResultLine} />
+                        <span className={styles.wayResultLine} />
+                      </div>
+                    ) : null}
+                  </>
+                )}
                 <span className={styles.playBadge} aria-hidden="true" />
               </div>
               <h3 className={styles.wayCaption}>{item.title}</h3>

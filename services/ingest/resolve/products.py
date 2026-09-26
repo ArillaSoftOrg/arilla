@@ -73,6 +73,37 @@ def unique_slug(conn: psycopg.Connection, base: str) -> str:
             suffix += 1
 
 
+#: Basliktan marka cikarimi icin en kisa marka adi: "AB" gibi kisa adlar
+#: siradan kelimelerle cakisir.
+MIN_INFERRED_BRAND_LENGTH = 3
+
+
+def load_brand_index(conn: psycopg.Connection) -> dict[str, str]:
+    """`name_norm` -> gorunen ad. Kosu basina bir kez okunur (marka tablosu kucuk)."""
+    with conn.cursor() as cur:
+        cur.execute("SELECT name_norm, name FROM brand")
+        return {str(norm): str(name) for norm, name in cur.fetchall()}
+
+
+def infer_brand(title: str, brands: dict[str, str]) -> str | None:
+    """Markasiz offer icin baslik ONEKINDEN bilinen marka (0030).
+
+    Bazi magazalar `vendor` alanina markayi degil kendi adini yaziyor
+    (Sasha Kozmetik, 0029'da eslenmedi). Marka eksik kalinca karsi taraf
+    markasini basliktan siliyor, bu taraf silmiyor; token kumeleri bosuna
+    ayrisiyordu. Yalnizca katalogda ZATEN var olan marka, yalnizca basligin
+    ilk 1-3 kelimesiyle birebir eslesirse. Yeni marka uretilmez.
+    """
+    words = title.split()
+    for count in (3, 2, 1):
+        if len(words) < count:
+            continue
+        candidate = strip_accents(" ".join(words[:count])).lower().replace(" ", "")
+        if len(candidate) >= MIN_INFERRED_BRAND_LENGTH and candidate in brands:
+            return brands[candidate]
+    return None
+
+
 def resolve_brand(conn: psycopg.Connection, name: str | None) -> int | None:
     """Markayi bulur, yoksa acar. Marka kimliktir; kaybedilmemeli."""
     if not name or not name.strip():

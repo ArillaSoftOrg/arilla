@@ -1,21 +1,16 @@
 import { getDiscoverySlots, todaySlotDate } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import {
-  DiscoveryGrid,
-  HomeHero,
-  Section,
-  TrendCollectionCard,
-} from "@arilla/ui";
+import { DiscoveryGrid, HomeHero, Section, TrendCollectionCard } from "@arilla/ui";
 import type { Metadata } from "next";
 import { DEMO_HOMEPAGE_TRENDS } from "../data/demo/homepage-trends.ts";
 import { findDemoProduct } from "../data/demo/products.ts";
 import { resolveDiscoveryItems } from "./discovery-adapter.ts";
-import { HomeWaysCarousel, type HomeWayCard } from "./home-ways-carousel-client.tsx";
 import styles from "./home.module.css";
 import { HOME_COPY } from "./home-copy.ts";
 import { homeSectionLinks } from "./home-footer-groups.ts";
 import { HomeSearchComposer } from "./home-search-composer-client.tsx";
 import { HomeSectionHeading } from "./home-section-heading.tsx";
+import { type HomeWayCard, HomeWaysCarousel } from "./home-ways-carousel-client.tsx";
 import { PublicSiteShell } from "./public-site-shell.tsx";
 
 export const metadata: Metadata = {
@@ -26,29 +21,37 @@ const HOME_WAYS: readonly HomeWayCard[] = [
   {
     id: "photo-search",
     title: "Fotoğrafla ara",
-    mockLabel: "Görsel yükle",
+    mockLabel: "Fotoğraf yükle",
+    mockImageUrl: "/ways/photo-search.png",
     tone: "aqua",
+    mode: "image",
     ...pickWayProduct("ikea-markus-chair"),
   },
   {
     id: "paste-link",
     title: "Ürün linki yapıştır",
     mockLabel: "https://magaza.com/urun",
+    mockImageUrl: "/ways/paste-link.png",
     tone: "mist",
+    mode: "link",
     ...pickWayProduct("ikea-forsa-lamp"),
   },
   {
     id: "chat-refine",
     title: "Tarifle netleştir",
     mockLabel: "Daha sade, siyah, günlük",
+    mockImageUrl: "/ways/chat-refine.png",
     tone: "warm",
+    mode: "chat",
     ...pickWayProduct("nike-air-force-1-07"),
   },
   {
     id: "compare-offers",
     title: "Benzerlerini karşılaştır",
     mockLabel: "Aynı stile yakın seçenekler",
+    mockImageUrl: "/ways/compare-offers.png",
     tone: "aqua",
+    mode: "compare",
     ...pickWayProduct("carhartt-wip-detroit-jacket"),
   },
 ];
@@ -92,7 +95,7 @@ async function loadDiscoveryItems(): Promise<Awaited<ReturnType<typeof getDiscov
       error instanceof Error
         ? `${error.name}${"code" in error ? `:${String(error.code)}` : ""}`
         : "unknown";
-    console.error(
+    console.warn(
       `[anasayfa] discovery_slot sorgusu basarisiz, bos liste ile devam ediliyor (${code})`,
     );
     return [];

@@ -1,13 +1,27 @@
 import {
+  type ConversationPlan,
   isRedisUnavailableError,
+  loadLexicon,
+  planConversation,
+  type QueryObject,
   recordSearchAndCheckWall,
   resolveQuery,
   type SortMode,
   search,
 } from "@arilla/core";
-import { getDatabase } from "@arilla/db";
-import { ClarificationBar, EmptyState, SearchForm, SortTabs } from "@arilla/ui";
+import { DEFAULT_CLARIFICATION_REGISTRY } from "@arilla/core/clarification";
+import { type Database, getDatabase } from "@arilla/db";
+import {
+  ClarificationBar,
+  ClarificationQuestion,
+  EmptyState,
+  SearchConversationInput,
+  SearchForm,
+  SearchIntentChips,
+  SortTabs,
+} from "@arilla/ui";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
 import { verifySession } from "../lib/dal.ts";
 import { PhotoSearchButton } from "../photo-search-client.tsx";
 import styles from "./ara.module.css";
@@ -39,6 +53,51 @@ interface AramaSearchParams {
   q?: string;
   sort?: string;
   sayfa?: string;
+  /** Konusma adimlari (docs/decisions/0030, `CONVERSATION_PARAM`). */
+  n?: string | string[];
+  /** Soru ya da daraltma kutusundan gelen serbest yanit; kanonik URL'e yonlendirilir. */
+  yanit?: string;
+}
+
+function toList(value: string | string[] | undefined): string[] {
+  if (value === undefined) return [];
+  return Array.isArray(value) ? value : [value];
+}
+
+/** Konusma adimlarini koruyan /ara linki. Sayfa 1 ve "balanced" varsayilandir, yazilmaz. */
+function aramaHref({
+  query,
+  steps,
+  sort,
+  page,
+}: {
+  query: string;
+  steps: readonly string[];
+  sort?: SortMode;
+  page?: number;
+}): string {
+  const params = new URLSearchParams({ q: query });
+  for (const step of steps) params.append("n", step);
+  if (sort && sort !== "balanced") params.set("sort", sort);
+  if (page && page > 1) params.set("sayfa", String(page));
+  return `/ara?${params.toString()}`;
+}
+
+/**
+ * Netlestirme katmani calismazsa (sozluk okunamadi, beklenmeyen hata) arama
+ * calismaya devam eder: kullanicinin sorgusu mevcut yoldan aranir.
+ */
+async function planSafely(
+  db: Database,
+  request: { query: string; steps: readonly string[]; reply: string | null },
+): Promise<ConversationPlan> {
+  try {
+    const lexicon = await loadLexicon(db);
+    return planConversation(request, { registry: DEFAULT_CLARIFICATION_REGISTRY, lexicon });
+  } catch (error) {
+    console.error("[ara] clarification unavailable, falling back to plain search", error);
+    return { mode: "conventional", query: request.query, reason: "no_domain" };
+  }
 }
 
 /**
@@ -52,10 +111,12 @@ export default async function AramaPage({
 }: {
   searchParams: Promise<AramaSearchParams>;
 }) {
-  const { q, sort: sortParam, sayfa } = await searchParams;
-  const query = q?.trim() ?? "";
+  const { q, sort: sortParam, sayfa, n, yanit } = await searchParams;
+  const requestedQuery = q?.trim() ?? "";
+  const requestedSteps = toList(n);
+  const reply = yanit?.trim() || null;
 
-  if (!query) {
+  if (!requestedQuery) {
     return (
       <div className={styles.page}>
         <header className={styles.header}>
@@ -68,14 +129,31 @@ export default async function AramaPage({
   }
 
   const db = getDatabase();
+  const plan = await planSafely(db, { query: requestedQuery, steps: requestedSteps, reply });
+  const query = plan.query;
+  const steps = plan.mode === "conversation" ? plan.steps : [];
+  const requestedSort = isSortMode(sortParam) ? sortParam : "balanced";
+
+  // Serbest yanit ve bayat adimlar kanonik URL'e cevrilir: geri tusu ve
+  // paylasilan link ayni konusmayi kurar, `yanit` URL'de kalmaz.
+  if (
+    reply !== null ||
+    query !== requestedQuery ||
+    (plan.mode === "conversation" && plan.droppedInvalidStep) ||
+    (plan.mode === "conventional" && requestedSteps.length > 0)
+  ) {
+    redirect(aramaHref({ query, steps, sort: requestedSort }));
+  }
 
   // decision 0002: ilk N sorgu serbest, sonrasında modal. Girişi olanlar için
   // hiç sayılmaz; session_id proxy.ts tarafından garanti edilir ama bu istek
   // proxy'nin ilk kez yazdığı çerezi henüz görmüyor olabilir (Next: Server
   // Component render sırasında çerez okunur, o istekte YAZILAMAZ).
+  // Bir sorunun cevabi ya da daraltma yeni bir arama degildir; duvar
+  // sayacina yalnizca konusmanin ilk istegi yazilir.
   let shouldShowWall = false;
   const user = await verifySession();
-  if (!user) {
+  if (!user && steps.length === 0) {
     const sessionId = (await cookies()).get("session_id")?.value;
     if (sessionId) {
       // Arama duvari yalnizca surtunme (karar 0002): Redis erisilemezse arama
@@ -89,9 +167,15 @@ export default async function AramaPage({
     }
   }
 
-  const { parsed, needsClarification, candidateCategories } = await resolveQuery(db, query);
+  let parsed: QueryObject;
+  let needsClarification = false;
+  let candidateCategories: Awaited<ReturnType<typeof resolveQuery>>["candidateCategories"] = null;
+  if (plan.mode === "conversation") {
+    parsed = plan.queryObject;
+  } else {
+    ({ parsed, needsClarification, candidateCategories } = await resolveQuery(db, query));
+  }
 
-  const requestedSort = isSortMode(sortParam) ? sortParam : "balanced";
   const hasAnchor = parsed.anchor !== null;
   // C1'in metin ayristiricisi her zaman anchor: null uretir (kapsami disinda);
   // C2'nin search()'u closest_match'i anchor'siz kabul etmez. Metin
@@ -118,7 +202,7 @@ export default async function AramaPage({
   }
 
   function sortHref(target: SortMode): string {
-    return `/ara?${new URLSearchParams({ q: query, sort: target }).toString()}`;
+    return aramaHref({ query, steps, sort: target });
   }
 
   const tabs = [
@@ -147,8 +231,18 @@ export default async function AramaPage({
   const totalPages = Math.ceil(result.total / PAGE_SIZE);
 
   function pageHref(target: number): string {
-    return `/ara?q=${encodeURIComponent(query)}&sort=${effectiveSort}&sayfa=${target}`;
+    return aramaHref({ query, steps, sort: effectiveSort, page: target });
   }
+
+  function stepsHref(nextSteps: readonly string[]): string {
+    return aramaHref({ query, steps: nextSteps, sort: effectiveSort });
+  }
+
+  const conversationFields = [
+    { name: "q", value: query },
+    ...steps.map((value) => ({ name: "n", value })),
+    ...(effectiveSort !== "balanced" ? [{ name: "sort", value: effectiveSort }] : []),
+  ];
 
   return (
     <div className={styles.page}>
@@ -165,7 +259,60 @@ export default async function AramaPage({
       </header>
 
       <div className={styles.controls}>
-        {needsClarification && candidateCategories && candidateCategories.length > 0 ? (
+        {plan.mode === "conversation" && plan.question ? (
+          <ClarificationQuestion
+            headingId="netlestirme-sorusu"
+            question={plan.question.text}
+            options={plan.question.options.map((option) => ({
+              id: option.id,
+              label: option.label,
+              selected: option.selected,
+              href: stepsHref(option.steps),
+            }))}
+            skip={{ label: plan.question.skip.label, href: stepsHref(plan.question.skip.steps) }}
+            showResults={{
+              label: plan.question.showResults.label,
+              href: stepsHref(plan.question.showResults.steps),
+            }}
+            freeText={{
+              label: "Ya da kendi cümlenle yaz",
+              placeholder: "Aklındakini kısaca anlat",
+              action: "/ara",
+              inputName: "yanit",
+              submitLabel: "Gönder",
+              hiddenFields: conversationFields,
+            }}
+          />
+        ) : null}
+
+        {plan.mode === "conversation" ? (
+          <SearchIntentChips
+            headingId="anlasilanlar"
+            heading="Aramanda dikkate alınanlar"
+            chips={plan.understood.map((chip) => ({
+              key: chip.key,
+              label: chip.label,
+              removeHref: chip.removeSteps ? stepsHref(chip.removeSteps) : null,
+            }))}
+          />
+        ) : null}
+
+        {plan.mode === "conversation" && !plan.question ? (
+          <SearchConversationInput
+            id="aramayi-daralt"
+            label="Aramayı daralt"
+            placeholder="Örneğin: siyah olsun, 5.000 TL'yi geçmesin"
+            submitLabel="Uygula"
+            action="/ara"
+            inputName="yanit"
+            hiddenFields={conversationFields}
+          />
+        ) : null}
+
+        {plan.mode === "conventional" &&
+        needsClarification &&
+        candidateCategories &&
+        candidateCategories.length > 0 ? (
           <ClarificationBar
             intro="Hangisini arıyorsun?"
             candidates={candidateCategories.map((id) => ({

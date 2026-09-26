@@ -51,6 +51,30 @@
   scroll-snap-align: start;
 }
 
+.arrowItem {
+  display: grid;
+  flex: 0 0 auto;
+  min-height: 84px;
+  place-items: center;
+  scroll-snap-align: end;
+}
+
+.arrowCue {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  min-width: 56px;
+  min-height: 56px;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+  font-size: var(--text-h3);
+  line-height: 1;
+}
+
 .chip {
   display: inline-flex;
   align-items: center;
@@ -87,6 +111,10 @@
 @media (min-width: 640px) {
   .card {
     width: clamp(220px, 19vw, 300px);
+  }
+
+  .arrowItem {
+    padding-inline-end: var(--space-2);
   }
 }
 

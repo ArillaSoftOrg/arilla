@@ -655,6 +655,26 @@
       },
       "evidence": "brand+model+size+color",
       "note": "Termos Dunyasi her renk icin ayri urun acar; resmi magazada renk bir varyant ('Renk' secenegi, connector renk bolmesiyle ayirir). Stanley tarafi SKU = uretici model kodu."
+    },
+    {
+      "a": {
+        "merchant": "vionine",
+        "shopify_product_id": "9264807280858",
+        "title": "Numbuzin No.9 NAD+ Peptide Toner - Gözenek Karşıtı 150ml",
+        "brand": "Numbuzin",
+        "sku": "8809652589794",
+        "barcode": "8809652589794"
+      },
+      "b": {
+        "merchant": "flavus",
+        "shopify_product_id": "9066904682694",
+        "title": "Numbuzin No.9 Glow Boosting Toner 150 ml",
+        "brand": "NUMBUZIN",
+        "sku": "FLVS00906488",
+        "barcode": null
+      },
+      "evidence": "barcode",
+      "note": "DUZELTME (0030): ilk etiket 'farkli toner' idi. Iki magaza ayni barkodu tasiyor (8809652589794; Flavus /products/<handle>.js barcode, Vionine sku). Kamuya acik perakende kayitlari bu barkodu 'Numbuzin No.9 NAD+ PDRN Glow Boosting Toner 150ml' olarak listeliyor: ayni urun, magazalar farkli ad parcasi kullaniyor."
     }
   ],
   "different_but_similar": [
@@ -757,26 +777,6 @@
       },
       "evidence": "barcode",
       "note": "Numbuzin No.9 NAD+ 9 Peptides Dewy Sun Essence (8800312065429) vs No.9 NAD Bio Lifting-sil Essence (8809652587639); ikisi de 50ml."
-    },
-    {
-      "a": {
-        "merchant": "vionine",
-        "shopify_product_id": "9264807280858",
-        "title": "Numbuzin No.9 NAD+ Peptide Toner - Gözenek Karşıtı 150ml",
-        "brand": "Numbuzin",
-        "sku": "8809652589794",
-        "barcode": "8809652589794"
-      },
-      "b": {
-        "merchant": "flavus",
-        "shopify_product_id": "9066904682694",
-        "title": "Numbuzin No.9 Glow Boosting Toner 150 ml",
-        "brand": "NUMBUZIN",
-        "sku": "FLVS00906488",
-        "barcode": null
-      },
-      "evidence": "brand+model",
-      "note": "Numbuzin No.9 NAD+ Peptide Toner 150ml vs No.9 Glow Boosting Toner 150ml."
     },
     {
       "a": {

@@ -135,7 +135,7 @@
 .mobileMenuLayer {
   position: fixed;
   inset: 0;
-  z-index: var(--z-overlay);
+  z-index: 1000;
   pointer-events: none;
   visibility: hidden;
 }
@@ -162,6 +162,7 @@
   flex-direction: column;
   width: min(84vw, 360px);
   padding: var(--space-5);
+  border-inline-end: var(--border-width) solid var(--line);
   background: var(--paper);
   box-shadow: var(--shadow-md);
   transform: translateX(-100%);

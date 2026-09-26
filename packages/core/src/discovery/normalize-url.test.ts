@@ -17,6 +17,13 @@ describe("normalizeUrl", () => {
     expect(normalizeUrl("https://www.example.com/x").domain).toBe("example.com");
   });
 
+  it("keeps the real host in the fetched url (apex may not resolve)", () => {
+    const result = normalizeUrl("https://WWW.Example.com/x?utm_source=a#b");
+    expect(result.url).toBe("https://www.example.com/x");
+    expect(result.origin).toBe("https://www.example.com");
+    expect(result.externalId).toBe("/x");
+  });
+
   it("keeps non-tracking query params, sorted", () => {
     const first = normalizeUrl("https://example.com/p?b=2&a=1");
     const second = normalizeUrl("https://example.com/p?a=1&b=2");

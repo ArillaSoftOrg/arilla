@@ -42,8 +42,12 @@ def test_tracking_prefixes_are_dropped_but_similar_names_kept() -> None:
 
 
 def test_normalized_url_is_fetchable() -> None:
+    # `www.` kimlikten duser ama getirilen adreste kalir: apeks alan adi
+    # cozulmeyen magazalar var (docs/decisions/0031).
     result = normalize("https://WWW.Magaza.Example/urun/canta?utm_source=x#alt")
-    assert result.url == "https://magaza.example/urun/canta"
+    assert result.url == "https://www.magaza.example/urun/canta"
+    assert result.domain == "magaza.example"
+    assert result.external_id == "/urun/canta"
 
 
 @pytest.mark.parametrize(

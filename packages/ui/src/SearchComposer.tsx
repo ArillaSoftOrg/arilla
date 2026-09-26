@@ -1,6 +1,6 @@
 "use client";
 
-import { useId, useRef } from "react";
+import { type FormEvent, useId, useRef } from "react";
 import { Button } from "./Button.tsx";
 import { type ContinueShoppingChipItem, ContinueShoppingChips } from "./ContinueShoppingChips.tsx";
 import { ArrowRightIcon, PlusIcon } from "./icons.tsx";
@@ -33,14 +33,16 @@ export interface SearchComposerProps {
   busyMessage?: string | null;
   chips?: readonly ContinueShoppingChipItem[];
   chipsTitle?: string;
+  /** true ise http(s) veya www. ile baslayan girdiler kok link cozumleme rotasina gider. */
+  routeProductLinks?: boolean;
 }
 
 /**
  * docs/pages.md "/": ana sayfanin ana eylemi olan buyuk arama kutusu.
  * SearchForm.tsx'in JS'siz native GET sozlesmesini korur - form onSubmit
- * handler'i yok, tarayici /ara?q=...'e native submit yapar (Enter dahil).
- * Chip tiklamasi girdiyi doldurup ayni native submit'i requestSubmit() ile
- * tetikler, yeni bir API icat edilmez.
+ * normal metinde /ara?q=...'e native submit yapar (Enter dahil). Ana sayfa
+ * opt-in verdiginde ürün linkleri kok catch-all cozumleme rotasina tasinir.
+ * Chip tiklamasi girdiyi doldurup ayni submit'i requestSubmit() ile tetikler.
  *
  * Gorunum (design.md "Kutu modeli"): `--radius-lg` yuzey, `--line-strong`
  * kontrol siniri + `--shadow-xs` dinlenme, `focus-within`'de `--shadow-sm`;
@@ -59,6 +61,7 @@ export function SearchComposer({
   busyMessage,
   chips,
   chipsTitle,
+  routeProductLinks = false,
 }: SearchComposerProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -71,6 +74,27 @@ export function SearchComposer({
     formRef.current?.requestSubmit();
   }
 
+  function productLinkFromInput(value: string): string | null {
+    const trimmed = value.trim();
+    if (!trimmed) return null;
+    const candidate = /^www\./i.test(trimmed) ? `https://${trimmed}` : trimmed;
+    let url: URL;
+    try {
+      url = new URL(candidate);
+    } catch {
+      return null;
+    }
+    return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (!routeProductLinks) return;
+    const productLink = productLinkFromInput(inputRef.current?.value ?? "");
+    if (!productLink) return;
+    event.preventDefault();
+    window.location.assign(`/${encodeURIComponent(productLink)}`);
+  }
+
   return (
     <div className={styles.wrapper}>
       <search>
@@ -78,6 +102,7 @@ export function SearchComposer({
           ref={formRef}
           action={action}
           method="get"
+          onSubmit={handleSubmit}
           className={styles.box}
           aria-busy={busyMessage ? true : undefined}
         >

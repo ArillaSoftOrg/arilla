@@ -43,7 +43,19 @@ ON CONFLICT (merchant_id, external_id) DO UPDATE SET
     brand_raw               = EXCLUDED.brand_raw,
     category_raw            = EXCLUDED.category_raw,
     image_url               = EXCLUDED.image_url,
-    attributes_raw          = EXCLUDED.attributes_raw,
+    -- Kaynagin tasimadigi zenginlestirme anahtarlari (barkod,
+    -- collect/identifiers.py) yeniden toplamada kaybolmaz; kaynak kendi gtin'ini
+    -- tasiyorsa o kazanir (0030).
+    attributes_raw          = EXCLUDED.attributes_raw
+        || CASE WHEN offer.attributes_raw ? 'gtin' AND NOT (EXCLUDED.attributes_raw ? 'gtin')
+                THEN jsonb_build_object('gtin', offer.attributes_raw->'gtin',
+                                        'gtin_source', offer.attributes_raw->'gtin_source')
+                ELSE '{}'::jsonb END
+        -- Tazelik isareti de korunur: yeniden toplama barkodu yeniden istetmez (0032).
+        || CASE WHEN offer.attributes_raw ? 'identifiers_checked_at'
+                THEN jsonb_build_object('identifiers_checked_at',
+                                        offer.attributes_raw->'identifiers_checked_at')
+                ELSE '{}'::jsonb END,
     current_price           = EXCLUDED.current_price,
     list_price              = EXCLUDED.list_price,
     currency                = EXCLUDED.currency,

@@ -66,6 +66,11 @@ export function ContinueShoppingChips({
           </button>
         </li>
       ))}
+      {hasMedia ? (
+        <li className={styles.arrowItem} aria-hidden="true">
+          <span className={styles.arrowCue}>→</span>
+        </li>
+      ) : null}
     </ul>
   );
 }

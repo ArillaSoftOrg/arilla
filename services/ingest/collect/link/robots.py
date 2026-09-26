@@ -19,6 +19,7 @@ from urllib.robotparser import RobotFileParser
 
 import httpx
 
+from collect.link.safe_http import guarded_client
 from db.connection import env
 
 logger = logging.getLogger(__name__)
@@ -86,9 +87,14 @@ class RobotsCache:
     _entries: dict[str, _Entry] = field(default_factory=dict)
 
     def _client(self) -> httpx.Client:
-        return self.client or httpx.Client(
-            timeout=10.0, follow_redirects=True, headers={"User-Agent": USER_AGENT}
-        )
+        if self.client is None:
+            # robots.txt da kullanici kaynakli bir host'tan gelir: ayni SSRF
+            # korumasi (`safe_http`). Yonlendirmeleri httpx izler; her adimin
+            # IP'si baglanti aninda denetlenir.
+            self.client = guarded_client(
+                user_agent=USER_AGENT, timeout=httpx.Timeout(10.0), follow_redirects=True
+            )
+        return self.client
 
     def _load(self, origin: str) -> _Entry:
         cached = self._entries.get(origin)

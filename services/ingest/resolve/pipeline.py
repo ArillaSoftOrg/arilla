@@ -15,14 +15,19 @@ from __future__ import annotations
 
 import json
 import logging
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 import psycopg
 
 from resolve import candidates as candidate_channels
-from resolve import products
+from resolve import identifiers, products
 from resolve.normalize import ProductKey
-from resolve.score import ScoreResult, auto_accept_threshold, combine, queue_threshold
+from resolve.score import (
+    ScoreResult,
+    auto_eligible,
+    combine,
+    queue_threshold,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -107,7 +112,12 @@ def best_match(
     title: str,
     merchant_id: int | None = None,
 ) -> tuple[candidate_channels.Candidate, ScoreResult] | None:
-    """Katmanli akis: gtin/mpn kesin sonuc verirse orada durur."""
+    """Katmanli akis: kesin kimlik (varyant barkodu dahil) sonuc verirse orada durur."""
+    identity = identifiers.offer_identity(conn, offer_id, key)
+    variant_exact = identifiers.exact_variant_match(conn, offer_id, key, identity)
+    if variant_exact is not None:
+        return variant_exact
+
     exact = candidate_channels.by_exact_identifier(conn, key.gtin, key.mpn)
     for candidate in exact:
         result = combine(key, _candidate_key(candidate))
@@ -139,12 +149,26 @@ def best_match(
             )
             taken = {int(row[0]) for row in cur.fetchall()}
         pool = [candidate for candidate in pool if candidate.product_id not in taken]
+    # Barkod kumesi tam olan ve offer'in barkodunu icermeyen aday bu offer'in
+    # hicbir ticari varyanti degildir (0032): metin ne kadar benzese de elenir.
+    disjoint = identifiers.disjoint_barcode_products(
+        conn, identity, [candidate.product_id for candidate in pool]
+    )
+    pool = [candidate for candidate in pool if candidate.product_id not in disjoint]
     if not pool:
         return None
 
     scored = [(candidate, combine(key, _candidate_key(candidate))) for candidate in pool]
     winner = max(scored, key=lambda pair: pair[1].score)
-    return winner if not winner[1].vetoed else None
+    if winner[1].vetoed:
+        return None
+    # Urun ailesi != satilabilir varyant (0033): hacim adayin boyutlari arasinda
+    # yoksa metin eslesmesi otomatik kabul edilmez.
+    if not winner[1].review:
+        reason = identifiers.unverified_variant_volume(conn, key, winner[0].product_id)
+        if reason:
+            winner = (winner[0], replace(winner[1], review=reason))
+    return winner
 
 
 def resolve_offers(
@@ -155,12 +179,12 @@ def resolve_offers(
     create_missing: bool = True,
 ) -> ResolveCounts:
     counts = ResolveCounts()
-    auto = auto_accept_threshold()
     queue = queue_threshold()
 
     with conn.cursor() as cur:
         cur.execute(PENDING_OFFERS, {"merchant_id": merchant_id, "limit": limit})
         rows = cur.fetchall()
+    brands = products.load_brand_index(conn)
     counts.considered = len(rows)
 
     for (
@@ -178,6 +202,7 @@ def resolve_offers(
             if isinstance(attributes_raw, dict)
             else json.loads(attributes_raw or "{}")
         )
+        brand = brand or products.infer_brand(title, brands)
         key = _offer_key(title, brand, attributes)
 
         try:
@@ -189,9 +214,11 @@ def resolve_offers(
 
         if found is not None and found[1].score >= queue:
             candidate, result = found
-            # Gorsel ya da metin skoru ne kadar yuksek olursa olsun, dogrulanamayan
-            # renk otomatik kabul edilmez (0029).
-            status = "auto_accepted" if result.score >= auto and not result.review else "pending"
+            # AUTO_ACCEPT / REVIEW kademesi (0030): skor tek basina yetmez;
+            # kesin kimlik ya da iki tarafta bilinen ayni marka gerekir,
+            # dogrulanamayan renk (0029) her zaman REVIEW.
+            eligible = auto_eligible(result, key, _candidate_key(candidate))
+            status = "auto_accepted" if eligible else "pending"
             with conn.cursor() as cur:
                 cur.execute(
                     UPSERT_CANDIDATE,

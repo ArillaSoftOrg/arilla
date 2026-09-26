@@ -226,6 +226,50 @@ def extract_qualifier(tokens: frozenset[str], title: str = "") -> str | None:
     return "+".join(parts) if parts else None
 
 
+#: Aciklama sayilan parantez: 3+ kelime. "(24EA)", "(Haki)", "(Limited
+#: Edition)" kimligin parcasi olabilir; kalir.
+_PARENTHETICAL = re.compile(r"\(([^()]*)\)")
+#: Bosluklu tire: "Marka - Urun Adi - Turkce aciklama". Kelime ici tire
+#: ("Oil-Free", "t-shirt") ayirici DEGILDIR.
+_DASH_SPLIT = re.compile(r"\s+[-–—]\s+")
+
+
+def commercial_title(title: str, brand: str | None = None) -> str:
+    """Basligin ticari cekirdegi (docs/decisions/0030).
+
+    Kozmetik magazalari basliga uzun Turkce aciklama ekliyor:
+    "Dr. Althea - Retinol Flat Iron Eye Roller (Elastikiyet Koruyucu ...) 25ml"
+    ile "Dr. Althea Retinol Eye Roller - Kirisiklik Karsiti Goz Bakimi 25ml"
+    ayni urun ama aciklamalar yuzunden token ortusmesi 0.39'da kaliyordu.
+
+    Deterministik kurallar:
+    1. 3+ kelimelik parantez aciklamasi silinir.
+    2. Bosluklu tireyle bolunur; yalnizca markadan olusan parca atilir;
+       kalan ILK parca cekirdektir. Sonraki parcalar aciklama sayilir.
+
+    Hacim/beden/renk/kademe TAM basliktan cikarilmaya devam eder; cekirdek
+    yalnizca metin benzerligi icindir.
+    """
+    text = _PARENTHETICAL.sub(lambda m: " " if len(m.group(1).split()) >= 3 else m.group(0), title)
+    brand_tokens = set(title_tokens(brand)) if brand else set()
+    segments = [segment for segment in _DASH_SPLIT.split(text) if segment.strip()]
+    if len(segments) > 1 and brand_tokens:
+        first = set(title_tokens(segments[0]))
+        if first and first <= brand_tokens:
+            segments = segments[1:]
+    core = segments[0] if segments else text
+    # Cekirdek bos ya da tek kelime kaldiysa kural bilgi kaybettiriyor: tam baslik.
+    return core if len(core.split()) >= 2 else text
+
+
+#: "100ml", "60 ml", "0.47 L": renk seceneginde hacim yazan magazalar var
+#: (Korendy'de secenek adi renk ama deger hacim). Hacim renk degildir.
+_VOLUME_ONLY = re.compile(r"^\s*\d+(?:[.,]\d+)?\s*(ml|l|lt|litre|gr|g|kg|cl|oz)\s*$")
+
+
+_VOLUME_TOKEN = re.compile(r"^\d+(?:\.\d+)?(ml|l|gr|kg|cl)$")
+
+
 @dataclass(frozen=True)
 class ProductKey:
     """Bir teklifin ya da urunun eslestirmede kullanilan ozeti."""
@@ -238,6 +282,9 @@ class ProductKey:
     qualifier: str | None = None
     gtin: str | None = None
     mpn: str | None = None
+    #: Tam basligin tokenlari (aciklamalar dahil). `tokens` ticari cekirdektir
+    #: ve metin benzerligine girer; renk dogrulamasi tam basliga bakar.
+    all_tokens: frozenset[str] = frozenset()
 
     @property
     def title_norm(self) -> str:
@@ -257,19 +304,30 @@ class ProductKey:
         # normalize edilmis haliyle tutulur ki renk vetosu calissin (0005:
         # urun renk duzeyinde kanonik).
         explicit = strip_accents(color or "").lower().strip()
+        if _VOLUME_ONLY.match(explicit):
+            explicit = ""
         resolved_color = (
             COLOR_SYNONYMS.get(explicit)
             or ("-".join(re.sub(r"[^a-z0-9]+", " ", explicit).split()) or None)
             or extract_color(title)
         )
-        tokens = title_tokens(title, brand)
+        all_tokens = title_tokens(title, brand)
+        # Hacim ayri bir oznitelik (catisirsa veto); cekirdekte bir tarafta
+        # kalip digerinde aciklamayla silinirse benzerligi bosuna dusururdu.
+        core = frozenset(
+            token
+            for token in title_tokens(commercial_title(title, brand), brand)
+            if not _VOLUME_TOKEN.match(token)
+        )
+        tokens = core or all_tokens
         return cls(
             tokens=tokens,
+            all_tokens=all_tokens,
             brand_norm=" ".join(sorted(title_tokens(brand))) if brand else None,
             color=resolved_color,
             volume=extract_volume(title),
             size=extract_numeric_size(title),
-            qualifier=extract_qualifier(tokens, title),
+            qualifier=extract_qualifier(all_tokens, title),
             gtin=(gtin or "").strip() or None,
             mpn=(mpn or "").strip() or None,
         )

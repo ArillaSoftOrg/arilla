@@ -63,14 +63,13 @@ export const HOME_COPY = {
   privacyContactSuffix: "adresine yazabilirsin.", // privacy.contact_suffix
   navTrends: "Trendler", // nav.trends
   navDiscover: "Keşfet", // nav.discover
-  navHowItWorks: "Nasıl Çalışır", // nav.how_it_works
+  navHowItWorks: "Arama yolları", // nav.how_it_works
   navAccount: "Hesabım", // nav.account
   navDeals: "Fırsatlar", // nav.deals
   navSaved: "Kaydettiklerim", // nav.saved
   navAlerts: "Alarmlarım", // nav.alerts
   navHistory: "Geçmişim", // nav.history
-  // Baglanti aramasi arama kutusuna bagli degil - placeholder vaat etmez.
-  searchPlaceholder: "Ürün adı veya kısa bir tarif yaz", // search.placeholder
+  searchPlaceholder: "Ürün linki, fotoğraf veya kısa tarif ekle", // search.placeholder
   searchInputLabel: "Ürün ara", // search.input_label
   searchSubmitLabel: "Ara", // action.search
   loginLabel: "Giriş yap", // action.login

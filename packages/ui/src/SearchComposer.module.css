@@ -12,12 +12,15 @@
   position: relative;
   display: flex;
   align-items: flex-start;
-  min-height: 180px;
-  padding: var(--space-5);
+  min-height: 192px;
+  padding: var(--space-6);
   border: var(--border-width) solid var(--line);
-  border-radius: var(--radius-lg);
+  border-radius: 28px;
   background: var(--surface-raised);
-  box-shadow: 0 28px 80px rgba(22, 24, 29, 0.08), var(--shadow-xs);
+  box-shadow:
+    0 34px 110px rgba(22, 24, 29, 0.1),
+    0 14px 38px rgba(22, 24, 29, 0.06),
+    var(--shadow-xs);
 }
 
 .box:hover {
@@ -26,7 +29,10 @@
 
 .box:focus-within {
   border-color: var(--ink);
-  box-shadow: 0 28px 80px rgba(22, 24, 29, 0.11), var(--shadow-sm);
+  box-shadow:
+    0 34px 110px rgba(22, 24, 29, 0.13),
+    0 14px 38px rgba(22, 24, 29, 0.08),
+    var(--shadow-sm);
 }
 
 /* Girdinin kendi outline'i yok; esdeger gorunurlukte halka kutuya cizilir
@@ -47,7 +53,7 @@
 .input {
   flex: 1 1 auto;
   min-width: 0;
-  min-height: 108px;
+  min-height: 116px;
   padding: 0;
   padding-block-start: var(--space-1);
   padding-inline-end: calc(var(--size-touch-target) + var(--space-2));
@@ -74,8 +80,8 @@
 
 .actions {
   position: absolute;
-  inset-inline: var(--space-4);
-  inset-block-end: var(--space-3);
+  inset-inline: var(--space-5);
+  inset-block-end: var(--space-4);
   display: flex;
   align-items: flex-end;
   justify-content: space-between;
@@ -83,12 +89,12 @@
   pointer-events: none;
 }
 
-/* Ikon dugmesi: kare 44px dokunma hedefi, --radius-md (kutunun --radius-lg
+/* Ikon dugmeleri genis dokunma hedefi tasir; --radius-md (kutunun --radius-lg
    kosesinden kucuk - ic ice yuzey kurali). */
 .box .photoButton {
-  width: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   color: var(--ink);
   pointer-events: auto;
@@ -99,9 +105,9 @@
 }
 
 .box .submit {
-  width: 40px;
-  min-width: 40px;
-  min-height: 40px;
+  width: 48px;
+  min-width: 48px;
+  min-height: 48px;
   padding: 0;
   border-radius: var(--radius-pill);
   background: var(--surface);
@@ -123,17 +129,42 @@
 
 @media (min-width: 640px) {
   .box {
-    min-height: 180px;
+    min-height: 192px;
   }
 
   .box .submit {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
+    width: 52px;
+    min-width: 52px;
+    min-height: 52px;
   }
 
   .submitLabel {
     display: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .box {
+    min-height: 172px;
+    padding: var(--space-5);
+    border-radius: 24px;
+  }
+
+  .input {
+    min-height: 96px;
+    padding-block-start: 0;
+  }
+
+  .actions {
+    inset-inline: var(--space-4);
+    inset-block-end: var(--space-3);
+  }
+
+  .box .photoButton,
+  .box .submit {
+    width: 44px;
+    min-width: 44px;
+    min-height: 44px;
   }
 }
 

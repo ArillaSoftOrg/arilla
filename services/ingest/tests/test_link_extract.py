@@ -81,3 +81,51 @@ def test_broken_json_ld_does_not_break_the_page(html: str, expected_layer: str) 
     product = extract(html)
     assert product is not None
     assert product.source_layer == expected_layer
+
+
+# --- link aramasi (docs/decisions/0031) -------------------------------------
+
+
+def test_shopify_image_object_gives_url_not_name() -> None:
+    product = extract(_read("product_shopify.html"))
+    assert product is not None
+    assert product.source_layer == "json_ld"
+    assert product.image_url == "https://cdn.shopify.example/s/files/1/0001/canta-1.jpg?v=1"
+    assert product.sku == "ODB-SRT-001-BLK"
+    assert product.price_text == "2499.0"
+
+
+def test_price_less_product_is_rejected_for_the_catalog() -> None:
+    # Varsayilan (katalog / yenileme) davranisi degismedi: fiyat yoksa ve
+    # yalnizca gorunen metinde bir sayi varsa sezgisel katman devreye girer.
+    product = extract(_read("product_reference_no_price.html"))
+    assert product is None or product.source_layer == "heuristic"
+
+
+def test_price_less_product_is_a_reference_for_link_search() -> None:
+    product = extract(_read("product_reference_no_price.html"), allow_reference=True)
+    assert product is not None
+    assert product.source_layer == "json_ld"
+    assert product.title == "Ahsap Yemek Sandalyesi Ceviz"
+    assert product.price_text is None  # govdedeki "1299 TL" fiyat sayilmadi
+    assert product.image_url == "/media/sandalye-ceviz.jpg"
+
+
+def test_og_product_without_price_is_a_reference() -> None:
+    html = (
+        '<html><head><meta property="og:type" content="product">'
+        '<meta property="og:title" content="Keten Gomlek">'
+        '<meta property="og:image" content="https://cdn.example/g.jpg"></head></html>'
+    )
+    product = extract(html, allow_reference=True)
+    assert product is not None
+    assert product.title == "Keten Gomlek"
+    assert product.price_text is None
+
+
+def test_plain_page_is_not_a_reference_even_in_link_search() -> None:
+    html = (
+        "<html><head><title>Hakkimizda</title>"
+        '<meta property="og:title" content="Hakkimizda"></head></html>'
+    )
+    assert extract(html, allow_reference=True) is None

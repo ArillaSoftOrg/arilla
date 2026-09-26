@@ -10,6 +10,7 @@ import { createHash } from "node:crypto";
 import { apiUsage, type Database, embedding, imageUpload } from "@arilla/db";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { type EmbeddingClient, getEmbeddingClient } from "./client.ts";
+import { type PreparedImage, preprocessImage } from "./preprocess-image.ts";
 
 const PURGE_AFTER_DAYS = 30;
 
@@ -26,6 +27,8 @@ export interface EmbedUploadedImageInput {
   mimeType: string;
   sessionId: string;
   userId: number | null;
+  /** Cagiran zaten on islediyse (orn. limit harcanmadan dogrulamak icin). */
+  prepared?: PreparedImage;
 }
 
 export interface EmbedUploadedImageResult {
@@ -65,7 +68,13 @@ export async function embedUploadedImage(
   input: EmbedUploadedImageInput,
   client: EmbeddingClient = getEmbeddingClient(),
 ): Promise<EmbedUploadedImageResult> {
-  const imageHash = hashImageBytes(input.bytes);
+  // On isleme HER SEYDEN ONCE (0030): decode edilemeyen ya da sozlesme
+  // disi gorsel icin satir yazilmaz, saglayiciya gidilmez
+  // (`ImageRejectedError`). Hash on islenmis ciktinin hash'idir: cikti
+  // deterministik oldugu icin ayni fotograf ayni anahtari uretir ve on isleme
+  // surumu degisirse eski (tam boy) vektor yanlislikla yeniden kullanilmaz.
+  const prepared = input.prepared ?? (await preprocessImage(input.bytes));
+  const imageHash = hashImageBytes(prepared.bytes);
   const purgeAfter = new Date(Date.now() + PURGE_AFTER_DAYS * 24 * 60 * 60 * 1000);
 
   const [created] = await db
@@ -104,7 +113,7 @@ export async function embedUploadedImage(
     };
   }
 
-  const dataUrl = `data:${input.mimeType};base64,${input.bytes.toString("base64")}`;
+  const dataUrl = `data:${prepared.mimeType};base64,${prepared.bytes.toString("base64")}`;
   let result: Awaited<ReturnType<EmbeddingClient["embedImage"]>>;
   try {
     result = await client.embedImage(dataUrl);

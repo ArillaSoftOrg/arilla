@@ -5,7 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
-    "./clarification": "./src/clarification/index.ts"
+    "./clarification": "./src/clarification/index.ts",
+    "./link-input": "./src/discovery/link-search-input.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -19,7 +20,8 @@
     "drizzle-orm": "^0.45.2",
     "ioredis": "^5.4.1",
     "nodemailer": "^6.9.16",
-    "pg": "^8.23.0"
+    "pg": "^8.23.0",
+    "sharp": "0.35.4"
   },
   "devDependencies": {
     "@types/nodemailer": "^6.4.17",

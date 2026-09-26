@@ -9,6 +9,7 @@ const ERROR_COPY: Record<string, string> = {
   // docs/copy.md `auth.token_expired` / `auth.token_used`
   expired: "Bu bağlantının süresi dolmuş. Yeni bir tane isteyebilirsin.",
   used: "Bu bağlantı zaten kullanılmış.",
+  google: "Google ile giriş şu an tamamlanamadı. E-posta bağlantısıyla devam edebilirsin.",
 };
 
 /** docs/copy.md `auth.login_title` / `auth.login_intro`. */
