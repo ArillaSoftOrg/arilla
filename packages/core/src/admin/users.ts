@@ -180,34 +180,37 @@ export async function getUserDetail(
       .orderBy(userIdentity.createdAt)
       .limit(10);
 
-    const [sessions, saved, alerts, creatorRows, consentRows] = await Promise.all([
-      tx
-        .select({ n: count() })
-        .from(session)
-        .where(and(eq(session.userId, user.id), gt(session.expiresAt, new Date()))),
-      tx.select({ n: count() }).from(savedItem).where(eq(savedItem.userId, user.id)),
-      tx
-        .select({
-          total: count(),
-          active: sql<number>`count(*) filter (where ${alert.isActive})`.mapWith(Number),
-        })
-        .from(alert)
-        .where(eq(alert.userId, user.id)),
-      tx
-        .select({ handle: creator.handle })
-        .from(creator)
-        .where(eq(creator.userId, user.id))
-        .limit(1),
-      tx
-        .selectDistinctOn([userConsent.kind], {
-          kind: userConsent.kind,
-          granted: userConsent.granted,
-          at: userConsent.grantedAt,
-        })
-        .from(userConsent)
-        .where(eq(userConsent.userId, user.id))
-        .orderBy(userConsent.kind, desc(userConsent.grantedAt)),
-    ]);
+    // Sırayla: işlem tek bağlantı kullanır; aynı istemcide eşzamanlı sorgu
+    // pg'de kullanımdan kalkıyor (pg@9'da hata).
+    const sessions = await tx
+      .select({ n: count() })
+      .from(session)
+      .where(and(eq(session.userId, user.id), gt(session.expiresAt, new Date())));
+    const saved = await tx
+      .select({ n: count() })
+      .from(savedItem)
+      .where(eq(savedItem.userId, user.id));
+    const alerts = await tx
+      .select({
+        total: count(),
+        active: sql<number>`count(*) filter (where ${alert.isActive})`.mapWith(Number),
+      })
+      .from(alert)
+      .where(eq(alert.userId, user.id));
+    const creatorRows = await tx
+      .select({ handle: creator.handle })
+      .from(creator)
+      .where(eq(creator.userId, user.id))
+      .limit(1);
+    const consentRows = await tx
+      .selectDistinctOn([userConsent.kind], {
+        kind: userConsent.kind,
+        granted: userConsent.granted,
+        at: userConsent.grantedAt,
+      })
+      .from(userConsent)
+      .where(eq(userConsent.userId, user.id))
+      .orderBy(userConsent.kind, desc(userConsent.grantedAt));
 
     await recordAdminEvent(tx, {
       actor,

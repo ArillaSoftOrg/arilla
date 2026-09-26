@@ -75,6 +75,14 @@ function attributesText(attributes: Record<string, unknown>): string {
   return entries.map(([key, value]) => `${key}: ${valueText(value)}`).join(" · ");
 }
 
+/**
+ * Gösterimdeki `?…` işareti sorgu dizisinin gizlendiğini anlatır; kopyalanan
+ * adres onu taşımaz (yapıştırılınca açılabilir olmalı).
+ */
+function copyableUrl(url: string | null): string {
+  return (url ?? "").replace(/\?…$/, "");
+}
+
 const muted = { margin: 0, fontSize: 13, color: "var(--ink-muted)" } as const;
 
 function Side({
@@ -306,7 +314,7 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
                 variant="secondary"
                 onClick={() => {
                   void navigator.clipboard
-                    ?.writeText(current.offer.url ?? "")
+                    ?.writeText(copyableUrl(current.offer.url))
                     .then(() => setCopied(true));
                 }}
               >
