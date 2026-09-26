@@ -81,6 +81,20 @@ adına yönlendirebilir; yönlendirme izlenmediği için böyle bir mağaza `FAI
 http_301` olur. Bu durumda karar (alan adını güncellemek mi, mağazayı
 bırakmak mı) canlı rapora bakılarak ayrıca verilir.
 
+## Ek: canlı doğrulama ve 0021
+
+2026-09-26: Onaylı canlı koşu bir kez yapıldı
+(`services/ingest/bootstrap/currency_verification_20260926.json`): 19
+merchant, merchant başına tek istek, hepsi HTTP 200, yönlendirme yok. 18'i
+`TRY` ile geçti; `turkish-finds` taban para birimi `PHP` döndürdü ve
+kaldı. Yukarıdaki "Açık konu"daki yönlendirme riski gerçekleşmedi.
+
+`packages/db/migrations/0021_shopify_currency_verified.sql` yalnızca bu 18
+merchant'a (slug + doğrulanan alan adı, kanıttan birebir) `currency = "TRY"`
+ve `currency_verified = true` yazar. `is_active` değişmez; kapı hâlâ
+aktivasyonu ister ve aktivasyon ayrı bir karardır. `turkish-finds` doğrulanmamış
+ve pasif kalır.
+
 ## Reddedilen alternatifler
 
 - **Yönlendirmeyi izlemek.** İkinci istek demek; `0023`'ün tek deneme kuralını
