@@ -18,8 +18,9 @@ const COPY = {
   rateLimited: "Az önce bir bağlantı gönderdik. Birkaç dakika sonra tekrar dene.", // auth.rate_limited
   invalidEmail: "Geçerli bir e-posta adresi gir.", // auth.invalid_email
   sendFailed: "Bağlantıyı şu an gönderemedik. Biraz sonra tekrar dene.", // auth.send_failed
-  google: "Google ile devam et",
-  divider: "veya",
+  google: "Google ile devam edin",
+  apple: "Apple ile devam edin",
+  phone: "Telefon ile devam edin",
 } as const;
 
 export function LoginFormClient() {
@@ -43,15 +44,27 @@ export function LoginFormClient() {
 
   return (
     <div className={styles.authChoices}>
-      <a className={styles.googleButton} href="/giris/google">
+      <a className={styles.providerButton} href="/giris/google">
         <span className={styles.googleMark} aria-hidden="true">
           G
         </span>
         {COPY.google}
       </a>
-      <div className={styles.divider}>
-        <span>{COPY.divider}</span>
-      </div>
+      <button className={styles.providerButton} type="button" disabled title="Apple girişi yakında">
+        <span className={styles.appleMark} aria-hidden="true">
+          
+        </span>
+        {COPY.apple}
+      </button>
+      <button
+        className={styles.providerButton}
+        type="button"
+        disabled
+        title="Telefon girişi yakında"
+      >
+        <span className={styles.phoneMark} aria-hidden="true" />
+        {COPY.phone}
+      </button>
       <form action={action} className={styles.form} aria-busy={pending || undefined}>
         <Input
           label={COPY.emailLabel}

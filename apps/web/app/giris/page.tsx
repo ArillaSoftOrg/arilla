@@ -12,10 +12,7 @@ const ERROR_COPY: Record<string, string> = {
   google: "Google ile giriş şu an tamamlanamadı. E-posta bağlantısıyla devam edebilirsin.",
 };
 
-/** docs/copy.md `auth.login_title` / `auth.login_intro`. */
-const LOGIN_TITLE = "Giriş yap";
-const LOGIN_INTRO =
-  "E-posta adresini yaz, sana tek kullanımlık bir giriş bağlantısı gönderelim. Şifre gerekmez.";
+const LOGIN_TITLE = "Tasarruflarını en üst düzeye çıkarmak için giriş yap.";
 
 /** docs/routes.md `/giris`: e-posta bağlantısı isteme. `/giris/dogrula` başarısızlıkları buraya `?error=` ile döner. */
 export default async function GirisPage({
@@ -28,16 +25,27 @@ export default async function GirisPage({
 
   return (
     <div className={styles.page}>
-      <header className={styles.intro}>
-        <h1 className={styles.title}>{LOGIN_TITLE}</h1>
-        <p className={styles.lead}>{LOGIN_INTRO}</p>
-      </header>
-      {errorText ? (
-        <p role="alert" className={styles.notice}>
-          {errorText}
+      <a className={styles.brand} href="/" aria-label="Arilla ana sayfa">
+        Arilla
+      </a>
+      <a className={styles.close} href="/" aria-label="Giriş ekranını kapat">
+        ×
+      </a>
+      <section className={styles.panel} aria-labelledby="giris-baslik">
+        <h1 id="giris-baslik" className={styles.title}>
+          {LOGIN_TITLE}
+        </h1>
+        {errorText ? (
+          <p role="alert" className={styles.notice}>
+            {errorText}
+          </p>
+        ) : null}
+        <LoginFormClient />
+        <p className={styles.legal}>
+          Devam ederek Arilla'nın <a href="/kosullar">Hizmet Şartlarını</a> kabul etmiş ve{" "}
+          <a href="/gizlilik">Gizlilik Politikasını</a> okumuş olursun.
         </p>
-      ) : null}
-      <LoginFormClient />
+      </section>
     </div>
   );
 }

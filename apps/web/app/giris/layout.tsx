@@ -1,7 +1,6 @@
 import type { ReactNode } from "react";
-import { SubpageShell } from "../public-site-shell.tsx";
 
-/** Faz 8: public site kabugu (header + footer), bkz. public-site-shell.tsx. */
+/** `/giris`: pazarlama navigasyonundan ayrilmis, odakli auth ekrani. */
 export default function Layout({ children }: { children: ReactNode }) {
-  return <SubpageShell currentPath="/giris">{children}</SubpageShell>;
+  return children;
 }
