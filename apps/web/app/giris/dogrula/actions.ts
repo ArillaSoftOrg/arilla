@@ -2,6 +2,7 @@
 
 import {
   loginPathWithNext,
+  postAuthRedirect,
   safeRedirectPath,
   TokenAlreadyUsedError,
   TokenExpiredError,
@@ -34,14 +35,17 @@ export async function confirmLoginAction(formData: FormData): Promise<void> {
   }
 
   const headerStore = await headers();
-  let outcome: { kind: "ok"; rawSessionToken: string } | { kind: "error"; redirectTo: string };
+  let outcome:
+    | { kind: "ok"; rawSessionToken: string; redirectTo: string }
+    | { kind: "error"; redirectTo: string };
   try {
-    const { rawSessionToken } = await verifyLoginToken(getDatabase(), {
+    const { rawSessionToken, user } = await verifyLoginToken(getDatabase(), {
       rawToken,
       ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
     });
-    outcome = { kind: "ok", rawSessionToken };
+    // Ürüne erişemeyen (lansman öncesi normal kullanıcı) her girişte başarı ekranına.
+    outcome = { kind: "ok", rawSessionToken, redirectTo: postAuthRedirect(user, next) };
   } catch (error) {
     if (error instanceof TokenExpiredError) {
       outcome = { kind: "error", redirectTo: loginErrorPath("expired", next) };
@@ -57,5 +61,5 @@ export async function confirmLoginAction(formData: FormData): Promise<void> {
   }
 
   await setSessionCookie(outcome.rawSessionToken);
-  redirect(next);
+  redirect(outcome.redirectTo);
 }

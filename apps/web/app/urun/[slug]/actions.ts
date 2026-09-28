@@ -2,12 +2,13 @@
 
 import { type AlertKind, createAlert, InvalidAlertInputError, saveItem } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { verifySession } from "../../lib/dal.ts";
+import { requireProductAccess } from "../../lib/dal.ts";
 
 export type ProductActionStatus = "ok" | "already_exists" | "unauthenticated" | "invalid";
 
 export async function saveItemAction(productId: number): Promise<ProductActionStatus> {
-  const user = await verifySession();
+  // Ürün kapısı: kapalıyken normal kullanıcı /erken-erisim'e yönlenir, yazma yapılmaz.
+  const user = await requireProductAccess();
   if (!user) return "unauthenticated";
 
   const result = await saveItem(getDatabase(), { userId: user.id, productId });
@@ -29,7 +30,7 @@ export interface CreateAlertActionInput {
 export async function createAlertAction(
   input: CreateAlertActionInput,
 ): Promise<ProductActionStatus> {
-  const user = await verifySession();
+  const user = await requireProductAccess();
   if (!user) return "unauthenticated";
 
   try {

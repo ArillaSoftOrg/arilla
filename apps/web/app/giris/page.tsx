@@ -1,4 +1,5 @@
-import { safeRedirectPath } from "@arilla/core";
+import { isProductOpen, safeRedirectPath } from "@arilla/core";
+import { EARLY_ACCESS_COPY } from "../early-access-copy.ts";
 import { LoginFormClient } from "./login-form-client.tsx";
 import styles from "./page.module.css";
 
@@ -38,7 +39,8 @@ export default async function GirisPage({
       </a>
       <section className={styles.panel} aria-labelledby="giris-baslik">
         <h1 id="giris-baslik" className={styles.title}>
-          {LOGIN_TITLE}
+          {/* P2: lansman öncesi aynı form erken erişime katılma yoludur. */}
+          {isProductOpen() ? LOGIN_TITLE : EARLY_ACCESS_COPY.loginTitle}
         </h1>
         {errorText ? (
           <p role="alert" className={styles.notice}>

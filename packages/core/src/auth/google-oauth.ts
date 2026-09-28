@@ -90,6 +90,7 @@ function signInWithGoogleOnce(
         .where(eq(appUser.id, existingIdentity.userId));
       const rawSessionToken = await createSessionForUser(tx, {
         userId: existingIdentity.userId,
+        role: existingIdentity.role,
         ip: input.ip,
         userAgent: input.userAgent,
       });
@@ -155,6 +156,7 @@ function signInWithGoogleOnce(
 
     const rawSessionToken = await createSessionForUser(tx, {
       userId: user.id,
+      role: user.role,
       ip: input.ip,
       userAgent: input.userAgent,
     });

@@ -82,23 +82,39 @@ export function homeFooterGroups(links: SiteSectionLinks): readonly FooterGroup[
         { label: HOME_COPY.navHistory, href: "/gecmis" },
       ],
     },
-    {
-      title: HOME_COPY.footerLegalGroupTitle,
-      links: [
-        { label: HOME_COPY.navPrivacy, href: "/gizlilik" },
-        { label: HOME_COPY.navKvkk, href: "/kvkk-aydinlatma" },
-        { label: HOME_COPY.navCookies, href: "/cerez" },
-        { label: HOME_COPY.navTerms, href: "/kosullar" },
-        { label: HOME_COPY.navAffiliate, href: "/affiliate-aciklamasi" },
-        { label: HOME_COPY.navCompany, href: "/sirket-bilgileri" },
-        {
-          label: HOME_COPY.navCookiePreferences,
-          href: COOKIE_PREFERENCES_HREF,
-          render: ({ className, children }) =>
-            createElement(CookiePreferencesLink, { className, children }),
-        },
-        { label: HOME_COPY.navContact, href: "/iletisim" },
-      ],
-    },
+    legalFooterGroup(),
   ];
+}
+
+/** Yasal bağlantılar: ürün kapalıyken de açık kalan tek grup. */
+function legalFooterGroup(): FooterGroup {
+  return {
+    title: HOME_COPY.footerLegalGroupTitle,
+    links: [
+      { label: HOME_COPY.navPrivacy, href: "/gizlilik" },
+      { label: HOME_COPY.navKvkk, href: "/kvkk-aydinlatma" },
+      { label: HOME_COPY.navCookies, href: "/cerez" },
+      { label: HOME_COPY.navTerms, href: "/kosullar" },
+      { label: HOME_COPY.navAffiliate, href: "/affiliate-aciklamasi" },
+      { label: HOME_COPY.navCompany, href: "/sirket-bilgileri" },
+      {
+        label: HOME_COPY.navCookiePreferences,
+        href: COOKIE_PREFERENCES_HREF,
+        render: ({ className, children }) =>
+          createElement(CookiePreferencesLink, { className, children }),
+      },
+      { label: HOME_COPY.navContact, href: "/iletisim" },
+    ],
+  };
+}
+
+/**
+ * Lansman öncesi (ürün kapalı, P2): ürün ve hesap bağlantıları yerine tek
+ * erken erişim bağlantısı + yasal grup. Kapalı ürün sayfalarına link yok.
+ */
+export function earlyAccessFooterGroups(entry: {
+  label: string;
+  href: string;
+}): readonly FooterGroup[] {
+  return [{ title: HOME_COPY.footerAccountGroupTitle, links: [entry] }, legalFooterGroup()];
 }

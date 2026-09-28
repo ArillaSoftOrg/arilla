@@ -107,6 +107,7 @@ function verifyInTransaction(
 
     const rawSessionToken = await createSessionForUser(tx, {
       userId: user.id,
+      role: user.role,
       userAgent: input.userAgent,
       ip: input.ip,
     });

@@ -1,4 +1,9 @@
-import { type GoogleProfile, requireAppUrl, signInWithGoogle } from "@arilla/core";
+import {
+  type GoogleProfile,
+  postAuthRedirect,
+  requireAppUrl,
+  signInWithGoogle,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
@@ -100,15 +105,21 @@ export async function GET(request: Request) {
   const ip = clientIp(headerStore);
   const userAgent = headerStore.get("user-agent");
 
+  let destination = next;
   try {
     const accessToken = await exchangeCodeForAccessToken(code);
     const profile = await fetchGoogleProfile(accessToken);
-    const { rawSessionToken } = await signInWithGoogle(getDatabase(), { profile, ip, userAgent });
+    const { rawSessionToken, user } = await signInWithGoogle(getDatabase(), {
+      profile,
+      ip,
+      userAgent,
+    });
     await setSessionCookie(rawSessionToken);
+    destination = postAuthRedirect(user, next);
   } catch {
     console.error("[giris] google oauth failed");
     redirect("/giris?error=google");
   }
 
-  redirect(next);
+  redirect(destination);
 }

@@ -1,4 +1,4 @@
-import { readAppUrl } from "@arilla/core";
+import { isProductOpen, readAppUrl } from "@arilla/core";
 import { buildSitemapIndexXml } from "../lib/sitemap-xml.ts";
 import { productShardUrls } from "../sitemaps/urun/shards.ts";
 
@@ -27,9 +27,8 @@ export async function GET(): Promise<Response> {
     return new Response("APP_URL tanimli degil. .env.example dosyasina bakin.", { status: 500 });
   }
 
-  const xml = buildSitemapIndexXml([
-    `${appUrl}/sitemap-sayfalar.xml`,
-    ...(await productShardUrls(appUrl)),
-  ]);
+  // Lansman öncesi ürün kapalı: ürün parçaları haritaya girmez (P2).
+  const productShards = isProductOpen() ? await productShardUrls(appUrl) : [];
+  const xml = buildSitemapIndexXml([`${appUrl}/sitemap-sayfalar.xml`, ...productShards]);
   return new Response(xml, { headers: { "Content-Type": "application/xml" } });
 }

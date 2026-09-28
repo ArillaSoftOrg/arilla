@@ -1,8 +1,11 @@
+import { canAccessProduct, EARLY_ACCESS_PATH } from "@arilla/core";
 import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
 import { Container, HomeHeader, SiteFooter, SkipLink } from "@arilla/ui";
 import type { ReactNode } from "react";
+import { EARLY_ACCESS_COPY } from "./early-access-copy.ts";
 import { HOME_COPY } from "./home-copy.ts";
 import {
+  earlyAccessFooterGroups,
   homeFooterGroups,
   type SiteSectionLinks,
   SUBPAGE_SECTION_LINKS,
@@ -51,8 +54,25 @@ export async function PublicSiteShell({
   children: ReactNode;
 }) {
   const user = await verifySession();
-  const navItems: readonly HomeHeaderNavItem[] = markCurrent(siteNavItems(links), currentPath);
-  const footerGroups: readonly FooterGroup[] = homeFooterGroups(links).map((group) => ({
+  // P2: lansman öncesi ürün kapalıyken (moderatör/yönetici hariç) ürün
+  // bağlantıları gösterilmez; giriş eylemi "Erken erişime katıl" olur,
+  // girişli normal kullanıcının hesap bağlantısı başarı ekranına gider.
+  // Yalnızca görünüm: asıl kapı her ürün sayfasında `requireProductAccess`.
+  const productAccess = canAccessProduct(user);
+  const accountHref = user ? (productAccess ? "/hesap" : EARLY_ACCESS_PATH) : null;
+  const accountLabel = productAccess ? HOME_COPY.navAccount : EARLY_ACCESS_COPY.navStatus;
+  const loginLabel = productAccess ? HOME_COPY.loginLabel : EARLY_ACCESS_COPY.cta;
+  const navItems: readonly HomeHeaderNavItem[] = productAccess
+    ? markCurrent(siteNavItems(links), currentPath)
+    : [];
+  const footerSource = productAccess
+    ? homeFooterGroups(links)
+    : earlyAccessFooterGroups(
+        user
+          ? { label: EARLY_ACCESS_COPY.navStatus, href: EARLY_ACCESS_PATH }
+          : { label: EARLY_ACCESS_COPY.cta, href: "/giris" },
+      );
+  const footerGroups: readonly FooterGroup[] = footerSource.map((group) => ({
     ...group,
     links: markCurrent(group.links, currentPath),
   }));
@@ -65,11 +85,11 @@ export async function PublicSiteShell({
         brandLabel="ManiCepte"
         navItems={navItems}
         navAriaLabel="Ana gezinme"
-        accountHref={user ? "/hesap" : null}
-        accountLabel={HOME_COPY.navAccount}
+        accountHref={accountHref}
+        accountLabel={accountLabel}
         loginHref={loginHref}
-        loginLabel={HOME_COPY.loginLabel}
-        accountCurrent={currentPath === (user ? "/hesap" : loginHref)}
+        loginLabel={loginLabel}
+        accountCurrent={currentPath === (accountHref ?? loginHref)}
       />
       {/* tabIndex -1: SkipLink'ten sonra odak tum tarayicilarda ana icerige tasinir. */}
       <main id={MAIN_ID} tabIndex={-1} className={styles.main}>

@@ -16,6 +16,7 @@ edilmeli.
 | --- | --- | --- | --- |
 | E-posta adresi | `app_user` | Sözleşmenin ifası | Hesap silinene kadar |
 | Oturum ve giriş kayıtları | `session`, `auth_token` | Meşru menfaat (güvenlik) | Token 15 dk, oturum 90 gün |
+| Erken erişim kaydı | `early_access` | Sözleşmenin ifası (listeye katılma) | Hesap silinene kadar |
 | Gezinme geçmişi | `product_view` | **Açık rıza** | Son 50 kayıt, hesap silinince silinir |
 | Kaydedilenler, alarmlar | `saved_item`, `alert` | Sözleşmenin ifası | Hesap silinene kadar |
 | Beden profili | `user_size_profile` | Açık rıza | Hesap silinene kadar |

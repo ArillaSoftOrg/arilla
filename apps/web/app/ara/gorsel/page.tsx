@@ -3,7 +3,7 @@ import { getDatabase } from "@arilla/db";
 import { EmptyState, SearchForm } from "@arilla/ui";
 import { cookies } from "next/headers";
 import { notFound } from "next/navigation";
-import { verifySession } from "../../lib/dal.ts";
+import { requireProductAccess } from "../../lib/dal.ts";
 import { PhotoSearchButton } from "../../photo-search-client.tsx";
 import styles from "../ara.module.css";
 import { ResultGrid, resultCountLabel } from "../search-results.tsx";
@@ -23,12 +23,13 @@ export default async function GorselAramaPage({
 }: {
   searchParams: Promise<GorselSearchParams>;
 }) {
+  // Ürün kapısı ilk adım: kapalıyken sayfanın hiçbir dalı çalışmaz.
+  const user = await requireProductAccess();
   const { id } = await searchParams;
   const imageUploadId = id ? Number(id) : Number.NaN;
   if (!Number.isInteger(imageUploadId)) notFound();
 
   const db = getDatabase();
-  const user = await verifySession();
   const sessionId = (await cookies()).get("session_id")?.value ?? null;
 
   const queryEmbedding = await getUploadedImageEmbeddingForSearch(db, {

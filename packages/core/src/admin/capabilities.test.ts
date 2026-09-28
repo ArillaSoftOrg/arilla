@@ -15,6 +15,7 @@ const MODERATOR: Capability[] = [
   "diagnostics.read",
   "merchant.read",
   "ingest.read",
+  "product.preview",
 ];
 const ADMIN_ONLY: Capability[] = [
   "merchant.manage",

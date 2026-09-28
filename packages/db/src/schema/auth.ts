@@ -1,4 +1,4 @@
-/** 0005_auth.sql + 0024_oauth_identity.sql + 0025_apple_phone_identity.sql karsiligi. */
+/** 0005_auth.sql + 0024_oauth_identity.sql + 0025_apple_phone_identity.sql + 0031_early_access.sql karsiligi. */
 import {
   bigint,
   boolean,
@@ -81,4 +81,14 @@ export const phoneLoginCode = pgTable("phone_login_code", {
   attempts: smallint("attempts").notNull().default(0),
   requestIp: inet("request_ip"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type EarlyAccessStatus = "pending";
+
+/** 0031: erken erisim listesi. Kullanici basina tek satir (PK = user_id). */
+export const earlyAccess = pgTable("early_access", {
+  userId: bigint("user_id", { mode: "number" }).primaryKey(),
+  status: text("status").$type<EarlyAccessStatus>().notNull().default("pending"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

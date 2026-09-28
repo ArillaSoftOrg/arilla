@@ -476,6 +476,19 @@ CREATE TABLE phone_login_code (
 CREATE INDEX phone_login_code_phone_idx ON phone_login_code (phone, created_at DESC);
 CREATE INDEX phone_login_code_expires_idx ON phone_login_code (expires_at);  -- 0030: temizlik isi
 
+-- Erken erişim listesi (0031). Kullanıcı başına tek satır (PK = user_id):
+-- her başarılı girişte idempotent oluşur (ON CONFLICT DO NOTHING). Ürün
+-- kapısı bu tabloya değil `PRODUCT_ACCESS` bayrağına ve role bakar; satır
+-- yalnızca "listeye katıldı" kaydıdır. Durum şimdilik yalnızca 'pending';
+-- onay akışı gerekirse CHECK geriye uyumlu genişletilir.
+CREATE TABLE early_access (
+    user_id     BIGINT      PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
+    status      TEXT        NOT NULL DEFAULT 'pending' CHECK (status IN ('pending')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX early_access_created_idx ON early_access (created_at DESC);
+
 CREATE TABLE creator (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id         BIGINT      NOT NULL UNIQUE REFERENCES app_user(id),

@@ -107,6 +107,9 @@ function form(fields: Record<string, string>): FormData {
 }
 
 beforeAll(() => {
+  // P1 davranışı (güvenli next) ürüne erişebilen kullanıcı içindir; ürün
+  // kapalıyken yönlendirme early-access-gate.integration.test.ts içinde.
+  vi.stubEnv("PRODUCT_ACCESS", "open");
   assertLocal("DATABASE_URL");
 });
 
@@ -123,6 +126,7 @@ afterAll(async () => {
     await client.query("DELETE FROM phone_login_code WHERE phone = $1", [PHONE]);
   });
   await ownerPool?.end();
+  vi.unstubAllEnvs();
 });
 
 describe("e-posta bağlantısı: GET onay, POST tüketim", () => {

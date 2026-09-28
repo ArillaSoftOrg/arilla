@@ -1,4 +1,4 @@
-import { readAppUrl } from "@arilla/core";
+import { isProductOpen, readAppUrl } from "@arilla/core";
 import { buildSitemapIndexXml } from "../../../lib/sitemap-xml.ts";
 import { productShardUrls } from "../shards.ts";
 
@@ -13,7 +13,8 @@ export async function GET(): Promise<Response> {
     return new Response("APP_URL tanimli degil. .env.example dosyasina bakin.", { status: 500 });
   }
 
-  return new Response(buildSitemapIndexXml(await productShardUrls(appUrl)), {
+  const shards = isProductOpen() ? await productShardUrls(appUrl) : [];
+  return new Response(buildSitemapIndexXml(shards), {
     headers: { "Content-Type": "application/xml" },
   });
 }

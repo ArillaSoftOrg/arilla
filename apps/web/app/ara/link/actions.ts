@@ -11,7 +11,7 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
-import { verifySession } from "../../lib/dal.ts";
+import { requireProductAccess } from "../../lib/dal.ts";
 
 const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
@@ -39,8 +39,8 @@ export type StartLinkSearchResult =
  * `@arilla/core`'da. Limit yalnızca yeni bir getirme açılırken sayılır.
  */
 export async function startLinkSearchAction(url: string): Promise<StartLinkSearchResult> {
+  const user = await requireProductAccess();
   const sessionId = await ensureSessionId();
-  const user = await verifySession();
   const userId = user?.id ?? null;
 
   try {
@@ -75,6 +75,7 @@ export type LinkSearchPoll =
  * yeni bir istek açardı.
  */
 export async function pollLinkSearchAction(requestId: string): Promise<LinkSearchPoll> {
+  await requireProductAccess();
   const status = await getLinkResolutionStatus(getDatabase(), requestId);
   if (!status) return { state: "failed", errorCode: "unexpected" };
   if (status.status === "queued" || status.status === "processing") return { state: "pending" };

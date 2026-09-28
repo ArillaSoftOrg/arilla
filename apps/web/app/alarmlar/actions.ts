@@ -3,10 +3,10 @@
 import { deleteAlert } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { revalidatePath } from "next/cache";
-import { requireUser } from "../lib/dal.ts";
+import { requireProductUser } from "../lib/dal.ts";
 
 export async function deleteAlertAction(alertId: number): Promise<void> {
-  const user = await requireUser();
+  const user = await requireProductUser();
   await deleteAlert(getDatabase(), { userId: user.id, alertId });
   revalidatePath("/alarmlar");
 }

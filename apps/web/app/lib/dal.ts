@@ -10,7 +10,9 @@
 import {
   type AdminActor,
   type Capability,
+  canAccessProduct,
   hasCapability,
+  productAccessRedirect,
   type SessionUser,
   verifySessionToken,
 } from "@arilla/core";
@@ -64,11 +66,37 @@ export async function requireFreshCapability(
   return { user, actor, fresh };
 }
 
-/** `/kaydettiklerim`, `/alarmlar`, `/gecmis` (docs/routes.md "giriş gerekli") - rol farketmez. */
+/** Giriş gerekli ama ürün dışı sayfalar (`/hesap`, `/erken-erisim`) - rol farketmez. */
 export async function requireUser(): Promise<SessionUser> {
   const user = await verifySession();
   if (!user) {
     redirect("/giris");
+  }
+  return user;
+}
+
+/**
+ * Lansman öncesi ürün kapısı (P2). Kararın tamamı core'da
+ * (`canAccessProduct`): `PRODUCT_ACCESS=open` değilse yalnızca moderatör ve
+ * yönetici geçer. Her ürün sayfası, server action'ı ve route handler'ı bunu
+ * KENDİSİ çağırır; proxy yalnızca anonim ziyaretçiyi erken yönlendirir.
+ *
+ * Geçemeyen: anonim → `/` (erken erişim landing'i), girişli → `/erken-erisim`.
+ * Geçen anonim ziyaretçi (ürün açıkken) için `null` döner.
+ */
+export async function requireProductAccess(): Promise<SessionUser | null> {
+  const user = await verifySession();
+  if (!canAccessProduct(user)) {
+    redirect(productAccessRedirect(user));
+  }
+  return user;
+}
+
+/** Giriş gerekli ürün sayfaları: `/kaydettiklerim`, `/alarmlar`, `/gecmis`. */
+export async function requireProductUser(): Promise<SessionUser> {
+  const user = await requireUser();
+  if (!canAccessProduct(user)) {
+    redirect(productAccessRedirect(user));
   }
   return user;
 }

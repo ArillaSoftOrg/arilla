@@ -5,6 +5,7 @@ import type { Metadata } from "next";
 import { toDiscoveryItems } from "../discovery-adapter.ts";
 import { HOME_COPY } from "../home-copy.ts";
 import { HomeSectionHeading } from "../home-section-heading.tsx";
+import { requireProductAccess } from "../lib/dal.ts";
 import actions from "../public-actions.module.css";
 import styles from "./kesfet.module.css";
 
@@ -26,6 +27,7 @@ export const metadata: Metadata = {
  * Seçilmiş içerik "Kullanıcıların bulduğu" altında gösterilmez (kural 11).
  */
 export default async function KesfetPage() {
+  await requireProductAccess();
   const db = getDatabase();
   const items = await getDiscoverySlots(db, todaySlotDate());
 

@@ -85,6 +85,7 @@ function signInWithIdentityOnce(
       await tx.update(appUser).set({ lastSeenAt: now }).where(eq(appUser.id, existing.userId));
       const rawSessionToken = await createSessionForUser(tx, {
         userId: existing.userId,
+        role: existing.role,
         ip: input.ip,
         userAgent: input.userAgent,
       });
@@ -146,6 +147,7 @@ function signInWithIdentityOnce(
 
     const rawSessionToken = await createSessionForUser(tx, {
       userId: user.id,
+      role: user.role,
       ip: input.ip,
       userAgent: input.userAgent,
     });
