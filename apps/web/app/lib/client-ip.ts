@@ -1,4 +1,9 @@
-/** `x-forwarded-for`'dan ilk (gerçek istemci) IP'yi çıkarır. Birden çok yerde kullanılır (giriş, rıza kaydı). */
-export function clientIp(forwardedFor: string | null): string | null {
-  return forwardedFor?.split(",")[0]?.trim() || null;
+import { type HeaderReader, resolveClientIp } from "@arilla/core";
+
+/**
+ * Güvenilir istemci IP'si (giriş oran sınırı, rıza kaydı). Karar core'da:
+ * `x-forwarded-for`'un istemcinin yazabildiği ilk elemanına güvenilmez.
+ */
+export function clientIp(headers: HeaderReader): string | null {
+  return resolveClientIp(headers);
 }

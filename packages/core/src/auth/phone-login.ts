@@ -6,7 +6,11 @@
  *   numarayla birlikte. 6 haneli kodun duz SHA-256'si bir milyon denemede
  *   cozulurdu; anahtarli hash veritabani sizintisinda bunu engeller.
  * - Sureli (`PHONE_CODE_TTL_MINUTES`, varsayilan 10), tek kullanimlik
- *   (`consumed_at`), kod basina en fazla `PHONE_CODE_MAX_ATTEMPTS` yanlis deneme.
+ *   (`consumed_at`), kod basina en fazla `PHONE_CODE_MAX_ATTEMPTS` dogrulama
+ *   denemesi. Deneme hakki karsilastirmadan ONCE kosullu tek bir UPDATE ile
+ *   alinir: esanli istekler siniri asamaz.
+ * - Yalnizca izin verilen ulke kodlarina SMS gider (`PHONE_ALLOWED_COUNTRY_CODES`,
+ *   varsayilan +90).
  * - Oran siniri: gonderimde telefon ve IP basina, dogrulamada IP basina.
  *   Redis yoksa kapali kalinir (e-posta girisiyle ayni, decision 0006).
  */
@@ -44,6 +48,17 @@ export class InvalidPhoneNumberError extends Error {
   }
 }
 
+/**
+ * Numara gecerli ama ulkesi izin listesinde degil. `InvalidPhoneNumberError`
+ * alt sinifi: cagiran kod ayni "numara" hatasini gosterir, SMS gitmez.
+ */
+export class UnsupportedPhoneCountryError extends InvalidPhoneNumberError {
+  constructor() {
+    super();
+    this.name = "UnsupportedPhoneCountryError";
+  }
+}
+
 /** Kod yanlis, suresi dolmus, kullanilmis ya da deneme hakki bitmis - ayrim disari sizmaz. */
 export class PhoneCodeInvalidError extends Error {
   constructor() {
@@ -78,6 +93,33 @@ export function normalizePhoneE164(raw: string, defaultCountryCode = "90"): stri
   // Turkiye numarasi: ulke kodu + 10 hane.
   if (digits.startsWith("90") && digits.length !== 12) return null;
   return `+${digits}`;
+}
+
+const DEFAULT_ALLOWED_COUNTRY_CODES = ["90"] as const;
+
+/**
+ * SMS gonderilebilecek ulke kodlari (SMS pumping'e karsi). `PHONE_ALLOWED_
+ * COUNTRY_CODES` virgulle ayrilmis kodlardir ("90,49"); tanimsizsa yalnizca
+ * Turkiye. Tanimli ama gecerli kod icermiyorsa liste bos kalir ve hicbir
+ * numara kabul edilmez (fail-closed).
+ */
+export function allowedPhoneCountryCodes(
+  env: Record<string, string | undefined> = process.env,
+): readonly string[] {
+  const raw = env.PHONE_ALLOWED_COUNTRY_CODES?.trim();
+  if (!raw) return DEFAULT_ALLOWED_COUNTRY_CODES;
+  return raw
+    .split(",")
+    .map((code) => code.trim().replace(/^\+/, ""))
+    .filter((code) => /^[1-9]\d{0,2}$/.test(code));
+}
+
+/** `phone` E.164 olmali (`normalizePhoneE164` ciktisi). */
+export function isAllowedPhoneCountry(
+  phone: string,
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return allowedPhoneCountryCodes(env).some((code) => phone.startsWith(`+${code}`));
 }
 
 function hashCode(phone: string, code: string): string {
@@ -163,6 +205,7 @@ export async function requestPhoneLoginCode(
 ): Promise<{ codeId: number }> {
   const phone = normalizePhoneE164(input.phone);
   if (!phone) throw new InvalidPhoneNumberError();
+  if (!isAllowedPhoneCountry(phone)) throw new UnsupportedPhoneCountryError();
 
   await (options.checkRateLimit ?? checkPhoneSendRateLimit)({ phone, ip: input.ip });
 
@@ -217,8 +260,8 @@ export interface VerifyPhoneLoginCodeOptions {
 
 /**
  * Kodu dogrular ve tuketir; dogruysa kullaniciyi telefon kimligiyle bulur
- * ya da acar ve oturum olusturur (`signInWithPhone`). Yanlis kod oturum
- * olusturmaz, deneme sayisini arttirir.
+ * ya da acar ve oturum olusturur (`signInWithPhone`). Her dogrulama (dogru
+ * ya da yanlis) bir deneme hakki harcar; yanlis kod oturum olusturmaz.
  */
 export async function signInWithPhone(
   db: Database,
@@ -227,7 +270,11 @@ export async function signInWithPhone(
 ): Promise<SignInWithIdentityResult> {
   const phone = normalizePhoneE164(input.phone);
   const code = input.code.replace(/\s/g, "");
-  if (!phone || !new RegExp(`^\\d{${PHONE_CODE_LENGTH}}$`).test(code)) {
+  if (
+    !phone ||
+    !isAllowedPhoneCountry(phone) ||
+    !new RegExp(`^\\d{${PHONE_CODE_LENGTH}}$`).test(code)
+  ) {
     throw new PhoneCodeInvalidError();
   }
 
@@ -236,11 +283,7 @@ export async function signInWithPhone(
   const now = options.now ?? new Date();
   // Yalnizca en yeni gecerli kod: yeni kod istendiginde eskisi kullanilamaz.
   const rows = await db
-    .select({
-      id: phoneLoginCode.id,
-      codeHash: phoneLoginCode.codeHash,
-      attempts: phoneLoginCode.attempts,
-    })
+    .select({ id: phoneLoginCode.id, codeHash: phoneLoginCode.codeHash })
     .from(phoneLoginCode)
     .where(
       and(
@@ -252,27 +295,34 @@ export async function signInWithPhone(
     .orderBy(desc(phoneLoginCode.createdAt), desc(phoneLoginCode.id))
     .limit(1);
   const row = rows[0];
-  if (!row || row.attempts >= PHONE_CODE_MAX_ATTEMPTS) throw new PhoneCodeInvalidError();
+  if (!row) throw new PhoneCodeInvalidError();
 
-  if (!sameHash(row.codeHash, hashCode(phone, code))) {
-    await db
-      .update(phoneLoginCode)
-      .set({ attempts: sql`${phoneLoginCode.attempts} + 1` })
-      .where(eq(phoneLoginCode.id, row.id));
-    throw new PhoneCodeInvalidError();
-  }
-
-  // Atomik tuketim: esanli iki dogrulamadan yalnizca biri gecer.
-  const consumed = await db
+  // Deneme hakki karsilastirmadan ONCE alinir. Kosullu UPDATE satiri kilitler
+  // ve kosulu kilitten sonra yeniden degerlendirir: esanli N istekten en fazla
+  // PHONE_CODE_MAX_ATTEMPTS tanesi hak alir, geri kalani kodu hic karsilastirmaz.
+  const claimed = await db
     .update(phoneLoginCode)
-    .set({ consumedAt: now })
+    .set({ attempts: sql`${phoneLoginCode.attempts} + 1` })
     .where(
       and(
         eq(phoneLoginCode.id, row.id),
         isNull(phoneLoginCode.consumedAt),
+        gt(phoneLoginCode.expiresAt, now),
         lt(phoneLoginCode.attempts, PHONE_CODE_MAX_ATTEMPTS),
       ),
     )
+    .returning({ id: phoneLoginCode.id });
+  if (!claimed[0]) throw new PhoneCodeInvalidError();
+
+  if (!sameHash(row.codeHash, hashCode(phone, code))) {
+    throw new PhoneCodeInvalidError();
+  }
+
+  // Atomik tuketim: esanli iki dogru dogrulamadan yalnizca biri gecer.
+  const consumed = await db
+    .update(phoneLoginCode)
+    .set({ consumedAt: now })
+    .where(and(eq(phoneLoginCode.id, row.id), isNull(phoneLoginCode.consumedAt)))
     .returning({ id: phoneLoginCode.id });
   if (!consumed[0]) throw new PhoneCodeInvalidError();
 

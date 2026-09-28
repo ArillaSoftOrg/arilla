@@ -21,6 +21,11 @@ export interface CreateAlertActionInput {
   sizeNorm?: string | null;
 }
 
+/**
+ * Server action gövdesi istemciden gelir ve tipte olmayan alanlar (ör.
+ * `userId`) çalışma anında da gelebilir. Bu yüzden girdi yayılmaz; izin
+ * verilen alanlar tek tek seçilir, `userId` yalnızca oturumdan alınır.
+ */
 export async function createAlertAction(
   input: CreateAlertActionInput,
 ): Promise<ProductActionStatus> {
@@ -28,7 +33,13 @@ export async function createAlertAction(
   if (!user) return "unauthenticated";
 
   try {
-    const result = await createAlert(getDatabase(), { userId: user.id, ...input });
+    const result = await createAlert(getDatabase(), {
+      productId: input.productId,
+      kind: input.kind,
+      targetPrice: input.targetPrice,
+      sizeNorm: input.sizeNorm,
+      userId: user.id,
+    });
     return result.created ? "ok" : "already_exists";
   } catch (error) {
     if (error instanceof InvalidAlertInputError) return "invalid";

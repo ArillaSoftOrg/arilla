@@ -1,6 +1,8 @@
 import { getConsents } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
+import { Button } from "@arilla/ui";
 import { cookies } from "next/headers";
+import { logoutAction } from "../cikis-actions.ts";
 import { requireUser } from "../lib/dal.ts";
 import { readThemeCookie } from "../lib/theme.ts";
 import { ThemeToggleClient } from "../theme-toggle-client.tsx";
@@ -30,6 +32,12 @@ export default async function HesapPage() {
         <h2 style={{ margin: 0, fontSize: 16 }}>Profil</h2>
         {/* 0025: telefonla ya da e-postasız Apple ile giren kullanıcıda e-posta yok. */}
         <p style={{ margin: 0 }}>{user.email ?? "Hesabına bağlı bir e-posta adresi yok."}</p>
+        {/* Düz form + server action: JavaScript olmadan da POST ile çalışır. */}
+        <form action={logoutAction}>
+          <Button type="submit" variant="secondary">
+            Çıkış yap
+          </Button>
+        </form>
       </section>
 
       <section style={{ display: "grid", gap: 8 }}>

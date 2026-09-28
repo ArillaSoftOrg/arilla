@@ -6,7 +6,12 @@ import type { Database } from "@arilla/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { signInWithApple } from "./apple-oauth.ts";
-import { PhoneCodeInvalidError, requestPhoneLoginCode, signInWithPhone } from "./phone-login.ts";
+import {
+  PHONE_CODE_MAX_ATTEMPTS,
+  PhoneCodeInvalidError,
+  requestPhoneLoginCode,
+  signInWithPhone,
+} from "./phone-login.ts";
 import { verifySessionToken } from "./session.ts";
 import { DevSmsSender } from "./sms.ts";
 
@@ -174,5 +179,65 @@ describe("Apple / telefon ile giris - entegrasyon", () => {
       { checkRateLimit: noLimit },
     );
     expect(again.isNewUser).toBe(false);
+  });
+
+  it("Telefon: esanli yanlis denemeler deneme sinirini asamaz", async () => {
+    const sender = new DevSmsSender();
+    const { codeId } = await requestPhoneLoginCode(db, { phone: PHONE, ip: request.ip }, sender, {
+      checkRateLimit: noLimit,
+      generateCode: () => "555666",
+    });
+
+    const parallel = 20;
+    const results = await Promise.allSettled(
+      Array.from({ length: parallel }, (_, i) =>
+        signInWithPhone(
+          db,
+          { phone: PHONE, code: String(100000 + i), ...request },
+          { checkRateLimit: noLimit },
+        ),
+      ),
+    );
+    for (const result of results) {
+      expect(result.status).toBe("rejected");
+      if (result.status === "rejected") {
+        expect(result.reason).toBeInstanceOf(PhoneCodeInvalidError);
+      }
+    }
+
+    const stored = await withOwnerClient((client) =>
+      client.query("SELECT attempts FROM phone_login_code WHERE id = $1", [codeId]),
+    );
+    expect(Number(stored.rows[0]?.attempts)).toBe(PHONE_CODE_MAX_ATTEMPTS);
+
+    // Hak bittigi icin dogru kod da gecmez.
+    await expect(
+      signInWithPhone(
+        db,
+        { phone: PHONE, code: "555666", ...request },
+        { checkRateLimit: noLimit },
+      ),
+    ).rejects.toBeInstanceOf(PhoneCodeInvalidError);
+  });
+
+  it("Telefon: esanli dogru denemelerden yalnizca biri oturum acar", async () => {
+    const sender = new DevSmsSender();
+    await requestPhoneLoginCode(db, { phone: PHONE, ip: request.ip }, sender, {
+      checkRateLimit: noLimit,
+      generateCode: () => "777888",
+    });
+    const before = await sessionCountFor("phone", PHONE);
+
+    const results = await Promise.allSettled(
+      Array.from({ length: 4 }, () =>
+        signInWithPhone(
+          db,
+          { phone: PHONE, code: "777888", ...request },
+          { checkRateLimit: noLimit },
+        ),
+      ),
+    );
+    expect(results.filter((r) => r.status === "fulfilled")).toHaveLength(1);
+    expect(await sessionCountFor("phone", PHONE)).toBe(before + 1);
   });
 });

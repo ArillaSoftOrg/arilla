@@ -121,6 +121,7 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `action.retry` | Tekrar dene |
 | `action.clear_history` | Geçmişi sil |
 | `action.delete_account` | Hesabı sil |
+| `action.sign_out` | Çıkış yap |
 
 ## Arama
 
