@@ -23,6 +23,11 @@ import {
   verify,
 } from "node:crypto";
 import type { Database } from "@arilla/db";
+import {
+  databaseFailureCategory,
+  safeProviderCode,
+  unexpectedFailureCategory,
+} from "./failure-category.ts";
 import { type SignInWithIdentityResult, signInWithIdentity } from "./identity-sign-in.ts";
 
 export const APPLE_ISSUER = "https://appleid.apple.com";
@@ -35,10 +40,30 @@ const CLOCK_SKEW_SECONDS = 60;
 /** client_secret en fazla 6 ay gecerli olabilir; her istekte kisa omurlu uretilir. */
 const CLIENT_SECRET_TTL_SECONDS = 5 * 60;
 
+/**
+ * Yapilandirma eksik ya da gecersiz. Mesaj yalnizca degisken ADINI tasir,
+ * degeri asla. `category`: `config_missing:APPLE_KEY_ID`,
+ * `config_invalid:APPLE_PRIVATE_KEY`.
+ */
 export class AppleConfigError extends Error {
-  constructor(name: string) {
-    super(`${name} tanimli degil. .env.example dosyasina bakin.`);
+  readonly category: string;
+
+  constructor(variable: string, kind: "missing" | "invalid" = "missing") {
+    super(
+      kind === "missing"
+        ? `${variable} tanimli degil. .env.example dosyasina bakin.`
+        : `${variable} gecersiz. .env.example dosyasina bakin.`,
+    );
     this.name = "AppleConfigError";
+    this.category = `config_${kind}:${variable}`;
+  }
+}
+
+/** Apple ucuyla konusma hatasi; kategori token/JWKS adimini ve Apple'in hata kodunu tasir. */
+export class AppleOAuthError extends Error {
+  constructor(readonly category: string) {
+    super(`apple oauth: ${category}`);
+    this.name = "AppleOAuthError";
   }
 }
 
@@ -57,19 +82,59 @@ export interface AppleConfig {
   privateKey: string;
 }
 
-function requireEnv(name: string): string {
-  const value = process.env[name]?.trim();
+type Env = Readonly<Record<string, string | undefined>>;
+
+function requireEnv(env: Env, name: string): string {
+  const value = env[name]?.trim();
   if (!value) throw new AppleConfigError(name);
   return value;
 }
 
-export function appleConfigFromEnv(): AppleConfig {
-  return {
-    clientId: requireEnv("APPLE_CLIENT_ID"),
-    teamId: requireEnv("APPLE_TEAM_ID"),
-    keyId: requireEnv("APPLE_KEY_ID"),
-    privateKey: requireEnv("APPLE_PRIVATE_KEY").replace(/\\n/g, "\n"),
+/**
+ * Dort degiskenin hepsi zorunlu. Ozel anahtar burada ayristirilir ve ES256
+ * icin P-256 EC anahtari oldugu dogrulanir: bozuk anahtar kullaniciyi
+ * Apple'a gonderdikten sonra degil, akis baslamadan yakalanir.
+ */
+export function appleConfigFromEnv(env: Env = process.env): AppleConfig {
+  const config = {
+    clientId: requireEnv(env, "APPLE_CLIENT_ID"),
+    teamId: requireEnv(env, "APPLE_TEAM_ID"),
+    keyId: requireEnv(env, "APPLE_KEY_ID"),
+    privateKey: requireEnv(env, "APPLE_PRIVATE_KEY").replace(/\\n/g, "\n"),
   };
+  try {
+    const key = createPrivateKey(config.privateKey);
+    if (key.asymmetricKeyType !== "ec" || key.asymmetricKeyDetails?.namedCurve !== "prime256v1") {
+      throw new Error("not a P-256 key");
+    }
+  } catch {
+    throw new AppleConfigError("APPLE_PRIVATE_KEY", "invalid");
+  }
+  return config;
+}
+
+/** Authorize ve token adimlarinin AYNI `redirect_uri`'si (Apple Services ID'de kayitli olmali). */
+export function appleRedirectUri(appUrl: string): string {
+  return `${appUrl.replace(/\/+$/, "")}/giris/apple/callback`;
+}
+
+export function buildAppleAuthorizeUrl(input: {
+  clientId: string;
+  redirectUri: string;
+  state: string;
+  /** `hashNonce(rawNonce)`; ham deger cerezde kalir. */
+  nonceHash: string;
+}): string {
+  const url = new URL(APPLE_AUTHORIZE_URL);
+  url.searchParams.set("client_id", input.clientId);
+  url.searchParams.set("redirect_uri", input.redirectUri);
+  url.searchParams.set("response_type", "code");
+  // `name email` istendiginde Apple yalnizca form_post kabul eder.
+  url.searchParams.set("response_mode", "form_post");
+  url.searchParams.set("scope", "name email");
+  url.searchParams.set("state", input.state);
+  url.searchParams.set("nonce", input.nonceHash);
+  return url.toString();
 }
 
 /** Authorize isteginde duz `nonce` degil, SHA-256'si gonderilir; id_token onu tasir. */
@@ -194,15 +259,42 @@ export function verifyAppleIdToken(
 let cachedKeys: { keys: AppleJwk[]; fetchedAt: number } | null = null;
 const KEYS_TTL_MS = 60 * 60 * 1000;
 
+const REQUEST_TIMEOUT_MS = 10_000;
+
+async function appleRequest(
+  fetchImpl: typeof fetch,
+  step: "token" | "jwks",
+  url: string,
+  init: RequestInit = {},
+): Promise<Response> {
+  try {
+    return await fetchImpl(url, { ...init, signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS) });
+  } catch (error) {
+    const timedOut = error instanceof Error && error.name === "TimeoutError";
+    throw new AppleOAuthError(`${step}:${timedOut ? "timeout" : "network"}`);
+  }
+}
+
+async function readJson(response: Response): Promise<Record<string, unknown> | null> {
+  try {
+    const value = (await response.json()) as unknown;
+    return value && typeof value === "object" ? (value as Record<string, unknown>) : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Apple'in genel anahtarlari; bir saat onbellekte. `kid` bulunamazsa cagiran yeniler. */
-export async function fetchAppleJwks(options: { force?: boolean } = {}): Promise<AppleJwk[]> {
+export async function fetchAppleJwks(
+  options: { force?: boolean; fetchImpl?: typeof fetch } = {},
+): Promise<AppleJwk[]> {
   if (!options.force && cachedKeys && Date.now() - cachedKeys.fetchedAt < KEYS_TTL_MS) {
     return cachedKeys.keys;
   }
-  const response = await fetch(APPLE_KEYS_URL);
-  if (!response.ok) throw new Error("Apple JWKS alinamadi");
-  const payload = (await response.json()) as { keys?: unknown };
-  if (!Array.isArray(payload.keys)) throw new Error("Apple JWKS bicimi beklenmedik");
+  const response = await appleRequest(options.fetchImpl ?? fetch, "jwks", APPLE_KEYS_URL);
+  if (!response.ok) throw new AppleOAuthError(`jwks:http_${response.status}`);
+  const payload = await readJson(response);
+  if (!Array.isArray(payload?.keys)) throw new AppleOAuthError("jwks:invalid");
   const keys = payload.keys.filter(
     (key): key is AppleJwk => typeof key === "object" && key !== null && "kid" in key,
   );
@@ -214,8 +306,9 @@ export async function fetchAppleJwks(options: { force?: boolean } = {}): Promise
 export async function exchangeAppleCode(
   config: AppleConfig,
   input: { code: string; redirectUri: string },
+  fetchImpl: typeof fetch = fetch,
 ): Promise<string> {
-  const response = await fetch(APPLE_TOKEN_URL, {
+  const response = await appleRequest(fetchImpl, "token", APPLE_TOKEN_URL, {
     method: "POST",
     headers: { "content-type": "application/x-www-form-urlencoded" },
     body: new URLSearchParams({
@@ -226,12 +319,18 @@ export async function exchangeAppleCode(
       redirect_uri: input.redirectUri,
     }),
   });
-  if (!response.ok) throw new Error("Apple token exchange failed");
-  const payload = (await response.json()) as { id_token?: unknown };
-  if (typeof payload.id_token !== "string" || !payload.id_token) {
-    throw new Error("Apple token response missing id_token");
+  const payload = await readJson(response);
+  if (!response.ok) {
+    // Ornek: token:http_400:invalid_client (Services ID/Team ID/Key ID/anahtar
+    // eslesmiyor), token:http_400:invalid_grant (code kullanilmis/suresi dolmus
+    // ya da redirect_uri uyusmuyor).
+    throw new AppleOAuthError(`token:http_${response.status}:${safeProviderCode(payload?.error)}`);
   }
-  return payload.id_token;
+  const idToken = payload?.id_token;
+  if (typeof idToken !== "string" || !idToken) {
+    throw new AppleOAuthError("token:missing_id_token");
+  }
+  return idToken;
 }
 
 /** Apple yalnizca ILK giriste `user` alanini (ad) form ile gonderir. Guvenilir kaynak degil. */
@@ -272,4 +371,94 @@ export function signInWithApple(
     ip: input.ip,
     userAgent: input.userAgent,
   });
+}
+
+export interface CompleteAppleSignInInput {
+  code: string;
+  /** Cerezdeki ham nonce; id_token `hashNonce(rawNonce)` tasimali. */
+  rawNonce: string;
+  /** Formdaki imzasiz `user` JSON'u (yalnizca ilk giriste, yalnizca ad icin). */
+  userJson: string | null;
+  redirectUri: string;
+  ip: string | null;
+  userAgent: string | null;
+}
+
+export interface CompleteAppleSignInDeps {
+  config?: AppleConfig;
+  fetchImpl?: typeof fetch;
+  /** Testte anahtar enjekte etmek icin; varsayilan Apple JWKS (onbellekli). */
+  getKeys?: (force: boolean) => Promise<AppleJwk[]>;
+  now?: Date;
+}
+
+/**
+ * Callback'in tamami: code -> id_token -> imza/iss/aud/exp/nonce dogrulamasi
+ * -> kullanici + kimlik + oturum (+ erken erisim, `createSessionForUser`).
+ * Anahtar listesinde `kid` yoksa (Apple anahtar dondurmus) bir kez yenilenir.
+ */
+export async function completeAppleSignIn(
+  db: Database,
+  input: CompleteAppleSignInInput,
+  deps: CompleteAppleSignInDeps = {},
+): Promise<SignInWithIdentityResult> {
+  const config = deps.config ?? appleConfigFromEnv();
+  const fetchImpl = deps.fetchImpl ?? fetch;
+  const getKeys = deps.getKeys ?? ((force: boolean) => fetchAppleJwks({ force, fetchImpl }));
+
+  const idToken = await exchangeAppleCode(
+    config,
+    { code: input.code, redirectUri: input.redirectUri },
+    fetchImpl,
+  );
+  const verifyWith = (keys: readonly AppleJwk[]) =>
+    verifyAppleIdToken(idToken, {
+      clientId: config.clientId,
+      expectedNonce: hashNonce(input.rawNonce),
+      keys,
+      now: deps.now,
+    });
+
+  let claims: AppleIdTokenClaims;
+  try {
+    claims = verifyWith(await getKeys(false));
+  } catch (error) {
+    if (!(error instanceof AppleIdTokenError) || error.reason !== "bilinmeyen kid") throw error;
+    claims = verifyWith(await getKeys(true));
+  }
+
+  return signInWithApple(db, {
+    claims,
+    displayName: displayNameFromAppleUser(input.userJson),
+    ip: input.ip,
+    userAgent: input.userAgent,
+  });
+}
+
+/** `AppleIdTokenError.reason` -> log dostu kisa ad ("bilinmeyen kid" -> "unknown_kid"). */
+const ID_TOKEN_REASONS: Record<string, string> = {
+  bicim: "format",
+  ayristirilamadi: "unparsable",
+  "alg/kid": "alg_kid",
+  "bilinmeyen kid": "unknown_kid",
+  imza: "signature",
+  iss: "issuer",
+  aud: "audience",
+  exp: "expired",
+  iat: "issued_in_future",
+  nonce: "nonce",
+  sub: "subject",
+};
+
+/**
+ * Herhangi bir Apple hatasini loglanabilir kategoriye cevirir: `config_missing:
+ * APPLE_KEY_ID`, `token:http_400:invalid_client`, `id_token:audience`,
+ * `jwks:timeout`, `db:23505`... Token, e-posta ya da `sub` icermez.
+ */
+export function classifyAppleFailure(error: unknown): string {
+  if (error instanceof AppleConfigError || error instanceof AppleOAuthError) return error.category;
+  if (error instanceof AppleIdTokenError) {
+    return `id_token:${ID_TOKEN_REASONS[error.reason] ?? "invalid"}`;
+  }
+  return databaseFailureCategory(error) ?? unexpectedFailureCategory(error);
 }

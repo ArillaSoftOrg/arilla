@@ -10,6 +10,12 @@
  * OTP ucu yalnizca yurt ici numaraya gider; +90 disi numara burada da
  * reddedilir (izin listesi `phone-login.ts`'te zaten +90 ile sinirli).
  *
+ * Saglayici kodlari (resmi SDK `SendOtpSmsErrorCode`): 20 mesaj metni/uzunluk,
+ * 30 kimlik ya da API/IP kisiti (Vercel'in sabit cikis IP'si yok: panelde
+ * IP kisiti kapali olmali), 40/41 gonderici basligi tanimsiz/gecersiz,
+ * 50-52 numara, 60 OTP kredisi yok, 70 parametre, 100/101 sistem, 5000
+ * tanimsiz. Loglarda `sms:netgsm:<kod>` olarak gorunur.
+ *
  * Kimlik bilgisi, numara ve mesaj hicbir hata mesajina ya da loga girmez;
  * hata yalnizca saglayici kodunu tasir.
  */

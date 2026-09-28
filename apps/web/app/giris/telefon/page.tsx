@@ -1,4 +1,4 @@
-import { maskPhone, safeRedirectPath } from "@arilla/core";
+import { authProviderAvailability, maskPhone, safeRedirectPath } from "@arilla/core";
 import { Button, Input } from "@arilla/ui";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
@@ -26,8 +26,12 @@ const COPY = {
   back: "Diğer giriş seçenekleri",
 } as const;
 
+/** docs/copy.md `auth.phone_unavailable`. */
+const UNAVAILABLE = "Telefonla giriş şu an kullanılamıyor. Başka bir yöntemle devam edebilirsin.";
+
 const ERROR_COPY: Record<string, string> = {
   numara: "Geçerli bir cep telefonu numarası gir.",
+  ulke: "Şu an yalnızca Türkiye (+90) numaralarıyla giriş yapılabiliyor.", // auth.phone_country_unsupported
   sinir: "Çok fazla deneme yapıldı. Birkaç dakika sonra tekrar dene.",
   gonderilemedi: "Kodu şu an gönderemedik. Biraz sonra tekrar dene.",
   kod: "Kod hatalı ya da süresi dolmuş. Tekrar dene ya da yeni bir kod iste.",
@@ -48,8 +52,11 @@ export default async function TelefonGirisPage({
   // Dönüş yolu kod-gönder adımında kısa ömürlü çereze yazılır (`next-cookie.ts`).
   const safeNext = safeRedirectPath(next);
   const phone = (await cookies()).get(PHONE_COOKIE)?.value;
-  const codeStep = adim === "kod" && Boolean(phone);
-  const errorText = hata ? ERROR_COPY[hata] : undefined;
+  // Sağlayıcı yapılandırılmamışsa form gösterilmez: kod gönderilemeyecek bir
+  // akışa kullanıcı sokulmaz (`authProviderAvailability`).
+  const available = authProviderAvailability().phone;
+  const codeStep = available && adim === "kod" && Boolean(phone);
+  const errorText = !available ? UNAVAILABLE : hata ? ERROR_COPY[hata] : undefined;
 
   return (
     <div className={styles.page}>
@@ -99,7 +106,7 @@ export default async function TelefonGirisPage({
               {COPY.changeNumber}
             </a>
           </div>
-        ) : (
+        ) : available ? (
           <form action="/giris/telefon/kod-gonder" method="post" className={styles.form}>
             <input type="hidden" name="next" value={safeNext} />
             <Input
@@ -110,13 +117,13 @@ export default async function TelefonGirisPage({
               inputMode="tel"
               autoComplete="tel"
               required
-              error={hata === "numara" ? ERROR_COPY.numara : undefined}
+              error={hata === "numara" || hata === "ulke" ? ERROR_COPY[hata] : undefined}
             />
             <Button type="submit" variant="primary" size="lg" fullWidth>
               {COPY.sendCode}
             </Button>
           </form>
-        )}
+        ) : null}
 
         <a className={styles.legal} href="/giris">
           {COPY.back}

@@ -17,11 +17,13 @@
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { type Database, phoneLoginCode } from "@arilla/db";
 import { and, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
-import { getRedis } from "../redis/client.ts";
+import { getRedis, isRedisUnavailableError } from "../redis/client.ts";
 import { incrementFixedWindow } from "../redis/counter.ts";
+import { unexpectedFailureCategory } from "./failure-category.ts";
 import { type SignInWithIdentityResult, signInWithIdentity } from "./identity-sign-in.ts";
 import { RateLimitExceededError } from "./rate-limit.ts";
-import { SmsDeliveryError, type SmsSender } from "./sms.ts";
+import { SmsDeliveryError, type SmsSender, SmsUnavailableError } from "./sms.ts";
+import { NetgsmSendError } from "./sms-netgsm.ts";
 import { hashToken } from "./token.ts";
 
 export const PHONE_CODE_LENGTH = 6;
@@ -335,4 +337,19 @@ export async function signInWithPhone(
     ip: input.ip,
     userAgent: input.userAgent,
   });
+}
+
+/**
+ * Kod gonderimi basarisizliginin loglanabilir kategorisi. Numara, kod ya da
+ * mesaj metni ICERMEZ: `sms:netgsm:30` (saglayici kodu), `sms:netgsm:timeout`,
+ * `sms_unavailable` (saglayici yapilandirilmamis), `rate_limit_unavailable`.
+ */
+export function classifyPhoneSendFailure(error: unknown): string {
+  if (error instanceof SmsUnavailableError) return "sms_unavailable";
+  if (error instanceof SmsDeliveryError) {
+    const cause = (error as { cause?: unknown }).cause;
+    return cause instanceof NetgsmSendError ? `sms:netgsm:${cause.code}` : "sms:delivery";
+  }
+  if (isRedisUnavailableError(error)) return "rate_limit_unavailable";
+  return unexpectedFailureCategory(error);
 }

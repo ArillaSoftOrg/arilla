@@ -266,6 +266,9 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `auth.link_sent_hint` | Birkaç dakika içinde gelmezse gereksiz klasörüne de göz at. |
 | `auth.invalid_email` | Geçerli bir e-posta adresi gir. |
 | `auth.send_failed` | Bağlantıyı şu an gönderemedik. Biraz sonra tekrar dene. |
+| `auth.provider_unavailable` | şu an kullanılamıyor |
+| `auth.phone_unavailable` | Telefonla giriş şu an kullanılamıyor. Başka bir yöntemle devam edebilirsin. |
+| `auth.phone_country_unsupported` | Şu an yalnızca Türkiye (+90) numaralarıyla giriş yapılabiliyor. |
 
 `auth.rate_limited` mesajı hesabın var olup olmadığını belli etmez; her iki
 durumda da aynı metin gösterilir.

@@ -1,7 +1,7 @@
 "use client";
 
 import { Button, Input, VisuallyHidden } from "@arilla/ui";
-import { useActionState } from "react";
+import { type ReactNode, useActionState } from "react";
 import { type RequestLoginLinkState, requestLoginLinkAction } from "./actions.ts";
 import styles from "./page.module.css";
 
@@ -21,16 +21,51 @@ const COPY = {
   google: "Google ile devam edin",
   apple: "Apple ile devam edin",
   phone: "Telefon ile devam edin",
+  unavailable: "şu an kullanılamıyor", // auth.provider_unavailable
 } as const;
+
+/** Sunucunun `authProviderAvailability()` sonucu; verilmezse hepsi açık sayılır. */
+export interface ProviderAvailability {
+  google: boolean;
+  apple: boolean;
+  phone: boolean;
+}
 
 /**
  * `next`: giriş sonrası dönüş yolu. Sunucu her adımda yeniden süzer
  * (`safeRedirectPath`); buradaki değer yalnızca taşınır.
+ *
+ * `availability`: yapılandırılmamış sağlayıcı bağlantı olmaz, "şu an
+ * kullanılamıyor" notuyla devre dışı gösterilir - kullanıcı bozuk bir
+ * akışa gönderilmez. Başlangıç route'ları aynı kontrolü ayrıca yapar.
  */
-export function LoginFormClient({ next }: { next?: string } = {}) {
+export function LoginFormClient({
+  next,
+  availability,
+}: {
+  next?: string;
+  availability?: ProviderAvailability;
+} = {}) {
   const [state, action, pending] = useActionState(requestLoginLinkAction, initialState);
   const withNext = (href: string) =>
     next && next !== "/" ? `${href}?next=${encodeURIComponent(next)}` : href;
+  const provider = (
+    key: keyof ProviderAvailability,
+    href: string,
+    label: string,
+    mark: ReactNode,
+  ) =>
+    availability && !availability[key] ? (
+      <span className={styles.providerButton} aria-disabled="true">
+        {mark}
+        {label} ({COPY.unavailable})
+      </span>
+    ) : (
+      <a className={styles.providerButton} href={withNext(href)}>
+        {mark}
+        {label}
+      </a>
+    );
 
   if (state.status === "sent") {
     return (
@@ -50,22 +85,28 @@ export function LoginFormClient({ next }: { next?: string } = {}) {
 
   return (
     <div className={styles.authChoices}>
-      <a className={styles.providerButton} href={withNext("/giris/google")}>
+      {provider(
+        "google",
+        "/giris/google",
+        COPY.google,
         <span className={styles.googleMark} aria-hidden="true">
           G
-        </span>
-        {COPY.google}
-      </a>
-      <a className={styles.providerButton} href={withNext("/giris/apple")}>
+        </span>,
+      )}
+      {provider(
+        "apple",
+        "/giris/apple",
+        COPY.apple,
         <span className={styles.appleMark} aria-hidden="true">
           
-        </span>
-        {COPY.apple}
-      </a>
-      <a className={styles.providerButton} href={withNext("/giris/telefon")}>
-        <span className={styles.phoneMark} aria-hidden="true" />
-        {COPY.phone}
-      </a>
+        </span>,
+      )}
+      {provider(
+        "phone",
+        "/giris/telefon",
+        COPY.phone,
+        <span className={styles.phoneMark} aria-hidden="true" />,
+      )}
       <form action={action} className={styles.form} aria-busy={pending || undefined}>
         {next && next !== "/" ? <input type="hidden" name="next" value={next} /> : null}
         <Input

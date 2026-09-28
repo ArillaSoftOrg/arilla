@@ -1,4 +1,5 @@
 import {
+  classifyPhoneSendFailure,
   getSmsSender,
   InvalidPhoneNumberError,
   isRedisUnavailableError,
@@ -8,6 +9,7 @@ import {
   requestPhoneLoginCode,
   SmsDeliveryError,
   SmsUnavailableError,
+  UnsupportedPhoneCountryError,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { cookies, headers } from "next/headers";
@@ -35,6 +37,10 @@ export async function POST(request: Request) {
   try {
     await requestPhoneLoginCode(getDatabase(), { phone, ip }, getSmsSender());
   } catch (error) {
+    // Alt sinif once: desteklenmeyen ulke ayri mesaj alir (SMS hic gitmez).
+    if (error instanceof UnsupportedPhoneCountryError) {
+      return seeOther(request, "/giris/telefon?hata=ulke");
+    }
     if (error instanceof InvalidPhoneNumberError) {
       return seeOther(request, "/giris/telefon?hata=numara");
     }
@@ -46,10 +52,10 @@ export async function POST(request: Request) {
       error instanceof SmsUnavailableError ||
       isRedisUnavailableError(error)
     ) {
-      // Yalnizca hata turu: numara ve kod loga girmez.
-      console.error(
-        `[giris] phone code not sent: ${error instanceof Error ? error.name : "unknown"}`,
-      );
+      // Yalnizca kategori (`sms:netgsm:30`, `sms_unavailable`, ...): numara,
+      // kod ve mesaj metni loga girmez. Gonderilemeyen kod kullanilamaz
+      // durumda kalir (`requestPhoneLoginCode`).
+      console.error(`[giris] phone code not sent: ${classifyPhoneSendFailure(error)}`);
       return seeOther(request, "/giris/telefon?hata=gonderilemedi");
     }
     throw error;

@@ -13,6 +13,7 @@
  * kodu/tablo adi.
  */
 import type { Database } from "@arilla/db";
+import { databaseFailureCategory, unexpectedFailureCategory } from "./failure-category.ts";
 import {
   GoogleEmailNotVerifiedError,
   type GoogleProfile,
@@ -178,18 +179,5 @@ export async function completeGoogleSignIn(
 export function classifyGoogleFailure(error: unknown): string {
   if (error instanceof GoogleOAuthError) return error.category;
   if (error instanceof GoogleEmailNotVerifiedError) return "email_unverified";
-
-  let current: unknown = error;
-  for (let depth = 0; depth < 3 && current && typeof current === "object"; depth++) {
-    const code = (current as { code?: unknown }).code;
-    if (typeof code === "string" && /^[0-9A-Z]{5}$/.test(code)) {
-      const message = String((current as { message?: unknown }).message ?? "");
-      const relation = /relation "([a-z_][a-z0-9_]*)" does not exist/.exec(message)?.[1];
-      return relation ? `db:${code}:${relation}` : `db:${code}`;
-    }
-    current = (current as { cause?: unknown }).cause;
-  }
-  const name =
-    error instanceof Error && /^[A-Za-z]{1,40}$/.test(error.name) ? error.name : "unknown";
-  return `unexpected:${name}`;
+  return databaseFailureCategory(error) ?? unexpectedFailureCategory(error);
 }

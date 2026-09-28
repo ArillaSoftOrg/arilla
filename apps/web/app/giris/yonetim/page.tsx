@@ -1,4 +1,9 @@
-import { type AdminLoginReason, hasCapability, safeAdminNext } from "@arilla/core";
+import {
+  type AdminLoginReason,
+  authProviderAvailability,
+  hasCapability,
+  safeAdminNext,
+} from "@arilla/core";
 import type { Metadata } from "next";
 import { verifySession } from "../../lib/dal.ts";
 import { LoginFormClient } from "../login-form-client.tsx";
@@ -67,7 +72,7 @@ export default async function YonetimGirisPage({
             {notice}
           </p>
         ) : null}
-        <LoginFormClient next={target} />
+        <LoginFormClient next={target} availability={authProviderAvailability()} />
         <a className={styles.legal} href="/">
           {COPY.back}
         </a>

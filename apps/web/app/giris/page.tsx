@@ -1,4 +1,4 @@
-import { isProductOpen, safeRedirectPath } from "@arilla/core";
+import { authProviderAvailability, isProductOpen, safeRedirectPath } from "@arilla/core";
 import { COMING_SOON_COPY } from "../coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "../early-access-copy.ts";
 import { SITE_BRAND } from "../site-config.ts";
@@ -58,7 +58,7 @@ export default async function GirisPage({
             {errorText}
           </p>
         ) : null}
-        <LoginFormClient next={safeNext} />
+        <LoginFormClient next={safeNext} availability={authProviderAvailability()} />
         <p className={styles.legal}>
           Devam ederek {SITE_BRAND}'nin <a href="/kosullar">Hizmet Şartlarını</a> kabul etmiş ve{" "}
           <a href="/gizlilik">Gizlilik Politikasını</a> okumuş olursun.

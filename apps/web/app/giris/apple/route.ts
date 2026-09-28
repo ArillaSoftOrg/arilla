@@ -1,7 +1,8 @@
 import {
-  APPLE_AUTHORIZE_URL,
-  AppleConfigError,
   appleConfigFromEnv,
+  appleRedirectUri,
+  buildAppleAuthorizeUrl,
+  classifyAppleFailure,
   generateRawToken,
   hashNonce,
   requireAppUrl,
@@ -24,17 +25,21 @@ const COOKIE_OPTIONS = {
   maxAge: 10 * 60,
 } as const;
 
+/**
+ * Apple'a gidis. Yapilandirma (ozel anahtar dahil) eksik ya da gecersizse
+ * kullanici Apple'a hic gonderilmez; log yalnizca kategori tasir
+ * (`config_missing:APPLE_KEY_ID`, `config_invalid:APPLE_PRIVATE_KEY`).
+ * `redirect_uri` callback'in token adimiyla ayni fonksiyondan gelir.
+ */
 export async function GET(request: Request) {
   let clientId: string;
   try {
     clientId = appleConfigFromEnv().clientId;
   } catch (error) {
-    if (!(error instanceof AppleConfigError)) throw error;
-    console.error("[giris] apple not configured");
+    console.error(`[giris] apple sign-in not started: ${classifyAppleFailure(error)}`);
     redirect("/giris?error=apple");
   }
 
-  const appUrl = requireAppUrl();
   const state = generateRawToken();
   const nonce = generateRawToken();
   const store = await cookies();
@@ -42,16 +47,13 @@ export async function GET(request: Request) {
   store.set(NONCE_COOKIE, nonce, COOKIE_OPTIONS);
   rememberAuthNext(store, new URL(request.url).searchParams.get("next"));
 
-  const url = new URL(APPLE_AUTHORIZE_URL);
-  url.searchParams.set("client_id", clientId);
-  url.searchParams.set("redirect_uri", `${appUrl}/giris/apple/callback`);
-  url.searchParams.set("response_type", "code");
-  // `name email` istendiginde Apple yalnizca form_post kabul eder.
-  url.searchParams.set("response_mode", "form_post");
-  url.searchParams.set("scope", "name email");
-  url.searchParams.set("state", state);
-  // id_token `nonce` claim'i bunun SHA-256'sini tasir; ham deger cerezde kalir.
-  url.searchParams.set("nonce", hashNonce(nonce));
-
-  redirect(url.toString());
+  redirect(
+    buildAppleAuthorizeUrl({
+      clientId,
+      redirectUri: appleRedirectUri(requireAppUrl()),
+      state,
+      // id_token `nonce` claim'i bunun SHA-256'sini tasir; ham deger cerezde kalir.
+      nonceHash: hashNonce(nonce),
+    }),
+  );
 }
