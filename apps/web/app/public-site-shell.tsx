@@ -62,7 +62,7 @@ export async function PublicSiteShell({
     <div className={styles.shell}>
       <SkipLink targetId={MAIN_ID}>{HOME_COPY.skipToContent}</SkipLink>
       <HomeHeader
-        brandLabel="Arilla"
+        brandLabel="ManiCepte"
         navItems={navItems}
         navAriaLabel="Ana gezinme"
         accountHref={user ? "/hesap" : null}
@@ -76,13 +76,13 @@ export async function PublicSiteShell({
         <Container size="wide">{children}</Container>
       </main>
       <SiteFooter
-        brandLabel="Arilla"
+        brandLabel="ManiCepte"
         brandDescription={HOME_COPY.heroSubtitle}
         groups={footerGroups}
         affiliateNotice={HOME_COPY.affiliateNotice}
         affiliateLink={{ label: HOME_COPY.affiliateNoticeLink, href: "/affiliate-aciklamasi" }}
         priceDisclaimer={HOME_COPY.priceDisclaimer}
-        copyrightLabel={`© ${new Date().getFullYear()} Arilla`}
+        copyrightLabel={`© ${new Date().getFullYear()} ManiCepte`}
       />
     </div>
   );

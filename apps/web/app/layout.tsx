@@ -26,13 +26,13 @@ const SITE_DESCRIPTION = "Bir ürün bul, aynısını veya benzerini farklı ma�
  */
 export const metadata: Metadata = {
   ...(appUrl ? { metadataBase: new URL(appUrl) } : {}),
-  title: "Arilla",
+  title: "ManiCepte",
   description: SITE_DESCRIPTION,
   openGraph: {
-    siteName: "Arilla",
+    siteName: "ManiCepte",
     locale: "tr_TR",
     type: "website",
-    title: "Arilla",
+    title: "ManiCepte",
     description: SITE_DESCRIPTION,
   },
 };
