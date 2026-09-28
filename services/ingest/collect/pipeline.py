@@ -5,7 +5,9 @@ Her kosu `ingest_run` tablosuna yazilir. **Sessiz basarisizlik kabul edilmez**
 
 Kapi (`collect/gate.py`) connector kurulmadan once sorulur. Reddedilen kosu
 da `ingest_run`'a `failed` + `refused:<kod>` olarak yazilir; magazaya istek
-gitmez, offer ya da `price_point` yazilmaz.
+gitmez, offer ya da `price_point` yazilmaz. Connector da ilk katalog
+isteginden once `IngestRefused` ile reddedebilir (Shopify robots.txt,
+docs/decisions/0042); ayni sekilde kaydedilir.
 """
 
 from __future__ import annotations
@@ -19,7 +21,7 @@ import psycopg
 
 from collect import connector as connector_registry
 from collect import sources  # noqa: F401  — uc tasimayi kayda ekler
-from collect.gate import SHOPIFY_CURRENCY, ingest_refusal
+from collect.gate import SHOPIFY_CURRENCY, IngestRefused, ingest_refusal
 from collect.mapping import FieldMapping
 from collect.normalize import normalize
 from collect.records import NormalizedOffer, RecordRejected
@@ -140,6 +142,24 @@ def run_ingest(conn: psycopg.Connection, merchant_slug: str) -> IngestResult:
             deactivated = writer.deactivate_missing()
 
         conn.commit()
+
+    except IngestRefused as refused:
+        # Connector'un kendi kapisi (orn. Shopify robots.txt): kapi reddiyle
+        # ayni sozlesme. Yazilmis bir sey varsa geri alinir; sayac sifirdir.
+        conn.rollback()
+        refusal = refused.refusal
+        logger.warning("ingest reddedildi %s: %s", merchant_slug, refusal.error_text)
+        _close_run(conn, run_id, "failed", offers_seen, WriteCounts(), [refusal.error_text], 0)
+        return IngestResult(
+            ingest_run_id=run_id,
+            merchant_slug=merchant_slug,
+            status="failed",
+            offers_seen=offers_seen,
+            counts=WriteCounts(),
+            rejected=rejected,
+            deactivated=0,
+            refusal=refusal.code,
+        )
 
     except Exception as error:  # noqa: BLE001 — kosu ne olursa olsun kapatilir
         conn.rollback()

@@ -400,6 +400,44 @@ def test_excessive_crawl_delay_skips_sample_for_review() -> None:
     assert shop.paths == ["/robots.txt"]
 
 
+def test_merchant_runtime_page_size_is_also_checked() -> None:
+    """0042: robots gercek toplama bicimini de kapsar (bootstrap'in 250'lik
+    sayfasi). Sabit yollara izin veren ama gercek bicimi yasaklayan kural FAIL."""
+    config = _config()
+    config["transport"]["pagination"] = {"size": 250}
+    config["transport"]["shopify"] = {"color_option": "option1", "max_products": 600}
+    shop = Shop(robots=_text("User-agent: *\nDisallow: /products.json?page=1&limit=250\n"))
+
+    result = _run(shop, Target("magaza", "magaza.myshopify.com", config))
+
+    assert result.robots.status == "FAIL"
+    assert "limit=250" in result.robots.reason
+    assert shop.paths == ["/robots.txt"]
+
+
+def test_default_merchant_paths_are_unchanged_superset() -> None:
+    """Varsayilan yapilandirmada eklenen yol yok: davranis aynen korunur."""
+    from collect.verify_readiness import ROBOTS_PATHS, _robots_paths
+
+    assert _robots_paths(TARGET) == ROBOTS_PATHS
+    bootstrap_like = _name_based_config()
+    bootstrap_like["transport"]["pagination"] = {"size": 250}
+    bootstrap_like["transport"]["shopify"]["max_products"] = 600
+    paths = _robots_paths(Target("m", "m.myshopify.com", bootstrap_like))
+    assert paths[: len(ROBOTS_PATHS)] == ROBOTS_PATHS
+    assert "/products.json?page=1&limit=250" in paths
+
+
+def test_readiness_uses_the_same_robots_code_as_runtime() -> None:
+    from collect import robots_policy, verify_readiness
+
+    assert verify_readiness.MAX_CRAWL_DELAY_SECONDS == robots_policy.MAX_CRAWL_DELAY_SECONDS
+    body = "User-agent: *\nDisallow: /*.json\n"
+    assert evaluate_robots(body) == robots_policy.evaluate_robots(
+        body, verify_readiness.ROBOTS_PATHS
+    )
+
+
 # --- urun ornegi --------------------------------------------------------------------
 
 

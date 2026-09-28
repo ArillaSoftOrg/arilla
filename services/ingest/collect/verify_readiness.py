@@ -14,7 +14,9 @@ true`) Shopify merchant'lari incelenir. Merchant basina EN FAZLA IKI istek:
 
 Yeniden deneme yok, yonlendirme izlenmez, istekler sirayla ve saniyede en
 fazla 1 (robots `Crawl-delay` daha uzunsa o), 10 sn zaman asimi. Kendimizi
-tanitan user-agent (`collect/link/robots.USER_AGENT`) kullanilir.
+tanitan user-agent (`collect/link/robots.USER_AGENT`) kullanilir. robots
+yorumu gercek toplamayla ORTAKTIR (`collect/robots_policy.py`, 0042) ve
+merchant'in gercek toplama istek bicimini de kapsar.
 
 Urun ornegi veritabanina YAZILMAZ: mevcut Shopify connector'u ve
 `normalize()` ornek uzerinde bellekte, ag olmadan calistirilir — "bugunku
@@ -37,20 +39,18 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from urllib.parse import unquote
-from urllib.robotparser import RobotFileParser
 
 import httpx
 import psycopg
 
-from collect.gate import SHOPIFY_CURRENCY
+from collect import robots_policy
+from collect.gate import SHOPIFY_CURRENCY, IngestRefused
 from collect.link.robots import BOT_NAME, BOT_VERSION, USER_AGENT
 from collect.mapping import FieldMapping, ValueFormats
 from collect.normalize import normalize
@@ -69,8 +69,10 @@ from db.connection import connect
 #: dondururse fazlasi incelenmez.
 SAMPLE_SIZE = 5
 
-#: robots.txt'in izin vermesi gereken yollar: ornek istegi ve toplamanin
-#: kendi istek bicimi (`collect/sources/shopify.py`: `?page=N&limit=M`).
+#: robots.txt'in her merchant icin izin vermesi gereken sabit yollar: ornek
+#: istegi ve varsayilan toplama bicimi. Merchant'in GERCEK toplama bicimi
+#: (`ShopifyConnector.robots_paths`, yapilandirilmis sayfa boyuyla) bunlara
+#: eklenir (`_robots_paths`) — bu liste yalnizca buyur, kuculmez.
 ROBOTS_PATHS = (
     "/products.json",
     f"/products.json?limit={SAMPLE_SIZE}&page=1",
@@ -78,8 +80,8 @@ ROBOTS_PATHS = (
 )
 
 #: Bundan uzun bir Crawl-delay istenirse ornek istegi atilmaz; karar insana
-#: birakilir (REVIEW).
-MAX_CRAWL_DELAY_SECONDS = 30.0
+#: birakilir (REVIEW). Gercek toplama ayni esikte reddeder (0042).
+MAX_CRAWL_DELAY_SECONDS = robots_policy.MAX_CRAWL_DELAY_SECONDS
 
 #: Ad tabanli secenek eslemesi icin repo sozlesmesi: bootstrap manifesti
 #: (docs/decisions/0027) `color_option_names` / `size_option_names`'i burada
@@ -240,47 +242,27 @@ def load_targets(
 # --- robots.txt ----------------------------------------------------------------
 
 
-def _applicable_entry(parser: RobotFileParser, useragent: str) -> Any:
-    """`RobotFileParser.can_fetch` ile ayni grup secimi."""
-    for entry in parser.entries:
-        if entry.applies_to(useragent):
-            return entry
-    return parser.default_entry
-
-
-def _wildcard_matches(pattern: str, path: str) -> bool:
-    """RFC 9309 eslemesi: `*` herhangi bir dizi, sondaki `$` ucu sabitler."""
-    anchored = pattern.endswith("$")
-    body = pattern[:-1] if anchored else pattern
-    regex = "".join(".*" if ch == "*" else re.escape(ch) for ch in body)
-    return re.match(regex + ("$" if anchored else ""), path) is not None
-
-
-def evaluate_robots(text: str) -> tuple[str | None, float | None]:
+def evaluate_robots(
+    text: str, paths: Sequence[str] = ROBOTS_PATHS
+) -> tuple[str | None, float | None]:
     """robots.txt metni -> (yasak nedeni ya da None, Crawl-delay).
 
-    Yorum repo ile aynidir (`urllib.robotparser`, `collect/link/robots.py`).
-    Standart kutuphane `*`/`$` joker karakterlerini ANLAMAZ ve
-    `Disallow: /*.json`'u izin sanar; bizim gruba uygulanan ve hedef yolla
-    eslesen joker bir yasak varsa politika guvenle belirlenemez sayilir.
+    Yorum gercek toplamayla ORTAKTIR (`collect/robots_policy.py`):
+    `urllib.robotparser` + joker karakterli yasaklar icin "belirlenemez = yasak".
     """
-    parser = RobotFileParser()
-    parser.parse(text.splitlines())
-    for path in ROBOTS_PATHS:
-        if not parser.can_fetch(USER_AGENT, path):
-            return f"robots_disallowed ({path})", None
+    return robots_policy.evaluate_robots(text, paths)
 
-    entry = _applicable_entry(parser, USER_AGENT)
-    for rule in getattr(entry, "rulelines", []) if entry else []:
-        pattern = unquote(rule.path)
-        if rule.allowance or not ("*" in pattern or "$" in pattern):
-            continue
-        for path in ROBOTS_PATHS:
-            if _wildcard_matches(pattern, path):
-                return f"robots_wildcard_disallow ({pattern} ~ {path})", None
 
-    delay = parser.crawl_delay(USER_AGENT)
-    return None, float(delay) if delay is not None else None
+def _robots_paths(target: Target) -> tuple[str, ...]:
+    """Sabit yollar + bu merchant'in gercek toplama istegi bicimi."""
+    try:
+        runtime = ShopifyConnector(
+            base_url=f"https://{target.domain}/products.json", config=target.feed_config
+        ).robots_paths()
+    except (ValueError, TypeError, AttributeError):
+        # Gecersiz yapilandirma urun orneginde `config_invalid` olarak cikar.
+        runtime = ()
+    return tuple(dict.fromkeys((*ROBOTS_PATHS, *runtime)))
 
 
 def check_robots(client: httpx.Client, target: Target, limiter: RateLimiter) -> RobotsCheck:
@@ -289,43 +271,15 @@ def check_robots(client: httpx.Client, target: Target, limiter: RateLimiter) -> 
         return RobotsCheck("FAIL", f"invalid_domain ({domain!r})")
 
     limiter.wait()
-    try:
-        response = client.get(f"https://{domain}/robots.txt")
-    except httpx.TimeoutException:
-        return RobotsCheck("FAIL", "timeout", requests=1)
-    except httpx.TransportError as error:
-        return RobotsCheck("FAIL", f"network_error ({type(error).__name__})", requests=1)
-    except Exception as error:  # noqa: BLE001 — bir magaza raporu durdurmaz
-        return RobotsCheck("FAIL", f"request_error ({type(error).__name__})", requests=1)
-
-    status = response.status_code
-    if status == 404:
-        # Repo sozlesmesi (collect/link/robots.py): robots.txt yoksa kural yok.
-        return RobotsCheck("PASS", "no_robots_txt (404: kural yok)", requests=1, http_status=404)
-    if status != 200:
-        location = response.headers.get("Location", "")
-        detail = f" -> {location[:120]}" if location else ""
-        return RobotsCheck("FAIL", f"http_{status}{detail}", requests=1, http_status=status)
-
-    content_type = response.headers.get("Content-Type", "").lower()
-    if content_type and not content_type.startswith("text/plain"):
-        return RobotsCheck(
-            "FAIL",
-            f"robots_unusable (content-type {content_type[:40]})",
-            requests=1,
-            http_status=status,
-        )
-    try:
-        text = response.text
-    except Exception:  # noqa: BLE001 — cozulemeyen govde: politika belirlenemez
-        return RobotsCheck(
-            "FAIL", "robots_unusable (govde okunamadi)", requests=1, http_status=status
-        )
-
-    refusal, delay = evaluate_robots(text)
-    if refusal:
-        return RobotsCheck("FAIL", refusal, requests=1, http_status=status)
-    return RobotsCheck("PASS", "allowed", requests=1, http_status=status, crawl_delay=delay)
+    # Tek istek, kati yorum; gercek toplamayla ayni kod (`robots_policy`).
+    verdict = robots_policy.fetch_robots(client, f"https://{domain}", _robots_paths(target))
+    return RobotsCheck(
+        "PASS" if verdict.allowed else "FAIL",
+        verdict.reason,
+        requests=1,
+        http_status=verdict.http_status,
+        crawl_delay=verdict.crawl_delay,
+    )
 
 
 # --- urun ornegi -----------------------------------------------------------------
@@ -399,6 +353,10 @@ def consume_offline(products: list[dict[str, Any]], target: Target, check: Produ
     payload = {"products": products}
 
     def serve(request: httpx.Request) -> httpx.Response:
+        # robots.txt burada ZATEN kati kontrolden gecti (`check_robots`);
+        # agsiz tekrarda connector'un kendi robots adimi "kural yok" gorur.
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
         page = int(request.url.params.get("page", 1))
         return httpx.Response(200, json=payload if page == 1 else {"products": []})
 
@@ -408,9 +366,11 @@ def consume_offline(products: list[dict[str, Any]], target: Target, check: Produ
             base_url=f"https://{target.domain}/products.json",
             config=target.feed_config,
             client=httpx.Client(transport=httpx.MockTransport(serve)),
+            # Agsiz: oran siniri beklemesi anlamsiz.
+            sleep=lambda _seconds: None,
         )
         records = list(connector.fetch())
-    except ValueError as error:
+    except (ValueError, IngestRefused) as error:
         check.status, check.reason = "FAIL", f"config_invalid ({str(error)[:120]})"
         return
 

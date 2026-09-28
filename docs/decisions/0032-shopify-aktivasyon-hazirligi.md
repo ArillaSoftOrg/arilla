@@ -51,3 +51,13 @@ yazmadan kanıtlar.
   "belirlenemez = FAIL" koruması eklendi.
 - **Örnekte renk/beden yoksa eşlemeyi PASS saymak.** 5 ürün tüm kataloğu
   temsil etmez; UNKNOWN → REVIEW.
+
+## Ek: gerçek toplama ile aynı kurallar (0042)
+
+2026-09: robots.txt yorumu `collect/robots_policy.py`'ye taşındı; bu komut ve
+gerçek Shopify toplaması aynı kodu kullanır. Komutun davranışı değişmedi,
+yalnızca daha katı oldu: merchant'ın gerçek toplama istek biçimi
+(`?page=1&limit=<sayfa boyu>`) de denetlenen yollara eklendi. Toplama artık
+ilk katalog isteğinden önce aynı katı robots kontrolünü yapar, aynı
+`ArillaBot` user-agent'ı gönderir ve yönlendirme izlemez; bootstrap hiçbir
+merchant'ı aktifleştirmez. Ayrıntı: `0042`.

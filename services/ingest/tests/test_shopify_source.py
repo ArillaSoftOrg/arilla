@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
+
 import httpx
 
 from collect.mapping import FieldMapping
@@ -37,12 +39,27 @@ _SHOPIFY_CONFIG = {
 }
 
 
+def _shop(
+    handler: Callable[[httpx.Request], httpx.Response],
+    robots: httpx.Response | None = None,
+) -> httpx.Client:
+    """Sahte magaza. `/robots.txt` varsayilan olarak 404 (kural yok, 0042);
+    katalog istekleri `handler`'a gider."""
+
+    def route(request: httpx.Request) -> httpx.Response:
+        if request.url.path == "/robots.txt":
+            return robots if robots is not None else httpx.Response(404)
+        return handler(request)
+
+    return httpx.Client(transport=httpx.MockTransport(route))
+
+
 def _client(products: list[dict]) -> httpx.Client:
     def handler(request: httpx.Request) -> httpx.Response:
         page = int(request.url.params.get("page", 1))
         return httpx.Response(200, json={"products": products if page == 1 else []})
 
-    return httpx.Client(transport=httpx.MockTransport(handler))
+    return _shop(handler)
 
 
 def _single_variant_product() -> dict:
@@ -205,7 +222,7 @@ def _paged_client(total: int, calls: list[int]) -> httpx.Client:
             products.append(product)
         return httpx.Response(200, json={"products": products})
 
-    return httpx.Client(transport=httpx.MockTransport(handler))
+    return _shop(handler)
 
 
 def test_max_products_caps_canonical_products_and_stops_paging() -> None:
@@ -253,7 +270,7 @@ def _flaky_client(statuses: list[int], calls: list[int]) -> httpx.Client:
             return httpx.Response(status, headers={"Retry-After": "1"})
         return httpx.Response(200, json={"products": []})
 
-    return httpx.Client(transport=httpx.MockTransport(handler))
+    return _shop(handler)
 
 
 def test_retries_transient_errors_with_bounded_backoff(monkeypatch) -> None:
@@ -436,7 +453,7 @@ def _capped_client(
             products.append(product)
         return httpx.Response(200, json={"products": products})
 
-    return httpx.Client(transport=httpx.MockTransport(handler))
+    return _shop(handler)
 
 
 def _capped(

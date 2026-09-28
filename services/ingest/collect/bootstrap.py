@@ -14,6 +14,14 @@ ve cesitli urunlerle denemek icin. Uc kural:
 3. **Sorumlu toplama.** Merchant'lar SIRAYLA islenir (eszamanlilik 1); oran
    siniri, sinirli yeniden deneme ve urun tavani manifestten `feed_config`'e
    yazilir, connector bunlari uygular.
+4. **Aktivasyon yok** (docs/decisions/0042). Yeni merchant `is_active =
+   false` eklenir; mevcut merchant'in `is_active`'i hic yazilmaz. Pasif
+   merchant icin toplama cagrilmaz, magazaya istek gitmez. Aktivasyon ayri,
+   onayli bir adimdir (0032). Mevcut `feed_config` butunuyle degistirilmez:
+   manifest anahtarlari birlestirilir, kayitli para birimi anahtarlari
+   (`CURRENCY_KEYS`) korunur. Para birimi dogrulanmis bir merchant'in
+   yapilandirmasi guvenilir kabul edilir: manifest ondan farkliysa kayit
+   REDDEDILIR (`refused`), sessizce ezilmez.
 """
 
 from __future__ import annotations
@@ -64,16 +72,34 @@ SHOPIFY_MAPPING: dict[str, Any] = {
     },
 }
 
-UPSERT_MERCHANT = """
-INSERT INTO merchant (slug, name, domain, source_type, feed_url, feed_config, is_active)
-VALUES (%(slug)s, %(name)s, %(domain)s, 'shopify', %(feed_url)s, %(feed_config)s, TRUE)
-ON CONFLICT (domain) DO UPDATE SET
-    feed_url    = EXCLUDED.feed_url,
-    feed_config = EXCLUDED.feed_config,
-    is_active   = TRUE,
-    updated_at  = now()
-RETURNING id, slug
+#: Alan adi benzersizdir (0018 ile ayni magaza iki merchant olmamali).
+SELECT_EXISTING = """
+SELECT id, slug, source_type, is_active, feed_url, feed_config
+  FROM merchant WHERE domain = %(domain)s
+   FOR UPDATE
 """
+
+#: Yeni merchant HER ZAMAN pasif (0042). Aktivasyon ayri, onayli bir adim.
+INSERT_MERCHANT = """
+INSERT INTO merchant (slug, name, domain, source_type, feed_url, feed_config, is_active)
+VALUES (%(slug)s, %(name)s, %(domain)s, 'shopify', %(feed_url)s, %(feed_config)s, FALSE)
+ON CONFLICT (domain) DO NOTHING
+RETURNING slug, is_active
+"""
+
+#: `is_active` bilincli olarak YOK: mevcut deger oldugu gibi kalir.
+UPDATE_MERCHANT = """
+UPDATE merchant SET
+    feed_url    = %(feed_url)s,
+    feed_config = %(feed_config)s,
+    updated_at  = now()
+ WHERE id = %(id)s
+"""
+
+#: Mevcut satirda varsa DOKUNULMAYAN anahtarlar. Para birimi kaniti
+#: migration'a (0021) ya da onceki onayli kayda aittir; manifestin kanit
+#: dosyasi onu sessizce degistiremez.
+CURRENCY_KEYS = ("currency", "currency_verified", "currency_evidence")
 
 
 @dataclass(frozen=True)
@@ -138,6 +164,10 @@ class SourceReport:
     variants_written: int = 0
     duration_seconds: float = 0.0
     errors: list[str] = field(default_factory=list)
+    #: insert / update / unchanged / refuse (0042).
+    registration: str | None = None
+    #: Veritabanindaki deger; bootstrap onu degistirmez.
+    is_active: bool | None = None
     #: Barkod zenginlestirmesi ozeti (0036); atlandiysa None.
     identifiers: dict[str, Any] | None = None
 
@@ -199,34 +229,152 @@ def is_local_database(url: str) -> bool:
     return host in {"localhost", "127.0.0.1", "::1"}
 
 
+@dataclass(frozen=True)
+class ExistingMerchant:
+    """Ayni alan adiyla kayitli satir."""
+
+    slug: str
+    source_type: str
+    is_active: bool
+    feed_url: str | None
+    feed_config: Any
+
+
+@dataclass(frozen=True)
+class RegistrationPlan:
+    #: insert / update / unchanged / refuse
+    action: str
+    feed_config: dict[str, Any] | None = None
+    reason: str | None = None
+
+
+@dataclass(frozen=True)
+class Registration:
+    slug: str
+    #: Veritabanindaki GERCEK deger; bootstrap onu hic yazmaz.
+    is_active: bool
+    action: str
+    reason: str | None = None
+
+
+def plan_registration(
+    existing: ExistingMerchant | None,
+    merchant: BootstrapMerchant,
+    defaults: dict[str, Any],
+    provenance: dict[str, Any] | None = None,
+) -> RegistrationPlan:
+    """Veritabanina dokunmadan ne yapilacagina karar verir (saf fonksiyon)."""
+    manifest_config = merchant.feed_config(defaults, provenance)
+    if existing is None:
+        return RegistrationPlan("insert", manifest_config)
+
+    if existing.source_type != "shopify":
+        return RegistrationPlan(
+            "refuse",
+            reason=f"existing_not_shopify (source_type={existing.source_type!r})",
+        )
+    stored = existing.feed_config
+    if not isinstance(stored, dict):
+        return RegistrationPlan("refuse", reason="feed_config_invalid (JSON nesnesi degil)")
+
+    # Butunuyle degistirme yok: mevcut anahtarlar kalir, manifest ustune
+    # yazar; kayitli para birimi anahtarlari ise hic degismez.
+    merged = {**stored, **manifest_config}
+    for key in CURRENCY_KEYS:
+        if key in stored:
+            merged[key] = stored[key]
+
+    if stored.get("currency_verified") is True:
+        # Dogrulanmis merchant'in yapilandirmasi guvenilir (0021, 0032'nin
+        # inceledigi esleme). Farkliysa ezmek yerine reddet.
+        conflicts = []
+        manifest_currency = currency_config(provenance)
+        if manifest_currency.get("currency_verified") is not True or (
+            manifest_currency.get("currency") != stored.get("currency")
+        ):
+            conflicts.append("currency")
+        conflicts += sorted(key for key in merged if merged.get(key) != stored.get(key))
+        if existing.feed_url != merchant.feed_url:
+            conflicts.append("feed_url")
+        if conflicts:
+            return RegistrationPlan(
+                "refuse",
+                reason=(
+                    "verified_config_conflict: dogrulanmis merchant'in yapilandirmasi "
+                    f"manifestten farkli ({', '.join(dict.fromkeys(conflicts))}); "
+                    "degisiklik ayri, onayli bir migration isidir"
+                ),
+            )
+        return RegistrationPlan("unchanged", stored)
+
+    if merged == stored and existing.feed_url == merchant.feed_url:
+        return RegistrationPlan("unchanged", stored)
+    return RegistrationPlan("update", merged)
+
+
 def register_merchant(
     conn: psycopg.Connection,
     merchant: BootstrapMerchant,
     defaults: dict[str, Any],
     provenance: dict[str, Any] | None = None,
-) -> str:
-    """Merchant'i kaydeder ya da feed ayarini gunceller; kayitli slug'i dondurur.
+) -> Registration:
+    """Merchant'i kaydeder ya da feed ayarini gunceller; `is_active`'e DOKUNMAZ.
 
     Alan adi 0018 ile zaten kayitliysa o satir yeniden kullanilir (slug
-    degismez) — ayni magaza iki merchant olmamali.
+    degismez) — ayni magaza iki merchant olmamali. Donen `is_active`
+    veritabanindaki gercek degerdir.
     """
-    with conn.cursor() as cur:
-        cur.execute(
-            UPSERT_MERCHANT,
-            {
-                "slug": merchant.slug,
-                "name": merchant.name,
-                "domain": merchant.domain,
-                "feed_url": merchant.feed_url,
-                "feed_config": json.dumps(
-                    merchant.feed_config(defaults, provenance), ensure_ascii=False
-                ),
-            },
-        )
-        row = cur.fetchone()
-    conn.commit()
-    assert row is not None
-    return str(row[1])
+    try:
+        with conn.cursor() as cur:
+            cur.execute(SELECT_EXISTING, {"domain": merchant.domain})
+            row = cur.fetchone()
+            existing = (
+                None
+                if row is None
+                else ExistingMerchant(
+                    slug=str(row[1]),
+                    source_type=str(row[2]),
+                    is_active=bool(row[3]),
+                    feed_url=row[4],
+                    feed_config=row[5],
+                )
+            )
+            plan = plan_registration(existing, merchant, defaults, provenance)
+
+            if plan.action == "insert":
+                cur.execute(
+                    INSERT_MERCHANT,
+                    {
+                        "slug": merchant.slug,
+                        "name": merchant.name,
+                        "domain": merchant.domain,
+                        "feed_url": merchant.feed_url,
+                        "feed_config": json.dumps(plan.feed_config, ensure_ascii=False),
+                    },
+                )
+                inserted = cur.fetchone()
+                if inserted is None:
+                    # Arada baska bir surec ayni alan adini ekledi.
+                    conn.rollback()
+                    return Registration(merchant.slug, False, "refuse", "concurrent_insert")
+                conn.commit()
+                return Registration(str(inserted[0]), bool(inserted[1]), "insert")
+
+            assert existing is not None
+            if plan.action == "update":
+                cur.execute(
+                    UPDATE_MERCHANT,
+                    {
+                        "id": row[0],
+                        "feed_url": merchant.feed_url,
+                        "feed_config": json.dumps(plan.feed_config, ensure_ascii=False),
+                    },
+                )
+            conn.commit()
+            return Registration(existing.slug, existing.is_active, plan.action, plan.reason)
+    except Exception:
+        conn.rollback()
+        raise
 
 
 def run(
@@ -249,14 +397,30 @@ def run(
         logger.info("kaynak basladi %s (%s)", merchant.slug, merchant.domain)
         started = time.monotonic()
         try:
-            slug = register_merchant(
+            registration = register_merchant(
                 conn, merchant, defaults, (provenance or {}).get(merchant.slug)
             )
+            report.registration = registration.action
+            report.is_active = registration.is_active
+            if registration.action == "refuse":
+                report.status = "refused"
+                report.errors.append(f"kayit reddedildi: {registration.reason}")
+                logger.warning("kayit reddedildi %s: %s", merchant.slug, registration.reason)
+                reports.append(report)
+                continue
             if register_only:
                 report.status = "registered"
                 reports.append(report)
                 continue
-            result = run_ingest(conn, slug)
+            if not registration.is_active:
+                # Aktivasyon bootstrap'in karari degil: urun istenmez.
+                report.status = "inactive"
+                report.errors.append(
+                    "merchant pasif: aktivasyon ayri, onayli bir adim (0032); urun istenmedi"
+                )
+                reports.append(report)
+                continue
+            result = run_ingest(conn, registration.slug)
         except Exception as error:  # noqa: BLE001 — bir magaza digerlerini durdurmaz
             report.status = "failed"
             report.errors.append(str(error)[:300])
@@ -275,7 +439,9 @@ def run(
             # adimi tazelik onbellegiyle yeniden calistirir.
             if http is not None and robots is not None:
                 try:
-                    enriched = identifiers.enrich_merchant(conn, slug, client=http, robots=robots)
+                    enriched = identifiers.enrich_merchant(
+                        conn, registration.slug, client=http, robots=robots
+                    )
                     report.identifiers = asdict(enriched)
                 except Exception as error:  # noqa: BLE001
                     conn.rollback()
@@ -313,7 +479,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument(
         "--register-only",
         action="store_true",
-        help="yalnizca merchant satirlarini/feed_config'i guncelle, magazaya istek atma",
+        help=(
+            "yalnizca merchant satirlarini/feed_config'i guncelle, magazaya istek atma "
+            "(hicbir merchant'i aktiflestirmez)"
+        ),
     )
     parser.add_argument(
         "--skip-identifiers",
@@ -356,6 +525,7 @@ def main(argv: list[str] | None = None) -> int:
             json.dumps([asdict(r) for r in reports], ensure_ascii=False, indent=2),
             encoding="utf-8",
         )
+    # `inactive` ve `refused` basari degildir: urun toplanmadi (0042).
     ok = {"registered"} if args.register_only else {"success"}
     return 0 if all(r.status in ok for r in reports) else 1
 

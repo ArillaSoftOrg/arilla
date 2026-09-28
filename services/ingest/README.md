@@ -64,6 +64,20 @@ istek gitmez, offer ve `price_point` yazilmaz; `ingest_run` `failed` kapanir,
 
 `collect.bootstrap` da `run_ingest` uzerinden ayni kapidan gecer.
 
+Kapidan sonra Shopify connector'u ilk `/products.json` isteginden ONCE kosu
+basina tek `robots.txt` istegi atar (0042; yorum `collect/robots_policy.py`,
+hazirlik dogrulamasiyla ayni). Ret ayni sozlesmeyle kaydedilir:
+
+| Kosul | Kod |
+| --- | --- |
+| robots.txt `/products.json`'u ya da gercek sorgu bicimini yasakliyor (joker dahil) | `robots_disallowed` |
+| robots.txt 3xx, 401/403, 5xx, zaman asimi, ag hatasi, okunamayan yanit | `robots_unavailable` |
+| `Crawl-delay` 30 sn ustu | `robots_crawl_delay_too_long` |
+| `feed_url` https degil | `feed_url_invalid` |
+
+Istekler `ArillaBot` user-agent'iyla (`USER_AGENT`), yonlendirme izlenmeden
+gider; `Crawl-delay` oran siniriyla birlikte hangisi yavassa o uygulanir.
+
 ### Shopify para birimi dogrulamasi (salt okunur)
 
 ```bash
