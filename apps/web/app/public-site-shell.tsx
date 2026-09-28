@@ -1,7 +1,13 @@
-import { canAccessProduct, EARLY_ACCESS_PATH } from "@arilla/core";
+import {
+  ADMIN_LOGIN_PATH,
+  canAccessProduct,
+  EARLY_ACCESS_LOGIN_PATH,
+  EARLY_ACCESS_PATH,
+} from "@arilla/core";
 import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
 import { Container, HomeHeader, SiteFooter, SkipLink } from "@arilla/ui";
 import type { ReactNode } from "react";
+import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "./early-access-copy.ts";
 import { HOME_COPY } from "./home-copy.ts";
 import {
@@ -13,6 +19,7 @@ import {
 } from "./home-footer-groups.ts";
 import { verifySession } from "./lib/dal.ts";
 import styles from "./public-site-shell.module.css";
+import { SITE_BRAND } from "./site-config.ts";
 
 /** docs/design.md "Kalite tabanı": SkipLink'in hedefi, sayfada tek. */
 const MAIN_ID = "icerik";
@@ -65,24 +72,30 @@ export async function PublicSiteShell({
   const navItems: readonly HomeHeaderNavItem[] = productAccess
     ? markCurrent(siteNavItems(links), currentPath)
     : [];
+  // Lansman öncesi (karar 0043): "Admin Girişi" yalnızca anonim ziyaretçiye,
+  // sade bir footer bağlantısı. Aynı giriş akışı; yetki girişten sonra
+  // sunucuda rolden okunur. Girişli normal kullanıcı zaten yetkisizdir.
   const footerSource = productAccess
     ? homeFooterGroups(links)
     : earlyAccessFooterGroups(
         user
-          ? { label: EARLY_ACCESS_COPY.navStatus, href: EARLY_ACCESS_PATH }
-          : { label: EARLY_ACCESS_COPY.cta, href: "/giris" },
+          ? [{ label: EARLY_ACCESS_COPY.navStatus, href: EARLY_ACCESS_PATH }]
+          : [
+              { label: EARLY_ACCESS_COPY.cta, href: EARLY_ACCESS_LOGIN_PATH },
+              { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH },
+            ],
       );
   const footerGroups: readonly FooterGroup[] = footerSource.map((group) => ({
     ...group,
     links: markCurrent(group.links, currentPath),
   }));
-  const loginHref = "/giris";
+  const loginHref = productAccess ? "/giris" : EARLY_ACCESS_LOGIN_PATH;
 
   return (
     <div className={styles.shell}>
       <SkipLink targetId={MAIN_ID}>{HOME_COPY.skipToContent}</SkipLink>
       <HomeHeader
-        brandLabel="ManiCepte"
+        brandLabel={SITE_BRAND}
         navItems={navItems}
         navAriaLabel="Ana gezinme"
         accountHref={accountHref}
@@ -90,19 +103,28 @@ export async function PublicSiteShell({
         loginHref={loginHref}
         loginLabel={loginLabel}
         accountCurrent={currentPath === (accountHref ?? loginHref)}
+        // Lansman öncesi, yalnızca anonim ziyaretçiye: sade "Admin Girişi"
+        // (aynı giriş akışı, karar 0043). Yetki girişten sonra sunucuda.
+        utilityLink={
+          !productAccess && !user
+            ? { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH }
+            : undefined
+        }
       />
       {/* tabIndex -1: SkipLink'ten sonra odak tum tarayicilarda ana icerige tasinir. */}
       <main id={MAIN_ID} tabIndex={-1} className={styles.main}>
         <Container size="wide">{children}</Container>
       </main>
       <SiteFooter
-        brandLabel="ManiCepte"
-        brandDescription={HOME_COPY.heroSubtitle}
+        brandLabel={SITE_BRAND}
+        brandDescription={
+          productAccess ? HOME_COPY.heroSubtitle : COMING_SOON_COPY.footerDescription
+        }
         groups={footerGroups}
         affiliateNotice={HOME_COPY.affiliateNotice}
         affiliateLink={{ label: HOME_COPY.affiliateNoticeLink, href: "/affiliate-aciklamasi" }}
         priceDisclaimer={HOME_COPY.priceDisclaimer}
-        copyrightLabel={`© ${new Date().getFullYear()} ManiCepte`}
+        copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
       />
     </div>
   );

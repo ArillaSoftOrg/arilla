@@ -6,6 +6,7 @@ import { readAppUrl } from "@arilla/core";
 import { ConsentProvider } from "./cookie-consent-client.tsx";
 import { readConsent } from "./lib/consent.ts";
 import { readThemeCookie } from "./lib/theme.ts";
+import { SITE_BRAND } from "./site-config.ts";
 
 /**
  * D6: `generateMetadata`'daki göreli `alternates.canonical` bu köke göre
@@ -26,13 +27,13 @@ const SITE_DESCRIPTION = "Bir ürün bul, aynısını veya benzerini farklı ma�
  */
 export const metadata: Metadata = {
   ...(appUrl ? { metadataBase: new URL(appUrl) } : {}),
-  title: "ManiCepte",
+  title: SITE_BRAND,
   description: SITE_DESCRIPTION,
   openGraph: {
-    siteName: "ManiCepte",
+    siteName: SITE_BRAND,
     locale: "tr_TR",
     type: "website",
-    title: "ManiCepte",
+    title: SITE_BRAND,
     description: SITE_DESCRIPTION,
   },
 };

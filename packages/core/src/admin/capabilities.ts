@@ -26,7 +26,11 @@ export type Capability =
   | "users.read"
   /** `/yonetim/islemler`: partition, yetim, maliyet, KVKK temizlik durumu. */
   | "operations.read"
-  /** Lansman öncesi kapalı ürünü görme (`PRODUCT_ACCESS` kapalıyken). */
+  /**
+   * Lansman öncesi kapalı ürünü görme (`PRODUCT_ACCESS` kapalıyken).
+   * YALNIZCA yönetici (karar 0043): moderatör yönetim konsolunu kullanır
+   * ama public ürün kilidini aşamaz.
+   */
   | "product.preview";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
@@ -43,7 +47,6 @@ const MODERATOR_CAPABILITIES: readonly Capability[] = [
   "diagnostics.read",
   "merchant.read",
   "ingest.read",
-  "product.preview",
 ];
 
 const ADMIN_CAPABILITIES: readonly Capability[] = [
@@ -53,6 +56,8 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "audit.read",
   "users.read",
   "operations.read",
+  // Karar 0043: lansman öncesi önizleme yalnızca yöneticinin.
+  "product.preview",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

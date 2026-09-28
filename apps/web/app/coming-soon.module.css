@@ -1,0 +1,590 @@
+/*
+ * Lansman oncesi landing (karar 0043). Yalnizca belirtecler (tokens.css):
+ * renk koda gomulmez, iki tema da ilk gunden calisir. Mobil once; kirilma
+ * noktalari design.md'deki gibi yalnizca 640 / 1024.
+ */
+
+.page {
+  display: grid;
+  gap: var(--section-space);
+  padding-block: var(--space-8) var(--section-space);
+}
+
+/* --- Hero ----------------------------------------------------------------- */
+
+.hero {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: center;
+  gap: var(--space-12);
+}
+
+.heroText {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-5);
+  max-width: 40rem;
+}
+
+.eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+}
+
+.eyebrowDot {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.status {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-medium);
+}
+
+.headline {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-display);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-display);
+  text-wrap: balance;
+}
+
+.lead {
+  margin: 0;
+  max-width: 52ch;
+  color: var(--ink-secondary);
+  font-size: var(--text-body-lg);
+  line-height: var(--line-height-body);
+  text-wrap: pretty;
+}
+
+.heroActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3) var(--space-5);
+  margin-block-start: var(--space-2);
+}
+
+.primaryAction,
+.closingAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  min-height: 52px;
+  padding: var(--space-3) var(--space-6);
+  border: var(--border-width) solid var(--accent);
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.primaryAction:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.actionIcon {
+  flex: none;
+}
+
+.secondaryAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+}
+
+.secondaryAction:hover {
+  text-decoration-thickness: 2px;
+}
+
+.heroNote {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}
+
+/* Dekoratif gorsel: telefonda ilk ekrani meşgul etmesin diye gizli. */
+.visual {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .page {
+    padding-block-start: var(--space-16);
+  }
+
+  .visual {
+    position: relative;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    max-width: 440px;
+    aspect-ratio: 1 / 1;
+    justify-self: center;
+    overflow: hidden;
+    border: var(--border-width) solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: var(--space-16);
+  }
+
+  .visual {
+    justify-self: end;
+  }
+}
+
+.visualGrid {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(var(--line) 1px, transparent 1px),
+    linear-gradient(90deg, var(--line) 1px, transparent 1px);
+  background-size: 40px 40px;
+  mask-image: radial-gradient(circle at center, var(--ink) 30%, transparent 75%);
+  opacity: 0.7;
+}
+
+.visualStack {
+  position: absolute;
+  inset: 0;
+}
+
+.visualChip {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-sm);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.visualChipA {
+  top: 16%;
+  left: 10%;
+}
+
+.visualChipB {
+  top: 44%;
+  right: 8%;
+}
+
+.visualChipC {
+  bottom: 16%;
+  left: 16%;
+}
+
+.visualIcon {
+  color: var(--ink-secondary);
+}
+
+.visualCore {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: var(--space-2);
+}
+
+.visualMark {
+  display: grid;
+  place-items: center;
+  width: 88px;
+  height: 88px;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  box-shadow: var(--shadow-md);
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+}
+
+.visualSoon {
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-medium);
+}
+
+/* --- Bolumler --------------------------------------------------------------- */
+
+.section {
+  display: grid;
+  gap: var(--space-8);
+}
+
+.anchored {
+  scroll-margin-block-start: var(--space-24);
+}
+
+.sectionIntro {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 40rem;
+}
+
+.sectionTitle,
+.buildTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-h2);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  letter-spacing: var(--letter-spacing-h2);
+  text-wrap: balance;
+}
+
+.sectionBody {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+}
+
+/* Faydalar: telefon 1, laptop+ 3 sutun. */
+.benefits {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 1024px) {
+  .benefits {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+}
+
+.benefit {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.benefitIndex {
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+.benefitTitle,
+.stepTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+}
+
+.benefitBody,
+.stepBody {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+}
+
+/* Adimlar: telefonda dikey, laptop+ yatay. */
+.steps {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: none;
+}
+
+@media (min-width: 1024px) {
+  .steps {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-8);
+  }
+}
+
+.step {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: start;
+  gap: var(--space-4);
+}
+
+@media (min-width: 1024px) {
+  .step {
+    grid-template-columns: minmax(0, 1fr);
+    padding-block-start: var(--space-6);
+    border-block-start: var(--border-width) solid var(--line);
+  }
+}
+
+.stepNumber {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.stepText {
+  display: grid;
+  gap: var(--space-2);
+}
+
+/* --- Gelistiriyoruz: hafif, blog degil ------------------------------------------ */
+
+.build {
+  display: grid;
+  gap: var(--space-6);
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+@media (min-width: 1024px) {
+  .build {
+    grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+    align-items: start;
+    column-gap: var(--space-12);
+    padding: var(--space-10);
+  }
+}
+
+.buildIntro {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.buildTitle {
+  font-size: var(--text-h3);
+}
+
+.buildList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.buildItem {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+  padding-block: var(--space-3);
+  border-block-end: var(--border-width) solid var(--line);
+}
+
+.buildItem:first-child {
+  padding-block-start: 0;
+}
+
+.buildItemTitle {
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+}
+
+.buildBadge {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px var(--space-3);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  white-space: nowrap;
+}
+
+.buildBadgeDone {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.buildBadgeProgress {
+  background: var(--paper);
+  color: var(--ink-secondary);
+}
+
+.buildMeta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3) var(--space-6);
+}
+
+@media (min-width: 1024px) {
+  .buildMeta {
+    grid-column: 1 / -1;
+  }
+}
+
+.buildUpdated {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+}
+
+.social {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+}
+
+.socialTitle {
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+}
+
+.socialList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.socialLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  text-underline-offset: 4px;
+}
+
+/* --- Kapanis --------------------------------------------------------------------- */
+
+.closing {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-4);
+  padding: var(--space-8) var(--space-6);
+  border-radius: var(--radius-lg);
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+@media (min-width: 1024px) {
+  .closing {
+    justify-items: center;
+    padding: var(--space-16) var(--space-12);
+    text-align: center;
+  }
+}
+
+.closingTitle {
+  margin: 0;
+  font-size: var(--text-h2);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  letter-spacing: var(--letter-spacing-h2);
+  text-wrap: balance;
+}
+
+.closingBody {
+  margin: 0;
+  max-width: 44ch;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  opacity: 0.85;
+}
+
+/* Koyu bantta ters rol: zemin kagit, metin murekkep. */
+.closingAction {
+  margin-block-start: var(--space-2);
+  border-color: var(--paper);
+  background: var(--paper);
+  color: var(--ink);
+}
+
+.closingAction:hover {
+  background: var(--surface-hover);
+  border-color: var(--surface-hover);
+}
+
+/* --- Odak ve hareket ----------------------------------------------------------- */
+
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible,
+.socialLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Koyu bantta odak halkasi zeminle ayni renk olmasin. */
+.closingAction:focus-visible {
+  outline: var(--focus-ring-width) solid var(--accent-foreground);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .primaryAction,
+  .closingAction,
+  .secondaryAction {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard),
+      text-decoration-thickness var(--duration-fast) var(--ease-standard);
+  }
+}

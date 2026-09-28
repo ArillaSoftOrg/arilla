@@ -278,20 +278,76 @@ giriş ekranı, üst çubuk ve `/erken-erisim` bu metinleri kullanır.
 | Anahtar | Metin |
 | --- | --- |
 | `early_access.cta` | Erken erişime katıl |
-| `early_access.landing_note` | Arilla şu an erken erişimde. Listeye katıl, açıldığında haber verelim. |
+| `early_access.landing_note` | ManiCepte şu an erken erişimde. Listeye katıl, açıldığında haber verelim. |
 | `early_access.login_title` | Erken erişime katıl. Hesabınla devam et ya da yeni hesap aç. |
 | `early_access.nav_status` | Erken erişim |
-| `early_access.joined_title` | Erken erişim listesine katıldın |
-| `early_access.joined_body` | Arilla açıldığında haber vereceğiz. |
+| `early_access.joined_title` | Listedesin. |
+| `early_access.joined_body` | Erken erişim listesine katıldın. ManiCepte açıldığında haber vereceğiz. |
+| `early_access.returning_title` | Erken erişim listesindesin. |
+| `early_access.returning_body` | ManiCepte açıldığında haber vereceğiz. O zamana kadar yapman gereken bir şey yok. |
+| `early_access.not_yet_open` | ManiCepte henüz kullanıma açık değil. Açıldığında aynı hesapla devam edebileceksin. |
 | `early_access.joined_on` | Katılım tarihi: {tarih} |
 | `early_access.in_list` | Erken erişim listesindesin. |
 | `early_access.view_status` | Durumunu gör |
 | `early_access.join_title` | Erken erişim listesine katıl |
-| `early_access.join_body` | Listeye katıl, Arilla açıldığında haber verelim. |
+| `early_access.join_body` | Listeye katıl, ManiCepte açıldığında haber verelim. |
 | `early_access.join_submit` | Listeye katıl |
+| `early_access.back_home` | Ana sayfaya dön |
 | `admin.early_access.title` | Erken erişim |
 | `admin.early_access.note` | Listeye katılan hesaplar. Yalnızca hesap kimliği gösterilir; ayrıntı için kimliği yukarıdaki aramaya yapıştır. |
 | `admin.early_access.empty` | Henüz listeye katılan yok. |
+
+`joined_*` katılımdan sonraki ilk dakikalarda, `returning_*` daha sonra
+dönen kullanıcıya gösterilir (`apps/web/app/erken-erisim/state.ts`).
+
+## Lansman öncesi landing
+
+Karar 0043. Ürün kapalıyken ana sayfa. Gelecek zaman bilerek kullanılır:
+hizmet henüz açık değildir. Sahte ürün, fiyat, tasarruf, sayı, yorum ya da
+tarih yok. Metinler `apps/web/app/coming-soon-copy.ts`'te; marka adı
+`SITE_BRAND`'den gelir.
+
+| Anahtar | Metin |
+| --- | --- |
+| `coming_soon.eyebrow` | Erken Erişim |
+| `coming_soon.status` | ManiCepte yakında. |
+| `coming_soon.headline` | Aradığın ürünü bul. Fiyatları karşılaştır. Daha akıllı alışveriş yap. |
+| `coming_soon.body` | ManiCepte, aradığın ürünü, alternatiflerini ve farklı mağazalardaki fiyatlarını tek yerde görmeni kolaylaştırmak için yapay zekâ destekli bir alışveriş asistanı olarak geliştiriliyor. |
+| `coming_soon.cta_note` | Hesabınla devam et ya da yeni hesap aç; listeye otomatik eklenirsin. |
+| `coming_soon.how_it_works_anchor` | Nasıl çalışacak? |
+| `coming_soon.benefits_title` | ManiCepte ile neler yapabileceksin? |
+| `coming_soon.benefit_describe_title` | Ne aradığını anlatarak bul |
+| `coming_soon.benefit_describe_body` | Ürünün adını bilmen gerekmeyecek. Aklındakini kendi cümlelerinle anlatabilecek, bir fotoğraf ya da ürün bağlantısıyla başlayabileceksin. |
+| `coming_soon.benefit_compare_title` | Fiyatları karşılaştır |
+| `coming_soon.benefit_compare_body` | Aynı ürünün farklı mağazalardaki tekliflerini yan yana görüp karar vermeden önce seçenekleri tartabileceksin. |
+| `coming_soon.benefit_alternatives_title` | Alternatifleri keşfet |
+| `coming_soon.benefit_alternatives_body` | Beğendiğin ürüne benzeyen, farklı bütçelere uygun seçenekleri tek yerde inceleyebileceksin. |
+| `coming_soon.how_it_works_title` | Nasıl çalışacak? |
+| `coming_soon.how_it_works_body` | ManiCepte henüz kullanıma açık değil. Açıldığında her şey üç adımda olacak. |
+| `coming_soon.step_start_title` | Ara, fotoğraf yükle veya ürün bağlantısı paylaş |
+| `coming_soon.step_start_body` | Elinde ne varsa onunla başla: kısa bir tarif, bir fotoğraf ya da beğendiğin ürünün bağlantısı. |
+| `coming_soon.step_analyze_title` | ManiCepte seçenekleri analiz etsin |
+| `coming_soon.step_analyze_body` | Aynı ürünü ve ona benzeyen seçenekleri farklı mağazalarda bulup senin için düzenler. |
+| `coming_soon.step_compare_title` | Ürünleri, alternatifleri ve fiyatları karşılaştır |
+| `coming_soon.step_compare_body` | Seçenekleri yan yana gör; sana en uygun olanı sen seç. |
+| `coming_soon.build_title` | ManiCepte'yi geliştiriyoruz. |
+| `coming_soon.build_body` | Ürünü adım adım inşa ediyoruz. Şu an üzerinde çalıştıklarımız: |
+| `coming_soon.build_status_done` | Tamamlandı |
+| `coming_soon.build_status_in_progress` | Geliştiriliyor |
+| `coming_soon.build_item_early_access` | Erken erişim sistemi |
+| `coming_soon.build_item_search` | Arama deneyimi |
+| `coming_soon.build_item_discovery` | Ürün keşfi ve karşılaştırma |
+| `coming_soon.build_item_data` | Mağaza ve fiyat altyapısı |
+| `coming_soon.build_updated` | Son güncelleme: {ay} |
+| `coming_soon.follow_title` | Gelişmeleri takip et |
+| `coming_soon.closing_title` | Açıldığında ilk sen haberdar ol. |
+| `coming_soon.closing_body` | Erken erişim listesine katıl; hazır olduğumuzda sana haber verelim. |
+| `coming_soon.admin_login` | Admin Girişi |
+| `coming_soon.admin_login_title` | Hesabınla giriş yap. |
+| `coming_soon.footer_description` | ManiCepte yakında: aradığın ürünü bul, alternatiflerini keşfet, fiyatları karşılaştır. |
+| `coming_soon.meta_title` | ManiCepte – Yakında |
+| `coming_soon.meta_description` | ManiCepte yakında: aradığın ürünü bul, alternatiflerini keşfet ve farklı mağazalardaki fiyatları karşılaştır. Erken erişim listesine katıl. |
+| `error.not_found_body_closed` | Bağlantı değişmiş ya da taşınmış olabilir. |
 
 ## Boş durumlar
 

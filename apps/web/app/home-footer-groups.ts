@@ -112,9 +112,8 @@ function legalFooterGroup(): FooterGroup {
  * Lansman öncesi (ürün kapalı, P2): ürün ve hesap bağlantıları yerine tek
  * erken erişim bağlantısı + yasal grup. Kapalı ürün sayfalarına link yok.
  */
-export function earlyAccessFooterGroups(entry: {
-  label: string;
-  href: string;
-}): readonly FooterGroup[] {
-  return [{ title: HOME_COPY.footerAccountGroupTitle, links: [entry] }, legalFooterGroup()];
+export function earlyAccessFooterGroups(
+  entries: readonly { label: string; href: string }[],
+): readonly FooterGroup[] {
+  return [{ title: HOME_COPY.footerAccountGroupTitle, links: entries }, legalFooterGroup()];
 }
