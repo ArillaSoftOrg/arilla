@@ -33,7 +33,7 @@ export async function POST(request: Request) {
     const { rawSessionToken } = await signInWithPhone(getDatabase(), {
       phone,
       code,
-      ip: clientIp(headerStore.get("x-forwarded-for")),
+      ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
     });
     await setSessionCookie(rawSessionToken);

@@ -65,7 +65,19 @@ export async function verifySessionToken(
   };
 }
 
-/** Cikis - `apps/web` bu asamada UI'a baglamiyor, E3'un hazirligi. */
+/** Cikis: yalnizca bu cihazin oturumu silinir (`apps/web/app/cikis-actions.ts`). */
 export async function deleteSession(db: Database, rawToken: string): Promise<void> {
   await db.delete(session).where(eq(session.tokenHash, hashToken(rawToken)));
+}
+
+/**
+ * Tum cihazlardan cikis: kullanicinin butun oturumlari silinir. Silinen
+ * oturum sayisini dondurur. `userId` yalnizca dogrulanmis oturumdan gelmelidir.
+ */
+export async function deleteAllSessionsForUser(db: Database, userId: number): Promise<number> {
+  const deleted = await db
+    .delete(session)
+    .where(eq(session.userId, userId))
+    .returning({ id: session.id });
+  return deleted.length;
 }

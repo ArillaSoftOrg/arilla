@@ -41,7 +41,7 @@ export async function requestLoginLinkAction(
   }
 
   const headerStore = await headers();
-  const ip = clientIp(headerStore.get("x-forwarded-for"));
+  const ip = clientIp(headerStore);
 
   try {
     await requestLoginLink(getDatabase(), { email, ip });

@@ -12,7 +12,7 @@ import { clearSessionCookie } from "../lib/session-cookie.ts";
 
 export async function updateConsentAction(kind: ConsentKind, granted: boolean): Promise<void> {
   const user = await requireUser();
-  const ip = clientIp((await headers()).get("x-forwarded-for"));
+  const ip = clientIp(await headers());
   await setConsent(getDatabase(), { userId: user.id, kind, granted, ip });
   revalidatePath("/hesap");
 }

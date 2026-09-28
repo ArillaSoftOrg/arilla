@@ -1,5 +1,16 @@
+import type { Database } from "@arilla/db";
 import { describe, expect, it } from "vitest";
-import { generatePhoneCode, normalizePhoneE164 } from "./phone-login.ts";
+import {
+  allowedPhoneCountryCodes,
+  generatePhoneCode,
+  InvalidPhoneNumberError,
+  isAllowedPhoneCountry,
+  normalizePhoneE164,
+  PhoneCodeInvalidError,
+  requestPhoneLoginCode,
+  signInWithPhone,
+  UnsupportedPhoneCountryError,
+} from "./phone-login.ts";
 import { DevSmsSender, getSmsSender, maskPhone, SmsUnavailableError } from "./sms.ts";
 
 describe("normalizePhoneE164", () => {
@@ -20,6 +31,64 @@ describe("normalizePhoneE164", () => {
       expect(normalizePhoneE164(raw)).toBeNull();
     },
   );
+});
+
+describe("phone country allowlist", () => {
+  it("defaults to Turkey only", () => {
+    expect(allowedPhoneCountryCodes({})).toEqual(["90"]);
+    expect(allowedPhoneCountryCodes({ PHONE_ALLOWED_COUNTRY_CODES: "  " })).toEqual(["90"]);
+    expect(isAllowedPhoneCountry("+905321234567", {})).toBe(true);
+    expect(isAllowedPhoneCountry("+442079460958", {})).toBe(false);
+    expect(isAllowedPhoneCountry("+12025550123", {})).toBe(false);
+  });
+
+  it("reads an explicit comma separated list", () => {
+    const env = { PHONE_ALLOWED_COUNTRY_CODES: "90, +44" };
+    expect(allowedPhoneCountryCodes(env)).toEqual(["90", "44"]);
+    expect(isAllowedPhoneCountry("+442079460958", env)).toBe(true);
+    expect(isAllowedPhoneCountry("+4915112345678", env)).toBe(false);
+  });
+
+  it("fails closed when the configured list has no valid code", () => {
+    const env = { PHONE_ALLOWED_COUNTRY_CODES: "abc,0,1234" };
+    expect(allowedPhoneCountryCodes(env)).toEqual([]);
+    expect(isAllowedPhoneCountry("+905321234567", env)).toBe(false);
+  });
+
+  it("rejects an unsupported country before touching the database or sending SMS", async () => {
+    const sender = new DevSmsSender();
+    let rateLimitChecked = false;
+    // Veritabani hic kullanilmamali: erisilirse test patlar.
+    const db = new Proxy({} as Database, {
+      get() {
+        throw new Error("veritabanina erisilmemeliydi");
+      },
+    });
+    const attempt = requestPhoneLoginCode(db, { phone: "+44 20 7946 0958", ip: null }, sender, {
+      checkRateLimit: async () => {
+        rateLimitChecked = true;
+      },
+    });
+    await expect(attempt).rejects.toBeInstanceOf(UnsupportedPhoneCountryError);
+    await expect(attempt).rejects.toBeInstanceOf(InvalidPhoneNumberError);
+    expect(rateLimitChecked).toBe(false);
+    expect(sender.outbox).toHaveLength(0);
+  });
+
+  it("rejects verification for an unsupported country", async () => {
+    const db = new Proxy({} as Database, {
+      get() {
+        throw new Error("veritabanina erisilmemeliydi");
+      },
+    });
+    await expect(
+      signInWithPhone(
+        db,
+        { phone: "+442079460958", code: "123456", ip: null, userAgent: null },
+        { checkRateLimit: async () => undefined },
+      ),
+    ).rejects.toBeInstanceOf(PhoneCodeInvalidError);
+  });
 });
 
 describe("generatePhoneCode", () => {

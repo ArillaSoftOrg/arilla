@@ -26,7 +26,8 @@ export async function readSessionCookie(): Promise<string | undefined> {
   return store.get(COOKIE_NAME)?.value;
 }
 
+/** `setSessionCookie` ile aynı `path`: silme, isteğin yolundan bağımsız aynı çerezi hedefler. */
 export async function clearSessionCookie(): Promise<void> {
   const store = await cookies();
-  store.delete(COOKIE_NAME);
+  store.delete({ name: COOKIE_NAME, path: "/" });
 }

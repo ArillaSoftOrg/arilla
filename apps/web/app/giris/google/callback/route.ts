@@ -94,7 +94,7 @@ export async function GET(request: Request) {
   }
 
   const headerStore = await headers();
-  const ip = clientIp(headerStore.get("x-forwarded-for"));
+  const ip = clientIp(headerStore);
   const userAgent = headerStore.get("user-agent");
 
   try {

@@ -29,7 +29,7 @@ export async function POST(request: Request) {
   if (!phone) return seeOther(request, "/giris/telefon?hata=numara");
 
   const headerStore = await headers();
-  const ip = clientIp(headerStore.get("x-forwarded-for"));
+  const ip = clientIp(headerStore);
 
   try {
     await requestPhoneLoginCode(getDatabase(), { phone, ip }, getSmsSender());
