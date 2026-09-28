@@ -330,6 +330,14 @@ mutasyonu aynı yeteneği tekrar denetler (docs/decisions/0039).
 
 | Anahtar | Metin |
 | --- | --- |
+| `admin.login.title` | Yönetim girişi |
+| `admin.login.intro` | Yönetim paneline yetkili hesabınla giriş yap. Yönetim oturumu en fazla 12 saat sürer. |
+| `admin.login.no_access` | Bu hesabın yönetim yetkisi yok. Yetkili bir hesapla giriş yap. |
+| `admin.login.expired` | Yönetim oturumun 12 saati doldurdu. Güvenlik için yeniden giriş yap. |
+| `admin.login.idle` | 30 dakikadır işlem yapılmadığı için yönetim oturumun kapandı. Yeniden giriş yap. |
+| `admin.login.reauth` | Bu işlem için yakın zamanda giriş yapmış olman gerekiyor. Yeniden giriş yap. |
+| `admin.login.back` | Siteye dön |
+| `admin.reauth_link` | Yeniden giriş yap |
 | `admin.matching.title` | Eşleştirme kuyruğu |
 | `admin.matching.queue_count` | Kuyrukta {n} eşleştirme bekliyor |
 | `admin.matching.offer_label` | Mağaza teklifi |
@@ -401,7 +409,7 @@ mutasyonu aynı yeteneği tekrar denetler (docs/decisions/0039).
 | `admin.merchants.activate_body` | Açmak Shopify para birimi kapısını atlamaz; doğrulanmamış mağaza yine toplanmaz. |
 | `admin.merchants.reason_label` | Gerekçe (denetim kaydına yazılır) |
 | `admin.merchants.confirm_label` | Onaylamak için mağazanın kısa adını yaz: {slug} |
-| `admin.merchants.stale_session` | Güvenlik için bu işlemden önce çıkış yapıp yeniden giriş yap (oturum 12 saatten eski). |
+| `admin.merchants.stale_session` | Güvenlik için bu işlemden önce yeniden giriş yap (son girişin 1 saatten eski). |
 | `admin.ingest.title` | Veri toplama |
 | `admin.ingest.note` | Koşular komut satırı ya da zamanlayıcıdan çalışır; bu ekran yalnızca izlerini gösterir. |
 | `admin.catalog.products_title` | Ürünler |

@@ -13,6 +13,7 @@
  * yalnizca rol ve ortam degiskeni okur.
  */
 import { hasCapability } from "../admin/capabilities.ts";
+import { isAdminPath } from "../admin/session-policy.ts";
 import { safeRedirectPath } from "../auth/safe-redirect.ts";
 import type { UserRole } from "../auth/types.ts";
 
@@ -49,14 +50,19 @@ export function productAccessRedirect(user: { role: UserRole } | null | undefine
 /**
  * Giris sonrasi hedef. Urune erisebilen (lansman sonrasi herkes, oncesinde
  * yalnizca yetkili roller) guvenli `next`'e doner; digerleri her girişte
- * basari ekranina.
+ * basari ekranina. P3: `next` bir yonetim yolu ise ve kullanicinin yonetim
+ * yetkisi yoksa oraya gonderilmez (yonetim girisinden gelen normal kullanici
+ * 404'e degil kendi akisina duser).
  */
 export function postAuthRedirect(
   user: { role: UserRole },
   next: unknown,
   env: Env = process.env,
 ): string {
-  return canAccessProduct(user, env) ? safeRedirectPath(next) : EARLY_ACCESS_PATH;
+  if (!canAccessProduct(user, env)) return EARLY_ACCESS_PATH;
+  const target = safeRedirectPath(next);
+  if (isAdminPath(target) && !hasCapability(user.role, "admin.access")) return "/";
+  return target;
 }
 
 export function isPublicProductPath(pathname: string): boolean {

@@ -1,8 +1,9 @@
 import {
-  type GoogleProfile,
+  classifyGoogleFailure,
+  completeGoogleSignIn,
+  googleRedirectUri,
   postAuthRedirect,
   requireAppUrl,
-  signInWithGoogle,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { cookies, headers } from "next/headers";
@@ -10,81 +11,20 @@ import { redirect } from "next/navigation";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
 import { takeAuthNext } from "../../next-cookie.ts";
+import { GOOGLE_STATE_COOKIE } from "../google-cookies.ts";
 
-const STATE_COOKIE = "google_oauth_state";
-const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
-const GOOGLE_USERINFO_URL = "https://openidconnect.googleapis.com/v1/userinfo";
-
-function googleClientId(): string {
-  const value = process.env.GOOGLE_CLIENT_ID;
-  if (!value) {
-    throw new Error("GOOGLE_CLIENT_ID tanimli degil. .env.example dosyasina bakin.");
-  }
-  return value;
+/** Google'in callback'e koydugu `error` (`access_denied` gibi); guvenli degilse "other". */
+function providerError(value: string): string {
+  return /^[a-z_]{1,40}$/.test(value) ? value : "other";
 }
 
-function googleClientSecret(): string {
-  const value = process.env.GOOGLE_CLIENT_SECRET;
-  if (!value) {
-    throw new Error("GOOGLE_CLIENT_SECRET tanimli degil. .env.example dosyasina bakin.");
-  }
-  return value;
-}
-
-async function exchangeCodeForAccessToken(code: string): Promise<string> {
-  const appUrl = requireAppUrl();
-  const body = new URLSearchParams({
-    client_id: googleClientId(),
-    client_secret: googleClientSecret(),
-    code,
-    grant_type: "authorization_code",
-    redirect_uri: `${appUrl}/giris/google/callback`,
-  });
-
-  const response = await fetch(GOOGLE_TOKEN_URL, {
-    method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body,
-  });
-  if (!response.ok) {
-    throw new Error("Google OAuth token exchange failed");
-  }
-
-  const payload = (await response.json()) as { access_token?: unknown };
-  if (typeof payload.access_token !== "string" || payload.access_token.length === 0) {
-    throw new Error("Google OAuth token response missing access_token");
-  }
-  return payload.access_token;
-}
-
-async function fetchGoogleProfile(accessToken: string): Promise<GoogleProfile> {
-  const response = await fetch(GOOGLE_USERINFO_URL, {
-    headers: { authorization: `Bearer ${accessToken}` },
-  });
-  if (!response.ok) {
-    throw new Error("Google OAuth userinfo fetch failed");
-  }
-
-  const payload = (await response.json()) as {
-    sub?: unknown;
-    email?: unknown;
-    email_verified?: unknown;
-    name?: unknown;
-    picture?: unknown;
-  };
-  if (typeof payload.sub !== "string" || typeof payload.email !== "string") {
-    throw new Error("Google OAuth userinfo response missing identity");
-  }
-
-  return {
-    sub: payload.sub,
-    email: payload.email,
-    emailVerified: payload.email_verified === true,
-    name: typeof payload.name === "string" ? payload.name : null,
-    picture: typeof payload.picture === "string" ? payload.picture : null,
-  };
-}
-
+/**
+ * Google donusu. Kullanici her basarisizlikta ayni genel mesaji gorur
+ * (`/giris?error=google`); sunucu logu ise ayirt edilebilir bir kategori
+ * tasir - `state_missing`, `provider:access_denied`,
+ * `token:http_401:invalid_client`, `db:42P01:user_identity`, ... (bkz.
+ * `classifyGoogleFailure`). Code, token, secret, e-posta loglanmaz.
+ */
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const code = url.searchParams.get("code");
@@ -92,32 +32,38 @@ export async function GET(request: Request) {
   const error = url.searchParams.get("error");
 
   const store = await cookies();
-  const expectedState = store.get(STATE_COOKIE)?.value;
-  store.delete(STATE_COOKIE);
+  const expectedState = store.get(GOOGLE_STATE_COOKIE)?.value;
+  store.delete(GOOGLE_STATE_COOKIE);
   // Her durumda okunup silinir; hata yolunda da eski değer kalmaz.
   const next = takeAuthNext(store);
 
-  if (error || !code || !state || !expectedState || state !== expectedState) {
+  const rejection = error
+    ? `provider:${providerError(error)}`
+    : !code
+      ? "code_missing"
+      : !expectedState
+        ? "state_missing"
+        : state !== expectedState
+          ? "state_mismatch"
+          : null;
+  if (rejection || !code) {
+    console.error(`[giris] google oauth rejected: ${rejection}`);
     redirect("/giris?error=google");
   }
 
   const headerStore = await headers();
-  const ip = clientIp(headerStore);
-  const userAgent = headerStore.get("user-agent");
-
-  let destination = next;
+  let destination: string;
   try {
-    const accessToken = await exchangeCodeForAccessToken(code);
-    const profile = await fetchGoogleProfile(accessToken);
-    const { rawSessionToken, user } = await signInWithGoogle(getDatabase(), {
-      profile,
-      ip,
-      userAgent,
+    const { rawSessionToken, user } = await completeGoogleSignIn(getDatabase(), {
+      code,
+      redirectUri: googleRedirectUri(requireAppUrl()),
+      ip: clientIp(headerStore),
+      userAgent: headerStore.get("user-agent"),
     });
     await setSessionCookie(rawSessionToken);
     destination = postAuthRedirect(user, next);
-  } catch {
-    console.error("[giris] google oauth failed");
+  } catch (failure) {
+    console.error(`[giris] google oauth failed: ${classifyGoogleFailure(failure)}`);
     redirect("/giris?error=google");
   }
 

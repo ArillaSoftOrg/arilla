@@ -1,26 +1,36 @@
-import { generateRawToken, requireAppUrl } from "@arilla/core";
+import {
+  buildGoogleAuthorizeUrl,
+  classifyGoogleFailure,
+  generateRawToken,
+  googleConfigFromEnv,
+  googleRedirectUri,
+  requireAppUrl,
+} from "@arilla/core";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { rememberAuthNext } from "../next-cookie.ts";
+import { GOOGLE_STATE_COOKIE } from "./google-cookies.ts";
 
-const STATE_COOKIE = "google_oauth_state";
-const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
-
-function googleClientId(): string {
-  const value = process.env.GOOGLE_CLIENT_ID;
-  if (!value) {
-    throw new Error("GOOGLE_CLIENT_ID tanimli degil. .env.example dosyasina bakin.");
-  }
-  return value;
-}
-
+/**
+ * Google'a gidis. `redirect_uri` callback'in token adimiyla AYNI
+ * fonksiyondan (`googleRedirectUri`) uretilir. Yapilandirma eksikse kullanici
+ * Google'a hic gonderilmez; log yalnizca eksik degiskenin ADINI tasir.
+ */
 export async function GET(request: Request) {
+  let clientId: string;
+  try {
+    clientId = googleConfigFromEnv().clientId;
+  } catch (error) {
+    console.error(`[giris] google oauth not started: ${classifyGoogleFailure(error)}`);
+    redirect("/giris?error=google");
+  }
+
   const appUrl = requireAppUrl();
   const state = generateRawToken();
   const store = await cookies();
   rememberAuthNext(store, new URL(request.url).searchParams.get("next"));
 
-  store.set(STATE_COOKIE, state, {
+  store.set(GOOGLE_STATE_COOKIE, state, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",
     sameSite: "lax",
@@ -28,13 +38,5 @@ export async function GET(request: Request) {
     maxAge: 10 * 60,
   });
 
-  const url = new URL(GOOGLE_AUTH_URL);
-  url.searchParams.set("client_id", googleClientId());
-  url.searchParams.set("redirect_uri", `${appUrl}/giris/google/callback`);
-  url.searchParams.set("response_type", "code");
-  url.searchParams.set("scope", "openid email profile");
-  url.searchParams.set("state", state);
-  url.searchParams.set("prompt", "select_account");
-
-  redirect(url.toString());
+  redirect(buildGoogleAuthorizeUrl({ clientId, redirectUri: googleRedirectUri(appUrl), state }));
 }

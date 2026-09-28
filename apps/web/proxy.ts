@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { ADMIN_LOGIN_PATH, adminLoginPath, isAdminPath } from "@arilla/core/admin-session";
 import { loginPathWithNext } from "@arilla/core/auth-redirect";
 import {
   canonicalLinkSearchHref,
@@ -9,8 +10,12 @@ import {
 import { isProductOpen, isPublicProductPath } from "@arilla/core/product-access";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
+import { ADMIN_PATH_HEADER } from "./app/lib/admin-path-header.ts";
 
-const USER_ROUTE_PREFIXES = ["/yonetim", "/hesap", "/kaydettiklerim", "/alarmlar", "/gecmis"];
+/** `/yonetim/giris` yönetim kabuğunun (ve yetki kapısının) DIŞINDA çizilir. */
+const ADMIN_LOGIN_PAGE = "/giris/yonetim";
+
+const USER_ROUTE_PREFIXES = ["/hesap", "/kaydettiklerim", "/alarmlar", "/gecmis"];
 
 /**
  * `middleware.ts` DEĞİL - Next 16'da bu dosya adı deprecated, `proxy.ts`
@@ -38,6 +43,27 @@ const USER_ROUTE_PREFIXES = ["/yonetim", "/hesap", "/kaydettiklerim", "/alarmlar
  */
 export function proxy(request: NextRequest): NextResponse {
   const { pathname, searchParams } = request.nextUrl;
+
+  // Yönetim alanı (P3, docs/decisions/0042):
+  // - `/yonetim/giris` ayrı giriş ekranıdır; adres aynı kalır, sayfa yönetim
+  //   layout'unun dışındaki `/giris/yonetim`'den çizilir (kapıya takılmaz).
+  // - Oturumu olmayan → `/yonetim/giris` (dönüş yoluyla).
+  // - Diğerleri: gerçek yol `x-arilla-path` ile sunucuya iletilir; istemcinin
+  //   aynı adlı başlığı burada ezilir. Asıl yetki ve oturum kuralları her
+  //   sayfada `requireCapability` ile uygulanır.
+  if (pathname === ADMIN_LOGIN_PATH) {
+    const page = new URL(`${ADMIN_LOGIN_PAGE}${request.nextUrl.search}`, request.url);
+    return NextResponse.rewrite(page);
+  }
+  if (isAdminPath(pathname)) {
+    const target = `${pathname}${request.nextUrl.search}`;
+    if (!request.cookies.has("session")) {
+      return NextResponse.redirect(new URL(adminLoginPath(target), request.url));
+    }
+    const forwarded = new Headers(request.headers);
+    forwarded.set(ADMIN_PATH_HEADER, target);
+    return NextResponse.next({ request: { headers: forwarded } });
+  }
 
   // 0. Lansman öncesi ürün kapısı (P2): oturumu olmayan ziyaretçi public
   // ürün yollarından doğrudan landing'e gider (tarayıcılar temiz 307 alır).

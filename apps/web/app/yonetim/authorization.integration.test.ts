@@ -21,6 +21,8 @@ vi.mock("next/headers", () => ({
     get: (name: string) =>
       name === "session" && state.token ? { name, value: state.token } : undefined,
   }),
+  // P3: yönetim kapısı yeniden giriş dönüş yolunu proxy başlığından okur.
+  headers: async () => new Headers(),
 }));
 
 class RedirectSignal extends Error {
@@ -73,7 +75,8 @@ async function outcome(fn: () => Promise<unknown>): Promise<Outcome> {
     await fn();
     return "ok";
   } catch (error) {
-    if (error instanceof RedirectSignal && error.to === "/giris") return "login";
+    // P3: anonim/süresi geçmiş yönetim isteği ayrı yönetim girişine gider.
+    if (error instanceof RedirectSignal && error.to.startsWith("/yonetim/giris")) return "login";
     if (error instanceof NotFoundSignal) return "404";
     throw error;
   }
@@ -307,7 +310,8 @@ describe("server action'lar - arayüz atlanarak doğrudan çağrı", () => {
     const { setMerchantActiveAction } = await import("./magazalar/actions.ts");
     await owner((client) =>
       client.query(
-        "UPDATE session SET created_at = now() - interval '13 hours' WHERE token_hash = $1",
+        // 12 saatlik yönetim oturumu içinde ama 1 saatlik taze giriş penceresi dışında.
+        "UPDATE session SET created_at = now() - interval '2 hours' WHERE token_hash = $1",
         [hashToken(tokens.admin ?? "")],
       ),
     );
@@ -319,6 +323,7 @@ describe("server action'lar - arayüz atlanarak doğrudan çağrı", () => {
       confirmSlug: merchantSlug,
     });
     expect(result.ok).toBe(false);
+    expect(result.ok ? null : result.reauthHref).toBe("/yonetim/giris?neden=yeniden");
     expect(await merchantActive()).toBe(false);
     await owner((client) =>
       client.query("UPDATE session SET created_at = now() WHERE token_hash = $1", [

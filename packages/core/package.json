@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./admin-session": "./src/admin/session-policy.ts",
     "./auth-redirect": "./src/auth/safe-redirect.ts",
     "./product-access": "./src/access/product-access.ts",
     "./clarification": "./src/clarification/index.ts",
