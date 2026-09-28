@@ -7,7 +7,8 @@
  * - Ters bolu, bosluk ya da kontrol karakteri icermez: tarayicilar `/\evil`
  *   adresini `//evil` gibi yorumlar.
  * - Ayristirildiktan sonra koken degismez (sahte bir koke gore cozulur).
- * - `/giris` altina donulmez: giris ekranina geri donmek dongu olurdu.
+ * - `/giris` ve `/yonetim/giris` altina donulmez: giris ekranina geri donmek
+ *   dongu olurdu.
  */
 export const DEFAULT_REDIRECT_PATH = "/";
 const MAX_REDIRECT_LENGTH = 512;
@@ -27,8 +28,11 @@ export function safeRedirectPath(raw: unknown): string {
     return DEFAULT_REDIRECT_PATH;
   }
   if (parsed.origin !== PROBE_ORIGIN) return DEFAULT_REDIRECT_PATH;
-  if (parsed.pathname === "/giris" || parsed.pathname.startsWith("/giris/")) {
-    return DEFAULT_REDIRECT_PATH;
+  // Giris ekranlarina (normal ve yonetim) geri donmek dongu olurdu.
+  for (const loginPath of ["/giris", "/yonetim/giris"]) {
+    if (parsed.pathname === loginPath || parsed.pathname.startsWith(`${loginPath}/`)) {
+      return DEFAULT_REDIRECT_PATH;
+    }
   }
   return `${parsed.pathname}${parsed.search}${parsed.hash}`;
 }

@@ -12,21 +12,24 @@ export interface SetMerchantActiveActionInput {
   confirmSlug: string;
 }
 
-export type MerchantActionResult = { ok: true; changed: boolean } | { ok: false; message: string };
+export type MerchantActionResult =
+  | { ok: true; changed: boolean }
+  | { ok: false; message: string; reauthHref?: string };
 
 /**
- * Yalnızca `merchant.manage` (yönetici) + taze oturum. Doğrulama, onay adı ve
+ * Yalnızca `merchant.manage` (yönetici) + taze giriş (son 1 saat, docs/decisions/0044). Doğrulama, onay adı ve
  * denetim kaydı core'da (`setMerchantActive`); burası ince istemci.
  */
 export async function setMerchantActiveAction(
   input: SetMerchantActiveActionInput,
 ): Promise<MerchantActionResult> {
-  const { actor, fresh } = await requireFreshCapability("merchant.manage");
+  const { actor, fresh, reauthHref } = await requireFreshCapability("merchant.manage");
   if (!fresh) {
+    // docs/copy.md `admin.merchants.stale_session`; bağlantı `/yonetim/giris?next=...`.
     return {
       ok: false,
-      message:
-        "Güvenlik için bu işlemden önce çıkış yapıp yeniden giriş yap (oturum 12 saatten eski).",
+      message: "Güvenlik için bu işlemden önce yeniden giriş yap (son girişin 1 saatten eski).",
+      reauthHref,
     };
   }
   try {

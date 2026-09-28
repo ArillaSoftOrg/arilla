@@ -41,4 +41,9 @@ export interface SessionUser {
    * hassas işlemler taze oturum ister (docs/decisions/0041).
    */
   sessionCreatedAt?: Date;
+  /**
+   * Bu istekten ONCEKI son kullanım anı. Yalnızca `verifySessionToken`
+   * doldurur; yönetim alanı boşta kalma süresini bununla ölçer (P3).
+   */
+  sessionLastUsedAt?: Date;
 }

@@ -1,6 +1,7 @@
 export * from "./apple-oauth.ts";
 export * from "./cleanup.ts";
 export * from "./client-ip.ts";
+export * from "./google-flow.ts";
 export * from "./google-oauth.ts";
 export * from "./identity-sign-in.ts";
 export * from "./phone-login.ts";

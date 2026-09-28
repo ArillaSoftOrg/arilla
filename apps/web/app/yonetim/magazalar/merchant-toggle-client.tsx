@@ -26,7 +26,11 @@ export function MerchantToggleClient({
   const [reason, setReason] = useState("");
   const [confirmSlug, setConfirmSlug] = useState("");
   const [pending, setPending] = useState(false);
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [message, setMessage] = useState<{
+    text: string;
+    error: boolean;
+    reauthHref?: string;
+  } | null>(null);
   const next = !isActive;
 
   async function submit() {
@@ -40,7 +44,7 @@ export function MerchantToggleClient({
         confirmSlug,
       });
       if (!result.ok) {
-        setMessage({ text: result.message, error: true });
+        setMessage({ text: result.message, error: true, reauthHref: result.reauthHref });
         return;
       }
       dialogRef.current?.close();
@@ -78,6 +82,12 @@ export function MerchantToggleClient({
           className={message.error ? styles.statusBad : styles.muted}
         >
           {message.text}
+          {message.reauthHref ? (
+            <>
+              {" "}
+              <a href={message.reauthHref}>Yeniden giriş yap</a>
+            </>
+          ) : null}
         </p>
       ) : null}
       <dialog ref={dialogRef} className={styles.dialog} aria-labelledby={titleId}>
@@ -121,6 +131,12 @@ export function MerchantToggleClient({
           {message?.error ? (
             <p role="alert" className={styles.statusBad}>
               {message.text}
+              {message.reauthHref ? (
+                <>
+                  {" "}
+                  <a href={message.reauthHref}>Yeniden giriş yap</a>
+                </>
+              ) : null}
             </p>
           ) : null}
           <div className={styles.row}>

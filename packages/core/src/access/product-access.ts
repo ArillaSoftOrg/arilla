@@ -93,14 +93,19 @@ export function productAccessRedirect(user: { role: UserRole } | null | undefine
  * yalnizca admin) guvenli `next`'e doner. Urune erisemeyen personel
  * (lansman oncesi moderator) yalnizca yonetim konsoluna doner - guvenli
  * `next` konsol altindaysa o, degilse konsol koku. Digerleri her giriste
- * basari ekranina.
+ * basari ekranina. P3: urune erisebilen ama yonetim yetkisi olmayan
+ * kullanici (lansman sonrasi normal kullanici) `next` konsol altinda olsa
+ * da oraya gonderilmez; 404'e degil ana sayfaya doner.
  */
 export function postAuthRedirect(
   user: { role: UserRole },
   next: unknown,
   env: Env = process.env,
 ): string {
-  if (canAccessProduct(user, env)) return safeRedirectPath(next);
+  if (canAccessProduct(user, env)) {
+    const target = safeRedirectPath(next);
+    return isAdminConsolePath(target) && !isConsoleStaff(user.role) ? "/" : target;
+  }
   if (isConsoleStaff(user.role)) {
     const safe = safeRedirectPath(next);
     return isAdminConsolePath(safe) ? safe : ADMIN_CONSOLE_PATH;

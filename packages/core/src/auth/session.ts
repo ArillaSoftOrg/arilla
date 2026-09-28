@@ -51,6 +51,7 @@ export async function verifySessionToken(
       sessionId: session.id,
       expiresAt: session.expiresAt,
       sessionCreatedAt: session.createdAt,
+      sessionLastUsedAt: session.lastUsedAt,
       userId: appUser.id,
       publicId: appUser.publicId,
       email: appUser.email,
@@ -74,6 +75,8 @@ export async function verifySessionToken(
     email: row.email,
     role: row.role,
     sessionCreatedAt: row.sessionCreatedAt,
+    // Guncellemeden ONCEKI deger: yonetim bosta kalma kontrolu bunu kullanir.
+    sessionLastUsedAt: row.sessionLastUsedAt,
   };
 }
 
