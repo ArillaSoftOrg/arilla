@@ -20,7 +20,7 @@ export function ClearHistoryButtonClient() {
   }
 
   return (
-    <Button type="button" variant="secondary" disabled={pending} onClick={handleClick}>
+    <Button type="button" variant="secondary" shape="pill" disabled={pending} onClick={handleClick}>
       Geçmişi sil
     </Button>
   );

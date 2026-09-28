@@ -3,6 +3,7 @@
 import type { ConsentKind } from "@arilla/core";
 import { useState } from "react";
 import { updateConsentAction } from "./actions.ts";
+import styles from "./page.module.css";
 
 export interface ConsentTogglesClientProps {
   historyAndPersonalization: boolean;
@@ -35,37 +36,52 @@ export function ConsentTogglesClient({
     await Promise.all(kinds.map((kind) => updateConsentAction(kind, granted)));
   }
 
+  const items = [
+    {
+      id: "history",
+      title: "Kişiselleştirilmiş öneriler",
+      description:
+        "Gezinme geçmişini kaydederek daha isabetli ürün önerileri göstermemize izin ver.",
+      checked: history,
+      onChange: (granted: boolean) =>
+        toggle(["browsing_history", "personalization"], granted, setHistory),
+    },
+    {
+      id: "marketing",
+      title: "Haftalık fırsat özeti",
+      description: "Fırsat özetlerini ve önemli ürün güncellemelerini e-posta ile al.",
+      checked: marketing,
+      onChange: (granted: boolean) => toggle(["marketing_email"], granted, setMarketing),
+    },
+    {
+      id: "discovery",
+      title: "Anonim keşif katkısı",
+      description: "Bulduğun ürünler kimliğin görünmeden keşfet akışında yer alabilsin.",
+      checked: discovery,
+      onChange: (granted: boolean) => toggle(["public_discovery"], granted, setDiscovery),
+    },
+  ] as const;
+
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-        <input
-          type="checkbox"
-          checked={history}
-          onChange={(event) =>
-            toggle(["browsing_history", "personalization"], event.target.checked, setHistory)
-          }
-          style={{ marginTop: 4 }}
-        />
-        Gezinme geçmişimi kaydet, bana daha iyi öneriler göster.
-      </label>
-      <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-        <input
-          type="checkbox"
-          checked={marketing}
-          onChange={(event) => toggle(["marketing_email"], event.target.checked, setMarketing)}
-          style={{ marginTop: 4 }}
-        />
-        Haftalık fırsat özetini e-posta ile gönder.
-      </label>
-      <label style={{ display: "flex", gap: 8, alignItems: "flex-start" }}>
-        <input
-          type="checkbox"
-          checked={discovery}
-          onChange={(event) => toggle(["public_discovery"], event.target.checked, setDiscovery)}
-          style={{ marginTop: 4 }}
-        />
-        Bulduğum ürünler isimsiz olarak keşfet akışında görünebilsin.
-      </label>
+    <div className={styles.preferenceList}>
+      {items.map((item) => (
+        <label key={item.id} className={styles.preferenceItem}>
+          <span className={styles.preferenceCopy}>
+            <span className={styles.preferenceTitle}>{item.title}</span>
+            <span className={styles.preferenceDescription}>{item.description}</span>
+          </span>
+          <span className={styles.switchControl}>
+            <input
+              type="checkbox"
+              checked={item.checked}
+              onChange={(event) => item.onChange(event.target.checked)}
+            />
+            <span className={styles.switchTrack} aria-hidden="true">
+              <span className={styles.switchThumb} />
+            </span>
+          </span>
+        </label>
+      ))}
     </div>
   );
 }

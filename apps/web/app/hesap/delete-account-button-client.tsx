@@ -3,6 +3,7 @@
 import { Button } from "@arilla/ui";
 import { useState } from "react";
 import { deleteAccountAction } from "./actions.ts";
+import styles from "./page.module.css";
 
 /** docs/pages.md: "Onay adımı vardır ama geri alınamaz olduğu açıkça yazılır." (docs/copy.md `legal.delete_warning`) */
 export function DeleteAccountButtonClient() {
@@ -11,19 +12,20 @@ export function DeleteAccountButtonClient() {
 
   if (!confirming) {
     return (
-      <Button type="button" variant="secondary" onClick={() => setConfirming(true)}>
+      <Button type="button" variant="secondary" shape="pill" onClick={() => setConfirming(true)}>
         Hesabı sil
       </Button>
     );
   }
 
   return (
-    <div style={{ display: "grid", gap: 8 }}>
-      <p style={{ margin: 0, color: "var(--alert)" }}>Bu işlem geri alınamaz.</p>
-      <div style={{ display: "flex", gap: 8 }}>
+    <div className={styles.dangerActions}>
+      <p className={styles.warningText}>Bu işlem geri alınamaz.</p>
+      <div className={styles.inlineButtonRow}>
         <Button
           type="button"
           variant="secondary"
+          shape="pill"
           disabled={pending}
           onClick={async () => {
             setPending(true);
@@ -35,6 +37,7 @@ export function DeleteAccountButtonClient() {
         <Button
           type="button"
           variant="secondary"
+          shape="pill"
           disabled={pending}
           onClick={() => setConfirming(false)}
         >

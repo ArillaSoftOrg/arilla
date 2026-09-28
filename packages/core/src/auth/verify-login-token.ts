@@ -80,7 +80,13 @@ function verifyInTransaction(
     }
 
     const existingUsers = await tx
-      .select({ id: appUser.id, publicId: appUser.publicId, role: appUser.role })
+      .select({
+        id: appUser.id,
+        publicId: appUser.publicId,
+        displayName: appUser.displayName,
+        avatarUrl: appUser.avatarUrl,
+        role: appUser.role,
+      })
       .from(appUser)
       .where(eq(appUser.email, tokenRow.email))
       .limit(1);
@@ -97,7 +103,13 @@ function verifyInTransaction(
       const insertedUsers = await tx
         .insert(appUser)
         .values({ email: tokenRow.email, emailVerifiedAt: new Date(), lastSeenAt: new Date() })
-        .returning({ id: appUser.id, publicId: appUser.publicId, role: appUser.role });
+        .returning({
+          id: appUser.id,
+          publicId: appUser.publicId,
+          displayName: appUser.displayName,
+          avatarUrl: appUser.avatarUrl,
+          role: appUser.role,
+        });
       const insertedUser = insertedUsers[0];
       if (!insertedUser) {
         throw new Error("app_user insert bos sonuc dondurdu");

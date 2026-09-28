@@ -434,7 +434,7 @@ describe("erken erişim akışı", () => {
     expect(await outcome(Page)).toBe("/yonetim");
   });
 
-  it("başarı ekranı: yeni katılan 'Listedesin.', geri dönen 'listesindesin'; ürün bağlantısı yok", async () => {
+  it("başarı ekranı: yeni katılan ve geri dönen kullanıcı için durum; ürün bağlantısı yok", async () => {
     const { default: Page } = await import("./erken-erisim/page.tsx");
     const { joinEarlyAccessAction } = await import("./erken-erisim/actions.ts");
 
@@ -442,14 +442,14 @@ describe("erken erişim akışı", () => {
     expect(await outcome(joinEarlyAccessAction)).toBe("/erken-erisim");
     expect(await outcome(joinEarlyAccessAction)).toBe("/erken-erisim");
     const fresh = bodyMarkup(await Page());
-    expect(fresh).toContain("Listedesin.");
-    expect(fresh).toContain("ManiCepte açıldığında haber vereceğiz.");
+    expect(fresh).toContain("Erken erişim listesine alındın.");
+    expect(fresh).toContain("ManiCepte açıldığında sana haber vereceğiz.");
     expect(fresh).not.toMatch(PRODUCT_HREF);
 
     as("enrolled");
     const returning = bodyMarkup(await Page());
-    expect(returning).toContain("Erken erişim listesindesin.");
-    expect(returning).not.toContain("Listedesin.");
+    expect(returning).toContain("Erken erişim listemizdesin.");
+    expect(returning).not.toContain("Erken erişim listesine alındın.");
     expect(returning).not.toContain("Listeye katıl");
   });
 

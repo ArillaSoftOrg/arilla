@@ -35,6 +35,8 @@ export interface SessionUser {
   publicId: string;
   /** 0025: telefonla ya da e-postasiz Apple ile giren kullanicida NULL. */
   email: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
   role: UserRole;
   /**
    * Oturumun açıldığı an. Yalnızca `verifySessionToken` doldurur; yönetimde

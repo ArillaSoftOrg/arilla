@@ -55,6 +55,8 @@ function signInWithGoogleOnce(
         userId: appUser.id,
         publicId: appUser.publicId,
         email: appUser.email,
+        displayName: appUser.displayName,
+        avatarUrl: appUser.avatarUrl,
         role: appUser.role,
       })
       .from(userIdentity)
@@ -100,6 +102,8 @@ function signInWithGoogleOnce(
           id: existingIdentity.userId,
           publicId: existingIdentity.publicId,
           email: existingIdentity.email,
+          displayName: existingIdentity.displayName,
+          avatarUrl: existingIdentity.avatarUrl,
           role: existingIdentity.role,
         },
         isNewUser: false,
@@ -107,7 +111,13 @@ function signInWithGoogleOnce(
     }
 
     const usersByEmail = await tx
-      .select({ id: appUser.id, publicId: appUser.publicId, role: appUser.role })
+      .select({
+        id: appUser.id,
+        publicId: appUser.publicId,
+        displayName: appUser.displayName,
+        avatarUrl: appUser.avatarUrl,
+        role: appUser.role,
+      })
       .from(appUser)
       .where(eq(appUser.email, email))
       .limit(1);
@@ -124,7 +134,12 @@ function signInWithGoogleOnce(
           lastSeenAt: new Date(),
         })
         .where(eq(appUser.id, usersByEmail[0].id));
-      user = { ...usersByEmail[0], email };
+      user = {
+        ...usersByEmail[0],
+        email,
+        displayName: input.profile.name,
+        avatarUrl: input.profile.picture,
+      };
     } else {
       const insertedUsers = await tx
         .insert(appUser)
@@ -135,7 +150,13 @@ function signInWithGoogleOnce(
           avatarUrl: input.profile.picture,
           lastSeenAt: new Date(),
         })
-        .returning({ id: appUser.id, publicId: appUser.publicId, role: appUser.role });
+        .returning({
+          id: appUser.id,
+          publicId: appUser.publicId,
+          displayName: appUser.displayName,
+          avatarUrl: appUser.avatarUrl,
+          role: appUser.role,
+        });
       const insertedUser = insertedUsers[0];
       if (!insertedUser) {
         throw new Error("app_user insert bos sonuc dondurdu");

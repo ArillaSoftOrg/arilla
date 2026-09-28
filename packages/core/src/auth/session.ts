@@ -55,6 +55,8 @@ export async function verifySessionToken(
       userId: appUser.id,
       publicId: appUser.publicId,
       email: appUser.email,
+      displayName: appUser.displayName,
+      avatarUrl: appUser.avatarUrl,
       role: appUser.role,
     })
     .from(session)
@@ -73,6 +75,8 @@ export async function verifySessionToken(
     id: row.userId,
     publicId: row.publicId,
     email: row.email,
+    displayName: row.displayName,
+    avatarUrl: row.avatarUrl,
     role: row.role,
     sessionCreatedAt: row.sessionCreatedAt,
     // Guncellemeden ONCEKI deger: yonetim bosta kalma kontrolu bunu kullanir.

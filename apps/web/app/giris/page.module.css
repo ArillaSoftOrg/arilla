@@ -42,8 +42,8 @@
 
 .panel {
   display: grid;
-  width: min(100%, 30rem);
-  gap: var(--space-5);
+  width: min(100%, 37.5rem);
+  gap: var(--space-6);
 }
 
 .title {
@@ -76,12 +76,12 @@
 }
 
 .providerButton {
-  display: inline-flex;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
   align-items: center;
-  justify-content: flex-start;
-  gap: var(--space-5);
-  min-height: calc(var(--size-touch-target) + var(--space-2));
-  padding: var(--space-2) var(--space-5);
+  column-gap: var(--space-5);
+  min-height: 4.0625rem;
+  padding: var(--space-2) var(--space-6);
   border: var(--border-width) solid var(--line);
   border-radius: var(--radius-pill);
   background: var(--surface-raised);
@@ -93,9 +93,10 @@
   text-align: left;
   text-decoration: none;
   cursor: pointer;
+  box-shadow: var(--shadow-xs);
 }
 
-.providerButton:hover:not(:disabled) {
+.providerButton:hover {
   background: var(--surface-hover);
   border-color: var(--line-strong);
 }
@@ -105,52 +106,73 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-.providerButton:disabled {
+.providerButton[aria-disabled="true"] {
   color: var(--ink);
   cursor: not-allowed;
   opacity: 0.45;
 }
 
-.googleMark {
+.providerIcon {
   display: inline-grid;
-  width: 1.75rem;
-  height: 1.75rem;
   place-items: center;
-  border: var(--border-width) solid color-mix(in srgb, var(--line) 70%, transparent);
-  border-radius: 50%;
-  background: var(--surface);
-  color: #2563eb;
-  font-size: var(--text-small);
-  font-weight: var(--font-weight-semibold);
+  width: 2.5rem;
+  height: 2.5rem;
+}
+
+.googleMark {
+  display: block;
+  width: 2rem;
+  height: 2rem;
 }
 
 .appleMark {
-  width: 1.75rem;
+  display: block;
+  width: 2rem;
+  height: 2rem;
   color: var(--ink);
-  font-size: 2rem;
-  line-height: 1;
-  text-align: center;
 }
 
-.phoneMark {
+.phoneChoice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 5.75rem;
+}
+
+.flagUs {
   position: relative;
   display: inline-block;
-  width: 1.75rem;
-  height: 1.35rem;
-  border: calc(var(--border-width) * 2) solid var(--ink-muted);
+  width: 2.25rem;
+  height: 1.55rem;
+  overflow: hidden;
+  border: var(--border-width) solid var(--line-strong);
   border-radius: 0.125rem;
+  background: repeating-linear-gradient(to bottom, #b91c1c 0 7.7%, #ffffff 7.7% 15.4%);
+  box-shadow: var(--shadow-xs);
 }
 
-.phoneMark::after {
+.flagUs span {
   position: absolute;
-  top: 50%;
-  right: -0.7rem;
-  width: 0.35rem;
-  height: 0.35rem;
+  top: 0;
+  left: 0;
+  width: 42%;
+  height: 54%;
+  background: #1d4ed8;
+}
+
+.phoneChevron {
+  width: 0.45rem;
+  height: 0.45rem;
   border-right: var(--border-width) solid var(--ink-muted);
   border-bottom: var(--border-width) solid var(--ink-muted);
-  content: "";
-  transform: translateY(-70%) rotate(45deg);
+  transform: translateY(-15%) rotate(45deg);
+}
+
+.phoneCode {
+  color: var(--ink);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-medium);
+  line-height: 1;
 }
 
 .form {
@@ -217,5 +239,15 @@
   .close {
     top: var(--space-4);
     right: var(--space-4);
+  }
+
+  .panel {
+    width: 100%;
+  }
+
+  .providerButton {
+    column-gap: var(--space-4);
+    min-height: 3.75rem;
+    padding-inline: var(--space-4);
   }
 }

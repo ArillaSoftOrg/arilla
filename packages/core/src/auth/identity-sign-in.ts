@@ -53,6 +53,8 @@ function signInWithIdentityOnce(
         userId: appUser.id,
         publicId: appUser.publicId,
         email: appUser.email,
+        displayName: appUser.displayName,
+        avatarUrl: appUser.avatarUrl,
         role: appUser.role,
       })
       .from(userIdentity)
@@ -95,6 +97,8 @@ function signInWithIdentityOnce(
           id: existing.userId,
           publicId: existing.publicId,
           email: existing.email,
+          displayName: existing.displayName,
+          avatarUrl: existing.avatarUrl,
           role: existing.role,
         },
         isNewUser: false,
@@ -117,7 +121,7 @@ function signInWithIdentityOnce(
     const matched = usersByEmail[0];
     if (matched) {
       await tx.update(appUser).set({ lastSeenAt: now }).where(eq(appUser.id, matched.id));
-      user = { ...matched, email: linkEmail };
+      user = { ...matched, email: linkEmail, displayName: input.displayName, avatarUrl: null };
     } else {
       const inserted = await tx
         .insert(appUser)
@@ -132,7 +136,7 @@ function signInWithIdentityOnce(
       if (!created) {
         throw new Error("app_user insert bos sonuc dondurdu");
       }
-      user = { ...created, email: linkEmail };
+      user = { ...created, email: linkEmail, displayName: input.displayName, avatarUrl: null };
     }
 
     await tx.insert(userIdentity).values({

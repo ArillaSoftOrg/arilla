@@ -1,0 +1,284 @@
+.page {
+  display: grid;
+  align-content: center;
+  min-height: calc(100vh - 220px);
+  max-width: var(--content-width-standard);
+  margin-inline: auto;
+  padding: var(--section-space-compact) var(--gutter) var(--section-space);
+}
+
+.hero {
+  display: grid;
+  gap: var(--space-6);
+  width: 100%;
+  padding: var(--space-8);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-xs);
+}
+
+.statusBlock {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-3);
+  max-width: 680px;
+  margin-inline: auto;
+  text-align: center;
+}
+
+.successMark {
+  position: relative;
+  display: inline-grid;
+  width: 4rem;
+  height: 4rem;
+  place-items: center;
+  border: var(--border-width) solid color-mix(in srgb, var(--accent) 38%, var(--line));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
+}
+
+.successMark::before {
+  width: 1.45rem;
+  height: 0.8rem;
+  border-bottom: 4px solid var(--accent);
+  border-left: 4px solid var(--accent);
+  content: "";
+  transform: translateY(-10%) rotate(-45deg);
+}
+
+.eyebrow {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+}
+
+.title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+  text-wrap: balance;
+}
+
+.body {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-body-lg);
+  line-height: var(--line-height-body);
+  text-wrap: pretty;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-2);
+  margin-block-start: var(--space-1);
+}
+
+.dateBadge {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: var(--space-1) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+}
+
+.nextStep {
+  display: grid;
+  gap: var(--space-2);
+  max-width: 680px;
+  margin-inline: auto;
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  text-align: center;
+}
+
+.nextStepTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+}
+
+.hint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+}
+
+.benefitGrid {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.benefitItem {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+}
+
+.benefitDot {
+  width: 0.75rem;
+  height: 0.75rem;
+  margin-block-start: 0.35rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+}
+
+.benefitTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+}
+
+.benefitBody {
+  margin: var(--space-1) 0 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.primaryAction,
+.secondaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch-target);
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-pill);
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.primaryAction {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.primaryAction:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.secondaryAction {
+  background: var(--surface-raised);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.secondaryAction:hover {
+  background: var(--surface-hover);
+}
+
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.inlineLinks {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-3) var(--space-5);
+}
+
+.inlineLinks a {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  text-underline-offset: 0.3em;
+}
+
+.inlineLinks a:hover {
+  color: var(--ink-secondary);
+}
+
+@media (min-width: 760px) {
+  .benefitGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 759.98px) {
+  .page {
+    min-height: auto;
+  }
+
+  .hero {
+    padding: var(--space-5);
+  }
+
+  .statusBlock,
+  .nextStep {
+    text-align: left;
+    justify-items: start;
+  }
+
+  .metaRow,
+  .actions,
+  .inlineLinks {
+    justify-content: flex-start;
+  }
+
+  .actions {
+    display: grid;
+  }
+
+  .primaryAction,
+  .secondaryAction,
+  .actions form,
+  .actions form .secondaryAction {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .primaryAction,
+  .secondaryAction,
+  .benefitItem {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard);
+  }
+}

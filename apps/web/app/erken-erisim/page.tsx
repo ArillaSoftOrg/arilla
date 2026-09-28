@@ -8,11 +8,10 @@ import { COMING_SOON_COPY } from "../coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "../early-access-copy.ts";
 import { HOME_COPY } from "../home-copy.ts";
 import { requireUser } from "../lib/dal.ts";
-import actions from "../public-actions.module.css";
 import { SubpageShell } from "../public-site-shell.tsx";
 import { configuredSocialLinks, SITE_BRAND } from "../site-config.ts";
-import styles from "../system-state.module.css";
 import { joinEarlyAccessAction } from "./actions.ts";
+import styles from "./page.module.css";
 import { earlyAccessState } from "./state.ts";
 
 export const metadata: Metadata = {
@@ -26,6 +25,21 @@ const DATE_FORMAT = new Intl.DateTimeFormat("tr-TR", {
   year: "numeric",
   timeZone: "Europe/Istanbul",
 });
+
+const BENEFITS = [
+  {
+    title: "Benzer ürünleri bul",
+    body: "Aradığın ürünü tarif ederek ya da linkle daha yakın alternatiflere ulaş.",
+  },
+  {
+    title: "Fiyatları karşılaştır",
+    body: "Farklı mağazalardaki seçenekleri tek yerde görmeye hazır ol.",
+  },
+  {
+    title: "Fırsatları kaçırma",
+    body: "ManiCepte açıldığında erken erişim hesabınla devam et.",
+  },
+] as const;
 
 /**
  * P2 başarı ekranı (karar 0043 ile yenilendi): lansman öncesi normal
@@ -55,27 +69,50 @@ export default async function ErkenErisimPage() {
   return (
     <SubpageShell currentPath="/erken-erisim">
       <div className={styles.page}>
-        <section className={styles.notFoundHero} aria-labelledby="erken-erisim-baslik">
-          <p className={styles.code}>{EARLY_ACCESS_COPY.navStatus}</p>
+        <section className={styles.hero} aria-labelledby="erken-erisim-baslik">
           {entry ? (
-            <div className={styles.text}>
-              <h1 id="erken-erisim-baslik" className={styles.title}>
-                {state === "just_joined"
-                  ? EARLY_ACCESS_COPY.joinedTitle
-                  : EARLY_ACCESS_COPY.returningTitle}
-              </h1>
-              <p className={styles.body}>
-                {state === "just_joined"
-                  ? EARLY_ACCESS_COPY.joinedBody
-                  : EARLY_ACCESS_COPY.returningBody}
-              </p>
-              <p className={styles.hint}>
-                {EARLY_ACCESS_COPY.joinedOn(DATE_FORMAT.format(entry.createdAt))}
-              </p>
-              <p className={styles.hint}>{EARLY_ACCESS_COPY.notYetOpen}</p>
-            </div>
+            <>
+              <div className={styles.statusBlock}>
+                <span className={styles.successMark} aria-hidden="true" />
+                <p className={styles.eyebrow}>{EARLY_ACCESS_COPY.navStatus}</p>
+                <h1 id="erken-erisim-baslik" className={styles.title}>
+                  {state === "just_joined"
+                    ? EARLY_ACCESS_COPY.joinedTitle
+                    : EARLY_ACCESS_COPY.returningTitle}
+                </h1>
+                <p className={styles.body}>
+                  {state === "just_joined"
+                    ? EARLY_ACCESS_COPY.joinedBody
+                    : EARLY_ACCESS_COPY.returningBody}
+                </p>
+                <div className={styles.metaRow}>
+                  <span className={styles.dateBadge}>
+                    {EARLY_ACCESS_COPY.joinedOn(DATE_FORMAT.format(entry.createdAt))}
+                  </span>
+                </div>
+              </div>
+
+              <div className={styles.nextStep}>
+                <p className={styles.nextStepTitle}>Sırada ne var?</p>
+                <p className={styles.hint}>{EARLY_ACCESS_COPY.notYetOpen}</p>
+              </div>
+
+              <section className={styles.benefitGrid} aria-label="ManiCepte ile yapabileceklerin">
+                {BENEFITS.map((benefit) => (
+                  <article key={benefit.title} className={styles.benefitItem}>
+                    <span className={styles.benefitDot} aria-hidden="true" />
+                    <div>
+                      <h2 className={styles.benefitTitle}>{benefit.title}</h2>
+                      <p className={styles.benefitBody}>{benefit.body}</p>
+                    </div>
+                  </article>
+                ))}
+              </section>
+            </>
           ) : (
-            <div className={styles.text}>
+            <div className={styles.statusBlock}>
+              <span className={styles.successMark} aria-hidden="true" />
+              <p className={styles.eyebrow}>{EARLY_ACCESS_COPY.navStatus}</p>
               <h1 id="erken-erisim-baslik" className={styles.title}>
                 {EARLY_ACCESS_COPY.joinTitle}
               </h1>
@@ -87,15 +124,15 @@ export default async function ErkenErisimPage() {
               </form>
             </div>
           )}
-          <div className={actions.actions}>
-            <a className={actions.secondary} href="/">
+          <div className={styles.actions}>
+            <a className={styles.primaryAction} href="/">
               {EARLY_ACCESS_COPY.backHome}
             </a>
-            <a className={actions.secondary} href="/hesap">
+            <a className={styles.secondaryAction} href="/hesap">
               {HOME_COPY.navAccount}
             </a>
             <form action={logoutAction}>
-              <button type="submit" className={actions.secondary}>
+              <button type="submit" className={styles.secondaryAction}>
                 {EARLY_ACCESS_COPY.logout}
               </button>
             </form>
