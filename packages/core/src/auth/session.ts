@@ -7,7 +7,7 @@
 import { appUser, type Database, session } from "@arilla/db";
 import { eq } from "drizzle-orm";
 import { ensureEarlyAccess } from "../access/early-access.ts";
-import { canAccessProduct } from "../access/product-access.ts";
+import { shouldJoinEarlyAccess } from "../access/product-access.ts";
 import { generateRawToken, hashToken } from "./token.ts";
 import type { SessionUser, UserRole } from "./types.ts";
 
@@ -21,7 +21,7 @@ export async function createSessionForUser(
   db: Pick<Database, "insert">,
   input: { userId: number; role: UserRole; ip: string | null; userAgent: string | null },
 ): Promise<string> {
-  if (!canAccessProduct({ role: input.role })) {
+  if (shouldJoinEarlyAccess({ role: input.role })) {
     await ensureEarlyAccess(db, input.userId);
   }
 

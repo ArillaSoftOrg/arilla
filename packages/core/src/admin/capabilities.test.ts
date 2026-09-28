@@ -15,7 +15,6 @@ const MODERATOR: Capability[] = [
   "diagnostics.read",
   "merchant.read",
   "ingest.read",
-  "product.preview",
 ];
 const ADMIN_ONLY: Capability[] = [
   "merchant.manage",
@@ -23,6 +22,8 @@ const ADMIN_ONLY: Capability[] = [
   "audit.read",
   "users.read",
   "operations.read",
+  // Karar 0043: lansman öncesi önizleme yalnızca yöneticinin.
+  "product.preview",
 ];
 const ALL: Capability[] = [...MODERATOR, ...ADMIN_ONLY];
 

@@ -19,6 +19,7 @@ const suffix = Date.now();
 const EMAIL = `ea-email-${suffix}@example.test`;
 const EXISTING_EMAIL = `ea-existing-${suffix}@example.test`;
 const ADMIN_EMAIL = `ea-admin-${suffix}@example.test`;
+const MODERATOR_EMAIL = `ea-moderator-${suffix}@example.test`;
 const OPEN_EMAIL = `ea-open-${suffix}@example.test`;
 const RACE_SUB = `ea-race-${suffix}`;
 const request = { ip: "203.0.113.60", userAgent: "vitest" };
@@ -46,7 +47,7 @@ async function emailLogin(db: Database, email: string) {
 
 async function cleanup(): Promise<void> {
   await withOwnerClient(async (client) => {
-    const emails = [EMAIL, EXISTING_EMAIL, ADMIN_EMAIL, OPEN_EMAIL];
+    const emails = [EMAIL, EXISTING_EMAIL, ADMIN_EMAIL, MODERATOR_EMAIL, OPEN_EMAIL];
     await client.query("DELETE FROM app_user WHERE email = ANY($1)", [emails]);
     await client.query(
       `DELETE FROM app_user WHERE id IN (SELECT user_id FROM user_identity
@@ -146,6 +147,19 @@ describe("erken erisim kaydi - entegrasyon", () => {
     });
     await emailLogin(db, ADMIN_EMAIL);
     expect(await rowsFor(adminId)).toHaveLength(0);
+  });
+
+  it("moderator girisi de listeye yazilmaz (personel; urunu de goremez)", async () => {
+    vi.stubEnv("PRODUCT_ACCESS", "");
+    const modId = await withOwnerClient(async (client) => {
+      const res = await client.query(
+        "INSERT INTO app_user (email, role) VALUES ($1, 'moderator') RETURNING id",
+        [MODERATOR_EMAIL],
+      );
+      return Number(res.rows[0].id);
+    });
+    await emailLogin(db, MODERATOR_EMAIL);
+    expect(await rowsFor(modId)).toHaveLength(0);
   });
 
   it("urun acikken giris listeye yazilmaz", async () => {

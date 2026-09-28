@@ -2,6 +2,7 @@ import { safeRedirectPath } from "@arilla/core";
 import { Button } from "@arilla/ui";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { SITE_BRAND } from "../../site-config.ts";
 import styles from "../page.module.css";
 import { confirmLoginAction } from "./actions.ts";
 
@@ -38,8 +39,8 @@ export default async function DogrulaPage({
 
   return (
     <div className={styles.page}>
-      <a className={styles.brand} href="/" aria-label="Arilla ana sayfa">
-        Arilla
+      <a className={styles.brand} href="/" aria-label={`${SITE_BRAND} ana sayfa`}>
+        {SITE_BRAND}
       </a>
       <section className={styles.panel} aria-labelledby="dogrula-baslik">
         <h1 id="dogrula-baslik" className={styles.title}>

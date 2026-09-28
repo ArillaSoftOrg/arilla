@@ -220,7 +220,32 @@ describe("ürün sayfaları", () => {
     expect(await outcome(call)).toBe("/");
   });
 
-  it.each(["moderator", "admin"] as const)("%s kapıyı geçer", async (role) => {
+  // Karar 0043: lansman öncesi önizleme yalnızca yöneticinin.
+  it("moderatör kapıyı GEÇEMEZ (yönetim konsolu yetkisi ürün kilidini açmaz)", async () => {
+    as("moderator");
+    for (const page of PRODUCT_PAGES) {
+      expect([page.name, await outcome(page.call)]).toEqual([page.name, "/erken-erisim"]);
+    }
+    const { saveItemAction } = await import("./urun/[slug]/actions.ts");
+    expect(await outcome(() => saveItemAction(productId))).toBe("/erken-erisim");
+    expect(await savedCount(userIds.moderator)).toBe(0);
+    const { GET } = await import("./git/[offerId]/route.ts");
+    expect(
+      await outcome(() =>
+        GET(new Request("http://localhost:3000/git/1"), {
+          params: Promise.resolve({ offerId: "1" }),
+        }),
+      ),
+    ).toBe("/erken-erisim");
+  });
+
+  it("ürün açıkken moderatör de geçer (normal mod değişmedi)", async () => {
+    vi.stubEnv("PRODUCT_ACCESS", "open");
+    as("moderator");
+    expect(await outcome(async () => (await import("./kesfet/page.tsx")).default())).toBe("ok");
+  });
+
+  it.each(["admin"] as const)("%s kapıyı geçer", async (role) => {
     as(role);
     for (const page of PRODUCT_PAGES) {
       const result = await outcome(page.call);
@@ -330,7 +355,7 @@ describe("public sayfalar, landing ve başarı ekranı", () => {
     const { default: HomePage } = await import("./page.tsx");
     as(null);
     const anonymous = (await HomePage()) as ReactElement<{ signedIn: boolean }>;
-    expect((anonymous.type as { name?: string }).name).toBe("EarlyAccessLanding");
+    expect((anonymous.type as { name?: string }).name).toBe("ComingSoonLanding");
     expect(anonymous.props.signedIn).toBe(false);
 
     as("user");
@@ -339,7 +364,7 @@ describe("public sayfalar, landing ve başarı ekranı", () => {
 
     as("admin");
     const staff = (await HomePage()) as ReactElement;
-    expect((staff.type as { name?: string }).name).not.toBe("EarlyAccessLanding");
+    expect((staff.type as { name?: string }).name).not.toBe("ComingSoonLanding");
   });
 
   it("yasal sayfa anonim için açık", async () => {

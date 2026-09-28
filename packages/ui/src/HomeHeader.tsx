@@ -28,6 +28,12 @@ export interface HomeHeaderProps {
   loginLabel: string;
   /** Hesap/giris linki su anki sayfaysa `true` (orn. `/giris`). */
   accountCurrent?: boolean;
+  /**
+   * Istege bagli ikincil, sade baglanti (orn. lansman oncesi "Admin
+   * Girişi"). Birincil eylem degildir: masaustunde hesap dugmesinin solunda
+   * duz metin, telefonda menu panelinde.
+   */
+  utilityLink?: { label: string; href: string };
 }
 
 /**
@@ -48,6 +54,7 @@ export function HomeHeader({
   loginHref,
   loginLabel,
   accountCurrent = false,
+  utilityLink,
 }: HomeHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const menuId = useId();
@@ -105,6 +112,12 @@ export function HomeHeader({
               </a>
             ))}
           </nav>
+        ) : null}
+
+        {utilityLink ? (
+          <a href={utilityLink.href} className={styles.utility}>
+            {utilityLink.label}
+          </a>
         ) : null}
 
         <a
@@ -172,6 +185,16 @@ export function HomeHeader({
             >
               {accountText}
             </a>
+            {utilityLink ? (
+              <a
+                href={utilityLink.href}
+                className={styles.mobileUtilityLink}
+                tabIndex={mobileMenuTabIndex}
+                onClick={() => setMenuOpen(false)}
+              >
+                {utilityLink.label}
+              </a>
+            ) : null}
           </nav>
         </aside>
       </div>

@@ -1,15 +1,24 @@
+import { SITE_BRAND } from "./site-config.ts";
+
 /** docs/copy.md "Erken erişim" - anahtarlar yorumda. */
 export const EARLY_ACCESS_COPY = {
   cta: "Erken erişime katıl", // early_access.cta
-  landingNote: "Arilla şu an erken erişimde. Listeye katıl, açıldığında haber verelim.", // early_access.landing_note
+  landingNote: `${SITE_BRAND} şu an erken erişimde. Listeye katıl, açıldığında haber verelim.`, // early_access.landing_note
   loginTitle: "Erken erişime katıl. Hesabınla devam et ya da yeni hesap aç.", // early_access.login_title
   navStatus: "Erken erişim", // early_access.nav_status
-  joinedTitle: "Erken erişim listesine katıldın", // early_access.joined_title
-  joinedBody: "Arilla açıldığında haber vereceğiz.", // early_access.joined_body
+  // Listeye yeni katılan (katılımdan hemen sonra, `JUST_JOINED_WINDOW_MS`).
+  joinedTitle: "Listedesin.", // early_access.joined_title
+  joinedBody: `Erken erişim listesine katıldın. ${SITE_BRAND} açıldığında haber vereceğiz.`, // early_access.joined_body
+  // Daha önce katılmış, sonradan dönen kullanıcı.
+  returningTitle: "Erken erişim listesindesin.", // early_access.returning_title
+  returningBody: `${SITE_BRAND} açıldığında haber vereceğiz. O zamana kadar yapman gereken bir şey yok.`, // early_access.returning_body
+  notYetOpen: `${SITE_BRAND} henüz kullanıma açık değil. Açıldığında aynı hesapla devam edebileceksin.`, // early_access.not_yet_open
   joinedOn: (date: string) => `Katılım tarihi: ${date}`, // early_access.joined_on
   inList: "Erken erişim listesindesin.", // early_access.in_list
   viewStatus: "Durumunu gör", // early_access.view_status
   joinTitle: "Erken erişim listesine katıl", // early_access.join_title
-  joinBody: "Listeye katıl, Arilla açıldığında haber verelim.", // early_access.join_body
+  joinBody: `Listeye katıl, ${SITE_BRAND} açıldığında haber verelim.`, // early_access.join_body
   joinSubmit: "Listeye katıl", // early_access.join_submit
+  backHome: "Ana sayfaya dön", // early_access.back_home
+  logout: "Çıkış yap", // action.logout
 } as const;

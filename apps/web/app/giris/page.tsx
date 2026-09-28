@@ -1,5 +1,7 @@
 import { isProductOpen, safeRedirectPath } from "@arilla/core";
+import { COMING_SOON_COPY } from "../coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "../early-access-copy.ts";
+import { SITE_BRAND } from "../site-config.ts";
 import { LoginFormClient } from "./login-form-client.tsx";
 import styles from "./page.module.css";
 
@@ -18,6 +20,11 @@ const ERROR_COPY: Record<string, string> = {
 
 const LOGIN_TITLE = "Tasarruflarını en üst düzeye çıkarmak için giriş yap.";
 
+/** "Admin Girişi" bağlantısı (`ADMIN_LOGIN_PATH`) - yalnızca başlık seçimi, yetki değil. */
+function isAdminNext(next: string): boolean {
+  return next === "/yonetim" || next.startsWith("/yonetim/") || next.startsWith("/yonetim?");
+}
+
 /** docs/routes.md `/giris`: e-posta bağlantısı isteme. `/giris/dogrula` başarısızlıkları buraya `?error=` ile döner. */
 export default async function GirisPage({
   searchParams,
@@ -31,8 +38,8 @@ export default async function GirisPage({
 
   return (
     <div className={styles.page}>
-      <a className={styles.brand} href="/" aria-label="Arilla ana sayfa">
-        Arilla
+      <a className={styles.brand} href="/" aria-label={`${SITE_BRAND} ana sayfa`}>
+        {SITE_BRAND}
       </a>
       <a className={styles.close} href="/" aria-label="Giriş ekranını kapat">
         ×
@@ -40,7 +47,11 @@ export default async function GirisPage({
       <section className={styles.panel} aria-labelledby="giris-baslik">
         <h1 id="giris-baslik" className={styles.title}>
           {/* P2: lansman öncesi aynı form erken erişime katılma yoludur. */}
-          {isProductOpen() ? LOGIN_TITLE : EARLY_ACCESS_COPY.loginTitle}
+          {isProductOpen()
+            ? LOGIN_TITLE
+            : isAdminNext(safeNext)
+              ? COMING_SOON_COPY.adminLoginTitle
+              : EARLY_ACCESS_COPY.loginTitle}
         </h1>
         {errorText ? (
           <p role="alert" className={styles.notice}>
@@ -49,7 +60,7 @@ export default async function GirisPage({
         ) : null}
         <LoginFormClient next={safeNext} />
         <p className={styles.legal}>
-          Devam ederek Arilla'nın <a href="/kosullar">Hizmet Şartlarını</a> kabul etmiş ve{" "}
+          Devam ederek {SITE_BRAND}'nin <a href="/kosullar">Hizmet Şartlarını</a> kabul etmiş ve{" "}
           <a href="/gizlilik">Gizlilik Politikasını</a> okumuş olursun.
         </p>
       </section>

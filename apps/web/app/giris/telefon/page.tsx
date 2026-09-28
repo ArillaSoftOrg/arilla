@@ -2,6 +2,7 @@ import { maskPhone, safeRedirectPath } from "@arilla/core";
 import { Button, Input } from "@arilla/ui";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
+import { SITE_BRAND } from "../../site-config.ts";
 import styles from "../page.module.css";
 import { PHONE_COOKIE } from "./phone-cookie.ts";
 
@@ -52,8 +53,8 @@ export default async function TelefonGirisPage({
 
   return (
     <div className={styles.page}>
-      <a className={styles.brand} href="/" aria-label="Arilla ana sayfa">
-        Arilla
+      <a className={styles.brand} href="/" aria-label={`${SITE_BRAND} ana sayfa`}>
+        {SITE_BRAND}
       </a>
       <a className={styles.close} href="/giris" aria-label="Telefonla girişi kapat">
         ×
