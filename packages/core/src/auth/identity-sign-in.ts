@@ -11,6 +11,7 @@ import { appUser, type Database, type IdentityProvider, userIdentity } from "@ar
 import { and, eq } from "drizzle-orm";
 import { createSessionForUser } from "./session.ts";
 import type { SessionUser } from "./types.ts";
+import { retryOnUniqueViolation } from "./unique-race.ts";
 
 export interface SignInWithIdentityInput {
   provider: Exclude<IdentityProvider, "google">;
@@ -34,6 +35,16 @@ export async function signInWithIdentity(
   input: SignInWithIdentityInput,
 ): Promise<SignInWithIdentityResult> {
   const email = input.email?.trim().toLowerCase() || null;
+
+  // Esanli ilk giris yarisi (`unique-race.ts`): kaybeden islem bir kez tekrar.
+  return retryOnUniqueViolation(() => signInWithIdentityOnce(db, input, email));
+}
+
+function signInWithIdentityOnce(
+  db: Database,
+  input: SignInWithIdentityInput,
+  email: string | null,
+): Promise<SignInWithIdentityResult> {
   const now = new Date();
 
   return db.transaction(async (tx) => {

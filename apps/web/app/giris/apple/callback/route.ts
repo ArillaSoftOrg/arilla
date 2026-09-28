@@ -15,6 +15,7 @@ import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
+import { takeAuthNext } from "../../next-cookie.ts";
 import { APPLE_COOKIE_PATH, NONCE_COOKIE, STATE_COOKIE } from "../apple-cookies.ts";
 
 /** POST'tan sonra GET'e: 303. (`redirect()` 307 verir, tarayici POST'u tekrarlar.) */
@@ -38,6 +39,7 @@ export async function POST(request: Request) {
   const rawNonce = store.get(NONCE_COOKIE)?.value;
   store.delete({ name: STATE_COOKIE, path: APPLE_COOKIE_PATH });
   store.delete({ name: NONCE_COOKIE, path: APPLE_COOKIE_PATH });
+  const next = takeAuthNext(store);
 
   if (
     form.get("error") ||
@@ -92,7 +94,7 @@ export async function POST(request: Request) {
     return seeOther(request, "/giris?error=apple");
   }
 
-  return seeOther(request, "/");
+  return seeOther(request, next);
 }
 
 /** Apple'a GET ile donulmez; elle acilan adres giris sayfasina gider. */

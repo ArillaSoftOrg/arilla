@@ -257,6 +257,8 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `auth.rate_limited` | Az önce bir bağlantı gönderdik. Birkaç dakika sonra tekrar dene. |
 | `auth.token_expired` | Bu bağlantının süresi dolmuş. Yeni bir tane isteyebilirsin. |
 | `auth.token_used` | Bu bağlantı zaten kullanılmış. |
+| `auth.confirm_title` | Girişi tamamla |
+| `auth.confirm_body` | Giriş yapmak için aşağıdaki düğmeye bas. Bağlantı yalnızca bir kez kullanılabilir. |
 | `auth.login_title` | Giriş yap |
 | `auth.login_intro` | E-posta adresini yaz, sana tek kullanımlık bir giriş bağlantısı gönderelim. Şifre gerekmez. |
 | `auth.submit` | Bağlantı gönder |

@@ -13,6 +13,7 @@ import { and, eq, isNull } from "drizzle-orm";
 import { createSessionForUser } from "./session.ts";
 import { hashToken } from "./token.ts";
 import type { SessionUser, VerifyLoginTokenInput, VerifyLoginTokenResult } from "./types.ts";
+import { retryOnUniqueViolation } from "./unique-race.ts";
 
 export class TokenNotFoundError extends Error {
   constructor() {
@@ -41,6 +42,16 @@ export async function verifyLoginToken(
 ): Promise<VerifyLoginTokenResult> {
   const tokenHash = hashToken(input.rawToken);
 
+  // Ayni e-postayla esanli ilk giris: kaybeden islem (token tuketimi dahil)
+  // geri alinir ve bir kez yeniden calisir (`unique-race.ts`).
+  return retryOnUniqueViolation(() => verifyInTransaction(db, tokenHash, input));
+}
+
+function verifyInTransaction(
+  db: Database,
+  tokenHash: string,
+  input: VerifyLoginTokenInput,
+): Promise<VerifyLoginTokenResult> {
   return db.transaction(async (tx) => {
     const rows = await tx
       .select()

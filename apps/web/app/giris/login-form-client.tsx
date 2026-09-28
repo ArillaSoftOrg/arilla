@@ -23,8 +23,14 @@ const COPY = {
   phone: "Telefon ile devam edin",
 } as const;
 
-export function LoginFormClient() {
+/**
+ * `next`: giriş sonrası dönüş yolu. Sunucu her adımda yeniden süzer
+ * (`safeRedirectPath`); buradaki değer yalnızca taşınır.
+ */
+export function LoginFormClient({ next }: { next?: string } = {}) {
   const [state, action, pending] = useActionState(requestLoginLinkAction, initialState);
+  const withNext = (href: string) =>
+    next && next !== "/" ? `${href}?next=${encodeURIComponent(next)}` : href;
 
   if (state.status === "sent") {
     return (
@@ -44,23 +50,24 @@ export function LoginFormClient() {
 
   return (
     <div className={styles.authChoices}>
-      <a className={styles.providerButton} href="/giris/google">
+      <a className={styles.providerButton} href={withNext("/giris/google")}>
         <span className={styles.googleMark} aria-hidden="true">
           G
         </span>
         {COPY.google}
       </a>
-      <a className={styles.providerButton} href="/giris/apple">
+      <a className={styles.providerButton} href={withNext("/giris/apple")}>
         <span className={styles.appleMark} aria-hidden="true">
           
         </span>
         {COPY.apple}
       </a>
-      <a className={styles.providerButton} href="/giris/telefon">
+      <a className={styles.providerButton} href={withNext("/giris/telefon")}>
         <span className={styles.phoneMark} aria-hidden="true" />
         {COPY.phone}
       </a>
       <form action={action} className={styles.form} aria-busy={pending || undefined}>
+        {next && next !== "/" ? <input type="hidden" name="next" value={next} /> : null}
         <Input
           label={COPY.emailLabel}
           name="email"

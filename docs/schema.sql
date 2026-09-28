@@ -429,6 +429,8 @@ CREATE TABLE auth_token (
 );
 CREATE INDEX auth_token_email_idx ON auth_token (email, created_at DESC);
 CREATE INDEX auth_token_cleanup_idx ON auth_token (expires_at) WHERE consumed_at IS NULL;
+-- 0030: temizlik isi tuketilmis satirlari da siler; kismi indeks onlari kapsamaz.
+CREATE INDEX auth_token_expires_idx ON auth_token (expires_at);
 
 CREATE TABLE session (
     id            UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -472,6 +474,7 @@ CREATE TABLE phone_login_code (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX phone_login_code_phone_idx ON phone_login_code (phone, created_at DESC);
+CREATE INDEX phone_login_code_expires_idx ON phone_login_code (expires_at);  -- 0030: temizlik isi
 
 CREATE TABLE creator (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

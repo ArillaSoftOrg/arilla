@@ -1,4 +1,5 @@
 import { randomUUID } from "node:crypto";
+import { loginPathWithNext } from "@arilla/core/auth-redirect";
 import {
   canonicalLinkSearchHref,
   checkLinkSearchUrl,
@@ -58,7 +59,10 @@ export function proxy(request: NextRequest): NextResponse {
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
   if (needsSession && !request.cookies.has("session")) {
-    return NextResponse.redirect(new URL("/giris", request.url));
+    // Girişten sonra aynı sayfaya dönülür; `next` yalnızca kendi yolumuzdur
+    // ve her okumada `safeRedirectPath` ile yeniden süzülür.
+    const loginPath = loginPathWithNext(`${pathname}${request.nextUrl.search}`);
+    return NextResponse.redirect(new URL(loginPath, request.url));
   }
 
   if (pathname.startsWith("/ara") && !request.cookies.has("session_id")) {

@@ -1,8 +1,10 @@
+import { safeRedirectPath } from "@arilla/core";
 import { LoginFormClient } from "./login-form-client.tsx";
 import styles from "./page.module.css";
 
 interface GirisSearchParams {
   error?: string;
+  next?: string;
 }
 
 const ERROR_COPY: Record<string, string> = {
@@ -21,8 +23,10 @@ export default async function GirisPage({
 }: {
   searchParams: Promise<GirisSearchParams>;
 }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
   const errorText = error ? ERROR_COPY[error] : undefined;
+  // Giriş sonrası dönüş yolu; güvensizse `/` (open redirect yok).
+  const safeNext = safeRedirectPath(next);
 
   return (
     <div className={styles.page}>
@@ -41,7 +45,7 @@ export default async function GirisPage({
             {errorText}
           </p>
         ) : null}
-        <LoginFormClient />
+        <LoginFormClient next={safeNext} />
         <p className={styles.legal}>
           Devam ederek Arilla'nın <a href="/kosullar">Hizmet Şartlarını</a> kabul etmiş ve{" "}
           <a href="/gizlilik">Gizlilik Politikasını</a> okumuş olursun.

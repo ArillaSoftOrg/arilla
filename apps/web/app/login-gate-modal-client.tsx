@@ -19,6 +19,12 @@ export interface LoginGateModalProps {
  * tanımlıyor.
  */
 export function LoginGateModal({ open, onClose, returnFocusRef }: LoginGateModalProps) {
+  // Girişten sonra kullanıcı modalın açıldığı sayfaya (sorgusuyla) döner.
+  // Modal yalnızca etkileşimle açılır; yol yalnızca açıkken istemcide okunur.
+  const next =
+    open && typeof window !== "undefined"
+      ? `${window.location.pathname}${window.location.search}`
+      : undefined;
   return (
     <LoginModal
       open={open}
@@ -28,7 +34,7 @@ export function LoginGateModal({ open, onClose, returnFocusRef }: LoginGateModal
       description="Hesabın yok mu? Ücretsiz kaydol, bu sonuçları senin için saklayalım."
       closeLabel="Kapat"
     >
-      <LoginFormClient />
+      <LoginFormClient next={next} />
     </LoginModal>
   );
 }

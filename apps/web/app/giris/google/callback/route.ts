@@ -4,6 +4,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
+import { takeAuthNext } from "../../next-cookie.ts";
 
 const STATE_COOKIE = "google_oauth_state";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -88,6 +89,8 @@ export async function GET(request: Request) {
   const store = await cookies();
   const expectedState = store.get(STATE_COOKIE)?.value;
   store.delete(STATE_COOKIE);
+  // Her durumda okunup silinir; hata yolunda da eski değer kalmaz.
+  const next = takeAuthNext(store);
 
   if (error || !code || !state || !expectedState || state !== expectedState) {
     redirect("/giris?error=google");
@@ -107,5 +110,5 @@ export async function GET(request: Request) {
     redirect("/giris?error=google");
   }
 
-  redirect("/");
+  redirect(next);
 }

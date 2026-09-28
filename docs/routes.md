@@ -151,8 +151,8 @@ platform sorununu hafifletir.
 /alarmlar                  Fiyat düşüşü, yeniden stok ve beden alarmları
 /gecmis                    Son gezilenler. Silme düğmesi zorunlu.
 /hesap                     Beden profili, rıza tercihleri, veri silme
-/giris                     E-posta bağlantısı isteme
-/giris/dogrula?token=...   Bağlantı doğrulama. Tek kullanımlık, 15 dk.
+/giris?next=/yol           E-posta bağlantısı isteme. `next`: giriş sonrası dönüş (yalnızca göreli yol)
+/giris/dogrula?token=...   Onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir. Tek kullanımlık, 15 dk.
 ```
 
 `/hesap` altında gezinme geçmişini ve hesabı silme seçenekleri gerçekten

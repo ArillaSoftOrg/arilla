@@ -11,6 +11,7 @@ import { NextResponse } from "next/server";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { isSameOriginPost } from "../../../lib/same-origin.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
+import { takeAuthNext } from "../../next-cookie.ts";
 import { PHONE_COOKIE, PHONE_COOKIE_PATH } from "../phone-cookie.ts";
 
 function seeOther(request: Request, path: string): NextResponse {
@@ -52,5 +53,5 @@ export async function POST(request: Request) {
   }
 
   store.delete({ name: PHONE_COOKIE, path: PHONE_COOKIE_PATH });
-  return seeOther(request, "/");
+  return seeOther(request, takeAuthNext(store));
 }

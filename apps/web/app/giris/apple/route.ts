@@ -8,6 +8,7 @@ import {
 } from "@arilla/core";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { rememberAuthNext } from "../next-cookie.ts";
 import { APPLE_COOKIE_PATH, NONCE_COOKIE, STATE_COOKIE } from "./apple-cookies.ts";
 
 /**
@@ -23,7 +24,7 @@ const COOKIE_OPTIONS = {
   maxAge: 10 * 60,
 } as const;
 
-export async function GET() {
+export async function GET(request: Request) {
   let clientId: string;
   try {
     clientId = appleConfigFromEnv().clientId;
@@ -39,6 +40,7 @@ export async function GET() {
   const store = await cookies();
   store.set(STATE_COOKIE, state, COOKIE_OPTIONS);
   store.set(NONCE_COOKIE, nonce, COOKIE_OPTIONS);
+  rememberAuthNext(store, new URL(request.url).searchParams.get("next"));
 
   const url = new URL(APPLE_AUTHORIZE_URL);
   url.searchParams.set("client_id", clientId);

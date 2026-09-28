@@ -2,6 +2,7 @@ import { appUser, type Database, userIdentity } from "@arilla/db";
 import { and, eq } from "drizzle-orm";
 import { createSessionForUser } from "./session.ts";
 import type { SessionUser } from "./types.ts";
+import { retryOnUniqueViolation } from "./unique-race.ts";
 
 export interface GoogleProfile {
   sub: string;
@@ -39,6 +40,15 @@ export async function signInWithGoogle(
     throw new GoogleEmailNotVerifiedError();
   }
 
+  // Esanli ilk giris yarisi (`unique-race.ts`): kaybeden islem bir kez tekrar.
+  return retryOnUniqueViolation(() => signInWithGoogleOnce(db, input, email));
+}
+
+function signInWithGoogleOnce(
+  db: Database,
+  input: SignInWithGoogleInput,
+  email: string,
+): Promise<SignInWithGoogleResult> {
   return db.transaction(async (tx) => {
     const identityRows = await tx
       .select({
