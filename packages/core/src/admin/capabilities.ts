@@ -25,7 +25,9 @@ export type Capability =
   | "audit.read"
   | "users.read"
   /** `/yonetim/islemler`: partition, yetim, maliyet, KVKK temizlik durumu. */
-  | "operations.read";
+  | "operations.read"
+  /** Lansman öncesi kapalı ürünü görme (`PRODUCT_ACCESS` kapalıyken). */
+  | "product.preview";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -41,6 +43,7 @@ const MODERATOR_CAPABILITIES: readonly Capability[] = [
   "diagnostics.read",
   "merchant.read",
   "ingest.read",
+  "product.preview",
 ];
 
 const ADMIN_CAPABILITIES: readonly Capability[] = [

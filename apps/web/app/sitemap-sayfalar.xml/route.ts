@@ -1,4 +1,4 @@
-import { readAppUrl } from "@arilla/core";
+import { isProductOpen, readAppUrl } from "@arilla/core";
 import { buildUrlSetXml } from "../lib/sitemap-xml.ts";
 
 /**
@@ -8,10 +8,11 @@ import { buildUrlSetXml } from "../lib/sitemap-xml.ts";
  * olan genel-erişimli sayfalar listelenir; yeni statik sayfa eklendikçe
  * bu dizi büyür.
  */
+/** Ürün sayfaları: yalnızca ürün açıkken (`PRODUCT_ACCESS=open`) haritaya girer. */
+const PRODUCT_PAGES = ["/kesfet", "/firsatlar"];
+
 const STATIC_PAGES = [
   "/",
-  "/kesfet",
-  "/firsatlar",
   "/gizlilik",
   "/kosullar",
   "/cerez",
@@ -27,6 +28,7 @@ export async function GET(): Promise<Response> {
     return new Response("APP_URL tanimli degil. .env.example dosyasina bakin.", { status: 500 });
   }
 
-  const xml = buildUrlSetXml(STATIC_PAGES.map((path) => ({ loc: `${appUrl}${path}` })));
+  const pages = isProductOpen() ? [...STATIC_PAGES, ...PRODUCT_PAGES] : STATIC_PAGES;
+  const xml = buildUrlSetXml(pages.map((path) => ({ loc: `${appUrl}${path}` })));
   return new Response(xml, { headers: { "Content-Type": "application/xml" } });
 }

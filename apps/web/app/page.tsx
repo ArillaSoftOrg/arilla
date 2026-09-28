@@ -1,16 +1,24 @@
-import { getDiscoverySlots, todaySlotDate } from "@arilla/core";
+import {
+  canAccessProduct,
+  EARLY_ACCESS_PATH,
+  getDiscoverySlots,
+  todaySlotDate,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { DiscoveryGrid, HomeHero, Section, TrendCollectionCard } from "@arilla/ui";
 import type { Metadata } from "next";
 import { DEMO_HOMEPAGE_TRENDS } from "../data/demo/homepage-trends.ts";
 import { findDemoProduct } from "../data/demo/products.ts";
 import { resolveDiscoveryItems } from "./discovery-adapter.ts";
+import { EARLY_ACCESS_COPY } from "./early-access-copy.ts";
 import styles from "./home.module.css";
 import { HOME_COPY } from "./home-copy.ts";
 import { homeSectionLinks } from "./home-footer-groups.ts";
 import { HomeSearchComposer } from "./home-search-composer-client.tsx";
 import { HomeSectionHeading } from "./home-section-heading.tsx";
 import { type HomeWayCard, HomeWaysCarousel } from "./home-ways-carousel-client.tsx";
+import { verifySession } from "./lib/dal.ts";
+import actions from "./public-actions.module.css";
 import { PublicSiteShell } from "./public-site-shell.tsx";
 
 export const metadata: Metadata = {
@@ -102,7 +110,53 @@ async function loadDiscoveryItems(): Promise<Awaited<ReturnType<typeof getDiscov
   }
 }
 
+/**
+ * P2: lansman öncesi landing. Ürün kapalıyken (moderatör/yönetici hariç)
+ * arama kutusu ve keşif (gerçek ürün verisi) gösterilmez; hero aynı kalır,
+ * altında erken erişim notu ve tek eylem. "Nasıl çalışır" kartları demo
+ * görsellerdir, ürün verisi değil - tanıtım olarak kalır.
+ */
+function EarlyAccessLanding({ signedIn }: { signedIn: boolean }) {
+  return (
+    <PublicSiteShell links={homeSectionLinks("/")}>
+      <div className={styles.page}>
+        <Section spacing="none" aria-labelledby="anasayfa-baslik" className={styles.hero}>
+          <HomeHero
+            titleId="anasayfa-baslik"
+            title={HOME_COPY.heroTitle}
+            subtitle={HOME_COPY.heroSubtitle}
+          >
+            <div className={styles.earlyAccess}>
+              <p className={styles.earlyAccessNote}>
+                {signedIn ? EARLY_ACCESS_COPY.inList : EARLY_ACCESS_COPY.landingNote}
+              </p>
+              <div className={actions.actions}>
+                <a className={actions.primary} href={signedIn ? EARLY_ACCESS_PATH : "/giris"}>
+                  {signedIn ? EARLY_ACCESS_COPY.viewStatus : EARLY_ACCESS_COPY.cta}
+                </a>
+              </div>
+            </div>
+          </HomeHero>
+        </Section>
+
+        <Section
+          id="nasil-calisir"
+          aria-labelledby="nasil-calisir-baslik"
+          className={`${styles.anchored} ${styles.waysSection}`}
+        >
+          <HomeWaysCarousel title="Arilla ile arama yolları" items={HOME_WAYS} />
+        </Section>
+      </div>
+    </PublicSiteShell>
+  );
+}
+
 export default async function HomePage() {
+  const user = await verifySession();
+  if (!canAccessProduct(user)) {
+    return <EarlyAccessLanding signedIn={user !== null} />;
+  }
+
   const items = await loadDiscoveryItems();
   const discoveryItems = resolveDiscoveryItems(items);
   // Kesif bolumu bu sayfada varsa "Keşfet" oraya gider; yoksa /kesfet'e.

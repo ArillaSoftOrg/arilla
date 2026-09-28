@@ -33,6 +33,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { HOME_COPY } from "../../home-copy.ts";
+import { requireProductAccess } from "../../lib/dal.ts";
 import { ProductActionsClient } from "./product-actions-client.tsx";
 import styles from "./product-page.module.css";
 import { SizeSelectorClient } from "./size-selector-client.tsx";
@@ -105,6 +106,8 @@ export async function generateMetadata({
 }: {
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
+  // Kapalı ürünün başlığı/açıklaması da sızmasın: meta veri de kapıdan geçer.
+  await requireProductAccess();
   const { slug } = await params;
   const resolution = await getResolution(slug);
   if (resolution.status !== "found") return {};
@@ -133,6 +136,7 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ boyut?: string | string[] }>;
 }) {
+  await requireProductAccess();
   const { slug } = await params;
   const requestedVariant = readSelectedVariant((await searchParams).boyut);
   const db = getDatabase();

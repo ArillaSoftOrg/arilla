@@ -50,6 +50,9 @@ async function alertOwners(): Promise<number[]> {
 }
 
 beforeAll(async () => {
+  // Bu dosya alarm yetki sınırını test eder; ürün kapısı ayrı testte
+  // (early-access-gate.integration.test.ts). Burada ürün açık.
+  vi.stubEnv("PRODUCT_ACCESS", "open");
   assertLocal("DATABASE_URL");
   await owner(async (client) => {
     const insertUser = async (label: string) => {
@@ -80,6 +83,7 @@ afterAll(async () => {
     await client.query("DELETE FROM app_user WHERE id = ANY($1)", [[attackerId, victimId]]);
   });
   await ownerPool?.end();
+  vi.unstubAllEnvs();
 });
 
 describe("createAlertAction", () => {

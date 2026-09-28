@@ -1,8 +1,11 @@
+import { isProductOpen, safeRedirectPath } from "@arilla/core";
+import { EARLY_ACCESS_COPY } from "../early-access-copy.ts";
 import { LoginFormClient } from "./login-form-client.tsx";
 import styles from "./page.module.css";
 
 interface GirisSearchParams {
   error?: string;
+  next?: string;
 }
 
 const ERROR_COPY: Record<string, string> = {
@@ -21,8 +24,10 @@ export default async function GirisPage({
 }: {
   searchParams: Promise<GirisSearchParams>;
 }) {
-  const { error } = await searchParams;
+  const { error, next } = await searchParams;
   const errorText = error ? ERROR_COPY[error] : undefined;
+  // Giriş sonrası dönüş yolu; güvensizse `/` (open redirect yok).
+  const safeNext = safeRedirectPath(next);
 
   return (
     <div className={styles.page}>
@@ -34,14 +39,15 @@ export default async function GirisPage({
       </a>
       <section className={styles.panel} aria-labelledby="giris-baslik">
         <h1 id="giris-baslik" className={styles.title}>
-          {LOGIN_TITLE}
+          {/* P2: lansman öncesi aynı form erken erişime katılma yoludur. */}
+          {isProductOpen() ? LOGIN_TITLE : EARLY_ACCESS_COPY.loginTitle}
         </h1>
         {errorText ? (
           <p role="alert" className={styles.notice}>
             {errorText}
           </p>
         ) : null}
-        <LoginFormClient />
+        <LoginFormClient next={safeNext} />
         <p className={styles.legal}>
           Devam ederek Arilla'nın <a href="/kosullar">Hizmet Şartlarını</a> kabul etmiş ve{" "}
           <a href="/gizlilik">Gizlilik Politikasını</a> okumuş olursun.

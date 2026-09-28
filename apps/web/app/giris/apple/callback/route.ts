@@ -5,6 +5,7 @@ import {
   exchangeAppleCode,
   fetchAppleJwks,
   hashNonce,
+  postAuthRedirect,
   readAppUrl,
   requireAppUrl,
   signInWithApple,
@@ -15,6 +16,7 @@ import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
+import { takeAuthNext } from "../../next-cookie.ts";
 import { APPLE_COOKIE_PATH, NONCE_COOKIE, STATE_COOKIE } from "../apple-cookies.ts";
 
 /** POST'tan sonra GET'e: 303. (`redirect()` 307 verir, tarayici POST'u tekrarlar.) */
@@ -38,6 +40,7 @@ export async function POST(request: Request) {
   const rawNonce = store.get(NONCE_COOKIE)?.value;
   store.delete({ name: STATE_COOKIE, path: APPLE_COOKIE_PATH });
   store.delete({ name: NONCE_COOKIE, path: APPLE_COOKIE_PATH });
+  const next = takeAuthNext(store);
 
   if (
     form.get("error") ||
@@ -55,6 +58,7 @@ export async function POST(request: Request) {
   const ip = clientIp(headerStore);
   const userAgent = headerStore.get("user-agent");
 
+  let destination = next;
   try {
     const config = appleConfigFromEnv();
     const idToken = await exchangeAppleCode(config, {
@@ -77,13 +81,14 @@ export async function POST(request: Request) {
       claims = verifyWith(await fetchAppleJwks({ force: true }));
     }
 
-    const { rawSessionToken } = await signInWithApple(getDatabase(), {
+    const { rawSessionToken, user: signedIn } = await signInWithApple(getDatabase(), {
       claims,
       displayName: displayNameFromAppleUser(typeof user === "string" ? user : null),
       ip,
       userAgent,
     });
     await setSessionCookie(rawSessionToken);
+    destination = postAuthRedirect(signedIn, next);
   } catch (error) {
     // Yalnizca hata turu; token, e-posta ya da sub loglanmaz.
     console.error(
@@ -92,7 +97,7 @@ export async function POST(request: Request) {
     return seeOther(request, "/giris?error=apple");
   }
 
-  return seeOther(request, "/");
+  return seeOther(request, destination);
 }
 
 /** Apple'a GET ile donulmez; elle acilan adres giris sayfasina gider. */

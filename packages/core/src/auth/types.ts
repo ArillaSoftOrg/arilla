@@ -9,6 +9,8 @@ export type UserRole = (typeof appUser.$inferSelect)["role"];
 export interface RequestLoginLinkInput {
   email: string;
   ip: string | null;
+  /** Giris sonrasi donus yolu; `safeRedirectPath` ile suzulur, guvensizse eklenmez. */
+  next?: string | null;
 }
 
 export interface RequestLoginLinkResult {

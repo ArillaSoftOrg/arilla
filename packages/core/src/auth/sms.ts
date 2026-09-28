@@ -1,10 +1,15 @@
 /**
- * SMS gonderim soyutlamasi. Gercek saglayici (Netgsm, Twilio, ...) sonradan
- * `SMS_PROVIDER` ile baglanir; bu asamada yalnizca gelistirme gondericisi var.
+ * SMS gonderim soyutlamasi. Saglayici `SMS_PROVIDER` ile secilir:
+ *   - `netgsm`: `sms-netgsm.ts` (NETGSM_USERCODE, NETGSM_PASSWORD, NETGSM_MSGHEADER)
+ *   - `dev` ya da bos (production disi): konsola yazan gelistirme gondericisi
+ * Saglayiciya ozgu kod adaptor dosyasinda kalir; giris mantigi yalnizca
+ * `SmsSender` arayuzunu gorur.
  *
- * Production'da saglayici yoksa `SmsUnavailableError`: kod "gonderildi"
- * denip gonderilmemis bir SMS'e kullanici bekletilmez (fail-closed).
+ * Production'da saglayici yoksa ya da yapilandirmasi eksikse
+ * `SmsUnavailableError`: kod "gonderildi" denip gonderilmemis bir SMS'e
+ * kullanici bekletilmez (fail-closed).
  */
+import { NetgsmConfigError, NetgsmSmsSender, netgsmConfigFromEnv } from "./sms-netgsm.ts";
 
 export interface SmsMessage {
   /** E.164 */
@@ -60,5 +65,14 @@ export function getSmsSender(env: Record<string, string | undefined> = process.e
     return devSender;
   }
   if (!provider) throw new SmsUnavailableError("SMS_PROVIDER tanimli degil");
+  if (provider === "netgsm") {
+    try {
+      return new NetgsmSmsSender(netgsmConfigFromEnv(env));
+    } catch (error) {
+      // Yalnizca eksik degiskenin ADI; deger asla.
+      if (error instanceof NetgsmConfigError) throw new SmsUnavailableError(error.message);
+      throw error;
+    }
+  }
   throw new SmsUnavailableError(`bilinmeyen saglayici: ${provider}`);
 }

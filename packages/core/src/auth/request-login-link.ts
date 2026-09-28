@@ -7,9 +7,23 @@
 import { authToken, type Database } from "@arilla/db";
 import { requireAppUrl } from "../config/app-url.ts";
 import { checkAuthRateLimit, releaseEmailRateLimit } from "./rate-limit.ts";
+import { DEFAULT_REDIRECT_PATH, safeRedirectPath } from "./safe-redirect.ts";
 import { sendLoginEmail } from "./send-login-email.ts";
 import { generateRawToken, hashToken } from "./token.ts";
 import type { RequestLoginLinkInput, RequestLoginLinkResult } from "./types.ts";
+
+/**
+ * E-postadaki baglanti. `/giris/dogrula` GET ile yalnizca onay sayfasini
+ * gosterir; token onay formunun POST'unda tuketilir (e-posta tarayicilarinin
+ * on-yuklemesi girisi harcayamaz). `next` yalnizca guvenliyse eklenir.
+ */
+export function buildLoginUrl(appUrl: string, rawToken: string, next?: string | null): string {
+  const url = new URL("/giris/dogrula", appUrl);
+  url.searchParams.set("token", rawToken);
+  const safeNext = safeRedirectPath(next);
+  if (safeNext !== DEFAULT_REDIRECT_PATH) url.searchParams.set("next", safeNext);
+  return url.toString();
+}
 
 export async function requestLoginLink(
   db: Database,
@@ -43,7 +57,7 @@ export async function requestLoginLink(
     throw new Error("auth_token insert bos sonuc dondurdu");
   }
 
-  const loginUrl = `${appUrl}/giris/dogrula?token=${rawToken}`;
+  const loginUrl = buildLoginUrl(appUrl, rawToken, input.next);
 
   try {
     await sendLoginEmail({ email: input.email, loginUrl });

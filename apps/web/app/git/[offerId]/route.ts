@@ -3,6 +3,7 @@ import { OfferNotFoundError, recordClick } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
+import { requireProductAccess } from "../../lib/dal.ts";
 
 /**
  * docs/architecture.md SS6: click kaydi -> affiliate durumu -> deeplink ->
@@ -16,6 +17,8 @@ import { notFound, redirect } from "next/navigation";
  * zorunlu alanini karsilamak icin minimal bir cozum.
  */
 export async function GET(request: Request, { params }: { params: Promise<{ offerId: string }> }) {
+  // Ürün kapalıyken mağazaya çıkış (ve click kaydı) yok.
+  await requireProductAccess();
   const { offerId } = await params;
   const offerIdNum = Number(offerId);
   if (!Number.isInteger(offerIdNum)) {

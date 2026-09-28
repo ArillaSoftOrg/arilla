@@ -1,4 +1,9 @@
-import { listSitemapEligibleProducts, readAppUrl, SITEMAP_PRODUCT_SHARD_SIZE } from "@arilla/core";
+import {
+  isProductOpen,
+  listSitemapEligibleProducts,
+  readAppUrl,
+  SITEMAP_PRODUCT_SHARD_SIZE,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { unstable_cache } from "next/cache";
 import { buildUrlSetXml } from "../../../lib/sitemap-xml.ts";
@@ -18,6 +23,8 @@ export async function GET(
   _request: Request,
   { params }: { params: Promise<{ shard: string }> },
 ): Promise<Response> {
+  // Lansman öncesi ürün kapalı: ürün haritası yok (P2).
+  if (!isProductOpen()) return new Response("Bulunamadı", { status: 404 });
   const { shard } = await params;
   const match = /^(\d+)\.xml$/.exec(shard);
   const shardNumber = match ? Number.parseInt(match[1] ?? "", 10) : Number.NaN;

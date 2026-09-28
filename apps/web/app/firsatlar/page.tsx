@@ -3,6 +3,7 @@ import { getDatabase } from "@arilla/db";
 import { Badge, EmptyState, formatTRY, ProductCard } from "@arilla/ui";
 import type { Metadata } from "next";
 import { HOME_COPY } from "../home-copy.ts";
+import { requireProductAccess } from "../lib/dal.ts";
 import actions from "../public-actions.module.css";
 import styles from "./page.module.css";
 
@@ -34,6 +35,7 @@ const DEALS_COPY = {
  * yollari gosterilir.
  */
 export default async function FirsatlarPage() {
+  await requireProductAccess();
   const deals = await getDeals(getDatabase());
 
   return (

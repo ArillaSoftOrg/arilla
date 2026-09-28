@@ -1,7 +1,7 @@
 import { listHistory } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState, ProductCard } from "@arilla/ui";
-import { requireUser } from "../lib/dal.ts";
+import { requireProductUser } from "../lib/dal.ts";
 import { ClearHistoryButtonClient } from "./clear-history-button-client.tsx";
 
 /**
@@ -10,7 +10,7 @@ import { ClearHistoryButtonClient } from "./clear-history-button-client.tsx";
  * history.ts` başlığı (product_view yazımı rıza bekliyor).
  */
 export default async function GecmisPage() {
-  const user = await requireUser();
+  const user = await requireProductUser();
   const items = await listHistory(getDatabase(), user.id);
 
   return (

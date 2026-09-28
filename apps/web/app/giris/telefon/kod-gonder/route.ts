@@ -14,6 +14,7 @@ import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { isSameOriginPost } from "../../../lib/same-origin.ts";
+import { rememberAuthNext } from "../../next-cookie.ts";
 import { PHONE_COOKIE, PHONE_COOKIE_MAX_AGE_SECONDS, PHONE_COOKIE_PATH } from "../phone-cookie.ts";
 
 function seeOther(request: Request, path: string): NextResponse {
@@ -55,6 +56,9 @@ export async function POST(request: Request) {
   }
 
   const store = await cookies();
+  // Tekrar gönder formu `next` taşımaz; o durumda ilk adımdaki çerez korunur.
+  const next = form.get("next");
+  if (typeof next === "string") rememberAuthNext(store, next);
   store.set(PHONE_COOKIE, phone, {
     httpOnly: true,
     secure: process.env.NODE_ENV === "production",

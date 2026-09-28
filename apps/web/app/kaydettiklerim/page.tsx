@@ -1,12 +1,12 @@
 import { listSavedItems } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState } from "@arilla/ui";
-import { requireUser } from "../lib/dal.ts";
+import { requireProductUser } from "../lib/dal.ts";
 import { SavedItemsListClient } from "./saved-items-list-client.tsx";
 
 /** docs/pages.md: "Üçü de aynı kalıp: başlık, liste, boş durum." */
 export default async function KaydettiklerimPage() {
-  const user = await requireUser();
+  const user = await requireProductUser();
   const items = await listSavedItems(getDatabase(), user.id);
 
   return (

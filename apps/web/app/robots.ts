@@ -1,4 +1,4 @@
-import { readAppUrl } from "@arilla/core";
+import { isProductOpen, readAppUrl } from "@arilla/core";
 import type { MetadataRoute } from "next";
 
 /**
@@ -25,6 +25,8 @@ export default function robots(): MetadataRoute.Robots {
         "/alarmlar",
         "/giris",
         "/api/",
+        // Lansman öncesi ürün kapalı: ürün yolları taranmaz (P2).
+        ...(isProductOpen() ? [] : ["/urun/", "/kesfet", "/firsatlar", "/erken-erisim"]),
       ],
     },
     ...(appUrl ? { sitemap: `${appUrl}/sitemap.xml` } : {}),

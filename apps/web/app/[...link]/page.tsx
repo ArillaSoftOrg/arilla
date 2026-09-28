@@ -1,5 +1,6 @@
 import { linkSearchHref, urlFromPrefixSegments } from "@arilla/core";
 import { notFound, redirect } from "next/navigation";
+import { requireProductAccess } from "../lib/dal.ts";
 
 /**
  * docs/routes.md "Link öneki": `/<merchant-url>` kök catch-all. Rezerve slug
@@ -40,6 +41,8 @@ export default async function LinkPage({
 
   const rawUrl = urlFromPrefixSegments(segments, query.toString());
   if (!rawUrl) notFound();
+  // Gerçek bir link kısayolu: ürün kapısından geçmeli (bilinmeyen yollar 404 kalır).
+  await requireProductAccess();
 
   redirect(linkSearchHref(rawUrl));
 }

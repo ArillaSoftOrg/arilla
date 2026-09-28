@@ -1,9 +1,15 @@
-import { type GoogleProfile, requireAppUrl, signInWithGoogle } from "@arilla/core";
+import {
+  type GoogleProfile,
+  postAuthRedirect,
+  requireAppUrl,
+  signInWithGoogle,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
+import { takeAuthNext } from "../../next-cookie.ts";
 
 const STATE_COOKIE = "google_oauth_state";
 const GOOGLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
@@ -88,6 +94,8 @@ export async function GET(request: Request) {
   const store = await cookies();
   const expectedState = store.get(STATE_COOKIE)?.value;
   store.delete(STATE_COOKIE);
+  // Her durumda okunup silinir; hata yolunda da eski değer kalmaz.
+  const next = takeAuthNext(store);
 
   if (error || !code || !state || !expectedState || state !== expectedState) {
     redirect("/giris?error=google");
@@ -97,15 +105,21 @@ export async function GET(request: Request) {
   const ip = clientIp(headerStore);
   const userAgent = headerStore.get("user-agent");
 
+  let destination = next;
   try {
     const accessToken = await exchangeCodeForAccessToken(code);
     const profile = await fetchGoogleProfile(accessToken);
-    const { rawSessionToken } = await signInWithGoogle(getDatabase(), { profile, ip, userAgent });
+    const { rawSessionToken, user } = await signInWithGoogle(getDatabase(), {
+      profile,
+      ip,
+      userAgent,
+    });
     await setSessionCookie(rawSessionToken);
+    destination = postAuthRedirect(user, next);
   } catch {
     console.error("[giris] google oauth failed");
     redirect("/giris?error=google");
   }
 
-  redirect("/");
+  redirect(destination);
 }

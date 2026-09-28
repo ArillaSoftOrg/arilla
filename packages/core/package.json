@@ -5,6 +5,8 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./auth-redirect": "./src/auth/safe-redirect.ts",
+    "./product-access": "./src/access/product-access.ts",
     "./clarification": "./src/clarification/index.ts",
     "./cookie-consent": "./src/consent/cookie-consent.ts",
     "./link-input": "./src/discovery/link-search-input.ts"

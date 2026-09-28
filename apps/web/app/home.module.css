@@ -373,3 +373,18 @@
     width: 68%;
   }
 }
+
+/* P2 erken erisim landing'i: hero altinda kisa not + birincil eylem.
+   Arama kutusunun yerini alir; ayni dikey ritim. */
+.earlyAccess {
+  display: grid;
+  justify-items: center;
+  gap: var(--space-4);
+  text-align: center;
+}
+
+.earlyAccessNote {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-body);
+}

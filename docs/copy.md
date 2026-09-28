@@ -257,6 +257,8 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `auth.rate_limited` | Az önce bir bağlantı gönderdik. Birkaç dakika sonra tekrar dene. |
 | `auth.token_expired` | Bu bağlantının süresi dolmuş. Yeni bir tane isteyebilirsin. |
 | `auth.token_used` | Bu bağlantı zaten kullanılmış. |
+| `auth.confirm_title` | Girişi tamamla |
+| `auth.confirm_body` | Giriş yapmak için aşağıdaki düğmeye bas. Bağlantı yalnızca bir kez kullanılabilir. |
 | `auth.login_title` | Giriş yap |
 | `auth.login_intro` | E-posta adresini yaz, sana tek kullanımlık bir giriş bağlantısı gönderelim. Şifre gerekmez. |
 | `auth.submit` | Bağlantı gönder |
@@ -267,6 +269,29 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 
 `auth.rate_limited` mesajı hesabın var olup olmadığını belli etmez; her iki
 durumda da aynı metin gösterilir.
+
+## Erken erişim
+
+Lansman öncesi ürün kapalıyken (`PRODUCT_ACCESS` açık değil) ana sayfa,
+giriş ekranı, üst çubuk ve `/erken-erisim` bu metinleri kullanır.
+
+| Anahtar | Metin |
+| --- | --- |
+| `early_access.cta` | Erken erişime katıl |
+| `early_access.landing_note` | Arilla şu an erken erişimde. Listeye katıl, açıldığında haber verelim. |
+| `early_access.login_title` | Erken erişime katıl. Hesabınla devam et ya da yeni hesap aç. |
+| `early_access.nav_status` | Erken erişim |
+| `early_access.joined_title` | Erken erişim listesine katıldın |
+| `early_access.joined_body` | Arilla açıldığında haber vereceğiz. |
+| `early_access.joined_on` | Katılım tarihi: {tarih} |
+| `early_access.in_list` | Erken erişim listesindesin. |
+| `early_access.view_status` | Durumunu gör |
+| `early_access.join_title` | Erken erişim listesine katıl |
+| `early_access.join_body` | Listeye katıl, Arilla açıldığında haber verelim. |
+| `early_access.join_submit` | Listeye katıl |
+| `admin.early_access.title` | Erken erişim |
+| `admin.early_access.note` | Listeye katılan hesaplar. Yalnızca hesap kimliği gösterilir; ayrıntı için kimliği yukarıdaki aramaya yapıştır. |
+| `admin.early_access.empty` | Henüz listeye katılan yok. |
 
 ## Boş durumlar
 

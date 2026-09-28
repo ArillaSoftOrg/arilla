@@ -1,4 +1,4 @@
-import { maskPhone } from "@arilla/core";
+import { maskPhone, safeRedirectPath } from "@arilla/core";
 import { Button, Input } from "@arilla/ui";
 import type { Metadata } from "next";
 import { cookies } from "next/headers";
@@ -41,9 +41,11 @@ const ERROR_COPY: Record<string, string> = {
 export default async function TelefonGirisPage({
   searchParams,
 }: {
-  searchParams: Promise<{ adim?: string; hata?: string }>;
+  searchParams: Promise<{ adim?: string; hata?: string; next?: string }>;
 }) {
-  const { adim, hata } = await searchParams;
+  const { adim, hata, next } = await searchParams;
+  // Dönüş yolu kod-gönder adımında kısa ömürlü çereze yazılır (`next-cookie.ts`).
+  const safeNext = safeRedirectPath(next);
   const phone = (await cookies()).get(PHONE_COOKIE)?.value;
   const codeStep = adim === "kod" && Boolean(phone);
   const errorText = hata ? ERROR_COPY[hata] : undefined;
@@ -98,6 +100,7 @@ export default async function TelefonGirisPage({
           </div>
         ) : (
           <form action="/giris/telefon/kod-gonder" method="post" className={styles.form}>
+            <input type="hidden" name="next" value={safeNext} />
             <Input
               label={COPY.phoneLabel}
               hint={COPY.phoneHint}

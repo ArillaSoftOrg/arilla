@@ -11,6 +11,7 @@ import { EmptyState, formatTRY, ProductImage, SearchForm } from "@arilla/ui";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { HOME_COPY } from "../../home-copy.ts";
+import { requireProductAccess } from "../../lib/dal.ts";
 import { PhotoSearchButton } from "../../photo-search-client.tsx";
 import styles from "../ara.module.css";
 import { ResultGrid, resultCountLabel } from "../search-results.tsx";
@@ -111,6 +112,7 @@ export default async function LinkAramaPage({
 }: {
   searchParams: Promise<{ url?: string | string[] }>;
 }) {
+  await requireProductAccess();
   const { url: urlParam } = await searchParams;
   const raw = Array.isArray(urlParam) ? urlParam[0] : urlParam;
   if (!raw?.trim()) redirect("/ara");

@@ -44,7 +44,12 @@ export async function requestLoginLinkAction(
   const ip = clientIp(headerStore);
 
   try {
-    await requestLoginLink(getDatabase(), { email, ip });
+    const next = formData.get("next");
+    await requestLoginLink(getDatabase(), {
+      email,
+      ip,
+      next: typeof next === "string" ? next : null,
+    });
   } catch (error) {
     if (error instanceof RateLimitExceededError) {
       return { status: "rate_limited" };

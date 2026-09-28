@@ -1,6 +1,7 @@
 import {
   isRedisUnavailableError,
   PhoneCodeInvalidError,
+  postAuthRedirect,
   RateLimitExceededError,
   readAppUrl,
   signInWithPhone,
@@ -11,6 +12,7 @@ import { NextResponse } from "next/server";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { isSameOriginPost } from "../../../lib/same-origin.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
+import { takeAuthNext } from "../../next-cookie.ts";
 import { PHONE_COOKIE, PHONE_COOKIE_PATH } from "../phone-cookie.ts";
 
 function seeOther(request: Request, path: string): NextResponse {
@@ -29,14 +31,16 @@ export async function POST(request: Request) {
   const code = String(form.get("code") ?? "");
   const headerStore = await headers();
 
+  let signedInUser: Awaited<ReturnType<typeof signInWithPhone>>["user"];
   try {
-    const { rawSessionToken } = await signInWithPhone(getDatabase(), {
+    const { rawSessionToken, user } = await signInWithPhone(getDatabase(), {
       phone,
       code,
       ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
     });
     await setSessionCookie(rawSessionToken);
+    signedInUser = user;
   } catch (error) {
     if (error instanceof PhoneCodeInvalidError) {
       return seeOther(request, "/giris/telefon?adim=kod&hata=kod");
@@ -52,5 +56,5 @@ export async function POST(request: Request) {
   }
 
   store.delete({ name: PHONE_COOKIE, path: PHONE_COOKIE_PATH });
-  return seeOther(request, "/");
+  return seeOther(request, postAuthRedirect(signedInUser, takeAuthNext(store)));
 }

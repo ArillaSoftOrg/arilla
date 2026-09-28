@@ -15,7 +15,7 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
-import { verifySession } from "../../lib/dal.ts";
+import { requireProductAccess } from "../../lib/dal.ts";
 
 // Vercel Functions istek govdesini 4.5 MB ile sinirlar; next.config.ts'teki
 // serverActions.bodySizeLimit "4.5mb" (4 MB dosya + multipart payi) ile hizali. photo-search-client.tsx ayni
@@ -57,6 +57,8 @@ async function ensureSessionId(): Promise<string> {
 }
 
 export async function uploadImageForSearch(formData: FormData): Promise<UploadImageResult> {
+  // Ürün kapısı her şeyden önce: kapalıyken dosya okunmaz, model çağrılmaz.
+  const user = await requireProductAccess();
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
     return { status: "invalid_type" };
@@ -98,7 +100,6 @@ export async function uploadImageForSearch(formData: FormData): Promise<UploadIm
   }
 
   const sessionId = await ensureSessionId();
-  const user = await verifySession();
 
   // Gunluk limit, sagladigi/harcadigi maliyet nedeniyle embed cagrisindan
   // ONCE kontrol edilir (docs/decisions/0015 - gercek para maliyeti).

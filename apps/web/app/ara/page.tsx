@@ -16,6 +16,7 @@ import {
 } from "@arilla/ui";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
+import { requireProductAccess } from "../lib/dal.ts";
 import { PhotoSearchButton } from "../photo-search-client.tsx";
 import styles from "./ara.module.css";
 import { ConversationFocusClient } from "./conversation-focus-client.tsx";
@@ -171,6 +172,7 @@ export default async function AramaPage({
 }: {
   searchParams: Promise<AramaSearchParams>;
 }) {
+  await requireProductAccess();
   const { q, sort: sortParam, sayfa, n, yanit, uyari } = await searchParams;
   const requestedQuery = q?.trim() ?? "";
   const requestedSteps = toList(n);

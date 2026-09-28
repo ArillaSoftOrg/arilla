@@ -11,6 +11,7 @@ import { appUser, type Database, type IdentityProvider, userIdentity } from "@ar
 import { and, eq } from "drizzle-orm";
 import { createSessionForUser } from "./session.ts";
 import type { SessionUser } from "./types.ts";
+import { retryOnUniqueViolation } from "./unique-race.ts";
 
 export interface SignInWithIdentityInput {
   provider: Exclude<IdentityProvider, "google">;
@@ -34,6 +35,16 @@ export async function signInWithIdentity(
   input: SignInWithIdentityInput,
 ): Promise<SignInWithIdentityResult> {
   const email = input.email?.trim().toLowerCase() || null;
+
+  // Esanli ilk giris yarisi (`unique-race.ts`): kaybeden islem bir kez tekrar.
+  return retryOnUniqueViolation(() => signInWithIdentityOnce(db, input, email));
+}
+
+function signInWithIdentityOnce(
+  db: Database,
+  input: SignInWithIdentityInput,
+  email: string | null,
+): Promise<SignInWithIdentityResult> {
   const now = new Date();
 
   return db.transaction(async (tx) => {
@@ -74,6 +85,7 @@ export async function signInWithIdentity(
       await tx.update(appUser).set({ lastSeenAt: now }).where(eq(appUser.id, existing.userId));
       const rawSessionToken = await createSessionForUser(tx, {
         userId: existing.userId,
+        role: existing.role,
         ip: input.ip,
         userAgent: input.userAgent,
       });
@@ -135,6 +147,7 @@ export async function signInWithIdentity(
 
     const rawSessionToken = await createSessionForUser(tx, {
       userId: user.id,
+      role: user.role,
       ip: input.ip,
       userAgent: input.userAgent,
     });

@@ -6,13 +6,25 @@
 
 import { appUser, type Database, session } from "@arilla/db";
 import { eq } from "drizzle-orm";
+import { ensureEarlyAccess } from "../access/early-access.ts";
+import { canAccessProduct } from "../access/product-access.ts";
 import { generateRawToken, hashToken } from "./token.ts";
-import type { SessionUser } from "./types.ts";
+import type { SessionUser, UserRole } from "./types.ts";
 
+/**
+ * Dort giris yolunun (e-posta, Google, Apple, telefon) ortak son adimi.
+ * Urune erisemeyen kullanici (lansman oncesi normal kullanici) ayni
+ * transaction'da erken erisim listesine yazilir; tekrar giriste satir
+ * zaten vardir, yeni satir olusmaz (`ensureEarlyAccess`).
+ */
 export async function createSessionForUser(
   db: Pick<Database, "insert">,
-  input: { userId: number; ip: string | null; userAgent: string | null },
+  input: { userId: number; role: UserRole; ip: string | null; userAgent: string | null },
 ): Promise<string> {
+  if (!canAccessProduct({ role: input.role })) {
+    await ensureEarlyAccess(db, input.userId);
+  }
+
   const rawSessionToken = generateRawToken();
   const sessionTtlDays = Number(process.env.SESSION_TTL_DAYS ?? 90);
   const sessionExpiresAt = new Date(Date.now() + sessionTtlDays * 24 * 60 * 60 * 1000);

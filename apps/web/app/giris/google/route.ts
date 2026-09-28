@@ -1,6 +1,7 @@
 import { generateRawToken, requireAppUrl } from "@arilla/core";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
+import { rememberAuthNext } from "../next-cookie.ts";
 
 const STATE_COOKIE = "google_oauth_state";
 const GOOGLE_AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -13,10 +14,11 @@ function googleClientId(): string {
   return value;
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const appUrl = requireAppUrl();
   const state = generateRawToken();
   const store = await cookies();
+  rememberAuthNext(store, new URL(request.url).searchParams.get("next"));
 
   store.set(STATE_COOKIE, state, {
     httpOnly: true,

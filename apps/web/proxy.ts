@@ -1,10 +1,12 @@
 import { randomUUID } from "node:crypto";
+import { loginPathWithNext } from "@arilla/core/auth-redirect";
 import {
   canonicalLinkSearchHref,
   checkLinkSearchUrl,
   isLinkSearchInput,
   LINK_SEARCH_PATH,
 } from "@arilla/core/link-input";
+import { isProductOpen, isPublicProductPath } from "@arilla/core/product-access";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -37,6 +39,14 @@ const USER_ROUTE_PREFIXES = ["/yonetim", "/hesap", "/kaydettiklerim", "/alarmlar
 export function proxy(request: NextRequest): NextResponse {
   const { pathname, searchParams } = request.nextUrl;
 
+  // 0. Lansman öncesi ürün kapısı (P2): oturumu olmayan ziyaretçi public
+  // ürün yollarından doğrudan landing'e gider (tarayıcılar temiz 307 alır).
+  // Oturumu olanın rolü burada bilinmez; asıl denetim her sayfada
+  // `requireProductAccess` ile yapılır.
+  if (!isProductOpen() && !request.cookies.has("session") && isPublicProductPath(pathname)) {
+    return NextResponse.redirect(new URL("/", request.url));
+  }
+
   if (pathname === "/ara") {
     const q = searchParams.get("q");
     if (q && isLinkSearchInput(q)) {
@@ -58,7 +68,10 @@ export function proxy(request: NextRequest): NextResponse {
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
   );
   if (needsSession && !request.cookies.has("session")) {
-    return NextResponse.redirect(new URL("/giris", request.url));
+    // Girişten sonra aynı sayfaya dönülür; `next` yalnızca kendi yolumuzdur
+    // ve her okumada `safeRedirectPath` ile yeniden süzülür.
+    const loginPath = loginPathWithNext(`${pathname}${request.nextUrl.search}`);
+    return NextResponse.redirect(new URL(loginPath, request.url));
   }
 
   if (pathname.startsWith("/ara") && !request.cookies.has("session_id")) {
@@ -79,6 +92,10 @@ export const config = {
     "/yonetim/:path*",
     "/hesap/:path*",
     "/ara/:path*",
+    "/urun/:path*",
+    "/kesfet",
+    "/firsatlar",
+    "/git/:path*",
     "/kaydettiklerim",
     "/alarmlar",
     "/gecmis",
