@@ -62,7 +62,7 @@ export async function PublicSiteShell({
     <div className={styles.shell}>
       <SkipLink targetId={MAIN_ID}>{HOME_COPY.skipToContent}</SkipLink>
       <HomeHeader
-        brandLabel="Arilla"
+        brandLabel="ManiCepte"
         navItems={navItems}
         navAriaLabel="Ana gezinme"
         accountHref={user ? "/hesap" : null}
