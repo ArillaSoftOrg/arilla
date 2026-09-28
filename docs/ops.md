@@ -189,6 +189,13 @@ taşımayan Shopify merchant'ı mağazaya istek atılmadan reddedilir
 dosyasından okunur; dosyada olmayan mağaza reddedilir. Mağaza çekmeden yalnızca
 merchant ayarını güncellemek: `--register-only`.
 
+**Aktivasyon yok (0042).** Bootstrap yeni merchant'ı `is_active = false`
+ekler, mevcut merchant'ın `is_active`'ine dokunmaz ve pasif merchant için
+mağazaya istek atmaz (rapor: `inactive`). Aktivasyon ayrı, onaylı bir adımdır.
+Para birimi doğrulanmış bir merchant'ın ayarı manifestten farklıysa kayıt
+reddedilir (`refused`), satır değişmez. Toplama, ilk katalog isteğinden önce
+robots.txt'i katı biçimde denetler.
+
 **Barkod zenginleştirmesi (0034, 0036).** `collect.bootstrap` her mağazanın
 toplamasından hemen sonra otomatik çalıştırır (`--skip-identifiers` ile kapanır;
 hata toplamayı düşürmez, rapora yazılır). Bağımsız çalıştırma:

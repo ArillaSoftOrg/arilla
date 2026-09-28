@@ -193,20 +193,28 @@ def _product(index: int) -> dict:
     }
 
 
+#: Sahte magazanin robots.txt yaniti; testler degistirebilir (0042).
+ROBOTS: dict[str, httpx.Response] = {}
+
+
 @pytest.fixture
-def shop_requests(monkeypatch: pytest.MonkeyPatch) -> list[str]:
-    """Shopify connector'unun HER istegi buraya duser; aga cikis yok."""
+def shop_requests(monkeypatch: pytest.MonkeyPatch) -> Iterator[list[str]]:
+    """Shopify connector'unun HER istegi (robots.txt dahil) buraya duser; aga
+    cikis yok. robots.txt varsayilan olarak 404: kural yok."""
     requests: list[str] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
         requests.append(str(request.url))
+        if request.url.path == "/robots.txt":
+            return ROBOTS.get("response") or httpx.Response(404)
         page = int(request.url.params.get("page", 1))
         products = [_product(i) for i in range(1, 4)] if page == 1 else []
         return httpx.Response(200, json={"products": products})
 
     client = httpx.Client(transport=httpx.MockTransport(handler))
     monkeypatch.setattr(ShopifyConnector, "_client", lambda self: client)
-    return requests
+    yield requests
+    ROBOTS.clear()
 
 
 @pytest.fixture
@@ -296,10 +304,55 @@ def test_verified_active_shopify_proceeds_as_try_within_cap(
     # Magaza 3 urun sunuyor; tavan 2.
     assert result.counts.offers_created == 2
     assert _counts(merchant_id) == (2, 2)
-    assert len(shop_requests) == 1
+    # Once robots.txt (0042), sonra tek katalog sayfasi.
+    assert [url.split("?")[0].rsplit("/", 1)[1] for url in shop_requests] == [
+        "robots.txt",
+        "products.json",
+    ]
     with _owner() as conn, conn.cursor() as cur:
         cur.execute("SELECT DISTINCT currency FROM offer WHERE merchant_id = %s", (merchant_id,))
         assert cur.fetchall() == [("TRY",)]
+
+
+@pytest.mark.integration
+@pytest.mark.parametrize(
+    ("robots", "code"),
+    [
+        (
+            httpx.Response(
+                200,
+                text="User-agent: *\nDisallow: /products.json\n",
+                headers={"Content-Type": "text/plain"},
+            ),
+            "robots_disallowed",
+        ),
+        (httpx.Response(503), "robots_unavailable"),
+    ],
+)
+def test_blocked_robots_refuses_active_verified_shopify_without_writes(
+    shopify_merchant: Any, shop_requests: list[str], robots: httpx.Response, code: str
+) -> None:
+    ROBOTS["response"] = robots
+    merchant_id = shopify_merchant(_shopify_config())
+
+    with _app() as conn:
+        result = run_ingest(conn, SHOPIFY_SLUG)
+
+    assert result.status == "failed"
+    assert result.refusal == code
+    ((status, error_text, seen, created, points, finished_at),) = _runs(merchant_id)
+    assert status == "failed"
+    assert error_text.startswith(f"refused:{code}:")
+    assert (seen, created, points) == (0, 0, 0)
+    assert finished_at is not None
+    assert _counts(merchant_id) == (0, 0)
+    # Yalnizca robots.txt; katalog istegi yok.
+    assert [url.rsplit("/", 1)[1] for url in shop_requests] == ["robots.txt"]
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute("SELECT feed_config FROM merchant WHERE id = %s", (merchant_id,))
+        row = cur.fetchone()
+        assert row is not None
+        assert (row[0]["currency"], row[0]["currency_verified"]) == ("TRY", True)
 
 
 @pytest.mark.integration

@@ -12,6 +12,10 @@ Kurallar (docs/decisions/0031):
   `feed_config.currency` tam olarak `"TRY"`. Eksik, `false`, `"true"` gibi
   metin ya da baska bir para birimi — hepsi ret. Doviz cevrimi yok; TRY
   disindaki Shopify magazalari desteklenmez.
+
+Bu kapi veritabanindaki durumu sorar. Connector'un magazaya ozgu kapisi
+(Shopify robots.txt, docs/decisions/0042) `IngestRefused` ile ayni ret
+sozlesmesini kullanir; ikisi birbirinin yerine gecmez.
 """
 
 from __future__ import annotations
@@ -33,6 +37,16 @@ class Refusal:
     @property
     def error_text(self) -> str:
         return f"refused:{self.code}: {self.message}"
+
+
+class IngestRefused(Exception):
+    """Connector'un kendi kapisi: ilk katalog isteginden ONCE verilen ret
+    (orn. Shopify robots.txt, docs/decisions/0042). `run_ingest` bunu kapi
+    reddiyle ayni sozlesmeyle kaydeder: `failed` + `refused:<kod>`."""
+
+    def __init__(self, code: str, message: str) -> None:
+        super().__init__(f"refused:{code}: {message}")
+        self.refusal = Refusal(code, message)
 
 
 def ingest_refusal(merchant: Mapping[str, Any]) -> Refusal | None:

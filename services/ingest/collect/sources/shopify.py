@@ -19,18 +19,35 @@ transport gibi ham/genel kalir.
 
 Sayfalama Shopify'in eski `/products.json?page=N&limit=M` sozlesimini
 kullanir. Kimlik dogrulama gerekmez (herkese acik uc nokta).
+
+Magazaya saygi (docs/decisions/0042):
+
+- Kendimizi tanitan user-agent (`collect/link/robots.USER_AGENT`), her istekte
+  acikca; varsayilan istemci `safe_http.guarded_client`.
+- Yonlendirme izlenmez: 3xx bir hatadir.
+- Ilk `/products.json` isteginden ONCE, kosu basina bir kez `robots.txt`
+  sorulur ve KATI yorumlanir (`collect/robots_policy.py`, hazirlik
+  dogrulamasiyla ayni). Izin yoksa ya da belirlenemiyorsa `IngestRefused`:
+  katalog istegi atilmaz.
+- `Crawl-delay` istekler arasi en kisa sure olur; yapilandirilmis oran
+  siniriyla birlikte hangisi daha yavassa o uygulanir.
 """
 
 from __future__ import annotations
 
 import time
-from collections.abc import Iterator
+from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
 from typing import Any
+from urllib.parse import urlsplit
 
 import httpx
 
+from collect import robots_policy
 from collect.connector import Connector, register
+from collect.gate import IngestRefused
+from collect.link.robots import USER_AGENT
+from collect.link.safe_http import guarded_client
 from collect.records import RawRecord
 
 #: docs/routes.md: "Slug'lar Turkce karakter icermez."
@@ -47,6 +64,13 @@ DEFAULT_MAX_PRODUCTS = 30
 #: Kabul edilen en buyuk tavan: 0027'nin TOPLAM sert tavani
 #: (`collect/bootstrap.HARD_CAP`). Tek magaza bunu asamaz.
 MAX_PRODUCTS_LIMIT = 3500
+
+#: `transport.pagination.size` yoksa sayfa boyu.
+DEFAULT_PAGE_SIZE = 50
+
+#: Katalog sayfasi icin zaman asimi: buyuk sayfa (250 urun) okumasi uzun
+#: surebilir, baglanti kurmak suremez. Her durumda sinirli.
+REQUEST_TIMEOUT = httpx.Timeout(60.0, connect=10.0)
 
 
 def parse_max_products(raw: Any) -> int:
@@ -130,6 +154,10 @@ class ShopifyConnector(Connector):
     max_pages: int = 10_000
     #: Kanonik urun tavani; `config`'ten `__post_init__` icinde okunur.
     max_products: int = field(init=False, default=DEFAULT_MAX_PRODUCTS)
+    #: Bekleme ve saat; testler ve agsiz tekrar (verify_readiness) icin
+    #: enjekte edilebilir. None: `time.sleep` / `time.monotonic`.
+    sleep: Callable[[float], None] | None = None
+    clock: Callable[[], float] | None = None
 
     def __post_init__(self) -> None:
         # Kurulumda dogrulanir: gecersiz tavan ilk istekten ONCE patlar.
@@ -144,8 +172,67 @@ class ShopifyConnector(Connector):
     def _store_root(self) -> str:
         return self.base_url.rsplit("/products.json", 1)[0]
 
+    @property
+    def _origin(self) -> str:
+        """`https://<host>` — robots.txt'in adresi. Gecersizse `IngestRefused`."""
+        parts = urlsplit(self.base_url)
+        if parts.scheme != "https" or not parts.hostname or parts.username or parts.password:
+            raise IngestRefused(
+                "feed_url_invalid", "Shopify feed_url https://<alan-adi>/products.json olmali"
+            )
+        return f"https://{parts.netloc}"
+
+    @property
+    def page_size(self) -> int:
+        # Tavandan buyuk sayfa istemenin anlami yok. Sayfa boyu kosu boyunca
+        # SABIT kalmali (`page=N` ofseti ona gore hesaplanir).
+        size = int((self._transport.get("pagination") or {}).get("size", DEFAULT_PAGE_SIZE))
+        return min(size, self.max_products)
+
+    def _params(self, page: int) -> dict[str, int]:
+        return {"page": page, "limit": self.page_size}
+
+    def robots_paths(self) -> tuple[str, ...]:
+        """robots.txt'in izin vermesi gereken yol+sorgu bicimleri: GERCEK ilk
+        istek (ve sayfalama mumkunse ikinci sayfa) — sabit bir ornek degil."""
+        path = urlsplit(self.base_url).path or "/"
+        paths = [path, str(httpx.URL(path, params=self._params(1)))]
+        if self.max_products > self.page_size:
+            paths.append(str(httpx.URL(path, params=self._params(2))))
+        return tuple(paths)
+
+    def _sleep(self, seconds: float) -> None:
+        (self.sleep or time.sleep)(seconds)
+
+    def _now(self) -> float:
+        return (self.clock or time.monotonic)()
+
     def _client(self) -> httpx.Client:
-        return self.client or httpx.Client(timeout=60.0, follow_redirects=True)
+        if self.client is None:
+            # SSRF korumali, cerezsiz, proxy'siz; yonlendirme izlemez.
+            self.client = guarded_client(
+                user_agent=USER_AGENT, timeout=REQUEST_TIMEOUT, follow_redirects=False
+            )
+        return self.client
+
+    def _check_robots(self, client: httpx.Client, origin: str) -> float | None:
+        """Kosu basina TEK robots.txt istegi; izin yoksa `IngestRefused`.
+        Donen deger gecerli `Crawl-delay` (yoksa None)."""
+        verdict = robots_policy.fetch_robots(
+            client,
+            origin,
+            self.robots_paths(),
+            timeout=robots_policy.ROBOTS_TIMEOUT_SECONDS,
+        )
+        if not verdict.allowed:
+            raise IngestRefused(verdict.code or robots_policy.UNAVAILABLE, verdict.reason)
+        delay = verdict.crawl_delay
+        if delay is not None and delay > robots_policy.MAX_CRAWL_DELAY_SECONDS:
+            raise IngestRefused(
+                "robots_crawl_delay_too_long",
+                f"Crawl-delay {delay:g} sn > {robots_policy.MAX_CRAWL_DELAY_SECONDS:g} sn",
+            )
+        return delay
 
     def _get(self, client: httpx.Client, params: dict[str, Any]) -> httpx.Response:
         """Tek sayfa istegi; yalnizca gecici hatalarda sinirli, ussel geri cekilme.
@@ -162,7 +249,12 @@ class ShopifyConnector(Connector):
         for attempt in range(max_retries + 1):
             delay = backoff * (2**attempt)
             try:
-                response = client.get(self.base_url, params=params)
+                response = client.get(
+                    self.base_url,
+                    params=params,
+                    follow_redirects=False,
+                    headers={"User-Agent": USER_AGENT},
+                )
             except httpx.TransportError:
                 if attempt >= max_retries:
                     raise
@@ -173,7 +265,7 @@ class ShopifyConnector(Connector):
                 retry_after = response.headers.get("Retry-After", "")
                 if response.status_code == 429 and retry_after.isdigit():
                     delay = max(delay, float(retry_after))
-            time.sleep(min(delay, max_backoff))
+            self._sleep(min(delay, max_backoff))
         raise AssertionError("unreachable")
 
     def fetch(self) -> Iterator[RawRecord]:
@@ -186,28 +278,32 @@ class ShopifyConnector(Connector):
         # Kanonik Shopify urunu sayisi (renk bolmesinden ONCE). Her zaman
         # vardir: ayar yoksa 30 (0023), bootstrap acikca yukseltir (0027).
         max_products = self.max_products
-        # Tavandan buyuk sayfa istemenin anlami yok. Sayfa boyu kosu boyunca
-        # SABIT kalmali (`page=N` ofseti ona gore hesaplanir), bu yuzden
-        # yalnizca en basta kisilir.
-        page_size = min(int((transport.get("pagination") or {}).get("size", 50)), max_products)
+        page_size = self.page_size
         min_interval = 0.0
         rate = (transport.get("rate_limit") or {}).get("requests_per_second")
         if rate:
             min_interval = 1.0 / float(rate)
 
+        # Once robots: izin yoksa buradan ote tek istek gitmez.
+        origin = self._origin
         client = self._client()
+        crawl_delay = self._check_robots(client, origin)
+        if crawl_delay is not None:
+            # Hangisi daha yavassa: oran siniri asla hizlanmaz.
+            min_interval = max(min_interval, crawl_delay)
+        # robots istegi de sayilir: ilk katalog istegi ayni araligi bekler.
+        last_request = self._now()
         page = 1
-        last_request = 0.0
         products_seen = 0
 
         for _ in range(self.max_pages):
             if min_interval:
-                elapsed = time.monotonic() - last_request
+                elapsed = self._now() - last_request
                 if elapsed < min_interval:
-                    time.sleep(min_interval - elapsed)
-            last_request = time.monotonic()
+                    self._sleep(min_interval - elapsed)
+            last_request = self._now()
 
-            response = self._get(client, {"page": page, "limit": page_size})
+            response = self._get(client, self._params(page))
             products = response.json().get("products") or []
             if not products:
                 return
