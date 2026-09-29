@@ -47,7 +47,10 @@ function key(): string {
   return randomUUID();
 }
 
-async function owner<T = Record<string, unknown>>(text: string, params: unknown[] = []): Promise<T[]> {
+async function owner<T = Record<string, unknown>>(
+  text: string,
+  params: unknown[] = [],
+): Promise<T[]> {
   return withOwnerClient(async (client) => (await client.query(text, params)).rows as T[]);
 }
 
@@ -147,8 +150,16 @@ describe("arama hakki - entegrasyon", () => {
 
     it("ayni istek anahtari ikinci kez hak almaz (replay)", async () => {
       const requestKey = key();
-      const first = await reserveSearch(db, { userId: user, operation: "visual_search", requestKey });
-      const second = await reserveSearch(db, { userId: user, operation: "visual_search", requestKey });
+      const first = await reserveSearch(db, {
+        userId: user,
+        operation: "visual_search",
+        requestKey,
+      });
+      const second = await reserveSearch(db, {
+        userId: user,
+        operation: "visual_search",
+        requestKey,
+      });
       expect(first.status).toBe("reserved");
       expect(second.status).toBe("replay");
       if (first.status === "reserved" && second.status === "replay") {
@@ -294,7 +305,9 @@ describe("arama hakki - entegrasyon", () => {
           db.transaction((tx) => grantFirstFeedbackReward(tx, user)).catch((e: Error) => e),
         ),
       );
-      expect(results.filter((r) => !(r instanceof Error) && r.status === "granted")).toHaveLength(1);
+      expect(results.filter((r) => !(r instanceof Error) && r.status === "granted")).toHaveLength(
+        1,
+      );
       expect(await balanceOf(user)).toBe(3);
       expect(await ledgerOf(user)).toHaveLength(1);
     });
@@ -329,7 +342,9 @@ describe("arama hakki - entegrasyon", () => {
           INSERT INTO ai_search_charge (user_id, operation, request_key, cost, day, from_daily, from_bonus)
           VALUES (${user}, 'visual_search', ${key()}, 1, CURRENT_DATE, 1, 0)
         `),
-      ).rejects.toMatchObject({ cause: { code: "23505", constraint: "ai_search_charge_one_active" } });
+      ).rejects.toMatchObject({
+        cause: { code: "23505", constraint: "ai_search_charge_one_active" },
+      });
     });
   });
 
@@ -351,7 +366,9 @@ describe("arama hakki - entegrasyon", () => {
       expect(await balanceOf(invitee)).toBe(0);
 
       const first = await reserveOk(db, invitee, "visual_search");
-      const settles = await Promise.all(Array.from({ length: 5 }, () => settleCharge(db, first.id)));
+      const settles = await Promise.all(
+        Array.from({ length: 5 }, () => settleCharge(db, first.id)),
+      );
       expect(settles.filter(Boolean)).toHaveLength(1);
       expect(await balanceOf(invitee)).toBe(5);
       expect(await balanceOf(inviter)).toBe(10);
@@ -423,7 +440,8 @@ describe("arama hakki - entegrasyon", () => {
       const youngCharge = await chargeFor(young, 30 * 60_000); // harcama eski, is taze
       const dead = await chargeFor(await linkRequest("queued", 5 * 60_000), 5 * 60_000);
 
-      const reqOf = async (chargeId: string) => (await getCharge(db, chargeId))?.linkRequestId as string;
+      const reqOf = async (chargeId: string) =>
+        (await getCharge(db, chargeId))?.linkRequestId as string;
       expect(await reconcileLinkRequestCharge(db, await reqOf(resolved.chargeId))).toBe("settled");
       expect(await reconcileLinkRequestCharge(db, await reqOf(failed.chargeId))).toBe("refunded");
       expect(await reconcileLinkRequestCharge(db, young)).toBe("pending");

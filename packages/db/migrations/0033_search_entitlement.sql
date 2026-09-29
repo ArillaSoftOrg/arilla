@@ -78,7 +78,7 @@ CREATE TABLE IF NOT EXISTS ai_search_charge (
     image_upload_id  BIGINT      REFERENCES image_upload(id) ON DELETE SET NULL,
     link_request_id  UUID        REFERENCES link_resolution_request(id) ON DELETE SET NULL,
     -- Kararli kod: 'provider_error','provider_unavailable','internal_error',
-    -- 'link_failed','link_stale','queue_unavailable'
+    -- 'link_failed','link_stale','link_reused','queue_unavailable'
     refund_reason    TEXT,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
     finalized_at     TIMESTAMPTZ,

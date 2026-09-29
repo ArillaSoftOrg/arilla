@@ -63,7 +63,9 @@ describe("splitCharge()", () => {
 
   it("gecersiz maliyeti reddeder", () => {
     expect(() => splitCharge({ cost: 0, dailyLimit: 10, dailyUsed: 0, bonusBalance: 0 })).toThrow();
-    expect(() => splitCharge({ cost: 1.5, dailyLimit: 10, dailyUsed: 0, bonusBalance: 0 })).toThrow();
+    expect(() =>
+      splitCharge({ cost: 1.5, dailyLimit: 10, dailyUsed: 0, bonusBalance: 0 }),
+    ).toThrow();
   });
 });
 

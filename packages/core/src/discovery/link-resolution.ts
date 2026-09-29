@@ -52,6 +52,12 @@ export interface EnqueueLinkResolutionInput {
 export interface EnqueueLinkResolutionOptions {
   /** Yalnızca YENİ bir getirme açılacaksa çağrılır; önbellek isabeti sayılmaz. */
   checkLimit?: () => Promise<{ allowed: boolean }>;
+  /**
+   * 0046: YENİ istek satırı yazıldıktan sonra, kuyruğa yazmadan ÖNCE
+   * çağrılır (arama hakkı kaydı istek satırına bağlanır). Önbellek isabetinde
+   * çağrılmaz.
+   */
+  onRequestCreated?: (requestId: string) => Promise<void>;
   now?: Date;
 }
 
@@ -130,6 +136,23 @@ export async function enqueueLinkResolution(
     .returning({ id: linkResolutionRequest.id });
   if (!created) {
     throw new Error("link_resolution_request insert boş sonuç döndürdü");
+  }
+  try {
+    await options.onRequestCreated?.(created.id);
+  } catch (error) {
+    // Kuyruğa hiç yazılmayan satır 'queued' kalmasın: başka oturumlar onu
+    // "işleniyor" sanıp beklerdi. Geçici kod: bir sonraki deneme önbelleğe takılmaz.
+    await db
+      .update(linkResolutionRequest)
+      .set({
+        status: "failed",
+        errorText: "unexpected",
+        errorCode: "unexpected",
+        finishedAt: new Date(),
+      })
+      .where(eq(linkResolutionRequest.id, created.id))
+      .catch(() => undefined);
+    throw error;
   }
 
   try {

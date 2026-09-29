@@ -21,6 +21,13 @@ export {
   settleCharge,
 } from "./charge.ts";
 export {
+  type ChargeBlocked,
+  type ChargedLinkSearchResult,
+  type ChargedVisualSearchResult,
+  runChargedLinkSearch,
+  runChargedVisualSearch,
+} from "./charged-search.ts";
+export {
   AI_OPERATION_COST,
   AI_SEARCH_RATE_LIMITS,
   BONUS_BALANCE_MAX,

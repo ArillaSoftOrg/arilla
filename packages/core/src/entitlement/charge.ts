@@ -276,6 +276,8 @@ export type RefundReason =
   | "internal_error"
   | "link_failed"
   | "link_stale"
+  /** Ayirma ile kuyruk arasinda ayni link baskasi tarafindan acildi; yeni is yok. */
+  | "link_reused"
   | "queue_unavailable";
 
 /** Sonuc uretmeyen hata: ayrilan hakki tam bir kez geri verir. */
