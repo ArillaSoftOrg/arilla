@@ -1,4 +1,4 @@
-/** 0005_auth.sql + 0024_oauth_identity.sql + 0025_apple_phone_identity.sql + 0031_early_access.sql karsiligi. */
+/** 0005_auth.sql + 0024_oauth_identity.sql + 0025_apple_phone_identity.sql + 0031_early_access.sql + 0033 (`app_user.referral_code`) karsiligi. */
 import {
   bigint,
   boolean,
@@ -22,6 +22,8 @@ export const appUser = pgTable("app_user", {
   role: text("role").$type<"user" | "creator" | "moderator" | "admin">().notNull().default("user"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
+  /** 0033: davet kodu; ilk istendiginde uretilir. */
+  referralCode: text("referral_code"),
 });
 
 /** Token asla duz metin saklanmaz, asla log'a yazilmaz. */
