@@ -5,13 +5,13 @@ import {
   type EmbeddingClient,
   EmbeddingProviderError,
   EmbeddingUnavailableError,
-  embedUploadedImage,
   getEmbeddingClient,
   ImageRejectedError,
   isRedisUnavailableError,
+  isValidRequestKey,
   type PreparedImage,
   preprocessImage,
-  recordImageSearchAndCheckLimit,
+  runChargedVisualSearch,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
@@ -25,13 +25,19 @@ const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
 
 export type UploadImageResult =
-  | { status: "ok"; imageUploadId: number }
+  | { status: "ok"; imageUploadId: number; chargedFromBonus: boolean }
   | {
       status:
         | "too_large"
         | "invalid_type"
         | "unprocessable"
-        | "daily_limit"
+        /** Fotografla arama hesap ister (0046); istemci giris modalini acar. */
+        | "login_required"
+        /** Gunluk hak da bonus hak da bitti. */
+        | "no_rights"
+        | "rate_limited"
+        | "busy"
+        | "retry"
         | "unavailable"
         | "error";
     };
@@ -59,6 +65,10 @@ async function ensureSessionId(): Promise<string> {
 export async function uploadImageForSearch(formData: FormData): Promise<UploadImageResult> {
   // Ürün kapısı her şeyden önce: kapalıyken dosya okunmaz, model çağrılmaz.
   const user = await requireProductAccess();
+  // 0046: fotoğrafla arama hesap ister; hak kullanıcıya bağlıdır.
+  if (!user) return { status: "login_required" };
+  const requestKey = formData.get("requestKey");
+  if (!isValidRequestKey(requestKey)) return { status: "error" };
   const file = formData.get("photo");
   if (!(file instanceof File) || file.size === 0) {
     return { status: "invalid_type" };
@@ -71,7 +81,7 @@ export async function uploadImageForSearch(formData: FormData): Promise<UploadIm
   }
 
   // Saglayici yapilandirilmamissa (anahtar yok / production'da sahte bayrak)
-  // gunluk hak harcanmadan ve hicbir satir yazilmadan durulur. Sahte sonuc
+  // hak harcanmadan ve hicbir satir yazilmadan durulur. Sahte sonuc
   // uretilmez; kullaniciya "su an kullanilamiyor" gosterilir.
   let client: EmbeddingClient;
   try {
@@ -85,7 +95,7 @@ export async function uploadImageForSearch(formData: FormData): Promise<UploadIm
     throw error;
   }
 
-  // Gorsel gunluk hak harcanmadan ONCE dogrulanir ve on islenir (0034):
+  // Gorsel hak harcanmadan ONCE dogrulanir ve on islenir (0034):
   // decode edilemeyen ya da sozlesme disi gorsel hakki yakmaz, saglayiciya
   // gitmez. Bellekte kalir; diske yazilmaz.
   let prepared: PreparedImage;
@@ -101,44 +111,27 @@ export async function uploadImageForSearch(formData: FormData): Promise<UploadIm
 
   const sessionId = await ensureSessionId();
 
-  // Gunluk limit, sagladigi/harcadigi maliyet nedeniyle embed cagrisindan
-  // ONCE kontrol edilir (docs/decisions/0015 - gercek para maliyeti).
-  // Limit kontrol edilemiyorsa (Redis erisilemez) kapali kalinir: ucretli
-  // embedding cagrisi limitsiz yapilmaz.
-  let limit: Awaited<ReturnType<typeof recordImageSearchAndCheckLimit>>;
+  // Oran siniri, hak ayirma, embedding, kesinlestirme/iade core'da (0046).
+  // Oran siniri dogrulanamiyorsa (Redis erisilemez) kapali kalinir: ucretli
+  // embedding cagrisi sinirsiz yapilmaz.
   try {
-    limit = await recordImageSearchAndCheckLimit({
-      userId: user?.id ?? null,
-      sessionId,
-    });
-  } catch (error) {
-    if (!isRedisUnavailableError(error)) throw error;
-    console.error("visual search unavailable: limit store unavailable");
-    return { status: "unavailable" };
-  }
-  if (!limit.allowed) {
-    return { status: "daily_limit" };
-  }
-
-  try {
-    const result = await embedUploadedImage(
+    const result = await runChargedVisualSearch(
       getDatabase(),
-      {
-        bytes: prepared.bytes,
-        prepared,
-        mimeType: prepared.mimeType,
-        sessionId,
-        userId: user?.id ?? null,
-      },
+      { userId: user.id, sessionId, requestKey, prepared },
       client,
     );
-    return { status: "ok", imageUploadId: result.imageUploadId };
+    return result;
   } catch (error) {
+    if (isRedisUnavailableError(error)) {
+      console.error("visual search unavailable: limit store unavailable");
+      return { status: "unavailable" };
+    }
     if (error instanceof EmbeddingUnavailableError) {
       return { status: "unavailable" };
     }
     if (error instanceof EmbeddingProviderError) {
-      // Saglayici hatasi (ag, 4xx/5xx, bozuk yanit): sahte sonuca dusulmez.
+      // Saglayici hatasi (ag, 4xx/5xx, bozuk yanit): sahte sonuca dusulmez,
+      // ayrilan hak iade edildi.
       console.error("visual search provider failure");
       return { status: "unavailable" };
     }
