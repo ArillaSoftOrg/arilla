@@ -25,10 +25,15 @@ karşılığı sabitler.
 | `trend_snapshot` | trend | Dönemsel trend listesi. Dönem boyunca sabittir. |
 | `lexicon` | sözlük | Arama ayrıştırıcısının eşanlamlı tablosu. |
 | `alert` | alarm | Fiyat, stok veya beden bildirimi. |
+| `ai_quota_day` | günlük arama hakkı | Fotoğraf ve link araması için her gün (Europe/Istanbul) yenilenen hak. Birikmez. |
+| `bonus_account` | bonus hak | Günlük hak bitince harcanan, sıfırlanmayan hak. Davet ve ilk geri bildirimle kazanılır. |
+| `ai_search_charge` | — | Bir pahalı aramanın hak kaydı: ayrıldı, kesinleşti ya da iade edildi. |
+| `referral` | davet | Davet linkiyle açılan hesap. İlk hak harcayan aramadan sonra ödüllendirilir. |
 
 ## Kullanılmayan terimler
 
 - **"dupe"** arayüzde geçmez. İç konuşmada kullanılabilir, kullanıcıya
   "daha uygun alternatif" denir. Marka hakları açısından da güvenli taraf budur.
 - **"satın al"** hiçbir butonda geçmez. Satışı biz yapmıyoruz.
+- **"coin"**, **"kredi"**, **"jeton"** arayüzde geçmez. Doğrusu "arama hakkı" ve "bonus hak" (0046).
 - **"ucuz"** yerine "daha uygun fiyatlı". Ucuz kelimesi kalitesizlik çağrıştırır.
