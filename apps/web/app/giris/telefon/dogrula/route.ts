@@ -13,6 +13,7 @@ import { clientIp } from "../../../lib/client-ip.ts";
 import { isSameOriginPost } from "../../../lib/same-origin.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
 import { takeAuthNext } from "../../next-cookie.ts";
+import { settleReferralAfterSignIn } from "../../referral-cookie.ts";
 import { PHONE_COOKIE, PHONE_COOKIE_PATH } from "../phone-cookie.ts";
 
 function seeOther(request: Request, path: string): NextResponse {
@@ -33,14 +34,15 @@ export async function POST(request: Request) {
 
   let signedInUser: Awaited<ReturnType<typeof signInWithPhone>>["user"];
   try {
-    const { rawSessionToken, user } = await signInWithPhone(getDatabase(), {
+    const result = await signInWithPhone(getDatabase(), {
       phone,
       code,
       ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
     });
-    await setSessionCookie(rawSessionToken);
-    signedInUser = user;
+    await setSessionCookie(result.rawSessionToken);
+    await settleReferralAfterSignIn(store, result);
+    signedInUser = result.user;
   } catch (error) {
     if (error instanceof PhoneCodeInvalidError) {
       return seeOther(request, "/giris/telefon?adim=kod&hata=kod");
