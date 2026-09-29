@@ -83,9 +83,28 @@ const FAILURES: Record<string, FailureCopy> = {
     title: "Bu bağlantı bizi çok fazla yönlendirdi.",
     description: "Ürün sayfasının doğrudan bağlantısını yapıştırmayı dene.",
   },
-  daily_limit: {
-    title: "Bugünlük bağlantı arama hakkın doldu.",
-    description: "Yarın tekrar deneyebilir ya da ürünün adını yazarak arayabilirsin.",
+  no_rights: {
+    title: "Bugünkü arama hakların bitti.",
+    description:
+      "Günlük hakların gece 00:00'da yenilenir. Bu arada ürünün adını yazarak arayabilir ya da hesabından bonus hak kazanabilirsin.",
+  },
+  // Kullanicinin arama hizi siniri (0046); sitenin 429'u `rate_limited`.
+  search_rate_limited: {
+    title: "Biraz hızlı gittin.",
+    description:
+      "Bir dakika sonra tekrar dener misin? Ürünün adını yazarak aramaya devam edebilirsin.",
+  },
+  busy: {
+    title: "Önceki araman hâlâ sürüyor.",
+    description: "Bitince bu bağlantıyı yeniden deneyebilirsin.",
+  },
+  retry: {
+    title: "Bu bağlantıyı şu an inceleyemedik.",
+    description: "Tekrar dener misin? Hakkın geri verildi.",
+  },
+  login_required: {
+    title: "Bağlantıyla arama için giriş yap.",
+    description: "Fotoğraf ve bağlantı araması hesabınla çalışır; her gün 10 arama hakkın olur.",
   },
   queue_unavailable: {
     title: "Şu an bağlantıları inceleyemiyoruz.",
