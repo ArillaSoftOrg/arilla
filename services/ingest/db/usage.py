@@ -10,10 +10,13 @@ bu tablodan uretiyor.
 
 from __future__ import annotations
 
+import logging
 import os
 from dataclasses import dataclass
 
 import psycopg
+
+logger = logging.getLogger(__name__)
 
 INSERT_USAGE = """
 INSERT INTO api_usage
@@ -24,19 +27,34 @@ VALUES
 """
 
 
+_cost_config_reported = False
+
+
 def cost_micros_per_1k_tokens() -> int:
     """Bin token basina maliyet, TRY milyonda bir cinsinden.
 
-    **Varsayilan 0.** Saglayici hesabi acilmadigi icin gercek fiyat henuz
-    bilinmiyor (bkz. docs/decisions/0015, acik maddeler). `units` token
-    sayisini tuttugu icin maliyet fiyat belli olunca geriye donuk
-    hesaplanabilir; sifir bir fiyat "maliyet yok" demek degildir.
+    **Varsayilan 0.** Fiyat depoda sabitlenmez ve uydurulmaz; ortam
+    degiskeniyle verilir (bkz. docs/decisions/0015, docs/ops.md). `units`
+    token sayisini tuttugu icin maliyet fiyat belli olunca geriye donuk
+    hesaplanabilir; sifir bir fiyat "maliyet yok" demek degildir. Bos, 0 ya
+    da gecersiz (negatif olmayan tamsayi degil) deger isi durdurmaz ama surec
+    basina bir kez uyari olarak loglanir -
+    `packages/core/src/embedding/embed-uploaded-image.ts` ile ayni kural.
     """
-    raw = os.environ.get("EMBEDDING_COST_MICROS_PER_1K_TOKENS", "0")
+    global _cost_config_reported
+    raw = os.environ.get("EMBEDDING_COST_MICROS_PER_1K_TOKENS", "").strip()
     try:
-        return int(raw)
+        value = int(raw) if raw else 0
     except ValueError:
-        return 0
+        value = -1
+    valid = value >= 0
+    if (not valid or value == 0) and not _cost_config_reported:
+        _cost_config_reported = True
+        logger.warning(
+            "EMBEDDING_COST_MICROS_PER_1K_TOKENS %s: api_usage.cost_micros 0 yazilir",
+            "tanimsiz/0" if valid else "gecersiz",
+        )
+    return value if valid else 0
 
 
 @dataclass(frozen=True)

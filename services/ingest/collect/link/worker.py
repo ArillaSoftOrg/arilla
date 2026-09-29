@@ -41,10 +41,22 @@ logger = logging.getLogger(__name__)
 
 QUEUE_KEY = "queue:link_resolution"
 
-#: BRPOP bu sureden uzun bloklamaz - Ctrl+C'nin makul surede yakalanmasi icin.
-POLL_TIMEOUT_SECONDS = 5.0
+#: Bos kuyrukta tek BRPOP'un en uzun bekleme suresi. Gecikmeyi etkilemez:
+#: bekleme sirasinda LPUSH'lanan is aninda doner. Yalnizca bos kuyruktaki
+#: komut sayisini belirler (Upstash komut basina ucretlendirir): 5 sn'de
+#: ~520 bin/ay, 60 sn'de ~43 bin/ay. SIGTERM bekleme icinde de hemen
+#: islenir (sinyal isleyicisi blokeli okumayi keser, `__main__.py`).
+POLL_TIMEOUT_SECONDS = 60.0
 #: Redis'e ulasilamazsa yeniden denemeden once beklenen sure.
 REDIS_RETRY_SECONDS = 2.0
+
+
+class DatabaseConnectionLost(RuntimeError):
+    """Worker'in tek Postgres baglantisi koptu; surec yeniden baslatilmali."""
+
+    def __init__(self, request_id: str) -> None:
+        super().__init__(f"veritabani baglantisi koptu (mesaj: {request_id})")
+        self.request_id = request_id
 
 
 def _mark(
@@ -272,7 +284,14 @@ def run_worker(
                 embedder=embedder,
                 image_http=image_client,
             )
-        except Exception:
+        except Exception as error:
+            if conn.closed or conn.broken:
+                # Veritabani baglantisi koptu (pooler yeniden baslatmasi, ag):
+                # tek baglantili surec burada kurtarilamaz. Temiz cikilir,
+                # surec yoneticisi (docs/ops.md "Link worker") yeniden baslatir.
+                # Yarim kalan satir web tarafinda bayat sayilir
+                # (link-resolution.ts), arayuz sonsuza kadar beklemez.
+                raise DatabaseConnectionLost(request_id) from error
             # Tek bir mesajdaki beklenmeyen bir hata worker'i dusurmemeli -
             # bir sonraki mesaj islenmeye devam eder. Satir 'processing'de
             # kalmasin: arayuz sonsuza kadar beklemesin.
