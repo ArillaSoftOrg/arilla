@@ -77,3 +77,19 @@ def test_worker_skips_message_on_unexpected_error_with_healthy_connection(
     worker.run_worker(conn, fake, max_iterations=3)  # type: ignore[arg-type]
     assert fake.calls == 3
     assert conn.rollbacks == 1
+
+
+class _RecordingRedis:
+    def __init__(self) -> None:
+        self.timeouts: list[float] = []
+
+    def brpop(self, keys: list[str], timeout: float) -> None:
+        self.timeouts.append(timeout)
+        return None
+
+
+def test_worker_blocks_long_on_empty_queue() -> None:
+    """Bos kuyrukta seyrek komut (Upstash kotasi)."""
+    fake = _RecordingRedis()
+    worker.run_worker(None, fake, max_iterations=2)  # type: ignore[arg-type]
+    assert fake.timeouts == [60.0, 60.0]

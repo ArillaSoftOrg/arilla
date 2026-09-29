@@ -290,6 +290,10 @@ kullanıcı sonuç alamaz.
 
 **Dayanıklılık:**
 
+- Boş kuyrukta tek `BRPOP` en fazla 60 sn bekler (`POLL_TIMEOUT_SECONDS`).
+  Gecikmeyi etkilemez - bekleme sırasında gelen iş anında döner; yalnızca boş
+  kuyrukta Upstash'e giden komut sayısını belirler (~43 bin/ay; 5 sn'de ~520
+  bin/ay idi).
 - Redis kesintisi: `BRPOP` hatası yakalanır, 2 sn beklenip yeniden denenir;
   süreç düşmez. redis-py bağlantıyı bir sonraki komutta yeniden kurar.
 - Postgres bağlantısı koparsa süreç `1` ile çıkar; compose
