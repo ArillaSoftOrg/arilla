@@ -20,6 +20,10 @@ import {
   userIdentity,
 } from "@arilla/db";
 import { and, count, desc, eq, gt, sql } from "drizzle-orm";
+import {
+  getMarketingEmailAdminSummary,
+  type MarketingEmailAdminSummary,
+} from "../marketing/admin-summary.ts";
 import { maskEmail, recordAdminEvent } from "./audit.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 
@@ -138,6 +142,8 @@ export interface UserDetail {
   creatorHandle: string | null;
   /** Her rıza türünün en son durumu. */
   consents: { kind: string; granted: boolean; at: Date }[];
+  /** Pazarlama e-postası: etkin durum, kaynak, bastırma, İYS senkronu (0046). */
+  marketingEmail: MarketingEmailAdminSummary;
 }
 
 /** Ayrıntı. Görüntüleme denetime yazılır (kişisel veri erişimi). */
@@ -210,7 +216,8 @@ export async function getUserDetail(
       })
       .from(userConsent)
       .where(eq(userConsent.userId, user.id))
-      .orderBy(userConsent.kind, desc(userConsent.grantedAt));
+      .orderBy(userConsent.kind, desc(userConsent.grantedAt), desc(userConsent.id));
+    const marketingEmail = await getMarketingEmailAdminSummary(tx, user.id);
 
     await recordAdminEvent(tx, {
       actor,
@@ -235,6 +242,7 @@ export async function getUserDetail(
       alerts: { active: alerts[0]?.active ?? 0, total: alerts[0]?.total ?? 0 },
       creatorHandle: creatorRows[0]?.handle ?? null,
       consents: consentRows,
+      marketingEmail,
     };
   });
 }

@@ -11,6 +11,7 @@ import { requireUser } from "../lib/dal.ts";
 import { SubpageShell } from "../public-site-shell.tsx";
 import { configuredSocialLinks, SITE_BRAND } from "../site-config.ts";
 import { joinEarlyAccessAction } from "./actions.ts";
+import { renderMarketingOptIn } from "./marketing-opt-in.tsx";
 import styles from "./page.module.css";
 import { earlyAccessState } from "./state.ts";
 
@@ -96,6 +97,8 @@ export default async function ErkenErisimPage() {
                 <p className={styles.nextStepTitle}>Sırada ne var?</p>
                 <p className={styles.hint}>{EARLY_ACCESS_COPY.notYetOpen}</p>
               </div>
+
+              {await renderMarketingOptIn(user.id)}
 
               <section className={styles.benefitGrid} aria-label="ManiCepte ile yapabileceklerin">
                 {BENEFITS.map((benefit) => (

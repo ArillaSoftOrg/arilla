@@ -735,17 +735,78 @@ CREATE TABLE user_size_profile (
     CONSTRAINT user_size_uniq UNIQUE (user_id, category_path)
 );
 
--- KVKK rıza kayıtları. Neye, ne zaman rıza verildi.
+-- KVKK rıza kayıtları. Neye, ne zaman rıza verildi. Append-only olay
+-- geçmişi (0033'ten beri veritabanında da): güncel durum `granted_at, id`
+-- sırasıyla son satır. Pazarlama rızası yalnızca source + text_version +
+-- email dolu `granted` satırıyla geçerlidir; 0033 öncesi satırlar sayılmaz
+-- (docs/decisions/0046).
 CREATE TABLE user_consent (
-    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    user_id     BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
-    kind        TEXT        NOT NULL
-                CHECK (kind IN ('browsing_history','marketing_email','personalization','public_discovery')),
-    granted     BOOLEAN     NOT NULL,
-    granted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ip          INET
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id      BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    kind         TEXT        NOT NULL
+                 CHECK (kind IN ('browsing_history','marketing_email','personalization','public_discovery')),
+    granted      BOOLEAN     NOT NULL,
+    granted_at   TIMESTAMPTZ NOT NULL DEFAULT now(),   -- rızanın verildiği an
+    ip           INET,
+    source       TEXT CHECK (source IS NULL OR source IN (             -- 0033
+                     'signup','early_access','account_settings','feedback',
+                     'admin_import','unsubscribe_link','iys')),
+    text_version TEXT CHECK (text_version IS NULL OR length(text_version) BETWEEN 1 AND 64),  -- 0033
+    email        TEXT,                                                  -- 0033: işlem anındaki adres
+    recorded_at  TIMESTAMPTZ NOT NULL DEFAULT now(),                    -- 0033: satırın yazıldığı an
+    CONSTRAINT user_consent_granted_before_recorded CHECK (granted_at <= recorded_at)
 );
 CREATE INDEX user_consent_idx ON user_consent (user_id, kind, granted_at DESC);
+CREATE INDEX user_consent_current_idx ON user_consent (user_id, kind, granted_at DESC, id DESC);  -- 0033
+
+-- Pazarlama e-postası bastırması (0033, append-only). Abonelik iptal
+-- bağlantısından gelir; adres düz metin değil, normalize adresin SHA-256
+-- özeti. Kendisinden SONRA verilmiş geçerli bir rıza olmadıkça gönderimi
+-- engeller. Hesap silinse de kalır (user_id SET NULL).
+CREATE TABLE email_suppression (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    email_hash  TEXT        NOT NULL CHECK (email_hash ~ '^[0-9a-f]{64}$'),
+    channel     TEXT        NOT NULL DEFAULT 'marketing' CHECK (channel IN ('marketing')),
+    reason      TEXT        NOT NULL CHECK (reason IN ('unsubscribe_link','admin','bounce','complaint')),
+    user_id     BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX email_suppression_lookup_idx ON email_suppression (email_hash, channel, created_at DESC);
+
+-- Pazarlama gönderim kaydı (0033). Kampanya başına alıcı başına tek satır;
+-- yeniden deneme ikinci e-posta üretmez. İptal token'ı yalnızca özetiyle.
+CREATE TABLE marketing_email_send (
+    id                      BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    campaign_key            TEXT        NOT NULL CHECK (campaign_key ~ '^[a-z0-9][a-z0-9._-]{0,63}$'),
+    user_id                 BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    email_hash              TEXT        NOT NULL CHECK (email_hash ~ '^[0-9a-f]{64}$'),
+    consent_id              BIGINT      REFERENCES user_consent(id) ON DELETE SET NULL,
+    unsubscribe_token_hash  TEXT        NOT NULL UNIQUE CHECK (unsubscribe_token_hash ~ '^[0-9a-f]{64}$'),
+    status                  TEXT        NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','sent','failed')),
+    error_code              TEXT        CHECK (error_code IS NULL OR error_code ~ '^[A-Z0-9_]{1,32}$'),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    sent_at                 TIMESTAMPTZ,
+    CONSTRAINT marketing_email_send_once UNIQUE (campaign_key, email_hash)
+);
+CREATE INDEX marketing_email_send_user_idx ON marketing_email_send (user_id, created_at DESC);
+
+-- Rıza olayının dış sistemle (İYS) senkron durumu (0033). Entegrasyon henüz
+-- yok: satırlar 'pending' kalır, canlı gönderim 'synced' olmayanı kabul etmez.
+CREATE TABLE consent_external_sync (
+    consent_id       BIGINT      NOT NULL REFERENCES user_consent(id) ON DELETE CASCADE,
+    provider         TEXT        NOT NULL CHECK (provider IN ('iys')),
+    status           TEXT        NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','synced','failed')),
+    attempts         INTEGER     NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    last_error_code  TEXT        CHECK (last_error_code IS NULL OR last_error_code ~ '^[A-Z0-9_]{1,32}$'),
+    external_ref     TEXT        CHECK (external_ref IS NULL OR length(external_ref) <= 128),
+    synced_at        TIMESTAMPTZ,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (consent_id, provider)
+);
+CREATE INDEX consent_external_sync_open_idx ON consent_external_sync (provider, created_at)
+    WHERE status IN ('pending','failed');
 
 -- Trend listeleri. Haftalık toplu işle üretilir, sayfa statik servis edilir.
 -- Arama, kaydetme ve tıklama sayılarından türetilir; editör gerekmez.
@@ -841,6 +902,8 @@ REVOKE UPDATE, DELETE, TRUNCATE ON price_point         FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_stock_event FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_price_event FROM arilla_app;   -- 0026
 REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit_event   FROM arilla_app;   -- 0027
+REVOKE UPDATE, DELETE, TRUNCATE ON user_consent        FROM arilla_app;   -- 0033
+REVOKE UPDATE, DELETE, TRUNCATE ON email_suppression   FROM arilla_app;   -- 0033
 
 -- price_point partition'larına doğrudan erişim yoktur. Partitioned tabloya
 -- INSERT'te yetki ebeveyn üzerinde denetlenir; yönlendirme etkilenmez.

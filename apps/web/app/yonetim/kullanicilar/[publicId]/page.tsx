@@ -27,6 +27,22 @@ const CONSENT_LABELS: Record<string, string> = {
   public_discovery: "Keşfet'te görünme",
 };
 
+const MARKETING_SOURCE_LABELS: Record<string, string> = {
+  signup: "Kayıt",
+  early_access: "Erken erişim",
+  account_settings: "Hesap ayarları",
+  feedback: "Geri bildirim",
+  admin_import: "Yönetim içe aktarımı",
+  unsubscribe_link: "Abonelik iptal bağlantısı",
+  iys: "İYS",
+};
+
+const SYNC_LABELS: Record<string, string> = {
+  pending: "Bekliyor (İYS entegrasyonu yok)",
+  synced: "Senkronlandı",
+  failed: "Başarısız",
+};
+
 /**
  * Hesap ayrıntısı (Faz 6), salt okunur. Görüntüleme denetime yazılır.
  * İletişim bilgisi maskelidir; oturum token'ı, sağlayıcı kimliği, IP yok.
@@ -115,6 +131,45 @@ export default async function UserDetailPage({
             ])}
           />
         )}
+      </Section>
+
+      <Section id="pazarlama-e-postasi" title="Pazarlama e-postası">
+        <KeyValues
+          items={[
+            ["Etkin durum", user.marketingEmail.optedIn ? "Gönderilebilir rıza var" : "Rıza yok"],
+            [
+              "Son olay",
+              user.marketingEmail.latest
+                ? `${user.marketingEmail.latest.granted ? "Verdi" : "Geri aldı"} · ${
+                    user.marketingEmail.latest.source
+                      ? (MARKETING_SOURCE_LABELS[user.marketingEmail.latest.source] ??
+                        user.marketingEmail.latest.source)
+                      : "Kaynak yok"
+                  } · ${formatDateOrDash(user.marketingEmail.latest.at)}`
+                : "—",
+            ],
+            [
+              "Metin sürümü",
+              user.marketingEmail.latest?.legacy
+                ? "Sürümsüz (0033 öncesi, geçerli rıza sayılmaz)"
+                : (user.marketingEmail.latest?.textVersion ?? "—"),
+            ],
+            [
+              "Abonelik iptali",
+              user.marketingEmail.lastSuppression
+                ? formatDateOrDash(user.marketingEmail.lastSuppression.at)
+                : "—",
+            ],
+            [
+              "İYS senkronu",
+              user.marketingEmail.externalSyncStatus
+                ? (SYNC_LABELS[user.marketingEmail.externalSyncStatus] ??
+                  user.marketingEmail.externalSyncStatus)
+                : "—",
+            ],
+            ["Gönderilen pazarlama e-postası", formatCount(user.marketingEmail.sentCount)],
+          ]}
+        />
       </Section>
 
       <p className={styles.muted}>

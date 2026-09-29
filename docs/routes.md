@@ -67,6 +67,7 @@ SEO değerini böler hem kullanıcıyı gereksiz bir tıklamaya zorlar.
 /sirket-bilgileri          Şirket bilgileri - yalnızca doğrulanmış alanlar (karar 0038)
 /kullanim-kosullari        Kalıcı yönlendirme (308) -> /kosullar
 /cerez-politikasi          Kalıcı yönlendirme (308) -> /cerez
+/abonelik-iptali?t=...     Girişsiz pazarlama e-postası iptali (karar 0046). GET yan etkisiz, noindex; sitemap'e girmez.
 ```
 
 Karar 0038: hukuk paketi `/kullanim-kosullari` ve `/cerez-politikasi`
@@ -150,7 +151,7 @@ platform sorununu hafifletir.
 /kaydettiklerim            Favoriler
 /alarmlar                  Fiyat düşüşü, yeniden stok ve beden alarmları
 /gecmis                    Son gezilenler. Silme düğmesi zorunlu.
-/hesap                     Beden profili, rıza tercihleri, veri silme
+/hesap                     Beden profili, rıza tercihleri (pazarlama e-postası dahil), veri silme
 /giris?next=/yol           E-posta bağlantısı isteme. `next`: giriş sonrası dönüş (yalnızca göreli yol)
 /giris/dogrula?token=...   Onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir. Tek kullanımlık, 15 dk.
 ```
@@ -199,6 +200,7 @@ ekran olmadan katalog kalitesi yönetilemez.
 ```
 /api/cron/trigger-alerts            Vercel Cron. CRON_SECRET ile korunur.
 /api/cron/generate-discovery-slots  Vercel Cron, gece yarısı. CRON_SECRET.
+/api/email/unsubscribe?t=...        RFC 8058 tek tık iptal (POST). Yetki: iptal token'ı (karar 0046).
 ```
 
 `/yonetim/sozluk` ürünün en çok bakım gören ekranı olacak. Sözlük

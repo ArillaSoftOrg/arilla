@@ -38,7 +38,7 @@ birindedir ve okuyan dosya yanında yazar:
 | Grup | Anlamı | Anahtarlar |
 | --- | --- | --- |
 | `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
-| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `VISUAL_SEARCH_DAILY_LIMIT_PER_USER`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT` |
+| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `MARKETING_EMAIL_MODE` (boş = `off`), `MARKETING_EMAIL_FROM` (`off` dışında zorunlu), `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_ALLOWLIST` (`allowlist` kipinde zorunlu), `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `VISUAL_SEARCH_DAILY_LIMIT_PER_USER`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT` |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
 | `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
@@ -52,6 +52,27 @@ adı gömülü değildir.
 `VERCEL_ENV`, `VERCEL_PROJECT_PRODUCTION_URL` ve `NODE_ENV` sistem
 değişkenleridir; elle ayarlanmaz. Vercel'de `DATABASE_URL` Supabase transaction
 pooler adresidir (port 6543).
+
+## E-posta gönderimi ve alan adı doğrulaması
+
+Tek taşıyıcı SMTP (`packages/core/src/email/transport.ts`); üretimde Resend'in
+SMTP ucu. İşlemsel ileti `EMAIL_FROM`, pazarlama `MARKETING_EMAIL_FROM` ile
+gider (docs/decisions/0046). Kurulum adımları (değerler burada yazılmaz):
+
+1. Resend'de gönderen alan adını (tercihen pazarlama için ayrı bir alt alan
+   adı) ekle; panelin verdiği SPF, DKIM (ve istenirse MX/return-path)
+   kayıtlarını DNS'e gir, alan adı "verified" olana kadar bekle.
+2. DMARC kaydını (önce `p=none` ile izleme) DNS'e ekle; raporlar temizse
+   sıkılaştır.
+3. Resend'de SMTP için kısıtlı (yalnızca gönderim) bir API anahtarı üret.
+   Vercel'de `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS` (anahtar),
+   `EMAIL_FROM` ve pazarlama için `MARKETING_EMAIL_FROM` tanımla.
+4. `MARKETING_EMAIL_MODE` boş (= `off`) kalır. Ekip denemesi için preview'da
+   `allowlist` + `MARKETING_EMAIL_ALLOWLIST`. `live` yalnızca İYS senkronu
+   ve yasal kimlik hazır olduğunda.
+
+Gönderim hataları yalnızca kodla (`EAUTH`, `ECONNECTION` ...) kaydedilir;
+adres, token ve sağlayıcı mesajı loglanmaz.
 
 ## Yedekleme
 

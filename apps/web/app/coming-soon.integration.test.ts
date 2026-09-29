@@ -445,6 +445,10 @@ describe("erken erişim akışı", () => {
     expect(fresh).toContain("Erken erişim listesine alındın.");
     expect(fresh).toContain("ManiCepte açıldığında sana haber vereceğiz.");
     expect(fresh).not.toMatch(PRODUCT_HREF);
+    // Pazarlama rızası isteğe bağlı ve işaretsiz (docs/decisions/0046).
+    const optIn = /<input[^>]*name="marketing_email"[^>]*>/.exec(fresh)?.[0];
+    expect(optIn).toBeDefined();
+    expect(optIn).not.toContain("checked");
 
     as("enrolled");
     const returning = bodyMarkup(await Page());

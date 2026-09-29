@@ -36,19 +36,31 @@ describe("consent - entegrasyon (gerçek Postgres)", () => {
   });
 
   it("setConsent yeni satır ekler, getConsents en son satırı döner", async () => {
-    await setConsent(db, { userId, kind: "marketing_email", granted: true, ip: "127.0.0.1" });
-    expect((await getConsents(db, userId)).marketing_email).toBe(true);
+    await setConsent(db, { userId, kind: "personalization", granted: true, ip: "127.0.0.1" });
+    expect((await getConsents(db, userId)).personalization).toBe(true);
 
     // Ayni kind icin ikinci kez cagirmak GUNCELLEMEZ, yeni satir ekler (audit trail).
-    await setConsent(db, { userId, kind: "marketing_email", granted: false, ip: null });
-    expect((await getConsents(db, userId)).marketing_email).toBe(false);
+    await setConsent(db, { userId, kind: "personalization", granted: false, ip: null });
+    expect((await getConsents(db, userId)).personalization).toBe(false);
 
     const rows = await withOwnerClient((client) =>
       client.query(
-        "SELECT granted FROM user_consent WHERE user_id = $1 AND kind = 'marketing_email' ORDER BY granted_at",
+        "SELECT granted FROM user_consent WHERE user_id = $1 AND kind = 'personalization' ORDER BY granted_at",
         [userId],
       ),
     );
     expect(rows.rows).toHaveLength(2);
+  });
+
+  it("marketing_email genel yoldan yazılamaz (kaynak ve metin sürümü zorunlu, 0046)", async () => {
+    await expect(
+      setConsent(db, {
+        userId,
+        kind: "marketing_email" as "personalization",
+        granted: true,
+        ip: null,
+      }),
+    ).rejects.toThrow(/recordMarketingEmailConsent/);
+    expect((await getConsents(db, userId)).marketing_email).toBe(false);
   });
 });

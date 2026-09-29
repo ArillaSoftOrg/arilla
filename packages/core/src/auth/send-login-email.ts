@@ -7,9 +7,8 @@
  * Gönderim veya SMTP yapılandırma hatası `EmailDeliveryError` olarak
  * fırlatılır; çağıran "gönderdik" demeden önce bunu ele almak zorunda.
  */
-import { toEmailDeliveryError } from "../email/delivery-error.ts";
 import { escapeHtml } from "../email/escape-html.ts";
-import { emailFrom, getSmtpTransport } from "../email/transport.ts";
+import { sendTransactionalEmail } from "../email/send.ts";
 
 export interface SendLoginEmailInput {
   email: string;
@@ -27,13 +26,6 @@ export function buildLoginEmail(loginUrl: string): { subject: string; text: stri
 }
 
 export async function sendLoginEmail(input: SendLoginEmailInput): Promise<void> {
-  try {
-    await getSmtpTransport().sendMail({
-      from: emailFrom(),
-      to: input.email,
-      ...buildLoginEmail(input.loginUrl),
-    });
-  } catch (error) {
-    throw toEmailDeliveryError(error);
-  }
+  // Islemsel ileti: pazarlama rizasina bakilmaz (docs/decisions/0046).
+  await sendTransactionalEmail({ to: input.email, ...buildLoginEmail(input.loginUrl) });
 }

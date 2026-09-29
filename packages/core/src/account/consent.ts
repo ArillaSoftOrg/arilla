@@ -8,6 +8,7 @@
 
 import { type Database, userConsent } from "@arilla/db";
 import { and, desc, eq } from "drizzle-orm";
+import { getMarketingEmailPreference } from "../marketing/consent.ts";
 import type { ConsentKind } from "./types.ts";
 
 export const CONSENT_KINDS: readonly ConsentKind[] = [
@@ -19,7 +20,12 @@ export const CONSENT_KINDS: readonly ConsentKind[] = [
 
 export type ConsentState = Record<ConsentKind, boolean>;
 
-/** Hiç kayıt yoksa varsayılan `false` - opt-in, opt-out değil (kvkk.md). */
+/**
+ * Hiç kayıt yoksa varsayılan `false` - opt-in, opt-out değil (kvkk.md).
+ * `marketing_email` ham son satır değil, gönderim kapısıyla aynı etkin
+ * durumdur (sürümlü rıza, bastırma yok): 0033 öncesi sürümsüz satırlar
+ * "izin verildi" görünmez (docs/decisions/0046).
+ */
 export async function getConsents(db: Database, userId: number): Promise<ConsentState> {
   const state: ConsentState = {
     browsing_history: false,
@@ -29,6 +35,10 @@ export async function getConsents(db: Database, userId: number): Promise<Consent
   };
 
   for (const kind of CONSENT_KINDS) {
+    if (kind === "marketing_email") {
+      state.marketing_email = (await getMarketingEmailPreference(db, userId)).optedIn;
+      continue;
+    }
     const rows = await db
       .select({ granted: userConsent.granted })
       .from(userConsent)
@@ -44,12 +54,20 @@ export async function getConsents(db: Database, userId: number): Promise<Consent
 
 export interface SetConsentInput {
   userId: number;
-  kind: ConsentKind;
+  /** `marketing_email` burada yazılamaz: `recordMarketingEmailConsent` kullanılır. */
+  kind: Exclude<ConsentKind, "marketing_email">;
   granted: boolean;
   ip: string | null;
 }
 
 export async function setConsent(db: Database, input: SetConsentInput): Promise<void> {
+  // Tip dışından (ör. istemciden gelen `kind`) gelen çağrıya karşı çalışma
+  // zamanı kapısı: pazarlama rızası kaynak ve metin sürümü olmadan yazılmaz.
+  if ((input.kind as ConsentKind) === "marketing_email") {
+    throw new Error(
+      "marketing_email setConsent ile yazilamaz; recordMarketingEmailConsent kullanin.",
+    );
+  }
   await db.insert(userConsent).values({
     userId: input.userId,
     kind: input.kind,

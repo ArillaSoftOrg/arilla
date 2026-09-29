@@ -1,4 +1,8 @@
-import { getConsents } from "@arilla/core";
+import {
+  getConsents,
+  getMarketingEmailPreference,
+  MARKETING_EMAIL_CONSENT_TEXT,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { Button } from "@arilla/ui";
 import { cookies } from "next/headers";
@@ -21,8 +25,9 @@ import styles from "./page.module.css";
 export default async function HesapPage() {
   const user = await requireUser();
   const db = getDatabase();
-  const [consents, theme] = await Promise.all([
+  const [consents, marketingPreference, theme] = await Promise.all([
     getConsents(db, user.id),
+    getMarketingEmailPreference(db, user.id),
     (async () => readThemeCookie((await cookies()).get("theme")?.value))(),
   ]);
   const accountLabel = user.email ?? "E-posta bağlı değil";
@@ -118,7 +123,9 @@ export default async function HesapPage() {
             </div>
             <ConsentTogglesClient
               historyAndPersonalization={consents.browsing_history || consents.personalization}
-              marketingEmail={consents.marketing_email}
+              marketingEmail={marketingPreference.optedIn}
+              marketingEmailAvailable={marketingPreference.hasEmail}
+              marketingConsentText={MARKETING_EMAIL_CONSENT_TEXT.text}
               publicDiscovery={consents.public_discovery}
             />
           </section>

@@ -381,6 +381,30 @@ tarih yok. Metinler `apps/web/app/coming-soon-copy.ts`'te; marka adı
 Giriş, fiyat alarmı ve stok bildirimi **işlemsel iletidir.** Haftalık özet
 **ticari iletidir** ve ayrı izin gerektirir (`kvkk.md`).
 
+## Pazarlama e-postası (karar 0046)
+
+Rıza cümlesi burada değil, sürümlü olarak
+`packages/core/src/marketing/consent-text.ts` içindedir; metin değişirse sürüm
+de değişir. Arayüz metinleri `apps/web/app/marketing-email-copy.ts`.
+
+| Anahtar | Metin |
+| --- | --- |
+| `marketing_email.consent` (sürüm `marketing-email.2026-09-29.v1`) | ManiCepte’den ürün yenilikleri, kampanyalar ve pazarlama içerikli e-postalar almak istiyorum. |
+| `marketing_email.preference_title` | Pazarlama e-postaları |
+| `marketing_email.transactional_note` | Giriş ve hesap güvenliği e-postaları bu tercihten etkilenmez. |
+| `marketing_email.no_email` | Hesabına bağlı bir e-posta adresi olmadığı için bu tercih kullanılamıyor. |
+| `marketing_email.save_failed` | Tercihin kaydedilemedi. Biraz sonra yeniden dene. |
+| `marketing_email.opt_in_optional` | İsteğe bağlı. İşaretlemesen de erken erişim listesinde kalırsın. |
+| `marketing_email.opt_in_submit` | Tercihimi kaydet |
+| `marketing_email.opted_in_note` | Pazarlama e-postalarına izin verdin. Hesap sayfandan istediğin zaman kapatabilirsin. |
+| `marketing_email.unsubscribe_title` | E-posta listesinden ayrıl |
+| `marketing_email.unsubscribe_body` | Onayladığında sana pazarlama e-postası gönderilmez. Giriş ve hesap güvenliği e-postaları gelmeye devam eder. |
+| `marketing_email.unsubscribe_submit` | Listeden ayrıl |
+| `marketing_email.unsubscribe_done_title` | Listeden ayrıldın. |
+| `marketing_email.unsubscribe_done_body` | Artık pazarlama e-postası almayacaksın. Fikrini değiştirirsen hesap sayfandan yeniden izin verebilirsin. |
+| `marketing_email.unsubscribe_invalid_title` | Bu bağlantı geçerli değil. |
+| `marketing_email.unsubscribe_invalid_body` | Bağlantı eksik kopyalanmış olabilir. E-postadaki bağlantıyı yeniden aç ya da hesap sayfandan tercihini değiştir. |
+
 ## Yönetim
 
 Rol gerektiren `/yonetim/*` ekranları için. Erişim `requireCapability(<yetenek>)`

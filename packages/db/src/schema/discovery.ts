@@ -39,9 +39,27 @@ export const userConsent = pgTable("user_consent", {
     .$type<"browsing_history" | "marketing_email" | "personalization" | "public_discovery">()
     .notNull(),
   granted: boolean("granted").notNull(),
+  /** Rizanin verildigi an (0033: admin_import'ta gecmis tarih olabilir). */
   grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().defaultNow(),
   ip: inet("ip"),
+  /** 0033: rizanin alindigi yer. 0033'ten onceki satirlarda NULL. */
+  source: text("source").$type<ConsentSource>(),
+  /** 0033: kabul edilen metnin surumu (packages/core/src/marketing/consent-text.ts). */
+  textVersion: text("text_version"),
+  /** 0033: pazarlama rizasinin verildigi adres (islem anindaki `app_user.email`). */
+  email: text("email"),
+  /** 0033: satirin yazildigi an. */
+  recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type ConsentSource =
+  | "signup"
+  | "early_access"
+  | "account_settings"
+  | "feedback"
+  | "admin_import"
+  | "unsubscribe_link"
+  | "iys";
 
 export const trendSnapshot = pgTable("trend_snapshot", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),

@@ -11,9 +11,8 @@
  * gövdesine giren her dinamik değer `escapeHtml`'den geçer. Konu ve düz
  * metin gövde HTML değildir, kaçırılmaz.
  */
-import { toEmailDeliveryError } from "../email/delivery-error.ts";
 import { escapeHtml } from "../email/escape-html.ts";
-import { emailFrom, getSmtpTransport } from "../email/transport.ts";
+import { sendTransactionalEmail } from "../email/send.ts";
 import type { AlertKind } from "./types.ts";
 
 export interface SendAlertEmailInput {
@@ -58,13 +57,5 @@ export function buildAlertEmail(input: Omit<SendAlertEmailInput, "email">): {
 
 export async function sendAlertEmail(input: SendAlertEmailInput): Promise<void> {
   const { email, ...content } = input;
-  try {
-    await getSmtpTransport().sendMail({
-      from: emailFrom(),
-      to: email,
-      ...buildAlertEmail(content),
-    });
-  } catch (error) {
-    throw toEmailDeliveryError(error);
-  }
+  await sendTransactionalEmail({ to: email, ...buildAlertEmail(content) });
 }

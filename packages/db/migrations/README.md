@@ -48,6 +48,7 @@ migration'lar olusturur.
 | `0029_link_resolution_request_created_idx.sql` | `link_resolution_request (created_at DESC, id DESC)` indeksi: `/yonetim/arama/link` listesi tam tarama yerine indeksle okur (EXPLAIN kaniti migration icinde) (0041). Yalnizca ekleme. |
 | `0030_auth_cleanup_indexes.sql` | `auth_token (expires_at)` + `phone_login_code (expires_at)` indeksleri: suresi dolmus giris kayitlarinin gunluk temizligi. Yalnizca ekleme. |
 | `0031_early_access.sql` | `early_access` (PK `user_id`, `status` yalnizca `pending`): lansman oncesi erken erisim listesi; giriste idempotent yazilir. Yalnizca ekleme. |
+| `0033_marketing_email.sql` | `user_consent`'e `source`/`text_version`/`email`/`recorded_at` + tablo append-only; `email_suppression` (append-only), `marketing_email_send` (tekil kampanya+adres, token ozeti), `consent_external_sync` (IYS durumu) (0046). Yalnizca ekleme + yetki daraltmasi; veri tasinmaz. `0032` feedback dalina ayrildi. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori
@@ -74,7 +75,7 @@ sonrakiler denenmez.
 | Rol | Kim kullanir | Yetki |
 | --- | --- | --- |
 | `arilla` | migration, partition uretimi, tohum verisi | sahip, superuser |
-| `arilla_app` | `apps/*`, `services/ingest` | tablo basina GRANT; `price_point` ve `variant_stock_event` uzerinde **yalnizca SELECT ve INSERT** |
+| `arilla_app` | `apps/*`, `services/ingest` | tablo basina GRANT; `price_point`, `variant_stock_event`, `variant_price_event`, `admin_audit_event`, `user_consent` ve `email_suppression` uzerinde **yalnizca SELECT ve INSERT** |
 
 Uygulama `arilla` ile baglanirsa append-only kurali **etkisiz kalir** —
 superuser butun yetki kontrollerini atlar. `pnpm db:verify` bu durumu yakalar

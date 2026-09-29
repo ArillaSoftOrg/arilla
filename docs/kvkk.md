@@ -101,6 +101,16 @@ Kritik ayrım:
 Haftalık özet e-postası ticari iletidir. Kayıt formundaki onay kutusu
 **işaretsiz** gelir ve girişin ön koşulu yapılamaz.
 
+Uygulama (docs/decisions/0046): rıza `user_consent`'te append-only olay
+olarak, kaynak + sürümlü metin + adresle tutulur; 0033 öncesi satırlar geçerli
+rıza sayılmaz. Her ticari iletide girişsiz, tek tık iptal bağlantısı ve
+`List-Unsubscribe` başlığı vardır; iptal anında yerel bastırma yazar, İYS
+senkronunu beklemez. İYS entegrasyonu henüz **yok**: rıza olayları
+`consent_external_sync` içinde `pending` bekler ve canlı gönderim senkronsuz
+rızayı kabul etmez. Abonelik iptalinden sonra adresin SHA-256 özeti
+(`email_suppression`) hesap silinse de tutulur — ret kararına uymak için
+gereken asgari veri; düz adres tutulmaz.
+
 ## Affiliate bildirimi
 
 Affiliate ilişkisi kullanıcıya açıkça bildirilir. Bildirim çıkış öncesinde ve

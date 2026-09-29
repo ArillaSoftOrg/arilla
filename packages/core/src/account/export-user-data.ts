@@ -46,7 +46,14 @@ export interface UserDataExport {
   }>;
   history: Array<{ productId: number; productTitle: string; viewedAt: Date }>;
   sizeProfile: Array<{ categoryPath: string; sizeNorm: string }>;
-  consents: Array<{ kind: string; granted: boolean; grantedAt: Date }>;
+  /** 0033: `source`/`textVersion` hangi metne nereden rıza verildiğini gösterir. */
+  consents: Array<{
+    kind: string;
+    granted: boolean;
+    grantedAt: Date;
+    source: string | null;
+    textVersion: string | null;
+  }>;
   clicks: Array<{
     offerId: number;
     channel: string;
@@ -108,6 +115,8 @@ export async function exportUserData(db: Database, userId: number): Promise<User
           kind: userConsent.kind,
           granted: userConsent.granted,
           grantedAt: userConsent.grantedAt,
+          source: userConsent.source,
+          textVersion: userConsent.textVersion,
         })
         .from(userConsent)
         .where(eq(userConsent.userId, userId))
