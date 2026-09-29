@@ -7,7 +7,7 @@ import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
-import { enqueueLinkResolution, LinkSearchLimitError } from "./link-resolution.ts";
+import { enqueueLinkResolution } from "./link-resolution.ts";
 import { findLinkSearchResults, getLinkSearchState } from "./link-search.ts";
 
 const HOST = "https://link-arama-entegrasyon.example";
@@ -57,7 +57,14 @@ const input = (path: string) => ({
   sessionId: "baska-oturum",
   userId: null,
 });
-const denyLimit = async () => ({ allowed: false });
+/**
+ * YENI istek acilacagini kanitlar: `onRequestCreated` yalnizca yeni satirda
+ * cagrilir (0047 hak kaydi buraya baglanir). Kuyruga yazmadan durdurur.
+ */
+class NewRequestOpened extends Error {}
+const refuseNewRequest = async () => {
+  throw new NewRequestOpened();
+};
 
 describe("link search - integration", () => {
   let db: Database;
@@ -69,7 +76,7 @@ describe("link search - integration", () => {
 
   afterAll(cleanup);
 
-  it("reuses a resolved result across sessions without counting the limit", async () => {
+  it("reuses a resolved result across sessions without opening a new request", async () => {
     const id = await insertRequest({
       path: "/urun/cozuldu",
       status: "resolved",
@@ -78,7 +85,7 @@ describe("link search - integration", () => {
     });
     // Tracking parametresi ve fragment önbellek anahtarını değiştirmez.
     const result = await enqueueLinkResolution(db, input("/urun/cozuldu?utm_source=x#a"), {
-      checkLimit: denyLimit,
+      onRequestCreated: refuseNewRequest,
     });
     expect(result).toEqual({ requestId: id, reused: true });
   });
@@ -102,8 +109,8 @@ describe("link search - integration", () => {
       errorCode: "rate_limited",
     });
     await expect(
-      enqueueLinkResolution(db, input("/urun/eski-hata"), { checkLimit: denyLimit }),
-    ).rejects.toBeInstanceOf(LinkSearchLimitError);
+      enqueueLinkResolution(db, input("/urun/eski-hata"), { onRequestCreated: refuseNewRequest }),
+    ).rejects.toBeInstanceOf(NewRequestOpened);
   });
 
   it("does not cache transient infrastructure failures", async () => {
@@ -114,8 +121,8 @@ describe("link search - integration", () => {
       errorCode: "queue_unavailable",
     });
     await expect(
-      enqueueLinkResolution(db, input("/urun/kuyruk"), { checkLimit: denyLimit }),
-    ).rejects.toBeInstanceOf(LinkSearchLimitError);
+      enqueueLinkResolution(db, input("/urun/kuyruk"), { onRequestCreated: refuseNewRequest }),
+    ).rejects.toBeInstanceOf(NewRequestOpened);
   });
 
   it("treats a stuck in-flight request as dead so the UI never waits forever", async () => {

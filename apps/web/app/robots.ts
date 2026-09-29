@@ -24,6 +24,7 @@ export default function robots(): MetadataRoute.Robots {
         "/kaydettiklerim",
         "/alarmlar",
         "/giris",
+        "/davet/",
         "/api/",
         // Lansman öncesi ürün kapalı: ürün yolları taranmaz (P2).
         ...(isProductOpen() ? [] : ["/urun/", "/kesfet", "/firsatlar", "/erken-erisim"]),

@@ -149,6 +149,13 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `search.clarify_other` | Başka bir şey |
 | `search.clarify_other_placeholder` | Ne arıyorsun? |
 | `search.loading` | Benzerlerini arıyoruz |
+| `rights.summary` | Bugün kalan {kalan}/{limit} · Bonus {bonus} (fotoğraf ve link araması; 0047) |
+| `rights.reset` | Günlük hakların {saat}'da yenilenir. |
+| `rights.no_rights` | Bugünkü arama hakların ve bonus hakların bitti. Hakların gece 00:00'da yenilenir. |
+| `rights.earn_link` | Bonus hak kazanmanın yolları |
+| `rights.rate_limited` | Biraz hızlı gittin. Bir dakika sonra tekrar dener misin? |
+| `rights.busy` | Önceki araman hâlâ sürüyor. Bitince yenisini başlatabilirsin. |
+| `rights.section_title` | Arama hakların |
 | `search.empty` | Bu aramada sonuç bulamadık. |
 | `search.empty_hint` | Daha genel bir arama dene: fiyat, renk ya da beden gibi ayrıntıları çıkarabilir veya farklı kelimeler kullanabilirsin. |
 | `search.empty_nearest` | Sana en yakın bulduklarımız |
@@ -255,8 +262,10 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `auth.link_sent_title` | Bağlantıyı gönderdik |
 | `auth.link_sent_body` | E-postana bir giriş bağlantısı gönderdik. Bağlantı 15 dakika geçerli. |
 | `auth.rate_limited` | Az önce bir bağlantı gönderdik. Birkaç dakika sonra tekrar dene. |
-| `auth.token_expired` | Bu bağlantının süresi dolmuş. Yeni bir tane isteyebilirsin. |
+| `auth.token_expired` | Bu bağlantının süresi dolmuş. Google ya da Apple ile giriş yapabilirsin. |
 | `auth.token_used` | Bu bağlantı zaten kullanılmış. |
+| `auth.google_failed` | Google ile giriş şu an tamamlanamadı. Apple ile devam edebilir ya da biraz sonra tekrar deneyebilirsin. |
+| `auth.apple_failed` | Apple ile giriş şu an tamamlanamadı. Google ile devam edebilir ya da biraz sonra tekrar deneyebilirsin. |
 | `auth.confirm_title` | Girişi tamamla |
 | `auth.confirm_body` | Giriş yapmak için aşağıdaki düğmeye bas. Bağlantı yalnızca bir kez kullanılabilir. |
 | `auth.login_title` | Giriş yap |
@@ -272,6 +281,10 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 
 `auth.rate_limited` mesajı hesabın var olup olmadığını belli etmez; her iki
 durumda da aynı metin gösterilir.
+
+Giriş ekranları (`/giris`, `/yonetim/giris`) yalnızca Google ve Apple gösterir.
+E-posta bağlantısı ve telefon metinleri, backend'leri yeniden açılabilsin diye
+burada kalır.
 
 ## Erken erişim
 

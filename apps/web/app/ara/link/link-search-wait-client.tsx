@@ -4,6 +4,8 @@ import { Button } from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { LoginGateModal } from "../../login-gate-modal-client.tsx";
+import { SEARCH_RIGHTS_COPY, SEARCH_RIGHTS_HREF } from "../search-rights-copy.ts";
 import { pollLinkSearchAction, startLinkSearchAction } from "./actions.ts";
 import linkStyles from "./link-search.module.css";
 import { LINK_SEARCH_COPY, linkFailureCopy } from "./link-search-copy.ts";
@@ -54,11 +56,12 @@ function LinkSearchStatusCard({
 export function LinkSearchWaitClient({ url, site }: { url: string; site: string }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ kind: "waiting" });
-  const [attempt, setAttempt] = useState(0);
+  // Deneme basina tek istek anahtari (0047): efekt iki kez calissa da
+  // (Strict Mode, yeniden cizim) sunucu ayni denemeyi ikinci kez ucretlendirmez.
+  const [attempt, setAttempt] = useState(() => ({ key: crypto.randomUUID() }));
+  const [loginOpen, setLoginOpen] = useState(false);
 
   useEffect(() => {
-    // `attempt` yalnızca "Tekrar dene" ile yeniden başlatmak için bağımlılıkta.
-    void attempt;
     let cancelled = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
     const deadline = Date.now() + CLIENT_TIMEOUT_MS;
@@ -90,11 +93,13 @@ export function LinkSearchWaitClient({ url, site }: { url: string; site: string 
       }, POLL_INTERVAL_MS);
     }
 
-    startLinkSearchAction(url)
+    startLinkSearchAction(url, attempt.key)
       .then((started) => {
         if (cancelled) return;
-        if (started.status === "failed") setPhase({ kind: "failed", errorCode: started.errorCode });
-        else poll(started.requestId);
+        if (started.status === "failed") {
+          if (started.errorCode === "login_required") setLoginOpen(true);
+          setPhase({ kind: "failed", errorCode: started.errorCode });
+        } else poll(started.requestId);
       })
       .catch(() => {
         if (!cancelled) setPhase({ kind: "failed", errorCode: "unexpected" });
@@ -108,18 +113,35 @@ export function LinkSearchWaitClient({ url, site }: { url: string; site: string 
 
   function retry() {
     setPhase({ kind: "waiting" });
-    setAttempt((value) => value + 1);
+    setAttempt({ key: crypto.randomUUID() });
   }
 
   if (phase.kind === "failed") {
     const copy = linkFailureCopy(phase.errorCode);
+    const retryable = phase.errorCode === "retry" || phase.errorCode === "busy";
     return (
-      <LinkSearchStatusCard
-        site={site}
-        title={copy.title}
-        description={copy.description}
-        marker="!"
-      />
+      <>
+        <LoginGateModal open={loginOpen} onClose={() => setLoginOpen(false)} />
+        <LinkSearchStatusCard
+          site={site}
+          title={copy.title}
+          description={copy.description}
+          marker="!"
+          action={
+            phase.errorCode === "login_required" ? (
+              <Button type="button" variant="primary" onClick={() => setLoginOpen(true)}>
+                Giriş yap
+              </Button>
+            ) : phase.errorCode === "no_rights" ? (
+              <a href={SEARCH_RIGHTS_HREF}>{SEARCH_RIGHTS_COPY.earnLink}</a>
+            ) : retryable ? (
+              <Button type="button" variant="primary" onClick={retry}>
+                {LINK_SEARCH_COPY.retry}
+              </Button>
+            ) : undefined
+          }
+        />
+      </>
     );
   }
 

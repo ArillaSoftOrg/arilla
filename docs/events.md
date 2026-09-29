@@ -48,7 +48,7 @@ güncellenir (`docs/search.md`).
 
 | Olay | Alanlar |
 | --- | --- |
-| `login_modal_shown` | `trigger` (search_limit/save/alert) |
+| `login_modal_shown` | `trigger` (search_limit/save/alert/ai_search) |
 | `login_requested` | — |
 | `login_completed` | `is_new_user` |
 | `consent_changed` | `kind`, `granted` |

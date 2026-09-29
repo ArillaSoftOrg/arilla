@@ -29,6 +29,12 @@ export interface EmbedUploadedImageInput {
   userId: number | null;
   /** Cagiran zaten on islediyse (orn. limit harcanmadan dogrulamak icin). */
   prepared?: PreparedImage;
+  /**
+   * `image_upload` satiri yazildiktan sonra, saglayici cagrisindan ONCE
+   * cagrilir (0047: arama hakki kaydi yukleme satirina baglanir; surec
+   * saglayici sonucunu yazamadan olurse uzlasma bu satira bakar).
+   */
+  onUploadCreated?: (imageUploadId: number) => Promise<void>;
 }
 
 export interface EmbedUploadedImageResult {
@@ -113,6 +119,7 @@ export async function embedUploadedImage(
   if (!created) {
     throw new Error("image_upload insert boş sonuç döndürdü");
   }
+  await input.onUploadCreated?.(created.id);
 
   const cached = await findCachedEmbedding(db, imageHash);
   if (cached) {

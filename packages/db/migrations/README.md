@@ -48,6 +48,7 @@ migration'lar olusturur.
 | `0029_link_resolution_request_created_idx.sql` | `link_resolution_request (created_at DESC, id DESC)` indeksi: `/yonetim/arama/link` listesi tam tarama yerine indeksle okur (EXPLAIN kaniti migration icinde) (0041). Yalnizca ekleme. |
 | `0030_auth_cleanup_indexes.sql` | `auth_token (expires_at)` + `phone_login_code (expires_at)` indeksleri: suresi dolmus giris kayitlarinin gunluk temizligi. Yalnizca ekleme. |
 | `0031_early_access.sql` | `early_access` (PK `user_id`, `status` yalnizca `pending`): lansman oncesi erken erisim listesi; giriste idempotent yazilir. Yalnizca ekleme. |
+| `0034_search_entitlement.sql` | Arama hakki (0047): `ai_quota_day` (gunluk hak, `(user_id, day)`), `bonus_account` (bakiye >= 0), `ai_search_charge` (reserved/settled/refunded, kullanici basina tek `reserved`), `referral`, append-only `bonus_ledger` (benzersiz `idempotency_key`) + `app_user.referral_code`. 0032 (geri bildirim, 0045) ve 0033 (pazarlama e-postasi, 0046) acik dallara ayrildi; sira bosluklu kalabilir, calistirici dosya adina gore uygulanmamislari uygular. Yalnizca ekleme. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

@@ -4,7 +4,7 @@
  * 1. Elle yazilan Drizzle semasi gercek semayla ortusuyor. Her tabloya Drizzle
  *    uzerinden SELECT atilir; kolon adi veya tipi ayrismissa sorgu patlar.
  * 2. Append-only kurali VERITABANINDA gecerli. `arilla_app` rolu ile
- *    `price_point`, `variant_stock_event` ve `admin_audit_event` uzerinde
+ *    `price_point`, `variant_stock_event`, `admin_audit_event` ve `bonus_ledger` uzerinde
  *    UPDATE/DELETE denenir;
  *    42501 (insufficient_privilege) beklenir. Gelmezse betik hata verir.
  * 3. Polimorfik `target_id` butunlugu ayakta (migration 0014): trigger'lar
@@ -27,6 +27,7 @@ const APPEND_ONLY = {
   price_point: "in_stock",
   variant_stock_event: "in_stock",
   admin_audit_event: "reason",
+  bonus_ledger: "reason",
 } as const;
 const INSUFFICIENT_PRIVILEGE = "42501";
 const FOREIGN_KEY_VIOLATION = "23503";

@@ -11,11 +11,14 @@ interface GirisSearchParams {
 }
 
 const ERROR_COPY: Record<string, string> = {
-  // docs/copy.md `auth.token_expired` / `auth.token_used`
-  expired: "Bu bağlantının süresi dolmuş. Yeni bir tane isteyebilirsin.",
+  // docs/copy.md `auth.token_expired` / `auth.token_used` - eski e-posta
+  // bağlantılarından gelen dönüşler; giriş artık Google/Apple ile yapılır.
+  expired: "Bu bağlantının süresi dolmuş. Google ya da Apple ile giriş yapabilirsin.",
   used: "Bu bağlantı zaten kullanılmış.",
-  google: "Google ile giriş şu an tamamlanamadı. E-posta bağlantısıyla devam edebilirsin.",
-  apple: "Apple ile giriş şu an tamamlanamadı. Başka bir yöntemle devam edebilirsin.",
+  google:
+    "Google ile giriş şu an tamamlanamadı. Apple ile devam edebilir ya da biraz sonra tekrar deneyebilirsin.",
+  apple:
+    "Apple ile giriş şu an tamamlanamadı. Google ile devam edebilir ya da biraz sonra tekrar deneyebilirsin.",
 };
 
 const LOGIN_TITLE = "Tasarruflarını en üst düzeye çıkarmak için giriş yap.";
@@ -25,7 +28,7 @@ function isAdminNext(next: string): boolean {
   return next === "/yonetim" || next.startsWith("/yonetim/") || next.startsWith("/yonetim?");
 }
 
-/** docs/routes.md `/giris`: e-posta bağlantısı isteme. `/giris/dogrula` başarısızlıkları buraya `?error=` ile döner. */
+/** docs/routes.md `/giris`: Google ya da Apple ile giriş. Sağlayıcı ve eski `/giris/dogrula` başarısızlıkları buraya `?error=` ile döner. */
 export default async function GirisPage({
   searchParams,
 }: {

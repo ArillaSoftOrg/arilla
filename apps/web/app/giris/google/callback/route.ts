@@ -11,6 +11,7 @@ import { redirect } from "next/navigation";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
 import { takeAuthNext } from "../../next-cookie.ts";
+import { settleReferralAfterSignIn } from "../../referral-cookie.ts";
 import { GOOGLE_STATE_COOKIE } from "../google-cookies.ts";
 
 /** Google'in callback'e koydugu `error` (`access_denied` gibi); guvenli degilse "other". */
@@ -54,14 +55,15 @@ export async function GET(request: Request) {
   const headerStore = await headers();
   let destination: string;
   try {
-    const { rawSessionToken, user } = await completeGoogleSignIn(getDatabase(), {
+    const signedIn = await completeGoogleSignIn(getDatabase(), {
       code,
       redirectUri: googleRedirectUri(requireAppUrl()),
       ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
     });
-    await setSessionCookie(rawSessionToken);
-    destination = postAuthRedirect(user, next);
+    await setSessionCookie(signedIn.rawSessionToken);
+    await settleReferralAfterSignIn(store, signedIn);
+    destination = postAuthRedirect(signedIn.user, next);
   } catch (failure) {
     console.error(`[giris] google oauth failed: ${classifyGoogleFailure(failure)}`);
     redirect("/giris?error=google");

@@ -409,9 +409,12 @@ CREATE TABLE app_user (
     role          TEXT        NOT NULL DEFAULT 'user'
                   CHECK (role IN ('user','creator','moderator','admin')),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    last_seen_at  TIMESTAMPTZ
+    last_seen_at  TIMESTAMPTZ,
+    -- 0034 (0047): davet kodu, ilk istendiginde uretilir.
+    referral_code TEXT CHECK (referral_code IS NULL OR referral_code ~ '^[A-HJ-NP-Z2-9]{8}$')
 );
 CREATE INDEX app_user_role_idx ON app_user (role) WHERE role <> 'user';
+CREATE UNIQUE INDEX app_user_referral_code_unique ON app_user (referral_code) WHERE referral_code IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- KİMLİK DOĞRULAMA — e-posta bağlantısı ile giriş
@@ -636,6 +639,121 @@ CREATE INDEX api_usage_session_idx ON api_usage (session_id, created_at DESC);
 CREATE INDEX api_usage_daily_idx   ON api_usage (created_at, operation);
 
 -- ---------------------------------------------------------------------------
+-- ARAMA HAKKI — 0034 (docs/decisions/0047)
+-- Fotograf ve link aramasi buradan harcar; metin aramasi dokunmaz.
+-- `api_usage` saglayici maliyetinin defteridir, bu tablolar hak defteridir.
+-- `bonus_ledger` APPEND-ONLY: arilla_app yalnizca SELECT + INSERT.
+-- ---------------------------------------------------------------------------
+
+CREATE TABLE ai_quota_day (
+    user_id      BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    day          DATE        NOT NULL,
+    -- Satir acildigi andaki limit; ortam degiskeni gun icinde degisirse o
+    -- gunun hakki geriye donuk degismez.
+    daily_limit  INTEGER     NOT NULL CHECK (daily_limit >= 0),
+    used         INTEGER     NOT NULL DEFAULT 0,
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (user_id, day),
+    CONSTRAINT ai_quota_day_used_within_limit CHECK (used >= 0 AND used <= daily_limit)
+);
+
+CREATE TABLE bonus_account (
+    user_id     BIGINT      PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
+    balance     INTEGER     NOT NULL DEFAULT 0,
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT bonus_account_balance_non_negative CHECK (balance >= 0)
+);
+
+-- Pahali aramanin hak kaydi. `id` sunucuda uretilen arama kimligidir.
+-- Durum makinesi: reserved -> settled | refunded; geri donus yok (uygulama
+-- kosullu UPDATE ... WHERE state = 'reserved' kullanir).
+CREATE TABLE ai_search_charge (
+    id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id          BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    operation        TEXT        NOT NULL CHECK (operation IN ('visual_search','link_search')),
+    -- Istemcinin form basina urettigi opak anahtar; yalnizca kullanici
+    -- icinde tekillestirme icindir, hicbir deger tasimaz.
+    request_key      TEXT        NOT NULL CHECK (char_length(request_key) BETWEEN 8 AND 100),
+    cost             INTEGER     NOT NULL CHECK (cost > 0),
+    day              DATE        NOT NULL,
+    from_daily       INTEGER     NOT NULL CHECK (from_daily >= 0),
+    from_bonus       INTEGER     NOT NULL CHECK (from_bonus >= 0),
+    state            TEXT        NOT NULL DEFAULT 'reserved'
+                     CHECK (state IN ('reserved','settled','refunded')),
+    image_upload_id  BIGINT      REFERENCES image_upload(id) ON DELETE SET NULL,
+    link_request_id  UUID        REFERENCES link_resolution_request(id) ON DELETE SET NULL,
+    -- Kararli kod: 'provider_error','provider_unavailable','internal_error',
+    -- 'link_failed','link_stale','queue_unavailable'
+    refund_reason    TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finalized_at     TIMESTAMPTZ,
+    CONSTRAINT ai_search_charge_split CHECK (from_daily + from_bonus = cost),
+    CONSTRAINT ai_search_charge_finalized CHECK ((state = 'reserved') = (finalized_at IS NULL)),
+    CONSTRAINT ai_search_charge_refund_reason CHECK ((state = 'refunded') = (refund_reason IS NOT NULL)),
+    CONSTRAINT ai_search_charge_ref_kind CHECK (
+        (operation = 'visual_search' AND link_request_id IS NULL) OR
+        (operation = 'link_search' AND image_upload_id IS NULL)
+    ),
+    CONSTRAINT ai_search_charge_request_key_unique UNIQUE (user_id, request_key)
+);
+-- Kullanici basina ayni anda tek pahali arama.
+CREATE UNIQUE INDEX ai_search_charge_one_active
+    ON ai_search_charge (user_id) WHERE state = 'reserved';
+CREATE INDEX ai_search_charge_user_idx
+    ON ai_search_charge (user_id, created_at DESC);
+-- Gunluk supurme: askida kalan ayirmalar.
+CREATE INDEX ai_search_charge_reserved_idx
+    ON ai_search_charge (created_at) WHERE state = 'reserved';
+-- Link durum sorgusundan harcamaya.
+CREATE INDEX ai_search_charge_link_request_idx
+    ON ai_search_charge (link_request_id) WHERE link_request_id IS NOT NULL;
+
+-- Davet. `inviter_user_id` davet edenin hesabi silinince NULL olur;
+-- davet edilenin hesabi silinince satir gider.
+CREATE TABLE referral (
+    id                    BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    inviter_user_id       BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    invitee_user_id       BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    status                TEXT        NOT NULL DEFAULT 'pending'
+                          CHECK (status IN ('pending','qualified')),
+    qualifying_charge_id  UUID        REFERENCES ai_search_charge(id) ON DELETE SET NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    qualified_at          TIMESTAMPTZ,
+    CONSTRAINT referral_invitee_unique UNIQUE (invitee_user_id),
+    CONSTRAINT referral_not_self CHECK (inviter_user_id IS DISTINCT FROM invitee_user_id),
+    CONSTRAINT referral_qualified_at CHECK ((status = 'qualified') = (qualified_at IS NOT NULL))
+);
+CREATE INDEX referral_inviter_idx
+    ON referral (inviter_user_id, created_at DESC) WHERE inviter_user_id IS NOT NULL;
+
+-- Bonus defteri (append-only). Her bakiye degisikligi tam bir satir;
+-- `idempotency_key` ayni odulun/iadenin ikinci kez yazilmasini engeller:
+-- 'charge:<id>', 'refund:<id>', 'referral:<id>:inviter',
+-- 'referral:<id>:invitee', 'feedback_first:<user_id>'.
+CREATE TABLE bonus_ledger (
+    id               BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id          BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    delta            INTEGER     NOT NULL CHECK (delta <> 0),
+    -- Tavan kirpmasindan onceki tutar (odullerde); iade/harcamada delta ile ayni.
+    requested        INTEGER     NOT NULL CHECK (requested <> 0),
+    balance_after    INTEGER     NOT NULL CHECK (balance_after >= 0),
+    reason           TEXT        NOT NULL CHECK (reason IN (
+                         'search_charge','search_refund','referral_inviter',
+                         'referral_invitee','feedback_first','admin_grant','campaign')),
+    idempotency_key  TEXT        NOT NULL,
+    charge_id        UUID        REFERENCES ai_search_charge(id) ON DELETE CASCADE,
+    referral_id      BIGINT      REFERENCES referral(id) ON DELETE SET NULL,
+    actor_user_id    BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT bonus_ledger_idempotency_key_unique UNIQUE (idempotency_key),
+    CONSTRAINT bonus_ledger_sign CHECK ((reason = 'search_charge') = (delta < 0))
+);
+CREATE INDEX bonus_ledger_user_idx ON bonus_ledger (user_id, created_at DESC, id DESC);
+
+
+-- ---------------------------------------------------------------------------
 -- İŞ KUYRUĞU KAYDI (Redis kuyruğunun kalıcı izi)
 -- ---------------------------------------------------------------------------
 
@@ -841,6 +959,7 @@ REVOKE UPDATE, DELETE, TRUNCATE ON price_point         FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_stock_event FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_price_event FROM arilla_app;   -- 0026
 REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit_event   FROM arilla_app;   -- 0027
+REVOKE UPDATE, DELETE, TRUNCATE ON bonus_ledger        FROM arilla_app;   -- 0034
 
 -- price_point partition'larına doğrudan erişim yoktur. Partitioned tabloya
 -- INSERT'te yetki ebeveyn üzerinde denetlenir; yönlendirme etkilenmez.
