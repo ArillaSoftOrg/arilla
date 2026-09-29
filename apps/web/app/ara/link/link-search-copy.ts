@@ -88,7 +88,7 @@ const FAILURES: Record<string, FailureCopy> = {
     description:
       "Günlük hakların gece 00:00'da yenilenir. Bu arada ürünün adını yazarak arayabilir ya da hesabından bonus hak kazanabilirsin.",
   },
-  // Kullanicinin arama hizi siniri (0046); sitenin 429'u `rate_limited`.
+  // Kullanicinin arama hizi siniri (0047); sitenin 429'u `rate_limited`.
   search_rate_limited: {
     title: "Biraz hızlı gittin.",
     description:

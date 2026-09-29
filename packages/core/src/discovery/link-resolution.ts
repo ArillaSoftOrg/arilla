@@ -44,7 +44,7 @@ export interface EnqueueLinkResolutionInput {
 
 export interface EnqueueLinkResolutionOptions {
   /**
-   * 0046: YENİ istek satırı yazıldıktan sonra, kuyruğa yazmadan ÖNCE
+   * 0047: YENİ istek satırı yazıldıktan sonra, kuyruğa yazmadan ÖNCE
    * çağrılır (arama hakkı kaydı istek satırına bağlanır). Önbellek isabetinde
    * çağrılmaz.
    */

@@ -1,5 +1,5 @@
 /**
- * Pahali aramanin hak yasam dongusu (docs/decisions/0046 madde 5-8):
+ * Pahali aramanin hak yasam dongusu (docs/decisions/0047 madde 5-8):
  *
  *   reserveSearch  -> saglayici/kuyruk -> settleCharge | refundCharge
  *

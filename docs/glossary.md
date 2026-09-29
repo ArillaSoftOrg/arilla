@@ -35,5 +35,5 @@ karşılığı sabitler.
 - **"dupe"** arayüzde geçmez. İç konuşmada kullanılabilir, kullanıcıya
   "daha uygun alternatif" denir. Marka hakları açısından da güvenli taraf budur.
 - **"satın al"** hiçbir butonda geçmez. Satışı biz yapmıyoruz.
-- **"coin"**, **"kredi"**, **"jeton"** arayüzde geçmez. Doğrusu "arama hakkı" ve "bonus hak" (0046).
+- **"coin"**, **"kredi"**, **"jeton"** arayüzde geçmez. Doğrusu "arama hakkı" ve "bonus hak" (0047).
 - **"ucuz"** yerine "daha uygun fiyatlı". Ucuz kelimesi kalitesizlik çağrıştırır.

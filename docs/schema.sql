@@ -410,7 +410,7 @@ CREATE TABLE app_user (
                   CHECK (role IN ('user','creator','moderator','admin')),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_seen_at  TIMESTAMPTZ,
-    -- 0033 (0046): davet kodu, ilk istendiginde uretilir.
+    -- 0034 (0047): davet kodu, ilk istendiginde uretilir.
     referral_code TEXT CHECK (referral_code IS NULL OR referral_code ~ '^[A-HJ-NP-Z2-9]{8}$')
 );
 CREATE INDEX app_user_role_idx ON app_user (role) WHERE role <> 'user';
@@ -639,7 +639,7 @@ CREATE INDEX api_usage_session_idx ON api_usage (session_id, created_at DESC);
 CREATE INDEX api_usage_daily_idx   ON api_usage (created_at, operation);
 
 -- ---------------------------------------------------------------------------
--- ARAMA HAKKI — 0033 (docs/decisions/0046)
+-- ARAMA HAKKI — 0034 (docs/decisions/0047)
 -- Fotograf ve link aramasi buradan harcar; metin aramasi dokunmaz.
 -- `api_usage` saglayici maliyetinin defteridir, bu tablolar hak defteridir.
 -- `bonus_ledger` APPEND-ONLY: arilla_app yalnizca SELECT + INSERT.
@@ -959,7 +959,7 @@ REVOKE UPDATE, DELETE, TRUNCATE ON price_point         FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_stock_event FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_price_event FROM arilla_app;   -- 0026
 REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit_event   FROM arilla_app;   -- 0027
-REVOKE UPDATE, DELETE, TRUNCATE ON bonus_ledger        FROM arilla_app;   -- 0033
+REVOKE UPDATE, DELETE, TRUNCATE ON bonus_ledger        FROM arilla_app;   -- 0034
 
 -- price_point partition'larına doğrudan erişim yoktur. Partitioned tabloya
 -- INSERT'te yetki ebeveyn üzerinde denetlenir; yönlendirme etkilenmez.

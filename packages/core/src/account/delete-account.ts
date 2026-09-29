@@ -15,7 +15,7 @@
  * - `follow` (bu kullanıcının kendi takipleri), `saved_item`, `alert`: silinir.
  * - `click`, `api_usage`, `image_upload`, `link_resolution_request`:
  *   nullable `user_id` - SET NULL (kimliksizleştirme, silme değil).
- * - Arama hakkı (0033, docs/decisions/0046): `ai_quota_day`, `bonus_account`,
+ * - Arama hakkı (0034, docs/decisions/0047): `ai_quota_day`, `bonus_account`,
  *   `ai_search_charge`, `bonus_ledger` ve kullanıcının davet edilen olarak
  *   `referral` satırı `ON DELETE CASCADE` ile gider (append-only defterin
  *   CASCADE'i tablo sahibi yetkisiyle çalışır). Davet ettiği kişilerin

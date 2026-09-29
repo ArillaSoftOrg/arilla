@@ -1,6 +1,6 @@
 /**
  * Pahali arama istek hizi: kullanici basina dakikada 3, saatte 10
- * (docs/decisions/0046 madde 7). Mevcut sabit pencereli sayac
+ * (docs/decisions/0047 madde 7). Mevcut sabit pencereli sayac
  * (`redis/counter.ts`). Hak ayirmadan ONCE cagrilir; reddedilen istek hak
  * harcamaz.
  *

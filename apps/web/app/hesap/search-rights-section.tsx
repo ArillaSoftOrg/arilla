@@ -48,7 +48,7 @@ function historyLabel(item: EntitlementHistoryItem): string {
 }
 
 /**
- * `/hesap` "Arama hakların" (docs/decisions/0046): kalan gunluk ve bonus
+ * `/hesap` "Arama hakların" (docs/decisions/0047): kalan gunluk ve bonus
  * hak, yenilenme zamani, davet linki ve son hareketler. Degerlerin hepsi
  * sunucuda hesaplanir; istemci yalnizca linki kopyalar.
  */

@@ -60,7 +60,7 @@ export interface UserDataExport {
   }>;
   /** Erken erişim listesi kaydı (0031); listede değilse `null`. */
   earlyAccess: { status: string; joinedAt: Date } | null;
-  /** Arama hakları (0046): bonus bakiye, harcamalar, bonus defteri, davetler. */
+  /** Arama hakları (0047): bonus bakiye, harcamalar, bonus defteri, davetler. */
   searchRights: {
     referralCode: string | null;
     bonusBalance: number;

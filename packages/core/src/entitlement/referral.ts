@@ -1,5 +1,5 @@
 /**
- * Davet (docs/decisions/0046 madde 9).
+ * Davet (docs/decisions/0047 madde 9).
  *
  * - Kod: `app_user.referral_code`, ilk istendiginde uretilir. 8 karakter,
  *   karistirilabilen harf/rakam yok (I, O, 0, 1).

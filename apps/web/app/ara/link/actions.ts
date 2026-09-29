@@ -36,7 +36,7 @@ export type StartLinkSearchResult =
 
 /**
  * İnce istemci (CLAUDE.md kural 6): önbellek, oran sınırı, hak ayırma ve
- * kuyruk kararı `@arilla/core`'da (`runChargedLinkSearch`, 0046). Hak
+ * kuyruk kararı `@arilla/core`'da (`runChargedLinkSearch`, 0047). Hak
  * yalnızca yeni bir getirme açılırken harcanır; önbellekteki ya da hâlâ
  * işlenen aynı link ücretsizdir. `requestKey` istemcinin bu deneme için
  * ürettiği anahtardır: aynı deneme iki kez gelirse ikinci kez hak alınmaz.
@@ -46,7 +46,7 @@ export async function startLinkSearchAction(
   requestKey: string,
 ): Promise<StartLinkSearchResult> {
   const user = await requireProductAccess();
-  // 0046: link araması hesap ister.
+  // 0047: link araması hesap ister.
   if (!user) return { status: "failed", errorCode: "login_required" };
   if (!isValidRequestKey(requestKey)) return { status: "failed", errorCode: "unexpected" };
   const sessionId = await ensureSessionId();
@@ -92,7 +92,7 @@ export async function pollLinkSearchAction(requestId: string): Promise<LinkSearc
   const db = getDatabase();
   const status = await getLinkResolutionStatus(db, requestId);
   if (!status) return { state: "failed", errorCode: "unexpected" };
-  // 0046: isin durumuna gore bagli hakki kesinlestir/iade et (tam bir kez).
+  // 0047: isin durumuna gore bagli hakki kesinlestir/iade et (tam bir kez).
   // Hak kaydi okunamasa da kullanici sonucu gorur; gunluk supurme tamamlar.
   if (status.status === "resolved" || status.status === "failed") {
     await reconcileLinkRequestCharge(db, requestId).catch((error: unknown) => {

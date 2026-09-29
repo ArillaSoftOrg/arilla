@@ -24,7 +24,7 @@
   max-width: var(--content-width-comparison);
 }
 
-/* 0046: fotograf/link aramasinin kalan hakki. */
+/* 0047: fotograf/link aramasinin kalan hakki. */
 .rights {
   display: flex;
   flex-wrap: wrap;

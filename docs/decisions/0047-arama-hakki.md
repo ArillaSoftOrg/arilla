@@ -1,4 +1,4 @@
-# 0046 — Arama hakkı: günlük hak, bonus hak ve davet
+# 0047 — Arama hakkı: günlük hak, bonus hak ve davet
 
 **Tarih:** 30 Eylül 2026
 **Durum:** Kabul edildi

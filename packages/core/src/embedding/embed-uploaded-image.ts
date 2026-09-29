@@ -31,7 +31,7 @@ export interface EmbedUploadedImageInput {
   prepared?: PreparedImage;
   /**
    * `image_upload` satiri yazildiktan sonra, saglayici cagrisindan ONCE
-   * cagrilir (0046: arama hakki kaydi yukleme satirina baglanir; surec
+   * cagrilir (0047: arama hakki kaydi yukleme satirina baglanir; surec
    * saglayici sonucunu yazamadan olurse uzlasma bu satira bakar).
    */
   onUploadCreated?: (imageUploadId: number) => Promise<void>;

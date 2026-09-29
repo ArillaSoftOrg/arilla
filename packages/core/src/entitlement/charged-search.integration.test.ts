@@ -1,6 +1,6 @@
 /**
  * Hak harcayan fotograf ve link aramasi - gercek Postgres + Redis
- * (docs/decisions/0046). Saglayici sahte istemcidir; ag cagrisi yapilmaz.
+ * (docs/decisions/0047). Saglayici sahte istemcidir; ag cagrisi yapilmaz.
  * Link kuyrugu gercek Redis'e yazar: testleri ayri bir Redis veritabaninda
  * calistirin (`REDIS_URL=redis://localhost:6379/<n>`).
  */

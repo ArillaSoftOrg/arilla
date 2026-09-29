@@ -1,5 +1,5 @@
 /**
- * Askida kalan ayirmalarin DURUM-BILGILI uzlasmasi (docs/decisions/0046
+ * Askida kalan ayirmalarin DURUM-BILGILI uzlasmasi (docs/decisions/0047
  * madde 8). Yas tek basina iade sebebi degildir; bagli kayda bakilir:
  *
  * Link aramasi (`link_resolution_request`):

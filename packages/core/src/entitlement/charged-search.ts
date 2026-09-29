@@ -1,5 +1,5 @@
 /**
- * Hak harcayan iki arama (docs/decisions/0046): fotograf ve link. Is kurali
+ * Hak harcayan iki arama (docs/decisions/0047): fotograf ve link. Is kurali
  * burada (CLAUDE.md kural 6); `apps/web` action'lari yalnizca oturum, form
  * ve yanit eslemesi yapar.
  *

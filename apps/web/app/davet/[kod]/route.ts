@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import { rememberReferralCode } from "../../giris/referral-cookie.ts";
 
 /**
- * docs/routes.md `/davet/<kod>` (0046): davet kodunu cereze yazar ve girise
+ * docs/routes.md `/davet/<kod>` (0047): davet kodunu cereze yazar ve girise
  * yonlendirir. Sayfa degil, yonlendirme: modal yok, indekslenmez
  * (`robots.ts`, `X-Robots-Tag`). Gecersiz kod sessizce yok sayilir;
  * kullanici yine girise gider. Davet yalnizca bu tarayicida acilan YENI

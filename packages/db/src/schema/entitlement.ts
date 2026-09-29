@@ -1,5 +1,5 @@
 /**
- * 0033_search_entitlement.sql karsiligi (docs/decisions/0046): gunluk arama
+ * 0034_search_entitlement.sql karsiligi (docs/decisions/0047): gunluk arama
  * hakki, bonus hak, pahali arama harcama kaydi, davet ve append-only bonus
  * defteri. Kisitlar (CHECK, kismi UNIQUE) migration'dadir; burada yalnizca
  * kolonlar tanimlanir.

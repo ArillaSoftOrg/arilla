@@ -31,7 +31,7 @@ export type UploadImageResult =
         | "too_large"
         | "invalid_type"
         | "unprocessable"
-        /** Fotografla arama hesap ister (0046); istemci giris modalini acar. */
+        /** Fotografla arama hesap ister (0047); istemci giris modalini acar. */
         | "login_required"
         /** Gunluk hak da bonus hak da bitti. */
         | "no_rights"
@@ -65,7 +65,7 @@ async function ensureSessionId(): Promise<string> {
 export async function uploadImageForSearch(formData: FormData): Promise<UploadImageResult> {
   // Ürün kapısı her şeyden önce: kapalıyken dosya okunmaz, model çağrılmaz.
   const user = await requireProductAccess();
-  // 0046: fotoğrafla arama hesap ister; hak kullanıcıya bağlıdır.
+  // 0047: fotoğrafla arama hesap ister; hak kullanıcıya bağlıdır.
   if (!user) return { status: "login_required" };
   const requestKey = formData.get("requestKey");
   if (!isValidRequestKey(requestKey)) return { status: "error" };
@@ -111,7 +111,7 @@ export async function uploadImageForSearch(formData: FormData): Promise<UploadIm
 
   const sessionId = await ensureSessionId();
 
-  // Oran siniri, hak ayirma, embedding, kesinlestirme/iade core'da (0046).
+  // Oran siniri, hak ayirma, embedding, kesinlestirme/iade core'da (0047).
   // Oran siniri dogrulanamiyorsa (Redis erisilemez) kapali kalinir: ucretli
   // embedding cagrisi sinirsiz yapilmaz.
   try {

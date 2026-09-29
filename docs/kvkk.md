@@ -17,8 +17,8 @@ edilmeli.
 | E-posta adresi | `app_user` | Sözleşmenin ifası | Hesap silinene kadar |
 | Oturum ve giriş kayıtları | `session`, `auth_token` | Meşru menfaat (güvenlik) | Token 15 dk, oturum 90 gün |
 | Erken erişim kaydı | `early_access` | Sözleşmenin ifası (listeye katılma) | Hesap silinene kadar |
-| Arama hakları ve bonus defteri | `ai_quota_day`, `bonus_account`, `bonus_ledger`, `ai_search_charge` | Sözleşmenin ifası (hak hesabı) | Hesap silinene kadar (0046) |
-| Davet kaydı | `referral` | Sözleşmenin ifası (davet ödülü) | Hesap silinene kadar; silme sonrası kimlik özeti tutulmaz (0046) |
+| Arama hakları ve bonus defteri | `ai_quota_day`, `bonus_account`, `bonus_ledger`, `ai_search_charge` | Sözleşmenin ifası (hak hesabı) | Hesap silinene kadar (0047) |
+| Davet kaydı | `referral` | Sözleşmenin ifası (davet ödülü) | Hesap silinene kadar; silme sonrası kimlik özeti tutulmaz (0047) |
 | Gezinme geçmişi | `product_view` | **Açık rıza** | Son 50 kayıt, hesap silinince silinir |
 | Kaydedilenler, alarmlar | `saved_item`, `alert` | Sözleşmenin ifası | Hesap silinene kadar |
 | Beden profili | `user_size_profile` | Açık rıza | Hesap silinene kadar |

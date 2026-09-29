@@ -1,5 +1,5 @@
 /**
- * Arama hakki metinleri (docs/decisions/0046, docs/copy.md). Terim "arama
+ * Arama hakki metinleri (docs/decisions/0047, docs/copy.md). Terim "arama
  * hakki" ve "bonus hak"; "coin", "kredi", "satin al" gecmez.
  */
 export const SEARCH_RIGHTS_HREF = "/hesap#arama-haklari";

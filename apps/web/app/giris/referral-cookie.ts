@@ -3,7 +3,7 @@ import { getDatabase } from "@arilla/db";
 import type { cookies } from "next/headers";
 
 /**
- * Davet kodu (docs/decisions/0046 madde 9), `/davet/<kod>`'dan girisin
+ * Davet kodu (docs/decisions/0047 madde 9), `/davet/<kod>`'dan girisin
  * sonuna kadar httpOnly cerezde tasinir. `auth_next` ile ayni gerekce:
  * Apple callback'i siteler arasi POST'tur, Lax cerez o istekte gitmez
  * (`SameSite=None; Secure`). `path=/giris` butun giris adimlarini kapsar.

@@ -1,4 +1,4 @@
--- 0033 — arama hakki: gunluk hak, bonus hak, harcama kaydi, davet (docs/decisions/0046)
+-- 0034 — arama hakki: gunluk hak, bonus hak, harcama kaydi, davet (docs/decisions/0047)
 --
 -- Fotograf ve link aramasi (gercek saglayici maliyeti) artik Redis'teki
 -- sabit pencereli sayactan degil, buradaki kalici haktan harcar. Metin
@@ -20,7 +20,7 @@
 -- anahtar); uygulama onu SQL'de `(now() AT TIME ZONE 'Europe/Istanbul')::date`
 -- ile hesaplar.
 --
--- Hesap silme (docs/kvkk.md, 0046 madde 11): kullaniciya ait her satir
+-- Hesap silme (docs/kvkk.md, 0047 madde 11): kullaniciya ait her satir
 -- ON DELETE CASCADE ile gider. Davet edenin hesabi silinirse davet
 -- satirindaki `inviter_user_id` NULL'a cekilir (davet edilenin kaydi onun
 -- verisidir). Silme sonrasi saglayici kimligi ozeti TUTULMAZ.

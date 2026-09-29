@@ -11,7 +11,7 @@ import { getDatabase } from "@arilla/db";
  * çağırır. İş mantığı `packages/core/src/auth/cleanup.ts`'te - bu route ince
  * bir istemci (CLAUDE.md kural 6). Yanıt yalnızca sayılardır.
  *
- * 0046: askıda kalan arama hakkı ayırmalarının güvenlik ağı da burada
+ * 0047: askıda kalan arama hakkı ayırmalarının güvenlik ağı da burada
  * (Vercel cron'ları günlük). Uzlaşma durum bilgilidir: bağlı link/görsel
  * kaydına bakar, yaşa göre körlemesine iade etmez.
  */

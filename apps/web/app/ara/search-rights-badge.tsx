@@ -11,7 +11,7 @@ import {
 } from "./search-rights-copy.ts";
 
 /**
- * Fotograf/link aramasinin kalan hakki (0046). Yalnizca girisli kullaniciya
+ * Fotograf/link aramasinin kalan hakki (0047). Yalnizca girisli kullaniciya
  * gosterilir; metin aramasi hak harcamaz. Okuma basarisiz olursa rozet
  * cizilmez, arama sayfasi calismaya devam eder.
  */

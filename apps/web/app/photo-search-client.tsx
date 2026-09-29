@@ -49,7 +49,7 @@ export function usePhotoSearchUpload() {
     const formData = new FormData();
     formData.set("photo", file);
     // Her secim yeni bir istek: cift tiklama/yeniden gonderim ayni anahtarla
-    // gelirse sunucu ikinci kez hak harcamaz (0046).
+    // gelirse sunucu ikinci kez hak harcamaz (0047).
     formData.set("requestKey", crypto.randomUUID());
     startTransition(async () => {
       const result = await uploadImageForSearch(formData);

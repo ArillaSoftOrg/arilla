@@ -1,5 +1,5 @@
 /**
- * Arama hakki sabitleri (docs/decisions/0046). Maliyet, limit ve odul
+ * Arama hakki sabitleri (docs/decisions/0047). Maliyet, limit ve odul
  * degerleri YALNIZCA burada tanimlanir; istemciden gelen hicbir sayiya
  * guvenilmez.
  */

@@ -2,7 +2,7 @@
  * Semanin TypeScript karsiligi. Dosya basina bir migration:
  * catalog↔0002, price↔0003, semantic↔0004, auth↔0005, creator↔0006,
  * attribution↔0007, search↔0008, discovery↔0009, user-intake↔0013,
- * admin↔0027, entitlement↔0033.
+ * admin↔0027, entitlement↔0034.
  *
  * Bir migration degistiginde ayni adli dosya guncellenir. Uyumu
  * `pnpm db:verify` calistirarak kanitlar — elle yazilan semanin tek riski

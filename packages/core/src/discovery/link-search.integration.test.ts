@@ -59,7 +59,7 @@ const input = (path: string) => ({
 });
 /**
  * YENI istek acilacagini kanitlar: `onRequestCreated` yalnizca yeni satirda
- * cagrilir (0046 hak kaydi buraya baglanir). Kuyruga yazmadan durdurur.
+ * cagrilir (0047 hak kaydi buraya baglanir). Kuyruga yazmadan durdurur.
  */
 class NewRequestOpened extends Error {}
 const refuseNewRequest = async () => {

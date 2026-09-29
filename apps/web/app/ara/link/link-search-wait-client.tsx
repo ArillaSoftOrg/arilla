@@ -56,7 +56,7 @@ function LinkSearchStatusCard({
 export function LinkSearchWaitClient({ url, site }: { url: string; site: string }) {
   const router = useRouter();
   const [phase, setPhase] = useState<Phase>({ kind: "waiting" });
-  // Deneme basina tek istek anahtari (0046): efekt iki kez calissa da
+  // Deneme basina tek istek anahtari (0047): efekt iki kez calissa da
   // (Strict Mode, yeniden cizim) sunucu ayni denemeyi ikinci kez ucretlendirmez.
   const [attempt, setAttempt] = useState(() => ({ key: crypto.randomUUID() }));
   const [loginOpen, setLoginOpen] = useState(false);

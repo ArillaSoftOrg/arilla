@@ -1,5 +1,5 @@
 /**
- * Arama hakki - gercek Postgres (docs/decisions/0046). Ayirma/kesinlestirme/
+ * Arama hakki - gercek Postgres (docs/decisions/0047). Ayirma/kesinlestirme/
  * iade, esanlilik, motor kisitlari, davet ve odul tekilligi, durum-bilgili
  * link uzlasmasi.
  *
