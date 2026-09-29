@@ -1,6 +1,6 @@
 /**
  * Paylaşılan Redis bağlantısı - `auth/rate-limit.ts`, `auth/search-wall.ts`,
- * `discovery/image-search-limit.ts` ve `discovery/link-resolution.ts` aynı
+ * `entitlement/rate-limit.ts` ve `discovery/link-resolution.ts` aynı
  * süreç-başına-tek-bağlantı desenini kullanır (`packages/db/src/client.ts`'teki
  * `getDatabase()` ile aynı fikir).
  *

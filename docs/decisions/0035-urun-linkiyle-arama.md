@@ -43,7 +43,9 @@
 8. **Önbellek:** `normalized_url` oturumlar arası anahtar. Çözülmüş sonuç 24
    sa, başarısız sonuç 10 dk hatırlanır (altyapı hataları hariç); 2 dk'dan
    eski 'queued/processing' ölü sayılır. Yeni getirme kullanıcı/oturum başına
-   günde `LINK_SEARCH_DAILY_LIMIT_PER_USER` (30) ile sınırlı.
+   günde `LINK_SEARCH_DAILY_LIMIT_PER_USER` (30) ile sınırlı. **0046 ile
+   değişti:** yeni getirme artık kullanıcının arama hakkından harcar (giriş
+   gerekir); günlük Redis sayacı kaldırıldı.
 
 ## Gerekçe
 

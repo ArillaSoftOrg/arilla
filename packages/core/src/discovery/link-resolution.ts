@@ -36,13 +36,6 @@ export const IN_FLIGHT_TTL_MS = 2 * 60 * 1000;
 /** Hatırlanmayan hata kodları: altyapı sorunu, sitenin durumu değil. */
 const TRANSIENT_ERROR_CODES = ["queue_unavailable", "unexpected"];
 
-export class LinkSearchLimitError extends Error {
-  constructor() {
-    super("link araması günlük limiti doldu");
-    this.name = "LinkSearchLimitError";
-  }
-}
-
 export interface EnqueueLinkResolutionInput {
   urlRaw: string;
   sessionId: string;
@@ -50,8 +43,6 @@ export interface EnqueueLinkResolutionInput {
 }
 
 export interface EnqueueLinkResolutionOptions {
-  /** Yalnızca YENİ bir getirme açılacaksa çağrılır; önbellek isabeti sayılmaz. */
-  checkLimit?: () => Promise<{ allowed: boolean }>;
   /**
    * 0046: YENİ istek satırı yazıldıktan sonra, kuyruğa yazmadan ÖNCE
    * çağrılır (arama hakkı kaydı istek satırına bağlanır). Önbellek isabetinde
@@ -118,11 +109,6 @@ export async function enqueueLinkResolution(
 
   const existing = await findReusableLinkRequest(db, normalizedUrl, options.now);
   if (existing) return { requestId: existing.id, reused: true };
-
-  if (options.checkLimit) {
-    const limit = await options.checkLimit();
-    if (!limit.allowed) throw new LinkSearchLimitError();
-  }
 
   const [created] = await db
     .insert(linkResolutionRequest)
