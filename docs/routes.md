@@ -18,7 +18,7 @@ Rezerve slug listesi tutulur: `ara`, `urun`, `kategori`, `marka`, `alternatif`,
 `trend`, `firsatlar`, `kesfet`, `gecmis`, `alarmlar`, `kaydettiklerim`, `git`,
 `api`, `panel`, `yonetim`, `hesap`, `giris`, `hakkinda`, `gizlilik`, `kosullar`,
 `cerez`, `iletisim`, `kvkk-aydinlatma`, `affiliate-aciklamasi`, `sirket-bilgileri`,
-`kullanim-kosullari`, `cerez-politikasi`.
+`kullanim-kosullari`, `cerez-politikasi`, `davet`.
 
 ## Kayıt duvarı
 
@@ -150,7 +150,8 @@ platform sorununu hafifletir.
 /kaydettiklerim            Favoriler
 /alarmlar                  Fiyat düşüşü, yeniden stok ve beden alarmları
 /gecmis                    Son gezilenler. Silme düğmesi zorunlu.
-/hesap                     Beden profili, rıza tercihleri, veri silme
+/hesap                     Beden profili, rıza tercihleri, arama hakları ve davet linki, veri silme
+/davet/<kod>               Davet linki (0047). Kodu httpOnly çereze yazar, girişe yönlendirir. noindex, modal yok.
 /giris?next=/yol           E-posta bağlantısı isteme. `next`: giriş sonrası dönüş (yalnızca göreli yol)
 /giris/dogrula?token=...   Onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir. Tek kullanımlık, 15 dk.
 ```

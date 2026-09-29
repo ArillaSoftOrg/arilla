@@ -3,6 +3,7 @@
 import { SearchComposer } from "@arilla/ui";
 import { HOME_COPY } from "./home-copy.ts";
 import { HOME_SEARCH_CHIPS } from "./home-search-chips.ts";
+import { LoginGateModal } from "./login-gate-modal-client.tsx";
 import {
   PHOTO_SEARCH_LOADING_LABEL,
   PHOTO_SEARCH_UPLOAD_LABEL,
@@ -19,23 +20,26 @@ import {
  * lehine birakildi).
  */
 export function HomeSearchComposer() {
-  const { pending, error, handleFile } = usePhotoSearchUpload();
+  const { pending, error, handleFile, loginOpen, closeLogin } = usePhotoSearchUpload();
 
   return (
-    <SearchComposer
-      placeholder={HOME_COPY.searchPlaceholder}
-      inputLabel={HOME_COPY.searchInputLabel}
-      submitLabel={HOME_COPY.searchSubmitLabel}
-      routeProductLinks
-      chips={HOME_SEARCH_CHIPS}
-      chipsTitle={HOME_COPY.searchIdeasTitle}
-      statusMessage={error}
-      busyMessage={pending ? PHOTO_SEARCH_LOADING_LABEL : null}
-      photo={{
-        label: pending ? PHOTO_SEARCH_LOADING_LABEL : PHOTO_SEARCH_UPLOAD_LABEL,
-        onFileSelected: handleFile,
-        disabled: pending,
-      }}
-    />
+    <>
+      <LoginGateModal open={loginOpen} onClose={closeLogin} />
+      <SearchComposer
+        placeholder={HOME_COPY.searchPlaceholder}
+        inputLabel={HOME_COPY.searchInputLabel}
+        submitLabel={HOME_COPY.searchSubmitLabel}
+        routeProductLinks
+        chips={HOME_SEARCH_CHIPS}
+        chipsTitle={HOME_COPY.searchIdeasTitle}
+        statusMessage={error}
+        busyMessage={pending ? PHOTO_SEARCH_LOADING_LABEL : null}
+        photo={{
+          label: pending ? PHOTO_SEARCH_LOADING_LABEL : PHOTO_SEARCH_UPLOAD_LABEL,
+          onFileSelected: handleFile,
+          disabled: pending,
+        }}
+      />
+    </>
   );
 }

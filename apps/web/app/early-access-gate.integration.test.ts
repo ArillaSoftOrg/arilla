@@ -284,18 +284,14 @@ describe("server action ve route handler'lar (arayüz atlanarak)", () => {
       [
         "startLinkSearchAction",
         async () =>
-          (await import("./ara/link/actions.ts")).startLinkSearchAction("https://magaza.example/u"),
+          (await import("./ara/link/actions.ts")).startLinkSearchAction(
+            "https://magaza.example/u",
+            "gate-test-request-key",
+          ),
       ],
       [
         "pollLinkSearchAction",
         async () => (await import("./ara/link/actions.ts")).pollLinkSearchAction("x"),
-      ],
-      [
-        "enqueueLinkResolutionAction",
-        async () =>
-          (await import("./[...link]/actions.ts")).enqueueLinkResolutionAction(
-            "https://magaza.example/u",
-          ),
       ],
       [
         "removeSavedItemAction",

@@ -149,6 +149,13 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `search.clarify_other` | Başka bir şey |
 | `search.clarify_other_placeholder` | Ne arıyorsun? |
 | `search.loading` | Benzerlerini arıyoruz |
+| `rights.summary` | Bugün kalan {kalan}/{limit} · Bonus {bonus} (fotoğraf ve link araması; 0047) |
+| `rights.reset` | Günlük hakların {saat}'da yenilenir. |
+| `rights.no_rights` | Bugünkü arama hakların ve bonus hakların bitti. Hakların gece 00:00'da yenilenir. |
+| `rights.earn_link` | Bonus hak kazanmanın yolları |
+| `rights.rate_limited` | Biraz hızlı gittin. Bir dakika sonra tekrar dener misin? |
+| `rights.busy` | Önceki araman hâlâ sürüyor. Bitince yenisini başlatabilirsin. |
+| `rights.section_title` | Arama hakların |
 | `search.empty` | Bu aramada sonuç bulamadık. |
 | `search.empty_hint` | Daha genel bir arama dene: fiyat, renk ya da beden gibi ayrıntıları çıkarabilir veya farklı kelimeler kullanabilirsin. |
 | `search.empty_nearest` | Sana en yakın bulduklarımız |

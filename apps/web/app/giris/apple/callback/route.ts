@@ -12,6 +12,7 @@ import { NextResponse } from "next/server";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
 import { takeAuthNext } from "../../next-cookie.ts";
+import { settleReferralAfterSignIn } from "../../referral-cookie.ts";
 import { APPLE_COOKIE_PATH, NONCE_COOKIE, STATE_COOKIE } from "../apple-cookies.ts";
 
 /** POST'tan sonra GET'e: 303. (`redirect()` 307 verir, tarayici POST'u tekrarlar.) */
@@ -69,7 +70,7 @@ export async function POST(request: Request) {
   const headerStore = await headers();
   let destination: string;
   try {
-    const { rawSessionToken, user: signedIn } = await completeAppleSignIn(getDatabase(), {
+    const result = await completeAppleSignIn(getDatabase(), {
       code,
       rawNonce,
       userJson: typeof user === "string" ? user : null,
@@ -77,8 +78,9 @@ export async function POST(request: Request) {
       ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
     });
-    await setSessionCookie(rawSessionToken);
-    destination = postAuthRedirect(signedIn, next);
+    await setSessionCookie(result.rawSessionToken);
+    await settleReferralAfterSignIn(await cookies(), result);
+    destination = postAuthRedirect(result.user, next);
   } catch (failure) {
     console.error(`[giris] apple sign-in failed: ${classifyAppleFailure(failure)}`);
     return seeOther(request, "/giris?error=apple");

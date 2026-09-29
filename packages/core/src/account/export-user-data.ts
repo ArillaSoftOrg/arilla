@@ -5,13 +5,17 @@
  */
 
 import {
+  aiSearchCharge,
   alert,
   appUser,
+  bonusAccount,
+  bonusLedger,
   click,
   type Database,
   earlyAccess,
   product,
   productView,
+  referral,
   savedItem,
   userConsent,
   userSizeProfile,
@@ -56,6 +60,23 @@ export interface UserDataExport {
   }>;
   /** Erken erişim listesi kaydı (0031); listede değilse `null`. */
   earlyAccess: { status: string; joinedAt: Date } | null;
+  /** Arama hakları (0047): bonus bakiye, harcamalar, bonus defteri, davetler. */
+  searchRights: {
+    referralCode: string | null;
+    bonusBalance: number;
+    searches: Array<{
+      operation: string;
+      state: string;
+      day: string;
+      fromDaily: number;
+      fromBonus: number;
+      createdAt: Date;
+    }>;
+    bonusLedger: Array<{ reason: string; delta: number; balanceAfter: number; createdAt: Date }>;
+    /** Bu hesabin davet edilme kaydi; davet edenin kimligi disa verilmez. */
+    invitedBy: { status: string; createdAt: Date } | null;
+    invitesSent: Array<{ status: string; createdAt: Date; qualifiedAt: Date | null }>;
+  };
 }
 
 export async function exportUserData(db: Database, userId: number): Promise<UserDataExport> {
@@ -130,6 +151,50 @@ export async function exportUserData(db: Database, userId: number): Promise<User
         .limit(1),
     ]);
 
+  const [bonusRows, chargeRows, ledgerRows, invitedByRows, invitesSentRows] = await Promise.all([
+    db
+      .select({ balance: bonusAccount.balance })
+      .from(bonusAccount)
+      .where(eq(bonusAccount.userId, userId))
+      .limit(1),
+    db
+      .select({
+        operation: aiSearchCharge.operation,
+        state: aiSearchCharge.state,
+        day: aiSearchCharge.day,
+        fromDaily: aiSearchCharge.fromDaily,
+        fromBonus: aiSearchCharge.fromBonus,
+        createdAt: aiSearchCharge.createdAt,
+      })
+      .from(aiSearchCharge)
+      .where(eq(aiSearchCharge.userId, userId))
+      .orderBy(desc(aiSearchCharge.createdAt)),
+    db
+      .select({
+        reason: bonusLedger.reason,
+        delta: bonusLedger.delta,
+        balanceAfter: bonusLedger.balanceAfter,
+        createdAt: bonusLedger.createdAt,
+      })
+      .from(bonusLedger)
+      .where(eq(bonusLedger.userId, userId))
+      .orderBy(desc(bonusLedger.createdAt), desc(bonusLedger.id)),
+    db
+      .select({ status: referral.status, createdAt: referral.createdAt })
+      .from(referral)
+      .where(eq(referral.inviteeUserId, userId))
+      .limit(1),
+    db
+      .select({
+        status: referral.status,
+        createdAt: referral.createdAt,
+        qualifiedAt: referral.qualifiedAt,
+      })
+      .from(referral)
+      .where(eq(referral.inviterUserId, userId))
+      .orderBy(desc(referral.createdAt)),
+  ]);
+
   return {
     profile: {
       publicId: user.publicId,
@@ -146,5 +211,13 @@ export async function exportUserData(db: Database, userId: number): Promise<User
     consents: consentRows,
     clicks: clickRows,
     earlyAccess: earlyRows[0] ?? null,
+    searchRights: {
+      referralCode: user.referralCode,
+      bonusBalance: bonusRows[0]?.balance ?? 0,
+      searches: chargeRows,
+      bonusLedger: ledgerRows,
+      invitedBy: invitedByRows[0] ?? null,
+      invitesSent: invitesSentRows,
+    },
   };
 }

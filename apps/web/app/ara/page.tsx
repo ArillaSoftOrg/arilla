@@ -21,6 +21,7 @@ import { PhotoSearchButton } from "../photo-search-client.tsx";
 import styles from "./ara.module.css";
 import { ConversationFocusClient } from "./conversation-focus-client.tsx";
 import { ResultsRegionSkeleton } from "./search-results.tsx";
+import { SearchRightsBadge } from "./search-rights-badge.tsx";
 import { TextSearchResults } from "./text-search-results.tsx";
 
 const SORT_MODES: readonly SortMode[] = ["balanced", "best_deal", "closest_match"];
@@ -47,12 +48,15 @@ const TITLE_ID = "arama-basligi";
 /** Arama kutusu + fotoğraf eylemi; tüm /ara durumlarında aynı yerde. */
 function SearchToolbar({ query }: { query?: string }) {
   return (
-    <div className={styles.toolbar}>
-      <div className={styles.toolbarSearch}>
-        <SearchForm defaultValue={query} placeholder={SEARCH_PLACEHOLDER} submitLabel="Ara" />
+    <>
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarSearch}>
+          <SearchForm defaultValue={query} placeholder={SEARCH_PLACEHOLDER} submitLabel="Ara" />
+        </div>
+        <PhotoSearchButton />
       </div>
-      <PhotoSearchButton />
-    </div>
+      <SearchRightsBadge />
+    </>
   );
 }
 

@@ -11,6 +11,7 @@ import { ClearHistoryButtonClient } from "./clear-history-button-client.tsx";
 import { ConsentTogglesClient } from "./consent-toggles-client.tsx";
 import { DeleteAccountButtonClient } from "./delete-account-button-client.tsx";
 import styles from "./page.module.css";
+import { SearchRightsSection } from "./search-rights-section.tsx";
 
 /**
  * docs/pages.md "/hesap": Profil, Beden profili, Tema, İzinler, Verilerim.
@@ -105,6 +106,8 @@ export default async function HesapPage() {
               </form>
             </div>
           </section>
+
+          <SearchRightsSection userId={user.id} />
 
           <section className={styles.panel} aria-labelledby="hesap-izinler">
             <div className={styles.panelHeader}>
