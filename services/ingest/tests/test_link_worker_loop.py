@@ -30,3 +30,50 @@ def test_worker_survives_transient_redis_errors(monkeypatch: pytest.MonkeyPatch)
     fake = _FlakyRedis()
     worker.run_worker(None, fake, max_iterations=3)  # type: ignore[arg-type]
     assert fake.calls == 3
+
+
+class _OneMessageRedis:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def brpop(self, keys: list[str], timeout: float) -> tuple[str, str] | None:
+        self.calls += 1
+        if self.calls == 1:
+            return ("queue:link_resolution", '{"request_id": "req-1"}')
+        return None
+
+
+class _FakeConn:
+    def __init__(self, *, broken: bool) -> None:
+        self.closed = broken
+        self.broken = broken
+        self.rollbacks = 0
+
+    def rollback(self) -> None:
+        self.rollbacks += 1
+
+
+def _raise(*_args: object, **_kwargs: object) -> None:
+    raise RuntimeError("beklenmeyen")
+
+
+def test_worker_exits_when_database_connection_is_lost(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Kopan tek baglantiyla devam edilemez: surec yoneticisi yeniden baslatsin diye cikar."""
+    monkeypatch.setattr(worker, "process_one", _raise)
+    conn = _FakeConn(broken=True)
+    with pytest.raises(worker.DatabaseConnectionLost):
+        worker.run_worker(conn, _OneMessageRedis(), max_iterations=3)  # type: ignore[arg-type]
+    assert conn.rollbacks == 0
+
+
+def test_worker_skips_message_on_unexpected_error_with_healthy_connection(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(worker, "process_one", _raise)
+    monkeypatch.setattr(worker, "_mark", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(worker.time, "sleep", lambda _seconds: None)
+    conn = _FakeConn(broken=False)
+    fake = _OneMessageRedis()
+    worker.run_worker(conn, fake, max_iterations=3)  # type: ignore[arg-type]
+    assert fake.calls == 3
+    assert conn.rollbacks == 1

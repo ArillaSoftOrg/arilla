@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import signal
 import sys
 
 import httpx
@@ -21,7 +22,7 @@ import redis
 from collect.link.refresh import refresh_user_links
 from collect.link.resolver import ResolutionFailed, resolve_url
 from collect.link.urls import InvalidUrl
-from collect.link.worker import POLL_TIMEOUT_SECONDS, run_worker
+from collect.link.worker import POLL_TIMEOUT_SECONDS, DatabaseConnectionLost, run_worker
 from collect.records import RecordRejected
 from db.connection import connect, env
 from enrich.client import EmbeddingClient, FakeEmbeddingClient, JinaEmbeddingClient
@@ -44,6 +45,11 @@ def _worker_embedder(fake: bool) -> EmbeddingClient | None:
         budget=TokenBudget(tokens_per_minute=tokens_per_minute_from_env()),
         max_attempts=WORKER_EMBED_ATTEMPTS,
     )
+
+
+def _exit_on_sigterm(_signum: int, _frame: object) -> None:
+    logging.info("SIGTERM alindi, worker duruyor")
+    raise SystemExit(0)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -82,8 +88,18 @@ def main(argv: list[str] | None = None) -> int:
                 socket_timeout=POLL_TIMEOUT_SECONDS + 10,
                 socket_keepalive=True,
             )
+            # `docker stop`/systemd SIGTERM gonderir; varsayilan davranis sureci
+            # temizliksiz oldurur. SystemExit `with connect()` blogunu calistirir:
+            # acik islem geri alinir, baglanti kapanir.
+            signal.signal(signal.SIGTERM, _exit_on_sigterm)
             logging.info("worker basladi, kuyruk: queue:link_resolution")
-            run_worker(conn, redis_client, embedder=_worker_embedder(args.fake_embeddings))
+            try:
+                run_worker(conn, redis_client, embedder=_worker_embedder(args.fake_embeddings))
+            except DatabaseConnectionLost as error:
+                # Sifir olmayan cikis: surec yoneticisi yeniden baslatir ve yeni
+                # bir baglanti kurulur (docs/ops.md "Link worker").
+                logging.error("%s; surec yeniden baslatilmak uzere cikiyor", error)
+                return 1
             return 0
 
         if args.refresh:

@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  EmbeddingError,
   EmbeddingUnavailableError,
   FakeEmbeddingClient,
   getEmbeddingClient,
@@ -85,5 +86,137 @@ describe("FakeEmbeddingClient", () => {
     expect(a.vector).toHaveLength(768);
     const norm = Math.sqrt(a.vector.reduce((sum, v) => sum + v * v, 0));
     expect(norm).toBeCloseTo(1, 6);
+  });
+});
+
+describe("JinaEmbeddingClient retry and timeout", () => {
+  const DATA_URL = "data:image/png;base64,AAAA";
+
+  function okResponse(): Response {
+    return new Response(
+      JSON.stringify({
+        data: [{ embedding: Array.from({ length: 768 }, () => 0.01) }],
+        usage: { total_tokens: 4000 },
+      }),
+      { status: 200 },
+    );
+  }
+
+  /** Sinyal iptal edilene kadar asili kalan istek - yavas saglayici. */
+  function hangingFetch(calls: { count: number }): typeof fetch {
+    return ((_url: unknown, init?: RequestInit) => {
+      calls.count++;
+      return new Promise<Response>((_resolve, reject) => {
+        init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+      });
+    }) as typeof fetch;
+  }
+
+  it("passes an abort signal to every attempt", async () => {
+    const signals: (AbortSignal | null | undefined)[] = [];
+    const client = new JinaEmbeddingClient("test-key", {
+      fetch: (async (_url: unknown, init?: RequestInit) => {
+        signals.push(init?.signal);
+        return okResponse();
+      }) as typeof fetch,
+    });
+    const result = await client.embedImage(DATA_URL);
+    expect(result.vector).toHaveLength(768);
+    expect(result.tokens).toBe(4000);
+    expect(signals).toHaveLength(1);
+    expect(signals[0]).toBeInstanceOf(AbortSignal);
+  });
+
+  it("retries a timed-out attempt and succeeds on the next one", async () => {
+    let count = 0;
+    const sleeps: number[] = [];
+    const client = new JinaEmbeddingClient("test-key", {
+      attemptTimeoutMs: 20,
+      sleep: async (ms) => {
+        sleeps.push(ms);
+      },
+      fetch: ((_url: unknown, init?: RequestInit) => {
+        count++;
+        if (count === 1) {
+          return new Promise<Response>((_resolve, reject) => {
+            init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+          });
+        }
+        return Promise.resolve(okResponse());
+      }) as typeof fetch,
+    });
+    const result = await client.embedImage(DATA_URL);
+    expect(result.vector).toHaveLength(768);
+    expect(count).toBe(2);
+    expect(sleeps).toEqual([1000]);
+  });
+
+  it("fails closed with EmbeddingError when every attempt times out", async () => {
+    const calls = { count: 0 };
+    const client = new JinaEmbeddingClient("test-key", {
+      attemptTimeoutMs: 10,
+      sleep: async () => {},
+      fetch: hangingFetch(calls),
+    });
+    const error = await client.embedImage(DATA_URL).catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(EmbeddingError);
+    expect((error as Error).message).toMatch(/zaman aşımı/);
+    expect(calls.count).toBe(4);
+  });
+
+  it("stops retrying when the backoff would exceed the total budget", async () => {
+    let clock = 0;
+    const calls = { count: 0 };
+    const client = new JinaEmbeddingClient("test-key", {
+      totalTimeoutMs: 2_500,
+      now: () => clock,
+      sleep: async (ms) => {
+        clock += ms;
+      },
+      fetch: (async () => {
+        calls.count++;
+        return new Response("busy", { status: 503 });
+      }) as typeof fetch,
+    });
+    // 1. deneme -> 1 sn bekle -> 2. deneme -> 2 sn bekleme butceyi (2,5 sn) asar.
+    await expect(client.embedImage(DATA_URL)).rejects.toThrow(/503/);
+    expect(calls.count).toBe(2);
+  });
+
+  it("retries 429/5xx up to the attempt limit, then throws", async () => {
+    const calls = { count: 0 };
+    const client = new JinaEmbeddingClient("test-key", {
+      sleep: async () => {},
+      fetch: (async () => {
+        calls.count++;
+        return new Response("rate limited", { status: 429 });
+      }) as typeof fetch,
+    });
+    await expect(client.embedImage(DATA_URL)).rejects.toThrow(EmbeddingError);
+    expect(calls.count).toBe(4);
+  });
+
+  it("does not retry other 4xx responses", async () => {
+    const calls = { count: 0 };
+    const client = new JinaEmbeddingClient("test-key", {
+      sleep: async () => {},
+      fetch: (async () => {
+        calls.count++;
+        return new Response("bad key", { status: 401 });
+      }) as typeof fetch,
+    });
+    await expect(client.embedImage(DATA_URL)).rejects.toThrow(/401/);
+    expect(calls.count).toBe(1);
+  });
+
+  it("never puts the API key into the final error", async () => {
+    const client = new JinaEmbeddingClient("secret-value", {
+      attemptTimeoutMs: 10,
+      sleep: async () => {},
+      fetch: hangingFetch({ count: 0 }),
+    });
+    await expect(client.embedImage(DATA_URL)).rejects.toThrow(
+      expect.objectContaining({ message: expect.not.stringContaining("secret-value") }),
+    );
   });
 });

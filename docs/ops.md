@@ -37,8 +37,8 @@ birindedir ve okuyan dosya yanında yazar:
 
 | Grup | Anlamı | Anahtarlar |
 | --- | --- | --- |
-| `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
-| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `VISUAL_SEARCH_DAILY_LIMIT_PER_USER`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT` |
+| `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL` (`rediss://`), `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
+| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `VISUAL_SEARCH_DAILY_LIMIT_PER_USER`, `VISUAL_SEARCH_DAILY_LIMIT_PER_IP`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`**, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT` |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
 | `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
@@ -48,6 +48,17 @@ localhost dışı olmak zorundadır; hiçbir değer çözülmezse hata fırlatı
 Vercel production'da localhost canonical üretilemez. Yerel `next build` /
 `next start` (VERCEL_ENV yok) `http://localhost` kabul eder. Kodda hiçbir alan
 adı gömülü değildir.
+
+\*\* Kod açısından isteğe bağlı (boşsa `api_usage.cost_micros` 0 yazılır ve
+süreç başına bir uyarı loglanır; arama durmaz), ama **işletme açısından
+production'da girilmelidir**: fiyat kodda sabitlenmez ve uydurulmaz, Jina
+fiyatından TRY milyonda bir / 1.000 token olarak hesaplanır. Aynı değer
+Vercel'e ve worker hostuna girilir. `units` token sayısını tuttuğu için geçmiş
+satırların maliyeti fiyat girildikten sonra da hesaplanabilir.
+
+Vercel'in Upstash entegrasyonu `REDIS_KV_URL` ve `REDIS_KV_REST_API_*`
+değişkenlerini kendiliğinden ekler; kod bunları okumaz (REST değil TCP), yalnızca
+`REDIS_URL` okunur. Silinmeleri gerekmez.
 
 `VERCEL_ENV`, `VERCEL_PROJECT_PRODUCTION_URL` ve `NODE_ENV` sistem
 değişkenleridir; elle ayarlanmaz. Vercel'de `DATABASE_URL` Supabase transaction
@@ -254,6 +265,48 @@ SELECT p.id FROM product p
    `product_slug_history`, `price_point`, `offer` (varyant ve stok olayları
    cascade), `product`, `ingest_run`, `merchant`. `embedding` satırları
    `0014` trigger'ı ile düşer; sonra `pnpm db:orphans --check`.
+
+## Link worker
+
+Web, link aramasını `queue:link_resolution` Redis listesine `LPUSH` ile
+bırakır; Python worker (`python -m collect.link --worker`) aynı listeyi `BRPOP`
+ile tüketir (karar 0035). Worker Vercel'de çalışamaz; ayrı hostta sürekli
+çalışan tek bir süreçtir. Çalışmıyorsa istekler kuyrukta birikir ve web
+tarafı bayat satırı (`link-resolution.ts`) bir süre sonra başarısız sayar -
+kullanıcı sonuç alamaz.
+
+**Çalıştırma (Docker yüklü herhangi bir Linux host):**
+
+1. Depoyu hosta çek, `infra/.env.worker` dosyasını oluştur (depoya girmez,
+   `.gitignore` `.env.*`). Gerekli adlar: `DATABASE_URL` (uygulama rolü;
+   worker uzun ömürlü tek bağlantı tuttuğu için Vercel'deki transaction
+   pooler (6543) yerine Supabase **session pooler** (5432) adresi - psycopg
+   tekrarlanan sorguları hazırlanmış ifadeye çevirir), `REDIS_URL` (`rediss://`, Vercel'deki ile aynı),
+   `JINA_API_KEY`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`; isteğe bağlı
+   `JINA_TOKENS_PER_MINUTE`.
+2. `docker compose -f infra/docker-compose.worker.yml up -d --build`
+3. `docker compose -f infra/docker-compose.worker.yml logs -f link-worker`
+   içinde `worker basladi, kuyruk: queue:link_resolution` görülmeli.
+
+**Dayanıklılık:**
+
+- Redis kesintisi: `BRPOP` hatası yakalanır, 2 sn beklenip yeniden denenir;
+  süreç düşmez. redis-py bağlantıyı bir sonraki komutta yeniden kurar.
+- Postgres bağlantısı koparsa süreç `1` ile çıkar; compose
+  `restart: unless-stopped` yeniden başlatır ve yeni bağlantı kurulur. O anda
+  işlenen mesaj kaybolur, satırı web tarafı bayat sayar.
+- `docker stop` / host yeniden başlatma: `SIGTERM` yakalanır, açık işlem geri
+  alınır. Host açıldığında Docker servisi etkinse worker kendiliğinden kalkar
+  (`systemctl enable docker`).
+- `JINA_API_KEY` yoksa worker durmaz, link araması görselsiz (metinle) çözülür
+  ve bu başlangıçta uyarı olarak loglanır.
+
+**Sağlık kontrolü (yıkıcı değil):** kuyruk uzunluğu yönetim konsolundaki
+işlemler ekranında görünür (`LLEN queue:link_resolution`). Sürekli büyüyorsa
+worker çalışmıyordur.
+
+**Güncelleme:** `git pull` sonra aynı `up -d --build`; eski süreç `SIGTERM`
+ile durur.
 
 ## Dağıtım
 

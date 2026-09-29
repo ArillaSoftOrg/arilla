@@ -14,7 +14,8 @@ import {
   recordImageSearchAndCheckLimit,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { clientIp } from "../../lib/client-ip.ts";
 import { requireProductAccess } from "../../lib/dal.ts";
 
 // Vercel Functions istek govdesini 4.5 MB ile sinirlar; next.config.ts'teki
@@ -104,12 +105,14 @@ export async function uploadImageForSearch(formData: FormData): Promise<UploadIm
   // Gunluk limit, sagladigi/harcadigi maliyet nedeniyle embed cagrisindan
   // ONCE kontrol edilir (docs/decisions/0015 - gercek para maliyeti).
   // Limit kontrol edilemiyorsa (Redis erisilemez) kapali kalinir: ucretli
-  // embedding cagrisi limitsiz yapilmaz.
+  // embedding cagrisi limitsiz yapilmaz. Anonim istek ayrica IP tavanindan
+  // gecer (cerez silinerek limit sifirlanamasin).
   let limit: Awaited<ReturnType<typeof recordImageSearchAndCheckLimit>>;
   try {
     limit = await recordImageSearchAndCheckLimit({
       userId: user?.id ?? null,
       sessionId,
+      ip: clientIp(await headers()),
     });
   } catch (error) {
     if (!isRedisUnavailableError(error)) throw error;
