@@ -34,8 +34,8 @@ function isReason(value: string | undefined): value is AdminLoginReason {
 
 /**
  * `/yonetim/giris` (proxy bu adresi buraya rewrite eder; yönetim kabuğu ve
- * yetki kapısı dışında). Aynı dört sağlayıcı (Google, Apple, telefon,
- * e-posta); fark yalnızca dönüş yolu: `next` her zaman güvenli bir
+ * yetki kapısı dışında). Aynı giriş seçenekleri (Google, Apple); fark
+ * yalnızca dönüş yolu: `next` her zaman güvenli bir
  * `/yonetim` yoludur ve sunucuda her adımda yeniden süzülür.
  *
  * Giriş sonrası: yetkili → `next`; normal kullanıcı → kendi akışı

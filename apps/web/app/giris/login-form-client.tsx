@@ -1,26 +1,19 @@
 "use client";
 
-import { Button, Input, VisuallyHidden } from "@arilla/ui";
-import { type ReactNode, useActionState } from "react";
-import { type RequestLoginLinkState, requestLoginLinkAction } from "./actions.ts";
+import type { ReactNode } from "react";
 import styles from "./page.module.css";
 
-const initialState: RequestLoginLinkState = { status: "idle" };
-
-/** Metinler docs/copy.md `auth.*` - anahtarlar yorumda. */
+/**
+ * Giriş ekranı yalnızca sosyal girişi gösterir: Google ve Apple.
+ *
+ * E-posta bağlantısı ve telefonla giriş arayüzden kaldırıldı; backend'leri
+ * (`requestLoginLinkAction`, `/giris/dogrula`, `/giris/telefon/*`, core
+ * `auth` modülleri, tablolar) duruyor ve ileride yeniden açılabilir.
+ * Metinler docs/copy.md `auth.*`.
+ */
 const COPY = {
-  emailLabel: "E-posta adresin", // auth.email_label
-  submit: "Bağlantı gönder", // auth.submit
-  submitting: "Gönderiliyor…", // auth.submitting
-  sentTitle: "Bağlantıyı gönderdik", // auth.link_sent_title
-  sentBody: "E-postana bir giriş bağlantısı gönderdik. Bağlantı 15 dakika geçerli.", // auth.link_sent_body
-  sentHint: "Birkaç dakika içinde gelmezse gereksiz klasörüne de göz at.", // auth.link_sent_hint
-  rateLimited: "Az önce bir bağlantı gönderdik. Birkaç dakika sonra tekrar dene.", // auth.rate_limited
-  invalidEmail: "Geçerli bir e-posta adresi gir.", // auth.invalid_email
-  sendFailed: "Bağlantıyı şu an gönderemedik. Biraz sonra tekrar dene.", // auth.send_failed
   google: "Google ile devam edin",
   apple: "Apple ile devam edin",
-  phone: "Telefon ile devam edin",
   unavailable: "şu an kullanılamıyor", // auth.provider_unavailable
 } as const;
 
@@ -64,28 +57,16 @@ function AppleMark() {
   );
 }
 
-function PhoneMark() {
-  return (
-    <span className={styles.phoneChoice} aria-hidden="true">
-      <span className={styles.flagUs}>
-        <span />
-      </span>
-      <span className={styles.phoneChevron} />
-      <span className={styles.phoneCode}>+1</span>
-    </span>
-  );
-}
-
-/** Sunucunun `authProviderAvailability()` sonucu; verilmezse hepsi açık sayılır. */
+/** Sunucunun `authProviderAvailability()` sonucu; verilmezse ikisi de açık sayılır. */
 export interface ProviderAvailability {
   google: boolean;
   apple: boolean;
-  phone: boolean;
 }
 
 /**
  * `next`: giriş sonrası dönüş yolu. Sunucu her adımda yeniden süzer
- * (`safeRedirectPath`); buradaki değer yalnızca taşınır.
+ * (`safeRedirectPath`); buradaki değer yalnızca taşınır. Yönetim girişi
+ * (`/yonetim/giris`) aynı bileşeni `/yonetim` altındaki bir `next` ile kullanır.
  *
  * `availability`: yapılandırılmamış sağlayıcı bağlantı olmaz, "şu an
  * kullanılamıyor" notuyla devre dışı gösterilir - kullanıcı bozuk bir
@@ -98,7 +79,6 @@ export function LoginFormClient({
   next?: string;
   availability?: ProviderAvailability;
 } = {}) {
-  const [state, action, pending] = useActionState(requestLoginLinkAction, initialState);
   const withNext = (href: string) =>
     next && next !== "/" ? `${href}?next=${encodeURIComponent(next)}` : href;
   const provider = (
@@ -119,56 +99,10 @@ export function LoginFormClient({
       </a>
     );
 
-  if (state.status === "sent") {
-    return (
-      <div role="status" className={styles.sent}>
-        <h2 className={styles.sentTitle}>{COPY.sentTitle}</h2>
-        <p className={styles.sentBody}>{COPY.sentBody}</p>
-        <p className={styles.sentHint}>{COPY.sentHint}</p>
-      </div>
-    );
-  }
-
-  // Alan hatasi (gecersiz e-posta) girdiye baglanir: `aria-invalid` +
-  // `aria-describedby` Input'tan gelir. Oran siniri alanla ilgili degil,
-  // form duzeyinde `role="alert"` ile duyurulur. Oturumun/hesabin var olup
-  // olmadigini belli eden bir dal yok (docs/pages.md "/giris").
-  const fieldError = state.status === "invalid_email" ? COPY.invalidEmail : undefined;
-
   return (
     <div className={styles.authChoices}>
       {provider("google", "/giris/google", COPY.google, <GoogleMark />)}
       {provider("apple", "/giris/apple", COPY.apple, <AppleMark />)}
-      {provider("phone", "/giris/telefon", COPY.phone, <PhoneMark />)}
-      <form action={action} className={styles.form} aria-busy={pending || undefined}>
-        {next && next !== "/" ? <input type="hidden" name="next" value={next} /> : null}
-        <Input
-          label={COPY.emailLabel}
-          name="email"
-          type="email"
-          autoComplete="email"
-          inputMode="email"
-          required
-          error={fieldError}
-        />
-        {/* Girdinin altindaki hata metni canli bolge degil; gonderim sonrasi
-            ekran okuyucuya ayrica duyurulur (gorsel tekrar yok). */}
-        {fieldError ? <VisuallyHidden role="alert">{fieldError}</VisuallyHidden> : null}
-        {state.status === "rate_limited" ? (
-          <p role="alert" className={styles.notice}>
-            {COPY.rateLimited}
-          </p>
-        ) : null}
-        {/* E-posta gonderilemediyse "gonderdik" denmez (sessiz basari yok). */}
-        {state.status === "send_failed" ? (
-          <p role="alert" className={styles.notice}>
-            {COPY.sendFailed}
-          </p>
-        ) : null}
-        <Button type="submit" variant="primary" size="lg" fullWidth disabled={pending}>
-          {pending ? COPY.submitting : COPY.submit}
-        </Button>
-      </form>
     </div>
   );
 }
