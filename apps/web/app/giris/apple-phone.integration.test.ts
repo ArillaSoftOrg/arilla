@@ -1,5 +1,5 @@
 /**
- * Apple ve telefon giriş route'ları + giriş ekranlarında sağlayıcı durumu -
+ * Apple ve telefon giriş route'ları + giriş ekranlarının yalnızca Google/Apple göstermesi -
  * gerçek yerel Postgres ve Redis; Apple ve Netgsm `fetch` taklidiyle.
  * Gerçek Apple isteği ya da SMS gönderilmez. Uzak adres görülürse durur.
  */
@@ -328,7 +328,7 @@ describe("telefon route'ları", () => {
   });
 });
 
-describe("giriş ekranlarında sağlayıcı durumu", () => {
+describe("giriş ekranları: yalnızca Google ve Apple", () => {
   async function html(path: "page" | "yonetim/page" | "telefon/page"): Promise<string> {
     const { default: Page } = await import(`./${path}.tsx`);
     return renderToStaticMarkup(
@@ -336,27 +336,59 @@ describe("giriş ekranlarında sağlayıcı durumu", () => {
     );
   }
 
-  it("yapılandırılmamış Apple ve telefon bağlantı olmaz, 'şu an kullanılamıyor' görünür", async () => {
-    // Netgsm seçili ama NETGSM_* eksik: her ortamda kullanılamaz (fail-closed).
+  /** E-posta ve telefon girişinin hiçbir izi yok (bağlantı, form, metin). */
+  function expectSocialOnly(markup: string): void {
+    expect(markup).not.toContain("/giris/telefon");
+    expect(markup).not.toContain("Telefon ile");
+    expect(markup).not.toContain("<form");
+    expect(markup).not.toContain('type="email"');
+    expect(markup).not.toContain("E-posta adresin");
+    expect(markup).not.toContain("Bağlantı gönder");
+    expect(markup).not.toMatch(/şifre|password/i);
+  }
+
+  it("yapılandırılmışsa public ve yönetim girişinde yalnızca Google + Apple bağlantısı var", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", "123-abc.apps.googleusercontent.com");
+    vi.stubEnv("GOOGLE_CLIENT_SECRET", "test-only");
+    appleEnv();
+    netgsmEnv(); // telefon sağlayıcısı yapılandırılmış olsa bile gösterilmez
+    for (const path of ["page", "yonetim/page"] as const) {
+      const markup = await html(path);
+      const links = [...markup.matchAll(/href="(\/giris\/[a-z]+)[^"]*"/g)].map((m) => m[1]);
+      expect(links).toEqual(["/giris/google", "/giris/apple"]);
+      expect(markup).toContain("Google ile devam edin");
+      expect(markup).toContain("Apple ile devam edin");
+      expectSocialOnly(markup);
+    }
+  });
+
+  it("yönetim girişi Google/Apple bağlantılarına yönetim next'ini taşır", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", "123-abc.apps.googleusercontent.com");
+    vi.stubEnv("GOOGLE_CLIENT_SECRET", "test-only");
+    appleEnv();
+    const { default: Page } = await import("./yonetim/page.tsx");
+    const markup = renderToStaticMarkup(
+      (await Page({ searchParams: Promise.resolve({ next: "/yonetim/sozluk" }) })) as ReactElement,
+    );
+    expect(markup).toContain('href="/giris/google?next=%2Fyonetim%2Fsozluk"');
+    expect(markup).toContain('href="/giris/apple?next=%2Fyonetim%2Fsozluk"');
+  });
+
+  it("yapılandırılmamış Apple bağlantı olmaz; telefon/e-posta hiç görünmez", async () => {
     vi.stubEnv("SMS_PROVIDER", "netgsm");
     for (const path of ["page", "yonetim/page"] as const) {
       const markup = await html(path);
       expect(markup).not.toContain('href="/giris/apple');
-      expect(markup).not.toContain('href="/giris/telefon');
       expect(markup).toContain("Apple ile devam edin (şu an kullanılamıyor)");
-      expect(markup).toContain("Telefon ile devam edin (şu an kullanılamıyor)");
+      expectSocialOnly(markup);
     }
-    const phonePage = await html("telefon/page");
-    expect(phonePage).toContain("Telefonla giriş şu an kullanılamıyor");
-    expect(phonePage).not.toContain('action="/giris/telefon/kod-gonder"');
   });
 
-  it("yapılandırılmışsa bağlantılar çalışır", async () => {
-    appleEnv();
+  it("telefon sayfası (arayüzden kaldırıldı) ileride açılabilsin diye çalışmaya devam eder", async () => {
+    vi.stubEnv("SMS_PROVIDER", "netgsm");
+    const unavailable = await html("telefon/page");
+    expect(unavailable).toContain("Telefonla giriş şu an kullanılamıyor");
     netgsmEnv();
-    const markup = await html("page");
-    expect(markup).toContain('href="/giris/apple"');
-    expect(markup).toContain('href="/giris/telefon"');
     expect(await html("telefon/page")).toContain('action="/giris/telefon/kod-gonder"');
   });
 });

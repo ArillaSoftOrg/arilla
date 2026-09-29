@@ -262,8 +262,10 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | `auth.link_sent_title` | Bağlantıyı gönderdik |
 | `auth.link_sent_body` | E-postana bir giriş bağlantısı gönderdik. Bağlantı 15 dakika geçerli. |
 | `auth.rate_limited` | Az önce bir bağlantı gönderdik. Birkaç dakika sonra tekrar dene. |
-| `auth.token_expired` | Bu bağlantının süresi dolmuş. Yeni bir tane isteyebilirsin. |
+| `auth.token_expired` | Bu bağlantının süresi dolmuş. Google ya da Apple ile giriş yapabilirsin. |
 | `auth.token_used` | Bu bağlantı zaten kullanılmış. |
+| `auth.google_failed` | Google ile giriş şu an tamamlanamadı. Apple ile devam edebilir ya da biraz sonra tekrar deneyebilirsin. |
+| `auth.apple_failed` | Apple ile giriş şu an tamamlanamadı. Google ile devam edebilir ya da biraz sonra tekrar deneyebilirsin. |
 | `auth.confirm_title` | Girişi tamamla |
 | `auth.confirm_body` | Giriş yapmak için aşağıdaki düğmeye bas. Bağlantı yalnızca bir kez kullanılabilir. |
 | `auth.login_title` | Giriş yap |
@@ -279,6 +281,10 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 
 `auth.rate_limited` mesajı hesabın var olup olmadığını belli etmez; her iki
 durumda da aynı metin gösterilir.
+
+Giriş ekranları (`/giris`, `/yonetim/giris`) yalnızca Google ve Apple gösterir.
+E-posta bağlantısı ve telefon metinleri, backend'leri yeniden açılabilsin diye
+burada kalır.
 
 ## Erken erişim
 
