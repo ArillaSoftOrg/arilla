@@ -10,6 +10,8 @@ import { randomUUID } from "node:crypto";
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
+import { deleteAccount } from "../account/delete-account.ts";
+import { exportUserData } from "../account/export-user-data.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { grantFirstFeedbackReward } from "./bonus.ts";
 import {
@@ -408,6 +410,68 @@ describe("arama hakki - entegrasyon", () => {
       expect(await balanceOf(inviter)).toBe(100);
       const [entry] = await ledgerOf(inviter);
       expect(entry).toMatchObject({ delta: 5, requested: 10, reason: "referral_inviter" });
+    });
+  });
+
+  describe("hesap silme ve veri indirme", () => {
+    it("veri indirme hak kayitlarini icerir; silme hepsini kaldirir, davet edenin baglantisini koparir", async () => {
+      const inviter = await newUser("delinv");
+      const invitee = await newUser("delee");
+      const invitedByInvitee = await newUser("delee2");
+      await attachReferral(db, {
+        inviteeUserId: invitee,
+        code: await getOrCreateReferralCode(db, inviter),
+      });
+      await attachReferral(db, {
+        inviteeUserId: invitedByInvitee,
+        code: await getOrCreateReferralCode(db, invitee),
+      });
+      const charge = await reserveOk(db, invitee, "visual_search");
+      await settleCharge(db, charge.id); // nitelenir: invitee +5, inviter +10
+
+      const exported = await exportUserData(db, invitee);
+      expect(exported.searchRights).toMatchObject({
+        bonusBalance: 5,
+        invitedBy: { status: "qualified" },
+        invitesSent: [{ status: "pending" }],
+      });
+      expect(exported.searchRights.searches).toHaveLength(1);
+      expect(exported.searchRights.bonusLedger).toEqual([
+        expect.objectContaining({ reason: "referral_invitee", delta: 5 }),
+      ]);
+      expect(exported.searchRights.referralCode).toMatch(/^[A-HJ-NP-Z2-9]{8}$/);
+
+      // Uygulama rolu ile gercek silme yolu (append-only defter CASCADE ile gider).
+      await deleteAccount(db, invitee);
+
+      const counts = await owner<Record<string, string>>(
+        `SELECT
+           (SELECT count(*) FROM ai_quota_day WHERE user_id = $1) AS quota,
+           (SELECT count(*) FROM bonus_account WHERE user_id = $1) AS bonus,
+           (SELECT count(*) FROM ai_search_charge WHERE user_id = $1) AS charges,
+           (SELECT count(*) FROM bonus_ledger WHERE user_id = $1) AS ledger,
+           (SELECT count(*) FROM referral WHERE invitee_user_id = $1) AS invited`,
+        [invitee],
+      );
+      expect(counts[0]).toEqual({
+        quota: "0",
+        bonus: "0",
+        charges: "0",
+        ledger: "0",
+        invited: "0",
+      });
+      const [sent] = await owner<{ inviter_user_id: string | null; status: string }>(
+        "SELECT inviter_user_id, status FROM referral WHERE invitee_user_id = $1",
+        [invitedByInvitee],
+      );
+      expect(sent).toEqual({ inviter_user_id: null, status: "pending" });
+      // Davet edenin odulu ve defteri korunur; silinen davetliye baglanti kalmaz.
+      expect(await balanceOf(inviter)).toBe(10);
+      const [inviterEntry] = await owner<{ referral_id: string | null }>(
+        "SELECT referral_id FROM bonus_ledger WHERE user_id = $1",
+        [inviter],
+      );
+      expect(inviterEntry?.referral_id).toBeNull();
     });
   });
 

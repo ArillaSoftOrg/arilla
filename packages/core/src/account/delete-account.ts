@@ -15,6 +15,12 @@
  * - `follow` (bu kullanıcının kendi takipleri), `saved_item`, `alert`: silinir.
  * - `click`, `api_usage`, `image_upload`, `link_resolution_request`:
  *   nullable `user_id` - SET NULL (kimliksizleştirme, silme değil).
+ * - Arama hakkı (0033, docs/decisions/0046): `ai_quota_day`, `bonus_account`,
+ *   `ai_search_charge`, `bonus_ledger` ve kullanıcının davet edilen olarak
+ *   `referral` satırı `ON DELETE CASCADE` ile gider (append-only defterin
+ *   CASCADE'i tablo sahibi yetkisiyle çalışır). Davet ettiği kişilerin
+ *   satırındaki `inviter_user_id` NULL'a çekilir. Sağlayıcı kimliğinin özeti
+ *   tutulmaz; burada ayrıca bir şey yapılmaz.
  * - `auth_token`: `app_user`'a FK ile bağlı değil (yalnızca e-posta), ama
  *   aynı e-postaya ait tüketilmemiş bir token'ın silme sonrası hesabı
  *   sessizce yeniden açmasını önlemek için hijyen amacıyla temizlenir.
