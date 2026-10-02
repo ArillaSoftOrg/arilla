@@ -12,9 +12,10 @@
  * - Hesap ancak tam olarak bir satır eşleşirse değişir; hesap AÇILMAZ (önce
  *   normal girişle oluşmuş olmalı).
  * - İdempotent: rol zaten istenen değerse hiçbir şey yazılmaz.
- * - Denetlenir: değişiklik ve `users.role_change` denetim satırı AYNI
- *   işlemde yazılır (`actor_role = "cli"`; `--actor-email` verilmezse aktör
- *   hedef hesabın kendisidir - ilk yönetici böyle açılır).
+ * - Denetlenir: `users.role_change` satırını veritabanı tetikleyicisi
+ *   (0036) AYNI işlemde yazar; betik yalnızca aktörü ve gerekçeyi verir
+ *   (`actor_role = "cli"`; `--actor-email` verilmezse aktör hedef hesabın
+ *   kendisidir - ilk yönetici böyle açılır).
  * - Geri alınabilir: aynı komut `--role user` ile.
  * - Rol her istekte veritabanından okunur; açık oturumlar bir sonraki
  *   istekte yeni rolle değerlendirilir.
@@ -112,13 +113,23 @@ await withClient(url, async (client) => {
       actorId = found.id;
     }
 
-    await client.query("UPDATE app_user SET role = $1 WHERE id = $2", [role, user.id]);
-    await client.query(
-      `INSERT INTO admin_audit_event
-         (actor_user_id, actor_role, action, target_type, target_id, before, after, reason)
-       VALUES ($1, 'cli', 'users.role_change', 'app_user', $2, $3, $4, $5)`,
-      [actorId, user.id, JSON.stringify({ role: user.role }), JSON.stringify({ role }), reason],
+    // Denetim satırını 0036 tetikleyicisi yazar; burada yalnızca aktör ve
+    // gerekçe bu işleme (set_config(..., true)) verilir. Tetikleyici yoksa
+    // (migration uygulanmamış) rol denetimsiz değişmesin diye durulur.
+    const trigger = await client.query(
+      "SELECT 1 FROM pg_trigger WHERE tgname = 'app_user_role_change_audit' AND NOT tgisinternal",
     );
+    if (trigger.rows.length !== 1) {
+      await client.query("ROLLBACK");
+      fail("Rol denetim tetikleyicisi yok (0036). Önce `pnpm db:migrate` çalıştır.");
+    }
+    await client.query(
+      `SELECT set_config('arilla.audit_actor_user_id', $1, true),
+              set_config('arilla.audit_actor_role', 'cli', true),
+              set_config('arilla.audit_reason', $2, true)`,
+      [String(actorId), reason],
+    );
+    await client.query("UPDATE app_user SET role = $1 WHERE id = $2", [role, user.id]);
     await client.query("COMMIT");
     console.log(
       `Rol değişti: hesap#${user.id} ${mask(user.email)} '${user.role}' → '${role}' (denetim kaydı yazıldı).`,

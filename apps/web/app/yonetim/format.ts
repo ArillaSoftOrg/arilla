@@ -71,6 +71,9 @@ const ACTION_LABELS: Record<string, string> = {
   "marketing.test_send": "Test e-postası gönderildi",
   "marketing.send_start": "E-posta kampanyası gönderimi başlatıldı",
   "marketing.campaign_cancel": "E-posta kampanyası iptal edildi",
+  "security.access_denied": "Yetkisiz yönetim erişimi reddedildi",
+  "security.admin_session_ended": "Yönetim oturumu sonlandırıldı",
+  "sessions.revoke_all": "Tüm oturumlar kapatıldı",
 };
 
 export function actionLabel(action: string): string {

@@ -18,8 +18,10 @@
     "db:verify": "pnpm --filter @arilla/db db:verify",
     "db:orphans": "pnpm --filter @arilla/db db:orphans",
     "db:set-role": "pnpm --filter @arilla/db db:set-role",
+    "db:revoke-sessions": "pnpm --filter @arilla/db db:revoke-sessions",
     "seed": "pnpm --filter @arilla/db seed",
     "lint": "biome check .",
+    "check:secrets": "node scripts/check-private-keys.mjs",
     "format": "biome format --write ."
   },
   "devDependencies": {

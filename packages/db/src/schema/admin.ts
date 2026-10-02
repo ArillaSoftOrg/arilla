@@ -7,7 +7,11 @@ import { bigint, jsonb, pgTable, text, timestamp } from "drizzle-orm/pg-core";
  */
 export const adminAuditEvent = pgTable("admin_audit_event", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
-  actorUserId: bigint("actor_user_id", { mode: "number" }).notNull(),
+  /**
+   * 0036: NULL olabilir - aktor hesabi silindiyse (SET NULL) ya da rol
+   * degisikligi aktorsuz bir veritabani oturumundan yapildiysa.
+   */
+  actorUserId: bigint("actor_user_id", { mode: "number" }),
   /** Islem anindaki rol; sonradan rol degisse de kayit dogru kalir. */
   actorRole: text("actor_role").notNull(),
   /** 'matching.approve', 'lexicon.update', ... */

@@ -24,6 +24,17 @@
  * - `auth_token`: `app_user`'a FK ile bağlı değil (yalnızca e-posta), ama
  *   aynı e-postaya ait tüketilmemiş bir token'ın silme sonrası hesabı
  *   sessizce yeniden açmasını önlemek için hijyen amacıyla temizlenir.
+ *   Hesabın e-postası VE bağlı giriş kimliklerinin (Google/Apple)
+ *   e-postaları, harf duyarsız.
+ *
+ * Yetkili hesap (karar 0050): moderatör/yönetici kendi hesabını SİLEMEZ
+ * (`StaffAccountDeletionError`). Önce rolü düşürülür (veritabanı
+ * tetikleyicisiyle denetlenir, docs/ops.md). Böylece çalınmış bir yönetici
+ * oturumu hesabı silip izini kaybettiremez. Rolü düşürülmüş eski personel
+ * silinebilir: denetim satırları kalır, yalnızca aktör bağlantısı NULL olur
+ * (`admin_audit_event`/`match_candidate.reviewed_by` ON DELETE SET NULL, 0036).
+ * Oturumlar (`session`) ve giriş kimlikleri (`user_identity`) CASCADE ile
+ * aynı işlemde gider; silinen hesabın çerezi bir sonraki istekte geçersizdir.
  */
 
 import {
@@ -43,17 +54,26 @@ import {
   savedItem,
   userIdentity,
 } from "@arilla/db";
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, isNotNull, sql } from "drizzle-orm";
+import { hasCapability } from "../admin/capabilities.ts";
+
+export class StaffAccountDeletionError extends Error {
+  constructor() {
+    super("yetkili hesap silinemez; once rol dusurulmeli");
+    this.name = "StaffAccountDeletionError";
+  }
+}
 
 export async function deleteAccount(db: Database, userId: number): Promise<void> {
   await db.transaction(async (tx) => {
     const userRows = await tx
-      .select({ email: appUser.email })
+      .select({ email: appUser.email, role: appUser.role })
       .from(appUser)
       .where(eq(appUser.id, userId))
       .limit(1);
     const user = userRows[0];
     if (!user) return;
+    if (hasCapability(user.role, "admin.access")) throw new StaffAccountDeletionError();
 
     const creatorRows = await tx
       .select({ id: creator.id })
@@ -82,8 +102,19 @@ export async function deleteAccount(db: Database, userId: number): Promise<void>
       .set({ userId: null })
       .where(eq(linkResolutionRequest.userId, userId));
 
-    if (user.email) {
-      await tx.delete(authToken).where(eq(authToken.email, user.email));
+    const identityEmails = await tx
+      .select({ email: userIdentity.email })
+      .from(userIdentity)
+      .where(and(eq(userIdentity.userId, userId), isNotNull(userIdentity.email)));
+    const loginEmails = [
+      ...new Set(
+        [user.email, ...identityEmails.map((row) => row.email)]
+          .filter((email): email is string => Boolean(email))
+          .map((email) => email.toLowerCase()),
+      ),
+    ];
+    if (loginEmails.length > 0) {
+      await tx.delete(authToken).where(inArray(sql`lower(${authToken.email})`, loginEmails));
     }
     // 0025: telefon kodlari numarayi tasir; kullanicinin telefon kimlikleriyle
     // birlikte silinir (user_identity app_user ile CASCADE gider).

@@ -7,6 +7,7 @@ import { logoutAction } from "../cikis-actions.ts";
 import { requireUser } from "../lib/dal.ts";
 import { readThemeCookie } from "../lib/theme.ts";
 import { ThemeToggleClient } from "../theme-toggle-client.tsx";
+import { logoutAllDevicesAction } from "./actions.ts";
 import { ClearHistoryButtonClient } from "./clear-history-button-client.tsx";
 import { ConsentTogglesClient } from "./consent-toggles-client.tsx";
 import { DeleteAccountButtonClient } from "./delete-account-button-client.tsx";
@@ -102,6 +103,12 @@ export default async function HesapPage() {
               <form action={logoutAction}>
                 <Button type="submit" variant="secondary" shape="pill">
                   Çıkış yap
+                </Button>
+              </form>
+              {/* Karar 0050: şüpheli girişte bütün cihazlardaki oturumları kapatır. */}
+              <form action={logoutAllDevicesAction}>
+                <Button type="submit" variant="secondary" shape="pill">
+                  Tüm cihazlardan çıkış yap
                 </Button>
               </form>
             </div>

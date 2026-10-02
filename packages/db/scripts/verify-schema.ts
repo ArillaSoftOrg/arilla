@@ -10,6 +10,7 @@
  * 3. Polimorfik `target_id` butunlugu ayakta (migration 0014): trigger'lar
  *    yerinde ve ETKIN, DELETE ve TRUNCATE yollari gercekten temizliyor,
  *    su anda yetim satir yok.
+ * 4. Rol degisikligi denetim tetikleyicisi (0036) yerinde ve etkin.
  *
  * Ortak gerekce: bu kurallarin hicbiri kod incelemesine birakilmadi, motora
  * verildi — o yuzden motorun gercekten uyguladigi her kosuda dogrulanir.
@@ -284,6 +285,26 @@ await withClient(ownerUrl(), async (client) => {
     );
   } else {
     console.log("  Yetim satir yok.");
+  }
+});
+
+// --- 4. Rol degisikligi denetimi (migration 0036, karar 0050) ----------------
+// Tetikleyici silinir ya da devre disi birakilirsa rol yukseltmesi iz
+// birakmadan yapilabilir. Yalnizca katalog okunur; veri degismez.
+console.log("Rol denetimi (0036):");
+await withClient(ownerUrl(), async (client) => {
+  const { rows } = await client.query<{ tgenabled: string }>(
+    `SELECT tgenabled FROM pg_trigger
+     WHERE tgrelid = 'app_user'::regclass AND tgname = 'app_user_role_change_audit'
+       AND NOT tgisinternal`,
+  );
+  const trigger = rows[0];
+  if (!trigger) {
+    fail("app_user_role_change_audit tetikleyicisi yok.");
+  } else if (trigger.tgenabled !== "O") {
+    fail(`app_user_role_change_audit devre disi (tgenabled=${trigger.tgenabled}).`);
+  } else {
+    console.log("  app_user_role_change_audit yerinde ve etkin.");
   }
 });
 

@@ -37,7 +37,12 @@ export type Capability =
    * gerçek gönderim (taze giriş ile, karar 0044) ve iptal. Yalnızca yönetici
    * (karar 0048).
    */
-  | "marketing.manage";
+  | "marketing.manage"
+  /**
+   * Bir hesabın bütün oturumlarını kapatma (ele geçirilmiş hesap şüphesi).
+   * Yalnızca yönetici, taze giriş ile (karar 0050).
+   */
+  | "users.sessions.revoke";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -66,6 +71,8 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "product.preview",
   // Karar 0048: kullanıcılara toplu e-posta yalnızca yöneticiden.
   "marketing.manage",
+  // Karar 0050: oturum kapatma yalnızca yöneticiden.
+  "users.sessions.revoke",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

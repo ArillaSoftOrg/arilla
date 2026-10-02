@@ -37,6 +37,8 @@ normal kullanıcı oturumundan daha sıkı bir oturum politikası ekler.
    - e-posta kampanyasının gerçek gönderimini başlatmak
      (`marketing.manage`, karar 0048): gerçek kullanıcılara geri alınamaz
      ileti, yalnızca yönetici.
+   - bir hesabın bütün oturumlarını kapatmak (`users.sessions.revoke`,
+     karar 0050): hesabı her cihazda çıkışa zorlar, yalnızca yönetici.
 
    Kapsam dışı (bilinçli): eşleştirme onay/red ve sözlük yazma — moderatörün
    rutin, denetime yazılan ve geri alınabilen işleri; kullanıcı arama salt

@@ -38,14 +38,28 @@ export type AdminAction =
   | "marketing.campaign_update"
   | "marketing.test_send"
   | "marketing.send_start"
-  | "marketing.campaign_cancel";
+  | "marketing.campaign_cancel"
+  /**
+   * Güvenlik olayları (karar 0050). Kişisel veri, yol, IP, token YAZILMAZ.
+   * - `security.access_denied`: girişli ama yetkisiz hesabın yönetim isteği;
+   *   hedef istenen yetenek. Hesap + yetenek başına 10 dakikada bir satır.
+   * - `security.admin_session_ended`: yönetim oturumu 12 saat / 30 dk
+   *   kuralıyla sunucuda sonlandırıldı (`after.reason`).
+   * - `sessions.revoke_all`: hesabın tüm oturumları kapatıldı (kendisi,
+   *   bir yönetici ya da acil durum betiği); `after.count`.
+   */
+  | "security.access_denied"
+  | "security.admin_session_ended"
+  | "sessions.revoke_all";
 
 export type AdminTargetType =
   | "match_candidate"
   | "lexicon"
   | "merchant"
   | "app_user"
-  | "marketing_campaign";
+  | "marketing_campaign"
+  /** `security.access_denied` hedefi: istenen yetenek adı. */
+  | "capability";
 
 export type AuditValue = string | number | boolean | null | AuditValue[];
 
@@ -95,9 +109,13 @@ export interface AdminEventFilter {
 export interface AdminEventRow {
   id: number;
   createdAt: Date;
-  actorUserId: number;
+  /** NULL: aktör hesabı silinmiş ya da aktörsüz veritabanı oturumu (0036). */
+  actorUserId: number | null;
   actorRole: string;
-  /** Maskeli: `a***@gmail.com`. E-postasız hesapta `#<id>`. */
+  /**
+   * Maskeli: `a***@gmail.com`. E-postasız hesapta `#<id>`, aktörsüz satırda
+   * `ACTOR_LABEL_NONE`.
+   */
   actorLabel: string;
   action: string;
   targetType: string;
@@ -112,6 +130,9 @@ export interface AdminEventPage {
   /** Sonraki sayfanın `beforeId`'si; yoksa son sayfa. COUNT çalıştırılmaz. */
   nextBeforeId: number | null;
 }
+
+/** Aktörü olmayan satırın etiketi (silinmiş hesap ya da veritabanı/betik). */
+export const ACTOR_LABEL_NONE = "kayıtlı hesap yok";
 
 export function maskEmail(email: string | null): string | null {
   if (!email) return null;
@@ -157,7 +178,8 @@ export async function listAdminEvents(
       reason: adminAuditEvent.reason,
     })
     .from(adminAuditEvent)
-    .innerJoin(appUser, eq(appUser.id, adminAuditEvent.actorUserId))
+    // LEFT: aktörü silinmiş (0036 SET NULL) ya da aktörsüz satır da görünür.
+    .leftJoin(appUser, eq(appUser.id, adminAuditEvent.actorUserId))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(adminAuditEvent.id))
     .limit(pageSize + 1);
@@ -167,7 +189,9 @@ export async function listAdminEvents(
   return {
     rows: page.map(({ actorEmail, ...row }) => ({
       ...row,
-      actorLabel: maskEmail(actorEmail) ?? `#${row.actorUserId}`,
+      actorLabel:
+        maskEmail(actorEmail) ??
+        (row.actorUserId === null ? ACTOR_LABEL_NONE : `#${row.actorUserId}`),
     })),
     nextBeforeId: rows.length > pageSize && last ? last.id : null,
   };

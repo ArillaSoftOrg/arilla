@@ -1,4 +1,4 @@
-import { getUserDetail } from "@arilla/core";
+import { getUserDetail, hasCapability } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -20,6 +20,7 @@ import {
   roleLabel,
   searchOperationLabel,
 } from "../../format.ts";
+import { RevokeSessionsClient } from "./revoke-sessions-client.tsx";
 
 const PROVIDER_LABELS: Record<string, string> = {
   google: "Google",
@@ -34,14 +35,15 @@ const PROVIDER_LABELS: Record<string, string> = {
  * (`getEntitlementStatus`); bu sayfa yeniden hesaplamaz. Değeri olmayan
  * satır (telefon, creator) gösterilmez.
  *
- * Bu ekranda değişiklik YOK: rol, hak, davet ve rıza düzenlenmez.
+ * Tek değişiklik: "Tüm oturumları kapat" (karar 0050, taze giriş, denetimli).
+ * Rol, hak, davet ve rıza burada düzenlenmez.
  */
 export default async function UserDetailPage({
   params,
 }: {
   params: Promise<{ publicId: string }>;
 }) {
-  const { actor } = await requireCapability("users.read");
+  const { user: viewer, actor } = await requireCapability("users.read");
   const { publicId } = await params;
   const user = await getUserDetail(getDatabase(), actor, publicId);
   if (!user) notFound();
@@ -83,6 +85,9 @@ export default async function UserDetailPage({
       <div className={styles.twoColumns}>
         <Section id="hesap" title="Hesap">
           <KeyValues items={account} />
+          {hasCapability(viewer.role, "users.sessions.revoke") ? (
+            <RevokeSessionsClient publicId={user.publicId} activeSessions={user.activeSessions} />
+          ) : null}
         </Section>
         <div className={styles.page}>
           <Section id="kullanim" title="Kullanım">
@@ -304,9 +309,9 @@ export default async function UserDetailPage({
       </Section>
 
       <p className={styles.muted}>
-        Salt okunur ekran. Rol değişikliği yalnızca yerel betikle ya da onaylı SQL ile yapılır
-        (docs/ops.md); hak, davet ve rıza burada düzenlenmez. Hesap silme kullanıcının kendi
-        isteğiyle /hesap üzerinden yürür.
+        Oturum kapatma dışında salt okunur ekran. Rol değişikliği yalnızca yerel betikle ya da
+        onaylı SQL ile yapılır (docs/ops.md); hak, davet ve rıza burada düzenlenmez. Hesap silme
+        kullanıcının kendi isteğiyle /hesap üzerinden yürür.
       </p>
     </div>
   );

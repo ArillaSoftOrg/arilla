@@ -17,6 +17,8 @@ import {
   hasCapability,
   isFreshAuth,
   productAccessRedirect,
+  recordAccessDenied,
+  recordAdminSessionEnded,
   type SessionUser,
   safeAdminNext,
   verifySessionToken,
@@ -45,13 +47,26 @@ async function currentAdminPath(): Promise<string> {
 }
 
 /**
+ * Güvenlik olayı kaydı (karar 0050) yetki kararını DEĞİŞTİRMEZ: yazılamazsa
+ * istek yine reddedilir / oturum yine silinir. Log yalnızca olay adını taşır.
+ */
+async function recordSecurityEvent(name: string, write: () => Promise<void>): Promise<void> {
+  try {
+    await write();
+  } catch {
+    console.error(`[yonetim] guvenlik olayi yazilamadi: ${name}`);
+  }
+}
+
+/**
  * `/yonetim` yetki kapısı (docs/decisions/0039, 0044). Her yönetim sayfası
  * ve server action'ı kendi yeteneğiyle çağırır; layout'taki çağrı yalnızca
  * kolaylıktır, action'ları korumaz. Rol her istekte veritabanından okunur:
  * rolü düşürülen kişi bir sonraki istekte erişimi kaybeder.
  *
  * - Anonim → `/yonetim/giris` (dönüş yoluyla).
- * - Girişli ama yetkisiz → 404: yönetim alanının varlığı doğrulanmaz.
+ * - Girişli ama yetkisiz → 404: yönetim alanının varlığı doğrulanmaz;
+ *   deneme denetim kaydına `security.access_denied` olarak yazılır.
  * - Yetkili ama yönetim oturumu dolmuş (12 saat) ya da boşta kalmış
  *   (30 dk) → `/yonetim/giris?neden=...`. Normal site oturumu etkilenmez.
  *
@@ -66,6 +81,11 @@ export async function requireCapability(
     redirect(adminLoginPath(await currentAdminPath()));
   }
   if (!hasCapability(user.role, capability)) {
+    // Yetki yükseltme denemesi ve rolü düşürülmüş hesabın eski bağlantısı
+    // denetimde görünür (hesap + yetenek başına 10 dakikada bir).
+    await recordSecurityEvent("access_denied", () =>
+      recordAccessDenied(getDatabase(), user, capability),
+    );
     notFound();
   }
   const state = evaluateAdminSession({
@@ -76,6 +96,9 @@ export async function requireCapability(
     // Oturum sunucuda sonlandırılır: `last_used_at` bu istekte zaten
     // güncellendi; silinmezse sayfayı yenilemek boşta kalma kuralını
     // atlatırdı. Yalnızca yönetim yetkili hesaplar buraya gelir.
+    await recordSecurityEvent("admin_session_ended", () =>
+      recordAdminSessionEnded(getDatabase(), user, state),
+    );
     const rawToken = await readSessionCookie();
     if (rawToken) await deleteSession(getDatabase(), rawToken);
     redirect(adminLoginPath(await currentAdminPath(), state === "idle" ? "bosta" : "sure"));

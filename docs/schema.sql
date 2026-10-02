@@ -270,7 +270,7 @@ CREATE TABLE match_candidate (
                  CHECK (method IN ('gtin','mpn','text','image','hybrid')),
     status       TEXT        NOT NULL DEFAULT 'pending'
                  CHECK (status IN ('pending','auto_accepted','accepted','rejected')),
-    reviewed_by  BIGINT      REFERENCES app_user(id),      -- 0028: FK eklendi
+    reviewed_by  BIGINT      REFERENCES app_user(id) ON DELETE SET NULL, -- 0028 FK, 0036 SET NULL
     reviewed_at  TIMESTAMPTZ,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- 0028 (docs/decisions/0041): red nedeni; NULL = belirtilmedi.
@@ -897,7 +897,7 @@ CREATE INDEX ingest_run_merchant_idx ON ingest_run (merchant_id, started_at DESC
 
 CREATE TABLE admin_audit_event (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    actor_user_id BIGINT      NOT NULL REFERENCES app_user(id),   -- CASCADE yok, bilerek
+    actor_user_id BIGINT      REFERENCES app_user(id) ON DELETE SET NULL, -- 0036: silinen aktor NULL, satir kalir
     actor_role    TEXT        NOT NULL,          -- işlem anındaki rol
     action        TEXT        NOT NULL,          -- 'matching.approve', 'lexicon.update'
     target_type   TEXT        NOT NULL,          -- 'match_candidate', 'lexicon'
@@ -910,6 +910,14 @@ CREATE TABLE admin_audit_event (
 CREATE INDEX admin_audit_event_time_idx   ON admin_audit_event (created_at DESC);
 CREATE INDEX admin_audit_event_target_idx ON admin_audit_event (target_type, target_id, created_at DESC);
 CREATE INDEX admin_audit_event_actor_idx  ON admin_audit_event (actor_user_id, created_at DESC);
+
+-- 0036: rol degisikligi motorda denetlenir (docs/decisions/0050). Her
+-- `app_user.role` degisikligi (ve 'user' disi rolle acilan hesap) ayni
+-- islemde `users.role_change` satiri yazar; aktor istege bagli
+-- `arilla.audit_actor_*` oturum ayarlarindan, baglanan rol `after.dbRole`.
+CREATE TRIGGER app_user_role_change_audit
+    AFTER INSERT OR UPDATE OF role ON app_user
+    FOR EACH ROW EXECUTE FUNCTION audit_app_user_role_change();
 
 -- ---------------------------------------------------------------------------
 -- ARAMA — detaylar docs/search.md
