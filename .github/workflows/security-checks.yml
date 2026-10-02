@@ -1,0 +1,21 @@
+# Ozel anahtar korumasi (docs/decisions/0050). Bagimlilik kurmaz; yalnizca
+# git ve node. Cikti dosya YOLU tasir, icerik asla.
+name: security-checks
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  private-keys:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: node scripts/check-private-keys.mjs
