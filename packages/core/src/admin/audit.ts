@@ -29,9 +29,23 @@ export type AdminAction =
    * Rol değişikliği. Arayüzden yapılmaz (0039); yalnızca yerel `pnpm
    * db:set-role` betiği ya da üretimde elle SQL yazar (`actor_role = "cli"`).
    */
-  | "users.role_change";
+  | "users.role_change"
+  /**
+   * Pazarlama e-postası (karar 0048). Gövde, konu, test adresi ve alıcı
+   * listesi YAZILMAZ; yalnızca sürüm, uzunluk, sayı ve durum.
+   */
+  | "marketing.campaign_create"
+  | "marketing.campaign_update"
+  | "marketing.test_send"
+  | "marketing.send_start"
+  | "marketing.campaign_cancel";
 
-export type AdminTargetType = "match_candidate" | "lexicon" | "merchant" | "app_user";
+export type AdminTargetType =
+  | "match_candidate"
+  | "lexicon"
+  | "merchant"
+  | "app_user"
+  | "marketing_campaign";
 
 export type AuditValue = string | number | boolean | null | AuditValue[];
 

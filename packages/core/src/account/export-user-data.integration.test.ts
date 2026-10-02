@@ -65,6 +65,8 @@ describe("exportUserData() - entegrasyon (gerçek Postgres)", () => {
     expect(data.sizeProfile).toEqual([{ categoryPath: "ayakkabi", sizeNorm: "42" }]);
     expect(data.consents).toHaveLength(1);
     expect(data.consents[0]?.kind).toBe("marketing_email");
+    // Kampanya teslimi yok; alan yine de var (0035).
+    expect(data.marketingEmails).toEqual([]);
   });
 
   it("olmayan kullanıcı için UserNotFoundError fırlatır", async () => {

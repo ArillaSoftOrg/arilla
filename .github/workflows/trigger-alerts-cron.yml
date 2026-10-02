@@ -23,3 +23,24 @@ jobs:
             --retry-delay 5 \
             -H "Authorization: Bearer $CRON_SECRET" \
             "$ALERT_CRON_URL"
+
+      # Pazarlama kampanyasi teslim islemcisi (docs/decisions/0048). Ayni is
+      # akisinda: ayri bir 15 dakikalik is akisi Actions dakikasini ikiye
+      # katlardi. Gonderen kampanya yoksa uc hemen doner. Secret tanimli
+      # degilse adim atlanir. Yeniden deneme guvenli: teslimler veritabaninda
+      # kilitli alinir, ayni teslim iki kez gonderilmez.
+      - name: Process marketing campaigns
+        env:
+          MARKETING_CRON_URL: ${{ secrets.MARKETING_CRON_URL }}
+          CRON_SECRET: ${{ secrets.CRON_SECRET }}
+        run: |
+          if [ -z "$MARKETING_CRON_URL" ]; then
+            echo "MARKETING_CRON_URL tanimli degil; atlandi."
+            exit 0
+          fi
+          curl --fail-with-body \
+            --retry 2 \
+            --retry-delay 5 \
+            --max-time 90 \
+            -H "Authorization: Bearer $CRON_SECRET" \
+            "$MARKETING_CRON_URL"

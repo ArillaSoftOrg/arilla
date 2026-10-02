@@ -44,6 +44,16 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     ],
   },
   {
+    label: "İletişim",
+    items: [
+      {
+        href: "/yonetim/kampanyalar",
+        label: "E-posta kampanyaları",
+        capability: "marketing.manage",
+      },
+    ],
+  },
+  {
     label: "Yönetim",
     items: [
       { href: "/yonetim/islemler", label: "İşletim", capability: "operations.read" },

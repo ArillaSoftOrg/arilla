@@ -38,9 +38,9 @@ birindedir ve okuyan dosya yanında yazar:
 | Grup | Anlamı | Anahtarlar |
 | --- | --- | --- |
 | `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
-| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT` |
+| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048) |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
-| `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
+| `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `MARKETING_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
 \* `APP_URL` boşsa Vercel'in verdiği `VERCEL_PROJECT_PRODUCTION_URL`
 kullanılır (`https://` eklenir). `VERCEL_ENV=production` iken sonuç https ve
@@ -293,6 +293,32 @@ COMMIT;
 ```
 
 Geri almak için aynı işlem `role = 'user'` ile.
+
+## Pazarlama e-postası kampanyaları
+
+Karar 0048. Yönetim: `/yonetim/kampanyalar` (yalnızca yönetici).
+
+**Açma (üretim).** Gerçek gönderim varsayılan olarak kapalıdır. Açmadan önce:
+İYS kaydı ve rıza metninin hukuk onayı (`docs/kvkk.md`), sağlayıcıda gönderen
+alan adı doğrulaması (SPF/DKIM/DMARC). Sonra Vercel production'da
+`MARKETING_EMAIL_FROM` ve `MARKETING_EMAIL_ENABLED=true`, GitHub Actions'ta
+`MARKETING_CRON_URL` secret'ı. Kapatmak için `MARKETING_EMAIL_ENABLED`
+boşaltılır: sürmekte olan kampanya `sending`te bekler, ileti gitmez,
+yönetim ekranı "gerçek gönderim kapalı" der.
+
+**İlerleme.** Gönderim partiler hâlinde: başlatma anında bir parti, sonra
+`trigger-alerts-cron.yml` ile 15 dakikada bir parti (varsayılan 40 ileti).
+Büyük liste için `MARKETING_EMAIL_BATCH_SIZE` artırılır (süre bütçesine
+dikkat) ya da kampanya sayfasındaki "sonraki partiyi şimdi işle" kullanılır.
+Yerelde cron yok; düğme ya da `curl -H "Authorization: Bearer $CRON_SECRET"
+http://localhost:3000/api/cron/marketing-campaigns`.
+
+**Durumlar.** "Sağlayıcıya verildi" = SMTP kabul etti; teslim, bounce ve
+şikâyet henüz izlenmiyor. `unknown_outcome` = ileti verilirken süreç durdu ya
+da bağlantı veri aktarımında koptu; çift ileti riskine karşı yeniden
+denenmez. Kampanya `sending`te takılı kaldıysa önce ekrandaki son hata
+koduna bakılır (`configuration_error`: SMTP/gönderen; `bulk_send_disabled`:
+ortam kapısı).
 
 ## Dağıtım
 

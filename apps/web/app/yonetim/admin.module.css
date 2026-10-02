@@ -394,3 +394,31 @@
 .textInput {
   min-width: 240px;
 }
+
+/* E-posta kampanyası düzenleyicisi ve önizleme (karar 0048). */
+.formGrid {
+  display: grid;
+  gap: var(--space-3);
+  max-width: 720px;
+}
+
+.formGrid label {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.textArea {
+  width: 100%;
+  min-height: 240px;
+  font: inherit;
+  resize: vertical;
+}
+
+.previewFrame {
+  width: 100%;
+  max-width: 720px;
+  height: 640px;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}

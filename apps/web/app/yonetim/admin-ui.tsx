@@ -73,7 +73,15 @@ export function KeyValues({ items }: { items: [string, ReactNode][] }) {
 }
 
 const BAD = new Set(["failed", "rejected_moderation", "rejected"]);
-const WARN = new Set(["partial", "running", "queued", "processing", "pending"]);
+const WARN = new Set([
+  "partial",
+  "running",
+  "queued",
+  "processing",
+  "pending",
+  "sending",
+  "partially_failed",
+]);
 
 export function StatusText({ status }: { status: string }) {
   const className = BAD.has(status)

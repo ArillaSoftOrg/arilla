@@ -61,6 +61,7 @@ SEO değerini böler hem kullanıcıyı gereksiz bir tıklamaya zorlar.
 /gizlilik                  Veri kullanımı - taslak, hukukçu onayı bekliyor
 /kosullar                  Kullanım koşulları - taslak, hukukçu onayı bekliyor
 /cerez                     Çerez politikası, envanter ve tercih formu (#tercihler)
+/abonelik-iptali           Pazarlama e-postası iptali (token'lı, girişsiz, noindex). GET değiştirmez (0048)
 /iletisim                  Geçici public e-posta (Faz 8.1) - tek kaynak legal-identity.ts
 /kvkk-aydinlatma           KVKK aydınlatma metni (karar 0038)
 /affiliate-aciklamasi      Affiliate açıklaması (karar 0038)
@@ -182,6 +183,8 @@ platform sorununu hafifletir.
 /yonetim/islemler          Partition, iş kanıtı, KVKK temizlik, maliyet (yalnızca admin)
 /yonetim/kullanicilar      Tam eşleşmeyle hesap bulma, denetimli (yalnızca admin)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
+/yonetim/kampanyalar       Pazarlama e-postası kampanyaları: taslak, test, gönderim (yalnızca admin, 0048)
+/yonetim/kampanyalar/<id> Düzenleme, önizleme, uygun alıcı sayısı, test, onaylı gönderim, durum
 /yonetim/trend             (ertelendi) trend_snapshot yayınlama onayı
 ```
 
@@ -200,6 +203,8 @@ ekran olmadan katalog kalitesi yönetilemez.
 ```
 /api/cron/trigger-alerts            Vercel Cron. CRON_SECRET ile korunur.
 /api/cron/generate-discovery-slots  Vercel Cron, gece yarısı. CRON_SECRET.
+/api/cron/marketing-campaigns       GitHub Actions, 15 dk. Kampanya partisi. CRON_SECRET (0048).
+/api/email/unsubscribe             RFC 8058 tek tık iptal (POST, token). GET → /abonelik-iptali.
 ```
 
 `/yonetim/sozluk` ürünün en çok bakım gören ekranı olacak. Sözlük
