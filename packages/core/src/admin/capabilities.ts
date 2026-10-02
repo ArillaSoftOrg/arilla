@@ -31,7 +31,13 @@ export type Capability =
    * YALNIZCA yönetici (karar 0043): moderatör yönetim konsolunu kullanır
    * ama public ürün kilidini aşamaz.
    */
-  | "product.preview";
+  | "product.preview"
+  /**
+   * `/yonetim/kampanyalar`: pazarlama e-postası taslağı, test gönderimi,
+   * gerçek gönderim (taze giriş ile, karar 0044) ve iptal. Yalnızca yönetici
+   * (karar 0048).
+   */
+  | "marketing.manage";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -58,6 +64,8 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "operations.read",
   // Karar 0043: lansman öncesi önizleme yalnızca yöneticinin.
   "product.preview",
+  // Karar 0048: kullanıcılara toplu e-posta yalnızca yöneticiden.
+  "marketing.manage",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

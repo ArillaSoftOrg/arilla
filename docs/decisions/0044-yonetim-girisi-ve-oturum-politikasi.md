@@ -34,6 +34,9 @@ normal kullanıcı oturumundan daha sıkı bir oturum politikası ekler.
    Bugünkü liste:
    - mağaza aç/kapat (`merchant.manage`): canlı katalogdaki fiyat ve
      teklifleri etkiler, yalnızca yönetici.
+   - e-posta kampanyasının gerçek gönderimini başlatmak
+     (`marketing.manage`, karar 0048): gerçek kullanıcılara geri alınamaz
+     ileti, yalnızca yönetici.
 
    Kapsam dışı (bilinçli): eşleştirme onay/red ve sözlük yazma — moderatörün
    rutin, denetime yazılan ve geri alınabilen işleri; kullanıcı arama salt

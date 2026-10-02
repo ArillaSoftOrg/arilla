@@ -754,6 +754,120 @@ CREATE INDEX bonus_ledger_user_idx ON bonus_ledger (user_id, created_at DESC, id
 
 
 -- ---------------------------------------------------------------------------
+-- PAZARLAMA E-POSTASI KAMPANYALARI — 0035 (docs/decisions/0048)
+-- ---------------------------------------------------------------------------
+-- Rıza tek kaynaktır: `user_consent` (`marketing_email`, en son satır). Alıcı
+-- adresi saklanmaz; gönderim anında `app_user.email`'den okunur ve rıza
+-- yeniden denetlenir. UNIQUE (campaign_id, user_id) çift gönderimi motorda
+-- engeller.
+
+CREATE TABLE marketing_campaign (
+    id                    BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    public_id             UUID        NOT NULL DEFAULT uuid_generate_v4() UNIQUE,
+    -- Yalnizca yonetimde gorunen ic ad.
+    title                 TEXT        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 120),
+    subject               TEXT        NOT NULL CHECK (char_length(subject) BETWEEN 1 AND 150),
+    -- Duz metin: paragraflar bos satirla ayrilir, https baglantilari
+    -- otomatik baglanir. HTML DEGILDIR; render sirasinda kacirilir.
+    body                  TEXT        NOT NULL CHECK (char_length(body) BETWEEN 1 AND 10000),
+    status                TEXT        NOT NULL DEFAULT 'draft'
+                          CHECK (status IN ('draft','sending','completed','partially_failed',
+                                            'failed','cancelled')),
+    -- Her icerik degisikliginde artar. Gercek gonderim, yoneticinin onayladigi
+    -- surumle ve o surumun test gonderimiyle eslesmek zorundadir.
+    content_version       INTEGER     NOT NULL DEFAULT 1 CHECK (content_version >= 1),
+    tested_version        INTEGER     CHECK (tested_version IS NULL OR tested_version >= 1),
+    created_by            BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    updated_by            BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    send_requested_by     BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    send_started_at       TIMESTAMPTZ,
+    completed_at          TIMESTAMPTZ,
+    cancelled_at          TIMESTAMPTZ,
+    -- Gonderim baslarken olusturulan teslim satiri sayisi (o anki uygun alici).
+    recipient_count       INTEGER     CHECK (recipient_count IS NULL OR recipient_count >= 0),
+    -- Son toplu islemin yapilandirma/islem hatasi (kod; deger ya da adres degil).
+    last_error_code       TEXT        CHECK (last_error_code IS NULL OR last_error_code ~ '^[a-z_]{1,40}$'),
+    last_error_at         TIMESTAMPTZ,
+    CONSTRAINT marketing_campaign_send_started CHECK (
+        (status IN ('draft') AND send_started_at IS NULL) OR
+        (status IN ('sending','completed','partially_failed','failed') AND send_started_at IS NOT NULL) OR
+        status = 'cancelled'
+    ),
+    CONSTRAINT marketing_campaign_completed CHECK (
+        (status IN ('completed','partially_failed','failed')) = (completed_at IS NOT NULL)
+    ),
+    CONSTRAINT marketing_campaign_cancelled CHECK ((status = 'cancelled') = (cancelled_at IS NOT NULL))
+);
+CREATE INDEX marketing_campaign_created_idx
+    ON marketing_campaign (created_at DESC, id DESC);
+-- Toplu islemcinin taradigi tek kume.
+CREATE INDEX marketing_campaign_sending_idx
+    ON marketing_campaign (id) WHERE status = 'sending';
+
+-- Alici basina teslim. Durum makinesi:
+--   pending -> sending -> sent
+--                      -> pending (gecici hata, attempt_count < sinir)
+--                      -> failed  (kalici hata, deneme siniri, belirsiz sonuc)
+--   pending -> skipped (gonderim aninda artik uygun degil, iptal)
+-- `sending` satiri yalnizca bir islemcide; askida kalan `sending` YENIDEN
+-- DENENMEZ (saglayici almis olabilir) ve `unknown_outcome` ile kapanir.
+CREATE TABLE marketing_campaign_delivery (
+    id                      BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    campaign_id             BIGINT      NOT NULL REFERENCES marketing_campaign(id) ON DELETE CASCADE,
+    user_id                 BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    state                   TEXT        NOT NULL DEFAULT 'pending'
+                            CHECK (state IN ('pending','sending','sent','failed','skipped')),
+    attempt_count           SMALLINT    NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    next_attempt_at         TIMESTAMPTZ,
+    claimed_at              TIMESTAMPTZ,
+    sent_at                 TIMESTAMPTZ,
+    -- Bizim urettigimiz Message-ID basligi: ileride saglayici olaylariyla
+    -- (bounce/complaint) eslestirmek icin. Adres icermez.
+    provider_message_id     TEXT        CHECK (provider_message_id IS NULL OR char_length(provider_message_id) <= 255),
+    failure_code            TEXT        CHECK (failure_code IS NULL OR failure_code IN (
+                                'invalid_recipient','provider_rejected','temporary_error',
+                                'configuration_error','unknown_outcome')),
+    skip_reason             TEXT        CHECK (skip_reason IS NULL OR skip_reason IN (
+                                'not_eligible','account_deleted','cancelled')),
+    -- Saglayicinin dondurdugu kisa kod (EENVELOPE, 550 ...); ham mesaj DEGIL.
+    provider_error_code     TEXT        CHECK (provider_error_code IS NULL OR provider_error_code ~ '^[A-Z0-9_]{1,32}$'),
+    unsubscribe_token_hash  TEXT        UNIQUE CHECK (unsubscribe_token_hash IS NULL OR unsubscribe_token_hash ~ '^[0-9a-f]{64}$'),
+    created_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at              TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT marketing_campaign_delivery_once UNIQUE (campaign_id, user_id),
+    CONSTRAINT marketing_campaign_delivery_sent CHECK ((state = 'sent') = (sent_at IS NOT NULL)),
+    CONSTRAINT marketing_campaign_delivery_failed CHECK ((state = 'failed') = (failure_code IS NOT NULL)),
+    CONSTRAINT marketing_campaign_delivery_skipped CHECK ((state = 'skipped') = (skip_reason IS NOT NULL)),
+    CONSTRAINT marketing_campaign_delivery_claimed CHECK (state <> 'sending' OR claimed_at IS NOT NULL)
+);
+-- Islemcinin siradaki isi: kampanya icinde bekleyen satirlar.
+CREATE INDEX marketing_campaign_delivery_pending_idx
+    ON marketing_campaign_delivery (campaign_id, id) WHERE state = 'pending';
+-- Askida kalan gonderim taramasi.
+CREATE INDEX marketing_campaign_delivery_sending_idx
+    ON marketing_campaign_delivery (claimed_at) WHERE state = 'sending';
+-- Durum sayimlari (yonetim ekrani).
+CREATE INDEX marketing_campaign_delivery_state_idx
+    ON marketing_campaign_delivery (campaign_id, state);
+-- Hesap disa aktarimi ve kullanici bazli sorgu.
+CREATE INDEX marketing_campaign_delivery_user_idx
+    ON marketing_campaign_delivery (user_id) WHERE user_id IS NOT NULL;
+
+-- Uygunluk sorgusu `marketing_email` rizasinin en son satirini kullanici
+-- basina okur; esit `granted_at`'te `id` karar verir.
+CREATE INDEX user_consent_marketing_latest_idx
+    ON user_consent (user_id, granted_at DESC, id DESC) WHERE kind = 'marketing_email';
+
+-- Ayni adresi (buyuk/kucuk harf farkiyla) tasiyan iki hesap ayni kampanyayi
+-- iki kez almaz: uygunluk sorgusu en kucuk `id`'yi secer ve bunu bu
+-- indeksle arar. `app_user.email` UNIQUE kisiti harfe duyarlidir.
+CREATE INDEX app_user_email_lower_idx
+    ON app_user (lower(email)) WHERE email IS NOT NULL;
+
+
+-- ---------------------------------------------------------------------------
 -- İŞ KUYRUĞU KAYDI (Redis kuyruğunun kalıcı izi)
 -- ---------------------------------------------------------------------------
 
@@ -960,6 +1074,9 @@ REVOKE UPDATE, DELETE, TRUNCATE ON variant_stock_event FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_price_event FROM arilla_app;   -- 0026
 REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit_event   FROM arilla_app;   -- 0027
 REVOKE UPDATE, DELETE, TRUNCATE ON bonus_ledger        FROM arilla_app;   -- 0034
+-- 0035: kampanya geçmişi silinmez (güncellenebilir, silinemez).
+REVOKE DELETE, TRUNCATE ON marketing_campaign          FROM arilla_app;   -- 0035
+REVOKE DELETE, TRUNCATE ON marketing_campaign_delivery FROM arilla_app;   -- 0035
 
 -- price_point partition'larına doğrudan erişim yoktur. Partitioned tabloya
 -- INSERT'te yetki ebeveyn üzerinde denetlenir; yönlendirme etkilenmez.

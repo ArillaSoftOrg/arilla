@@ -13,6 +13,8 @@ import {
   click,
   type Database,
   earlyAccess,
+  marketingCampaign,
+  marketingCampaignDelivery,
   product,
   productView,
   referral,
@@ -77,6 +79,11 @@ export interface UserDataExport {
     invitedBy: { status: string; createdAt: Date } | null;
     invitesSent: Array<{ status: string; createdAt: Date; qualifiedAt: Date | null }>;
   };
+  /**
+   * Bu hesaba yönelik pazarlama e-postası teslimleri (0035). `state = sent`
+   * sağlayıcının kabul ettiği anlamına gelir. İptal token özeti verilmez.
+   */
+  marketingEmails: Array<{ subject: string; state: string; sentAt: Date | null; createdAt: Date }>;
 }
 
 export async function exportUserData(db: Database, userId: number): Promise<UserDataExport> {
@@ -151,6 +158,18 @@ export async function exportUserData(db: Database, userId: number): Promise<User
         .limit(1),
     ]);
 
+  const marketingRows = await db
+    .select({
+      subject: marketingCampaign.subject,
+      state: marketingCampaignDelivery.state,
+      sentAt: marketingCampaignDelivery.sentAt,
+      createdAt: marketingCampaignDelivery.createdAt,
+    })
+    .from(marketingCampaignDelivery)
+    .innerJoin(marketingCampaign, eq(marketingCampaign.id, marketingCampaignDelivery.campaignId))
+    .where(eq(marketingCampaignDelivery.userId, userId))
+    .orderBy(desc(marketingCampaignDelivery.createdAt));
+
   const [bonusRows, chargeRows, ledgerRows, invitedByRows, invitesSentRows] = await Promise.all([
     db
       .select({ balance: bonusAccount.balance })
@@ -219,5 +238,6 @@ export async function exportUserData(db: Database, userId: number): Promise<User
       invitedBy: invitedByRows[0] ?? null,
       invitesSent: invitesSentRows,
     },
+    marketingEmails: marketingRows,
   };
 }

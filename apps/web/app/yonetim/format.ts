@@ -39,6 +39,15 @@ const STATUS_LABELS: Record<string, string> = {
   auto_accepted: "otomatik kabul",
   accepted: "onaylandı",
   rejected: "reddedildi",
+  // marketing_campaign (karar 0048)
+  draft: "taslak",
+  sending: "gönderiliyor",
+  completed: "tamamlandı",
+  partially_failed: "kısmen başarısız",
+  cancelled: "iptal edildi",
+  // marketing_campaign_delivery: "sent" = sağlayıcı kabul etti, teslim değil
+  sent: "sağlayıcıya verildi",
+  skipped: "atlandı",
 };
 
 export function statusLabel(status: string): string {
@@ -57,6 +66,11 @@ const ACTION_LABELS: Record<string, string> = {
   "users.search": "Kullanıcı arandı (kısmi)",
   "users.view": "Kullanıcı ayrıntısı görüntülendi",
   "users.role_change": "Rol değiştirildi",
+  "marketing.campaign_create": "E-posta kampanyası oluşturuldu",
+  "marketing.campaign_update": "E-posta kampanyası düzenlendi",
+  "marketing.test_send": "Test e-postası gönderildi",
+  "marketing.send_start": "E-posta kampanyası gönderimi başlatıldı",
+  "marketing.campaign_cancel": "E-posta kampanyası iptal edildi",
 };
 
 export function actionLabel(action: string): string {
@@ -225,4 +239,28 @@ export function referralStatusLabel(value: string): string {
 /** İşaretli tam sayı: `+5`, `-1`. */
 export function formatDelta(n: number): string {
   return n > 0 ? `+${formatCount(n)}` : `-${formatCount(Math.abs(n))}`;
+}
+
+/** Kampanya alıcı önizlemesi ve teslim sorunları (karar 0048). */
+const MARKETING_REASON_LABELS: Record<string, string> = {
+  no_email: "E-posta adresi yok",
+  invalid_email: "Geçersiz e-posta adresi",
+  unverified_email: "E-posta doğrulanmamış",
+  no_consent: "Pazarlama izni hiç verilmemiş",
+  consent_revoked: "Pazarlama izni geri alınmış",
+  duplicate_email: "Aynı adres başka hesapta",
+  // teslim
+  not_eligible: "Gönderim anında uygun değildi",
+  account_deleted: "Hesap silinmiş",
+  cancelled: "Kampanya iptal edildi",
+  invalid_recipient: "Alıcı adresi reddedildi",
+  provider_rejected: "Sağlayıcı reddetti",
+  temporary_error: "Geçici hata (denemeler tükendi)",
+  configuration_error: "Yapılandırma hatası",
+  unknown_outcome: "Sonuç belirsiz (yeniden denenmedi)",
+  bulk_send_disabled: "Gerçek gönderim bu ortamda kapalı",
+};
+
+export function marketingReasonLabel(code: string): string {
+  return MARKETING_REASON_LABELS[code] ?? code;
 }

@@ -103,6 +103,16 @@ Kritik ayrım:
 Haftalık özet e-postası ticari iletidir. Kayıt formundaki onay kutusu
 **işaretsiz** gelir ve girişin ön koşulu yapılamaz.
 
+Yönetimden gönderilen e-posta kampanyaları (karar 0048) ticari iletidir:
+yalnızca `user_consent`'te `marketing_email` izni güncel olarak açık ve adresi
+doğrulanmış hesaplara gider; izin her ileti gönderilmeden hemen önce yeniden
+denetlenir. Her iletide girişsiz abonelik iptali (bağlantı + RFC 8058 tek
+tık) ve gönderen kimliği bulunur. İptal aynı rıza kaydına ret satırı yazar;
+ayrı bir abonelik bayrağı yoktur. Alıcı adresi kampanya kaydında saklanmaz.
+**İYS entegrasyonu henüz yok**: üretimde gerçek gönderim
+(`MARKETING_EMAIL_ENABLED`) İYS kaydı ve rıza metninin hukuk onayından önce
+açılmaz.
+
 ## Affiliate bildirimi
 
 Affiliate ilişkisi kullanıcıya açıkça bildirilir. Bildirim çıkış öncesinde ve

@@ -390,9 +390,22 @@ tarih yok. Metinler `apps/web/app/coming-soon-copy.ts`'te; marka adı
 | `email.restock_subject` | {ürün} yeniden stokta |
 | `email.weekly_subject` | Kaydettiklerinden {n} tanesi ucuzladı |
 | `email.unsubscribe` | Bu bildirimleri almak istemiyorsan buradan kapatabilirsin. |
+| `email.marketing_reason` | Bu e-postayı, {marka} hesabında kampanya ve fırsat e-postalarına izin verdiğin için aldın. |
+| `email.marketing_manage` | İzinlerini hesabından da yönetebilirsin. |
+| `email.marketing_test_notice` | Bu bir test iletisidir. Gerçek alıcılara gönderilmedi; abonelikten çıkma bağlantısı test iletisinde çalışmaz. |
+| `unsubscribe.title` | E-posta aboneliği |
+| `unsubscribe.body` | Kampanya ve fırsat e-postalarını artık almak istemiyorsan aşağıdaki düğmeye bas. |
+| `unsubscribe.submit` | Abonelikten çık |
+| `unsubscribe.done_title` | Abonelikten çıktın |
+| `unsubscribe.done_body` | Artık kampanya ve fırsat e-postası almayacaksın. Giriş bağlantısı ve kurduğun fiyat alarmları gibi hesap iletileri gelmeye devam eder. |
+| `unsubscribe.invalid_title` | Bağlantı geçersiz |
+| `unsubscribe.invalid_body` | Bu bağlantı geçersiz ya da artık kullanılamıyor. Test iletilerindeki bağlantı da çalışmaz. |
 
-Giriş, fiyat alarmı ve stok bildirimi **işlemsel iletidir.** Haftalık özet
-**ticari iletidir** ve ayrı izin gerektirir (`kvkk.md`).
+Giriş, fiyat alarmı ve stok bildirimi **işlemsel iletidir.** Haftalık özet ve
+yönetimden gönderilen e-posta kampanyaları **ticari iletidir** ve ayrı izin
+gerektirir (`kvkk.md`, karar 0048). Ticari iletinin altbilgisi
+(`email.marketing_reason`, `email.unsubscribe`, `email.marketing_manage`)
+yönetici tarafından değiştirilemez.
 
 ## Yönetim
 
