@@ -333,19 +333,21 @@ describe("server action'lar - arayüz atlanarak doğrudan çağrı", () => {
   });
 
   it("kullanıcı arama: yalnızca yönetici", async () => {
-    const { lookupUserAction } = await import("./kullanicilar/actions.ts");
+    const { searchUsersAction } = await import("./kullanicilar/actions.ts");
     const form = new FormData();
-    form.set("kimlik", `authz-user-${suffix}@test.local`);
+    form.set("q", `authz-user-${suffix}`);
     for (const role of ["user", "creator", "moderator"] as const) {
       state.token = tokens[role];
-      expect(await outcome(() => lookupUserAction({ message: null }, form))).toBe("404");
+      expect(await outcome(() => searchUsersAction({ status: "idle" }, form))).toBe("404");
     }
     state.token = undefined;
-    expect(await outcome(() => lookupUserAction({ message: null }, form))).toBe("login");
+    expect(await outcome(() => searchUsersAction({ status: "idle" }, form))).toBe("login");
     state.token = tokens.admin;
-    await expect(lookupUserAction({ message: null }, form)).rejects.toMatchObject({
-      to: `/yonetim/kullanicilar/${subjectPublicId}`,
-    });
+    const result = await searchUsersAction({ status: "idle" }, form);
+    expect(result.status).toBe("ok");
+    expect(result.status === "ok" && result.rows.map((row) => row.publicId)).toContain(
+      subjectPublicId,
+    );
   });
 
   it("sözlük ve eşleştirme: user/creator reddedilir, moderator geçer", async () => {

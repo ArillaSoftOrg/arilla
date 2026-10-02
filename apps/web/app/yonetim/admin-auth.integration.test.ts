@@ -274,6 +274,27 @@ describe("yönetim girişi ve next güvenliği", () => {
     expect(await render("/yonetim/giris")).toBe("/yonetim");
   });
 
+  it("yetkili oturumla gelen gerekçesiz istek formu atlar; gerekçe varsa form kalır", async () => {
+    const { default: Page } = await import("../giris/yonetim/page.tsx");
+    const open = (searchParams: { next?: string; neden?: string }) =>
+      outcome(() => Page({ searchParams: Promise.resolve(searchParams) }));
+
+    state.token = await sessionFor("admin");
+    expect(await open({ next: "/yonetim/sozluk" })).toBe("/yonetim/sozluk");
+    expect(await open({ next: "//evil.example" })).toBe("/yonetim");
+    // Taze giriş isteyen işlem: yetkili oturum olsa da form gösterilir.
+    expect(await open({ next: "/yonetim/magazalar", neden: "yeniden" })).toBe("ok");
+
+    state.token = await sessionFor("moderator");
+    expect(await open({ next: "/yonetim/eslestirme" })).toBe("/yonetim/eslestirme");
+
+    // Yetkisiz ve anonim: form (yönetim alanına yönlendirilmez).
+    state.token = await sessionFor("user");
+    expect(await open({ next: "/yonetim" })).toBe("ok");
+    state.token = undefined;
+    expect(await open({ next: "/yonetim" })).toBe("ok");
+  });
+
   async function loginWithEmail(email: string, next: string): Promise<string> {
     const raw = generateRawToken();
     await owner((client) =>
@@ -326,5 +347,48 @@ describe("proxy", () => {
     });
     const response = proxy(request);
     expect(response.headers.get("x-middleware-request-x-arilla-path")).toBe("/yonetim/sozluk");
+  });
+});
+
+describe("hata sınırı", () => {
+  it("yönetim kabuğu içinde, ayrıntı sızdırmadan; yeniden deneme var", async () => {
+    const { renderToStaticMarkup } = await import("react-dom/server");
+    const { default: YonetimError } = await import("./error.tsx");
+    const error = Object.assign(new Error("SELECT gizli_tablo ... parola=xyz"), {
+      digest: "abc123",
+    });
+    const { createElement } = await import("react");
+    const html = renderToStaticMarkup(createElement(YonetimError, { error, retry: () => {} }));
+    expect(html).toContain("Bu sayfa açılamadı");
+    expect(html).toContain("Tekrar dene");
+    expect(html).toContain("abc123");
+    expect(html).not.toContain("gizli_tablo");
+    expect(html).not.toContain("parola");
+  });
+});
+
+describe("denetim etiketleri", () => {
+  it("betikle yapılan rol değişikliğinin Türkçe etiketi var", async () => {
+    const { actionLabel, ADMIN_ACTIONS } = await import("./format.ts");
+    expect(actionLabel("users.role_change")).toBe("Rol değiştirildi");
+    expect(ADMIN_ACTIONS).toContain("users.role_change");
+    expect(actionLabel("users.search")).toBe("Kullanıcı arandı (kısmi)");
+  });
+});
+
+describe("yan menü etkin bağlantı", () => {
+  it("alt sayfada üst bağlantı etkin; genel bakış yalnızca tam eşleşmede", async () => {
+    const { ADMIN_NAV, isNavItemActive } = await import("./admin-nav.ts");
+    const active = (pathname: string) =>
+      ADMIN_NAV.flatMap((group) => group.items)
+        .filter((item) => isNavItemActive(item.href, pathname))
+        .map((item) => item.label);
+    expect(active("/yonetim")).toEqual(["Genel bakış"]);
+    expect(active("/yonetim/kullanicilar/0b6c5e2a-1111-4222-8333-944455556666")).toEqual([
+      "Kullanıcılar",
+    ]);
+    expect(active("/yonetim/katalog/urunler/12")).toEqual(["Ürünler"]);
+    expect(active("/yonetim/eslestirme/gecmis")).toEqual(["Eşleştirme kuyruğu"]);
+    expect(active("/yonetim/katalog/urunlerx")).toEqual([]);
   });
 });

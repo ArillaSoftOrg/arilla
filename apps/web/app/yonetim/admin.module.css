@@ -29,7 +29,8 @@
 .brand {
   display: grid;
   gap: var(--space-1);
-  padding: 0 var(--space-2);
+  padding: 0 var(--space-2) var(--space-3);
+  border-bottom: var(--border-width) solid var(--line);
 }
 
 .brandTitle {
@@ -43,9 +44,15 @@
   color: var(--ink-muted);
 }
 
+/*
+ * Yan menü: iki düzey. Grup adı bir ETİKETTİR (bağlantı değil): küçük, kalın,
+ * soluk, imleç değişmez. Altındaki sayfa bağlantıları sabit yükseklikte
+ * satırlardır; metinleri grup adıyla aynı hizada başlar. Gruplar ince bir
+ * çizgiyle ayrılır. Büyük harf YOK (CLAUDE.md: Türkçe i/İ dönüşümü).
+ */
 .navSections {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
 
 .navSection {
@@ -53,27 +60,39 @@
   gap: var(--space-1);
 }
 
+.navSection + .navSection {
+  padding-top: var(--space-2);
+  border-top: var(--border-width) solid var(--line);
+}
+
 .navHeading {
   padding: 0 var(--space-2);
   font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
   color: var(--ink-muted);
+  cursor: default;
 }
 
 .navList {
   display: grid;
-  gap: var(--space-1);
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .navLink {
-  display: block;
-  padding: var(--space-2);
+  display: flex;
+  align-items: center;
+  /* 28px: 13" dizüstünde tüm menü kaydırmadan sığar (masaüstü öncelikli konsol). */
+  min-height: calc(var(--space-6) + var(--space-1));
+  padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
   color: var(--ink-secondary);
   text-decoration: none;
   font-size: var(--font-size-sm);
+  line-height: var(--line-height-heading);
 }
 
 .navLink:hover {
@@ -87,15 +106,29 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-.navLinkActive {
+/* Etkin sayfa: yükseltilmiş zemin + koyu metin + soldaki ince işaret. */
+.navLinkActive,
+.navLinkActive:hover {
   background: var(--surface-raised);
   color: var(--ink);
   font-weight: var(--font-weight-medium);
+  box-shadow:
+    inset 2px 0 0 var(--accent),
+    var(--shadow-xs);
 }
 
 .sidebarFooter {
   margin-top: auto;
-  padding: 0 var(--space-2);
+  padding: var(--space-2) 0 0;
+  border-top: var(--border-width) solid var(--line);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .navLink {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
+  }
 }
 
 .main {
@@ -286,10 +319,15 @@
   .navList {
     display: flex;
     flex-wrap: wrap;
+    gap: var(--space-1);
   }
 
   .navSections {
     gap: var(--space-2);
+  }
+
+  .navSection + .navSection {
+    padding-top: var(--space-2);
   }
 
   .sidebarFooter {

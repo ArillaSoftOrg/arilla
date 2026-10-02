@@ -115,8 +115,8 @@ export async function requireUser(): Promise<SessionUser> {
 
 /**
  * Lansman öncesi ürün kapısı (P2). Kararın tamamı core'da
- * (`canAccessProduct`): `PRODUCT_ACCESS=open` değilse yalnızca moderatör ve
- * yönetici geçer. Her ürün sayfası, server action'ı ve route handler'ı bunu
+ * (`canAccessProduct`): `PRODUCT_ACCESS=open` değilse yalnızca yönetici
+ * geçer (`product.preview`, karar 0043; moderatör geçemez). Her ürün sayfası, server action'ı ve route handler'ı bunu
  * KENDİSİ çağırır; proxy yalnızca anonim ziyaretçiyi erken yönlendirir.
  *
  * Geçemeyen: anonim → `/` (erken erişim landing'i), girişli → `/erken-erisim`.

@@ -255,6 +255,45 @@ SELECT p.id FROM product p
    cascade), `product`, `ingest_run`, `merchant`. `embedding` satırları
    `0014` trigger'ı ile düşer; sonra `pnpm db:orphans --check`.
 
+## Rol değiştirme (yönetici / moderatör)
+
+Karar 0039: rol arayüzden atanmaz; `app_user.role` tek kaynaktır ve yetenekler
+koddaki sabit haritadan gelir (`packages/core/src/admin/capabilities.ts`).
+Hesap önce normal girişle (Google/Apple) bir kez açılmış olmalıdır.
+
+**Yerel geliştirme** - denetlenen, idempotent, geri alınabilir betik:
+
+```bash
+pnpm db:set-role -- --email kisi@ornek.com --role admin --reason "yerel test yöneticisi"
+pnpm db:set-role -- --email kisi@ornek.com --role user  --reason "yetki geri alındı"
+# e-posta yerine: --public-id <uuid>; başka bir yönetici adına: --actor-email <yönetici>
+```
+
+- Yalnızca yerel veritabanında çalışır (`DATABASE_URL_OWNER` localhost değilse durur).
+- Rol zaten istenen değerse hiçbir şey yazmaz.
+- Değişiklik ve `users.role_change` denetim satırı aynı işlemde yazılır
+  (`actor_role = 'cli'`); `/yonetim/denetim`'de "Rol değiştirildi" olarak görünür.
+- Rol her istekte veritabanından okunur: açık oturum bir sonraki istekte yeni
+  rolle değerlendirilir. Yönetim alanı ayrıca 12 saat / 30 dakika oturum
+  kuralını uygular (karar 0044).
+
+**Üretim** - betik bilerek çalışmaz. Onaylı bir işlemde, sahip rolüyle, tek
+transaction'da ve aynı denetim satırıyla elle:
+
+```sql
+BEGIN;
+UPDATE app_user SET role = 'admin'
+ WHERE public_id = '<hesap kimliği>' AND role <> 'admin'
+RETURNING id;                       -- tam olarak 1 satır dönmeli; dönmezse ROLLBACK
+INSERT INTO admin_audit_event
+  (actor_user_id, actor_role, action, target_type, target_id, before, after, reason)
+VALUES (<işlemi yapan yöneticinin id'si ya da hedef id>, 'cli', 'users.role_change',
+        'app_user', '<hedef id>', '{"role":"user"}', '{"role":"admin"}', '<gerekçe>');
+COMMIT;
+```
+
+Geri almak için aynı işlem `role = 'user'` ile.
+
 ## Dağıtım
 
 - `main` dalına birleşme staging'e otomatik gider

@@ -1,32 +1,33 @@
 "use server";
 
-import { lookupUser, UserLookupInputError } from "@arilla/core";
+import { searchUsers, UserLookupInputError, type UserSearchRow } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { redirect } from "next/navigation";
 import { requireCapability } from "../../lib/dal.ts";
 
-export interface LookupState {
-  message: string | null;
-}
+export type SearchState =
+  | { status: "idle" }
+  | { status: "error"; message: string }
+  | { status: "ok"; rows: UserSearchRow[]; page: number; hasNext: boolean };
 
 /**
- * POST ile arama: e-posta/telefon adres satırına ve erişim günlüklerine
- * düşmez. Bulunursa ayrıntıya (public id ile) yönlendirir. Arama denetime
- * yazılır; aranan değer yazılmaz (core `lookupUser`).
+ * POST ile arama: ad, e-posta ya da telefon adres satırına ve erişim
+ * günlüklerine düşmez. Kısmi eşleşme, sayfa başına 20 (core `searchUsers`).
+ * Yetki her çağrıda sunucuda; arama denetime yazılır, aranan değer yazılmaz.
  */
-export async function lookupUserAction(
-  _previous: LookupState,
+export async function searchUsersAction(
+  _previous: SearchState,
   formData: FormData,
-): Promise<LookupState> {
+): Promise<SearchState> {
   const { actor } = await requireCapability("users.read");
-  const raw = formData.get("kimlik");
-  let publicId: string | null;
+  const raw = formData.get("q");
+  const page = Number(formData.get("sayfa") ?? 1);
   try {
-    ({ publicId } = await lookupUser(getDatabase(), actor, typeof raw === "string" ? raw : ""));
+    const result = await searchUsers(getDatabase(), actor, typeof raw === "string" ? raw : "", {
+      page,
+    });
+    return { status: "ok", rows: result.rows, page: result.page, hasNext: result.hasNext };
   } catch (error) {
-    if (error instanceof UserLookupInputError) return { message: error.message };
+    if (error instanceof UserLookupInputError) return { status: "error", message: error.message };
     throw error;
   }
-  if (!publicId) return { message: "Bu bilgiyle eşleşen hesap yok." };
-  redirect(`/yonetim/kullanicilar/${publicId}`);
 }
