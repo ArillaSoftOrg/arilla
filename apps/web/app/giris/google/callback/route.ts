@@ -3,6 +3,7 @@ import {
   completeGoogleSignIn,
   googleRedirectUri,
   postAuthRedirect,
+  requestContextFromHeaders,
   requireAppUrl,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -10,6 +11,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
+import { syncConsentAfterSignIn } from "../../consent-sync.ts";
 import { takeAuthNext } from "../../next-cookie.ts";
 import { settleReferralAfterSignIn } from "../../referral-cookie.ts";
 import { GOOGLE_STATE_COOKIE } from "../google-cookies.ts";
@@ -60,9 +62,11 @@ export async function GET(request: Request) {
       redirectUri: googleRedirectUri(requireAppUrl()),
       ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
+      context: requestContextFromHeaders(headerStore),
     });
     await setSessionCookie(signedIn.rawSessionToken);
     await settleReferralAfterSignIn(store, signedIn);
+    await syncConsentAfterSignIn(signedIn.user.id);
     destination = postAuthRedirect(signedIn.user, next);
   } catch (failure) {
     console.error(`[giris] google oauth failed: ${classifyGoogleFailure(failure)}`);

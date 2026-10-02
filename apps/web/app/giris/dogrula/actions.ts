@@ -3,6 +3,7 @@
 import {
   loginPathWithNext,
   postAuthRedirect,
+  requestContextFromHeaders,
   safeRedirectPath,
   TokenAlreadyUsedError,
   TokenExpiredError,
@@ -14,6 +15,7 @@ import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { clientIp } from "../../lib/client-ip.ts";
 import { setSessionCookie } from "../../lib/session-cookie.ts";
+import { syncConsentAfterSignIn } from "../consent-sync.ts";
 import { settleReferralAfterSignIn } from "../referral-cookie.ts";
 
 function loginErrorPath(error: "expired" | "used", next: string): string {
@@ -49,6 +51,7 @@ export async function confirmLoginAction(formData: FormData): Promise<void> {
       rawToken,
       ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
+      context: requestContextFromHeaders(headerStore),
     });
     // Ürüne erişemeyen (lansman öncesi normal kullanıcı) her girişte başarı ekranına.
     outcome = {
@@ -73,5 +76,6 @@ export async function confirmLoginAction(formData: FormData): Promise<void> {
 
   await setSessionCookie(outcome.rawSessionToken);
   await settleReferralAfterSignIn(await cookies(), outcome.signedIn);
+  await syncConsentAfterSignIn(outcome.signedIn.user.id);
   redirect(outcome.redirectTo);
 }

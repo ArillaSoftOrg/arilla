@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { type CSSProperties, useEffect, useId, useState } from "react";
 import { Container } from "./Container.tsx";
 import styles from "./HomeHeader.module.css";
 
@@ -18,6 +18,8 @@ export interface HomeHeaderNavItem {
 export interface HomeHeaderProps {
   brandLabel: string;
   brandHref?: string;
+  /** Marka yazisinin yaninda gosterilecek küçük logo/isaret. */
+  brandLogoSrc?: string;
   /** Yalnizca gercek bir route/anchor'i olan ogeler - dead link uretilmez, filtreleme cagiran tarafta yapilir. */
   navItems: readonly HomeHeaderNavItem[];
   navAriaLabel: string;
@@ -47,6 +49,7 @@ export interface HomeHeaderProps {
 export function HomeHeader({
   brandLabel,
   brandHref = "/",
+  brandLogoSrc,
   navItems,
   navAriaLabel,
   accountHref,
@@ -61,6 +64,9 @@ export function HomeHeader({
   const accountText = accountHref ? accountLabel : loginLabel;
   const accountUrl = accountHref ?? loginHref;
   const mobileMenuTabIndex = menuOpen ? undefined : -1;
+  const brandLogoStyle = brandLogoSrc
+    ? ({ backgroundImage: `url(${JSON.stringify(brandLogoSrc)})` } satisfies CSSProperties)
+    : undefined;
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -96,6 +102,9 @@ export function HomeHeader({
         </button>
 
         <a href={brandHref} className={styles.brand}>
+          {brandLogoSrc ? (
+            <span className={styles.brandLogo} style={brandLogoStyle} aria-hidden="true" />
+          ) : null}
           <span className={styles.brandText}>{brandLabel}</span>
         </a>
 
@@ -150,6 +159,13 @@ export function HomeHeader({
               tabIndex={mobileMenuTabIndex}
               onClick={() => setMenuOpen(false)}
             >
+              {brandLogoSrc ? (
+                <span
+                  className={styles.mobileBrandLogo}
+                  style={brandLogoStyle}
+                  aria-hidden="true"
+                />
+              ) : null}
               {brandLabel}
             </a>
             <button

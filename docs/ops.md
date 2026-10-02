@@ -53,6 +53,81 @@ adı gömülü değildir.
 değişkenleridir; elle ayarlanmaz. Vercel'de `DATABASE_URL` Supabase transaction
 pooler adresidir (port 6543).
 
+## Veritabanı erişim yüzeyi (Supabase)
+
+Supabase yalnızca Postgres barındırıyor. **Supabase Auth, Data API
+(PostgREST), Realtime ve Storage kullanılmıyor.** Uygulama veritabanına
+yalnızca sunucudan, `arilla_app` rolüyle bağlanır. Yetki
+`requireCapability` ve `assertCapability` ile uygulanır; RLS bu modelin
+parçası değildir (0049).
+
+Risk şurada: Supabase projesinde Data API açıksa, `public` şemadaki
+tablolar `anon` ve `authenticated` rolleriyle HTTP üzerinden erişilebilir
+olabilir. Bunu engelleyen RLS de yoktur. Her ortam için bir kez kontrol
+edilir; şema veya Supabase ayarı değişince tekrarlanır.
+
+1. **Panel:** Project Settings → Data API. Data API kapalı olmalı ya da
+   açık şemalar listesinde `public` bulunmamalı.
+2. **Yetki sorgusu** (salt okunur, sahip rolüyle):
+   ```sql
+   SELECT grantee, table_name, privilege_type
+     FROM information_schema.role_table_grants
+    WHERE table_schema = 'public'
+      AND grantee IN ('anon', 'authenticated');
+   ```
+   Sonuç boş olmalı. Satır dönüyorsa Data API kapalı olsa bile yetki
+   geri alınır. Bu bir **ops adımıdır, migration değildir**: yerel ve CI
+   veritabanlarında bu roller yoktur. Adım onayla, sahip rolüyle yapılır:
+   ```sql
+   REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon, authenticated;
+   REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+   REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM anon, authenticated;
+   ALTER DEFAULT PRIVILEGES IN SCHEMA public
+       REVOKE ALL ON TABLES FROM anon, authenticated;
+   ```
+   Yapılan işlem tarihiyle bu bölüme not edilir.
+3. **İstemciye sızma kontrolü:** `NEXT_PUBLIC_` önekli hiçbir değişken
+   veritabanı adresi, Supabase anahtarı (`anon` / `service_role`) ya da
+   başka bir gizli değer taşımaz. Kod tabanında Supabase istemci
+   kütüphanesi ve service role anahtarı yoktur; yeni bir bağımlılık bunu
+   değiştiriyorsa önce karar dosyası yazılır.
+
+Son kontrol:
+- **Kod tarafı (madde 3, 2026-10-03):** `@supabase/*` bağımlılığı yok,
+  `service_role` anahtarı yok, `NEXT_PUBLIC_` önekli değişken yok; veritabanı
+  adresi yalnızca sunucu kodunda okunuyor.
+- **Panel ve yetki sorgusu (1-2):** **yapılmadı.** Production erişimi
+  gerektirir; 0049 ön koşulu.
+
+## Kullanıcı aktivitesi migration'ları (0036, 0037) — production
+
+Karar 0049. İkisi de yalnızca ekleme yapar (yeni tablo, nullable kolon,
+CHECK genişletme, indeks) ve mevcut satırları yeniden yazmaz. Backfill
+yoktur: eski hesaplar için özet satırı ilk olayda açılır.
+
+1. Production'ın migration seviyesini doğrula:
+   `SELECT filename FROM schema_migration ORDER BY filename DESC LIMIT 5;`
+   0034 ve 0035 uygulanmış olmalı. Değilse önce onlar.
+2. Önce staging'de: `pnpm db:migrate && pnpm db:verify`. `db:verify`
+   `auth_event`/`user_activity_event` UPDATE'inin engellendiğini ve
+   `query_norm` güncellemesinin izinli olduğunu sınar.
+3. Production'da aynı iki komut, onaylı bir pencerede. Tablolar küçük;
+   0036'nın `app_user_created_idx` indeksi tablo büyükse önce elle
+   `CREATE INDEX CONCURRENTLY` ile açılır (migration `IF NOT EXISTS` ile
+   boş geçer, 0030 deseni).
+4. Kod dağıtımı migration'dan **sonra** yapılır: yeni kod yeni tablolara
+   yazar.
+5. Geri alma: kod geri alınır. Yeni tablolar boşta kalır, eski kod onları
+   okumaz. DROP gerekiyorsa ayrı bir migration ile yapılır (CLAUDE.md
+   kural 14).
+
+**Yerel test uyarısı:** kök `.env` uzak veritabanını gösterebilir.
+Entegrasyon testleri, `db:migrate`, `db:verify` ve `seed` komutları
+`DATABASE_URL` ve `DATABASE_URL_OWNER` açıkça yerel Docker Postgres'e
+verilerek çalıştırılır. Testler arasında yerel Redis'teki `ratelimit:*`
+anahtarları birikirse giriş testleri oran sınırına takılır; yalnızca yerel
+Redis'te temizlenir.
+
 ## Yedekleme
 
 **Fiyat geçmişi geriye dönük üretilemez.** Kaybedilirse savunulabilirliğin
@@ -151,6 +226,27 @@ değil, yanlış veri üretir — B3'te tam olarak bu oldu.
 Sunucu ve istemci hataları tek bir hata takip servisinde toplanır. Kişisel veri
 hata kayıtlarına yazılmaz — özellikle giriş bağlantısı token'ları ve e-posta
 adresleri maskelenir.
+
+## Kişisel veri saklama işleri
+
+Süre dolumu elle yapılmaz; günlük cron'larla yürür (`/api/cron/*`,
+`CRON_SECRET`). 0036 tablolarında (`auth_event`, `user_activity_event`)
+uygulama rolünün UPDATE yetkisi yoktur (tek istisna `query_norm` kolonu),
+DELETE yetkisi vardır: temizlik uygulama rolüyle yapılır, SECURITY DEFINER
+istisnası (0021) açılmaz. Cron yanıtındaki `retention` alanı silinen ya da
+NULL'a çekilen satır sayılarını verir (kişisel veri yok).
+
+| İş | Kapsam | Durum |
+| --- | --- | --- |
+| `cleanup-auth` | `auth_token`, `phone_login_code`, `session` süresi dolanlar | çalışıyor |
+| `purgeExpiredActivity` | `user_activity_event` 180 gün, `query_norm` 90 gün, `auth_event` 1 yıl, `user_consent.ip` 1 yıl | çalışıyor: `cleanup-auth` içinde, ayrı cron yok (0049) |
+
+İşin son başarılı koşusu `/yonetim/islemler`'de verinin tazeliğinden okunur
+(0041 §8). En eski satır süreyi aşmışsa iş çalışmıyor demektir.
+Ertelenmez: süresi geçmiş kişisel veri tutmak aydınlatma metnine aykırıdır.
+
+Analitik rızası geri alındığında kullanıcının olaylarının silinmesi cron'a
+bırakılmaz; rıza satırıyla aynı işlemde yapılır (0049 §8).
 
 ## Oran sınırlama ve kazımaya karşı koruma
 

@@ -65,6 +65,9 @@ const ACTION_LABELS: Record<string, string> = {
   "users.lookup": "Kullanıcı arandı",
   "users.search": "Kullanıcı arandı (kısmi)",
   "users.view": "Kullanıcı ayrıntısı görüntülendi",
+  "users.list": "Kullanıcı listesi görüntülendi",
+  "users.view_tab": "Kullanıcı hassas sekmesi görüntülendi",
+  "users.reveal_contact": "Tam iletişim bilgisi gösterildi",
   "users.role_change": "Rol değiştirildi",
   "marketing.campaign_create": "E-posta kampanyası oluşturuldu",
   "marketing.campaign_update": "E-posta kampanyası düzenlendi",
@@ -173,6 +176,11 @@ const CONSENT_KIND_LABELS: Record<string, string> = {
   marketing_email: "Pazarlama e-postası",
   personalization: "Kişiselleştirme",
   public_discovery: "Keşfet'te görünme",
+  // 0037: çerez kategorileri ve aydınlatma metni kaydı (rıza değil)
+  cookie_functional: "İşlevsel çerezler",
+  cookie_analytics: "Analitik çerezler",
+  cookie_marketing: "Pazarlama çerezleri",
+  privacy_notice: "Aydınlatma metni gösterildi",
 };
 
 export function consentKindLabel(kind: string): string {
@@ -263,4 +271,157 @@ const MARKETING_REASON_LABELS: Record<string, string> = {
 
 export function marketingReasonLabel(code: string): string {
   return MARKETING_REASON_LABELS[code] ?? code;
+}
+
+// ---------------------------------------------------------------------------
+// Kullanıcı listesi ve ayrıntı sekmeleri (karar 0049)
+// ---------------------------------------------------------------------------
+
+const DATE_ONLY = new Intl.DateTimeFormat("tr-TR", {
+  dateStyle: "short",
+  timeZone: "Europe/Istanbul",
+});
+
+export function formatDate(value: Date): string {
+  return DATE_ONLY.format(value);
+}
+
+/** NULL sayaç "bilinmiyor"dur, asla 0 değil. Başlangıç tarihi varsa eklenir. */
+export function formatCounterSince(n: number | null, since: Date | null): string {
+  if (n === null) return "Bilinmiyor";
+  return since ? `${formatCount(n)} (${formatDate(since)} tarihinden beri)` : formatCount(n);
+}
+
+const SIGNUP_PROVIDER_LABELS: Record<string, string> = {
+  google: "Google",
+  apple: "Apple",
+  phone: "Telefon",
+  email: "E-posta bağlantısı",
+};
+
+export function signupProviderLabel(value: string | null): string {
+  return value ? (SIGNUP_PROVIDER_LABELS[value] ?? value) : "Bilinmiyor";
+}
+
+/** Liste: analitik rızası (0049 §1b: açık / kapalı / kayıt yok). */
+const LIST_ANALYTICS_LABELS: Record<string, string> = {
+  accepted: "Açık",
+  declined: "Kapalı",
+  none: "Kayıt yok",
+};
+
+export function listAnalyticsLabel(value: string): string {
+  return LIST_ANALYTICS_LABELS[value] ?? value;
+}
+
+/** Ayrıntı: türetilmiş rıza durumu. "Kayıt yok" asla "kabul" gibi gösterilmez. */
+const CONSENT_STATUS_LABELS: Record<string, string> = {
+  accepted: "Kabul",
+  rejected: "Ret",
+  revoked: "Geri alındı",
+  unknown: "Kayıt yok",
+};
+
+export function consentStatusLabel(value: string): string {
+  return CONSENT_STATUS_LABELS[value] ?? value;
+}
+
+const CONSENT_SOURCE_LABELS: Record<string, string> = {
+  account_settings: "Hesap ayarları",
+  cookie_banner: "Çerez bandı",
+  cookie_sync: "Girişte çerezden aktarıldı",
+  sign_in: "Giriş",
+  unsubscribe_link: "Abonelikten çıkma bağlantısı",
+};
+
+export function consentSourceLabel(value: string | null): string {
+  return value ? (CONSENT_SOURCE_LABELS[value] ?? value) : "Bilinmiyor";
+}
+
+const AUTH_EVENT_LABELS: Record<string, string> = {
+  sign_up: "Kayıt",
+  sign_in: "Giriş",
+  sign_out: "Çıkış",
+  session_revoked: "Oturum sonlandırıldı",
+};
+
+export function authEventLabel(value: string): string {
+  return AUTH_EVENT_LABELS[value] ?? value;
+}
+
+const DEVICE_CLASS_LABELS: Record<string, string> = {
+  mobile: "Mobil",
+  tablet: "Tablet",
+  desktop: "Masaüstü",
+  other: "Diğer",
+};
+
+const BROWSER_FAMILY_LABELS: Record<string, string> = {
+  chrome: "Chrome",
+  safari: "Safari",
+  firefox: "Firefox",
+  edge: "Edge",
+  samsung: "Samsung Internet",
+  opera: "Opera",
+  other: "Diğer",
+};
+
+/** Kaba cihaz/tarayıcı/ülke: "Mobil · Safari · TR"; hiçbiri yoksa "Bilinmiyor". */
+export function deviceContextLabel(context: {
+  deviceClass: string | null;
+  browserFamily: string | null;
+  countryCode: string | null;
+}): string {
+  const parts = [
+    context.deviceClass ? (DEVICE_CLASS_LABELS[context.deviceClass] ?? context.deviceClass) : null,
+    context.browserFamily
+      ? (BROWSER_FAMILY_LABELS[context.browserFamily] ?? context.browserFamily)
+      : null,
+    context.countryCode,
+  ].filter(Boolean);
+  return parts.length > 0 ? parts.join(" · ") : "Bilinmiyor";
+}
+
+const ACTIVITY_KIND_LABELS: Record<string, string> = {
+  search_submitted: "Metin araması",
+  product_viewed: "Ürün görüntüleme",
+  merchant_exit: "Mağazaya geçiş",
+};
+
+export function activityKindLabel(value: string): string {
+  return ACTIVITY_KIND_LABELS[value] ?? value;
+}
+
+const CHANNEL_LABELS: Record<string, string> = {
+  web: "Web",
+  mcp: "MCP",
+  extension: "Eklenti",
+  api: "API",
+  prefix_link: "Link öneki",
+};
+
+export function channelLabel(value: string): string {
+  return CHANNEL_LABELS[value] ?? value;
+}
+
+const CLICK_SURFACE_LABELS: Record<string, string> = {
+  search: "Arama",
+  collection: "Koleksiyon",
+  alert: "Alarm",
+  compare: "Karşılaştırma",
+};
+
+export function clickSurfaceLabel(value: string | null): string {
+  return value ? (CLICK_SURFACE_LABELS[value] ?? value) : "—";
+}
+
+const CONVERSION_STATUS_LABELS: Record<string, string> = {
+  pending: "Beklemede",
+  confirmed: "Onaylandı",
+  cancelled: "İptal",
+  paid: "Ödendi",
+};
+
+export function conversionStatusLabel(value: string): string {
+  return CONVERSION_STATUS_LABELS[value] ?? value;
 }

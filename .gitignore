@@ -25,3 +25,6 @@ __pycache__/
 # Arac ve isletim sistemi artiklari
 .DS_Store
 Thumbs.db
+
+# Ozel anahtarlar (Apple Sign in with Apple .p8 vb.) asla depoya girmez
+*.p8

@@ -1,5 +1,6 @@
 "use server";
 
+import { recordCookieDecision } from "@arilla/core";
 import {
   acceptAll,
   CONSENT_COOKIE_MAX_AGE_SECONDS,
@@ -11,7 +12,9 @@ import {
   rejectAll,
   serializeConsent,
 } from "@arilla/core/cookie-consent";
+import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
+import { verifySession } from "./lib/dal.ts";
 
 /**
  * Karar 0038: cerez tercihi birinci taraf `cookie_consent` cerezine yazilir
@@ -31,6 +34,17 @@ async function persist(consent: CookieConsent): Promise<void> {
   for (const category of OPTIONAL_CONSENT_CATEGORIES) {
     if (consent[category]) continue;
     for (const name of OPTIONAL_COOKIES[category]) store.delete(name);
+  }
+  // 0049 §6: girisli kullanicinin karari hesaba da yazilir (append-only
+  // gecmis). Analitik reddi/geri almasi ayni islemde kisiye bagli analitik
+  // gecmisini siler. Anonim ziyaretcinin karari yalnizca cerezde kalir.
+  const user = await verifySession();
+  if (user) {
+    await recordCookieDecision(getDatabase(), {
+      userId: user.id,
+      consent,
+      source: "cookie_banner",
+    });
   }
 }
 

@@ -12,7 +12,9 @@
  * HTTP durumu, Google'in hata kodu (`invalid_client` gibi) ve Postgres hata
  * kodu/tablo adi.
  */
+
 import type { Database } from "@arilla/db";
+import type { RequestContext } from "../activity/request-context.ts";
 import { databaseFailureCategory, unexpectedFailureCategory } from "./failure-category.ts";
 import {
   GoogleEmailNotVerifiedError,
@@ -157,7 +159,14 @@ export async function fetchGoogleProfile(
 /** Callback'in tamami: code -> token -> profil -> kullanici + oturum (+ erken erisim). */
 export async function completeGoogleSignIn(
   db: Database,
-  input: { code: string; redirectUri: string; ip: string | null; userAgent: string | null },
+  input: {
+    code: string;
+    redirectUri: string;
+    ip: string | null;
+    userAgent: string | null;
+    /** 0049: kaba istek baglami. */
+    context?: RequestContext;
+  },
   deps: { config?: GoogleConfig; fetchImpl?: typeof fetch } = {},
 ): Promise<SignInWithGoogleResult> {
   const config = deps.config ?? googleConfigFromEnv();
@@ -168,7 +177,12 @@ export async function completeGoogleSignIn(
     fetchImpl,
   );
   const profile = await fetchGoogleProfile(accessToken, fetchImpl);
-  return signInWithGoogle(db, { profile, ip: input.ip, userAgent: input.userAgent });
+  return signInWithGoogle(db, {
+    profile,
+    ip: input.ip,
+    userAgent: input.userAgent,
+    context: input.context,
+  });
 }
 
 /**

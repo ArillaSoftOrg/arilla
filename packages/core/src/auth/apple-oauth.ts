@@ -14,6 +14,7 @@
  * Kimlik `sub`'dir. E-posta yalnizca ilk giriste gelir; sonraki girislerde
  * kullanici `sub` ile bulunur.
  */
+
 import {
   createHash,
   createPrivateKey,
@@ -23,6 +24,7 @@ import {
   verify,
 } from "node:crypto";
 import type { Database } from "@arilla/db";
+import type { RequestContext } from "../activity/request-context.ts";
 import {
   databaseFailureCategory,
   safeProviderCode,
@@ -352,6 +354,8 @@ export interface SignInWithAppleInput {
   displayName: string | null;
   ip: string | null;
   userAgent: string | null;
+  /** 0049: kaba istek baglami (cihaz/tarayici/ulke). */
+  context?: RequestContext;
 }
 
 /**
@@ -370,6 +374,7 @@ export function signInWithApple(
     displayName: input.displayName,
     ip: input.ip,
     userAgent: input.userAgent,
+    context: input.context,
   });
 }
 
@@ -382,6 +387,8 @@ export interface CompleteAppleSignInInput {
   redirectUri: string;
   ip: string | null;
   userAgent: string | null;
+  /** 0049: kaba istek baglami (cihaz/tarayici/ulke). */
+  context?: RequestContext;
 }
 
 export interface CompleteAppleSignInDeps {
@@ -432,6 +439,7 @@ export async function completeAppleSignIn(
     displayName: displayNameFromAppleUser(input.userJson),
     ip: input.ip,
     userAgent: input.userAgent,
+    context: input.context,
   });
 }
 

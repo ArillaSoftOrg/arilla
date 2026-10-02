@@ -37,7 +37,19 @@ export type Capability =
    * gerçek gönderim (taze giriş ile, karar 0044) ve iptal. Yalnızca yönetici
    * (karar 0048).
    */
-  | "marketing.manage";
+  | "marketing.manage"
+  /**
+   * Kullanıcı ayrıntısının hassas sekmeleri: Aktivite, Oturumlar, Aramalar,
+   * Affiliate (karar 0049 §3). Yalnızca yönetici; her görüntüleme
+   * `users.view_tab` olarak denetime yazılır.
+   */
+  | "users.activity.read"
+  /**
+   * Tam e-posta/telefonu tek hesap için gösterme (karar 0049 §2). Yalnızca
+   * yönetici ve taze giriş ister (`requireFreshCapability`); her gösterim
+   * `users.reveal_contact` olarak yazılır, değerin kendisi yazılmaz.
+   */
+  | "users.contact.reveal";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -66,6 +78,9 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "product.preview",
   // Karar 0048: kullanıcılara toplu e-posta yalnızca yöneticiden.
   "marketing.manage",
+  // Karar 0049: kullanıcı aktivitesi ve tam iletişim bilgisi yalnızca yöneticinin.
+  "users.activity.read",
+  "users.contact.reveal",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

@@ -68,7 +68,19 @@
 }
 
 .brand {
+  gap: var(--space-3);
   color: var(--ink);
+}
+
+.brandLogo {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.7rem;
+  background-position: center;
+  background-size: cover;
+  box-shadow: var(--shadow-xs);
 }
 
 .brandText {
@@ -221,12 +233,26 @@
 }
 
 .mobileBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
   font-size: 2rem;
   font-style: italic;
   font-weight: 700;
   line-height: var(--line-height-heading);
   color: var(--ink);
   text-decoration: none;
+}
+
+.mobileBrandLogo {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  background-position: center;
+  background-size: cover;
+  box-shadow: var(--shadow-xs);
 }
 
 .closeButton {
@@ -315,7 +341,7 @@
   }
 
   .brandText {
-    font-size: 2rem;
+    font-size: clamp(1.55rem, 7vw, 2rem);
   }
 
   .account {

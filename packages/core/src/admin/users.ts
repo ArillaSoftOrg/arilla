@@ -184,6 +184,12 @@ function classifySearch(raw: string): { method: UserSearchMethod; value: string 
  *
  * Arama denetime yazılır: yöntem, sayfa ve sonuç sayısı. Aranan değer
  * (ad, e-posta, telefon) YAZILMAZ.
+ *
+ * Sınırlar karar 0049 §1a'dadır; gevşetmeden önce o dosya güncellenir.
+ * Sonuç satırında tam e-posta/telefon, IP, oturum, rıza ve aktivite verisi
+ * YOKTUR: e-posta ve telefon yalnızca maskelenmek için okunur. Tam değer
+ * yalnızca `revealUserContact` (ayrı yetenek + taze giriş) ile açılır.
+ * Sayfalama bilerek offset'tir (P0); keyset geçişi ayrı iştir.
  */
 export async function searchUsers(
   db: Database,
@@ -316,6 +322,11 @@ export interface UserDetail {
   id: number;
   publicId: string;
   displayName: string | null;
+  /**
+   * Sağlayıcıdan gelen profil fotoğrafı adresi. Yönetim arayüzü bu adresi
+   * YÜKLEMEZ (üçüncü taraf istek, CLAUDE.md); yalnızca var/yok gösterir.
+   */
+  avatarUrl: string | null;
   emailMasked: string | null;
   emailVerified: boolean;
   phoneMasked: string | null;
@@ -355,6 +366,7 @@ export async function getUserDetail(
           id: appUser.id,
           publicId: appUser.publicId,
           displayName: appUser.displayName,
+          avatarUrl: appUser.avatarUrl,
           email: appUser.email,
           emailVerifiedAt: appUser.emailVerifiedAt,
           referralCode: appUser.referralCode,
@@ -411,7 +423,8 @@ export async function getUserDetail(
       })
       .from(userConsent)
       .where(eq(userConsent.userId, user.id))
-      .orderBy(userConsent.kind, desc(userConsent.grantedAt));
+      // Güncel durum = en son satır; eşitlikte `id DESC` (0049 §6).
+      .orderBy(userConsent.kind, desc(userConsent.grantedAt), desc(userConsent.id));
 
     const earlyAccessRows = await tx.execute(sql`
       SELECT status, created_at, updated_at FROM early_access WHERE user_id = ${user.id}
@@ -471,6 +484,7 @@ export async function getUserDetail(
       id: user.id,
       publicId: user.publicId,
       displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
       emailMasked: maskEmail(user.email),
       emailVerified: user.emailVerifiedAt !== null,
       phoneMasked: maskPhoneForAdmin(phone ?? null),
