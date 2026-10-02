@@ -25,11 +25,80 @@ edilmeli.
 | Tıklama ve dönüşüm | `click`, `conversion` | Meşru menfaat + sözleşme | 5 yıl (mali mevzuat) |
 | Yüklenen görseller | obje deposu | Açık rıza | **En fazla 30 gün** |
 | Pazarlama e-postası izni | `user_consent` | Açık rıza + İYS | İzin geri alınana kadar |
-| IP adresi | `auth_token`, `user_consent` | Meşru menfaat | 1 yıl |
+| IP adresi | `auth_token`, `phone_login_code`, `session`, `user_consent` (eski satırlar) | Meşru menfaat (güvenlik) | Giriş kayıtları en fazla 1 gün, oturum ömrü kadar; `user_consent.ip` 1 yıl sonra NULL (0048). Yeni rıza satırlarına IP yazılmaz. |
+| Giriş/çıkış geçmişi *(planlı, 0048)* | `auth_event` | Meşru menfaat (güvenlik) | 1 yıl |
+| Kaba cihaz/tarayıcı/ülke *(planlı, 0048)* | `session`, `auth_event`, `user_activity_summary` | Meşru menfaat (güvenlik) | Bağlı satırla birlikte; ham user agent ve IP'den konum yok |
+| Hesap özeti, son aktif zamanı *(planlı, 0048)* | `user_activity_summary` | Sözleşmenin ifası / meşru menfaat | Hesap silinene kadar; analitik sayaçları rıza geri alınınca NULL |
+| Çerez rızası ve aydınlatma sürümü (girişli) *(planlı, 0048)* | `user_consent` | Açık rıza (çerez); aydınlatma rıza değildir | Hesap silinene kadar (ispat) |
+| Davranışsal analitik *(planlı, 0048)* | `user_activity_event` | **Açık rıza** (analitik) | 180 gün; `query_norm` 90 gün; rıza geri alınınca silinir |
+
+*Planlı* satırların tablosu henüz şemada yoktur. Satırlar, verinin
+yazılmaya başlayacağı faz yayına girmeden önce bu belgede durur ki aydınlatma
+metni koddan geride kalmasın.
 
 Gezinme geçmişi ve kişiselleştirme **rızaya bağlıdır ve reddedilebilir
 olmalıdır.** Reddedildiğinde ürün çalışmaya devam eder, sadece kişiselleştirme
 kapalı olur.
+
+## Kullanıcı aktivitesi ve analitik rızası
+
+Ayrıntı: `docs/decisions/0048`. Bu bölümdeki kurallar teknik uygulamayı
+tanımlar; aydınlatma metninin bunları anlatan hali hukukçu onayı ister.
+
+**Üç sınıf karıştırılmaz.**
+
+1. **Hizmet / güvenlik:** hesap, oturum, giriş/çıkış geçmişi, son aktif,
+   kaba cihaz/ülke, kaydedilenler, arama hakkı. Rıza gerektirmez ve rıza
+   kararından etkilenmez.
+2. **Attribution:** `click`, `conversion`. Mali mevzuat ve sözleşme
+   gereğidir. **Davranışsal profillemeye kaynak olmaz.** Kullanıcı başına
+   ilgi, segment, kişiselleştirme ya da pazarlama sinyali için okunmaz.
+3. **Davranışsal analitik:** arama, ürün görüntüleme, kaydetme/kaldırma,
+   mağaza çıkışı, alternatif tıklaması. Yalnızca analitik rızasıyla ve
+   yalnızca girişli kullanıcı için yazılır.
+
+**Rıza durumları.** `user_consent` append-only'dir ve her satır bir
+karardır. Kabul, ret ve geri alma bu satırlardan türetilir.
+
+- **Bilinmiyor:** kayıt yoksa ya da kayıt sürümsüzse (`text_version`
+  boş) durum bilinmiyordur. Bilinmiyor = **izin yok**. Yönetim ekranında
+  "kayıt yok / sürümsüz" diye gösterilir.
+- **Mevcut kullanıcılar için geriye dönük rıza kaydı üretilmez.**
+- **Aydınlatma metninin gösterildiği sürüm** (`privacy_notice`) ayrı bir
+  kayıttır ve rıza sayılmaz. Hiçbir işleme bu kayda dayanmaz.
+- Anonim ziyaretçinin çerez tercihi yalnızca kendi tarayıcısındaki
+  çerezde kalır (0038). Girişli kullanıcının kararı ayrıca hesaba yazılır.
+
+**Ret ve geri alma.**
+
+- Reddedilirse analitik hiç başlamaz.
+- Geri alınırsa aynı işlemde kullanıcının analitik olayları silinir ve
+  analitik sayaçları boşaltılır.
+- Hizmet ve attribution verisi değişmez. Ürün aynı şekilde çalışır.
+- Yeniden rıza verilirse sayım sıfırdan başlar.
+
+**Konum.** Yalnızca barındırma platformunun bildirdiği iki harfli ülke kodu
+tutulur. Bu kod güvenlik bağlamıdır (tanınmayan giriş). Saklanan IP'den
+konum çıkarılmaz; şehir ve koordinat toplanmaz. Ülke kodu analitikte,
+kişiselleştirmede ve pazarlamada kullanılmaz.
+
+**Hesap silme.**
+
+- `auth_event`, `user_activity_event` ve `user_activity_summary` hesapla
+  birlikte silinir (CASCADE).
+- `click` kalır ama `user_id` NULL'a çekilir.
+- Yönetim denetim kaydında yalnızca sayısal hesap kimliği kalır; kişisel
+  veri içermez.
+
+**Yönetim erişimi.**
+
+- Kullanıcı listesi yalnızca yöneticiye açıktır ve maskeli e-posta gösterir.
+- Tam e-posta/telefon yalnızca son 1 saat içinde giriş yapmış bir
+  yönetici tarafından, tek tek açılabilir. Her açılış denetime yazılır;
+  açılan değer kayda yazılmaz.
+- Liste, ayrıntı ve hassas sekme görüntülemeleri de denetime yazılır.
+- IP, ham user agent, token ve sağlayıcı kimliği hiçbir yönetim ekranında
+  gösterilmez.
 
 ## Yüklenen görseller — en riskli alan
 
@@ -58,7 +127,10 @@ KVKK m.11 kapsamındaki haklar `/hesap` altından fiilen kullanılabilmelidir:
 - **Görüntüleme** — hakkımdaki verileri indir (JSON)
 - **Düzeltme** — profil bilgilerini değiştir
 - **Silme** — gezinme geçmişini sil, hesabı tamamen sil
-- **İtiraz** — kişiselleştirmeyi kapat
+- **İtiraz** — kişiselleştirmeyi kapat, analitik rızasını geri al (0048:
+  geri alma kullanıcının analitik olaylarını da siler)
+- **Görüntüleme kapsamı** — indirilen veride rıza geçmişi, giriş geçmişi,
+  hesap özeti ve analitik olayları da bulunur (0048, planlı)
 
 Silme gerçekten silmelidir. Arayüzde var görünüp arkada saklamak ihlaldir.
 Hesap silindiğinde `click` ve `conversion` kayıtları mali mevzuat gereği
@@ -142,6 +214,9 @@ hakları açısından değerlendirilmesi gerekir. Bu konu hukukçuya ayrıca sor
 - [ ] İYS kaydı
 - [ ] Yurt dışı aktarım için sağlayıcı sözleşmeleri
 - [ ] Veri sahibi talep akışının uçtan uca testi
+- [ ] Aydınlatma ve gizlilik metninde analitik olayları, kaba cihaz/ülke
+  bilgisi ve saklama süreleri (0048). Hukukçu onaylı olmalı;
+  `/gizlilik`, `/kvkk-aydinlatma`, `/cerez` adresleri değişmez.
 
 **Faz 6 notu:** `/gizlilik` ve `/kosullar` altında, yukarıdaki maddeler
 tamamlanana kadar geçerli olacak **taslak** sayfalar eklendi — yalnızca bu
@@ -150,7 +225,8 @@ tüzel kişi bilgisi içermez. Yukarıdaki kutucuklar bu yüzden işaretlenmedi;
 sayfalar hukukçu onayı ve şirket kuruluşu sonrası güncellenmelidir. `/cerez`
 sayfası ise mevcut (yalnızca zorunlu: `session`, `session_id`, `theme`) çerez
 envanterini listeler — analitik/pazarlama çerezi olmadığı için consent bandı
-kurulmadı.
+kurulmadı. *(Sonradan: bant 0038 ile kuruldu; tercih `cookie_consent`
+çerezinde tutulur.)*
 
 **Faz 8.1 notu:** Geçici public iletişim adresi (`apps/web/app/site-config.ts`)
 `/iletisim` sayfasında ve `/gizlilik` "Haklarınız" bölümünde soru kanalı olarak
