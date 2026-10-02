@@ -26,6 +26,15 @@ export type AdminAction =
   | "users.search"
   | "users.view"
   /**
+   * Özet kullanıcı listesi sayfası (karar 0049 §1b). Yalnızca kullanılan
+   * filtrelerin ADLARI, sıralama, yön ve sonuç sayısı; filtre değeri YAZILMAZ.
+   */
+  | "users.list"
+  /** Hassas ayrıntı sekmesi (Aktivite, Oturumlar, Aramalar, Affiliate): yalnızca sekme adı. */
+  | "users.view_tab"
+  /** Tam iletişim bilgisi gösterimi (0049 §2): yalnızca alan adı (`email` | `phone`), değer ASLA. */
+  | "users.reveal_contact"
+  /**
    * Rol değişikliği. Arayüzden yapılmaz (0039); yalnızca yerel `pnpm
    * db:set-role` betiği ya da üretimde elle SQL yazar (`actor_role = "cli"`).
    */

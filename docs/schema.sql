@@ -443,7 +443,12 @@ CREATE TABLE session (
     ip            INET,
     expires_at    TIMESTAMPTZ NOT NULL,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
-    last_used_at  TIMESTAMPTZ NOT NULL DEFAULT now()
+    last_used_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- 0036 (docs/decisions/0049): kaba istek baglami; yalnizca yeni oturumlarda.
+    device_class   TEXT CHECK (device_class IS NULL OR device_class IN ('mobile','tablet','desktop','other')),
+    browser_family TEXT CHECK (browser_family IS NULL OR browser_family IN
+                               ('chrome','safari','firefox','edge','samsung','opera','other')),
+    country_code   TEXT CHECK (country_code IS NULL OR country_code ~ '^[A-Z]{2}$')
 );
 CREATE INDEX session_user_idx ON session (user_id);
 CREATE INDEX session_expiry_idx ON session (expires_at);
@@ -967,17 +972,29 @@ CREATE TABLE user_size_profile (
     CONSTRAINT user_size_uniq UNIQUE (user_id, category_path)
 );
 
--- KVKK rıza kayıtları. Neye, ne zaman rıza verildi.
+-- KVKK rıza kayıtları. Neye, ne zaman rıza verildi. Geçmiş tablosu: kod
+-- yalnızca INSERT yapar; güncel durum tür başına en son satır
+-- (granted_at DESC, id DESC). 0037: çerez kategorileri ve aydınlatma kaydı
+-- (`privacy_notice` RIZA DEĞİLDİR; gösterilen gizlilik metninin sürümü).
 CREATE TABLE user_consent (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id     BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
     kind        TEXT        NOT NULL
-                CHECK (kind IN ('browsing_history','marketing_email','personalization','public_discovery')),
+                CONSTRAINT user_consent_kind_check CHECK (kind IN (
+                    'browsing_history','marketing_email','personalization','public_discovery',
+                    'cookie_functional','cookie_analytics','cookie_marketing',
+                    'privacy_notice')),
     granted     BOOLEAN     NOT NULL,
     granted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
-    ip          INET
+    ip          INET,        -- yalnızca hesap izinleri; 1 yıl sonra NULL (0049)
+    -- 0037 (docs/decisions/0049): kaynak ve metin sürümü. 0037 öncesi
+    -- satırlarda NULL ("sürümsüz kayıt"); bu satırlar geçerlidir.
+    source       TEXT        CHECK (source IS NULL OR source IN (
+                     'account_settings','cookie_banner','cookie_sync','sign_in','unsubscribe_link')),
+    text_version TEXT        CHECK (text_version IS NULL OR char_length(text_version) BETWEEN 1 AND 64)
 );
 CREATE INDEX user_consent_idx ON user_consent (user_id, kind, granted_at DESC);
+CREATE INDEX user_consent_latest_idx ON user_consent (user_id, kind, granted_at DESC, id DESC); -- 0037
 
 -- Trend listeleri. Haftalık toplu işle üretilir, sayfa statik servis edilir.
 -- Arama, kaydetme ve tıklama sayılarından türetilir; editör gerekmez.
@@ -1048,6 +1065,93 @@ CREATE TABLE discovery_slot (
 CREATE INDEX discovery_slot_date_idx ON discovery_slot (slot_date);
 
 -- ---------------------------------------------------------------------------
+-- KULLANICI AKTİVİTESİ — 0036 (docs/decisions/0049)
+-- ---------------------------------------------------------------------------
+-- Üç sınıf karıştırılmaz: auth_event (güvenlik, rıza gerekmez),
+-- user_activity_event (davranışsal analitik, YALNIZCA analitik rızasıyla,
+-- tek core kapısından), user_activity_summary (liste ekranı COUNT yapmasın
+-- diye kullanıcı başına tek satır). IP, ham user agent, token, istek
+-- başlığı/gövdesi ve serbest JSON YOK. Geçmiş uydurulmaz: backfill yok,
+-- NULL sayaç = bilinmiyor.
+
+CREATE TABLE auth_event (
+    id              BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id         BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    kind            TEXT        NOT NULL
+                    CHECK (kind IN ('sign_up','sign_in','sign_out','session_revoked')),
+    provider        TEXT        CHECK (provider IS NULL OR provider IN ('email','google','apple','phone')),
+    session_id      UUID,       -- FK yok: oturum satırı çıkışta/sürede silinir
+    device_class    TEXT        CHECK (device_class IS NULL OR device_class IN ('mobile','tablet','desktop','other')),
+    browser_family  TEXT        CHECK (browser_family IS NULL OR browser_family IN
+                                       ('chrome','safari','firefox','edge','samsung','opera','other')),
+    country_code    TEXT        CHECK (country_code IS NULL OR country_code ~ '^[A-Z]{2}$'),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT auth_event_provider_required
+        CHECK (kind NOT IN ('sign_up','sign_in') OR provider IS NOT NULL)
+);
+CREATE INDEX auth_event_user_idx ON auth_event (user_id, created_at DESC, id DESC);
+CREATE INDEX auth_event_created_idx ON auth_event (created_at);
+CREATE UNIQUE INDEX auth_event_one_sign_up ON auth_event (user_id) WHERE kind = 'sign_up';
+
+CREATE TABLE user_activity_event (
+    id            BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id       BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    kind          TEXT        NOT NULL
+                  CHECK (kind IN ('search_submitted','product_viewed','merchant_exit')),
+    channel       TEXT        NOT NULL DEFAULT 'web' CHECK (channel IN ('web','mcp','extension','api')),
+    product_id    BIGINT      REFERENCES product(id) ON DELETE CASCADE,
+    offer_id      BIGINT      REFERENCES offer(id) ON DELETE CASCADE,
+    click_id      UUID        REFERENCES click(id) ON DELETE CASCADE,  -- referans; tıklama kopyalanmaz
+    search_mode   TEXT        CHECK (search_mode IS NULL OR search_mode IN ('text')),
+    query_norm    TEXT        CHECK (query_norm IS NULL OR char_length(query_norm) BETWEEN 1 AND 200),
+    result_count  INTEGER     CHECK (result_count IS NULL OR result_count >= 0),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT user_activity_event_shape CHECK (
+        (kind = 'search_submitted' AND search_mode IS NOT NULL
+            AND product_id IS NULL AND offer_id IS NULL AND click_id IS NULL)
+        OR (kind = 'product_viewed' AND product_id IS NOT NULL
+            AND offer_id IS NULL AND click_id IS NULL
+            AND search_mode IS NULL AND query_norm IS NULL AND result_count IS NULL)
+        OR (kind = 'merchant_exit' AND offer_id IS NOT NULL AND click_id IS NOT NULL
+            AND search_mode IS NULL AND query_norm IS NULL AND result_count IS NULL)
+    )
+);
+CREATE INDEX user_activity_event_user_idx ON user_activity_event (user_id, created_at DESC, id DESC);
+CREATE INDEX user_activity_event_user_kind_idx ON user_activity_event (user_id, kind, created_at DESC);
+CREATE INDEX user_activity_event_created_idx ON user_activity_event (created_at);
+
+CREATE TABLE user_activity_summary (
+    user_id                   BIGINT      PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
+    first_sign_in_at          TIMESTAMPTZ,      -- = app_user.created_at
+    last_sign_in_at           TIMESTAMPTZ,
+    last_active_at            TIMESTAMPTZ,      -- 15 dakikalık eşikle
+    sign_in_count             INTEGER     CHECK (sign_in_count IS NULL OR sign_in_count >= 0),
+    service_counters_since    TIMESTAMPTZ,
+    last_device_class         TEXT,             -- CHECK'ler migration'da
+    last_browser_family       TEXT,
+    last_country_code         TEXT,
+    search_count              INTEGER,          -- analitik: rızayla artar, geri almada NULL
+    last_search_at            TIMESTAMPTZ,
+    product_view_count        INTEGER,
+    merchant_exit_count       INTEGER,
+    analytics_counters_since  TIMESTAMPTZ,
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT user_activity_summary_service_counters
+        CHECK ((sign_in_count IS NULL) = (service_counters_since IS NULL)),
+    CONSTRAINT user_activity_summary_analytics_counters CHECK (
+        (analytics_counters_since IS NULL AND search_count IS NULL AND product_view_count IS NULL
+            AND merchant_exit_count IS NULL AND last_search_at IS NULL)
+        OR (analytics_counters_since IS NOT NULL AND search_count IS NOT NULL
+            AND product_view_count IS NOT NULL AND merchant_exit_count IS NOT NULL)
+    )
+);
+CREATE INDEX user_activity_summary_last_active_idx
+    ON user_activity_summary (last_active_at DESC, user_id DESC) WHERE last_active_at IS NOT NULL;
+
+CREATE INDEX app_user_created_idx ON app_user (created_at DESC, id DESC);   -- 0036
+
+-- ---------------------------------------------------------------------------
 -- ROLLER VE YETKİLER — append-only kuralı motorda
 -- Gerçeği `packages/db/migrations/0010_append_only_grants.sql` oluşturur.
 -- ---------------------------------------------------------------------------
@@ -1077,6 +1181,10 @@ REVOKE UPDATE, DELETE, TRUNCATE ON bonus_ledger        FROM arilla_app;   -- 003
 -- 0035: kampanya geçmişi silinmez (güncellenebilir, silinemez).
 REVOKE DELETE, TRUNCATE ON marketing_campaign          FROM arilla_app;   -- 0035
 REVOKE DELETE, TRUNCATE ON marketing_campaign_delivery FROM arilla_app;   -- 0035
+-- 0036: değiştirilemez ama saklama süresi ve rıza geri alma için silinebilir.
+REVOKE UPDATE, TRUNCATE ON auth_event          FROM arilla_app;           -- 0036
+REVOKE UPDATE, TRUNCATE ON user_activity_event FROM arilla_app;           -- 0036
+GRANT  UPDATE (query_norm) ON user_activity_event TO arilla_app;          -- 0036: 90 günde NULL
 
 -- price_point partition'larına doğrudan erişim yoktur. Partitioned tabloya
 -- INSERT'te yetki ebeveyn üzerinde denetlenir; yönlendirme etkilenmez.

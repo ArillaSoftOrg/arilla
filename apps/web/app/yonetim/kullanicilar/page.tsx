@@ -1,4 +1,9 @@
-import { earlyAccessOverview } from "@arilla/core";
+import {
+  earlyAccessOverview,
+  listUsers,
+  parseUserListFilters,
+  parseUserListSort,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import Link from "next/link";
 import { requireCapability } from "../../lib/dal.ts";
@@ -6,6 +11,12 @@ import styles from "../admin.module.css";
 import { PageHeader, Section, Tile } from "../admin-ui.tsx";
 import { earlyAccessStatusLabel, formatCount, formatDateTime } from "../format.ts";
 import { SearchFormClient } from "./search-form-client.tsx";
+import {
+  LIST_QUERY_KEYS,
+  type ListSearchParams,
+  single,
+  UserListSection,
+} from "./user-list-section.tsx";
 
 /**
  * Kullanıcı arama (Faz 6). Yalnızca yönetici. Ad ve e-postada kısmi arama,
@@ -13,13 +24,37 @@ import { SearchFormClient } from "./search-form-client.tsx";
  * `searchUsers`). Rol düzenleme, hesap silme ve kimliğe bürünme YOK
  * (docs/decisions/0039). Her arama ve görüntüleme denetim kaydına yazılır.
  *
+ * Karar 0049 §1b: kontrollü özet liste (maskeli e-posta, enum/tarih
+ * filtreleri, keyset sayfalama, toplam sayım yok). Görüntüleme `users.list`
+ * olarak denetime yazılır; filtre değerleri yazılmaz.
+ *
  * P2: altında salt okunur erken erişim özeti - sayılar ve son kayıtlar.
  * İletişim bilgisi yok, yalnızca hesap kimliği (docs/copy.md
  * `admin.early_access.*`).
  */
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams?: Promise<ListSearchParams>;
+} = {}) {
   const { actor } = await requireCapability("users.read");
-  const earlyAccess = await earlyAccessOverview(getDatabase(), actor);
+  const params = (await searchParams) ?? {};
+  const db = getDatabase();
+  const list = await listUsers(db, actor, {
+    sort: parseUserListSort(single(params[LIST_QUERY_KEYS.sort])),
+    cursor: single(params[LIST_QUERY_KEYS.cursor]) ?? null,
+    filters: parseUserListFilters({
+      provider: single(params[LIST_QUERY_KEYS.provider]),
+      role: single(params[LIST_QUERY_KEYS.role]),
+      earlyAccess: single(params[LIST_QUERY_KEYS.earlyAccess]),
+      analytics: single(params[LIST_QUERY_KEYS.analytics]),
+      createdFrom: single(params[LIST_QUERY_KEYS.createdFrom]),
+      createdTo: single(params[LIST_QUERY_KEYS.createdTo]),
+      lastActiveFrom: single(params[LIST_QUERY_KEYS.lastActiveFrom]),
+      lastActiveTo: single(params[LIST_QUERY_KEYS.lastActiveTo]),
+    }),
+  });
+  const earlyAccess = await earlyAccessOverview(db, actor);
 
   return (
     <div className={styles.pageNarrow}>
@@ -30,6 +65,8 @@ export default async function UsersPage() {
         </p>
       </PageHeader>
       <SearchFormClient />
+
+      <UserListSection page={list} />
 
       <Section id="erken-erisim" title="Erken erişim">
         <p className={styles.muted}>

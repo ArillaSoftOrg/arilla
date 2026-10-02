@@ -2,10 +2,14 @@
  * E2/E3 icin disari acik tipler. `attribution/types.ts` deseniyle ayni: DB
  * satir sekli degil, cagiran kodun gordugu sozlesme.
  */
-import type { alert, userConsent } from "@arilla/db";
+import type { AccountConsentKind, alert } from "@arilla/db";
 
 export type AlertKind = (typeof alert.$inferSelect)["kind"];
-export type ConsentKind = (typeof userConsent.$inferSelect)["kind"];
+/**
+ * `/hesap` İzinler bölümündeki dört hesap rızası. Çerez kategorileri ve
+ * aydınlatma kaydı (0037) bu tipe GİRMEZ; onlar `consent/` modülünden yazılır.
+ */
+export type ConsentKind = AccountConsentKind;
 
 export interface ProductSummary {
   productId: number;

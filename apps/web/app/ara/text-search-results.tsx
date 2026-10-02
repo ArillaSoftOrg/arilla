@@ -1,6 +1,7 @@
 import {
   isRedisUnavailableError,
   type QueryObject,
+  recordActivity,
   recordSearchAndCheckWall,
   resolveQuery,
   type SortMode,
@@ -9,6 +10,7 @@ import {
 import { getDatabase } from "@arilla/db";
 import { ClarificationBar, EmptyState, SortTabs } from "@arilla/ui";
 import { cookies } from "next/headers";
+import { readConsent } from "../lib/consent.ts";
 import { verifySession } from "../lib/dal.ts";
 import styles from "./ara.module.css";
 import { ResultGrid, resultCountLabel } from "./search-results.tsx";
@@ -84,6 +86,21 @@ export async function TextSearchResults({
     { ...parsed, sort: effectiveSort },
     { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE },
   );
+
+  // 0049 §7: rızalı davranışsal analitik. Yalnızca girişli kullanıcıda, yeni
+  // bir aramanın ilk sayfasında. Rıza kapısı ve tekrar bastırma core'da.
+  // Analitik hatası aramayı asla bozmaz.
+  if (user && isNewSearch && page === 1) {
+    try {
+      await recordActivity(db, {
+        userId: user.id,
+        cookieConsent: await readConsent(),
+        event: { kind: "search_submitted", query, resultCount: result.total },
+      });
+    } catch (error) {
+      console.error("[ara] activity failed", error instanceof Error ? error.name : "unknown");
+    }
+  }
 
   let items = result.items;
   let isFallback = false;

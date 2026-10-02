@@ -29,6 +29,11 @@ const APPEND_ONLY = {
   admin_audit_event: "reason",
   bonus_ledger: "reason",
 } as const;
+/** 0036: UPDATE engelli, DELETE izinli (saklama suresi ve riza geri alma). */
+const UPDATE_BLOCKED = {
+  auth_event: "kind",
+  user_activity_event: "kind",
+} as const;
 const INSUFFICIENT_PRIVILEGE = "42501";
 const FOREIGN_KEY_VIOLATION = "23503";
 
@@ -95,6 +100,36 @@ await withClient(requireEnv("DATABASE_URL"), async (client) => {
         }
       }
     }
+  }
+
+  // 0036: degistirilemez ama saklama suresi icin silinebilir tablolar.
+  // UPDATE engellenmeli; `user_activity_event.query_norm` tek istisnadir
+  // (90 gunde NULL'a cekme). DELETE bilincli olarak izinlidir.
+  for (const [table, column] of Object.entries(UPDATE_BLOCKED)) {
+    const statement = `UPDATE ${table} SET ${column} = ${column} WHERE false`;
+    try {
+      await client.query("BEGIN");
+      await client.query(statement);
+      await client.query("ROLLBACK");
+      fail(`"${statement}" calisti — engellenmeliydi.`);
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      const code = (error as { code?: string }).code;
+      if (code === INSUFFICIENT_PRIVILEGE) {
+        console.log(`  ${statement} → 42501, engellendi`);
+      } else {
+        fail(`"${statement}" beklenmeyen hata verdi (${code}).`);
+      }
+    }
+  }
+  try {
+    await client.query("BEGIN");
+    await client.query("UPDATE user_activity_event SET query_norm = NULL WHERE false");
+    await client.query("ROLLBACK");
+    console.log("  UPDATE user_activity_event SET query_norm → izinli (saklama suresi)");
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => {});
+    fail(`query_norm UPDATE engellendi — saklama suresi uygulanamaz: ${(error as Error).message}`);
   }
 
   // SELECT ve INSERT calismaya devam etmeli.

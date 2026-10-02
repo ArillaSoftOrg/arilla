@@ -9,6 +9,27 @@ import { buildDeeplink } from "./build-deeplink.ts";
 import { findActiveTrackingId } from "./creator-affiliate-account.ts";
 import type { RecordClickInput, RecordClickResult } from "./types.ts";
 
+/**
+ * `click.surface` serbest metin degildir: adres satirindan gelen deger
+ * (`/git/:offerId?surface=`) yalnizca bu listedeyse yazilir, aksi halde NULL.
+ * Attribution kaydina istemcinin sectigi keyfi metin girmez.
+ */
+export const CLICK_SURFACES = [
+  "search",
+  "collection",
+  "alert",
+  "compare",
+  "product_primary",
+  "structured_data",
+] as const;
+export type ClickSurface = (typeof CLICK_SURFACES)[number];
+
+export function normalizeClickSurface(value: string | null | undefined): ClickSurface | null {
+  return typeof value === "string" && (CLICK_SURFACES as readonly string[]).includes(value)
+    ? (value as ClickSurface)
+    : null;
+}
+
 export class OfferNotFoundError extends Error {
   constructor(offerId: number) {
     super(`offer bulunamadi: ${offerId}`);
@@ -50,7 +71,7 @@ export async function recordClick(
       creatorId: input.creatorId ?? null,
       offerId: input.offerId,
       channel: input.channel,
-      surface: input.surface ?? null,
+      surface: normalizeClickSurface(input.surface),
       priceAtClick: offerRow.offerPrice,
       sourceSimilarityKind: input.sourceSimilarityKind ?? null,
       resultPosition: input.resultPosition ?? null,
