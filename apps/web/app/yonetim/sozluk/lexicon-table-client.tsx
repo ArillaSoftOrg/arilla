@@ -4,6 +4,7 @@ import { Button, Input } from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ConfirmButton } from "../confirm-button-client.tsx";
+import { lexiconKindLabel } from "../format.ts";
 import {
   deleteLexiconEntryAction,
   type LexiconActionResult,
@@ -85,7 +86,7 @@ function EditableFields({
         >
           {KINDS.map((kind) => (
             <option key={kind} value={kind}>
-              {kind}
+              {lexiconKindLabel(kind)}
             </option>
           ))}
         </select>
@@ -116,12 +117,13 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<DraftFields>({
+  const fromRow = (): DraftFields => ({
     kind: row.kind,
     surface: row.surface,
     normalized: row.normalized,
     weight: String(row.weight),
   });
+  const [draft, setDraft] = useState<DraftFields>(fromRow);
 
   async function handleSave() {
     setPending(true);
@@ -166,7 +168,10 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
                 variant="secondary"
                 disabled={pending}
                 onClick={() => {
+                  // Kaydedilmemiş taslak atılır; tekrar düzenlemede satırın
+                  // kayıtlı değerleri gelir.
                   setError(null);
+                  setDraft(fromRow());
                   setEditing(false);
                 }}
               >
@@ -181,19 +186,27 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
 
   return (
     <tr>
-      <td>{row.kind}</td>
+      <td>{lexiconKindLabel(row.kind)}</td>
       <td>{row.surface}</td>
       <td>{row.normalized}</td>
       <td>{row.weight}</td>
       <td>
         <div style={{ display: "flex", gap: 8 }}>
-          <Button type="button" variant="secondary" onClick={() => setEditing(true)}>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={pending}
+            onClick={() => {
+              setDraft(fromRow());
+              setEditing(true);
+            }}
+          >
             Düzenle
           </Button>
           <ConfirmButton
             label="Sil"
             title="Satırı sil"
-            description={`"${row.surface}" (${row.kind}) sözlükten silinecek. Arama hemen etkilenir; silinen değer denetim kaydında kalır.`}
+            description={`"${row.surface}" (${lexiconKindLabel(row.kind)}) sözlükten silinecek. Arama hemen etkilenir; silinen değer denetim kaydında kalır.`}
             confirmLabel="Sil"
             disabled={pending}
             onConfirm={() => void handleDelete()}

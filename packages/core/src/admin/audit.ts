@@ -22,7 +22,14 @@ export type AdminAction =
   | "merchant.deactivate"
   /** Kişisel veriye erişim: aranan değer YAZILMAZ, yalnızca yöntem ve bulunan hesap. */
   | "users.lookup"
-  | "users.view";
+  /** Kısmi arama: yalnızca yöntem, sayfa ve sonuç sayısı; aranan değer YAZILMAZ. */
+  | "users.search"
+  | "users.view"
+  /**
+   * Rol değişikliği. Arayüzden yapılmaz (0039); yalnızca yerel `pnpm
+   * db:set-role` betiği ya da üretimde elle SQL yazar (`actor_role = "cli"`).
+   */
+  | "users.role_change";
 
 export type AdminTargetType = "match_candidate" | "lexicon" | "merchant" | "app_user";
 

@@ -17,6 +17,7 @@
     "db:partitions": "pnpm --filter @arilla/db db:partitions",
     "db:verify": "pnpm --filter @arilla/db db:verify",
     "db:orphans": "pnpm --filter @arilla/db db:orphans",
+    "db:set-role": "pnpm --filter @arilla/db db:set-role",
     "seed": "pnpm --filter @arilla/db seed",
     "lint": "biome check .",
     "format": "biome format --write ."

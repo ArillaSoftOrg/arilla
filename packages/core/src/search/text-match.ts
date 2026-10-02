@@ -132,6 +132,14 @@ function foldExpr(value: SQL): SQL {
   return sql`lower(translate(${value}, ${sql.raw(`'${FOLD_FROM}'`)}, ${sql.raw(`'${FOLD_TO}'`)}))`;
 }
 
+/**
+ * Aynı katlama, başka metin kolonları için (yönetim kullanıcı araması: ad ve
+ * e-posta). Sorgu tarafı `foldForMatch` ile katlanır.
+ */
+export function foldedTextExpr(value: SQL): SQL {
+  return foldExpr(value);
+}
+
 /** `product_title_fold_trgm` indeksinin ifadesi. */
 export function foldedTitleExpr(title: SQL): SQL {
   return foldExpr(title);

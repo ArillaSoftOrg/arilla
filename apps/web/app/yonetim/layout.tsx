@@ -2,6 +2,7 @@ import { hasCapability } from "@arilla/core";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { requireCapability } from "../lib/dal.ts";
+import { SITE_BRAND } from "../site-config.ts";
 import styles from "./admin.module.css";
 import { ADMIN_NAV } from "./admin-nav.ts";
 import { AdminNavClient } from "./admin-nav-client.tsx";
@@ -35,7 +36,7 @@ export default async function YonetimLayout({ children }: { children: ReactNode 
       <aside className={styles.sidebar}>
         <div className={styles.brand}>
           <a href="/yonetim" className={styles.brandTitle}>
-            Arilla yönetim
+            {`${SITE_BRAND} yönetim`}
           </a>
           <span className={styles.meta}>{ROLE_LABEL[user.role] ?? user.role}</span>
         </div>

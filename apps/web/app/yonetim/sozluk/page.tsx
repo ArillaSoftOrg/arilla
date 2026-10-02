@@ -4,6 +4,7 @@ import { EmptyState } from "@arilla/ui";
 import Link from "next/link";
 import { requireCapability } from "../../lib/dal.ts";
 import styles from "../admin.module.css";
+import { lexiconKindLabel } from "../format.ts";
 import { LexiconTableClient } from "./lexicon-table-client.tsx";
 
 const PAGE_SIZE = 50;
@@ -91,7 +92,7 @@ export default async function LexiconPage({
             <option value="">Tümü</option>
             {LEXICON_KINDS.map((k) => (
               <option key={k} value={k}>
-                {k}
+                {lexiconKindLabel(k)}
               </option>
             ))}
           </select>

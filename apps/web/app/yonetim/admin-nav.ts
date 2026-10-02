@@ -52,3 +52,13 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     ],
   },
 ];
+
+/**
+ * Menü öğesi etkin mi. Genel bakış yalnızca tam eşleşmede; diğerleri kendi
+ * alt sayfalarında da (`/yonetim/kullanicilar/<id>` → Kullanıcılar). Önek
+ * eğik çizgiyle sınırlı: `/yonetim/katalog/urunlerx` Ürünler sayılmaz.
+ */
+export function isNavItemActive(href: string, pathname: string): boolean {
+  if (href === "/yonetim") return pathname === "/yonetim";
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
