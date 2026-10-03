@@ -1151,6 +1151,17 @@ CREATE INDEX user_activity_summary_last_active_idx
 
 CREATE INDEX app_user_created_idx ON app_user (created_at DESC, id DESC);   -- 0036
 
+-- 0038: yönetim kullanıcı araması (katlanmış ad/e-posta içinde LIKE). İfade
+-- `foldedTextExpr` ile birebir aynı olmalı (0019 ile aynı katlama).
+CREATE INDEX app_user_display_name_fold_trgm ON app_user
+    USING gin (lower(translate(display_name, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops);
+CREATE INDEX app_user_email_fold_trgm ON app_user
+    USING gin (lower(translate(email, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops);
+CREATE INDEX user_identity_email_fold_trgm ON user_identity
+    USING gin (lower(translate(email, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops);
+CREATE INDEX user_identity_display_name_fold_trgm ON user_identity
+    USING gin (lower(translate(display_name, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops);
+
 -- ---------------------------------------------------------------------------
 -- ROLLER VE YETKİLER — append-only kuralı motorda
 -- Gerçeği `packages/db/migrations/0010_append_only_grants.sql` oluşturur.

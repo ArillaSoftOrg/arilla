@@ -181,7 +181,8 @@ platform sorununu hafifletir.
 /yonetim/arama/gorsel      image_upload durumları (görsel gösterilmez)
 /yonetim/seo               İç SEO tanısı (Search Console değil)
 /yonetim/islemler          Partition, iş kanıtı, KVKK temizlik, maliyet (yalnızca admin)
-/yonetim/kullanicilar      Tam eşleşmeyle hesap bulma, denetimli (yalnızca admin)
+/yonetim/kullanicilar      Kullanıcı araması (kısmi, denetimli) + özet liste (keyset, filtreli, maskeli); yalnızca admin (0049)
+/yonetim/kullanicilar/<id> Hesap ayrıntısı, sekmeler ?sekme=profil|aktivite|izinler|oturumlar|aramalar|affiliate|denetim; tıkla-göster iletişim (taze giriş)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
 /yonetim/kampanyalar       Pazarlama e-postası kampanyaları: taslak, test, gönderim (yalnızca admin, 0048)
 /yonetim/kampanyalar/<id> Düzenleme, önizleme, uygun alıcı sayısı, test, onaylı gönderim, durum
