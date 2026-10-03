@@ -1,17 +1,19 @@
 import type { FeedbackCategory, FeedbackPriority } from "@arilla/db";
-import { SITE_BRAND } from "../site-brand.ts";
 
 /**
- * Marka adinin belirtme durumu ("ManiCepte'yi"). Ek, markanin son unlusune
- * gore secilir; marka degisirse yalnizca bu satir gozden gecirilir.
+ * Geri bildirim metinlerinde urun adi "Arilla" (urun karari; site markasi
+ * `SITE_BRAND` header/footer'da degismeden kalir). Yalnizca bu dosyada.
  */
-const BRAND_ACCUSATIVE = `${SITE_BRAND}'yi`;
+const FEEDBACK_BRAND = "Arilla";
+
+/** Belirtme durumu ("Arilla'yi"); ek markanin son unlusune gore secilir. */
+const BRAND_ACCUSATIVE = `${FEEDBACK_BRAND}'yı`;
 
 /** docs/copy.md "Geri bildirim" - anahtarlar yorumda. Hitap "siz" (urun karari, karar 0045). */
 export const FEEDBACK_COPY = {
   navLabel: "Geri bildirim", // nav.feedback
-  metaTitle: `Geri bildirim – ${SITE_BRAND}`, // feedback.meta_title
-  metaDescription: `${SITE_BRAND} için öneri, hata bildirimi veya özellik isteğinizi iletin.`, // feedback.meta_description
+  metaTitle: `Geri bildirim – ${FEEDBACK_BRAND}`, // feedback.meta_title
+  metaDescription: `${FEEDBACK_BRAND} için öneri, hata bildirimi veya özellik isteğinizi iletin.`, // feedback.meta_description
   title: `${BRAND_ACCUSATIVE} birlikte geliştirelim`, // feedback.title
   description:
     "Eksik gördüğünüz, geliştirilmesini istediğiniz veya sorun yaşadığınız noktaları bize iletebilirsiniz.", // feedback.description

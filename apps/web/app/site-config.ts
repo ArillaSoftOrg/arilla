@@ -11,8 +11,13 @@ import { LEGAL_IDENTITY } from "@arilla/core";
 export const PUBLIC_CONTACT_EMAIL: string = LEGAL_IDENTITY.supportEmail ?? "";
 export const PRIVACY_CONTACT_EMAIL: string = LEGAL_IDENTITY.privacyEmail ?? "";
 
-/** Tanim `site-brand.ts`'de: istemci bilesenleri core'u cekmeden okuyabilsin. */
-export { SITE_BRAND } from "./site-brand.ts";
+/**
+ * Yayindaki marka adi (karar 0008: isim koda dagitilmaz). Header, footer,
+ * kok metadata, giris ekrani ve lansman oncesi landing buradan okur.
+ * Yasal kimlik (`LEGAL_IDENTITY.brandName`) ayri bir karardir; yasal
+ * metinler kendi kaynaklarindan okumaya devam eder.
+ */
+export const SITE_BRAND = "ManiCepte";
 
 export type SocialNetwork = "instagram" | "tiktok" | "linkedin";
 

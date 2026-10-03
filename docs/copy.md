@@ -604,12 +604,13 @@ görsel benzerlik "aynı" diye etiketlenmez.
 
 ## Geri bildirim (karar 0045)
 
-Hitap "siz" (ürün sahibinin verdiği metin). `{marka}` = `SITE_BRAND`,
-belirtme hâli `{marka}'yi`. Metinler `apps/web/app/geri-bildirim/feedback-copy.ts`.
+Hitap "siz" (ürün sahibinin verdiği metin). Ürün adı bu metinlerde "Arilla"
+(site markası `SITE_BRAND` değil; karar 0045). Metinler
+`apps/web/app/geri-bildirim/feedback-copy.ts`.
 
 | Anahtar | Metin |
 | --- | --- |
-| `feedback.title` | {marka}'yi birlikte geliştirelim |
+| `feedback.title` | Arilla'yı birlikte geliştirelim |
 | `feedback.description` | Eksik gördüğünüz, geliştirilmesini istediğiniz veya sorun yaşadığınız noktaları bize iletebilirsiniz. |
 | `feedback.category_label` | Geri bildirim türü |
 | `feedback.category.*` | Öneri · Hata bildirimi · Özellik isteği · Tasarım / kullanım deneyimi · Ürün / mağaza önerisi · Diğer |
@@ -626,7 +627,7 @@ belirtme hâli `{marka}'yi`. Metinler `apps/web/app/geri-bildirim/feedback-copy.
 | `feedback.submit` | Geri bildirim gönder |
 | `feedback.submitting` | Gönderiliyor… |
 | `feedback.success_title` | Geri bildiriminiz alındı. |
-| `feedback.success_body` | {marka}'yi geliştirmemize yardımcı olduğunuz için teşekkür ederiz. |
+| `feedback.success_body` | Arilla'yı geliştirmemize yardımcı olduğunuz için teşekkür ederiz. |
 | `feedback.success_another` | Yeni geri bildirim gönder |
 | `feedback.error_category` | Bir geri bildirim türü seçin. |
 | `feedback.error_title_required` | Bir başlık yazın. |
@@ -643,7 +644,7 @@ belirtme hâli `{marka}'yi`. Metinler `apps/web/app/geri-bildirim/feedback-copy.
 | `feedback.error_network` | Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin. |
 | `feedback.error_session_expired` | Oturumunuz sona ermiş. Geri bildiriminizin hesabınızla ilişkilendirilmesi için tekrar giriş yapın. |
 | `feedback.login_again` | Tekrar giriş yap |
-| `feedback.early_access_prompt` | Bir fikriniz mi var? {marka}'yi birlikte geliştirelim. |
+| `feedback.early_access_prompt` | Bir fikriniz mi var? Arilla'yı birlikte geliştirelim. |
 
 ## Hata
 

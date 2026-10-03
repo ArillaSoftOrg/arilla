@@ -39,17 +39,18 @@ yanıt e-postası, oylama ve eklenti bu kararın kapsamı dışındadır.
 7. **Arayüz:** sayfa ürün kapısının dışında (proxy eşleştiricisinde yok),
    giriş modali yok (0002), `noindex`. Erken erişim başarı ekranında ana
    eylemlerin üstüne çıkmayan ikincil bir satır ve footer'da İletişim'in
-   yanında bağlantı. Hitap, istenen metinlere uygun olarak "siz"; marka adı
-   `SITE_BRAND`'den gelir.
+   yanında bağlantı. Hitap, istenen metinlere uygun olarak "siz".
 
 8. **Aydınlatma:** `/gizlilik` 2.4 yalnızca e-posta yazışmalarını
    kapsıyordu; form için toplanan alanlar, hesapla ilişkilendirme, IP özeti
    ve silme davranışı eklendi. `/kvkk-aydinlatma` "Talep/şikâyet" maddesine
    form gönderimleri eklendi. Anonim gönderimlerin saklama süresi hukukçu
    onayıyla belirlenecek.
-9. **Marka adı istemcide:** `SITE_BRAND` bağımlılıksız `site-brand.ts`'e
-   taşındı (`site-config.ts` yeniden ihraç eder); `site-config.ts`
-   `@arilla/core` kökünü çektiği için istemci paketine giremez.
+9. **Marka adı:** geri bildirim metinleri ürün adı olarak "Arilla" kullanır
+   (`feedback-copy.ts` içinde yerel sabit; ürün kararı). Site markası
+   `SITE_BRAND` header/footer'da değişmez. `SITE_BRAND` burada kullanılmaz:
+   `site-config.ts` `@arilla/core` kökünü çektiği için istemci paketine
+   giremez.
 
 ## Reddedilen alternatifler
 
