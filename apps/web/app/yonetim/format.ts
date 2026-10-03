@@ -45,6 +45,9 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "tamamlandı",
   partially_failed: "kısmen başarısız",
   cancelled: "iptal edildi",
+  // form (karar 0058)
+  published: "yayında",
+  closed: "kapalı",
   // marketing_campaign_delivery: "sent" = sağlayıcı kabul etti, teslim değil
   sent: "sağlayıcıya verildi",
   skipped: "atlandı",
@@ -74,6 +77,11 @@ const ACTION_LABELS: Record<string, string> = {
   "marketing.test_send": "Test e-postası gönderildi",
   "marketing.send_start": "E-posta kampanyası gönderimi başlatıldı",
   "marketing.campaign_cancel": "E-posta kampanyası iptal edildi",
+  "forms.create": "Form oluşturuldu",
+  "forms.update": "Form güncellendi",
+  "forms.publish": "Form yayınlandı",
+  "forms.close": "Form kapatıldı",
+  "forms.results_view": "Form sonuçları görüntülendi",
   "security.access_denied": "Yetkisiz yönetim erişimi reddedildi",
   "security.admin_session_ended": "Yönetim oturumu sonlandırıldı",
   "sessions.revoke_all": "Tüm oturumlar kapatıldı",
@@ -427,4 +435,10 @@ const CONVERSION_STATUS_LABELS: Record<string, string> = {
 
 export function conversionStatusLabel(value: string): string {
   return CONVERSION_STATUS_LABELS[value] ?? value;
+}
+
+/** `datetime-local` alanı için Türkiye saatiyle `YYYY-MM-DDTHH:mm` (UTC+3, DST yok). */
+export function toDateTimeLocalValue(date: Date | null): string {
+  if (!date) return "";
+  return new Date(date.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 16);
 }

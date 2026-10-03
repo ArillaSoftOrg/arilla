@@ -667,3 +667,27 @@ Hitap "siz" (ürün sahibinin verdiği metin). Ürün adı bu metinlerde "Arilla
 | `error.upload_unprocessable` | Bu görseli işleyemedik. Başka bir fotoğrafla yeniden dener misin? |
 
 Hatalar özür dilemez, ne olduğunu ve ne yapılacağını söyler.
+
+## Anket (karar 0058)
+
+Hitap "sen". Form başlığı, açıklaması ve soruları yönetimden gelir (ilk
+onboarding formu `0043_forms.sql`). Sabit arayüz metinleri
+`apps/web/app/anket/survey-copy.ts`'tedir.
+
+| Anahtar | Metin |
+| --- | --- |
+| `survey.submit` | Gönder |
+| `survey.skip` | Şimdilik geç |
+| `survey.success_title` | Teşekkürler, yanıtın alındı. |
+| `survey.success_body` | Cevapların ürünü senin ihtiyaçlarına göre geliştirmemize yardımcı olacak. |
+| `survey.auth_notice` | Giriş yaptığın için yanıtın hesabınla ilişkilendirilecek. |
+| `survey.anonymous_notice` | Bu formda kimliğin istenmez; yanıtın hesabınla ilişkilendirilmez. |
+| `survey.onboarding_prompt` | Seni biraz daha tanıyalım: birkaç kısa soru. |
+| `survey.onboarding_cta` | Şimdi doldur |
+| `survey.closed_title` | Bu form artık yanıt almıyor. |
+| `survey.not_started_title` | Bu form henüz açılmadı. |
+| `survey.login_title` | Bu formu yanıtlamak için giriş yap. |
+| `survey.early_access_title` | Bu form erken erişim üyelerine özel. |
+| `survey.responded_title` | Bu formu zaten yanıtladın. |
+| `survey.error_required` | Bu soru zorunlu. |
+

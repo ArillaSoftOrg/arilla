@@ -1,8 +1,15 @@
-import { ADMIN_CONSOLE_PATH, canAccessProduct, getEarlyAccess, hasCapability } from "@arilla/core";
+import {
+  ADMIN_CONSOLE_PATH,
+  canAccessProduct,
+  getEarlyAccess,
+  getOnboardingOffer,
+  hasCapability,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { Button } from "@arilla/ui";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { SURVEY_COPY } from "../anket/survey-copy.ts";
 import { logoutAction } from "../cikis-actions.ts";
 import { COMING_SOON_COPY } from "../coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "../early-access-copy.ts";
@@ -65,6 +72,13 @@ export default async function ErkenErisimPage() {
   }
   const entry = await getEarlyAccess(getDatabase(), user.id);
   const state = earlyAccessState(entry);
+  // Onboarding formu (karar 0058): ilk katılımda bir kez forma yönlendirilir;
+  // "Şimdilik geç" kayıt bırakır, bir daha otomatik yönlendirilmez ve erken
+  // erişim kaydına dokunulmaz. Atlayan kullanıcı Hesabım'dan doldurabilir.
+  const onboarding = entry ? await getOnboardingOffer(getDatabase(), user.id) : null;
+  if (onboarding && !onboarding.skipped && state === "just_joined") {
+    redirect(`/anket/${onboarding.slug}`);
+  }
   const socialLinks = configuredSocialLinks();
 
   return (
@@ -109,6 +123,15 @@ export default async function ErkenErisimPage() {
                   </article>
                 ))}
               </section>
+
+              {onboarding ? (
+                <div className={styles.feedbackPrompt}>
+                  <p className={styles.feedbackText}>{SURVEY_COPY.onboardingPrompt}</p>
+                  <a className={styles.feedbackLink} href={`/anket/${onboarding.slug}`}>
+                    {SURVEY_COPY.onboardingCta}
+                  </a>
+                </div>
+              ) : null}
 
               {/* İkincil eylem: ana eylem hiyerarşisinin (aşağıdaki düğmeler)
                   üstüne çıkmaz, ayrı bir not satırı olarak durur (karar 0045). */}

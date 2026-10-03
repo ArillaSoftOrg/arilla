@@ -51,6 +51,7 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         label: "E-posta kampanyaları",
         capability: "marketing.manage",
       },
+      { href: "/yonetim/formlar", label: "Formlar", capability: "forms.manage" },
     ],
   },
   {

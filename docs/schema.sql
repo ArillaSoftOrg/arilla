@@ -522,6 +522,80 @@ CREATE TABLE feedback (
 CREATE INDEX feedback_created_idx ON feedback (created_at DESC);
 CREATE INDEX feedback_user_idx ON feedback (user_id) WHERE user_id IS NOT NULL;
 
+-- 0043 (karar 0058): form / anket merkezi. Geri bildirimden ayrıdır.
+CREATE TABLE form (
+    id                        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    slug                      TEXT NOT NULL UNIQUE CHECK (char_length(slug) BETWEEN 3 AND 80 AND slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+    title                     TEXT NOT NULL CHECK (char_length(btrim(title)) BETWEEN 1 AND 200),
+    description               TEXT CHECK (description IS NULL OR char_length(description) <= 2000),
+    status                    TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','closed')),
+    audience                  TEXT NOT NULL DEFAULT 'public' CHECK (audience IN ('public','authenticated','early_access')),
+    kind                      TEXT NOT NULL DEFAULT 'survey' CHECK (kind IN ('survey','onboarding')),
+    allow_skip                BOOLEAN NOT NULL DEFAULT false,
+    allow_multiple_responses  BOOLEAN NOT NULL DEFAULT false,
+    starts_at                 TIMESTAMPTZ,
+    ends_at                   TIMESTAMPTZ,
+    created_by                BIGINT REFERENCES app_user(id) ON DELETE SET NULL,
+    updated_by                BIGINT REFERENCES app_user(id) ON DELETE SET NULL,
+    published_at              TIMESTAMPTZ,
+    closed_at                 TIMESTAMPTZ,
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT form_window_order CHECK (starts_at IS NULL OR ends_at IS NULL OR ends_at > starts_at),
+    CONSTRAINT form_onboarding_needs_user CHECK (kind <> 'onboarding' OR audience <> 'public')
+);
+-- Aynı anda en fazla bir yayında onboarding formu.
+CREATE UNIQUE INDEX form_one_published_onboarding ON form (kind) WHERE kind = 'onboarding' AND status = 'published';
+
+CREATE TABLE form_question (
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    form_id      BIGINT NOT NULL REFERENCES form(id) ON DELETE CASCADE,
+    label        TEXT NOT NULL CHECK (char_length(btrim(label)) BETWEEN 1 AND 300),
+    description  TEXT CHECK (description IS NULL OR char_length(description) <= 1000),
+    type         TEXT NOT NULL CHECK (type IN ('single_choice','multiple_choice','short_text','long_text')),
+    required     BOOLEAN NOT NULL DEFAULT false,
+    sort_order   INTEGER NOT NULL CHECK (sort_order >= 0),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (form_id, sort_order)
+);
+
+CREATE TABLE form_question_option (
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    question_id  BIGINT NOT NULL REFERENCES form_question(id) ON DELETE CASCADE,
+    label        TEXT NOT NULL CHECK (char_length(btrim(label)) BETWEEN 1 AND 200),
+    sort_order   INTEGER NOT NULL CHECK (sort_order >= 0),
+    UNIQUE (question_id, sort_order)
+);
+
+CREATE TABLE form_response (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    form_id          BIGINT NOT NULL REFERENCES form(id) ON DELETE CASCADE,
+    user_id          BIGINT REFERENCES app_user(id) ON DELETE CASCADE,
+    single_response  BOOLEAN NOT NULL,   -- yanıt anındaki NOT allow_multiple_responses
+    source           TEXT CHECK (source IS NULL OR source IN ('link','onboarding','account')),
+    submitted_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Tek yanıtlı formda girişli kullanıcı en fazla bir yanıt verir (motor zorlar).
+CREATE UNIQUE INDEX form_response_single_user ON form_response (form_id, user_id) WHERE single_response AND user_id IS NOT NULL;
+
+CREATE TABLE form_answer (
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    response_id  BIGINT NOT NULL REFERENCES form_response(id) ON DELETE CASCADE,
+    question_id  BIGINT NOT NULL REFERENCES form_question(id) ON DELETE CASCADE,
+    option_id    BIGINT REFERENCES form_question_option(id) ON DELETE CASCADE,
+    text_value   TEXT CHECK (text_value IS NULL OR char_length(text_value) BETWEEN 1 AND 5000),
+    CONSTRAINT form_answer_one_value CHECK ((option_id IS NULL) <> (text_value IS NULL))
+);
+
+-- "Şimdilik geç": tamamlandı SAYILMAZ, yalnızca hatırlatma kaydı.
+CREATE TABLE form_skip (
+    form_id     BIGINT NOT NULL REFERENCES form(id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    skipped_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (form_id, user_id)
+);
+
 CREATE TABLE creator (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id         BIGINT      NOT NULL UNIQUE REFERENCES app_user(id),

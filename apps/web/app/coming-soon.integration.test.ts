@@ -441,6 +441,11 @@ describe("erken erişim akışı", () => {
     as("user");
     expect(await outcome(joinEarlyAccessAction)).toBe("/erken-erisim");
     expect(await outcome(joinEarlyAccessAction)).toBe("/erken-erisim");
+    // Karar 0058: ilk katılımda yayındaki onboarding formuna yönlendirilir;
+    // "Şimdilik geç" sonrası başarı ekranı kullanıcıyı bloke etmeden açılır.
+    expect(await outcome(Page)).toBe("/anket/seni-taniyalim");
+    const { skipSurveyAction } = await import("./anket/[slug]/actions.ts");
+    expect(await outcome(() => skipSurveyAction("seni-taniyalim", "link"))).toBe("/erken-erisim");
     const fresh = bodyMarkup(await Page());
     expect(fresh).toContain("Erken erişim listesine alındın.");
     expect(fresh).toContain("ManiCepte açıldığında sana haber vereceğiz.");
@@ -485,6 +490,7 @@ describe("yönlendirme ve döngü", () => {
       "/sirket-bilgileri",
       "/iletisim",
       "/geri-bildirim",
+      "/anket/ornek-form",
       "/api/cron/cleanup-auth",
     ];
     for (const path of open) {

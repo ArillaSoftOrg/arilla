@@ -19,6 +19,11 @@ import {
   type Database,
   earlyAccess,
   feedback,
+  form,
+  formAnswer,
+  formQuestion,
+  formQuestionOption,
+  formResponse,
   marketingCampaign,
   marketingCampaignDelivery,
   product,
@@ -30,7 +35,7 @@ import {
   userConsent,
   userSizeProfile,
 } from "@arilla/db";
-import { desc, eq } from "drizzle-orm";
+import { asc, desc, eq } from "drizzle-orm";
 
 export class UserNotFoundError extends Error {
   constructor() {
@@ -134,6 +139,12 @@ export interface UserDataExport {
    */
   marketingEmails: Array<{ subject: string; state: string; sentAt: Date | null; createdAt: Date }>;
   /** `/geri-bildirim` ile hesapla gönderilen geri bildirimler (0032). */
+  /** Form / anket yanıtları (0043); çoklu seçimde cevaplar virgülle birleşir. */
+  surveyResponses: Array<{
+    formTitle: string;
+    submittedAt: Date;
+    answers: Array<{ question: string; answer: string }>;
+  }>;
   feedback: Array<{
     category: string;
     title: string;
@@ -276,6 +287,45 @@ export async function exportUserData(db: Database, userId: number): Promise<User
     .where(eq(marketingCampaignDelivery.userId, userId))
     .orderBy(desc(marketingCampaignDelivery.createdAt));
 
+  const surveyRows = await db
+    .select({
+      responseId: formResponse.id,
+      formTitle: form.title,
+      submittedAt: formResponse.submittedAt,
+      question: formQuestion.label,
+      option: formQuestionOption.label,
+      text: formAnswer.textValue,
+    })
+    .from(formResponse)
+    .innerJoin(form, eq(form.id, formResponse.formId))
+    .innerJoin(formAnswer, eq(formAnswer.responseId, formResponse.id))
+    .innerJoin(formQuestion, eq(formQuestion.id, formAnswer.questionId))
+    .leftJoin(formQuestionOption, eq(formQuestionOption.id, formAnswer.optionId))
+    .where(eq(formResponse.userId, userId))
+    .orderBy(
+      desc(formResponse.submittedAt),
+      desc(formResponse.id),
+      asc(formQuestion.sortOrder),
+      asc(formQuestionOption.sortOrder),
+    );
+  const surveyResponses: UserDataExport["surveyResponses"] = [];
+  const surveyIndex = new Map<number, UserDataExport["surveyResponses"][number]>();
+  for (const row of surveyRows) {
+    let response = surveyIndex.get(row.responseId);
+    if (!response) {
+      response = { formTitle: row.formTitle, submittedAt: row.submittedAt, answers: [] };
+      surveyIndex.set(row.responseId, response);
+      surveyResponses.push(response);
+    }
+    const value = row.option ?? row.text ?? "";
+    const last = response.answers[response.answers.length - 1];
+    if (last && last.question === row.question && row.option !== null) {
+      last.answer = `${last.answer}, ${value}`;
+    } else {
+      response.answers.push({ question: row.question, answer: value });
+    }
+  }
+
   const feedbackRows = await db
     .select({
       category: feedback.category,
@@ -361,6 +411,7 @@ export async function exportUserData(db: Database, userId: number): Promise<User
       invitesSent: invitesSentRows,
     },
     marketingEmails: marketingRows,
+    surveyResponses,
     feedback: feedbackRows,
   };
 }

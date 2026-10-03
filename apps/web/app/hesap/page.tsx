@@ -12,6 +12,7 @@ import { logoutAllDevicesAction } from "./actions.ts";
 import { ClearHistoryButtonClient } from "./clear-history-button-client.tsx";
 import { ConsentTogglesClient } from "./consent-toggles-client.tsx";
 import { DeleteAccountButtonClient } from "./delete-account-button-client.tsx";
+import { IncompleteFormsSection } from "./incomplete-forms-section.tsx";
 import styles from "./page.module.css";
 import { SearchRightsSection } from "./search-rights-section.tsx";
 
@@ -121,6 +122,8 @@ export default async function HesapPage() {
           </section>
 
           <SearchRightsSection userId={user.id} />
+
+          <IncompleteFormsSection userId={user.id} />
 
           <section className={styles.panel} aria-labelledby="hesap-izinler">
             <div className={styles.panelHeader}>
