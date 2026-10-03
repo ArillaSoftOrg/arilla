@@ -218,14 +218,26 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
   );
 }
 
-function NewLexiconRow() {
+/**
+ * Sorunlu sorgulardan gelindiyse (`?ekle=kelime`) form açık ve yüzey dolu
+ * gelir; kaydetmeden hiçbir şey yazılmaz. Kayıttan sonra sorguyu tanıda
+ * doğrulama bağlantısı gösterilir.
+ */
+function NewLexiconRow({
+  prefillSurface,
+  verifyHref,
+}: {
+  prefillSurface: string | null;
+  verifyHref: string | null;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(prefillSurface !== null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedOnce, setSavedOnce] = useState(false);
   const [draft, setDraft] = useState<DraftFields>({
-    kind: "category",
-    surface: "",
+    kind: prefillSurface !== null ? "synonym" : "category",
+    surface: prefillSurface ?? "",
     normalized: "",
     weight: "1.0",
   });
@@ -246,15 +258,23 @@ function NewLexiconRow() {
     if (saved) {
       setDraft({ kind: draft.kind, surface: "", normalized: "", weight: "1.0" });
       setOpen(false);
+      setSavedOnce(true);
       router.refresh();
     }
   }
 
   if (!open) {
     return (
-      <Button type="button" variant="primary" onClick={() => setOpen(true)}>
-        Yeni satır ekle
-      </Button>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+        <Button type="button" variant="primary" onClick={() => setOpen(true)}>
+          Yeni satır ekle
+        </Button>
+        {savedOnce && verifyHref ? (
+          <p role="status" style={{ margin: 0 }}>
+            Kaydedildi. <a href={verifyHref}>Sorguyu tanıda doğrula</a>
+          </p>
+        ) : null}
+      </div>
     );
   }
 
@@ -274,10 +294,18 @@ function NewLexiconRow() {
   );
 }
 
-export function LexiconTableClient({ rows }: { rows: LexiconRow[] }) {
+export function LexiconTableClient({
+  rows,
+  prefillSurface = null,
+  verifyHref = null,
+}: {
+  rows: LexiconRow[];
+  prefillSurface?: string | null;
+  verifyHref?: string | null;
+}) {
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <NewLexiconRow />
+      <NewLexiconRow prefillSurface={prefillSurface} verifyHref={verifyHref} />
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ textAlign: "left" }}>

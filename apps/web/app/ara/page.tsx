@@ -361,6 +361,7 @@ export default async function AramaPage({
           requestedSort={requestedSort}
           page={page}
           hrefFor={({ sort, page: target }) => aramaHref({ query, steps, sort, page: target })}
+          clarificationAsked={question !== null}
         />
       </Suspense>
     </div>

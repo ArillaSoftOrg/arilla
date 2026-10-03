@@ -8,23 +8,24 @@
  * dogal karsiligini buluyor.
  */
 import type { Database } from "@arilla/db";
-import { type SQL, sql } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { withStartingFrom } from "../product/get-price-comparison.ts";
-import { arrayParam, balancedScoreExpr } from "./ranking.ts";
+import { arrayParam } from "./ranking.ts";
 import {
   type SearchResult,
   type SearchResultItem,
   UnsupportedSortForIntentError,
 } from "./result-types.ts";
 import {
-  foldedDocumentExpr,
-  headPrefilter,
-  matchTokens,
-  rootCategoryJoin,
-  tokenMatchGate,
-  tokenMatchLateral,
-} from "./text-match.ts";
-import type { QueryFilters, QueryObject } from "./types.ts";
+  bestOfferCte,
+  buildFilterClause,
+  distinctImage,
+  finalOrder,
+  merchantIdsOf,
+  scoredCtes,
+  type TextSort,
+} from "./search-sql.ts";
+import type { QueryObject } from "./types.ts";
 
 export interface SearchPagination {
   /** docs/search.md: "Varsayilan 24 sonuc". */
@@ -85,182 +86,26 @@ function toResult(rows: RawRow[], sort: QueryObject["sort"]): SearchResult {
   };
 }
 
-/** `best_offer`: urun basina en dusuk fiyatli aktif teklif. */
-function bestOfferCte(inStockOnly: boolean, merchantIds: number[] | null): SQL {
-  return sql`
-    best_offer AS (
-      SELECT DISTINCT ON (o.product_id)
-        o.product_id, o.id AS offer_id, o.current_price, o.in_stock, o.merchant_id, m.trust_score
-      FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id
-      WHERE o.product_id IS NOT NULL
-        AND o.is_active AND m.is_active
-        AND (${arrayParam(merchantIds)}::bigint[] IS NULL OR o.merchant_id = ANY(${arrayParam(merchantIds)}::bigint[]))
-        AND (NOT ${inStockOnly} OR o.in_stock)
-      ORDER BY o.product_id, o.current_price ASC NULLS LAST
-    )
-  `;
-}
-
 /**
- * Ayni gorseli tasiyan sonuclardan yalnizca en yuksek skorlusu (0029).
- * Normod'da 16 kumas rengi tek fotografi paylasiyor: kullaniciya ayni resmi
- * 16 kez gostermek 24'luk listeyi doldurur ama bilgi eklemez. Urun modeli
- * degismez (renk hala kanonik, 0005); yalnizca liste cesitlenir. Gorseli
- * olmayan urunler kendi basina bir gruptur.
+ * Metin sekmeleri: kapidan gecen urunler (`scoredCtes`), ayni gorselden tek
+ * kart (`distinctImage`), sekmenin siralamasi. Yapi taslari `search-sql.ts`'te;
+ * yonetim arama tanisi da onlari kullanir.
  */
-function distinctImage(scored: SQL): SQL {
-  return sql`
-    SELECT * FROM (
-      SELECT x.*, row_number() OVER (
-        -- COLLATE "C": URL'ler bayt olarak karsilastirilir; yerel duyarli
-        -- siralama 4 bin satirda ~70 ms suruyordu (olculdu).
-        PARTITION BY COALESCE(x.primary_image_url, x.id::text) COLLATE "C"
-        ORDER BY x.score DESC, x.id ASC
-      ) AS image_rank
-      FROM ${scored} x
-    ) ranked WHERE ranked.image_rank = 1
-  `;
-}
-
-/** docs/search.md filtre tablosu: her alan bir indekse karsilik gelir. */
-function buildFilterClause(filters: QueryFilters): SQL {
-  const categoryPath = filters.category_path ?? null;
-  const colors = filters.color && filters.color.length > 0 ? filters.color : null;
-  const priceMin = filters.price_min ?? null;
-  const priceMax = filters.price_max ?? null;
-  const sizeNorm = filters.size_norm ?? null;
-  const brandInclude =
-    filters.brand_include && filters.brand_include.length > 0 ? filters.brand_include : null;
-  const brandExclude =
-    filters.brand_exclude && filters.brand_exclude.length > 0 ? filters.brand_exclude : null;
-  const inStockOnly = filters.in_stock_only ?? false;
-
-  return sql`
-    (${categoryPath}::text IS NULL OR c.path = ${categoryPath} OR c.path LIKE ${categoryPath} || '/%')
-    AND (${arrayParam(colors)}::text[] IS NULL OR p.color = ANY(${arrayParam(colors)}::text[]))
-    AND (${priceMin}::bigint IS NULL OR p.min_price >= ${priceMin})
-    AND (${priceMax}::bigint IS NULL OR p.min_price <= ${priceMax})
-    AND (${sizeNorm}::text IS NULL OR EXISTS (
-      SELECT 1 FROM offer_variant ov
-      WHERE ov.offer_id = bo.offer_id AND ov.size_norm = ${sizeNorm}
-        AND (NOT ${inStockOnly} OR ov.in_stock)
-    ))
-    AND (${arrayParam(brandInclude)}::text[] IS NULL OR b.name_norm = ANY(${arrayParam(brandInclude)}::text[]))
-    AND (${arrayParam(brandExclude)}::text[] IS NULL OR b.name_norm IS NULL OR NOT (b.name_norm = ANY(${arrayParam(brandExclude)}::text[])))
-  `;
-}
-
-/**
- * Metin kosulu (docs/decisions/0029). Ayristiricinin filtreye cevirdigi
- * kelimeler (fiyat, beden, renk, marka) `unparsed`'ta yoktur; kapi yalnizca
- * geriye kalan metne uygulanir. Metin yoksa kapi ve LATERAL yoktur.
- */
-function textMatch(query: QueryObject): {
-  products: SQL;
-  lateral: SQL;
-  gate: SQL;
-  relevance: SQL;
-} {
-  const slots = query.text_slots ?? matchTokens(query.unparsed).map((token) => [token]);
-  if (slots.length === 0) {
-    return { products: sql`product p`, lateral: sql``, gate: sql`TRUE`, relevance: sql`1.0` };
-  }
-  const document = foldedDocumentExpr(sql`p.title`, sql`b.name`, sql`p.color`, sql`rc.name`);
-  return {
-    // Indeksli on filtre ONCE: `OFFSET 0` planlayicinin alt sorguyu
-    // duzlestirip pahali token LATERAL'ini tum katalogda kosmasini engeller
-    // (olculdu: 4.5 bin urunde 270 ms -> ~20 ms).
-    products: sql`(SELECT * FROM product pr WHERE ${headPrefilter(slots, sql`pr.id`)} OFFSET 0) p`,
-    lateral: sql`${rootCategoryJoin(sql`c.path`)} ${tokenMatchLateral(slots, document)}`,
-    gate: tokenMatchGate(slots),
-    relevance: sql`tm.rel`,
-  };
-}
-
-async function searchByBalanced(
+async function searchByText(
   db: Database,
   query: QueryObject,
+  sort: TextSort,
   limit: number,
   offset: number,
 ): Promise<SearchResult> {
-  const merchantIds =
-    query.filters.merchant_ids && query.filters.merchant_ids.length > 0
-      ? query.filters.merchant_ids
-      : null;
-  const inStockOnly = query.filters.in_stock_only ?? false;
-  const text = textMatch(query);
-  const score = balancedScoreExpr(
-    text.relevance,
-    sql`bo.trust_score`,
-    sql`bo.in_stock`,
-    sql`pps.current_percentile`,
-  );
-
   const result = await db.execute<RawRow>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
-    scored AS (
-      SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
-             b.name AS brand_name, c.path AS category_path,
-             bo.current_price, bo.in_stock, bo.trust_score,
-             pps.current_percentile, pps.list_price_inflated, p.offer_count,
-             ${score} AS score
-      FROM ${text.products}
-      JOIN best_offer bo ON bo.product_id = p.id
-      LEFT JOIN product_price_stats pps ON pps.product_id = p.id
-      LEFT JOIN brand b ON b.id = p.brand_id
-      LEFT JOIN category c ON c.id = p.category_id
-      ${text.lateral}
-      WHERE ${buildFilterClause(query.filters)}
-        AND ${text.gate}
-    )
+    ${scoredCtes(query, sort)}
     SELECT s.*, count(*) OVER()::text AS total_count
     FROM (${distinctImage(sql`scored`)}) s
-    ORDER BY s.score DESC, s.id ASC
+    ORDER BY ${finalOrder(sort)}
     LIMIT ${limit} OFFSET ${offset}
   `);
-  return toResult(result.rows, "balanced");
-}
-
-async function searchByBestDeal(
-  db: Database,
-  query: QueryObject,
-  limit: number,
-  offset: number,
-): Promise<SearchResult> {
-  const merchantIds =
-    query.filters.merchant_ids && query.filters.merchant_ids.length > 0
-      ? query.filters.merchant_ids
-      : null;
-  const inStockOnly = query.filters.in_stock_only ?? false;
-  // "En iyi fiyat" sekmesi de ayni metin kapisindan gecer: alakasiz ama
-  // indirimli bir urun bu sekmede de one cikmamali.
-  const text = textMatch(query);
-
-  const result = await db.execute<RawRow>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
-    scored AS (
-      SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
-             b.name AS brand_name, c.path AS category_path,
-             bo.current_price, bo.in_stock, bo.trust_score,
-             pps.current_percentile, pps.list_price_inflated, p.offer_count,
-             (100 - COALESCE(pps.current_percentile, 100))::double precision AS score
-      FROM ${text.products}
-      JOIN best_offer bo ON bo.product_id = p.id
-      JOIN product_price_stats pps ON pps.product_id = p.id
-      LEFT JOIN brand b ON b.id = p.brand_id
-      LEFT JOIN category c ON c.id = p.category_id
-      ${text.lateral}
-      WHERE pps.list_price_inflated = FALSE
-        AND ${buildFilterClause(query.filters)}
-        AND ${text.gate}
-    )
-    SELECT s.*, count(*) OVER()::text AS total_count
-    FROM (${distinctImage(sql`scored`)}) s
-    ORDER BY s.current_percentile ASC NULLS LAST, s.id ASC
-    LIMIT ${limit} OFFSET ${offset}
-  `);
-  return toResult(result.rows, "best_deal");
+  return toResult(result.rows, sort);
 }
 
 async function searchByClosestMatch(
@@ -271,10 +116,7 @@ async function searchByClosestMatch(
   limit: number,
   offset: number,
 ): Promise<SearchResult> {
-  const merchantIds =
-    query.filters.merchant_ids && query.filters.merchant_ids.length > 0
-      ? query.filters.merchant_ids
-      : null;
+  const merchantIds = merchantIdsOf(query.filters);
   const inStockOnly = query.filters.in_stock_only ?? false;
 
   const result = await db.execute<RawRow>(sql`
@@ -322,9 +164,9 @@ export async function search(
     }
     result = await searchByClosestMatch(db, query, query.anchor.id, kinds, limit, offset);
   } else if (query.sort === "best_deal") {
-    result = await searchByBestDeal(db, query, limit, offset);
+    result = await searchByText(db, query, "best_deal", limit, offset);
   } else {
-    result = await searchByBalanced(db, query, limit, offset);
+    result = await searchByText(db, query, "balanced", limit, offset);
   }
   // 0037: kart fiyati varyantlar arasi baslangic fiyatiysa isaretlenir.
   return { ...result, items: await withStartingFrom(db, result.items) };
