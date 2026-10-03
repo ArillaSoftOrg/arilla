@@ -1,8 +1,14 @@
 import { listHistory } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState, ProductCard } from "@arilla/ui";
+import type { Metadata } from "next";
 import { requireProductUser } from "../lib/dal.ts";
 import { ClearHistoryButtonClient } from "./clear-history-button-client.tsx";
+
+export const metadata: Metadata = {
+  title: "Geçmişim",
+  robots: { index: false, follow: false },
+};
 
 /**
  * docs/pages.md: "Üçü de aynı kalıp: başlık, liste, boş durum." Liste

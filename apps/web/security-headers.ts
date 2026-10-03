@@ -80,6 +80,11 @@ export const ADMIN_EXTRA_HEADERS: SecurityHeader[] = [
   { key: "X-Robots-Tag", value: "noindex, nofollow" },
 ];
 
+/** Auth alt akışları, arama sonuçları ve kullanıcıya özel yüzeyler dizine girmez. */
+export const PRIVATE_EXTRA_HEADERS: SecurityHeader[] = [
+  { key: "X-Robots-Tag", value: "noindex, nofollow" },
+];
+
 /**
  * Adresinde tek kullanımlık token taşıyan yollar (e-posta giriş bağlantısı,
  * abonelik iptali). Genel `Referrer-Policy`'yi `no-referrer` ile ezer: route
@@ -94,6 +99,14 @@ export function securityHeaderRoutes(options: SecurityHeaderOptions) {
     { source: "/:path*", headers: securityHeaders(options) },
     { source: "/yonetim", headers: ADMIN_EXTRA_HEADERS },
     { source: "/yonetim/:path*", headers: ADMIN_EXTRA_HEADERS },
+    { source: "/giris/:path*", headers: PRIVATE_EXTRA_HEADERS },
+    { source: "/ara", headers: PRIVATE_EXTRA_HEADERS },
+    { source: "/ara/:path*", headers: PRIVATE_EXTRA_HEADERS },
+    { source: "/hesap", headers: PRIVATE_EXTRA_HEADERS },
+    { source: "/hesap/:path*", headers: PRIVATE_EXTRA_HEADERS },
+    { source: "/gecmis", headers: PRIVATE_EXTRA_HEADERS },
+    { source: "/kaydettiklerim", headers: PRIVATE_EXTRA_HEADERS },
+    { source: "/alarmlar", headers: PRIVATE_EXTRA_HEADERS },
     ...TOKEN_URL_PATHS.map((source) => ({
       source,
       headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
