@@ -121,7 +121,9 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                   <td>
                     {o.title}
                     <br />
-                    <span className={styles.mono}>{`${o.externalId} · ${o.url ?? "—"}`}</span>
+                    <span className={styles.mono}>
+                      {`${o.externalId} · ${o.url ?? "—"}${o.gtin ? ` · GTIN ${o.gtin}` : ""}`}
+                    </span>
                   </td>
                   <td className={styles.num}>
                     {formatKurus(o.price)}

@@ -212,6 +212,11 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     call: async () => (await import("./katalog/teklifler/page.tsx")).default(sp({})),
   },
   {
+    name: "/yonetim/katalog/kalite",
+    admin: false,
+    call: async () => (await import("./katalog/kalite/page.tsx")).default(),
+  },
+  {
     name: "/yonetim/seo",
     admin: false,
     call: async () => (await import("./seo/page.tsx")).default(),

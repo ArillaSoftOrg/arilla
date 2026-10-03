@@ -576,3 +576,42 @@ export function searchQualityKindLabel(kind: string): string {
 export function diagnosticsHref(query: string, product?: string): string {
   return hrefWith("/yonetim/arama/tani", { q: query, urun: product });
 }
+
+// --- S1 matching/catalog ---
+// Eşleştirme kanıtı ve katalog kalitesi (karar 0053).
+
+const IDENTIFIER_STATE_LABELS: Record<string, string> = {
+  equal: "Aynı",
+  conflict: "Çatışıyor",
+  different: "Farklı",
+  missing: "Eksik",
+};
+
+export function identifierStateLabel(state: string): string {
+  return IDENTIFIER_STATE_LABELS[state] ?? state;
+}
+
+const SIGNAL_TONE_LABELS: Record<string, string> = {
+  supports: "Destekliyor",
+  weakens: "Zayıflatıyor",
+  neutral: "Bilgi",
+};
+
+export function signalToneLabel(tone: string): string {
+  return SIGNAL_TONE_LABELS[tone] ?? tone;
+}
+
+const SCORE_POSITION_LABELS: Record<string, string> = {
+  below_queue: "kuyruk eşiğinin altında",
+  review_band: "insan onayı bandında",
+  auto_band: "otomatik kabul bandında, ama kabule uygun değil",
+};
+
+export function scorePositionLabel(position: string): string {
+  return SCORE_POSITION_LABELS[position] ?? position;
+}
+
+/** 0–1 skor, Türkçe ondalık: 0,84. */
+export function formatScore(score: number): string {
+  return score.toFixed(2).replace(".", ",");
+}
