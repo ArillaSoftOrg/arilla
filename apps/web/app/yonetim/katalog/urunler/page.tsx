@@ -1,7 +1,9 @@
 import {
   countProductQuality,
+  isProductIssueFilter,
   isProductQualityFilter,
   PRODUCT_QUALITY_FILTERS,
+  type ProductIssueFilter,
   type ProductQualityFilter,
   searchProducts,
 } from "@arilla/core";
@@ -23,24 +25,31 @@ const QUALITY_LABELS: Record<ProductQualityFilter, string> = {
   stale_price: "Fiyat özeti 7+ gündür yenilenmedi",
 };
 
+/** Katalog kalitesi bağlantılarının filtresi (karar 0053); sayaç panelinde yok. */
+const ISSUE_LABELS: Record<ProductIssueFilter, string> = {
+  no_active_offer: "Aktif teklifi olmayan ürünler (canlı)",
+  duplicate_gtin: "Barkodu başka bir üründe de olan ürünler",
+};
+
 /** Katalog inceleme (Faz 4). Salt okunur; genel tablo düzenleyici değildir. */
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; kalite?: string; sayfa?: string }>;
+  searchParams: Promise<{ q?: string; kalite?: string; sorun?: string; sayfa?: string }>;
 }) {
   const { actor } = await requireCapability("catalog.read");
   const params = await searchParams;
   const query = params.q?.trim().slice(0, 80) || undefined;
   const quality = isProductQualityFilter(params.kalite) ? params.kalite : undefined;
+  const issue = isProductIssueFilter(params.sorun) ? params.sorun : undefined;
   const page = positiveInt(params.sayfa) ?? 1;
 
   const db = getDatabase();
   const [result, counts] = await Promise.all([
-    searchProducts(db, actor, { query, quality, page }),
+    searchProducts(db, actor, { query, quality, issue, page }),
     countProductQuality(db, actor),
   ]);
-  const base = { q: query, kalite: quality };
+  const base = { q: query, kalite: quality, sorun: issue };
 
   return (
     <div className={styles.page}>
@@ -48,6 +57,16 @@ export default async function ProductsPage({
         <p className={styles.muted}>
           Arama: sayı → ürün kimliği, 8–14 hane → GTIN (ürün ya da varyant), diğer → başlık.
         </p>
+        {issue ? (
+          <p className={styles.muted}>
+            {`Sorun filtresi: ${ISSUE_LABELS[issue]} · `}
+            <Link href={hrefWith("/yonetim/katalog/urunler", { q: query, kalite: quality })}>
+              Filtreyi kaldır
+            </Link>
+            {" · "}
+            <Link href="/yonetim/katalog/kalite">Katalog kalitesi</Link>
+          </p>
+        ) : null}
       </PageHeader>
 
       <section className={styles.tiles} aria-label="Katalog kalitesi">

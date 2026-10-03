@@ -1,10 +1,19 @@
 "use client";
 
+import type { MatchEvidence } from "@arilla/core";
 import { Badge, Button, Card } from "@arilla/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
-import { formatKurus, REVIEW_REASON_LABELS } from "../format.ts";
+import styles from "../admin.module.css";
+import {
+  formatKurus,
+  formatScore,
+  identifierStateLabel,
+  REVIEW_REASON_LABELS,
+  scorePositionLabel,
+  signalToneLabel,
+} from "../format.ts";
 import { approveMatchAction, rejectMatchAction } from "./actions.ts";
 import {
   DecisionLock,
@@ -18,15 +27,10 @@ export interface MatchQueueClientItem {
   matchCandidateId: number;
   score: number;
   method: string;
-  explain: {
-    text_similarity?: number;
-    review?: string | null;
-    auto_eligible?: boolean;
-    brand_known_both?: boolean;
-    brand_equal?: boolean;
-    queue_threshold?: number;
-    auto_accept_threshold?: number;
-  } | null;
+  /** Kanıt (karar 0053): skor bandı, sinyaller, kimlik uyumu, kardeş teklifler. */
+  evidence: MatchEvidence;
+  /** Kuyrukta bekleme süresi, sunucuda hesaplanmış ("3 gün"). */
+  waited: string;
   offer: {
     title: string;
     brand: string | null;
@@ -135,23 +139,179 @@ function Side({
   );
 }
 
-function explainText(item: MatchQueueClientItem): string | null {
-  const e = item.explain;
-  if (!e) return null;
-  const parts: string[] = [];
-  if (typeof e.text_similarity === "number") {
-    parts.push(`metin benzerliği ${e.text_similarity.toFixed(2)}`);
-  }
-  if (e.brand_known_both !== undefined) {
-    parts.push(
-      e.brand_equal ? "marka aynı" : e.brand_known_both ? "marka farklı" : "marka bilinmiyor",
-    );
-  }
-  if (e.review) parts.push(`insan onayı gerekçesi: ${e.review}`);
-  if (typeof e.auto_accept_threshold === "number") {
-    parts.push(`otomatik kabul eşiği ${e.auto_accept_threshold.toFixed(2)}`);
-  }
-  return parts.join(" · ") || null;
+const TONE_CLASS: Record<string, string | undefined> = {
+  supports: styles.toneSupports,
+  weakens: styles.toneWeakens,
+  neutral: styles.toneNeutral,
+};
+
+function pct(value: number): string {
+  return `${Math.min(100, Math.max(0, value * 100))}%`;
+}
+
+/** 0–1 skor ölçeği: kuyruk bandı ve otomatik kabul eşiği işaretli. Renk tek başına anlam taşımaz. */
+function ScoreScale({ evidence }: { evidence: MatchEvidence }) {
+  const { band } = evidence;
+  return (
+    <div style={{ display: "grid", gap: 4 }}>
+      <div
+        className={styles.scoreScale}
+        role="img"
+        aria-label={`Skor ${formatScore(band.score)}; insan onayı bandı ${formatScore(
+          band.queueThreshold,
+        )}–${formatScore(band.autoAcceptThreshold)}; otomatik kabul ${formatScore(
+          band.autoAcceptThreshold,
+        )} ve üstü`}
+      >
+        <span
+          className={styles.scoreBand}
+          style={{
+            left: pct(band.queueThreshold),
+            width: pct(band.autoAcceptThreshold - band.queueThreshold),
+          }}
+        />
+        <span className={styles.scoreAuto} style={{ left: pct(band.autoAcceptThreshold) }} />
+        <span className={styles.scoreMarker} style={{ left: pct(band.score) }} />
+      </div>
+      <div className={styles.scoreLegend}>
+        <span>0</span>
+        <span>{`kuyruk ${formatScore(band.queueThreshold)}`}</span>
+        <span>{`otomatik kabul ${formatScore(band.autoAcceptThreshold)}`}</span>
+        <span>1</span>
+      </div>
+      <p style={muted}>
+        {`Skor ${formatScore(band.score)}: ${scorePositionLabel(band.position)}.${
+          band.thresholdsFrom === "default"
+            ? " Eşikler satırda kayıtlı değil; bugünkü varsayılanlar gösteriliyor."
+            : ""
+        }`}
+      </p>
+    </div>
+  );
+}
+
+function Siblings({ item }: { item: MatchQueueClientItem }) {
+  const { evidence } = item;
+  return (
+    <div style={{ display: "grid", gap: 4 }}>
+      <p style={{ margin: 0, fontWeight: 600 }}>
+        {`Adaya bağlı aktif teklifler (${evidence.siblingTotal ?? 0})`}
+      </p>
+      <p style={muted}>
+        {`Şu anki en düşük teklif fiyatı ${formatKurus(evidence.liveMinPrice)} · fiyat özetindeki ${formatKurus(
+          item.product.minPrice,
+        )}`}
+      </p>
+      {evidence.sameMerchantSibling ? (
+        <p className={styles.toneWeakens} style={{ margin: 0, fontSize: 13 }}>
+          Bu mağazanın bu ürüne bağlı başka bir teklifi var. Resolver bir mağazanın aynı ürünü iki
+          kayıtla satmadığını varsayar; bu teklif renk ya da boyut kardeşi olabilir.
+        </p>
+      ) : null}
+      {evidence.siblings.length === 0 ? (
+        <p style={muted}>Adaya bağlı aktif teklif yok.</p>
+      ) : (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Mağaza</th>
+                <th scope="col" className={styles.num}>
+                  Fiyat
+                </th>
+                <th scope="col">Stok</th>
+                <th scope="col">GTIN / MPN</th>
+                <th scope="col">Varyant barkodları</th>
+              </tr>
+            </thead>
+            <tbody>
+              {evidence.siblings.map((sibling) => (
+                <tr key={sibling.offerId}>
+                  <td>
+                    {sibling.merchantName}
+                    {sibling.merchantActive ? null : " (kapalı)"}
+                  </td>
+                  <td className={styles.num}>{formatKurus(sibling.price)}</td>
+                  <td>{sibling.inStock ? "stokta" : "stokta yok"}</td>
+                  <td
+                    className={styles.mono}
+                  >{`${sibling.gtin ?? "—"} / ${sibling.mpn ?? "—"}`}</td>
+                  <td className={styles.mono}>
+                    {sibling.variantGtins.length > 0 ? sibling.variantGtins.join(", ") : "—"}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      {(evidence.siblingTotal ?? 0) > evidence.siblings.length ? (
+        <p style={muted}>
+          {`En düşük fiyatlı ${evidence.siblings.length} teklif gösteriliyor; tamamı katalog ayrıntısında.`}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
+function Evidence({ item }: { item: MatchQueueClientItem }) {
+  const { evidence } = item;
+  return (
+    <section className={styles.evidence} aria-label="Eşleştirme kanıtı">
+      <ScoreScale evidence={evidence} />
+      <div className={styles.evidenceGrid}>
+        <div>
+          <p style={{ margin: 0, fontWeight: 600 }}>Neden insan bekliyor</p>
+          <ul className={styles.evidenceList}>
+            {evidence.humanReasons.map((reason) => (
+              <li key={reason}>{reason}</li>
+            ))}
+          </ul>
+          <p style={muted}>{`Kuyrukta bekleme: ${item.waited}`}</p>
+        </div>
+        <div>
+          <p style={{ margin: 0, fontWeight: 600 }}>Skor bileşenleri</p>
+          {evidence.signals.length === 0 ? (
+            <p style={muted}>Bileşen kaydı yok; yalnızca skor ve yöntem biliniyor.</p>
+          ) : (
+            <ul className={styles.evidenceList}>
+              {evidence.signals.map((signal) => (
+                <li key={signal.key}>
+                  <span
+                    className={TONE_CLASS[signal.tone]}
+                  >{`${signalToneLabel(signal.tone)}: `}</span>
+                  {signal.text}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <div>
+          <p style={{ margin: 0, fontWeight: 600 }}>Kimlik uyumu</p>
+          {evidence.identifiers ? (
+            <ul className={styles.evidenceList}>
+              {(
+                [
+                  ["Barkod", evidence.identifiers.gtin],
+                  ["MPN", evidence.identifiers.mpn],
+                ] as const
+              ).map(([label, check]) => (
+                <li key={label}>
+                  <span className={check.state === "conflict" ? styles.idConflict : undefined}>
+                    {`${label}: ${identifierStateLabel(check.state)}. `}
+                  </span>
+                  {check.text}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p style={muted}>Kimlik ve kardeş teklif kanıtı okunamadı (zaman aşımı).</p>
+          )}
+        </div>
+      </div>
+      {evidence.evidenceAvailable ? <Siblings item={item} /> : null}
+    </section>
+  );
 }
 
 /** pages.md: "Klavye kısayolu şart: bu ekran günde yüzlerce kez kullanılacak." */
@@ -256,8 +416,6 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
     );
   }
 
-  const explanation = explainText(current);
-
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <p
@@ -276,7 +434,7 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
         <Badge>{`skor ${current.score.toFixed(2)}`}</Badge>
         <Badge>{current.method}</Badge>
       </div>
-      {explanation ? <p style={muted}>{explanation}</p> : null}
+      <Evidence item={current} />
 
       <div
         style={{
