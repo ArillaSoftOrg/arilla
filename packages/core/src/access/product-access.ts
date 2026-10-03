@@ -110,8 +110,13 @@ export function postAuthRedirect(
     const safe = safeRedirectPath(next);
     return isAdminConsolePath(safe) ? safe : ADMIN_CONSOLE_PATH;
   }
-  return EARLY_ACCESS_PATH;
+  // Paylasilan anket baglantisi (karar 0058): lansman oncesi de giris sonrasi
+  // ankete donulur. Yalnizca `/anket/<slug>` (sorgu yok) - serbest `next` degil.
+  const safe = safeRedirectPath(next);
+  return SURVEY_PATH.test(safe) ? safe : EARLY_ACCESS_PATH;
 }
+
+const SURVEY_PATH = /^\/anket\/[a-z0-9]+(-[a-z0-9]+)*$/;
 
 export function isPublicProductPath(pathname: string): boolean {
   return PUBLIC_PRODUCT_PATH_PREFIXES.some(

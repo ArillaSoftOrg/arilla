@@ -49,6 +49,16 @@ export type AdminAction =
   | "marketing.send_start"
   | "marketing.campaign_cancel"
   /**
+   * Form / anket merkezi (karar 0058). Soru metni, cevap ve kullanici
+   * YAZILMAZ; yalnizca tur, hedef kitle, durum ve sayilar.
+   * `forms.results_view`: sonuc ekrani goruntulendi (yanitlar hesaba bagli olabilir).
+   */
+  | "forms.create"
+  | "forms.update"
+  | "forms.publish"
+  | "forms.close"
+  | "forms.results_view"
+  /**
    * Güvenlik olayları (karar 0050). Kişisel veri, yol, IP, token YAZILMAZ.
    * - `security.access_denied`: girişli ama yetkisiz hesabın yönetim isteği;
    *   hedef istenen yetenek. Hesap + yetenek başına 10 dakikada bir satır.
@@ -67,6 +77,7 @@ export type AdminTargetType =
   | "merchant"
   | "app_user"
   | "marketing_campaign"
+  | "form"
   /** `security.access_denied` hedefi: istenen yetenek adı. */
   | "capability";
 

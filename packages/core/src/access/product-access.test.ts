@@ -81,6 +81,23 @@ describe("redirects", () => {
     expect(postAuthRedirect({ role: "creator" }, "/", CLOSED)).toBe(EARLY_ACCESS_PATH);
   });
 
+  it("a shared survey link returns to the survey even while closed, nothing else does", () => {
+    expect(postAuthRedirect({ role: "user" }, "/anket/seni-taniyalim", CLOSED)).toBe(
+      "/anket/seni-taniyalim",
+    );
+    for (const next of [
+      "/anket/x?next=//evil.example",
+      "/anket/",
+      "/anket/a/b",
+      "/anket/UPPER",
+      "//anket/x",
+      "/anketx/y",
+      "/hesap",
+    ]) {
+      expect(postAuthRedirect({ role: "user" }, next, CLOSED)).toBe(EARLY_ACCESS_PATH);
+    }
+  });
+
   it("staff (and everyone once open) keep the safe next behavior", () => {
     expect(postAuthRedirect({ role: "admin" }, "/yonetim", CLOSED)).toBe("/yonetim");
     expect(postAuthRedirect({ role: "admin" }, "//evil.example", CLOSED)).toBe("/");

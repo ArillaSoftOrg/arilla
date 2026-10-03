@@ -25,6 +25,7 @@ const ADMIN_ONLY: Capability[] = [
   // Karar 0043: lansman öncesi önizleme yalnızca yöneticinin.
   "product.preview",
   "marketing.manage",
+  "forms.manage",
   // Karar 0049: moderatör kullanıcı aktivitesini ve tam iletişim bilgisini göremez.
   "users.activity.read",
   "users.contact.reveal",
