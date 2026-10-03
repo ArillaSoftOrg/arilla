@@ -129,6 +129,11 @@ beforeAll(async () => {
 afterAll(async () => {
   await owner(async (client) => {
     await client.query("DELETE FROM admin_audit_event WHERE actor_user_id = ANY($1)", [userIds]);
+    // 0039 tetikleyicisinin aktörsüz rol satırları (yetkili test hesapları açılırken).
+    await client.query(
+      "DELETE FROM admin_audit_event WHERE target_type = 'app_user' AND target_id = ANY($1::text[])",
+      [userIds.map(String)],
+    );
     await client.query("DELETE FROM lexicon WHERE surface LIKE $1", [`authz-${suffix}%`]);
     await client.query("DELETE FROM product WHERE id = $1", [productId]);
     await client.query("DELETE FROM merchant WHERE id = $1", [merchantId]);
@@ -278,13 +283,25 @@ describe("server action'lar - arayüz atlanarak doğrudan çağrı", () => {
       const res = await client.query("SELECT is_active FROM merchant WHERE id = $1", [merchantId]);
       return res.rows[0].is_active as boolean;
     });
+  // Mutasyon denetimi; reddedilen erişim olayları (karar 0050) ayrıca sayılır.
   const auditCount = () =>
     owner(async (client) => {
       const res = await client.query(
-        "SELECT count(*)::int AS n FROM admin_audit_event WHERE actor_user_id = ANY($1)",
+        `SELECT count(*)::int AS n FROM admin_audit_event
+          WHERE actor_user_id = ANY($1) AND action NOT LIKE 'security.%'`,
         [userIds],
       );
       return res.rows[0].n as number;
+    });
+  const deniedRoles = (capability: string) =>
+    owner(async (client) => {
+      const res = await client.query(
+        `SELECT DISTINCT actor_role FROM admin_audit_event
+          WHERE actor_user_id = ANY($1) AND action = 'security.access_denied' AND target_id = $2
+          ORDER BY actor_role`,
+        [userIds, capability],
+      );
+      return res.rows.map((row) => row.actor_role as string);
     });
 
   it("mağaza aç/kapat: yalnızca yönetici; diğerlerinde veri ve denetim değişmez", async () => {
@@ -304,6 +321,8 @@ describe("server action'lar - arayüz atlanarak doğrudan çağrı", () => {
     }
     expect(await merchantActive()).toBe(true);
     expect(await auditCount()).toBe(before);
+    // Girişli ama yetkisiz denemeler denetimde görünür; anonim ve süresi dolmuş görünmez.
+    expect(await deniedRoles("merchant.manage")).toEqual(["creator", "moderator", "user"]);
 
     state.token = tokens.admin;
     expect(await setMerchantActiveAction(input)).toEqual({ ok: true, changed: true });
@@ -383,5 +402,77 @@ describe("server action'lar - arayüz atlanarak doğrudan çağrı", () => {
     });
     expect(await approveMatchAction(-5)).toEqual({ found: false });
     expect(await rejectMatchAction(999_999_999, "uydurma-neden")).toEqual({ found: false });
+  });
+
+  it("oturumları kapatma: yalnızca taze girişli yönetici; hedefin bütün oturumları gider (karar 0050)", async () => {
+    const { revokeUserSessionsAction } = await import("./kullanicilar/actions.ts");
+    const victim = await owner(async (client) => {
+      const res = await client.query(
+        "INSERT INTO app_user (email) VALUES ($1) RETURNING id, public_id",
+        [`authz-victim-${suffix}@test.local`],
+      );
+      const id = Number(res.rows[0].id);
+      userIds.push(id);
+      for (const n of [1, 2]) {
+        await client.query(
+          "INSERT INTO session (user_id, token_hash, expires_at) VALUES ($1, $2, now() + interval '1 hour')",
+          [id, hashToken(`authz-victim-${suffix}-${n}`)],
+        );
+      }
+      return { id, publicId: String(res.rows[0].public_id) };
+    });
+    const victimSessions = () =>
+      owner(async (client) => {
+        const res = await client.query(
+          "SELECT count(*)::int AS n FROM session WHERE user_id = $1",
+          [victim.id],
+        );
+        return res.rows[0].n as number;
+      });
+    const input = { publicId: victim.publicId, reason: "ele gecirilmis hesap suphesi" };
+
+    for (const role of ["user", "creator", "moderator"] as const) {
+      state.token = tokens[role];
+      expect(await outcome(() => revokeUserSessionsAction(input))).toBe("404");
+    }
+    state.token = undefined;
+    expect(await outcome(() => revokeUserSessionsAction(input))).toBe("login");
+    expect(await victimSessions()).toBe(2);
+
+    // Taze olmayan yönetici: işlem yapılmaz, yeniden giriş bağlantısı döner.
+    await owner((client) =>
+      client.query(
+        "UPDATE session SET created_at = now() - interval '2 hours' WHERE token_hash = $1",
+        [hashToken(tokens.admin ?? "")],
+      ),
+    );
+    state.token = tokens.admin;
+    const stale = await revokeUserSessionsAction(input);
+    expect(stale.ok).toBe(false);
+    expect(stale.ok ? null : stale.reauthHref).toContain("neden=yeniden");
+    expect(await victimSessions()).toBe(2);
+    await owner((client) =>
+      client.query("UPDATE session SET created_at = now() WHERE token_hash = $1", [
+        hashToken(tokens.admin ?? ""),
+      ]),
+    );
+
+    expect(await revokeUserSessionsAction({ ...input, reason: "x" })).toMatchObject({ ok: false });
+    expect(await revokeUserSessionsAction(input)).toEqual({ ok: true, count: 2 });
+    expect(await victimSessions()).toBe(0);
+    const audit = await owner(async (client) => {
+      const res = await client.query(
+        `SELECT reason, after FROM admin_audit_event
+          WHERE action = 'sessions.revoke_all' AND target_id = $1`,
+        [String(victim.id)],
+      );
+      return res.rows;
+    });
+    expect(audit).toEqual([
+      {
+        reason: "ele gecirilmis hesap suphesi",
+        after: { count: 2, scope: "admin", outcome: "applied" },
+      },
+    ]);
   });
 });

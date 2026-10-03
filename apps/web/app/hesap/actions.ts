@@ -1,7 +1,13 @@
 "use server";
 
 import type { ConsentKind } from "@arilla/core";
-import { clearHistory, deleteAccount, setConsent } from "@arilla/core";
+import {
+  clearHistory,
+  deleteAccount,
+  revokeOwnSessions,
+  StaffAccountDeletionError,
+  setConsent,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { revalidatePath } from "next/cache";
 import { headers } from "next/headers";
@@ -37,9 +43,36 @@ export async function clearHistoryAction(): Promise<void> {
  * yazılır." Onay istemci tarafında (bkz. delete-account-button-client.tsx);
  * bu action geri dönüşü olmayan asıl işlemi yapar.
  */
-export async function deleteAccountAction(): Promise<void> {
+export type DeleteAccountResult = { ok: false; message: string };
+
+export async function deleteAccountAction(): Promise<DeleteAccountResult> {
   const user = await requireUser();
-  await deleteAccount(getDatabase(), user.id);
+  try {
+    await deleteAccount(getDatabase(), user.id);
+  } catch (error) {
+    // Karar 0050: yetkili hesap önce rolünü bıraktırır (docs/copy.md
+    // `account.delete_staff_blocked`). Hiçbir şey silinmedi.
+    if (error instanceof StaffAccountDeletionError) {
+      return {
+        ok: false,
+        message:
+          "Yönetim yetkisi olan bir hesap silinemez. Önce yetkinin kaldırılması için ekiple iletişime geç.",
+      };
+    }
+    throw error;
+  }
   await clearSessionCookie();
   redirect("/");
+}
+
+/**
+ * "Tüm cihazlardan çıkış" (karar 0050): bu cihaz dahil bütün oturumlar
+ * sunucuda silinir. Şüpheli giriş sonrası kullanıcının kendi acil
+ * düğmesi. Server action: yalnızca POST, Origin denetimi Next'te.
+ */
+export async function logoutAllDevicesAction(): Promise<void> {
+  const user = await requireUser();
+  await revokeOwnSessions(getDatabase(), user);
+  await clearSessionCookie();
+  redirect("/giris");
 }

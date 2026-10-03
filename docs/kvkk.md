@@ -146,6 +146,9 @@ KVKK m.11 kapsamındaki haklar `/hesap` altından fiilen kullanılabilmelidir:
 Silme gerçekten silmelidir. Arayüzde var görünüp arkada saklamak ihlaldir.
 Hesap silindiğinde `click` ve `conversion` kayıtları mali mevzuat gereği
 kalabilir ama **kimliksizleştirilir** (`user_id` NULL'a çekilir).
+Yönetim denetim kaydı (`admin_audit_event`) da kalır; silinen hesabın aktör
+bağlantısı NULL'a çekilir, satırda e-posta/IP yoktur. Yönetim yetkili bir hesap
+silinmeden önce rolü bırakılır (karar 0050).
 
 Talepler en geç 30 gün içinde sonuçlandırılmalı; otomatik akış bunu anında
 yapabilir.

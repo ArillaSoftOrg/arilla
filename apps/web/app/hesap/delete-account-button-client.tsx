@@ -9,6 +9,7 @@ import styles from "./page.module.css";
 export function DeleteAccountButtonClient() {
   const [confirming, setConfirming] = useState(false);
   const [pending, setPending] = useState(false);
+  const [message, setMessage] = useState<string | null>(null);
 
   if (!confirming) {
     return (
@@ -21,6 +22,11 @@ export function DeleteAccountButtonClient() {
   return (
     <div className={styles.dangerActions}>
       <p className={styles.warningText}>Bu işlem geri alınamaz.</p>
+      {message ? (
+        <p className={styles.warningText} role="alert">
+          {message}
+        </p>
+      ) : null}
       <div className={styles.inlineButtonRow}>
         <Button
           type="button"
@@ -29,7 +35,10 @@ export function DeleteAccountButtonClient() {
           disabled={pending}
           onClick={async () => {
             setPending(true);
-            await deleteAccountAction();
+            // Başarıda yönlendirme olur; dönen değer yalnızca reddedilen durum.
+            const result = await deleteAccountAction();
+            setMessage(result.message);
+            setPending(false);
           }}
         >
           Evet, hesabımı sil

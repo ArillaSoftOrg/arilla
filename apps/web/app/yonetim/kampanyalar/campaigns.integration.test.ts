@@ -239,14 +239,25 @@ describe("yönetici akışı", () => {
     });
     expect(early).toMatchObject({ ok: false });
 
+    // Karar 0050: test yalnızca yöneticinin kendi adresine (ya da izin listesine).
+    const stranger = await actions.sendTestAction({
+      publicId: created.publicId,
+      expectedContentVersion: 1,
+      recipient: `${TAG}-yabanci@test.local`,
+    });
+    expect(stranger).toMatchObject({
+      ok: false,
+      message: expect.stringContaining("kendi adresine"),
+    });
+
     const testResult = await actions.sendTestAction({
       publicId: created.publicId,
       expectedContentVersion: 1,
-      recipient: `${TAG}-test@test.local`,
+      recipient: `${TAG}-admin@test.local`,
     });
     expect(testResult).toEqual({ ok: true });
     const testMails = await mailpitMessages(`subject:"Test: ${TAG} yeni özellik"`);
-    expect(testMails.map((m) => m.To[0]?.Address)).toEqual([`${TAG}-test@test.local`]);
+    expect(testMails.map((m) => m.To[0]?.Address)).toEqual([`${TAG}-admin@test.local`]);
 
     // Eski giriş: gönderim yapılmaz, yeniden giriş bağlantısı döner.
     state.token = tokens.staleAdmin;

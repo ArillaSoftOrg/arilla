@@ -28,6 +28,8 @@ const ADMIN_ONLY: Capability[] = [
   // Karar 0049: moderatör kullanıcı aktivitesini ve tam iletişim bilgisini göremez.
   "users.activity.read",
   "users.contact.reveal",
+  // Karar 0050: oturum kapatma yalnızca yöneticinin.
+  "users.sessions.revoke",
 ];
 const ALL: Capability[] = [...MODERATOR, ...ADMIN_ONLY];
 

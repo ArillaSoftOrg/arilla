@@ -29,6 +29,12 @@ Postgres. AWS'ye geçiş bir bağlantı dizesi değişikliğine inmelidir.
   hiçbir koşulda gönderilmez.
 - Anahtar sızarsa: iptal, yenile, `api_usage` tablosundan anormal kullanım
   kontrolü.
+- Özel anahtar dosyaları (Apple `.p8`, `.pem`, `.p12`, SSH anahtarı) depo
+  klasöründe TUTULMAZ; depo dışında (ör. `~/.secrets/`) durur, değer ortam
+  değişkenine yapıştırılır. `.gitignore` bu adları yok sayar ve
+  `pnpm check:secrets` (CI: `security-checks`) izlenen ya da sahnelenmiş bir
+  anahtar dosyası/PEM başlığı görürse başarısız olur (karar 0050). Anahtar bir
+  kez bile commit'lenip push'landıysa geçmişten silmek yetmez: döndürülür.
 
 ## Ortam değişkenleri
 
@@ -367,28 +373,56 @@ pnpm db:set-role -- --email kisi@ornek.com --role user  --reason "yetki geri al�
 
 - Yalnızca yerel veritabanında çalışır (`DATABASE_URL_OWNER` localhost değilse durur).
 - Rol zaten istenen değerse hiçbir şey yazmaz.
-- Değişiklik ve `users.role_change` denetim satırı aynı işlemde yazılır
-  (`actor_role = 'cli'`); `/yonetim/denetim`'de "Rol değiştirildi" olarak görünür.
+- `users.role_change` denetim satırını veritabanı tetikleyicisi
+  (`app_user_role_change_audit`, 0039) aynı işlemde yazar; betik yalnızca aktörü
+  ve gerekçeyi verir (`actor_role = 'cli'`). `/yonetim/denetim`'de "Rol
+  değiştirildi" olarak görünür. Tetikleyici yoksa betik durur.
 - Rol her istekte veritabanından okunur: açık oturum bir sonraki istekte yeni
   rolle değerlendirilir. Yönetim alanı ayrıca 12 saat / 30 dakika oturum
   kuralını uygular (karar 0044).
 
 **Üretim** - betik bilerek çalışmaz. Onaylı bir işlemde, sahip rolüyle, tek
-transaction'da ve aynı denetim satırıyla elle:
+transaction'da elle. Denetim satırını tetikleyici yazar (karar 0050); elle
+INSERT YAZILMAZ, yalnızca aktör ve gerekçe işleme verilir:
 
 ```sql
 BEGIN;
+SELECT set_config('arilla.audit_actor_user_id', '<işlemi yapan yöneticinin id''si ya da boş>', true),
+       set_config('arilla.audit_actor_role', 'cli', true),
+       set_config('arilla.audit_reason', '<gerekçe>', true);
 UPDATE app_user SET role = 'admin'
  WHERE public_id = '<hesap kimliği>' AND role <> 'admin'
 RETURNING id;                       -- tam olarak 1 satır dönmeli; dönmezse ROLLBACK
-INSERT INTO admin_audit_event
-  (actor_user_id, actor_role, action, target_type, target_id, before, after, reason)
-VALUES (<işlemi yapan yöneticinin id'si ya da hedef id>, 'cli', 'users.role_change',
-        'app_user', '<hedef id>', '{"role":"user"}', '{"role":"admin"}', '<gerekçe>');
 COMMIT;
 ```
 
-Geri almak için aynı işlem `role = 'user'` ile.
+Geri almak için aynı işlem `role = 'user'` ile. Ayar verilmeden yapılan rol
+değişikliği de denetlenir (aktör boş, `actor_role = 'db'`, `after.dbRole` bağlanan
+veritabanı rolü): `dbRole = 'arilla_app'` olan bir rol satırı uygulama rolünün
+kötüye kullanıldığını gösterir, olay olarak ele alınır.
+
+Yetkili hesap kendi hesabını `/hesap`'tan silemez; önce rolü bu yolla düşürülür.
+Rolü düşürülmüş hesap silinince denetim satırları kalır, aktör bağlantısı boşalır.
+
+## Acil oturum kapatma (ele geçirilmiş hesap)
+
+Karar 0050. Üç yol, en hızlısından:
+
+1. Yönetim paneli: `/yonetim/kullanicilar/<hesap>` → "Tüm oturumları kapat"
+   (yalnızca yönetici, son 1 saatte giriş, gerekçe zorunlu, denetlenir).
+2. Kullanıcının kendisi: `/hesap` → "Tüm cihazlardan çıkış yap".
+3. Panel erişilemiyorsa ya da ele geçirilen bir YÖNETİCİ ise, sahip rolüyle:
+
+```bash
+pnpm db:revoke-sessions -- --public-id <uuid> --reason "<gerekçe>" --demote --confirm-remote
+# --demote: rolü 'user'a düşürür (tetikleyiciyle denetlenir); --actor-email <yönetici> isteğe bağlı
+```
+
+Oturum silme, `sessions.revoke_all` satırı ve rol düşürme tek işlemdir. Ardından:
+`/yonetim/denetim`'de son `users.role_change`, `security.access_denied` ve
+`sessions.revoke_all` satırlarını incele; hesabın Google/Apple tarafında da
+oturumlarının kapatılmasını iste. `SESSION_SECRET` döndürmek BÜTÜN kullanıcıları
+çıkışa zorlar; yalnızca sır sızıntısında yapılır.
 
 ## Pazarlama e-postası kampanyaları
 
@@ -401,6 +435,11 @@ alan adı doğrulaması (SPF/DKIM/DMARC). Sonra Vercel production'da
 `MARKETING_CRON_URL` secret'ı. Kapatmak için `MARKETING_EMAIL_ENABLED`
 boşaltılır: sürmekte olan kampanya `sending`te bekler, ileti gitmez,
 yönetim ekranı "gerçek gönderim kapalı" der.
+
+**Test gönderimi.** Yalnızca gönderen yöneticinin kendi adresine (hesap
+e-postası ya da doğrulanmış Google/Apple e-postası) veya
+`MARKETING_TEST_RECIPIENTS` (virgülle ayrılmış) listesindeki adreslere gider;
+saatte en fazla 10 (karar 0050). Başka adres reddedilir ve sayılmaz.
 
 **İlerleme.** Gönderim partiler hâlinde: başlatma anında bir parti, sonra
 `trigger-alerts-cron.yml` ile 15 dakikada bir parti (varsayılan 40 ileti).

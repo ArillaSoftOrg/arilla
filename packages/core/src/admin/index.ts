@@ -13,6 +13,7 @@ export * from "./merchants.ts";
 export * from "./operations.ts";
 export * from "./redact.ts";
 export * from "./search-diagnostics.ts";
+export * from "./security.ts";
 export * from "./seo.ts";
 export * from "./session-policy.ts";
 export * from "./users.ts";

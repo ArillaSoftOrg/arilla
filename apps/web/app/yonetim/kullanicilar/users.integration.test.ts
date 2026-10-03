@@ -43,6 +43,8 @@ vi.mock("next/navigation", () => ({
   notFound: () => {
     throw new NotFoundSignal();
   },
+  // Oturum kapatma düğmesi (karar 0050) istemci bileşeni; HTML'e çevirirken yönlendirici yok.
+  useRouter: () => ({ refresh: () => {} }),
 }));
 
 vi.mock("next/cache", () => ({ revalidatePath: () => {} }));

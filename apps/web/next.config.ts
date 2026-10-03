@@ -2,6 +2,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { NextConfig } from "next";
+import { securityHeaderOptionsFromEnv, securityHeaderRoutes } from "./security-headers.ts";
 
 /**
  * `next.config.ts` `apps/web` icinden calisir, repo kokundeki `.env`'i
@@ -43,6 +44,11 @@ const nextConfig: NextConfig = {
       { source: "/cerez-politikasi", destination: "/cerez", permanent: true },
     ];
   },
+  // Karar 0050: CSP, çerçeveleme yasağı ve diğer güvenlik başlıkları tek merkezde.
+  async headers() {
+    return securityHeaderRoutes(securityHeaderOptionsFromEnv());
+  },
+  poweredByHeader: false,
   experimental: {
     serverActions: {
       // Gorsel arama yuklemesi 4 MB ile sinirli (ara/gorsel/actions.ts).

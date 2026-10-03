@@ -49,7 +49,12 @@ export type Capability =
    * yönetici ve taze giriş ister (`requireFreshCapability`); her gösterim
    * `users.reveal_contact` olarak yazılır, değerin kendisi yazılmaz.
    */
-  | "users.contact.reveal";
+  | "users.contact.reveal"
+  /**
+   * Bir hesabın bütün oturumlarını kapatma (ele geçirilmiş hesap şüphesi).
+   * Yalnızca yönetici, taze giriş ile (karar 0050).
+   */
+  | "users.sessions.revoke";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -81,6 +86,8 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   // Karar 0049: kullanıcı aktivitesi ve tam iletişim bilgisi yalnızca yöneticinin.
   "users.activity.read",
   "users.contact.reveal",
+  // Karar 0050: oturum kapatma yalnızca yöneticiden.
+  "users.sessions.revoke",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

@@ -154,14 +154,25 @@ export async function deleteSession(
  * Her silinen oturum icin `session_revoked` yazilir.
  */
 export async function deleteAllSessionsForUser(db: Database, userId: number): Promise<number> {
-  return db.transaction(async (tx) => {
-    const deleted = await tx
-      .delete(session)
-      .where(and(eq(session.userId, userId)))
-      .returning({ id: session.id });
-    for (const row of deleted) {
-      await recordSessionEnd(tx, { userId, sessionId: row.id, kind: "session_revoked" });
-    }
-    return deleted.length;
-  });
+  return db.transaction((tx) => revokeAllSessionsInTx(tx, userId));
+}
+
+/**
+ * `deleteAllSessionsForUser`'in çağıranın işlemi içindeki hâli: oturumları
+ * siler ve her biri için `session_revoked` yazar. Denetim kaydıyla aynı
+ * işlemde oturum kapatan yollar (karar 0050, `admin/security.ts`) bunu
+ * kullanır; olay kaydı atlanmaz.
+ */
+export async function revokeAllSessionsInTx(
+  tx: Pick<Database, "delete" | "insert">,
+  userId: number,
+): Promise<number> {
+  const deleted = await tx
+    .delete(session)
+    .where(and(eq(session.userId, userId)))
+    .returning({ id: session.id });
+  for (const row of deleted) {
+    await recordSessionEnd(tx, { userId, sessionId: row.id, kind: "session_revoked" });
+  }
+  return deleted.length;
 }

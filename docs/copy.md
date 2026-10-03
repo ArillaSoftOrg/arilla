@@ -525,6 +525,10 @@ mutasyonu aynı yeteneği tekrar denetler (docs/decisions/0039).
 | `legal.consent_marketing` | Haftalık fırsat özetini e-posta ile gönder. |
 | `legal.consent_discovery` | Bulduğum ürünler isimsiz olarak keşfet akışında görünebilsin. |
 | `legal.delete_warning` | Bu işlem geri alınamaz. |
+| `account.delete_staff_blocked` | Yönetim yetkisi olan bir hesap silinemez. Önce yetkinin kaldırılması için ekiple iletişime geç. |
+| `account.logout_all` | Tüm cihazlardan çıkış yap |
+| `admin.users.revoke_sessions` | Tüm oturumları kapat |
+| `admin.campaign.test_recipient_not_allowed` | Test e-postası yalnızca kendi adresine ya da izinli test adreslerine gönderilebilir. |
 
 Rıza kutuları **işaretsiz** gelir ve girişin ön koşulu değildir.
 
