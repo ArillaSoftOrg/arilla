@@ -26,6 +26,7 @@ const TAG = `ot${Date.now().toString(36)}`;
 const merchants: Record<string, number> = {};
 const users: Record<string, { id: number; publicId: string }> = {};
 const usageIds: number[] = [];
+const formIds: number[] = [];
 let db: Database;
 
 const admin = () => ({ userId: users.admin?.id as number, role: "admin" as const });
@@ -114,6 +115,7 @@ afterAll(async () => {
       "DELETE FROM admin_audit_event WHERE target_type = 'app_user' AND target_id = ANY($1::text[])",
       [userIds.map(String)],
     );
+    await client.query("DELETE FROM form WHERE id = ANY($1)", [formIds]);
     await client.query("DELETE FROM merchant WHERE id = ANY($1)", [merchantIds]);
     await client.query("DELETE FROM app_user WHERE id = ANY($1)", [userIds]);
   });
@@ -228,7 +230,27 @@ describe("denetim kaydı", () => {
       await insert("admin", "users.view", "app_user", String(users.moderator?.id), null);
       await insert("moderator", "security.access_denied", "capability", "audit.read", null);
       await insert("admin", "merchant.activate", "merchant", "999999999", null);
+      // Form / anket merkezi (karar 0058): hedef türü `form`, bağlantı düzenleme sayfasına.
+      const created = await client.query(
+        "INSERT INTO form (slug, title) VALUES ($1, $2) RETURNING id",
+        [`${TAG}-anket`, `${TAG} Anket`],
+      );
+      formIds.push(Number(created.rows[0].id));
+      await insert("admin", "forms.publish", "form", String(formIds[0]), "yayına alındı");
     });
+  });
+
+  it("form hedefi okunur başlığa ve düzenleme sayfasına çözülür; hedef türü filtrelenebilir", async () => {
+    const byTarget = await listAdminEvents(db, admin(), {
+      targetType: "form",
+      targetId: String(formIds[0]),
+    });
+    expect(byTarget.rows).toHaveLength(1);
+    expect(byTarget.rows[0]?.target).toEqual({
+      label: `${TAG} Anket`,
+      href: `/yonetim/formlar/${formIds[0]}`,
+    });
+    expect(byTarget.rows[0]?.reason).toBe("yayına alındı");
   });
 
   it("gerekçe döner; hedefler okunur etikete ve yönetim sayfasına çözülür, kişisel veri yok", async () => {

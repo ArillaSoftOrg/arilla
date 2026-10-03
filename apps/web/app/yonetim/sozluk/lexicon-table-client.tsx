@@ -308,22 +308,22 @@ export function LexiconTableClient({
       <NewLexiconRow prefillSurface={prefillSurface} verifyHref={verifyHref} />
       {/* Dar ekranda tablo sayfayı taşırmasın: kendi içinde yatay kayar. */}
       <div style={{ overflowX: "auto" }}>
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ textAlign: "left" }}>
-            <th>Tür</th>
-            <th>Yüzey</th>
-            <th>Normalize</th>
-            <th>Ağırlık</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <LexiconRowView key={row.id} row={row} />
-          ))}
-        </tbody>
-      </table>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ textAlign: "left" }}>
+              <th>Tür</th>
+              <th>Yüzey</th>
+              <th>Normalize</th>
+              <th>Ağırlık</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <LexiconRowView key={row.id} row={row} />
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );

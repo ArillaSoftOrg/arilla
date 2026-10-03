@@ -12,6 +12,7 @@ import {
   adminAuditEvent,
   appUser,
   type Database,
+  form,
   lexicon,
   marketingCampaign,
   matchCandidate,
@@ -57,6 +58,16 @@ export type AdminAction =
   | "marketing.send_start"
   | "marketing.campaign_cancel"
   /**
+   * Form / anket merkezi (karar 0058). Soru metni, cevap ve kullanici
+   * YAZILMAZ; yalnizca tur, hedef kitle, durum ve sayilar.
+   * `forms.results_view`: sonuc ekrani goruntulendi (yanitlar hesaba bagli olabilir).
+   */
+  | "forms.create"
+  | "forms.update"
+  | "forms.publish"
+  | "forms.close"
+  | "forms.results_view"
+  /**
    * Güvenlik olayları (karar 0050). Kişisel veri, yol, IP, token YAZILMAZ.
    * - `security.access_denied`: girişli ama yetkisiz hesabın yönetim isteği;
    *   hedef istenen yetenek. Hesap + yetenek başına 10 dakikada bir satır.
@@ -75,6 +86,7 @@ export type AdminTargetType =
   | "merchant"
   | "app_user"
   | "marketing_campaign"
+  | "form"
   /** `security.access_denied` hedefi: istenen yetenek adı. */
   | "capability";
 
@@ -85,6 +97,7 @@ export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
   "merchant",
   "app_user",
   "marketing_campaign",
+  "form",
   "capability",
 ];
 
@@ -263,8 +276,9 @@ async function resolveAuditTargets(
   const campaignIds = numericIds(rows, "marketing_campaign");
   const lexiconIds = numericIds(rows, "lexicon");
   const candidateIds = numericIds(rows, "match_candidate");
+  const formIds = numericIds(rows, "form");
 
-  const [merchants, users, campaigns, lexicons, candidates] = await Promise.all([
+  const [merchants, users, campaigns, lexicons, candidates, forms] = await Promise.all([
     merchantIds.length
       ? db
           .select({ id: merchant.id, slug: merchant.slug, name: merchant.name })
@@ -299,6 +313,9 @@ async function resolveAuditTargets(
           .from(matchCandidate)
           .where(inArray(matchCandidate.id, candidateIds))
       : [],
+    formIds.length
+      ? db.select({ id: form.id, title: form.title }).from(form).where(inArray(form.id, formIds))
+      : [],
   ]);
 
   for (const row of merchants) {
@@ -330,6 +347,9 @@ async function resolveAuditTargets(
       label: `aday #${row.id} → ürün #${row.productId}`,
       href: `/yonetim/katalog/urunler/${row.productId}`,
     });
+  }
+  for (const row of forms) {
+    out.set(`form:${row.id}`, { label: row.title, href: `/yonetim/formlar/${row.id}` });
   }
   for (const row of rows) {
     if (row.targetType === "capability") {

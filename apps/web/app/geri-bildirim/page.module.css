@@ -1,0 +1,345 @@
+/* /geri-bildirim: erken erisim ekraninin kart dili (erken-erisim/page.module.css)
+   ile ayni belirtecler. Renkler yalnizca tokens.css'ten; mobil once. */
+.page {
+  max-width: var(--content-width-standard);
+  margin-inline: auto;
+  padding: var(--section-space-compact) var(--gutter) var(--section-space);
+}
+
+.panel {
+  display: grid;
+  gap: var(--space-6);
+  max-width: 720px;
+  margin-inline: auto;
+  padding: var(--space-5);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-xs);
+}
+
+.intro {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+  text-wrap: balance;
+}
+
+.description {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-body-lg);
+  line-height: var(--line-height-body);
+  text-wrap: pretty;
+}
+
+.form {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.authNotice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--paper);
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+}
+
+.fieldset {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.legend,
+.label {
+  padding: 0;
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+}
+
+.legend {
+  margin-block-end: var(--space-3);
+}
+
+.optional {
+  color: var(--ink-muted);
+  font-weight: var(--font-weight-regular);
+}
+
+.choices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+/* Radyo dugmesi gorunur kalir (durum yalnizca renge bagli degil); tum
+   etiket 44px dokunma hedefi. */
+.choice {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch-target);
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  cursor: pointer;
+}
+
+.choice:hover {
+  background: var(--surface-hover);
+}
+
+.choice:has(.choiceInput:checked) {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, var(--surface-raised));
+  font-weight: var(--font-weight-medium);
+}
+
+.choice:has(.choiceInput:focus-visible) {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.choiceInput {
+  width: 1rem;
+  height: 1rem;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
+/* Varsayilan odak cizgisi etikete tasindi (yukarida). */
+.choiceInput:focus-visible {
+  outline: none;
+}
+
+.choiceLabel {
+  min-width: 0;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* @arilla/ui Input ile ayni kutu modeli. */
+.textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 9rem;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  resize: vertical;
+}
+
+.textarea:hover:not(:focus) {
+  border-color: var(--ink-secondary);
+}
+
+.textarea:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.textarea[aria-invalid="true"] {
+  border-color: var(--alert);
+}
+
+.hint {
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  color: var(--ink-muted);
+}
+
+.errorText {
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  color: var(--alert);
+}
+
+.alert {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--alert);
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--alert) 8%, var(--surface-raised));
+  color: var(--ink);
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+}
+
+.alert:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.alert a,
+.privacyNote a {
+  color: var(--ink);
+  text-underline-offset: 0.3em;
+}
+
+.privacyNote {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+  line-height: var(--line-height-body);
+}
+
+.form > button[type="submit"] {
+  width: 100%;
+}
+
+/* Basari durumu: erken erisim ekranindaki onay isaretiyle ayni. */
+.success {
+  display: grid;
+  justify-items: start;
+  gap: var(--space-3);
+}
+
+.successMark {
+  position: relative;
+  display: inline-grid;
+  width: 3.5rem;
+  height: 3.5rem;
+  place-items: center;
+  border: var(--border-width) solid color-mix(in srgb, var(--accent) 38%, var(--line));
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--accent) 12%, var(--surface-raised));
+}
+
+.successMark::before {
+  width: 1.25rem;
+  height: 0.7rem;
+  border-bottom: 4px solid var(--accent);
+  border-left: 4px solid var(--accent);
+  content: "";
+  transform: translateY(-10%) rotate(-45deg);
+}
+
+.successTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-h2);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.successTitle:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.successBody {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-body-lg);
+  line-height: var(--line-height-body);
+}
+
+.successActions {
+  display: grid;
+  gap: var(--space-3);
+  width: 100%;
+  margin-block-start: var(--space-3);
+}
+
+.primaryAction,
+.secondaryAction {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: var(--size-touch-target);
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-width) solid transparent;
+  border-radius: var(--radius-pill);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  text-decoration: none;
+}
+
+.primaryAction {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.primaryAction:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.secondaryAction {
+  background: var(--surface-raised);
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.secondaryAction:hover {
+  background: var(--surface-hover);
+}
+
+.primaryAction:focus-visible,
+.secondaryAction:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (min-width: 760px) {
+  .panel {
+    padding: var(--space-8);
+  }
+
+  .form > button[type="submit"] {
+    width: auto;
+    justify-self: start;
+  }
+
+  .successActions {
+    display: flex;
+    flex-wrap: wrap;
+    width: auto;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .choice,
+  .textarea,
+  .primaryAction,
+  .secondaryAction {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      border-color var(--duration-fast) var(--ease-standard);
+  }
+}

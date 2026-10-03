@@ -257,3 +257,22 @@ kurulmadı. *(Sonradan: bant 0038 ile kuruldu; tercih `cookie_consent`
 `/iletisim` sayfasında ve `/gizlilik` "Haklarınız" bölümünde soru kanalı olarak
 gösterilir. Bu, veri sorumlusu bildirimi **değildir** — "Veri sorumlusu"
 bölümü ve yukarıdaki kutucuklar tüzel kişi kurulana kadar açık kalır.
+
+**Geri bildirim notu (0045):** `/geri-bildirim` formu tür, başlık, açıklama,
+önem seviyesi ve (anonimde isteğe bağlı) e-posta toplar; girişli gönderim
+`user_id` ve hesap e-postasıyla bağlanır, hesap silinince satırlar silinir
+(`ON DELETE CASCADE`), veri indirme çıktısına dahildir. Oran sınırı IP'nin
+SHA-256 özetiyle 10 dakika tutulur. `/gizlilik` 2.4 ve `/kvkk-aydinlatma`
+"Talep/şikâyet" maddesi bu akışı kapsar. Anonim gönderimler için somut
+saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).
+
+**Anket / form notu (0058):** `/anket/<slug>` formları seçenek ve metin
+cevabı toplar. Girişli yanıt `user_id` ile hesaba bağlanır (hesap silinince
+`ON DELETE CASCADE`); anonim yanıtta kimlik ve IP yoktur (oran sınırı IP'nin
+SHA-256 özetiyle Redis'te 10 dk / 24 saat tutulur). "Şimdilik geç" yalnızca
+`form_skip` satırı bırakır. Yanıtlar yalnızca `forms.manage` (yönetici)
+yetkisiyle okunur, her sonuç görüntülemesi `forms.results_view` olarak
+denetlenir; sonuç ekranı e-posta değil hesabın public kimliğini gösterir.
+Veri indirme çıktısına dahildir. `/gizlilik` 2.5 ve `/kvkk-aydinlatma`
+"Talep/şikâyet" maddesi bu akışı kapsar. Anonim ve girişli yanıtların somut
+saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).

@@ -22,6 +22,8 @@ export * from "./discovery-feed/index.ts";
 export * from "./email/index.ts";
 export * from "./embedding/index.ts";
 export * from "./entitlement/index.ts";
+export * from "./feedback/index.ts";
+export * from "./forms/index.ts";
 export * from "./marketing/index.ts";
 export * from "./ops/index.ts";
 export * from "./product/index.ts";

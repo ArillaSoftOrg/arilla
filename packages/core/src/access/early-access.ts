@@ -26,7 +26,7 @@ export interface EarlyAccessView {
 }
 
 export async function getEarlyAccess(
-  db: Database,
+  db: Pick<Database, "select">,
   userId: number,
 ): Promise<EarlyAccessView | null> {
   const rows = await db

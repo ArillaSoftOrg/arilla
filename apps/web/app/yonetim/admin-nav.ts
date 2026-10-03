@@ -155,6 +155,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         capability: "marketing.manage",
         description: "Pazarlama e-postası taslakları ve gönderimleri.",
       },
+      {
+        href: "/yonetim/formlar",
+        label: "Formlar ve anketler",
+        capability: "forms.manage",
+        description: "Kullanıcı anketleri ve yanıtları.",
+      },
     ],
   },
 ];

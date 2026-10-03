@@ -1,6 +1,7 @@
 import { getConsents } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { Button } from "@arilla/ui";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import type { CSSProperties } from "react";
 import { logoutAction } from "../cikis-actions.ts";
@@ -11,8 +12,14 @@ import { logoutAllDevicesAction } from "./actions.ts";
 import { ClearHistoryButtonClient } from "./clear-history-button-client.tsx";
 import { ConsentTogglesClient } from "./consent-toggles-client.tsx";
 import { DeleteAccountButtonClient } from "./delete-account-button-client.tsx";
+import { IncompleteFormsSection } from "./incomplete-forms-section.tsx";
 import styles from "./page.module.css";
 import { SearchRightsSection } from "./search-rights-section.tsx";
+
+export const metadata: Metadata = {
+  title: "Hesabım",
+  robots: { index: false, follow: false },
+};
 
 /**
  * docs/pages.md "/hesap": Profil, Beden profili, Tema, İzinler, Verilerim.
@@ -115,6 +122,8 @@ export default async function HesapPage() {
           </section>
 
           <SearchRightsSection userId={user.id} />
+
+          <IncompleteFormsSection userId={user.id} />
 
           <section className={styles.panel} aria-labelledby="hesap-izinler">
             <div className={styles.panelHeader}>
