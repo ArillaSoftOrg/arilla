@@ -104,6 +104,8 @@ export async function PublicSiteShell({
         loginHref={loginHref}
         loginLabel={loginLabel}
         accountCurrent={currentPath === (accountHref ?? loginHref)}
+        accountAvatarUrl={user?.avatarUrl ?? null}
+        accountAvatarLabel={user?.displayName ?? user?.email ?? SITE_BRAND}
         // Lansman öncesi, yalnızca anonim ziyaretçiye: sade "Admin Girişi"
         // (aynı giriş akışı, karar 0043). Yetki girişten sonra sunucuda.
         utilityLink={

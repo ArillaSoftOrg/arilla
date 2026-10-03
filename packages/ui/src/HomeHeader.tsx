@@ -30,6 +30,10 @@ export interface HomeHeaderProps {
   loginLabel: string;
   /** Hesap/giris linki su anki sayfaysa `true` (orn. `/giris`). */
   accountCurrent?: boolean;
+  /** Oturum acik kullanici icin hesap linkinde gosterilecek profil fotografi. */
+  accountAvatarUrl?: string | null;
+  /** Fotograf yoksa avatar icindeki kisa etiket. */
+  accountAvatarLabel?: string;
   /**
    * Istege bagli ikincil, sade baglanti (orn. lansman oncesi "Admin
    * Girişi"). Birincil eylem degildir: masaustunde hesap dugmesinin solunda
@@ -57,6 +61,8 @@ export function HomeHeader({
   loginHref,
   loginLabel,
   accountCurrent = false,
+  accountAvatarUrl,
+  accountAvatarLabel,
   utilityLink,
 }: HomeHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
@@ -64,8 +70,15 @@ export function HomeHeader({
   const accountText = accountHref ? accountLabel : loginLabel;
   const accountUrl = accountHref ?? loginHref;
   const mobileMenuTabIndex = menuOpen ? undefined : -1;
+  const hasSignedInAccount = accountHref !== null;
+  const avatarFallback = (accountAvatarLabel?.trim().charAt(0) || accountText.charAt(0) || "M")
+    .toLocaleUpperCase("tr-TR")
+    .slice(0, 1);
   const brandLogoStyle = brandLogoSrc
     ? ({ backgroundImage: `url(${JSON.stringify(brandLogoSrc)})` } satisfies CSSProperties)
+    : undefined;
+  const accountAvatarStyle = accountAvatarUrl
+    ? ({ backgroundImage: `url(${JSON.stringify(accountAvatarUrl)})` } satisfies CSSProperties)
     : undefined;
 
   useEffect(() => {
@@ -131,10 +144,17 @@ export function HomeHeader({
 
         <a
           href={accountUrl}
-          className={styles.account}
+          className={hasSignedInAccount ? styles.accountAvatar : styles.account}
           aria-current={accountCurrent ? "page" : undefined}
+          aria-label={hasSignedInAccount ? accountText : undefined}
         >
-          {accountText}
+          {hasSignedInAccount ? (
+            <span className={styles.accountAvatarImage} style={accountAvatarStyle}>
+              {accountAvatarUrl ? null : avatarFallback}
+            </span>
+          ) : (
+            accountText
+          )}
         </a>
       </Container>
 
@@ -199,7 +219,16 @@ export function HomeHeader({
               tabIndex={mobileMenuTabIndex}
               onClick={() => setMenuOpen(false)}
             >
-              {accountText}
+              {hasSignedInAccount ? (
+                <span className={styles.mobileAccountContent}>
+                  <span className={styles.mobileAccountAvatar} style={accountAvatarStyle}>
+                    {accountAvatarUrl ? null : avatarFallback}
+                  </span>
+                  <span>{accountText}</span>
+                </span>
+              ) : (
+                accountText
+              )}
             </a>
             {utilityLink ? (
               <a
