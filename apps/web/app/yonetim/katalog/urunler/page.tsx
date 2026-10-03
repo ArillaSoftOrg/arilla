@@ -19,7 +19,8 @@ const QUALITY_LABELS: Record<ProductQualityFilter, string> = {
   no_image: "Görselsiz",
   no_offers: "Teklifsiz",
   no_price: "Fiyatsız",
-  stale_price: "Fiyatı bayat (7 gün)",
+  // Karar 0051: mağaza fiyatının eskiliği DEĞİL; elle çalışan fiyat özeti işinin yaşı.
+  stale_price: "Fiyat özeti 7+ gündür yenilenmedi",
 };
 
 /** Katalog inceleme (Faz 4). Salt okunur; genel tablo düzenleyici değildir. */
@@ -108,7 +109,7 @@ export default async function ProductsPage({
                 <th scope="col" className={styles.num}>
                   Teklif (stokta)
                 </th>
-                <th scope="col">Fiyat güncel</th>
+                <th scope="col">Fiyat özeti yenilendi</th>
               </tr>
             </thead>
             <tbody>

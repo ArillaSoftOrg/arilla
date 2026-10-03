@@ -1,10 +1,26 @@
-import { getOperationsOverview, PARTITION_MONTHS_AHEAD, runOrphanCheck } from "@arilla/core";
+import {
+  addCost,
+  type CostSummary,
+  emptyCostSummary,
+  evaluatePipeline,
+  getOperationsOverview,
+  PARTITION_MONTHS_AHEAD,
+  runOrphanCheck,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import Link from "next/link";
 import { requireCapability } from "../../lib/dal.ts";
 import styles from "../admin.module.css";
 import { ErrorNotice, KeyValues, PageHeader, Section, Tile } from "../admin-ui.tsx";
-import { formatCostMicros, formatCount, formatDateOrDash } from "../format.ts";
+import {
+  formatCost,
+  formatCount,
+  formatDateOrDash,
+  formatUsage,
+  PIPELINE_STAGE_INFO,
+  pipelineReasonLabel,
+  pipelineStateLabel,
+} from "../format.ts";
 
 function monthLabel(date: Date): string {
   return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
@@ -28,16 +44,16 @@ export default async function OperationsPage({
     yetim === "1" ? runOrphanCheck(db, actor) : Promise.resolve(null),
   ]);
 
-  const costByOperation = new Map<string, { calls: number; cost: number; hits: number }>();
+  const costByOperation = new Map<string, CostSummary>();
   if (ops.cost.ok) {
     for (const row of ops.cost.value) {
-      const entry = costByOperation.get(row.operation) ?? { calls: 0, cost: 0, hits: 0 };
-      entry.calls += row.calls;
-      entry.cost += row.costMicros;
-      entry.hits += row.cacheHits;
-      costByOperation.set(row.operation, entry);
+      costByOperation.set(
+        row.operation,
+        addCost(costByOperation.get(row.operation) ?? emptyCostSummary(), row),
+      );
     }
   }
+  const pipeline = evaluatePipeline(ops.pipeline, ops.generatedAt);
 
   return (
     <div className={styles.page}>
@@ -85,6 +101,54 @@ export default async function OperationsPage({
         )}
       </Section>
 
+      <Section id="boru-hatti" title="Veri boru hattı (son kanıt)">
+        <p className={styles.muted}>
+          Aşamalar elle (komut satırından) çalışır; iş geçmişi tablosu yoktur. Durum, her aşamanın
+          ürettiği verinin en yeni zamanından okunur. &quot;Geride olabilir&quot;: beslendiği
+          aşamanın kanıtı daha yeni; yeni veri yoksa aşama iz bırakmadığı için kesin değildir.
+        </p>
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead>
+              <tr>
+                <th scope="col">Aşama</th>
+                <th scope="col">Durum</th>
+                <th scope="col">Son kanıt</th>
+                <th scope="col">Kanıt</th>
+                <th scope="col">Çalıştırma</th>
+              </tr>
+            </thead>
+            <tbody>
+              {pipeline.map((stage) => {
+                const info = PIPELINE_STAGE_INFO[stage.stage];
+                const tone =
+                  stage.state === "warning" || stage.state === "unknown"
+                    ? styles.statusBad
+                    : stage.state === "behind"
+                      ? styles.statusWarn
+                      : undefined;
+                return (
+                  <tr key={stage.stage}>
+                    <td>{info.label}</td>
+                    <td>
+                      <span className={tone}>{pipelineStateLabel(stage.state)}</span>
+                      {stage.reasons.map((reason) => (
+                        <span key={reason} className={styles.meta} style={{ display: "block" }}>
+                          {pipelineReasonLabel(reason)}
+                        </span>
+                      ))}
+                    </td>
+                    <td>{formatDateOrDash(stage.lastAt)}</td>
+                    <td className={styles.meta}>{info.evidence}</td>
+                    <td className={styles.mono}>{info.command ?? "işçi (otomatik)"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
+      </Section>
+
       <Section id="isler" title="İşlerin son kanıtı">
         {ops.jobs.ok ? (
           <>
@@ -110,7 +174,10 @@ export default async function OperationsPage({
                     {formatDateOrDash(ops.jobs.value.lastIngestStartedAt)}
                   </Link>,
                 ],
-                ["Fiyat istatistiği (gece)", formatDateOrDash(ops.jobs.value.lastPriceStatsAt)],
+                [
+                  "Fiyat istatistiği (elle çalışan iş)",
+                  formatDateOrDash(ops.jobs.value.lastPriceStatsAt),
+                ],
                 [
                   "Bekleyen eşleştirme",
                   `${formatCount(ops.jobs.value.pendingMatches)} (eşik ${ops.jobs.value.matchQueueThreshold})`,
@@ -132,12 +199,15 @@ export default async function OperationsPage({
           <>
             {ops.compliance.value.imagePurgeOverdue > 0 ? (
               <ErrorNotice>
-                {`${formatCount(ops.compliance.value.imagePurgeOverdue)} yüklenen görselin 30 günlük süresi geçmiş ama ham dosyası silinmemiş.`}
+                {`${formatCount(ops.compliance.value.imagePurgeOverdue)} yüklenen görselin ham dosyası depoda ve saklama süresi geçmiş. Ham görsel saklanmamalıydı; kodu ve depoyu inceleyin.`}
               </ErrorNotice>
             ) : null}
             <KeyValues
               items={[
-                ["Süresi geçmiş ham görsel", formatCount(ops.compliance.value.imagePurgeOverdue)],
+                [
+                  "Depoda kalan ham görsel (beklenen 0: ham görsel saklanmaz)",
+                  formatCount(ops.compliance.value.imagePurgeOverdue),
+                ],
                 [
                   "Süresi geçmiş giriş bağlantısı (1 günden eski)",
                   formatCount(ops.compliance.value.expiredLoginTokens),
@@ -158,14 +228,18 @@ export default async function OperationsPage({
         {ops.cost.ok ? (
           <>
             <div className={styles.tiles}>
-              {[...costByOperation.entries()].map(([operation, entry]) => (
-                <Tile
-                  key={operation}
-                  label={operation}
-                  value={formatCostMicros(entry.cost)}
-                  note={`${formatCount(entry.calls)} çağrı · ${formatCount(entry.hits)} önbellekten`}
-                />
-              ))}
+              {[...costByOperation.entries()].map(([operation, entry]) => {
+                const cost = formatCost(entry);
+                return (
+                  <Tile
+                    key={operation}
+                    label={operation}
+                    value={cost.value}
+                    note={[cost.note, formatUsage(entry)].filter(Boolean).join(" · ")}
+                    warning={cost.note !== null}
+                  />
+                );
+              })}
             </div>
             {ops.cost.value.length === 0 ? (
               <p className={styles.muted}>Son 14 günde model çağrısı yok.</p>
@@ -183,6 +257,9 @@ export default async function OperationsPage({
                         Önbellekten
                       </th>
                       <th scope="col" className={styles.num}>
+                        Birim
+                      </th>
+                      <th scope="col" className={styles.num}>
                         Maliyet
                       </th>
                     </tr>
@@ -194,7 +271,8 @@ export default async function OperationsPage({
                         <td>{row.operation}</td>
                         <td className={styles.num}>{formatCount(row.calls)}</td>
                         <td className={styles.num}>{formatCount(row.cacheHits)}</td>
-                        <td className={styles.num}>{formatCostMicros(row.costMicros)}</td>
+                        <td className={styles.num}>{formatCount(row.units)}</td>
+                        <td className={styles.num}>{formatCost(row).value}</td>
                       </tr>
                     ))}
                   </tbody>

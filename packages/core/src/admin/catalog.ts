@@ -29,7 +29,12 @@ export function isProductQualityFilter(value: unknown): value is ProductQualityF
   );
 }
 
-/** Fiyatı bu kadar gündür güncellenmeyen ürün "bayat" sayılır. */
+/**
+ * Fiyat ÖZETİ (`price_updated_at`, `min_price`, `offer_count`) bu kadar gündür
+ * yenilenmemiş ürün. Bu alanları yalnızca elle çalışan `similarity --prices`
+ * yazar; filtre mağaza fiyatının eskiliğini değil özet işinin yaşını ölçer
+ * (karar 0051). Filtre anahtarı (`stale_price`) adres uyumu için korunur.
+ */
 export const STALE_PRICE_DAYS = 7;
 
 const QUALITY_SQL: Record<ProductQualityFilter, SQL> = {

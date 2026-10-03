@@ -151,6 +151,17 @@ Veritabanından okunabilen eşikler `/yonetim/islemler` ekranındadır (yalnızc
 yönetici; docs/decisions/0041). Harici uyarı üretmez; ekran bakıldığında
 durumu gösterir.
 
+`/yonetim/islemler` "Veri boru hattı" bölümü her aşamanın (toplama, eşleştirme,
+fiyat özeti, zenginleştirme, benzerlik kenarları, link çözümleme) son kanıtını
+ve elle çalıştırma komutunu gösterir (karar 0051). Aşamalar zamanlanmış değil;
+"geride olabilir" görünen aşama sırayla çalıştırılır.
+
+Model maliyeti `api_usage.cost_micros`'tan okunur ve oran
+(`EMBEDDING_COST_MICROS_PER_1K_TOKENS`) tanımsızken 0 yazılır. Ekran bu
+çağrıları "fiyatlanmamış" sayar ve tutar yerine "Hesaplanmadı" gösterir.
+Gerçek maliyet için oran hem Vercel'de hem Python işlerinin ortamında
+tanımlanmalı; oran geriye dönük uygulanmaz.
+
 | Ne | Eşik | Aksiyon |
 | --- | --- | --- |
 | `ingest_run` başarısızlığı | Aynı merchant 2 kez üst üste | Uyarı |

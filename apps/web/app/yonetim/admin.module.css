@@ -205,6 +205,26 @@
   color: var(--ink-secondary);
 }
 
+/* Tıklanabilir kart (karar 0051): sorunu teşhis eden sayfaya gider. */
+.tileLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.tileLink:hover {
+  background: var(--surface-hover);
+}
+
+.tileLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.tileLink .tileLabel {
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
 .tableWrap {
   overflow-x: auto;
   border: var(--border-width) solid var(--line);

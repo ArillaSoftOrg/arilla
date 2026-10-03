@@ -25,7 +25,9 @@ import { LINK_RESOLUTION_QUEUE_KEY } from "../discovery/link-resolution.ts";
 import { getRedis } from "../redis/client.ts";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import type { CostSummary } from "./cost-truth.ts";
 import { MATCH_QUEUE_ALERT_THRESHOLD } from "./dashboard.ts";
+import { getPipelineEvidence, type PipelineRawEvidence } from "./pipeline-evidence.ts";
 
 /** docs/ops.md: içinde bulunulan ay + 3 ay ileri partition hazır olmalı. */
 export const PARTITION_MONTHS_AHEAD = 3;
@@ -137,12 +139,9 @@ export async function partitionHealth(db: Database, now = new Date()): Promise<P
   });
 }
 
-export interface CostRow {
+export interface CostRow extends CostSummary {
   day: string;
   operation: string;
-  calls: number;
-  cacheHits: number;
-  costMicros: number;
 }
 
 /** `api_usage`, son 14 gün, gün (İstanbul) ve işleme göre. `api_usage_daily_idx`. */
@@ -154,10 +153,13 @@ export async function costByDay(db: Database): Promise<CostRow[]> {
       calls: string;
       hits: string;
       cost: string | null;
+      units: string | null;
+      unpriced: string;
     }>(sql`
       SELECT to_char(date_trunc('day', created_at AT TIME ZONE 'Europe/Istanbul'), 'YYYY-MM-DD') AS day,
              operation, count(*) AS calls, count(*) FILTER (WHERE cache_hit) AS hits,
-             sum(cost_micros) AS cost
+             sum(cost_micros) AS cost, sum(units) AS units,
+             count(*) FILTER (WHERE NOT cache_hit AND cost_micros = 0) AS unpriced
         FROM api_usage
        WHERE created_at >= now() - interval '14 days'
        GROUP BY 1, 2
@@ -170,12 +172,17 @@ export async function costByDay(db: Database): Promise<CostRow[]> {
       calls: Number(row.calls),
       cacheHits: Number(row.hits),
       costMicros: Number(row.cost ?? 0),
+      units: Number(row.units ?? 0),
+      unpricedCalls: Number(row.unpriced ?? 0),
     }));
   });
 }
 
 export interface ComplianceHealth {
-  /** KVKK: `purge_after` geçmiş ama ham dosya hâlâ depoda. Beklenen 0. */
+  /**
+   * KVKK: `purge_after` geçmiş ama ham dosya hâlâ depoda. Bugün ham görsel hiç
+   * saklanmadığı için daima 0 beklenir; saklama eklenirse güvenlik ağıdır.
+   */
   imagePurgeOverdue: number;
   /** Süresi geçmiş, kullanılmamış giriş bağlantısı (temizlik işi kanıtı). */
   expiredLoginTokens: number;
@@ -276,6 +283,8 @@ export interface OperationsOverview {
   compliance: Check<ComplianceHealth>;
   jobs: Check<JobEvidence>;
   linkQueue: Check<number>;
+  /** Boru hattı aşamalarının son kanıtı (karar 0051); aşama başına ayrı zaman aşımı. */
+  pipeline: PipelineRawEvidence;
 }
 
 export async function getOperationsOverview(
@@ -283,14 +292,15 @@ export async function getOperationsOverview(
   actor: AdminActor,
 ): Promise<OperationsOverview> {
   assertCapability(actor, "operations.read");
-  const [partitions, cost, compliance, jobs, linkQueue] = await Promise.all([
+  const [partitions, cost, compliance, jobs, linkQueue, pipeline] = await Promise.all([
     check(() => partitionHealth(db)),
     check(() => costByDay(db)),
     check(() => complianceHealth(db)),
     check(() => jobEvidence(db)),
     check(() => linkQueueDepth()),
+    getPipelineEvidence(db, actor),
   ]);
-  return { generatedAt: new Date(), partitions, cost, compliance, jobs, linkQueue };
+  return { generatedAt: new Date(), partitions, cost, compliance, jobs, linkQueue, pipeline };
 }
 
 /**

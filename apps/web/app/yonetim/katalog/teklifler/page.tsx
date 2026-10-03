@@ -34,7 +34,8 @@ export default async function OffersPage({
     <div className={styles.page}>
       <PageHeader title="Teklifler">
         <p className={styles.muted}>
-          Eşleşmemiş teklifler gece eşleştirmesinde ürüne bağlanır ya da kuyruğa düşer.
+          Eşleşmemiş teklifler eşleştirme işi (elle: python -m resolve) çalışınca ürüne bağlanır ya
+          da kuyruğa düşer.
         </p>
       </PageHeader>
 

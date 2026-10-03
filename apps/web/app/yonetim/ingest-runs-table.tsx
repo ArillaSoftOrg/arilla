@@ -62,10 +62,24 @@ export function IngestRunsTable({
               </td>
               <td>{formatDuration(run.durationMs)}</td>
               <td className={styles.num}>{formatCount(run.offersSeen)}</td>
-              <td className={styles.num}>
-                {`${formatCount(run.offersCreated)} / ${formatCount(run.offersUpdated)}`}
-              </td>
-              <td className={styles.num}>{formatCount(run.pricePointsWritten)}</td>
+              {run.writesRolledBack ? (
+                // Karar 0051: başarısız koşuda yazımlar geri alınır; sayılar kalıcı değil.
+                <td className={styles.num} colSpan={2}>
+                  <span
+                    className={styles.meta}
+                    title="Koşu başarısız oldu; toplayıcı bu koşudaki yazımları geri aldı."
+                  >
+                    geri alındı (kalıcı yazım yok)
+                  </span>
+                </td>
+              ) : (
+                <>
+                  <td className={styles.num}>
+                    {`${formatCount(run.offersCreated)} / ${formatCount(run.offersUpdated)}`}
+                  </td>
+                  <td className={styles.num}>{formatCount(run.pricePointsWritten)}</td>
+                </>
+              )}
               <td>
                 {run.errorText ? (
                   <details>

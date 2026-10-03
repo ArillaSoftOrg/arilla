@@ -14,24 +14,40 @@ export function PageHeader({ title, children }: { title: string; children?: Reac
   );
 }
 
+/**
+ * `href` verilirse kart, sorunu teşhis eden sayfaya gider (karar 0051).
+ * Bağlantı yalnızca izleyicinin açabildiği sayfaya verilir; çağıran yetkiyi
+ * denetler, hedef sayfa da yetkiyi ayrıca ister.
+ */
 export function Tile({
   label,
   value,
   note,
   warning = false,
+  href,
 }: {
   label: string;
   value: string;
-  note?: string;
+  note?: string | null;
   warning?: boolean;
+  href?: string | null;
 }) {
-  return (
-    <div className={warning ? `${styles.tile} ${styles.tileWarning}` : styles.tile}>
+  const className = warning ? `${styles.tile} ${styles.tileWarning}` : styles.tile;
+  const body = (
+    <>
       <span className={styles.tileLabel}>{label}</span>
       <span className={styles.tileValue}>{value}</span>
       {note ? <span className={styles.tileNote}>{note}</span> : null}
-    </div>
+    </>
   );
+  if (href) {
+    return (
+      <Link href={href} className={`${className} ${styles.tileLink}`}>
+        {body}
+      </Link>
+    );
+  }
+  return <div className={className}>{body}</div>;
 }
 
 /** İmleç ya da sayfa bağlantıları. Toplam sayı gösterilmez (COUNT çalıştırılmaz). */

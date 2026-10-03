@@ -34,6 +34,13 @@ export interface IngestRunRow {
   pricePointsWritten: number;
   /** `collect/gate.py` reddi: `error_text` = `refused:<kod>...`. */
   refusedCode: string | null;
+  /**
+   * Başarısız koşuda toplayıcı işlemi geri alır (`collect/pipeline.py`
+   * `conn.rollback()`), ama koşu kaydı geri alınan yazımları da sayar.
+   * `true` ise oluşturulan/güncellenen/fiyat noktası sayıları KALICI DEĞİLDİR
+   * ve gösterilmez (karar 0051). `offersSeen` gerçektir.
+   */
+  writesRolledBack: boolean;
   errorText: string | null;
 }
 
@@ -43,6 +50,11 @@ export interface IngestRunFilter {
   /** Önceki sayfanın son `id`'si. */
   beforeId?: number;
   pageSize?: number;
+}
+
+/** Saf: bu durumdaki koşunun yazım sayıları kalıcı mı. */
+export function writesRolledBack(status: IngestStatus): boolean {
+  return status === "failed";
 }
 
 export function parseRefusedCode(errorText: string | null): string | null {
@@ -107,6 +119,7 @@ export async function listIngestRuns(
       offersUpdated: row.offers_updated,
       pricePointsWritten: row.price_points_written,
       refusedCode: parseRefusedCode(row.error_text),
+      writesRolledBack: writesRolledBack(row.status),
       errorText: redactText(row.error_text),
     };
   });

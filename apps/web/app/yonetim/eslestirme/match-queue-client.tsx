@@ -3,9 +3,16 @@
 import { Badge, Button, Card } from "@arilla/ui";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import { formatKurus, REVIEW_REASON_LABELS } from "../format.ts";
 import { approveMatchAction, rejectMatchAction } from "./actions.ts";
+import {
+  DecisionLock,
+  dispatchQueueKey,
+  QUEUE_REASONS,
+  type QueueReason,
+  runLockedDecision,
+} from "./queue-keys.ts";
 
 export interface MatchQueueClientItem {
   matchCandidateId: number;
@@ -54,14 +61,12 @@ export interface MatchQueueClientItem {
 }
 
 /** 1–5 tuşlarının sırası; `superseded` insan seçimi değildir. */
-const REASONS = [
-  "not_same_product",
-  "different_color",
-  "different_size",
-  "bad_data",
-  "other",
-] as const;
-type Reason = (typeof REASONS)[number];
+const REASONS = QUEUE_REASONS;
+type Reason = QueueReason;
+
+/** Onay ürün özetini hemen değiştirmez (karar 0051). */
+const APPROVED_NOTE =
+  "Onaylandı. Ürünün teklif sayısı ve en düşük fiyatı, fiyat özeti işi (python -m similarity --prices) çalışınca güncellenir.";
 
 function valueText(value: unknown): string {
   if (value === null || value === undefined) return "";
@@ -157,6 +162,9 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
   const [rejecting, setRejecting] = useState(false);
   const [copied, setCopied] = useState(false);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  // Eşzamanlı kilit: React durumu bir sonraki çizime kadar güncellenmez (queue-keys.ts).
+  const lockRef = useRef<DecisionLock | null>(null);
+  if (lockRef.current === null) lockRef.current = new DecisionLock();
   const current = items[index];
 
   const advance = useCallback(() => {
@@ -166,56 +174,63 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
   }, []);
 
   const decide = useCallback(
-    async (action: "approve" | "reject" | "skip", reason: Reason | null = null) => {
-      if (!current || pending) return;
-      setMessage(null);
-      if (action === "skip") {
-        advance();
-        return;
-      }
-      setPending(true);
-      try {
-        const result =
-          action === "approve"
-            ? await approveMatchAction(current.matchCandidateId)
-            : await rejectMatchAction(current.matchCandidateId, reason);
-        if (result.conflict) {
-          // Hiçbir şey değişmedi: teklif başka bir ürüne bağlı. Satırda kal.
-          setMessage({
-            text: "Bu teklif bu arada başka bir ürüne bağlanmış. Reddedebilir ya da atlayabilirsin.",
-            error: true,
-          });
+    (action: "approve" | "reject" | "skip", reason: Reason | null = null) => {
+      const lock = lockRef.current;
+      if (!current || !lock) return;
+      // Kilit alınamazsa (istek sürüyor ya da az önce karar verildi) hiçbir şey olmaz.
+      void runLockedDecision(lock, async () => {
+        setMessage(null);
+        if (action === "skip") {
+          advance();
           return;
         }
-        if (!result.found) {
-          setMessage({ text: "Bu satır başka bir yerde zaten karara bağlanmış.", error: false });
+        setPending(true);
+        try {
+          const result =
+            action === "approve"
+              ? await approveMatchAction(current.matchCandidateId)
+              : await rejectMatchAction(current.matchCandidateId, reason);
+          if (result.conflict) {
+            // Hiçbir şey değişmedi: teklif başka bir ürüne bağlı. Satırda kal.
+            setMessage({
+              text: "Bu teklif bu arada başka bir ürüne bağlanmış. Reddedebilir ya da atlayabilirsin.",
+              error: true,
+            });
+            return;
+          }
+          if (!result.found) {
+            setMessage({ text: "Bu satır başka bir yerde zaten karara bağlanmış.", error: false });
+          } else if (action === "approve") {
+            setMessage({ text: APPROVED_NOTE, error: false });
+          }
+          advance();
+        } catch {
+          // Hata sessizce yutulup sonraki satıra geçilmez: karar kaydedilmedi.
+          setMessage({ text: "Karar kaydedilemedi. Tekrar dene.", error: true });
+        } finally {
+          setPending(false);
         }
-        advance();
-      } catch {
-        // Hata sessizce yutulup sonraki satıra geçilmez: karar kaydedilmedi.
-        setMessage({ text: "Karar kaydedilemedi. Tekrar dene.", error: true });
-      } finally {
-        setPending(false);
-      }
+      });
     },
-    [current, pending, advance],
+    [current, advance],
   );
 
   useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
-      if (event.metaKey || event.ctrlKey || event.altKey) return;
       const target = event.target as HTMLElement | null;
-      if (target && ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName)) return;
-      const key = event.key.toLowerCase();
-      if (rejecting) {
-        if (key === "escape") setRejecting(false);
-        else if (key === "0") void decide("reject", null);
-        else if (/^[1-5]$/.test(key)) void decide("reject", REASONS[Number(key) - 1] ?? null);
-        return;
-      }
-      if (key === "a") void decide("approve");
-      else if (key === "r") setRejecting(true);
-      else if (key === "s") void decide("skip");
+      // Otomatik tekrar, değiştirici tuş ve yazı alanı `keyToAction`'da elenir.
+      dispatchQueueKey(
+        {
+          key: event.key,
+          repeat: event.repeat,
+          metaKey: event.metaKey,
+          ctrlKey: event.ctrlKey,
+          altKey: event.altKey,
+          targetTag: target?.tagName ?? null,
+        },
+        rejecting,
+        { decide, setRejecting },
+      );
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -333,6 +348,7 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
           <p style={muted}>
             {`${formatKurus(current.product.minPrice)}'den · ${current.product.offerCount} teklif`}
           </p>
+          <p style={muted}>(son fiyat özeti işine göre; onay bunu hemen değiştirmez)</p>
           <p style={muted}>
             {`GTIN ${current.product.gtin ?? "—"} · MPN ${current.product.mpn ?? "—"}`}
           </p>

@@ -1,5 +1,10 @@
 /** /yonetim ekranlarının ortak gösterim yardımcıları. Saat dilimi: Türkiye. */
 
+// İstemci bileşenleri de bu dosyayı içe aktarır: core'dan yalnızca TİP ve saf
+// alt yol (`@arilla/core/cost-truth`) alınır, sunucu kodu pakete girmez.
+import type { AttentionState, PipelineStage, PipelineStageState } from "@arilla/core";
+import { type CostSummary, costState } from "@arilla/core/cost-truth";
+
 const DATE_TIME = new Intl.DateTimeFormat("tr-TR", {
   dateStyle: "short",
   timeStyle: "short",
@@ -18,6 +23,99 @@ export function formatCount(n: number): string {
 export function formatCostMicros(micros: number): string {
   const lira = micros / 1_000_000;
   return `${lira.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`;
+}
+
+/**
+ * Maliyetin dürüst gösterimi (karar 0051, core `costState`). Maliyet oranı
+ * tanımsızken yazılan çağrılar 0 maliyetlidir; "0,00 TL" gerçek harcama gibi
+ * görünmesin diye bu durumda tutar yerine "Hesaplanmadı" / "en az" yazılır.
+ */
+export function formatCost(summary: CostSummary): { value: string; note: string | null } {
+  const state = costState(summary);
+  const unpriced = `${formatCount(summary.unpricedCalls)} çağrı fiyatlanmadı (maliyet oranı tanımsız)`;
+  if (state === "unpriced") return { value: "Hesaplanmadı", note: unpriced };
+  if (state === "partial") {
+    return { value: `en az ${formatCostMicros(summary.costMicros)}`, note: unpriced };
+  }
+  return { value: formatCostMicros(summary.costMicros), note: null };
+}
+
+/** Çağrı / önbellek / birim özeti; tutardan bağımsız, her zaman gerçek. */
+export function formatUsage(summary: CostSummary): string {
+  return `${formatCount(summary.calls)} çağrı · ${formatCount(summary.cacheHits)} önbellekten · ${formatCount(summary.units)} birim`;
+}
+
+const ATTENTION_LABELS: Record<AttentionState, string> = {
+  stuck: "Takılı koşu (2 saattir sürüyor)",
+  failed: "Son koşu başarısız",
+  currency_unverified: "Para birimi doğrulanmadı (toplama reddedilir)",
+  never_ran: "Hiç toplanmadı",
+  stale: "Veri yenilenmedi (24 saatten eski)",
+};
+
+export function attentionLabel(state: AttentionState): string {
+  return ATTENTION_LABELS[state];
+}
+
+/** Boru hattı aşaması: ad, kanıtın ne olduğu ve elle çalıştırma komutu (ops.md). */
+export const PIPELINE_STAGE_INFO: Record<
+  PipelineStage,
+  { label: string; evidence: string; command: string | null }
+> = {
+  collect: {
+    label: "Veri toplama",
+    evidence: "son başarılı ya da kısmi toplama koşusu",
+    command: "python -m collect.bootstrap",
+  },
+  resolve: {
+    label: "Eşleştirme",
+    evidence: "en yeni eşleştirme adayı (yalnızca yeni çiftler iz bırakır)",
+    command: "python -m resolve",
+  },
+  prices: {
+    label: "Fiyat özeti",
+    evidence:
+      "en yeni fiyat istatistiği; ürünün teklif sayısı ve en düşük fiyatı bununla yenilenir",
+    command: "python -m similarity --prices",
+  },
+  enrich: {
+    label: "Zenginleştirme (vektör)",
+    evidence: "en yeni ürün/teklif embedding'i",
+    command: "python -m enrich",
+  },
+  edges: {
+    label: "Benzerlik kenarları",
+    evidence: "en yeni benzerlik kenarı",
+    command: "python -m similarity --edges",
+  },
+  link: {
+    label: "Link çözümleme",
+    evidence: "en son tamamlanan link isteği",
+    command: null,
+  },
+};
+
+const PIPELINE_STATE_LABELS: Record<PipelineStageState, string> = {
+  ok: "güncel",
+  behind: "geride olabilir",
+  warning: "müdahale gerekli",
+  none: "kanıt yok",
+  unknown: "okunamadı",
+};
+
+export function pipelineStateLabel(state: PipelineStageState): string {
+  return PIPELINE_STATE_LABELS[state];
+}
+
+const PIPELINE_REASON_LABELS: Record<string, string> = {
+  stuck_runs: '2 saattir "sürüyor" kalan toplama koşusu var',
+  stale_feed: "son başarılı toplama 24 saatten eski",
+  link_stuck: "10 dakikadır işlenen link isteği var",
+  link_queue_old: "10 dakikadan uzun bekleyen link isteği var",
+};
+
+export function pipelineReasonLabel(reason: string): string {
+  return PIPELINE_REASON_LABELS[reason] ?? reason;
 }
 
 const STATUS_LABELS: Record<string, string> = {
