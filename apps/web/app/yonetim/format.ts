@@ -615,3 +615,41 @@ export function scorePositionLabel(position: string): string {
 export function formatScore(score: number): string {
   return score.toFixed(2).replace(".", ",");
 }
+
+// --- S3 ops/ux ---
+
+const PIPELINE_REASON_LABELS_0055: Record<string, string> = {
+  job_failed: "son iş koşusu başarısız",
+  job_stuck: '2 saattir "sürüyor" kalan iş koşusu var',
+};
+
+/** Boru hattı nedeni; 0055 nedenleri dahil (`pipelineReasonLabel`'a düşer). */
+export function pipelineReasonText(reason: string): string {
+  return PIPELINE_REASON_LABELS_0055[reason] ?? pipelineReasonLabel(reason);
+}
+
+/** "son çalıştı" (`job_run`) ya da "son kanıt" (verinin zamanı). */
+export function pipelineSourceLabel(source: "job_run" | "data"): string {
+  return source === "job_run" ? "son çalıştı (iş koşusu)" : "son kanıt (veri zamanı)";
+}
+
+const JOB_TRIGGER_LABELS: Record<string, string> = {
+  manual: "elle",
+  cron: "zamanlayıcı",
+  worker: "işçi",
+};
+
+export function jobTriggerLabel(trigger: string): string {
+  return JOB_TRIGGER_LABELS[trigger] ?? trigger;
+}
+
+/** `job_run.detail` (düz sayılar) → "anahtar 12 · diğer 3"; boşsa "—". */
+export function formatJobDetail(detail: Record<string, unknown>): string {
+  const parts = Object.entries(detail)
+    .filter(([, value]) => ["number", "boolean", "string"].includes(typeof value))
+    .slice(0, 12)
+    .map(
+      ([key, value]) => `${key} ${typeof value === "number" ? formatCount(value) : String(value)}`,
+    );
+  return parts.length > 0 ? parts.join(" · ") : "—";
+}

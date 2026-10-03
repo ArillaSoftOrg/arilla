@@ -715,3 +715,65 @@
   border: var(--border-width) solid var(--line);
   border-radius: var(--radius-md);
 }
+
+/* --- S3 ops/ux --- */
+
+.breadcrumbs {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--ink-muted);
+}
+
+.breadcrumbList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breadcrumbList li + li::before {
+  content: "›";
+  margin-right: var(--space-1);
+  color: var(--ink-muted);
+}
+
+.breadcrumbList a {
+  color: var(--ink-secondary);
+}
+
+.breadcrumbList [aria-current="page"] {
+  color: var(--ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.breadcrumbNote {
+  margin: 0;
+  font-size: var(--font-size-xs);
+}
+
+.healthyList {
+  margin: 0;
+}
+
+.healthyList summary {
+  cursor: pointer;
+  color: var(--ink-secondary);
+}
+
+.healthyList[open] summary {
+  margin-bottom: var(--space-2);
+}
+
+@media (max-width: 800px) {
+  .main {
+    padding: var(--space-4);
+  }
+
+  .breadcrumbs {
+    margin-bottom: var(--space-3);
+  }
+}

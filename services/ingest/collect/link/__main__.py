@@ -23,6 +23,7 @@ from collect.link.resolver import ResolutionFailed, resolve_url
 from collect.link.urls import InvalidUrl
 from collect.link.worker import POLL_TIMEOUT_SECONDS, run_worker
 from collect.records import RecordRejected
+from db import job_run
 from db.connection import connect, env
 from enrich.client import EmbeddingClient, FakeEmbeddingClient, JinaEmbeddingClient
 from enrich.ratelimit import TokenBudget, tokens_per_minute_from_env
@@ -87,7 +88,15 @@ def main(argv: list[str] | None = None) -> int:
             return 0
 
         if args.refresh:
-            result = refresh_user_links(conn, limit=args.limit)
+            with job_run.track("link_refresh") as run:
+                result = refresh_user_links(conn, limit=args.limit)
+                run.detail.update(
+                    considered=result.considered,
+                    refreshed=result.refreshed,
+                    failed=result.failed,
+                )
+                if result.failed:
+                    run.status = "partial" if result.refreshed else "failed"
             print(f"suresi gelen     {result.considered}")
             print(f"yenilenen        {result.refreshed}")
             print(f"basarisiz        {result.failed}")

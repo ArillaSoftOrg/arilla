@@ -1,7 +1,10 @@
 import {
   type Capability,
+  capabilitiesFor,
+  dashboardAttention,
   evaluatePipeline,
   getAdminOverview,
+  getOperationsOverview,
   getPipelineEvidence,
   hasCapability,
   MATCH_QUEUE_ALERT_THRESHOLD,
@@ -10,7 +13,7 @@ import { getDatabase } from "@arilla/db";
 import Link from "next/link";
 import { requireCapability } from "../lib/dal.ts";
 import styles from "./admin.module.css";
-import { StatusText, Tile } from "./admin-ui.tsx";
+import { FindingList, StatusText, Tile } from "./admin-ui.tsx";
 import {
   attentionLabel,
   formatCost,
@@ -38,16 +41,27 @@ function total(record: Record<string, number>): number {
  * docs/decisions/0039 madde 7: yalnızca veritabanında gerçekten var olan sayılar.
  * Karar 0051: her kart sorunu teşhis eden sayfaya gider — ama yalnızca
  * izleyicinin açabildiği sayfaya; kartların kendisi (görünürlük) değişmez.
+ * Karar 0055: "Şimdi dikkat isteyenler" mevcut durumdan türetilir (kalıcı
+ * alarm yok). Yönetici işletim bulgularını da görür; moderatör bugün gördüğü
+ * sinyallerden (mağazalar, boru hattı, eşleştirme kuyruğu) türetilen listeyi.
  */
 export default async function AdminOverviewPage() {
   const { user, actor } = await requireCapability("admin.access");
   const db = getDatabase();
-  const [overview, pipelineRaw] = await Promise.all([
+  const can = (capability: Capability) => hasCapability(user.role, capability);
+  const [overview, pipelineRaw, ops] = await Promise.all([
     getAdminOverview(db, actor),
     getPipelineEvidence(db, actor),
+    can("operations.read") ? getOperationsOverview(db, actor) : Promise.resolve(null),
   ]);
   const pipeline = evaluatePipeline(pipelineRaw, overview.generatedAt);
-  const can = (capability: Capability) => hasCapability(user.role, capability);
+  const attention = dashboardAttention({
+    now: overview.generatedAt,
+    merchants: overview.ingest.attention,
+    pipeline,
+    pendingMatches: overview.pendingMatches,
+    ops,
+  });
   const linkIf = (capability: Capability, href: string) => (can(capability) ? href : null);
 
   const failedRuns = overview.ingest.runsLast24h.failed ?? 0;
@@ -64,6 +78,22 @@ export default async function AdminOverviewPage() {
         <h1 className={styles.pageTitle}>Genel bakış</h1>
         <p className={styles.muted}>{`Son güncelleme ${formatDateTime(overview.generatedAt)}`}</p>
       </header>
+
+      <section className={styles.pageHeader} aria-labelledby="simdi-dikkat">
+        <h2 id="simdi-dikkat" className={styles.sectionTitle}>
+          Şimdi dikkat isteyenler
+        </h2>
+        <FindingList
+          findings={attention}
+          allowed={capabilitiesFor(user.role)}
+          empty="Şu an dikkat isteyen bir şey yok."
+        />
+        {can("operations.read") ? (
+          <p className={styles.muted}>
+            <Link href="/yonetim/islemler">Tüm denetimler (sistem sağlığı)</Link>
+          </p>
+        ) : null}
+      </section>
 
       <section className={styles.tiles} aria-label="Katalog ve kuyruk">
         <Tile

@@ -23,6 +23,7 @@ export * from "./email/index.ts";
 export * from "./embedding/index.ts";
 export * from "./entitlement/index.ts";
 export * from "./marketing/index.ts";
+export * from "./ops/index.ts";
 export * from "./product/index.ts";
 export * from "./redis/index.ts";
 export * from "./search/index.ts";

@@ -64,6 +64,9 @@ export function IngestRunsTable({
               <td className={styles.num}>{formatCount(run.offersSeen)}</td>
               {run.writesRolledBack ? (
                 // Karar 0051: başarısız koşuda yazımlar geri alınır; sayılar kalıcı değil.
+                // Karar 0055'ten beri toplayıcı bu sayıları zaten 0 yazar (geri alınan
+                // miktar hata metninde not olarak durur); gizleme, 0055 öncesi satırlar
+                // geri alınan sayıları taşıdığı için kalır.
                 <td className={styles.num} colSpan={2}>
                   <span
                     className={styles.meta}
