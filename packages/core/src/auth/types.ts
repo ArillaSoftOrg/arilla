@@ -2,7 +2,9 @@
  * E1 icin disari acik tipler. `attribution/types.ts` deseniyle ayni: DB satir
  * sekli degil, cagiran kodun gordugu sozlesme.
  */
+
 import type { appUser } from "@arilla/db";
+import type { RequestContext } from "../activity/request-context.ts";
 
 export type UserRole = (typeof appUser.$inferSelect)["role"];
 
@@ -22,6 +24,8 @@ export interface VerifyLoginTokenInput {
   rawToken: string;
   ip: string | null;
   userAgent: string | null;
+  /** 0049: kaba istek baglami (cihaz/tarayici/ulke). */
+  context?: RequestContext;
 }
 
 export interface VerifyLoginTokenResult {

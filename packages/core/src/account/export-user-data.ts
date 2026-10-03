@@ -2,12 +2,17 @@
  * KVKK m.11 "Görüntüleme" hakkı (docs/kvkk.md): "hakkımdaki verileri indir
  * (JSON)". `session`/`auth_token` içeriği (hash'ler) dahil değil - bunlar
  * güvenlik durumu, kullanıcıya anlamlı "hakkımdaki veri" değil.
+ *
+ * 0049: giriş/çıkış geçmişi, hesap özeti, rıza geçmişinin kaynağı/sürümü ve
+ * rızalı analitik olayları da verilir. Oturum kimliği, tıklama kimliği, IP
+ * ve ham user agent verilmez (iç güvenlik ayrıntısı).
  */
 
 import {
   aiSearchCharge,
   alert,
   appUser,
+  authEvent,
   bonusAccount,
   bonusLedger,
   click,
@@ -19,6 +24,8 @@ import {
   productView,
   referral,
   savedItem,
+  userActivityEvent,
+  userActivitySummary,
   userConsent,
   userSizeProfile,
 } from "@arilla/db";
@@ -52,7 +59,48 @@ export interface UserDataExport {
   }>;
   history: Array<{ productId: number; productTitle: string; viewedAt: Date }>;
   sizeProfile: Array<{ categoryPath: string; sizeNorm: string }>;
-  consents: Array<{ kind: string; granted: boolean; grantedAt: Date }>;
+  /** `source`/`textVersion` 0037 öncesi satırlarda `null` ("sürümsüz kayıt"); kayıt yine geçerlidir. */
+  consents: Array<{
+    kind: string;
+    granted: boolean;
+    grantedAt: Date;
+    source: string | null;
+    textVersion: string | null;
+  }>;
+  /** 0049: giriş/çıkış geçmişi (en fazla 1 yıl tutulur). */
+  authHistory: Array<{
+    kind: string;
+    provider: string | null;
+    deviceClass: string | null;
+    browserFamily: string | null;
+    countryCode: string | null;
+    createdAt: Date;
+  }>;
+  /** 0049: hesap özeti; `null` sayaç = bilinmiyor. */
+  activitySummary: {
+    firstSignInAt: Date | null;
+    lastSignInAt: Date | null;
+    lastActiveAt: Date | null;
+    signInCount: number | null;
+    serviceCountersSince: Date | null;
+    lastDeviceClass: string | null;
+    lastBrowserFamily: string | null;
+    lastCountryCode: string | null;
+    searchCount: number | null;
+    lastSearchAt: Date | null;
+    productViewCount: number | null;
+    merchantExitCount: number | null;
+    analyticsCountersSince: Date | null;
+  } | null;
+  /** 0049: yalnızca analitik rızasıyla yazılan olaylar (en fazla 180 gün). */
+  activityEvents: Array<{
+    kind: string;
+    productId: number | null;
+    offerId: number | null;
+    queryNorm: string | null;
+    resultCount: number | null;
+    createdAt: Date;
+  }>;
   clicks: Array<{
     offerId: number;
     channel: string;
@@ -136,10 +184,12 @@ export async function exportUserData(db: Database, userId: number): Promise<User
           kind: userConsent.kind,
           granted: userConsent.granted,
           grantedAt: userConsent.grantedAt,
+          source: userConsent.source,
+          textVersion: userConsent.textVersion,
         })
         .from(userConsent)
         .where(eq(userConsent.userId, userId))
-        .orderBy(desc(userConsent.grantedAt)),
+        .orderBy(desc(userConsent.grantedAt), desc(userConsent.id)),
       db
         .select({
           offerId: click.offerId,
@@ -157,6 +207,52 @@ export async function exportUserData(db: Database, userId: number): Promise<User
         .where(eq(earlyAccess.userId, userId))
         .limit(1),
     ]);
+
+  const [authRows, summaryRows, activityRows] = await Promise.all([
+    db
+      .select({
+        kind: authEvent.kind,
+        provider: authEvent.provider,
+        deviceClass: authEvent.deviceClass,
+        browserFamily: authEvent.browserFamily,
+        countryCode: authEvent.countryCode,
+        createdAt: authEvent.createdAt,
+      })
+      .from(authEvent)
+      .where(eq(authEvent.userId, userId))
+      .orderBy(desc(authEvent.createdAt), desc(authEvent.id)),
+    db
+      .select({
+        firstSignInAt: userActivitySummary.firstSignInAt,
+        lastSignInAt: userActivitySummary.lastSignInAt,
+        lastActiveAt: userActivitySummary.lastActiveAt,
+        signInCount: userActivitySummary.signInCount,
+        serviceCountersSince: userActivitySummary.serviceCountersSince,
+        lastDeviceClass: userActivitySummary.lastDeviceClass,
+        lastBrowserFamily: userActivitySummary.lastBrowserFamily,
+        lastCountryCode: userActivitySummary.lastCountryCode,
+        searchCount: userActivitySummary.searchCount,
+        lastSearchAt: userActivitySummary.lastSearchAt,
+        productViewCount: userActivitySummary.productViewCount,
+        merchantExitCount: userActivitySummary.merchantExitCount,
+        analyticsCountersSince: userActivitySummary.analyticsCountersSince,
+      })
+      .from(userActivitySummary)
+      .where(eq(userActivitySummary.userId, userId))
+      .limit(1),
+    db
+      .select({
+        kind: userActivityEvent.kind,
+        productId: userActivityEvent.productId,
+        offerId: userActivityEvent.offerId,
+        queryNorm: userActivityEvent.queryNorm,
+        resultCount: userActivityEvent.resultCount,
+        createdAt: userActivityEvent.createdAt,
+      })
+      .from(userActivityEvent)
+      .where(eq(userActivityEvent.userId, userId))
+      .orderBy(desc(userActivityEvent.createdAt), desc(userActivityEvent.id)),
+  ]);
 
   const marketingRows = await db
     .select({
@@ -228,6 +324,9 @@ export async function exportUserData(db: Database, userId: number): Promise<User
     history: historyRows,
     sizeProfile: sizeRows,
     consents: consentRows,
+    authHistory: authRows,
+    activitySummary: summaryRows[0] ?? null,
+    activityEvents: activityRows,
     clicks: clickRows,
     earlyAccess: earlyRows[0] ?? null,
     searchRights: {

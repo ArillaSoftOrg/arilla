@@ -13,7 +13,7 @@
  *   normal girişle oluşmuş olmalı).
  * - İdempotent: rol zaten istenen değerse hiçbir şey yazılmaz.
  * - Denetlenir: `users.role_change` satırını veritabanı tetikleyicisi
- *   (0036) AYNI işlemde yazar; betik yalnızca aktörü ve gerekçeyi verir
+ *   (0039) AYNI işlemde yazar; betik yalnızca aktörü ve gerekçeyi verir
  *   (`actor_role = "cli"`; `--actor-email` verilmezse aktör hedef hesabın
  *   kendisidir - ilk yönetici böyle açılır).
  * - Geri alınabilir: aynı komut `--role user` ile.
@@ -113,7 +113,7 @@ await withClient(url, async (client) => {
       actorId = found.id;
     }
 
-    // Denetim satırını 0036 tetikleyicisi yazar; burada yalnızca aktör ve
+    // Denetim satırını 0039 tetikleyicisi yazar; burada yalnızca aktör ve
     // gerekçe bu işleme (set_config(..., true)) verilir. Tetikleyici yoksa
     // (migration uygulanmamış) rol denetimsiz değişmesin diye durulur.
     const trigger = await client.query(
@@ -121,7 +121,7 @@ await withClient(url, async (client) => {
     );
     if (trigger.rows.length !== 1) {
       await client.query("ROLLBACK");
-      fail("Rol denetim tetikleyicisi yok (0036). Önce `pnpm db:migrate` çalıştır.");
+      fail("Rol denetim tetikleyicisi yok (0039). Önce `pnpm db:migrate` çalıştır.");
     }
     await client.query(
       `SELECT set_config('arilla.audit_actor_user_id', $1, true),

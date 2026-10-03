@@ -1,4 +1,4 @@
-/** 0005_auth.sql + 0024_oauth_identity.sql + 0025_apple_phone_identity.sql + 0031_early_access.sql + 0034 (`app_user.referral_code`) karsiligi. */
+/** 0005_auth.sql + 0024_oauth_identity.sql + 0025_apple_phone_identity.sql + 0031_early_access.sql + 0034 (`app_user.referral_code`) + 0036 (`session` istek baglami) karsiligi. */
 import {
   bigint,
   boolean,
@@ -46,7 +46,22 @@ export const session = pgTable("session", {
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   lastUsedAt: timestamp("last_used_at", { withTimezone: true }).notNull().defaultNow(),
+  /** 0036: kaba istek bağlamı; yalnızca yeni oturumlarda dolar. */
+  deviceClass: text("device_class").$type<DeviceClass>(),
+  browserFamily: text("browser_family").$type<BrowserFamily>(),
+  countryCode: text("country_code"),
 });
+
+/** 0036: user agent'tan türetilen kaba sınıflar (ham user agent saklanmaz). */
+export type DeviceClass = "mobile" | "tablet" | "desktop" | "other";
+export type BrowserFamily =
+  | "chrome"
+  | "safari"
+  | "firefox"
+  | "edge"
+  | "samsung"
+  | "opera"
+  | "other";
 
 export type IdentityProvider = "google" | "apple" | "phone";
 

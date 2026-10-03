@@ -1,6 +1,9 @@
 "use server";
 
 import {
+  CONTACT_FIELDS,
+  type ContactField,
+  revealUserContact,
   revokeUserSessions,
   SessionRevokeValidationError,
   searchUsers,
@@ -73,4 +76,31 @@ export async function revokeUserSessionsAction(input: {
     if (error instanceof SessionRevokeValidationError) return { ok: false, message: error.message };
     throw error;
   }
+}
+
+export type RevealState =
+  | { status: "ok"; value: string | null }
+  | { status: "reauth"; href: string }
+  | { status: "not_found" };
+
+/**
+ * Tıkla-göster (karar 0049 §2): tek hesabın tam e-postası ya da telefonu.
+ * Yetenek `users.contact.reveal` ve son 1 saat içinde giriş gerekir; taze
+ * değilse değer DÖNMEZ, yeniden giriş bağlantısı döner. Core da tazeliği
+ * ayrıca ister. Gösterim denetime yazılır (alan adı; değer asla).
+ *
+ * Değer yalnızca bu yanıtta döner: adres satırına, önbelleğe ya da istemci
+ * deposuna yazılmaz; sayfa yenilenince yeniden maskelenir.
+ */
+export async function revealContactAction(
+  publicId: string,
+  field: ContactField,
+): Promise<RevealState> {
+  const { actor, fresh, reauthHref } = await requireFreshCapability("users.contact.reveal");
+  if (!fresh) return { status: "reauth", href: reauthHref };
+  if (typeof publicId !== "string" || !CONTACT_FIELDS.includes(field)) {
+    return { status: "not_found" };
+  }
+  const result = await revealUserContact(getDatabase(), actor, publicId, field, { fresh });
+  return result ? { status: "ok", value: result.value } : { status: "not_found" };
 }

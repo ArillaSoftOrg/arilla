@@ -10,6 +10,7 @@ import {
   getVariantPriceHistory,
   isProductSitemapEligible,
   readAppUrl,
+  recordActivity,
   resolveProductSlug,
   serializeJsonLd,
   variantLowestClaim,
@@ -33,6 +34,7 @@ import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
 import { HOME_COPY } from "../../home-copy.ts";
+import { readConsent } from "../../lib/consent.ts";
 import { requireProductAccess } from "../../lib/dal.ts";
 import { ProductActionsClient } from "./product-actions-client.tsx";
 import styles from "./product-page.module.css";
@@ -136,7 +138,7 @@ export default async function ProductPage({
   params: Promise<{ slug: string }>;
   searchParams: Promise<{ boyut?: string | string[] }>;
 }) {
-  await requireProductAccess();
+  const user = await requireProductAccess();
   const { slug } = await params;
   const requestedVariant = readSelectedVariant((await searchParams).boyut);
   const db = getDatabase();
@@ -150,6 +152,20 @@ export default async function ProductPage({
   }
 
   const { product } = resolution;
+
+  // 0049 §7: rızalı davranışsal analitik (yalnızca girişli kullanıcı; rıza
+  // kapısı ve 30 dakikalık tekrar bastırma core'da). Hata sayfayı bozmaz.
+  if (user) {
+    try {
+      await recordActivity(db, {
+        userId: user.id,
+        cookieConsent: await readConsent(),
+        event: { kind: "product_viewed", productId: product.productId },
+      });
+    } catch (error) {
+      console.error("[urun] activity failed", error instanceof Error ? error.name : "unknown");
+    }
+  }
 
   const [{ merchantOffers, comparison }, alternatives, sizeOptions, priceStats] = await Promise.all(
     [

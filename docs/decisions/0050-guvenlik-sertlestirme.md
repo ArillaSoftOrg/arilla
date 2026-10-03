@@ -24,7 +24,7 @@ doğrulama modeli (0006, 0044) DEĞİŞMEZ; yetki haritası (0039) aynen kalır.
    `Permissions-Policy`, `COOP: same-origin`; HSTS (`max-age=31536000`, alt
    alan adı ve preload YOK) ve `upgrade-insecure-requests` yalnızca Vercel
    üretim derlemesinde. `/yonetim` ayrıca `X-Robots-Tag: noindex`.
-3. **Rol değişikliği motorda denetlenir** (migration 0036). `app_user.role`
+3. **Rol değişikliği motorda denetlenir** (migration 0039). `app_user.role`
    her değiştiğinde (ve `user` dışı rolle hesap açıldığında) tetikleyici aynı
    işlemde `users.role_change` yazar: hedef, eski/yeni rol,
    `outcome: applied`, bağlanan veritabanı rolü (`after.dbRole`); aktör ve

@@ -52,17 +52,42 @@ export interface SetConsentInput {
   kind: ConsentKind;
   granted: boolean;
   ip: string | null;
+  /** 0037: kaydın kaynağı (`/hesap` = `account_settings`, iptal bağlantısı = `unsubscribe_link`). */
+  source?: "account_settings" | "unsubscribe_link";
 }
 
-/** `db` bir işlem (`tx`) de olabilir: abonelik iptali kilit altında yazar. */
+export class InvalidConsentInputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidConsentInputError";
+  }
+}
+
+/** Server action girdisi çalışma zamanında tipsizdir: tür ve değer burada doğrulanır. */
+export function isAccountConsentKind(value: unknown): value is ConsentKind {
+  return typeof value === "string" && (CONSENT_KINDS as readonly string[]).includes(value);
+}
+
+/**
+ * `db` bir işlem (`tx`) de olabilir: abonelik iptali kilit altında yazar.
+ * Yalnızca dört hesap rızası yazılabilir; çerez kategorileri ve aydınlatma
+ * kaydı (0037) yalnızca `consent/` modülünden yazılır (0049 §6).
+ */
 export async function setConsent(
   db: Pick<Database, "insert">,
   input: SetConsentInput,
 ): Promise<void> {
+  if (!isAccountConsentKind(input.kind)) {
+    throw new InvalidConsentInputError("bilinmeyen rıza türü");
+  }
+  if (typeof input.granted !== "boolean") {
+    throw new InvalidConsentInputError("rıza değeri boolean olmalı");
+  }
   await db.insert(userConsent).values({
     userId: input.userId,
     kind: input.kind,
     granted: input.granted,
     ip: input.ip,
+    source: input.source ?? null,
   });
 }

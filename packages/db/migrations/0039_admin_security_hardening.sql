@@ -1,4 +1,4 @@
--- 0036 — yonetim guvenligi sertlestirme (docs/decisions/0050)
+-- 0039 — yonetim guvenligi sertlestirme (docs/decisions/0050)
 --
 -- 1. ROL DEGISIKLIGI DENETIMI, MOTORDA. `app_user.role` her degistiginde
 --    (ve 'user' disi rolle hesap acildiginda) ayni islemde
@@ -86,7 +86,7 @@ INSERT INTO admin_audit_event
     (actor_user_id, actor_role, action, target_type, target_id, before, after, reason)
 SELECT NULL, 'migration', 'users.role_change', 'app_user', u.id::TEXT, NULL,
        jsonb_build_object('role', u.role, 'outcome', 'backfill'),
-       '0036: rol, denetim tetikleyicisinden once atanmis'
+       '0039: rol, denetim tetikleyicisinden once atanmis'
 FROM app_user u
 WHERE u.role <> 'user'
   AND NOT EXISTS (

@@ -148,7 +148,7 @@ afterAll(async () => {
     await client.query("DELETE FROM admin_audit_event WHERE actor_user_id = ANY($1)", [
       Object.values(userIds),
     ]);
-    // 0036 tetikleyicisinin aktörsüz rol satırları (yetkili test hesapları açılırken).
+    // 0039 tetikleyicisinin aktörsüz rol satırları (yetkili test hesapları açılırken).
     await client.query(
       "DELETE FROM admin_audit_event WHERE target_type = 'app_user' AND target_id = ANY($1::text[])",
       [Object.values(userIds).map(String)],

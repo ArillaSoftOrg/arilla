@@ -1,7 +1,7 @@
 /**
  * Karar 0050 güvenlik sertleştirmesi - gerçek YEREL Postgres.
  *
- * - Rol değişikliği motorda denetlenir (0036 tetikleyicisi): aktör, hedef,
+ * - Rol değişikliği motorda denetlenir (0039 tetikleyicisi): aktör, hedef,
  *   eski/yeni rol, sonuç, bağlanan veritabanı rolü; geri alınan işlemde iz yok.
  * - Reddedilen yönetim erişimi kaydı (tekilleştirmeli).
  * - Oturum kapatma: kendi (`revokeOwnSessions`) ve yönetici (`revokeUserSessions`).
@@ -125,7 +125,7 @@ afterAll(async () => {
   });
 });
 
-describe("rol değişikliği denetimi (0036 tetikleyicisi)", () => {
+describe("rol değişikliği denetimi (0039 tetikleyicisi)", () => {
   it("uygulama rolüyle yapılan rol yükseltmesi bile iz bırakır: eski/yeni rol, sonuç, db rolü", async () => {
     const target = await createUser("promote");
     await asAppRole(async (client) => {
@@ -358,7 +358,7 @@ describe("hesap silme", () => {
     const identityEmail = `${TAG}-former-apple@test.local`;
     await addSession(former.id, `${TAG}-f-1`);
     await withOwnerClient(async (client) => {
-      // Eski personelin yazdığı denetim izi ve incelediği eşleşme (FK'ler 0036 öncesi silmeyi engelliyordu).
+      // Eski personelin yazdığı denetim izi ve incelediği eşleşme (FK'ler 0039 öncesi silmeyi engelliyordu).
       await client.query(
         `INSERT INTO admin_audit_event (actor_user_id, actor_role, action, target_type, target_id)
          VALUES ($1, 'moderator', 'lexicon.update', 'lexicon', $2)`,

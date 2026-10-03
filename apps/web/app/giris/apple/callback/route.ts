@@ -4,6 +4,7 @@ import {
   completeAppleSignIn,
   postAuthRedirect,
   readAppUrl,
+  requestContextFromHeaders,
   requireAppUrl,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -11,6 +12,7 @@ import { cookies, headers } from "next/headers";
 import { NextResponse } from "next/server";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
+import { syncConsentAfterSignIn } from "../../consent-sync.ts";
 import { takeAuthNext } from "../../next-cookie.ts";
 import { settleReferralAfterSignIn } from "../../referral-cookie.ts";
 import { APPLE_COOKIE_PATH, NONCE_COOKIE, STATE_COOKIE } from "../apple-cookies.ts";
@@ -77,9 +79,11 @@ export async function POST(request: Request) {
       redirectUri: appleRedirectUri(requireAppUrl()),
       ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
+      context: requestContextFromHeaders(headerStore),
     });
     await setSessionCookie(result.rawSessionToken);
     await settleReferralAfterSignIn(await cookies(), result);
+    await syncConsentAfterSignIn(result.user.id);
     destination = postAuthRedirect(result.user, next);
   } catch (failure) {
     console.error(`[giris] apple sign-in failed: ${classifyAppleFailure(failure)}`);

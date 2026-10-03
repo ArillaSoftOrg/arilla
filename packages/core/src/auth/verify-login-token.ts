@@ -122,6 +122,9 @@ function verifyInTransaction(
       role: user.role,
       userAgent: input.userAgent,
       ip: input.ip,
+      provider: "email",
+      isNewUser,
+      context: input.context,
     });
 
     return { rawSessionToken, user, isNewUser };

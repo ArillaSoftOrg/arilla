@@ -96,6 +96,7 @@ export async function PublicSiteShell({
       <SkipLink targetId={MAIN_ID}>{HOME_COPY.skipToContent}</SkipLink>
       <HomeHeader
         brandLabel={SITE_BRAND}
+        brandLogoSrc="/icon4.png"
         navItems={navItems}
         navAriaLabel="Ana gezinme"
         accountHref={accountHref}

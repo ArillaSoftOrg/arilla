@@ -100,7 +100,7 @@ export async function requireCapability(
       recordAdminSessionEnded(getDatabase(), user, state),
     );
     const rawToken = await readSessionCookie();
-    if (rawToken) await deleteSession(getDatabase(), rawToken);
+    if (rawToken) await deleteSession(getDatabase(), rawToken, "session_revoked");
     redirect(adminLoginPath(await currentAdminPath(), state === "idle" ? "bosta" : "sure"));
   }
   return { user, actor: { userId: user.id, role: user.role } };

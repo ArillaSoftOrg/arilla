@@ -14,9 +14,11 @@
  * - Oran siniri: gonderimde telefon ve IP basina, dogrulamada IP basina.
  *   Redis yoksa kapali kalinir (e-posta girisiyle ayni, decision 0006).
  */
+
 import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { type Database, phoneLoginCode } from "@arilla/db";
 import { and, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
+import type { RequestContext } from "../activity/request-context.ts";
 import { getRedis, isRedisUnavailableError } from "../redis/client.ts";
 import { incrementFixedWindow } from "../redis/counter.ts";
 import { unexpectedFailureCategory } from "./failure-category.ts";
@@ -253,6 +255,8 @@ export interface VerifyPhoneLoginCodeInput {
   code: string;
   ip: string | null;
   userAgent: string | null;
+  /** 0049: kaba istek baglami (cihaz/tarayici/ulke). */
+  context?: RequestContext;
 }
 
 export interface VerifyPhoneLoginCodeOptions {
@@ -336,6 +340,7 @@ export async function signInWithPhone(
     displayName: null,
     ip: input.ip,
     userAgent: input.userAgent,
+    context: input.context,
   });
 }
 

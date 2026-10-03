@@ -11,7 +11,7 @@
  * - Uzak (üretim) veritabanında YALNIZCA `--confirm-remote` ile çalışır.
  * - Tek işlem: oturum silme, `sessions.revoke_all` denetim satırı ve
  *   (`--demote` ise) rol düşürme birlikte yazılır ya da hiçbiri.
- * - Rol düşürmenin denetim satırını 0036 tetikleyicisi yazar.
+ * - Rol düşürmenin denetim satırını 0039 tetikleyicisi yazar.
  * - Aktör: `--actor-email` (mevcut yönetici) ya da boş (`actor_role = "cli"`).
  * - Çıktıda e-posta maskelenir; bağlantı adresi, token yazılmaz.
  */
@@ -90,7 +90,14 @@ await withClient(url, async (client) => {
       actorId = found.id;
     }
 
-    const deleted = await client.query("DELETE FROM session WHERE user_id = $1", [user.id]);
+    // Her silinen oturum için `session_revoked` olayı (0036 `auth_event`), uygulamadaki
+    // `revokeAllSessionsInTx` ile aynı iz.
+    const deleted = await client.query(
+      `WITH gone AS (DELETE FROM session WHERE user_id = $1 RETURNING id, user_id)
+       INSERT INTO auth_event (user_id, kind, session_id)
+       SELECT user_id, 'session_revoked', id FROM gone`,
+      [user.id],
+    );
     const count = deleted.rowCount ?? 0;
     await client.query(
       `INSERT INTO admin_audit_event
@@ -106,7 +113,7 @@ await withClient(url, async (client) => {
       );
       if (trigger.rows.length !== 1) {
         await client.query("ROLLBACK");
-        fail("Rol denetim tetikleyicisi yok (0036). Önce `pnpm db:migrate` çalıştır.");
+        fail("Rol denetim tetikleyicisi yok (0039). Önce `pnpm db:migrate` çalıştır.");
       }
       await client.query(
         `SELECT set_config('arilla.audit_actor_user_id', $1, true),

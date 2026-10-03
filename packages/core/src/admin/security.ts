@@ -9,8 +9,9 @@
  *   (`/yonetim/kullanicilar/[publicId]`, taze giriş). Acil durum için
  *   veritabanı betiği: `pnpm db:revoke-sessions` (docs/ops.md).
  */
-import { appUser, type Database, session } from "@arilla/db";
+import { appUser, type Database } from "@arilla/db";
 import { eq, sql } from "drizzle-orm";
+import { revokeAllSessionsInTx } from "../auth/session.ts";
 import type { UserRole } from "../auth/types.ts";
 import { recordAdminEvent } from "./audit.ts";
 import {
@@ -93,20 +94,17 @@ export async function revokeOwnSessions(
   user: { id: number; role: UserRole },
 ): Promise<{ count: number }> {
   return db.transaction(async (tx) => {
-    const deleted = await tx
-      .delete(session)
-      .where(eq(session.userId, user.id))
-      .returning({ id: session.id });
+    const count = await revokeAllSessionsInTx(tx, user.id);
     if (hasCapability(user.role, "admin.access")) {
       await recordAdminEvent(tx, {
         actor: { userId: user.id, role: user.role },
         action: "sessions.revoke_all",
         targetType: "app_user",
         targetId: user.id,
-        after: { count: deleted.length, scope: "self", outcome: "applied" },
+        after: { count, scope: "self", outcome: "applied" },
       });
     }
-    return { count: deleted.length };
+    return { count };
   });
 }
 
@@ -152,18 +150,15 @@ export async function revokeUserSessions(
     )[0];
     if (!target) return { found: false } as const;
 
-    const deleted = await tx
-      .delete(session)
-      .where(eq(session.userId, target.id))
-      .returning({ id: session.id });
+    const count = await revokeAllSessionsInTx(tx, target.id);
     await recordAdminEvent(tx, {
       actor,
       action: "sessions.revoke_all",
       targetType: "app_user",
       targetId: target.id,
-      after: { count: deleted.length, scope: "admin", outcome: "applied" },
+      after: { count, scope: "admin", outcome: "applied" },
       reason,
     });
-    return { found: true, count: deleted.length } as const;
+    return { found: true, count } as const;
   });
 }

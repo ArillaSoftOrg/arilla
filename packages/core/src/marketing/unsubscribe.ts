@@ -84,7 +84,13 @@ export async function unsubscribeByToken(
     await tx.execute(marketingConsentLockSql(userId));
     const current = await getConsents(tx, userId);
     if (!current.marketing_email) return { status: "unsubscribed", changed: false } as const;
-    await setConsent(tx, { userId, kind: "marketing_email", granted: false, ip: context.ip });
+    await setConsent(tx, {
+      userId,
+      kind: "marketing_email",
+      granted: false,
+      ip: context.ip,
+      source: "unsubscribe_link",
+    });
     return { status: "unsubscribed", changed: true } as const;
   });
 }

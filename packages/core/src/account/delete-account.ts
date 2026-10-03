@@ -21,6 +21,12 @@
  *   CASCADE'i tablo sahibi yetkisiyle çalışır). Davet ettiği kişilerin
  *   satırındaki `inviter_user_id` NULL'a çekilir. Sağlayıcı kimliğinin özeti
  *   tutulmaz; burada ayrıca bir şey yapılmaz.
+ * - Kullanıcı aktivitesi (0036, docs/decisions/0049): `auth_event`,
+ *   `user_activity_event` ve `user_activity_summary` `ON DELETE CASCADE` ile
+ *   gider. Yeni oturum kolonları `session` ile birlikte gider. Rıza geçmişi
+ *   (`user_consent`, 0037 kolonları dahil) zaten CASCADE. Denetim kaydında
+ *   (`admin_audit_event`) yalnızca sayısal hedef kimliği kalır, kişisel veri
+ *   yoktur. Burada ayrıca bir şey yapılmaz.
  * - `auth_token`: `app_user`'a FK ile bağlı değil (yalnızca e-posta), ama
  *   aynı e-postaya ait tüketilmemiş bir token'ın silme sonrası hesabı
  *   sessizce yeniden açmasını önlemek için hijyen amacıyla temizlenir.
@@ -32,7 +38,7 @@
  * tetikleyicisiyle denetlenir, docs/ops.md). Böylece çalınmış bir yönetici
  * oturumu hesabı silip izini kaybettiremez. Rolü düşürülmüş eski personel
  * silinebilir: denetim satırları kalır, yalnızca aktör bağlantısı NULL olur
- * (`admin_audit_event`/`match_candidate.reviewed_by` ON DELETE SET NULL, 0036).
+ * (`admin_audit_event`/`match_candidate.reviewed_by` ON DELETE SET NULL, 0039).
  * Oturumlar (`session`) ve giriş kimlikleri (`user_identity`) CASCADE ile
  * aynı işlemde gider; silinen hesabın çerezi bir sonraki istekte geçersizdir.
  */
