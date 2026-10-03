@@ -176,8 +176,27 @@ describe("yönetim sınırı", () => {
     expect(detail.status).toBe(200);
     const html = await detail.text();
     expect(html).not.toContain(`${TAG}-userB@test.local`);
-    expect(html).toContain("Tüm oturumları kapat");
     expect(await auditCount("users.view", "admin", String(ids.userB))).toBe(1);
+
+    // Oturumlar sekmesi (0049) hassastır; oturum kapatma denetimi orada (0050).
+    const sessions = await get(`/yonetim/kullanicilar/${publicIds.userB}?sekme=oturumlar`, {
+      token,
+    });
+    expect(sessions.status).toBe(200);
+    const sessionsHtml = await sessions.text();
+    expect(sessionsHtml).toContain("Tüm oturumları kapat");
+    expect(sessionsHtml).not.toContain(`${TAG}-userB@test.local`);
+    expect(await auditCount("users.view_tab", "admin", String(ids.userB))).toBe(1);
+  });
+
+  it("moderatör hassas kullanıcı sekmelerine adresle de giremez", async () => {
+    const token = await session("moderator");
+    for (const sekme of ["oturumlar", "aktivite", "denetim"]) {
+      const response = await get(`/yonetim/kullanicilar/${publicIds.userB}?sekme=${sekme}`, {
+        token,
+      });
+      expect(response.status).toBe(404);
+    }
   });
 });
 
