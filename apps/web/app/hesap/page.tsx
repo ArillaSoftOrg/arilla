@@ -1,6 +1,7 @@
 import { getConsents } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { Button } from "@arilla/ui";
+import type { Metadata } from "next";
 import { cookies } from "next/headers";
 import type { CSSProperties } from "react";
 import { logoutAction } from "../cikis-actions.ts";
@@ -13,6 +14,11 @@ import { ConsentTogglesClient } from "./consent-toggles-client.tsx";
 import { DeleteAccountButtonClient } from "./delete-account-button-client.tsx";
 import styles from "./page.module.css";
 import { SearchRightsSection } from "./search-rights-section.tsx";
+
+export const metadata: Metadata = {
+  title: "Hesabım",
+  robots: { index: false, follow: false },
+};
 
 /**
  * docs/pages.md "/hesap": Profil, Beden profili, Tema, İzinler, Verilerim.
