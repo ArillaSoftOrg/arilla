@@ -138,18 +138,22 @@
 
 .page {
   display: grid;
+  /* Tek sütun içeriğe göre genişlemesin: dar ekranda yatay taşma olmaz. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6);
   max-width: var(--content-width-wide);
 }
 
 .pageNarrow {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   max-width: var(--content-width-comparison);
 }
 
 .pageHeader {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
 }
 
@@ -367,7 +371,8 @@
 
 .keyValues {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  /* Uzun etiket sarılabilsin (max-content dar ekranda taşırırdı). */
+  grid-template-columns: fit-content(60%) minmax(0, 1fr);
   gap: var(--space-1) var(--space-4);
   margin: 0;
   font-size: var(--font-size-sm);
@@ -375,6 +380,7 @@
 
 .keyValues dt {
   color: var(--ink-muted);
+  overflow-wrap: anywhere;
 }
 
 .keyValues dd {
@@ -539,6 +545,8 @@
 
 .finding {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: anywhere;
   gap: var(--space-1);
   padding: var(--space-3) var(--space-4);
   border: var(--border-width) solid var(--line);

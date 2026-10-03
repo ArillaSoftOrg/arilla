@@ -306,6 +306,8 @@ export function LexiconTableClient({
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <NewLexiconRow prefillSurface={prefillSurface} verifyHref={verifyHref} />
+      {/* Dar ekranda tablo sayfayı taşırmasın: kendi içinde yatay kayar. */}
+      <div style={{ overflowX: "auto" }}>
       <table style={{ width: "100%", borderCollapse: "collapse" }}>
         <thead>
           <tr style={{ textAlign: "left" }}>
@@ -322,6 +324,7 @@ export function LexiconTableClient({
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }
