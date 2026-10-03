@@ -424,16 +424,19 @@
 /* E-posta kampanyası düzenleyicisi ve önizleme (karar 0048). */
 .formGrid {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   max-width: 720px;
 }
 
 .formGrid label {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
 }
 
 .textArea {
+  box-sizing: border-box;
   width: 100%;
   min-height: 240px;
   font: inherit;
