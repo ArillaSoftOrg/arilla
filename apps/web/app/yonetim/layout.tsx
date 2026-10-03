@@ -5,7 +5,7 @@ import { requireCapability } from "../lib/dal.ts";
 import { SITE_BRAND } from "../site-config.ts";
 import styles from "./admin.module.css";
 import { ADMIN_NAV } from "./admin-nav.ts";
-import { AdminNavClient } from "./admin-nav-client.tsx";
+import { AdminBreadcrumbs, AdminNavClient } from "./admin-nav-client.tsx";
 
 export const metadata: Metadata = {
   title: "Yönetim",
@@ -28,7 +28,7 @@ export default async function YonetimLayout({ children }: { children: ReactNode 
     label: group.label,
     items: group.items
       .filter((item) => hasCapability(user.role, item.capability))
-      .map(({ href, label }) => ({ href, label })),
+      .map(({ href, label, description }) => ({ href, label, description })),
   })).filter((group) => group.items.length > 0);
 
   return (
@@ -48,6 +48,7 @@ export default async function YonetimLayout({ children }: { children: ReactNode 
         </div>
       </aside>
       <main id="icerik" className={styles.main}>
+        <AdminBreadcrumbs sections={sections} />
         {children}
       </main>
     </div>

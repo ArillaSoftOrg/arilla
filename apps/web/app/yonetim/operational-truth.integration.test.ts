@@ -89,6 +89,8 @@ async function outcome(fn: () => Promise<unknown>): Promise<string> {
 const dashboard = async () => (await import("./page.tsx")).default();
 const operations = async () =>
   (await import("./islemler/page.tsx")).default({ searchParams: Promise.resolve({}) });
+const jobRuns = async (params: Record<string, string> = {}) =>
+  (await import("./islemler/isler/page.tsx")).default({ searchParams: Promise.resolve(params) });
 const ingest = async (durum?: string) =>
   (await import("./ingest/page.tsx")).default({ searchParams: Promise.resolve({ durum }) });
 const audit = async (params: Record<string, string>) =>
@@ -173,6 +175,18 @@ describe("genel bakış", () => {
     expect(page).not.toContain("/yonetim/islemler#boru-hatti");
   });
 
+  it("karar 0055: şimdi dikkat isteyenler — moderatör kendi görebildiğini, bağlantısız işletim", async () => {
+    state.token = tokens.moderator;
+    const page = await html(dashboard());
+    expect(page).toContain("Şimdi dikkat isteyenler");
+    expect(page).not.toContain('href="/yonetim/islemler"');
+    expect(page).not.toContain("Fiyat partition");
+    state.token = tokens.admin;
+    const admin = await html(dashboard());
+    expect(admin).toContain("Şimdi dikkat isteyenler");
+    expect(admin).toContain('href="/yonetim/islemler"');
+  });
+
   it("yönetici: maliyet ve kullanıcı kartları ilgili sayfaya gider", async () => {
     state.token = tokens.admin;
     const page = await html(dashboard());
@@ -212,7 +226,9 @@ describe("işletim", () => {
   it("yönetici boru hattı aşamalarını ve elle çalışan iş etiketini görür; 'gece' yok", async () => {
     state.token = tokens.admin;
     const page = await html(operations());
-    expect(page).toContain("Veri boru hattı (son kanıt)");
+    // Karar 0055: iş koşusu varsa "son çalıştı", yoksa "son kanıt".
+    expect(page).toContain("Veri boru hattı");
+    expect(page).toContain("Son çalıştı / son kanıt");
     for (const label of ["Veri toplama", "Eşleştirme", "Fiyat özeti", "Benzerlik kenarları"]) {
       expect(page).toContain(label);
     }
@@ -224,6 +240,22 @@ describe("işletim", () => {
   it("moderatör işletim sayfasını göremez (sınır değişmedi)", async () => {
     state.token = tokens.moderator;
     expect(await outcome(operations)).toBe("404");
+    expect(await outcome(() => jobRuns())).toBe("404");
+  });
+
+  it("karar 0055: durum bulguları, iş koşuları ve koşu geçmişi", async () => {
+    state.token = tokens.admin;
+    const page = await html(operations());
+    expect(page).toContain("Sistem sağlığı");
+    // Aktif mağazanın son koşusu başarısız: bulgu ve veri toplama bağlantısı.
+    expect(page).toContain("son toplama koşusu başarısız");
+    expect(page).toContain('href="/yonetim/ingest?durum=failed"');
+    expect(page).toContain("Ne yapmalı:");
+    expect(page).toContain("İş koşuları");
+    expect(page).toContain("Günlük temizlik (giriş, arama hakkı, saklama)");
+    expect(page).not.toContain("KRİTİK");
+    const history = await html(jobRuns({ is: "cleanup_auth", durum: "nope" }));
+    expect(history).toContain("İş koşuları");
   });
 });
 

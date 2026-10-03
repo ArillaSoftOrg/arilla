@@ -1,8 +1,10 @@
 /**
- * Veri boru hattının son kanıtı (docs/decisions/0051). İş geçmişi tablosu
- * yok (`job_run` ertelendi, 0039); her aşamanın sağlığı ÜRETTİĞİ verinin en
- * yeni zaman damgasından okunur ve öyle etiketlenir: "son kanıt", "son
- * çalıştı" değil. Aşamalar (`services/ingest`, hepsi elle/komut satırından):
+ * Veri boru hattının son kanıtı (docs/decisions/0051, 0055). Aşamanın
+ * `job_run` kaydı varsa (Python işleri 0055'ten beri yazar) "son çalıştı"
+ * oradan okunur: son başarılı/kısmi koşunun bitişi; son koşu başarısızsa ya
+ * da takılıysa aşama uyarıdır. Kayıt yoksa (eski kurulum, iş hiç bu sürümle
+ * çalışmadı) ÜRETTİĞİ verinin en yeni zaman damgasına düşülür ve öyle
+ * etiketlenir: "son kanıt". Aşamalar (`services/ingest`, hepsi elle):
  *
  * - collect    → `ingest_run`                (python -m collect.bootstrap)
  * - resolve    → `match_candidate.created_at` (python -m resolve)
@@ -21,6 +23,7 @@ import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import { type JobLastRun, readJobRunSummary, STUCK_JOB_AFTER_MS } from "./job-runs.ts";
 import { STALE_FEED_AFTER_MS, STUCK_RUN_AFTER_MS } from "./merchant-attention.ts";
 
 /** Link işi bu süreden uzun `processing`/`queued` kalırsa takılmış sayılır. */
@@ -39,6 +42,26 @@ const UPSTREAM: Record<PipelineStage, PipelineStage[]> = {
   link: [],
 };
 
+/**
+ * Aşama → onu yürüten `job_run.job` adları. Toplama `ingest_run`'dan (zaten
+ * koşu kaydı), link çözümleme işçiden okunur; ikisi burada yok.
+ */
+export const STAGE_JOBS: Partial<Record<PipelineStage, readonly string[]>> = {
+  resolve: ["resolve"],
+  prices: ["similarity", "similarity_prices"],
+  enrich: ["enrich"],
+  edges: ["similarity", "similarity_edges"],
+};
+
+/** Aşamanın iş koşusu kanıtı (`job_run`). */
+export interface StageRunEvidence {
+  /** Son başarılı/kısmi koşunun bitişi. */
+  lastGoodAt: Date | null;
+  /** En yeni koşu. */
+  lastStatus: "running" | "success" | "partial" | "failed";
+  lastStartedAt: Date;
+}
+
 export interface PipelineRawEvidence {
   collect: { lastStartedAt: Date | null; lastGoodAt: Date | null; stuckRuns: number } | null;
   resolve: { lastAt: Date | null } | null;
@@ -50,6 +73,35 @@ export interface PipelineRawEvidence {
     stuckProcessing: number;
     oldestQueuedAt: Date | null;
   } | null;
+  /**
+   * `job_run` kanıtı, aşama başına (karar 0055). Yoksa ya da okunamadıysa
+   * aşama veri zamanına düşer.
+   */
+  runs?: Partial<Record<PipelineStage, StageRunEvidence | null>>;
+}
+
+/** Aşamanın işleri arasından en yeni koşu ve en yeni iyi koşu. Saf. */
+export function stageRunEvidence(
+  jobs: readonly JobLastRun[],
+): Partial<Record<PipelineStage, StageRunEvidence | null>> {
+  const out: Partial<Record<PipelineStage, StageRunEvidence | null>> = {};
+  for (const [stage, names] of Object.entries(STAGE_JOBS) as [PipelineStage, string[]][]) {
+    let latest: JobLastRun["lastRun"] = null;
+    let lastGoodAt: Date | null = null;
+    for (const job of jobs) {
+      if (!names.includes(job.job)) continue;
+      if (job.lastRun && (!latest || job.lastRun.startedAt > latest.startedAt)) {
+        latest = job.lastRun;
+      }
+      if (job.lastGoodAt && (!lastGoodAt || job.lastGoodAt > lastGoodAt)) {
+        lastGoodAt = job.lastGoodAt;
+      }
+    }
+    out[stage] = latest
+      ? { lastGoodAt, lastStatus: latest.status, lastStartedAt: latest.startedAt }
+      : null;
+  }
+  return out;
 }
 
 export type PipelineStageState =
@@ -68,11 +120,18 @@ export interface PipelineStageView {
   state: PipelineStageState;
   /** Aşamanın en yeni kanıtı (collect için son başarılı/kısmi koşu). */
   lastAt: Date | null;
-  /** Kısa, sabit açıklama kodu: `stuck_runs`, `stale_feed`, `link_stuck`, `link_queue_old`. */
+  /**
+   * Kısa, sabit açıklama kodu: `stuck_runs`, `stale_feed`, `link_stuck`,
+   * `link_queue_old`, `job_failed`, `job_stuck`.
+   */
   reasons: string[];
+  /** `lastAt` nereden: iş koşusu (`job_run`) ya da üretilen verinin zamanı. */
+  source: "job_run" | "data";
 }
 
 function stageTime(raw: PipelineRawEvidence, stage: PipelineStage): Date | null {
+  const run = raw.runs?.[stage];
+  if (run?.lastGoodAt) return run.lastGoodAt;
   switch (stage) {
     case "collect":
       return raw.collect?.lastGoodAt ?? null;
@@ -89,9 +148,20 @@ export function evaluatePipeline(
   now: Date = new Date(),
 ): PipelineStageView[] {
   return PIPELINE_STAGES.map((stage) => {
-    if (raw[stage] === null) return { stage, state: "unknown", lastAt: null, reasons: [] };
+    const run = raw.runs?.[stage] ?? null;
+    const source = run?.lastGoodAt ? "job_run" : "data";
+    if (raw[stage] === null && !run?.lastGoodAt) {
+      return { stage, state: "unknown", lastAt: null, reasons: [], source };
+    }
     const lastAt = stageTime(raw, stage);
     const reasons: string[] = [];
+    if (run?.lastStatus === "failed") reasons.push("job_failed");
+    if (
+      run?.lastStatus === "running" &&
+      now.getTime() - run.lastStartedAt.getTime() > STUCK_JOB_AFTER_MS
+    ) {
+      reasons.push("job_stuck");
+    }
 
     if (stage === "collect" && raw.collect) {
       if (raw.collect.stuckRuns > 0) reasons.push("stuck_runs");
@@ -108,16 +178,16 @@ export function evaluatePipeline(
         reasons.push("link_queue_old");
       }
     }
-    if (reasons.length > 0) return { stage, state: "warning", lastAt, reasons };
+    if (reasons.length > 0) return { stage, state: "warning", lastAt, reasons, source };
     if (!lastAt) {
       // Link işçisi hiç istek almadıysa kanıt yoktur ama sorun da yoktur.
-      return { stage, state: "none", lastAt, reasons };
+      return { stage, state: "none", lastAt, reasons, source };
     }
     const upstreamNewer = UPSTREAM[stage].some((up) => {
       const upAt = stageTime(raw, up);
       return upAt !== null && upAt.getTime() > lastAt.getTime();
     });
-    return { stage, state: upstreamNewer ? "behind" : "ok", lastAt, reasons };
+    return { stage, state: upstreamNewer ? "behind" : "ok", lastAt, reasons, source };
   });
 }
 
@@ -151,7 +221,7 @@ export async function getPipelineEvidence(
   assertCapability(actor, "admin.access");
   const stuckSeconds = Math.round(STUCK_RUN_AFTER_MS / 1000);
   const linkStuckSeconds = Math.round(LINK_STUCK_AFTER_MS / 1000);
-  const [collect, resolve, prices, enrich, edges, link] = await Promise.all([
+  const [collect, resolve, prices, enrich, edges, link, jobs] = await Promise.all([
     evidence(db, async (tx) => {
       const result = await tx.execute<{
         last_started: string | null;
@@ -201,6 +271,17 @@ export async function getPipelineEvidence(
         oldestQueuedAt: date(row?.oldest_queued),
       };
     }),
+    // `job_run` okunamazsa aşamalar veri zamanına düşer (sessizce değil:
+    // kaynak "son kanıt" olarak etiketlenir).
+    readJobRunSummary(db).catch(() => null),
   ]);
-  return { collect, resolve, prices, enrich, edges, link };
+  return {
+    collect,
+    resolve,
+    prices,
+    enrich,
+    edges,
+    link,
+    runs: jobs ? stageRunEvidence(jobs.jobs) : undefined,
+  };
 }

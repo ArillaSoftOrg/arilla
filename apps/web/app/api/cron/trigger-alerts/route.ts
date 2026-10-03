@@ -1,4 +1,4 @@
-import { cronAuthFailureResponse, triggerAlerts } from "@arilla/core";
+import { cronAuthFailureResponse, triggerAlerts, withJobRun } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 
 /**
@@ -19,6 +19,8 @@ export async function GET(request: Request): Promise<Response> {
   );
   if (denied) return denied;
 
-  const result = await triggerAlerts(getDatabase());
+  // Koşu `job_run`'a yazılır (`trigger_alerts`, karar 0055).
+  const db = getDatabase();
+  const result = await withJobRun(db, "trigger_alerts", "cron", () => triggerAlerts(db));
   return Response.json(result);
 }

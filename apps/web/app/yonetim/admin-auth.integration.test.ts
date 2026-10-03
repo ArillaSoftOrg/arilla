@@ -426,17 +426,26 @@ describe("denetim etiketleri", () => {
 
 describe("yan menü etkin bağlantı", () => {
   it("alt sayfada üst bağlantı etkin; genel bakış yalnızca tam eşleşmede", async () => {
-    const { ADMIN_NAV, isNavItemActive } = await import("./admin-nav.ts");
-    const active = (pathname: string) =>
-      ADMIN_NAV.flatMap((group) => group.items)
-        .filter((item) => isNavItemActive(item.href, pathname))
-        .map((item) => item.label);
+    const { ADMIN_NAV, activeNavHref } = await import("./admin-nav.ts");
+    // Karar 0055: kapsayanlardan en özel öğe etkindir (isNavItemActive + en uzun href).
+    const items = ADMIN_NAV.flatMap((group) => group.items);
+    const active = (pathname: string) => {
+      const href = activeNavHref(
+        items.map((item) => item.href),
+        pathname,
+      );
+      return items.filter((item) => item.href === href).map((item) => item.label);
+    };
     expect(active("/yonetim")).toEqual(["Genel bakış"]);
     expect(active("/yonetim/kullanicilar/0b6c5e2a-1111-4222-8333-944455556666")).toEqual([
       "Kullanıcılar",
     ]);
     expect(active("/yonetim/katalog/urunler/12")).toEqual(["Ürünler"]);
-    expect(active("/yonetim/eslestirme/gecmis")).toEqual(["Eşleştirme kuyruğu"]);
+    expect(active("/yonetim/eslestirme/gecmis")).toEqual(["Eşleştirme geçmişi"]);
+    expect(active("/yonetim/eslestirme")).toEqual(["Eşleştirme kuyruğu"]);
+    expect(active("/yonetim/islemler/isler")).toEqual(["İş koşuları"]);
+    expect(active("/yonetim/islemler")).toEqual(["Sistem sağlığı"]);
+    expect(active("/yonetim/magazalar/ornek")).toEqual(["Mağazalar"]);
     expect(active("/yonetim/katalog/urunlerx")).toEqual([]);
   });
 });
