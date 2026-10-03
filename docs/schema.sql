@@ -1219,6 +1219,14 @@ REVOKE UPDATE, TRUNCATE ON auth_event          FROM arilla_app;           -- 003
 REVOKE UPDATE, TRUNCATE ON user_activity_event FROM arilla_app;           -- 0036
 GRANT  UPDATE (query_norm) ON user_activity_event TO arilla_app;          -- 0036: 90 günde NULL
 
+-- 0042 (karar 0057): Supabase'in `anon` / `authenticated` rolleri (yalnızca
+-- Supabase'de vardır) `public` şemada hiçbir tablo, sequence ve kendi
+-- fonksiyonumuzda yetki taşımaz; migration rolünün varsayılan yetkileri de
+-- bu rollere vermez. Data API (PostgREST / pg_graphql) bu yüzden erişemez.
+--   REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon, authenticated;
+--   REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+--   ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;
+
 -- price_point partition'larına doğrudan erişim yoktur. Partitioned tabloya
 -- INSERT'te yetki ebeveyn üzerinde denetlenir; yönlendirme etkilenmez.
 -- Yeni partition'lar için aynı REVOKE'u `scripts/partitions.ts` uygular.
