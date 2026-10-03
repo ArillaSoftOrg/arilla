@@ -484,6 +484,7 @@ describe("yönlendirme ve döngü", () => {
       "/affiliate-aciklamasi",
       "/sirket-bilgileri",
       "/iletisim",
+      "/geri-bildirim",
       "/api/cron/cleanup-auth",
     ];
     for (const path of open) {

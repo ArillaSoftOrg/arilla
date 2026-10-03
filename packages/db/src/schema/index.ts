@@ -2,7 +2,8 @@
  * Semanin TypeScript karsiligi. Dosya basina bir migration:
  * catalog↔0002, price↔0003, semantic↔0004, auth↔0005, creator↔0006,
  * attribution↔0007, search↔0008, discovery↔0009, user-intake↔0013,
- * admin↔0027, entitlement↔0034, marketing↔0035, activity↔0036.
+ * admin↔0027, entitlement↔0034, marketing↔0035, activity↔0036,
+ * feedback↔0032.
  * 0036'nin `session` kolonlari auth.ts'de, 0037'nin `user_consent`
  * kolonlari discovery.ts'dedir.
  *
@@ -19,6 +20,7 @@ export * from "./catalog.ts";
 export * from "./creator.ts";
 export * from "./discovery.ts";
 export * from "./entitlement.ts";
+export * from "./feedback.ts";
 export * from "./marketing.ts";
 export * from "./price.ts";
 export * from "./search.ts";

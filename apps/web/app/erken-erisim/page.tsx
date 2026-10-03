@@ -6,6 +6,7 @@ import { redirect } from "next/navigation";
 import { logoutAction } from "../cikis-actions.ts";
 import { COMING_SOON_COPY } from "../coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "../early-access-copy.ts";
+import { FEEDBACK_COPY } from "../geri-bildirim/feedback-copy.ts";
 import { HOME_COPY } from "../home-copy.ts";
 import { requireUser } from "../lib/dal.ts";
 import { SubpageShell } from "../public-site-shell.tsx";
@@ -108,6 +109,15 @@ export default async function ErkenErisimPage() {
                   </article>
                 ))}
               </section>
+
+              {/* İkincil eylem: ana eylem hiyerarşisinin (aşağıdaki düğmeler)
+                  üstüne çıkmaz, ayrı bir not satırı olarak durur (karar 0045). */}
+              <div className={styles.feedbackPrompt}>
+                <p className={styles.feedbackText}>{FEEDBACK_COPY.earlyAccessPrompt}</p>
+                <a className={styles.feedbackLink} href="/geri-bildirim">
+                  {FEEDBACK_COPY.submit}
+                </a>
+              </div>
             </>
           ) : (
             <div className={styles.statusBlock}>

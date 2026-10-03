@@ -63,6 +63,7 @@ SEO değerini böler hem kullanıcıyı gereksiz bir tıklamaya zorlar.
 /cerez                     Çerez politikası, envanter ve tercih formu (#tercihler)
 /abonelik-iptali           Pazarlama e-postası iptali (token'lı, girişsiz, noindex). GET değiştirmez (0048)
 /iletisim                  Geçici public e-posta (Faz 8.1) - tek kaynak legal-identity.ts
+/geri-bildirim             Geri bildirim formu; anonim ve girişli, ürün kapısı dışında (karar 0045)
 /kvkk-aydinlatma           KVKK aydınlatma metni (karar 0038)
 /affiliate-aciklamasi      Affiliate açıklaması (karar 0038)
 /sirket-bilgileri          Şirket bilgileri - yalnızca doğrulanmış alanlar (karar 0038)
