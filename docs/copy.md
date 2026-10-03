@@ -84,6 +84,7 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `nav.company` | Şirket Bilgileri |
 | `nav.cookie_preferences` | Çerez Tercihleri |
 | `nav.contact` | İletişim |
+| `nav.feedback` | Geri bildirim |
 | `nav.skip_to_content` | İçeriğe geç |
 
 ## İletişim (Faz 8.1)
@@ -600,6 +601,50 @@ Kaynak: `apps/web/app/ara/link/link-search-copy.ts` (docs/decisions/0035).
 
 "Aynı ürün" yalnızca barkod ya da marka + üretici kodu eşleşmesinde yazılır;
 görsel benzerlik "aynı" diye etiketlenmez.
+
+## Geri bildirim (karar 0045)
+
+Hitap "siz" (ürün sahibinin verdiği metin). Ürün adı bu metinlerde "Arilla"
+(site markası `SITE_BRAND` değil; karar 0045). Metinler
+`apps/web/app/geri-bildirim/feedback-copy.ts`.
+
+| Anahtar | Metin |
+| --- | --- |
+| `feedback.title` | Arilla'yı birlikte geliştirelim |
+| `feedback.description` | Eksik gördüğünüz, geliştirilmesini istediğiniz veya sorun yaşadığınız noktaları bize iletebilirsiniz. |
+| `feedback.category_label` | Geri bildirim türü |
+| `feedback.category.*` | Öneri · Hata bildirimi · Özellik isteği · Tasarım / kullanım deneyimi · Ürün / mağaza önerisi · Diğer |
+| `feedback.title_label` | Başlık |
+| `feedback.title_placeholder` | Arama sonuçlarında filtreleme olmalı |
+| `feedback.message_label` | Açıklama |
+| `feedback.message_hint` | Ne bekliyordunuz, ne oldu veya neyin geliştirilmesini istersiniz? |
+| `feedback.priority_label` | Önem seviyesi (isteğe bağlı) |
+| `feedback.priority.*` | Düşük · Orta · Yüksek |
+| `feedback.email_label` | E-posta (isteğe bağlı) |
+| `feedback.email_hint` | Yanıt almak isterseniz e-posta adresinizi bırakabilirsiniz. |
+| `feedback.auth_notice` | Erken erişim üyesi olarak gönderdiğiniz geri bildirim hesabınızla ilişkilendirilecektir. |
+| `feedback.privacy_note` | Kişisel verilerinizin nasıl işlendiğini Gizlilik Politikası'nda bulabilirsiniz. |
+| `feedback.submit` | Geri bildirim gönder |
+| `feedback.submitting` | Gönderiliyor… |
+| `feedback.success_title` | Geri bildiriminiz alındı. |
+| `feedback.success_body` | Arilla'yı geliştirmemize yardımcı olduğunuz için teşekkür ederiz. |
+| `feedback.success_another` | Yeni geri bildirim gönder |
+| `feedback.error_category` | Bir geri bildirim türü seçin. |
+| `feedback.error_title_required` | Bir başlık yazın. |
+| `feedback.error_title_length` | Başlık 3 ile 120 karakter arasında olmalı. |
+| `feedback.error_message_required` | Bir açıklama yazın. |
+| `feedback.error_message_length` | Açıklama 10 ile 5000 karakter arasında olmalı. |
+| `feedback.error_priority` | Listeden bir önem seviyesi seçin. |
+| `feedback.error_email` | Geçerli bir e-posta adresi girin ya da alanı boş bırakın. |
+| `feedback.error_fix_fields` | Lütfen işaretli alanları düzeltin. |
+| `feedback.error_malformed` | Form gönderilemedi. Sayfayı yenileyip tekrar deneyin. |
+| `feedback.error_too_large` | Gönderdiğiniz metin çok uzun. Lütfen kısaltıp tekrar deneyin. |
+| `feedback.error_rate_limited` | Kısa sürede çok fazla geri bildirim gönderdiniz. Birkaç dakika sonra tekrar deneyin. |
+| `feedback.error_unavailable` | Geri bildiriminizi şu an kaydedemedik. Biraz sonra tekrar deneyin. |
+| `feedback.error_network` | Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin. |
+| `feedback.error_session_expired` | Oturumunuz sona ermiş. Geri bildiriminizin hesabınızla ilişkilendirilmesi için tekrar giriş yapın. |
+| `feedback.login_again` | Tekrar giriş yap |
+| `feedback.early_access_prompt` | Bir fikriniz mi var? Arilla'yı birlikte geliştirelim. |
 
 ## Hata
 

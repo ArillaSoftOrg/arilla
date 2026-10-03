@@ -115,6 +115,13 @@ export default function GizlilikPage() {
 
         <h3>2.4. Destek yazışmaları</h3>
         <p>Bize e-posta ile yazdığınızda mesajınız ve e-posta adresiniz işlenir.</p>
+        <p>
+          Geri bildirim formunu kullandığınızda seçtiğiniz tür, başlık, açıklama ve önem seviyesi
+          işlenir. Giriş yapmışsanız geri bildirim hesabınızla ve hesabınızdaki e-posta adresiyle
+          ilişkilendirilir; giriş yapmadıysanız e-posta adresi yalnızca siz bırakırsanız kaydedilir.
+          Kötüye kullanımı önlemek için gönderimler IP adresinizin özet değeri üzerinden kısa süreli
+          sayılır. Hesabınızı silerseniz hesabınızla gönderdiğiniz geri bildirimler de silinir.
+        </p>
       </section>
 
       <section>

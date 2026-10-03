@@ -256,3 +256,11 @@ kurulmadı. *(Sonradan: bant 0038 ile kuruldu; tercih `cookie_consent`
 `/iletisim` sayfasında ve `/gizlilik` "Haklarınız" bölümünde soru kanalı olarak
 gösterilir. Bu, veri sorumlusu bildirimi **değildir** — "Veri sorumlusu"
 bölümü ve yukarıdaki kutucuklar tüzel kişi kurulana kadar açık kalır.
+
+**Geri bildirim notu (0045):** `/geri-bildirim` formu tür, başlık, açıklama,
+önem seviyesi ve (anonimde isteğe bağlı) e-posta toplar; girişli gönderim
+`user_id` ve hesap e-postasıyla bağlanır, hesap silinince satırlar silinir
+(`ON DELETE CASCADE`), veri indirme çıktısına dahildir. Oran sınırı IP'nin
+SHA-256 özetiyle 10 dakika tutulur. `/gizlilik` 2.4 ve `/kvkk-aydinlatma`
+"Talep/şikâyet" maddesi bu akışı kapsar. Anonim gönderimler için somut
+saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).

@@ -497,6 +497,31 @@ CREATE TABLE early_access (
 );
 CREATE INDEX early_access_created_idx ON early_access (created_at DESC);
 
+-- Kullanıcı geri bildirimi (0032, karar 0045). `/geri-bildirim` formu;
+-- girişli kullanıcı da anonim ziyaretçi de yazar, yalnızca sunucu üzerinden.
+-- Uygulama `status` olarak yalnızca 'new' yazar; diğer değerler ileride
+-- yönetim paneli içindir. Hesap silinince satır da silinir.
+CREATE TABLE feedback (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id     BIGINT      REFERENCES app_user(id) ON DELETE CASCADE,
+    email       TEXT        CHECK (email IS NULL OR char_length(email) BETWEEN 3 AND 254),
+    category    TEXT        NOT NULL CHECK (category IN
+                    ('suggestion','bug','feature_request','ux','product_store','other')),
+    title       TEXT        NOT NULL CHECK (char_length(btrim(title)) BETWEEN 1 AND 200),
+    message     TEXT        NOT NULL CHECK (char_length(btrim(message)) BETWEEN 1 AND 10000),
+    priority    TEXT        CHECK (priority IN ('low','medium','high')),
+    status      TEXT        NOT NULL DEFAULT 'new' CHECK (status IN
+                    ('new','reviewing','planned','resolved','rejected')),
+    source      TEXT        NOT NULL CHECK (source IN ('public','early_access')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT feedback_source_matches_user CHECK (
+        (user_id IS NULL AND source = 'public') OR (user_id IS NOT NULL AND source = 'early_access')
+    )
+);
+CREATE INDEX feedback_created_idx ON feedback (created_at DESC);
+CREATE INDEX feedback_user_idx ON feedback (user_id) WHERE user_id IS NOT NULL;
+
 CREATE TABLE creator (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id         BIGINT      NOT NULL UNIQUE REFERENCES app_user(id),
@@ -1193,6 +1218,14 @@ REVOKE DELETE, TRUNCATE ON marketing_campaign_delivery FROM arilla_app;   -- 003
 REVOKE UPDATE, TRUNCATE ON auth_event          FROM arilla_app;           -- 0036
 REVOKE UPDATE, TRUNCATE ON user_activity_event FROM arilla_app;           -- 0036
 GRANT  UPDATE (query_norm) ON user_activity_event TO arilla_app;          -- 0036: 90 günde NULL
+
+-- 0042 (karar 0057): Supabase'in `anon` / `authenticated` rolleri (yalnızca
+-- Supabase'de vardır) `public` şemada hiçbir tablo, sequence ve kendi
+-- fonksiyonumuzda yetki taşımaz; migration rolünün varsayılan yetkileri de
+-- bu rollere vermez. Data API (PostgREST / pg_graphql) bu yüzden erişemez.
+--   REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon, authenticated;
+--   REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+--   ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;
 
 -- price_point partition'larına doğrudan erişim yoktur. Partitioned tabloya
 -- INSERT'te yetki ebeveyn üzerinde denetlenir; yönlendirme etkilenmez.

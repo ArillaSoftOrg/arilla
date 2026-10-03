@@ -81,9 +81,10 @@ edilir; şema veya Supabase ayarı değişince tekrarlanır.
     WHERE table_schema = 'public'
       AND grantee IN ('anon', 'authenticated');
    ```
-   Sonuç boş olmalı. Satır dönüyorsa Data API kapalı olsa bile yetki
-   geri alınır. Bu bir **ops adımıdır, migration değildir**: yerel ve CI
-   veritabanlarında bu roller yoktur. Adım onayla, sahip rolüyle yapılır:
+   Sonuç boş olmalı. **0042 (karar 0057) ile bu adım migration'a taşındı:**
+   `pnpm db:migrate` yetkileri geri alır ve migration rolünün varsayılan
+   yetkilerini kapatır; roller olmayan yerel/CI veritabanlarında hiçbir şey
+   yapmaz. Aşağıdaki SQL yalnızca referanstır (migration'ın eşdeğeri):
    ```sql
    REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon, authenticated;
    REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
@@ -102,8 +103,17 @@ Son kontrol:
 - **Kod tarafı (madde 3, 2026-10-03):** `@supabase/*` bağımlılığı yok,
   `service_role` anahtarı yok, `NEXT_PUBLIC_` önekli değişken yok; veritabanı
   adresi yalnızca sunucu kodunda okunuyor.
-- **Panel ve yetki sorgusu (1-2):** **yapılmadı.** Production erişimi
-  gerektirir; 0049 ön koşulu.
+- **Panel ve yetki sorgusu (1-2, 2026-10-03):** Data API production'da
+  **açık** ve `public` şemasını sunuyordu; 58 tablonun hepsinde `anon` /
+  `authenticated` tam yetkiliydi (publishable anahtarla `/rest/v1/feedback`
+  200 döndü). 0042 production'a uygulandı; yetki sorgusu boş, aynı probe
+  yetki reddi döner. Data API açık kalır (kullanılmıyor, erişimi yok).
+- **Kalan:** `supabase_admin`'in `public` için varsayılan yetkileri hâlâ
+  `anon`/`authenticated`'e verir; `postgres` bu role üye olmadığı için
+  migration düzeltemez. Bu yalnızca panelden eklenti/obje oluşturulursa
+  etkilidir — panelden `public`'e obje eklendiyse yetki sorgusu (madde 2)
+  tekrar çalıştırılır. `service_role` yetkileri bilerek korunur (gizli
+  anahtar, kodda yok).
 
 ## Kullanıcı aktivitesi migration'ları (0036, 0037) — production
 

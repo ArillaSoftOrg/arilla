@@ -18,6 +18,7 @@ import {
   click,
   type Database,
   earlyAccess,
+  feedback,
   marketingCampaign,
   marketingCampaignDelivery,
   product,
@@ -132,6 +133,15 @@ export interface UserDataExport {
    * sağlayıcının kabul ettiği anlamına gelir. İptal token özeti verilmez.
    */
   marketingEmails: Array<{ subject: string; state: string; sentAt: Date | null; createdAt: Date }>;
+  /** `/geri-bildirim` ile hesapla gönderilen geri bildirimler (0032). */
+  feedback: Array<{
+    category: string;
+    title: string;
+    message: string;
+    priority: string | null;
+    status: string;
+    createdAt: Date;
+  }>;
 }
 
 export async function exportUserData(db: Database, userId: number): Promise<UserDataExport> {
@@ -266,6 +276,19 @@ export async function exportUserData(db: Database, userId: number): Promise<User
     .where(eq(marketingCampaignDelivery.userId, userId))
     .orderBy(desc(marketingCampaignDelivery.createdAt));
 
+  const feedbackRows = await db
+    .select({
+      category: feedback.category,
+      title: feedback.title,
+      message: feedback.message,
+      priority: feedback.priority,
+      status: feedback.status,
+      createdAt: feedback.createdAt,
+    })
+    .from(feedback)
+    .where(eq(feedback.userId, userId))
+    .orderBy(desc(feedback.createdAt));
+
   const [bonusRows, chargeRows, ledgerRows, invitedByRows, invitesSentRows] = await Promise.all([
     db
       .select({ balance: bonusAccount.balance })
@@ -338,5 +361,6 @@ export async function exportUserData(db: Database, userId: number): Promise<User
       invitesSent: invitesSentRows,
     },
     marketingEmails: marketingRows,
+    feedback: feedbackRows,
   };
 }

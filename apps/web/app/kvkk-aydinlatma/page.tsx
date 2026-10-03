@@ -54,7 +54,7 @@ export default function KvkkAydinlatmaPage() {
             <strong>Pazarlama ve rıza tercihleri:</strong> hesap rıza tercihleri, çerez tercihi.
           </li>
           <li>
-            <strong>Talep/şikâyet:</strong> destek yazışmaları.
+            <strong>Talep/şikâyet:</strong> destek yazışmaları ve geri bildirim formu gönderimleri.
           </li>
         </ul>
       </section>
