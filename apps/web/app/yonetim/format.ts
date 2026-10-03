@@ -538,3 +538,41 @@ const SEVERITY_LABELS: Record<Severity, string> = {
 export function severityLabel(severity: Severity): string {
   return SEVERITY_LABELS[severity];
 }
+
+// --- S2 search/dictionary ---
+
+const SEARCH_FILTER_LABELS: Record<string, string> = {
+  category: "Kategori",
+  color: "Renk",
+  price_min: "En düşük fiyat",
+  price_max: "En yüksek fiyat",
+  size: "Beden",
+  brand_include: "Marka",
+  brand_exclude: "Hariç marka",
+};
+
+/** Arama filtresi adı (`FilterPredicateName`) arayüzde Türkçe. */
+export function searchFilterLabel(name: string): string {
+  return SEARCH_FILTER_LABELS[name] ?? name;
+}
+
+/** Skor çarpanı: 3 ondalık, yoksa tire. */
+export function formatFactor(value: number | null | undefined): string {
+  return value === null || value === undefined ? "—" : value.toFixed(3);
+}
+
+const SEARCH_QUALITY_KIND_LABELS: Record<string, string> = {
+  zero: "Sonuçsuz",
+  fallback: "Yedek listeye düşen",
+  unrecognized: "Tanınmayan kelimeli",
+  frequent: "En sık",
+};
+
+export function searchQualityKindLabel(kind: string): string {
+  return SEARCH_QUALITY_KIND_LABELS[kind] ?? kind;
+}
+
+/** Arama tanısı adresi (sorgu ön dolu; isteğe bağlı ürün sorgusu). */
+export function diagnosticsHref(query: string, product?: string): string {
+  return hrefWith("/yonetim/arama/tani", { q: query, urun: product });
+}

@@ -560,3 +560,56 @@
 .findingText {
   margin: 0;
 }
+
+/* --- S2 search/dictionary --- */
+
+.s2Steps {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: s2step;
+}
+
+.s2Step {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  counter-increment: s2step;
+}
+
+.s2StepTitle {
+  margin: 0;
+  font-size: inherit;
+  font-weight: var(--font-weight-semibold);
+}
+
+.s2StepTitle::before {
+  content: counter(s2step) ". ";
+  color: var(--ink-muted);
+}
+
+.s2Chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.s2Chip {
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.s2Actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}

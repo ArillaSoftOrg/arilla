@@ -39,6 +39,10 @@ Bu tablodaki sınıfların kuralları:
   alarm) bugün **hiçbir yere yazılmaz**. Yazılacakları zaman önce buraya
   sınıfları eklenir.
 
+`search_query_day` (0052, 0054) bir olay **değildir**: (gün, normalize sorgu)
+başına kimliksiz sayaçtır, rızaya bağlı değildir, bu dosyaya olay olarak
+eklenmez.
+
 Domain tabloları olayların kaynağıdır, olay tablosu onları kopyalamaz:
 
 - `click`: mağaza çıkışı (attribution).

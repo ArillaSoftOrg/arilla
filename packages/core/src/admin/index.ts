@@ -16,6 +16,7 @@ export * from "./operations.ts";
 export * from "./pipeline-evidence.ts";
 export * from "./redact.ts";
 export * from "./search-diagnostics.ts";
+export * from "./search-quality.ts";
 export * from "./security.ts";
 export * from "./seo.ts";
 export * from "./session-policy.ts";
