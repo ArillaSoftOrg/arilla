@@ -2,7 +2,7 @@
 
 // İstemci bileşenleri de bu dosyayı içe aktarır: core'dan yalnızca TİP ve saf
 // alt yol (`@arilla/core/cost-truth`) alınır, sunucu kodu pakete girmez.
-import type { AttentionState, PipelineStage, PipelineStageState } from "@arilla/core";
+import type { AttentionState, PipelineStage, PipelineStageState, Severity } from "@arilla/core";
 import { type CostSummary, costState } from "@arilla/core/cost-truth";
 
 const DATE_TIME = new Intl.DateTimeFormat("tr-TR", {
@@ -525,4 +525,16 @@ const CONVERSION_STATUS_LABELS: Record<string, string> = {
 
 export function conversionStatusLabel(value: string): string {
   return CONVERSION_STATUS_LABELS[value] ?? value;
+}
+
+const SEVERITY_LABELS: Record<Severity, string> = {
+  critical: "Kritik",
+  warning: "Uyarı",
+  unknown: "Bilinmiyor",
+  info: "Bilgi",
+  healthy: "Sağlıklı",
+};
+
+export function severityLabel(severity: Severity): string {
+  return SEVERITY_LABELS[severity];
 }

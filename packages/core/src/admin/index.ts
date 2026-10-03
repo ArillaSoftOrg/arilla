@@ -19,6 +19,7 @@ export * from "./search-diagnostics.ts";
 export * from "./security.ts";
 export * from "./seo.ts";
 export * from "./session-policy.ts";
+export * from "./severity.ts";
 export * from "./users.ts";
 export * from "./users-cursor.ts";
 export * from "./users-detail.ts";

@@ -497,3 +497,66 @@
   align-items: center;
   gap: var(--space-2);
 }
+
+/* Ortak önem rozeti ve bulgu listesi (karar 0052). Yalnızca tema belirteçleri. */
+.sevBadge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid currentColor;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.sevCritical {
+  color: var(--alert);
+}
+
+.sevWarning {
+  color: var(--warning);
+}
+
+.sevUnknown {
+  color: var(--ink-muted);
+}
+
+.sevInfo {
+  color: var(--accent);
+}
+
+.sevHealthy {
+  color: var(--ink-secondary);
+}
+
+.findings {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finding {
+  display: grid;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.findingHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.findingTitle {
+  font-weight: var(--font-weight-semibold);
+}
+
+.findingText {
+  margin: 0;
+}

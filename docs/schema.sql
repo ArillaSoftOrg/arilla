@@ -891,6 +891,24 @@ CREATE TABLE ingest_run (
 );
 CREATE INDEX ingest_run_merchant_idx ON ingest_run (merchant_id, started_at DESC);
 
+-- 0041 (docs/decisions/0052): is kosusu gecmisi (collect, resolve, enrich,
+-- similarity, cron uclari). Isletim sinyali; denetim/analitik/log DEGIL.
+-- 180 gun saklanir. Yeniden deneme / simdi calistir yok.
+CREATE TABLE job_run (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    job           TEXT        NOT NULL CHECK (job ~ '^[a-z][a-z0-9_]{1,39}$'),
+    trigger       TEXT        NOT NULL DEFAULT 'manual' CHECK (trigger IN ('manual','cron','worker')),
+    status        TEXT        NOT NULL DEFAULT 'running'
+                  CHECK (status IN ('running','success','partial','failed')),
+    started_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at   TIMESTAMPTZ,
+    detail        JSONB       NOT NULL DEFAULT '{}'::jsonb
+                  CHECK (jsonb_typeof(detail) = 'object' AND pg_column_size(detail) <= 4096),
+    error_summary TEXT        CHECK (error_summary IS NULL OR char_length(error_summary) <= 500),
+    CONSTRAINT job_run_finished CHECK ((status = 'running') = (finished_at IS NULL))
+);
+CREATE INDEX job_run_job_idx ON job_run (job, started_at DESC);
+
 -- ---------------------------------------------------------------------------
 -- YÖNETİM DENETİM KAYDI (0027, docs/decisions/0039)
 -- /yonetim mutasyonları mutasyonla AYNI işlemde buraya yazılır. Yalnızca
@@ -940,6 +958,23 @@ CREATE TABLE query_resolution (
     last_used_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX query_resolution_popular_idx ON query_resolution (hit_count DESC);
+
+-- 0040 (docs/decisions/0052): arama kalitesi gunluk ozeti. OLAY tablosu degil;
+-- (gun, normalize sorgu) basina tek satir, kimlik YOK, 90 gun saklanir.
+-- E-posta/telefon/adres/uzun rakam iceren sorgular hic yazilmaz (core).
+CREATE TABLE search_query_day (
+    day                DATE        NOT NULL,
+    query_norm         TEXT        NOT NULL CHECK (char_length(query_norm) BETWEEN 1 AND 200),
+    searches           INTEGER     NOT NULL DEFAULT 0 CHECK (searches >= 0),
+    zero_results       INTEGER     NOT NULL DEFAULT 0 CHECK (zero_results >= 0),
+    fallbacks          INTEGER     NOT NULL DEFAULT 0 CHECK (fallbacks >= 0),
+    clarifications     INTEGER     NOT NULL DEFAULT 0 CHECK (clarifications >= 0),
+    last_result_count  INTEGER     CHECK (last_result_count IS NULL OR last_result_count >= 0),
+    parser_tier        SMALLINT    CHECK (parser_tier IS NULL OR parser_tier BETWEEN 1 AND 3),
+    unrecognized_terms TEXT[]      NOT NULL DEFAULT '{}' CHECK (cardinality(unrecognized_terms) <= 8),
+    last_seen_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (day, query_norm)
+);
 
 -- Sözlükler. Veritabanında tutulur ki yeni eşanlamlı için sürüm çıkmasın.
 CREATE TABLE lexicon (

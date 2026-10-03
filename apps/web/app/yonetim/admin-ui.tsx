@@ -1,7 +1,8 @@
+import type { AdminFinding, Capability, Severity } from "@arilla/core";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import styles from "./admin.module.css";
-import { statusLabel } from "./format.ts";
+import { formatDateOrDash, severityLabel, statusLabel } from "./format.ts";
 
 /** /yonetim ortak sunucu bileşenleri. Tümü düz metin render eder; ham HTML yok. */
 
@@ -137,4 +138,71 @@ export function ErrorNotice({ children }: { children: ReactNode }) {
 
 export function Notice({ children }: { children: ReactNode }) {
   return <p className={styles.notice}>{children}</p>;
+}
+
+const SEVERITY_CLASS: Record<Severity, string | undefined> = {
+  critical: styles.sevCritical,
+  warning: styles.sevWarning,
+  unknown: styles.sevUnknown,
+  info: styles.sevInfo,
+  healthy: styles.sevHealthy,
+};
+
+/** Ortak önem rozeti (karar 0052). Renk tek başına anlam taşımaz: metin de yazılır. */
+export function SeverityBadge({ severity }: { severity: Severity }) {
+  return (
+    <span className={`${styles.sevBadge} ${SEVERITY_CLASS[severity] ?? ""}`}>
+      {severityLabel(severity)}
+    </span>
+  );
+}
+
+/**
+ * Bulgu listesi (işletim, katalog kalitesi, dikkat). Bağlantı yalnızca
+ * izleyicinin `allowed` yeteneklerinden biriyle açabildiği sayfaya verilir;
+ * hedef sayfa yetkiyi ayrıca ister.
+ */
+export function FindingList({
+  findings,
+  allowed,
+  empty = "Dikkat gerektiren bir şey yok.",
+}: {
+  findings: readonly AdminFinding[];
+  allowed: ReadonlySet<Capability>;
+  empty?: string;
+}) {
+  if (findings.length === 0) return <p className={styles.muted}>{empty}</p>;
+  return (
+    <ul className={styles.findings}>
+      {findings.map((finding) => {
+        const href =
+          finding.href && (!finding.capability || allowed.has(finding.capability))
+            ? finding.href
+            : null;
+        return (
+          <li key={finding.key} className={styles.finding}>
+            <div className={styles.findingHead}>
+              <SeverityBadge severity={finding.severity} />
+              {href ? (
+                <Link href={href} className={styles.findingTitle}>
+                  {finding.title}
+                </Link>
+              ) : (
+                <span className={styles.findingTitle}>{finding.title}</span>
+              )}
+              {finding.evidenceAt ? (
+                <span className={styles.meta}>{formatDateOrDash(finding.evidenceAt)}</span>
+              ) : null}
+            </div>
+            <p className={styles.findingText}>{finding.meaning}</p>
+            {finding.evidence ? <p className={styles.meta}>{finding.evidence}</p> : null}
+            <p className={styles.findingText}>
+              <strong>Ne yapmalı: </strong>
+              {finding.action}
+            </p>
+          </li>
+        );
+      })}
+    </ul>
+  );
 }
