@@ -3,6 +3,7 @@ import {
   cronAuthFailureResponse,
   purgeExpiredActivity,
   purgeJobRuns,
+  purgeSearchQueryDays,
   reconcileStaleCharges,
   withJobRun,
 } from "@arilla/core";
@@ -24,6 +25,9 @@ import { getDatabase } from "@arilla/db";
  *
  * 0055: koşu `job_run`'a yazılır (`cleanup_auth`) ve 180 günden eski iş
  * koşuları da burada silinir (`purgeJobRuns`).
+ *
+ * 0054: 90 günden eski arama kalitesi özeti (`search_query_day`) da burada
+ * silinir (`purgeSearchQueryDays`).
  */
 export async function GET(request: Request): Promise<Response> {
   // Sabit zamanli karsilastirma; CRON_SECRET tanimsiz/kisa ise 500 (uc acik
@@ -44,7 +48,9 @@ export async function GET(request: Request): Promise<Response> {
       const searchCharges = await reconcileStaleCharges(db);
       const retention = await purgeExpiredActivity(db);
       const jobRuns = await purgeJobRuns(db);
-      return { ...result, searchCharges, retention, jobRuns };
+      // Karar 0054: kimliksiz arama kalitesi özeti 90 gün saklanır.
+      const searchQueryDays = await purgeSearchQueryDays(db);
+      return { ...result, searchCharges, retention, jobRuns, searchQueryDays };
     },
     // Parti tavanına takılan temizlik yarımdır: kalan bir sonraki çalıştırmaya.
     (r) => ({ status: r.truncated || r.jobRuns.truncated ? "partial" : "success" }),
