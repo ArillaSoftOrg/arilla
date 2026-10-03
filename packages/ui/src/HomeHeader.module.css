@@ -8,6 +8,9 @@
   align-items: center;
   gap: var(--space-3);
   min-height: 84px;
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: var(--space-6);
   padding-block: var(--space-3);
 }
 
@@ -95,9 +98,9 @@
 .nav {
   display: flex;
   align-items: center;
-  gap: var(--space-7);
+  gap: var(--space-8);
   min-width: 0;
-  margin-inline-start: var(--space-7);
+  margin-inline-start: var(--space-8);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -404,6 +407,7 @@
   .inner {
     min-height: 80px;
     gap: var(--space-3);
+    padding-inline: var(--space-4);
   }
 
   .nav {
