@@ -129,6 +129,8 @@ export const USER_SEARCH_MAX_LENGTH = 100;
 export const USER_SEARCH_PAGE_SIZE = 20;
 /** Ofset sayfalaması: çok derin sayfa istenmez. */
 const USER_SEARCH_MAX_PAGE = 50;
+/** Arama sorgusunun en uzun süresi (yönetim ekranı; 2 karakterlik aramalar indekssiz taranır). */
+const USER_SEARCH_TIMEOUT_MS = 5_000;
 
 export type UserSearchMethod = "text" | "public_id" | "phone";
 
@@ -178,9 +180,10 @@ function classifySearch(raw: string): { method: UserSearchMethod; value: string 
  * İÇİNDE, büyük/küçük harf ve Türkçe karakter duyarsız. Tam hesap kimliği ve
  * E.164 telefon tam eşleşme. En yeni hesap önce, sayfa başına 20.
  *
- * Bugünkü ölçekte (lansman öncesi, kullanıcı sayısı küçük) `%…%` taraması
- * ucuzdur; kullanıcı tablosu büyüdüğünde katlanmış ifadeye trigram indeksi
- * (0019'daki gibi) eklenir.
+ * Katlanmış ad/e-posta üzerinde trigram indeksleri vardır (migration 0038).
+ * 200 bin kullanıcıda ölçülen: seyrek terim 6 ms, ad 1,5 ms, çok yaygın terim
+ * ~250 ms, 2 karakter ~500 ms (indekssiz tarama). Süre `statement_timeout` ile
+ * sınırlıdır.
  *
  * Arama denetime yazılır: yöntem, sayfa ve sonuç sayısı. Aranan değer
  * (ad, e-posta, telefon) YAZILMAZ.
@@ -213,17 +216,20 @@ export async function searchUsers(
                            AND i.provider_subject = ${value})`;
   } else {
     const pattern = `%${escapeLike(value)}%`;
-    where = sql`(
-      ${foldedTextExpr(sql`u.display_name`)} LIKE ${pattern}
-      OR ${foldedTextExpr(sql`u.email`)} LIKE ${pattern}
-      OR EXISTS (SELECT 1 FROM user_identity i
-                  WHERE i.user_id = u.id
-                    AND (${foldedTextExpr(sql`i.email`)} LIKE ${pattern}
-                         OR ${foldedTextExpr(sql`i.display_name`)} LIKE ${pattern}))
+    // Dört indeks dostu alt sorgunun birleşimi (0038 trigram indeksleri):
+    // OR + EXISTS biçimi planlayıcının indeksi kullanmasını engelliyordu.
+    where = sql`u.id IN (
+      SELECT a.id FROM app_user a WHERE ${foldedTextExpr(sql`a.display_name`)} LIKE ${pattern}
+      UNION SELECT a.id FROM app_user a WHERE ${foldedTextExpr(sql`a.email`)} LIKE ${pattern}
+      UNION SELECT i.user_id FROM user_identity i WHERE ${foldedTextExpr(sql`i.email`)} LIKE ${pattern}
+      UNION SELECT i.user_id FROM user_identity i WHERE ${foldedTextExpr(sql`i.display_name`)} LIKE ${pattern}
     )`;
   }
 
   return db.transaction(async (tx) => {
+    // Kısa anahtar kelimeler (2 karakter) trigram indeksini kullanamaz ve
+    // taramaya düşer; aramanın süresi sınırlıdır.
+    await tx.execute(sql.raw(`SET LOCAL statement_timeout = ${USER_SEARCH_TIMEOUT_MS}`));
     const result = await tx.execute(sql`
       SELECT u.public_id, u.display_name, u.email, u.role, u.created_at,
              ea.status AS ea_status, ea.created_at AS ea_created_at,
