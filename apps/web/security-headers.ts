@@ -80,12 +80,24 @@ export const ADMIN_EXTRA_HEADERS: SecurityHeader[] = [
   { key: "X-Robots-Tag", value: "noindex, nofollow" },
 ];
 
-/** `next.config.ts` `headers()` girdisi. */
+/**
+ * Adresinde tek kullanımlık token taşıyan yollar (e-posta giriş bağlantısı,
+ * abonelik iptali). Genel `Referrer-Policy`'yi `no-referrer` ile ezer: route
+ * ve sayfa bunu zaten ister, config başlığı onu bastırmasın. Next'te aynı
+ * anahtar için listede SONRAKİ eşleşme kazanır.
+ */
+export const TOKEN_URL_PATHS = ["/giris/dogrula", "/abonelik-iptali", "/api/email/unsubscribe"];
+
+/** `next.config.ts` `headers()` girdisi. Sıra önemli: özel girdiler sonra. */
 export function securityHeaderRoutes(options: SecurityHeaderOptions) {
   return [
     { source: "/:path*", headers: securityHeaders(options) },
     { source: "/yonetim", headers: ADMIN_EXTRA_HEADERS },
     { source: "/yonetim/:path*", headers: ADMIN_EXTRA_HEADERS },
+    ...TOKEN_URL_PATHS.map((source) => ({
+      source,
+      headers: [{ key: "Referrer-Policy", value: "no-referrer" }],
+    })),
   ];
 }
 

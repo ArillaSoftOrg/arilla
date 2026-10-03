@@ -240,6 +240,24 @@ describe("reddedilen yönetim erişimi", () => {
     });
   });
 
+  it("eşzamanlı istekler (layout + sayfa) tek satır yazar", async () => {
+    const user = await createUser("denied-race");
+    await Promise.all(
+      Array.from({ length: 8 }, () =>
+        recordAccessDenied(db, { id: user.id, role: "user" }, "admin.access"),
+      ),
+    );
+    const n = await withOwnerClient(async (client) => {
+      const res = await client.query(
+        `SELECT count(*)::int AS n FROM admin_audit_event
+          WHERE action = 'security.access_denied' AND actor_user_id = $1`,
+        [user.id],
+      );
+      return res.rows[0].n as number;
+    });
+    expect(n).toBe(1);
+  });
+
   it("yönetim oturumu sonlandırması denetime yazılır", async () => {
     const admin = await createUser("ended", "admin");
     await recordAdminSessionEnded(db, { id: admin.id, role: "admin" }, "idle");

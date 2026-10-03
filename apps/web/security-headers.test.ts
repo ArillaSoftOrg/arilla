@@ -81,4 +81,14 @@ describe("güvenlik başlıkları", () => {
       expect(header(admin?.headers ?? [], "X-Robots-Tag")).toBe("noindex, nofollow");
     }
   });
+
+  it("token taşıyan yollar no-referrer alır ve genel girdiden SONRA gelir", () => {
+    const routes = securityHeaderRoutes(PROD);
+    const globalIndex = routes.findIndex((r) => r.source === "/:path*");
+    for (const source of ["/giris/dogrula", "/abonelik-iptali", "/api/email/unsubscribe"]) {
+      const index = routes.findIndex((r) => r.source === source);
+      expect(index).toBeGreaterThan(globalIndex);
+      expect(header(routes[index]?.headers ?? [], "Referrer-Policy")).toBe("no-referrer");
+    }
+  });
 });

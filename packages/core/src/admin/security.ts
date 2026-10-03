@@ -28,9 +28,26 @@ export const ACCESS_DENIED_DEDUPE_MINUTES = 10;
  * otomatik denemeler tabloyu şişirmesin diye hesap + yetenek başına
  * `ACCESS_DENIED_DEDUPE_MINUTES` dakikada bir satır (koşullu INSERT;
  * `admin_audit_event_actor_idx` ile tek indeks taraması).
+ *
+ * Next aynı istekte layout ile sayfayı EŞZAMANLI çizer; ikisi de yetki
+ * kapısından geçer. Koşullu INSERT tek başına yarışı kaybeder (iki işlem de
+ * "yok" görür), bu yüzden hesap + yetenek başına işlem kilidi alınır.
  */
 export async function recordAccessDenied(
   db: Database,
+  user: { id: number; role: UserRole },
+  capability: Capability,
+): Promise<void> {
+  await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`access_denied:${user.id}:${capability}`}, 0))`,
+    );
+    await insertAccessDenied(tx, user, capability);
+  });
+}
+
+async function insertAccessDenied(
+  db: Pick<Database, "execute">,
   user: { id: number; role: UserRole },
   capability: Capability,
 ): Promise<void> {

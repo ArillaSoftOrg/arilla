@@ -56,6 +56,23 @@ doğrulama modeli (0006, 0044) DEĞİŞMEZ; yetki haritası (0039) aynen kalır.
    `MARKETING_TEST_RECIPIENTS` izin listesine; saatte 10 sınırı aynen.
    Reddedilen deneme sayılmaz ve yazılmaz; denetimde `recipientKind`.
 
+8. **Token taşıyan adresler** (`/giris/dogrula`, `/abonelik-iptali`,
+   `/api/email/unsubscribe`) genel başlık listesinden SONRA `Referrer-Policy:
+   no-referrer` alır; genel başlık rotanın kendi değerini bastırmasın.
+
+## Doğrulama (P4)
+
+`apps/web/e2e/security.e2e.test.ts`: çalışan `next start`'a gerçek HTTP ile
+anonim/kullanıcı/moderatör/yönetici sınırı, sahte/iptal edilmiş oturum, rol
+düşürme, 12 saat/30 dk, kullanıcı A → B veri indirme, açık yönlendirme, sahte iç
+başlık, route handler CSRF, cron sırrı, abonelik GET'i, başlıklar ve denetim
+izleri. Yalnızca yerel veritabanı; sunucu ve test aynı `SESSION_SECRET`:
+
+```bash
+pnpm --filter @arilla/web build && pnpm --filter @arilla/web start -p 3312   # ayrı terminal
+E2E_BASE_URL=http://localhost:3312 pnpm --filter @arilla/web test:e2e
+```
+
 ## Gerekçe
 
 - Kod incelemesine bırakılan kural kayar (0010, 0027 ile aynı ilke): rol
