@@ -677,6 +677,11 @@ onboarding formu `0043_forms.sql`). Sabit arayüz metinleri
 | Anahtar | Metin |
 | --- | --- |
 | `survey.submit` | Gönder |
+| `survey.back` | Geri |
+| `survey.next` | İleri |
+| `survey.finish` | Tamamla |
+| `survey.progress_label` | Anket ilerlemesi |
+| `survey.step_of` | Soru {n} / {toplam} |
 | `survey.skip` | Şimdilik geç |
 | `survey.success_title` | Teşekkürler, yanıtın alındı. |
 | `survey.success_body` | Cevapların ürünü senin ihtiyaçlarına göre geliştirmemize yardımcı olacak. |

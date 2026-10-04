@@ -2,10 +2,32 @@
 
 import { loginPathWithNext } from "@arilla/core/auth-redirect";
 import { Button, Input } from "@arilla/ui";
-import { useActionState, useEffect, useId, useRef } from "react";
+import {
+  type KeyboardEvent,
+  type MouseEvent,
+  type ReactNode,
+  useActionState,
+  useCallback,
+  useEffect,
+  useId,
+  useRef,
+  useState,
+} from "react";
 import styles from "../page.module.css";
 import { SURVEY_COPY as COPY } from "../survey-copy.ts";
 import { type SurveyActionResult, submitSurveyAction } from "./actions.ts";
+import {
+  type Answers,
+  fieldName,
+  firstErrorStep,
+  isChoice,
+  isLastStep,
+  missingRequired,
+  progressPercent,
+  sameValues,
+  shouldAutoAdvance,
+  toggleValue,
+} from "./survey-wizard.ts";
 
 export interface SurveyQuestion {
   id: number;
@@ -16,7 +38,7 @@ export interface SurveyQuestion {
   options: Array<{ id: number; label: string }>;
 }
 
-/** Girilen değerler: soru kimliği → değerler. Hata sonrası alanlar bunlarla doldurulur. */
+/** Gönderilen değerler: soru alan adı → değerler. Sunucu hatasının bayatlığı bununla ölçülür. */
 type Values = Record<string, string[]>;
 
 interface FormState {
@@ -25,6 +47,14 @@ interface FormState {
 }
 
 const INITIAL: FormState = { result: { status: "idle" }, values: {} };
+
+/**
+ * Seçimden sonraki adıma geçmeden önceki kısa bekleme: seçilen cevap görünsün.
+ * Yalnızca ilk görsel geri bildirim içindir; tek ilerleme garantisi kilittir.
+ */
+const AUTO_ADVANCE_MS = 220;
+/** Bir tıklama/Boşluk "bilinçli seçim" sayılacak pencere (ok tuşundan ayırmak için). */
+const INTENT_WINDOW_MS = 800;
 
 function readValues(formData: FormData): Values {
   const values: Values = {};
@@ -70,10 +100,19 @@ function formMessage(result: FormState["result"]): string | undefined {
 }
 
 /**
- * Anket formu. Gönderim server action'a gider; ağ hatası kullanıcıyı
- * yanıtlarıyla birlikte formda bırakır. Soru tipi ve seçenekler sunucudaki
- * form tanımından gelir; burada yalnızca çizilir. Gönderim sürerken düğme
- * devre dışıdır: çift gönderim olmaz.
+ * Anket formu, adım adım: aynı anda tek soru. Gönderim DEĞİŞMEDİ: tek `<form>`,
+ * aynı server action, aynı alan adları (`q_<id>`). Cevaplar durumda tutulur;
+ * görünmeyen sorular gizli alan olarak forma yazılır, böylece `FormData` eski
+ * (tüm sorular tek sayfada) davranışla birebir aynıdır ve sunucu doğrulaması
+ * aynen çalışır. Buradaki "zorunlu" denetimi yalnızca erken uyarıdır.
+ *
+ * - Tek seçimli soruda tıklama/Boşluk cevabı kaydeder ve kısa bir beklemeden
+ *   sonra sonraki soruya geçer. Ok tuşuyla seçim geçmez (klavyeyle gezinen
+ *   sayfadan kaçmasın). Son adımda geçiş yoktur, "Tamamla" açık eylemdir.
+ * - Metin ve çoktan seçmeli sorular "İleri" ile geçer.
+ * - Geri dönüşte cevaplar korunur; cevap değişince durum güncellenir.
+ * - Çift ilerleme: bekleyen geçiş varken ikinci geçiş planlanmaz (kilit);
+ *   Geri/İleri bekleyen geçişi iptal eder.
  */
 export function SurveyFormClient({
   slug,
@@ -102,7 +141,18 @@ export function SurveyFormClient({
     INITIAL,
   );
 
-  const formRef = useRef<HTMLFormElement>(null);
+  const total = questions.length;
+  const [step, setStep] = useState(0);
+  const [direction, setDirection] = useState<"none" | "forward" | "back">("none");
+  const [answers, setAnswers] = useState<Answers>({});
+  /** "İleri"de zorunlu soru boşsa o sorunun kimliği (satır içi uyarı). */
+  const [blockedId, setBlockedId] = useState<number | null>(null);
+  const [focusToken, setFocusToken] = useState(0);
+
+  const advanceTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pointerAt = useRef(0);
+  const keyAt = useRef(0);
+  const stepRef = useRef<HTMLDivElement>(null);
   const alertRef = useRef<HTMLParagraphElement>(null);
   const successRef = useRef<HTMLHeadingElement>(null);
   const baseId = useId();
@@ -110,15 +160,56 @@ export function SurveyFormClient({
   const fieldErrors = result.status === "invalid" ? result.fieldErrors : {};
   const alertText = formMessage(result);
 
+  const clearPending = useCallback(() => {
+    if (advanceTimer.current !== null) {
+      clearTimeout(advanceTimer.current);
+      advanceTimer.current = null;
+    }
+  }, []);
+
+  const goTo = useCallback(
+    (target: number) => {
+      clearPending();
+      setDirection(target > step ? "forward" : "back");
+      setStep(Math.min(Math.max(0, target), total - 1));
+      setBlockedId(null);
+      setFocusToken((token) => token + 1);
+    },
+    [clearPending, step, total],
+  );
+
+  // Bekleyen otomatik geçiş sayfadan çıkılınca ya da bileşen kalkınca iptal edilir.
+  useEffect(() => clearPending, [clearPending]);
+
+  // Sunucu sonucu: başarıda odak başlığa; hatada ilk hatalı soruya dön.
+  const handledResult = useRef<FormState["result"] | null>(null);
   useEffect(() => {
+    if (handledResult.current === result) return;
+    handledResult.current = result;
     if (result.status === "ok") {
       successRef.current?.focus();
       return;
     }
     if (result.status === "idle") return;
-    const firstInvalid = formRef.current?.querySelector<HTMLElement>("[aria-invalid='true']");
-    (firstInvalid ?? alertRef.current)?.focus();
-  }, [result]);
+    if (result.status === "invalid") {
+      const errorStep = firstErrorStep(questions, result.fieldErrors);
+      if (errorStep !== null) {
+        setDirection("back");
+        setStep(errorStep);
+        setBlockedId(null);
+        setFocusToken((token) => token + 1);
+        return;
+      }
+    }
+    alertRef.current?.focus();
+  }, [result, questions]);
+
+  // Adım değişince (ya da hata sonrası) odak yeni sorunun kabına: ekran okuyucu
+  // soruyu okur, Tab ilk seçeneğe gider.
+  useEffect(() => {
+    if (focusToken === 0) return;
+    stepRef.current?.focus();
+  }, [focusToken]);
 
   if (result.status === "ok") {
     return (
@@ -137,64 +228,171 @@ export function SurveyFormClient({
     );
   }
 
+  const current = questions[step];
+  const last = isLastStep(step, total);
+  const showProgress = total > 1;
+
+  function setAnswer(name: string, next: string[]) {
+    setAnswers((prev) => ({ ...prev, [name]: next }));
+    setBlockedId(null);
+  }
+
+  function goNext(event?: MouseEvent<HTMLButtonElement>) {
+    // Ek güvence: İleri tıklaması hiçbir koşulda tarayıcının varsayılan eylemini (gönderim) tetiklemez.
+    event?.preventDefault();
+    if (!current) return;
+    if (missingRequired(current, answers)) {
+      setBlockedId(current.id);
+      stepRef.current?.focus();
+      return;
+    }
+    goTo(step + 1);
+  }
+
+  /** Tek seçimli soruda bilinçli seçimden sonra (kilitli) sonraki soruya geç. */
+  function maybeAutoAdvance(question: SurveyQuestion) {
+    const now = Date.now();
+    const deliberate =
+      now - pointerAt.current < INTENT_WINDOW_MS || now - keyAt.current < INTENT_WINDOW_MS;
+    pointerAt.current = 0;
+    keyAt.current = 0;
+    if (!shouldAutoAdvance({ type: question.type, index: step, total, deliberate })) return;
+    // Kilit: bekleyen geçiş varsa ikinci geçiş planlanmaz (çift tık, çift olay).
+    if (advanceTimer.current !== null) return;
+    const target = step + 1;
+    advanceTimer.current = setTimeout(() => {
+      advanceTimer.current = null;
+      goTo(target);
+    }, AUTO_ADVANCE_MS);
+  }
+
+  /** Son adım dışında Enter gönderim değil "İleri"dir (yazı alanında satır sonu kalır). */
+  function onFormKeyDown(event: KeyboardEvent<HTMLFormElement>) {
+    if (event.key !== "Enter" || last) return;
+    const target = event.target as HTMLElement;
+    if (target.tagName !== "INPUT") return;
+    event.preventDefault();
+    goNext();
+  }
+
+  const stepAnimation =
+    direction === "forward" ? styles.stepForward : direction === "back" ? styles.stepBack : "";
+  const showAlert = Boolean(alertText) && (last || firstErrorStep(questions, fieldErrors) === step);
+
   return (
     <form
-      ref={formRef}
       action={action}
       className={styles.form}
       aria-busy={pending || undefined}
-      aria-describedby={alertText ? `${baseId}-alert` : undefined}
+      aria-describedby={showAlert ? `${baseId}-alert` : undefined}
+      onKeyDown={onFormKeyDown}
     >
       <p className={styles.authNotice}>{signedIn ? COPY.authNotice : COPY.anonymousNotice}</p>
 
-      {questions.map((question) => {
-        const name = `q_${question.id}`;
-        const error = fieldMessage(fieldErrors[question.id]);
-        const errorId = `${baseId}-${question.id}-error`;
-        const given = values[name] ?? [];
+      {showProgress ? (
+        <div className={styles.progress}>
+          <p className={styles.progressText}>{COPY.stepOf(step + 1, total)}</p>
+          <div
+            className={styles.progressTrack}
+            role="progressbar"
+            aria-label={COPY.progressLabel}
+            aria-valuemin={1}
+            aria-valuemax={total}
+            aria-valuenow={step + 1}
+            aria-valuetext={COPY.stepOf(step + 1, total)}
+          >
+            <div
+              className={styles.progressFill}
+              style={{ width: `${progressPercent(step, total)}%` }}
+            />
+          </div>
+        </div>
+      ) : null}
 
-        if (question.type === "single_choice" || question.type === "multiple_choice") {
+      {/* Ekran okuyucuya adım değişimi: yalnızca değişimde okunur. */}
+      <p className={styles.srOnly} role="status" aria-live="polite">
+        {current ? `${COPY.stepOf(step + 1, total)}: ${current.label}` : ""}
+      </p>
+
+      {questions.map((question, index) => {
+        const name = fieldName(question.id);
+        const given = answers[name] ?? [];
+
+        // Görünmeyen sorular: cevapları gizli alan olarak forma yazılır (FormData eskisiyle aynı).
+        if (index !== step) {
+          if (isChoice(question.type)) {
+            return given.map((value) => (
+              <input key={`${name}-${value}`} type="hidden" name={name} value={value} />
+            ));
+          }
+          return <input key={name} type="hidden" name={name} value={given[0] ?? ""} />;
+        }
+
+        const serverError = sameValues(values[name], given)
+          ? fieldMessage(fieldErrors[question.id])
+          : undefined;
+        const error = blockedId === question.id ? COPY.errorRequired : serverError;
+        const errorId = `${baseId}-${question.id}-error`;
+        const optional = question.required ? "" : ` ${COPY.optional}`;
+
+        let control: ReactNode;
+        if (isChoice(question.type)) {
           const multiple = question.type === "multiple_choice";
-          return (
-            <fieldset
-              key={question.id}
-              className={styles.fieldset}
-              aria-describedby={error ? errorId : undefined}
-            >
+          control = (
+            <fieldset className={styles.fieldset} aria-describedby={error ? errorId : undefined}>
               <legend className={styles.legend}>
                 {question.label}
-                {question.required ? null : ` ${COPY.optional}`}
+                {optional}
               </legend>
               {question.description ? <p className={styles.hint}>{question.description}</p> : null}
               <div className={styles.choices}>
-                {question.options.map((option) => (
-                  <label key={option.id} className={styles.choice}>
-                    <input
-                      type={multiple ? "checkbox" : "radio"}
-                      name={name}
-                      value={String(option.id)}
-                      required={question.required && !multiple}
-                      defaultChecked={given.includes(String(option.id))}
-                      aria-invalid={error ? true : undefined}
-                      className={styles.choiceInput}
-                    />
-                    <span className={styles.choiceLabel}>{option.label}</span>
-                  </label>
-                ))}
+                {question.options.map((option) => {
+                  const value = String(option.id);
+                  return (
+                    <label
+                      key={option.id}
+                      className={styles.choice}
+                      onPointerDown={() => {
+                        pointerAt.current = Date.now();
+                      }}
+                    >
+                      <input
+                        type={multiple ? "checkbox" : "radio"}
+                        name={name}
+                        value={value}
+                        required={question.required && !multiple}
+                        checked={given.includes(value)}
+                        aria-invalid={error ? true : undefined}
+                        className={styles.choiceInput}
+                        onKeyDown={(event) => {
+                          if (event.key === " ") keyAt.current = Date.now();
+                        }}
+                        onChange={(event) =>
+                          setAnswer(
+                            name,
+                            multiple
+                              ? toggleValue(given, value, event.currentTarget.checked)
+                              : [value],
+                          )
+                        }
+                        // Aynı seçeneğe geri dönüp yeniden tıklamak `change` üretmez; geçiş `click`'te.
+                        onClick={() => (multiple ? undefined : maybeAutoAdvance(question))}
+                      />
+                      <span className={styles.choiceLabel}>{option.label}</span>
+                    </label>
+                  );
+                })}
               </div>
               {error ? (
-                <p id={errorId} className={styles.errorText}>
+                <p id={errorId} role="alert" className={styles.errorText}>
                   {error}
                 </p>
               ) : null}
             </fieldset>
           );
-        }
-
-        if (question.type === "short_text") {
-          return (
+        } else if (question.type === "short_text") {
+          control = (
             <Input
-              key={question.id}
               label={question.required ? question.label : `${question.label} ${COPY.optional}`}
               name={name}
               type="text"
@@ -202,50 +400,64 @@ export function SurveyFormClient({
               maxLength={500}
               autoComplete="off"
               {...(question.description ? { hint: question.description } : {})}
-              defaultValue={given[0] ?? ""}
+              value={given[0] ?? ""}
+              onChange={(event) => setAnswer(name, [event.currentTarget.value])}
               {...(error ? { error } : {})}
             />
           );
+        } else {
+          const textareaId = `${baseId}-${question.id}`;
+          const hintId = `${textareaId}-hint`;
+          control = (
+            <div className={styles.field}>
+              <label className={styles.label} htmlFor={textareaId}>
+                {question.label}
+                {optional}
+              </label>
+              {question.description ? (
+                <p id={hintId} className={styles.hint}>
+                  {question.description}
+                </p>
+              ) : null}
+              <textarea
+                id={textareaId}
+                name={name}
+                required={question.required}
+                maxLength={5000}
+                rows={5}
+                value={given[0] ?? ""}
+                onChange={(event) => setAnswer(name, [event.currentTarget.value])}
+                aria-invalid={error ? true : undefined}
+                aria-describedby={
+                  [question.description ? hintId : null, error ? errorId : null]
+                    .filter(Boolean)
+                    .join(" ") || undefined
+                }
+                className={styles.textarea}
+              />
+              {error ? (
+                <p id={errorId} role="alert" className={styles.errorText}>
+                  {error}
+                </p>
+              ) : null}
+            </div>
+          );
         }
 
-        const textareaId = `${baseId}-${question.id}`;
-        const hintId = `${textareaId}-hint`;
         return (
-          <div key={question.id} className={styles.field}>
-            <label className={styles.label} htmlFor={textareaId}>
-              {question.label}
-              {question.required ? null : ` ${COPY.optional}`}
-            </label>
-            {question.description ? (
-              <p id={hintId} className={styles.hint}>
-                {question.description}
-              </p>
-            ) : null}
-            <textarea
-              id={textareaId}
-              name={name}
-              required={question.required}
-              maxLength={5000}
-              rows={5}
-              defaultValue={given[0] ?? ""}
-              aria-invalid={error ? true : undefined}
-              aria-describedby={
-                [question.description ? hintId : null, error ? errorId : null]
-                  .filter(Boolean)
-                  .join(" ") || undefined
-              }
-              className={styles.textarea}
-            />
-            {error ? (
-              <p id={errorId} className={styles.errorText}>
-                {error}
-              </p>
-            ) : null}
+          <div
+            // `key`: adım değişince kap yeniden kurulur ve geçiş animasyonu bir kez çalışır.
+            key={`step-${question.id}`}
+            ref={stepRef}
+            tabIndex={-1}
+            className={`${styles.step} ${stepAnimation}`}
+          >
+            {control}
           </div>
         );
       })}
 
-      {alertText ? (
+      {showAlert ? (
         <p
           id={`${baseId}-alert`}
           ref={alertRef}
@@ -263,9 +475,44 @@ export function SurveyFormClient({
         </p>
       ) : null}
 
-      <Button type="submit" variant="accent" size="lg" shape="pill" disabled={pending}>
-        {pending ? COPY.submitting : COPY.submit}
-      </Button>
+      <div className={styles.wizardActions}>
+        {step > 0 ? (
+          <Button
+            key="back"
+            type="button"
+            variant="secondary"
+            size="lg"
+            shape="pill"
+            disabled={pending}
+            onClick={() => goTo(step - 1)}
+          >
+            {COPY.back}
+          </Button>
+        ) : (
+          <span />
+        )}
+        {/*
+          `key`: İleri (type=button) ile Tamamla (type=submit) AYNI DOM düğmesi olmamalı.
+          Aksi halde son-bir-önceki adımda İleri tıklaması düğmeyi tıklama bitmeden
+          `submit`'e çevirir ve tarayıcı formu erken gönderir.
+        */}
+        {last ? (
+          <Button
+            key="finish"
+            type="submit"
+            variant="accent"
+            size="lg"
+            shape="pill"
+            disabled={pending}
+          >
+            {pending ? COPY.submitting : COPY.finish}
+          </Button>
+        ) : (
+          <Button key="next" type="button" variant="accent" size="lg" shape="pill" onClick={goNext}>
+            {COPY.next}
+          </Button>
+        )}
+      </div>
 
       <p className={styles.privacyNote}>
         {COPY.privacyNote} <a href="/gizlilik">{COPY.privacyLink}</a> {COPY.privacyNoteEnd}
