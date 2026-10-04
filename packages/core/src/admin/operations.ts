@@ -6,9 +6,10 @@
  * Denetim kaydı `/yonetim/denetim`'de, analitik sağlayıcıda, hatalar hata
  * takip servisindedir; genel bir `logs` tablosu YOKTUR ve kurulmaz.
  *
- * İş (cron) geçmişi tablosu yok (`job_run` ertelendi). İşlerin sağlığı
- * ürettikleri verinin tazeliğinden okunur ve öyle etiketlenir: "son kanıt",
- * "son çalıştı" değil. Yeniden deneme / çalıştır düğmesi YOK.
+ * İş koşuları `job_run`'dan okunur (karar 0055); kaydı olmayan iş için
+ * ürettiği verinin tazeliğine düşülür ve öyle etiketlenir ("son kanıt").
+ * Her durum `ops-findings.ts` ile bir `AdminFinding`'e çevrilir. Yeniden
+ * deneme / çalıştır düğmesi YOK.
  *
  * Her denetim kendi salt okunur, zaman aşımlı işleminde çalışır: biri
  * zaman aşımına uğrarsa diğerleri yine görünür.
@@ -25,7 +26,11 @@ import { LINK_RESOLUTION_QUEUE_KEY } from "../discovery/link-resolution.ts";
 import { getRedis } from "../redis/client.ts";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import type { CostSummary } from "./cost-truth.ts";
 import { MATCH_QUEUE_ALERT_THRESHOLD } from "./dashboard.ts";
+import { type JobRunSummary, readJobRunSummary } from "./job-runs.ts";
+import { listMerchantAttention, type MerchantAttentionItem } from "./merchant-attention.ts";
+import { getPipelineEvidence, type PipelineRawEvidence } from "./pipeline-evidence.ts";
 
 /** docs/ops.md: içinde bulunulan ay + 3 ay ileri partition hazır olmalı. */
 export const PARTITION_MONTHS_AHEAD = 3;
@@ -137,12 +142,9 @@ export async function partitionHealth(db: Database, now = new Date()): Promise<P
   });
 }
 
-export interface CostRow {
+export interface CostRow extends CostSummary {
   day: string;
   operation: string;
-  calls: number;
-  cacheHits: number;
-  costMicros: number;
 }
 
 /** `api_usage`, son 14 gün, gün (İstanbul) ve işleme göre. `api_usage_daily_idx`. */
@@ -154,10 +156,13 @@ export async function costByDay(db: Database): Promise<CostRow[]> {
       calls: string;
       hits: string;
       cost: string | null;
+      units: string | null;
+      unpriced: string;
     }>(sql`
       SELECT to_char(date_trunc('day', created_at AT TIME ZONE 'Europe/Istanbul'), 'YYYY-MM-DD') AS day,
              operation, count(*) AS calls, count(*) FILTER (WHERE cache_hit) AS hits,
-             sum(cost_micros) AS cost
+             sum(cost_micros) AS cost, sum(units) AS units,
+             count(*) FILTER (WHERE NOT cache_hit AND cost_micros = 0) AS unpriced
         FROM api_usage
        WHERE created_at >= now() - interval '14 days'
        GROUP BY 1, 2
@@ -170,12 +175,17 @@ export async function costByDay(db: Database): Promise<CostRow[]> {
       calls: Number(row.calls),
       cacheHits: Number(row.hits),
       costMicros: Number(row.cost ?? 0),
+      units: Number(row.units ?? 0),
+      unpricedCalls: Number(row.unpriced ?? 0),
     }));
   });
 }
 
 export interface ComplianceHealth {
-  /** KVKK: `purge_after` geçmiş ama ham dosya hâlâ depoda. Beklenen 0. */
+  /**
+   * KVKK: `purge_after` geçmiş ama ham dosya hâlâ depoda. Bugün ham görsel hiç
+   * saklanmadığı için daima 0 beklenir; saklama eklenirse güvenlik ağıdır.
+   */
   imagePurgeOverdue: number;
   /** Süresi geçmiş, kullanılmamış giriş bağlantısı (temizlik işi kanıtı). */
   expiredLoginTokens: number;
@@ -253,6 +263,52 @@ export async function jobEvidence(db: Database): Promise<JobEvidence> {
   });
 }
 
+export interface CostWindow {
+  /** Son 24 saat. */
+  last24h: { calls: number; costMicros: number; unpricedCalls: number };
+  /** 24 saatten önceki 7 gün (8 gün önce → 1 gün önce), toplam. */
+  previous7d: { calls: number; costMicros: number; unpricedCalls: number };
+}
+
+/** Maliyet sapması için iki pencere, tek sorgu (`api_usage_daily_idx`, son 8 gün). */
+export async function costWindow(db: Database): Promise<CostWindow> {
+  return readOnly(db, 5_000, async (tx) => {
+    const result = await tx.execute<{
+      calls24: string;
+      cost24: string | null;
+      unpriced24: string;
+      calls_prev: string;
+      cost_prev: string | null;
+      unpriced_prev: string;
+    }>(sql`
+      SELECT
+        count(*) FILTER (WHERE created_at >= now() - interval '24 hours') AS calls24,
+        sum(cost_micros) FILTER (WHERE created_at >= now() - interval '24 hours') AS cost24,
+        count(*) FILTER (WHERE created_at >= now() - interval '24 hours'
+                           AND NOT cache_hit AND cost_micros = 0) AS unpriced24,
+        count(*) FILTER (WHERE created_at < now() - interval '24 hours') AS calls_prev,
+        sum(cost_micros) FILTER (WHERE created_at < now() - interval '24 hours') AS cost_prev,
+        count(*) FILTER (WHERE created_at < now() - interval '24 hours'
+                           AND NOT cache_hit AND cost_micros = 0) AS unpriced_prev
+        FROM api_usage
+       WHERE created_at >= now() - interval '8 days'
+    `);
+    const row = result.rows[0];
+    return {
+      last24h: {
+        calls: Number(row?.calls24 ?? 0),
+        costMicros: Number(row?.cost24 ?? 0),
+        unpricedCalls: Number(row?.unpriced24 ?? 0),
+      },
+      previous7d: {
+        calls: Number(row?.calls_prev ?? 0),
+        costMicros: Number(row?.cost_prev ?? 0),
+        unpricedCalls: Number(row?.unpriced_prev ?? 0),
+      },
+    };
+  });
+}
+
 /**
  * Link çözümleme kuyruğunun Redis'teki uzunluğu. Redis yoksa ya da 2 sn'de
  * cevap vermezse hata olarak döner; sayfa beklemez.
@@ -276,6 +332,14 @@ export interface OperationsOverview {
   compliance: Check<ComplianceHealth>;
   jobs: Check<JobEvidence>;
   linkQueue: Check<number>;
+  /** Boru hattı aşamalarının son kanıtı (karar 0051); aşama başına ayrı zaman aşımı. */
+  pipeline: PipelineRawEvidence;
+  /** İş koşuları (karar 0055). */
+  jobRuns: Check<JobRunSummary>;
+  /** Maliyet sapması pencereleri. */
+  costWindow: Check<CostWindow>;
+  /** Dikkat gerektiren aktif mağazalar (karar 0051). */
+  merchants: Check<MerchantAttentionItem[]>;
 }
 
 export async function getOperationsOverview(
@@ -283,14 +347,31 @@ export async function getOperationsOverview(
   actor: AdminActor,
 ): Promise<OperationsOverview> {
   assertCapability(actor, "operations.read");
-  const [partitions, cost, compliance, jobs, linkQueue] = await Promise.all([
-    check(() => partitionHealth(db)),
-    check(() => costByDay(db)),
-    check(() => complianceHealth(db)),
-    check(() => jobEvidence(db)),
-    check(() => linkQueueDepth()),
-  ]);
-  return { generatedAt: new Date(), partitions, cost, compliance, jobs, linkQueue };
+  const now = new Date();
+  const [partitions, cost, compliance, jobs, linkQueue, pipeline, jobRuns, window, merchants] =
+    await Promise.all([
+      check(() => partitionHealth(db, now)),
+      check(() => costByDay(db)),
+      check(() => complianceHealth(db)),
+      check(() => jobEvidence(db)),
+      check(() => linkQueueDepth()),
+      getPipelineEvidence(db, actor),
+      check(() => readJobRunSummary(db)),
+      check(() => costWindow(db)),
+      check(() => listMerchantAttention(db, actor, now)),
+    ]);
+  return {
+    generatedAt: now,
+    partitions,
+    cost,
+    compliance,
+    jobs,
+    linkQueue,
+    pipeline,
+    jobRuns,
+    costWindow: window,
+    merchants,
+  };
 }
 
 /**

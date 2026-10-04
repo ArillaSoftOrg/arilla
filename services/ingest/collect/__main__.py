@@ -13,6 +13,7 @@ import logging
 import sys
 
 from collect.pipeline import run_ingest
+from db import job_run
 from db.connection import connect
 
 
@@ -27,8 +28,20 @@ def main(argv: list[str] | None = None) -> int:
         format="%(levelname)s %(message)s",
     )
 
-    with connect() as conn:
+    # Is kosusu kaydi (karar 0055); magaza basina ayrinti `ingest_run`'da.
+    with job_run.track("collect") as run, connect() as conn:
         result = run_ingest(conn, args.merchant)
+        run.status = result.status
+        run.detail.update(
+            merchants=1,
+            offers_seen=result.offers_seen,
+            offers_created=result.counts.offers_created,
+            offers_updated=result.counts.offers_updated,
+            price_points=result.counts.price_points_written,
+            rejected=result.rejected,
+        )
+        if result.refusal:
+            run.error_summary = f"refused:{result.refusal}"
 
     counts = result.counts
     print(f"merchant           {result.merchant_slug}")

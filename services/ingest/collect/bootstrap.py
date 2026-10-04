@@ -41,6 +41,7 @@ import psycopg
 from collect import identifiers
 from collect.link.robots import RobotsCache
 from collect.pipeline import run_ingest
+from db import job_run
 from db.connection import connect, database_url
 
 logger = logging.getLogger(__name__)
@@ -461,6 +462,34 @@ def run(
     return reports
 
 
+def summarize_job(reports: list[SourceReport]) -> tuple[str, dict[str, int]]:
+    """`job_run` durumu ve ayrintisi (karar 0055). Saf fonksiyon.
+
+    Hepsi `success` ise basarili; en az bir magaza veri yazdiysa (`success`
+    ya da `partial`) kismi; hicbiri yazmadiysa basarisiz. Pasif/reddedilen
+    magaza veri yazmaz, basari sayilmaz (0042).
+    """
+    by_status: dict[str, int] = {}
+    for report in reports:
+        by_status[report.status] = by_status.get(report.status, 0) + 1
+    wrote = by_status.get("success", 0) + by_status.get("partial", 0)
+    if reports and by_status.get("success", 0) == len(reports):
+        status = "success"
+    elif wrote > 0:
+        status = "partial"
+    else:
+        status = "failed"
+    detail = {
+        "merchants": len(reports),
+        **{f"status_{key}": value for key, value in sorted(by_status.items())},
+        "offers_seen": sum(r.records_discovered for r in reports),
+        "offers_created": sum(r.offers_created for r in reports),
+        "offers_updated": sum(r.offers_updated for r in reports),
+        "rejected": sum(r.rejected for r in reports),
+    }
+    return status, detail
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="collect.bootstrap")
     parser.add_argument("--manifest", required=True, type=Path)
@@ -510,15 +539,22 @@ def main(argv: list[str] | None = None) -> int:
         args.currency_provenance or args.manifest.parent / "currency_provenance.json"
     )
 
-    with connect() as conn:
-        reports = run(
-            conn,
-            defaults,
-            merchants,
-            provenance,
-            args.register_only,
-            enrich_identifiers=not args.skip_identifiers and not args.register_only,
-        )
+    if args.register_only:
+        # Yalnizca kayit: toplama yok, is kosusu da yazilmaz.
+        with connect() as conn:
+            reports = run(
+                conn, defaults, merchants, provenance, register_only=True, enrich_identifiers=False
+            )
+    else:
+        with job_run.track("collect_bootstrap") as tracked, connect() as conn:
+            reports = run(
+                conn,
+                defaults,
+                merchants,
+                provenance,
+                enrich_identifiers=not args.skip_identifiers,
+            )
+            tracked.status, tracked.detail = summarize_job(reports)
 
     if args.report:
         args.report.write_text(

@@ -1,4 +1,4 @@
-import { cronAuthFailureResponse, processMarketingCampaigns } from "@arilla/core";
+import { cronAuthFailureResponse, processMarketingCampaigns, withJobRun } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { SITE_BRAND } from "../../../site-config.ts";
 
@@ -20,6 +20,15 @@ export async function GET(request: Request): Promise<Response> {
   );
   if (denied) return denied;
 
-  const result = await processMarketingCampaigns(getDatabase(), { brand: SITE_BRAND });
+  // Koşu `job_run`'a yazılır (`marketing_campaigns`, karar 0055); teslim
+  // hatası olan parti kısmidir.
+  const db = getDatabase();
+  const result = await withJobRun(
+    db,
+    "marketing_campaigns",
+    "cron",
+    () => processMarketingCampaigns(db, { brand: SITE_BRAND }),
+    (r) => ({ status: r.failed > 0 ? "partial" : "success" }),
+  );
   return Response.json(result);
 }

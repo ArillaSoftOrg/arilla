@@ -2,9 +2,11 @@
 import {
   bigint,
   boolean,
+  date,
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   real,
   smallint,
   text,
@@ -36,3 +38,24 @@ export const lexicon = pgTable("lexicon", {
   normalized: text("normalized").notNull(),
   weight: real("weight").notNull().default(1.0),
 });
+
+/**
+ * 0040: arama kalitesi gunluk ozeti (docs/decisions/0052). Kimlik YOK;
+ * (gun, normalize sorgu) basina tek satir, 90 gun saklanir.
+ */
+export const searchQueryDay = pgTable(
+  "search_query_day",
+  {
+    day: date("day", { mode: "string" }).notNull(),
+    queryNorm: text("query_norm").notNull(),
+    searches: integer("searches").notNull().default(0),
+    zeroResults: integer("zero_results").notNull().default(0),
+    fallbacks: integer("fallbacks").notNull().default(0),
+    clarifications: integer("clarifications").notNull().default(0),
+    lastResultCount: integer("last_result_count"),
+    parserTier: smallint("parser_tier"),
+    unrecognizedTerms: text("unrecognized_terms").array().notNull().default([]),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.day, table.queryNorm] })],
+);

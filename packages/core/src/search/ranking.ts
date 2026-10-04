@@ -26,6 +26,36 @@ export const OUT_OF_STOCK_PENALTY = 0.3;
 export const MISSING_PERCENTILE_FALLBACK = 50;
 
 /**
+ * "Bizim seçtiklerimiz" skorunun dört çarpanı. Skor bunların çarpımıdır
+ * (`balancedScoreExpr`); yönetim arama tanısı aynı ifadeleri ayrı kolon
+ * olarak okur, formül ikinci bir yerde yazılmaz.
+ */
+export interface BalancedScoreFactors {
+  /** Metin alakası (`tm.rel`, metin yoksa 1.0). */
+  relevance: SQL;
+  /** Mağaza güveni / 100. */
+  trust: SQL;
+  /** Stokta 1.0, değilse `OUT_OF_STOCK_PENALTY`. */
+  stock: SQL;
+  /** 1 - fiyat yüzdeliği / 100 (yüzdelik yoksa `MISSING_PERCENTILE_FALLBACK`). */
+  price: SQL;
+}
+
+export function balancedScoreFactors(
+  relevance: SQL,
+  trustScore: SQL,
+  inStock: SQL,
+  currentPercentile: SQL,
+): BalancedScoreFactors {
+  return {
+    relevance: sql`${relevance}`,
+    trust: sql`(${trustScore}::numeric / 100.0)`,
+    stock: sql`(CASE WHEN ${inStock} THEN 1.0 ELSE ${OUT_OF_STOCK_PENALTY} END)`,
+    price: sql`(1 - COALESCE(${currentPercentile}, ${MISSING_PERCENTILE_FALLBACK})::numeric / 100.0)`,
+  };
+}
+
+/**
  * Sonuc `::double precision`e cast edilir: aksi halde Postgres'in `numeric`
  * ciktisi node-postgres tarafindan (hassasiyet kaybini onlemek icin) JS
  * string'i olarak donuyor - biz burada tam JS number istiyoruz.
@@ -36,12 +66,13 @@ export function balancedScoreExpr(
   inStock: SQL,
   currentPercentile: SQL,
 ): SQL {
+  const f = balancedScoreFactors(relevance, trustScore, inStock, currentPercentile);
   return sql`(
     (
-      ${relevance}
-      * (${trustScore}::numeric / 100.0)
-      * (CASE WHEN ${inStock} THEN 1.0 ELSE ${OUT_OF_STOCK_PENALTY} END)
-      * (1 - COALESCE(${currentPercentile}, ${MISSING_PERCENTILE_FALLBACK})::numeric / 100.0)
+      ${f.relevance}
+      * ${f.trust}
+      * ${f.stock}
+      * ${f.price}
     )::double precision
   )`;
 }

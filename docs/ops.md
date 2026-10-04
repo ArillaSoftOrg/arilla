@@ -161,9 +161,46 @@ Veritabanından okunabilen eşikler `/yonetim/islemler` ekranındadır (yalnızc
 yönetici; docs/decisions/0041). Harici uyarı üretmez; ekran bakıldığında
 durumu gösterir.
 
+`/yonetim/islemler` (Sistem sağlığı) her denetimi bir bulgu olarak gösterir:
+önem (kritik / uyarı / bilinmiyor / bilgi / sağlıklı), kanıt zamanı, anlamı,
+ne yapılacağı ve teşhis sayfası (karar 0055). Denetim çalışmazsa durum
+"Bilinmiyor"dur, sağlıklı sayılmaz. Genel bakıştaki "Şimdi dikkat
+isteyenler" aynı bulguların kritik/uyarı/bilinmiyor olanlarıdır (moderatör
+yalnızca mağaza, boru hattı ve eşleştirme kuyruğu bulgularını görür).
+
+İş koşuları `job_run`'a yazılır (karar 0052/0055) ve `/yonetim/islemler/isler`
+sayfasında listelenir: Python işleri (`collect`, `collect_bootstrap`,
+`resolve`, `enrich`, `similarity*`, `link_refresh`; dry-run ve sahte istemci
+yazmaz) ve cron uçları (`discovery_slots`, `cleanup_auth`, `trigger_alerts`,
+`marketing_campaigns`). 2 saatten uzun "sürüyor" kalan koşu takılıdır (süreç
+öldü); günlük cron 30 saat, 15 dakikalık cron 2 saat koşu bırakmazsa
+"zamanında çalışmadı" uyarısı çıkar. Koşular 180 gün saklanır
+(`cleanup-auth` içinde silinir). Çalıştır/yeniden dene düğmesi yoktur.
+
+"Veri boru hattı" bölümü her aşamanın (toplama, eşleştirme, fiyat özeti,
+zenginleştirme, benzerlik kenarları, link çözümleme) durumunu ve elle
+çalıştırma komutunu gösterir. Aşamanın iş koşusu varsa "son çalıştı" oradan,
+yoksa üretilen verinin zamanından ("son kanıt", karar 0051) okunur. Aşamalar
+zamanlanmış değil; "geride olabilir" (bilgi) görünen aşama sırayla
+çalıştırılır.
+
+Başarısız toplama koşusu (`ingest_run.status = 'failed'`) işlemi geri alır;
+0055'ten beri kayıt da oluşturulan/güncellenen/fiyat noktası sayılarını 0
+yazar, geri alınan miktar `error_text`'te not olarak durur.
+
+Model maliyeti `api_usage.cost_micros`'tan okunur ve oran
+(`EMBEDDING_COST_MICROS_PER_1K_TOKENS`) tanımsızken 0 yazılır. Ekran bu
+çağrıları "fiyatlanmamış" sayar ve tutar yerine "Hesaplanmadı" gösterir.
+Gerçek maliyet için oran hem Vercel'de hem Python işlerinin ortamında
+tanımlanmalı; oran geriye dönük uygulanmaz.
+
 | Ne | Eşik | Aksiyon |
 | --- | --- | --- |
-| `ingest_run` başarısızlığı | Aynı merchant 2 kez üst üste | Uyarı |
+| `ingest_run` başarısızlığı | Aynı merchant 2 kez üst üste (tek başarısızlık: bilgi) | Uyarı |
+| İş koşusu takılı | 2 saat "sürüyor" | Uyarı |
+| Zamanlanmış iş gecikti | Günlük 30 saat, 15 dk'lık 2 saat | Uyarı |
+| Model çağrısı sapması | Son 24 saat > önceki 7 günün günlük ortalaması × 3 (en az 50 çağrı) | Uyarı |
+| Link çözümleme kuyruğu (Redis) | 100 üzeri | Uyarı |
 | Feed'siz geçen süre | 24 saat | Uyarı |
 | Oturum başına AI maliyeti | Belirlenen üst sınır | Acil inceleme |
 | Kademe 3'e düşen sorgu oranı | %20 üzeri | Sözlük genişletme işi aç |
@@ -257,8 +294,8 @@ NULL'a çekilen satır sayılarını verir (kişisel veri yok).
 | `cleanup-auth` | `auth_token`, `phone_login_code`, `session` süresi dolanlar | çalışıyor |
 | `purgeExpiredActivity` | `user_activity_event` 180 gün, `query_norm` 90 gün, `auth_event` 1 yıl, `user_consent.ip` 1 yıl | çalışıyor: `cleanup-auth` içinde, ayrı cron yok (0049) |
 
-İşin son başarılı koşusu `/yonetim/islemler`'de verinin tazeliğinden okunur
-(0041 §8). En eski satır süreyi aşmışsa iş çalışmıyor demektir.
+İşin son koşusu `/yonetim/islemler/isler`'de (`cleanup_auth`) görünür;
+süresi geçmiş giriş kaydı birikirse işletim ekranı uyarır (0055). En eski satır süreyi aşmışsa iş çalışmıyor demektir.
 Ertelenmez: süresi geçmiş kişisel veri tutmak aydınlatma metnine aykırıdır.
 
 Analitik rızası geri alındığında kullanıcının olaylarının silinmesi cron'a

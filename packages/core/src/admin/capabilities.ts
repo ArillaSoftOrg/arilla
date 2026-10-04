@@ -105,6 +105,17 @@ const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {
   admin: new Set(ADMIN_CAPABILITIES),
 };
 
+const NO_CAPABILITIES: ReadonlySet<Capability> = new Set();
+
+/**
+ * Rolün yetenekleri (salt okunur kopya). Arayüzde bağlantı gösterim koşulu
+ * içindir (`FindingList`); yetki kararı her zaman `hasCapability`/
+ * `assertCapability` ile sunucuda verilir.
+ */
+export function capabilitiesFor(role: UserRole): ReadonlySet<Capability> {
+  return new Set(ROLE_CAPABILITIES[role] ?? NO_CAPABILITIES);
+}
+
 /** Bilinmeyen rol (ör. ileride eklenen ama buraya işlenmeyen) hiçbir yetki almaz. */
 export function hasCapability(role: UserRole, capability: Capability): boolean {
   return ROLE_CAPABILITIES[role]?.has(capability) ?? false;

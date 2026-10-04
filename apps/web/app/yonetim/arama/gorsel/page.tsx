@@ -11,9 +11,10 @@ import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
 import { ErrorNotice, PageHeader, Pager, StatusText, Tile } from "../../admin-ui.tsx";
 import {
-  formatCostMicros,
+  formatCost,
   formatCount,
   formatDateTime,
+  formatUsage,
   hrefWith,
   positiveInt,
   statusLabel,
@@ -39,18 +40,20 @@ export default async function ImageUploadsPage({
     summarizeImageUploads(db, actor),
   ]);
   const total7d = Object.values(summary.byStatus7d).reduce((sum, n) => sum + n, 0);
+  const embedCost = formatCost(summary.embedUsage7d);
 
   return (
     <div className={styles.page}>
       <PageHeader title="Görsel arama">
         <p className={styles.muted}>
-          Yüklenen görseller burada gösterilmez; ham dosya en fazla 30 gün saklanır.
+          Yüklenen görseller burada gösterilmez. Ham görsel saklanmaz: bellekte işlenir, yalnızca
+          hash ve vektör tutulur.
         </p>
       </PageHeader>
 
       {summary.purgeOverdue > 0 ? (
         <ErrorNotice>
-          {`${formatCount(summary.purgeOverdue)} yüklemenin saklama süresi geçtiği hâlde ham dosyası hâlâ depoda (KVKK). Temizlik işi çalışmıyor olabilir.`}
+          {`${formatCount(summary.purgeOverdue)} yüklemenin ham dosyası depoda ve saklama süresi geçmiş (KVKK). Ham görsel saklanmamalıydı; kodu ve depoyu inceleyin.`}
         </ErrorNotice>
       ) : null}
 
@@ -66,10 +69,15 @@ export default async function ImageUploadsPage({
         />
         <Tile
           label="Embedding çağrısı (7 gün)"
-          value={formatCount(summary.embedCalls7d)}
-          note={`${formatCount(summary.embedCacheHits7d)} önbellekten`}
+          value={formatCount(summary.embedUsage7d.calls)}
+          note={formatUsage(summary.embedUsage7d)}
         />
-        <Tile label="Maliyet (7 gün)" value={formatCostMicros(summary.embedCostMicros7d)} />
+        <Tile
+          label="Maliyet (7 gün)"
+          value={embedCost.value}
+          note={embedCost.note}
+          warning={embedCost.note !== null}
+        />
       </section>
 
       <form action="/yonetim/arama/gorsel" method="get" className={styles.filters}>
@@ -99,8 +107,6 @@ export default async function ImageUploadsPage({
                 <th scope="col">Durum</th>
                 <th scope="col">Hesap</th>
                 <th scope="col">Hash</th>
-                <th scope="col">Ham dosya</th>
-                <th scope="col">Silinecek</th>
               </tr>
             </thead>
             <tbody>
@@ -123,17 +129,15 @@ export default async function ImageUploadsPage({
                     ) : null}
                   </td>
                   <td>{row.member ? "üye" : "anonim"}</td>
-                  <td className={styles.mono}>{row.hashPrefix}</td>
-                  <td>
-                    {row.purgeOverdue ? (
-                      <span className={styles.statusBad}>süresi geçti, hâlâ depoda</span>
-                    ) : row.rawStored ? (
-                      "depoda"
-                    ) : (
-                      "silindi"
-                    )}
+                  <td className={styles.mono}>
+                    {row.hashPrefix}
+                    {row.rawStored ? (
+                      // Ham görsel saklanmaz; görünüyorsa beklenmeyen durumdur (karar 0051).
+                      <span className={styles.statusBad} style={{ display: "block" }}>
+                        {row.purgeOverdue ? "ham dosya depoda, süresi geçti" : "ham dosya depoda"}
+                      </span>
+                    ) : null}
                   </td>
-                  <td>{formatDateTime(row.purgeAfter)}</td>
                 </tr>
               ))}
             </tbody>

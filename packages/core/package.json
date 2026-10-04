@@ -6,6 +6,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./admin-session": "./src/admin/session-policy.ts",
+    "./cost-truth": "./src/admin/cost-truth.ts",
     "./auth-redirect": "./src/auth/safe-redirect.ts",
     "./product-access": "./src/access/product-access.ts",
     "./clarification": "./src/clarification/index.ts",

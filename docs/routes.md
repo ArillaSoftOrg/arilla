@@ -182,7 +182,8 @@ platform sorununu hafifletir.
 /yonetim/arama/link        link_resolution_request durumları ve hata kodları
 /yonetim/arama/gorsel      image_upload durumları (görsel gösterilmez)
 /yonetim/seo               İç SEO tanısı (Search Console değil)
-/yonetim/islemler          Partition, iş kanıtı, KVKK temizlik, maliyet (yalnızca admin)
+/yonetim/islemler          Sistem sağlığı: tüm işletim bulguları (yalnızca admin, 0055)
+/yonetim/islemler/isler    İş koşuları geçmişi, job_run (yalnızca admin, 0055)
 /yonetim/kullanicilar      Tam eşleşmeyle hesap bulma, denetimli (yalnızca admin)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
 /yonetim/kampanyalar       Pazarlama e-postası kampanyaları: taslak, test, gönderim (yalnızca admin, 0048)

@@ -31,6 +31,7 @@ edilmeli.
 | Hesap özeti, son aktif zamanı (0049, 0036/0037) | `user_activity_summary` | Sözleşmenin ifası / meşru menfaat | Hesap silinene kadar; analitik sayaçları rıza geri alınınca NULL |
 | Çerez rızası ve aydınlatma sürümü (girişli) (0049, 0036/0037) | `user_consent` | Açık rıza (çerez); aydınlatma rıza değildir | Hesap silinene kadar (ispat) |
 | Davranışsal analitik (0049, 0036/0037) | `user_activity_event` | **Açık rıza** (analitik) | 180 gün; `query_norm` 90 gün; rıza geri alınınca silinir |
+| Arama kalitesi günlük özeti (0052, 0054) | `search_query_day` | Meşru menfaat (hizmet kalitesi); **anonim**: kullanıcı, oturum, IP yok; e-posta, telefon, adres, URL, 7+ haneli rakam içeren sorgu yazılmaz | 90 gün |
 
 0049 satırlarının tabloları migration 0036/0037 ile şemadadır. Production'a
 bu migration'lar uygulanmadan önce aydınlatma metninin bu satırları
