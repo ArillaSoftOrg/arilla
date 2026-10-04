@@ -6,6 +6,12 @@
 export const SURVEY_COPY = {
   metaFallbackTitle: "Anket", // survey.meta_title
   submit: "Gönder", // survey.submit
+  // Adım adım (sihirbaz) gösterim: aynı anda tek soru
+  back: "Geri", // survey.back
+  next: "İleri", // survey.next
+  finish: "Tamamla", // survey.finish
+  progressLabel: "Anket ilerlemesi", // survey.progress_label
+  stepOf: (current: number, total: number) => `Soru ${current} / ${total}`, // survey.step_of
   submitting: "Gönderiliyor…", // survey.submitting
   skip: "Şimdilik geç", // survey.skip
   optional: "(isteğe bağlı)", // survey.optional
