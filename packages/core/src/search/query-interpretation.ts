@@ -6,8 +6,9 @@
  * dogrulanmis yorumu okur (CLAUDE.md kural 1).
  *
  * Akis:
- * 1. Aday: `search_query_day` (kimliksiz toplu ozet) son 30 gunde en az 3 kez
- *    aranmis, bu (taksonomi ozeti, model) icin henuz saklanmamis sorgular;
+ * 1. Aday: `search_query_day` (tanimlayicisiz toplu gunluk ozet) son 30 gunde en az 3 kez
+ *    ve en az 3 FARKLI gunde aranmis, bu (taksonomi ozeti, model) icin henuz
+ *    saklanmamis sorgular;
  *    sira aranma sayisi azalan, sonra sorgu metni - deterministik.
  * 2. Suzgec: `interpretationIneligibility` (kisisel veri, kimlik, sir) ve
  *    deterministik netlestirme bu sorguda domain BULAMAMIS olmali (0030).
@@ -35,7 +36,11 @@ import {
   type ModelInterpretationOutcome,
 } from "../llm/intent-interpreter.ts";
 import { withJobRun } from "../ops/job-run.ts";
-import { interpretationIneligibility } from "./interpretation-eligibility.ts";
+import {
+  INTERPRETATION_MIN_DISTINCT_DAYS,
+  INTERPRETATION_MIN_OCCURRENCES,
+  interpretationIneligibility,
+} from "./interpretation-eligibility.ts";
 import { interpreterContractHash } from "./interpretation-identity.ts";
 import type { LexiconEntry } from "./lexicon.ts";
 import { loadLexicon } from "./lexicon-repository.ts";
@@ -99,13 +104,19 @@ export async function selectInterpretationCandidates(
     now: Date;
   },
 ): Promise<CandidateSelection> {
-  const result = await db.execute<{ query_norm: string; occurrences: number }>(sql`
-    SELECT d.query_norm, SUM(d.searches)::int AS occurrences
+  // (gun, sorgu) birincil anahtar: gruptaki satir sayisi = farkli gun sayisi.
+  const result = await db.execute<{
+    query_norm: string;
+    occurrences: number;
+    distinct_days: number;
+  }>(sql`
+    SELECT d.query_norm, SUM(d.searches)::int AS occurrences, COUNT(*)::int AS distinct_days
       FROM search_query_day d
      WHERE d.day >= (${input.now.toISOString()}::timestamptz AT TIME ZONE ${SEARCH_QUALITY_TIME_ZONE})::date
                     - ${QUERY_INTERPRETATION_WINDOW_DAYS}::int
      GROUP BY d.query_norm
-    HAVING SUM(d.searches) >= 3
+    HAVING SUM(d.searches) >= ${INTERPRETATION_MIN_OCCURRENCES}::int
+       AND COUNT(*) >= ${INTERPRETATION_MIN_DISTINCT_DAYS}::int
        AND NOT EXISTS (
              SELECT 1 FROM query_interpretation q
               WHERE q.query_norm = d.query_norm
@@ -125,7 +136,10 @@ export async function selectInterpretationCandidates(
   for (const row of result.rows) {
     if (selection.candidates.length >= input.limit) break;
     const occurrences = Number(row.occurrences);
-    if (interpretationIneligibility({ queryNorm: row.query_norm, occurrences }) !== null) {
+    const distinctDays = Number(row.distinct_days);
+    if (
+      interpretationIneligibility({ queryNorm: row.query_norm, occurrences, distinctDays }) !== null
+    ) {
       selection.ineligible++;
       continue;
     }
@@ -388,4 +402,72 @@ export async function runQueryInterpretationJob(
     },
     jobOutcome,
   );
+}
+
+/**
+ * Saklama (karar 0059): yorum satirlari `created_at`'ten itibaren 90 gun
+ * tutulur - kaynaklari olan `search_query_day` ile ayni sure. Suresi dolan
+ * satir silinir; sorgu hala sik araniyorsa toplu is onu yeniden yorumlar.
+ * Yalnizca `query_interpretation` silinir; baska arama verisine dokunulmaz.
+ */
+export const QUERY_INTERPRETATION_RETENTION_DAYS = 90;
+
+export interface QueryInterpretationPurgeResult {
+  deleted: number;
+  /** Parti tavanina ulasildi; kalan satirlar sonraki calistirmada silinir. */
+  truncated: boolean;
+}
+
+/** Suresi dolmus yorumlari sinirli partilerle siler. Hata firlatir (cagiran karar verir). */
+export async function purgeExpiredQueryInterpretations(
+  db: Database,
+  now: Date = new Date(),
+  options: { batchSize?: number; maxBatches?: number } = {},
+): Promise<QueryInterpretationPurgeResult> {
+  const batchSize = options.batchSize ?? 5_000;
+  const maxBatches = options.maxBatches ?? 20;
+  const cutoff = new Date(
+    now.getTime() - QUERY_INTERPRETATION_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  );
+  let deleted = 0;
+  for (let batch = 0; batch < maxBatches; batch++) {
+    const result = await db.execute(sql`
+      DELETE FROM query_interpretation
+       WHERE id IN (
+         SELECT id FROM query_interpretation
+          WHERE created_at < ${cutoff.toISOString()}::timestamptz
+          ORDER BY id
+          LIMIT ${batchSize}
+       )
+    `);
+    const count = result.rowCount ?? 0;
+    deleted += count;
+    if (count < batchSize) return { deleted, truncated: false };
+  }
+  return { deleted, truncated: true };
+}
+
+/**
+ * Gunluk temizlik icin: yorum saklamasi digerlerinden YALITILIR. Tablo yoksa
+ * ya da yetki eksikse diger saklama isleri yine calisir; hata yalnizca sinifi
+ * ve SQL koduyla loglanir ve sonucta `failed` olarak doner (koşu `partial`).
+ */
+export async function purgeExpiredQueryInterpretationsSafely(
+  db: Database,
+  now: Date = new Date(),
+): Promise<QueryInterpretationPurgeResult & { failed: string | null }> {
+  try {
+    return { ...(await purgeExpiredQueryInterpretations(db, now)), failed: null };
+  } catch (error) {
+    const code =
+      (error as { code?: string; cause?: { code?: string } })?.cause?.code ??
+      (error as { code?: string })?.code ??
+      "error";
+    console.warn(
+      "[query-interpretation] retention purge failed",
+      error instanceof Error ? error.name : "unknown",
+      code,
+    );
+    return { deleted: 0, truncated: false, failed: /^[0-9A-Z]{5}$/.test(code) ? code : "error" };
+  }
 }

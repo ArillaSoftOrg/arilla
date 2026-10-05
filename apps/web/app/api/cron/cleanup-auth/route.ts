@@ -2,6 +2,7 @@ import {
   cleanupExpiredAuthRecords,
   cronAuthFailureResponse,
   purgeExpiredActivity,
+  purgeExpiredQueryInterpretationsSafely,
   purgeJobRuns,
   purgeSearchQueryDays,
   reconcileStaleCharges,
@@ -28,6 +29,10 @@ import { getDatabase } from "@arilla/db";
  *
  * 0054: 90 günden eski arama kalitesi özeti (`search_query_day`) da burada
  * silinir (`purgeSearchQueryDays`).
+ *
+ * 0059: 90 günden eski model sorgu yorumları (`query_interpretation`) da burada
+ * silinir. Diğer saklama işlerinden yalıtılmıştır: hata verirse onlar yine
+ * çalışır, koşu `partial` yazılır.
  */
 export async function GET(request: Request): Promise<Response> {
   // Sabit zamanli karsilastirma; CRON_SECRET tanimsiz/kisa ise 500 (uc acik
@@ -50,10 +55,27 @@ export async function GET(request: Request): Promise<Response> {
       const jobRuns = await purgeJobRuns(db);
       // Karar 0054: kimliksiz arama kalitesi özeti 90 gün saklanır.
       const searchQueryDays = await purgeSearchQueryDays(db);
-      return { ...result, searchCharges, retention, jobRuns, searchQueryDays };
+      // Karar 0059: model sorgu yorumları 90 gün saklanır (yalıtılmış adım).
+      const queryInterpretations = await purgeExpiredQueryInterpretationsSafely(db);
+      return {
+        ...result,
+        searchCharges,
+        retention,
+        jobRuns,
+        searchQueryDays,
+        queryInterpretations,
+      };
     },
-    // Parti tavanına takılan temizlik yarımdır: kalan bir sonraki çalıştırmaya.
-    (r) => ({ status: r.truncated || r.jobRuns.truncated ? "partial" : "success" }),
+    // Parti tavanına takılan ya da yalıtılmış adımı başarısız olan temizlik yarımdır.
+    (r) => ({
+      status:
+        r.truncated ||
+        r.jobRuns.truncated ||
+        r.queryInterpretations.truncated ||
+        r.queryInterpretations.failed !== null
+          ? "partial"
+          : "success",
+    }),
   );
   return Response.json(body);
 }
