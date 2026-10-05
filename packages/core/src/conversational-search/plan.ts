@@ -17,17 +17,21 @@
  */
 import {
   appendInput,
+  applyInput,
   applyInputWithOutcome,
   BUDGET_FACET_ID,
   type ClarificationInput,
   type CompileOptions,
   compileQuery,
+  createInitialState,
+  decide,
   decodeInputs,
   type ExtractContext,
   encodeInput,
   findDomain,
   foldForTrigger,
   MAX_FOLLOW_UP_TEXT_LENGTH,
+  type ReplayOptions,
   replayConversation,
   type SearchState,
   type TurnOutcome,
@@ -261,6 +265,23 @@ function understoodChips(
 }
 
 /**
+ * Deterministik cikarici ILK turdaki sorguda domain buluyor mu - plan ile ayni
+ * yol (`decide(baslangic)` + ilk metin girdisi). Saklanan model yorumu yalnizca
+ * bu `false` iken okunur (docs/decisions/0030 "Model baglama kosullari").
+ * Gecersiz girdi "buluyor" sayilir: okuma yapilmaz, mevcut yol aynen kalir.
+ */
+export function firstTurnFindsDomain(query: string, context: ExtractContext): boolean {
+  const text = query.trim();
+  if (!text) return true;
+  try {
+    const start = decide(createInitialState(), context).state;
+    return applyInput(start, { type: "text", text }, context).domainId !== null;
+  } catch {
+    return true;
+  }
+}
+
+/**
  * Istegi plana cevirir. Saf ve deterministiktir; hata firlatirsa cagiran
  * taraf `conventional` yola dusmelidir (netlestirme calismazsa arama calisir).
  */
@@ -268,13 +289,14 @@ export function planConversation(
   request: ConversationRequest,
   context: ExtractContext,
   compileOptions: CompileOptions = {},
+  replayOptions: ReplayOptions = {},
 ): ConversationPlan {
   const query = request.query.trim();
   if (!query) return { mode: "conventional", query, reason: "empty", reply: null };
 
   const first: ClarificationInput = { type: "text", text: query };
   let inputs = decodeInputs(request.steps);
-  let replayed = replayConversation([first, ...inputs], context);
+  let replayed = replayConversation([first, ...inputs], context, replayOptions);
   let droppedInvalidStep = false;
 
   if (replayed.rejectedInput !== null) {
@@ -299,7 +321,7 @@ export function planConversation(
       };
       if (turn.outcome === "applied" || turn.outcome === "new_search") {
         inputs = decodeInputs(appendInput(inputs, next));
-        replayed = replayConversation([first, ...inputs], context);
+        replayed = replayConversation([first, ...inputs], context, replayOptions);
         replyApplied = true;
       }
     }

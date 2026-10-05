@@ -1,9 +1,9 @@
 # 0059 — Gemini ile çevrimdışı sorgu yorumlama
 
 **Tarih:** 5 Ekim 2026
-**Durum:** Kabul edildi — istemci, uyarlayıcı, saklama (0044), toplu iş ve
-korumalı (zamanlanmamış) cron ucu hazır; `/ara` okuma yolu ayrı adım.
-Üretimde etkin DEĞİL.
+**Durum:** Kabul edildi — istemci, uyarlayıcı, saklama (0044), toplu iş,
+korumalı (zamanlanmamış) cron ucu ve `/ara` salt okuma yolu hazır. Üretimde
+etkin DEĞİL (anahtar yok; tabloda satır yok).
 
 Karar 0030, `IntentInterpreter`'ın bir modele bağlanmasını ayrı bir karara
 bırakmıştı. Bu karar o bağlantının sınırlarını koyar. İlk sağlayıcı Google
@@ -79,6 +79,20 @@ Gemini, model `gemini-3.1-flash-lite` (kararlı sürüm).
 - **`job_run`:** `query_interpretation`. 0041'de `skipped` durumu olmadığından
   atlanan koşu `success` + `detail.skipped = true` ile yazılır. Ayrıntı
   yalnızca sayı ve sabit koddur.
+
+- **`/ara` okuma yolu:** `planConversationWithStoredInterpretation`
+  (`conversational-search/stored-plan.ts`). Deterministik çıkarıcı ilk turda
+  domain bulursa okuma yapılmaz. Bulamazsa `readStoredInterpretation`
+  (`search/stored-interpretation.ts`) kimliği (normalize sorgu, bugünkü
+  özet, bugünkü model) ile yalnızca `accepted` satırı okur, satırı bugünkü
+  taksonomiye ve sorgu metnine karşı `validateInterpretation` ile yeniden
+  doğrular (tek alan bile reddedilirse satır yok sayılır) ve
+  `replayConversation` onu ilk girdiden hemen sonra `applyInterpretation` ile
+  en düşük öncelikte uygular; URL'deki sonraki cevaplar onu ezer. Eski özet
+  ya da eski model satırına düşülmez. Okuma hatası aramayı durdurmaz. Okuma
+  modülü sağlayıcı istemcisini yüklemez (model kimliği `llm/model.ts`).
+- **Dağıtım sırası:** 0044 üretimde uygulanmadan bu kod dağıtılmaz
+  (docs/ops.md).
 
 ## Reddedilen alternatifler
 

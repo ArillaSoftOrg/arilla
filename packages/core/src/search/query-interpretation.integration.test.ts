@@ -14,8 +14,8 @@ import type { ClarificationRegistry } from "../clarification/types.ts";
 import type { LlmCall, LlmCallOptions, LlmClient, LlmJsonRequest } from "../llm/client.ts";
 import { LlmError } from "../llm/client.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
+import { interpreterContractHash } from "./interpretation-identity.ts";
 import {
-  interpreterContractHash,
   QUERY_INTERPRETATION_JOB,
   QUERY_INTERPRETATION_OPERATION,
   runQueryInterpretationBatch,

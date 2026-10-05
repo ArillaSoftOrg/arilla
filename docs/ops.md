@@ -305,8 +305,23 @@ bırakılmaz; rıza satırıyla aynı işlemde yapılır (0049 §8).
 
 Karar 0059. Uç: `GET /api/cron/interpret-queries`, `Authorization: Bearer
 ${CRON_SECRET}`. **Zamanlanmış değil**: `vercel.json`'da ya da GitHub
-Actions'ta yok; yalnızca elle çağrılır. `/ara` bu ucu çağırmaz ve henüz
-saklanan yorumu okumaz.
+Actions'ta yok; yalnızca elle çağrılır. `/ara` bu ucu çağırmaz.
+
+**`/ara` okuma yolu ve dağıtım sırası.** `/ara`, deterministik netleştirme
+ilk turda domain bulamadığında `query_interpretation`'dan (normalize sorgu +
+bugünkü taksonomi özeti + bugünkü model sürümü, yalnızca `accepted`) OKUR;
+model çağrısı, ağ isteği ya da yazma yoktur. Bu yüzden üretimde sıra:
+
+1. `0044_query_interpretation.sql` uygulanır ve doğrulanır
+   (`SELECT count(*) FROM schema_migration` / `to_regclass('public.query_interpretation')`).
+2. Kod dağıtılır.
+
+Okuma, tablo yoksa (`42P01`) ya da sorgu hata verirse sessizce deterministik
+yola düşer (yalnızca sınıf + SQL kodu loglanır, sorgu metni yok); bu bir
+emniyet ağıdır, migration'ın yerine geçmez — tablo yokken her
+domain'siz `/ara` isteği bir hata satırı loglar. Okuma yolu için
+`GEMINI_API_KEY` GEREKMEZ: anahtar yoksa uç "atlandı" döner, yeni yorum
+üretilmez, `/ara` yalnızca tabloda zaten olan (bugün: hiç) satırları kullanır.
 
 - `GEMINI_API_KEY` yoksa sağlayıcı çağrılmaz; yanıt `status: "skipped"`,
   `skippedReason: "missing_api_key"`. Üretimde anahtar KVKK onayı ve ücretli

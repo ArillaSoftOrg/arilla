@@ -1,8 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "../clarification/rules.ts";
 import type { ClarificationRegistry } from "../clarification/types.ts";
+import { interpreterContractHash } from "./interpretation-identity.ts";
 import {
-  interpreterContractHash,
   QUERY_INTERPRETATION_MAX_PER_RUN,
   runQueryInterpretationBatch,
 } from "./query-interpretation.ts";

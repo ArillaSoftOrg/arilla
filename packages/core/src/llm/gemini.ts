@@ -27,9 +27,11 @@ import {
   type LlmJsonResult,
   type LlmUsage,
 } from "./client.ts";
+import { GEMINI_MODEL } from "./model.ts";
 
-/** Incelenen kod sabiti; kullanici ya da ortam degistiremez. */
-export const GEMINI_MODEL = "gemini-3.1-flash-lite";
+/** Incelenen kod sabiti (`model.ts`); kullanici ya da ortam degistiremez. */
+export { GEMINI_MODEL };
+
 export const GEMINI_INTERACTIONS_URL = "https://generativelanguage.googleapis.com/v1/interactions";
 /** Yorum kucuk bir siniflandirma; en dusuk belgelenmis dusunme seviyesi. */
 export const GEMINI_THINKING_LEVEL = "minimal";

@@ -19,14 +19,9 @@
  * odenmesin. Hicbir yere sorgu metni, istem ya da model yaniti loglanmaz;
  * `job_run.detail` yalnizca sayi tasir.
  */
-import { createHash } from "node:crypto";
 import { apiUsage, type Database, queryInterpretation } from "@arilla/db";
 import { sql } from "drizzle-orm";
-import {
-  buildInterpreterJsonSchema,
-  describeTaxonomy,
-  INTERPRETER_INSTRUCTIONS,
-} from "../clarification/interpreter.ts";
+import { describeTaxonomy } from "../clarification/interpreter.ts";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "../clarification/rules.ts";
 import { createInitialState } from "../clarification/state.ts";
 import type { ClarificationRegistry } from "../clarification/types.ts";
@@ -41,6 +36,7 @@ import {
 } from "../llm/intent-interpreter.ts";
 import { withJobRun } from "../ops/job-run.ts";
 import { interpretationIneligibility } from "./interpretation-eligibility.ts";
+import { interpreterContractHash } from "./interpretation-identity.ts";
 import type { LexiconEntry } from "./lexicon.ts";
 import { loadLexicon } from "./lexicon-repository.ts";
 import { SEARCH_QUALITY_TIME_ZONE } from "./quality.ts";
@@ -65,21 +61,6 @@ export const QUERY_INTERPRETATION_CLIENT_OPTIONS = { timeoutMs: 10_000, maxAttem
 
 /** Bu hatalarda kosu durur: yapilandirma sorunu ya da saglayici yavaslatiyor. */
 const STOP_CODES = new Set<LlmErrorCode | "unknown">(["auth", "client_error", "rate_limited"]);
-
-/**
- * Modele giden sozlesmenin ozeti: taksonomi (kimlik + etiket), JSON semasi ve
- * talimatlar. Biri degisince ayni sorgu yeniden yorumlanabilir.
- */
-export function interpreterContractHash(
-  registry: ClarificationRegistry = DEFAULT_CLARIFICATION_REGISTRY,
-): string {
-  const contract = JSON.stringify({
-    instructions: INTERPRETER_INSTRUCTIONS,
-    taxonomy: describeTaxonomy(registry),
-    schema: buildInterpreterJsonSchema(registry),
-  });
-  return createHash("sha256").update(contract, "utf8").digest("hex");
-}
 
 export interface CandidateSelection {
   candidates: string[];
