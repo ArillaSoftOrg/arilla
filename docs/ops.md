@@ -301,7 +301,16 @@ Ertelenmez: süresi geçmiş kişisel veri tutmak aydınlatma metnine aykırıd�
 Analitik rızası geri alındığında kullanıcının olaylarının silinmesi cron'a
 bırakılmaz; rıza satırıyla aynı işlemde yapılır (0049 §8).
 
-## Sorgu yorumlama (Gemini, çevrimdışı) — üretimde KAPALI
+## Sorgu yorumlama (Gemini, çevrimdışı) — üretimde DEVRE DIŞI
+
+**Durum:** kod ve 0044 üretimde; `GEMINI_API_KEY` Vercel'de YOK, zamanlayıcı
+yok, Google'a hiçbir metin gitmiyor. Anahtar ancak docs/kvkk.md
+"Etkinleştirme öncesi hukuki kontrol listesi" (sözleşme tarafı, Paid Services
+koşulları/DPA kaydı, KVKK işleme şartı, KVKK m.9 aktarım mekanizması —
+nitelikli hukuki inceleme, standart sözleşme kullanılıyorsa Kurum bildirimi,
+VERBİS, yayına alınmış aydınlatma metinleri, onay tarihi/sorumlu)
+tamamlandıktan sonra eklenir. `store: false` aktarımı ya da işlemeyi
+kaldırmaz; Google kötüye kullanım tespiti için sınırlı süre kayıt tutabilir.
 
 Karar 0059. Uç: `GET /api/cron/interpret-queries`, `Authorization: Bearer
 ${CRON_SECRET}`. **Zamanlanmış değil**: `vercel.json`'da ya da GitHub
@@ -324,15 +333,32 @@ domain'siz `/ara` isteği bir hata satırı loglar. Okuma yolu için
 üretilmez, `/ara` yalnızca tabloda zaten olan (bugün: hiç) satırları kullanır.
 
 - `GEMINI_API_KEY` yoksa sağlayıcı çağrılmaz; yanıt `status: "skipped"`,
-  `skippedReason: "missing_api_key"`. Üretimde anahtar KVKK onayı ve ücretli
-  katman anahtarı olmadan tanımlanmaz (docs/kvkk.md "Planlanan: sorgu
-  yorumlama").
+  `skippedReason: "missing_api_key"`. Üretimde anahtar yukarıdaki kontrol
+  listesi tamamlanmadan tanımlanmaz.
 - Koşu başına en fazla 20 sorgu; 35 sn'den sonra yeni sorguya başlanmaz.
   İstemci 10 sn zaman aşımı, en fazla 2 deneme. Aynı anda ikinci koşu
   (`already_running`) atlanır.
-- Aday: `search_query_day` son 30 gün, en az 3 arama, kişisel veri/kimlik/sır
-  süzgecinden geçmiş, deterministik netleştirmenin domain bulamadığı normalize
-  sorgu. Kullanıcı/oturum verisi okunmaz.
+- Aday: `search_query_day` son 30 gün, en az 3 arama VE en az 3 farklı gün,
+  kişisel veri/kimlik/sır ve özel nitelikli veri bağlamı süzgecinden geçmiş,
+  deterministik netleştirmenin domain bulamadığı normalize sorgu.
+  Kullanıcı/oturum verisi okunmaz. Gönderilen metin anonim değildir:
+  süzgeçler riski azaltır, garanti etmez; 3 farklı gün 3 farklı kişi demek
+  değildir.
+- Saklama: `query_interpretation` 90 gün (`created_at`). Günlük `cleanup-auth`
+  cron'u siler; adım diğer saklama işlerinden yalıtılmıştır (tablo yoksa ya da
+  `arilla_app`'in DELETE yetkisi yoksa diğer temizlik sürer, koşu `partial`,
+  `detail.queryInterpretations_failed` SQL kodunu taşır).
+- **Etkinleştirme ön koşulu (salt okunur, şimdi değil):** üretim çalışma
+  rolünün okuma ve 90 günlük temizlik yetkisi doğrulanır; hiçbir yetki bu
+  adımda verilmez ya da geri alınmaz, eksikse ayrı ve onaylı bir adımda
+  düzeltilir:
+  ```sql
+  SELECT
+    has_table_privilege('arilla_app', 'public.query_interpretation', 'SELECT') AS can_select,
+    has_table_privilege('arilla_app', 'public.query_interpretation', 'DELETE') AS can_delete;
+  ```
+  İkisi de `true` olmalı (toplu iş ayrıca INSERT ister:
+  `has_table_privilege('arilla_app', 'public.query_interpretation', 'INSERT')`).
 - Sonuç `query_interpretation`'a yazılır (`accepted` / `empty` / `invalid`);
   sağlayıcı hatası satır yazmaz, sonraki koşu yeniden dener. 401/403/4xx ya da
   429'da koşu durur (`stopCode`).

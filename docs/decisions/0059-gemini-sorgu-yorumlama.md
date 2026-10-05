@@ -31,13 +31,24 @@ Gemini, model `gemini-3.1-flash-lite` (kararlı sürüm).
 6. **Modele yalnızca toplu, uygun sorgu metni gider.** Kaynak, kullanıcıdan
    bağımsız toplu sorgu özetidir. `user_id`, `session_id`, oturum, IP,
    `user_activity_event` ya da başka bir kişisel kayıt modele gönderilmez.
-   Uygunluk eşiği (en az kaç kez görülmüş olmalı, e-posta/telefon/kimlik
-   numarası kalıbı taşıyan sorgunun dışlanması) toplu işle birlikte
-   tanımlanır.
+   Uygunluk: son 30 günde en az 3 arama VE en az 3 farklı gün (tek kişinin
+   aynı gün tekrarı eşiği aşamaz; kişi sayısı değildir, kimlik eklenmez);
+   e-posta, telefon, adres, URL, kimlik/uzun rakam, anahtar/şifre ve özel
+   nitelikli veri bağlamı (KVKK m.6: sağlık, gebelik, engellilik, din kimliği,
+   siyasi bağlılık, cinsel hayat, genetik/biyometrik, ceza, sendika) taşıyan
+   sorgu deterministik süzgeçle elenir. Süzgeç bilerek temkinlidir (yanlış
+   pozitif kabul edilir); yanlış negatif mümkündür. Gönderilen metin anonim
+   değildir: süzgeçler riski azaltır, tüm kişisel veya özel nitelikli
+   verinin ayıklandığını garanti edemez (dolaylı anlatım, yazım hatası,
+   listede olmayan hassas terim geçebilir). 3 farklı gün bir tekrar
+   sinyalidir, 3 farklı kişinin kanıtı değildir.
 7. **Sağlayıcı sınırı.** Doğrudan HTTP, resmî Interactions API'nin kararlı
    sürümü (`POST https://generativelanguage.googleapis.com/v1/interactions`;
-   v1beta değil), `store: false` (Google varsayılan olarak etkileşimi
-   saklar). Anahtar
+   v1beta değil), `store: false`. `store: false` yalnızca Interactions
+   durum saklamasını kapatır; işlemeyi ya da Google'a aktarımı kaldırmaz.
+   Paid Services koşullarına göre Google istem/yanıtı ürün geliştirmede
+   kullanmaz, ancak kötüye kullanım tespiti için sınırlı bir süre kayıt
+   tutabilir. Anahtar
    yalnızca sunucu ortamından okunur (`GEMINI_API_KEY`), istek başlığında
    gider, tarayıcıya ve `NEXT_PUBLIC_` değişkenine asla girmez. Model kod
    sabitidir; değiştirmek incelenen bir kod değişikliğidir. Hata mesajları
@@ -47,12 +58,15 @@ Gemini, model `gemini-3.1-flash-lite` (kararlı sürüm).
    gönderilmez. Yalnızca `status: "completed"` kabul edilir;
    `max_output_tokens`'a takılan `incomplete` yanıt reddedilir, kesik çıktı
    asla saklanmaz.
-8. **Üretimde etkinleştirme engellidir.** Kullanıcının yazdığı sorgu metni
-   yurt dışındaki bir sağlayıcıya gider; bu yeni bir yurt dışı aktarımdır
-   (docs/kvkk.md "Yurt dışına aktarım"). Sağlayıcı sözleşmesi, aydınlatma
-   metni güncellemesi ve ücretli katman anahtarı (ücretsiz katmanda içerik
-   ürün geliştirmede kullanılabilir) açıkça onaylanmadan üretimde anahtar
-   tanımlanmaz. Etkinleştirme ayrı ve sonraki bir adımdır.
+8. **Üretimde etkinleştirme engellidir; işleme bugün DEVRE DIŞIDIR.**
+   Kullanıcının yazdığı sorgu metni yurt dışındaki bir sağlayıcıya gider; bu
+   bir yurt dışı aktarımdır. `GEMINI_API_KEY` üretime ancak docs/kvkk.md
+   "Etkinleştirme öncesi hukuki kontrol listesi" tamamlanınca eklenir: KVKK
+   m.9 kapsamında geçerli aktarım mekanizması nitelikli hukuki incelemeyle
+   teyit edilmeli (Google DPA'sı tek başına bunu karşılamaz), işleme şartı
+   teyit edilmeli, aydınlatma metinleri yayına alınmalı. Bu kararın teknik
+   sınırları aktarımı hukuken uygun hâle getirmez. Etkinleştirme ayrı ve
+   sonraki bir adımdır.
 
 ## Uygulama ayrıntıları
 
@@ -64,10 +78,16 @@ Gemini, model `gemini-3.1-flash-lite` (kararlı sürüm).
   `invalid` (her alan reddedildi ya da çıktı kullanılamaz: kesik/JSON değil).
   `invalid` de saklanır: aynı sürümde tekrar ödenmez. Geçici sağlayıcı hatası
   (zaman aşımı, ağ, 429, 5xx, 401/403, diğer 4xx) satır yazmaz.
-- **Aday:** `search_query_day` son 30 gün, toplam en az 3 arama; ek kişisel
-  veri/kimlik/sır süzgeci (`interpretation-eligibility.ts`); deterministik
+- **Aday:** `search_query_day` son 30 gün, toplam en az 3 arama ve en az 3
+  farklı gün (`(gün, sorgu)` birincil anahtarı: gruptaki satır sayısı = gün
+  sayısı); ek kişisel veri/kimlik/sır/özel nitelikli veri süzgeci
+  (`interpretation-eligibility.ts`, `SENSITIVE_PATTERNS`); deterministik
   netleştirme domain bulamamış olmalı (0030). Sıra: arama sayısı azalan, sonra
   metin.
+- **Saklama:** `query_interpretation` satırları `created_at`'ten itibaren 90
+  gün (kaynağı `search_query_day` ile aynı); `cleanup-auth` cron'u siler
+  (`purgeExpiredQueryInterpretationsSafely`, diğer saklama işlerinden
+  yalıtılmış; hata verirse koşu `partial`).
 - **Muhasebe:** istemci her HTTP denemesini (yeniden denemeler dahil) bir
   `LlmCall` kaydı olarak bildirir; her biri için bir `api_usage` satırı
   (`operation = 'query_interpretation'`, `units` = toplam token, kimlik NULL),
