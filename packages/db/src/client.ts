@@ -9,6 +9,7 @@
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
 import * as schema from "./schema/index.ts";
+import { assertIsolatedTestUrl, isTestRuntime } from "./test-isolation.ts";
 
 export type Database = ReturnType<typeof createDatabase>;
 
@@ -31,6 +32,8 @@ function poolMaxFromEnv(): number {
 }
 
 export function createDatabase(connectionString: string) {
+  // Test sürecinde uzak/üretim adresine bağlanma (fail-closed, bkz. test-isolation.ts).
+  if (isTestRuntime()) assertIsolatedTestUrl("DATABASE_URL", connectionString);
   return drizzle(
     new Pool({
       connectionString,

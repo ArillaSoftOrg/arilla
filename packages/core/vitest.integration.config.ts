@@ -10,5 +10,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.integration.test.ts"],
+    // Üretim veritabanına bağlanmayı engeller (fail-closed).
+    setupFiles: ["../db/src/vitest-isolation-setup.ts"],
   },
 });

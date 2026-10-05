@@ -1,4 +1,5 @@
-import { LEGAL_IDENTITY } from "@arilla/core";
+// Alt yol: `@arilla/core` kökü `pg`yi çeker; bu dosya istemci paketlerine de girer.
+import { LEGAL_IDENTITY } from "@arilla/core/legal-identity";
 
 /**
  * Faz 8.1 / karar 0038: public iletisim e-postasi. Tek kaynak

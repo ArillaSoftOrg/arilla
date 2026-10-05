@@ -36,18 +36,12 @@ stilleri kullanılmaz. Arilla kendi markası, fontu ve bileşenleriyle kalır.
 
 ## Tema
 
-Varsayılan açık tema. Kullanıcının cihaz tercihi koyuysa koyu tema. Ayrıca
-`/hesap` altından elle geçiş yapılabilir, tercih çereze yazılır.
+Varsayılan açık tema. Kullanıcının cihaz tercihi koyuysa koyu tema. Elle
+geçiş yoktur (karar 0060); `[data-theme]` ve `theme` çerezi kaldırıldı.
 
 ```css
 :root { color-scheme: light dark; }
-:root[data-theme="light"] { color-scheme: light; }
-:root[data-theme="dark"] { color-scheme: dark; }
 ```
-
-Tema elle zorlandığında `color-scheme` de o temaya sabitlenir; yoksa koyu
-cihazda açık tema seçildiğinde form kontrolleri ve kaydırma çubukları koyu
-çizilir (Faz 0 bulgusu).
 
 **İki tema da ilk günden tanımlıdır.** Sonradan eklemek her rengi baştan gözden
 geçirmek anlamına gelir.

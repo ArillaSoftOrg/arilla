@@ -50,7 +50,6 @@ export * from "./SizeSelector.tsx";
 export * from "./SkipLink.tsx";
 export * from "./SortTabs.tsx";
 export * from "./Stack.tsx";
-export * from "./ThemeToggle.tsx";
 export * from "./TrendCollectionCard.tsx";
 export * from "./UpdatedAt.tsx";
 export * from "./VisuallyHidden.tsx";

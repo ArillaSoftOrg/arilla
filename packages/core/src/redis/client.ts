@@ -16,6 +16,7 @@
  * Kuyruktaki komut da `commandTimeout` ile sınırlıdır (ioredis zamanlayıcıyı
  * kuyruğa almadan önce kurar).
  */
+import { assertIsolatedTestUrl, isTestRuntime } from "@arilla/db";
 import Redis, { type RedisOptions } from "ioredis";
 
 const CONNECT_TIMEOUT_MS = 3_000;
@@ -89,6 +90,7 @@ export function getRedis(): Redis {
   if (existing) return existing;
 
   const { url, options } = redisOptionsFromEnv();
+  if (isTestRuntime()) assertIsolatedTestUrl("REDIS_URL", url);
   const client = new Redis(url, options);
 
   // Dinleyici olmadan ioredis her yeniden bağlanma denemesinde "Unhandled

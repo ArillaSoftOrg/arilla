@@ -23,6 +23,8 @@ import {
   isChoice,
   isLastStep,
   missingRequired,
+  NEWSLETTER_OPT_IN_FIELD,
+  NEWSLETTER_STEP_FIELD,
   progressPercent,
   sameValues,
   shouldAutoAdvance,
@@ -123,6 +125,7 @@ export function SurveyFormClient({
   successHref,
   successLabel,
   skipAction,
+  newsletter = null,
 }: {
   slug: string;
   signedIn: boolean;
@@ -132,6 +135,11 @@ export function SurveyFormClient({
   successLabel: string;
   /** Sunucuda kurulan "Şimdilik geç" formu; formun dışında, yalnızca tamamlanmadan çizilir. */
   skipAction?: ReactNode;
+  /**
+   * Onboarding'in SON adımı (karar 0060): haftalık özet. Soru adımlarından
+   * sonra eklenir; varsayılan KAPALI, yalnızca kullanıcı açarsa `true` gider.
+   */
+  newsletter?: { email: string | null } | null;
 }) {
   const [state, action, pending] = useActionState(
     async (_prev: FormState, formData: FormData): Promise<FormState> => {
@@ -145,8 +153,10 @@ export function SurveyFormClient({
     INITIAL,
   );
 
-  const total = questions.length;
+  const total = questions.length + (newsletter ? 1 : 0);
+  const [newsletterOn, setNewsletterOn] = useState(false);
   const [step, setStep] = useState(0);
+  const newsletterStep = newsletter !== null && step === questions.length;
   const [direction, setDirection] = useState<"none" | "forward" | "back">("none");
   const [answers, setAnswers] = useState<Answers>({});
   /** "İleri"de zorunlu soru boşsa o sorunun kimliği (satır içi uyarı). */
@@ -317,7 +327,11 @@ export function SurveyFormClient({
 
         {/* Ekran okuyucuya adım değişimi: yalnızca değişimde okunur. */}
         <p className={styles.srOnly} role="status" aria-live="polite">
-          {current ? `${COPY.stepOf(step + 1, total)}: ${current.label}` : ""}
+          {current
+            ? `${COPY.stepOf(step + 1, total)}: ${current.label}`
+            : newsletterStep
+              ? `${COPY.stepOf(step + 1, total)}: ${COPY.newsletterTitle}`
+              : ""}
         </p>
 
         {questions.map((question, index) => {
@@ -464,6 +478,53 @@ export function SurveyFormClient({
             </div>
           );
         })}
+
+        {newsletter ? (
+          <>
+            <input type="hidden" name={NEWSLETTER_STEP_FIELD} value="1" />
+            {newsletterOn && newsletter.email ? (
+              <input type="hidden" name={NEWSLETTER_OPT_IN_FIELD} value="1" />
+            ) : null}
+          </>
+        ) : null}
+
+        {newsletter && newsletterStep ? (
+          <div
+            key="step-newsletter"
+            ref={stepRef}
+            tabIndex={-1}
+            className={`${styles.step} ${stepAnimation}`}
+          >
+            <fieldset className={styles.fieldset}>
+              <legend className={styles.legend}>{COPY.newsletterTitle}</legend>
+              <p className={styles.hint}>{COPY.newsletterBody}</p>
+              <p className={styles.newsletterEmail}>
+                {newsletter.email ? (
+                  <>
+                    <span className={styles.hint}>{COPY.newsletterEmailLabel}</span>
+                    <strong>{newsletter.email}</strong>
+                  </>
+                ) : (
+                  <span className={styles.hint}>{COPY.newsletterNoEmail}</span>
+                )}
+              </p>
+              <div className={styles.choices}>
+                <label className={styles.choice}>
+                  <input
+                    type="checkbox"
+                    role="switch"
+                    aria-checked={newsletterOn}
+                    checked={newsletterOn}
+                    disabled={!newsletter.email || pending}
+                    className={styles.choiceInput}
+                    onChange={(event) => setNewsletterOn(event.currentTarget.checked)}
+                  />
+                  <span className={styles.choiceLabel}>{COPY.newsletterToggle}</span>
+                </label>
+              </div>
+            </fieldset>
+          </div>
+        ) : null}
 
         {showAlert ? (
           <p

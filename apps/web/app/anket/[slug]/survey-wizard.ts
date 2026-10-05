@@ -16,6 +16,10 @@ export interface WizardQuestion {
 /** Soru alan adı → değerler. `q_<soru kimliği>` anahtarı formdakiyle aynıdır. */
 export type Answers = Record<string, string[]>;
 
+/** Onboarding son adımı (bülten): forma yazılan alanlar. `q_` ile başlamaz, anket cevabı değildir. */
+export const NEWSLETTER_STEP_FIELD = "newsletter_step";
+export const NEWSLETTER_OPT_IN_FIELD = "newsletter_optin";
+
 export function fieldName(questionId: number): string {
   return `q_${questionId}`;
 }
