@@ -177,6 +177,26 @@ Bu, aktarımı ortadan kaldırmaz; standart sözleşme hükümleri ve aydınlatm
 metnindeki açık beyan yine gerekli. Yalnızca aktarımın gittiği yeri
 denetlenebilir bir hukuki çerçeveye taşır.
 
+### Planlanan: sorgu yorumlama (Google Gemini) — üretimde ETKİN DEĞİL
+
+Karar 0059 ile kod hazırlandı, **üretimde çalışmıyor**: `GEMINI_API_KEY`
+üretimde tanımlı değil ve tanımlanmadan önce aşağıdaki onaylar gerekir.
+
+Planlanan veri akışı: çevrimdışı toplu iş, `search_query_day`'deki kimliksiz
+toplu sorgu özetinden son 30 günde en az 3 kez aranmış normalize sorgu
+metnini Google'ın Gemini API'sine (ABD merkezli sağlayıcı) gönderir. Kullanıcı,
+oturum, IP ya da `user_activity_event` kaydı **gönderilmez**. E-posta, telefon,
+adres, URL, uzun rakam dizisi, kimlik numarası benzeri ya da anahtar/şifre
+benzeri içeren sorgu süzgeçte elenir. İstek `store: false` ile gider (Google
+etkileşimi saklamaz); dönen yorum yalnızca taksonomi kimlikleri olarak
+`query_interpretation`'a yazılır, ham yanıt saklanmaz.
+
+Üretimde etkinleştirmeden önce:
+- [ ] Google ile veri işleme sözleşmesi / standart sözleşme hükümleri
+- [ ] Aydınlatma metninde sorgu metninin bu amaçla yurt dışına aktarımının beyanı
+- [ ] Ücretli katman anahtarı (ücretsiz katmanda içerik ürün geliştirmede kullanılabilir)
+- [ ] Açık onay; ardından ayrı bir etkinleştirme adımı (karar 0059 madde 8)
+
 ## Ticari elektronik ileti (İYS)
 
 Türkiye'deki alıcılara ticari e-posta göndermek **İYS kaydı** gerektirir.

@@ -1,19 +1,26 @@
 /**
  * Katalog kalitesi (karar 0053) — gerçek yerel Postgres. Paylaşılan veritabanı
- * başka satırlar da taşıyabildiği için sayılar, fikstürden ÖNCE alınan taban
- * çizgisine göre fark olarak doğrulanır.
+ * başka satırlar da taşıyabildiği için sayılar fark olarak doğrulanır. Fark,
+ * TEK bir `REPEATABLE READ` anlık görüntüsünde ölçülür (fikstürlerle sayım,
+ * aynı işlemde fikstürler silinip yeniden sayım, sonra ROLLBACK): eşanlı
+ * çalışan başka test dosyalarının ürün/teklif yazımları sonucu kaydıramaz.
  */
 import type { Database } from "@arilla/db";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { type AdminActor, AdminForbiddenError } from "./capabilities.ts";
 import { listOffers, searchProducts } from "./catalog.ts";
 import {
+  CATALOG_QUALITY_CHECKS,
   type CatalogQualityFinding,
   type CatalogQualityReport,
   getCatalogQualityReport,
   QUALITY_SAMPLE_LIMIT,
 } from "./catalog-quality.ts";
+
+/** Görüntü içinde ROLLBACK için; dışarı sızmaz. */
+class SnapshotRollback extends Error {}
 
 const VALID_A = "8690000000012";
 const VALID_B = "8690000000029";
@@ -35,8 +42,52 @@ describe("katalog kalitesi - entegrasyon", () => {
     if (!f) throw new Error(`bulgu yok: ${key}`);
     return f;
   };
-  const delta = (report: CatalogQualityReport, key: string) =>
-    (byKey(report, key).count ?? 0) - (byKey(baseline, key).count ?? 0);
+
+  /**
+   * Denetim başına fikstürlerin katkısı, tek anlık görüntüde: önce fikstürlerle
+   * say, aynı işlemde fikstürleri sil, yeniden say, geri al. Denetimler
+   * üretimdeki SQL'in aynısıdır (`CATALOG_QUALITY_CHECKS`); yalnızca salt
+   * okunur sarmalayıcı (`readOnly`) olmadan, bu işlemin içinde çalışır.
+   */
+  async function fixtureDeltas(): Promise<Record<string, number>> {
+    const countAll = async (tx: Parameters<Parameters<Database["transaction"]>[0]>[0]) => {
+      const out: Record<string, number> = {};
+      for (const check of CATALOG_QUALITY_CHECKS) {
+        for (const finding of await check.run(tx)) out[finding.key] = finding.count ?? 0;
+      }
+      return out;
+    };
+    let deltas: Record<string, number> = {};
+    try {
+      await db.transaction(
+        async (tx) => {
+          const withFixtures = await countAll(tx);
+          const merchants = sql.param(merchantIds);
+          await tx.execute(sql`
+            DELETE FROM match_candidate
+             WHERE offer_id IN (SELECT id FROM offer WHERE merchant_id = ANY(${merchants}::bigint[]))`);
+          await tx.execute(sql`DELETE FROM offer WHERE merchant_id = ANY(${merchants}::bigint[])`);
+          await tx.execute(
+            sql`DELETE FROM product WHERE id = ANY(${sql.param(productIds)}::bigint[])`,
+          );
+          await tx.execute(sql`DELETE FROM brand WHERE id = ${brandId}`);
+          await tx.execute(sql`DELETE FROM merchant WHERE id = ANY(${merchants}::bigint[])`);
+          const without = await countAll(tx);
+          deltas = Object.fromEntries(
+            Object.keys(withFixtures).map((key) => [
+              key,
+              (withFixtures[key] ?? 0) - (without[key] ?? 0),
+            ]),
+          );
+          throw new SnapshotRollback();
+        },
+        { isolationLevel: "repeatable read" },
+      );
+    } catch (error) {
+      if (!(error instanceof SnapshotRollback)) throw error;
+    }
+    return deltas;
+  }
 
   beforeAll(async () => {
     db = getTestDb();
@@ -176,22 +227,27 @@ describe("katalog kalitesi - entegrasyon", () => {
   });
 
   it("fikstürleri doğru bulgulara sayar", async () => {
+    const deltas = await fixtureDeltas();
+    const delta = (key: string) => {
+      if (!(key in deltas)) throw new Error(`bulgu yok: ${key}`);
+      return deltas[key];
+    };
     const report = await getCatalogQualityReport(db, moderator);
-    expect(delta(report, "catalog.duplicate_gtin")).toBe(1);
-    expect(delta(report, "catalog.probable_duplicate")).toBe(1);
-    expect(delta(report, "catalog.product_no_brand")).toBe(1);
-    expect(delta(report, "catalog.invalid_gtin")).toBe(1);
-    expect(delta(report, "catalog.gtin_conflict")).toBe(1);
-    expect(delta(report, "catalog.stale_offers")).toBe(1);
-    expect(delta(report, "catalog.inactive_offers")).toBe(1);
-    expect(delta(report, "catalog.inactive_merchant_active_offers")).toBe(1);
-    expect(delta(report, "catalog.merchant_same_product")).toBe(1);
-    expect(delta(report, "catalog.merchant_mostly_unmatched")).toBe(1);
-    expect(delta(report, "catalog.unmatched_no_candidate")).toBe(21);
-    expect(delta(report, "catalog.unmatched_rejected_only")).toBe(1);
-    expect(delta(report, "catalog.unmatched_decided")).toBe(1);
+    expect(delta("catalog.duplicate_gtin")).toBe(1);
+    expect(delta("catalog.probable_duplicate")).toBe(1);
+    expect(delta("catalog.product_no_brand")).toBe(1);
+    expect(delta("catalog.invalid_gtin")).toBe(1);
+    expect(delta("catalog.gtin_conflict")).toBe(1);
+    expect(delta("catalog.stale_offers")).toBe(1);
+    expect(delta("catalog.inactive_offers")).toBe(1);
+    expect(delta("catalog.inactive_merchant_active_offers")).toBe(1);
+    expect(delta("catalog.merchant_same_product")).toBe(1);
+    expect(delta("catalog.merchant_mostly_unmatched")).toBe(1);
+    expect(delta("catalog.unmatched_no_candidate")).toBe(21);
+    expect(delta("catalog.unmatched_rejected_only")).toBe(1);
+    expect(delta("catalog.unmatched_decided")).toBe(1);
     // teklifsiz + ikiz-b + ikiz-c + dup-b (aktif teklifsiz) ve kardeşleri
-    expect(delta(report, "catalog.product_no_active_offer")).toBeGreaterThanOrEqual(4);
+    expect(delta("catalog.product_no_active_offer")).toBeGreaterThanOrEqual(4);
 
     // 48 saatten eski adaysız teklif: uyarı; en eski önce örneklenir.
     const noCand = byKey(report, "catalog.unmatched_no_candidate");

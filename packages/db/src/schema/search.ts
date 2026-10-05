@@ -11,6 +11,7 @@ import {
   smallint,
   text,
   timestamp,
+  unique,
 } from "drizzle-orm/pg-core";
 
 /** Ayristirma sonucu cache'i. Ayni sorgu iki kez modele gitmez. */
@@ -58,4 +59,34 @@ export const searchQueryDay = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.day, table.queryNorm] })],
+);
+
+export type QueryInterpretationStatus = "accepted" | "empty" | "invalid";
+
+/**
+ * 0044: cevrimdisi model sorgu yorumu onbellegi (docs/decisions/0059).
+ * Kimlik (query_norm, taxonomy_hash, model_version); kullanici/oturum YOK,
+ * ham model yaniti YOK. Istek yolu yalnizca okur.
+ */
+export const queryInterpretation = pgTable(
+  "query_interpretation",
+  {
+    id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+    queryNorm: text("query_norm").notNull(),
+    taxonomyHash: text("taxonomy_hash").notNull(),
+    modelVersion: text("model_version").notNull(),
+    status: text("status").$type<QueryInterpretationStatus>().notNull(),
+    /** Dogrulanmis yorum; yalnizca `accepted`. */
+    interpretation: jsonb("interpretation").$type<Record<string, unknown>>(),
+    /** `validateInterpretation`'in sabit `{ path, reason }` kodlari. */
+    rejected: jsonb("rejected").$type<{ path: string; reason: string }[]>().notNull().default([]),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    unique("query_interpretation_identity").on(
+      table.queryNorm,
+      table.taxonomyHash,
+      table.modelVersion,
+    ),
+  ],
 );

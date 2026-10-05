@@ -1,7 +1,7 @@
 import {
   type ConversationPlan,
   loadLexicon,
-  planConversation,
+  planConversationWithStoredInterpretation,
   type ReplyResult,
   type SortMode,
 } from "@arilla/core";
@@ -114,7 +114,12 @@ async function planSafely(
 ): Promise<ConversationPlan> {
   try {
     const lexicon = await loadLexicon(db);
-    return planConversation(request, { registry: DEFAULT_CLARIFICATION_REGISTRY, lexicon });
+    // Karar 0059: deterministik domain yoksa SAKLANMIS model yorumu okunur (model
+    // cagrisi yok); okunamazsa plan bugunku yolla aynidir.
+    return await planConversationWithStoredInterpretation(db, request, {
+      registry: DEFAULT_CLARIFICATION_REGISTRY,
+      lexicon,
+    });
   } catch (error) {
     console.error("[ara] clarification unavailable, falling back to plain search", error);
     return { mode: "conventional", query: request.query, reason: "no_domain", reply: null };

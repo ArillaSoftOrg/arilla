@@ -4,7 +4,7 @@
  * Link kuyrugu gercek Redis'e yazar: testleri ayri bir Redis veritabaninda
  * calistirin (`REDIS_URL=redis://localhost:6379/<n>`).
  */
-import { randomUUID } from "node:crypto";
+import { randomBytes, randomUUID } from "node:crypto";
 import type { Database } from "@arilla/db";
 import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
@@ -55,16 +55,17 @@ function fakeClient(mode: "ok" | "fail"): EmbeddingClient & { calls: number } {
   return client;
 }
 
-let imageSeed = 0;
+/**
+ * Her cagrida GERCEKTEN benzersiz gorsel: rastgele gurultu. Duz renkli bir
+ * gorsel (eski hali: renk `Date.now() % 255`) onceki kosularin biraktigi
+ * embedding onbellegiyle ayni ozeti uretebiliyordu; ilk cagri onbellekten
+ * donup "saglayici bir kez cagrilir" beklentisini rastgele bozuyordu.
+ */
 async function uniqueImage(): Promise<PreparedImage> {
-  imageSeed++;
-  const buffer = await sharp({
-    create: {
-      width: 64 + imageSeed,
-      height: 64,
-      channels: 3,
-      background: { r: (Date.now() + imageSeed * 37) % 255, g: imageSeed % 255, b: 90 },
-    },
+  const width = 64;
+  const height = 64;
+  const buffer = await sharp(randomBytes(width * height * 3), {
+    raw: { width, height, channels: 3 },
   })
     .jpeg()
     .toBuffer();
