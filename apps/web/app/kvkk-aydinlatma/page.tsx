@@ -59,7 +59,8 @@ export default function KvkkAydinlatmaPage() {
             cihaz sınıfı, tarayıcı ailesi ve ülke kodu.
           </li>
           <li>
-            <strong>Talep/şikâyet:</strong> destek yazışmaları.
+            <strong>Talep/şikâyet:</strong> destek yazışmaları, geri bildirim formu gönderimleri ve
+            anket/form yanıtları.
           </li>
         </ul>
       </section>

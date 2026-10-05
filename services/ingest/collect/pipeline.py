@@ -3,6 +3,12 @@
 Her kosu `ingest_run` tablosuna yazilir. **Sessiz basarisizlik kabul edilmez**
 (architecture.md §1): kosu patlasa bile satir `failed` olarak kapanir.
 
+`failed` kosuda islem geri alinir; kayittaki olusturulan/guncellenen/fiyat
+noktasi sayilari 0 yazilir (geri alinan yazimlar kalici degil), `offers_seen`
+gercektir ve geri alinan miktar `error_text`'e not duser (karar 0055). Bu
+karardan onceki `failed` satirlar geri alinan sayilari tasiyabilir; yonetim
+ekrani onlari hala gizler (`writesRolledBack`).
+
 Kapi (`collect/gate.py`) connector kurulmadan once sorulur. Reddedilen kosu
 da `ingest_run`'a `failed` + `refused:<kod>` olarak yazilir; magazaya istek
 gitmez, offer ya da `price_point` yazilmaz. Connector da ilk katalog
@@ -162,11 +168,18 @@ def run_ingest(conn: psycopg.Connection, merchant_slug: str) -> IngestResult:
         )
 
     except Exception as error:  # noqa: BLE001 — kosu ne olursa olsun kapatilir
+        # Islem geri alindi: bu kosunun yazimlarindan HICBIRI kalici degil.
+        # Kayit gercegi soyler (karar 0055): olusturulan/guncellenen/fiyat
+        # noktasi 0, `offers_seen` gercek; geri alinan sayilar not olarak
+        # `error_text`'e duser ki "ne kadar is kaybedildi" gorulsun.
         conn.rollback()
         status = "failed"
         errors.append(str(error))
+        rolled_back = _rolled_back_note(writer.counts)
+        if rolled_back:
+            errors.append(rolled_back)
         logger.exception("ingest kosusu basarisiz: %s", merchant_slug)
-        _close_run(conn, run_id, status, offers_seen, writer.counts, errors, duplicates)
+        _close_run(conn, run_id, status, offers_seen, WriteCounts(), errors, duplicates)
         raise
 
     _close_run(conn, run_id, status, offers_seen, writer.counts, errors, duplicates)
@@ -190,6 +203,17 @@ def _check_currency(source_type: str, offer: NormalizedOffer) -> None:
         raise RecordRejected(
             f"Shopify teklifi {SHOPIFY_CURRENCY} disinda: {offer.currency} ({offer.external_id})"
         )
+
+
+def _rolled_back_note(counts: WriteCounts) -> str | None:
+    """Geri alinan yazimlarin ozeti; hic yazim yoksa None."""
+    if not (counts.offers_created or counts.offers_updated or counts.price_points_written):
+        return None
+    return (
+        "geri alindi (kalici degil): "
+        f"{counts.offers_created} yeni teklif, {counts.offers_updated} guncelleme, "
+        f"{counts.price_points_written} fiyat noktasi"
+    )
 
 
 def _close_run(

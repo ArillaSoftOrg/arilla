@@ -1,0 +1,483 @@
+/* Referans (390px): 20px kenar, hero ortali, siyah hap CTA, golgeli 2x2 istatistik
+   karti, koyu teal adim bolumu, 24px yaricapli SSS kartlari, pill girdili form. */
+.page {
+  background: var(--paper);
+  color: var(--ink);
+  overflow-x: clip;
+}
+
+.inner {
+  box-sizing: border-box;
+  width: 100%;
+  max-width: calc(var(--content-width-standard) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* --- Hero --- */
+.hero {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-16) var(--gutter) var(--space-12);
+  text-align: center;
+  background-image: radial-gradient(var(--line) 1.5px, transparent 1.5px);
+  background-size: 24px 24px;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-8);
+  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
+  border: var(--border-width) solid var(--teal-soft);
+  border-radius: var(--radius-pill);
+  background: var(--teal-soft);
+  color: var(--teal-ink);
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-medium);
+}
+
+.badgeNo {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-pill);
+  background: var(--paper);
+}
+
+.heroTitle {
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-display);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-display);
+  text-wrap: balance;
+}
+
+.heroText {
+  max-width: 34ch;
+  margin: 0 0 var(--space-8);
+  font-size: var(--text-body-lg);
+  line-height: 1.55;
+  color: var(--ink-secondary);
+}
+
+.cta {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  min-height: var(--size-touch-target);
+  padding: var(--space-4) var(--space-8);
+  border: 0;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  font: inherit;
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.cta:hover {
+  background: var(--accent-hover);
+}
+
+.cta:focus-visible,
+.heroLink:focus-visible,
+.faqQuestion:focus-visible,
+.mailLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.heroLink {
+  margin-top: var(--space-6);
+  color: var(--ink);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+/* --- Istatistikler --- */
+.statsWrap {
+  box-sizing: border-box;
+  max-width: calc(var(--content-width-standard) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+  position: relative;
+  z-index: var(--z-raised);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1px;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 28px;
+  background: var(--line);
+  box-shadow: var(--shadow-md);
+}
+
+.stat {
+  padding: var(--space-5) var(--space-5) var(--space-6);
+  background: var(--surface-raised);
+}
+
+.statValue {
+  font-size: 28px;
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.1;
+  letter-spacing: -0.02em;
+}
+
+.statLabel {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--teal-ink);
+}
+
+/* --- Marka seridi --- */
+.brands {
+  margin-top: calc(-1 * var(--space-12));
+  padding: calc(var(--space-12) + var(--space-12)) var(--gutter) var(--space-12);
+  background: var(--surface);
+  border-bottom: var(--border-width) solid var(--line);
+  text-align: center;
+}
+
+.eyebrowCenter {
+  margin: 0 0 var(--space-6);
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.12em;
+  color: var(--ink-muted);
+}
+
+.brandList {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--space-4) var(--space-10);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.brand {
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink-muted);
+}
+
+/* --- Ortak bolum tipografisi --- */
+.section {
+  padding-block: var(--space-24);
+}
+
+.eyebrow {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.1em;
+  color: var(--ink-muted);
+}
+
+.h2 {
+  margin: 0 0 var(--space-8);
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+  text-wrap: balance;
+}
+
+.h3 {
+  margin: 0 0 var(--space-2);
+  font-size: var(--text-h3);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  letter-spacing: -0.01em;
+}
+
+.bodyText {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  line-height: 1.55;
+  color: var(--ink-secondary);
+}
+
+/* --- Avantajlar --- */
+.benefits {
+  display: grid;
+  gap: var(--space-10);
+  margin: var(--space-10) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.benefit {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.benefitIcon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--teal-soft);
+  color: var(--teal-ink);
+  font-size: 20px;
+}
+
+/* --- Adimlar (koyu teal) --- */
+.steps {
+  padding-block: var(--space-24);
+  background: var(--feature-bg);
+  color: var(--feature-ink);
+}
+
+.eyebrowOnDark {
+  color: var(--feature-accent);
+}
+
+.onDark {
+  color: var(--feature-ink);
+}
+
+.stepList {
+  margin: var(--space-12) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.step {
+  padding: var(--space-8) 0;
+  border-top: var(--border-width) solid var(--feature-line);
+}
+
+.stepHead {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-4);
+  margin: 0 0 var(--space-4);
+}
+
+.stepNo {
+  font-size: 32px;
+  font-weight: var(--font-weight-medium);
+  color: var(--feature-accent);
+}
+
+.stepTag {
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.1em;
+  color: var(--feature-accent);
+}
+
+.stepText {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  line-height: 1.55;
+  color: var(--feature-ink-muted);
+}
+
+/* --- SSS --- */
+.faq {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.faqItem {
+  border: var(--border-width) solid var(--line);
+  border-radius: 24px;
+  background: var(--surface-raised);
+}
+
+.faqQuestion {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-6);
+  border-radius: 24px;
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1.35;
+  cursor: pointer;
+  list-style: none;
+}
+
+.faqQuestion::-webkit-details-marker {
+  display: none;
+}
+
+.chevron {
+  flex: none;
+  width: 10px;
+  height: 10px;
+  margin-right: var(--space-1);
+  border-right: 2px solid var(--ink);
+  border-bottom: 2px solid var(--ink);
+  transform: rotate(45deg);
+  transition: transform var(--duration-base) var(--ease-standard);
+}
+
+.faqItem[open] .chevron {
+  transform: rotate(-135deg);
+}
+
+.faqAnswer {
+  margin: 0;
+  padding: 0 var(--space-6) var(--space-6);
+  font-size: var(--text-body);
+  line-height: 1.55;
+  color: var(--ink-secondary);
+}
+
+/* --- Iletisim ve form --- */
+.contact {
+  padding-block: var(--space-16) var(--space-24);
+  background: var(--surface);
+  border-top: var(--border-width) solid var(--line);
+}
+
+.mailCard,
+.formCard {
+  margin-top: var(--space-8);
+  padding: var(--space-8) var(--space-6);
+  border: var(--border-width) solid var(--line);
+  border-radius: 28px;
+  background: var(--surface-raised);
+}
+
+.mailLink {
+  display: inline-flex;
+  gap: var(--space-3);
+  color: var(--ink);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.formCard {
+  display: grid;
+  gap: var(--space-5);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-2);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+}
+
+.field input,
+.field select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--space-6);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+  font-weight: var(--font-weight-regular);
+}
+
+.field input::placeholder {
+  color: var(--ink-muted);
+  opacity: 1;
+}
+
+.field input:focus-visible,
+.field select:focus-visible,
+.radios input:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.radios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3) var(--space-5);
+  margin: 0;
+  padding: 0;
+  border: 0;
+  font-weight: var(--font-weight-medium);
+}
+
+.radios legend {
+  width: 100%;
+  margin-bottom: var(--space-3);
+  padding: 0;
+}
+
+.radios label {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--size-touch-target);
+  font-weight: var(--font-weight-regular);
+}
+
+.radios input {
+  width: 20px;
+  height: 20px;
+  margin: 0;
+}
+
+.rule {
+  width: 100%;
+  margin: var(--space-2) 0;
+  border: 0;
+  border-top: var(--border-width) solid var(--line);
+}
+
+.formCard .cta {
+  justify-self: start;
+}
+
+@media (min-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .benefits {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-12);
+  }
+
+  .stepList {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-8);
+  }
+
+  .step {
+    padding-right: var(--space-4);
+  }
+}
+
+@media (min-width: 1024px) {
+  .hero {
+    padding-top: var(--space-24);
+  }
+
+  .heroText {
+    max-width: 52ch;
+  }
+
+  .formCard,
+  .mailCard {
+    max-width: 640px;
+  }
+}

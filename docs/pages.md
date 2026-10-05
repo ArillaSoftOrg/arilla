@@ -192,8 +192,8 @@ Karar 0059: sade profil sayfası. Tema, İzinler ve Verilerim bölümleri yoktur
 | Bonus hak kazan | Davet linki, "Linki kopyala", davet sayaçları |
 | Son baktıkların | Gezinme geçmişinden son ürünler; boşsa boş durum |
 
-Tema yalnızca sistem tercihidir. Haftalık özet tercihi ilk giriş karşılamasının
-(`/hos-geldin`) son adımındadır, varsayılan kapalı. Silme akışı gerçekten çalışmalıdır. Onay adımı vardır ama geri alınamaz olduğu
+Gizlilik tercihleri (geri çekme) `/hesap/gizlilik` sayfasındadır. Tema yalnızca sistem tercihidir. Haftalık özet tercihi onboarding anketinin (0058)
+son adımındadır, varsayılan kapalı. Silme akışı gerçekten çalışmalıdır. Onay adımı vardır ama geri alınamaz olduğu
 açıkça yazılır.
 
 ---

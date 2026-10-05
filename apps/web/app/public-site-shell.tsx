@@ -53,9 +53,12 @@ function markCurrent<T extends { href: string }>(
 export async function PublicSiteShell({
   links,
   currentPath,
+  fullBleed = false,
   children,
 }: {
   links: SiteSectionLinks;
+  /** Editoryal sayfalar: icerik `Container` icine alinmaz, tam genislik bolumler sayfanin kendisindedir. */
+  fullBleed?: boolean;
   /** Su anki route (orn. "/kesfet"); verilirse eslesen header/footer linki `aria-current` alir. */
   currentPath?: string;
   children: ReactNode;
@@ -116,7 +119,7 @@ export async function PublicSiteShell({
       />
       {/* tabIndex -1: SkipLink'ten sonra odak tum tarayicilarda ana icerige tasinir. */}
       <main id={MAIN_ID} tabIndex={-1} className={styles.main}>
-        <Container size="wide">{children}</Container>
+        {fullBleed ? children : <Container size="wide">{children}</Container>}
       </main>
       <SiteFooter
         brandLabel={SITE_BRAND}
@@ -136,14 +139,20 @@ export async function PublicSiteShell({
 /** Public alt sayfalar: bolum linkleri ana sayfaya doner (`/#trendler`, ...). */
 export function SubpageShell({
   currentPath,
+  fullBleed,
   children,
 }: {
   /** Bkz. `PublicSiteShell.currentPath` - route'un ince `layout.tsx`'i verir. */
   currentPath?: string;
+  fullBleed?: boolean;
   children: ReactNode;
 }) {
   return (
-    <PublicSiteShell links={SUBPAGE_SECTION_LINKS} currentPath={currentPath}>
+    <PublicSiteShell
+      links={SUBPAGE_SECTION_LINKS}
+      currentPath={currentPath}
+      fullBleed={fullBleed}
+    >
       {children}
     </PublicSiteShell>
   );

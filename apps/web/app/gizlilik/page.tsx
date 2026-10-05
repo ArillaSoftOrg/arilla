@@ -127,6 +127,26 @@ export default function GizlilikPage() {
 
         <h3>2.4. Destek yazışmaları</h3>
         <p>Bize e-posta ile yazdığınızda mesajınız ve e-posta adresiniz işlenir.</p>
+        <p>
+          Geri bildirim formunu kullandığınızda seçtiğiniz tür, başlık, açıklama ve önem seviyesi
+          işlenir. Giriş yapmışsanız geri bildirim hesabınızla ve hesabınızdaki e-posta adresiyle
+          ilişkilendirilir; giriş yapmadıysanız e-posta adresi yalnızca siz bırakırsanız kaydedilir.
+          Kötüye kullanımı önlemek için gönderimler IP adresinizin özet değeri üzerinden kısa süreli
+          sayılır. Hesabınızı silerseniz hesabınızla gönderdiğiniz geri bildirimler de silinir.
+        </p>
+
+        <h3>2.5. Anket ve form yanıtları</h3>
+        <p>
+          Yayınladığımız anket ve formlara (örneğin erken erişim sonrası “Seni biraz daha tanıyalım”
+          formu) verdiğiniz yanıtlar işlenir: seçtiğiniz seçenekler ve yazdığınız metin cevapları.
+          Giriş yaparak yanıtladıysanız yanıt hesabınızla ilişkilendirilir; herkese açık bir formu
+          giriş yapmadan yanıtladıysanız yanıt hesabınızla ilişkilendirilmez ve IP adresiniz
+          saklanmaz. Kötüye kullanımı önlemek için gönderimler IP adresinizin özet değeri üzerinden
+          kısa süreli sayılır. Formlar isteğe bağlı sorular içerebilir; “Şimdilik geç” dediğinizde
+          yalnızca bu tercihiniz kaydedilir. Yanıtları yalnızca yetkili yöneticilerimiz görür ve
+          ürünü geliştirmek için toplu olarak değerlendiririz. Hesabınızı silerseniz hesabınızla
+          verdiğiniz yanıtlar da silinir.
+        </p>
       </section>
 
       <section>

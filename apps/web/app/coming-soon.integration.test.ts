@@ -25,7 +25,6 @@ import { NextRequest } from "next/server";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { afterOnboarding } from "./onboarding-test-util.ts";
 
 const state = vi.hoisted(() => ({
   token: undefined as string | undefined,
@@ -414,18 +413,16 @@ describe("erken erişim akışı", () => {
   it("yeni ziyaretçi: CTA → giriş → kayıt → başarı ekranı; tekrar giriş idempotent", async () => {
     const email = `yakinda-yeni-${suffix}@test.local`;
     const next = new URL(EARLY_ACCESS_LOGIN_PATH, "http://x").searchParams.get("next") ?? "";
-    expect(afterOnboarding(await loginWithEmail(email, next))).toBe("/erken-erisim");
+    expect(await loginWithEmail(email, next)).toBe("/erken-erisim");
     expect(await earlyAccessRows(email)).toBe(1);
-    expect(afterOnboarding(await loginWithEmail(email, next))).toBe("/erken-erisim");
+    expect(await loginWithEmail(email, next)).toBe("/erken-erisim");
     expect(await earlyAccessRows(email)).toBe(1);
     await owner((client) => client.query("DELETE FROM app_user WHERE email = $1", [email]));
   });
 
   it("Admin Girişi: normal hesap /yonetim'e dönmez, yönetici döner", async () => {
     const next = new URL(ADMIN_LOGIN_PATH, "http://x").searchParams.get("next") ?? "";
-    expect(afterOnboarding(await loginWithEmail(`yakinda-user-${suffix}@test.local`, next))).toBe(
-      "/erken-erisim",
-    );
+    expect(await loginWithEmail(`yakinda-user-${suffix}@test.local`, next)).toBe("/erken-erisim");
     expect(await loginWithEmail(`yakinda-admin-${suffix}@test.local`, next)).toBe("/yonetim");
   });
 
@@ -447,6 +444,11 @@ describe("erken erişim akışı", () => {
     as("user");
     expect(await outcome(joinEarlyAccessAction)).toBe("/erken-erisim");
     expect(await outcome(joinEarlyAccessAction)).toBe("/erken-erisim");
+    // Karar 0058: ilk katılımda yayındaki onboarding formuna yönlendirilir;
+    // "Şimdilik geç" sonrası başarı ekranı kullanıcıyı bloke etmeden açılır.
+    expect(await outcome(Page)).toBe("/anket/seni-taniyalim");
+    const { skipSurveyAction } = await import("./anket/[slug]/actions.ts");
+    expect(await outcome(() => skipSurveyAction("seni-taniyalim", "link"))).toBe("/erken-erisim");
     const fresh = bodyMarkup(await Page());
     expect(fresh).toContain("Erken erişim listesine alındın.");
     expect(fresh).toContain("ManiCepte açıldığında sana haber vereceğiz.");
@@ -490,6 +492,8 @@ describe("yönlendirme ve döngü", () => {
       "/affiliate-aciklamasi",
       "/sirket-bilgileri",
       "/iletisim",
+      "/geri-bildirim",
+      "/anket/ornek-form",
       "/api/cron/cleanup-auth",
     ];
     for (const path of open) {

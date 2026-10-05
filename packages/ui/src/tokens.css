@@ -29,6 +29,16 @@
   --on-save: #ffffff;
   --warning: #8a5300;
   --alert: #a8321f;
+  /* Editoryal sayfalar (/blog, /ortakliklar): sicak zemin + teal vurgu. */
+  --warm-page: #efebe0;
+  --warm-card: #fffbf2;
+  --feature-bg: #164f64;
+  --feature-ink: #ffffff;
+  --feature-ink-muted: #cfe9ef;
+  --feature-accent: #2bd3ee;
+  --feature-line: #3b7185;
+  --teal-ink: #0a7185;
+  --teal-soft: #dff6fa;
   /* Karar 0025: --ink'in ters rolu, notr birincil eylem. */
   --accent: #16181d;
   --accent-foreground: #ffffff;
@@ -178,6 +188,11 @@
     --on-save: #0e0f11;
     --warning: #e2a64a;
     --alert: #e5705c;
+    --warm-page: #121110;
+    --warm-card: #1d1b18;
+    --feature-bg: #0f3a49;
+    --teal-ink: #5fd6ea;
+    --teal-soft: #12323b;
     --accent: #f2f3f4;
     --accent-foreground: #16181d;
     --accent-hover: #d6d9dc;

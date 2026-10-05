@@ -212,6 +212,11 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     call: async () => (await import("./katalog/teklifler/page.tsx")).default(sp({})),
   },
   {
+    name: "/yonetim/katalog/kalite",
+    admin: false,
+    call: async () => (await import("./katalog/kalite/page.tsx")).default(),
+  },
+  {
     name: "/yonetim/seo",
     admin: false,
     call: async () => (await import("./seo/page.tsx")).default(),
@@ -225,6 +230,11 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     name: "/yonetim/islemler",
     admin: true,
     call: async () => (await import("./islemler/page.tsx")).default(sp({})),
+  },
+  {
+    name: "/yonetim/islemler/isler",
+    admin: true,
+    call: async () => (await import("./islemler/isler/page.tsx")).default(sp({})),
   },
   {
     name: "/yonetim/kullanicilar",

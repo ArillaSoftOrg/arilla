@@ -8,7 +8,6 @@ import { DevSmsSender, generateRawToken, hashToken, requestPhoneLoginCode } from
 import { createDatabase, getDatabase } from "@arilla/db";
 import { NextRequest } from "next/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { afterOnboarding } from "../onboarding-test-util.ts";
 
 interface StoredCookie {
   value: string;
@@ -151,7 +150,7 @@ describe("e-posta bağlantısı: GET onay, POST tüketim", () => {
       confirmLoginAction(form({ token: raw, next: "/alarmlar?sekme=aktif" })),
     );
 
-    expect(afterOnboarding(to)).toBe("/alarmlar?sekme=aktif");
+    expect(to).toBe("/alarmlar?sekme=aktif");
     expect(await consumedAt(raw)).not.toBeNull();
     const session = state.cookies.get("session");
     expect(session?.options).toMatchObject({ httpOnly: true, sameSite: "lax", path: "/" });
@@ -182,9 +181,7 @@ describe("e-posta bağlantısı: GET onay, POST tüketim", () => {
     async (next) => {
       const raw = await insertToken();
       const { confirmLoginAction } = await import("./dogrula/actions.ts");
-      expect(
-        afterOnboarding(await redirectOf(() => confirmLoginAction(form({ token: raw, next })))),
-      ).toBe("/");
+      expect(await redirectOf(() => confirmLoginAction(form({ token: raw, next })))).toBe("/");
     },
   );
 });
@@ -231,8 +228,7 @@ describe("next çerezi (Google / Apple / telefon)", () => {
     );
 
     expect(response.status).toBe(303);
-    const target = new URL(response.headers.get("location") ?? "");
-    expect(afterOnboarding(target.pathname + target.search)).toBe("/gecmis");
+    expect(new URL(response.headers.get("location") ?? "").pathname).toBe("/gecmis");
     expect(state.cookies.has("session")).toBe(true);
     expect(state.cookies.has(AUTH_NEXT_COOKIE)).toBe(false);
   });

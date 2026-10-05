@@ -1,0 +1,220 @@
+/* Referans (390px): sicak zemin, 16px kenar, kartlar arasi ~16px, kart
+   yaricapi ~24px, gorsel 16:9, baslik ~20px bold, ozet ~16px muted,
+   alt satir avatar + yazar + 1px cerceveli hap. */
+.page {
+  background: var(--warm-page);
+  padding: var(--space-4) 0 var(--space-12);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.feed {
+  box-sizing: border-box;
+  display: grid;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: calc(var(--content-width-wide) + 2 * var(--gutter));
+  margin-inline: auto;
+  padding-inline: var(--gutter);
+}
+
+/* --- Hero --- */
+.hero {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+  border-radius: 24px;
+  color: var(--feature-ink);
+  text-align: center;
+  background: var(--feature-bg);
+}
+
+.heroImage,
+.heroScrim {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: -2;
+}
+
+.heroImage {
+  object-fit: cover;
+}
+
+.heroScrim {
+  z-index: -1;
+  background: var(--scrim);
+}
+
+.heroBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: var(--space-8) var(--space-6) var(--space-6);
+}
+
+.heroTitle {
+  margin: 0 0 var(--space-4);
+  font-size: 32px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.heroExcerpt {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-body);
+  line-height: 1.55;
+}
+
+.heroDate {
+  margin: 0 0 var(--space-4);
+  font-size: var(--text-small);
+  color: var(--feature-ink-muted);
+}
+
+.heroPill {
+  padding: var(--space-3) var(--space-6);
+  border-radius: var(--radius-pill);
+  background: var(--teal-soft);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* --- Kart --- */
+.card {
+  overflow: hidden;
+  border-radius: 24px;
+  background: var(--warm-card);
+  box-shadow: var(--shadow-xs);
+}
+
+.cardImage {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+}
+
+.cardBody {
+  display: flex;
+  flex-direction: column;
+  padding: var(--space-5) var(--space-4) var(--space-4);
+}
+
+.cardTitle {
+  margin: 0 0 var(--space-2);
+  font-size: 20px;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ink);
+}
+
+.cardExcerpt {
+  margin: 0 0 var(--space-6);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--text-body);
+  line-height: 1.5;
+  color: var(--ink-muted);
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  margin-top: auto;
+}
+
+.avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--teal-soft);
+  color: var(--teal-ink);
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-semibold);
+}
+
+.author {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  font-size: var(--text-small);
+  line-height: 1.3;
+}
+
+.authorName {
+  color: var(--ink);
+}
+
+.authorRole {
+  color: var(--ink-muted);
+}
+
+.readTime {
+  flex: none;
+  box-sizing: border-box;
+  max-width: 132px;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--ink);
+  border-radius: var(--radius-pill);
+  color: var(--ink);
+  font-size: var(--text-small);
+  line-height: 1.25;
+  text-align: center;
+}
+
+@media (min-width: 640px) {
+  .feed {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+
+  .hero {
+    grid-column: 1 / -1;
+  }
+
+  .heroBody {
+    max-width: 760px;
+    margin-inline: auto;
+    padding-block: var(--space-12);
+  }
+
+  .heroTitle {
+    font-size: 44px;
+  }
+
+  .heroExcerpt {
+    font-size: var(--text-body-lg);
+  }
+}
+
+@media (min-width: 1024px) {
+  .page {
+    padding-top: var(--space-8);
+  }
+
+  .feed {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}

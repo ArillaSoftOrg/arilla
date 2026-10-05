@@ -18,7 +18,10 @@ import argparse
 import logging
 import sys
 import time
+from collections.abc import Iterator
+from contextlib import contextmanager
 
+from db import job_run
 from db.connection import connect
 from enrich.client import EmbeddingClient, FakeEmbeddingClient, JinaEmbeddingClient
 from enrich.images import PREPROCESS_VERSION
@@ -39,6 +42,11 @@ def _report(label: str, counts: EnrichCounts, seconds: float) -> None:
     print(f"  sure             {seconds:.1f} sn")
     for error in counts.errors:
         print(f"  ! {error}")
+
+
+@contextmanager
+def _untracked() -> Iterator[job_run.JobRun]:
+    yield job_run.JobRun(job="enrich", id=None)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -69,13 +77,25 @@ def main(argv: list[str] | None = None) -> int:
         print(f"butce {budget.tokens_per_minute} token/dk, on isleme {PREPROCESS_VERSION}\n")
 
     failed = False
-    with connect() as conn:
+    embedded = 0
+    aborted = False
+    # Sahte istemciyle kosu gercek vektor uretmez: is kosusu olarak yazilmaz.
+    tracking = job_run.track("enrich") if not args.fake_client else _untracked()
+    with tracking as run, connect() as conn:
         if args.kind in ("image", "both"):
             started = time.monotonic()
             counts = embed_images(conn, client, limit=args.limit, merchant_id=args.merchant_id)
             conn.commit()
             _report("gorsel", counts, time.monotonic() - started)
             failed = failed or bool(counts.failed) or counts.aborted
+            embedded += counts.embedded
+            aborted = aborted or counts.aborted
+            run.detail.update(
+                image_considered=counts.considered,
+                image_embedded=counts.embedded,
+                image_failed=counts.failed,
+                image_tokens=counts.tokens,
+            )
 
         if args.kind in ("text", "both"):
             started = time.monotonic()
@@ -83,6 +103,19 @@ def main(argv: list[str] | None = None) -> int:
             conn.commit()
             _report("metin", counts, time.monotonic() - started)
             failed = failed or bool(counts.errors)
+            embedded += counts.embedded
+            run.detail.update(
+                text_considered=counts.considered,
+                text_embedded=counts.embedded,
+                text_errors=len(counts.errors),
+                text_tokens=counts.tokens,
+            )
+
+        if failed:
+            # Yazilanlar commit edildi; hic yazilmadan durduysa basarisiz.
+            run.status = "failed" if aborted and embedded == 0 else "partial"
+            if aborted:
+                run.error_summary = "kosu durdu (saglayici hatasi ya da butce)"
 
     if isinstance(client, JinaEmbeddingClient):
         waited = budget.waited if budget is not None else 0.0

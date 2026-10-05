@@ -39,6 +39,12 @@ export type Capability =
    */
   | "marketing.manage"
   /**
+   * `/yonetim/formlar`: form / anket olusturma, yayinlama, kapatma ve
+   * sonuclari gorme (karar 0058). Yanitlar hesaba bagli olabilir; yalnizca
+   * yonetici.
+   */
+  | "forms.manage"
+  /**
    * Kullanıcı ayrıntısının hassas sekmeleri: Aktivite, Oturumlar, Aramalar,
    * Affiliate (karar 0049 §3). Yalnızca yönetici; her görüntüleme
    * `users.view_tab` olarak denetime yazılır.
@@ -83,6 +89,8 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "product.preview",
   // Karar 0048: kullanıcılara toplu e-posta yalnızca yöneticiden.
   "marketing.manage",
+  // Karar 0058: form / anket merkezi yalnizca yoneticinin.
+  "forms.manage",
   // Karar 0049: kullanıcı aktivitesi ve tam iletişim bilgisi yalnızca yöneticinin.
   "users.activity.read",
   "users.contact.reveal",
@@ -96,6 +104,17 @@ const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {
   moderator: new Set(MODERATOR_CAPABILITIES),
   admin: new Set(ADMIN_CAPABILITIES),
 };
+
+const NO_CAPABILITIES: ReadonlySet<Capability> = new Set();
+
+/**
+ * Rolün yetenekleri (salt okunur kopya). Arayüzde bağlantı gösterim koşulu
+ * içindir (`FindingList`); yetki kararı her zaman `hasCapability`/
+ * `assertCapability` ile sunucuda verilir.
+ */
+export function capabilitiesFor(role: UserRole): ReadonlySet<Capability> {
+  return new Set(ROLE_CAPABILITIES[role] ?? NO_CAPABILITIES);
+}
 
 /** Bilinmeyen rol (ör. ileride eklenen ama buraya işlenmeyen) hiçbir yetki almaz. */
 export function hasCapability(role: UserRole, capability: Capability): boolean {

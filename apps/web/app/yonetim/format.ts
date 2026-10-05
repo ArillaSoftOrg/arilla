@@ -1,5 +1,10 @@
 /** /yonetim ekranlarının ortak gösterim yardımcıları. Saat dilimi: Türkiye. */
 
+// İstemci bileşenleri de bu dosyayı içe aktarır: core'dan yalnızca TİP ve saf
+// alt yol (`@arilla/core/cost-truth`) alınır, sunucu kodu pakete girmez.
+import type { AttentionState, PipelineStage, PipelineStageState, Severity } from "@arilla/core";
+import { type CostSummary, costState } from "@arilla/core/cost-truth";
+
 const DATE_TIME = new Intl.DateTimeFormat("tr-TR", {
   dateStyle: "short",
   timeStyle: "short",
@@ -18,6 +23,99 @@ export function formatCount(n: number): string {
 export function formatCostMicros(micros: number): string {
   const lira = micros / 1_000_000;
   return `${lira.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`;
+}
+
+/**
+ * Maliyetin dürüst gösterimi (karar 0051, core `costState`). Maliyet oranı
+ * tanımsızken yazılan çağrılar 0 maliyetlidir; "0,00 TL" gerçek harcama gibi
+ * görünmesin diye bu durumda tutar yerine "Hesaplanmadı" / "en az" yazılır.
+ */
+export function formatCost(summary: CostSummary): { value: string; note: string | null } {
+  const state = costState(summary);
+  const unpriced = `${formatCount(summary.unpricedCalls)} çağrı fiyatlanmadı (maliyet oranı tanımsız)`;
+  if (state === "unpriced") return { value: "Hesaplanmadı", note: unpriced };
+  if (state === "partial") {
+    return { value: `en az ${formatCostMicros(summary.costMicros)}`, note: unpriced };
+  }
+  return { value: formatCostMicros(summary.costMicros), note: null };
+}
+
+/** Çağrı / önbellek / birim özeti; tutardan bağımsız, her zaman gerçek. */
+export function formatUsage(summary: CostSummary): string {
+  return `${formatCount(summary.calls)} çağrı · ${formatCount(summary.cacheHits)} önbellekten · ${formatCount(summary.units)} birim`;
+}
+
+const ATTENTION_LABELS: Record<AttentionState, string> = {
+  stuck: "Takılı koşu (2 saattir sürüyor)",
+  failed: "Son koşu başarısız",
+  currency_unverified: "Para birimi doğrulanmadı (toplama reddedilir)",
+  never_ran: "Hiç toplanmadı",
+  stale: "Veri yenilenmedi (24 saatten eski)",
+};
+
+export function attentionLabel(state: AttentionState): string {
+  return ATTENTION_LABELS[state];
+}
+
+/** Boru hattı aşaması: ad, kanıtın ne olduğu ve elle çalıştırma komutu (ops.md). */
+export const PIPELINE_STAGE_INFO: Record<
+  PipelineStage,
+  { label: string; evidence: string; command: string | null }
+> = {
+  collect: {
+    label: "Veri toplama",
+    evidence: "son başarılı ya da kısmi toplama koşusu",
+    command: "python -m collect.bootstrap",
+  },
+  resolve: {
+    label: "Eşleştirme",
+    evidence: "en yeni eşleştirme adayı (yalnızca yeni çiftler iz bırakır)",
+    command: "python -m resolve",
+  },
+  prices: {
+    label: "Fiyat özeti",
+    evidence:
+      "en yeni fiyat istatistiği; ürünün teklif sayısı ve en düşük fiyatı bununla yenilenir",
+    command: "python -m similarity --prices",
+  },
+  enrich: {
+    label: "Zenginleştirme (vektör)",
+    evidence: "en yeni ürün/teklif embedding'i",
+    command: "python -m enrich",
+  },
+  edges: {
+    label: "Benzerlik kenarları",
+    evidence: "en yeni benzerlik kenarı",
+    command: "python -m similarity --edges",
+  },
+  link: {
+    label: "Link çözümleme",
+    evidence: "en son tamamlanan link isteği",
+    command: null,
+  },
+};
+
+const PIPELINE_STATE_LABELS: Record<PipelineStageState, string> = {
+  ok: "güncel",
+  behind: "geride olabilir",
+  warning: "müdahale gerekli",
+  none: "kanıt yok",
+  unknown: "okunamadı",
+};
+
+export function pipelineStateLabel(state: PipelineStageState): string {
+  return PIPELINE_STATE_LABELS[state];
+}
+
+const PIPELINE_REASON_LABELS: Record<string, string> = {
+  stuck_runs: '2 saattir "sürüyor" kalan toplama koşusu var',
+  stale_feed: "son başarılı toplama 24 saatten eski",
+  link_stuck: "10 dakikadır işlenen link isteği var",
+  link_queue_old: "10 dakikadan uzun bekleyen link isteği var",
+};
+
+export function pipelineReasonLabel(reason: string): string {
+  return PIPELINE_REASON_LABELS[reason] ?? reason;
 }
 
 const STATUS_LABELS: Record<string, string> = {
@@ -45,6 +143,9 @@ const STATUS_LABELS: Record<string, string> = {
   completed: "tamamlandı",
   partially_failed: "kısmen başarısız",
   cancelled: "iptal edildi",
+  // form (karar 0058)
+  published: "yayında",
+  closed: "kapalı",
   // marketing_campaign_delivery: "sent" = sağlayıcı kabul etti, teslim değil
   sent: "sağlayıcıya verildi",
   skipped: "atlandı",
@@ -74,6 +175,11 @@ const ACTION_LABELS: Record<string, string> = {
   "marketing.test_send": "Test e-postası gönderildi",
   "marketing.send_start": "E-posta kampanyası gönderimi başlatıldı",
   "marketing.campaign_cancel": "E-posta kampanyası iptal edildi",
+  "forms.create": "Form oluşturuldu",
+  "forms.update": "Form güncellendi",
+  "forms.publish": "Form yayınlandı",
+  "forms.close": "Form kapatıldı",
+  "forms.results_view": "Form sonuçları görüntülendi",
   "security.access_denied": "Yetkisiz yönetim erişimi reddedildi",
   "security.admin_session_ended": "Yönetim oturumu sonlandırıldı",
   "sessions.revoke_all": "Tüm oturumlar kapatıldı",
@@ -427,4 +533,137 @@ const CONVERSION_STATUS_LABELS: Record<string, string> = {
 
 export function conversionStatusLabel(value: string): string {
   return CONVERSION_STATUS_LABELS[value] ?? value;
+}
+
+const SEVERITY_LABELS: Record<Severity, string> = {
+  critical: "Kritik",
+  warning: "Uyarı",
+  unknown: "Bilinmiyor",
+  info: "Bilgi",
+  healthy: "Sağlıklı",
+};
+
+export function severityLabel(severity: Severity): string {
+  return SEVERITY_LABELS[severity];
+}
+
+// --- S2 search/dictionary ---
+
+const SEARCH_FILTER_LABELS: Record<string, string> = {
+  category: "Kategori",
+  color: "Renk",
+  price_min: "En düşük fiyat",
+  price_max: "En yüksek fiyat",
+  size: "Beden",
+  brand_include: "Marka",
+  brand_exclude: "Hariç marka",
+};
+
+/** Arama filtresi adı (`FilterPredicateName`) arayüzde Türkçe. */
+export function searchFilterLabel(name: string): string {
+  return SEARCH_FILTER_LABELS[name] ?? name;
+}
+
+/** Skor çarpanı: 3 ondalık, yoksa tire. */
+export function formatFactor(value: number | null | undefined): string {
+  return value === null || value === undefined ? "—" : value.toFixed(3);
+}
+
+const SEARCH_QUALITY_KIND_LABELS: Record<string, string> = {
+  zero: "Sonuçsuz",
+  fallback: "Yedek listeye düşen",
+  unrecognized: "Tanınmayan kelimeli",
+  frequent: "En sık",
+};
+
+export function searchQualityKindLabel(kind: string): string {
+  return SEARCH_QUALITY_KIND_LABELS[kind] ?? kind;
+}
+
+/** Arama tanısı adresi (sorgu ön dolu; isteğe bağlı ürün sorgusu). */
+export function diagnosticsHref(query: string, product?: string): string {
+  return hrefWith("/yonetim/arama/tani", { q: query, urun: product });
+}
+
+// --- S1 matching/catalog ---
+// Eşleştirme kanıtı ve katalog kalitesi (karar 0053).
+
+const IDENTIFIER_STATE_LABELS: Record<string, string> = {
+  equal: "Aynı",
+  conflict: "Çatışıyor",
+  different: "Farklı",
+  missing: "Eksik",
+};
+
+export function identifierStateLabel(state: string): string {
+  return IDENTIFIER_STATE_LABELS[state] ?? state;
+}
+
+const SIGNAL_TONE_LABELS: Record<string, string> = {
+  supports: "Destekliyor",
+  weakens: "Zayıflatıyor",
+  neutral: "Bilgi",
+};
+
+export function signalToneLabel(tone: string): string {
+  return SIGNAL_TONE_LABELS[tone] ?? tone;
+}
+
+const SCORE_POSITION_LABELS: Record<string, string> = {
+  below_queue: "kuyruk eşiğinin altında",
+  review_band: "insan onayı bandında",
+  auto_band: "otomatik kabul bandında, ama kabule uygun değil",
+};
+
+export function scorePositionLabel(position: string): string {
+  return SCORE_POSITION_LABELS[position] ?? position;
+}
+
+/** 0–1 skor, Türkçe ondalık: 0,84. */
+export function formatScore(score: number): string {
+  return score.toFixed(2).replace(".", ",");
+}
+
+// --- S3 ops/ux ---
+
+const PIPELINE_REASON_LABELS_0055: Record<string, string> = {
+  job_failed: "son iş koşusu başarısız",
+  job_stuck: '2 saattir "sürüyor" kalan iş koşusu var',
+};
+
+/** Boru hattı nedeni; 0055 nedenleri dahil (`pipelineReasonLabel`'a düşer). */
+export function pipelineReasonText(reason: string): string {
+  return PIPELINE_REASON_LABELS_0055[reason] ?? pipelineReasonLabel(reason);
+}
+
+/** "son çalıştı" (`job_run`) ya da "son kanıt" (verinin zamanı). */
+export function pipelineSourceLabel(source: "job_run" | "data"): string {
+  return source === "job_run" ? "son çalıştı (iş koşusu)" : "son kanıt (veri zamanı)";
+}
+
+const JOB_TRIGGER_LABELS: Record<string, string> = {
+  manual: "elle",
+  cron: "zamanlayıcı",
+  worker: "işçi",
+};
+
+export function jobTriggerLabel(trigger: string): string {
+  return JOB_TRIGGER_LABELS[trigger] ?? trigger;
+}
+
+/** `job_run.detail` (düz sayılar) → "anahtar 12 · diğer 3"; boşsa "—". */
+export function formatJobDetail(detail: Record<string, unknown>): string {
+  const parts = Object.entries(detail)
+    .filter(([, value]) => ["number", "boolean", "string"].includes(typeof value))
+    .slice(0, 12)
+    .map(
+      ([key, value]) => `${key} ${typeof value === "number" ? formatCount(value) : String(value)}`,
+    );
+  return parts.length > 0 ? parts.join(" · ") : "—";
+}
+
+/** `datetime-local` alanı için Türkiye saatiyle `YYYY-MM-DDTHH:mm` (UTC+3, DST yok). */
+export function toDateTimeLocalValue(date: Date | null): string {
+  if (!date) return "";
+  return new Date(date.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 16);
 }

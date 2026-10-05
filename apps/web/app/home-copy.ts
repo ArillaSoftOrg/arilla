@@ -49,6 +49,10 @@ export const HOME_COPY = {
   footerProductGroupTitle: "Ürün", // footer.product_group_title
   footerAccountGroupTitle: "Hesap", // footer.account_group_title
   footerLegalGroupTitle: "Yasal", // footer.legal_group_title
+  footerCompanyGroupTitle: "Şirket", // footer.company_group_title
+  navAbout: "Hakkında", // nav.about
+  navBlog: "Blog", // nav.blog
+  navPartners: "Ortaklıklar", // nav.partners
   navPrivacy: "Gizlilik", // nav.privacy
   navTerms: "Kullanım Koşulları", // nav.terms
   navCookies: "Çerez Politikası", // nav.cookies

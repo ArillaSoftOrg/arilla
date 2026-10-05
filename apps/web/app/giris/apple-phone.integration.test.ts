@@ -8,7 +8,6 @@ import { createDatabase } from "@arilla/db";
 import type { ReactElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
-import { afterOnboarding } from "../onboarding-test-util.ts";
 
 const state = vi.hoisted(() => ({ cookies: new Map<string, string>() }));
 
@@ -223,7 +222,7 @@ describe("Apple route'ları", () => {
       "http://localhost:3000/giris/apple/callback",
     );
     expect(response.status).toBe(303);
-    expect(afterOnboarding(location(response))).toBe("/erken-erisim");
+    expect(location(response)).toBe("/erken-erisim");
     expect(state.cookies.has("session")).toBe(true);
     expect(errors).toEqual([]);
   });
@@ -320,7 +319,7 @@ describe("telefon route'ları", () => {
     );
     const ok = await postPhone("dogrula", { code });
     // Normal kullanıcı: yönetim niyeti taşısa da başarı ekranına.
-    expect(afterOnboarding(location(ok))).toBe("/erken-erisim");
+    expect(location(ok)).toBe("/erken-erisim");
     expect(state.cookies.has("session")).toBe(true);
     // Tekrar kullanım: aynı kod ikinci kez geçmez.
     state.cookies.set("phone_login", `+90${p(3).slice(1)}`);

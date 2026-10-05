@@ -31,6 +31,7 @@ edilmeli.
 | Hesap özeti, son aktif zamanı (0049, 0036/0037) | `user_activity_summary` | Sözleşmenin ifası / meşru menfaat | Hesap silinene kadar; analitik sayaçları rıza geri alınınca NULL |
 | Çerez rızası ve aydınlatma sürümü (girişli) (0049, 0036/0037) | `user_consent` | Açık rıza (çerez); aydınlatma rıza değildir | Hesap silinene kadar (ispat) |
 | Davranışsal analitik (0049, 0036/0037) | `user_activity_event` | **Açık rıza** (analitik) | 180 gün; `query_norm` 90 gün; rıza geri alınınca silinir |
+| Arama kalitesi günlük özeti (0052, 0054) | `search_query_day` | Meşru menfaat (hizmet kalitesi); **anonim**: kullanıcı, oturum, IP yok; e-posta, telefon, adres, URL, 7+ haneli rakam içeren sorgu yazılmaz | 90 gün |
 
 0049 satırlarının tabloları migration 0036/0037 ile şemadadır. Production'a
 bu migration'lar uygulanmadan önce aydınlatma metninin bu satırları
@@ -70,9 +71,9 @@ satırdır. Kabul, ret ve geri alma bu satırlardan türetilir.
 - **Mevcut kullanıcılar için geriye dönük rıza kaydı üretilmez.**
 - **Yeni hesap varsayılanı (0059, 0044):** hesap açılırken kişiselleştirme,
   gezinme geçmişi ve anonim keşif `granted = true`, `source = 'signup_default'`
-  olarak yazılır; haftalık özet ise yalnızca ilk giriş karşılamasında kullanıcı
-  açarsa (`source = 'onboarding'`). Bu varsayılan açık rıza açısından hukuk
-  onayı bekler (0059 "Risk").
+  olarak yazılır; haftalık özet ise yalnızca onboarding anketinin son adımında
+  kullanıcı açıkça açarsa (varsayılan kapalı, ilk karar değişmez) (`source = 'onboarding'`). Geri çekme: `/hesap/gizlilik`. Bu varsayılan açık rıza
+  açısından hukuk onayı bekler (0059 "Risk").
 - Çerez kategorileri, aydınlatma sürümü ve kayıt kaynağı için gereken yeni
   alanlar ileride geriye uyumlu (additive) bir migration ile eklenir
   (0049 §6). Mevcut satırlar yeniden yazılmaz.
@@ -261,3 +262,22 @@ kurulmadı. *(Sonradan: bant 0038 ile kuruldu; tercih `cookie_consent`
 `/iletisim` sayfasında ve `/gizlilik` "Haklarınız" bölümünde soru kanalı olarak
 gösterilir. Bu, veri sorumlusu bildirimi **değildir** — "Veri sorumlusu"
 bölümü ve yukarıdaki kutucuklar tüzel kişi kurulana kadar açık kalır.
+
+**Geri bildirim notu (0045):** `/geri-bildirim` formu tür, başlık, açıklama,
+önem seviyesi ve (anonimde isteğe bağlı) e-posta toplar; girişli gönderim
+`user_id` ve hesap e-postasıyla bağlanır, hesap silinince satırlar silinir
+(`ON DELETE CASCADE`), veri indirme çıktısına dahildir. Oran sınırı IP'nin
+SHA-256 özetiyle 10 dakika tutulur. `/gizlilik` 2.4 ve `/kvkk-aydinlatma`
+"Talep/şikâyet" maddesi bu akışı kapsar. Anonim gönderimler için somut
+saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).
+
+**Anket / form notu (0058):** `/anket/<slug>` formları seçenek ve metin
+cevabı toplar. Girişli yanıt `user_id` ile hesaba bağlanır (hesap silinince
+`ON DELETE CASCADE`); anonim yanıtta kimlik ve IP yoktur (oran sınırı IP'nin
+SHA-256 özetiyle Redis'te 10 dk / 24 saat tutulur). "Şimdilik geç" yalnızca
+`form_skip` satırı bırakır. Yanıtlar yalnızca `forms.manage` (yönetici)
+yetkisiyle okunur, her sonuç görüntülemesi `forms.results_view` olarak
+denetlenir; sonuç ekranı e-posta değil hesabın public kimliğini gösterir.
+Veri indirme çıktısına dahildir. `/gizlilik` 2.5 ve `/kvkk-aydinlatma`
+"Talep/şikâyet" maddesi bu akışı kapsar. Anonim ve girişli yanıtların somut
+saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).

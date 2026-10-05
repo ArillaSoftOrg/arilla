@@ -3,6 +3,7 @@ import {
   type QueryObject,
   recordActivity,
   recordSearchAndCheckWall,
+  recordTextSearchQuality,
   resolveQuery,
   type SortMode,
   search,
@@ -10,6 +11,7 @@ import {
 import { getDatabase } from "@arilla/db";
 import { ClarificationBar, EmptyState, SortTabs } from "@arilla/ui";
 import { cookies } from "next/headers";
+import { after } from "next/server";
 import { readConsent } from "../lib/consent.ts";
 import { verifySession } from "../lib/dal.ts";
 import styles from "./ara.module.css";
@@ -33,6 +35,7 @@ export async function TextSearchResults({
   requestedSort,
   page,
   hrefFor,
+  clarificationAsked = false,
 }: {
   query: string;
   /** Konusma yolundan derlenmis sorgu; yoksa mevcut `resolveQuery` yolu. */
@@ -42,6 +45,8 @@ export async function TextSearchResults({
   requestedSort: SortMode;
   page: number;
   hrefFor: (target: { sort: SortMode; page?: number }) => string;
+  /** Konuşma planı bu aramada netleştirme sorusu sordu (arama kalitesi sayacı). */
+  clarificationAsked?: boolean;
 }) {
   const db = getDatabase();
 
@@ -66,12 +71,16 @@ export async function TextSearchResults({
   }
 
   let parsed: QueryObject;
+  let parserTier: number | null = null;
   let needsClarification = false;
   let candidateCategories: Awaited<ReturnType<typeof resolveQuery>>["candidateCategories"] = null;
   if (queryObject) {
     parsed = queryObject;
   } else {
-    ({ parsed, needsClarification, candidateCategories } = await resolveQuery(db, query));
+    ({ parsed, parserTier, needsClarification, candidateCategories } = await resolveQuery(
+      db,
+      query,
+    ));
   }
 
   const hasAnchor = parsed.anchor !== null;
@@ -111,6 +120,27 @@ export async function TextSearchResults({
     const fallback = await search(db, { ...parsed, filters: {}, sort: "balanced" }, { limit: 6 });
     items = fallback.items;
     isFallback = true;
+  }
+
+  // Karar 0054: kimliksiz günlük arama kalitesi özeti (`search_query_day`).
+  // Analitik olayı değil, rızaya bağlı değil; kişisel veri içeren sorgu core'da
+  // hiç yazılmaz. Yalnızca yeni aramanın varsayılan sekmedeki ilk sayfası
+  // sayılır (sayfa/sekme gezinmesi aynı aramayı ikinci kez saymaz). `after`:
+  // yanıt gönderildikten sonra çalışır, aramayı yavaşlatmaz; core asla fırlatmaz.
+  if (isNewSearch && page === 1 && requestedSort === "balanced") {
+    const quality = {
+      query,
+      resultCount: result.total,
+      usedFallback: isFallback && items.length > 0,
+      clarification: clarificationAsked || needsClarification,
+      // Konuşma yolu da sözlükten derlenir: kademe 2.
+      parserTier: parserTier ?? 2,
+    };
+    try {
+      after(() => recordTextSearchQuality(db, quality));
+    } catch {
+      console.error("[ara] search quality skipped");
+    }
   }
 
   const tabs = [

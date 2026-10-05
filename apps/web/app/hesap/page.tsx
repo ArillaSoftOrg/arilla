@@ -120,6 +120,12 @@ export default async function HesapPage() {
           )}
         </section>
       </div>
+
+      <p className={styles.footnote}>
+        <Link href="/hesap/gizlilik" className={styles.breadcrumbLink}>
+          Gizlilik tercihleri
+        </Link>
+      </p>
     </main>
   );
 }

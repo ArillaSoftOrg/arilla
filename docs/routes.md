@@ -63,6 +63,8 @@ SEO değerini böler hem kullanıcıyı gereksiz bir tıklamaya zorlar.
 /cerez                     Çerez politikası, envanter ve tercih formu (#tercihler)
 /abonelik-iptali           Pazarlama e-postası iptali (token'lı, girişsiz, noindex). GET değiştirmez (0048)
 /iletisim                  Geçici public e-posta (Faz 8.1) - tek kaynak legal-identity.ts
+/geri-bildirim             Geri bildirim formu; anonim ve girişli, ürün kapısı dışında (karar 0045)
+/anket/<slug>             Yayındaki form / anket; hedef kitle public, giriş ya da erken erişim; ürün kapısı dışında, noindex (karar 0058)
 /kvkk-aydinlatma           KVKK aydınlatma metni (karar 0038)
 /affiliate-aciklamasi      Affiliate açıklaması (karar 0038)
 /sirket-bilgileri          Şirket bilgileri - yalnızca doğrulanmış alanlar (karar 0038)
@@ -180,11 +182,15 @@ platform sorununu hafifletir.
 /yonetim/arama/link        link_resolution_request durumları ve hata kodları
 /yonetim/arama/gorsel      image_upload durumları (görsel gösterilmez)
 /yonetim/seo               İç SEO tanısı (Search Console değil)
-/yonetim/islemler          Partition, iş kanıtı, KVKK temizlik, maliyet (yalnızca admin)
+/yonetim/islemler          Sistem sağlığı: tüm işletim bulguları (yalnızca admin, 0055)
+/yonetim/islemler/isler    İş koşuları geçmişi, job_run (yalnızca admin, 0055)
 /yonetim/kullanicilar      Tam eşleşmeyle hesap bulma, denetimli (yalnızca admin)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
 /yonetim/kampanyalar       Pazarlama e-postası kampanyaları: taslak, test, gönderim (yalnızca admin, 0048)
 /yonetim/kampanyalar/<id> Düzenleme, önizleme, uygun alıcı sayısı, test, onaylı gönderim, durum
+/yonetim/formlar          Form / anket merkezi: liste, yeni form, aç/kapat (yalnızca admin, 0058)
+/yonetim/formlar/<id>     Düzenleme, yayın, paylaşım bağlantısı
+/yonetim/formlar/<id>/sonuclar  Özet sayılar, seçenek dağılımı, metin yanıtları
 /yonetim/trend             (ertelendi) trend_snapshot yayınlama onayı
 ```
 

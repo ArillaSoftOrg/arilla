@@ -8,7 +8,7 @@
  *   son adımında kullanıcı açıkça açarsa `granted = true` yazılır.
  * - `app_user.onboarded_at` doluysa karşılama bir daha açılmaz.
  */
-import { appUser, type Database, userConsent } from "@arilla/db";
+import { appUser, type Database, form, userConsent } from "@arilla/db";
 import { and, eq, isNull } from "drizzle-orm";
 import { ACCOUNT_CONSENT_TEXT_VERSION } from "./consent.ts";
 import type { ConsentKind } from "./types.ts";
@@ -90,4 +90,24 @@ export async function completeOnboarding(
     });
     return true;
   });
+}
+
+/**
+ * Onboarding anketinin (`form.kind = 'onboarding'`, karar 0058) bülten kararı.
+ * Anket sihirbazının SON adımı "haftalık özet"tir; bu fonksiyon yalnızca
+ * `slug` gerçekten bir onboarding formuysa `completeOnboarding`'i çağırır
+ * (başka bir formdan bülten rızası yazılamaz). Karar ilk kez yazılır;
+ * sonrası no-op'tur (`completeOnboarding`). `true` = bu çağrı yazdı.
+ */
+export async function recordOnboardingNewsletterDecision(
+  db: Pick<Database, "select" | "transaction">,
+  input: CompleteOnboardingInput & { slug: string },
+): Promise<boolean> {
+  const rows = await db
+    .select({ kind: form.kind })
+    .from(form)
+    .where(eq(form.slug, input.slug))
+    .limit(1);
+  if (rows[0]?.kind !== "onboarding") return false;
+  return completeOnboarding(db, input);
 }

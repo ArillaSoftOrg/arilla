@@ -10,6 +10,7 @@ import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { clampPageSize, isPositiveId, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import type { CostSummary } from "./cost-truth.ts";
 
 export const IMAGE_UPLOAD_STATUSES = [
   "pending",
@@ -99,10 +100,13 @@ export async function listImageUploads(
 
 export interface ImageUploadSummary {
   byStatus7d: Record<string, number>;
-  /** `api_usage.operation = 'visual_search'`, son 7 gün. */
-  embedCalls7d: number;
-  embedCacheHits7d: number;
-  embedCostMicros7d: number;
+  /** `api_usage.operation = 'visual_search'`, son 7 gün; fiyatlanmamış çağrılar ayrı. */
+  embedUsage7d: CostSummary;
+  /**
+   * Ham dosyası hâlâ depoda olup saklama süresi geçmiş yükleme. Bugün ham
+   * görsel HİÇ saklanmaz (bellekte işlenir, `object_key` yazılmaz); bu sayı
+   * yalnızca ileride saklama eklenirse çalışan bir güvenlik ağıdır, beklenen 0.
+   */
   purgeOverdue: number;
 }
 
@@ -116,8 +120,16 @@ export async function summarizeImageUploads(
       SELECT status, count(*) AS n FROM image_upload
        WHERE created_at >= now() - interval '7 days' GROUP BY status
     `);
-    const usage = await tx.execute<{ calls: string; hits: string; cost: string | null }>(sql`
-      SELECT count(*) AS calls, count(*) FILTER (WHERE cache_hit) AS hits, sum(cost_micros) AS cost
+    const usage = await tx.execute<{
+      calls: string;
+      hits: string;
+      cost: string | null;
+      units: string | null;
+      unpriced: string;
+    }>(sql`
+      SELECT count(*) AS calls, count(*) FILTER (WHERE cache_hit) AS hits, sum(cost_micros) AS cost,
+             sum(units) AS units,
+             count(*) FILTER (WHERE NOT cache_hit AND cost_micros = 0) AS unpriced
         FROM api_usage
        WHERE operation = 'visual_search' AND created_at >= now() - interval '7 days'
     `);
@@ -128,9 +140,13 @@ export async function summarizeImageUploads(
     const u = usage.rows[0];
     return {
       byStatus7d: Object.fromEntries(byStatus.rows.map((row) => [row.status, Number(row.n)])),
-      embedCalls7d: Number(u?.calls ?? 0),
-      embedCacheHits7d: Number(u?.hits ?? 0),
-      embedCostMicros7d: Number(u?.cost ?? 0),
+      embedUsage7d: {
+        costMicros: Number(u?.cost ?? 0),
+        calls: Number(u?.calls ?? 0),
+        cacheHits: Number(u?.hits ?? 0),
+        units: Number(u?.units ?? 0),
+        unpricedCalls: Number(u?.unpriced ?? 0),
+      },
       purgeOverdue: Number(overdue.rows[0]?.n ?? 0),
     };
   });
