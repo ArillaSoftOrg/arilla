@@ -84,8 +84,21 @@ export function homeFooterGroups(links: SiteSectionLinks): readonly FooterGroup[
         { label: HOME_COPY.navHistory, href: "/gecmis" },
       ],
     },
+    companyFooterGroup(),
     legalFooterGroup(),
   ];
+}
+
+/** Sirket sayfalari: urun kapaliyken de acik public editoryal sayfalar. */
+function companyFooterGroup(): FooterGroup {
+  return {
+    title: HOME_COPY.footerCompanyGroupTitle,
+    links: [
+      { label: HOME_COPY.navAbout, href: "/hakkinda" },
+      { label: HOME_COPY.navBlog, href: "/blog" },
+      { label: HOME_COPY.navPartners, href: "/ortakliklar" },
+    ],
+  };
 }
 
 /** Yasal bağlantılar: ürün kapalıyken de açık kalan tek grup. */
@@ -118,5 +131,9 @@ function legalFooterGroup(): FooterGroup {
 export function earlyAccessFooterGroups(
   entries: readonly { label: string; href: string }[],
 ): readonly FooterGroup[] {
-  return [{ title: HOME_COPY.footerAccountGroupTitle, links: entries }, legalFooterGroup()];
+  return [
+    { title: HOME_COPY.footerAccountGroupTitle, links: entries },
+    companyFooterGroup(),
+    legalFooterGroup(),
+  ];
 }

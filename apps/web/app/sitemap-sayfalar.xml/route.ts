@@ -20,6 +20,9 @@ const STATIC_PAGES = [
   "/kvkk-aydinlatma",
   "/affiliate-aciklamasi",
   "/sirket-bilgileri",
+  "/hakkinda",
+  "/blog",
+  "/ortakliklar",
 ];
 
 export async function GET(): Promise<Response> {

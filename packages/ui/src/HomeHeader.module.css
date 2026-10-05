@@ -499,3 +499,27 @@
 .mobileBrand:focus-visible {
   border-radius: var(--radius-sm);
 }
+
+/* 390px: wordmark ile hesap dugmesi ust uste binmesin; ust cubuk daha kompakt. */
+@media (max-width: 479px) {
+  .inner {
+    gap: var(--space-2);
+    min-height: 64px;
+    padding-inline: var(--space-4);
+    padding-block: var(--space-2);
+  }
+
+  .brand {
+    min-width: 0;
+    gap: var(--space-2);
+  }
+
+  .brandText {
+    font-size: 1.375rem;
+  }
+
+  .account {
+    padding-inline: var(--space-3);
+    font-size: var(--text-small);
+  }
+}
