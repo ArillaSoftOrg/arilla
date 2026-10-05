@@ -1,39 +1,41 @@
-import { getConsents } from "@arilla/core";
+import { getReferralSummary, listHistory, REWARD_AMOUNTS, readAppUrl } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { Button } from "@arilla/ui";
+import { EmptyState, ProductCard, SearchIcon } from "@arilla/ui";
 import type { Metadata } from "next";
-import { cookies } from "next/headers";
+import Link from "next/link";
 import type { CSSProperties } from "react";
-import { logoutAction } from "../cikis-actions.ts";
 import { requireUser } from "../lib/dal.ts";
-import { readThemeCookie } from "../lib/theme.ts";
-import { ThemeToggleClient } from "../theme-toggle-client.tsx";
-import { logoutAllDevicesAction } from "./actions.ts";
-import { ClearHistoryButtonClient } from "./clear-history-button-client.tsx";
-import { ConsentTogglesClient } from "./consent-toggles-client.tsx";
-import { DeleteAccountButtonClient } from "./delete-account-button-client.tsx";
-import { IncompleteFormsSection } from "./incomplete-forms-section.tsx";
+import { ManageMenuClient } from "./manage-menu-client.tsx";
 import styles from "./page.module.css";
-import { SearchRightsSection } from "./search-rights-section.tsx";
+import { ReferralLinkClient } from "./referral-link-client.tsx";
 
 export const metadata: Metadata = {
   title: "Hesabım",
   robots: { index: false, follow: false },
 };
 
+/** Ürün aramasının gerçek giriş rotası (`apps/web/app/ara`): metin kutusu + fotoğraf/bağlantı eylemleri. */
+const NEW_SEARCH_HREF = "/ara";
+const RECENTS_LIMIT = 8;
+
 /**
- * docs/pages.md "/hesap": Profil, Beden profili, Tema, İzinler, Verilerim.
- * Beden profili bu görevde yok - genel bir kategori/beden seçici arayüzü
- * gerektirir ve backlog.md E3'ün "Yap" satırında geçmiyor (rıza tercihleri,
- * veri indirme, geçmiş silme, hesap silme).
+ * `/hesap` (karar 0060): sade profil sayfası. Profil kartı, davet bonusu ve
+ * son gezilenler. Tema, izinler, veri indirme, geçmiş silme, arama hakkı
+ * sayacı ve bülten tercihi bu sayfada YOKTUR; ilgili sunucu işlevleri yerinde
+ * durur (veri indirme `/hesap/veri-indir`, geçmiş silme `/gecmis`).
  */
 export default async function HesapPage() {
   const user = await requireUser();
   const db = getDatabase();
-  const [consents, theme] = await Promise.all([
-    getConsents(db, user.id),
-    (async () => readThemeCookie((await cookies()).get("theme")?.value))(),
+  const [referral, recents] = await Promise.all([
+    getReferralSummary(db, user.id),
+    listHistory(db, user.id, RECENTS_LIMIT),
   ]);
+
+  const appUrl = readAppUrl();
+  const invitePath = `/davet/${referral.code}`;
+  const inviteUrl = appUrl ? new URL(invitePath, appUrl).toString() : invitePath;
+
   const accountLabel = user.email ?? "E-posta bağlı değil";
   const displayLabel = user.displayName?.trim() || "ManiCepte kullanıcısı";
   const avatarLabel = (displayLabel.charAt(0) || accountLabel.charAt(0) || "M").toLocaleUpperCase(
@@ -42,158 +44,88 @@ export default async function HesapPage() {
   const avatarPhotoStyle = user.avatarUrl
     ? ({ backgroundImage: `url(${JSON.stringify(user.avatarUrl)})` } satisfies CSSProperties)
     : undefined;
-  const themeLabel =
-    theme === "dark"
-      ? "Koyu tema açık."
-      : theme === "light"
-        ? "Açık tema açık."
-        : "Cihaz teması takip ediliyor.";
 
   return (
     <main className={styles.page}>
-      <header className={styles.hero}>
-        <div>
-          <p className={styles.eyebrow}>Hesabım</p>
-          <h1 className={styles.title}>Ayarlarını tek yerden yönet.</h1>
-          <p className={styles.lead}>
-            Profilini, görünüm tercihini, izinlerini ve verilerini buradan düzenleyebilirsin.
-          </p>
-        </div>
+      <nav className={styles.breadcrumb} aria-label="Konum">
+        <ol className={styles.breadcrumbList}>
+          <li>
+            <Link href="/" className={styles.breadcrumbLink}>
+              Ana sayfa
+            </Link>
+          </li>
+          <li aria-current="page">Hesabım</li>
+        </ol>
+      </nav>
 
-        <div className={styles.profileSummary}>
-          <span className={styles.avatar} aria-hidden="true">
-            {user.avatarUrl ? (
-              <span className={styles.avatarPhoto} style={avatarPhotoStyle} />
-            ) : (
-              avatarLabel
-            )}
-          </span>
-          <div className={styles.profileCopy}>
-            <span className={styles.profileLabel}>Oturum açan hesap</span>
-            <span className={styles.profileName}>{displayLabel}</span>
-            {/* 0025: telefonla ya da e-postasız Apple ile giren kullanıcıda e-posta yok. */}
-            <span className={styles.profileValue}>{accountLabel}</span>
-          </div>
+      <header className={styles.profileCard}>
+        <span className={styles.avatar} aria-hidden="true">
+          {user.avatarUrl ? (
+            <span className={styles.avatarPhoto} style={avatarPhotoStyle} />
+          ) : (
+            avatarLabel
+          )}
+        </span>
+        <div className={styles.identity}>
+          <h1 className={styles.name}>{displayLabel}</h1>
+          {/* 0025: telefonla ya da e-postasız Apple ile giren kullanıcıda e-posta yok. */}
+          <p className={styles.email}>{accountLabel}</p>
+        </div>
+        <div className={styles.profileActions}>
+          <Link href={NEW_SEARCH_HREF} className={styles.newSearch} aria-label="Yeni arama">
+            <SearchIcon size={18} />
+            <span className={styles.newSearchLabel}>Yeni arama</span>
+          </Link>
+          <ManageMenuClient />
         </div>
       </header>
 
-      <div className={styles.contentGrid}>
-        <div className={styles.mainColumn}>
-          <section className={styles.panel} aria-labelledby="hesap-profil">
-            <div className={styles.panelHeader}>
-              <h2 id="hesap-profil" className={styles.sectionTitle}>
-                Profil
-              </h2>
-              <p className={styles.sectionDescription}>
-                Giriş bilgilerin ve oturum işlemlerin. Hesaptan çıkış yaptığında tekrar giriş
-                bağlantısı veya doğrulama kodu gerekir.
-              </p>
-            </div>
-            <div className={styles.photoBlock}>
-              <span className={styles.photoPreview} aria-hidden="true">
-                {user.avatarUrl ? (
-                  <span className={styles.avatarPhoto} style={avatarPhotoStyle} />
-                ) : (
-                  avatarLabel
-                )}
-              </span>
-              <div className={styles.photoCopy}>
-                <p className={styles.photoTitle}>Profil fotoğrafı</p>
-                <p className={styles.sectionDescription}>
-                  Google ile giriş yaptıysan fotoğrafın otomatik görünür. Özel fotoğraf yükleme
-                  yakında buraya eklenecek.
-                </p>
-              </div>
-            </div>
-            <div className={styles.profileActions}>
-              {/* Düz form + server action: JavaScript olmadan da POST ile çalışır. */}
-              <form action={logoutAction}>
-                <Button type="submit" variant="secondary" shape="pill">
-                  Çıkış yap
-                </Button>
-              </form>
-              {/* Karar 0050: şüpheli girişte bütün cihazlardaki oturumları kapatır. */}
-              <form action={logoutAllDevicesAction}>
-                <Button type="submit" variant="secondary" shape="pill">
-                  Tüm cihazlardan çıkış yap
-                </Button>
-              </form>
-            </div>
-          </section>
+      <div className={styles.content}>
+        <section className={styles.card} aria-labelledby="hesap-bonus">
+          <h2 id="hesap-bonus" className={styles.cardTitle}>
+            Bonus hak kazan
+          </h2>
+          <p className={styles.cardText}>
+            Davet linkinle katılan biri ilk fotoğraf ya da bağlantı aramasını yaptığında sen{" "}
+            {REWARD_AMOUNTS.referralInviter}, o {REWARD_AMOUNTS.referralInvitee} bonus hak kazanır.
+          </p>
+          <ReferralLinkClient url={inviteUrl} />
+          <p className={styles.cardMeta}>
+            Davet ettiklerin: {referral.qualified} ödül kazandı, {referral.pending} ilk aramasını
+            bekliyor.
+          </p>
+        </section>
 
-          <SearchRightsSection userId={user.id} />
-
-          <IncompleteFormsSection userId={user.id} />
-
-          <section className={styles.panel} aria-labelledby="hesap-izinler">
-            <div className={styles.panelHeader}>
-              <h2 id="hesap-izinler" className={styles.sectionTitle}>
-                İzinler
-              </h2>
-              <p className={styles.sectionDescription}>
-                ManiCepte deneyimini kişiselleştirmek ve iletişim tercihlerini yönetmek için
-                verdiğin izinleri buradan değiştirebilirsin.
-              </p>
-            </div>
-            <ConsentTogglesClient
-              historyAndPersonalization={consents.browsing_history || consents.personalization}
-              marketingEmail={consents.marketing_email}
-              publicDiscovery={consents.public_discovery}
-            />
-          </section>
-        </div>
-
-        <aside className={styles.sideColumn} aria-label="Hesap yardımcı ayarları">
-          <section className={styles.panel} aria-labelledby="hesap-tema">
-            <div className={styles.panelHeader}>
-              <h2 id="hesap-tema" className={styles.sectionTitle}>
-                Tema
-              </h2>
-              <p className={styles.sectionDescription}>
-                Görünümü kullandığın ortama göre değiştir.
-              </p>
-            </div>
-            <div className={styles.themeRow}>
-              <p className={styles.themeState}>{themeLabel}</p>
-              <ThemeToggleClient current={theme} />
-            </div>
-          </section>
-
-          <section className={styles.panel} aria-labelledby="hesap-veriler">
-            <div className={styles.panelHeader}>
-              <h2 id="hesap-veriler" className={styles.sectionTitle}>
-                Verilerim
-              </h2>
-              <p className={styles.sectionDescription}>
-                Hesap verilerinin bir kopyasını JSON formatında indirebilirsin.
-              </p>
-            </div>
-            <div className={styles.dataActions}>
-              <a href="/hesap/veri-indir" className={styles.downloadLink}>
-                Verilerimi indir
-              </a>
-            </div>
-          </section>
-
-          <section
-            className={`${styles.panel} ${styles.dangerPanel}`}
-            aria-labelledby="hesap-tehlikeli"
-          >
-            <div className={styles.panelHeader}>
-              <h2 id="hesap-tehlikeli" className={styles.sectionTitle}>
-                Veri ve hesap işlemleri
-              </h2>
-              <p className={styles.sectionDescription}>
-                Geçmişini silebilir veya hesabını kapatabilirsin. Hesap silme işlemi geri alınamaz.
-              </p>
-            </div>
-            <div className={styles.dangerActions}>
-              <ClearHistoryButtonClient />
-              <DeleteAccountButtonClient />
-            </div>
-          </section>
-        </aside>
+        <section className={styles.recents} aria-labelledby="hesap-son">
+          <h2 id="hesap-son" className={styles.cardTitle}>
+            Son baktıkların
+          </h2>
+          {recents.length === 0 ? (
+            <EmptyState title="Henüz bakılan ürün yok." />
+          ) : (
+            <ul className={styles.recentList}>
+              {recents.map((item) => (
+                <li key={item.productId} className={styles.recentItem}>
+                  <ProductCard
+                    href={`/urun/${item.slug}`}
+                    title={item.title}
+                    imageUrl={item.primaryImageUrl}
+                    minPrice={item.minPrice}
+                    offerCount={item.offerCount}
+                    offerCountLabel={(count) => `${count} mağaza`}
+                  />
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
       </div>
+
+      <p className={styles.footnote}>
+        <Link href="/hesap/gizlilik" className={styles.breadcrumbLink}>
+          Gizlilik tercihleri
+        </Link>
+      </p>
     </main>
   );
 }

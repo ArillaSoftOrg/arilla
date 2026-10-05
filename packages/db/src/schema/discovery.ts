@@ -53,7 +53,9 @@ export type UserConsentSource =
   | "cookie_banner"
   | "cookie_sync"
   | "sign_in"
-  | "unsubscribe_link";
+  | "unsubscribe_link"
+  | "signup_default"
+  | "onboarding";
 
 /**
  * KVKK riza kayitlari. Neye, ne zaman riza verildi. Gecmis tablosu: kod

@@ -1,4 +1,4 @@
-import { getFormForViewer, getFormMeta } from "@arilla/core";
+import { getFormForViewer, getFormMeta, needsOnboarding } from "@arilla/core";
 import { loginPathWithNext } from "@arilla/core/auth-redirect";
 import { getDatabase } from "@arilla/db";
 import type { Metadata } from "next";
@@ -132,6 +132,11 @@ export default async function SurveyPage({
     case "open": {
       const { form } = view;
       const canSkip = form.allowSkip && user !== null;
+      // Onboarding'in son adımı: yalnızca ilk karar henüz yoksa (karar 0060).
+      const askNewsletter =
+        form.kind === "onboarding" &&
+        user !== null &&
+        (await needsOnboarding(getDatabase(), user.id));
       const backToEarlyAccess = form.kind === "onboarding" && hint !== "account";
       return (
         <Shell slug={slug}>
@@ -144,6 +149,7 @@ export default async function SurveyPage({
             signedIn={user !== null}
             hint={hint}
             questions={form.questions}
+            newsletter={askNewsletter && user ? { email: user.email } : null}
             successHref={hint === "account" ? "/hesap" : backToEarlyAccess ? "/erken-erisim" : "/"}
             successLabel={
               hint === "account"

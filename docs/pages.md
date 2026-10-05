@@ -184,15 +184,16 @@ yönlendirmesi gösterilir.
 
 ## `/hesap`
 
+Karar 0060: sade profil sayfası. Tema, İzinler ve Verilerim bölümleri yoktur.
+
 | Bölüm | İçerik |
 | --- | --- |
-| Profil | E-posta, görünen ad |
-| Beden profili | Kategori başına beden |
-| Tema | Sistem / açık / koyu |
-| İzinler | Gezinme geçmişi, kişiselleştirme, ticari e-posta, keşfet akışı |
-| Verilerim | İndir (JSON), gezinme geçmişini sil, hesabı sil |
+| Profil kartı | Avatar, ad, e-posta, "Yeni arama" (`/ara`), "Yönet" menüsü (Hesabı sil, Çıkış yap) |
+| Bonus hak kazan | Davet linki, "Linki kopyala", davet sayaçları |
+| Son baktıkların | Gezinme geçmişinden son ürünler; boşsa boş durum |
 
-Silme akışı gerçekten çalışmalıdır. Onay adımı vardır ama geri alınamaz olduğu
+Gizlilik tercihleri (geri çekme) `/hesap/gizlilik` sayfasındadır. Tema yalnızca sistem tercihidir. Haftalık özet tercihi onboarding anketinin (0058)
+son adımındadır, varsayılan kapalı. Silme akışı gerçekten çalışmalıdır. Onay adımı vardır ama geri alınamaz olduğu
 açıkça yazılır.
 
 ---

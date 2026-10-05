@@ -411,7 +411,9 @@ CREATE TABLE app_user (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_seen_at  TIMESTAMPTZ,
     -- 0034 (0047): davet kodu, ilk istendiginde uretilir.
-    referral_code TEXT CHECK (referral_code IS NULL OR referral_code ~ '^[A-HJ-NP-Z2-9]{8}$')
+    referral_code TEXT CHECK (referral_code IS NULL OR referral_code ~ '^[A-HJ-NP-Z2-9]{8}$'),
+    -- 0045 (0060): karsilama akisi tamamlandi/atlandi. NULL = henuz gosterilmedi; mevcut hesaplar created_at ile dolduruldu.
+    onboarded_at  TIMESTAMPTZ
 );
 CREATE INDEX app_user_role_idx ON app_user (role) WHERE role <> 'user';
 CREATE UNIQUE INDEX app_user_referral_code_unique ON app_user (referral_code) WHERE referral_code IS NOT NULL;
@@ -1150,7 +1152,8 @@ CREATE TABLE user_consent (
     -- 0037 (docs/decisions/0049): kaynak ve metin sürümü. 0037 öncesi
     -- satırlarda NULL ("sürümsüz kayıt"); bu satırlar geçerlidir.
     source       TEXT        CHECK (source IS NULL OR source IN (
-                     'account_settings','cookie_banner','cookie_sync','sign_in','unsubscribe_link')),
+                     'account_settings','cookie_banner','cookie_sync','sign_in','unsubscribe_link',
+                     'signup_default','onboarding')), -- 0045
     text_version TEXT        CHECK (text_version IS NULL OR char_length(text_version) BETWEEN 1 AND 64)
 );
 CREATE INDEX user_consent_idx ON user_consent (user_id, kind, granted_at DESC);

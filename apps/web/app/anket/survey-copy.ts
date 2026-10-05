@@ -51,6 +51,13 @@ export const SURVEY_COPY = {
   rateLimited: "Kısa sürede çok fazla gönderim yaptın. Birkaç dakika sonra tekrar dene.", // survey.error_rate_limited
   unavailable: "Yanıtını şu an kaydedemedik. Biraz sonra tekrar dene.", // survey.error_unavailable
   network: "Bağlantı kurulamadı. İnternet bağlantını kontrol edip tekrar dene.", // survey.error_network
+  // Onboarding'in son adımı (karar 0060): haftalık özet, varsayılan KAPALI
+  newsletterTitle: "Gelişmelerden haberdar ol.", // survey.newsletter_title
+  newsletterBody:
+    "Haftalık ManiCepte fırsatlarını, önemli ürün güncellemelerini ve yeni özellik haberlerini e-postanla alabilirsin. İstediğin zaman abonelikten çıkabilirsin.", // survey.newsletter_body
+  newsletterEmailLabel: "E-posta", // survey.newsletter_email
+  newsletterNoEmail: "Hesabında e-posta adresi yok; haftalık özet gönderilemez.", // survey.newsletter_no_email
+  newsletterToggle: "Haftalık fırsat özetini bana e-posta ile gönder.", // survey.newsletter_toggle
   sessionExpired:
     "Oturumun sona ermiş. Yanıtın hesabınla ilişkilendirilmesi için tekrar giriş yap.", // survey.error_session_expired
 } as const;

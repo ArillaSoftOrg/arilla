@@ -1,11 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { readAppUrl } from "@arilla/core";
 import { ConsentProvider } from "./cookie-consent-client.tsx";
 import { readConsent } from "./lib/consent.ts";
-import { readThemeCookie } from "./lib/theme.ts";
 import { SITE_BRAND } from "./site-config.ts";
 
 /**
@@ -44,13 +42,11 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const store = await cookies();
-  const theme = readThemeCookie(store.get("theme")?.value);
   // Karar 0038: tercih sunucuda okunur; banner ilk HTML'de gelir, yanip sonmez.
   const consent = await readConsent();
 
   return (
-    <html lang="tr" data-theme={theme ?? undefined}>
+    <html lang="tr">
       <body>
         <ConsentProvider consent={consent}>{children}</ConsentProvider>
       </body>
