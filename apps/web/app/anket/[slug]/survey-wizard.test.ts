@@ -10,6 +10,7 @@ import {
   progressPercent,
   sameValues,
   shouldAutoAdvance,
+  showSkipAction,
   toggleValue,
   type WizardQuestion,
 } from "./survey-wizard.ts";
@@ -116,5 +117,21 @@ describe("sunucu doğrulama hatası", () => {
     expect(sameValues(["a"], ["b"])).toBe(false);
     expect(sameValues(undefined, [])).toBe(true);
     expect(sameValues(["a", "b"], ["a"])).toBe(false);
+  });
+});
+
+describe("şimdilik geç", () => {
+  it("gönderim tamamlanmadan görünür, başarıdan sonra görünmez", () => {
+    for (const status of [
+      "idle",
+      "invalid",
+      "rate_limited",
+      "unavailable",
+      "network_error",
+      "session_expired",
+    ]) {
+      expect(showSkipAction(status)).toBe(true);
+    }
+    expect(showSkipAction("ok")).toBe(false);
   });
 });

@@ -152,14 +152,16 @@ export default async function SurveyPage({
                   ? COPY.backEarlyAccess
                   : COPY.backHome
             }
+            skipAction={
+              canSkip ? (
+                <form action={skipSurveyAction.bind(null, slug, hint)} className={styles.skipForm}>
+                  <button type="submit" className={styles.skipButton}>
+                    {COPY.skip}
+                  </button>
+                </form>
+              ) : null
+            }
           />
-          {canSkip ? (
-            <form action={skipSurveyAction.bind(null, slug, hint)} className={styles.skipForm}>
-              <button type="submit" className={styles.skipButton}>
-                {COPY.skip}
-              </button>
-            </form>
-          ) : null}
         </Shell>
       );
     }
