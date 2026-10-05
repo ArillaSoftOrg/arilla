@@ -91,6 +91,14 @@ export function toggleValue(current: readonly string[], value: string, checked: 
   return checked ? [...without, value] : without;
 }
 
+/**
+ * "Şimdilik geç" yalnızca anket tamamlanmadan gösterilir; başarılı gönderimden
+ * sonra atlanacak bir şey kalmaz.
+ */
+export function showSkipAction(status: string): boolean {
+  return status !== "ok";
+}
+
 /** İlerleme çubuğu yüzdesi: 1. soru = 1/N. */
 export function progressPercent(index: number, total: number): number {
   if (total <= 0) return 0;

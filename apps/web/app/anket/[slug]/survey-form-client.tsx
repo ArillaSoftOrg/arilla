@@ -26,6 +26,7 @@ import {
   progressPercent,
   sameValues,
   shouldAutoAdvance,
+  showSkipAction,
   toggleValue,
 } from "./survey-wizard.ts";
 
@@ -121,6 +122,7 @@ export function SurveyFormClient({
   questions,
   successHref,
   successLabel,
+  skipAction,
 }: {
   slug: string;
   signedIn: boolean;
@@ -128,6 +130,8 @@ export function SurveyFormClient({
   questions: SurveyQuestion[];
   successHref: string;
   successLabel: string;
+  /** Sunucuda kurulan "Şimdilik geç" formu; formun dışında, yalnızca tamamlanmadan çizilir. */
+  skipAction?: ReactNode;
 }) {
   const [state, action, pending] = useActionState(
     async (_prev: FormState, formData: FormData): Promise<FormState> => {
@@ -159,6 +163,7 @@ export function SurveyFormClient({
   const { result, values } = state;
   const fieldErrors = result.status === "invalid" ? result.fieldErrors : {};
   const alertText = formMessage(result);
+  const skip = showSkipAction(result.status) ? skipAction : null;
 
   const clearPending = useCallback(() => {
     if (advanceTimer.current !== null) {
@@ -280,243 +285,255 @@ export function SurveyFormClient({
   const showAlert = Boolean(alertText) && (last || firstErrorStep(questions, fieldErrors) === step);
 
   return (
-    <form
-      action={action}
-      className={styles.form}
-      aria-busy={pending || undefined}
-      aria-describedby={showAlert ? `${baseId}-alert` : undefined}
-      onKeyDown={onFormKeyDown}
-    >
-      <p className={styles.authNotice}>{signedIn ? COPY.authNotice : COPY.anonymousNotice}</p>
+    <>
+      <form
+        action={action}
+        className={styles.form}
+        aria-busy={pending || undefined}
+        aria-describedby={showAlert ? `${baseId}-alert` : undefined}
+        onKeyDown={onFormKeyDown}
+      >
+        <p className={styles.authNotice}>{signedIn ? COPY.authNotice : COPY.anonymousNotice}</p>
 
-      {showProgress ? (
-        <div className={styles.progress}>
-          <p className={styles.progressText}>{COPY.stepOf(step + 1, total)}</p>
-          <div
-            className={styles.progressTrack}
-            role="progressbar"
-            aria-label={COPY.progressLabel}
-            aria-valuemin={1}
-            aria-valuemax={total}
-            aria-valuenow={step + 1}
-            aria-valuetext={COPY.stepOf(step + 1, total)}
-          >
+        {showProgress ? (
+          <div className={styles.progress}>
+            <p className={styles.progressText}>{COPY.stepOf(step + 1, total)}</p>
             <div
-              className={styles.progressFill}
-              style={{ width: `${progressPercent(step, total)}%` }}
-            />
+              className={styles.progressTrack}
+              role="progressbar"
+              aria-label={COPY.progressLabel}
+              aria-valuemin={1}
+              aria-valuemax={total}
+              aria-valuenow={step + 1}
+              aria-valuetext={COPY.stepOf(step + 1, total)}
+            >
+              <div
+                className={styles.progressFill}
+                style={{ width: `${progressPercent(step, total)}%` }}
+              />
+            </div>
           </div>
-        </div>
-      ) : null}
+        ) : null}
 
-      {/* Ekran okuyucuya adım değişimi: yalnızca değişimde okunur. */}
-      <p className={styles.srOnly} role="status" aria-live="polite">
-        {current ? `${COPY.stepOf(step + 1, total)}: ${current.label}` : ""}
-      </p>
+        {/* Ekran okuyucuya adım değişimi: yalnızca değişimde okunur. */}
+        <p className={styles.srOnly} role="status" aria-live="polite">
+          {current ? `${COPY.stepOf(step + 1, total)}: ${current.label}` : ""}
+        </p>
 
-      {questions.map((question, index) => {
-        const name = fieldName(question.id);
-        const given = answers[name] ?? [];
+        {questions.map((question, index) => {
+          const name = fieldName(question.id);
+          const given = answers[name] ?? [];
 
-        // Görünmeyen sorular: cevapları gizli alan olarak forma yazılır (FormData eskisiyle aynı).
-        if (index !== step) {
-          if (isChoice(question.type)) {
-            return given.map((value) => (
-              <input key={`${name}-${value}`} type="hidden" name={name} value={value} />
-            ));
+          // Görünmeyen sorular: cevapları gizli alan olarak forma yazılır (FormData eskisiyle aynı).
+          if (index !== step) {
+            if (isChoice(question.type)) {
+              return given.map((value) => (
+                <input key={`${name}-${value}`} type="hidden" name={name} value={value} />
+              ));
+            }
+            return <input key={name} type="hidden" name={name} value={given[0] ?? ""} />;
           }
-          return <input key={name} type="hidden" name={name} value={given[0] ?? ""} />;
-        }
 
-        const serverError = sameValues(values[name], given)
-          ? fieldMessage(fieldErrors[question.id])
-          : undefined;
-        const error = blockedId === question.id ? COPY.errorRequired : serverError;
-        const errorId = `${baseId}-${question.id}-error`;
-        const optional = question.required ? "" : ` ${COPY.optional}`;
+          const serverError = sameValues(values[name], given)
+            ? fieldMessage(fieldErrors[question.id])
+            : undefined;
+          const error = blockedId === question.id ? COPY.errorRequired : serverError;
+          const errorId = `${baseId}-${question.id}-error`;
+          const optional = question.required ? "" : ` ${COPY.optional}`;
 
-        let control: ReactNode;
-        if (isChoice(question.type)) {
-          const multiple = question.type === "multiple_choice";
-          control = (
-            <fieldset className={styles.fieldset} aria-describedby={error ? errorId : undefined}>
-              <legend className={styles.legend}>
-                {question.label}
-                {optional}
-              </legend>
-              {question.description ? <p className={styles.hint}>{question.description}</p> : null}
-              <div className={styles.choices}>
-                {question.options.map((option) => {
-                  const value = String(option.id);
-                  return (
-                    <label
-                      key={option.id}
-                      className={styles.choice}
-                      onPointerDown={() => {
-                        pointerAt.current = Date.now();
-                      }}
-                    >
-                      <input
-                        type={multiple ? "checkbox" : "radio"}
-                        name={name}
-                        value={value}
-                        required={question.required && !multiple}
-                        checked={given.includes(value)}
-                        aria-invalid={error ? true : undefined}
-                        className={styles.choiceInput}
-                        onKeyDown={(event) => {
-                          if (event.key === " ") keyAt.current = Date.now();
+          let control: ReactNode;
+          if (isChoice(question.type)) {
+            const multiple = question.type === "multiple_choice";
+            control = (
+              <fieldset className={styles.fieldset} aria-describedby={error ? errorId : undefined}>
+                <legend className={styles.legend}>
+                  {question.label}
+                  {optional}
+                </legend>
+                {question.description ? (
+                  <p className={styles.hint}>{question.description}</p>
+                ) : null}
+                <div className={styles.choices}>
+                  {question.options.map((option) => {
+                    const value = String(option.id);
+                    return (
+                      <label
+                        key={option.id}
+                        className={styles.choice}
+                        onPointerDown={() => {
+                          pointerAt.current = Date.now();
                         }}
-                        onChange={(event) =>
-                          setAnswer(
-                            name,
-                            multiple
-                              ? toggleValue(given, value, event.currentTarget.checked)
-                              : [value],
-                          )
-                        }
-                        // Aynı seçeneğe geri dönüp yeniden tıklamak `change` üretmez; geçiş `click`'te.
-                        onClick={() => (multiple ? undefined : maybeAutoAdvance(question))}
-                      />
-                      <span className={styles.choiceLabel}>{option.label}</span>
-                    </label>
-                  );
-                })}
-              </div>
-              {error ? (
-                <p id={errorId} role="alert" className={styles.errorText}>
-                  {error}
-                </p>
-              ) : null}
-            </fieldset>
-          );
-        } else if (question.type === "short_text") {
-          control = (
-            <Input
-              label={question.required ? question.label : `${question.label} ${COPY.optional}`}
-              name={name}
-              type="text"
-              required={question.required}
-              maxLength={500}
-              autoComplete="off"
-              {...(question.description ? { hint: question.description } : {})}
-              value={given[0] ?? ""}
-              onChange={(event) => setAnswer(name, [event.currentTarget.value])}
-              {...(error ? { error } : {})}
-            />
-          );
-        } else {
-          const textareaId = `${baseId}-${question.id}`;
-          const hintId = `${textareaId}-hint`;
-          control = (
-            <div className={styles.field}>
-              <label className={styles.label} htmlFor={textareaId}>
-                {question.label}
-                {optional}
-              </label>
-              {question.description ? (
-                <p id={hintId} className={styles.hint}>
-                  {question.description}
-                </p>
-              ) : null}
-              <textarea
-                id={textareaId}
+                      >
+                        <input
+                          type={multiple ? "checkbox" : "radio"}
+                          name={name}
+                          value={value}
+                          required={question.required && !multiple}
+                          checked={given.includes(value)}
+                          aria-invalid={error ? true : undefined}
+                          className={styles.choiceInput}
+                          onKeyDown={(event) => {
+                            if (event.key === " ") keyAt.current = Date.now();
+                          }}
+                          onChange={(event) =>
+                            setAnswer(
+                              name,
+                              multiple
+                                ? toggleValue(given, value, event.currentTarget.checked)
+                                : [value],
+                            )
+                          }
+                          // Aynı seçeneğe geri dönüp yeniden tıklamak `change` üretmez; geçiş `click`'te.
+                          onClick={() => (multiple ? undefined : maybeAutoAdvance(question))}
+                        />
+                        <span className={styles.choiceLabel}>{option.label}</span>
+                      </label>
+                    );
+                  })}
+                </div>
+                {error ? (
+                  <p id={errorId} role="alert" className={styles.errorText}>
+                    {error}
+                  </p>
+                ) : null}
+              </fieldset>
+            );
+          } else if (question.type === "short_text") {
+            control = (
+              <Input
+                label={question.required ? question.label : `${question.label} ${COPY.optional}`}
                 name={name}
+                type="text"
                 required={question.required}
-                maxLength={5000}
-                rows={5}
+                maxLength={500}
+                autoComplete="off"
+                {...(question.description ? { hint: question.description } : {})}
                 value={given[0] ?? ""}
                 onChange={(event) => setAnswer(name, [event.currentTarget.value])}
-                aria-invalid={error ? true : undefined}
-                aria-describedby={
-                  [question.description ? hintId : null, error ? errorId : null]
-                    .filter(Boolean)
-                    .join(" ") || undefined
-                }
-                className={styles.textarea}
+                {...(error ? { error } : {})}
               />
-              {error ? (
-                <p id={errorId} role="alert" className={styles.errorText}>
-                  {error}
-                </p>
-              ) : null}
+            );
+          } else {
+            const textareaId = `${baseId}-${question.id}`;
+            const hintId = `${textareaId}-hint`;
+            control = (
+              <div className={styles.field}>
+                <label className={styles.label} htmlFor={textareaId}>
+                  {question.label}
+                  {optional}
+                </label>
+                {question.description ? (
+                  <p id={hintId} className={styles.hint}>
+                    {question.description}
+                  </p>
+                ) : null}
+                <textarea
+                  id={textareaId}
+                  name={name}
+                  required={question.required}
+                  maxLength={5000}
+                  rows={5}
+                  value={given[0] ?? ""}
+                  onChange={(event) => setAnswer(name, [event.currentTarget.value])}
+                  aria-invalid={error ? true : undefined}
+                  aria-describedby={
+                    [question.description ? hintId : null, error ? errorId : null]
+                      .filter(Boolean)
+                      .join(" ") || undefined
+                  }
+                  className={styles.textarea}
+                />
+                {error ? (
+                  <p id={errorId} role="alert" className={styles.errorText}>
+                    {error}
+                  </p>
+                ) : null}
+              </div>
+            );
+          }
+
+          return (
+            <div
+              // `key`: adım değişince kap yeniden kurulur ve geçiş animasyonu bir kez çalışır.
+              key={`step-${question.id}`}
+              ref={stepRef}
+              tabIndex={-1}
+              className={`${styles.step} ${stepAnimation}`}
+            >
+              {control}
             </div>
           );
-        }
+        })}
 
-        return (
-          <div
-            // `key`: adım değişince kap yeniden kurulur ve geçiş animasyonu bir kez çalışır.
-            key={`step-${question.id}`}
-            ref={stepRef}
+        {showAlert ? (
+          <p
+            id={`${baseId}-alert`}
+            ref={alertRef}
+            role="alert"
             tabIndex={-1}
-            className={`${styles.step} ${stepAnimation}`}
+            className={styles.alert}
           >
-            {control}
-          </div>
-        );
-      })}
+            {alertText}
+            {result.status === "session_expired" ? (
+              <>
+                {" "}
+                <a href={loginPathWithNext(`/anket/${slug}`)}>{COPY.loginCta}</a>
+              </>
+            ) : null}
+          </p>
+        ) : null}
 
-      {showAlert ? (
-        <p
-          id={`${baseId}-alert`}
-          ref={alertRef}
-          role="alert"
-          tabIndex={-1}
-          className={styles.alert}
-        >
-          {alertText}
-          {result.status === "session_expired" ? (
-            <>
-              {" "}
-              <a href={loginPathWithNext(`/anket/${slug}`)}>{COPY.loginCta}</a>
-            </>
-          ) : null}
-        </p>
-      ) : null}
-
-      <div className={styles.wizardActions}>
-        {step > 0 ? (
-          <Button
-            key="back"
-            type="button"
-            variant="secondary"
-            size="lg"
-            shape="pill"
-            disabled={pending}
-            onClick={() => goTo(step - 1)}
-          >
-            {COPY.back}
-          </Button>
-        ) : (
-          <span />
-        )}
-        {/*
+        <div className={styles.wizardActions}>
+          {step > 0 ? (
+            <Button
+              key="back"
+              type="button"
+              variant="secondary"
+              size="lg"
+              shape="pill"
+              disabled={pending}
+              onClick={() => goTo(step - 1)}
+            >
+              {COPY.back}
+            </Button>
+          ) : (
+            <span />
+          )}
+          {/*
           `key`: İleri (type=button) ile Tamamla (type=submit) AYNI DOM düğmesi olmamalı.
           Aksi halde son-bir-önceki adımda İleri tıklaması düğmeyi tıklama bitmeden
           `submit`'e çevirir ve tarayıcı formu erken gönderir.
         */}
-        {last ? (
-          <Button
-            key="finish"
-            type="submit"
-            variant="accent"
-            size="lg"
-            shape="pill"
-            disabled={pending}
-          >
-            {pending ? COPY.submitting : COPY.finish}
-          </Button>
-        ) : (
-          <Button key="next" type="button" variant="accent" size="lg" shape="pill" onClick={goNext}>
-            {COPY.next}
-          </Button>
-        )}
-      </div>
+          {last ? (
+            <Button
+              key="finish"
+              type="submit"
+              variant="accent"
+              size="lg"
+              shape="pill"
+              disabled={pending}
+            >
+              {pending ? COPY.submitting : COPY.finish}
+            </Button>
+          ) : (
+            <Button
+              key="next"
+              type="button"
+              variant="accent"
+              size="lg"
+              shape="pill"
+              onClick={goNext}
+            >
+              {COPY.next}
+            </Button>
+          )}
+        </div>
 
-      <p className={styles.privacyNote}>
-        {COPY.privacyNote} <a href="/gizlilik">{COPY.privacyLink}</a> {COPY.privacyNoteEnd}
-      </p>
-    </form>
+        <p className={styles.privacyNote}>
+          {COPY.privacyNote} <a href="/gizlilik">{COPY.privacyLink}</a> {COPY.privacyNoteEnd}
+        </p>
+      </form>
+      {skip}
+    </>
   );
 }
