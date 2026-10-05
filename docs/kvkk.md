@@ -68,6 +68,11 @@ satırdır. Kabul, ret ve geri alma bu satırlardan türetilir.
   satırlar geçersiz sayılmaz, durumu değiştirmez. Yönetim ekranında
   yalnızca "sürümsüz kayıt" etiketiyle gösterilir.
 - **Mevcut kullanıcılar için geriye dönük rıza kaydı üretilmez.**
+- **Yeni hesap varsayılanı (0059, 0044):** hesap açılırken kişiselleştirme,
+  gezinme geçmişi ve anonim keşif `granted = true`, `source = 'signup_default'`
+  olarak yazılır; haftalık özet ise yalnızca ilk giriş karşılamasında kullanıcı
+  açarsa (`source = 'onboarding'`). Bu varsayılan açık rıza açısından hukuk
+  onayı bekler (0059 "Risk").
 - Çerez kategorileri, aydınlatma sürümü ve kayıt kaynağı için gereken yeni
   alanlar ileride geriye uyumlu (additive) bir migration ile eklenir
   (0049 §6). Mevcut satırlar yeniden yazılmaz.

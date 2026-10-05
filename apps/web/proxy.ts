@@ -15,7 +15,7 @@ import { ADMIN_PATH_HEADER } from "./app/lib/admin-path-header.ts";
 /** `/yonetim/giris` yönetim kabuğunun (ve yetki kapısının) DIŞINDA çizilir. */
 const ADMIN_LOGIN_PAGE = "/giris/yonetim";
 
-const USER_ROUTE_PREFIXES = ["/hesap", "/kaydettiklerim", "/alarmlar", "/gecmis"];
+const USER_ROUTE_PREFIXES = ["/hesap", "/hos-geldin", "/kaydettiklerim", "/alarmlar", "/gecmis"];
 
 /**
  * `middleware.ts` DEĞİL - Next 16'da bu dosya adı deprecated, `proxy.ts`
@@ -117,6 +117,7 @@ export const config = {
   matcher: [
     "/yonetim/:path*",
     "/hesap/:path*",
+    "/hos-geldin",
     "/ara/:path*",
     "/urun/:path*",
     "/kesfet",

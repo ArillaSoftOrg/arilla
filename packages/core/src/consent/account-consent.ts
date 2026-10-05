@@ -40,7 +40,7 @@ export const COOKIE_CONSENT_TEXT_VERSION = `cookie-v${CONSENT_VERSION}`;
  * sürümü. `apps/web/app/legal-identity-block.tsx` `LEGAL_EFFECTIVE_LABEL`
  * ile aynı tarih; metin değişince ikisi birlikte güncellenir.
  */
-export const PRIVACY_NOTICE_VERSION = "2026-09-26";
+export const PRIVACY_NOTICE_VERSION = "2026-10-03";
 
 export const COOKIE_CONSENT_KIND: Readonly<Record<OptionalConsentCategory, CookieConsentKind>> = {
   functional: "cookie_functional",

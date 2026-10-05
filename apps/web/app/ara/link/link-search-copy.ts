@@ -9,14 +9,14 @@ export const LINK_SEARCH_COPY = {
   pendingDescription:
     "Sayfadaki ürün bilgilerini okuyup kataloğumuzda benzerlerini arıyoruz. Bu birkaç saniye sürebilir.",
   resultsTitle: "Bu ürüne benzer sonuçlar",
-  sameTitle: "Bu ürün Arilla'da da var",
+  sameTitle: `Bu ürün ${SITE_BRAND}'de de var`,
   sameEvidence: {
     gtin: "Barkod eşleşmesiyle bulundu",
     mpn: "Marka ve üretici kodu eşleşmesiyle bulundu",
   },
   similarTitle: "Benzer ürünler",
   sourceLabel: "İncelediğin ürün",
-  sourceNote: "Bu ürün başka bir sitede. Aşağıdakiler Arilla kataloğundan.",
+  sourceNote: `Bu ürün başka bir sitede. Aşağıdakiler ${SITE_BRAND} kataloğundan.`,
   sourceOpen: "Mağazada aç",
   signalsImage: "Görsel ve ürün bilgisine göre sıralandı.",
   signalsText: "Ürün görseli okunamadı; ürün adına ve markasına göre sıralandı.",
@@ -125,3 +125,4 @@ export function linkFailureCopy(code: string): FailureCopy {
     }
   );
 }
+import { SITE_BRAND } from "../../site-config.ts";

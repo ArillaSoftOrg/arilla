@@ -2,7 +2,6 @@
 
 import {
   loginPathWithNext,
-  postAuthRedirect,
   requestContextFromHeaders,
   safeRedirectPath,
   TokenAlreadyUsedError,
@@ -16,6 +15,7 @@ import { redirect } from "next/navigation";
 import { clientIp } from "../../lib/client-ip.ts";
 import { setSessionCookie } from "../../lib/session-cookie.ts";
 import { syncConsentAfterSignIn } from "../consent-sync.ts";
+import { postSignInDestination } from "../post-sign-in.ts";
 import { settleReferralAfterSignIn } from "../referral-cookie.ts";
 
 function loginErrorPath(error: "expired" | "used", next: string): string {
@@ -57,7 +57,7 @@ export async function confirmLoginAction(formData: FormData): Promise<void> {
     outcome = {
       kind: "ok",
       rawSessionToken: signedIn.rawSessionToken,
-      redirectTo: postAuthRedirect(signedIn.user, next),
+      redirectTo: await postSignInDestination(signedIn.user, next),
       signedIn,
     };
   } catch (error) {

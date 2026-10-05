@@ -2,6 +2,7 @@ import { getDiscoverySlots, todaySlotDate } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { DiscoveryGrid, EmptyState, Section } from "@arilla/ui";
 import type { Metadata } from "next";
+import { SITE_BRAND } from "../site-config.ts";
 import { toDiscoveryItems } from "../discovery-adapter.ts";
 import { HOME_COPY } from "../home-copy.ts";
 import { HomeSectionHeading } from "../home-section-heading.tsx";
@@ -10,7 +11,7 @@ import actions from "../public-actions.module.css";
 import styles from "./kesfet.module.css";
 
 export const metadata: Metadata = {
-  title: "Keşfet – Arilla",
+  title: `Keşfet – ${SITE_BRAND}`,
   description: HOME_COPY.kesfetDescription,
   alternates: { canonical: "/kesfet" },
 };

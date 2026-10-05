@@ -14,6 +14,7 @@ import { createDatabase } from "@arilla/db";
 import { NextRequest } from "next/server";
 import type { ReactElement } from "react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterOnboarding } from "./onboarding-test-util.ts";
 
 const state = vi.hoisted(() => ({
   token: undefined as string | undefined,
@@ -421,13 +422,15 @@ describe("giriş sonrası yönlendirme", () => {
   }
 
   it("normal kullanıcı next ne olursa olsun başarı ekranına; yönetici next'e", async () => {
-    expect(await loginWithEmail(`gate-user-${suffix}@test.local`, "/alarmlar")).toBe(
-      "/erken-erisim",
-    );
+    expect(
+      afterOnboarding(await loginWithEmail(`gate-user-${suffix}@test.local`, "/alarmlar")),
+    ).toBe("/erken-erisim");
     expect(await loginWithEmail(`gate-admin-${suffix}@test.local`, "/yonetim")).toBe("/yonetim");
   });
 
   it("tekrar girişte de aynı başarı ekranı", async () => {
-    expect(await loginWithEmail(`gate-user-${suffix}@test.local`, "/")).toBe("/erken-erisim");
+    expect(afterOnboarding(await loginWithEmail(`gate-user-${suffix}@test.local`, "/"))).toBe(
+      "/erken-erisim",
+    );
   });
 });

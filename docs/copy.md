@@ -14,20 +14,20 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `home.hero_title` | Aradığın ürünü bul |
 | `home.search_ideas_title` | Arama fikirleri |
 | `home.trends_title` | Trendler |
-| `home.trends_subtitle` | Arilla'da öne çıkan stiller ve ürün fikirleri. |
-| `home.discovery_title` | Arilla'da keşfedilenler |
+| `home.trends_subtitle` | ManiCepte'de öne çıkan stiller ve ürün fikirleri. |
+| `home.discovery_title` | ManiCepte'de keşfedilenler |
 | `home.discovery_subtitle` | Farklı kategorilerden öne çıkan ürünler, tek bakışta. |
 
 ## Nasıl çalışır
 
 | Anahtar | Metin |
 | --- | --- |
-| `home.how_it_works_title` | Arilla nasıl çalışır? |
-| `home.how_it_works_subtitle` | Ürünü tarif et veya fotoğrafını yükle. Arilla aynı ve benzer seçenekleri farklı mağazalarda karşılaştırmana yardımcı olur. |
+| `home.how_it_works_title` | ManiCepte nasıl çalışır? |
+| `home.how_it_works_subtitle` | Ürünü tarif et veya fotoğrafını yükle. ManiCepte aynı ve benzer seçenekleri farklı mağazalarda karşılaştırmana yardımcı olur. |
 | `home.how_it_works_text_search_title` | Metinle ara |
-| `home.how_it_works_text_search_description` | Ürün adını, markayı ya da kısa bir tarifle ara. Arilla fiyat aralığı ve kategori gibi ayrıntıları anlar. |
+| `home.how_it_works_text_search_description` | Ürün adını, markayı ya da kısa bir tarifle ara. ManiCepte fiyat aralığı ve kategori gibi ayrıntıları anlar. |
 | `home.how_it_works_photo_search_title` | Fotoğrafla ara |
-| `home.how_it_works_photo_search_description` | Ürünün fotoğrafını yükle, Arilla aynı veya benzer seçenekleri bulsun. Fotoğrafın sistemde kalıcı olarak saklanmaz. |
+| `home.how_it_works_photo_search_description` | Ürünün fotoğrafını yükle, ManiCepte aynı veya benzer seçenekleri bulsun. Fotoğrafın sistemde kalıcı olarak saklanmaz. |
 | `home.how_it_works_link_search_title` | Bağlantıyla bul |
 | `home.how_it_works_link_search_description` | Beğendiğin bir ürünün bağlantısını paylaşarak arama. |
 | `home.how_it_works_link_search_status` | Yakında |
@@ -96,7 +96,7 @@ kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
 | Anahtar | Metin |
 | --- | --- |
 | `contact.title` | İletişim |
-| `contact.description` | Arilla ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz. |
+| `contact.description` | ManiCepte ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz. |
 | `contact.email_label` | E-posta |
 | `privacy.contact_prefix` | Verilerinle ilgili soruların için |
 | `privacy.contact_suffix` | adresine yazabilirsin. |
@@ -462,7 +462,7 @@ mutasyonu aynı yeteneği tekrar denetler (docs/decisions/0039).
 | `admin.matching.conflict` | Bu teklif bu arada başka bir ürüne bağlanmış. Reddedebilir ya da atlayabilirsin. |
 | `admin.matching.already_decided` | Bu satır başka bir yerde zaten karara bağlanmış. |
 | `admin.matching.save_failed` | Karar kaydedilemedi. Tekrar dene. |
-| `admin.shell.title` | Arilla yönetim |
+| `admin.shell.title` | ManiCepte yönetim |
 | `admin.shell.back_to_site` | Siteye dön |
 | `admin.shell.nav_overview` | Genel bakış |
 | `admin.shell.nav_audit` | Denetim kaydı |
@@ -506,7 +506,7 @@ mutasyonu aynı yeteneği tekrar denetler (docs/decisions/0039).
 | `admin.images.title` | Görsel arama |
 | `admin.images.note` | Yüklenen görseller burada gösterilmez; ham dosya en fazla 30 gün saklanır. |
 | `admin.seo.title` | SEO tanısı |
-| `admin.seo.not_search_console` | Arilla'nın kendi katalog ve sitemap verisinden üretilir. Search Console verisi değildir: tarama, dizine ekleme, gösterim ya da tıklama sayısı burada yok. |
+| `admin.seo.not_search_console` | ManiCepte'nin kendi katalog ve sitemap verisinden üretilir. Search Console verisi değildir: tarama, dizine ekleme, gösterim ya da tıklama sayısı burada yok. |
 | `admin.operations.title` | İşletim |
 | `admin.operations.note` | Veritabanından okunabilen sağlık sinyalleri. İş geçmişi tablosu olmadığı için işlerin durumu ürettikleri verinin tazeliğinden okunur ("son kanıt"). |
 | `admin.users.title` | Kullanıcılar |
@@ -540,7 +540,7 @@ Yasal sayfaların gövde metni (hitap "siz") sayfa dosyalarında durur:
 | Anahtar | Metin |
 | --- | --- |
 | `legal.affiliate_notice_link` | Affiliate açıklaması |
-| `legal.identity_pending` | Hizmeti işleten tüzel kişiliğin tescil bilgileri tamamlandığında bu sayfada yayımlanacaktır. |
+| `legal.identity_pending` | Hizmeti işleten gerçek veya tüzel kişinin doğrulanmış yasal kimliği, adresi ve varsa tescil bilgileri tamamlandığında bu sayfada yayımlanacaktır. |
 
 ## Çerez rızası (karar 0038)
 
@@ -550,7 +550,7 @@ ağırlıktadır; hiçbiri vurgulanmaz.
 | Anahtar | Metin |
 | --- | --- |
 | `consent.banner_title` | Gizlilik tercihlerini yönet |
-| `consent.banner_body` | Sitenin çalışması için gerekli çerezleri kullanıyoruz. Analitik, işlevsel ve reklam/affiliate ölçüm teknolojilerini yalnızca izin verdiğin kategoriler için etkinleştiririz; şu an bu kategorilerde kullandığımız bir teknoloji yok. Tercihini istediğin zaman değiştirebilirsin. |
+| `consent.banner_body` | Sitenin çalışması için gerekli çerezleri kullanıyoruz. Giriş yaptıysan, site içi kullanım analitiğini yalnızca analitik izni verdiğinde etkinleştiririz. İşlevsel ve reklam/affiliate ölçüm teknolojisi şu an kullanılmıyor. Tercihini istediğin zaman değiştirebilirsin. |
 | `consent.reject_all` | Tümünü Reddet |
 | `consent.manage` | Tercihleri Yönet |
 | `consent.accept_all` | Tümünü Kabul Et |
@@ -563,10 +563,11 @@ ağırlıktadır; hiçbiri vurgulanmaz.
 | `consent.functional_title` | İşlevsel |
 | `consent.functional_body` | İsteğe bağlı site özelliklerini hatırlar. |
 | `consent.analytics_title` | Analitik / performans |
-| `consent.analytics_body` | Sitenin nasıl kullanıldığını ve performansını ölçer. |
+| `consent.analytics_body` | Giriş yaptığında arama, ürün görüntüleme ve mağaza çıkışı olaylarını birinci taraf olarak ölçer. |
 | `consent.marketing_title` | Reklam / affiliate ölçüm |
 | `consent.marketing_body` | Reklam ve affiliate yönlendirmelerini cihazında ölçer. |
 | `consent.category_unused` | Şu an bu kategoride kullandığımız bir teknoloji yok. |
+| `consent.analytics_active` | Ayrı bir analitik çerezi veya üçüncü taraf betiği yoktur; yalnızca bu tercihi açtığında çalışır. |
 | `consent.always_on` | Her zaman açık. |
 | `consent.links_label` | Ayrıntılar |
 
@@ -589,9 +590,9 @@ Kaynak: `apps/web/app/ara/link/link-search-copy.ts` (docs/decisions/0035).
 | --- | --- |
 | `link_search.pending_title` | Ürün inceleniyor… |
 | `link_search.results_title` | Bu ürüne benzer sonuçlar |
-| `link_search.same_title` | Bu ürün Arilla'da da var |
+| `link_search.same_title` | Bu ürün ManiCepte'de de var |
 | `link_search.source_label` | İncelediğin ürün |
-| `link_search.source_note` | Bu ürün başka bir sitede. Aşağıdakiler Arilla kataloğundan. |
+| `link_search.source_note` | Bu ürün başka bir sitede. Aşağıdakiler ManiCepte kataloğundan. |
 | `link_search.empty_title` | Bu ürüne benzeyen bir şey bulamadık. |
 | `link_search.timeout_title` | İnceleme beklenenden uzun sürüyor. |
 | `link_search.robots_disallowed` | Bu site ürün sayfasının okunmasına izin vermiyor. |
@@ -611,8 +612,8 @@ görsel benzerlik "aynı" diye etiketlenmez.
 | `error.not_found_body` | Bağlantı eskimiş ya da sayfa taşınmış olabilir. Aramaya ana sayfadan yeniden başlayabilir veya keşfedilen ürünlere göz atabilirsin. |
 | `error.home_action` | Ana sayfaya dön |
 | `error.generic_title` | Bu sayfa şu an açılamadı. |
-| `error.global_title` | Arilla şu an açılamadı. |
-| `error.document_title` | Bir hata oluştu – Arilla |
+| `error.global_title` | ManiCepte şu an açılamadı. |
+| `error.document_title` | Bir hata oluştu – ManiCepte |
 | `action.retry` | Tekrar dene |
 | `error.rate_limited` | Çok hızlı gidiyorsun. Biraz bekleyip tekrar dene. |
 | `error.upload_too_large` | Fotoğraf çok büyük. 4 MB'tan küçük bir dosya dener misin? |

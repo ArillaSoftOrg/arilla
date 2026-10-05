@@ -2,7 +2,6 @@ import {
   appleRedirectUri,
   classifyAppleFailure,
   completeAppleSignIn,
-  postAuthRedirect,
   readAppUrl,
   requestContextFromHeaders,
   requireAppUrl,
@@ -14,6 +13,7 @@ import { clientIp } from "../../../lib/client-ip.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
 import { syncConsentAfterSignIn } from "../../consent-sync.ts";
 import { takeAuthNext } from "../../next-cookie.ts";
+import { postSignInDestination } from "../../post-sign-in.ts";
 import { settleReferralAfterSignIn } from "../../referral-cookie.ts";
 import { APPLE_COOKIE_PATH, NONCE_COOKIE, STATE_COOKIE } from "../apple-cookies.ts";
 
@@ -84,7 +84,7 @@ export async function POST(request: Request) {
     await setSessionCookie(result.rawSessionToken);
     await settleReferralAfterSignIn(await cookies(), result);
     await syncConsentAfterSignIn(result.user.id);
-    destination = postAuthRedirect(result.user, next);
+    destination = await postSignInDestination(result.user, next);
   } catch (failure) {
     console.error(`[giris] apple sign-in failed: ${classifyAppleFailure(failure)}`);
     return seeOther(request, "/giris?error=apple");

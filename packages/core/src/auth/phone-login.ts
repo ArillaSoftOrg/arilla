@@ -19,6 +19,7 @@ import { createHash, randomInt, timingSafeEqual } from "node:crypto";
 import { type Database, phoneLoginCode } from "@arilla/db";
 import { and, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import type { RequestContext } from "../activity/request-context.ts";
+import { LEGAL_IDENTITY } from "../config/legal-identity.ts";
 import { getRedis, isRedisUnavailableError } from "../redis/client.ts";
 import { incrementFixedWindow } from "../redis/counter.ts";
 import { unexpectedFailureCategory } from "./failure-category.ts";
@@ -229,7 +230,7 @@ export async function requestPhoneLoginCode(
   try {
     await sender.send({
       to: phone,
-      body: `Arilla giriş kodun: ${code}. Kod ${codeTtlMinutes()} dakika geçerli. Kimseyle paylaşma.`,
+      body: `${LEGAL_IDENTITY.brandName} giriş kodun: ${code}. Kod ${codeTtlMinutes()} dakika geçerli. Kimseyle paylaşma.`,
     });
   } catch (error) {
     // Gonderilmemis kod kullanilamaz kalsin; kullanicinin hakki geri verilir.

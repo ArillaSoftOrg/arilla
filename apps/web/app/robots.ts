@@ -22,6 +22,7 @@ export default function robots(): MetadataRoute.Robots {
         "/yonetim/",
         "/gecmis",
         "/hesap",
+        "/hos-geldin",
         "/ara",
         "/kaydettiklerim",
         "/alarmlar",

@@ -4,6 +4,7 @@ import { Button, Container, SkipLink } from "@arilla/ui";
 import { useEffect } from "react";
 import { HOME_COPY } from "./home-copy.ts";
 import actions from "./public-actions.module.css";
+import { SITE_BRAND } from "./site-config.ts";
 import styles from "./system-state.module.css";
 
 /** Metinler docs/copy.md `error.*` - anahtarlar yorumda. */
@@ -40,7 +41,7 @@ export default function RootError({
       <header className={styles.bareHeader}>
         <Container size="wide" className={styles.bareHeaderInner}>
           <a href="/" className={styles.bareBrand}>
-            Arilla
+            {SITE_BRAND}
           </a>
         </Container>
       </header>

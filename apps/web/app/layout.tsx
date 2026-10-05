@@ -1,11 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { readAppUrl } from "@arilla/core";
 import { ConsentProvider } from "./cookie-consent-client.tsx";
 import { readConsent } from "./lib/consent.ts";
-import { readThemeCookie } from "./lib/theme.ts";
 import { SITE_BRAND } from "./site-config.ts";
 
 /**
@@ -18,6 +16,15 @@ const appUrl = readAppUrl();
 
 /** docs/copy.md `home.tagline` - sahte slogan/sayi yok. */
 const SITE_DESCRIPTION = "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.";
+const WEBSITE_JSON_LD = appUrl
+  ? {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      name: SITE_BRAND,
+      url: appUrl,
+      inLanguage: "tr-TR",
+    }
+  : null;
 
 /**
  * Faz 7: kok Open Graph varsayilanlari. Kendi `openGraph` alanini tanimlamayan
@@ -36,6 +43,11 @@ export const metadata: Metadata = {
     title: SITE_BRAND,
     description: SITE_DESCRIPTION,
   },
+  twitter: {
+    card: "summary",
+    title: SITE_BRAND,
+    description: SITE_DESCRIPTION,
+  },
 };
 
 export const viewport: Viewport = {
@@ -44,14 +56,20 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const store = await cookies();
-  const theme = readThemeCookie(store.get("theme")?.value);
   // Karar 0038: tercih sunucuda okunur; banner ilk HTML'de gelir, yanip sonmez.
   const consent = await readConsent();
 
   return (
-    <html lang="tr" data-theme={theme ?? undefined}>
+    <html lang="tr">
       <body>
+        {WEBSITE_JSON_LD ? (
+          <script
+            type="application/ld+json"
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify(WEBSITE_JSON_LD).replaceAll("<", "\\u003c"),
+            }}
+          />
+        ) : null}
         <ConsentProvider consent={consent}>{children}</ConsentProvider>
       </body>
     </html>

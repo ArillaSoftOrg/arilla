@@ -1,3 +1,5 @@
+import { SITE_BRAND } from "./site-config.ts";
+
 /**
  * Ana sayfa kabugu (Faz 1) metin sabitleri. Karsiliklari docs/copy.md'de
  * tanimli - anahtarlar yorum olarak burada tutulur.
@@ -9,18 +11,15 @@ export const HOME_COPY = {
   // ima ediyordu; chip'ler sabit ornek sorgular.
   searchIdeasTitle: "Alışverişe devam et", // home.search_ideas_title
   trendsTitle: "Trendler", // home.trends_title
-  trendsSubtitle: "Arilla'da öne çıkan stiller ve ürün fikirleri.", // home.trends_subtitle
-  discoveryTitle: "Arilla'da keşfedilenler", // home.discovery_title
+  trendsSubtitle: `${SITE_BRAND}'de öne çıkan stiller ve ürün fikirleri.`, // home.trends_subtitle
+  discoveryTitle: `${SITE_BRAND}'de keşfedilenler`, // home.discovery_title
   discoverySubtitle: "Farklı kategorilerden öne çıkan ürünler, tek bakışta.", // home.discovery_subtitle
-  howItWorksTitle: "Arilla nasıl çalışır?", // home.how_it_works_title
-  howItWorksSubtitle:
-    "Ürünü tarif et veya fotoğrafını yükle. Arilla aynı ve benzer seçenekleri farklı mağazalarda karşılaştırmana yardımcı olur.", // home.how_it_works_subtitle
+  howItWorksTitle: `${SITE_BRAND} nasıl çalışır?`, // home.how_it_works_title
+  howItWorksSubtitle: `Ürünü tarif et veya fotoğrafını yükle. ${SITE_BRAND} aynı ve benzer seçenekleri farklı mağazalarda karşılaştırmana yardımcı olur.`, // home.how_it_works_subtitle
   howItWorksTextSearchTitle: "Metinle ara", // home.how_it_works_text_search_title
-  howItWorksTextSearchDescription:
-    "Ürün adını, markayı ya da kısa bir tarifle ara. Arilla fiyat aralığı ve kategori gibi ayrıntıları anlar.", // home.how_it_works_text_search_description
+  howItWorksTextSearchDescription: `Ürün adını, markayı ya da kısa bir tarifle ara. ${SITE_BRAND} fiyat aralığı ve kategori gibi ayrıntıları anlar.`, // home.how_it_works_text_search_description
   howItWorksPhotoSearchTitle: "Fotoğrafla ara", // home.how_it_works_photo_search_title
-  howItWorksPhotoSearchDescription:
-    "Ürünün fotoğrafını yükle, Arilla aynı veya benzer seçenekleri bulsun. Fotoğrafın sistemde kalıcı olarak saklanmaz.", // home.how_it_works_photo_search_description
+  howItWorksPhotoSearchDescription: `Ürünün fotoğrafını yükle, ${SITE_BRAND} aynı veya benzer seçenekleri bulsun. Fotoğrafın sistemde kalıcı olarak saklanmaz.`, // home.how_it_works_photo_search_description
   howItWorksLinkSearchTitle: "Bağlantıyla bul", // home.how_it_works_link_search_title
   howItWorksLinkSearchDescription: "Beğendiğin bir ürünün bağlantısını paylaşarak arama.", // home.how_it_works_link_search_description
   howItWorksLinkSearchStatus: "Yakında", // home.how_it_works_link_search_status
@@ -61,8 +60,7 @@ export const HOME_COPY = {
   affiliateNoticeLink: "Affiliate açıklaması", // legal.affiliate_notice_link
   skipToContent: "İçeriğe geç", // nav.skip_to_content
   contactTitle: "İletişim", // contact.title
-  contactDescription:
-    "Arilla ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz.", // contact.description
+  contactDescription: `${SITE_BRAND} ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz.`, // contact.description
   contactEmailLabel: "E-posta", // contact.email_label
   privacyContactPrefix: "Verilerinle ilgili soruların için", // privacy.contact_prefix
   privacyContactSuffix: "adresine yazabilirsin.", // privacy.contact_suffix

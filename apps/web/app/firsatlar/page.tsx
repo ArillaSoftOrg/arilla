@@ -2,13 +2,14 @@ import { getDeals } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { Badge, EmptyState, formatTRY, ProductCard } from "@arilla/ui";
 import type { Metadata } from "next";
+import { SITE_BRAND } from "../site-config.ts";
 import { HOME_COPY } from "../home-copy.ts";
 import { requireProductAccess } from "../lib/dal.ts";
 import actions from "../public-actions.module.css";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
-  title: "Fırsatlar – Arilla",
+  title: `Fırsatlar – ${SITE_BRAND}`,
   description: "Fiyatı düşen ürünler, düşüş tutarı ve yüzdesiyle.",
   alternates: { canonical: "/firsatlar" },
 };

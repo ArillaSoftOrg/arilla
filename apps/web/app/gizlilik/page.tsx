@@ -1,11 +1,11 @@
+import { LEGAL_IDENTITY } from "@arilla/core";
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
 import { LEGAL_EFFECTIVE_LABEL, LegalIdentityBlock } from "../legal-identity-block.tsx";
 
 export const metadata: Metadata = {
-  title: "Gizlilik Politikası – Arilla",
-  description:
-    "Arilla'nın hangi kişisel verileri hangi amaçla işlediği, kimlerle paylaştığı, ne kadar sakladığı ve haklarınız.",
+  title: `Gizlilik Politikası – ${LEGAL_IDENTITY.brandName}`,
+  description: `${LEGAL_IDENTITY.brandName}'nin hangi kişisel verileri hangi amaçla işlediği, kimlerle paylaştığı, ne kadar sakladığı ve haklarınız.`,
   alternates: { canonical: "/gizlilik" },
 };
 
@@ -25,10 +25,11 @@ export default function GizlilikPage() {
       <section>
         <h2>1. Kapsam ve veri sorumlusu</h2>
         <p>
-          Bu politika, Arilla ürün arama, karşılaştırma ve mağazaya yönlendirme hizmeti için
-          geçerlidir. Hangi kişisel verileri işlediğimizi, bunları hangi amaçlarla kullandığımızı,
-          kimlerle paylaştığımızı ve haklarınızı açıklar. KVKK kapsamındaki ayrıntılı bilgilendirme
-          için <a href="/kvkk-aydinlatma">KVKK Aydınlatma Metni</a>&apos;ne bakabilirsiniz.
+          Bu politika, {LEGAL_IDENTITY.brandName} ürün arama, karşılaştırma ve mağazaya yönlendirme
+          hizmeti için geçerlidir. Hangi kişisel verileri işlediğimizi, bunları hangi amaçlarla
+          kullandığımızı, kimlerle paylaştığımızı ve haklarınızı açıklar. KVKK kapsamındaki
+          ayrıntılı bilgilendirme için <a href="/kvkk-aydinlatma">KVKK Aydınlatma Metni</a>&apos;ne
+          bakabilirsiniz.
         </p>
         <LegalIdentityBlock contact="privacy" />
       </section>
@@ -60,8 +61,13 @@ export default function GizlilikPage() {
         </ul>
         <p>
           Hesabınızda ayrıca kaydettiğiniz ürünler, kurduğunuz fiyat/stok alarmları ve hesap
-          ayarlarınızdaki rıza tercihleriniz tutulur. Gezinme geçmişi yalnızca bu seçeneğe açıkça
-          izin verirseniz kaydedilir; varsayılan olarak kapalıdır.
+          ayarlarınızdaki rıza tercihleriniz tutulur. Gezinme geçmişi ve kişiselleştirme seçenekleri
+          varsayılan olarak kapalıdır; ilgili özellik etkinleştirilse bile yalnızca açıkça izin
+          verirseniz çalışır. Bugün ürün gezinme geçmişi yazan aktif bir akış yoktur.
+        </p>
+        <p>
+          Erken erişim listesine katıldığınızda hesap kimliğiniz, başvuru durumu ve başvuru zamanı;
+          bir davet bağlantısıyla geldiğinizde ise davet kodu ve davet ilişkisi kaydedilir.
         </p>
 
         <h3>2.2. Arama ve kullanım bilgileri</h3>
@@ -94,6 +100,12 @@ export default function GizlilikPage() {
             ile girişten önceki ücretsiz arama sayısı, anonim oturum kimliğiniz veya hesabınız
             üzerinden sayılır.
           </li>
+          <li>
+            <strong>İzinli kullanım analitiği:</strong> yalnızca giriş yaptıysanız ve analitik
+            tercihini açtıysanız normalize edilmiş arama metni, sonuç sayısı, görüntülediğiniz ürün
+            ve mağaza yönlendirmesi olayları hesabınızla ilişkilendirilerek kaydedilir. İzin yoksa
+            bu olaylar yazılmaz; izni geri çektiğinizde kişiye bağlı analitik olaylarınız silinir.
+          </li>
         </ul>
 
         <h3>2.3. Teknik ve güvenlik bilgileri</h3>
@@ -123,6 +135,7 @@ export default function GizlilikPage() {
           <li>Arama, ürün karşılaştırma ve mağazaya yönlendirme hizmetini sunmak.</li>
           <li>Hesabınızı açmak, oturumunuzu ve hesap güvenliğini sağlamak.</li>
           <li>Kaydettiğiniz ürünleri göstermek ve alarm e-postalarını göndermek.</li>
+          <li>Erken erişim talebinizi ve davet ilişkisini yönetmek.</li>
           <li>Arama limitlerini ve kötüye kullanım önleme mekanizmalarını işletmek.</li>
           <li>Teknik sorunları tespit etmek ve hizmeti iyileştirmek.</li>
           <li>
@@ -131,13 +144,18 @@ export default function GizlilikPage() {
           </li>
           <li>Destek taleplerinize yanıt vermek.</li>
           <li>
+            Açık izniniz varsa kullanım eğilimlerini ölçmek ve pazarlama e-postaları göndermek;
+            ilgili özellikler etkinleştirildiğinde kişiselleştirilmiş öneriler sunmak ve bulduğunuz
+            ürünleri kimliğiniz gösterilmeden keşif akışına katmak.
+          </li>
+          <li>
             Hukuki yükümlülükleri yerine getirmek ve hakların korunması için gerekli kayıtları
             tutmak.
           </li>
         </ul>
         <p>
-          Şu anda analitik, reklam veya pazarlama ölçümü yapan bir araç kullanmıyoruz. Böyle bir
-          araç eklenirse yalnızca açık izninizle çalıştırılır.
+          Üçüncü taraf reklam veya analitik betiği kullanmıyoruz. Yukarıdaki birinci taraf kullanım
+          analitiği yalnızca açık analitik tercihinizle çalışır.
         </p>
       </section>
 
@@ -184,8 +202,8 @@ export default function GizlilikPage() {
             kimlik doğrulama için.
           </li>
           <li>
-            <strong>E-posta gönderim hizmeti sağlayıcısı</strong> — giriş bağlantısı ve alarm
-            e-postalarının iletilmesi.
+            <strong>E-posta gönderim hizmeti sağlayıcısı</strong> — giriş bağlantısı, alarm ve izin
+            verdiyseniz pazarlama e-postalarının iletilmesi.
           </li>
           <li>
             <strong>SMS hizmet sağlayıcısı</strong> — telefonla giriş sunulduğunda doğrulama kodunun
@@ -194,9 +212,9 @@ export default function GizlilikPage() {
           <li>
             <strong>Mağazalar ve affiliate ağları</strong> — bir mağaza bağlantısına tıkladığınızda
             o mağazanın sitesine yönlendirilirsiniz. Affiliate programları etkinleştirildiğinde
-            bağlantıya yönlendirmenin Arilla&apos;dan geldiğini gösteren teknik parametreler
-            eklenebilir. Ayrıntılar <a href="/affiliate-aciklamasi">Affiliate Açıklaması</a>
-            &apos;nda.
+            bağlantıya yönlendirmenin {LEGAL_IDENTITY.brandName}&apos;den geldiğini gösteren teknik
+            parametreler eklenebilir. Ayrıntılar{" "}
+            <a href="/affiliate-aciklamasi">Affiliate Açıklaması</a>&apos;nda.
           </li>
           <li>Kanunen yetkili kamu kurum ve kuruluşları.</li>
         </ul>
@@ -238,6 +256,16 @@ export default function GizlilikPage() {
             Giriş denemesi sayaçları: en fazla 1 saat. Günlük arama limiti sayaçları: 24 saat.
           </li>
           <li>
+            Giriş/çıkış güvenlik olayları: 1 yıl. Rıza kararlarındaki IP adresi: 1 yıl sonra
+            silinir.
+          </li>
+          <li>
+            İzinli kullanım analitiği olayları: 180 gün; olay içindeki normalize arama metni 90 gün
+            sonra silinir. Analitik izni geri çekilirse kişiye bağlı analitik olaylar daha erken
+            silinir.
+          </li>
+          <li>Erken erişim kaydı: talebiniz sonuçlanana veya hesabınızı silene kadar.</li>
+          <li>
             Hesap verileri, kayıtlı ürünler ve alarmlar: hesabınızı silene kadar. Hesap silindiğinde
             bu veriler, oturumlarınız, giriş kimlikleriniz ve rıza kayıtlarınız silinir.
           </li>
@@ -277,14 +305,15 @@ export default function GizlilikPage() {
 
       <section>
         <h2>11. Çocukların gizliliği</h2>
-        <p>Arilla çocuklara yönelik tasarlanmış bir hizmet değildir.</p>
+        <p>{LEGAL_IDENTITY.brandName} çocuklara yönelik tasarlanmış bir hizmet değildir.</p>
       </section>
 
       <section>
         <h2>12. Üçüncü taraf siteleri</h2>
         <p>
-          Yönlendirildiğiniz mağaza sitelerinin içerikleri ve gizlilik uygulamaları Arilla&apos;nın
-          kontrolünde değildir. Lütfen o sitelerin kendi politikalarını inceleyin.
+          Yönlendirildiğiniz mağaza sitelerinin içerikleri ve gizlilik uygulamaları{" "}
+          {LEGAL_IDENTITY.brandName}&apos;nin kontrolünde değildir. Lütfen o sitelerin kendi
+          politikalarını inceleyin.
         </p>
       </section>
 

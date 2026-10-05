@@ -82,6 +82,23 @@ describe("güvenlik başlıkları", () => {
     }
   });
 
+  it("auth, arama ve kullanıcıya özel yollar noindex başlığı alır", () => {
+    const routes = securityHeaderRoutes(PROD);
+    for (const source of [
+      "/giris/:path*",
+      "/ara",
+      "/ara/:path*",
+      "/hesap",
+      "/hesap/:path*",
+      "/gecmis",
+      "/kaydettiklerim",
+      "/alarmlar",
+    ]) {
+      const route = routes.find((r) => r.source === source);
+      expect(header(route?.headers ?? [], "X-Robots-Tag")).toBe("noindex, nofollow");
+    }
+  });
+
   it("token taşıyan yollar no-referrer alır ve genel girdiden SONRA gelir", () => {
     const routes = securityHeaderRoutes(PROD);
     const globalIndex = routes.findIndex((r) => r.source === "/:path*");

@@ -10,7 +10,8 @@
     "./product-access": "./src/access/product-access.ts",
     "./clarification": "./src/clarification/index.ts",
     "./cookie-consent": "./src/consent/cookie-consent.ts",
-    "./link-input": "./src/discovery/link-search-input.ts"
+    "./link-input": "./src/discovery/link-search-input.ts",
+    "./legal-identity": "./src/config/legal-identity.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

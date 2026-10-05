@@ -1,11 +1,11 @@
+import { LEGAL_IDENTITY } from "@arilla/core";
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
 import { LEGAL_EFFECTIVE_LABEL, LegalIdentityBlock } from "../legal-identity-block.tsx";
 
 export const metadata: Metadata = {
-  title: "KVKK Aydınlatma Metni – Arilla",
-  description:
-    "6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında Arilla kullanıcılarına yönelik aydınlatma metni.",
+  title: `KVKK Aydınlatma Metni – ${LEGAL_IDENTITY.brandName}`,
+  description: `6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında ${LEGAL_IDENTITY.brandName} kullanıcılarına yönelik aydınlatma metni.`,
   alternates: { canonical: "/kvkk-aydinlatma" },
 };
 
@@ -20,8 +20,8 @@ export default function KvkkAydinlatmaPage() {
       <section>
         <p>
           Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;) kapsamında,
-          Arilla hizmetlerini kullanan kişilerin kişisel verilerinin işlenmesi hakkında
-          bilgilendirilmesi amacıyla hazırlanmıştır.
+          {LEGAL_IDENTITY.brandName} hizmetlerini kullanan kişilerin kişisel verilerinin işlenmesi
+          hakkında bilgilendirilmesi amacıyla hazırlanmıştır.
         </p>
       </section>
 
@@ -44,7 +44,7 @@ export default function KvkkAydinlatmaPage() {
           <li>
             <strong>Müşteri işlem:</strong> kaydedilen ürünler, fiyat/stok alarmları, ürün
             bağlantısıyla yapılan aramalar, mağazaya yönlendirme (tıklama) kayıtları, anonim oturum
-            kimliği.
+            kimliği, erken erişim ve davet kayıtları.
           </li>
           <li>
             <strong>Görsel:</strong> fotoğrafla aramada yüklenen görsel. Görsel saklanmaz; yalnızca
@@ -52,6 +52,11 @@ export default function KvkkAydinlatmaPage() {
           </li>
           <li>
             <strong>Pazarlama ve rıza tercihleri:</strong> hesap rıza tercihleri, çerez tercihi.
+          </li>
+          <li>
+            <strong>Kullanım ve güvenlik:</strong> izin verilmişse normalize arama metni, sonuç
+            sayısı, ürün görüntüleme ve mağaza çıkış olayları; giriş/çıkış türü, giriş sağlayıcısı,
+            cihaz sınıfı, tarayıcı ailesi ve ülke kodu.
           </li>
           <li>
             <strong>Talep/şikâyet:</strong> destek yazışmaları.
@@ -65,6 +70,7 @@ export default function KvkkAydinlatmaPage() {
           <li>Arama, karşılaştırma ve mağazaya yönlendirme hizmetinin sunulması,</li>
           <li>hesap açılması, kimlik doğrulama, oturum ve hesap güvenliğinin sağlanması,</li>
           <li>kaydedilen ürünlerin ve alarm bildirimlerinin yönetilmesi,</li>
+          <li>erken erişim talebinin ve davet ilişkisinin yönetilmesi,</li>
           <li>
             kullanım limitlerinin işletilmesi, kötüye kullanım ve güvenlik risklerinin önlenmesi,
           </li>
@@ -74,6 +80,11 @@ export default function KvkkAydinlatmaPage() {
             ilişkilendirmesi ve mutabakatı,
           </li>
           <li>destek taleplerinin yönetilmesi,</li>
+          <li>
+            açık rıza verilmişse kullanım analitiği ve pazarlama iletişimi; ilgili özellikler
+            etkinleştirildiğinde kişiselleştirme ve anonim keşif katkısı faaliyetlerinin
+            yürütülmesi,
+          </li>
           <li>hukuki yükümlülüklerin yerine getirilmesi.</li>
         </ul>
       </section>
@@ -81,21 +92,37 @@ export default function KvkkAydinlatmaPage() {
       <section>
         <h2>4. Toplama yöntemi ve hukuki sebep</h2>
         <p>
-          Kişisel veriler; web sitesi, giriş formları, Google ve Apple kimlik doğrulama hizmetleri,
-          arama ve tıklama işlemleri, çerezler, sunucu ve güvenlik kayıtları ile e-posta yoluyla,
-          otomatik veya kısmen otomatik yöntemlerle toplanır.
+          Kişisel veriler; web sitesi ve hesap formları, Google ve Apple kimlik doğrulama
+          hizmetleri, telefon/SMS akışı, erken erişim ve davet işlemleri, arama ve tıklama
+          işlemleri, çerezler, sunucu ve güvenlik kayıtları ile e-posta yoluyla, otomatik veya
+          kısmen otomatik yöntemlerle toplanır.
         </p>
         <p>
           Veriler, KVKK&apos;nın 5. maddesinde öngörülen şu hukuki sebeplere dayanılarak işlenir:
         </p>
         <ul>
-          <li>sözleşmenin kurulması veya ifası için gerekli olması,</li>
-          <li>veri sorumlusunun hukuki yükümlülüğünü yerine getirmesi,</li>
-          <li>bir hakkın tesisi, kullanılması veya korunması,</li>
-          <li>temel hak ve özgürlüklere zarar vermemek kaydıyla meşru menfaat,</li>
           <li>
-            gerekli hallerde açık rıza (gezinme geçmişi, pazarlama e-postası, zorunlu olmayan
-            çerezler).
+            <strong>KVKK m.5/2(c), sözleşmenin kurulması veya ifası:</strong> hesap ve oturum, erken
+            erişim talebi, arama/karşılaştırma, kayıtlı ürün, alarm ve mağazaya yönlendirme
+            hizmetleri.
+          </li>
+          <li>
+            <strong>KVKK m.5/2(ç), hukuki yükümlülük:</strong> mevzuattan doğan kayıt, başvuru ve
+            yetkili makam taleplerinin yerine getirilmesi.
+          </li>
+          <li>
+            <strong>KVKK m.5/2(e), bir hakkın tesisi, kullanılması veya korunması:</strong> hukuki
+            taleplerin ve uyuşmazlıkların yönetilmesi ile gerekli denetim kayıtları.
+          </li>
+          <li>
+            <strong>KVKK m.5/2(f), meşru menfaat:</strong> temel hak ve özgürlüklerinize zarar
+            vermemek kaydıyla hesap ve sistem güvenliği, kötüye kullanımın önlenmesi, servis
+            sürekliliği ve hata giderme.
+          </li>
+          <li>
+            <strong>KVKK m.5/1, açık rıza:</strong> gezinme geçmişi ve kişiselleştirme, kişiye bağlı
+            kullanım analitiği, anonim keşif katkısı, pazarlama e-postası ve zorunlu olmayan çerez
+            veya benzeri teknolojiler.
           </li>
         </ul>
         <p>Açık rıza gerektiren çerez ve teknolojiler, rıza verilmeden etkinleştirilmez.</p>
@@ -106,19 +133,29 @@ export default function KvkkAydinlatmaPage() {
         <p>Kişisel veriler, amaçla sınırlı ve ölçülü olmak kaydıyla şu alıcılara aktarılabilir:</p>
         <ul>
           <li>
-            barındırma (Vercel), veritabanı (Supabase), önbellek/kuyruk, e-posta ve SMS gönderim
-            hizmet sağlayıcıları,
+            hizmetin barındırılması için Vercel, veritabanı için Supabase, limit ve kuyruk işlemleri
+            için Redis hizmet sağlayıcısı,
           </li>
           <li>
             fotoğrafla arama için görsel embedding hizmeti sağlayıcısı Jina AI GmbH (Almanya),
           </li>
-          <li>Google ile veya Apple ile giriş seçildiğinde ilgili kimlik doğrulama sağlayıcısı,</li>
-          <li>mağazaya yönlendirme kapsamında ilgili mağaza veya affiliate ağı,</li>
+          <li>
+            giriş bağlantısı, alarm/pazarlama iletisi ve telefon kodu göndermek için e-posta ve SMS
+            hizmet sağlayıcıları,
+          </li>
+          <li>
+            Google veya Apple ile giriş seçildiğinde kimlik doğrulama amacıyla ilgili sağlayıcı,
+          </li>
+          <li>
+            ürün sayfasına yönlendirme ve etkinse komisyon ilişkilendirmesi amacıyla ilgili mağaza
+            veya affiliate ağı,
+          </li>
           <li>kanunen yetkili kamu kurum ve kuruluşları.</li>
         </ul>
         <p>
-          Bu sağlayıcıların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılabilir;
-          aktarım KVKK&apos;nın 9. maddesinde öngörülen mekanizmalara dayanılarak yapılır.
+          Bu sağlayıcıların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılabilir.
+          Bu aktarımlar için KVKK&apos;nın 9. maddesinde öngörülen yeterlilik kararı, uygun güvence
+          veya ilgili faaliyete uygulanabilen diğer aktarım şartlarından biri sağlanmalıdır.
         </p>
       </section>
 
@@ -150,10 +187,13 @@ export default function KvkkAydinlatmaPage() {
         <h2>7. Başvuru</h2>
         <p>
           Giriş yaptıysanız verilerinizi Hesap sayfanızdan indirebilir, rıza tercihlerinizi
-          değiştirebilir ve hesabınızı silebilirsiniz. Diğer talepleriniz için veri sorumlusuna
-          aşağıdaki adresten veya mevzuata uygun diğer yöntemlerle başvurabilirsiniz. Başvurunuzda
-          kimliğinizi doğrulamak için yalnızca talebin güvenli biçimde sonuçlandırılmasına yetecek
-          bilgiler istenir.
+          değiştirebilir ve hesabınızı silebilirsiniz. KVKK kapsamındaki başvurunuzu, sistemimizde
+          kayıtlı e-posta adresinizi kullanarak aşağıdaki adrese veya Veri Sorumlusuna Başvuru Usul
+          ve Esasları Hakkında Tebliğ&apos;deki diğer yöntemlerden uygun olanıyla iletebilirsiniz.
+          Başvurunuzda ad-soyad, talep konusu ve mevzuatın gerektirdiği iletişim/kimlik doğrulama
+          bilgileri yer almalıdır. Talep, niteliğine göre en kısa sürede ve en geç 30 gün içinde
+          sonuçlandırılır; kimlik doğrulama için yalnızca güvenli sonuçlandırmaya yetecek bilgiler
+          istenir.
         </p>
         <LegalIdentityBlock contact="privacy" entity={false} />
       </section>

@@ -11,7 +11,7 @@ import styles from "./system-state.module.css";
 const NOT_FOUND_COPY = {
   eyebrow: "Sayfa bulunamadı",
   title: "Burada aradığın sayfayı bulamadık.", // error.not_found
-  body: "Bağlantı değişmiş, taşınmış ya da henüz yayına alınmamış olabilir. Arilla'da aramaya devam etmek için aşağıdaki yollardan birini deneyebilirsin.", // error.not_found_body
+  body: `Bağlantı değişmiş, taşınmış ya da henüz yayına alınmamış olabilir. ${SITE_BRAND}'de aramaya devam etmek için aşağıdaki yollardan birini deneyebilirsin.`, // error.not_found_body
   homeAction: "Aramaya dön", // error.home_action
   backAction: "Önceki sayfaya dön",
   hint: "İstersen ürünü yeniden arayabilir, öne çıkanlara bakabilir veya arama yollarını inceleyebilirsin.",

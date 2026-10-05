@@ -7,8 +7,8 @@ import styles from "./system-state.module.css";
 
 /** Metinler docs/copy.md `error.*` - anahtarlar yorumda. */
 const GLOBAL_ERROR_COPY = {
-  documentTitle: "Bir hata oluştu – Arilla", // error.document_title
-  title: "Arilla şu an açılamadı.", // error.global_title
+  documentTitle: "Bir hata oluştu – ManiCepte", // error.document_title
+  title: "ManiCepte şu an açılamadı.", // error.global_title
   body: "Bir şeyler ters gitti. Tekrar dener misin?", // error.generic
   retry: "Tekrar dene", // action.retry
   homeAction: "Ana sayfaya dön", // error.home_action

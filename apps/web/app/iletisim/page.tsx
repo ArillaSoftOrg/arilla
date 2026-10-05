@@ -1,12 +1,12 @@
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
 import { HOME_COPY } from "../home-copy.ts";
-import { PUBLIC_CONTACT_EMAIL } from "../site-config.ts";
+import { PUBLIC_CONTACT_EMAIL, SITE_BRAND } from "../site-config.ts";
 import styles from "./page.module.css";
 
 export const metadata: Metadata = {
-  title: "İletişim – Arilla",
-  description: "Arilla ile ilgili soru, geri bildirim ve destek talepleri için iletişim.",
+  title: `İletişim – ${SITE_BRAND}`,
+  description: `${SITE_BRAND} ile ilgili soru, geri bildirim ve destek talepleri için iletişim.`,
   alternates: { canonical: "/iletisim" },
 };
 

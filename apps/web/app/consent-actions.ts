@@ -18,7 +18,7 @@ import { verifySession } from "./lib/dal.ts";
 
 /**
  * Karar 0038: cerez tercihi birinci taraf `cookie_consent` cerezine yazilir
- * (`theme-actions.ts` deseni). Form action olarak kullanilir; JS kapaliyken
+ * (düz form + server action deseni). Form action olarak kullanilir; JS kapaliyken
  * de calisir. Server action cerez yazinca Next mevcut rotayi yeniden
  * render eder, kok layout yeni tercihi okur ve banner kalkar.
  */

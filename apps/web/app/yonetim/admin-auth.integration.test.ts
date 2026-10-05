@@ -8,6 +8,7 @@ import { createDatabase } from "@arilla/db";
 import { NextRequest } from "next/server";
 import { isValidElement, type ReactNode } from "react";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterOnboarding } from "../onboarding-test-util.ts";
 
 const state = vi.hoisted(() => ({
   token: undefined as string | undefined,
@@ -362,9 +363,13 @@ describe("yönetim girişi ve next güvenliği", () => {
     expect(await loginWithEmail(`p3-admin-${suffix}@test.local`, "/yonetim/sozluk")).toBe(
       "/yonetim/sozluk",
     );
-    expect(await loginWithEmail(`p3-user-${suffix}@test.local`, "/yonetim")).toBe("/erken-erisim");
+    expect(afterOnboarding(await loginWithEmail(`p3-user-${suffix}@test.local`, "/yonetim"))).toBe(
+      "/erken-erisim",
+    );
     // Normal /giris akışı değişmedi.
-    expect(await loginWithEmail(`p3-user-${suffix}@test.local`, "/")).toBe("/erken-erisim");
+    expect(afterOnboarding(await loginWithEmail(`p3-user-${suffix}@test.local`, "/"))).toBe(
+      "/erken-erisim",
+    );
   });
 });
 

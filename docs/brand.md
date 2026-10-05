@@ -2,24 +2,18 @@
 
 ## İsim
 
-**Arilla.** İsim ve alan adı ileride değişebilir; bu yüzden marka adı koda
-gömülmez, tek bir yapılandırma değerinden okunur.
+**ManiCepte.** Public marka adı koda dağıtılmaz; tek bir yapılandırma
+değerinden okunur. Ticari unvan ve veri sorumlusu kimliği marka adından ayrıdır.
 
 Yapılacak: TÜRKPATENT marka araştırması. İsim değişecek olsa bile bugün
 kullanılan ismin başkasına ait olmadığından emin olunmalı.
 
 ## Alan adı
 
-Şu anki: `yusufsari.info` — **yalnızca geliştirme için.**
+Production alan adı: `manicepte.com`.
 
-Üç sorunu var: kişisel bir isim taşıyor, `.info` uzantısı e-posta teslimatında
-düşük itibarlı sayılıyor, ve giriş bağlantıları bu alan adından giderse spam'e
-düşme riski yüksek. Giriş akışı tamamen e-postaya bağlı olduğundan bu doğrudan
-ürünü kırar.
-
-**Gerçek kullanıcıya çıkmadan önce Arilla adına bir alan adı alınmalı.**
-SPF, DKIM ve DMARC kayıtlarının yayılması bir gün sürüyor; bu iş lansman
-haftasına bırakılamaz.
+Giriş ve bildirim e-postalarının gönderen alanı için SPF, DKIM ve DMARC
+kayıtları production öncesi ayrıca doğrulanmalıdır.
 
 Ayrıca link öneki özelliği için kısa bir ikinci alan adı gerekiyor
 (bkz. `routes.md`).
@@ -105,7 +99,7 @@ Arayüz metni kuralları `design.md` içinde. Marka iletişiminde ek olarak:
 ## Yapılacaklar
 
 - [ ] TÜRKPATENT marka araştırması
-- [ ] Arilla alan adı alımı
+- [x] ManiCepte alan adı alımı
 - [ ] Link öneki için kısa ikinci alan adı
 - [ ] SPF, DKIM, DMARC kurulumu
 - [ ] Logonun SVG ve tek renkli sürümleri

@@ -1,7 +1,6 @@
 import {
   isRedisUnavailableError,
   PhoneCodeInvalidError,
-  postAuthRedirect,
   RateLimitExceededError,
   readAppUrl,
   requestContextFromHeaders,
@@ -15,6 +14,7 @@ import { isSameOriginPost } from "../../../lib/same-origin.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
 import { syncConsentAfterSignIn } from "../../consent-sync.ts";
 import { takeAuthNext } from "../../next-cookie.ts";
+import { postSignInDestination } from "../../post-sign-in.ts";
 import { settleReferralAfterSignIn } from "../../referral-cookie.ts";
 import { PHONE_COOKIE, PHONE_COOKIE_PATH } from "../phone-cookie.ts";
 
@@ -62,5 +62,5 @@ export async function POST(request: Request) {
   }
 
   store.delete({ name: PHONE_COOKIE, path: PHONE_COOKIE_PATH });
-  return seeOther(request, postAuthRedirect(signedInUser, takeAuthNext(store)));
+  return seeOther(request, await postSignInDestination(signedInUser, takeAuthNext(store)));
 }

@@ -4,6 +4,29 @@ import json
 from pathlib import Path
 
 import pytest
+from urllib.parse import urlparse
+
+_LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
+
+
+@pytest.fixture(scope="session", autouse=True)
+def _refuse_non_local_database() -> None:
+    """Testler uretim/uzak veritabanina baglanamaz (fail-closed). Host/parola yazdirilmaz."""
+    from db.connection import env
+
+    for name in ("DATABASE_URL", "DATABASE_URL_OWNER"):
+        url = env(name)
+        if not url:
+            continue
+        try:
+            host = (urlparse(url).hostname or "").lower()
+        except ValueError:
+            host = ""
+        if host not in _LOCAL_HOSTS:
+            pytest.exit(
+                f"{name} yerel makineyi gostermiyor; testler yalnizca yerel veritabaniyla calisir.",
+                returncode=2,
+            )
 
 FIXTURES = Path(__file__).parent / "fixtures"
 

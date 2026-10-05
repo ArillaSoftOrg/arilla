@@ -1,5 +1,5 @@
 /**
- * Karar 0038: Arilla'yi isleten kisinin yasal kimliginin TEK kaynagi. Footer,
+ * Karar 0038: ManiCepte'yi isleten kisinin yasal kimliginin TEK kaynagi. Footer,
  * /sirket-bilgileri, /gizlilik, /kvkk-aydinlatma, /kosullar ve /iletisim
  * buradan okur; alanlar baska yerde tekrar yazilmaz.
  *
@@ -32,7 +32,7 @@ export interface LegalIdentity {
 const CONTACT_EMAIL = "arillasoft@gmail.com";
 
 export const LEGAL_IDENTITY: LegalIdentity = {
-  brandName: "Arilla",
+  brandName: "ManiCepte",
   legalEntityName: null,
   legalAddress: null,
   country: null,

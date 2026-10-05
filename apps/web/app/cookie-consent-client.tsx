@@ -260,7 +260,7 @@ export function CookiePreferencesFields({
             name="analytics"
             title={CONSENT_COPY.analyticsTitle}
             body={CONSENT_COPY.analyticsBody}
-            note={CONSENT_COPY.categoryUnused}
+            note={CONSENT_COPY.analyticsActive}
             defaultChecked={isConsentAllowed(consent, "analytics")}
           />
           <CookieCategoryField

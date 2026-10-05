@@ -19,6 +19,9 @@ export const CONSENT_KINDS: readonly ConsentKind[] = [
   "public_discovery",
 ];
 
+/** Hesap ayarlarındaki dört seçim için gösterilen metnin ortak sürümü. */
+export const ACCOUNT_CONSENT_TEXT_VERSION = "account-v1";
+
 export type ConsentState = Record<ConsentKind, boolean>;
 
 /** Hiç kayıt yoksa varsayılan `false` - opt-in, opt-out değil (kvkk.md). */
@@ -89,5 +92,6 @@ export async function setConsent(
     granted: input.granted,
     ip: input.ip,
     source: input.source ?? null,
+    textVersion: ACCOUNT_CONSENT_TEXT_VERSION,
   });
 }

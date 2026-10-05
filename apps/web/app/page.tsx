@@ -31,6 +31,7 @@ export function generateMetadata(): Metadata {
     title: COMING_SOON_COPY.metaTitle,
     description: COMING_SOON_COPY.metaDescription,
     alternates: { canonical: "/" },
+    robots: { index: true, follow: true },
     // openGraph iç içe birleşmez, yerine geçer: kökteki alanlar tekrar verilir.
     openGraph: {
       siteName: SITE_BRAND,
@@ -39,6 +40,11 @@ export function generateMetadata(): Metadata {
       title: COMING_SOON_COPY.metaTitle,
       description: COMING_SOON_COPY.metaDescription,
       url: "/",
+    },
+    twitter: {
+      card: "summary",
+      title: COMING_SOON_COPY.metaTitle,
+      description: COMING_SOON_COPY.metaDescription,
     },
   };
 }
@@ -192,7 +198,7 @@ export default async function HomePage() {
           aria-labelledby="nasil-calisir-baslik"
           className={`${styles.anchored} ${styles.waysSection}`}
         >
-          <HomeWaysCarousel title="Arilla ile arama yolları" items={HOME_WAYS} />
+          <HomeWaysCarousel title={`${SITE_BRAND} ile arama yolları`} items={HOME_WAYS} />
         </Section>
       </div>
     </PublicSiteShell>

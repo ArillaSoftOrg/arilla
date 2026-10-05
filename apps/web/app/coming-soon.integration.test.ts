@@ -25,6 +25,7 @@ import { NextRequest } from "next/server";
 import type { ReactElement, ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterOnboarding } from "./onboarding-test-util.ts";
 
 const state = vi.hoisted(() => ({
   token: undefined as string | undefined,
@@ -288,10 +289,13 @@ describe("landing içeriği", () => {
   it("kök metadata: yakında başlığı, kanonik /", async () => {
     const { generateMetadata } = await import("./page.tsx");
     const meta = generateMetadata();
-    expect(meta.title).toBe("ManiCepte – Yakında");
+    expect(meta.title).toBe("ManiCepte | Yapay Zekâ Destekli Alışveriş Asistanı");
     expect(meta.alternates?.canonical).toBe("/");
     expect(String(meta.description)).toContain("Erken erişim listesine katıl");
     expect(meta.openGraph?.siteName).toBe("ManiCepte");
+    expect(meta.openGraph?.url).toBe("/");
+    expect(meta.twitter).toMatchObject({ card: "summary" });
+    expect(meta.robots).toEqual({ index: true, follow: true });
   });
 });
 
@@ -410,16 +414,18 @@ describe("erken erişim akışı", () => {
   it("yeni ziyaretçi: CTA → giriş → kayıt → başarı ekranı; tekrar giriş idempotent", async () => {
     const email = `yakinda-yeni-${suffix}@test.local`;
     const next = new URL(EARLY_ACCESS_LOGIN_PATH, "http://x").searchParams.get("next") ?? "";
-    expect(await loginWithEmail(email, next)).toBe("/erken-erisim");
+    expect(afterOnboarding(await loginWithEmail(email, next))).toBe("/erken-erisim");
     expect(await earlyAccessRows(email)).toBe(1);
-    expect(await loginWithEmail(email, next)).toBe("/erken-erisim");
+    expect(afterOnboarding(await loginWithEmail(email, next))).toBe("/erken-erisim");
     expect(await earlyAccessRows(email)).toBe(1);
     await owner((client) => client.query("DELETE FROM app_user WHERE email = $1", [email]));
   });
 
   it("Admin Girişi: normal hesap /yonetim'e dönmez, yönetici döner", async () => {
     const next = new URL(ADMIN_LOGIN_PATH, "http://x").searchParams.get("next") ?? "";
-    expect(await loginWithEmail(`yakinda-user-${suffix}@test.local`, next)).toBe("/erken-erisim");
+    expect(afterOnboarding(await loginWithEmail(`yakinda-user-${suffix}@test.local`, next))).toBe(
+      "/erken-erisim",
+    );
     expect(await loginWithEmail(`yakinda-admin-${suffix}@test.local`, next)).toBe("/yonetim");
   });
 

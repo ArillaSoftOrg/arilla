@@ -5,6 +5,7 @@
  */
 import { createDatabase } from "@arilla/db";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterOnboarding } from "../../onboarding-test-util.ts";
 
 const state = vi.hoisted(() => ({ cookies: new Map<string, string>() }));
 
@@ -133,7 +134,7 @@ describe("Google callback", () => {
     });
     const tokenBody = new URLSearchParams(calls[0]?.body);
     expect(tokenBody.get("redirect_uri")).toBe(authorize.searchParams.get("redirect_uri"));
-    expect(to).toBe("/erken-erisim");
+    expect(afterOnboarding(to)).toBe("/erken-erisim");
     expect(state.cookies.has("session")).toBe(true);
     expect(state.cookies.has("google_oauth_state")).toBe(false);
     expect(errors).toEqual([]);

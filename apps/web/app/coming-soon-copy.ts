@@ -68,7 +68,7 @@ export const COMING_SOON_COPY = {
   adminLoginTitle: "Hesabınla giriş yap.", // coming_soon.admin_login_title
   footerDescription: `${SITE_BRAND} yakında: aradığın ürünü bul, alternatiflerini keşfet, fiyatları karşılaştır.`, // coming_soon.footer_description
 
-  metaTitle: `${SITE_BRAND} – Yakında`, // coming_soon.meta_title
+  metaTitle: `${SITE_BRAND} | Yapay Zekâ Destekli Alışveriş Asistanı`, // coming_soon.meta_title
   metaDescription: `${SITE_BRAND} yakında: aradığın ürünü bul, alternatiflerini keşfet ve farklı mağazalardaki fiyatları karşılaştır. Erken erişim listesine katıl.`, // coming_soon.meta_description
 } as const;
 

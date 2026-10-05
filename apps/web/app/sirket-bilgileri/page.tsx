@@ -4,8 +4,8 @@ import type { Metadata } from "next";
 import { LEGAL_EFFECTIVE_LABEL, LEGAL_IDENTITY_PENDING } from "../legal-identity-block.tsx";
 
 export const metadata: Metadata = {
-  title: "Şirket Bilgileri – Arilla",
-  description: "Arilla hizmetini işleten kişiye ilişkin doğrulanmış bilgiler ve iletişim.",
+  title: `Şirket Bilgileri – ${LEGAL_IDENTITY.brandName}`,
+  description: `${LEGAL_IDENTITY.brandName} hizmetini işleten kişiye ilişkin doğrulanmış bilgiler ve iletişim.`,
   alternates: { canonical: "/sirket-bilgileri" },
 };
 
@@ -45,8 +45,8 @@ export default function SirketBilgileriPage() {
     <LegalPageLayout title="Şirket Bilgileri" lastUpdatedLabel={LEGAL_EFFECTIVE_LABEL}>
       <section>
         <p>
-          Bu sayfada Arilla hizmetini işleten kişiye ilişkin yalnızca doğrulanmış ve kamuya
-          açıklanması uygun bilgiler yer alır.
+          Bu sayfada {identity.brandName} hizmetini işleten gerçek veya tüzel kişiye ilişkin
+          yalnızca doğrulanmış ve kamuya açıklanması uygun bilgiler yer alır.
         </p>
         {identity.legalEntityName ? null : <p>{LEGAL_IDENTITY_PENDING}</p>}
       </section>

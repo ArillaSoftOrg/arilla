@@ -23,7 +23,7 @@ function Samples({ items, quality }: { items: SeoSample[]; quality: string }) {
 }
 
 /**
- * İç SEO tanısı (Faz 7). Yalnızca Arilla'nın kendi verisi ve sitemap kuralı;
+ * İç SEO tanısı (Faz 7). Yalnızca ManiCepte'nin kendi verisi ve sitemap kuralı;
  * Google Search Console verisi DEĞİLDİR.
  */
 export default async function SeoPage() {
@@ -35,8 +35,8 @@ export default async function SeoPage() {
     <div className={styles.page}>
       <PageHeader title="SEO tanısı">
         <p className={styles.muted}>
-          Arilla'nın kendi katalog ve sitemap verisinden üretilir. Search Console verisi değildir:
-          tarama, dizine ekleme, gösterim ya da tıklama sayısı burada yok.
+          ManiCepte'nin kendi katalog ve sitemap verisinden üretilir. Search Console verisi
+          değildir: tarama, dizine ekleme, gösterim ya da tıklama sayısı burada yok.
         </p>
       </PageHeader>
 

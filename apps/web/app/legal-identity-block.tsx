@@ -2,10 +2,10 @@ import { LEGAL_IDENTITY, type LegalIdentity } from "@arilla/core";
 
 /** docs/copy.md `legal.identity_pending`. */
 export const LEGAL_IDENTITY_PENDING =
-  "Hizmeti işleten tüzel kişiliğin tescil bilgileri tamamlandığında bu sayfada yayımlanacaktır.";
+  "Hizmeti işleten gerçek veya tüzel kişinin doğrulanmış yasal kimliği, adresi ve varsa tescil bilgileri tamamlandığında bu sayfada yayımlanacaktır.";
 
 /** Yasal sayfalarin ortak yururluk etiketi - sabit, gercek tarih (LegalPageLayout). */
-export const LEGAL_EFFECTIVE_LABEL = "Yürürlük ve son güncelleme: 26 Eylül 2026";
+export const LEGAL_EFFECTIVE_LABEL = "Yürürlük ve son güncelleme: 3 Ekim 2026";
 
 function MailLink({ email }: { email: string }) {
   return <a href={`mailto:${email}`}>{email}</a>;

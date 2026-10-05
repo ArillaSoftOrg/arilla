@@ -12,6 +12,7 @@ import { type AuthEventProvider, appUser, type Database, session } from "@arilla
 import { and, eq } from "drizzle-orm";
 import { ensureEarlyAccess } from "../access/early-access.ts";
 import { shouldJoinEarlyAccess } from "../access/product-access.ts";
+import { applySignupConsentDefaults } from "../account/onboarding.ts";
 import { recordSessionEnd, recordSignIn, type SessionEndKind } from "../activity/auth-events.ts";
 import { EMPTY_REQUEST_CONTEXT, type RequestContext } from "../activity/request-context.ts";
 import { touchLastActive } from "../activity/summary.ts";
@@ -73,6 +74,9 @@ export async function createSessionForUser(
     sessionId,
     context,
   });
+
+  // 0059: yeni hesapta kişiselleştirme ve anonim keşif varsayılan AÇIK.
+  if (input.isNewUser) await applySignupConsentDefaults(db, input.userId);
 
   return rawSessionToken;
 }
