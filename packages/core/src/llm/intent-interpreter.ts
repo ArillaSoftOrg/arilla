@@ -21,11 +21,12 @@ import {
 } from "../clarification/interpreter.ts";
 import type { ClarificationRegistry } from "../clarification/types.ts";
 import {
+  type LlmCall,
+  type LlmCallOptions,
   type LlmClient,
   LlmError,
   type LlmErrorCode,
   type LlmJsonResult,
-  type LlmUsage,
 } from "./client.ts";
 
 /** Yorum ciktisi kucuk bir nesnedir; dusunme payi dahil yeterli ust sinir. */
@@ -65,37 +66,62 @@ export class LlmIntentInterpreter implements IntentInterpreter {
     return (await this.interpretWithUsage(request)).value;
   }
 
-  /** Ham cikti + kullanim; toplu is `api_usage` kaydi icin bunu kullanir. */
-  interpretWithUsage(request: InterpreterRequest): Promise<LlmJsonResult> {
-    return this.client.generateJson({
-      systemInstruction: INTERPRETER_INSTRUCTIONS,
-      input: buildInterpreterInput(request),
-      schema: this.schema,
-      maxOutputTokens: INTERPRETER_MAX_OUTPUT_TOKENS,
-    });
+  /**
+   * Ham cikti + kullanim. `options.onCall` her HTTP denemesi icin bir kez
+   * cagrilir; toplu is `api_usage` satirlarini bundan yazar.
+   */
+  interpretWithUsage(
+    request: InterpreterRequest,
+    options: LlmCallOptions = {},
+  ): Promise<LlmJsonResult> {
+    return this.client.generateJson(
+      {
+        systemInstruction: INTERPRETER_INSTRUCTIONS,
+        input: buildInterpreterInput(request),
+        schema: this.schema,
+        maxOutputTokens: INTERPRETER_MAX_OUTPUT_TOKENS,
+      },
+      options,
+    );
   }
 }
+
+/**
+ * Saglayici yanit verdi (HTTP 200) ama cikti kullanilamaz: kesik, JSON degil
+ * ya da bicimsiz. Bu bir MODEL ciktisi hatasidir, gecici degil: `invalid`
+ * olarak saklanir ki ayni surumde tekrar odenmesin.
+ */
+const OUTPUT_ERROR_CODES = new Set<LlmErrorCode>([
+  "incomplete",
+  "invalid_json",
+  "malformed_response",
+]);
+
+/** Dogrulama kodlarina ek olarak cikti hatasi kodlari; hepsi sabit, icerik yok. */
+export type ModelRejection =
+  | InterpretationRejection
+  | { path: "$"; reason: "incomplete" | "invalid_json" | "malformed_response" };
 
 export type ModelInterpretationOutcome =
   /** Dogrulamadan gecen en az bir alan var; reddedilen alanlar ayrica listelenir. */
   | {
       status: "accepted";
       value: ValidatedInterpretation;
-      rejected: InterpretationRejection[];
-      usage: LlmUsage;
+      rejected: ModelRejection[];
+      calls: LlmCall[];
       modelVersion: string;
     }
   /** Model gecerli bicimde "bir sey bulamadim" dedi. */
-  | { status: "empty"; usage: LlmUsage; modelVersion: string }
-  /** Cikti nesne degil ya da her alani reddedildi; hicbir sey saklanmaz. */
+  | { status: "empty"; rejected: []; calls: LlmCall[]; modelVersion: string }
+  /** Cikti kullanilamaz ya da her alani reddedildi; yorum saklanmaz, durum saklanir. */
+  | { status: "invalid"; rejected: ModelRejection[]; calls: LlmCall[]; modelVersion: string }
+  /** Gecici/yapilandirma hatasi; hicbir sey saklanmaz, sonraki kosu yeniden dener. */
   | {
-      status: "invalid";
-      rejected: InterpretationRejection[];
-      usage: LlmUsage;
+      status: "provider_error";
+      code: LlmErrorCode | "unknown";
+      calls: LlmCall[];
       modelVersion: string;
-    }
-  /** Saglayici cagrisi basarisiz; arama bundan etkilenmez. */
-  | { status: "provider_error"; code: LlmErrorCode | "unknown" };
+    };
 
 function isEmpty(value: ValidatedInterpretation): boolean {
   return (
@@ -107,24 +133,40 @@ function isEmpty(value: ValidatedInterpretation): boolean {
 }
 
 /**
- * Yorumla ve dogrula. Asla firlatmaz: saglayici hatasi `provider_error`,
- * gecersiz cikti `invalid` olur ve cagiran hicbir sey saklamaz.
+ * Yorumla ve dogrula. Asla firlatmaz. Her sonuc, yapilan HTTP denemelerinin
+ * muhasebe kayitlarini (`calls`) tasir - gecersiz cikti ve saglayici hatasi dahil.
  */
 export async function interpretWithModel(
   interpreter: LlmIntentInterpreter,
   request: InterpreterRequest,
   registry: ClarificationRegistry,
 ): Promise<ModelInterpretationOutcome> {
+  const calls: LlmCall[] = [];
+  const modelVersion = interpreter.modelVersion;
   let result: LlmJsonResult;
   try {
-    result = await interpreter.interpretWithUsage(request);
+    result = await interpreter.interpretWithUsage(request, { onCall: (call) => calls.push(call) });
   } catch (error) {
-    return { status: "provider_error", code: error instanceof LlmError ? error.code : "unknown" };
+    const code = error instanceof LlmError ? error.code : "unknown";
+    if (code !== "unknown" && OUTPUT_ERROR_CODES.has(code)) {
+      return {
+        status: "invalid",
+        rejected: [
+          { path: "$", reason: code as "incomplete" | "invalid_json" | "malformed_response" },
+        ],
+        calls,
+        modelVersion,
+      };
+    }
+    return { status: "provider_error", code, calls, modelVersion };
   }
 
-  const { usage, modelVersion } = result;
   const { value, rejected } = validateInterpretation(result.value, request, registry);
-  if (!isEmpty(value)) return { status: "accepted", value, rejected, usage, modelVersion };
-  if (rejected.length > 0) return { status: "invalid", rejected, usage, modelVersion };
-  return { status: "empty", usage, modelVersion };
+  if (!isEmpty(value)) {
+    return { status: "accepted", value, rejected, calls, modelVersion: result.modelVersion };
+  }
+  if (rejected.length > 0) {
+    return { status: "invalid", rejected, calls, modelVersion: result.modelVersion };
+  }
+  return { status: "empty", rejected: [], calls, modelVersion: result.modelVersion };
 }

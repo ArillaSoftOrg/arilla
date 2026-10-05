@@ -301,6 +301,34 @@ Ertelenmez: süresi geçmiş kişisel veri tutmak aydınlatma metnine aykırıd�
 Analitik rızası geri alındığında kullanıcının olaylarının silinmesi cron'a
 bırakılmaz; rıza satırıyla aynı işlemde yapılır (0049 §8).
 
+## Sorgu yorumlama (Gemini, çevrimdışı) — üretimde KAPALI
+
+Karar 0059. Uç: `GET /api/cron/interpret-queries`, `Authorization: Bearer
+${CRON_SECRET}`. **Zamanlanmış değil**: `vercel.json`'da ya da GitHub
+Actions'ta yok; yalnızca elle çağrılır. `/ara` bu ucu çağırmaz ve henüz
+saklanan yorumu okumaz.
+
+- `GEMINI_API_KEY` yoksa sağlayıcı çağrılmaz; yanıt `status: "skipped"`,
+  `skippedReason: "missing_api_key"`. Üretimde anahtar KVKK onayı ve ücretli
+  katman anahtarı olmadan tanımlanmaz (docs/kvkk.md "Planlanan: sorgu
+  yorumlama").
+- Koşu başına en fazla 20 sorgu; 35 sn'den sonra yeni sorguya başlanmaz.
+  İstemci 10 sn zaman aşımı, en fazla 2 deneme. Aynı anda ikinci koşu
+  (`already_running`) atlanır.
+- Aday: `search_query_day` son 30 gün, en az 3 arama, kişisel veri/kimlik/sır
+  süzgecinden geçmiş, deterministik netleştirmenin domain bulamadığı normalize
+  sorgu. Kullanıcı/oturum verisi okunmaz.
+- Sonuç `query_interpretation`'a yazılır (`accepted` / `empty` / `invalid`);
+  sağlayıcı hatası satır yazmaz, sonraki koşu yeniden dener. 401/403/4xx ya da
+  429'da koşu durur (`stopCode`).
+- Her HTTP denemesi `api_usage`'a bir satır (`operation =
+  'query_interpretation'`, `units` = toplam token, kimlik NULL, `cost_micros`
+  0 — fiyat oranı henüz tanımlı değil, ekran "fiyatlanmamış" sayar).
+- Koşu `job_run`'a `query_interpretation` adıyla yazılır; `/yonetim/islemler/isler`
+  listesinde görünür. `job_run`'da `skipped` durumu yoktur: atlanan koşu
+  `success` + `detail.skipped = true` ve `skippedReason` ile yazılır.
+  Ayrıntı yalnızca sayılardır.
+
 ## Oran sınırlama ve kazımaya karşı koruma
 
 Siz feed'lerden veri topluyorsunuz; rakip de sizden toplamaya çalışacak.

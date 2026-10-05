@@ -19,6 +19,8 @@
  */
 import {
   EMPTY_USAGE,
+  type LlmCall,
+  type LlmCallOptions,
   type LlmClient,
   LlmError,
   type LlmJsonRequest,
@@ -151,7 +153,10 @@ export class GeminiClient implements LlmClient {
     this.random = options.random ?? Math.random;
   }
 
-  async generateJson(request: LlmJsonRequest): Promise<LlmJsonResult> {
+  async generateJson(
+    request: LlmJsonRequest,
+    options: LlmCallOptions = {},
+  ): Promise<LlmJsonResult> {
     const body = JSON.stringify({
       model: GEMINI_MODEL,
       system_instruction: request.systemInstruction,
@@ -168,7 +173,7 @@ export class GeminiClient implements LlmClient {
       store: false,
     });
 
-    const payload = await this.postWithRetry(body);
+    const payload = await this.postWithRetry(body, options.onCall);
     const text = extractText(payload);
     let value: unknown;
     try {
@@ -183,7 +188,17 @@ export class GeminiClient implements LlmClient {
     };
   }
 
-  private async postWithRetry(body: string): Promise<unknown> {
+  /** Her HTTP denemesi icin tam bir kez; gozlemci hatasi istemciyi etkilemez. */
+  private report(onCall: LlmCallOptions["onCall"], call: Omit<LlmCall, "modelVersion">): void {
+    if (!onCall) return;
+    try {
+      onCall({ modelVersion: GEMINI_MODEL, ...call });
+    } catch {
+      // Muhasebe gozlemcisi hata verdi; saglayici sonucu degismez.
+    }
+  }
+
+  private async postWithRetry(body: string, onCall?: LlmCallOptions["onCall"]): Promise<unknown> {
     for (let attempt = 1; ; attempt++) {
       let error: LlmError;
       let waitHint: number | null = null;
@@ -198,17 +213,27 @@ export class GeminiClient implements LlmClient {
           signal: AbortSignal.timeout(this.timeoutMs),
         });
         if (response.ok) {
+          let payload: unknown;
           try {
-            return await response.json();
+            payload = await response.json();
           } catch {
+            this.report(onCall, { httpStatus: response.status, usage: null });
             throw new LlmError("malformed_response", response.status);
           }
+          // Kullanim, cikti sonradan reddedilse (incomplete, gecersiz JSON) bile kaydedilir.
+          this.report(onCall, {
+            httpStatus: response.status,
+            usage: isRecord(payload) && "usage" in payload ? parseUsage(payload.usage) : null,
+          });
+          return payload;
         }
+        this.report(onCall, { httpStatus: response.status, usage: null });
         waitHint = retryAfterMs(response.headers.get("retry-after"));
         await discard(response);
         error = errorForStatus(response.status);
       } catch (caught) {
         if (caught instanceof LlmError) throw caught;
+        this.report(onCall, { httpStatus: null, usage: null });
         const name = (caught as { name?: unknown } | null)?.name;
         // Ham hata (adres, ic mesaj) tasinmaz; yalnizca sinifi.
         error = new LlmError(

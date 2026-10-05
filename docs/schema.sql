@@ -1075,6 +1075,24 @@ CREATE TABLE search_query_day (
     PRIMARY KEY (day, query_norm)
 );
 
+-- 0044 (docs/decisions/0059): cevrimdisi model sorgu yorumu onbellegi. Toplu is
+-- yazar, istek yolu yalnizca okur. Kimlik (sorgu, taksonomi ozeti, model);
+-- kullanici/oturum/IP YOK, ham model yaniti YOK. Saglayici hatasi satir uretmez.
+CREATE TABLE query_interpretation (
+    id              BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    query_norm      TEXT        NOT NULL CHECK (char_length(query_norm) BETWEEN 1 AND 200),
+    taxonomy_hash   TEXT        NOT NULL CHECK (taxonomy_hash ~ '^[0-9a-f]{64}$'),
+    model_version   TEXT        NOT NULL CHECK (char_length(model_version) BETWEEN 1 AND 100),
+    status          TEXT        NOT NULL CHECK (status IN ('accepted', 'empty', 'invalid')),
+    interpretation  JSONB,                     -- dogrulanmis yorum, yalnizca accepted
+    rejected        JSONB       NOT NULL DEFAULT '[]'::jsonb  -- [{path, reason}] sabit kodlar
+                    CHECK (jsonb_typeof(rejected) = 'array' AND pg_column_size(rejected) <= 2048),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT query_interpretation_identity UNIQUE (query_norm, taxonomy_hash, model_version),
+    CONSTRAINT query_interpretation_accepted_value CHECK ((status = 'accepted') = (interpretation IS NOT NULL)),
+    CONSTRAINT query_interpretation_value_shape CHECK (interpretation IS NULL OR jsonb_typeof(interpretation) = 'object')
+);
+
 -- Sözlükler. Veritabanında tutulur ki yeni eşanlamlı için sürüm çıkmasın.
 CREATE TABLE lexicon (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,

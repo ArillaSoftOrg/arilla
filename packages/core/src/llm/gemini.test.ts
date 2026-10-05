@@ -388,3 +388,78 @@ describe("getLlmClient", () => {
     expect(JSON.parse(String(calls[0]?.init.body)).model).toBe(GEMINI_MODEL);
   });
 });
+
+describe("HTTP denemesi muhasebesi (onCall)", () => {
+  function collect() {
+    const calls: unknown[] = [];
+    return { calls, onCall: (call: unknown) => calls.push(call) };
+  }
+
+  it("her deneme icin tam bir kayit; basarili denemede kullanim", async () => {
+    const { impl } = fakeFetch([jsonResponse({}, 503), jsonResponse(completed('{"a":"x"}'))]);
+    const { calls, onCall } = collect();
+    await client(impl).instance.generateJson(REQUEST, { onCall });
+    expect(calls).toEqual([
+      { modelVersion: GEMINI_MODEL, httpStatus: 503, usage: null },
+      {
+        modelVersion: GEMINI_MODEL,
+        httpStatus: 200,
+        usage: { inputTokens: 10, outputTokens: 5, thoughtTokens: 2, totalTokens: 17 },
+      },
+    ]);
+  });
+
+  it("cikti reddedilse de (incomplete, gecersiz JSON) kullanim kaydedilir", async () => {
+    const truncated = completed('{"a":', { total_tokens: 1030 });
+    (truncated as { status: string }).status = "incomplete";
+    const { impl } = fakeFetch([jsonResponse(truncated), jsonResponse(completed("json degil"))]);
+    const first = collect();
+    await caught(client(impl).instance.generateJson(REQUEST, { onCall: first.onCall }));
+    expect(first.calls).toEqual([
+      {
+        modelVersion: GEMINI_MODEL,
+        httpStatus: 200,
+        usage: { inputTokens: 10, outputTokens: 5, thoughtTokens: 2, totalTokens: 1030 },
+      },
+    ]);
+    const second = collect();
+    await caught(client(impl).instance.generateJson(REQUEST, { onCall: second.onCall }));
+    expect(second.calls).toHaveLength(1);
+  });
+
+  it("yanitsiz deneme (zaman asimi/ag) ve govdesi bozuk 200 de kaydedilir", async () => {
+    const { impl } = fakeFetch([
+      new TypeError("fetch failed"),
+      new Response("bozuk", { status: 200 }),
+    ]);
+    const { calls, onCall } = collect();
+    await caught(client(impl).instance.generateJson(REQUEST, { onCall }));
+    expect(calls).toEqual([
+      { modelVersion: GEMINI_MODEL, httpStatus: null, usage: null },
+      { modelVersion: GEMINI_MODEL, httpStatus: 200, usage: null },
+    ]);
+  });
+
+  it("deneme sinirinda kayit sayisi deneme sayisina esit", async () => {
+    const { impl } = fakeFetch(
+      Array.from({ length: GEMINI_MAX_ATTEMPTS }, () => jsonResponse({}, 500)),
+    );
+    const { calls, onCall } = collect();
+    await caught(client(impl).instance.generateJson(REQUEST, { onCall }));
+    expect(calls).toHaveLength(GEMINI_MAX_ATTEMPTS);
+  });
+
+  it("gozlemci hatasi saglayici sonucunu degistirmez; kayit icerik tasimaz", async () => {
+    const { impl } = fakeFetch([jsonResponse(completed('{"a":"x"}'))]);
+    const seen: unknown[] = [];
+    const result = await client(impl).instance.generateJson(REQUEST, {
+      onCall: (call) => {
+        seen.push(call);
+        throw new Error("gozlemci patladi");
+      },
+    });
+    expect(result.value).toEqual({ a: "x" });
+    const serialized = JSON.stringify(seen);
+    for (const secret of [API_KEY, PROMPT, '{"a":"x"}']) expect(serialized).not.toContain(secret);
+  });
+});

@@ -7,7 +7,13 @@ import {
 } from "../clarification/interpreter.ts";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "../clarification/rules.ts";
 import { createInitialState } from "../clarification/state.ts";
-import { type LlmClient, LlmError, type LlmJsonRequest, type LlmUsage } from "./client.ts";
+import {
+  type LlmCall,
+  type LlmClient,
+  LlmError,
+  type LlmJsonRequest,
+  type LlmUsage,
+} from "./client.ts";
 import {
   buildInterpreterInput,
   interpretWithModel,
@@ -21,13 +27,19 @@ function request(text: string): InterpreterRequest {
   return { text, state: createInitialState(), taxonomy: describeTaxonomy(registry) };
 }
 
-/** Verilen ciktiyi ya da hatayi donduren sahte istemci; istekleri kaydeder. */
-function fakeClient(output: unknown | Error) {
+const CALL: LlmCall = { modelVersion: "fake-model", httpStatus: 200, usage: USAGE };
+
+/**
+ * Verilen ciktiyi ya da hatayi donduren sahte istemci; istekleri kaydeder.
+ * Gercek istemci gibi her "HTTP denemesi" icin `onCall` cagirir.
+ */
+function fakeClient(output: unknown | Error, calls: LlmCall[] = [CALL]) {
   const requests: LlmJsonRequest[] = [];
   const client: LlmClient = {
     modelVersion: "fake-model",
-    async generateJson(req) {
+    async generateJson(req, options) {
       requests.push(req);
+      for (const call of calls) options?.onCall?.(call);
       if (output instanceof Error) throw output;
       return { value: output, usage: USAGE, modelVersion: "fake-model" };
     },
@@ -35,8 +47,12 @@ function fakeClient(output: unknown | Error) {
   return { client, requests };
 }
 
-function run(output: unknown | Error, text = "kask arıyorum 2000 tl altı") {
-  const { client, requests } = fakeClient(output);
+function run(
+  output: unknown | Error,
+  text = "kask arıyorum 2000 tl altı",
+  calls: LlmCall[] = [CALL],
+) {
+  const { client, requests } = fakeClient(output, calls);
   const interpreter = new LlmIntentInterpreter(client, registry);
   return {
     outcome: interpretWithModel(interpreter, request(text), registry),
@@ -92,7 +108,7 @@ describe("dogrulama", () => {
         pricePreference: null,
       },
       rejected: [],
-      usage: USAGE,
+      calls: [CALL],
       modelVersion: "fake-model",
     });
   });
@@ -115,7 +131,8 @@ describe("dogrulama", () => {
       { path: "facets[0]", reason: "unknown_facet" },
       { path: "facets[1]", reason: "facet_outside_domain" },
     ]);
-    expect(outcome.usage).toEqual(USAGE);
+    // Gecersiz ciktida da HTTP denemesi muhasebesi tasinir.
+    expect(outcome.calls).toEqual([CALL]);
   });
 
   it("gecerli domain icinde uydurulan secenek dusurulur, gecerli kisim kalir", async () => {
@@ -173,7 +190,12 @@ describe("dogrulama", () => {
 
   it("eksik alanli cikti guvenle bos sayilir", async () => {
     const outcome = await run({}).outcome;
-    expect(outcome).toEqual({ status: "empty", usage: USAGE, modelVersion: "fake-model" });
+    expect(outcome).toEqual({
+      status: "empty",
+      rejected: [],
+      calls: [CALL],
+      modelVersion: "fake-model",
+    });
   });
 
   it("gecerli 'bulamadim' yaniti bos", async () => {
@@ -184,17 +206,51 @@ describe("dogrulama", () => {
 });
 
 describe("saglayici hatasi", () => {
-  it.each(["timeout", "rate_limited", "server_error", "invalid_json", "missing_api_key"] as const)(
-    "%s firlatilmaz, provider_error olur",
+  it.each([
+    "timeout",
+    "network",
+    "rate_limited",
+    "server_error",
+    "auth",
+    "client_error",
+    "missing_api_key",
+  ] as const)("gecici/yapilandirma hatasi %s firlatilmaz, provider_error olur", async (code) => {
+    const outcome = await run(new LlmError(code)).outcome;
+    expect(outcome).toEqual({
+      status: "provider_error",
+      code,
+      calls: [CALL],
+      modelVersion: "fake-model",
+    });
+  });
+
+  it.each(["incomplete", "invalid_json", "malformed_response"] as const)(
+    "kullanilamaz model ciktisi %s gecersiz sayilir (saklanir, tekrar odenmez)",
     async (code) => {
       const outcome = await run(new LlmError(code)).outcome;
-      expect(outcome).toEqual({ status: "provider_error", code });
+      expect(outcome).toEqual({
+        status: "invalid",
+        rejected: [{ path: "$", reason: code }],
+        calls: [CALL],
+        modelVersion: "fake-model",
+      });
     },
   );
 
+  it("yeniden denemelerin her biri ayri muhasebe kaydi olarak tasinir", async () => {
+    const retry: LlmCall = { modelVersion: "fake-model", httpStatus: 503, usage: null };
+    const outcome = await run(VALID, "kask arıyorum 2000 tl altı", [retry, CALL]).outcome;
+    expect(outcome.calls).toEqual([retry, CALL]);
+  });
+
+  it("cagri olmadan biten hata bos muhasebe tasir", async () => {
+    const outcome = await run(new LlmError("missing_api_key"), "kask", []).outcome;
+    expect(outcome.calls).toEqual([]);
+  });
+
   it("beklenmeyen hata da firlatilmaz ve icerigi tasinmaz", async () => {
     const outcome = await run(new Error("body-secret")).outcome;
-    expect(outcome).toEqual({ status: "provider_error", code: "unknown" });
+    expect(outcome).toMatchObject({ status: "provider_error", code: "unknown" });
     expect(JSON.stringify(outcome)).not.toContain("body-secret");
   });
 });

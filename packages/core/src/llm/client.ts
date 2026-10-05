@@ -33,9 +33,27 @@ export interface LlmJsonResult {
   modelVersion: string;
 }
 
+/**
+ * Saglayiciya giden TEK bir HTTP denemesinin muhasebe kaydi. Yeniden
+ * denemeler dahil her deneme icin bir kez uretilir; `api_usage` satiri
+ * bundan yazilir. Icerik tasimaz: yalnizca durum ve token sayilari.
+ */
+export interface LlmCall {
+  modelVersion: string;
+  /** Yanit gelmediyse (zaman asimi, ag) `null`. */
+  httpStatus: number | null;
+  /** Yanitta okunabilen kullanim; yoksa `null`. Gecersiz ciktida da doludur. */
+  usage: LlmUsage | null;
+}
+
+export interface LlmCallOptions {
+  /** Her HTTP denemesinden sonra cagrilir; firlatirsa yutulur. */
+  onCall?: (call: LlmCall) => void;
+}
+
 export interface LlmClient {
   readonly modelVersion: string;
-  generateJson(request: LlmJsonRequest): Promise<LlmJsonResult>;
+  generateJson(request: LlmJsonRequest, options?: LlmCallOptions): Promise<LlmJsonResult>;
 }
 
 export type LlmErrorCode =

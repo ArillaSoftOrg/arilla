@@ -1,8 +1,9 @@
 # 0059 — Gemini ile çevrimdışı sorgu yorumlama
 
 **Tarih:** 5 Ekim 2026
-**Durum:** Kabul edildi — istemci ve yorumlayıcı uyarlayıcısı hazır; saklama,
-toplu iş ve `/ara` okuma yolu ayrı adımlar. Üretimde etkin DEĞİL.
+**Durum:** Kabul edildi — istemci, uyarlayıcı, saklama (0044), toplu iş ve
+korumalı (zamanlanmamış) cron ucu hazır; `/ara` okuma yolu ayrı adım.
+Üretimde etkin DEĞİL.
 
 Karar 0030, `IntentInterpreter`'ın bir modele bağlanmasını ayrı bir karara
 bırakmıştı. Bu karar o bağlantının sınırlarını koyar. İlk sağlayıcı Google
@@ -52,6 +53,32 @@ Gemini, model `gemini-3.1-flash-lite` (kararlı sürüm).
    metni güncellemesi ve ücretli katman anahtarı (ücretsiz katmanda içerik
    ürün geliştirmede kullanılabilir) açıkça onaylanmadan üretimde anahtar
    tanımlanmaz. Etkinleştirme ayrı ve sonraki bir adımdır.
+
+## Uygulama ayrıntıları
+
+- **Saklama:** `query_interpretation` (migration 0044), kimlik UNIQUE
+  `(query_norm, taxonomy_hash, model_version)`. `taxonomy_hash` modele giden
+  sözleşmenin (taksonomi kimlik+etiket, JSON şeması, talimatlar) SHA-256
+  özetidir; biri değişince sorgu yeniden yorumlanabilir. Durum `accepted`
+  (doğrulanmış yorum), `empty` (model geçerli biçimde bir şey bulamadı),
+  `invalid` (her alan reddedildi ya da çıktı kullanılamaz: kesik/JSON değil).
+  `invalid` de saklanır: aynı sürümde tekrar ödenmez. Geçici sağlayıcı hatası
+  (zaman aşımı, ağ, 429, 5xx, 401/403, diğer 4xx) satır yazmaz.
+- **Aday:** `search_query_day` son 30 gün, toplam en az 3 arama; ek kişisel
+  veri/kimlik/sır süzgeci (`interpretation-eligibility.ts`); deterministik
+  netleştirme domain bulamamış olmalı (0030). Sıra: arama sayısı azalan, sonra
+  metin.
+- **Muhasebe:** istemci her HTTP denemesini (yeniden denemeler dahil) bir
+  `LlmCall` kaydı olarak bildirir; her biri için bir `api_usage` satırı
+  (`operation = 'query_interpretation'`, `units` = toplam token, kimlik NULL),
+  sorgu sonucuyla aynı işlemde. `cost_micros` şimdilik 0 (fiyat oranı yok).
+- **Sınırlar:** koşu başına 20 sorgu, 35 sn'den sonra yeni sorgu yok, istemci
+  10 sn × 2 deneme; 401/403/4xx/429'da koşu durur; aynı anda tek koşu
+  (yakın zamanda başlamış `running` `job_run` varsa atlanır). Ortam değişkeni
+  eklenmedi.
+- **`job_run`:** `query_interpretation`. 0041'de `skipped` durumu olmadığından
+  atlanan koşu `success` + `detail.skipped = true` ile yazılır. Ayrıntı
+  yalnızca sayı ve sabit koddur.
 
 ## Reddedilen alternatifler
 

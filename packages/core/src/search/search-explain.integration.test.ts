@@ -209,12 +209,17 @@ describe("arama tanısı motoru - entegrasyon", () => {
   });
 
   it("explainSearch + explainProductAbsence: moderatör kullanır, kullanıcı reddedilir, hiçbir şey yazılmaz", async () => {
+    // Yalnizca bu testin sorgusuna ait satirlar: tani WORD'den baska bir anahtarla
+    // yazamaz. Tum tablo sayilmaz - esanli calisan baska dosyalar (arama kalitesi,
+    // sorgu yorumlama) ayni tablolara mesru olarak yazar ve global sayi yarisir.
     const counts = () =>
       withOwnerClient(async (client) => {
         const r = await client.query(
-          `SELECT (SELECT count(*) FROM search_query_day)::int AS sq,
-                  (SELECT count(*) FROM query_resolution)::int AS qr,
-                  (SELECT COALESCE(sum(hit_count), 0)::int FROM query_resolution) AS hits`,
+          `SELECT (SELECT count(*) FROM search_query_day WHERE query_norm LIKE $1)::int AS sq,
+                  (SELECT count(*) FROM query_resolution WHERE query_norm LIKE $1)::int AS qr,
+                  (SELECT COALESCE(sum(hit_count), 0)::int FROM query_resolution
+                    WHERE query_norm LIKE $1) AS hits`,
+          [`%${WORD}%`],
         );
         return r.rows[0];
       });
