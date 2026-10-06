@@ -174,7 +174,11 @@ export interface QueryInterpretationBatchResult {
   alreadyStored: number;
   /** Sure butcesi ya da durdurucu hata yuzunden islenmeyen aday. */
   deferred: number;
-  /** Bu kosu baslarken bugun (Europe/Istanbul) zaten yapilmis saglayici denemesi. */
+  /**
+   * Bugun (Europe/Istanbul) yapilmis toplam saglayici denemesi, bu kosununkiler
+   * DAHIL (kosu oncesi sayim + `providerCalls`). Yalnizca raporlama; tavan
+   * kararlari kosu oncesi sayimla verilir.
+   */
   providerCallsToday: number;
   /** Kosuyu durduran saglayici hata kodu (sabit). */
   stopCode: string | null;
@@ -320,7 +324,6 @@ export async function runQueryInterpretationBatch(
   });
 
   const result = emptyResult("success");
-  result.providerCallsToday = callsBefore;
   result.candidates = selection.candidates.length;
   result.scanned = selection.scanned;
   result.ineligible = selection.ineligible;
@@ -364,6 +367,7 @@ export async function runQueryInterpretationBatch(
     result[outcome.status]++;
   }
 
+  result.providerCallsToday = callsBefore + result.providerCalls;
   if (result.attempted > 0 && result.providerErrors === result.attempted) {
     result.status = "failed";
   } else if (result.providerErrors > 0) {

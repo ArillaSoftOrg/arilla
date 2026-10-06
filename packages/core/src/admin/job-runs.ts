@@ -74,13 +74,13 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
-  // Karar 0059: korumalı uç, zamanlanmamış. `cron` değil: zamanlayıcı yokken
-  // "kayıt yok" bulgusu yanlış alarm olurdu.
+  // Karar 0059: Vercel cron, günlük 00:30 UTC. Anahtar yoksa koşu "atlandı"
+  // olarak yine yazılır; gecikme eşiği diğer günlük cron'larla aynı.
   query_interpretation: {
     label: "Sorgu yorumlama (model, çevrimdışı)",
-    how: "/api/cron/interpret-queries (elle; GEMINI_API_KEY yoksa atlanır)",
-    kind: "pipeline",
-    overdueAfterMs: null,
+    how: "Vercel cron (günlük 00:30 UTC); GEMINI_API_KEY yoksa atlanır",
+    kind: "cron",
+    overdueAfterMs: 30 * HOUR,
   },
   discovery_slots: {
     label: "Keşfet slotları",

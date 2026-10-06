@@ -305,7 +305,7 @@ bırakılmaz; rıza satırıyla aynı işlemde yapılır (0049 §8).
 
 **Durum:** kod, 0044 ve 0046 üretimde. Hukuk danışmanı üretimde etkinleştirmeyi
 onayladı (m.5/2-f; KVKK m.9 aktarım sözleşmesi imzalandı). `GEMINI_API_KEY`
-Vercel'e eklenene kadar zamanlayıcı yok ve Google'a hiçbir metin gitmez.
+Vercel'e eklenene kadar Google'a hiçbir metin gitmez (günlük cron koşar ama atlanır).
 Anahtar, `/gizlilik` ve `/kvkk-aydinlatma` güncel metinle (6 Ekim 2026)
 yayına alındıktan ve docs/kvkk.md "Etkinleştirme kontrol listesi"ndeki açık
 kalemler teyit edildikten sonra eklenir. `store: false` aktarımı ya da işlemeyi kaldırmaz;
@@ -326,8 +326,18 @@ Geri alma: anahtar Vercel'den kaldırılır (toplu iş atlanır); mevcut yorumla
 en fazla 90 günde silinir.
 
 Karar 0059. Uç: `GET /api/cron/interpret-queries`, `Authorization: Bearer
-${CRON_SECRET}`. **Zamanlanmış değil**: `vercel.json`'da ya da GitHub
-Actions'ta yok; yalnızca elle çağrılır. `/ara` bu ucu çağırmaz.
+${CRON_SECRET}`. **Günlük Vercel cron:** `apps/web/vercel.json`,
+`30 0 * * *` (00:30 UTC, Türkiye saatiyle yaklaşık 03:30). Vercel, proje
+ortamında `CRON_SECRET` tanımlıyken isteğe `Authorization: Bearer
+${CRON_SECRET}` başlığını kendisi ekler; uç diğer cron'larla aynı kontrolü
+kullanır. Plan Hobby ise Vercel günlük cron'u belirtilen saat içinde
+herhangi bir dakikada çalıştırabilir. Koşu başına en fazla 20 sorgu, gün
+başına en fazla 100 sağlayıcı denemesi (Europe/Istanbul günü) değişmedi; elle
+tetikleme de aynı günlük tavana sayılır. Yanıttaki `providerCallsToday` bu
+koşunun denemeleri DAHİL günün toplamıdır. Gecikme: `/yonetim/islemler`
+`query_interpretation` için 30 saat (diğer günlük cron'larla aynı).
+Durdurma: girişi `vercel.json`'dan kaldırıp dağıtmak ya da anahtarı
+kaldırmak (koşu atlanır). `/ara` bu ucu çağırmaz.
 
 **`/ara` okuma yolu ve dağıtım sırası.** `/ara`, deterministik netleştirme
 ilk turda domain bulamadığında `query_interpretation`'dan (normalize sorgu +

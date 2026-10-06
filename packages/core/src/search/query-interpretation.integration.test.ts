@@ -402,6 +402,9 @@ describe("query_interpretation - entegrasyon", () => {
       expect(result.deferred).toBeGreaterThanOrEqual(1);
       expect(inputs).toHaveLength(1);
       expect(await providerCallsToday(db, new Date())).toBe(used + result.providerCalls);
+      // Yanit alani bu kosunun denemelerini de icerir (kosu oncesi sayim degil).
+      expect(result.providerCalls).toBeGreaterThan(0);
+      expect(result.providerCallsToday).toBe(used + result.providerCalls);
       await withOwnerClient(async (c) => {
         await c.query("DELETE FROM query_interpretation WHERE taxonomy_hash = $1", [
           interpreterContractHash(registry),
