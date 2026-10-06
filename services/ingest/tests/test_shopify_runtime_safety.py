@@ -409,6 +409,8 @@ class _Cursor:
         self.conn.statements.append((" ".join(sql.split()), params))
         if "FROM merchant WHERE slug" in sql:
             self._row = (7, "magaza", "shopify", BASE_URL, self.conn.feed_config, True)
+        elif "pg_try_advisory_lock" in sql:
+            self._row = (True,)
         elif "INSERT INTO ingest_run" in sql:
             self._row = (99,)
         else:
@@ -452,8 +454,11 @@ def test_pipeline_records_robots_refusal_as_failed_without_writes(
     assert not any(
         "INSERT INTO offer" in sql or "INSERT INTO price_point" in sql for sql in written
     )
-    ((close_sql, params),) = [s for s in conn.statements if s[0].startswith("UPDATE ingest_run")]
-    status, seen, created, updated, points, error_text, run_id = params
+    ((close_sql, params),) = [
+        s for s in conn.statements if "checkpoint = coalesce(%s::jsonb, checkpoint)" in s[0]
+    ]
+    status, seen, created, updated, points, error_text, checkpoint, run_id = params
+    assert '"resumable": false' in checkpoint
     assert (status, seen, created, updated, points, run_id) == ("failed", 0, 0, 0, 0, 99)
     assert error_text.startswith("refused:robots_disallowed: robots_disallowed (/products.json")
     assert conn.rollbacks == 1

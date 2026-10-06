@@ -1,42 +1,67 @@
 """Veritabani yazimi. Tum SQL burada.
 
-Uc kural bu dosyanin varlik sebebi:
+Kurallar bu dosyanin varlik sebebi:
 
 1. **Idempotentlik.** `(merchant_id, external_id)` uzerinde upsert. Ayni feed
    iki kez islendiginde yeni `offer` satiri olusmaz.
-2. **`price_point` sadece INSERT.** Fiyat degismemis olsa bile satir yazilir —
-   surekliligin kendisi veridir. UPDATE denenmez; `arilla_app` rolunun zaten
-   yetkisi yok.
+2. **`price_point` sadece INSERT.** UPDATE denenmez; `arilla_app` rolunun zaten
+   yetkisi yok. `dedupe_price_points=True` (toplu kosu) iken fiyat, liste fiyati
+   ve stok onceki satirla AYNIYSA yeni satir yazilmaz — gecmis yalnizca
+   degisimde buyur (karar 0065). Tazelik `offer.last_seen_at`'te durur.
 3. **`variant_stock_event` yalnizca DEGISIMDE.** Yazmadan once mevcut durum
    okunur. Her kosuda yazilirsa tablo siser.
+4. **Toplu SQL (0065).** Bir chunk'taki tum teklifler/varyantlar `unnest` ile
+   sabit sayida ifadeyle yazilir: uzak veritabaninda her ifade bir round-trip
+   oldugundan, teklif/varyant basina 5 ifade yerine chunk basina ~9 ifade.
+   Davranis tek tek yazimla aynidir (testlerle sabitlenmis).
+
+`write_batch` BIR islemin icinde calisir; commit/rollback cagirana aittir
+(`collect.pipeline` chunk basina commit eder).
 """
 
 from __future__ import annotations
 
 import json
+from collections.abc import Iterator, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 
 import psycopg
+from psycopg.types.json import Jsonb
 
-from collect.records import NormalizedOffer
+from collect.records import NormalizedOffer, NormalizedVariant
 
-UPSERT_OFFER = """
-WITH previous AS (
-    SELECT image_url FROM offer
-     WHERE merchant_id = %(merchant_id)s AND external_id = %(external_id)s
+#: Tek ifadede en fazla bu kadar varyant satiri (bellek ve paket boyutu siniri).
+VARIANT_SLICE = 2000
+
+UPSERT_OFFERS = """
+WITH incoming AS (
+    SELECT * FROM unnest(
+        %(external_id)s::text[], %(url)s::text[], %(title_raw)s::text[],
+        %(brand_raw)s::text[], %(category_raw)s::text[], %(image_url)s::text[],
+        %(attributes_raw)s::jsonb[], %(current_price)s::bigint[], %(list_price)s::bigint[],
+        %(currency)s::text[], %(in_stock)s::boolean[], %(shipping_days)s::smallint[],
+        %(shipping_cost)s::bigint[], %(free_shipping_threshold)s::bigint[]
+    ) AS t(external_id, url, title_raw, brand_raw, category_raw, image_url,
+           attributes_raw, current_price, list_price, currency, in_stock,
+           shipping_days, shipping_cost, free_shipping_threshold)
+), previous AS (
+    SELECT o.external_id, o.image_url FROM offer o
+      JOIN incoming i ON i.external_id = o.external_id
+     WHERE o.merchant_id = %(merchant_id)s
 )
 INSERT INTO offer (
     merchant_id, external_id, url, title_raw, brand_raw, category_raw,
     image_url, attributes_raw, current_price, list_price, currency, in_stock,
     shipping_days, shipping_cost, free_shipping_threshold, discovery_source,
     first_seen_at, last_seen_at, is_active
-) VALUES (
-    %(merchant_id)s, %(external_id)s, %(url)s, %(title_raw)s, %(brand_raw)s, %(category_raw)s,
-    %(image_url)s, %(attributes_raw)s, %(current_price)s, %(list_price)s, %(currency)s,
-    %(in_stock)s, %(shipping_days)s, %(shipping_cost)s, %(free_shipping_threshold)s,
-    %(discovery_source)s, %(observed_at)s, %(observed_at)s, TRUE
 )
+SELECT %(merchant_id)s, i.external_id, i.url, i.title_raw, i.brand_raw, i.category_raw,
+       i.image_url, i.attributes_raw, i.current_price, i.list_price, i.currency, i.in_stock,
+       i.shipping_days, i.shipping_cost, i.free_shipping_threshold, %(discovery_source)s,
+       %(observed_at)s, %(observed_at)s, TRUE
+  FROM incoming i
 ON CONFLICT (merchant_id, external_id) DO UPDATE SET
     url                     = EXCLUDED.url,
     title_raw               = EXCLUDED.title_raw,
@@ -65,38 +90,55 @@ ON CONFLICT (merchant_id, external_id) DO UPDATE SET
     free_shipping_threshold = EXCLUDED.free_shipping_threshold,
     last_seen_at            = EXCLUDED.last_seen_at,
     is_active               = TRUE,
-    -- Gorsel degistiyse eski hash (ve vektor, bkz. write()) bayattir (0029).
+    -- Gorsel degistiyse eski hash (ve vektor, bkz. write_batch) bayattir (0029).
     image_hash              = CASE WHEN offer.image_url IS DISTINCT FROM EXCLUDED.image_url
                                    THEN NULL ELSE offer.image_hash END
 -- product_id KASITLI OLARAK DOKUNULMAZ: eslestirme B4'un isi. Toplama
 -- katmani bir offer'i urune baglamaz, bagli olani da koparmaz.
-RETURNING id, (xmax = 0) AS inserted,
-          (SELECT image_url FROM previous) IS DISTINCT FROM offer.image_url AS image_changed
+RETURNING id, external_id, (xmax = 0) AS inserted,
+          (SELECT p.image_url FROM previous p WHERE p.external_id = offer.external_id)
+              IS DISTINCT FROM offer.image_url AS image_changed
 """
 
 #: Gorseli degisen offer'in gorsel vektoru silinir; `enrich` onu yeniden
 #: bekleyen sayar ve yeni gorselle uretir. Silinmezse vektor eski gorselde
 #: kalirdi: offer embedding'i olan hic secilmiyor (0029).
-DELETE_STALE_IMAGE_EMBEDDING = """
+DELETE_STALE_IMAGE_EMBEDDINGS = """
 DELETE FROM embedding
- WHERE target_type = 'offer' AND target_id = %(offer_id)s AND kind = 'image'
+ WHERE target_type = 'offer' AND kind = 'image' AND target_id = ANY(%(offer_ids)s)
 """
 
-# Fiyat degismese bile yazilir. Ayni kosu yeniden denenirse (offer_id,
-# observed_at) cakisir; DO NOTHING tekrar denemeyi guvenli kilar.
-INSERT_PRICE_POINT = """
+LAST_PRICE_POINTS = """
+SELECT DISTINCT ON (offer_id) offer_id, price, list_price, in_stock
+  FROM price_point
+ WHERE offer_id = ANY(%(offer_ids)s)
+ ORDER BY offer_id, observed_at DESC
+"""
+
+# Ayni kosu yeniden denenirse (offer_id, observed_at) cakisir; DO NOTHING
+# tekrar denemeyi guvenli kilar.
+INSERT_PRICE_POINTS = """
 INSERT INTO price_point (offer_id, observed_at, price, list_price, in_stock)
-VALUES (%(offer_id)s, %(observed_at)s, %(price)s, %(list_price)s, %(in_stock)s)
+SELECT t.offer_id, %(observed_at)s, t.price, t.list_price, t.in_stock
+  FROM unnest(%(offer_id)s::bigint[], %(price)s::bigint[], %(list_price)s::bigint[],
+              %(in_stock)s::boolean[]) AS t(offer_id, price, list_price, in_stock)
 ON CONFLICT (offer_id, observed_at) DO NOTHING
 """
 
-UPSERT_VARIANT = """
+EXISTING_VARIANTS = """
+SELECT offer_id, external_id, in_stock FROM offer_variant WHERE offer_id = ANY(%(offer_ids)s)
+"""
+
+UPSERT_VARIANTS = """
 INSERT INTO offer_variant (
     offer_id, external_id, size_label, size_norm, in_stock, price_override, sku, last_seen_at
-) VALUES (
-    %(offer_id)s, %(external_id)s, %(size_label)s, %(size_norm)s, %(in_stock)s,
-    %(price_override)s, %(sku)s, %(observed_at)s
 )
+SELECT t.offer_id, t.external_id, t.size_label, t.size_norm, t.in_stock,
+       t.price_override, t.sku, %(observed_at)s
+  FROM unnest(%(offer_id)s::bigint[], %(external_id)s::text[], %(size_label)s::text[],
+              %(size_norm)s::text[], %(in_stock)s::boolean[], %(price_override)s::bigint[],
+              %(sku)s::text[])
+       AS t(offer_id, external_id, size_label, size_norm, in_stock, price_override, sku)
 ON CONFLICT (offer_id, external_id) DO UPDATE SET
     size_label     = EXCLUDED.size_label,
     size_norm      = EXCLUDED.size_norm,
@@ -104,25 +146,28 @@ ON CONFLICT (offer_id, external_id) DO UPDATE SET
     price_override = EXCLUDED.price_override,
     sku            = EXCLUDED.sku,
     last_seen_at   = EXCLUDED.last_seen_at
-RETURNING id
+RETURNING id, offer_id, external_id
+"""
+
+INSERT_STOCK_EVENTS = """
+INSERT INTO variant_stock_event (variant_id, in_stock, observed_at)
+SELECT t.variant_id, t.in_stock, %(observed_at)s
+  FROM unnest(%(variant_id)s::bigint[], %(in_stock)s::boolean[]) AS t(variant_id, in_stock)
 """
 
 #: Varyant fiyat olayi (0026, docs/decisions/0037): yalnizca ilk gorulmede ve
 #: etkin fiyat degistiginde. `price_point` teklifin en ucuz varyantini tasir;
 #: cok boyutlu teklifte boyut bazli gecmis buradan kurulur.
-LAST_VARIANT_PRICE = """
-SELECT price FROM variant_price_event
- WHERE variant_id = %(variant_id)s ORDER BY observed_at DESC, id DESC LIMIT 1
+LAST_VARIANT_PRICES = """
+SELECT DISTINCT ON (variant_id) variant_id, price FROM variant_price_event
+ WHERE variant_id = ANY(%(variant_ids)s)
+ ORDER BY variant_id, observed_at DESC, id DESC
 """
 
-INSERT_VARIANT_PRICE_EVENT = """
+INSERT_VARIANT_PRICE_EVENTS = """
 INSERT INTO variant_price_event (variant_id, price, observed_at)
-VALUES (%(variant_id)s, %(price)s, %(observed_at)s)
-"""
-
-INSERT_STOCK_EVENT = """
-INSERT INTO variant_stock_event (variant_id, in_stock, observed_at)
-VALUES (%(variant_id)s, %(in_stock)s, %(observed_at)s)
+SELECT t.variant_id, t.price, %(observed_at)s
+  FROM unnest(%(variant_id)s::bigint[], %(price)s::bigint[]) AS t(variant_id, price)
 """
 
 
@@ -136,6 +181,15 @@ class WriteCounts:
     variant_price_events_written: int = 0
     stale_image_embeddings: int = 0
 
+    def add(self, other: WriteCounts) -> None:
+        for name in self.__dataclass_fields__:
+            setattr(self, name, getattr(self, name) + getattr(other, name))
+
+
+def _slices[T](items: Sequence[T], size: int) -> Iterator[Sequence[T]]:
+    for start in range(0, len(items), size):
+        yield items[start : start + size]
+
 
 class OfferWriter:
     """Tek bir merchant kosusu icin yazma islemleri."""
@@ -146,6 +200,7 @@ class OfferWriter:
         merchant_id: int,
         observed_at: datetime,
         discovery_source: str = "feed",
+        dedupe_price_points: bool = False,
     ) -> None:
         self.conn = conn
         self.merchant_id = merchant_id
@@ -156,144 +211,214 @@ class OfferWriter:
         #: Kosunun tum satirlari ayni ani tasir; grafik ve karsilastirma
         #: boylece tutarli olur.
         self.observed_at = observed_at
+        #: True: fiyat/liste fiyati/stok onceki `price_point` ile ayniysa satir
+        #: yazilmaz (toplu toplama, karar 0065). Kullanici linki yolu her
+        #: cozumlemede bir nokta yazmaya devam eder (False).
+        self.dedupe_price_points = dedupe_price_points
         self.counts = WriteCounts()
-        self.seen_offer_ids: set[int] = set()
 
     def write(self, offer: NormalizedOffer) -> int:
-        offer_id, inserted, image_changed = self._upsert_offer(offer)
-        if image_changed and not inserted:
+        """Tek teklif: `write_batch([offer])`."""
+        return self.write_batch([offer])[0]
+
+    def write_batch(self, offers: Sequence[NormalizedOffer]) -> list[int]:
+        """Teklifleri ve varyantlarini toplu yazar; offer id'lerini girdi
+        sirasiyla doner. Ayni `external_id` tekrarlarsa SONUNCUSU kazanir
+        (tek tek yazimin sonucuyla ayni). Commit cagirana aittir."""
+        if not offers:
+            return []
+        latest: dict[str, NormalizedOffer] = {offer.external_id: offer for offer in offers}
+        unique = list(latest.values())
+
+        ids = self._upsert_offers(unique)
+        self._insert_price_points(unique, ids)
+        self._write_variants(unique, ids)
+        return [ids[offer.external_id] for offer in offers]
+
+    # -- teklifler ------------------------------------------------------------
+
+    def _upsert_offers(self, offers: Sequence[NormalizedOffer]) -> dict[str, int]:
+        def attributes(offer: NormalizedOffer) -> Jsonb:
+            # `offer` tablosunda gtin/mpn kolonu YOKTUR — barkod kanonik
+            # `product` uzerinde durur (docs/schema.sql). Ama eslestirme (B4)
+            # ilk adimda gtin'e bakiyor, o yuzden kaynaktan geldiginde
+            # kaybedilmemeli: `attributes_raw` icinde saklanir.
+            data = dict(offer.attributes_raw)
+            if offer.gtin:
+                data.setdefault("gtin", offer.gtin)
+            return Jsonb(data, dumps=lambda value: json.dumps(value, ensure_ascii=False))
+
+        params: dict[str, Any] = {
+            "merchant_id": self.merchant_id,
+            "discovery_source": self.discovery_source,
+            "observed_at": self.observed_at,
+            "external_id": [o.external_id for o in offers],
+            "url": [o.url for o in offers],
+            "title_raw": [o.title_raw for o in offers],
+            "brand_raw": [o.brand_raw for o in offers],
+            "category_raw": [o.category_raw for o in offers],
+            "image_url": [o.image_url for o in offers],
+            "attributes_raw": [attributes(o) for o in offers],
+            "current_price": [o.current_price for o in offers],
+            "list_price": [o.list_price for o in offers],
+            "currency": [o.currency for o in offers],
+            "in_stock": [o.in_stock for o in offers],
+            "shipping_days": [o.shipping_days for o in offers],
+            "shipping_cost": [o.shipping_cost for o in offers],
+            "free_shipping_threshold": [o.free_shipping_threshold for o in offers],
+        }
+        with self.conn.cursor() as cur:
+            cur.execute(UPSERT_OFFERS, params)
+            rows = cur.fetchall()
+
+        ids: dict[str, int] = {}
+        stale: list[int] = []
+        for offer_id, external_id, inserted, image_changed in rows:
+            ids[external_id] = int(offer_id)
+            if inserted:
+                self.counts.offers_created += 1
+            else:
+                self.counts.offers_updated += 1
+                if image_changed:
+                    stale.append(int(offer_id))
+        if stale:
             with self.conn.cursor() as cur:
-                cur.execute(DELETE_STALE_IMAGE_EMBEDDING, {"offer_id": offer_id})
+                cur.execute(DELETE_STALE_IMAGE_EMBEDDINGS, {"offer_ids": stale})
                 self.counts.stale_image_embeddings += cur.rowcount
-        self.seen_offer_ids.add(offer_id)
-        if inserted:
-            self.counts.offers_created += 1
-        else:
-            self.counts.offers_updated += 1
+        return ids
 
-        self._insert_price_point(offer_id, offer)
-        for variant in offer.variants:
-            self._write_variant(offer_id, variant, offer.current_price)
-        return offer_id
+    def _insert_price_points(self, offers: Sequence[NormalizedOffer], ids: dict[str, int]) -> None:
+        last: dict[int, tuple[int, int | None, bool]] = {}
+        if self.dedupe_price_points:
+            with self.conn.cursor() as cur:
+                cur.execute(LAST_PRICE_POINTS, {"offer_ids": list(ids.values())})
+                last = {int(r[0]): (int(r[1]), r[2], bool(r[3])) for r in cur.fetchall()}
 
-    def _upsert_offer(self, offer: NormalizedOffer) -> tuple[int, bool, bool]:
-        # `offer` tablosunda gtin/mpn kolonu YOKTUR — barkod kanonik `product`
-        # uzerinde durur (docs/schema.sql). Ama eslestirme (B4) ilk adimda
-        # gtin'e bakiyor, o yuzden kaynaktan geldiginde kaybedilmemeli:
-        # `attributes_raw` icinde saklanir.
-        attributes = dict(offer.attributes_raw)
-        if offer.gtin:
-            attributes.setdefault("gtin", offer.gtin)
-
+        rows = [
+            (ids[o.external_id], o.current_price, o.list_price, o.in_stock)
+            for o in offers
+            if last.get(ids[o.external_id]) != (o.current_price, o.list_price, o.in_stock)
+        ]
+        if not rows:
+            return
         with self.conn.cursor() as cur:
             cur.execute(
-                UPSERT_OFFER,
+                INSERT_PRICE_POINTS,
                 {
-                    "merchant_id": self.merchant_id,
-                    "external_id": offer.external_id,
-                    "url": offer.url,
-                    "title_raw": offer.title_raw,
-                    "brand_raw": offer.brand_raw,
-                    "category_raw": offer.category_raw,
-                    "image_url": offer.image_url,
-                    "attributes_raw": json.dumps(attributes, ensure_ascii=False),
-                    "current_price": offer.current_price,
-                    "list_price": offer.list_price,
-                    "currency": offer.currency,
-                    "in_stock": offer.in_stock,
-                    "shipping_days": offer.shipping_days,
-                    "shipping_cost": offer.shipping_cost,
-                    "free_shipping_threshold": offer.free_shipping_threshold,
-                    "discovery_source": self.discovery_source,
                     "observed_at": self.observed_at,
-                },
-            )
-            row = cur.fetchone()
-        assert row is not None
-        return int(row[0]), bool(row[1]), bool(row[2])
-
-    def _insert_price_point(self, offer_id: int, offer: NormalizedOffer) -> None:
-        with self.conn.cursor() as cur:
-            cur.execute(
-                INSERT_PRICE_POINT,
-                {
-                    "offer_id": offer_id,
-                    "observed_at": self.observed_at,
-                    "price": offer.current_price,
-                    "list_price": offer.list_price,
-                    "in_stock": offer.in_stock,
+                    "offer_id": [r[0] for r in rows],
+                    "price": [r[1] for r in rows],
+                    "list_price": [r[2] for r in rows],
+                    "in_stock": [r[3] for r in rows],
                 },
             )
             self.counts.price_points_written += cur.rowcount
 
-    def _write_variant(self, offer_id: int, variant, offer_price: int | None = None) -> None:
+    # -- varyantlar -----------------------------------------------------------
+
+    def _write_variants(self, offers: Sequence[NormalizedOffer], ids: dict[str, int]) -> None:
+        # (offer_id, variant external_id) -> (varyant, teklif fiyati); sonuncu kazanir.
+        wanted: dict[tuple[int, str], tuple[NormalizedVariant, int | None]] = {}
+        for offer in offers:
+            for variant in offer.variants:
+                wanted[(ids[offer.external_id], variant.external_id)] = (
+                    variant,
+                    offer.current_price,
+                )
+        if not wanted:
+            return
+
+        offer_ids = sorted({key[0] for key in wanted})
         with self.conn.cursor() as cur:
-            # Olay yazmadan ONCE mevcut durumu oku. Degismediyse olay yok.
-            cur.execute(
-                "SELECT id, in_stock FROM offer_variant WHERE offer_id = %s AND external_id = %s",
-                (offer_id, variant.external_id),
-            )
-            existing = cur.fetchone()
-            previous_stock = existing[1] if existing else None
+            cur.execute(EXISTING_VARIANTS, {"offer_ids": offer_ids})
+            previous_stock = {(int(r[0]), r[1]): bool(r[2]) for r in cur.fetchall()}
 
-            cur.execute(
-                UPSERT_VARIANT,
-                {
-                    "offer_id": offer_id,
-                    "external_id": variant.external_id,
-                    "size_label": variant.size_label,
-                    "size_norm": variant.size_norm,
-                    "in_stock": variant.in_stock,
-                    "price_override": variant.price_override,
-                    "sku": variant.sku,
-                    "observed_at": self.observed_at,
-                },
-            )
-            row = cur.fetchone()
-            assert row is not None
-            variant_id = int(row[0])
-            self.counts.variants_written += 1
-
-            # Ilk gorulme de bir olaydir; sonrasi yalnizca degisimde.
-            if previous_stock is None or previous_stock != variant.in_stock:
+        items = list(wanted.items())
+        variant_ids: dict[tuple[int, str], int] = {}
+        for part in _slices(items, VARIANT_SLICE):
+            with self.conn.cursor() as cur:
                 cur.execute(
-                    INSERT_STOCK_EVENT,
+                    UPSERT_VARIANTS,
                     {
-                        "variant_id": variant_id,
-                        "in_stock": variant.in_stock,
                         "observed_at": self.observed_at,
+                        "offer_id": [key[0] for key, _ in part],
+                        "external_id": [key[1] for key, _ in part],
+                        "size_label": [v.size_label for _, (v, _p) in part],
+                        "size_norm": [v.size_norm for _, (v, _p) in part],
+                        "in_stock": [v.in_stock for _, (v, _p) in part],
+                        "price_override": [v.price_override for _, (v, _p) in part],
+                        "sku": [v.sku for _, (v, _p) in part],
                     },
                 )
-                self.counts.stock_events_written += 1
+                for variant_id, offer_id, external_id in cur.fetchall():
+                    variant_ids[(int(offer_id), external_id)] = int(variant_id)
+        self.counts.variants_written += len(items)
 
-            # Varyantin etkin fiyati: kendi fiyati, yoksa teklif fiyati (0005).
-            price = variant.price_override if variant.price_override is not None else offer_price
-            if price is not None:
-                cur.execute(LAST_VARIANT_PRICE, {"variant_id": variant_id})
-                last = cur.fetchone()
-                if last is None or int(last[0]) != int(price):
-                    cur.execute(
-                        INSERT_VARIANT_PRICE_EVENT,
-                        {"variant_id": variant_id, "price": price, "observed_at": self.observed_at},
-                    )
-                    self.counts.variant_price_events_written += 1
+        # Ilk gorulme de bir olaydir; sonrasi yalnizca degisimde.
+        stock_rows = [
+            (variant_ids[key], variant.in_stock)
+            for key, (variant, _price) in items
+            if previous_stock.get(key) is None or previous_stock[key] != variant.in_stock
+        ]
+        if stock_rows:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    INSERT_STOCK_EVENTS,
+                    {
+                        "observed_at": self.observed_at,
+                        "variant_id": [r[0] for r in stock_rows],
+                        "in_stock": [r[1] for r in stock_rows],
+                    },
+                )
+            self.counts.stock_events_written += len(stock_rows)
+
+        # Varyantin etkin fiyati: kendi fiyati, yoksa teklif fiyati (0005).
+        priced = [
+            (
+                variant_ids[key],
+                variant.price_override if variant.price_override is not None else offer_price,
+            )
+            for key, (variant, offer_price) in items
+        ]
+        priced = [(vid, price) for vid, price in priced if price is not None]
+        if not priced:
+            return
+        with self.conn.cursor() as cur:
+            cur.execute(LAST_VARIANT_PRICES, {"variant_ids": [vid for vid, _ in priced]})
+            last_price = {int(r[0]): int(r[1]) for r in cur.fetchall()}
+        changed = [(vid, price) for vid, price in priced if last_price.get(vid) != int(price)]
+        if changed:
+            with self.conn.cursor() as cur:
+                cur.execute(
+                    INSERT_VARIANT_PRICE_EVENTS,
+                    {
+                        "observed_at": self.observed_at,
+                        "variant_id": [r[0] for r in changed],
+                        "price": [r[1] for r in changed],
+                    },
+                )
+            self.counts.variant_price_events_written += len(changed)
+
+    # -- tam dokum ------------------------------------------------------------
 
     def deactivate_missing(self) -> int:
-        """Feed'de gorunmeyen teklifleri pasiflestirir.
+        """Bu kosuda gorunmeyen teklifleri pasiflestirir.
 
         YALNIZCA `feed_config.full_dump = true` olan ve BASARIYLA biten
         kosularda cagrilir. Delta feed veya yarim inmis bir dosya yuzunden
         katalogun sessizce kapatilmasi, kurtarilmasi en pahali hatalardan
         biri olurdu.
+
+        "Gorulen" = `last_seen_at = observed_at`: chunk'li ve devam ettirilmis
+        kosuda onceki surecte yazilan teklifler de gorulmus sayilir (bellekteki
+        bir id kumesi yeniden baslatmada kaybolurdu).
         """
-        if not self.seen_offer_ids:
-            return 0
         with self.conn.cursor() as cur:
             cur.execute(
                 """
                 UPDATE offer SET is_active = FALSE
-                 WHERE merchant_id = %s AND is_active AND NOT (id = ANY(%s))
+                 WHERE merchant_id = %s AND is_active AND last_seen_at < %s
                 """,
-                (self.merchant_id, list(self.seen_offer_ids)),
+                (self.merchant_id, self.observed_at),
             )
             return cur.rowcount
