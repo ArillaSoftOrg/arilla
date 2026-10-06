@@ -3,9 +3,10 @@
 **Tarih:** 5 Ekim 2026
 **Durum:** Kabul edildi — istemci, uyarlayıcı, saklama (0044), toplu iş,
 korumalı (zamanlanmamış) cron ucu, `/ara` salt okuma yolu ve en az yetki (0046)
-üretimde. Hukuk danışmanı yaklaşımı onayladı (m.5/2-f; KVKK m.9 aktarım
-sözleşmesi imzalandı). Üretimde etkin DEĞİL: anahtar yok, kamuya açık metinler
-henüz yayında değil, açık [CONFIRM] kalemleri docs/kvkk.md'de.
+üretimde. Hukuk danışmanı üretimde etkinleştirmeyi onayladı (m.5/2-f; KVKK
+m.9 aktarım sözleşmesi imzalandı). Gizlilik ve KVKK metinleri 6 Ekim 2026'da
+güncellendi. İşleme, `GEMINI_API_KEY` üretime bilinçli olarak eklenince başlar
+(`docs/ops.md` "Etkinleştirme sırası").
 
 Karar 0030, `IntentInterpreter`'ın bir modele bağlanmasını ayrı bir karara
 bırakmıştı. Bu karar o bağlantının sınırlarını koyar. İlk sağlayıcı Google
@@ -60,16 +61,16 @@ Gemini, model `gemini-3.1-flash-lite` (kararlı sürüm).
    gönderilmez. Yalnızca `status: "completed"` kabul edilir;
    `max_output_tokens`'a takılan `incomplete` yanıt reddedilir, kesik çıktı
    asla saklanmaz.
-8. **İşleme bugün DEVRE DIŞIDIR; etkinleştirme kontrol listesine bağlıdır.**
+8. **Hukuki çerçeve ve etkinleştirme.**
    Kullanıcının yazdığı sorgu metni yurt dışındaki bir sağlayıcıya gider; bu
    bir yurt dışı aktarımdır. Hukuki karar: işleme şartı KVKK m.5/2-f meşru
    menfaat (LIA: `docs/legal-review/gemini-mesru-menfaat-degerlendirmesi.md`);
    aktarım, hukuk danışmanının onayladığı ve Google ile imzalanan KVKK m.9
    aktarım sözleşmesine dayanır (Google DPA'sı tek başına bunun yerine
-   geçmez). `GEMINI_API_KEY` üretime ancak docs/kvkk.md "Etkinleştirme öncesi
-   hukuki kontrol listesi"ndeki [CONFIRM] kalemleri (sözleşme tarafı, imza
-   tarihi, Kurum bildirimi) teyit edilip aydınlatma metinleri yayına
-   alındıktan sonra eklenir. Etkinleştirme ayrı ve sonraki bir adımdır.
+   geçmez). Hukuk danışmanı üretimde etkinleştirmeyi onayladı; sözleşme tarafı,
+   tarih ve onay ayrıntısı hukuki / sözleşme kaydında tutulur. Aydınlatma
+   metinleri yayına alınmadan anahtar eklenmez; kalan operasyonel kalemler
+   docs/kvkk.md "Etkinleştirme kontrol listesi"ndedir.
 
 ## Uygulama ayrıntıları
 

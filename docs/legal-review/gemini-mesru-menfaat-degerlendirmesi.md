@@ -1,7 +1,7 @@
 # Meşru Menfaat Değerlendirmesi (LIA) — Gemini ile Arama Sorgusu Yorumlama
 
 **Veri sorumlusu:** Arilla (ManiCepte) · **Hukuki sebep:** KVKK m.5/2-f (meşru menfaat)
-**Durum:** Hukuk danışmanı yaklaşımı onayladı. Bu belge onaylanan yaklaşımın
+**Durum:** Hukuk danışmanı üretimde etkinleştirmeyi onayladı. Bu belge onaylanan yaklaşımın
 kaydıdır; sözleşme metni içermez.
 **Teknik kaynak:** `docs/decisions/0059-gemini-sorgu-yorumlama.md`, `docs/kvkk.md`
 
@@ -75,5 +75,5 @@ düzeye indirilmiştir. Hukuk danışmanı bu yaklaşımı onaylamıştır.
 ## 5. Gözden geçirme
 
 Süzgeç listesi, eşikler, sağlayıcı ya da işleme amacı değişirse bu
-değerlendirme yeniden yapılır. Açık kayıtlar: `docs/kvkk.md`
-"Etkinleştirme öncesi hukuki kontrol listesi" ([CONFIRM] alanları).
+değerlendirme yeniden yapılır. Operasyonel kalemler: `docs/kvkk.md`
+"Etkinleştirme kontrol listesi".

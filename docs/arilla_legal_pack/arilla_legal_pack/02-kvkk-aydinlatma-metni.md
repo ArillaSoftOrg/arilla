@@ -1,6 +1,7 @@
 # KVKK Aydınlatma Metni
 
-**Yürürlük Tarihi:** 26 Eylül 2026
+**Yürürlük Tarihi:** 26 Eylül 2026  
+**Son Güncelleme:** 6 Ekim 2026
 
 Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") kapsamında Arilla hizmetlerini kullanan ilgili kişilerin, kişisel verilerinin işlenmesi hakkında bilgilendirilmesi amacıyla hazırlanmıştır.
 
@@ -63,7 +64,7 @@ Kişisel veriler, işleme amacıyla sınırlı ve ölçülü olmak kaydıyla:
 - barındırma, veritabanı, kimlik doğrulama, e-posta, güvenlik ve hata izleme hizmet sağlayıcılarına,
 - affiliate yönlendirmesi kapsamında ilgili mağaza veya affiliate ağına,
 - izin verilmiş analitik/ölçüm sağlayıcılarına,
-- arama ifadelerinin kategori yorumu için yurt dışındaki yapay zekâ altyapı sağlayıcısı Google'a ([CONFIRM GOOGLE ENTITY], Gemini API) — yalnızca kullanıcı kimliği, IP ve oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama ifadeleri,
+- arama ifadelerinin kategori yorumu için yurt dışında yerleşik yapay zekâ altyapı sağlayıcısı Google'a (Gemini API) — yalnızca kullanıcı kimliği, IP ve oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama ifadeleri,
 - kanunen yetkili kamu kurum ve kuruluşlarına ve hukuken yetkili mercilere
 
 aktarılabilir.

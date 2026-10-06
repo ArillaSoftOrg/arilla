@@ -1,7 +1,6 @@
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
-import { LEGAL_EFFECTIVE_LABEL, LegalIdentityBlock } from "../legal-identity-block.tsx";
-import { GEMINI_PROCESSOR_ENTITY } from "../legal-processors.ts";
+import { LegalIdentityBlock, PRIVACY_NOTICE_UPDATED_LABEL } from "../legal-identity-block.tsx";
 
 export const metadata: Metadata = {
   title: "Gizlilik Politikası – Arilla",
@@ -22,7 +21,7 @@ export const metadata: Metadata = {
  */
 export default function GizlilikPage() {
   return (
-    <LegalPageLayout title="Gizlilik Politikası" lastUpdatedLabel={LEGAL_EFFECTIVE_LABEL}>
+    <LegalPageLayout title="Gizlilik Politikası" lastUpdatedLabel={PRIVACY_NOTICE_UPDATED_LABEL}>
       <section>
         <h2>1. Kapsam ve veri sorumlusu</h2>
         <p>
@@ -224,9 +223,9 @@ export default function GizlilikPage() {
             kimlik doğrulama için.
           </li>
           <li>
-            <strong>{GEMINI_PROCESSOR_ENTITY} (Gemini API)</strong> — yurt dışındaki yapay zekâ
-            altyapı sağlayıcısı; arama ifadelerinin kategori yorumu için yalnızca kullanıcı kimliği,
-            IP ve oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek
+            <strong>Google (Gemini API)</strong> — yurt dışında yerleşik yapay zekâ altyapı
+            sağlayıcısı; arama ifadelerinin kategori yorumu için yalnızca kullanıcı kimliği, IP ve
+            oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek
             normalleştirilmiş arama ifadeleri. Google, ücretli hizmet koşulları gereği bu içeriği
             kendi ürünlerini geliştirmek için kullanmaz ve istekler etkileşimin Google tarafında
             saklanmamasını isteyen ayarla gönderilir; ancak Google, güvenlik ve kötüye kullanımın
@@ -262,10 +261,10 @@ export default function GizlilikPage() {
           Kanun&apos;da öngörülen aktarım mekanizmalarına dayanılarak yapılır.
         </p>
         <p>
-          Arama ifadelerinin yapay zekâ ile kategori yorumu için Google&apos;a (
-          {GEMINI_PROCESSOR_ENTITY}) gönderilen veriler, Google&apos;ın tesislerinin bulunduğu
-          ülkelerde işlenebilir. Bu aktarım, KVKK&apos;nın 9. maddesi kapsamında Google ile
-          imzalanan aktarım sözleşmesine (uygun güvence) dayanılarak yapılır.
+          Arama ifadelerinin yapay zekâ ile kategori yorumu için Google&apos;a gönderilen veriler,
+          Google&apos;ın tesislerinin bulunduğu ülkelerde işlenebilir. Bu aktarım, KVKK&apos;nın 9.
+          maddesi kapsamında Google ile imzalanan aktarım sözleşmesine (uygun güvence) dayanılarak
+          yapılır.
         </p>
       </section>
 

@@ -1,7 +1,6 @@
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
-import { LEGAL_EFFECTIVE_LABEL, LegalIdentityBlock } from "../legal-identity-block.tsx";
-import { GEMINI_PROCESSOR_ENTITY } from "../legal-processors.ts";
+import { LegalIdentityBlock, PRIVACY_NOTICE_UPDATED_LABEL } from "../legal-identity-block.tsx";
 
 export const metadata: Metadata = {
   title: "KVKK Aydınlatma Metni – Arilla",
@@ -17,7 +16,7 @@ export const metadata: Metadata = {
  */
 export default function KvkkAydinlatmaPage() {
   return (
-    <LegalPageLayout title="KVKK Aydınlatma Metni" lastUpdatedLabel={LEGAL_EFFECTIVE_LABEL}>
+    <LegalPageLayout title="KVKK Aydınlatma Metni" lastUpdatedLabel={PRIVACY_NOTICE_UPDATED_LABEL}>
       <section>
         <p>
           Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;) kapsamında,
@@ -123,10 +122,9 @@ export default function KvkkAydinlatmaPage() {
           </li>
           <li>Google ile veya Apple ile giriş seçildiğinde ilgili kimlik doğrulama sağlayıcısı,</li>
           <li>
-            arama ifadelerinin kategori yorumu için yurt dışındaki yapay zekâ altyapı sağlayıcısı{" "}
-            {GEMINI_PROCESSOR_ENTITY} (Gemini API) — yalnızca kullanıcı kimliği, IP ve oturum
-            bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş
-            arama ifadeleri,
+            arama ifadelerinin kategori yorumu için yurt dışında yerleşik yapay zekâ altyapı
+            sağlayıcısı Google (Gemini API) — yalnızca kullanıcı kimliği, IP ve oturum bilgilerinden
+            arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama ifadeleri,
           </li>
           <li>mağazaya yönlendirme kapsamında ilgili mağaza veya affiliate ağı,</li>
           <li>kanunen yetkili kamu kurum ve kuruluşları.</li>

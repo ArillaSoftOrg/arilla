@@ -1,7 +1,7 @@
 # Arilla Gizlilik Politikası
 
 **Yürürlük Tarihi:** 26 Eylül 2026  
-**Son Güncelleme:** 26 Eylül 2026
+**Son Güncelleme:** 6 Ekim 2026
 
 ## 1. Kapsam ve veri sorumlusu
 
@@ -76,7 +76,7 @@ Zorunlu olmayan analitik, işlevsel veya reklam/pazarlama çerezleri açık rız
 Kişisel veriler, yalnızca gerekli olduğu ölçüde aşağıdaki alıcı gruplarıyla paylaşılabilir:
 
 - Barındırma, veritabanı, kimlik doğrulama, e-posta, güvenlik ve hata izleme gibi teknik hizmet sağlayıcıları.
-- Yapay zekâ destekli kategori yorumu için yurt dışındaki yapay zekâ altyapı sağlayıcısı Google ([CONFIRM GOOGLE ENTITY], Gemini API): yalnızca kullanıcı kimliği, IP ve oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama ifadeleri; anonim kabul edilmez. Hukuki sebep KVKK m.5/2-f.
+- Yapay zekâ destekli kategori yorumu için yurt dışında yerleşik yapay zekâ altyapı sağlayıcısı Google (Gemini API): yalnızca kullanıcı kimliği, IP ve oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama ifadeleri; anonim kabul edilmez. Hukuki sebep KVKK m.5/2-f.
 - Kullanıcı tarafından seçilen ürün veya mağazaya yönlendirme yapılması halinde satıcılar ve affiliate ağları.
 - Açık rıza verilmişse analitik veya ölçüm sağlayıcıları.
 - Kanunen yetkili kamu kurumları ve hukuken yetkili merciler.
