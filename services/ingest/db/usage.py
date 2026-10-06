@@ -10,10 +10,14 @@ bu tablodan uretiyor.
 
 from __future__ import annotations
 
+import logging
 import os
+import re
 from dataclasses import dataclass
 
 import psycopg
+
+logger = logging.getLogger(__name__)
 
 INSERT_USAGE = """
 INSERT INTO api_usage
@@ -24,6 +28,12 @@ VALUES
 """
 
 
+_COST_RATE_PATTERN = re.compile(r"[0-9]+")
+#: TypeScript `Number.MAX_SAFE_INTEGER`; iki taraf ayni degeri kabul etsin.
+_MAX_COST_RATE = 2**53 - 1
+_invalid_cost_rate_reported = False
+
+
 def cost_micros_per_1k_tokens() -> int:
     """Bin token basina maliyet, TRY milyonda bir cinsinden.
 
@@ -31,12 +41,26 @@ def cost_micros_per_1k_tokens() -> int:
     bilinmiyor (bkz. docs/decisions/0015, acik maddeler). `units` token
     sayisini tuttugu icin maliyet fiyat belli olunca geriye donuk
     hesaplanabilir; sifir bir fiyat "maliyet yok" demek degildir.
+
+    `packages/core/src/embedding/embed-uploaded-image.ts` ile AYNI kural:
+    yalnizca negatif olmayan duz tamsayi gecerlidir (kenar bosluklari
+    kirpilir); bos deger 0'dir. Gecersiz deger (`abc`, `-5`, `1.5`, `1e3`)
+    0 sayilir ve surec basina bir kez uyari loglanir (degerin kendisi
+    loglanmaz). Eskiden `-5` gibi negatif bir oran kabul ediliyordu.
     """
-    raw = os.environ.get("EMBEDDING_COST_MICROS_PER_1K_TOKENS", "0")
-    try:
-        return int(raw)
-    except ValueError:
+    global _invalid_cost_rate_reported
+    raw = os.environ.get("EMBEDDING_COST_MICROS_PER_1K_TOKENS", "").strip()
+    if raw == "":
         return 0
+    if _COST_RATE_PATTERN.fullmatch(raw) and int(raw) <= _MAX_COST_RATE:
+        return int(raw)
+    if not _invalid_cost_rate_reported:
+        _invalid_cost_rate_reported = True
+        logger.warning(
+            "EMBEDDING_COST_MICROS_PER_1K_TOKENS gecersiz "
+            "(negatif olmayan tamsayi olmali); 0 kullaniliyor"
+        )
+    return 0
 
 
 @dataclass(frozen=True)

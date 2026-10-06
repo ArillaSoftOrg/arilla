@@ -1,0 +1,30 @@
+# Uretim link worker'i - web Vercel'de, bu surec ayri bir hostta (docs/ops.md
+# "Ortamlar" ve "Link worker"). Yerel gelistirme icin DEGIL: yerelde worker
+# dogrudan `python -m collect.link --worker` ile calistirilir.
+#
+#   docker compose -f infra/docker-compose.worker.yml up -d --build
+#
+# Gizli degerler `infra/.env.worker` dosyasindan okunur; dosya depoya girmez
+# (.gitignore). Gerekli adlar: DATABASE_URL, REDIS_URL, JINA_API_KEY,
+# EMBEDDING_COST_MICROS_PER_1K_TOKENS (istege bagli: JINA_TOKENS_PER_MINUTE).
+name: arilla-worker
+
+services:
+  link-worker:
+    build:
+      context: ../services/ingest
+    image: arilla-ingest:latest
+    command: ["python", "-m", "collect.link", "--worker"]
+    env_file:
+      - .env.worker
+    # Host yeniden baslasa da, surec cokse de (orn. kopan DB baglantisinda
+    # bilerek 1 ile cikar) yeniden kalkar. `docker compose stop` ile durdurulan
+    # kalkmaz.
+    restart: unless-stopped
+    # SIGTERM sonrasi acik islemi geri almak icin sure.
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
