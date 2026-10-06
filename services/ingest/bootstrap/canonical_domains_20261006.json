@@ -20,9 +20,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.66"
-      ],
+      "resolved_ips": ["23.227.38.66"],
       "shopify_identity": "FAIL",
       "meta_myshopify_domain": "4gwmty-dq.myshopify.com",
       "currency": "UNKNOWN",
@@ -48,9 +46,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.74"
-      ],
+      "resolved_ips": ["23.227.38.74"],
       "shopify_identity": "PASS",
       "meta_myshopify_domain": "casadora-baby.myshopify.com",
       "currency": "PASS (TRY)",
@@ -76,9 +72,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.65"
-      ],
+      "resolved_ips": ["23.227.38.65"],
       "shopify_identity": "PASS",
       "meta_myshopify_domain": "eveline-tr-v2.myshopify.com",
       "currency": "PASS (TRY)",
@@ -99,9 +93,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.74"
-      ],
+      "resolved_ips": ["23.227.38.74"],
       "shopify_identity": "PASS",
       "meta_myshopify_domain": "murat-cihan-kurtoglu.myshopify.com",
       "currency": "PASS (TRY)",
@@ -127,9 +119,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.74"
-      ],
+      "resolved_ips": ["23.227.38.74"],
       "shopify_identity": "PASS",
       "meta_myshopify_domain": "halicizade-rug-store.myshopify.com",
       "currency": "PASS (TRY)",
@@ -150,9 +140,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.74"
-      ],
+      "resolved_ips": ["23.227.38.74"],
       "shopify_identity": "PASS",
       "meta_myshopify_domain": "happy-place-home-decor-2.myshopify.com",
       "currency": "PASS (TRY)",
@@ -178,9 +166,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.65"
-      ],
+      "resolved_ips": ["23.227.38.65"],
       "shopify_identity": "PASS",
       "meta_myshopify_domain": "745bb0.myshopify.com",
       "currency": "PASS (TRY)",
@@ -206,9 +192,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.74"
-      ],
+      "resolved_ips": ["23.227.38.74"],
       "shopify_identity": "PASS",
       "meta_myshopify_domain": "north-sails-turkey.myshopify.com",
       "currency": "PASS (TRY)",
@@ -234,9 +218,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.74"
-      ],
+      "resolved_ips": ["23.227.38.74"],
       "shopify_identity": "PASS",
       "meta_myshopify_domain": "riva-istanbul.myshopify.com",
       "currency": "PASS (TRY)",
@@ -288,9 +270,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.32"
-      ],
+      "resolved_ips": ["23.227.38.32"],
       "shopify_identity": "PASS",
       "meta_myshopify_domain": "wraithesports.myshopify.com",
       "currency": "PASS (TRY)",
@@ -316,9 +296,7 @@
           "location": null
         }
       ],
-      "resolved_ips": [
-        "23.227.38.65"
-      ],
+      "resolved_ips": ["23.227.38.65"],
       "shopify_identity": "FAIL",
       "meta_myshopify_domain": "m35npe-jg.myshopify.com",
       "currency": "UNKNOWN",
