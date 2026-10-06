@@ -1,13 +1,13 @@
 import type { FeedbackCategory, FeedbackPriority } from "@arilla/db";
 
 /**
- * Geri bildirim metinlerinde urun adi "Arilla" (urun karari; site markasi
- * `SITE_BRAND` header/footer'da degismeden kalir). Yalnizca bu dosyada.
+ * Geri bildirim metinlerindeki urun adi; yayindaki marka (`SITE_BRAND` ile
+ * ayni deger, karar 0045 §9). Yerel sabit: bu dosya istemci formuna girer.
  */
-const FEEDBACK_BRAND = "Arilla";
+const FEEDBACK_BRAND = "ManiCepte";
 
-/** Belirtme durumu ("Arilla'yi"); ek markanin son unlusune gore secilir. */
-const BRAND_ACCUSATIVE = `${FEEDBACK_BRAND}'yı`;
+/** Belirtme durumu ("ManiCepte'yi"); ek markanin son unlusune (e) gore secilir. */
+const BRAND_ACCUSATIVE = `${FEEDBACK_BRAND}'yi`;
 
 /** docs/copy.md "Geri bildirim" - anahtarlar yorumda. Hitap "siz" (urun karari, karar 0045). */
 export const FEEDBACK_COPY = {
