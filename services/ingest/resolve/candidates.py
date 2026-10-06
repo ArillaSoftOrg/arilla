@@ -33,6 +33,7 @@ SELECT {PRODUCT_COLUMNS}
   FROM product p LEFT JOIN brand b ON b.id = p.brand_id
  WHERE (p.gtin IS NOT NULL AND p.gtin = %(gtin)s)
     OR (p.mpn IS NOT NULL AND p.mpn = %(mpn)s)
+ ORDER BY p.id
  LIMIT %(limit)s
 """
 
@@ -42,7 +43,7 @@ BY_TRIGRAM = f"""
 SELECT {PRODUCT_COLUMNS}
   FROM product p LEFT JOIN brand b ON b.id = p.brand_id
  WHERE p.title %% %(title)s
- ORDER BY similarity(p.title, %(title)s) DESC
+ ORDER BY similarity(p.title, %(title)s) DESC, p.id
  LIMIT %(limit)s
 """
 

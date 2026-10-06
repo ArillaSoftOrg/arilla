@@ -1,7 +1,7 @@
 # 0065 — Chunk'li, checkpoint'li ve toplu SQL'li toplama
 
 **Tarih:** 2026-10-07
-**Durum:** kabul edildi (kod ve testler hazır; migration `0050` production'a
+**Durum:** kabul edildi (kod ve testler hazır; migration `0051` production'a
 henüz uygulanmadı, pilot tekrarı bekliyor)
 
 ## Bağlam
@@ -33,7 +33,7 @@ henüz uygulanmadı, pilot tekrarı bekliyor)
   kaybedilen iş en fazla bir chunk (saniyeler). Daha büyük chunk (500+)
   kesintide daha çok iş kaybettirir ve tek ifadenin paketini büyütür; daha
   küçüğü commit RTT'sini görünür yapar.
-- Checkpoint = `ingest_run` satırı (migration `0050`): `updated_at`
+- Checkpoint = `ingest_run` satırı (migration `0051`): `updated_at`
   (heartbeat) + `checkpoint` JSONB (`state`, `observed_at`, `chunks`,
   `offers_committed`, `last_external_id`, `resumable`, `resumed_from`) +
   mevcut sayaçlar. Chunk ile **aynı işlemde** ilerler: sayaçlar hiçbir zaman

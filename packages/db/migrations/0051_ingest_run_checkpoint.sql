@@ -1,4 +1,4 @@
--- 0050 — Toplama kosusu icin kalici checkpoint (docs/decisions/0065)
+-- 0051 — Toplama kosusu icin kalici checkpoint (docs/decisions/0065)
 --
 -- Buyuk Shopify katalogu tek islemde yazilirken uzak baglanti kopuyor (42 dk,
 -- north-sails-turkiye) ve tum is geri aliniyordu. Toplama artik parca parca

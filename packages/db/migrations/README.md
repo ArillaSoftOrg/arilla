@@ -62,7 +62,7 @@ migration'lar olusturur.
 | `0047_feedback_contact.sql` | Iletisim formu (0061) `feedback`'i paylasir: `kind` ('feedback' varsayilan / 'contact'), nullable `name`; kategori CHECK'i ture gore iki listeye ayrilir; iletisimde e-posta ve ad zorunlu; `(kind, created_at, id)` indeksi (yonetim gelen kutusu). Mevcut satirlar 'feedback' kalir. Geriye uyumlu, yetki degismez. |
 | `0048_activate_shopify_merchants.sql` | 0021'in dogruladigi 18 Shopify merchant aktiflestirilir, `max_products = 3500`, `retry.max_retries = 2` (0063). `admin_audit_event`e kayit. `turkish-finds` kapsam disi. Yalnizca veri. |
 | `0049_shopify_canonical_domains.sql` | 2 Shopify merchant'inin `domain`/`feed_url`'i kanitlanmis kanonik host'a tasinir (0064; kanit `canonical_domains_20261006.json`). Yalnizca offer'i olmayan, aktif, TRY dogrulanmis merchant'lar; `admin_audit_event`'e kayit. Yalnizca veri.
-| `0050_ingest_run_checkpoint.sql` | `ingest_run.updated_at` (heartbeat) + `checkpoint` JSONB: chunk'li toplamanin kalici checkpoint'i, kesintiden devam (0065). Yalnizca ekleme, `status` CHECK'i degismez. |
+| `0051_ingest_run_checkpoint.sql` | `ingest_run.updated_at` (heartbeat) + `checkpoint` JSONB: chunk'li toplamanin kalici checkpoint'i, kesintiden devam (0065). Yalnizca ekleme, `status` CHECK'i degismez. Ilk adi `0050_ingest_run_checkpoint.sql` idi (production'da uygulandi); `main`'e giren `0050_early_access_counter` ile numara cakistigi icin `0051` oldu, defter satiri `renamed.json` ile tasindi (asagiya bakin). |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori
@@ -74,6 +74,7 @@ sasirmayin.
 
 ```bash
 pnpm db:migrate          # sirayla uygular, uygulananlari schema_migration'da tutar
+pnpm db:migrate:plan     # hicbir sey yazmaz: defter tasimalarini ve uygulanacak dosyalari listeler
 pnpm db:bootstrap-role   # arilla_app rolune LOGIN + parola verir (APP_DB_PASSWORD)
 pnpm db:partitions       # icinde bulunulan ay + 3 ay ileri
 pnpm db:verify           # Drizzle semasi uyumu + append-only yetki kaniti + polimorfik butunluk
@@ -83,6 +84,16 @@ pnpm seed                # gelistirme katalogu (A3) — mevcut katalogu SILER
 
 Her migration kendi isleminde calisir: biri patlarsa oncekiler kalir,
 sonrakiler denenmez.
+
+### Yeniden adlandirilmis migration'lar (`renamed.json`)
+
+Defter (`schema_migration`) migration'lari yalnizca **dosya adiyla** tanir
+(surum numarasi ya da checksum yok). Uygulanmis bir migration'in dosyasini
+sessizce yeniden adlandirmak onu "uygulanmamis" gosterir ve SQL'i tekrar
+calistirir. Bu yuzden `migrations/renamed.json` ("yeni ad" -> "eski ad")
+tutulur: `migrate.ts` eski adla kayitli satiri tek islemde yeni ada tasir ve
+SQL'i **calistirmaz**; her iki ad da kayitliysa durur; kayit yoksa dosya normal
+uygulanir. Once `pnpm db:migrate:plan` ile bakin.
 
 ## Roller
 

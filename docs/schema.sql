@@ -1005,8 +1005,8 @@ CREATE TABLE ingest_run (
     offers_updated   INTEGER NOT NULL DEFAULT 0,
     price_points_written INTEGER NOT NULL DEFAULT 0,
     error_text   TEXT,
-    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),   -- 0050: son checkpoint/heartbeat
-    checkpoint   JSONB                                 -- 0050: kucuk duz checkpoint (karar 0065)
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),   -- 0051: son checkpoint/heartbeat
+    checkpoint   JSONB                                 -- 0051: kucuk duz checkpoint (karar 0065)
 );
 CREATE INDEX ingest_run_merchant_idx ON ingest_run (merchant_id, started_at DESC);
 

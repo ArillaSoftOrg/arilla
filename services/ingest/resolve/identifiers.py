@@ -100,6 +100,14 @@ def exact_variant_match(
     with conn.cursor() as cur:
         cur.execute(BY_GTIN, {"gtins": identity.values, "offer_id": offer_id})
         rows = cur.fetchall()
+    return exact_variant_match_from_rows(rows, key, identity)
+
+
+def exact_variant_match_from_rows(
+    rows: list[tuple], key: ProductKey, identity: OfferIdentity
+) -> tuple[Candidate, ScoreResult] | None:
+    """`BY_GTIN` satirlarindan kesin eslesme karari. Toplu cozumleyici
+    (`resolve.batch`) ayni karari onceden okunmus satirlarla verir (0066)."""
     for pid, title, brand, color, p_gtin, p_mpn, matched, size_label in rows:
         candidate = Candidate(
             product_id=int(pid),
@@ -142,8 +150,14 @@ def unverified_variant_volume(
     with conn.cursor() as cur:
         cur.execute(CANDIDATE_VARIANT_TEXTS, {"product_id": product_id})
         volumes = {extract_volume(text or "") for (text,) in cur.fetchall()} - {None}
-    if volumes and key.volume not in volumes:
-        return f"hacim varyanti dogrulanamadi: {key.volume} / {sorted(volumes)}"
+    return volume_conflict(key, volumes)
+
+
+def volume_conflict(key: ProductKey, volumes: set[str | None]) -> str | None:
+    """`unverified_variant_volume` kurali, hacim kumesi hazirken (0066)."""
+    known = {volume for volume in volumes if volume}
+    if key.volume and known and key.volume not in known:
+        return f"hacim varyanti dogrulanamadi: {key.volume} / {sorted(known)}"
     return None
 
 
@@ -157,7 +171,14 @@ def disjoint_barcode_products(
     with conn.cursor() as cur:
         cur.execute(CANDIDATE_GTIN_SETS, {"product_ids": product_ids})
         rows = cur.fetchall()
+    return disjoint_from_sets(
+        {int(pid): (set(gtins or ()), bool(complete)) for pid, gtins, complete in rows}, identity
+    )
+
+
+def disjoint_from_sets(sets: dict[int, tuple[set[str], bool]], identity: OfferIdentity) -> set[int]:
+    """`disjoint_barcode_products` karari, barkod kumeleri hazirken (0066)."""
     ours = set(identity.gtins)
     return {
-        int(pid) for pid, gtins, complete in rows if complete and gtins and not (ours & set(gtins))
+        pid for pid, (gtins, complete) in sets.items() if complete and gtins and not (ours & gtins)
     }

@@ -1,0 +1,6 @@
+{
+  "_comment": "Yeni ad -> eski ad. Defter (schema_migration) dosya adini tanir; numara cakismasi nedeniyle yeniden adlandirilan, zaten uygulanmis migration'in defter satiri migrate.ts tarafindan tek islemde yeni ada tasinir (SQL yeniden CALISMAZ). Kayit yoksa dosya normal uygulanir. Bkz. docs/decisions/0065.",
+  "renames": {
+    "0051_ingest_run_checkpoint.sql": "0050_ingest_run_checkpoint.sql"
+  }
+}

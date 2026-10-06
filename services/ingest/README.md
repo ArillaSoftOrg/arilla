@@ -357,12 +357,21 @@ satir sayilari) sinar. CLI her kosuda bunu uyarir.
 ## Eslestirme (B4)
 
 ```bash
-python -m resolve                    # eslesmemis offer'lari eslestir
+python -m resolve                    # eslesmemis TUM offer'lari eslestir (chunk'li, merchant sirali)
 python -m resolve --merchant-id 12   # yalnizca bir magaza
+python -m resolve --limit 500        # en fazla bu kadar offer (varsayilan: hepsi)
+python -m resolve --chunk-size 200   # chunk basina offer (varsayilan 200)
 python -m resolve --dry-run          # yaz, commit etme
 python -m resolve --no-create        # eslesmeyen icin yeni urun ACMA
+python -m resolve --sequential       # ESKI offer-offer referans surum (olcum/karsilastirma)
 python -m resolve --calibrate        # esik olcumu (veritabani gerekmez)
 ```
+
+Toplu motor (`resolve/batch.py`, karar 0066): chunk = ayni merchant'in en fazla 200
+offer'i; chunk basina ~12 toplu okuma + ~8 toplu yazim ifadesi, chunk basina
+commit. Kesilirse yeniden calistirmak kalan offer'lardan devam eder (durum
+`offer.product_id`'dedir). Eski surumle ayni kararlari verir (karsilastirma
+testi); 1.723 offer: 42,6 dk -> ~32 sn.
 
 ### Akis
 
