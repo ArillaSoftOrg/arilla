@@ -1,0 +1,22 @@
+{
+  "hero": {
+    "key": "blog/ec9da6d8ea6ceff4cb09c26b86fcb7a8.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1304,
+    "bytes": 234266,
+    "sha256": "ec9da6d8ea6ceff4cb09c26b86fcb7a85b9cc9c5049afd88197b593afbc35c8c",
+    "uploaded": true,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmq1ipu4fc6as07lni9jr50zp"
+  },
+  "acik-ev-sezonu": {
+    "key": "blog/634851ea710b4e115e5400bb36011685.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1036,
+    "bytes": 210792,
+    "sha256": "634851ea710b4e115e5400bb360116850fc42bab66732817fe2507771dc13df9",
+    "uploaded": true,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmuhbw2kmx8kk07lnl8i2uhdo"
+  }
+}
