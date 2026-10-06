@@ -1,8 +1,13 @@
-import { EARLY_ACCESS_LOGIN_PATH, EARLY_ACCESS_PATH } from "@arilla/core";
+import {
+  EARLY_ACCESS_LOGIN_PATH,
+  EARLY_ACCESS_PATH,
+  type EarlyAccessProgress as EarlyAccessProgressData,
+} from "@arilla/core";
 import { ArrowRightIcon, ImageIcon, LinkIcon, SearchIcon } from "@arilla/ui";
 import styles from "./coming-soon.module.css";
 import { BUILD_ITEMS, BUILD_UPDATED, COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "./early-access-copy.ts";
+import { EarlyAccessProgress } from "./early-access-progress.tsx";
 import { SUBPAGE_SECTION_LINKS } from "./home-footer-groups.ts";
 import { PublicSiteShell } from "./public-site-shell.tsx";
 import { configuredSocialLinks, SITE_BRAND } from "./site-config.ts";
@@ -18,7 +23,14 @@ const HOW_IT_WORKS_ID = "nasil-calisacak";
  * kendisinde yazılır. Görseller dekoratiftir (`aria-hidden`), gerçek ürün,
  * fiyat ya da sonuç gibi görünmez.
  */
-export function ComingSoonLanding({ signedIn }: { signedIn: boolean }) {
+export function ComingSoonLanding({
+  signedIn,
+  progress,
+}: {
+  signedIn: boolean;
+  /** Gerçek erken erişim sayısı (karar 0065); yoksa çubuk gösterilmez. */
+  progress?: EarlyAccessProgressData | null;
+}) {
   const primaryHref = signedIn ? EARLY_ACCESS_PATH : EARLY_ACCESS_LOGIN_PATH;
   const primaryLabel = signedIn ? EARLY_ACCESS_COPY.viewStatus : EARLY_ACCESS_COPY.cta;
   const socialLinks = configuredSocialLinks();
@@ -49,6 +61,7 @@ export function ComingSoonLanding({ signedIn }: { signedIn: boolean }) {
             <p className={styles.heroNote}>
               {signedIn ? EARLY_ACCESS_COPY.inList : COMING_SOON_COPY.ctaNote}
             </p>
+            {progress ? <EarlyAccessProgress progress={progress} /> : null}
           </div>
           <HeroVisual />
         </section>

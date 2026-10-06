@@ -66,7 +66,13 @@ export type Capability =
    * Bir hesabın bütün oturumlarını kapatma (ele geçirilmiş hesap şüphesi).
    * Yalnızca yönetici, taze giriş ile (karar 0050).
    */
-  | "users.sessions.revoke";
+  | "users.sessions.revoke"
+  /**
+   * `/yonetim/erken-erisim`: platform dışı gerçek başvuru sayısını güncelleme
+   * (karar 0065). Kamuya açık sayıyı değiştirir; yalnızca yönetici, gerekçe
+   * zorunlu, her değişiklik denetime yazılır.
+   */
+  | "early_access.manage";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -104,6 +110,8 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "users.contact.reveal",
   // Karar 0050: oturum kapatma yalnızca yöneticiden.
   "users.sessions.revoke",
+  // Karar 0065: herkese gorunen erken erisim sayisini yalnizca yonetici degistirir.
+  "early_access.manage",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

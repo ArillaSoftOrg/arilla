@@ -13,9 +13,11 @@ import { SURVEY_COPY } from "../anket/survey-copy.ts";
 import { logoutAction } from "../cikis-actions.ts";
 import { COMING_SOON_COPY } from "../coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "../early-access-copy.ts";
+import { EarlyAccessProgress } from "../early-access-progress.tsx";
 import { FEEDBACK_COPY } from "../geri-bildirim/feedback-copy.ts";
 import { HOME_COPY } from "../home-copy.ts";
 import { requireUser } from "../lib/dal.ts";
+import { loadEarlyAccessProgress } from "../lib/early-access-progress.ts";
 import { SubpageShell } from "../public-site-shell.tsx";
 import { configuredSocialLinks, SITE_BRAND } from "../site-config.ts";
 import { joinEarlyAccessAction } from "./actions.ts";
@@ -80,6 +82,7 @@ export default async function ErkenErisimPage() {
     redirect(`/anket/${onboarding.slug}`);
   }
   const socialLinks = configuredSocialLinks();
+  const progress = await loadEarlyAccessProgress();
 
   return (
     <SubpageShell currentPath="/erken-erisim">
@@ -157,6 +160,7 @@ export default async function ErkenErisimPage() {
               </form>
             </div>
           )}
+          {progress ? <EarlyAccessProgress progress={progress} /> : null}
           <div className={styles.actions}>
             <a className={styles.primaryAction} href="/">
               {EARLY_ACCESS_COPY.backHome}

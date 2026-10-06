@@ -4,6 +4,7 @@ import { COOKIE_PREFERENCES_HREF } from "./consent-copy.ts";
 import { CookiePreferencesLink } from "./cookie-consent-client.tsx";
 import { FEEDBACK_COPY } from "./geri-bildirim/feedback-copy.ts";
 import { HOME_COPY } from "./home-copy.ts";
+import { configuredSocialLinks } from "./site-config.ts";
 
 /**
  * Faz 8: ana sayfa bolumlerine giden uc link. Ana sayfada ayni sayfa ici
@@ -97,6 +98,12 @@ function companyFooterGroup(): FooterGroup {
       { label: HOME_COPY.navAbout, href: "/hakkinda" },
       { label: HOME_COPY.navBlog, href: "/blog" },
       { label: HOME_COPY.navPartners, href: "/ortakliklar" },
+      // Yalnizca tanimli resmi hesaplar (site-config.ts `SOCIAL_PROFILES`).
+      ...configuredSocialLinks().map((social) => ({
+        label: social.label,
+        href: social.href,
+        external: true,
+      })),
     ],
   };
 }

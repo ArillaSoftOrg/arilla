@@ -43,6 +43,9 @@ export function EditorialFooter({
                         href={link.href}
                         className={styles.link}
                         aria-current={link.current ? "page" : undefined}
+                        {...(link.external
+                          ? { target: "_blank", rel: "noopener noreferrer me" }
+                          : {})}
                       >
                         {link.label}
                       </a>

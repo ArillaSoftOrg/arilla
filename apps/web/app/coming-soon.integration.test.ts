@@ -271,9 +271,11 @@ describe("landing içeriği", () => {
     expect(text).not.toMatch(/satın al|dupe|ucuz|\d\s?%|%\s?\d|\bTL\b|₺/i);
   });
 
-  it("sosyal hesap tanımlı değilken bağlantı gösterilmez", async () => {
+  it("yalnızca tanımlı resmi hesap gösterilir: Instagram var, TikTok ve LinkedIn yok", async () => {
     const html = await landingMarkup();
-    expect(html).not.toMatch(/instagram|tiktok|linkedin/i);
+    expect(html).toContain('href="https://www.instagram.com/manicepte.tr"');
+    expect(html).not.toMatch(/tiktok|linkedin/i);
+    expect(html).not.toMatch(/utm_|stkn/);
   });
 
   it("girişli kullanıcı: tekrar katıl yerine durum", async () => {
@@ -342,8 +344,17 @@ describe("kabuk: header ve footer", () => {
 });
 
 describe("servis güvenliği", () => {
-  it("anonim landing veritabanına ve keşif sorgusuna hiç gitmez", async () => {
-    await landingMarkup();
+  it("anonim landing veritabanına ve keşif sorgusuna hiç gitmez (sayı önbellekten)", async () => {
+    // Çubuk sayısı (karar 0065) kısa süreli Redis önbelleğinden gelir: önbelleği
+    // ısıt, sonra anonim istekte veritabanına gidilmediğini doğrula.
+    const { invalidateEarlyAccessProgressCache } = await import("@arilla/core");
+    const { loadCachedEarlyAccessProgress } = await import("./lib/early-access-progress.ts");
+    await invalidateEarlyAccessProgressCache();
+    expect(await loadCachedEarlyAccessProgress()).not.toBeNull();
+    spies.getDatabase = 0;
+    const html = await landingMarkup();
+    expect(html).toContain("kişi");
+    expect(html).toContain('role="progressbar"');
     const { PublicSiteShell } = await import("./public-site-shell.tsx");
     const { SUBPAGE_SECTION_LINKS } = await import("./home-footer-groups.ts");
     await PublicSiteShell({ links: SUBPAGE_SECTION_LINKS, children: null });
@@ -566,9 +577,13 @@ describe("SEO", () => {
 describe("yapılandırma yardımcıları", () => {
   it("sosyal bağlantılar: yalnızca tanımlı ve https olanlar, sabit sırayla", async () => {
     const { configuredSocialLinks, SOCIAL_PROFILES } = await import("./site-config.ts");
-    // Bugün hiçbir resmi hesap tanımlı değil: hiçbiri gösterilmez.
-    expect(Object.values(SOCIAL_PROFILES).every((value) => value === null)).toBe(true);
-    expect(configuredSocialLinks()).toEqual([]);
+    // Bugün yalnızca Instagram tanımlı (takip parametresiz, https).
+    expect(SOCIAL_PROFILES.instagram).toBe("https://www.instagram.com/manicepte.tr");
+    expect(SOCIAL_PROFILES.tiktok).toBeNull();
+    expect(SOCIAL_PROFILES.linkedin).toBeNull();
+    expect(configuredSocialLinks()).toEqual([
+      { network: "instagram", label: "Instagram", href: "https://www.instagram.com/manicepte.tr" },
+    ]);
     expect(
       configuredSocialLinks({
         instagram: "http://instagram.example/x",
