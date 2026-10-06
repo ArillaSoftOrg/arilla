@@ -1,4 +1,4 @@
-# 0069 — Deterministik fiyat ifadeleri ve `filters.currency`
+# 0070 — Deterministik fiyat ifadeleri ve `filters.currency`
 
 **Tarih:** 2026-10-07 · **Durum:** kabul edildi (kod ve testler hazır; `/ara` akışında gerçek PostgreSQL'de doğrulandı). Üretime birleştirilmedi.
 
@@ -34,18 +34,28 @@ bilinmediğinden bu sorgularda sayı fiyat filtresi olmuyor, metin kapısına s�
    * işleci olmayan sayı hiçbir zaman fiyat değildir (`iphone 17 pro 256`, `20 bin`).
 3. Emin olunamayan sayı filtre olmaz ve `unparsed`'a kalır: yanlış filtre, filtresizlikten kötüdür.
    Bilinçli sonuç: işaretsiz ve yuvarlak olmayan `2999 altı` fiyat sayılmaz (`2999 tl altı` sayılır).
-4. **Önbellek:** `query_resolution` bir `query_norm`'u kalıcı önbelleğe alır
-   (`resolveQuery`); parser değişince daha önce kaydedilmiş sorgular eski ayrıştırmayı
-   döndürmeye devam eder (entegrasyon testi bunu gösterir). Yerleşik yöntem tabloyu
-   temizlemektir (`admin/lexicon.ts` her sözlük değişikliğinde yapar). Yayında
-   `docs/ops.md` "Sorgu ayrıştırma önbelleği" adımı uygulanır; kod bunu otomatik yapmaz.
+4. **Önbellek (`query_resolution`) — sürüm damgası, tablo silinmez.** `resolveQuery` bir
+   `query_norm`'u kalıcı önbelleğe alır; parser değişince eski satırlar eski ayrıştırmayı
+   döndürürdü. Çözüm (tercih A): yazılan satır `parsed.parser_version = QUERY_PARSER_VERSION`
+   ile damgalanır; **2. kademe (sözlük) ve damgası eksik/daha düşük** bir satır bir sonraki
+   okumada YALNIZ O SATIR olarak yeniden ayrıştırılıp güncellenir (tembel, satır bazlı).
+   Dokunulmayanlar: 3. kademe (model) satırları, damgası daha yeni satırlar (geri alınan
+   dağıtımda sallanma yok), hiç okunmayan satırlar, başka tablolar (`query_interpretation`,
+   `search_query_day`, kullanıcı verisi). Üretimde hiçbir DELETE/TRUNCATE gerekmez ve migration
+   yoktur (damga mevcut JSONB'de). Koruma: `query-resolution.test.ts` sabit korpusta
+   `parseQueryText` çıktısının özetini sabitler; çıktı değişirse test kırılır ve sürümün
+   artırılmasını ister. Sözlük değişikliklerinde `admin/lexicon.ts`'in tam temizliği olduğu gibi
+   kalır.
 
 ## Reddedilen alternatifler
 
 * **Büyük sayıyı fiyat saymak** ("35000" tek başına): model/depolama numaralarıyla karışır.
 * **Modele sormak:** kural 1; bu kalıplar deterministik çözülür.
-* **Önbelleğe ayrıştırıcı sürümü eklemek:** yeni bir mekanizma; mevcut "tabloyu temizle"
-  sözleşmesi yeterli ve admin sözlük akışıyla aynı.
+* **Yayında tabloyu `DELETE`/`TRUNCATE` etmek:** kör; 3. kademe ve başka özelliklerin
+  ürettiği satırları da götürür, soğuk önbellekle ilk aramaları yavaşlatır. Yalnız sürüm
+  damgası yetmezse (tercih C) tek seferlik, hedefli (`parser_tier = 2` ve damgasız) temizlik
+  düşünülür; şu an gerekmiyor.
+* **Ayrı `parser_version` kolonu:** migration gerektirir; JSON damgası aynı işi görür.
 * **`currency`'yi zorunlu yapmak:** eski önbellek satırlarını geçersiz kılar; yoksa TRY varsayılır.
 
 ## Doğrulama

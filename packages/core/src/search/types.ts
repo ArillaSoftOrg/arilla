@@ -47,4 +47,9 @@ export interface QueryObject {
    * yoktur — o zaman `unparsed` tokenlarindan uretilir.
    */
   text_slots?: string[][];
+  /**
+   * Onbellege yazilirken `resolveQuery` damgasi (`QUERY_PARSER_VERSION`). Ayristirici
+   * koymaz; yoksa satir 1. surum sayilir ve bir sonraki okumada yenilenir (karar 0070).
+   */
+  parser_version?: number;
 }

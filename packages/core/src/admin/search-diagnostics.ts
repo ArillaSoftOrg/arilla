@@ -24,6 +24,7 @@ import { findLexiconMatches } from "../search/lexicon.ts";
 import { loadLexicon } from "../search/lexicon-repository.ts";
 import { normalizeQueryText } from "../search/normalize.ts";
 import { parseQueryText } from "../search/parse-query.ts";
+import { isStaleResolution } from "../search/query-resolution.ts";
 import { search } from "../search/search.ts";
 import {
   type CandidateFunnel,
@@ -157,7 +158,7 @@ async function resolveEffectiveQuery(rdb: Rdb, input: string, queryNorm: string)
   if (plan.mode === "conversation") {
     effectiveQuery = plan.queryObject;
     effectiveSource = "conversation";
-  } else if (cached) {
+  } else if (cached && !isStaleResolution(cached)) {
     effectiveQuery = cached.parsed as QueryObject;
     effectiveSource = "cache";
   } else {

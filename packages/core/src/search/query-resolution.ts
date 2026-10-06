@@ -9,7 +9,7 @@
  * bastan onler.
  */
 import { type Database, queryResolution } from "@arilla/db";
-import { eq, sql } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import { decideClarification } from "./clarification.ts";
 import { loadLexicon } from "./lexicon-repository.ts";
 import { normalizeQueryText } from "./normalize.ts";
@@ -25,6 +25,29 @@ export interface ResolveQueryResult {
 }
 
 type QueryResolutionRow = typeof queryResolution.$inferSelect;
+
+/**
+ * Sozluk ayristiricisinin (`parseQueryText`, `extractPricePatterns`...) cikti
+ * surumu. `parseQueryText` ciktisinin ANLAMI degisince (yeni filtre, farkli
+ * tuketim) ARTIRILIR. Onbellege yazilan satirlar `parsed.parser_version` ile
+ * damgalanir; daha dusuk (ya da damgasiz = 1) surumlu 2. kademe satirlar bir sonraki
+ * okumada TEK SATIR olarak yeniden ayristirilir. Tablo silinmez; diger kademeler
+ * (3 = model) ve baska ozellikler (`query_interpretation`, kullanici verisi)
+ * etkilenmez. Surum koruma testi: `query-resolution.test.ts` (altin ozet).
+ * Surumler: 1 = damgasiz (fiyat kisaltmalari oncesi), 2 = karar 0070.
+ */
+export const QUERY_PARSER_VERSION = 2;
+
+/** Yalnizca 2. kademe (sozluk) satiri bayat olabilir; model kademesine dokunulmaz. */
+export function isStaleResolution(row: Pick<QueryResolutionRow, "parserTier" | "parsed">): boolean {
+  if (row.parserTier !== 2) return false;
+  const version = (row.parsed as { parser_version?: unknown } | null)?.parser_version;
+  return (typeof version === "number" ? version : 1) < QUERY_PARSER_VERSION;
+}
+
+function stamped(parsed: QueryObject): QueryObject {
+  return { ...parsed, parser_version: QUERY_PARSER_VERSION };
+}
 
 function toResult(row: QueryResolutionRow, cacheHit: boolean): ResolveQueryResult {
   return {
@@ -46,12 +69,23 @@ export async function resolveQuery(db: Database, rawText: string): Promise<Resol
     .returning();
 
   const existing = updated[0];
-  if (existing) {
+  if (existing && !isStaleResolution(existing)) {
     return toResult(existing, true);
   }
 
   const lexiconEntries = await loadLexicon(db);
-  const parsed = parseQueryText(rawText, lexiconEntries);
+  const parsed = stamped(parseQueryText(rawText, lexiconEntries));
+
+  if (existing) {
+    // Eski parser surumunden kalma 2. kademe satir: yalniz bu satir yenilenir.
+    const refreshed = await db
+      .update(queryResolution)
+      .set({ parsed, lastUsedAt: new Date() })
+      .where(and(eq(queryResolution.queryNorm, queryNorm), eq(queryResolution.parserTier, 2)))
+      .returning();
+    const row = refreshed[0];
+    if (row) return toResult(row, false);
+  }
   // C1 kapsaminda gercek kategori agacindan aday hesaplanmaz; bos aday
   // listesi her zaman needsClarification: false uretir. C2, ayni fonksiyona
   // zengin aday listesi vererek imzayi degistirmeden gercek hesaplamayi ekler.

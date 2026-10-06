@@ -18,7 +18,7 @@ import { createSeedAliasSource } from "./fallback/aliases.ts";
 import { searchWithFallback } from "./fallback/pipeline.ts";
 import { createPostgresSearchProvider } from "./fallback/postgres-provider.ts";
 import { normalizeQueryText } from "./normalize.ts";
-import { resolveQuery } from "./query-resolution.ts";
+import { QUERY_PARSER_VERSION, resolveQuery } from "./query-resolution.ts";
 import type { QueryObject } from "./types.ts";
 
 const run = `pf${Date.now().toString(36)}`;
@@ -320,36 +320,66 @@ describe("deterministik fiyat ifadeleri - /ara akisi, gercek PostgreSQL", () => 
     expect(second.parsed).toEqual(first.parsed);
   });
 
-  it("DIKKAT - eski onbellek: parser degismeden once yazilmis satir yeni ayristirmayi gizler (deploy sonrasi temizlenmeli)", async () => {
-    const stale = "ucuz kulaklik 3 bin altı stale";
-    usedQueries.add(normalizeQueryText(stale));
+  it("eski parser surumunden kalan 2. kademe satir TEK SATIR olarak yenilenir; tablo, 3. kademe ve komsu satirlar korunur", async () => {
+    const staleQuery = "ucuz kulaklik 3 bin altı stale";
+    const modelQuery = "model kademesi 3 bin altı stale";
+    const neighbourQuery = "komsu satir 3 bin altı stale";
+    for (const text of [staleQuery, modelQuery, neighbourQuery])
+      usedQueries.add(normalizeQueryText(text));
+    const legacy = (text: string) =>
+      JSON.stringify({
+        intent: "browse",
+        anchor: null,
+        text,
+        filters: {},
+        style_tags: [],
+        sort: "balanced",
+        unparsed: "3 bin altı",
+        confidence: 0,
+      });
     await withOwnerClient(async (client) => {
-      await client.query(
-        `INSERT INTO query_resolution (query_norm, parsed, parser_tier) VALUES ($1, $2, 2)
-         ON CONFLICT (query_norm) DO UPDATE SET parsed = EXCLUDED.parsed`,
-        [
-          normalizeQueryText(stale),
-          JSON.stringify({
-            intent: "browse",
-            anchor: null,
-            text: stale,
-            filters: {},
-            style_tags: [],
-            sort: "balanced",
-            unparsed: "3 bin altı",
-            confidence: 0,
-          }),
-        ],
-      );
+      for (const [text, tier] of [
+        [staleQuery, 2],
+        [modelQuery, 3],
+        [neighbourQuery, 2],
+      ] as const) {
+        await client.query(
+          `INSERT INTO query_resolution (query_norm, parsed, parser_tier) VALUES ($1, $2, $3)
+           ON CONFLICT (query_norm) DO UPDATE SET parsed = EXCLUDED.parsed, parser_tier = EXCLUDED.parser_tier`,
+          [normalizeQueryText(text), legacy(text), tier],
+        );
+      }
     });
-    // Eski satir: fiyat filtresi yok (cache-aside onu yeniden ayristirmaz).
-    expect((await resolveQuery(db, stale)).parsed.filters.price_max).toBeUndefined();
-    // Onbellek temizlenince (docs/ops.md "Sorgu ayristirma onbellegi") yeni parser devreye girer.
-    await withOwnerClient((client) =>
-      client.query("DELETE FROM query_resolution WHERE query_norm = $1", [
-        normalizeQueryText(stale),
-      ]),
-    );
-    expect((await resolveQuery(db, stale)).parsed.filters.price_max).toBe(300_000);
+    const row = async (text: string) =>
+      withOwnerClient(async (client) => {
+        const r = await client.query(
+          "SELECT parsed, parser_tier, hit_count FROM query_resolution WHERE query_norm = $1",
+          [normalizeQueryText(text)],
+        );
+        return r.rows[0] as { parsed: QueryObject; parser_tier: number; hit_count: number };
+      });
+
+    // 1) Bayat 2. kademe satir: yeni parser devreye girer, satir damgalanir.
+    const first = await resolveQuery(db, staleQuery);
+    expect(first.cacheHit).toBe(false);
+    expect(first.parsed.filters.price_max).toBe(300_000);
+    expect(first.parsed.filters.currency).toBe("TRY");
+    const refreshed = await row(staleQuery);
+    expect(refreshed.parsed.parser_version).toBe(QUERY_PARSER_VERSION);
+    expect(refreshed.parsed.filters.price_max).toBe(300_000);
+    expect(refreshed.parser_tier).toBe(2);
+    // Bir sonraki okuma artik onbellek isabeti.
+    expect((await resolveQuery(db, staleQuery)).cacheHit).toBe(true);
+
+    // 2) Model kademesi (3): eski olsa da DOKUNULMAZ.
+    const model = await resolveQuery(db, modelQuery);
+    expect(model.cacheHit).toBe(true);
+    expect(model.parsed.filters.price_max).toBeUndefined();
+    expect((await row(modelQuery)).parsed.parser_version).toBeUndefined();
+
+    // 3) Okunmayan komsu satir: kendiliginden degismez (tembel, satir bazli).
+    const neighbour = await row(neighbourQuery);
+    expect(neighbour.parsed.parser_version).toBeUndefined();
+    expect(neighbour.hit_count).toBe(1);
   });
 });

@@ -196,18 +196,18 @@ pnpm db:catalog-telemetry --remote      # yerel OLMAYAN veritabanı: bayrak şar
 
 ## Sorgu ayrıştırma önbelleği (`query_resolution`)
 
-`resolveQuery` bir normalize sorguyu kalıcı önbelleğe alır. Ayrıştırıcı (örn. fiyat
-ifadeleri, karar 0069) ya da sözlük değişince daha önce kaydedilmiş sorgular ESKİ
-ayrıştırmayı döndürmeye devam eder. Sözlük değişikliklerinde `admin/lexicon.ts` tabloyu
-kendisi temizler; **ayrıştırıcı kodu değiştiren bir yayından sonra** tablo bir kez
-temizlenir:
+`resolveQuery` bir normalize sorguyu kalıcı önbelleğe alır. Satırlar
+`parsed.parser_version` (= `QUERY_PARSER_VERSION`, `search/query-resolution.ts`) ile damgalanır.
 
-```sql
-DELETE FROM query_resolution;   -- yalnızca önbellek; kaynak gerçek değil, yeniden üretilir
-```
-
-Maliyet: temizlik sonrası ilk aramalar yeniden ayrıştırılır (sözlük taraması, model yok).
-Üretimde elle ve bilerek yapılır; otomatik değildir.
+* **Ayrıştırıcı değişince** (örn. fiyat ifadeleri, karar 0070): `parseQueryText` çıktısı
+  değiştiyse `QUERY_PARSER_VERSION` artırılır (`query-resolution.test.ts` altın özeti bunu
+  zorlar). Eski/damgasız **2. kademe** satırlar bir sonraki okumada tek tek yenilenir;
+  **yayında elle silme YOKTUR**. 3. kademe (model) satırları, hiç okunmayan satırlar ve
+  başka tablolar dokunulmaz. Hedefli kontrol (salt okunur):
+  `SELECT count(*) FILTER (WHERE parser_tier = 2 AND coalesce((parsed->>'parser_version')::int,1) < 2) AS bayat, count(*) AS toplam FROM query_resolution;`
+* **Sözlük değişince** `admin/lexicon.ts` tabloyu kendisi temizler (mevcut davranış, değişmedi).
+* Tüm tabloyu `DELETE`/`TRUNCATE` etmek yalnızca olağanüstü durumda ve onayla; sürüm damgası
+  nedeniyle gerekmez.
 
 ## Yedekleme
 

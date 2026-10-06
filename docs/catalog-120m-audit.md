@@ -40,7 +40,7 @@ Kapsam: `merchant → offer → offer_variant → price_point`, `embedding`, `ma
 | I9 | `full_dump` pasifleştirme sanity kapısı yok | Hâlâ yalnız `status == "success"`; oran/bütünlük kapısı yok | ❌ **GEÇERLİ** |
 | I10 | "Gevşek `last_seen_at`" önerisi | `last_seen_at` artık tazelik + devam + pasifleştirme sözleşmesi → öneri **tek başına bozucu** | 🔁 **GERİ ÇEKİLDİ** (§10.3) |
 | S1–S2, S5–S7, S9–S12 | Arama O(N), trigram GIN, OFFSET, aggregate, `build_edges` | Branch bunlara dokunmadı. `similarity/pipeline.py` yalnız fiyat geçmişi sorgusunu LATERAL'e çevirdi (S7 kısmen iyileşti) ama hâlâ tüm ürünler için tek sorgu, Python'da gruplama | ❌ **GEÇERLİ** |
-| S3, S4 | Çözümleyici: tam-katalog trigram aday + offer başına ~8 sorgu, satır satır | `resolve/batch.py` (branch `2403ab4`, ADR 0066 → **0068'e yeniden numaralanacak**): chunk (≤200 offer, tek merchant), ~12 toplu okuma + ~8 toplu yazma/chunk, SAVEPOINT yalıtımı, `--limit` varsayılanı hepsi. **Ölçülen:** üretim north-sails 1.723 offer 2.557 sn → **32,1 sn** (≈0,67 → **≈54 offer/sn**); yerelde 17.835 → 164 ifade; eski sürümle birebir eşit sonuç testi var | ✅ **round-trip/satır-satır KISMEN ÇÖZÜLDÜ.** Hâlâ geçerli: aday üretimi tam-katalog trigram (ADR'ye göre sunucuda ~10–15 ms/offer; ~100k offer civarında ayrı iş) ve görsel ANN |
+| S3, S4 | Çözümleyici: tam-katalog trigram aday + offer başına ~8 sorgu, satır satır | `resolve/batch.py` (branch `2403ab4`, ADR 0066 → **0069'e yeniden numaralanacak**): chunk (≤200 offer, tek merchant), ~12 toplu okuma + ~8 toplu yazma/chunk, SAVEPOINT yalıtımı, `--limit` varsayılanı hepsi. **Ölçülen:** üretim north-sails 1.723 offer 2.557 sn → **32,1 sn** (≈0,67 → **≈54 offer/sn**); yerelde 17.835 → 164 ifade; eski sürümle birebir eşit sonuç testi var | ✅ **round-trip/satır-satır KISMEN ÇÖZÜLDÜ.** Hâlâ geçerli: aday üretimi tam-katalog trigram (ADR'ye göre sunucuda ~10–15 ms/offer; ~100k offer civarında ayrı iş) ve görsel ANN |
 | §0/1 "toplama yolu 1–2M'de bile sorun" | — | Güncel: tek akışta günlük tam geçiş ~3M offer'a kadar mümkün (uzak, 32/sn × 86.400); asıl sınır **çözümleyici 0,67 offer/sn** | ♻️ **GÜNCELLENDİ** (§7.3) |
 | §4.3 / §6.2 "çift indeksi şimdi kaldır" | PK ile aynı kolonlar → gereksiz | DESC indeksi kodda adıyla anılıyor; sorgu şekilleri karma sıralı; deney eşdeğer plan gösterdi ama üretim telemetrisi yok | 🔁 **GERİ ÇEKİLDİ** (§10.1) |
 | §4.2 `ingest_batch` | Yeni checkpoint tablosu | `ingest_run.checkpoint` JSONB + `updated_at` bunu kapsıyor | ❌ **GEREKSİZ** (§10.4) |
@@ -129,7 +129,7 @@ Normalizasyon `normalize.py`'nin çıktısı üzerinde hesaplanır (kaynağın h
 | --- | --- | --- | --- |
 | S1 | `bestOfferCte`: tüm aktif `offer` × `merchant`, `DISTINCT ON (product_id)` sırala | O(offer); ürün ön filtresi içeri itilemez | `product.best_offer_id` + `min_price` toplu işle tutulur (zaten `min_price` var). İstek yalnız ürün satırını okur |
 | S2 | `product_title_trgm` + `product_title_fold_trgm` (GIN, 72M başlık) | İki GIN ≈ 2×~150 B/ürün (~21 GB), yazma yavaş, ortak kelimelerde aday patlar | Kullanıcı araması arama motoruna taşınır (§6.4); PG'den bu iki indeks Faz C'de kaldırılır. Yönetim/dahili arama için küçük yedek (ör. yalnız `brand_id`+prefix) |
-| S3 | ~~Çözümleyici `BY_TRIGRAM` (tam `product`)~~ **KISMEN:** toplu motor tek sorguda ama hâlâ tam-katalog trigram | Her chunk için katalogda benzerlik; ~10–15 ms/offer (ADR 0068) | Deterministik blocking (§5.5); trigram yalnız blok içi |
+| S3 | ~~Çözümleyici `BY_TRIGRAM` (tam `product`)~~ **KISMEN:** toplu motor tek sorguda ama hâlâ tam-katalog trigram | Her chunk için katalogda benzerlik; ~10–15 ms/offer (ADR 0069) | Deterministik blocking (§5.5); trigram yalnız blok içi |
 | S4 | ~~Çözümleyici offer başına ~8 sorgu~~ **ÇÖZÜLDÜ** (chunk başına ~20 ifade, `resolve/batch.py`) | — | — |
 | S5 | `OFFSET` — `search.ts:106,146`, admin listeleri | Derin sayfada O(offset) | Arama: `search_after`/imleç (motor tarafı). Admin: keyset `(created_at, id)`; admin liste sayfaları 120M'de zaten özet sayaç göstermeli (`COUNT(*)` yok) |
 | S6 | `refresh_product_aggregates`: tüm `product ⟕ offer` GROUP BY, her gece | Tam tarama (72M × ...) | "Kirli ürün" kümesi (`product_dirty`) — yalnız offer fiyat/stok/aktiflik değişen ürünler yeniden hesaplanır |
@@ -418,7 +418,7 @@ Değişim-yalnız hacmi (%4 değişim varsayımı): 120M'de ~4,8M olay/gün ≈ 
 * Satır boyutları: `offer` 0,9 KB heap + 0,23 KB indeks (`attributes_raw` üretimde **ölçülen** ortalama ≈ 395 B, azami 627 B — 0065); varyant 1,5/offer × 0,24 KB; `product` 0,6 KB + 0,6 KB (iki trigram GIN dahil). "İnce hedef": offer 0,45+0,12, varyant 1,0×0,18, ürün 0,45+0,33 (PG'de trigram yok).
 * Fiyat/stok değişim oranı %4/gün (tahmin); `price_point` ≈ 104 B/satır (tek indeksle). Tam geçiş günde 1.
 * **Ölçülen** hız: `north-sails-turkiye` 1.723 offer / 9.486 varyant / 54 sn ≈ **32 offer/sn** (uzak Supabase, RTT ≈ 158 ms, chunk 100, ~9 ifade/chunk). Yakın konumlu DB için 300/sn (chunk 100) ve 2.500/sn (chunk 5 000) **benim tahminim**, ölçülmedi.
-* **Ölçülen** çözümleyici (güncel, `resolve/batch.py`): 1.723 offer / 32,1 sn ≈ **54 offer/sn** (üretim, geri alınan koşu; ADR 0068). Eski satır-satır motor 0,67 offer/sn idi.
+* **Ölçülen** çözümleyici (güncel, `resolve/batch.py`): 1.723 offer / 32,1 sn ≈ **54 offer/sn** (üretim, geri alınan koşu; ADR 0069). Eski satır-satır motor 0,67 offer/sn idi.
 * Arama dokümanı 3 KB, aktif %85, 1 replika. R2 ham: 1,2 KB/kayıt gzip (7 gün) + Parquet+zstd 250 B/kayıt (12 haftalık tam + 30 gün %5 delta).
 
 ### 7.1 PostgreSQL katalog çekirdeği (offer + varyant + ürün, indeks dahil, GB)
@@ -533,8 +533,8 @@ Arama motoruna geçince bu akış değişmez: `QueryObject` → core içinde mot
 **Numaralandırma (REV 3 — çözüldü/planlandı; ayrıntı `docs/decisions/README.md`):**
 
 * **Migration `0050`:** ÇÖZÜLDÜ — Shopify dalı dosyayı `0051_ingest_run_checkpoint.sql` olarak yeniden adlandırdı ve `migrations/renamed.json` + `migrate.ts` ile üretim defter satırını tek işlemde taşıyor (SQL yeniden çalışmaz). Bu raporun önceki "0051 idempotent yeni dosya" önerisi **terk edildi** (aynı ada sahip ikinci dosya olurdu). Doğrulama: Ek B.2.
-* **ADR numaraları:** `main`'de `0065-erken-erisim-sayaci` ve `0066-yapay-zekasiz-arama-fallback`; Shopify dalında `0064-shopify-kanonik-alan-adi`, `0065-chunkli-checkpointli-toplama`, `0066-toplu-eslestirme`. Çakışma 0065 ve 0066'da. Plan: Shopify tarafı 0065→0067, 0066→0068 (migration dosyalarına dokunmadan); bu dal ADR 0069'u alır. Kuru çalışma ve `pnpm check:adr` kanıtı Ek B.3.
-* Bu raporun ADR taslaklarına numara verilmemişti; yalnızca fiyat parser'ı için 0069 alındı.
+* **ADR numaraları:** `main`'de `0065-erken-erisim-sayaci` ve `0066-yapay-zekasiz-arama-fallback`; Shopify dalında `0064-shopify-kanonik-alan-adi`, `0065-chunkli-checkpointli-toplama`, `0066-toplu-eslestirme`. Çakışma 0065 ve 0066'da. Plan: Shopify tarafı 0065→0068, 0066→0069 (migration dosyalarına dokunmadan); bu dal ADR 0070'u alır. Kuru çalışma ve `pnpm check:adr` kanıtı Ek B.3.
+* Bu raporun ADR taslaklarına numara verilmemişti; yalnızca fiyat parser'ı için 0070 alındı.
 
 ---
 
@@ -721,14 +721,14 @@ Bu sorgular hiçbir şey yazmaz; üretimde çalıştırmadım.
 ## Ek B — Rev 3: uygulananlar, doğrulamalar ve bilinçli ertelenenler (2026-10-07)
 
 Rev 2 korunur. Bu ek, A grubunun ne olduğunu, `origin/main` (PR #44/#46) ve Shopify dalının
-**güncel** (`2403ab4`) gerçekliğiyle yeniden doğrulanmasını ve ne YAPILMADIĞINI kaydeder. Üretim
+**güncel** (`2403ab4`; sonrasındaki `6d11822` yalnız `verify_readiness.py`/`verify_currency.py`'de `guarded_client`'e geçiş — migration, ADR ve ingest akışına etkisi yok) gerçekliğiyle yeniden doğrulanmasını ve ne YAPILMADIĞINI kaydeder. Üretim
 DB'sine bağlanılmadı, migration uygulanmadı, ingest çalışmadı, deploy/birleştirme yok.
 
 ### B.1 Güncel kodla uzlaşma — çözülmüş şeyler artık problem değil
 
 | Konu | Durum (kodla doğrulandı) |
 | --- | --- |
-| Tek büyük işlem | ÇÖZÜLDÜ — chunk başına commit + atomik checkpoint (`collect/pipeline.py`, ADR 0065, yeni numara 0067) |
+| Tek büyük işlem | ÇÖZÜLDÜ — chunk başına commit + atomik checkpoint (`collect/pipeline.py`, ADR 0065, yeni numara 0068) |
 | Satır satır yazıcı | ÇÖZÜLDÜ — `write_batch` (`unnest`, ~9 ifade/chunk) |
 | Her koşuda `price_point` | ÇÖZÜLDÜ — değişim olayı; tazelik `last_seen_at` |
 | Retry/checkpoint/devam/advisory lock | ÇÖZÜLDÜ (koşu düzeyi); dead-letter yok, `xml_feed` hâlâ `BytesIO` |
@@ -762,9 +762,9 @@ Birleştirmedeki tek çatışma `migrations/README.md` satırlarıdır (docs).
 
 Karşılaştırma (`origin/main`, Shopify dalı, bu dal): 0065 ve 0066 iki ayrı kararda kullanılıyor
 (`main`: erken erişim sayacı / yapay zekasız fallback; Shopify: chunk'lı toplama / toplu eşleştirme).
-Migration geçmişine bağlı olmayan tarafın yeniden numaralanması önerildi: Shopify 0065→0067,
-0066→0068 (21 dosya, 38 atıf; uygulanmış migration dosyalarına ve `renamed.json`'a dokunulmaz,
-ADR başlığına "eski numara" notu). Bu dalda: ADR 0069 (fiyat parser), `docs/decisions/README.md`
+Migration geçmişine bağlı olmayan tarafın yeniden numaralanması önerildi: Shopify 0065→0068,
+0066→0069 (21 dosya, 38 atıf; uygulanmış migration dosyalarına ve `renamed.json`'a dokunulmaz,
+ADR başlığına "eski numara" notu). Bu dalda: ADR 0070 (fiyat parser), `docs/decisions/README.md`
 tahsis tablosu, `pnpm check:adr`. Kuru çalışma atılabilir bir ağaçta yapıldı: Shopify ucu yeniden
 numaralanıp `origin/main` birleştirilince ADR numaraları benzersiz, kalan 0065/0066 atıfları yalnız `main`'e ait.
 **Shopify dalının dosyaları bu görevde DEĞİŞTİRİLMEDİ**; uygulama o dalın sahibine ait.
@@ -773,17 +773,17 @@ numaralanıp `origin/main` birleştirilince ADR numaraları benzersiz, kalan 006
 
 | Ne | Nerede |
 | --- | --- |
-| Fiyat parser genişletmesi, `filters.currency="TRY"`, bağlam kuralları + kural-belgeleyen testler (ADR 0069) | `search/price-patterns.ts`, `parse-query.ts`, `types.ts`, `clarification/compile.ts` |
+| Fiyat parser genişletmesi, `filters.currency="TRY"`, bağlam kuralları + kural-belgeleyen testler (ADR 0070) | `search/price-patterns.ts`, `parse-query.ts`, `types.ts`, `clarification/compile.ts` |
 | `/ara` akışında gerçek PostgreSQL entegrasyon testi (`resolveQuery → searchWithFallback → PG`), 17 test | `search/price-search.integration.test.ts` |
 | Salt okunur telemetri: `pnpm db:catalog-telemetry`, sızıntı/hata temizleme, `pg_stat_statements` yoksa zarif atlama | `packages/db/scripts/catalog-telemetry.ts` (+ test) |
 | `pnpm db:lint-migrations`, `pnpm check:adr` | `packages/db/scripts/lint-migrations.ts`, `scripts/check-adr-numbers.mjs` |
 | Entegrasyon dosyalarını ardışık koşturma (ortak DB'de fixture'lar birbirinin sonucunu etkiliyordu) | `packages/core/vitest.integration.config.ts` (`fileParallelism: false`) |
 | Admitad feed intake kontrol listesi | `docs/admitad-feed-intake.md` |
-| Önbellek notu (`query_resolution` parser değişince temizlenir) | `docs/ops.md`, ADR 0069 |
+| `query_resolution` parser sürüm damgası: eski 2. kademe satırlar okunduğunda tek tek yenilenir; tablo silinmez, migration yok | `search/query-resolution.ts`, `docs/ops.md`, ADR 0070 |
 
 Entegrasyon bulgusu: parser'ın önek işleçleri `max`/`min` içeriyordu; `iphone 17 pro max 60 bin altı` içinde
 `max` (model adı) tüketiliyordu. Gerçek-akış testi yakaladı, işleçler çıkarıldı. Ayrıca eski `query_resolution`
-satırları yeni ayrıştırmayı gizler (test kanıtlıyor): yayında tablo bir kez temizlenir (ops.md).
+satırları yeni ayrıştırmayı gizler (test kanıtlıyor); çözüm: sürüm damgası + tembel satır bazlı yenileme (ADR 0070 §4), tablo silinmez.
 
 ### B.5 Bilinçli olarak UYGULANMAYANLAR
 
@@ -793,9 +793,16 @@ satırları yeni ayrıştırmayı gizler (test kanıtlıyor): yayında tablo bir
 | ClickHouse | **AT SCALE** (koşullu) | Değişim-yalnız hacim PG'de yönetilebilir |
 | Ayrı katalog PostgreSQL | **AT SCALE** (~10–50M) | Supabase'te kalınır |
 | `product_identity` | **BEFORE ADMITAD / AT SCALE** | Feed tanımlayıcıları bilinmeden anahtar türü kilitlenmez |
-| Parmak izi/yaşam döngüsü kolonları | **BEFORE ADMITAD** (B10/B11) | Tazelik sözleşmesi (ADR 0067) önce karara bağlanmalı |
+| Parmak izi/yaşam döngüsü kolonları | **BEFORE ADMITAD** (B10/B11) | Tazelik sözleşmesi (ADR 0068) önce karara bağlanmalı |
 | Autovacuum / fillfactor | **BEFORE ADMITAD** (B9) | Telemetriye dayanır; bulk yüklemeden önce |
 | Çift indeks düşürme | **AT SCALE**, telemetriyle | Kodda adıyla kullanılıyor |
 | Tüm kataloğa embedding | **AT SCALE** (kademeli) | 25 görsel/dk |
 | Tüm görselleri R2'ye mirror | **Yapılmayacak**; tembel mirror **BEFORE ADMITAD** | Hukuki + teknik |
 | Eşzamanlı Gemini / KVKK / ADR 0059 | **Karar bekliyor** (§8.3) | Politika bypass yok; bu görevde dokunulmadı |
+
+### B.6 Merge öncesi son durum (Rev 4)
+
+* `origin/main` (`cdc8442`) bu dala zaten dahil; bekleyen birleştirme yok.
+* Migration: tek canonical çözüm Shopify dalının `0051_ingest_run_checkpoint.sql` + `renamed.json` yaklaşımı; bu dalda 0051 ya da başka bir uzlaştırma mekanizması YOK (yalnız `db:lint-migrations` denetimi).
+* ADR numaraları: 0068/0069 Shopify dalı için ayrılmıştır, bu dal 0070'i alır (0067 `feature/account-recents-referral`'da alınmış). Shopify dalında yeniden numaralama bu doğrulama sırasında `origin`'de ve yerel dalda GÖRÜNMEDİ; dal sahibi farklı numara seçtiyse `docs/decisions/README.md` yeniden doğrulanmalı.
+* `query_resolution`: sürüm damgası + tembel satır bazlı yenileme (ADR 0070 §4); tablo silinmez.
