@@ -83,7 +83,12 @@ export function MerchantList({
             </div>
             <span className={`${styles.total} tabular-nums`}>{offer.totalLabel}</span>
             {/* attribution: CLAUDE.md kural 8 - dogrudan offer.url'e degil, /git uzerinden. */}
-            <a href={offer.exitHref} className={styles.exit}>
+            <a
+              href={offer.exitHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.exit}
+            >
               {offer.exitLabel}
             </a>
           </li>
