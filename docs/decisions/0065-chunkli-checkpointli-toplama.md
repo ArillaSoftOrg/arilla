@@ -93,17 +93,37 @@ sonuncusu kazanır, stok/fiyat olayları yalnızca ilk görülmede ve değişimd
 (bütün koşu 16 ifade). Yük `unnest` dizisi olduğu için ifade başına parametre
 sınırına takılmaz.
 
-### Fiyat geçmişi
+### Fiyat geçmişi: `price_point` = değişim olayı
 
-Toplu koşuda fiyat, liste fiyatı ve stok önceki `price_point` ile aynıysa yeni
-satır yazılmaz; geçmiş yalnızca değişimde büyür. Tazelik `offer.last_seen_at`
-(her koşuda güncellenir) ile kanıtlanır. Aynı koşu yeniden denense bile
-`(offer_id, observed_at)` çakışması `DO NOTHING`. Kullanıcı linki yolu
-(`collect.link`) her çözümlemede nokta yazmaya devam eder.
-**Bilinen etki:** `price_point` "teklifin o gün görüldüğü gün" kanıtı olarak da
-okunuyor (`variant-price-history.ts`, çok boyutlu teklifte); artık yalnızca
-değişim günleri satır taşır. Bu okuma `offer.last_seen_at`'e ya da bir
-"görüldü" sinyaline taşınmalı (ayrı iş).
+**Sözleşme.** `price_point` fiyat **değişim olayıdır** (fiyat, liste fiyatı ya
+da stok değiştiğinde yazılır); "bu teklif bu gün görüldü" kanıtı **değildir**.
+Tazelik `offer.last_seen_at`'tir (her başarılı toplamada güncellenir). Aynı
+koşu yeniden denense bile `(offer_id, observed_at)` çakışması `DO NOTHING`.
+Kullanıcı linki yolu (`collect.link`) her çözümlemede nokta yazmaya devam eder.
+
+`price_point`'i gözlem sıklığı ya da "görüldü" kanıtı olarak okuyan üç yer bu
+sözleşmeye taşındı:
+
+- **`getPriceHistory`** (ürün sayfası grafiği) ve **`getVariantPriceHistory`**
+  (çok boyutlu teklifte "görüldüğü günler"): ortak
+  `product/offer-price-days.ts`. Günlük seri ilk fiyat olayından
+  `offer.last_seen_at` gününe kadar kurulur; her günün fiyatı o güne kadarki
+  son olaydır (gün içinde değişim varsa en düşüğü). Seri `last_seen_at`'te
+  biter: kaybolan teklifin son fiyatı sonsuza dek "güncel" sayılmaz. Hiçbir
+  fiyat uydurulmaz; eskiden günlük toplamanın ürettiği `price_point`
+  günlerinin türetilmiş halidir ve çıktı biçimi değişmedi.
+- **`product_price_stats`** (`similarity/prices.py`): medyan/yüzdelik/30 gün
+  penceresi artık olay sayısına değil **süreye** bağlı. Seri değişim
+  olaylarından günlük etkin fiyat örnekleriyle (`carry_forward`) açılır;
+  pencere öncesindeki son olay da okunur (90 gündür değişmeyen fiyat istatistiksiz
+  kalmaz). Sıraya bağlı olanlar (düşüş sayısı, sahte indirim) gerçek olay
+  zamanlarıyla hesaplanır.
+- **Sitemap uygunluğu** (`MIN(observed_at)` = ilk fiyat kaydından beri geçen
+  süre) ve **Keşfet düşüşleri** (`product_price_stats`) değişmedi: ilk olay
+  korunur, düşüşler zaten olay sayar.
+
+Yeni kolon gerekmedi: varyant düzeyi tazelik de `offer.last_seen_at` +
+`variant_price_event` (zaten yalnızca değişimde yazılır) ile karşılanır.
 
 ### Görsel ve medya
 

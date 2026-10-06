@@ -3,9 +3,13 @@
  * asla taramaz" kuralina TEK istisna. Tek urune, 90 gune ve indekslere
  * (`offer_product_idx`, `price_point_offer_time_idx`) sinirli - EXPLAIN ile
  * dogrulanmis, hicbir sequential scan yok.
+ *
+ * `price_point` degisim olayidir (karar 0065): gunluk seri `offer-price-days.ts`
+ * ile degisim olaylarindan ve `offer.last_seen_at`'ten turetilir.
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { offerPriceDaysSql } from "./offer-price-days.ts";
 import type { PriceHistoryPoint } from "./result-types.ts";
 
 type RawRow = Record<string, unknown> & {
@@ -18,14 +22,13 @@ export async function getPriceHistory(
   productId: number,
   days = 90,
 ): Promise<PriceHistoryPoint[]> {
+  // price_point yalnizca degisimde yazilir; gunluk seri degisim olaylarindan ve
+  // offer.last_seen_at'ten turetilir (offer-price-days.ts, karar 0065).
   const result = await db.execute<RawRow>(sql`
-    SELECT date_trunc('day', pp.observed_at)::date::text AS day, MIN(pp.price)::text AS min_price
-    FROM price_point pp
-    JOIN offer o ON o.id = pp.offer_id
-    WHERE o.product_id = ${productId}
-      AND pp.observed_at >= now() - (${days}::text || ' days')::interval
-    GROUP BY 1
-    ORDER BY 1
+    SELECT d.day, MIN(d.min_price::bigint)::text AS min_price
+    FROM (${offerPriceDaysSql(sql`SELECT id FROM offer WHERE product_id = ${productId}`, days)}) d
+    GROUP BY d.day
+    ORDER BY d.day
   `);
 
   return result.rows.map((row) => ({

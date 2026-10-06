@@ -45,6 +45,45 @@ class PriceStats:
     list_price_raised_at: datetime | None
 
 
+def carry_forward(
+    points: list[Observation], seen_until: datetime, since: datetime
+) -> list[Observation]:
+    """Fiyat DEGISIM olaylarindan gunluk "etkin fiyat" ornekleri (karar 0065).
+
+    `price_point` yalnizca fiyat/liste fiyati/stok degistiginde yazilir; ardisik
+    iki olay arasinda fiyat sabittir. Medyan ve yuzdelik gibi dagilim
+    istatistikleri GOZLEM SIKLIGINA degil sureye bagli olmali: aksi halde 80
+    gundur ayni fiyatta duran bir teklif tek bir "gozlem" sayilir.
+
+    Ornekler `since` (ya da ilk olay) ile `seen_until` (= `offer.last_seen_at`)
+    arasinda gun gun alinir; her ornegin fiyati o ana kadarki son olaydir. Son
+    gorulmeden sonrasi ornek uretilmez: kaybolan teklifin fiyati sonsuza dek
+    gecerli sayilmaz. Hicbir fiyat uydurulmaz — her deger gercek bir olaydan gelir.
+    """
+    ordered = sorted(points, key=lambda item: item.observed_at)
+    if not ordered:
+        return []
+    start = max(since, ordered[0].observed_at)
+    end = max(seen_until, ordered[-1].observed_at)
+    samples: list[Observation] = []
+    index = 0
+    current = ordered[0]
+    moment = start
+    while moment <= end:
+        while index < len(ordered) and ordered[index].observed_at <= moment:
+            current = ordered[index]
+            index += 1
+        samples.append(Observation(moment, current.price, current.list_price))
+        moment += timedelta(days=1)
+    # Son gorulme ani de bir ornektir (gun sinirina denk gelmeyebilir).
+    if samples and samples[-1].observed_at < end:
+        while index < len(ordered) and ordered[index].observed_at <= end:
+            current = ordered[index]
+            index += 1
+        samples.append(Observation(end, current.price, current.list_price))
+    return samples
+
+
 def _median(values: list[int]) -> int | None:
     if not values:
         return None
@@ -115,7 +154,13 @@ def count_drops(observations: list[Observation]) -> tuple[int, datetime | None]:
     return drops, last_drop
 
 
-def compute(by_offer: dict[int, list[Observation]], current_price: int | None) -> PriceStats:
+def compute(
+    by_offer: dict[int, list[Observation]],
+    current_price: int | None,
+    *,
+    seen_until: dict[int, datetime] | None = None,
+    since: datetime | None = None,
+) -> PriceStats:
     """Bir urunun istatistikleri, TEKLIF BASINA gruplanmis gozlemlerden.
 
     **Neden teklif basina.** Bir urunun birden fazla magazada teklifi olur ve
@@ -129,13 +174,27 @@ def compute(by_offer: dict[int, list[Observation]], current_price: int | None) -
     hesaplanir — "bu urun en ucuz ne zaman kacti" sorusu magazadan bagimsiz.
     SIRAYA BAGLI olanlar (dusus sayisi, sahte indirim) teklif basina hesaplanip
     urune toplanir.
+
+    `seen_until` (teklif -> `offer.last_seen_at`) verilirse seri DEGISIM
+    olaylarindan olusur (karar 0065): dagilim istatistikleri `carry_forward` ile
+    gunluk etkin fiyat orneklerinden, sirali olanlar (dusus, sahte indirim)
+    gercek olay zamanlariyla hesaplanir. Verilmezse her gozlem esit agirliklidir
+    (eski, gunluk gozlem varsayimi).
     """
     series = [items for items in by_offer.values() if items]
     if not series:
         return PriceStats(None, None, None, None, None, 0, None, False, None)
 
+    if seen_until is not None and since is not None:
+        sampled = [
+            carry_forward(items, seen_until[offer_id], since) if offer_id in seen_until else items
+            for offer_id, items in by_offer.items()
+            if items
+        ]
+    else:
+        sampled = series
     observations = sorted(
-        (item for items in series for item in items), key=lambda item: item.observed_at
+        (item for items in sampled for item in items), key=lambda item: item.observed_at
     )
     newest = observations[-1].observed_at
     window_30 = newest - timedelta(days=30)

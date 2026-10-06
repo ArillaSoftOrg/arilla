@@ -230,3 +230,38 @@ def test_product_aggregates_follow_active_offers(catalogue: list[int]) -> None:
     assert rows[catalogue[0]] == (None, None, 0, 0)
     assert rows[catalogue[1]] == (10001, 10001, 1, 1)
     assert rows[catalogue[2]] == (10002, 10002, 1, 1)
+
+
+def test_price_stats_from_change_only_history_keep_unchanged_offers(
+    catalogue: list[int],
+) -> None:
+    """`price_point` yalnizca degisimde yazilir (karar 0065): 80 gundur degismeyen
+    fiyatli, hala goruluyor teklif istatistiksiz KALMAZ ve fiyati pencereyi doldurur."""
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            """DELETE FROM price_point WHERE offer_id IN (
+                   SELECT id FROM offer WHERE product_id = %s)""",
+            (catalogue[0],),
+        )
+        cur.execute(
+            """INSERT INTO price_point (offer_id, observed_at, price, list_price, in_stock)
+               SELECT id, now() - interval '80 days', 500, NULL, TRUE
+                 FROM offer WHERE product_id = %s""",
+            (catalogue[0],),
+        )
+        # Teklif bugun goruldu, 80 gundur yeni fiyat olayi yok.
+        cur.execute("UPDATE offer SET last_seen_at = now() WHERE product_id = %s", (catalogue[0],))
+        conn.commit()
+
+    with _owner() as conn:
+        refresh_price_stats(conn)
+        conn.commit()
+
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT min_30d, min_90d, median_90d, max_90d FROM product_price_stats
+                WHERE product_id = %s""",
+            (catalogue[0],),
+        )
+        row = cur.fetchone()
+    assert row == (500, 500, 500, 500)

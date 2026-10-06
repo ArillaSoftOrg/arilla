@@ -537,3 +537,27 @@ def test_close_run_falls_back_to_fresh_connection_when_connection_is_lost(
     pipeline._close_run("dead", 5, "partial", 10, WriteCounts(), ["x"], 0)  # type: ignore[arg-type]
 
     assert calls == ["dead", "fresh"]
+
+
+def test_unchanged_reingest_advances_last_seen_but_not_price_history(merchant: int) -> None:
+    """Sozlesme (karar 0065): `price_point` degisim olayi, `offer.last_seen_at`
+    tazelik. Ayni fiyatla yeni toplama nokta eklemez ama `last_seen_at`'i ilerletir."""
+    sql = (
+        "SELECT min(first_seen_at), min(last_seen_at), max(last_seen_at)"
+        " FROM offer WHERE merchant_id = %s"
+    )
+    with _app() as conn:
+        run_ingest(conn, MERCHANT_SLUG)
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(sql, (merchant,))
+        first_seen, last_seen_1, _ = cur.fetchone()  # type: ignore[misc]
+
+    with _app() as conn:
+        run_ingest(conn, MERCHANT_SLUG)
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(sql, (merchant,))
+        first_seen_2, last_seen_2, _ = cur.fetchone()  # type: ignore[misc]
+
+    assert _count(PRICE_POINTS, merchant) == 100  # artmadi
+    assert first_seen_2 == first_seen  # ilk gorulme degismez
+    assert last_seen_2 > last_seen_1  # tazelik ilerledi
