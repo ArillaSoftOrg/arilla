@@ -2,7 +2,7 @@
 
 **Tarih:** 5 Ekim 2026
 **Durum:** Kabul edildi — istemci, uyarlayıcı, saklama (0044), toplu iş,
-korumalı (zamanlanmamış) cron ucu, `/ara` salt okuma yolu ve en az yetki (0046)
+korumalı cron ucu (günlük Vercel cron, 00:30 UTC), `/ara` salt okuma yolu ve en az yetki (0046)
 üretimde. Hukuk danışmanı üretimde etkinleştirmeyi onayladı (m.5/2-f; KVKK
 m.9 aktarım sözleşmesi imzalandı). Gizlilik ve KVKK metinleri 6 Ekim 2026'da
 güncellendi. İşleme, `GEMINI_API_KEY` üretime bilinçli olarak eklenince başlar

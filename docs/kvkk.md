@@ -186,7 +186,8 @@ denetlenebilir bir hukuki çerçeveye taşır.
 
 Karar 0059. Hukuki onay alınmıştır; teknik etkinleştirme `GEMINI_API_KEY`'in
 üretime (Vercel) bilinçli olarak eklenmesiyle olur. Anahtar eklenene kadar
-Google'a hiçbir arama metni gönderilmez; zamanlayıcı yoktur. Sıra: `docs/ops.md`
+Google'a hiçbir arama metni gönderilmez. Toplu iş günde bir kez (Vercel cron,
+00:30 UTC) çalışır; koşu başına ve gün başına tavanlar `docs/ops.md`'de. Sıra: `docs/ops.md`
 "Etkinleştirme sırası".
 
 **Hukuki karar kaydı** (sözleşme metni ve gizli koşullar burada tutulmaz):

@@ -2,10 +2,11 @@ import { cronAuthFailureResponse, runQueryInterpretationJob } from "@arilla/core
 import { getDatabase } from "@arilla/db";
 
 /**
- * Çevrimdışı model sorgu yorumlama (docs/decisions/0059). Zamanlanmış DEĞİL:
- * ne `vercel.json`'da ne GitHub Actions'ta; yalnızca elle çağrılır. Kimlik
- * doğrulama diğer cron uçlarıyla aynı: `Bearer ${CRON_SECRET}`
- * (`cronAuthFailureResponse`). Kullanıcı oturumu kullanılmaz.
+ * Çevrimdışı model sorgu yorumlama (docs/decisions/0059). Vercel cron ile
+ * günde bir kez çağrılır (`apps/web/vercel.json`, `30 0 * * *` = 00:30 UTC);
+ * elle de tetiklenebilir. Kimlik doğrulama diğer cron uçlarıyla aynı:
+ * `Bearer ${CRON_SECRET}` (`cronAuthFailureResponse`); Vercel bu başlığı
+ * `CRON_SECRET` tanımlıyken kendisi ekler. Kullanıcı oturumu kullanılmaz.
  *
  * `GEMINI_API_KEY` yoksa sağlayıcı çağrılmaz, koşu "atlandı" yazılır. İş
  * mantığının tamamı `packages/core/src/search/query-interpretation.ts`'te

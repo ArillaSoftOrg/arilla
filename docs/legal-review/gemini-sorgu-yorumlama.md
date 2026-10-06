@@ -114,8 +114,9 @@ bir ifade gönderilmez (örn. "hamile pantolonu" da gönderilmez).
 
 - Hukuk danışmanı üretimde etkinleştirmeyi onaylamıştır (bkz. 8).
 - İşleme, Gemini API anahtarı üretime (Vercel) bilinçli olarak eklendiğinde
-  başlar. Anahtar eklenene kadar toplu iş hiçbir şey göndermez; toplu iş
-  zamanlanmamıştır ve yalnızca elle tetiklenir.
+  başlar. Anahtar eklenene kadar toplu iş hiçbir şey göndermez. Toplu iş
+  günde bir kez (00:30 UTC) Vercel cron ile çalışır; elle de tetiklenebilir.
+  Gün başına en fazla 100 sağlayıcı denemesi.
 - Gizlilik politikası (`/gizlilik`) ve KVKK aydınlatma metni
   (`/kvkk-aydinlatma`) bu işlemeyi 6 Ekim 2026 tarihli metinle açıklar; metin
   yayına alınmadan anahtar eklenmez.
