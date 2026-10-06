@@ -116,6 +116,13 @@ const SOURCE_LABELS = {
   fresh: "Taze ayrıştırma (önbellekte yok)",
 } as const;
 
+/** Karar 0059: ilk turun yorumunu kim verdi. Model yorumu yalnızca saklanmış olandır. */
+const INTERPRETATION_SOURCE_LABELS = {
+  deterministic: "Kural sözlüğü (deterministik)",
+  stored_model: "Saklanmış model yorumu (en düşük öncelik)",
+  none: "Yok (sözlük domain bulmadı, saklanmış yorum yok)",
+} as const;
+
 function Step({ title, children }: { title: string; children: ReactNode }) {
   return (
     <li className={styles.s2Step}>
@@ -253,6 +260,7 @@ function Pipeline({ d }: { d: SearchDiagnostics }) {
       <Step title="Netleştirme">
         <KeyValues
           items={[
+            ["Yorum kaynağı", INTERPRETATION_SOURCE_LABELS[d.plan.interpretationSource]],
             ["Mod", d.plan.mode === "conversation" ? "konuşma" : "klasik"],
             ["Eylem", d.plan.action ?? "—"],
             ["Soru", d.plan.question ?? "—"],

@@ -14,7 +14,10 @@
 import { type Database, queryResolution } from "@arilla/db";
 import { eq, sql } from "drizzle-orm";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "../clarification/rules.ts";
-import { planConversation } from "../conversational-search/plan.ts";
+import {
+  type InterpretationSource,
+  planConversationWithInterpretationSource,
+} from "../conversational-search/stored-plan.ts";
 import { isRedisUnavailableError } from "../redis/client.ts";
 import { incrementFixedWindow } from "../redis/counter.ts";
 import { findLexiconMatches } from "../search/lexicon.ts";
@@ -100,6 +103,8 @@ export interface SearchDiagnostics {
     action: "clarify" | "search" | null;
     question: string | null;
     constraints: string[];
+    /** Ilk turun yorum kaynagi: kural sozlugu, saklanan model yorumu ya da hicbiri. */
+    interpretationSource: InterpretationSource;
   };
   /** `/ara`'nın `search()`'e verdiği sorgu. */
   effectiveQuery: QueryObject;
@@ -139,7 +144,10 @@ async function resolveEffectiveQuery(rdb: Rdb, input: string, queryNorm: string)
 
   const lexicon = await loadLexicon(rdb);
   const freshParse = parseQueryText(input, lexicon);
-  const plan = planConversation(
+  // `/ara` ile AYNI yol: deterministik domain yoksa saklanan model yorumu okunur
+  // (salt okunur; model cagrisi ve yazma yok).
+  const { plan, interpretationSource } = await planConversationWithInterpretationSource(
+    rdb,
     { query: input, steps: [], reply: null },
     { registry: DEFAULT_CLARIFICATION_REGISTRY, lexicon },
   );
@@ -157,7 +165,15 @@ async function resolveEffectiveQuery(rdb: Rdb, input: string, queryNorm: string)
     effectiveSource = "fresh";
   }
 
-  return { cached, lexicon, freshParse, plan, effectiveQuery, effectiveSource };
+  return {
+    cached,
+    lexicon,
+    freshParse,
+    plan,
+    interpretationSource,
+    effectiveQuery,
+    effectiveSource,
+  };
 }
 
 export async function explainSearch(
@@ -181,8 +197,15 @@ export async function explainSearch(
     const rdb = tx as unknown as Database;
     const queryNorm = normalizeQueryText(input);
 
-    const { cached, lexicon, freshParse, plan, effectiveQuery, effectiveSource } =
-      await resolveEffectiveQuery(rdb, input, queryNorm);
+    const {
+      cached,
+      lexicon,
+      freshParse,
+      plan,
+      interpretationSource,
+      effectiveQuery,
+      effectiveSource,
+    } = await resolveEffectiveQuery(rdb, input, queryNorm);
 
     const toItems = (items: Awaited<ReturnType<typeof search>>["items"]): DiagnosticResultItem[] =>
       items.map((item, index) => ({
@@ -244,6 +267,7 @@ export async function explainSearch(
         action: plan.mode === "conversation" ? plan.action : null,
         question: plan.mode === "conversation" ? (plan.question?.text ?? null) : null,
         constraints: plan.mode === "conversation" ? plan.constraints.map((chip) => chip.label) : [],
+        interpretationSource,
       },
       effectiveQuery,
       effectiveSource,

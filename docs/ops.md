@@ -338,6 +338,21 @@ domain'siz `/ara` isteği bir hata satırı loglar. Okuma yolu için
 - Koşu başına en fazla 20 sorgu; 35 sn'den sonra yeni sorguya başlanmaz.
   İstemci 10 sn zaman aşımı, en fazla 2 deneme. Aynı anda ikinci koşu
   (`already_running`) atlanır.
+- **Günlük maliyet tavanı:** Europe/Istanbul günü başına en fazla 100 sağlayıcı
+  HTTP denemesi (`QUERY_INTERPRETATION_DAILY_CALL_CAP`, yeniden denemeler
+  dahil; elle tekrarlanan koşuların toplamı). Sayım `api_usage`'tan
+  (`operation = 'query_interpretation'`), migration yok. Tavan doluysa koşu
+  `skipped` / `daily_cap`; koşu ortasında dolarsa `stopCode = daily_cap`, kalan
+  sorgular ertelenir. Google projesindeki bütçe/kota sınırı ayrıca önerilir.
+- **Bağlantı dumanı (yalnızca sabit sentetik sorgu):** `GEMINI_SMOKE=1 pnpm
+  gemini:smoke`. Gerçek `GeminiClient` ile tam bir HTTP denemesi; veritabanına
+  dokunmaz, `search_query_day` ya da kullanıcı sorgusu okumaz, dışarıdan metin
+  almaz (argüman verilirse reddeder), `api_usage`'a yazmaz (günlük tavana
+  sayılmaz). Üretim ortamı işaretliyse (`VERCEL_ENV`/`NODE_ENV=production`)
+  ayrıca `GEMINI_SMOKE_ALLOW_PRODUCTION=1` ister. Çıktı yalnızca durum ve token
+  sayısıdır. Çıkış kodu 0/1/2 (geçti/başarısız/reddedildi).
+- `/yonetim/arama/tani` "Yorum kaynağı" satırı: kural sözlüğü (deterministik),
+  saklanmış model yorumu ya da yok - `/ara` ile aynı salt okunur yol.
 - Aday: `search_query_day` son 30 gün, en az 3 arama VE en az 3 farklı gün,
   kişisel veri/kimlik/sır ve özel nitelikli veri bağlamı süzgecinden geçmiş,
   deterministik netleştirmenin domain bulamadığı normalize sorgu.

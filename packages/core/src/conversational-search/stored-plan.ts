@@ -24,17 +24,43 @@ import {
   planConversation,
 } from "./plan.ts";
 
+/**
+ * Ilk turun yorum kaynagi:
+ * - `deterministic`: kural sozlugu domain buldu; saklanan yorum okunmadi.
+ * - `stored_model`: domain yok; saklanan, kabul edilmis model yorumu uygulandi
+ *   (en dusuk oncelik).
+ * - `none`: domain yok ve gecerli saklanan yorum yok; bugunku yol.
+ */
+export type InterpretationSource = "deterministic" | "stored_model" | "none";
+
+/** `/ara` ve yonetim tanisinin ORTAK yolu: plan + yorum kaynagi. Salt okunur. */
+export async function planConversationWithInterpretationSource(
+  db: Database,
+  request: ConversationRequest,
+  context: ExtractContext,
+  compileOptions: CompileOptions = {},
+): Promise<{ plan: ConversationPlan; interpretationSource: InterpretationSource }> {
+  if (firstTurnFindsDomain(request.query, context)) {
+    return {
+      plan: planConversation(request, context, compileOptions),
+      interpretationSource: "deterministic",
+    };
+  }
+  const stored = await readStoredInterpretation(db, normalizeQueryText(request.query), {
+    registry: context.registry,
+  });
+  return {
+    plan: planConversation(request, context, compileOptions, { firstTurnInterpretation: stored }),
+    interpretationSource: stored === null ? "none" : "stored_model",
+  };
+}
+
 export async function planConversationWithStoredInterpretation(
   db: Database,
   request: ConversationRequest,
   context: ExtractContext,
   compileOptions: CompileOptions = {},
 ): Promise<ConversationPlan> {
-  if (firstTurnFindsDomain(request.query, context)) {
-    return planConversation(request, context, compileOptions);
-  }
-  const stored = await readStoredInterpretation(db, normalizeQueryText(request.query), {
-    registry: context.registry,
-  });
-  return planConversation(request, context, compileOptions, { firstTurnInterpretation: stored });
+  return (await planConversationWithInterpretationSource(db, request, context, compileOptions))
+    .plan;
 }
