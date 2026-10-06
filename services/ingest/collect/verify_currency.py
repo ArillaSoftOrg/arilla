@@ -38,6 +38,8 @@ import httpx
 import psycopg
 
 from collect.gate import SHOPIFY_CURRENCY
+from collect.link.robots import USER_AGENT
+from collect.link.safe_http import guarded_client
 from db.connection import connect
 
 #: 0023: saniyede 1-2 istekten fazla degil. Alt sinirda kaliyoruz.
@@ -218,13 +220,13 @@ def verify(
 
 
 def build_client() -> httpx.Client:
-    # Yonlendirme izlenmez: izlemek ikinci istek demektir. Yeniden deneme
-    # yok: httpx'in varsayilan tasimasi (retries=0) kullanilir.
-    return httpx.Client(
-        timeout=httpx.Timeout(TIMEOUT_SECONDS),
-        follow_redirects=False,
-        headers={"Accept": "application/json"},
+    # Gercek toplamayla ayni istemci (guarded_client: SSRF korumali, yonlendirme
+    # izlemez); izlemek ikinci istek demektir. Yeniden deneme yok.
+    client = guarded_client(
+        user_agent=USER_AGENT, timeout=httpx.Timeout(TIMEOUT_SECONDS), follow_redirects=False
     )
+    client.headers["Accept"] = "application/json"
+    return client
 
 
 def format_report(results: Sequence[CurrencyCheck]) -> str:
