@@ -1,5 +1,6 @@
 export * from "./clarification.ts";
 export * from "./compare-merchants.ts";
+export * from "./fallback/index.ts";
 export * from "./find-alternatives.ts";
 export * from "./interpretation-eligibility.ts";
 export * from "./interpretation-identity.ts";

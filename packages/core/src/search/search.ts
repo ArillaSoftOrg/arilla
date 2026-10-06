@@ -31,6 +31,12 @@ export interface SearchPagination {
   /** docs/search.md: "Varsayilan 24 sonuc". */
   limit?: number;
   offset?: number;
+  /**
+   * Metin kapisinin token esigi (varsayilan `TOKEN_MATCH_THRESHOLD`). Yalnizca
+   * bulanik (typo) fallback asamasi dusurur; cagiran ayrica
+   * `pg_trgm.strict_word_similarity_threshold`u ayni degere ceker.
+   */
+  tokenThreshold?: number;
 }
 
 /** intent -> similarity_edge.kind (docs/search.md, "intent" tablosu). */
@@ -97,9 +103,10 @@ async function searchByText(
   sort: TextSort,
   limit: number,
   offset: number,
+  tokenThreshold?: number,
 ): Promise<SearchResult> {
   const result = await db.execute<RawRow>(sql`
-    ${scoredCtes(query, sort)}
+    ${scoredCtes(query, sort, false, tokenThreshold)}
     SELECT s.*, count(*) OVER()::text AS total_count
     FROM (${distinctImage(sql`scored`)}) s
     ORDER BY ${finalOrder(sort)}
@@ -164,9 +171,9 @@ export async function search(
     }
     result = await searchByClosestMatch(db, query, query.anchor.id, kinds, limit, offset);
   } else if (query.sort === "best_deal") {
-    result = await searchByText(db, query, "best_deal", limit, offset);
+    result = await searchByText(db, query, "best_deal", limit, offset, pagination.tokenThreshold);
   } else {
-    result = await searchByText(db, query, "balanced", limit, offset);
+    result = await searchByText(db, query, "balanced", limit, offset, pagination.tokenThreshold);
   }
   // 0037: kart fiyati varyantlar arasi baslangic fiyatiysa isaretlenir.
   return { ...result, items: await withStartingFrom(db, result.items) };

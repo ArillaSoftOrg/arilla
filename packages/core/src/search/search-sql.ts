@@ -148,7 +148,10 @@ export function textSlotsOf(query: QueryObject): string[][] {
  * kelimeler (fiyat, beden, renk, marka) `unparsed`'ta yoktur; kapi yalnizca
  * geriye kalan metne uygulanir. Metin yoksa kapi ve LATERAL yoktur.
  */
-export function textMatch(query: QueryObject): {
+export function textMatch(
+  query: QueryObject,
+  tokenThreshold?: number,
+): {
   slots: string[][];
   products: SQL;
   lateral: SQL;
@@ -172,8 +175,8 @@ export function textMatch(query: QueryObject): {
     // duzlestirip pahali token LATERAL'ini tum katalogda kosmasini engeller
     // (olculdu: 4.5 bin urunde 270 ms -> ~20 ms).
     products: sql`(SELECT * FROM product pr WHERE ${headPrefilter(slots, sql`pr.id`)} OFFSET 0) p`,
-    lateral: sql`${rootCategoryJoin(sql`c.path`)} ${tokenMatchLateral(slots, document)}`,
-    gate: tokenMatchGate(slots),
+    lateral: sql`${rootCategoryJoin(sql`c.path`)} ${tokenMatchLateral(slots, document, tokenThreshold)}`,
+    gate: tokenMatchGate(slots, tokenThreshold),
     relevance: sql`tm.rel`,
   };
 }
@@ -184,10 +187,15 @@ export function textMatch(query: QueryObject): {
  * secer (`f_relevance`, `f_trust`, `f_stock`, `f_price`). `/ara` bunu
  * `false` ile cagirir; SQL'i tanidan once ne ise odur.
  */
-export function scoredCtes(query: QueryObject, sort: TextSort, explain = false): SQL {
+export function scoredCtes(
+  query: QueryObject,
+  sort: TextSort,
+  explain = false,
+  tokenThreshold?: number,
+): SQL {
   const merchantIds = merchantIdsOf(query.filters);
   const inStockOnly = query.filters.in_stock_only ?? false;
-  const text = textMatch(query);
+  const text = textMatch(query, tokenThreshold);
   // "En iyi fiyat" sekmesi de ayni metin kapisindan gecer: alakasiz ama
   // indirimli bir urun bu sekmede de one cikmamali.
   if (sort === "best_deal") {
