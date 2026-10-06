@@ -1,7 +1,14 @@
+import { mediaUrlOr } from "@arilla/core/media-url";
+import blogImages from "./blog-images.json" with { type: "json" };
+
 /**
  * /blog statik liste verisi. CMS/arka uc yok; makale detay sayfasi yok -
- * kartlar hicbir yere gitmez. Gorseller `public/blog/` altindaki yerel
- * yer tutucular; yazar ve sureler gosterim amacli notr degerlerdir.
+ * kartlar hicbir yere gitmez. Gorseller R2'den (docs/decisions/0062):
+ * `blog-images.json` manifesti obje anahtarini verir, URL
+ * `R2_PUBLIC_BASE_URL` ile uretilir; tanimli degilse `public/blog/`
+ * altindaki yerel yer tutucu kullanilir. Manifest
+ * `pnpm --filter @arilla/core media:import-blog` ile uretilir. Yazar ve
+ * sureler gosterim amacli notr degerlerdir.
  */
 export interface BlogPost {
   slug: string;
@@ -22,7 +29,7 @@ export const BLOG_HERO = {
   excerpt:
     "Bu kanepenin yumuşak, derin oturuşu çok sevildi; fiyatı ise herkesin bütçesine uymuyor. Rehberde benzer modelleri fiyat, dolgu, kumaş, iskelet, derinlik, modülerlik, kılıf ve garanti başlıklarında yan yana koyuyoruz. Böylece hangi alternatifin gerçekten yaklaştığını, hangisinin yalnızca benzer göründüğünü ve fiyat farkının neye değdiğini tek bakışta görebilir, kararınızı güvenle verebilirsiniz.",
   publishedLabel: "16 Eylül 2026 tarihinde yayınlandı.",
-  image: "/blog/hero.svg",
+  image: mediaUrlOr(blogImages.hero.key, "/blog/hero.svg"),
   readMinutes: 8,
 } as const;
 
@@ -32,7 +39,7 @@ export const BLOG_POSTS: readonly BlogPost[] = [
     title: "Açık Ev Sezonu: Masa Düzeninden Konuk Odasına Kadar Ev Sahipliği İçin Gerekli Unsurlar",
     excerpt:
       "Misafir ağırlayacağınız sonbahar günleri için elinizin altında olması gerekenleri oda oda topladık: masa örtülerinden servis parçalarına...",
-    image: "/blog/acik-ev.svg",
+    image: mediaUrlOr(blogImages["acik-ev-sezonu"].key, "/blog/acik-ev.svg"),
     readMinutes: 4,
   },
   {
