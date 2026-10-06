@@ -182,14 +182,25 @@ Bu, aktarımı ortadan kaldırmaz; standart sözleşme hükümleri ve aydınlatm
 metnindeki açık beyan yine gerekli. Yalnızca aktarımın gittiği yeri
 denetlenebilir bir hukuki çerçeveye taşır.
 
-### Sorgu yorumlama (Google Gemini) — üretimde DEVRE DIŞI
+### Sorgu yorumlama (Google Gemini) — hukuken onaylı; üretimde anahtar eklenince etkin
 
-Karar 0059 ile kod üretimde, ancak **işleme devre dışıdır**: `GEMINI_API_KEY`
-üretimde (Vercel) tanımlı değildir, zamanlayıcı yoktur, Google'a hiçbir arama
-metni gönderilmez. Bu bölümdeki teknik sınırlar aktarımı hukuken uygun hâle
-GETİRMEZ; etkinleştirme aşağıdaki hukuki kontrol listesine bağlıdır.
+Karar 0059. Hukuki onay alınmıştır; teknik etkinleştirme `GEMINI_API_KEY`'in
+üretime (Vercel) bilinçli olarak eklenmesiyle olur. Anahtar eklenene kadar
+Google'a hiçbir arama metni gönderilmez; zamanlayıcı yoktur. Sıra: `docs/ops.md`
+"Etkinleştirme sırası".
 
-**Planlanan veri akışı (etkinleştirilirse).** Çevrimdışı toplu iş,
+**Hukuki karar kaydı** (sözleşme metni ve gizli koşullar burada tutulmaz):
+- Hukuk danışmanı üretimde etkinleştirmeyi **onayladı**.
+- Hukuki sebep: **KVKK m.5/2-f (meşru menfaat)**; değerlendirme:
+  `docs/legal-review/gemini-mesru-menfaat-degerlendirmesi.md`.
+- KVKK m.9 kapsamında gerekli aktarım sözleşmesi Google ile **imzalandı**.
+- Sözleşme tarafı Google tüzel kişisi, imza tarihi ve onaylayan kişi hukuki /
+  sözleşme kaydında tutulur; bu depoda yer almaz. Kamuya açık metinler
+  sağlayıcıyı "Google (Gemini API)" olarak anar.
+- Kurum'a bildirim: tamamlandığına dair bu depoda kayıt **yoktur**; durum
+  hukuki kayıtta izlenir (bkz. kontrol listesi).
+
+**Veri akışı.** Çevrimdışı toplu iş,
 `search_query_day`'deki toplu günlük özetten (kullanıcı, oturum veya cihaz
 tanımlayıcısı içermez) son 30 günde **en az 3 kez ve en az 3 farklı günde**
 aranmış normalize edilmiş arama ifadelerini Gemini API'ye (Paid Services)
@@ -223,68 +234,36 @@ veriler Google'ın tesislerinin bulunduğu ülkelerde geçici olarak işlenebili
 Paid Services, Google'ın "Data Processing Addendum for Products Where Google
 is a Data Processor" kapsamındadır. Bu DPA'nın aktarım araçları AB/BK/İsviçre
 SCC'leri ve benzerleridir; **KVKK standart sözleşmesi değildir ve tek başına
-KVKK m.9'u karşıladığı varsayılmaz.**
+KVKK m.9'u karşıladığı varsayılmaz.** Aktarım, ayrıca imzalanan KVKK m.9
+aktarım sözleşmesine dayanır.
 
-#### Etkinleştirme öncesi hukuki kontrol listesi
+#### Etkinleştirme kontrol listesi
 
-`GEMINI_API_KEY` üretime eklenmeden önce, her madde tarih ve sorumluyla:
-
-- [ ] Sözleşme tarafı Google tüzel kişisi tespit edildi
-- [ ] Geçerli Gemini API Paid Services koşulları ve DPA sürümü kayda geçti (kabul tarihi, hesap)
-- [ ] KVKK kapsamında işleme şartı (hukuki sebep) nitelikli hukuki incelemeyle teyit edildi
-- [ ] KVKK m.9 kapsamında geçerli yurt dışı aktarım mekanizması nitelikli hukuki incelemeyle teyit edildi
-- [ ] KVKK standart sözleşmesi kullanılıyorsa imzalandı ve Kurum'a gerekli bildirim yapıldı
-- [ ] VERBİS etkisi değerlendirildi (alıcı grubu, yurt dışı aktarım), gerekiyorsa güncellendi
-- [ ] Üretim çalışma rolünün (`arilla_app`) `public.query_interpretation` üzerinde SELECT ve
-      90 günlük saklama için DELETE yetkisi SALT OKUNUR sorguyla doğrulandı (docs/ops.md);
-      eksikse yetki ayrı ve onaylı bir adımda düzeltilir
-- [ ] Kullanıcıya dönük gizlilik politikası ve KVKK aydınlatma metni güncellenip yayına alındı
-- [ ] Onay tarihi ve onaylayan kişi kayda geçti
+- [x] Hukuk danışmanı üretimde etkinleştirmeyi onayladı (onay kaydı hukuki kayıtta)
+- [x] KVKK kapsamında işleme şartı: m.5/2-f meşru menfaat
+      (LIA: `docs/legal-review/gemini-mesru-menfaat-degerlendirmesi.md`)
+- [x] KVKK m.9 aktarım sözleşmesi Google ile imzalandı (sözleşme tarafı ve tarih
+      hukuki / sözleşme kaydında)
+- [x] Üretim çalışma rolünün (`arilla_app`) yetkileri SALT OKUNUR sorguyla doğrulandı
+      (gerekli SELECT/INSERT/DELETE var; 0046 sonrası `api_usage` DELETE ve
+      `query_interpretation` UPDATE yok)
+- [ ] Gizlilik politikası ve KVKK aydınlatma metni üretimde yayında (metin bu
+      dalda hazır; birleştirme ve dağıtımla tamamlanır, anahtardan ÖNCE)
+- [ ] Kurum'a gerekli bildirimin yapıldığı hukuki kayıttan teyit edildi (depoda
+      kanıt yok; teyit edilmeden işaretlenmez)
+- [ ] VERBİS etkisi (alıcı grubu, yurt dışı aktarım) hukuki kayıttan teyit edildi
+- [ ] Google projesinde bütçe uyarısı ve kota tanımlandı
 
 Açık rızanın tekrarlayan bir aktarım için yeterli olduğu varsayılmaz.
 
-#### Önerilen metin — YAYINDA DEĞİL (etkinleştirme günü için)
+#### Kamuya açık metin
 
-Köşeli parantezli yerler hukuki inceleme sonrası doldurulur; metin, işleme
-fiilen başlamadan yayına alınmaz ve işleme metin yayına alınmadan başlamaz.
-
-*Gizlilik politikası (`apps/web/app/gizlilik/page.tsx`):*
-
-- §2.2 "Metin aramaları" maddesinin sonuna: "Belirli bir sıklık ve
-  farklı-gün eşiğini aşan normalize edilmiş arama ifadeleri, aramaların daha
-  iyi anlaşılması amacıyla, kullanıcı, oturum veya cihaz tanımlayıcıları
-  eklenmeden ve doğrudan kullanıcı hesabıyla ilişkilendirilmeden bir yapay
-  zekâ hizmet sağlayıcısına gönderilebilir. E-posta, telefon, adres, kimlik
-  numarası gibi bilgiler ile sağlık, inanç, siyasi görüş veya cinsel hayat
-  gibi özel nitelikli kişisel veri çağrıştıran ifadeleri ayıklamak için
-  otomatik süzgeçler kullanırız; bu süzgeçler riski azaltır ancak arama
-  metnine yazılan her kişisel veriyi ayıklayacağını garanti edemez. Lütfen
-  arama kutusuna kişisel veya hassas bilgi yazmayın. Sağlayıcıdan dönen sonuç
-  yalnızca kategori ve filtre seçimi olarak en fazla 90 gün saklanır."
-- §5 paylaşım listesine: "**Google ([sözleşme tarafı tüzel kişi]) — Gemini
-  API** — belirli sıklık ve farklı-gün eşiğini aşan normalize edilmiş arama
-  ifadelerinin yorumlanması için, kullanıcı, oturum veya cihaz tanımlayıcıları
-  eklenmeden yalnızca arama metni. Google, ücretli hizmet koşulları
-  gereği bu içeriği ürünlerini geliştirmek için kullanmaz; kötüye kullanımın
-  tespiti amacıyla sınırlı bir süre kayıt tutabilir."
-- §6 yurt dışı aktarım: "Arama ifadelerinin yorumlanması için Google'a
-  gönderilen metin, Google'ın tesislerinin bulunduğu ülkelerde işlenebilir. Bu
-  aktarım 6698 sayılı Kanun'un 9. maddesi kapsamında [hukuki incelemeyle
-  belirlenen aktarım mekanizması] dayanılarak yapılır."
-- §8 saklama süreleri: "Arama ifadelerinin yapay zekâ ile üretilen yorumları:
-  90 gün."
-
-*KVKK aydınlatma metni (`apps/web/app/kvkk-aydinlatma/page.tsx`):*
-
-- §3 amaçlar: "belirli sıklık ve farklı-gün eşiğini aşan normalize edilmiş
-  arama ifadelerinin, doğrudan kullanıcı hesabıyla ilişkilendirilmeden,
-  aramaların daha iyi anlaşılması amacıyla yapay zekâ ile yorumlanması,"
-- §4 hukuki sebep: "[hukuki incelemeyle belirlenecek KVKK m.5 şartı]"
-- §5 alıcılar: "belirli sıklık ve farklı-gün eşiğini aşan normalize edilmiş
-  arama ifadelerinin, kullanıcı, oturum veya cihaz tanımlayıcıları eklenmeden
-  yorumlanması için yapay zekâ hizmet sağlayıcısı Google ([tüzel kişi]) —
-  Gemini API,"
-- §5 yurt dışı: gizlilik politikası §6 ile aynı mekanizma beyanı.
+Metin doğrudan sayfalarda tutulur (taslak kopyası burada tutulmaz, ayrışmasın):
+`/gizlilik` §2.2 (yapay zekâ destekli kategori yorumu), §3 (amaç), §4 (m.5/2-f),
+§5 (alıcı), §6 (m.9 aktarım), §8 (90 gün); `/kvkk-aydinlatma` §3, §4, §5.
+Sağlayıcı "Google (Gemini API)" olarak anılır; iki sayfanın güncelleme tarihi
+`PRIVACY_NOTICE_UPDATED_LABEL` (`apps/web/app/legal-identity-block.tsx`,
+6 Ekim 2026).
 
 ## Ticari elektronik ileti (İYS)
 

@@ -301,16 +301,29 @@ Ertelenmez: süresi geçmiş kişisel veri tutmak aydınlatma metnine aykırıd�
 Analitik rızası geri alındığında kullanıcının olaylarının silinmesi cron'a
 bırakılmaz; rıza satırıyla aynı işlemde yapılır (0049 §8).
 
-## Sorgu yorumlama (Gemini, çevrimdışı) — üretimde DEVRE DIŞI
+## Sorgu yorumlama (Gemini, çevrimdışı) — hukuken onaylı, anahtar eklenince etkin
 
-**Durum:** kod ve 0044 üretimde; `GEMINI_API_KEY` Vercel'de YOK, zamanlayıcı
-yok, Google'a hiçbir metin gitmiyor. Anahtar ancak docs/kvkk.md
-"Etkinleştirme öncesi hukuki kontrol listesi" (sözleşme tarafı, Paid Services
-koşulları/DPA kaydı, KVKK işleme şartı, KVKK m.9 aktarım mekanizması —
-nitelikli hukuki inceleme, standart sözleşme kullanılıyorsa Kurum bildirimi,
-VERBİS, yayına alınmış aydınlatma metinleri, onay tarihi/sorumlu)
-tamamlandıktan sonra eklenir. `store: false` aktarımı ya da işlemeyi
-kaldırmaz; Google kötüye kullanım tespiti için sınırlı süre kayıt tutabilir.
+**Durum:** kod, 0044 ve 0046 üretimde. Hukuk danışmanı üretimde etkinleştirmeyi
+onayladı (m.5/2-f; KVKK m.9 aktarım sözleşmesi imzalandı). `GEMINI_API_KEY`
+Vercel'e eklenene kadar zamanlayıcı yok ve Google'a hiçbir metin gitmez.
+Anahtar, `/gizlilik` ve `/kvkk-aydinlatma` güncel metinle (6 Ekim 2026)
+yayına alındıktan ve docs/kvkk.md "Etkinleştirme kontrol listesi"ndeki açık
+kalemler teyit edildikten sonra eklenir. `store: false` aktarımı ya da işlemeyi kaldırmaz;
+Google kötüye kullanım tespiti için sınırlı süre kayıt tutabilir.
+
+**Etkinleştirme sırası (birleştirme sonrası):**
+1. 6 Ekim 2026 tarihli güncel metin üretimde
+   (`/gizlilik`, `/kvkk-aydinlatma`) görülür. İşlemeden ÖNCE.
+2. Google projesinde bütçe uyarısı ve kota tanımlanır.
+3. Yetki denetimi SQL'i (aşağıda) yeniden çalıştırılır.
+4. Vercel Production'a `GEMINI_API_KEY` (hassas, yalnızca Production) eklenir
+   ve yeniden dağıtılır; tek başına hiçbir şey tetiklemez.
+5. Toplu iş bir kez elle tetiklenir; `job_run`, `api_usage` (en fazla 40),
+   `query_interpretation` ve `/yonetim/arama/tani` ("Saklanmış model yorumu")
+   kontrol edilir.
+6. Birkaç gün elle izleme; zamanlama ayrı bir PR/karardır.
+Geri alma: anahtar Vercel'den kaldırılır (toplu iş atlanır); mevcut yorumlar
+en fazla 90 günde silinir.
 
 Karar 0059. Uç: `GET /api/cron/interpret-queries`, `Authorization: Bearer
 ${CRON_SECRET}`. **Zamanlanmış değil**: `vercel.json`'da ya da GitHub
