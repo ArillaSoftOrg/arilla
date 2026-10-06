@@ -33,6 +33,8 @@ const ADMIN_ONLY: Capability[] = [
   "users.contact.reveal",
   // Karar 0050: oturum kapatma yalnızca yöneticinin.
   "users.sessions.revoke",
+  // Karar 0065: herkese görünen erken erişim sayısı yalnızca yöneticinin.
+  "early_access.manage",
 ];
 const ALL: Capability[] = [...MODERATOR, ...ADMIN_ONLY];
 

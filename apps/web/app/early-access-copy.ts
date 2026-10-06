@@ -3,6 +3,10 @@ import { SITE_BRAND } from "./site-config.ts";
 /** docs/copy.md "Erken erişim" - anahtarlar yorumda. */
 export const EARLY_ACCESS_COPY = {
   cta: "Erken erişime katıl", // early_access.cta
+  progressLabel: "Erken erişim listesindeki kişi", // early_access.progress_label
+  progressUnit: "kişi", // early_access.progress_unit
+  progressValueText: (count: string, target: string) =>
+    `${target} kişilik hedefin ${count} kişisi tamamlandı`, // early_access.progress_value_text
   landingNote: `${SITE_BRAND} şu an erken erişimde. Listeye katıl, açıldığında haber verelim.`, // early_access.landing_note
   loginTitle: "Erken erişime katıl. Hesabınla devam et ya da yeni hesap aç.", // early_access.login_title
   navStatus: "Erken erişim", // early_access.nav_status

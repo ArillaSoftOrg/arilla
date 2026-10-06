@@ -364,6 +364,9 @@ giriş ekranı, üst çubuk ve `/erken-erisim` bu metinleri kullanır.
 | Anahtar | Metin |
 | --- | --- |
 | `early_access.cta` | Erken erişime katıl |
+| `early_access.progress_label` | Erken erişim listesindeki kişi |
+| `early_access.progress_unit` | kişi |
+| `early_access.progress_value_text` | {target} kişilik hedefin {count} kişisi tamamlandı |
 | `early_access.landing_note` | ManiCepte şu an erken erişimde. Listeye katıl, açıldığında haber verelim. |
 | `early_access.login_title` | Erken erişime katıl. Hesabınla devam et ya da yeni hesap aç. |
 | `early_access.nav_status` | Erken erişim |

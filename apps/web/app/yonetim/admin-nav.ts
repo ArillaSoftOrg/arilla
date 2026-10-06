@@ -133,6 +133,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "Hesap arama ve ayrıntısı.",
       },
       {
+        href: "/yonetim/erken-erisim",
+        label: "Erken erişim sayacı",
+        capability: "early_access.manage",
+        description: "Sitede gösterilen erken erişim sayısı ve platform dışı başvurular.",
+      },
+      {
         href: "/yonetim/mesajlar",
         label: "Gelen kutusu",
         capability: "messages.read",

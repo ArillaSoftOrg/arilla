@@ -73,6 +73,12 @@ export type AdminAction =
    */
   | "messages.list_view"
   /**
+   * Erken erişim sayacı (karar 0065): platform dışı başvuru sayısı elle
+   * değişti. `before.offPlatformCount` / `after.offPlatformCount`; gerekçe
+   * `reason`; kişisel veri YAZILMAZ.
+   */
+  | "early_access.counter_set"
+  /**
    * Güvenlik olayları (karar 0050). Kişisel veri, yol, IP, token YAZILMAZ.
    * - `security.access_denied`: girişli ama yetkisiz hesabın yönetim isteği;
    *   hedef istenen yetenek. Hesap + yetenek başına 10 dakikada bir satır.
@@ -94,6 +100,8 @@ export type AdminTargetType =
   | "form"
   /** Gelen kutusu (`feedback` tablosu; liste görüntüleme, hedef kimliği "-"). */
   | "feedback"
+  /** Erken erişim sayacı (tek satır, hedef kimliği "1"). */
+  | "early_access_counter"
   /** `security.access_denied` hedefi: istenen yetenek adı. */
   | "capability";
 
@@ -106,6 +114,7 @@ export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
   "marketing_campaign",
   "form",
   "feedback",
+  "early_access_counter",
   "capability",
 ];
 

@@ -28,7 +28,7 @@ export type SocialNetwork = "instagram" | "tiktok" | "linkedin";
  * takipci sayisi yok). Hesap acildiginda yalnizca bu nesne degisir.
  */
 export const SOCIAL_PROFILES: Readonly<Record<SocialNetwork, string | null>> = {
-  instagram: null,
+  instagram: "https://www.instagram.com/manicepte.tr",
   tiktok: null,
   linkedin: null,
 };

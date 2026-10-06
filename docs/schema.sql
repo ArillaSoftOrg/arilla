@@ -499,6 +499,17 @@ CREATE TABLE early_access (
 );
 CREATE INDEX early_access_created_idx ON early_access (created_at DESC);
 
+-- Erken erisim sayaci (0050, karar 0065): platform disi (e-postayla gelen)
+-- gercek basvurularin sayisi. Tek satir; gosterilen sayi = bu deger +
+-- COUNT(early_access). Yonetici elle gunceller (denetim kaydi + gerekce);
+-- otomatik/rastgele artis yok. Uygulama yalnizca SELECT/UPDATE yapar.
+CREATE TABLE early_access_counter (
+    id                 SMALLINT    PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    off_platform_count INTEGER     NOT NULL CHECK (off_platform_count BETWEEN 0 AND 1000000),
+    updated_by         BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Kullanıcı geri bildirimi (0032, karar 0045) ve iletişim formu (0047, karar
 -- 0061). `/geri-bildirim` ve `/iletisim` aynı tabloya `kind` ile ayrılarak
 -- yazar; girişli kullanıcı da anonim ziyaretçi de, yalnızca sunucu üzerinden.
@@ -1367,6 +1378,7 @@ REVOKE UPDATE, DELETE, TRUNCATE ON price_point         FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_stock_event FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_price_event FROM arilla_app;   -- 0026
 REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit_event   FROM arilla_app;   -- 0027
+REVOKE INSERT, DELETE, TRUNCATE ON early_access_counter FROM arilla_app;   -- 0050
 REVOKE UPDATE, DELETE, TRUNCATE ON bonus_ledger        FROM arilla_app;   -- 0034
 -- 0035: kampanya geçmişi silinmez (güncellenebilir, silinemez).
 REVOKE DELETE, TRUNCATE ON marketing_campaign          FROM arilla_app;   -- 0035
