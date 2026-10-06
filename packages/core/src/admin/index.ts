@@ -15,6 +15,7 @@ export * from "./match-evidence.ts";
 export * from "./matching-queue.ts";
 export * from "./merchant-attention.ts";
 export * from "./merchants.ts";
+export * from "./messages.ts";
 export * from "./operations.ts";
 export * from "./ops-findings.ts";
 export * from "./pipeline-evidence.ts";

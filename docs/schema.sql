@@ -499,16 +499,20 @@ CREATE TABLE early_access (
 );
 CREATE INDEX early_access_created_idx ON early_access (created_at DESC);
 
--- Kullanıcı geri bildirimi (0032, karar 0045). `/geri-bildirim` formu;
--- girişli kullanıcı da anonim ziyaretçi de yazar, yalnızca sunucu üzerinden.
+-- Kullanıcı geri bildirimi (0032, karar 0045) ve iletişim formu (0047, karar
+-- 0061). `/geri-bildirim` ve `/iletisim` aynı tabloya `kind` ile ayrılarak
+-- yazar; girişli kullanıcı da anonim ziyaretçi de, yalnızca sunucu üzerinden.
 -- Uygulama `status` olarak yalnızca 'new' yazar; diğer değerler ileride
 -- yönetim paneli içindir. Hesap silinince satır da silinir.
 CREATE TABLE feedback (
     id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     user_id     BIGINT      REFERENCES app_user(id) ON DELETE CASCADE,
+    kind        TEXT        NOT NULL DEFAULT 'feedback' CHECK (kind IN ('feedback','contact')),
+    -- İletişim formunda yanıt için ad; geri bildirimde NULL.
+    name        TEXT        CHECK (name IS NULL OR char_length(btrim(name)) BETWEEN 1 AND 100),
     email       TEXT        CHECK (email IS NULL OR char_length(email) BETWEEN 3 AND 254),
-    category    TEXT        NOT NULL CHECK (category IN
-                    ('suggestion','bug','feature_request','ux','product_store','other')),
+    -- Kategori türe göre: geri bildirim ve iletişim listeleri ayrı.
+    category    TEXT        NOT NULL,
     title       TEXT        NOT NULL CHECK (char_length(btrim(title)) BETWEEN 1 AND 200),
     message     TEXT        NOT NULL CHECK (char_length(btrim(message)) BETWEEN 1 AND 10000),
     priority    TEXT        CHECK (priority IN ('low','medium','high')),
@@ -519,10 +523,22 @@ CREATE TABLE feedback (
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT feedback_source_matches_user CHECK (
         (user_id IS NULL AND source = 'public') OR (user_id IS NOT NULL AND source = 'early_access')
+    ),
+    CONSTRAINT feedback_category_check CHECK (
+        (kind = 'feedback' AND category IN
+            ('suggestion','bug','feature_request','ux','product_store','other'))
+        OR
+        (kind = 'contact' AND category IN
+            ('general','account','price_error','bug','partnership','privacy','other'))
+    ),
+    -- İletişim gönderisinde yanıt adresi ve ad zorunlu.
+    CONSTRAINT feedback_contact_reply_address CHECK (
+        kind <> 'contact' OR (email IS NOT NULL AND name IS NOT NULL)
     )
 );
 CREATE INDEX feedback_created_idx ON feedback (created_at DESC);
 CREATE INDEX feedback_user_idx ON feedback (user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX feedback_kind_created_idx ON feedback (kind, created_at DESC, id DESC);
 
 -- 0043 (karar 0058): form / anket merkezi. Geri bildirimden ayrıdır.
 CREATE TABLE form (

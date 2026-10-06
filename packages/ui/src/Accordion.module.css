@@ -1,0 +1,87 @@
+/* Akordeon (Accordion.tsx). Renkler ve olculer yalnizca tokens.css'ten
+   (docs/design.md); mobil once, 44px dokunma hedefi. */
+.accordion {
+  border-top: var(--border-width) solid var(--line);
+}
+
+.item {
+  border-bottom: var(--border-width) solid var(--line);
+  /* Capa ile acildiginda yapiskan basligin altinda kalmasin. */
+  scroll-margin-top: var(--space-24);
+}
+
+.heading {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+}
+
+.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  width: 100%;
+  min-height: var(--size-touch-target);
+  padding: var(--space-4) 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.trigger:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+.label {
+  min-width: 0;
+  text-wrap: pretty;
+}
+
+.trigger:hover .label {
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.icon {
+  flex: none;
+  color: var(--ink-muted);
+  transform: rotate(90deg);
+}
+
+.trigger[aria-expanded="true"] .icon {
+  transform: rotate(-90deg);
+}
+
+.panel {
+  padding: 0 0 var(--space-5);
+  color: var(--ink-secondary);
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+}
+
+.panel p {
+  margin: 0;
+}
+
+/* Paragraflar arasi bosluk; `.panel p`'den ozgul olmali. */
+.panel > p + p {
+  margin-top: var(--space-3);
+}
+
+.panel a {
+  color: var(--ink);
+  text-underline-offset: 0.2em;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .icon {
+    transition: transform var(--duration-fast) var(--ease-standard);
+  }
+}

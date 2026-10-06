@@ -136,6 +136,13 @@ export default function GizlilikPage() {
           Kötüye kullanımı önlemek için gönderimler IP adresinizin özet değeri üzerinden kısa süreli
           sayılır. Hesabınızı silerseniz hesabınızla gönderdiğiniz geri bildirimler de silinir.
         </p>
+        <p>
+          İletişim formunu kullandığınızda adınız, e-posta adresiniz, seçtiğiniz konu, başlık ve
+          mesajınız talebinizi yanıtlamak için işlenir. Giriş yapmışsanız mesajınız hesabınızla
+          ilişkilendirilir. Kötüye kullanımı önlemek için gönderimler, geri bildirim formuyla aynı
+          şekilde IP adresinizin özet değeri üzerinden kısa süreli sayılır. Hesabınızı silerseniz
+          hesabınızla gönderdiğiniz mesajlar da silinir.
+        </p>
 
         <h3>2.5. Anket ve form yanıtları</h3>
         <p>

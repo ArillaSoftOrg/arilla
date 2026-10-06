@@ -145,7 +145,11 @@ export interface UserDataExport {
     submittedAt: Date;
     answers: Array<{ question: string; answer: string }>;
   }>;
+  /** Geri bildirim (`kind = feedback`) ve iletisim formu (`kind = contact`) gonderileri. */
   feedback: Array<{
+    kind: string;
+    name: string | null;
+    email: string | null;
     category: string;
     title: string;
     message: string;
@@ -328,6 +332,9 @@ export async function exportUserData(db: Database, userId: number): Promise<User
 
   const feedbackRows = await db
     .select({
+      kind: feedback.kind,
+      name: feedback.name,
+      email: feedback.email,
       category: feedback.category,
       title: feedback.title,
       message: feedback.message,

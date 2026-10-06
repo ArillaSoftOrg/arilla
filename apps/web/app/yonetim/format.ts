@@ -180,6 +180,7 @@ const ACTION_LABELS: Record<string, string> = {
   "forms.publish": "Form yayınlandı",
   "forms.close": "Form kapatıldı",
   "forms.results_view": "Form sonuçları görüntülendi",
+  "messages.list_view": "Gelen kutusu görüntülendi",
   "security.access_denied": "Yetkisiz yönetim erişimi reddedildi",
   "security.admin_session_ended": "Yönetim oturumu sonlandırıldı",
   "sessions.revoke_all": "Tüm oturumlar kapatıldı",

@@ -18,7 +18,7 @@ Rezerve slug listesi tutulur: `ara`, `urun`, `kategori`, `marka`, `alternatif`,
 `trend`, `firsatlar`, `kesfet`, `gecmis`, `alarmlar`, `kaydettiklerim`, `git`,
 `api`, `panel`, `yonetim`, `hesap`, `giris`, `hakkinda`, `gizlilik`, `kosullar`,
 `cerez`, `iletisim`, `kvkk-aydinlatma`, `affiliate-aciklamasi`, `sirket-bilgileri`,
-`kullanim-kosullari`, `cerez-politikasi`, `davet`.
+`kullanim-kosullari`, `cerez-politikasi`, `davet`, `sss`.
 
 ## Kayıt duvarı
 
@@ -62,7 +62,8 @@ SEO değerini böler hem kullanıcıyı gereksiz bir tıklamaya zorlar.
 /kosullar                  Kullanım koşulları - taslak, hukukçu onayı bekliyor
 /cerez                     Çerez politikası, envanter ve tercih formu (#tercihler)
 /abonelik-iptali           Pazarlama e-postası iptali (token'lı, girişsiz, noindex). GET değiştirmez (0048)
-/iletisim                  Geçici public e-posta (Faz 8.1) - tek kaynak legal-identity.ts
+/iletisim                  İletişim formu + e-posta kanalı; /geri-bildirim ile aynı yazma yolu (feedback, kind=contact), ürün kapısı dışında (karar 0061)
+/sss                       Sıkça sorulan sorular; içerik apps/web/app/sss/faq-content.ts, FAQPage yapılandırılmış verisi (karar 0061)
 /geri-bildirim             Geri bildirim formu; anonim ve girişli, ürün kapısı dışında (karar 0045)
 /anket/<slug>             Yayındaki form / anket; hedef kitle public, giriş ya da erken erişim; ürün kapısı dışında, noindex (karar 0058)
 /kvkk-aydinlatma           KVKK aydınlatma metni (karar 0038)
@@ -77,10 +78,9 @@ adlarını önerdi; canlı ve sitemap'teki `/kosullar` ve `/cerez` korunur, yeni
 adlar yalnızca `next.config.ts` yönlendirmesidir. Yönlendirmeler sitemap'e
 girmez.
 
-`docs/sitemap.md`'nin statik sayfa aday listesindeki `/hakkinda` ve `/sss`
-henüz **yazılmadı**, `STATIC_PAGES` listesinde ve footer'da yok. `/iletisim`
-Faz 8.1'de eklendi (`STATIC_PAGES` ve footer'da); yalnızca kullanıcının
-onayladığı geçici e-postayı içerir, telefon/adres uydurulmadı.
+`/hakkinda` ve `/sss` yazıldı (`STATIC_PAGES` ve footer'da). `/iletisim`
+Faz 8.1'de e-posta sayfası olarak eklendi, karar 0061 ile forma dönüştü;
+telefon/adres uydurulmadı.
 
 ### Keşif
 
@@ -186,6 +186,7 @@ platform sorununu hafifletir.
 /yonetim/islemler/isler    İş koşuları geçmişi, job_run (yalnızca admin, 0055)
 /yonetim/kullanicilar      Tam eşleşmeyle hesap bulma, denetimli (yalnızca admin)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
+/yonetim/mesajlar          Gelen kutusu: iletişim ve geri bildirim mesajları, salt okunur, görüntüleme denetlenir (yalnızca admin, 0061)
 /yonetim/kampanyalar       Pazarlama e-postası kampanyaları: taslak, test, gönderim (yalnızca admin, 0048)
 /yonetim/kampanyalar/<id> Düzenleme, önizleme, uygun alıcı sayısı, test, onaylı gönderim, durum
 /yonetim/formlar          Form / anket merkezi: liste, yeni form, aç/kapat (yalnızca admin, 0058)

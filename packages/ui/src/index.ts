@@ -6,6 +6,7 @@
  * `import "@arilla/ui/tokens.css"`).
  */
 
+export * from "./Accordion.tsx";
 export * from "./Badge.tsx";
 export * from "./Button.tsx";
 export * from "./Card.tsx";

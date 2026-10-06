@@ -87,20 +87,89 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `nav.feedback` | Geri bildirim |
 | `nav.skip_to_content` | İçeriğe geç |
 
-## İletişim (Faz 8.1)
+## İletişim (karar 0061)
 
-E-posta adresi metin değil yapılandırmadır: tek kaynağı
-`apps/web/app/site-config.ts` (`PUBLIC_CONTACT_EMAIL`). Geçici adres;
-kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
-çalışma saati bilerek yok — doğrulanmış bilgi değil.
+İletişim formu `/geri-bildirim` ile aynı yazma yolunu kullanır. Metinler
+`apps/web/app/iletisim/contact-copy.ts`; hitap "siz". E-posta adresi metin
+değil yapılandırmadır: tek kaynağı `apps/web/app/site-config.ts`
+(`PUBLIC_CONTACT_EMAIL`). Telefon, adres, unvan, çalışma saati bilerek yok.
 
 | Anahtar | Metin |
 | --- | --- |
 | `contact.title` | İletişim |
-| `contact.description` | Arilla ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz. |
+| `contact.description` | Sorunuzu, talebinizi veya bildirmek istediğiniz bir hatayı aşağıdaki formla iletebilirsiniz. Gerekirse bıraktığınız e-posta adresinden size dönüş yaparız. |
+| `contact.faq_prompt` | Yanıtını aradığınız soru |
+| `contact.faq_link` | Sıkça sorulan sorular |
+| `contact.faq_prompt_end` | sayfasında olabilir. |
+| `contact.name_label` | Adınız |
 | `contact.email_label` | E-posta |
+| `contact.email_hint` | Size dönüş yapmamız gerekirse bu adresi kullanırız. |
+| `contact.category_label` | Konu |
+| `contact.subject_label` | Başlık |
+| `contact.subject_placeholder` | Ürün sayfasında fiyat farklı görünüyor |
+| `contact.message_label` | Mesajınız |
+| `contact.message_hint` | Ürün adı veya sayfa bağlantısı eklemeniz incelememizi kolaylaştırır. |
+| `contact.auth_notice` | Giriş yaptığınız için mesajınız hesabınızla ilişkilendirilecektir. |
+| `contact.privacy_note` | Bilgilerinizi yalnızca talebinizi yanıtlamak için kullanırız. Ayrıntılar |
+| `contact.privacy_link` | Gizlilik Politikası |
+| `contact.privacy_and` | ve |
+| `contact.kvkk_link` | KVKK Aydınlatma Metni |
+| `contact.privacy_note_end` | içinde. |
+| `contact.email_alternative` | Dilerseniz doğrudan e-posta da gönderebilirsiniz: |
+| `contact.submit` | Mesajı gönder |
+| `contact.submitting` | Gönderiliyor… |
+| `contact.success_title` | Mesajınız bize ulaştı. |
+| `contact.success_body` | Mesajınızı inceleyeceğiz; gerekirse bıraktığınız e-posta adresinden size dönüş yaparız. |
+| `contact.success_another` | Yeni mesaj gönder |
+| `contact.error_name_required` | Adınızı yazın. |
+| `contact.error_name_length` | Ad 2 ile 100 karakter arasında olmalı. |
+| `contact.error_email_required` | Yanıt verebilmemiz için e-posta adresinizi yazın. |
+| `contact.error_email` | Geçerli bir e-posta adresi girin. |
+| `contact.error_category` | Bir konu seçin. |
+| `contact.error_subject_required` | Bir başlık yazın. |
+| `contact.error_subject_length` | Başlık 3 ile 120 karakter arasında olmalı. |
+| `contact.error_message_required` | Mesajınızı yazın. |
+| `contact.error_message_length` | Mesaj 10 ile 5000 karakter arasında olmalı. |
+| `contact.error_fix_fields` | Lütfen işaretli alanları düzeltin. |
+| `contact.error_malformed` | Form gönderilemedi. Sayfayı yenileyip tekrar deneyin. |
+| `contact.error_too_large` | Mesajınız çok uzun. Lütfen kısaltıp tekrar deneyin. |
+| `contact.error_rate_limited` | Kısa sürede çok fazla mesaj gönderdiniz. Birkaç dakika sonra tekrar deneyin. |
+| `contact.error_unavailable` | Mesajınızı şu an kaydedemedik. Biraz sonra tekrar deneyin ya da e-posta gönderin. |
+| `contact.error_network` | Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin. |
+| `contact.error_session_expired` | Oturumunuz sona ermiş. Mesajınızın hesabınızla ilişkilendirilmesi için tekrar giriş yapın. |
+| `contact.login_again` | Tekrar giriş yap |
 | `privacy.contact_prefix` | Verilerinle ilgili soruların için |
 | `privacy.contact_suffix` | adresine yazabilirsin. |
+
+Konu etiketleri (`CONTACT_CATEGORY_LABELS`, değer `feedback.category`):
+
+| Değer | Etiket |
+| --- | --- |
+| `general` | Genel soru |
+| `account` | Hesap ve giriş |
+| `price_error` | Yanlış fiyat veya ürün bilgisi |
+| `bug` | Teknik sorun |
+| `partnership` | Mağaza ve iş birliği |
+| `privacy` | Gizlilik ve KVKK talebi |
+| `other` | Diğer |
+
+## SSS (karar 0061)
+
+Soru ve yanıtların TEK kaynağı `apps/web/app/sss/faq-content.ts`; burada
+tekrarlanmaz (iki kopya ayrışır). Sayfa metinleri `apps/web/app/sss/faq-page-copy.ts`.
+Yanıtlarda "satın al", "dupe", "ucuz" geçmez; sayı veren ayarlanabilir
+sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
+
+| Anahtar | Metin |
+| --- | --- |
+| `nav.faq` | Sıkça sorulan sorular |
+| `faq.meta_title` | Sıkça sorulan sorular |
+| `faq.meta_description` | ManiCepte nasıl çalışır, fiyatlar ne kadar güncel, hesap gerekir mi, verileriniz nasıl kullanılır? Sık sorulan soruların yanıtları. |
+| `faq.title` | Sıkça sorulan sorular |
+| `faq.description` | Merak ettiğiniz bir konunun yanıtı büyük olasılıkla burada. |
+| `faq.more_title` | Sorunuzun yanıtını bulamadınız mı? |
+| `faq.more_body` | Bize yazın; mesajınızı inceleyip gerekirse e-posta ile size dönüş yapalım. |
+| `faq.more_action` | İletişime geçin |
 
 ## Eylemler
 
