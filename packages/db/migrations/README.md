@@ -60,6 +60,7 @@ migration'lar olusturur.
 | `0045_onboarding_and_signup_consent.sql` | Karsilama durumu ve yeni hesap riza varsayilanlari (0060): `app_user.onboarded_at` (mevcut hesaplar `created_at` ile doldurulur), `user_consent.source` CHECK'ine `signup_default`, `onboarding`. Geriye uyumlu. |
 | `0046_revoke_unused_app_privileges.sql` | En az yetki (0059): `arilla_app`'ten kullanilmayan `api_usage` DELETE ve `query_interpretation` UPDATE geri alinir. `api_usage` SELECT/INSERT/UPDATE ve `query_interpretation` SELECT/INSERT/DELETE korunur. Yalnizca yetki; sema degismez. `db:verify` sinar. |
 | `0047_feedback_contact.sql` | Iletisim formu (0061) `feedback`'i paylasir: `kind` ('feedback' varsayilan / 'contact'), nullable `name`; kategori CHECK'i ture gore iki listeye ayrilir; iletisimde e-posta ve ad zorunlu; `(kind, created_at, id)` indeksi (yonetim gelen kutusu). Mevcut satirlar 'feedback' kalir. Geriye uyumlu, yetki degismez. |
+| `0048_activate_shopify_merchants.sql` | 0021'in dogruladigi 18 Shopify merchant aktiflestirilir, `max_products = 3500`, `retry.max_retries = 2` (0063). `admin_audit_event`e kayit. `turkish-finds` kapsam disi. Yalnizca veri. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori
