@@ -673,13 +673,13 @@ görsel benzerlik "aynı" diye etiketlenmez.
 
 ## Geri bildirim (karar 0045)
 
-Hitap "siz" (ürün sahibinin verdiği metin). Ürün adı bu metinlerde "Arilla"
-(site markası `SITE_BRAND` değil; karar 0045). Metinler
+Hitap "siz" (ürün sahibinin verdiği metin). Ürün adı bu metinlerde de
+yayındaki marka "ManiCepte" (karar 0045 §9). Metinler
 `apps/web/app/geri-bildirim/feedback-copy.ts`.
 
 | Anahtar | Metin |
 | --- | --- |
-| `feedback.title` | Arilla'yı birlikte geliştirelim |
+| `feedback.title` | ManiCepte'yi birlikte geliştirelim |
 | `feedback.description` | Eksik gördüğünüz, geliştirilmesini istediğiniz veya sorun yaşadığınız noktaları bize iletebilirsiniz. |
 | `feedback.category_label` | Geri bildirim türü |
 | `feedback.category.*` | Öneri · Hata bildirimi · Özellik isteği · Tasarım / kullanım deneyimi · Ürün / mağaza önerisi · Diğer |
@@ -696,7 +696,7 @@ Hitap "siz" (ürün sahibinin verdiği metin). Ürün adı bu metinlerde "Arilla
 | `feedback.submit` | Geri bildirim gönder |
 | `feedback.submitting` | Gönderiliyor… |
 | `feedback.success_title` | Geri bildiriminiz alındı. |
-| `feedback.success_body` | Arilla'yı geliştirmemize yardımcı olduğunuz için teşekkür ederiz. |
+| `feedback.success_body` | ManiCepte'yi geliştirmemize yardımcı olduğunuz için teşekkür ederiz. |
 | `feedback.success_another` | Yeni geri bildirim gönder |
 | `feedback.error_category` | Bir geri bildirim türü seçin. |
 | `feedback.error_title_required` | Bir başlık yazın. |
@@ -713,7 +713,7 @@ Hitap "siz" (ürün sahibinin verdiği metin). Ürün adı bu metinlerde "Arilla
 | `feedback.error_network` | Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin. |
 | `feedback.error_session_expired` | Oturumunuz sona ermiş. Geri bildiriminizin hesabınızla ilişkilendirilmesi için tekrar giriş yapın. |
 | `feedback.login_again` | Tekrar giriş yap |
-| `feedback.early_access_prompt` | Bir fikriniz mi var? Arilla'yı birlikte geliştirelim. |
+| `feedback.early_access_prompt` | Bir fikriniz mi var? ManiCepte'yi birlikte geliştirelim. |
 
 ## Hata
 

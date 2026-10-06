@@ -46,11 +46,11 @@ yanıt e-postası, oylama ve eklenti bu kararın kapsamı dışındadır.
    ve silme davranışı eklendi. `/kvkk-aydinlatma` "Talep/şikâyet" maddesine
    form gönderimleri eklendi. Anonim gönderimlerin saklama süresi hukukçu
    onayıyla belirlenecek.
-9. **Marka adı:** geri bildirim metinleri ürün adı olarak "Arilla" kullanır
-   (`feedback-copy.ts` içinde yerel sabit; ürün kararı). Site markası
-   `SITE_BRAND` header/footer'da değişmez. `SITE_BRAND` burada kullanılmaz:
-   `site-config.ts` `@arilla/core` kökünü çektiği için istemci paketine
-   giremez.
+9. **Marka adı:** geri bildirim metinleri yayındaki markayı ("ManiCepte")
+   kullanır; `feedback-copy.ts` içinde yerel sabit (`FEEDBACK_BRAND`), çünkü
+   dosya istemci formuna girer. **Güncelleme (6 Ekim 2026):** ilk sürümde
+   ürün adı "Arilla" idi; yasal sayfaların marka düzeltmesinden sonra geri
+   bildirim metinleri de "ManiCepte"ye geçti.
 
 ## Reddedilen alternatifler
 
