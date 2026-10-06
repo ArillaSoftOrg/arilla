@@ -2,8 +2,10 @@
 
 **Tarih:** 5 Ekim 2026
 **Durum:** Kabul edildi — istemci, uyarlayıcı, saklama (0044), toplu iş,
-korumalı (zamanlanmamış) cron ucu ve `/ara` salt okuma yolu hazır. Üretimde
-etkin DEĞİL (anahtar yok; tabloda satır yok).
+korumalı (zamanlanmamış) cron ucu, `/ara` salt okuma yolu ve en az yetki (0046)
+üretimde. Hukuk danışmanı yaklaşımı onayladı (m.5/2-f; KVKK m.9 aktarım
+sözleşmesi imzalandı). Üretimde etkin DEĞİL: anahtar yok, kamuya açık metinler
+henüz yayında değil, açık [CONFIRM] kalemleri docs/kvkk.md'de.
 
 Karar 0030, `IntentInterpreter`'ın bir modele bağlanmasını ayrı bir karara
 bırakmıştı. Bu karar o bağlantının sınırlarını koyar. İlk sağlayıcı Google
@@ -58,15 +60,16 @@ Gemini, model `gemini-3.1-flash-lite` (kararlı sürüm).
    gönderilmez. Yalnızca `status: "completed"` kabul edilir;
    `max_output_tokens`'a takılan `incomplete` yanıt reddedilir, kesik çıktı
    asla saklanmaz.
-8. **Üretimde etkinleştirme engellidir; işleme bugün DEVRE DIŞIDIR.**
+8. **İşleme bugün DEVRE DIŞIDIR; etkinleştirme kontrol listesine bağlıdır.**
    Kullanıcının yazdığı sorgu metni yurt dışındaki bir sağlayıcıya gider; bu
-   bir yurt dışı aktarımdır. `GEMINI_API_KEY` üretime ancak docs/kvkk.md
-   "Etkinleştirme öncesi hukuki kontrol listesi" tamamlanınca eklenir: KVKK
-   m.9 kapsamında geçerli aktarım mekanizması nitelikli hukuki incelemeyle
-   teyit edilmeli (Google DPA'sı tek başına bunu karşılamaz), işleme şartı
-   teyit edilmeli, aydınlatma metinleri yayına alınmalı. Bu kararın teknik
-   sınırları aktarımı hukuken uygun hâle getirmez. Etkinleştirme ayrı ve
-   sonraki bir adımdır.
+   bir yurt dışı aktarımdır. Hukuki karar: işleme şartı KVKK m.5/2-f meşru
+   menfaat (LIA: `docs/legal-review/gemini-mesru-menfaat-degerlendirmesi.md`);
+   aktarım, hukuk danışmanının onayladığı ve Google ile imzalanan KVKK m.9
+   aktarım sözleşmesine dayanır (Google DPA'sı tek başına bunun yerine
+   geçmez). `GEMINI_API_KEY` üretime ancak docs/kvkk.md "Etkinleştirme öncesi
+   hukuki kontrol listesi"ndeki [CONFIRM] kalemleri (sözleşme tarafı, imza
+   tarihi, Kurum bildirimi) teyit edilip aydınlatma metinleri yayına
+   alındıktan sonra eklenir. Etkinleştirme ayrı ve sonraki bir adımdır.
 
 ## Uygulama ayrıntıları
 
