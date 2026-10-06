@@ -63,6 +63,7 @@ migration'lar olusturur.
 | `0048_activate_shopify_merchants.sql` | 0021'in dogruladigi 18 Shopify merchant aktiflestirilir, `max_products = 3500`, `retry.max_retries = 2` (0063). `admin_audit_event`e kayit. `turkish-finds` kapsam disi. Yalnizca veri. |
 | `0049_shopify_canonical_domains.sql` | 2 Shopify merchant'inin `domain`/`feed_url`'i kanitlanmis kanonik host'a tasinir (0064; kanit `canonical_domains_20261006.json`). Yalnizca offer'i olmayan, aktif, TRY dogrulanmis merchant'lar; `admin_audit_event`'e kayit. Yalnizca veri.
 | `0051_ingest_run_checkpoint.sql` | `ingest_run.updated_at` (heartbeat) + `checkpoint` JSONB: chunk'li toplamanin kalici checkpoint'i, kesintiden devam (0065). Yalnizca ekleme, `status` CHECK'i degismez. Ilk adi `0050_ingest_run_checkpoint.sql` idi (production'da uygulandi); `main`'e giren `0050_early_access_counter` ile numara cakistigi icin `0051` oldu, defter satiri `renamed.json` ile tasindi (asagiya bakin). |
+| `0052_for_fun_option_mapping.sql` | `for-fun` merchant'inin konumsal secenek eslemesi ad tabanliya cevrilir (yalniz uc `feed_config` anahtari; Beden=option1, Renk=option2 kaniti; karar 0067). Idempotent, denetim kaydi, yalnizca veri. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

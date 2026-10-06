@@ -1,0 +1,531 @@
+{
+ "riva-istanbul": {
+  "host": "www.rivaistanbul.com",
+  "myshopify": "riva-istanbul.myshopify.com",
+  "currency": "TRY",
+  "published": 1223,
+  "products_seen": 200,
+  "variants_seen": 200,
+  "only_title": 200,
+  "option_names_by_position": {
+   "1": {
+    "Title": 200
+   }
+  },
+  "multi_valued": {},
+  "option_combos": [
+   [
+    [
+     "Title"
+    ],
+    200
+   ]
+  ],
+  "sample_values": {
+   "option1:Title": [
+    "Default Title"
+   ]
+  }
+ },
+ "casadora-baby": {
+  "host": "www.casadorababy.com",
+  "myshopify": "casadora-baby.myshopify.com",
+  "currency": "TRY",
+  "published": 436,
+  "products_seen": 200,
+  "variants_seen": 367,
+  "only_title": 138,
+  "option_names_by_position": {
+   "1": {
+    "Title": 138,
+    "size": 44,
+    "Beden": 18
+   }
+  },
+  "multi_valued": {
+   "option1:size": 44,
+   "option1:Beden": 15
+  },
+  "option_combos": [
+   [
+    [
+     "Title"
+    ],
+    138
+   ],
+   [
+    [
+     "size"
+    ],
+    44
+   ],
+   [
+    [
+     "Beden"
+    ],
+    18
+   ]
+  ],
+  "sample_values": {
+   "option1:Title": [
+    "Default Title"
+   ],
+   "option1:size": [
+    "Yenidoğan",
+    "1-3 Ay",
+    "3-6 Ay",
+    "6-9 Ay",
+    "9-12 Ay"
+   ],
+   "option1:Beden": [
+    "Yenidoğan",
+    "1-3 Ay",
+    "3-6 Ay",
+    "6-9 Ay",
+    "9-12 Ay"
+   ]
+  }
+ },
+ "eveline-cosmetics-turkiye": {
+  "host": "eveline.com.tr",
+  "myshopify": "eveline-tr-v2.myshopify.com",
+  "currency": "TRY",
+  "published": 14,
+  "products_seen": 14,
+  "variants_seen": 14,
+  "only_title": 14,
+  "option_names_by_position": {
+   "1": {
+    "Title": 14
+   }
+  },
+  "multi_valued": {},
+  "option_combos": [
+   [
+    [
+     "Title"
+    ],
+    14
+   ]
+  ],
+  "sample_values": {
+   "option1:Title": [
+    "Default Title"
+   ]
+  }
+ },
+ "jura-store": {
+  "host": "jurastore.co",
+  "myshopify": "745bb0.myshopify.com",
+  "currency": "TRY",
+  "published": 27,
+  "products_seen": 27,
+  "variants_seen": 140,
+  "only_title": 0,
+  "option_names_by_position": {
+   "1": {
+    "Pil Seçeneği": 14,
+    "Vücut rengi": 2,
+    "Color": 1,
+    "Renk": 3,
+    "Ölçü": 7
+   },
+   "2": {
+    "Renk": 7
+   }
+  },
+  "multi_valued": {
+   "option1:Vücut rengi": 2,
+   "option1:Color": 1,
+   "option1:Renk": 3,
+   "option1:Ölçü": 7,
+   "option2:Renk": 7
+  },
+  "option_combos": [
+   [
+    [
+     "Pil Seçeneği"
+    ],
+    14
+   ],
+   [
+    [
+     "Ölçü",
+     "Renk"
+    ],
+    7
+   ],
+   [
+    [
+     "Renk"
+    ],
+    3
+   ],
+   [
+    [
+     "Vücut rengi"
+    ],
+    2
+   ],
+   [
+    [
+     "Color"
+    ],
+    1
+   ]
+  ],
+  "sample_values": {
+   "option1:Pil Seçeneği": [
+    "LifePo4 / 60V 30 Ah / (40-60 km)"
+   ],
+   "option1:Vücut rengi": [
+    "Kırmızı",
+    "Gray",
+    "Yeşil",
+    "Krem",
+    "Gri"
+   ],
+   "option1:Color": [
+    "Kırmızı",
+    "Gri"
+   ],
+   "option1:Renk": [
+    "Gri",
+    "Kırmızı",
+    "Krem"
+   ],
+   "option1:Ölçü": [
+    "Small",
+    "Medium",
+    "Large",
+    "X-Large",
+    "Small/Medium"
+   ],
+   "option2:Renk": [
+    "Navy Blue",
+    "Burgundy",
+    "Ecru",
+    "White",
+    "Melange"
+   ]
+  }
+ },
+ "wraith-esports": {
+  "host": "wraithesports.com",
+  "myshopify": "wraithesports.myshopify.com",
+  "currency": "TRY",
+  "published": 1089,
+  "products_seen": 200,
+  "variants_seen": 522,
+  "only_title": 48,
+  "option_names_by_position": {
+   "1": {
+    "Model": 56,
+    "Renk": 77,
+    "Title": 48,
+    "Adet": 3,
+    "Kutu": 1,
+    "Plate": 1,
+    "Bıçak Yönü": 1,
+    "Kuvvet": 1,
+    "Versiyon": 1,
+    "Kaplama": 1,
+    "Kaplama ": 1,
+    "Switch": 1,
+    "Kesim Tipi": 3,
+    "Yüzey": 1,
+    "Set": 1,
+    "Dizilim": 3
+   },
+   "2": {
+    "Renk": 20,
+    "Adet": 4,
+    "Tuş Takımı": 2,
+    "Switch": 12,
+    "Model": 4,
+    "Boyut": 5,
+    "Color": 1,
+    "Desen": 1,
+    "Plate": 2,
+    "Beden": 3,
+    "Legends": 1,
+    "Kablo Seçeneği ": 1
+   },
+   "3": {
+    "Kablo Seçeneği": 1,
+    "Model": 1,
+    "Renk": 1
+   }
+  },
+  "multi_valued": {
+   "option1:Model": 36,
+   "option1:Renk": 70,
+   "option2:Renk": 20,
+   "option2:Tuş Takımı": 1,
+   "option1:Kutu": 1,
+   "option2:Switch": 6,
+   "option2:Model": 4,
+   "option1:Bıçak Yönü": 1,
+   "option2:Color": 1,
+   "option3:Model": 1,
+   "option2:Adet": 2,
+   "option3:Renk": 1,
+   "option2:Plate": 1,
+   "option1:Versiyon": 1,
+   "option1:Kaplama": 1,
+   "option1:Kaplama ": 1,
+   "option1:Switch": 1,
+   "option1:Kesim Tipi": 2,
+   "option2:Beden": 2,
+   "option2:Legends": 1,
+   "option1:Yüzey": 1,
+   "option2:Boyut": 2,
+   "option1:Set": 1
+  },
+  "option_combos": [
+   [
+    [
+     "Renk"
+    ],
+    54
+   ],
+   [
+    [
+     "Title"
+    ],
+    48
+   ],
+   [
+    [
+     "Model"
+    ],
+    34
+   ],
+   [
+    [
+     "Model",
+     "Renk"
+    ],
+    16
+   ],
+   [
+    [
+     "Renk",
+     "Switch"
+    ],
+    12
+   ],
+   [
+    [
+     "Model",
+     "Adet"
+    ],
+    3
+   ]
+  ],
+  "sample_values": {
+   "option1:Model": [
+    "Base Kit",
+    "Medium",
+    "Novelties",
+    "Mini",
+    "1.6mm [4+2]"
+   ],
+   "option1:Renk": [
+    "Siyah",
+    "Beyaz",
+    "Pembe",
+    "Gümüş",
+    "Mor"
+   ],
+   "option1:Title": [
+    "Default Title"
+   ],
+   "option1:Adet": [
+    "35 Adet",
+    "36 Adet"
+   ],
+   "option1:Kutu": [
+    "Standard Box",
+    "Gift Box"
+   ],
+   "option1:Plate": [
+    "GH60 HE"
+   ],
+   "option1:Bıçak Yönü": [
+    "Düz (Normal)",
+    "Ters (Reverse)"
+   ],
+   "option1:Kuvvet": [
+    "46gf"
+   ],
+   "option1:Versiyon": [
+    "Armory Crate",
+    "Bloom Box"
+   ],
+   "option1:Kaplama": [
+    "Kaplamalı",
+    "Kaplamasız"
+   ],
+   "option1:Kaplama ": [
+    "Kaplamalı",
+    "Kaplamasız"
+   ],
+   "option1:Switch": [
+    "Ice Blade Switch",
+    "Lucid Blade Switch"
+   ],
+   "option1:Kesim Tipi": [
+    "Düz Kesim",
+    "Eldivenli"
+   ],
+   "option1:Yüzey": [
+    "Surge",
+    "Storm",
+    "Serenity"
+   ],
+   "option1:Set": [
+    "%60 Set",
+    "%100 Set"
+   ],
+   "option1:Dizilim": [
+    "ANSI"
+   ],
+   "option2:Renk": [
+    "Siyah",
+    "Beyaz",
+    "Pembe",
+    "Mor",
+    "Jet Black"
+   ],
+   "option2:Adet": [
+    "35 Adet",
+    "10 Adet",
+    "70 Adet"
+   ],
+   "option2:Tuş Takımı": [
+    "Jelly R2 - Smoke",
+    "Jelly R2 - Creamy White",
+    "Jelly R2 - Pink",
+    "İngilizce"
+   ],
+   "option2:Switch": [
+    "Candy Switch",
+    "Red Max",
+    "Brown Max",
+    "Cocoa Cream V2 Switch",
+    "Kailh Optical"
+   ],
+   "option2:Model": [
+    "3.5mm + Mikrofon",
+    "Type-C + Mikrofon",
+    "24-Pin",
+    "3x8 Pin",
+    "2x8 Pin"
+   ],
+   "option2:Boyut": [
+    "450x400mm",
+    "500 x 500 mm",
+    "490x420mm",
+    "480 x 430 mm",
+    "450 x 450 mm"
+   ],
+   "option2:Color": [
+    "Siyah",
+    "Beyaz"
+   ],
+   "option2:Desen": [
+    "Butterfly"
+   ],
+   "option2:Plate": [
+    "Karbon Fiber",
+    "Alüminyum"
+   ],
+   "option2:Beden": [
+    "L/XL",
+    "S/M"
+   ],
+   "option2:Legends": [
+    "Non Shine-Through",
+    "Shine-Through"
+   ],
+   "option2:Kablo Seçeneği ": [
+    "Type-C Kablo / 2 Adet"
+   ],
+   "option3:Kablo Seçeneği": [
+    "Type-C Kablo / 2 Adet"
+   ],
+   "option3:Model": [
+    "120mm",
+    "360mm"
+   ],
+   "option3:Renk": [
+    "Beyaz",
+    "Gümüş",
+    "Pembe"
+   ]
+  }
+ },
+ "for-fun": {
+  "host": "murat-cihan-kurtoglu.myshopify.com",
+  "myshopify": "murat-cihan-kurtoglu.myshopify.com",
+  "currency": "TRY",
+  "published": 831,
+  "products_seen": 200,
+  "variants_seen": 1098,
+  "only_title": 0,
+  "option_names_by_position": {
+   "1": {
+    "Beden": 198,
+    "Size": 2
+   },
+   "2": {
+    "Renk": 200
+   }
+  },
+  "multi_valued": {
+   "option1:Beden": 198,
+   "option2:Renk": 1,
+   "option1:Size": 2
+  },
+  "option_combos": [
+   [
+    [
+     "Beden",
+     "Renk"
+    ],
+    198
+   ],
+   [
+    [
+     "Size",
+     "Renk"
+    ],
+    2
+   ]
+  ],
+  "sample_values": {
+   "option1:Beden": [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL"
+   ],
+   "option1:Size": [
+    "XS",
+    "S",
+    "M",
+    "L",
+    "XL"
+   ],
+   "option2:Renk": [
+    "Beyaz",
+    "Siyah",
+    "Bej",
+    "Kırmızı",
+    "Pembe"
+   ]
+  }
+ }
+}
