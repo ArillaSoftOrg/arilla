@@ -133,6 +133,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "Hesap arama ve ayrıntısı.",
       },
       {
+        href: "/yonetim/mesajlar",
+        label: "Gelen kutusu",
+        capability: "messages.read",
+        description: "İletişim formu ve geri bildirim mesajları.",
+      },
+      {
         href: "/yonetim/denetim",
         label: "Denetim kaydı",
         capability: "audit.read",

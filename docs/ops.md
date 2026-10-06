@@ -15,6 +15,29 @@ desteklemiyor; feed toplama saatler sürebilir. Python worker için ayrı bir
 barındırma gerekir (küçük bir VPS yeterli). "Başta Vercel" ilk günden iki ortam
 demektir.
 
+### Link worker
+
+`queue:link_resolution` tüketicisi (`python -m collect.link --worker`), Docker
+ile paketlenir: `services/ingest/Dockerfile` (Python 3.12, bağımlılıklar
+`pyproject.toml`'dan) ve `infra/docker-compose.worker.yml`. Compose dosyası
+yerel geliştirme için DEĞİLDİR (yerelde worker doğrudan çalıştırılır).
+
+```bash
+docker compose -f infra/docker-compose.worker.yml up -d --build
+```
+
+- Gizli değerler `infra/.env.worker`'dan okunur; dosya depoya girmez
+  (`.gitignore`: `.env.*`). Adlar: `DATABASE_URL`, `REDIS_URL`,
+  `JINA_API_KEY`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS` (isteğe bağlı:
+  `JINA_TOKENS_PER_MINUTE`).
+- **Kopan Postgres bağlantısı:** worker tek bağlantıyla çalışır; bağlantı
+  koparsa süreç `1` ile çıkar, `restart: unless-stopped` yeniden başlatır ve
+  yeni bağlantı kurulur. Yarım kalan istek web tarafında ölü sayılır
+  (`packages/core/src/discovery/link-resolution.ts`).
+- **SIGTERM** (`docker stop`, compose `stop`): süreç `0` ile temiz çıkar; açık
+  işlem geri alınır, bağlantı kapanır. `stop_grace_period: 30s`.
+- Geçici Redis hataları süreci düşürmez; worker bekleyip yeniden dener.
+
 ## Sağlayıcı bağımsızlığı
 
 Vercel'e özgü hiçbir hizmete kilitlenilmez. Taşınabilir muadiller kullanılır:
@@ -301,11 +324,43 @@ Ertelenmez: süresi geçmiş kişisel veri tutmak aydınlatma metnine aykırıd�
 Analitik rızası geri alındığında kullanıcının olaylarının silinmesi cron'a
 bırakılmaz; rıza satırıyla aynı işlemde yapılır (0049 §8).
 
-## Sorgu yorumlama (Gemini, çevrimdışı) — üretimde KAPALI
+## Sorgu yorumlama (Gemini, çevrimdışı) — hukuken onaylı, anahtar eklenince etkin
+
+**Durum:** kod, 0044 ve 0046 üretimde. Hukuk danışmanı üretimde etkinleştirmeyi
+onayladı (m.5/2-f; KVKK m.9 aktarım sözleşmesi imzalandı). `GEMINI_API_KEY`
+Vercel'e eklenene kadar Google'a hiçbir metin gitmez (günlük cron koşar ama atlanır).
+Anahtar, `/gizlilik` ve `/kvkk-aydinlatma` güncel metinle (6 Ekim 2026)
+yayına alındıktan ve docs/kvkk.md "Etkinleştirme kontrol listesi"ndeki açık
+kalemler teyit edildikten sonra eklenir. `store: false` aktarımı ya da işlemeyi kaldırmaz;
+Google kötüye kullanım tespiti için sınırlı süre kayıt tutabilir.
+
+**Etkinleştirme sırası (birleştirme sonrası):**
+1. 6 Ekim 2026 tarihli güncel metin üretimde
+   (`/gizlilik`, `/kvkk-aydinlatma`) görülür. İşlemeden ÖNCE.
+2. Google projesinde bütçe uyarısı ve kota tanımlanır.
+3. Yetki denetimi SQL'i (aşağıda) yeniden çalıştırılır.
+4. Vercel Production'a `GEMINI_API_KEY` (hassas, yalnızca Production) eklenir
+   ve yeniden dağıtılır; tek başına hiçbir şey tetiklemez.
+5. Toplu iş bir kez elle tetiklenir; `job_run`, `api_usage` (en fazla 40),
+   `query_interpretation` ve `/yonetim/arama/tani` ("Saklanmış model yorumu")
+   kontrol edilir.
+6. Birkaç gün elle izleme; zamanlama ayrı bir PR/karardır.
+Geri alma: anahtar Vercel'den kaldırılır (toplu iş atlanır); mevcut yorumlar
+en fazla 90 günde silinir.
 
 Karar 0059. Uç: `GET /api/cron/interpret-queries`, `Authorization: Bearer
-${CRON_SECRET}`. **Zamanlanmış değil**: `vercel.json`'da ya da GitHub
-Actions'ta yok; yalnızca elle çağrılır. `/ara` bu ucu çağırmaz.
+${CRON_SECRET}`. **Günlük Vercel cron:** `apps/web/vercel.json`,
+`30 0 * * *` (00:30 UTC, Türkiye saatiyle yaklaşık 03:30). Vercel, proje
+ortamında `CRON_SECRET` tanımlıyken isteğe `Authorization: Bearer
+${CRON_SECRET}` başlığını kendisi ekler; uç diğer cron'larla aynı kontrolü
+kullanır. Plan Hobby ise Vercel günlük cron'u belirtilen saat içinde
+herhangi bir dakikada çalıştırabilir. Koşu başına en fazla 20 sorgu, gün
+başına en fazla 100 sağlayıcı denemesi (Europe/Istanbul günü) değişmedi; elle
+tetikleme de aynı günlük tavana sayılır. Yanıttaki `providerCallsToday` bu
+koşunun denemeleri DAHİL günün toplamıdır. Gecikme: `/yonetim/islemler`
+`query_interpretation` için 30 saat (diğer günlük cron'larla aynı).
+Durdurma: girişi `vercel.json`'dan kaldırıp dağıtmak ya da anahtarı
+kaldırmak (koşu atlanır). `/ara` bu ucu çağırmaz.
 
 **`/ara` okuma yolu ve dağıtım sırası.** `/ara`, deterministik netleştirme
 ilk turda domain bulamadığında `query_interpretation`'dan (normalize sorgu +
@@ -324,15 +379,47 @@ domain'siz `/ara` isteği bir hata satırı loglar. Okuma yolu için
 üretilmez, `/ara` yalnızca tabloda zaten olan (bugün: hiç) satırları kullanır.
 
 - `GEMINI_API_KEY` yoksa sağlayıcı çağrılmaz; yanıt `status: "skipped"`,
-  `skippedReason: "missing_api_key"`. Üretimde anahtar KVKK onayı ve ücretli
-  katman anahtarı olmadan tanımlanmaz (docs/kvkk.md "Planlanan: sorgu
-  yorumlama").
+  `skippedReason: "missing_api_key"`. Üretimde anahtar yukarıdaki kontrol
+  listesi tamamlanmadan tanımlanmaz.
 - Koşu başına en fazla 20 sorgu; 35 sn'den sonra yeni sorguya başlanmaz.
   İstemci 10 sn zaman aşımı, en fazla 2 deneme. Aynı anda ikinci koşu
   (`already_running`) atlanır.
-- Aday: `search_query_day` son 30 gün, en az 3 arama, kişisel veri/kimlik/sır
-  süzgecinden geçmiş, deterministik netleştirmenin domain bulamadığı normalize
-  sorgu. Kullanıcı/oturum verisi okunmaz.
+- **Günlük maliyet tavanı:** Europe/Istanbul günü başına en fazla 100 sağlayıcı
+  HTTP denemesi (`QUERY_INTERPRETATION_DAILY_CALL_CAP`, yeniden denemeler
+  dahil; elle tekrarlanan koşuların toplamı). Sayım `api_usage`'tan
+  (`operation = 'query_interpretation'`), migration yok. Tavan doluysa koşu
+  `skipped` / `daily_cap`; koşu ortasında dolarsa `stopCode = daily_cap`, kalan
+  sorgular ertelenir. Google projesindeki bütçe/kota sınırı ayrıca önerilir.
+- **Bağlantı dumanı (yalnızca sabit sentetik sorgu):** `GEMINI_SMOKE=1 pnpm
+  gemini:smoke`. Gerçek `GeminiClient` ile tam bir HTTP denemesi; veritabanına
+  dokunmaz, `search_query_day` ya da kullanıcı sorgusu okumaz, dışarıdan metin
+  almaz (argüman verilirse reddeder), `api_usage`'a yazmaz (günlük tavana
+  sayılmaz). Üretim ortamı işaretliyse (`VERCEL_ENV`/`NODE_ENV=production`)
+  ayrıca `GEMINI_SMOKE_ALLOW_PRODUCTION=1` ister. Çıktı yalnızca durum ve token
+  sayısıdır. Çıkış kodu 0/1/2 (geçti/başarısız/reddedildi).
+- `/yonetim/arama/tani` "Yorum kaynağı" satırı: kural sözlüğü (deterministik),
+  saklanmış model yorumu ya da yok - `/ara` ile aynı salt okunur yol.
+- Aday: `search_query_day` son 30 gün, en az 3 arama VE en az 3 farklı gün,
+  kişisel veri/kimlik/sır ve özel nitelikli veri bağlamı süzgecinden geçmiş,
+  deterministik netleştirmenin domain bulamadığı normalize sorgu.
+  Kullanıcı/oturum verisi okunmaz. Gönderilen metin anonim değildir:
+  süzgeçler riski azaltır, garanti etmez; 3 farklı gün 3 farklı kişi demek
+  değildir.
+- Saklama: `query_interpretation` 90 gün (`created_at`). Günlük `cleanup-auth`
+  cron'u siler; adım diğer saklama işlerinden yalıtılmıştır (tablo yoksa ya da
+  `arilla_app`'in DELETE yetkisi yoksa diğer temizlik sürer, koşu `partial`,
+  `detail.queryInterpretations_failed` SQL kodunu taşır).
+- **Etkinleştirme ön koşulu (salt okunur, şimdi değil):** üretim çalışma
+  rolünün okuma ve 90 günlük temizlik yetkisi doğrulanır; hiçbir yetki bu
+  adımda verilmez ya da geri alınmaz, eksikse ayrı ve onaylı bir adımda
+  düzeltilir:
+  ```sql
+  SELECT
+    has_table_privilege('arilla_app', 'public.query_interpretation', 'SELECT') AS can_select,
+    has_table_privilege('arilla_app', 'public.query_interpretation', 'DELETE') AS can_delete;
+  ```
+  İkisi de `true` olmalı (toplu iş ayrıca INSERT ister:
+  `has_table_privilege('arilla_app', 'public.query_interpretation', 'INSERT')`).
 - Sonuç `query_interpretation`'a yazılır (`accepted` / `empty` / `invalid`);
   sağlayıcı hatası satır yazmaz, sonraki koşu yeniden dener. 401/403/4xx ya da
   429'da koşu durur (`stopCode`).

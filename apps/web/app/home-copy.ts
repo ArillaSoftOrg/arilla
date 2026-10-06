@@ -62,12 +62,9 @@ export const HOME_COPY = {
   navCompany: "Şirket Bilgileri", // nav.company
   navCookiePreferences: "Çerez Tercihleri", // nav.cookie_preferences
   navContact: "İletişim", // nav.contact
+  navFaq: "Sıkça sorulan sorular", // nav.faq
   affiliateNoticeLink: "Affiliate açıklaması", // legal.affiliate_notice_link
   skipToContent: "İçeriğe geç", // nav.skip_to_content
-  contactTitle: "İletişim", // contact.title
-  contactDescription:
-    "Arilla ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz.", // contact.description
-  contactEmailLabel: "E-posta", // contact.email_label
   privacyContactPrefix: "Verilerinle ilgili soruların için", // privacy.contact_prefix
   privacyContactSuffix: "adresine yazabilirsin.", // privacy.contact_suffix
   navTrends: "Trendler", // nav.trends

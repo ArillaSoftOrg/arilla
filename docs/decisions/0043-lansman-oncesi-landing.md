@@ -91,4 +91,6 @@ davranış kendiliğinden döner.
   bu kararda yapılmadı (bkz. görev raporu).
 - Analitik gönderici yok; `docs/events.md`'ye huni olayları sonra eklenebilir.
 - Yasal sayfalar `LEGAL_IDENTITY.brandName` ("Arilla") ile konuşuyor; yasal
-  kimlik ayrı bir karar.
+  kimlik ayrı bir karar. **Güncelleme (6 Ekim 2026):** yasal sayfalar ve
+  `LEGAL_IDENTITY.brandName` da "ManiCepte" kullanır; tescilli unvan
+  (`legalEntityName`) ayrı alan olarak kalır.

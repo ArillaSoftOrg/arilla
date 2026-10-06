@@ -26,6 +26,8 @@ const ADMIN_ONLY: Capability[] = [
   "product.preview",
   "marketing.manage",
   "forms.manage",
+  // Karar 0061: gelen kutusu ad ve e-posta icerir.
+  "messages.read",
   // Karar 0049: moderatör kullanıcı aktivitesini ve tam iletişim bilgisini göremez.
   "users.activity.read",
   "users.contact.reveal",

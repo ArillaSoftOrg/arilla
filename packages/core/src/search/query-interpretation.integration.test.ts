@@ -8,6 +8,7 @@
  * sayisiyla yazilir ki yerel veritabanindaki baska sorgulardan once secilsin.
  */
 import type { Database } from "@arilla/db";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "../clarification/rules.ts";
 import type { ClarificationRegistry } from "../clarification/types.ts";
@@ -16,10 +17,15 @@ import { LlmError } from "../llm/client.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { interpreterContractHash } from "./interpretation-identity.ts";
 import {
+  providerCallsToday,
+  purgeExpiredQueryInterpretations,
+  QUERY_INTERPRETATION_DAILY_CALL_CAP,
   QUERY_INTERPRETATION_JOB,
   QUERY_INTERPRETATION_OPERATION,
+  QUERY_INTERPRETATION_RETENTION_DAYS,
   runQueryInterpretationBatch,
   runQueryInterpretationJob,
+  selectInterpretationCandidates,
 } from "./query-interpretation.ts";
 
 const S = Date.now().toString(36);
@@ -32,6 +38,10 @@ const Q_EMAIL = `qi${S} ali@ornek.com`;
 const Q_SECRET = `qi${S} password=hunter2`;
 const Q_RARE = `qi${S} nadiren`;
 const Q_DOMAIN = `kask qi${S}`;
+/** Tek gunde cok arama: tek kisi tekrari gibi; farkli gun esigi nedeniyle hic secilmez. */
+const Q_ONE_DAY = `qi${S} tekgun`;
+/** Ozel nitelikli veri baglami (saglik): uygunluk suzgeci eler. */
+const Q_SENSITIVE = `qi${S} seker hastasi icin corap`;
 const OURS = [Q_ACCEPT, Q_INVALID, Q_PROVIDER];
 
 /** Taksonomi varyanti: bu kosuya ozel ozet; gercek ozetle karismaz. */
@@ -145,21 +155,26 @@ describe("query_interpretation - entegrasyon", () => {
     db = getTestDb();
     jobCursor = await lastJobRunId();
     await withOwnerClient(async (c) => {
-      const rows: [string, number][] = [
-        [Q_EMAIL, 99_990],
-        [Q_SECRET, 99_980],
-        [Q_DOMAIN, 99_970],
-        [Q_ACCEPT, 99_960],
-        [Q_INVALID, 99_950],
-        [Q_PROVIDER, 99_940],
-        [Q_RARE, 2],
+      // [sorgu, gun basina arama, farkli gun sayisi]
+      const rows: [string, number, number][] = [
+        [Q_ONE_DAY, 999_999, 1],
+        [Q_EMAIL, 33_330, 3],
+        [Q_SECRET, 33_327, 3],
+        [Q_SENSITIVE, 33_325, 3],
+        [Q_DOMAIN, 33_323, 3],
+        [Q_ACCEPT, 33_320, 3],
+        [Q_INVALID, 33_317, 3],
+        [Q_PROVIDER, 33_313, 3],
+        [Q_RARE, 1, 2],
       ];
-      for (const [q, n] of rows) {
-        await c.query(
-          `INSERT INTO search_query_day (day, query_norm, searches)
-           VALUES ((now() AT TIME ZONE 'Europe/Istanbul')::date, $1, $2)`,
-          [q, n],
-        );
+      for (const [q, n, days] of rows) {
+        for (let back = 0; back < days; back++) {
+          await c.query(
+            `INSERT INTO search_query_day (day, query_norm, searches)
+             VALUES ((now() AT TIME ZONE 'Europe/Istanbul')::date - $3::int, $1, $2)`,
+            [q, n, back],
+          );
+        }
       }
     });
   });
@@ -194,7 +209,7 @@ describe("query_interpretation - entegrasyon", () => {
       providerErrors: 1,
       providerCalls: 4,
     });
-    expect(result.ineligible).toBeGreaterThanOrEqual(2);
+    expect(result.ineligible).toBeGreaterThanOrEqual(3);
     expect(result.deterministic).toBeGreaterThanOrEqual(1);
 
     const hash = interpreterContractHash(REGISTRY);
@@ -232,7 +247,24 @@ describe("query_interpretation - entegrasyon", () => {
     }
     // Uygunsuz, deterministik ve esik alti sorgular modele HIC gitmedi.
     const sent = (inputs as { query: string }[]).map((i) => i.query);
-    for (const q of [Q_EMAIL, Q_SECRET, Q_DOMAIN, Q_RARE]) expect(sent).not.toContain(q);
+    for (const q of [Q_EMAIL, Q_SECRET, Q_SENSITIVE, Q_DOMAIN, Q_RARE, Q_ONE_DAY]) {
+      expect(sent).not.toContain(q);
+    }
+  });
+
+  it("farkli gun esigi SQL'de uygulanir: tek gunluk yogun sorgu aday bile olmaz", async () => {
+    const selection = await selectInterpretationCandidates(db, {
+      taxonomyHash: interpreterContractHash(registryVariant(`qi-sel-${S}`)),
+      modelVersion: `${MODEL}-sel`,
+      registry: REGISTRY,
+      lexicon: [],
+      limit: 20,
+      now: new Date(),
+    });
+    expect(selection.candidates).not.toContain(Q_ONE_DAY);
+    expect(selection.candidates).not.toContain(Q_RARE);
+    expect(selection.candidates).not.toContain(Q_SENSITIVE);
+    expect(selection.candidates).toEqual(expect.arrayContaining([Q_ACCEPT, Q_INVALID, Q_PROVIDER]));
   });
 
   it("her gercek saglayici cagrisi icin tam bir api_usage satiri; kimlik NULL, sorgu metni yok", async () => {
@@ -333,6 +365,65 @@ describe("query_interpretation - entegrasyon", () => {
     expect((await usageRows(MODEL)).length).toBe(before);
   });
 
+  describe("gunluk saglayici deneme tavani", () => {
+    it("tavan 100; bugunku sayim yalnizca yorum denemelerini sayar", async () => {
+      expect(QUERY_INTERPRETATION_DAILY_CALL_CAP).toBe(100);
+      const before = await providerCallsToday(db, new Date());
+      expect(before).toBeGreaterThanOrEqual(0);
+    });
+
+    it("tavan dolmussa saglayici cagrilmadan atlanir (skipped/daily_cap)", async () => {
+      const used = await providerCallsToday(db, new Date());
+      const { client, inputs } = fakeClient(MODEL);
+      const result = await runQueryInterpretationBatch(db, client, {
+        registry: registryVariant(`qi-cap1-${S}`),
+        dailyCallCap: used + 1,
+      });
+      expect(result).toMatchObject({
+        status: "skipped",
+        skippedReason: "daily_cap",
+        attempted: 0,
+        providerCalls: 0,
+        providerCallsToday: used,
+      });
+      expect(inputs).toHaveLength(0);
+    });
+
+    it("tavan bir sorguya yetiyorsa bir sorgu islenir, kalan ertelenir (stop=daily_cap)", async () => {
+      const used = await providerCallsToday(db, new Date());
+      const { client, inputs } = fakeClient(MODEL);
+      const registry = registryVariant(`qi-cap2-${S}`);
+      const result = await runQueryInterpretationBatch(db, client, {
+        registry,
+        dailyCallCap: used + 2,
+      });
+      expect(result.attempted).toBe(1);
+      expect(result.stopCode).toBe("daily_cap");
+      expect(result.deferred).toBeGreaterThanOrEqual(1);
+      expect(inputs).toHaveLength(1);
+      expect(await providerCallsToday(db, new Date())).toBe(used + result.providerCalls);
+      // Yanit alani bu kosunun denemelerini de icerir (kosu oncesi sayim degil).
+      expect(result.providerCalls).toBeGreaterThan(0);
+      expect(result.providerCallsToday).toBe(used + result.providerCalls);
+      await withOwnerClient(async (c) => {
+        await c.query("DELETE FROM query_interpretation WHERE taxonomy_hash = $1", [
+          interpreterContractHash(registry),
+        ]);
+      });
+    });
+
+    it("tavan yukseltilemez: istenen deger 100 ile sinirlanir", async () => {
+      const used = await providerCallsToday(db, new Date());
+      const { client } = fakeClient(MODEL);
+      const result = await runQueryInterpretationBatch(db, client, {
+        registry: registryVariant(`qi-cap3-${S}`),
+        dailyCallCap: 1_000_000,
+        maxQueries: 0,
+      });
+      expect(result.status).toBe(used + 2 > 100 ? "skipped" : "success");
+    });
+  });
+
   describe("job_run", () => {
     it("partial / failed / success / skipped; ayrinti yalnizca sayi ve sabit kod", async () => {
       const since = await lastJobRunId();
@@ -416,5 +507,99 @@ describe("query_interpretation - entegrasyon", () => {
         skippedReason: "already_running",
       });
     });
+  });
+});
+
+describe("query_interpretation saklama (90 gun)", () => {
+  let db: Database;
+  const R = `qr${S}`;
+  const RET_MODEL = `fake-ret-${S}`;
+  const DAY = 24 * 60 * 60 * 1000;
+
+  async function rows() {
+    return withOwnerClient(async (c) => {
+      const r = await c.query(
+        "SELECT query_norm FROM query_interpretation WHERE model_version = $1 ORDER BY query_norm",
+        [RET_MODEL],
+      );
+      return r.rows.map((row: { query_norm: string }) => row.query_norm);
+    });
+  }
+
+  beforeAll(async () => {
+    db = getTestDb();
+    await withOwnerClient(async (c) => {
+      const insert = (q: string, ageDays: number) =>
+        c.query(
+          `INSERT INTO query_interpretation
+             (query_norm, taxonomy_hash, model_version, status, created_at)
+           VALUES ($1, $2, $3, 'empty', now() - make_interval(days => $4))`,
+          [q, "a".repeat(64), RET_MODEL, ageDays],
+        );
+      await insert(`${R} eski`, QUERY_INTERPRETATION_RETENTION_DAYS + 5);
+      await insert(`${R} sinirda`, QUERY_INTERPRETATION_RETENTION_DAYS - 1);
+      await insert(`${R} yeni`, 1);
+      await c.query(
+        `INSERT INTO search_query_day (day, query_norm, searches)
+         VALUES ((now() AT TIME ZONE 'Europe/Istanbul')::date - 100, $1, 5)`,
+        [`${R} kaynak`],
+      );
+    });
+  });
+
+  afterAll(async () => {
+    await withOwnerClient(async (c) => {
+      await c.query("DELETE FROM query_interpretation WHERE model_version = $1", [RET_MODEL]);
+      await c.query("DELETE FROM search_query_day WHERE query_norm LIKE $1", [`${R} %`]);
+    });
+  });
+
+  it("yalnizca suresi dolmus yorum silinir; diger yorumlar ve arama verisi kalir", async () => {
+    expect(QUERY_INTERPRETATION_RETENTION_DAYS).toBe(90);
+    await purgeExpiredQueryInterpretations(db, new Date());
+    expect(await rows()).toEqual([`${R} sinirda`, `${R} yeni`].sort());
+    const source = await withOwnerClient((c) =>
+      c.query("SELECT count(*)::int AS n FROM search_query_day WHERE query_norm = $1", [
+        `${R} kaynak`,
+      ]),
+    );
+    expect(source.rows[0].n).toBe(1);
+  });
+
+  it("deterministik: ayni 'simdi' ile ikinci kosu bir sey silmez; zaman ilerleyince siradaki silinir", async () => {
+    await purgeExpiredQueryInterpretations(db, new Date());
+    expect(await rows()).toEqual([`${R} sinirda`, `${R} yeni`].sort());
+    await purgeExpiredQueryInterpretations(db, new Date(Date.now() + 2 * DAY));
+    expect(await rows()).toEqual([`${R} yeni`]);
+  });
+});
+
+describe("en az yetki (0046) - uygulama rolu", () => {
+  /** WHERE false: satira dokunmaz, yetki yine de denetlenir. Hata kodu ya da null. */
+  async function sqlState(statement: string): Promise<string | null> {
+    const db = getTestDb();
+    try {
+      await db.execute(sql.raw(statement));
+      return null;
+    } catch (error) {
+      const e = error as { code?: string; cause?: { code?: string } };
+      return e.cause?.code ?? e.code ?? "error";
+    } finally {
+      await db.$client.end();
+    }
+  }
+
+  it("api_usage silinemez; query_interpretation guncellenemez (42501)", async () => {
+    expect(await sqlState("DELETE FROM api_usage WHERE false")).toBe("42501");
+    expect(await sqlState("UPDATE query_interpretation SET status = status WHERE false")).toBe(
+      "42501",
+    );
+  });
+
+  it("korunan yetkiler: hesap silme UPDATE'i ve 90 gunluk saklama DELETE'i calisir", async () => {
+    expect(await sqlState("UPDATE api_usage SET user_id = user_id WHERE false")).toBeNull();
+    expect(await sqlState("DELETE FROM query_interpretation WHERE false")).toBeNull();
+    expect(await sqlState("SELECT count(*) FROM api_usage WHERE false")).toBeNull();
+    expect(await sqlState("SELECT 1 FROM query_interpretation WHERE false")).toBeNull();
   });
 });

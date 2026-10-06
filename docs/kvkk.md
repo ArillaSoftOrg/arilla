@@ -31,7 +31,7 @@ edilmeli.
 | Hesap özeti, son aktif zamanı (0049, 0036/0037) | `user_activity_summary` | Sözleşmenin ifası / meşru menfaat | Hesap silinene kadar; analitik sayaçları rıza geri alınınca NULL |
 | Çerez rızası ve aydınlatma sürümü (girişli) (0049, 0036/0037) | `user_consent` | Açık rıza (çerez); aydınlatma rıza değildir | Hesap silinene kadar (ispat) |
 | Davranışsal analitik (0049, 0036/0037) | `user_activity_event` | **Açık rıza** (analitik) | 180 gün; `query_norm` 90 gün; rıza geri alınınca silinir |
-| Arama kalitesi günlük özeti (0052, 0054) | `search_query_day` | Meşru menfaat (hizmet kalitesi); **anonim**: kullanıcı, oturum, IP yok; e-posta, telefon, adres, URL, 7+ haneli rakam içeren sorgu yazılmaz | 90 gün |
+| Arama kalitesi günlük özeti (0052, 0054) | `search_query_day` | Meşru menfaat (hizmet kalitesi); **kullanıcı, oturum veya cihaz tanımlayıcısı içermeyen toplulaştırılmış arama verisi** (kullanıcı, oturum, IP yok; anonim olduğu garanti edilmez); e-posta, telefon, adres, URL, 7+ haneli rakam içeren sorgu yazılmaz | 90 gün |
 
 0049 satırlarının tabloları migration 0036/0037 ile şemadadır. Production'a
 bu migration'lar uygulanmadan önce aydınlatma metninin bu satırları
@@ -182,25 +182,89 @@ Bu, aktarımı ortadan kaldırmaz; standart sözleşme hükümleri ve aydınlatm
 metnindeki açık beyan yine gerekli. Yalnızca aktarımın gittiği yeri
 denetlenebilir bir hukuki çerçeveye taşır.
 
-### Planlanan: sorgu yorumlama (Google Gemini) — üretimde ETKİN DEĞİL
+### Sorgu yorumlama (Google Gemini) — hukuken onaylı; üretimde anahtar eklenince etkin
 
-Karar 0059 ile kod hazırlandı, **üretimde çalışmıyor**: `GEMINI_API_KEY`
-üretimde tanımlı değil ve tanımlanmadan önce aşağıdaki onaylar gerekir.
+Karar 0059. Hukuki onay alınmıştır; teknik etkinleştirme `GEMINI_API_KEY`'in
+üretime (Vercel) bilinçli olarak eklenmesiyle olur. Anahtar eklenene kadar
+Google'a hiçbir arama metni gönderilmez. Toplu iş günde bir kez (Vercel cron,
+00:30 UTC) çalışır; koşu başına ve gün başına tavanlar `docs/ops.md`'de. Sıra: `docs/ops.md`
+"Etkinleştirme sırası".
 
-Planlanan veri akışı: çevrimdışı toplu iş, `search_query_day`'deki kimliksiz
-toplu sorgu özetinden son 30 günde en az 3 kez aranmış normalize sorgu
-metnini Google'ın Gemini API'sine (ABD merkezli sağlayıcı) gönderir. Kullanıcı,
-oturum, IP ya da `user_activity_event` kaydı **gönderilmez**. E-posta, telefon,
-adres, URL, uzun rakam dizisi, kimlik numarası benzeri ya da anahtar/şifre
-benzeri içeren sorgu süzgeçte elenir. İstek `store: false` ile gider (Google
-etkileşimi saklamaz); dönen yorum yalnızca taksonomi kimlikleri olarak
-`query_interpretation`'a yazılır, ham yanıt saklanmaz.
+**Hukuki karar kaydı** (sözleşme metni ve gizli koşullar burada tutulmaz):
+- Hukuk danışmanı üretimde etkinleştirmeyi **onayladı**.
+- Hukuki sebep: **KVKK m.5/2-f (meşru menfaat)**; değerlendirme:
+  `docs/legal-review/gemini-mesru-menfaat-degerlendirmesi.md`.
+- KVKK m.9 kapsamında gerekli aktarım sözleşmesi Google ile **imzalandı**.
+- Sözleşme tarafı Google tüzel kişisi, imza tarihi ve onaylayan kişi hukuki /
+  sözleşme kaydında tutulur; bu depoda yer almaz. Kamuya açık metinler
+  sağlayıcıyı "Google (Gemini API)" olarak anar.
+- Kurum'a bildirim: tamamlandığına dair bu depoda kayıt **yoktur**; durum
+  hukuki kayıtta izlenir (bkz. kontrol listesi).
 
-Üretimde etkinleştirmeden önce:
-- [ ] Google ile veri işleme sözleşmesi / standart sözleşme hükümleri
-- [ ] Aydınlatma metninde sorgu metninin bu amaçla yurt dışına aktarımının beyanı
-- [ ] Ücretli katman anahtarı (ücretsiz katmanda içerik ürün geliştirmede kullanılabilir)
-- [ ] Açık onay; ardından ayrı bir etkinleştirme adımı (karar 0059 madde 8)
+**Veri akışı.** Çevrimdışı toplu iş,
+`search_query_day`'deki toplu günlük özetten (kullanıcı, oturum veya cihaz
+tanımlayıcısı içermez) son 30 günde **en az 3 kez ve en az 3 farklı günde**
+aranmış normalize edilmiş arama ifadelerini Gemini API'ye (Paid Services)
+gönderir. Kullanıcı, oturum, IP ya da `user_activity_event` kaydı
+gönderilmez. **Gönderilen metin anonim değildir; anonimlik garanti
+edilmez:** kullanıcının yazdığı serbest metin kendi başına bir kişiyi
+belirleyebilecek bilgi içerebilir. Deterministik süzgeç şunları içeren sorguyu eler: e-posta,
+telefon, adres, URL, uzun rakam/kimlik numarası benzeri, anahtar/şifre
+benzeri ve özel nitelikli veri bağlamı (sağlık, gebelik, engellilik /
+inkontinans, din/mezhep kimliği, siyasi bağlılık, cinsel hayat/yönelim,
+genetik/biyometrik, ceza mahkûmiyeti, sendika). Süzgeç küçük bir kök
+listesidir (`packages/core/src/search/interpretation-eligibility.ts`):
+yanlış pozitif bilerek kabul edilir, **yanlış negatif mümkündür** (dolaylı
+anlatım, yazım hatası; ırk/etnik köken listede yoktur). Süzgeçler riski
+azaltır, **tüm kişisel veya özel nitelikli verinin ayıklandığını garanti
+edemez**: dolaylı anlatım, yazım hataları ve listede olmayan hassas terimler
+süzgeçten geçebilir. **3 farklı gün bir tekrar sinyalidir, 3 farklı kişi
+olduğunun kanıtı değildir**: aynı kişi üç farklı günde ararsa eşik yine aşılır.
+
+**Saklama.** Dönen yorum yalnızca taksonomi kimlikleri olarak
+`query_interpretation`'a yazılır, ham yanıt saklanmaz; satırlar `created_at`'ten
+itibaren **90 gün** tutulur ve günlük temizlik cron'u (`cleanup-auth`) siler.
+
+**`store: false` ne yapar, ne yapmaz.** Interactions API'nin etkileşim durumu
+saklamasını kapatır (Google'ın belgesine göre varsayılan açıktır; ücretli
+katmanda 55 gün). **İşlemeyi ya da Google'a aktarımı ortadan kaldırmaz.**
+Gemini API Paid Services koşullarına göre Google istem ve yanıtları ürünlerini
+geliştirmek için kullanmaz, ancak Yasaklı Kullanım Politikası ihlallerini
+tespit etmek amacıyla **sınırlı bir süre kayıt tutar** (süre belirtilmemiştir);
+veriler Google'ın tesislerinin bulunduğu ülkelerde geçici olarak işlenebilir.
+Paid Services, Google'ın "Data Processing Addendum for Products Where Google
+is a Data Processor" kapsamındadır. Bu DPA'nın aktarım araçları AB/BK/İsviçre
+SCC'leri ve benzerleridir; **KVKK standart sözleşmesi değildir ve tek başına
+KVKK m.9'u karşıladığı varsayılmaz.** Aktarım, ayrıca imzalanan KVKK m.9
+aktarım sözleşmesine dayanır.
+
+#### Etkinleştirme kontrol listesi
+
+- [x] Hukuk danışmanı üretimde etkinleştirmeyi onayladı (onay kaydı hukuki kayıtta)
+- [x] KVKK kapsamında işleme şartı: m.5/2-f meşru menfaat
+      (LIA: `docs/legal-review/gemini-mesru-menfaat-degerlendirmesi.md`)
+- [x] KVKK m.9 aktarım sözleşmesi Google ile imzalandı (sözleşme tarafı ve tarih
+      hukuki / sözleşme kaydında)
+- [x] Üretim çalışma rolünün (`arilla_app`) yetkileri SALT OKUNUR sorguyla doğrulandı
+      (gerekli SELECT/INSERT/DELETE var; 0046 sonrası `api_usage` DELETE ve
+      `query_interpretation` UPDATE yok)
+- [ ] Gizlilik politikası ve KVKK aydınlatma metni üretimde yayında (metin bu
+      dalda hazır; birleştirme ve dağıtımla tamamlanır, anahtardan ÖNCE)
+- [ ] Kurum'a gerekli bildirimin yapıldığı hukuki kayıttan teyit edildi (depoda
+      kanıt yok; teyit edilmeden işaretlenmez)
+- [ ] VERBİS etkisi (alıcı grubu, yurt dışı aktarım) hukuki kayıttan teyit edildi
+- [ ] Google projesinde bütçe uyarısı ve kota tanımlandı
+
+Açık rızanın tekrarlayan bir aktarım için yeterli olduğu varsayılmaz.
+
+#### Kamuya açık metin
+
+Metin doğrudan sayfalarda tutulur (taslak kopyası burada tutulmaz, ayrışmasın):
+`/gizlilik` §2.2 (yapay zekâ destekli kategori yorumu), §3 (amaç), §4 (m.5/2-f),
+§5 (alıcı), §6 (m.9 aktarım), §8 (90 gün); `/kvkk-aydinlatma` §3, §4, §5.
+Sağlayıcı "Google (Gemini API)" olarak anılır; iki sayfanın güncelleme tarihi
+`PRIVACY_NOTICE_UPDATED_LABEL` (`apps/web/app/legal-identity-block.tsx`,
+6 Ekim 2026).
 
 ## Ticari elektronik ileti (İYS)
 
@@ -290,6 +354,16 @@ bölümü ve yukarıdaki kutucuklar tüzel kişi kurulana kadar açık kalır.
 SHA-256 özetiyle 10 dakika tutulur. `/gizlilik` 2.4 ve `/kvkk-aydinlatma`
 "Talep/şikâyet" maddesi bu akışı kapsar. Anonim gönderimler için somut
 saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).
+
+**İletişim formu notu (0061):** `/iletisim` aynı `feedback` tablosuna
+(`kind = 'contact'`) ad, e-posta (zorunlu), konu, başlık ve mesaj yazar.
+Girişli gönderim yalnızca sunucu oturumundan `user_id` ile bağlanır; hesap
+silme, veri indirme ve oran sınırı geri bildirimle aynıdır (ortak kota).
+Mesajlar yalnızca `messages.read` (yönetici) ile `/yonetim/mesajlar`'da
+okunur, her görüntüleme denetime yazılır. `/gizlilik` 2.4 ve
+`/kvkk-aydinlatma` "Talep/şikâyet" maddesi bu akışı kapsar. Anonim
+gönderimlerin saklama süresi geri bildirimdeki açık kalemle aynıdır: henüz
+tanımlı değil.
 
 **Anket / form notu (0058):** `/anket/<slug>` formları seçenek ve metin
 cevabı toplar. Girişli yanıt `user_id` ile hesaba bağlanır (hesap silinince

@@ -1,5 +1,5 @@
 /**
- * Medya obje anahtari sozlesmesi (docs/decisions/0061). Saf, bagimliliksiz:
+ * Medya obje anahtari sozlesmesi (docs/decisions/0062). Saf, bagimliliksiz:
  * hem sunucu hem istemci tarafi guvenle import edebilir.
  *
  * Anahtar bicimi: `<namespace>/[<scope>/]<sha256 ilk 32 hex>.<uzanti>`.

@@ -118,6 +118,7 @@ function legalFooterGroup(): FooterGroup {
         render: ({ className, children }) =>
           createElement(CookiePreferencesLink, { className, children }),
       },
+      { label: HOME_COPY.navFaq, href: "/sss" },
       { label: HOME_COPY.navContact, href: "/iletisim" },
       { label: FEEDBACK_COPY.navLabel, href: "/geri-bildirim" },
     ],

@@ -15,8 +15,8 @@ export const PRIVACY_CONTACT_EMAIL: string = LEGAL_IDENTITY.privacyEmail ?? "";
 /**
  * Yayindaki marka adi (karar 0008: isim koda dagitilmaz). Header, footer,
  * kok metadata, giris ekrani ve lansman oncesi landing buradan okur.
- * Yasal kimlik (`LEGAL_IDENTITY.brandName`) ayri bir karardir; yasal
- * metinler kendi kaynaklarindan okumaya devam eder.
+ * Yasal metinler de ayni markayi kullanir (`LEGAL_IDENTITY.brandName`,
+ * 6 Ekim 2026). Tescilli unvan ayri alandir (`legalEntityName`).
  */
 export const SITE_BRAND = "ManiCepte";
 

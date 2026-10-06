@@ -489,6 +489,7 @@ describe("yönlendirme ve döngü", () => {
       "/affiliate-aciklamasi",
       "/sirket-bilgileri",
       "/iletisim",
+      "/sss",
       "/hakkinda",
       "/blog",
       "/ortakliklar",

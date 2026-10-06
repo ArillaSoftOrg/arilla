@@ -106,7 +106,11 @@
   text-align: center;
   text-decoration: none;
   text-transform: none;
-  white-space: nowrap;
+  /* Etiket gerekirse satir atlar; tek satirlik etiket satirini kutusundan
+     genis zorlayamaz (eski `nowrap` paneli yatayda tasiriyordu). */
+  white-space: normal;
+  overflow-wrap: break-word;
+  min-width: 0;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -127,7 +131,8 @@
 
 /* Tercih paneli (yerel <dialog>). */
 .dialog {
-  width: min(100% - 2 * var(--space-4), calc(var(--content-width-compact) + var(--space-16)));
+  /* Masaustunde uc esit eylem tek satira sigacak genislik; dar ekranda kenarlardan bosluk. */
+  width: min(100% - 2 * var(--space-4), var(--content-width-reading));
   max-height: calc(100dvh - 2 * var(--space-4));
   padding: 0;
   border: var(--border-width) solid var(--line);
@@ -146,8 +151,17 @@
 .dialogInner {
   position: relative;
   display: grid;
+  /* `minmax(0, 1fr)`: ortuk `auto` sutun en genis cocugun min-content'ine
+     buyuyordu; icerik kutunun disina tasip kirpiliyordu. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-3);
   padding: var(--space-8) var(--space-6) var(--space-6);
+}
+
+@media (max-width: 480px) {
+  .dialogInner {
+    padding: var(--space-8) var(--space-4) var(--space-4);
+  }
 }
 
 .close {
@@ -196,12 +210,18 @@
 /* Kategori listesi ve form eylemleri (panelde ve /cerez#tercihler'de ortak). */
 .form {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6);
+  min-width: 0;
+  /* Eylem satiri gorunum alanina degil, formun gercek genisligine gore dizilir. */
+  container-type: inline-size;
 }
 
 .categories {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: 0;
+  min-width: 0;
   margin: 0;
   padding: 0;
   border: 0;
@@ -222,6 +242,8 @@
 }
 
 .categoryTitle {
+  min-width: 0;
+  overflow-wrap: break-word;
   font-size: var(--text-body);
   font-weight: var(--font-weight-medium);
   color: var(--ink);
@@ -248,6 +270,7 @@
 
 .categoryBody {
   margin: 0;
+  overflow-wrap: break-word;
   font-size: var(--text-small);
   line-height: var(--line-height-body);
   color: var(--ink-secondary);
@@ -257,15 +280,21 @@
   color: var(--ink-muted);
 }
 
+/* Esit agirlik (0038): ya uc dugme esit sutunlarda yan yana, ya da uc dugme
+   alt alta esit tam genislik. 2+1 dizilim YOK - tek kalan dugme digerlerinden
+   genis gorunur ve bir secenegi one cikarirdi. */
 .formActions {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-2);
+  min-width: 0;
 }
 
-@media (min-width: 640px) {
+@container (min-width: 31rem) {
   .formActions {
+    grid-template-columns: none;
     grid-auto-flow: column;
-    grid-auto-columns: 1fr;
+    grid-auto-columns: minmax(0, 1fr);
   }
 }
 

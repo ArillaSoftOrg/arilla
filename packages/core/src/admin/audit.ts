@@ -68,6 +68,11 @@ export type AdminAction =
   | "forms.close"
   | "forms.results_view"
   /**
+   * Gelen kutusu (karar 0061): liste görüntülendi. Mesaj, ad, e-posta
+   * YAZILMAZ; yalnızca kullanılan filtrelerin ADLARI ve sonuç sayısı.
+   */
+  | "messages.list_view"
+  /**
    * Güvenlik olayları (karar 0050). Kişisel veri, yol, IP, token YAZILMAZ.
    * - `security.access_denied`: girişli ama yetkisiz hesabın yönetim isteği;
    *   hedef istenen yetenek. Hesap + yetenek başına 10 dakikada bir satır.
@@ -87,6 +92,8 @@ export type AdminTargetType =
   | "app_user"
   | "marketing_campaign"
   | "form"
+  /** Gelen kutusu (`feedback` tablosu; liste görüntüleme, hedef kimliği "-"). */
+  | "feedback"
   /** `security.access_denied` hedefi: istenen yetenek adı. */
   | "capability";
 
@@ -98,6 +105,7 @@ export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
   "app_user",
   "marketing_campaign",
   "form",
+  "feedback",
   "capability",
 ];
 
@@ -354,6 +362,9 @@ async function resolveAuditTargets(
   for (const row of rows) {
     if (row.targetType === "capability") {
       out.set(`capability:${row.targetId}`, { label: `yetenek ${row.targetId}`, href: null });
+    }
+    if (row.targetType === "feedback") {
+      out.set(`feedback:${row.targetId}`, { label: "gelen kutusu", href: "/yonetim/mesajlar" });
     }
   }
   return out;

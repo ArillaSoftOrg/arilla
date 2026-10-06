@@ -10,6 +10,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type AdminActor, AdminForbiddenError } from "../admin/capabilities.ts";
 import { explainProductAbsence, explainSearch } from "../admin/search-diagnostics.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
+import { currentInterpretationIdentity } from "./interpretation-identity.ts";
 import { search } from "./search.ts";
 import { candidateFunnel, probeProduct, rankWithFactors } from "./search-explain.ts";
 import type { QueryObject } from "./types.ts";
@@ -247,5 +248,55 @@ describe("arama tanısı motoru - entegrasyon", () => {
     await expect(explainProductAbsence(db, plainUser, WORD, "1")).rejects.toBeInstanceOf(
       AdminForbiddenError,
     );
+  });
+
+  it("tani /ara ile ayni yorum yolunu kullanir ve kaynagi gosterir; hicbir sey yazmaz", async () => {
+    const stored = `${WORD} lumbarzyx`;
+    const identity = currentInterpretationIdentity();
+    await withOwnerClient((client) =>
+      client.query(
+        `INSERT INTO query_interpretation
+           (query_norm, taxonomy_hash, model_version, status, interpretation)
+         VALUES ($1, $2, $3, 'accepted', $4)`,
+        [
+          stored,
+          identity.taxonomyHash,
+          identity.modelVersion,
+          JSON.stringify({
+            domainId: "helmet",
+            facets: [{ facetId: "helmet_type", optionId: "full_face" }],
+            budget: null,
+            pricePreference: null,
+          }),
+        ],
+      ),
+    );
+    const scoped = () =>
+      withOwnerClient(async (client) => {
+        const r = await client.query(
+          `SELECT (SELECT count(*) FROM query_interpretation WHERE query_norm LIKE $1)::int AS qi,
+                  (SELECT count(*) FROM search_query_day WHERE query_norm LIKE $1)::int AS sq,
+                  (SELECT count(*) FROM query_resolution WHERE query_norm LIKE $1)::int AS qr`,
+          [`%${WORD}%`],
+        );
+        return r.rows[0];
+      });
+    try {
+      const before = await scoped();
+      const viaModel = await explainSearch(db, moderator, stored);
+      expect(viaModel.plan.interpretationSource).toBe("stored_model");
+      expect(viaModel.plan.mode).toBe("conversation");
+      expect((await explainSearch(db, moderator, `kask ${WORD}`)).plan.interpretationSource).toBe(
+        "deterministic",
+      );
+      expect(
+        (await explainSearch(db, moderator, `${WORD} hicyorumyok`)).plan.interpretationSource,
+      ).toBe("none");
+      expect(await scoped()).toEqual(before);
+    } finally {
+      await withOwnerClient((client) =>
+        client.query("DELETE FROM query_interpretation WHERE query_norm = $1", [stored]),
+      );
+    }
   });
 });

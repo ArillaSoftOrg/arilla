@@ -133,6 +133,49 @@ await withClient(requireEnv("DATABASE_URL"), async (client) => {
     fail(`query_norm UPDATE engellendi — saklama suresi uygulanamaz: ${(error as Error).message}`);
   }
 
+  // 0046: en az yetki. Kullanilmayan iki yetki geri alindi; kullanilan
+  // komsulari (hesap silmede api_usage UPDATE, 90 gunluk saklamada
+  // query_interpretation DELETE) calismaya devam etmeli.
+  const leastPrivilege: { statement: string; allowed: boolean; why: string }[] = [
+    {
+      statement: "DELETE FROM api_usage WHERE false",
+      allowed: false,
+      why: "maliyet kaydi silinmez",
+    },
+    {
+      statement: "UPDATE query_interpretation SET status = status WHERE false",
+      allowed: false,
+      why: "yorum guncellenmez",
+    },
+    {
+      statement: "UPDATE api_usage SET user_id = user_id WHERE false",
+      allowed: true,
+      why: "hesap silmede kimliksizlestirme",
+    },
+    {
+      statement: "DELETE FROM query_interpretation WHERE false",
+      allowed: true,
+      why: "90 gunluk saklama",
+    },
+  ];
+  for (const { statement, allowed, why } of leastPrivilege) {
+    try {
+      await client.query("BEGIN");
+      await client.query(statement);
+      await client.query("ROLLBACK");
+      if (allowed) console.log(`  ${statement} → izinli (${why})`);
+      else fail(`"${statement}" calisti — engellenmeliydi (${why}).`);
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      const code = (error as { code?: string }).code;
+      if (!allowed && code === INSUFFICIENT_PRIVILEGE) {
+        console.log(`  ${statement} → 42501, engellendi (${why})`);
+      } else {
+        fail(`"${statement}" beklenmeyen sonuc (${code ?? "hata"}) — ${why}.`);
+      }
+    }
+  }
+
   // SELECT ve INSERT calismaya devam etmeli.
   try {
     await client.query("SELECT 1 FROM price_point LIMIT 1");

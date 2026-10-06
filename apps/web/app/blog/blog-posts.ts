@@ -3,7 +3,7 @@ import blogImages from "./blog-images.json" with { type: "json" };
 
 /**
  * /blog statik liste verisi. CMS/arka uc yok; makale detay sayfasi yok -
- * kartlar hicbir yere gitmez. Gorseller R2'den (docs/decisions/0061):
+ * kartlar hicbir yere gitmez. Gorseller R2'den (docs/decisions/0062):
  * `blog-images.json` manifesti obje anahtarini verir, URL
  * `R2_PUBLIC_BASE_URL` ile uretilir; tanimli degilse `public/blog/`
  * altindaki yerel yer tutucu kullanilir. Manifest

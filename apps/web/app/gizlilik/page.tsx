@@ -1,11 +1,11 @@
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
-import { LEGAL_EFFECTIVE_LABEL, LegalIdentityBlock } from "../legal-identity-block.tsx";
+import { LegalIdentityBlock, PRIVACY_NOTICE_UPDATED_LABEL } from "../legal-identity-block.tsx";
 
 export const metadata: Metadata = {
-  title: "Gizlilik Politikası – Arilla",
+  title: "Gizlilik Politikası – ManiCepte",
   description:
-    "Arilla'nın hangi kişisel verileri hangi amaçla işlediği, kimlerle paylaştığı, ne kadar sakladığı ve haklarınız.",
+    "ManiCepte'nin hangi kişisel verileri hangi amaçla işlediği, kimlerle paylaştığı, ne kadar sakladığı ve haklarınız.",
   alternates: { canonical: "/gizlilik" },
 };
 
@@ -21,11 +21,11 @@ export const metadata: Metadata = {
  */
 export default function GizlilikPage() {
   return (
-    <LegalPageLayout title="Gizlilik Politikası" lastUpdatedLabel={LEGAL_EFFECTIVE_LABEL}>
+    <LegalPageLayout title="Gizlilik Politikası" lastUpdatedLabel={PRIVACY_NOTICE_UPDATED_LABEL}>
       <section>
         <h2>1. Kapsam ve veri sorumlusu</h2>
         <p>
-          Bu politika, Arilla ürün arama, karşılaştırma ve mağazaya yönlendirme hizmeti için
+          Bu politika, ManiCepte ürün arama, karşılaştırma ve mağazaya yönlendirme hizmeti için
           geçerlidir. Hangi kişisel verileri işlediğimizi, bunları hangi amaçlarla kullandığımızı,
           kimlerle paylaştığımızı ve haklarınızı açıklar. KVKK kapsamındaki ayrıntılı bilgilendirme
           için <a href="/kvkk-aydinlatma">KVKK Aydınlatma Metni</a>&apos;ne bakabilirsiniz.
@@ -70,6 +70,20 @@ export default function GizlilikPage() {
             <strong>Metin aramaları:</strong> sonuç üretmek için işlenir. Aramanın normalize edilmiş
             hali, sonuçları hızlandırmak amacıyla sizinle ilişkilendirilmeden genel bir önbellekte
             tutulabilir. Kullanıcıya bağlı bir arama geçmişi tutmayız.
+          </li>
+          <li>
+            <strong>Yapay zekâ destekli kategori yorumu:</strong> Belirli bir sıklık ve farklı-gün
+            eşiğini aşan arama ifadeleri, hangi ürün kategorisine ve filtreye karşılık geldiklerinin
+            daha iyi anlaşılması için yurt dışındaki bir yapay zekâ altyapı sağlayıcısına
+            gönderilebilir. Gönderilen veri; kullanıcı kimliği, IP ve oturum bilgilerinden
+            arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama
+            ifadeleridir. E-posta, telefon, adres, kimlik numarası benzeri bilgiler ile sağlık,
+            inanç, siyasi görüş veya cinsel hayat gibi özel nitelikli kişisel veri çağrıştıran
+            ifadeleri ayıklamak için otomatik süzgeçler kullanırız; bu süzgeçler riski azaltır ancak
+            arama metnine yazılan her kişisel veriyi ayıklayacağını garanti edemez ve gönderilen
+            ifadeler anonim kabul edilmez. Lütfen arama kutusuna kişisel veya hassas bilgi yazmayın.
+            Bu işlem arama yaptığınız anda değil, ayrı bir toplu işlemle yapılır; dönen sonuç
+            yalnızca kategori ve filtre seçimi olarak saklanır.
           </li>
           <li>
             <strong>Ürün bağlantısıyla arama:</strong> yapıştırdığınız bağlantı, anonim oturum
@@ -122,6 +136,13 @@ export default function GizlilikPage() {
           Kötüye kullanımı önlemek için gönderimler IP adresinizin özet değeri üzerinden kısa süreli
           sayılır. Hesabınızı silerseniz hesabınızla gönderdiğiniz geri bildirimler de silinir.
         </p>
+        <p>
+          İletişim formunu kullandığınızda adınız, e-posta adresiniz, seçtiğiniz konu, başlık ve
+          mesajınız talebinizi yanıtlamak için işlenir. Giriş yapmışsanız mesajınız hesabınızla
+          ilişkilendirilir. Kötüye kullanımı önlemek için gönderimler, geri bildirim formuyla aynı
+          şekilde IP adresinizin özet değeri üzerinden kısa süreli sayılır. Hesabınızı silerseniz
+          hesabınızla gönderdiğiniz mesajlar da silinir.
+        </p>
 
         <h3>2.5. Anket ve form yanıtları</h3>
         <p>
@@ -145,6 +166,10 @@ export default function GizlilikPage() {
           <li>Kaydettiğiniz ürünleri göstermek ve alarm e-postalarını göndermek.</li>
           <li>Arama limitlerini ve kötüye kullanım önleme mekanizmalarını işletmek.</li>
           <li>Teknik sorunları tespit etmek ve hizmeti iyileştirmek.</li>
+          <li>
+            Arama ifadelerinin ürün kategorisi ve filtrelerle eşleştirilmesini iyileştirmek (yapay
+            zekâ destekli kategori yorumu).
+          </li>
           <li>
             Mağazalara yapılan yönlendirmeleri kayıt altına almak; affiliate programları
             etkinleştirildiğinde komisyon ilişkilendirmesi ve mutabakatı yapmak.
@@ -171,8 +196,9 @@ export default function GizlilikPage() {
           <li>Hukuki yükümlülüklerimizin yerine getirilmesi.</li>
           <li>Bir hakkın tesisi, kullanılması veya korunması.</li>
           <li>
-            Temel hak ve özgürlüklerinize zarar vermemek kaydıyla meşru menfaatimiz (ör. güvenlik ve
-            kötüye kullanımı önleme).
+            Temel hak ve özgürlüklerinize zarar vermemek kaydıyla meşru menfaatimiz (KVKK m.5/2-f;
+            ör. güvenlik ve kötüye kullanımı önleme, arama ifadelerinin ürün kategorisi ve
+            filtrelerle eşleştirilmesinin iyileştirilmesi).
           </li>
           <li>
             Kanunen gerektiği hallerde açık rızanız (ör. gezinme geçmişi, pazarlama e-postası,
@@ -204,6 +230,16 @@ export default function GizlilikPage() {
             kimlik doğrulama için.
           </li>
           <li>
+            <strong>Google (Gemini API)</strong> — yurt dışında yerleşik yapay zekâ altyapı
+            sağlayıcısı; arama ifadelerinin kategori yorumu için yalnızca kullanıcı kimliği, IP ve
+            oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek
+            normalleştirilmiş arama ifadeleri. Google, ücretli hizmet koşulları gereği bu içeriği
+            kendi ürünlerini geliştirmek için kullanmaz ve istekler etkileşimin Google tarafında
+            saklanmamasını isteyen ayarla gönderilir; ancak Google, güvenlik ve kötüye kullanımın
+            tespiti amacıyla ilgili kayıtları kendi koşullarında belirtilen sınırlı bir süre
+            tutabilir.
+          </li>
+          <li>
             <strong>E-posta gönderim hizmeti sağlayıcısı</strong> — giriş bağlantısı ve alarm
             e-postalarının iletilmesi.
           </li>
@@ -214,7 +250,7 @@ export default function GizlilikPage() {
           <li>
             <strong>Mağazalar ve affiliate ağları</strong> — bir mağaza bağlantısına tıkladığınızda
             o mağazanın sitesine yönlendirilirsiniz. Affiliate programları etkinleştirildiğinde
-            bağlantıya yönlendirmenin Arilla&apos;dan geldiğini gösteren teknik parametreler
+            bağlantıya yönlendirmenin ManiCepte&apos;den geldiğini gösteren teknik parametreler
             eklenebilir. Ayrıntılar <a href="/affiliate-aciklamasi">Affiliate Açıklaması</a>
             &apos;nda.
           </li>
@@ -230,6 +266,12 @@ export default function GizlilikPage() {
           kişisel verileriniz yurt dışına aktarılabilir. Örneğin fotoğrafla aramada görseliniz
           Almanya merkezli Jina AI GmbH&apos;ye gönderilir. Aktarımlar yalnızca 6698 sayılı
           Kanun&apos;da öngörülen aktarım mekanizmalarına dayanılarak yapılır.
+        </p>
+        <p>
+          Arama ifadelerinin yapay zekâ ile kategori yorumu için Google&apos;a gönderilen veriler,
+          Google&apos;ın tesislerinin bulunduğu ülkelerde işlenebilir. Bu aktarım, KVKK&apos;nın 9.
+          maddesi kapsamında Google ile imzalanan aktarım sözleşmesine (uygun güvence) dayanılarak
+          yapılır.
         </p>
       </section>
 
@@ -256,6 +298,10 @@ export default function GizlilikPage() {
           <li>Oturum: en fazla 90 gün.</li>
           <li>
             Giriş denemesi sayaçları: en fazla 1 saat. Günlük arama limiti sayaçları: 24 saat.
+          </li>
+          <li>
+            Arama ifadelerinin yapay zekâ ile üretilen kategori yorumları: en fazla 90 gün; süre
+            dolunca otomatik olarak silinir.
           </li>
           <li>
             Hesap verileri, kayıtlı ürünler ve alarmlar: hesabınızı silene kadar. Hesap silindiğinde
@@ -297,14 +343,15 @@ export default function GizlilikPage() {
 
       <section>
         <h2>11. Çocukların gizliliği</h2>
-        <p>Arilla çocuklara yönelik tasarlanmış bir hizmet değildir.</p>
+        <p>ManiCepte çocuklara yönelik tasarlanmış bir hizmet değildir.</p>
       </section>
 
       <section>
         <h2>12. Üçüncü taraf siteleri</h2>
         <p>
-          Yönlendirildiğiniz mağaza sitelerinin içerikleri ve gizlilik uygulamaları Arilla&apos;nın
-          kontrolünde değildir. Lütfen o sitelerin kendi politikalarını inceleyin.
+          Yönlendirildiğiniz mağaza sitelerinin içerikleri ve gizlilik uygulamaları
+          ManiCepte&apos;nin kontrolünde değildir. Lütfen o sitelerin kendi politikalarını
+          inceleyin.
         </p>
       </section>
 

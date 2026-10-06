@@ -1,8 +1,9 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "../clarification/rules.ts";
 import type { ClarificationRegistry } from "../clarification/types.ts";
 import { interpreterContractHash } from "./interpretation-identity.ts";
 import {
+  purgeExpiredQueryInterpretationsSafely,
   QUERY_INTERPRETATION_MAX_PER_RUN,
   runQueryInterpretationBatch,
 } from "./query-interpretation.ts";
@@ -54,5 +55,23 @@ describe("toplu is - istemci yok", () => {
 
   it("kosu basina tavan 20", () => {
     expect(QUERY_INTERPRETATION_MAX_PER_RUN).toBe(20);
+  });
+});
+
+describe("saklama - yalitilmis temizlik adimi", () => {
+  it("hata firlatmaz; yalnizca sinif ve SQL kodu doner, diger temizlik surer", async () => {
+    const failing = {
+      execute: async () => {
+        throw Object.assign(new Error('relation "query_interpretation" does not exist'), {
+          code: "42P01",
+        });
+      },
+    };
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    // biome-ignore lint/suspicious/noExplicitAny: kasitli sahte veritabani
+    const result = await purgeExpiredQueryInterpretationsSafely(failing as any);
+    expect(result).toEqual({ deleted: 0, truncated: false, failed: "42P01" });
+    expect(JSON.stringify(warn.mock.calls)).not.toContain("does not exist");
+    warn.mockRestore();
   });
 });

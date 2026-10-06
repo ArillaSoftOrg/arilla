@@ -6,8 +6,9 @@
  * dogrulanmis yorumu okur (CLAUDE.md kural 1).
  *
  * Akis:
- * 1. Aday: `search_query_day` (kimliksiz toplu ozet) son 30 gunde en az 3 kez
- *    aranmis, bu (taksonomi ozeti, model) icin henuz saklanmamis sorgular;
+ * 1. Aday: `search_query_day` (tanimlayicisiz toplu gunluk ozet) son 30 gunde en az 3 kez
+ *    ve en az 3 FARKLI gunde aranmis, bu (taksonomi ozeti, model) icin henuz
+ *    saklanmamis sorgular;
  *    sira aranma sayisi azalan, sonra sorgu metni - deterministik.
  * 2. Suzgec: `interpretationIneligibility` (kisisel veri, kimlik, sir) ve
  *    deterministik netlestirme bu sorguda domain BULAMAMIS olmali (0030).
@@ -35,7 +36,11 @@ import {
   type ModelInterpretationOutcome,
 } from "../llm/intent-interpreter.ts";
 import { withJobRun } from "../ops/job-run.ts";
-import { interpretationIneligibility } from "./interpretation-eligibility.ts";
+import {
+  INTERPRETATION_MIN_DISTINCT_DAYS,
+  INTERPRETATION_MIN_OCCURRENCES,
+  interpretationIneligibility,
+} from "./interpretation-eligibility.ts";
 import { interpreterContractHash } from "./interpretation-identity.ts";
 import type { LexiconEntry } from "./lexicon.ts";
 import { loadLexicon } from "./lexicon-repository.ts";
@@ -99,13 +104,19 @@ export async function selectInterpretationCandidates(
     now: Date;
   },
 ): Promise<CandidateSelection> {
-  const result = await db.execute<{ query_norm: string; occurrences: number }>(sql`
-    SELECT d.query_norm, SUM(d.searches)::int AS occurrences
+  // (gun, sorgu) birincil anahtar: gruptaki satir sayisi = farkli gun sayisi.
+  const result = await db.execute<{
+    query_norm: string;
+    occurrences: number;
+    distinct_days: number;
+  }>(sql`
+    SELECT d.query_norm, SUM(d.searches)::int AS occurrences, COUNT(*)::int AS distinct_days
       FROM search_query_day d
      WHERE d.day >= (${input.now.toISOString()}::timestamptz AT TIME ZONE ${SEARCH_QUALITY_TIME_ZONE})::date
                     - ${QUERY_INTERPRETATION_WINDOW_DAYS}::int
      GROUP BY d.query_norm
-    HAVING SUM(d.searches) >= 3
+    HAVING SUM(d.searches) >= ${INTERPRETATION_MIN_OCCURRENCES}::int
+       AND COUNT(*) >= ${INTERPRETATION_MIN_DISTINCT_DAYS}::int
        AND NOT EXISTS (
              SELECT 1 FROM query_interpretation q
               WHERE q.query_norm = d.query_norm
@@ -125,7 +136,10 @@ export async function selectInterpretationCandidates(
   for (const row of result.rows) {
     if (selection.candidates.length >= input.limit) break;
     const occurrences = Number(row.occurrences);
-    if (interpretationIneligibility({ queryNorm: row.query_norm, occurrences }) !== null) {
+    const distinctDays = Number(row.distinct_days);
+    if (
+      interpretationIneligibility({ queryNorm: row.query_norm, occurrences, distinctDays }) !== null
+    ) {
       selection.ineligible++;
       continue;
     }
@@ -139,7 +153,7 @@ export async function selectInterpretationCandidates(
 }
 
 export type QueryInterpretationRunStatus = "success" | "partial" | "failed" | "skipped";
-export type QueryInterpretationSkipReason = "missing_api_key" | "already_running";
+export type QueryInterpretationSkipReason = "missing_api_key" | "already_running" | "daily_cap";
 
 /** Yalnizca sayilar ve sabit kodlar; sorgu metni ya da model ciktisi YOK. */
 export interface QueryInterpretationBatchResult {
@@ -160,6 +174,12 @@ export interface QueryInterpretationBatchResult {
   alreadyStored: number;
   /** Sure butcesi ya da durdurucu hata yuzunden islenmeyen aday. */
   deferred: number;
+  /**
+   * Bugun (Europe/Istanbul) yapilmis toplam saglayici denemesi, bu kosununkiler
+   * DAHIL (kosu oncesi sayim + `providerCalls`). Yalnizca raporlama; tavan
+   * kararlari kosu oncesi sayimla verilir.
+   */
+  providerCallsToday: number;
   /** Kosuyu durduran saglayici hata kodu (sabit). */
   stopCode: string | null;
 }
@@ -183,6 +203,7 @@ function emptyResult(
     providerCalls: 0,
     alreadyStored: 0,
     deferred: 0,
+    providerCallsToday: 0,
     stopCode: null,
   };
 }
@@ -232,7 +253,30 @@ export interface QueryInterpretationBatchOptions {
   registry?: ClarificationRegistry;
   maxQueries?: number;
   timeBudgetMs?: number;
+  /** Testler icin; varsayilan `QUERY_INTERPRETATION_DAILY_CALL_CAP`. Yukseltilemez. */
+  dailyCallCap?: number;
   now?: () => Date;
+}
+
+/**
+ * Maliyet tavani: Europe/Istanbul gunu basina en fazla bu kadar saglayici HTTP
+ * denemesi (yeniden denemeler dahil). Elle tekrarlanan kosular toplamda bunu
+ * asamaz. Sayim migration'siz: her gercek deneme zaten tam bir `api_usage`
+ * satiri yazar (`operation = 'query_interpretation'`, `(created_at,
+ * operation)` indeksi). Tek kosu en fazla 20 sorgu x 2 deneme = 40.
+ */
+export const QUERY_INTERPRETATION_DAILY_CALL_CAP = 100;
+
+/** Bugun (Europe/Istanbul takvim gunu) yazilmis yorum denemesi sayisi. */
+export async function providerCallsToday(db: Database, now: Date): Promise<number> {
+  const result = await db.execute<{ calls: number }>(sql`
+    SELECT count(*)::int AS calls
+      FROM api_usage
+     WHERE operation = ${QUERY_INTERPRETATION_OPERATION}
+       AND created_at >= (((${now.toISOString()}::timestamptz AT TIME ZONE ${SEARCH_QUALITY_TIME_ZONE})::date)::timestamp
+                          AT TIME ZONE ${SEARCH_QUALITY_TIME_ZONE})
+  `);
+  return Number(result.rows[0]?.calls ?? 0);
 }
 
 /**
@@ -257,6 +301,16 @@ export async function runQueryInterpretationBatch(
   const timeBudgetMs = options.timeBudgetMs ?? QUERY_INTERPRETATION_TIME_BUDGET_MS;
   const now = options.now ?? (() => new Date());
   const startedAt = now().getTime();
+  const dailyCap = Math.min(
+    Math.max(0, options.dailyCallCap ?? QUERY_INTERPRETATION_DAILY_CALL_CAP),
+    QUERY_INTERPRETATION_DAILY_CALL_CAP,
+  );
+  // Bir sorgunun en kotu durumda harcayabilecegi deneme (cron istemcisi: 2).
+  const worstCallsPerQuery = QUERY_INTERPRETATION_CLIENT_OPTIONS.maxAttempts;
+  const callsBefore = await providerCallsToday(db, now());
+  if (callsBefore + worstCallsPerQuery > dailyCap) {
+    return { ...emptyResult("skipped", "daily_cap"), providerCallsToday: callsBefore };
+  }
 
   const taxonomyHash = interpreterContractHash(registry);
   const lexicon = await loadLexicon(db);
@@ -280,6 +334,12 @@ export async function runQueryInterpretationBatch(
 
   for (const [index, queryNorm] of selection.candidates.entries()) {
     if (now().getTime() - startedAt > timeBudgetMs) {
+      result.deferred = selection.candidates.length - index;
+      break;
+    }
+    // Gunluk tavan: bu sorgunun en kotu deneme sayisi sigmiyorsa durulur.
+    if (callsBefore + result.providerCalls + worstCallsPerQuery > dailyCap) {
+      result.stopCode = "daily_cap";
       result.deferred = selection.candidates.length - index;
       break;
     }
@@ -307,6 +367,7 @@ export async function runQueryInterpretationBatch(
     result[outcome.status]++;
   }
 
+  result.providerCallsToday = callsBefore + result.providerCalls;
   if (result.attempted > 0 && result.providerErrors === result.attempted) {
     result.status = "failed";
   } else if (result.providerErrors > 0) {
@@ -388,4 +449,72 @@ export async function runQueryInterpretationJob(
     },
     jobOutcome,
   );
+}
+
+/**
+ * Saklama (karar 0059): yorum satirlari `created_at`'ten itibaren 90 gun
+ * tutulur - kaynaklari olan `search_query_day` ile ayni sure. Suresi dolan
+ * satir silinir; sorgu hala sik araniyorsa toplu is onu yeniden yorumlar.
+ * Yalnizca `query_interpretation` silinir; baska arama verisine dokunulmaz.
+ */
+export const QUERY_INTERPRETATION_RETENTION_DAYS = 90;
+
+export interface QueryInterpretationPurgeResult {
+  deleted: number;
+  /** Parti tavanina ulasildi; kalan satirlar sonraki calistirmada silinir. */
+  truncated: boolean;
+}
+
+/** Suresi dolmus yorumlari sinirli partilerle siler. Hata firlatir (cagiran karar verir). */
+export async function purgeExpiredQueryInterpretations(
+  db: Database,
+  now: Date = new Date(),
+  options: { batchSize?: number; maxBatches?: number } = {},
+): Promise<QueryInterpretationPurgeResult> {
+  const batchSize = options.batchSize ?? 5_000;
+  const maxBatches = options.maxBatches ?? 20;
+  const cutoff = new Date(
+    now.getTime() - QUERY_INTERPRETATION_RETENTION_DAYS * 24 * 60 * 60 * 1000,
+  );
+  let deleted = 0;
+  for (let batch = 0; batch < maxBatches; batch++) {
+    const result = await db.execute(sql`
+      DELETE FROM query_interpretation
+       WHERE id IN (
+         SELECT id FROM query_interpretation
+          WHERE created_at < ${cutoff.toISOString()}::timestamptz
+          ORDER BY id
+          LIMIT ${batchSize}
+       )
+    `);
+    const count = result.rowCount ?? 0;
+    deleted += count;
+    if (count < batchSize) return { deleted, truncated: false };
+  }
+  return { deleted, truncated: true };
+}
+
+/**
+ * Gunluk temizlik icin: yorum saklamasi digerlerinden YALITILIR. Tablo yoksa
+ * ya da yetki eksikse diger saklama isleri yine calisir; hata yalnizca sinifi
+ * ve SQL koduyla loglanir ve sonucta `failed` olarak doner (koşu `partial`).
+ */
+export async function purgeExpiredQueryInterpretationsSafely(
+  db: Database,
+  now: Date = new Date(),
+): Promise<QueryInterpretationPurgeResult & { failed: string | null }> {
+  try {
+    return { ...(await purgeExpiredQueryInterpretations(db, now)), failed: null };
+  } catch (error) {
+    const code =
+      (error as { code?: string; cause?: { code?: string } })?.cause?.code ??
+      (error as { code?: string })?.code ??
+      "error";
+    console.warn(
+      "[query-interpretation] retention purge failed",
+      error instanceof Error ? error.name : "unknown",
+      code,
+    );
+    return { deleted: 0, truncated: false, failed: /^[0-9A-Z]{5}$/.test(code) ? code : "error" };
+  }
 }

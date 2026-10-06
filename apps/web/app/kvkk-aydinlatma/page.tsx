@@ -1,11 +1,11 @@
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
-import { LEGAL_EFFECTIVE_LABEL, LegalIdentityBlock } from "../legal-identity-block.tsx";
+import { LegalIdentityBlock, PRIVACY_NOTICE_UPDATED_LABEL } from "../legal-identity-block.tsx";
 
 export const metadata: Metadata = {
-  title: "KVKK Aydınlatma Metni – Arilla",
+  title: "KVKK Aydınlatma Metni – ManiCepte",
   description:
-    "6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında Arilla kullanıcılarına yönelik aydınlatma metni.",
+    "6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında ManiCepte kullanıcılarına yönelik aydınlatma metni.",
   alternates: { canonical: "/kvkk-aydinlatma" },
 };
 
@@ -16,11 +16,11 @@ export const metadata: Metadata = {
  */
 export default function KvkkAydinlatmaPage() {
   return (
-    <LegalPageLayout title="KVKK Aydınlatma Metni" lastUpdatedLabel={LEGAL_EFFECTIVE_LABEL}>
+    <LegalPageLayout title="KVKK Aydınlatma Metni" lastUpdatedLabel={PRIVACY_NOTICE_UPDATED_LABEL}>
       <section>
         <p>
           Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;) kapsamında,
-          Arilla hizmetlerini kullanan kişilerin kişisel verilerinin işlenmesi hakkında
+          ManiCepte hizmetlerini kullanan kişilerin kişisel verilerinin işlenmesi hakkında
           bilgilendirilmesi amacıyla hazırlanmıştır.
         </p>
       </section>
@@ -54,8 +54,8 @@ export default function KvkkAydinlatmaPage() {
             <strong>Pazarlama ve rıza tercihleri:</strong> hesap rıza tercihleri, çerez tercihi.
           </li>
           <li>
-            <strong>Talep/şikâyet:</strong> destek yazışmaları, geri bildirim formu gönderimleri ve
-            anket/form yanıtları.
+            <strong>Talep/şikâyet:</strong> destek yazışmaları, iletişim ve geri bildirim formu
+            gönderimleri ve anket/form yanıtları.
           </li>
         </ul>
       </section>
@@ -70,6 +70,10 @@ export default function KvkkAydinlatmaPage() {
             kullanım limitlerinin işletilmesi, kötüye kullanım ve güvenlik risklerinin önlenmesi,
           </li>
           <li>teknik sorunların giderilmesi ve hizmet kalitesinin artırılması,</li>
+          <li>
+            arama ifadelerinin ürün kategorisi ve filtrelerle eşleştirilmesinin iyileştirilmesi
+            (yapay zekâ destekli kategori yorumu),
+          </li>
           <li>
             mağaza yönlendirmelerinin kaydı; affiliate programları etkinleştirildiğinde komisyon
             ilişkilendirmesi ve mutabakatı,
@@ -93,7 +97,10 @@ export default function KvkkAydinlatmaPage() {
           <li>sözleşmenin kurulması veya ifası için gerekli olması,</li>
           <li>veri sorumlusunun hukuki yükümlülüğünü yerine getirmesi,</li>
           <li>bir hakkın tesisi, kullanılması veya korunması,</li>
-          <li>temel hak ve özgürlüklere zarar vermemek kaydıyla meşru menfaat,</li>
+          <li>
+            temel hak ve özgürlüklere zarar vermemek kaydıyla meşru menfaat (m.5/2-f; arama ve
+            kategori eşleştirmesinin iyileştirilmesi dahil),
+          </li>
           <li>
             gerekli hallerde açık rıza (gezinme geçmişi, pazarlama e-postası, zorunlu olmayan
             çerezler).
@@ -114,12 +121,23 @@ export default function KvkkAydinlatmaPage() {
             fotoğrafla arama için görsel embedding hizmeti sağlayıcısı Jina AI GmbH (Almanya),
           </li>
           <li>Google ile veya Apple ile giriş seçildiğinde ilgili kimlik doğrulama sağlayıcısı,</li>
+          <li>
+            arama ifadelerinin kategori yorumu için yurt dışında yerleşik yapay zekâ altyapı
+            sağlayıcısı Google (Gemini API) — yalnızca kullanıcı kimliği, IP ve oturum bilgilerinden
+            arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama ifadeleri,
+          </li>
           <li>mağazaya yönlendirme kapsamında ilgili mağaza veya affiliate ağı,</li>
           <li>kanunen yetkili kamu kurum ve kuruluşları.</li>
         </ul>
         <p>
           Bu sağlayıcıların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılabilir;
           aktarım KVKK&apos;nın 9. maddesinde öngörülen mekanizmalara dayanılarak yapılır.
+        </p>
+        <p>
+          Yapay zekâ altyapı sağlayıcısına aktarım, KVKK&apos;nın 9. maddesi kapsamında Google ile
+          imzalanan aktarım sözleşmesine (uygun güvence) dayanılarak yapılır. Bu amaçla üretilen
+          kategori yorumları ManiCepte tarafında en fazla 90 gün saklanır; gönderilen ifadeler
+          anonim kabul edilmez.
         </p>
       </section>
 

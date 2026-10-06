@@ -1,4 +1,4 @@
-# Arilla Çerez Politikası
+# ManiCepte Çerez Politikası
 
 **Yürürlük Tarihi:** 26 Eylül 2026
 
@@ -34,7 +34,7 @@ Site kullanımını, performansı ve hata oranlarını anlamak amacıyla kullan�
 
 Reklam, kampanya veya affiliate yönlendirmelerinin ölçülmesi için kullanılabilir. Kullanıcının cihazında zorunlu olmayan bir takip teknolojisi çalıştırılması gerekiyorsa, mevzuatın gerektirdiği ölçüde önceden açık rıza alınır.
 
-Bir ürün veya mağaza bağlantısının URL'sine Arilla kaynak bilgisini içeren affiliate parametresi eklenmesi ile cihaz üzerinde çerez bırakılması aynı işlem değildir. Claude Code uygulamada bu iki mekanizmayı ayrı değerlendirmelidir.
+Bir ürün veya mağaza bağlantısının URL'sine ManiCepte kaynak bilgisini içeren affiliate parametresi eklenmesi ile cihaz üzerinde çerez bırakılması aynı işlem değildir. Claude Code uygulamada bu iki mekanizmayı ayrı değerlendirmelidir.
 
 ## 3. Kullanılan çerezlerin listesi
 
