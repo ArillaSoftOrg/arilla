@@ -72,8 +72,10 @@ eklendi; telefon/adres hâlâ yok, uydurulmadı.
 **Yükleniyor:** iskelet kart, spinner değil. Görsel aramada iskelet kartlar
 sonuç gelene kadar durur.
 
-**Boş sonuç:** filtreleri gevşetme önerisi + en yakın 6 sonuç. Tamamen boş
-ekran gösterilmez.
+**Boş sonuç:** birebir eşleşme yoksa kontrollü gevşetmeyle bulunan güvenilir
+yakın sonuçlar, gerçek sonuçtan ayrı başlıkla ("Aradığın ürünü bulamadık.",
+sayaç ve sekme yok). Eşiği geçen yakın sonuç da yoksa dürüst boş durum;
+alakasız ürün gösterilmez. Bkz. `docs/decisions/0066`.
 
 **Hata:** "Arama şu an çalışmıyor" + tekrar dene düğmesi.
 
