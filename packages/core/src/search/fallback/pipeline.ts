@@ -41,6 +41,13 @@ const CANDIDATE_LIMIT = 48;
 /** Model kodu dogrulamasi gereken sorguda ilk adimda bellege alinan pencere. */
 const VERIFY_WINDOW = 96;
 
+/**
+ * Fallback adimlari icin sure butcesi. Her adim bir DB turudur; katalog buyudukce
+ * (ve terim sik gecen bir kelimeyse) tek tur saniyeler surebilir. Butce dolunca
+ * kalan adimlar denenmez, eldeki adaylarla yanit verilir.
+ */
+export const FALLBACK_TIME_BUDGET_MS = 1500;
+
 /** Kisit gevsetmenin puan bedeli ve en iyi katman tavani. */
 const CONSTRAINT_PENALTY: Partial<Record<Relaxation, number>> = {
   color: 0.1,
@@ -63,6 +70,8 @@ export interface FallbackSearchOptions {
   onTrace?: (trace: SearchTrace) => void;
   /** Test icin; varsayilan `performance.now`. */
   clock?: () => number;
+  /** Fallback adimlari icin toplam sure butcesi (ms); varsayilan `FALLBACK_TIME_BUDGET_MS`. */
+  timeBudgetMs?: number;
 }
 
 const TIER_RANK: Record<MatchTier, number> = { exact: 0, close: 1, related: 2 };
@@ -122,6 +131,8 @@ export async function searchWithFallback(
 
   const analysis = analyzeQuery(parsed, options.aliases ?? NO_ALIASES);
   const stagesTried: SearchStageId[] = [];
+  let truncated = false;
+  const budget = options.timeBudgetMs ?? FALLBACK_TIME_BUDGET_MS;
 
   const finish = (
     mode: FallbackSearchOutcome["mode"],
@@ -140,6 +151,7 @@ export async function searchWithFallback(
       fallbackReason: reason,
       relaxed: items[0]?.match.relaxed ?? [],
       latencyMs: Math.round(clock() - startedAt),
+      truncated,
     };
     try {
       options.onTrace?.(trace);
@@ -246,12 +258,20 @@ export async function searchWithFallback(
     filters: parsed.filters,
     sort,
     hasAliasExpansion,
-    canFuzzy: analysis.tokens.some((token) => token.kind === "word" && token.value.length >= 4),
+    // Yazim hatasi yalnizca exact adim HIC aday getirmediyse suphelidir; aday geldiyse
+    // (ama model kodu celiskiliyse) bulanik adim gereksiz bir DB turudur.
+    canFuzzy:
+      first.items.length === 0 &&
+      analysis.tokens.some((token) => token.kind === "word" && token.value.length >= 4),
     limit: CANDIDATE_LIMIT,
   });
 
   let lastStage: SearchStageId = "exact";
   for (const stage of stages) {
+    if (clock() - startedAt > budget) {
+      truncated = true;
+      break;
+    }
     stagesTried.push(stage.id);
     lastStage = stage.id;
     const page = await provider.search(stage.query);

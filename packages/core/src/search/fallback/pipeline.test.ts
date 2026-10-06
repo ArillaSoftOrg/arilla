@@ -216,4 +216,25 @@ describe("searchWithFallback", () => {
     expect(source.expand("telefon")).toEqual(["akilli telefon"]);
     expect(CATALOG.length).toBeGreaterThan(0);
   });
+
+  it("stops loosening when the time budget is spent and says so in the trace", async () => {
+    const provider = createFakeProvider();
+    let now = 0;
+    const slow = {
+      name: "slow",
+      async search(query: Parameters<typeof provider.search>[0]) {
+        now += 1_000; // her saglayici turu 1 sn
+        return provider.search(query);
+      },
+    };
+    const outcome = await searchWithFallback(
+      slow,
+      { parsed: parsed("iphone 17 pro max"), sort: "balanced", page: 1, pageSize: 24 },
+      { clock: () => now, timeBudgetMs: 1500 },
+    );
+    // exact (1 sn) + bir adim (2 sn) -> butce dolu: daha fazla adim denenmez.
+    expect(outcome.trace.truncated).toBe(true);
+    expect(outcome.trace.stagesTried.length).toBeLessThan(5);
+    expect(provider.calls.length).toBeLessThan(5);
+  });
 });

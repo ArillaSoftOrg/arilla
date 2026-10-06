@@ -11,8 +11,14 @@ import { search } from "../search.ts";
 import type { QueryObject } from "../types.ts";
 import type { ProviderPage, SearchProvider, SearchQuery } from "./types.ts";
 
-/** Bulanik (typo) adimi icin metin kapisi esigi (varsayilan 0.5). */
-export const FUZZY_TOKEN_THRESHOLD = 0.35;
+/**
+ * Bulanik (typo) adimi icin metin kapisi esigi (varsayilan 0.5). 0.3: bitisik
+ * harf yer degistirmesi ("airpdos" ~ "airpods") trigram'da 0.33 verir, 0.35
+ * bunu kacirir (gercek PG'de olculdu). Dusuk esik cok aday getirir; bunlari
+ * `gradeItem` (duzenleme mesafesi) eler ve adim en fazla `CANDIDATE_LIMIT` ister.
+ * Daha iyi bulaniklik (fuzziness) icin asil cozum arama motorudur.
+ */
+export const FUZZY_TOKEN_THRESHOLD = 0.3;
 
 function toQueryObject(query: SearchQuery): QueryObject {
   return {

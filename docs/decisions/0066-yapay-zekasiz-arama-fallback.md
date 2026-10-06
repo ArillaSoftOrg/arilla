@@ -37,6 +37,28 @@ ayrılmış biçimde. Tüm mekanizma model/LLM çağrısı olmadan çalışır (
   "Aradığın ürünü bulamadık." başlığı, sayaç ve sekmeler yok. `usedFallback`
   (karar 0054) artık yalnızca yakın sonuç gösterildiğinde true.
 
+## Ölçüm (gerçek PostgreSQL 16, yalıtılmış yerel DB)
+
+- Entegrasyon: `fallback/postgres-provider.integration.test.ts` (17 test).
+  `DATABASE_URL`/`DATABASE_URL_OWNER` yerel DB'ye verilir; kök `.env` üretimi
+  gösterir ve test yalıtımı onu reddeder.
+- `pg_trgm` 0001 migration'ından gelir (üretim şeması garanti eder); ek
+  index/migration gerekmedi. `product_title_fold_trgm` kullanılıyor.
+- Bulanık adım `set_config(..., is_local = true)` ile YALNIZCA kendi işleminde
+  eşiği 0.3'e çeker; commit'te geri döner, havuzdaki bağlantıya sızmaz
+  (tek bağlantılı havuzla testle doğrulandı). Eşik 0.35 iken "airpdos"
+  (bitişik harf yer değişimi, trigram 0.33) kaçıyordu.
+- DB sorgusu (ifade) sayısı: exact sonuçta 2 (arama + "başlangıç fiyatı");
+  zero-result en çok 11 (5 adım). Bulanık adım yalnızca exact adım HİÇ aday
+  getirmediğinde çalışır. Aşamalar toplam `FALLBACK_TIME_BUDGET_MS` (1500 ms)
+  ile sınırlıdır.
+- Bilinen ölçek sınırı (mevcut `search()` SQL'i, fallback'e özgü değil):
+  `best_offer` CTE'si adaydan bağımsız TÜM `offer` tablosunu `DISTINCT ON` ile
+  tarar; 300 bin üründe seçici bir terimde bile ~0.7 sn taban maliyet, sık
+  geçen baş isimde (`token LATERAL` 37 bin satır) 2–4 sn. Her fallback adımı bunu
+  tekrarlar. Çözüm ayrı iş: `best_offer`ı aday başına `LATERAL ... LIMIT 1`e
+  çevirmek ya da ürüne en iyi teklifi önceden yazmak; 120M'de arama motoru.
+
 ## Gerekçe
 
 Eski davranış: sonuç yoksa yalnızca filtreler silinip aynı metin kapısıyla

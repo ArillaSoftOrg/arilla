@@ -91,6 +91,8 @@ export interface SearchTrace {
   fallbackReason: FallbackReason | null;
   relaxed: Relaxation[];
   latencyMs: number;
+  /** Sure butcesi doldu: kalan gevsetme adimlari denenmedi. */
+  truncated: boolean;
 }
 
 export interface FallbackSearchOutcome {

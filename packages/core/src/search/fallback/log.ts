@@ -15,5 +15,6 @@ export function formatTraceForLog(trace: SearchTrace): string {
     `count=${trace.resultCount}`,
     `reason=${trace.fallbackReason ?? "-"}`,
     `ms=${trace.latencyMs}`,
+    `truncated=${trace.truncated ? 1 : 0}`,
   ].join(" ");
 }
