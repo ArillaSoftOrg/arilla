@@ -72,11 +72,11 @@ export default function AffiliateAciklamasiPage() {
         </p>
         <p>
           Affiliate programları etkinleştirildiğinde mağaza bağlantısına yönlendirmenin
-          ManiCepte&apos;den geldiğini gösteren teknik parametreler eklenebilir. ManiCepte kendi sitesinde
-          affiliate izleme çerezi kullanmaz; cihazınızda çalışan bir ölçüm teknolojisi eklenirse
-          yalnızca izninizle çalışır ve <a href="/cerez">Çerez Politikası</a>&apos;nda açıklanır.
-          Yönlendirildiğiniz mağaza veya affiliate ağı kendi çerezlerini kendi politikasına göre
-          kullanabilir.
+          ManiCepte&apos;den geldiğini gösteren teknik parametreler eklenebilir. ManiCepte kendi
+          sitesinde affiliate izleme çerezi kullanmaz; cihazınızda çalışan bir ölçüm teknolojisi
+          eklenirse yalnızca izninizle çalışır ve <a href="/cerez">Çerez Politikası</a>&apos;nda
+          açıklanır. Yönlendirildiğiniz mağaza veya affiliate ağı kendi çerezlerini kendi
+          politikasına göre kullanabilir.
         </p>
       </section>
 

@@ -342,8 +342,9 @@ export default function GizlilikPage() {
       <section>
         <h2>12. Üçüncü taraf siteleri</h2>
         <p>
-          Yönlendirildiğiniz mağaza sitelerinin içerikleri ve gizlilik uygulamaları ManiCepte&apos;nin
-          kontrolünde değildir. Lütfen o sitelerin kendi politikalarını inceleyin.
+          Yönlendirildiğiniz mağaza sitelerinin içerikleri ve gizlilik uygulamaları
+          ManiCepte&apos;nin kontrolünde değildir. Lütfen o sitelerin kendi politikalarını
+          inceleyin.
         </p>
       </section>
 

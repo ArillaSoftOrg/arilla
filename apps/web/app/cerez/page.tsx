@@ -103,9 +103,9 @@ export default async function CerezPage() {
         <h3>Reklam / affiliate ölçüm</h3>
         <p>
           Reklam ve affiliate yönlendirmelerini cihazınızda ölçer. Şu an bu kategoride kullandığımız
-          bir çerez yok. Bir mağaza bağlantısının adresine yönlendirmenin ManiCepte&apos;den geldiğini
-          gösteren bir parametre eklenmesi ile cihazınıza çerez bırakılması aynı şey değildir;
-          cihazınızda çalışan bir ölçüm teknolojisi eklenirse yalnızca izninizle çalışır.
+          bir çerez yok. Bir mağaza bağlantısının adresine yönlendirmenin ManiCepte&apos;den
+          geldiğini gösteren bir parametre eklenmesi ile cihazınıza çerez bırakılması aynı şey
+          değildir; cihazınızda çalışan bir ölçüm teknolojisi eklenirse yalnızca izninizle çalışır.
           Yönlendirildiğiniz mağaza sitesi kendi çerezlerini kendi politikasına göre kullanır.
         </p>
       </section>

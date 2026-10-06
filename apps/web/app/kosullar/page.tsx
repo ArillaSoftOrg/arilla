@@ -30,9 +30,9 @@ export default function KosullarPage() {
         <h2>2. Hizmetin kapsamı</h2>
         <p>
           ManiCepte, ürünleri bulmanıza, farklı mağazalardaki fiyatlarını karşılaştırmanıza ve
-          seçtiğiniz mağazaya yönlenmenize yardımcı olan bir bilgi ve yönlendirme hizmetidir. ManiCepte
-          ürün satmaz, stok tutmaz ve ödeme almaz; aksi açıkça belirtilmedikçe listelenen ürünlerin
-          satıcısı değildir ve mağaza ile aranızdaki satış sözleşmesinin tarafı olmaz.
+          seçtiğiniz mağazaya yönlenmenize yardımcı olan bir bilgi ve yönlendirme hizmetidir.
+          ManiCepte ürün satmaz, stok tutmaz ve ödeme almaz; aksi açıkça belirtilmedikçe listelenen
+          ürünlerin satıcısı değildir ve mağaza ile aranızdaki satış sözleşmesinin tarafı olmaz.
         </p>
       </section>
 
@@ -42,19 +42,19 @@ export default function KosullarPage() {
           Ürün adı, görsel, fiyat, stok, varyant ve kargo bilgileri mağazalardan, veri
           sağlayıcılarından veya otomatik veri işleme süreçlerinden gelir ve gecikmeli olabilir. Bu
           bilgileri doğru ve güncel tutmak için makul çaba gösteririz; ancak mağazadaki fiyat, stok
-          veya ürün özelliği ManiCepte&apos;deki gösterimden farklı olabilir. Alışveriş kararı vermeden
-          önce nihai fiyat, stok, teslimat, iade ve satış koşullarını ilgili mağazanın sitesinde
-          doğrulayın.
+          veya ürün özelliği ManiCepte&apos;deki gösterimden farklı olabilir. Alışveriş kararı
+          vermeden önce nihai fiyat, stok, teslimat, iade ve satış koşullarını ilgili mağazanın
+          sitesinde doğrulayın.
         </p>
       </section>
 
       <section>
         <h2>4. Affiliate ilişkileri</h2>
         <p>
-          ManiCepte bazı mağaza yönlendirmelerinden affiliate komisyonu kazanabilir. Bu, mağazanın size
-          gösterdiği fiyatı değiştirmez ve size ek bir ManiCepte ücreti doğurmaz. Affiliate ilişkisi,
-          ManiCepte&apos;nin bir ürünü veya satıcıyı garanti ettiği anlamına gelmez. Ayrıntılar{" "}
-          <a href="/affiliate-aciklamasi">Affiliate Açıklaması</a>&apos;nda.
+          ManiCepte bazı mağaza yönlendirmelerinden affiliate komisyonu kazanabilir. Bu, mağazanın
+          size gösterdiği fiyatı değiştirmez ve size ek bir ManiCepte ücreti doğurmaz. Affiliate
+          ilişkisi, ManiCepte&apos;nin bir ürünü veya satıcıyı garanti ettiği anlamına gelmez.
+          Ayrıntılar <a href="/affiliate-aciklamasi">Affiliate Açıklaması</a>&apos;nda.
         </p>
       </section>
 

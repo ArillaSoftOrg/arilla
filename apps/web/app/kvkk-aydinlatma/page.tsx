@@ -136,8 +136,8 @@ export default function KvkkAydinlatmaPage() {
         <p>
           Yapay zekâ altyapı sağlayıcısına aktarım, KVKK&apos;nın 9. maddesi kapsamında Google ile
           imzalanan aktarım sözleşmesine (uygun güvence) dayanılarak yapılır. Bu amaçla üretilen
-          kategori yorumları ManiCepte tarafında en fazla 90 gün saklanır; gönderilen ifadeler anonim
-          kabul edilmez.
+          kategori yorumları ManiCepte tarafında en fazla 90 gün saklanır; gönderilen ifadeler
+          anonim kabul edilmez.
         </p>
       </section>
 
