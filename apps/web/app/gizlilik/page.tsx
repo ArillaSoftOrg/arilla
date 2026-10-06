@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { LegalIdentityBlock, PRIVACY_NOTICE_UPDATED_LABEL } from "../legal-identity-block.tsx";
 
 export const metadata: Metadata = {
-  title: "Gizlilik Politikası – Arilla",
+  title: "Gizlilik Politikası – ManiCepte",
   description:
-    "Arilla'nın hangi kişisel verileri hangi amaçla işlediği, kimlerle paylaştığı, ne kadar sakladığı ve haklarınız.",
+    "ManiCepte'nin hangi kişisel verileri hangi amaçla işlediği, kimlerle paylaştığı, ne kadar sakladığı ve haklarınız.",
   alternates: { canonical: "/gizlilik" },
 };
 
@@ -25,7 +25,7 @@ export default function GizlilikPage() {
       <section>
         <h2>1. Kapsam ve veri sorumlusu</h2>
         <p>
-          Bu politika, Arilla ürün arama, karşılaştırma ve mağazaya yönlendirme hizmeti için
+          Bu politika, ManiCepte ürün arama, karşılaştırma ve mağazaya yönlendirme hizmeti için
           geçerlidir. Hangi kişisel verileri işlediğimizi, bunları hangi amaçlarla kullandığımızı,
           kimlerle paylaştığımızı ve haklarınızı açıklar. KVKK kapsamındaki ayrıntılı bilgilendirme
           için <a href="/kvkk-aydinlatma">KVKK Aydınlatma Metni</a>&apos;ne bakabilirsiniz.
@@ -243,7 +243,7 @@ export default function GizlilikPage() {
           <li>
             <strong>Mağazalar ve affiliate ağları</strong> — bir mağaza bağlantısına tıkladığınızda
             o mağazanın sitesine yönlendirilirsiniz. Affiliate programları etkinleştirildiğinde
-            bağlantıya yönlendirmenin Arilla&apos;dan geldiğini gösteren teknik parametreler
+            bağlantıya yönlendirmenin ManiCepte&apos;den geldiğini gösteren teknik parametreler
             eklenebilir. Ayrıntılar <a href="/affiliate-aciklamasi">Affiliate Açıklaması</a>
             &apos;nda.
           </li>
@@ -336,14 +336,15 @@ export default function GizlilikPage() {
 
       <section>
         <h2>11. Çocukların gizliliği</h2>
-        <p>Arilla çocuklara yönelik tasarlanmış bir hizmet değildir.</p>
+        <p>ManiCepte çocuklara yönelik tasarlanmış bir hizmet değildir.</p>
       </section>
 
       <section>
         <h2>12. Üçüncü taraf siteleri</h2>
         <p>
-          Yönlendirildiğiniz mağaza sitelerinin içerikleri ve gizlilik uygulamaları Arilla&apos;nın
-          kontrolünde değildir. Lütfen o sitelerin kendi politikalarını inceleyin.
+          Yönlendirildiğiniz mağaza sitelerinin içerikleri ve gizlilik uygulamaları
+          ManiCepte&apos;nin kontrolünde değildir. Lütfen o sitelerin kendi politikalarını
+          inceleyin.
         </p>
       </section>
 

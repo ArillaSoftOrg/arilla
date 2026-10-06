@@ -7,7 +7,7 @@ import {
 } from "./legal-identity.ts";
 
 const complete: LegalIdentity = {
-  brandName: "Arilla",
+  brandName: "ManiCepte",
   legalEntityName: "Unvan",
   legalAddress: "Adres",
   country: "Ülke",

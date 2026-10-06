@@ -32,7 +32,7 @@ export interface LegalIdentity {
 const CONTACT_EMAIL = "arillasoft@gmail.com";
 
 export const LEGAL_IDENTITY: LegalIdentity = {
-  brandName: "Arilla",
+  brandName: "ManiCepte",
   legalEntityName: null,
   legalAddress: null,
   country: null,
