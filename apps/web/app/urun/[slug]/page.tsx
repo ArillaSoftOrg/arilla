@@ -449,6 +449,8 @@ export default async function ProductPage({
               <div className={styles.primaryOffer}>
                 <a
                   href={`/git/${variantBest.offerId}?surface=product_primary`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={styles.primaryCta}
                 >
                   {openAtMerchantLabel(variantBest)}
@@ -472,6 +474,8 @@ export default async function ProductPage({
               {/* attribution: CLAUDE.md kural 8 - dogrudan offer.url'e degil, /git uzerinden. */}
               <a
                 href={`/git/${primaryOffer.offerId}?surface=product_primary`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className={styles.primaryCta}
               >
                 {openAtMerchantLabel(primaryOffer)}
