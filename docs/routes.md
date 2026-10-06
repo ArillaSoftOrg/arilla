@@ -154,7 +154,7 @@ platform sorununu hafifletir.
 /alarmlar                  Fiyat düşüşü, yeniden stok ve beden alarmları
 /gecmis                    Son gezilenler. Silme düğmesi zorunlu.
 /hesap                     Beden profili, rıza tercihleri, arama hakları ve davet linki, veri silme
-/davet/<kod>               Davet linki (0047). Kodu httpOnly çereze yazar, girişe yönlendirir. noindex, modal yok.
+/davet/<kod>               Davet linki (0047). Kod: eski 8 karakterli ya da `YS-49577` (0067). Kodu httpOnly çereze yazar, girişe yönlendirir. noindex, modal yok.
 /giris?next=/yol           E-posta bağlantısı isteme. `next`: giriş sonrası dönüş (yalnızca göreli yol)
 /giris/dogrula?token=...   Onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir. Tek kullanımlık, 15 dk.
 ```

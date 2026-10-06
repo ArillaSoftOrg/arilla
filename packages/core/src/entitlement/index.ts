@@ -49,11 +49,14 @@ export {
 export {
   type AttachReferralResult,
   attachReferral,
+  generatePublicReferralCode,
   generateReferralCode,
+  getOrCreatePublicReferralCode,
   getOrCreateReferralCode,
   getReferralSummary,
   normalizeReferralCode,
   type ReferralSummary,
+  referralPrefixFromName,
 } from "./referral.ts";
 export { type ChargeSplit, cappedCredit, splitCharge } from "./split.ts";
 export {

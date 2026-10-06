@@ -245,31 +245,43 @@
   line-height: var(--line-height-body);
 }
 
-.cardMeta {
+.referral {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.referralCard {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.referralLabel {
   margin: 0;
   color: var(--ink-muted);
   font-size: var(--text-small);
   line-height: var(--line-height-body);
 }
 
-.referralLink {
-  display: grid;
-  gap: var(--space-2);
+.referralUrl {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  overflow-wrap: anywhere;
+  user-select: all;
 }
 
-.referralInput {
-  box-sizing: border-box;
-  width: 100%;
-  min-width: 0;
-  min-height: var(--size-touch-target);
-  padding: var(--space-2) var(--space-3);
-  border: var(--border-width) solid var(--line-strong);
-  border-radius: var(--radius-md);
-  background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--text-small);
-  text-overflow: ellipsis;
+.copiedLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
 }
 
 .recents {
