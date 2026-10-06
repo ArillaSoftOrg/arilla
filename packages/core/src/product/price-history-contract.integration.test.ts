@@ -6,7 +6,7 @@ import { getPriceHistory } from "./get-price-history.ts";
 import { type OfferPriceDayRow, offerPriceDaysSql } from "./offer-price-days.ts";
 
 /**
- * Sozlesme (docs/decisions/0065): `price_point` = fiyat DEGISIM olayi,
+ * Sozlesme (docs/decisions/0068): `price_point` = fiyat DEGISIM olayi,
  * `offer.last_seen_at` = tazelik. Gunluk seri ikisinden turetilir.
  */
 const SLUG = "test-price-contract";

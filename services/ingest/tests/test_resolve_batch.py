@@ -1,4 +1,4 @@
-"""Toplu (chunk'li) eslestirme: referans surumle ayni sonuc, olcek, hata, devam (karar 0066).
+"""Toplu (chunk'li) eslestirme: referans surumle ayni sonuc, olcek, hata, devam (karar 0069).
 
 Yaklasim: ayni baslangic durumunda once ESKI offer-offer surum (islem geri
 alinir), sonra YENI toplu surum calisir; offer -> (urun basligi, slug, renk,

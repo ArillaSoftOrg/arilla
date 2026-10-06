@@ -78,7 +78,7 @@ hazirlik dogrulamasiyla ayni). Ret ayni sozlesmeyle kaydedilir:
 Istekler `ArillaBot` user-agent'iyla (`USER_AGENT`), yonlendirme izlenmeden
 gider; `Crawl-delay` oran siniriyla birlikte hangisi yavassa o uygulanir.
 
-### Chunk'li, checkpoint'li kosu (0065)
+### Chunk'li, checkpoint'li kosu (0068)
 
 Bir merchant'in katalogu tek islemde degil **100 tekliflik chunk'larda** yazilir;
 her chunk toplu SQL (~9 ifade) ve checkpoint guncellemesiyle KENDI islemini
@@ -231,7 +231,7 @@ Yeni bir tasima eklemek: `collect/sources/` altina modul yaz ve
 
 1. **Idempotent.** `(merchant_id, external_id)` uzerinde upsert; ayni feed iki
    kez islendiginde yeni `offer` satiri olusmaz.
-2. **`price_point` yalnizca degisimde yazilir** (toplu kosu; karar 0065):
+2. **`price_point` yalnizca degisimde yazilir** (toplu kosu; karar 0068):
    fiyat, liste fiyati ve stok onceki satirla ayniysa yeni satir yok. Tazelik
    `offer.last_seen_at`'te. (Kullanici linki yolu her cozumlemede nokta yazar.)
 3. **`variant_stock_event` yalnizca durum DEGISTIGINDE.** Yazmadan once mevcut
@@ -367,7 +367,7 @@ python -m resolve --sequential       # ESKI offer-offer referans surum (olcum/ka
 python -m resolve --calibrate        # esik olcumu (veritabani gerekmez)
 ```
 
-Toplu motor (`resolve/batch.py`, karar 0066): chunk = ayni merchant'in en fazla 200
+Toplu motor (`resolve/batch.py`, karar 0069): chunk = ayni merchant'in en fazla 200
 offer'i; chunk basina ~12 toplu okuma + ~8 toplu yazim ifadesi, chunk basina
 commit. Kesilirse yeniden calistirmak kalan offer'lardan devam eder (durum
 `offer.product_id`'dedir). Eski surumle ayni kararlari verir (karsilastirma

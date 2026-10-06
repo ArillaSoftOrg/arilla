@@ -4,7 +4,7 @@
  * (`offer_product_idx`, `price_point_offer_time_idx`) sinirli - EXPLAIN ile
  * dogrulanmis, hicbir sequential scan yok.
  *
- * `price_point` degisim olayidir (karar 0065): gunluk seri `offer-price-days.ts`
+ * `price_point` degisim olayidir (karar 0068): gunluk seri `offer-price-days.ts`
  * ile degisim olaylarindan ve `offer.last_seen_at`'ten turetilir.
  */
 import type { Database } from "@arilla/db";
@@ -23,7 +23,7 @@ export async function getPriceHistory(
   days = 90,
 ): Promise<PriceHistoryPoint[]> {
   // price_point yalnizca degisimde yazilir; gunluk seri degisim olaylarindan ve
-  // offer.last_seen_at'ten turetilir (offer-price-days.ts, karar 0065).
+  // offer.last_seen_at'ten turetilir (offer-price-days.ts, karar 0068).
   const result = await db.execute<RawRow>(sql`
     SELECT d.day, MIN(d.min_price::bigint)::text AS min_price
     FROM (${offerPriceDaysSql(sql`SELECT id FROM offer WHERE product_id = ${productId}`, days)}) d

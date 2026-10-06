@@ -1,4 +1,6 @@
-# 0067 — Merchant bazında Shopify seçenek eşlemesi: kanıt ve düzeltme
+# 0072 — Merchant bazında Shopify seçenek eşlemesi: kanıt ve düzeltme
+
+> **Eski numara: 0067.** Bu ADR dalda ilk 0067 olarak yazildi; `main`'deki baska kararlarla cakistigi icin 0072'e tasindi. migration 0052 basligi ve denetim kaydi metnindeki 'docs/decisions/0067' bu ADR'yi (eski numarasiyla) kasteder; uygulanmis migration dosyalarina bu yuzden dokunulmadi.
 
 **Tarih:** 2026-10-07
 **Durum:** kabul edildi (yalnızca `for-fun` düzeltildi ve canlıya alındı; diğer beş merchant bilerek bırakıldı)

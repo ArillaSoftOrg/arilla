@@ -130,7 +130,7 @@ def test_second_run_is_idempotent_and_unchanged_prices_add_no_history(merchant: 
     """Kabul kriterinin ta kendisi.
 
     Ayni feed ikinci kez islendiginde YENI OFFER OLUSMAZ ve fiyat/liste fiyati/stok
-    degismedigi icin YENI `price_point` da olusmaz (karar 0065): gecmis yalnizca
+    degismedigi icin YENI `price_point` da olusmaz (karar 0068): gecmis yalnizca
     degisimde buyur; tazelik `offer.last_seen_at`'tedir.
     """
     with _app() as conn:
@@ -216,7 +216,7 @@ def test_ingest_run_is_always_recorded(merchant: int) -> None:
     assert runs[0][3] == 0
     assert runs[1][2] == 0
     assert runs[1][3] == 100
-    # Ilk kosu 100 nokta yazar; fiyat degismeyen ikinci kosu hic nokta yazmaz (0065).
+    # Ilk kosu 100 nokta yazar; fiyat degismeyen ikinci kosu hic nokta yazmaz (0068).
     assert [run[4] for run in runs] == [100, 0]
 
 
@@ -235,7 +235,7 @@ def test_failed_run_before_first_chunk_leaves_no_writes(
     """Ilk chunk commit edilmeden kesilen kosu `failed` kapanir ve HIC yazim birakmaz.
 
     50. kayitta beklenmeyen bir hata; chunk boyu 100 oldugundan hicbir sey
-    veritabanina ulasmadi. `offers_seen` gercek (50), sayaclar 0 (karar 0055/0065).
+    veritabanina ulasmadi. `offers_seen` gercek (50), sayaclar 0 (karar 0055/0068).
     """
     import collect.pipeline as pipeline
 
@@ -272,7 +272,7 @@ def test_failed_run_before_first_chunk_leaves_no_writes(
     assert "baglanti koptu" in error_text
 
 
-# --- chunk'li ve checkpoint'li yazim (karar 0065) ---------------------------------------
+# --- chunk'li ve checkpoint'li yazim (karar 0068) ---------------------------------------
 
 
 CHUNK = 30  # 100 teklif -> 4 chunk (30, 30, 30, 10)
@@ -514,7 +514,7 @@ def test_batch_with_duplicate_external_id_keeps_the_last() -> None:
 def test_close_run_falls_back_to_fresh_connection_when_connection_is_lost(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    """Uzun kosuda baglanti koparsa kosu kaydi YENI bir baglantiyla kapanir (karar 0065)."""
+    """Uzun kosuda baglanti koparsa kosu kaydi YENI bir baglantiyla kapanir (karar 0068)."""
     from contextlib import contextmanager
 
     import collect.pipeline as pipeline
@@ -540,7 +540,7 @@ def test_close_run_falls_back_to_fresh_connection_when_connection_is_lost(
 
 
 def test_unchanged_reingest_advances_last_seen_but_not_price_history(merchant: int) -> None:
-    """Sozlesme (karar 0065): `price_point` degisim olayi, `offer.last_seen_at`
+    """Sozlesme (karar 0068): `price_point` degisim olayi, `offer.last_seen_at`
     tazelik. Ayni fiyatla yeni toplama nokta eklemez ama `last_seen_at`'i ilerletir."""
     sql = (
         "SELECT min(first_seen_at), min(last_seen_at), max(last_seen_at)"

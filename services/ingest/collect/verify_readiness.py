@@ -582,7 +582,7 @@ def verify(
 def build_client() -> httpx.Client:
     """Gercek toplamayla AYNI istemci (`safe_http.guarded_client`): SSRF korumali,
     cerezsiz, proxy'siz, yonlendirme izlemez, `ArillaBot` kimligi. Duz `httpx.Client`
-    Shopify'in bot korumasindan yanlis-negatif 429 aliyordu (0066 sonrasi uretim
+    Shopify'in bot korumasindan yanlis-negatif 429 aliyordu (0069 sonrasi uretim
     pilotunda gozlendi); hazirlik karari gercek toplamanin goreceği ag davranisiyla
     verilmeli. Yeniden deneme yok."""
     return guarded_client(

@@ -1,5 +1,5 @@
 /**
- * Teklif basina GUNLUK etkin fiyat (docs/decisions/0065).
+ * Teklif basina GUNLUK etkin fiyat (docs/decisions/0068).
  *
  * Sozlesme:
  * - `price_point` = fiyat DEGISIM olayi (fiyat, liste fiyati ya da stok

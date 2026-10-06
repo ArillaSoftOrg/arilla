@@ -7,10 +7,10 @@ Kurallar bu dosyanin varlik sebebi:
 2. **`price_point` sadece INSERT.** UPDATE denenmez; `arilla_app` rolunun zaten
    yetkisi yok. `dedupe_price_points=True` (toplu kosu) iken fiyat, liste fiyati
    ve stok onceki satirla AYNIYSA yeni satir yazilmaz — gecmis yalnizca
-   degisimde buyur (karar 0065). Tazelik `offer.last_seen_at`'te durur.
+   degisimde buyur (karar 0068). Tazelik `offer.last_seen_at`'te durur.
 3. **`variant_stock_event` yalnizca DEGISIMDE.** Yazmadan once mevcut durum
    okunur. Her kosuda yazilirsa tablo siser.
-4. **Toplu SQL (0065).** Bir chunk'taki tum teklifler/varyantlar `unnest` ile
+4. **Toplu SQL (0068).** Bir chunk'taki tum teklifler/varyantlar `unnest` ile
    sabit sayida ifadeyle yazilir: uzak veritabaninda her ifade bir round-trip
    oldugundan, teklif/varyant basina 5 ifade yerine chunk basina ~9 ifade.
    Davranis tek tek yazimla aynidir (testlerle sabitlenmis).
@@ -212,7 +212,7 @@ class OfferWriter:
         #: boylece tutarli olur.
         self.observed_at = observed_at
         #: True: fiyat/liste fiyati/stok onceki `price_point` ile ayniysa satir
-        #: yazilmaz (toplu toplama, karar 0065). Kullanici linki yolu her
+        #: yazilmaz (toplu toplama, karar 0068). Kullanici linki yolu her
         #: cozumlemede bir nokta yazmaya devam eder (False).
         self.dedupe_price_points = dedupe_price_points
         self.counts = WriteCounts()

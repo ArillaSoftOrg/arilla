@@ -11,7 +11,7 @@
  *   Bir gunun fiyati = o gun sonuna kadarki son olay; yalnizca teklifin
  *   goruldugu gunler: ilk fiyat olayindan `offer.last_seen_at` gunune kadar
  *   (`offer-price-days.ts`). `price_point` degisim olayidir, "goruldu" kaniti
- *   degildir (karar 0065).
+ *   degildir (karar 0068).
  *
  * Hicbir nokta sentezlenmez: kaynagi olmayan teklif seriye katilmaz ve
  * "tam" sayilmaz.
@@ -222,7 +222,7 @@ export async function getVariantPriceHistory(
     source.kind === "variants" ? source.variantIds : [],
   );
   // price_point degisim olayidir; "goruldu" gunleri last_seen_at ile birlikte
-  // turetilir (offer-price-days.ts, karar 0065).
+  // turetilir (offer-price-days.ts, karar 0068).
   const dayRows = await db.execute<DayRow>(
     offerPriceDaysSql(sql`SELECT unnest(${sql.param(offerIds)}::bigint[]) AS id`, days),
   );

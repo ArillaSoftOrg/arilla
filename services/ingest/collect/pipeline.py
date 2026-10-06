@@ -3,7 +3,7 @@
 Her kosu `ingest_run` tablosuna yazilir. **Sessiz basarisizlik kabul edilmez**
 (architecture.md §1): kosu patlasa bile satir kapanir.
 
-**Chunk'li ve checkpoint'li yazim (karar 0065).** Eskiden bir merchant'in
+**Chunk'li ve checkpoint'li yazim (karar 0068).** Eskiden bir merchant'in
 butun katalogu TEK islemdeydi; uzak veritabaninda 42 dakika sonra baglanti
 koptu ve tum is geri alindi. Simdi:
 
@@ -58,7 +58,7 @@ MAX_ERROR_SAMPLES = 5
 
 #: Chunk basina teklif. Toplu yazimla bir chunk ~9 ifade (~1,5 sn uzak RTT);
 #: 100 teklif ~2 Shopify sayfasi eder: commit RTT'si ihmal edilir, kesintide
-#: kaybedilen is en fazla bir chunk (karar 0065).
+#: kaybedilen is en fazla bir chunk (karar 0068).
 CHUNK_OFFERS = 100
 
 #: Devam ettirilebilir (`partial` + `resumable`) bir kosu bu sureden eskiyse
@@ -87,7 +87,7 @@ class IngestResult:
 
 class IngestInterrupted(Exception):
     """Kosu yarida kesildi ama commit edilmis chunk'lar var: `partial` +
-    `resumable`. Yeniden calistirmak kalan isi tamamlar (karar 0065)."""
+    `resumable`. Yeniden calistirmak kalan isi tamamlar (karar 0068)."""
 
     def __init__(self, result: IngestResult, cause: BaseException) -> None:
         super().__init__(
@@ -133,7 +133,7 @@ def _checkpoint(
     resumable: bool,
     resumed_from: int | None,
 ) -> str:
-    """Kucuk, duz JSON. Ham katalog yaniti ASLA buraya girmez (karar 0065)."""
+    """Kucuk, duz JSON. Ham katalog yaniti ASLA buraya girmez (karar 0068)."""
     return json.dumps(
         {
             "v": 1,

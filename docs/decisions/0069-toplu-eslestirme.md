@@ -1,4 +1,6 @@
-# 0066 — Chunk'li, toplu SQL'li eşleştirme (resolve)
+# 0069 — Chunk'li, toplu SQL'li eşleştirme (resolve)
+
+> **Eski numara: 0066.** Bu ADR dalda ilk 0066 olarak yazildi; `main`'deki baska kararlarla cakistigi icin 0069'e tasindi. kod yorumlarindaki ilk 'karar 0066' atiflari bu ADR'yi (eski numarasiyla) kasteder; uygulanmis migration dosyalarina bu yuzden dokunulmadi.
 
 **Tarih:** 2026-10-07
 **Durum:** kabul edildi (kod ve testler hazır; production'da geri alınan benchmark yapıldı)

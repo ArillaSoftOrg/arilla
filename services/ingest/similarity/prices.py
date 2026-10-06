@@ -48,7 +48,7 @@ class PriceStats:
 def carry_forward(
     points: list[Observation], seen_until: datetime, since: datetime
 ) -> list[Observation]:
-    """Fiyat DEGISIM olaylarindan gunluk "etkin fiyat" ornekleri (karar 0065).
+    """Fiyat DEGISIM olaylarindan gunluk "etkin fiyat" ornekleri (karar 0068).
 
     `price_point` yalnizca fiyat/liste fiyati/stok degistiginde yazilir; ardisik
     iki olay arasinda fiyat sabittir. Medyan ve yuzdelik gibi dagilim
@@ -176,7 +176,7 @@ def compute(
     urune toplanir.
 
     `seen_until` (teklif -> `offer.last_seen_at`) verilirse seri DEGISIM
-    olaylarindan olusur (karar 0065): dagilim istatistikleri `carry_forward` ile
+    olaylarindan olusur (karar 0068): dagilim istatistikleri `carry_forward` ile
     gunluk etkin fiyat orneklerinden, sirali olanlar (dusus, sahte indirim)
     gercek olay zamanlariyla hesaplanir. Verilmezse her gozlem esit agirliklidir
     (eski, gunluk gozlem varsayimi).

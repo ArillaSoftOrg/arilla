@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 #: 90 gunu varsayiyor (min_90d, max_90d, median_90d).
 HISTORY_DAYS = 90
 
-#: `price_point` degisim olayidir (karar 0065). Pencere oncesindeki SON olay da
+#: `price_point` degisim olayidir (karar 0068). Pencere oncesindeki SON olay da
 #: gelir: 90 gundur degismeyen fiyat pencerenin basinda gecerli fiyattir.
 #: `last_seen_at` teklifin son goruldugu andir (serinin bitis siniri).
 PRICE_HISTORY = """

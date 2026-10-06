@@ -235,7 +235,7 @@ def test_product_aggregates_follow_active_offers(catalogue: list[int]) -> None:
 def test_price_stats_from_change_only_history_keep_unchanged_offers(
     catalogue: list[int],
 ) -> None:
-    """`price_point` yalnizca degisimde yazilir (karar 0065): 80 gundur degismeyen
+    """`price_point` yalnizca degisimde yazilir (karar 0068): 80 gundur degismeyen
     fiyatli, hala goruluyor teklif istatistiksiz KALMAZ ve fiyati pencereyi doldurur."""
     with _owner() as conn, conn.cursor() as cur:
         cur.execute(

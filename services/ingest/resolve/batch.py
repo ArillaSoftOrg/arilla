@@ -1,4 +1,4 @@
-"""Toplu (chunk'li) eslestirme (karar 0066).
+"""Toplu (chunk'li) eslestirme (karar 0069).
 
 `resolve.pipeline.resolve_offers_sequential` her offer icin ~8-14 ayri sorgu
 atar ve tum isi tek islemde tutar: uzak veritabaninda (RTT ~158 ms) 1.723

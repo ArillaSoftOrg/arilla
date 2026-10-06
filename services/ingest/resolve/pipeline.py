@@ -232,7 +232,7 @@ def resolve_offers(
     chunk_size: int | None = None,
     commit_each_chunk: bool = False,
 ) -> ResolveCounts:
-    """Eslesmemis offer'lari cozer: chunk'li, toplu SQL'li surum (karar 0066).
+    """Eslesmemis offer'lari cozer: chunk'li, toplu SQL'li surum (karar 0069).
 
     `resolve_offers_sequential` ile ayni kararlari verir (regresyon testleri
     ikisini karsilastirir) ama uzak veritabaninda offer basina ~10 round-trip

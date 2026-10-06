@@ -1,4 +1,6 @@
-# 0065 — Chunk'li, checkpoint'li ve toplu SQL'li toplama
+# 0068 — Chunk'li, checkpoint'li ve toplu SQL'li toplama
+
+> **Eski numara: 0065.** Bu ADR dalda ilk 0065 olarak yazildi; `main`'deki baska kararlarla cakistigi icin 0068'e tasindi. 0049/0051 yorumlarindaki 'karar 0065' / `docs/decisions/0065` ve migration 0051'in COMMENT ON metinleri bu ADR'yi (eski numarasiyla) kasteder; uygulanmis migration dosyalarina bu yuzden dokunulmadi.
 
 **Tarih:** 2026-10-07
 **Durum:** kabul edildi (kod ve testler hazır; migration `0051` production'a

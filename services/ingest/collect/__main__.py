@@ -7,7 +7,7 @@
 Bu servis HICBIR HTTP ENDPOINT SUNMAZ. TypeScript tarafi bu kodu cagirmaz;
 tetikleme ya bu CLI ya da (ilerideki) Redis kuyrugu uzerinden olur.
 
-Kosu chunk'li ve checkpoint'lidir (karar 0065). Kesilirse (baglanti kopmasi,
+Kosu chunk'li ve checkpoint'lidir (karar 0068). Kesilirse (baglanti kopmasi,
 agdan gecici hata) commit edilmis chunk'lar kalir; CLI kalan isi kalici
 checkpoint'ten, ayni `observed_at` ile, en fazla `--max-attempts` kez devam
 ettirir. Hepsi tukenirse `partial` kalir (asla `success` degil) ve cikis kodu 1.

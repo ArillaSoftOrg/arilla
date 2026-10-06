@@ -185,7 +185,7 @@ def test_unordered_offers_still_produce_ordered_statistics() -> None:
     assert stats.current_percentile == 0
 
 
-# --- degisim olayi modeli (karar 0065) ---------------------------------------------
+# --- degisim olayi modeli (karar 0068) ---------------------------------------------
 
 
 NOW = datetime(2026, 10, 1, tzinfo=UTC)
