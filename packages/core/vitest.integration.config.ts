@@ -10,6 +10,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.integration.test.ts"],
+    // Hepsi ayni yalitilmis veritabanini paylasir ve fixture'lari birbirinin sonucunu
+    // etkileyebilir (ornegin "iphone 17" baslikli urunler): dosyalar sirayla kosar.
+    fileParallelism: false,
     // Üretim veritabanına bağlanmayı engeller (fail-closed).
     setupFiles: ["../db/src/vitest-isolation-setup.ts"],
   },

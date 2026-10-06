@@ -110,6 +110,7 @@ describe("hediye akisi", () => {
       category_path: "elektronik",
       price_min: 50000,
       price_max: 100000,
+      currency: "TRY",
     });
     expect(query.unparsed).toBe("");
   });

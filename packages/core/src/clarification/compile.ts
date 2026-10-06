@@ -92,6 +92,7 @@ export function compileQuery(
   if (state.lexical.brand_exclude) filters.brand_exclude = [...state.lexical.brand_exclude];
   if (state.budget?.minKurus != null) filters.price_min = state.budget.minKurus;
   if (state.budget?.maxKurus != null) filters.price_max = state.budget.maxKurus;
+  if (filters.price_min != null || filters.price_max != null) filters.currency = "TRY";
 
   return {
     intent: "browse",

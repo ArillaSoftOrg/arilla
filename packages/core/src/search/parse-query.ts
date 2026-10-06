@@ -85,6 +85,7 @@ export function parseQueryText(
     markTokensConsumed(tokens, consumed, span);
     if (match.priceMin !== undefined) filters.price_min = match.priceMin;
     if (match.priceMax !== undefined) filters.price_max = match.priceMax;
+    filters.currency = match.currency;
   }
 
   for (const m of normalized.matchAll(SIZE_NUMARA_RE)) {

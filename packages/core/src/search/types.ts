@@ -19,6 +19,11 @@ export interface QueryFilters {
   color?: ColorNorm[];
   price_min?: number | null;
   price_max?: number | null;
+  /**
+   * `price_min`/`price_max` para birimi. Yalnizca TRY (CLAUDE.md); alan yoksa TRY
+   * varsayilir (eski onbellek satirlari). Ayristirici bir fiyat siniri koydugunda yazar.
+   */
+  currency?: "TRY";
   size_norm?: string;
   brand_include?: string[];
   brand_exclude?: string[];

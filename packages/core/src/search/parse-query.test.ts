@@ -9,6 +9,9 @@ const lexicon: LexiconEntry[] = [
   { kind: "category", surface: "spor ayakkabı", normalized: "ayakkabi/sneaker", weight: 1 },
   { kind: "category", surface: "spor ayakkabısı", normalized: "ayakkabi/sneaker", weight: 1 },
   { kind: "brand", surface: "nike", normalized: "nike", weight: 1 },
+  { kind: "brand", surface: "samsung", normalized: "samsung", weight: 1 },
+  { kind: "category", surface: "telefon", normalized: "elektronik/telefon", weight: 1 },
+  { kind: "category", surface: "laptop", normalized: "elektronik/laptop", weight: 1 },
 ];
 
 describe("parseQueryText", () => {
@@ -19,6 +22,7 @@ describe("parseQueryText", () => {
       category_path: "ayakkabi/sneaker",
       color: ["black"],
       price_max: 300000,
+      currency: "TRY",
       size_norm: "42",
     });
     expect(result.unparsed).toBe("");
@@ -59,5 +63,52 @@ describe("parseQueryText", () => {
     expect(result.filters).toEqual({});
     expect(result.unparsed).toBe("geniş kalıp");
     expect(result.confidence).toBeLessThan(0.35);
+  });
+
+  describe("deterministic price phrases (no model call)", () => {
+    const cases: Array<[string, Partial<{ min: number; max: number }>, string]> = [
+      ["20 bin altı telefon", { max: 2_000_000 }, "telefon"],
+      ["20k altı telefon", { max: 2_000_000 }, "telefon"],
+      ["20.000 TL altı telefon", { max: 2_000_000 }, "telefon"],
+      ["15 bin ile 25 bin arası laptop", { min: 1_500_000, max: 2_500_000 }, "laptop"],
+      ["en fazla 30k laptop", { max: 3_000_000 }, "laptop"],
+      ["5000 TL'den ucuz telefon", { max: 500_000 }, "telefon"],
+      ["10 bin üstü telefon", { min: 1_000_000 }, "telefon"],
+      ["20 bin altı samsung telefon", { max: 2_000_000 }, "telefon"],
+    ];
+
+    it.each(cases)("%s", (text, expected, category) => {
+      const result = parseQueryText(text, lexicon);
+      expect(result.filters.price_min ?? undefined).toBe(expected.min);
+      expect(result.filters.price_max ?? undefined).toBe(expected.max);
+      expect(result.filters.currency).toBe("TRY");
+      expect(result.filters.category_path).toBe(`elektronik/${category}`);
+      // Fiyat ifadesi metin kapisina sizmaz.
+      expect(result.unparsed).toBe("");
+    });
+
+    it("keeps model numbers and specs out of the price filters", () => {
+      for (const text of [
+        "iphone 17 pro max",
+        "iphone 17 telefon",
+        "samsung s24 telefon",
+        "128gb telefon",
+        "256 gb ssd laptop",
+        "5000 mah telefon",
+        "iphone 17 altı telefon",
+        "en az 16 gb ram laptop",
+      ]) {
+        const result = parseQueryText(text, lexicon);
+        expect(result.filters.price_min, text).toBeUndefined();
+        expect(result.filters.price_max, text).toBeUndefined();
+        expect(result.filters.currency, text).toBeUndefined();
+      }
+    });
+
+    it("reads the price but not the model number in a mixed query", () => {
+      const result = parseQueryText("iphone 17 pro max 256 gb 60 bin altı", lexicon);
+      expect(result.filters.price_max).toBe(6_000_000);
+      expect(result.unparsed).toBe("iphone 17 pro max 256 gb");
+    });
   });
 });

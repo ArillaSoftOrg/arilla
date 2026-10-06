@@ -167,6 +167,48 @@ verilerek çalıştırılır. Testler arasında yerel Redis'teki `ratelimit:*`
 anahtarları birikirse giriş testleri oran sınırına takılır; yalnızca yerel
 Redis'te temizlenir.
 
+## Katalog telemetrisi (salt okunur, elle)
+
+Katalog büyürken "kaldır / ayarla / ayır" kararları ölçümle verilir
+(`docs/catalog-120m-audit.md`, Ek A). Betik **hiçbir ayar değiştirmez**, vacuum/
+analyze çalıştırmaz, yazmaz; otomatikleştirilmez (cron, CI, dağıtım adımı yok).
+
+```
+pnpm db:catalog-telemetry               # yerel veritabanı, özet tablolar
+pnpm db:catalog-telemetry --json > a.json   # iki ölçümü karşılaştırmak için
+pnpm db:catalog-telemetry --growth      # son 30 gün günlük offer/ürün/koşu sayıları (tam tarama olabilir)
+pnpm db:catalog-telemetry --bloat       # pgstattuple_approx, eklenti varsa (sayfa okur)
+pnpm db:catalog-telemetry --remote      # yerel OLMAYAN veritabanı: bayrak şart
+```
+
+* Tek `READ ONLY` işlem; `statement_timeout 15s`, `lock_timeout 1s`; her sorgu
+  çalışmadan önce `SELECT/WITH` + yazma/DDL/bakım kelimesi yok denetiminden geçer
+  (`catalog-telemetry.test.ts`).
+* Ölçtükleri: tablo satır/boyut/ölü satır, indeks boyutu ve `idx_scan`
+  (`unused_candidate` = **aday**, kanıt değil), seq/idx tarama, HOT güncelleme oranı,
+  autovacuum durumu ve ayarları, `price_point` aylık partition boyutları, en pahalı
+  katalog sorguları (`pg_stat_statements` varsa), ortalama satır genişliği, büyüme.
+* **Sayaçlar `stats_reset`'ten beri birikir**; çıktı pencereyi basar. Kısa pencereyle
+  "kullanılmıyor" denmez; bir indeks kararı için en az bir tam iş döngüsünü
+  (günlük toplama + haftalık raporlar) kapsayan pencere gerekir.
+* Üretimde yalnız sahibi, bilinçli çalıştırır; sonuç hiçbir kişisel veri içermez
+  (sorgu metinleri normalize ve 200 karaktere kısaltılmış).
+
+## Sorgu ayrıştırma önbelleği (`query_resolution`)
+
+`resolveQuery` bir normalize sorguyu kalıcı önbelleğe alır. Ayrıştırıcı (örn. fiyat
+ifadeleri, karar 0069) ya da sözlük değişince daha önce kaydedilmiş sorgular ESKİ
+ayrıştırmayı döndürmeye devam eder. Sözlük değişikliklerinde `admin/lexicon.ts` tabloyu
+kendisi temizler; **ayrıştırıcı kodu değiştiren bir yayından sonra** tablo bir kez
+temizlenir:
+
+```sql
+DELETE FROM query_resolution;   -- yalnızca önbellek; kaynak gerçek değil, yeniden üretilir
+```
+
+Maliyet: temizlik sonrası ilk aramalar yeniden ayrıştırılır (sözlük taraması, model yok).
+Üretimde elle ve bilerek yapılır; otomatik değildir.
+
 ## Yedekleme
 
 **Fiyat geçmişi geriye dönük üretilemez.** Kaybedilirse savunulabilirliğin

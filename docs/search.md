@@ -106,6 +106,27 @@ Eşleşme başarılıysa model çağrılmaz.
 `query_resolution` tablosuna normalize sorgu metnine göre yazılır. Aynı sorguyu
 yazan ikinci kullanıcı için maliyet sıfırdır. Sorgular ağır tekrar eder.
 
+### Fiyat ifadeleri (Kademe 2, model yok)
+
+`packages/core/src/search/price-patterns.ts` Türkçe kısaltmaları okur ve sonucu
+`filters.price_min` / `price_max` (kuruş, tamsayı) + `filters.currency = "TRY"`
+olarak yazar. Alan yoksa TRY varsayılır (eski önbellek satırları).
+
+| Örnek | Sonuç |
+| --- | --- |
+| `20 bin altı`, `20k altı`, `20.000 TL altı` | en çok 20.000 TL |
+| `15 bin ile 25 bin arası`, `15-25 bin`, `15k-25k` | 15.000–25.000 TL |
+| `en fazla 30k`, `5000 TL'den ucuz` | en çok 30.000 / 5.000 TL |
+| `10 bin üstü`, `en az 8 bin` | en az 10.000 / 8.000 TL |
+| `1,5 milyon altı` | en çok 1.500.000 TL |
+
+**Model numarası ve özellik fiyat değildir:** `iphone 17`, `s24`, `a15`, `128gb`,
+`5000 mah`, `14-16 inç`, `en az 16 gb ram`, `iphone 17 altı` hiçbir filtre üretmez.
+Kurallar: harfe/rakama bitişik sayı okunmaz; para birimi/çarpan (`tl`, `bin`, `k`,
+`milyon`) taşımayan sayı bir eşiğin altındaysa okunmaz (işleçten sonra < 100 TL,
+önce < 1.000 TL); işaretsiz sayının ardından ölçü birimi gelirse okunmaz. Emin
+olunamayan sayı `unparsed`'a kalır.
+
 ## Netleştirme
 
 Elle yazılmış şablon yoktur. Netleştirme kategori ağacından türetilir, böylece
