@@ -24,6 +24,17 @@ export const EMBEDDING_DIMENSIONS = 768;
 
 const MAX_RETRIES = 4;
 
+/**
+ * İstek yolunda kullanıcı bekliyor: tek bir deneme bu sürede yanıt vermezse
+ * iptal edilir ve (bütçe kaldıysa) yeniden denenir.
+ */
+const ATTEMPT_TIMEOUT_MS = 15_000;
+/**
+ * Tüm denemeler ve aradaki beklemeler dahil üst sınır. Bekleme bu sınırı
+ * aşacaksa yeniden denenmez, `EmbeddingError` atılır (fail-closed).
+ */
+const TOTAL_TIMEOUT_MS = 30_000;
+
 export class EmbeddingError extends Error {
   constructor(message: string) {
     super(message);
@@ -47,11 +58,39 @@ async function sleep(ms: number): Promise<void> {
   await new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Testlerin ağ, saat ve bekleme olmadan zaman aşımı/yeniden deneme yolunu sürebilmesi için. */
+export interface JinaClientOptions {
+  fetch?: typeof fetch;
+  sleep?: (ms: number) => Promise<void>;
+  now?: () => number;
+  attemptTimeoutMs?: number;
+  totalTimeoutMs?: number;
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError");
+}
+
 /** `docs/decisions/0015` ile aynı istisna: istek yolundaki tek model çağrısı. */
 export class JinaEmbeddingClient implements EmbeddingClient {
   readonly modelVersion = MODEL;
 
-  constructor(private readonly apiKey: string) {}
+  private readonly fetchImpl: typeof fetch;
+  private readonly sleepImpl: (ms: number) => Promise<void>;
+  private readonly now: () => number;
+  private readonly attemptTimeoutMs: number;
+  private readonly totalTimeoutMs: number;
+
+  constructor(
+    private readonly apiKey: string,
+    options: JinaClientOptions = {},
+  ) {
+    this.fetchImpl = options.fetch ?? fetch;
+    this.sleepImpl = options.sleep ?? sleep;
+    this.now = options.now ?? Date.now;
+    this.attemptTimeoutMs = options.attemptTimeoutMs ?? ATTEMPT_TIMEOUT_MS;
+    this.totalTimeoutMs = options.totalTimeoutMs ?? TOTAL_TIMEOUT_MS;
+  }
 
   async embedImage(dataUrl: string): Promise<EmbeddingResult> {
     const body = {
@@ -68,33 +107,60 @@ export class JinaEmbeddingClient implements EmbeddingClient {
     return this.parse(payload);
   }
 
+  /**
+   * Yeniden deneme kuralı değişmedi: 429/5xx yeniden denenir (1 sn, 2 sn, 4 sn
+   * bekleme, en fazla 4 deneme), diğer 4xx denenmez, ağ hatası olduğu gibi
+   * yükselir. Eklenen: her deneme `ATTEMPT_TIMEOUT_MS` ve kalan toplam
+   * bütçeyle sınırlı (gövde okuması dahil); zaman aşımı da yeniden denenir.
+   * Bütçe biterse son hata `EmbeddingError` olur, sahte vektöre düşülmez.
+   */
   private async postWithRetry(body: unknown): Promise<unknown> {
+    const deadline = this.now() + this.totalTimeoutMs;
+    let lastFailure = "sağlayıcı yanıt vermedi";
     for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${this.apiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(body),
-      });
+      const remaining = deadline - this.now();
+      if (remaining <= 0) break;
 
-      if (response.status === 429 || response.status >= 500) {
-        if (attempt === MAX_RETRIES - 1) {
-          throw new EmbeddingError(
-            `sağlayıcı ${response.status} döndü, ${MAX_RETRIES} denemede geçmedi`,
-          );
+      // Zamanlayıcı fetch'i VE gövde okumasını kapsar; her yolda `finally`'de
+      // temizlenir (başarılı denemeden sonra bekleyen zamanlayıcı kalmaz).
+      const controller = new AbortController();
+      const timer = setTimeout(
+        () => controller.abort(new DOMException("Jina denemesi zaman aşımı", "TimeoutError")),
+        Math.min(this.attemptTimeoutMs, remaining),
+      );
+      try {
+        const response = await this.fetchImpl(API_URL, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${this.apiKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(body),
+          signal: controller.signal,
+        });
+        if (response.status < 400) return await response.json();
+        if (response.status !== 429 && response.status < 500) {
+          const text = await response.text();
+          throw new EmbeddingError(`sağlayıcı ${response.status}: ${text.slice(0, 200)}`);
         }
-        await sleep(2 ** attempt * 1000);
-        continue;
+        // Okunmayan gövde bağlantıyı tutmasın; bekleme öncesi bırakılır.
+        await response.body?.cancel().catch(() => undefined);
+        lastFailure = `sağlayıcı ${response.status} döndü`;
+      } catch (error) {
+        if (!isAbortError(error)) throw error;
+        lastFailure = "sağlayıcı zaman aşımına uğradı";
+      } finally {
+        clearTimeout(timer);
       }
-      if (response.status >= 400) {
-        const text = await response.text();
-        throw new EmbeddingError(`sağlayıcı ${response.status}: ${text.slice(0, 200)}`);
-      }
-      return response.json();
+
+      if (attempt === MAX_RETRIES - 1) break;
+      const backoff = 2 ** attempt * 1000;
+      if (this.now() + backoff >= deadline) break;
+      await this.sleepImpl(backoff);
     }
-    throw new EmbeddingError("beklenmeyen durum: yeniden deneme döngüsü bitti");
+    throw new EmbeddingError(
+      `${lastFailure}; ${MAX_RETRIES} deneme / ${this.totalTimeoutMs} ms içinde geçmedi`,
+    );
   }
 
   private parse(payload: unknown): EmbeddingResult {

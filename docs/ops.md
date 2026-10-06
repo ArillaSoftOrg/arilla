@@ -15,6 +15,29 @@ desteklemiyor; feed toplama saatler sürebilir. Python worker için ayrı bir
 barındırma gerekir (küçük bir VPS yeterli). "Başta Vercel" ilk günden iki ortam
 demektir.
 
+### Link worker
+
+`queue:link_resolution` tüketicisi (`python -m collect.link --worker`), Docker
+ile paketlenir: `services/ingest/Dockerfile` (Python 3.12, bağımlılıklar
+`pyproject.toml`'dan) ve `infra/docker-compose.worker.yml`. Compose dosyası
+yerel geliştirme için DEĞİLDİR (yerelde worker doğrudan çalıştırılır).
+
+```bash
+docker compose -f infra/docker-compose.worker.yml up -d --build
+```
+
+- Gizli değerler `infra/.env.worker`'dan okunur; dosya depoya girmez
+  (`.gitignore`: `.env.*`). Adlar: `DATABASE_URL`, `REDIS_URL`,
+  `JINA_API_KEY`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS` (isteğe bağlı:
+  `JINA_TOKENS_PER_MINUTE`).
+- **Kopan Postgres bağlantısı:** worker tek bağlantıyla çalışır; bağlantı
+  koparsa süreç `1` ile çıkar, `restart: unless-stopped` yeniden başlatır ve
+  yeni bağlantı kurulur. Yarım kalan istek web tarafında ölü sayılır
+  (`packages/core/src/discovery/link-resolution.ts`).
+- **SIGTERM** (`docker stop`, compose `stop`): süreç `0` ile temiz çıkar; açık
+  işlem geri alınır, bağlantı kapanır. `stop_grace_period: 30s`.
+- Geçici Redis hataları süreci düşürmez; worker bekleyip yeniden dener.
+
 ## Sağlayıcı bağımsızlığı
 
 Vercel'e özgü hiçbir hizmete kilitlenilmez. Taşınabilir muadiller kullanılır:
