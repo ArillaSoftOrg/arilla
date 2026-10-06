@@ -153,7 +153,7 @@ export async function selectInterpretationCandidates(
 }
 
 export type QueryInterpretationRunStatus = "success" | "partial" | "failed" | "skipped";
-export type QueryInterpretationSkipReason = "missing_api_key" | "already_running";
+export type QueryInterpretationSkipReason = "missing_api_key" | "already_running" | "daily_cap";
 
 /** Yalnizca sayilar ve sabit kodlar; sorgu metni ya da model ciktisi YOK. */
 export interface QueryInterpretationBatchResult {
@@ -174,6 +174,8 @@ export interface QueryInterpretationBatchResult {
   alreadyStored: number;
   /** Sure butcesi ya da durdurucu hata yuzunden islenmeyen aday. */
   deferred: number;
+  /** Bu kosu baslarken bugun (Europe/Istanbul) zaten yapilmis saglayici denemesi. */
+  providerCallsToday: number;
   /** Kosuyu durduran saglayici hata kodu (sabit). */
   stopCode: string | null;
 }
@@ -197,6 +199,7 @@ function emptyResult(
     providerCalls: 0,
     alreadyStored: 0,
     deferred: 0,
+    providerCallsToday: 0,
     stopCode: null,
   };
 }
@@ -246,7 +249,30 @@ export interface QueryInterpretationBatchOptions {
   registry?: ClarificationRegistry;
   maxQueries?: number;
   timeBudgetMs?: number;
+  /** Testler icin; varsayilan `QUERY_INTERPRETATION_DAILY_CALL_CAP`. Yukseltilemez. */
+  dailyCallCap?: number;
   now?: () => Date;
+}
+
+/**
+ * Maliyet tavani: Europe/Istanbul gunu basina en fazla bu kadar saglayici HTTP
+ * denemesi (yeniden denemeler dahil). Elle tekrarlanan kosular toplamda bunu
+ * asamaz. Sayim migration'siz: her gercek deneme zaten tam bir `api_usage`
+ * satiri yazar (`operation = 'query_interpretation'`, `(created_at,
+ * operation)` indeksi). Tek kosu en fazla 20 sorgu x 2 deneme = 40.
+ */
+export const QUERY_INTERPRETATION_DAILY_CALL_CAP = 100;
+
+/** Bugun (Europe/Istanbul takvim gunu) yazilmis yorum denemesi sayisi. */
+export async function providerCallsToday(db: Database, now: Date): Promise<number> {
+  const result = await db.execute<{ calls: number }>(sql`
+    SELECT count(*)::int AS calls
+      FROM api_usage
+     WHERE operation = ${QUERY_INTERPRETATION_OPERATION}
+       AND created_at >= (((${now.toISOString()}::timestamptz AT TIME ZONE ${SEARCH_QUALITY_TIME_ZONE})::date)::timestamp
+                          AT TIME ZONE ${SEARCH_QUALITY_TIME_ZONE})
+  `);
+  return Number(result.rows[0]?.calls ?? 0);
 }
 
 /**
@@ -271,6 +297,16 @@ export async function runQueryInterpretationBatch(
   const timeBudgetMs = options.timeBudgetMs ?? QUERY_INTERPRETATION_TIME_BUDGET_MS;
   const now = options.now ?? (() => new Date());
   const startedAt = now().getTime();
+  const dailyCap = Math.min(
+    Math.max(0, options.dailyCallCap ?? QUERY_INTERPRETATION_DAILY_CALL_CAP),
+    QUERY_INTERPRETATION_DAILY_CALL_CAP,
+  );
+  // Bir sorgunun en kotu durumda harcayabilecegi deneme (cron istemcisi: 2).
+  const worstCallsPerQuery = QUERY_INTERPRETATION_CLIENT_OPTIONS.maxAttempts;
+  const callsBefore = await providerCallsToday(db, now());
+  if (callsBefore + worstCallsPerQuery > dailyCap) {
+    return { ...emptyResult("skipped", "daily_cap"), providerCallsToday: callsBefore };
+  }
 
   const taxonomyHash = interpreterContractHash(registry);
   const lexicon = await loadLexicon(db);
@@ -284,6 +320,7 @@ export async function runQueryInterpretationBatch(
   });
 
   const result = emptyResult("success");
+  result.providerCallsToday = callsBefore;
   result.candidates = selection.candidates.length;
   result.scanned = selection.scanned;
   result.ineligible = selection.ineligible;
@@ -294,6 +331,12 @@ export async function runQueryInterpretationBatch(
 
   for (const [index, queryNorm] of selection.candidates.entries()) {
     if (now().getTime() - startedAt > timeBudgetMs) {
+      result.deferred = selection.candidates.length - index;
+      break;
+    }
+    // Gunluk tavan: bu sorgunun en kotu deneme sayisi sigmiyorsa durulur.
+    if (callsBefore + result.providerCalls + worstCallsPerQuery > dailyCap) {
+      result.stopCode = "daily_cap";
       result.deferred = selection.candidates.length - index;
       break;
     }

@@ -1359,6 +1359,9 @@ REVOKE DELETE, TRUNCATE ON marketing_campaign_delivery FROM arilla_app;   -- 003
 REVOKE UPDATE, TRUNCATE ON auth_event          FROM arilla_app;           -- 0036
 REVOKE UPDATE, TRUNCATE ON user_activity_event FROM arilla_app;           -- 0036
 GRANT  UPDATE (query_norm) ON user_activity_event TO arilla_app;          -- 0036: 90 günde NULL
+-- 0046: en az yetki; kullanilmayan iki yetki geri alinir.
+REVOKE DELETE ON api_usage                 FROM arilla_app;   -- 0046 (kullanilmiyor; maliyet kaydi silinmez)
+REVOKE UPDATE ON query_interpretation      FROM arilla_app;   -- 0046 (kullanilmiyor; saklama DELETE ile)
 
 -- 0042 (karar 0057): Supabase'in `anon` / `authenticated` rolleri (yalnızca
 -- Supabase'de vardır) `public` şemada hiçbir tablo, sequence ve kendi

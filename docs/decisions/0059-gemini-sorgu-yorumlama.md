@@ -92,8 +92,9 @@ Gemini, model `gemini-3.1-flash-lite` (kararlı sürüm).
   `LlmCall` kaydı olarak bildirir; her biri için bir `api_usage` satırı
   (`operation = 'query_interpretation'`, `units` = toplam token, kimlik NULL),
   sorgu sonucuyla aynı işlemde. `cost_micros` şimdilik 0 (fiyat oranı yok).
-- **Sınırlar:** koşu başına 20 sorgu, 35 sn'den sonra yeni sorgu yok, istemci
-  10 sn × 2 deneme; 401/403/4xx/429'da koşu durur; aynı anda tek koşu
+- **Sınırlar:** Europe/Istanbul günü başına en fazla 100 sağlayıcı denemesi
+  (`api_usage` sayımı, migration yok); koşu başına 20 sorgu, 35 sn'den sonra
+  yeni sorgu yok, istemci 10 sn × 2 deneme; 401/403/4xx/429'da koşu durur; aynı anda tek koşu
   (yakın zamanda başlamış `running` `job_run` varsa atlanır). Ortam değişkeni
   eklenmedi.
 - **`job_run`:** `query_interpretation`. 0041'de `skipped` durumu olmadığından
@@ -111,6 +112,10 @@ Gemini, model `gemini-3.1-flash-lite` (kararlı sürüm).
   en düşük öncelikte uygular; URL'deki sonraki cevaplar onu ezer. Eski özet
   ya da eski model satırına düşülmez. Okuma hatası aramayı durdurmaz. Okuma
   modülü sağlayıcı istemcisini yüklemez (model kimliği `llm/model.ts`).
+- **Duman testi:** `pnpm gemini:smoke` yalnızca sabit sentetik sorguyla tek
+  HTTP denemesi yapar; veritabanı ve kullanıcı sorgusu yoktur (docs/ops.md).
+- **Yönetim tanısı:** `/ara` ile aynı yolu (`planConversationWithInterpretationSource`)
+  kullanır ve yorum kaynağını gösterir.
 - **Dağıtım sırası:** 0044 üretimde uygulanmadan bu kod dağıtılmaz
   (docs/ops.md).
 

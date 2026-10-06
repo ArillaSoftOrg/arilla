@@ -22,7 +22,8 @@
     "seed": "pnpm --filter @arilla/db seed",
     "lint": "biome check .",
     "check:secrets": "node scripts/check-private-keys.mjs",
-    "format": "biome format --write ."
+    "format": "biome format --write .",
+    "gemini:smoke": "pnpm --filter @arilla/core gemini:smoke"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.14",

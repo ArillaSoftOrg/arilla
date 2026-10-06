@@ -121,7 +121,15 @@ async function planSafely(
       lexicon,
     });
   } catch (error) {
-    console.error("[ara] clarification unavailable, falling back to plain search", error);
+    // Yalnizca sinif ve guvenli kod: hata mesaji ya da yigin sorgu metni tasiyabilir.
+    const code =
+      (error as { code?: unknown; cause?: { code?: unknown } } | null)?.cause?.code ??
+      (error as { code?: unknown } | null)?.code;
+    console.error(
+      "[ara] clarification unavailable, falling back to plain search",
+      error instanceof Error ? error.name : "unknown",
+      typeof code === "string" && /^[A-Za-z0-9_]{1,32}$/.test(code) ? code : "",
+    );
     return { mode: "conventional", query: request.query, reason: "no_domain", reply: null };
   }
 }

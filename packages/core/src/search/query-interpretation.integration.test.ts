@@ -8,6 +8,7 @@
  * sayisiyla yazilir ki yerel veritabanindaki baska sorgulardan once secilsin.
  */
 import type { Database } from "@arilla/db";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "../clarification/rules.ts";
 import type { ClarificationRegistry } from "../clarification/types.ts";
@@ -16,7 +17,9 @@ import { LlmError } from "../llm/client.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { interpreterContractHash } from "./interpretation-identity.ts";
 import {
+  providerCallsToday,
   purgeExpiredQueryInterpretations,
+  QUERY_INTERPRETATION_DAILY_CALL_CAP,
   QUERY_INTERPRETATION_JOB,
   QUERY_INTERPRETATION_OPERATION,
   QUERY_INTERPRETATION_RETENTION_DAYS,
@@ -362,6 +365,62 @@ describe("query_interpretation - entegrasyon", () => {
     expect((await usageRows(MODEL)).length).toBe(before);
   });
 
+  describe("gunluk saglayici deneme tavani", () => {
+    it("tavan 100; bugunku sayim yalnizca yorum denemelerini sayar", async () => {
+      expect(QUERY_INTERPRETATION_DAILY_CALL_CAP).toBe(100);
+      const before = await providerCallsToday(db, new Date());
+      expect(before).toBeGreaterThanOrEqual(0);
+    });
+
+    it("tavan dolmussa saglayici cagrilmadan atlanir (skipped/daily_cap)", async () => {
+      const used = await providerCallsToday(db, new Date());
+      const { client, inputs } = fakeClient(MODEL);
+      const result = await runQueryInterpretationBatch(db, client, {
+        registry: registryVariant(`qi-cap1-${S}`),
+        dailyCallCap: used + 1,
+      });
+      expect(result).toMatchObject({
+        status: "skipped",
+        skippedReason: "daily_cap",
+        attempted: 0,
+        providerCalls: 0,
+        providerCallsToday: used,
+      });
+      expect(inputs).toHaveLength(0);
+    });
+
+    it("tavan bir sorguya yetiyorsa bir sorgu islenir, kalan ertelenir (stop=daily_cap)", async () => {
+      const used = await providerCallsToday(db, new Date());
+      const { client, inputs } = fakeClient(MODEL);
+      const registry = registryVariant(`qi-cap2-${S}`);
+      const result = await runQueryInterpretationBatch(db, client, {
+        registry,
+        dailyCallCap: used + 2,
+      });
+      expect(result.attempted).toBe(1);
+      expect(result.stopCode).toBe("daily_cap");
+      expect(result.deferred).toBeGreaterThanOrEqual(1);
+      expect(inputs).toHaveLength(1);
+      expect(await providerCallsToday(db, new Date())).toBe(used + result.providerCalls);
+      await withOwnerClient(async (c) => {
+        await c.query("DELETE FROM query_interpretation WHERE taxonomy_hash = $1", [
+          interpreterContractHash(registry),
+        ]);
+      });
+    });
+
+    it("tavan yukseltilemez: istenen deger 100 ile sinirlanir", async () => {
+      const used = await providerCallsToday(db, new Date());
+      const { client } = fakeClient(MODEL);
+      const result = await runQueryInterpretationBatch(db, client, {
+        registry: registryVariant(`qi-cap3-${S}`),
+        dailyCallCap: 1_000_000,
+        maxQueries: 0,
+      });
+      expect(result.status).toBe(used + 2 > 100 ? "skipped" : "success");
+    });
+  });
+
   describe("job_run", () => {
     it("partial / failed / success / skipped; ayrinti yalnizca sayi ve sabit kod", async () => {
       const since = await lastJobRunId();
@@ -509,5 +568,35 @@ describe("query_interpretation saklama (90 gun)", () => {
     expect(await rows()).toEqual([`${R} sinirda`, `${R} yeni`].sort());
     await purgeExpiredQueryInterpretations(db, new Date(Date.now() + 2 * DAY));
     expect(await rows()).toEqual([`${R} yeni`]);
+  });
+});
+
+describe("en az yetki (0046) - uygulama rolu", () => {
+  /** WHERE false: satira dokunmaz, yetki yine de denetlenir. Hata kodu ya da null. */
+  async function sqlState(statement: string): Promise<string | null> {
+    const db = getTestDb();
+    try {
+      await db.execute(sql.raw(statement));
+      return null;
+    } catch (error) {
+      const e = error as { code?: string; cause?: { code?: string } };
+      return e.cause?.code ?? e.code ?? "error";
+    } finally {
+      await db.$client.end();
+    }
+  }
+
+  it("api_usage silinemez; query_interpretation guncellenemez (42501)", async () => {
+    expect(await sqlState("DELETE FROM api_usage WHERE false")).toBe("42501");
+    expect(await sqlState("UPDATE query_interpretation SET status = status WHERE false")).toBe(
+      "42501",
+    );
+  });
+
+  it("korunan yetkiler: hesap silme UPDATE'i ve 90 gunluk saklama DELETE'i calisir", async () => {
+    expect(await sqlState("UPDATE api_usage SET user_id = user_id WHERE false")).toBeNull();
+    expect(await sqlState("DELETE FROM query_interpretation WHERE false")).toBeNull();
+    expect(await sqlState("SELECT count(*) FROM api_usage WHERE false")).toBeNull();
+    expect(await sqlState("SELECT 1 FROM query_interpretation WHERE false")).toBeNull();
   });
 });
