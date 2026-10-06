@@ -45,6 +45,12 @@ export type Capability =
    */
   | "forms.manage"
   /**
+   * `/yonetim/mesajlar`: iletişim formu ve geri bildirim gelen kutusu (karar
+   * 0061). Ad, e-posta ve serbest metin içerir; yalnızca yönetici. Her liste
+   * görüntülemesi `messages.list_view` olarak denetime yazılır.
+   */
+  | "messages.read"
+  /**
    * Kullanıcı ayrıntısının hassas sekmeleri: Aktivite, Oturumlar, Aramalar,
    * Affiliate (karar 0049 §3). Yalnızca yönetici; her görüntüleme
    * `users.view_tab` olarak denetime yazılır.
@@ -91,6 +97,8 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "marketing.manage",
   // Karar 0058: form / anket merkezi yalnizca yoneticinin.
   "forms.manage",
+  // Karar 0061: iletisim/geri bildirim gelen kutusu kisisel veri icerir.
+  "messages.read",
   // Karar 0049: kullanıcı aktivitesi ve tam iletişim bilgisi yalnızca yöneticinin.
   "users.activity.read",
   "users.contact.reveal",

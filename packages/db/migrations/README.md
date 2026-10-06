@@ -59,6 +59,7 @@ migration'lar olusturur.
 | `0044_query_interpretation.sql` | Cevrimdisi model sorgu yorumu onbellegi (0059): `query_interpretation`, kimlik UNIQUE `(query_norm, taxonomy_hash, model_version)`, durum `accepted`/`empty`/`invalid`, yalnizca dogrulanmis yorum ve sabit red kodlari. Kullanici/oturum/IP ve ham model yaniti YOK. Toplu is yazar, istek yolu yalnizca okur. Yalnizca ekleme. |
 | `0045_onboarding_and_signup_consent.sql` | Karsilama durumu ve yeni hesap riza varsayilanlari (0060): `app_user.onboarded_at` (mevcut hesaplar `created_at` ile doldurulur), `user_consent.source` CHECK'ine `signup_default`, `onboarding`. Geriye uyumlu. |
 | `0046_revoke_unused_app_privileges.sql` | En az yetki (0059): `arilla_app`'ten kullanilmayan `api_usage` DELETE ve `query_interpretation` UPDATE geri alinir. `api_usage` SELECT/INSERT/UPDATE ve `query_interpretation` SELECT/INSERT/DELETE korunur. Yalnizca yetki; sema degismez. `db:verify` sinar. |
+| `0047_feedback_contact.sql` | Iletisim formu (0061) `feedback`'i paylasir: `kind` ('feedback' varsayilan / 'contact'), nullable `name`; kategori CHECK'i ture gore iki listeye ayrilir; iletisimde e-posta ve ad zorunlu; `(kind, created_at, id)` indeksi (yonetim gelen kutusu). Mevcut satirlar 'feedback' kalir. Geriye uyumlu, yetki degismez. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

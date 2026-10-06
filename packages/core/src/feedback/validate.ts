@@ -53,15 +53,17 @@ export type FeedbackValidation =
       formError?: "malformed" | "too_large";
     };
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+/** `/iletisim` dogrulamasi (`contact.ts`) da ayni kurallari kullanir. */
+export const FORM_EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 // biome-ignore lint/suspicious/noControlCharactersInRegex: kontrol karakterlerini atmak icin.
 const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F]/g;
 
-function codePoints(value: string): number {
+export function formTextLength(value: string): number {
   return Array.from(value).length;
 }
 
-function clean(value: string): string {
+/** NUL/kontrol karakterlerini atar, satir sonlarini birlestirir, kirpar. */
+export function cleanFormText(value: string): string {
   return value.replace(/\r\n?/g, "\n").replace(CONTROL_CHARS, "").trim();
 }
 
@@ -69,9 +71,13 @@ function isKnownField(key: string): key is FeedbackField {
   return (FEEDBACK_FIELDS as readonly string[]).includes(key);
 }
 
-function lengthError(value: string, min: number, max: number): FeedbackFieldError | undefined {
+export function formLengthError(
+  value: string,
+  min: number,
+  max: number,
+): FeedbackFieldError | undefined {
   if (value === "") return "required";
-  const length = codePoints(value);
+  const length = formTextLength(value);
   if (length < min) return "too_short";
   if (length > max) return "too_long";
   return undefined;
@@ -97,21 +103,25 @@ export function validateFeedback(
 
   const fieldErrors: Partial<Record<FeedbackField, FeedbackFieldError>> = {};
 
-  const categoryRaw = clean(raw.get("category") ?? "");
+  const categoryRaw = cleanFormText(raw.get("category") ?? "");
   const category = (FEEDBACK_CATEGORIES as readonly string[]).includes(categoryRaw)
     ? (categoryRaw as FeedbackCategory)
     : null;
   if (!category) fieldErrors.category = categoryRaw === "" ? "required" : "invalid";
 
-  const title = clean(raw.get("title") ?? "").replace(/\s+/g, " ");
-  const titleError = lengthError(title, FEEDBACK_LIMITS.titleMin, FEEDBACK_LIMITS.titleMax);
+  const title = cleanFormText(raw.get("title") ?? "").replace(/\s+/g, " ");
+  const titleError = formLengthError(title, FEEDBACK_LIMITS.titleMin, FEEDBACK_LIMITS.titleMax);
   if (titleError) fieldErrors.title = titleError;
 
-  const message = clean(raw.get("message") ?? "");
-  const messageError = lengthError(message, FEEDBACK_LIMITS.messageMin, FEEDBACK_LIMITS.messageMax);
+  const message = cleanFormText(raw.get("message") ?? "");
+  const messageError = formLengthError(
+    message,
+    FEEDBACK_LIMITS.messageMin,
+    FEEDBACK_LIMITS.messageMax,
+  );
   if (messageError) fieldErrors.message = messageError;
 
-  const priorityRaw = clean(raw.get("priority") ?? "");
+  const priorityRaw = cleanFormText(raw.get("priority") ?? "");
   let priority: FeedbackPriority | null = null;
   if (priorityRaw !== "") {
     if ((FEEDBACK_PRIORITIES as readonly string[]).includes(priorityRaw)) {
@@ -123,11 +133,11 @@ export function validateFeedback(
 
   let email: string | null = null;
   if (!options.authenticated) {
-    const emailRaw = clean(raw.get("email") ?? "").toLowerCase();
+    const emailRaw = cleanFormText(raw.get("email") ?? "").toLowerCase();
     if (emailRaw !== "") {
       if (emailRaw.length > FEEDBACK_LIMITS.emailMax) {
         fieldErrors.email = "too_long";
-      } else if (!EMAIL_PATTERN.test(emailRaw)) {
+      } else if (!FORM_EMAIL_PATTERN.test(emailRaw)) {
         fieldErrors.email = "invalid";
       } else {
         email = emailRaw;

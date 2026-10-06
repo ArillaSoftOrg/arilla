@@ -22,6 +22,7 @@ const TARGET_TYPE_LABELS: Record<string, string> = {
   app_user: "Hesap",
   marketing_campaign: "E-posta kampanyası",
   form: "Form / anket",
+  feedback: "Gelen kutusu",
   capability: "Yetenek",
 };
 

@@ -355,6 +355,16 @@ SHA-256 özetiyle 10 dakika tutulur. `/gizlilik` 2.4 ve `/kvkk-aydinlatma`
 "Talep/şikâyet" maddesi bu akışı kapsar. Anonim gönderimler için somut
 saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).
 
+**İletişim formu notu (0061):** `/iletisim` aynı `feedback` tablosuna
+(`kind = 'contact'`) ad, e-posta (zorunlu), konu, başlık ve mesaj yazar.
+Girişli gönderim yalnızca sunucu oturumundan `user_id` ile bağlanır; hesap
+silme, veri indirme ve oran sınırı geri bildirimle aynıdır (ortak kota).
+Mesajlar yalnızca `messages.read` (yönetici) ile `/yonetim/mesajlar`'da
+okunur, her görüntüleme denetime yazılır. `/gizlilik` 2.4 ve
+`/kvkk-aydinlatma` "Talep/şikâyet" maddesi bu akışı kapsar. Anonim
+gönderimlerin saklama süresi geri bildirimdeki açık kalemle aynıdır: henüz
+tanımlı değil.
+
 **Anket / form notu (0058):** `/anket/<slug>` formları seçenek ve metin
 cevabı toplar. Girişli yanıt `user_id` ile hesaba bağlanır (hesap silinince
 `ON DELETE CASCADE`); anonim yanıtta kimlik ve IP yoktur (oran sınırı IP'nin
