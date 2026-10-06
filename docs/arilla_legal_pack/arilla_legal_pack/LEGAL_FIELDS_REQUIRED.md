@@ -4,7 +4,7 @@ Aşağıdaki alanlar doğrulanmadan Claude Code bunları tahmin etmemeli veya ö
 
 | Alan | Durum |
 |---|---|
-| Marka adı | Arilla |
+| Marka adı | ManiCepte |
 | Yasal işletmeci / veri sorumlusu unvanı | `{{LEGAL_ENTITY_NAME}}` |
 | Açık adres | `{{LEGAL_ADDRESS}}` |
 | Ülke | `{{COUNTRY}}` |

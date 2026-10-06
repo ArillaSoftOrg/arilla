@@ -5,9 +5,9 @@ import { LEGAL_EFFECTIVE_LABEL, LegalIdentityBlock } from "../legal-identity-blo
 import { readConsent } from "../lib/consent.ts";
 
 export const metadata: Metadata = {
-  title: "Çerez Politikası – Arilla",
+  title: "Çerez Politikası – ManiCepte",
   description:
-    "Arilla'nın kullandığı çerezler, amaçları, süreleri ve çerez tercihlerinizi nasıl yöneteceğiniz.",
+    "ManiCepte'nin kullandığı çerezler, amaçları, süreleri ve çerez tercihlerinizi nasıl yöneteceğiniz.",
   alternates: { canonical: "/cerez" },
 };
 
@@ -69,7 +69,7 @@ export default async function CerezPage() {
     <LegalPageLayout title="Çerez Politikası" lastUpdatedLabel={LEGAL_EFFECTIVE_LABEL}>
       <section>
         <p>
-          Bu politika, Arilla&apos;da kullanılan çerezleri ve benzeri teknolojileri açıklar.
+          Bu politika, ManiCepte&apos;de kullanılan çerezleri ve benzeri teknolojileri açıklar.
           Çerezler, bir siteyi ziyaret ettiğinizde tarayıcınızda saklanan küçük veri dosyalarıdır.
         </p>
       </section>
@@ -77,7 +77,7 @@ export default async function CerezPage() {
       <section>
         <h2>1. Kısaca</h2>
         <p>
-          Arilla bugün yalnızca sitenin çalışması için kesinlikle gerekli, birinci taraf çerezler
+          ManiCepte bugün yalnızca sitenin çalışması için kesinlikle gerekli, birinci taraf çerezler
           kullanır. Analitik, reklam, pazarlama, sosyal medya pikseli veya affiliate izleme çerezi
           kullanmıyoruz ve üçüncü taraf betik yüklemiyoruz.
         </p>
@@ -103,7 +103,7 @@ export default async function CerezPage() {
         <h3>Reklam / affiliate ölçüm</h3>
         <p>
           Reklam ve affiliate yönlendirmelerini cihazınızda ölçer. Şu an bu kategoride kullandığımız
-          bir çerez yok. Bir mağaza bağlantısının adresine yönlendirmenin Arilla&apos;dan geldiğini
+          bir çerez yok. Bir mağaza bağlantısının adresine yönlendirmenin ManiCepte&apos;den geldiğini
           gösteren bir parametre eklenmesi ile cihazınıza çerez bırakılması aynı şey değildir;
           cihazınızda çalışan bir ölçüm teknolojisi eklenirse yalnızca izninizle çalışır.
           Yönlendirildiğiniz mağaza sitesi kendi çerezlerini kendi politikasına göre kullanır.

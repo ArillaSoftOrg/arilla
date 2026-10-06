@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { LegalIdentityBlock, PRIVACY_NOTICE_UPDATED_LABEL } from "../legal-identity-block.tsx";
 
 export const metadata: Metadata = {
-  title: "KVKK Aydınlatma Metni – Arilla",
+  title: "KVKK Aydınlatma Metni – ManiCepte",
   description:
-    "6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında Arilla kullanıcılarına yönelik aydınlatma metni.",
+    "6698 sayılı Kişisel Verilerin Korunması Kanunu kapsamında ManiCepte kullanıcılarına yönelik aydınlatma metni.",
   alternates: { canonical: "/kvkk-aydinlatma" },
 };
 
@@ -20,7 +20,7 @@ export default function KvkkAydinlatmaPage() {
       <section>
         <p>
           Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu (&quot;KVKK&quot;) kapsamında,
-          Arilla hizmetlerini kullanan kişilerin kişisel verilerinin işlenmesi hakkında
+          ManiCepte hizmetlerini kullanan kişilerin kişisel verilerinin işlenmesi hakkında
           bilgilendirilmesi amacıyla hazırlanmıştır.
         </p>
       </section>
@@ -136,7 +136,7 @@ export default function KvkkAydinlatmaPage() {
         <p>
           Yapay zekâ altyapı sağlayıcısına aktarım, KVKK&apos;nın 9. maddesi kapsamında Google ile
           imzalanan aktarım sözleşmesine (uygun güvence) dayanılarak yapılır. Bu amaçla üretilen
-          kategori yorumları Arilla tarafında en fazla 90 gün saklanır; gönderilen ifadeler anonim
+          kategori yorumları ManiCepte tarafında en fazla 90 gün saklanır; gönderilen ifadeler anonim
           kabul edilmez.
         </p>
       </section>

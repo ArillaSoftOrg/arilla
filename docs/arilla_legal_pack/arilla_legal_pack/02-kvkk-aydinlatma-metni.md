@@ -3,7 +3,7 @@
 **Yürürlük Tarihi:** 26 Eylül 2026  
 **Son Güncelleme:** 6 Ekim 2026
 
-Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") kapsamında Arilla hizmetlerini kullanan ilgili kişilerin, kişisel verilerinin işlenmesi hakkında bilgilendirilmesi amacıyla hazırlanmıştır.
+Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") kapsamında ManiCepte hizmetlerini kullanan ilgili kişilerin, kişisel verilerinin işlenmesi hakkında bilgilendirilmesi amacıyla hazırlanmıştır.
 
 ## 1. Veri sorumlusu
 
@@ -22,14 +22,14 @@ Kullanılan özelliğe göre aşağıdaki veri kategorileri işlenebilir:
 - Kullanıcı işlem bilgileri: arama sorguları, görüntülenen/tıklanan ürünler, filtre ve karşılaştırma seçimleri.
 - Pazarlama/analitik tercihleri: çerez tercihleri ve açık rıza kayıtları.
 - Müşteri işlem bilgileri: destek ve geri bildirim yazışmaları.
-- Affiliate işlem bilgileri: yönlendirme/tıklama ve entegrasyon kapsamında Arilla'ya bildirilen dönüşüm veya komisyon ilişkilendirme verileri.
+- Affiliate işlem bilgileri: yönlendirme/tıklama ve entegrasyon kapsamında ManiCepte'ye bildirilen dönüşüm veya komisyon ilişkilendirme verileri.
 - Görsel arama özelliği aktifse kullanıcı tarafından yüklenen görseller.
 
 ## 3. Kişisel verilerin işlenme amaçları
 
 Kişisel veriler:
 
-- Arilla hizmetlerini sunmak ve kullanıcı taleplerini yerine getirmek,
+- ManiCepte hizmetlerini sunmak ve kullanıcı taleplerini yerine getirmek,
 - hesap ve oturum güvenliğini sağlamak,
 - arama, karşılaştırma ve ürün yönlendirme işlevlerini çalıştırmak,
 - kötüye kullanım, sahtecilik ve güvenlik risklerini önlemek,

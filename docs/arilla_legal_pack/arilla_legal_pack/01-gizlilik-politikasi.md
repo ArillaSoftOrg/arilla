@@ -1,11 +1,11 @@
-# Arilla Gizlilik Politikası
+# ManiCepte Gizlilik Politikası
 
 **Yürürlük Tarihi:** 26 Eylül 2026  
 **Son Güncelleme:** 6 Ekim 2026
 
 ## 1. Kapsam ve veri sorumlusu
 
-Bu Gizlilik Politikası, `{{WEBSITE_URL}}` üzerinden sunulan Arilla ürün arama, karşılaştırma ve yönlendirme hizmetleri için geçerlidir.
+Bu Gizlilik Politikası, `{{WEBSITE_URL}}` üzerinden sunulan ManiCepte ürün arama, karşılaştırma ve yönlendirme hizmetleri için geçerlidir.
 
 Hizmetin işletmecisi ve kişisel veriler bakımından veri sorumlusu:
 
@@ -40,11 +40,11 @@ Hizmetin güvenli ve düzgün çalışması için aşağıdaki teknik veriler i�
 
 ### 2.3. Affiliate ve yönlendirme verileri
 
-Arilla, bazı ürün veya mağaza bağlantıları üzerinden üçüncü taraf satıcılara yönlendirme yapabilir. Bir affiliate bağlantısına tıklandığında, yönlendirme kaynağının Arilla olduğunu göstermek amacıyla bağlantıya teknik takip parametreleri eklenebilir.
+ManiCepte, bazı ürün veya mağaza bağlantıları üzerinden üçüncü taraf satıcılara yönlendirme yapabilir. Bir affiliate bağlantısına tıklandığında, yönlendirme kaynağının ManiCepte olduğunu göstermek amacıyla bağlantıya teknik takip parametreleri eklenebilir.
 
-İlgili mağaza veya affiliate ağı, yürürlükteki entegrasyona bağlı olarak tıklama, dönüşüm, sipariş tutarı veya komisyon ilişkilendirmesi gibi sınırlı işlem verilerini Arilla ile paylaşabilir.
+İlgili mağaza veya affiliate ağı, yürürlükteki entegrasyona bağlı olarak tıklama, dönüşüm, sipariş tutarı veya komisyon ilişkilendirmesi gibi sınırlı işlem verilerini ManiCepte ile paylaşabilir.
 
-Arilla, affiliate ilişkisi nedeniyle kullanıcıya ek ücret uygulamaz.
+ManiCepte, affiliate ilişkisi nedeniyle kullanıcıya ek ücret uygulamaz.
 
 ## 3. Bilgileri hangi amaçlarla kullanıyoruz?
 
@@ -94,7 +94,7 @@ Fiili altyapı ve veri aktarım haritası doğrulanmadan belirli ülke veya sağ
 
 ## 7. Çerezler ve benzer teknolojiler
 
-Arilla, hizmetin çalışması için gerekli çerezleri kullanabilir. Analitik, işlevsel veya reklam amaçlı zorunlu olmayan çerezler ise yalnızca mevzuatın gerektirdiği durumlarda kullanıcı tercihine göre etkinleştirilir.
+ManiCepte, hizmetin çalışması için gerekli çerezleri kullanabilir. Analitik, işlevsel veya reklam amaçlı zorunlu olmayan çerezler ise yalnızca mevzuatın gerektirdiği durumlarda kullanıcı tercihine göre etkinleştirilir.
 
 Kullanıcılar istedikleri zaman **Çerez Tercihleri** bağlantısından tercihlerini değiştirebilir veya geri çekebilir.
 
@@ -117,7 +117,7 @@ Claude Code, repoda veya işletme süreçlerinde doğrulanmış somut saklama s�
 
 ## 9. Veri güvenliği
 
-Arilla, kişisel verilerin yetkisiz erişim, ifşa, değiştirme veya kayba karşı korunması için erişim kontrolü, güvenli oturum yönetimi, yetki sınırlandırması, aktarım güvenliği, günlükleme ve benzeri uygun teknik ve idari tedbirler uygular.
+ManiCepte, kişisel verilerin yetkisiz erişim, ifşa, değiştirme veya kayba karşı korunması için erişim kontrolü, güvenli oturum yönetimi, yetki sınırlandırması, aktarım güvenliği, günlükleme ve benzeri uygun teknik ve idari tedbirler uygular.
 
 Hiçbir internet tabanlı sistem mutlak güvenlik garantisi veremez.
 
@@ -141,11 +141,11 @@ Başvurular: `{{PRIVACY_EMAIL}}`
 
 ## 11. Çocukların gizliliği
 
-Arilla, çocuklara yönelik olarak tasarlanmış bir hizmet değildir. Yaş sınırı veya ebeveyn onayı gerektiren özellikler kullanıma açılırsa ilgili akış ayrıca uygulanmalıdır.
+ManiCepte, çocuklara yönelik olarak tasarlanmış bir hizmet değildir. Yaş sınırı veya ebeveyn onayı gerektiren özellikler kullanıma açılırsa ilgili akış ayrıca uygulanmalıdır.
 
 ## 12. Üçüncü taraf siteleri
 
-Arilla üzerinden üçüncü taraf mağaza ve sitelere bağlantılar verilebilir. Bu sitelerin içerikleri, güvenlik uygulamaları ve gizlilik politikaları Arilla'nın kontrolü dışında olabilir. Kullanıcılar yönlendirildikleri sitenin kendi koşullarını incelemelidir.
+ManiCepte üzerinden üçüncü taraf mağaza ve sitelere bağlantılar verilebilir. Bu sitelerin içerikleri, güvenlik uygulamaları ve gizlilik politikaları ManiCepte'nin kontrolü dışında olabilir. Kullanıcılar yönlendirildikleri sitenin kendi koşullarını incelemelidir.
 
 ## 13. Politika değişiklikleri
 
