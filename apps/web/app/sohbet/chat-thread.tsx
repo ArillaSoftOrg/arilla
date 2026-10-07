@@ -3,19 +3,22 @@ import { ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
 import { Suspense } from "react";
 import { CHAT_COPY } from "./chat-copy.ts";
 import { ChatResults } from "./chat-results.tsx";
+import { type ChatSortKey, parseSortKey } from "./chat-sort.ts";
+import { ResultTabs } from "./chat-tabs.tsx";
 import styles from "./sohbet.module.css";
 
 /** Konuşmada ürün bloğu gösterilen en son arama sayısı; öncekiler yalnızca özet. */
-export const RESULT_BLOCKS_SHOWN = 3;
+export const RESULT_BLOCKS_SHOWN = 1;
 
-function ResultsFallback() {
+function ResultsFallback({ conversationId, sort }: { conversationId: string; sort: ChatSortKey }) {
   return (
-    <div className={styles.results}>
+    <div className={styles.results} aria-busy="true">
       <VisuallyHidden as="p" role="status">
-        Sonuçlar yükleniyor
+        {CHAT_COPY.resultsLoading}
       </VisuallyHidden>
+      <ResultTabs conversationId={conversationId} active={sort} countLabel={null} />
       <div className={styles.resultGrid} aria-hidden="true">
-        {Array.from({ length: 4 }, (_, i) => (
+        {Array.from({ length: 6 }, (_, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: sabit sayıda, sırasız iskelet kartı.
           <ProductCardSkeleton key={i} />
         ))}
@@ -32,9 +35,12 @@ function ResultsFallback() {
 export function ChatThread({
   messages,
   conversationId,
+  sortParam,
 }: {
   messages: readonly ChatMessageView[];
   conversationId: string;
+  /** `?sirala=` ham değeri; geçersizse niyetin tercihi/varsayılan. */
+  sortParam?: string;
 }) {
   const searchSeqs = messages
     .filter((m) => m.role === "assistant" && m.kind === "search")
@@ -65,6 +71,7 @@ export function ChatThread({
 
         const resultsId = `sohbet-sonuc-${message.seq}`;
         const intent = message.kind === "search" ? message.intent : null;
+        const sort = intent ? parseSortKey(sortParam, intent) : "secilen";
         return (
           <li key={message.id} className={`${styles.row} ${styles.rowAssistant}`}>
             <VisuallyHidden as="span">{CHAT_COPY.assistantLabel}: </VisuallyHidden>
@@ -80,11 +87,18 @@ export function ChatThread({
                     ))}
                   </ul>
                   {shown.has(message.seq) ? (
-                    <Suspense fallback={<ResultsFallback />}>
+                    <Suspense
+                      key={sort}
+                      fallback={<ResultsFallback conversationId={conversationId} sort={sort} />}
+                    >
                       <ChatResults
                         intent={intent}
                         headingId={resultsId}
                         retryHref={`/sohbet/${conversationId}`}
+                        conversationId={conversationId}
+                        messageSeq={message.seq}
+                        sort={sort}
+                        helpful={message.kind === "search" ? message.helpful : null}
                       />
                     </Suspense>
                   ) : null}

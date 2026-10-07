@@ -26,7 +26,7 @@ import type { QueryObject, SortMode } from "../search/types.ts";
 import type { SearchIntent } from "./contract.ts";
 
 /** Sohbet sonuc blogundaki urun sayisi; tam liste `/ara` baglantisindadir. */
-export const CHAT_RESULT_LIMIT = 8;
+export const CHAT_RESULT_LIMIT = 6;
 
 function containsWord(haystack: string, needle: string): boolean {
   return foldTurkish(haystack).includes(foldTurkish(needle));
@@ -96,6 +96,8 @@ export interface IntentSearchOptions {
   page?: number;
   pageSize?: number;
   lexicon?: readonly LexiconEntry[];
+  /** Siralama; verilmezse niyetin tercihi (`cheapest` -> `best_deal`). `closest_match` metin aramasinda yoktur. */
+  sort?: SortMode;
   /** Arama sorgusunun ust siniri (SET LOCAL statement_timeout); asilinca `IntentSearchTimeoutError`. */
   timeoutMs?: number;
 }
@@ -144,7 +146,10 @@ export async function searchByIntent(
   options: IntentSearchOptions = {},
 ): Promise<IntentSearchResult> {
   const lexicon = options.lexicon ?? (await loadLexicon(db));
-  const parsed = intentToQueryObject(intent, lexicon);
+  const parsed = {
+    ...intentToQueryObject(intent, lexicon),
+    ...(options.sort ? { sort: options.sort } : {}),
+  };
   const timeoutMs = Math.max(1, Math.floor(options.timeoutMs ?? INTENT_SEARCH_TIMEOUT_MS));
   let outcome: FallbackSearchOutcome;
   try {

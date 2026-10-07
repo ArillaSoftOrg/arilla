@@ -21,6 +21,12 @@ export interface SearchComposerProps {
    * sohbet baslatir); JS'siz de calisir.
    */
   action?: string | ((formData: FormData) => void | Promise<void>);
+  /**
+   * Verilirse metin gonderimi (Enter, buton, ornek cip) bu isleyiciye gider ve form
+   * yonlendirmez. Isleyici kullanici hareketi SIRASINDA senkron cagrilir (yeni sekme
+   * `window.open` popup engelleyiciye takilmaz). `true` donerse (ya da cozulurse) girdi temizlenir.
+   */
+  onSubmitText?: (text: string) => boolean | Promise<boolean>;
   name?: string;
   defaultValue?: string;
   placeholder: string;
@@ -66,6 +72,7 @@ export function SearchComposer({
   chips,
   chipsTitle,
   routeProductLinks = false,
+  onSubmitText,
 }: SearchComposerProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -100,6 +107,21 @@ export function SearchComposer({
         window.location.assign(`/${encodeURIComponent(productLink)}`);
         return;
       }
+    }
+    if (onSubmitText) {
+      event.preventDefault();
+      const text = (inputRef.current?.value ?? "").trim();
+      if (!text) return;
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      void Promise.resolve(onSubmitText(text))
+        .then((ok) => {
+          if (ok && inputRef.current) inputRef.current.value = "";
+        })
+        .finally(() => {
+          submittingRef.current = false;
+        });
+      return;
     }
     // Sohbet baslatan form (server action): cift tiklama/Enter ikinci bir sohbet acmasin.
     if (typeof action !== "string") {

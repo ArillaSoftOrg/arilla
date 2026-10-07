@@ -8,6 +8,7 @@ import {
   isChatDiscoveryEnabled,
   isUuid,
   processPendingTurn,
+  setResultFeedback,
   submitUserMessage,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -132,4 +133,56 @@ export async function runTurnAction(conversationId: string): Promise<{ status: R
     interpreter,
   });
   return { status: result.status };
+}
+
+export type NewTabChatResult =
+  /** Sohbet olustu; yeni sekme `/sohbet/[id]`ye gider. */
+  | { status: "created"; href: string }
+  /** Sohbet kullanilamiyor ya da tavan: yeni sekme `/ara` (yapay zekasiz) yoluna gider. */
+  | { status: "fallback"; href: string }
+  | { status: "error" };
+
+/**
+ * Ana sayfa kutusu, yeni sekme akisi: istemci kullanici hareketi sirasinda bos sekmeyi
+ * senkron acar (popup engelleyiciye takilmaz), bu eylem sohbeti OLUSTURUR ve hedefi
+ * dondurur; sekme sonra oraya gider. Redirect yok: ana sayfa sekmesi yerinde kalir.
+ * Ilk mesaj sohbet sayfasi acilinca (`ChatInteractive` ilk yukleme) islenir.
+ */
+export async function startChatInNewTabAction(text: unknown): Promise<NewTabChatResult> {
+  const message = typeof text === "string" ? text.trim().slice(0, 500) : "";
+  if (!message) return { status: "error" };
+  const user = await verifySession();
+  if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
+    return { status: "fallback", href: plainSearchHref(message) };
+  }
+  const created = await createConversation(getDatabase(), { userId: user.id, message });
+  if (created.status === "created") {
+    return { status: "created", href: `/sohbet/${created.conversationId}` };
+  }
+  return created.status === "rate_limited"
+    ? { status: "fallback", href: plainSearchHref(message) }
+    : { status: "error" };
+}
+
+/** "Bu yardimci oldu mu?" oyu (karar 0075). Metin tasimaz, analitik olayi uretmez. */
+export async function submitResultFeedbackAction(
+  conversationId: string,
+  messageSeq: number,
+  helpful: boolean,
+): Promise<{ status: "saved" | "not_found" | "invalid" | "unavailable" }> {
+  const user = await verifySession();
+  if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
+    return { status: "unavailable" };
+  }
+  if (typeof conversationId !== "string" || typeof helpful !== "boolean") {
+    return { status: "invalid" };
+  }
+  return {
+    status: await setResultFeedback(getDatabase(), {
+      userId: user.id,
+      conversationId,
+      messageSeq: Number(messageSeq),
+      helpful,
+    }),
+  };
 }

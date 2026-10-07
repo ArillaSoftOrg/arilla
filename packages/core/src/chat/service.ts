@@ -11,7 +11,7 @@
  * Her sorgu `user_id` ile birlikte yapilir: baskasinin sohbeti `not_found`.
  * Hicbir yerde mesaj metni loglanmaz.
  */
-import { apiUsage, chatMessage, conversation, type Database } from "@arilla/db";
+import { apiUsage, chatMessage, chatResultFeedback, conversation, type Database } from "@arilla/db";
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import type { LlmErrorCode } from "../llm/client.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
@@ -78,6 +78,8 @@ export type ChatMessageView =
       content: string;
       intent: SearchIntent | null;
       source: "model" | "fallback" | null;
+      /** 0055: sonuc blogune verilen oy; `null` = oy yok. */
+      helpful: boolean | null;
     };
 
 export interface ConversationView {
@@ -95,7 +97,10 @@ function sourceOf(payload: Record<string, unknown> | null): "model" | "fallback"
   return source === "model" || source === "fallback" ? source : null;
 }
 
-function toView(row: typeof chatMessage.$inferSelect): ChatMessageView {
+function toView(
+  row: typeof chatMessage.$inferSelect,
+  helpful: boolean | null = null,
+): ChatMessageView {
   const payload = row.payload;
   if (row.role === "user") {
     return {
@@ -125,6 +130,7 @@ function toView(row: typeof chatMessage.$inferSelect): ChatMessageView {
     content: row.content,
     intent: parseStoredIntent(payload?.intent),
     source: sourceOf(payload),
+    helpful,
   };
 }
 
@@ -144,7 +150,17 @@ export async function loadConversation(
     .from(chatMessage)
     .where(eq(chatMessage.conversationId, row.id))
     .orderBy(asc(chatMessage.seq));
-  const messages = rows.map(toView);
+  const votes = await db
+    .select({ messageId: chatResultFeedback.messageId, helpful: chatResultFeedback.helpful })
+    .from(chatResultFeedback)
+    .where(eq(chatResultFeedback.conversationId, row.id))
+    .catch((error: unknown) => {
+      // 0055 henuz uygulanmamis bir veritabaninda (kod migration'dan once dagitilirsa) oy yok sayilir.
+      if (isMissingTable(error)) return [];
+      throw error;
+    });
+  const helpfulById = new Map(votes.map((vote) => [vote.messageId, vote.helpful]));
+  const messages = rows.map((message) => toView(message, helpfulById.get(message.id) ?? null));
   return {
     id: row.id,
     title: row.title,
@@ -632,4 +648,61 @@ export async function purgeExpiredConversationsSafely(
     );
     return { deleted: 0, truncated: false, failed: /^[0-9A-Z]{5}$/.test(code) ? code : "error" };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Sonuc geri bildirimi (0055)
+// ---------------------------------------------------------------------------
+
+function isMissingTable(error: unknown): boolean {
+  const code =
+    (error as { cause?: { code?: string } } | null)?.cause?.code ??
+    (error as { code?: string } | null)?.code;
+  return code === "42P01";
+}
+
+export type ResultFeedbackStatus = "saved" | "not_found" | "invalid";
+
+/**
+ * "Bu yardimci oldu mu?" oyu. Sahiplik sorguda: yalnizca kullanicinin kendi
+ * sohbetindeki bir ARAMA mesajina oy verilebilir. Mesaj basina tek oy, degistirilebilir.
+ */
+export async function setResultFeedback(
+  db: Database,
+  input: { userId: number; conversationId: string; messageSeq: number; helpful: boolean },
+): Promise<ResultFeedbackStatus> {
+  if (!isUuid(input.conversationId)) return "not_found";
+  if (!Number.isInteger(input.messageSeq) || input.messageSeq < 1) return "invalid";
+  if (typeof input.helpful !== "boolean") return "invalid";
+  const [message] = await db
+    .select({ id: chatMessage.id, role: chatMessage.role, kind: chatMessage.kind })
+    .from(chatMessage)
+    .innerJoin(conversation, eq(conversation.id, chatMessage.conversationId))
+    .where(
+      and(
+        eq(chatMessage.conversationId, input.conversationId),
+        eq(chatMessage.seq, input.messageSeq),
+        eq(conversation.userId, input.userId),
+      ),
+    );
+  if (!message) return "not_found";
+  if (message.role !== "assistant" || message.kind !== "search") return "invalid";
+  try {
+    await db
+      .insert(chatResultFeedback)
+      .values({
+        messageId: message.id,
+        conversationId: input.conversationId,
+        helpful: input.helpful,
+      })
+      .onConflictDoUpdate({
+        target: chatResultFeedback.messageId,
+        set: { helpful: input.helpful, updatedAt: sql`now()` },
+      });
+  } catch (error) {
+    // Tablo yok (0055 bekliyor): oy kaydedilemedi, arayuz "kaydedemedim" der.
+    if (isMissingTable(error)) return "invalid";
+    throw error;
+  }
+  return "saved";
 }
