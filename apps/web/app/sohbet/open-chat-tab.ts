@@ -1,46 +1,35 @@
-import type { NewTabChatResult } from "./actions.ts";
+import {
+  type BootstrapStorage,
+  bootstrapHref,
+  newNonce,
+  stashBootstrap,
+} from "./chat-bootstrap.ts";
 
-/** Tarayıcıya bağımlı parçalar; testte sahte verilir. */
-export interface TabHandle {
-  location: { href: string };
-  close(): void;
-  document: { title: string; body: { textContent: string | null } };
-  opener: unknown;
-}
-
+/** Tarayiciya bagimli parcalar; testte sahte verilir. */
 export interface OpenChatTabDeps {
-  /** `window.open("", "_blank")`; engellenirse `null`. */
-  open: () => TabHandle | null;
-  /** Aynı sekmede gezinme (açılış engellendiğinde son çare). */
+  /** `window.open(href, "_blank")`; engellenirse `null`. */
+  open: (href: string) => unknown | null;
+  /** Ayni sekmede gezinme (acilis engellendiginde son care). */
   navigate: (href: string) => void;
-  start: (text: string) => Promise<NewTabChatResult>;
+  storage: BootstrapStorage | null;
+  now?: () => number;
+  nonce?: () => string;
 }
 
 /**
- * Ana sayfa -> yeni sekmede sohbet. SIRA ÖNEMLİ: `open()` bu fonksiyonun İLK senkron
- * adımıdır; kullanıcı hareketi (Enter/tıklama) sürerken çağrılmalıdır, `await`ten sonra
- * açılan sekme popup engelleyiciye takılır. Sohbet oluşunca sekme hedefe gider; oluşmazsa
- * sekme KAPATILIR (boş sekme kalmaz) ve `false` döner. Ana sayfa sekmesine dokunulmaz.
+ * Ana sayfa -> yeni sekmede sohbet. SIRA ONEMLI ve tamami SENKRON: mesaj tek
+ * kullanimlik kayda yazilir, sonra `open()` kullanici hareketi (Enter/tiklama)
+ * surerken cagrilir (await'ten sonra acilan sekme popup engelleyiciye takilir).
+ * Sekme dogrudan gercek sohbet kabugu olan `/sohbet/yeni`yi acar (about:blank yok);
+ * sohbeti sekme kendisi olusturur. Mesaj yazilamadiysa (depolama kapali) sekme
+ * HIC acilmaz ve `false` doner. Popup engellenirse ayni sekmede gezinilir.
  */
-export async function openChatInNewTab(text: string, deps: OpenChatTabDeps): Promise<boolean> {
-  const tab = deps.open();
-  if (tab) {
-    try {
-      tab.document.title = "Sohbet açılıyor";
-      tab.document.body.textContent = "Sohbet açılıyor…";
-      tab.opener = null;
-    } catch {
-      // Sekme erişimi kısıtlıysa yalnızca yönlendirme yapılır.
-    }
-  }
-  try {
-    const result = await deps.start(text);
-    if (result.status === "error") throw new Error("create failed");
-    if (tab) tab.location.href = result.href;
-    else deps.navigate(result.href);
-    return true;
-  } catch {
-    tab?.close();
-    return false;
-  }
+export function openChatInNewTab(text: string, deps: OpenChatTabDeps): boolean {
+  const nonce = (deps.nonce ?? newNonce)();
+  const submittedAt = (deps.now ?? Date.now)();
+  if (!stashBootstrap(deps.storage, nonce, { text, submittedAt })) return false;
+  const href = bootstrapHref(nonce);
+  const tab = deps.open(href);
+  if (!tab) deps.navigate(href);
+  return true;
 }

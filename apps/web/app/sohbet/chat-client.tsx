@@ -1,7 +1,7 @@
 "use client";
 
-import type { ClarifyQuestion } from "@arilla/core";
-import { ArrowRightIcon, Button, VisuallyHidden } from "@arilla/ui";
+import type { AssistantPreview, ClarifyQuestion } from "@arilla/core";
+import { Button, ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import {
   type FormEvent,
@@ -12,8 +12,15 @@ import {
   useRef,
   useState,
 } from "react";
-import { runTurnAction, type SendMessageStatus, sendMessageAction } from "./actions.ts";
+import {
+  getTurnStatusAction,
+  runTurnAction,
+  type SendMessageStatus,
+  sendMessageAction,
+} from "./actions.ts";
 import { CHAT_COPY, CHAT_ERROR_COPY, type ChatErrorKind, errorKindForStatus } from "./chat-copy.ts";
+import { chatMark } from "./chat-metrics.ts";
+import { CHAT_MESSAGE_MAX, ChatComposer, ChatPendingRow } from "./chat-shell-parts.tsx";
 import styles from "./sohbet.module.css";
 
 type SendRequest =
@@ -24,7 +31,11 @@ type SendRequest =
 /** Meşgul (`busy`) dönen turu en çok bu kadar bekleriz: 20 x 1,5 sn. */
 const MAX_BUSY_POLLS = 20;
 const BUSY_POLL_MS = 1500;
-const MAX_LENGTH = 500;
+const MAX_LENGTH = CHAT_MESSAGE_MAX;
+/** Ilk tur sunucuda `after()` ile calisir; bu sure icinde baslamadiysa kurtarma devreye girer. */
+const RECOVERY_GRACE_MS = 2500;
+const WAIT_POLL_MS = 700;
+const MAX_WAIT_POLLS = 110;
 
 function newRequestKey(): string {
   return typeof crypto !== "undefined" && "randomUUID" in crypto
@@ -74,6 +85,9 @@ export function ChatInteractive({
   const [custom, setCustom] = useState("");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<ChatErrorKind | null>(null);
+  // Sunucu cevabi yazdi ama tam sayfa yenilemesi (urun sonuclari) henuz gelmedi:
+  // cevap metni hemen gorunur. `lastSeq` ilerleyince (yenileme geldi) kendiliginden gizlenir.
+  const [preview, setPreview] = useState<AssistantPreview | null>(null);
   const workingRef = useRef(false);
   const keyRef = useRef<{ signature: string; key: string } | null>(null);
   const autoStartedRef = useRef(false);
@@ -81,17 +95,55 @@ export function ChatInteractive({
   const customInputRef = useRef<HTMLInputElement>(null);
   const questionId = useId();
 
+  function showPreview(answer: AssistantPreview): void {
+    chatMark("chat:assistant_visible");
+    setPreview(answer);
+  }
+
+  /**
+   * Ilk tur sunucuda zaten calisiyor (`after()`): ikinci bir Gemini cagrisi
+   * baslatmadan hafif durum sorgusuyla bekler. Tur hic baslamadiysa (kira yok,
+   * `RECOVERY_GRACE_MS` doldu) `runTurn` kurtarma olarak calisir; kira tek
+   * Gemini cagrisini garanti eder.
+   */
+  async function waitForTurn(): Promise<void> {
+    const startedAt = Date.now();
+    try {
+      for (let poll = 0; poll < MAX_WAIT_POLLS; poll++) {
+        const status = await getTurnStatusAction(conversationId);
+        if (status.state === "answered") {
+          if (status.preview) showPreview(status.preview);
+          router.refresh();
+          return;
+        }
+        if (status.state === "not_found" || status.state === "unavailable") {
+          setError(status.state);
+          return;
+        }
+        if (status.state === "pending" && Date.now() - startedAt >= RECOVERY_GRACE_MS) {
+          await runTurn();
+          return;
+        }
+        await sleep(WAIT_POLL_MS);
+      }
+      setError("busy");
+    } catch {
+      setError("network");
+    }
+  }
+
   /** Cevaplanmamış mesajı yorumlatır; meşgulse bekler. Hata durumunu kendisi yazar. */
   async function runTurn(): Promise<void> {
     try {
       for (let attempt = 0; attempt < MAX_BUSY_POLLS; attempt++) {
-        const { status } = await runTurnAction(conversationId);
+        const { status, preview: answer } = await runTurnAction(conversationId);
         if (status === "busy") {
           await sleep(BUSY_POLL_MS);
           continue;
         }
         const kind = errorKindForStatus(status);
         if (kind) setError(kind);
+        else if (answer) showPreview(answer);
         router.refresh();
         return;
       }
@@ -157,7 +209,8 @@ export function ChatInteractive({
   useEffect(() => {
     if (!awaitingReply || autoStartedRef.current) return;
     autoStartedRef.current = true;
-    void retry();
+    // Normal yol: ilk tur sunucuda zaten basladi, yalnizca beklenir. Baslamadiysa kurtarma.
+    void run(waitForTurn);
   }, []);
 
   // Yeni mesaj ya da durum gelince son içeriğe kaydır (hareket tercihine saygı).
@@ -165,7 +218,12 @@ export function ChatInteractive({
   useEffect(() => {
     const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     bottomRef.current?.scrollIntoView({ block: "end", behavior: reduce ? "auto" : "smooth" });
-  }, [lastSeq, working, error]);
+  }, [lastSeq, working, error, preview]);
+
+  // Sunucu yenilemesi geldi (kalici cevap + urunler): olcum isareti.
+  useEffect(() => {
+    if (preview && preview.seq <= lastSeq) chatMark("chat:render_ready");
+  }, [lastSeq, preview]);
 
   useEffect(() => {
     if (customOpen) customInputRef.current?.focus();
@@ -203,20 +261,28 @@ export function ChatInteractive({
     <div className={styles.chat}>
       {children}
 
-      {showThinking ? (
-        <div className={`${styles.row} ${styles.rowAssistant}`}>
-          <p
-            className={`${styles.bubble} ${styles.bubbleAssistant} ${styles.thinking}`}
-            role="status"
-          >
-            <span className={styles.dots} aria-hidden="true">
-              <span />
-              <span />
-              <span />
-            </span>
-            {CHAT_COPY.thinking}
-          </p>
-        </div>
+      {preview && preview.seq > lastSeq ? (
+        <>
+          <div className={`${styles.row} ${styles.rowAssistant}`}>
+            <VisuallyHidden as="span">{CHAT_COPY.assistantLabel}: </VisuallyHidden>
+            <p className={`${styles.bubble} ${styles.bubbleAssistant}`}>{preview.content}</p>
+          </div>
+          {preview.kind === "search" ? (
+            <div className={styles.results} aria-busy="true">
+              <VisuallyHidden as="p" role="status">
+                {CHAT_COPY.resultsLoading}
+              </VisuallyHidden>
+              <div className={styles.resultGrid} aria-hidden="true">
+                {Array.from({ length: 6 }, (_, i) => (
+                  // biome-ignore lint/suspicious/noArrayIndexKey: sabit sayıda, sırasız iskelet kartı.
+                  <ProductCardSkeleton key={i} />
+                ))}
+              </div>
+            </div>
+          ) : null}
+        </>
+      ) : showThinking ? (
+        <ChatPendingRow />
       ) : null}
 
       {showQuestion && question ? (
@@ -323,31 +389,14 @@ export function ChatInteractive({
 
       <div ref={bottomRef} className={styles.bottom} aria-hidden="true" />
 
-      <form className={styles.composer} onSubmit={submitDraft}>
-        <label className={styles.composerLabel}>
-          <VisuallyHidden as="span">{CHAT_COPY.composerLabel}</VisuallyHidden>
-          <textarea
-            className={styles.composerInput}
-            rows={1}
-            value={draft}
-            maxLength={MAX_LENGTH}
-            placeholder={CHAT_COPY.composerPlaceholder}
-            disabled={composerLocked}
-            enterKeyHint="send"
-            onChange={(event) => setDraft(event.target.value)}
-            onKeyDown={onComposerKeyDown}
-          />
-        </label>
-        <Button
-          type="submit"
-          variant="accent"
-          className={styles.send}
-          aria-label={working ? CHAT_COPY.sending : CHAT_COPY.sendLabel}
-          disabled={composerLocked || draft.trim() === ""}
-        >
-          <ArrowRightIcon />
-        </Button>
-      </form>
+      <ChatComposer
+        draft={draft}
+        onDraftChange={setDraft}
+        onSubmit={submitDraft}
+        onKeyDown={onComposerKeyDown}
+        locked={composerLocked}
+        busy={working}
+      />
     </div>
   );
 }
