@@ -1,9 +1,8 @@
 "use client";
 
-import { SearchComposer } from "@arilla/ui";
+import { SearchComposer, type SearchComposerRecentProduct } from "@arilla/ui";
 import { useState } from "react";
 import { HOME_COPY } from "./home-copy.ts";
-import type { RecentSearchChip } from "./home-recent-searches.ts";
 import { LoginGateModal } from "./login-gate-modal-client.tsx";
 import {
   PHOTO_SEARCH_LOADING_LABEL,
@@ -25,13 +24,13 @@ import { openChatInNewTab, type TabHandle } from "./sohbet/open-chat-tab.ts";
 export function HomeSearchComposer({
   startChat,
   startChatInNewTab,
-  recentSearches,
+  recentProducts,
 }: {
   /**
-   * Kullanıcının gerçek son aramaları (sunucuda yüklenir, ilk HTML'de gelir).
-   * Boşsa "Alışverişe devam et" bölümü ve başlığı hiç çizilmez.
+   * Kullanıcının gerçekten görüntülediği son ürünler (`product_view`, sunucuda
+   * yüklenir). Boşsa "Alışverişe devam et" bölümü ve başlığı hiç çizilmez.
    */
-  recentSearches?: readonly RecentSearchChip[];
+  recentProducts?: readonly SearchComposerRecentProduct[];
   /**
    * Konuşmalı keşif açıkken (karar 0074) ve kullanıcı girişliyken: kutu `/ara`
    * yerine bu sunucu eylemini çalıştırır (sohbet oluşturur, `/sohbet/[id]`ye
@@ -75,7 +74,8 @@ export function HomeSearchComposer({
         inputLabel={HOME_COPY.searchInputLabel}
         submitLabel={HOME_COPY.searchSubmitLabel}
         routeProductLinks
-        chips={recentSearches}
+        recentProducts={recentProducts}
+        offerCountLabel={(count) => `${count} mağaza`}
         chipsTitle={HOME_COPY.searchIdeasTitle}
         statusMessage={error ?? chatError}
         busyMessage={pending ? PHOTO_SEARCH_LOADING_LABEL : chatBusy ? "Sohbet açılıyor" : null}

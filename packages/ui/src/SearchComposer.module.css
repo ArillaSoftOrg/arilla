@@ -222,3 +222,41 @@
     text-align: start;
   }
 }
+
+/* "Alışverişe devam et": ProductCard satırı. Telefonda yatay kaydırma (sayfa
+   taşmaz, satır gutter'a kadar uzanır); tablet+ta aynı satır, kartlar sabit genişlik. */
+.recentRow {
+  display: flex;
+  gap: var(--space-3);
+  margin-block: 0;
+  margin-inline: calc(-1 * var(--gutter));
+  padding-block: var(--space-1);
+  padding-inline: var(--gutter);
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--gutter);
+  scrollbar-width: none;
+}
+
+.recentRow::-webkit-scrollbar {
+  display: none;
+}
+
+.recentItem {
+  flex: 0 0 min(10rem, 58%);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+@media (min-width: 640px) {
+  .recentRow {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
+  .recentItem {
+    flex-basis: 11rem;
+  }
+}
