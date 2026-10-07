@@ -129,7 +129,6 @@ def _flatten_scalars(entry: dict[str, Any]) -> dict[str, str]:
 def _group_image_entries(
     images: list[Any],
     group_variants: list[dict[str, Any]],
-    representative: dict[str, Any],
     *,
     split_by_color: bool,
 ) -> tuple[dict[str, str], ...]:
@@ -140,15 +139,11 @@ def _group_image_entries(
     - gorselin `variant_ids`i bu grubun varyantlariyla kesisiyorsa -> varyanta ozgu;
     - `variant_ids` bossa -> ortak gorsel (kimseye bagli degil);
     - baska rengin varyantlarina bagliysa -> BU offer'a ait degil, alinmaz.
-    Bolunmediyse tum gorseller ortaktir. Temsili gorsel: temsili varyantin
-    `featured_image`i (yoksa `image_id`si); bulunamazsa isaret konmaz ve
-    normalize `image_url`i temsili yapar.
+    Bolunmediyse tum gorseller ortaktir. `position` magazanin urun sayfasindaki
+    sirayi tasir; `variant.featured_image` burada KULLANILMAZ (genellikle duz urun
+    fotografi ve satici siralamasindan bagimsiz; bkz. karar 0073 eki).
     """
     group_ids = {variant.get("id") for variant in group_variants if variant.get("id") is not None}
-    featured = representative.get("featured_image")
-    featured_src = featured.get("src") if isinstance(featured, dict) else None
-    image_id = representative.get("image_id")
-
     entries: list[dict[str, str]] = []
     for order, image in enumerate(images):
         if not isinstance(image, dict) or not image.get("src"):
@@ -159,15 +154,10 @@ def _group_image_entries(
             if not linked & group_ids:
                 continue
             specific = True
-        is_primary = (
-            (featured_src is not None and image.get("src") == featured_src)
-            or (featured_src is None and image_id is not None and image.get("id") == image_id)
-        )
         entry = {
             "src": str(image["src"]),
             "position": str(image.get("position") or order + 1),
             "variant_specific": "1" if specific else "0",
-            "primary": "1" if is_primary else "0",
         }
         for key in ("width", "height"):
             if image.get(key):
@@ -451,7 +441,7 @@ class ShopifyConnector(Connector):
             groups={
                 "variants": variant_entries,
                 "images": _group_image_entries(
-                    images, group_variants, representative, split_by_color=color is not None
+                    images, group_variants, split_by_color=color is not None
                 ),
             },
         )

@@ -65,7 +65,7 @@ def backfill(
         items = []
         for offer_id, image_url in rows:
             result.offers_seen += 1
-            images = select_images([SourceImage(image_url, position=0, primary=True)])
+            images = select_images([SourceImage(image_url, position=0)])
             if images:
                 result.offers_with_image += 1
                 items.append((int(offer_id), images))

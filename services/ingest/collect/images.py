@@ -11,6 +11,8 @@ Iki kavram AYRIDIR:
   gorsele verilir; digerleri saklanir ama gosterilmez (`None`).
 
 Ilke: URL/metadata'dan GUVENILIR biclimde anlasilamayan bir gorsel atilmaz.
+Model/duz-urun ayrimi icin guvenilir metadata yoktur (alt metin bos ya da urun
+adi, `variant_ids` cogu urunde bos); bu yuzden magazanin kendi sirasi esas alinir.
 Eleme yalniz guclu isaretlere dayanir (bkz. `_EXCLUDED_*`). Elemenin tek bir
 gorseli birakmadigi durumda eleme geri alinir: gercek urun gorselini tahminle
 silmektense yer tutucuyu gostermek daha az kotudur.
@@ -74,8 +76,6 @@ class SourceImage:
     height: int | None = None
     #: Kaynak bu gorseli bu offer'in varyantlarina bagladi mi (kanitli iliski).
     variant_specific: bool = False
-    #: Kaynagin ana/temsili gorseli (orn. Shopify `featured_image`).
-    primary: bool = False
 
 
 @dataclass(frozen=True)
@@ -169,13 +169,15 @@ def select_images(
 
     Adimlar (deterministik):
     1. gecersiz/bos URL'leri at
-    2. normalize URL'ye gore tekrarlari at (ilk gorulen kazanir; `primary` ve
-       `variant_specific` isaretleri birlestirilir)
-    3. guclu isaretle urun gorseli olmayanlari at (temsili gorsel ve hepsi
-       atilacaksa tumu haric)
-    4. kaynak sirasi korunur; temsili gorsel her zaman saklananlar arasindadir
-    5. display_rank=0: temsili gorsel, yoksa kaynagin ilk gorseli
-    6. kalan gosterim yerleri: once varyanta bagli, sonra kaynak sirasi
+    2. normalize URL'ye gore tekrarlari at (ilk gorulen kazanir; `variant_specific`
+       isareti birlestirilir)
+    3. guclu isaretle urun gorseli olmayanlari at (hepsi atilacaksa tumu kalir)
+    4. gosterim sirasi: once varyanta bagli (kanitli renk) gorseller, sonra ortak
+       gorseller; her grupta kaynagin kendi sirasi (`position`). Kaynagin "ana
+       gorsel" isareti (orn. Shopify `variant.featured_image`) SIRAYI BELIRLEMEZ:
+       o genellikle duz urun fotografidir ve satici siralamasindan bagimsizdir.
+    5. saklanan: gosterim sirasindaki ilk `max_source`; `source_position` bunlarin
+       kaynak siradaki yeri; `display_rank`: ilk `max_display` (0..n-1)
     """
     cleaned: list[tuple[int, str, SourceImage]] = []
     index_by_key: dict[str, int] = {}
@@ -192,7 +194,6 @@ def select_images(
                 width=first[2].width or image.width,
                 height=first[2].height or image.height,
                 variant_specific=first[2].variant_specific or image.variant_specific,
-                primary=first[2].primary or image.primary,
             )
             cleaned[index_by_key[key]] = (first[0], first[1], merged)
             continue
@@ -201,14 +202,7 @@ def select_images(
             (
                 order,
                 url,
-                SourceImage(
-                    url,
-                    image.position,
-                    image.width,
-                    image.height,
-                    image.variant_specific,
-                    image.primary,
-                ),
+                SourceImage(url, image.position, image.width, image.height, image.variant_specific),
             )
         )
 
@@ -218,37 +212,26 @@ def select_images(
     # Kaynak sirasi: kaynagin verdigi `position`, esitlikte gelis sirasi.
     cleaned.sort(key=lambda item: (item[2].position, item[0]))
 
-    # Temsili gorsel (kaynagin kendi ana gorseli = eski `primary_image_url`) sezgisel
-    # elemeyle ASLA dusmez: emin olmadigimiz seyi silmeyiz.
-    kept = [item for item in cleaned if item[2].primary or not looks_non_product(item[2])]
+    kept = [item for item in cleaned if not looks_non_product(item[2])]
     if not kept:  # guclu isaretler bile tek gorsel birakmadiysa eleme geri alinir
         kept = cleaned
 
-    primary_index = next((i for i, item in enumerate(kept) if item[2].primary), 0)
-    if len(kept) > max_source:
-        window = kept[:max_source]
-        if primary_index >= max_source:
-            window[-1] = kept[primary_index]
-        kept = window
-        primary_index = next((i for i, item in enumerate(kept) if item[2].primary), 0)
-
-    ranks: dict[int, int] = {primary_index: 0}
-    rest = [i for i in range(len(kept)) if i != primary_index]
-    rest.sort(key=lambda i: (not kept[i][2].variant_specific, i))
-    for i in rest[: max(max_display - 1, 0)]:
-        ranks[i] = len(ranks)
+    # Gosterim sirasi (kararli siralama: gruplar icinde kaynak sirasi korunur).
+    by_display = sorted(range(len(kept)), key=lambda i: not kept[i][2].variant_specific)
+    stored = sorted(by_display[:max_source])  # kaynak sirasina geri don
+    rank_of = {kept_index: rank for rank, kept_index in enumerate(by_display[:max_source])}
 
     return [
         SelectedImage(
-            source_url=url,
-            url_hash=url_hash(url),
+            source_url=kept[i][1],
+            url_hash=url_hash(kept[i][1]),
             source_position=position,
-            display_rank=ranks.get(position) if max_display > 0 else None,
-            width=image.width,
-            height=image.height,
-            is_variant_specific=image.variant_specific,
+            display_rank=rank_of[i] if rank_of[i] < max_display else None,
+            width=kept[i][2].width,
+            height=kept[i][2].height,
+            is_variant_specific=kept[i][2].variant_specific,
         )
-        for position, (_, url, image) in enumerate(kept)
+        for position, i in enumerate(stored)
     ]
 
 
@@ -256,7 +239,7 @@ def images_from_entries(entries: Sequence[Mapping[str, str]]) -> list[SourceImag
     """`RawRecord.groups["images"]` girdilerini `SourceImage`a cevirir.
 
     Girdi alanlari (hepsi metin): `src`, `position`, `width`, `height`,
-    `variant_specific` ("1"), `primary` ("1"). Bozuk sayilar yok sayilir.
+    `variant_specific` ("1"). Bozuk sayilar yok sayilir.
     """
 
     def to_int(value: str | None, *, minimum: int = 1) -> int | None:
@@ -276,7 +259,6 @@ def images_from_entries(entries: Sequence[Mapping[str, str]]) -> list[SourceImag
                 width=to_int(entry.get("width")),
                 height=to_int(entry.get("height")),
                 variant_specific=entry.get("variant_specific") == "1",
-                primary=entry.get("primary") == "1",
             )
         )
     return result

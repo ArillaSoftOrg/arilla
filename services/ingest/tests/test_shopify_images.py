@@ -114,8 +114,9 @@ def test_variant_images_kept_per_color_and_other_colors_excluded() -> None:
     black_rows = _rows(black)
     assert {r[0] for r in black_rows} == {"shared", "black-front", "black-side"}
     assert "black-front" not in {r[0] for r in _rows(beige)}
-    # temsili (featured) gorsel rank 0
-    assert next(r for r in black_rows if r[1] == 0)[0] == "black-front"
+    # kanitli renk gorselleri once, kaynak sirasiyla; ortak gorsel sonra
+    black_shown = sorted((r for r in black_rows if r[1] is not None), key=lambda r: r[1])
+    assert [r[0] for r in black_shown] == ["black-front", "black-side", "shared"]
     assert next(r for r in _rows(beige) if r[1] == 0)[0] == "beige-front"
     # kanitli iliski isaretli, ortak olan degil
     flags = {r[0]: r[2] for r in black_rows}
@@ -135,12 +136,42 @@ def test_no_variant_link_means_nothing_is_invented() -> None:
         assert not any(r[2] for r in rows)
 
 
-def test_legacy_image_url_is_always_rank_zero() -> None:
+def test_image_url_equals_gallery_rank_zero() -> None:
     product = _product([_image(1, "a", 1), _image(2, "b", 2)], [_variant(10, "Siyah")])
     (offer,) = _offers(product)
     assert offer.image_url == "https://cdn.example/a.jpg"
     assert offer.images[0].source_url == offer.image_url
     assert offer.images[0].display_rank == 0
+
+
+def test_flat_variant_featured_image_is_not_forced_to_primary() -> None:
+    # Gercek payload deseni: varyantin featured_image'i duz urun fotografi ve
+    # images[] icinde SON sirada; magazanin ilk gorselleri model fotograflari.
+    images = [_image(i, f"model-{i}", i) for i in range(1, 5)] + [_image(5, "flat", 5)]
+    product = _product(images, [_variant(10, "Siyah", featured="https://cdn.example/flat.jpg")])
+    (offer,) = _offers(product)
+    shown = sorted((r for r in _rows(offer) if r[1] is not None), key=lambda r: r[1])
+    assert [r[0] for r in shown] == ["model-1", "model-2", "model-3"]
+    assert offer.image_url == "https://cdn.example/model-1.jpg"
+
+
+def test_featured_image_outside_images_is_not_prepended() -> None:
+    product = _product(
+        [_image(1, "a", 1), _image(2, "b", 2)],
+        [_variant(10, "Siyah", featured="https://cdn.example/other-flat.jpg")],
+    )
+    (offer,) = _offers(product)
+    assert [r[0] for r in _rows(offer)] == ["a", "b"]
+    assert offer.image_url == "https://cdn.example/a.jpg"
+
+
+def test_featured_image_is_fallback_when_product_has_no_images() -> None:
+    product = _product([], [_variant(10, "Siyah", featured="https://cdn.example/f.jpg")])
+    (offer,) = _offers(product)
+    assert offer.image_url == "https://cdn.example/f.jpg"
+    assert [(i.source_url, i.display_rank) for i in offer.images] == [
+        ("https://cdn.example/f.jpg", 0)
+    ]
 
 
 def test_product_without_images_yields_no_gallery() -> None:

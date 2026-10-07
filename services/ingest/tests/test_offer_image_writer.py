@@ -247,3 +247,27 @@ def test_database_rejects_duplicate_rank_and_bad_rows(conn_and_merchant) -> None
             (offer_id,),
         )
     conn.rollback()
+
+
+def test_corrective_reingest_replaces_flat_legacy_primary_without_duplicates(
+    conn_and_merchant,
+) -> None:
+    """Eski surum yalniz duz urun gorselini rank 0 yazdi (tek gorsel/backfill A).
+    Model-oncelikli ingest ayni offer'i duzeltir: satir cogalmaz, duz gorsel
+    gosterimden cikar, offer.image_url ve galeri[0] tutarli olur."""
+    conn, mid = conn_and_merchant
+    flat = "https://cdn.example/flat.jpg"
+    offer_id = _write(conn, mid, _offer([flat]))
+    assert _rows(conn, offer_id) == [("t.jpg", 0, 0, "active")]
+
+    corrected = _offer(_urls("m1", "m2", "m3", "m4") + [flat])
+    _write(conn, mid, corrected)
+    rows = {r[0]: r for r in _rows(conn, offer_id)}
+    assert len(rows) == 5
+    assert rows["1.jpg"][2] == 0 and rows["2.jpg"][2] == 1 and rows["3.jpg"][2] == 2
+    assert rows["t.jpg"][2] is None
+    with conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM offer_image WHERE offer_id = %s", (offer_id,))
+        assert cur.fetchone() == (5,)
+    _write(conn, mid, corrected)  # ikinci kosu: degisiklik yok
+    assert len(_rows(conn, offer_id)) == 5

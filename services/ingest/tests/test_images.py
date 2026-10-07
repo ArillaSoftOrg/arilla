@@ -115,24 +115,29 @@ def test_clean_url_rejects_invalid() -> None:
     assert clean_url("//cdn.example/a.jpg") == "https://cdn.example/a.jpg"
 
 
-def test_primary_image_is_rank_zero_even_if_not_first() -> None:
-    images = _imgs(4)
-    images[2] = SourceImage(images[2].url, images[2].position, primary=True)
-    selected = select_images(images)
-    primary = next(s for s in selected if s.display_rank == 0)
-    assert primary.source_url == images[2].url
+def test_five_images_show_first_three_in_source_order() -> None:
+    selected = select_images(_imgs(5))
+    assert [_name(s) for s in _shown(selected)] == ["0.jpg", "1.jpg", "2.jpg"]
+    assert [s.display_rank for s in selected] == [0, 1, 2, None, None]
 
 
-def test_primary_survives_source_cap() -> None:
-    images = _imgs(10)
-    images[8] = SourceImage(images[8].url, images[8].position, primary=True)
-    selected = select_images(images)
-    assert len(selected) == 6
-    assert next(s for s in selected if s.display_rank == 0).source_url == images[8].url
+def test_source_position_decides_order_not_arrival_order() -> None:
+    # Shopify `position` sirasi: gelis sirasi karisik olsa da magaza sirasi kazanir.
+    images = [
+        SourceImage("https://cdn.example/third.jpg", 3),
+        SourceImage("https://cdn.example/first.jpg", 1),
+        SourceImage("https://cdn.example/second.jpg", 2),
+    ]
+    assert [_name(s) for s in _shown(select_images(images))] == [
+        "first.jpg",
+        "second.jpg",
+        "third.jpg",
+    ]
 
 
-def test_without_primary_first_image_is_rank_zero() -> None:
-    assert select_images(_imgs(3))[0].display_rank == 0
+def test_cap_keeps_first_images_in_source_order() -> None:
+    selected = select_images(_imgs(10))
+    assert [_name(s) for s in selected] == [f"{i}.jpg" for i in range(6)]
 
 
 def test_source_order_change_updates_positions_deterministically() -> None:
@@ -172,24 +177,43 @@ def test_elimination_never_leaves_nothing() -> None:
     assert selected[0].display_rank == 0
 
 
-def test_variant_specific_images_are_preferred_for_remaining_slots() -> None:
+def test_variant_specific_images_come_first_then_shared_in_source_order() -> None:
     images = [
-        SourceImage("https://cdn.example/main.jpg", 1, primary=True),
-        SourceImage("https://cdn.example/shared1.jpg", 2),
-        SourceImage("https://cdn.example/shared2.jpg", 3),
-        SourceImage("https://cdn.example/black-side.jpg", 4, variant_specific=True),
-        SourceImage("https://cdn.example/black-back.jpg", 5, variant_specific=True),
-    ]
-    shown = _shown(select_images(images))
-    assert [_name(s) for s in shown] == ["main.jpg", "black-side.jpg", "black-back.jpg"]
-    assert shown[1].is_variant_specific and shown[2].is_variant_specific
-
-
-def test_primary_image_is_never_dropped_by_heuristics() -> None:
-    images = [
-        SourceImage("https://cdn.example/placeholder.png", 1, primary=True),
-        SourceImage("https://cdn.example/real.jpg", 2),
+        SourceImage("https://cdn.example/shared1.jpg", 1),
+        SourceImage("https://cdn.example/shared2.jpg", 2),
+        SourceImage("https://cdn.example/black-front.jpg", 3, variant_specific=True),
+        SourceImage("https://cdn.example/black-back.jpg", 4, variant_specific=True),
     ]
     selected = select_images(images)
-    assert [_name(s) for s in selected] == ["placeholder.png", "real.jpg"]
-    assert selected[0].display_rank == 0
+    assert [_name(s) for s in _shown(selected)] == [
+        "black-front.jpg",
+        "black-back.jpg",
+        "shared1.jpg",
+    ]
+    # saklanan satirlarin source_position'i kaynak sirasini korur
+    assert [s.source_position for s in selected] == [0, 1, 2, 3]
+
+
+def test_variant_specific_beyond_source_cap_still_wins_a_slot() -> None:
+    images = _imgs(8)
+    images[7] = SourceImage(images[7].url, images[7].position, variant_specific=True)
+    selected = select_images(images)
+    assert len(selected) == MAX_SOURCE_IMAGES
+    assert _shown(selected)[0].source_url == images[7].url
+
+
+def test_placeholder_is_dropped_even_when_it_is_first() -> None:
+    images = [
+        SourceImage("https://cdn.example/placeholder.png", 1),
+        SourceImage("https://cdn.example/real.jpg", 2),
+    ]
+    assert [_name(s) for s in select_images(images)] == ["real.jpg"]
+
+
+def test_duplicate_cdn_sizes_collapse_to_one_image() -> None:
+    images = [
+        SourceImage("https://cdn.shopify.com/s/files/1/a_800x.jpg?v=1", 1),
+        SourceImage("https://cdn.shopify.com/s/files/1/a.jpg?v=2&width=300", 2),
+        SourceImage("https://cdn.shopify.com/s/files/1/b.jpg", 3),
+    ]
+    assert len(select_images(images)) == 2

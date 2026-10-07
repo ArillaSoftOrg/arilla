@@ -177,3 +177,30 @@ kart basina TEK gorsel.
 - Gorsel hash/perceptual hash ile gelismis tekrar tespiti indirme isi gelince.
 - Migration numarasi (0053) ve karar numarasi (0073) acik dallarla cakisirsa
   birlestirirken yeniden numaralandirilir.
+
+## Ek (2026-10-08): model-oncelikli secim, `featured_image` rank 0'a zorlanmaz
+
+Sorun: temsili varyantin `featured_image`i "temsili" (`primary`) sayilip
+`display_rank=0` yapiliyordu (listede yoksa `position=-1` ile basa ekleniyordu).
+Gercek `products.json` ornegi (read-only, robots'a uygun, 2026-10-08): varyant
+`featured_image`i `images[]` icinde 9/10 ve 10/10. siradaydi; `images[]` ise
+`position` 1..N ile magazanin urun sayfasi sirasini koruyor. Alt metin bos ya da
+urun adi, `variant_ids` cogu urunde bos: duz urun/model ayrimi icin GUVENILIR
+metadata yok ve goruntu siniflandirmasi eklenmedi.
+
+Karar:
+- Siralama = magazanin `images[]` sirasi (`position`). Renge bolunmus urunde
+  kanitli (`variant_ids`) renk gorselleri once, ortak gorseller sonra.
+- `featured_image` siralamayi belirlemez, listede degilse eklenmez; yalniz urunun
+  hic `images[]`i yoksa tek gorsel yedegidir.
+- `SourceImage.primary` kaldirildi. Placeholder/ikon elemesi her gorsele uygulanir.
+- `offer.image_url` = galeri rank 0 (normalize); `primary_image_url` mevcut
+  `primary_image_sync` ile onu izler.
+- Kaynakta en fazla 6 saklanir: gosterim sirasindaki ilk 6 (kanitli renk gorseli
+  kaynak tavaninin disinda kalmaz).
+
+Eski urunler: duzeltme yeniden ingest ile (yeni migration yok). `offer.image_url`
+degisince gorsel embedding'i bayatlar (mevcut `stale_image_embeddings` yolu);
+Jina maliyeti etkilenir. Backfill A (`backfill_images`) yalniz hic satiri olmayan
+offer'lara eski `image_url`'i yazar; model-oncelikli duzeltme icin B (yeniden
+ingest) gerekir, A atlanabilir.
