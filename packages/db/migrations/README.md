@@ -131,3 +131,4 @@ pnpm db:partitions --check   # dolu ise sifirdan farkli cikis kodu
 Dolu bulundugunda izlenecek adimlar `docs/ops.md` icindeki runbook'tadir.
 Ozetle: dolu default varken o ayin partition'i **olusturulamaz**, once default
 DETACH edilir.
+| `0053_offer_image.sql` | Coklu urun gorseli (0073): `offer_image` (offer basina <=6 kaynak gorsel, `source_position` magaza sirasi, `display_rank` gosterim sirasi NULL=gosterilmez, `r2_url` NULL, `is_variant_specific`, `status` active/removed/broken; UNIQUE `(offer_id,url_hash)` ve ertelenmis UNIQUE `(offer_id,display_rank)`). Binary yok. `offer.image_url`/`product.primary_image_url` degismez. Yalnizca ekleme. |

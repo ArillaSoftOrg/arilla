@@ -8,7 +8,16 @@ degil; reddedilenler sayilir ve kosu `partial` biter.
 from __future__ import annotations
 
 import unicodedata
+from dataclasses import replace
 
+from collect.images import (
+    SelectedImage,
+    SourceImage,
+    clean_url,
+    images_from_entries,
+    normalize_key,
+    select_images,
+)
 from collect.mapping import FieldMapping
 from collect.records import NormalizedOffer, NormalizedVariant, RawRecord, RecordRejected
 
@@ -67,6 +76,27 @@ def _variants(record: RawRecord, mapping: FieldMapping) -> tuple[NormalizedVaria
     return tuple(variants)
 
 
+def _images(record: RawRecord, image_url: str | None) -> tuple[SelectedImage, ...]:
+    """Offer gorselleri. Kaynak coklu gorsel verdiyse (`groups["images"]`) onlar,
+    vermediyse tek `image_url`. `image_url` varsa her zaman temsili (rank 0)
+    gorseldir: eski `primary_image_url` davranisiyla ayni gorsel one cikar."""
+    candidates = images_from_entries(record.groups.get("images") or ())
+    cleaned_primary = clean_url(image_url)
+    if cleaned_primary:
+        key = normalize_key(cleaned_primary)
+        marked = [
+            replace(image, primary=normalize_key(image.url) == key)
+            if clean_url(image.url)
+            else image
+            for image in candidates
+        ]
+        if any(image.primary for image in marked):
+            candidates = marked
+        else:
+            candidates = [SourceImage(cleaned_primary, position=-1, primary=True), *candidates]
+    return tuple(select_images(candidates))
+
+
 def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
     fields = dict(record.fields)
     formats = mapping.formats
@@ -113,6 +143,7 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
     else:
         in_stock = formats.parse_in_stock(mapping.get(fields, "availability"))
 
+    image_url = mapping.get(fields, "image_url")
     return NormalizedOffer(
         external_id=external_id,
         url=url,
@@ -122,7 +153,7 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
         in_stock=in_stock,
         brand_raw=mapping.get(fields, "brand"),
         category_raw=mapping.get(fields, "category"),
-        image_url=mapping.get(fields, "image_url"),
+        image_url=image_url,
         gtin=mapping.get(fields, "gtin"),
         currency=currency,
         shipping_days=shipping_days,
@@ -134,4 +165,5 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
             if key not in set(mapping.fields.values()) and len(value) <= 200
         },
         variants=variants,
+        images=_images(record, image_url),
     )
