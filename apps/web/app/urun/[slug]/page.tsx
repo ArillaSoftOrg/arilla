@@ -11,6 +11,7 @@ import {
   isProductSitemapEligible,
   readAppUrl,
   recordActivity,
+  recordProductView,
   resolveProductSlug,
   serializeJsonLd,
   variantLowestClaim,
@@ -156,6 +157,13 @@ export default async function ProductPage({
   // 0049 §7: rızalı davranışsal analitik (yalnızca girişli kullanıcı; rıza
   // kapısı ve 30 dakikalık tekrar bastırma core'da). Hata sayfayı bozmaz.
   if (user) {
+    // Kullanıcıya gösterilen "Son baktıkların" geçmişi: kendi rızası
+    // (`browsing_history`) core'da denetlenir; analitikten bağımsızdır.
+    try {
+      await recordProductView(db, { userId: user.id, productId: product.productId });
+    } catch (error) {
+      console.error("[urun] view history failed", error instanceof Error ? error.name : "unknown");
+    }
     try {
       await recordActivity(db, {
         userId: user.id,
@@ -449,6 +457,8 @@ export default async function ProductPage({
               <div className={styles.primaryOffer}>
                 <a
                   href={`/git/${variantBest.offerId}?surface=product_primary`}
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className={styles.primaryCta}
                 >
                   {openAtMerchantLabel(variantBest)}
@@ -472,6 +482,8 @@ export default async function ProductPage({
               {/* attribution: CLAUDE.md kural 8 - dogrudan offer.url'e degil, /git uzerinden. */}
               <a
                 href={`/git/${primaryOffer.offerId}?surface=product_primary`}
+                target="_blank"
+                rel="noopener noreferrer"
                 className={styles.primaryCta}
               >
                 {openAtMerchantLabel(primaryOffer)}

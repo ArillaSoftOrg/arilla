@@ -6,6 +6,7 @@ export * from "./catalog-quality.ts";
 export * from "./cost-truth.ts";
 export * from "./dashboard.ts";
 export * from "./early-access.ts";
+export * from "./early-access-counter.ts";
 export * from "./image-uploads.ts";
 export * from "./ingest-runs.ts";
 export * from "./job-runs.ts";

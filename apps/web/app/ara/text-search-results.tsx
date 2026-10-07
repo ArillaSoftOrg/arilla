@@ -1,5 +1,8 @@
 import {
   buildSearchSummary,
+  createPostgresSearchProvider,
+  createSeedAliasSource,
+  formatTraceForLog,
   isRedisUnavailableError,
   type QueryObject,
   recordActivity,
@@ -8,15 +11,16 @@ import {
   resolveQuery,
   type SearchSummaryIntent,
   type SortMode,
-  search,
+  searchWithFallback,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { ClarificationBar, EmptyState, SortTabs } from "@arilla/ui";
+import { ClarificationBar, SortTabs } from "@arilla/ui";
 import { cookies } from "next/headers";
 import { after } from "next/server";
 import { readConsent } from "../lib/consent.ts";
 import { verifySession } from "../lib/dal.ts";
 import styles from "./ara.module.css";
+import { SearchFallbackResults, SearchNoResults } from "./search-fallback-results.tsx";
 import { ResultGrid, resultCountLabel } from "./search-results.tsx";
 import { SearchWallGateClient } from "./search-wall-gate-client.tsx";
 
@@ -98,11 +102,26 @@ export async function TextSearchResults({
   const effectiveSort: SortMode =
     requestedSort === "closest_match" && !hasAnchor ? "balanced" : requestedSort;
 
-  const result = await search(
-    db,
-    { ...parsed, sort: effectiveSort },
-    { limit: PAGE_SIZE, offset: (page - 1) * PAGE_SIZE },
+  // Yapay zekasiz asamali arama (docs/decisions/0066): once mevcut yol; sonuc yoksa
+  // ya da yalnizca model kodu celiskili urunler varsa kontrollu gevsetme. Istek
+  // yolunda model cagrisi yok.
+  const outcome = await searchWithFallback(
+    createPostgresSearchProvider(db),
+    { parsed: { ...parsed, sort: effectiveSort }, sort: effectiveSort, page, pageSize: PAGE_SIZE },
+    {
+      aliases: createSeedAliasSource(),
+      onTrace: (trace) => {
+        // Sorgu metni loga girmez (kisisel veri); yalnizca sayi ve sabit kodlar.
+        if (trace.mode !== "results" || trace.stage !== "exact") {
+          console.info(formatTraceForLog(trace));
+        }
+      },
+    },
   );
+  const isFallback = outcome.mode === "fallback";
+  const items = outcome.items;
+  // Yakin sonuclar "sonuc" sayilmaz: sayac ve analitik gercek eslesmeyi olcer.
+  const resultTotal = outcome.mode === "results" ? outcome.total : 0;
 
   // 0049 §7: rızalı davranışsal analitik. Yalnızca girişli kullanıcıda, yeni
   // bir aramanın ilk sayfasında. Rıza kapısı ve tekrar bastırma core'da.
@@ -112,22 +131,11 @@ export async function TextSearchResults({
       await recordActivity(db, {
         userId: user.id,
         cookieConsent: await readConsent(),
-        event: { kind: "search_submitted", query, resultCount: result.total },
+        event: { kind: "search_submitted", query, resultCount: resultTotal },
       });
     } catch (error) {
       console.error("[ara] activity failed", error instanceof Error ? error.name : "unknown");
     }
-  }
-
-  let items = result.items;
-  let isFallback = false;
-  if (items.length === 0) {
-    // docs/pages.md: "Boş sonuç: filtreleri gevşetme önerisi + en yakın 6
-    // sonuç." Gevşetme icin kesin algoritma belirtilmemis; en basit ve
-    // savunulabilir yorum: tum filtreleri temizle.
-    const fallback = await search(db, { ...parsed, filters: {}, sort: "balanced" }, { limit: 6 });
-    items = fallback.items;
-    isFallback = true;
   }
 
   // Karar 0054: kimliksiz günlük arama kalitesi özeti (`search_query_day`).
@@ -138,8 +146,8 @@ export async function TextSearchResults({
   if (isNewSearch && page === 1 && requestedSort === "balanced") {
     const quality = {
       query,
-      resultCount: result.total,
-      usedFallback: isFallback && items.length > 0,
+      resultCount: resultTotal,
+      usedFallback: isFallback,
       clarification: clarificationAsked || needsClarification,
       // Konuşma yolu da sözlükten derlenir: kademe 2.
       parserTier: parserTier ?? 2,
@@ -174,13 +182,15 @@ export async function TextSearchResults({
     },
   ];
 
-  const totalPages = Math.ceil(result.total / PAGE_SIZE);
-  // Ikinci model cagrisi yok: ozet ayni yorumdan ve gercek sonuc sayisindan.
+  const totalPages = Math.ceil(resultTotal / PAGE_SIZE);
+  // Ikinci model cagrisi yok: ozet ayni yorumdan ve gercek sonuc sayisindan
+  // (karar 0063). Asamali arama (0066) hic sonuc gostermiyorsa (`empty`) ozet
+  // de gosterilmez: "en yakin sonuclar" demek yanlis olurdu.
   const aiSummary =
-    summaryIntent && page === 1
+    summaryIntent && page === 1 && outcome.mode !== "empty"
       ? buildSearchSummary(summaryIntent, {
-          resultCount: result.total,
-          usedFallback: isFallback && items.length > 0,
+          resultCount: resultTotal,
+          usedFallback: isFallback,
         })
       : null;
 
@@ -195,9 +205,9 @@ export async function TextSearchResults({
         </section>
       ) : null}
 
-      {!isFallback ? (
+      {outcome.mode === "results" ? (
         <p id="sonuc-sayisi" className={styles.count} role="status">
-          {resultCountLabel(result.total)}
+          {resultCountLabel(resultTotal)}
         </p>
       ) : null}
 
@@ -216,31 +226,19 @@ export async function TextSearchResults({
           />
         ) : null}
 
-        <SortTabs tabs={tabs} />
+        {/* Sekmeler yalnizca gercek sonuclari siralar; yakin sonuclar alakaya gore dizilir. */}
+        {outcome.mode === "results" ? <SortTabs tabs={tabs} /> : null}
       </div>
 
-      {isFallback ? (
-        <>
-          <EmptyState
-            className={styles.emptyPanel}
-            title="Bu aramada sonuç bulamadık."
-            description="Daha genel bir arama dene: fiyat, renk ya da beden gibi ayrıntıları çıkarabilir veya farklı kelimeler kullanabilirsin."
-            headingLevel={2}
-          />
-          {items.length > 0 ? (
-            <section className={styles.section} aria-labelledby="en-yakin-sonuclar">
-              <h2 id="en-yakin-sonuclar" className={styles.sectionTitle}>
-                Sana en yakın bulduklarımız
-              </h2>
-              <ResultGrid items={items} labelledBy="en-yakin-sonuclar" />
-            </section>
-          ) : null}
-        </>
+      {outcome.mode === "fallback" ? (
+        <SearchFallbackResults items={items} />
+      ) : outcome.mode === "empty" ? (
+        <SearchNoResults />
       ) : (
         <ResultGrid items={items} />
       )}
 
-      {!isFallback && result.total > PAGE_SIZE ? (
+      {outcome.mode === "results" && resultTotal > PAGE_SIZE ? (
         <nav className={styles.pagination} aria-label="Sayfalama">
           {page > 1 ? (
             <a
@@ -255,7 +253,7 @@ export async function TextSearchResults({
           <p className={styles.pageStatus}>
             Sayfa {page} / {totalPages}
           </p>
-          {page * PAGE_SIZE < result.total ? (
+          {page * PAGE_SIZE < resultTotal ? (
             <a
               href={hrefFor({ sort: effectiveSort, page: page + 1 })}
               rel="next"

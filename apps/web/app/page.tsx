@@ -14,6 +14,7 @@ import { HomeSearchComposer } from "./home-search-composer-client.tsx";
 import { HomeSectionHeading } from "./home-section-heading.tsx";
 import { type HomeWayCard, HomeWaysCarousel } from "./home-ways-carousel-client.tsx";
 import { verifySession } from "./lib/dal.ts";
+import { loadCachedEarlyAccessProgress } from "./lib/early-access-progress.ts";
 import { PublicSiteShell } from "./public-site-shell.tsx";
 import { SITE_BRAND } from "./site-config.ts";
 
@@ -133,7 +134,12 @@ export default async function HomePage() {
   if (!canAccessProduct(user)) {
     // Lansman öncesi (karar 0043): yalnızca tanıtım. Keşif sorgusu, arama
     // kutusu ya da demo ürün görseli bu dala hiç girmez.
-    return <ComingSoonLanding signedIn={user !== null} />;
+    return (
+      <ComingSoonLanding
+        signedIn={user !== null}
+        progress={await loadCachedEarlyAccessProgress()}
+      />
+    );
   }
 
   const items = await loadDiscoveryItems();
