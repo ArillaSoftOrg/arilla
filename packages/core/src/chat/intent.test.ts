@@ -4,6 +4,7 @@ import { emptyIntent, intentChips, mergeSearchIntent, parseStoredIntent } from "
 
 const patch = (p: Partial<SearchIntentPatch> = {}): SearchIntentPatch => ({
   reset: false,
+  clear: false,
   remove: [],
   ...p,
 });

@@ -65,6 +65,8 @@ export interface SearchIntent {
 export interface SearchIntentPatch {
   /** true: onceki niyet atilir (yeni konu). */
   reset: boolean;
+  /** true: tum kisitlar (marka, renk, fiyat...) temizlenir, sorgu metni kalir. */
+  clear: boolean;
   query?: string;
   category?: string;
   brand?: string;
@@ -110,6 +112,9 @@ export type ParsedModelTurn =
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
+
+/** Model ciktisinda baglanti/adres olamaz (urun ve link katalogdan gelir). */
+const URL_RE = /(?:https?:\/\/|\bwww\.|\b[a-z0-9-]+\.(?:com|net|org|tr|io|co)\b)/i;
 
 /** Kontrol karakterleri ve cok bosluk atilir; ust sinirda kesilir. Bos kalirsa null. */
 export function cleanText(value: unknown, max: number): string | null {
@@ -173,7 +178,11 @@ function cleanAttributes(value: unknown): Record<string, string> | null {
 
 function parseIntentPatch(raw: unknown): SearchIntentPatch | null {
   if (!isRecord(raw)) return null;
-  const patch: SearchIntentPatch = { reset: raw.reset === true, remove: [] };
+  const patch: SearchIntentPatch = {
+    reset: raw.reset === true,
+    clear: raw.clear === true,
+    remove: [],
+  };
 
   if (raw.query !== null && raw.query !== undefined) {
     const query = cleanText(raw.query, CHAT_LIMITS.queryChars);
@@ -251,6 +260,8 @@ export function parseClarifyQuestion(raw: unknown): ClarifyQuestion | null {
 /** Modelin ham ciktisini dogrular. Asla firlatmaz. */
 export function parseModelTurn(raw: unknown): ParsedModelTurn {
   if (!isRecord(raw)) return { ok: false, reason: "not_object" };
+  // Model hicbir alanda baglanti uretemez: butun cikti reddedilir (yedek arama calisir).
+  if (URL_RE.test(JSON.stringify(raw))) return { ok: false, reason: "bad_message" };
   const message = cleanText(raw.message, CHAT_LIMITS.message);
 
   if (raw.action === "clarify") {
@@ -307,6 +318,7 @@ export function buildModelTurnSchema(): Record<string, unknown> {
         additionalProperties: false,
         required: [
           "reset",
+          "clear",
           "query",
           "category",
           "brand",
@@ -321,6 +333,7 @@ export function buildModelTurnSchema(): Record<string, unknown> {
         ],
         properties: {
           reset: { type: "boolean" },
+          clear: { type: "boolean" },
           query: nullableString(CHAT_LIMITS.queryChars),
           category: nullableString(CHAT_LIMITS.shortText),
           brand: nullableString(CHAT_LIMITS.shortText),

@@ -9,6 +9,7 @@
 import {
   CHAT_LIMITS,
   cleanText,
+  REMOVABLE_FIELDS,
   type RemovableField,
   type SearchIntent,
   type SearchIntentPatch,
@@ -67,7 +68,12 @@ export function mergeSearchIntent(
   patch: SearchIntentPatch,
 ): SearchIntent | null {
   const base = patch.reset || current === null ? null : current;
-  const query = (patch.query ?? base?.query)?.trim();
+  const categoryChanged =
+    base !== null &&
+    patch.category !== undefined &&
+    patch.category.toLowerCase() !== (base.category ?? "").toLowerCase();
+  // Kategori degisti ama yeni sorgu gelmediyse eski sorgu artik gecersiz: yeni kategori sorgu olur.
+  const query = (patch.query ?? (categoryChanged ? patch.category : base?.query))?.trim();
   if (!query) return null;
 
   const next: SearchIntent = base
@@ -80,6 +86,16 @@ export function mergeSearchIntent(
     : emptyIntent(query);
   next.query = query;
 
+  // Kisit temizligi: `clear` hepsini, kategori degisimi yalnizca kategoriye bagli olanlari
+  // (beden, nitelikler) siler. Marka, fiyat ve renk kullanicinin kendi tercihidir, kalir.
+  if (patch.clear) {
+    for (const field of REMOVABLE_FIELDS) {
+      if (field !== "category") clearField(next, field);
+    }
+  } else if (categoryChanged) {
+    clearField(next, "size");
+    clearField(next, "attributes");
+  }
   for (const field of patch.remove) clearField(next, field);
 
   if (patch.category !== undefined) next.category = patch.category;

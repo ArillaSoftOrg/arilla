@@ -27,7 +27,19 @@ export function chatTurnsPerHour(env: Env = process.env): number {
   return Math.min(parsed, 200);
 }
 
+/** `api_usage.operation`; `/ara` anlik yorumundan (`query_interpretation_realtime`) AYRI butce. */
+export const CHAT_TURN_OPERATION = "chat_turn";
+
+/** Europe/Istanbul gunu basina sohbet saglayici HTTP denemesi tavani (tum kullanicilar). */
+export const CHAT_DAILY_CALL_CAP = 3000;
+
+/**
+ * Sohbet istemcisi: 12 sn x en cok 2 deneme (en kotu ~25 sn); sayfanin `maxDuration`
+ * (60 sn) butcesi icinde kalir ve takili bir saglayici sunucu islemini uzun tutmaz.
+ */
+export const CHAT_CLIENT_OPTIONS = { timeoutMs: 12_000, maxAttempts: 2 } as const;
+
 /** Anahtar yoksa `LlmError("missing_api_key")` atar; cagiran "saglayici hatasi" sayar. */
 export function getChatInterpreter(env: Env = process.env): ChatInterpreter {
-  return new GeminiChatInterpreter(getLlmClient(env));
+  return new GeminiChatInterpreter(getLlmClient(env, CHAT_CLIENT_OPTIONS));
 }

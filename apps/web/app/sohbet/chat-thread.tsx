@@ -29,14 +29,27 @@ function ResultsFallback() {
  * mesajlarının altında anlaşılan niyet ve gerçek ürün sonuçları. Etkileşimli
  * parçalar (soru kartı, giriş kutusu) `ChatInteractive`tedir.
  */
-export function ChatThread({ messages }: { messages: readonly ChatMessageView[] }) {
+export function ChatThread({
+  messages,
+  conversationId,
+}: {
+  messages: readonly ChatMessageView[];
+  conversationId: string;
+}) {
   const searchSeqs = messages
     .filter((m) => m.role === "assistant" && m.kind === "search")
     .map((m) => m.seq);
   const shown = new Set(searchSeqs.slice(-RESULT_BLOCKS_SHOWN));
 
   return (
-    <ol className={styles.thread} aria-label={CHAT_COPY.threadLabel}>
+    // role="log": yeni mesajlar kibarca duyurulur, geçmiş yeniden okunmaz.
+    <ol
+      className={styles.thread}
+      role="log"
+      aria-live="polite"
+      aria-relevant="additions"
+      aria-label={CHAT_COPY.threadLabel}
+    >
       {messages.map((message) => {
         if (message.role === "user") {
           const skipped = message.kind === "skip";
@@ -68,7 +81,11 @@ export function ChatThread({ messages }: { messages: readonly ChatMessageView[] 
                   </ul>
                   {shown.has(message.seq) ? (
                     <Suspense fallback={<ResultsFallback />}>
-                      <ChatResults intent={intent} headingId={resultsId} />
+                      <ChatResults
+                        intent={intent}
+                        headingId={resultsId}
+                        retryHref={`/sohbet/${conversationId}`}
+                      />
                     </Suspense>
                   ) : null}
                 </>

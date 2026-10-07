@@ -80,3 +80,51 @@ süzgeci (`interpretation-eligibility`) kullanıcı mesajına uygulanır: eşle�
   sözlüğü açık uçlu soru/seçenek üretemez; 0030 olduğu gibi `/ara`'da kalır.
 - **Model çağrısını `after()`/kuyrukta yapmak.** Kullanıcı yanıtı bekler; Python
   tarafına dokunmayı gerektirir (mimari sınır).
+
+## Ek kararlar (bağımsız audit sonrası, 7 Ekim 2026)
+
+- **0062 ile ilişki.** `/ara` anlık yorumu (karar 0062) ve sohbet ayrı bütçelerdir:
+  ayrı bayrak (`CHAT_DISCOVERY_ENABLED`), ayrı `api_usage.operation` (`chat_turn`),
+  ayrı kullanıcı limiti (DB'den, kullanıcının saatlik mesaj sayısı) ve ayrı günlük
+  sağlayıcı tavanı (`CHAT_DAILY_CALL_CAP` = 3000 deneme). Tavan dolunca model
+  çağrılmaz, kullanıcı deterministik yedek aramayla devam eder. Sayaçlar Redis'e
+  bağlı değildir; Redis kesintisi sohbeti etkilemez.
+- **Kalıcılık eşdeğerliği.** Ayrı `status`/`intent_before` kolonu yok: her arama
+  mesajı kendi anındaki birleşik niyeti (`payload.intent`) ve kaynağını
+  (`model`/`fallback`, `fallbackReason`) taşır; önceki niyet bir önceki arama
+  mesajıdır, yani tam tekrar oynatma mümkündür. Sonuç sayısı saklanmaz (sonuçlar
+  gösterimde canlı aranır, bayatlamaz).
+- **Sahiplik.** Tüm okuma/yazma `chat/service.ts` içinden, `user_id` filtresiyle
+  geçer; yanlış/başkasının/geçersiz UUID aynı `null`/`not_found` → 404. RLS yoktur
+  (0042: uygulama yalnızca sunucudan bağlanır); koruma sorgudadır, testlidir.
+- **Veri yaşam döngüsü.** Hesap silme CASCADE (testli), dışa aktarım
+  `conversations` alanını içerir (testli), 90 gün saklama cron'u, günlüğe mesaj
+  metni girmez. Hukuk notu: `docs/legal-review/sohbet-konusmali-kesif.md`.
+- **Yama anlamları.** set (alan değeri), add (`excludeBrands` birleşimi), remove
+  (`remove` listesi), clear (tüm kısıtlar, sorgu kalır), reset (yeni konu).
+  Kategori değişirse yalnızca kategoriye bağlı kısıtlar (beden, nitelikler)
+  silinir; marka, renk, fiyat kullanıcının tercihi olarak kalır. Aynı marka hem
+  dahil hem hariç olamaz. Öncelik: kullanıcının açık girdisi (fiyat kalıbı,
+  "daha ucuz", "fiyat sınırını kaldır") > deterministik kural > model; metinde
+  olmayan fiyat modelin uydurması sayılıp atılır.
+- **Model çıktı sınırı.** URL/alan adı içeren çıktı bütünüyle reddedilir; bağlantı
+  içeren kullanıcı mesajı modele gitmez. Şema `additionalProperties: false`,
+  doğrulayıcı bilinmeyen alanları atar.
+- **Arama zaman aşımı.** `searchByIntent` kendi işleminde `statement_timeout`
+  (4 sn) ile çalışır; aşılırsa `IntentSearchTimeoutError`, sohbet bozulmaz, niyet
+  saklıdır, arayüz "Tekrar dene" bağlantısı gösterir.
+- **Şeffaflık.** Arama renk/beden/kategori/sözcük gevşettiyse ya da hariç tutulan
+  marka katalogda çözülemediyse sonuçların üstünde açıkça yazılır.
+- **Fiyat tutarlılığı.** Filtre `product.min_price`'a, kart seçilen tekliften
+  gelir ve ayrışabilir (genel `/ara` davranışı, bu karar kapsamı dışı). Sohbette
+  kullanıcının tavanını aşan kart gösterilmez; eleme olduysa sayı ve "tümünü gör"
+  gizlenir. Kök neden (`best_offer` ile `min_price` hizalaması) açık risktir.
+- **Gemini istemcisi.** 12 sn zaman aşımı x en çok 2 deneme. İstemci kopmasında
+  Gemini çağrısını iptal etmek server action sınırında mümkün değildir (Next
+  AbortSignal vermez); çağrı zaman aşımıyla sınırlıdır. Anahtar yalnızca sunucuda.
+- **Hak/quota (0047).** Sohbet turları arama hakkı (`ai_quota_day`/`ai_search_charge`)
+  harcamaz ve kullanıcı başına tek-uçuş kuralına bağlanmaz: aynı sohbette normal
+  akış bozulurdu. Koruma: saatlik kullanıcı limiti + kira + günlük tavan.
+- **Analitik.** Bu iterasyonda HİÇ olay gönderilmez (kural 13: `docs/events.md`
+  tanımsız olay yasak). `chat_message_sent` vb. istenirse önce events.md'ye eklenir;
+  mesaj metni yüke girmez.

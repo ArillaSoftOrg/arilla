@@ -15,7 +15,9 @@ import {
   authEvent,
   bonusAccount,
   bonusLedger,
+  chatMessage,
   click,
+  conversation,
   type Database,
   earlyAccess,
   feedback,
@@ -156,6 +158,14 @@ export interface UserDataExport {
     priority: string | null;
     status: string;
     createdAt: Date;
+  }>;
+  /** Konuşmalı keşif (0054, karar 0074): sohbetler ve kullanıcının/asistanın mesajları. */
+  conversations: Array<{
+    publicId: string;
+    title: string;
+    createdAt: Date;
+    lastMessageAt: Date;
+    messages: Array<{ seq: number; role: string; kind: string; content: string; createdAt: Date }>;
   }>;
 }
 
@@ -420,5 +430,59 @@ export async function exportUserData(db: Database, userId: number): Promise<User
     marketingEmails: marketingRows,
     surveyResponses,
     feedback: feedbackRows,
+    conversations: await exportConversationsSafely(db, userId),
   };
+}
+
+/**
+ * 0054 henüz uygulanmamış bir veritabanında (kod migration'dan önce dağıtılırsa)
+ * tablo yoktur, dolayısıyla sohbet verisi de yoktur: dışa aktarım kırılmaz.
+ * Başka her hata yukarı çıkar.
+ */
+async function exportConversationsSafely(
+  db: Database,
+  userId: number,
+): Promise<UserDataExport["conversations"]> {
+  try {
+    return await exportConversations(db, userId);
+  } catch (error) {
+    const code =
+      (error as { cause?: { code?: string } } | null)?.cause?.code ??
+      (error as { code?: string } | null)?.code;
+    if (code === "42P01") return [];
+    throw error;
+  }
+}
+
+async function exportConversations(
+  db: Database,
+  userId: number,
+): Promise<UserDataExport["conversations"]> {
+  const chats = await db
+    .select()
+    .from(conversation)
+    .where(eq(conversation.userId, userId))
+    .orderBy(asc(conversation.createdAt));
+  const out: UserDataExport["conversations"] = [];
+  for (const chat of chats) {
+    const rows = await db
+      .select()
+      .from(chatMessage)
+      .where(eq(chatMessage.conversationId, chat.id))
+      .orderBy(asc(chatMessage.seq));
+    out.push({
+      publicId: chat.id,
+      title: chat.title,
+      createdAt: chat.createdAt,
+      lastMessageAt: chat.lastMessageAt,
+      messages: rows.map((m) => ({
+        seq: m.seq,
+        role: m.role,
+        kind: m.kind,
+        content: m.content,
+        createdAt: m.createdAt,
+      })),
+    });
+  }
+  return out;
 }

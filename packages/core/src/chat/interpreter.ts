@@ -75,7 +75,7 @@ export const CHAT_INSTRUCTIONS = [
   "Aynı şeyi iki kez sorma; kullanıcının söylediğini tekrar sorma. clarify_count 2 veya fazlaysa ya da kullanıcı atladıysa mutlaka search ver.",
   "Seçenek value alanı kısa ve küçük harfli bir kimlik olsun (örneğin casual_sneaker). label kullanıcıya gösterilir, Türkçe ve kısa olsun.",
   "intent bir YAMADIR: yalnızca bu mesajla değişen alanları doldur, geri kalanı null/boş bırak; önceki niyet (current_intent) sunucuda korunur ve birleştirilir.",
-  'Yeni bir ürün konusuna geçildiyse reset=true ve query ver. Aynı aramanın inceltilmesinde ("siyah olsun", "Nike olsun", "2500 TL altı", "daha uygun fiyatlı") reset=false.',
+  'Yeni bir ürün konusuna geçildiyse reset=true ve query ver. Tüm kısıtları sıfırlayıp sorguyu korumak için clear=true. Aynı aramanın inceltilmesinde ("siyah olsun", "Nike olsun", "2500 TL altı", "daha uygun fiyatlı") reset=false.',
   "query: arama metni (ürün türü + belirleyici sıfatlar), en çok birkaç kelime. category: genel kategori adı. Fiyatları TL cinsinden tam sayı ver; yalnızca kullanıcı metninde yazan rakamlardan çıkar.",
   '"Daha uygun fiyatlı" isteğinde sort="cheapest". Bir alanı kullanıcı vazgeçtiyse remove listesine yaz.',
   'message: kullanıcıya 1-2 kısa Türkçe cümle, samimi ve sade. Arayüz kuralı: "satın al", "dupe", "ucuz" kelimelerini kullanma ("daha uygun fiyatlı" de); TÜMÜ BÜYÜK HARF yazma; fiyat ya da ürün vaat etme.',
@@ -127,6 +127,8 @@ export class GeminiChatInterpreter implements ChatInterpreter {
 export function isBlockedFromModel(text: string): boolean {
   const norm = normalizeQueryText(text);
   if (norm.length === 0) return false;
+  // Baglanti iceren mesaj modele gitmez (urun linki ayri yoldan cozulur).
+  if (URL_IN_INPUT_RE.test(text)) return true;
   // Eligibility 120 karakterlik sorgu icindir; uzun mesaj kelime sinirinda parcalanir.
   const chunks: string[] = [];
   let current = "";
@@ -154,7 +156,56 @@ export function isBlockedFromModel(text: string): boolean {
 // Deterministik yedek: bozuk cikti ya da model onu suzgeci
 // ---------------------------------------------------------------------------
 
-const CHEAPER_RE = /(daha\s+)?(ucuz|uygun|ekonomik)/u;
+const CHEAPER_RE = /daha\s+(?:ucuz|uygun|ekonomik)|ucuz\s+olsun/u;
+const REMOVE_PRICE_RE =
+  /(?:fiyat|b[uü]t[cç]e)\p{L}*\s+(?:s[ıi]n[ıi]r\p{L}*\s+)?(?:kald[ıi]r|sil|iptal)/u;
+const URL_IN_INPUT_RE = /https?:\/\/|\bwww\./i;
+
+/**
+ * Modelin dondurdugu yamayi kullanici metniyle sinar (oncelik: kullanicinin acik
+ * girdisi > deterministik kural > model). Metinde olmayan fiyat modelin uydurmasidir
+ * ve atilir (0059 butce kurali); metinde acik fiyat kalibi varsa model ne derse desin
+ * o uygulanir.
+ */
+export function groundPatch(
+  patch: SearchIntentPatch,
+  request: InterpretRequest,
+): SearchIntentPatch {
+  const out: SearchIntentPatch = { ...patch, remove: [...patch.remove] };
+  const userText = request.messages
+    .filter((message) => message.role === "user")
+    .map((message) => normalizeQueryText(message.text))
+    .join(" ");
+  const numbers = new Set(
+    (userText.match(/\d[\d.]*/g) ?? []).map((raw) =>
+      String(Number.parseInt(raw.replace(/\./g, ""), 10)),
+    ),
+  );
+  const known = (value: number | undefined): boolean =>
+    value === undefined ||
+    numbers.has(String(value)) ||
+    request.currentIntent?.priceMin === value ||
+    request.currentIntent?.priceMax === value;
+  if (!known(out.priceMin)) delete out.priceMin;
+  if (!known(out.priceMax)) delete out.priceMax;
+
+  if (request.input.kind === "text") {
+    const text = normalizeQueryText(request.input.text);
+    for (const match of extractPricePatterns(text)) {
+      if (match.priceMin !== undefined) out.priceMin = Math.round(match.priceMin / 100);
+      if (match.priceMax !== undefined) out.priceMax = Math.round(match.priceMax / 100);
+    }
+    if (CHEAPER_RE.test(text)) out.sort = "cheapest";
+    if (REMOVE_PRICE_RE.test(text)) {
+      delete out.priceMin;
+      delete out.priceMax;
+      for (const field of ["priceMin", "priceMax"] as const) {
+        if (!out.remove.includes(field)) out.remove.push(field);
+      }
+    }
+  }
+  return out;
+}
 
 /**
  * Model kullanilamadiginda kullanicinin metninden bir `search` yamasi kurar.
@@ -170,7 +221,7 @@ export function fallbackTurn(request: InterpretRequest): ModelTurn {
     .find((message) => message.role === "user" && message.kind === "text")?.text;
   const notice = "Mesajını tam anlayamadım, yazdıklarınla doğrudan aradım.";
 
-  const patch: SearchIntentPatch = { reset: false, remove: [] };
+  const patch: SearchIntentPatch = { reset: false, clear: false, remove: [] };
   const baseQuery = currentIntent?.query ?? priorUserText ?? "";
 
   let query: string;
@@ -212,6 +263,7 @@ export type InterpretationOutcome =
       fallbackReason:
         | ModelTurnRejection
         | "filtered"
+        | "daily_cap"
         | "output_error"
         | "clarify_limit"
         | "no_query"
@@ -240,6 +292,7 @@ function inputText(input: UserInput): string {
 export async function interpretTurn(
   interpreter: ChatInterpreter,
   request: InterpretRequest,
+  options: { modelAllowed?: boolean } = {},
 ): Promise<InterpretationOutcome> {
   const calls: LlmCall[] = [];
   const modelVersion = interpreter.modelVersion;
@@ -264,6 +317,8 @@ export async function interpretTurn(
     ),
   };
   if (isBlockedFromModel(inputText(request.input))) return fallback("filtered");
+  // Gunluk saglayici tavani dolduysa model cagrilmaz; kullanici yedek aramayla devam eder.
+  if (options.modelAllowed === false) return fallback("daily_cap");
 
   let result: LlmJsonResult;
   try {
@@ -277,7 +332,8 @@ export async function interpretTurn(
   const parsed = parseModelTurn(result.value);
   if (!parsed.ok) return fallback(parsed.reason);
 
-  const turn = parsed.turn;
+  let turn = parsed.turn;
+  if (turn.action === "search") turn = { ...turn, intent: groundPatch(turn.intent, request) };
   if (turn.action === "clarify") {
     // Soru tavani: sunucu zorlar, model kapatamaz. Atlanan/cevaplanan soruda tekrar sorulmaz.
     if (request.clarifyCount >= MAX_CONSECUTIVE_CLARIFICATIONS || request.input.kind === "skip") {

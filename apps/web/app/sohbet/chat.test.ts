@@ -2,7 +2,7 @@ import type { ChatMessageView, SearchIntent } from "@arilla/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { CHAT_COPY, CHAT_ERROR_COPY, errorKindForStatus } from "./chat-copy.ts";
+import { CHAT_COPY, CHAT_ERROR_COPY, errorKindForStatus, relaxationLabel } from "./chat-copy.ts";
 import { ChatResultGrid, fullResultsHref } from "./chat-results.tsx";
 import { ChatThread } from "./chat-thread.tsx";
 
@@ -19,8 +19,12 @@ const INTENT: SearchIntent = {
   sort: null,
 };
 
-const ALL_COPY = [
-  ...Object.values(CHAT_COPY),
+const ALL_COPY: string[] = [
+  ...(Object.values(CHAT_COPY).filter((v) => typeof v === "string") as string[]),
+  CHAT_COPY.brandExcludeUnresolved("Nike"),
+  ...["color", "size", "category", "typo", "alias", "token:kırmızı"].map(
+    (r) => relaxationLabel(r) ?? "",
+  ),
   ...Object.values(CHAT_ERROR_COPY).map((entry) => entry.message),
 ];
 
@@ -118,7 +122,7 @@ describe("ChatThread", () => {
   ];
 
   it("renders user messages on the right and assistant messages on the left, in order", () => {
-    const html = renderToStaticMarkup(createElement(ChatThread, { messages }));
+    const html = renderToStaticMarkup(createElement(ChatThread, { messages, conversationId: "c" }));
     expect(html.indexOf("ayakkabı arıyorum")).toBeLessThan(
       html.indexOf("Ne tür ayakkabı arıyorsun?"),
     );
@@ -131,6 +135,7 @@ describe("ChatThread", () => {
   it("escapes message content (no HTML injection from user or model text)", () => {
     const html = renderToStaticMarkup(
       createElement(ChatThread, {
+        conversationId: "c",
         messages: [
           {
             id: 1,

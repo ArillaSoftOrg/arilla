@@ -67,6 +67,7 @@ describe("parseModelTurn", () => {
     if (!parsed.ok || parsed.turn.action !== "search") throw new Error("unreachable");
     expect(parsed.turn.intent).toEqual({
       reset: false,
+      clear: false,
       query: "günlük spor ayakkabı",
       category: "ayakkabı",
       attributes: { usage: "günlük", style: "spor" },
@@ -138,7 +139,7 @@ describe("parseModelTurn", () => {
     const parsed = parseModelTurn({
       ...SEARCH,
       sql: "DROP TABLE product",
-      intent: { ...SEARCH.intent, products: [{ id: 1 }], url: "https://x.test" },
+      intent: { ...SEARCH.intent, products: [{ id: 1 }], link: "abc" },
     });
     expect(parsed.ok).toBe(true);
     expect(JSON.stringify(parsed)).not.toMatch(/DROP TABLE|products|x\.test/);

@@ -30,7 +30,24 @@ export const CHAT_COPY = {
     "Fiyat, renk ya da marka gibi bir ayrıntıyı gevşetmeyi dene; ya da farklı kelimelerle yaz.",
   resultsUnavailable: "Sonuçlar şu anda yüklenemedi. Biraz sonra tekrar dener misin?",
   skippedAnswer: "Atladım",
+  searchTimedOut: "Arama beklenenden uzun sürdü. Aramanı sakladım, tekrar deneyebilirsin.",
+  relaxedLabel: "Aramada yaptığım değişiklikler",
+  brandExcludeUnresolved: (brand: string) =>
+    `“${brand}” markasını hariç tutamadım, katalogda bu adla bulamadım.`,
 } as const;
+
+/** Arama kısıt gevşettiyse sessiz kalmayız (karar 0074); iç kodlar kullanıcı diline çevrilir. */
+export function relaxationLabel(relaxation: string): string | null {
+  if (relaxation === "color") return "Renk filtresini gevşettim.";
+  if (relaxation === "size") return "Beden filtresini gevşettim.";
+  if (relaxation === "category") return "Kategoriyi genişlettim.";
+  if (relaxation === "typo") return "Yazımı düzelterek aradım.";
+  if (relaxation === "alias") return "Benzer adlarla da aradım.";
+  if (relaxation.startsWith("token:")) {
+    return `“${relaxation.slice("token:".length)}” kelimesini aramadan çıkardım.`;
+  }
+  return null;
+}
 
 export type ChatErrorKind =
   | "provider"

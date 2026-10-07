@@ -42,7 +42,7 @@ export default async function ConversationPage({
       lastUserText={lastUser?.content ?? view.title}
       lastSeq={last?.seq ?? 0}
     >
-      <ChatThread messages={view.messages} />
+      <ChatThread messages={view.messages} conversationId={view.id} />
     </ChatInteractive>
   );
 }

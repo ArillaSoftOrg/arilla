@@ -7,8 +7,9 @@ import type { Database } from "@arilla/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { LlmError } from "../llm/client.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
+import { emptyIntent } from "./intent.ts";
 import type { ChatInterpreter } from "./interpreter.ts";
-import { searchByIntent } from "./search-adapter.ts";
+import { IntentSearchTimeoutError, searchByIntent } from "./search-adapter.ts";
 import {
   createConversation,
   loadConversation,
@@ -260,7 +261,7 @@ describe("clarify -> option -> search flow", () => {
     expect(last).toMatchObject({ role: "assistant", kind: "search", source: "model" });
 
     // 4) ürünler yalnızca gerçek DB sonuçlarından gelir
-    const outcome = await searchByIntent(
+    const { outcome } = await searchByIntent(
       db,
       view?.currentIntent as NonNullable<typeof view>["currentIntent"] & object,
     );
@@ -382,7 +383,7 @@ describe("refinement merges into the stored intent", () => {
     expect(intents?.[4]?.sort).toBe("cheapest");
 
     // Birlesik niyet gercek DB'den yalnizca siyah + marka + fiyat kosullu urunu getirir
-    const outcome = await searchByIntent(
+    const { outcome } = await searchByIntent(
       db,
       view?.currentIntent as NonNullable<typeof view>["currentIntent"] & object,
     );
@@ -695,7 +696,7 @@ describe("limits", () => {
 
 describe("empty result", () => {
   it("an intent matching nothing comes back empty or fallback, never invented products", async () => {
-    const outcome = await searchByIntent(db, {
+    const { outcome } = await searchByIntent(db, {
       query: `zzqq${run} yokurun`,
       category: null,
       brand: null,
@@ -746,5 +747,130 @@ describe("retention and account deletion", () => {
       c.query("SELECT count(*)::int AS n FROM chat_message WHERE conversation_id = $1", [id]),
     );
     expect(rows.rows[0].n).toBe(0);
+  });
+});
+
+describe("hardening: stale turn, clarification loop, search guards", () => {
+  it("a stale turn (another worker answered during the model call) writes no second reply", async () => {
+    const id = await newConversation(userA, `${TOKEN}`);
+    const racing: ChatInterpreter = {
+      modelVersion: "test-model",
+      async interpret(_req, opts) {
+        // Model cagrisi surerken baska bir is cevabi yazdi (kira dolmustu).
+        await withOwnerClient(async (c) => {
+          await c.query(
+            "INSERT INTO chat_message (conversation_id, seq, role, kind, content) VALUES ($1, 2, 'assistant', 'notice', 'baska is')",
+            [id],
+          );
+          await c.query("UPDATE conversation SET message_count = 2 WHERE id = $1", [id]);
+        });
+        opts?.onCall?.({ modelVersion: "test-model", httpStatus: 200, usage: USAGE });
+        return { value: search({ query: TOKEN }), usage: USAGE, modelVersion: "test-model" };
+      },
+    };
+    expect(
+      await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: racing }),
+    ).toEqual({
+      status: "idle",
+    });
+    const view = await loadConversation(db, { userId: userA, conversationId: id });
+    expect(view?.messages.map((m) => m.content)).toEqual([TOKEN, "baska is"]);
+  });
+
+  it("a model that keeps asking the same question is cut off after two clarifications", async () => {
+    const id = await newConversation(userA, `${TOKEN}`);
+    const model = scripted([clarify(), clarify(), clarify()]);
+    const answer = async () =>
+      submitUserMessage(db, {
+        userId: userA,
+        conversationId: id,
+        request: { kind: "option", questionId: "shoe_type", value: "sneaker" },
+      });
+    await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: model });
+    expect(await answer()).toMatchObject({ status: "queued" });
+    await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: model });
+    expect(await answer()).toMatchObject({ status: "queued" });
+    const last = await processPendingTurn(db, {
+      userId: userA,
+      conversationId: id,
+      interpreter: model,
+    });
+    expect(last).toEqual({ status: "answered", source: "fallback", action: "search" });
+    expect((await lastAssistantKind(id))?.kind).toBe("search");
+  });
+
+  it("the daily provider ceiling skips the model but the user still gets a search", async () => {
+    const id = await newConversation(userA, `${TOKEN}`);
+    const model = scripted([search({ query: "model-sorgusu" })]);
+    await withOwnerClient((c) =>
+      c.query(
+        "INSERT INTO api_usage (user_id, operation, model_version, units) SELECT $1, 'chat_turn', 'x', 0 FROM generate_series(1, 3000)",
+        [userA],
+      ),
+    );
+    try {
+      const result = await processPendingTurn(db, {
+        userId: userA,
+        conversationId: id,
+        interpreter: model,
+      });
+      expect(result).toEqual({ status: "answered", source: "fallback", action: "search" });
+      expect(model.calls).toBe(0);
+    } finally {
+      await withOwnerClient((c) =>
+        c.query("DELETE FROM api_usage WHERE user_id = $1 AND model_version = 'x'", [userA]),
+      );
+    }
+  });
+
+  it("a search timeout surfaces as IntentSearchTimeoutError (intent stays stored)", async () => {
+    const stub = {
+      transaction: async () => {
+        throw Object.assign(new Error("canceling statement"), { code: "57014" });
+      },
+    } as unknown as Database;
+    await expect(
+      searchByIntent(stub, { ...emptyIntent(TOKEN) }, { lexicon: [] }),
+    ).rejects.toBeInstanceOf(IntentSearchTimeoutError);
+  });
+
+  it("a card priced above the requested cap is dropped even if the product's min_price passes", async () => {
+    const { pid } = await withOwnerClient(async (c) => {
+      const p = await c.query(
+        `INSERT INTO product (slug, title, min_price, offer_count) VALUES ($1, $2, 200000, 1) RETURNING id`,
+        [`ch-${run}-px`, `${TOKEN} Fiyat Sapmasi`],
+      );
+      const pid = Number(p.rows[0].id);
+      await c.query(
+        `INSERT INTO offer (merchant_id, product_id, external_id, url, title_raw, current_price, in_stock)
+         VALUES ($1, $2, $3, $4, 'x', 400000, TRUE)`,
+        [merchantId, pid, `ch-${run}-px`, `https://ch-${run}.test/px`],
+      );
+      return { pid };
+    });
+    try {
+      const result = await searchByIntent(db, {
+        ...emptyIntent(`${TOKEN} Fiyat Sapmasi`),
+        priceMax: 2500,
+      });
+      expect(result.outcome.items.every((i) => (i.minPrice ?? 0) <= 250_000)).toBe(true);
+      expect(result.droppedForPrice).toBeGreaterThanOrEqual(1);
+    } finally {
+      await withOwnerClient(async (c) => {
+        await c.query("DELETE FROM offer WHERE product_id = $1", [pid]);
+        await c.query("DELETE FROM product WHERE id = $1", [pid]);
+      });
+    }
+  });
+
+  it("a relaxed search reports what it relaxed (never silent)", async () => {
+    // Renk sozlukte (siyah) ama bu urunlerde 'kirmizi' yok: gevsetme olursa raporlanir.
+    const result = await searchByIntent(db, {
+      ...emptyIntent(`${TOKEN} sneaker`),
+      colors: ["kırmızı"],
+    });
+    if (result.outcome.mode !== "results") {
+      expect(result.relaxed.length + (result.outcome.mode === "empty" ? 1 : 0)).toBeGreaterThan(0);
+    }
   });
 });

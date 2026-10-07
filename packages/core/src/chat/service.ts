@@ -14,9 +14,12 @@
 import { apiUsage, chatMessage, conversation, type Database } from "@arilla/db";
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import type { LlmErrorCode } from "../llm/client.ts";
+import { providerCallsToday } from "../search/query-interpretation.ts";
 import {
+  CHAT_DAILY_CALL_CAP,
   CHAT_LEASE_SECONDS,
   CHAT_RETENTION_DAYS,
+  CHAT_TURN_OPERATION,
   chatTurnsPerHour,
   MAX_USER_MESSAGES_PER_CONVERSATION,
   USER_MESSAGE_MAX,
@@ -36,9 +39,6 @@ import {
   type TranscriptMessage,
   type UserInput,
 } from "./interpreter.ts";
-
-/** `api_usage.operation`. */
-export const CHAT_TURN_OPERATION = "chat_turn";
 
 export type ChatInputRequest =
   | { kind: "text"; text: string }
@@ -466,7 +466,10 @@ export async function processPendingTurn(
       return { status: "idle" };
     }
     const lastSeq = view.messages.at(-1)?.seq ?? 0;
-    const outcome = await interpretTurn(input.interpreter, request);
+    // Kilit/islem YOK: kira yalnizca bir satir isaretidir; model cagrisi DB'yi tutmaz.
+    const modelAllowed =
+      (await providerCallsToday(db, new Date(), CHAT_TURN_OPERATION)) < CHAT_DAILY_CALL_CAP;
+    const outcome = await interpretTurn(input.interpreter, request, { modelAllowed });
 
     return await db.transaction(async (tx): Promise<ProcessTurnResult> => {
       const [row] = await tx
