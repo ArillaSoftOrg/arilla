@@ -1,6 +1,9 @@
 # TASLAK — Anlık Gemini sorgu yorumu için hukuki değişiklikler
 
-**Durum:** YAYINDA DEĞİL. Karar 0062 (`GEMINI_REALTIME_ENABLED`) üretimde
+**Durum:** Kamuya açık metin değişiklikleri 7 Ekim 2026'da uygulandı
+(`/gizlilik` §2.2, §5; `/kvkk-aydinlatma` §5); LIA güncellemesi ve aşağıdaki
+sorular hâlâ hukuk danışmanının değerlendirmesine bağlıdır. Önceki durum:
+YAYINDA DEĞİL. Karar 0062 (`GEMINI_REALTIME_ENABLED`) üretimde
 açılmadan önce hukuk danışmanının değerlendirmesine sunulacak. Bu dosya
 hukuki sonuç içermez; değişen teknik olguları ve önerilen metni listeler.
 

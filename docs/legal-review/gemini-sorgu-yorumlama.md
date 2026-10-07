@@ -28,7 +28,9 @@ gönderir:
   isteyen, kişisel veri içermeyen sabit bir metin.
 
 Gönderim **istek anında değil**, ayrı ve elle tetiklenen bir toplu işle
-yapılır. Kullanıcı arama yaparken Gemini çağrılmaz.
+yapılır. Kullanıcı arama yaparken Gemini çağrılmaz. *(7 Ekim 2026: anlık yol, karar
+0062, bayrakla açıldığında arama sırasında da çağrılabilir; bkz.
+`gemini-anlik-yorum-taslak.md`.)*
 
 ### 2. Gönderilmeyen veri
 
