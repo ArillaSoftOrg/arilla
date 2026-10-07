@@ -171,7 +171,8 @@ def select_images(
     1. gecersiz/bos URL'leri at
     2. normalize URL'ye gore tekrarlari at (ilk gorulen kazanir; `primary` ve
        `variant_specific` isaretleri birlestirilir)
-    3. guclu isaretle urun gorseli olmayanlari at (hepsi atilacaksa atma)
+    3. guclu isaretle urun gorseli olmayanlari at (temsili gorsel ve hepsi
+       atilacaksa tumu haric)
     4. kaynak sirasi korunur; temsili gorsel her zaman saklananlar arasindadir
     5. display_rank=0: temsili gorsel, yoksa kaynagin ilk gorseli
     6. kalan gosterim yerleri: once varyanta bagli, sonra kaynak sirasi
@@ -217,7 +218,9 @@ def select_images(
     # Kaynak sirasi: kaynagin verdigi `position`, esitlikte gelis sirasi.
     cleaned.sort(key=lambda item: (item[2].position, item[0]))
 
-    kept = [item for item in cleaned if not looks_non_product(item[2])]
+    # Temsili gorsel (kaynagin kendi ana gorseli = eski `primary_image_url`) sezgisel
+    # elemeyle ASLA dusmez: emin olmadigimiz seyi silmeyiz.
+    kept = [item for item in cleaned if item[2].primary or not looks_non_product(item[2])]
     if not kept:  # guclu isaretler bile tek gorsel birakmadiysa eleme geri alinir
         kept = cleaned
 

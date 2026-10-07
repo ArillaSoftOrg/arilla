@@ -31,6 +31,7 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from collect.image_writer import write_offer_images
+from collect.primary_image_sync import sync_primary_images
 from collect.records import NormalizedOffer, NormalizedVariant
 
 #: Tek ifadede en fazla bu kadar varyant satiri (bellek ve paket boyutu siniri).
@@ -183,6 +184,7 @@ class WriteCounts:
     stale_image_embeddings: int = 0
     images_written: int = 0
     images_removed: int = 0
+    primary_images_synced: int = 0
 
     def add(self, other: WriteCounts) -> None:
         for name in self.__dataclass_fields__:
@@ -233,6 +235,11 @@ class OfferWriter:
         latest: dict[str, NormalizedOffer] = {offer.external_id: offer for offer in offers}
         unique = list(latest.values())
 
+        # Urunun gorseli kaynak offer'i izler (0073): chunk basina TEK ifade, offer
+        # upsert'inden ONCE (eski image_url henuz okunabilir).
+        self.counts.primary_images_synced += sync_primary_images(
+            self.conn, self.merchant_id, [(o.external_id, o.image_url) for o in unique]
+        )
         ids = self._upsert_offers(unique)
         self._insert_price_points(unique, ids)
         self._write_variants(unique, ids)

@@ -183,3 +183,13 @@ def test_variant_specific_images_are_preferred_for_remaining_slots() -> None:
     shown = _shown(select_images(images))
     assert [_name(s) for s in shown] == ["main.jpg", "black-side.jpg", "black-back.jpg"]
     assert shown[1].is_variant_specific and shown[2].is_variant_specific
+
+
+def test_primary_image_is_never_dropped_by_heuristics() -> None:
+    images = [
+        SourceImage("https://cdn.example/placeholder.png", 1, primary=True),
+        SourceImage("https://cdn.example/real.jpg", 2),
+    ]
+    selected = select_images(images)
+    assert [_name(s) for s in selected] == ["placeholder.png", "real.jpg"]
+    assert selected[0].display_rank == 0
