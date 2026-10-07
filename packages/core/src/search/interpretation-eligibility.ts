@@ -204,6 +204,16 @@ export function interpretationIneligibility(input: EligibilityInput): Ineligible
   if (occurrences < INTERPRETATION_MIN_OCCURRENCES) return "too_few";
   if (typeof distinctDays !== "number" || !Number.isInteger(distinctDays)) return "too_few_days";
   if (distinctDays < INTERPRETATION_MIN_DISTINCT_DAYS) return "too_few_days";
+  return queryContentIneligibility(queryNorm);
+}
+
+/**
+ * Yalnizca METIN suzgeci: normalize bicim, uzunluk, kisisel veri, kimlik
+ * benzeri rakam, sir benzeri ifade, ozel nitelikli veri. Tekrar esigi YOK.
+ * Toplu is bunu esikten sonra (`interpretationIneligibility`), anlik yorum
+ * (karar 0062) dogrudan kullanir: Gemini'ye gitmeden once ayni suzgec.
+ */
+export function queryContentIneligibility(queryNorm: unknown): IneligibleReason | null {
   if (typeof queryNorm !== "string" || queryNorm !== normalizeQueryText(queryNorm)) {
     return "not_normalized";
   }

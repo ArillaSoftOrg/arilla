@@ -1,8 +1,9 @@
 import {
   type ConversationPlan,
   loadLexicon,
-  planConversationWithStoredInterpretation,
+  planConversationWithRealtimeInterpretation,
   type ReplyResult,
+  type SearchSummaryIntent,
   type SortMode,
 } from "@arilla/core";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "@arilla/core/clarification";
@@ -14,9 +15,11 @@ import {
   SearchForm,
   SearchIntentChips,
 } from "@arilla/ui";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { requireProductAccess } from "../lib/dal.ts";
+import { clientIp } from "../lib/client-ip.ts";
+import { requireProductAccess, verifySession } from "../lib/dal.ts";
 import { PhotoSearchButton } from "../photo-search-client.tsx";
 import styles from "./ara.module.css";
 import { ConversationFocusClient } from "./conversation-focus-client.tsx";
@@ -111,15 +114,22 @@ function aramaHref({
 async function planSafely(
   db: Database,
   request: { query: string; steps: readonly string[]; reply: string | null },
-): Promise<ConversationPlan> {
+): Promise<{ plan: ConversationPlan; summaryIntent: SearchSummaryIntent | null }> {
   try {
     const lexicon = await loadLexicon(db);
-    // Karar 0059: deterministik domain yoksa SAKLANMIS model yorumu okunur (model
-    // cagrisi yok); okunamazsa plan bugunku yolla aynidir.
-    return await planConversationWithStoredInterpretation(db, request, {
-      registry: DEFAULT_CLARIFICATION_REGISTRY,
-      lexicon,
-    });
+    // Karar 0062: `GEMINI_REALTIME_ENABLED` aciksa yorum bu istekte alinir
+    // (saklanan varsa yeniden kullanilir, yoksa Gemini; 2,5 sn, tek deneme) ve
+    // en dusuk oncelikle uygulanir. Kapaliysa karar 0059 yolu: yalnizca
+    // saklanan yorum, model cagrisi yok. Yorum hatasi aramayi asla durdurmaz.
+    // Kisi basina anlik limit (karar 0063): girisli hesap ya da guvenilir IP.
+    const user = await verifySession();
+    const { plan, summaryIntent } = await planConversationWithRealtimeInterpretation(
+      db,
+      request,
+      { registry: DEFAULT_CLARIFICATION_REGISTRY, lexicon },
+      { realtime: { actor: { userId: user?.id ?? null, ip: clientIp(await headers()) } } },
+    );
+    return { plan, summaryIntent };
   } catch (error) {
     // Yalnizca sinif ve guvenli kod: hata mesaji ya da yigin sorgu metni tasiyabilir.
     const code =
@@ -130,7 +140,10 @@ async function planSafely(
       error instanceof Error ? error.name : "unknown",
       typeof code === "string" && /^[A-Za-z0-9_]{1,32}$/.test(code) ? code : "",
     );
-    return { mode: "conventional", query: request.query, reason: "no_domain", reply: null };
+    return {
+      plan: { mode: "conventional", query: request.query, reason: "no_domain", reply: null },
+      summaryIntent: null,
+    };
   }
 }
 
@@ -208,7 +221,7 @@ export default async function AramaPage({
   }
 
   const db = getDatabase();
-  const plan = await planSafely(db, {
+  const { plan, summaryIntent } = await planSafely(db, {
     query: requestedQuery,
     steps: requestedSteps,
     reply: replyText,
@@ -375,6 +388,7 @@ export default async function AramaPage({
           page={page}
           hrefFor={({ sort, page: target }) => aramaHref({ query, steps, sort, page: target })}
           clarificationAsked={question !== null}
+          summaryIntent={summaryIntent}
         />
       </Suspense>
     </div>
