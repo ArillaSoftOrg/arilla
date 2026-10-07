@@ -1,7 +1,7 @@
 # 0049 — Kullanıcı profili, aktivite ve rıza altyapısı
 
 **Tarih:** 3 Ekim 2026
-**Durum:** Kabul edildi, uygulandı (migration 0036, 0037; ayrıntı §12).
+**Durum:** Kabul edildi, uygulandı (migration 0036, 0037, 0038; ayrıntı §12).
 
 Yönetim konsolunda kullanıcı başına profil ve aktivite görünümü isteniyor.
 Bugün elimizde şunlar var:
@@ -85,15 +85,33 @@ parçasıdır; kod bunlardan birini gevşetecekse önce bu dosya güncellenir.
   ayrı ve taze girişli `users.contact.reveal` adımıyla, tek hesap için
   açılır. Arama sonucu, ayrıntı sayfası ya da sonuç sayısı bu adımı
   atlatmaz.
-- **Sayfalama bugün offset'tir:** `LIMIT 21 OFFSET (sayfa-1)*20`, sıralama
-  `created_at DESC, id DESC`. Bu durum bu fazda (P0) değiştirilmez.
-  Hedef keyset sayfalamaya geçiştir (`(created_at, id)` imleci, P5). O
-  geçişle offset tavanı ve derin sayfa maliyeti ortadan kalkar.
-- **Ölçek notu:** `%…%` taraması bugünkü küçük tabloda ucuzdur. Tablo
-  büyüdüğünde katlanmış ifadeye trigram indeksi eklenir (0019 deseni). Bu
-  da EXPLAIN kanıtıyla yapılır (0041 §10).
+- **Sayfalama offset olarak kalır:** `LIMIT 21 OFFSET (sayfa-1)*20`, en çok
+  50 sayfa (1000 satır). Sıralama `created_at DESC, id DESC`. Ölçüme göre
+  keyset'e geçiş gerekmedi: derin sayfanın (50.) maliyeti ilk sayfayla
+  aynı düzeyde, çünkü asıl maliyet eşleşen kümenin bulunmasıdır, offset
+  değil (aşağıdaki tablo). Tavan offset maliyetini zaten sınırlar.
+- **İndeks ve sorgu biçimi (migration 0038):**
+  - Katlanmış ad ve e-posta üzerinde trigram GIN indeksleri var:
+    `app_user` ve `user_identity`.
+  - Sorgu, dört indeks dostu alt sorgunun `UNION`'ı olarak yazılır; eski
+    OR + EXISTS biçimi indeksi kullanamıyordu.
+  - Arama işlemi `statement_timeout` (5 sn) ile sınırlıdır.
 
-### 1b. Özet kullanıcı listesi — planlı (P5/P6)
+  Ölçüm (yerel, 200 bin kullanıcı, 140 bin kimlik, EXPLAIN ANALYZE):
+
+  | Sorgu | Önce | Sonra |
+  | --- | --- | --- |
+  | seyrek terim (tek hesap) | 778 ms | 6 ms |
+  | ad ("ayse isik 1999") | ~780 ms | 1,5 ms |
+  | çok yaygın terim ("gmail", 60 bin eşleşme), sayfa 1 | 130 ms | 250 ms |
+  | aynı terim, sayfa 50 | 126 ms | 225 ms |
+  | 2 karakter (trigram yok) | ~800 ms | 500 ms |
+
+  Çok yaygın terimde süre biraz artar ama sınırlı kalır. En az uzunluk 2
+  olarak korundu: 2 karakterlik aramalar indekssiz taranır, yine de zaman
+  aşımı altındadır.
+
+### 1b. Özet kullanıcı listesi
 
 - Yetki: `users.read` (yalnızca yönetici). Moderatör göremez.
 - Kolonlar yalnızca şunlardır: kısaltılmış `public_id`, **maskeli**
@@ -397,6 +415,28 @@ sınırlı turla, idempotent. Yetki en aza indirilmiştir: `auth_event` ve
 - **Tıklama:** `/git` rotası girişli kullanıcıda `click.user_id`'yi
   attribution amacıyla doldurur. `surface` serbest metin değildir: yalnızca
   `CLICK_SURFACES` listesindeki değerler yazılır, diğerleri NULL olur.
+- **Yönetim:**
+  - Liste: `listUsers`, `packages/core/src/admin/users-list.ts`.
+  - Sekmeler ve tıkla-göster: `users-detail.ts`; imleç `users-cursor.ts`.
+  - Web: `apps/web/app/yonetim/kullanicilar/**`.
+  - Tam değer ilk sayfa yükünde yoktur; yalnızca reveal server action'ının
+    yanıtında döner.
+  - Core da tazeliği ister (`{ fresh: true }` olmadan hata).
+- **Liste ölçümü** (200 bin kullanıcı, 1M `auth_event`, 2M
+  `user_activity_event`, EXPLAIN ANALYZE):
+
+  | Sorgu | Süre |
+  | --- | --- |
+  | ilk sayfa | 7 ms |
+  | ortadan imleç | 6 ms |
+  | analitik rızası filtresi | 20 ms |
+  | seyrek filtre (kayıt yöntemi + rol) | 15 ms |
+  | son aktif sıralaması | 3 ms |
+  | aktivite / oturum sekmesi | 0,1–0,2 ms |
+  | analitik kapısının rıza okuması | 0,06 ms |
+  | tekrar bastırma kontrolü | 0,07 ms |
+
+  Olay tablolarında satır başına COUNT yok.
 
 ## Gerekçe
 
@@ -448,12 +488,10 @@ sınırlı turla, idempotent. Yetki en aza indirilmiştir: `auth_event` ve
 ## Açık bağımlılıklar
 
 1. Production veritabanı main'deki son migration'a (0035) getirilmeden
-   0036 ve 0037 uygulanmaz (`docs/ops.md`).
+   0036, 0037 ve 0038 uygulanmaz (`docs/ops.md`).
 2. Supabase Data API'nin açık olup olmadığı production panelinden
    kontrol edilmeli (`docs/ops.md`).
-3. Arama için keyset sayfalamaya geçiş (§1a) P5'te yapılır; P0'da kod
-   değişmez.
-4. `/gizlilik` ve `/kvkk-aydinlatma` metinleri analitik olayları, kaba
+3. `/gizlilik` ve `/kvkk-aydinlatma` metinleri analitik olayları, kaba
    cihaz/ülke bilgisini ve saklama sürelerini anlatacak şekilde
    güncellenmeli. Bu güncelleme hukukçu onayı gerektirir. **Sayfa
    adresleri değişmez.**

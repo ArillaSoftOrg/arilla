@@ -138,9 +138,9 @@ Son kontrol:
   tekrar çalıştırılır. `service_role` yetkileri bilerek korunur (gizli
   anahtar, kodda yok).
 
-## Kullanıcı aktivitesi migration'ları (0036, 0037) — production
+## Kullanıcı aktivitesi migration'ları (0036, 0037, 0038) — production
 
-Karar 0049. İkisi de yalnızca ekleme yapar (yeni tablo, nullable kolon,
+Karar 0049. Üçü de yalnızca ekleme yapar (yeni tablo, nullable kolon,
 CHECK genişletme, indeks) ve mevcut satırları yeniden yazmaz. Backfill
 yoktur: eski hesaplar için özet satırı ilk olayda açılır.
 
@@ -151,7 +151,7 @@ yoktur: eski hesaplar için özet satırı ilk olayda açılır.
    `auth_event`/`user_activity_event` UPDATE'inin engellendiğini ve
    `query_norm` güncellemesinin izinli olduğunu sınar.
 3. Production'da aynı iki komut, onaylı bir pencerede. Tablolar küçük;
-   0036'nın `app_user_created_idx` indeksi tablo büyükse önce elle
+   0036'nın `app_user_created_idx` ve 0038'in trigram indeksleri tablo büyükse önce elle
    `CREATE INDEX CONCURRENTLY` ile açılır (migration `IF NOT EXISTS` ile
    boş geçer, 0030 deseni).
 4. Kod dağıtımı migration'dan **sonra** yapılır: yeni kod yeni tablolara
