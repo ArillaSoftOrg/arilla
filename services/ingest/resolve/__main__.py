@@ -15,13 +15,39 @@ import sys
 from db import job_run
 from db.connection import connect
 from resolve.calibrate import report
-from resolve.pipeline import resolve_offers
+from resolve.pipeline import resolve_offers, resolve_offers_sequential
 from resolve.score import auto_accept_threshold, queue_threshold
+
+
+def _run(conn, args, *, commit_each_chunk: bool = False):  # type: ignore[no-untyped-def]
+    if args.sequential:
+        return resolve_offers_sequential(
+            conn,
+            limit=args.limit if args.limit is not None else 500,
+            merchant_id=args.merchant_id,
+            create_missing=not args.no_create,
+        )
+    return resolve_offers(
+        conn,
+        limit=args.limit,
+        merchant_id=args.merchant_id,
+        create_missing=not args.no_create,
+        chunk_size=args.chunk_size,
+        commit_each_chunk=commit_each_chunk,
+    )
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="resolve", description="Eslestirme (B4)")
-    parser.add_argument("--limit", type=int, default=500)
+    parser.add_argument(
+        "--limit", type=int, default=None, help="en fazla bu kadar offer (varsayilan: hepsi)"
+    )
+    parser.add_argument(
+        "--chunk-size", type=int, default=None, help="chunk basina offer (varsayilan 200)"
+    )
+    parser.add_argument(
+        "--sequential", action="store_true", help="eski, offer-offer referans surum"
+    )
     parser.add_argument("--merchant-id", type=int, default=None)
     parser.add_argument(
         "--no-create",
@@ -45,23 +71,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.dry_run:
         with connect() as conn:
-            counts = resolve_offers(
-                conn,
-                limit=args.limit,
-                merchant_id=args.merchant_id,
-                create_missing=not args.no_create,
-            )
+            counts = _run(conn, args)
             conn.rollback()
             print("(dry-run: hicbir degisiklik yazilmadi)\n")
     else:
         # Dry-run kayit birakmaz: tazelik kaniti gibi gorunmemeli (karar 0055).
         with job_run.track("resolve") as run, connect() as conn:
-            counts = resolve_offers(
-                conn,
-                limit=args.limit,
-                merchant_id=args.merchant_id,
-                create_missing=not args.no_create,
-            )
+            counts = _run(conn, args, commit_each_chunk=not args.sequential)
             conn.commit()
             run.detail.update(
                 considered=counts.considered,

@@ -183,3 +183,71 @@ def test_unordered_offers_still_produce_ordered_statistics() -> None:
     assert stats.min_90d == 100
     assert stats.max_90d == 900
     assert stats.current_percentile == 0
+
+
+# --- degisim olayi modeli (karar 0068) ---------------------------------------------
+
+
+NOW = datetime(2026, 10, 1, tzinfo=UTC)
+WINDOW_START = NOW - timedelta(days=90)
+
+
+def events(entries: list[tuple[int, int]]) -> list[Observation]:
+    """(NOW'dan kac gun once, fiyat) -> yalnizca DEGISIM olaylari."""
+    return [
+        Observation(observed_at=NOW - timedelta(days=ago), price=price, list_price=None)
+        for ago, price in entries
+    ]
+
+
+def test_median_is_duration_weighted_not_event_weighted() -> None:
+    """80 gun 100 TL, son 10 gun 200 TL: medyan 100'dur. Olaylar esit sayilsaydi
+    (100 ve 200) medyan 150 cikardi."""
+    by_offer = {1: events([(80, 100), (10, 200)])}
+
+    stats = compute(by_offer, 200, seen_until={1: NOW}, since=WINDOW_START)
+
+    assert stats.median_90d == 100
+    assert stats.min_90d == 100
+    assert stats.max_90d == 200
+
+
+def test_unchanged_price_without_new_events_is_still_in_the_window() -> None:
+    """Tek olay 80 gun once: teklif hala goruluyor; fiyat pencerenin her gununde gecerli."""
+    by_offer = {1: events([(80, 500)])}
+
+    stats = compute(by_offer, 500, seen_until={1: NOW}, since=WINDOW_START)
+
+    assert (stats.min_30d, stats.min_90d, stats.median_90d, stats.max_90d) == (500, 500, 500, 500)
+
+
+def test_series_ends_at_last_seen_so_a_vanished_offer_is_not_carried_forever() -> None:
+    cheap_vanished = events([(60, 50)])
+    live = events([(60, 300)])
+
+    stats = compute(
+        {1: cheap_vanished, 2: live},
+        300,
+        # 1. teklif 40 gun once son kez goruldu; 2. teklif bugun goruldu.
+        seen_until={1: NOW - timedelta(days=40), 2: NOW},
+        since=WINDOW_START,
+    )
+
+    # Ucuz teklif yalnizca goruldugu ~20 gunde var; son 30 gunun cogunda yok.
+    assert stats.min_90d == 50
+    assert stats.min_30d == 300
+
+
+def test_drops_use_real_event_times_not_daily_samples() -> None:
+    by_offer = {1: events([(40, 300), (20, 200), (5, 250)])}
+
+    stats = compute(by_offer, 250, seen_until={1: NOW}, since=WINDOW_START)
+
+    assert stats.drop_count_90d == 1
+    assert stats.last_drop_at == NOW - timedelta(days=20)
+
+
+def test_without_seen_until_every_observation_counts_equally() -> None:
+    """Geriye uyum: seen_until verilmezse eski (gunluk gozlem) davranisi."""
+    stats = compute({1: events([(80, 100), (10, 200)])}, 200)
+    assert stats.median_90d == 150

@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   integer,
+  jsonb,
   pgTable,
   smallint,
   text,
@@ -76,4 +77,8 @@ export const ingestRun = pgTable("ingest_run", {
   offersUpdated: integer("offers_updated").notNull().default(0),
   pricePointsWritten: integer("price_points_written").notNull().default(0),
   errorText: text("error_text"),
+  /** Son checkpoint/heartbeat (0051, karar 0068). */
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  /** Kucuk duz checkpoint; ham payload yok (0051). */
+  checkpoint: jsonb("checkpoint").$type<Record<string, unknown>>(),
 });

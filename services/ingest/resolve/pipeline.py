@@ -226,10 +226,38 @@ def explain_match(
 def resolve_offers(
     conn: psycopg.Connection,
     *,
-    limit: int = 500,
+    limit: int | None = None,
+    merchant_id: int | None = None,
+    create_missing: bool = True,
+    chunk_size: int | None = None,
+    commit_each_chunk: bool = False,
+) -> ResolveCounts:
+    """Eslesmemis offer'lari cozer: chunk'li, toplu SQL'li surum (karar 0069).
+
+    `resolve_offers_sequential` ile ayni kararlari verir (regresyon testleri
+    ikisini karsilastirir) ama uzak veritabaninda offer basina ~10 round-trip
+    yerine chunk basina sabit sayida ifade kullanir."""
+    from resolve import batch  # dongusel import: batch bu modulden isim alir
+
+    return batch.resolve_offers_batched(
+        conn,
+        limit=limit,
+        merchant_id=merchant_id,
+        create_missing=create_missing,
+        chunk_size=chunk_size or batch.CHUNK_OFFERS,
+        commit_each_chunk=commit_each_chunk,
+    )
+
+
+def resolve_offers_sequential(
+    conn: psycopg.Connection,
+    *,
+    limit: int | None = 500,
     merchant_id: int | None = None,
     create_missing: bool = True,
 ) -> ResolveCounts:
+    """REFERANS (eski) surum: offer basina ayri sorgular, tek islem. Karsilastirma
+    testleri ve olcum icin korunur; uretim yolu `resolve_offers`."""
     counts = ResolveCounts()
     queue = queue_threshold()
 

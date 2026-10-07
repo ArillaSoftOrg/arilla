@@ -8,8 +8,10 @@
  *   secili anahtar; ya da tum varyant satirlari ayni anahtar): `price_point`
  *   o varyantin gecmisidir.
  * - Cok boyutlu teklif: `variant_price_event` (yalnizca degisimde yazilir).
- *   Bir gunun fiyati = o gun sonuna kadarki son olay; yalnizca teklifin o gun
- *   gercekten goruldugu gunler (`price_point`).
+ *   Bir gunun fiyati = o gun sonuna kadarki son olay; yalnizca teklifin
+ *   goruldugu gunler: ilk fiyat olayindan `offer.last_seen_at` gunune kadar
+ *   (`offer-price-days.ts`). `price_point` degisim olayidir, "goruldu" kaniti
+ *   degildir (karar 0068).
  *
  * Hicbir nokta sentezlenmez: kaynagi olmayan teklif seriye katilmaz ve
  * "tam" sayilmaz.
@@ -17,6 +19,7 @@
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import type { OfferVariantRow } from "./get-price-comparison.ts";
+import { offerPriceDaysSql } from "./offer-price-days.ts";
 import type { PriceHistoryPoint } from "./result-types.ts";
 import { variantKey } from "./variant-price.ts";
 
@@ -218,14 +221,11 @@ export async function getVariantPriceHistory(
   const variantIds = sources.flatMap((source) =>
     source.kind === "variants" ? source.variantIds : [],
   );
-  const dayRows = await db.execute<DayRow>(sql`
-    SELECT pp.offer_id, date_trunc('day', pp.observed_at)::date::text AS day,
-           MIN(pp.price)::text AS min_price
-      FROM price_point pp
-     WHERE pp.offer_id = ANY(${sql.param(offerIds)}::bigint[])
-       AND pp.observed_at >= now() - make_interval(days => ${days})
-     GROUP BY 1, 2
-  `);
+  // price_point degisim olayidir; "goruldu" gunleri last_seen_at ile birlikte
+  // turetilir (offer-price-days.ts, karar 0068).
+  const dayRows = await db.execute<DayRow>(
+    offerPriceDaysSql(sql`SELECT unnest(${sql.param(offerIds)}::bigint[]) AS id`, days),
+  );
   const eventRows =
     variantIds.length > 0
       ? await db.execute<EventRow>(sql`

@@ -12,10 +12,10 @@
   "merchants": [
     {"slug": "derimod", "name": "Derimod", "domain": "derimod.com.tr", "category_hint": "moda/ayakkabi", "max_products": 300},
     {"slug": "quzu", "name": "Quzu", "domain": "quzu.com.tr", "category_hint": "moda", "max_products": 250},
-    {"slug": "north-sails-turkiye", "name": "North Sails Türkiye", "domain": "north-sails-turkey.myshopify.com", "category_hint": "moda", "max_products": 200},
+    {"slug": "north-sails-turkiye", "name": "North Sails Türkiye", "domain": "collection.northsails.com.tr", "category_hint": "moda", "max_products": 200},
     {"slug": "manu-atelier-tr", "name": "Manu Atelier", "domain": "tr.manuatelier.com", "category_hint": "moda/canta", "max_products": 150},
     {"slug": "normod", "name": "Normod", "domain": "normod.com", "category_hint": "ev-yasam", "max_products": 200},
-    {"slug": "halicizade-hali-kilim", "name": "Halıcızade Halı Kilim", "domain": "halicizade-rug-store.myshopify.com", "category_hint": "ev-yasam", "max_products": 200},
+    {"slug": "halicizade-hali-kilim", "name": "Halıcızade Halı Kilim", "domain": "www.halicizade.com", "category_hint": "ev-yasam", "max_products": 200},
     {"slug": "yutas-yapi-urunleri", "name": "Yütaş Yapı Ürünleri", "domain": "yutas-yapi-urunleri.myshopify.com", "category_hint": "ev-yasam", "max_products": 200},
     {"slug": "termos-dunyasi", "name": "Termos Dünyası", "domain": "termos-dunyasi.myshopify.com", "category_hint": "spor-outdoor", "max_products": 250},
     {"slug": "casadora-baby", "name": "Casadora Baby", "domain": "casadora-baby.myshopify.com", "category_hint": "anne-bebek", "max_products": 250},

@@ -78,6 +78,21 @@ hazirlik dogrulamasiyla ayni). Ret ayni sozlesmeyle kaydedilir:
 Istekler `ArillaBot` user-agent'iyla (`USER_AGENT`), yonlendirme izlenmeden
 gider; `Crawl-delay` oran siniriyla birlikte hangisi yavassa o uygulanir.
 
+### Chunk'li, checkpoint'li kosu (0068)
+
+Bir merchant'in katalogu tek islemde degil **100 tekliflik chunk'larda** yazilir;
+her chunk toplu SQL (~9 ifade) ve checkpoint guncellemesiyle KENDI islemini
+commit eder. Kesilirse commit edilmis chunk'lar kalir, kosu `partial` +
+`checkpoint.resumable` kapanir (asla `success` degil) ve CLI kalan isi
+`--max-attempts` (3) kez ayni `observed_at` ile, zaten yazilmis teklifleri
+atlayarak devam ettirir:
+
+```bash
+python -m collect --merchant <slug> [--chunk-size 100] [--max-attempts 3] [--no-resume]
+```
+
+Ayni merchant icin ikinci eszamanli kosu `refused:run_in_progress` alir.
+
 ### Shopify para birimi dogrulamasi (salt okunur)
 
 ```bash
@@ -216,8 +231,9 @@ Yeni bir tasima eklemek: `collect/sources/` altina modul yaz ve
 
 1. **Idempotent.** `(merchant_id, external_id)` uzerinde upsert; ayni feed iki
    kez islendiginde yeni `offer` satiri olusmaz.
-2. **`price_point` her kosuda yazilir**, fiyat degismemis olsa bile.
-   Surekliligin kendisi veridir.
+2. **`price_point` yalnizca degisimde yazilir** (toplu kosu; karar 0068):
+   fiyat, liste fiyati ve stok onceki satirla ayniysa yeni satir yok. Tazelik
+   `offer.last_seen_at`'te. (Kullanici linki yolu her cozumlemede nokta yazar.)
 3. **`variant_stock_event` yalnizca durum DEGISTIGINDE.** Yazmadan once mevcut
    durum okunur; her kosuda yazilirsa tablo siser.
 4. **`offer.product_id`'ye dokunulmaz.** Eslestirme B4'un isi; eslesmemis offer
@@ -341,12 +357,21 @@ satir sayilari) sinar. CLI her kosuda bunu uyarir.
 ## Eslestirme (B4)
 
 ```bash
-python -m resolve                    # eslesmemis offer'lari eslestir
+python -m resolve                    # eslesmemis TUM offer'lari eslestir (chunk'li, merchant sirali)
 python -m resolve --merchant-id 12   # yalnizca bir magaza
+python -m resolve --limit 500        # en fazla bu kadar offer (varsayilan: hepsi)
+python -m resolve --chunk-size 200   # chunk basina offer (varsayilan 200)
 python -m resolve --dry-run          # yaz, commit etme
 python -m resolve --no-create        # eslesmeyen icin yeni urun ACMA
+python -m resolve --sequential       # ESKI offer-offer referans surum (olcum/karsilastirma)
 python -m resolve --calibrate        # esik olcumu (veritabani gerekmez)
 ```
+
+Toplu motor (`resolve/batch.py`, karar 0069): chunk = ayni merchant'in en fazla 200
+offer'i; chunk basina ~12 toplu okuma + ~8 toplu yazim ifadesi, chunk basina
+commit. Kesilirse yeniden calistirmak kalan offer'lardan devam eder (durum
+`offer.product_id`'dedir). Eski surumle ayni kararlari verir (karsilastirma
+testi); 1.723 offer: 42,6 dk -> ~32 sn.
 
 ### Akis
 

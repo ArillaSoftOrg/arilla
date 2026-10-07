@@ -1,0 +1,310 @@
+{
+  "checked_at": "2026-10-06T19:30:31+00:00",
+  "tool": "collect.canonical_domain",
+  "user_agent": "ArillaBot/1.0 (+https://manicepte.com)",
+  "max_hops": 3,
+  "results": [
+    {
+      "slug": "assema",
+      "current_domain": "assema4455.myshopify.com",
+      "canonical_host": "assemawear.com",
+      "chain": [
+        {
+          "url": "https://assema4455.myshopify.com/robots.txt",
+          "status": 301,
+          "location": "https://assemawear.com/robots.txt"
+        },
+        {
+          "url": "https://assemawear.com/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.66"],
+      "shopify_identity": "FAIL",
+      "meta_myshopify_domain": "4gwmty-dq.myshopify.com",
+      "currency": "UNKNOWN",
+      "readiness": "UNKNOWN",
+      "readiness_reason": "",
+      "verdict": "FAIL",
+      "reason": "myshopify_domain_mismatch ('4gwmty-dq.myshopify.com')",
+      "requests": 3
+    },
+    {
+      "slug": "casadora-baby",
+      "current_domain": "casadora-baby.myshopify.com",
+      "canonical_host": "www.casadorababy.com",
+      "chain": [
+        {
+          "url": "https://casadora-baby.myshopify.com/robots.txt",
+          "status": 301,
+          "location": "https://www.casadorababy.com/robots.txt"
+        },
+        {
+          "url": "https://www.casadorababy.com/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.74"],
+      "shopify_identity": "PASS",
+      "meta_myshopify_domain": "casadora-baby.myshopify.com",
+      "currency": "PASS (TRY)",
+      "readiness": "REVIEW",
+      "readiness_reason": "mapping: ornekte renk/beden secenegi yok; esleme dogrulanamadi",
+      "verdict": "FAIL",
+      "reason": "readiness: REVIEW (mapping: ornekte renk/beden secenegi yok; esleme dogrulanamadi)",
+      "requests": 6
+    },
+    {
+      "slug": "eveline-cosmetics-turkiye",
+      "current_domain": "eveline-tr-v2.myshopify.com",
+      "canonical_host": "eveline.com.tr",
+      "chain": [
+        {
+          "url": "https://eveline-tr-v2.myshopify.com/robots.txt",
+          "status": 301,
+          "location": "https://eveline.com.tr/robots.txt"
+        },
+        {
+          "url": "https://eveline.com.tr/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.65"],
+      "shopify_identity": "PASS",
+      "meta_myshopify_domain": "eveline-tr-v2.myshopify.com",
+      "currency": "PASS (TRY)",
+      "readiness": "REVIEW",
+      "readiness_reason": "mapping: ornekte renk/beden secenegi yok; esleme dogrulanamadi",
+      "verdict": "FAIL",
+      "reason": "readiness: REVIEW (mapping: ornekte renk/beden secenegi yok; esleme dogrulanamadi)",
+      "requests": 6
+    },
+    {
+      "slug": "for-fun",
+      "current_domain": "murat-cihan-kurtoglu.myshopify.com",
+      "canonical_host": "murat-cihan-kurtoglu.myshopify.com",
+      "chain": [
+        {
+          "url": "https://murat-cihan-kurtoglu.myshopify.com/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.74"],
+      "shopify_identity": "PASS",
+      "meta_myshopify_domain": "murat-cihan-kurtoglu.myshopify.com",
+      "currency": "PASS (TRY)",
+      "readiness": "NOT_READY",
+      "readiness_reason": "mapping: mevcut esleme yanlis; once ad tabanli esleme (recommended)",
+      "verdict": "FAIL",
+      "reason": "readiness: NOT_READY (mapping: mevcut esleme yanlis; once ad tabanli esleme (recommended))",
+      "requests": 5
+    },
+    {
+      "slug": "halicizade-hali-kilim",
+      "current_domain": "halicizade-rug-store.myshopify.com",
+      "canonical_host": "www.halicizade.com",
+      "chain": [
+        {
+          "url": "https://halicizade-rug-store.myshopify.com/robots.txt",
+          "status": 301,
+          "location": "https://www.halicizade.com/robots.txt"
+        },
+        {
+          "url": "https://www.halicizade.com/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.74"],
+      "shopify_identity": "PASS",
+      "meta_myshopify_domain": "halicizade-rug-store.myshopify.com",
+      "currency": "PASS (TRY)",
+      "readiness": "READY",
+      "readiness_reason": "tum kontroller olumlu",
+      "verdict": "READY",
+      "reason": "tum kontroller olumlu",
+      "requests": 6
+    },
+    {
+      "slug": "happy-place-home-decor",
+      "current_domain": "happy-place-home-decor-2.myshopify.com",
+      "canonical_host": "happy-place-home-decor-2.myshopify.com",
+      "chain": [
+        {
+          "url": "https://happy-place-home-decor-2.myshopify.com/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.74"],
+      "shopify_identity": "PASS",
+      "meta_myshopify_domain": "happy-place-home-decor-2.myshopify.com",
+      "currency": "PASS (TRY)",
+      "readiness": "READY",
+      "readiness_reason": "tum kontroller olumlu",
+      "verdict": "UNCHANGED",
+      "reason": "tum kontroller olumlu",
+      "requests": 5
+    },
+    {
+      "slug": "jura-store",
+      "current_domain": "745bb0.myshopify.com",
+      "canonical_host": "jurastore.co",
+      "chain": [
+        {
+          "url": "https://745bb0.myshopify.com/robots.txt",
+          "status": 301,
+          "location": "https://jurastore.co/robots.txt"
+        },
+        {
+          "url": "https://jurastore.co/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.65"],
+      "shopify_identity": "PASS",
+      "meta_myshopify_domain": "745bb0.myshopify.com",
+      "currency": "PASS (TRY)",
+      "readiness": "REVIEW",
+      "readiness_reason": "mapping: tanınmayan secenek adlari: Pil Seçeneği",
+      "verdict": "FAIL",
+      "reason": "readiness: REVIEW (mapping: tanınmayan secenek adlari: Pil Seçeneği)",
+      "requests": 6
+    },
+    {
+      "slug": "north-sails-turkiye",
+      "current_domain": "north-sails-turkey.myshopify.com",
+      "canonical_host": "collection.northsails.com.tr",
+      "chain": [
+        {
+          "url": "https://north-sails-turkey.myshopify.com/robots.txt",
+          "status": 301,
+          "location": "https://collection.northsails.com.tr/robots.txt"
+        },
+        {
+          "url": "https://collection.northsails.com.tr/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.74"],
+      "shopify_identity": "PASS",
+      "meta_myshopify_domain": "north-sails-turkey.myshopify.com",
+      "currency": "PASS (TRY)",
+      "readiness": "READY",
+      "readiness_reason": "tum kontroller olumlu",
+      "verdict": "READY",
+      "reason": "tum kontroller olumlu",
+      "requests": 6
+    },
+    {
+      "slug": "riva-istanbul",
+      "current_domain": "riva-istanbul.myshopify.com",
+      "canonical_host": "www.rivaistanbul.com",
+      "chain": [
+        {
+          "url": "https://riva-istanbul.myshopify.com/robots.txt",
+          "status": 301,
+          "location": "https://www.rivaistanbul.com/robots.txt"
+        },
+        {
+          "url": "https://www.rivaistanbul.com/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.74"],
+      "shopify_identity": "PASS",
+      "meta_myshopify_domain": "riva-istanbul.myshopify.com",
+      "currency": "PASS (TRY)",
+      "readiness": "REVIEW",
+      "readiness_reason": "mapping: ornekte renk/beden secenegi yok; esleme dogrulanamadi",
+      "verdict": "FAIL",
+      "reason": "readiness: REVIEW (mapping: ornekte renk/beden secenegi yok; esleme dogrulanamadi)",
+      "requests": 6
+    },
+    {
+      "slug": "spor-plus",
+      "current_domain": "5i8abq-fn.myshopify.com",
+      "canonical_host": null,
+      "chain": [
+        {
+          "url": "https://5i8abq-fn.myshopify.com/robots.txt",
+          "status": 301,
+          "location": "https://sporplus.net/robots.txt"
+        },
+        {
+          "url": "https://sporplus.net/robots.txt",
+          "status": null,
+          "location": null
+        }
+      ],
+      "resolved_ips": [],
+      "shopify_identity": "UNKNOWN",
+      "meta_myshopify_domain": null,
+      "currency": "UNKNOWN",
+      "readiness": "UNKNOWN",
+      "readiness_reason": "",
+      "verdict": "FAIL",
+      "reason": "chain_request_error (ConnectError)",
+      "requests": 2
+    },
+    {
+      "slug": "wraith-esports",
+      "current_domain": "wraithesports.myshopify.com",
+      "canonical_host": "wraithesports.com",
+      "chain": [
+        {
+          "url": "https://wraithesports.myshopify.com/robots.txt",
+          "status": 301,
+          "location": "https://wraithesports.com/robots.txt"
+        },
+        {
+          "url": "https://wraithesports.com/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.32"],
+      "shopify_identity": "PASS",
+      "meta_myshopify_domain": "wraithesports.myshopify.com",
+      "currency": "PASS (TRY)",
+      "readiness": "NOT_READY",
+      "readiness_reason": "mapping: mevcut esleme yanlis; once ad tabanli esleme (recommended)",
+      "verdict": "FAIL",
+      "reason": "readiness: NOT_READY (mapping: mevcut esleme yanlis; once ad tabanli esleme (recommended))",
+      "requests": 6
+    },
+    {
+      "slug": "yutas-yapi-urunleri",
+      "current_domain": "yutas-yapi-urunleri.myshopify.com",
+      "canonical_host": "lavabo.com.tr",
+      "chain": [
+        {
+          "url": "https://yutas-yapi-urunleri.myshopify.com/robots.txt",
+          "status": 301,
+          "location": "https://lavabo.com.tr/robots.txt"
+        },
+        {
+          "url": "https://lavabo.com.tr/robots.txt",
+          "status": 200,
+          "location": null
+        }
+      ],
+      "resolved_ips": ["23.227.38.65"],
+      "shopify_identity": "FAIL",
+      "meta_myshopify_domain": "m35npe-jg.myshopify.com",
+      "currency": "UNKNOWN",
+      "readiness": "UNKNOWN",
+      "readiness_reason": "",
+      "verdict": "FAIL",
+      "reason": "myshopify_domain_mismatch ('m35npe-jg.myshopify.com')",
+      "requests": 3
+    }
+  ]
+}

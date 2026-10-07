@@ -52,6 +52,7 @@ import psycopg
 from collect import robots_policy
 from collect.gate import SHOPIFY_CURRENCY, IngestRefused
 from collect.link.robots import BOT_NAME, BOT_VERSION, USER_AGENT
+from collect.link.safe_http import guarded_client
 from collect.mapping import FieldMapping, ValueFormats
 from collect.normalize import normalize
 from collect.records import RecordRejected
@@ -579,11 +580,13 @@ def verify(
 
 
 def build_client() -> httpx.Client:
-    # Yonlendirme izlenmez, yeniden deneme yok (httpx varsayilani retries=0).
-    return httpx.Client(
-        timeout=httpx.Timeout(TIMEOUT_SECONDS),
-        follow_redirects=False,
-        headers={"User-Agent": USER_AGENT},
+    """Gercek toplamayla AYNI istemci (`safe_http.guarded_client`): SSRF korumali,
+    cerezsiz, proxy'siz, yonlendirme izlemez, `ArillaBot` kimligi. Duz `httpx.Client`
+    Shopify'in bot korumasindan yanlis-negatif 429 aliyordu (0069 sonrasi uretim
+    pilotunda gozlendi); hazirlik karari gercek toplamanin goreceği ag davranisiyla
+    verilmeli. Yeniden deneme yok."""
+    return guarded_client(
+        user_agent=USER_AGENT, timeout=httpx.Timeout(TIMEOUT_SECONDS), follow_redirects=False
     )
 
 

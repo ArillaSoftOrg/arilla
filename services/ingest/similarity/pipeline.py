@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
+from datetime import UTC, datetime, timedelta
 
 import psycopg
 
@@ -20,13 +21,22 @@ logger = logging.getLogger(__name__)
 #: 90 gunu varsayiyor (min_90d, max_90d, median_90d).
 HISTORY_DAYS = 90
 
+#: `price_point` degisim olayidir (karar 0068). Pencere oncesindeki SON olay da
+#: gelir: 90 gundur degismeyen fiyat pencerenin basinda gecerli fiyattir.
+#: `last_seen_at` teklifin son goruldugu andir (serinin bitis siniri).
 PRICE_HISTORY = """
-SELECT o.product_id, pp.offer_id, pp.observed_at, pp.price, pp.list_price
-  FROM price_point pp
-  JOIN offer o ON o.id = pp.offer_id
+SELECT o.product_id, o.id AS offer_id, pp.observed_at, pp.price, pp.list_price, o.last_seen_at
+  FROM offer o
+  JOIN LATERAL (
+        (SELECT observed_at, price, list_price FROM price_point
+          WHERE offer_id = o.id AND observed_at >= %(since)s)
+        UNION ALL
+        (SELECT observed_at, price, list_price FROM price_point
+          WHERE offer_id = o.id AND observed_at < %(since)s
+          ORDER BY observed_at DESC LIMIT 1)
+       ) pp ON true
  WHERE o.product_id IS NOT NULL
-   AND pp.observed_at >= now() - make_interval(days => %(days)s)
- ORDER BY o.product_id, pp.offer_id, pp.observed_at
+ ORDER BY o.product_id, o.id, pp.observed_at
 """
 
 CURRENT_PRICES = """
@@ -113,13 +123,16 @@ def refresh_price_stats(conn: psycopg.Connection) -> PriceCounts:
         cur.execute(CURRENT_PRICES)
         current = {int(row[0]): int(row[1]) for row in cur.fetchall()}
 
-        cur.execute(PRICE_HISTORY, {"days": HISTORY_DAYS})
+        since = datetime.now(UTC) - timedelta(days=HISTORY_DAYS)
+        cur.execute(PRICE_HISTORY, {"since": since})
         rows = cur.fetchall()
 
     # Teklif basina gruplanir: fiyat serisi yalnizca tek bir magazanin
     # listesi icinde anlamlidir (bkz. prices.compute docstring).
     grouped: dict[int, dict[int, list[Observation]]] = {}
-    for product_id, offer_id, observed_at, price, list_price in rows:
+    seen_until: dict[int, datetime] = {}
+    for product_id, offer_id, observed_at, price, list_price, last_seen_at in rows:
+        seen_until[int(offer_id)] = last_seen_at
         grouped.setdefault(int(product_id), {}).setdefault(int(offer_id), []).append(
             Observation(
                 observed_at=observed_at,
@@ -129,7 +142,7 @@ def refresh_price_stats(conn: psycopg.Connection) -> PriceCounts:
         )
 
     for product_id, by_offer in grouped.items():
-        stats = compute(by_offer, current.get(product_id))
+        stats = compute(by_offer, current.get(product_id), seen_until=seen_until, since=since)
         with conn.cursor() as cur:
             cur.execute(
                 UPSERT_STATS,
