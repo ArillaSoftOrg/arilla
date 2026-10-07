@@ -79,14 +79,16 @@ CREATE TABLE product (
     color           TEXT,
     attributes      JSONB       NOT NULL DEFAULT '{}'::jsonb,  -- renk, malzeme, beden
     primary_image_url TEXT,
-    -- denormalize edilmiş, toplu işle güncellenir. İstek yolu bunları okur.
+    -- denormalize edilmiş; teklifi yazan işlemde yenilenir, günlük cron ve
+    -- `similarity --prices` onarır (karar 0072). İstek yolu bunları okur.
+    -- Yalnızca AKTİF mağazanın fiyatlı aktif teklifi sayılır (arama ile aynı).
     -- min_price: aktif tekliflerin en düşüğü, TÜM varyantlar dahil (0033).
     -- "Başlangıç fiyatı"dır; farklı boyutlar (60/100 ml) karşılaştırılabilir
     -- "en ucuz" fiyat değildir. Varyant bazlı karşılaştırma ürün sayfasında.
     min_price       BIGINT,
     max_price       BIGINT,
-    offer_count     INTEGER     NOT NULL DEFAULT 0,
-    in_stock_count  INTEGER     NOT NULL DEFAULT 0,
+    offer_count     INTEGER     NOT NULL DEFAULT 0,   -- farklı mağaza sayısı ("N mağaza")
+    in_stock_count  INTEGER     NOT NULL DEFAULT 0,   -- stokta olan mağaza sayısı
     price_updated_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()

@@ -147,6 +147,8 @@ def run_ingest(conn: psycopg.Connection, merchant_slug: str) -> IngestResult:
         if merchant["feed_config"].get("full_dump") and status == "success":
             deactivated = writer.deactivate_missing()
 
+        # Fiyat/stok/aktiflik degisen bagli urunlerin ozeti ayni islemde.
+        writer.refresh_aggregates()
         conn.commit()
 
     except IngestRefused as refused:

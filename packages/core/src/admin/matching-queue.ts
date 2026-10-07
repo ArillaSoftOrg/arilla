@@ -24,6 +24,7 @@ import {
   product,
 } from "@arilla/db";
 import { and, asc, count, desc, eq, inArray, isNotNull, lt, ne, type SQL, sql } from "drizzle-orm";
+import { refreshProductAggregates } from "../product/refresh-aggregates.ts";
 import { maskEmail, recordAdminEvent } from "./audit.ts";
 import { clampPageSize, isPositiveId, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
@@ -536,6 +537,8 @@ export async function approveMatch(
       .set({ status: "accepted", reviewedBy: actor.userId, reviewedAt, reviewReason: null })
       .where(eq(matchCandidate.id, matchCandidateId));
     await tx.update(offer).set({ productId: row.productId }).where(eq(offer.id, row.offerId));
+    // Yeni bağlanan teklif ürünün fiyatına ve "N mağaza"sına aynı işlemde girer.
+    await refreshProductAggregates(tx, { productIds: [row.productId] });
 
     const superseded = await tx
       .update(matchCandidate)
