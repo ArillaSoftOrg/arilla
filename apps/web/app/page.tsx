@@ -24,7 +24,7 @@ import { verifySession } from "./lib/dal.ts";
 import { loadCachedEarlyAccessProgress } from "./lib/early-access-progress.ts";
 import { PublicSiteShell } from "./public-site-shell.tsx";
 import { SITE_BRAND } from "./site-config.ts";
-import { startChatInNewTabAction, startConversationAction } from "./sohbet/actions.ts";
+import { startConversationAction } from "./sohbet/actions.ts";
 
 /**
  * Kök metadata yalnızca ürün bayrağına bağlıdır, oturuma değil: arama
@@ -170,7 +170,7 @@ export default async function HomePage() {
           >
             <HomeSearchComposer
               startChat={chatEnabled && user ? startConversationAction : undefined}
-              startChatInNewTab={chatEnabled && user ? startChatInNewTabAction : undefined}
+              chatInNewTab={chatEnabled && user !== null}
               recentProducts={recentProducts}
             />
           </HomeHero>

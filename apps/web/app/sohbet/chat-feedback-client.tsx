@@ -1,8 +1,9 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { submitResultFeedbackAction } from "./actions.ts";
 import { CHAT_COPY } from "./chat-copy.ts";
+import { chatMark } from "./chat-metrics.ts";
 import styles from "./sohbet.module.css";
 
 /**
@@ -21,6 +22,11 @@ export function ResultFeedback({
   const [value, setValue] = useState<boolean | null>(initial);
   const [failed, setFailed] = useState(false);
   const [pending, startTransition] = useTransition();
+
+  // Bu blok yalnizca sonuclar cizilince baglanir: urunler gorunur.
+  useEffect(() => {
+    chatMark("chat:products_visible");
+  }, []);
 
   function vote(helpful: boolean) {
     if (pending || value === helpful) return;

@@ -1,7 +1,9 @@
 import {
   CHAT_RESULT_LIMIT,
+  createChatTimer,
   IntentSearchTimeoutError,
   intentSearchText,
+  logChatTimings,
   type SearchIntent,
   searchByIntent,
 } from "@arilla/core";
@@ -95,11 +97,16 @@ export async function ChatResults({
   helpful: boolean | null;
 }) {
   let result: Awaited<ReturnType<typeof searchByIntent>>;
+  const timer = createChatTimer();
   try {
-    result = await searchByIntent(getDatabase(), intent, {
-      pageSize: CHAT_RESULT_LIMIT,
-      sort: sortModeFor(sort),
-    });
+    result = await timer.time("search", () =>
+      searchByIntent(getDatabase(), intent, {
+        pageSize: CHAT_RESULT_LIMIT,
+        sort: sortModeFor(sort),
+      }),
+    );
+    // Yalnizca sure (metin/sorgu yok); `CHAT_TIMING_LOG=true` ile yazilir.
+    logChatTimings("search", "ok", timer.finish());
   } catch (error) {
     // Yalnızca sınıf adı: hata mesajı arama metnini taşıyabilir.
     console.error("[sohbet] search failed", error instanceof Error ? error.name : "unknown");
