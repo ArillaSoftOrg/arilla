@@ -51,7 +51,9 @@ yalnızca çevrimdışı toplu işe izin veriyordu; bu karar onu bayrakla geniş
   tekrar eşiğini veri minimizasyonu olarak kullanıyordu. Taslak:
   `docs/legal-review/gemini-anlik-yorum-taslak.md`.
 - `/gizlilik` §2.2 ve `/kvkk-aydinlatma` metinleri güncellenip yayına alınır
-  ("arama yaptığınız anda değil" ifadesi değişir).
+  ("arama yaptığınız anda değil" ifadesi değişir). **7 Ekim 2026:** metin
+  güncellendi (arama sırasında gönderilebilir; tekrar eşiği ifadesi kaldırıldı);
+  yayına birleştirmeyle girer.
 - Ardından `GEMINI_REALTIME_ENABLED=true` (Vercel Production) ve yeniden dağıtım.
 
 ## Bilinen sınırlar
