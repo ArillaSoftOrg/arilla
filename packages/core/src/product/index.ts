@@ -2,6 +2,7 @@ export * from "./get-color-variants.ts";
 export * from "./get-price-comparison.ts";
 export * from "./get-price-history.ts";
 export * from "./get-price-stats.ts";
+export * from "./get-product-gallery.ts";
 export * from "./get-size-options.ts";
 export * from "./json-ld.ts";
 export * from "./refresh-aggregates.ts";

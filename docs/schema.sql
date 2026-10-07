@@ -146,6 +146,32 @@ CREATE INDEX offer_unmatched_idx  ON offer (merchant_id) WHERE product_id IS NUL
 CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT NULL;
 CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
 
+-- Offer görselleri (0053, karar 0073). Kaynak en fazla 6 görsel; kullanıcıya en
+-- fazla 3'ü gösterilir (display_rank). Görsel ilk olarak offer'dan gelir; ürün
+-- galerisi okuma sırasında en uygun offer'ın görsellerinden kurulur. Binary
+-- YOK: URL + özet + metadata. r2_url ileride ayrı aynalama işi doldurur.
+CREATE TABLE offer_image (
+    id                  BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    offer_id            BIGINT      NOT NULL REFERENCES offer(id) ON DELETE CASCADE,
+    url_hash            BYTEA       NOT NULL CHECK (octet_length(url_hash) = 16),  -- md5(normalize URL)
+    source_url          TEXT        NOT NULL CHECK (char_length(source_url) BETWEEN 1 AND 2048),
+    r2_url              TEXT        CHECK (r2_url IS NULL OR char_length(r2_url) BETWEEN 1 AND 2048),
+    source_position     SMALLINT    NOT NULL CHECK (source_position >= 0),  -- mağaza sırası
+    display_rank        SMALLINT    CHECK (display_rank IS NULL OR display_rank >= 0),  -- NULL: gösterilmez
+    is_variant_specific BOOLEAN     NOT NULL DEFAULT FALSE,  -- kaynak görseli varyanta bağlamış mı
+    image_hash          TEXT,
+    perceptual_hash     BIGINT,
+    width               INTEGER     CHECK (width IS NULL OR width > 0),
+    height              INTEGER     CHECK (height IS NULL OR height > 0),
+    status              TEXT        NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'removed', 'broken')),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT offer_image_url_uniq UNIQUE (offer_id, url_hash),
+    CONSTRAINT offer_image_rank_uniq UNIQUE (offer_id, display_rank) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT offer_image_rank_active CHECK (display_rank IS NULL OR status = 'active')
+);
+
 -- Beden varyantları. Stok bedene göre değişir; "senin bedenin var mı" sorusu
 -- moda kategorisinde satın alma kararının kendisidir.
 -- Fiyat geçmişi burada DEĞİL, offer düzeyinde tutulur.

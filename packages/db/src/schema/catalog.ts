@@ -9,6 +9,7 @@ import {
   bigint,
   boolean,
   char,
+  customType,
   integer,
   jsonb,
   pgTable,
@@ -17,6 +18,9 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+
+/** Drizzle'in yerlesik bytea'si yok; yalnizca 16 baytlik ozet icin kullanilir. */
+const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 
 export const merchant = pgTable("merchant", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
@@ -118,6 +122,30 @@ export const offer = pgTable("offer", {
   firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
   isActive: boolean("is_active").notNull().default(true),
+});
+
+/**
+ * 0053 (karar 0073): offer'in kaynak gorselleri. `sourcePosition` magazanin
+ * sirasi, `displayRank` bizim gosterim siramiz (NULL = saklanir, gosterilmez).
+ * Binary yok; `r2Url` ileride aynalama isi tarafindan doldurulur.
+ */
+export const offerImage = pgTable("offer_image", {
+  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+  offerId: bigint("offer_id", { mode: "number" }).notNull(),
+  /** md5(normalize URL), 16 bayt. */
+  urlHash: bytea("url_hash").notNull(),
+  sourceUrl: text("source_url").notNull(),
+  r2Url: text("r2_url"),
+  sourcePosition: smallint("source_position").notNull(),
+  displayRank: smallint("display_rank"),
+  isVariantSpecific: boolean("is_variant_specific").notNull().default(false),
+  imageHash: text("image_hash"),
+  perceptualHash: bigint("perceptual_hash", { mode: "bigint" }),
+  width: integer("width"),
+  height: integer("height"),
+  status: text("status").$type<"active" | "removed" | "broken">().notNull().default("active"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 export const offerVariant = pgTable("offer_variant", {
