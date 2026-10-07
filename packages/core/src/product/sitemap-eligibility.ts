@@ -1,7 +1,7 @@
 /**
  * docs/sitemap.md "Hangi sayfa haritaya girer". Bir ürün sayfası haritaya
- * girer (ve `noindex` almaz) ancak: en az 2 aktif teklifi varsa, YA DA tek
- * teklifi var ama en az 14 günlük fiyat geçmişi birikmişse; VE görseli ve
+ * girer (ve `noindex` almaz) ancak: en az 2 aktif mağazada teklifi varsa
+ * (`offer_count`, karar 0072), YA DA tek mağazada teklifi var ama en az 14 günlük fiyat geçmişi birikmişse; VE görseli ve
  * başlığı varsa; VE kategorisi `is_discoverable` ise.
  *
  * Aynı koşul iki yerden kullanılır - ürün sayfasının `noindex` kararı

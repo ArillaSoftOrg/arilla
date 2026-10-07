@@ -1,5 +1,11 @@
 # Meşru Menfaat Değerlendirmesi (LIA) — Gemini ile Arama Sorgusu Yorumlama
 
+> **Not (7 Ekim 2026):** Bu değerlendirme çevrimdışı yol (karar 0059) için
+> onaylandı. Anlık yol (karar 0062) "arama sırasında Gemini çağrılmaz" ve
+> tekrar eşiği maddelerini değiştirir; güncel değerlendirme hukuk danışmanının
+> yeniden incelemesine bağlıdır (`gemini-anlik-yorum-taslak.md`). Aşağıdaki
+> metin onaylandığı hâliyle korunur.
+
 **Veri sorumlusu:** Arilla (ManiCepte) · **Hukuki sebep:** KVKK m.5/2-f (meşru menfaat)
 **Durum:** Hukuk danışmanı üretimde etkinleştirmeyi onayladı. Bu belge onaylanan yaklaşımın
 kaydıdır; sözleşme metni içermez.

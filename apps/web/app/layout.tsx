@@ -34,6 +34,11 @@ export const metadata: Metadata = {
     title: SITE_BRAND,
     description: SITE_DESCRIPTION,
   },
+  // Affiliate ağı site doğrulamaları; tüm sayfalarda <head> içinde render olur.
+  other: {
+    "Takeads-verification": "b2908a43-37a8-49ce-b4ac-6c1475c45716",
+    "mitgo-verification": "b207158b-022a-4c3c-bba5-65c7f99986e3",
+  },
 };
 
 export const viewport: Viewport = {

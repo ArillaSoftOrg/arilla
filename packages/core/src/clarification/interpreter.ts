@@ -15,6 +15,8 @@
  * uygulama baglanmadan once docs/decisions/0030 "Model baglama kosullari"
  * bolumu karsilanmalidir.
  */
+
+import { priceAmountsInText } from "./price-language.ts";
 import { outranks } from "./state.ts";
 import {
   BUDGET_FACET_ID,
@@ -30,6 +32,8 @@ import {
 export interface InterpreterTaxonomy {
   domains: readonly {
     id: string;
+    /** Kisa Turkce ad; tanimliysa modele yardimci olur. */
+    label?: string;
     kind: "product" | "intent";
     facets: readonly {
       id: string;
@@ -65,6 +69,7 @@ export function describeTaxonomy(registry: ClarificationRegistry): InterpreterTa
   return {
     domains: registry.domains.map((domain) => ({
       id: domain.id,
+      ...(domain.label ? { label: domain.label } : {}),
       kind: domain.kind,
       facets: domain.facets.map((facet) => ({
         id: facet.id,
@@ -130,7 +135,7 @@ export const INTERPRETER_INSTRUCTIONS = [
   "Sadece verilen domain_id, facet_id ve option_id değerlerini kullan; yeni değer üretme.",
   "Emin olmadığın alanı null bırak ya da facets listesine ekleme.",
   "Ürün, marka, fiyat, stok veya mağaza bilgisi üretme; bunlar katalogdan gelir.",
-  "Bütçeyi yalnızca kullanıcı metninde açıkça yazan sayılardan TL cinsinden çıkar.",
+  'Bütçeyi yalnızca kullanıcı metninde açıkça yazan tutarlardan TL cinsinden çıkar; Türkçe ifadeleri sayıya çevir: "10 bin" = 10000, "2,5 bin" = 2500, "5-10 bin arası" = 5000 ile 10000.',
   "Mevcut durumdaki değerleri tekrar etme; yalnızca bu turdaki metinden çıkanı döndür.",
 ].join("\n");
 
@@ -159,15 +164,6 @@ export interface InterpretationRejection {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-function numbersInText(text: string): Set<number> {
-  const found = new Set<number>();
-  for (const m of text.matchAll(/\d[\d.]*/g)) {
-    const value = Number.parseInt(m[0].replace(/\./g, ""), 10);
-    if (Number.isFinite(value)) found.add(value);
-  }
-  return found;
 }
 
 export function validateInterpretation(
@@ -228,7 +224,8 @@ export function validateInterpretation(
 
   let budget: ValidatedInterpretation["budget"] = null;
   if (isRecord(raw.budget)) {
-    const allowed = numbersInText(request.text);
+    // Yalnizca metnin soyledigi tutarlar: rakam, "10 bin", "5-10 bin" uclari.
+    const allowed = priceAmountsInText(request.text);
     const readAmount = (field: "min_try" | "max_try"): number | null | "invalid" => {
       const amount = raw.budget && isRecord(raw.budget) ? raw.budget[field] : null;
       if (amount === null || amount === undefined) return null;
@@ -282,8 +279,13 @@ export function applyInterpretation(
     };
   }
 
+  // Nitelikler yorumun kendi domain'ine aittir. Domain zaten baska bir
+  // kaynaktan (deterministik ya da kullanici) farkli belirlendiyse yorumun
+  // nitelikleri o domain'e uygulanmaz; butce ve fiyat tercihi domain'den bagimsizdir.
+  const facetsBelongToDomain =
+    interpretation.domainId === null || interpretation.domainId === next.domainId;
   let facets: Record<string, FacetAssignment> = { ...next.facets };
-  for (const { facetId, optionId } of interpretation.facets) {
+  for (const { facetId, optionId } of facetsBelongToDomain ? interpretation.facets : []) {
     const incoming: FacetAssignment = { optionId, source: "model", turn };
     if (next.skippedFacets.includes(facetId)) continue;
     if (outranks(incoming, facets[facetId])) facets = { ...facets, [facetId]: incoming };

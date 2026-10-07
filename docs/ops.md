@@ -67,7 +67,7 @@ birindedir ve okuyan dosya yanında yazar:
 | Grup | Anlamı | Anahtarlar |
 | --- | --- | --- |
 | `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
-| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048) |
+| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı) |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
 | `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `MARKETING_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
@@ -431,6 +431,31 @@ domain'siz `/ara` isteği bir hata satırı loglar. Okuma yolu için
   `success` + `detail.skipped = true` ve `skippedReason` ile yazılır.
   Ayrıntı yalnızca sayılardır.
 
+### Anlık sorgu yorumu (karar 0062) — bayrak arkasında, kapalı
+
+`GEMINI_REALTIME_ENABLED=true` (ve `GEMINI_API_KEY`) iken `/ara` isteği
+içinde Gemini çağrılır: metin süzgeci → saklanan yorum varsa yeniden kullanım
+→ günlük anlık tavan (2.000 deneme, Europe/Istanbul günü) → Gemini (2,5 sn,
+tek deneme) → doğrulama → `query_interpretation` + `api_usage`
+(`operation = 'query_interpretation_realtime'`). Hata ya da tavan aramayı
+durdurmaz; plan deterministik yola düşer. Toplu iş ve 100'lük tavanı
+değişmez; anlık yol açıkken ikincil öğrenme/kurtarma yoludur.
+Kişi başına ek limit (karar 0063): saatte 30 anlık model çağrısı (girişli
+hesap ya da IP'nin SHA-256 özeti, Redis `rti:*` anahtarları); önbellek
+isabeti sayılmaz, Redis yoksa model çağrılmaz. Ürünlerin üstündeki
+"Yapay zekâ yorumu" özeti ikinci çağrı yapmaz; yorum yoksa gösterilmez.
+
+**Açmadan önce:** hukuki yeniden değerlendirme ve `/gizlilik` güncellemesi
+(`docs/legal-review/gemini-anlik-yorum-taslak.md`). **Kapatma:** bayrağı
+silip yeniden dağıtmak; saklanan yorumlar okunmaya devam eder (0059 yolu).
+**İzleme:** günlük anlık deneme sayısı
+
+```sql
+SELECT count(*) FROM api_usage
+ WHERE operation = 'query_interpretation_realtime'
+   AND created_at >= (now() AT TIME ZONE 'Europe/Istanbul')::date AT TIME ZONE 'Europe/Istanbul';
+```
+
 ## Oran sınırlama ve kazımaya karşı koruma
 
 Siz feed'lerden veri topluyorsunuz; rakip de sizden toplamaya çalışacak.
@@ -453,7 +478,7 @@ dışındaki bir `DATABASE_URL`'e yazmayı reddeder.
 cd services/ingest
 .venv/Scripts/python -m collect.bootstrap --manifest bootstrap/shopify_merchants.json --report rapor.json
 .venv/Scripts/python -m resolve --limit 5000        # offer -> product
-.venv/Scripts/python -m similarity --prices          # product özetleri + fiyat istatistikleri
+.venv/Scripts/python -m similarity --prices          # fiyat istatistikleri + özet onarımı (özet artık yazarken yenilenir, 0072)
 .venv/Scripts/python -m enrich --kind image --limit 50   # JINA_API_KEY gerekir; küçük parti
 .venv/Scripts/python -m similarity --edges
 ```
@@ -521,8 +546,10 @@ SELECT p.id FROM product p
    append-only olduğu için (CLAUDE.md kural 4 ve 8) önce bu tercih edilir:
    `UPDATE merchant SET is_active = FALSE` ve bu merchant'ların offer'larında
    `is_active = FALSE`; ardından `public_find` / `discovery_slot` satırlarından
-   bootstrap ürünleri çıkarılır ve `python -m similarity --prices` özetleri
-   sıfırlar. Arama `m.is_active` ile zaten dışarıda bırakır.
+   bootstrap ürünleri çıkarılır. Yönetimden mağaza kapatmak özetleri aynı
+   işlemde sıfırlar; elle SQL ile kapatıldıysa günlük onarım cron'u ya da
+   `python -m similarity --prices` sıfırlar (karar 0072). Arama `m.is_active`
+   ile zaten dışarıda bırakır.
 2. **Tam silme (yalnızca hiçbir yere taşınmamış yerel veritabanı).** En temizi
    yerel veritabanını sıfırlamaktır: `docker compose -f infra/docker-compose.yml
    down -v`, ardından `pnpm db:migrate`, `pnpm db:bootstrap-role`, `pnpm seed`.
@@ -651,3 +678,14 @@ belge eksikliğidir.
 Aylık gider kalemleri tek bir tabloda takip edilir: barındırma, veritabanı,
 obje deposu, model çağrıları, e-posta, alan adı. Bu tablo proje belgesindeki
 birim ekonomisi hesabını besler ve boş bırakılmaz.
+
+
+## Konuşmalı keşif (`/sohbet`, karar 0074) — varsayılan kapalı
+
+İstek yolunda Gemini çağırır (CLAUDE.md kural 1 istisna b). Ortam değişkenleri
+(yalnızca sunucu): `CHAT_DISCOVERY_ENABLED=true` (yoksa özellik kapalı: ana sayfa
+kutusu `/ara`ya gider, `/sohbet` 404), `CHAT_TURNS_PER_HOUR` (varsayılan 20, kullanıcı
+başına), `GEMINI_API_KEY` (0059 ile ortak). Etkinleştirme sırası: 0054 migration
+production'da uygulanır (`pnpm db:migrate`, `db:verify`) → kod dağıtılır → hukuk
+onayı (docs/kvkk.md "Konuşmalı keşif") → bayrak açılır. Maliyet: `api_usage`
+`operation = 'chat_turn'`. Saklama: 90 gün, `cleanup-auth` cron'u (`job_run.detail.conversations`).

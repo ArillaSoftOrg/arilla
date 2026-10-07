@@ -6,6 +6,8 @@ export interface ContinueShoppingChipItem {
   meta?: string;
   imageUrl?: string;
   imageAlt?: string;
+  /** Verilirse chip bir bağlantıdır (gerçek arama geçmişi: `/ara?q=`); yoksa `onSelect` çalışır. */
+  href?: string;
 }
 
 export interface ContinueShoppingChipsProps {
@@ -44,26 +46,20 @@ export function ContinueShoppingChips({
       className={joinClassNames(styles.row, hasMedia && styles.cardRow, className)}
     >
       {items.map((item) => (
-        <li key={item.label} className={styles.item}>
-          <button
-            type="button"
-            className={joinClassNames(styles.chip, hasMedia && styles.card)}
-            onClick={() => onSelect(item.label)}
-          >
-            {item.imageUrl ? (
-              <img
-                src={item.imageUrl}
-                alt=""
-                loading="lazy"
-                decoding="async"
-                className={styles.thumb}
-              />
-            ) : null}
-            <span className={styles.copy}>
-              <span className={styles.label}>{item.label}</span>
-              {item.meta ? <span className={styles.meta}>{item.meta}</span> : null}
-            </span>
-          </button>
+        <li key={item.href ?? item.label} className={styles.item}>
+          {item.href ? (
+            <a href={item.href} className={joinClassNames(styles.chip, hasMedia && styles.card)}>
+              {chipContent(item)}
+            </a>
+          ) : (
+            <button
+              type="button"
+              className={joinClassNames(styles.chip, hasMedia && styles.card)}
+              onClick={() => onSelect(item.label)}
+            >
+              {chipContent(item)}
+            </button>
+          )}
         </li>
       ))}
       {hasMedia ? (
@@ -72,5 +68,19 @@ export function ContinueShoppingChips({
         </li>
       ) : null}
     </ul>
+  );
+}
+
+function chipContent(item: ContinueShoppingChipItem) {
+  return (
+    <>
+      {item.imageUrl ? (
+        <img src={item.imageUrl} alt="" loading="lazy" decoding="async" className={styles.thumb} />
+      ) : null}
+      <span className={styles.copy}>
+        <span className={styles.label}>{item.label}</span>
+        {item.meta ? <span className={styles.meta}>{item.meta}</span> : null}
+      </span>
+    </>
   );
 }

@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { SITE_BRAND } from "../site-config.ts";
+import { getArticle } from "./articles/index.ts";
 import { BLOG_AUTHOR, BLOG_HERO, BLOG_POSTS } from "./blog-posts.ts";
 import styles from "./page.module.css";
 
@@ -10,7 +12,7 @@ export const metadata: Metadata = {
 };
 
 /**
- * Yalnizca statik liste: makale detay sayfasi ve CMS yok, kartlar link degil.
+ * Statik liste (CMS yok). Yazisi yazilmis kartlar /blog/[slug]'a linklenir (karar 0071), digerleri linksiz.
  * Ilk kart ozel (hero) karttir.
  */
 export default function BlogPage() {
@@ -19,11 +21,17 @@ export default function BlogPage() {
       <h1 className={styles.srOnly}>{`${SITE_BRAND} Blog`}</h1>
       <div className={styles.feed}>
         <article className={styles.hero}>
-          {/* biome-ignore lint/performance/noImgElement: yerel SVG yer tutucu, optimizasyon gerekmez. */}
+          {/* biome-ignore lint/performance/noImgElement: R2 medya alan adindan gelen onceden optimize WebP; next/image gerekmez. */}
           <img src={BLOG_HERO.image} alt="" className={styles.heroImage} />
           <div className={styles.heroScrim} aria-hidden="true" />
           <div className={styles.heroBody}>
-            <h2 className={styles.heroTitle}>{BLOG_HERO.title}</h2>
+            <h2 className={styles.heroTitle}>
+              {getArticle(BLOG_HERO.slug) ? (
+                <Link href={`/blog/${BLOG_HERO.slug}`}>{BLOG_HERO.title}</Link>
+              ) : (
+                BLOG_HERO.title
+              )}
+            </h2>
             <p className={styles.heroExcerpt}>{BLOG_HERO.excerpt}</p>
             <p className={styles.heroDate}>{BLOG_HERO.publishedLabel}</p>
             <span className={styles.heroPill}>{BLOG_HERO.readMinutes} dakika okuma süresi</span>
@@ -32,10 +40,16 @@ export default function BlogPage() {
 
         {BLOG_POSTS.map((post) => (
           <article key={post.slug} className={styles.card}>
-            {/* biome-ignore lint/performance/noImgElement: yerel SVG yer tutucu, optimizasyon gerekmez. */}
+            {/* biome-ignore lint/performance/noImgElement: R2 medya alan adindan gelen onceden optimize WebP; next/image gerekmez. */}
             <img src={post.image} alt="" className={styles.cardImage} width={600} height={338} />
             <div className={styles.cardBody}>
-              <h2 className={styles.cardTitle}>{post.title}</h2>
+              <h2 className={styles.cardTitle}>
+                {getArticle(post.slug) ? (
+                  <Link href={`/blog/${post.slug}`}>{post.title}</Link>
+                ) : (
+                  post.title
+                )}
+              </h2>
               <p className={styles.cardExcerpt}>{post.excerpt}</p>
               <div className={styles.meta}>
                 <span className={styles.avatar} aria-hidden="true">

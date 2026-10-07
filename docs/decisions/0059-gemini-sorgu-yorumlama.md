@@ -1,5 +1,9 @@
 # 0059 — Gemini ile çevrimdışı sorgu yorumlama
 
+> **Not (7 Ekim 2026):** karar 0062, bayrakla (`GEMINI_REALTIME_ENABLED`,
+> varsayılan kapalı) `/ara` içinde anlık yorumu ekler. Bayrak kapalıyken bu
+> karar aynen geçerlidir; açıkken toplu iş ikincil öğrenme/kurtarma yoludur.
+
 **Tarih:** 5 Ekim 2026
 **Durum:** Kabul edildi — istemci, uyarlayıcı, saklama (0044), toplu iş,
 korumalı cron ucu (günlük Vercel cron, 00:30 UTC), `/ara` salt okuma yolu ve en az yetki (0046)

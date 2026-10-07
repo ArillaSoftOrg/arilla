@@ -14,10 +14,13 @@
  * iddiasi degildir. Katalog fiyat dagilimi (product_price_stats) olgunlasinca
  * oradan turetilmelidir.
  */
+
+import { CATALOG_PRODUCT_TYPE_DOMAINS } from "./product-types.ts";
 import type { ClarificationRegistry, DomainDefinition } from "./types.ts";
 
 const HELMET: DomainDefinition = {
   id: "helmet",
+  label: "Kask",
   kind: "product",
   triggers: ["kask*"],
   // Motosiklet kaskina ozgu sorular bisiklet/is guvenligi kaskina uymaz;
@@ -107,6 +110,7 @@ const HELMET: DomainDefinition = {
 
 const SHOES: DomainDefinition = {
   id: "shoes",
+  label: "Ayakkabı",
   kind: "product",
   triggers: ["ayakkabı*", "ayakkabi*"],
   blockers: ["bağcık*", "boya*", "dolab*", "dolap*", "tabanlık*", "çorap*", "kutusu"],
@@ -187,6 +191,7 @@ const SHOES: DomainDefinition = {
 
 const GIFT: DomainDefinition = {
   id: "gift",
+  label: "Hediye",
   kind: "intent",
   triggers: ["hediye*"],
   fillerTerms: ["doğum günü*", "doğumgünü*", "yılbaşı*", "sürpriz*", "hediyelik"],
@@ -316,6 +321,7 @@ const GIFT: DomainDefinition = {
 
 const PHONE: DomainDefinition = {
   id: "phone",
+  label: "Telefon",
   kind: "product",
   triggers: ["telefon*", "cep telefon*", "akıllı telefon*"],
   blockers: [
@@ -369,6 +375,7 @@ const PHONE: DomainDefinition = {
 
 const ELECTRONICS: DomainDefinition = {
   id: "electronics",
+  label: "Elektronik",
   kind: "product",
   triggers: ["elektronik*", "teknolojik ürün*", "teknoloji ürün*"],
   retrievalTerms: [],
@@ -431,6 +438,7 @@ const ELECTRONICS: DomainDefinition = {
 
 const HOME: DomainDefinition = {
   id: "home",
+  label: "Ev ve yaşam",
   kind: "product",
   triggers: ["evim*", "ev için", "eve", "ev eşya*", "ev dekor*", "mobilya*"],
   retrievalTerms: [],
@@ -482,5 +490,7 @@ const HOME: DomainDefinition = {
 };
 
 export const DEFAULT_CLARIFICATION_REGISTRY: ClarificationRegistry = {
-  domains: [HELMET, SHOES, GIFT, PHONE, ELECTRONICS, HOME],
+  // Ilk alti: kural sozlugu domainleri (deterministik tetikleyicili). Sonrasi:
+  // yalnizca modelin secebildigi katalog urun turleri (`product-types.ts`).
+  domains: [HELMET, SHOES, GIFT, PHONE, ELECTRONICS, HOME, ...CATALOG_PRODUCT_TYPE_DOMAINS],
 };

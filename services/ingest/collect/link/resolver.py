@@ -398,6 +398,8 @@ def resolve_url(
         discovery_source="user_link",
     )
     offer_id = writer.write(offer)
+    # Teklif zaten bir urune bagliysa yeni fiyat/stok ozete hemen yansir.
+    writer.refresh_aggregates()
 
     return ResolvedLink(
         merchant_id=merchant_id,

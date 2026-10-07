@@ -126,6 +126,46 @@ def _flatten_scalars(entry: dict[str, Any]) -> dict[str, str]:
     }
 
 
+def _group_image_entries(
+    images: list[Any],
+    group_variants: list[dict[str, Any]],
+    *,
+    split_by_color: bool,
+) -> tuple[dict[str, str], ...]:
+    """Bu renk grubunun galeri gorselleri (karar 0073).
+
+    Iliski YALNIZCA kaynagin kanitladigi yerden kurulur: `images[].variant_ids`.
+    Urun renklere bolunmusse (`split_by_color`):
+    - gorselin `variant_ids`i bu grubun varyantlariyla kesisiyorsa -> varyanta ozgu;
+    - `variant_ids` bossa -> ortak gorsel (kimseye bagli degil);
+    - baska rengin varyantlarina bagliysa -> BU offer'a ait degil, alinmaz.
+    Bolunmediyse tum gorseller ortaktir. `position` magazanin urun sayfasindaki
+    sirayi tasir; `variant.featured_image` burada KULLANILMAZ (genellikle duz urun
+    fotografi ve satici siralamasindan bagimsiz; bkz. karar 0073 eki).
+    """
+    group_ids = {variant.get("id") for variant in group_variants if variant.get("id") is not None}
+    entries: list[dict[str, str]] = []
+    for order, image in enumerate(images):
+        if not isinstance(image, dict) or not image.get("src"):
+            continue
+        linked = {v for v in (image.get("variant_ids") or []) if v is not None}
+        specific = False
+        if split_by_color and linked:
+            if not linked & group_ids:
+                continue
+            specific = True
+        entry = {
+            "src": str(image["src"]),
+            "position": str(image.get("position") or order + 1),
+            "variant_specific": "1" if specific else "0",
+        }
+        for key in ("width", "height"):
+            if image.get(key):
+                entry[key] = str(image[key])
+        entries.append(entry)
+    return tuple(entries)
+
+
 def _with_size(
     entry: dict[str, str], variant: dict[str, Any], size_option: str | None
 ) -> dict[str, str]:
@@ -398,7 +438,12 @@ class ShopifyConnector(Connector):
         return RawRecord(
             fields=fields,
             source_ref=f"shopify urun {product_id} renk {color or '-'}",
-            groups={"variants": variant_entries},
+            groups={
+                "variants": variant_entries,
+                "images": _group_image_entries(
+                    images, group_variants, split_by_color=color is not None
+                ),
+            },
         )
 
 

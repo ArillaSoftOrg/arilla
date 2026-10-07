@@ -120,6 +120,8 @@ const SOURCE_LABELS = {
 const INTERPRETATION_SOURCE_LABELS = {
   deterministic: "Kural sözlüğü (deterministik)",
   stored_model: "Saklanmış model yorumu (en düşük öncelik)",
+  // Tanı ekranı Gemini çağırmaz; bu değer yalnızca `/ara`'nın anlık yolunda oluşur.
+  realtime_model: "Anlık model yorumu (en düşük öncelik)",
   none: "Yok (sözlük domain bulmadı, saklanmış yorum yok)",
 } as const;
 

@@ -1,66 +1,89 @@
 /**
  * `/gecmis` ve `/hesap` "Son baktıkların" (docs/pages.md: "silme düğmesi
- * zorunludur ve gerçekten silmelidir"). Kaynak `product_view`: kullanıcı başına
- * ürün başına TEK satır, son 50 ile sınırlı (0009).
+ * zorunludur ve gerçekten silmelidir"). `product_view` kişisel veridir
+ * (docs/kvkk.md): yalnızca girişli kullanıcı ve güncel `browsing_history`
+ * rızası varken yazılır (`recordProductView`). Rıza yoksa hiçbir şey yazılmaz.
  *
- * Yazma YALNIZCA `recordProductView` ile ve YALNIZCA hesabın
- * `browsing_history` rızası verilmişken yapılır (docs/kvkk.md: opt-in). Bu,
- * analitik rızasından (`activity/record.ts`) ayrıdır: kişiye gösterilen
- * özellik başka, davranışsal ölçüm başka rızadır.
+ * Kullanıcı başına ürün başına TEK satır tutulur (şemada unique kısıt yok,
+ * bu yüzden yazım kullanıcı başına danışma kilidi altında güncelle-yoksa-ekle
+ * yapar); tekrar görüntülemede `viewed_at` güncellenir. Kullanıcı başına en
+ * fazla `HISTORY_MAX_ROWS` satır kalır (0009 şema yorumu).
  */
 
-import { type Database, product, productView } from "@arilla/db";
-import { and, desc, eq, sql } from "drizzle-orm";
-import { getLatestConsents } from "../consent/account-consent.ts";
+import { type Database, product, productView, userConsent } from "@arilla/db";
+import { and, desc, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { HistoryItemView } from "./types.ts";
 
 const DEFAULT_LIMIT = 50;
-/** `product_view` kullanıcı başına en fazla bu kadar satır tutar (0009). */
-export const PRODUCT_VIEW_RETENTION = 50;
-/** `product_view.session_id` NOT NULL; oturum kimliği saklanmaz (kişisel veri azaltma). */
-const PRODUCT_VIEW_SESSION = "account";
+export const HISTORY_MAX_ROWS = 50;
+/** `product_view.session_id` NOT NULL; hesap geçmişi oturum kimliğine bağlanmaz. */
+const HISTORY_SESSION_ID = "account";
 
-export type RecordProductViewOutcome = "recorded" | "no_consent" | "no_user";
+export type RecordProductViewOutcome = "recorded" | "no_user" | "no_consent" | "invalid";
 
-/**
- * Girişli kullanıcının ürün görüntülemesini "son baktıkların" listesine yazar.
- * Aynı ürün tekrar açılırsa satır güncellenir (yeni kopya yok), liste
- * en yeni başta kalır. Rıza yoksa hiçbir şey yazılmaz.
- */
+export interface RecordProductViewInput {
+  userId: number | null | undefined;
+  productId: number;
+  now?: Date;
+}
+
 export async function recordProductView(
   db: Database,
-  input: { userId: number | null | undefined; productId: number; now?: Date },
+  input: RecordProductViewInput,
 ): Promise<RecordProductViewOutcome> {
-  const userId = input.userId;
+  const { userId, productId } = input;
   if (typeof userId !== "number" || !Number.isInteger(userId)) return "no_user";
+  if (!Number.isInteger(productId) || productId <= 0) return "invalid";
   const now = input.now ?? new Date();
 
   return db.transaction(async (tx) => {
     await tx.execute(sql`SELECT pg_advisory_xact_lock(hashtext('product_view'), ${userId}::int)`);
-    const latest = await getLatestConsents(tx, userId, ["browsing_history"]);
-    if (latest.get("browsing_history")?.granted !== true) return "no_consent";
 
-    const updated = await tx
-      .update(productView)
-      .set({ viewedAt: now })
-      .where(and(eq(productView.userId, userId), eq(productView.productId, input.productId)))
-      .returning({ id: productView.id });
-    if (updated.length === 0) {
+    const latest = await tx
+      .select({ granted: userConsent.granted })
+      .from(userConsent)
+      .where(and(eq(userConsent.userId, userId), eq(userConsent.kind, "browsing_history")))
+      .orderBy(desc(userConsent.grantedAt), desc(userConsent.id))
+      .limit(1);
+    if (latest[0]?.granted !== true) return "no_consent";
+
+    const existing = await tx
+      .select({ id: productView.id })
+      .from(productView)
+      .where(and(eq(productView.userId, userId), eq(productView.productId, productId)))
+      .orderBy(desc(productView.viewedAt), desc(productView.id));
+    const keep = existing[0];
+    if (keep) {
+      await tx.update(productView).set({ viewedAt: now }).where(eq(productView.id, keep.id));
+      // Eski sürümlerden kalmış olabilecek yinelenenleri temizle.
+      const extra = existing.slice(1).map((row) => row.id);
+      if (extra.length > 0) await tx.delete(productView).where(inArray(productView.id, extra));
+    } else {
       await tx.insert(productView).values({
         userId,
-        sessionId: PRODUCT_VIEW_SESSION,
-        productId: input.productId,
+        sessionId: HISTORY_SESSION_ID,
+        productId,
         viewedAt: now,
       });
     }
-    await tx.execute(sql`
-      DELETE FROM product_view
-       WHERE user_id = ${userId}
-         AND id NOT IN (
-           SELECT id FROM product_view WHERE user_id = ${userId}
-            ORDER BY viewed_at DESC, id DESC LIMIT ${PRODUCT_VIEW_RETENTION}
-         )
-    `);
+
+    const newest = await tx
+      .select({ id: productView.id })
+      .from(productView)
+      .where(eq(productView.userId, userId))
+      .orderBy(desc(productView.viewedAt), desc(productView.id))
+      .limit(HISTORY_MAX_ROWS);
+    if (newest.length === HISTORY_MAX_ROWS) {
+      await tx.delete(productView).where(
+        and(
+          eq(productView.userId, userId),
+          notInArray(
+            productView.id,
+            newest.map((row) => row.id),
+          ),
+        ),
+      );
+    }
     return "recorded";
   });
 }
@@ -83,7 +106,7 @@ export async function listHistory(
     .from(productView)
     .innerJoin(product, eq(product.id, productView.productId))
     .where(eq(productView.userId, userId))
-    .orderBy(desc(productView.viewedAt))
+    .orderBy(desc(productView.viewedAt), desc(productView.id))
     .limit(limit);
 
   return rows;

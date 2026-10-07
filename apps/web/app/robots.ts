@@ -23,6 +23,7 @@ export default function robots(): MetadataRoute.Robots {
         "/gecmis",
         "/hesap",
         "/ara",
+        "/sohbet",
         "/kaydettiklerim",
         "/alarmlar",
         "/giris/",

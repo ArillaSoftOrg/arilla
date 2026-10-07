@@ -79,14 +79,16 @@ CREATE TABLE product (
     color           TEXT,
     attributes      JSONB       NOT NULL DEFAULT '{}'::jsonb,  -- renk, malzeme, beden
     primary_image_url TEXT,
-    -- denormalize edilmiş, toplu işle güncellenir. İstek yolu bunları okur.
+    -- denormalize edilmiş; teklifi yazan işlemde yenilenir, günlük cron ve
+    -- `similarity --prices` onarır (karar 0072). İstek yolu bunları okur.
+    -- Yalnızca AKTİF mağazanın fiyatlı aktif teklifi sayılır (arama ile aynı).
     -- min_price: aktif tekliflerin en düşüğü, TÜM varyantlar dahil (0033).
     -- "Başlangıç fiyatı"dır; farklı boyutlar (60/100 ml) karşılaştırılabilir
     -- "en ucuz" fiyat değildir. Varyant bazlı karşılaştırma ürün sayfasında.
     min_price       BIGINT,
     max_price       BIGINT,
-    offer_count     INTEGER     NOT NULL DEFAULT 0,
-    in_stock_count  INTEGER     NOT NULL DEFAULT 0,
+    offer_count     INTEGER     NOT NULL DEFAULT 0,   -- farklı mağaza sayısı ("N mağaza")
+    in_stock_count  INTEGER     NOT NULL DEFAULT 0,   -- stokta olan mağaza sayısı
     price_updated_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -143,6 +145,32 @@ CREATE INDEX offer_product_idx    ON offer (product_id) WHERE product_id IS NOT 
 CREATE INDEX offer_unmatched_idx  ON offer (merchant_id) WHERE product_id IS NULL;
 CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT NULL;
 CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
+
+-- Offer görselleri (0053, karar 0073). Kaynak en fazla 6 görsel; kullanıcıya en
+-- fazla 3'ü gösterilir (display_rank). Görsel ilk olarak offer'dan gelir; ürün
+-- galerisi okuma sırasında en uygun offer'ın görsellerinden kurulur. Binary
+-- YOK: URL + özet + metadata. r2_url ileride ayrı aynalama işi doldurur.
+CREATE TABLE offer_image (
+    id                  BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    offer_id            BIGINT      NOT NULL REFERENCES offer(id) ON DELETE CASCADE,
+    url_hash            BYTEA       NOT NULL CHECK (octet_length(url_hash) = 16),  -- md5(normalize URL)
+    source_url          TEXT        NOT NULL CHECK (char_length(source_url) BETWEEN 1 AND 2048),
+    r2_url              TEXT        CHECK (r2_url IS NULL OR char_length(r2_url) BETWEEN 1 AND 2048),
+    source_position     SMALLINT    NOT NULL CHECK (source_position >= 0),  -- mağaza sırası
+    display_rank        SMALLINT    CHECK (display_rank IS NULL OR display_rank >= 0),  -- NULL: gösterilmez
+    is_variant_specific BOOLEAN     NOT NULL DEFAULT FALSE,  -- kaynak görseli varyanta bağlamış mı
+    image_hash          TEXT,
+    perceptual_hash     BIGINT,
+    width               INTEGER     CHECK (width IS NULL OR width > 0),
+    height              INTEGER     CHECK (height IS NULL OR height > 0),
+    status              TEXT        NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'removed', 'broken')),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT offer_image_url_uniq UNIQUE (offer_id, url_hash),
+    CONSTRAINT offer_image_rank_uniq UNIQUE (offer_id, display_rank) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT offer_image_rank_active CHECK (display_rank IS NULL OR status = 'active')
+);
 
 -- Beden varyantları. Stok bedene göre değişir; "senin bedenin var mı" sorusu
 -- moda kategorisinde satın alma kararının kendisidir.
@@ -1404,3 +1432,80 @@ REVOKE UPDATE ON query_interpretation      FROM arilla_app;   -- 0046 (kullanilm
 -- price_point partition'larına doğrudan erişim yoktur. Partitioned tabloya
 -- INSERT'te yetki ebeveyn üzerinde denetlenir; yönlendirme etkilenmez.
 -- Yeni partition'lar için aynı REVOKE'u `scripts/partitions.ts` uygular.
+
+-- 0054 (karar 0074): konusmali urun kesfi. Tam metin: migrations/0054_conversation.sql.
+CREATE TABLE IF NOT EXISTS conversation (
+    id                     UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id                BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    -- Normalize edilmis, birlestirilmis arama niyeti; NULL = henuz arama yok.
+    current_search_intent  JSONB,
+    -- Acik netlestirme sorusu (son asistan mesajinin `payload.question`i); NULL = yok.
+    -- Sunucu "bu secenek gecerli mi" kontrolunu bundan yapar.
+    pending_question       JSONB,
+    -- Modelin onerdigi kisa baslik degil, ilk mesajin ilk 80 karakteri.
+    title                  TEXT        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 120),
+    -- Atomik kira: model cagrisi suresince bir tur sahiplenir; sure dolunca duser.
+    processing_until       TIMESTAMPTZ,
+    message_count          INTEGER     NOT NULL DEFAULT 0 CHECK (message_count >= 0),
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_message_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT conversation_intent_shape CHECK (
+        current_search_intent IS NULL OR (
+            jsonb_typeof(current_search_intent) = 'object'
+            AND pg_column_size(current_search_intent) <= 4096)
+    ),
+    CONSTRAINT conversation_question_shape CHECK (
+        pending_question IS NULL OR (
+            jsonb_typeof(pending_question) = 'object'
+            AND pg_column_size(pending_question) <= 4096)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS conversation_user_recent_idx
+    ON conversation (user_id, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS conversation_last_message_idx
+    ON conversation (last_message_at);
+
+CREATE TABLE IF NOT EXISTS chat_message (
+    id                 BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    conversation_id    UUID        NOT NULL REFERENCES conversation(id) ON DELETE CASCADE,
+    seq                INTEGER     NOT NULL CHECK (seq >= 1),
+    role               TEXT        NOT NULL CHECK (role IN ('user', 'assistant')),
+    -- user: text | option | skip; assistant: clarify | search | notice.
+    kind               TEXT        NOT NULL,
+    content            TEXT        NOT NULL CHECK (char_length(content) BETWEEN 1 AND 2000),
+    -- clarify: {question}; search: {intent, source}; option: {questionId, value}.
+    payload            JSONB,
+    -- Istemcinin tur basina urettigi opak anahtar; yalnizca tekillestirme icindir.
+    client_request_id  TEXT        CHECK (client_request_id IS NULL
+                                          OR char_length(client_request_id) BETWEEN 8 AND 100),
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT chat_message_order UNIQUE (conversation_id, seq),
+    CONSTRAINT chat_message_role_kind CHECK (
+        (role = 'user' AND kind IN ('text', 'option', 'skip'))
+        OR (role = 'assistant' AND kind IN ('clarify', 'search', 'notice'))
+    ),
+    CONSTRAINT chat_message_payload_shape CHECK (
+        payload IS NULL OR (jsonb_typeof(payload) = 'object' AND pg_column_size(payload) <= 4096)
+    )
+);
+
+-- Ayni tur iki kez gonderilemez; yalnizca kullanici mesajlarinda anahtar var.
+CREATE UNIQUE INDEX IF NOT EXISTS chat_message_request_unique
+    ON chat_message (conversation_id, client_request_id)
+    WHERE client_request_id IS NOT NULL;
+
+REVOKE UPDATE ON chat_message FROM arilla_app;
+
+-- 0055 (karar 0075): sohbet sonuc geri bildirimi. Tam metin: migrations/0055_chat_result_feedback.sql.
+CREATE TABLE IF NOT EXISTS chat_result_feedback (
+    message_id       BIGINT      PRIMARY KEY REFERENCES chat_message(id) ON DELETE CASCADE,
+    conversation_id  UUID        NOT NULL REFERENCES conversation(id) ON DELETE CASCADE,
+    helpful          BOOLEAN     NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS chat_result_feedback_conversation_idx
+    ON chat_result_feedback (conversation_id);

@@ -201,6 +201,12 @@ Google'a hiçbir arama metni gönderilmez. Toplu iş günde bir kez (Vercel cron
 - Kurum'a bildirim: tamamlandığına dair bu depoda kayıt **yoktur**; durum
   hukuki kayıtta izlenir (bkz. kontrol listesi).
 
+**Anlık yol (karar 0062).** `GEMINI_REALTIME_ENABLED` açıkken aynı metin
+süzgecinden geçen arama ifadesi arama sırasında da Gemini'ye gönderilebilir
+(tekrar eşiği yok; aynı ifade daha önce yorumlandıysa yeniden gönderilmez).
+Gönderilen veri, saklama ve `store: false` aşağıdaki toplu yolla aynıdır.
+`/gizlilik` §2.2 ve §5 ile `/kvkk-aydinlatma` §5 bu zamanlamayı anlatır.
+
 **Veri akışı.** Çevrimdışı toplu iş,
 `search_query_day`'deki toplu günlük özetten (kullanıcı, oturum veya cihaz
 tanımlayıcısı içermez) son 30 günde **en az 3 kez ve en az 3 farklı günde**
@@ -375,3 +381,16 @@ denetlenir; sonuç ekranı e-posta değil hesabın public kimliğini gösterir.
 Veri indirme çıktısına dahildir. `/gizlilik` 2.5 ve `/kvkk-aydinlatma`
 "Talep/şikâyet" maddesi bu akışı kapsar. Anonim ve girişli yanıtların somut
 saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).
+
+
+## Konuşmalı keşif (`/sohbet`, karar 0074)
+
+- Veri: kullanıcının sohbet mesajları (serbest metin) ve çıkarılan arama niyeti;
+  `conversation` / `chat_message`, kullanıcıya bağlı. Hesap silinince CASCADE; son
+  mesajdan 90 gün sonra silinir.
+- Aktarım: her kullanıcı mesajı (son 12 mesaj bağlamıyla) Gemini'ye gider; kimlik,
+  e-posta, IP gönderilmez. Özel nitelikli/kişisel veri/sır süzgeci (0059) mesaja
+  uygulanır; eşleşen mesaj modele gitmez.
+- **Etkinleştirme öncesi (açık):** hukuk danışmanı onayı (0059 yalnızca filtrelenmiş
+  toplu sorgu içindi), aydınlatma/gizlilik metninde sohbet içeriği ve 90 gün saklama,
+  `/hesap/veri-indir` kapsamına sohbetlerin eklenmesi kararı.

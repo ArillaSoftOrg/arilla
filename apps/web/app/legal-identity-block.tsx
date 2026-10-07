@@ -9,10 +9,11 @@ export const LEGAL_EFFECTIVE_LABEL = "Yürürlük ve son güncelleme: 26 Eylül 
 
 /**
  * Gizlilik politikasi ve KVKK aydinlatma metni, yapay zeka destekli kategori
- * yorumu (Google Gemini API, karar 0059) eklendiginde guncellendi. Diger yasal
- * sayfalar degismedigi icin ortak etiketi korur.
+ * yorumu (Google Gemini API, karar 0059) eklendiginde ve arama sirasindaki
+ * yorum (karar 0062) icin guncellendi. Diger yasal sayfalar degismedigi icin
+ * ortak etiketi korur.
  */
-export const PRIVACY_NOTICE_UPDATED_LABEL = "Son güncelleme: 6 Ekim 2026";
+export const PRIVACY_NOTICE_UPDATED_LABEL = "Son güncelleme: 7 Ekim 2026";
 
 function MailLink({ email }: { email: string }) {
   return <a href={`mailto:${email}`}>{email}</a>;

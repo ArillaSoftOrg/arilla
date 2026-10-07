@@ -6,7 +6,7 @@
     "height": 1304,
     "bytes": 234266,
     "sha256": "ec9da6d8ea6ceff4cb09c26b86fcb7a85b9cc9c5049afd88197b593afbc35c8c",
-    "uploaded": true,
+    "uploaded": false,
     "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmq1ipu4fc6as07lni9jr50zp"
   },
   "acik-ev-sezonu": {
@@ -16,7 +16,487 @@
     "height": 1036,
     "bytes": 210792,
     "sha256": "634851ea710b4e115e5400bb360116850fc42bab66732817fe2507771dc13df9",
-    "uploaded": true,
+    "uploaded": false,
     "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmuhbw2kmx8kk07lnl8i2uhdo"
+  },
+  "serena-lily-bar-tabureleri": {
+    "key": "blog/ff99ff3ce390c9fccb50f54ea296322e.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1033,
+    "bytes": 258316,
+    "sha256": "ff99ff3ce390c9fccb50f54ea296322ec12ee7cc5131d1016a31c99c61fa4186",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmuamkhlzdflc07mze6y8o7gw"
+  },
+  "orijinal-teddy-kanepe": {
+    "key": "blog/c049464a1ead418b1c7cfb11c24e4d4e.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1033,
+    "bytes": 85640,
+    "sha256": "c049464a1ead418b1c7cfb11c24e4d4e3d975699e6b8c373a0e7c7beec92ab06",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmtn71ybx37xn07n3qnfebmav"
+  },
+  "sonbahar-moda-sezonu": {
+    "key": "blog/503bee57170b11ac2bfc3d69e5636a8a.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 240738,
+    "sha256": "503bee57170b11ac2bfc3d69e5636a8a7ea73ca3449a0cef4a8724c7d7ffddb5",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmt7rtatb2axc08n4ptc49zkk"
+  },
+  "isci-bayrami-mobilya-indirimleri": {
+    "key": "blog/e2988fd3388551552eec72a85da31003.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1036,
+    "bytes": 375030,
+    "sha256": "e2988fd3388551552eec72a85da31003ec43fbdb4c60ce46347bf08eeabea302",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmstbhc71bu0i07log1q0qu43"
+  },
+  "mackenzie-childs-taklitleri": {
+    "key": "blog/52e1ca47ee2966b3b17f151d0c7fe865.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 194354,
+    "sha256": "52e1ca47ee2966b3b17f151d0c7fe86585d81eb57baffceade7a70d9e08c63d2",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmsnv71pfr5si07loe6hy3z1r"
+  },
+  "louis-vuitton-taklit-cantalari": {
+    "key": "blog/232ef46efdf25269ce3edf8509d50963.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 149988,
+    "sha256": "232ef46efdf25269ce3edf8509d50963ee8a7a4497ce7456fc3ff152a581f0ce",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cms7mqvpc7e8407n1c39t8nkq"
+  },
+  "rhode-glazing-milk-rakipleri": {
+    "key": "blog/a0396339467ca8e451c6df6de11c8c34.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 31280,
+    "sha256": "a0396339467ca8e451c6df6de11c8c34efcd4acff751adb4d455b338df5d4cea",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmrzddozlfgad07n08ybbpk60"
+  },
+  "baccarat-rouge-540-muadilleri": {
+    "key": "blog/8eb3b763723daa97a39a35621da260d7.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 156146,
+    "sha256": "8eb3b763723daa97a39a35621da260d7dfb57d52edf925e61d3d653e2ecc48b7",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmrp7vkruy68r07lpn6016zni"
+  },
+  "evinizin-tamamini-doseme": {
+    "key": "blog/7317a3cb16bfba8ad569cb2433c0954c.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 257906,
+    "sha256": "7317a3cb16bfba8ad569cb2433c0954cbc8fcf5e12d2eae3b24f9f6ba45f425b",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmrfmx6up5gno07ltj62t0zq6"
+  },
+  "yukseltilmis-boho-rehberi": {
+    "key": "blog/7f2c8bc362fac817fbc243dfc78e1862.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 532752,
+    "sha256": "7f2c8bc362fac817fbc243dfc78e18622a09b70059f1af659fb1e8b5eff6723a",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmr6d731ddba607li26r69pul"
+  },
+  "aritzia-tarzi-rehberi": {
+    "key": "blog/e555db79865a6eabe45127ee4df3f8c7.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1077,
+    "bytes": 144288,
+    "sha256": "e555db79865a6eabe45127ee4df3f8c7c6f1e28f4cf27187d2bb9906bc85dada",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmqypbhyi1oas07lnve9j4xbz"
+  },
+  "usm-haller-moduler-alternatifler": {
+    "key": "blog/b610ac839cac12571a769a7fc4a37a40.webp",
+    "contentType": "image/webp",
+    "width": 1909,
+    "height": 824,
+    "bytes": 230212,
+    "sha256": "b610ac839cac12571a769a7fc4a37a40feb71b3cf67be85c15e8d2f9e043d1a0",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmqq3vn1tmask07ljn14xhdo4"
+  },
+  "babalar-gunu-son-dakika-hediyeleri": {
+    "key": "blog/1e1c6e4b615a970bd493880cdac63e8e.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 131744,
+    "sha256": "1e1c6e4b615a970bd493880cdac63e8eef24239083286bf6c7bc35bfb3061116",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmql9dvcs2zfj08lnnxi0upov"
+  },
+  "2026-en-cok-taklit-edilen-mobilyalar": {
+    "key": "blog/0e45118dc538930a8540efd21d1b3611.webp",
+    "contentType": "image/webp",
+    "width": 1774,
+    "height": 887,
+    "bytes": 52714,
+    "sha256": "0e45118dc538930a8540efd21d1b361192120bc2de3f980fd0edafe8c73cd557",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmqbgiwj9hddk06lr9k8a556g"
+  },
+  "togo-kanepe-tarzi": {
+    "key": "blog/7f287d0ba4df8c37a406fb4408ef8309.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 276206,
+    "sha256": "7f287d0ba4df8c37a406fb4408ef8309208921c3e4a90e826ff68982ff620d52",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmprct40ff2h507n4l76vixkw"
+  },
+  "wayfair-outlet-neden-uygun": {
+    "key": "blog/f0b10f3366931467db4befe1c5fc76c5.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 231492,
+    "sha256": "f0b10f3366931467db4befe1c5fc76c5ca363369ecb16f017b7c2447a6c6bde1",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmpfyqmcxlsr907lhioy2io2e"
+  },
+  "uygun-fiyatli-mobilya-nereden": {
+    "key": "blog/67f0bc7ae1348cb88cde41e8730de692.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 246172,
+    "sha256": "67f0bc7ae1348cb88cde41e8730de692564e9822d78a749cf11ebac7af6607eb",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmp7irb5ps3xx07lsfjmmjroe"
+  },
+  "eames-sandalye-muadilleri": {
+    "key": "blog/f913a27d46a49b3fad8128170a5b846b.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 117834,
+    "sha256": "f913a27d46a49b3fad8128170a5b846bbbb85f3b3a0cd9307d3d567b5cd8b861",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmp7c726tkao307ls4b0u4h4t"
+  },
+  "bogg-bag-muadilleri": {
+    "key": "blog/158f533c95ca00eb8c6e13a0a2225da2.webp",
+    "contentType": "image/webp",
+    "width": 1905,
+    "height": 825,
+    "bytes": 88222,
+    "sha256": "158f533c95ca00eb8c6e13a0a2225da216eb9a6fa1df87b154de54ee44a26a39",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmoxim8x5syqj07ljzc2ix02s"
+  },
+  "dyson-airwrap-muadilleri": {
+    "key": "blog/1f7366eaed51ceb4822e4aea8c363378.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 95776,
+    "sha256": "1f7366eaed51ceb4822e4aea8c363378f654159e49d60b0d259b63a1b8138254",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmon0zgct9qmp07lmf78ki59c"
+  },
+  "lululemon-tayt-muadilleri": {
+    "key": "blog/a5c19b1d54fe1ec058446c3a84d45dbf.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1032,
+    "bytes": 132370,
+    "sha256": "a5c19b1d54fe1ec058446c3a84d45dbfb2b72a9f828f7ea5bc7f38be18be5643",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmod6dza4401307lnu09hvy1f"
+  },
+  "mobilyayi-pahali-gosteren-9-detay": {
+    "key": "blog/c9710f11d0aa1ed001536c736f009a22.webp",
+    "contentType": "image/webp",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 182848,
+    "sha256": "c9710f11d0aa1ed001536c736f009a22b491618f8d5d1c61d2e93741108059ff",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmnpe4k1bp6ww07my90et2sw1"
+  },
+  "bilincli-harcama-luks-stil": {
+    "key": "blog/0831a3e7884362e6974ca37bb6bfc834.webp",
+    "contentType": "image/webp",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 86360,
+    "sha256": "0831a3e7884362e6974ca37bb6bfc834a1994b79b989e087dfbb41fcc1d019fa",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmncj17jlz60008lnmzlht9q7"
+  },
+  "alaia-file-babet-muadilleri": {
+    "key": "blog/5645c3757d9c4f302dab58325754cc70.webp",
+    "contentType": "image/webp",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 111646,
+    "sha256": "5645c3757d9c4f302dab58325754cc70eae9e1ea56765f00182d3de0aa1df9a8",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmn2k73ccbkoi08n4aux0697e"
+  },
+  "2026-ev-ve-moda-trendleri": {
+    "key": "blog/392dc5445ba57cc7d57f8ce092bd7bb4.webp",
+    "contentType": "image/webp",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 166802,
+    "sha256": "392dc5445ba57cc7d57f8ce092bd7bb4bcaedc5a3076db52f13a832c07233cd9",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmmk069r1qufz07mz58b1715i"
+  },
+  "orijinal-mi-benzer-mi": {
+    "key": "blog/eb50f388444074e64dddd7b9d85dfb45.webp",
+    "contentType": "image/webp",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 133740,
+    "sha256": "eb50f388444074e64dddd7b9d85dfb45a601a400e9d7572117fe90e3ae4a414c",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmmb5jg3hlecm07n1p4ta4jlb"
+  },
+  "chatgpt-ile-akilli-alisveris": {
+    "key": "blog/37aa6ebb9e55416936a4e820e631db4c.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1029,
+    "bytes": 31938,
+    "sha256": "37aa6ebb9e55416936a4e820e631db4ced1f75e75f231c035f3ab2b4a7ea7c92",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmm3ytje1dulk08mvzceau4jw"
+  },
+  "emin-alisverisci-cercevesi": {
+    "key": "blog/9e64a48a3dc5c1199b9690051cb5e012.webp",
+    "contentType": "image/webp",
+    "width": 1536,
+    "height": 1024,
+    "bytes": 126232,
+    "sha256": "9e64a48a3dc5c1199b9690051cb5e012bea9caeb598daae01d1566ecdd0a53d7",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmltxlejai20d07n4h8gfc777"
+  },
+  "muadil-urun-nedir": {
+    "key": "blog/d3119e8986dc54356b73a4251b485e25.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1309,
+    "bytes": 238898,
+    "sha256": "d3119e8986dc54356b73a4251b485e250f46c04c4ce0f8bac801c88cef2db23c",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmizndf3vvjai07n0oja64ld5"
+  },
+  "wayfair-kanada": {
+    "key": "blog/779f6f48ab21b340a4006b8f02c26ebf.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1602,
+    "bytes": 110124,
+    "sha256": "779f6f48ab21b340a4006b8f02c26ebfb53ed3ea35bd3a8d05579b2149d2f31b",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmienvlrb68bf07lpt7pjflil"
+  },
+  "newegg-teknoloji-indirimleri": {
+    "key": "blog/97571afb3b75272d037c257d30075fc1.webp",
+    "contentType": "image/webp",
+    "width": 1344,
+    "height": 768,
+    "bytes": 125188,
+    "sha256": "97571afb3b75272d037c257d30075fc193e9a0bcd64916e4c91096fec2c75d82",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmiawiqswufpa08lpnnkmvfqr"
+  },
+  "dango-urunleri-hediye": {
+    "key": "blog/07c1d84df60405e716f12aafb863eecd.webp",
+    "contentType": "image/webp",
+    "width": 900,
+    "height": 563,
+    "bytes": 113392,
+    "sha256": "07c1d84df60405e716f12aafb863eecd408e16b49f2ead605576fec3925abadc",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmi8jd0xlxqki0dmxmteq7ydw"
+  },
+  "dort-markayla-modern-yasam": {
+    "key": "blog/7f956e6f557be2eaf2e7a701cbd308a4.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1600,
+    "bytes": 162234,
+    "sha256": "7f956e6f557be2eaf2e7a701cbd308a4b8a75ff24b9f7676cabfa66fddd67d12",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmid405dr0vgh08lprzwct1or"
+  },
+  "yeni-uygulama-neler-sunuyor": {
+    "key": "blog/48c680d184627c8a1e63951187c985a7.webp",
+    "contentType": "image/webp",
+    "width": 1624,
+    "height": 1080,
+    "bytes": 48970,
+    "sha256": "48c680d184627c8a1e63951187c985a74fc619f4bce3e215e0af6ba529e5cbd9",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmhze0cpksufg0dn2p58jvxkx"
+  },
+  "akilli-alisverisci-mobilya-rehberi": {
+    "key": "blog/6ac724b0be27f3001cc5f1b85c261861.webp",
+    "contentType": "image/webp",
+    "width": 1408,
+    "height": 768,
+    "bytes": 66348,
+    "sha256": "6ac724b0be27f3001cc5f1b85c261861d83efcf2c67f94cc9b4a2a107c5f7912",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmhvrn2427j660dmsb5qfj9cd"
+  },
+  "uygun-fiyatli-luksun-sanati": {
+    "key": "blog/9f39c792641b4e28581ebc2f1352a0a1.webp",
+    "contentType": "image/webp",
+    "width": 1408,
+    "height": 768,
+    "bytes": 64070,
+    "sha256": "9f39c792641b4e28581ebc2f1352a0a12d91ec4aef373a8a608d1ecbbad690af",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmhlkn42nno6m09lqtz8bi598"
+  },
+  "2025-ev-trendleri": {
+    "key": "blog/ad9979918c0e4ac8f8db139fef831c53.webp",
+    "contentType": "image/webp",
+    "width": 1408,
+    "height": 768,
+    "bytes": 100478,
+    "sha256": "ad9979918c0e4ac8f8db139fef831c536d3479debdf90bd96133eecf8eea8481",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmhbj9lc8hiz107mzwnho85pv"
+  },
+  "sonbahar-seckisi": {
+    "key": "blog/099ef57f2bb387e401486ce05e363ed9.webp",
+    "contentType": "image/webp",
+    "width": 1408,
+    "height": 768,
+    "bytes": 93234,
+    "sha256": "099ef57f2bb387e401486ce05e363ed97bd11f0f3dabaff29b7fa5895f5fb742",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmh32bips3yka07n31mqghabz"
+  },
+  "ilk-evimi-doseme-hikayesi": {
+    "key": "blog/f00a8404e56f2cac8a4c13b3bc41868c.webp",
+    "contentType": "image/webp",
+    "width": 1408,
+    "height": 768,
+    "bytes": 43940,
+    "sha256": "f00a8404e56f2cac8a4c13b3bc41868c6b0a46584f3fd50f634212b6c7357198",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmh0moyae50s907n11ql2gcys"
+  },
+  "2025in-en-rahat-kanepeleri": {
+    "key": "blog/5f69b6be6a0cb41001f7183a35a13e07.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1309,
+    "bytes": 148240,
+    "sha256": "5f69b6be6a0cb41001f7183a35a13e07169021bcd177a18573d77001ca4242aa",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmb84djgefc5z07n84pdxi3cb"
+  },
+  "mobilyada-tasarruf-13-yol": {
+    "key": "blog/8f54f1f27e442c01f72a9ff990e606aa.webp",
+    "contentType": "image/webp",
+    "width": 1408,
+    "height": 768,
+    "bytes": 109604,
+    "sha256": "8f54f1f27e442c01f72a9ff990e606aad3761dfa47ba2202769b17429b940528",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmg7eki6urwc607n3mw12e5cw"
+  },
+  "super-saturday-firsatlari": {
+    "key": "blog/1e4e3ed80b222cffc4cc40949adc44e8.webp",
+    "contentType": "image/webp",
+    "width": 1408,
+    "height": 768,
+    "bytes": 115576,
+    "sha256": "1e4e3ed80b222cffc4cc40949adc44e8e628923957d504d68af7452578c26aff",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmfzdzcphrr7c07mzmyhypgjs"
+  },
+  "black-friday-mi-son-dakika-mi": {
+    "key": "blog/c1842f8bb37d4e3fa2f46ca223409462.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1600,
+    "bytes": 540492,
+    "sha256": "c1842f8bb37d4e3fa2f46ca223409462a82e910bdbf137822a82871dbd559398",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmfz496mellkk07n552iyae23"
+  },
+  "butceli-yilbasi-alisverisi": {
+    "key": "blog/121ec10654db74745a507ff65a34a569.webp",
+    "contentType": "image/webp",
+    "width": 1408,
+    "height": 768,
+    "bytes": 44896,
+    "sha256": "121ec10654db74745a507ff65a34a5694f32befde69f9855ebe54243ea684a4f",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmfzhex881qax07n68gfs1h9p"
+  },
+  "kemiksiz-kanepe-muadilleri": {
+    "key": "blog/a49bb529f050553ded4bb3bc3ed109de.webp",
+    "contentType": "image/webp",
+    "width": 1408,
+    "height": 768,
+    "bytes": 103606,
+    "sha256": "a49bb529f050553ded4bb3bc3ed109de08fa95f819fa4c08284a40c2a3774b11",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmfxj1d1w957907mzrpcsc6gr"
+  },
+  "serena-lily-sahil-tarzi": {
+    "key": "blog/f22a0bddbbcdc1c28fa026d017174525.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1680,
+    "bytes": 686100,
+    "sha256": "f22a0bddbbcdc1c28fa026d017174525858683eb051c43be139b061c50a01b9b",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmaybjubbqmsc07ms2jb3movp"
+  },
+  "anma-gunu-mobilya-rehberi": {
+    "key": "blog/75bca3b43fcb48982556f48455a7a75a.webp",
+    "contentType": "image/webp",
+    "width": 2400,
+    "height": 1680,
+    "bytes": 437618,
+    "sha256": "75bca3b43fcb48982556f48455a7a75a8a7a86241d44ad8708790c44ad70566e",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmayo479e9fih07ms1rc864pk"
+  },
+  "boucle-koltuk-rehberi": {
+    "key": "blog/48e92c15b84f8476d6f4b304e5c71965.webp",
+    "contentType": "image/webp",
+    "width": 1408,
+    "height": 768,
+    "bytes": 45170,
+    "sha256": "48e92c15b84f8476d6f4b304e5c719658182a3e05342ad894bcc04b4054440cb",
+    "uploaded": false,
+    "sourceUrl": "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmd4mlhgv8klk07n5j4lgszm1"
   }
 }

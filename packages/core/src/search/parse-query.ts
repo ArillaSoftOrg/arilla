@@ -3,6 +3,8 @@
  * ag, model cagrisi yok. `lexiconEntries` disaridan enjekte edilir: testte
  * elle yazilir, uretimde `loadLexicon(db)`'den gelir.
  */
+
+import { extractConversationalBudget } from "../clarification/price-language.ts";
 import { findLexiconMatches, type LexiconEntry } from "./lexicon.ts";
 import {
   normalizeQueryText,
@@ -78,7 +80,27 @@ export function parseQueryText(
   const brandExclude = new Set<string>();
   let bestCategory: { normalized: string; weight: number } | undefined;
 
-  for (const match of extractPricePatterns(normalized)) {
+  // Fiyat: netlestirme cikaricisiyla AYNI sira ve anlam (`extract.ts`): once
+  // konusma dili ("10 bine kadar", "5-10 bin arası", "yaklaşık 20 bin"; binler
+  // uzunluk korunarak normalize edilir), sonra mevcut arama kaliplari. Bu
+  // ifadeler suzgece cevrilir ve metin kapisina sizmaz.
+  const conversational = extractConversationalBudget(normalized);
+  if (conversational.budget !== null) {
+    for (let i = 0; i < normalized.length; ) {
+      if (conversational.rest[i] === " " && normalized[i] !== " ") {
+        const start = i;
+        while (i < normalized.length && conversational.rest[i] === " ") i += 1;
+        const span: Span = { start, end: i };
+        consumedSpans.push(span);
+        markTokensConsumed(tokens, consumed, span);
+      } else {
+        i += 1;
+      }
+    }
+    if (conversational.budget.minKurus !== null) filters.price_min = conversational.budget.minKurus;
+    if (conversational.budget.maxKurus !== null) filters.price_max = conversational.budget.maxKurus;
+  }
+  for (const match of extractPricePatterns(conversational.rest)) {
     const span: Span = { start: match.start, end: match.end };
     if (overlapsAny(span, consumedSpans)) continue;
     consumedSpans.push(span);

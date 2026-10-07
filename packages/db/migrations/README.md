@@ -62,6 +62,8 @@ migration'lar olusturur.
 | `0047_feedback_contact.sql` | Iletisim formu (0061) `feedback`'i paylasir: `kind` ('feedback' varsayilan / 'contact'), nullable `name`; kategori CHECK'i ture gore iki listeye ayrilir; iletisimde e-posta ve ad zorunlu; `(kind, created_at, id)` indeksi (yonetim gelen kutusu). Mevcut satirlar 'feedback' kalir. Geriye uyumlu, yetki degismez. |
 | `0048_activate_shopify_merchants.sql` | 0021'in dogruladigi 18 Shopify merchant aktiflestirilir, `max_products = 3500`, `retry.max_retries = 2` (0063). `admin_audit_event`e kayit. `turkish-finds` kapsam disi. Yalnizca veri. |
 | `0050_early_access_counter.sql` | Erken erisim sayaci (0065): tek satirlik `early_access_counter` (platform disi gercek basvurular, baslangic 78). Gosterilen sayi = bu deger + `early_access` satir sayisi; yonetici elle gunceller, denetim kaydi ile. Uygulamadan INSERT/DELETE/TRUNCATE geri alinir. Yeni tablo, geriye uyumlu. |
+| `0054_conversation.sql` | Konusmali urun kesfi (0074): `conversation` (sahip `user_id`, birlestirilmis `current_search_intent`, acik `pending_question`, `processing_until` kirasi) ve `chat_message` (UNIQUE `(conversation_id, seq)`, kismi UNIQUE `(conversation_id, client_request_id)`, role/kind CHECK). Mesajlar kisisel veridir: hesap silinince CASCADE, 90 gun saklama. `arilla_app`'ten `chat_message` UPDATE geri alinir. Yeni tablolar, geriye uyumlu. |
+| `0055_chat_result_feedback.sql` | Sohbet sonuc geri bildirimi (0075): mesaj basina tek evet/hayir oyu (`chat_result_feedback`, PK `message_id`, CASCADE). Metin tasimaz. Yeni tablo, geriye uyumlu. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori
@@ -131,3 +133,4 @@ pnpm db:partitions --check   # dolu ise sifirdan farkli cikis kodu
 Dolu bulundugunda izlenecek adimlar `docs/ops.md` icindeki runbook'tadir.
 Ozetle: dolu default varken o ayin partition'i **olusturulamaz**, once default
 DETACH edilir.
+| `0053_offer_image.sql` | Coklu urun gorseli (0073): `offer_image` (offer basina <=6 kaynak gorsel, `source_position` magaza sirasi, `display_rank` gosterim sirasi NULL=gosterilmez, `r2_url` NULL, `is_variant_specific`, `status` active/removed/broken; UNIQUE `(offer_id,url_hash)` ve ertelenmis UNIQUE `(offer_id,display_rank)`). Binary yok. `offer.image_url`/`product.primary_image_url` degismez. Yalnizca ekleme. |

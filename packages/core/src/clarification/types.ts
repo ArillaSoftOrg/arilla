@@ -80,6 +80,11 @@ export const BUDGET_FACET_ID = "budget";
 
 export interface DomainDefinition {
   id: string;
+  /**
+   * Kisa Turkce ad ("Laptop"). Modelin taksonomi aciklamasina ve anlik arama
+   * ozetine girer. Yoksa yalnizca `id` kullanilir.
+   */
+  label?: string;
   /** `product`: belirli bir urun ailesi. `intent`: hediye gibi urun-ustu niyet. */
   kind: "product" | "intent";
   /** Domain'i taniyan yuzeyler (`kask*`). */
@@ -93,6 +98,18 @@ export interface DomainDefinition {
   fillerTerms?: readonly string[];
   /** Metin kapisinin bas ismi. Hediye gibi niyetlerde bos. */
   retrievalTerms: readonly string[];
+  /**
+   * Bas ismin katalog basliklarindaki es anlamlilari ("notebook", "dizüstü").
+   * Verilirse bas isim tek bir ALTERNATIF slotu olur (`text_slots`); yoksa
+   * derleme bugunku gibidir.
+   */
+  retrievalAlternatives?: readonly string[];
+  /**
+   * Yalnizca modelin secebildigi katalog urun turu (`product-types.ts`):
+   * deterministik tetikleyicisi yoktur ve soru sormaz. Dogrulayici bu
+   * domainlerde tetikleyici, soru sayisi ve iki-secenek kuralini aramaz.
+   */
+  modelOnly?: boolean;
   /** Domain'in tamaminin dustugu mevcut kategori yolu, varsa. */
   categoryPath?: string;
   facets: readonly FacetDefinition[];
