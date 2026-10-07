@@ -478,7 +478,7 @@ dışındaki bir `DATABASE_URL`'e yazmayı reddeder.
 cd services/ingest
 .venv/Scripts/python -m collect.bootstrap --manifest bootstrap/shopify_merchants.json --report rapor.json
 .venv/Scripts/python -m resolve --limit 5000        # offer -> product
-.venv/Scripts/python -m similarity --prices          # product özetleri + fiyat istatistikleri
+.venv/Scripts/python -m similarity --prices          # fiyat istatistikleri + özet onarımı (özet artık yazarken yenilenir, 0072)
 .venv/Scripts/python -m enrich --kind image --limit 50   # JINA_API_KEY gerekir; küçük parti
 .venv/Scripts/python -m similarity --edges
 ```
@@ -546,8 +546,10 @@ SELECT p.id FROM product p
    append-only olduğu için (CLAUDE.md kural 4 ve 8) önce bu tercih edilir:
    `UPDATE merchant SET is_active = FALSE` ve bu merchant'ların offer'larında
    `is_active = FALSE`; ardından `public_find` / `discovery_slot` satırlarından
-   bootstrap ürünleri çıkarılır ve `python -m similarity --prices` özetleri
-   sıfırlar. Arama `m.is_active` ile zaten dışarıda bırakır.
+   bootstrap ürünleri çıkarılır. Yönetimden mağaza kapatmak özetleri aynı
+   işlemde sıfırlar; elle SQL ile kapatıldıysa günlük onarım cron'u ya da
+   `python -m similarity --prices` sıfırlar (karar 0072). Arama `m.is_active`
+   ile zaten dışarıda bırakır.
 2. **Tam silme (yalnızca hiçbir yere taşınmamış yerel veritabanı).** En temizi
    yerel veritabanını sıfırlamaktır: `docker compose -f infra/docker-compose.yml
    down -v`, ardından `pnpm db:migrate`, `pnpm db:bootstrap-role`, `pnpm seed`.

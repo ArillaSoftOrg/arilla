@@ -18,8 +18,10 @@ import logging
 from dataclasses import dataclass, field, replace
 
 import psycopg
+from psycopg import pq
 from psycopg.types.json import Jsonb
 
+from db import product_aggregates
 from resolve import candidates as candidate_channels
 from resolve import identifiers, products
 from resolve.normalize import ProductKey
@@ -92,6 +94,7 @@ class ResolveCounts:
     auto_accepted: int = 0
     queued: int = 0
     products_created: int = 0
+    aggregates_updated: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -238,6 +241,8 @@ def resolve_offers(
         rows = cur.fetchall()
     brands = products.load_brand_index(conn)
     counts.considered = len(rows)
+    #: Teklif baglanan ya da yeni acilan urunler; ozetleri dongu sonunda.
+    linked: set[int] = set()
 
     for (
         offer_id,
@@ -291,6 +296,7 @@ def resolve_offers(
                     cur.execute(
                         LINK_OFFER, {"product_id": candidate.product_id, "offer_id": offer_id}
                     )
+                linked.add(int(candidate.product_id))
                 counts.auto_accepted += 1
             else:
                 # Bilerek BAGLANMAZ: esigin altindaki iddia insan onayina duser.
@@ -313,6 +319,12 @@ def resolve_offers(
         )
         with conn.cursor() as cur:
             cur.execute(LINK_OFFER, {"product_id": product_id, "offer_id": offer_id})
+        linked.add(int(product_id))
         counts.products_created += 1
 
+    # Yeni bagli urun ayni islemde fiyat ve magaza sayisi kazanir; yoksa
+    # `offer_count = 0`, `min_price = NULL` kalir ve butce aramasi onu gormez.
+    # Islem hata durumundaysa commit zaten hicbir seyi yazmaz.
+    if conn.info.transaction_status != pq.TransactionStatus.INERROR:
+        counts.aggregates_updated = product_aggregates.refresh_products(conn, linked)
     return counts

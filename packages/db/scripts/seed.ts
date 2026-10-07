@@ -940,6 +940,8 @@ await withClient(ownerUrl(), async (client) => {
   );
 
   // --- product denormalizasyonu ---
+  // Anlam packages/core/src/product/refresh-aggregates.ts ile ayni: aktif
+  // magazanin fiyatli aktif teklifi; sayilar farkli magaza sayisidir.
   await client.query(`
     UPDATE product p SET
       min_price        = agg.min_price,
@@ -948,14 +950,15 @@ await withClient(ownerUrl(), async (client) => {
       in_stock_count   = agg.in_stock_count,
       price_updated_at = now()
     FROM (
-      SELECT product_id,
-             min(current_price) AS min_price,
-             max(current_price) AS max_price,
-             count(*)::int      AS offer_count,
-             count(*) FILTER (WHERE in_stock)::int AS in_stock_count
-        FROM offer
-       WHERE product_id IS NOT NULL AND is_active
-       GROUP BY product_id
+      SELECT o.product_id,
+             min(o.current_price) AS min_price,
+             max(o.current_price) AS max_price,
+             count(DISTINCT o.merchant_id)::int AS offer_count,
+             count(DISTINCT o.merchant_id) FILTER (WHERE o.in_stock)::int AS in_stock_count
+        FROM offer o
+        JOIN merchant m ON m.id = o.merchant_id AND m.is_active
+       WHERE o.product_id IS NOT NULL AND o.is_active AND o.current_price IS NOT NULL
+       GROUP BY o.product_id
     ) agg
     WHERE p.id = agg.product_id
   `);
