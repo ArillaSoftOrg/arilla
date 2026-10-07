@@ -15,6 +15,29 @@ desteklemiyor; feed toplama saatler sürebilir. Python worker için ayrı bir
 barındırma gerekir (küçük bir VPS yeterli). "Başta Vercel" ilk günden iki ortam
 demektir.
 
+### Link worker
+
+`queue:link_resolution` tüketicisi (`python -m collect.link --worker`), Docker
+ile paketlenir: `services/ingest/Dockerfile` (Python 3.12, bağımlılıklar
+`pyproject.toml`'dan) ve `infra/docker-compose.worker.yml`. Compose dosyası
+yerel geliştirme için DEĞİLDİR (yerelde worker doğrudan çalıştırılır).
+
+```bash
+docker compose -f infra/docker-compose.worker.yml up -d --build
+```
+
+- Gizli değerler `infra/.env.worker`'dan okunur; dosya depoya girmez
+  (`.gitignore`: `.env.*`). Adlar: `DATABASE_URL`, `REDIS_URL`,
+  `JINA_API_KEY`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS` (isteğe bağlı:
+  `JINA_TOKENS_PER_MINUTE`).
+- **Kopan Postgres bağlantısı:** worker tek bağlantıyla çalışır; bağlantı
+  koparsa süreç `1` ile çıkar, `restart: unless-stopped` yeniden başlatır ve
+  yeni bağlantı kurulur. Yarım kalan istek web tarafında ölü sayılır
+  (`packages/core/src/discovery/link-resolution.ts`).
+- **SIGTERM** (`docker stop`, compose `stop`): süreç `0` ile temiz çıkar; açık
+  işlem geri alınır, bağlantı kapanır. `stop_grace_period: 30s`.
+- Geçici Redis hataları süreci düşürmez; worker bekleyip yeniden dener.
+
 ## Sağlayıcı bağımsızlığı
 
 Vercel'e özgü hiçbir hizmete kilitlenilmez. Taşınabilir muadiller kullanılır:
@@ -29,6 +52,12 @@ Postgres. AWS'ye geçiş bir bağlantı dizesi değişikliğine inmelidir.
   hiçbir koşulda gönderilmez.
 - Anahtar sızarsa: iptal, yenile, `api_usage` tablosundan anormal kullanım
   kontrolü.
+- Özel anahtar dosyaları (Apple `.p8`, `.pem`, `.p12`, SSH anahtarı) depo
+  klasöründe TUTULMAZ; depo dışında (ör. `~/.secrets/`) durur, değer ortam
+  değişkenine yapıştırılır. `.gitignore` bu adları yok sayar ve
+  `pnpm check:secrets` (CI: `security-checks`) izlenen ya da sahnelenmiş bir
+  anahtar dosyası/PEM başlığı görürse başarısız olur (karar 0050). Anahtar bir
+  kez bile commit'lenip push'landıysa geçmişten silmek yetmez: döndürülür.
 
 ## Ortam değişkenleri
 
@@ -38,7 +67,7 @@ birindedir ve okuyan dosya yanında yazar:
 | Grup | Anlamı | Anahtarlar |
 | --- | --- | --- |
 | `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
-| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048) |
+| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı) |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
 | `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `MARKETING_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
@@ -75,9 +104,10 @@ edilir; şema veya Supabase ayarı değişince tekrarlanır.
     WHERE table_schema = 'public'
       AND grantee IN ('anon', 'authenticated');
    ```
-   Sonuç boş olmalı. Satır dönüyorsa Data API kapalı olsa bile yetki
-   geri alınır. Bu bir **ops adımıdır, migration değildir**: yerel ve CI
-   veritabanlarında bu roller yoktur. Adım onayla, sahip rolüyle yapılır:
+   Sonuç boş olmalı. **0042 (karar 0057) ile bu adım migration'a taşındı:**
+   `pnpm db:migrate` yetkileri geri alır ve migration rolünün varsayılan
+   yetkilerini kapatır; roller olmayan yerel/CI veritabanlarında hiçbir şey
+   yapmaz. Aşağıdaki SQL yalnızca referanstır (migration'ın eşdeğeri):
    ```sql
    REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon, authenticated;
    REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
@@ -96,8 +126,17 @@ Son kontrol:
 - **Kod tarafı (madde 3, 2026-10-03):** `@supabase/*` bağımlılığı yok,
   `service_role` anahtarı yok, `NEXT_PUBLIC_` önekli değişken yok; veritabanı
   adresi yalnızca sunucu kodunda okunuyor.
-- **Panel ve yetki sorgusu (1-2):** **yapılmadı.** Production erişimi
-  gerektirir; 0049 ön koşulu.
+- **Panel ve yetki sorgusu (1-2, 2026-10-03):** Data API production'da
+  **açık** ve `public` şemasını sunuyordu; 58 tablonun hepsinde `anon` /
+  `authenticated` tam yetkiliydi (publishable anahtarla `/rest/v1/feedback`
+  200 döndü). 0042 production'a uygulandı; yetki sorgusu boş, aynı probe
+  yetki reddi döner. Data API açık kalır (kullanılmıyor, erişimi yok).
+- **Kalan:** `supabase_admin`'in `public` için varsayılan yetkileri hâlâ
+  `anon`/`authenticated`'e verir; `postgres` bu role üye olmadığı için
+  migration düzeltemez. Bu yalnızca panelden eklenti/obje oluşturulursa
+  etkilidir — panelden `public`'e obje eklendiyse yetki sorgusu (madde 2)
+  tekrar çalıştırılır. `service_role` yetkileri bilerek korunur (gizli
+  anahtar, kodda yok).
 
 ## Kullanıcı aktivitesi migration'ları (0036, 0037, 0038) — production
 
@@ -145,9 +184,46 @@ Veritabanından okunabilen eşikler `/yonetim/islemler` ekranındadır (yalnızc
 yönetici; docs/decisions/0041). Harici uyarı üretmez; ekran bakıldığında
 durumu gösterir.
 
+`/yonetim/islemler` (Sistem sağlığı) her denetimi bir bulgu olarak gösterir:
+önem (kritik / uyarı / bilinmiyor / bilgi / sağlıklı), kanıt zamanı, anlamı,
+ne yapılacağı ve teşhis sayfası (karar 0055). Denetim çalışmazsa durum
+"Bilinmiyor"dur, sağlıklı sayılmaz. Genel bakıştaki "Şimdi dikkat
+isteyenler" aynı bulguların kritik/uyarı/bilinmiyor olanlarıdır (moderatör
+yalnızca mağaza, boru hattı ve eşleştirme kuyruğu bulgularını görür).
+
+İş koşuları `job_run`'a yazılır (karar 0052/0055) ve `/yonetim/islemler/isler`
+sayfasında listelenir: Python işleri (`collect`, `collect_bootstrap`,
+`resolve`, `enrich`, `similarity*`, `link_refresh`; dry-run ve sahte istemci
+yazmaz) ve cron uçları (`discovery_slots`, `cleanup_auth`, `trigger_alerts`,
+`marketing_campaigns`). 2 saatten uzun "sürüyor" kalan koşu takılıdır (süreç
+öldü); günlük cron 30 saat, 15 dakikalık cron 2 saat koşu bırakmazsa
+"zamanında çalışmadı" uyarısı çıkar. Koşular 180 gün saklanır
+(`cleanup-auth` içinde silinir). Çalıştır/yeniden dene düğmesi yoktur.
+
+"Veri boru hattı" bölümü her aşamanın (toplama, eşleştirme, fiyat özeti,
+zenginleştirme, benzerlik kenarları, link çözümleme) durumunu ve elle
+çalıştırma komutunu gösterir. Aşamanın iş koşusu varsa "son çalıştı" oradan,
+yoksa üretilen verinin zamanından ("son kanıt", karar 0051) okunur. Aşamalar
+zamanlanmış değil; "geride olabilir" (bilgi) görünen aşama sırayla
+çalıştırılır.
+
+Başarısız toplama koşusu (`ingest_run.status = 'failed'`) işlemi geri alır;
+0055'ten beri kayıt da oluşturulan/güncellenen/fiyat noktası sayılarını 0
+yazar, geri alınan miktar `error_text`'te not olarak durur.
+
+Model maliyeti `api_usage.cost_micros`'tan okunur ve oran
+(`EMBEDDING_COST_MICROS_PER_1K_TOKENS`) tanımsızken 0 yazılır. Ekran bu
+çağrıları "fiyatlanmamış" sayar ve tutar yerine "Hesaplanmadı" gösterir.
+Gerçek maliyet için oran hem Vercel'de hem Python işlerinin ortamında
+tanımlanmalı; oran geriye dönük uygulanmaz.
+
 | Ne | Eşik | Aksiyon |
 | --- | --- | --- |
-| `ingest_run` başarısızlığı | Aynı merchant 2 kez üst üste | Uyarı |
+| `ingest_run` başarısızlığı | Aynı merchant 2 kez üst üste (tek başarısızlık: bilgi) | Uyarı |
+| İş koşusu takılı | 2 saat "sürüyor" | Uyarı |
+| Zamanlanmış iş gecikti | Günlük 30 saat, 15 dk'lık 2 saat | Uyarı |
+| Model çağrısı sapması | Son 24 saat > önceki 7 günün günlük ortalaması × 3 (en az 50 çağrı) | Uyarı |
+| Link çözümleme kuyruğu (Redis) | 100 üzeri | Uyarı |
 | Feed'siz geçen süre | 24 saat | Uyarı |
 | Oturum başına AI maliyeti | Belirlenen üst sınır | Acil inceleme |
 | Kademe 3'e düşen sorgu oranı | %20 üzeri | Sözlük genişletme işi aç |
@@ -241,12 +317,144 @@ NULL'a çekilen satır sayılarını verir (kişisel veri yok).
 | `cleanup-auth` | `auth_token`, `phone_login_code`, `session` süresi dolanlar | çalışıyor |
 | `purgeExpiredActivity` | `user_activity_event` 180 gün, `query_norm` 90 gün, `auth_event` 1 yıl, `user_consent.ip` 1 yıl | çalışıyor: `cleanup-auth` içinde, ayrı cron yok (0049) |
 
-İşin son başarılı koşusu `/yonetim/islemler`'de verinin tazeliğinden okunur
-(0041 §8). En eski satır süreyi aşmışsa iş çalışmıyor demektir.
+İşin son koşusu `/yonetim/islemler/isler`'de (`cleanup_auth`) görünür;
+süresi geçmiş giriş kaydı birikirse işletim ekranı uyarır (0055). En eski satır süreyi aşmışsa iş çalışmıyor demektir.
 Ertelenmez: süresi geçmiş kişisel veri tutmak aydınlatma metnine aykırıdır.
 
 Analitik rızası geri alındığında kullanıcının olaylarının silinmesi cron'a
 bırakılmaz; rıza satırıyla aynı işlemde yapılır (0049 §8).
+
+## Sorgu yorumlama (Gemini, çevrimdışı) — hukuken onaylı, anahtar eklenince etkin
+
+**Durum:** kod, 0044 ve 0046 üretimde. Hukuk danışmanı üretimde etkinleştirmeyi
+onayladı (m.5/2-f; KVKK m.9 aktarım sözleşmesi imzalandı). `GEMINI_API_KEY`
+Vercel'e eklenene kadar Google'a hiçbir metin gitmez (günlük cron koşar ama atlanır).
+Anahtar, `/gizlilik` ve `/kvkk-aydinlatma` güncel metinle (6 Ekim 2026)
+yayına alındıktan ve docs/kvkk.md "Etkinleştirme kontrol listesi"ndeki açık
+kalemler teyit edildikten sonra eklenir. `store: false` aktarımı ya da işlemeyi kaldırmaz;
+Google kötüye kullanım tespiti için sınırlı süre kayıt tutabilir.
+
+**Etkinleştirme sırası (birleştirme sonrası):**
+1. 6 Ekim 2026 tarihli güncel metin üretimde
+   (`/gizlilik`, `/kvkk-aydinlatma`) görülür. İşlemeden ÖNCE.
+2. Google projesinde bütçe uyarısı ve kota tanımlanır.
+3. Yetki denetimi SQL'i (aşağıda) yeniden çalıştırılır.
+4. Vercel Production'a `GEMINI_API_KEY` (hassas, yalnızca Production) eklenir
+   ve yeniden dağıtılır; tek başına hiçbir şey tetiklemez.
+5. Toplu iş bir kez elle tetiklenir; `job_run`, `api_usage` (en fazla 40),
+   `query_interpretation` ve `/yonetim/arama/tani` ("Saklanmış model yorumu")
+   kontrol edilir.
+6. Birkaç gün elle izleme; zamanlama ayrı bir PR/karardır.
+Geri alma: anahtar Vercel'den kaldırılır (toplu iş atlanır); mevcut yorumlar
+en fazla 90 günde silinir.
+
+Karar 0059. Uç: `GET /api/cron/interpret-queries`, `Authorization: Bearer
+${CRON_SECRET}`. **Günlük Vercel cron:** `apps/web/vercel.json`,
+`30 0 * * *` (00:30 UTC, Türkiye saatiyle yaklaşık 03:30). Vercel, proje
+ortamında `CRON_SECRET` tanımlıyken isteğe `Authorization: Bearer
+${CRON_SECRET}` başlığını kendisi ekler; uç diğer cron'larla aynı kontrolü
+kullanır. Plan Hobby ise Vercel günlük cron'u belirtilen saat içinde
+herhangi bir dakikada çalıştırabilir. Koşu başına en fazla 20 sorgu, gün
+başına en fazla 100 sağlayıcı denemesi (Europe/Istanbul günü) değişmedi; elle
+tetikleme de aynı günlük tavana sayılır. Yanıttaki `providerCallsToday` bu
+koşunun denemeleri DAHİL günün toplamıdır. Gecikme: `/yonetim/islemler`
+`query_interpretation` için 30 saat (diğer günlük cron'larla aynı).
+Durdurma: girişi `vercel.json`'dan kaldırıp dağıtmak ya da anahtarı
+kaldırmak (koşu atlanır). `/ara` bu ucu çağırmaz.
+
+**`/ara` okuma yolu ve dağıtım sırası.** `/ara`, deterministik netleştirme
+ilk turda domain bulamadığında `query_interpretation`'dan (normalize sorgu +
+bugünkü taksonomi özeti + bugünkü model sürümü, yalnızca `accepted`) OKUR;
+model çağrısı, ağ isteği ya da yazma yoktur. Bu yüzden üretimde sıra:
+
+1. `0044_query_interpretation.sql` uygulanır ve doğrulanır
+   (`SELECT count(*) FROM schema_migration` / `to_regclass('public.query_interpretation')`).
+2. Kod dağıtılır.
+
+Okuma, tablo yoksa (`42P01`) ya da sorgu hata verirse sessizce deterministik
+yola düşer (yalnızca sınıf + SQL kodu loglanır, sorgu metni yok); bu bir
+emniyet ağıdır, migration'ın yerine geçmez — tablo yokken her
+domain'siz `/ara` isteği bir hata satırı loglar. Okuma yolu için
+`GEMINI_API_KEY` GEREKMEZ: anahtar yoksa uç "atlandı" döner, yeni yorum
+üretilmez, `/ara` yalnızca tabloda zaten olan (bugün: hiç) satırları kullanır.
+
+- `GEMINI_API_KEY` yoksa sağlayıcı çağrılmaz; yanıt `status: "skipped"`,
+  `skippedReason: "missing_api_key"`. Üretimde anahtar yukarıdaki kontrol
+  listesi tamamlanmadan tanımlanmaz.
+- Koşu başına en fazla 20 sorgu; 35 sn'den sonra yeni sorguya başlanmaz.
+  İstemci 10 sn zaman aşımı, en fazla 2 deneme. Aynı anda ikinci koşu
+  (`already_running`) atlanır.
+- **Günlük maliyet tavanı:** Europe/Istanbul günü başına en fazla 100 sağlayıcı
+  HTTP denemesi (`QUERY_INTERPRETATION_DAILY_CALL_CAP`, yeniden denemeler
+  dahil; elle tekrarlanan koşuların toplamı). Sayım `api_usage`'tan
+  (`operation = 'query_interpretation'`), migration yok. Tavan doluysa koşu
+  `skipped` / `daily_cap`; koşu ortasında dolarsa `stopCode = daily_cap`, kalan
+  sorgular ertelenir. Google projesindeki bütçe/kota sınırı ayrıca önerilir.
+- **Bağlantı dumanı (yalnızca sabit sentetik sorgu):** `GEMINI_SMOKE=1 pnpm
+  gemini:smoke`. Gerçek `GeminiClient` ile tam bir HTTP denemesi; veritabanına
+  dokunmaz, `search_query_day` ya da kullanıcı sorgusu okumaz, dışarıdan metin
+  almaz (argüman verilirse reddeder), `api_usage`'a yazmaz (günlük tavana
+  sayılmaz). Üretim ortamı işaretliyse (`VERCEL_ENV`/`NODE_ENV=production`)
+  ayrıca `GEMINI_SMOKE_ALLOW_PRODUCTION=1` ister. Çıktı yalnızca durum ve token
+  sayısıdır. Çıkış kodu 0/1/2 (geçti/başarısız/reddedildi).
+- `/yonetim/arama/tani` "Yorum kaynağı" satırı: kural sözlüğü (deterministik),
+  saklanmış model yorumu ya da yok - `/ara` ile aynı salt okunur yol.
+- Aday: `search_query_day` son 30 gün, en az 3 arama VE en az 3 farklı gün,
+  kişisel veri/kimlik/sır ve özel nitelikli veri bağlamı süzgecinden geçmiş,
+  deterministik netleştirmenin domain bulamadığı normalize sorgu.
+  Kullanıcı/oturum verisi okunmaz. Gönderilen metin anonim değildir:
+  süzgeçler riski azaltır, garanti etmez; 3 farklı gün 3 farklı kişi demek
+  değildir.
+- Saklama: `query_interpretation` 90 gün (`created_at`). Günlük `cleanup-auth`
+  cron'u siler; adım diğer saklama işlerinden yalıtılmıştır (tablo yoksa ya da
+  `arilla_app`'in DELETE yetkisi yoksa diğer temizlik sürer, koşu `partial`,
+  `detail.queryInterpretations_failed` SQL kodunu taşır).
+- **Etkinleştirme ön koşulu (salt okunur, şimdi değil):** üretim çalışma
+  rolünün okuma ve 90 günlük temizlik yetkisi doğrulanır; hiçbir yetki bu
+  adımda verilmez ya da geri alınmaz, eksikse ayrı ve onaylı bir adımda
+  düzeltilir:
+  ```sql
+  SELECT
+    has_table_privilege('arilla_app', 'public.query_interpretation', 'SELECT') AS can_select,
+    has_table_privilege('arilla_app', 'public.query_interpretation', 'DELETE') AS can_delete;
+  ```
+  İkisi de `true` olmalı (toplu iş ayrıca INSERT ister:
+  `has_table_privilege('arilla_app', 'public.query_interpretation', 'INSERT')`).
+- Sonuç `query_interpretation`'a yazılır (`accepted` / `empty` / `invalid`);
+  sağlayıcı hatası satır yazmaz, sonraki koşu yeniden dener. 401/403/4xx ya da
+  429'da koşu durur (`stopCode`).
+- Her HTTP denemesi `api_usage`'a bir satır (`operation =
+  'query_interpretation'`, `units` = toplam token, kimlik NULL, `cost_micros`
+  0 — fiyat oranı henüz tanımlı değil, ekran "fiyatlanmamış" sayar).
+- Koşu `job_run`'a `query_interpretation` adıyla yazılır; `/yonetim/islemler/isler`
+  listesinde görünür. `job_run`'da `skipped` durumu yoktur: atlanan koşu
+  `success` + `detail.skipped = true` ve `skippedReason` ile yazılır.
+  Ayrıntı yalnızca sayılardır.
+
+### Anlık sorgu yorumu (karar 0062) — bayrak arkasında, kapalı
+
+`GEMINI_REALTIME_ENABLED=true` (ve `GEMINI_API_KEY`) iken `/ara` isteği
+içinde Gemini çağrılır: metin süzgeci → saklanan yorum varsa yeniden kullanım
+→ günlük anlık tavan (2.000 deneme, Europe/Istanbul günü) → Gemini (2,5 sn,
+tek deneme) → doğrulama → `query_interpretation` + `api_usage`
+(`operation = 'query_interpretation_realtime'`). Hata ya da tavan aramayı
+durdurmaz; plan deterministik yola düşer. Toplu iş ve 100'lük tavanı
+değişmez; anlık yol açıkken ikincil öğrenme/kurtarma yoludur.
+Kişi başına ek limit (karar 0063): saatte 30 anlık model çağrısı (girişli
+hesap ya da IP'nin SHA-256 özeti, Redis `rti:*` anahtarları); önbellek
+isabeti sayılmaz, Redis yoksa model çağrılmaz. Ürünlerin üstündeki
+"Yapay zekâ yorumu" özeti ikinci çağrı yapmaz; yorum yoksa gösterilmez.
+
+**Açmadan önce:** hukuki yeniden değerlendirme ve `/gizlilik` güncellemesi
+(`docs/legal-review/gemini-anlik-yorum-taslak.md`). **Kapatma:** bayrağı
+silip yeniden dağıtmak; saklanan yorumlar okunmaya devam eder (0059 yolu).
+**İzleme:** günlük anlık deneme sayısı
+
+```sql
+SELECT count(*) FROM api_usage
+ WHERE operation = 'query_interpretation_realtime'
+   AND created_at >= (now() AT TIME ZONE 'Europe/Istanbul')::date AT TIME ZONE 'Europe/Istanbul';
+```
 
 ## Oran sınırlama ve kazımaya karşı koruma
 
@@ -270,7 +478,7 @@ dışındaki bir `DATABASE_URL`'e yazmayı reddeder.
 cd services/ingest
 .venv/Scripts/python -m collect.bootstrap --manifest bootstrap/shopify_merchants.json --report rapor.json
 .venv/Scripts/python -m resolve --limit 5000        # offer -> product
-.venv/Scripts/python -m similarity --prices          # product özetleri + fiyat istatistikleri
+.venv/Scripts/python -m similarity --prices          # fiyat istatistikleri + özet onarımı (özet artık yazarken yenilenir, 0072)
 .venv/Scripts/python -m enrich --kind image --limit 50   # JINA_API_KEY gerekir; küçük parti
 .venv/Scripts/python -m similarity --edges
 ```
@@ -338,8 +546,10 @@ SELECT p.id FROM product p
    append-only olduğu için (CLAUDE.md kural 4 ve 8) önce bu tercih edilir:
    `UPDATE merchant SET is_active = FALSE` ve bu merchant'ların offer'larında
    `is_active = FALSE`; ardından `public_find` / `discovery_slot` satırlarından
-   bootstrap ürünleri çıkarılır ve `python -m similarity --prices` özetleri
-   sıfırlar. Arama `m.is_active` ile zaten dışarıda bırakır.
+   bootstrap ürünleri çıkarılır. Yönetimden mağaza kapatmak özetleri aynı
+   işlemde sıfırlar; elle SQL ile kapatıldıysa günlük onarım cron'u ya da
+   `python -m similarity --prices` sıfırlar (karar 0072). Arama `m.is_active`
+   ile zaten dışarıda bırakır.
 2. **Tam silme (yalnızca hiçbir yere taşınmamış yerel veritabanı).** En temizi
    yerel veritabanını sıfırlamaktır: `docker compose -f infra/docker-compose.yml
    down -v`, ardından `pnpm db:migrate`, `pnpm db:bootstrap-role`, `pnpm seed`.
@@ -367,28 +577,56 @@ pnpm db:set-role -- --email kisi@ornek.com --role user  --reason "yetki geri al�
 
 - Yalnızca yerel veritabanında çalışır (`DATABASE_URL_OWNER` localhost değilse durur).
 - Rol zaten istenen değerse hiçbir şey yazmaz.
-- Değişiklik ve `users.role_change` denetim satırı aynı işlemde yazılır
-  (`actor_role = 'cli'`); `/yonetim/denetim`'de "Rol değiştirildi" olarak görünür.
+- `users.role_change` denetim satırını veritabanı tetikleyicisi
+  (`app_user_role_change_audit`, 0039) aynı işlemde yazar; betik yalnızca aktörü
+  ve gerekçeyi verir (`actor_role = 'cli'`). `/yonetim/denetim`'de "Rol
+  değiştirildi" olarak görünür. Tetikleyici yoksa betik durur.
 - Rol her istekte veritabanından okunur: açık oturum bir sonraki istekte yeni
   rolle değerlendirilir. Yönetim alanı ayrıca 12 saat / 30 dakika oturum
   kuralını uygular (karar 0044).
 
 **Üretim** - betik bilerek çalışmaz. Onaylı bir işlemde, sahip rolüyle, tek
-transaction'da ve aynı denetim satırıyla elle:
+transaction'da elle. Denetim satırını tetikleyici yazar (karar 0050); elle
+INSERT YAZILMAZ, yalnızca aktör ve gerekçe işleme verilir:
 
 ```sql
 BEGIN;
+SELECT set_config('arilla.audit_actor_user_id', '<işlemi yapan yöneticinin id''si ya da boş>', true),
+       set_config('arilla.audit_actor_role', 'cli', true),
+       set_config('arilla.audit_reason', '<gerekçe>', true);
 UPDATE app_user SET role = 'admin'
  WHERE public_id = '<hesap kimliği>' AND role <> 'admin'
 RETURNING id;                       -- tam olarak 1 satır dönmeli; dönmezse ROLLBACK
-INSERT INTO admin_audit_event
-  (actor_user_id, actor_role, action, target_type, target_id, before, after, reason)
-VALUES (<işlemi yapan yöneticinin id'si ya da hedef id>, 'cli', 'users.role_change',
-        'app_user', '<hedef id>', '{"role":"user"}', '{"role":"admin"}', '<gerekçe>');
 COMMIT;
 ```
 
-Geri almak için aynı işlem `role = 'user'` ile.
+Geri almak için aynı işlem `role = 'user'` ile. Ayar verilmeden yapılan rol
+değişikliği de denetlenir (aktör boş, `actor_role = 'db'`, `after.dbRole` bağlanan
+veritabanı rolü): `dbRole = 'arilla_app'` olan bir rol satırı uygulama rolünün
+kötüye kullanıldığını gösterir, olay olarak ele alınır.
+
+Yetkili hesap kendi hesabını `/hesap`'tan silemez; önce rolü bu yolla düşürülür.
+Rolü düşürülmüş hesap silinince denetim satırları kalır, aktör bağlantısı boşalır.
+
+## Acil oturum kapatma (ele geçirilmiş hesap)
+
+Karar 0050. Üç yol, en hızlısından:
+
+1. Yönetim paneli: `/yonetim/kullanicilar/<hesap>` → "Tüm oturumları kapat"
+   (yalnızca yönetici, son 1 saatte giriş, gerekçe zorunlu, denetlenir).
+2. Kullanıcının kendisi: `/hesap` → "Tüm cihazlardan çıkış yap".
+3. Panel erişilemiyorsa ya da ele geçirilen bir YÖNETİCİ ise, sahip rolüyle:
+
+```bash
+pnpm db:revoke-sessions -- --public-id <uuid> --reason "<gerekçe>" --demote --confirm-remote
+# --demote: rolü 'user'a düşürür (tetikleyiciyle denetlenir); --actor-email <yönetici> isteğe bağlı
+```
+
+Oturum silme, `sessions.revoke_all` satırı ve rol düşürme tek işlemdir. Ardından:
+`/yonetim/denetim`'de son `users.role_change`, `security.access_denied` ve
+`sessions.revoke_all` satırlarını incele; hesabın Google/Apple tarafında da
+oturumlarının kapatılmasını iste. `SESSION_SECRET` döndürmek BÜTÜN kullanıcıları
+çıkışa zorlar; yalnızca sır sızıntısında yapılır.
 
 ## Pazarlama e-postası kampanyaları
 
@@ -401,6 +639,11 @@ alan adı doğrulaması (SPF/DKIM/DMARC). Sonra Vercel production'da
 `MARKETING_CRON_URL` secret'ı. Kapatmak için `MARKETING_EMAIL_ENABLED`
 boşaltılır: sürmekte olan kampanya `sending`te bekler, ileti gitmez,
 yönetim ekranı "gerçek gönderim kapalı" der.
+
+**Test gönderimi.** Yalnızca gönderen yöneticinin kendi adresine (hesap
+e-postası ya da doğrulanmış Google/Apple e-postası) veya
+`MARKETING_TEST_RECIPIENTS` (virgülle ayrılmış) listesindeki adreslere gider;
+saatte en fazla 10 (karar 0050). Başka adres reddedilir ve sayılmaz.
 
 **İlerleme.** Gönderim partiler hâlinde: başlatma anında bir parti, sonra
 `trigger-alerts-cron.yml` ile 15 dakikada bir parti (varsayılan 40 ileti).
@@ -435,3 +678,14 @@ belge eksikliğidir.
 Aylık gider kalemleri tek bir tabloda takip edilir: barındırma, veritabanı,
 obje deposu, model çağrıları, e-posta, alan adı. Bu tablo proje belgesindeki
 birim ekonomisi hesabını besler ve boş bırakılmaz.
+
+
+## Konuşmalı keşif (`/sohbet`, karar 0074) — varsayılan kapalı
+
+İstek yolunda Gemini çağırır (CLAUDE.md kural 1 istisna b). Ortam değişkenleri
+(yalnızca sunucu): `CHAT_DISCOVERY_ENABLED=true` (yoksa özellik kapalı: ana sayfa
+kutusu `/ara`ya gider, `/sohbet` 404), `CHAT_TURNS_PER_HOUR` (varsayılan 20, kullanıcı
+başına), `GEMINI_API_KEY` (0059 ile ortak). Etkinleştirme sırası: 0054 migration
+production'da uygulanır (`pnpm db:migrate`, `db:verify`) → kod dağıtılır → hukuk
+onayı (docs/kvkk.md "Konuşmalı keşif") → bayrak açılır. Maliyet: `api_usage`
+`operation = 'chat_turn'`. Saklama: 90 gün, `cleanup-auth` cron'u (`job_run.detail.conversations`).

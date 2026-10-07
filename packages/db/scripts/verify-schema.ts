@@ -10,6 +10,7 @@
  * 3. Polimorfik `target_id` butunlugu ayakta (migration 0014): trigger'lar
  *    yerinde ve ETKIN, DELETE ve TRUNCATE yollari gercekten temizliyor,
  *    su anda yetim satir yok.
+ * 4. Rol degisikligi denetim tetikleyicisi (0039) yerinde ve etkin.
  *
  * Ortak gerekce: bu kurallarin hicbiri kod incelemesine birakilmadi, motora
  * verildi — o yuzden motorun gercekten uyguladigi her kosuda dogrulanir.
@@ -33,6 +34,8 @@ const APPEND_ONLY = {
 const UPDATE_BLOCKED = {
   auth_event: "kind",
   user_activity_event: "kind",
+  /** 0054: sohbet mesaji eklenir, degistirilmez; DELETE saklama suresi icin acik. */
+  chat_message: "kind",
 } as const;
 const INSUFFICIENT_PRIVILEGE = "42501";
 const FOREIGN_KEY_VIOLATION = "23503";
@@ -130,6 +133,49 @@ await withClient(requireEnv("DATABASE_URL"), async (client) => {
   } catch (error) {
     await client.query("ROLLBACK").catch(() => {});
     fail(`query_norm UPDATE engellendi — saklama suresi uygulanamaz: ${(error as Error).message}`);
+  }
+
+  // 0046: en az yetki. Kullanilmayan iki yetki geri alindi; kullanilan
+  // komsulari (hesap silmede api_usage UPDATE, 90 gunluk saklamada
+  // query_interpretation DELETE) calismaya devam etmeli.
+  const leastPrivilege: { statement: string; allowed: boolean; why: string }[] = [
+    {
+      statement: "DELETE FROM api_usage WHERE false",
+      allowed: false,
+      why: "maliyet kaydi silinmez",
+    },
+    {
+      statement: "UPDATE query_interpretation SET status = status WHERE false",
+      allowed: false,
+      why: "yorum guncellenmez",
+    },
+    {
+      statement: "UPDATE api_usage SET user_id = user_id WHERE false",
+      allowed: true,
+      why: "hesap silmede kimliksizlestirme",
+    },
+    {
+      statement: "DELETE FROM query_interpretation WHERE false",
+      allowed: true,
+      why: "90 gunluk saklama",
+    },
+  ];
+  for (const { statement, allowed, why } of leastPrivilege) {
+    try {
+      await client.query("BEGIN");
+      await client.query(statement);
+      await client.query("ROLLBACK");
+      if (allowed) console.log(`  ${statement} → izinli (${why})`);
+      else fail(`"${statement}" calisti — engellenmeliydi (${why}).`);
+    } catch (error) {
+      await client.query("ROLLBACK").catch(() => {});
+      const code = (error as { code?: string }).code;
+      if (!allowed && code === INSUFFICIENT_PRIVILEGE) {
+        console.log(`  ${statement} → 42501, engellendi (${why})`);
+      } else {
+        fail(`"${statement}" beklenmeyen sonuc (${code ?? "hata"}) — ${why}.`);
+      }
+    }
   }
 
   // SELECT ve INSERT calismaya devam etmeli.
@@ -319,6 +365,26 @@ await withClient(ownerUrl(), async (client) => {
     );
   } else {
     console.log("  Yetim satir yok.");
+  }
+});
+
+// --- 4. Rol degisikligi denetimi (migration 0039, karar 0050) ----------------
+// Tetikleyici silinir ya da devre disi birakilirsa rol yukseltmesi iz
+// birakmadan yapilabilir. Yalnizca katalog okunur; veri degismez.
+console.log("Rol denetimi (0039):");
+await withClient(ownerUrl(), async (client) => {
+  const { rows } = await client.query<{ tgenabled: string }>(
+    `SELECT tgenabled FROM pg_trigger
+     WHERE tgrelid = 'app_user'::regclass AND tgname = 'app_user_role_change_audit'
+       AND NOT tgisinternal`,
+  );
+  const trigger = rows[0];
+  if (!trigger) {
+    fail("app_user_role_change_audit tetikleyicisi yok.");
+  } else if (trigger.tgenabled !== "O") {
+    fail(`app_user_role_change_audit devre disi (tgenabled=${trigger.tgenabled}).`);
+  } else {
+    console.log("  app_user_role_change_audit yerinde ve etkin.");
   }
 });
 

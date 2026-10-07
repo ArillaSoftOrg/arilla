@@ -3,6 +3,7 @@ export * from "./consent.ts";
 export * from "./delete-account.ts";
 export * from "./export-user-data.ts";
 export * from "./history.ts";
+export * from "./onboarding.ts";
 export * from "./saved-items.ts";
 export * from "./send-alert-email.ts";
 export * from "./trigger-alerts.ts";

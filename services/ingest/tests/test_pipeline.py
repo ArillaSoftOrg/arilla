@@ -226,3 +226,49 @@ def test_pipeline_cannot_update_price_point(merchant: int) -> None:
 
     with _app() as conn, conn.cursor() as cur, pytest.raises(psycopg.errors.InsufficientPrivilege):
         cur.execute("UPDATE price_point SET price = 1 WHERE false")
+
+
+def test_failed_run_records_no_rolled_back_writes(
+    merchant: int, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Basarisiz kosu islemi geri alir; kayit da geri alinan yazimi saymaz (0055).
+
+    50. kayitta beklenmeyen bir hata: ilk 49 teklif yazilmis ama geri alinmistir.
+    `offers_seen` gercek (50), olusturulan/guncellenen/fiyat noktasi 0; geri
+    alinan miktar `error_text`'te not olarak kalir.
+    """
+    import collect.pipeline as pipeline
+
+    real_normalize = pipeline.normalize
+    calls = {"n": 0}
+
+    def flaky(record, mapping):  # type: ignore[no-untyped-def]
+        calls["n"] += 1
+        if calls["n"] == 50:
+            raise RuntimeError("baglanti koptu https://feed.example/x.xml?token=abc")
+        return real_normalize(record, mapping)
+
+    monkeypatch.setattr(pipeline, "normalize", flaky)
+
+    with _app() as conn, pytest.raises(RuntimeError):
+        run_ingest(conn, MERCHANT_SLUG)
+
+    assert _count(OFFERS, merchant) == 0
+    assert _count(PRICE_POINTS, merchant) == 0
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            """
+            SELECT status, offers_seen, offers_created, offers_updated, price_points_written,
+                   error_text, finished_at IS NOT NULL
+              FROM ingest_run WHERE merchant_id = %s
+            """,
+            (merchant,),
+        )
+        rows = cur.fetchall()
+    assert len(rows) == 1
+    status, seen, created, updated, points, error_text, finished = rows[0]
+    assert (status, seen, created, updated, points, finished) == ("failed", 50, 0, 0, 0, True)
+    assert "baglanti koptu" in error_text
+    assert "geri alindi (kalici degil): 49 yeni teklif, 0 guncelleme, 49 fiyat noktasi" in (
+        error_text
+    )

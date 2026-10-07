@@ -8,7 +8,9 @@
     "build": "next build",
     "start": "next start",
     "typecheck": "tsc -p tsconfig.json",
-    "test:integration": "vitest run -c vitest.integration.config.ts"
+    "test": "vitest run",
+    "test:integration": "vitest run -c vitest.integration.config.ts",
+    "test:e2e": "vitest run -c vitest.e2e.config.ts"
   },
   "dependencies": {
     "@arilla/core": "workspace:*",

@@ -35,9 +35,6 @@ export default async function UnsubscribePage({
             Artık kampanya ve fırsat e-postası almayacaksın. Giriş bağlantısı ve kurduğun fiyat
             alarmları gibi hesap iletileri gelmeye devam eder.
           </p>
-          <p>
-            İznini istediğin zaman <a href="/hesap">hesabından</a> yeniden açabilirsin.
-          </p>
         </section>
       </LegalPageLayout>
     );
@@ -50,9 +47,6 @@ export default async function UnsubscribePage({
           <p>
             Bu bağlantı geçersiz ya da artık kullanılamıyor. Test iletilerindeki bağlantı da
             çalışmaz.
-          </p>
-          <p>
-            E-posta izinlerini <a href="/hesap">hesabından</a> yönetebilirsin.
           </p>
         </section>
       </LegalPageLayout>

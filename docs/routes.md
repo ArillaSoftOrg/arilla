@@ -18,7 +18,7 @@ Rezerve slug listesi tutulur: `ara`, `urun`, `kategori`, `marka`, `alternatif`,
 `trend`, `firsatlar`, `kesfet`, `gecmis`, `alarmlar`, `kaydettiklerim`, `git`,
 `api`, `panel`, `yonetim`, `hesap`, `giris`, `hakkinda`, `gizlilik`, `kosullar`,
 `cerez`, `iletisim`, `kvkk-aydinlatma`, `affiliate-aciklamasi`, `sirket-bilgileri`,
-`kullanim-kosullari`, `cerez-politikasi`, `davet`.
+`kullanim-kosullari`, `cerez-politikasi`, `davet`, `sss`.
 
 ## Kayıt duvarı
 
@@ -48,6 +48,7 @@ Modal metni kaydolmayı engel değil kazanç olarak sunar: "Hesabın yok mu?
 /                          Ana sayfa. Arama kutusu + görsel yükleme.
 /ara?q=...                 Metin araması. Netleştirme çubuğu burada.
 /ara/gorsel                Görsel arama sonucu
+/sohbet/[id]              Konuşmalı keşif (karar 0074). Giriş gerekli, noindex; CHAT_DISCOVERY_ENABLED kapalıyken 404
 /urun/<slug>               Ürün sayfası: karşılaştırma, fiyat geçmişi, alternatifler
 /git/<clickId>             Merchant'a çıkış. 302. Attribution burada yazılır.
 ```
@@ -62,7 +63,10 @@ SEO değerini böler hem kullanıcıyı gereksiz bir tıklamaya zorlar.
 /kosullar                  Kullanım koşulları - taslak, hukukçu onayı bekliyor
 /cerez                     Çerez politikası, envanter ve tercih formu (#tercihler)
 /abonelik-iptali           Pazarlama e-postası iptali (token'lı, girişsiz, noindex). GET değiştirmez (0048)
-/iletisim                  Geçici public e-posta (Faz 8.1) - tek kaynak legal-identity.ts
+/iletisim                  İletişim formu + e-posta kanalı; /geri-bildirim ile aynı yazma yolu (feedback, kind=contact), ürün kapısı dışında (karar 0061)
+/sss                       Sıkça sorulan sorular; içerik apps/web/app/sss/faq-content.ts, FAQPage yapılandırılmış verisi (karar 0061)
+/geri-bildirim             Geri bildirim formu; anonim ve girişli, ürün kapısı dışında (karar 0045)
+/anket/<slug>             Yayındaki form / anket; hedef kitle public, giriş ya da erken erişim; ürün kapısı dışında, noindex (karar 0058)
 /kvkk-aydinlatma           KVKK aydınlatma metni (karar 0038)
 /affiliate-aciklamasi      Affiliate açıklaması (karar 0038)
 /sirket-bilgileri          Şirket bilgileri - yalnızca doğrulanmış alanlar (karar 0038)
@@ -75,10 +79,9 @@ adlarını önerdi; canlı ve sitemap'teki `/kosullar` ve `/cerez` korunur, yeni
 adlar yalnızca `next.config.ts` yönlendirmesidir. Yönlendirmeler sitemap'e
 girmez.
 
-`docs/sitemap.md`'nin statik sayfa aday listesindeki `/hakkinda` ve `/sss`
-henüz **yazılmadı**, `STATIC_PAGES` listesinde ve footer'da yok. `/iletisim`
-Faz 8.1'de eklendi (`STATIC_PAGES` ve footer'da); yalnızca kullanıcının
-onayladığı geçici e-postayı içerir, telefon/adres uydurulmadı.
+`/hakkinda` ve `/sss` yazıldı (`STATIC_PAGES` ve footer'da). `/iletisim`
+Faz 8.1'de e-posta sayfası olarak eklendi, karar 0061 ile forma dönüştü;
+telefon/adres uydurulmadı.
 
 ### Keşif
 
@@ -180,12 +183,18 @@ platform sorununu hafifletir.
 /yonetim/arama/link        link_resolution_request durumları ve hata kodları
 /yonetim/arama/gorsel      image_upload durumları (görsel gösterilmez)
 /yonetim/seo               İç SEO tanısı (Search Console değil)
-/yonetim/islemler          Partition, iş kanıtı, KVKK temizlik, maliyet (yalnızca admin)
+/yonetim/islemler          Sistem sağlığı: tüm işletim bulguları (yalnızca admin, 0055)
+/yonetim/islemler/isler    İş koşuları geçmişi, job_run (yalnızca admin, 0055)
 /yonetim/kullanicilar      Kullanıcı araması (kısmi, denetimli) + özet liste (keyset, filtreli, maskeli); yalnızca admin (0049)
 /yonetim/kullanicilar/<id> Hesap ayrıntısı, sekmeler ?sekme=profil|aktivite|izinler|oturumlar|aramalar|affiliate|denetim; tıkla-göster iletişim (taze giriş)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
+/yonetim/mesajlar          Gelen kutusu: iletişim ve geri bildirim mesajları, salt okunur, görüntüleme denetlenir (yalnızca admin, 0061)
+/yonetim/erken-erisim      Erken erişim sayacı: platform dışı gerçek başvuru sayısını güncelle (gerekçe zorunlu, denetlenir; yalnızca admin, 0065)
 /yonetim/kampanyalar       Pazarlama e-postası kampanyaları: taslak, test, gönderim (yalnızca admin, 0048)
 /yonetim/kampanyalar/<id> Düzenleme, önizleme, uygun alıcı sayısı, test, onaylı gönderim, durum
+/yonetim/formlar          Form / anket merkezi: liste, yeni form, aç/kapat (yalnızca admin, 0058)
+/yonetim/formlar/<id>     Düzenleme, yayın, paylaşım bağlantısı
+/yonetim/formlar/<id>/sonuclar  Özet sayılar, seçenek dağılımı, metin yanıtları
 /yonetim/trend             (ertelendi) trend_snapshot yayınlama onayı
 ```
 

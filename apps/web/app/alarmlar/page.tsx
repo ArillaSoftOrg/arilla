@@ -1,8 +1,14 @@
 import { listAlerts } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState } from "@arilla/ui";
+import type { Metadata } from "next";
 import { requireProductUser } from "../lib/dal.ts";
 import { AlertsListClient } from "./alerts-list-client.tsx";
+
+export const metadata: Metadata = {
+  title: "Alarmlarım",
+  robots: { index: false, follow: false },
+};
 
 /** docs/pages.md: "/alarmlar üç alarm türünü tek listede gösterir; tür rozetle ayrılır." */
 export default async function AlarmlarPage() {

@@ -24,6 +24,34 @@ describe("redisOptionsFromEnv()", () => {
     expect(options.tls).toEqual({});
   });
 
+  it("production'da duz redis:// reddedilir; mesaj adresi tasimaz", () => {
+    const url = "redis://default:gizli-parola@eu1.upstash.io:6379";
+    expect(() => redisOptionsFromEnv({ REDIS_URL: url, VERCEL_ENV: "production" })).toThrow(
+      RedisConfigError,
+    );
+    try {
+      redisOptionsFromEnv({ REDIS_URL: url, VERCEL_ENV: "production" });
+    } catch (error) {
+      expect(String((error as Error).message)).not.toMatch(/gizli|upstash/);
+    }
+  });
+
+  it("production'da rediss:// kabul edilir ve TLS acilir", () => {
+    const { url, options } = redisOptionsFromEnv({
+      REDIS_URL: "rediss://default:p@eu1.upstash.io:6379",
+      VERCEL_ENV: "production",
+    });
+    expect(url).toBe("rediss://default:p@eu1.upstash.io:6379");
+    expect(options.tls).toEqual({});
+  });
+
+  it("yerel gelistirme ve onizleme redis://localhost kullanabilir", () => {
+    for (const VERCEL_ENV of [undefined, "development", "preview"]) {
+      const { url } = redisOptionsFromEnv({ REDIS_URL: "redis://localhost:6379", VERCEL_ENV });
+      expect(url).toBe("redis://localhost:6379");
+    }
+  });
+
   it("redis:// icin TLS acmaz", () => {
     const { options } = redisOptionsFromEnv({ REDIS_URL: "redis://localhost:6379" });
     expect(options.tls).toBeUndefined();

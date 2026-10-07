@@ -16,6 +16,7 @@
  * Kuyruktaki komut da `commandTimeout` ile sınırlıdır (ioredis zamanlayıcıyı
  * kuyruğa almadan önce kurar).
  */
+import { assertIsolatedTestUrl, isTestRuntime } from "@arilla/db";
 import Redis, { type RedisOptions } from "ioredis";
 
 const CONNECT_TIMEOUT_MS = 3_000;
@@ -63,6 +64,11 @@ export function redisOptionsFromEnv(
   if (!url.startsWith("redis://") && !url.startsWith("rediss://")) {
     throw new RedisConfigError("REDIS_URL redis:// ya da rediss:// ile baslamali.");
   }
+  // Production'da parola ve kuyruk trafiği şifresiz gitmez. Yerel geliştirme
+  // ve önizleme `redis://` kullanabilir. Mesaj sabittir, adres yazılmaz.
+  if (env.VERCEL_ENV === "production" && !url.startsWith("rediss://")) {
+    throw new RedisConfigError("REDIS_URL production ortaminda rediss:// (TLS) olmali.");
+  }
 
   const options: RedisOptions = {
     connectTimeout: CONNECT_TIMEOUT_MS,
@@ -89,6 +95,7 @@ export function getRedis(): Redis {
   if (existing) return existing;
 
   const { url, options } = redisOptionsFromEnv();
+  if (isTestRuntime()) assertIsolatedTestUrl("REDIS_URL", url);
   const client = new Redis(url, options);
 
   // Dinleyici olmadan ioredis her yeniden bağlanma denemesinde "Unhandled

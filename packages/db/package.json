@@ -15,6 +15,7 @@
     "db:verify": "node scripts/verify-schema.ts",
     "db:orphans": "node scripts/orphans.ts",
     "db:set-role": "node scripts/set-role.ts",
+    "db:revoke-sessions": "node scripts/revoke-sessions.ts",
     "seed": "node scripts/seed.ts"
   },
   "dependencies": {

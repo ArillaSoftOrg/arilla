@@ -84,22 +84,92 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `nav.company` | Şirket Bilgileri |
 | `nav.cookie_preferences` | Çerez Tercihleri |
 | `nav.contact` | İletişim |
+| `nav.feedback` | Geri bildirim |
 | `nav.skip_to_content` | İçeriğe geç |
 
-## İletişim (Faz 8.1)
+## İletişim (karar 0061)
 
-E-posta adresi metin değil yapılandırmadır: tek kaynağı
-`apps/web/app/site-config.ts` (`PUBLIC_CONTACT_EMAIL`). Geçici adres;
-kurumsal e-posta alınınca yalnızca o satır değişir. Telefon, adres, unvan,
-çalışma saati bilerek yok — doğrulanmış bilgi değil.
+İletişim formu `/geri-bildirim` ile aynı yazma yolunu kullanır. Metinler
+`apps/web/app/iletisim/contact-copy.ts`; hitap "siz". E-posta adresi metin
+değil yapılandırmadır: tek kaynağı `apps/web/app/site-config.ts`
+(`PUBLIC_CONTACT_EMAIL`). Telefon, adres, unvan, çalışma saati bilerek yok.
 
 | Anahtar | Metin |
 | --- | --- |
 | `contact.title` | İletişim |
-| `contact.description` | Arilla ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz. |
+| `contact.description` | Sorunuzu, talebinizi veya bildirmek istediğiniz bir hatayı aşağıdaki formla iletebilirsiniz. Gerekirse bıraktığınız e-posta adresinden size dönüş yaparız. |
+| `contact.faq_prompt` | Yanıtını aradığınız soru |
+| `contact.faq_link` | Sıkça sorulan sorular |
+| `contact.faq_prompt_end` | sayfasında olabilir. |
+| `contact.name_label` | Adınız |
 | `contact.email_label` | E-posta |
+| `contact.email_hint` | Size dönüş yapmamız gerekirse bu adresi kullanırız. |
+| `contact.category_label` | Konu |
+| `contact.subject_label` | Başlık |
+| `contact.subject_placeholder` | Ürün sayfasında fiyat farklı görünüyor |
+| `contact.message_label` | Mesajınız |
+| `contact.message_hint` | Ürün adı veya sayfa bağlantısı eklemeniz incelememizi kolaylaştırır. |
+| `contact.auth_notice` | Giriş yaptığınız için mesajınız hesabınızla ilişkilendirilecektir. |
+| `contact.privacy_note` | Bilgilerinizi yalnızca talebinizi yanıtlamak için kullanırız. Ayrıntılar |
+| `contact.privacy_link` | Gizlilik Politikası |
+| `contact.privacy_and` | ve |
+| `contact.kvkk_link` | KVKK Aydınlatma Metni |
+| `contact.privacy_note_end` | içinde. |
+| `contact.email_alternative` | Dilerseniz doğrudan e-posta da gönderebilirsiniz: |
+| `contact.submit` | Mesajı gönder |
+| `contact.submitting` | Gönderiliyor… |
+| `contact.success_title` | Mesajınız bize ulaştı. |
+| `contact.success_body` | Mesajınızı inceleyeceğiz; gerekirse bıraktığınız e-posta adresinden size dönüş yaparız. |
+| `contact.success_another` | Yeni mesaj gönder |
+| `contact.error_name_required` | Adınızı yazın. |
+| `contact.error_name_length` | Ad 2 ile 100 karakter arasında olmalı. |
+| `contact.error_email_required` | Yanıt verebilmemiz için e-posta adresinizi yazın. |
+| `contact.error_email` | Geçerli bir e-posta adresi girin. |
+| `contact.error_category` | Bir konu seçin. |
+| `contact.error_subject_required` | Bir başlık yazın. |
+| `contact.error_subject_length` | Başlık 3 ile 120 karakter arasında olmalı. |
+| `contact.error_message_required` | Mesajınızı yazın. |
+| `contact.error_message_length` | Mesaj 10 ile 5000 karakter arasında olmalı. |
+| `contact.error_fix_fields` | Lütfen işaretli alanları düzeltin. |
+| `contact.error_malformed` | Form gönderilemedi. Sayfayı yenileyip tekrar deneyin. |
+| `contact.error_too_large` | Mesajınız çok uzun. Lütfen kısaltıp tekrar deneyin. |
+| `contact.error_rate_limited` | Kısa sürede çok fazla mesaj gönderdiniz. Birkaç dakika sonra tekrar deneyin. |
+| `contact.error_unavailable` | Mesajınızı şu an kaydedemedik. Biraz sonra tekrar deneyin ya da e-posta gönderin. |
+| `contact.error_network` | Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin. |
+| `contact.error_session_expired` | Oturumunuz sona ermiş. Mesajınızın hesabınızla ilişkilendirilmesi için tekrar giriş yapın. |
+| `contact.login_again` | Tekrar giriş yap |
 | `privacy.contact_prefix` | Verilerinle ilgili soruların için |
 | `privacy.contact_suffix` | adresine yazabilirsin. |
+
+Konu etiketleri (`CONTACT_CATEGORY_LABELS`, değer `feedback.category`):
+
+| Değer | Etiket |
+| --- | --- |
+| `general` | Genel soru |
+| `account` | Hesap ve giriş |
+| `price_error` | Yanlış fiyat veya ürün bilgisi |
+| `bug` | Teknik sorun |
+| `partnership` | Mağaza ve iş birliği |
+| `privacy` | Gizlilik ve KVKK talebi |
+| `other` | Diğer |
+
+## SSS (karar 0061)
+
+Soru ve yanıtların TEK kaynağı `apps/web/app/sss/faq-content.ts`; burada
+tekrarlanmaz (iki kopya ayrışır). Sayfa metinleri `apps/web/app/sss/faq-page-copy.ts`.
+Yanıtlarda "satın al", "dupe", "ucuz" geçmez; sayı veren ayarlanabilir
+sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
+
+| Anahtar | Metin |
+| --- | --- |
+| `nav.faq` | Sıkça sorulan sorular |
+| `faq.meta_title` | Sıkça sorulan sorular |
+| `faq.meta_description` | ManiCepte nasıl çalışır, fiyatlar ne kadar güncel, hesap gerekir mi, verileriniz nasıl kullanılır? Sık sorulan soruların yanıtları. |
+| `faq.title` | Sıkça sorulan sorular |
+| `faq.description` | Merak ettiğiniz bir konunun yanıtı büyük olasılıkla burada. |
+| `faq.more_title` | Sorunuzun yanıtını bulamadınız mı? |
+| `faq.more_body` | Bize yazın; mesajınızı inceleyip gerekirse e-posta ile size dönüş yapalım. |
+| `faq.more_action` | İletişime geçin |
 
 ## Eylemler
 
@@ -294,6 +364,9 @@ giriş ekranı, üst çubuk ve `/erken-erisim` bu metinleri kullanır.
 | Anahtar | Metin |
 | --- | --- |
 | `early_access.cta` | Erken erişime katıl |
+| `early_access.progress_label` | Erken erişim listesindeki kişi |
+| `early_access.progress_unit` | kişi |
+| `early_access.progress_value_text` | {target} kişilik hedefin {count} kişisi tamamlandı |
 | `early_access.landing_note` | ManiCepte şu an erken erişimde. Listeye katıl, açıldığında haber verelim. |
 | `early_access.login_title` | Erken erişime katıl. Hesabınla devam et ya da yeni hesap aç. |
 | `early_access.nav_status` | Erken erişim |
@@ -525,6 +598,10 @@ mutasyonu aynı yeteneği tekrar denetler (docs/decisions/0039).
 | `legal.consent_marketing` | Haftalık fırsat özetini e-posta ile gönder. |
 | `legal.consent_discovery` | Bulduğum ürünler isimsiz olarak keşfet akışında görünebilsin. |
 | `legal.delete_warning` | Bu işlem geri alınamaz. |
+| `account.delete_staff_blocked` | Yönetim yetkisi olan bir hesap silinemez. Önce yetkinin kaldırılması için ekiple iletişime geç. |
+| `account.logout_all` | Tüm cihazlardan çıkış yap |
+| `admin.users.revoke_sessions` | Tüm oturumları kapat |
+| `admin.campaign.test_recipient_not_allowed` | Test e-postası yalnızca kendi adresine ya da izinli test adreslerine gönderilebilir. |
 
 Rıza kutuları **işaretsiz** gelir ve girişin ön koşulu değildir.
 
@@ -597,6 +674,50 @@ Kaynak: `apps/web/app/ara/link/link-search-copy.ts` (docs/decisions/0035).
 "Aynı ürün" yalnızca barkod ya da marka + üretici kodu eşleşmesinde yazılır;
 görsel benzerlik "aynı" diye etiketlenmez.
 
+## Geri bildirim (karar 0045)
+
+Hitap "siz" (ürün sahibinin verdiği metin). Ürün adı bu metinlerde de
+yayındaki marka "ManiCepte" (karar 0045 §9). Metinler
+`apps/web/app/geri-bildirim/feedback-copy.ts`.
+
+| Anahtar | Metin |
+| --- | --- |
+| `feedback.title` | ManiCepte'yi birlikte geliştirelim |
+| `feedback.description` | Eksik gördüğünüz, geliştirilmesini istediğiniz veya sorun yaşadığınız noktaları bize iletebilirsiniz. |
+| `feedback.category_label` | Geri bildirim türü |
+| `feedback.category.*` | Öneri · Hata bildirimi · Özellik isteği · Tasarım / kullanım deneyimi · Ürün / mağaza önerisi · Diğer |
+| `feedback.title_label` | Başlık |
+| `feedback.title_placeholder` | Arama sonuçlarında filtreleme olmalı |
+| `feedback.message_label` | Açıklama |
+| `feedback.message_hint` | Ne bekliyordunuz, ne oldu veya neyin geliştirilmesini istersiniz? |
+| `feedback.priority_label` | Önem seviyesi (isteğe bağlı) |
+| `feedback.priority.*` | Düşük · Orta · Yüksek |
+| `feedback.email_label` | E-posta (isteğe bağlı) |
+| `feedback.email_hint` | Yanıt almak isterseniz e-posta adresinizi bırakabilirsiniz. |
+| `feedback.auth_notice` | Erken erişim üyesi olarak gönderdiğiniz geri bildirim hesabınızla ilişkilendirilecektir. |
+| `feedback.privacy_note` | Kişisel verilerinizin nasıl işlendiğini Gizlilik Politikası'nda bulabilirsiniz. |
+| `feedback.submit` | Geri bildirim gönder |
+| `feedback.submitting` | Gönderiliyor… |
+| `feedback.success_title` | Geri bildiriminiz alındı. |
+| `feedback.success_body` | ManiCepte'yi geliştirmemize yardımcı olduğunuz için teşekkür ederiz. |
+| `feedback.success_another` | Yeni geri bildirim gönder |
+| `feedback.error_category` | Bir geri bildirim türü seçin. |
+| `feedback.error_title_required` | Bir başlık yazın. |
+| `feedback.error_title_length` | Başlık 3 ile 120 karakter arasında olmalı. |
+| `feedback.error_message_required` | Bir açıklama yazın. |
+| `feedback.error_message_length` | Açıklama 10 ile 5000 karakter arasında olmalı. |
+| `feedback.error_priority` | Listeden bir önem seviyesi seçin. |
+| `feedback.error_email` | Geçerli bir e-posta adresi girin ya da alanı boş bırakın. |
+| `feedback.error_fix_fields` | Lütfen işaretli alanları düzeltin. |
+| `feedback.error_malformed` | Form gönderilemedi. Sayfayı yenileyip tekrar deneyin. |
+| `feedback.error_too_large` | Gönderdiğiniz metin çok uzun. Lütfen kısaltıp tekrar deneyin. |
+| `feedback.error_rate_limited` | Kısa sürede çok fazla geri bildirim gönderdiniz. Birkaç dakika sonra tekrar deneyin. |
+| `feedback.error_unavailable` | Geri bildiriminizi şu an kaydedemedik. Biraz sonra tekrar deneyin. |
+| `feedback.error_network` | Bağlantı kurulamadı. İnternet bağlantınızı kontrol edip tekrar deneyin. |
+| `feedback.error_session_expired` | Oturumunuz sona ermiş. Geri bildiriminizin hesabınızla ilişkilendirilmesi için tekrar giriş yapın. |
+| `feedback.login_again` | Tekrar giriş yap |
+| `feedback.early_access_prompt` | Bir fikriniz mi var? ManiCepte'yi birlikte geliştirelim. |
+
 ## Hata
 
 | Anahtar | Metin |
@@ -618,3 +739,32 @@ görsel benzerlik "aynı" diye etiketlenmez.
 | `error.upload_unprocessable` | Bu görseli işleyemedik. Başka bir fotoğrafla yeniden dener misin? |
 
 Hatalar özür dilemez, ne olduğunu ve ne yapılacağını söyler.
+
+## Anket (karar 0058)
+
+Hitap "sen". Form başlığı, açıklaması ve soruları yönetimden gelir (ilk
+onboarding formu `0043_forms.sql`). Sabit arayüz metinleri
+`apps/web/app/anket/survey-copy.ts`'tedir.
+
+| Anahtar | Metin |
+| --- | --- |
+| `survey.submit` | Gönder |
+| `survey.back` | Geri |
+| `survey.next` | İleri |
+| `survey.finish` | Tamamla |
+| `survey.progress_label` | Anket ilerlemesi |
+| `survey.step_of` | Soru {n} / {toplam} |
+| `survey.skip` | Şimdilik geç |
+| `survey.success_title` | Teşekkürler, yanıtın alındı. |
+| `survey.success_body` | Cevapların ürünü senin ihtiyaçlarına göre geliştirmemize yardımcı olacak. |
+| `survey.auth_notice` | Giriş yaptığın için yanıtın hesabınla ilişkilendirilecek. |
+| `survey.anonymous_notice` | Bu formda kimliğin istenmez; yanıtın hesabınla ilişkilendirilmez. |
+| `survey.onboarding_prompt` | Seni biraz daha tanıyalım: birkaç kısa soru. |
+| `survey.onboarding_cta` | Şimdi doldur |
+| `survey.closed_title` | Bu form artık yanıt almıyor. |
+| `survey.not_started_title` | Bu form henüz açılmadı. |
+| `survey.login_title` | Bu formu yanıtlamak için giriş yap. |
+| `survey.early_access_title` | Bu form erken erişim üyelerine özel. |
+| `survey.responded_title` | Bu formu zaten yanıtladın. |
+| `survey.error_required` | Bu soru zorunlu. |
+

@@ -1,11 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { cookies } from "next/headers";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { readAppUrl } from "@arilla/core";
 import { ConsentProvider } from "./cookie-consent-client.tsx";
 import { readConsent } from "./lib/consent.ts";
-import { readThemeCookie } from "./lib/theme.ts";
 import { SITE_BRAND } from "./site-config.ts";
 
 /**
@@ -36,6 +34,11 @@ export const metadata: Metadata = {
     title: SITE_BRAND,
     description: SITE_DESCRIPTION,
   },
+  // Affiliate ağı site doğrulamaları; tüm sayfalarda <head> içinde render olur.
+  other: {
+    "Takeads-verification": "b2908a43-37a8-49ce-b4ac-6c1475c45716",
+    "mitgo-verification": "b207158b-022a-4c3c-bba5-65c7f99986e3",
+  },
 };
 
 export const viewport: Viewport = {
@@ -44,13 +47,11 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
-  const store = await cookies();
-  const theme = readThemeCookie(store.get("theme")?.value);
   // Karar 0038: tercih sunucuda okunur; banner ilk HTML'de gelir, yanip sonmez.
   const consent = await readConsent();
 
   return (
-    <html lang="tr" data-theme={theme ?? undefined}>
+    <html lang="tr">
       <body>
         <ConsentProvider consent={consent}>{children}</ConsentProvider>
       </body>

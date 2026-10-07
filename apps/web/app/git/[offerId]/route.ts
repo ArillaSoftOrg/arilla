@@ -1,5 +1,10 @@
-import { randomUUID } from "node:crypto";
 import { OfferNotFoundError, recordActivity, recordClick } from "@arilla/core";
+import {
+  ANONYMOUS_SESSION_COOKIE,
+  anonymousSessionCookieOptions,
+  newAnonymousSessionId,
+  validAnonymousSessionId,
+} from "@arilla/core/anonymous-session";
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
@@ -32,10 +37,10 @@ export async function GET(request: Request, { params }: { params: Promise<{ offe
   }
 
   const store = await cookies();
-  const existingSessionId = store.get("session_id")?.value;
-  const sessionId = existingSessionId ?? randomUUID();
+  const existingSessionId = validAnonymousSessionId(store.get(ANONYMOUS_SESSION_COOKIE)?.value);
+  const sessionId = existingSessionId ?? newAnonymousSessionId();
   if (!existingSessionId) {
-    store.set("session_id", sessionId, { path: "/", maxAge: 60 * 60 * 24 * 365, sameSite: "lax" });
+    store.set(ANONYMOUS_SESSION_COOKIE, sessionId, anonymousSessionCookieOptions());
   }
 
   const url = new URL(request.url);

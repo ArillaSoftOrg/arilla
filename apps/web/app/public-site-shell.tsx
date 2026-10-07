@@ -9,6 +9,7 @@ import { Container, HomeHeader, SiteFooter, SkipLink } from "@arilla/ui";
 import type { ReactNode } from "react";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "./early-access-copy.ts";
+import { EditorialFooter } from "./editorial-footer.tsx";
 import { HOME_COPY } from "./home-copy.ts";
 import {
   earlyAccessFooterGroups,
@@ -53,13 +54,24 @@ function markCurrent<T extends { href: string }>(
 export async function PublicSiteShell({
   links,
   currentPath,
+  fullBleed = false,
+  chrome = "site",
   children,
 }: {
   links: SiteSectionLinks;
   /** Su anki route (orn. "/kesfet"); verilirse eslesen header/footer linki `aria-current` alir. */
   currentPath?: string;
+  /** Editoryal sayfalar: icerik `Container` icine alinmaz, tam genislik bolumler sayfanin kendisindedir. */
+  fullBleed?: boolean;
+  /**
+   * `chat`: sohbet calisma alani (`/sohbet/*`) - footer yok, ust cubuk yalin
+   * ve yapiskan (menu + marka), icerik alani kalan yuksekligi doldurur.
+   * Rota ince `layout.tsx`'i secer; baska sayfalar `site` kalir.
+   */
+  chrome?: "site" | "chat";
   children: ReactNode;
 }) {
+  const isChat = chrome === "chat";
   const user = await verifySession();
   // P2: lansman öncesi ürün kapalıyken (moderatör/yönetici hariç) ürün
   // bağlantıları gösterilmez; giriş eylemi "Erken erişime katıl" olur,
@@ -99,11 +111,14 @@ export async function PublicSiteShell({
         brandLogoSrc="/icon4.png"
         navItems={navItems}
         navAriaLabel="Ana gezinme"
+        variant={isChat ? "chat" : "site"}
         accountHref={accountHref}
         accountLabel={accountLabel}
         loginHref={loginHref}
         loginLabel={loginLabel}
         accountCurrent={currentPath === (accountHref ?? loginHref)}
+        accountAvatarUrl={user?.avatarUrl ?? null}
+        accountAvatarLabel={user?.displayName ?? user?.email ?? SITE_BRAND}
         // Lansman öncesi, yalnızca anonim ziyaretçiye: sade "Admin Girişi"
         // (aynı giriş akışı, karar 0043). Yetki girişten sonra sunucuda.
         utilityLink={
@@ -113,20 +128,45 @@ export async function PublicSiteShell({
         }
       />
       {/* tabIndex -1: SkipLink'ten sonra odak tum tarayicilarda ana icerige tasinir. */}
-      <main id={MAIN_ID} tabIndex={-1} className={styles.main}>
-        <Container size="wide">{children}</Container>
+      <main
+        id={MAIN_ID}
+        tabIndex={-1}
+        className={isChat ? `${styles.main} ${styles.mainChat}` : styles.main}
+      >
+        {fullBleed ? (
+          children
+        ) : (
+          <Container size="wide" className={isChat ? styles.chatContainer : undefined}>
+            {children}
+          </Container>
+        )}
       </main>
-      <SiteFooter
-        brandLabel={SITE_BRAND}
-        brandDescription={
-          productAccess ? HOME_COPY.heroSubtitle : COMING_SOON_COPY.footerDescription
-        }
-        groups={footerGroups}
-        affiliateNotice={HOME_COPY.affiliateNotice}
-        affiliateLink={{ label: HOME_COPY.affiliateNoticeLink, href: "/affiliate-aciklamasi" }}
-        priceDisclaimer={HOME_COPY.priceDisclaimer}
-        copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
-      />
+      {isChat ? null : fullBleed ? (
+        <EditorialFooter
+          brandLabel={SITE_BRAND}
+          groups={footerGroups}
+          affiliateNotice={HOME_COPY.affiliateNotice}
+          affiliateLink={{ label: HOME_COPY.affiliateNoticeLink, href: "/affiliate-aciklamasi" }}
+          priceDisclaimer={HOME_COPY.priceDisclaimer}
+          copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
+          legalLinks={[
+            { label: HOME_COPY.navPrivacy, href: "/gizlilik" },
+            { label: HOME_COPY.navTerms, href: "/kosullar" },
+          ]}
+        />
+      ) : (
+        <SiteFooter
+          brandLabel={SITE_BRAND}
+          brandDescription={
+            productAccess ? HOME_COPY.heroSubtitle : COMING_SOON_COPY.footerDescription
+          }
+          groups={footerGroups}
+          affiliateNotice={HOME_COPY.affiliateNotice}
+          affiliateLink={{ label: HOME_COPY.affiliateNoticeLink, href: "/affiliate-aciklamasi" }}
+          priceDisclaimer={HOME_COPY.priceDisclaimer}
+          copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
+        />
+      )}
     </div>
   );
 }
@@ -134,14 +174,23 @@ export async function PublicSiteShell({
 /** Public alt sayfalar: bolum linkleri ana sayfaya doner (`/#trendler`, ...). */
 export function SubpageShell({
   currentPath,
+  fullBleed,
+  chrome,
   children,
 }: {
   /** Bkz. `PublicSiteShell.currentPath` - route'un ince `layout.tsx`'i verir. */
   currentPath?: string;
+  fullBleed?: boolean;
+  chrome?: "site" | "chat";
   children: ReactNode;
 }) {
   return (
-    <PublicSiteShell links={SUBPAGE_SECTION_LINKS} currentPath={currentPath}>
+    <PublicSiteShell
+      links={SUBPAGE_SECTION_LINKS}
+      currentPath={currentPath}
+      fullBleed={fullBleed}
+      chrome={chrome}
+    >
       {children}
     </PublicSiteShell>
   );

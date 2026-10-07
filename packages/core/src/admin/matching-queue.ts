@@ -23,10 +23,20 @@ import {
   offerVariant,
   product,
 } from "@arilla/db";
-import { and, asc, count, desc, eq, inArray, isNotNull, lt, ne, type SQL } from "drizzle-orm";
+import { and, asc, count, desc, eq, inArray, isNotNull, lt, ne, type SQL, sql } from "drizzle-orm";
+import { refreshProductAggregates } from "../product/refresh-aggregates.ts";
 import { maskEmail, recordAdminEvent } from "./audit.ts";
-import { clampPageSize, isPositiveId } from "./bounds.ts";
+import { clampPageSize, isPositiveId, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import {
+  type EvidenceSignal,
+  explainSignals,
+  humanReviewReasons,
+  type IdentifierCheck,
+  identifierAgreement,
+  type ScoreBand,
+  scoreBand,
+} from "./match-evidence.ts";
 import { httpUrl, safeUrl } from "./redact.ts";
 
 export type MatchMethod = "gtin" | "mpn" | "text" | "image" | "hybrid";
@@ -71,11 +81,51 @@ export interface MatchExplain {
   auto_accept_threshold?: number;
 }
 
+/** Adaya zaten bağlı aktif teklif (karar 0053): moderatörün karşılaştırma kanıtı. */
+export interface MatchSiblingOffer {
+  offerId: number;
+  merchantId: number;
+  merchantName: string;
+  merchantActive: boolean;
+  /** Kuruş. */
+  price: number | null;
+  inStock: boolean;
+  gtin: string | null;
+  mpn: string | null;
+  /** Varyant barkodları, teklif başına en çok `SIBLING_VARIANT_GTINS`. */
+  variantGtins: string[];
+}
+
+/**
+ * Kuyruk satırının kanıtı. Kanıt sorgusu zaman aşımına uğrarsa
+ * `evidenceAvailable: false` olur; kardeş/kimlik bilgisi "yok" sayılmaz.
+ */
+export interface MatchEvidence {
+  band: ScoreBand;
+  signals: EvidenceSignal[];
+  humanReasons: string[];
+  evidenceAvailable: boolean;
+  identifiers: { gtin: IdentifierCheck; mpn: IdentifierCheck } | null;
+  siblings: MatchSiblingOffer[];
+  /** Adaya bağlı aktif teklif sayısı (canlı, fiyat özetinden bağımsız). */
+  siblingTotal: number | null;
+  /** Aktif tekliflerin şu anki en düşük fiyatı (kuruş, canlı). */
+  liveMinPrice: number | null;
+  /**
+   * Adaya bağlı bir teklif kuyruktaki teklifle AYNI mağazada. Resolver
+   * metin/görsel yolunda bu adayı bugün önermez (pipeline.SAME_MERCHANT_PRODUCTS).
+   */
+  sameMerchantSibling: boolean;
+}
+
 export interface MatchQueueItem {
   matchCandidateId: number;
   score: number;
   method: MatchMethod;
   explain: MatchExplain | null;
+  /** `match_candidate.created_at`: kuyrukta bekleme başlangıcı. */
+  createdAt: Date;
+  evidence: MatchEvidence;
   offer: {
     id: number;
     title: string;
@@ -115,6 +165,144 @@ export interface MatchQueueFilter {
 
 /** Varyant listesi teklif başına sınırlı: kuyruk kartı bir envanter dökümü değil. */
 const VARIANTS_PER_OFFER = 12;
+/** Aday başına gösterilen kardeş teklif (karar 0053). */
+export const SIBLINGS_PER_PRODUCT = 8;
+const SIBLING_VARIANT_GTINS = 12;
+/** Aday başına okunan farklı barkod/MPN üst sınırı. */
+const CANDIDATE_GTINS_MAX = 200;
+const CANDIDATE_MPNS_MAX = 20;
+/** Kanıt sorguları bu süreyi aşarsa kuyruk kanıtsız açılır (karar verilebilir kalır). */
+const EVIDENCE_TIMEOUT_MS = 3_000;
+
+interface ProductEvidenceRaw {
+  siblings: MatchSiblingOffer[];
+  siblingTotal: number;
+  liveMinPrice: number | null;
+  gtins: string[];
+  gtinSetComplete: boolean;
+  mpns: string[];
+  merchantIds: number[];
+}
+
+function emptyEvidence(): ProductEvidenceRaw {
+  return {
+    siblings: [],
+    siblingTotal: 0,
+    liveMinPrice: null,
+    gtins: [],
+    gtinSetComplete: false,
+    mpns: [],
+    merchantIds: [],
+  };
+}
+
+/**
+ * Bir gruptaki TÜM aday ürünler için iki sorgu (N+1 yok): kardeş teklifler
+ * (ürün başına en çok 8; varyant barkodu teklif başına en çok 12) ve
+ * resolver'ın `identifiers.CANDIDATE_GTIN_SETS` sorgusunun aynısı (aktif
+ * tekliflerin barkod kümesi + kümenin tam olup olmadığı). `offer_product_idx`
+ * ve `offer_variant_uniq (offer_id, …)` kullanılır; salt okunur, zaman aşımlı.
+ * Hata/zaman aşımında `null`: kuyruk kanıtsız açılır.
+ */
+async function loadProductEvidence(
+  db: Database,
+  productIds: number[],
+): Promise<Map<number, ProductEvidenceRaw> | null> {
+  if (productIds.length === 0) return new Map();
+  const ids = sql.join(
+    productIds.map((id) => sql`${id}`),
+    sql`, `,
+  );
+  try {
+    return await readOnly(db, EVIDENCE_TIMEOUT_MS, async (tx) => {
+      const siblings = await tx.execute<{
+        product_id: string;
+        id: string;
+        merchant_id: string;
+        merchant_name: string;
+        merchant_active: boolean;
+        current_price: string | null;
+        in_stock: boolean;
+        gtin: string | null;
+        mpn: string | null;
+        total: string;
+        live_min: string | null;
+        variant_gtins: string[] | null;
+      }>(sql`
+        SELECT s.product_id, s.id, s.merchant_id, s.merchant_name, s.merchant_active,
+               s.current_price, s.in_stock, s.gtin, s.mpn, s.total, s.live_min,
+               ARRAY(SELECT v.gtin FROM offer_variant v
+                      WHERE v.offer_id = s.id AND v.gtin IS NOT NULL
+                      ORDER BY v.id LIMIT ${SIBLING_VARIANT_GTINS}) AS variant_gtins
+          FROM (
+            SELECT o.product_id, o.id, o.merchant_id, m.name AS merchant_name,
+                   m.is_active AS merchant_active, o.current_price, o.in_stock,
+                   o.attributes_raw->>'gtin' AS gtin, o.attributes_raw->>'mpn' AS mpn,
+                   row_number() OVER (PARTITION BY o.product_id
+                                      ORDER BY o.current_price ASC NULLS LAST, o.id) AS rn,
+                   count(*) OVER (PARTITION BY o.product_id) AS total,
+                   min(o.current_price) OVER (PARTITION BY o.product_id) AS live_min
+              FROM offer o JOIN merchant m ON m.id = o.merchant_id
+             WHERE o.product_id IN (${ids}) AND o.is_active
+          ) s
+         WHERE s.rn <= ${SIBLINGS_PER_PRODUCT}
+         ORDER BY s.product_id, s.rn
+      `);
+      const sets = await tx.execute<{
+        product_id: string;
+        gtins: string[] | null;
+        complete: boolean | null;
+        mpns: string[] | null;
+        merchant_ids: string[] | null;
+      }>(sql`
+        SELECT o.product_id,
+               (array_remove(array_agg(DISTINCT COALESCE(ov.gtin, o.attributes_raw->>'gtin')), NULL))[1:${CANDIDATE_GTINS_MAX}] AS gtins,
+               bool_and(COALESCE(ov.gtin, o.attributes_raw->>'gtin') IS NOT NULL) AS complete,
+               (array_remove(array_agg(DISTINCT o.attributes_raw->>'mpn'), NULL))[1:${CANDIDATE_MPNS_MAX}] AS mpns,
+               (array_agg(DISTINCT o.merchant_id))[1:${CANDIDATE_GTINS_MAX}] AS merchant_ids
+          FROM offer o
+          LEFT JOIN offer_variant ov ON ov.offer_id = o.id
+         WHERE o.product_id IN (${ids}) AND o.is_active
+         GROUP BY o.product_id
+      `);
+
+      const out = new Map<number, ProductEvidenceRaw>();
+      const entry = (productId: number): ProductEvidenceRaw => {
+        const existing = out.get(productId);
+        if (existing) return existing;
+        const created = emptyEvidence();
+        out.set(productId, created);
+        return created;
+      };
+      for (const row of siblings.rows) {
+        const e = entry(Number(row.product_id));
+        e.siblingTotal = Number(row.total);
+        e.liveMinPrice = row.live_min === null ? null : Number(row.live_min);
+        e.siblings.push({
+          offerId: Number(row.id),
+          merchantId: Number(row.merchant_id),
+          merchantName: row.merchant_name,
+          merchantActive: row.merchant_active,
+          price: row.current_price === null ? null : Number(row.current_price),
+          inStock: row.in_stock,
+          gtin: row.gtin ? row.gtin.slice(0, 64) : null,
+          mpn: row.mpn ? row.mpn.slice(0, 64) : null,
+          variantGtins: (row.variant_gtins ?? []).map((g) => g.slice(0, 64)),
+        });
+      }
+      for (const row of sets.rows) {
+        const e = entry(Number(row.product_id));
+        e.gtins = row.gtins ?? [];
+        e.gtinSetComplete = row.complete === true;
+        e.mpns = row.mpns ?? [];
+        e.merchantIds = (row.merchant_ids ?? []).map(Number);
+      }
+      return out;
+    });
+  } catch {
+    return null;
+  }
+}
 
 function pendingConditions(filter: MatchQueueFilter): SQL[] {
   const conditions: SQL[] = [eq(matchCandidate.status, "pending")];
@@ -168,7 +356,9 @@ export async function listMatchQueue(
       score: matchCandidate.score,
       method: matchCandidate.method,
       explain: matchCandidate.explain,
+      createdAt: matchCandidate.createdAt,
       offerId: offer.id,
+      offerMerchantId: offer.merchantId,
       offerTitle: offer.titleRaw,
       offerBrand: offer.brandRaw,
       offerImageUrl: offer.imageUrl,
@@ -223,13 +413,49 @@ export async function listMatchQueue(
     variantsByOffer.set(offerId, list);
   }
 
+  const productEvidence = await loadProductEvidence(db, [
+    ...new Set(rows.map((row) => row.productId)),
+  ]);
+
   return rows.map((row) => {
     const offerAttributes = (row.offerAttributes ?? {}) as Record<string, unknown>;
+    const explain = (row.explain ?? null) as MatchExplain | null;
+    const offerVariants = variantsByOffer.get(row.offerId) ?? [];
+    const offerGtin = stringAttr(offerAttributes, "gtin");
+    const offerMpn = stringAttr(offerAttributes, "mpn");
+    const evidenceAvailable = productEvidence !== null;
+    const raw = productEvidence?.get(row.productId) ?? emptyEvidence();
     return {
       matchCandidateId: row.matchCandidateId,
       score: row.score,
       method: row.method,
-      explain: (row.explain ?? null) as MatchExplain | null,
+      explain,
+      createdAt: row.createdAt,
+      evidence: {
+        band: scoreBand(row.score, explain),
+        signals: explainSignals(row.method, row.score, explain),
+        humanReasons: humanReviewReasons(row.method, row.score, explain),
+        evidenceAvailable,
+        identifiers: evidenceAvailable
+          ? identifierAgreement({
+              offer: {
+                gtin: offerGtin,
+                mpn: offerMpn,
+                variantGtins: offerVariants
+                  .map((v) => v.gtin)
+                  .filter((g): g is string => g !== null),
+              },
+              product: { gtin: row.productGtin, mpn: row.productMpn },
+              candidateGtins: raw.gtins,
+              candidateGtinSetComplete: raw.gtinSetComplete,
+              siblingMpns: raw.mpns,
+            })
+          : null,
+        siblings: raw.siblings,
+        siblingTotal: evidenceAvailable ? raw.siblingTotal : null,
+        liveMinPrice: raw.liveMinPrice,
+        sameMerchantSibling: raw.merchantIds.includes(row.offerMerchantId),
+      },
       offer: {
         id: row.offerId,
         title: row.offerTitle,
@@ -242,9 +468,9 @@ export async function listMatchQueue(
         currency: row.offerCurrency,
         inStock: row.offerInStock,
         url: safeUrl(row.offerUrl),
-        gtin: stringAttr(offerAttributes, "gtin"),
-        mpn: stringAttr(offerAttributes, "mpn"),
-        variants: variantsByOffer.get(row.offerId) ?? [],
+        gtin: offerGtin,
+        mpn: offerMpn,
+        variants: offerVariants,
       },
       product: {
         id: row.productId,
@@ -311,6 +537,8 @@ export async function approveMatch(
       .set({ status: "accepted", reviewedBy: actor.userId, reviewedAt, reviewReason: null })
       .where(eq(matchCandidate.id, matchCandidateId));
     await tx.update(offer).set({ productId: row.productId }).where(eq(offer.id, row.offerId));
+    // Yeni bağlanan teklif ürünün fiyatına ve "N mağaza"sına aynı işlemde girer.
+    await refreshProductAggregates(tx, { productIds: [row.productId] });
 
     const superseded = await tx
       .update(matchCandidate)

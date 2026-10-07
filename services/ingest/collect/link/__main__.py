@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import argparse
 import logging
+import signal
 import sys
 
 import httpx
@@ -21,8 +22,10 @@ import redis
 from collect.link.refresh import refresh_user_links
 from collect.link.resolver import ResolutionFailed, resolve_url
 from collect.link.urls import InvalidUrl
-from collect.link.worker import POLL_TIMEOUT_SECONDS, run_worker
+from collect.link.worker import POLL_TIMEOUT_SECONDS, DatabaseConnectionLost, run_worker
+from collect.link.worker_config import LOCAL_REDIS_URL, WorkerConfigError, worker_redis_url
 from collect.records import RecordRejected
+from db import job_run
 from db.connection import connect, env
 from enrich.client import EmbeddingClient, FakeEmbeddingClient, JinaEmbeddingClient
 from enrich.ratelimit import TokenBudget, tokens_per_minute_from_env
@@ -44,6 +47,11 @@ def _worker_embedder(fake: bool) -> EmbeddingClient | None:
         budget=TokenBudget(tokens_per_minute=tokens_per_minute_from_env()),
         max_attempts=WORKER_EMBED_ATTEMPTS,
     )
+
+
+def _exit_on_sigterm(_signum: int, _frame: object) -> None:
+    logging.info("SIGTERM alindi, worker duruyor")
+    raise SystemExit(0)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -71,9 +79,18 @@ def main(argv: list[str] | None = None) -> int:
     if sum(modes) != 1:
         parser.error("tam olarak birini secin: bir url, --refresh ya da --worker")
 
+    redis_url = LOCAL_REDIS_URL
+    if args.worker:
+        # Veritabanina baglanmadan ONCE: uretim benzeri ortamda REDIS_URL
+        # zorunlu ve TLS (rediss://). Yalnizca sabit metin loglanir.
+        try:
+            redis_url = worker_redis_url(env("REDIS_URL"), env("DATABASE_URL"))
+        except WorkerConfigError as error:
+            logging.error("%s", error)
+            return 2
+
     with connect() as conn:
         if args.worker:
-            redis_url = env("REDIS_URL", "redis://localhost:6379")
             # Soket okuma suresi BRPOP bekleme suresinden UZUN olmali: esit ya da
             # kisa olursa bos kuyrukta ilk bekleme TimeoutError ile biter.
             redis_client = redis.Redis.from_url(
@@ -83,11 +100,30 @@ def main(argv: list[str] | None = None) -> int:
                 socket_keepalive=True,
             )
             logging.info("worker basladi, kuyruk: queue:link_resolution")
-            run_worker(conn, redis_client, embedder=_worker_embedder(args.fake_embeddings))
+            # `docker stop`/systemd SIGTERM gonderir; varsayilan davranis sureci
+            # temizliksiz oldurur. SystemExit (Exception degil, `run_worker`
+            # yutmaz) `with connect()` blogunu calistirir: acik islem geri
+            # alinir, baglanti kapanir. Bloklu BRPOP da kesilir (PEP 475).
+            signal.signal(signal.SIGTERM, _exit_on_sigterm)
+            try:
+                run_worker(conn, redis_client, embedder=_worker_embedder(args.fake_embeddings))
+            except DatabaseConnectionLost as error:
+                # Sifir olmayan cikis: surec yoneticisi yeniden baslatir ve yeni
+                # bir baglanti kurulur.
+                logging.error("%s; surec yeniden baslatilmak uzere cikiyor", error)
+                return 1
             return 0
 
         if args.refresh:
-            result = refresh_user_links(conn, limit=args.limit)
+            with job_run.track("link_refresh") as run:
+                result = refresh_user_links(conn, limit=args.limit)
+                run.detail.update(
+                    considered=result.considered,
+                    refreshed=result.refreshed,
+                    failed=result.failed,
+                )
+                if result.failed:
+                    run.status = "partial" if result.refreshed else "failed"
             print(f"suresi gelen     {result.considered}")
             print(f"yenilenen        {result.refreshed}")
             print(f"basarisiz        {result.failed}")

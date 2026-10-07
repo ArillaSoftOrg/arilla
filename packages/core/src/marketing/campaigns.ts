@@ -23,6 +23,7 @@ import {
   type MarketingCampaignStatus,
   marketingCampaign,
   marketingCampaignDelivery,
+  userIdentity,
 } from "@arilla/db";
 import { and, eq, gt, sql } from "drizzle-orm";
 import { maskEmail, recordAdminEvent } from "../admin/audit.ts";
@@ -395,6 +396,29 @@ export type SendTestResult =
   | { status: "rate_limited" }
   | { status: "failed"; code: string };
 
+/**
+ * Test alıcısı politikası (karar 0050): test e-postası yalnızca gönderen
+ * yöneticinin KENDİ adresine (hesap e-postası ya da doğrulanmış giriş
+ * kimliği e-postası) veya `MARKETING_TEST_RECIPIENTS` izin listesine
+ * (virgülle ayrılmış, harf duyarsız) gider. Böylece yönetim paneli markalı
+ * e-postayı rastgele adreslere gönderen bir araca dönüşmez.
+ */
+export const TEST_RECIPIENT_NOT_ALLOWED =
+  "Test e-postası yalnızca kendi adresine ya da izinli test adreslerine gönderilebilir.";
+
+export function testRecipientAllowlist(
+  env: Readonly<Record<string, string | undefined>>,
+): Set<string> {
+  return new Set(
+    (env.MARKETING_TEST_RECIPIENTS ?? "")
+      .split(",")
+      .map((entry) => entry.trim().toLowerCase())
+      .filter((entry) => entry.length > 0),
+  );
+}
+
+export type TestRecipientKind = "self" | "allowlist";
+
 function normalizeTestRecipient(value: unknown): string {
   const email = typeof value === "string" ? value.trim().toLowerCase() : "";
   if (
@@ -408,7 +432,8 @@ function normalizeTestRecipient(value: unknown): string {
 }
 
 /**
- * Yöneticinin yazdığı TEK adrese, "Test:" önekli ve test uyarılı ileti.
+ * Yöneticinin kendi adresine ya da izin listesindeki TEK adrese (bkz.
+ * `testRecipientAllowlist`), "Test:" önekli ve test uyarılı ileti.
  * Kampanya alıcısı sayılmaz: teslim satırı açmaz, sayaçları değiştirmez,
  * pazarlama rızası aramaz (açık yönetici talebi). İptal bağlantısı
  * kişiye özel değildir ve çalışmaz. Hız sınırı denetim kaydından
@@ -466,6 +491,26 @@ export async function sendCampaignTest(
       throw new CampaignValidationError("Kampanya bu arada değişti. Sayfayı yenile.");
     }
 
+    const ownEmails = new Set<string>();
+    const self = (
+      await tx.select({ email: appUser.email }).from(appUser).where(eq(appUser.id, actor.userId))
+    )[0];
+    if (self?.email) ownEmails.add(self.email.toLowerCase());
+    const identities = await tx
+      .select({ email: userIdentity.email })
+      .from(userIdentity)
+      .where(and(eq(userIdentity.userId, actor.userId), eq(userIdentity.emailVerified, true)));
+    for (const identity of identities) {
+      if (identity.email) ownEmails.add(identity.email.toLowerCase());
+    }
+    const recipientKind: TestRecipientKind | null = ownEmails.has(recipient)
+      ? "self"
+      : testRecipientAllowlist(env).has(recipient)
+        ? "allowlist"
+        : null;
+    // İzin yoksa denemeye sayılmaz ve hiçbir şey yazılmaz.
+    if (recipientKind === null) throw new CampaignValidationError(TEST_RECIPIENT_NOT_ALLOWED);
+
     const recent = await tx
       .select({ n: sql<number>`count(*)::int` })
       .from(adminAuditEvent)
@@ -478,19 +523,13 @@ export async function sendCampaignTest(
       );
     if ((recent[0]?.n ?? 0) >= TEST_SENDS_PER_HOUR) return { kind: "rate_limited" } as const;
 
-    const self = (
-      await tx.select({ email: appUser.email }).from(appUser).where(eq(appUser.id, actor.userId))
-    )[0];
     await recordAdminEvent(tx, {
       actor,
       action: "marketing.test_send",
       targetType: "marketing_campaign",
       targetId: campaign.id,
-      // Adres YAZILMAZ; yalnızca kendi adresine mi gönderildiği.
-      after: {
-        contentVersion: campaign.contentVersion,
-        recipientIsSelf: self?.email?.toLowerCase() === recipient,
-      },
+      // Adres YAZILMAZ; yalnızca hangi kurala göre izin verildiği.
+      after: { contentVersion: campaign.contentVersion, recipientKind },
     });
     return { kind: "send", campaign } as const;
   });

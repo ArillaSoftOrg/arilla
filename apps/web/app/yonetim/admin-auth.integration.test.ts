@@ -148,6 +148,11 @@ afterAll(async () => {
     await client.query("DELETE FROM admin_audit_event WHERE actor_user_id = ANY($1)", [
       Object.values(userIds),
     ]);
+    // 0039 tetikleyicisinin aktörsüz rol satırları (yetkili test hesapları açılırken).
+    await client.query(
+      "DELETE FROM admin_audit_event WHERE target_type = 'app_user' AND target_id = ANY($1::text[])",
+      [Object.values(userIds).map(String)],
+    );
     await client.query("DELETE FROM merchant WHERE id = $1", [merchantId]);
     await client.query("DELETE FROM app_user WHERE id = ANY($1)", [Object.values(userIds)]);
   });
@@ -171,6 +176,49 @@ describe("yetki kapısı", () => {
     state.token = await sessionFor("moderator");
     expect(await outcome(lexiconPage)).toBe("ok");
     expect(await outcome(auditPage)).toBe("404");
+  });
+});
+
+describe("güvenlik olayları denetimde (karar 0050)", () => {
+  const securityRows = (action: string, role: "user" | "moderator" | "admin") =>
+    owner(async (client) => {
+      const res = await client.query(
+        `SELECT actor_role, target_type, target_id, after FROM admin_audit_event
+          WHERE action = $1 AND actor_user_id = $2 ORDER BY id`,
+        [action, userIds[role]],
+      );
+      return res.rows;
+    });
+
+  it("girişli ama yetkisiz istek reddedilir ve kaydedilir; anonim kaydedilmez, tekrar şişirmez", async () => {
+    state.token = await sessionFor("user");
+    expect(await outcome(adminHome)).toBe("404");
+    expect(await outcome(adminHome)).toBe("404");
+    state.token = await sessionFor("moderator");
+    expect(await outcome(auditPage)).toBe("404");
+    state.token = undefined;
+    expect(await outcome(adminHome)).toBe("/yonetim/giris");
+
+    const userRows = await securityRows("security.access_denied", "user");
+    expect(userRows).toEqual([
+      {
+        actor_role: "user",
+        target_type: "capability",
+        target_id: "admin.access",
+        after: { outcome: "denied" },
+      },
+    ]);
+    const moderatorRows = await securityRows("security.access_denied", "moderator");
+    expect(moderatorRows.map((row) => row.target_id)).toEqual(["audit.read"]);
+    // Yol, e-posta, IP yazılmaz.
+    expect(JSON.stringify([...userRows, ...moderatorRows])).not.toMatch(/@|\/yonetim/);
+  });
+
+  it("12 saat / 30 dakika kuralıyla sonlandırılan yönetim oturumu kaydedilir", async () => {
+    state.token = await sessionFor("admin", 13 * 60, 1);
+    expect(await outcome(auditPage)).toContain("neden=sure");
+    const rows = await securityRows("security.admin_session_ended", "admin");
+    expect(rows.at(-1)?.after).toEqual({ reason: "expired", outcome: "session_deleted" });
   });
 });
 
@@ -378,17 +426,26 @@ describe("denetim etiketleri", () => {
 
 describe("yan menü etkin bağlantı", () => {
   it("alt sayfada üst bağlantı etkin; genel bakış yalnızca tam eşleşmede", async () => {
-    const { ADMIN_NAV, isNavItemActive } = await import("./admin-nav.ts");
-    const active = (pathname: string) =>
-      ADMIN_NAV.flatMap((group) => group.items)
-        .filter((item) => isNavItemActive(item.href, pathname))
-        .map((item) => item.label);
+    const { ADMIN_NAV, activeNavHref } = await import("./admin-nav.ts");
+    // Karar 0055: kapsayanlardan en özel öğe etkindir (isNavItemActive + en uzun href).
+    const items = ADMIN_NAV.flatMap((group) => group.items);
+    const active = (pathname: string) => {
+      const href = activeNavHref(
+        items.map((item) => item.href),
+        pathname,
+      );
+      return items.filter((item) => item.href === href).map((item) => item.label);
+    };
     expect(active("/yonetim")).toEqual(["Genel bakış"]);
     expect(active("/yonetim/kullanicilar/0b6c5e2a-1111-4222-8333-944455556666")).toEqual([
       "Kullanıcılar",
     ]);
     expect(active("/yonetim/katalog/urunler/12")).toEqual(["Ürünler"]);
-    expect(active("/yonetim/eslestirme/gecmis")).toEqual(["Eşleştirme kuyruğu"]);
+    expect(active("/yonetim/eslestirme/gecmis")).toEqual(["Eşleştirme geçmişi"]);
+    expect(active("/yonetim/eslestirme")).toEqual(["Eşleştirme kuyruğu"]);
+    expect(active("/yonetim/islemler/isler")).toEqual(["İş koşuları"]);
+    expect(active("/yonetim/islemler")).toEqual(["Sistem sağlığı"]);
+    expect(active("/yonetim/magazalar/ornek")).toEqual(["Mağazalar"]);
     expect(active("/yonetim/katalog/urunlerx")).toEqual([]);
   });
 });

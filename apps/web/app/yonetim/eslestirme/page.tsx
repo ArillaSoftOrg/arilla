@@ -4,6 +4,7 @@ import {
   listMatchQueue,
   listPendingMatchMerchants,
   MATCH_METHODS,
+  waitedText,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState } from "@arilla/ui";
@@ -28,11 +29,17 @@ export default async function MatchingQueuePage({
   const filter = { method, merchantId };
 
   const db = getDatabase();
-  const [items, total, merchants] = await Promise.all([
+  const [queue, total, merchants] = await Promise.all([
     listMatchQueue(db, BATCH_SIZE, filter),
     countPendingMatches(db, filter),
     listPendingMatchMerchants(db),
   ]);
+  // Bekleme süresi sunucuda bir kez hesaplanır (istemci saatine bağlı değil).
+  const now = Date.now();
+  const items = queue.map((item) => ({
+    ...item,
+    waited: waitedText(now - item.createdAt.getTime()),
+  }));
 
   return (
     <div className={styles.pageNarrow}>

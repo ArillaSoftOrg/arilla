@@ -19,7 +19,10 @@ from datetime import datetime
 
 import psycopg
 
+from collect.image_writer import write_offer_images
+from collect.primary_image_sync import sync_primary_images
 from collect.records import NormalizedOffer
+from db import product_aggregates
 
 UPSERT_OFFER = """
 WITH previous AS (
@@ -71,7 +74,8 @@ ON CONFLICT (merchant_id, external_id) DO UPDATE SET
 -- product_id KASITLI OLARAK DOKUNULMAZ: eslestirme B4'un isi. Toplama
 -- katmani bir offer'i urune baglamaz, bagli olani da koparmaz.
 RETURNING id, (xmax = 0) AS inserted,
-          (SELECT image_url FROM previous) IS DISTINCT FROM offer.image_url AS image_changed
+          (SELECT image_url FROM previous) IS DISTINCT FROM offer.image_url AS image_changed,
+          product_id
 """
 
 #: Gorseli degisen offer'in gorsel vektoru silinir; `enrich` onu yeniden
@@ -135,6 +139,9 @@ class WriteCounts:
     stock_events_written: int = 0
     variant_price_events_written: int = 0
     stale_image_embeddings: int = 0
+    images_written: int = 0
+    images_removed: int = 0
+    primary_images_synced: int = 0
 
 
 class OfferWriter:
@@ -158,9 +165,18 @@ class OfferWriter:
         self.observed_at = observed_at
         self.counts = WriteCounts()
         self.seen_offer_ids: set[int] = set()
+        #: Bu kosuda fiyati, stogu ya da aktifligi yazilan teklifin bagli
+        #: oldugu urunler: `refresh_aggregates()` yalnizca bunlari yeniler.
+        self.touched_product_ids: set[int] = set()
 
     def write(self, offer: NormalizedOffer) -> int:
-        offer_id, inserted, image_changed = self._upsert_offer(offer)
+        # Urunun gorseli kaynak offer'i izler (0073); eski deger okunabilirken, upsert'ten once.
+        self.counts.primary_images_synced += sync_primary_images(
+            self.conn, self.merchant_id, [(offer.external_id, offer.image_url)]
+        )
+        offer_id, inserted, image_changed, product_id = self._upsert_offer(offer)
+        if product_id is not None:
+            self.touched_product_ids.add(product_id)
         if image_changed and not inserted:
             with self.conn.cursor() as cur:
                 cur.execute(DELETE_STALE_IMAGE_EMBEDDING, {"offer_id": offer_id})
@@ -172,11 +188,17 @@ class OfferWriter:
             self.counts.offers_updated += 1
 
         self._insert_price_point(offer_id, offer)
+        # Galeri gorselleri (0073): tek ifade, metadata. Indirme yok, transaction'i
+        # bloke edecek ag cagrisi yok. Toplu toplama kolu ayni fonksiyonu chunk
+        # basina tek cagriyla kullanir.
+        image_counts = write_offer_images(self.conn, [(offer_id, offer.images)])
+        self.counts.images_written += image_counts.written
+        self.counts.images_removed += image_counts.removed
         for variant in offer.variants:
             self._write_variant(offer_id, variant, offer.current_price)
         return offer_id
 
-    def _upsert_offer(self, offer: NormalizedOffer) -> tuple[int, bool, bool]:
+    def _upsert_offer(self, offer: NormalizedOffer) -> tuple[int, bool, bool, int | None]:
         # `offer` tablosunda gtin/mpn kolonu YOKTUR — barkod kanonik `product`
         # uzerinde durur (docs/schema.sql). Ama eslestirme (B4) ilk adimda
         # gtin'e bakiyor, o yuzden kaynaktan geldiginde kaybedilmemeli:
@@ -210,7 +232,7 @@ class OfferWriter:
             )
             row = cur.fetchone()
         assert row is not None
-        return int(row[0]), bool(row[1]), bool(row[2])
+        return int(row[0]), bool(row[1]), bool(row[2]), None if row[3] is None else int(row[3])
 
     def _insert_price_point(self, offer_id: int, offer: NormalizedOffer) -> None:
         with self.conn.cursor() as cur:
@@ -293,7 +315,19 @@ class OfferWriter:
                 """
                 UPDATE offer SET is_active = FALSE
                  WHERE merchant_id = %s AND is_active AND NOT (id = ANY(%s))
+                RETURNING product_id
                 """,
                 (self.merchant_id, list(self.seen_offer_ids)),
             )
-            return cur.rowcount
+            rows = cur.fetchall()
+        self.touched_product_ids.update(int(row[0]) for row in rows if row[0] is not None)
+        return len(rows)
+
+    def refresh_aggregates(self) -> int:
+        """Dokunulan urunlerin fiyat ozetini ayni islemde yeniler.
+
+        Commit'ten ONCE cagrilir: teklif ve ozet birlikte gorunur ya da
+        birlikte geri alinir. Bagli urunu olmayan yeni teklif ozeti etkilemez;
+        eslestirme onu baglarken yeniler (resolve).
+        """
+        return product_aggregates.refresh_products(self.conn, self.touched_product_ids)

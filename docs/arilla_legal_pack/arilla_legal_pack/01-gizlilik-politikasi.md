@@ -1,11 +1,11 @@
-# Arilla Gizlilik Politikası
+# ManiCepte Gizlilik Politikası
 
 **Yürürlük Tarihi:** 26 Eylül 2026  
-**Son Güncelleme:** 26 Eylül 2026
+**Son Güncelleme:** 6 Ekim 2026
 
 ## 1. Kapsam ve veri sorumlusu
 
-Bu Gizlilik Politikası, `{{WEBSITE_URL}}` üzerinden sunulan Arilla ürün arama, karşılaştırma ve yönlendirme hizmetleri için geçerlidir.
+Bu Gizlilik Politikası, `{{WEBSITE_URL}}` üzerinden sunulan ManiCepte ürün arama, karşılaştırma ve yönlendirme hizmetleri için geçerlidir.
 
 Hizmetin işletmecisi ve kişisel veriler bakımından veri sorumlusu:
 
@@ -40,11 +40,11 @@ Hizmetin güvenli ve düzgün çalışması için aşağıdaki teknik veriler i�
 
 ### 2.3. Affiliate ve yönlendirme verileri
 
-Arilla, bazı ürün veya mağaza bağlantıları üzerinden üçüncü taraf satıcılara yönlendirme yapabilir. Bir affiliate bağlantısına tıklandığında, yönlendirme kaynağının Arilla olduğunu göstermek amacıyla bağlantıya teknik takip parametreleri eklenebilir.
+ManiCepte, bazı ürün veya mağaza bağlantıları üzerinden üçüncü taraf satıcılara yönlendirme yapabilir. Bir affiliate bağlantısına tıklandığında, yönlendirme kaynağının ManiCepte olduğunu göstermek amacıyla bağlantıya teknik takip parametreleri eklenebilir.
 
-İlgili mağaza veya affiliate ağı, yürürlükteki entegrasyona bağlı olarak tıklama, dönüşüm, sipariş tutarı veya komisyon ilişkilendirmesi gibi sınırlı işlem verilerini Arilla ile paylaşabilir.
+İlgili mağaza veya affiliate ağı, yürürlükteki entegrasyona bağlı olarak tıklama, dönüşüm, sipariş tutarı veya komisyon ilişkilendirmesi gibi sınırlı işlem verilerini ManiCepte ile paylaşabilir.
 
-Arilla, affiliate ilişkisi nedeniyle kullanıcıya ek ücret uygulamaz.
+ManiCepte, affiliate ilişkisi nedeniyle kullanıcıya ek ücret uygulamaz.
 
 ## 3. Bilgileri hangi amaçlarla kullanıyoruz?
 
@@ -76,6 +76,7 @@ Zorunlu olmayan analitik, işlevsel veya reklam/pazarlama çerezleri açık rız
 Kişisel veriler, yalnızca gerekli olduğu ölçüde aşağıdaki alıcı gruplarıyla paylaşılabilir:
 
 - Barındırma, veritabanı, kimlik doğrulama, e-posta, güvenlik ve hata izleme gibi teknik hizmet sağlayıcıları.
+- Yapay zekâ destekli kategori yorumu için yurt dışında yerleşik yapay zekâ altyapı sağlayıcısı Google (Gemini API): yalnızca kullanıcı kimliği, IP ve oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama ifadeleri; anonim kabul edilmez. Hukuki sebep KVKK m.5/2-f.
 - Kullanıcı tarafından seçilen ürün veya mağazaya yönlendirme yapılması halinde satıcılar ve affiliate ağları.
 - Açık rıza verilmişse analitik veya ölçüm sağlayıcıları.
 - Kanunen yetkili kamu kurumları ve hukuken yetkili merciler.
@@ -87,11 +88,13 @@ Claude Code entegrasyon sırasında bu bölümü repoda gerçekten kullanılan s
 
 Kullanılan altyapı veya hizmet sağlayıcıların sunucularının Türkiye dışında bulunması halinde kişisel veriler yurt dışına aktarılabilir. Böyle bir aktarım yalnızca uygulanabilir veri koruma mevzuatında öngörülen uygun hukuki mekanizmalara dayanılarak gerçekleştirilir.
 
+Arama ifadelerinin yapay zekâ ile kategori yorumu için Google'a yapılan aktarım, KVKK m.9 kapsamında Google ile imzalanan aktarım sözleşmesine (uygun güvence) dayanır. `store: false` ile Google tarafında etkileşim saklanmaz; Google güvenlik ve kötüye kullanım tespiti için sınırlı süre kayıt tutabilir. Kanonik metin: `apps/web/app/gizlilik/page.tsx`.
+
 Fiili altyapı ve veri aktarım haritası doğrulanmadan belirli ülke veya sağlayıcı adı eklenmemelidir.
 
 ## 7. Çerezler ve benzer teknolojiler
 
-Arilla, hizmetin çalışması için gerekli çerezleri kullanabilir. Analitik, işlevsel veya reklam amaçlı zorunlu olmayan çerezler ise yalnızca mevzuatın gerektirdiği durumlarda kullanıcı tercihine göre etkinleştirilir.
+ManiCepte, hizmetin çalışması için gerekli çerezleri kullanabilir. Analitik, işlevsel veya reklam amaçlı zorunlu olmayan çerezler ise yalnızca mevzuatın gerektirdiği durumlarda kullanıcı tercihine göre etkinleştirilir.
 
 Kullanıcılar istedikleri zaman **Çerez Tercihleri** bağlantısından tercihlerini değiştirebilir veya geri çekebilir.
 
@@ -106,6 +109,7 @@ Genel yaklaşım:
 - Hesap verileri: hesap aktif olduğu sürece ve yasal/operasyonel olarak gerekli sınırlı ek süre boyunca.
 - Oturum ve güvenlik kayıtları: güvenlik ve kötüye kullanım önleme amacı için gerekli sınırlı süre boyunca.
 - Arama/etkileşim kayıtları: hizmetin çalışması, hata giderme ve izin verilmiş analitik amaçlar için gerekli süre boyunca.
+- Arama ifadelerinin yapay zekâ ile üretilen kategori yorumları: en fazla 90 gün.
 - Affiliate tıklama ve dönüşüm kayıtları: komisyon mutabakatı, muhasebe ve hukuki yükümlülükler için gerekli süre boyunca.
 - Destek yazışmaları: talebin sonuçlandırılması ve hukuki kayıt yükümlülükleri için gerekli süre boyunca.
 
@@ -113,7 +117,7 @@ Claude Code, repoda veya işletme süreçlerinde doğrulanmış somut saklama s�
 
 ## 9. Veri güvenliği
 
-Arilla, kişisel verilerin yetkisiz erişim, ifşa, değiştirme veya kayba karşı korunması için erişim kontrolü, güvenli oturum yönetimi, yetki sınırlandırması, aktarım güvenliği, günlükleme ve benzeri uygun teknik ve idari tedbirler uygular.
+ManiCepte, kişisel verilerin yetkisiz erişim, ifşa, değiştirme veya kayba karşı korunması için erişim kontrolü, güvenli oturum yönetimi, yetki sınırlandırması, aktarım güvenliği, günlükleme ve benzeri uygun teknik ve idari tedbirler uygular.
 
 Hiçbir internet tabanlı sistem mutlak güvenlik garantisi veremez.
 
@@ -137,11 +141,11 @@ Başvurular: `{{PRIVACY_EMAIL}}`
 
 ## 11. Çocukların gizliliği
 
-Arilla, çocuklara yönelik olarak tasarlanmış bir hizmet değildir. Yaş sınırı veya ebeveyn onayı gerektiren özellikler kullanıma açılırsa ilgili akış ayrıca uygulanmalıdır.
+ManiCepte, çocuklara yönelik olarak tasarlanmış bir hizmet değildir. Yaş sınırı veya ebeveyn onayı gerektiren özellikler kullanıma açılırsa ilgili akış ayrıca uygulanmalıdır.
 
 ## 12. Üçüncü taraf siteleri
 
-Arilla üzerinden üçüncü taraf mağaza ve sitelere bağlantılar verilebilir. Bu sitelerin içerikleri, güvenlik uygulamaları ve gizlilik politikaları Arilla'nın kontrolü dışında olabilir. Kullanıcılar yönlendirildikleri sitenin kendi koşullarını incelemelidir.
+ManiCepte üzerinden üçüncü taraf mağaza ve sitelere bağlantılar verilebilir. Bu sitelerin içerikleri, güvenlik uygulamaları ve gizlilik politikaları ManiCepte'nin kontrolü dışında olabilir. Kullanıcılar yönlendirildikleri sitenin kendi koşullarını incelemelidir.
 
 ## 13. Politika değişiklikleri
 

@@ -12,6 +12,7 @@
  */
 import { type Database, merchant } from "@arilla/db";
 import { eq, sql } from "drizzle-orm";
+import { refreshProductAggregates } from "../product/refresh-aggregates.ts";
 import { recordAdminEvent } from "./audit.ts";
 import { clampPage, containsPattern, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
@@ -324,6 +325,8 @@ export async function setMerchantActive(
       .update(merchant)
       .set({ isActive: input.active, updatedAt: new Date() })
       .where(eq(merchant.id, input.merchantId));
+    // Arama pasif mağazanın teklifini kullanmaz; özet de aynı işlemde izler.
+    await refreshProductAggregates(tx, { merchantId: input.merchantId });
     await recordAdminEvent(tx, {
       actor,
       action: input.active ? "merchant.activate" : "merchant.deactivate",

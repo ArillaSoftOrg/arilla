@@ -7,6 +7,8 @@ export interface FooterLink {
   href: string;
   /** Bu link su anki sayfaysa `true` - `aria-current="page"`. Cagiran hesaplar. */
   current?: boolean;
+  /** Dis site linki (orn. resmi sosyal hesap): yeni sekmede, `noopener noreferrer me`. */
+  external?: boolean;
   /**
    * Karar 0038: duz `<a>` yerine baska bir oge (orn. "Cerez Tercihleri"
    * paneli acan istemci dugmesi). Footer link sinifini alir, gorunum ayni
@@ -77,6 +79,9 @@ export function SiteFooter({
                           href={link.href}
                           className={styles.link}
                           aria-current={link.current ? "page" : undefined}
+                          {...(link.external
+                            ? { target: "_blank", rel: "noopener noreferrer me" }
+                            : {})}
                         >
                           {link.label}
                         </a>

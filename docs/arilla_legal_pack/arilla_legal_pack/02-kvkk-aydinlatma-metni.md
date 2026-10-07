@@ -1,8 +1,9 @@
 # KVKK Aydınlatma Metni
 
-**Yürürlük Tarihi:** 26 Eylül 2026
+**Yürürlük Tarihi:** 26 Eylül 2026  
+**Son Güncelleme:** 6 Ekim 2026
 
-Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") kapsamında Arilla hizmetlerini kullanan ilgili kişilerin, kişisel verilerinin işlenmesi hakkında bilgilendirilmesi amacıyla hazırlanmıştır.
+Bu metin, 6698 sayılı Kişisel Verilerin Korunması Kanunu ("KVKK") kapsamında ManiCepte hizmetlerini kullanan ilgili kişilerin, kişisel verilerinin işlenmesi hakkında bilgilendirilmesi amacıyla hazırlanmıştır.
 
 ## 1. Veri sorumlusu
 
@@ -21,18 +22,19 @@ Kullanılan özelliğe göre aşağıdaki veri kategorileri işlenebilir:
 - Kullanıcı işlem bilgileri: arama sorguları, görüntülenen/tıklanan ürünler, filtre ve karşılaştırma seçimleri.
 - Pazarlama/analitik tercihleri: çerez tercihleri ve açık rıza kayıtları.
 - Müşteri işlem bilgileri: destek ve geri bildirim yazışmaları.
-- Affiliate işlem bilgileri: yönlendirme/tıklama ve entegrasyon kapsamında Arilla'ya bildirilen dönüşüm veya komisyon ilişkilendirme verileri.
+- Affiliate işlem bilgileri: yönlendirme/tıklama ve entegrasyon kapsamında ManiCepte'ye bildirilen dönüşüm veya komisyon ilişkilendirme verileri.
 - Görsel arama özelliği aktifse kullanıcı tarafından yüklenen görseller.
 
 ## 3. Kişisel verilerin işlenme amaçları
 
 Kişisel veriler:
 
-- Arilla hizmetlerini sunmak ve kullanıcı taleplerini yerine getirmek,
+- ManiCepte hizmetlerini sunmak ve kullanıcı taleplerini yerine getirmek,
 - hesap ve oturum güvenliğini sağlamak,
 - arama, karşılaştırma ve ürün yönlendirme işlevlerini çalıştırmak,
 - kötüye kullanım, sahtecilik ve güvenlik risklerini önlemek,
 - teknik sorunları gidermek ve hizmet kalitesini artırmak,
+- arama ifadelerinin ürün kategorisi ve filtrelerle eşleştirilmesini iyileştirmek (yapay zekâ destekli kategori yorumu),
 - destek taleplerini yönetmek,
 - kullanıcının izin verdiği ölçüde analitik ve performans ölçümü yapmak,
 - affiliate yönlendirmeleri ve komisyon mutabakatını gerçekleştirmek,
@@ -48,7 +50,7 @@ Veriler, somut işleme faaliyetine göre KVKK'da öngörülen:
 - sözleşmenin kurulması veya ifası,
 - hukuki yükümlülük,
 - bir hakkın tesisi, kullanılması veya korunması,
-- temel hak ve özgürlüklere zarar vermemek kaydıyla meşru menfaat,
+- temel hak ve özgürlüklere zarar vermemek kaydıyla meşru menfaat (m.5/2-f; arama ve kategori eşleştirmesinin iyileştirilmesi dahil),
 - gerekli olduğu hallerde açık rıza
 
 hukuki sebeplerine dayanılarak işlenebilir.
@@ -62,11 +64,12 @@ Kişisel veriler, işleme amacıyla sınırlı ve ölçülü olmak kaydıyla:
 - barındırma, veritabanı, kimlik doğrulama, e-posta, güvenlik ve hata izleme hizmet sağlayıcılarına,
 - affiliate yönlendirmesi kapsamında ilgili mağaza veya affiliate ağına,
 - izin verilmiş analitik/ölçüm sağlayıcılarına,
+- arama ifadelerinin kategori yorumu için yurt dışında yerleşik yapay zekâ altyapı sağlayıcısı Google'a (Gemini API) — yalnızca kullanıcı kimliği, IP ve oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama ifadeleri,
 - kanunen yetkili kamu kurum ve kuruluşlarına ve hukuken yetkili mercilere
 
 aktarılabilir.
 
-Yurt dışına aktarım söz konusuysa, uygulanabilir KVKK hükümleri ve geçerli aktarım mekanizmaları esas alınır.
+Yurt dışına aktarım söz konusuysa, uygulanabilir KVKK hükümleri ve geçerli aktarım mekanizmaları esas alınır. Yapay zekâ altyapı sağlayıcısına aktarım, KVKK m.9 kapsamında Google ile imzalanan aktarım sözleşmesine (uygun güvence) dayanır; bu amaçla üretilen kategori yorumları en fazla 90 gün saklanır. Kanonik metin: `apps/web/app/kvkk-aydinlatma/page.tsx`.
 
 ## 6. İlgili kişinin KVKK kapsamındaki hakları
 

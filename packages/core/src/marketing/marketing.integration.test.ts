@@ -23,6 +23,7 @@ import {
   processMarketingCampaigns,
   sendCampaignTest,
   startCampaignSend,
+  TEST_RECIPIENT_NOT_ALLOWED,
   TEST_SENDS_PER_HOUR,
   unsubscribeByToken,
   updateCampaignDraft,
@@ -36,6 +37,8 @@ const ENV = {
   SMTP_PORT: "1025",
   EMAIL_FROM: "ManiCepte <bildirim@test.local>",
   APP_URL: "http://localhost:3000",
+  // Karar 0050: test alıcısı yalnızca kendi adres ya da bu izin listesi.
+  MARKETING_TEST_RECIPIENTS: "test-alici@test.local, a@test.local,HIZ@test.local",
 };
 const FAST = { sendIntervalMs: 0 };
 
@@ -410,6 +413,87 @@ describe("test send", () => {
     expect(results.filter((r) => r.status === "sent")).toHaveLength(TEST_SENDS_PER_HOUR);
     expect(results.at(-1)).toEqual({ status: "rate_limited" });
     expect(fake.sent).toHaveLength(TEST_SENDS_PER_HOUR);
+  });
+
+  it("only the admin's own addresses or the allowlist may receive a test (karar 0050)", async () => {
+    // Kendi yöneticisi: paylaşılan yöneticinin saatlik test hakkını tüketmesin.
+    const policyAdminId = await createUser("policy-admin", { role: "admin" });
+    const policyAdmin = { userId: policyAdminId, role: "admin" as const };
+    const { publicId } = await createCampaignDraft(db, policyAdmin, {
+      title: `${TAG} alici-politikasi`,
+      subject: "politika",
+      body: "politika",
+    });
+    const auditCount = async () =>
+      withOwnerClient(async (client) => {
+        const res = await client.query(
+          `SELECT count(*)::int AS n FROM admin_audit_event
+            WHERE action = 'marketing.test_send' AND actor_user_id = $1`,
+          [policyAdminId],
+        );
+        return res.rows[0].n as number;
+      });
+    const send = (recipient: string, env: Record<string, string> = ENV) => {
+      const fake = fakeTransport();
+      return {
+        fake,
+        run: sendCampaignTest(
+          db,
+          policyAdmin,
+          { publicId, expectedContentVersion: 1, recipient },
+          { brand: BRAND, transport: fake.transport, env },
+        ),
+      };
+    };
+
+    // Rastgele adres: reddedilir, iletilmez, denetime/hız sınırına yazılmaz.
+    const before = await auditCount();
+    const stranger = send("yabanci@ornek.com");
+    await expect(stranger.run).rejects.toThrow(TEST_RECIPIENT_NOT_ALLOWED);
+    expect(stranger.fake.sent).toHaveLength(0);
+    expect(await auditCount()).toBe(before);
+
+    // Kendi hesap e-postası: izin listesi boş olsa da gider.
+    const { APP_URL, SMTP_HOST, SMTP_PORT, EMAIL_FROM } = ENV;
+    const noAllowlist = { APP_URL, SMTP_HOST, SMTP_PORT, EMAIL_FROM };
+    const self = send((emails["policy-admin"] as string).toUpperCase(), noAllowlist);
+    expect(await self.run).toMatchObject({ status: "sent" });
+    expect(self.fake.sent[0]?.to).toBe((emails["policy-admin"] as string).toLowerCase());
+
+    // Doğrulanmış giriş kimliği e-postası gider; doğrulanmamış gitmez.
+    await withOwnerClient((client) =>
+      client.query(
+        `INSERT INTO user_identity (user_id, provider, provider_subject, email, email_verified)
+         VALUES ($1, 'apple', $2, $3, true), ($1, 'google', $4, $5, false)`,
+        [
+          policyAdminId,
+          `${TAG}-apple`,
+          `${TAG}-apple-relay@test.local`,
+          `${TAG}-google`,
+          `${TAG}-unverified@test.local`,
+        ],
+      ),
+    );
+    expect(await send(`${TAG}-apple-relay@test.local`, noAllowlist).run).toMatchObject({
+      status: "sent",
+    });
+    await expect(send(`${TAG}-unverified@test.local`, noAllowlist).run).rejects.toThrow(
+      TEST_RECIPIENT_NOT_ALLOWED,
+    );
+
+    // İzin listesi harf duyarsız.
+    expect(await send("hiz@TEST.local").run).toMatchObject({ status: "sent" });
+
+    const kinds = await withOwnerClient(async (client) => {
+      const res = await client.query(
+        `SELECT after->>'recipientKind' AS kind, after::text AS raw FROM admin_audit_event
+          WHERE action = 'marketing.test_send' AND actor_user_id = $1 ORDER BY id DESC LIMIT 3`,
+        [policyAdminId],
+      );
+      return res.rows as { kind: string; raw: string }[];
+    });
+    expect(kinds.map((row) => row.kind)).toEqual(["allowlist", "self", "self"]);
+    for (const row of kinds) expect(row.raw).not.toContain("@");
   });
 
   it("a failed test send does not mark the version as tested", async () => {

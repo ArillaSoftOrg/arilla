@@ -27,7 +27,7 @@ export function ReferralLinkClient({ url }: { url: string }) {
         aria-label="Davet linkin"
         onFocus={(event) => event.currentTarget.select()}
       />
-      <Button type="button" variant="secondary" shape="pill" onClick={copy}>
+      <Button type="button" variant="secondary" shape="pill" fullWidth onClick={copy}>
         {copied ? "Kopyalandı" : "Linki kopyala"}
       </Button>
       <span className={styles.srOnly} role="status">

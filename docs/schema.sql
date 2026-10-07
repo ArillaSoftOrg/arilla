@@ -79,14 +79,16 @@ CREATE TABLE product (
     color           TEXT,
     attributes      JSONB       NOT NULL DEFAULT '{}'::jsonb,  -- renk, malzeme, beden
     primary_image_url TEXT,
-    -- denormalize edilmiş, toplu işle güncellenir. İstek yolu bunları okur.
+    -- denormalize edilmiş; teklifi yazan işlemde yenilenir, günlük cron ve
+    -- `similarity --prices` onarır (karar 0072). İstek yolu bunları okur.
+    -- Yalnızca AKTİF mağazanın fiyatlı aktif teklifi sayılır (arama ile aynı).
     -- min_price: aktif tekliflerin en düşüğü, TÜM varyantlar dahil (0033).
     -- "Başlangıç fiyatı"dır; farklı boyutlar (60/100 ml) karşılaştırılabilir
     -- "en ucuz" fiyat değildir. Varyant bazlı karşılaştırma ürün sayfasında.
     min_price       BIGINT,
     max_price       BIGINT,
-    offer_count     INTEGER     NOT NULL DEFAULT 0,
-    in_stock_count  INTEGER     NOT NULL DEFAULT 0,
+    offer_count     INTEGER     NOT NULL DEFAULT 0,   -- farklı mağaza sayısı ("N mağaza")
+    in_stock_count  INTEGER     NOT NULL DEFAULT 0,   -- stokta olan mağaza sayısı
     price_updated_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
@@ -143,6 +145,32 @@ CREATE INDEX offer_product_idx    ON offer (product_id) WHERE product_id IS NOT 
 CREATE INDEX offer_unmatched_idx  ON offer (merchant_id) WHERE product_id IS NULL;
 CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT NULL;
 CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
+
+-- Offer görselleri (0053, karar 0073). Kaynak en fazla 6 görsel; kullanıcıya en
+-- fazla 3'ü gösterilir (display_rank). Görsel ilk olarak offer'dan gelir; ürün
+-- galerisi okuma sırasında en uygun offer'ın görsellerinden kurulur. Binary
+-- YOK: URL + özet + metadata. r2_url ileride ayrı aynalama işi doldurur.
+CREATE TABLE offer_image (
+    id                  BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    offer_id            BIGINT      NOT NULL REFERENCES offer(id) ON DELETE CASCADE,
+    url_hash            BYTEA       NOT NULL CHECK (octet_length(url_hash) = 16),  -- md5(normalize URL)
+    source_url          TEXT        NOT NULL CHECK (char_length(source_url) BETWEEN 1 AND 2048),
+    r2_url              TEXT        CHECK (r2_url IS NULL OR char_length(r2_url) BETWEEN 1 AND 2048),
+    source_position     SMALLINT    NOT NULL CHECK (source_position >= 0),  -- mağaza sırası
+    display_rank        SMALLINT    CHECK (display_rank IS NULL OR display_rank >= 0),  -- NULL: gösterilmez
+    is_variant_specific BOOLEAN     NOT NULL DEFAULT FALSE,  -- kaynak görseli varyanta bağlamış mı
+    image_hash          TEXT,
+    perceptual_hash     BIGINT,
+    width               INTEGER     CHECK (width IS NULL OR width > 0),
+    height              INTEGER     CHECK (height IS NULL OR height > 0),
+    status              TEXT        NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'removed', 'broken')),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT offer_image_url_uniq UNIQUE (offer_id, url_hash),
+    CONSTRAINT offer_image_rank_uniq UNIQUE (offer_id, display_rank) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT offer_image_rank_active CHECK (display_rank IS NULL OR status = 'active')
+);
 
 -- Beden varyantları. Stok bedene göre değişir; "senin bedenin var mı" sorusu
 -- moda kategorisinde satın alma kararının kendisidir.
@@ -270,7 +298,7 @@ CREATE TABLE match_candidate (
                  CHECK (method IN ('gtin','mpn','text','image','hybrid')),
     status       TEXT        NOT NULL DEFAULT 'pending'
                  CHECK (status IN ('pending','auto_accepted','accepted','rejected')),
-    reviewed_by  BIGINT      REFERENCES app_user(id),      -- 0028: FK eklendi
+    reviewed_by  BIGINT      REFERENCES app_user(id) ON DELETE SET NULL, -- 0028 FK, 0039 SET NULL
     reviewed_at  TIMESTAMPTZ,
     created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     -- 0028 (docs/decisions/0041): red nedeni; NULL = belirtilmedi.
@@ -411,7 +439,9 @@ CREATE TABLE app_user (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_seen_at  TIMESTAMPTZ,
     -- 0034 (0047): davet kodu, ilk istendiginde uretilir.
-    referral_code TEXT CHECK (referral_code IS NULL OR referral_code ~ '^[A-HJ-NP-Z2-9]{8}$')
+    referral_code TEXT CHECK (referral_code IS NULL OR referral_code ~ '^[A-HJ-NP-Z2-9]{8}$'),
+    -- 0045 (0060): karsilama akisi tamamlandi/atlandi. NULL = henuz gosterilmedi; mevcut hesaplar created_at ile dolduruldu.
+    onboarded_at  TIMESTAMPTZ
 );
 CREATE INDEX app_user_role_idx ON app_user (role) WHERE role <> 'user';
 CREATE UNIQUE INDEX app_user_referral_code_unique ON app_user (referral_code) WHERE referral_code IS NOT NULL;
@@ -496,6 +526,132 @@ CREATE TABLE early_access (
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX early_access_created_idx ON early_access (created_at DESC);
+
+-- Erken erisim sayaci (0050, karar 0065): platform disi (e-postayla gelen)
+-- gercek basvurularin sayisi. Tek satir; gosterilen sayi = bu deger +
+-- COUNT(early_access). Yonetici elle gunceller (denetim kaydi + gerekce);
+-- otomatik/rastgele artis yok. Uygulama yalnizca SELECT/UPDATE yapar.
+CREATE TABLE early_access_counter (
+    id                 SMALLINT    PRIMARY KEY DEFAULT 1 CHECK (id = 1),
+    off_platform_count INTEGER     NOT NULL CHECK (off_platform_count BETWEEN 0 AND 1000000),
+    updated_by         BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+-- Kullanıcı geri bildirimi (0032, karar 0045) ve iletişim formu (0047, karar
+-- 0061). `/geri-bildirim` ve `/iletisim` aynı tabloya `kind` ile ayrılarak
+-- yazar; girişli kullanıcı da anonim ziyaretçi de, yalnızca sunucu üzerinden.
+-- Uygulama `status` olarak yalnızca 'new' yazar; diğer değerler ileride
+-- yönetim paneli içindir. Hesap silinince satır da silinir.
+CREATE TABLE feedback (
+    id          BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    user_id     BIGINT      REFERENCES app_user(id) ON DELETE CASCADE,
+    kind        TEXT        NOT NULL DEFAULT 'feedback' CHECK (kind IN ('feedback','contact')),
+    -- İletişim formunda yanıt için ad; geri bildirimde NULL.
+    name        TEXT        CHECK (name IS NULL OR char_length(btrim(name)) BETWEEN 1 AND 100),
+    email       TEXT        CHECK (email IS NULL OR char_length(email) BETWEEN 3 AND 254),
+    -- Kategori türe göre: geri bildirim ve iletişim listeleri ayrı.
+    category    TEXT        NOT NULL,
+    title       TEXT        NOT NULL CHECK (char_length(btrim(title)) BETWEEN 1 AND 200),
+    message     TEXT        NOT NULL CHECK (char_length(btrim(message)) BETWEEN 1 AND 10000),
+    priority    TEXT        CHECK (priority IN ('low','medium','high')),
+    status      TEXT        NOT NULL DEFAULT 'new' CHECK (status IN
+                    ('new','reviewing','planned','resolved','rejected')),
+    source      TEXT        NOT NULL CHECK (source IN ('public','early_access')),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT feedback_source_matches_user CHECK (
+        (user_id IS NULL AND source = 'public') OR (user_id IS NOT NULL AND source = 'early_access')
+    ),
+    CONSTRAINT feedback_category_check CHECK (
+        (kind = 'feedback' AND category IN
+            ('suggestion','bug','feature_request','ux','product_store','other'))
+        OR
+        (kind = 'contact' AND category IN
+            ('general','account','price_error','bug','partnership','privacy','other'))
+    ),
+    -- İletişim gönderisinde yanıt adresi ve ad zorunlu.
+    CONSTRAINT feedback_contact_reply_address CHECK (
+        kind <> 'contact' OR (email IS NOT NULL AND name IS NOT NULL)
+    )
+);
+CREATE INDEX feedback_created_idx ON feedback (created_at DESC);
+CREATE INDEX feedback_user_idx ON feedback (user_id) WHERE user_id IS NOT NULL;
+CREATE INDEX feedback_kind_created_idx ON feedback (kind, created_at DESC, id DESC);
+
+-- 0043 (karar 0058): form / anket merkezi. Geri bildirimden ayrıdır.
+CREATE TABLE form (
+    id                        BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    slug                      TEXT NOT NULL UNIQUE CHECK (char_length(slug) BETWEEN 3 AND 80 AND slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'),
+    title                     TEXT NOT NULL CHECK (char_length(btrim(title)) BETWEEN 1 AND 200),
+    description               TEXT CHECK (description IS NULL OR char_length(description) <= 2000),
+    status                    TEXT NOT NULL DEFAULT 'draft' CHECK (status IN ('draft','published','closed')),
+    audience                  TEXT NOT NULL DEFAULT 'public' CHECK (audience IN ('public','authenticated','early_access')),
+    kind                      TEXT NOT NULL DEFAULT 'survey' CHECK (kind IN ('survey','onboarding')),
+    allow_skip                BOOLEAN NOT NULL DEFAULT false,
+    allow_multiple_responses  BOOLEAN NOT NULL DEFAULT false,
+    starts_at                 TIMESTAMPTZ,
+    ends_at                   TIMESTAMPTZ,
+    created_by                BIGINT REFERENCES app_user(id) ON DELETE SET NULL,
+    updated_by                BIGINT REFERENCES app_user(id) ON DELETE SET NULL,
+    published_at              TIMESTAMPTZ,
+    closed_at                 TIMESTAMPTZ,
+    created_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at                TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT form_window_order CHECK (starts_at IS NULL OR ends_at IS NULL OR ends_at > starts_at),
+    CONSTRAINT form_onboarding_needs_user CHECK (kind <> 'onboarding' OR audience <> 'public')
+);
+-- Aynı anda en fazla bir yayında onboarding formu.
+CREATE UNIQUE INDEX form_one_published_onboarding ON form (kind) WHERE kind = 'onboarding' AND status = 'published';
+
+CREATE TABLE form_question (
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    form_id      BIGINT NOT NULL REFERENCES form(id) ON DELETE CASCADE,
+    label        TEXT NOT NULL CHECK (char_length(btrim(label)) BETWEEN 1 AND 300),
+    description  TEXT CHECK (description IS NULL OR char_length(description) <= 1000),
+    type         TEXT NOT NULL CHECK (type IN ('single_choice','multiple_choice','short_text','long_text')),
+    required     BOOLEAN NOT NULL DEFAULT false,
+    sort_order   INTEGER NOT NULL CHECK (sort_order >= 0),
+    created_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (form_id, sort_order)
+);
+
+CREATE TABLE form_question_option (
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    question_id  BIGINT NOT NULL REFERENCES form_question(id) ON DELETE CASCADE,
+    label        TEXT NOT NULL CHECK (char_length(btrim(label)) BETWEEN 1 AND 200),
+    sort_order   INTEGER NOT NULL CHECK (sort_order >= 0),
+    UNIQUE (question_id, sort_order)
+);
+
+CREATE TABLE form_response (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    form_id          BIGINT NOT NULL REFERENCES form(id) ON DELETE CASCADE,
+    user_id          BIGINT REFERENCES app_user(id) ON DELETE CASCADE,
+    single_response  BOOLEAN NOT NULL,   -- yanıt anındaki NOT allow_multiple_responses
+    source           TEXT CHECK (source IS NULL OR source IN ('link','onboarding','account')),
+    submitted_at     TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Tek yanıtlı formda girişli kullanıcı en fazla bir yanıt verir (motor zorlar).
+CREATE UNIQUE INDEX form_response_single_user ON form_response (form_id, user_id) WHERE single_response AND user_id IS NOT NULL;
+
+CREATE TABLE form_answer (
+    id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    response_id  BIGINT NOT NULL REFERENCES form_response(id) ON DELETE CASCADE,
+    question_id  BIGINT NOT NULL REFERENCES form_question(id) ON DELETE CASCADE,
+    option_id    BIGINT REFERENCES form_question_option(id) ON DELETE CASCADE,
+    text_value   TEXT CHECK (text_value IS NULL OR char_length(text_value) BETWEEN 1 AND 5000),
+    CONSTRAINT form_answer_one_value CHECK ((option_id IS NULL) <> (text_value IS NULL))
+);
+
+-- "Şimdilik geç": tamamlandı SAYILMAZ, yalnızca hatırlatma kaydı.
+CREATE TABLE form_skip (
+    form_id     BIGINT NOT NULL REFERENCES form(id) ON DELETE CASCADE,
+    user_id     BIGINT NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    skipped_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (form_id, user_id)
+);
 
 CREATE TABLE creator (
     id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
@@ -891,6 +1047,24 @@ CREATE TABLE ingest_run (
 );
 CREATE INDEX ingest_run_merchant_idx ON ingest_run (merchant_id, started_at DESC);
 
+-- 0041 (docs/decisions/0052): is kosusu gecmisi (collect, resolve, enrich,
+-- similarity, cron uclari). Isletim sinyali; denetim/analitik/log DEGIL.
+-- 180 gun saklanir. Yeniden deneme / simdi calistir yok.
+CREATE TABLE job_run (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    job           TEXT        NOT NULL CHECK (job ~ '^[a-z][a-z0-9_]{1,39}$'),
+    trigger       TEXT        NOT NULL DEFAULT 'manual' CHECK (trigger IN ('manual','cron','worker')),
+    status        TEXT        NOT NULL DEFAULT 'running'
+                  CHECK (status IN ('running','success','partial','failed')),
+    started_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    finished_at   TIMESTAMPTZ,
+    detail        JSONB       NOT NULL DEFAULT '{}'::jsonb
+                  CHECK (jsonb_typeof(detail) = 'object' AND pg_column_size(detail) <= 4096),
+    error_summary TEXT        CHECK (error_summary IS NULL OR char_length(error_summary) <= 500),
+    CONSTRAINT job_run_finished CHECK ((status = 'running') = (finished_at IS NULL))
+);
+CREATE INDEX job_run_job_idx ON job_run (job, started_at DESC);
+
 -- ---------------------------------------------------------------------------
 -- YÖNETİM DENETİM KAYDI (0027, docs/decisions/0039)
 -- /yonetim mutasyonları mutasyonla AYNI işlemde buraya yazılır. Yalnızca
@@ -902,7 +1076,7 @@ CREATE INDEX ingest_run_merchant_idx ON ingest_run (merchant_id, started_at DESC
 
 CREATE TABLE admin_audit_event (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    actor_user_id BIGINT      NOT NULL REFERENCES app_user(id),   -- CASCADE yok, bilerek
+    actor_user_id BIGINT      REFERENCES app_user(id) ON DELETE SET NULL, -- 0039: silinen aktor NULL, satir kalir
     actor_role    TEXT        NOT NULL,          -- işlem anındaki rol
     action        TEXT        NOT NULL,          -- 'matching.approve', 'lexicon.update'
     target_type   TEXT        NOT NULL,          -- 'match_candidate', 'lexicon'
@@ -915,6 +1089,14 @@ CREATE TABLE admin_audit_event (
 CREATE INDEX admin_audit_event_time_idx   ON admin_audit_event (created_at DESC);
 CREATE INDEX admin_audit_event_target_idx ON admin_audit_event (target_type, target_id, created_at DESC);
 CREATE INDEX admin_audit_event_actor_idx  ON admin_audit_event (actor_user_id, created_at DESC);
+
+-- 0039: rol degisikligi motorda denetlenir (docs/decisions/0050). Her
+-- `app_user.role` degisikligi (ve 'user' disi rolle acilan hesap) ayni
+-- islemde `users.role_change` satiri yazar; aktor istege bagli
+-- `arilla.audit_actor_*` oturum ayarlarindan, baglanan rol `after.dbRole`.
+CREATE TRIGGER app_user_role_change_audit
+    AFTER INSERT OR UPDATE OF role ON app_user
+    FOR EACH ROW EXECUTE FUNCTION audit_app_user_role_change();
 
 -- ---------------------------------------------------------------------------
 -- ARAMA — detaylar docs/search.md
@@ -932,6 +1114,41 @@ CREATE TABLE query_resolution (
     last_used_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX query_resolution_popular_idx ON query_resolution (hit_count DESC);
+
+-- 0040 (docs/decisions/0052): arama kalitesi gunluk ozeti. OLAY tablosu degil;
+-- (gun, normalize sorgu) basina tek satir, kimlik YOK, 90 gun saklanir.
+-- E-posta/telefon/adres/uzun rakam iceren sorgular hic yazilmaz (core).
+CREATE TABLE search_query_day (
+    day                DATE        NOT NULL,
+    query_norm         TEXT        NOT NULL CHECK (char_length(query_norm) BETWEEN 1 AND 200),
+    searches           INTEGER     NOT NULL DEFAULT 0 CHECK (searches >= 0),
+    zero_results       INTEGER     NOT NULL DEFAULT 0 CHECK (zero_results >= 0),
+    fallbacks          INTEGER     NOT NULL DEFAULT 0 CHECK (fallbacks >= 0),
+    clarifications     INTEGER     NOT NULL DEFAULT 0 CHECK (clarifications >= 0),
+    last_result_count  INTEGER     CHECK (last_result_count IS NULL OR last_result_count >= 0),
+    parser_tier        SMALLINT    CHECK (parser_tier IS NULL OR parser_tier BETWEEN 1 AND 3),
+    unrecognized_terms TEXT[]      NOT NULL DEFAULT '{}' CHECK (cardinality(unrecognized_terms) <= 8),
+    last_seen_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (day, query_norm)
+);
+
+-- 0044 (docs/decisions/0059): cevrimdisi model sorgu yorumu onbellegi. Toplu is
+-- yazar, istek yolu yalnizca okur. Kimlik (sorgu, taksonomi ozeti, model);
+-- kullanici/oturum/IP YOK, ham model yaniti YOK. Saglayici hatasi satir uretmez.
+CREATE TABLE query_interpretation (
+    id              BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    query_norm      TEXT        NOT NULL CHECK (char_length(query_norm) BETWEEN 1 AND 200),
+    taxonomy_hash   TEXT        NOT NULL CHECK (taxonomy_hash ~ '^[0-9a-f]{64}$'),
+    model_version   TEXT        NOT NULL CHECK (char_length(model_version) BETWEEN 1 AND 100),
+    status          TEXT        NOT NULL CHECK (status IN ('accepted', 'empty', 'invalid')),
+    interpretation  JSONB,                     -- dogrulanmis yorum, yalnizca accepted
+    rejected        JSONB       NOT NULL DEFAULT '[]'::jsonb  -- [{path, reason}] sabit kodlar
+                    CHECK (jsonb_typeof(rejected) = 'array' AND pg_column_size(rejected) <= 2048),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT query_interpretation_identity UNIQUE (query_norm, taxonomy_hash, model_version),
+    CONSTRAINT query_interpretation_accepted_value CHECK ((status = 'accepted') = (interpretation IS NOT NULL)),
+    CONSTRAINT query_interpretation_value_shape CHECK (interpretation IS NULL OR jsonb_typeof(interpretation) = 'object')
+);
 
 -- Sözlükler. Veritabanında tutulur ki yeni eşanlamlı için sürüm çıkmasın.
 CREATE TABLE lexicon (
@@ -990,7 +1207,8 @@ CREATE TABLE user_consent (
     -- 0037 (docs/decisions/0049): kaynak ve metin sürümü. 0037 öncesi
     -- satırlarda NULL ("sürümsüz kayıt"); bu satırlar geçerlidir.
     source       TEXT        CHECK (source IS NULL OR source IN (
-                     'account_settings','cookie_banner','cookie_sync','sign_in','unsubscribe_link')),
+                     'account_settings','cookie_banner','cookie_sync','sign_in','unsubscribe_link',
+                     'signup_default','onboarding')), -- 0045
     text_version TEXT        CHECK (text_version IS NULL OR char_length(text_version) BETWEEN 1 AND 64)
 );
 CREATE INDEX user_consent_idx ON user_consent (user_id, kind, granted_at DESC);
@@ -1188,6 +1406,7 @@ REVOKE UPDATE, DELETE, TRUNCATE ON price_point         FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_stock_event FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON variant_price_event FROM arilla_app;   -- 0026
 REVOKE UPDATE, DELETE, TRUNCATE ON admin_audit_event   FROM arilla_app;   -- 0027
+REVOKE INSERT, DELETE, TRUNCATE ON early_access_counter FROM arilla_app;   -- 0050
 REVOKE UPDATE, DELETE, TRUNCATE ON bonus_ledger        FROM arilla_app;   -- 0034
 -- 0035: kampanya geçmişi silinmez (güncellenebilir, silinemez).
 REVOKE DELETE, TRUNCATE ON marketing_campaign          FROM arilla_app;   -- 0035
@@ -1196,7 +1415,95 @@ REVOKE DELETE, TRUNCATE ON marketing_campaign_delivery FROM arilla_app;   -- 003
 REVOKE UPDATE, TRUNCATE ON auth_event          FROM arilla_app;           -- 0036
 REVOKE UPDATE, TRUNCATE ON user_activity_event FROM arilla_app;           -- 0036
 GRANT  UPDATE (query_norm) ON user_activity_event TO arilla_app;          -- 0036: 90 günde NULL
+-- 0046: en az yetki; kullanilmayan iki yetki geri alinir.
+REVOKE DELETE ON api_usage                 FROM arilla_app;   -- 0046 (kullanilmiyor; maliyet kaydi silinmez)
+REVOKE UPDATE ON query_interpretation      FROM arilla_app;   -- 0046 (kullanilmiyor; saklama DELETE ile)
+
+-- 0042 (karar 0057): Supabase'in `anon` / `authenticated` rolleri (yalnızca
+-- Supabase'de vardır) `public` şemada hiçbir tablo, sequence ve kendi
+-- fonksiyonumuzda yetki taşımaz; migration rolünün varsayılan yetkileri de
+-- bu rollere vermez. Data API (PostgREST / pg_graphql) bu yüzden erişemez.
+--   REVOKE ALL ON ALL TABLES    IN SCHEMA public FROM anon, authenticated;
+--   REVOKE ALL ON ALL SEQUENCES IN SCHEMA public FROM anon, authenticated;
+--   ALTER DEFAULT PRIVILEGES IN SCHEMA public REVOKE ALL ON TABLES FROM anon, authenticated;
 
 -- price_point partition'larına doğrudan erişim yoktur. Partitioned tabloya
 -- INSERT'te yetki ebeveyn üzerinde denetlenir; yönlendirme etkilenmez.
 -- Yeni partition'lar için aynı REVOKE'u `scripts/partitions.ts` uygular.
+
+-- 0054 (karar 0074): konusmali urun kesfi. Tam metin: migrations/0054_conversation.sql.
+CREATE TABLE IF NOT EXISTS conversation (
+    id                     UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    user_id                BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    -- Normalize edilmis, birlestirilmis arama niyeti; NULL = henuz arama yok.
+    current_search_intent  JSONB,
+    -- Acik netlestirme sorusu (son asistan mesajinin `payload.question`i); NULL = yok.
+    -- Sunucu "bu secenek gecerli mi" kontrolunu bundan yapar.
+    pending_question       JSONB,
+    -- Modelin onerdigi kisa baslik degil, ilk mesajin ilk 80 karakteri.
+    title                  TEXT        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 120),
+    -- Atomik kira: model cagrisi suresince bir tur sahiplenir; sure dolunca duser.
+    processing_until       TIMESTAMPTZ,
+    message_count          INTEGER     NOT NULL DEFAULT 0 CHECK (message_count >= 0),
+    created_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at             TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_message_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT conversation_intent_shape CHECK (
+        current_search_intent IS NULL OR (
+            jsonb_typeof(current_search_intent) = 'object'
+            AND pg_column_size(current_search_intent) <= 4096)
+    ),
+    CONSTRAINT conversation_question_shape CHECK (
+        pending_question IS NULL OR (
+            jsonb_typeof(pending_question) = 'object'
+            AND pg_column_size(pending_question) <= 4096)
+    )
+);
+
+CREATE INDEX IF NOT EXISTS conversation_user_recent_idx
+    ON conversation (user_id, last_message_at DESC);
+CREATE INDEX IF NOT EXISTS conversation_last_message_idx
+    ON conversation (last_message_at);
+
+CREATE TABLE IF NOT EXISTS chat_message (
+    id                 BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    conversation_id    UUID        NOT NULL REFERENCES conversation(id) ON DELETE CASCADE,
+    seq                INTEGER     NOT NULL CHECK (seq >= 1),
+    role               TEXT        NOT NULL CHECK (role IN ('user', 'assistant')),
+    -- user: text | option | skip; assistant: clarify | search | notice.
+    kind               TEXT        NOT NULL,
+    content            TEXT        NOT NULL CHECK (char_length(content) BETWEEN 1 AND 2000),
+    -- clarify: {question}; search: {intent, source}; option: {questionId, value}.
+    payload            JSONB,
+    -- Istemcinin tur basina urettigi opak anahtar; yalnizca tekillestirme icindir.
+    client_request_id  TEXT        CHECK (client_request_id IS NULL
+                                          OR char_length(client_request_id) BETWEEN 8 AND 100),
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT chat_message_order UNIQUE (conversation_id, seq),
+    CONSTRAINT chat_message_role_kind CHECK (
+        (role = 'user' AND kind IN ('text', 'option', 'skip'))
+        OR (role = 'assistant' AND kind IN ('clarify', 'search', 'notice'))
+    ),
+    CONSTRAINT chat_message_payload_shape CHECK (
+        payload IS NULL OR (jsonb_typeof(payload) = 'object' AND pg_column_size(payload) <= 4096)
+    )
+);
+
+-- Ayni tur iki kez gonderilemez; yalnizca kullanici mesajlarinda anahtar var.
+CREATE UNIQUE INDEX IF NOT EXISTS chat_message_request_unique
+    ON chat_message (conversation_id, client_request_id)
+    WHERE client_request_id IS NOT NULL;
+
+REVOKE UPDATE ON chat_message FROM arilla_app;
+
+-- 0055 (karar 0075): sohbet sonuc geri bildirimi. Tam metin: migrations/0055_chat_result_feedback.sql.
+CREATE TABLE IF NOT EXISTS chat_result_feedback (
+    message_id       BIGINT      PRIMARY KEY REFERENCES chat_message(id) ON DELETE CASCADE,
+    conversation_id  UUID        NOT NULL REFERENCES conversation(id) ON DELETE CASCADE,
+    helpful          BOOLEAN     NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS chat_result_feedback_conversation_idx
+    ON chat_result_feedback (conversation_id);

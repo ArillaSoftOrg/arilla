@@ -131,6 +131,8 @@ export const USER_SEARCH_PAGE_SIZE = 20;
 const USER_SEARCH_MAX_PAGE = 50;
 /** Arama sorgusunun en uzun süresi (yönetim ekranı; 2 karakterlik aramalar indekssiz taranır). */
 const USER_SEARCH_TIMEOUT_MS = 5_000;
+/** pg_trgm üçlü karakter kullanır: daha kısa terimde indeks yardım etmez. */
+const TRIGRAM_MIN_LENGTH = 3;
 
 export type UserSearchMethod = "text" | "public_id" | "phone";
 
@@ -181,8 +183,11 @@ function classifySearch(raw: string): { method: UserSearchMethod; value: string 
  * E.164 telefon tam eşleşme. En yeni hesap önce, sayfa başına 20.
  *
  * Katlanmış ad/e-posta üzerinde trigram indeksleri vardır (migration 0038).
- * 200 bin kullanıcıda ölçülen: seyrek terim 6 ms, ad 1,5 ms, çok yaygın terim
- * ~250 ms, 2 karakter ~500 ms (indekssiz tarama). Süre `statement_timeout` ile
+ * Yerel 200 bin kullanıcı / 140 bin kimlikte EXPLAIN ANALYZE (karar 0055):
+ * seyrek terim ~700 ms → 2-3 ms, eşleşmeyen terim ~650 ms → 0,1 ms, ad
+ * ~25 ms → ~30 ms, çok yaygın terim ("gmail") ~110 ms → ~330-440 ms. 2
+ * karakterlik terim trigram kullanamaz; UNION biçimi orada 3 kat yavaşladığı
+ * için eski OR biçimiyle (~430 ms) taranır. Süre `statement_timeout` ile
  * sınırlıdır.
  *
  * Arama denetime yazılır: yöntem, sayfa ve sonuç sayısı. Aranan değer
@@ -216,19 +221,29 @@ export async function searchUsers(
                            AND i.provider_subject = ${value})`;
   } else {
     const pattern = `%${escapeLike(value)}%`;
-    // Dört indeks dostu alt sorgunun birleşimi (0038 trigram indeksleri):
-    // OR + EXISTS biçimi planlayıcının indeksi kullanmasını engelliyordu.
-    where = sql`u.id IN (
+    where =
+      value.length >= TRIGRAM_MIN_LENGTH
+        ? // Dört indeks dostu alt sorgunun birleşimi (0038 trigram indeksleri):
+          // OR + EXISTS biçimi planlayıcının indeksi kullanmasını engelliyordu.
+          sql`u.id IN (
       SELECT a.id FROM app_user a WHERE ${foldedTextExpr(sql`a.display_name`)} LIKE ${pattern}
       UNION SELECT a.id FROM app_user a WHERE ${foldedTextExpr(sql`a.email`)} LIKE ${pattern}
       UNION SELECT i.user_id FROM user_identity i WHERE ${foldedTextExpr(sql`i.email`)} LIKE ${pattern}
       UNION SELECT i.user_id FROM user_identity i WHERE ${foldedTextExpr(sql`i.display_name`)} LIKE ${pattern}
+    )`
+        : // Trigram yok: tek tarama, en yeni hesaptan sıralı erken çıkış.
+          sql`(
+      ${foldedTextExpr(sql`u.display_name`)} LIKE ${pattern}
+      OR ${foldedTextExpr(sql`u.email`)} LIKE ${pattern}
+      OR EXISTS (SELECT 1 FROM user_identity i
+                  WHERE i.user_id = u.id
+                    AND (${foldedTextExpr(sql`i.email`)} LIKE ${pattern}
+                         OR ${foldedTextExpr(sql`i.display_name`)} LIKE ${pattern}))
     )`;
   }
 
   return db.transaction(async (tx) => {
-    // Kısa anahtar kelimeler (2 karakter) trigram indeksini kullanamaz ve
-    // taramaya düşer; aramanın süresi sınırlıdır.
+    // Kısa ya da çok yaygın terimler binlerce satır eşler; süre sınırlı.
     await tx.execute(sql.raw(`SET LOCAL statement_timeout = ${USER_SEARCH_TIMEOUT_MS}`));
     const result = await tx.execute(sql`
       SELECT u.public_id, u.display_name, u.email, u.role, u.created_at,

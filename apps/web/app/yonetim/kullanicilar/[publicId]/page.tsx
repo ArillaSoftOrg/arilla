@@ -21,6 +21,7 @@ import { ActivityTab, AffiliateTab, SearchesTab, SessionsTab } from "./activity-
 import { AuditTab } from "./audit-tab.tsx";
 import { ConsentsTab } from "./consents-tab.tsx";
 import { ProfileTab } from "./profile-tab.tsx";
+import { RevokeSessionsClient } from "./revoke-sessions-client.tsx";
 
 const TABS = [
   { slug: "profil", label: "Profil", capability: "users.read" },
@@ -109,7 +110,18 @@ export default async function UserDetailPage({
       const view = await getUserSessions(db, actor, publicId, { cursor });
       if (!view) notFound();
       header = view.user;
-      body = <SessionsTab view={view} paging={paging} />;
+      body = (
+        <>
+          {/* Karar 0050: tüm oturumları kapat (yalnızca yönetici, taze giriş, denetimli). */}
+          {hasCapability(actor.role, "users.sessions.revoke") ? (
+            <RevokeSessionsClient
+              publicId={view.user.publicId}
+              activeSessions={view.activeSessions.length}
+            />
+          ) : null}
+          <SessionsTab view={view} paging={paging} />
+        </>
+      );
       break;
     }
     case "aramalar": {

@@ -12,8 +12,12 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["app/**/*.integration.test.ts"],
+    // Üretim veritabanına bağlanmayı engeller (fail-closed).
+    setupFiles: ["../../packages/db/src/vitest-isolation-setup.ts"],
     // Yalnızca test sürecinde token özetlemek için; gerçek bir sır değildir.
     env: { SESSION_SECRET: "yonetim-yetki-testi-yalnizca-yerel" },
+    // Yayında tek onboarding formu kısıtı (karar 0058): onboarding testleri aynı anda koşmaz.
+    fileParallelism: false,
     testTimeout: 30_000,
     hookTimeout: 30_000,
   },

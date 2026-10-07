@@ -88,7 +88,8 @@ function SourceCard({ source, offerId }: { source: LinkSource; offerId: number |
           <a
             className={linkStyles.sourceLink}
             href={`/git/${offerId}?surface=search`}
-            rel="nofollow noopener"
+            target="_blank"
+            rel="nofollow noopener noreferrer"
           >
             {LINK_SEARCH_COPY.sourceOpen}
           </a>

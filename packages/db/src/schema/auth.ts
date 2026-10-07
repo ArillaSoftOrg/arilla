@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   inet,
+  integer,
   pgTable,
   smallint,
   text,
@@ -24,6 +25,8 @@ export const appUser = pgTable("app_user", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   /** 0034: davet kodu; ilk istendiginde uretilir. */
   referralCode: text("referral_code"),
+  /** 0045: karsilama tamamlandi/atlandi; NULL = henuz gosterilmedi. */
+  onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
 });
 
 /** Token asla duz metin saklanmaz, asla log'a yazilmaz. */
@@ -107,5 +110,16 @@ export const earlyAccess = pgTable("early_access", {
   userId: bigint("user_id", { mode: "number" }).primaryKey(),
   status: text("status").$type<EarlyAccessStatus>().notNull().default("pending"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * 0050: erken erisim sayaci. Tek satir (id = 1): platform disi gercek
+ * basvurularin sayisi; gosterilen sayi bunun + `early_access` satir sayisidir.
+ */
+export const earlyAccessCounter = pgTable("early_access_counter", {
+  id: smallint("id").primaryKey().default(1),
+  offPlatformCount: integer("off_platform_count").notNull(),
+  updatedBy: bigint("updated_by", { mode: "number" }),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
