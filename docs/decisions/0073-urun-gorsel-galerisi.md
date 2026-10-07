@@ -56,6 +56,52 @@ Satir basina ~345 bayt (heap + 3 indeks: PK, `(offer_id,url_hash)`,
 Mevcut DB ~47 MB: en kotu durum (+18 MB) DB'yi ~%38 buyutur; beklenen (3-4
 gorsel) +9-12 MB. Bloat/ek indeks icin %30 pay birakin.
 
+## Gercek katalog dagilimi (2026-10-07, salt okunur ornek)
+
+Gercek `ShopifyConnector` (robots, hiz siniri, `guarded_client`) ile 18 aktif
+magazanin erisilebilen 10'undan en fazla 300'er urun, **5.732 offer** (DB'ye
+baglanilmadi, yazilmadi). 8 magaza `robots_unavailable` ile reddedildi (uretimde
+de toplanmaz).
+
+| Kaynak gorsel sayisi / offer | Offer | Pay |
+| --- | ---: | ---: |
+| 0 | 6 | %0,1 |
+| 1 | 1.275 | %22,2 |
+| 2 | 477 | %8,3 |
+| 3 | 392 | %6,8 |
+| 4-6 | 1.086 | %18,9 |
+| 6+ | 2.496 | %43,5 |
+
+Ortalama 7,76, medyan 6, p90 17, en fazla 88. Tavan (6) sonrasi saklanan
+ortalama **4,17 satir/offer**, kullaniciya gosterilen ortalama **2,47/offer**.
+Bu, onceki varsayimdan (3-4) yuksek: 9.137 offer icin ~38.100 satir (~12,6 MB
+@345 B) ve ~22.600 gosterilen gorsel. Ornek ilk 300 urunle sinirli ve 10
+magazadan; Shopify'da renk bolunmesi ortak gorselleri her renk offer'inda tekrar
+saydirir (satirlar gercektir, tekrar degil). Backfill B sonrasi gercek deger
+`SELECT count(*) FROM offer_image` ile dogrulanmali.
+
+## primary_image_url ile display_rank=0 tutarliligi
+
+- **Olusumda ayni:** `normalize`, `offer.image_url`'i temsili (`primary`) yapar;
+  heuristik onu eleyemez. Urun ilk offer'in `image_url`'i ile acilir. Yani ilk
+  ingest sonrasi `product.primary_image_url == offer_image(rank 0).source_url`
+  (surum parametresi farki hari).
+- **Kaynak sirasi degisirse:** rank 0 `image_url`'i izler (siraya degil);
+  `image_url` yalniz temsili varyantin `featured_image`inden gelir, sira
+  degisimi onu degistirmez (yalniz `featured_image` yokken `images[0]` yedegi
+  kullanilir).
+- **Offer'in ana gorseli degisirse:** eskiden urun bayat kalirdi. Simdi
+  `collect/primary_image_sync.py` offer upsert'inden once, chunk basina TEK
+  ifadeyle, urunun `primary_image_url`'i o offer'in ESKI degerine esitse yeni
+  degere gecirir. Esit degilse dokunmaz. Liste/arama sorgusuna join eklenmez.
+- **Cok merchant'li kanonik urun:** liste karti urunun acildigi offer'in
+  gorselidir; yalniz o offer'in degisimi urunu etkiler. Detay galerisi
+  `primary_image_url` ile ayni `image_url`'e sahip offer'i (kaynak) once secer;
+  o offer artik gosterilecek gorsel vermiyorsa en ucuz stoklu offer'a duser (bu
+  durumda rank 0 liste kartindan farkli olabilir; kabul edilen, belgelenen sinir).
+- **Sicak yol:** 120M olcekte arama/liste yalniz `product.primary_image_url`'i
+  okur; `offer_image` join'i eklenmez.
+
 ## 120M olcek: her offer icin 6 PostgreSQL satiri uygun degil
 
 Lineer: 120M x 6 = 720M satir x ~345 B = **~250 GB** (bloat ile ~320 GB), mevcut
@@ -98,6 +144,20 @@ Aynalamanin sirasi icin kismi indeks gerektiginde worker kendi migration'ini ekl
   cagriyla kullanilmali). Sira: once migration 0053 prod'a, sonra kod, sonra A, sonra B.
 - A ve B sonrasinda `getProductGallery` otomatik galeriyi kullanir; geri alma:
   kodu geri al (tablo zararsiz kalir) ya da `TRUNCATE offer_image`.
+
+## Preview / manuel kontrol listesi
+
+Otomatik testler isaretlemeyi ve durum mantigini kapsar; gercek tarayici
+dogrulamasi (arac erisilemedi) preview'da elle yapilir. Ornek urunler: 0, 1, 2,
+3 ve 3+ gorselli.
+
+Masaustu: kucuk resme tikla -> ana gorsel degisir, secili kucuk resim cerceveli;
+Tab ile galeriye tek durak; Sol/Sag ok donerek gezer, Home/End uclara gider;
+ana gorsel degisirken sayfa zipllamaz (CLS ~0); bozuk URL'de notr yuzey.
+Mobil (360-430 px): yatay tasma yok, kucuk resimler hizali ve >= 44 px, kare ana
+gorsel orani korunur. Ag: DevTools Network'te Shopify CDN gorselleri 200, Console'da
+CSP `img-src` ihlali yok, urun detayinda yalniz <= 3 gorsel, arama/liste kartinda
+kart basina TEK gorsel.
 
 ## Reddedilen
 

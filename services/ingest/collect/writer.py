@@ -20,6 +20,7 @@ from datetime import datetime
 import psycopg
 
 from collect.image_writer import write_offer_images
+from collect.primary_image_sync import sync_primary_images
 from collect.records import NormalizedOffer
 
 UPSERT_OFFER = """
@@ -138,6 +139,7 @@ class WriteCounts:
     stale_image_embeddings: int = 0
     images_written: int = 0
     images_removed: int = 0
+    primary_images_synced: int = 0
 
 
 class OfferWriter:
@@ -163,6 +165,10 @@ class OfferWriter:
         self.seen_offer_ids: set[int] = set()
 
     def write(self, offer: NormalizedOffer) -> int:
+        # Urunun gorseli kaynak offer'i izler (0073); eski deger okunabilirken, upsert'ten once.
+        self.counts.primary_images_synced += sync_primary_images(
+            self.conn, self.merchant_id, [(offer.external_id, offer.image_url)]
+        )
         offer_id, inserted, image_changed = self._upsert_offer(offer)
         if image_changed and not inserted:
             with self.conn.cursor() as cur:
