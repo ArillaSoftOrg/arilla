@@ -204,3 +204,14 @@ degisince gorsel embedding'i bayatlar (mevcut `stale_image_embeddings` yolu);
 Jina maliyeti etkilenir. Backfill A (`backfill_images`) yalniz hic satiri olmayan
 offer'lara eski `image_url`'i yazar; model-oncelikli duzeltme icin B (yeniden
 ingest) gerekir, A atlanabilir.
+
+### Ek 2 (2026-10-08): renk bolunmus urunde dosya adi koku
+
+Urun 3393 (North Sails, 3 renk, 19 gorsel): yalniz her rengin `_3` gorseli
+`variant_ids` ile baglidir, gerisi baglanmamistir. Yalnizca baglantiya bakan secim,
+bagli tek gorselden sonra kalan yerleri BASKA renklerin ortak gorselleriyle
+doldururdu. Kural (deterministik, model yok): bagi olmayan gorselin dosya adi koku
+(`603349_0421_3.jpg` -> `603349_0421`, `shopify._image_stem`) bu rengin bagli
+gorseliyle aynıysa varyanta ozgu sayilir; yalnizca baska rengin bagli gorseliyle
+aynıysa alinmaz; kok hicbirine uymuyorsa (`detay.jpg`) ortak kalir. Kok kanitı yoksa
+davranis oncekiyle aynıdir.

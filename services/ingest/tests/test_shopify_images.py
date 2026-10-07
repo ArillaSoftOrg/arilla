@@ -191,3 +191,44 @@ def test_entries_ignore_bad_numbers() -> None:
     images = images_from_entries([{"src": "https://x/a.jpg", "width": "abc", "position": "x"}])
     assert images[0].width is None
     assert images[0].position == 0
+
+
+def test_color_split_uses_filename_stem_to_drop_other_colours_and_keep_own() -> None:
+    """Gercek desen (North Sails 3393): her rengin yalniz bir gorseli varyanta bagli,
+    gerisi bagsiz ama ayni dosya kokunu tasir. Baska rengin fotograflari alinmaz."""
+
+    def img(id_: int, name: str, position: int, variants: list[int] | None = None) -> dict:
+        return {**_image(id_, name, position, variants)}
+
+    images = [
+        img(1, "603349_0802_1", 1),
+        img(2, "603349_0802_2", 2),
+        img(3, "603349_0802_3", 3, [10]),
+        img(4, "603349_0421_1", 4),
+        img(5, "603349_0421_2", 5),
+        img(6, "603349_0421_3", 6, [20]),
+        img(7, "603349_0421_4", 7),
+        img(8, "detay", 8),
+    ]
+    product = _product(images, [_variant(10, "Gri"), _variant(20, "Yesil")])
+    grey, green = _offers(product)
+    green_shown = sorted((r for r in _rows(green) if r[1] is not None), key=lambda r: r[1])
+    assert [r[0] for r in green_shown] == ["603349_0421_1", "603349_0421_2", "603349_0421_3"]
+    stored = {r[0] for r in _rows(green)}
+    assert stored == {"603349_0421_1", "603349_0421_2", "603349_0421_3", "603349_0421_4", "detay"}
+    assert not any("0802" in name for name in stored)
+    assert green.image_url == "https://cdn.example/603349_0421_1.jpg"
+    assert sorted(r[0] for r in _rows(grey) if r[1] is not None) == [
+        "603349_0802_1",
+        "603349_0802_2",
+        "603349_0802_3",
+    ]
+
+
+def test_color_split_without_stem_evidence_keeps_unlinked_images_shared() -> None:
+    product = _product(
+        [_image(1, "a", 1), _image(2, "b", 2, [10]), _image(3, "c", 3, [20])],
+        [_variant(10, "Siyah"), _variant(20, "Bej")],
+    )
+    black, _beige = _offers(product)
+    assert {r[0] for r in _rows(black)} == {"a", "b"}
