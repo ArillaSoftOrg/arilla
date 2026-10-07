@@ -40,6 +40,7 @@ def conn_and_merchant() -> Iterator[tuple[psycopg.Connection, int]]:
                 "(SELECT id FROM merchant WHERE domain = %s)",
                 (DOMAIN,),
             )
+            cur.execute("DELETE FROM product WHERE slug LIKE 'test-chunk-gallery-%'")
             cur.execute("DELETE FROM merchant WHERE domain = %s", (DOMAIN,))
         owner.commit()
 
@@ -128,3 +129,54 @@ def test_duplicate_external_id_in_chunk_last_wins(conn_and_merchant) -> None:
     writer.write_batch([_offer(1, images=4), _offer(1, images=2)])
     conn.commit()
     assert _count(conn) == 2
+
+
+def test_chunk_syncs_product_primary_image_with_one_statement(
+    conn_and_merchant, monkeypatch
+) -> None:
+    import collect.primary_image_sync as sync_module
+
+    conn, merchant_id = conn_and_merchant
+    observed = datetime(2026, 10, 7, tzinfo=UTC)
+    first = [_offer(n) for n in range(3)]
+    OfferWriter(conn, merchant_id, observed).write_batch(first)
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, image_url FROM offer o WHERE o.merchant_id = %s ORDER BY o.external_id",
+            (merchant_id,),
+        )
+        offers = cur.fetchall()
+        for offer_id, image_url in offers:
+            cur.execute(
+                "INSERT INTO product (slug, title, primary_image_url) "
+                "VALUES (%s, 'P', %s) RETURNING id",
+                (f"test-chunk-gallery-{offer_id}", image_url),
+            )
+            cur.execute(
+                "UPDATE offer SET product_id = %s WHERE id = %s", (cur.fetchone()[0], offer_id)
+            )
+    conn.commit()
+
+    calls: list[int] = []
+    real = sync_module.sync_primary_images
+
+    def counting(connection, merchant, items):
+        calls.append(len(items))
+        return real(connection, merchant, items)
+
+    monkeypatch.setattr(writer_module, "sync_primary_images", counting)
+    changed = [
+        NormalizedOffer(**{**o.__dict__, "image_url": o.image_url.replace(".jpg", "-v2.jpg")})
+        for o in first
+    ]
+    writer = OfferWriter(conn, merchant_id, observed)
+    writer.write_batch(changed)
+    conn.commit()
+    assert calls == [3]
+    assert writer.counts.primary_images_synced == 3
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM product WHERE slug LIKE 'test-chunk-gallery-%%' "
+            "AND primary_image_url LIKE '%%-v2.jpg'"
+        )
+        assert cur.fetchone()[0] == 3
