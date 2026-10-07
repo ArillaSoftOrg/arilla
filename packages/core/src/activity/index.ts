@@ -9,6 +9,12 @@ export {
   type SignInEventInput,
 } from "./auth-events.ts";
 export {
+  listRecentSearches,
+  RECENT_SEARCHES_DEFAULT_LIMIT,
+  RECENT_SEARCHES_MAX_LIMIT,
+  type RecentSearch,
+} from "./recent-searches.ts";
+export {
   type ActivityInput,
   normalizeActivityQuery,
   PRODUCT_VIEW_DEDUPE_MS,

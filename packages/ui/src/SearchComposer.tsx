@@ -2,9 +2,10 @@
 
 import { type FormEvent, useId, useRef } from "react";
 import { Button } from "./Button.tsx";
-import { type ContinueShoppingChipItem, ContinueShoppingChips } from "./ContinueShoppingChips.tsx";
 import { ArrowRightIcon, PlusIcon } from "./icons.tsx";
+import { listRole } from "./layout.ts";
 import { PhotoUploadButton } from "./PhotoUploadButton.tsx";
+import { ProductCard } from "./ProductCard.tsx";
 import styles from "./SearchComposer.module.css";
 
 export interface SearchComposerPhoto {
@@ -14,9 +15,28 @@ export interface SearchComposerPhoto {
   disabled?: boolean;
 }
 
+export interface SearchComposerRecentProduct {
+  productId: number;
+  href: string;
+  title: string;
+  imageUrl: string | null;
+  minPrice: number | null;
+  offerCount: number;
+}
+
 export interface SearchComposerProps {
-  /** docs/routes.md: "/ara?q=..." - SearchForm ile ayni sozlesme. */
-  action?: string;
+  /**
+   * docs/routes.md: "/ara?q=..." - SearchForm ile ayni sozlesme. Bir fonksiyon
+   * (server action) verilirse form GET yerine onu calistirir (karar 0074:
+   * sohbet baslatir); JS'siz de calisir.
+   */
+  action?: string | ((formData: FormData) => void | Promise<void>);
+  /**
+   * Verilirse metin gonderimi (Enter, buton, ornek cip) bu isleyiciye gider ve form
+   * yonlendirmez. Isleyici kullanici hareketi SIRASINDA senkron cagrilir (yeni sekme
+   * `window.open` popup engelleyiciye takilmaz). `true` donerse (ya da cozulurse) girdi temizlenir.
+   */
+  onSubmitText?: (text: string) => boolean | Promise<boolean>;
   name?: string;
   defaultValue?: string;
   placeholder: string;
@@ -31,8 +51,11 @@ export interface SearchComposerProps {
   statusMessage?: string | null;
   /** Devam eden islem (fotograf araniyor) - role="status", kibar duyuru. */
   busyMessage?: string | null;
-  chips?: readonly ContinueShoppingChipItem[];
+  /** "Alışverişe devam et": son görüntülenen ürünler (aynı `ProductCard`, hesap sayfasıyla ortak). */
+  recentProducts?: readonly SearchComposerRecentProduct[];
   chipsTitle?: string;
+  /** Mağaza sayısı metni (docs/copy.md `search.offer_count`); çağıran sağlar. */
+  offerCountLabel?: (count: number) => string;
   /** true ise http(s) veya www. ile baslayan girdiler kok link cozumleme rotasina gider. */
   routeProductLinks?: boolean;
 }
@@ -59,20 +82,16 @@ export function SearchComposer({
   photo,
   statusMessage,
   busyMessage,
-  chips,
+  recentProducts,
   chipsTitle,
+  offerCountLabel,
   routeProductLinks = false,
+  onSubmitText,
 }: SearchComposerProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chipsTitleId = useId();
-
-  function handleChipSelect(label: string) {
-    if (inputRef.current) {
-      inputRef.current.value = label;
-    }
-    formRef.current?.requestSubmit();
-  }
+  const submittingRef = useRef(false);
 
   function productLinkFromInput(value: string): string | null {
     const trimmed = value.trim();
@@ -88,11 +107,40 @@ export function SearchComposer({
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    if (!routeProductLinks) return;
-    const productLink = productLinkFromInput(inputRef.current?.value ?? "");
-    if (!productLink) return;
-    event.preventDefault();
-    window.location.assign(`/${encodeURIComponent(productLink)}`);
+    if (routeProductLinks) {
+      const productLink = productLinkFromInput(inputRef.current?.value ?? "");
+      if (productLink) {
+        event.preventDefault();
+        window.location.assign(`/${encodeURIComponent(productLink)}`);
+        return;
+      }
+    }
+    if (onSubmitText) {
+      event.preventDefault();
+      const text = (inputRef.current?.value ?? "").trim();
+      if (!text) return;
+      if (submittingRef.current) return;
+      submittingRef.current = true;
+      void Promise.resolve(onSubmitText(text))
+        .then((ok) => {
+          if (ok && inputRef.current) inputRef.current.value = "";
+        })
+        .finally(() => {
+          submittingRef.current = false;
+        });
+      return;
+    }
+    // Sohbet baslatan form (server action): cift tiklama/Enter ikinci bir sohbet acmasin.
+    if (typeof action !== "string") {
+      if (submittingRef.current) {
+        event.preventDefault();
+        return;
+      }
+      submittingRef.current = true;
+      setTimeout(() => {
+        submittingRef.current = false;
+      }, 4000);
+    }
   }
 
   return (
@@ -101,7 +149,7 @@ export function SearchComposer({
         <form
           ref={formRef}
           action={action}
-          method="get"
+          method={typeof action === "string" ? "get" : undefined}
           onSubmit={handleSubmit}
           className={styles.box}
           aria-busy={busyMessage ? true : undefined}
@@ -153,18 +201,32 @@ export function SearchComposer({
         {busyMessage ?? ""}
       </p>
 
-      {chips && chips.length > 0 ? (
+      {recentProducts && recentProducts.length > 0 ? (
         <div className={styles.chipsSection}>
           {chipsTitle ? (
             <p id={chipsTitleId} className={styles.chipsTitle}>
               {chipsTitle}
             </p>
           ) : null}
-          <ContinueShoppingChips
-            items={chips}
-            onSelect={handleChipSelect}
-            labelledBy={chipsTitle ? chipsTitleId : undefined}
-          />
+          <ul
+            // list-style:none WebKit'te liste rolunu dusurur; rol acikca verilir.
+            role={listRole("ul", undefined)}
+            aria-labelledby={chipsTitle ? chipsTitleId : undefined}
+            className={styles.recentRow}
+          >
+            {recentProducts.map((item) => (
+              <li key={item.productId} className={styles.recentItem}>
+                <ProductCard
+                  href={item.href}
+                  title={item.title}
+                  imageUrl={item.imageUrl}
+                  minPrice={item.minPrice}
+                  offerCount={item.offerCount}
+                  offerCountLabel={offerCountLabel}
+                />
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </div>

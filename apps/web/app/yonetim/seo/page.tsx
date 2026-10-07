@@ -57,11 +57,11 @@ export default async function SeoPage() {
           note="Bilerek dışarıda"
         />
         <Tile
-          label="Tek teklifli"
+          label="Tek mağazalı"
           value={formatCount(p.singleOffer)}
           note="14 gün fiyat geçmişi bekler"
         />
-        <Tile label="Teklifsiz" value={formatCount(p.noOffers)} />
+        <Tile label="Aktif mağazası yok" value={formatCount(p.noOffers)} />
       </section>
 
       <Section id="sitemap" title="Ürün sitemap'i">

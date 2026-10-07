@@ -68,6 +68,7 @@ def main(argv: list[str] | None = None) -> int:
                 auto_accepted=counts.auto_accepted,
                 queued=counts.queued,
                 products_created=counts.products_created,
+                aggregates_updated=counts.aggregates_updated,
                 errors=len(counts.errors),
             )
             if counts.errors:
@@ -78,6 +79,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"otomatik kabul    {counts.auto_accepted}")
     print(f"insan kuyrugu     {counts.queued}")
     print(f"yeni urun         {counts.products_created}")
+    print(f"ozet guncellenen  {counts.aggregates_updated}")
     for error in counts.errors:
         print(f"  ! {error}")
 

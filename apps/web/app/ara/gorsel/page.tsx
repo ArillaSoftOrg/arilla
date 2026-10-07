@@ -1,4 +1,5 @@
 import { getUploadedImageEmbeddingForSearch, searchByImageVector } from "@arilla/core";
+import { ANONYMOUS_SESSION_COOKIE, validAnonymousSessionId } from "@arilla/core/anonymous-session";
 import { getDatabase } from "@arilla/db";
 import { EmptyState, SearchForm } from "@arilla/ui";
 import { cookies } from "next/headers";
@@ -30,7 +31,7 @@ export default async function GorselAramaPage({
   if (!Number.isInteger(imageUploadId)) notFound();
 
   const db = getDatabase();
-  const sessionId = (await cookies()).get("session_id")?.value ?? null;
+  const sessionId = validAnonymousSessionId((await cookies()).get(ANONYMOUS_SESSION_COOKIE)?.value);
 
   const queryEmbedding = await getUploadedImageEmbeddingForSearch(db, {
     imageUploadId,

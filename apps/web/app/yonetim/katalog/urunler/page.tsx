@@ -19,9 +19,9 @@ const QUALITY_LABELS: Record<ProductQualityFilter, string> = {
   no_brand: "Markasız",
   no_category: "Kategorisiz",
   no_image: "Görselsiz",
-  no_offers: "Teklifsiz",
+  no_offers: "Aktif mağazası yok",
   no_price: "Fiyatsız",
-  // Karar 0051: mağaza fiyatının eskiliği DEĞİL; elle çalışan fiyat özeti işinin yaşı.
+  // Karar 0051: mağaza fiyatının eskiliği DEĞİL; fiyat özetinin son değiştiği an.
   stale_price: "Fiyat özeti 7+ gündür yenilenmedi",
 };
 
@@ -126,7 +126,7 @@ export default async function ProductsPage({
                   En düşük fiyat
                 </th>
                 <th scope="col" className={styles.num}>
-                  Teklif (stokta)
+                  Mağaza (stokta)
                 </th>
                 <th scope="col">Fiyat özeti yenilendi</th>
               </tr>

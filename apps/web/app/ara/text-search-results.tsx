@@ -1,4 +1,5 @@
 import {
+  buildSearchSummary,
   createPostgresSearchProvider,
   createSeedAliasSource,
   formatTraceForLog,
@@ -8,9 +9,11 @@ import {
   recordSearchAndCheckWall,
   recordTextSearchQuality,
   resolveQuery,
+  type SearchSummaryIntent,
   type SortMode,
   searchWithFallback,
 } from "@arilla/core";
+import { ANONYMOUS_SESSION_COOKIE, validAnonymousSessionId } from "@arilla/core/anonymous-session";
 import { getDatabase } from "@arilla/db";
 import { ClarificationBar, SortTabs } from "@arilla/ui";
 import { cookies } from "next/headers";
@@ -40,6 +43,7 @@ export async function TextSearchResults({
   page,
   hrefFor,
   clarificationAsked = false,
+  summaryIntent = null,
 }: {
   query: string;
   /** Konusma yolundan derlenmis sorgu; yoksa mevcut `resolveQuery` yolu. */
@@ -51,6 +55,11 @@ export async function TextSearchResults({
   hrefFor: (target: { sort: SortMode; page?: number }) => string;
   /** Konuşma planı bu aramada netleştirme sorusu sordu (arama kalitesi sayacı). */
   clarificationAsked?: boolean;
+  /**
+   * Karar 0063: model yorumu uygulandıysa kısa yapay zekâ özeti. Yalnızca
+   * doğrulanmış yorum + gerçek sonuç sayısından kurulur; yoksa gösterilmez.
+   */
+  summaryIntent?: SearchSummaryIntent | null;
 }) {
   const db = getDatabase();
 
@@ -61,7 +70,9 @@ export async function TextSearchResults({
   let shouldShowWall = false;
   const user = await verifySession();
   if (!user && isNewSearch) {
-    const sessionId = (await cookies()).get("session_id")?.value;
+    const sessionId = validAnonymousSessionId(
+      (await cookies()).get(ANONYMOUS_SESSION_COOKIE)?.value,
+    );
     if (sessionId) {
       // Arama duvari yalnizca surtunme (karar 0002): Redis erisilemezse arama
       // calismaya devam eder, duvar bu istekte atlanir ve durum loglanir.
@@ -175,10 +186,27 @@ export async function TextSearchResults({
   ];
 
   const totalPages = Math.ceil(resultTotal / PAGE_SIZE);
+  // Ikinci model cagrisi yok: ozet ayni yorumdan ve gercek sonuc sayisindan
+  // (karar 0063). Asamali arama (0066) hic sonuc gostermiyorsa (`empty`) ozet
+  // de gosterilmez: "en yakin sonuclar" demek yanlis olurdu.
+  const aiSummary =
+    summaryIntent && page === 1 && outcome.mode !== "empty"
+      ? buildSearchSummary(summaryIntent, {
+          resultCount: resultTotal,
+          usedFallback: isFallback,
+        })
+      : null;
 
   return (
     <>
       <SearchWallGateClient show={shouldShowWall} />
+
+      {aiSummary ? (
+        <section className={styles.aiSummary} aria-label="Yapay zekâ arama özeti">
+          <span className={styles.aiSummaryLabel}>Yapay zekâ yorumu</span>
+          <p className={styles.aiSummaryText}>{aiSummary}</p>
+        </section>
+      ) : null}
 
       {outcome.mode === "results" ? (
         <p id="sonuc-sayisi" className={styles.count} role="status">

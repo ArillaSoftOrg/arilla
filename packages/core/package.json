@@ -8,6 +8,7 @@
     "./admin-session": "./src/admin/session-policy.ts",
     "./cost-truth": "./src/admin/cost-truth.ts",
     "./auth-redirect": "./src/auth/safe-redirect.ts",
+    "./anonymous-session": "./src/auth/anonymous-session.ts",
     "./product-access": "./src/access/product-access.ts",
     "./clarification": "./src/clarification/index.ts",
     "./cookie-consent": "./src/consent/cookie-consent.ts",

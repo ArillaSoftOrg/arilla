@@ -11,6 +11,8 @@
  *   "en az 2000"             -> en az 2.000 TL
  *   "1000 ile 2000 arası"    -> 1.000 – 2.000 TL
  *   "2 bin civarı"           -> 1.600 – 2.400 TL (bkz. AROUND_BAND)
+ *   "yaklaşık 20 bin"        -> 16.000 – 24.000 TL (civarı ile ayni bant)
+ *   "5-10 bin arası"         -> 5.000 – 10.000 TL ("bin" iki uca da uygulanir)
  *
  * Tutarsiz ya da bagimsiz bir sayi ("5000", "iphone 16") fiyat sayilmaz:
  * sayi ancak bir fiyat kelimesiyle birlikte gelirse okunur. Tahmin yok.
@@ -90,6 +92,14 @@ const PATTERNS: readonly Pattern[] = [
     apply: ([a = 0]) => ({ minKurus: null, maxKurus: a * 100 }),
   },
   {
+    // "yaklaşık 20000", "takriben 5000 tl", "ortalama 3 bin", "aşağı yukarı 2000"
+    re: new RegExp(`(?:yaklaşık|takriben|ortalama|aşağı yukarı)\\s*${AMOUNT}`, "gu"),
+    apply: ([a = 0]) => ({
+      minKurus: Math.round(a * (1 - AROUND_BAND)) * 100,
+      maxKurus: Math.round(a * (1 + AROUND_BAND)) * 100,
+    }),
+  },
+  {
     // "2000 civarı", "2000 civarında", "2000 dolaylarında"
     re: new RegExp(`${AMOUNT}\\s+(?:civar|dolay)\\p{L}*`, "gu"),
     apply: ([a = 0]) => ({
@@ -98,6 +108,48 @@ const PATTERNS: readonly Pattern[] = [
     }),
   },
 ];
+
+/**
+ * "5-10 bin", "5 ile 10 bin arası", "2,5-4 bin tl". Ilk sayi ikinciden
+ * buyukse ("2500-10 bin") aralik sayilmaz; tahmin yok.
+ */
+const THOUSAND_RANGE_RE =
+  /(?<![\p{L}\p{N}.,])(\d{1,4})(?:[.,](\d))?\s*(?:-|–|ile|ve)\s*(\d{1,4})(?:[.,](\d))?\s?bin\p{L}{0,4}(?:\s*(?:tl|lira|₺)'?\p{L}{0,4})?(?:\s+aras\p{L}*)?(?!\p{L})/gu;
+
+function thousands(int: string | undefined, decimal: string | undefined): number {
+  return (
+    Number.parseInt(int ?? "0", 10) * 1000 + (decimal ? Number.parseInt(decimal, 10) * 100 : 0)
+  );
+}
+
+function thousandRange(m: RegExpMatchArray): { minTry: number; maxTry: number } | null {
+  const minTry = thousands(m[1], m[2]);
+  const maxTry = thousands(m[3], m[4]);
+  if (minTry <= 0 || maxTry > MAX_REASONABLE_TRY || minTry > maxTry) return null;
+  return { minTry, maxTry };
+}
+
+/**
+ * Metnin GERCEKTEN soyledigi TL tutarlari: rakamlar ("2500", "2.500"), "bin"
+ * ifadeleri ("10 bin" -> 10000, "2,5 bin" -> 2500) ve binli araligin iki ucu
+ * ("5-10 bin" -> 5000, 10000). Model ciktisindaki butce yalnizca bu kumeden
+ * olabilir (`validateInterpretation`); metinde dayanagi olmayan sayi kabul edilmez.
+ */
+export function priceAmountsInText(text: string): Set<number> {
+  const lower = text.toLocaleLowerCase("tr");
+  const found = new Set<number>();
+  for (const m of normalizeThousands(lower).matchAll(/\d[\d.]*/g)) {
+    const value = Number.parseInt(m[0].replace(/\./g, ""), 10);
+    if (Number.isFinite(value) && value > 0) found.add(value);
+  }
+  for (const m of lower.matchAll(THOUSAND_RANGE_RE)) {
+    const range = thousandRange(m);
+    if (range === null) continue;
+    found.add(range.minTry);
+    found.add(range.maxTry);
+  }
+  return found;
+}
 
 function blank(text: string, start: number, end: number): string {
   return text.slice(0, start) + " ".repeat(end - start) + text.slice(end);
@@ -115,6 +167,18 @@ export function extractConversationalBudget(lower: string): {
   let minKurus: number | null = null;
   let maxKurus: number | null = null;
   let found = false;
+
+  // "5-10 bin arası": "bin" iki uca da aittir. Normalizasyon uzunlugu
+  // korudugu icin ilk sayi yerinde 5000'e cevrilemez; aralik ham metinden
+  // okunur ve ayni konum `rest`te bosaltilir.
+  for (const m of lower.matchAll(THOUSAND_RANGE_RE)) {
+    const range = thousandRange(m);
+    if (range === null) continue;
+    found = true;
+    minKurus = range.minTry * 100;
+    maxKurus = range.maxTry * 100;
+    rest = blank(rest, m.index, m.index + m[0].length);
+  }
 
   for (const pattern of PATTERNS) {
     for (const m of rest.matchAll(pattern.re)) {

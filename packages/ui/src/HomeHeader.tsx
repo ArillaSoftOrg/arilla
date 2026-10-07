@@ -40,7 +40,17 @@ export interface HomeHeaderProps {
    * duz metin, telefonda menu panelinde.
    */
   utilityLink?: { label: string; href: string };
+  /**
+   * `chat`: sohbet calisma alani. Cubukta yalnizca menu dugmesi + marka kalir
+   * (nav, hesap, yardimci link hamburger panelinde); cubuk yapiskandir ve
+   * kaydirilinca ~%20 kuculur. Varsayilan `site` davranisi degismez.
+   */
+  variant?: "site" | "chat";
 }
+
+/** Kompakt moda gecis ve donus esikleri (px); aradaki fark titremeyi onler. */
+const COMPACT_ENTER_Y = 24;
+const COMPACT_EXIT_Y = 8;
 
 /**
  * docs/pages.md "/": "Logo + üst çubuk". Sol wordmark, orta/sol nav, sag
@@ -64,8 +74,10 @@ export function HomeHeader({
   accountAvatarUrl,
   accountAvatarLabel,
   utilityLink,
+  variant = "site",
 }: HomeHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [compact, setCompact] = useState(false);
   const menuId = useId();
   const accountText = accountHref ? accountLabel : loginLabel;
   const accountUrl = accountHref ?? loginHref;
@@ -80,6 +92,27 @@ export function HomeHeader({
   const accountAvatarStyle = accountAvatarUrl
     ? ({ backgroundImage: `url(${JSON.stringify(accountAvatarUrl)})` } satisfies CSSProperties)
     : undefined;
+
+  // Yalnizca sohbet varyanti: durum esige bagli (yone degil); state yalnizca
+  // deger degisince guncellenir, olay pasif ve kare basina bir kez islenir.
+  useEffect(() => {
+    if (variant !== "chat") return;
+    let frame = 0;
+    function update() {
+      frame = 0;
+      const y = window.scrollY;
+      setCompact((was) => (was ? y > COMPACT_EXIT_Y : y > COMPACT_ENTER_Y));
+    }
+    function onScroll() {
+      if (frame === 0) frame = window.requestAnimationFrame(update);
+    }
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame !== 0) window.cancelAnimationFrame(frame);
+    };
+  }, [variant]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -101,7 +134,11 @@ export function HomeHeader({
   }, [menuOpen]);
 
   return (
-    <header className={styles.header}>
+    <header
+      className={styles.header}
+      data-variant={variant}
+      data-compact={variant === "chat" && compact ? "true" : undefined}
+    >
       <Container size="wide" className={styles.inner}>
         <button
           type="button"

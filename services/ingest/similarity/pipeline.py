@@ -11,6 +11,7 @@ from dataclasses import dataclass, field
 
 import psycopg
 
+from db import product_aggregates
 from similarity.edges import EdgeCounts, build_edges
 from similarity.prices import Observation, compute
 
@@ -33,34 +34,6 @@ CURRENT_PRICES = """
 SELECT product_id, min(current_price) FROM offer
  WHERE product_id IS NOT NULL AND is_active AND current_price IS NOT NULL
  GROUP BY product_id
-"""
-
-#: `product` uzerindeki denormalize alanlar (docs/schema.sql: "toplu isle
-#: guncellenir, istek yolu bunlari okur"). Kesfet slotlari `in_stock_count`,
-#: kartlar `min_price`/`offer_count`, alternatifler `offer_count > 0` okur.
-#: Aktif teklifi kalmayan urun sifirlanir; degismeyen satir yazilmaz.
-REFRESH_PRODUCT_AGGREGATES = """
-UPDATE product p SET
-    min_price        = agg.min_price,
-    max_price        = agg.max_price,
-    offer_count      = agg.offer_count,
-    in_stock_count   = agg.in_stock_count,
-    price_updated_at = now(),
-    updated_at       = now()
-FROM (
-    SELECT p2.id AS product_id,
-           min(o.current_price)                           AS min_price,
-           max(o.current_price)                           AS max_price,
-           count(o.id)::int                               AS offer_count,
-           count(o.id) FILTER (WHERE o.in_stock)::int     AS in_stock_count
-      FROM product p2
-      LEFT JOIN offer o
-        ON o.product_id = p2.id AND o.is_active AND o.current_price IS NOT NULL
-     GROUP BY p2.id
-) agg
-WHERE p.id = agg.product_id
-  AND (p.min_price, p.max_price, p.offer_count, p.in_stock_count)
-      IS DISTINCT FROM (agg.min_price, agg.max_price, agg.offer_count, agg.in_stock_count)
 """
 
 UPSERT_STATS = """
@@ -100,9 +73,8 @@ class SimilarityCounts:
 
 
 def refresh_product_aggregates(conn: psycopg.Connection) -> int:
-    with conn.cursor() as cur:
-        cur.execute(REFRESH_PRODUCT_AGGREGATES)
-        return cur.rowcount
+    """Tam katalog onarimi; olagan yenileme yazma isleminin icinde olur."""
+    return product_aggregates.refresh_all(conn)
 
 
 def refresh_price_stats(conn: psycopg.Connection) -> PriceCounts:

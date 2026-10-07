@@ -60,7 +60,7 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
             items={[
               ["En düşük", formatKurus(product.minPrice)],
               ["En yüksek", formatKurus(product.maxPrice)],
-              ["Teklif / stokta", `${product.offerCount} / ${product.inStockCount}`],
+              ["Mağaza / stokta", `${product.offerCount} / ${product.inStockCount}`],
               // Karar 0051: teklif sayısı ve en düşük/yüksek fiyat bu özetten gelir.
               ["Fiyat özeti yenilendi", formatDateOrDash(product.priceUpdatedAt)],
               ["30 gün en düşük", formatKurus(detail.priceStats?.min30d ?? null)],

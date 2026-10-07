@@ -31,9 +31,10 @@ export function isProductQualityFilter(value: unknown): value is ProductQualityF
 
 /**
  * Fiyat ÖZETİ (`price_updated_at`, `min_price`, `offer_count`) bu kadar gündür
- * yenilenmemiş ürün. Bu alanları yalnızca elle çalışan `similarity --prices`
- * yazar; filtre mağaza fiyatının eskiliğini değil özet işinin yaşını ölçer
- * (karar 0051). Filtre anahtarı (`stale_price`) adres uyumu için korunur.
+ * yazılmamış ürün. Özet teklifi yazan işlemde yenilenir ve yalnızca değişince
+ * yazılır (`product/refresh-aggregates.ts`); filtre mağaza fiyatının eskiliğini
+ * değil özetin son değiştiği anı ölçer (karar 0051). Filtre anahtarı
+ * (`stale_price`) adres uyumu için korunur.
  */
 export const STALE_PRICE_DAYS = 7;
 

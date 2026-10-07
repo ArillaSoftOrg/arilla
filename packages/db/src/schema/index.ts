@@ -5,7 +5,7 @@
  * admin↔0027, entitlement↔0034, marketing↔0035, activity↔0036,
  * search↔0040 (`search_query_day`), ops↔0041 (`job_run`),
  * search↔0044 (`query_interpretation`).
- * feedback↔0032, forms↔0043.
+ * feedback↔0032, forms↔0043, chat↔0054 (+0055 `chat_result_feedback`).
  * 0036'nin `session` kolonlari auth.ts'de, 0037'nin `user_consent`
  * kolonlari discovery.ts'dedir.
  *
@@ -19,6 +19,7 @@ export * from "./admin.ts";
 export * from "./attribution.ts";
 export * from "./auth.ts";
 export * from "./catalog.ts";
+export * from "./chat.ts";
 export * from "./creator.ts";
 export * from "./discovery.ts";
 export * from "./entitlement.ts";

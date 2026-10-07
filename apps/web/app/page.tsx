@@ -1,4 +1,10 @@
-import { canAccessProduct, getDiscoverySlots, isProductOpen, todaySlotDate } from "@arilla/core";
+import {
+  canAccessProduct,
+  getDiscoverySlots,
+  isChatDiscoveryEnabled,
+  isProductOpen,
+  todaySlotDate,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { DiscoveryGrid, HomeHero, Section, TrendCollectionCard } from "@arilla/ui";
 import type { Metadata } from "next";
@@ -10,6 +16,7 @@ import { resolveDiscoveryItems } from "./discovery-adapter.ts";
 import styles from "./home.module.css";
 import { HOME_COPY } from "./home-copy.ts";
 import { homeSectionLinks } from "./home-footer-groups.ts";
+import { loadRecentProducts } from "./home-recent-products.ts";
 import { HomeSearchComposer } from "./home-search-composer-client.tsx";
 import { HomeSectionHeading } from "./home-section-heading.tsx";
 import { type HomeWayCard, HomeWaysCarousel } from "./home-ways-carousel-client.tsx";
@@ -17,6 +24,7 @@ import { verifySession } from "./lib/dal.ts";
 import { loadCachedEarlyAccessProgress } from "./lib/early-access-progress.ts";
 import { PublicSiteShell } from "./public-site-shell.tsx";
 import { SITE_BRAND } from "./site-config.ts";
+import { startChatInNewTabAction, startConversationAction } from "./sohbet/actions.ts";
 
 /**
  * Kök metadata yalnızca ürün bayrağına bağlıdır, oturuma değil: arama
@@ -142,7 +150,11 @@ export default async function HomePage() {
     );
   }
 
-  const items = await loadDiscoveryItems();
+  const chatEnabled = isChatDiscoveryEnabled();
+  const [items, recentProducts] = await Promise.all([
+    loadDiscoveryItems(),
+    loadRecentProducts(user?.id ?? null),
+  ]);
   const discoveryItems = resolveDiscoveryItems(items);
   // Kesif bolumu bu sayfada varsa "Keşfet" oraya gider; yoksa /kesfet'e.
   const discoverHref = discoveryItems.length > 0 ? "#kesfet" : "/kesfet";
@@ -156,7 +168,11 @@ export default async function HomePage() {
             title={HOME_COPY.heroTitle}
             subtitle={HOME_COPY.heroSubtitle}
           >
-            <HomeSearchComposer />
+            <HomeSearchComposer
+              startChat={chatEnabled && user ? startConversationAction : undefined}
+              startChatInNewTab={chatEnabled && user ? startChatInNewTabAction : undefined}
+              recentProducts={recentProducts}
+            />
           </HomeHero>
         </Section>
 

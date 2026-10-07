@@ -504,7 +504,7 @@ export function MatchQueueClient({ items }: { items: MatchQueueClientItem[] }) {
           attributes={current.product.attributes}
         >
           <p style={muted}>
-            {`${formatKurus(current.product.minPrice)}'den · ${current.product.offerCount} teklif`}
+            {`${formatKurus(current.product.minPrice)}'den · ${current.product.offerCount} mağaza`}
           </p>
           <p style={muted}>(son fiyat özeti işine göre; onay bunu hemen değiştirmez)</p>
           <p style={muted}>

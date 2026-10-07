@@ -2,6 +2,7 @@ import {
   cleanupExpiredAuthRecords,
   cronAuthFailureResponse,
   purgeExpiredActivity,
+  purgeExpiredConversationsSafely,
   purgeExpiredQueryInterpretationsSafely,
   purgeJobRuns,
   purgeSearchQueryDays,
@@ -57,8 +58,11 @@ export async function GET(request: Request): Promise<Response> {
       const searchQueryDays = await purgeSearchQueryDays(db);
       // Karar 0059: model sorgu yorumları 90 gün saklanır (yalıtılmış adım).
       const queryInterpretations = await purgeExpiredQueryInterpretationsSafely(db);
+      // Karar 0074: sohbet geçmişi 90 gün saklanır (yalıtılmış adım).
+      const conversations = await purgeExpiredConversationsSafely(db);
       return {
         ...result,
+        conversations,
         searchCharges,
         retention,
         jobRuns,
@@ -72,7 +76,9 @@ export async function GET(request: Request): Promise<Response> {
         r.truncated ||
         r.jobRuns.truncated ||
         r.queryInterpretations.truncated ||
-        r.queryInterpretations.failed !== null
+        r.queryInterpretations.failed !== null ||
+        r.conversations.truncated ||
+        r.conversations.failed !== null
           ? "partial"
           : "success",
     }),
