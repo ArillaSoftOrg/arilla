@@ -32,10 +32,14 @@ tamamı anlamını yitirir.
 
 ## Değişmez kurallar
 
-1. **İstek yolunda model çağrısı yok.** Tek istisna: kullanıcının yüklediği
-   görselin embedding'i. O da `EmbeddingService` arkasından geçer ve görsel
-   hash'i ile cache'lenir. Başka hiçbir yerde istek anında LLM veya model
-   çağrısı yapılmaz.
+1. **İstek yolunda model çağrısı yok.** İki istisna var:
+   - Kullanıcının yüklediği görselin embedding'i. `EmbeddingService`
+     arkasından geçer ve görsel hash'i ile cache'lenir.
+   - `/ara` anlık sorgu yorumu (karar 0062): yalnızca `GEMINI_REALTIME_ENABLED`
+     açıkken, metin süzgecinden geçen sorgu için, kısa zaman aşımıyla, günlük
+     tavanla; sonuç `query_interpretation`'a yazılır ve yeniden kullanılır,
+     hata deterministik aramaya düşer, model ürün/fiyat üretmez.
+   Başka hiçbir yerde istek anında LLM veya model çağrısı yapılmaz.
 2. **Benzerlik sorgu anında hesaplanmaz.** `similarity_edge` tablosu toplu işle
    doldurulur, istek yolu sadece okur.
 3. **Her AI çıktısı saklanır.** Yorum özeti, kategori tahmini, öznitelik

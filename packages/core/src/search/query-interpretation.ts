@@ -208,19 +208,29 @@ function emptyResult(
   };
 }
 
-/** Bir sorgunun sonucu ve HTTP denemelerinin muhasebesi tek islemde. */
-async function persistOutcome(
+/**
+ * Bir sorgunun sonucu ve HTTP denemelerinin muhasebesi tek islemde. Toplu is
+ * ve anlik yorum (karar 0062) ayni yolu kullanir; yalnizca `api_usage`
+ * islem adi farklidir (gunluk tavanlar ayri sayilir).
+ */
+export async function persistOutcome(
   db: Database,
-  input: { queryNorm: string; taxonomyHash: string; outcome: ModelInterpretationOutcome },
+  input: {
+    queryNorm: string;
+    taxonomyHash: string;
+    outcome: ModelInterpretationOutcome;
+    operation?: string;
+  },
 ): Promise<{ stored: boolean; conflict: boolean }> {
   const { queryNorm, taxonomyHash, outcome } = input;
+  const operation = input.operation ?? QUERY_INTERPRETATION_OPERATION;
   return db.transaction(async (tx) => {
     if (outcome.calls.length > 0) {
       await tx.insert(apiUsage).values(
         outcome.calls.map((call: LlmCall) => ({
           sessionId: null,
           userId: null,
-          operation: QUERY_INTERPRETATION_OPERATION,
+          operation,
           modelVersion: call.modelVersion,
           units: call.usage?.totalTokens ?? 0,
           costMicros: 0,
@@ -267,12 +277,19 @@ export interface QueryInterpretationBatchOptions {
  */
 export const QUERY_INTERPRETATION_DAILY_CALL_CAP = 100;
 
-/** Bugun (Europe/Istanbul takvim gunu) yazilmis yorum denemesi sayisi. */
-export async function providerCallsToday(db: Database, now: Date): Promise<number> {
+/**
+ * Bugun (Europe/Istanbul takvim gunu) yazilmis yorum denemesi sayisi.
+ * Varsayilan islem toplu istir; anlik yorum kendi islem adiyla ayri sayar.
+ */
+export async function providerCallsToday(
+  db: Database,
+  now: Date,
+  operation: string = QUERY_INTERPRETATION_OPERATION,
+): Promise<number> {
   const result = await db.execute<{ calls: number }>(sql`
     SELECT count(*)::int AS calls
       FROM api_usage
-     WHERE operation = ${QUERY_INTERPRETATION_OPERATION}
+     WHERE operation = ${operation}
        AND created_at >= (((${now.toISOString()}::timestamptz AT TIME ZONE ${SEARCH_QUALITY_TIME_ZONE})::date)::timestamp
                           AT TIME ZONE ${SEARCH_QUALITY_TIME_ZONE})
   `);

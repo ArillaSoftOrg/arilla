@@ -230,6 +230,14 @@ export interface ReplayOptions {
    * ve onu ezer. Burada model cagrisi yoktur.
    */
   firstTurnInterpretation?: ValidatedInterpretation | null;
+  /**
+   * Anlik yorum (karar 0062): `true` ise yorum ilk turda domain BULUNSA da
+   * uygulanir ve yalnizca eksikleri doldurur (`applyInterpretation` model
+   * onceligi: acik kullanici beyani ve deterministik deger her zaman kazanir;
+   * baska domain'in nitelikleri atilir). Varsayilan `false`: saklanan yorumun
+   * bugunku davranisi (yalnizca domain yoksa).
+   */
+  firstTurnEnrichment?: boolean;
 }
 
 /**
@@ -247,7 +255,11 @@ export function replayConversation(
   for (const [index, input] of inputs.entries()) {
     try {
       let next = applyInput(decision.state, input, context);
-      if (index === 0 && stored !== null && next.domainId === null) {
+      if (
+        index === 0 &&
+        stored !== null &&
+        (next.domainId === null || options.firstTurnEnrichment === true)
+      ) {
         next = applyInterpretation(next, stored);
       }
       decision = decide(next, context);
