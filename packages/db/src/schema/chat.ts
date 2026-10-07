@@ -1,5 +1,14 @@
 /** 0054_conversation.sql karsiligi (docs/decisions/0074). */
-import { bigint, integer, jsonb, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import {
+  bigint,
+  boolean,
+  integer,
+  jsonb,
+  pgTable,
+  text,
+  timestamp,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 export type ChatMessageRole = "user" | "assistant";
 export type ChatMessageKind = "text" | "option" | "skip" | "clarify" | "search" | "notice";
@@ -32,4 +41,13 @@ export const chatMessage = pgTable("chat_message", {
   payload: jsonb("payload").$type<Record<string, unknown>>(),
   clientRequestId: text("client_request_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** 0055: bir arama mesajinin sonuc blogu icin tek evet/hayir oyu. Metin tasimaz. */
+export const chatResultFeedback = pgTable("chat_result_feedback", {
+  messageId: bigint("message_id", { mode: "number" }).primaryKey(),
+  conversationId: uuid("conversation_id").notNull(),
+  helpful: boolean("helpful").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

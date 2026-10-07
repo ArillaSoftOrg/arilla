@@ -18,8 +18,10 @@ export const maxDuration = 60;
  */
 export default async function ConversationPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ conversationId: string }>;
+  searchParams: Promise<{ sirala?: string }>;
 }) {
   const user = await requireProductUser();
   if (!isChatDiscoveryEnabled()) notFound();
@@ -42,7 +44,11 @@ export default async function ConversationPage({
       lastUserText={lastUser?.content ?? view.title}
       lastSeq={last?.seq ?? 0}
     >
-      <ChatThread messages={view.messages} conversationId={view.id} />
+      <ChatThread
+        messages={view.messages}
+        conversationId={view.id}
+        sortParam={(await searchParams).sirala}
+      />
     </ChatInteractive>
   );
 }

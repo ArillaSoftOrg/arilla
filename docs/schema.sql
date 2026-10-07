@@ -1469,3 +1469,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS chat_message_request_unique
     WHERE client_request_id IS NOT NULL;
 
 REVOKE UPDATE ON chat_message FROM arilla_app;
+
+-- 0055 (karar 0075): sohbet sonuc geri bildirimi. Tam metin: migrations/0055_chat_result_feedback.sql.
+CREATE TABLE IF NOT EXISTS chat_result_feedback (
+    message_id       BIGINT      PRIMARY KEY REFERENCES chat_message(id) ON DELETE CASCADE,
+    conversation_id  UUID        NOT NULL REFERENCES conversation(id) ON DELETE CASCADE,
+    helpful          BOOLEAN     NOT NULL,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS chat_result_feedback_conversation_idx
+    ON chat_result_feedback (conversation_id);

@@ -15,6 +15,7 @@ import {
   loadConversation,
   processPendingTurn,
   purgeExpiredConversations,
+  setResultFeedback,
   submitUserMessage,
 } from "./service.ts";
 
@@ -872,5 +873,126 @@ describe("hardening: stale turn, clarification loop, search guards", () => {
     if (result.outcome.mode !== "results") {
       expect(result.relaxed.length + (result.outcome.mode === "empty" ? 1 : 0)).toBeGreaterThan(0);
     }
+  });
+});
+
+describe("result feedback (0055) and sort tabs", () => {
+  async function conversationWithSearch(user = userA) {
+    const id = await newConversation(user, `${TOKEN} sneaker`);
+    await processPendingTurn(db, {
+      userId: user,
+      conversationId: id,
+      interpreter: scripted([search({ query: `${TOKEN} sneaker` })]),
+    });
+    return id;
+  }
+
+  it("stores one vote per search message, lets the user change it, and exposes it on reload", async () => {
+    const id = await conversationWithSearch();
+    expect(
+      await setResultFeedback(db, {
+        userId: userA,
+        conversationId: id,
+        messageSeq: 2,
+        helpful: true,
+      }),
+    ).toBe("saved");
+    let view = await loadConversation(db, { userId: userA, conversationId: id });
+    expect(view?.messages[1]).toMatchObject({ kind: "search", helpful: true });
+    expect(
+      await setResultFeedback(db, {
+        userId: userA,
+        conversationId: id,
+        messageSeq: 2,
+        helpful: false,
+      }),
+    ).toBe("saved");
+    view = await loadConversation(db, { userId: userA, conversationId: id });
+    expect(view?.messages[1]).toMatchObject({ helpful: false });
+    const rows = await withOwnerClient((c) =>
+      c.query("SELECT count(*)::int AS n FROM chat_result_feedback WHERE conversation_id = $1", [
+        id,
+      ]),
+    );
+    expect(rows.rows[0].n).toBe(1);
+  });
+
+  it("only the owner can vote, only on assistant search messages", async () => {
+    const id = await conversationWithSearch();
+    expect(
+      await setResultFeedback(db, {
+        userId: userB,
+        conversationId: id,
+        messageSeq: 2,
+        helpful: true,
+      }),
+    ).toBe("not_found");
+    expect(
+      await setResultFeedback(db, {
+        userId: userA,
+        conversationId: id,
+        messageSeq: 1,
+        helpful: true,
+      }),
+    ).toBe("invalid");
+    expect(
+      await setResultFeedback(db, {
+        userId: userA,
+        conversationId: id,
+        messageSeq: 99,
+        helpful: true,
+      }),
+    ).toBe("not_found");
+    expect(
+      await setResultFeedback(db, {
+        userId: userA,
+        conversationId: "nope",
+        messageSeq: 2,
+        helpful: true,
+      }),
+    ).toBe("not_found");
+    expect(
+      (await loadConversation(db, { userId: userA, conversationId: id }))?.messages[1],
+    ).toMatchObject({ helpful: null });
+  });
+
+  it("votes disappear with the conversation (cascade) and carry no text", async () => {
+    const id = await conversationWithSearch();
+    await setResultFeedback(db, {
+      userId: userA,
+      conversationId: id,
+      messageSeq: 2,
+      helpful: true,
+    });
+    const cols = await withOwnerClient((c) =>
+      c.query(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'chat_result_feedback' ORDER BY 1",
+      ),
+    );
+    expect(cols.rows.map((r) => r.column_name)).toEqual([
+      "conversation_id",
+      "created_at",
+      "helpful",
+      "message_id",
+      "updated_at",
+    ]);
+    await withOwnerClient((c) => c.query("DELETE FROM conversation WHERE id = $1", [id]));
+    const left = await withOwnerClient((c) =>
+      c.query("SELECT count(*)::int AS n FROM chat_result_feedback WHERE conversation_id = $1", [
+        id,
+      ]),
+    );
+    expect(left.rows[0].n).toBe(0);
+  });
+
+  it("tab changes re-run only the existing search with another sort: same intent, no model call", async () => {
+    const intent = { ...emptyIntent(`${TOKEN} sneaker`) };
+    const balanced = await searchByIntent(db, intent, { sort: "balanced" });
+    const deals = await searchByIntent(db, intent, { sort: "best_deal" });
+    expect(balanced.outcome.sort).toBe("balanced");
+    expect(deals.outcome.sort).toBe("best_deal");
+    expect(balanced.outcome.items.length).toBeGreaterThan(0);
+    expect(deals.outcome.items.every((i) => productIds.includes(i.productId))).toBe(true);
+    expect(intent.query).toBe(`${TOKEN} sneaker`); // niyet degismedi
   });
 });

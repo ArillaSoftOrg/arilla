@@ -22,6 +22,7 @@ const INTENT: SearchIntent = {
 const ALL_COPY: string[] = [
   ...(Object.values(CHAT_COPY).filter((v) => typeof v === "string") as string[]),
   CHAT_COPY.brandExcludeUnresolved("Nike"),
+  CHAT_COPY.seeAllCount(75),
   ...["color", "size", "category", "typo", "alias", "token:kırmızı"].map(
     (r) => relaxationLabel(r) ?? "",
   ),
