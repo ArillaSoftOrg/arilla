@@ -2,9 +2,10 @@
 
 import { type FormEvent, useId, useRef } from "react";
 import { Button } from "./Button.tsx";
-import { type ContinueShoppingChipItem, ContinueShoppingChips } from "./ContinueShoppingChips.tsx";
 import { ArrowRightIcon, PlusIcon } from "./icons.tsx";
+import { listRole } from "./layout.ts";
 import { PhotoUploadButton } from "./PhotoUploadButton.tsx";
+import { ProductCard } from "./ProductCard.tsx";
 import styles from "./SearchComposer.module.css";
 
 export interface SearchComposerPhoto {
@@ -12,6 +13,15 @@ export interface SearchComposerPhoto {
   label: string;
   onFileSelected: (file: File) => void;
   disabled?: boolean;
+}
+
+export interface SearchComposerRecentProduct {
+  productId: number;
+  href: string;
+  title: string;
+  imageUrl: string | null;
+  minPrice: number | null;
+  offerCount: number;
 }
 
 export interface SearchComposerProps {
@@ -41,8 +51,11 @@ export interface SearchComposerProps {
   statusMessage?: string | null;
   /** Devam eden islem (fotograf araniyor) - role="status", kibar duyuru. */
   busyMessage?: string | null;
-  chips?: readonly ContinueShoppingChipItem[];
+  /** "Alışverişe devam et": son görüntülenen ürünler (aynı `ProductCard`, hesap sayfasıyla ortak). */
+  recentProducts?: readonly SearchComposerRecentProduct[];
   chipsTitle?: string;
+  /** Mağaza sayısı metni (docs/copy.md `search.offer_count`); çağıran sağlar. */
+  offerCountLabel?: (count: number) => string;
   /** true ise http(s) veya www. ile baslayan girdiler kok link cozumleme rotasina gider. */
   routeProductLinks?: boolean;
 }
@@ -69,8 +82,9 @@ export function SearchComposer({
   photo,
   statusMessage,
   busyMessage,
-  chips,
+  recentProducts,
   chipsTitle,
+  offerCountLabel,
   routeProductLinks = false,
   onSubmitText,
 }: SearchComposerProps) {
@@ -78,13 +92,6 @@ export function SearchComposer({
   const inputRef = useRef<HTMLInputElement>(null);
   const chipsTitleId = useId();
   const submittingRef = useRef(false);
-
-  function handleChipSelect(label: string) {
-    if (inputRef.current) {
-      inputRef.current.value = label;
-    }
-    formRef.current?.requestSubmit();
-  }
 
   function productLinkFromInput(value: string): string | null {
     const trimmed = value.trim();
@@ -194,18 +201,32 @@ export function SearchComposer({
         {busyMessage ?? ""}
       </p>
 
-      {chips && chips.length > 0 ? (
+      {recentProducts && recentProducts.length > 0 ? (
         <div className={styles.chipsSection}>
           {chipsTitle ? (
             <p id={chipsTitleId} className={styles.chipsTitle}>
               {chipsTitle}
             </p>
           ) : null}
-          <ContinueShoppingChips
-            items={chips}
-            onSelect={handleChipSelect}
-            labelledBy={chipsTitle ? chipsTitleId : undefined}
-          />
+          <ul
+            // list-style:none WebKit'te liste rolunu dusurur; rol acikca verilir.
+            role={listRole("ul", undefined)}
+            aria-labelledby={chipsTitle ? chipsTitleId : undefined}
+            className={styles.recentRow}
+          >
+            {recentProducts.map((item) => (
+              <li key={item.productId} className={styles.recentItem}>
+                <ProductCard
+                  href={item.href}
+                  title={item.title}
+                  imageUrl={item.imageUrl}
+                  minPrice={item.minPrice}
+                  offerCount={item.offerCount}
+                  offerCountLabel={offerCountLabel}
+                />
+              </li>
+            ))}
+          </ul>
         </div>
       ) : null}
     </div>
