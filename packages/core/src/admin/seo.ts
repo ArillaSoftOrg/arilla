@@ -34,7 +34,7 @@ export interface SeoDiagnostics {
     missingCategory: number;
     /** Kategorisi `is_discoverable = false`: sitemap'e ve keşfete girmez (bilerek). */
     nonDiscoverableCategory: number;
-    /** Tek teklifli: sitemap için 14 gün fiyat geçmişi bekler. */
+    /** Tek mağazalı: sitemap için 14 gün fiyat geçmişi bekler. */
     singleOffer: number;
     noOffers: number;
   };

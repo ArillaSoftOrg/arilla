@@ -45,8 +45,9 @@ kalite algısını düşürür.
 
 Bir ürün sayfası haritaya girer, ancak:
 
-- En az **2 aktif teklifi** varsa (karşılaştırılacak bir şey var demektir), veya
-- Tek teklifi var ama en az **14 günlük fiyat geçmişi** birikmişse, ve
+- En az **2 aktif mağazada** teklifi varsa (karşılaştırılacak bir şey var
+  demektir; `offer_count`, karar 0072), veya
+- Tek mağazada teklifi var ama en az **14 günlük fiyat geçmişi** birikmişse, ve
 - Ürünün görseli ve başlığı varsa, ve
 - Kategorisi `is_discoverable` ise.
 

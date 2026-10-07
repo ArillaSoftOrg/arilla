@@ -82,6 +82,14 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "cron",
     overdueAfterMs: 30 * HOUR,
   },
+  // Fiyat özeti olağan olarak teklifi yazan işlemde yenilenir; bu koşu
+  // atlanmış yolları bir gün içinde onarır (refresh-aggregates.ts).
+  product_aggregates: {
+    label: "Fiyat özeti onarımı",
+    how: "Vercel cron (günlük 23:45 UTC)",
+    kind: "cron",
+    overdueAfterMs: 30 * HOUR,
+  },
   discovery_slots: {
     label: "Keşfet slotları",
     how: "Vercel cron (günlük)",
