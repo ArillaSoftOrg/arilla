@@ -27,7 +27,12 @@ import {
   reconcileStaleCharges,
   reserveSearchReconciling,
 } from "./reconcile.ts";
-import { attachReferral, getOrCreateReferralCode } from "./referral.ts";
+import {
+  attachReferral,
+  getOrCreatePublicReferralCode,
+  getOrCreateReferralCode,
+  getReferralSummary,
+} from "./referral.ts";
 import { getEntitlementStatus, listEntitlementHistory } from "./status.ts";
 
 const tag = `ent-${Date.now()}`;
@@ -410,6 +415,113 @@ describe("arama hakki - entegrasyon", () => {
       expect(await balanceOf(inviter)).toBe(100);
       const [entry] = await ledgerOf(inviter);
       expect(entry).toMatchObject({ delta: 5, requested: 10, reason: "referral_inviter" });
+    });
+  });
+
+  describe("okunabilir davet kodu (0051)", () => {
+    async function namedUser(label: string, displayName: string | null): Promise<number> {
+      const id = await newUser(label);
+      await owner("UPDATE app_user SET display_name = $2 WHERE id = $1", [id, displayName]);
+      return id;
+    }
+
+    it("addan on ekli kod uretir, bir kez yazar ve ad degisse de degismez", async () => {
+      const user = await namedUser("pub", "Yusuf Sarı");
+      const code = await getOrCreatePublicReferralCode(db, user);
+      expect(code).toMatch(/^YS-[1-9][0-9]{4}$/);
+      await owner("UPDATE app_user SET display_name = 'Ayşe Demir' WHERE id = $1", [user]);
+      expect(await getOrCreatePublicReferralCode(db, user)).toBe(code);
+      const same = await Promise.all(
+        Array.from({ length: 5 }, () => getOrCreatePublicReferralCode(db, user)),
+      );
+      expect(new Set(same)).toEqual(new Set([code]));
+    });
+
+    it("ad yoksa MC on ekini kullanir; e-posta yerel kismi kodda yer almaz", async () => {
+      const user = await namedUser("noname", null);
+      const code = await getOrCreatePublicReferralCode(db, user);
+      expect(code).toMatch(/^MC-[1-9][0-9]{4}$/);
+      const [row] = await owner<{ email: string }>("SELECT email FROM app_user WHERE id = $1", [
+        user,
+      ]);
+      expect(code.toLowerCase()).not.toContain((row?.email ?? "x").split("@")[0] as string);
+    });
+
+    it("es zamanli esit on ekli kullanicilar farkli kod alir (carpisma guvenli)", async () => {
+      const users = await Promise.all(
+        Array.from({ length: 12 }, (_, i) => namedUser(`col${i}`, "Yusuf Sarı")),
+      );
+      const codes = await Promise.all(users.map((id) => getOrCreatePublicReferralCode(db, id)));
+      expect(new Set(codes).size).toBe(users.length);
+    });
+
+    it("dolu kod uzayinda carpismayi yeni rakamlarla asar", async () => {
+      // Tek kullanicinin kodunu elle YS-10000 yapip randomInt'i sabitlemeden:
+      // benzersiz indeks ikinci kullaniciya ayni kodu VERMEZ.
+      const first = await namedUser("dup1", "Yusuf Sarı");
+      const second = await namedUser("dup2", "Yılmaz Soylu");
+      await owner("UPDATE app_user SET referral_public_code = 'YS-10000' WHERE id = $1", [first]);
+      await expect(
+        owner("UPDATE app_user SET referral_public_code = 'YS-10000' WHERE id = $1", [second]),
+      ).rejects.toMatchObject({ code: "23505" });
+      const code = await getOrCreatePublicReferralCode(db, second);
+      expect(code).not.toBe("YS-10000");
+    });
+
+    it("eski ve yeni kodla baglanir; ikisi de ayni davet edene gider", async () => {
+      const inviter = await namedUser("both", "Yusuf Sarı");
+      const legacy = await getOrCreateReferralCode(db, inviter);
+      const pub = await getOrCreatePublicReferralCode(db, inviter);
+      const viaLegacy = await newUser("legacy-invitee");
+      const viaPublic = await newUser("public-invitee");
+      expect(await attachReferral(db, { inviteeUserId: viaLegacy, code: legacy })).toBe("attached");
+      expect(await attachReferral(db, { inviteeUserId: viaPublic, code: pub.toLowerCase() })).toBe(
+        "attached",
+      );
+      const rows = await owner<{ inviter_user_id: string }>(
+        "SELECT inviter_user_id FROM referral WHERE invitee_user_id = ANY($1)",
+        [[viaLegacy, viaPublic]],
+      );
+      expect(rows.map((r) => Number(r.inviter_user_id))).toEqual([inviter, inviter]);
+    });
+
+    it("eski kodu olup okunabilir kodu olmayan kullanicinin paylasilmis linki calisir", async () => {
+      const inviter = await namedUser("legacyonly", "Eski Kullanıcı");
+      const legacy = await getOrCreateReferralCode(db, inviter);
+      const [before] = await owner<{ referral_public_code: string | null }>(
+        "SELECT referral_public_code FROM app_user WHERE id = $1",
+        [inviter],
+      );
+      expect(before?.referral_public_code).toBeNull();
+      const invitee = await newUser("legacyonly-invitee");
+      expect(await attachReferral(db, { inviteeUserId: invitee, code: legacy })).toBe("attached");
+      // /hesap acildiginda yeni kod uretilir, eski kod silinmez.
+      const summary = await getReferralSummary(db, inviter);
+      expect(summary.code).toMatch(/^EK-[1-9][0-9]{4}$/);
+      const [after] = await owner<{ referral_code: string }>(
+        "SELECT referral_code FROM app_user WHERE id = $1",
+        [inviter],
+      );
+      expect(after?.referral_code).toBe(legacy);
+    });
+
+    it("yeni kodla gelen davet iki tarafi yine odullendirir; kendi kodu reddedilir", async () => {
+      const inviter = await namedUser("rew", "Yusuf Sarı");
+      const invitee = await newUser("rew-invitee");
+      const pub = await getOrCreatePublicReferralCode(db, inviter);
+      expect(await attachReferral(db, { inviteeUserId: inviter, code: pub })).toBe("self");
+      expect(await attachReferral(db, { inviteeUserId: invitee, code: pub })).toBe("attached");
+      const charge = await reserveOk(db, invitee, "visual_search");
+      await settleCharge(db, charge.id);
+      expect(await balanceOf(invitee)).toBe(5);
+      expect(await balanceOf(inviter)).toBe(10);
+      expect(await attachReferral(db, { inviteeUserId: invitee, code: pub })).toBe(
+        "already_referred",
+      );
+      const stranger = await newUser("rew-stranger");
+      expect(await attachReferral(db, { inviteeUserId: stranger, code: "ZZ-00000" })).toBe(
+        "invalid_code",
+      );
     });
   });
 

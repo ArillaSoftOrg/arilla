@@ -6,14 +6,17 @@
 import type { Database } from "@arilla/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { LlmError } from "../llm/client.ts";
+import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { emptyIntent } from "./intent.ts";
 import type { ChatInterpreter } from "./interpreter.ts";
 import { IntentSearchTimeoutError, searchByIntent } from "./search-adapter.ts";
 import {
   createConversation,
+  getTurnStatus,
   loadConversation,
   processPendingTurn,
+  processPendingTurnDetailed,
   purgeExpiredConversations,
   setResultFeedback,
   submitUserMessage,
@@ -994,5 +997,137 @@ describe("result feedback (0055) and sort tabs", () => {
     expect(balanced.outcome.items.length).toBeGreaterThan(0);
     expect(deals.outcome.items.every((i) => productIds.includes(i.productId))).toBe(true);
     expect(intent.query).toBe(`${TOKEN} sneaker`); // niyet degismedi
+  });
+});
+
+describe("ilk tur: tek Gemini cagrisi, kira, durum (gecikme turu)", () => {
+  async function setLease(conversationId: string, expr: string) {
+    await withOwnerClient((c) =>
+      c.query(`UPDATE conversation SET processing_until = ${expr} WHERE id = $1`, [conversationId]),
+    );
+  }
+  const answer = () => scripted([search({ query: `${TOKEN} sneaker` })]);
+
+  it("iki es zamanli tetik (after + kurtarma) yalnizca BIR model cagrisi yapar", async () => {
+    const id = await newConversation(userA);
+    const interpreter = scripted([search({ query: `${TOKEN} sneaker` })], { delayMs: 60 });
+    const [first, second] = await Promise.all([
+      processPendingTurn(db, { userId: userA, conversationId: id, interpreter }),
+      processPendingTurn(db, { userId: userA, conversationId: id, interpreter }),
+    ]);
+    expect(interpreter.calls).toBe(1);
+    expect([first.status, second.status].sort()).toEqual(["answered", "busy"]);
+    const view = await loadConversation(db, { userId: userA, conversationId: id });
+    expect(view?.messages.filter((m) => m.role === "assistant")).toHaveLength(1);
+  });
+
+  it("cevap yazildiktan sonra ucuncu tetik idle: ikinci cagri ve ikinci cevap yok", async () => {
+    const id = await newConversation(userA);
+    const interpreter = answer();
+    await processPendingTurn(db, { userId: userA, conversationId: id, interpreter });
+    const again = await processPendingTurn(db, { userId: userA, conversationId: id, interpreter });
+    expect(again.status).toBe("idle");
+    expect(interpreter.calls).toBe(1);
+  });
+
+  it("suren kira turu engeller; suresi dolmus kira (cokmus is) kurtarilir", async () => {
+    const id = await newConversation(userA);
+    await setLease(id, "now() + interval '30 seconds'");
+    const blocked = answer();
+    expect(
+      await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: blocked }),
+    ).toEqual({ status: "busy" });
+    expect(blocked.calls).toBe(0);
+
+    await setLease(id, "now() - interval '1 second'");
+    const recovery = answer();
+    const result = await processPendingTurn(db, {
+      userId: userA,
+      conversationId: id,
+      interpreter: recovery,
+    });
+    expect(result.status).toBe("answered");
+    expect(recovery.calls).toBe(1);
+  });
+
+  it("baska kullanici ya da yanlis UUID: not_found, model cagrilmaz, durum sizmaz", async () => {
+    const id = await newConversation(userA);
+    const interpreter = answer();
+    expect(
+      await processPendingTurn(db, { userId: userB, conversationId: id, interpreter }),
+    ).toEqual({ status: "not_found" });
+    expect(
+      await processPendingTurn(db, {
+        userId: userA,
+        conversationId: "00000000-0000-4000-8000-000000000000",
+        interpreter,
+      }),
+    ).toEqual({ status: "not_found" });
+    expect(interpreter.calls).toBe(0);
+    expect(await getTurnStatus(db, { userId: userB, conversationId: id })).toEqual({
+      state: "not_found",
+    });
+    expect(await getTurnStatus(db, { userId: userA, conversationId: "bozuk" })).toEqual({
+      state: "not_found",
+    });
+  });
+
+  it("getTurnStatus: pending -> in_flight -> answered", async () => {
+    const id = await newConversation(userA);
+    expect(await getTurnStatus(db, { userId: userA, conversationId: id })).toEqual({
+      state: "pending",
+    });
+    await setLease(id, "now() + interval '30 seconds'");
+    expect(await getTurnStatus(db, { userId: userA, conversationId: id })).toEqual({
+      state: "in_flight",
+    });
+    await setLease(id, "NULL");
+    await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: answer() });
+    expect(await getTurnStatus(db, { userId: userA, conversationId: id })).toMatchObject({
+      state: "answered",
+      preview: { seq: 2, kind: "search" },
+    });
+  });
+
+  it("processPendingTurnDetailed: on izleme kalici cevapla ayni; olcumler metin tasimaz", async () => {
+    const id = await newConversation(userA);
+    const { result, preview, timings } = await processPendingTurnDetailed(db, {
+      userId: userA,
+      conversationId: id,
+      interpreter: answer(),
+    });
+    expect(result.status).toBe("answered");
+    const stored = await lastAssistantKind(id);
+    expect(preview).toEqual({ seq: stored?.seq, kind: "search", content: stored?.content });
+    for (const key of ["chat.total", "chat.claim_turn", "chat.gemini", "chat.persist"] as const) {
+      expect(typeof timings[key]).toBe("number");
+    }
+    expect(JSON.stringify(timings)).not.toContain(TOKEN);
+  });
+
+  it("sorgu sayisi: tek kira UPDATE, tek mesaj okumasi, sohbet/oy tekrar okumasi yok", async () => {
+    const counts: Record<string, number> = {};
+    const counted = new Proxy(db, {
+      get(target, prop, receiver) {
+        const value = Reflect.get(target, prop, receiver);
+        if (typeof value !== "function") return value;
+        return (...args: unknown[]) => {
+          counts[String(prop)] = (counts[String(prop)] ?? 0) + 1;
+          return value.apply(target, args);
+        };
+      },
+    });
+    const id = await newConversation(userA);
+    await loadLexiconCached(counted); // sozluk sicak (onbellek nesne basina)
+    for (const key of Object.keys(counts)) delete counts[key]; // olculen sey tur sorgulari
+    await processPendingTurn(counted, {
+      userId: userA,
+      conversationId: id,
+      interpreter: answer(),
+    });
+    expect(counts.update).toBe(1);
+    expect(counts.select).toBe(1);
+    expect(counts.execute).toBe(1);
+    expect(counts.transaction).toBe(1);
   });
 });

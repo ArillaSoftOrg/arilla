@@ -155,7 +155,7 @@ platform sorununu hafifletir.
 /alarmlar                  Fiyat düşüşü, yeniden stok ve beden alarmları
 /gecmis                    Son gezilenler. Silme düğmesi zorunlu.
 /hesap                     Beden profili, rıza tercihleri, arama hakları ve davet linki, veri silme
-/davet/<kod>               Davet linki (0047). Kodu httpOnly çereze yazar, girişe yönlendirir. noindex, modal yok.
+/davet/<kod>               Davet linki (0047). Kod: eski 8 karakterli ya da `YS-49577` (0067). Kodu httpOnly çereze yazar, girişe yönlendirir. noindex, modal yok.
 /giris?next=/yol           E-posta bağlantısı isteme. `next`: giriş sonrası dönüş (yalnızca göreli yol)
 /giris/dogrula?token=...   Onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir. Tek kullanımlık, 15 dk.
 ```
@@ -185,7 +185,8 @@ platform sorununu hafifletir.
 /yonetim/seo               İç SEO tanısı (Search Console değil)
 /yonetim/islemler          Sistem sağlığı: tüm işletim bulguları (yalnızca admin, 0055)
 /yonetim/islemler/isler    İş koşuları geçmişi, job_run (yalnızca admin, 0055)
-/yonetim/kullanicilar      Tam eşleşmeyle hesap bulma, denetimli (yalnızca admin)
+/yonetim/kullanicilar      Kullanıcı araması (kısmi, denetimli) + özet liste (keyset, filtreli, maskeli); yalnızca admin (0049)
+/yonetim/kullanicilar/<id> Hesap ayrıntısı, sekmeler ?sekme=profil|aktivite|izinler|oturumlar|aramalar|affiliate|denetim; tıkla-göster iletişim (taze giriş)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
 /yonetim/mesajlar          Gelen kutusu: iletişim ve geri bildirim mesajları, salt okunur, görüntüleme denetlenir (yalnızca admin, 0061)
 /yonetim/erken-erisim      Erken erişim sayacı: platform dışı gerçek başvuru sayısını güncelle (gerekçe zorunlu, denetlenir; yalnızca admin, 0065)

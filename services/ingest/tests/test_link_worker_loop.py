@@ -113,3 +113,19 @@ def test_worker_cli_exits_non_zero_when_database_connection_is_lost(
         assert signal.getsignal(signal.SIGTERM) is cli._exit_on_sigterm
     finally:
         signal.signal(signal.SIGTERM, previous)
+
+
+class _RecordingRedis:
+    def __init__(self) -> None:
+        self.timeouts: list[float] = []
+
+    def brpop(self, keys: list[str], timeout: float) -> None:
+        self.timeouts.append(timeout)
+        return None
+
+
+def test_worker_blocks_long_on_empty_queue() -> None:
+    """Bos kuyrukta seyrek komut (Upstash kotasi)."""
+    fake = _RecordingRedis()
+    worker.run_worker(None, fake, max_iterations=2)  # type: ignore[arg-type]
+    assert fake.timeouts == [60.0, 60.0]

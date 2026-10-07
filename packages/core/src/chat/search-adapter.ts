@@ -19,7 +19,7 @@ import {
   searchWithFallback,
 } from "../search/fallback/index.ts";
 import type { LexiconEntry } from "../search/lexicon.ts";
-import { loadLexicon } from "../search/lexicon-repository.ts";
+import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { foldTurkish } from "../search/normalize.ts";
 import { parseQueryText } from "../search/parse-query.ts";
 import type { QueryObject, SortMode } from "../search/types.ts";
@@ -145,7 +145,7 @@ export async function searchByIntent(
   intent: SearchIntent,
   options: IntentSearchOptions = {},
 ): Promise<IntentSearchResult> {
-  const lexicon = options.lexicon ?? (await loadLexicon(db));
+  const lexicon = options.lexicon ?? (await loadLexiconCached(db));
   const parsed = {
     ...intentToQueryObject(intent, lexicon),
     ...(options.sort ? { sort: options.sort } : {}),

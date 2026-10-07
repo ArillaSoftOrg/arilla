@@ -19,6 +19,8 @@ export const CHAT_COPY = {
   otherPlaceholder: "Kısaca yaz",
   otherSubmit: "Gönder",
   retryLabel: "Tekrar dene",
+  startFailed: "Sohbet başlatılamadı.",
+  backHomeLabel: "Ana sayfaya dön",
   searchDirectlyLabel: "Doğrudan ara",
   newChatLabel: "Yeni sohbet başlat",
   usedInSearch: "Aramada kullanılanlar",

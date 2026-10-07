@@ -9,8 +9,8 @@ import {
   PHOTO_SEARCH_UPLOAD_LABEL,
   usePhotoSearchUpload,
 } from "./photo-search-client.tsx";
-import type { NewTabChatResult } from "./sohbet/actions.ts";
-import { openChatInNewTab, type TabHandle } from "./sohbet/open-chat-tab.ts";
+import { browserStorage } from "./sohbet/chat-bootstrap.ts";
+import { openChatInNewTab } from "./sohbet/open-chat-tab.ts";
 
 /**
  * Ince istemci (CLAUDE.md kural 6): @arilla/ui'nin generic SearchComposer'ini
@@ -23,7 +23,7 @@ import { openChatInNewTab, type TabHandle } from "./sohbet/open-chat-tab.ts";
  */
 export function HomeSearchComposer({
   startChat,
-  startChatInNewTab,
+  chatInNewTab = false,
   recentProducts,
 }: {
   /**
@@ -38,30 +38,28 @@ export function HomeSearchComposer({
    */
   startChat?: (formData: FormData) => void | Promise<void>;
   /**
-   * Sohbeti oluşturur ve hedefi döndürür (redirect yok). Verilirse metin gönderimi
-   * (Enter, buton, örnek çip) yeni sekmede sohbeti açar; ana sayfa sekmesi yerinde kalır.
+   * true ise metin gönderimi (Enter, buton) yeni sekmede sohbet kabuğunu açar;
+   * sohbeti o sekme oluşturur. Ana sayfa sekmesi yerinde kalır.
    */
-  startChatInNewTab?: (text: string) => Promise<NewTabChatResult>;
+  chatInNewTab?: boolean;
 }) {
   const { pending, error, handleFile, loginOpen, closeLogin } = usePhotoSearchUpload();
-  const [chatBusy, setChatBusy] = useState(false);
   const [chatError, setChatError] = useState<string | null>(null);
 
-  /** `openChatInNewTab`: `window.open` ilk senkron adım (popup engelleyici), hata -> sekme kapanır. */
-  function startInNewTab(text: string): Promise<boolean> {
-    if (!startChatInNewTab) return Promise.resolve(false);
-    setChatBusy(true);
+  /**
+   * Yeni sekme: mesaj tek kullanimlik kayda yazilir, sekme gercek sohbet kabugu olan
+   * `/sohbet/yeni`yi acar (about:blank yok). Hepsi senkron (popup engelleyici).
+   * Depolama kapaliysa sekme acilmaz, hata mesaji gorunur.
+   */
+  function startInNewTab(text: string): boolean {
     setChatError(null);
-    return openChatInNewTab(text, {
-      open: () => window.open("", "_blank") as TabHandle | null,
+    const ok = openChatInNewTab(text, {
+      open: (href) => window.open(href, "_blank"),
       navigate: (href) => window.location.assign(href),
-      start: startChatInNewTab,
-    })
-      .then((ok) => {
-        if (!ok) setChatError("Sohbet başlatılamadı. Tekrar dener misin?");
-        return ok;
-      })
-      .finally(() => setChatBusy(false));
+      storage: browserStorage(),
+    });
+    if (!ok) setChatError("Sohbet başlatılamadı. Tekrar dener misin?");
+    return ok;
   }
 
   return (
@@ -69,7 +67,7 @@ export function HomeSearchComposer({
       <LoginGateModal open={loginOpen} onClose={closeLogin} />
       <SearchComposer
         action={startChat}
-        onSubmitText={startChatInNewTab ? startInNewTab : undefined}
+        onSubmitText={chatInNewTab ? startInNewTab : undefined}
         placeholder={HOME_COPY.searchPlaceholder}
         inputLabel={HOME_COPY.searchInputLabel}
         submitLabel={HOME_COPY.searchSubmitLabel}
@@ -78,7 +76,7 @@ export function HomeSearchComposer({
         offerCountLabel={(count) => `${count} mağaza`}
         chipsTitle={HOME_COPY.searchIdeasTitle}
         statusMessage={error ?? chatError}
-        busyMessage={pending ? PHOTO_SEARCH_LOADING_LABEL : chatBusy ? "Sohbet açılıyor" : null}
+        busyMessage={pending ? PHOTO_SEARCH_LOADING_LABEL : null}
         photo={{
           label: pending ? PHOTO_SEARCH_LOADING_LABEL : PHOTO_SEARCH_UPLOAD_LABEL,
           onFileSelected: handleFile,

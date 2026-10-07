@@ -213,11 +213,12 @@ async function search(q: string, page = 1) {
   return searchUsersAction({ status: "idle" }, form);
 }
 
-async function detailHtml(key: string): Promise<string> {
+async function detailHtml(key: string, sekme?: string): Promise<string> {
   const { default: Page } = await import("./[publicId]/page.tsx");
-  const element = (await Page({ params: Promise.resolve({ publicId: publicIds[key] ?? "" }) })) as
-    | ReactElement
-    | undefined;
+  const element = (await Page({
+    params: Promise.resolve({ publicId: publicIds[key] ?? "" }),
+    searchParams: Promise.resolve(sekme ? { sekme } : {}),
+  })) as ReactElement | undefined;
   return renderToStaticMarkup(element as ReactElement);
 }
 
@@ -366,10 +367,6 @@ describe("hesap ayrıntısı", () => {
     expect(html).toContain("Geçerli davet 1");
     expect(html).toContain("Davetten kazanılan bonus 10");
     expect(html).not.toContain(`davetli.${TAG}`);
-    // Rıza üç durumu
-    expect(html).toContain("Pazarlama e-postası Verdi");
-    expect(html).toContain("Kişiselleştirme Vermedi / geri çekti");
-    expect(html).toContain("Gezinme geçmişi Kayıt yok");
     // Telefon yok → telefon satırı yok
     expect(html).not.toContain("Telefon");
     // Ham enum değerleri görünmez
@@ -382,9 +379,21 @@ describe("hesap ayrıntısı", () => {
     expect(html).toContain("Hak hareketi yok");
     expect(html).toContain("Henüz oluşturulmadı");
     expect(html).toContain("Davetle mi geldi Hayır");
-    expect(html).toContain("Kayıt yok");
     expect(html).not.toContain("Telefon");
     expect(html).not.toContain("Creator");
+  });
+
+  it("İzinler sekmesi: kabul, ret ve kayıt yok; eski satırlar sürümsüz ama geçerli; IP yok", async () => {
+    const html = text(await detailHtml("rich", "izinler"));
+    expect(html).toContain("Pazarlama e-postası Kabul");
+    expect(html).toContain("Kişiselleştirme Ret");
+    expect(html).toContain("Gezinme geçmişi Kayıt yok");
+    // 0037 öncesi satır: geçerli karar, yalnızca etiketli.
+    expect(html).toContain("sürümsüz kayıt");
+    expect(html).not.toMatch(/\b\d{1,3}(\.\d{1,3}){3}\b/);
+    const bare = text(await detailHtml("bare", "izinler"));
+    expect(bare).toContain("Kayıt yok");
+    expect(bare).not.toContain("Kabul");
   });
 
   it("görüntüleme davet kodu ÜRETMEZ (salt okunur)", async () => {
