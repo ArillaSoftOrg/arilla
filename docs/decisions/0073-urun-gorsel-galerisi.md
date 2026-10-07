@@ -215,3 +215,9 @@ doldururdu. Kural (deterministik, model yok): bagi olmayan gorselin dosya adi ko
 gorseliyle aynıysa varyanta ozgu sayilir; yalnizca baska rengin bagli gorseliyle
 aynıysa alinmaz; kok hicbirine uymuyorsa (`detay.jpg`) ortak kalir. Kok kanitı yoksa
 davranis oncekiyle aynıdir.
+
+Sinirlar (dry-run, 15 gercek urun): kok yalnizca AYIRT EDICI ise kanit sayilir. Hem bu
+rengin hem baska rengin bagli gorselinde gecen kok (`termos-N.jpg`) kanit degildir;
+bagsiz gorseller ortak kalir ve rengin kendi bagli gorseli ilk sirada durur. Kok
+kanitı olmayan bir magazada baska rengin bagsiz gorselleri ortak sayilip ilk 3'e
+girebilir; bu, filename tabanli kuralin bilinen sinirdir (goruntu analizi eklenmedi).

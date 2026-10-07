@@ -155,7 +155,9 @@ def _group_image_entries(
     - baska rengin varyantlarina bagliysa -> BU offer'a ait degil, alinmaz;
     - bagi olmayan gorselin dosya adi koku (`_image_stem`) bu rengin bagli
       gorseliyle ayniysa -> varyanta ozgu; yalnizca BASKA rengin bagli
-      gorseliyle ayniysa -> alinmaz. Kok ikisine de uymuyorsa ortaktir.
+      gorseliyle ayniysa -> alinmaz. Kok ikisine de uymuyorsa ya da hem bu
+      rengin hem baska rengin bagli gorselinde geciyorsa (ayirt edici degil:
+      `urun-adi-1.jpg`, `urun-adi-2.jpg`) ortaktir.
     Bolunmediyse tum gorseller ortaktir. `position` magazanin urun sayfasindaki
     sirayi tasir; `variant.featured_image` burada KULLANILMAZ (genellikle duz urun
     fotografi ve satici siralamasindan bagimsiz; bkz. karar 0073 eki).
@@ -171,7 +173,10 @@ def _group_image_entries(
             stem = _image_stem(image["src"])
             if linked and stem:
                 (own_stems if linked & group_ids else foreign_stems).add(stem)
-        foreign_stems -= own_stems
+        # Ayirt edici olmayan kok (iki tarafta da var) hicbir yone kanit sayilmaz.
+        shared_stems = own_stems & foreign_stems
+        own_stems -= shared_stems
+        foreign_stems -= shared_stems
     entries: list[dict[str, str]] = []
     for order, image in enumerate(images):
         if not isinstance(image, dict) or not image.get("src"):

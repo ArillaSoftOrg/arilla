@@ -225,6 +225,22 @@ def test_color_split_uses_filename_stem_to_drop_other_colours_and_keep_own() -> 
     ]
 
 
+def test_non_discriminating_filename_stem_is_not_evidence() -> None:
+    """Gercek desen (termos): butun gorseller `...-N.jpg`; kok renkleri ayirmaz.
+    Rengin kendi bagli gorseli yine ilk sirada olmali, bagsizlar ortak kalmali."""
+    images = [
+        _image(1, "termos-1", 1, [10]),
+        _image(2, "termos-2", 2),
+        _image(3, "termos-3", 3),
+        _image(4, "termos-4", 4, [20]),
+    ]
+    product = _product(images, [_variant(10, "Siyah"), _variant(20, "Mor")])
+    _black, purple = _offers(product)
+    shown = sorted((r for r in _rows(purple) if r[1] is not None), key=lambda r: r[1])
+    assert [r[0] for r in shown] == ["termos-4", "termos-2", "termos-3"]
+    assert purple.image_url == "https://cdn.example/termos-4.jpg"
+
+
 def test_color_split_without_stem_evidence_keeps_unlinked_images_shared() -> None:
     product = _product(
         [_image(1, "a", 1), _image(2, "b", 2, [10]), _image(3, "c", 3, [20])],
