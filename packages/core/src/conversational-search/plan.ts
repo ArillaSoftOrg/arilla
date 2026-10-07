@@ -101,6 +101,8 @@ export type ConversationPlan =
   | {
       mode: "conversation";
       action: "clarify" | "search";
+      /** Konusmanin domain'i (kural sozlugu ya da model); ozet ve tani icin. */
+      domainId: string;
       /** `search()`'e verilecek sorgu; soru acikken de en olasi yorumdur. */
       queryObject: QueryObject;
       /** URL'de tutulmasi gereken adimlar. Istekteki adimlardan farkliysa yonlendir. */
@@ -369,6 +371,7 @@ export function planConversation(
   return {
     mode: "conversation",
     action: decision.action,
+    domainId: decision.state.domainId,
     queryObject: compileQuery(decision.state, context.registry, compileOptions),
     steps,
     droppedInvalidStep,

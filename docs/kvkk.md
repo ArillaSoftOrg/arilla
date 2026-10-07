@@ -201,6 +201,12 @@ Google'a hiçbir arama metni gönderilmez. Toplu iş günde bir kez (Vercel cron
 - Kurum'a bildirim: tamamlandığına dair bu depoda kayıt **yoktur**; durum
   hukuki kayıtta izlenir (bkz. kontrol listesi).
 
+**Anlık yol (karar 0062).** `GEMINI_REALTIME_ENABLED` açıkken aynı metin
+süzgecinden geçen arama ifadesi arama sırasında da Gemini'ye gönderilebilir
+(tekrar eşiği yok; aynı ifade daha önce yorumlandıysa yeniden gönderilmez).
+Gönderilen veri, saklama ve `store: false` aşağıdaki toplu yolla aynıdır.
+`/gizlilik` §2.2 ve §5 ile `/kvkk-aydinlatma` §5 bu zamanlamayı anlatır.
+
 **Veri akışı.** Çevrimdışı toplu iş,
 `search_query_day`'deki toplu günlük özetten (kullanıcı, oturum veya cihaz
 tanımlayıcısı içermez) son 30 günde **en az 3 kez ve en az 3 farklı günde**

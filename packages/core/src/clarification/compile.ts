@@ -6,6 +6,8 @@
  * Metin kapisi (`unparsed`) Turkce tamlama sirasini korur: niteleyiciler
  * once, bas isim sonda ("erkek koşu ayakkabı").
  */
+
+import { matchTokens } from "../search/text-match.ts";
 import type { QueryFilters, QueryObject, SortMode } from "../search/types.ts";
 import { foldForTrigger } from "./extract.ts";
 import { findDomain } from "./state.ts";
@@ -67,7 +69,11 @@ export function compileQuery(
     }
   }
 
-  terms.push(...state.terms);
+  // Model-yalniz urun turlerinde serbest kalan kelimeler metin kapisina
+  // GIRMEZ: ya model tarafindan yorumlandi (butce, "oyun" -> gaming) ya da
+  // katalogda karsiligi yok ("hafif", "16 gb ram"). Kapiya girselerdi kapi
+  // neredeyse hic urun gecirmezdi. Marka/renk zaten suzgec olarak uygulanir.
+  if (!domain?.modelOnly) terms.push(...state.terms);
   if (domain) terms.push(...domain.retrievalTerms);
 
   const seen = new Set<string>();
@@ -77,6 +83,17 @@ export function compileQuery(
     seen.add(key);
     return true;
   });
+
+  // Bas ismin es anlamlilari tanimliysa (katalog urun turleri) bas isim tek
+  // bir alternatif slotu olur: "laptop" | "notebook" | "dizustu". Digerleri
+  // icin `text_slots` uretilmez; arama bugunku gibi `unparsed`tan kurar.
+  let textSlots: string[][] | undefined;
+  if (domain?.retrievalAlternatives && domain.retrievalAlternatives.length > 0) {
+    const head = matchTokens([...domain.retrievalTerms, ...domain.retrievalAlternatives].join(" "));
+    const headSet = new Set(head);
+    const qualifiers = matchTokens(unparsedTerms.join(" ")).filter((token) => !headSet.has(token));
+    textSlots = [...qualifiers.map((token) => [token]), head];
+  }
 
   const filters: QueryFilters = {};
   const categoryPath =
@@ -101,6 +118,7 @@ export function compileQuery(
     style_tags: [],
     sort: options.sort ?? "balanced",
     unparsed: unparsedTerms.join(" "),
+    ...(textSlots ? { text_slots: textSlots } : {}),
     // Deterministik kurallarla kuruldu; tahmin degil.
     confidence: 1,
   };

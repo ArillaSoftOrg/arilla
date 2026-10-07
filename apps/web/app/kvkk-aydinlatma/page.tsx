@@ -122,9 +122,10 @@ export default function KvkkAydinlatmaPage() {
           </li>
           <li>Google ile veya Apple ile giriş seçildiğinde ilgili kimlik doğrulama sağlayıcısı,</li>
           <li>
-            arama ifadelerinin kategori yorumu için yurt dışında yerleşik yapay zekâ altyapı
-            sağlayıcısı Google (Gemini API) — yalnızca kullanıcı kimliği, IP ve oturum bilgilerinden
-            arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama ifadeleri,
+            arama sırasında alışveriş niyetinin yorumlanması için yurt dışında yerleşik yapay zekâ
+            altyapı sağlayıcısı Google (Gemini API) — yalnızca kullanıcı kimliği, IP ve oturum
+            bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş
+            arama ifadeleri,
           </li>
           <li>mağazaya yönlendirme kapsamında ilgili mağaza veya affiliate ağı,</li>
           <li>kanunen yetkili kamu kurum ve kuruluşları.</li>

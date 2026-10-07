@@ -72,18 +72,21 @@ export default function GizlilikPage() {
             tutulabilir. Kullanıcıya bağlı bir arama geçmişi tutmayız.
           </li>
           <li>
-            <strong>Yapay zekâ destekli kategori yorumu:</strong> Belirli bir sıklık ve farklı-gün
-            eşiğini aşan arama ifadeleri, hangi ürün kategorisine ve filtreye karşılık geldiklerinin
-            daha iyi anlaşılması için yurt dışındaki bir yapay zekâ altyapı sağlayıcısına
-            gönderilebilir. Gönderilen veri; kullanıcı kimliği, IP ve oturum bilgilerinden
-            arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş arama
-            ifadeleridir. E-posta, telefon, adres, kimlik numarası benzeri bilgiler ile sağlık,
-            inanç, siyasi görüş veya cinsel hayat gibi özel nitelikli kişisel veri çağrıştıran
-            ifadeleri ayıklamak için otomatik süzgeçler kullanırız; bu süzgeçler riski azaltır ancak
-            arama metnine yazılan her kişisel veriyi ayıklayacağını garanti edemez ve gönderilen
-            ifadeler anonim kabul edilmez. Lütfen arama kutusuna kişisel veya hassas bilgi yazmayın.
-            Bu işlem arama yaptığınız anda değil, ayrı bir toplu işlemle yapılır; dönen sonuç
-            yalnızca kategori ve filtre seçimi olarak saklanır.
+            <strong>Yapay zekâ destekli arama yorumu:</strong> Süzgeçlerden geçen arama ifadeniz,
+            aradığınız ürün türü, bütçe ve özellikler gibi alışveriş niyetinizin yorumlanması için
+            arama sırasında yurt dışındaki bir yapay zekâ altyapı sağlayıcısına (Google, Gemini API)
+            gönderilebilir. Aynı ifade daha önce yorumlandıysa yeniden gönderilmez; sık aranan
+            ifadeler ayrıca ayrı bir toplu işlemle de yorumlanabilir. Gönderilen veri; kullanıcı
+            kimliği, IP ve oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek
+            normalleştirilmiş arama ifadeleridir. E-posta, telefon, adres, kimlik numarası benzeri
+            bilgiler ile sağlık, inanç, siyasi görüş veya cinsel hayat gibi özel nitelikli kişisel
+            veri çağrıştıran ifadeleri ayıklamak için otomatik süzgeçler kullanırız; bu süzgeçler
+            riski azaltır ancak arama metnine yazılan her kişisel veriyi ayıklayacağını garanti
+            edemez ve gönderilen ifadeler anonim kabul edilmez. Lütfen arama kutusuna kişisel veya
+            hassas bilgi yazmayın. Yapay zekâ yalnızca aramanızı yorumlar; gösterilen ürünler,
+            fiyatlar ve mağazalar ManiCepte&apos;nin kendi kataloğundan gelir. Dönen yorum yalnızca
+            kategori, bütçe ve filtre seçimi olarak saklanır ve aynı arama için yeniden
+            kullanılabilir.
           </li>
           <li>
             <strong>Ürün bağlantısıyla arama:</strong> yapıştırdığınız bağlantı, anonim oturum
@@ -231,8 +234,8 @@ export default function GizlilikPage() {
           </li>
           <li>
             <strong>Google (Gemini API)</strong> — yurt dışında yerleşik yapay zekâ altyapı
-            sağlayıcısı; arama ifadelerinin kategori yorumu için yalnızca kullanıcı kimliği, IP ve
-            oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek
+            sağlayıcısı; arama sırasında alışveriş niyetinin yorumlanması için yalnızca kullanıcı
+            kimliği, IP ve oturum bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek
             normalleştirilmiş arama ifadeleri. Google, ücretli hizmet koşulları gereği bu içeriği
             kendi ürünlerini geliştirmek için kullanmaz ve istekler etkileşimin Google tarafında
             saklanmamasını isteyen ayarla gönderilir; ancak Google, güvenlik ve kötüye kullanımın
