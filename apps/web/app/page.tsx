@@ -16,6 +16,7 @@ import { resolveDiscoveryItems } from "./discovery-adapter.ts";
 import styles from "./home.module.css";
 import { HOME_COPY } from "./home-copy.ts";
 import { homeSectionLinks } from "./home-footer-groups.ts";
+import { loadRecentSearchChips } from "./home-recent-searches.ts";
 import { HomeSearchComposer } from "./home-search-composer-client.tsx";
 import { HomeSectionHeading } from "./home-section-heading.tsx";
 import { type HomeWayCard, HomeWaysCarousel } from "./home-ways-carousel-client.tsx";
@@ -150,7 +151,10 @@ export default async function HomePage() {
   }
 
   const chatEnabled = isChatDiscoveryEnabled();
-  const items = await loadDiscoveryItems();
+  const [items, recentSearches] = await Promise.all([
+    loadDiscoveryItems(),
+    loadRecentSearchChips(user?.id ?? null),
+  ]);
   const discoveryItems = resolveDiscoveryItems(items);
   // Kesif bolumu bu sayfada varsa "Keşfet" oraya gider; yoksa /kesfet'e.
   const discoverHref = discoveryItems.length > 0 ? "#kesfet" : "/kesfet";
@@ -167,6 +171,7 @@ export default async function HomePage() {
             <HomeSearchComposer
               startChat={chatEnabled && user ? startConversationAction : undefined}
               startChatInNewTab={chatEnabled && user ? startChatInNewTabAction : undefined}
+              recentSearches={recentSearches}
             />
           </HomeHero>
         </Section>
