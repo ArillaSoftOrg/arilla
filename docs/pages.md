@@ -191,8 +191,8 @@ Karar 0060: sade profil sayfası. Tema, İzinler ve Verilerim bölümleri yoktur
 | Bölüm | İçerik |
 | --- | --- |
 | Profil kartı | Avatar, ad, e-posta, "Yeni arama" (`/ara`), "Yönet" menüsü (Hesabı sil, Çıkış yap) |
-| Bonus hak kazan | Davet linki, "Linki kopyala", davet sayaçları |
-| Son baktıkların | Gezinme geçmişinden son ürünler; boşsa boş durum |
+| Arkadaşlarınıza tavsiye edin | "Yönlendirme bağlantınız" kartı: okunabilir davet linki (`manicepte.com/davet/YS-49577`), "Panoya kopyala" (sonra onay işareti). Ödül metni ve sayaç yok (0067) |
+| Son baktıkların | `product_view` (`browsing_history` rızasıyla ürün sayfasında yazılır, ürün başına tek satır, en yeni başta); boşsa boş durum |
 
 Gizlilik tercihleri (geri çekme) `/hesap/gizlilik` sayfasındadır. Tema yalnızca sistem tercihidir. Haftalık özet tercihi onboarding anketinin (0058)
 son adımındadır, varsayılan kapalı. Silme akışı gerçekten çalışmalıdır. Onay adımı vardır ama geri alınamaz olduğu

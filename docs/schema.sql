@@ -440,11 +440,13 @@ CREATE TABLE app_user (
     last_seen_at  TIMESTAMPTZ,
     -- 0034 (0047): davet kodu, ilk istendiginde uretilir.
     referral_code TEXT CHECK (referral_code IS NULL OR referral_code ~ '^[A-HJ-NP-Z2-9]{8}$'),
+    referral_public_code TEXT CHECK (referral_public_code IS NULL OR referral_public_code ~ '^[A-Z]{2}-[0-9]{5}$'),
     -- 0045 (0060): karsilama akisi tamamlandi/atlandi. NULL = henuz gosterilmedi; mevcut hesaplar created_at ile dolduruldu.
     onboarded_at  TIMESTAMPTZ
 );
 CREATE INDEX app_user_role_idx ON app_user (role) WHERE role <> 'user';
 CREATE UNIQUE INDEX app_user_referral_code_unique ON app_user (referral_code) WHERE referral_code IS NOT NULL;
+CREATE UNIQUE INDEX app_user_referral_public_code_unique ON app_user (referral_public_code) WHERE referral_public_code IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- KİMLİK DOĞRULAMA — e-posta bağlantısı ile giriş

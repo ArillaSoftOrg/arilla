@@ -25,6 +25,8 @@ export const appUser = pgTable("app_user", {
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }),
   /** 0034: davet kodu; ilk istendiginde uretilir. */
   referralCode: text("referral_code"),
+  /** 0051: okunabilir davet kodu ("YS-49577"); eski `referral_code` gecerli kalir. */
+  referralPublicCode: text("referral_public_code"),
   /** 0045: karsilama tamamlandi/atlandi; NULL = henuz gosterilmedi. */
   onboardedAt: timestamp("onboarded_at", { withTimezone: true }),
 });
