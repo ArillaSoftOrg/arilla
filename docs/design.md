@@ -36,18 +36,12 @@ stilleri kullanılmaz. Arilla kendi markası, fontu ve bileşenleriyle kalır.
 
 ## Tema
 
-Varsayılan açık tema. Kullanıcının cihaz tercihi koyuysa koyu tema. Ayrıca
-`/hesap` altından elle geçiş yapılabilir, tercih çereze yazılır.
+Varsayılan açık tema. Kullanıcının cihaz tercihi koyuysa koyu tema. Elle
+geçiş yoktur (karar 0060); `[data-theme]` ve `theme` çerezi kaldırıldı.
 
 ```css
 :root { color-scheme: light dark; }
-:root[data-theme="light"] { color-scheme: light; }
-:root[data-theme="dark"] { color-scheme: dark; }
 ```
-
-Tema elle zorlandığında `color-scheme` de o temaya sabitlenir; yoksa koyu
-cihazda açık tema seçildiğinde form kontrolleri ve kaydırma çubukları koyu
-çizilir (Faz 0 bulgusu).
 
 **İki tema da ilk günden tanımlıdır.** Sonradan eklemek her rengi baştan gözden
 geçirmek anlamına gelir.
@@ -78,6 +72,28 @@ Mevcut adlar korunur; yeni roller için yeni ad eklenir. Tek kaynak
 | Uyarı | `--warning` | `#8A5300` | `#E2A64A` |
 | Hata / yıkıcı | `--alert` | `#A8321F` | `#E5705C` |
 | Modal örtüsü | `--scrim` | `rgba(14,15,17,.45)` | `rgba(0,0,0,.6)` |
+
+**Editoryal roller** (`/blog`, `/hakkinda`, `/ortakliklar`): bu sayfalar sıcak
+zemin ve koyu teal bölüm kullanır; roller de anlamsaldır, sayfaya özgü renk
+yoktur.
+
+| Rol | Belirteç | Açık | Koyu |
+| --- | --- | --- | --- |
+| Editoryal sayfa zemini | `--warm-page` | `#EFEBE0` | `#121110` |
+| Editoryal kart zemini | `--warm-card` | `#FFFBF2` | `#1D1B18` |
+| Koyu vurgu bölümü zemini | `--feature-bg` | `#134E66` | `#0F3A49` |
+| `--feature-bg` üstü metin | `--feature-ink` | `#FFFFFF` | `#FFFFFF` |
+| `--feature-bg` üstü soluk metin | `--feature-ink-muted` | `#CFE9EF` | `#CFE9EF` |
+| `--feature-bg` üstü vurgu | `--feature-accent` | `#2BD3EE` | `#2BD3EE` |
+| `--feature-bg` üstü ayırıcı | `--feature-line` | `#3B7185` | `#3B7185` |
+| Teal vurgu metni | `--teal-ink` | `#0A7185` | `#5FD6EA` |
+| Teal vurgu yüzeyi | `--teal-soft` | `#DFF6FA` | `#12323B` |
+
+Hesaplanmış kontrast: `--teal-ink` / `--teal-soft` 5.04:1 (açık), 7.96:1
+(koyu); `--feature-ink-muted` ve `--feature-accent`, `--feature-bg` üzerinde
+7.17:1 ve 5.05:1; `--ink-muted` / `--warm-card` 5.18:1. `--feature-*` ailesi
+iki temada da koyu bir zemin üzerindedir, bu yüzden metin değerleri iki temada
+aynıdır.
 
 Koyu temada `--save`, `--warning` ve `--alert` açılır, yoksa koyu zeminde
 okunmaz. `--scrim` metin rolü değildir, kontrastı ölçülmez; iki temada da

@@ -1,10 +1,12 @@
+import { randomUUID } from "node:crypto";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getRedis } from "../redis/client.ts";
 import { getTestDb } from "../test-db.ts";
 import { recordSearchAndCheckWall } from "./search-wall.ts";
 
 describe("recordSearchAndCheckWall() - entegrasyon (gerçek Redis)", () => {
-  const sessionId = `e2-search-wall-${Date.now()}`;
+  // Yalnızca kanonik UUID sayılır (anonymous-session.ts); test kimliği de öyle.
+  const sessionId = randomUUID();
 
   beforeAll(() => {
     // .env yüklemesini tetikler (test-db.ts'in yan etkisi) - REDIS_URL bu sayede dolu.

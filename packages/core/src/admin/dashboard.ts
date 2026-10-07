@@ -18,21 +18,15 @@ import {
   merchant,
   offer,
 } from "@arilla/db";
-import { and, count, desc, eq, gte, inArray, isNull, sql, sum } from "drizzle-orm";
+import { and, count, eq, gte, isNull, sql, sum } from "drizzle-orm";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import type { CostSummary } from "./cost-truth.ts";
+import { listMerchantAttention, type MerchantAttentionItem } from "./merchant-attention.ts";
 
 /** ops.md §İzleme: bekleyen eşleştirme 500 üzeri → kuyruk incelemesi. */
 export const MATCH_QUEUE_ALERT_THRESHOLD = 500;
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-
-export interface IngestAttentionItem {
-  merchantId: number;
-  merchantName: string;
-  merchantSlug: string;
-  status: "running" | "success" | "partial" | "failed";
-  startedAt: Date;
-}
 
 export interface AdminOverview {
   generatedAt: Date;
@@ -43,19 +37,40 @@ export interface AdminOverview {
   ingest: {
     /** Son 24 saatte başlayan koşular, duruma göre. */
     runsLast24h: Record<string, number>;
-    /** Son koşusu `failed` ya da `partial` biten merchant'lar. */
-    attention: IngestAttentionItem[];
+    /** Aktif mağazalardan dikkat gerektirenler (karar 0051, `merchant-attention.ts`). */
+    attention: MerchantAttentionItem[];
   };
   /** Son 7 gün, duruma göre. */
   linkRequests7d: Record<string, number>;
   imageUploads7d: Record<string, number>;
+  /** Maliyet tek başına sayı değildir: fiyatlanmamış çağrılar ayrıca sayılır (`cost-truth.ts`). */
   apiUsage: {
-    last24hCostMicros: number;
-    last7dCostMicros: number;
-    last7dCalls: number;
-    last7dCacheHits: number;
+    last24h: CostSummary;
+    last7d: CostSummary;
   };
   newUsers7d: number;
+}
+
+/** `api_usage` toplamı; fiyatlanmamış çağrı = önbellekten değil ama maliyeti 0. */
+const COST_COLUMNS = {
+  costMicros: sum(apiUsage.costMicros).mapWith(Number),
+  calls: count(),
+  cacheHits: sql<number>`count(*) filter (where ${apiUsage.cacheHit})`.mapWith(Number),
+  units: sum(apiUsage.units).mapWith(Number),
+  unpricedCalls:
+    sql<number>`count(*) filter (where not ${apiUsage.cacheHit} and ${apiUsage.costMicros} = 0)`.mapWith(
+      Number,
+    ),
+};
+
+function toCost(row: Partial<CostSummary> | undefined): CostSummary {
+  return {
+    costMicros: row?.costMicros ?? 0,
+    calls: row?.calls ?? 0,
+    cacheHits: row?.cacheHits ?? 0,
+    units: row?.units ?? 0,
+    unpricedCalls: row?.unpricedCalls ?? 0,
+  };
 }
 
 function toRecord(rows: { key: string; n: number }[]): Record<string, number> {
@@ -74,7 +89,7 @@ export async function getAdminOverview(db: Database, actor: AdminActor): Promise
     unmatched,
     merchantCounts,
     runs24h,
-    latestRuns,
+    attention,
     links,
     images,
     usage24h,
@@ -97,15 +112,8 @@ export async function getAdminOverview(db: Database, actor: AdminActor): Promise
       .from(ingestRun)
       .where(gte(ingestRun.startedAt, since24h))
       .groupBy(ingestRun.status),
-    // merchant başına son koşu: `ingest_run_merchant_idx (merchant_id, started_at DESC)`.
-    db
-      .selectDistinctOn([ingestRun.merchantId], {
-        merchantId: ingestRun.merchantId,
-        status: ingestRun.status,
-        startedAt: ingestRun.startedAt,
-      })
-      .from(ingestRun)
-      .orderBy(ingestRun.merchantId, desc(ingestRun.startedAt)),
+    // Yalnızca aktif mağazalar, mağaza başına LATERAL tek satır (tüm koşular taranmaz).
+    listMerchantAttention(db, actor, now),
     db
       .select({ key: linkResolutionRequest.status, n: count() })
       .from(linkResolutionRequest)
@@ -116,35 +124,10 @@ export async function getAdminOverview(db: Database, actor: AdminActor): Promise
       .from(imageUpload)
       .where(gte(imageUpload.createdAt, since7d))
       .groupBy(imageUpload.status),
-    db
-      .select({ cost: sum(apiUsage.costMicros).mapWith(Number) })
-      .from(apiUsage)
-      .where(gte(apiUsage.createdAt, since24h)),
-    db
-      .select({
-        cost: sum(apiUsage.costMicros).mapWith(Number),
-        calls: count(),
-        cacheHits: sql<number>`count(*) filter (where ${apiUsage.cacheHit})`.mapWith(Number),
-      })
-      .from(apiUsage)
-      .where(gte(apiUsage.createdAt, since7d)),
+    db.select(COST_COLUMNS).from(apiUsage).where(gte(apiUsage.createdAt, since24h)),
+    db.select(COST_COLUMNS).from(apiUsage).where(gte(apiUsage.createdAt, since7d)),
     db.select({ n: count() }).from(appUser).where(gte(appUser.createdAt, since7d)),
   ]);
-
-  const troubled = latestRuns.filter((run) => run.status === "failed" || run.status === "partial");
-  const names =
-    troubled.length > 0
-      ? await db
-          .select({ id: merchant.id, name: merchant.name, slug: merchant.slug })
-          .from(merchant)
-          .where(
-            inArray(
-              merchant.id,
-              troubled.map((run) => run.merchantId),
-            ),
-          )
-      : [];
-  const byId = new Map(names.map((row) => [row.id, row]));
 
   return {
     generatedAt: now,
@@ -156,23 +139,13 @@ export async function getAdminOverview(db: Database, actor: AdminActor): Promise
     },
     ingest: {
       runsLast24h: toRecord(runs24h),
-      attention: troubled
-        .map((run) => ({
-          merchantId: run.merchantId,
-          merchantName: byId.get(run.merchantId)?.name ?? `#${run.merchantId}`,
-          merchantSlug: byId.get(run.merchantId)?.slug ?? "",
-          status: run.status,
-          startedAt: run.startedAt,
-        }))
-        .sort((a, b) => b.startedAt.getTime() - a.startedAt.getTime()),
+      attention,
     },
     linkRequests7d: toRecord(links),
     imageUploads7d: toRecord(images),
     apiUsage: {
-      last24hCostMicros: usage24h[0]?.cost ?? 0,
-      last7dCostMicros: usage7d[0]?.cost ?? 0,
-      last7dCalls: usage7d[0]?.calls ?? 0,
-      last7dCacheHits: usage7d[0]?.cacheHits ?? 0,
+      last24h: toCost(usage24h[0]),
+      last7d: toCost(usage7d[0]),
     },
     newUsers7d: users[0]?.n ?? 0,
   };

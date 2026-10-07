@@ -1,5 +1,10 @@
-import { randomUUID } from "node:crypto";
 import { ADMIN_LOGIN_PAGE_PATH, adminLoginPath, isAdminPath } from "@arilla/core/admin-session";
+import {
+  ANONYMOUS_SESSION_COOKIE,
+  anonymousSessionCookieOptions,
+  newAnonymousSessionId,
+  validAnonymousSessionId,
+} from "@arilla/core/anonymous-session";
 import { loginPathWithNext } from "@arilla/core/auth-redirect";
 import {
   canonicalLinkSearchHref,
@@ -100,13 +105,17 @@ export function proxy(request: NextRequest): NextResponse {
     return NextResponse.redirect(new URL(loginPath, request.url));
   }
 
-  if (pathname.startsWith("/ara") && !request.cookies.has("session_id")) {
+  // Eksik ya da kanonik UUID olmayan değer yenisiyle değiştirilir.
+  if (
+    pathname.startsWith("/ara") &&
+    !validAnonymousSessionId(request.cookies.get(ANONYMOUS_SESSION_COOKIE)?.value)
+  ) {
     const response = NextResponse.next();
-    response.cookies.set("session_id", randomUUID(), {
-      path: "/",
-      maxAge: 60 * 60 * 24 * 365,
-      sameSite: "lax",
-    });
+    response.cookies.set(
+      ANONYMOUS_SESSION_COOKIE,
+      newAnonymousSessionId(),
+      anonymousSessionCookieOptions(),
+    );
     return response;
   }
 

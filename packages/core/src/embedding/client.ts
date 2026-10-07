@@ -31,7 +31,7 @@ const MAX_RETRIES = 4;
 const ATTEMPT_TIMEOUT_MS = 15_000;
 /**
  * Tüm denemeler ve aradaki beklemeler dahil üst sınır. Bekleme bu sınırı
- * aşacaksa yeniden denenmez, hata fırlatılır (fail-closed).
+ * aşacaksa yeniden denenmez, `EmbeddingError` atılır (fail-closed).
  */
 const TOTAL_TIMEOUT_MS = 30_000;
 
@@ -108,10 +108,11 @@ export class JinaEmbeddingClient implements EmbeddingClient {
   }
 
   /**
-   * 429/5xx ve deneme zaman aşımı yeniden denenir; diğer 4xx denenmez. Her
-   * deneme kalan toplam bütçeyle sınırlıdır; gövde okuması da aynı sinyalin
-   * altındadır. Son hata her zaman `EmbeddingError` - görsel arama bunu
-   * "kullanılamıyor"a çevirir, sahte vektöre düşülmez.
+   * Yeniden deneme kuralı değişmedi: 429/5xx yeniden denenir (1 sn, 2 sn, 4 sn
+   * bekleme, en fazla 4 deneme), diğer 4xx denenmez, ağ hatası olduğu gibi
+   * yükselir. Eklenen: her deneme `ATTEMPT_TIMEOUT_MS` ve kalan toplam
+   * bütçeyle sınırlı (gövde okuması dahil); zaman aşımı da yeniden denenir.
+   * Bütçe biterse son hata `EmbeddingError` olur, sahte vektöre düşülmez.
    */
   private async postWithRetry(body: unknown): Promise<unknown> {
     const deadline = this.now() + this.totalTimeoutMs;
@@ -120,6 +121,13 @@ export class JinaEmbeddingClient implements EmbeddingClient {
       const remaining = deadline - this.now();
       if (remaining <= 0) break;
 
+      // Zamanlayıcı fetch'i VE gövde okumasını kapsar; her yolda `finally`'de
+      // temizlenir (başarılı denemeden sonra bekleyen zamanlayıcı kalmaz).
+      const controller = new AbortController();
+      const timer = setTimeout(
+        () => controller.abort(new DOMException("Jina denemesi zaman aşımı", "TimeoutError")),
+        Math.min(this.attemptTimeoutMs, remaining),
+      );
       try {
         const response = await this.fetchImpl(API_URL, {
           method: "POST",
@@ -128,17 +136,21 @@ export class JinaEmbeddingClient implements EmbeddingClient {
             "Content-Type": "application/json",
           },
           body: JSON.stringify(body),
-          signal: AbortSignal.timeout(Math.min(this.attemptTimeoutMs, remaining)),
+          signal: controller.signal,
         });
         if (response.status < 400) return await response.json();
         if (response.status !== 429 && response.status < 500) {
           const text = await response.text();
           throw new EmbeddingError(`sağlayıcı ${response.status}: ${text.slice(0, 200)}`);
         }
+        // Okunmayan gövde bağlantıyı tutmasın; bekleme öncesi bırakılır.
+        await response.body?.cancel().catch(() => undefined);
         lastFailure = `sağlayıcı ${response.status} döndü`;
       } catch (error) {
         if (!isAbortError(error)) throw error;
         lastFailure = "sağlayıcı zaman aşımına uğradı";
+      } finally {
+        clearTimeout(timer);
       }
 
       if (attempt === MAX_RETRIES - 1) break;
@@ -152,10 +164,10 @@ export class JinaEmbeddingClient implements EmbeddingClient {
   }
 
   private parse(payload: unknown): EmbeddingResult {
-    // OpenAI uyumlu yanıt (`data[].embedding`, `usage.total_tokens`); aynı
-    // biçim services/ingest/enrich/client.py'de gerçek katalog koşularında
-    // kullanılıyor. Beklenmeyen biçimde açıkça patlaması, sessizce yanlış
-    // vektör yazmasından iyidir.
+    // Yanıt biçimi OpenAI uyumlu olarak belgeleniyor ama anahtar olmadığı
+    // için gerçek bir yanıtla DOĞRULANMADI (services/ingest/enrich/client.py
+    // ile aynı durum) - burada açıkça patlaması, sessizce yanlış vektör
+    // yazmasından iyidir.
     const rows = (payload as { data?: unknown } | null)?.data;
     if (!Array.isArray(rows) || rows.length !== 1) {
       throw new EmbeddingError(

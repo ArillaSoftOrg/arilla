@@ -8,7 +8,7 @@ import type {
 import { sql } from "drizzle-orm";
 import { dailySearchLimit } from "./config.ts";
 import { nextResetAt } from "./day.ts";
-import { rows } from "./db.ts";
+import { type Executor, rows } from "./db.ts";
 
 export interface EntitlementStatus {
   dailyLimit: number;
@@ -21,7 +21,7 @@ export interface EntitlementStatus {
 }
 
 export async function getEntitlementStatus(
-  db: Database,
+  db: Executor,
   userId: number,
   now: Date = new Date(),
 ): Promise<EntitlementStatus> {

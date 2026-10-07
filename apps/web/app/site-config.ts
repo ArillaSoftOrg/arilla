@@ -1,4 +1,5 @@
-import { LEGAL_IDENTITY } from "@arilla/core";
+// Alt yol: `@arilla/core` kökü `pg`yi çeker; bu dosya istemci paketlerine de girer.
+import { LEGAL_IDENTITY } from "@arilla/core/legal-identity";
 
 /**
  * Faz 8.1 / karar 0038: public iletisim e-postasi. Tek kaynak
@@ -14,8 +15,8 @@ export const PRIVACY_CONTACT_EMAIL: string = LEGAL_IDENTITY.privacyEmail ?? "";
 /**
  * Yayindaki marka adi (karar 0008: isim koda dagitilmaz). Header, footer,
  * kok metadata, giris ekrani ve lansman oncesi landing buradan okur.
- * Yasal kimlik (`LEGAL_IDENTITY.brandName`) ayri bir karardir; yasal
- * metinler kendi kaynaklarindan okumaya devam eder.
+ * Yasal metinler de ayni markayi kullanir (`LEGAL_IDENTITY.brandName`,
+ * 6 Ekim 2026). Tescilli unvan ayri alandir (`legalEntityName`).
  */
 export const SITE_BRAND = "ManiCepte";
 
@@ -27,7 +28,7 @@ export type SocialNetwork = "instagram" | "tiktok" | "linkedin";
  * takipci sayisi yok). Hesap acildiginda yalnizca bu nesne degisir.
  */
 export const SOCIAL_PROFILES: Readonly<Record<SocialNetwork, string | null>> = {
-  instagram: null,
+  instagram: "https://www.instagram.com/manicepte.tr",
   tiktok: null,
   linkedin: null,
 };

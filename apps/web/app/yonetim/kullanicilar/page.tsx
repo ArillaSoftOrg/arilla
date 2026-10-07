@@ -1,44 +1,86 @@
-import { earlyAccessOverview } from "@arilla/core";
+import {
+  earlyAccessOverview,
+  listUsers,
+  parseUserListFilters,
+  parseUserListSort,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
+import Link from "next/link";
 import { requireCapability } from "../../lib/dal.ts";
 import styles from "../admin.module.css";
 import { PageHeader, Section, Tile } from "../admin-ui.tsx";
-import { formatCount, formatDateTime, statusLabel } from "../format.ts";
-import { LookupFormClient } from "./lookup-form-client.tsx";
+import { earlyAccessStatusLabel, formatCount, formatDateTime } from "../format.ts";
+import { SearchFormClient } from "./search-form-client.tsx";
+import {
+  LIST_QUERY_KEYS,
+  type ListSearchParams,
+  single,
+  UserListSection,
+} from "./user-list-section.tsx";
 
 /**
- * Kullanıcı bulma (Faz 6). Yalnızca yönetici, yalnızca tam eşleşme; liste
- * ya da gezinme yok. Rol düzenleme, hesap silme ve kimliğe bürünme YOK
+ * Kullanıcı arama (Faz 6). Yalnızca yönetici. Ad ve e-postada kısmi arama,
+ * hesap kimliğinde tam eşleşme; sonuçlar sınırlı ve sayfalı (core
+ * `searchUsers`). Rol düzenleme, hesap silme ve kimliğe bürünme YOK
  * (docs/decisions/0039). Her arama ve görüntüleme denetim kaydına yazılır.
+ *
+ * Karar 0049 §1b: kontrollü özet liste (maskeli e-posta, enum/tarih
+ * filtreleri, keyset sayfalama, toplam sayım yok). Görüntüleme `users.list`
+ * olarak denetime yazılır; filtre değerleri yazılmaz.
  *
  * P2: altında salt okunur erken erişim özeti - sayılar ve son kayıtlar.
  * İletişim bilgisi yok, yalnızca hesap kimliği (docs/copy.md
  * `admin.early_access.*`).
  */
-export default async function UsersPage() {
+export default async function UsersPage({
+  searchParams,
+}: {
+  searchParams?: Promise<ListSearchParams>;
+} = {}) {
   const { actor } = await requireCapability("users.read");
-  const earlyAccess = await earlyAccessOverview(getDatabase(), actor);
+  const params = (await searchParams) ?? {};
+  const db = getDatabase();
+  const list = await listUsers(db, actor, {
+    sort: parseUserListSort(single(params[LIST_QUERY_KEYS.sort])),
+    cursor: single(params[LIST_QUERY_KEYS.cursor]) ?? null,
+    filters: parseUserListFilters({
+      provider: single(params[LIST_QUERY_KEYS.provider]),
+      role: single(params[LIST_QUERY_KEYS.role]),
+      earlyAccess: single(params[LIST_QUERY_KEYS.earlyAccess]),
+      analytics: single(params[LIST_QUERY_KEYS.analytics]),
+      createdFrom: single(params[LIST_QUERY_KEYS.createdFrom]),
+      createdTo: single(params[LIST_QUERY_KEYS.createdTo]),
+      lastActiveFrom: single(params[LIST_QUERY_KEYS.lastActiveFrom]),
+      lastActiveTo: single(params[LIST_QUERY_KEYS.lastActiveTo]),
+    }),
+  });
+  const earlyAccess = await earlyAccessOverview(db, actor);
 
   return (
     <div className={styles.pageNarrow}>
       <PageHeader title="Kullanıcılar">
         <p className={styles.muted}>
-          Destek için tek hesap bulma. Arama ve görüntüleme denetim kaydına yazılır; aranan değer
-          yazılmaz.
+          Kullanıcı ara: adın ya da e-postanın bir kısmı (örn. “arda”, “gmail”) veya tam hesap
+          kimliği. Arama ve görüntüleme denetim kaydına yazılır; aranan değer yazılmaz.
         </p>
       </PageHeader>
-      <LookupFormClient />
+      <SearchFormClient />
+
+      <UserListSection page={list} />
 
       <Section id="erken-erisim" title="Erken erişim">
         <p className={styles.muted}>
-          Listeye katılan hesaplar. Yalnızca hesap kimliği gösterilir; ayrıntı için kimliği
-          yukarıdaki aramaya yapıştır.
+          Listeye katılan hesaplar. Ayrıntı için hesap kimliğine tıkla.
         </p>
         <section className={styles.tiles} aria-label="Erken erişim sayıları">
           <Tile label="Toplam" value={formatCount(earlyAccess.total)} />
           <Tile label="Son 7 gün" value={formatCount(earlyAccess.last7Days)} />
           {earlyAccess.byStatus.map((row) => (
-            <Tile key={row.status} label={statusLabel(row.status)} value={formatCount(row.count)} />
+            <Tile
+              key={row.status}
+              label={earlyAccessStatusLabel(row.status)}
+              value={formatCount(row.count)}
+            />
           ))}
         </section>
         {earlyAccess.recent.length === 0 ? (
@@ -57,9 +99,11 @@ export default async function UsersPage() {
                 {earlyAccess.recent.map((row) => (
                   <tr key={row.publicId}>
                     <td>
-                      <code>{row.publicId}</code>
+                      <Link href={`/yonetim/kullanicilar/${row.publicId}`} className={styles.mono}>
+                        {row.publicId}
+                      </Link>
                     </td>
-                    <td>{statusLabel(row.status)}</td>
+                    <td>{earlyAccessStatusLabel(row.status)}</td>
                     <td>{formatDateTime(row.createdAt)}</td>
                   </tr>
                 ))}

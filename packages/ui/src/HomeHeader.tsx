@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useId, useState } from "react";
+import { type CSSProperties, useEffect, useId, useState } from "react";
 import { Container } from "./Container.tsx";
 import styles from "./HomeHeader.module.css";
 
@@ -18,6 +18,8 @@ export interface HomeHeaderNavItem {
 export interface HomeHeaderProps {
   brandLabel: string;
   brandHref?: string;
+  /** Marka yazisinin yaninda gosterilecek küçük logo/isaret. */
+  brandLogoSrc?: string;
   /** Yalnizca gercek bir route/anchor'i olan ogeler - dead link uretilmez, filtreleme cagiran tarafta yapilir. */
   navItems: readonly HomeHeaderNavItem[];
   navAriaLabel: string;
@@ -28,13 +30,27 @@ export interface HomeHeaderProps {
   loginLabel: string;
   /** Hesap/giris linki su anki sayfaysa `true` (orn. `/giris`). */
   accountCurrent?: boolean;
+  /** Oturum acik kullanici icin hesap linkinde gosterilecek profil fotografi. */
+  accountAvatarUrl?: string | null;
+  /** Fotograf yoksa avatar icindeki kisa etiket. */
+  accountAvatarLabel?: string;
   /**
    * Istege bagli ikincil, sade baglanti (orn. lansman oncesi "Admin
    * Girişi"). Birincil eylem degildir: masaustunde hesap dugmesinin solunda
    * duz metin, telefonda menu panelinde.
    */
   utilityLink?: { label: string; href: string };
+  /**
+   * `chat`: sohbet calisma alani. Cubukta yalnizca menu dugmesi + marka kalir
+   * (nav, hesap, yardimci link hamburger panelinde); cubuk yapiskandir ve
+   * kaydirilinca ~%20 kuculur. Varsayilan `site` davranisi degismez.
+   */
+  variant?: "site" | "chat";
 }
+
+/** Kompakt moda gecis ve donus esikleri (px); aradaki fark titremeyi onler. */
+const COMPACT_ENTER_Y = 24;
+const COMPACT_EXIT_Y = 8;
 
 /**
  * docs/pages.md "/": "Logo + üst çubuk". Sol wordmark, orta/sol nav, sag
@@ -47,6 +63,7 @@ export interface HomeHeaderProps {
 export function HomeHeader({
   brandLabel,
   brandHref = "/",
+  brandLogoSrc,
   navItems,
   navAriaLabel,
   accountHref,
@@ -54,13 +71,48 @@ export function HomeHeader({
   loginHref,
   loginLabel,
   accountCurrent = false,
+  accountAvatarUrl,
+  accountAvatarLabel,
   utilityLink,
+  variant = "site",
 }: HomeHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [compact, setCompact] = useState(false);
   const menuId = useId();
   const accountText = accountHref ? accountLabel : loginLabel;
   const accountUrl = accountHref ?? loginHref;
   const mobileMenuTabIndex = menuOpen ? undefined : -1;
+  const hasSignedInAccount = accountHref !== null;
+  const avatarFallback = (accountAvatarLabel?.trim().charAt(0) || accountText.charAt(0) || "M")
+    .toLocaleUpperCase("tr-TR")
+    .slice(0, 1);
+  const brandLogoStyle = brandLogoSrc
+    ? ({ backgroundImage: `url(${JSON.stringify(brandLogoSrc)})` } satisfies CSSProperties)
+    : undefined;
+  const accountAvatarStyle = accountAvatarUrl
+    ? ({ backgroundImage: `url(${JSON.stringify(accountAvatarUrl)})` } satisfies CSSProperties)
+    : undefined;
+
+  // Yalnizca sohbet varyanti: durum esige bagli (yone degil); state yalnizca
+  // deger degisince guncellenir, olay pasif ve kare basina bir kez islenir.
+  useEffect(() => {
+    if (variant !== "chat") return;
+    let frame = 0;
+    function update() {
+      frame = 0;
+      const y = window.scrollY;
+      setCompact((was) => (was ? y > COMPACT_EXIT_Y : y > COMPACT_ENTER_Y));
+    }
+    function onScroll() {
+      if (frame === 0) frame = window.requestAnimationFrame(update);
+    }
+    update();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      if (frame !== 0) window.cancelAnimationFrame(frame);
+    };
+  }, [variant]);
 
   useEffect(() => {
     if (!menuOpen) return;
@@ -82,7 +134,11 @@ export function HomeHeader({
   }, [menuOpen]);
 
   return (
-    <header className={styles.header}>
+    <header
+      className={styles.header}
+      data-variant={variant}
+      data-compact={variant === "chat" && compact ? "true" : undefined}
+    >
       <Container size="wide" className={styles.inner}>
         <button
           type="button"
@@ -96,6 +152,9 @@ export function HomeHeader({
         </button>
 
         <a href={brandHref} className={styles.brand}>
+          {brandLogoSrc ? (
+            <span className={styles.brandLogo} style={brandLogoStyle} aria-hidden="true" />
+          ) : null}
           <span className={styles.brandText}>{brandLabel}</span>
         </a>
 
@@ -122,10 +181,17 @@ export function HomeHeader({
 
         <a
           href={accountUrl}
-          className={styles.account}
+          className={hasSignedInAccount ? styles.accountAvatar : styles.account}
           aria-current={accountCurrent ? "page" : undefined}
+          aria-label={hasSignedInAccount ? accountText : undefined}
         >
-          {accountText}
+          {hasSignedInAccount ? (
+            <span className={styles.accountAvatarImage} style={accountAvatarStyle}>
+              {accountAvatarUrl ? null : avatarFallback}
+            </span>
+          ) : (
+            accountText
+          )}
         </a>
       </Container>
 
@@ -150,6 +216,13 @@ export function HomeHeader({
               tabIndex={mobileMenuTabIndex}
               onClick={() => setMenuOpen(false)}
             >
+              {brandLogoSrc ? (
+                <span
+                  className={styles.mobileBrandLogo}
+                  style={brandLogoStyle}
+                  aria-hidden="true"
+                />
+              ) : null}
               {brandLabel}
             </a>
             <button
@@ -183,7 +256,16 @@ export function HomeHeader({
               tabIndex={mobileMenuTabIndex}
               onClick={() => setMenuOpen(false)}
             >
-              {accountText}
+              {hasSignedInAccount ? (
+                <span className={styles.mobileAccountContent}>
+                  <span className={styles.mobileAccountAvatar} style={accountAvatarStyle}>
+                    {accountAvatarUrl ? null : avatarFallback}
+                  </span>
+                  <span>{accountText}</span>
+                </span>
+              ) : (
+                accountText
+              )}
             </a>
             {utilityLink ? (
               <a

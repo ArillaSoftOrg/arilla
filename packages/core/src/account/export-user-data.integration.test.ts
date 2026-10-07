@@ -65,6 +65,28 @@ describe("exportUserData() - entegrasyon (gerçek Postgres)", () => {
     expect(data.sizeProfile).toEqual([{ categoryPath: "ayakkabi", sizeNorm: "42" }]);
     expect(data.consents).toHaveLength(1);
     expect(data.consents[0]?.kind).toBe("marketing_email");
+    // Kampanya teslimi yok; alan yine de var (0035).
+    expect(data.marketingEmails).toEqual([]);
+    // Sohbet yok; alan yine de var (0054).
+    expect(data.conversations).toEqual([]);
+  });
+
+  it("sohbetleri mesajlarıyla birlikte verir", async () => {
+    await withOwnerClient(async (client) => {
+      const c = await client.query(
+        "INSERT INTO conversation (user_id, title, message_count) VALUES ($1, 'dışa aktarım', 1) RETURNING id",
+        [userId],
+      );
+      await client.query(
+        "INSERT INTO chat_message (conversation_id, seq, role, kind, content) VALUES ($1, 1, 'user', 'text', 'siyah ayakkabı')",
+        [c.rows[0].id],
+      );
+    });
+    const data = await exportUserData(db, userId);
+    expect(data.conversations).toHaveLength(1);
+    expect(data.conversations[0]?.messages).toEqual([
+      expect.objectContaining({ seq: 1, role: "user", content: "siyah ayakkabı" }),
+    ]);
   });
 
   it("olmayan kullanıcı için UserNotFoundError fırlatır", async () => {

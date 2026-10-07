@@ -31,7 +31,48 @@ export type Capability =
    * YALNIZCA yönetici (karar 0043): moderatör yönetim konsolunu kullanır
    * ama public ürün kilidini aşamaz.
    */
-  | "product.preview";
+  | "product.preview"
+  /**
+   * `/yonetim/kampanyalar`: pazarlama e-postası taslağı, test gönderimi,
+   * gerçek gönderim (taze giriş ile, karar 0044) ve iptal. Yalnızca yönetici
+   * (karar 0048).
+   */
+  | "marketing.manage"
+  /**
+   * `/yonetim/formlar`: form / anket olusturma, yayinlama, kapatma ve
+   * sonuclari gorme (karar 0058). Yanitlar hesaba bagli olabilir; yalnizca
+   * yonetici.
+   */
+  | "forms.manage"
+  /**
+   * `/yonetim/mesajlar`: iletişim formu ve geri bildirim gelen kutusu (karar
+   * 0061). Ad, e-posta ve serbest metin içerir; yalnızca yönetici. Her liste
+   * görüntülemesi `messages.list_view` olarak denetime yazılır.
+   */
+  | "messages.read"
+  /**
+   * Kullanıcı ayrıntısının hassas sekmeleri: Aktivite, Oturumlar, Aramalar,
+   * Affiliate (karar 0049 §3). Yalnızca yönetici; her görüntüleme
+   * `users.view_tab` olarak denetime yazılır.
+   */
+  | "users.activity.read"
+  /**
+   * Tam e-posta/telefonu tek hesap için gösterme (karar 0049 §2). Yalnızca
+   * yönetici ve taze giriş ister (`requireFreshCapability`); her gösterim
+   * `users.reveal_contact` olarak yazılır, değerin kendisi yazılmaz.
+   */
+  | "users.contact.reveal"
+  /**
+   * Bir hesabın bütün oturumlarını kapatma (ele geçirilmiş hesap şüphesi).
+   * Yalnızca yönetici, taze giriş ile (karar 0050).
+   */
+  | "users.sessions.revoke"
+  /**
+   * `/yonetim/erken-erisim`: platform dışı gerçek başvuru sayısını güncelleme
+   * (karar 0065). Kamuya açık sayıyı değiştirir; yalnızca yönetici, gerekçe
+   * zorunlu, her değişiklik denetime yazılır.
+   */
+  | "early_access.manage";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -58,6 +99,19 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "operations.read",
   // Karar 0043: lansman öncesi önizleme yalnızca yöneticinin.
   "product.preview",
+  // Karar 0048: kullanıcılara toplu e-posta yalnızca yöneticiden.
+  "marketing.manage",
+  // Karar 0058: form / anket merkezi yalnizca yoneticinin.
+  "forms.manage",
+  // Karar 0061: iletisim/geri bildirim gelen kutusu kisisel veri icerir.
+  "messages.read",
+  // Karar 0049: kullanıcı aktivitesi ve tam iletişim bilgisi yalnızca yöneticinin.
+  "users.activity.read",
+  "users.contact.reveal",
+  // Karar 0050: oturum kapatma yalnızca yöneticiden.
+  "users.sessions.revoke",
+  // Karar 0065: herkese gorunen erken erisim sayisini yalnizca yonetici degistirir.
+  "early_access.manage",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {
@@ -66,6 +120,17 @@ const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {
   moderator: new Set(MODERATOR_CAPABILITIES),
   admin: new Set(ADMIN_CAPABILITIES),
 };
+
+const NO_CAPABILITIES: ReadonlySet<Capability> = new Set();
+
+/**
+ * Rolün yetenekleri (salt okunur kopya). Arayüzde bağlantı gösterim koşulu
+ * içindir (`FindingList`); yetki kararı her zaman `hasCapability`/
+ * `assertCapability` ile sunucuda verilir.
+ */
+export function capabilitiesFor(role: UserRole): ReadonlySet<Capability> {
+  return new Set(ROLE_CAPABILITIES[role] ?? NO_CAPABILITIES);
+}
 
 /** Bilinmeyen rol (ör. ileride eklenen ama buraya işlenmeyen) hiçbir yetki almaz. */
 export function hasCapability(role: UserRole, capability: Capability): boolean {

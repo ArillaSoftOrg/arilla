@@ -50,3 +50,21 @@ export interface SizeOption {
   sizeLabel: string | null;
   inStock: boolean;
 }
+
+/** Urun detay galerisindeki tek gorsel; `url` zaten `r2 ?? source` secilmistir. */
+export interface GalleryImage {
+  url: string;
+  width: number | null;
+  height: number | null;
+  /** Kaynak offer (provenance). Eski `primary_image_url` yedeginde null. */
+  sourceOfferId: number | null;
+  /** Kaynak bu gorseli offer'in varyantlarina baglamis mi (kanitli iliski). */
+  isVariantSpecific: boolean;
+}
+
+/** `images` en fazla MAX_DISPLAY_IMAGES; bos = yer tutucu gosterilir. */
+export interface ProductGallery {
+  images: GalleryImage[];
+  /** gallery = offer_image kayitlari; legacy = primary_image_url yedegi; none = gorsel yok. */
+  source: "gallery" | "legacy" | "none";
+}

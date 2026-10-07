@@ -29,7 +29,13 @@ export function isProductQualityFilter(value: unknown): value is ProductQualityF
   );
 }
 
-/** Fiyatı bu kadar gündür güncellenmeyen ürün "bayat" sayılır. */
+/**
+ * Fiyat ÖZETİ (`price_updated_at`, `min_price`, `offer_count`) bu kadar gündür
+ * yazılmamış ürün. Özet teklifi yazan işlemde yenilenir ve yalnızca değişince
+ * yazılır (`product/refresh-aggregates.ts`); filtre mağaza fiyatının eskiliğini
+ * değil özetin son değiştiği anı ölçer (karar 0051). Filtre anahtarı
+ * (`stale_price`) adres uyumu için korunur.
+ */
 export const STALE_PRICE_DAYS = 7;
 
 const QUALITY_SQL: Record<ProductQualityFilter, SQL> = {
@@ -55,10 +61,31 @@ export interface ProductListRow {
   priceUpdatedAt: Date | null;
 }
 
+/**
+ * Katalog kalitesi bulgularının bağlandığı ek filtreler (karar 0053). Üst
+ * paneldeki sayaçlara girmez (her ürün listesi açılışında ek tarama yok);
+ * yalnızca `/yonetim/katalog/kalite` bağlantılarıyla kullanılır.
+ */
+export const PRODUCT_ISSUE_FILTERS = ["no_active_offer", "duplicate_gtin"] as const;
+export type ProductIssueFilter = (typeof PRODUCT_ISSUE_FILTERS)[number];
+
+export function isProductIssueFilter(value: unknown): value is ProductIssueFilter {
+  return typeof value === "string" && (PRODUCT_ISSUE_FILTERS as readonly string[]).includes(value);
+}
+
+const ISSUE_SQL: Record<ProductIssueFilter, SQL> = {
+  // Canlı: fiyat özetindeki `offer_count`a değil aktif teklif satırlarına bakar.
+  no_active_offer: sql`NOT EXISTS (SELECT 1 FROM offer io WHERE io.product_id = p.id AND io.is_active)`,
+  // `product_gtin_idx`
+  duplicate_gtin: sql`(p.gtin IS NOT NULL AND EXISTS (
+    SELECT 1 FROM product p2 WHERE p2.gtin = p.gtin AND p2.id <> p.id))`,
+};
+
 export interface ProductSearchFilter {
   /** Sayı → id; 8–14 hane → GTIN (ürün ya da varyant); diğer → başlık. */
   query?: string;
   quality?: ProductQualityFilter;
+  issue?: ProductIssueFilter;
   page?: number;
 }
 
@@ -103,6 +130,7 @@ export async function searchProducts(
   const q = queryCondition(filter.query);
   if (q) conditions.push(q);
   if (isProductQualityFilter(filter.quality)) conditions.push(QUALITY_SQL[filter.quality]);
+  if (isProductIssueFilter(filter.issue)) conditions.push(ISSUE_SQL[filter.issue]);
 
   const rows = await readOnly(db, 5_000, async (tx) => {
     const result = await tx.execute<ProductRow>(sql`
@@ -187,6 +215,8 @@ export interface ProductOfferRow {
   isActive: boolean;
   discoverySource: string;
   lastSeenAt: Date;
+  /** Teklif düzeyi barkod (`attributes_raw.gtin`); ürün barkodu bundan eşitlenir. */
+  gtin: string | null;
 }
 
 export interface ProductVariantRow {
@@ -288,10 +318,12 @@ export async function getProductDetail(
       is_active: boolean;
       discovery_source: string;
       last_seen_at: string;
+      gtin: string | null;
     }>(sql`
       SELECT o.id, m.slug AS merchant_slug, m.name AS merchant_name, m.is_active AS merchant_active,
              o.external_id, o.title_raw, o.url, o.current_price, o.list_price, o.currency,
-             o.in_stock, o.is_active, o.discovery_source, o.last_seen_at
+             o.in_stock, o.is_active, o.discovery_source, o.last_seen_at,
+             o.attributes_raw->>'gtin' AS gtin
         FROM offer o JOIN merchant m ON m.id = o.merchant_id
        WHERE o.product_id = ${productId}
        ORDER BY o.is_active DESC, o.current_price ASC NULLS LAST, o.id
@@ -389,6 +421,7 @@ export async function getProductDetail(
         isActive: o.is_active,
         discoverySource: o.discovery_source,
         lastSeenAt: new Date(o.last_seen_at),
+        gtin: o.gtin ? o.gtin.slice(0, 64) : null,
       })),
       offersTruncated: offers.rows.length > DETAIL_OFFER_LIMIT,
       variants: variants.rows.slice(0, DETAIL_VARIANT_LIMIT).map((v) => ({
@@ -426,7 +459,15 @@ export async function getProductDetail(
   });
 }
 
-export const OFFER_STATES = ["unmatched", "inactive", "stale", "all"] as const;
+export const OFFER_STATES = [
+  "unmatched",
+  "no_candidate",
+  "rejected_only",
+  "invalid_gtin",
+  "inactive",
+  "stale",
+  "all",
+] as const;
 export type OfferState = (typeof OFFER_STATES)[number];
 
 export function isOfferState(value: unknown): value is OfferState {
@@ -436,9 +477,41 @@ export function isOfferState(value: unknown): value is OfferState {
 /** Aktif ama bu kadar gündür feed'de görülmeyen teklif "bayat". */
 export const STALE_OFFER_DAYS = 7;
 
+/**
+ * GS1 kontrol basamağı (GTIN-8/12/13/14), `services/ingest/collect/
+ * identifiers.py` `gtin_valid` ile birebir. `CASE` dalı sıralı değerlendirilir:
+ * rakam olmayan değer `::int` dönüşümüne hiç ulaşmaz.
+ */
+export function validGtinSql(code: SQL): SQL {
+  // Ters çevrilmiş kodun 1..14. haneleri, ağırlık 1,3,1,3…; olmayan hane 0.
+  // Satır başına alt sorgu (generate_series) yerine düz ifade: 300 bin
+  // teklifte ~5 kat hızlı (karar 0053, EXPLAIN kanıtı).
+  const terms = Array.from(
+    { length: 14 },
+    (_, index) =>
+      sql`coalesce(nullif(substr(reverse(${code}), ${sql.raw(String(index + 1))}, 1), '')::int, 0) * ${sql.raw(index % 2 === 1 ? "3" : "1")}`,
+  );
+  return sql`(CASE WHEN ${code} ~ '^([0-9]{8}|[0-9]{12,14})$'
+    THEN (${sql.join(terms, sql` + `)}) % 10 = 0
+    ELSE false END)`;
+}
+
+/** Eşleşmemiş aktif teklifin aday durumu (karar 0053); `match_candidate_uniq (offer_id, …)`. */
+const NO_CANDIDATE_SQL = sql`NOT EXISTS (SELECT 1 FROM match_candidate mc WHERE mc.offer_id = o.id)`;
+const REJECTED_ONLY_SQL = sql`EXISTS (SELECT 1 FROM match_candidate mc
+    WHERE mc.offer_id = o.id AND mc.status = 'rejected')
+  AND NOT EXISTS (SELECT 1 FROM match_candidate mc
+    WHERE mc.offer_id = o.id AND mc.status <> 'rejected')`;
+
 const OFFER_STATE_SQL: Record<OfferState, SQL> = {
   // `offer_unmatched_idx (merchant_id) WHERE product_id IS NULL`
   unmatched: sql`o.product_id IS NULL AND o.is_active`,
+  // Hiç aday kaydı yok: resolver bu teklifi ne kuyruğa aldı ne ürüne bağladı.
+  no_candidate: sql`o.product_id IS NULL AND o.is_active AND ${NO_CANDIDATE_SQL}`,
+  // Bütün adayları insan tarafından reddedildi, yeni aday yok.
+  rejected_only: sql`o.product_id IS NULL AND o.is_active AND ${REJECTED_ONLY_SQL}`,
+  invalid_gtin: sql`o.is_active AND o.attributes_raw ? 'gtin'
+    AND NOT ${validGtinSql(sql`(o.attributes_raw->>'gtin')`)}`,
   inactive: sql`NOT o.is_active`,
   stale: sql`o.is_active AND o.last_seen_at < now() - (${STALE_OFFER_DAYS} * interval '1 day')`,
   all: sql`true`,
@@ -457,7 +530,16 @@ export interface OfferListRow {
   productId: number | null;
   productSlug: string | null;
   pendingCandidates: number;
+  rejectedCandidates: number;
   lastSeenAt: Date;
+  /** Bekleme yaşı için: teklifin ilk görüldüğü an. */
+  firstSeenAt: Date;
+  /** Teklif düzeyi barkod (`attributes_raw.gtin`), olduğu gibi. */
+  gtin: string | null;
+  /** Kesin kimlik kanalı girdisi: teklif barkodu/MPN'si ya da varyant barkodu var. */
+  hasIdentifier: boolean;
+  /** Görsel kanal girdisi: teklifin görsel vektörü var. */
+  hasImageVector: boolean;
 }
 
 export async function listOffers(
@@ -477,7 +559,11 @@ export async function listOffers(
   const conditions: SQL[] = [OFFER_STATE_SQL[state]];
   if (isPositiveId(filter.merchantId)) conditions.push(sql`o.merchant_id = ${filter.merchantId}`);
   const q = filter.query?.trim() ?? "";
-  if (q) {
+  const idMatch = /^#(\d{1,15})$/.exec(q);
+  if (idMatch && isPositiveId(Number(idMatch[1]))) {
+    // `#123`: teklif kimliği (kalite sayfasının örnek bağlantıları).
+    conditions.push(sql`o.id = ${Number(idMatch[1])}`);
+  } else if (q) {
     const pattern = containsPattern(q);
     // Teklif başlığında trigram indeksi yok: arama zaman aşımıyla sınırlı.
     if (pattern) conditions.push(sql`(o.external_id = ${q} OR o.title_raw ILIKE ${pattern})`);
@@ -498,14 +584,27 @@ export async function listOffers(
       product_id: string | null;
       product_slug: string | null;
       pending: string;
+      rejected: string;
       last_seen_at: string;
+      first_seen_at: string;
+      gtin: string | null;
+      has_identifier: boolean;
+      has_image_vector: boolean;
     }>(sql`
       SELECT o.id, m.slug AS merchant_slug, m.name AS merchant_name, o.external_id, o.title_raw,
              o.brand_raw, o.current_price, o.in_stock, o.is_active, o.product_id,
              p.slug AS product_slug,
              (SELECT count(*) FROM match_candidate mc
                WHERE mc.offer_id = o.id AND mc.status = 'pending') AS pending,
-             o.last_seen_at
+             (SELECT count(*) FROM match_candidate mc
+               WHERE mc.offer_id = o.id AND mc.status = 'rejected') AS rejected,
+             o.last_seen_at, o.first_seen_at, o.attributes_raw->>'gtin' AS gtin,
+             (o.attributes_raw ? 'gtin' OR o.attributes_raw ? 'mpn' OR EXISTS (
+               SELECT 1 FROM offer_variant v WHERE v.offer_id = o.id AND v.gtin IS NOT NULL
+             )) AS has_identifier,
+             EXISTS (SELECT 1 FROM embedding e
+                      WHERE e.target_type = 'offer' AND e.target_id = o.id AND e.kind = 'image'
+             ) AS has_image_vector
         FROM offer o
         JOIN merchant m ON m.id = o.merchant_id
         LEFT JOIN product p ON p.id = o.product_id
@@ -530,7 +629,12 @@ export async function listOffers(
       productId: o.product_id === null ? null : Number(o.product_id),
       productSlug: o.product_slug,
       pendingCandidates: Number(o.pending),
+      rejectedCandidates: Number(o.rejected),
       lastSeenAt: new Date(o.last_seen_at),
+      firstSeenAt: new Date(o.first_seen_at),
+      gtin: o.gtin ? o.gtin.slice(0, 64) : null,
+      hasIdentifier: o.has_identifier,
+      hasImageVector: o.has_image_vector,
     }),
   );
   const last = page[page.length - 1];

@@ -287,10 +287,10 @@ def run_worker(
         except Exception as error:
             if conn.closed or conn.broken:
                 # Veritabani baglantisi koptu (pooler yeniden baslatmasi, ag):
-                # tek baglantili surec burada kurtarilamaz. Temiz cikilir,
-                # surec yoneticisi (docs/ops.md "Link worker") yeniden baslatir.
-                # Yarim kalan satir web tarafinda bayat sayilir
-                # (link-resolution.ts), arayuz sonsuza kadar beklemez.
+                # tek baglantili surec burada kurtarilamaz ve her sonraki mesaj
+                # da basarisiz olurdu. Cikilir; surec yoneticisi yeniden
+                # baslatir (docs/ops.md "Link worker"). Yarim kalan satir web
+                # tarafinda olu sayilir (link-resolution.ts).
                 raise DatabaseConnectionLost(request_id) from error
             # Tek bir mesajdaki beklenmeyen bir hata worker'i dusurmemeli -
             # bir sonraki mesaj islenmeye devam eder. Satir 'processing'de

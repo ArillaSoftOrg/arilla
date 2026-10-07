@@ -13,7 +13,7 @@
 import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { createDatabase, type Database } from "@arilla/db";
+import { assertIsolatedTestUrl, createDatabase, type Database } from "@arilla/db";
 import { Client } from "pg";
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), "../../..");
@@ -43,6 +43,8 @@ function requireEnv(name: string): string {
   if (!value) {
     throw new Error(`${name} tanimli degil - entegrasyon testleri icin repo kokunde .env gerekir.`);
   }
+  // Kök .env üretim adreslerini taşıyabilir: bağlanmadan önce yerel olduğu doğrulanır.
+  assertIsolatedTestUrl(name, value);
   return value;
 }
 

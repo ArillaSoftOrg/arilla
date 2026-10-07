@@ -8,8 +8,17 @@
  * analitik buraya yazılmaz. `before`/`after` çağıranın seçtiği, hassas
  * olmayan alanlardır — parola, token, çerez, IP, e-posta asla.
  */
-import { adminAuditEvent, appUser, type Database } from "@arilla/db";
-import { and, desc, eq, lt, type SQL } from "drizzle-orm";
+import {
+  adminAuditEvent,
+  appUser,
+  type Database,
+  form,
+  lexicon,
+  marketingCampaign,
+  matchCandidate,
+  merchant,
+} from "@arilla/db";
+import { and, desc, eq, inArray, lt, type SQL } from "drizzle-orm";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 
 export type AdminAction =
@@ -22,9 +31,96 @@ export type AdminAction =
   | "merchant.deactivate"
   /** Kişisel veriye erişim: aranan değer YAZILMAZ, yalnızca yöntem ve bulunan hesap. */
   | "users.lookup"
-  | "users.view";
+  /** Kısmi arama: yalnızca yöntem, sayfa ve sonuç sayısı; aranan değer YAZILMAZ. */
+  | "users.search"
+  | "users.view"
+  /**
+   * Özet kullanıcı listesi sayfası (karar 0049 §1b). Yalnızca kullanılan
+   * filtrelerin ADLARI, sıralama, yön ve sonuç sayısı; filtre değeri YAZILMAZ.
+   */
+  | "users.list"
+  /** Hassas ayrıntı sekmesi (Aktivite, Oturumlar, Aramalar, Affiliate): yalnızca sekme adı. */
+  | "users.view_tab"
+  /** Tam iletişim bilgisi gösterimi (0049 §2): yalnızca alan adı (`email` | `phone`), değer ASLA. */
+  | "users.reveal_contact"
+  /**
+   * Rol değişikliği. Arayüzden yapılmaz (0039); yalnızca yerel `pnpm
+   * db:set-role` betiği ya da üretimde elle SQL yazar (`actor_role = "cli"`).
+   */
+  | "users.role_change"
+  /**
+   * Pazarlama e-postası (karar 0048). Gövde, konu, test adresi ve alıcı
+   * listesi YAZILMAZ; yalnızca sürüm, uzunluk, sayı ve durum.
+   */
+  | "marketing.campaign_create"
+  | "marketing.campaign_update"
+  | "marketing.test_send"
+  | "marketing.send_start"
+  | "marketing.campaign_cancel"
+  /**
+   * Form / anket merkezi (karar 0058). Soru metni, cevap ve kullanici
+   * YAZILMAZ; yalnizca tur, hedef kitle, durum ve sayilar.
+   * `forms.results_view`: sonuc ekrani goruntulendi (yanitlar hesaba bagli olabilir).
+   */
+  | "forms.create"
+  | "forms.update"
+  | "forms.publish"
+  | "forms.close"
+  | "forms.results_view"
+  /**
+   * Gelen kutusu (karar 0061): liste görüntülendi. Mesaj, ad, e-posta
+   * YAZILMAZ; yalnızca kullanılan filtrelerin ADLARI ve sonuç sayısı.
+   */
+  | "messages.list_view"
+  /**
+   * Erken erişim sayacı (karar 0065): platform dışı başvuru sayısı elle
+   * değişti. `before.offPlatformCount` / `after.offPlatformCount`; gerekçe
+   * `reason`; kişisel veri YAZILMAZ.
+   */
+  | "early_access.counter_set"
+  /**
+   * Güvenlik olayları (karar 0050). Kişisel veri, yol, IP, token YAZILMAZ.
+   * - `security.access_denied`: girişli ama yetkisiz hesabın yönetim isteği;
+   *   hedef istenen yetenek. Hesap + yetenek başına 10 dakikada bir satır.
+   * - `security.admin_session_ended`: yönetim oturumu 12 saat / 30 dk
+   *   kuralıyla sunucuda sonlandırıldı (`after.reason`).
+   * - `sessions.revoke_all`: hesabın tüm oturumları kapatıldı (kendisi,
+   *   bir yönetici ya da acil durum betiği); `after.count`.
+   */
+  | "security.access_denied"
+  | "security.admin_session_ended"
+  | "sessions.revoke_all";
 
-export type AdminTargetType = "match_candidate" | "lexicon" | "merchant" | "app_user";
+export type AdminTargetType =
+  | "match_candidate"
+  | "lexicon"
+  | "merchant"
+  | "app_user"
+  | "marketing_campaign"
+  | "form"
+  /** Gelen kutusu (`feedback` tablosu; liste görüntüleme, hedef kimliği "-"). */
+  | "feedback"
+  /** Erken erişim sayacı (tek satır, hedef kimliği "1"). */
+  | "early_access_counter"
+  /** `security.access_denied` hedefi: istenen yetenek adı. */
+  | "capability";
+
+/** Filtre ve bağlantı için bilinen hedef türleri. */
+export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
+  "match_candidate",
+  "lexicon",
+  "merchant",
+  "app_user",
+  "marketing_campaign",
+  "form",
+  "feedback",
+  "early_access_counter",
+  "capability",
+];
+
+export function isAuditTargetType(value: unknown): value is AdminTargetType {
+  return typeof value === "string" && (AUDIT_TARGET_TYPES as readonly string[]).includes(value);
+}
 
 export type AuditValue = string | number | boolean | null | AuditValue[];
 
@@ -74,13 +170,22 @@ export interface AdminEventFilter {
 export interface AdminEventRow {
   id: number;
   createdAt: Date;
-  actorUserId: number;
+  /** NULL: aktör hesabı silinmiş ya da aktörsüz veritabanı oturumu (0039). */
+  actorUserId: number | null;
   actorRole: string;
-  /** Maskeli: `a***@gmail.com`. E-postasız hesapta `#<id>`. */
+  /**
+   * Maskeli: `a***@gmail.com`. E-postasız hesapta `#<id>`, aktörsüz satırda
+   * `ACTOR_LABEL_NONE`.
+   */
   actorLabel: string;
   action: string;
   targetType: string;
   targetId: string;
+  /**
+   * Hedefin okunur etiketi ve (varsa) yönetim sayfası (karar 0051). Kişisel
+   * veri YOK: hesap "hesap #id" olarak etiketlenir. Hedef silinmişse `href` null.
+   */
+  target: { label: string; href: string | null };
   before: unknown;
   after: unknown;
   reason: string | null;
@@ -91,6 +196,9 @@ export interface AdminEventPage {
   /** Sonraki sayfanın `beforeId`'si; yoksa son sayfa. COUNT çalıştırılmaz. */
   nextBeforeId: number | null;
 }
+
+/** Aktörü olmayan satırın etiketi (silinmiş hesap ya da veritabanı/betik). */
+export const ACTOR_LABEL_NONE = "kayıtlı hesap yok";
 
 export function maskEmail(email: string | null): string | null {
   if (!email) return null;
@@ -136,18 +244,137 @@ export async function listAdminEvents(
       reason: adminAuditEvent.reason,
     })
     .from(adminAuditEvent)
-    .innerJoin(appUser, eq(appUser.id, adminAuditEvent.actorUserId))
+    // LEFT: aktörü silinmiş (0039 SET NULL) ya da aktörsüz satır da görünür.
+    .leftJoin(appUser, eq(appUser.id, adminAuditEvent.actorUserId))
     .where(conditions.length > 0 ? and(...conditions) : undefined)
     .orderBy(desc(adminAuditEvent.id))
     .limit(pageSize + 1);
 
   const page = rows.slice(0, pageSize);
   const last = page[page.length - 1];
+  const targets = await resolveAuditTargets(db, page);
   return {
     rows: page.map(({ actorEmail, ...row }) => ({
       ...row,
-      actorLabel: maskEmail(actorEmail) ?? `#${row.actorUserId}`,
+      actorLabel:
+        maskEmail(actorEmail) ??
+        (row.actorUserId === null ? ACTOR_LABEL_NONE : `#${row.actorUserId}`),
+      target: targets.get(`${row.targetType}:${row.targetId}`) ?? {
+        label: `${row.targetType} #${row.targetId}`,
+        href: null,
+      },
     })),
     nextBeforeId: rows.length > pageSize && last ? last.id : null,
   };
+}
+
+function numericIds(rows: { targetType: string; targetId: string }[], type: string): number[] {
+  const ids = new Set<number>();
+  for (const row of rows) {
+    if (row.targetType !== type || !/^\d{1,15}$/.test(row.targetId)) continue;
+    const id = Number(row.targetId);
+    if (Number.isSafeInteger(id) && id > 0) ids.add(id);
+  }
+  return [...ids];
+}
+
+/**
+ * Sayfadaki hedefleri tür başına TEK sorguyla çözer (en fazla sayfa boyu kadar
+ * kimlik). Bağlantılar yalnızca denetim kaydını görebilen yöneticinin zaten
+ * açabildiği sayfalara gider; hedef sayfa yetkiyi ayrıca ister.
+ */
+async function resolveAuditTargets(
+  db: Database,
+  rows: { targetType: string; targetId: string }[],
+): Promise<Map<string, { label: string; href: string | null }>> {
+  const out = new Map<string, { label: string; href: string | null }>();
+  const merchantIds = numericIds(rows, "merchant");
+  const userIds = numericIds(rows, "app_user");
+  const campaignIds = numericIds(rows, "marketing_campaign");
+  const lexiconIds = numericIds(rows, "lexicon");
+  const candidateIds = numericIds(rows, "match_candidate");
+  const formIds = numericIds(rows, "form");
+
+  const [merchants, users, campaigns, lexicons, candidates, forms] = await Promise.all([
+    merchantIds.length
+      ? db
+          .select({ id: merchant.id, slug: merchant.slug, name: merchant.name })
+          .from(merchant)
+          .where(inArray(merchant.id, merchantIds))
+      : [],
+    userIds.length
+      ? db
+          .select({ id: appUser.id, publicId: appUser.publicId })
+          .from(appUser)
+          .where(inArray(appUser.id, userIds))
+      : [],
+    campaignIds.length
+      ? db
+          .select({
+            id: marketingCampaign.id,
+            publicId: marketingCampaign.publicId,
+            title: marketingCampaign.title,
+          })
+          .from(marketingCampaign)
+          .where(inArray(marketingCampaign.id, campaignIds))
+      : [],
+    lexiconIds.length
+      ? db
+          .select({ id: lexicon.id, surface: lexicon.surface, kind: lexicon.kind })
+          .from(lexicon)
+          .where(inArray(lexicon.id, lexiconIds))
+      : [],
+    candidateIds.length
+      ? db
+          .select({ id: matchCandidate.id, productId: matchCandidate.productId })
+          .from(matchCandidate)
+          .where(inArray(matchCandidate.id, candidateIds))
+      : [],
+    formIds.length
+      ? db.select({ id: form.id, title: form.title }).from(form).where(inArray(form.id, formIds))
+      : [],
+  ]);
+
+  for (const row of merchants) {
+    out.set(`merchant:${row.id}`, {
+      label: row.name,
+      href: `/yonetim/magazalar/${encodeURIComponent(row.slug)}`,
+    });
+  }
+  for (const row of users) {
+    out.set(`app_user:${row.id}`, {
+      label: `hesap #${row.id}`,
+      href: `/yonetim/kullanicilar/${row.publicId}`,
+    });
+  }
+  for (const row of campaigns) {
+    out.set(`marketing_campaign:${row.id}`, {
+      label: row.title,
+      href: `/yonetim/kampanyalar/${row.publicId}`,
+    });
+  }
+  for (const row of lexicons) {
+    out.set(`lexicon:${row.id}`, {
+      label: `${row.kind}: ${row.surface}`,
+      href: `/yonetim/sozluk?tur=${encodeURIComponent(row.kind)}&q=${encodeURIComponent(row.surface)}`,
+    });
+  }
+  for (const row of candidates) {
+    out.set(`match_candidate:${row.id}`, {
+      label: `aday #${row.id} → ürün #${row.productId}`,
+      href: `/yonetim/katalog/urunler/${row.productId}`,
+    });
+  }
+  for (const row of forms) {
+    out.set(`form:${row.id}`, { label: row.title, href: `/yonetim/formlar/${row.id}` });
+  }
+  for (const row of rows) {
+    if (row.targetType === "capability") {
+      out.set(`capability:${row.targetId}`, { label: `yetenek ${row.targetId}`, href: null });
+    }
+    if (row.targetType === "feedback") {
+      out.set(`feedback:${row.targetId}`, { label: "gelen kutusu", href: "/yonetim/mesajlar" });
+    }
+  }
+  return out;
 }

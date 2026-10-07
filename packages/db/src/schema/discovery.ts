@@ -31,16 +31,47 @@ export const userSizeProfile = pgTable("user_size_profile", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
-/** KVKK riza kayitlari. Neye, ne zaman riza verildi. */
+/** `/hesap` İzinler bölümündeki hesap rızaları (0009). */
+export type AccountConsentKind =
+  | "browsing_history"
+  | "marketing_email"
+  | "personalization"
+  | "public_discovery";
+
+/** 0037: girişli kullanıcının çerez kararı (0038 kategorileri). */
+export type CookieConsentKind = "cookie_functional" | "cookie_analytics" | "cookie_marketing";
+
+/**
+ * 0037: `privacy_notice` bir RIZA DEĞİLDİR - hangi aydınlatma metni
+ * sürümünün gösterildiğinin kaydıdır (0049 §6).
+ */
+export type UserConsentKind = AccountConsentKind | CookieConsentKind | "privacy_notice";
+
+/** 0037: kaydın kaynağı. Eski satırlarda NULL ("sürümsüz kayıt"). */
+export type UserConsentSource =
+  | "account_settings"
+  | "cookie_banner"
+  | "cookie_sync"
+  | "sign_in"
+  | "unsubscribe_link"
+  | "signup_default"
+  | "onboarding";
+
+/**
+ * KVKK riza kayitlari. Neye, ne zaman riza verildi. Gecmis tablosu: kod
+ * yalnizca INSERT yapar; guncel durum tur basina en son satir (0049 §6).
+ */
 export const userConsent = pgTable("user_consent", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
   userId: bigint("user_id", { mode: "number" }).notNull(),
-  kind: text("kind")
-    .$type<"browsing_history" | "marketing_email" | "personalization" | "public_discovery">()
-    .notNull(),
+  kind: text("kind").$type<UserConsentKind>().notNull(),
   granted: boolean("granted").notNull(),
   grantedAt: timestamp("granted_at", { withTimezone: true }).notNull().defaultNow(),
   ip: inet("ip"),
+  /** 0037 */
+  source: text("source").$type<UserConsentSource>(),
+  /** 0037: karar anındaki metin/kategori sürümü. */
+  textVersion: text("text_version"),
 });
 
 export const trendSnapshot = pgTable("trend_snapshot", {

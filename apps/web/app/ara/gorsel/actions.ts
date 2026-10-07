@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import {
   type EmbeddingClient,
   EmbeddingProviderError,
@@ -13,6 +12,12 @@ import {
   preprocessImage,
   runChargedVisualSearch,
 } from "@arilla/core";
+import {
+  ANONYMOUS_SESSION_COOKIE,
+  anonymousSessionCookieOptions,
+  newAnonymousSessionId,
+  validAnonymousSessionId,
+} from "@arilla/core/anonymous-session";
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
 import { requireProductAccess } from "../../lib/dal.ts";
@@ -22,8 +27,6 @@ import { requireProductAccess } from "../../lib/dal.ts";
 // siniri istemci tarafinda da uygular.
 const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
-
 export type UploadImageResult =
   | { status: "ok"; imageUploadId: number; chargedFromBonus: boolean }
   | {
@@ -50,15 +53,12 @@ export type UploadImageResult =
  */
 async function ensureSessionId(): Promise<string> {
   const store = await cookies();
-  const existing = store.get("session_id")?.value;
+  // Kanonik UUID olmayan değer (istemci elle yazmış olabilir) yok sayılır.
+  const existing = validAnonymousSessionId(store.get(ANONYMOUS_SESSION_COOKIE)?.value);
   if (existing) return existing;
 
-  const sessionId = randomUUID();
-  store.set("session_id", sessionId, {
-    path: "/",
-    maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
-    sameSite: "lax",
-  });
+  const sessionId = newAnonymousSessionId();
+  store.set(ANONYMOUS_SESSION_COOKIE, sessionId, anonymousSessionCookieOptions());
   return sessionId;
 }
 

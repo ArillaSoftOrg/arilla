@@ -25,3 +25,20 @@ __pycache__/
 # Arac ve isletim sistemi artiklari
 .DS_Store
 Thumbs.db
+
+# Ozel anahtarlar asla depoya girmez (karar 0050). Apple Sign in with Apple
+# .p8, PEM, PKCS#12/Java anahtar deposu, SSH anahtari. Denetim:
+# `pnpm check:secrets` (scripts/check-private-keys.mjs, CI'da da kosar).
+*.p8
+AuthKey_*
+*.pem
+*.p12
+*.pfx
+*.jks
+*.keystore
+id_rsa
+id_rsa.*
+id_dsa
+id_ecdsa
+id_ed25519
+id_ed25519.*

@@ -1,5 +1,6 @@
 import { appUser, type Database, userIdentity } from "@arilla/db";
 import { and, eq } from "drizzle-orm";
+import type { RequestContext } from "../activity/request-context.ts";
 import { createSessionForUser } from "./session.ts";
 import type { SessionUser } from "./types.ts";
 import { retryOnUniqueViolation } from "./unique-race.ts";
@@ -16,6 +17,8 @@ export interface SignInWithGoogleInput {
   profile: GoogleProfile;
   ip: string | null;
   userAgent: string | null;
+  /** 0049: kaba istek baglami (cihaz/tarayici/ulke); IP ve ham UA yeni tablolara yazilmaz. */
+  context?: RequestContext;
 }
 
 export interface SignInWithGoogleResult {
@@ -95,6 +98,9 @@ function signInWithGoogleOnce(
         role: existingIdentity.role,
         ip: input.ip,
         userAgent: input.userAgent,
+        provider: "google",
+        isNewUser: false,
+        context: input.context,
       });
       return {
         rawSessionToken,
@@ -180,6 +186,9 @@ function signInWithGoogleOnce(
       role: user.role,
       ip: input.ip,
       userAgent: input.userAgent,
+      provider: "google",
+      isNewUser,
+      context: input.context,
     });
 
     return { rawSessionToken, user, isNewUser };

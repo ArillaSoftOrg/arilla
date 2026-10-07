@@ -12,6 +12,7 @@ import argparse
 import logging
 import sys
 
+from db import job_run
 from db.connection import connect
 from resolve.calibrate import report
 from resolve.pipeline import resolve_offers
@@ -42,23 +43,43 @@ def main(argv: list[str] | None = None) -> int:
 
     print(f"esikler: auto_accept={auto_accept_threshold()}  queue={queue_threshold()}\n")
 
-    with connect() as conn:
-        counts = resolve_offers(
-            conn,
-            limit=args.limit,
-            merchant_id=args.merchant_id,
-            create_missing=not args.no_create,
-        )
-        if args.dry_run:
+    if args.dry_run:
+        with connect() as conn:
+            counts = resolve_offers(
+                conn,
+                limit=args.limit,
+                merchant_id=args.merchant_id,
+                create_missing=not args.no_create,
+            )
             conn.rollback()
             print("(dry-run: hicbir degisiklik yazilmadi)\n")
-        else:
+    else:
+        # Dry-run kayit birakmaz: tazelik kaniti gibi gorunmemeli (karar 0055).
+        with job_run.track("resolve") as run, connect() as conn:
+            counts = resolve_offers(
+                conn,
+                limit=args.limit,
+                merchant_id=args.merchant_id,
+                create_missing=not args.no_create,
+            )
             conn.commit()
+            run.detail.update(
+                considered=counts.considered,
+                auto_accepted=counts.auto_accepted,
+                queued=counts.queued,
+                products_created=counts.products_created,
+                aggregates_updated=counts.aggregates_updated,
+                errors=len(counts.errors),
+            )
+            if counts.errors:
+                run.status = "partial"
+                run.error_summary = f"{len(counts.errors)} hata; ilki: {counts.errors[0]}"
 
     print(f"aday offer        {counts.considered}")
     print(f"otomatik kabul    {counts.auto_accepted}")
     print(f"insan kuyrugu     {counts.queued}")
     print(f"yeni urun         {counts.products_created}")
+    print(f"ozet guncellenen  {counts.aggregates_updated}")
     for error in counts.errors:
         print(f"  ! {error}")
 

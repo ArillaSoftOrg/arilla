@@ -11,6 +11,8 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 
+from collect.images import SelectedImage
+
 
 @dataclass(frozen=True)
 class RawRecord:
@@ -66,6 +68,9 @@ class NormalizedOffer:
     free_shipping_threshold: int | None = None
     attributes_raw: dict[str, str] = field(default_factory=dict)
     variants: tuple[NormalizedVariant, ...] = ()
+    #: Ayiklanmis offer gorselleri (<= MAX_SOURCE_IMAGES; karar 0073). `image_url`
+    #: bos degilse ilk eleman odur (display_rank=0). Kaynakta yoksa bos.
+    images: tuple[SelectedImage, ...] = ()
 
 
 class RecordRejected(Exception):

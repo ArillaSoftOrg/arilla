@@ -29,7 +29,8 @@
 .brand {
   display: grid;
   gap: var(--space-1);
-  padding: 0 var(--space-2);
+  padding: 0 var(--space-2) var(--space-3);
+  border-bottom: var(--border-width) solid var(--line);
 }
 
 .brandTitle {
@@ -43,9 +44,15 @@
   color: var(--ink-muted);
 }
 
+/*
+ * Yan menü: iki düzey. Grup adı bir ETİKETTİR (bağlantı değil): küçük, kalın,
+ * soluk, imleç değişmez. Altındaki sayfa bağlantıları sabit yükseklikte
+ * satırlardır; metinleri grup adıyla aynı hizada başlar. Gruplar ince bir
+ * çizgiyle ayrılır. Büyük harf YOK (CLAUDE.md: Türkçe i/İ dönüşümü).
+ */
 .navSections {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-2);
 }
 
 .navSection {
@@ -53,27 +60,39 @@
   gap: var(--space-1);
 }
 
+.navSection + .navSection {
+  padding-top: var(--space-2);
+  border-top: var(--border-width) solid var(--line);
+}
+
 .navHeading {
   padding: 0 var(--space-2);
   font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
   color: var(--ink-muted);
+  cursor: default;
 }
 
 .navList {
   display: grid;
-  gap: var(--space-1);
+  gap: 0;
   margin: 0;
   padding: 0;
   list-style: none;
 }
 
 .navLink {
-  display: block;
-  padding: var(--space-2);
+  display: flex;
+  align-items: center;
+  /* 28px: 13" dizüstünde tüm menü kaydırmadan sığar (masaüstü öncelikli konsol). */
+  min-height: calc(var(--space-6) + var(--space-1));
+  padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
   color: var(--ink-secondary);
   text-decoration: none;
   font-size: var(--font-size-sm);
+  line-height: var(--line-height-heading);
 }
 
 .navLink:hover {
@@ -87,15 +106,29 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-.navLinkActive {
+/* Etkin sayfa: yükseltilmiş zemin + koyu metin + soldaki ince işaret. */
+.navLinkActive,
+.navLinkActive:hover {
   background: var(--surface-raised);
   color: var(--ink);
   font-weight: var(--font-weight-medium);
+  box-shadow:
+    inset 2px 0 0 var(--accent),
+    var(--shadow-xs);
 }
 
 .sidebarFooter {
   margin-top: auto;
-  padding: 0 var(--space-2);
+  padding: var(--space-2) 0 0;
+  border-top: var(--border-width) solid var(--line);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .navLink {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
+  }
 }
 
 .main {
@@ -105,18 +138,22 @@
 
 .page {
   display: grid;
+  /* Tek sütun içeriğe göre genişlemesin: dar ekranda yatay taşma olmaz. */
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-6);
   max-width: var(--content-width-wide);
 }
 
 .pageNarrow {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-4);
   max-width: var(--content-width-comparison);
 }
 
 .pageHeader {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   gap: var(--space-1);
 }
 
@@ -170,6 +207,26 @@
 .tileNote {
   font-size: var(--font-size-xs);
   color: var(--ink-secondary);
+}
+
+/* Tıklanabilir kart (karar 0051): sorunu teşhis eden sayfaya gider. */
+.tileLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.tileLink:hover {
+  background: var(--surface-hover);
+}
+
+.tileLink:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.tileLink .tileLabel {
+  text-decoration: underline;
+  text-underline-offset: 2px;
 }
 
 .tableWrap {
@@ -286,10 +343,15 @@
   .navList {
     display: flex;
     flex-wrap: wrap;
+    gap: var(--space-1);
   }
 
   .navSections {
     gap: var(--space-2);
+  }
+
+  .navSection + .navSection {
+    padding-top: var(--space-2);
   }
 
   .sidebarFooter {
@@ -309,7 +371,8 @@
 
 .keyValues {
   display: grid;
-  grid-template-columns: max-content minmax(0, 1fr);
+  /* Uzun etiket sarılabilsin (max-content dar ekranda taşırırdı). */
+  grid-template-columns: fit-content(60%) minmax(0, 1fr);
   gap: var(--space-1) var(--space-4);
   margin: 0;
   font-size: var(--font-size-sm);
@@ -317,6 +380,7 @@
 
 .keyValues dt {
   color: var(--ink-muted);
+  overflow-wrap: anywhere;
 }
 
 .keyValues dd {
@@ -355,4 +419,372 @@
 
 .textInput {
   min-width: 240px;
+}
+
+/* E-posta kampanyası düzenleyicisi ve önizleme (karar 0048). */
+.formGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-3);
+  max-width: 720px;
+}
+
+.formGrid label {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-1);
+}
+
+.textArea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 240px;
+  font: inherit;
+  resize: vertical;
+}
+
+.previewFrame {
+  width: 100%;
+  max-width: 720px;
+  height: 640px;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+/* Kullanıcı ayrıntısı sekmeleri (karar 0049 §3): sunucu tarafı bağlantılar. */
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  border-bottom: var(--border-width) solid var(--line);
+}
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  min-height: calc(var(--space-6) + var(--space-1));
+  padding: 0 var(--space-3);
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-sm);
+  text-decoration: none;
+}
+
+.tab:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.tab:focus-visible {
+  outline: var(--focus-ring-width) solid var(--focus-ring-color);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.tabActive,
+.tabActive:hover {
+  color: var(--ink);
+  font-weight: var(--font-weight-medium);
+  box-shadow: inset 0 -2px 0 var(--accent);
+}
+
+/* Bilgi etiketi (ör. "sürümsüz kayıt", "türetilmiş"): yalnızca bilgi, durum değil. */
+.tag {
+  display: inline-block;
+  margin-left: var(--space-1);
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-xs);
+}
+
+/* Tıkla-göster: maskeli değer + düğme aynı satırda. */
+.reveal {
+  display: inline-flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+/* Ortak önem rozeti ve bulgu listesi (karar 0052). Yalnızca tema belirteçleri. */
+.sevBadge {
+  display: inline-block;
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid currentColor;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  white-space: nowrap;
+}
+
+.sevCritical {
+  color: var(--alert);
+}
+
+.sevWarning {
+  color: var(--warning);
+}
+
+.sevUnknown {
+  color: var(--ink-muted);
+}
+
+.sevInfo {
+  color: var(--accent);
+}
+
+.sevHealthy {
+  color: var(--ink-secondary);
+}
+
+.findings {
+  display: grid;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.finding {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  overflow-wrap: anywhere;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.findingHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.findingTitle {
+  font-weight: var(--font-weight-semibold);
+}
+
+.findingText {
+  margin: 0;
+}
+
+/* --- S2 search/dictionary --- */
+
+.s2Steps {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: s2step;
+}
+
+.s2Step {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  counter-increment: s2step;
+}
+
+.s2StepTitle {
+  margin: 0;
+  font-size: inherit;
+  font-weight: var(--font-weight-semibold);
+}
+
+.s2StepTitle::before {
+  content: counter(s2step) ". ";
+  color: var(--ink-muted);
+}
+
+.s2Chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.s2Chip {
+  padding: 0 var(--space-2);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+.s2Actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+/* --- S1 matching/catalog --- */
+/* Eşleştirme kanıtı ve katalog kalitesi (karar 0053). */
+
+.evidence {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.evidenceGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: var(--space-3);
+}
+
+.evidenceList {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-sm);
+}
+
+.scoreScale {
+  position: relative;
+  height: 10px;
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+}
+
+.scoreBand {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--surface-hover);
+}
+
+.scoreAuto {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  right: 0;
+  border-left: var(--border-width) solid var(--line-strong);
+}
+
+.scoreMarker {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 3px;
+  margin-left: -1px;
+  background: var(--ink);
+}
+
+.scoreLegend {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--ink-muted);
+}
+
+.toneSupports {
+  color: var(--ink-secondary);
+  font-weight: var(--font-weight-medium);
+}
+
+.toneWeakens {
+  color: var(--warning);
+  font-weight: var(--font-weight-medium);
+}
+
+.toneNeutral {
+  color: var(--ink-muted);
+}
+
+.idConflict {
+  color: var(--alert);
+  font-weight: var(--font-weight-medium);
+}
+
+.samples {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding-left: var(--space-4);
+  font-size: var(--font-size-sm);
+}
+
+.qualityGroup {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+}
+
+/* --- S3 ops/ux --- */
+
+.breadcrumbs {
+  display: grid;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+  font-size: var(--font-size-sm);
+  color: var(--ink-muted);
+}
+
+.breadcrumbList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.breadcrumbList li + li::before {
+  content: "›";
+  margin-right: var(--space-1);
+  color: var(--ink-muted);
+}
+
+.breadcrumbList a {
+  color: var(--ink-secondary);
+}
+
+.breadcrumbList [aria-current="page"] {
+  color: var(--ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.breadcrumbNote {
+  margin: 0;
+  font-size: var(--font-size-xs);
+}
+
+.healthyList {
+  margin: 0;
+}
+
+.healthyList summary {
+  cursor: pointer;
+  color: var(--ink-secondary);
+}
+
+.healthyList[open] summary {
+  margin-bottom: var(--space-2);
+}
+
+@media (max-width: 800px) {
+  .main {
+    padding: var(--space-4);
+  }
+
+  .breadcrumbs {
+    margin-bottom: var(--space-3);
+  }
 }

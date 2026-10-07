@@ -132,6 +132,14 @@ function foldExpr(value: SQL): SQL {
   return sql`lower(translate(${value}, ${sql.raw(`'${FOLD_FROM}'`)}, ${sql.raw(`'${FOLD_TO}'`)}))`;
 }
 
+/**
+ * Aynı katlama, başka metin kolonları için (yönetim kullanıcı araması: ad ve
+ * e-posta). Sorgu tarafı `foldForMatch` ile katlanır.
+ */
+export function foldedTextExpr(value: SQL): SQL {
+  return foldExpr(value);
+}
+
 /** `product_title_fold_trgm` indeksinin ifadesi. */
 export function foldedTitleExpr(title: SQL): SQL {
   return foldExpr(title);
@@ -197,7 +205,11 @@ export function headPrefilter(slots: readonly string[][], productId: SQL): SQL {
  * slotun benzerligi), `tm.rel` (slot benzerliklerinin ortalamasi). Bir slotun
  * benzerligi alternatiflerinin en iyisidir. Slotlar bossa cagrilmaz.
  */
-export function tokenMatchLateral(slots: readonly string[][], document: SQL): SQL {
+export function tokenMatchLateral(
+  slots: readonly string[][],
+  document: SQL,
+  threshold: number = TOKEN_MATCH_THRESHOLD,
+): SQL {
   const slotIndex: number[] = [];
   const alternatives: string[] = [];
   slots.forEach((slot, i) => {
@@ -207,7 +219,7 @@ export function tokenMatchLateral(slots: readonly string[][], document: SQL): SQ
     }
   });
   return sql`LEFT JOIN LATERAL (
-    SELECT count(*) FILTER (WHERE s.v >= ${TOKEN_MATCH_THRESHOLD})::int AS matched,
+    SELECT count(*) FILTER (WHERE s.v >= ${threshold})::int AS matched,
            COALESCE(max(s.v) FILTER (WHERE s.i = ${slots.length}), 0)::double precision AS head,
            avg(s.v)::double precision AS rel
       FROM (
@@ -219,7 +231,10 @@ export function tokenMatchLateral(slots: readonly string[][], document: SQL): SQ
 }
 
 /** Aday kapisi: bas isim eslesmeli, niteleyicilerden en fazla `allowedMisses` eksik. */
-export function tokenMatchGate(slots: readonly string[][]): SQL {
+export function tokenMatchGate(
+  slots: readonly string[][],
+  threshold: number = TOKEN_MATCH_THRESHOLD,
+): SQL {
   const required = slots.length - allowedMisses(slots.length);
-  return sql`(tm.head >= ${TOKEN_MATCH_THRESHOLD} AND tm.matched >= ${required})`;
+  return sql`(tm.head >= ${threshold} AND tm.matched >= ${required})`;
 }

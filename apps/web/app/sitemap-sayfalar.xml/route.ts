@@ -1,4 +1,5 @@
 import { isProductOpen, readAppUrl } from "@arilla/core";
+import { articleSlugs } from "../blog/articles/index.ts";
 import { buildUrlSetXml } from "../lib/sitemap-xml.ts";
 
 /**
@@ -17,9 +18,13 @@ const STATIC_PAGES = [
   "/kosullar",
   "/cerez",
   "/iletisim",
+  "/sss",
   "/kvkk-aydinlatma",
   "/affiliate-aciklamasi",
   "/sirket-bilgileri",
+  "/hakkinda",
+  "/blog",
+  "/ortakliklar",
 ];
 
 export async function GET(): Promise<Response> {
@@ -28,7 +33,9 @@ export async function GET(): Promise<Response> {
     return new Response("APP_URL tanimli degil. .env.example dosyasina bakin.", { status: 500 });
   }
 
-  const pages = isProductOpen() ? [...STATIC_PAGES, ...PRODUCT_PAGES] : STATIC_PAGES;
+  const articlePages = articleSlugs().map((slug) => `/blog/${slug}`);
+  const base = [...STATIC_PAGES, ...articlePages];
+  const pages = isProductOpen() ? [...base, ...PRODUCT_PAGES] : base;
   const xml = buildUrlSetXml(pages.map((path) => ({ loc: `${appUrl}${path}` })));
   return new Response(xml, { headers: { "Content-Type": "application/xml" } });
 }

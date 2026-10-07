@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   EmbeddingError,
   EmbeddingUnavailableError,
@@ -207,6 +207,56 @@ describe("JinaEmbeddingClient retry and timeout", () => {
     });
     await expect(client.embedImage(DATA_URL)).rejects.toThrow(/401/);
     expect(calls.count).toBe(1);
+  });
+
+  it("times out a stalled response body and retries", async () => {
+    let count = 0;
+    const client = new JinaEmbeddingClient("test-key", {
+      attemptTimeoutMs: 20,
+      sleep: async () => {},
+      fetch: ((_url: unknown, init?: RequestInit) => {
+        count++;
+        if (count === 1) {
+          // Basliklar geldi, govde gelmiyor: okuma ayni sinyalle kesilmeli.
+          const stalled = {
+            status: 200,
+            json: () =>
+              new Promise((_resolve, reject) => {
+                init?.signal?.addEventListener("abort", () => reject(init.signal?.reason));
+              }),
+          } as unknown as Response;
+          return Promise.resolve(stalled);
+        }
+        return Promise.resolve(okResponse());
+      }) as typeof fetch,
+    });
+    const result = await client.embedImage(DATA_URL);
+    expect(result.vector).toHaveLength(768);
+    expect(count).toBe(2);
+  });
+
+  describe("timer cleanup", () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it("leaves no pending timer after a successful attempt", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const client = new JinaEmbeddingClient("test-key", {
+        fetch: (async () => okResponse()) as typeof fetch,
+      });
+      await client.embedImage(DATA_URL);
+      expect(vi.getTimerCount()).toBe(0);
+    });
+
+    it("leaves no pending timer after a non-retried 4xx", async () => {
+      vi.useFakeTimers({ toFake: ["setTimeout", "clearTimeout"] });
+      const client = new JinaEmbeddingClient("test-key", {
+        fetch: (async () => new Response("bad key", { status: 401 })) as typeof fetch,
+      });
+      await expect(client.embedImage(DATA_URL)).rejects.toThrow(/401/);
+      expect(vi.getTimerCount()).toBe(0);
+    });
   });
 
   it("never puts the API key into the final error", async () => {

@@ -387,7 +387,7 @@ Insan karari (`accepted` / `rejected`) makine tarafindan **ezilmez**.
 ```bash
 python -m similarity            # kenarlar + istatistikler
 python -m similarity --edges    # yalnizca kenarlar
-python -m similarity --prices   # yalnizca fiyat istatistikleri
+python -m similarity --prices   # fiyat istatistikleri + urun ozeti onarimi
 python -m similarity --dry-run
 ```
 

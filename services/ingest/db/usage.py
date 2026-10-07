@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 from dataclasses import dataclass
 
 import psycopg
@@ -27,34 +28,39 @@ VALUES
 """
 
 
-_cost_config_reported = False
+_COST_RATE_PATTERN = re.compile(r"[0-9]+")
+#: TypeScript `Number.MAX_SAFE_INTEGER`; iki taraf ayni degeri kabul etsin.
+_MAX_COST_RATE = 2**53 - 1
+_invalid_cost_rate_reported = False
 
 
 def cost_micros_per_1k_tokens() -> int:
     """Bin token basina maliyet, TRY milyonda bir cinsinden.
 
-    **Varsayilan 0.** Fiyat depoda sabitlenmez ve uydurulmaz; ortam
-    degiskeniyle verilir (bkz. docs/decisions/0015, docs/ops.md). `units`
-    token sayisini tuttugu icin maliyet fiyat belli olunca geriye donuk
-    hesaplanabilir; sifir bir fiyat "maliyet yok" demek degildir. Bos, 0 ya
-    da gecersiz (negatif olmayan tamsayi degil) deger isi durdurmaz ama surec
-    basina bir kez uyari olarak loglanir -
-    `packages/core/src/embedding/embed-uploaded-image.ts` ile ayni kural.
+    **Varsayilan 0.** Saglayici hesabi acilmadigi icin gercek fiyat henuz
+    bilinmiyor (bkz. docs/decisions/0015, acik maddeler). `units` token
+    sayisini tuttugu icin maliyet fiyat belli olunca geriye donuk
+    hesaplanabilir; sifir bir fiyat "maliyet yok" demek degildir.
+
+    `packages/core/src/embedding/embed-uploaded-image.ts` ile AYNI kural:
+    yalnizca negatif olmayan duz tamsayi gecerlidir (kenar bosluklari
+    kirpilir); bos deger 0'dir. Gecersiz deger (`abc`, `-5`, `1.5`, `1e3`)
+    0 sayilir ve surec basina bir kez uyari loglanir (degerin kendisi
+    loglanmaz). Eskiden `-5` gibi negatif bir oran kabul ediliyordu.
     """
-    global _cost_config_reported
+    global _invalid_cost_rate_reported
     raw = os.environ.get("EMBEDDING_COST_MICROS_PER_1K_TOKENS", "").strip()
-    try:
-        value = int(raw) if raw else 0
-    except ValueError:
-        value = -1
-    valid = value >= 0
-    if (not valid or value == 0) and not _cost_config_reported:
-        _cost_config_reported = True
+    if raw == "":
+        return 0
+    if _COST_RATE_PATTERN.fullmatch(raw) and int(raw) <= _MAX_COST_RATE:
+        return int(raw)
+    if not _invalid_cost_rate_reported:
+        _invalid_cost_rate_reported = True
         logger.warning(
-            "EMBEDDING_COST_MICROS_PER_1K_TOKENS %s: api_usage.cost_micros 0 yazilir",
-            "tanimsiz/0" if valid else "gecersiz",
+            "EMBEDDING_COST_MICROS_PER_1K_TOKENS gecersiz "
+            "(negatif olmayan tamsayi olmali); 0 kullaniliyor"
         )
-    return value if valid else 0
+    return 0
 
 
 @dataclass(frozen=True)

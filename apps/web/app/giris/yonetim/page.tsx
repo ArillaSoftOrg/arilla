@@ -5,6 +5,7 @@ import {
   safeAdminNext,
 } from "@arilla/core";
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import { verifySession } from "../../lib/dal.ts";
 import { LoginFormClient } from "../login-form-client.tsx";
 import styles from "../page.module.css";
@@ -50,6 +51,14 @@ export default async function YonetimGirisPage({
   const { next, neden } = await searchParams;
   const target = safeAdminNext(next);
   const user = await verifySession();
+  // Zaten yetkili bir oturumla gelen (gerekçesiz) doğrudan hedefe: formu
+  // yeniden göstermenin anlamı yok. Gerekçe varsa (süre doldu, boşta, taze
+  // giriş) form kalır - özellikle "yeniden" taze bir giriş ister. Yönetim
+  // oturum kuralları hedefte `requireCapability` ile yine uygulanır; süresi
+  // dolmuş oturum orada silinip buraya gerekçeyle döner (döngü yok).
+  if (user && hasCapability(user.role, "admin.access") && !isReason(neden)) {
+    redirect(target);
+  }
   const signedInWithoutAccess = user !== null && !hasCapability(user.role, "admin.access");
   const notice = signedInWithoutAccess
     ? COPY.noAccess

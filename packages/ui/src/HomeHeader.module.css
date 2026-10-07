@@ -8,6 +8,9 @@
   align-items: center;
   gap: var(--space-3);
   min-height: 84px;
+  max-width: none;
+  margin-inline: 0;
+  padding-inline: var(--space-6);
   padding-block: var(--space-3);
 }
 
@@ -59,7 +62,8 @@
 
 .brand,
 .navLink,
-.account {
+.account,
+.accountAvatar {
   display: inline-flex;
   align-items: center;
   min-height: var(--size-touch-target);
@@ -68,7 +72,19 @@
 }
 
 .brand {
+  gap: var(--space-3);
   color: var(--ink);
+}
+
+.brandLogo {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 0.7rem;
+  background-position: center;
+  background-size: cover;
+  box-shadow: var(--shadow-xs);
 }
 
 .brandText {
@@ -84,7 +100,7 @@
   align-items: center;
   gap: var(--space-8);
   min-width: 0;
-  margin-inline-start: var(--space-6);
+  margin-inline-start: var(--space-8);
   overflow-x: auto;
   scrollbar-width: none;
 }
@@ -128,6 +144,46 @@
   background: var(--surface-hover);
 }
 
+.accountAvatar {
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 3.25rem;
+  min-height: 3.25rem;
+  margin-inline-start: auto;
+  padding: 0;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--paper);
+  box-shadow: var(--shadow-xs);
+}
+
+.accountAvatar:hover {
+  background: var(--surface-hover);
+}
+
+.accountAvatarImage {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background:
+    radial-gradient(
+      circle at 30% 20%,
+      color-mix(in srgb, var(--accent) 32%, transparent),
+      transparent 34%
+    ),
+    var(--ink);
+  background-position: center;
+  background-size: cover;
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+}
+
 /* Ikincil, sade baglanti: birincil eylemle yarismaz (duz metin, soluk). */
 .utility {
   display: inline-flex;
@@ -150,6 +206,10 @@
 }
 
 .utility + .account {
+  margin-inline-start: 0;
+}
+
+.utility + .accountAvatar {
   margin-inline-start: 0;
 }
 
@@ -221,12 +281,26 @@
 }
 
 .mobileBrand {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
   font-size: 2rem;
   font-style: italic;
   font-weight: 700;
   line-height: var(--line-height-heading);
   color: var(--ink);
   text-decoration: none;
+}
+
+.mobileBrandLogo {
+  display: inline-block;
+  flex: 0 0 auto;
+  width: 2rem;
+  height: 2rem;
+  border-radius: 0.65rem;
+  background-position: center;
+  background-size: cover;
+  box-shadow: var(--shadow-xs);
 }
 
 .closeButton {
@@ -288,6 +362,35 @@
   background: var(--surface);
 }
 
+.mobileAccountContent {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.mobileAccountAvatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2rem;
+  height: 2rem;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background:
+    radial-gradient(
+      circle at 30% 20%,
+      color-mix(in srgb, var(--accent) 32%, transparent),
+      transparent 34%
+    ),
+    var(--ink);
+  background-position: center;
+  background-size: cover;
+  color: var(--paper);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  line-height: 1;
+}
+
 .mobileAccountLink[aria-current="page"] {
   box-shadow: inset 0 0 0 var(--border-width) var(--ink);
 }
@@ -300,10 +403,11 @@
   transform: translateX(0);
 }
 
-@media (max-width: 639.98px) {
+@media (max-width: 899.98px) {
   .inner {
     min-height: 80px;
     gap: var(--space-3);
+    padding-inline: var(--space-4);
   }
 
   .nav {
@@ -315,13 +419,24 @@
   }
 
   .brandText {
-    font-size: 2rem;
+    font-size: clamp(1.55rem, 7vw, 2rem);
   }
 
   .account {
     min-height: 40px;
     padding-inline: var(--space-4);
     font-size: var(--text-small);
+  }
+
+  .accountAvatar {
+    width: 2.75rem;
+    min-height: 2.75rem;
+  }
+
+  .accountAvatarImage {
+    width: 2.25rem;
+    height: 2.25rem;
+    font-size: var(--text-body);
   }
 
   /* Dar cubukta yer yok: ikincil baglanti menu panelinde. */
@@ -337,6 +452,7 @@
 @media (prefers-reduced-motion: no-preference) {
   .navLink,
   .account,
+  .accountAvatar,
   .menuButton,
   .closeButton,
   .mobileNavLink,
@@ -373,7 +489,8 @@
 .mobileAccountLink:focus-visible,
 .mobileUtilityLink:focus-visible,
 .utility:focus-visible,
-.account:focus-visible {
+.account:focus-visible,
+.accountAvatar:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
@@ -381,4 +498,103 @@
 .brand:focus-visible,
 .mobileBrand:focus-visible {
   border-radius: var(--radius-sm);
+}
+
+/* 390px: wordmark ile hesap dugmesi ust uste binmesin; ust cubuk daha kompakt. */
+@media (max-width: 479px) {
+  .inner {
+    gap: var(--space-2);
+    min-height: 64px;
+    padding-inline: var(--space-4);
+    padding-block: var(--space-2);
+  }
+
+  .brand {
+    min-width: 0;
+    gap: var(--space-2);
+  }
+
+  .brandText {
+    font-size: 1.375rem;
+  }
+
+  .account {
+    padding-inline: var(--space-3);
+    font-size: var(--text-small);
+  }
+}
+
+/* Sohbet calisma alani: yapiskan, yalin cubuk (menu + marka). Olcek 1 -> 0.8;
+   dokunma hedefi (menu dugmesi) --size-touch-target'ta kalir. Z-endeksi
+   composer'in (--z-sticky) ustunde: menu paneli (fixed) onu da ortmeli. */
+.header[data-variant="chat"] {
+  --chat-bar-height: 84px;
+  --chat-scale: 1;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-dropdown);
+  padding-block-start: env(safe-area-inset-top, 0px);
+  border-block-end: var(--border-width) solid var(--line);
+}
+
+.header[data-variant="chat"][data-compact="true"] {
+  --chat-scale: 0.8;
+}
+
+.header[data-variant="chat"] .inner {
+  min-height: calc(var(--chat-bar-height) * var(--chat-scale));
+  padding-block: calc(var(--space-3) * var(--chat-scale));
+}
+
+.header[data-variant="chat"] .nav,
+.header[data-variant="chat"] .utility,
+.header[data-variant="chat"] .account,
+.header[data-variant="chat"] .accountAvatar {
+  display: none;
+}
+
+.header[data-variant="chat"] .brandLogo {
+  width: calc(2.25rem * var(--chat-scale));
+  height: calc(2.25rem * var(--chat-scale));
+}
+
+.header[data-variant="chat"] .brandText {
+  font-size: calc(clamp(1.75rem, 1.6rem + 0.65vw, 2.25rem) * var(--chat-scale));
+}
+
+@media (max-width: 899.98px) {
+  .header[data-variant="chat"] {
+    --chat-bar-height: 80px;
+  }
+
+  .header[data-variant="chat"] .brandText {
+    font-size: calc(clamp(1.55rem, 7vw, 2rem) * var(--chat-scale));
+  }
+}
+
+@media (max-width: 479px) {
+  .header[data-variant="chat"] {
+    --chat-bar-height: 64px;
+  }
+
+  .header[data-variant="chat"] .inner {
+    padding-block: calc(var(--space-2) * var(--chat-scale));
+  }
+
+  .header[data-variant="chat"] .brandText {
+    font-size: calc(1.375rem * var(--chat-scale));
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .header[data-variant="chat"] .inner,
+  .header[data-variant="chat"] .brandLogo,
+  .header[data-variant="chat"] .brandText {
+    transition:
+      min-height var(--duration-base) var(--ease-standard),
+      padding-block var(--duration-base) var(--ease-standard),
+      width var(--duration-base) var(--ease-standard),
+      height var(--duration-base) var(--ease-standard),
+      font-size var(--duration-base) var(--ease-standard);
+  }
 }

@@ -3,9 +3,9 @@ import type { Metadata } from "next";
 import { LEGAL_EFFECTIVE_LABEL, LegalIdentityBlock } from "../legal-identity-block.tsx";
 
 export const metadata: Metadata = {
-  title: "Kullanım Koşulları – Arilla",
+  title: "Kullanım Koşulları – ManiCepte",
   description:
-    "Arilla hizmetinin kapsamı, fiyat ve stok bilgisinin kaynağı, affiliate ilişkisi ve kullanım kuralları.",
+    "ManiCepte hizmetinin kapsamı, fiyat ve stok bilgisinin kaynağı, affiliate ilişkisi ve kullanım kuralları.",
   alternates: { canonical: "/kosullar" },
 };
 
@@ -18,7 +18,7 @@ export default function KosullarPage() {
   return (
     <LegalPageLayout title="Kullanım Koşulları" lastUpdatedLabel={LEGAL_EFFECTIVE_LABEL}>
       <section>
-        <p>Bu koşullar, Arilla hizmetlerinin kullanımını düzenler.</p>
+        <p>Bu koşullar, ManiCepte hizmetlerinin kullanımını düzenler.</p>
       </section>
 
       <section>
@@ -29,10 +29,10 @@ export default function KosullarPage() {
       <section>
         <h2>2. Hizmetin kapsamı</h2>
         <p>
-          Arilla, ürünleri bulmanıza, farklı mağazalardaki fiyatlarını karşılaştırmanıza ve
-          seçtiğiniz mağazaya yönlenmenize yardımcı olan bir bilgi ve yönlendirme hizmetidir. Arilla
-          ürün satmaz, stok tutmaz ve ödeme almaz; aksi açıkça belirtilmedikçe listelenen ürünlerin
-          satıcısı değildir ve mağaza ile aranızdaki satış sözleşmesinin tarafı olmaz.
+          ManiCepte, ürünleri bulmanıza, farklı mağazalardaki fiyatlarını karşılaştırmanıza ve
+          seçtiğiniz mağazaya yönlenmenize yardımcı olan bir bilgi ve yönlendirme hizmetidir.
+          ManiCepte ürün satmaz, stok tutmaz ve ödeme almaz; aksi açıkça belirtilmedikçe listelenen
+          ürünlerin satıcısı değildir ve mağaza ile aranızdaki satış sözleşmesinin tarafı olmaz.
         </p>
       </section>
 
@@ -42,19 +42,19 @@ export default function KosullarPage() {
           Ürün adı, görsel, fiyat, stok, varyant ve kargo bilgileri mağazalardan, veri
           sağlayıcılarından veya otomatik veri işleme süreçlerinden gelir ve gecikmeli olabilir. Bu
           bilgileri doğru ve güncel tutmak için makul çaba gösteririz; ancak mağazadaki fiyat, stok
-          veya ürün özelliği Arilla&apos;daki gösterimden farklı olabilir. Alışveriş kararı vermeden
-          önce nihai fiyat, stok, teslimat, iade ve satış koşullarını ilgili mağazanın sitesinde
-          doğrulayın.
+          veya ürün özelliği ManiCepte&apos;deki gösterimden farklı olabilir. Alışveriş kararı
+          vermeden önce nihai fiyat, stok, teslimat, iade ve satış koşullarını ilgili mağazanın
+          sitesinde doğrulayın.
         </p>
       </section>
 
       <section>
         <h2>4. Affiliate ilişkileri</h2>
         <p>
-          Arilla bazı mağaza yönlendirmelerinden affiliate komisyonu kazanabilir. Bu, mağazanın size
-          gösterdiği fiyatı değiştirmez ve size ek bir Arilla ücreti doğurmaz. Affiliate ilişkisi,
-          Arilla&apos;nın bir ürünü veya satıcıyı garanti ettiği anlamına gelmez. Ayrıntılar{" "}
-          <a href="/affiliate-aciklamasi">Affiliate Açıklaması</a>&apos;nda.
+          ManiCepte bazı mağaza yönlendirmelerinden affiliate komisyonu kazanabilir. Bu, mağazanın
+          size gösterdiği fiyatı değiştirmez ve size ek bir ManiCepte ücreti doğurmaz. Affiliate
+          ilişkisi, ManiCepte&apos;nin bir ürünü veya satıcıyı garanti ettiği anlamına gelmez.
+          Ayrıntılar <a href="/affiliate-aciklamasi">Affiliate Açıklaması</a>&apos;nda.
         </p>
       </section>
 
@@ -97,7 +97,7 @@ export default function KosullarPage() {
       <section>
         <h2>7. Fikri mülkiyet</h2>
         <p>
-          Arilla&apos;ya ait marka, yazılım, arayüz ve özgün içerikler ilgili mevzuat kapsamında
+          ManiCepte&apos;ye ait marka, yazılım, arayüz ve özgün içerikler ilgili mevzuat kapsamında
           korunur. Ürün adları, markalar ve ürün görselleri ilgili hak sahiplerine aittir ve ürün
           tanımlama ve karşılaştırma amacıyla gösterilir.
         </p>
@@ -121,7 +121,7 @@ export default function KosullarPage() {
 
       <section>
         <h2>10. Sorumluluğun sınırları</h2>
-        <p>Emredici hukuk hükümleri saklı kalmak kaydıyla Arilla;</p>
+        <p>Emredici hukuk hükümleri saklı kalmak kaydıyla ManiCepte;</p>
         <ul>
           <li>mağazaların stok, fiyat, ürün kalitesi, teslimat veya iade süreçlerinden,</li>
           <li>üçüncü taraf sitelerin kesintilerinden,</li>

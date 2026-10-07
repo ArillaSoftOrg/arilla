@@ -5,8 +5,7 @@
 export const HOME_COPY = {
   heroTitle: "Aradığın ürünü bul", // home.hero_title
   heroSubtitle: "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.", // home.tagline
-  // Eski home.continue_shopping_title ("Alışverişe devam et") kisisel gecmis
-  // ima ediyordu; chip'ler sabit ornek sorgular.
+  // Kullanicinin gercek son aramalari; gecmis yoksa bolum hic cizilmez.
   searchIdeasTitle: "Alışverişe devam et", // home.search_ideas_title
   trendsTitle: "Trendler", // home.trends_title
   trendsSubtitle: "Arilla'da öne çıkan stiller ve ürün fikirleri.", // home.trends_subtitle
@@ -50,6 +49,10 @@ export const HOME_COPY = {
   footerProductGroupTitle: "Ürün", // footer.product_group_title
   footerAccountGroupTitle: "Hesap", // footer.account_group_title
   footerLegalGroupTitle: "Yasal", // footer.legal_group_title
+  footerCompanyGroupTitle: "Şirket", // footer.company_group_title
+  navAbout: "Hakkında", // nav.about
+  navBlog: "Blog", // nav.blog
+  navPartners: "Ortaklıklar", // nav.partners
   navPrivacy: "Gizlilik", // nav.privacy
   navTerms: "Kullanım Koşulları", // nav.terms
   navCookies: "Çerez Politikası", // nav.cookies
@@ -58,12 +61,9 @@ export const HOME_COPY = {
   navCompany: "Şirket Bilgileri", // nav.company
   navCookiePreferences: "Çerez Tercihleri", // nav.cookie_preferences
   navContact: "İletişim", // nav.contact
+  navFaq: "Sıkça sorulan sorular", // nav.faq
   affiliateNoticeLink: "Affiliate açıklaması", // legal.affiliate_notice_link
   skipToContent: "İçeriğe geç", // nav.skip_to_content
-  contactTitle: "İletişim", // contact.title
-  contactDescription:
-    "Arilla ile ilgili soru, geri bildirim veya destek talepleri için bizimle iletişime geçebilirsiniz.", // contact.description
-  contactEmailLabel: "E-posta", // contact.email_label
   privacyContactPrefix: "Verilerinle ilgili soruların için", // privacy.contact_prefix
   privacyContactSuffix: "adresine yazabilirsin.", // privacy.contact_suffix
   navTrends: "Trendler", // nav.trends

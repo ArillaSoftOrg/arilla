@@ -1,20 +1,44 @@
-import { isOfferState, listOffers, type OfferState } from "@arilla/core";
+import { isOfferState, listOffers, type OfferState, waitedText } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState } from "@arilla/ui";
 import Link from "next/link";
 import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
-import { PageHeader, Pager } from "../../admin-ui.tsx";
+import { Notice, PageHeader, Pager } from "../../admin-ui.tsx";
 import { formatDateOrDash, formatKurus, hrefWith, positiveInt } from "../../format.ts";
 
 const STATE_LABELS: Record<OfferState, string> = {
   unmatched: "Eşleşmemiş (aktif)",
+  no_candidate: "Eşleşmemiş, hiç adayı yok",
+  rejected_only: "Eşleşmemiş, bütün adayları reddedilmiş",
+  invalid_gtin: "Geçersiz barkodlu (aktif)",
   inactive: "Pasif",
   stale: "Bayat (7 gündür görülmedi)",
   all: "Tümü",
 };
 
-/** Teklif inceleme (Faz 4): eşleşmemiş, pasif ve bayat teklifler. Salt okunur. */
+/**
+ * Durumun ne anlama geldiği; `services/ingest/resolve/pipeline.py` kurallarından
+ * türetilir (karar 0053). Teklif başına kesin neden UYDURULMAZ: yalnızca
+ * kanal girdileri (barkod/MPN, görsel vektörü) gösterilir.
+ */
+const STATE_NOTES: Partial<Record<OfferState, string>> = {
+  no_candidate:
+    "Varsayılan eşleştirme koşusu her eşleşmemiş aktif teklife ya aday yazar ya da yeni ürün açıp bağlar. Hiç aday kaydı olmayan teklife koşu henüz ulaşmamıştır: teklif son koşudan sonra gelmiş, koşu kotası (500 teklif, kimlik sırasıyla) dolmuş, koşu yeni ürün açmadan (--no-create) çalışmış ya da bu teklifte hata vermiştir. Eşleştirme işini çalıştırt.",
+  rejected_only:
+    "Önerilen her ürün moderatör tarafından reddedildi. Resolver reddedilen ürünü bir daha önermez (karar 0040); sonraki koşuda başka bir aday yazar ya da yeni ürün açar.",
+  invalid_gtin:
+    "Teklif barkodu uzunluk ya da GS1 kontrol basamağı denetiminden geçmiyor; kesin kimlik eşleşmesinde güvenilmez.",
+};
+
+const DIAGNOSTIC_STATES: ReadonlySet<OfferState> = new Set<OfferState>([
+  "unmatched",
+  "no_candidate",
+  "rejected_only",
+  "invalid_gtin",
+]);
+
+/** Teklif inceleme (Faz 4, karar 0053): eşleşmemiş, adaysız, pasif ve bayat teklifler. Salt okunur. */
 export default async function OffersPage({
   searchParams,
 }: {
@@ -29,14 +53,21 @@ export default async function OffersPage({
 
   const result = await listOffers(getDatabase(), actor, { state, merchantId, query, beforeId });
   const base = { durum: state, magaza: merchantId, q: query };
+  const diagnostic = DIAGNOSTIC_STATES.has(state);
+  const now = Date.now();
+  const note = STATE_NOTES[state];
 
   return (
     <div className={styles.page}>
       <PageHeader title="Teklifler">
         <p className={styles.muted}>
-          Eşleşmemiş teklifler gece eşleştirmesinde ürüne bağlanır ya da kuyruğa düşer.
+          Eşleşmemiş teklifler eşleştirme işi (elle: python -m resolve) çalışınca ürüne bağlanır ya
+          da kuyruğa düşer. Toplu bakış:{" "}
+          <Link href="/yonetim/katalog/kalite">Katalog kalitesi</Link>
         </p>
       </PageHeader>
+
+      {note ? <Notice>{note}</Notice> : null}
 
       <form action="/yonetim/katalog/teklifler" method="get" className={styles.filters}>
         <label className={styles.pageHeader}>
@@ -50,7 +81,7 @@ export default async function OffersPage({
           </select>
         </label>
         <label className={styles.pageHeader}>
-          <span className={styles.meta}>Başlık ya da mağaza ürün kimliği</span>
+          <span className={styles.meta}>Başlık, mağaza ürün kimliği ya da #teklif</span>
           <input
             type="search"
             name="q"
@@ -80,6 +111,7 @@ export default async function OffersPage({
                   Fiyat
                 </th>
                 <th scope="col">Ürün</th>
+                {diagnostic ? <th scope="col">İlk görülme ve aday kanalları</th> : null}
                 <th scope="col">Son görülme</th>
               </tr>
             </thead>
@@ -105,10 +137,23 @@ export default async function OffersPage({
                       </Link>
                     ) : o.pendingCandidates > 0 ? (
                       <Link href="/yonetim/eslestirme">{`${o.pendingCandidates} aday kuyrukta`}</Link>
+                    ) : o.rejectedCandidates > 0 ? (
+                      `${o.rejectedCandidates} aday reddedildi`
                     ) : (
                       "—"
                     )}
                   </td>
+                  {diagnostic ? (
+                    <td>
+                      {`${waitedText(now - o.firstSeenAt.getTime())} önce`}
+                      <br />
+                      <span className={styles.meta}>
+                        {`barkod/MPN ${o.hasIdentifier ? "var" : "yok"} · görsel vektörü ${
+                          o.hasImageVector ? "var" : "yok"
+                        }${o.gtin ? ` · GTIN ${o.gtin}` : ""}`}
+                      </span>
+                    </td>
+                  ) : null}
                   <td>{formatDateOrDash(o.lastSeenAt)}</td>
                 </tr>
               ))}

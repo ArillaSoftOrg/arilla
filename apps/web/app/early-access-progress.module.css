@@ -1,0 +1,45 @@
+.root {
+  display: grid;
+  gap: var(--space-2);
+  max-inline-size: 28rem;
+}
+
+.label {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+}
+
+.track {
+  overflow: hidden;
+  block-size: 0.625rem;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--line);
+}
+
+.fill {
+  display: block;
+  block-size: 100%;
+  min-inline-size: 0.25rem;
+  border-radius: var(--radius-pill);
+  background: var(--accent);
+  transition: inline-size var(--duration-fast) var(--ease-standard);
+}
+
+.value {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+}
+
+.value strong {
+  color: var(--ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .fill {
+    transition: none;
+  }
+}

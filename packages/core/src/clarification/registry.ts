@@ -39,7 +39,12 @@ export function validateRegistry(
     if (!ID_RE.test(domain.id)) issues.push({ path: dp, message: "gecersiz kimlik" });
     if (domainIds.has(domain.id)) issues.push({ path: dp, message: "tekrarlanan domain" });
     domainIds.add(domain.id);
-    if (domain.triggers.length === 0) issues.push({ path: dp, message: "tetikleyici yok" });
+    if (domain.triggers.length === 0 && !domain.modelOnly) {
+      issues.push({ path: dp, message: "tetikleyici yok" });
+    }
+    if (domain.modelOnly && domain.triggers.length > 0) {
+      issues.push({ path: dp, message: "modelOnly domain tetikleyici tasimaz" });
+    }
     if (domain.categoryPath && knownCategoryPaths && !knownCategoryPaths.has(domain.categoryPath)) {
       issues.push({ path: dp, message: `bilinmeyen kategori: ${domain.categoryPath}` });
     }
@@ -54,7 +59,9 @@ export function validateRegistry(
       facetIds.add(facet.id);
       checkLabel(facet.question, `${fp}.question`, issues);
       checkLabel(facet.skipLabel, `${fp}.skipLabel`, issues);
-      if (facet.options.length < 2) issues.push({ path: fp, message: "en az iki secenek gerekir" });
+      if (facet.options.length < 2 && !domain.modelOnly) {
+        issues.push({ path: fp, message: "en az iki secenek gerekir" });
+      }
 
       const optionIds = new Set<string>();
       for (const option of facet.options) {
@@ -113,7 +120,9 @@ export function validateRegistry(
         issues.push({ path: `${dp}.budgetBands`, message: "gecersiz kimlik" });
     }
     if (domain.budgetQuestion) checkLabel(domain.budgetQuestion, `${dp}.budgetQuestion`, issues);
-    if (domain.maxQuestions < 1) issues.push({ path: dp, message: "maxQuestions en az 1" });
+    if (domain.maxQuestions < 1 && !domain.modelOnly) {
+      issues.push({ path: dp, message: "maxQuestions en az 1" });
+    }
   }
   return issues;
 }

@@ -24,6 +24,17 @@ const ADMIN_ONLY: Capability[] = [
   "operations.read",
   // Karar 0043: lansman öncesi önizleme yalnızca yöneticinin.
   "product.preview",
+  "marketing.manage",
+  "forms.manage",
+  // Karar 0061: gelen kutusu ad ve e-posta icerir.
+  "messages.read",
+  // Karar 0049: moderatör kullanıcı aktivitesini ve tam iletişim bilgisini göremez.
+  "users.activity.read",
+  "users.contact.reveal",
+  // Karar 0050: oturum kapatma yalnızca yöneticinin.
+  "users.sessions.revoke",
+  // Karar 0065: herkese görünen erken erişim sayısı yalnızca yöneticinin.
+  "early_access.manage",
 ];
 const ALL: Capability[] = [...MODERATOR, ...ADMIN_ONLY];
 

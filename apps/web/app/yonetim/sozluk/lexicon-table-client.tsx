@@ -4,6 +4,7 @@ import { Button, Input } from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { ConfirmButton } from "../confirm-button-client.tsx";
+import { lexiconKindLabel } from "../format.ts";
 import {
   deleteLexiconEntryAction,
   type LexiconActionResult,
@@ -85,7 +86,7 @@ function EditableFields({
         >
           {KINDS.map((kind) => (
             <option key={kind} value={kind}>
-              {kind}
+              {lexiconKindLabel(kind)}
             </option>
           ))}
         </select>
@@ -116,12 +117,13 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
   const [editing, setEditing] = useState(false);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [draft, setDraft] = useState<DraftFields>({
+  const fromRow = (): DraftFields => ({
     kind: row.kind,
     surface: row.surface,
     normalized: row.normalized,
     weight: String(row.weight),
   });
+  const [draft, setDraft] = useState<DraftFields>(fromRow);
 
   async function handleSave() {
     setPending(true);
@@ -166,7 +168,10 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
                 variant="secondary"
                 disabled={pending}
                 onClick={() => {
+                  // Kaydedilmemiş taslak atılır; tekrar düzenlemede satırın
+                  // kayıtlı değerleri gelir.
                   setError(null);
+                  setDraft(fromRow());
                   setEditing(false);
                 }}
               >
@@ -181,19 +186,27 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
 
   return (
     <tr>
-      <td>{row.kind}</td>
+      <td>{lexiconKindLabel(row.kind)}</td>
       <td>{row.surface}</td>
       <td>{row.normalized}</td>
       <td>{row.weight}</td>
       <td>
         <div style={{ display: "flex", gap: 8 }}>
-          <Button type="button" variant="secondary" onClick={() => setEditing(true)}>
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={pending}
+            onClick={() => {
+              setDraft(fromRow());
+              setEditing(true);
+            }}
+          >
             Düzenle
           </Button>
           <ConfirmButton
             label="Sil"
             title="Satırı sil"
-            description={`"${row.surface}" (${row.kind}) sözlükten silinecek. Arama hemen etkilenir; silinen değer denetim kaydında kalır.`}
+            description={`"${row.surface}" (${lexiconKindLabel(row.kind)}) sözlükten silinecek. Arama hemen etkilenir; silinen değer denetim kaydında kalır.`}
             confirmLabel="Sil"
             disabled={pending}
             onConfirm={() => void handleDelete()}
@@ -205,14 +218,26 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
   );
 }
 
-function NewLexiconRow() {
+/**
+ * Sorunlu sorgulardan gelindiyse (`?ekle=kelime`) form açık ve yüzey dolu
+ * gelir; kaydetmeden hiçbir şey yazılmaz. Kayıttan sonra sorguyu tanıda
+ * doğrulama bağlantısı gösterilir.
+ */
+function NewLexiconRow({
+  prefillSurface,
+  verifyHref,
+}: {
+  prefillSurface: string | null;
+  verifyHref: string | null;
+}) {
   const router = useRouter();
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(prefillSurface !== null);
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedOnce, setSavedOnce] = useState(false);
   const [draft, setDraft] = useState<DraftFields>({
-    kind: "category",
-    surface: "",
+    kind: prefillSurface !== null ? "synonym" : "category",
+    surface: prefillSurface ?? "",
     normalized: "",
     weight: "1.0",
   });
@@ -233,15 +258,23 @@ function NewLexiconRow() {
     if (saved) {
       setDraft({ kind: draft.kind, surface: "", normalized: "", weight: "1.0" });
       setOpen(false);
+      setSavedOnce(true);
       router.refresh();
     }
   }
 
   if (!open) {
     return (
-      <Button type="button" variant="primary" onClick={() => setOpen(true)}>
-        Yeni satır ekle
-      </Button>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 12, alignItems: "center" }}>
+        <Button type="button" variant="primary" onClick={() => setOpen(true)}>
+          Yeni satır ekle
+        </Button>
+        {savedOnce && verifyHref ? (
+          <p role="status" style={{ margin: 0 }}>
+            Kaydedildi. <a href={verifyHref}>Sorguyu tanıda doğrula</a>
+          </p>
+        ) : null}
+      </div>
     );
   }
 
@@ -261,26 +294,37 @@ function NewLexiconRow() {
   );
 }
 
-export function LexiconTableClient({ rows }: { rows: LexiconRow[] }) {
+export function LexiconTableClient({
+  rows,
+  prefillSurface = null,
+  verifyHref = null,
+}: {
+  rows: LexiconRow[];
+  prefillSurface?: string | null;
+  verifyHref?: string | null;
+}) {
   return (
     <div style={{ display: "grid", gap: 16 }}>
-      <NewLexiconRow />
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ textAlign: "left" }}>
-            <th>Tür</th>
-            <th>Yüzey</th>
-            <th>Normalize</th>
-            <th>Ağırlık</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <LexiconRowView key={row.id} row={row} />
-          ))}
-        </tbody>
-      </table>
+      <NewLexiconRow prefillSurface={prefillSurface} verifyHref={verifyHref} />
+      {/* Dar ekranda tablo sayfayı taşırmasın: kendi içinde yatay kayar. */}
+      <div style={{ overflowX: "auto" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ textAlign: "left" }}>
+              <th>Tür</th>
+              <th>Yüzey</th>
+              <th>Normalize</th>
+              <th>Ağırlık</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <LexiconRowView key={row.id} row={row} />
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

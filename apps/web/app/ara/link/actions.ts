@@ -1,6 +1,5 @@
 "use server";
 
-import { randomUUID } from "node:crypto";
 import {
   getLinkResolutionStatus,
   InvalidUrlError,
@@ -9,24 +8,25 @@ import {
   reconcileLinkRequestCharge,
   runChargedLinkSearch,
 } from "@arilla/core";
+import {
+  ANONYMOUS_SESSION_COOKIE,
+  anonymousSessionCookieOptions,
+  newAnonymousSessionId,
+  validAnonymousSessionId,
+} from "@arilla/core/anonymous-session";
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
 import { requireProductAccess } from "../../lib/dal.ts";
 
-const SESSION_COOKIE_MAX_AGE_SECONDS = 60 * 60 * 24 * 365;
-
 /** `ara/gorsel/actions.ts` ile aynı desen: Server Action çerez yazabilir. */
 async function ensureSessionId(): Promise<string> {
   const store = await cookies();
-  const existing = store.get("session_id")?.value;
+  // Kanonik UUID olmayan değer (istemci elle yazmış olabilir) yok sayılır.
+  const existing = validAnonymousSessionId(store.get(ANONYMOUS_SESSION_COOKIE)?.value);
   if (existing) return existing;
 
-  const sessionId = randomUUID();
-  store.set("session_id", sessionId, {
-    path: "/",
-    maxAge: SESSION_COOKIE_MAX_AGE_SECONDS,
-    sameSite: "lax",
-  });
+  const sessionId = newAnonymousSessionId();
+  store.set(ANONYMOUS_SESSION_COOKIE, sessionId, anonymousSessionCookieOptions());
   return sessionId;
 }
 

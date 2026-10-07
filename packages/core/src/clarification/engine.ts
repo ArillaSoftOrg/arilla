@@ -20,6 +20,7 @@
  *   Kullanici sihirbazda hapsolmaz.
  */
 import type { ExtractContext } from "./extract.ts";
+import { applyInterpretation, type ValidatedInterpretation } from "./interpreter.ts";
 import {
   applyInput,
   createInitialState,
@@ -220,6 +221,25 @@ export function step(
   return decide(applyInput(state, input, context), context);
 }
 
+export interface ReplayOptions {
+  /**
+   * Daha once SAKLANMIS ve dogrulanmis model yorumu (docs/decisions/0030,
+   * 0059). Yalnizca ILK girdiden sonra ve yalnizca deterministik cikarici o
+   * turda domain BULAMADIYSA, `applyInterpretation` ile en dusuk oncelikte
+   * uygulanir. Sonraki adimlar (cevap, atlama, yanit) onun ustune oynatilir
+   * ve onu ezer. Burada model cagrisi yoktur.
+   */
+  firstTurnInterpretation?: ValidatedInterpretation | null;
+  /**
+   * Anlik yorum (karar 0062): `true` ise yorum ilk turda domain BULUNSA da
+   * uygulanir ve yalnizca eksikleri doldurur (`applyInterpretation` model
+   * onceligi: acik kullanici beyani ve deterministik deger her zaman kazanir;
+   * baska domain'in nitelikleri atilir). Varsayilan `false`: saklanan yorumun
+   * bugunku davranisi (yalnizca domain yoksa).
+   */
+  firstTurnEnrichment?: boolean;
+}
+
 /**
  * Girdi dizisini bastan oynatir. URL'den kurulan konusmalar icin: gecersiz
  * bir girdiye gelinirse orada durulur ve o ana kadarki karar doner - bayat
@@ -228,11 +248,21 @@ export function step(
 export function replayConversation(
   inputs: readonly ClarificationInput[],
   context: ExtractContext,
+  options: ReplayOptions = {},
 ): { decision: ClarificationDecision; rejectedInput: ClarificationInput | null } {
+  const stored = options.firstTurnInterpretation ?? null;
   let decision = decide(createInitialState(), context);
-  for (const input of inputs) {
+  for (const [index, input] of inputs.entries()) {
     try {
-      decision = step(decision.state, input, context);
+      let next = applyInput(decision.state, input, context);
+      if (
+        index === 0 &&
+        stored !== null &&
+        (next.domainId === null || options.firstTurnEnrichment === true)
+      ) {
+        next = applyInterpretation(next, stored);
+      }
+      decision = decide(next, context);
     } catch (error) {
       if (error instanceof InvalidClarificationInputError) {
         return { decision, rejectedInput: input };

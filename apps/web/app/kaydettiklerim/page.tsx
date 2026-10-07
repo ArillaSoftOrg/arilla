@@ -1,8 +1,14 @@
 import { listSavedItems } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState } from "@arilla/ui";
+import type { Metadata } from "next";
 import { requireProductUser } from "../lib/dal.ts";
 import { SavedItemsListClient } from "./saved-items-list-client.tsx";
+
+export const metadata: Metadata = {
+  title: "Kaydettiklerim",
+  robots: { index: false, follow: false },
+};
 
 /** docs/pages.md: "Üçü de aynı kalıp: başlık, liste, boş durum." */
 export default async function KaydettiklerimPage() {

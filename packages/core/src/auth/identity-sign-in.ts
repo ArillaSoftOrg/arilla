@@ -9,6 +9,7 @@
  */
 import { appUser, type Database, type IdentityProvider, userIdentity } from "@arilla/db";
 import { and, eq } from "drizzle-orm";
+import type { RequestContext } from "../activity/request-context.ts";
 import { createSessionForUser } from "./session.ts";
 import type { SessionUser } from "./types.ts";
 import { retryOnUniqueViolation } from "./unique-race.ts";
@@ -22,6 +23,8 @@ export interface SignInWithIdentityInput {
   displayName: string | null;
   ip: string | null;
   userAgent: string | null;
+  /** 0049: kaba istek baglami (cihaz/tarayici/ulke); IP ve ham UA yeni tablolara yazilmaz. */
+  context?: RequestContext;
 }
 
 export interface SignInWithIdentityResult {
@@ -90,6 +93,9 @@ function signInWithIdentityOnce(
         role: existing.role,
         ip: input.ip,
         userAgent: input.userAgent,
+        provider: input.provider,
+        isNewUser: false,
+        context: input.context,
       });
       return {
         rawSessionToken,
@@ -154,6 +160,9 @@ function signInWithIdentityOnce(
       role: user.role,
       ip: input.ip,
       userAgent: input.userAgent,
+      provider: input.provider,
+      isNewUser: !matched,
+      context: input.context,
     });
     return { rawSessionToken, user, isNewUser: !matched };
   });

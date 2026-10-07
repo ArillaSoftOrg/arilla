@@ -15,9 +15,17 @@ import argparse
 import logging
 import sys
 
+from db import job_run
 from db.connection import connect
 from similarity.edges import MIN_SCORE, TOP_N
 from similarity.pipeline import run
+
+
+def job_name(do_edges: bool, do_prices: bool) -> str:
+    """`job_run.job`: yonetim boru hatti asamalari bu adlari okur (karar 0055)."""
+    if do_edges and do_prices:
+        return "similarity"
+    return "similarity_edges" if do_edges else "similarity_prices"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -38,13 +46,27 @@ def main(argv: list[str] | None = None) -> int:
     do_edges = args.edges or not args.prices
     do_prices = args.prices or not args.edges
 
-    with connect() as conn:
-        counts = run(conn, do_edges=do_edges, do_prices=do_prices, limit=args.limit)
-        if args.dry_run:
+    if args.dry_run:
+        with connect() as conn:
+            counts = run(conn, do_edges=do_edges, do_prices=do_prices, limit=args.limit)
             conn.rollback()
             print("(dry-run: hicbir degisiklik yazilmadi)\n")
-        else:
+    else:
+        with job_run.track(job_name(do_edges, do_prices)) as tracked, connect() as conn:
+            counts = run(conn, do_edges=do_edges, do_prices=do_prices, limit=args.limit)
             conn.commit()
+            if do_edges:
+                tracked.detail.update(
+                    visual_edges=counts.visual.edges_written,
+                    semantic_edges=counts.semantic.edges_written,
+                    visual_products=counts.visual.products_with_vector,
+                    semantic_products=counts.semantic.products_with_vector,
+                )
+            if do_prices:
+                tracked.detail.update(
+                    price_products=counts.prices.products,
+                    price_aggregates=counts.prices.aggregates_updated,
+                )
 
     if do_edges:
         for label, group in (("visual", counts.visual), ("semantic", counts.semantic)):

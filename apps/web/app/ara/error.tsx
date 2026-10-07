@@ -12,7 +12,9 @@ export default function AramaError({
   retry: () => void;
 }) {
   useEffect(() => {
-    console.error(error);
+    // Hata nesnesi/yigini tarayici konsoluna yazilmaz: yalnizca sinif ve Next'in
+    // opak `digest`'i (sunucu logundaki kayitla eslemek icin).
+    console.error("[ara] search error", error.name, error.digest ?? "");
   }, [error]);
 
   return <SearchErrorState onRetry={() => retry()} />;

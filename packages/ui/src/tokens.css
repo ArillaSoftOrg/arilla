@@ -3,12 +3,10 @@
  * Renkler koda gomulmez - burada tek yerde tanimlanir, bilesenler
  * `var(--...)` ile okur.
  *
- * Acik tema `:root`'ta varsayilan. Koyu tema iki yoldan biriyle devreye
- * girer: cihaz tercihi (`prefers-color-scheme`) veya elle secim
- * (`[data-theme]` - karar 0007, tercih cereze yazilir). Iki koyu blok
- * bilerek ayni degerleri tasir: CSS bir medya sorgusunu ve bir secicinin
- * yoklugunu tek kuralda birlestiremez. Koyu bloklara yalnizca temaya gore
- * degisen renk/golge degerleri yazilir; digerleri tek yerde kalir.
+ * Acik tema `:root`'ta varsayilan. Koyu tema yalnizca cihaz/tarayici
+ * tercihiyle (`prefers-color-scheme`) devreye girer; elle secim yoktur
+ * (karar 0060, 0007'yi degistirir). Koyu bloga yalnizca temaya gore degisen
+ * renk/golge degerleri yazilir; digerleri tek yerde kalir.
  */
 
 :root {
@@ -31,6 +29,16 @@
   --on-save: #ffffff;
   --warning: #8a5300;
   --alert: #a8321f;
+  /* Editoryal sayfalar (/blog, /ortakliklar): sicak zemin + teal vurgu. */
+  --warm-page: #efebe0;
+  --warm-card: #fffbf2;
+  --feature-bg: #134e66;
+  --feature-ink: #ffffff;
+  --feature-ink-muted: #cfe9ef;
+  --feature-accent: #2bd3ee;
+  --feature-line: #3b7185;
+  --teal-ink: #0a7185;
+  --teal-soft: #dff6fa;
   /* Karar 0025: --ink'in ters rolu, notr birincil eylem. */
   --accent: #16181d;
   --accent-foreground: #ffffff;
@@ -165,15 +173,8 @@
   }
 }
 
-/* Tema elle zorlandiginda yerel kontroller (form, kaydirma cubugu) de o
-   temada cizilir - Faz 0: koyu cihazda zorlanmis acik tema koyu kontrol
-   gosteriyordu. */
-:root[data-theme="light"] {
-  color-scheme: light;
-}
-
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
+  :root {
     --paper: #0e0f11;
     --surface: #17191c;
     --surface-raised: #1e2125;
@@ -187,6 +188,11 @@
     --on-save: #0e0f11;
     --warning: #e2a64a;
     --alert: #e5705c;
+    --warm-page: #121110;
+    --warm-card: #1d1b18;
+    --feature-bg: #0f3a49;
+    --teal-ink: #5fd6ea;
+    --teal-soft: #12323b;
     --accent: #f2f3f4;
     --accent-foreground: #16181d;
     --accent-hover: #d6d9dc;
@@ -195,29 +201,4 @@
     --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.5);
     --scrim: rgba(0, 0, 0, 0.6);
   }
-}
-
-:root[data-theme="dark"] {
-  color-scheme: dark;
-
-  --paper: #0e0f11;
-  --surface: #17191c;
-  --surface-raised: #1e2125;
-  --surface-hover: #262a2f;
-  --ink: #f2f3f4;
-  --ink-secondary: #c9cdd1;
-  --ink-muted: #9ba0a6;
-  --line: #2a2e33;
-  --line-strong: #737982;
-  --save: #4fbf8b;
-  --on-save: #0e0f11;
-  --warning: #e2a64a;
-  --alert: #e5705c;
-  --accent: #f2f3f4;
-  --accent-foreground: #16181d;
-  --accent-hover: #d6d9dc;
-  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
-  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.35);
-  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.5);
-  --scrim: rgba(0, 0, 0, 0.6);
 }

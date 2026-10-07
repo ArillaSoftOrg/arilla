@@ -17,9 +17,13 @@
     "db:partitions": "pnpm --filter @arilla/db db:partitions",
     "db:verify": "pnpm --filter @arilla/db db:verify",
     "db:orphans": "pnpm --filter @arilla/db db:orphans",
+    "db:set-role": "pnpm --filter @arilla/db db:set-role",
+    "db:revoke-sessions": "pnpm --filter @arilla/db db:revoke-sessions",
     "seed": "pnpm --filter @arilla/db seed",
     "lint": "biome check .",
-    "format": "biome format --write ."
+    "check:secrets": "node scripts/check-private-keys.mjs",
+    "format": "biome format --write .",
+    "gemini:smoke": "pnpm --filter @arilla/core gemini:smoke"
   },
   "devDependencies": {
     "@biomejs/biome": "^2.3.14",

@@ -4,6 +4,7 @@ import {
   postAuthRedirect,
   RateLimitExceededError,
   readAppUrl,
+  requestContextFromHeaders,
   signInWithPhone,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -12,6 +13,7 @@ import { NextResponse } from "next/server";
 import { clientIp } from "../../../lib/client-ip.ts";
 import { isSameOriginPost } from "../../../lib/same-origin.ts";
 import { setSessionCookie } from "../../../lib/session-cookie.ts";
+import { syncConsentAfterSignIn } from "../../consent-sync.ts";
 import { takeAuthNext } from "../../next-cookie.ts";
 import { settleReferralAfterSignIn } from "../../referral-cookie.ts";
 import { PHONE_COOKIE, PHONE_COOKIE_PATH } from "../phone-cookie.ts";
@@ -39,9 +41,11 @@ export async function POST(request: Request) {
       code,
       ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
+      context: requestContextFromHeaders(headerStore),
     });
     await setSessionCookie(result.rawSessionToken);
     await settleReferralAfterSignIn(store, result);
+    await syncConsentAfterSignIn(result.user.id);
     signedInUser = result.user;
   } catch (error) {
     if (error instanceof PhoneCodeInvalidError) {

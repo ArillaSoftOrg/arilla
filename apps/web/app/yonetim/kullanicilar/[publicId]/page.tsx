@@ -1,125 +1,192 @@
-import { getUserDetail } from "@arilla/core";
+import {
+  type Capability,
+  getUserActivity,
+  getUserAffiliate,
+  getUserAudit,
+  getUserConsents,
+  getUserProfile,
+  getUserSearches,
+  getUserSessions,
+  hasCapability,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import type { ReactNode } from "react";
 import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
-import { KeyValues, PageHeader, Section } from "../../admin-ui.tsx";
-import { formatCount, formatDateOrDash } from "../../format.ts";
+import { PageHeader } from "../../admin-ui.tsx";
+import { hrefWith, positiveInt, roleLabel } from "../../format.ts";
+import { ActivityTab, AffiliateTab, SearchesTab, SessionsTab } from "./activity-tabs.tsx";
+import { AuditTab } from "./audit-tab.tsx";
+import { ConsentsTab } from "./consents-tab.tsx";
+import { ProfileTab } from "./profile-tab.tsx";
+import { RevokeSessionsClient } from "./revoke-sessions-client.tsx";
 
-const ROLE_LABELS: Record<string, string> = {
-  user: "Kullanıcı",
-  creator: "Creator",
-  moderator: "Moderatör",
-  admin: "Yönetici",
-};
+const TABS = [
+  { slug: "profil", label: "Profil", capability: "users.read" },
+  { slug: "aktivite", label: "Aktivite", capability: "users.activity.read" },
+  { slug: "izinler", label: "İzinler", capability: "users.read" },
+  { slug: "oturumlar", label: "Oturumlar", capability: "users.activity.read" },
+  { slug: "aramalar", label: "Aramalar", capability: "users.activity.read" },
+  { slug: "affiliate", label: "Affiliate", capability: "users.activity.read" },
+  { slug: "denetim", label: "Denetim", capability: "audit.read" },
+] as const satisfies readonly { slug: string; label: string; capability: Capability }[];
 
-const PROVIDER_LABELS: Record<string, string> = {
-  google: "Google",
-  apple: "Apple",
-  phone: "Telefon",
-};
+type TabSlug = (typeof TABS)[number]["slug"];
 
-const CONSENT_LABELS: Record<string, string> = {
-  browsing_history: "Gezinme geçmişi",
-  marketing_email: "Pazarlama e-postası",
-  personalization: "Kişiselleştirme",
-  public_discovery: "Keşfet'te görünme",
-};
+interface DetailSearchParams {
+  sekme?: string | string[];
+  imlec?: string | string[];
+  once?: string | string[];
+}
+
+const single = (value: string | string[] | undefined) =>
+  typeof value === "string" ? value : undefined;
 
 /**
- * Hesap ayrıntısı (Faz 6), salt okunur. Görüntüleme denetime yazılır.
- * İletişim bilgisi maskelidir; oturum token'ı, sağlayıcı kimliği, IP yok.
+ * Hesap ayrıntısı (karar 0049 §3), SALT OKUNUR. Sekmeler sunucuda `?sekme=`
+ * ile seçilir; her görüntüleme tam olarak BİR core sekme fonksiyonu çağırır
+ * ve `users.view` bir kez yazılır (hassas sekmede ek `users.view_tab`).
+ * Yalnızca yetkisi olan sekmeler listelenir; doğrudan adresle açılan
+ * yetkisiz sekme 404 olur.
+ *
+ * İletişim bilgisi maskelidir; tam değer ayrı yetenek ve taze girişle
+ * (`RevealContactClient`). Oturum token'ı, sağlayıcı `subject`'i, IP ve
+ * ham user agent hiçbir sekmede yok. Rol, hak, davet ve rıza burada
+ * düzenlenmez.
  */
 export default async function UserDetailPage({
   params,
+  searchParams,
 }: {
   params: Promise<{ publicId: string }>;
+  searchParams?: Promise<DetailSearchParams>;
 }) {
   const { actor } = await requireCapability("users.read");
   const { publicId } = await params;
-  const user = await getUserDetail(getDatabase(), actor, publicId);
-  if (!user) notFound();
+  const query = (await searchParams) ?? {};
+  const active = TABS.find((tab) => tab.slug === single(query.sekme)) ?? TABS[0];
+  if (active.capability !== "users.read") await requireCapability(active.capability);
+
+  const db = getDatabase();
+  const base = `/yonetim/kullanicilar/${publicId}`;
+  const tabHref = (slug: TabSlug) =>
+    hrefWith(base, { sekme: slug === "profil" ? undefined : slug });
+  const cursor = single(query.imlec);
+  const paging = {
+    first: cursor ? tabHref(active.slug) : null,
+    next: (next: string | null) =>
+      next ? hrefWith(base, { sekme: active.slug, imlec: next }) : null,
+  };
+
+  let header: { publicId: string; displayName: string | null; role: string };
+  let body: ReactNode;
+  switch (active.slug) {
+    case "profil": {
+      const view = await getUserProfile(db, actor, publicId);
+      if (!view) notFound();
+      header = view;
+      body = (
+        <ProfileTab user={view} canReveal={hasCapability(actor.role, "users.contact.reveal")} />
+      );
+      break;
+    }
+    case "izinler": {
+      const view = await getUserConsents(db, actor, publicId, { cursor });
+      if (!view) notFound();
+      header = view.user;
+      body = <ConsentsTab view={view} paging={paging} />;
+      break;
+    }
+    case "aktivite": {
+      const view = await getUserActivity(db, actor, publicId, { cursor });
+      if (!view) notFound();
+      header = view.user;
+      body = <ActivityTab view={view} paging={paging} />;
+      break;
+    }
+    case "oturumlar": {
+      const view = await getUserSessions(db, actor, publicId, { cursor });
+      if (!view) notFound();
+      header = view.user;
+      body = (
+        <>
+          {/* Karar 0050: tüm oturumları kapat (yalnızca yönetici, taze giriş, denetimli). */}
+          {hasCapability(actor.role, "users.sessions.revoke") ? (
+            <RevokeSessionsClient
+              publicId={view.user.publicId}
+              activeSessions={view.activeSessions.length}
+            />
+          ) : null}
+          <SessionsTab view={view} paging={paging} />
+        </>
+      );
+      break;
+    }
+    case "aramalar": {
+      const view = await getUserSearches(db, actor, publicId, { cursor });
+      if (!view) notFound();
+      header = view.user;
+      body = <SearchesTab view={view} paging={paging} />;
+      break;
+    }
+    case "affiliate": {
+      const view = await getUserAffiliate(db, actor, publicId, { cursor });
+      if (!view) notFound();
+      header = view.user;
+      body = <AffiliateTab view={view} paging={paging} />;
+      break;
+    }
+    case "denetim": {
+      const beforeId = positiveInt(single(query.once));
+      const view = await getUserAudit(db, actor, publicId, { beforeId });
+      if (!view) notFound();
+      header = view.user;
+      body = (
+        <AuditTab
+          view={view}
+          first={beforeId ? tabHref("denetim") : null}
+          next={(id) => (id ? hrefWith(base, { sekme: "denetim", once: id }) : null)}
+        />
+      );
+      break;
+    }
+  }
+
+  const visibleTabs = TABS.filter((tab) => hasCapability(actor.role, tab.capability));
 
   return (
     <div className={styles.page}>
-      <PageHeader title="Hesap">
+      <PageHeader title={header.displayName ?? "Hesap"}>
         <p className={styles.muted}>
           <Link href="/yonetim/kullanicilar">Kullanıcılar</Link>
-          {` / ${user.publicId}`}
+          {" / "}
+          <span className={styles.mono}>{header.publicId}</span>
+          {" · "}
+          {roleLabel(header.role)}
         </p>
       </PageHeader>
 
-      <div className={styles.twoColumns}>
-        <Section id="hesap" title="Hesap">
-          <KeyValues
-            items={[
-              ["Rol", ROLE_LABELS[user.role] ?? user.role],
-              ["E-posta", user.emailMasked ?? "—"],
-              ["E-posta doğrulandı", user.emailVerified ? "Evet" : "Hayır"],
-              ["Telefon", user.phoneMasked ?? "—"],
-              ["Oluşturuldu", formatDateOrDash(user.createdAt)],
-              ["Son görülme", formatDateOrDash(user.lastSeenAt)],
-              ["Aktif oturum", formatCount(user.activeSessions)],
-              ["Creator", user.creatorHandle ? `@${user.creatorHandle}` : "—"],
-            ]}
-          />
-        </Section>
-        <Section id="kullanim" title="Kullanım">
-          <KeyValues
-            items={[
-              ["Kaydedilen ürün", formatCount(user.savedItems)],
-              ["Alarm (aktif / toplam)", `${user.alerts.active} / ${user.alerts.total}`],
-            ]}
-          />
-        </Section>
-      </div>
+      <nav className={styles.tabs} aria-label="Hesap sekmeleri">
+        {visibleTabs.map((tab) => (
+          <Link
+            key={tab.slug}
+            href={tabHref(tab.slug)}
+            className={tab.slug === active.slug ? `${styles.tab} ${styles.tabActive}` : styles.tab}
+            aria-current={tab.slug === active.slug ? "page" : undefined}
+          >
+            {tab.label}
+          </Link>
+        ))}
+      </nav>
 
-      <Section id="kimlikler" title="Giriş yöntemleri">
-        {user.identities.length === 0 ? (
-          <p className={styles.muted}>Yalnızca e-posta bağlantısıyla giriş.</p>
-        ) : (
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th scope="col">Sağlayıcı</th>
-                  <th scope="col">E-posta doğrulandı</th>
-                  <th scope="col">Bağlandı</th>
-                  <th scope="col">Son kullanım</th>
-                </tr>
-              </thead>
-              <tbody>
-                {user.identities.map((identity) => (
-                  <tr key={`${identity.provider}-${identity.createdAt.toISOString()}`}>
-                    <td>{PROVIDER_LABELS[identity.provider] ?? identity.provider}</td>
-                    <td>{identity.emailVerified ? "Evet" : "Hayır"}</td>
-                    <td>{formatDateOrDash(identity.createdAt)}</td>
-                    <td>{formatDateOrDash(identity.lastSeenAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Section>
-
-      <Section id="rizalar" title="Rızalar (son durum)">
-        {user.consents.length === 0 ? (
-          <p className={styles.muted}>Kayıtlı rıza yok.</p>
-        ) : (
-          <KeyValues
-            items={user.consents.map((consent) => [
-              CONSENT_LABELS[consent.kind] ?? consent.kind,
-              `${consent.granted ? "Verdi" : "Vermedi"} · ${formatDateOrDash(consent.at)}`,
-            ])}
-          />
-        )}
-      </Section>
+      {body}
 
       <p className={styles.muted}>
-        Rol değişikliği ve hesap silme bu ekranda yapılmaz. Hesap silme kullanıcının kendi isteğiyle
-        /hesap üzerinden yürür.
+        Salt okunur ekran. Rol değişikliği yalnızca yerel betikle ya da onaylı SQL ile yapılır
+        (docs/ops.md); hak, davet ve rıza burada düzenlenmez. Hesap silme kullanıcının kendi
+        isteğiyle /hesap üzerinden yürür.
       </p>
     </div>
   );

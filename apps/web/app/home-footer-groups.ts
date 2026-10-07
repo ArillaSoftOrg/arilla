@@ -2,7 +2,9 @@ import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
 import { createElement } from "react";
 import { COOKIE_PREFERENCES_HREF } from "./consent-copy.ts";
 import { CookiePreferencesLink } from "./cookie-consent-client.tsx";
+import { FEEDBACK_COPY } from "./geri-bildirim/feedback-copy.ts";
 import { HOME_COPY } from "./home-copy.ts";
+import { configuredSocialLinks } from "./site-config.ts";
 
 /**
  * Faz 8: ana sayfa bolumlerine giden uc link. Ana sayfada ayni sayfa ici
@@ -55,6 +57,7 @@ export function siteNavItems(links: SiteSectionLinks): readonly HomeHeaderNavIte
  * Ayri bir "Destek" grubu yok - tek link, Bilgi grubunda.
  *
  * Karar 0038: "Bilgi" grubu "Yasal" oldu - yedi yasal baglanti + Iletisim.
+ * Karar 0045: Iletisim'in yanina /geri-bildirim (urun kapali da acik).
  * /kvkk-aydinlatma, /affiliate-aciklamasi, /sirket-bilgileri gercek
  * route'lar. "Cerez Tercihleri" bir sayfa degil, paneli acan istemci
  * linkidir (JS'siz /cerez#tercihler'e duser).
@@ -82,8 +85,27 @@ export function homeFooterGroups(links: SiteSectionLinks): readonly FooterGroup[
         { label: HOME_COPY.navHistory, href: "/gecmis" },
       ],
     },
+    companyFooterGroup(),
     legalFooterGroup(),
   ];
+}
+
+/** Sirket sayfalari: urun kapaliyken de acik public editoryal sayfalar. */
+function companyFooterGroup(): FooterGroup {
+  return {
+    title: HOME_COPY.footerCompanyGroupTitle,
+    links: [
+      { label: HOME_COPY.navAbout, href: "/hakkinda" },
+      { label: HOME_COPY.navBlog, href: "/blog" },
+      { label: HOME_COPY.navPartners, href: "/ortakliklar" },
+      // Yalnizca tanimli resmi hesaplar (site-config.ts `SOCIAL_PROFILES`).
+      ...configuredSocialLinks().map((social) => ({
+        label: social.label,
+        href: social.href,
+        external: true,
+      })),
+    ],
+  };
 }
 
 /** Yasal bağlantılar: ürün kapalıyken de açık kalan tek grup. */
@@ -103,7 +125,9 @@ function legalFooterGroup(): FooterGroup {
         render: ({ className, children }) =>
           createElement(CookiePreferencesLink, { className, children }),
       },
+      { label: HOME_COPY.navFaq, href: "/sss" },
       { label: HOME_COPY.navContact, href: "/iletisim" },
+      { label: FEEDBACK_COPY.navLabel, href: "/geri-bildirim" },
     ],
   };
 }
@@ -115,5 +139,9 @@ function legalFooterGroup(): FooterGroup {
 export function earlyAccessFooterGroups(
   entries: readonly { label: string; href: string }[],
 ): readonly FooterGroup[] {
-  return [{ title: HOME_COPY.footerAccountGroupTitle, links: entries }, legalFooterGroup()];
+  return [
+    { title: HOME_COPY.footerAccountGroupTitle, links: entries },
+    companyFooterGroup(),
+    legalFooterGroup(),
+  ];
 }

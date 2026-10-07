@@ -1,0 +1,55 @@
+/* Gelen kutusu: mesaj basina bir kart; yonetim belirtecleriyle. */
+.list {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.message {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.messageHeader {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.subject {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  overflow-wrap: anywhere;
+}
+
+.sender {
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  font-size: var(--text-small);
+}
+
+.sender dt {
+  color: var(--ink-muted);
+}
+
+.sender dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+/* Kullanici metni: satir sonlari korunur, uzun kelimeler tasmaz. */
+.body {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  line-height: var(--line-height-body);
+}

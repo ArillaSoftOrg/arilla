@@ -48,35 +48,37 @@ export function hashImageBytes(bytes: Buffer): string {
   return createHash("sha256").update(bytes).digest("hex");
 }
 
-let costConfigReported = false;
+let invalidCostRateReported = false;
 
 /**
- * `EMBEDDING_COST_MICROS_PER_1K_TOKENS` - `services/ingest/db/usage.py` ile
- * aynı kural: boş/geçersiz değer 0 sayılır (varsayılan 0, `docs/decisions/0015`
- * fiyatı sabitlemedi). Fiyat uydurulmaz; `units` token sayısını tuttuğu için
- * maliyet fiyat girilince geriye dönük hesaplanabilir. Arama bu yüzden hiçbir
- * ortamda durmaz, ama 0 ya da geçersiz değer süreç başına bir kez loglanır:
- * yönetim konsolundaki maliyet ekranının 0 göstermesi fark edilebilsin.
- * Geçersiz değer (`NaN`) doğrudan kullanılsaydı `api_usage` INSERT'i düşerdi.
+ * `EMBEDDING_COST_MICROS_PER_1K_TOKENS` (varsayılan 0, `docs/decisions/0015`
+ * kapanmadı). `services/ingest/db/usage.py` ile AYNI kural, aksi halde iki
+ * tarafın maliyet raporu tutarsız olur: yalnızca negatif olmayan düz tamsayı
+ * (`^[0-9]+$`, kenar boşlukları kırpılır) geçerlidir; boş değer 0'dır.
+ * Geçersiz değer (`abc`, `-5`, `1.5`, `1e3`) 0 sayılır ve süreç başına bir kez
+ * uyarı loglanır (değerin kendisi loglanmaz). Eskiden `Number()` geçersiz
+ * değerde `NaN` üretiyor ve `api_usage` INSERT'i düşüyordu. 0 maliyetli
+ * çağrılar yönetimde "fiyatlanmamış" olarak zaten raporlanır (karar 0051).
  */
 export function costMicrosPerThousandTokens(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): number {
-  const raw = env.EMBEDDING_COST_MICROS_PER_1K_TOKENS?.trim();
-  const value = raw ? Number(raw) : 0;
-  const valid = Number.isInteger(value) && value >= 0;
-  if ((!valid || value === 0) && !costConfigReported) {
-    costConfigReported = true;
+  const raw = env.EMBEDDING_COST_MICROS_PER_1K_TOKENS?.trim() ?? "";
+  if (raw === "") return 0;
+  if (/^[0-9]+$/.test(raw)) {
+    const value = Number(raw);
+    if (Number.isSafeInteger(value)) return value;
+  }
+  if (!invalidCostRateReported) {
+    invalidCostRateReported = true;
     console.warn(
-      valid
-        ? "[embedding] EMBEDDING_COST_MICROS_PER_1K_TOKENS tanimsiz/0: api_usage.cost_micros 0 yazilir"
-        : "[embedding] EMBEDDING_COST_MICROS_PER_1K_TOKENS gecersiz (negatif olmayan tamsayi olmali): 0 kullaniliyor",
+      "[embedding] EMBEDDING_COST_MICROS_PER_1K_TOKENS gecersiz (negatif olmayan tamsayi olmali); 0 kullaniliyor",
     );
   }
-  return valid ? value : 0;
+  return 0;
 }
 
-/** `services/ingest/db/usage.py`'deki formülün aynısı; iki tarafın maliyet raporu tutarlı kalır. */
+/** `services/ingest/db/usage.py`'deki formülün aynısı. */
 function costMicros(tokens: number): number {
   return Math.round((tokens * costMicrosPerThousandTokens()) / 1000);
 }
