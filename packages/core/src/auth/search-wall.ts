@@ -13,6 +13,7 @@
  * Redis erişilemezse `RedisUnavailableError` fırlatır (bkz. `redis/client.ts`).
  */
 import { incrementFixedWindow } from "../redis/counter.ts";
+import { validAnonymousSessionId } from "./anonymous-session.ts";
 
 const WINDOW_SECONDS = 60 * 60 * 24;
 
@@ -30,6 +31,9 @@ export function searchWallKey(sessionId: string): string {
 
 /** Girişi olan kullanıcılar için çağrılmamalı - duvar yalnızca anonim ziyaretçiler içindir. */
 export async function recordSearchAndCheckWall(sessionId: string): Promise<SearchWallResult> {
+  // İstemcinin gönderdiği keyfi değer Redis anahtarına hiç girmez; proxy bir
+  // sonraki istekte geçerli kimlik yazar (sürtünme, karar 0002).
+  if (!validAnonymousSessionId(sessionId)) return { shouldShowWall: false };
   const count = await incrementFixedWindow(searchWallKey(sessionId), WINDOW_SECONDS);
   return { shouldShowWall: count > freeSearchLimit() };
 }

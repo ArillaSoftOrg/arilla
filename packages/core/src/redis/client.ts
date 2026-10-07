@@ -64,6 +64,11 @@ export function redisOptionsFromEnv(
   if (!url.startsWith("redis://") && !url.startsWith("rediss://")) {
     throw new RedisConfigError("REDIS_URL redis:// ya da rediss:// ile baslamali.");
   }
+  // Production'da parola ve kuyruk trafiği şifresiz gitmez. Yerel geliştirme
+  // ve önizleme `redis://` kullanabilir. Mesaj sabittir, adres yazılmaz.
+  if (env.VERCEL_ENV === "production" && !url.startsWith("rediss://")) {
+    throw new RedisConfigError("REDIS_URL production ortaminda rediss:// (TLS) olmali.");
+  }
 
   const options: RedisOptions = {
     connectTimeout: CONNECT_TIMEOUT_MS,
