@@ -93,6 +93,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.worker:
             # Soket okuma suresi BRPOP bekleme suresinden UZUN olmali: esit ya da
             # kisa olursa bos kuyrukta ilk bekleme TimeoutError ile biter.
+            # Yari acik (sessizce kopmus) baglanti da en gec bu surede fark
+            # edilir; `run_worker` hatayi yakalayip yeniden baglanir.
             redis_client = redis.Redis.from_url(
                 redis_url,
                 decode_responses=True,

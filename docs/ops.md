@@ -37,6 +37,10 @@ docker compose -f infra/docker-compose.worker.yml up -d --build
 - **SIGTERM** (`docker stop`, compose `stop`): süreç `0` ile temiz çıkar; açık
   işlem geri alınır, bağlantı kapanır. `stop_grace_period: 30s`.
 - Geçici Redis hataları süreci düşürmez; worker bekleyip yeniden dener.
+- **Boş kuyruk:** tek `BRPOP` en fazla 60 sn bekler (`POLL_TIMEOUT_SECONDS`).
+  Gecikmeyi etkilemez (bekleme sırasında gelen iş anında döner); yalnızca boş
+  kuyrukta Upstash'e giden komut sayısını belirler (~43 bin/ay; 5 sn'de ~520
+  bin/ay idi).
 
 ## Sağlayıcı bağımsızlığı
 

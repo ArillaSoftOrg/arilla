@@ -41,8 +41,12 @@ logger = logging.getLogger(__name__)
 
 QUEUE_KEY = "queue:link_resolution"
 
-#: BRPOP bu sureden uzun bloklamaz - Ctrl+C'nin makul surede yakalanmasi icin.
-POLL_TIMEOUT_SECONDS = 5.0
+#: Bos kuyrukta tek BRPOP'un en uzun bekleme suresi. Gecikmeyi etkilemez:
+#: bekleme sirasinda LPUSH'lanan is aninda doner. Yalnizca bos kuyruktaki
+#: komut sayisini belirler (Upstash komut basina ucretlendirir): 5 sn'de
+#: ~520 bin/ay, 60 sn'de ~43 bin/ay. SIGTERM bekleme icinde de hemen
+#: islenir (sinyal isleyicisi blokeli okumayi keser, `__main__.py`).
+POLL_TIMEOUT_SECONDS = 60.0
 #: Redis'e ulasilamazsa yeniden denemeden once beklenen sure.
 REDIS_RETRY_SECONDS = 2.0
 
