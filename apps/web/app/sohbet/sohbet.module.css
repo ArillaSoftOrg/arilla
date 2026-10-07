@@ -1,0 +1,436 @@
+/* /sohbet/[id]: konusmali urun kesfi. Renk, aralik ve yaricap yalnizca belirtec
+   (docs/design.md); genislik ve yatay gutter kabuktan gelir (public-site-shell.tsx).
+   Mobil once: tek sutun, dokunma hedefi >= --size-touch-target, yatay kaydirma yok. */
+.chat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+  max-width: var(--content-width-standard);
+  min-width: 0;
+  margin-inline: auto;
+  padding-block-start: var(--space-4);
+}
+
+.thread {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.row {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.rowUser {
+  align-items: flex-end;
+}
+
+.rowAssistant {
+  align-items: flex-start;
+}
+
+.assistantBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  width: 100%;
+  min-width: 0;
+}
+
+.bubble {
+  max-width: min(100%, 40rem);
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-lg);
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+/* Kullanici sagda: vurgu zemini; yazi rengi kontrast cifti. */
+.bubbleUser {
+  max-width: min(85%, 32rem);
+  border-end-end-radius: var(--radius-sm);
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+/* Asistan solda: sakin yuzey. */
+.bubbleAssistant {
+  border-end-start-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.thinking {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-3);
+  color: var(--ink-secondary);
+}
+
+.dots {
+  display: inline-flex;
+  gap: var(--space-1);
+}
+
+.dots span {
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: var(--radius-pill);
+  background: var(--ink-muted);
+  animation: dot var(--duration-slow) var(--ease-standard) infinite alternate;
+}
+
+.dots span:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.dots span:nth-child(3) {
+  animation-delay: 0.3s;
+}
+
+@keyframes dot {
+  from {
+    opacity: 0.3;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dots span {
+    animation: none;
+  }
+}
+
+/* Anlasilan niyet: kucuk, tiklanmaz cipler. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  overflow-wrap: anywhere;
+}
+
+/* Urun sonuclari: konteynere gore akan izgara (sutun sayisi viewport'a degil
+   sohbet sutununun genisligine bagli). */
+.results {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  min-width: 0;
+}
+
+.resultsHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--space-2) var(--space-4);
+}
+
+.resultsHeading {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.resultsCount {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  font-variant-numeric: tabular-nums;
+}
+
+.resultsNote {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}
+
+.resultGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 9.5rem), 1fr));
+  gap: var(--space-4) var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .resultGrid {
+    grid-template-columns: repeat(auto-fill, minmax(11rem, 1fr));
+    gap: var(--space-6) var(--space-4);
+  }
+}
+
+.resultItem {
+  min-width: 0;
+}
+
+.seeAll {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.seeAll:focus-visible,
+.errorLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Netlestirme sorusu: secenekler dokunulabilir kartlar. */
+.question {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.questionTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+}
+
+.options {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .options {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.option {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  width: 100%;
+  min-height: var(--size-touch-target);
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-family: inherit;
+  text-align: start;
+  cursor: pointer;
+}
+
+.option:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.option:focus-visible,
+.secondaryAction:focus-visible,
+.customInput:focus-visible,
+.composerInput:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.option:disabled,
+.secondaryAction:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.optionLabel {
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.optionDescription {
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  overflow-wrap: anywhere;
+}
+
+.questionActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.secondaryAction {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  padding-inline: var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.secondaryAction:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+/* Atla: kesik cizgi ile bicimce ayrisir (renk tek isaret degil). */
+.skip {
+  border-style: dashed;
+  color: var(--ink-secondary);
+}
+
+.customForm {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.customLabel {
+  display: flex;
+  flex: 1 1 14rem;
+  min-width: 0;
+}
+
+.customInput {
+  width: 100%;
+  min-height: var(--size-touch-target);
+  padding-inline: var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-body);
+}
+
+.error {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  border: var(--border-width) solid var(--alert);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+.errorMessage {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+}
+
+.errorActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.errorLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.bottom {
+  height: 1px;
+  scroll-margin-block-end: calc(var(--size-touch-target) * 2 + var(--space-6));
+}
+
+/* Altta yapisik giris kutusu: gorunumun altina yapisir, sayfa sonunda footer'in
+   uzerinde durur (fixed degil: footer'i ortmez). Sonuclardan sonra da acik kalir. */
+.composer {
+  position: sticky;
+  bottom: 0;
+  z-index: var(--z-sticky);
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-2);
+  padding-block: var(--space-3);
+  padding-block-end: calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+  background: var(--paper);
+  border-block-start: var(--border-width) solid var(--line);
+}
+
+.composerLabel {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.composerInput {
+  width: 100%;
+  min-height: var(--size-touch-target);
+  max-height: 9rem;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-xs);
+  color: var(--ink);
+  font-family: inherit;
+  font-size: var(--text-body);
+  line-height: var(--line-height-normal);
+  resize: none;
+  field-sizing: content;
+}
+
+.composerInput:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.send {
+  flex: 0 0 auto;
+  min-width: var(--size-touch-target);
+  min-height: var(--size-touch-target);
+}

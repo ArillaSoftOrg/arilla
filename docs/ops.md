@@ -651,3 +651,14 @@ belge eksikliğidir.
 Aylık gider kalemleri tek bir tabloda takip edilir: barındırma, veritabanı,
 obje deposu, model çağrıları, e-posta, alan adı. Bu tablo proje belgesindeki
 birim ekonomisi hesabını besler ve boş bırakılmaz.
+
+
+## Konuşmalı keşif (`/sohbet`, karar 0074) — varsayılan kapalı
+
+İstek yolunda Gemini çağırır (CLAUDE.md kural 1 istisna b). Ortam değişkenleri
+(yalnızca sunucu): `CHAT_DISCOVERY_ENABLED=true` (yoksa özellik kapalı: ana sayfa
+kutusu `/ara`ya gider, `/sohbet` 404), `CHAT_TURNS_PER_HOUR` (varsayılan 20, kullanıcı
+başına), `GEMINI_API_KEY` (0059 ile ortak). Etkinleştirme sırası: 0054 migration
+production'da uygulanır (`pnpm db:migrate`, `db:verify`) → kod dağıtılır → hukuk
+onayı (docs/kvkk.md "Konuşmalı keşif") → bayrak açılır. Maliyet: `api_usage`
+`operation = 'chat_turn'`. Saklama: 90 gün, `cleanup-auth` cron'u (`job_run.detail.conversations`).

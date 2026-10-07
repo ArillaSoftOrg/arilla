@@ -15,8 +15,12 @@ export interface SearchComposerPhoto {
 }
 
 export interface SearchComposerProps {
-  /** docs/routes.md: "/ara?q=..." - SearchForm ile ayni sozlesme. */
-  action?: string;
+  /**
+   * docs/routes.md: "/ara?q=..." - SearchForm ile ayni sozlesme. Bir fonksiyon
+   * (server action) verilirse form GET yerine onu calistirir (karar 0074:
+   * sohbet baslatir); JS'siz de calisir.
+   */
+  action?: string | ((formData: FormData) => void | Promise<void>);
   name?: string;
   defaultValue?: string;
   placeholder: string;
@@ -66,6 +70,7 @@ export function SearchComposer({
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const chipsTitleId = useId();
+  const submittingRef = useRef(false);
 
   function handleChipSelect(label: string) {
     if (inputRef.current) {
@@ -88,11 +93,25 @@ export function SearchComposer({
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
-    if (!routeProductLinks) return;
-    const productLink = productLinkFromInput(inputRef.current?.value ?? "");
-    if (!productLink) return;
-    event.preventDefault();
-    window.location.assign(`/${encodeURIComponent(productLink)}`);
+    if (routeProductLinks) {
+      const productLink = productLinkFromInput(inputRef.current?.value ?? "");
+      if (productLink) {
+        event.preventDefault();
+        window.location.assign(`/${encodeURIComponent(productLink)}`);
+        return;
+      }
+    }
+    // Sohbet baslatan form (server action): cift tiklama/Enter ikinci bir sohbet acmasin.
+    if (typeof action !== "string") {
+      if (submittingRef.current) {
+        event.preventDefault();
+        return;
+      }
+      submittingRef.current = true;
+      setTimeout(() => {
+        submittingRef.current = false;
+      }, 4000);
+    }
   }
 
   return (
@@ -101,7 +120,7 @@ export function SearchComposer({
         <form
           ref={formRef}
           action={action}
-          method="get"
+          method={typeof action === "string" ? "get" : undefined}
           onSubmit={handleSubmit}
           className={styles.box}
           aria-busy={busyMessage ? true : undefined}

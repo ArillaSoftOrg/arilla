@@ -19,13 +19,23 @@ import {
  * acilmaz (docs/pages.md "Otomatik odaklanır" maddesi erisilebilirlik
  * lehine birakildi).
  */
-export function HomeSearchComposer() {
+export function HomeSearchComposer({
+  startChat,
+}: {
+  /**
+   * Konuşmalı keşif açıkken (karar 0074) ve kullanıcı girişliyken: kutu `/ara`
+   * yerine bu sunucu eylemini çalıştırır (sohbet oluşturur, `/sohbet/[id]`ye
+   * yönlendirir). Verilmezse eski davranış: native GET `/ara?q=`.
+   */
+  startChat?: (formData: FormData) => void | Promise<void>;
+}) {
   const { pending, error, handleFile, loginOpen, closeLogin } = usePhotoSearchUpload();
 
   return (
     <>
       <LoginGateModal open={loginOpen} onClose={closeLogin} />
       <SearchComposer
+        action={startChat}
         placeholder={HOME_COPY.searchPlaceholder}
         inputLabel={HOME_COPY.searchInputLabel}
         submitLabel={HOME_COPY.searchSubmitLabel}

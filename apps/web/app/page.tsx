@@ -1,4 +1,10 @@
-import { canAccessProduct, getDiscoverySlots, isProductOpen, todaySlotDate } from "@arilla/core";
+import {
+  canAccessProduct,
+  getDiscoverySlots,
+  isChatDiscoveryEnabled,
+  isProductOpen,
+  todaySlotDate,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { DiscoveryGrid, HomeHero, Section, TrendCollectionCard } from "@arilla/ui";
 import type { Metadata } from "next";
@@ -17,6 +23,7 @@ import { verifySession } from "./lib/dal.ts";
 import { loadCachedEarlyAccessProgress } from "./lib/early-access-progress.ts";
 import { PublicSiteShell } from "./public-site-shell.tsx";
 import { SITE_BRAND } from "./site-config.ts";
+import { startConversationAction } from "./sohbet/actions.ts";
 
 /**
  * Kök metadata yalnızca ürün bayrağına bağlıdır, oturuma değil: arama
@@ -142,6 +149,7 @@ export default async function HomePage() {
     );
   }
 
+  const chatEnabled = isChatDiscoveryEnabled();
   const items = await loadDiscoveryItems();
   const discoveryItems = resolveDiscoveryItems(items);
   // Kesif bolumu bu sayfada varsa "Keşfet" oraya gider; yoksa /kesfet'e.
@@ -156,7 +164,9 @@ export default async function HomePage() {
             title={HOME_COPY.heroTitle}
             subtitle={HOME_COPY.heroSubtitle}
           >
-            <HomeSearchComposer />
+            <HomeSearchComposer
+              startChat={chatEnabled && user ? startConversationAction : undefined}
+            />
           </HomeHero>
         </Section>
 

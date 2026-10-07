@@ -34,6 +34,8 @@ const APPEND_ONLY = {
 const UPDATE_BLOCKED = {
   auth_event: "kind",
   user_activity_event: "kind",
+  /** 0054: sohbet mesaji eklenir, degistirilmez; DELETE saklama suresi icin acik. */
+  chat_message: "kind",
 } as const;
 const INSUFFICIENT_PRIVILEGE = "42501";
 const FOREIGN_KEY_VIOLATION = "23503";

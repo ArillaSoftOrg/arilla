@@ -32,10 +32,14 @@ tamamı anlamını yitirir.
 
 ## Değişmez kurallar
 
-1. **İstek yolunda model çağrısı yok.** Tek istisna: kullanıcının yüklediği
-   görselin embedding'i. O da `EmbeddingService` arkasından geçer ve görsel
-   hash'i ile cache'lenir. Başka hiçbir yerde istek anında LLM veya model
-   çağrısı yapılmaz.
+1. **İstek yolunda model çağrısı yok.** İki istisna var. (a) Kullanıcının
+   yüklediği görselin embedding'i: `EmbeddingService` arkasından geçer ve görsel
+   hash'i ile cache'lenir. (b) Konuşmalı keşif (`/sohbet`, karar 0074): oturumlu
+   kullanıcının kendi mesajı başına tek bir Gemini çağrısı; `ChatInterpreter`
+   arkasında, katı şemalı, `CHAT_DISCOVERY_ENABLED=true` bayrağıyla (varsayılan
+   kapalı), her çağrı `api_usage`'a yazılır, kullanıcı başına saatlik tavanı vardır
+   ve model yalnızca niyet çıkarır — ürün, fiyat, SQL üretmez. Başka hiçbir yerde
+   istek anında LLM veya model çağrısı yapılmaz.
 2. **Benzerlik sorgu anında hesaplanmaz.** `similarity_edge` tablosu toplu işle
    doldurulur, istek yolu sadece okur.
 3. **Her AI çıktısı saklanır.** Yorum özeti, kategori tahmini, öznitelik

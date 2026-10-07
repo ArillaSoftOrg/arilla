@@ -13,6 +13,7 @@ export * from "./activity/index.ts";
 export * from "./admin/index.ts";
 export * from "./attribution/index.ts";
 export * from "./auth/index.ts";
+export * from "./chat/index.ts";
 export * from "./config/index.ts";
 export * from "./consent/account-consent.ts";
 export * from "./conversational-search/index.ts";
