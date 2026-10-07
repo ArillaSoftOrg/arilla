@@ -1,5 +1,5 @@
 /**
- * Blog gorsellerini kaynak URL'den indirir, optimize eder (WebP), R2'ye
+ * Blog gorsellerini `blog-sources.json` listesindeki kaynak URL'lerden indirir, optimize eder (WebP), R2'ye
  * yukler ve `apps/web/app/blog/blog-images.json` manifestini yazar. Blog
  * kayitlari (`blog-posts.ts`) gorseli bu manifestteki obje anahtarindan,
  * `R2_PUBLIC_BASE_URL` ile uretir.
@@ -23,16 +23,14 @@ const MANIFEST_PATH = join(repoRoot, "apps/web/app/blog/blog-images.json");
 
 const ALLOWED_SOURCE_HOSTS = new Set(["us-west-2.graphassets.com"]);
 
-const SOURCES = [
-  {
-    id: "hero",
-    url: "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmq1ipu4fc6as07lni9jr50zp",
-  },
-  {
-    id: "acik-ev-sezonu",
-    url: "https://us-west-2.graphassets.com/cmag4g5a905ii07mxfjxgc4bl/cmuhbw2kmx8kk07lnl8i2uhdo",
-  },
-] as const;
+const SOURCES_PATH = join(repoRoot, "apps/web/app/blog/blog-sources.json");
+
+interface BlogSource {
+  id: string;
+  url: string;
+}
+
+const SOURCES: readonly BlogSource[] = JSON.parse(readFileSync(SOURCES_PATH, "utf8"));
 
 function loadDotEnv(): void {
   for (const candidate of [join(repoRoot, ".env"), join(repoRoot, ".env.local")]) {

@@ -12,6 +12,7 @@ import {
   isProductSitemapEligible,
   readAppUrl,
   recordActivity,
+  recordProductView,
   resolveProductSlug,
   serializeJsonLd,
   variantLowestClaim,
@@ -157,6 +158,13 @@ export default async function ProductPage({
   // 0049 §7: rızalı davranışsal analitik (yalnızca girişli kullanıcı; rıza
   // kapısı ve 30 dakikalık tekrar bastırma core'da). Hata sayfayı bozmaz.
   if (user) {
+    // Kullanıcıya gösterilen "Son baktıkların" geçmişi: kendi rızası
+    // (`browsing_history`) core'da denetlenir; analitikten bağımsızdır.
+    try {
+      await recordProductView(db, { userId: user.id, productId: product.productId });
+    } catch (error) {
+      console.error("[urun] view history failed", error instanceof Error ? error.name : "unknown");
+    }
     try {
       await recordActivity(db, {
         userId: user.id,
