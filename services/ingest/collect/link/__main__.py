@@ -23,6 +23,7 @@ from collect.link.refresh import refresh_user_links
 from collect.link.resolver import ResolutionFailed, resolve_url
 from collect.link.urls import InvalidUrl
 from collect.link.worker import POLL_TIMEOUT_SECONDS, DatabaseConnectionLost, run_worker
+from collect.link.worker_config import LOCAL_REDIS_URL, WorkerConfigError, worker_redis_url
 from collect.records import RecordRejected
 from db import job_run
 from db.connection import connect, env
@@ -78,9 +79,18 @@ def main(argv: list[str] | None = None) -> int:
     if sum(modes) != 1:
         parser.error("tam olarak birini secin: bir url, --refresh ya da --worker")
 
+    redis_url = LOCAL_REDIS_URL
+    if args.worker:
+        # Veritabanina baglanmadan ONCE: uretim benzeri ortamda REDIS_URL
+        # zorunlu ve TLS (rediss://). Yalnizca sabit metin loglanir.
+        try:
+            redis_url = worker_redis_url(env("REDIS_URL"), env("DATABASE_URL"))
+        except WorkerConfigError as error:
+            logging.error("%s", error)
+            return 2
+
     with connect() as conn:
         if args.worker:
-            redis_url = env("REDIS_URL", "redis://localhost:6379")
             # Soket okuma suresi BRPOP bekleme suresinden UZUN olmali: esit ya da
             # kisa olursa bos kuyrukta ilk bekleme TimeoutError ile biter.
             redis_client = redis.Redis.from_url(

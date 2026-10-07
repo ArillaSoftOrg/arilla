@@ -13,6 +13,7 @@ import {
   type SortMode,
   searchWithFallback,
 } from "@arilla/core";
+import { ANONYMOUS_SESSION_COOKIE, validAnonymousSessionId } from "@arilla/core/anonymous-session";
 import { getDatabase } from "@arilla/db";
 import { ClarificationBar, SortTabs } from "@arilla/ui";
 import { cookies } from "next/headers";
@@ -69,7 +70,9 @@ export async function TextSearchResults({
   let shouldShowWall = false;
   const user = await verifySession();
   if (!user && isNewSearch) {
-    const sessionId = (await cookies()).get("session_id")?.value;
+    const sessionId = validAnonymousSessionId(
+      (await cookies()).get(ANONYMOUS_SESSION_COOKIE)?.value,
+    );
     if (sessionId) {
       // Arama duvari yalnizca surtunme (karar 0002): Redis erisilemezse arama
       // calismaya devam eder, duvar bu istekte atlanir ve durum loglanir.
