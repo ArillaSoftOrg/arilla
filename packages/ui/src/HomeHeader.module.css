@@ -523,3 +523,78 @@
     font-size: var(--text-small);
   }
 }
+
+/* Sohbet calisma alani: yapiskan, yalin cubuk (menu + marka). Olcek 1 -> 0.8;
+   dokunma hedefi (menu dugmesi) --size-touch-target'ta kalir. Z-endeksi
+   composer'in (--z-sticky) ustunde: menu paneli (fixed) onu da ortmeli. */
+.header[data-variant="chat"] {
+  --chat-bar-height: 84px;
+  --chat-scale: 1;
+  position: sticky;
+  top: 0;
+  z-index: var(--z-dropdown);
+  padding-block-start: env(safe-area-inset-top, 0px);
+  border-block-end: var(--border-width) solid var(--line);
+}
+
+.header[data-variant="chat"][data-compact="true"] {
+  --chat-scale: 0.8;
+}
+
+.header[data-variant="chat"] .inner {
+  min-height: calc(var(--chat-bar-height) * var(--chat-scale));
+  padding-block: calc(var(--space-3) * var(--chat-scale));
+}
+
+.header[data-variant="chat"] .nav,
+.header[data-variant="chat"] .utility,
+.header[data-variant="chat"] .account,
+.header[data-variant="chat"] .accountAvatar {
+  display: none;
+}
+
+.header[data-variant="chat"] .brandLogo {
+  width: calc(2.25rem * var(--chat-scale));
+  height: calc(2.25rem * var(--chat-scale));
+}
+
+.header[data-variant="chat"] .brandText {
+  font-size: calc(clamp(1.75rem, 1.6rem + 0.65vw, 2.25rem) * var(--chat-scale));
+}
+
+@media (max-width: 899.98px) {
+  .header[data-variant="chat"] {
+    --chat-bar-height: 80px;
+  }
+
+  .header[data-variant="chat"] .brandText {
+    font-size: calc(clamp(1.55rem, 7vw, 2rem) * var(--chat-scale));
+  }
+}
+
+@media (max-width: 479px) {
+  .header[data-variant="chat"] {
+    --chat-bar-height: 64px;
+  }
+
+  .header[data-variant="chat"] .inner {
+    padding-block: calc(var(--space-2) * var(--chat-scale));
+  }
+
+  .header[data-variant="chat"] .brandText {
+    font-size: calc(1.375rem * var(--chat-scale));
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .header[data-variant="chat"] .inner,
+  .header[data-variant="chat"] .brandLogo,
+  .header[data-variant="chat"] .brandText {
+    transition:
+      min-height var(--duration-base) var(--ease-standard),
+      padding-block var(--duration-base) var(--ease-standard),
+      width var(--duration-base) var(--ease-standard),
+      height var(--duration-base) var(--ease-standard),
+      font-size var(--duration-base) var(--ease-standard);
+  }
+}
