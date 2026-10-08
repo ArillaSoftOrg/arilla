@@ -221,7 +221,7 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `search.clarify_other` | Başka bir şey |
 | `search.clarify_other_placeholder` | Ne arıyorsun? |
 | `search.loading` | Benzerlerini arıyoruz |
-| `rights.summary` | Bugün kalan {kalan}/{limit} · Bonus {bonus} (fotoğraf ve link araması; 0047) |
+| `rights.summary` | Bugün kalan {kalan}/{limit} · Bonus {bonus} (fotoğraf ve link araması; 0047). Rozet etiketi: "Fotoğraf ve link araması: …"; link araması kapalıyken (`LINK_SEARCH_PUBLIC = false`) "Fotoğraf araması: …" |
 | `rights.reset` | Günlük hakların {saat}'da yenilenir. |
 | `rights.no_rights` | Bugünkü arama hakların ve bonus hakların bitti. Hakların gece 00:00'da yenilenir. |
 | `rights.earn_link` | Bonus hak kazanmanın yolları |
