@@ -140,7 +140,9 @@ function activeLabel(sections: AdminNavSection[], pathname: string): string {
 /**
  * Dar ekran (< 1024px) menüsü: üst çubuktaki düğme yan menüyü yerel modal
  * `<dialog>` içinde açar. Odak tuzağı, Esc ve odak dönüşü tarayıcıdan;
- * örtüye tıklama ve gezinme kapatır; açıkken sayfa kaydırması kilitlenir.
+ * gezinme ve "Menüyü kapat" düğmesi de kapatır. Örtüye tıklama bilerek
+ * kapatmaz (design.md "LoginModal" ile aynı kural). Açıkken sayfa kaydırması
+ * kilitlenir.
  */
 export function AdminMobileNav({
   sections,
@@ -197,11 +199,6 @@ export function AdminMobileNav({
         className={styles.drawer}
         aria-label="Yönetim menüsü"
         onClose={() => setOpen(false)}
-        // biome-ignore lint/a11y/useKeyWithClickEvents: klavye karşılığı yerel Esc (dialog); bu yalnızca örtü tıklaması.
-        onClick={(event) => {
-          // Örtüye (dialog'un kendisine) tıklama kapatır; içerik tıklamaları değil.
-          if (event.target === event.currentTarget) event.currentTarget.close();
-        }}
       >
         <div className={styles.brand}>
           <span className={styles.brandTitle}>
