@@ -5,7 +5,7 @@
 export const HOME_COPY = {
   heroTitleLead: "Alışveriş mi?", // home.hero_title_lead
   heroTitleAccent: "Manicepte.", // home.hero_title_accent
-  heroSubline: "Ne aradığını anlat, görselini yükle veya linkini bırak.", // home.hero_subline
+  heroSubline: "Ne aradığını anlat veya görselini yükle.", // home.hero_subline
   // Hero'da cizilmez; alt bilgi aciklamasi olarak kullanilir.
   heroSubtitle: "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.", // home.tagline
   // Kullanicinin gercek son aramalari; gecmis yoksa bolum hic cizilmez.

@@ -11,7 +11,16 @@
  * Her sorgu `user_id` ile birlikte yapilir: baskasinin sohbeti `not_found`.
  * Hicbir yerde mesaj metni loglanmaz.
  */
-import { apiUsage, chatMessage, chatResultFeedback, conversation, type Database } from "@arilla/db";
+
+import { createHash } from "node:crypto";
+import {
+  apiUsage,
+  chatAttachment,
+  chatMessage,
+  chatResultFeedback,
+  conversation,
+  type Database,
+} from "@arilla/db";
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import type { LlmErrorCode } from "../llm/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
@@ -22,6 +31,7 @@ import {
   CHAT_RETENTION_DAYS,
   CHAT_TURN_OPERATION,
   chatTurnsPerHour,
+  isChatImageEnabled,
   MAX_USER_MESSAGES_PER_CONVERSATION,
   USER_MESSAGE_MAX,
 } from "./config.ts";
@@ -33,6 +43,8 @@ import {
 } from "./contract.ts";
 import { mergeSearchIntent, parseStoredIntent } from "./intent.ts";
 import {
+  CHAT_CONTEXT_MESSAGES,
+  type ChatImageInput,
   type ChatInterpreter,
   fallbackTurn,
   type InterpretRequest,
@@ -63,6 +75,8 @@ export type ChatMessageView =
       content: string;
       /** `option` icin secilen degerin kimligi (sunucuda dogrulanmis). */
       value: string | null;
+      /** Karar 0078: mesaja eklenen gorselin kimligi (`/sohbet/gorsel/[id]`); yoksa `null`. */
+      attachmentId?: string | null;
     }
   | {
       id: number;
@@ -94,6 +108,15 @@ export interface ConversationView {
   messages: ChatMessageView[];
 }
 
+/** Yalnizca yazili kimlik; sahiplik sunum aninda sorguda denetlenir. */
+function attachmentIdOf(payload: Record<string, unknown> | null): string | null {
+  const id = payload?.attachmentId;
+  return typeof id === "string" && isUuid(id) ? id : null;
+}
+
+/** Yalniz fotograf gonderildiginde `content` yer tutucudur; gorunumde bos sayilir. */
+export const IMAGE_ONLY_CONTENT = "(görsel)";
+
 function sourceOf(payload: Record<string, unknown> | null): "model" | "fallback" | null {
   const source = payload?.source;
   return source === "model" || source === "fallback" ? source : null;
@@ -110,8 +133,9 @@ function toView(
       seq: row.seq,
       role: "user",
       kind: row.kind === "option" || row.kind === "skip" ? row.kind : "text",
-      content: row.content,
+      content: payload?.imageOnly === true ? "" : row.content,
       value: typeof payload?.value === "string" ? payload.value : null,
+      attachmentId: attachmentIdOf(payload),
     };
   }
   if (row.kind === "clarify") {
@@ -233,31 +257,130 @@ async function recentUserMessageCount(db: Executor, userId: number): Promise<num
   return row?.n ?? 0;
 }
 
+/** Karar 0078: `preprocessImage` ciktisi (<= 512 KB; DB CHECK ile ayni sinir). */
+export interface ChatAttachmentInput {
+  bytes: Buffer;
+  mimeType: "image/jpeg" | "image/png";
+  width: number;
+  height: number;
+}
+
+export const CHAT_ATTACHMENT_MAX_BYTES = 512 * 1024;
+const IMAGE_ONLY_TITLE = "Fotoğrafla arama";
+
+/** Ayni `requestKey` ile gelen ikinci olusturma yeni sohbet acmaz, mevcut olani doner. */
+async function findConversationByRequestKey(
+  db: Executor,
+  userId: number,
+  requestKey: string,
+): Promise<string | null> {
+  const result = await db.execute(sql`
+    SELECT c.id
+      FROM chat_message m
+      JOIN conversation c ON c.id = m.conversation_id
+     WHERE c.user_id = ${userId} AND m.client_request_id = ${requestKey} AND m.seq = 1
+     LIMIT 1
+  `);
+  const row = result.rows[0] as { id?: string } | undefined;
+  return row?.id ?? null;
+}
+
+function validAttachment(attachment: ChatAttachmentInput): boolean {
+  return (
+    Buffer.isBuffer(attachment.bytes) &&
+    attachment.bytes.byteLength >= 1 &&
+    attachment.bytes.byteLength <= CHAT_ATTACHMENT_MAX_BYTES &&
+    (attachment.mimeType === "image/jpeg" || attachment.mimeType === "image/png") &&
+    Number.isInteger(attachment.width) &&
+    Number.isInteger(attachment.height) &&
+    attachment.width >= 1 &&
+    attachment.height >= 1
+  );
+}
+
+/**
+ * Sohbeti, (varsa) gorsel eki ve ilk kullanici mesajini TEK islemde yazar: yarim
+ * kalmis sohbet/ek olmaz. Gorsel varsa metin bos olabilir (yalniz fotograf).
+ * Ayni `requestKey` mevcut sohbeti doner (cift gonderim ikinci sohbet acmaz).
+ */
 export async function createConversation(
   db: Database,
-  input: { userId: number; message: string; requestKey?: string },
+  input: {
+    userId: number;
+    message: string;
+    requestKey?: string;
+    attachment?: ChatAttachmentInput;
+  },
 ): Promise<CreateConversationResult> {
+  const attachment = input.attachment;
+  if (attachment && !validAttachment(attachment)) return { status: "invalid_input" };
   const text = cleanUserText(input.message);
-  if (text === null) return { status: "invalid_input" };
+  if (text === null && !attachment) return { status: "invalid_input" };
+  const requestKey = requestKeyOrNull(input.requestKey);
+  if (requestKey !== null) {
+    const existing = await findConversationByRequestKey(db, input.userId, requestKey);
+    if (existing) return { status: "created", conversationId: existing };
+  }
   if ((await recentUserMessageCount(db, input.userId)) >= chatTurnsPerHour()) {
     return { status: "rate_limited" };
   }
   return db.transaction(async (tx) => {
     const [created] = await tx
       .insert(conversation)
-      .values({ userId: input.userId, title: text.slice(0, 80), messageCount: 1 })
+      .values({
+        userId: input.userId,
+        title: (text ?? IMAGE_ONLY_TITLE).slice(0, 80),
+        messageCount: 1,
+      })
       .returning({ id: conversation.id });
     if (!created) throw new Error("conversation insert returned no row");
+    let payload: Record<string, unknown> | null = null;
+    if (attachment) {
+      const [stored] = await tx
+        .insert(chatAttachment)
+        .values({
+          conversationId: created.id,
+          userId: input.userId,
+          mimeType: attachment.mimeType,
+          data: attachment.bytes,
+          width: attachment.width,
+          height: attachment.height,
+          sha256: createHash("sha256").update(attachment.bytes).digest("hex"),
+        })
+        .returning({ id: chatAttachment.id });
+      if (!stored) throw new Error("attachment insert returned no row");
+      payload =
+        text === null ? { attachmentId: stored.id, imageOnly: true } : { attachmentId: stored.id };
+    }
     await tx.insert(chatMessage).values({
       conversationId: created.id,
       seq: 1,
       role: "user",
       kind: "text",
-      content: text,
-      clientRequestId: requestKeyOrNull(input.requestKey),
+      content: text ?? IMAGE_ONLY_CONTENT,
+      payload,
+      clientRequestId: requestKey,
     });
     return { status: "created", conversationId: created.id } as const;
   });
+}
+
+export interface LoadedChatAttachment {
+  mimeType: "image/jpeg" | "image/png";
+  data: Buffer;
+}
+
+/** Sahiplik sorguda: baskasinin/olmayan/gecersiz kimlik icin `null`. */
+export async function loadChatAttachment(
+  db: Executor,
+  input: { userId: number; attachmentId: string },
+): Promise<LoadedChatAttachment | null> {
+  if (!isUuid(input.attachmentId)) return null;
+  const [row] = await db
+    .select({ mimeType: chatAttachment.mimeType, data: chatAttachment.data })
+    .from(chatAttachment)
+    .where(and(eq(chatAttachment.id, input.attachmentId), eq(chatAttachment.userId, input.userId)));
+  return row ?? null;
 }
 
 /**
@@ -413,7 +536,10 @@ export function countTrailingClarifications(messages: readonly ChatMessageView[]
   return count;
 }
 
-function toInterpretRequest(view: ConversationView): InterpretRequest | null {
+function toInterpretRequest(
+  view: ConversationView,
+  image: ChatImageInput | null = null,
+): InterpretRequest | null {
   const last = view.messages.at(-1);
   if (last?.role !== "user") return null;
   const pending = view.pendingQuestion;
@@ -434,6 +560,7 @@ function toInterpretRequest(view: ConversationView): InterpretRequest | null {
     role: message.role,
     kind: message.kind,
     text: transcriptText(message),
+    ...(message.role === "user" && message.attachmentId ? { hasImage: true } : {}),
   }));
   return {
     messages,
@@ -441,7 +568,33 @@ function toInterpretRequest(view: ConversationView): InterpretRequest | null {
     pendingQuestion: pending ? { id: pending.id, title: pending.title } : null,
     clarifyCount: countTrailingClarifications(view.messages),
     input,
+    image,
   };
+}
+
+/**
+ * Karar 0078: modele giden baglam penceresindeki ilk gorselli kullanici mesajinin
+ * gorseli. Pencere disina cikarsa artik eklenmez.
+ */
+async function loadContextImage(
+  db: Executor,
+  userId: number,
+  messages: readonly ChatMessageView[],
+): Promise<ChatImageInput | null> {
+  if (!isChatImageEnabled()) return null;
+  const owner = messages
+    .slice(-CHAT_CONTEXT_MESSAGES)
+    .find((message) => message.role === "user" && message.attachmentId);
+  if (owner?.role !== "user" || !owner.attachmentId) return null;
+  try {
+    const loaded = await loadChatAttachment(db, { userId, attachmentId: owner.attachmentId });
+    return loaded
+      ? { mimeType: loaded.mimeType, dataBase64: loaded.data.toString("base64") }
+      : null;
+  } catch {
+    // Ek okunamadi: tur metinle surer; sohbet kesilmez.
+    return null;
+  }
 }
 
 async function releaseLease(db: Executor, conversationId: string): Promise<void> {
@@ -542,7 +695,8 @@ async function runPendingTurn(
       timer.time("lexicon", () => loadLexiconCached(db)).catch(() => undefined),
     ]);
     const view = buildView(claimed, rows);
-    const maybeRequest = toInterpretRequest(view);
+    const image = await loadContextImage(db, input.userId, view.messages);
+    const maybeRequest = toInterpretRequest(view, image);
     if (!maybeRequest) {
       await releaseLease(db, input.conversationId);
       return { status: "idle" };

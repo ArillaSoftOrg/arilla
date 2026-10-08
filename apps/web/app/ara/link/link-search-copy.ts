@@ -30,6 +30,10 @@ export const LINK_SEARCH_COPY = {
   retry: "Tekrar dene",
   newSearchTitle: "Yeni bir arama yap",
   searchPlaceholder: "Ürün adı, marka ya da ürün bağlantısı",
+  comingSoonTitle: "Yakında",
+  comingSoonDescription:
+    "Link ile ürün arama özelliği yakında aktif olacak. Şimdilik ürün adını yazarak ya da fotoğraf yükleyerek arayabilirsin.",
+  comingSoonPlaceholder: "Ürün adı, marka ya da kısa bir tarif yaz",
   searchSubmit: "Ara",
 } as const;
 

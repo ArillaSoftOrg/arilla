@@ -3,7 +3,9 @@ import {
   getDiscoverySlots,
   getPublicTrends,
   isChatDiscoveryEnabled,
+  isChatImageEnabled,
   isProductOpen,
+  LINK_SEARCH_PUBLIC,
   type TrendSummary,
   todaySlotDate,
 } from "@arilla/core";
@@ -200,6 +202,7 @@ export default async function HomePage() {
             <HomeSearchComposer
               startChat={chatEnabled && user ? startConversationAction : undefined}
               chatInNewTab={chatEnabled && user !== null}
+              imageChat={chatEnabled && user !== null && isChatImageEnabled()}
               recentProducts={recentProducts}
             />
           </HomeHero>
@@ -257,7 +260,11 @@ export default async function HomePage() {
           aria-labelledby="nasil-calisir-baslik"
           className={`${styles.anchored} ${styles.waysSection}`}
         >
-          <HomeWaysCarousel title="Arilla ile arama yolları" items={HOME_WAYS} />
+          <HomeWaysCarousel
+            title="Arilla ile arama yolları"
+            // Link araması geçici olarak kapalı: kart tanıtılmaz.
+            items={HOME_WAYS.filter((way) => LINK_SEARCH_PUBLIC || way.mode !== "link")}
+          />
         </Section>
       </div>
     </PublicSiteShell>

@@ -18,9 +18,18 @@ export interface LlmUsage {
   totalTokens: number;
 }
 
+/** Tek bir satir ici gorsel (karar 0078); yalnizca sunucuda, bellekte. */
+export interface LlmInlineImage {
+  mimeType: "image/jpeg" | "image/png";
+  /** Standart base64 (satir sonu yok). */
+  dataBase64: string;
+}
+
 export interface LlmJsonRequest {
   systemInstruction: string;
   input: string;
+  /** Verilirse istek cok kiplidir: metin + gorseller (Interactions API `input` dizisi). */
+  images?: readonly LlmInlineImage[];
   /** Saglayicinin desteklemesi gereken JSON Schema alt kumesi. */
   schema: Record<string, unknown>;
   maxOutputTokens?: number;

@@ -44,6 +44,10 @@ tamamı anlamını yitirir.
      `CHAT_DISCOVERY_ENABLED=true` bayrağıyla (varsayılan kapalı), her çağrı
      `api_usage`'a yazılır, kullanıcı başına saatlik tavanı vardır ve `/ara`
      bütçesinden ayrıdır; model yalnızca niyet çıkarır — ürün, fiyat, SQL üretmez.
+   - Sohbet görsel eki (karar 0078): `/sohbet` ilk mesajına eklenen, önceden
+     işlenmiş (≤512 px, EXIF'siz) görsel, aynı tek Gemini çağrısına çok kipli
+     girdi olarak eklenir; yalnızca `CHAT_IMAGE_ENABLED=true` ile (varsayılan
+     kapalı). Model yine yalnızca niyet çıkarır; görselden ürün/fiyat üretmez.
    Başka hiçbir yerde istek anında LLM veya model çağrısı yapılmaz.
 2. **Benzerlik sorgu anında hesaplanmaz.** `similarity_edge` tablosu toplu işle
    doldurulur, istek yolu sadece okur.
@@ -64,6 +68,8 @@ tamamı anlamını yitirir.
    kontrol edilemez.
 10. **Yüklenen görsel saklanmaz.** Embedding ve hash tutulur; ham dosya en fazla
     30 gün geçici depoda kalır. Detay: `docs/kvkk.md`.
+    İstisna (karar 0078): sohbete eklenen görsel, sohbetin kendisiyle aynı
+    ömürde (en fazla 90 gün) yalnızca sahibine görünür tutulur; sohbet silinince gider.
 11. **Seçilmiş içerik kullanıcı keşfi gibi etiketlenmez.** `public_find.source`
     ayrımı arayüzde korunur.
 12. **Sponsorlu içerik her zaman rozetlidir.** Veritabanı kısıtı bunu zorunlu
