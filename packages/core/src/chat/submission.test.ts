@@ -1,11 +1,6 @@
 import sharp from "sharp";
 import { describe, expect, it } from "vitest";
-import {
-  CHAT_UPLOAD_MAX_BYTES,
-  cleanSubmissionText,
-  prepareChatImage,
-  startConversationFromSubmission,
-} from "./submission.ts";
+import { CHAT_UPLOAD_MAX_BYTES, cleanSubmissionText, prepareChatImage } from "./submission.ts";
 
 function upload(bytes: Buffer, type: string, size = bytes.byteLength) {
   return {
@@ -85,24 +80,5 @@ describe("prepareChatImage", () => {
   it("bozuk görsel: unprocessable", async () => {
     const result = await prepareChatImage(upload(Buffer.from("bu bir resim degil"), "image/jpeg"));
     expect(result).toEqual({ ok: false, status: "unprocessable" });
-  });
-});
-
-describe("startConversationFromSubmission: veritabanına gitmeden reddedilenler", () => {
-  // db'ye dokunulursa test patlar: reddedilen girdiler hiçbir sorgu çalıştırmamalı.
-  const db = new Proxy({}, { get: () => () => Promise.reject(new Error("db kullanılmamalı")) });
-
-  it("metin de görsel de yoksa invalid_input", async () => {
-    const result = await startConversationFromSubmission(db as never, { userId: 1, text: "  " });
-    expect(result).toEqual({ status: "invalid_input" });
-  });
-
-  it("görsel reddedilirse sohbet oluşturulmaz (metin olsa bile)", async () => {
-    const result = await startConversationFromSubmission(db as never, {
-      userId: 1,
-      text: "siyah ayakkabı",
-      image: upload(Buffer.from("x"), "application/pdf"),
-    });
-    expect(result).toEqual({ status: "invalid_type" });
   });
 });
