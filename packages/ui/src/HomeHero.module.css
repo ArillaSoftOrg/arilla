@@ -1,9 +1,10 @@
 /* docs/design.md "Tip rolleri" + "Düzen": hero okuma genisliginde (640px)
-   ortalanir; genis Container ve gutter kabuktan gelir. */
+   ortalanir; genis Container ve gutter kabuktan gelir. Baslik, alt metin
+   ve arama kutusu tek blok gibi okunsun diye aralar dar tutulur. */
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-12);
+  gap: var(--space-8);
   width: 100%;
   max-width: min(100%, 800px);
   margin-inline: auto;
@@ -11,18 +12,100 @@
 
 .intro {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
   text-align: center;
 }
 
+/* Iki metin ayni grid hucresinde; hucre genis olanin olcusunu alir, bu
+   yuzden gecis layout kaydirmaz. Font boyutu/agirligi iki durumda ayni. */
 .title {
+  display: grid;
+  justify-items: center;
   margin: 0;
   font-size: clamp(2rem, 1.72rem + 1.25vw, 3rem);
   font-weight: 700;
   line-height: var(--line-height-tight);
   letter-spacing: 0;
   color: var(--ink);
-  text-wrap: balance;
+}
+
+.titleLead,
+.titleAccent {
+  grid-area: 1 / 1;
+  opacity: 0;
+}
+
+/* Dongu 4sn: "Alışveriş mi?" ~1,6sn, "Manicepte." ~2sn sabit; gecisler
+   ~0,4sn fade + 4px dikey kayma. */
+@media (prefers-reduced-motion: no-preference) {
+  .titleLead,
+  .titleAccent {
+    animation: 4s var(--ease-standard) infinite both;
+  }
+
+  .titleLead {
+    animation-name: title-lead;
+  }
+
+  .titleAccent {
+    animation-name: title-accent;
+  }
+}
+
+/* Hareket istemeyen kullanici: iki parca birlikte, tek statik baslik. */
+@media (prefers-reduced-motion: reduce) {
+  .title {
+    display: block;
+    text-wrap: balance;
+  }
+
+  .titleLead,
+  .titleAccent {
+    display: inline;
+    opacity: 1;
+  }
+
+  /* Marka adi satir sonunda bolunmesin. */
+  .titleAccent {
+    display: inline-block;
+  }
+}
+
+@keyframes title-lead {
+  0%,
+  40% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  50% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  90% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes title-accent {
+  0%,
+  40% {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  50%,
+  90% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
 }
 
 .subtitle {

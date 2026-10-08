@@ -14,3 +14,16 @@
 .main:focus {
   outline: none;
 }
+
+/* Sohbet: footer yok; icerik kabugun kalan yuksekligini doldurur, boylece
+   yapiskan composer kisa sohbetlerde de ekranin altinda durur. */
+.mainChat {
+  display: flex;
+  flex-direction: column;
+}
+
+.chatContainer {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+}

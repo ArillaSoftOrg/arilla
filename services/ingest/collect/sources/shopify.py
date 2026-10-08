@@ -35,6 +35,7 @@ Magazaya saygi (docs/decisions/0042):
 
 from __future__ import annotations
 
+import re
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
@@ -124,6 +125,83 @@ def _flatten_scalars(entry: dict[str, Any]) -> dict[str, str]:
         for key, value in entry.items()
         if value is not None and not isinstance(value, list | dict)
     }
+
+
+_IMAGE_STEM = re.compile(r"^(?P<stem>.+?)[_-]\d{1,3}$")
+
+
+def _image_stem(src: Any) -> str | None:
+    """Dosya adinin sira son ekinden onceki kismi: `603349_0421_3.jpg` -> `603349_0421`.
+
+    Magazalar bir rengin fotograflarini ayni kokle adlandirir; yalnizca sira
+    degisir. Son ek yoksa (`front.jpg`) kok bilinmez (None)."""
+    name = str(src).split("?", 1)[0].rsplit("/", 1)[-1].rsplit(".", 1)[0]
+    match = _IMAGE_STEM.match(name)
+    return match.group("stem").lower() if match else None
+
+
+def _group_image_entries(
+    images: list[Any],
+    group_variants: list[dict[str, Any]],
+    *,
+    split_by_color: bool,
+) -> tuple[dict[str, str], ...]:
+    """Bu renk grubunun galeri gorselleri (karar 0073).
+
+    Iliski YALNIZCA kaynagin kanitladigi yerden kurulur: `images[].variant_ids`.
+    Urun renklere bolunmusse (`split_by_color`):
+    - gorselin `variant_ids`i bu grubun varyantlariyla kesisiyorsa -> varyanta ozgu;
+    - `variant_ids` bossa -> ortak gorsel (kimseye bagli degil);
+    - baska rengin varyantlarina bagliysa -> BU offer'a ait degil, alinmaz;
+    - bagi olmayan gorselin dosya adi koku (`_image_stem`) bu rengin bagli
+      gorseliyle ayniysa -> varyanta ozgu; yalnizca BASKA rengin bagli
+      gorseliyle ayniysa -> alinmaz. Kok ikisine de uymuyorsa ya da hem bu
+      rengin hem baska rengin bagli gorselinde geciyorsa (ayirt edici degil:
+      `urun-adi-1.jpg`, `urun-adi-2.jpg`) ortaktir.
+    Bolunmediyse tum gorseller ortaktir. `position` magazanin urun sayfasindaki
+    sirayi tasir; `variant.featured_image` burada KULLANILMAZ (genellikle duz urun
+    fotografi ve satici siralamasindan bagimsiz; bkz. karar 0073 eki).
+    """
+    group_ids = {variant.get("id") for variant in group_variants if variant.get("id") is not None}
+    own_stems: set[str] = set()
+    foreign_stems: set[str] = set()
+    if split_by_color:
+        for image in images:
+            if not isinstance(image, dict) or not image.get("src"):
+                continue
+            linked = {v for v in (image.get("variant_ids") or []) if v is not None}
+            stem = _image_stem(image["src"])
+            if linked and stem:
+                (own_stems if linked & group_ids else foreign_stems).add(stem)
+        # Ayirt edici olmayan kok (iki tarafta da var) hicbir yone kanit sayilmaz.
+        shared_stems = own_stems & foreign_stems
+        own_stems -= shared_stems
+        foreign_stems -= shared_stems
+    entries: list[dict[str, str]] = []
+    for order, image in enumerate(images):
+        if not isinstance(image, dict) or not image.get("src"):
+            continue
+        linked = {v for v in (image.get("variant_ids") or []) if v is not None}
+        specific = False
+        if split_by_color and linked:
+            if not linked & group_ids:
+                continue
+            specific = True
+        elif split_by_color:
+            stem = _image_stem(image["src"])
+            if stem in foreign_stems:
+                continue
+            specific = stem in own_stems
+        entry = {
+            "src": str(image["src"]),
+            "position": str(image.get("position") or order + 1),
+            "variant_specific": "1" if specific else "0",
+        }
+        for key in ("width", "height"):
+            if image.get(key):
+                entry[key] = str(image[key])
+        entries.append(entry)
+    return tuple(entries)
 
 
 def _with_size(
@@ -394,11 +472,18 @@ class ShopifyConnector(Connector):
             _with_size(_flatten_scalars(variant), variant, size_option)
             for variant in group_variants
         )
+        group_images = _group_image_entries(
+            images, group_variants, split_by_color=color is not None
+        )
 
         return RawRecord(
             fields=fields,
             source_ref=f"shopify urun {product_id} renk {color or '-'}",
-            groups={"variants": variant_entries},
+            groups={
+                "variants": variant_entries,
+                "images": group_images,
+                "image_flags": ({"split": "1" if color is not None else "0"},),
+            },
         )
 
 

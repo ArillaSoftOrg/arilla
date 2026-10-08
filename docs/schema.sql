@@ -146,6 +146,32 @@ CREATE INDEX offer_unmatched_idx  ON offer (merchant_id) WHERE product_id IS NUL
 CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT NULL;
 CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
 
+-- Offer görselleri (0053, karar 0073). Kaynak en fazla 6 görsel; kullanıcıya en
+-- fazla 3'ü gösterilir (display_rank). Görsel ilk olarak offer'dan gelir; ürün
+-- galerisi okuma sırasında en uygun offer'ın görsellerinden kurulur. Binary
+-- YOK: URL + özet + metadata. r2_url ileride ayrı aynalama işi doldurur.
+CREATE TABLE offer_image (
+    id                  BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    offer_id            BIGINT      NOT NULL REFERENCES offer(id) ON DELETE CASCADE,
+    url_hash            BYTEA       NOT NULL CHECK (octet_length(url_hash) = 16),  -- md5(normalize URL)
+    source_url          TEXT        NOT NULL CHECK (char_length(source_url) BETWEEN 1 AND 2048),
+    r2_url              TEXT        CHECK (r2_url IS NULL OR char_length(r2_url) BETWEEN 1 AND 2048),
+    source_position     SMALLINT    NOT NULL CHECK (source_position >= 0),  -- mağaza sırası
+    display_rank        SMALLINT    CHECK (display_rank IS NULL OR display_rank >= 0),  -- NULL: gösterilmez
+    is_variant_specific BOOLEAN     NOT NULL DEFAULT FALSE,  -- kaynak görseli varyanta bağlamış mı
+    image_hash          TEXT,
+    perceptual_hash     BIGINT,
+    width               INTEGER     CHECK (width IS NULL OR width > 0),
+    height              INTEGER     CHECK (height IS NULL OR height > 0),
+    status              TEXT        NOT NULL DEFAULT 'active'
+                        CHECK (status IN ('active', 'removed', 'broken')),
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT offer_image_url_uniq UNIQUE (offer_id, url_hash),
+    CONSTRAINT offer_image_rank_uniq UNIQUE (offer_id, display_rank) DEFERRABLE INITIALLY DEFERRED,
+    CONSTRAINT offer_image_rank_active CHECK (display_rank IS NULL OR status = 'active')
+);
+
 -- Beden varyantları. Stok bedene göre değişir; "senin bedenin var mı" sorusu
 -- moda kategorisinde satın alma kararının kendisidir.
 -- Fiyat geçmişi burada DEĞİL, offer düzeyinde tutulur.
@@ -414,11 +440,13 @@ CREATE TABLE app_user (
     last_seen_at  TIMESTAMPTZ,
     -- 0034 (0047): davet kodu, ilk istendiginde uretilir.
     referral_code TEXT CHECK (referral_code IS NULL OR referral_code ~ '^[A-HJ-NP-Z2-9]{8}$'),
+    referral_public_code TEXT CHECK (referral_public_code IS NULL OR referral_public_code ~ '^[A-Z]{2}-[0-9]{5}$'),
     -- 0045 (0060): karsilama akisi tamamlandi/atlandi. NULL = henuz gosterilmedi; mevcut hesaplar created_at ile dolduruldu.
     onboarded_at  TIMESTAMPTZ
 );
 CREATE INDEX app_user_role_idx ON app_user (role) WHERE role <> 'user';
 CREATE UNIQUE INDEX app_user_referral_code_unique ON app_user (referral_code) WHERE referral_code IS NOT NULL;
+CREATE UNIQUE INDEX app_user_referral_public_code_unique ON app_user (referral_public_code) WHERE referral_public_code IS NOT NULL;
 
 -- ---------------------------------------------------------------------------
 -- KİMLİK DOĞRULAMA — e-posta bağlantısı ile giriş
@@ -1481,3 +1509,79 @@ CREATE TABLE IF NOT EXISTS chat_result_feedback (
 
 CREATE INDEX IF NOT EXISTS chat_result_feedback_conversation_idx
     ON chat_result_feedback (conversation_id);
+
+-- 0056 (karar 0077): editoryal trend koleksiyonlari. Tam metin (50 trendlik tohum dahil):
+-- migrations/0056_trend_collections.sql.
+CREATE TABLE IF NOT EXISTS trend (
+    id              BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    slug            TEXT        NOT NULL,
+    title           TEXT        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 120),
+    description     TEXT        NOT NULL CHECK (char_length(description) BETWEEN 1 AND 280),
+    -- Konu grubu (arayuz sekmesi). 'genel' = kampanya/ortak temalar.
+    category        TEXT        NOT NULL
+                    CHECK (category IN ('moda', 'guzellik', 'ev-yasam', 'ogrenci', 'genel')),
+    -- Ayri editoryal gorsel gelene kadar NULL; okuma sirasinda temsilci urun
+    -- gorseline, o da yoksa yer tutucuya dusulur. Yalnizca https.
+    hero_image_url  TEXT        CHECK (hero_image_url IS NULL
+                                       OR (hero_image_url ~ '^https://'
+                                           AND char_length(hero_image_url) <= 2048)),
+    status          TEXT        NOT NULL DEFAULT 'draft'
+                    CHECK (status IN ('draft', 'published', 'archived')),
+    featured        BOOLEAN     NOT NULL DEFAULT FALSE,
+    trend_type      TEXT        NOT NULL DEFAULT 'evergreen'
+                    CHECK (trend_type IN ('evergreen', 'seasonal', 'campaign')),
+    sort_order      INTEGER     NOT NULL DEFAULT 0,
+    -- Yayin penceresi. NULL = sinirsiz. Pencere disindaki trend "Su An Trend"
+    -- bolumunde cikmaz; /trendler'de ve adresinde erisilebilir kalir.
+    active_from     TIMESTAMPTZ,
+    active_until    TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT trend_slug_uniq UNIQUE (slug),
+    CONSTRAINT trend_slug_shape CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+                                       AND char_length(slug) <= 80),
+    CONSTRAINT trend_active_window CHECK (active_from IS NULL OR active_until IS NULL
+                                          OR active_from < active_until)
+);
+
+CREATE INDEX IF NOT EXISTS trend_listing_idx
+    ON trend (sort_order, id) WHERE status = 'published';
+
+CREATE TABLE IF NOT EXISTS trend_product (
+    trend_id    BIGINT      NOT NULL REFERENCES trend(id) ON DELETE CASCADE,
+    product_id  BIGINT      NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    -- Trend icindeki gosterim sirasi (0 = en iyi eslesme).
+    sort_order  INTEGER     NOT NULL CHECK (sort_order >= 0),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (trend_id, product_id),
+    -- Ayni trendde iki urun ayni siraya oturmaz. ERTELENMIS: curate is'i
+    -- siralamayi tek islemde yeniden yazabilsin; kontrol COMMIT'te yapilir.
+    CONSTRAINT trend_product_order_uniq UNIQUE (trend_id, sort_order)
+        DEFERRABLE INITIALLY DEFERRED
+);
+
+-- Ters yon: "bu urun hangi trendlerde?" ve urun silinirken FK taramasi.
+CREATE INDEX IF NOT EXISTS trend_product_product_idx ON trend_product (product_id);
+
+COMMENT ON TABLE trend IS
+    'Editoryal urun kesfi koleksiyonu (/trendler). Blog degil. Karar 0077.';
+COMMENT ON TABLE trend_product IS
+    'Trend-urun baglari; curate toplu isi yazar, istek yolu yalnizca okur. Karar 0077.';
+
+-- 0057 (karar 0078): sohbet gorsel eki. Tam metin: migrations/0057_chat_attachment.sql.
+CREATE TABLE IF NOT EXISTS chat_attachment (
+    id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
+    conversation_id  UUID        NOT NULL REFERENCES conversation(id) ON DELETE CASCADE,
+    user_id          BIGINT      NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
+    mime_type        TEXT        NOT NULL CHECK (mime_type IN ('image/jpeg', 'image/png')),
+    data             BYTEA       NOT NULL CHECK (octet_length(data) BETWEEN 1 AND 524288),
+    width            INTEGER     NOT NULL CHECK (width BETWEEN 1 AND 4096),
+    height           INTEGER     NOT NULL CHECK (height BETWEEN 1 AND 4096),
+    sha256           TEXT        NOT NULL CHECK (char_length(sha256) = 64),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS chat_attachment_conversation_idx
+    ON chat_attachment (conversation_id);
+
+REVOKE UPDATE ON chat_attachment FROM arilla_app;

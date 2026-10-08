@@ -26,7 +26,7 @@ Duvar rotaya göre değişir. Genel bir kural değil, rota bazlı bir politikad�
 
 | Rota | Duvar |
 | --- | --- |
-| `/urun/`, `/kategori/`, `/alternatif/`, `/trend/`, `/firsatlar` | **Yok.** Arama motorundan gelinen sayfalar |
+| `/urun/`, `/kategori/`, `/alternatif/`, `/trend/`, `/trendler`, `/firsatlar` | **Yok.** Arama motorundan gelinen sayfalar |
 | `/@handle` ve creator koleksiyonları | **Yok.** Büyüme döngüsünün ilk halkası |
 | `/ara` — metin, sohbet ve görsel arama | **Var.** İlk 2-3 sorgu serbest, sonrasında modal |
 | Kaydetme, alarm, geçmiş, beden profili | **Var.** Zaten hesap gerektiren şeyler |
@@ -87,8 +87,10 @@ telefon/adres uydurulmadı.
 
 ```
 /kesfet                    Herkese açık koleksiyonlar ve creator vitrinleri
-/trend/<slug>              'yaz-trend-parfumleri' — dönem boyunca SABİT
-/trend                     Tüm trend listeleri
+/trend/<slug>              (ertelendi) 'yaz-trend-parfumleri' — dönemlik trend_snapshot, dönem boyunca SABİT
+/trend                     (ertelendi) Tüm dönemlik listeler
+/trendler                  Editoryal ürün koleksiyonları (karar 0077); `trend` tablosu
+/trendler/<slug>           'kuru-ciltlere-son' — kısa kapak + ürün ızgarası, makale yok
 /firsatlar                 Fiyatı düşenler, günlük üretilir
 /kategori/<path>           Kategori sayfası
 /marka/<slug>              Marka sayfası
@@ -155,7 +157,7 @@ platform sorununu hafifletir.
 /alarmlar                  Fiyat düşüşü, yeniden stok ve beden alarmları
 /gecmis                    Son gezilenler. Silme düğmesi zorunlu.
 /hesap                     Beden profili, rıza tercihleri, arama hakları ve davet linki, veri silme
-/davet/<kod>               Davet linki (0047). Kodu httpOnly çereze yazar, girişe yönlendirir. noindex, modal yok.
+/davet/<kod>               Davet linki (0047). Kod: eski 8 karakterli ya da `YS-49577` (0067). Kodu httpOnly çereze yazar, girişe yönlendirir. noindex, modal yok.
 /giris?next=/yol           E-posta bağlantısı isteme. `next`: giriş sonrası dönüş (yalnızca göreli yol)
 /giris/dogrula?token=...   Onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir. Tek kullanımlık, 15 dk.
 ```
@@ -185,7 +187,8 @@ platform sorununu hafifletir.
 /yonetim/seo               İç SEO tanısı (Search Console değil)
 /yonetim/islemler          Sistem sağlığı: tüm işletim bulguları (yalnızca admin, 0055)
 /yonetim/islemler/isler    İş koşuları geçmişi, job_run (yalnızca admin, 0055)
-/yonetim/kullanicilar      Tam eşleşmeyle hesap bulma, denetimli (yalnızca admin)
+/yonetim/kullanicilar      Kullanıcı araması (kısmi, denetimli) + özet liste (keyset, filtreli, maskeli); yalnızca admin (0049)
+/yonetim/kullanicilar/<id> Hesap ayrıntısı, sekmeler ?sekme=profil|aktivite|izinler|oturumlar|aramalar|affiliate|denetim; tıkla-göster iletişim (taze giriş)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
 /yonetim/mesajlar          Gelen kutusu: iletişim ve geri bildirim mesajları, salt okunur, görüntüleme denetlenir (yalnızca admin, 0061)
 /yonetim/erken-erisim      Erken erişim sayacı: platform dışı gerçek başvuru sayısını güncelle (gerekçe zorunlu, denetlenir; yalnızca admin, 0065)
@@ -256,6 +259,9 @@ uzunlukla ters orantılıdır.
 - `robots.txt`: `/git/`, `/panel/`, `/yonetim/`, `/gecmis`, `/hesap` indekslenmez
 - Sitemap parçalı üretilir, dosya başına en fazla 50.000 URL
 - `/trend/` ve `/firsatlar` ISR ile üretilir, istek anında hesaplanmaz
+- `/trendler` ve `/trendler/<slug>` ürün kapısının arkasındadır (`requireProductAccess`);
+  ürün kapalıyken robots/sitemap dışıdır, `/kesfet` ile aynı. Ürün bağlarını toplu iş
+  (`services/ingest/curate`) yazar, sayfa yalnızca okur.
 - **Trend sayfaları günlük değişmez.** Google sıralamaya almak için içeriğin
   bir süre kararlı kalmasını ister; her gün baştan yazılan sayfa hiç sıralanmaz.
   Günlük rotasyon yalnızca `/kesfet` ızgarasına özgüdür.
@@ -267,7 +273,8 @@ uzunlukla ters orantılıdır.
 | MVP-0 | `/`, `/ara`, `/ara/gorsel`, `/urun/<slug>`, `/git/<clickId>`, kök catch-all, `/yonetim/eslestirme`, `/yonetim/sozluk` |
 | MVP-1 | `/giris`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`, `/hesap`, `/firsatlar` |
 | MVP-2 | `/@handle`, `/panel/*`, `/kesfet` |
-| Faz 4 | `/trend/<slug>`, `/kategori`, `/marka`, `/alternatif` |
+| Faz 4 | `/trend/<slug>` (dönemlik snapshot), `/kategori`, `/marka`, `/alternatif` |
+| Sonradan | `/trendler`, `/trendler/<slug>` (karar 0077; ürün keşfi koleksiyonu) |
 
 Yönetim ekranlarının MVP-0'da olması sürpriz gelebilir; sebebi eşleştirme
 kuyruğunun ilk günden dolmaya başlaması. Onaysız kuyruk, kötü katalog demektir.

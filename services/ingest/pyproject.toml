@@ -27,6 +27,7 @@ packages = [
     "collect",
     "collect.sources",
     "collect.link",
+    "curate",
     "enrich",
     "resolve",
 

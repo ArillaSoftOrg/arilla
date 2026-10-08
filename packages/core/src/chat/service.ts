@@ -11,9 +11,19 @@
  * Her sorgu `user_id` ile birlikte yapilir: baskasinin sohbeti `not_found`.
  * Hicbir yerde mesaj metni loglanmaz.
  */
-import { apiUsage, chatMessage, chatResultFeedback, conversation, type Database } from "@arilla/db";
+
+import { createHash } from "node:crypto";
+import {
+  apiUsage,
+  chatAttachment,
+  chatMessage,
+  chatResultFeedback,
+  conversation,
+  type Database,
+} from "@arilla/db";
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import type { LlmErrorCode } from "../llm/client.ts";
+import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
 import {
   CHAT_DAILY_CALL_CAP,
@@ -21,6 +31,7 @@ import {
   CHAT_RETENTION_DAYS,
   CHAT_TURN_OPERATION,
   chatTurnsPerHour,
+  isChatImageEnabled,
   MAX_USER_MESSAGES_PER_CONVERSATION,
   USER_MESSAGE_MAX,
 } from "./config.ts";
@@ -32,6 +43,8 @@ import {
 } from "./contract.ts";
 import { mergeSearchIntent, parseStoredIntent } from "./intent.ts";
 import {
+  CHAT_CONTEXT_MESSAGES,
+  type ChatImageInput,
   type ChatInterpreter,
   fallbackTurn,
   type InterpretRequest,
@@ -39,6 +52,7 @@ import {
   type TranscriptMessage,
   type UserInput,
 } from "./interpreter.ts";
+import { type ChatTimings, createChatTimer, logChatTimings } from "./timing.ts";
 
 export type ChatInputRequest =
   | { kind: "text"; text: string }
@@ -61,6 +75,8 @@ export type ChatMessageView =
       content: string;
       /** `option` icin secilen degerin kimligi (sunucuda dogrulanmis). */
       value: string | null;
+      /** Karar 0078: mesaja eklenen gorselin kimligi (`/sohbet/gorsel/[id]`); yoksa `null`. */
+      attachmentId?: string | null;
     }
   | {
       id: number;
@@ -92,6 +108,15 @@ export interface ConversationView {
   messages: ChatMessageView[];
 }
 
+/** Yalnizca yazili kimlik; sahiplik sunum aninda sorguda denetlenir. */
+function attachmentIdOf(payload: Record<string, unknown> | null): string | null {
+  const id = payload?.attachmentId;
+  return typeof id === "string" && isUuid(id) ? id : null;
+}
+
+/** Yalniz fotograf gonderildiginde `content` yer tutucudur; gorunumde bos sayilir. */
+export const IMAGE_ONLY_CONTENT = "(görsel)";
+
 function sourceOf(payload: Record<string, unknown> | null): "model" | "fallback" | null {
   const source = payload?.source;
   return source === "model" || source === "fallback" ? source : null;
@@ -108,8 +133,9 @@ function toView(
       seq: row.seq,
       role: "user",
       kind: row.kind === "option" || row.kind === "skip" ? row.kind : "text",
-      content: row.content,
+      content: payload?.imageOnly === true ? "" : row.content,
       value: typeof payload?.value === "string" ? payload.value : null,
+      attachmentId: attachmentIdOf(payload),
     };
   }
   if (row.kind === "clarify") {
@@ -134,6 +160,30 @@ function toView(
   };
 }
 
+function buildView(
+  row: typeof conversation.$inferSelect,
+  rows: readonly (typeof chatMessage.$inferSelect)[],
+  helpfulById: ReadonlyMap<number, boolean> = new Map(),
+): ConversationView {
+  const messages = rows.map((message) => toView(message, helpfulById.get(message.id) ?? null));
+  return {
+    id: row.id,
+    title: row.title,
+    currentIntent: parseStoredIntent(row.currentSearchIntent),
+    pendingQuestion: parseClarifyQuestion(row.pendingQuestion),
+    awaitingReply: messages.at(-1)?.role === "user",
+    messages,
+  };
+}
+
+function loadMessageRows(db: Executor, conversationId: string) {
+  return db
+    .select()
+    .from(chatMessage)
+    .where(eq(chatMessage.conversationId, conversationId))
+    .orderBy(asc(chatMessage.seq));
+}
+
 /** Sahiplik denetimi sorguda: baskasinin ya da olmayan sohbet icin `null`. */
 export async function loadConversation(
   db: Executor,
@@ -145,30 +195,20 @@ export async function loadConversation(
     .from(conversation)
     .where(and(eq(conversation.id, input.conversationId), eq(conversation.userId, input.userId)));
   if (!row) return null;
-  const rows = await db
-    .select()
-    .from(chatMessage)
-    .where(eq(chatMessage.conversationId, row.id))
-    .orderBy(asc(chatMessage.seq));
-  const votes = await db
-    .select({ messageId: chatResultFeedback.messageId, helpful: chatResultFeedback.helpful })
-    .from(chatResultFeedback)
-    .where(eq(chatResultFeedback.conversationId, row.id))
-    .catch((error: unknown) => {
-      // 0055 henuz uygulanmamis bir veritabaninda (kod migration'dan once dagitilirsa) oy yok sayilir.
-      if (isMissingTable(error)) return [];
-      throw error;
-    });
-  const helpfulById = new Map(votes.map((vote) => [vote.messageId, vote.helpful]));
-  const messages = rows.map((message) => toView(message, helpfulById.get(message.id) ?? null));
-  return {
-    id: row.id,
-    title: row.title,
-    currentIntent: parseStoredIntent(row.currentSearchIntent),
-    pendingQuestion: parseClarifyQuestion(row.pendingQuestion),
-    awaitingReply: messages.at(-1)?.role === "user",
-    messages,
-  };
+  // Mesajlar ve oylar birbirine bagimli degil: tek tur.
+  const [rows, votes] = await Promise.all([
+    loadMessageRows(db, row.id),
+    db
+      .select({ messageId: chatResultFeedback.messageId, helpful: chatResultFeedback.helpful })
+      .from(chatResultFeedback)
+      .where(eq(chatResultFeedback.conversationId, row.id))
+      .catch((error: unknown) => {
+        // 0055 henuz uygulanmamis bir veritabaninda (kod migration'dan once dagitilirsa) oy yok sayilir.
+        if (isMissingTable(error)) return [];
+        throw error;
+      }),
+  ]);
+  return buildView(row, rows, new Map(votes.map((vote) => [vote.messageId, vote.helpful])));
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -217,31 +257,130 @@ async function recentUserMessageCount(db: Executor, userId: number): Promise<num
   return row?.n ?? 0;
 }
 
+/** Karar 0078: `preprocessImage` ciktisi (<= 512 KB; DB CHECK ile ayni sinir). */
+export interface ChatAttachmentInput {
+  bytes: Buffer;
+  mimeType: "image/jpeg" | "image/png";
+  width: number;
+  height: number;
+}
+
+export const CHAT_ATTACHMENT_MAX_BYTES = 512 * 1024;
+const IMAGE_ONLY_TITLE = "Fotoğrafla arama";
+
+/** Ayni `requestKey` ile gelen ikinci olusturma yeni sohbet acmaz, mevcut olani doner. */
+async function findConversationByRequestKey(
+  db: Executor,
+  userId: number,
+  requestKey: string,
+): Promise<string | null> {
+  const result = await db.execute(sql`
+    SELECT c.id
+      FROM chat_message m
+      JOIN conversation c ON c.id = m.conversation_id
+     WHERE c.user_id = ${userId} AND m.client_request_id = ${requestKey} AND m.seq = 1
+     LIMIT 1
+  `);
+  const row = result.rows[0] as { id?: string } | undefined;
+  return row?.id ?? null;
+}
+
+function validAttachment(attachment: ChatAttachmentInput): boolean {
+  return (
+    Buffer.isBuffer(attachment.bytes) &&
+    attachment.bytes.byteLength >= 1 &&
+    attachment.bytes.byteLength <= CHAT_ATTACHMENT_MAX_BYTES &&
+    (attachment.mimeType === "image/jpeg" || attachment.mimeType === "image/png") &&
+    Number.isInteger(attachment.width) &&
+    Number.isInteger(attachment.height) &&
+    attachment.width >= 1 &&
+    attachment.height >= 1
+  );
+}
+
+/**
+ * Sohbeti, (varsa) gorsel eki ve ilk kullanici mesajini TEK islemde yazar: yarim
+ * kalmis sohbet/ek olmaz. Gorsel varsa metin bos olabilir (yalniz fotograf).
+ * Ayni `requestKey` mevcut sohbeti doner (cift gonderim ikinci sohbet acmaz).
+ */
 export async function createConversation(
   db: Database,
-  input: { userId: number; message: string; requestKey?: string },
+  input: {
+    userId: number;
+    message: string;
+    requestKey?: string;
+    attachment?: ChatAttachmentInput;
+  },
 ): Promise<CreateConversationResult> {
+  const attachment = input.attachment;
+  if (attachment && !validAttachment(attachment)) return { status: "invalid_input" };
   const text = cleanUserText(input.message);
-  if (text === null) return { status: "invalid_input" };
+  if (text === null && !attachment) return { status: "invalid_input" };
+  const requestKey = requestKeyOrNull(input.requestKey);
+  if (requestKey !== null) {
+    const existing = await findConversationByRequestKey(db, input.userId, requestKey);
+    if (existing) return { status: "created", conversationId: existing };
+  }
   if ((await recentUserMessageCount(db, input.userId)) >= chatTurnsPerHour()) {
     return { status: "rate_limited" };
   }
   return db.transaction(async (tx) => {
     const [created] = await tx
       .insert(conversation)
-      .values({ userId: input.userId, title: text.slice(0, 80), messageCount: 1 })
+      .values({
+        userId: input.userId,
+        title: (text ?? IMAGE_ONLY_TITLE).slice(0, 80),
+        messageCount: 1,
+      })
       .returning({ id: conversation.id });
     if (!created) throw new Error("conversation insert returned no row");
+    let payload: Record<string, unknown> | null = null;
+    if (attachment) {
+      const [stored] = await tx
+        .insert(chatAttachment)
+        .values({
+          conversationId: created.id,
+          userId: input.userId,
+          mimeType: attachment.mimeType,
+          data: attachment.bytes,
+          width: attachment.width,
+          height: attachment.height,
+          sha256: createHash("sha256").update(attachment.bytes).digest("hex"),
+        })
+        .returning({ id: chatAttachment.id });
+      if (!stored) throw new Error("attachment insert returned no row");
+      payload =
+        text === null ? { attachmentId: stored.id, imageOnly: true } : { attachmentId: stored.id };
+    }
     await tx.insert(chatMessage).values({
       conversationId: created.id,
       seq: 1,
       role: "user",
       kind: "text",
-      content: text,
-      clientRequestId: requestKeyOrNull(input.requestKey),
+      content: text ?? IMAGE_ONLY_CONTENT,
+      payload,
+      clientRequestId: requestKey,
     });
     return { status: "created", conversationId: created.id } as const;
   });
+}
+
+export interface LoadedChatAttachment {
+  mimeType: "image/jpeg" | "image/png";
+  data: Buffer;
+}
+
+/** Sahiplik sorguda: baskasinin/olmayan/gecersiz kimlik icin `null`. */
+export async function loadChatAttachment(
+  db: Executor,
+  input: { userId: number; attachmentId: string },
+): Promise<LoadedChatAttachment | null> {
+  if (!isUuid(input.attachmentId)) return null;
+  const [row] = await db
+    .select({ mimeType: chatAttachment.mimeType, data: chatAttachment.data })
+    .from(chatAttachment)
+    .where(and(eq(chatAttachment.id, input.attachmentId), eq(chatAttachment.userId, input.userId)));
+  return row ?? null;
 }
 
 /**
@@ -397,7 +536,10 @@ export function countTrailingClarifications(messages: readonly ChatMessageView[]
   return count;
 }
 
-function toInterpretRequest(view: ConversationView): InterpretRequest | null {
+function toInterpretRequest(
+  view: ConversationView,
+  image: ChatImageInput | null = null,
+): InterpretRequest | null {
   const last = view.messages.at(-1);
   if (last?.role !== "user") return null;
   const pending = view.pendingQuestion;
@@ -418,6 +560,7 @@ function toInterpretRequest(view: ConversationView): InterpretRequest | null {
     role: message.role,
     kind: message.kind,
     text: transcriptText(message),
+    ...(message.role === "user" && message.attachmentId ? { hasImage: true } : {}),
   }));
   return {
     messages,
@@ -425,7 +568,33 @@ function toInterpretRequest(view: ConversationView): InterpretRequest | null {
     pendingQuestion: pending ? { id: pending.id, title: pending.title } : null,
     clarifyCount: countTrailingClarifications(view.messages),
     input,
+    image,
   };
+}
+
+/**
+ * Karar 0078: modele giden baglam penceresindeki ilk gorselli kullanici mesajinin
+ * gorseli. Pencere disina cikarsa artik eklenmez.
+ */
+async function loadContextImage(
+  db: Executor,
+  userId: number,
+  messages: readonly ChatMessageView[],
+): Promise<ChatImageInput | null> {
+  if (!isChatImageEnabled()) return null;
+  const owner = messages
+    .slice(-CHAT_CONTEXT_MESSAGES)
+    .find((message) => message.role === "user" && message.attachmentId);
+  if (owner?.role !== "user" || !owner.attachmentId) return null;
+  try {
+    const loaded = await loadChatAttachment(db, { userId, attachmentId: owner.attachmentId });
+    return loaded
+      ? { mimeType: loaded.mimeType, dataBase64: loaded.data.toString("base64") }
+      : null;
+  } catch {
+    // Ek okunamadi: tur metinle surer; sohbet kesilmez.
+    return null;
+  }
 }
 
 async function releaseLease(db: Executor, conversationId: string): Promise<void> {
@@ -441,29 +610,76 @@ async function releaseLease(db: Executor, conversationId: string): Promise<void>
  */
 export async function processPendingTurn(
   db: Database,
-  input: {
-    userId: number;
-    conversationId: string;
-    interpreter: ChatInterpreter;
-    leaseSeconds?: number;
-  },
+  input: ProcessTurnInput,
+): Promise<ProcessTurnResult> {
+  return (await processPendingTurnDetailed(db, input)).result;
+}
+
+export interface ProcessTurnInput {
+  userId: number;
+  conversationId: string;
+  interpreter: ChatInterpreter;
+  leaseSeconds?: number;
+}
+
+/** Yazilan cevabin istemcide hemen gosterilebilen on izlemesi (kalici kayit sunucudadir). */
+export interface AssistantPreview {
+  seq: number;
+  kind: "clarify" | "search";
+  content: string;
+}
+
+export interface DetailedTurnResult {
+  result: ProcessTurnResult;
+  preview: AssistantPreview | null;
+  timings: ChatTimings;
+}
+
+/**
+ * `processPendingTurn` + olcumler + cevabin on izlemesi. Davranis ayni: atomik
+ * kira (tek UPDATE ... RETURNING, sahiplik WHERE'de), kira altinda bagimsiz
+ * okumalar tek turda, Gemini islem DISINDA, cevap tek islemde.
+ */
+export async function processPendingTurnDetailed(
+  db: Database,
+  input: ProcessTurnInput,
+): Promise<DetailedTurnResult> {
+  const timer = createChatTimer();
+  const captured: { preview: AssistantPreview | null } = { preview: null };
+  const result = await runPendingTurn(db, input, timer, (value) => {
+    captured.preview = value;
+  });
+  const timings = timer.finish();
+  logChatTimings("turn", result.status, timings);
+  return { result, preview: result.status === "answered" ? captured.preview : null, timings };
+}
+
+async function runPendingTurn(
+  db: Database,
+  input: ProcessTurnInput,
+  timer: ReturnType<typeof createChatTimer>,
+  setPreview: (preview: AssistantPreview) => void,
 ): Promise<ProcessTurnResult> {
   if (!isUuid(input.conversationId)) return { status: "not_found" };
   const lease = input.leaseSeconds ?? CHAT_LEASE_SECONDS;
 
   // Atomik kira: ayni anda tek tur. Sure dolmus kira (cokmus is) yeniden alinabilir.
-  const acquired = await db
-    .update(conversation)
-    .set({ processingUntil: sql`now() + make_interval(secs => ${lease})` })
-    .where(
-      and(
-        eq(conversation.id, input.conversationId),
-        eq(conversation.userId, input.userId),
-        or(isNull(conversation.processingUntil), lt(conversation.processingUntil, sql`now()`)),
-      ),
-    )
-    .returning({ id: conversation.id });
-  if (acquired.length === 0) {
+  // RETURNING tum satiri doner: ayri bir sohbet okumasi gerekmez.
+  const acquired = await timer.time("claim_turn", () =>
+    db
+      .update(conversation)
+      .set({ processingUntil: sql`now() + make_interval(secs => ${lease})` })
+      .where(
+        and(
+          eq(conversation.id, input.conversationId),
+          eq(conversation.userId, input.userId),
+          or(isNull(conversation.processingUntil), lt(conversation.processingUntil, sql`now()`)),
+        ),
+      )
+      .returning(),
+  );
+  const claimed = acquired[0];
+  if (!claimed) {
     const [exists] = await db
       .select({ id: conversation.id })
       .from(conversation)
@@ -472,116 +688,132 @@ export async function processPendingTurn(
   }
 
   try {
-    const view = await loadConversation(db, {
-      userId: input.userId,
-      conversationId: input.conversationId,
-    });
-    const request = view ? toInterpretRequest(view) : null;
-    if (!view || !request) {
+    // Birbirine bagimli degil, tek tur: mesajlar, gunluk tavan, sozluk isitma (aramadan once).
+    const [rows, callsToday] = await Promise.all([
+      timer.time("load_context", () => loadMessageRows(db, claimed.id)),
+      timer.time("provider_limit", () => providerCallsToday(db, new Date(), CHAT_TURN_OPERATION)),
+      timer.time("lexicon", () => loadLexiconCached(db)).catch(() => undefined),
+    ]);
+    const view = buildView(claimed, rows);
+    const image = await loadContextImage(db, input.userId, view.messages);
+    const maybeRequest = toInterpretRequest(view, image);
+    if (!maybeRequest) {
       await releaseLease(db, input.conversationId);
       return { status: "idle" };
     }
+    const request: InterpretRequest = maybeRequest;
     const lastSeq = view.messages.at(-1)?.seq ?? 0;
     // Kilit/islem YOK: kira yalnizca bir satir isaretidir; model cagrisi DB'yi tutmaz.
-    const modelAllowed =
-      (await providerCallsToday(db, new Date(), CHAT_TURN_OPERATION)) < CHAT_DAILY_CALL_CAP;
-    const outcome = await interpretTurn(input.interpreter, request, { modelAllowed });
+    const modelAllowed = callsToday < CHAT_DAILY_CALL_CAP;
+    const outcome = await timer.time("gemini", () =>
+      interpretTurn(input.interpreter, request, { modelAllowed }),
+    );
 
-    return await db.transaction(async (tx): Promise<ProcessTurnResult> => {
-      const [row] = await tx
-        .select()
-        .from(conversation)
-        .where(eq(conversation.id, input.conversationId))
-        .for("update");
-      if (!row) return { status: "not_found" };
+    return await persistTurn();
 
-      // Kural 9: her HTTP denemesi (basarisiz olanlar dahil) bir satir.
-      if (outcome.calls.length > 0) {
-        await tx.insert(apiUsage).values(
-          outcome.calls.map((call) => ({
-            sessionId: null,
-            userId: input.userId,
-            operation: CHAT_TURN_OPERATION,
-            modelVersion: call.modelVersion,
-            units: call.usage?.totalTokens ?? 0,
-            costMicros: 0,
-            cacheHit: false,
-          })),
-        );
-      }
+    function persistTurn(): Promise<ProcessTurnResult> {
+      return timer.time("persist", () =>
+        db.transaction(async (tx): Promise<ProcessTurnResult> => {
+          const [row] = await tx
+            .select()
+            .from(conversation)
+            .where(eq(conversation.id, input.conversationId))
+            .for("update");
+          if (!row) return { status: "not_found" };
 
-      if (outcome.kind === "provider_error") {
-        await releaseLease(tx, row.id);
-        return { status: "provider_error", code: outcome.code };
-      }
-      // Bu arada baska bir tur cevap yazdiysa (kira dolmasi) ikinci cevap yazilmaz.
-      if (row.messageCount !== lastSeq) {
-        await releaseLease(tx, row.id);
-        return { status: "idle" };
-      }
+          // Kural 9: her HTTP denemesi (basarisiz olanlar dahil) bir satir.
+          if (outcome.calls.length > 0) {
+            await tx.insert(apiUsage).values(
+              outcome.calls.map((call) => ({
+                sessionId: null,
+                userId: input.userId,
+                operation: CHAT_TURN_OPERATION,
+                modelVersion: call.modelVersion,
+                units: call.usage?.totalTokens ?? 0,
+                costMicros: 0,
+                cacheHit: false,
+              })),
+            );
+          }
 
-      let turn = outcome.turn;
-      let source = outcome.source;
-      let merged: SearchIntent | null = null;
-      if (turn.action === "search") {
-        merged = mergeSearchIntent(view.currentIntent, turn.intent);
-        if (merged === null) {
-          // Dogrulayici bunu zaten yakalar; son savunma.
-          turn = fallbackTurn(request);
-          source = "fallback";
-          merged =
-            turn.action === "search" ? mergeSearchIntent(view.currentIntent, turn.intent) : null;
-        }
-        if (merged === null) {
-          await releaseLease(tx, row.id);
-          return { status: "provider_error", code: "unknown" };
-        }
-      }
+          if (outcome.kind === "provider_error") {
+            await releaseLease(tx, row.id);
+            return { status: "provider_error", code: outcome.code };
+          }
+          // Bu arada baska bir tur cevap yazdiysa (kira dolmasi) ikinci cevap yazilmaz.
+          if (row.messageCount !== lastSeq) {
+            await releaseLease(tx, row.id);
+            return { status: "idle" };
+          }
 
-      const seq = row.messageCount + 1;
-      if (turn.action === "clarify") {
-        await tx.insert(chatMessage).values({
-          conversationId: row.id,
-          seq,
-          role: "assistant",
-          kind: "clarify",
-          content: turn.message,
-          payload: { question: turn.question, source },
-        });
-        await tx
-          .update(conversation)
-          .set({
-            pendingQuestion: turn.question as unknown as Record<string, unknown>,
-            messageCount: seq,
-            processingUntil: null,
-            lastMessageAt: sql`now()`,
-            updatedAt: sql`now()`,
-          })
-          .where(eq(conversation.id, row.id));
-        return { status: "answered", source, action: "clarify" };
-      }
+          let turn = outcome.turn;
+          let source = outcome.source;
+          let merged: SearchIntent | null = null;
+          if (turn.action === "search") {
+            merged = mergeSearchIntent(view.currentIntent, turn.intent);
+            if (merged === null) {
+              // Dogrulayici bunu zaten yakalar; son savunma.
+              turn = fallbackTurn(request);
+              source = "fallback";
+              merged =
+                turn.action === "search"
+                  ? mergeSearchIntent(view.currentIntent, turn.intent)
+                  : null;
+            }
+            if (merged === null) {
+              await releaseLease(tx, row.id);
+              return { status: "provider_error", code: "unknown" };
+            }
+          }
 
-      await tx.insert(chatMessage).values({
-        conversationId: row.id,
-        seq,
-        role: "assistant",
-        kind: "search",
-        content: turn.message,
-        payload: { intent: merged, source, fallbackReason: outcome.fallbackReason },
-      });
-      await tx
-        .update(conversation)
-        .set({
-          currentSearchIntent: merged as unknown as Record<string, unknown>,
-          pendingQuestion: null,
-          messageCount: seq,
-          processingUntil: null,
-          lastMessageAt: sql`now()`,
-          updatedAt: sql`now()`,
-        })
-        .where(eq(conversation.id, row.id));
-      return { status: "answered", source, action: "search" };
-    });
+          const seq = row.messageCount + 1;
+          if (turn.action === "clarify") {
+            await tx.insert(chatMessage).values({
+              conversationId: row.id,
+              seq,
+              role: "assistant",
+              kind: "clarify",
+              content: turn.message,
+              payload: { question: turn.question, source },
+            });
+            await tx
+              .update(conversation)
+              .set({
+                pendingQuestion: turn.question as unknown as Record<string, unknown>,
+                messageCount: seq,
+                processingUntil: null,
+                lastMessageAt: sql`now()`,
+                updatedAt: sql`now()`,
+              })
+              .where(eq(conversation.id, row.id));
+            setPreview({ seq, kind: "clarify", content: turn.message });
+            return { status: "answered", source, action: "clarify" };
+          }
+
+          await tx.insert(chatMessage).values({
+            conversationId: row.id,
+            seq,
+            role: "assistant",
+            kind: "search",
+            content: turn.message,
+            payload: { intent: merged, source, fallbackReason: outcome.fallbackReason },
+          });
+          await tx
+            .update(conversation)
+            .set({
+              currentSearchIntent: merged as unknown as Record<string, unknown>,
+              pendingQuestion: null,
+              messageCount: seq,
+              processingUntil: null,
+              lastMessageAt: sql`now()`,
+              updatedAt: sql`now()`,
+            })
+            .where(eq(conversation.id, row.id));
+          setPreview({ seq, kind: "search", content: turn.message });
+          return { status: "answered", source, action: "search" };
+        }),
+      );
+    }
   } catch (error) {
     // Yalnizca sinif adi: hata mesaji kullanici metni tasiyabilir.
     console.error("[sohbet] turn failed", error instanceof Error ? error.name : "unknown");
@@ -592,6 +824,54 @@ export async function processPendingTurn(
     }
     return { status: "provider_error", code: "unknown" };
   }
+}
+
+// ---------------------------------------------------------------------------
+// Tur durumu (hafif sorgulama)
+// ---------------------------------------------------------------------------
+
+export type TurnStatus =
+  | { state: "not_found" }
+  /** Son mesaj kullanicinin, kira suruyor: bir tur calisiyor. */
+  | { state: "in_flight" }
+  /** Son mesaj kullanicinin, kira yok/dolmus: tur baslamadi ya da coktu (kurtarma). */
+  | { state: "pending" }
+  | { state: "answered"; preview: AssistantPreview };
+
+interface TurnStatusRow {
+  in_flight: boolean;
+  role: string | null;
+  kind: string | null;
+  content: string | null;
+  seq: number | null;
+}
+
+/** Tek sorgu; sahiplik WHERE'de. Mesaj metni yalnizca sahibine doner. */
+export async function getTurnStatus(
+  db: Database,
+  input: { userId: number; conversationId: string },
+): Promise<TurnStatus> {
+  if (!isUuid(input.conversationId)) return { state: "not_found" };
+  const result = await db.execute(sql`
+    SELECT (c.processing_until IS NOT NULL AND c.processing_until > now()) AS in_flight,
+           m.role, m.kind, m.content, m.seq
+      FROM conversation c
+      LEFT JOIN chat_message m ON m.conversation_id = c.id AND m.seq = c.message_count
+     WHERE c.id = ${input.conversationId} AND c.user_id = ${input.userId}
+  `);
+  const row = result.rows[0] as TurnStatusRow | undefined;
+  if (!row) return { state: "not_found" };
+  if (row.role === "assistant" && typeof row.seq === "number") {
+    return {
+      state: "answered",
+      preview: {
+        seq: row.seq,
+        kind: row.kind === "clarify" ? "clarify" : "search",
+        content: row.content ?? "",
+      },
+    };
+  }
+  return { state: row.in_flight ? "in_flight" : "pending" };
 }
 
 // ---------------------------------------------------------------------------

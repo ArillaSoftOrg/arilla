@@ -5,6 +5,7 @@ import {
   getColorVariants,
   getPriceHistory,
   getPriceStats,
+  getProductGallery,
   getProductPriceComparison,
   getSizeOptions,
   getVariantPriceHistory,
@@ -26,7 +27,6 @@ import {
   PriceDiffBlock,
   PricePositionText,
   ProductCard,
-  ProductImage,
   Section,
   UpdatedAt,
   withLocativeSuffix,
@@ -38,6 +38,7 @@ import { HOME_COPY } from "../../home-copy.ts";
 import { readConsent } from "../../lib/consent.ts";
 import { requireProductAccess } from "../../lib/dal.ts";
 import { ProductActionsClient } from "./product-actions-client.tsx";
+import { ProductGalleryClient } from "./product-gallery-client.tsx";
 import styles from "./product-page.module.css";
 import { SizeSelectorClient } from "./size-selector-client.tsx";
 import { VariantRestockClient } from "./variant-restock-client.tsx";
@@ -173,16 +174,24 @@ export default async function ProductPage({
     } catch (error) {
       console.error("[urun] activity failed", error instanceof Error ? error.name : "unknown");
     }
+    // "Son baktıkların" (`/hesap`, `/gecmis`): analitikten ayrı, `browsing_history`
+    // rızasına bağlı kişisel liste. Hata sayfayı bozmaz.
+    try {
+      await recordProductView(db, { userId: user.id, productId: product.productId });
+    } catch (error) {
+      console.error("[urun] recents failed", error instanceof Error ? error.name : "unknown");
+    }
   }
 
-  const [{ merchantOffers, comparison }, alternatives, sizeOptions, priceStats] = await Promise.all(
-    [
+  const [{ merchantOffers, comparison }, alternatives, sizeOptions, priceStats, gallery] =
+    await Promise.all([
       getProductPriceComparison(db, product.productId, requestedVariant),
       findAlternatives(db, product.productId),
       getSizeOptions(db, product.productId),
       getPriceStats(db, product.productId),
-    ],
-  );
+      // Karar 0073: offer_image galerisi; kayit yoksa primary_image_url yedegi.
+      getProductGallery(db, product.productId, product.primaryImageUrl),
+    ]);
 
   const colorVariants = product.modelKey
     ? await getColorVariants(db, product.modelKey, product.productId)
@@ -256,7 +265,7 @@ export default async function ProductPage({
     "@type": "Product",
     name: product.title,
     ...(product.brandName ? { brand: { "@type": "Brand", name: product.brandName } } : {}),
-    ...(product.primaryImageUrl ? { image: [product.primaryImageUrl] } : {}),
+    ...(gallery.images.length > 0 ? { image: gallery.images.map((image) => image.url) } : {}),
     ...(siteUrl ? { url: `${siteUrl}/urun/${product.slug}` } : {}),
     ...(variantMode && !variantMode.selectedKey && variantMode.rows.length > 0
       ? {
@@ -339,24 +348,11 @@ export default async function ProductPage({
       />
 
       <div className={styles.hero}>
-        {/* 1. Ürün görseli */}
-        <div className={styles.media}>
-          <div className={styles.mediaFrame}>
-            {product.primaryImageUrl ? (
-              <ProductImage
-                src={product.primaryImageUrl}
-                alt={product.title}
-                // LCP: ürün görseli ilk ekranda - lazy değil, yüksek öncelikli.
-                loading="eager"
-                fetchPriority="high"
-                fit="contain"
-                className={styles.image}
-              />
-            ) : (
-              <div className={styles.mediaPlaceholder} aria-hidden="true" />
-            )}
-          </div>
-        </div>
+        {/* 1. Ürün görseli (galeri; karar 0073) */}
+        <ProductGalleryClient
+          title={product.title}
+          images={gallery.images.map(({ url, width, height }) => ({ url, width, height }))}
+        />
 
         <div className={styles.summary}>
           {/* 2. Marka, başlık */}

@@ -5,6 +5,7 @@ export * from "./find-alternatives.ts";
 export * from "./interpretation-eligibility.ts";
 export * from "./interpretation-identity.ts";
 export * from "./lexicon.ts";
+export * from "./lexicon-cache.ts";
 export * from "./lexicon-repository.ts";
 export * from "./normalize.ts";
 export * from "./parse-query.ts";

@@ -10,7 +10,7 @@ import { buildUrlSetXml } from "../lib/sitemap-xml.ts";
  * bu dizi büyür.
  */
 /** Ürün sayfaları: yalnızca ürün açıkken (`PRODUCT_ACCESS=open`) haritaya girer. */
-const PRODUCT_PAGES = ["/kesfet", "/firsatlar"];
+const PRODUCT_PAGES = ["/kesfet", "/firsatlar", "/trendler"];
 
 const STATIC_PAGES = [
   "/",

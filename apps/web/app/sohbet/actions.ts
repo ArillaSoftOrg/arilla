@@ -1,18 +1,28 @@
 "use server";
 
 import {
+  type AssistantPreview,
   type ChatInputRequest,
   canAccessProduct,
+  createChatTimer,
   createConversation,
   getChatInterpreter,
+  getTurnStatus,
+  ImageRejectedError,
   isChatDiscoveryEnabled,
+  isChatImageEnabled,
   isUuid,
+  isValidRequestKey,
+  logChatTimings,
+  preprocessImage,
   processPendingTurn,
+  processPendingTurnDetailed,
   setResultFeedback,
   submitUserMessage,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { verifySession } from "../lib/dal.ts";
 
 /**
@@ -28,6 +38,27 @@ function plainSearchHref(text: string): string {
   return text ? `/ara?${new URLSearchParams({ q: text }).toString()}` : "/ara";
 }
 
+/**
+ * Ilk turu yanit gittikten sonra baslatir (`after()`); `processPendingTurn`in kirasi
+ * es zamanli ikinci Gemini cagrisini engeller. Kurulamazsa (anahtar yok, `after`
+ * yok) sessizce birakilir: istemci kurtarma yolu (`runTurnAction`) turu baslatir.
+ */
+function scheduleInitialTurn(
+  db: ReturnType<typeof getDatabase>,
+  userId: number,
+  conversationId: string,
+): void {
+  try {
+    const interpreter = getChatInterpreter();
+    after(async () => {
+      // Asla firlatmaz; hata olursa kira birakilir ve kurtarma yolu calisir.
+      await processPendingTurn(db, { userId, conversationId, interpreter });
+    });
+  } catch {
+    // Kurtarma yolu devralir.
+  }
+}
+
 /** Ana sayfa kutusu: sohbet olusturur, ilk mesaji kaydeder, `/sohbet/[id]`ye yonlendirir. */
 export async function startConversationAction(formData: FormData): Promise<void> {
   const raw = formData.get("q");
@@ -39,10 +70,85 @@ export async function startConversationAction(formData: FormData): Promise<void>
     redirect(plainSearchHref(text));
   }
 
-  const created = await createConversation(getDatabase(), { userId: user.id, message: text });
+  const db = getDatabase();
+  const created = await createConversation(db, { userId: user.id, message: text });
   // Saatlik tavan ya da gecersiz girdi: kullanici yine de arayabilir (yapay zekasiz yol).
   if (created.status !== "created") redirect(plainSearchHref(text));
+  scheduleInitialTurn(db, user.id, created.conversationId);
   redirect(`/sohbet/${created.conversationId}`);
+}
+
+/** `ara/gorsel/actions.ts` ve `next.config.ts` (serverActions.bodySizeLimit) ile ayni sinir. */
+const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
+const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+export type ImageChatResult =
+  | { status: "created"; href: string }
+  | {
+      status:
+        | "login_required"
+        | "unavailable"
+        | "invalid_input"
+        | "invalid_type"
+        | "too_large"
+        | "unprocessable"
+        | "rate_limited"
+        | "error";
+    };
+
+/**
+ * Ana sayfa kutusu, fotograf + metin (karar 0078): sohbeti, gorsel eki ve ilk
+ * kullanici mesajini TEK islemde olusturur; ilk turu (Gemini, gorselle birlikte)
+ * yanit gittikten sonra `after()` ile baslatir. Metin bos olabilir. Gorsel burada
+ * dogrulanir ve on islenir (`preprocessImage`: decode, <=512 px, EXIF'siz); ham dosya
+ * saklanmaz. Hicbir hata mesaji/yanit icerigi istemciye donmez, yalnizca durum kodu.
+ */
+export async function startConversationWithImageAction(
+  formData: FormData,
+): Promise<ImageChatResult> {
+  const user = await verifySession();
+  if (!user) return { status: "login_required" };
+  if (!isChatDiscoveryEnabled() || !isChatImageEnabled() || !canAccessProduct(user)) {
+    return { status: "unavailable" };
+  }
+  const requestKey = formData.get("requestKey");
+  if (!isValidRequestKey(requestKey)) return { status: "invalid_input" };
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) return { status: "invalid_input" };
+  if (!IMAGE_MIME_TYPES.has(file.type)) return { status: "invalid_type" };
+  if (file.size > MAX_IMAGE_UPLOAD_BYTES) return { status: "too_large" };
+  const rawText = formData.get("q");
+  const text = typeof rawText === "string" ? rawText.trim().slice(0, 500) : "";
+
+  let prepared: Awaited<ReturnType<typeof preprocessImage>>;
+  try {
+    prepared = await preprocessImage(Buffer.from(await file.arrayBuffer()));
+  } catch (error) {
+    if (error instanceof ImageRejectedError) return { status: "unprocessable" };
+    return { status: "error" };
+  }
+
+  const db = getDatabase();
+  let created: Awaited<ReturnType<typeof createConversation>>;
+  try {
+    created = await createConversation(db, {
+      userId: user.id,
+      message: text,
+      requestKey,
+      attachment: {
+        bytes: prepared.bytes,
+        mimeType: prepared.mimeType,
+        width: prepared.width,
+        height: prepared.height,
+      },
+    });
+  } catch {
+    return { status: "error" };
+  }
+  if (created.status === "rate_limited") return { status: "rate_limited" };
+  if (created.status !== "created") return { status: "invalid_input" };
+  scheduleInitialTurn(db, user.id, created.conversationId);
+  return { status: "created", href: `/sohbet/${created.conversationId}` };
 }
 
 export type SendMessageStatus =
@@ -108,11 +214,14 @@ export type RunTurnStatus =
   | "unavailable";
 
 /**
- * Cevaplanmamis son mesaji yorumlar. Tekrar-guvenlidir: ayni anda ikinci cagri
- * `busy`, cevap yazildiktan sonra `idle` doner; istemci bu yuzden serbestce
- * yeniden deneyebilir.
+ * Cevaplanmamis son mesaji yorumlar (kurtarma yolu: normal yolda ilk tur
+ * `startChatBootstrapAction`ın `after()` isi ile baslar). Tekrar-guvenlidir:
+ * ayni anda ikinci cagri `busy`, cevap yazildiktan sonra `idle` doner.
+ * `preview`: yazilan cevabin kisa on izlemesi; kalici kayit sunucudadir.
  */
-export async function runTurnAction(conversationId: string): Promise<{ status: RunTurnStatus }> {
+export async function runTurnAction(
+  conversationId: string,
+): Promise<{ status: RunTurnStatus; preview?: AssistantPreview }> {
   const user = await verifySession();
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { status: "unavailable" };
@@ -127,12 +236,31 @@ export async function runTurnAction(conversationId: string): Promise<{ status: R
     // Anahtar tanimsiz: yapilandirma hatasi, kullaniciya "tekrar dene" gosterilir.
     return { status: "provider_error" };
   }
-  const result = await processPendingTurn(getDatabase(), {
+  const { result, preview } = await processPendingTurnDetailed(getDatabase(), {
     userId: user.id,
     conversationId,
     interpreter,
   });
-  return { status: result.status };
+  return preview ? { status: result.status, preview } : { status: result.status };
+}
+
+export type TurnWaitState = "answered" | "in_flight" | "pending" | "not_found" | "unavailable";
+
+/** Hafif durum sorgusu (sahiplik sorguda): istemci `after()` turunu bu eylemle bekler. */
+export async function getTurnStatusAction(
+  conversationId: string,
+): Promise<{ state: TurnWaitState; preview?: AssistantPreview }> {
+  const user = await verifySession();
+  if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
+    return { state: "unavailable" };
+  }
+  if (typeof conversationId !== "string" || !isUuid(conversationId)) {
+    return { state: "not_found" };
+  }
+  const status = await getTurnStatus(getDatabase(), { userId: user.id, conversationId });
+  return status.state === "answered"
+    ? { state: "answered", preview: status.preview }
+    : { state: status.state };
 }
 
 export type NewTabChatResult =
@@ -143,25 +271,35 @@ export type NewTabChatResult =
   | { status: "error" };
 
 /**
- * Ana sayfa kutusu, yeni sekme akisi: istemci kullanici hareketi sirasinda bos sekmeyi
- * senkron acar (popup engelleyiciye takilmaz), bu eylem sohbeti OLUSTURUR ve hedefi
- * dondurur; sekme sonra oraya gider. Redirect yok: ana sayfa sekmesi yerinde kalir.
- * Ilk mesaj sohbet sayfasi acilinca (`ChatInteractive` ilk yukleme) islenir.
+ * Yeni sekme (`/sohbet/yeni`) acilista cagirir: sohbeti ve ilk mesaji TEK islemde
+ * olusturur, kimligi hemen dondurur; ilk turu (Gemini) yanit gittikten SONRA
+ * `after()` ile baslatir. Ilk tur eskiden gezinme + SSR + hydration + ikinci
+ * sunucu eylemi sonrasi basliyordu. `after()` ayni `processPendingTurn`i
+ * kullanir: kira (`processing_until`) ayni anda ikinci Gemini cagrisini
+ * engeller; is dusse istemci kurtarma yolu (`runTurnAction`) devralir.
+ * Gemini bu eylemin yanitini ve DB islemini BEKLETMEZ.
  */
-export async function startChatInNewTabAction(text: unknown): Promise<NewTabChatResult> {
+export async function startChatBootstrapAction(text: unknown): Promise<NewTabChatResult> {
+  const timer = createChatTimer();
   const message = typeof text === "string" ? text.trim().slice(0, 500) : "";
   if (!message) return { status: "error" };
-  const user = await verifySession();
+  const user = await timer.time("session", () => verifySession());
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { status: "fallback", href: plainSearchHref(message) };
   }
-  const created = await createConversation(getDatabase(), { userId: user.id, message });
-  if (created.status === "created") {
-    return { status: "created", href: `/sohbet/${created.conversationId}` };
+  const db = getDatabase();
+  const created = await timer.time("create_conversation", () =>
+    createConversation(db, { userId: user.id, message }),
+  );
+  logChatTimings("create", created.status, timer.finish());
+  if (created.status !== "created") {
+    return created.status === "rate_limited"
+      ? { status: "fallback", href: plainSearchHref(message) }
+      : { status: "error" };
   }
-  return created.status === "rate_limited"
-    ? { status: "fallback", href: plainSearchHref(message) }
-    : { status: "error" };
+  const { conversationId } = created;
+  scheduleInitialTurn(db, user.id, conversationId);
+  return { status: "created", href: `/sohbet/${conversationId}` };
 }
 
 /** "Bu yardimci oldu mu?" oyu (karar 0075). Metin tasimaz, analitik olayi uretmez. */

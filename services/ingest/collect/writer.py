@@ -19,6 +19,8 @@ from datetime import datetime
 
 import psycopg
 
+from collect.image_writer import write_offer_images
+from collect.primary_image_sync import sync_primary_images
 from collect.records import NormalizedOffer
 from db import product_aggregates
 
@@ -137,6 +139,9 @@ class WriteCounts:
     stock_events_written: int = 0
     variant_price_events_written: int = 0
     stale_image_embeddings: int = 0
+    images_written: int = 0
+    images_removed: int = 0
+    primary_images_synced: int = 0
 
 
 class OfferWriter:
@@ -165,6 +170,10 @@ class OfferWriter:
         self.touched_product_ids: set[int] = set()
 
     def write(self, offer: NormalizedOffer) -> int:
+        # Urunun gorseli kaynak offer'i izler (0073); eski deger okunabilirken, upsert'ten once.
+        self.counts.primary_images_synced += sync_primary_images(
+            self.conn, self.merchant_id, [(offer.external_id, offer.image_url)]
+        )
         offer_id, inserted, image_changed, product_id = self._upsert_offer(offer)
         if product_id is not None:
             self.touched_product_ids.add(product_id)
@@ -179,6 +188,12 @@ class OfferWriter:
             self.counts.offers_updated += 1
 
         self._insert_price_point(offer_id, offer)
+        # Galeri gorselleri (0073): tek ifade, metadata. Indirme yok, transaction'i
+        # bloke edecek ag cagrisi yok. Toplu toplama kolu ayni fonksiyonu chunk
+        # basina tek cagriyla kullanir.
+        image_counts = write_offer_images(self.conn, [(offer_id, offer.images)])
+        self.counts.images_written += image_counts.written
+        self.counts.images_removed += image_counts.removed
         for variant in offer.variants:
             self._write_variant(offer_id, variant, offer.current_price)
         return offer_id

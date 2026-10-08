@@ -1,9 +1,12 @@
 import {
   canAccessProduct,
   getDiscoverySlots,
+  getPublicTrends,
   isChatDiscoveryEnabled,
+  isChatImageEnabled,
   isProductOpen,
   LINK_SEARCH_PUBLIC,
+  type TrendSummary,
   todaySlotDate,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -17,7 +20,7 @@ import { resolveDiscoveryItems } from "./discovery-adapter.ts";
 import styles from "./home.module.css";
 import { HOME_COPY } from "./home-copy.ts";
 import { homeSectionLinks } from "./home-footer-groups.ts";
-import { loadRecentSearchChips } from "./home-recent-searches.ts";
+import { loadRecentProducts } from "./home-recent-products.ts";
 import { HomeSearchComposer } from "./home-search-composer-client.tsx";
 import { HomeSectionHeading } from "./home-section-heading.tsx";
 import { type HomeWayCard, HomeWaysCarousel } from "./home-ways-carousel-client.tsx";
@@ -25,7 +28,9 @@ import { verifySession } from "./lib/dal.ts";
 import { loadCachedEarlyAccessProgress } from "./lib/early-access-progress.ts";
 import { PublicSiteShell } from "./public-site-shell.tsx";
 import { SITE_BRAND } from "./site-config.ts";
-import { startChatInNewTabAction, startConversationAction } from "./sohbet/actions.ts";
+import { startConversationAction } from "./sohbet/actions.ts";
+import { TrendCardGrid } from "./trendler/trend-cards.tsx";
+import { TREND_COPY } from "./trendler/trend-copy.ts";
 
 /**
  * Kök metadata yalnızca ürün bayrağına bağlıdır, oturuma değil: arama
@@ -138,6 +143,29 @@ async function loadDiscoveryItems(): Promise<Awaited<ReturnType<typeof getDiscov
   }
 }
 
+/** Ana sayfada gosterilen trend sayisi (bir satir); fazlasi `/trendler`de. */
+const HOME_TREND_COUNT = 3;
+
+/**
+ * Gercek `trend` kayitlari (karar 0077): once `featured`, sonra siraya gore ilk
+ * uc. Hata/bos durumda bos liste: bolum gecici demo setine duser, sayfa bozulmaz.
+ */
+async function loadHomeTrends(): Promise<TrendSummary[]> {
+  try {
+    const trends = await getPublicTrends(getDatabase());
+    const featured = trends.filter((trend) => trend.featured);
+    const rest = trends.filter((trend) => !trend.featured);
+    return [...featured, ...rest].slice(0, HOME_TREND_COUNT);
+  } catch (error) {
+    const code =
+      error instanceof Error
+        ? `${error.name}${"code" in error ? `:${String(error.code)}` : ""}`
+        : "unknown";
+    console.warn(`[anasayfa] trend sorgusu basarisiz, demo set ile devam ediliyor (${code})`);
+    return [];
+  }
+}
+
 export default async function HomePage() {
   const user = await verifySession();
   if (!canAccessProduct(user)) {
@@ -152,9 +180,10 @@ export default async function HomePage() {
   }
 
   const chatEnabled = isChatDiscoveryEnabled();
-  const [items, recentSearches] = await Promise.all([
+  const [items, recentProducts, homeTrends] = await Promise.all([
     loadDiscoveryItems(),
-    loadRecentSearchChips(user?.id ?? null),
+    loadRecentProducts(user?.id ?? null),
+    loadHomeTrends(),
   ]);
   const discoveryItems = resolveDiscoveryItems(items);
   // Kesif bolumu bu sayfada varsa "Keşfet" oraya gider; yoksa /kesfet'e.
@@ -166,18 +195,34 @@ export default async function HomePage() {
         <Section spacing="none" aria-labelledby="anasayfa-baslik" className={styles.hero}>
           <HomeHero
             titleId="anasayfa-baslik"
-            title={HOME_COPY.heroTitle}
-            subtitle={HOME_COPY.heroSubtitle}
+            titleLead={HOME_COPY.heroTitleLead}
+            titleAccent={HOME_COPY.heroTitleAccent}
+            subtitle={HOME_COPY.heroSubline}
           >
             <HomeSearchComposer
               startChat={chatEnabled && user ? startConversationAction : undefined}
-              startChatInNewTab={chatEnabled && user ? startChatInNewTabAction : undefined}
-              recentSearches={recentSearches}
+              chatInNewTab={chatEnabled && user !== null}
+              imageChat={chatEnabled && user !== null && isChatImageEnabled()}
+              recentProducts={recentProducts}
             />
           </HomeHero>
         </Section>
 
-        {DEMO_HOMEPAGE_TRENDS.length > 0 ? (
+        {homeTrends.length > 0 ? (
+          <Section id="trendler" aria-labelledby="trendler-baslik" className={styles.anchored}>
+            <HomeSectionHeading
+              id="trendler-baslik"
+              title={HOME_COPY.trendsTitle}
+              description={HOME_COPY.trendsSubtitle}
+            />
+            <TrendCardGrid trends={homeTrends} eagerFirst labelledBy="trendler-baslik" />
+            <p className={styles.trendsMore}>
+              <a href="/trendler" className={styles.trendsMoreLink}>
+                {TREND_COPY.homeAllLink}
+              </a>
+            </p>
+          </Section>
+        ) : DEMO_HOMEPAGE_TRENDS.length > 0 ? (
           <Section id="trendler" aria-labelledby="trendler-baslik" className={styles.anchored}>
             <HomeSectionHeading
               id="trendler-baslik"

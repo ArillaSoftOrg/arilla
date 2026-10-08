@@ -3,7 +3,12 @@ import { isValidRequestKey } from "./charge.ts";
 import { DEFAULT_DAILY_SEARCH_LIMIT, dailySearchLimit } from "./config.ts";
 import { istanbulDay, nextResetAt } from "./day.ts";
 import { aiSearchRateLimitKey, checkAiSearchRateLimit } from "./rate-limit.ts";
-import { generateReferralCode, normalizeReferralCode } from "./referral.ts";
+import {
+  generatePublicReferralCode,
+  generateReferralCode,
+  normalizeReferralCode,
+  referralPrefixFromName,
+} from "./referral.ts";
 import { cappedCredit, splitCharge } from "./split.ts";
 
 describe("istanbulDay() / nextResetAt()", () => {
@@ -101,6 +106,46 @@ describe("davet kodu", () => {
     expect(normalizeReferralCode("ABCDO234")).toBeNull(); // O yok
     expect(normalizeReferralCode("ABC")).toBeNull();
     expect(normalizeReferralCode(42)).toBeNull();
+  });
+});
+
+describe("okunabilir davet kodu (0051)", () => {
+  it("eski 8 karakterli ve yeni YS-49577 bicimini kabul eder", () => {
+    expect(normalizeReferralCode("ABCD2345")).toBe("ABCD2345");
+    expect(normalizeReferralCode(" ys-49577 ")).toBe("YS-49577");
+    expect(normalizeReferralCode("YS-4957")).toBeNull();
+    expect(normalizeReferralCode("YS-495777")).toBeNull();
+    expect(normalizeReferralCode("Y1-49577")).toBeNull();
+    expect(normalizeReferralCode("YSS-49577")).toBeNull();
+    expect(normalizeReferralCode("../etc")).toBeNull();
+  });
+
+  it("on eki addan turetir: bas harfler, Turkce harfler ASCII'ye", () => {
+    expect(referralPrefixFromName("Yusuf Sarı")).toBe("YS");
+    expect(referralPrefixFromName("  yusuf   sarı  ")).toBe("YS");
+    expect(referralPrefixFromName("İpek Çağlar Öztürk")).toBe("IO");
+    expect(referralPrefixFromName("Şule Ğ.")).toBe("SG");
+    expect(referralPrefixFromName("ışık")).toBe("IS");
+    expect(referralPrefixFromName("Ayşe")).toBe("AY");
+    expect(referralPrefixFromName("Ö")).toBe("OX");
+    expect(referralPrefixFromName("José Álvarez")).toBe("JA");
+  });
+
+  it("ad yoksa, harf icermiyorsa ya da e-posta ise MC doner (e-posta sizmaz)", () => {
+    expect(referralPrefixFromName(null)).toBe("MC");
+    expect(referralPrefixFromName(undefined)).toBe("MC");
+    expect(referralPrefixFromName("")).toBe("MC");
+    expect(referralPrefixFromName("   ")).toBe("MC");
+    expect(referralPrefixFromName("1234 !!")).toBe("MC");
+    expect(referralPrefixFromName("yusuf.sari@example.com")).toBe("MC");
+  });
+
+  it("uretilen kod bicime uyar ve normalize edilince degismez", () => {
+    for (let i = 0; i < 200; i++) {
+      const code = generatePublicReferralCode("YS");
+      expect(code).toMatch(/^YS-[1-9][0-9]{4}$/);
+      expect(normalizeReferralCode(code)).toBe(code);
+    }
   });
 });
 

@@ -59,7 +59,7 @@ export default function NotFound() {
             links={
               open
                 ? [
-                    { href: "/#trendler", label: HOME_COPY.navTrends },
+                    { href: "/trendler", label: HOME_COPY.navTrends },
                     { href: "/kesfet", label: HOME_COPY.navDiscover },
                     { href: "/#nasil-calisir", label: HOME_COPY.navHowItWorks },
                   ]

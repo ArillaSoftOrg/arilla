@@ -2,7 +2,11 @@ import type { ReactNode } from "react";
 import styles from "./HomeHero.module.css";
 
 export interface HomeHeroProps {
-  title: string;
+  /** Basligin ilk hali ("Alışveriş mi?"). */
+  titleLead: string;
+  /** Basligin ikinci hali (marka adi); ilkiyle ayni alanda dönüşümlü görünür. */
+  titleAccent: string;
+  /** Sabit tek satir alt metin. */
   subtitle: string;
   /** h1'in id'si - cagiran bolum `aria-labelledby` ile baglar. */
   titleId?: string;
@@ -11,16 +15,19 @@ export interface HomeHeroProps {
 }
 
 /**
- * docs/pages.md "/": kisa, guclu baslik + tek satir deger onerisi + arama.
+ * docs/pages.md "/": donusumlu kisa baslik + sabit alt metin + arama.
  * Display rolu sayfada yalnizca burada kullanilir (design.md "Tip rolleri").
+ * Iki baslik metni ayni grid hucresinde ust uste durur; gecis saf CSS.
+ * Hareket istemeyen kullanici ikisini de yan yana, statik gorur.
  * Masaustunde ortali, okuma genisliginde; mobilde tam genislik.
  */
-export function HomeHero({ title, subtitle, titleId, children }: HomeHeroProps) {
+export function HomeHero({ titleLead, titleAccent, subtitle, titleId, children }: HomeHeroProps) {
   return (
     <div className={styles.hero}>
       <div className={styles.intro}>
         <h1 id={titleId} className={styles.title}>
-          {title}
+          <span className={styles.titleLead}>{titleLead}</span>{" "}
+          <span className={styles.titleAccent}>{titleAccent}</span>
         </h1>
         <p className={styles.subtitle}>{subtitle}</p>
       </div>

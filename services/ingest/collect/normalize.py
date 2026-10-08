@@ -9,6 +9,14 @@ from __future__ import annotations
 
 import unicodedata
 
+from collect.images import (
+    SelectedImage,
+    SourceImage,
+    clean_url,
+    images_from_entries,
+    normalize_key,
+    select_images,
+)
 from collect.mapping import FieldMapping
 from collect.records import NormalizedOffer, NormalizedVariant, RawRecord, RecordRejected
 
@@ -67,6 +75,26 @@ def _variants(record: RawRecord, mapping: FieldMapping) -> tuple[NormalizedVaria
     return tuple(variants)
 
 
+def _images(record: RawRecord, image_url: str | None) -> tuple[SelectedImage, ...]:
+    """Offer gorselleri. Kaynak coklu gorsel verdiyse (`groups["images"]`) onlar
+    (kaynak sirasiyla), vermediyse tek `image_url` (eski davranis). Kaynak
+    gorsel verdiginde `image_url` (orn. varyant `featured_image`i) siralamayi
+    belirlemez; rank 0 `normalize` icinde `offer.image_url` olur."""
+    flags = (record.groups.get("image_flags") or ({},))[0]
+    split = flags.get("split") == "1"
+    selected = select_images(images_from_entries(record.groups.get("images") or ()))
+    if split:
+        # unknown != safe (karar 0073 ek 4): renk-bolunmus urunde YALNIZ bu renge ozgu
+        # kanitli (varyanta bagli ya da bagli gorselle ayni dosya koku) gorseller girer.
+        # Bagsiz/ortak gorsel, baska renge bagli gorsel ve eski tek-gorsel yedegi girmez;
+        # kanit yoksa galeri bos kalir. `offer.image_url` bu yuzden degismez.
+        return tuple(image for image in selected if image.is_variant_specific)
+    if selected:
+        return tuple(selected)
+    cleaned = clean_url(image_url)
+    return tuple(select_images([SourceImage(cleaned)])) if cleaned else ()
+
+
 def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
     fields = dict(record.fields)
     formats = mapping.formats
@@ -113,6 +141,14 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
     else:
         in_stock = formats.parse_in_stock(mapping.get(fields, "availability"))
 
+    images = _images(record, mapping.get(fields, "image_url"))
+    # Galeri varsa `image_url` rank 0 ile AYNI olur (primary_image_url == galeri[0]).
+    top = next((image for image in images if image.display_rank == 0), None)
+    raw_image = mapping.get(fields, "image_url")
+    image_url = top.source_url if top else raw_image
+    cleaned_raw = clean_url(raw_image)
+    if top and cleaned_raw and normalize_key(cleaned_raw) == normalize_key(top.source_url):
+        image_url = raw_image  # ayni gorsel: kaynagin yazimini koru, sahte degisim uretme
     return NormalizedOffer(
         external_id=external_id,
         url=url,
@@ -122,7 +158,7 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
         in_stock=in_stock,
         brand_raw=mapping.get(fields, "brand"),
         category_raw=mapping.get(fields, "category"),
-        image_url=mapping.get(fields, "image_url"),
+        image_url=image_url,
         gtin=mapping.get(fields, "gtin"),
         currency=currency,
         shipping_days=shipping_days,
@@ -134,4 +170,5 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
             if key not in set(mapping.fields.values()) and len(value) <= 200
         },
         variants=variants,
+        images=images,
     )

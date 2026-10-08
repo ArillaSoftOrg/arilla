@@ -3,6 +3,7 @@ import { ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
 import { Suspense } from "react";
 import { CHAT_COPY } from "./chat-copy.ts";
 import { ChatResults } from "./chat-results.tsx";
+import { ChatUserRow } from "./chat-shell-parts.tsx";
 import { type ChatSortKey, parseSortKey } from "./chat-sort.ts";
 import { ResultTabs } from "./chat-tabs.tsx";
 import styles from "./sohbet.module.css";
@@ -60,12 +61,11 @@ export function ChatThread({
         if (message.role === "user") {
           const skipped = message.kind === "skip";
           return (
-            <li key={message.id} className={`${styles.row} ${styles.rowUser}`}>
-              <VisuallyHidden as="span">{CHAT_COPY.userLabel}: </VisuallyHidden>
-              <p className={`${styles.bubble} ${styles.bubbleUser}`}>
-                {skipped ? CHAT_COPY.skippedAnswer : message.content}
-              </p>
-            </li>
+            <ChatUserRow
+              key={message.id}
+              text={skipped ? CHAT_COPY.skippedAnswer : message.content}
+              imageSrc={message.attachmentId ? `/sohbet/gorsel/${message.attachmentId}` : null}
+            />
           );
         }
 

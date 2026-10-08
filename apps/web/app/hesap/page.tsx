@@ -1,4 +1,4 @@
-import { getReferralSummary, listHistory, REWARD_AMOUNTS, readAppUrl } from "@arilla/core";
+import { getReferralSummary, listHistory, readAppUrl } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState, ProductCard, SearchIcon } from "@arilla/ui";
 import type { Metadata } from "next";
@@ -19,8 +19,8 @@ const NEW_SEARCH_HREF = "/ara";
 const RECENTS_LIMIT = 8;
 
 /**
- * `/hesap` (karar 0060): sade profil sayfası. Profil kartı, davet bonusu ve
- * son gezilenler. Tema, izinler, veri indirme, geçmiş silme, arama hakkı
+ * `/hesap` (karar 0060): sade profil sayfası. Profil kartı, davet bağlantısı
+ * (ödül sayaçları ve metni arayüzde yok; mantık core'da durur) ve son gezilenler. Tema, izinler, veri indirme, geçmiş silme, arama hakkı
  * sayacı ve bülten tercihi bu sayfada YOKTUR; ilgili sunucu işlevleri yerinde
  * durur (veri indirme `/hesap/veri-indir`, geçmiş silme `/gecmis`).
  */
@@ -35,6 +35,8 @@ export default async function HesapPage() {
   const appUrl = readAppUrl();
   const invitePath = `/davet/${referral.code}`;
   const inviteUrl = appUrl ? new URL(invitePath, appUrl).toString() : invitePath;
+  // Gösterilen metinde şema yok ("manicepte.com/davet/YS-49577"); panoya tam URL gider.
+  const inviteDisplay = inviteUrl.replace(/^https?:\/\//, "");
 
   const accountLabel = user.email ?? "E-posta bağlı değil";
   const displayLabel = user.displayName?.trim() || "ManiCepte kullanıcısı";
@@ -81,19 +83,11 @@ export default async function HesapPage() {
       </header>
 
       <div className={styles.content}>
-        <section className={styles.card} aria-labelledby="hesap-bonus">
-          <h2 id="hesap-bonus" className={styles.cardTitle}>
-            Bonus hak kazan
+        <section className={styles.referral} aria-labelledby="hesap-davet">
+          <h2 id="hesap-davet" className={styles.cardTitle}>
+            Arkadaşlarınıza tavsiye edin
           </h2>
-          <p className={styles.cardText}>
-            Davet linkinle katılan biri ilk fotoğraf ya da bağlantı aramasını yaptığında sen{" "}
-            {REWARD_AMOUNTS.referralInviter}, o {REWARD_AMOUNTS.referralInvitee} bonus hak kazanır.
-          </p>
-          <ReferralLinkClient url={inviteUrl} />
-          <p className={styles.cardMeta}>
-            Davet ettiklerin: {referral.qualified} ödül kazandı, {referral.pending} ilk aramasını
-            bekliyor.
-          </p>
+          <ReferralLinkClient url={inviteUrl} display={inviteDisplay} />
         </section>
 
         <section className={styles.recents} aria-labelledby="hesap-son">

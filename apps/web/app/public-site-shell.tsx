@@ -40,7 +40,7 @@ const MAIN_ID = "icerik";
  */
 /**
  * `aria-current="page"` icin: yalnizca `href`'i tam olarak su anki yola
- * esit olan linkler etkin sayilir (`/#trendler` gibi anchor'lar asla).
+ * esit olan linkler etkin sayilir (`/#nasil-calisir` gibi anchor'lar asla).
  * Yol cagirandan gelir - kabuk URL okumaz, istemci JS'i yok.
  */
 function markCurrent<T extends { href: string }>(
@@ -55,6 +55,7 @@ export async function PublicSiteShell({
   links,
   currentPath,
   fullBleed = false,
+  chrome = "site",
   children,
 }: {
   links: SiteSectionLinks;
@@ -62,8 +63,15 @@ export async function PublicSiteShell({
   currentPath?: string;
   /** Editoryal sayfalar: icerik `Container` icine alinmaz, tam genislik bolumler sayfanin kendisindedir. */
   fullBleed?: boolean;
+  /**
+   * `chat`: sohbet calisma alani (`/sohbet/*`) - footer yok, ust cubuk yalin
+   * ve yapiskan (menu + marka), icerik alani kalan yuksekligi doldurur.
+   * Rota ince `layout.tsx`'i secer; baska sayfalar `site` kalir.
+   */
+  chrome?: "site" | "chat";
   children: ReactNode;
 }) {
+  const isChat = chrome === "chat";
   const user = await verifySession();
   // P2: lansman öncesi ürün kapalıyken (moderatör/yönetici hariç) ürün
   // bağlantıları gösterilmez; giriş eylemi "Erken erişime katıl" olur,
@@ -103,6 +111,7 @@ export async function PublicSiteShell({
         brandLogoSrc="/icon4.png"
         navItems={navItems}
         navAriaLabel="Ana gezinme"
+        variant={isChat ? "chat" : "site"}
         accountHref={accountHref}
         accountLabel={accountLabel}
         loginHref={loginHref}
@@ -119,10 +128,20 @@ export async function PublicSiteShell({
         }
       />
       {/* tabIndex -1: SkipLink'ten sonra odak tum tarayicilarda ana icerige tasinir. */}
-      <main id={MAIN_ID} tabIndex={-1} className={styles.main}>
-        {fullBleed ? children : <Container size="wide">{children}</Container>}
+      <main
+        id={MAIN_ID}
+        tabIndex={-1}
+        className={isChat ? `${styles.main} ${styles.mainChat}` : styles.main}
+      >
+        {fullBleed ? (
+          children
+        ) : (
+          <Container size="wide" className={isChat ? styles.chatContainer : undefined}>
+            {children}
+          </Container>
+        )}
       </main>
-      {fullBleed ? (
+      {isChat ? null : fullBleed ? (
         <EditorialFooter
           brandLabel={SITE_BRAND}
           groups={footerGroups}
@@ -152,19 +171,26 @@ export async function PublicSiteShell({
   );
 }
 
-/** Public alt sayfalar: bolum linkleri ana sayfaya doner (`/#trendler`, ...). */
+/** Public alt sayfalar: bolum linkleri ana sayfaya doner (`/#nasil-calisir`, ...). */
 export function SubpageShell({
   currentPath,
   fullBleed,
+  chrome,
   children,
 }: {
   /** Bkz. `PublicSiteShell.currentPath` - route'un ince `layout.tsx`'i verir. */
   currentPath?: string;
   fullBleed?: boolean;
+  chrome?: "site" | "chat";
   children: ReactNode;
 }) {
   return (
-    <PublicSiteShell links={SUBPAGE_SECTION_LINKS} currentPath={currentPath} fullBleed={fullBleed}>
+    <PublicSiteShell
+      links={SUBPAGE_SECTION_LINKS}
+      currentPath={currentPath}
+      fullBleed={fullBleed}
+      chrome={chrome}
+    >
       {children}
     </PublicSiteShell>
   );

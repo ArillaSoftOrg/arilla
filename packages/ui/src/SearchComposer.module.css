@@ -222,3 +222,100 @@
     text-align: start;
   }
 }
+
+/* "Alışverişe devam et": ProductCard satırı. Telefonda yatay kaydırma (sayfa
+   taşmaz, satır gutter'a kadar uzanır); tablet+ta aynı satır, kartlar sabit genişlik. */
+.recentRow {
+  display: flex;
+  gap: var(--space-3);
+  margin-block: 0;
+  margin-inline: calc(-1 * var(--gutter));
+  padding-block: var(--space-1);
+  padding-inline: var(--gutter);
+  list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: var(--gutter);
+  scrollbar-width: none;
+}
+
+.recentRow::-webkit-scrollbar {
+  display: none;
+}
+
+.recentItem {
+  flex: 0 0 min(10rem, 58%);
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+@media (min-width: 640px) {
+  .recentRow {
+    margin-inline: 0;
+    padding-inline: 0;
+  }
+
+  .recentItem {
+    flex-basis: 11rem;
+  }
+}
+
+/* Karar 0078: gonderilmemis fotograf, girdinin ustunde kucuk onizleme. */
+.box.boxWithAttachment {
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.attachment {
+  position: relative;
+  align-self: flex-start;
+}
+
+.attachmentImage {
+  display: block;
+  width: 72px;
+  height: 72px;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  object-fit: cover;
+}
+
+/* Dokunma hedefi 44 px: gorsel kucuk ama dugme buyuk (kose disina tasar). */
+.attachmentRemove {
+  position: absolute;
+  inset-block-start: calc(-1 * var(--space-2));
+  inset-inline-end: calc(-1 * var(--space-2));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.attachmentRemove::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+}
+
+.attachmentRemove:hover:not(:disabled) {
+  background: var(--surface-hover);
+}
+
+.attachmentRemove:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.attachmentRemove:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}

@@ -21,6 +21,14 @@ export function isChatDiscoveryEnabled(env: Env = process.env): boolean {
   return env.CHAT_DISCOVERY_ENABLED?.trim() === "true";
 }
 
+/**
+ * Sohbet gorsel eki (karar 0078). `CHAT_IMAGE_ENABLED=true` verilmedikce kapali;
+ * hukuk onayi gelmeden acilmaz. Sohbetin kendisi de acik olmalidir.
+ */
+export function isChatImageEnabled(env: Env = process.env): boolean {
+  return isChatDiscoveryEnabled(env) && env.CHAT_IMAGE_ENABLED?.trim() === "true";
+}
+
 export function chatTurnsPerHour(env: Env = process.env): number {
   const parsed = Number.parseInt(env.CHAT_TURNS_PER_HOUR ?? "", 10);
   if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_CHAT_TURNS_PER_HOUR;

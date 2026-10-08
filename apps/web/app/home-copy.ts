@@ -3,7 +3,10 @@
  * tanimli - anahtarlar yorum olarak burada tutulur.
  */
 export const HOME_COPY = {
-  heroTitle: "Aradığın ürünü bul", // home.hero_title
+  heroTitleLead: "Alışveriş mi?", // home.hero_title_lead
+  heroTitleAccent: "Manicepte.", // home.hero_title_accent
+  heroSubline: "Ne aradığını anlat, görselini yükle veya linkini bırak.", // home.hero_subline
+  // Hero'da cizilmez; alt bilgi aciklamasi olarak kullanilir.
   heroSubtitle: "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.", // home.tagline
   // Kullanicinin gercek son aramalari; gecmis yoksa bolum hic cizilmez.
   searchIdeasTitle: "Alışverişe devam et", // home.search_ideas_title
@@ -74,7 +77,7 @@ export const HOME_COPY = {
   navSaved: "Kaydettiklerim", // nav.saved
   navAlerts: "Alarmlarım", // nav.alerts
   navHistory: "Geçmişim", // nav.history
-  searchPlaceholder: "Ürün adı, fotoğraf veya kısa tarif ekle", // search.placeholder
+  searchPlaceholder: "Manicepte’ye sor...", // search.placeholder
   searchInputLabel: "Ürün ara", // search.input_label
   searchSubmitLabel: "Ara", // action.search
   loginLabel: "Giriş yap", // action.login
