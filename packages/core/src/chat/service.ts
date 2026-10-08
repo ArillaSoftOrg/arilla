@@ -942,7 +942,7 @@ function isMissingTable(error: unknown): boolean {
   return code === "42P01";
 }
 
-export type ResultFeedbackStatus = "saved" | "not_found" | "invalid";
+export type ResultFeedbackStatus = "saved" | "not_found" | "invalid" | "unavailable";
 
 /** Oy anindaki model surumu icin aranan pencere (api_usage mesaja bagli degil; yaklasik). */
 const FEEDBACK_MODEL_LOOKBACK_MS = 10 * 60 * 1000;
@@ -1034,19 +1034,15 @@ export async function setResultFeedback(
             OR ${chatResultFeedback.comment} IS DISTINCT FROM ${sql.raw("EXCLUDED.comment")}`,
         });
     } catch (error) {
-      // 0058 henuz uygulanmamis: yalniz evet/hayir yazilir, neden/yorum dusurulur (karar 0079).
+      // 0058 henuz uygulanmamis: yalniz evet/hayir yazilabilir. Neden/yorum varsa "saved"
+      // DONME (kullanici yorumunun kaydoldugunu sanirdi): "unavailable", modal acik kalir.
       if (!isMissingColumn(error)) throw error;
-      await db
-        .insert(chatResultFeedback)
-        .values({
-          messageId: message.id,
-          conversationId: input.conversationId,
-          helpful: input.helpful,
-        })
-        .onConflictDoUpdate({
-          target: chatResultFeedback.messageId,
-          set: { helpful: input.helpful, updatedAt: sql`now()` },
-        });
+      if (details.reasons.length > 0 || details.comment !== null) return "unavailable";
+      // Ham SQL: Drizzle insert'i semadaki TUM kolonlari adlandirir, 0058 oncesi yine 42703 verirdi.
+      await db.execute(sql`
+        INSERT INTO chat_result_feedback (message_id, conversation_id, helpful)
+        VALUES (${message.id}, ${input.conversationId}::uuid, ${input.helpful})
+        ON CONFLICT (message_id) DO UPDATE SET helpful = EXCLUDED.helpful, updated_at = now()`);
     }
   } catch (error) {
     // Tablo yok (0055 bekliyor): oy kaydedilemedi, arayuz "kaydedemedim" der.

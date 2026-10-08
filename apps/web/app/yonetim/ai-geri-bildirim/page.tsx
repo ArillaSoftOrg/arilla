@@ -2,6 +2,7 @@ import {
   getChatFeedbackSummary,
   isChatFeedbackDay,
   isChatFeedbackReason,
+  isChatFeedbackSchemaMissing,
   listChatFeedback,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -10,7 +11,7 @@ import Link from "next/link";
 import { requireCapability } from "../../lib/dal.ts";
 import { CHAT_COPY } from "../../sohbet/chat-copy.ts";
 import styles from "../admin.module.css";
-import { PageHeader, Section, Tile } from "../admin-ui.tsx";
+import { ErrorNotice, PageHeader, Section, Tile } from "../admin-ui.tsx";
 import { formatCount, formatDateTime, hrefWith, positiveInt } from "../format.ts";
 import { percent, reasonLabel } from "./labels.ts";
 
@@ -46,10 +47,29 @@ export default async function ChatFeedbackPage({
 
   const db = getDatabase();
   const filter = { from, to, helpful, reason, hasComment, beforeId };
-  const [summary, page] = await Promise.all([
-    getChatFeedbackSummary(db, actor, filter),
-    listChatFeedback(db, actor, filter),
-  ]);
+  const loadAll = async () => {
+    const [summary, page] = await Promise.all([
+      getChatFeedbackSummary(db, actor, filter),
+      listChatFeedback(db, actor, filter),
+    ]);
+    return { summary, page };
+  };
+  let loaded: Awaited<ReturnType<typeof loadAll>>;
+  try {
+    loaded = await loadAll();
+  } catch (error) {
+    if (!isChatFeedbackSchemaMissing(error)) throw error;
+    return (
+      <div className={styles.page}>
+        <PageHeader title="AI geri bildirimleri" />
+        <ErrorNotice>
+          Geri bildirim tabloları bu veritabanında hazır değil (migration 0058 uygulanmamış).
+          Migration uygulandıktan sonra bu sayfa çalışır.
+        </ErrorNotice>
+      </div>
+    );
+  }
+  const { summary, page } = loaded;
   const base = {
     baslangic: from,
     bitis: to,

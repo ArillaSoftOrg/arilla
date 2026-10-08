@@ -1,4 +1,4 @@
-import { getChatFeedbackDetail } from "@arilla/core";
+import { getChatFeedbackDetail, isChatFeedbackSchemaMissing } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -21,7 +21,14 @@ export default async function ChatFeedbackDetailPage({
   const { actor } = await requireCapability("feedback.chat.read");
   const messageId = positiveInt((await params).messageId);
   if (!messageId) notFound();
-  const detail = await getChatFeedbackDetail(getDatabase(), actor, messageId);
+  let detail: Awaited<ReturnType<typeof getChatFeedbackDetail>>;
+  try {
+    detail = await getChatFeedbackDetail(getDatabase(), actor, messageId);
+  } catch (error) {
+    // 0058 uygulanmamis: 500 yerine bulunamadi (liste sayfasi nedenini aciklar).
+    if (!isChatFeedbackSchemaMissing(error)) throw error;
+    notFound();
+  }
   if (!detail) notFound();
 
   return (

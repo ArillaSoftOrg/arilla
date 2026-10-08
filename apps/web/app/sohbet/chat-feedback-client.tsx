@@ -31,6 +31,7 @@ export function ResultFeedback({
   const [dialogOpen, setDialogOpen] = useState(false);
   const [pending, startTransition] = useTransition();
   const downRef = useRef<HTMLButtonElement>(null);
+  const refocus = useRef(false);
 
   // Bu blok yalnizca sonuclar cizilince baglanir: urunler gorunur.
   useEffect(() => {
@@ -57,11 +58,19 @@ export function ResultFeedback({
     });
   }
 
+  // Odak 👎 dugmesine doner (iptal ve basarida). Basarida dugme hala `disabled` (gecis
+  // bitmedi) oldugundan odak yalnizca `pending` bitince verilir; aksi halde <body>'ye duser.
+  useEffect(() => {
+    if (!pending && !dialogOpen && refocus.current) {
+      refocus.current = false;
+      downRef.current?.focus();
+    }
+  });
+
   function closeDialog() {
+    refocus.current = true;
     setDialogOpen(false);
     setFailed(null);
-    // Odak 👎 dugmesine doner (iptal ve basarida).
-    queueMicrotask(() => downRef.current?.focus());
   }
 
   function sendNegative(details: { reasons: FeedbackReasonCode[]; comment: string }) {

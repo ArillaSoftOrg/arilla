@@ -22,6 +22,17 @@ const QUERY_TIMEOUT_MS = 8_000;
 const TIME_ZONE = "Europe/Istanbul";
 const DAY_PATTERN = /^\d{4}-\d{2}-\d{2}$/;
 
+/**
+ * 0058 (kolonlar) ya da 0055 (tablo) henuz uygulanmamis bir veritabaninda yonetim sayfasi
+ * 500 yerine aciklayici bir not gosterir: kod migration'dan once dagitilirsa kirilmaz.
+ */
+export function isChatFeedbackSchemaMissing(error: unknown): boolean {
+  const code =
+    (error as { cause?: { code?: string } } | null)?.cause?.code ??
+    (error as { code?: string } | null)?.code;
+  return code === "42703" || code === "42P01";
+}
+
 export function isChatFeedbackReason(value: unknown): value is ChatFeedbackReason {
   return typeof value === "string" && (CHAT_FEEDBACK_REASONS as readonly string[]).includes(value);
 }
