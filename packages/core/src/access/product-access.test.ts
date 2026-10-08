@@ -116,19 +116,31 @@ describe("redirects", () => {
 });
 
 describe("isPublicProductPath", () => {
-  it.each(["/urun/abc", "/kesfet", "/firsatlar", "/ara", "/ara/link", "/git/12"])(
-    "%s is a product path",
-    (path) => {
-      expect(isPublicProductPath(path)).toBe(true);
-    },
-  );
+  it.each([
+    "/urun/abc",
+    "/kesfet",
+    "/firsatlar",
+    "/trendler",
+    "/trendler/kuru-ciltlere-son",
+    "/ara",
+    "/ara/link",
+    "/git/12",
+  ])("%s is a product path", (path) => {
+    expect(isPublicProductPath(path)).toBe(true);
+  });
 
-  it.each(["/", "/giris", "/gizlilik", "/erken-erisim", "/hesap", "/urunler", "/arama"])(
-    "%s is not",
-    (path) => {
-      expect(isPublicProductPath(path)).toBe(false);
-    },
-  );
+  it.each([
+    "/",
+    "/giris",
+    "/gizlilik",
+    "/erken-erisim",
+    "/hesap",
+    "/urunler",
+    "/arama",
+    "/trendlerim",
+  ])("%s is not", (path) => {
+    expect(isPublicProductPath(path)).toBe(false);
+  });
 });
 
 describe("landing login paths", () => {

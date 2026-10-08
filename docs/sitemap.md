@@ -65,7 +65,7 @@ Alternatif sayfası (`/alternatif/<slug>`) haritaya girer, ancak en az
 /                          ana sayfa
 /hakkinda /iletisim /sss
 /gizlilik /kosullar /cerez
-/kesfet /firsatlar /trend
+/kesfet /firsatlar /trendler /trend
 ```
 
 ### Kategori sayfaları

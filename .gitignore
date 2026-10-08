@@ -42,3 +42,6 @@ id_dsa
 id_ecdsa
 id_ed25519
 id_ed25519.*
+
+# Vercel CLI yerel baglantisi
+.vercel/

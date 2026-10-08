@@ -23,6 +23,7 @@ veritabani tarafindan reddedilir.
 | --- | --- | --- |
 | `collect/` | Feed, API ve ag dokumu okuma (Katman 1) | B1 ✅ |
 | `collect/link/` | Kullanici linki cozumleme (Katman 2) | B2 ✅ |
+| `curate/` | Trend-urun eslestirme (`trend_product`, karar 0077) | ✅ |
 | `enrich/` | Gorsel indirme, hash, embedding uretimi | B3 ✅ |
 | `resolve/` | Katmanli eslestirme, `match_candidate` yazimi | B4 ✅ |
 | `similarity/` | Gecelik `similarity_edge` ve `product_price_stats` | B5 ✅ |
@@ -43,6 +44,11 @@ pip install -e ".[dev]"
 
 ```bash
 python -m collect --merchant <slug>
+
+# Trend-urun eslestirme (karar 0077): varsayilan KURU KOSU
+python -m curate --show 6                 # rapor: trend -> aday -> secilen
+python -m curate --apply                  # yalniz YEREL veritabanina yazar
+python -m curate --apply --allow-remote   # bilincli yayin adimi; adres/parola yazdirilmaz
 ```
 
 Cikis kodu: `success` icin 0, `partial` ve `failed` icin 1 — cron ve izleme

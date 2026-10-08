@@ -11,7 +11,9 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | Anahtar | Metin |
 | --- | --- |
 | `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
-| `home.hero_title` | Aradığın ürünü bul |
+| `home.hero_title_lead` | Alışveriş mi? |
+| `home.hero_title_accent` | Manicepte. |
+| `home.hero_rotating_lines` | Bir şey mi arıyorsun? / Bir şey mi beğendin? / Daha uygunu mu lazım? / Karar veremiyor musun? (3 sn arayla, sırayla) |
 | `home.search_ideas_title` | Arama fikirleri |
 | `home.trends_title` | Trendler |
 | `home.trends_subtitle` | Arilla'da öne çıkan stiller ve ürün fikirleri. |
@@ -197,7 +199,7 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 
 | Anahtar | Metin |
 | --- | --- |
-| `search.placeholder` | Ürün adı veya kısa bir tarif yaz |
+| `search.placeholder` | Manicepte’ye sor... |
 | `search.placeholder_results` | Ürün adı, marka ya da kısa bir tarif yaz |
 | `search.input_label` | Ürün ara |
 | `search.title_empty_query` | Ne arıyorsun? |
