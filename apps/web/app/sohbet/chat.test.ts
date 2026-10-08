@@ -29,6 +29,14 @@ const ALL_COPY: string[] = [
   ...Object.values(CHAT_ERROR_COPY).map((entry) => entry.message),
 ];
 
+const COMPOSER_STAYS_OPEN = new Set([
+  "invalid_input",
+  "invalid_type",
+  "too_large",
+  "unprocessable",
+  "send_failed",
+]);
+
 describe("chat copy (CLAUDE.md dil kuralları)", () => {
   it("has no forbidden words", () => {
     for (const text of ALL_COPY) {
@@ -44,8 +52,9 @@ describe("chat copy (CLAUDE.md dil kuralları)", () => {
 
   it("every error kind offers a way forward", () => {
     for (const [kind, copy] of Object.entries(CHAT_ERROR_COPY)) {
-      // `invalid_input`ta giriş kutusu açık kalır: kullanıcı yeniden yazar.
-      if (kind === "invalid_input") continue;
+      // Bu türlerde giriş kutusu açık kalır ve mesaj ile fotoğraf korunur: kullanıcı yazıyı ya da
+      // fotoğrafı düzeltip yeniden gönderir (karar 0079). Ayrı bir düğmeye gerek yoktur.
+      if (COMPOSER_STAYS_OPEN.has(kind)) continue;
       expect(copy.retry || copy.searchDirectly || copy.newChat).toBe(true);
     }
   });

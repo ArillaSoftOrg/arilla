@@ -313,8 +313,7 @@ describe("home-image-chat (saf mantık)", () => {
       " ",
     );
     expect(text).not.toMatch(/satın al|dupe|ucuz/i);
-    // Dosya biçimi adları (JPEG, PNG) büyük harfle yazılır; bağırma değildir.
-    expect(text.replace(/JPEG|PNG/g, "")).not.toMatch(/b[A-ZÇĞİÖŞÜ]{3,}b/);
+    expect(text).not.toMatch(/\p{Lu}{3,}/u);
   });
 });
 

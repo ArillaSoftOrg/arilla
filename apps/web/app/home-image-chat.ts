@@ -32,7 +32,8 @@ export type ImageChatErrorKind =
   | "error";
 
 export const IMAGE_CHAT_ERROR_COPY: Record<ImageChatErrorKind, string> = {
-  invalid_type: "Bu dosya türünü kullanamıyoruz. JPEG, PNG ya da WebP bir fotoğraf dener misin?",
+  invalid_type:
+    "Bu dosya türünü kullanamıyoruz. jpg, png ya da webp uzantılı bir fotoğraf dener misin?",
   too_large: "Fotoğraf çok büyük. 4 MB'tan küçük bir dosya dener misin?",
   unprocessable: "Bu görseli işleyemedik. Başka bir fotoğrafla yeniden dener misin?",
   rate_limited: "Kısa sürede çok fazla mesaj gönderdin. Biraz sonra tekrar dener misin?",

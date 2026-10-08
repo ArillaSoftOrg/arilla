@@ -168,6 +168,6 @@ describe("görsel gönderim durumları sohbet içinde anlaşılır hatalara çev
       ...Object.values(CHAT_ERROR_COPY).map((entry) => entry.message),
     ].join(" ");
     expect(text).not.toMatch(/satın al|dupe|ucuz/i);
-    expect(text.replace(/JPEG|PNG/g, "")).not.toMatch(/\b[A-ZÇĞİÖŞÜ]{4,}\b/);
+    expect(text).not.toMatch(/\p{Lu}{3,}/u);
   });
 });
