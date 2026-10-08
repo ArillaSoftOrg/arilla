@@ -3,6 +3,7 @@ import {
   getDiscoverySlots,
   isChatDiscoveryEnabled,
   isProductOpen,
+  LINK_SEARCH_PUBLIC,
   todaySlotDate,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -214,7 +215,11 @@ export default async function HomePage() {
           aria-labelledby="nasil-calisir-baslik"
           className={`${styles.anchored} ${styles.waysSection}`}
         >
-          <HomeWaysCarousel title="Arilla ile arama yolları" items={HOME_WAYS} />
+          <HomeWaysCarousel
+            title="Arilla ile arama yolları"
+            // Link araması geçici olarak kapalı: kart tanıtılmaz.
+            items={HOME_WAYS.filter((way) => LINK_SEARCH_PUBLIC || way.mode !== "link")}
+          />
         </Section>
       </div>
     </PublicSiteShell>

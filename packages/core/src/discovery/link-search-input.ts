@@ -34,6 +34,14 @@ const BLOCKED_SUFFIXES = [
   ".home.arpa",
 ];
 
+/**
+ * Link araması herkese açık mı. `false`: `/ara/link` "Yakında" gösterir, yeni
+ * istek kuyruğa alınmaz, ana sayfa bu yolu tanıtmaz. Rota, kuyruk, worker ve
+ * yönetim tanısı yerinde kalır; açmak bu sabiti `true` yapmaktır (link worker
+ * üretimde çalışmadan açılmaz).
+ */
+export const LINK_SEARCH_PUBLIC = false;
+
 /** Arama kutusuna yazılan metin bir link araması mı? Yalnızca http(s) ile başlayan. */
 export function isLinkSearchInput(raw: string | null | undefined): boolean {
   return typeof raw === "string" && /^\s*https?:\/\/\S/i.test(raw);

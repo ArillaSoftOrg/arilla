@@ -74,7 +74,7 @@ export const HOME_COPY = {
   navSaved: "Kaydettiklerim", // nav.saved
   navAlerts: "Alarmlarım", // nav.alerts
   navHistory: "Geçmişim", // nav.history
-  searchPlaceholder: "Ürün linki, fotoğraf veya kısa tarif ekle", // search.placeholder
+  searchPlaceholder: "Ürün adı, fotoğraf veya kısa tarif ekle", // search.placeholder
   searchInputLabel: "Ürün ara", // search.input_label
   searchSubmitLabel: "Ara", // action.search
   loginLabel: "Giriş yap", // action.login

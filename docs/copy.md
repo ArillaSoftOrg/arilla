@@ -658,6 +658,13 @@ Arama sonucunda görünen ama sayfada gösterilmeyen metinler (D6). `{ürün}` v
 
 Kaynak: `apps/web/app/ara/link/link-search-copy.ts` (docs/decisions/0035).
 
+Geçici olarak kapalı (`LINK_SEARCH_PUBLIC = false`): `/ara/link` yalnızca
+"Yakında" durumunu gösterir — başlık `Yakında`, açıklama "Link ile ürün arama
+özelliği yakında aktif olacak. Şimdilik ürün adını yazarak ya da fotoğraf
+yükleyerek arayabilirsin.", arama kutusu "Ürün adı, marka ya da kısa bir tarif
+yaz". Ana sayfa "Ürün linki yapıştır" kartını ve kutudaki "Ürün linki"
+ifadesini göstermez.
+
 | Anahtar | Metin |
 | --- | --- |
 | `link_search.pending_title` | Ürün inceleniyor… |
