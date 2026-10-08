@@ -8,9 +8,13 @@ import {
   createConversation,
   getChatInterpreter,
   getTurnStatus,
+  ImageRejectedError,
   isChatDiscoveryEnabled,
+  isChatImageEnabled,
   isUuid,
+  isValidRequestKey,
   logChatTimings,
+  preprocessImage,
   processPendingTurn,
   processPendingTurnDetailed,
   setResultFeedback,
@@ -72,6 +76,79 @@ export async function startConversationAction(formData: FormData): Promise<void>
   if (created.status !== "created") redirect(plainSearchHref(text));
   scheduleInitialTurn(db, user.id, created.conversationId);
   redirect(`/sohbet/${created.conversationId}`);
+}
+
+/** `ara/gorsel/actions.ts` ve `next.config.ts` (serverActions.bodySizeLimit) ile ayni sinir. */
+const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
+const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+export type ImageChatResult =
+  | { status: "created"; href: string }
+  | {
+      status:
+        | "login_required"
+        | "unavailable"
+        | "invalid_input"
+        | "invalid_type"
+        | "too_large"
+        | "unprocessable"
+        | "rate_limited"
+        | "error";
+    };
+
+/**
+ * Ana sayfa kutusu, fotograf + metin (karar 0078): sohbeti, gorsel eki ve ilk
+ * kullanici mesajini TEK islemde olusturur; ilk turu (Gemini, gorselle birlikte)
+ * yanit gittikten sonra `after()` ile baslatir. Metin bos olabilir. Gorsel burada
+ * dogrulanir ve on islenir (`preprocessImage`: decode, <=512 px, EXIF'siz); ham dosya
+ * saklanmaz. Hicbir hata mesaji/yanit icerigi istemciye donmez, yalnizca durum kodu.
+ */
+export async function startConversationWithImageAction(
+  formData: FormData,
+): Promise<ImageChatResult> {
+  const user = await verifySession();
+  if (!user) return { status: "login_required" };
+  if (!isChatDiscoveryEnabled() || !isChatImageEnabled() || !canAccessProduct(user)) {
+    return { status: "unavailable" };
+  }
+  const requestKey = formData.get("requestKey");
+  if (!isValidRequestKey(requestKey)) return { status: "invalid_input" };
+  const file = formData.get("photo");
+  if (!(file instanceof File) || file.size === 0) return { status: "invalid_input" };
+  if (!IMAGE_MIME_TYPES.has(file.type)) return { status: "invalid_type" };
+  if (file.size > MAX_IMAGE_UPLOAD_BYTES) return { status: "too_large" };
+  const rawText = formData.get("q");
+  const text = typeof rawText === "string" ? rawText.trim().slice(0, 500) : "";
+
+  let prepared: Awaited<ReturnType<typeof preprocessImage>>;
+  try {
+    prepared = await preprocessImage(Buffer.from(await file.arrayBuffer()));
+  } catch (error) {
+    if (error instanceof ImageRejectedError) return { status: "unprocessable" };
+    return { status: "error" };
+  }
+
+  const db = getDatabase();
+  let created: Awaited<ReturnType<typeof createConversation>>;
+  try {
+    created = await createConversation(db, {
+      userId: user.id,
+      message: text,
+      requestKey,
+      attachment: {
+        bytes: prepared.bytes,
+        mimeType: prepared.mimeType,
+        width: prepared.width,
+        height: prepared.height,
+      },
+    });
+  } catch {
+    return { status: "error" };
+  }
+  if (created.status === "rate_limited") return { status: "rate_limited" };
+  if (created.status !== "created") return { status: "invalid_input" };
+  scheduleInitialTurn(db, user.id, created.conversationId);
+  return { status: "created", href: `/sohbet/${created.conversationId}` };
 }
 
 export type SendMessageStatus =

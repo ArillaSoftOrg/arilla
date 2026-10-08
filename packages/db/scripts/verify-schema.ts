@@ -36,6 +36,8 @@ const UPDATE_BLOCKED = {
   user_activity_event: "kind",
   /** 0054: sohbet mesaji eklenir, degistirilmez; DELETE saklama suresi icin acik. */
   chat_message: "kind",
+  /** 0057: sohbet gorsel eki eklenir, degistirilmez. */
+  chat_attachment: "mime_type",
 } as const;
 const INSUFFICIENT_PRIVILEGE = "42501";
 const FOREIGN_KEY_VIOLATION = "23503";

@@ -1,8 +1,8 @@
 "use client";
 
-import { type FormEvent, useId, useRef } from "react";
+import { type FormEvent, type KeyboardEvent, useId, useRef } from "react";
 import { Button } from "./Button.tsx";
-import { ArrowRightIcon, PlusIcon } from "./icons.tsx";
+import { ArrowRightIcon, CloseIcon, PlusIcon } from "./icons.tsx";
 import { listRole } from "./layout.ts";
 import { PhotoUploadButton } from "./PhotoUploadButton.tsx";
 import { ProductCard } from "./ProductCard.tsx";
@@ -13,6 +13,35 @@ export interface SearchComposerPhoto {
   label: string;
   onFileSelected: (file: File) => void;
   disabled?: boolean;
+}
+
+/**
+ * Gonderilmeden once kutuda duran fotograf (karar 0078). Verilirse Enter/Gonder,
+ * metin (bos olabilir) + fotografi TEK eylemle `onSubmit`e verir; form yonlenmez.
+ * Secme/yukleme mantigi cagiran tarafta (apps/web).
+ */
+export interface SearchComposerAttachment {
+  previewUrl: string;
+  /** Onizlemenin erisilebilir metni. */
+  alt: string;
+  removeLabel: string;
+  onRemove: () => void;
+  /** `true` (ya da cozulurse) donerse girdi temizlenir. Cagiran hatayi kendisi gosterir. */
+  onSubmit: (text: string) => boolean | Promise<boolean>;
+  /** Gonderim suruyor: girdi, kaldirma ve gonder kapali. */
+  pending?: boolean;
+}
+
+/**
+ * Enter yalnizca IME birlestirmesini onaylamak icinse (CJK, bazi mobil klavyeler,
+ * Safari'nin `keyCode 229`'u) formu gondermemeli.
+ */
+export function isImeEnter(event: {
+  key: string;
+  isComposing?: boolean;
+  keyCode?: number;
+}): boolean {
+  return event.key === "Enter" && (event.isComposing === true || event.keyCode === 229);
 }
 
 export interface SearchComposerRecentProduct {
@@ -47,6 +76,8 @@ export interface SearchComposerProps {
   /** Fotograf yukleme - verilirse kutunun icinde ikon dugmesi olarak cizilir.
    * Yukleme mantigi cagiran tarafta (apps/web). */
   photo?: SearchComposerPhoto;
+  /** Karar 0078: kutuda bekleyen, henuz gonderilmemis fotograf. */
+  attachment?: SearchComposerAttachment | null;
   /** Yukleme hatasi gibi durum mesaji - role="alert", kutunun altinda. */
   statusMessage?: string | null;
   /** Devam eden islem (fotograf araniyor) - role="status", kibar duyuru. */
@@ -80,6 +111,7 @@ export function SearchComposer({
   submitLabel,
   autoFocus = false,
   photo,
+  attachment,
   statusMessage,
   busyMessage,
   recentProducts,
@@ -106,7 +138,27 @@ export function SearchComposer({
     return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
   }
 
+  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
+    if (isImeEnter(event.nativeEvent)) event.preventDefault();
+  }
+
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    if (attachment) {
+      // Fotograf + metin tek mesaj: native GET/server action yolu kullanilmaz.
+      event.preventDefault();
+      if (attachment.pending || submittingRef.current) return;
+      submittingRef.current = true;
+      const text = (inputRef.current?.value ?? "").trim();
+      void Promise.resolve(attachment.onSubmit(text))
+        .then((ok) => {
+          if (ok && inputRef.current) inputRef.current.value = "";
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          submittingRef.current = false;
+        });
+      return;
+    }
     if (routeProductLinks) {
       const productLink = productLinkFromInput(inputRef.current?.value ?? "");
       if (productLink) {
@@ -151,9 +203,27 @@ export function SearchComposer({
           action={action}
           method={typeof action === "string" ? "get" : undefined}
           onSubmit={handleSubmit}
-          className={styles.box}
-          aria-busy={busyMessage ? true : undefined}
+          className={attachment ? `${styles.box} ${styles.boxWithAttachment}` : styles.box}
+          aria-busy={busyMessage || attachment?.pending ? true : undefined}
         >
+          {attachment ? (
+            <div className={styles.attachment}>
+              <img
+                className={styles.attachmentImage}
+                src={attachment.previewUrl}
+                alt={attachment.alt}
+              />
+              <button
+                type="button"
+                className={styles.attachmentRemove}
+                aria-label={attachment.removeLabel}
+                disabled={attachment.pending}
+                onClick={attachment.onRemove}
+              >
+                <CloseIcon />
+              </button>
+            </div>
+          ) : null}
           <input
             ref={inputRef}
             type="search"
@@ -162,7 +232,9 @@ export function SearchComposer({
             placeholder={placeholder}
             aria-label={inputLabel ?? placeholder}
             autoComplete="off"
-            enterKeyHint="search"
+            enterKeyHint={attachment ? "send" : "search"}
+            readOnly={attachment?.pending}
+            onKeyDown={handleKeyDown}
             // biome-ignore lint/a11y/noAutofocus: opt-in prop, sadece ana sayfada true.
             autoFocus={autoFocus}
             className={styles.input}
@@ -174,7 +246,7 @@ export function SearchComposer({
                 icon={<PlusIcon />}
                 label={photo.label}
                 onFileSelected={photo.onFileSelected}
-                disabled={photo.disabled}
+                disabled={photo.disabled || attachment?.pending}
                 variant="ghost"
                 className={styles.photoButton}
               />
@@ -183,6 +255,7 @@ export function SearchComposer({
               type="submit"
               variant="accent"
               aria-label={submitLabel}
+              disabled={attachment?.pending}
               className={styles.submit}
             >
               <span className={styles.submitLabel}>{submitLabel}</span>

@@ -64,6 +64,7 @@ export function ChatThread({
             <ChatUserRow
               key={message.id}
               text={skipped ? CHAT_COPY.skippedAnswer : message.content}
+              imageSrc={message.attachmentId ? `/sohbet/gorsel/${message.attachmentId}` : null}
             />
           );
         }

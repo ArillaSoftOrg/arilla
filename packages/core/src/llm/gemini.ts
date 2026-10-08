@@ -136,6 +136,22 @@ function extractText(payload: unknown): string {
   return text;
 }
 
+/**
+ * Gorsel yoksa duz metin (eski sozlesme, bayt ayni). Gorsel varsa
+ * `[{type:"text"}, {type:"image", data, mime_type}...]` (karar 0078).
+ */
+export function buildGeminiInput(request: LlmJsonRequest): string | Record<string, unknown>[] {
+  if (!request.images || request.images.length === 0) return request.input;
+  return [
+    { type: "text", text: request.input },
+    ...request.images.map((image) => ({
+      type: "image",
+      data: image.dataBase64,
+      mime_type: image.mimeType,
+    })),
+  ];
+}
+
 export class GeminiClient implements LlmClient {
   readonly modelVersion = GEMINI_MODEL;
   private readonly fetchImpl: typeof fetch;
@@ -162,7 +178,7 @@ export class GeminiClient implements LlmClient {
     const body = JSON.stringify({
       model: GEMINI_MODEL,
       system_instruction: request.systemInstruction,
-      input: request.input,
+      input: buildGeminiInput(request),
       response_format: {
         type: "text",
         mime_type: "application/json",
