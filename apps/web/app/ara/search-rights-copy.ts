@@ -2,7 +2,18 @@
  * Arama hakki metinleri (docs/decisions/0047, docs/copy.md). Terim "arama
  * hakki" ve "bonus hak"; "coin", "kredi", "satin al" gecmez.
  */
+import { LINK_SEARCH_PUBLIC } from "@arilla/core/link-input";
+
 export const SEARCH_RIGHTS_HREF = "/hesap#arama-haklari";
+
+/**
+ * Hak rozetinin etiketi (docs/copy.md `rights.summary`). Link araması geçici
+ * olarak kapalıyken (`LINK_SEARCH_PUBLIC`) yalnızca fotoğraf araması anılır;
+ * hak hesabı değişmez.
+ */
+export const SEARCH_RIGHTS_BADGE_LABEL = LINK_SEARCH_PUBLIC
+  ? "Fotoğraf ve link araması"
+  : "Fotoğraf araması";
 
 export const SEARCH_RIGHTS_COPY = {
   noRights: "Bugünkü arama hakların ve bonus hakların bitti. Hakların gece 00:00'da yenilenir.",

@@ -5,6 +5,7 @@ import { verifySession } from "../lib/dal.ts";
 import styles from "./ara.module.css";
 import {
   nextResetLabel,
+  SEARCH_RIGHTS_BADGE_LABEL,
   SEARCH_RIGHTS_COPY,
   SEARCH_RIGHTS_HREF,
   searchRightsSummary,
@@ -30,7 +31,9 @@ export async function SearchRightsBadge() {
   }
   return (
     <p className={styles.rights}>
-      <span>Fotoğraf ve link araması: {searchRightsSummary(status)}</span>{" "}
+      <span>
+        {SEARCH_RIGHTS_BADGE_LABEL}: {searchRightsSummary(status)}
+      </span>{" "}
       <span className={styles.rightsHint}>
         {status.exhausted ? SEARCH_RIGHTS_COPY.noRights : nextResetLabel(status.nextResetAt)}{" "}
         <Link href={SEARCH_RIGHTS_HREF}>
