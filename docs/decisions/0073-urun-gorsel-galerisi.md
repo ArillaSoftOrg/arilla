@@ -221,3 +221,24 @@ rengin hem baska rengin bagli gorselinde gecen kok (`termos-N.jpg`) kanit degild
 bagsiz gorseller ortak kalir ve rengin kendi bagli gorseli ilk sirada durur. Kok
 kanitı olmayan bir magazada baska rengin bagsiz gorselleri ortak sayilip ilk 3'e
 girebilir; bu, filename tabanli kuralin bilinen sinirdir (goruntu analizi eklenmedi).
+
+### Ek 3 (2026-10-08): guvenli galeri ve conservative primary (backfill oncesi)
+
+Tum katalog dry-run'inda (10 magaza, 9.131 offer) iki risk cikti: (1) renk-bolunmus urunde
+yalniz baska renge bagli gorsel kalinca eski tek-gorsel yedegi galeriye yaziliyordu (5 offer);
+(2) renge ozgu kanit olmadan 1.378 ana gorsel degisecekti (Happy Place 632), cogu bir baska
+rengin gorselinden yine baska bir rengin gorseline gecis.
+
+Karar (`normalize._images`, yani normal ingest ve backfill ayni davranir):
+- Eski tek-gorsel yedegi urunun listesinde var ama bu rengin galerisine girmediyse (baska renge
+  bagli oldugu bilinir) galeriye YAZILMAZ. `offer.image_url` degismez. Listede hic yoksa bilinmez:
+  eski davranis.
+- Renk-bolunmus urunde secilen gorseller arasinda renge ozgu kanit (`variant_ids` ya da dosya adi
+  koku) yoksa yeni ana gorsel SECILMEZ: mevcut ana gorsel rank 0 olur (`keep_current_first`);
+  mevcut gorsel guvenle galeriye konamiyorsa galeri bos kalir (offer yine eski tek gorselle calisir).
+- Bolunmemis urun ya da renge ozgu kanit varsa mağaza sirasi gecerli (model-oncelikli hedef).
+- Dosya adi tek basina karar vermez; yalniz renge ozgu kok kaniti ve tani sinyalidir.
+
+Dry-run sonucu (eski -> yeni): cross-color leak 5 -> 0, primary degisimi 1.378 -> 808 (hepsi
+bolunmemis urun ya da renge ozgu kanitli), Happy Place 632 -> 85, bos kalan galeri 576.
+

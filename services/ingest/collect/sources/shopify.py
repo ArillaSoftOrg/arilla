@@ -47,6 +47,7 @@ import httpx
 from collect import robots_policy
 from collect.connector import Connector, register
 from collect.gate import IngestRefused
+from collect.images import normalize_key
 from collect.link.robots import USER_AGENT
 from collect.link.safe_http import guarded_client
 from collect.records import RawRecord
@@ -202,6 +203,31 @@ def _group_image_entries(
                 entry[key] = str(image[key])
         entries.append(entry)
     return tuple(entries)
+
+
+def _image_flags(
+    images: list[Any],
+    group_images: tuple[dict[str, str], ...],
+    image_url: Any,
+    split: bool,
+) -> dict[str, str]:
+    """Galeri politikasi icin kaynak bilgisi (karar 0073).
+
+    `split`: urun renklere bolunmus. `legacy_foreign`: eski tek gorsel (varyantin
+    `featured_image`i) urunun gorsel listesinde var AMA bu renk grubunun galerisine
+    girmedi, yani baska renge bagli oldugu biliniyor. Listede hic yoksa bilinmez:
+    bayrak konmaz.
+    """
+    flags = {"split": "1" if split else "0"}
+    if split and image_url:
+        key = normalize_key(str(image_url))
+        present = {
+            normalize_key(str(i["src"])) for i in images if isinstance(i, dict) and i.get("src")
+        }
+        included = {normalize_key(e["src"]) for e in group_images}
+        if key in present and key not in included:
+            flags["legacy_foreign"] = "1"
+    return flags
 
 
 def _with_size(
@@ -472,15 +498,17 @@ class ShopifyConnector(Connector):
             _with_size(_flatten_scalars(variant), variant, size_option)
             for variant in group_variants
         )
+        group_images = _group_image_entries(
+            images, group_variants, split_by_color=color is not None
+        )
 
         return RawRecord(
             fields=fields,
             source_ref=f"shopify urun {product_id} renk {color or '-'}",
             groups={
                 "variants": variant_entries,
-                "images": _group_image_entries(
-                    images, group_variants, split_by_color=color is not None
-                ),
+                "images": group_images,
+                "image_flags": (_image_flags(images, group_images, image_url, color is not None),),
             },
         )
 

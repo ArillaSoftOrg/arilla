@@ -14,6 +14,8 @@ from collect.images import (
     SourceImage,
     clean_url,
     images_from_entries,
+    keep_current_first,
+    normalize_key,
     select_images,
 )
 from collect.mapping import FieldMapping
@@ -79,12 +81,20 @@ def _images(record: RawRecord, image_url: str | None) -> tuple[SelectedImage, ..
     (kaynak sirasiyla), vermediyse tek `image_url` (eski davranis). Kaynak
     gorsel verdiginde `image_url` (orn. varyant `featured_image`i) siralamayi
     belirlemez; rank 0 `normalize` icinde `offer.image_url` olur."""
-    candidates = images_from_entries(record.groups.get("images") or ())
-    selected = select_images(candidates)
-    if selected:
-        return tuple(selected)
+    flags = (record.groups.get("image_flags") or ({},))[0]
+    split = flags.get("split") == "1"
     cleaned = clean_url(image_url)
-    return tuple(select_images([SourceImage(cleaned)])) if cleaned else ()
+    selected = select_images(images_from_entries(record.groups.get("images") or ()))
+    if not selected:
+        # Eski tek-gorsel davranisi; ama kaynak bu gorselin BASKA renge bagli oldugunu
+        # biliyorsa onu galeriye kalicilastirmayiz (offer.image_url yine de degismez).
+        if cleaned and flags.get("legacy_foreign") != "1":
+            return tuple(select_images([SourceImage(cleaned)]))
+        return ()
+    if split and not any(image.is_variant_specific for image in selected):
+        # Bu renge ozgu kanit yok: yeni ana gorsel secmek yerine mevcut olani koru.
+        return keep_current_first(selected, cleaned)
+    return tuple(selected)
 
 
 def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
@@ -136,7 +146,11 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
     images = _images(record, mapping.get(fields, "image_url"))
     # Galeri varsa `image_url` rank 0 ile AYNI olur (primary_image_url == galeri[0]).
     top = next((image for image in images if image.display_rank == 0), None)
-    image_url = top.source_url if top else mapping.get(fields, "image_url")
+    raw_image = mapping.get(fields, "image_url")
+    image_url = top.source_url if top else raw_image
+    cleaned_raw = clean_url(raw_image)
+    if top and cleaned_raw and normalize_key(cleaned_raw) == normalize_key(top.source_url):
+        image_url = raw_image  # ayni gorsel: kaynagin yazimini koru, sahte degisim uretme
     return NormalizedOffer(
         external_id=external_id,
         url=url,
