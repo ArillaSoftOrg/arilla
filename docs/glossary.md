@@ -23,6 +23,7 @@ karşılığı sabitler.
 | `curated` | seçilmiş | Elle seçilmiş havuz. "Kullanıcıların bulduğu" diye etiketlenmez. |
 | `organic` | kullanıcı keşfi | Gerçekten kullanıcılar tarafından bulunmuş. |
 | `trend_snapshot` | trend | Dönemsel trend listesi. Dönem boyunca sabittir. |
+| `trend` | trend | Editoryal ürün keşfi koleksiyonu (`/trendler`, karar 0077). Blog değil; `trend_product` ile ürünlere bağlanır. |
 | `lexicon` | sözlük | Arama ayrıştırıcısının eşanlamlı tablosu. |
 | `alert` | alarm | Fiyat, stok veya beden bildirimi. |
 | `ai_quota_day` | günlük arama hakkı | Fotoğraf ve link araması için her gün (Europe/Istanbul) yenilenen hak. Birikmez. |

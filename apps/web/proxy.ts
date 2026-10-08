@@ -130,6 +130,7 @@ export const config = {
     "/urun/:path*",
     "/kesfet",
     "/firsatlar",
+    "/trendler/:path*",
     "/git/:path*",
     "/kaydettiklerim",
     "/alarmlar",

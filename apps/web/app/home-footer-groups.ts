@@ -9,7 +9,8 @@ import { configuredSocialLinks } from "./site-config.ts";
 /**
  * Faz 8: ana sayfa bolumlerine giden uc link. Ana sayfada ayni sayfa ici
  * anchor, alt sayfalarda (public site kabugu) ana sayfaya donen `/#...` -
- * alt sayfada `#trendler` hicbir yere gitmeyen bir no-op olurdu.
+ * alt sayfada `#kesfet` hicbir yere gitmeyen bir no-op olurdu. Trendler
+ * artik kendi rotasi (`/trendler`, karar 0077): her yerde ayni adrese gider.
  */
 export interface SiteSectionLinks {
   trendsHref: string;
@@ -19,17 +20,17 @@ export interface SiteSectionLinks {
 
 /** Ana sayfa: `discoverHref` kesif bolumu render edildiyse `#kesfet`, degilse `/kesfet`. */
 export function homeSectionLinks(discoverHref: string): SiteSectionLinks {
-  return { trendsHref: "#trendler", discoverHref, howItWorksHref: "#nasil-calisir" };
+  return { trendsHref: "/trendler", discoverHref, howItWorksHref: "#nasil-calisir" };
 }
 
 /**
- * Alt sayfalar. `#trendler` ve `#nasil-calisir` ana sayfada her zaman render
- * edilir (demo trend seti statik, nasil calisir kosulsuz); Kesfet ise gercek
+ * Alt sayfalar. `#nasil-calisir` ana sayfada her zaman render
+ * edilir (kosulsuz); Trendler gercek `/trendler` rotasina gider; Kesfet ise gercek
  * `/kesfet` sayfasina gider - ana sayfanin kesif bolumu kosullu oldugu icin
  * `/#kesfet` her zaman var olmayabilir.
  */
 export const SUBPAGE_SECTION_LINKS: SiteSectionLinks = {
-  trendsHref: "/#trendler",
+  trendsHref: "/trendler",
   discoverHref: "/kesfet",
   howItWorksHref: "/#nasil-calisir",
 };
@@ -46,8 +47,8 @@ export function siteNavItems(links: SiteSectionLinks): readonly HomeHeaderNavIte
  * docs/pages.md "/" Faz 5-6: footer navigasyon verisi. YALNIZCA gercekten
  * var olan route'lar - apps/web/app/ altinda dogrudan denetlendi:
  * /kesfet, /firsatlar, /giris, /kaydettiklerim, /alarmlar, /gecmis,
- * /gizlilik, /kosullar, /cerez (hepsinin page.tsx'i mevcut). #trendler ve
- * #nasil-calisir ayni sayfadaki gercek section'lar.
+ * /gizlilik, /kosullar, /cerez, /trendler (hepsinin page.tsx'i mevcut).
+ * #nasil-calisir ayni sayfadaki gercek section.
  *
  * Faz 6: /gizlilik ve /kosullar TASLAK sayfalar (bkz. docs/kvkk.md "Faz 6
  * notu") - yine de gercekten var olan, calisan route'lar oldugundan dead

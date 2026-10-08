@@ -40,7 +40,7 @@ const MAIN_ID = "icerik";
  */
 /**
  * `aria-current="page"` icin: yalnizca `href`'i tam olarak su anki yola
- * esit olan linkler etkin sayilir (`/#trendler` gibi anchor'lar asla).
+ * esit olan linkler etkin sayilir (`/#nasil-calisir` gibi anchor'lar asla).
  * Yol cagirandan gelir - kabuk URL okumaz, istemci JS'i yok.
  */
 function markCurrent<T extends { href: string }>(
@@ -171,7 +171,7 @@ export async function PublicSiteShell({
   );
 }
 
-/** Public alt sayfalar: bolum linkleri ana sayfaya doner (`/#trendler`, ...). */
+/** Public alt sayfalar: bolum linkleri ana sayfaya doner (`/#nasil-calisir`, ...). */
 export function SubpageShell({
   currentPath,
   fullBleed,

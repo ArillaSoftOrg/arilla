@@ -43,7 +43,14 @@ export const ADMIN_LOGIN_PATH = loginPathWithNext("/yonetim");
  * sayfalari (`/kaydettiklerim`, ...) proxy'de zaten `/giris`'e gider; tum
  * urun sayfalari ayrica sunucuda `requireProductAccess` ile denetlenir.
  */
-export const PUBLIC_PRODUCT_PATH_PREFIXES = ["/urun", "/kesfet", "/firsatlar", "/ara", "/git"];
+export const PUBLIC_PRODUCT_PATH_PREFIXES = [
+  "/urun",
+  "/kesfet",
+  "/firsatlar",
+  "/trendler",
+  "/ara",
+  "/git",
+];
 
 type Env = Readonly<Record<string, string | undefined>>;
 

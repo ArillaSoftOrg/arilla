@@ -10,13 +10,7 @@
 /* Hero: ilk ekranin odagi. Ustte tam bolum boslugu, trendlere gecis
    kompakt. */
 .page > .hero {
-  padding-block: var(--space-32) var(--section-space);
-}
-
-@media (min-width: 640px) {
-  .page > .hero {
-    padding-block-start: var(--space-24);
-  }
+  padding-block: var(--space-16) var(--section-space);
 }
 
 @media (min-width: 1024px) {
@@ -59,6 +53,26 @@
 .trendItem {
   display: grid;
   min-width: 0;
+}
+
+.trendsMore {
+  margin: var(--space-6) 0 0;
+}
+
+.trendsMoreLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.trendsMoreLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .waysSection {

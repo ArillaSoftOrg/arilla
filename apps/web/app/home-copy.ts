@@ -3,7 +3,16 @@
  * tanimli - anahtarlar yorum olarak burada tutulur.
  */
 export const HOME_COPY = {
-  heroTitle: "Aradığın ürünü bul", // home.hero_title
+  heroTitleLead: "Alışveriş mi?", // home.hero_title_lead
+  heroTitleAccent: "Manicepte.", // home.hero_title_accent
+  // Basligin altinda 3sn arayla beliren sorular; HomeHero dongusu tam 4 cumle icin ayarli.
+  heroRotatingLines: [
+    "Bir şey mi arıyorsun?",
+    "Bir şey mi beğendin?",
+    "Daha uygunu mu lazım?",
+    "Karar veremiyor musun?",
+  ], // home.hero_rotating_lines
+  // Hero'da artik cizilmez; alt bilgi aciklamasi olarak kullanilmaya devam eder.
   heroSubtitle: "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.", // home.tagline
   // Kullanicinin gercek son aramalari; gecmis yoksa bolum hic cizilmez.
   searchIdeasTitle: "Alışverişe devam et", // home.search_ideas_title
@@ -74,7 +83,7 @@ export const HOME_COPY = {
   navSaved: "Kaydettiklerim", // nav.saved
   navAlerts: "Alarmlarım", // nav.alerts
   navHistory: "Geçmişim", // nav.history
-  searchPlaceholder: "Ürün linki, fotoğraf veya kısa tarif ekle", // search.placeholder
+  searchPlaceholder: "Manicepte’ye sor...", // search.placeholder
   searchInputLabel: "Ürün ara", // search.input_label
   searchSubmitLabel: "Ara", // action.search
   loginLabel: "Giriş yap", // action.login

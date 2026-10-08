@@ -16,7 +16,7 @@ Bileşen adları `design.md` envanteriyle aynıdır. Metinler `copy.md` içinded
 | 1 | Logo + üst çubuk | Giriş yapmamışsa "Giriş yap" bağlantısı |
 | 2 | Arama girdisi | Fotoğraf yükleme aynı girdinin içinde. Otomatik odaklanmaz (Faz 1C: ilk odak `SkipLink`'te kalır, mobilde klavye kendiliğinden açılmaz). Altında sabit "Arama fikirleri" chip'leri — kişisel geçmiş değil. |
 | 3 | Kısa açıklama | Tek satır. Uzun karşılama metni yok. |
-| 4 | Trendler | Editorial koleksiyon kartları (`id="trendler"`, header nav'ından anchor). Faz 2: geçici demo veri seti, bkz. `apps/web/data/demo/homepage-trends.ts` ve `SOURCES.md`. Admitad/feed entegrasyonu gelince gerçek veriyle değişir. |
+| 4 | Trendler | Editorial koleksiyon kartları (`id="trendler"`). Karar 0077: `trend` tablosundaki ilk üç (önce `featured`) trend, `Tüm trendleri gör` ile `/trendler`e; veri yoksa geçici demo set (`apps/web/data/demo/homepage-trends.ts`, `SOURCES.md`). Header/footer "Trendler" artık `/trendler`e gider. |
 | 5 | Keşif ızgarası | `id="kesfet"`. Masonry düzeni, `DiscoveryGrid` + `DiscoveryCard` (Faz 1C: `/kesfet` de aynı ikiliyi kullanır, ikinci bir kart uygulaması yok). Veri `discovery_slot`'tan (`getDiscoverySlots`) gelir; adapter gerçek satırları `DiscoveryItem`'a çevirir. Faz 3.1: `discovery_slot` boşsa VE `HOMEPAGE_DEMO_CONTENT=true` ise (bkz. `.env.example`) `apps/web/data/demo/homepage-discovery.ts`teki demo veri setine düşer — `NODE_ENV`'e bağlı değil, açıkça etkinleştirilen bir içerik kararı (Admitad öncesi vitrin deploy'u için). Gerçek veri her zaman demo'nun önündedir. |
 | 6 | Nasıl Çalışır | `id="nasil-calisir"`, header nav'ından anchor. Üç kart: metinle ara, fotoğrafla ara (ikisi de aktif), bağlantıyla bul (Faz 4: backend'de kök catch-all link çözümleme var ama arama kutusuna bağlı değil — "Yakında" etiketiyle gösterilir, sahte CTA yok). `HowItWorksCard`, veri `home-copy.ts`. |
 | 7 | Şeffaflık | Faz 5: `HomeTrustSection`. Sosyal kanıt değil — doğrulanmamış kullanıcı/mağaza sayısı yok, yalnızca gerçek kabiliyetler (aynı/benzer ürün bulma, mağaza tekliflerini karşılaştırma, fiyat-stok bilgisinin mağaza kaynaklı ve güncellenme zamanlı olması). Faz 1C: dördüncü nokta komisyon ilkesini açıklar (komisyon fiyatı değiştirmez, sıralamada belirleyici değildir) — bu, altbilgideki affiliate bildiriminin kopyası değil, farklı bir bilgidir. |
@@ -148,7 +148,25 @@ Fiyatı düşen ürünler, günlük üretilir. Her kartta düşüş tutarı ve y
 
 ---
 
-## `/trend` ve `/trend/<slug>`
+## `/trendler` ve `/trendler/<slug>` (karar 0077)
+
+Editoryal **ürün keşfi koleksiyonları**; blog değil. `trend` + `trend_product`
+tablolarından okunur, ürün bağlarını `services/ingest/curate` toplu işi yazar.
+
+`/trendler`: kesitler (Öne Çıkanlar, Şu An Trend, Moda, Güzellik, Ev & Yaşam,
+Öğrenci, Sezonluk) kesit başına en çok 3 (öne çıkanlar 6) kart gösterir, aynı trend
+ikinci kez görünmez; hepsi kapalı `Tüm Trendler` bölümündedir. Kart: 16:9 kapak,
+başlık, en çok 2 satır açıklama, 4 küçük ürün önizlemesi, `+N ürün`, veri varsa
+"X TL'den başlayan"; tüm kart tek bağlantı. Telefon 1, tablet 2, masaüstü 3 sütun.
+
+`/trendler/<slug>`: `← Trendler`, kapak, başlık, tek cümle açıklama, ürün sayısı,
+hemen ardından `ProductCard` ızgarası (telefon 2, tablet 3, masaüstü 4 sütun). Makale,
+SEO paragrafı ve `Article` verisi yok. Geçersiz/yayında olmayan/`MIN_PUBLIC_TREND_PRODUCTS`
+altı trend 404. Kapak: `hero_image_url` → temsilci ürün görseli → yer tutucu.
+
+---
+
+## `/trend` ve `/trend/<slug>` (ertelendi; dönemlik `trend_snapshot`)
 
 Liste sayfası tüm yayınlanmış `trend_snapshot` kayıtlarını gösterir. Detay
 sayfası kapak, başlık, açıklama ve ürün ızgarası içerir.
