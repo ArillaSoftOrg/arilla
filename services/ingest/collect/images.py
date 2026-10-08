@@ -23,7 +23,7 @@ from __future__ import annotations
 import hashlib
 import re
 from collections.abc import Iterable, Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 #: Kaynakta saklanan en fazla gorsel (offer basina).
@@ -233,6 +233,35 @@ def select_images(
         )
         for position, i in enumerate(stored)
     ]
+
+
+def keep_current_first(
+    selected: Sequence[SelectedImage],
+    current_url: str | None,
+    *,
+    max_display: int = MAX_DISPLAY_IMAGES,
+) -> tuple[SelectedImage, ...]:
+    """Mevcut (eski) ana gorseli rank 0 yapar; digerleri eski siralariyla arkasindan gelir.
+
+    Renk-bolunmus urunde bu renge ozgu kanit YOKSA yeni bir ana gorsel secmek yanlis
+    renk riskini artirir: mevcut ana gorsel degismez. Mevcut gorsel galeride yoksa
+    (baska renge bagli oldugu bilindigi icin elendi ya da kaynak listesinde yok) ve
+    guvenli bir yerine de yoksa galeri bos doner: yanlis rengi kalicilastirmayiz.
+    """
+    if not current_url:
+        return ()
+    key = normalize_key(current_url)
+    current = next((s for s in selected if normalize_key(s.source_url) == key), None)
+    if current is None:
+        return ()
+    rest = sorted(
+        (s for s in selected if s is not current),
+        key=lambda s: (s.display_rank is None, s.display_rank or 0, s.source_position),
+    )
+    ordered = [current, *rest]
+    ranked = {id(s): (rank if rank < max_display else None) for rank, s in enumerate(ordered)}
+    by_position = sorted(ordered, key=lambda s: s.source_position)
+    return tuple(replace(s, display_rank=ranked[id(s)]) for s in by_position)
 
 
 def images_from_entries(entries: Sequence[Mapping[str, str]]) -> list[SourceImage]:

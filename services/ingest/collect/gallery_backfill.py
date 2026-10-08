@@ -45,6 +45,7 @@ class OfferPlan:
     image_url_changes: bool = False
     primary_changes: bool = False
     has_image_embedding: bool = False
+    gallery_empty: bool = False
     in_sync: bool = True
     errors: list[str] = field(default_factory=list)
 
@@ -89,6 +90,7 @@ def plan_offer(conn: psycopg.Connection, merchant_id: int, offer: NormalizedOffe
         plan.has_image_embedding = cur.fetchone() is not None
 
     plan.existing = len(existing)
+    plan.gallery_empty = not offer.images
     incoming = {image.url_hash: image for image in offer.images}
     plan.stored = len(incoming)
     plan.shown = sum(1 for image in incoming.values() if image.display_rank is not None)
@@ -152,6 +154,7 @@ class Totals:
     image_url_changes: int = 0
     primary_changes: int = 0
     stale_embeddings: int = 0
+    gallery_empty: int = 0
     single: int = 0
     double: int = 0
     triple_plus: int = 0
@@ -169,6 +172,7 @@ class Totals:
         self.image_url_changes += plan.image_url_changes
         self.primary_changes += plan.primary_changes
         self.stale_embeddings += plan.image_url_changes and plan.has_image_embedding
+        self.gallery_empty += plan.gallery_empty
         if plan.stored <= 1:
             self.single += 1
         elif plan.stored == 2:
