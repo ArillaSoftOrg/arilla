@@ -1276,12 +1276,17 @@ details[open] > .navHeading .navChevron {
   background: var(--surface-raised);
 }
 
+/* Önem, kartın solunda ince bir işaretle (çerçevenin tamamı boyanmaz). */
 .findingCritical {
-  border-color: var(--alert);
+  box-shadow: inset 3px 0 0 var(--alert);
 }
 
 .findingWarning {
-  border-color: var(--warning);
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+.finding p {
+  margin: 0;
 }
 
 .findingHead {

@@ -43,8 +43,8 @@ export default async function YonetimLayout({ children }: { children: ReactNode 
       <aside className={styles.sidebar} aria-label="Yönetim menüsü">
         <div className={styles.brand}>
           <a href="/yonetim" className={styles.brandTitle}>
-            {`${SITE_BRAND} yönetim`}
-            <span className={styles.brandSub}>İşletim konsolu</span>
+            {SITE_BRAND}
+            <span className={styles.brandSub}>Yönetim konsolu</span>
           </a>
           <span className={styles.roleBadge}>{roleLabel}</span>
         </div>

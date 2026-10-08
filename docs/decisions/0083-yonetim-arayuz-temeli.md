@@ -58,7 +58,9 @@ mantığı **değişmez**. Migration yok.
   sayfa sayfa taşınmadı (Faz C ile birlikte).
 - Menü açıklamaları hâlâ yalnızca `title`'da (dokunmatikte görünmez); sayfa
   açıklaması üst çubukta konum yolunun altında yazar.
-- Tarayıcıda görsel doğrulama yapılmadı (yalnızca derleme ve testler).
+- Tarayıcıda yalnızca masaüstü (1440px, koyu tema) doğrulandı; dar ekran
+  çekmecesi ve açık tema gözle doğrulanmadı (pencere küçültülemedi, iframe
+  `frame-ancestors` ile doğru biçimde engellendi).
 
 ## Reddedilen alternatifler
 

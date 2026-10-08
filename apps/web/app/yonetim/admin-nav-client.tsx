@@ -202,8 +202,8 @@ export function AdminMobileNav({
       >
         <div className={styles.brand}>
           <span className={styles.brandTitle}>
-            {`${brand} yönetim`}
-            <span className={styles.brandSub}>{roleLabel}</span>
+            {brand}
+            <span className={styles.brandSub}>{`Yönetim konsolu · ${roleLabel}`}</span>
           </span>
           <Button
             type="button"
@@ -235,7 +235,20 @@ export function AdminMobileNav({
 export function AdminBreadcrumbs({ sections }: { sections: AdminNavSection[] }) {
   const pathname = usePathname();
   const activeHref = activeNavHref(hrefsOf(sections), pathname);
-  if (!activeHref || activeHref === "/yonetim") return null;
+  if (!activeHref) return null;
+  if (activeHref === "/yonetim") {
+    // Genel bakışta da üst çubuk boş kalmaz: tek halkalı konum.
+    return (
+      <nav aria-label="Konum" className={`${styles.breadcrumbs} ${styles.breadcrumbsInTopbar}`}>
+        <ol className={styles.breadcrumbList}>
+          <li>
+            <span aria-current="page">Yönetim</span>
+          </li>
+        </ol>
+        <p className={styles.breadcrumbNote}>Şimdi dikkat isteyenler ve temel sayılar.</p>
+      </nav>
+    );
+  }
   const section = sections.find((s) => s.items.some((item) => item.href === activeHref));
   const item = section?.items.find((i) => i.href === activeHref);
   if (!section || !item) return null;
