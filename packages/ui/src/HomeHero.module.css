@@ -1,9 +1,10 @@
 /* docs/design.md "Tip rolleri" + "Düzen": hero okuma genisliginde (640px)
-   ortalanir; genis Container ve gutter kabuktan gelir. */
+   ortalanir; genis Container ve gutter kabuktan gelir. Baslik, donen satir
+   ve arama kutusu tek blok gibi okunsun diye aralar dar tutulur. */
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-12);
+  gap: var(--space-8);
   width: 100%;
   max-width: min(100%, 800px);
   margin-inline: auto;
@@ -11,7 +12,7 @@
 
 .intro {
   display: grid;
-  gap: var(--space-4);
+  gap: var(--space-3);
   text-align: center;
 }
 
@@ -25,13 +26,69 @@
   text-wrap: balance;
 }
 
-.subtitle {
-  margin: 0 auto;
-  max-width: 44ch;
-  font-size: var(--text-body);
+/* Vurgu yalnizca hiyerarsiyle: ilk parca ikincil mürekkep, marka adi tam
+   mürekkep. Gradient veya efekt yok. */
+.titleLead {
+  color: var(--ink-secondary);
+}
+
+/* Marka adi satir sonunda bolunmesin. */
+.titleAccent {
+  display: inline-block;
+  color: var(--ink);
+}
+
+/* Donen satir: tum cumleler ayni grid hucresinde ust uste; hucre en uzun
+   cumlenin yuksekligini alir, bu yuzden gecis layout kaydirmaz. Dongu 4
+   cumle x 3sn = 12sn. */
+.rotator {
+  display: grid;
+  margin: 0;
+  font-size: var(--text-h3);
   line-height: var(--line-height-body);
   color: var(--ink-secondary);
-  text-wrap: pretty;
+}
+
+.rotatorLine {
+  grid-area: 1 / 1;
+  opacity: 0;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .rotatorLine {
+    animation: rotator-line 12s var(--ease-standard) infinite both;
+    animation-delay: calc(var(--line-index) * 3s);
+  }
+}
+
+/* Hareket istemeyen kullanici: yalnizca ilk cumle, sabit. */
+@media (prefers-reduced-motion: reduce) {
+  .rotatorLine:first-child {
+    opacity: 1;
+  }
+
+  .rotatorLine:not(:first-child) {
+    display: none;
+  }
+}
+
+/* Her cumle dongunun %25'inde (3sn) gorunur: kisa fade-in + 6px yukari
+   yerlesme, bekleme, kisa fade-out + 6px yukari cikis. */
+@keyframes rotator-line {
+  0% {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  4%,
+  21% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  25%,
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
 }
 
 /* minmax(0, 1fr): chip satiri gibi nowrap icerik kolonu viewport'tan genis

@@ -193,8 +193,9 @@ export default async function HomePage() {
         <Section spacing="none" aria-labelledby="anasayfa-baslik" className={styles.hero}>
           <HomeHero
             titleId="anasayfa-baslik"
-            title={HOME_COPY.heroTitle}
-            subtitle={HOME_COPY.heroSubtitle}
+            titleLead={HOME_COPY.heroTitleLead}
+            titleAccent={HOME_COPY.heroTitleAccent}
+            rotatingLines={HOME_COPY.heroRotatingLines}
           >
             <HomeSearchComposer
               startChat={chatEnabled && user ? startConversationAction : undefined}
