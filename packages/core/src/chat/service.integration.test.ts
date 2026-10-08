@@ -6,12 +6,15 @@
 import type { Database } from "@arilla/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { LlmError } from "../llm/client.ts";
+import type { QuotaConsumeResult } from "../quota/redis-windows.ts";
+import { RedisUnavailableError } from "../redis/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { emptyIntent } from "./intent.ts";
 import type { ChatInterpreter } from "./interpreter.ts";
 import { IntentSearchTimeoutError, searchByIntent } from "./search-adapter.ts";
 import {
+  type ChatQuotaOptions,
   createConversation,
   getTurnStatus,
   loadConversation,
@@ -673,6 +676,139 @@ describe("limits", () => {
         await c.query("DELETE FROM app_user WHERE id = $1", [capped]);
       });
     }
+  });
+
+  describe("message quota (quota/policy.ts chat_message)", () => {
+    function recording(result: QuotaConsumeResult = { allowed: true }) {
+      const consumed: string[] = [];
+      const released: string[] = [];
+      const options: ChatQuotaOptions = {
+        consume: async (input) => {
+          consumed.push(`${input.pool}:${input.subject}`);
+          return result;
+        },
+        release: async (input) => {
+          released.push(`${input.pool}:${input.subject}`);
+        },
+      };
+      return { consumed, released, options };
+    }
+
+    async function userMessageCount(conversationId: string): Promise<number> {
+      const view = await loadConversation(db, { userId: userA, conversationId });
+      return view?.messages.filter((m) => m.role === "user").length ?? 0;
+    }
+
+    it("each accepted user message consumes exactly one from the user's chat pool", async () => {
+      const { consumed, options } = recording();
+      const created = await createConversation(
+        db,
+        { userId: userA, message: `${TOKEN} q1` },
+        options,
+      );
+      expect(created.status).toBe("created");
+      expect(consumed).toEqual([`chat_message:user:${userA}`]);
+    });
+
+    it("a full day/week/month window returns rate_limited and writes nothing", async () => {
+      const id = await newConversation(userA, `${TOKEN} kota`);
+      await processPendingTurn(db, {
+        userId: userA,
+        conversationId: id,
+        interpreter: scripted([search({ query: TOKEN })]),
+      });
+      const before = await userMessageCount(id);
+      for (const window of ["day", "week", "month"] as const) {
+        const { options } = recording({ allowed: false, window });
+        expect(
+          await createConversation(db, { userId: userA, message: `${TOKEN} yeni` }, options),
+        ).toEqual({ status: "rate_limited" });
+        expect(
+          await submitUserMessage(
+            db,
+            { userId: userA, conversationId: id, request: { kind: "text", text: "selam" } },
+            options,
+          ),
+        ).toEqual({ status: "rate_limited" });
+      }
+      expect(await userMessageCount(id)).toBe(before);
+    });
+
+    it("duplicate, busy and invalid option do not consume", async () => {
+      const id = await newConversation(userA, `${TOKEN} tekrar`);
+      await processPendingTurn(db, {
+        userId: userA,
+        conversationId: id,
+        interpreter: scripted([search({ query: TOKEN })]),
+      });
+      const { consumed, options } = recording();
+      const message = {
+        userId: userA,
+        conversationId: id,
+        request: { kind: "text" as const, text: "nasılsın" },
+        requestKey: `req-${run}-dup`,
+      };
+      expect(await submitUserMessage(db, message, options)).toMatchObject({ status: "queued" });
+      expect(consumed).toHaveLength(1);
+      // Ayni anahtar: duplicate; cevap beklenirken yeni mesaj: busy.
+      expect(await submitUserMessage(db, message, options)).toEqual({ status: "duplicate" });
+      expect(
+        await submitUserMessage(
+          db,
+          { userId: userA, conversationId: id, request: { kind: "text", text: "iki" } },
+          options,
+        ),
+      ).toEqual({ status: "busy" });
+      await processPendingTurn(db, {
+        userId: userA,
+        conversationId: id,
+        interpreter: scripted([search({ query: TOKEN })]),
+      });
+      expect(
+        await submitUserMessage(
+          db,
+          {
+            userId: userA,
+            conversationId: id,
+            request: { kind: "option", questionId: "shoe_type", value: "rocket" },
+          },
+          options,
+        ),
+      ).toEqual({ status: "invalid_option" });
+      expect(consumed).toHaveLength(1);
+    });
+
+    it("quota store unavailable: falls back to the hourly db cap, chat keeps working", async () => {
+      const options: ChatQuotaOptions = {
+        consume: async () => {
+          throw new RedisUnavailableError("kota");
+        },
+      };
+      const created = await createConversation(
+        db,
+        { userId: userB, message: `${TOKEN} redisyok` },
+        options,
+      );
+      expect(created.status).toBe("created");
+      vi.stubEnv("CHAT_TURNS_PER_HOUR", "1");
+      try {
+        expect(
+          await createConversation(db, { userId: userB, message: `${TOKEN} ikinci` }, options),
+        ).toEqual({ status: "rate_limited" });
+      } finally {
+        vi.unstubAllEnvs();
+        process.env.CHAT_TURNS_PER_HOUR = "200";
+      }
+    });
+
+    it("a failed write gives the consumed message back", async () => {
+      const { consumed, released, options } = recording();
+      await expect(
+        createConversation(db, { userId: 2_000_000_000, message: `${TOKEN} yok` }, options),
+      ).rejects.toThrow();
+      expect(consumed).toHaveLength(1);
+      expect(released).toEqual(consumed);
+    });
   });
 
   it("a conversation accepts a bounded number of user messages", async () => {

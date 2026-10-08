@@ -19,6 +19,9 @@ import {
 } from "../../format.ts";
 import { RevealContactClient } from "../reveal-contact-client.tsx";
 
+/** Arama hakkinin dolan penceresi (`quota/policy.ts`). */
+const WINDOW_LABEL = { day: "Bugünkü", week: "Bu haftaki", month: "Bu ayki" } as const;
+
 /**
  * Profil sekmesi (`users.read`). İletişim bilgisi maskelidir; tam değer
  * yalnızca `users.contact.reveal` yeteneği olanlara "Göster" düğmesiyle ve
@@ -154,7 +157,29 @@ export function ProfileTab({ user, canReveal }: { user: UserProfile; canReveal: 
             warning={(reserved?.count ?? 0) > 0}
           />
         </section>
-        {status.exhausted ? <p className={styles.statusWarn}>Bugün için hakkı kalmadı.</p> : null}
+        <KeyValues
+          items={[
+            [
+              "Bu saat (bonus aşamaz)",
+              `${formatCount(status.windows.hour.remaining)} / ${formatCount(status.windows.hour.limit)}`,
+            ],
+            [
+              "Bu hafta",
+              `${formatCount(status.windows.week.remaining)} / ${formatCount(status.windows.week.limit)}`,
+            ],
+            [
+              "Bu ay",
+              `${formatCount(status.windows.month.remaining)} / ${formatCount(status.windows.month.limit)}`,
+            ],
+          ]}
+        />
+        {status.exhausted ? (
+          <p className={styles.statusWarn}>
+            {status.windows.hour.remaining === 0
+              ? "Bu saatlik arama sınırı doldu."
+              : `${WINDOW_LABEL[status.limitingWindow]} hakkı ve bonus bakiyesi kalmadı.`}
+          </p>
+        ) : null}
         {ledgerTotals.length > 0 ? (
           <KeyValues
             items={ledgerTotals.map((row) => [

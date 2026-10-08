@@ -29,6 +29,7 @@ export * from "./marketing/index.ts";
 export * from "./media/index.ts";
 export * from "./ops/index.ts";
 export * from "./product/index.ts";
+export * from "./quota/index.ts";
 export * from "./redis/index.ts";
 export * from "./search/index.ts";
 export * from "./trends/index.ts";
