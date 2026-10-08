@@ -187,12 +187,13 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   },
   {
     id: "chat_feedback",
-    label: "Sohbet yanıt oyu",
+    label: "Sohbet yanıt oyu, neden ve yorum",
     tables: ["chat_result_feedback"],
-    status: "data_no_ui",
-    adminPaths: [],
-    gaps: [{ signal: "Oy ve neden dağılımı", status: "data_no_ui" }],
-    note: "Yönetim görünümü açık dalda (karar 0079, PR #71).",
+    status: "visible",
+    adminPaths: ["/yonetim/ai-geri-bildirim"],
+    gaps: [],
+    privacy:
+      "Sohbet metni gösterilmez; her liste/ayrıntı görüntülemesi denetime yazılır, yorum 90 gün (0079).",
   },
   {
     id: "ai_usage",
@@ -472,6 +473,7 @@ export const CAPABILITY_COVERAGE: Readonly<Record<Capability, CapabilityCoverage
   "users.activity.read": { class: "analyze", sensitive: true },
   "users.contact.reveal": { class: "analyze", sensitive: true },
   "messages.read": { class: "analyze", sensitive: true },
+  "feedback.chat.read": { class: "analyze", sensitive: true },
   "matching.review": { class: "manage", sensitive: false },
   "dictionary.write": { class: "manage", sensitive: false },
   "merchant.manage": { class: "manage", sensitive: false },
@@ -497,6 +499,7 @@ export const AUDIT_TARGET_SUBSYSTEM: Readonly<Record<AdminTargetType, string>> =
   marketing_campaign: "marketing",
   form: "forms",
   feedback: "inbox",
+  chat_feedback: "chat_feedback",
   early_access_counter: "early_access",
   capability: "audit",
 };

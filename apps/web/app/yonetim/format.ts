@@ -212,6 +212,7 @@ export const TARGET_TYPE_LABELS: Record<AdminTargetType, string> = {
   marketing_campaign: "E-posta kampanyası",
   form: "Form / anket",
   feedback: "Gelen kutusu",
+  chat_feedback: "AI geri bildirimi",
   early_access_counter: "Erken erişim sayacı",
   capability: "Yetenek",
 };

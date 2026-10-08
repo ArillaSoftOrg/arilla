@@ -7,9 +7,10 @@ Yönetim konsolunu "operasyonel kontrol merkezi"ne genişletmeden önceki temel.
 Yetki haritası (0039), oturum kuralları (0044, 0050), denetim kaydı, rıza ve
 gizlilik sınırları (0049, 0074, 0079) **değişmez**. Migration yok.
 
-Numara notu: 0079 açık iki dalda (#71 sohbet geri bildirimi, sohbette ürün
-linki), 0080 ana dalda (kota) ve `chat-attachment-unified` dalında kullanılıyor;
-o dalın 0081'e geçmesi beklendiği için bu karar 0082'dir.
+Numara notu: 0079 ana dalda (#71 sohbet geri bildirimi) ve açık
+`chat-link-search` dalında; 0080 ana dalda (kota) ve açık
+`chat-attachment-unified` dalında kullanılıyor. O dalların 0081'e geçmesi
+beklendiği için bu karar 0082'dir.
 
 ## Karar
 
@@ -26,7 +27,8 @@ o dalın 0081'e geçmesi beklendiği için bu karar 0082'dir.
    (`KNOWN_JOBS`), kodda kullanılan yetenekler. Sınıflandırılmamış yeni bir şey
    eklenirse test kırılır.
 2. **Yetki matrisi eksiksiz.** `authorization.integration.test.ts` her
-   `page.tsx`'i (bugün 28) ve her dışa açık server action'ı (bugün 18) altı
+   `page.tsx`'i (bugün 30, #71'in AI geri bildirim sayfaları dahil) ve her dışa
+   açık server action'ı (bugün 18) altı
    rolle (anonim, süresi dolmuş, user, creator, moderatör, yönetici) arayüzü
    atlayarak çağırır. Reddedilen ve "zararsız" (doğrulama/bulunamadı ile dönen)
    çağrılarda veri ve mutasyon denetimi değişmez. Dosya sistemindeki sayfa ve
@@ -49,6 +51,17 @@ o dalın 0081'e geçmesi beklendiği için bu karar 0082'dir.
    - Yalnızca yeni satırlar etkilenir; geçmiş yeniden fiyatlanmaz.
    - Yönetim maliyet bölümü tutarın tahmin olduğunu ve fatura olmadığını yazar.
 
+5. **CI** (`.github/workflows/ci.yml`). Secret okumaz; üretim ya da ücretli
+   API'ye bağlanmaz. İşler: typecheck + lint (PR'ın değiştirdiği dosyalar
+   kesin; tüm depo taraması ana daldaki bilinen 17 bulguyu uyarı olarak iş
+   özetine yazar), birim testleri (kapsam kaydı ve fiyat kuralları dahil), web
+   derlemesi ve tek kullanımlık servislerle (pgvector/pg16, redis:7, Mailpit)
+   boş veritabanı → migration → `arilla_app` rolü → partition → tohum →
+   bütün web entegrasyon testleri + core yönetim/sohbet/sorgu yorumu
+   entegrasyon testleri. Core'un geri kalan entegrasyon testlerinde ana dalda
+   12 bilinen başarısızlık (ürün/arama tohum beklentileri) olduğu için bu
+   kapsamda değildir; düzeltilince eklenmelidir.
+
 ## Sınırlar
 
 - **Tahmin ≠ fatura.** Gerçek tutar Google Cloud faturalama dökümündedir (dış
@@ -68,10 +81,11 @@ o dalın 0081'e geçmesi beklendiği için bu karar 0082'dir.
 
 - Kur üretimde tanımlanmalı (Vercel); tanımlanana dek Gemini maliyeti
   "Hesaplanmadı" kalır.
-- PR #71 (0079, `feedback.chat.read`) ve sohbet dallarının sırası
-  netleşmeli: aynı dosyalar (`admin-nav.ts`, `capabilities.ts`, `audit.ts`,
-  `format.ts`, `chat/service.ts`). #71 birleşince yeni sayfa ve action bu
-  matrise ve kayda eklenmelidir (testler bunu zorlar).
+- #71 (0079) birleşti; yeteneği (`feedback.chat.read`), denetim hedefi
+  (`chat_feedback`) ve iki sayfası kayda ve matrise eklendi — kayıt testi bunu
+  derlemede istedi. Açık sohbet dalları (`chat-link-search`,
+  `chat-attachment-unified`) `chat/service.ts`'e dokunuyor ve ADR numaralarını
+  değiştirmeli.
 - Shopify dallarındaki migration 0051 çakışması, ortamların `schema_migration`
   kayıtlarına bakılarak çözülmeli (bu karar numara değiştirmez).
 

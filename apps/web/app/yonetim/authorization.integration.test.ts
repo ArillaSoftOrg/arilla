@@ -94,6 +94,7 @@ let productId = 0;
 let subjectPublicId = "";
 let formId = 0;
 let campaignPublicId = "";
+let feedbackMessageId = 0;
 /** Var olmayan kampanya: gönderim/iptal yolları hiçbir şeye dokunmadan döner. */
 const missingCampaign = "00000000-0000-4000-8000-000000000000";
 
@@ -141,6 +142,23 @@ beforeAll(async () => {
       [`authz-kampanya-${suffix}`],
     );
     campaignPublicId = String(campaign.rows[0].public_id);
+    // Karar 0079: oy ayrıntısı sayfası için sohbet + yanıt + olumsuz oy. Sohbet,
+    // test hesabı silinince CASCADE ile gider.
+    const conversation = await client.query(
+      "INSERT INTO conversation (user_id, title) VALUES ($1, 'Authz sohbet') RETURNING id",
+      [userIds[0]],
+    );
+    const message = await client.query(
+      `INSERT INTO chat_message (conversation_id, seq, role, kind, content)
+       VALUES ($1, 1, 'assistant', 'notice', 'Authz yanıt') RETURNING id`,
+      [conversation.rows[0].id],
+    );
+    feedbackMessageId = Number(message.rows[0].id);
+    await client.query(
+      `INSERT INTO chat_result_feedback (message_id, conversation_id, helpful)
+       VALUES ($1, $2, FALSE)`,
+      [feedbackMessageId, conversation.rows[0].id],
+    );
   });
 });
 
@@ -285,6 +303,19 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     call: async () =>
       (await import("./kampanyalar/[publicId]/page.tsx")).default({
         params: Promise.resolve({ publicId: campaignPublicId }),
+      }),
+  },
+  {
+    name: "/yonetim/ai-geri-bildirim",
+    admin: true,
+    call: async () => (await import("./ai-geri-bildirim/page.tsx")).default(sp({})),
+  },
+  {
+    name: "/yonetim/ai-geri-bildirim/[messageId]",
+    admin: true,
+    call: async () =>
+      (await import("./ai-geri-bildirim/[messageId]/page.tsx")).default({
+        params: Promise.resolve({ messageId: String(feedbackMessageId) }),
       }),
   },
   {
