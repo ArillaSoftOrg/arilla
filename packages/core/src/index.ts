@@ -31,3 +31,4 @@ export * from "./ops/index.ts";
 export * from "./product/index.ts";
 export * from "./redis/index.ts";
 export * from "./search/index.ts";
+export * from "./trends/index.ts";

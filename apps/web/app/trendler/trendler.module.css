@@ -1,0 +1,242 @@
+/* Ardisik bolumler arasinda iki kat bosluk olmasin (ana sayfayla ayni ritim). */
+.page > section + section {
+  padding-block-start: 0;
+}
+
+.anchored {
+  scroll-margin-block-start: var(--space-8);
+}
+
+/* Bolum gezinmesi: sayfa ici anchor'lar, JS yok. Dar ekranda yatay kayar. */
+.sectionNav {
+  display: flex;
+  gap: var(--space-2);
+  margin: var(--space-6) 0 0;
+  padding: 0;
+  overflow-x: auto;
+  list-style: none;
+  scrollbar-width: thin;
+}
+
+.sectionNavLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.sectionNavLink:hover {
+  border-color: var(--line-strong);
+}
+
+.sectionNavLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Trend kartlari: telefon 1, tablet 2, laptop+ 3 sutun. */
+.grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6);
+  }
+}
+
+.gridItem {
+  display: grid;
+  min-width: 0;
+}
+
+/* "Tum Trendler": yerlesik <details>, JS yok; kapaliyken ilk gorunum sade. */
+.all {
+  border-top: var(--border-width) solid var(--line);
+  padding-block-start: var(--space-4);
+}
+
+.allSummary {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  padding: 0 var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.allSummary:hover {
+  border-color: var(--line-strong);
+}
+
+.allSummary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.allBody {
+  margin-block-start: var(--space-6);
+}
+
+.empty {
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+
+/* Detay: geri baglantisi + kapak + baslik, ardindan dogrudan urun izgarasi. */
+.detail {
+  display: grid;
+  gap: var(--space-6);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 44px;
+  width: max-content;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.back:hover {
+  color: var(--ink);
+}
+
+.back:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.heroMedia {
+  overflow: hidden;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
+}
+
+.heroImage {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  background: var(--surface-raised);
+}
+
+@media (min-width: 1024px) {
+  .heroImage {
+    aspect-ratio: 21 / 9;
+  }
+}
+
+.heroPlaceholder {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background: var(--surface);
+}
+
+@media (min-width: 1024px) {
+  .heroPlaceholder {
+    aspect-ratio: 21 / 9;
+  }
+}
+
+.heroText {
+  display: grid;
+  gap: var(--space-3);
+  max-width: var(--content-width-reading);
+}
+
+.heroTitle {
+  margin: 0;
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.heroDescription {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+}
+
+.heroMeta {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+}
+
+/* Urun izgarasi: telefon 2, tablet 3, masaustu 4 sutun. */
+.products {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .products {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-4);
+  }
+}
+
+@media (min-width: 1024px) {
+  .products {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+.productItem {
+  display: grid;
+  min-width: 0;
+}
+
+.skeletonBar {
+  height: 28px;
+  width: min(280px, 60%);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+}
+
+.skeletonCard {
+  aspect-ratio: 16 / 11;
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}

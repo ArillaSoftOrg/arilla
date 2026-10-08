@@ -30,7 +30,9 @@ export default function robots(): MetadataRoute.Robots {
         "/davet/",
         "/api/",
         // Lansman öncesi ürün kapalı: ürün yolları taranmaz (P2).
-        ...(isProductOpen() ? [] : ["/urun/", "/kesfet", "/firsatlar", "/erken-erisim"]),
+        ...(isProductOpen()
+          ? []
+          : ["/urun/", "/kesfet", "/firsatlar", "/trendler", "/erken-erisim"]),
       ],
     },
     ...(appUrl ? { sitemap: `${appUrl}/sitemap.xml` } : {}),

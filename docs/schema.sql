@@ -1509,3 +1509,61 @@ CREATE TABLE IF NOT EXISTS chat_result_feedback (
 
 CREATE INDEX IF NOT EXISTS chat_result_feedback_conversation_idx
     ON chat_result_feedback (conversation_id);
+
+-- 0056 (karar 0077): editoryal trend koleksiyonlari. Tam metin (50 trendlik tohum dahil):
+-- migrations/0056_trend_collections.sql.
+CREATE TABLE IF NOT EXISTS trend (
+    id              BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    slug            TEXT        NOT NULL,
+    title           TEXT        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 120),
+    description     TEXT        NOT NULL CHECK (char_length(description) BETWEEN 1 AND 280),
+    -- Konu grubu (arayuz sekmesi). 'genel' = kampanya/ortak temalar.
+    category        TEXT        NOT NULL
+                    CHECK (category IN ('moda', 'guzellik', 'ev-yasam', 'ogrenci', 'genel')),
+    -- Ayri editoryal gorsel gelene kadar NULL; okuma sirasinda temsilci urun
+    -- gorseline, o da yoksa yer tutucuya dusulur. Yalnizca https.
+    hero_image_url  TEXT        CHECK (hero_image_url IS NULL
+                                       OR (hero_image_url ~ '^https://'
+                                           AND char_length(hero_image_url) <= 2048)),
+    status          TEXT        NOT NULL DEFAULT 'draft'
+                    CHECK (status IN ('draft', 'published', 'archived')),
+    featured        BOOLEAN     NOT NULL DEFAULT FALSE,
+    trend_type      TEXT        NOT NULL DEFAULT 'evergreen'
+                    CHECK (trend_type IN ('evergreen', 'seasonal', 'campaign')),
+    sort_order      INTEGER     NOT NULL DEFAULT 0,
+    -- Yayin penceresi. NULL = sinirsiz. Pencere disindaki trend "Su An Trend"
+    -- bolumunde cikmaz; /trendler'de ve adresinde erisilebilir kalir.
+    active_from     TIMESTAMPTZ,
+    active_until    TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT trend_slug_uniq UNIQUE (slug),
+    CONSTRAINT trend_slug_shape CHECK (slug ~ '^[a-z0-9]+(-[a-z0-9]+)*$'
+                                       AND char_length(slug) <= 80),
+    CONSTRAINT trend_active_window CHECK (active_from IS NULL OR active_until IS NULL
+                                          OR active_from < active_until)
+);
+
+CREATE INDEX IF NOT EXISTS trend_listing_idx
+    ON trend (sort_order, id) WHERE status = 'published';
+
+CREATE TABLE IF NOT EXISTS trend_product (
+    trend_id    BIGINT      NOT NULL REFERENCES trend(id) ON DELETE CASCADE,
+    product_id  BIGINT      NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    -- Trend icindeki gosterim sirasi (0 = en iyi eslesme).
+    sort_order  INTEGER     NOT NULL CHECK (sort_order >= 0),
+    created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (trend_id, product_id),
+    -- Ayni trendde iki urun ayni siraya oturmaz. ERTELENMIS: curate is'i
+    -- siralamayi tek islemde yeniden yazabilsin; kontrol COMMIT'te yapilir.
+    CONSTRAINT trend_product_order_uniq UNIQUE (trend_id, sort_order)
+        DEFERRABLE INITIALLY DEFERRED
+);
+
+-- Ters yon: "bu urun hangi trendlerde?" ve urun silinirken FK taramasi.
+CREATE INDEX IF NOT EXISTS trend_product_product_idx ON trend_product (product_id);
+
+COMMENT ON TABLE trend IS
+    'Editoryal urun kesfi koleksiyonu (/trendler). Blog degil. Karar 0077.';
+COMMENT ON TABLE trend_product IS
+    'Trend-urun baglari; curate toplu isi yazar, istek yolu yalnizca okur. Karar 0077.';
