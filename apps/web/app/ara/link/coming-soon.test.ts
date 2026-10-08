@@ -43,7 +43,6 @@ vi.mock("next/navigation", () => ({
   },
   useRouter: () => ({ push: () => undefined, refresh: () => undefined }),
 }));
-vi.mock("../../photo-search-client.tsx", () => ({ PhotoSearchButton: () => null }));
 
 const { LINK_SEARCH_PUBLIC } = await import("@arilla/core");
 const { LinkSearchComingSoon } = await import("./link-search-coming-soon.tsx");

@@ -336,3 +336,16 @@ describe("eski görsel arama akışına bağımlılık yok (karar 0079)", () => 
     expect(source).toContain("startChatBootstrapAction");
   });
 });
+
+describe("/ara/gorsel eski sayfa: kalıcı yönlendirme", () => {
+  it("görsel verisi okumadan ana sayfaya taşır", async () => {
+    vi.doMock("next/navigation", () => ({
+      permanentRedirect: (href: string) => {
+        throw new Error(`REDIRECT:${href}`);
+      },
+    }));
+    const { default: Page } = await import("../ara/gorsel/page.tsx");
+    expect(() => Page()).toThrow("REDIRECT:/");
+    vi.doUnmock("next/navigation");
+  });
+});
