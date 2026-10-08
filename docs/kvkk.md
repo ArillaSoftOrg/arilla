@@ -137,7 +137,7 @@ Kurallar:
 
 Bu kurallar ilk görsel arama satırı yazılmadan önce uygulanmalıdır.
 
-**Sohbet eki (karar 0078).** Sohbete eklenen görsel yalnızca sahibine görünür, sohbetle aynı ömürde (en fazla 90 gün) tutulur ve Gemini'ye gönderilir; yalnızca `CHAT_IMAGE_ENABLED` ile, hukuk onayı ve açık rıza metni sonrası açılır.
+**Sohbet eki (karar 0078, 0079).** Sohbete eklenen görsel (ilk mesajda ya da sohbet içinde, konuşma başına en fazla 5) yalnızca sahibine görünür, sohbetle aynı ömürde (en fazla 90 gün) tutulur ve Gemini'ye gönderilir; yalnızca `CHAT_IMAGE_ENABLED` ile, hukuk onayı ve açık rıza metni sonrası açılır. Model, görselin kısa bir ürün özetini üretir ve sohbet mesajıyla birlikte saklar; takip turlarında görselin kendisi yerine bu özet gider, görsel yalnızca özet yoksa ya da kullanıcı görsele atıf yapıyorsa yeniden gönderilir. Ana sayfadan yeni sekmeye geçişte görsel tarayıcıda yalnızca tek kullanımlık, en fazla 60 sn yaşayan geçici bir IndexedDB kaydında bulunur (sunucu teslim alınca ya da süre dolunca silinir); `localStorage`'a görsel yazılmaz. Açık rıza ve aydınlatma metni tamamlanmadan özellik production'da açılmaz.
 
 ## İlgili kişi hakları
 

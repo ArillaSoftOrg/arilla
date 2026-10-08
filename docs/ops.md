@@ -693,3 +693,10 @@ başına), `GEMINI_API_KEY` (0059 ile ortak). Etkinleştirme sırası: 0054 migr
 production'da uygulanır (`pnpm db:migrate`, `db:verify`) → kod dağıtılır → hukuk
 onayı (docs/kvkk.md "Konuşmalı keşif") → bayrak açılır. Maliyet: `api_usage`
 `operation = 'chat_turn'`. Saklama: 90 gün, `cleanup-auth` cron'u (`job_run.detail.conversations`).
+
+**Görsel eki (karar 0078, 0079) — varsayılan kapalı.** `CHAT_IMAGE_ENABLED=true`
+(`CHAT_DISCOVERY_ENABLED` de açık olmalı). Kapalıyken ana sayfa ve sohbet kutusunda
+"+" görünmez, eski `/ara/gorsel` akışına düşülmez. Görselli mesaj metinle aynı
+sohbet turu kotasından geçer (arama hakkı harcanmaz); ek migration yok (0057 yeter).
+Etkinleştirme: hukuk onayı + aydınlatma/açık rıza metni (docs/kvkk.md "Yüklenen
+görseller"), sonra bayrak. Production'da onay olmadan açılmaz.
