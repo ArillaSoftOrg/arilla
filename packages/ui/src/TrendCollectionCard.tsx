@@ -1,7 +1,7 @@
 import { FallbackImage } from "./FallbackImage.tsx";
 import { ProductImage } from "./ProductImage.tsx";
 import styles from "./TrendCollectionCard.module.css";
-import { VisuallyHidden } from "./VisuallyHidden.tsx";
+import { TrendThumbnails } from "./TrendThumbnails.tsx";
 
 export interface TrendCollectionProduct {
   id: string;
@@ -24,7 +24,13 @@ export interface TrendCollection {
    * hepsi kirikse yer tutucu cizilir. Verilmezse `heroImageUrl` tek basina kullanilir.
    */
   heroImageCandidates?: readonly string[];
+  /**
+   * Onizleme havuzu. `productsVisible`dan fazla verilirse kirik gorselin yerine
+   * sonraki urun gelir (`TrendThumbnails`); verilmezse hepsi gosterilir.
+   */
   products?: readonly TrendCollectionProduct[];
+  /** Ayni anda gosterilecek onizleme sayisi (varsayilan: havuzun tamami). */
+  productsVisible?: number;
   /** Verilirse TUM kart tek baglantidir (baslik baglantisi karti kaplar). */
   href?: string;
   /** Trenddeki toplam urun; onizlemeden fazlasi "+N urun" olarak yazilir. */
@@ -60,6 +66,7 @@ export function TrendCollectionCard({
   heroImageAlt,
   heroImageCandidates,
   products,
+  productsVisible,
   href,
   productCount,
   startingPriceLabel,
@@ -67,7 +74,7 @@ export function TrendCollectionCard({
   heroImageLoading = "lazy",
   heroImageFetchPriority,
 }: TrendCollectionCardProps) {
-  const shown = products?.length ?? 0;
+  const shown = Math.min(products?.length ?? 0, productsVisible ?? products?.length ?? 0);
   const extra = productCount !== undefined ? Math.max(productCount - shown, 0) : 0;
   const moreText = extra > 0 && moreProductsLabel ? moreProductsLabel(extra) : "";
 
@@ -109,30 +116,11 @@ export function TrendCollectionCard({
           )}
         </h3>
         <p className={styles.description}>{description}</p>
-        {shown > 0 || moreText ? (
-          // biome-ignore lint/a11y/noRedundantRoles: list-style:none WebKit'te liste rolunu dusurur.
-          <ul role="list" className={styles.productList}>
-            {products?.map((product) => (
-              <li key={product.id} className={styles.productItem}>
-                {/* Ad hemen yaninda (gizli metin) - gorsel dekoratif, alt="". */}
-                <ProductImage
-                  src={product.imageUrl}
-                  alt=""
-                  className={styles.productImage}
-                  fit="contain"
-                />
-                <VisuallyHidden>
-                  {product.brand ? `${product.brand} ${product.title}` : product.title}
-                </VisuallyHidden>
-              </li>
-            ))}
-            {moreText ? (
-              <li className={styles.more} aria-hidden="true">
-                {moreText}
-              </li>
-            ) : null}
-          </ul>
-        ) : null}
+        <TrendThumbnails
+          products={products ?? []}
+          visibleCount={productsVisible ?? products?.length ?? 0}
+          moreText={moreText}
+        />
         {startingPriceLabel ? <p className={styles.price}>{startingPriceLabel}</p> : null}
       </div>
     </article>

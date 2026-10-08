@@ -108,3 +108,42 @@ def test_min_public_products_matches_core_constant():
 
 def test_all_50_titles_match_user_list_exactly_and_in_order():
     assert [row[1] for row in seed()] == USER_TITLES
+
+
+EDITORIAL = re.compile(
+    r"^\s+\('([^']+)', .*?'(?:evergreen|seasonal|campaign)', "
+    r"(TRUE|FALSE), \d+, .*, '(published|draft)'\),?$",
+    re.M,
+)
+LAUNCH_DRAFTS = {
+    "sonbahara-hazir-misin",
+    "bayramlik-bakmaya-baslayanlara",
+    "yeni-eve-cikanlar-icin",
+}
+LAUNCH_FEATURED = {"kampus-kombinleri", "kis-gelmeden-al", "evi-daha-pahali-gosteren-seyler"}
+
+
+def editorial() -> dict[str, tuple[bool, str]]:
+    text = MIGRATION.read_text(encoding="utf-8")
+    return {m[1]: (m[2] == "TRUE", m[3]) for m in EDITORIAL.finditer(text)}
+
+
+def test_launch_drafts_are_unpublished_but_keep_title_and_profile():
+    rows = editorial()
+    assert len(rows) == 50
+    assert {slug for slug, (_f, status) in rows.items() if status == "draft"} == LAUNCH_DRAFTS
+    for slug in LAUNCH_DRAFTS:
+        assert slug in BY_SLUG and BY_SLUG[slug].core  # profil silinmedi, yeniden yayinlanabilir
+        assert slug in {row[0] for row in seed()}  # baslik/satir silinmedi
+
+
+def test_featured_is_exactly_the_launch_trio_and_never_a_draft():
+    rows = editorial()
+    featured = {slug for slug, (is_featured, _s) in rows.items() if is_featured}
+    assert featured == LAUNCH_FEATURED
+    assert not any(rows[slug][1] == "draft" for slug in featured)
+
+
+def test_featured_does_not_change_matching_profiles():
+    # `featured` yalniz sunum karari: profil alanlarinda featured diye bir sey yok.
+    assert not any(hasattr(profile, "featured") for profile in PROFILES)

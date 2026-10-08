@@ -363,3 +363,53 @@ def test_home_trends_reject_extreme_prices():
         title = "El Dokuma Kahverengi Yün Halı"
         assert score_candidate(profile, cand(1, title, path="ev-yasam", price=30_000_000)) is None
         assert score_candidate(profile, cand(2, title, path="ev-yasam", price=500_000)) is not None
+
+
+# --- urun ailesi: Erkek / Kadin / Unisex kopyalari ------------------------------
+
+
+def test_gender_variants_of_same_base_product_use_one_slot():
+    p = Profile("t", core=("tisort",), target=10)
+    items = [
+        cand(1, "Regular Fit Pamuk Basic Bisiklet Yaka Erkek Tişört", brand="North Sails Erkek"),
+        cand(2, "Regular Fit Pamuk Basic Bisiklet Yaka Kadın Tişört", brand="North Sails Kadın"),
+        cand(3, "Regular Fit Pamuk Basic Bisiklet Yaka Unisex Tişört", brand="North Sails Unisex"),
+    ]
+    picked = select_diverse(p, scored(p, items))
+    assert [s.candidate.product_id for s in picked] == [1]
+
+
+def test_different_products_are_not_merged_by_gender_removal():
+    p = Profile("t", core=("tisort", "gomlek"), target=10)
+    items = [
+        cand(1, "Regular Fit Pamuk Basic Bisiklet Yaka Erkek Tişört", merchant="a"),
+        cand(2, "Regular Fit Keten Uzun Kollu Kadın Gömlek", merchant="b"),
+        cand(3, "Slim Fit Pamuk Polo Yaka Erkek Tişört", merchant="c"),
+    ]
+    picked = select_diverse(p, scored(p, items))
+    assert sorted(s.candidate.product_id for s in picked) == [1, 2, 3]
+
+
+def test_family_merge_needs_exact_equality_not_fuzzy_overlap():
+    # Cinsiyet disinda bir kelime farkli (alpaka): ayni aile SAYILMAZ (muhafazakar).
+    items = [
+        cand(1, "Kaşmir Karışımlı Yünlü Erkek Balıkçı Yaka Triko Kazak", merchant="a"),
+        cand(2, "Kaşmir Karışımlı Alpaka Yünlü Kadın Balıkçı Yaka Triko Kazak", merchant="b"),
+    ]
+    from curate.text import family_signature, same_family
+
+    assert not same_family(family_signature(items[0].title), family_signature(items[1].title))
+
+
+def test_short_titles_never_form_a_family():
+    from curate.text import family_signature, same_family
+
+    a, b = family_signature("Erkek Şort"), family_signature("Kadın Şort")
+    assert not same_family(a, b)  # < 3 anlamli kelime: birlestirme yok
+
+
+def test_gender_tokens_are_stripped_from_family_only():
+    from curate.text import family_signature, signature
+
+    assert "erkek" in signature("Pamuk Erkek Tişört Basic")
+    assert "erkek" not in family_signature("Pamuk Erkek Tişört Basic")

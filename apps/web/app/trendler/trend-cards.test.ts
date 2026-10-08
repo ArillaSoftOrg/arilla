@@ -1,5 +1,5 @@
 import type { TrendSummary } from "@arilla/core";
-import { FallbackImage } from "@arilla/ui";
+import { FallbackImage, TrendThumbnails } from "@arilla/ui";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -49,6 +49,48 @@ describe("FallbackImage (SSR)", () => {
     const html = render({ srcs: [], alt: "", placeholderClassName: "ph" });
     expect(html).not.toContain("<img");
     expect(html).toContain('class="ph"');
+  });
+});
+
+describe("TrendThumbnails (SSR)", () => {
+  const pool = [1, 2, 3, 4, 5, 6].map((n) => ({
+    id: String(n),
+    title: `Ürün ${n}`,
+    imageUrl: `https://img.test.example/${n}.jpg`,
+  }));
+  const render = (props: Parameters<typeof TrendThumbnails>[0]) =>
+    renderToStaticMarkup(createElement(TrendThumbnails, props));
+
+  it("havuz gorunenden buyukse yalniz ilk N gorunur; kalanlar kirik gorsele yedek bekler", () => {
+    const html = render({ products: pool, visibleCount: 4, moreText: "+20 ürün" });
+    expect(html.match(/<img /g)).toHaveLength(4);
+    expect(html).toContain("1.jpg");
+    expect(html).not.toContain("5.jpg");
+    expect(html).toContain("+20 ürün");
+  });
+
+  it("onizleme de '+N' de yoksa hic bos kutu/liste cizilmez", () => {
+    expect(render({ products: [], visibleCount: 4 })).toBe("");
+  });
+
+  it("kart '+N urun'u GORUNEN sayiya gore yazar (havuza gore degil)", () => {
+    const html = renderToStaticMarkup(
+      createElement(TrendCardGrid, {
+        trends: [
+          trend({
+            productCount: 24,
+            thumbnails: pool.map((p) => ({
+              productId: Number(p.id),
+              title: p.title,
+              brandName: null,
+              imageUrl: p.imageUrl,
+            })),
+          }),
+        ],
+      }),
+    );
+    expect(html).toContain("+20 ürün"); // 24 - 4 gorunen
+    expect(html.match(/class="[^"]*productImage[^"]*"/g) ?? []).toHaveLength(4);
   });
 });
 

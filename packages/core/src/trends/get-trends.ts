@@ -11,10 +11,11 @@ import { type Database, trend as trendTable } from "@arilla/db";
 import { and, eq, sql } from "drizzle-orm";
 import { withStartingFrom } from "../product/get-price-comparison.ts";
 import { heroCandidateUrls, resolveTrendHero } from "./hero.ts";
+import { isTrendSchemaMissing, warnTrendSchemaMissing } from "./schema-guard.ts";
 import { isTrendActiveNow } from "./sections.ts";
 import {
   MIN_PUBLIC_TREND_PRODUCTS,
-  TREND_THUMBNAIL_COUNT,
+  TREND_THUMBNAIL_POOL,
   type TrendDetail,
   type TrendProductItem,
   type TrendSummary,
@@ -64,10 +65,7 @@ function toDate(value: Date | string | null): Date | null {
 }
 
 /** Yayinlanmis ve yeterli urunu olan trendler, `sort_order` sirasinda. */
-export async function getPublicTrends(
-  db: Database,
-  now: Date = new Date(),
-): Promise<TrendSummary[]> {
+async function loadPublicTrends(db: Database, now: Date = new Date()): Promise<TrendSummary[]> {
   const listed = await db.execute(sql`
     SELECT t.id, t.slug, t.title, t.description, t.category, t.trend_type, t.featured,
            t.hero_image_url, t.active_from, t.active_until,
@@ -98,7 +96,7 @@ export async function getPublicTrends(
            sql`, `,
          )})
       ) x
-     WHERE x.rank <= ${TREND_THUMBNAIL_COUNT}
+     WHERE x.rank <= ${TREND_THUMBNAIL_POOL}
      ORDER BY x.trend_id, x.rank
   `);
   const byTrend = new Map<number, TrendThumbnail[]>();
@@ -151,7 +149,7 @@ export async function getPublicTrends(
  * `MIN_PUBLIC_TREND_PRODUCTS`tan az gosterilebilir urunu olan trend icin
  * `null` (sayfa 404 verir). Sira: `trend_product.sort_order`.
  */
-export async function getTrendBySlug(
+async function loadTrendBySlug(
   db: Database,
   slug: string,
   now: Date = new Date(),
@@ -208,7 +206,7 @@ export async function getTrendBySlug(
       ),
       productCount: products.length,
       startingPrice: prices.length > 0 ? Math.min(...prices) : null,
-      thumbnails: products.slice(0, TREND_THUMBNAIL_COUNT).flatMap((item) =>
+      thumbnails: products.slice(0, TREND_THUMBNAIL_POOL).flatMap((item) =>
         item.primaryImageUrl
           ? [
               {
@@ -223,4 +221,37 @@ export async function getTrendBySlug(
     },
     products,
   };
+}
+
+/**
+ * Yayinlanmis ve yeterli urunu olan trendler, `sort_order` sirasinda. Trend
+ * semasi henuz yoksa (0056 oncesi) bos liste doner ve uyari loglanir; baska
+ * hatalar firlatilir.
+ */
+export async function getPublicTrends(
+  db: Database,
+  now: Date = new Date(),
+): Promise<TrendSummary[]> {
+  try {
+    return await loadPublicTrends(db, now);
+  } catch (error) {
+    if (!isTrendSchemaMissing(error)) throw error;
+    warnTrendSchemaMissing();
+    return [];
+  }
+}
+
+/** Tek trend + urun izgarasi; sema yoksa `null` (404). Bkz. `loadTrendBySlug`. */
+export async function getTrendBySlug(
+  db: Database,
+  slug: string,
+  now: Date = new Date(),
+): Promise<TrendDetail | null> {
+  try {
+    return await loadTrendBySlug(db, slug, now);
+  } catch (error) {
+    if (!isTrendSchemaMissing(error)) throw error;
+    warnTrendSchemaMissing();
+    return null;
+  }
 }

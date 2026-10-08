@@ -7,8 +7,15 @@ import type { TrendCategory, TrendType } from "@arilla/db";
  */
 export const MIN_PUBLIC_TREND_PRODUCTS = 4;
 
-/** Kart onizlemesindeki kucuk urun gorseli sayisi. */
+/** Kart onizlemesinde AYNI ANDA gorunen kucuk urun gorseli sayisi. */
 export const TREND_THUMBNAIL_COUNT = 4;
+
+/**
+ * Onizleme havuzu: kirik gorselin yerine sonraki urunu koyabilmek icin gorunenden
+ * fazla aday tasinir (`TrendSummary.thumbnails`). Arayuz ilk `TREND_THUMBNAIL_COUNT`
+ * saglam olani gosterir.
+ */
+export const TREND_THUMBNAIL_POOL = 8;
 
 export type TrendHeroSource = "trend" | "product" | "placeholder";
 
@@ -42,6 +49,7 @@ export interface TrendSummary {
   productCount: number;
   /** Kurus; gosterilebilir urunlerin en dusuk `min_price`'i. */
   startingPrice: number | null;
+  /** Onizleme havuzu (en cok `TREND_THUMBNAIL_POOL`), `sort_order` sirasinda. */
   thumbnails: TrendThumbnail[];
 }
 

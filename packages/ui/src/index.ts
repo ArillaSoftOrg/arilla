@@ -53,5 +53,6 @@ export * from "./SkipLink.tsx";
 export * from "./SortTabs.tsx";
 export * from "./Stack.tsx";
 export * from "./TrendCollectionCard.tsx";
+export * from "./TrendThumbnails.tsx";
 export * from "./UpdatedAt.tsx";
 export * from "./VisuallyHidden.tsx";

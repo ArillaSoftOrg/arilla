@@ -1,4 +1,4 @@
-import type { TrendSummary } from "@arilla/core";
+import { TREND_THUMBNAIL_COUNT, type TrendSummary } from "@arilla/core";
 import { formatStartingPrice, TrendCollectionCard } from "@arilla/ui";
 import { moreProductsLabel } from "./trend-copy.ts";
 import styles from "./trendler.module.css";
@@ -50,6 +50,7 @@ export function TrendCardGrid({
                 imageUrl: thumb.imageUrl,
                 imageAlt: "",
               }))}
+              productsVisible={TREND_THUMBNAIL_COUNT}
               productCount={trend.productCount}
               startingPriceLabel={
                 trend.startingPrice === null ? undefined : formatStartingPrice(trend.startingPrice)
