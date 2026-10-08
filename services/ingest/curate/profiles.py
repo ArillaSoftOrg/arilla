@@ -16,7 +16,9 @@ from dataclasses import replace
 from curate.selection import Profile
 
 SKIN = ("saglik-kozmetik",)
-MODA = ("moda",)
+#: Giyim bazi feed'lerde `spor-outdoor` altinda (production: North Sails, For Fun);
+#: moda trendleri her ikisine bakar. Termos/bardak gurultusu `_finalize`da elenir.
+MODA = ("moda", "spor-outdoor")
 EV = ("ev-yasam",)
 
 #: Kozmetik kategorisine sizan gida/takviye/sac/parfum urunleri: cilt ve makyaj
@@ -305,7 +307,7 @@ PROFILES: tuple[Profile, ...] = (
         min_score=4.0,
     ),
     _P(
-        "pahali-gorunen-uygun-fiyatlilar",
+        "pahali-gorunup-ucuz-olanlar",
         note="'Pahali gorunme' ve 'dupe' iliskisi icin katalogda dogrulanabilir sinyal yok "
         "(referans urun cifti/benzerlik kenari yok); bos birakildi.",
     ),
@@ -329,7 +331,17 @@ PROFILES: tuple[Profile, ...] = (
             "oxford",
         ),
         boost=("kalin", "uzun kollu", "yun", "deri", "oversize", "bordo", "haki", "kahve"),
-        exclude=("sort$", "bikini", "mayo", "plaj", "sandalet", "terlik", "keten", "polo"),
+        exclude=(
+            "yazlik",
+            "sort$",
+            "bikini",
+            "mayo",
+            "plaj",
+            "sandalet",
+            "terlik",
+            "keten",
+            "polo",
+        ),
         categories=MODA,
     ),
     _P(
@@ -373,7 +385,7 @@ PROFILES: tuple[Profile, ...] = (
             "termal",
         ),
         boost=("kalin", "kapusonlu", "astarli", "kazak", "triko"),
-        exclude=("sort$", "bikini", "mayo", "plaj", "keten", "sandalet", "terlik"),
+        exclude=("yazlik", "sort$", "bikini", "mayo", "plaj", "keten", "sandalet", "terlik"),
         categories=MODA,
     ),
     _P(
@@ -393,7 +405,17 @@ PROFILES: tuple[Profile, ...] = (
             "sisme",
         ),
         boost=("kalin", "astarli", "kapusonlu", "deri", "kalin tabanli"),
-        exclude=("sort$", "bikini", "mayo", "plaj", "keten", "sandalet", "terlik", "polo"),
+        exclude=(
+            "yazlik",
+            "sort$",
+            "bikini",
+            "mayo",
+            "plaj",
+            "keten",
+            "sandalet",
+            "terlik",
+            "polo",
+        ),
         categories=MODA,
     ),
     _P(
@@ -597,7 +619,7 @@ PROFILES: tuple[Profile, ...] = (
             "mayo",
             "bikini",
             "keten",
-            "sapka",
+            "sapka$",
             "plaj",
             "sandalet",
             "terlik",
@@ -608,7 +630,7 @@ PROFILES: tuple[Profile, ...] = (
             "seyahat",
         ),
         boost=("hafif", "pamuk", "esnek", "yazlik"),
-        categories=MODA + ("spor-outdoor",),
+        categories=MODA,
         min_score=3.0,
     ),
     _P(
@@ -622,7 +644,7 @@ PROFILES: tuple[Profile, ...] = (
             "terlik",
             "mayo",
             "bikini",
-            "sapka",
+            "sapka$",
             "pamuk elbise",
         ),
         boost=("hafif", "pamuk", "bol", "rahat"),
@@ -635,7 +657,7 @@ PROFILES: tuple[Profile, ...] = (
             "bikini",
             "plaj",
             "pareo",
-            "sapka",
+            "sapka$",
             "sort$",
             "terlik",
             "sandalet",
@@ -676,7 +698,7 @@ PROFILES: tuple[Profile, ...] = (
         ),
         boost=("hafif", "su gecirmez", "kapasite", "kilifi"),
         exclude=("bebek", "yemek termosu", "test"),
-        categories=MODA + ("spor-outdoor", "elektronik"),
+        categories=MODA + ("elektronik",),
     ),
     _P(
         "universiteye-baslayanlar-icin",
@@ -691,32 +713,26 @@ PROFILES: tuple[Profile, ...] = (
         ),
         boost=("sweatshirt", "sneaker", "hafif", "unisex"),
         exclude=("bebek", "yemek termosu", "test"),
-        categories=MODA + ("spor-outdoor", "elektronik"),
+        categories=MODA + ("elektronik",),
     ),
     _P(
         "kyk-odasinin-olmazsa-olmazlari",
         core=(
             "organizer",
             "nevresim",
-            "yastik",
+            "yorgan",
+            "pike",
             "battaniye",
             "masa lambasi",
-            "lamba",
-            "aydinlatma",
-            "raf$",
-            "cekmece",
-            "portmanto",
-            "katlanir",
-            "havlu",
             "carsaf",
-            "pike",
-            "yorgan",
-            "komodin",
+            "havlu",
             "calisma masasi",
         ),
-        boost=("pamuk", "tekli", "tek kisilik", "masa", "duzenleyici", "ozel"),
-        exclude=HOME_NOISE + ("havuz", "plaj"),
+        boost=("pamuk", "tekli", "tek kisilik", "masa", "duzenleyici"),
+        exclude=HOME_NOISE + ("havuz", "plaj", "hali", "komodin", "sarkit", "lambader", "divan"),
         categories=EV,
+        # Yurt odasi butcesi: pahali mobilya (komodin, calisma masasi) bu trendin konusu degil.
+        price_max=500_000,
     ),
     _P(
         "ogrenci-evi-kurtaricilari",
@@ -724,8 +740,6 @@ PROFILES: tuple[Profile, ...] = (
             "organizer",
             "cop kovas",
             "cop kutusu",
-            "termos",
-            "lamba",
             "battaniye",
             "nevresim",
             "havlu",
@@ -736,9 +750,9 @@ PROFILES: tuple[Profile, ...] = (
         boost=("pratik", "katlanir", "pamuk", "kompakt"),
         exclude=HOME_NOISE,
         categories=EV,
+        price_max=500_000,
         min_score=3.0,
     ),
-    # --- Ev & yasam -------------------------------------------------------
     _P(
         "evi-daha-pahali-gosteren-seyler",
         core=(
@@ -766,7 +780,6 @@ PROFILES: tuple[Profile, ...] = (
             "raf$",
             "kompakt",
             "portmanto",
-            "cekmece",
             "askilik",
         ),
         boost=("tekli", "modul", "pratik", "yer tasarruf"),
@@ -902,6 +915,8 @@ PROFILES: tuple[Profile, ...] = (
 
 #: Her profilde gecerli: on siparis urunu "su an stokta" degildir; test kayitlari.
 GLOBAL_EXCLUDE = ("on siparis", "test")
+#: `spor-outdoor` altindaki termos/bardak, renk adlariyla (haki, camel) moda trendlerine girmesin.
+DRINKWARE_NOISE = ("termos", "mug$", "bardak", "tumbler", "quencher", "bottle", "matara")
 #: Cocuk urunu bu trendlerde anlamli (okul esyasi); digerlerinde yetiskin odagi.
 _KIDS_OK = frozenset({"okula-donus-listesi", "universiteye-baslayanlar-icin"})
 
@@ -909,7 +924,7 @@ _KIDS_OK = frozenset({"okula-donus-listesi", "universiteye-baslayanlar-icin"})
 def _finalize(profile: Profile) -> Profile:
     extra = GLOBAL_EXCLUDE
     if "moda" in profile.categories and profile.slug not in _KIDS_OK:
-        extra = extra + ("cocuk",)
+        extra = extra + ("cocuk",) + DRINKWARE_NOISE
     return replace(profile, exclude=tuple(dict.fromkeys(profile.exclude + extra)))
 
 
