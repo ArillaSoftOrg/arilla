@@ -10,6 +10,27 @@ from curate.selection import MIN_PUBLIC_PRODUCTS
 from curate.text import fold
 
 ACRONYMS = frozenset({"KYK"})
+APPROVED_BANNED_TITLE_SLUG = "pahali-gorunup-ucuz-olanlar"
+
+#: Kullanicinin verdigi 50 baslik, sirasiyla; izinsiz degisiklik testte yakalanir.
+USER_TITLES = [
+    "Kuru Ciltlere Son", "Okula Dönüş Listesi", "Üniversiteye Başlayanlar İçin",
+    "KYK Odasının Olmazsa Olmazları", "Kampüs Kombinleri", "Sonbahara Hazır mısın?",
+    "Yağmurlu Günler İçin", "Kazak Mevsimi Başladı", "Havalar Soğurken", "Kış Gelmeden Al",
+    "Bu Sonbaharın Renkleri", "Kahve Tonları", "Bordo Geri Döndü", "Kot Her Yerde",
+    "Babetler Geri Döndü", "Bol Paça Sezonu", "Bir Dolap, Onlarca Kombin",
+    "Az Parçayla Çok Kombin", "Her Gün Giyilecekler", "Dolabın Kurtarıcıları",
+    "İşe Dönüş Kombinleri", "Ofisten Akşam Yemeğine", "Düğün Sezonu",
+    "Nişan ve Davet Elbiseleri", "Mezuniyet İçin Ne Giyilir?", "Bayramlık Bakmaya Başlayanlara",
+    "Tatile Çıkmadan Önce", "Ege Yazı", "Sahile Giderken", "Hafta Sonu Kaçamağı",
+    "Cam Gibi Bir Cilt", "Cildi Işıl Işıl Yapanlar", "Sivilceye Karşı Favoriler",
+    "Gözenek Görünümüne Karşı", "Güneş Lekelerine Karşı", "Makyajsız Güzel Görün",
+    "5 Dakikada Hazır", "Çantadan Eksik Olmayanlar", "Uygun Fiyatlı Güzellik Favorileri",
+    "Pahalı Görünüp Ucuz Olanlar", "Evi Daha Pahalı Gösteren Şeyler",
+    "Küçük Eve Büyük Fikirler", "Öğrenci Evi Kurtarıcıları", "Yeni Eve Çıkanlar İçin",
+    "Kahve Köşesi Kuruyoruz", "Masa Başında Daha Keyifli", "Evde Sonbahar Havası",
+    "11.11'de Alınacaklar", "Kasım İndirimlerinde Beklenenler", "Herkes Almadan Önce",
+]  # fmt: skip
 ROOT = Path(__file__).resolve().parents[3]
 MIGRATION = ROOT / "packages/db/migrations/0056_trend_collections.sql"
 CORE_TYPES = ROOT / "packages/core/src/trends/types.ts"
@@ -69,6 +90,8 @@ def test_seed_copy_follows_ui_rules():
     banned = re.compile(r"satın al|dupe|ucuz|\bedit\b|reset|layering", re.IGNORECASE)
     for slug, title, description, _category, _type in seed():
         for text in (title, description):
+            if slug == APPROVED_BANNED_TITLE_SLUG and text == title:
+                continue  # kullanici onayli tek istisna (karar 0077 madde 9)
             assert not banned.search(text), f"{slug}: yasakli ifade: {text}"
             for word in re.findall(r"[A-ZÇĞİÖŞÜ]{3,}", text):
                 # Kisaltma (KYK) buyuk harf yazilir; duz metin ALL CAPS olamaz.
@@ -81,3 +104,7 @@ def test_seed_copy_follows_ui_rules():
 def test_min_public_products_matches_core_constant():
     match = re.search(r"MIN_PUBLIC_TREND_PRODUCTS = (\d+)", CORE_TYPES.read_text(encoding="utf-8"))
     assert match and int(match.group(1)) == MIN_PUBLIC_PRODUCTS
+
+
+def test_all_50_titles_match_user_list_exactly_and_in_order():
+    assert [row[1] for row in seed()] == USER_TITLES
