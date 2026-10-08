@@ -683,6 +683,36 @@ ifadesini göstermez.
 "Aynı ürün" yalnızca barkod ya da marka + üretici kodu eşleşmesinde yazılır;
 görsel benzerlik "aynı" diye etiketlenmez.
 
+## Sohbet geri bildirimi (karar 0079)
+
+Hitap "sen". Metinler `apps/web/app/sohbet/chat-copy.ts`. Neden kodları kodda
+İngilizce, metinleri Türkçedir.
+
+| Anahtar | Metin |
+| --- | --- |
+| `chat.feedback_question` | Bu yardımcı oldu mu? |
+| `chat.feedback_yes` | Evet, yardımcı oldu |
+| `chat.feedback_no` | Hayır, yardımcı olmadı |
+| `chat.feedback_thanks` | Teşekkürler, not aldım. |
+| `chat.feedback_failed` | Kaydedemedim, tekrar dener misin? |
+| `chat.feedback_rate_limited` | Çok sık oy verdin. Biraz sonra tekrar dener misin? |
+| `chat.feedback_dialog_title` | Bu yanıtı nasıl iyileştirebiliriz? |
+| `chat.feedback_reason_label` | Sorun nedeni |
+| `chat.feedback_reason_placeholder` | Bir neden seç (isteğe bağlı) |
+| `chat.feedback_reason.not_found` | Aradığım ürünleri bulamadı |
+| `chat.feedback_reason.irrelevant` | Alakasız ürünler önerdi |
+| `chat.feedback_reason.misunderstood` | İsteğimi yanlış anladı |
+| `chat.feedback_reason.wrong_info` | Yanlış bilgi verdi |
+| `chat.feedback_reason.wrong_price_or_product` | Fiyat veya ürün bilgisi hatalı |
+| `chat.feedback_reason.slow` | Yanıt çok yavaştı |
+| `chat.feedback_reason.other` | Diğer |
+| `chat.feedback_comment_label` | Ayrıntı ekle (isteğe bağlı) |
+| `chat.feedback_comment_placeholder` | Ne yanlıştı ya da ne eksikti? |
+| `chat.feedback_comment_hint` | Kişisel bilgi yazma. En fazla 500 karakter. |
+| `chat.feedback_cancel` | İptal |
+| `chat.feedback_submit` | Gönder |
+| `chat.feedback_submitting` | Gönderiliyor |
+
 ## Geri bildirim (karar 0045)
 
 Hitap "siz" (ürün sahibinin verdiği metin). Ürün adı bu metinlerde de

@@ -21,7 +21,7 @@ import {
   conversation,
   type Database,
 } from "@arilla/db";
-import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { LlmErrorCode } from "../llm/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
@@ -41,6 +41,7 @@ import {
   parseClarifyQuestion,
   type SearchIntent,
 } from "./contract.ts";
+import { validateChatFeedback } from "./feedback.ts";
 import { mergeSearchIntent, parseStoredIntent } from "./intent.ts";
 import {
   CHAT_CONTEXT_MESSAGES,
@@ -943,19 +944,43 @@ function isMissingTable(error: unknown): boolean {
 
 export type ResultFeedbackStatus = "saved" | "not_found" | "invalid";
 
+/** Oy anindaki model surumu icin aranan pencere (api_usage mesaja bagli degil; yaklasik). */
+const FEEDBACK_MODEL_LOOKBACK_MS = 10 * 60 * 1000;
+
+function isMissingColumn(error: unknown): boolean {
+  const code =
+    (error as { cause?: { code?: string } } | null)?.cause?.code ??
+    (error as { code?: string } | null)?.code;
+  return code === "42703";
+}
+
 /**
- * "Bu yardimci oldu mu?" oyu. Sahiplik sorguda: yalnizca kullanicinin kendi
- * sohbetindeki bir ARAMA mesajina oy verilebilir. Mesaj basina tek oy, degistirilebilir.
+ * "Bu yardimci oldu mu?" oyu (karar 0075, 0079). Sahiplik sorguda: yalnizca kullanicinin
+ * kendi sohbetindeki bir ARAMA mesajina oy verilebilir. Mesaj basina tek oy, degistirilebilir;
+ * ayni icerikle tekrar `updated_at`i oynatmaz. Olumsuz oy istege bagli neden/yorum tasir.
  */
 export async function setResultFeedback(
   db: Database,
-  input: { userId: number; conversationId: string; messageSeq: number; helpful: boolean },
+  input: {
+    userId: number;
+    conversationId: string;
+    messageSeq: number;
+    helpful: boolean;
+    reasons?: readonly string[];
+    comment?: string | null;
+  },
 ): Promise<ResultFeedbackStatus> {
   if (!isUuid(input.conversationId)) return "not_found";
   if (!Number.isInteger(input.messageSeq) || input.messageSeq < 1) return "invalid";
-  if (typeof input.helpful !== "boolean") return "invalid";
+  const details = validateChatFeedback(input);
+  if (!details.ok) return "invalid";
   const [message] = await db
-    .select({ id: chatMessage.id, role: chatMessage.role, kind: chatMessage.kind })
+    .select({
+      id: chatMessage.id,
+      role: chatMessage.role,
+      kind: chatMessage.kind,
+      createdAt: chatMessage.createdAt,
+    })
     .from(chatMessage)
     .innerJoin(conversation, eq(conversation.id, chatMessage.conversationId))
     .where(
@@ -968,17 +993,61 @@ export async function setResultFeedback(
   if (!message) return "not_found";
   if (message.role !== "assistant" || message.kind !== "search") return "invalid";
   try {
-    await db
-      .insert(chatResultFeedback)
-      .values({
-        messageId: message.id,
-        conversationId: input.conversationId,
-        helpful: input.helpful,
-      })
-      .onConflictDoUpdate({
-        target: chatResultFeedback.messageId,
-        set: { helpful: input.helpful, updatedAt: sql`now()` },
-      });
+    try {
+      const [usage] = await db
+        .select({ modelVersion: apiUsage.modelVersion })
+        .from(apiUsage)
+        .where(
+          and(
+            eq(apiUsage.operation, CHAT_TURN_OPERATION),
+            eq(apiUsage.userId, input.userId),
+            lte(apiUsage.createdAt, message.createdAt),
+            gte(
+              apiUsage.createdAt,
+              new Date(message.createdAt.getTime() - FEEDBACK_MODEL_LOOKBACK_MS),
+            ),
+          ),
+        )
+        .orderBy(desc(apiUsage.createdAt))
+        .limit(1);
+      await db
+        .insert(chatResultFeedback)
+        .values({
+          messageId: message.id,
+          conversationId: input.conversationId,
+          helpful: input.helpful,
+          reasons: details.reasons,
+          comment: details.comment,
+          modelVersion: usage?.modelVersion ?? null,
+        })
+        .onConflictDoUpdate({
+          target: chatResultFeedback.messageId,
+          set: {
+            helpful: input.helpful,
+            reasons: details.reasons,
+            comment: details.comment,
+            updatedAt: sql`now()`,
+          },
+          // Ayni icerikle tekrar: satir degismez (idempotent).
+          setWhere: sql`${chatResultFeedback.helpful} IS DISTINCT FROM ${input.helpful}
+            OR ${chatResultFeedback.reasons} IS DISTINCT FROM ${sql.raw("EXCLUDED.reasons")}
+            OR ${chatResultFeedback.comment} IS DISTINCT FROM ${sql.raw("EXCLUDED.comment")}`,
+        });
+    } catch (error) {
+      // 0058 henuz uygulanmamis: yalniz evet/hayir yazilir, neden/yorum dusurulur (karar 0079).
+      if (!isMissingColumn(error)) throw error;
+      await db
+        .insert(chatResultFeedback)
+        .values({
+          messageId: message.id,
+          conversationId: input.conversationId,
+          helpful: input.helpful,
+        })
+        .onConflictDoUpdate({
+          target: chatResultFeedback.messageId,
+          set: { helpful: input.helpful, updatedAt: sql`now()` },
+        });
+    }
   } catch (error) {
     // Tablo yok (0055 bekliyor): oy kaydedilemedi, arayuz "kaydedemedim" der.
     if (isMissingTable(error)) return "invalid";
