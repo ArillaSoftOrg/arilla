@@ -71,7 +71,7 @@ birindedir ve okuyan dosya yanında yazar:
 | Grup | Anlamı | Anahtarlar |
 | --- | --- | --- |
 | `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
-| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı) |
+| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı), `LLM_COST_TRY_PER_USD` (karar 0082; boş = Gemini maliyeti fiyatlanmaz) |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
 | `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `MARKETING_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
@@ -220,6 +220,16 @@ Model maliyeti `api_usage.cost_micros`'tan okunur ve oran
 çağrıları "fiyatlanmamış" sayar ve tutar yerine "Hesaplanmadı" gösterir.
 Gerçek maliyet için oran hem Vercel'de hem Python işlerinin ortamında
 tanımlanmalı; oran geriye dönük uygulanmaz.
+
+Gemini çağrıları (sohbet, toplu ve anlık sorgu yorumu) karar 0082 ile
+`packages/core/src/llm/pricing.ts`'teki sürümlü resmi liste fiyatından
+(girdi + çıktı + düşünme token'ı) ve `LLM_COST_TRY_PER_USD` kuruyla
+tahmin edilir. Kur tanımsızken, model için fiyat kuralı yokken ya da
+sağlayıcı kullanım bilgisi döndürmediğinde (zaman aşımı, ağ hatası) satır 0
+yazılır ve "fiyatlanmamış" sayılır. Tutar fatura değildir: gerçek tutar
+Google Cloud faturalama dökümündedir. Fiyat değişince eski kurala bitiş
+tarihi verilir, yeni kimlikle yeni kural eklenir (resmi sayfa ve doğrulama
+günüyle); kural değişikliği geçmiş satırları yeniden fiyatlamaz.
 
 | Ne | Eşik | Aksiyon |
 | --- | --- | --- |

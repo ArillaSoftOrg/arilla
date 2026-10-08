@@ -2,7 +2,14 @@
 
 // İstemci bileşenleri de bu dosyayı içe aktarır: core'dan yalnızca TİP ve saf
 // alt yol (`@arilla/core/cost-truth`) alınır, sunucu kodu pakete girmez.
-import type { AttentionState, PipelineStage, PipelineStageState, Severity } from "@arilla/core";
+import type {
+  AdminAction,
+  AdminTargetType,
+  AttentionState,
+  PipelineStage,
+  PipelineStageState,
+  Severity,
+} from "@arilla/core";
 import { type CostSummary, costState } from "@arilla/core/cost-truth";
 
 const DATE_TIME = new Intl.DateTimeFormat("tr-TR", {
@@ -26,13 +33,15 @@ export function formatCostMicros(micros: number): string {
 }
 
 /**
- * Maliyetin dürüst gösterimi (karar 0051, core `costState`). Maliyet oranı
- * tanımsızken yazılan çağrılar 0 maliyetlidir; "0,00 TL" gerçek harcama gibi
- * görünmesin diye bu durumda tutar yerine "Hesaplanmadı" / "en az" yazılır.
+ * Maliyetin dürüst gösterimi (karar 0051, core `costState`). Fiyatlanamayan
+ * çağrılar (oran ya da kur tanımsız, fiyat kuralı olmayan model, kullanım
+ * bilgisi gelmeyen deneme; karar 0082) 0 maliyetle yazılır; "0,00 TL" gerçek
+ * harcama gibi görünmesin diye bu durumda tutar yerine "Hesaplanmadı" / "en
+ * az" yazılır. Tutar her durumda tahminidir, sağlayıcı faturası değildir.
  */
 export function formatCost(summary: CostSummary): { value: string; note: string | null } {
   const state = costState(summary);
-  const unpriced = `${formatCount(summary.unpricedCalls)} çağrı fiyatlanmadı (maliyet oranı tanımsız)`;
+  const unpriced = `${formatCount(summary.unpricedCalls)} çağrı fiyatlanmadı (oran, kur ya da kullanım bilgisi yok)`;
   if (state === "unpriced") return { value: "Hesaplanmadı", note: unpriced };
   if (state === "partial") {
     return { value: `en az ${formatCostMicros(summary.costMicros)}`, note: unpriced };
@@ -155,7 +164,8 @@ export function statusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status;
 }
 
-const ACTION_LABELS: Record<string, string> = {
+/** `Record<AdminAction, …>`: denetime yeni eylem eklenince etiketi derlemede istenir (karar 0082). */
+const ACTION_LABELS: Record<AdminAction, string> = {
   "matching.approve": "Eşleştirme onaylandı",
   "matching.reject": "Eşleştirme reddedildi",
   "lexicon.create": "Sözlük satırı eklendi",
@@ -190,7 +200,24 @@ const ACTION_LABELS: Record<string, string> = {
 };
 
 export function actionLabel(action: string): string {
-  return ACTION_LABELS[action] ?? action;
+  return (ACTION_LABELS as Record<string, string>)[action] ?? action;
+}
+
+/** Denetim hedef türleri; `Record<AdminTargetType, …>` eksik etiketi derlemede yakalar. */
+export const TARGET_TYPE_LABELS: Record<AdminTargetType, string> = {
+  match_candidate: "Eşleştirme adayı",
+  lexicon: "Sözlük satırı",
+  merchant: "Mağaza",
+  app_user: "Hesap",
+  marketing_campaign: "E-posta kampanyası",
+  form: "Form / anket",
+  feedback: "Gelen kutusu",
+  early_access_counter: "Erken erişim sayacı",
+  capability: "Yetenek",
+};
+
+export function targetTypeLabel(targetType: string): string {
+  return (TARGET_TYPE_LABELS as Record<string, string>)[targetType] ?? targetType;
 }
 
 export const ADMIN_ACTIONS = Object.keys(ACTION_LABELS);

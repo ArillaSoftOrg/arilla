@@ -198,7 +198,7 @@ describe("genel bakış", () => {
   it("fiyatlanmamış çağrı varken maliyet asla tek başına 0,00 TL görünmez", async () => {
     state.token = tokens.admin;
     const page = await html(dashboard());
-    expect(page).toContain("fiyatlanmadı (maliyet oranı tanımsız)");
+    expect(page).toContain("fiyatlanmadı (oran, kur ya da kullanım bilgisi yok)");
     expect(page).toMatch(/Hesaplanmadı|en az /);
   });
 

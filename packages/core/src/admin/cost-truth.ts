@@ -1,10 +1,11 @@
 /**
  * Model maliyetinin dürüst gösterimi (docs/decisions/0051).
  *
- * `api_usage.cost_micros`, çağrı anındaki maliyet oranıyla
- * (`EMBEDDING_COST_MICROS_PER_1K_TOKENS`) hesaplanır. Oran tanımlı değilse
- * satır 0 maliyetle yazılır: ekranda "0,00 TL" görünür ama gerçek harcama
- * sıfır değildir. Bu yüzden toplam maliyet tek başına gösterilmez; önbellekten
+ * `api_usage.cost_micros`, çağrı anındaki TAHMİNİ maliyettir: embedding'de
+ * oranla (`EMBEDDING_COST_MICROS_PER_1K_TOKENS`), Gemini'de sürümlü liste
+ * fiyatı ve kurla (`llm/pricing.ts`, karar 0082). Oran/kur tanımsız, model
+ * kuralsız ya da kullanım bilgisi yoksa satır 0 maliyetle yazılır: ekranda
+ * "0,00 TL" görünür ama gerçek harcama sıfır değildir. Bu yüzden toplam maliyet tek başına gösterilmez; önbellekten
  * DÖNMEYEN ama maliyeti 0 olan çağrılar ("fiyatlanmamış") ayrıca sayılır.
  *
  * Önbellek isabeti gerçekten ücretsizdir; fiyatlanmamış sayılmaz.

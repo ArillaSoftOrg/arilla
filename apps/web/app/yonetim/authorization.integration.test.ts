@@ -10,6 +10,9 @@
  * Reddedilen mutasyonda veritabanı DEĞİŞMEZ ve denetim kaydı yazılmaz.
  * Yalnızca yerel veritabanında çalışır (uzak adres görülürse durur).
  */
+import { readdirSync, statSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { generateRawToken, hashToken } from "@arilla/core";
 import { createDatabase } from "@arilla/db";
 import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
@@ -89,6 +92,10 @@ let merchantId = 0;
 const merchantSlug = `authz-merchant-${suffix}`;
 let productId = 0;
 let subjectPublicId = "";
+let formId = 0;
+let campaignPublicId = "";
+/** Var olmayan kampanya: gönderim/iptal yolları hiçbir şeye dokunmadan döner. */
+const missingCampaign = "00000000-0000-4000-8000-000000000000";
 
 const sp = <T extends object>(value: T) => ({ searchParams: Promise.resolve(value) });
 
@@ -123,6 +130,17 @@ beforeAll(async () => {
       [`authz-urun-${suffix}`],
     );
     productId = Number(product.rows[0].id);
+    const form = await client.query(
+      "INSERT INTO form (slug, title) VALUES ($1, 'Authz Form') RETURNING id",
+      [`authz-form-${suffix}`],
+    );
+    formId = Number(form.rows[0].id);
+    const campaign = await client.query(
+      `INSERT INTO marketing_campaign (title, subject, body)
+       VALUES ($1, 'Authz konu', 'Authz gövde') RETURNING public_id`,
+      [`authz-kampanya-${suffix}`],
+    );
+    campaignPublicId = String(campaign.rows[0].public_id);
   });
 });
 
@@ -135,6 +153,8 @@ afterAll(async () => {
       [userIds.map(String)],
     );
     await client.query("DELETE FROM lexicon WHERE surface LIKE $1", [`authz-${suffix}%`]);
+    await client.query("DELETE FROM form WHERE id = $1", [formId]);
+    await client.query("DELETE FROM marketing_campaign WHERE public_id = $1", [campaignPublicId]);
     await client.query("DELETE FROM product WHERE id = $1", [productId]);
     await client.query("DELETE FROM merchant WHERE id = $1", [merchantId]);
     await client.query("DELETE FROM app_user WHERE id = ANY($1)", [userIds]);
@@ -257,6 +277,45 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     call: async () =>
       (await import("./kullanicilar/[publicId]/page.tsx")).default({
         params: Promise.resolve({ publicId: subjectPublicId }),
+      }),
+  },
+  {
+    name: "/yonetim/kampanyalar/[publicId]",
+    admin: true,
+    call: async () =>
+      (await import("./kampanyalar/[publicId]/page.tsx")).default({
+        params: Promise.resolve({ publicId: campaignPublicId }),
+      }),
+  },
+  {
+    name: "/yonetim/erken-erisim",
+    admin: true,
+    call: async () => (await import("./erken-erisim/page.tsx")).default(sp({})),
+  },
+  {
+    name: "/yonetim/formlar",
+    admin: true,
+    call: async () => (await import("./formlar/page.tsx")).default(sp({})),
+  },
+  {
+    name: "/yonetim/formlar/yeni",
+    admin: true,
+    call: async () => (await import("./formlar/yeni/page.tsx")).default(),
+  },
+  {
+    name: "/yonetim/formlar/[id]",
+    admin: true,
+    call: async () =>
+      (await import("./formlar/[id]/page.tsx")).default({
+        params: Promise.resolve({ id: String(formId) }),
+      }),
+  },
+  {
+    name: "/yonetim/formlar/[id]/sonuclar",
+    admin: true,
+    call: async () =>
+      (await import("./formlar/[id]/sonuclar/page.tsx")).default({
+        params: Promise.resolve({ id: String(formId) }),
       }),
   },
 ];
@@ -490,4 +549,302 @@ describe("server action'lar - arayüz atlanarak doğrudan çağrı", () => {
       },
     ]);
   });
+});
+
+// ---------------------------------------------------------------------------
+// Karar 0082 (Faz A0): matris eksiksizdir. Her `page.tsx` PAGES'te, her dışa
+// açık server action ACTIONS'ta olmak zorunda; yeni sayfa ya da action
+// matrise eklenmeden bu testler kırılır.
+// ---------------------------------------------------------------------------
+
+const yonetimDir = dirname(fileURLToPath(import.meta.url));
+
+function filesNamed(dir: string, fileName: string): string[] {
+  const out: string[] = [];
+  for (const name of readdirSync(dir)) {
+    const path = join(dir, name);
+    if (statSync(path).isDirectory()) out.push(...filesNamed(path, fileName));
+    else if (name === fileName) out.push(path);
+  }
+  return out;
+}
+
+/** `formlar/[id]/sonuclar/page.tsx` → `/yonetim/formlar/[id]/sonuclar`. */
+function routeOf(pageFile: string): string {
+  const rel = relative(yonetimDir, dirname(pageFile)).split(sep).join("/");
+  return rel === "" ? "/yonetim" : `/yonetim/${rel}`;
+}
+
+type ActionOutcome = Outcome | "redirect";
+
+/** Action için: yönetim girişi dışındaki yönlendirme (ör. form sonrası) kapıdan geçmiştir. */
+async function actionOutcome(fn: () => Promise<unknown>): Promise<ActionOutcome> {
+  try {
+    return await outcome(fn);
+  } catch (error) {
+    if (error instanceof RedirectSignal) return "redirect";
+    throw error;
+  }
+}
+
+interface ActionCase {
+  module: string;
+  name: string;
+  /** Moderatör de geçer mi (yetenek moderatör haritasında). */
+  moderator: boolean;
+  /** Zararsız çağrı: geçerli rolde bile doğrulama/bulunamadı ile döner, veri değişmez. */
+  call: () => Promise<unknown>;
+}
+
+const lexiconEntry = () => ({
+  kind: "color" as const,
+  surface: `authz-matrix-${suffix}`,
+  normalized: "authz",
+  // Geçersiz ağırlık: kapıyı geçen rolde bile yazım olmaz.
+  weight: Number.NaN,
+});
+
+const ACTIONS: ActionCase[] = [
+  {
+    module: "eslestirme",
+    name: "approveMatchAction",
+    moderator: true,
+    call: async () => (await import("./eslestirme/actions.ts")).approveMatchAction(-5),
+  },
+  {
+    module: "eslestirme",
+    name: "rejectMatchAction",
+    moderator: true,
+    call: async () =>
+      (await import("./eslestirme/actions.ts")).rejectMatchAction(999_999_999, "other"),
+  },
+  {
+    module: "sozluk",
+    name: "saveLexiconEntryAction",
+    moderator: true,
+    call: async () => (await import("./sozluk/actions.ts")).saveLexiconEntryAction(lexiconEntry()),
+  },
+  {
+    module: "sozluk",
+    name: "deleteLexiconEntryAction",
+    moderator: true,
+    call: async () => (await import("./sozluk/actions.ts")).deleteLexiconEntryAction(-1),
+  },
+  {
+    module: "magazalar",
+    name: "setMerchantActiveAction",
+    moderator: false,
+    call: async () =>
+      (await import("./magazalar/actions.ts")).setMerchantActiveAction({
+        merchantId,
+        active: true,
+        reason: "x",
+        confirmSlug: "yanlis-kisa-ad",
+      }),
+  },
+  {
+    module: "kullanicilar",
+    name: "searchUsersAction",
+    moderator: false,
+    call: async () => {
+      const form = new FormData();
+      form.set("q", `authz-yok-${suffix}`);
+      return (await import("./kullanicilar/actions.ts")).searchUsersAction(
+        { status: "idle" },
+        form,
+      );
+    },
+  },
+  {
+    module: "kullanicilar",
+    name: "revokeUserSessionsAction",
+    moderator: false,
+    call: async () =>
+      (await import("./kullanicilar/actions.ts")).revokeUserSessionsAction({
+        publicId: subjectPublicId,
+        reason: "x",
+      }),
+  },
+  {
+    module: "kullanicilar",
+    name: "revealContactAction",
+    moderator: false,
+    call: async () =>
+      (await import("./kullanicilar/actions.ts")).revealContactAction(
+        subjectPublicId,
+        "gecersiz-alan" as never,
+      ),
+  },
+  {
+    module: "erken-erisim",
+    name: "setOffPlatformCountAction",
+    moderator: false,
+    call: async () => {
+      const form = new FormData();
+      form.set("count", "sayi-degil");
+      form.set("reason", "yetki matrisi denemesi");
+      return (await import("./erken-erisim/actions.ts")).setOffPlatformCountAction(form);
+    },
+  },
+  {
+    module: "formlar",
+    name: "createFormAction",
+    moderator: false,
+    call: async () => (await import("./formlar/actions.ts")).createFormAction({}),
+  },
+  {
+    module: "formlar",
+    name: "updateFormAction",
+    moderator: false,
+    call: async () => (await import("./formlar/actions.ts")).updateFormAction(formId, {}, 0),
+  },
+  {
+    module: "formlar",
+    name: "setFormStatusAction",
+    moderator: false,
+    call: async () =>
+      (await import("./formlar/actions.ts")).setFormStatusAction(formId, "gecersiz" as never),
+  },
+  {
+    module: "kampanyalar",
+    name: "createCampaignAction",
+    moderator: false,
+    call: async () =>
+      (await import("./kampanyalar/actions.ts")).createCampaignAction({
+        title: "",
+        subject: "",
+        body: "",
+      }),
+  },
+  {
+    module: "kampanyalar",
+    name: "updateCampaignAction",
+    moderator: false,
+    call: async () =>
+      (await import("./kampanyalar/actions.ts")).updateCampaignAction({
+        publicId: campaignPublicId,
+        expectedContentVersion: 1,
+        title: "",
+        subject: "",
+        body: "",
+      }),
+  },
+  {
+    module: "kampanyalar",
+    name: "sendTestAction",
+    moderator: false,
+    call: async () =>
+      (await import("./kampanyalar/actions.ts")).sendTestAction({
+        publicId: missingCampaign,
+        expectedContentVersion: 1,
+        recipient: "adres-degil",
+      }),
+  },
+  {
+    module: "kampanyalar",
+    name: "startSendAction",
+    moderator: false,
+    call: async () =>
+      (await import("./kampanyalar/actions.ts")).startSendAction({
+        publicId: missingCampaign,
+        expectedContentVersion: 1,
+        confirmed: false,
+      }),
+  },
+  {
+    module: "kampanyalar",
+    name: "processNextBatchAction",
+    moderator: false,
+    call: async () =>
+      (await import("./kampanyalar/actions.ts")).processNextBatchAction(missingCampaign),
+  },
+  {
+    module: "kampanyalar",
+    name: "cancelCampaignAction",
+    moderator: false,
+    call: async () =>
+      (await import("./kampanyalar/actions.ts")).cancelCampaignAction(missingCampaign),
+  },
+];
+
+describe("matris kapsamı (karar 0082)", () => {
+  it("yönetimdeki her page.tsx sayfa matrisinde", () => {
+    const routes = filesNamed(yonetimDir, "page.tsx").map(routeOf).sort();
+    expect(PAGES.map((page) => page.name).sort()).toEqual(routes);
+  });
+
+  it("her actions.ts'in dışa açık her fonksiyonu action matrisinde", async () => {
+    const exported: string[] = [];
+    for (const file of filesNamed(yonetimDir, "actions.ts")) {
+      const module = relative(yonetimDir, dirname(file)).split(sep).join("/");
+      const mod = (await import(/* @vite-ignore */ file)) as Record<string, unknown>;
+      for (const [name, value] of Object.entries(mod)) {
+        if (typeof value === "function") exported.push(`${module}.${name}`);
+      }
+    }
+    expect(ACTIONS.map((a) => `${a.module}.${a.name}`).sort()).toEqual(exported.sort());
+  });
+});
+
+describe("server action matrisi - her action, her rol (karar 0082)", () => {
+  /** Matristeki zararsız çağrılardan hiçbiri veri değiştirmemeli: önce/sonra anlık görüntü. */
+  const snapshot = () =>
+    owner(async (client) => {
+      const res = await client.query(
+        `SELECT
+           (SELECT count(*) FROM form)::int AS forms,
+           (SELECT row_to_json(f) FROM (SELECT status, title, updated_at FROM form WHERE id = $1) f) AS fixture_form,
+           (SELECT count(*) FROM marketing_campaign)::int AS campaigns,
+           (SELECT row_to_json(c) FROM (SELECT status, title, content_version FROM marketing_campaign WHERE public_id = $2) c) AS fixture_campaign,
+           (SELECT count(*) FROM lexicon WHERE surface LIKE $3)::int AS lexicon,
+           (SELECT row_to_json(e) FROM early_access_counter e) AS counter,
+           (SELECT is_active FROM merchant WHERE id = $4) AS merchant_active,
+           (SELECT count(*) FROM session WHERE user_id = ANY($5))::int AS sessions`,
+        [formId, campaignPublicId, `authz-matrix-${suffix}%`, merchantId, userIds],
+      );
+      return res.rows[0];
+    });
+  const mutationAudits = () =>
+    owner(async (client) => {
+      const res = await client.query(
+        `SELECT count(*)::int AS n FROM admin_audit_event
+          WHERE actor_user_id = ANY($1)
+            AND action NOT LIKE 'security.%'
+            AND action NOT IN ('users.search', 'users.lookup')`,
+        [userIds],
+      );
+      return res.rows[0].n as number;
+    });
+
+  for (const action of ACTIONS) {
+    it(`${action.module}.${action.name}`, async () => {
+      // Önceki testler yöneticinin oturum zamanını oynatmış olabilir: taze başla.
+      await owner((client) =>
+        client.query(
+          "UPDATE session SET created_at = now(), last_used_at = now() WHERE user_id = ANY($1)",
+          [userIds],
+        ),
+      );
+      const before = await snapshot();
+      const auditsBefore = await mutationAudits();
+
+      const results: Record<string, ActionOutcome> = {};
+      for (const role of ROLES) {
+        state.token = role === "anonymous" ? undefined : tokens[role];
+        results[role] = await actionOutcome(action.call);
+      }
+      const passed = (allowed: boolean): ActionOutcome[] =>
+        allowed ? ["ok", "redirect"] : ["404"];
+      expect(results.anonymous).toBe("login");
+      expect(results.expired).toBe("login");
+      expect(results.user).toBe("404");
+      expect(results.creator).toBe("404");
+      expect(passed(action.moderator)).toContain(results.moderator);
+      expect(passed(true)).toContain(results.admin);
+
+      // Reddedilen ve zararsız çağrılar: veri ve mutasyon denetimi değişmez.
+      expect(await snapshot()).toEqual(before);
+      expect(await mutationAudits()).toBe(auditsBefore);
+    });
+  }
 });
