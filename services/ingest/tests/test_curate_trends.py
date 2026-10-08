@@ -141,3 +141,29 @@ def test_is_local_url():
     assert is_local_url("postgresql://u:p@127.0.0.1/db")
     assert not is_local_url("postgresql://u:p@aws-1-eu-west-1.pooler.supabase.com:5432/postgres")
     assert not is_local_url("not a url")
+
+
+def test_dry_run_is_server_side_read_only(conn: psycopg.Connection, monkeypatch):
+    """Kuru kosuda yazim yolu cagrilirsa test patlar; baglanti READ ONLY'dir."""
+
+    def boom(*_args, **_kwargs):
+        raise AssertionError("kuru kosu yazim yoluna girdi")
+
+    monkeypatch.setattr(trends_mod, "write_trend", boom)
+    seen: list[bool] = []
+    real = trends_mod.curate_trend
+
+    def spy(c, slug, title):
+        with c.cursor() as cur:
+            cur.execute("SHOW transaction_read_only")
+            seen.append(cur.fetchone()[0] == "on")
+            with pytest.raises(psycopg.errors.ReadOnlySqlTransaction):
+                cur.execute("DELETE FROM trend_product")
+            c.rollback()
+            c.read_only = True
+        return real(c, slug, title)
+
+    monkeypatch.setattr(trends_mod, "curate_trend", spy)
+    run(conn, apply=False, slugs=[SLUG])
+    assert seen == [True]
+    assert links(conn, SLUG) == []

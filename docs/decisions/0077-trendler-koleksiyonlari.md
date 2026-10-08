@@ -30,10 +30,11 @@
 8. Navigasyon: üst menü/altbilgi/404'teki "Trendler" artık `/trendler`e gider. Ana
    sayfadaki `#trendler` bölümü gerçek trendlerden (önce `featured`, ilk üç) beslenir;
    veri yoksa eski demo sete düşer.
-9. Arayüz metni kuralı: başlık #40 kullanıcı listesinde "Pahalı Görünüp Ucuz Olanlar"
-   idi; `docs/glossary.md` "ucuz" kelimesini arayüzde yasakladığı için
-   **"Pahalı Görünen Uygun Fiyatlılar"** olarak tohumlandı. Kural değişirse tek satır
-   (`trend.title`) güncellenir.
+9. Arayüz metni: trend #40 başlığı kullanıcı tarafından özellikle
+   **"Pahalı Görünüp Ucuz Olanlar"** olarak istendi ve aynen tohumlandı. Bu,
+   `docs/glossary.md` ("ucuz" arayüzde geçmez) kuralına **kullanıcı onaylı tek istisnadır**;
+   genel kural değişmez. 50 başlığın tamamı kullanıcı listesiyle birebir testle sabitlenir
+   (`test_curate_profiles.py`).
 
 ## Gerekçe
 

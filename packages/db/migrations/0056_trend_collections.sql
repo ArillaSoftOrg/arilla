@@ -122,7 +122,7 @@ SELECT v.slug, v.title, v.description, v.category, v.trend_type, v.featured, v.s
     ('5-dakikada-hazir', '5 Dakikada Hazır', 'Sabahın acelesinde işe yarayan hızlı makyaj ve bakım adımları.', 'guzellik', 'evergreen', FALSE, 370, NULL, NULL),
     ('cantadan-eksik-olmayanlar', 'Çantadan Eksik Olmayanlar', 'Gün içinde yanında taşımak isteyeceğin küçük bakım ürünleri.', 'guzellik', 'evergreen', FALSE, 380, NULL, NULL),
     ('uygun-fiyatli-guzellik-favorileri', 'Uygun Fiyatlı Güzellik Favorileri', 'Bütçeyi zorlamayan bakım ve makyaj ürünleri.', 'guzellik', 'evergreen', FALSE, 390, NULL, NULL),
-    ('pahali-gorunen-uygun-fiyatlilar', 'Pahalı Görünen Uygun Fiyatlılar', 'Fiyatı mütevazı ama görünüşüyle öne çıkan ürünler.', 'guzellik', 'evergreen', FALSE, 400, NULL, NULL),
+    ('pahali-gorunup-ucuz-olanlar', 'Pahalı Görünüp Ucuz Olanlar', 'Fiyatı mütevazı ama görünüşüyle öne çıkan ürünler.', 'guzellik', 'evergreen', FALSE, 400, NULL, NULL),
     ('evi-daha-pahali-gosteren-seyler', 'Evi Daha Pahalı Gösteren Şeyler', 'Odanın havasını değiştiren dokulu ve şık ev parçaları.', 'ev-yasam', 'evergreen', TRUE, 410, NULL, NULL),
     ('kucuk-eve-buyuk-fikirler', 'Küçük Eve Büyük Fikirler', 'Az yer kaplayan ve düzen sağlayan çözümler.', 'ev-yasam', 'evergreen', FALSE, 420, NULL, NULL),
     ('ogrenci-evi-kurtaricilari', 'Öğrenci Evi Kurtarıcıları', 'Paylaşılan evlerde işleri kolaylaştıran sade ürünler.', 'ogrenci', 'evergreen', FALSE, 430, NULL, NULL),

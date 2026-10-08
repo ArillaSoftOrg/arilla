@@ -303,6 +303,22 @@ REGRESSION: list[tuple[str, str, str | None, bool]] = [
         "anne-bebek",
         False,
     ),
+    # Production katalogundan (salt-okunur kuru kosu) yakalanan yanlis eslesmeler:
+    ("sahile-giderken", "Mantar Şapkalı Metal Lambader", "ev-yasam", False),
+    ("tatile-cikmadan-once", "Jüt Şapkalı Ahşap Küre Abajur", "ev-yasam", False),
+    ("ege-yazi", "North Sails Erkek Keten Şapka", "moda", True),
+    ("kis-gelmeden-al", "Su Geçirmez Yazlık Parka Mont", "spor-outdoor", False),
+    ("kis-gelmeden-al", "Naomi Dolgulu Kadın Şişme Mont", "spor-outdoor", True),
+    ("bu-sonbaharin-renkleri", "Stanley Quencher Termos Haki 0.9 LT", "spor-outdoor", False),
+    (
+        "ogrenci-evi-kurtaricilari",
+        "Stanley Classic Legendary Yemek Termosu 0.4L",
+        "ev-yasam",
+        False,
+    ),
+    ("kyk-odasinin-olmazsa-olmazlari", "Ahşap Çekmeceli Komodin", "ev-yasam", False),
+    ("kyk-odasinin-olmazsa-olmazlari", "Jüt Sarkıt Aydınlatma", "ev-yasam", False),
+    ("kyk-odasinin-olmazsa-olmazlari", "El Dokuma Yün Halı Yastık", "ev-yasam", False),
 ]
 
 
@@ -315,3 +331,15 @@ def test_regression_membership(slug: str, title: str, path: str | None, expected
 
 def test_term_regex_cache_is_stable():
     assert term_regex("kazak") is term_regex("kazak")
+
+
+def test_kyk_price_ceiling_blocks_expensive_furniture():
+    profile = BY_SLUG["kyk-odasinin-olmazsa-olmazlari"]
+    assert (
+        score_candidate(profile, cand(1, "Çalışma Masası", path="ev-yasam", price=9_975_000))
+        is None
+    )
+    assert (
+        score_candidate(profile, cand(2, "Masa Lambası", path="ev-yasam", price=199_500))
+        is not None
+    )

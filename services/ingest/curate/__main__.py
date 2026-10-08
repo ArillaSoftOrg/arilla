@@ -74,6 +74,7 @@ def main(argv: list[str] | None = None) -> int:
                 "candidates": r.candidates,
                 "selected": r.count,
                 "status": r.status,
+                "min_price": r.min_price,
                 "note": r.note,
                 "products": [s.candidate.product_id for s in r.selected],
             }
