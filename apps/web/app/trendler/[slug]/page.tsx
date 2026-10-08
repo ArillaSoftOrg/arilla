@@ -1,6 +1,6 @@
 import { getTrendBySlug } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { ProductCard, ProductImage, Section } from "@arilla/ui";
+import { FallbackImage, ProductCard, Section } from "@arilla/ui";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
@@ -56,18 +56,16 @@ export default async function TrendDetailPage({ params }: { params: Promise<{ sl
           <span aria-hidden="true">←</span> {TREND_COPY.back}
         </a>
         <div className={styles.heroMedia}>
-          {trend.heroImageUrl ? (
-            <ProductImage
-              src={trend.heroImageUrl}
-              alt=""
-              className={styles.heroImage}
-              fit="contain"
-              loading="eager"
-              fetchPriority="high"
-            />
-          ) : (
-            <div className={styles.heroPlaceholder} aria-hidden="true" />
-          )}
+          {/* Kirik gorselde siradaki adayi dener; hepsi kirikse yer tutucu (`FallbackImage`). */}
+          <FallbackImage
+            srcs={trend.heroCandidates}
+            alt=""
+            className={styles.heroImage}
+            placeholderClassName={styles.heroPlaceholder}
+            fit="contain"
+            loading="eager"
+            fetchPriority="high"
+          />
         </div>
         <div className={styles.heroText}>
           <h1 id="trend-baslik" className={styles.heroTitle}>

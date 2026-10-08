@@ -307,6 +307,14 @@ REGRESSION: list[tuple[str, str, str | None, bool]] = [
     ("sahile-giderken", "Mantar Şapkalı Metal Lambader", "ev-yasam", False),
     ("tatile-cikmadan-once", "Jüt Şapkalı Ahşap Küre Abajur", "ev-yasam", False),
     ("ege-yazi", "North Sails Erkek Keten Şapka", "moda", True),
+    (
+        "kahve-tonlari",
+        "Pruva Kalın Tabanlı Kadın Sneaker",
+        "spor-outdoor",
+        False,
+    ),  # "taba" != "Tabanlı"
+    ("bu-sonbaharin-renkleri", "Pruva Kalın Tabanlı Kadın Sneaker", "spor-outdoor", False),
+    ("kahve-tonlari", "Süet Taba Rengi Bot", "moda", True),
     ("kis-gelmeden-al", "Su Geçirmez Yazlık Parka Mont", "spor-outdoor", False),
     ("kis-gelmeden-al", "Naomi Dolgulu Kadın Şişme Mont", "spor-outdoor", True),
     ("bu-sonbaharin-renkleri", "Stanley Quencher Termos Haki 0.9 LT", "spor-outdoor", False),
@@ -343,3 +351,15 @@ def test_kyk_price_ceiling_blocks_expensive_furniture():
         score_candidate(profile, cand(2, "Masa Lambası", path="ev-yasam", price=199_500))
         is not None
     )
+
+
+def test_home_trends_reject_extreme_prices():
+    for slug in (
+        "evi-daha-pahali-gosteren-seyler",
+        "yeni-eve-cikanlar-icin",
+        "evde-sonbahar-havasi",
+    ):
+        profile = BY_SLUG[slug]
+        title = "El Dokuma Kahverengi Yün Halı"
+        assert score_candidate(profile, cand(1, title, path="ev-yasam", price=30_000_000)) is None
+        assert score_candidate(profile, cand(2, title, path="ev-yasam", price=500_000)) is not None

@@ -10,7 +10,7 @@
 import { type Database, trend as trendTable } from "@arilla/db";
 import { and, eq, sql } from "drizzle-orm";
 import { withStartingFrom } from "../product/get-price-comparison.ts";
-import { resolveTrendHero } from "./hero.ts";
+import { heroCandidateUrls, resolveTrendHero } from "./hero.ts";
 import { isTrendActiveNow } from "./sections.ts";
 import {
   MIN_PUBLIC_TREND_PRODUCTS,
@@ -118,6 +118,10 @@ export async function getPublicTrends(
     const thumbnails = byTrend.get(Number(row.id)) ?? [];
     const hero = resolveTrendHero(row.hero_image_url, thumbnails[0]?.imageUrl);
     return {
+      heroCandidates: heroCandidateUrls(
+        row.hero_image_url,
+        thumbnails.map((thumb) => thumb.imageUrl),
+      ),
       id: Number(row.id),
       slug: row.slug,
       title: row.title,
@@ -198,6 +202,10 @@ export async function getTrendBySlug(
       activeNow: isTrendActiveNow(row, now),
       heroImageUrl: hero.url,
       heroSource: hero.source,
+      heroCandidates: heroCandidateUrls(
+        row.heroImageUrl,
+        products.map((item) => item.primaryImageUrl),
+      ),
       productCount: products.length,
       startingPrice: prices.length > 0 ? Math.min(...prices) : null,
       thumbnails: products.slice(0, TREND_THUMBNAIL_COUNT).flatMap((item) =>

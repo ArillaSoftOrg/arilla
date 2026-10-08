@@ -38,6 +38,7 @@ export function TrendCardGrid({
               description={trend.description}
               href={trendHref(trend.slug)}
               heroImageUrl={trend.heroImageUrl}
+              heroImageCandidates={trend.heroCandidates}
               // Baslik baglantisi zaten adi tasir; kapak dekoratif.
               heroImageAlt=""
               heroImageLoading={eager ? "eager" : "lazy"}

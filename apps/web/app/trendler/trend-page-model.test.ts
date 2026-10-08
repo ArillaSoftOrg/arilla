@@ -15,6 +15,7 @@ function trend(id: number, overrides: Partial<TrendSummary> = {}): TrendSummary 
     activeNow: false,
     heroImageUrl: null,
     heroSource: "placeholder",
+    heroCandidates: [],
     productCount: 12,
     startingPrice: null,
     thumbnails: [],

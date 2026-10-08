@@ -1,4 +1,5 @@
 import type { TrendSummary } from "@arilla/core";
+import { FallbackImage } from "@arilla/ui";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -17,6 +18,7 @@ function trend(overrides: Partial<TrendSummary> = {}): TrendSummary {
     activeNow: false,
     heroImageUrl: "https://img.test.example/h.jpg",
     heroSource: "product",
+    heroCandidates: ["https://img.test.example/h.jpg", "https://img.test.example/2.jpg"],
     productCount: 24,
     startingPrice: 123_450,
     thumbnails: [1, 2, 3, 4].map((n) => ({
@@ -32,6 +34,23 @@ function trend(overrides: Partial<TrendSummary> = {}): TrendSummary {
 function render(trends: TrendSummary[], eagerFirst = false): string {
   return renderToStaticMarkup(createElement(TrendCardGrid, { trends, eagerFirst }));
 }
+
+describe("FallbackImage (SSR)", () => {
+  const render = (props: Parameters<typeof FallbackImage>[0]) =>
+    renderToStaticMarkup(createElement(FallbackImage, props));
+
+  it("ilk adayi cizer; sonrakiler kirik gorselde istemcide denenir", () => {
+    const html = render({ srcs: ["https://a.test/1.jpg", "https://a.test/2.jpg"], alt: "" });
+    expect(html).toContain("https://a.test/1.jpg");
+    expect(html).not.toContain("https://a.test/2.jpg");
+  });
+
+  it("aday yoksa <img> yerine yer tutucu kutusu", () => {
+    const html = render({ srcs: [], alt: "", placeholderClassName: "ph" });
+    expect(html).not.toContain("<img");
+    expect(html).toContain('class="ph"');
+  });
+});
 
 describe("TrendCardGrid", () => {
   it("her kart tek baglanti: /trendler/<slug>, baslik baglanti metni", () => {
@@ -58,7 +77,9 @@ describe("TrendCardGrid", () => {
   });
 
   it("kapak yoksa bozuk <img> yerine yer tutucu kutusu", () => {
-    const html = render([trend({ heroImageUrl: null, heroSource: "placeholder" })]);
+    const html = render([
+      trend({ heroImageUrl: null, heroSource: "placeholder", heroCandidates: [] }),
+    ]);
     expect(html).not.toContain("h.jpg");
     expect(html).toMatch(/aria-hidden="true"/);
   });

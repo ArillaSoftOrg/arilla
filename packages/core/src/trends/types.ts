@@ -33,6 +33,11 @@ export interface TrendSummary {
   /** Cozulmus kapak: trend gorseli -> temsilci urun gorseli -> null (yer tutucu). */
   heroImageUrl: string | null;
   heroSource: TrendHeroSource;
+  /**
+   * Sirali kapak adaylari (`heroImageUrl` ilki). Kirik gorselde arayuz siradakini
+   * dener; bos = yer tutucu. Bkz. `heroCandidateUrls`.
+   */
+  heroCandidates: string[];
   /** Gosterilebilir (gorselli, fiyatli, stokta) urun sayisi. */
   productCount: number;
   /** Kurus; gosterilebilir urunlerin en dusuk `min_price`'i. */

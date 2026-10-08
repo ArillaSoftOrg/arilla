@@ -20,6 +20,7 @@ export * from "./CookieConsent.tsx";
 export * from "./DiscoveryCard.tsx";
 export * from "./DiscoveryGrid.tsx";
 export * from "./EmptyState.tsx";
+export * from "./FallbackImage.tsx";
 export * from "./format.ts";
 export * from "./HomeHeader.tsx";
 export * from "./HomeHero.tsx";

@@ -199,6 +199,16 @@ describe("trends - integration (real Postgres)", () => {
     expect(without?.heroImageUrl).toBe(IMAGE(5));
     const detail = await getTrendBySlug(db, `${PREFIX}-ok`);
     expect(detail?.trend.heroImageUrl).toBe(IMAGE(5));
+    // Kirik gorsel yedegi: trend gorseli ilk aday, ardindan urun gorselleri (tekrarsiz, sirali).
+    expect(withHero?.heroCandidates).toEqual([
+      "https://cdn.test.example/hero.jpg",
+      IMAGE(0),
+      IMAGE(1),
+      IMAGE(2),
+      IMAGE(3),
+    ]);
+    expect(without?.heroCandidates).toEqual([IMAGE(5), IMAGE(4), IMAGE(3), IMAGE(2)]);
+    expect(detail?.trend.heroCandidates[0]).toBe(IMAGE(5));
   });
 
   it("'su an' yalniz mevsimlik/kampanya ve pencere icindeyken", async () => {

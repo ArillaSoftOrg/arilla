@@ -430,7 +430,7 @@ PROFILES: tuple[Profile, ...] = (
             "camel",
             "kahverengi",
             "kahve$",
-            "taba",
+            "taba$",
             "hardal",
             "zeytin yesil",
             "terracotta",
@@ -442,7 +442,7 @@ PROFILES: tuple[Profile, ...] = (
     ),
     _P(
         "kahve-tonlari",
-        core=("kahverengi", "kahve$", "camel", "taba", "vizon", "cikolata", "mocha", "kum rengi"),
+        core=("kahverengi", "kahve$", "camel", "taba$", "vizon", "cikolata", "mocha", "kum rengi"),
         boost=("deri", "suet", "kazak", "triko", "canta", "bot$", "pantolon", "ceket"),
         categories=MODA,
     ),
@@ -770,6 +770,8 @@ PROFILES: tuple[Profile, ...] = (
         boost=("dogal", "doku", "minder", "yastik", "kilifi", "yun"),
         exclude=HOME_NOISE,
         categories=EV,
+        # Uc fiyat (300.000 TL halı) 'temel ev' / 'uygun görünen' fikrine aykırı: tavan 10.000 TL.
+        price_max=1_000_000,
     ),
     _P(
         "kucuk-eve-buyuk-fikirler",
@@ -805,6 +807,8 @@ PROFILES: tuple[Profile, ...] = (
         boost=("takim", "pamuk", "set", "pratik"),
         exclude=HOME_NOISE,
         categories=EV,
+        # Uc fiyat (300.000 TL halı) 'temel ev' / 'uygun görünen' fikrine aykırı: tavan 10.000 TL.
+        price_max=1_000_000,
         min_score=3.0,
     ),
     _P(
@@ -896,6 +900,8 @@ PROFILES: tuple[Profile, ...] = (
         ),
         exclude=HOME_NOISE,
         categories=EV,
+        # Uc fiyat (300.000 TL halı) 'temel ev' / 'uygun görünen' fikrine aykırı: tavan 10.000 TL.
+        price_max=1_000_000,
         min_boost=1,
     ),
     # --- Kampanya / ortak: guvenilir sinyal yok -----------------------------

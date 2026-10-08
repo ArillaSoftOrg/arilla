@@ -1,3 +1,4 @@
+import { FallbackImage } from "./FallbackImage.tsx";
 import { ProductImage } from "./ProductImage.tsx";
 import styles from "./TrendCollectionCard.module.css";
 import { VisuallyHidden } from "./VisuallyHidden.tsx";
@@ -18,6 +19,11 @@ export interface TrendCollection {
   /** `null`: kapak yok - notr yer tutucu kutusu cizilir (bozuk gorsel yerine). */
   heroImageUrl: string | null;
   heroImageAlt: string;
+  /**
+   * Verilirse kapak bu adaylari tarayicida sirayla dener (`FallbackImage`);
+   * hepsi kirikse yer tutucu cizilir. Verilmezse `heroImageUrl` tek basina kullanilir.
+   */
+  heroImageCandidates?: readonly string[];
   products?: readonly TrendCollectionProduct[];
   /** Verilirse TUM kart tek baglantidir (baslik baglantisi karti kaplar). */
   href?: string;
@@ -52,6 +58,7 @@ export function TrendCollectionCard({
   description,
   heroImageUrl,
   heroImageAlt,
+  heroImageCandidates,
   products,
   href,
   productCount,
@@ -67,7 +74,17 @@ export function TrendCollectionCard({
   return (
     <article className={styles.card}>
       <div className={styles.frame}>
-        {heroImageUrl ? (
+        {heroImageCandidates && heroImageCandidates.length > 0 ? (
+          <FallbackImage
+            srcs={heroImageCandidates}
+            alt={heroImageAlt}
+            className={styles.heroImage}
+            placeholderClassName={styles.heroPlaceholder}
+            fit="contain"
+            loading={heroImageLoading}
+            fetchPriority={heroImageFetchPriority}
+          />
+        ) : heroImageUrl ? (
           <ProductImage
             src={heroImageUrl}
             alt={heroImageAlt}
