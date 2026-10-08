@@ -14,7 +14,6 @@ from collect.images import (
     SourceImage,
     clean_url,
     images_from_entries,
-    keep_current_first,
     normalize_key,
     select_images,
 )
@@ -83,18 +82,17 @@ def _images(record: RawRecord, image_url: str | None) -> tuple[SelectedImage, ..
     belirlemez; rank 0 `normalize` icinde `offer.image_url` olur."""
     flags = (record.groups.get("image_flags") or ({},))[0]
     split = flags.get("split") == "1"
-    cleaned = clean_url(image_url)
     selected = select_images(images_from_entries(record.groups.get("images") or ()))
-    if not selected:
-        # Eski tek-gorsel davranisi; ama kaynak bu gorselin BASKA renge bagli oldugunu
-        # biliyorsa onu galeriye kalicilastirmayiz (offer.image_url yine de degismez).
-        if cleaned and flags.get("legacy_foreign") != "1":
-            return tuple(select_images([SourceImage(cleaned)]))
-        return ()
-    if split and not any(image.is_variant_specific for image in selected):
-        # Bu renge ozgu kanit yok: yeni ana gorsel secmek yerine mevcut olani koru.
-        return keep_current_first(selected, cleaned)
-    return tuple(selected)
+    if split:
+        # unknown != safe (karar 0073 ek 4): renk-bolunmus urunde YALNIZ bu renge ozgu
+        # kanitli (varyanta bagli ya da bagli gorselle ayni dosya koku) gorseller girer.
+        # Bagsiz/ortak gorsel, baska renge bagli gorsel ve eski tek-gorsel yedegi girmez;
+        # kanit yoksa galeri bos kalir. `offer.image_url` bu yuzden degismez.
+        return tuple(image for image in selected if image.is_variant_specific)
+    if selected:
+        return tuple(selected)
+    cleaned = clean_url(image_url)
+    return tuple(select_images([SourceImage(cleaned)])) if cleaned else ()
 
 
 def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
