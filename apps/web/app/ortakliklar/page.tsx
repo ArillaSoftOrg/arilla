@@ -11,7 +11,7 @@ export const metadata: Metadata = {
 
 /** Sayilar degil, urunun gercek ozellikleri: lansman oncesi uydurma istatistik yok. */
 const STATS: readonly { value: string; label: string }[] = [
-  { value: "3 giriş yolu", label: "Fotoğraf, ürün linki ve doğal dil" },
+  { value: "2 giriş yolu", label: "Fotoğraf ve doğal dil; ürün linki yakında" },
   { value: "Mağazalar arası", label: "Aynı ve benzer ürün karşılaştırması" },
   { value: "Her tıklama kayıtlı", label: "Mağazanıza giden her link" },
   { value: "Açık komisyon", label: "Sıralamada belirleyici değil" },

@@ -5,6 +5,7 @@ import {
   InvalidUrlError,
   isRedisUnavailableError,
   isValidRequestKey,
+  LINK_SEARCH_PUBLIC,
   reconcileLinkRequestCharge,
   runChargedLinkSearch,
 } from "@arilla/core";
@@ -46,6 +47,9 @@ export async function startLinkSearchAction(
   requestKey: string,
 ): Promise<StartLinkSearchResult> {
   const user = await requireProductAccess();
+  // Link araması geçici olarak kapalı: arayüz gizli olsa da Server Action
+  // doğrudan çağrılabilir, yeni istek kuyruğa alınmaz.
+  if (!LINK_SEARCH_PUBLIC) return { status: "failed", errorCode: "coming_soon" };
   // 0047: link araması hesap ister.
   if (!user) return { status: "failed", errorCode: "login_required" };
   if (!isValidRequestKey(requestKey)) return { status: "failed", errorCode: "unexpected" };

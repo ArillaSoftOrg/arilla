@@ -3,6 +3,7 @@ import {
   findKnownOfferByUrl,
   findLinkSearchResults,
   getLinkSearchState,
+  LINK_SEARCH_PUBLIC,
   type LinkSource,
   linkSearchHref,
 } from "@arilla/core";
@@ -16,6 +17,7 @@ import { PhotoSearchButton } from "../../photo-search-client.tsx";
 import styles from "../ara.module.css";
 import { ResultGrid, resultCountLabel } from "../search-results.tsx";
 import linkStyles from "./link-search.module.css";
+import { LinkSearchComingSoon } from "./link-search-coming-soon.tsx";
 import { LINK_SEARCH_COPY, linkFailureCopy } from "./link-search-copy.ts";
 import { LinkSearchWaitClient } from "./link-search-wait-client.tsx";
 
@@ -114,6 +116,9 @@ export default async function LinkAramaPage({
   searchParams: Promise<{ url?: string | string[] }>;
 }) {
   await requireProductAccess();
+  // Geçici olarak kapalı: adres ne olursa olsun durum sorgusu, kuyruk ya da
+  // bekleme ekranı yok; rota 404 vermeden "Yakında" gösterir.
+  if (!LINK_SEARCH_PUBLIC) return <LinkSearchComingSoon />;
   const { url: urlParam } = await searchParams;
   const raw = Array.isArray(urlParam) ? urlParam[0] : urlParam;
   if (!raw?.trim()) redirect("/ara");
