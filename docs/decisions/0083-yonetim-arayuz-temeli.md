@@ -51,16 +51,30 @@ mantığı **değişmez**. Migration yok.
    tutulmuyor" notu 0052'den beri yanlıştı, kaldırıldı. Menünün kopyası olan
    "Araçlar" listesi kaldırıldı.
 
+6. **Faz B.1 kalite güvencesi.** Gerçek başsız Chrome (CDP, geçici profil,
+   indirme yok; `apps/web/e2e/cdp.ts`) ile 360/390/768/1024/1440px ve açık/koyu
+   temada bütün yönetim sayfaları ölçüldü. Düzeltilenler: sağ sütunun içeriğe
+   göre büyüyüp dar ekranda yatay taşması (`.mainColumn` `minmax(0, 1fr)`),
+   CSS sırası yüzünden dar ekranda görünen konum yolu, dokunmatikte kısa
+   hedefler (kontrol ≥ 44px — `.textInput`, onay kutusu etiketi, `summary`;
+   bağlantı isabet alanı ≥ 24px, WCAG 2.5.8, satır içi dolguyla), sözlük
+   tablosunun ortak tablo görünümüne alınması ve dar ekranda düzenleme
+   alanlarının sarılması, tek başına başlıkta "0." adım numarası. Menü
+   açıklamaları artık `title` değil: masaüstünde ekran okuyucuya, çekmecede
+   görünür metin. Telefonda KPI kartları iki sütun; genel bakış mağaza
+   listesi önem sırasıyla 8 satır + "tümü" bağlantısı. Bütün `form.filters`
+   formları `FilterBar` yüzeyini alır (sayfa yeniden yazılmadan).
+   Regresyon: `e2e/admin-responsive.e2e.test.ts` (yerel `next start` + Chrome;
+   yoksa atlanır) — taşma, menü kırılımı, çekmece odak/Esc/kilit, dokunma
+   hedefleri ve iki temada kontrast. CI'da Chrome adımı henüz yok.
+
 ## Sınırlar
 
 - Yeni bileşenler bu fazda yalnızca genel bakışta kullanıldı; diğer sayfalar
   ortak sınıflar üzerinden yeni görünümü aldı ama `DataTable`/`FilterBar`'a
   sayfa sayfa taşınmadı (Faz C ile birlikte).
-- Menü açıklamaları hâlâ yalnızca `title`'da (dokunmatikte görünmez); sayfa
-  açıklaması üst çubukta konum yolunun altında yazar.
-- Tarayıcıda yalnızca masaüstü (1440px, koyu tema) doğrulandı; dar ekran
-  çekmecesi ve açık tema gözle doğrulanmadı (pencere küçültülemedi, iframe
-  `frame-ancestors` ile doğru biçimde engellendi).
+- Görsel doğrulama başsız Chrome öykünmesiyle yapıldı; gerçek iOS/Android
+  cihaz, Safari/Firefox ve ekran okuyucu (VoiceOver/TalkBack) ile denenmedi.
 
 ## Reddedilen alternatifler
 

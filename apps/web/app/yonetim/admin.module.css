@@ -229,6 +229,35 @@ details[open] > .navHeading .navChevron {
   background: var(--accent);
 }
 
+.navText {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+  padding: var(--space-1) 0;
+}
+
+.navDesc {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+.drawer .navDesc {
+  position: static;
+  width: auto;
+  height: auto;
+  overflow: visible;
+  clip: auto;
+  white-space: normal;
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-regular);
+  line-height: var(--line-height-heading);
+}
+
 .navPending {
   flex-shrink: 0;
   width: 6px;
@@ -290,6 +319,8 @@ details[open] > .navHeading .navChevron {
 
 .mainColumn {
   display: grid;
+  /* Sütun içeriğin en küçük genişliğine büyümez: dar ekranda yatay taşma olmaz. */
+  grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto 1fr;
   min-width: 0;
 }
@@ -346,7 +377,8 @@ details[open] > .navHeading .navChevron {
     padding: var(--space-4) var(--space-4) var(--space-10);
   }
 
-  .breadcrumbsInTopbar {
+  /* `.breadcrumbs` aşağıda tanımlı; sıra bağımsız olsun diye üst çubukla nitelenir. */
+  .topbar .breadcrumbsInTopbar {
     display: none;
   }
 }
@@ -445,6 +477,7 @@ details[open] > .navHeading .navChevron {
 .main
 :where(
   input:not([type="checkbox"]):not([type="radio"]):not([type="hidden"]):not([class]),
+  input.textInput,
   select:not([class]),
   textarea:not([class])
 ) {
@@ -924,7 +957,8 @@ details[open] > .navHeading .navChevron {
   gap: var(--space-2) var(--space-3);
 }
 
-/* FilterBar: filtreler kendi yüzeyinde; GET formu, değerler adres satırında. */
+/* FilterBar ve sayfaların mevcut filtre formları (`form.filters`) aynı yüzeyi alır. */
+form.filters,
 .filterBar {
   padding: var(--space-3);
   border: var(--border-width) solid var(--line);
@@ -1148,7 +1182,9 @@ details[open] > .navHeading .navChevron {
 /* Ayrıntı, anahtar-değer, form                                         */
 /* ------------------------------------------------------------------ */
 
+/* Yerel açılır ok korunur (display: list-item); yükseklik dolguyla. */
 .detailsSummary {
+  padding-block: var(--space-1);
   cursor: pointer;
   color: var(--ink-secondary);
   font-size: var(--font-size-sm);
@@ -1344,7 +1380,8 @@ a.findingTitle {
   font-weight: var(--font-weight-semibold);
 }
 
-.s2StepTitle::before {
+/* Numara yalnızca adım listesinde; tek başına başlıkta "0." çıkmaz. */
+.s2Step .s2StepTitle::before {
   content: counter(s2step) ". ";
   color: var(--ink-muted);
 }
@@ -1538,6 +1575,48 @@ a.findingTitle {
   flex-wrap: wrap;
   align-items: center;
   gap: var(--space-2);
+}
+
+@media (pointer: coarse) {
+  /* Satır içi dolgu düzeni değiştirmez, yalnızca isabet alanını büyütür. */
+  .main a {
+    padding-block: calc(var(--space-1) + 2px);
+  }
+
+  /* Onay kutusu/radyo: dokunma hedefi etiketin tamamıdır. */
+  .main label:has(> input[type="checkbox"]),
+  .main label:has(> input[type="radio"]) {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-2);
+    min-height: var(--admin-control-height);
+  }
+
+  .main summary {
+    padding-block: var(--space-3);
+  }
+
+  .main a.tileLink,
+  .main a.pagerLink,
+  .main a.tab {
+    padding-block: 0;
+  }
+}
+
+/* Telefonda kartlar iki sütun: aynı ekranda daha çok sayı (yoğunluk). */
+@media (max-width: 639px) {
+  .tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .tile {
+    padding: var(--space-3);
+  }
+
+  .tileValue {
+    font-size: var(--font-size-md);
+  }
 }
 
 @media (min-width: 1440px) {

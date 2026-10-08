@@ -48,6 +48,9 @@ function total(record: Record<string, number>): number {
   return Object.values(record).reduce((sum, n) => sum + n, 0);
 }
 
+/** Genel bakışta gösterilen en çok mağaza satırı; liste önem sırasındadır (core). */
+const ATTENTION_ROWS = 8;
+
 const PERCENT = new Intl.NumberFormat("tr-TR", { style: "percent", maximumFractionDigits: 1 });
 
 /** Dikkat listesinin önem dağılımı: başlıktaki özet şeridi (yalnızca türetilmiş sayılar). */
@@ -112,6 +115,8 @@ export default async function AdminOverviewPage() {
   );
   const search = overview.textSearch7d;
   const queueOverThreshold = overview.pendingMatches > MATCH_QUEUE_ALERT_THRESHOLD;
+  const attentionMerchants = overview.ingest.attention;
+  const shownMerchants = attentionMerchants.slice(0, ATTENTION_ROWS);
 
   return (
     <div className={styles.page}>
@@ -258,10 +263,20 @@ export default async function AdminOverviewPage() {
           id="dikkat"
           title="Dikkat gerektiren mağazalar"
           description="Yalnızca aktif mağazalar. Kısmi koşu tek başına sorun sayılmaz (veri yazılmıştır)."
-          flush={overview.ingest.attention.length > 0}
+          flush={shownMerchants.length > 0}
+          footer={
+            attentionMerchants.length > shownMerchants.length ? (
+              <>
+                {`${formatCount(shownMerchants.length)} / ${formatCount(attentionMerchants.length)} mağaza gösteriliyor (önem sırasıyla). `}
+                {can("merchant.read") ? (
+                  <Link href="/yonetim/magazalar?durum=aktif">Tüm aktif mağazalar</Link>
+                ) : null}
+              </>
+            ) : null
+          }
         >
           <DataTable<MerchantAttentionItem>
-            rows={overview.ingest.attention}
+            rows={shownMerchants}
             rowKey={(item) => item.merchantId}
             stack
             empty={<p className={styles.muted}>Dikkat gerektiren aktif mağaza yok.</p>}

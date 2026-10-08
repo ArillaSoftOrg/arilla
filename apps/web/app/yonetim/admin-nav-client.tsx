@@ -41,11 +41,15 @@ function NavItemLink({ item, active }: { item: AdminNavLink; active: boolean }) 
   return (
     <Link
       href={item.href}
-      title={item.description}
       className={active ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink}
       aria-current={active ? "page" : undefined}
     >
-      <span>{item.label}</span>
+      {/* Açıklama: masaüstünde ekran okuyucuya, çekmecede (dokunmatik) görünür metin.
+          `title` kullanılmaz: dokunmatikte ve klavyede görünmez. */}
+      <span className={styles.navText}>
+        <span>{item.label}</span>
+        {item.description ? <span className={styles.navDesc}>{item.description}</span> : null}
+      </span>
       <PendingHint />
     </Link>
   );
