@@ -604,7 +604,7 @@ a.tabActive:hover {
   margin: 0;
 }
 
-/* Karar 0079: mesaja eklenecek fotograf. "+" ve kucuk onizleme yalnizca bayrak aciksa vardir. */
+/* Karar 0080: mesaja eklenecek fotograf. "+" ve kucuk onizleme yalnizca bayrak aciksa vardir. */
 .attach {
   flex: 0 0 auto;
   min-width: var(--size-touch-target);

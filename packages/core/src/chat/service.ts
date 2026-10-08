@@ -71,7 +71,7 @@ type Executor = Database | Tx;
 // Okuma
 // ---------------------------------------------------------------------------
 
-/** Karar 0079: asistan mesajinin `payload.imageSummary` kaydi. */
+/** Karar 0080: asistan mesajinin `payload.imageSummary` kaydi. */
 export interface StoredImageSummary {
   attachmentId: string;
   text: string;
@@ -96,7 +96,7 @@ export type ChatMessageView =
       kind: "clarify";
       content: string;
       question: ClarifyQuestion | null;
-      /** Karar 0079: bu turda modelin urettigi gorsel ozeti (hangi eke ait oldugu ile). */
+      /** Karar 0080: bu turda modelin urettigi gorsel ozeti (hangi eke ait oldugu ile). */
       imageSummary?: StoredImageSummary | null;
     }
   | {
@@ -264,7 +264,7 @@ export type SubmitMessageResult =
   | { status: "busy" }
   | { status: "rate_limited" }
   | { status: "conversation_full" }
-  /** Karar 0079: konusma basina gorsel ust siniri doldu. */
+  /** Karar 0080: konusma basina gorsel ust siniri doldu. */
   | { status: "image_limit" }
   | { status: "invalid_input" }
   | { status: "invalid_option" }
@@ -430,7 +430,7 @@ export async function submitUserMessage(
     request: ChatInputRequest;
     requestKey?: string;
     /**
-     * Karar 0079: mesajin gorsel eki (metinle ayni mesaj). Yalniz `text` istegiyle birlikte;
+     * Karar 0080: mesajin gorsel eki (metinle ayni mesaj). Yalniz `text` istegiyle birlikte;
      * metin bos olabilir (yalniz fotograf). Ek, mesajla TEK islemde yazilir.
      */
     attachment?: ChatAttachmentInput;
@@ -632,7 +632,7 @@ function toInterpretRequest(
   } else {
     input = { kind: "text", text: last.content };
   }
-  // Karar 0079: gorsel yalnizca karar verilen mesaja EKLENIR (`hasImage`); diger gorselli
+  // Karar 0080: gorsel yalnizca karar verilen mesaja EKLENIR (`hasImage`); diger gorselli
   // mesajlar, kayitli ozetleri varsa onunla temsil edilir.
   const summaries = new Map<string, string>();
   for (const message of view.messages) {
@@ -658,7 +658,7 @@ function toInterpretRequest(
 }
 
 /**
- * Karar 0078/0079: modele eklenecek gorsel. `decideContextImage` EN SON gorselli
+ * Karar 0078/0080: modele eklenecek gorsel. `decideContextImage` EN SON gorselli
  * kullanici mesajini secer ve gorselin gonderilip gonderilmeyecegine karar verir
  * (kendi turu, kayitli ozet yoksa ya da atif varsa). Pencere disina cikarsa eklenmez.
  */
@@ -849,7 +849,7 @@ async function runPendingTurn(
             }
           }
 
-          // Karar 0079: gorsel bu istege eklendiyse modelin urettigi ozet saklanir (kural 3).
+          // Karar 0080: gorsel bu istege eklendiyse modelin urettigi ozet saklanir (kural 3).
           const summaryPayload =
             image && decision.attachmentId && turn.imageSummary && source === "model"
               ? { imageSummary: { attachmentId: decision.attachmentId, text: turn.imageSummary } }

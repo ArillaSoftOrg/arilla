@@ -97,7 +97,7 @@ export interface ClarifyQuestion {
 }
 
 /**
- * `imageSummary`: yalnizca gorselli turlarda (karar 0079) modelin urettigi kisa,
+ * `imageSummary`: yalnizca gorselli turlarda (karar 0080) modelin urettigi kisa,
  * nesnel urun ozeti; saklanir ve takip turlarinda gorselin yerine baglama girer.
  */
 export type ModelTurn =
@@ -290,7 +290,7 @@ export function parseModelTurn(raw: unknown): ParsedModelTurn {
 
 /**
  * Gemini `response_format.schema`. `parseModelTurn` ayni kurallari yeniden uygular.
- * `imageSummary: true` (yalnizca gorselli turlar, karar 0079) `image_summary` alanini
+ * `imageSummary: true` (yalnizca gorselli turlar, karar 0080) `image_summary` alanini
  * ekler; metin turlarinin semasi ve davranisi degismez.
  */
 export function buildModelTurnSchema(

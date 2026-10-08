@@ -60,7 +60,7 @@ export function ChatPendingRow() {
 export const CHAT_MESSAGE_MAX = 500;
 
 /**
- * Karar 0079: mesaja eklenecek (henuz gonderilmemis) fotograf. Secmek gondermez; onizleme olur.
+ * Karar 0080: mesaja eklenecek (henuz gonderilmemis) fotograf. Secmek gondermez; onizleme olur.
  * Ana sayfa kutusuyla ayni anlam: metin bos olabilir, Enter ve Gonder ayni eylemi calistirir.
  */
 export interface ChatComposerAttachment {

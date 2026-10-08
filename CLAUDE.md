@@ -44,7 +44,7 @@ tamamı anlamını yitirir.
      `CHAT_DISCOVERY_ENABLED=true` bayrağıyla (varsayılan kapalı), her çağrı
      `api_usage`'a yazılır, kullanıcı başına saatlik tavanı vardır ve `/ara`
      bütçesinden ayrıdır; model yalnızca niyet çıkarır — ürün, fiyat, SQL üretmez.
-   - Sohbet görsel eki (karar 0078, 0079): `/sohbet` mesajına (ilk mesaj ya da
+   - Sohbet görsel eki (karar 0078, 0080): `/sohbet` mesajına (ilk mesaj ya da
      sohbet içi sonraki mesaj) eklenen, önceden işlenmiş (≤512 px, EXIF'siz)
      görsel, aynı tek Gemini çağrısına çok kipli girdi olarak eklenir; yalnızca
      `CHAT_IMAGE_ENABLED=true` ile (varsayılan kapalı). Görsel normal mesajın
@@ -72,7 +72,7 @@ tamamı anlamını yitirir.
    kontrol edilemez.
 10. **Yüklenen görsel saklanmaz.** Embedding ve hash tutulur; ham dosya en fazla
     30 gün geçici depoda kalır. Detay: `docs/kvkk.md`.
-    İstisna (karar 0078, 0079): sohbete eklenen görsel, sohbetin kendisiyle aynı
+    İstisna (karar 0078, 0080): sohbete eklenen görsel, sohbetin kendisiyle aynı
     ömürde (en fazla 90 gün) yalnızca sahibine görünür tutulur; sohbet silinince gider.
     Ana sayfadan yeni sekmeye taşınırken tarayıcıda yalnızca tek kullanımlık, en
     fazla 60 sn yaşayan geçici bir kayıt (IndexedDB) bulunur; sunucu teslim alınca

@@ -141,7 +141,7 @@ export const CHAT_ERROR_COPY: Record<ChatErrorKind, ChatErrorCopy> = {
     searchDirectly: false,
     newChat: false,
   },
-  // Karar 0079: gorselli mesaj hatalari sohbette kalir; mesaj ve gorsel kutuda korunur, kullanici
+  // Karar 0080: gorselli mesaj hatalari sohbette kalir; mesaj ve gorsel kutuda korunur, kullanici
   // duzeltip yeniden gonderir (ayni istek anahtariyla sunucu bir kez kabul eder).
   image_limit: {
     message: IMAGE_CHAT_ERROR_COPY.image_limit,

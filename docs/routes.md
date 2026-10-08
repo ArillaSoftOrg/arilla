@@ -47,7 +47,7 @@ Modal metni kaydolmayı engel değil kazanç olarak sunar: "Hesabın yok mu?
 ```
 /                          Ana sayfa. Arama kutusu + görsel yükleme.
 /ara?q=...                 Metin araması. Netleştirme çubuğu burada.
-/ara/gorsel                Eski görsel arama sonucu; karar 0079: kalıcı olarak `/`ye yönlendirilir (görsel artık sohbet mesajının ekidir)
+/ara/gorsel                Eski görsel arama sonucu; karar 0080: kalıcı olarak `/`ye yönlendirilir (görsel artık sohbet mesajının ekidir)
 /sohbet/[id]              Konuşmalı keşif (karar 0074). Giriş gerekli, noindex; CHAT_DISCOVERY_ENABLED kapalıyken 404
 /urun/<slug>               Ürün sayfası: karşılaştırma, fiyat geçmişi, alternatifler
 /git/<clickId>             Merchant'a çıkış. 302. Attribution burada yazılır.

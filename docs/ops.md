@@ -694,7 +694,7 @@ production'da uygulanır (`pnpm db:migrate`, `db:verify`) → kod dağıtılır 
 onayı (docs/kvkk.md "Konuşmalı keşif") → bayrak açılır. Maliyet: `api_usage`
 `operation = 'chat_turn'`. Saklama: 90 gün, `cleanup-auth` cron'u (`job_run.detail.conversations`).
 
-**Görsel eki (karar 0078, 0079) — varsayılan kapalı.** `CHAT_IMAGE_ENABLED=true`
+**Görsel eki (karar 0078, 0080) — varsayılan kapalı.** `CHAT_IMAGE_ENABLED=true`
 (`CHAT_DISCOVERY_ENABLED` de açık olmalı). Kapalıyken ana sayfa ve sohbet kutusunda
 "+" görünmez, eski `/ara/gorsel` akışına düşülmez. Görselli mesaj metinle aynı
 sohbet turu kotasından geçer (arama hakkı harcanmaz); ek migration yok (0057 yeter).

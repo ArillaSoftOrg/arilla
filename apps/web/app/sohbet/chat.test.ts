@@ -53,7 +53,7 @@ describe("chat copy (CLAUDE.md dil kuralları)", () => {
   it("every error kind offers a way forward", () => {
     for (const [kind, copy] of Object.entries(CHAT_ERROR_COPY)) {
       // Bu türlerde giriş kutusu açık kalır ve mesaj ile fotoğraf korunur: kullanıcı yazıyı ya da
-      // fotoğrafı düzeltip yeniden gönderir (karar 0079). Ayrı bir düğmeye gerek yoktur.
+      // fotoğrafı düzeltip yeniden gönderir (karar 0080). Ayrı bir düğmeye gerek yoktur.
       if (COMPOSER_STAYS_OPEN.has(kind)) continue;
       expect(copy.retry || copy.searchDirectly || copy.newChat).toBe(true);
     }

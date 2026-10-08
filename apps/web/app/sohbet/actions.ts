@@ -116,7 +116,7 @@ function parseRequest(raw: unknown): ChatInputRequest | null {
 }
 
 /**
- * Kullanici mesajini kaydeder (model cagrisi yok). Karar 0079: `photo` verilirse
+ * Kullanici mesajini kaydeder (model cagrisi yok). Karar 0080: `photo` verilirse
  * (`FormData{photo}`) gorsel AYNI mesajin eki olur ve mevcut konusmaya eklenir; metin,
  * secenek ve atla yolu ayni kalir. Gorsel burada dogrulanir ve on islenir.
  */
@@ -224,7 +224,7 @@ export type NewTabChatResult =
   | { status: "fallback"; href: string }
   | { status: "error" }
   /**
-   * Karar 0079, yalniz GORSELLI mesaj: eski aramaya dusulmez, kullanici sohbet icinde hatayi
+   * Karar 0080, yalniz GORSELLI mesaj: eski aramaya dusulmez, kullanici sohbet icinde hatayi
    * gorur ve tekrar dener. Metin mesajinda bu durumlar yukaridaki `fallback`/`error` ile ayni kalir.
    */
   | {
@@ -244,7 +244,7 @@ interface NewChatSubmission {
 
 /**
  * Metin-only: duz metin (onceki sozlesme, degismedi). Gorselli: `FormData{q, photo, requestKey}`.
- * Ikisi de ayni eylemden ayni hatta gecer (karar 0079).
+ * Ikisi de ayni eylemden ayni hatta gecer (karar 0080).
  */
 function readNewChatSubmission(input: unknown): NewChatSubmission {
   if (typeof input === "string") {
@@ -278,7 +278,7 @@ function readNewChatSubmission(input: unknown): NewChatSubmission {
  * engeller; is dusse istemci kurtarma yolu (`runTurnAction`) devralir.
  * Gemini bu eylemin yanitini ve DB islemini BEKLETMEZ.
  *
- * Karar 0079: mesaj metin, gorsel ya da ikisi birden olabilir; hepsi bu hattan gecer.
+ * Karar 0080: mesaj metin, gorsel ya da ikisi birden olabilir; hepsi bu hattan gecer.
  * Gorselli mesajda bayrak/oturum yoksa `/ara`ya dusulmez (eski gorsel arama kalkti).
  */
 export async function startChatBootstrapAction(input: unknown): Promise<NewTabChatResult> {

@@ -1,5 +1,5 @@
 /**
- * Mesaj kutusu gonderim semantigi (docs/decisions/0079): ana sayfa kutusu ve sohbet ici
+ * Mesaj kutusu gonderim semantigi (docs/decisions/0080): ana sayfa kutusu ve sohbet ici
  * kutu AYNI kurallari kullanir. Tarayiciya/React'a bagimli degil; birim testlidir.
  *
  * - Metin ya da fotograf varsa gonderilir (metin bos olabilir: yalniz fotograf).

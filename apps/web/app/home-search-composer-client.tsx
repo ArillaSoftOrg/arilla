@@ -27,7 +27,7 @@ interface StagedImage {
  * Ince istemci (CLAUDE.md kural 6): @arilla/ui'nin generic SearchComposer'ini
  * apps/web'e ozgu sohbet baslatma akisina ve ornek sorgu verisine baglar. Is mantigi tasimaz.
  *
- * Karar 0079: gorsel ayri bir akis DEGIL, normal mesajin ekidir. Metin, gorsel ve metin+gorsel
+ * Karar 0080: gorsel ayri bir akis DEGIL, normal mesajin ekidir. Metin, gorsel ve metin+gorsel
  * AYNI hattan gecer: `sendMessage` -> yeni sekmede `/sohbet/yeni` kabugu -> ayni sunucu eylemi.
  * Gorsel secmek hicbir sey gondermez; kutuda onizleme olur. Eski gorsel arama sayfasina hicbir
  * kosulda dusulmez: gorsel ekleme dugmesi yalnizca `imageChat` aciksa vardir.
@@ -60,7 +60,7 @@ export function HomeSearchComposer({
    */
   chatInNewTab?: boolean;
   /**
-   * Karar 0078/0079: true ise "+" ile fotoğraf eklenebilir. Fotoğraf seçmek hemen
+   * Karar 0078/0080: true ise "+" ile fotoğraf eklenebilir. Fotoğraf seçmek hemen
    * göndermez; kutuda önizleme olarak bekler ve Enter/Gönder ile metinle birlikte TEK
    * mesaj olarak, metinle aynı geçişle sohbete gider. false/verilmezse "+" hiç görünmez.
    */

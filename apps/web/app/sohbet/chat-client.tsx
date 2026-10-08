@@ -54,7 +54,7 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-/** Karar 0079: mesaja eklenmek uzere secilmis, henuz gonderilmemis fotograf. */
+/** Karar 0080: mesaja eklenmek uzere secilmis, henuz gonderilmemis fotograf. */
 interface StagedImage {
   file: File;
   url: string;
@@ -226,7 +226,7 @@ export function ChatInteractive({
     let sent = false;
     await run(async () => {
       // Aynı yük yeniden gönderilirse (ağ hatası sonrası) aynı anahtar: sunucu bir kez kabul eder.
-      // Görselli mesajda aynı seçim aynı anahtarı taşır (karar 0079).
+      // Görselli mesajda aynı seçim aynı anahtarı taşır (karar 0080).
       const signature = JSON.stringify(image ? { ...request, image: image.key } : request);
       const key = keyRef.current?.signature === signature ? keyRef.current.key : newRequestKey();
       keyRef.current = { signature, key };

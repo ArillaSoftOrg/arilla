@@ -53,7 +53,7 @@ export interface OpenChatTabImageDeps extends OpenChatTabDeps {
 export type OpenWithImageResult = "opened" | "same_tab" | "fallback";
 
 /**
- * Metinle AYNI hat (karar 0079): once metin kaydi, sonra `open()` kullanici hareketi
+ * Metinle AYNI hat (karar 0080): once metin kaydi, sonra `open()` kullanici hareketi
  * surerken ve ilk `await`ten ONCE (popup engelleyici); gorsel Blob'u sekme yuklenirken
  * sonradan yazilir, sekme `waitForImage` ile bekler. Gorsel yazilamazsa sekme kapatilir ve
  * `fallback` doner.
