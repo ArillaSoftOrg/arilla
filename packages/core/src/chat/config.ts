@@ -7,11 +7,13 @@
  * onayi gelmeden acilmaz (karar 0074 "Etkinlestirme kosulu").
  */
 import { getLlmClient } from "../llm/gemini.ts";
+import { QUOTA_POLICY, type WindowLimits } from "../quota/policy.ts";
 import { type ChatInterpreter, GeminiChatInterpreter } from "./interpreter.ts";
 
 type Env = Readonly<Record<string, string | undefined>>;
 
-export const DEFAULT_CHAT_TURNS_PER_HOUR = 20;
+/** Saatlik sohbet mesaji (`quota/policy.ts`); `CHAT_TURNS_PER_HOUR` yalnizca saati ezer. */
+export const DEFAULT_CHAT_TURNS_PER_HOUR = QUOTA_POLICY.chat_message.hour;
 export const MAX_USER_MESSAGES_PER_CONVERSATION = 60;
 export const USER_MESSAGE_MAX = 500;
 export const CHAT_RETENTION_DAYS = 90;
@@ -33,6 +35,11 @@ export function chatTurnsPerHour(env: Env = process.env): number {
   const parsed = Number.parseInt(env.CHAT_TURNS_PER_HOUR ?? "", 10);
   if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_CHAT_TURNS_PER_HOUR;
   return Math.min(parsed, 200);
+}
+
+/** Sohbet mesaji havuzunun dort penceresi; saat `chatTurnsPerHour` ile ezilebilir. */
+export function chatMessageLimits(env: Env = process.env): WindowLimits {
+  return { ...QUOTA_POLICY.chat_message, hour: chatTurnsPerHour(env) };
 }
 
 /** `api_usage.operation`; `/ara` anlik yorumundan (`query_interpretation_realtime`) AYRI butce. */

@@ -18,6 +18,7 @@ import {
   newAnonymousSessionId,
   validAnonymousSessionId,
 } from "@arilla/core/anonymous-session";
+import type { QuotaWindow } from "@arilla/core/quota-policy";
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
 import { requireProductAccess } from "../../lib/dal.ts";
@@ -29,6 +30,8 @@ const MAX_UPLOAD_BYTES = 4 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
 export type UploadImageResult =
   | { status: "ok"; imageUploadId: number; chargedFromBonus: boolean }
+  /** Hak yok; `window` dolan pencere (saat/gun/hafta/ay, `quota/policy.ts`). */
+  | { status: "no_rights"; window: QuotaWindow }
   | {
       status:
         | "too_large"
@@ -36,8 +39,6 @@ export type UploadImageResult =
         | "unprocessable"
         /** Fotografla arama hesap ister (0047); istemci giris modalini acar. */
         | "login_required"
-        /** Gunluk hak da bonus hak da bitti. */
-        | "no_rights"
         | "rate_limited"
         | "busy"
         | "retry"

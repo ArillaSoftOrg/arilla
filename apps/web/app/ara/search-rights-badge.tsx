@@ -4,15 +4,16 @@ import Link from "next/link";
 import { verifySession } from "../lib/dal.ts";
 import styles from "./ara.module.css";
 import {
-  nextResetLabel,
+  bonusCanHelp,
   SEARCH_RIGHTS_BADGE_LABEL,
   SEARCH_RIGHTS_COPY,
   SEARCH_RIGHTS_HREF,
+  searchRightsHint,
   searchRightsSummary,
 } from "./search-rights-copy.ts";
 
 /**
- * Fotograf/link aramasinin kalan hakki (0047). Yalnizca girisli kullaniciya
+ * Fotograf/link aramasinin kalan hakki (0047; dort pencere `quota/policy.ts`). Yalnizca girisli kullaniciya
  * gosterilir; metin aramasi hak harcamaz. Okuma basarisiz olursa rozet
  * cizilmez, arama sayfasi calismaya devam eder.
  */
@@ -29,15 +30,17 @@ export async function SearchRightsBadge() {
     );
     return null;
   }
+  const hint = searchRightsHint(status);
+  const earn = hint.exhaustedWindow !== null && bonusCanHelp(hint.exhaustedWindow);
   return (
     <p className={styles.rights}>
       <span>
         {SEARCH_RIGHTS_BADGE_LABEL}: {searchRightsSummary(status)}
       </span>{" "}
       <span className={styles.rightsHint}>
-        {status.exhausted ? SEARCH_RIGHTS_COPY.noRights : nextResetLabel(status.nextResetAt)}{" "}
+        {hint.text}{" "}
         <Link href={SEARCH_RIGHTS_HREF}>
-          {status.exhausted ? SEARCH_RIGHTS_COPY.earnLink : "Arama hakların"}
+          {earn ? SEARCH_RIGHTS_COPY.earnLink : "Arama hakların"}
         </Link>
       </span>
     </p>

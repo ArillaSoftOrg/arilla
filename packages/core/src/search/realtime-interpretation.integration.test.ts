@@ -18,6 +18,7 @@ import {
 } from "../conversational-search/stored-plan.ts";
 import type { LlmCallOptions, LlmClient, LlmJsonRequest } from "../llm/client.ts";
 import { LlmError } from "../llm/client.ts";
+import type { QuotaConsumeResult, QuotaConsumer } from "../quota/redis-windows.ts";
 import { RedisUnavailableError } from "../redis/client.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { providerCallsToday, QUERY_INTERPRETATION_OPERATION } from "./query-interpretation.ts";
@@ -243,17 +244,53 @@ describe("laptop: '10 bin liraya kadar oyun için hafif laptop'", () => {
   });
 });
 
-describe("kişi başına anlık limit", () => {
-  it("limit dolduysa model çağrılmaz", async () => {
+describe("kişi başına anlık limit (quota/policy.ts)", () => {
+  /** Kota cagrilarini kaydeden sahte harcayici. */
+  function recordingConsume(result: QuotaConsumeResult = { allowed: true }) {
+    const calls: Array<{ pool: string; subject: string }> = [];
+    const consume: QuotaConsumer = async (input) => {
+      calls.push({ pool: input.pool, subject: input.subject });
+      return result;
+    };
+    return { calls, consume };
+  }
+
+  it("limit dolduysa model çağrılmaz, arama deterministik yoldan sürer", async () => {
     const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const { consume } = recordingConsume({ allowed: false, window: "day" });
     const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} limit`, {
       client,
       registry: REGISTRY,
       actor: { userId: null, ip: "198.51.100.77" },
-      increment: async () => 31,
+      consume,
     });
     expect(result).toEqual({ source: "none", reason: "actor_limited" });
     expect(queries).toEqual([]);
+  });
+
+  it("girişli kullanıcı kendi havuzundan, anonim IP özetiyle ayrı havuzdan harcar", async () => {
+    const { client } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const signedIn = recordingConsume();
+    await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} girisli`, {
+      client,
+      registry: REGISTRY,
+      actor: { userId: 42, ip: "198.51.100.9" },
+      consume: signedIn.consume,
+    });
+    expect(signedIn.calls).toEqual([{ pool: "realtime_interpretation_user", subject: "user:42" }]);
+
+    const anonymous = recordingConsume();
+    await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} anonim`, {
+      client,
+      registry: REGISTRY,
+      actor: { userId: null, ip: "198.51.100.9" },
+      consume: anonymous.consume,
+    });
+    expect(anonymous.calls).toHaveLength(1);
+    expect(anonymous.calls[0]?.pool).toBe("realtime_interpretation_anonymous");
+    // Ham IP anahtara girmez: yalnizca SHA-256 ozeti.
+    expect(anonymous.calls[0]?.subject).toMatch(/^ip:[0-9a-f]{64}$/);
+    expect(anonymous.calls[0]?.subject).not.toContain("198.51.100.9");
   });
 
   it("limit sayacı okunamazsa model çağrılmaz (maliyet kapalı), hata fırlamaz", async () => {
@@ -262,8 +299,8 @@ describe("kişi başına anlık limit", () => {
       client,
       registry: REGISTRY,
       actor: { userId: 7, ip: null },
-      increment: async () => {
-        throw new RedisUnavailableError("incr");
+      consume: async () => {
+        throw new RedisUnavailableError("kota");
       },
     });
     expect(result).toEqual({ source: "none", reason: "actor_limited" });
@@ -271,22 +308,62 @@ describe("kişi başına anlık limit", () => {
   });
 
   it("önbellek isabeti limiti tüketmez", async () => {
-    let increments = 0;
     const query = `kafa koruyucu ${TAG} onbellek`;
     const { client } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
     // Ilk istek yorumu saklar (limitsiz cagri); ikincisi onbellekten gelir.
     await resolveRealtimeInterpretation(getTestDb(), query, { client, registry: REGISTRY });
+    const { calls, consume } = recordingConsume();
     const result = await resolveRealtimeInterpretation(getTestDb(), query, {
       client,
       registry: REGISTRY,
       actor: { userId: 9, ip: null },
-      increment: async () => {
-        increments += 1;
-        return 1;
-      },
+      consume,
     });
     expect(result.source).toBe("stored");
-    expect(increments).toBe(0);
+    expect(calls).toEqual([]);
+  });
+
+  it("süzgece takılan ya da boş sorgu limiti tüketmez", async () => {
+    const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const { calls, consume } = recordingConsume();
+    for (const text of ["", "   ", "beni 0532 123 45 67 numarasından ara"]) {
+      const result = await resolveRealtimeInterpretation(getTestDb(), text, {
+        client,
+        registry: REGISTRY,
+        actor: { userId: 11, ip: null },
+        consume,
+      });
+      expect(result.source).toBe("none");
+    }
+    expect(calls).toEqual([]);
+    expect(queries).toEqual([]);
+  });
+
+  it("bayrak kapalıyken (deterministik arama) limit tüketilmez", async () => {
+    const { calls, consume } = recordingConsume();
+    const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} kapali`, {
+      env: {},
+      registry: REGISTRY,
+      actor: { userId: 12, ip: null },
+      consume,
+    });
+    expect(result).toEqual({ source: "none", reason: "disabled" });
+    expect(calls).toEqual([]);
+  });
+
+  it("günlük toplam tavan doluysa kişi limiti tüketilmez", async () => {
+    const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const { calls, consume } = recordingConsume();
+    const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} tavan`, {
+      client,
+      registry: REGISTRY,
+      actor: { userId: 13, ip: null },
+      dailyCallCap: 0,
+      consume,
+    });
+    expect(result).toEqual({ source: "none", reason: "daily_cap" });
+    expect(calls).toEqual([]);
+    expect(queries).toEqual([]);
   });
 });
 
