@@ -45,7 +45,12 @@ export function FeedbackDialog({
   useEffect(() => {
     const dialog = ref.current;
     if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
+    if (open && !dialog.open) {
+      // Her acilis temiz baslar: onceki gonderimin neden/yorumu kalmaz.
+      setReason("");
+      setComment("");
+      dialog.showModal();
+    }
     if (!open && dialog.open) dialog.close();
   }, [open]);
 
