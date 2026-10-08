@@ -13,6 +13,8 @@ Hata metinleri sabittir: adres, kullanici ya da parola asla yazilmaz.
 
 from __future__ import annotations
 
+import contextlib
+from pathlib import Path
 from urllib.parse import urlparse
 
 LOCAL_REDIS_URL = "redis://localhost:6379"
@@ -56,3 +58,29 @@ def worker_redis_url(redis_url: str | None, database_url: str | None) -> str:
     raise WorkerConfigError(
         "REDIS_URL TLS degil: yerel gelistirme disinda rediss:// gerekli; worker baslatilmadi."
     )
+
+
+# --- Saglik denetimi (dosya tabanli; worker HTTP endpoint SUNMAZ) -------------
+
+DEFAULT_HEARTBEAT_FILE = "/tmp/link-worker.heartbeat"
+#: Bos kuyrukta tek BRPOP en fazla 60 sn bekler; uzun bir sayfa+gorsel isi
+#: ~1 dk surebilir. Bunun uzerinde dosya guncellenmediyse surec takilmistir.
+HEARTBEAT_MAX_AGE_SECONDS = 180.0
+
+
+def heartbeat_path(value: str | None) -> Path:
+    """`WORKER_HEARTBEAT_FILE` (bos ise varsayilan)."""
+    return Path((value or "").strip() or DEFAULT_HEARTBEAT_FILE)
+
+
+def touch_heartbeat(path: Path) -> None:
+    """Dongunun yasadigini isaretler; disk hatasi worker'i dusurmez."""
+    with contextlib.suppress(OSError):
+        path.touch()
+
+
+def heartbeat_is_fresh(path: Path, now: float, max_age: float = HEARTBEAT_MAX_AGE_SECONDS) -> bool:
+    try:
+        return now - path.stat().st_mtime <= max_age
+    except OSError:
+        return False

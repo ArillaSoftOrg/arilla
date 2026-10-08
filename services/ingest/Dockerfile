@@ -27,3 +27,9 @@ USER arilla
 # alinir, baglanti kapanir. Kopan veritabani baglantisinda surec 1 ile cikar;
 # yeniden baslatma surec yoneticisinin (compose `restart`) isidir.
 CMD ["python", "-m", "collect.link", "--worker"]
+
+# Worker HTTP endpoint SUNMAZ: saglik, kuyruk dongusunun yazdigi heartbeat
+# dosyasinin tazeligidir (WORKER_HEARTBEAT_FILE, varsayilan
+# /tmp/link-worker.heartbeat). Redis'e ulasilamazsa dosya yenilenmez.
+HEALTHCHECK --interval=60s --timeout=15s --start-period=90s --retries=3 \
+    CMD ["python", "-m", "collect.link", "--healthcheck"]

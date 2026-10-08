@@ -166,3 +166,39 @@ export function errorKindForStatus(status: string): ChatErrorKind | null {
       return "provider";
   }
 }
+
+/** Sohbette ürün bağlantısı sonuçları (karar 0079); docs/copy.md "Sohbette link araması". */
+export const CHAT_LINK_COPY = {
+  pendingTitle: "Bağlantıdaki ürün inceleniyor…",
+  pendingDescription: "Ürün bilgilerini okuyup kataloğumuzda benzerlerini arıyorum.",
+  waitTimedOut: "İnceleme beklenenden uzun sürüyor. Sayfayı yenileyerek tekrar bakabilirsin.",
+  reloadLabel: "Sayfayı yenile",
+  resultsRegion: "Bağlantıdaki ürüne göre sonuçlar",
+  sourceLabel: "İncelediğin ürün",
+  sourceNote: "Bu ürün başka bir sitede. Aşağıdakiler Arilla kataloğundan.",
+  sourceOpen: "Mağazada aç",
+  sameTitle: "Aynı ürün",
+  sameEvidence: {
+    gtin: "Barkod eşleşmesiyle bulundu",
+    mpn: "Marka ve üretici kodu eşleşmesiyle bulundu",
+  },
+  similarTitle: "Benzer ürünler",
+  textOnlyNote: "Ürün görseli kullanılamadı, ürün adına ve markasına göre aradım.",
+  preferencesLabel: "Tercihlerin",
+  unappliedLead: "Şu tercihi uygulayamadım, katalog verisi yetersiz:",
+  unappliedLeadMany: "Şu tercihleri uygulayamadım, katalog verisi yetersiz:",
+  droppedByPreferences: (count: number) =>
+    `Tercihlerine uymayan ${count.toLocaleString("tr-TR")} ürünü eledim.`,
+  preferenceKeys: {
+    price: "fiyat aralığı",
+    color: "renk",
+    style: "stil",
+    sort: "sıralama",
+  },
+} as const;
+
+/** `LinkPreferenceOutcome.unapplied` anahtarı -> kullanıcı diline çevrilmiş ad; bilinmeyen anahtar atlanır. */
+export function unappliedPreferenceLabel(key: string): string | null {
+  const labels: Record<string, string> = CHAT_LINK_COPY.preferenceKeys;
+  return labels[key] ?? null;
+}

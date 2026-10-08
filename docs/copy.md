@@ -683,6 +683,27 @@ ifadesini göstermez.
 "Aynı ürün" yalnızca barkod ya da marka + üretici kodu eşleşmesinde yazılır;
 görsel benzerlik "aynı" diye etiketlenmez.
 
+## Sohbette link araması (karar 0079)
+
+Kaynak: `apps/web/app/sohbet/chat-copy.ts` (`CHAT_LINK_COPY`) ve çekirdekteki
+`chatLinkFailureCopy`. Bayrak: `CHAT_LINK_ENABLED` (varsayılan kapalı).
+
+| Anahtar | Metin |
+| --- | --- |
+| `chat_link.pending_title` | Bağlantıdaki ürün inceleniyor… |
+| `chat_link.pending_description` | Ürün bilgilerini okuyup kataloğumuzda benzerlerini arıyorum. |
+| `chat_link.wait_timed_out` | İnceleme beklenenden uzun sürüyor. Sayfayı yenileyerek tekrar bakabilirsin. |
+| `chat_link.source_label` | İncelediğin ürün |
+| `chat_link.same_title` | Aynı ürün |
+| `chat_link.similar_title` | Benzer ürünler |
+| `chat_link.text_only_note` | Ürün görseli kullanılamadı, ürün adına ve markasına göre aradım. |
+| `chat_link.preferences_label` | Tercihlerin |
+| `chat_link.unapplied` | Şu tercihi uygulayamadım, katalog verisi yetersiz: renk. |
+
+Kaynak ürünün fiyatı yalnızca sayfanın yapılandırılmış verisinden geliyorsa
+yazılır; fiyatsız kaynakta fiyat gösterilmez. Mağaza bağlantısı yalnızca
+`/git/<offerId>?surface=search` ile verilir.
+
 ## Geri bildirim (karar 0045)
 
 Hitap "siz" (ürün sahibinin verdiği metin). Ürün adı bu metinlerde de

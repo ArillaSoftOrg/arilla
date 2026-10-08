@@ -10,8 +10,22 @@
  */
 import { type Database, embedding, offer } from "@arilla/db";
 import { and, eq, sql } from "drizzle-orm";
+import { loadLexiconCached } from "../search/lexicon-cache.ts";
+import { arrayParam } from "../search/ranking.ts";
 import { foldedTitleExpr, foldForMatch } from "../search/text-match.ts";
 import { searchByImageVector } from "../search/visual-search.ts";
+import {
+  applyCategoryGate,
+  applyPreferences,
+  type CandidateFacts,
+  expandTerms,
+  resolveCategoryPath,
+} from "./link-preference-filter.ts";
+import {
+  hasLinkPreferences,
+  type LinkPreferenceOutcome,
+  type LinkPreferences,
+} from "./link-preferences.ts";
 import {
   type IdentityEvidence,
   type LinkCandidate,
@@ -146,6 +160,8 @@ export interface LinkResultItem {
   offerCount: number;
   brandName: string | null;
   score: number;
+  /** `product.color`; yalnızca tercihli aramada doldurulur. */
+  color?: string | null;
 }
 
 export interface LinkSameProduct extends LinkResultItem {
@@ -156,6 +172,8 @@ export interface LinkSearchResults {
   same: LinkSameProduct[];
   similar: LinkResultItem[];
   signals: { image: boolean; text: boolean; identity: boolean };
+  /** Tercih yoksa applied=[], unapplied=[], droppedByPreferences=0. */
+  preferences: LinkPreferenceOutcome;
 }
 
 interface ProductRow extends Record<string, unknown> {
@@ -171,6 +189,12 @@ interface ProductRow extends Record<string, unknown> {
 /** Aday listesinin kaç katı çekilir: birleşince tekrarlar düşer. */
 const CANDIDATE_POOL = 48;
 const RESULT_LIMIT = 24;
+/**
+ * Tercih varken süzgeç adayları azaltır; havuz genişletilir. Eşikler aynı
+ * kalır (görsel taban, pg_trgm `%`): yeni alakasız aday girmez, yalnızca
+ * zaten eşiği geçen daha çok aday süzgece ulaşır.
+ */
+const CANDIDATE_POOL_WITH_PREFERENCES = 120;
 
 /**
  * Görsel benzerlik tabanı (jina-clip-v2, img512-v1). Yerel katalogdaki gerçek
@@ -187,6 +211,7 @@ async function textCandidates(
   db: Database,
   text: string,
   brand: string | null,
+  limit: number = CANDIDATE_POOL,
 ): Promise<{ candidates: LinkCandidate[]; rows: ProductRow[] }> {
   const folded = foldForMatch(text).slice(0, 300);
   if (folded.replace(/[^\p{L}\p{N}]/gu, "").length < 3) return { candidates: [], rows: [] };
@@ -210,7 +235,7 @@ async function textCandidates(
     LEFT JOIN best_offer bo ON bo.product_id = p.id
     WHERE p.offer_count > 0 AND ${titleExpr} % ${folded}
     ORDER BY text_score DESC, p.id ASC
-    LIMIT ${CANDIDATE_POOL}
+    LIMIT ${limit}
   `);
   return {
     rows: result.rows,
@@ -297,8 +322,11 @@ async function sourceProductId(db: Database, offerId: number | null): Promise<nu
 export async function findLinkSearchResults(
   db: Database,
   state: Extract<LinkSearchState, { kind: "resolved" }>,
+  preferences?: LinkPreferences,
 ): Promise<LinkSearchResults> {
   const { source } = state;
+  const withPreferences = hasLinkPreferences(preferences);
+  const pool = withPreferences ? CANDIDATE_POOL_WITH_PREFERENCES : CANDIDATE_POOL;
   const query = [source.brand, source.title].filter(Boolean).join(" ");
 
   const [vector, excludedProductId] = await Promise.all([
@@ -308,9 +336,9 @@ export async function findLinkSearchResults(
 
   const [visualItems, text, identity] = await Promise.all([
     vector
-      ? searchByImageVector(db, vector.vector, vector.modelVersion, { limit: CANDIDATE_POOL })
+      ? searchByImageVector(db, vector.vector, vector.modelVersion, { limit: pool })
       : Promise.resolve([]),
-    source.title ? textCandidates(db, query, source.brand) : Promise.resolve(null),
+    source.title ? textCandidates(db, query, source.brand, pool) : Promise.resolve(null),
     identityCandidates(db, source),
   ]);
 
@@ -326,7 +354,8 @@ export async function findLinkSearchResults(
 
   const ranked = rankLinkCandidates([visual, text?.candidates ?? [], identity.candidates], {
     hasImage: imageUsed,
-    limit: RESULT_LIMIT,
+    // Tercih süzgeci sıralamadan SONRA çalışır: önce kesmek uygun adayı atardı.
+    limit: withPreferences ? Number.MAX_SAFE_INTEGER : RESULT_LIMIT,
     excludeProductIds: excludedProductId !== null ? [excludedProductId] : [],
   });
 
@@ -363,19 +392,79 @@ export async function findLinkSearchResults(
       same.push({ ...detail, score: candidate.score, evidence: candidate.identity });
     }
   }
-  const similar: LinkResultItem[] = [];
+  let similar: LinkResultItem[] = [];
   for (const candidate of ranked.similar) {
     const detail = details.get(candidate.productId);
     if (detail) similar.push({ ...detail, score: candidate.score });
   }
 
+  let outcome: LinkPreferenceOutcome = { applied: [], unapplied: [], droppedByPreferences: 0 };
+  let finalSame = same;
+  if (preferences && withPreferences) {
+    const facts = await loadCandidateFacts(db, [...same, ...similar], details);
+    const lexicon = await loadLexiconCached(db);
+    // Kategori kapısı yalnızca tercihli aramada; tercihsiz sonuç değişmez.
+    const categoryPath = resolveCategoryPath(source.category, lexicon);
+    similar = applyCategoryGate(similar, facts, categoryPath);
+    const filtered = applyPreferences({
+      similar,
+      same,
+      facts,
+      preferences,
+      colorTerms: expandTerms(preferences.colors ?? [], lexicon, ["color"]),
+      styleTerms: expandTerms(preferences.styles ?? [], lexicon, ["style", "material"]),
+    });
+    similar = filtered.similar.slice(0, RESULT_LIMIT);
+    outcome = filtered.outcome;
+    // "Aynı ürün" kimlik kanıtlıdır: tercihle elenmez, yalnızca renk bilgisi eklenir.
+    finalSame = same.map((item) => ({ ...item, color: facts.get(item.productId)?.color ?? null }));
+    similar = similar.map((item) => ({ ...item, color: facts.get(item.productId)?.color ?? null }));
+  }
+
   return {
-    same,
+    same: finalSame,
     similar,
     signals: {
       image: imageUsed,
       text: (text?.candidates.length ?? 0) > 0,
       identity: identity.candidates.length > 0,
     },
+    preferences: outcome,
   };
+}
+
+/**
+ * Tercihin dayandığı katalog alanları: tek toplu sorgu. Fiyat zaten kart
+ * verisinde (en ucuz aktif teklif); renk, öznitelik ve kategori yolu burada.
+ */
+async function loadCandidateFacts(
+  db: Database,
+  items: readonly { productId: number }[],
+  details: ReadonlyMap<number, Omit<LinkResultItem, "score">>,
+): Promise<Map<number, CandidateFacts>> {
+  const ids = [...new Set(items.map((item) => item.productId))];
+  const facts = new Map<number, CandidateFacts>();
+  if (ids.length === 0) return facts;
+  const result = await db.execute<{
+    id: string;
+    color: string | null;
+    attributes: Record<string, unknown> | null;
+    category_path: string | null;
+  }>(sql`
+    SELECT p.id, p.color, p.attributes, c.path AS category_path
+    FROM product p
+    LEFT JOIN category c ON c.id = p.category_id
+    WHERE p.id = ANY(${arrayParam(ids.map(String))}::bigint[])
+  `);
+  for (const row of result.rows) {
+    const productId = Number(row.id);
+    facts.set(productId, {
+      productId,
+      minPrice: details.get(productId)?.minPrice ?? null,
+      color: row.color,
+      attributes: row.attributes,
+      categoryPath: row.category_path,
+    });
+  }
+  return facts;
 }

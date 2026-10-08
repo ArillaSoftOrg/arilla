@@ -29,6 +29,23 @@ export function isChatImageEnabled(env: Env = process.env): boolean {
   return isChatDiscoveryEnabled(env) && env.CHAT_IMAGE_ENABLED?.trim() === "true";
 }
 
+/**
+ * Sohbette ürün linki araması (karar 0079). `CHAT_LINK_ENABLED=true` verilmedikçe
+ * kapalı (varsayılan): bağlantı içeren mesaj bugünkü gibi işlenir. Sohbetin
+ * kendisi de açık olmalıdır. Link çözümü modelsizdir; hak/kuyruk `runChargedLinkSearch`.
+ */
+export function isChatLinkEnabled(env: Env = process.env): boolean {
+  return isChatDiscoveryEnabled(env) && env.CHAT_LINK_ENABLED?.trim() === "true";
+}
+
+/**
+ * Link tercihi metni için TEK Gemini çağrısı (karar 0079, kural 1 beşinci istisna).
+ * Varsayılan kapalı; `CHAT_LINK_ENABLED` de açık olmalıdır.
+ */
+export function isChatLinkInterpretEnabled(env: Env = process.env): boolean {
+  return isChatLinkEnabled(env) && env.CHAT_LINK_INTERPRET_ENABLED?.trim() === "true";
+}
+
 export function chatTurnsPerHour(env: Env = process.env): number {
   const parsed = Number.parseInt(env.CHAT_TURNS_PER_HOUR ?? "", 10);
   if (!Number.isFinite(parsed) || parsed < 1) return DEFAULT_CHAT_TURNS_PER_HOUR;

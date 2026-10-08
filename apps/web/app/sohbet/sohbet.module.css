@@ -603,3 +603,51 @@ a.tabActive:hover {
 .bubbleText {
   margin: 0;
 }
+
+/* Sohbette link sonucu: kaynak urun karti (karar 0079). Renkler yalnizca belirteclerden. */
+.linkSource {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.linkSourceImage {
+  flex: 0 0 72px;
+  width: 72px;
+  overflow: hidden;
+  border-radius: var(--radius-sm);
+}
+
+.linkSourceBody {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.linkSourceLabel {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}
+
+.linkSourceTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  overflow-wrap: anywhere;
+}
+
+.linkSourcePrice {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+}

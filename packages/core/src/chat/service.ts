@@ -32,6 +32,7 @@ import {
   CHAT_TURN_OPERATION,
   chatTurnsPerHour,
   isChatImageEnabled,
+  isChatLinkEnabled,
   MAX_USER_MESSAGES_PER_CONVERSATION,
   USER_MESSAGE_MAX,
 } from "./config.ts";
@@ -52,6 +53,8 @@ import {
   type TranscriptMessage,
   type UserInput,
 } from "./interpreter.ts";
+import { type ChatLinkPayload, parseChatLinkPayload } from "./link.ts";
+import { planLinkTurn } from "./link-turn.ts";
 import { type ChatTimings, createChatTimer, logChatTimings } from "./timing.ts";
 
 export type ChatInputRequest =
@@ -96,6 +99,8 @@ export type ChatMessageView =
       source: "model" | "fallback" | null;
       /** 0055: sonuc blogune verilen oy; `null` = oy yok. */
       helpful: boolean | null;
+      /** Karar 0079: link mesajinin yuku (`payload.link`); yalnizca link `notice`larinda. */
+      link?: ChatLinkPayload;
     };
 
 export interface ConversationView {
@@ -148,6 +153,7 @@ function toView(
       question: parseClarifyQuestion(payload?.question),
     };
   }
+  const link = row.kind === "notice" ? parseChatLinkPayload(payload?.link) : null;
   return {
     id: row.id,
     seq: row.seq,
@@ -157,6 +163,7 @@ function toView(
     intent: parseStoredIntent(payload?.intent),
     source: sourceOf(payload),
     helpful,
+    ...(link ? { link } : {}),
   };
 }
 
@@ -695,6 +702,33 @@ async function runPendingTurn(
       timer.time("lexicon", () => loadLexiconCached(db)).catch(() => undefined),
     ]);
     const view = buildView(claimed, rows);
+
+    // Karar 0079: bayrak aciksa baglanti iceren mesaj (ya da bir link referansinin
+    // takibi) modele GITMEDEN burada cevaplanir; bayrak kapaliyken bu blok yoktur.
+    if (isChatLinkEnabled()) {
+      const lastMessage = view.messages.at(-1);
+      if (lastMessage?.role === "user") {
+        const plan = await timer.time("link_turn", () =>
+          planLinkTurn(db, {
+            userId: input.userId,
+            conversationId: claimed.id,
+            messages: view.messages.map((message) => ({
+              role: message.role,
+              kind: message.kind,
+              content: message.content,
+              ...(message.role === "user"
+                ? { attachmentId: message.attachmentId ?? null }
+                : { link: message.kind === "notice" ? (message.link ?? null) : null }),
+            })),
+            lastSeq: lastMessage.seq,
+            callsToday,
+            interpreter: input.interpreter,
+          }),
+        );
+        if (plan) return await persistLinkTurn(plan, lastMessage.seq);
+      }
+    }
+
     const image = await loadContextImage(db, input.userId, view.messages);
     const maybeRequest = toInterpretRequest(view, image);
     if (!maybeRequest) {
@@ -710,6 +744,63 @@ async function runPendingTurn(
     );
 
     return await persistTurn();
+
+    /** Link turu: tek islem, model degil `api_usage` yalnizca Faz 5 cagrisi varsa. */
+    function persistLinkTurn(
+      plan: NonNullable<Awaited<ReturnType<typeof planLinkTurn>>>,
+      answeredSeq: number,
+    ): Promise<ProcessTurnResult> {
+      return timer.time("persist", () =>
+        db.transaction(async (tx): Promise<ProcessTurnResult> => {
+          const [row] = await tx
+            .select()
+            .from(conversation)
+            .where(eq(conversation.id, input.conversationId))
+            .for("update");
+          if (!row) return { status: "not_found" };
+          if (plan.calls.length > 0) {
+            await tx.insert(apiUsage).values(
+              plan.calls.map((call) => ({
+                sessionId: null,
+                userId: input.userId,
+                operation: CHAT_TURN_OPERATION,
+                modelVersion: call.modelVersion,
+                units: call.usage?.totalTokens ?? 0,
+                costMicros: 0,
+                cacheHit: false,
+              })),
+            );
+          }
+          // Bu arada baska bir tur cevap yazdiysa (kira dolmasi) ikinci cevap yazilmaz.
+          if (row.messageCount !== answeredSeq) {
+            await releaseLease(tx, row.id);
+            return { status: "idle" };
+          }
+          const seq = row.messageCount + 1;
+          await tx.insert(chatMessage).values({
+            conversationId: row.id,
+            seq,
+            role: "assistant",
+            kind: "notice",
+            content: plan.content,
+            payload: { link: plan.link },
+          });
+          await tx
+            .update(conversation)
+            .set({
+              // Yeni link bekleyen soruyu cevaplanmis sayar; takip turu soruya dokunmaz.
+              ...(plan.kind === "refinement" ? {} : { pendingQuestion: null }),
+              messageCount: seq,
+              processingUntil: null,
+              lastMessageAt: sql`now()`,
+              updatedAt: sql`now()`,
+            })
+            .where(eq(conversation.id, row.id));
+          setPreview({ seq, kind: "search", content: plan.content });
+          return { status: "answered", source: "fallback", action: "search" };
+        }),
+      );
+    }
 
     function persistTurn(): Promise<ProcessTurnResult> {
       return timer.time("persist", () =>
