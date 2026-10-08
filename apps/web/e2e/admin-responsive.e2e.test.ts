@@ -176,7 +176,7 @@ const TARGET_PROBE = `(() => {
 })()`;
 
 const CONTRAST_PROBE = `(() => {
-  const lum = (c) => { const m = c.match(/[\\d.]+/g).map(Number); const [r, g, b] = m.slice(0, 3).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return { L: 0.2126 * r + 0.7152 * g + 0.0722 * b, a: m[3] ?? 1 }; };
+  const lum = (c) => { const srgb = c.startsWith("color(srgb"); const m = c.replace(/^color\\(srgb/, "").match(/[\\d.]+/g).map(Number); if (srgb) { for (let i = 0; i < 3; i++) m[i] *= 255; } const [r, g, b] = m.slice(0, 3).map((v) => { v /= 255; return v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4; }); return { L: 0.2126 * r + 0.7152 * g + 0.0722 * b, a: m[3] ?? 1 }; };
   const bgOf = (el) => { for (let p = el; p; p = p.parentElement) { const c = getComputedStyle(p).backgroundColor; if (lum(c).a > 0.9) return c; } return getComputedStyle(document.body).backgroundColor; };
   const low = [];
   for (const el of document.querySelectorAll("main *, header *, aside *")) {
@@ -261,7 +261,8 @@ describe.skipIf(!CHROME)("yönetim arayüzü - duyarlılık (gerçek Chrome)", (
       locked: "hidden",
       expanded: "true",
     });
-    expect(opened.descriptions).toBeGreaterThan(10);
+    // Yalnızca etkin grup (Katalog, 7 öğe) ve Genel bakış açık (karar 0084).
+    expect(opened.descriptions).toBeGreaterThanOrEqual(5);
 
     for (let i = 0; i < 60; i++) await page.press("Tab");
     expect(await page.evaluate<boolean>("!!document.activeElement?.closest('dialog[open]')")).toBe(
@@ -278,23 +279,60 @@ describe.skipIf(!CHROME)("yönetim arayüzü - duyarlılık (gerçek Chrome)", (
     expect(closed).toEqual({ open: false, focus: "Menü", locked: "" });
   }, 60_000);
 
-  it("masaüstü: menü açıklaması ekran okuyucuya açık ama görsel olarak gizli; gruplar katlanır", async () => {
+  it("masaüstü: yalnızca etkin grup açık, diğerleri elle açılır; açıklama ekran okuyucuya açık", async () => {
     await page.setViewport({ width: 1440, height: 900 });
     await page.goto(`${BASE}/yonetim/magazalar`);
     const nav = await page.evaluate<{
       described: boolean;
       hidden: boolean;
       activeGroupOpen: boolean;
+      otherOpen: number;
+      groups: number;
     }>(`(() => {
       const link = document.querySelector("aside a[aria-current=page]");
       const desc = link.querySelector("span span:nth-child(2)");
+      const groups = [...document.querySelectorAll("aside details")];
       return {
         described: (link.textContent ?? "").includes("feed"),
         hidden: desc.getBoundingClientRect().height <= 1,
         activeGroupOpen: link.closest("details").open,
+        otherOpen: groups.filter((g) => g.open && !g.contains(link)).length,
+        groups: groups.length,
       };
     })()`);
-    expect(nav).toEqual({ described: true, hidden: true, activeGroupOpen: true });
+    expect(nav).toMatchObject({
+      described: true,
+      hidden: true,
+      activeGroupOpen: true,
+      otherOpen: 0,
+    });
+    expect(nav.groups).toBeGreaterThan(3);
+    // Kapalı bir grup gerçek tıklamayla açılır.
+    await page.click("aside details:not([open]) summary");
+    const opened = await page.evaluate<number>(
+      `[...document.querySelectorAll("aside details")].filter((g) => g.open).length`,
+    );
+    expect(opened).toBe(2);
+  }, 60_000);
+
+  it("genel bakış: uyarılar kısa satır; her birinin ayrıntısında önerilen adım var", async () => {
+    await page.setViewport({ width: 1440, height: 900 });
+    await page.goto(`${BASE}/yonetim`);
+    const alerts = await page.evaluate<{
+      items: number;
+      withAction: number;
+      kpis: number;
+    }>(`(() => {
+      const panel = document.getElementById("simdi-dikkat").closest("section");
+      const items = [...panel.querySelectorAll("li")];
+      return {
+        items: items.length,
+        withAction: items.filter((li) => li.querySelector("details")?.textContent?.includes("Ne yapmalı:")).length,
+        kpis: document.querySelector("[aria-labelledby=gostergeler] div").children.length,
+      };
+    })()`);
+    expect(alerts.withAction).toBe(alerts.items);
+    expect(alerts.kpis).toBe(9);
   }, 60_000);
 
   for (const scheme of ["light", "dark"] as const) {

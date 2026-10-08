@@ -42,9 +42,14 @@ export default async function YonetimLayout({ children }: { children: ReactNode 
       <SkipLink>İçeriğe geç</SkipLink>
       <aside className={styles.sidebar} aria-label="Yönetim menüsü">
         <div className={styles.brand}>
-          <a href="/yonetim" className={styles.brandTitle}>
-            {SITE_BRAND}
-            <span className={styles.brandSub}>Yönetim konsolu</span>
+          <a href="/yonetim" className={styles.brandLink}>
+            {/* Marka işareti: uygulama ikonu (karar 0084); ad metinde, ikon dekoratif. */}
+            {/* biome-ignore lint/performance/noImgElement: 32px uygulama ikonu (Next metadata rotası, 180px PNG); optimizasyon gerekmez. */}
+            <img src="/apple-icon.png" alt="" className={styles.brandMark} width={32} height={32} />
+            <span className={styles.brandTitle}>
+              {SITE_BRAND}
+              <span className={styles.brandSub}>Yönetim konsolu</span>
+            </span>
           </a>
           <span className={styles.roleBadge}>{roleLabel}</span>
         </div>

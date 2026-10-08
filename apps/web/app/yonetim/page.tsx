@@ -16,10 +16,9 @@ import Link from "next/link";
 import { requireCapability } from "../lib/dal.ts";
 import styles from "./admin.module.css";
 import {
+  AlertSummaryList,
   DataTable,
-  FindingList,
   KpiCard,
-  KpiGroup,
   PageHeader,
   Panel,
   StatusBadge,
@@ -31,7 +30,6 @@ import {
   formatCount,
   formatDateOrDash,
   formatDateTime,
-  formatUsage,
   hrefWith,
   PIPELINE_STAGE_INFO,
   pipelineStateLabel,
@@ -64,7 +62,7 @@ function AttentionSummary({ attention }: { attention: readonly AdminFinding[] })
     return <StatusBadge tone="success">Dikkat isteyen bir şey yok</StatusBadge>;
   }
   return (
-    <div className={styles.summaryStrip}>
+    <a href="#simdi-dikkat" className={styles.summaryStrip} aria-label="Dikkat listesine git">
       {critical > 0 ? (
         <StatusBadge tone="critical">{`${formatCount(critical)} kritik`}</StatusBadge>
       ) : null}
@@ -74,7 +72,7 @@ function AttentionSummary({ attention }: { attention: readonly AdminFinding[] })
       {unknown > 0 ? (
         <StatusBadge tone="neutral">{`${formatCount(unknown)} denetlenemedi`}</StatusBadge>
       ) : null}
-    </div>
+    </a>
   );
 }
 
@@ -118,6 +116,8 @@ export default async function AdminOverviewPage() {
   const attentionMerchants = overview.ingest.attention;
   const shownMerchants = attentionMerchants.slice(0, ATTENTION_ROWS);
 
+  const hasCritical = attention.some((finding) => finding.severity === "critical");
+
   return (
     <div className={styles.page}>
       <PageHeader
@@ -126,108 +126,111 @@ export default async function AdminOverviewPage() {
         actions={<AttentionSummary attention={attention} />}
       />
 
-      <Panel
-        id="simdi-dikkat"
-        title="Şimdi dikkat isteyenler"
-        description="Mevcut durumdan türetilir; yalnızca kritik, uyarı ve denetlenemeyen bulgular."
-        actions={
-          can("operations.read") ? (
-            <Link href="/yonetim/islemler">Tüm denetimler (sistem sağlığı)</Link>
-          ) : null
-        }
-      >
-        <FindingList
-          findings={attention}
-          allowed={capabilitiesFor(user.role)}
-          empty="Şu an dikkat isteyen bir şey yok."
-        />
-      </Panel>
+      <div className={styles.overviewGrid} data-critical={hasCritical ? "true" : "false"}>
+        {/* Göstergeler önem sırasıyla: kuyruk ve akış sağlığı önce, sayımlar sonra. */}
+        <section className={styles.kpiGroup} aria-labelledby="gostergeler">
+          <h2 id="gostergeler" className={styles.kpiGroupTitle}>
+            Temel göstergeler
+          </h2>
+          <div className={styles.kpiGrid}>
+            <KpiCard
+              label="Bekleyen eşleştirme"
+              value={formatCount(overview.pendingMatches)}
+              tone={queueOverThreshold ? "warning" : "neutral"}
+              status={queueOverThreshold ? `${MATCH_QUEUE_ALERT_THRESHOLD} eşiğinin üstünde` : null}
+              basis="count"
+              href={linkIf("matching.review", "/yonetim/eslestirme")}
+            />
+            <KpiCard
+              label="Veri toplama koşuları (24 saat)"
+              value={formatCount(total(overview.ingest.runsLast24h))}
+              note={breakdown(overview.ingest.runsLast24h)}
+              tone={failedRuns > 0 ? "warning" : "neutral"}
+              status={failedRuns > 0 ? `${formatCount(failedRuns)} başarısız koşu` : null}
+              href={linkIf(
+                "ingest.read",
+                failedRuns > 0 ? "/yonetim/ingest?durum=failed" : "/yonetim/ingest",
+              )}
+            />
+            <KpiCard
+              label="Model maliyeti (24 saat)"
+              value={cost24h.value}
+              note={[cost24h.note, `7 gün: ${cost7d.value}`].filter(Boolean).join(" · ")}
+              tone={cost24h.note !== null ? "warning" : "neutral"}
+              basis="estimate"
+              href={linkIf("operations.read", "/yonetim/islemler#maliyet")}
+            />
+            <KpiCard
+              label="Metin araması (7 gün)"
+              value={formatCount(search.searches)}
+              note={
+                search.searches > 0
+                  ? `Sonuçsuz ${PERCENT.format(search.zeroResults / search.searches)} · yedek listeye düşen ${formatCount(search.fallbacks)}`
+                  : "Son 7 günde metin araması yok"
+              }
+              basis="count"
+              href={linkIf("dictionary.write", "/yonetim/sozluk?gun=7&sorun=zero")}
+            />
+            <KpiCard
+              label="Link araması (7 gün)"
+              value={formatCount(total(overview.linkRequests7d))}
+              note={breakdown(overview.linkRequests7d)}
+              tone={failedLinks > 0 ? "warning" : "neutral"}
+              basis="count"
+              href={linkIf(
+                "diagnostics.read",
+                failedLinks > 0 ? "/yonetim/arama/link?durum=failed" : "/yonetim/arama/link",
+              )}
+            />
+            <KpiCard
+              label="Görsel yükleme (7 gün)"
+              value={formatCount(total(overview.imageUploads7d))}
+              note={breakdown(overview.imageUploads7d)}
+              basis="count"
+              href={linkIf("diagnostics.read", "/yonetim/arama/gorsel")}
+            />
+            <KpiCard
+              label="Aktif mağaza"
+              value={`${formatCount(overview.merchants.active)} / ${formatCount(overview.merchants.total)}`}
+              note="Aktif / toplam"
+              basis="count"
+              href={linkIf("merchant.read", "/yonetim/magazalar?durum=aktif")}
+            />
+            <KpiCard
+              label="Eşleşmemiş aktif teklif"
+              value={formatCount(overview.unmatchedOffers)}
+              basis="count"
+              href={linkIf("catalog.read", "/yonetim/katalog/teklifler?durum=unmatched")}
+            />
+            <KpiCard
+              label="Yeni kullanıcı (7 gün)"
+              value={formatCount(overview.newUsers7d)}
+              basis="count"
+              href={linkIf("users.read", "/yonetim/kullanicilar")}
+            />
+          </div>
+        </section>
 
-      <KpiGroup title="Katalog ve eşleştirme">
-        <KpiCard
-          label="Bekleyen eşleştirme"
-          value={formatCount(overview.pendingMatches)}
-          tone={queueOverThreshold ? "warning" : "neutral"}
-          status={queueOverThreshold ? `${MATCH_QUEUE_ALERT_THRESHOLD} eşiğinin üstünde` : null}
-          basis="count"
-          href={linkIf("matching.review", "/yonetim/eslestirme")}
-        />
-        <KpiCard
-          label="Eşleşmemiş aktif teklif"
-          value={formatCount(overview.unmatchedOffers)}
-          basis="count"
-          href={linkIf("catalog.read", "/yonetim/katalog/teklifler?durum=unmatched")}
-        />
-        <KpiCard
-          label="Aktif mağaza"
-          value={`${formatCount(overview.merchants.active)} / ${formatCount(overview.merchants.total)}`}
-          note="Aktif / toplam"
-          basis="count"
-          href={linkIf("merchant.read", "/yonetim/magazalar?durum=aktif")}
-        />
-        <KpiCard
-          label="Veri toplama koşuları (24 saat)"
-          value={formatCount(total(overview.ingest.runsLast24h))}
-          note={breakdown(overview.ingest.runsLast24h)}
-          tone={failedRuns > 0 ? "warning" : "neutral"}
-          status={failedRuns > 0 ? `${formatCount(failedRuns)} başarısız koşu` : null}
-          href={linkIf(
-            "ingest.read",
-            failedRuns > 0 ? "/yonetim/ingest?durum=failed" : "/yonetim/ingest",
-          )}
-        />
-      </KpiGroup>
-
-      <KpiGroup title="Arama ve AI">
-        <KpiCard
-          label="Metin araması (7 gün)"
-          value={formatCount(search.searches)}
-          note={
-            search.searches > 0
-              ? `Sonuçsuz ${PERCENT.format(search.zeroResults / search.searches)} · yedek listeye düşen ${formatCount(search.fallbacks)}`
-              : "Son 7 günde metin araması yok"
-          }
-          basis="count"
-          href={linkIf("dictionary.write", "/yonetim/sozluk?gun=7&sorun=zero")}
-        />
-        <KpiCard
-          label="Link araması (7 gün)"
-          value={formatCount(total(overview.linkRequests7d))}
-          note={breakdown(overview.linkRequests7d)}
-          tone={failedLinks > 0 ? "warning" : "neutral"}
-          basis="count"
-          href={linkIf(
-            "diagnostics.read",
-            failedLinks > 0 ? "/yonetim/arama/link?durum=failed" : "/yonetim/arama/link",
-          )}
-        />
-        <KpiCard
-          label="Görsel yükleme (7 gün)"
-          value={formatCount(total(overview.imageUploads7d))}
-          note={breakdown(overview.imageUploads7d)}
-          basis="count"
-          href={linkIf("diagnostics.read", "/yonetim/arama/gorsel")}
-        />
-        <KpiCard
-          label="Model maliyeti (24 saat)"
-          value={cost24h.value}
-          note={[cost24h.note, `7 gün: ${cost7d.value} · ${formatUsage(overview.apiUsage.last7d)}`]
-            .filter(Boolean)
-            .join(" · ")}
-          tone={cost24h.note !== null ? "warning" : "neutral"}
-          basis="estimate"
-          href={linkIf("operations.read", "/yonetim/islemler#maliyet")}
-        />
-      </KpiGroup>
-
-      <KpiGroup title="Kullanıcılar">
-        <KpiCard
-          label="Yeni kullanıcı (7 gün)"
-          value={formatCount(overview.newUsers7d)}
-          basis="count"
-          href={linkIf("users.read", "/yonetim/kullanicilar")}
-        />
-      </KpiGroup>
+        <div className={styles.overviewAlerts}>
+          <Panel
+            id="simdi-dikkat"
+            title="Şimdi dikkat isteyenler"
+            description="Mevcut durumdan türetilir; kritik, uyarı ve denetlenemeyen bulgular. Ayrıntı ve önerilen adım her satırda."
+            flush={attention.length > 0}
+            footer={
+              can("operations.read") ? (
+                <Link href="/yonetim/islemler">Tüm denetimler (sistem sağlığı)</Link>
+              ) : null
+            }
+          >
+            <AlertSummaryList
+              findings={attention}
+              allowed={capabilitiesFor(user.role)}
+              empty="Şu an dikkat isteyen bir şey yok."
+            />
+          </Panel>
+        </div>
+      </div>
 
       <div className={styles.panelGrid}>
         <Panel

@@ -581,6 +581,75 @@ export function SeverityBadge({ severity }: { severity: Severity }) {
 }
 
 /**
+ * Kısa uyarı listesi (genel bakış, karar 0084). Satır başına önem rozeti,
+ * teşhis sayfasına giden başlık, kanıt zamanı ve tek satır bağlam. Bulgunun
+ * TAMAMI (anlam, kanıt, "Ne yapmalı") aynı satırdaki "Ayrıntı" içinde durur;
+ * hiçbir uyarı ya da öneri düşmez. Kritik olanlar tonlu zeminde (sıra core'da).
+ * Bağlantı yalnızca izleyicinin açabildiği sayfaya verilir.
+ */
+export function AlertSummaryList({
+  findings,
+  allowed,
+  empty = "Dikkat gerektiren bir şey yok.",
+}: {
+  findings: readonly AdminFinding[];
+  allowed: ReadonlySet<Capability>;
+  empty?: string;
+}) {
+  if (findings.length === 0) {
+    return <p className={styles.muted}>{empty}</p>;
+  }
+  // Sıra core'dan gelir (`sortFindings`: önce kritik). Bu dosya istemci hata
+  // sınırınca da yüklenir; core'dan yalnızca tip alınır.
+  return (
+    <ul className={styles.alertList}>
+      {findings.map((finding) => {
+        const href =
+          finding.href && (!finding.capability || allowed.has(finding.capability))
+            ? finding.href
+            : null;
+        return (
+          <li
+            key={finding.key}
+            className={cx(
+              styles.alertItem,
+              finding.severity === "critical" && styles.alertCritical,
+              finding.severity === "warning" && styles.alertWarning,
+            )}
+          >
+            <div className={styles.alertHead}>
+              <SeverityBadge severity={finding.severity} />
+              {href ? (
+                <Link href={href} className={styles.alertTitle}>
+                  {finding.title}
+                </Link>
+              ) : (
+                <span className={styles.alertTitle}>{finding.title}</span>
+              )}
+            </div>
+            <p className={styles.alertMeta}>
+              <span className={styles.alertContext}>{finding.evidence ?? finding.meaning}</span>
+              {finding.evidenceAt ? (
+                <span className={styles.alertTime}>{formatDateOrDash(finding.evidenceAt)}</span>
+              ) : null}
+            </p>
+            <details className={styles.alertDetails}>
+              <summary className={styles.alertSummary}>Ayrıntı ve önerilen adım</summary>
+              <p>{finding.meaning}</p>
+              {finding.evidence ? <p className={styles.meta}>{finding.evidence}</p> : null}
+              <p>
+                <strong>Ne yapmalı: </strong>
+                {finding.action}
+              </p>
+            </details>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/**
  * Bulgu listesi (işletim, katalog kalitesi, dikkat). Bağlantı yalnızca
  * izleyicinin `allowed` yeteneklerinden biriyle açabildiği sayfaya verilir;
  * hedef sayfa yetkiyi ayrıca ister.

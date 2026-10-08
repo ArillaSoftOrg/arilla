@@ -21,6 +21,10 @@
   --admin-sidebar-width: calc(var(--space-32) + var(--space-24) + var(--space-6)); /* 248px */
   --admin-control-height: calc(var(--space-8) + var(--space-1)); /* 36px */
   --admin-row-height: calc(var(--space-8)); /* 32px */
+  /* Marka (karar 0084): limon yalnızca dolgu/işaret; çizgi göstergesi açıkta
+     mürekkep (limon beyazda ~1.3:1), koyuda limon. */
+  --admin-active-bg: color-mix(in srgb, var(--brand) 22%, var(--paper));
+  --admin-indicator: var(--ink);
 
   display: grid;
   grid-template-columns: var(--admin-sidebar-width) minmax(0, 1fr);
@@ -29,6 +33,27 @@
   color: var(--ink);
   font-size: var(--font-size-sm);
   line-height: var(--line-height-normal);
+}
+
+@media (prefers-color-scheme: dark) {
+  .shell {
+    --admin-active-bg: color-mix(in srgb, var(--brand) 16%, var(--paper));
+    --admin-indicator: var(--brand);
+    --focus-ring-color: var(--brand);
+  }
+}
+
+/* Odak: dış halka --focus-ring-color (açıkta mürekkep, ≥ 3:1), aradaki boşluk
+   marka limonu. Yalnızca klavye odağında (:focus-visible). */
+.shell :where(a, button, summary, input, select, textarea, [tabindex]):focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  box-shadow: 0 0 0 var(--focus-ring-offset) var(--brand);
+}
+
+.shell ::selection {
+  background: var(--brand);
+  color: var(--on-brand);
 }
 
 @media (pointer: coarse) {
@@ -65,6 +90,22 @@
   min-height: calc(var(--space-12) + var(--space-2));
   padding: 0 var(--space-4);
   border-bottom: var(--border-width) solid var(--line);
+}
+
+.brandMark {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+}
+
+.brandLink {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  color: var(--ink);
+  text-decoration: none;
 }
 
 .brandTitle {
@@ -132,13 +173,12 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-2);
-  min-height: calc(var(--space-6) + var(--space-1));
+  min-height: var(--admin-row-height);
   padding: 0 var(--space-2);
   border-radius: var(--radius-sm);
-  color: var(--ink-muted);
-  font-size: var(--font-size-xs);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-sm);
   font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.02em;
   cursor: pointer;
   list-style: none;
   user-select: none;
@@ -149,6 +189,12 @@
 }
 
 .navHeading:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+/* Etkin sayfanın grubu: başlık tam mürekkep. */
+.navHeadingCurrent {
   color: var(--ink);
 }
 
@@ -186,6 +232,13 @@ details[open] > .navHeading .navChevron {
   list-style: none;
 }
 
+/* Grup içi öğeler: ince kılavuz çizgisiyle girintili (hiyerarşi). */
+details > .navList {
+  margin: 2px 0 var(--space-1) var(--space-3);
+  padding: 0 0 0 var(--space-1);
+  border-left: var(--border-width) solid var(--line);
+}
+
 .navLink {
   position: relative;
   display: flex;
@@ -211,22 +264,23 @@ details[open] > .navHeading .navChevron {
 }
 
 /* Etkin sayfa: yüzey tonu + koyu metin + soldaki ince işaret (renk tek başına değil). */
+/* Etkin sayfa: marka tonu zemin + kalın metin + limon işaret (renk tek başına değil). */
 .navLinkActive,
 .navLinkActive:hover {
-  background: var(--surface);
+  background: var(--admin-active-bg);
   color: var(--ink);
-  font-weight: var(--font-weight-medium);
+  font-weight: var(--font-weight-semibold);
 }
 
 .navLinkActive::before {
   content: "";
   position: absolute;
-  left: 0;
-  top: var(--space-2);
-  bottom: var(--space-2);
-  width: 2px;
+  left: calc(-1 * var(--space-1) - 2px);
+  top: var(--space-1);
+  bottom: var(--space-1);
+  width: 3px;
   border-radius: var(--radius-pill);
-  background: var(--accent);
+  background: var(--brand);
 }
 
 .navText {
@@ -1046,8 +1100,8 @@ form.filters,
 .tabActive,
 .tabActive:hover {
   color: var(--ink);
-  font-weight: var(--font-weight-medium);
-  box-shadow: inset 0 -2px 0 var(--accent);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: inset 0 -2px 0 var(--admin-indicator);
 }
 
 .tabCount {
@@ -1569,6 +1623,140 @@ a.findingTitle {
   margin-bottom: var(--space-2);
 }
 
+/* Genel bakış (karar 0084): geniş ekranda göstergeler solda, uyarılar sağda;
+   darda önce göstergeler. Kritik bulgu varsa uyarılar dar ekranda öne geçer. */
+.overviewGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: var(--space-6);
+  align-items: start;
+}
+
+.overviewGrid[data-critical="true"] .overviewAlerts {
+  order: -1;
+}
+
+@media (min-width: 1280px) {
+  .overviewGrid {
+    grid-template-columns: minmax(0, 1.75fr) minmax(320px, 1fr);
+  }
+
+  .overviewGrid[data-critical="true"] .overviewAlerts {
+    order: 0;
+  }
+}
+
+/* Dengeli gösterge ızgarası: 9 kart → 3 × 3 (≥ 768px), telefonda 2 sütun. */
+.kpiGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3);
+}
+
+@media (min-width: 768px) {
+  .kpiGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* Kısa uyarı listesi: satır başına önem, başlık (teşhis bağlantısı), zaman ve
+   tek satır bağlam; anlam, kanıt ve önerilen adım "Ayrıntı" içinde. */
+.alertList {
+  display: grid;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.alertItem {
+  display: grid;
+  gap: 2px;
+  padding: var(--space-3) var(--space-4);
+  border-top: var(--border-width) solid var(--line);
+}
+
+.alertItem:first-child {
+  border-top: none;
+}
+
+.alertCritical {
+  background: color-mix(in srgb, var(--alert) 6%, var(--surface-raised));
+  box-shadow: inset 3px 0 0 var(--alert);
+}
+
+.alertWarning {
+  box-shadow: inset 3px 0 0 var(--warning);
+}
+
+.alertHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-1) var(--space-2);
+  min-width: 0;
+}
+
+.alertTitle {
+  min-width: 0;
+  font-weight: var(--font-weight-semibold);
+  overflow-wrap: anywhere;
+}
+
+a.alertTitle {
+  color: var(--ink);
+  text-underline-offset: 3px;
+}
+
+/* Bağlam (tek satır, kısaltılır) + kanıt zamanı aynı satırda: satır yüksekliği sabit. */
+.alertMeta {
+  display: flex;
+  align-items: baseline;
+  gap: var(--space-2);
+  min-width: 0;
+  margin: 0;
+}
+
+.alertTime {
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.alertContext {
+  min-width: 0;
+  overflow: hidden;
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.alertSummary {
+  width: fit-content;
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+  cursor: pointer;
+}
+
+.alertDetails[open] .alertSummary {
+  margin-bottom: var(--space-1);
+}
+
+.alertDetails p {
+  margin: 0 0 var(--space-1);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+
+/* Genel bakış: durum özeti şeridi (bağlantıysa dikkat listesine gider). */
+a.summaryStrip {
+  border-radius: var(--radius-pill);
+  text-decoration: none;
+}
 /* Genel bakış: durum özeti şeridi. */
 .summaryStrip {
   display: flex;
@@ -1593,6 +1781,8 @@ a.findingTitle {
   }
 
   .main summary {
+    box-sizing: border-box;
+    min-height: var(--admin-control-height);
     padding-block: var(--space-3);
   }
 

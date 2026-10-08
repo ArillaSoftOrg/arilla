@@ -59,7 +59,8 @@ function NavItemLink({ item, active }: { item: AdminNavLink; active: boolean }) 
  * Yan menü (docs/decisions/0083). Liste sunucuda yetkiye göre süzülür
  * (layout); bu bileşen yalnızca etkin bağlantıyı işaretler (en özel eşleşme,
  * `activeNavHref`) ve grupları katlar. Gruplar yerel `<details>`: klavye ve
- * ekran okuyucu desteği tarayıcıdan; etkin sayfanın grubu her zaman açılır.
+ * ekran okuyucu desteği tarayıcıdan. Varsayılan: yalnızca etkin sayfanın
+ * grubu açık (karar 0084), diğerleri kapalı ve elle açılıp kapanır.
  * Katlama durumu saklanmaz (tarayıcı deposu yok); oturum içinde layout
  * yeniden çizilmediği için gezinmede korunur.
  */
@@ -104,8 +105,9 @@ function NavGroup({
   activeHref: string | null;
   containsActive: boolean;
 }) {
-  const [open, setOpen] = useState(true);
-  // Başka gruptaki bir sayfaya gidildiğinde o grup kapalıysa açılır.
+  const [open, setOpen] = useState(containsActive);
+  // Bu gruptaki bir sayfaya gidildiğinde grup kapalıysa açılır; elle açılan
+  // diğer gruplar açık kalır.
   useEffect(() => {
     if (containsActive) setOpen(true);
   }, [containsActive]);
@@ -115,7 +117,11 @@ function NavGroup({
       open={open}
       onToggle={(event) => setOpen(event.currentTarget.open)}
     >
-      <summary className={styles.navHeading}>
+      <summary
+        className={
+          containsActive ? `${styles.navHeading} ${styles.navHeadingCurrent}` : styles.navHeading
+        }
+      >
         <span>{section.label}</span>
         {!open ? <span className={styles.navCount}>{section.items.length}</span> : null}
         <span className={styles.navChevron} aria-hidden="true" />
@@ -205,9 +211,13 @@ export function AdminMobileNav({
         onClose={() => setOpen(false)}
       >
         <div className={styles.brand}>
-          <span className={styles.brandTitle}>
-            {brand}
-            <span className={styles.brandSub}>{`Yönetim konsolu · ${roleLabel}`}</span>
+          <span className={styles.brandLink}>
+            {/* biome-ignore lint/performance/noImgElement: 32px uygulama ikonu (Next metadata rotası, 180px PNG); optimizasyon gerekmez. */}
+            <img src="/apple-icon.png" alt="" className={styles.brandMark} width={32} height={32} />
+            <span className={styles.brandTitle}>
+              {brand}
+              <span className={styles.brandSub}>{`Yönetim konsolu · ${roleLabel}`}</span>
+            </span>
           </span>
           <Button
             type="button"
