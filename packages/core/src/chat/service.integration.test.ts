@@ -8,6 +8,7 @@ import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest
 import { LlmError } from "../llm/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
+import { purgeExpiredFeedbackComments } from "./feedback.ts";
 import { emptyIntent } from "./intent.ts";
 import type { ChatInterpreter } from "./interpreter.ts";
 import { IntentSearchTimeoutError, searchByIntent } from "./search-adapter.ts";
@@ -1115,6 +1116,61 @@ describe("result feedback (0055) and sort tabs", () => {
       ]),
     );
     expect(left.rows[0].n).toBe(0);
+  });
+
+  it("deleting the account removes the vote with its reason and comment (0079)", async () => {
+    const throwaway = await withOwnerClient(async (c) =>
+      Number(
+        (
+          await c.query("INSERT INTO app_user (email) VALUES ($1) RETURNING id", [
+            `chat-del-${run}@test.invalid`,
+          ])
+        ).rows[0].id,
+      ),
+    );
+    const id = await conversationWithSearch(throwaway);
+    expect(
+      await setResultFeedback(db, {
+        userId: throwaway,
+        conversationId: id,
+        messageSeq: 2,
+        helpful: false,
+        reasons: ["other"],
+        comment: "silinecek yorum",
+      }),
+    ).toBe("saved");
+    expect(await voteRow(id)).toHaveLength(1);
+    await withOwnerClient(async (c) => {
+      // Gercek hesap silme akisi api_usage.user_id'yi once NULL'lar (account/delete-account.ts).
+      await c.query("UPDATE api_usage SET user_id = NULL WHERE user_id = $1", [throwaway]);
+      await c.query("DELETE FROM app_user WHERE id = $1", [throwaway]);
+    });
+    expect(await voteRow(id)).toHaveLength(0);
+  });
+
+  it("purges only old comments after 90 days; the vote and reason stay (0079)", async () => {
+    const id = await conversationWithSearch();
+    await setResultFeedback(db, {
+      userId: userA,
+      conversationId: id,
+      messageSeq: 2,
+      helpful: false,
+      reasons: ["slow"],
+      comment: "eskiyecek yorum",
+    });
+    // Taze yorum: dokunulmaz.
+    await purgeExpiredFeedbackComments(db);
+    expect((await voteRow(id))[0].comment).toBe("eskiyecek yorum");
+    // Saati degil satiri eskit: genel temizlik baska testlerin satirlarini etkilemesin.
+    await withOwnerClient((c) =>
+      c.query(
+        "UPDATE chat_result_feedback SET updated_at = now() - interval '91 days' WHERE conversation_id = $1",
+        [id],
+      ),
+    );
+    await purgeExpiredFeedbackComments(db);
+    const row = (await voteRow(id))[0];
+    expect(row).toMatchObject({ helpful: false, reasons: ["slow"], comment: null });
   });
 
   it("tab changes re-run only the existing search with another sort: same intent, no model call", async () => {

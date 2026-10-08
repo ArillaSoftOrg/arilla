@@ -145,6 +145,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "İletişim formu ve geri bildirim mesajları.",
       },
       {
+        href: "/yonetim/ai-geri-bildirim",
+        label: "AI geri bildirimleri",
+        capability: "feedback.chat.read",
+        description: "Sohbet yanıtlarına verilen oylar, nedenler ve yorumlar.",
+      },
+      {
         href: "/yonetim/denetim",
         label: "Denetim kaydı",
         capability: "audit.read",

@@ -1,9 +1,12 @@
 /**
  * Sohbet geri bildirimi: neden/yorum dogrulamasi ve oran siniri (docs/decisions/0079).
  *
- * Saf fonksiyonlar; veritabani yazimi `service.ts` icindeki `setResultFeedback`tadir.
+ * Dogrulama ve oran siniri saftir; veritabani yazimi `service.ts` icindeki
+ * `setResultFeedback`tadir. Saklama temizligi (yorum 90 gun) burada.
  * Olumlu oy neden/yorum tasimaz; olumsuz oyda ikisi de istege baglidir.
  */
+import type { Database } from "@arilla/db";
+import { sql } from "drizzle-orm";
 import type { FixedWindowCounter } from "../auth/rate-limit.ts";
 import { cleanFormText, formTextLength } from "../feedback/validate.ts";
 import { incrementFixedWindow } from "../redis/counter.ts";
@@ -72,4 +75,60 @@ export async function consumeChatFeedbackQuota(
 ): Promise<boolean> {
   const count = await increment(chatFeedbackRateLimitKey(userId), CHAT_FEEDBACK_WINDOW_SECONDS);
   return count <= CHAT_FEEDBACK_MAX_WRITES;
+}
+
+/** Yorum bu sureden sonra silinir; oy ve neden istatistigi kalir (karar 0079 m.8). */
+export const CHAT_FEEDBACK_COMMENT_RETENTION_DAYS = 90;
+
+export interface FeedbackCommentPurgeResult {
+  cleared: number;
+  truncated: boolean;
+}
+
+/** Eski serbest metin yorumlari NULL'a ceker. Parti parti; `updated_at` degismez. */
+export async function purgeExpiredFeedbackComments(
+  db: Database,
+  now: Date = new Date(),
+  options: { batchSize?: number; maxBatches?: number } = {},
+): Promise<FeedbackCommentPurgeResult> {
+  const batchSize = options.batchSize ?? 2_000;
+  const maxBatches = options.maxBatches ?? 20;
+  const cutoff = new Date(now.getTime() - CHAT_FEEDBACK_COMMENT_RETENTION_DAYS * 86_400_000);
+  let cleared = 0;
+  for (let batch = 0; batch < maxBatches; batch++) {
+    const result = await db.execute(sql`
+      UPDATE chat_result_feedback SET comment = NULL
+       WHERE message_id IN (
+         SELECT message_id FROM chat_result_feedback
+          WHERE comment IS NOT NULL AND updated_at < ${cutoff.toISOString()}::timestamptz
+          ORDER BY updated_at
+          LIMIT ${batchSize}
+       )
+    `);
+    const count = result.rowCount ?? 0;
+    cleared += count;
+    if (count < batchSize) return { cleared, truncated: false };
+  }
+  return { cleared, truncated: true };
+}
+
+/** Gunluk temizlikte digerlerinden yalitilir; hata yalnizca sinif + SQL koduyla loglanir. */
+export async function purgeExpiredFeedbackCommentsSafely(
+  db: Database,
+  now: Date = new Date(),
+): Promise<FeedbackCommentPurgeResult & { failed: string | null }> {
+  try {
+    return { ...(await purgeExpiredFeedbackComments(db, now)), failed: null };
+  } catch (error) {
+    const code =
+      (error as { code?: string; cause?: { code?: string } })?.cause?.code ??
+      (error as { code?: string })?.code ??
+      "error";
+    console.warn(
+      "[sohbet] feedback comment retention failed",
+      error instanceof Error ? error.name : "unknown",
+      code,
+    );
+    return { cleared: 0, truncated: false, failed: /^[0-9A-Z]{5}$/.test(code) ? code : "error" };
+  }
 }
