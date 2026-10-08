@@ -121,6 +121,24 @@ describe("model islemleri (api_usage.operation)", () => {
     expect(sorted(written)).toEqual(sorted(Object.keys(AI_OPERATIONS)));
   });
 
+  it("Gemini islemi yazan dosya maliyeti sabit 0 yazmaz (karar 0082: llmCallCostMicros)", () => {
+    const llmConstants = TS_SOURCES.flatMap((file) =>
+      [...readFileSync(file, "utf8").matchAll(/\b([A-Z_]+_OPERATION) = "([a-z_]+)"/g)]
+        .filter((m) => AI_OPERATIONS[m[2] as string]?.pricing === "llm_rule")
+        .map((m) => m[1] as string),
+    );
+    expect(llmConstants.length).toBeGreaterThan(0);
+    const offenders = TS_SOURCES.filter((file) => {
+      const text = readFileSync(file, "utf8");
+      return (
+        text.includes("insert(apiUsage)") &&
+        llmConstants.some((name) => text.includes(name)) &&
+        /costMicros:\s*0\b/.test(text)
+      );
+    }).map((file) => relative(repoRoot, file));
+    expect(offenders).toEqual([]);
+  });
+
   it("Gemini islemlerinin kullandigi modelin bugun yururlukte fiyat kurali var", () => {
     const llmOps = Object.values(AI_OPERATIONS).filter((op) => op.pricing === "llm_rule");
     expect(llmOps.length).toBeGreaterThan(0);
