@@ -1,3 +1,5 @@
+import { IMAGE_CHAT_ERROR_COPY } from "../home-image-chat.ts";
+
 /**
  * `/sohbet` arayuz metinleri (docs/copy.md dili: sen, sade, ALL CAPS yok;
  * "satin al", "dupe", "ucuz" gecmez). Kodda sabit; testler yasakli kelimeleri
@@ -11,6 +13,10 @@ export const CHAT_COPY = {
   assistantLabel: "Asistan",
   composerLabel: "Mesajın",
   composerPlaceholder: "Ne aradığını yaz ya da bir ayrıntı ekle",
+  attachLabel: "Fotoğraf ekle",
+  attachReplaceLabel: "Fotoğrafı değiştir",
+  attachRemoveLabel: "Fotoğrafı kaldır",
+  attachPreviewAlt: "Eklemek üzere seçtiğin fotoğraf",
   sendLabel: "Gönder",
   sending: "Gönderiliyor",
   thinking: "Yanıt hazırlanıyor",
@@ -74,6 +80,11 @@ export type ChatErrorKind =
   | "conversation_full"
   | "invalid_option"
   | "invalid_input"
+  | "image_limit"
+  | "invalid_type"
+  | "too_large"
+  | "unprocessable"
+  | "send_failed"
   | "unavailable"
   | "not_found";
 
@@ -130,6 +141,38 @@ export const CHAT_ERROR_COPY: Record<ChatErrorKind, ChatErrorCopy> = {
     searchDirectly: false,
     newChat: false,
   },
+  // Karar 0079: gorselli mesaj hatalari sohbette kalir; mesaj ve gorsel kutuda korunur, kullanici
+  // duzeltip yeniden gonderir (ayni istek anahtariyla sunucu bir kez kabul eder).
+  image_limit: {
+    message: IMAGE_CHAT_ERROR_COPY.image_limit,
+    retry: false,
+    searchDirectly: false,
+    newChat: true,
+  },
+  invalid_type: {
+    message: IMAGE_CHAT_ERROR_COPY.invalid_type,
+    retry: false,
+    searchDirectly: false,
+    newChat: false,
+  },
+  too_large: {
+    message: IMAGE_CHAT_ERROR_COPY.too_large,
+    retry: false,
+    searchDirectly: false,
+    newChat: false,
+  },
+  unprocessable: {
+    message: IMAGE_CHAT_ERROR_COPY.unprocessable,
+    retry: false,
+    searchDirectly: false,
+    newChat: false,
+  },
+  send_failed: {
+    message: "Mesajını gönderemedim. Mesajın ve fotoğrafın duruyor, tekrar gönderebilirsin.",
+    retry: false,
+    searchDirectly: false,
+    newChat: false,
+  },
   unavailable: {
     message: "Sohbet şu anda kullanılamıyor. Aramayı doğrudan yapabilirsin.",
     retry: false,
@@ -159,9 +202,15 @@ export function errorKindForStatus(status: string): ChatErrorKind | null {
     case "conversation_full":
     case "invalid_option":
     case "invalid_input":
+    case "image_limit":
+    case "invalid_type":
+    case "too_large":
+    case "unprocessable":
     case "unavailable":
     case "not_found":
       return status;
+    case "error":
+      return "send_failed";
     default:
       return "provider";
   }

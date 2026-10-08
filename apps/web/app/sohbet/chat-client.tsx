@@ -1,7 +1,13 @@
 "use client";
 
 import type { AssistantPreview, ClarifyQuestion } from "@arilla/core";
-import { Button, ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
+import {
+  Button,
+  isSubmitKey,
+  ProductCardSkeleton,
+  resolveComposerSubmit,
+  VisuallyHidden,
+} from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import {
   type FormEvent,
@@ -12,6 +18,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { validateAttachmentFile } from "../home-image-chat.ts";
 import {
   getTurnStatusAction,
   runTurnAction,
@@ -47,8 +54,18 @@ function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+/** Karar 0079: mesaja eklenmek uzere secilmis, henuz gonderilmemis fotograf. */
+interface StagedImage {
+  file: File;
+  url: string;
+  /** Her yeni secim yeni anahtar; ayni secimin yeniden gonderimi sunucuda tekillesir. */
+  key: string;
+}
+
 interface Props {
   conversationId: string;
+  /** `CHAT_IMAGE_ENABLED`: kapaliysa "+" hic gorunmez ve eski aramaya dusulmez. */
+  imageEnabled: boolean;
   /** Son mesaj kullanıcınındır: asistan yanıtı bekleniyor (ilk mesaj, yenileme, hata sonrası). */
   awaitingReply: boolean;
   /** Açık netlestirme sorusu; yalnızca son mesaj o soruysa dolu. */
@@ -73,6 +90,7 @@ interface Props {
  */
 export function ChatInteractive({
   conversationId,
+  imageEnabled,
   awaitingReply,
   question,
   lastUserText,
@@ -85,6 +103,8 @@ export function ChatInteractive({
   const [custom, setCustom] = useState("");
   const [working, setWorking] = useState(false);
   const [error, setError] = useState<ChatErrorKind | null>(null);
+  const [staged, setStaged] = useState<StagedImage | null>(null);
+  const stagedUrlRef = useRef<string | null>(null);
   // Sunucu cevabi yazdi ama tam sayfa yenilemesi (urun sonuclari) henuz gelmedi:
   // cevap metni hemen gorunur. `lastSeq` ilerleyince (yenileme geldi) kendiliginden gizlenir.
   const [preview, setPreview] = useState<AssistantPreview | null>(null);
@@ -94,6 +114,41 @@ export function ChatInteractive({
   const bottomRef = useRef<HTMLDivElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
   const questionId = useId();
+
+  // Onizleme blob'u: degisince/kalkinca/unmount'ta serbest birakilir.
+  useEffect(() => {
+    stagedUrlRef.current = staged?.url ?? null;
+  }, [staged]);
+  useEffect(
+    () => () => {
+      if (stagedUrlRef.current) URL.revokeObjectURL(stagedUrlRef.current);
+    },
+    [],
+  );
+
+  function stageFile(file: File): void {
+    if (workingRef.current) return;
+    const invalid = validateAttachmentFile(file);
+    if (invalid === "invalid_type" || invalid === "too_large") {
+      setError(invalid);
+      return;
+    }
+    setError(null);
+    if (stagedUrlRef.current) URL.revokeObjectURL(stagedUrlRef.current);
+    setStaged({ file, url: URL.createObjectURL(file), key: newRequestKey() });
+  }
+
+  function clearStaged(): void {
+    if (stagedUrlRef.current) URL.revokeObjectURL(stagedUrlRef.current);
+    stagedUrlRef.current = null;
+    setStaged(null);
+  }
+
+  function removeStaged(): void {
+    if (workingRef.current) return;
+    clearStaged();
+    setError(null);
+  }
 
   function showPreview(answer: AssistantPreview): void {
     chatMark("chat:assistant_visible");
@@ -167,16 +222,23 @@ export function ChatInteractive({
     }
   }
 
-  async function send(request: SendRequest): Promise<boolean> {
+  async function send(request: SendRequest, image?: StagedImage): Promise<boolean> {
     let sent = false;
     await run(async () => {
       // Aynı yük yeniden gönderilirse (ağ hatası sonrası) aynı anahtar: sunucu bir kez kabul eder.
-      const signature = JSON.stringify(request);
+      // Görselli mesajda aynı seçim aynı anahtarı taşır (karar 0079).
+      const signature = JSON.stringify(image ? { ...request, image: image.key } : request);
       const key = keyRef.current?.signature === signature ? keyRef.current.key : newRequestKey();
       keyRef.current = { signature, key };
       let status: SendMessageStatus;
       try {
-        ({ status } = await sendMessageAction(conversationId, request, key));
+        if (image) {
+          const photo = new FormData();
+          photo.set("photo", image.file);
+          ({ status } = await sendMessageAction(conversationId, request, key, photo));
+        } else {
+          ({ status } = await sendMessageAction(conversationId, request, key));
+        }
       } catch {
         setError("network");
         return;
@@ -189,6 +251,7 @@ export function ChatInteractive({
       }
       keyRef.current = null;
       sent = true;
+      clearStaged();
       setDraft("");
       setCustom("");
       setCustomOpen(false);
@@ -231,14 +294,26 @@ export function ChatInteractive({
 
   function submitDraft(event?: FormEvent) {
     event?.preventDefault();
-    const text = draft.trim();
-    if (!text || working || awaitingReply) return;
-    void send({ kind: "text", text });
+    // Ana sayfa kutusuyla AYNI kural: metin ya da fotograf yeterli, ikisi de yoksa hicbir sey olmaz.
+    const decision = resolveComposerSubmit({
+      text: draft,
+      hasImage: staged !== null,
+      busy: working || awaitingReply,
+    });
+    if (decision === "noop") return;
+    void send({ kind: "text", text: draft.trim() }, staged ?? undefined);
   }
 
   function onComposerKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     // Enter gönderir, Shift+Enter satır ekler; IME birleştirme sırasında göndermez.
-    if (event.key === "Enter" && !event.shiftKey && !event.nativeEvent.isComposing) {
+    if (
+      isSubmitKey({
+        key: event.key,
+        shiftKey: event.shiftKey,
+        isComposing: event.nativeEvent.isComposing,
+        keyCode: event.keyCode,
+      })
+    ) {
       event.preventDefault();
       submitDraft();
     }
@@ -396,6 +471,11 @@ export function ChatInteractive({
         onKeyDown={onComposerKeyDown}
         locked={composerLocked}
         busy={working}
+        attachment={
+          imageEnabled
+            ? { previewUrl: staged?.url ?? null, onFileSelected: stageFile, onRemove: removeStaged }
+            : undefined
+        }
       />
     </div>
   );

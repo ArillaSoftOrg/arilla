@@ -1,4 +1,11 @@
-import { ArrowRightIcon, Button, VisuallyHidden } from "@arilla/ui";
+import {
+  ArrowRightIcon,
+  Button,
+  CloseIcon,
+  PhotoUploadButton,
+  PlusIcon,
+  VisuallyHidden,
+} from "@arilla/ui";
 import type { FormEvent, KeyboardEvent } from "react";
 import { CHAT_COPY } from "./chat-copy.ts";
 import styles from "./sohbet.module.css";
@@ -52,6 +59,17 @@ export function ChatPendingRow() {
 
 export const CHAT_MESSAGE_MAX = 500;
 
+/**
+ * Karar 0079: mesaja eklenecek (henuz gonderilmemis) fotograf. Secmek gondermez; onizleme olur.
+ * Ana sayfa kutusuyla ayni anlam: metin bos olabilir, Enter ve Gonder ayni eylemi calistirir.
+ */
+export interface ChatComposerAttachment {
+  /** Onizleme blob adresi; secili fotograf yoksa `null`. */
+  previewUrl: string | null;
+  onFileSelected: (file: File) => void;
+  onRemove: () => void;
+}
+
 export function ChatComposer({
   draft,
   onDraftChange,
@@ -59,6 +77,7 @@ export function ChatComposer({
   onKeyDown,
   locked,
   busy = false,
+  attachment,
 }: {
   draft: string;
   onDraftChange?: (value: string) => void;
@@ -67,9 +86,42 @@ export function ChatComposer({
   /** Girdi ve gonder dugmesi kapali (cevap bekleniyor / sohbet hazir degil). */
   locked: boolean;
   busy?: boolean;
+  /** Verilmezse (bayrak kapali, `/sohbet/yeni` kabugu) "+" hic gorunmez. */
+  attachment?: ChatComposerAttachment;
 }) {
+  const hasImage = Boolean(attachment?.previewUrl);
   return (
     <form className={styles.composer} onSubmit={onSubmit}>
+      {attachment ? (
+        <PhotoUploadButton
+          iconOnly
+          icon={<PlusIcon />}
+          label={hasImage ? CHAT_COPY.attachReplaceLabel : CHAT_COPY.attachLabel}
+          onFileSelected={attachment.onFileSelected}
+          disabled={locked}
+          variant="ghost"
+          className={styles.attach}
+        />
+      ) : null}
+      {attachment?.previewUrl ? (
+        <div className={styles.attachmentPreview}>
+          {/* biome-ignore lint/performance/noImgElement: yerel blob onizlemesi; next/image uygun degil. */}
+          <img
+            className={styles.attachmentPreviewImage}
+            src={attachment.previewUrl}
+            alt={CHAT_COPY.attachPreviewAlt}
+          />
+          <button
+            type="button"
+            className={styles.attachmentPreviewRemove}
+            aria-label={CHAT_COPY.attachRemoveLabel}
+            disabled={locked}
+            onClick={attachment.onRemove}
+          >
+            <CloseIcon />
+          </button>
+        </div>
+      ) : null}
       <label className={styles.composerLabel}>
         <VisuallyHidden as="span">{CHAT_COPY.composerLabel}</VisuallyHidden>
         <textarea
@@ -89,7 +141,7 @@ export function ChatComposer({
         variant="accent"
         className={styles.send}
         aria-label={busy ? CHAT_COPY.sending : CHAT_COPY.sendLabel}
-        disabled={locked || draft.trim() === ""}
+        disabled={locked || (draft.trim() === "" && !hasImage)}
       >
         <ArrowRightIcon />
       </Button>
