@@ -1,4 +1,5 @@
 import {
+  type AdminFinding,
   type Capability,
   capabilitiesFor,
   dashboardAttention,
@@ -8,12 +9,22 @@ import {
   getPipelineEvidence,
   hasCapability,
   MATCH_QUEUE_ALERT_THRESHOLD,
+  type MerchantAttentionItem,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import Link from "next/link";
 import { requireCapability } from "../lib/dal.ts";
 import styles from "./admin.module.css";
-import { FindingList, StatusText, Tile } from "./admin-ui.tsx";
+import {
+  DataTable,
+  FindingList,
+  KpiCard,
+  KpiGroup,
+  PageHeader,
+  Panel,
+  StatusBadge,
+  StatusText,
+} from "./admin-ui.tsx";
 import {
   attentionLabel,
   formatCost,
@@ -37,13 +48,41 @@ function total(record: Record<string, number>): number {
   return Object.values(record).reduce((sum, n) => sum + n, 0);
 }
 
+const PERCENT = new Intl.NumberFormat("tr-TR", { style: "percent", maximumFractionDigits: 1 });
+
+/** Dikkat listesinin önem dağılımı: başlıktaki özet şeridi (yalnızca türetilmiş sayılar). */
+function AttentionSummary({ attention }: { attention: readonly AdminFinding[] }) {
+  const count = (severity: AdminFinding["severity"]) =>
+    attention.filter((finding) => finding.severity === severity).length;
+  const critical = count("critical");
+  const warning = count("warning");
+  const unknown = count("unknown");
+  if (attention.length === 0) {
+    return <StatusBadge tone="success">Dikkat isteyen bir şey yok</StatusBadge>;
+  }
+  return (
+    <div className={styles.summaryStrip}>
+      {critical > 0 ? (
+        <StatusBadge tone="critical">{`${formatCount(critical)} kritik`}</StatusBadge>
+      ) : null}
+      {warning > 0 ? (
+        <StatusBadge tone="warning">{`${formatCount(warning)} uyarı`}</StatusBadge>
+      ) : null}
+      {unknown > 0 ? (
+        <StatusBadge tone="neutral">{`${formatCount(unknown)} denetlenemedi`}</StatusBadge>
+      ) : null}
+    </div>
+  );
+}
+
 /**
- * docs/decisions/0039 madde 7: yalnızca veritabanında gerçekten var olan sayılar.
- * Karar 0051: her kart sorunu teşhis eden sayfaya gider — ama yalnızca
- * izleyicinin açabildiği sayfaya; kartların kendisi (görünürlük) değişmez.
- * Karar 0055: "Şimdi dikkat isteyenler" mevcut durumdan türetilir (kalıcı
- * alarm yok). Yönetici işletim bulgularını da görür; moderatör bugün gördüğü
- * sinyallerden (mağazalar, boru hattı, eşleştirme kuyruğu) türetilen listeyi.
+ * Genel bakış (docs/decisions/0039 madde 7, 0051, 0055, 0083): yalnızca
+ * veritabanında gerçekten var olan sayılar; her kart sayının temelini
+ * (tam sayım / tahmini) taşır ve sorunu teşhis eden sayfaya gider — ama
+ * yalnızca izleyicinin açabildiği sayfaya. "Şimdi dikkat isteyenler"
+ * mevcut durumdan türetilir (kalıcı alarm yok). Yönetici işletim
+ * bulgularını da görür; moderatör bugün gördüğü sinyallerden (mağazalar,
+ * boru hattı, eşleştirme kuyruğu) türetilen listeyi.
  */
 export default async function AdminOverviewPage() {
   const { user, actor } = await requireCapability("admin.access");
@@ -71,221 +110,225 @@ export default async function AdminOverviewPage() {
   const pipelineIssues = pipeline.filter(
     (stage) => stage.state === "warning" || stage.state === "behind" || stage.state === "unknown",
   );
+  const search = overview.textSearch7d;
+  const queueOverThreshold = overview.pendingMatches > MATCH_QUEUE_ALERT_THRESHOLD;
 
   return (
     <div className={styles.page}>
-      <header className={styles.pageHeader}>
-        <h1 className={styles.pageTitle}>Genel bakış</h1>
-        <p className={styles.muted}>{`Son güncelleme ${formatDateTime(overview.generatedAt)}`}</p>
-      </header>
+      <PageHeader
+        title="Genel bakış"
+        description={`Son güncelleme ${formatDateTime(overview.generatedAt)} · yalnızca kayıtlı veri; tahmin edilen değerler işaretlidir.`}
+        actions={<AttentionSummary attention={attention} />}
+      />
 
-      <section className={styles.pageHeader} aria-labelledby="simdi-dikkat">
-        <h2 id="simdi-dikkat" className={styles.sectionTitle}>
-          Şimdi dikkat isteyenler
-        </h2>
+      <Panel
+        id="simdi-dikkat"
+        title="Şimdi dikkat isteyenler"
+        description="Mevcut durumdan türetilir; yalnızca kritik, uyarı ve denetlenemeyen bulgular."
+        actions={
+          can("operations.read") ? (
+            <Link href="/yonetim/islemler">Tüm denetimler (sistem sağlığı)</Link>
+          ) : null
+        }
+      >
         <FindingList
           findings={attention}
           allowed={capabilitiesFor(user.role)}
           empty="Şu an dikkat isteyen bir şey yok."
         />
-        {can("operations.read") ? (
-          <p className={styles.muted}>
-            <Link href="/yonetim/islemler">Tüm denetimler (sistem sağlığı)</Link>
-          </p>
-        ) : null}
-      </section>
+      </Panel>
 
-      <section className={styles.tiles} aria-label="Katalog ve kuyruk">
-        <Tile
+      <KpiGroup title="Katalog ve eşleştirme">
+        <KpiCard
           label="Bekleyen eşleştirme"
           value={formatCount(overview.pendingMatches)}
-          note={
-            overview.pendingMatches > MATCH_QUEUE_ALERT_THRESHOLD
-              ? `${MATCH_QUEUE_ALERT_THRESHOLD} eşiğinin üstünde`
-              : undefined
-          }
-          warning={overview.pendingMatches > MATCH_QUEUE_ALERT_THRESHOLD}
+          tone={queueOverThreshold ? "warning" : "neutral"}
+          status={queueOverThreshold ? `${MATCH_QUEUE_ALERT_THRESHOLD} eşiğinin üstünde` : null}
+          basis="count"
           href={linkIf("matching.review", "/yonetim/eslestirme")}
         />
-        <Tile
+        <KpiCard
           label="Eşleşmemiş aktif teklif"
           value={formatCount(overview.unmatchedOffers)}
+          basis="count"
           href={linkIf("catalog.read", "/yonetim/katalog/teklifler?durum=unmatched")}
         />
-        <Tile
+        <KpiCard
           label="Aktif mağaza"
           value={`${formatCount(overview.merchants.active)} / ${formatCount(overview.merchants.total)}`}
+          note="Aktif / toplam"
+          basis="count"
           href={linkIf("merchant.read", "/yonetim/magazalar?durum=aktif")}
         />
-        <Tile
-          label="Yeni kullanıcı (7 gün)"
-          value={formatCount(overview.newUsers7d)}
-          href={linkIf("users.read", "/yonetim/kullanicilar")}
-        />
-      </section>
-
-      <section className={styles.tiles} aria-label="Kullanıcı akışları ve maliyet">
-        <Tile
+        <KpiCard
           label="Veri toplama koşuları (24 saat)"
           value={formatCount(total(overview.ingest.runsLast24h))}
           note={breakdown(overview.ingest.runsLast24h)}
-          warning={failedRuns > 0}
+          tone={failedRuns > 0 ? "warning" : "neutral"}
+          status={failedRuns > 0 ? `${formatCount(failedRuns)} başarısız koşu` : null}
           href={linkIf(
             "ingest.read",
             failedRuns > 0 ? "/yonetim/ingest?durum=failed" : "/yonetim/ingest",
           )}
         />
-        <Tile
+      </KpiGroup>
+
+      <KpiGroup title="Arama ve AI">
+        <KpiCard
+          label="Metin araması (7 gün)"
+          value={formatCount(search.searches)}
+          note={
+            search.searches > 0
+              ? `Sonuçsuz ${PERCENT.format(search.zeroResults / search.searches)} · yedek listeye düşen ${formatCount(search.fallbacks)}`
+              : "Son 7 günde metin araması yok"
+          }
+          basis="count"
+          href={linkIf("dictionary.write", "/yonetim/sozluk?gun=7&sorun=zero")}
+        />
+        <KpiCard
           label="Link araması (7 gün)"
           value={formatCount(total(overview.linkRequests7d))}
           note={breakdown(overview.linkRequests7d)}
+          tone={failedLinks > 0 ? "warning" : "neutral"}
+          basis="count"
           href={linkIf(
             "diagnostics.read",
             failedLinks > 0 ? "/yonetim/arama/link?durum=failed" : "/yonetim/arama/link",
           )}
         />
-        <Tile
+        <KpiCard
           label="Görsel yükleme (7 gün)"
           value={formatCount(total(overview.imageUploads7d))}
           note={breakdown(overview.imageUploads7d)}
+          basis="count"
           href={linkIf("diagnostics.read", "/yonetim/arama/gorsel")}
         />
-        <Tile
+        <KpiCard
           label="Model maliyeti (24 saat)"
           value={cost24h.value}
           note={[cost24h.note, `7 gün: ${cost7d.value} · ${formatUsage(overview.apiUsage.last7d)}`]
             .filter(Boolean)
             .join(" · ")}
-          warning={cost24h.note !== null}
+          tone={cost24h.note !== null ? "warning" : "neutral"}
+          basis="estimate"
           href={linkIf("operations.read", "/yonetim/islemler#maliyet")}
         />
-      </section>
+      </KpiGroup>
 
-      <section className={styles.pageHeader} aria-labelledby="boru-hatti">
-        <h2 id="boru-hatti" className={styles.sectionTitle}>
-          Veri boru hattı
-        </h2>
-        {pipelineIssues.length === 0 ? (
-          <p className={styles.muted}>Tüm aşamaların son kanıtı güncel ya da henüz veri yok.</p>
-        ) : (
-          <ul className={styles.list}>
-            {pipelineIssues.map((stage) => (
-              <li key={stage.stage}>
-                <span className={stage.state === "warning" ? styles.statusBad : styles.statusWarn}>
-                  {`${PIPELINE_STAGE_INFO[stage.stage].label}: ${pipelineStateLabel(stage.state)}`}
-                </span>
-                <span className={styles.meta}>
-                  {` · son kanıt ${formatDateOrDash(stage.lastAt)}`}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {can("operations.read") ? (
-          <p className={styles.muted}>
-            <Link href="/yonetim/islemler#boru-hatti">Tüm aşamalar ve çalıştırma komutları</Link>
-          </p>
-        ) : null}
-      </section>
+      <KpiGroup title="Kullanıcılar">
+        <KpiCard
+          label="Yeni kullanıcı (7 gün)"
+          value={formatCount(overview.newUsers7d)}
+          basis="count"
+          href={linkIf("users.read", "/yonetim/kullanicilar")}
+        />
+      </KpiGroup>
 
-      <section className={styles.pageHeader} aria-labelledby="dikkat">
-        <h2 id="dikkat" className={styles.sectionTitle}>
-          Dikkat gerektiren mağazalar
-        </h2>
-        <p className={styles.muted}>
-          Yalnızca aktif mağazalar. Kısmi koşu tek başına sorun sayılmaz (veri yazılmıştır).
-        </p>
-        {overview.ingest.attention.length === 0 ? (
-          <p className={styles.muted}>Dikkat gerektiren aktif mağaza yok.</p>
-        ) : (
-          <div className={styles.tableWrap}>
-            <table className={styles.table}>
-              <thead>
-                <tr>
-                  <th scope="col">Mağaza</th>
-                  <th scope="col">Durum</th>
-                  <th scope="col">Son koşu</th>
-                  <th scope="col">Son yenileme</th>
-                </tr>
-              </thead>
-              <tbody>
-                {overview.ingest.attention.map((item) => (
-                  <tr key={item.merchantId}>
-                    <td>
-                      {can("merchant.read") ? (
-                        <Link href={`/yonetim/magazalar/${item.merchantSlug}`}>
-                          {item.merchantName}
+      <div className={styles.panelGrid}>
+        <Panel
+          id="boru-hatti"
+          title="Veri boru hattı"
+          description="Geride kalan ya da denetlenemeyen aşamalar."
+          footer={
+            can("operations.read") ? (
+              <Link href="/yonetim/islemler#boru-hatti">Tüm aşamalar ve çalıştırma komutları</Link>
+            ) : null
+          }
+        >
+          {pipelineIssues.length === 0 ? (
+            <p className={styles.muted}>Tüm aşamaların son kanıtı güncel ya da henüz veri yok.</p>
+          ) : (
+            <ul className={styles.list}>
+              {pipelineIssues.map((stage) => (
+                <li key={stage.stage} className={styles.row}>
+                  <StatusBadge tone={stage.state === "warning" ? "critical" : "warning"}>
+                    {pipelineStateLabel(stage.state)}
+                  </StatusBadge>
+                  <span>{PIPELINE_STAGE_INFO[stage.stage].label}</span>
+                  <span
+                    className={styles.meta}
+                  >{`son kanıt ${formatDateOrDash(stage.lastAt)}`}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Panel>
+
+        <Panel
+          id="dikkat"
+          title="Dikkat gerektiren mağazalar"
+          description="Yalnızca aktif mağazalar. Kısmi koşu tek başına sorun sayılmaz (veri yazılmıştır)."
+          flush={overview.ingest.attention.length > 0}
+        >
+          <DataTable<MerchantAttentionItem>
+            rows={overview.ingest.attention}
+            rowKey={(item) => item.merchantId}
+            stack
+            empty={<p className={styles.muted}>Dikkat gerektiren aktif mağaza yok.</p>}
+            columns={[
+              {
+                key: "magaza",
+                header: "Mağaza",
+                cell: (item) =>
+                  can("merchant.read") ? (
+                    <Link href={`/yonetim/magazalar/${item.merchantSlug}`}>
+                      {item.merchantName}
+                    </Link>
+                  ) : (
+                    item.merchantName
+                  ),
+              },
+              {
+                key: "durum",
+                header: "Durum",
+                cell: (item) => (
+                  <div className={styles.list}>
+                    {item.states.map((state) => (
+                      <span key={state} className={styles.statusBad}>
+                        {attentionLabel(state)}
+                      </span>
+                    ))}
+                    {item.failuresSinceSuccess > 1 ? (
+                      <span className={styles.meta}>
+                        {`${formatCount(item.failuresSinceSuccess)} başarısız koşu (son başarılıdan beri)`}
+                      </span>
+                    ) : null}
+                  </div>
+                ),
+              },
+              {
+                key: "kosu",
+                header: "Son koşu",
+                cell: (item) =>
+                  item.lastRun ? (
+                    <div className={styles.list}>
+                      <StatusText status={item.lastRun.status} />
+                      {can("ingest.read") ? (
+                        <Link
+                          className={styles.meta}
+                          href={hrefWith("/yonetim/ingest", { magaza: item.merchantId })}
+                        >
+                          {formatDateTime(item.lastRun.startedAt)}
                         </Link>
                       ) : (
-                        item.merchantName
-                      )}
-                    </td>
-                    <td>
-                      {item.states.map((state) => (
-                        <span key={state} className={styles.statusBad} style={{ display: "block" }}>
-                          {attentionLabel(state)}
-                        </span>
-                      ))}
-                      {item.failuresSinceSuccess > 1 ? (
                         <span className={styles.meta}>
-                          {`${formatCount(item.failuresSinceSuccess)} başarısız koşu (son başarılıdan beri)`}
+                          {formatDateTime(item.lastRun.startedAt)}
                         </span>
-                      ) : null}
-                    </td>
-                    <td>
-                      {item.lastRun ? (
-                        <>
-                          <StatusText status={item.lastRun.status} />
-                          <br />
-                          {can("ingest.read") ? (
-                            <Link
-                              className={styles.meta}
-                              href={hrefWith("/yonetim/ingest", { magaza: item.merchantId })}
-                            >
-                              {formatDateTime(item.lastRun.startedAt)}
-                            </Link>
-                          ) : (
-                            <span className={styles.meta}>
-                              {formatDateTime(item.lastRun.startedAt)}
-                            </span>
-                          )}
-                        </>
-                      ) : (
-                        "Hiç çalışmadı"
                       )}
-                    </td>
-                    <td>{formatDateOrDash(item.lastGoodAt)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </section>
-
-      <section className={styles.pageHeader} aria-labelledby="araclar">
-        <h2 id="araclar" className={styles.sectionTitle}>
-          Araçlar
-        </h2>
-        <ul className={styles.list}>
-          <li>
-            <Link href="/yonetim/eslestirme">Eşleştirme kuyruğu</Link>
-          </li>
-          <li>
-            <Link href="/yonetim/sozluk">Sözlük</Link>
-          </li>
-          <li>
-            <Link href="/yonetim/magazalar">Mağazalar</Link>
-          </li>
-          <li>
-            <Link href="/yonetim/arama/tani">Arama tanısı</Link>
-          </li>
-        </ul>
-      </section>
-
-      <p className={styles.muted}>
-        Arama sayısı ve sonuçsuz arama oranı burada yok: arama günlüğü henüz tutulmuyor.
-      </p>
+                    </div>
+                  ) : (
+                    "Hiç çalışmadı"
+                  ),
+              },
+              {
+                key: "yenileme",
+                header: "Son yenileme",
+                cell: (item) => formatDateOrDash(item.lastGoodAt),
+              },
+            ]}
+          />
+        </Panel>
+      </div>
     </div>
   );
 }

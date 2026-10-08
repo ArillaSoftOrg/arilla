@@ -123,9 +123,10 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     label: "Metin araması ve sözlük",
     tables: ["search_query_day", "query_resolution", "lexicon"],
     status: "visible",
-    adminPaths: ["/yonetim/sozluk", "/yonetim/arama/tani"],
+    // Karar 0083: 7 günlük arama ve sonuçsuz oranı genel bakışta.
+    adminPaths: ["/yonetim", "/yonetim/sozluk", "/yonetim/arama/tani"],
     gaps: [
-      { signal: "Günlük arama ve sonuçsuz oranı (genel bakış)", status: "data_no_ui" },
+      { signal: "Günlük seri (gün gün arama ve sonuçsuz)", status: "data_no_ui" },
       { signal: "query_resolution önbellek isabeti", status: "data_no_ui" },
     ],
     privacy: "search_query_day kimliksizdir; kişisel veri içeren sorgu hiç yazılmaz (0052).",
