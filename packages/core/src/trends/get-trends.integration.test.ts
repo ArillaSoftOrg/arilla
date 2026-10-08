@@ -209,7 +209,7 @@ describe("trends - integration (real Postgres)", () => {
       IMAGE(2),
       IMAGE(3),
     ]);
-    expect(without?.heroCandidates).toEqual([IMAGE(5), IMAGE(4), IMAGE(3), IMAGE(2)]);
+    expect(without?.heroCandidates).toEqual([IMAGE(5), IMAGE(4), IMAGE(3), IMAGE(2), IMAGE(1)]);
     expect(detail?.trend.heroCandidates[0]).toBe(IMAGE(5));
   });
 
@@ -310,7 +310,7 @@ describe("trend semasi - kisitlar (real Postgres)", () => {
     });
   });
 
-  it("50 trend tohumu yerinde: benzersiz slug, hepsi yayinlanmis, aciklamalar dolu", async () => {
+  it("50 trend tohumu yerinde: benzersiz slug, 47 yayinda + 3 taslak, aciklamalar dolu", async () => {
     await withOwnerClient(async (client) => {
       const res = await client.query(
         `SELECT count(*)::int AS n, count(DISTINCT slug)::int AS slugs,
@@ -318,7 +318,16 @@ describe("trend semasi - kisitlar (real Postgres)", () => {
                 count(*) FILTER (WHERE char_length(description) > 0)::int AS described
            FROM trend WHERE slug NOT LIKE 'test-trends%'`,
       );
-      expect(res.rows[0]).toMatchObject({ n: 50, slugs: 50, published: 50, described: 50 });
+      // Launch karari: 3 trend yayin disi (draft), 47'si yayinda; hicbiri silinmedi.
+      expect(res.rows[0]).toMatchObject({ n: 50, slugs: 50, published: 47, described: 50 });
+      const drafts = await client.query(
+        "SELECT slug FROM trend WHERE status = 'draft' AND slug NOT LIKE 'test-trends%' ORDER BY slug",
+      );
+      expect(drafts.rows.map((row) => row.slug)).toEqual([
+        "bayramlik-bakmaya-baslayanlara",
+        "sonbahara-hazir-misin",
+        "yeni-eve-cikanlar-icin",
+      ]);
     });
   });
 });
