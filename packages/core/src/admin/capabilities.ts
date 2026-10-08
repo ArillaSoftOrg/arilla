@@ -51,6 +51,12 @@ export type Capability =
    */
   | "messages.read"
   /**
+   * `/yonetim/ai-geri-bildirim`: sohbet oylari, nedenler ve serbest metin yorumlar
+   * (karar 0079). Yorum kisisel veri icerebilir; yalnizca yonetici. Sohbet METNI
+   * bu yetkiyle gorunmez. Her liste/detay goruntuleme denetime yazilir.
+   */
+  | "feedback.chat.read"
+  /**
    * Kullanıcı ayrıntısının hassas sekmeleri: Aktivite, Oturumlar, Aramalar,
    * Affiliate (karar 0049 §3). Yalnızca yönetici; her görüntüleme
    * `users.view_tab` olarak denetime yazılır.
@@ -105,6 +111,8 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "forms.manage",
   // Karar 0061: iletisim/geri bildirim gelen kutusu kisisel veri icerir.
   "messages.read",
+  // Karar 0079: sohbet geri bildirimi yorumlari kisisel veri icerebilir.
+  "feedback.chat.read",
   // Karar 0049: kullanıcı aktivitesi ve tam iletişim bilgisi yalnızca yöneticinin.
   "users.activity.read",
   "users.contact.reveal",

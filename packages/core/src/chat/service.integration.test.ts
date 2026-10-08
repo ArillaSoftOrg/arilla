@@ -10,6 +10,7 @@ import type { QuotaConsumeResult } from "../quota/redis-windows.ts";
 import { RedisUnavailableError } from "../redis/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
+import { purgeExpiredFeedbackComments } from "./feedback.ts";
 import { emptyIntent } from "./intent.ts";
 import type { ChatInterpreter } from "./interpreter.ts";
 import { IntentSearchTimeoutError, searchByIntent } from "./search-adapter.ts";
@@ -1095,6 +1096,131 @@ describe("result feedback (0055) and sort tabs", () => {
     ).toMatchObject({ helpful: null });
   });
 
+  async function voteRow(id: string) {
+    const r = await withOwnerClient((c) =>
+      c.query(
+        "SELECT helpful, reasons, comment, model_version, updated_at FROM chat_result_feedback WHERE conversation_id = $1",
+        [id],
+      ),
+    );
+    return r.rows;
+  }
+
+  it("negative vote stores reason + comment; switching to positive clears them (0079)", async () => {
+    const id = await conversationWithSearch();
+    expect(
+      await setResultFeedback(db, {
+        userId: userA,
+        conversationId: id,
+        messageSeq: 2,
+        helpful: false,
+        reasons: ["irrelevant"],
+        comment: "  Alakasiz urunler geldi   ",
+      }),
+    ).toBe("saved");
+    let rows = await voteRow(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      helpful: false,
+      reasons: ["irrelevant"],
+      comment: "Alakasiz urunler geldi",
+    });
+    expect(
+      await setResultFeedback(db, {
+        userId: userA,
+        conversationId: id,
+        messageSeq: 2,
+        helpful: true,
+      }),
+    ).toBe("saved");
+    rows = await voteRow(id);
+    expect(rows[0]).toMatchObject({ helpful: true, reasons: [], comment: null });
+  });
+
+  it("negative vote with empty reason and comment is still saved", async () => {
+    const id = await conversationWithSearch();
+    expect(
+      await setResultFeedback(db, {
+        userId: userA,
+        conversationId: id,
+        messageSeq: 2,
+        helpful: false,
+        reasons: [],
+        comment: "   ",
+      }),
+    ).toBe("saved");
+    expect((await voteRow(id))[0]).toMatchObject({ helpful: false, reasons: [], comment: null });
+  });
+
+  it("rejects invalid details and writes nothing", async () => {
+    const id = await conversationWithSearch();
+    const base = { userId: userA, conversationId: id, messageSeq: 2 };
+    for (const bad of [
+      { helpful: false, reasons: ["nope"] },
+      { helpful: false, reasons: ["slow", "other", "irrelevant", "not_found"] },
+      { helpful: false, comment: "x".repeat(501) },
+      { helpful: true, reasons: ["slow"] },
+      { helpful: true, comment: "yorum" },
+    ]) {
+      expect(await setResultFeedback(db, { ...base, ...bad })).toBe("invalid");
+    }
+    expect(await voteRow(id)).toHaveLength(0);
+  });
+
+  it("repeating the same vote is idempotent: updated_at does not move; a change does", async () => {
+    const id = await conversationWithSearch();
+    const vote = {
+      userId: userA,
+      conversationId: id,
+      messageSeq: 2,
+      helpful: false,
+      reasons: ["slow"],
+      comment: "yavas",
+    };
+    await setResultFeedback(db, vote);
+    const first = (await voteRow(id))[0].updated_at as Date;
+    await new Promise((r) => setTimeout(r, 20));
+    expect(await setResultFeedback(db, vote)).toBe("saved");
+    expect(((await voteRow(id))[0].updated_at as Date).getTime()).toBe(first.getTime());
+    await setResultFeedback(db, { ...vote, comment: "cok yavas" });
+    const rows = await voteRow(id);
+    expect(rows).toHaveLength(1);
+    expect(rows[0].comment).toBe("cok yavas");
+    expect((rows[0].updated_at as Date).getTime()).toBeGreaterThan(first.getTime());
+  });
+
+  it("another user cannot attach reason/comment to someone else's message", async () => {
+    const id = await conversationWithSearch();
+    expect(
+      await setResultFeedback(db, {
+        userId: userB,
+        conversationId: id,
+        messageSeq: 2,
+        helpful: false,
+        reasons: ["other"],
+        comment: "x",
+      }),
+    ).toBe("not_found");
+    expect(await voteRow(id)).toHaveLength(0);
+  });
+
+  it("records the approximate model version from the same user's chat_turn usage", async () => {
+    const id = await conversationWithSearch();
+    const usage = await withOwnerClient((c) =>
+      c.query(
+        "SELECT model_version FROM api_usage WHERE user_id = $1 AND operation = 'chat_turn' ORDER BY created_at DESC LIMIT 1",
+        [userA],
+      ),
+    );
+    await setResultFeedback(db, {
+      userId: userA,
+      conversationId: id,
+      messageSeq: 2,
+      helpful: false,
+    });
+    expect((await voteRow(id))[0].model_version).toBe(usage.rows[0]?.model_version ?? null);
+  });
+
   it("votes disappear with the conversation (cascade) and carry no text", async () => {
     const id = await conversationWithSearch();
     await setResultFeedback(db, {
@@ -1108,11 +1234,15 @@ describe("result feedback (0055) and sort tabs", () => {
         "SELECT column_name FROM information_schema.columns WHERE table_name = 'chat_result_feedback' ORDER BY 1",
       ),
     );
+    // 0058: yalnizca neden kodu ve istege bagli yorum; sohbet metni/ham sorgu kolonu yok.
     expect(cols.rows.map((r) => r.column_name)).toEqual([
+      "comment",
       "conversation_id",
       "created_at",
       "helpful",
       "message_id",
+      "model_version",
+      "reasons",
       "updated_at",
     ]);
     await withOwnerClient((c) => c.query("DELETE FROM conversation WHERE id = $1", [id]));
@@ -1122,6 +1252,61 @@ describe("result feedback (0055) and sort tabs", () => {
       ]),
     );
     expect(left.rows[0].n).toBe(0);
+  });
+
+  it("deleting the account removes the vote with its reason and comment (0079)", async () => {
+    const throwaway = await withOwnerClient(async (c) =>
+      Number(
+        (
+          await c.query("INSERT INTO app_user (email) VALUES ($1) RETURNING id", [
+            `chat-del-${run}@test.invalid`,
+          ])
+        ).rows[0].id,
+      ),
+    );
+    const id = await conversationWithSearch(throwaway);
+    expect(
+      await setResultFeedback(db, {
+        userId: throwaway,
+        conversationId: id,
+        messageSeq: 2,
+        helpful: false,
+        reasons: ["other"],
+        comment: "silinecek yorum",
+      }),
+    ).toBe("saved");
+    expect(await voteRow(id)).toHaveLength(1);
+    await withOwnerClient(async (c) => {
+      // Gercek hesap silme akisi api_usage.user_id'yi once NULL'lar (account/delete-account.ts).
+      await c.query("UPDATE api_usage SET user_id = NULL WHERE user_id = $1", [throwaway]);
+      await c.query("DELETE FROM app_user WHERE id = $1", [throwaway]);
+    });
+    expect(await voteRow(id)).toHaveLength(0);
+  });
+
+  it("purges only old comments after 90 days; the vote and reason stay (0079)", async () => {
+    const id = await conversationWithSearch();
+    await setResultFeedback(db, {
+      userId: userA,
+      conversationId: id,
+      messageSeq: 2,
+      helpful: false,
+      reasons: ["slow"],
+      comment: "eskiyecek yorum",
+    });
+    // Taze yorum: dokunulmaz.
+    await purgeExpiredFeedbackComments(db);
+    expect((await voteRow(id))[0].comment).toBe("eskiyecek yorum");
+    // Saati degil satiri eskit: genel temizlik baska testlerin satirlarini etkilemesin.
+    await withOwnerClient((c) =>
+      c.query(
+        "UPDATE chat_result_feedback SET updated_at = now() - interval '91 days' WHERE conversation_id = $1",
+        [id],
+      ),
+    );
+    await purgeExpiredFeedbackComments(db);
+    const row = (await voteRow(id))[0];
+    expect(row).toMatchObject({ helpful: false, reasons: ["slow"], comment: null });
   });
 
   it("tab changes re-run only the existing search with another sort: same intent, no model call", async () => {

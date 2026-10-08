@@ -73,6 +73,13 @@ export type AdminAction =
    */
   | "messages.list_view"
   /**
+   * Sohbet geri bildirimi (karar 0079): ozet/liste goruntulendi (`list_view`) ya da tek
+   * oy ayrintisi acildi (`view`). Yorum, neden metni ve sohbet icerigi YAZILMAZ; yalnizca
+   * filtre ADLARI ve sonuc sayisi.
+   */
+  | "chat_feedback.list_view"
+  | "chat_feedback.view"
+  /**
    * Erken erişim sayacı (karar 0065): platform dışı başvuru sayısı elle
    * değişti. `before.offPlatformCount` / `after.offPlatformCount`; gerekçe
    * `reason`; kişisel veri YAZILMAZ.
@@ -100,6 +107,8 @@ export type AdminTargetType =
   | "form"
   /** Gelen kutusu (`feedback` tablosu; liste görüntüleme, hedef kimliği "-"). */
   | "feedback"
+  /** Sohbet geri bildirimi (`chat_result_feedback`; liste hedefi "-", ayrinti mesaj kimligi). */
+  | "chat_feedback"
   /** Erken erişim sayacı (tek satır, hedef kimliği "1"). */
   | "early_access_counter"
   /** `security.access_denied` hedefi: istenen yetenek adı. */
@@ -114,6 +123,7 @@ export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
   "marketing_campaign",
   "form",
   "feedback",
+  "chat_feedback",
   "early_access_counter",
   "capability",
 ];

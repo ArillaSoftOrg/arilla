@@ -7,6 +7,8 @@ const mocks = vi.hoisted(() => ({
   getChatInterpreter: vi.fn(),
   after: vi.fn(),
   enabled: vi.fn(() => true),
+  setResultFeedback: vi.fn(),
+  quota: vi.fn(),
 }));
 
 vi.mock("../lib/dal.ts", () => ({ verifySession: mocks.verifySession }));
@@ -29,10 +31,16 @@ vi.mock("@arilla/core", async () => {
     createConversation: mocks.createConversation,
     processPendingTurn: mocks.processPendingTurn,
     getChatInterpreter: mocks.getChatInterpreter,
+    setResultFeedback: mocks.setResultFeedback,
+    consumeChatFeedbackQuota: mocks.quota,
   };
 });
 
-import { startChatBootstrapAction, startConversationAction } from "./actions.ts";
+import {
+  startChatBootstrapAction,
+  startConversationAction,
+  submitResultFeedbackAction,
+} from "./actions.ts";
 
 const USER = { id: 7 };
 const ID = "11111111-1111-4111-8111-111111111111";
@@ -44,6 +52,8 @@ beforeEach(() => {
   mocks.createConversation.mockResolvedValue({ status: "created", conversationId: ID });
   mocks.getChatInterpreter.mockReturnValue({ modelVersion: "m" });
   mocks.processPendingTurn.mockResolvedValue({ status: "answered" });
+  mocks.setResultFeedback.mockResolvedValue("saved");
+  mocks.quota.mockResolvedValue(true);
 });
 
 describe("startChatBootstrapAction", () => {
@@ -116,5 +126,56 @@ describe("startConversationAction (JS'siz yol)", () => {
     form.set("q", "merhaba");
     await expect(startConversationAction(form)).rejects.toThrow(`REDIRECT:/sohbet/${ID}`);
     expect(mocks.after).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("submitResultFeedbackAction", () => {
+  it("passes the session user, never a client-supplied one, with reason and comment", async () => {
+    const result = await submitResultFeedbackAction(ID, 2, false, {
+      reasons: ["slow"],
+      comment: "yavas",
+    });
+    expect(result).toEqual({ status: "saved" });
+    expect(mocks.quota).toHaveBeenCalledWith(7);
+    expect(mocks.setResultFeedback).toHaveBeenCalledWith(
+      { db: true },
+      {
+        userId: 7,
+        conversationId: ID,
+        messageSeq: 2,
+        helpful: false,
+        reasons: ["slow"],
+        comment: "yavas",
+      },
+    );
+  });
+
+  it("is unavailable without a session or with the flag off, and writes nothing", async () => {
+    mocks.verifySession.mockResolvedValue(null);
+    expect(await submitResultFeedbackAction(ID, 2, true)).toEqual({ status: "unavailable" });
+    mocks.verifySession.mockResolvedValue(USER);
+    mocks.enabled.mockReturnValue(false);
+    expect(await submitResultFeedbackAction(ID, 2, true)).toEqual({ status: "unavailable" });
+    expect(mocks.setResultFeedback).not.toHaveBeenCalled();
+  });
+
+  it("returns rate_limited over the cap and does not write", async () => {
+    mocks.quota.mockResolvedValue(false);
+    expect(await submitResultFeedbackAction(ID, 2, true)).toEqual({ status: "rate_limited" });
+    expect(mocks.setResultFeedback).not.toHaveBeenCalled();
+  });
+
+  it("fails closed when Redis is unavailable", async () => {
+    const { RedisUnavailableError } = await import("@arilla/core");
+    mocks.quota.mockRejectedValue(new RedisUnavailableError("down"));
+    expect(await submitResultFeedbackAction(ID, 2, true)).toEqual({ status: "unavailable" });
+    expect(mocks.setResultFeedback).not.toHaveBeenCalled();
+  });
+
+  it("rejects a non-boolean vote before touching the limiter", async () => {
+    expect(await submitResultFeedbackAction(ID, 2, "yes" as unknown as boolean)).toEqual({
+      status: "invalid",
+    });
+    expect(mocks.quota).not.toHaveBeenCalled();
   });
 });

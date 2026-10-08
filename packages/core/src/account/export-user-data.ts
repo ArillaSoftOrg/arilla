@@ -16,6 +16,7 @@ import {
   bonusAccount,
   bonusLedger,
   chatMessage,
+  chatResultFeedback,
   click,
   conversation,
   type Database,
@@ -165,7 +166,21 @@ export interface UserDataExport {
     title: string;
     createdAt: Date;
     lastMessageAt: Date;
-    messages: Array<{ seq: number; role: string; kind: string; content: string; createdAt: Date }>;
+    messages: Array<{
+      seq: number;
+      role: string;
+      kind: string;
+      content: string;
+      createdAt: Date;
+      /** Karar 0079: kullanıcının bu yanıta verdiği oy; yalnızca oy varsa bulunur. */
+      feedback?: {
+        helpful: boolean;
+        reasons: string[];
+        comment: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+      };
+    }>;
   }>;
 }
 
@@ -444,12 +459,14 @@ async function exportConversationsSafely(
   userId: number,
 ): Promise<UserDataExport["conversations"]> {
   try {
-    return await exportConversations(db, userId);
+    return await exportConversations(db, userId, true);
   } catch (error) {
     const code =
       (error as { cause?: { code?: string } } | null)?.cause?.code ??
       (error as { code?: string } | null)?.code;
     if (code === "42P01") return [];
+    // 0058 (neden/yorum kolonları) henüz yok: sohbetler yine verilir, oy ayrıntısı olmadan.
+    if (code === "42703") return exportConversations(db, userId, false);
     throw error;
   }
 }
@@ -457,6 +474,7 @@ async function exportConversationsSafely(
 async function exportConversations(
   db: Database,
   userId: number,
+  withFeedback: boolean,
 ): Promise<UserDataExport["conversations"]> {
   const chats = await db
     .select()
@@ -470,6 +488,16 @@ async function exportConversations(
       .from(chatMessage)
       .where(eq(chatMessage.conversationId, chat.id))
       .orderBy(asc(chatMessage.seq));
+    const votes = withFeedback
+      ? new Map(
+          (
+            await db
+              .select()
+              .from(chatResultFeedback)
+              .where(eq(chatResultFeedback.conversationId, chat.id))
+          ).map((vote) => [vote.messageId, vote]),
+        )
+      : new Map<number, typeof chatResultFeedback.$inferSelect>();
     out.push({
       publicId: chat.id,
       title: chat.title,
@@ -481,6 +509,17 @@ async function exportConversations(
         kind: m.kind,
         content: m.content,
         createdAt: m.createdAt,
+        ...(votes.has(m.id)
+          ? {
+              feedback: {
+                helpful: votes.get(m.id)?.helpful ?? false,
+                reasons: votes.get(m.id)?.reasons ?? [],
+                comment: votes.get(m.id)?.comment ?? null,
+                createdAt: votes.get(m.id)?.createdAt as Date,
+                updatedAt: votes.get(m.id)?.updatedAt as Date,
+              },
+            }
+          : {}),
       })),
     });
   }

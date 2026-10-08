@@ -1585,3 +1585,14 @@ CREATE INDEX IF NOT EXISTS chat_attachment_conversation_idx
     ON chat_attachment (conversation_id);
 
 REVOKE UPDATE ON chat_attachment FROM arilla_app;
+
+-- 0058 (karar 0079): sohbet geri bildirimi ayrintilari. Tam metin: migrations/0058_chat_feedback_details.sql.
+ALTER TABLE chat_result_feedback
+    ADD COLUMN IF NOT EXISTS reasons       TEXT[] NOT NULL DEFAULT '{}',
+    ADD COLUMN IF NOT EXISTS comment       TEXT,
+    ADD COLUMN IF NOT EXISTS model_version TEXT;
+-- CHECK: reasons izinli kodlar (<=3), comment 1..500, olumlu oyda reasons bos ve comment NULL.
+CREATE INDEX IF NOT EXISTS chat_result_feedback_created_idx
+    ON chat_result_feedback (created_at DESC);
+CREATE INDEX IF NOT EXISTS chat_result_feedback_helpful_created_idx
+    ON chat_result_feedback (helpful, created_at DESC);

@@ -191,6 +191,8 @@ platform sorununu hafifletir.
 /yonetim/kullanicilar/<id> Hesap ayrıntısı, sekmeler ?sekme=profil|aktivite|izinler|oturumlar|aramalar|affiliate|denetim; tıkla-göster iletişim (taze giriş)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
 /yonetim/mesajlar          Gelen kutusu: iletişim ve geri bildirim mesajları, salt okunur, görüntüleme denetlenir (yalnızca admin, 0061)
+/yonetim/ai-geri-bildirim  AI geri bildirimleri: sohbet oyları, nedenler, yorumlar, eğilim; sohbet metni yok, görüntüleme denetlenir (yalnızca admin, 0079)
+/yonetim/ai-geri-bildirim/[messageId]  Tek oy ayrıntısı (yalnızca admin, 0079)
 /yonetim/erken-erisim      Erken erişim sayacı: platform dışı gerçek başvuru sayısını güncelle (gerekçe zorunlu, denetlenir; yalnızca admin, 0065)
 /yonetim/kampanyalar       Pazarlama e-postası kampanyaları: taslak, test, gönderim (yalnızca admin, 0048)
 /yonetim/kampanyalar/<id> Düzenleme, önizleme, uygun alıcı sayısı, test, onaylı gönderim, durum

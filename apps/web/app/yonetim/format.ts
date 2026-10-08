@@ -181,6 +181,8 @@ const ACTION_LABELS: Record<string, string> = {
   "forms.close": "Form kapatıldı",
   "forms.results_view": "Form sonuçları görüntülendi",
   "messages.list_view": "Gelen kutusu görüntülendi",
+  "chat_feedback.list_view": "AI geri bildirimleri görüntülendi",
+  "chat_feedback.view": "AI geri bildirim ayrıntısı görüntülendi",
   "early_access.counter_set": "Erken erişim sayacı güncellendi",
   "security.access_denied": "Yetkisiz yönetim erişimi reddedildi",
   "security.admin_session_ended": "Yönetim oturumu sonlandırıldı",

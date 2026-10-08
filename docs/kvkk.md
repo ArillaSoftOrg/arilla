@@ -396,3 +396,25 @@ saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).
 - **Etkinleştirme öncesi (açık):** hukuk danışmanı onayı (0059 yalnızca filtrelenmiş
   toplu sorgu içindi), aydınlatma/gizlilik metninde sohbet içeriği ve 90 gün saklama,
   `/hesap/veri-indir` kapsamına sohbetlerin eklenmesi kararı.
+
+### Sohbet geri bildirimi: neden ve yorum (karar 0079)
+
+- Veri: yanıt başına evet/hayır oyu (`chat_result_feedback`), olumsuzda isteğe bağlı
+  neden kodu (`reasons`) ve en çok 500 karakterlik serbest metin `comment`; oy anındaki
+  yaklaşık `model_version`. Kişi kimliği ayrı kolonda tutulmaz: sahiplik
+  `conversation.user_id` üzerinden; oy sohbetle birlikte (hesap silme, 90 gün) gider.
+- **Yorum kişisel veri içerebilir.** Arayüz "kişisel bilgi yazma" uyarısı verir. Yorum
+  son değişiklikten 90 gün sonra `NULL`'lanır (`cleanup-auth`, `purgeExpiredFeedbackComments`);
+  oy ve neden istatistiği kalır. Kamuya açık saklama süresi hukuk onayı bekler.
+- Amaç: hizmet kalitesi analizi. **Model eğitimi için kullanılmaz;** oylar modeli
+  otomatik değiştirmez, yalnızca kontrollü iyileştirme sinyalidir.
+- Yönetici erişimi: yalnızca `feedback.chat.read` (yönetici rolü); oy, neden, yorum ve
+  mesaj referansı görülür, **sohbet metni görülmez.** Her liste/detay görüntüleme
+  `admin_audit_event`'e yazılır (yorum ve neden yazılmaz).
+- Veri indirme: `/hesap/veri-indir` çıktısında her mesajın oyu (neden, yorum) bulunur.
+- **Etkinleştirme öncesi (açık):** `/gizlilik` ve `/kvkk-aydinlatma` metninde sohbet
+  içeriği, geri bildirim yorumu ve saklama süresi (sohbet bayrağı açılmadan önce, hukuk
+  onayıyla).
+- **Sohbet bağlamına yönetici erişimi bu kararda yoktur.** Ayrı faz için koşullar: kullanıcı
+  onayı (varsayılan kapalı, paylaşılacak mesajlar gösterilir), yalnızca seçilen kapsam, ayrı
+  capability, her erişim denetimde, aydınlatma metni ve hukuki inceleme.

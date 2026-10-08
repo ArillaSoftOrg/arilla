@@ -3,6 +3,7 @@ export * from "./bounds.ts";
 export * from "./capabilities.ts";
 export * from "./catalog.ts";
 export * from "./catalog-quality.ts";
+export * from "./chat-feedback.ts";
 export * from "./cost-truth.ts";
 export * from "./dashboard.ts";
 export * from "./early-access.ts";
