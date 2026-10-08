@@ -137,6 +137,8 @@ Kurallar:
 
 Bu kurallar ilk görsel arama satırı yazılmadan önce uygulanmalıdır.
 
+**Sohbet eki (karar 0078).** Sohbete eklenen görsel yalnızca sahibine görünür, sohbetle aynı ömürde (en fazla 90 gün) tutulur ve Gemini'ye gönderilir; yalnızca `CHAT_IMAGE_ENABLED` ile, hukuk onayı ve açık rıza metni sonrası açılır.
+
 ## İlgili kişi hakları
 
 KVKK m.11 kapsamındaki haklar `/hesap` altından fiilen kullanılabilmelidir:

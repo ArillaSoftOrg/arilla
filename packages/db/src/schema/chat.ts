@@ -2,6 +2,7 @@
 import {
   bigint,
   boolean,
+  customType,
   integer,
   jsonb,
   pgTable,
@@ -9,6 +10,13 @@ import {
   timestamp,
   uuid,
 } from "drizzle-orm/pg-core";
+
+/** Postgres BYTEA <-> Node Buffer. */
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({
+  dataType() {
+    return "bytea";
+  },
+});
 
 export type ChatMessageRole = "user" | "assistant";
 export type ChatMessageKind = "text" | "option" | "skip" | "clarify" | "search" | "notice";
@@ -50,4 +58,20 @@ export const chatResultFeedback = pgTable("chat_result_feedback", {
   helpful: boolean("helpful").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * 0057 (karar 0078): ilk mesaja eklenen on islenmis urun fotografi. Mesaj
+ * `payload.attachmentId` ile baglanir. Sohbetle birlikte silinir; yalnizca sahibine sunulur.
+ */
+export const chatAttachment = pgTable("chat_attachment", {
+  id: uuid("id").primaryKey().defaultRandom(),
+  conversationId: uuid("conversation_id").notNull(),
+  userId: bigint("user_id", { mode: "number" }).notNull(),
+  mimeType: text("mime_type").$type<"image/jpeg" | "image/png">().notNull(),
+  data: bytea("data").notNull(),
+  width: integer("width").notNull(),
+  height: integer("height").notNull(),
+  sha256: text("sha256").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });

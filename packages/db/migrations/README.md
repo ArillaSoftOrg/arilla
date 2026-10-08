@@ -68,6 +68,7 @@ migration'lar olusturur.
 | `0054_conversation.sql` | Konusmali urun kesfi (0074): `conversation` (sahip `user_id`, birlestirilmis `current_search_intent`, acik `pending_question`, `processing_until` kirasi) ve `chat_message` (UNIQUE `(conversation_id, seq)`, kismi UNIQUE `(conversation_id, client_request_id)`, role/kind CHECK). Mesajlar kisisel veridir: hesap silinince CASCADE, 90 gun saklama. `arilla_app`'ten `chat_message` UPDATE geri alinir. Yeni tablolar, geriye uyumlu. |
 | `0055_chat_result_feedback.sql` | Sohbet sonuc geri bildirimi (0075): mesaj basina tek evet/hayir oyu (`chat_result_feedback`, PK `message_id`, CASCADE). Metin tasimaz. Yeni tablo, geriye uyumlu. |
 | `0056_trend_collections.sql` | Editoryal trend koleksiyonlari (0077): `trend` (slug UNIQUE, status/trend_type/category CHECK, yayin penceresi, `hero_image_url` bos olabilir) ve `trend_product` (PK `(trend_id, product_id)`, ertelenmis UNIQUE `(trend_id, sort_order)`, FK CASCADE) + 50 trendin kimlik tohumu. Urun baglari burada yok; `services/ingest/curate` doldurur. `trend_snapshot` ayri kalir. Yeni tablolar, geriye uyumlu. |
+| `0057_chat_attachment.sql` | Sohbet gorsel eki (0078): `chat_attachment` (on islenmis <=512 px gorsel BYTEA, <=512 KB CHECK, sohbete CASCADE, UPDATE geri alindi). Yeni tablo, geriye uyumlu. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori
