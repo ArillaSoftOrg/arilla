@@ -699,3 +699,68 @@ export function toDateTimeLocalValue(date: Date | null): string {
   if (!date) return "";
   return new Date(date.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 16);
 }
+
+/* ---- Karar 0085: analitik merkez etiketleri ---- */
+
+const PERCENT_FORMAT = new Intl.NumberFormat("tr-TR", {
+  style: "percent",
+  maximumFractionDigits: 1,
+});
+
+/** Pay/payda yüzdesi; payda 0 ise "—" (0/0 oran uydurulmaz). */
+export function formatPercent(part: number, whole: number): string {
+  return whole > 0 ? PERCENT_FORMAT.format(part / whole) : "—";
+}
+
+const INTERPRETATION_STATUS_LABELS: Record<string, string> = {
+  accepted: "Kabul edildi",
+  empty: "Niyet bulunamadı",
+  invalid: "Geçersiz çıktı",
+};
+
+export function interpretationStatusLabel(value: string): string {
+  return INTERPRETATION_STATUS_LABELS[value] ?? value;
+}
+
+const CHAT_KIND_LABELS: Record<string, string> = {
+  clarify: "Netleştirme sorusu",
+  search: "Arama yanıtı",
+  notice: "Bilgi / sınır mesajı",
+};
+
+export function chatKindLabel(value: string): string {
+  return CHAT_KIND_LABELS[value] ?? value;
+}
+
+const AFFILIATE_STATUS_LABELS: Record<string, string> = {
+  none: "Yok",
+  pending: "Bekliyor",
+  active: "Etkin",
+  suspended: "Askıda",
+};
+
+export function affiliateStatusLabel(value: string): string {
+  return AFFILIATE_STATUS_LABELS[value] ?? value;
+}
+
+const MATCH_METHOD_LABELS: Record<string, string> = {
+  gtin: "GTIN",
+  mpn: "MPN",
+  text: "Metin",
+  image: "Görsel",
+  hybrid: "Karma",
+};
+
+export function matchMethodLabel(value: string): string {
+  return MATCH_METHOD_LABELS[value] ?? value;
+}
+
+const IMAGE_STATUS_LABELS: Record<string, string> = {
+  active: "Etkin",
+  removed: "Kaynaktan kalktı",
+  broken: "Kırık",
+};
+
+export function imageStatusLabel(value: string): string {
+  return IMAGE_STATUS_LABELS[value] ?? value;
+}

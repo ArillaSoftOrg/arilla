@@ -78,7 +78,24 @@ export type Capability =
    * (karar 0065). Kamuya açık sayıyı değiştirir; yalnızca yönetici, gerekçe
    * zorunlu, her değişiklik denetime yazılır.
    */
-  | "early_access.manage";
+  | "early_access.manage"
+  /**
+   * `/yonetim/ai` (karar 0085): model kullanımı, token, tahmini maliyet, kota ve
+   * sağlayıcı tavanı — yalnızca toplamlar; kullanıcı başına AI maliyeti ve
+   * sohbet içeriği bu yetenekle de görünmez. Yalnızca yönetici.
+   */
+  | "ai.read"
+  /**
+   * `/yonetim/yolculuk` (karar 0085): kayıt, rıza oranı, arama ve rızalı
+   * huni örneklemi; kimliksiz toplamlar, küçük hücreler gizlenir. Yalnızca
+   * yönetici.
+   */
+  | "analytics.read"
+  /**
+   * `/yonetim/affiliate` (karar 0085): mağaza çıkışı (attribution) toplamları
+   * ve affiliate kapsamı. Ticari bilgi; yalnızca yönetici.
+   */
+  | "affiliate.read";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -120,6 +137,10 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "users.sessions.revoke",
   // Karar 0065: herkese gorunen erken erisim sayisini yalnizca yonetici degistirir.
   "early_access.manage",
+  // Karar 0085: analitik merkez ekranlari (toplamlar) yalnizca yoneticinin.
+  "ai.read",
+  "analytics.read",
+  "affiliate.read",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

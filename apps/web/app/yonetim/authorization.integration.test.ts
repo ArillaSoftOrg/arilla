@@ -318,6 +318,22 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
         params: Promise.resolve({ messageId: String(feedbackMessageId) }),
       }),
   },
+  // Karar 0085: analitik merkez ekranları (yalnızca yönetici).
+  {
+    name: "/yonetim/ai",
+    admin: true,
+    call: async () => (await import("./ai/page.tsx")).default(sp({})),
+  },
+  {
+    name: "/yonetim/yolculuk",
+    admin: true,
+    call: async () => (await import("./yolculuk/page.tsx")).default(sp({})),
+  },
+  {
+    name: "/yonetim/affiliate",
+    admin: true,
+    call: async () => (await import("./affiliate/page.tsx")).default(sp({})),
+  },
   {
     name: "/yonetim/erken-erisim",
     admin: true,

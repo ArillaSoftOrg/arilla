@@ -13,6 +13,9 @@
  * açıklamaları görünür; dokunmatikte kontroller ≥ 44px, bağlantılar ≥ 24px;
  * iki temada metin kontrastı WCAG AA.
  */
+import { readdirSync, statSync } from "node:fs";
+import { dirname, join, relative, sep } from "node:path";
+import { fileURLToPath } from "node:url";
 import { generateRawToken, hashToken } from "@arilla/core";
 import { rejectAll, serializeConsent } from "@arilla/core/cookie-consent";
 import { createDatabase } from "@arilla/db";
@@ -49,6 +52,7 @@ const fixture = {
   productId: 0,
   formId: 0,
   campaignPublicId: "",
+  feedbackMessageId: 0,
 };
 let browser: Browser | undefined;
 let page: CdpPage;
@@ -70,6 +74,7 @@ function pages(): string[] {
     "/yonetim/arama/gorsel",
     "/yonetim/arama/link",
     "/yonetim/ai-geri-bildirim",
+    `/yonetim/ai-geri-bildirim/${fixture.feedbackMessageId}`,
     "/yonetim/kullanicilar",
     `/yonetim/kullanicilar/${fixture.adminPublicId}`,
     "/yonetim/erken-erisim",
@@ -84,6 +89,11 @@ function pages(): string[] {
     "/yonetim/islemler",
     "/yonetim/islemler/isler",
     "/yonetim/denetim",
+    "/yonetim/ai",
+    "/yonetim/ai?gun=30",
+    "/yonetim/yolculuk",
+    "/yonetim/affiliate",
+    "/yonetim/affiliate?durum=active",
   ];
 }
 
@@ -122,6 +132,21 @@ beforeAll(async () => {
     [`${TAG} kampanya`],
   );
   fixture.campaignPublicId = String(campaign.rows[0].public_id);
+  // AI geri bildirim ayrıntısı için: sohbet + yanıt + oy (hesap silinince CASCADE).
+  const conversation = await db.query(
+    "INSERT INTO conversation (user_id, title) VALUES ($1, 'Duyarlılık sohbeti') RETURNING id",
+    [fixture.adminId],
+  );
+  const message = await db.query(
+    `INSERT INTO chat_message (conversation_id, seq, role, kind, content)
+     VALUES ($1, 1, 'assistant', 'notice', 'Duyarlılık yanıtı') RETURNING id`,
+    [conversation.rows[0].id],
+  );
+  fixture.feedbackMessageId = Number(message.rows[0].id);
+  await db.query(
+    "INSERT INTO chat_result_feedback (message_id, conversation_id, helpful) VALUES ($1, $2, TRUE)",
+    [fixture.feedbackMessageId, conversation.rows[0].id],
+  );
 
   browser = await Browser.launch(CHROME);
   page = await browser.newPage();
@@ -191,6 +216,37 @@ const CONTRAST_PROBE = `(() => {
   }
   return low.slice(0, 5);
 })()`;
+
+describe("sayfa listesi eksiksiz (karar 0085)", () => {
+  it("yönetimdeki her page.tsx bu testin sayfa listesinde", () => {
+    const dir = join(dirname(fileURLToPath(import.meta.url)), "../app/yonetim");
+    const routes: string[] = [];
+    const walk = (abs: string) => {
+      for (const name of readdirSync(abs)) {
+        const path = join(abs, name);
+        if (statSync(path).isDirectory()) walk(path);
+        else if (name === "page.tsx") {
+          const rel = relative(dir, dirname(path)).split(sep).join("/");
+          routes.push(rel === "" ? "/yonetim" : `/yonetim/${rel}`);
+        }
+      }
+    };
+    walk(dir);
+    // Fikstür değerleri rota parametresine geri çevrilir; sorgu dizisi atılır.
+    const listed = new Set(
+      pages().map((path) =>
+        (path.split("?")[0] as string)
+          .replace(`/magazalar/${fixture.merchantSlug}`, "/magazalar/[slug]")
+          .replace(/\/katalog\/urunler\/[^/]+$/, "/katalog/urunler/[id]")
+          .replace(/\/kullanicilar\/[^/]+$/, "/kullanicilar/[publicId]")
+          .replace(/\/formlar\/(?!yeni)[^/]+/, "/formlar/[id]")
+          .replace(/\/kampanyalar\/[^/]+$/, "/kampanyalar/[publicId]")
+          .replace(/\/ai-geri-bildirim\/[^/]+$/, "/ai-geri-bildirim/[messageId]"),
+      ),
+    );
+    expect(routes.filter((route) => !listed.has(route)).sort()).toEqual([]);
+  });
+});
 
 describe.skipIf(!CHROME)("yönetim arayüzü - duyarlılık (gerçek Chrome)", () => {
   for (const width of WIDTHS) {
@@ -332,7 +388,7 @@ describe.skipIf(!CHROME)("yönetim arayüzü - duyarlılık (gerçek Chrome)", (
       };
     })()`);
     expect(alerts.withAction).toBe(alerts.items);
-    expect(alerts.kpis).toBe(9);
+    expect(alerts.kpis).toBe(12);
   }, 60_000);
 
   for (const scheme of ["light", "dark"] as const) {

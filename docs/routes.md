@@ -199,6 +199,9 @@ platform sorununu hafifletir.
 /yonetim/formlar          Form / anket merkezi: liste, yeni form, aç/kapat (yalnızca admin, 0058)
 /yonetim/formlar/<id>     Düzenleme, yayın, paylaşım bağlantısı
 /yonetim/formlar/<id>/sonuclar  Özet sayılar, seçenek dağılımı, metin yanıtları
+/yonetim/ai                AI operasyonları: işlem × model çağrı, token, tahmini maliyet, sağlayıcı tavanı, arama hakkı kotası, sohbet sayıları (içerik yok); ?gun=1|7|30 (yalnızca admin, 0085)
+/yonetim/yolculuk          Kullanıcı yolculuğu: kayıt/giriş, rıza oranları, kimliksiz arama, rızalı huni örneklemi (5'ten az kişi gizli), fiyat alarmı, davet, bonus (yalnızca admin, 0085)
+/yonetim/affiliate         Affiliate: mağaza/yüzey/kanal/gün çıkış toplamı, kapsam; dönüşüm ve gelir dış entegrasyon bekliyor (yalnızca admin, 0085)
 /yonetim/trend             (ertelendi) trend_snapshot yayınlama onayı
 ```
 

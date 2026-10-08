@@ -158,7 +158,7 @@ export default async function AdminOverviewPage() {
               note={[cost24h.note, `7 gün: ${cost7d.value}`].filter(Boolean).join(" · ")}
               tone={cost24h.note !== null ? "warning" : "neutral"}
               basis="estimate"
-              href={linkIf("operations.read", "/yonetim/islemler#maliyet")}
+              href={linkIf("ai.read", "/yonetim/ai")}
             />
             <KpiCard
               label="Metin araması (7 gün)"
@@ -207,6 +207,31 @@ export default async function AdminOverviewPage() {
               value={formatCount(overview.newUsers7d)}
               basis="count"
               href={linkIf("users.read", "/yonetim/kullanicilar")}
+            />
+            <KpiCard
+              label="Mağaza çıkışı (7 gün)"
+              value={overview.clicks7d === null ? "Hesaplanamadı" : formatCount(overview.clicks7d)}
+              note={
+                overview.clicks7d === null
+                  ? "Sayım zaman aşımına uğradı (click zaman indeksi yok)"
+                  : "Attribution kaydı; davranış analitiği değil"
+              }
+              tone={overview.clicks7d === null ? "warning" : "neutral"}
+              basis="count"
+              href={linkIf("affiliate.read", "/yonetim/affiliate")}
+            />
+            <KpiCard
+              label="Aktif sohbet (7 gün)"
+              value={formatCount(overview.activeConversations7d)}
+              note="Mesajı olan konuşma; içerik gösterilmez"
+              basis="count"
+              href={linkIf("ai.read", "/yonetim/ai#sohbet")}
+            />
+            <KpiCard
+              label="Aktif fiyat alarmı"
+              value={formatCount(overview.activePriceAlerts)}
+              basis="count"
+              href={linkIf("analytics.read", "/yonetim/yolculuk#alarmlar")}
             />
           </div>
         </section>

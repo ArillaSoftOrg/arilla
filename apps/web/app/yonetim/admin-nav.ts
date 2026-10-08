@@ -83,6 +83,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     label: "Arama ve AI",
     items: [
       {
+        href: "/yonetim/ai",
+        label: "AI operasyonları",
+        capability: "ai.read",
+        description: "Model çağrısı, token, tahmini maliyet, kota ve sağlayıcı tavanı.",
+      },
+      {
         href: "/yonetim/arama/tani",
         label: "Arama tanısı",
         capability: "diagnostics.read",
@@ -124,6 +130,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "Hesap arama ve ayrıntısı.",
       },
       {
+        href: "/yonetim/yolculuk",
+        label: "Kullanıcı yolculuğu",
+        capability: "analytics.read",
+        description: "Kayıt, rıza oranı, arama ve rızalı huni örneklemi (toplamlar).",
+      },
+      {
         href: "/yonetim/erken-erisim",
         label: "Erken erişim sayacı",
         capability: "early_access.manage",
@@ -146,6 +158,17 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         label: "E-posta kampanyaları",
         capability: "marketing.manage",
         description: "Pazarlama e-postası taslakları ve gönderimleri.",
+      },
+    ],
+  },
+  {
+    label: "Gelir",
+    items: [
+      {
+        href: "/yonetim/affiliate",
+        label: "Affiliate",
+        capability: "affiliate.read",
+        description: "Mağaza çıkışları, affiliate kapsamı; dönüşüm entegrasyon bekliyor.",
       },
     ],
   },

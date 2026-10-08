@@ -941,7 +941,9 @@ details > .navList {
   font-variant-numeric: tabular-nums;
 }
 
-.table th.num {
+/* `.table td` (0,1,1) `.num`'u (0,1,0) eziyordu: sayısal hücre başlığıyla hizalı. */
+.table th.num,
+.table td.num {
   text-align: right;
 }
 
