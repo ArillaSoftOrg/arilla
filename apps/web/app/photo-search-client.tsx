@@ -5,7 +5,12 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { uploadImageForSearch } from "./ara/gorsel/actions.ts";
-import { SEARCH_RIGHTS_COPY, SEARCH_RIGHTS_HREF } from "./ara/search-rights-copy.ts";
+import {
+  bonusCanHelp,
+  SEARCH_RIGHTS_COPY,
+  SEARCH_RIGHTS_HREF,
+  SEARCH_RIGHTS_NO_RIGHTS,
+} from "./ara/search-rights-copy.ts";
 import { LoginGateModal } from "./login-gate-modal-client.tsx";
 import styles from "./photo-search-client.module.css";
 
@@ -19,7 +24,6 @@ const ERROR_COPY: Record<string, string> = {
   too_large: "Fotoğraf çok büyük. 4 MB'tan küçük bir dosya dener misin?",
   invalid_type: "Bir şeyler ters gitti. Tekrar dener misin?",
   unprocessable: "Bu görseli işleyemedik. Başka bir fotoğrafla yeniden dener misin?",
-  no_rights: SEARCH_RIGHTS_COPY.noRights,
   rate_limited: SEARCH_RIGHTS_COPY.rateLimited,
   busy: SEARCH_RIGHTS_COPY.busy,
   retry: "Bir şeyler ters gitti. Tekrar dener misin?",
@@ -62,7 +66,12 @@ export function usePhotoSearchUpload() {
         setLoginOpen(true);
         return;
       }
-      setNoRights(result.status === "no_rights");
+      if (result.status === "no_rights") {
+        // Bonus kazanma yolu yalnizca gun/hafta/ay dolunca ise yarar.
+        setNoRights(bonusCanHelp(result.window));
+        setError(SEARCH_RIGHTS_NO_RIGHTS[result.window]);
+        return;
+      }
       setError(
         ERROR_COPY[result.status] ??
           ERROR_COPY.error ??

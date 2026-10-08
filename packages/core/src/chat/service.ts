@@ -23,6 +23,13 @@ import {
 } from "@arilla/db";
 import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
 import type { LlmErrorCode } from "../llm/client.ts";
+import {
+  consumeQuota,
+  type QuotaConsumer,
+  type QuotaReleaser,
+  releaseQuota,
+} from "../quota/redis-windows.ts";
+import { isRedisUnavailableError } from "../redis/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
 import {
@@ -30,6 +37,7 @@ import {
   CHAT_LEASE_SECONDS,
   CHAT_RETENTION_DAYS,
   CHAT_TURN_OPERATION,
+  chatMessageLimits,
   chatTurnsPerHour,
   isChatImageEnabled,
   isChatLinkEnabled,
@@ -250,7 +258,7 @@ function requestKeyOrNull(value: string | undefined): string | null {
   return value !== undefined && value.length >= 8 && value.length <= 100 ? value : null;
 }
 
-/** Kullanicinin son bir saatteki mesaj sayisi (tum sohbetler). Model maliyet tavani. */
+/** Kullanicinin son bir saatteki mesaj sayisi (tum sohbetler). Redis yokken yedek tavan. */
 async function recentUserMessageCount(db: Executor, userId: number): Promise<number> {
   const result = await db.execute(sql`
     SELECT count(*)::int AS n
@@ -262,6 +270,49 @@ async function recentUserMessageCount(db: Executor, userId: number): Promise<num
   `);
   const row = result.rows[0] as { n?: number } | undefined;
   return row?.n ?? 0;
+}
+
+/** Testler icin enjekte edilebilir kota islevleri; varsayilan Redis. */
+export interface ChatQuotaOptions {
+  consume?: QuotaConsumer;
+  release?: QuotaReleaser;
+}
+
+/**
+ * Bir kullanici mesaji = `chat_message` havuzundan 1 (`quota/policy.ts`, saat/
+ * gun/hafta/ay). Yalnizca mesaj GERCEKTEN yazilacaksa cagrilir (tekrar,
+ * mesgul, dolu, gecersiz girdi harcamaz). Redis erisilemezse bugunku DB
+ * saatlik sayimina duser: sohbet kesilmez, tavan yine uygulanir.
+ * `consumed`: yazma basarisiz olursa geri verilecek bir Redis harcamasi var mi.
+ */
+async function consumeChatMessageQuota(
+  db: Executor,
+  userId: number,
+  options: ChatQuotaOptions,
+): Promise<{ allowed: boolean; consumed: boolean }> {
+  try {
+    const result = await (options.consume ?? consumeQuota)({
+      pool: "chat_message",
+      subject: `user:${userId}`,
+      limits: chatMessageLimits(),
+    });
+    return { allowed: result.allowed, consumed: result.allowed };
+  } catch (error) {
+    if (!isRedisUnavailableError(error)) throw error;
+    console.error("[chat] message quota store unavailable; hourly db cap applies");
+    return {
+      allowed: (await recentUserMessageCount(db, userId)) < chatTurnsPerHour(),
+      consumed: false,
+    };
+  }
+}
+
+async function releaseChatMessageQuota(userId: number, options: ChatQuotaOptions): Promise<void> {
+  try {
+    await (options.release ?? releaseQuota)({ pool: "chat_message", subject: `user:${userId}` });
+  } catch {
+    // Iade edilemezse kullanici bir mesaj hakki kaybeder; yazma hatasi zaten donuyor.
+  }
 }
 
 /** Karar 0078: `preprocessImage` ciktisi (<= 512 KB; DB CHECK ile ayni sinir). */
@@ -318,6 +369,7 @@ export async function createConversation(
     requestKey?: string;
     attachment?: ChatAttachmentInput;
   },
+  quotaOptions: ChatQuotaOptions = {},
 ): Promise<CreateConversationResult> {
   const attachment = input.attachment;
   if (attachment && !validAttachment(attachment)) return { status: "invalid_input" };
@@ -328,9 +380,23 @@ export async function createConversation(
     const existing = await findConversationByRequestKey(db, input.userId, requestKey);
     if (existing) return { status: "created", conversationId: existing };
   }
-  if ((await recentUserMessageCount(db, input.userId)) >= chatTurnsPerHour()) {
-    return { status: "rate_limited" };
+  const quota = await consumeChatMessageQuota(db, input.userId, quotaOptions);
+  if (!quota.allowed) return { status: "rate_limited" };
+  try {
+    return await insertConversation(db, input, text, requestKey, attachment);
+  } catch (error) {
+    if (quota.consumed) await releaseChatMessageQuota(input.userId, quotaOptions);
+    throw error;
   }
+}
+
+function insertConversation(
+  db: Database,
+  input: { userId: number },
+  text: string | null,
+  requestKey: string | null,
+  attachment: ChatAttachmentInput | undefined,
+): Promise<CreateConversationResult> {
   return db.transaction(async (tx) => {
     const [created] = await tx
       .insert(conversation)
@@ -402,91 +468,109 @@ export async function submitUserMessage(
     request: ChatInputRequest;
     requestKey?: string;
   },
+  quotaOptions: ChatQuotaOptions = {},
 ): Promise<SubmitMessageResult> {
   if (!isUuid(input.conversationId)) return { status: "not_found" };
   const requestKey = requestKeyOrNull(input.requestKey);
 
-  // Kisa, kilitsiz on kontrol: model maliyet tavani.
-  if ((await recentUserMessageCount(db, input.userId)) >= chatTurnsPerHour()) {
-    // Ayni anahtarla tekrar gelen istek tavanda da "duplicate" sayilmali; asagida kontrol edilir.
-    if (requestKey === null || !(await requestKeyExists(db, input.conversationId, requestKey))) {
-      return { status: "rate_limited" };
-    }
+  // Kota mesaj yazilacagi kesinlesince (islem icinde, tum kontrollerden sonra)
+  // harcanir; yazma basarisiz olursa geri verilir.
+  let consumed = false;
+  try {
+    return await db.transaction(
+      async (tx): Promise<SubmitMessageResult> =>
+        submitInTx(tx, input, requestKey, quotaOptions, () => {
+          consumed = true;
+        }),
+    );
+  } catch (error) {
+    if (consumed) await releaseChatMessageQuota(input.userId, quotaOptions);
+    throw error;
+  }
+}
+
+async function submitInTx(
+  tx: Tx,
+  input: { userId: number; conversationId: string; request: ChatInputRequest },
+  requestKey: string | null,
+  quotaOptions: ChatQuotaOptions,
+  onConsumed: () => void,
+): Promise<SubmitMessageResult> {
+  const [row] = await tx
+    .select()
+    .from(conversation)
+    .where(and(eq(conversation.id, input.conversationId), eq(conversation.userId, input.userId)))
+    .for("update");
+  if (!row) return { status: "not_found" };
+
+  if (requestKey !== null && (await requestKeyExists(tx, row.id, requestKey))) {
+    return { status: "duplicate" };
   }
 
-  return db.transaction(async (tx): Promise<SubmitMessageResult> => {
-    const [row] = await tx
-      .select()
-      .from(conversation)
-      .where(and(eq(conversation.id, input.conversationId), eq(conversation.userId, input.userId)))
-      .for("update");
-    if (!row) return { status: "not_found" };
+  const [last] = await tx
+    .select({ role: chatMessage.role })
+    .from(chatMessage)
+    .where(and(eq(chatMessage.conversationId, row.id), eq(chatMessage.seq, row.messageCount)));
+  if (last?.role === "user") return { status: "busy" };
 
-    if (requestKey !== null && (await requestKeyExists(tx, row.id, requestKey))) {
-      return { status: "duplicate" };
-    }
+  const userMessages = await tx.execute(sql`
+    SELECT count(*)::int AS n FROM chat_message
+     WHERE conversation_id = ${row.id} AND role = 'user'
+  `);
+  if (
+    ((userMessages.rows[0] as { n?: number } | undefined)?.n ?? 0) >=
+    MAX_USER_MESSAGES_PER_CONVERSATION
+  ) {
+    return { status: "conversation_full" };
+  }
 
-    const [last] = await tx
-      .select({ role: chatMessage.role })
-      .from(chatMessage)
-      .where(and(eq(chatMessage.conversationId, row.id), eq(chatMessage.seq, row.messageCount)));
-    if (last?.role === "user") return { status: "busy" };
+  const pending = parseClarifyQuestion(row.pendingQuestion);
+  let kind: "text" | "option" | "skip";
+  let content: string;
+  let payload: Record<string, unknown> | null = null;
+  const request = input.request;
+  if (request.kind === "text") {
+    const text = cleanUserText(request.text);
+    if (text === null) return { status: "invalid_input" };
+    kind = "text";
+    content = text;
+    if (pending) payload = { answersQuestion: pending.id };
+  } else if (request.kind === "option") {
+    // Gecerli secenek sunucuda dogrulanir: istemci etiket ya da deger uyduramaz.
+    const option =
+      pending && pending.id === request.questionId
+        ? pending.options.find((candidate) => candidate.value === request.value)
+        : undefined;
+    if (!option || !pending) return { status: "invalid_option" };
+    kind = "option";
+    content = option.label;
+    payload = { questionId: pending.id, value: option.value };
+  } else {
+    if (!pending || pending.id !== request.questionId) return { status: "invalid_option" };
+    kind = "skip";
+    content = "Atla";
+    payload = { questionId: pending.id };
+  }
 
-    const userMessages = await tx.execute(sql`
-      SELECT count(*)::int AS n FROM chat_message
-       WHERE conversation_id = ${row.id} AND role = 'user'
-    `);
-    if (
-      ((userMessages.rows[0] as { n?: number } | undefined)?.n ?? 0) >=
-      MAX_USER_MESSAGES_PER_CONVERSATION
-    ) {
-      return { status: "conversation_full" };
-    }
+  const quota = await consumeChatMessageQuota(tx, input.userId, quotaOptions);
+  if (!quota.allowed) return { status: "rate_limited" };
+  if (quota.consumed) onConsumed();
 
-    const pending = parseClarifyQuestion(row.pendingQuestion);
-    let kind: "text" | "option" | "skip";
-    let content: string;
-    let payload: Record<string, unknown> | null = null;
-    const request = input.request;
-    if (request.kind === "text") {
-      const text = cleanUserText(request.text);
-      if (text === null) return { status: "invalid_input" };
-      kind = "text";
-      content = text;
-      if (pending) payload = { answersQuestion: pending.id };
-    } else if (request.kind === "option") {
-      // Gecerli secenek sunucuda dogrulanir: istemci etiket ya da deger uyduramaz.
-      const option =
-        pending && pending.id === request.questionId
-          ? pending.options.find((candidate) => candidate.value === request.value)
-          : undefined;
-      if (!option || !pending) return { status: "invalid_option" };
-      kind = "option";
-      content = option.label;
-      payload = { questionId: pending.id, value: option.value };
-    } else {
-      if (!pending || pending.id !== request.questionId) return { status: "invalid_option" };
-      kind = "skip";
-      content = "Atla";
-      payload = { questionId: pending.id };
-    }
-
-    const seq = row.messageCount + 1;
-    await tx.insert(chatMessage).values({
-      conversationId: row.id,
-      seq,
-      role: "user",
-      kind,
-      content,
-      payload,
-      clientRequestId: requestKey,
-    });
-    await tx
-      .update(conversation)
-      .set({ messageCount: seq, lastMessageAt: sql`now()`, updatedAt: sql`now()` })
-      .where(eq(conversation.id, row.id));
-    return { status: "queued", seq };
+  const seq = row.messageCount + 1;
+  await tx.insert(chatMessage).values({
+    conversationId: row.id,
+    seq,
+    role: "user",
+    kind,
+    content,
+    payload,
+    clientRequestId: requestKey,
   });
+  await tx
+    .update(conversation)
+    .set({ messageCount: seq, lastMessageAt: sql`now()`, updatedAt: sql`now()` })
+    .where(eq(conversation.id, row.id));
+  return { status: "queued", seq };
 }
 
 async function requestKeyExists(

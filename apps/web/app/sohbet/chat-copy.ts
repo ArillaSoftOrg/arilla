@@ -106,8 +106,10 @@ export const CHAT_ERROR_COPY: Record<ChatErrorKind, ChatErrorCopy> = {
     searchDirectly: false,
     newChat: false,
   },
+  // Saat/gun/hafta/ay sohbet mesaji sinirlarindan biri doldu (quota/policy.ts).
   rate_limited: {
-    message: "Kısa sürede çok fazla mesaj gönderdin. Biraz sonra tekrar dene.",
+    message:
+      "Şimdilik sohbet mesajı sınırına ulaştın. Aramayı doğrudan yapabilirsin; sınırın yenilenince sohbete devam edebilirsin.",
     retry: false,
     searchDirectly: true,
     newChat: false,

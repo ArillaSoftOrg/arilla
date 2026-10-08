@@ -17,9 +17,10 @@
  * yapildigi gune (`charge.day`) geri yazar, bugune degil.
  */
 import type { AiSearchChargeState, AiSearchOperation, Database } from "@arilla/db";
-import { sql } from "drizzle-orm";
+import { type SQL, sql } from "drizzle-orm";
+import type { QuotaWindow } from "../quota/policy.ts";
 import { lockBonusAccount } from "./bonus.ts";
-import { AI_OPERATION_COST, dailySearchLimit } from "./config.ts";
+import { AI_OPERATION_COST, dailySearchLimit, SEARCH_RIGHTS_LIMITS } from "./config.ts";
 import { rows, type Tx, uniqueViolationConstraint } from "./db.ts";
 import { qualifyReferralInTx } from "./referral.ts";
 import { splitCharge } from "./split.ts";
@@ -37,11 +38,69 @@ export function isValidRequestKey(value: unknown): value is string {
   return typeof value === "string" && REQUEST_KEY_PATTERN.test(value);
 }
 
+/** Islem ani; `now` verilmezse veritabaninin saati. */
+function atSql(now: Date | undefined): SQL {
+  return now ? sql`(${now.toISOString()}::timestamptz)` : sql`now()`;
+}
+
 /** Istanbul takvim gunu; `now` verilmezse veritabaninin saati. */
 function istanbulDaySql(now: Date | undefined) {
-  return now
-    ? sql`((${now.toISOString()}::timestamptz) AT TIME ZONE 'Europe/Istanbul')::date`
-    : sql`(now() AT TIME ZONE 'Europe/Istanbul')::date`;
+  return sql`((${atSql(now)}) AT TIME ZONE 'Europe/Istanbul')::date`;
+}
+
+/** Istanbul takvim saatinin/haftasinin (pazartesi)/ayinin baslangici, timestamptz. */
+function periodStartSql(unit: "hour" | "week" | "month", at: SQL): SQL {
+  return sql`(date_trunc(${sql.raw(`'${unit}'`)}, (${at}) AT TIME ZONE 'Europe/Istanbul') AT TIME ZONE 'Europe/Istanbul')`;
+}
+
+export interface PeriodUsage {
+  /** Bu saatte harcanan TUM hak (donem + bonus): patlama siniri. */
+  hour: number;
+  /** Bu hafta/ay donem hakkindan harcanan (bonus haric; gunluk `used` ile ayni olcu). */
+  week: number;
+  month: number;
+}
+
+/**
+ * Saat/hafta/ay kullanimi `ai_search_charge`'tan (iade edilenler haric). Gun
+ * `ai_quota_day.used`'tadir. Kilitlerden SONRA okunur: ayni kullanicinin
+ * ayirmalari `ai_quota_day` satir kilidi ve tek-aktif-arama indeksiyle sirali.
+ */
+export async function readPeriodUsage(
+  db: Database | Tx,
+  userId: number,
+  now?: Date,
+): Promise<PeriodUsage> {
+  const at = atSql(now);
+  const hourStart = periodStartSql("hour", at);
+  const weekStart = periodStartSql("week", at);
+  const monthStart = periodStartSql("month", at);
+  const [row] = await rows<{ hour: number | null; week: number | null; month: number | null }>(
+    db,
+    sql`
+      SELECT
+        sum(cost) FILTER (WHERE created_at >= ${hourStart})::int AS hour,
+        sum(from_daily) FILTER (WHERE created_at >= ${weekStart})::int AS week,
+        sum(from_daily) FILTER (WHERE created_at >= ${monthStart})::int AS month
+        FROM ai_search_charge
+       WHERE user_id = ${userId}
+         AND state IN ('reserved', 'settled')
+         AND created_at >= LEAST(${weekStart}, ${monthStart})
+         AND created_at <= ${at}
+    `,
+  );
+  return { hour: row?.hour ?? 0, week: row?.week ?? 0, month: row?.month ?? 0 };
+}
+
+/** Bonus da yetmediginde kullaniciya gosterilecek pencere: en gec yenileneni. */
+function exhaustedAllowanceWindow(input: {
+  cost: number;
+  weekRemaining: number;
+  monthRemaining: number;
+}): QuotaWindow {
+  if (input.monthRemaining < input.cost) return "month";
+  if (input.weekRemaining < input.cost) return "week";
+  return "day";
 }
 
 export interface ChargeRecord {
@@ -127,8 +186,11 @@ export type ReserveSearchResult =
   | { status: "reserved"; charge: ChargeRecord }
   /** Ayni istek anahtari daha once kullanildi; yeni hak alinmadi. */
   | { status: "replay"; charge: ChargeRecord }
-  /** Gunluk hak da bonus da yetmiyor. */
-  | { status: "exhausted" }
+  /**
+   * Hak yetmiyor. `hour`: saatlik patlama siniri (bonus asamaz); `day` /
+   * `week` / `month`: o donemin hakki da bonus da yetmiyor.
+   */
+  | { status: "exhausted"; window: QuotaWindow }
   /** Bu kullanicinin hala suren bir pahali aramasi var. */
   | { status: "busy"; active: ChargeRecord };
 
@@ -151,6 +213,7 @@ export async function reserveSearch(
   const cost = AI_OPERATION_COST[input.operation];
   const limit = dailySearchLimit();
   const day = istanbulDaySql(input.now);
+  const at = atSql(input.now);
 
   try {
     return await db.transaction(async (tx): Promise<ReserveSearchResult> => {
@@ -177,23 +240,37 @@ export async function reserveSearch(
       const active = await findActiveCharge(tx, input.userId);
       if (active) return { status: "busy", active };
 
-      // 3) Once gunluk, sonra bonus.
+      // 3) Pencereler (quota/policy.ts). Saatlik sinir bonusla da asilamaz.
+      const usage = await readPeriodUsage(tx, input.userId, input.now);
+      if (usage.hour + cost > SEARCH_RIGHTS_LIMITS.hour) {
+        return { status: "exhausted", window: "hour" };
+      }
+      const weekRemaining = SEARCH_RIGHTS_LIMITS.week - usage.week;
+      const monthRemaining = SEARCH_RIGHTS_LIMITS.month - usage.month;
+
+      // 4) Once donem hakki (gun/hafta/ay kalanlarinin kucugu), sonra bonus.
       const split = splitCharge({
         cost,
         dailyLimit: quota.daily_limit,
         dailyUsed: quota.used,
         bonusBalance,
+        periodRemaining: Math.min(weekRemaining, monthRemaining),
       });
-      if (!split) return { status: "exhausted" };
+      if (!split) {
+        return {
+          status: "exhausted",
+          window: exhaustedAllowanceWindow({ cost, weekRemaining, monthRemaining }),
+        };
+      }
 
       const [created] = await rows<ChargeRow>(
         tx,
         sql`
           INSERT INTO ai_search_charge
-            (user_id, operation, request_key, cost, day, from_daily, from_bonus)
+            (user_id, operation, request_key, cost, day, from_daily, from_bonus, created_at)
           VALUES
             (${input.userId}, ${input.operation}, ${input.requestKey}, ${cost},
-             ${quota.day}::date, ${split.fromDaily}, ${split.fromBonus})
+             ${quota.day}::date, ${split.fromDaily}, ${split.fromBonus}, ${at})
           RETURNING ${CHARGE_COLUMNS}
         `,
       );

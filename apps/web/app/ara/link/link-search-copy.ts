@@ -3,6 +3,7 @@
  * dağınık kalmasın diye tek yerde. Arayüz dili Türkçe, büyük harf yok,
  * "satın al" / "ucuz" yok (CLAUDE.md).
  */
+import type { QuotaWindow } from "@arilla/core/quota-policy";
 
 export const LINK_SEARCH_COPY = {
   pendingTitle: "Ürün inceleniyor…",
@@ -92,6 +93,21 @@ const FAILURES: Record<string, FailureCopy> = {
     description:
       "Günlük hakların gece 00:00'da yenilenir. Bu arada ürünün adını yazarak arayabilir ya da hesabından bonus hak kazanabilirsin.",
   },
+  no_rights_hour: {
+    title: "Bu saat için arama sınırına ulaştın.",
+    description:
+      "Hakların bir sonraki saat başında yenilenir. Bu arada ürünün adını yazarak arayabilirsin.",
+  },
+  no_rights_week: {
+    title: "Bu haftaki arama hakların bitti.",
+    description:
+      "Hakların pazartesi 00:00'da yenilenir. Bu arada ürünün adını yazarak arayabilir ya da hesabından bonus hak kazanabilirsin.",
+  },
+  no_rights_month: {
+    title: "Bu ayki arama hakların bitti.",
+    description:
+      "Hakların ayın 1'inde 00:00'da yenilenir. Bu arada ürünün adını yazarak arayabilir ya da hesabından bonus hak kazanabilirsin.",
+  },
   // Kullanicinin arama hizi siniri (0047); sitenin 429'u `rate_limited`.
   search_rate_limited: {
     title: "Biraz hızlı gittin.",
@@ -120,6 +136,19 @@ const FAILURES: Record<string, FailureCopy> = {
   fetch_failed: UNAVAILABLE,
   http_error: UNAVAILABLE,
 };
+
+/**
+ * Link aramasi fotografla ayni hak havuzunu kullanir (`quota/policy.ts`).
+ * Gunluk dolum eski `no_rights` kodunu korur; diger pencereler ayri koddur.
+ */
+export function linkNoRightsCode(window: QuotaWindow): string {
+  return window === "day" ? "no_rights" : `no_rights_${window}`;
+}
+
+/** Bonus kazanma baglantisi anlamli mi (saatlik sinirda degil). */
+export function linkNoRightsEarnable(code: string): boolean {
+  return code === "no_rights" || code === "no_rights_week" || code === "no_rights_month";
+}
 
 export function linkFailureCopy(code: string): FailureCopy {
   return (
