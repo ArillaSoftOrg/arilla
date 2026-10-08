@@ -3,6 +3,7 @@ import {
   getDiscoverySlots,
   getPublicTrends,
   isChatDiscoveryEnabled,
+  isChatImageEnabled,
   isProductOpen,
   type TrendSummary,
   todaySlotDate,
@@ -200,6 +201,7 @@ export default async function HomePage() {
             <HomeSearchComposer
               startChat={chatEnabled && user ? startConversationAction : undefined}
               chatInNewTab={chatEnabled && user !== null}
+              imageChat={chatEnabled && user !== null && isChatImageEnabled()}
               recentProducts={recentProducts}
             />
           </HomeHero>

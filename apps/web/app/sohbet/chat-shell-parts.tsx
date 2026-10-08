@@ -9,11 +9,27 @@ import styles from "./sohbet.module.css";
  * gecis sirasinda yerlesim kaymasi olmaz. Is mantigi yok.
  */
 
-export function ChatUserRow({ text }: { text: string }) {
+export function ChatUserRow({ text, imageSrc }: { text: string; imageSrc?: string | null }) {
   return (
     <li className={`${styles.row} ${styles.rowUser}`}>
       <VisuallyHidden as="span">{CHAT_COPY.userLabel}: </VisuallyHidden>
-      <p className={`${styles.bubble} ${styles.bubbleUser}`}>{text}</p>
+      {imageSrc ? (
+        // Karar 0078: fotograf ve metin TEK mesajdir; ayni balonun icinde.
+        <div className={`${styles.bubble} ${styles.bubbleUser} ${styles.bubbleWithImage}`}>
+          {/* biome-ignore lint/performance/noImgElement: kimlikli, onbelleksiz ozel rota; next/image optimizasyonu yok. */}
+          <img
+            className={styles.bubbleImage}
+            src={imageSrc}
+            alt={CHAT_COPY.attachedPhotoAlt}
+            width={512}
+            height={512}
+            decoding="async"
+          />
+          {text ? <p className={styles.bubbleText}>{text}</p> : null}
+        </div>
+      ) : (
+        <p className={`${styles.bubble} ${styles.bubbleUser}`}>{text}</p>
+      )}
     </li>
   );
 }
