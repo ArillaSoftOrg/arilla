@@ -195,7 +195,7 @@ export default async function HomePage() {
             titleId="anasayfa-baslik"
             titleLead={HOME_COPY.heroTitleLead}
             titleAccent={HOME_COPY.heroTitleAccent}
-            rotatingLines={HOME_COPY.heroRotatingLines}
+            subtitle={HOME_COPY.heroSubline}
           >
             <HomeSearchComposer
               startChat={chatEnabled && user ? startConversationAction : undefined}
