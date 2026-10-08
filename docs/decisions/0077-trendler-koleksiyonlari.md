@@ -22,7 +22,12 @@
    (görselli + fiyatlı + stokta) varsa görünür; yoksa listede yok, detay adresi 404.
    Gösterilebilirlik okuma anında uygulanır: `curate`'tan sonra stoktan düşen ürün kırık
    kart üretmez. Zorlama doldurma yok.
-6. Kapak sırası: `hero_image_url` → sort_order 0 ürünün görseli → yer tutucu kutusu.
+6. Kapak sırası: `hero_image_url` → en iyi eşleşen ürünlerin görselleri (en çok 5 aday,
+   `heroCandidates`) → yer tutucu kutusu. Görsel canlılığı sunucuda **denetlenmez** (istek
+   yolunda HEAD zinciri yok; `offer_image.status='broken'` henüz doldurulmuyor). Kırık
+   görselde tarayıcıdaki küçük `FallbackImage` (`onError` + hidrasyon öncesi hata denetimi)
+   sıradaki adayı dener; hiçbiri yüklenmezse yer tutucu. Yalnızca trend kapağı kullanır;
+   `ProductImage` ve ürün sayfaları değişmedi.
 7. `/trendler` bir ürün rotasıdır: `requireProductAccess`, proxy ürün kapısı
    (`PUBLIC_PRODUCT_PATH_PREFIXES`), `robots.txt` ve sitemap ürün kapalıyken `/kesfet`
    ile aynı davranır. Trend sayfaları **günlük değişmez** (sıra `sort_order` ve

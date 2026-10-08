@@ -1,4 +1,5 @@
 import type { TrendSummary } from "@arilla/core";
+import { FallbackImage, TrendThumbnails } from "@arilla/ui";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -17,6 +18,7 @@ function trend(overrides: Partial<TrendSummary> = {}): TrendSummary {
     activeNow: false,
     heroImageUrl: "https://img.test.example/h.jpg",
     heroSource: "product",
+    heroCandidates: ["https://img.test.example/h.jpg", "https://img.test.example/2.jpg"],
     productCount: 24,
     startingPrice: 123_450,
     thumbnails: [1, 2, 3, 4].map((n) => ({
@@ -32,6 +34,65 @@ function trend(overrides: Partial<TrendSummary> = {}): TrendSummary {
 function render(trends: TrendSummary[], eagerFirst = false): string {
   return renderToStaticMarkup(createElement(TrendCardGrid, { trends, eagerFirst }));
 }
+
+describe("FallbackImage (SSR)", () => {
+  const render = (props: Parameters<typeof FallbackImage>[0]) =>
+    renderToStaticMarkup(createElement(FallbackImage, props));
+
+  it("ilk adayi cizer; sonrakiler kirik gorselde istemcide denenir", () => {
+    const html = render({ srcs: ["https://a.test/1.jpg", "https://a.test/2.jpg"], alt: "" });
+    expect(html).toContain("https://a.test/1.jpg");
+    expect(html).not.toContain("https://a.test/2.jpg");
+  });
+
+  it("aday yoksa <img> yerine yer tutucu kutusu", () => {
+    const html = render({ srcs: [], alt: "", placeholderClassName: "ph" });
+    expect(html).not.toContain("<img");
+    expect(html).toContain('class="ph"');
+  });
+});
+
+describe("TrendThumbnails (SSR)", () => {
+  const pool = [1, 2, 3, 4, 5, 6].map((n) => ({
+    id: String(n),
+    title: `Ürün ${n}`,
+    imageUrl: `https://img.test.example/${n}.jpg`,
+  }));
+  const render = (props: Parameters<typeof TrendThumbnails>[0]) =>
+    renderToStaticMarkup(createElement(TrendThumbnails, props));
+
+  it("havuz gorunenden buyukse yalniz ilk N gorunur; kalanlar kirik gorsele yedek bekler", () => {
+    const html = render({ products: pool, visibleCount: 4, moreText: "+20 ürün" });
+    expect(html.match(/<img /g)).toHaveLength(4);
+    expect(html).toContain("1.jpg");
+    expect(html).not.toContain("5.jpg");
+    expect(html).toContain("+20 ürün");
+  });
+
+  it("onizleme de '+N' de yoksa hic bos kutu/liste cizilmez", () => {
+    expect(render({ products: [], visibleCount: 4 })).toBe("");
+  });
+
+  it("kart '+N urun'u GORUNEN sayiya gore yazar (havuza gore degil)", () => {
+    const html = renderToStaticMarkup(
+      createElement(TrendCardGrid, {
+        trends: [
+          trend({
+            productCount: 24,
+            thumbnails: pool.map((p) => ({
+              productId: Number(p.id),
+              title: p.title,
+              brandName: null,
+              imageUrl: p.imageUrl,
+            })),
+          }),
+        ],
+      }),
+    );
+    expect(html).toContain("+20 ürün"); // 24 - 4 gorunen
+    expect(html.match(/class="[^"]*productImage[^"]*"/g) ?? []).toHaveLength(4);
+  });
+});
 
 describe("TrendCardGrid", () => {
   it("her kart tek baglanti: /trendler/<slug>, baslik baglanti metni", () => {
@@ -58,7 +119,9 @@ describe("TrendCardGrid", () => {
   });
 
   it("kapak yoksa bozuk <img> yerine yer tutucu kutusu", () => {
-    const html = render([trend({ heroImageUrl: null, heroSource: "placeholder" })]);
+    const html = render([
+      trend({ heroImageUrl: null, heroSource: "placeholder", heroCandidates: [] }),
+    ]);
     expect(html).not.toContain("h.jpg");
     expect(html).toMatch(/aria-hidden="true"/);
   });
