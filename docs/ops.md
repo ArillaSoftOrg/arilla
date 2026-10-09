@@ -71,7 +71,7 @@ birindedir ve okuyan dosya yanında yazar:
 | Grup | Anlamı | Anahtarlar |
 | --- | --- | --- |
 | `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
-| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı) |
+| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı), `LLM_COST_TRY_PER_USD` (karar 0082; boş = Gemini maliyeti fiyatlanmaz) |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
 | `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `MARKETING_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
@@ -220,6 +220,16 @@ Model maliyeti `api_usage.cost_micros`'tan okunur ve oran
 çağrıları "fiyatlanmamış" sayar ve tutar yerine "Hesaplanmadı" gösterir.
 Gerçek maliyet için oran hem Vercel'de hem Python işlerinin ortamında
 tanımlanmalı; oran geriye dönük uygulanmaz.
+
+Gemini çağrıları (sohbet, toplu ve anlık sorgu yorumu) karar 0082 ile
+`packages/core/src/llm/pricing.ts`'teki sürümlü resmi liste fiyatından
+(girdi + çıktı + düşünme token'ı) ve `LLM_COST_TRY_PER_USD` kuruyla
+tahmin edilir. Kur tanımsızken, model için fiyat kuralı yokken ya da
+sağlayıcı kullanım bilgisi döndürmediğinde (zaman aşımı, ağ hatası) satır 0
+yazılır ve "fiyatlanmamış" sayılır. Tutar fatura değildir: gerçek tutar
+Google Cloud faturalama dökümündedir. Fiyat değişince eski kurala bitiş
+tarihi verilir, yeni kimlikle yeni kural eklenir (resmi sayfa ve doğrulama
+günüyle); kural değişikliği geçmiş satırları yeniden fiyatlamaz.
 
 | Ne | Eşik | Aksiyon |
 | --- | --- | --- |
@@ -663,6 +673,107 @@ denenmez. Kampanya `sending`te takılı kaldıysa önce ekrandaki son hata
 koduna bakılır (`configuration_error`: SMTP/gönderen; `bulk_send_disabled`:
 ortam kapısı).
 
+## GA4: rızaya bağlı trafik ölçümü (karar 0087)
+
+Kod hazır; üretimde etkinleştirme bu adımlarla ELLE yapılır. Kimlik veya
+anahtar uydurulmaz, depoya yazılmaz.
+
+**1. GA4 mülkü (analytics.google.com, Yönetici):**
+- Mülk saat dilimi **Europe/Istanbul**, para birimi TRY.
+- Web veri akışı → Measurement ID'yi (`G-…`) not et.
+- Veri akışı → **Gelişmiş ölçüm KAPALI** (en azından: sayfa görüntüleme
+  altındaki "tarayıcı geçmişi olaylarına göre sayfa değişiklikleri", kaydırma,
+  giden tıklamalar, site içi arama, form etkileşimleri, video, dosya
+  indirme). Kod yalnızca elle `page_view` gönderir; açık kalan otomatik olay
+  arındırılmamış veri toplayabilir.
+- Veri saklama: **2 ay**; Google sinyalleri: **kapalı**; reklam ürünü
+  bağlantısı yok.
+
+**2. Raporlama erişimi — federe kimlik, anahtarsız (karar 0088, önerilen):**
+
+Vercel production fonksiyonu kendi OIDC belirteciyle Google STS'den federe
+belirteç alır ve servis hesabına bürünür. JSON anahtar **üretilmez**. Bu
+projenin değerleri (sır değil):
+
+| | |
+|---|---|
+| GCP projesi / numarası | `manicepte` / `535980235187` |
+| Havuz / sağlayıcı | `vercel` / `vercel-prod` |
+| Servis hesabı | `manicepte-ga4-reporting@manicepte.iam.gserviceaccount.com` |
+| Issuer (Vercel Team modu) | `https://oidc.vercel.com/yusufsari4330-5616s-projects` |
+| İzinli audience | `https://vercel.com/yusufsari4330-5616s-projects` |
+| İzinli `sub` (yalnızca production) | `owner:yusufsari4330-5616s-projects:project:arilla-ai:environment:production` |
+
+```sh
+gcloud services enable sts.googleapis.com iamcredentials.googleapis.com \
+  iam.googleapis.com analyticsdata.googleapis.com --project=manicepte
+
+gcloud iam workload-identity-pools create vercel \
+  --project=manicepte --location=global --display-name="Vercel"
+
+gcloud iam workload-identity-pools providers create-oidc vercel-prod \
+  --project=manicepte --location=global --workload-identity-pool=vercel \
+  --issuer-uri="https://oidc.vercel.com/yusufsari4330-5616s-projects" \
+  --allowed-audiences="https://vercel.com/yusufsari4330-5616s-projects" \
+  --attribute-mapping="google.subject=assertion.sub" \
+  --attribute-condition='assertion.sub == "owner:yusufsari4330-5616s-projects:project:arilla-ai:environment:production"'
+
+# Tek özneye (principalSet değil) bürünme izni; servis hesabına proje rolü verilmez.
+gcloud iam service-accounts add-iam-policy-binding \
+  manicepte-ga4-reporting@manicepte.iam.gserviceaccount.com --project=manicepte \
+  --role=roles/iam.workloadIdentityUser \
+  --member="principal://iam.googleapis.com/projects/535980235187/locations/global/workloadIdentityPools/vercel/subject/owner:yusufsari4330-5616s-projects:project:arilla-ai:environment:production"
+```
+
+- GA4 Yönetici → Mülk erişim yönetimi → servis hesabı e-postası
+  **Görüntüleyici** (başka rol verme). Federe kimlik mülke doğrudan
+  eklenemez; bu yüzden servis hesabına bürünülür.
+- Vercel → Project Settings → Security → **Secure Backend Access with OIDC
+  Federation: açık, Issuer Mode: Team**.
+- Preview ve geliştirme ortamları koşulu sağlamaz: orada `/yonetim/trafik`
+  "federe kimlik reddedildi" gösterir. Bu bilinçlidir.
+
+**2b. Yedek: özel anahtar kipi (yalnızca Vercel dışı barındırma).**
+Servis hesabı → JSON anahtar → `GA4_PRIVATE_KEY`. Yerel kopya silinir, yılda
+bir döndürülür. `GA4_WIF_AUDIENCE` ile **birlikte tanımlanamaz** (ikisi de
+"Geçersiz" görünür, istek atılmaz).
+
+**3. Vercel ortamı (yalnızca Production):**
+- `GA4_MEASUREMENT_ID` = `G-…`
+- `GA4_PROPERTY_ID` = mülk kimliği (yalnızca rakam)
+- `GA4_CLIENT_EMAIL` = `manicepte-ga4-reporting@manicepte.iam.gserviceaccount.com`
+- `GA4_WIF_AUDIENCE` =
+  `//iam.googleapis.com/projects/535980235187/locations/global/workloadIdentityPools/vercel/providers/vercel-prod`
+- `GA4_PRIVATE_KEY` **tanımlanmaz** (federe kipte).
+- `GA4_TEST_API_BASE_URL` **tanımlanmaz**.
+- **Yeniden dağıt:** CSP ve yasal metinler derlemede üretilir.
+
+**4. Doğrulama (dağıtım sonrası):**
+- `/yonetim/ayarlar` → "Trafik ölçümü (GA4)": hepsi "Tanımlı", servis hesabı
+  notunda "Kip: federe (anahtarsız)".
+- Gizli pencerede site: banner yeniden çıkar; reddedince ağ sekmesinde
+  `googletagmanager` isteği OLMAMALI. Yalnızca "Analitik"i açınca
+  `gtag/js` yüklenir; GA4 DebugView'da `page_view` adresinde `?q=` yok.
+- `/yonetim/trafik` 24–48 saat içinde veri gösterir. Hata kodları:
+
+| Kod | Anlamı | Bakılacak yer |
+|---|---|---|
+| `identity_unavailable` | Fonksiyon OIDC belirteci almadı | Vercel OIDC Federation açık mı, dağıtım yeniden yapıldı mı |
+| `federation_rejected` | STS reddetti | Issuer/audience/`sub` koşulu, ekip adı, ortam production mı |
+| `impersonation_denied` | Bürünme izni yok | Servis hesabındaki `roles/iam.workloadIdentityUser` bağı |
+| `permission` | GA4 mülkü reddetti | Servis hesabı mülkte Görüntüleyici mi |
+
+**Geri alma:** `GA4_MEASUREMENT_ID`'yi sil ve yeniden dağıt → betik, CSP
+genişlemesi ve yasal metinlerdeki GA4 anışları birlikte kalkar. Raporlama
+değişkenleri ayrı silinebilir. Federe erişimi tümden kesmek için
+`gcloud iam workload-identity-pools providers disable vercel-prod
+--workload-identity-pool=vercel --location=global --project=manicepte`
+(belirteçler en geç 1 saatte düşer).
+
+**Kota:** standart mülk; tam görünüm ~10 rapor (2 toplu istek), önbellek
+6 saat/15 dk. Kalan saatlik/günlük token eşiğin altındaysa istek atılmaz
+(`TRAFFIC_QUOTA_FLOOR`).
+
 ## Dağıtım
 
 - `main` dalına birleşme staging'e otomatik gider
@@ -694,7 +805,7 @@ production'da uygulanır (`pnpm db:migrate`, `db:verify`) → kod dağıtılır 
 onayı (docs/kvkk.md "Konuşmalı keşif") → bayrak açılır. Maliyet: `api_usage`
 `operation = 'chat_turn'`. Saklama: 90 gün, `cleanup-auth` cron'u (`job_run.detail.conversations`).
 
-**Görsel eki (karar 0078, 0080) — varsayılan kapalı.** `CHAT_IMAGE_ENABLED=true`
+**Görsel eki (karar 0078, 0091) — varsayılan kapalı.** `CHAT_IMAGE_ENABLED=true`
 (`CHAT_DISCOVERY_ENABLED` de açık olmalı). Kapalıyken ana sayfa ve sohbet kutusunda
 "+" görünmez, eski `/ara/gorsel` akışına düşülmez. Görselli mesaj metinle aynı
 sohbet turu kotasından geçer (arama hakkı harcanmaz); ek migration yok (0057 yeter).

@@ -1,5 +1,5 @@
 /**
- * Sohbet gonderimi: metin, gorsel ya da metin+gorsel tek mesajdir (karar 0080).
+ * Sohbet gonderimi: metin, gorsel ya da metin+gorsel tek mesajdir (karar 0091).
  *
  * Bu modul, ana sayfa ve sohbet ici composer'in ortak sunucu tarafi giris
  * denetimidir: metin temizligi ve gorsel dogrulama + on isleme (`preprocessImage`:

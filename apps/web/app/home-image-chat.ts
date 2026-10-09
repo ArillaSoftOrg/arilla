@@ -1,7 +1,7 @@
 import type { NewTabChatResult } from "./sohbet/actions.ts";
 
 /**
- * Sohbet mesajina gorsel eklemenin saf parcalari (karar 0078, 0080). Gorsel ayri bir
+ * Sohbet mesajina gorsel eklemenin saf parcalari (karar 0078, 0091). Gorsel ayri bir
  * akis degil, normal mesajin ekidir; bu dosya yalnizca secim dogrulamasi, arayuz
  * metinleri ve sunucu sonucunun kullaniciya ne olacagini tarif eder.
  * Tarayici/React'a bagimli degildir; birim testlidir.

@@ -6,12 +6,14 @@ import {
   type ChatInputRequest,
   canAccessProduct,
   cleanSubmissionText,
+  consumeChatFeedbackQuota,
   createChatTimer,
   createConversation,
   getChatInterpreter,
   getTurnStatus,
   isChatDiscoveryEnabled,
   isChatImageEnabled,
+  isRedisUnavailableError,
   isUuid,
   isValidRequestKey,
   logChatTimings,
@@ -116,7 +118,7 @@ function parseRequest(raw: unknown): ChatInputRequest | null {
 }
 
 /**
- * Kullanici mesajini kaydeder (model cagrisi yok). Karar 0080: `photo` verilirse
+ * Kullanici mesajini kaydeder (model cagrisi yok). Karar 0091: `photo` verilirse
  * (`FormData{photo}`) gorsel AYNI mesajin eki olur ve mevcut konusmaya eklenir; metin,
  * secenek ve atla yolu ayni kalir. Gorsel burada dogrulanir ve on islenir.
  */
@@ -224,7 +226,7 @@ export type NewTabChatResult =
   | { status: "fallback"; href: string }
   | { status: "error" }
   /**
-   * Karar 0080, yalniz GORSELLI mesaj: eski aramaya dusulmez, kullanici sohbet icinde hatayi
+   * Karar 0091, yalniz GORSELLI mesaj: eski aramaya dusulmez, kullanici sohbet icinde hatayi
    * gorur ve tekrar dener. Metin mesajinda bu durumlar yukaridaki `fallback`/`error` ile ayni kalir.
    */
   | {
@@ -244,7 +246,7 @@ interface NewChatSubmission {
 
 /**
  * Metin-only: duz metin (onceki sozlesme, degismedi). Gorselli: `FormData{q, photo, requestKey}`.
- * Ikisi de ayni eylemden ayni hatta gecer (karar 0080).
+ * Ikisi de ayni eylemden ayni hatta gecer (karar 0091).
  */
 function readNewChatSubmission(input: unknown): NewChatSubmission {
   if (typeof input === "string") {
@@ -278,7 +280,7 @@ function readNewChatSubmission(input: unknown): NewChatSubmission {
  * engeller; is dusse istemci kurtarma yolu (`runTurnAction`) devralir.
  * Gemini bu eylemin yanitini ve DB islemini BEKLETMEZ.
  *
- * Karar 0080: mesaj metin, gorsel ya da ikisi birden olabilir; hepsi bu hattan gecer.
+ * Karar 0091: mesaj metin, gorsel ya da ikisi birden olabilir; hepsi bu hattan gecer.
  * Gorselli mesajda bayrak/oturum yoksa `/ara`ya dusulmez (eski gorsel arama kalkti).
  */
 export async function startChatBootstrapAction(input: unknown): Promise<NewTabChatResult> {
@@ -338,12 +340,17 @@ export async function startChatBootstrapAction(input: unknown): Promise<NewTabCh
   return { status: "created", href: `/sohbet/${conversationId}` };
 }
 
-/** "Bu yardimci oldu mu?" oyu (karar 0075). Metin tasimaz, analitik olayi uretmez. */
+/**
+ * "Bu yardimci oldu mu?" oyu (karar 0075, 0079). Olumsuz oy yalnizca Gonder ile gelir;
+ * neden/yorum istege baglidir. Sahiplik ve dogrulama cekirdekte; burada oturum + oran siniri.
+ * Analitik olayi uretmez.
+ */
 export async function submitResultFeedbackAction(
   conversationId: string,
   messageSeq: number,
   helpful: boolean,
-): Promise<{ status: "saved" | "not_found" | "invalid" | "unavailable" }> {
+  details?: { reasons?: string[]; comment?: string },
+): Promise<{ status: "saved" | "not_found" | "invalid" | "unavailable" | "rate_limited" }> {
   const user = await verifySession();
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { status: "unavailable" };
@@ -351,12 +358,21 @@ export async function submitResultFeedbackAction(
   if (typeof conversationId !== "string" || typeof helpful !== "boolean") {
     return { status: "invalid" };
   }
+  try {
+    if (!(await consumeChatFeedbackQuota(user.id))) return { status: "rate_limited" };
+  } catch (error) {
+    // Redis yok: yazma yolu fail-closed (sohbet etkilenmez).
+    if (isRedisUnavailableError(error)) return { status: "unavailable" };
+    throw error;
+  }
   return {
     status: await setResultFeedback(getDatabase(), {
       userId: user.id,
       conversationId,
       messageSeq: Number(messageSeq),
       helpful,
+      reasons: details?.reasons,
+      comment: details?.comment,
     }),
   };
 }

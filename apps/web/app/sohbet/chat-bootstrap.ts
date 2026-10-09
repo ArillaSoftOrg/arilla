@@ -21,7 +21,7 @@ export interface BootstrapPayload {
   /** Epoch ms; gonderimden sekmeye gecikme olcumu icin (ham metin degil). */
   submittedAt: number;
   /**
-   * Karar 0080: mesajin gorsel eki var. Gorselin kendisi BURADA degil, ayni nonce ile
+   * Karar 0091: mesajin gorsel eki var. Gorselin kendisi BURADA degil, ayni nonce ile
    * IndexedDB'de (`chat-bootstrap-image.ts`); bu kayit yalnizca "gorsel bekle" isaretidir
    * ve sunucu istegi icin tekillestirme anahtarini tasir. Metin-only kayitta alan yoktur.
    */

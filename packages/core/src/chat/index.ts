@@ -1,6 +1,7 @@
 export * from "./config.ts";
 export * from "./contract.ts";
 export * from "./image-context.ts";
+export * from "./feedback.ts";
 export * from "./intent.ts";
 export * from "./interpreter.ts";
 export * from "./search-adapter.ts";

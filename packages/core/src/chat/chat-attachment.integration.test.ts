@@ -1,5 +1,5 @@
 /**
- * Karar 0080 — gorsel normal mesajin ekidir — gercek yerel Postgres, model sahte.
+ * Karar 0091 — gorsel normal mesajin ekidir — gercek yerel Postgres, model sahte.
  * Sohbet ici gorsel ayni konusmaya eklenir; ozet baglami; en son gorsel esas alinir;
  * konusma basina gorsel siniri; kota ve cift gonderim.
  */

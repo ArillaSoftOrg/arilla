@@ -1,4 +1,4 @@
-/** Arayuz icin okuma: "Bugun 7/10 · Bonus 14", yenilenme zamani, son hareketler. */
+/** Arayuz icin okuma: "Bugun kalan 27/30 · Bonus 14", yenilenme zamani, son hareketler. */
 import type {
   AiSearchChargeState,
   AiSearchOperation,
@@ -6,18 +6,46 @@ import type {
   Database,
 } from "@arilla/db";
 import { sql } from "drizzle-orm";
-import { dailySearchLimit } from "./config.ts";
+import type { QuotaWindow } from "../quota/policy.ts";
+import { quotaPeriod } from "../quota/windows.ts";
+import { readPeriodUsage } from "./charge.ts";
+import { dailySearchLimit, SEARCH_RIGHTS_LIMITS } from "./config.ts";
 import { nextResetAt } from "./day.ts";
 import { type Executor, rows } from "./db.ts";
+
+export interface WindowStatus {
+  limit: number;
+  used: number;
+  remaining: number;
+  resetsAt: Date;
+}
 
 export interface EntitlementStatus {
   dailyLimit: number;
   dailyUsed: number;
   dailyRemaining: number;
   bonus: number;
-  /** Hic hak kalmadi mi (gunluk + bonus). */
+  /** Hic hak kalmadi mi (donem hakki + bonus) ya da saatlik sinir mi doldu. */
   exhausted: boolean;
   nextResetAt: Date;
+  /** Dort pencerenin her biri (`quota/policy.ts`, `search_rights`). */
+  windows: Readonly<Record<QuotaWindow, WindowStatus>>;
+  /**
+   * Gun/hafta/ay icinde kalani en az olan (esitlikte en gec yenilenen):
+   * kullaniciya tek sayi olarak gosterilen pencere. Bonus bunlari asar.
+   */
+  limitingWindow: "day" | "week" | "month";
+  /** Gun/hafta/ay kalanlarinin kucugu. */
+  periodRemaining: number;
+}
+
+function windowStatus(limit: number, used: number, window: QuotaWindow, now: Date): WindowStatus {
+  return {
+    limit,
+    used,
+    remaining: Math.max(0, limit - used),
+    resetsAt: quotaPeriod(window, now).end,
+  };
 }
 
 export async function getEntitlementStatus(
@@ -25,32 +53,49 @@ export async function getEntitlementStatus(
   userId: number,
   now: Date = new Date(),
 ): Promise<EntitlementStatus> {
-  const [row] = await rows<{
-    daily_limit: number | null;
-    used: number | null;
-    balance: number | null;
-  }>(
-    db,
-    sql`
-      SELECT q.daily_limit, q.used, b.balance
-        FROM (SELECT 1) AS one
-        LEFT JOIN ai_quota_day q
-               ON q.user_id = ${userId}
-              AND q.day = ((${now.toISOString()}::timestamptz) AT TIME ZONE 'Europe/Istanbul')::date
-        LEFT JOIN bonus_account b ON b.user_id = ${userId}
-    `,
-  );
+  const [[row], usage] = await Promise.all([
+    rows<{
+      daily_limit: number | null;
+      used: number | null;
+      balance: number | null;
+    }>(
+      db,
+      sql`
+        SELECT q.daily_limit, q.used, b.balance
+          FROM (SELECT 1) AS one
+          LEFT JOIN ai_quota_day q
+                 ON q.user_id = ${userId}
+                AND q.day = ((${now.toISOString()}::timestamptz) AT TIME ZONE 'Europe/Istanbul')::date
+          LEFT JOIN bonus_account b ON b.user_id = ${userId}
+      `,
+    ),
+    readPeriodUsage(db, userId, now),
+  ]);
   const dailyLimit = row?.daily_limit ?? dailySearchLimit();
   const dailyUsed = row?.used ?? 0;
   const dailyRemaining = Math.max(0, dailyLimit - dailyUsed);
   const bonus = row?.balance ?? 0;
+  const windows = {
+    hour: windowStatus(SEARCH_RIGHTS_LIMITS.hour, usage.hour, "hour", now),
+    day: windowStatus(dailyLimit, dailyUsed, "day", now),
+    week: windowStatus(SEARCH_RIGHTS_LIMITS.week, usage.week, "week", now),
+    month: windowStatus(SEARCH_RIGHTS_LIMITS.month, usage.month, "month", now),
+  };
+  // Esitlikte en gec yenilenen: "bu ay kalan 0" "bugun kalan 0"dan daha dogru bilgi.
+  const limitingWindow = (["month", "week", "day"] as const).reduce((best, window) =>
+    windows[window].remaining < windows[best].remaining ? window : best,
+  );
+  const periodRemaining = windows[limitingWindow].remaining;
   return {
     dailyLimit,
     dailyUsed,
     dailyRemaining,
     bonus,
-    exhausted: dailyRemaining === 0 && bonus === 0,
+    exhausted: (periodRemaining === 0 && bonus === 0) || windows.hour.remaining === 0,
     nextResetAt: nextResetAt(now),
+    windows,
+    limitingWindow,
+    periodRemaining,
   };
 }
 

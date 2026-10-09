@@ -580,6 +580,11 @@ ve `--alert` yalnızca durum bildirir. Detay: `docs/brand.md`.
 
 Font adayları ve onay testi de `docs/brand.md` içinde.
 
+**Yönetim istisnası (karar 0084):** `--brand` (marka limonu, uygulama
+ikonundan ölçüldü) yalnızca `/yonetim`'de etkin gezinme, seçim ve odak
+göstergesinde kullanılır; açık temada metin ya da tek başına çizgi olarak
+kullanılmaz (beyaz üzerinde ~1.3:1).
+
 ## Karara bağlanacaklar
 
 1. Ürün kartında mağaza logosu gösterilecek mi? Logo hakları ve görsel gürültü.

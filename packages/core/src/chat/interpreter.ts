@@ -60,7 +60,7 @@ export interface TranscriptMessage {
   /** Bu mesajin gorseli BU istege eklidir (`InterpretRequest.image`). */
   hasImage?: boolean;
   /**
-   * Gorselin kayitli ozeti (karar 0080): gorsel bu istege EKLI DEGILDIR, ozet baglama girer.
+   * Gorselin kayitli ozeti (karar 0091): gorsel bu istege EKLI DEGILDIR, ozet baglama girer.
    * `hasImage` ile birlikte kullanilmaz.
    */
   imageSummary?: string;
@@ -118,7 +118,7 @@ export function buildChatInput(request: InterpretRequest): string {
 
 export class GeminiChatInterpreter implements ChatInterpreter {
   private readonly schema = buildModelTurnSchema();
-  /** Yalnizca gorselli turlar: `image_summary` alani eklenir (karar 0080). */
+  /** Yalnizca gorselli turlar: `image_summary` alani eklenir (karar 0091). */
   private readonly imageSchema = buildModelTurnSchema({ imageSummary: true });
 
   constructor(private readonly client: LlmClient) {}

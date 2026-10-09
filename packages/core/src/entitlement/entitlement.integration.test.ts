@@ -21,7 +21,7 @@ import {
   reserveSearch,
   settleCharge,
 } from "./charge.ts";
-import { DEFAULT_DAILY_SEARCH_LIMIT } from "./config.ts";
+import { DEFAULT_DAILY_SEARCH_LIMIT, SEARCH_RIGHTS_LIMITS } from "./config.ts";
 import {
   reconcileLinkRequestCharge,
   reconcileStaleCharges,
@@ -116,18 +116,23 @@ describe("arama hakki - entegrasyon", () => {
       user = await newUser("life");
     });
 
-    it("gunluk haktan harcar, kesinlesir; durum 1/10 gosterir", async () => {
+    it("gunluk haktan harcar, kesinlesir; durum 1/limit gosterir", async () => {
       const charge = await reserveOk(db, user, "visual_search");
       expect(charge).toMatchObject({ state: "reserved", fromDaily: 1, fromBonus: 0 });
       expect(await settleCharge(db, charge.id)).toBe(true);
       expect(await settleCharge(db, charge.id)).toBe(false);
       const status = await getEntitlementStatus(db, user);
-      expect(status).toMatchObject({ dailyLimit: 10, dailyUsed: 1, dailyRemaining: 9, bonus: 0 });
+      expect(status).toMatchObject({
+        dailyLimit: DEFAULT_DAILY_SEARCH_LIMIT,
+        dailyUsed: 1,
+        dailyRemaining: DEFAULT_DAILY_SEARCH_LIMIT - 1,
+        bonus: 0,
+      });
       expect((await getCharge(db, charge.id))?.state).toBe("settled");
     });
 
     it("gunluk bitince bonustan harcar ve deftere yazar", async () => {
-      await setUsedToday(user, 10);
+      await setUsedToday(user, DEFAULT_DAILY_SEARCH_LIMIT);
       await setBonus(user, 2);
       const charge = await reserveOk(db, user, "link_search");
       expect(charge).toMatchObject({ fromDaily: 0, fromBonus: 1 });
@@ -143,13 +148,13 @@ describe("arama hakki - entegrasyon", () => {
     });
 
     it("ikisi de bitince exhausted, hicbir sey yazmaz", async () => {
-      await setUsedToday(user, 10);
+      await setUsedToday(user, DEFAULT_DAILY_SEARCH_LIMIT);
       const result = await reserveSearch(db, {
         userId: user,
         operation: "visual_search",
         requestKey: key(),
       });
-      expect(result.status).toBe("exhausted");
+      expect(result).toEqual({ status: "exhausted", window: "day" });
       expect(await findActiveCharge(db, user)).toBeNull();
       const status = await getEntitlementStatus(db, user);
       expect(status.exhausted).toBe(true);
@@ -191,7 +196,7 @@ describe("arama hakki - entegrasyon", () => {
     });
 
     it("iade gunluk ve bonus hakki tam bir kez geri verir; iadeden sonra kesinlesmez", async () => {
-      await setUsedToday(user, 10);
+      await setUsedToday(user, DEFAULT_DAILY_SEARCH_LIMIT);
       await setBonus(user, 1);
       const charge = await reserveOk(db, user, "visual_search");
       expect(await balanceOf(user)).toBe(0);
@@ -236,6 +241,112 @@ describe("arama hakki - entegrasyon", () => {
     });
   });
 
+  describe("saat / hafta / ay pencereleri (quota/policy.ts)", () => {
+    /** 2026-10-08 19:30 Istanbul, persembe. Hafta 2026-10-05 pazartesi basladi. */
+    const NOW = new Date("2026-10-08T16:30:00Z");
+
+    async function insertCharges(
+      userId: number,
+      at: Date,
+      count: number,
+      state: "settled" | "refunded" = "settled",
+    ): Promise<void> {
+      await owner(
+        `INSERT INTO ai_search_charge
+           (user_id, operation, request_key, cost, day, from_daily, from_bonus, state,
+            refund_reason, created_at, finalized_at)
+         SELECT $1, 'visual_search', 'hist-' || md5(random()::text || g), 1,
+                ($2::timestamptz AT TIME ZONE 'Europe/Istanbul')::date, 1, 0, $3,
+                CASE WHEN $3 = 'refunded' THEN 'provider_error' END, $2, $2
+           FROM generate_series(1, $4) AS g`,
+        [userId, at.toISOString(), state, count],
+      );
+    }
+
+    async function reserveAndSettle(
+      userId: number,
+      now: Date,
+      operation: "visual_search" | "link_search" = "visual_search",
+    ) {
+      const result = await reserveSearch(db, { userId, operation, requestKey: key(), now });
+      if (result.status === "reserved") await settleCharge(db, result.charge.id);
+      return result;
+    }
+
+    it("saatlik sinir: 10 aramadan sonra bonus olsa da exhausted(hour); saat donunce devam", async () => {
+      const user = await newUser("hour");
+      await setBonus(user, 50);
+      for (let i = 0; i < SEARCH_RIGHTS_LIMITS.hour; i++) {
+        expect((await reserveAndSettle(user, NOW)).status).toBe("reserved");
+      }
+      expect(await reserveAndSettle(user, NOW)).toEqual({ status: "exhausted", window: "hour" });
+      // Saatlik ret hicbir sey yazmaz: bonus yerinde.
+      expect(await balanceOf(user)).toBe(50);
+      const nextHour = new Date(NOW.getTime() + 60 * 60 * 1000);
+      const after = await reserveAndSettle(user, nextHour);
+      expect(after).toMatchObject({ status: "reserved", charge: { fromDaily: 1, fromBonus: 0 } });
+    });
+
+    it("link aramasi fotografla ayni havuzdan harcar", async () => {
+      const user = await newUser("linkpool");
+      await insertCharges(
+        user,
+        new Date(NOW.getTime() - 10 * 60 * 1000),
+        SEARCH_RIGHTS_LIMITS.hour,
+      );
+      expect(await reserveAndSettle(user, NOW, "link_search")).toEqual({
+        status: "exhausted",
+        window: "hour",
+      });
+    });
+
+    it("haftalik sinir dolunca bonus harcanir; bonus yoksa exhausted(week)", async () => {
+      const user = await newUser("week");
+      await insertCharges(user, new Date("2026-10-05T08:00:00Z"), SEARCH_RIGHTS_LIMITS.week);
+      await setBonus(user, 1);
+      expect(await reserveAndSettle(user, NOW)).toMatchObject({
+        status: "reserved",
+        charge: { fromDaily: 0, fromBonus: 1 },
+      });
+      expect(await reserveAndSettle(user, NOW)).toEqual({ status: "exhausted", window: "week" });
+
+      const status = await getEntitlementStatus(db, user, NOW);
+      expect(status.limitingWindow).toBe("week");
+      expect(status.periodRemaining).toBe(0);
+      expect(status.windows.week).toMatchObject({ limit: 120, used: 120, remaining: 0 });
+      expect(status.windows.month).toMatchObject({ limit: 350, used: 120, remaining: 230 });
+      expect(status.windows.week.resetsAt.toISOString()).toBe("2026-10-11T21:00:00.000Z");
+      expect(status.exhausted).toBe(true);
+      // Gecen haftanin harcamasi bu haftayi doldurmaz, ayi doldurur.
+      const nextWeek = new Date("2026-10-13T08:00:00Z");
+      expect((await getEntitlementStatus(db, user, nextWeek)).windows.week.used).toBe(0);
+    });
+
+    it("aylik sinir: onceki haftalarin harcamasi ayi doldurur -> exhausted(month)", async () => {
+      const user = await newUser("month");
+      await insertCharges(user, new Date("2026-10-01T08:00:00Z"), SEARCH_RIGHTS_LIMITS.month);
+      expect(await reserveAndSettle(user, NOW)).toEqual({ status: "exhausted", window: "month" });
+      const status = await getEntitlementStatus(db, user, NOW);
+      expect(status).toMatchObject({ limitingWindow: "month", periodRemaining: 0 });
+      expect(status.windows.month.resetsAt.toISOString()).toBe("2026-10-31T21:00:00.000Z");
+      // Yeni ay: hak geri gelir.
+      expect((await reserveAndSettle(user, new Date("2026-11-02T08:00:00Z"))).status).toBe(
+        "reserved",
+      );
+    });
+
+    it("iade edilen harcamalar pencereleri doldurmaz", async () => {
+      const user = await newUser("refunded");
+      await insertCharges(
+        user,
+        new Date(NOW.getTime() - 5 * 60 * 1000),
+        SEARCH_RIGHTS_LIMITS.hour,
+        "refunded",
+      );
+      expect((await reserveAndSettle(user, NOW)).status).toBe("reserved");
+    });
+  });
+
   describe("esanlilik", () => {
     it("20 paralel ayirma: tek aktif arama, geri kalani busy", async () => {
       const user = await newUser("par");
@@ -254,7 +365,7 @@ describe("arama hakki - entegrasyon", () => {
 
     it("paralel ayir+kesinlestir donguleri limiti ve bakiyeyi asamaz", async () => {
       const user = await newUser("drain");
-      await setUsedToday(user, 8);
+      await setUsedToday(user, DEFAULT_DAILY_SEARCH_LIMIT - 2);
       await setBonus(user, 3);
       let settled = 0;
       async function worker(): Promise<void> {
@@ -273,7 +384,11 @@ describe("arama hakki - entegrasyon", () => {
       await Promise.all(Array.from({ length: 10 }, worker));
       expect(settled).toBe(5); // 2 gunluk + 3 bonus
       const status = await getEntitlementStatus(db, user);
-      expect(status).toMatchObject({ dailyUsed: 10, bonus: 0, exhausted: true });
+      expect(status).toMatchObject({
+        dailyUsed: DEFAULT_DAILY_SEARCH_LIMIT,
+        bonus: 0,
+        exhausted: true,
+      });
     });
 
     it("ayni anahtarla paralel istekler tek harcama uretir", async () => {
@@ -295,7 +410,7 @@ describe("arama hakki - entegrasyon", () => {
 
     it("paralel iadeler tam bir kez geri verir", async () => {
       const user = await newUser("refund");
-      await setUsedToday(user, 10);
+      await setUsedToday(user, DEFAULT_DAILY_SEARCH_LIMIT);
       await setBonus(user, 1);
       const charge = await reserveOk(db, user, "visual_search");
       const outcomes = await Promise.all(
@@ -324,7 +439,7 @@ describe("arama hakki - entegrasyon", () => {
     it("bakiye eksiye, kullanim limitin ustune cikamaz; defter degistirilemez", async () => {
       const user = await newUser("check");
       await setBonus(user, 0);
-      await setUsedToday(user, 10);
+      await setUsedToday(user, DEFAULT_DAILY_SEARCH_LIMIT);
       await db.transaction((tx) => grantFirstFeedbackReward(tx, user));
 
       await expect(

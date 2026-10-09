@@ -21,15 +21,31 @@ import {
   conversation,
   type Database,
 } from "@arilla/db";
-import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { LlmErrorCode } from "../llm/client.ts";
+import { llmCallCostMicros } from "../llm/pricing.ts";
+import {
+  type ProviderBudgetHooks,
+  type ProviderBudgetReservation,
+  reserveProviderBudget,
+  settleProviderBudget,
+} from "../quota/provider-budget.ts";
+import {
+  consumeQuota,
+  type QuotaConsumer,
+  type QuotaReleaser,
+  releaseQuota,
+} from "../quota/redis-windows.ts";
+import { isRedisUnavailableError } from "../redis/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
 import {
+  CHAT_CLIENT_OPTIONS,
   CHAT_DAILY_CALL_CAP,
   CHAT_LEASE_SECONDS,
   CHAT_RETENTION_DAYS,
   CHAT_TURN_OPERATION,
+  chatMessageLimits,
   chatTurnsPerHour,
   isChatImageEnabled,
   MAX_USER_MESSAGES_PER_CONVERSATION,
@@ -46,6 +62,7 @@ import {
   decideContextImage,
   type ImageContextDecision,
 } from "./image-context.ts";
+import { validateChatFeedback } from "./feedback.ts";
 import { mergeSearchIntent, parseStoredIntent } from "./intent.ts";
 import {
   CHAT_CONTEXT_MESSAGES,
@@ -71,7 +88,7 @@ type Executor = Database | Tx;
 // Okuma
 // ---------------------------------------------------------------------------
 
-/** Karar 0080: asistan mesajinin `payload.imageSummary` kaydi. */
+/** Karar 0091: asistan mesajinin `payload.imageSummary` kaydi. */
 export interface StoredImageSummary {
   attachmentId: string;
   text: string;
@@ -96,7 +113,7 @@ export type ChatMessageView =
       kind: "clarify";
       content: string;
       question: ClarifyQuestion | null;
-      /** Karar 0080: bu turda modelin urettigi gorsel ozeti (hangi eke ait oldugu ile). */
+      /** Karar 0091: bu turda modelin urettigi gorsel ozeti (hangi eke ait oldugu ile). */
       imageSummary?: StoredImageSummary | null;
     }
   | {
@@ -264,7 +281,7 @@ export type SubmitMessageResult =
   | { status: "busy" }
   | { status: "rate_limited" }
   | { status: "conversation_full" }
-  /** Karar 0080: konusma basina gorsel ust siniri doldu. */
+  /** Karar 0091: konusma basina gorsel ust siniri doldu. */
   | { status: "image_limit" }
   | { status: "invalid_input" }
   | { status: "invalid_option" }
@@ -278,7 +295,7 @@ function requestKeyOrNull(value: string | undefined): string | null {
   return value !== undefined && value.length >= 8 && value.length <= 100 ? value : null;
 }
 
-/** Kullanicinin son bir saatteki mesaj sayisi (tum sohbetler). Model maliyet tavani. */
+/** Kullanicinin son bir saatteki mesaj sayisi (tum sohbetler). Redis yokken yedek tavan. */
 async function recentUserMessageCount(db: Executor, userId: number): Promise<number> {
   const result = await db.execute(sql`
     SELECT count(*)::int AS n
@@ -290,6 +307,49 @@ async function recentUserMessageCount(db: Executor, userId: number): Promise<num
   `);
   const row = result.rows[0] as { n?: number } | undefined;
   return row?.n ?? 0;
+}
+
+/** Testler icin enjekte edilebilir kota islevleri; varsayilan Redis. */
+export interface ChatQuotaOptions {
+  consume?: QuotaConsumer;
+  release?: QuotaReleaser;
+}
+
+/**
+ * Bir kullanici mesaji = `chat_message` havuzundan 1 (`quota/policy.ts`, saat/
+ * gun/hafta/ay). Yalnizca mesaj GERCEKTEN yazilacaksa cagrilir (tekrar,
+ * mesgul, dolu, gecersiz girdi harcamaz). Redis erisilemezse bugunku DB
+ * saatlik sayimina duser: sohbet kesilmez, tavan yine uygulanir.
+ * `consumed`: yazma basarisiz olursa geri verilecek bir Redis harcamasi var mi.
+ */
+async function consumeChatMessageQuota(
+  db: Executor,
+  userId: number,
+  options: ChatQuotaOptions,
+): Promise<{ allowed: boolean; consumed: boolean }> {
+  try {
+    const result = await (options.consume ?? consumeQuota)({
+      pool: "chat_message",
+      subject: `user:${userId}`,
+      limits: chatMessageLimits(),
+    });
+    return { allowed: result.allowed, consumed: result.allowed };
+  } catch (error) {
+    if (!isRedisUnavailableError(error)) throw error;
+    console.error("[chat] message quota store unavailable; hourly db cap applies");
+    return {
+      allowed: (await recentUserMessageCount(db, userId)) < chatTurnsPerHour(),
+      consumed: false,
+    };
+  }
+}
+
+async function releaseChatMessageQuota(userId: number, options: ChatQuotaOptions): Promise<void> {
+  try {
+    await (options.release ?? releaseQuota)({ pool: "chat_message", subject: `user:${userId}` });
+  } catch {
+    // Iade edilemezse kullanici bir mesaj hakki kaybeder; yazma hatasi zaten donuyor.
+  }
 }
 
 /** Karar 0078: `preprocessImage` ciktisi (<= 512 KB; DB CHECK ile ayni sinir). */
@@ -346,6 +406,7 @@ export async function createConversation(
     requestKey?: string;
     attachment?: ChatAttachmentInput;
   },
+  quotaOptions: ChatQuotaOptions = {},
 ): Promise<CreateConversationResult> {
   const attachment = input.attachment;
   if (attachment && !validAttachment(attachment)) return { status: "invalid_input" };
@@ -356,9 +417,23 @@ export async function createConversation(
     const existing = await findConversationByRequestKey(db, input.userId, requestKey);
     if (existing) return { status: "created", conversationId: existing };
   }
-  if ((await recentUserMessageCount(db, input.userId)) >= chatTurnsPerHour()) {
-    return { status: "rate_limited" };
+  const quota = await consumeChatMessageQuota(db, input.userId, quotaOptions);
+  if (!quota.allowed) return { status: "rate_limited" };
+  try {
+    return await insertConversation(db, input, text, requestKey, attachment);
+  } catch (error) {
+    if (quota.consumed) await releaseChatMessageQuota(input.userId, quotaOptions);
+    throw error;
   }
+}
+
+function insertConversation(
+  db: Database,
+  input: { userId: number },
+  text: string | null,
+  requestKey: string | null,
+  attachment: ChatAttachmentInput | undefined,
+): Promise<CreateConversationResult> {
   return db.transaction(async (tx) => {
     const [created] = await tx
       .insert(conversation)
@@ -430,11 +505,12 @@ export async function submitUserMessage(
     request: ChatInputRequest;
     requestKey?: string;
     /**
-     * Karar 0080: mesajin gorsel eki (metinle ayni mesaj). Yalniz `text` istegiyle birlikte;
+     * Karar 0091: mesajin gorsel eki (metinle ayni mesaj). Yalniz `text` istegiyle birlikte;
      * metin bos olabilir (yalniz fotograf). Ek, mesajla TEK islemde yazilir.
      */
     attachment?: ChatAttachmentInput;
   },
+  quotaOptions: ChatQuotaOptions = {},
 ): Promise<SubmitMessageResult> {
   if (!isUuid(input.conversationId)) return { status: "not_found" };
   const requestKey = requestKeyOrNull(input.requestKey);
@@ -443,118 +519,145 @@ export async function submitUserMessage(
     return { status: "invalid_input" };
   }
 
-  // Kisa, kilitsiz on kontrol: model maliyet tavani.
-  if ((await recentUserMessageCount(db, input.userId)) >= chatTurnsPerHour()) {
-    // Ayni anahtarla tekrar gelen istek tavanda da "duplicate" sayilmali; asagida kontrol edilir.
-    if (requestKey === null || !(await requestKeyExists(db, input.conversationId, requestKey))) {
-      return { status: "rate_limited" };
+  // Kota mesaj yazilacagi kesinlesince (islem icinde, tum kontrollerden sonra)
+  // harcanir; yazma basarisiz olursa geri verilir.
+  let consumed = false;
+  try {
+    return await db.transaction(
+      async (tx): Promise<SubmitMessageResult> =>
+        submitInTx(tx, input, requestKey, quotaOptions, () => {
+          consumed = true;
+        }),
+    );
+  } catch (error) {
+    if (consumed) await releaseChatMessageQuota(input.userId, quotaOptions);
+    throw error;
+  }
+}
+
+async function submitInTx(
+  tx: Tx,
+  input: {
+    userId: number;
+    conversationId: string;
+    request: ChatInputRequest;
+    attachment?: ChatAttachmentInput;
+  },
+  requestKey: string | null,
+  quotaOptions: ChatQuotaOptions,
+  onConsumed: () => void,
+): Promise<SubmitMessageResult> {
+  const attachment = input.attachment;
+  const [row] = await tx
+    .select()
+    .from(conversation)
+    .where(and(eq(conversation.id, input.conversationId), eq(conversation.userId, input.userId)))
+    .for("update");
+  if (!row) return { status: "not_found" };
+
+  if (requestKey !== null && (await requestKeyExists(tx, row.id, requestKey))) {
+    return { status: "duplicate" };
+  }
+
+  const [last] = await tx
+    .select({ role: chatMessage.role })
+    .from(chatMessage)
+    .where(and(eq(chatMessage.conversationId, row.id), eq(chatMessage.seq, row.messageCount)));
+  if (last?.role === "user") return { status: "busy" };
+
+  const userMessages = await tx.execute(sql`
+    SELECT count(*)::int AS n FROM chat_message
+     WHERE conversation_id = ${row.id} AND role = 'user'
+  `);
+  if (
+    ((userMessages.rows[0] as { n?: number } | undefined)?.n ?? 0) >=
+    MAX_USER_MESSAGES_PER_CONVERSATION
+  ) {
+    return { status: "conversation_full" };
+  }
+  if (attachment) {
+    const attachments = await tx.execute(sql`
+      SELECT count(*)::int AS n FROM chat_attachment WHERE conversation_id = ${row.id}
+    `);
+    if (
+      ((attachments.rows[0] as { n?: number } | undefined)?.n ?? 0) >=
+      CHAT_ATTACHMENTS_PER_CONVERSATION
+    ) {
+      return { status: "image_limit" };
     }
   }
 
-  return db.transaction(async (tx): Promise<SubmitMessageResult> => {
-    const [row] = await tx
-      .select()
-      .from(conversation)
-      .where(and(eq(conversation.id, input.conversationId), eq(conversation.userId, input.userId)))
-      .for("update");
-    if (!row) return { status: "not_found" };
+  const pending = parseClarifyQuestion(row.pendingQuestion);
+  let kind: "text" | "option" | "skip";
+  let content: string;
+  let payload: Record<string, unknown> | null = null;
+  let imageOnly = false;
+  const request = input.request;
+  if (request.kind === "text") {
+    const text = cleanUserText(request.text);
+    if (text === null && !attachment) return { status: "invalid_input" };
+    kind = "text";
+    content = text ?? IMAGE_ONLY_CONTENT;
+    imageOnly = text === null;
+    if (pending) payload = { answersQuestion: pending.id };
+  } else if (request.kind === "option") {
+    // Gecerli secenek sunucuda dogrulanir: istemci etiket ya da deger uyduramaz.
+    const option =
+      pending && pending.id === request.questionId
+        ? pending.options.find((candidate) => candidate.value === request.value)
+        : undefined;
+    if (!option || !pending) return { status: "invalid_option" };
+    kind = "option";
+    content = option.label;
+    payload = { questionId: pending.id, value: option.value };
+  } else {
+    if (!pending || pending.id !== request.questionId) return { status: "invalid_option" };
+    kind = "skip";
+    content = "Atla";
+    payload = { questionId: pending.id };
+  }
 
-    if (requestKey !== null && (await requestKeyExists(tx, row.id, requestKey))) {
-      return { status: "duplicate" };
-    }
+  const quota = await consumeChatMessageQuota(tx, input.userId, quotaOptions);
+  if (!quota.allowed) return { status: "rate_limited" };
+  if (quota.consumed) onConsumed();
 
-    const [last] = await tx
-      .select({ role: chatMessage.role })
-      .from(chatMessage)
-      .where(and(eq(chatMessage.conversationId, row.id), eq(chatMessage.seq, row.messageCount)));
-    if (last?.role === "user") return { status: "busy" };
+  // Ek, kota gectikten sonra ve mesajla ayni islemde yazilir.
+  if (attachment) {
+    const [stored] = await tx
+      .insert(chatAttachment)
+      .values({
+        conversationId: row.id,
+        userId: input.userId,
+        mimeType: attachment.mimeType,
+        data: attachment.bytes,
+        width: attachment.width,
+        height: attachment.height,
+        sha256: createHash("sha256").update(attachment.bytes).digest("hex"),
+      })
+      .returning({ id: chatAttachment.id });
+    if (!stored) throw new Error("attachment insert returned no row");
+    payload = {
+      ...(payload ?? {}),
+      attachmentId: stored.id,
+      ...(imageOnly ? { imageOnly: true } : {}),
+    };
+  }
 
-    const userMessages = await tx.execute(sql`
-      SELECT count(*)::int AS n FROM chat_message
-       WHERE conversation_id = ${row.id} AND role = 'user'
-    `);
-    if (
-      ((userMessages.rows[0] as { n?: number } | undefined)?.n ?? 0) >=
-      MAX_USER_MESSAGES_PER_CONVERSATION
-    ) {
-      return { status: "conversation_full" };
-    }
-    if (attachment) {
-      const attachments = await tx.execute(sql`
-        SELECT count(*)::int AS n FROM chat_attachment WHERE conversation_id = ${row.id}
-      `);
-      if (
-        ((attachments.rows[0] as { n?: number } | undefined)?.n ?? 0) >=
-        CHAT_ATTACHMENTS_PER_CONVERSATION
-      ) {
-        return { status: "image_limit" };
-      }
-    }
-
-    const pending = parseClarifyQuestion(row.pendingQuestion);
-    let kind: "text" | "option" | "skip";
-    let content: string;
-    let payload: Record<string, unknown> | null = null;
-    const request = input.request;
-    if (request.kind === "text") {
-      const text = cleanUserText(request.text);
-      if (text === null && !attachment) return { status: "invalid_input" };
-      kind = "text";
-      content = text ?? IMAGE_ONLY_CONTENT;
-      if (pending) payload = { answersQuestion: pending.id };
-      if (attachment) {
-        const [stored] = await tx
-          .insert(chatAttachment)
-          .values({
-            conversationId: row.id,
-            userId: input.userId,
-            mimeType: attachment.mimeType,
-            data: attachment.bytes,
-            width: attachment.width,
-            height: attachment.height,
-            sha256: createHash("sha256").update(attachment.bytes).digest("hex"),
-          })
-          .returning({ id: chatAttachment.id });
-        if (!stored) throw new Error("attachment insert returned no row");
-        payload = {
-          ...(payload ?? {}),
-          attachmentId: stored.id,
-          ...(text === null ? { imageOnly: true } : {}),
-        };
-      }
-    } else if (request.kind === "option") {
-      // Gecerli secenek sunucuda dogrulanir: istemci etiket ya da deger uyduramaz.
-      const option =
-        pending && pending.id === request.questionId
-          ? pending.options.find((candidate) => candidate.value === request.value)
-          : undefined;
-      if (!option || !pending) return { status: "invalid_option" };
-      kind = "option";
-      content = option.label;
-      payload = { questionId: pending.id, value: option.value };
-    } else {
-      if (!pending || pending.id !== request.questionId) return { status: "invalid_option" };
-      kind = "skip";
-      content = "Atla";
-      payload = { questionId: pending.id };
-    }
-
-    const seq = row.messageCount + 1;
-    await tx.insert(chatMessage).values({
-      conversationId: row.id,
-      seq,
-      role: "user",
-      kind,
-      content,
-      payload,
-      clientRequestId: requestKey,
-    });
-    await tx
-      .update(conversation)
-      .set({ messageCount: seq, lastMessageAt: sql`now()`, updatedAt: sql`now()` })
-      .where(eq(conversation.id, row.id));
-    return { status: "queued", seq };
+  const seq = row.messageCount + 1;
+  await tx.insert(chatMessage).values({
+    conversationId: row.id,
+    seq,
+    role: "user",
+    kind,
+    content,
+    payload,
+    clientRequestId: requestKey,
   });
+  await tx
+    .update(conversation)
+    .set({ messageCount: seq, lastMessageAt: sql`now()`, updatedAt: sql`now()` })
+    .where(eq(conversation.id, row.id));
+  return { status: "queued", seq };
 }
 
 async function requestKeyExists(
@@ -632,7 +735,7 @@ function toInterpretRequest(
   } else {
     input = { kind: "text", text: last.content };
   }
-  // Karar 0080: gorsel yalnizca karar verilen mesaja EKLENIR (`hasImage`); diger gorselli
+  // Karar 0091: gorsel yalnizca karar verilen mesaja EKLENIR (`hasImage`); diger gorselli
   // mesajlar, kayitli ozetleri varsa onunla temsil edilir.
   const summaries = new Map<string, string>();
   for (const message of view.messages) {
@@ -658,7 +761,7 @@ function toInterpretRequest(
 }
 
 /**
- * Karar 0078/0080: modele eklenecek gorsel. `decideContextImage` EN SON gorselli
+ * Karar 0078/0091: modele eklenecek gorsel. `decideContextImage` EN SON gorselli
  * kullanici mesajini secer ve gorselin gonderilip gonderilmeyecegine karar verir
  * (kendi turu, kayitli ozet yoksa ya da atif varsa). Pencere disina cikarsa eklenmez.
  */
@@ -702,6 +805,42 @@ export interface ProcessTurnInput {
   conversationId: string;
   interpreter: ChatInterpreter;
   leaseSeconds?: number;
+  /** Testler icin; varsayilan atomik Redis saglayici butcesi. */
+  budget?: ProviderBudgetHooks;
+}
+
+interface ChatProviderBudget {
+  modelAllowed: boolean;
+  /** Redis ayirmasi; yedek DB sayiminda `null` (kesinlestirilecek bir sey yok). */
+  reservation: ProviderBudgetReservation | null;
+}
+
+/**
+ * Gunluk saglayici tavani (`CHAT_DAILY_CALL_CAP`, tum kullanicilar): bir turun
+ * en fazla deneme sayisi kadar (`CHAT_CLIENT_OPTIONS.maxAttempts`) Redis'te
+ * atomik ayrilir; model cagrisindan sonra gercek deneme sayisina cekilir.
+ * Redis erisilemezse eski davranis: `api_usage` gunluk sayimi (sinirli,
+ * esanlilikta az tasabilir); sohbet kesilmez, tavan dolunca yedek cevap.
+ */
+async function chatProviderBudget(
+  db: Database,
+  hooks: ProviderBudgetHooks | undefined,
+): Promise<ChatProviderBudget> {
+  try {
+    const budget = await (hooks?.reserve ?? reserveProviderBudget)({
+      operation: CHAT_TURN_OPERATION,
+      amount: CHAT_CLIENT_OPTIONS.maxAttempts,
+      cap: CHAT_DAILY_CALL_CAP,
+    });
+    return budget.allowed
+      ? { modelAllowed: true, reservation: budget.reservation }
+      : { modelAllowed: false, reservation: null };
+  } catch (error) {
+    if (!isRedisUnavailableError(error)) throw error;
+    console.error("[chat] provider budget store unavailable; daily db count applies");
+    const callsToday = await providerCallsToday(db, new Date(), CHAT_TURN_OPERATION);
+    return { modelAllowed: callsToday < CHAT_DAILY_CALL_CAP, reservation: null };
+  }
 }
 
 /** Yazilan cevabin istemcide hemen gosterilebilen on izlemesi (kalici kayit sunucudadir). */
@@ -769,13 +908,28 @@ async function runPendingTurn(
     return exists ? { status: "busy" } : { status: "not_found" };
   }
 
+  // Saglayici butcesi: ayrildiysa tur bitmeden MUTLAKA gercek deneme sayisina
+  // cekilir (model hic cagrilmadiysa 0 = tam iade). `null` = bilinmiyor
+  // (beklenmeyen hata): ayirma oldugu gibi kalir, eksik sayilmaz.
+  let budget: ChatProviderBudget | null = null;
+  let attempts: number | null = 0;
+  let settled = false;
+  const settleBudget = async () => {
+    if (settled || !budget?.reservation || attempts === null) return;
+    settled = true;
+    await (input.budget?.settle ?? settleProviderBudget)(budget.reservation, attempts).catch(() =>
+      console.error("[chat] provider budget settle failed"),
+    );
+  };
+
   try {
     // Birbirine bagimli degil, tek tur: mesajlar, gunluk tavan, sozluk isitma (aramadan once).
-    const [rows, callsToday] = await Promise.all([
+    const [rows, providerBudget] = await Promise.all([
       timer.time("load_context", () => loadMessageRows(db, claimed.id)),
-      timer.time("provider_limit", () => providerCallsToday(db, new Date(), CHAT_TURN_OPERATION)),
+      timer.time("provider_limit", () => chatProviderBudget(db, input.budget)),
       timer.time("lexicon", () => loadLexiconCached(db)).catch(() => undefined),
     ]);
+    budget = providerBudget;
     const view = buildView(claimed, rows);
     const decision = decideContextImage(view.messages, CHAT_CONTEXT_MESSAGES);
     const image = await loadContextImage(db, input.userId, decision);
@@ -787,10 +941,13 @@ async function runPendingTurn(
     const request: InterpretRequest = maybeRequest;
     const lastSeq = view.messages.at(-1)?.seq ?? 0;
     // Kilit/islem YOK: kira yalnizca bir satir isaretidir; model cagrisi DB'yi tutmaz.
-    const modelAllowed = callsToday < CHAT_DAILY_CALL_CAP;
+    const modelAllowed = providerBudget.modelAllowed;
+    attempts = null;
     const outcome = await timer.time("gemini", () =>
       interpretTurn(input.interpreter, request, { modelAllowed }),
     );
+    attempts = outcome.calls.length;
+    await settleBudget();
 
     return await persistTurn();
 
@@ -813,7 +970,8 @@ async function runPendingTurn(
                 operation: CHAT_TURN_OPERATION,
                 modelVersion: call.modelVersion,
                 units: call.usage?.totalTokens ?? 0,
-                costMicros: 0,
+                // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
+                costMicros: llmCallCostMicros(call),
                 cacheHit: false,
               })),
             );
@@ -849,7 +1007,7 @@ async function runPendingTurn(
             }
           }
 
-          // Karar 0080: gorsel bu istege eklendiyse modelin urettigi ozet saklanir (kural 3).
+          // Karar 0091: gorsel bu istege eklendiyse modelin urettigi ozet saklanir (kural 3).
           const summaryPayload =
             image && decision.attachmentId && turn.imageSummary && source === "model"
               ? { imageSummary: { attachmentId: decision.attachmentId, text: turn.imageSummary } }
@@ -916,6 +1074,8 @@ async function runPendingTurn(
       // Kira zaten sure dolunca duser.
     }
     return { status: "provider_error", code: "unknown" };
+  } finally {
+    await settleBudget();
   }
 }
 
@@ -1034,21 +1194,45 @@ function isMissingTable(error: unknown): boolean {
   return code === "42P01";
 }
 
-export type ResultFeedbackStatus = "saved" | "not_found" | "invalid";
+export type ResultFeedbackStatus = "saved" | "not_found" | "invalid" | "unavailable";
+
+/** Oy anindaki model surumu icin aranan pencere (api_usage mesaja bagli degil; yaklasik). */
+const FEEDBACK_MODEL_LOOKBACK_MS = 10 * 60 * 1000;
+
+function isMissingColumn(error: unknown): boolean {
+  const code =
+    (error as { cause?: { code?: string } } | null)?.cause?.code ??
+    (error as { code?: string } | null)?.code;
+  return code === "42703";
+}
 
 /**
- * "Bu yardimci oldu mu?" oyu. Sahiplik sorguda: yalnizca kullanicinin kendi
- * sohbetindeki bir ARAMA mesajina oy verilebilir. Mesaj basina tek oy, degistirilebilir.
+ * "Bu yardimci oldu mu?" oyu (karar 0075, 0079). Sahiplik sorguda: yalnizca kullanicinin
+ * kendi sohbetindeki bir ARAMA mesajina oy verilebilir. Mesaj basina tek oy, degistirilebilir;
+ * ayni icerikle tekrar `updated_at`i oynatmaz. Olumsuz oy istege bagli neden/yorum tasir.
  */
 export async function setResultFeedback(
   db: Database,
-  input: { userId: number; conversationId: string; messageSeq: number; helpful: boolean },
+  input: {
+    userId: number;
+    conversationId: string;
+    messageSeq: number;
+    helpful: boolean;
+    reasons?: readonly string[];
+    comment?: string | null;
+  },
 ): Promise<ResultFeedbackStatus> {
   if (!isUuid(input.conversationId)) return "not_found";
   if (!Number.isInteger(input.messageSeq) || input.messageSeq < 1) return "invalid";
-  if (typeof input.helpful !== "boolean") return "invalid";
+  const details = validateChatFeedback(input);
+  if (!details.ok) return "invalid";
   const [message] = await db
-    .select({ id: chatMessage.id, role: chatMessage.role, kind: chatMessage.kind })
+    .select({
+      id: chatMessage.id,
+      role: chatMessage.role,
+      kind: chatMessage.kind,
+      createdAt: chatMessage.createdAt,
+    })
     .from(chatMessage)
     .innerJoin(conversation, eq(conversation.id, chatMessage.conversationId))
     .where(
@@ -1061,17 +1245,57 @@ export async function setResultFeedback(
   if (!message) return "not_found";
   if (message.role !== "assistant" || message.kind !== "search") return "invalid";
   try {
-    await db
-      .insert(chatResultFeedback)
-      .values({
-        messageId: message.id,
-        conversationId: input.conversationId,
-        helpful: input.helpful,
-      })
-      .onConflictDoUpdate({
-        target: chatResultFeedback.messageId,
-        set: { helpful: input.helpful, updatedAt: sql`now()` },
-      });
+    try {
+      const [usage] = await db
+        .select({ modelVersion: apiUsage.modelVersion })
+        .from(apiUsage)
+        .where(
+          and(
+            eq(apiUsage.operation, CHAT_TURN_OPERATION),
+            eq(apiUsage.userId, input.userId),
+            lte(apiUsage.createdAt, message.createdAt),
+            gte(
+              apiUsage.createdAt,
+              new Date(message.createdAt.getTime() - FEEDBACK_MODEL_LOOKBACK_MS),
+            ),
+          ),
+        )
+        .orderBy(desc(apiUsage.createdAt))
+        .limit(1);
+      await db
+        .insert(chatResultFeedback)
+        .values({
+          messageId: message.id,
+          conversationId: input.conversationId,
+          helpful: input.helpful,
+          reasons: details.reasons,
+          comment: details.comment,
+          modelVersion: usage?.modelVersion ?? null,
+        })
+        .onConflictDoUpdate({
+          target: chatResultFeedback.messageId,
+          set: {
+            helpful: input.helpful,
+            reasons: details.reasons,
+            comment: details.comment,
+            updatedAt: sql`now()`,
+          },
+          // Ayni icerikle tekrar: satir degismez (idempotent).
+          setWhere: sql`${chatResultFeedback.helpful} IS DISTINCT FROM ${input.helpful}
+            OR ${chatResultFeedback.reasons} IS DISTINCT FROM ${sql.raw("EXCLUDED.reasons")}
+            OR ${chatResultFeedback.comment} IS DISTINCT FROM ${sql.raw("EXCLUDED.comment")}`,
+        });
+    } catch (error) {
+      // 0058 henuz uygulanmamis: yalniz evet/hayir yazilabilir. Neden/yorum varsa "saved"
+      // DONME (kullanici yorumunun kaydoldugunu sanirdi): "unavailable", modal acik kalir.
+      if (!isMissingColumn(error)) throw error;
+      if (details.reasons.length > 0 || details.comment !== null) return "unavailable";
+      // Ham SQL: Drizzle insert'i semadaki TUM kolonlari adlandirir, 0058 oncesi yine 42703 verirdi.
+      await db.execute(sql`
+        INSERT INTO chat_result_feedback (message_id, conversation_id, helpful)
+        VALUES (${message.id}, ${input.conversationId}::uuid, ${input.helpful})
+        ON CONFLICT (message_id) DO UPDATE SET helpful = EXCLUDED.helpful, updated_at = now()`);
+    }
   } catch (error) {
     // Tablo yok (0055 bekliyor): oy kaydedilemedi, arayuz "kaydedemedim" der.
     if (isMissingTable(error)) return "invalid";

@@ -45,6 +45,25 @@ export const CHAT_COPY = {
   feedbackNo: "Hayır, yardımcı olmadı",
   feedbackThanks: "Teşekkürler, not aldım.",
   feedbackFailed: "Kaydedemedim, tekrar dener misin?",
+  feedbackRateLimited: "Çok sık oy verdin. Biraz sonra tekrar dener misin?",
+  feedbackDialogTitle: "Bu yanıtı nasıl iyileştirebiliriz?",
+  feedbackReasonLabel: "Sorun nedeni",
+  feedbackReasonPlaceholder: "Bir neden seç (isteğe bağlı)",
+  feedbackReasons: {
+    not_found: "Aradığım ürünleri bulamadı",
+    irrelevant: "Alakasız ürünler önerdi",
+    misunderstood: "İsteğimi yanlış anladı",
+    wrong_info: "Yanlış bilgi verdi",
+    wrong_price_or_product: "Fiyat veya ürün bilgisi hatalı",
+    slow: "Yanıt çok yavaştı",
+    other: "Diğer",
+  },
+  feedbackCommentLabel: "Ayrıntı ekle (isteğe bağlı)",
+  feedbackCommentPlaceholder: "Ne yanlıştı ya da ne eksikti?",
+  feedbackCommentHint: "Kişisel bilgi yazma. En fazla 500 karakter.",
+  feedbackCancel: "İptal",
+  feedbackSubmit: "Gönder",
+  feedbackSubmitting: "Gönderiliyor",
   tabsLabel: "Sonuç sıralaması",
   tabSelected: "Seçtiklerimiz",
   tabDeals: "En iyi fırsatlar",
@@ -117,8 +136,10 @@ export const CHAT_ERROR_COPY: Record<ChatErrorKind, ChatErrorCopy> = {
     searchDirectly: false,
     newChat: false,
   },
+  // Saat/gun/hafta/ay sohbet mesaji sinirlarindan biri doldu (quota/policy.ts).
   rate_limited: {
-    message: "Kısa sürede çok fazla mesaj gönderdin. Biraz sonra tekrar dene.",
+    message:
+      "Şimdilik sohbet mesajı sınırına ulaştın. Aramayı doğrudan yapabilirsin; sınırın yenilenince sohbete devam edebilirsin.",
     retry: false,
     searchDirectly: true,
     newChat: false,
@@ -141,7 +162,7 @@ export const CHAT_ERROR_COPY: Record<ChatErrorKind, ChatErrorCopy> = {
     searchDirectly: false,
     newChat: false,
   },
-  // Karar 0080: gorselli mesaj hatalari sohbette kalir; mesaj ve gorsel kutuda korunur, kullanici
+  // Karar 0091: gorselli mesaj hatalari sohbette kalir; mesaj ve gorsel kutuda korunur, kullanici
   // duzeltip yeniden gonderir (ayni istek anahtariyla sunucu bir kez kabul eder).
   image_limit: {
     message: IMAGE_CHAT_ERROR_COPY.image_limit,

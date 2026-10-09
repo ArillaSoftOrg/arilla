@@ -19,7 +19,6 @@
 import { createHash } from "node:crypto";
 import { type Database, queryInterpretation } from "@arilla/db";
 import { and, eq } from "drizzle-orm";
-import type { FixedWindowCounter } from "../auth/rate-limit.ts";
 import { describeTaxonomy, type ValidatedInterpretation } from "../clarification/interpreter.ts";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "../clarification/rules.ts";
 import { createInitialState } from "../clarification/state.ts";
@@ -28,21 +27,29 @@ import type { LlmClient } from "../llm/client.ts";
 import { LlmError } from "../llm/client.ts";
 import { getLlmClient } from "../llm/gemini.ts";
 import { interpretWithModel, LlmIntentInterpreter } from "../llm/intent-interpreter.ts";
+import type { QuotaPool } from "../quota/policy.ts";
+import {
+  type ProviderBudgetHooks,
+  type ProviderBudgetReservation,
+  reserveProviderBudget,
+  settleProviderBudget,
+} from "../quota/provider-budget.ts";
+import { consumeQuota, type QuotaConsumer } from "../quota/redis-windows.ts";
 import { isRedisUnavailableError } from "../redis/client.ts";
-import { incrementFixedWindow } from "../redis/counter.ts";
 import { type IneligibleReason, queryContentIneligibility } from "./interpretation-eligibility.ts";
 import { currentInterpretationIdentity } from "./interpretation-identity.ts";
 import { normalizeQueryText } from "./normalize.ts";
-import { persistOutcome, providerCallsToday } from "./query-interpretation.ts";
+import { persistOutcome } from "./query-interpretation.ts";
 import { parseStoredInterpretation } from "./stored-interpretation.ts";
 
 /** `api_usage.operation`: toplu isin tavanindan (`query_interpretation`) ayri sayilir. */
 export const REALTIME_INTERPRETATION_OPERATION = "query_interpretation_realtime";
 
 /**
- * Europe/Istanbul gunu basina anlik saglayici HTTP denemesi. Asilinca arama
- * deterministik yoldan devam eder (kullanici fark etmez). Toplu isin 100'luk
- * tavani etkilenmez. Yukseltmek kod incelemesidir.
+ * Europe/Istanbul gunu basina anlik saglayici HTTP denemesi (tum kullanicilar).
+ * Atomik Redis sayaci (`quota/provider-budget.ts`) ile cagridan ONCE ayrilir.
+ * Asilinca arama deterministik yoldan devam eder (kullanici fark etmez). Toplu
+ * isin 100'luk tavani etkilenmez. Yukseltmek kod incelemesidir.
  */
 export const REALTIME_INTERPRETATION_DAILY_CALL_CAP = 2000;
 
@@ -55,24 +62,28 @@ export const REALTIME_INTERPRETATION_DAILY_CALL_CAP = 2000;
 export const REALTIME_INTERPRETATION_CLIENT_OPTIONS = { timeoutMs: 2_500, maxAttempts: 1 } as const;
 
 /**
- * Kisi basina anlik saglayici cagrisi: saatte 30. Tek bir anonim aktor (ya da
- * bot) 2.000'lik gunluk butcenin tamamini tuketemesin. Yalnizca GERCEK model
- * cagrisi sayilir (onbellek isabeti ve suzgece takilan sorgu sayilmaz).
- * Anahtar girisli hesap ya da IP'nin SHA-256 ozeti; IP cozulemezse ortak kova.
- * Redis erisilemezse model cagrilmaz (maliyet kapali), arama surer.
+ * Kisi basina anlik saglayici cagrisi: `quota/policy.ts`'teki saat/gun/hafta/
+ * ay limitleri; girisli hesap (`realtime_interpretation_user`) ve anonim
+ * ziyaretci (`realtime_interpretation_anonymous`) ayri havuzdur. Tek bir aktor
+ * (ya da bot) 2.000'lik gunluk butcenin tamamini tuketemesin. Yalnizca GERCEK
+ * model cagrisi sayilir (onbellek isabeti, suzgece takilan sorgu ve gunluk
+ * tavan sayilmaz). Ozne girisli hesap ya da IP'nin SHA-256 ozeti; IP
+ * cozulemezse ortak kova. Redis erisilemezse model cagrilmaz (maliyet
+ * kapali), arama deterministik yoldan surer.
  */
-export const REALTIME_INTERPRETATION_ACTOR_LIMIT = 30;
-export const REALTIME_INTERPRETATION_ACTOR_WINDOW_SECONDS = 60 * 60;
-
 export interface RealtimeActor {
   userId: number | null;
   ip: string | null;
 }
 
-export function realtimeActorKey(actor: RealtimeActor): string {
-  if (actor.userId !== null) return `rti:user:${actor.userId}`;
-  if (actor.ip) return `rti:ip:${createHash("sha256").update(actor.ip.trim()).digest("hex")}`;
-  return "rti:ip:unknown";
+export function realtimeActorQuota(actor: RealtimeActor): { pool: QuotaPool; subject: string } {
+  if (actor.userId !== null) {
+    return { pool: "realtime_interpretation_user", subject: `user:${actor.userId}` };
+  }
+  const subject = actor.ip
+    ? `ip:${createHash("sha256").update(actor.ip.trim()).digest("hex")}`
+    : "ip:unknown";
+  return { pool: "realtime_interpretation_anonymous", subject };
 }
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -92,6 +103,8 @@ export type RealtimeSkipReason =
   /** Bu kimlik icin daha once yorum yapildi ama kullanilabilir sonuc yok (bos/gecersiz). */
   | "already_interpreted"
   | "daily_cap"
+  /** Gunluk saglayici butcesi okunamadi (Redis): maliyet kapali, model yok. */
+  | "budget_unavailable"
   /** Kisi basina anlik limit doldu ya da limit sayaci okunamadi. */
   | "actor_limited"
   | "provider_error"
@@ -117,8 +130,10 @@ export interface RealtimeInterpretationOptions {
    * `/ara` her zaman verir.
    */
   actor?: RealtimeActor;
-  /** Testler icin; varsayilan Redis sabit pencere sayaci. */
-  increment?: FixedWindowCounter;
+  /** Testler icin; varsayilan Redis cok pencereli kota (`consumeQuota`). */
+  consume?: QuotaConsumer;
+  /** Testler icin; varsayilan atomik Redis saglayici butcesi. */
+  budget?: ProviderBudgetHooks;
 }
 
 function safeCode(error: unknown): string {
@@ -210,34 +225,58 @@ export async function resolveRealtimeInterpretation(
       Math.max(0, options.dailyCallCap ?? REALTIME_INTERPRETATION_DAILY_CALL_CAP),
       REALTIME_INTERPRETATION_DAILY_CALL_CAP,
     );
-    const callsToday = await providerCallsToday(db, now(), REALTIME_INTERPRETATION_OPERATION);
-    if (callsToday + REALTIME_INTERPRETATION_CLIENT_OPTIONS.maxAttempts > cap) {
-      return { source: "none", reason: "daily_cap" };
+    // Gunluk tavan: kisi limitinden ONCE ve saglayici cagrisindan ONCE, atomik.
+    let reservation: ProviderBudgetReservation;
+    try {
+      const budget = await (options.budget?.reserve ?? reserveProviderBudget)({
+        operation: REALTIME_INTERPRETATION_OPERATION,
+        amount: REALTIME_INTERPRETATION_CLIENT_OPTIONS.maxAttempts,
+        cap,
+        now: now(),
+      });
+      if (!budget.allowed) return { source: "none", reason: "daily_cap" };
+      reservation = budget.reservation;
+    } catch (error) {
+      if (!isRedisUnavailableError(error)) throw error;
+      logFailure("provider budget", error);
+      return { source: "none", reason: "budget_unavailable" };
     }
 
-    if (options.actor) {
-      try {
-        const count = await (options.increment ?? incrementFixedWindow)(
-          realtimeActorKey(options.actor),
-          REALTIME_INTERPRETATION_ACTOR_WINDOW_SECONDS,
-        );
-        if (count > REALTIME_INTERPRETATION_ACTOR_LIMIT) {
+    // Saglayiciya giden gercek deneme sayisi; `null` = bilinmiyor (beklenmeyen
+    // hata): ayirma oldugu gibi kalir, eksik sayilmaz.
+    let attempts: number | null = 0;
+    let outcome: Awaited<ReturnType<typeof interpretWithModel>>;
+    try {
+      if (options.actor) {
+        try {
+          const quota = await (options.consume ?? consumeQuota)({
+            ...realtimeActorQuota(options.actor),
+            now: now(),
+          });
+          if (!quota.allowed) return { source: "none", reason: "actor_limited" };
+        } catch (error) {
+          if (!isRedisUnavailableError(error)) throw error;
+          logFailure("actor limit", error);
           return { source: "none", reason: "actor_limited" };
         }
-      } catch (error) {
-        if (!isRedisUnavailableError(error)) throw error;
-        logFailure("actor limit", error);
-        return { source: "none", reason: "actor_limited" };
+      }
+
+      // Toplu isle AYNI istem ve dogrulama: yalnizca sorgu, bos baslangic durumu
+      // ve taksonomi gider. Boylece saklanan satir iki yolda da ayni anlamdadir.
+      attempts = null;
+      outcome = await interpretWithModel(
+        new LlmIntentInterpreter(client, registry),
+        { text: queryNorm, state: createInitialState(), taxonomy: describeTaxonomy(registry) },
+        registry,
+      );
+      attempts = outcome.calls.length;
+    } finally {
+      if (attempts !== null) {
+        await (options.budget?.settle ?? settleProviderBudget)(reservation, attempts).catch(
+          (error: unknown) => logFailure("provider budget settle", error),
+        );
       }
     }
-
-    // Toplu isle AYNI istem ve dogrulama: yalnizca sorgu, bos baslangic durumu
-    // ve taksonomi gider. Boylece saklanan satir iki yolda da ayni anlamdadir.
-    const outcome = await interpretWithModel(
-      new LlmIntentInterpreter(client, registry),
-      { text: queryNorm, state: createInitialState(), taxonomy: describeTaxonomy(registry) },
-      registry,
-    );
 
     try {
       await persistOutcome(db, {

@@ -304,7 +304,7 @@ describe("openChatInNewTabWithImage (metinle aynı hat)", () => {
   });
 });
 
-describe("eski görsel arama akışına bağımlılık yok (karar 0080)", () => {
+describe("eski görsel arama akışına bağımlılık yok (karar 0091)", () => {
   const files = [
     "../home-search-composer-client.tsx",
     "chat-bootstrap-client.tsx",

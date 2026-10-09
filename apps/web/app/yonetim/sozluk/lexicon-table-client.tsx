@@ -3,6 +3,7 @@
 import { Button, Input } from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import styles from "../admin.module.css";
 import { ConfirmButton } from "../confirm-button-client.tsx";
 import { lexiconKindLabel } from "../format.ts";
 import {
@@ -75,7 +76,14 @@ function EditableFields({
   onChange: (next: DraftFields) => void;
 }) {
   return (
-    <div style={{ display: "grid", gridTemplateColumns: "repeat(4, minmax(0, 1fr))", gap: 8 }}>
+    <div
+      style={{
+        display: "grid",
+        // Dar ekranda alanlar alt alta sarılır (4 sabit sütun telefonda sıkışıyordu).
+        gridTemplateColumns: "repeat(auto-fit, minmax(min(100%, 140px), 1fr))",
+        gap: 8,
+      }}
+    >
       <label style={{ display: "grid", gap: 4, fontSize: 13 }}>
         Tür
         <select
@@ -155,7 +163,7 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
   if (editing) {
     return (
       <tr>
-        <td colSpan={5} style={{ padding: "8px 0" }}>
+        <td colSpan={5}>
           <div style={{ display: "grid", gap: 8 }}>
             <EditableFields draft={draft} onChange={setDraft} />
             <ErrorText message={error} />
@@ -189,7 +197,7 @@ function LexiconRowView({ row }: { row: LexiconRow }) {
       <td>{lexiconKindLabel(row.kind)}</td>
       <td>{row.surface}</td>
       <td>{row.normalized}</td>
-      <td>{row.weight}</td>
+      <td className={styles.num}>{row.weight}</td>
       <td>
         <div style={{ display: "flex", gap: 8 }}>
           <Button
@@ -306,16 +314,20 @@ export function LexiconTableClient({
   return (
     <div style={{ display: "grid", gap: 16 }}>
       <NewLexiconRow prefillSurface={prefillSurface} verifyHref={verifyHref} />
-      {/* Dar ekranda tablo sayfayı taşırmasın: kendi içinde yatay kayar. */}
-      <div style={{ overflowX: "auto" }}>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+      {/* Dar ekranda tablo sayfayı taşırmasın: kendi içinde yatay kayar (ortak tablo görünümü). */}
+      <div className={styles.tableWrap}>
+        <table className={styles.table}>
           <thead>
-            <tr style={{ textAlign: "left" }}>
-              <th>Tür</th>
-              <th>Yüzey</th>
-              <th>Normalize</th>
-              <th>Ağırlık</th>
-              <th />
+            <tr>
+              <th scope="col">Tür</th>
+              <th scope="col">Yüzey</th>
+              <th scope="col">Normalize</th>
+              <th scope="col" className={styles.num}>
+                Ağırlık
+              </th>
+              <th scope="col">
+                <span className={styles.meta}>İşlem</span>
+              </th>
             </tr>
           </thead>
           <tbody>

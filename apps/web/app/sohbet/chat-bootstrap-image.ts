@@ -1,5 +1,5 @@
 /**
- * Ana sayfa -> yeni sekme GORSEL aktarimi (docs/decisions/0080 madde 3-4).
+ * Ana sayfa -> yeni sekme GORSEL aktarimi (docs/decisions/0091 madde 3-4).
  *
  * Mesaj metni `chat-bootstrap.ts` ile `localStorage`ta tek kullanimlik kayit olarak
  * gider; gorsel (<= 4 MB) oraya SIGMAZ ve base64 sisirir. Gorsel bu yuzden ayni nonce

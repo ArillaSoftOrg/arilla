@@ -4,14 +4,21 @@
  * guvenilmez.
  */
 import type { AiSearchOperation } from "@arilla/db";
+import { QUOTA_POLICY } from "../quota/policy.ts";
 
-/** Islem basina hak maliyeti. V1'de ikisi de 1; ileride islem bazinda degisebilir. */
+/**
+ * Islem basina hak maliyeti. Ikisi de ayni havuzdan (`search_rights`) 1 hak;
+ * link aramasi kapaliyken (`LINK_SEARCH_PUBLIC`) hic cagrilmaz.
+ */
 export const AI_OPERATION_COST: Readonly<Record<AiSearchOperation, number>> = {
   visual_search: 1,
   link_search: 1,
 };
 
-export const DEFAULT_DAILY_SEARCH_LIMIT = 10;
+/** Hak havuzunun saat/gun/hafta/ay limitleri (`quota/policy.ts`). */
+export const SEARCH_RIGHTS_LIMITS = QUOTA_POLICY.search_rights;
+
+export const DEFAULT_DAILY_SEARCH_LIMIT = SEARCH_RIGHTS_LIMITS.day;
 
 /** Bonus bakiyesinin tavani. Odul bu tavana kirpilir; iade kirpilmaz. */
 export const BONUS_BALANCE_MAX = 100;
@@ -22,7 +29,11 @@ export const REWARD_AMOUNTS = {
   feedbackFirst: 3,
 } as const;
 
-/** Kullanici basina pahali arama istek hizi (Redis, sabit pencere). */
+/**
+ * Kullanici basina pahali arama ISTEK hizi (Redis, sabit pencere): kotuye
+ * kullanim siniri, reddedilen denemeleri de sayar. Urun kotasindan
+ * (`SEARCH_RIGHTS_LIMITS`, yalnizca harcanan hak) ayridir ve gevsetilmez.
+ */
 export const AI_SEARCH_RATE_LIMITS = [
   { name: "min", windowSeconds: 60, max: 3 },
   { name: "hour", windowSeconds: 60 * 60, max: 10 },

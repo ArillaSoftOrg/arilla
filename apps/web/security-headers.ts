@@ -16,7 +16,16 @@
  *   tarayıcılar form gönderiminden sonraki yönlendirmeyi de denetler.
  * - HSTS yalnızca üretimde; alt alan adları ve preload listesi bilerek yok
  *   (HTTPS'siz bir alt alan adı kilitlenmesin).
+ * - Tek istisna GA4 (karar 0087): yalnızca `GA4_MEASUREMENT_ID` geçerliyse
+ *   `script-src`/`connect-src`'ye Google ölçüm kökenleri eklenir. Betik yine
+ *   de rıza kapısından geçmeden yüklenmez. Yönetim alanı bu genişlemeyi
+ *   almaz: `/yonetim` yanıtları GA4'süz CSP ile ezilir.
  */
+import {
+  GA4_CONNECT_ORIGINS,
+  GA4_SCRIPT_ORIGIN,
+  parseMeasurementId,
+} from "@arilla/core/ga4-measurement";
 
 export interface SecurityHeader {
   key: string;
@@ -28,6 +37,8 @@ export interface SecurityHeaderOptions {
   development: boolean;
   /** Üretim HTTPS dağıtımı ise true: HSTS ve `upgrade-insecure-requests`. */
   production: boolean;
+  /** Geçerli GA4 ölçüm kimliği tanımlı mı (karar 0087). */
+  ga4?: boolean;
 }
 
 export const OAUTH_FORM_TARGETS = ["https://accounts.google.com", "https://appleid.apple.com"];
@@ -37,12 +48,24 @@ export function contentSecurityPolicy(options: SecurityHeaderOptions): string {
     ["default-src", ["'self'"]],
     [
       "script-src",
-      ["'self'", "'unsafe-inline'", ...(options.development ? ["'unsafe-eval'"] : [])],
+      [
+        "'self'",
+        "'unsafe-inline'",
+        ...(options.development ? ["'unsafe-eval'"] : []),
+        ...(options.ga4 ? [GA4_SCRIPT_ORIGIN] : []),
+      ],
     ],
     ["style-src", ["'self'", "'unsafe-inline'"]],
     ["img-src", ["'self'", "data:", "blob:", "https:"]],
     ["font-src", ["'self'"]],
-    ["connect-src", ["'self'", ...(options.development ? ["ws:", "wss:"] : [])]],
+    [
+      "connect-src",
+      [
+        "'self'",
+        ...(options.development ? ["ws:", "wss:"] : []),
+        ...(options.ga4 ? GA4_CONNECT_ORIGINS : []),
+      ],
+    ],
     ["frame-src", ["'self'"]],
     ["object-src", ["'none'"]],
     ["base-uri", ["'self'"]],
@@ -93,12 +116,21 @@ export const PRIVATE_EXTRA_HEADERS: SecurityHeader[] = [
  */
 export const TOKEN_URL_PATHS = ["/giris/dogrula", "/abonelik-iptali", "/api/email/unsubscribe"];
 
+/** Yönetim: dizin dışı + GA4 kökenleri OLMAYAN CSP (yalnızca GA4 açıkken ezmek gerekir). */
+function adminHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
+  if (!options.ga4) return ADMIN_EXTRA_HEADERS;
+  return [
+    ...ADMIN_EXTRA_HEADERS,
+    { key: "Content-Security-Policy", value: contentSecurityPolicy({ ...options, ga4: false }) },
+  ];
+}
+
 /** `next.config.ts` `headers()` girdisi. Sıra önemli: özel girdiler sonra. */
 export function securityHeaderRoutes(options: SecurityHeaderOptions) {
   return [
     { source: "/:path*", headers: securityHeaders(options) },
-    { source: "/yonetim", headers: ADMIN_EXTRA_HEADERS },
-    { source: "/yonetim/:path*", headers: ADMIN_EXTRA_HEADERS },
+    { source: "/yonetim", headers: adminHeaders(options) },
+    { source: "/yonetim/:path*", headers: adminHeaders(options) },
     { source: "/giris/:path*", headers: PRIVATE_EXTRA_HEADERS },
     { source: "/ara", headers: PRIVATE_EXTRA_HEADERS },
     { source: "/ara/:path*", headers: PRIVATE_EXTRA_HEADERS },
@@ -119,5 +151,9 @@ export function securityHeaderOptionsFromEnv(
   env: Readonly<Record<string, string | undefined>> = process.env,
 ): SecurityHeaderOptions {
   const production = env.NODE_ENV === "production";
-  return { development: !production, production: production && env.VERCEL === "1" };
+  return {
+    development: !production,
+    production: production && env.VERCEL === "1",
+    ga4: parseMeasurementId(env.GA4_MEASUREMENT_ID) !== null,
+  };
 }

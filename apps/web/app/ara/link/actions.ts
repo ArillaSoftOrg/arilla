@@ -18,6 +18,7 @@ import {
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
 import { requireProductAccess } from "../../lib/dal.ts";
+import { linkNoRightsCode } from "./link-search-copy.ts";
 
 /** `ara/gorsel/actions.ts` ile aynı desen: Server Action çerez yazabilir. */
 async function ensureSessionId(): Promise<string> {
@@ -64,10 +65,14 @@ export async function startLinkSearchAction(
     });
     if (result.status === "queued") return { status: "queued", requestId: result.requestId };
     // Sitenin 429'u zaten `rate_limited` kodunu tasir; kullanici hizi ayri kod.
-    return {
-      status: "failed",
-      errorCode: result.status === "rate_limited" ? "search_rate_limited" : result.status,
-    };
+    if (result.status === "rate_limited") {
+      return { status: "failed", errorCode: "search_rate_limited" };
+    }
+    // Fotografla ayni hak havuzu (`search_rights`); gunluk dolum eski `no_rights` kodudur.
+    if (result.status === "no_rights") {
+      return { status: "failed", errorCode: linkNoRightsCode(result.window) };
+    }
+    return { status: "failed", errorCode: result.status };
   } catch (error) {
     if (error instanceof InvalidUrlError) return { status: "failed", errorCode: "invalid_url" };
     if (isRedisUnavailableError(error)) {

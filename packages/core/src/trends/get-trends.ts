@@ -22,8 +22,11 @@ import {
   type TrendThumbnail,
 } from "./types.ts";
 
-/** `product` takma adi `p` ile kullanilir. */
-const SHOWABLE = sql.raw(
+/**
+ * `product` takma adi `p` ile kullanilir. Disa acik: yonetim trend listesi
+ * (karar 0086) gorunurlugu AYNI kosulla hesaplar, kural tek yerde kalir.
+ */
+export const TREND_SHOWABLE_PRODUCT_SQL = sql.raw(
   "p.primary_image_url IS NOT NULL AND p.min_price > 0 AND p.in_stock_count > 0",
 );
 
@@ -72,7 +75,7 @@ async function loadPublicTrends(db: Database, now: Date = new Date()): Promise<T
            count(*) AS product_count, min(p.min_price) AS starting_price
       FROM trend t
       JOIN trend_product tp ON tp.trend_id = t.id
-      JOIN product p ON p.id = tp.product_id AND ${SHOWABLE}
+      JOIN product p ON p.id = tp.product_id AND ${TREND_SHOWABLE_PRODUCT_SQL}
      WHERE t.status = 'published'
      GROUP BY t.id
     HAVING count(*) >= ${MIN_PUBLIC_TREND_PRODUCTS}
@@ -89,7 +92,7 @@ async function loadPublicTrends(db: Database, now: Date = new Date()): Promise<T
                p.primary_image_url AS image_url,
                row_number() OVER (PARTITION BY tp.trend_id ORDER BY tp.sort_order) AS rank
           FROM trend_product tp
-          JOIN product p ON p.id = tp.product_id AND ${SHOWABLE}
+          JOIN product p ON p.id = tp.product_id AND ${TREND_SHOWABLE_PRODUCT_SQL}
           LEFT JOIN brand b ON b.id = p.brand_id
          WHERE tp.trend_id IN (${sql.join(
            ids.map((id) => sql`${id}`),
@@ -165,7 +168,7 @@ async function loadTrendBySlug(
     SELECT p.id AS product_id, p.slug, p.title, b.name AS brand_name, p.primary_image_url,
            p.min_price, p.offer_count
       FROM trend_product tp
-      JOIN product p ON p.id = tp.product_id AND ${SHOWABLE}
+      JOIN product p ON p.id = tp.product_id AND ${TREND_SHOWABLE_PRODUCT_SQL}
       LEFT JOIN brand b ON b.id = p.brand_id
      WHERE tp.trend_id = ${row.id}
      ORDER BY tp.sort_order

@@ -13,7 +13,7 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
 | `home.hero_title_lead` | Alışveriş mi? (başlık aynı alanda "Manicepte." ile dönüşümlü; ~1,6 sn / ~2 sn) |
 | `home.hero_title_accent` | Manicepte. |
-| `home.hero_subline` | Ne aradığını anlat veya görselini yükle. |
+| `home.hero_subline` | Ne aradığını anlat, görselini yükle veya linkini bırak. |
 | `home.search_ideas_title` | Arama fikirleri |
 | `home.trends_title` | Trendler |
 | `home.trends_subtitle` | Arilla'da öne çıkan stiller ve ürün fikirleri. |
@@ -221,9 +221,12 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `search.clarify_other` | Başka bir şey |
 | `search.clarify_other_placeholder` | Ne arıyorsun? |
 | `search.loading` | Benzerlerini arıyoruz |
-| `rights.summary` | Bugün kalan {kalan}/{limit} · Bonus {bonus} (fotoğraf ve link araması; 0047). Rozet etiketi: "Fotoğraf ve link araması: …"; link araması kapalıyken (`LINK_SEARCH_PUBLIC = false`) "Fotoğraf araması: …" |
-| `rights.reset` | Günlük hakların {saat}'da yenilenir. |
+| `rights.summary` | Bugün kalan {kalan}/{limit} · Bonus {bonus} (fotoğraf ve link araması; 0047, 0080). Tek satır, en kısıtlayıcı pencere: hafta ya da ay daha az bırakırsa "Bu hafta kalan …" / "Bu ay kalan …"; dört pencere de sunucuda uygulanır. Rozet etiketi: "Fotoğraf ve link araması: …"; link araması kapalıyken (`LINK_SEARCH_PUBLIC = false`) "Fotoğraf araması: …" |
+| `rights.reset` | Günlük hakların {saat}'da yenilenir. Hafta sınırlıyken: Haftalık hakların pazartesi 00:00'da yenilenir. Ay sınırlıyken: Aylık hakların ayın 1'inde 00:00'da yenilenir. |
 | `rights.no_rights` | Bugünkü arama hakların ve bonus hakların bitti. Hakların gece 00:00'da yenilenir. |
+| `rights.no_rights_hour` | Bu saat için arama sınırına ulaştın. Hakların bir sonraki saat başında yenilenir. (bonus aşamaz; bonus bağlantısı gösterilmez) |
+| `rights.no_rights_week` | Bu haftaki arama hakların ve bonus hakların bitti. Hakların pazartesi 00:00'da yenilenir. |
+| `rights.no_rights_month` | Bu ayki arama hakların ve bonus hakların bitti. Hakların ayın 1'inde 00:00'da yenilenir. |
 | `rights.earn_link` | Bonus hak kazanmanın yolları |
 | `rights.rate_limited` | Biraz hızlı gittin. Bir dakika sonra tekrar dener misin? |
 | `rights.busy` | Önceki araman hâlâ sürüyor. Bitince yenisini başlatabilirsin. |
@@ -682,6 +685,36 @@ ifadesini göstermez.
 
 "Aynı ürün" yalnızca barkod ya da marka + üretici kodu eşleşmesinde yazılır;
 görsel benzerlik "aynı" diye etiketlenmez.
+
+## Sohbet geri bildirimi (karar 0079)
+
+Hitap "sen". Metinler `apps/web/app/sohbet/chat-copy.ts`. Neden kodları kodda
+İngilizce, metinleri Türkçedir.
+
+| Anahtar | Metin |
+| --- | --- |
+| `chat.feedback_question` | Bu yardımcı oldu mu? |
+| `chat.feedback_yes` | Evet, yardımcı oldu |
+| `chat.feedback_no` | Hayır, yardımcı olmadı |
+| `chat.feedback_thanks` | Teşekkürler, not aldım. |
+| `chat.feedback_failed` | Kaydedemedim, tekrar dener misin? |
+| `chat.feedback_rate_limited` | Çok sık oy verdin. Biraz sonra tekrar dener misin? |
+| `chat.feedback_dialog_title` | Bu yanıtı nasıl iyileştirebiliriz? |
+| `chat.feedback_reason_label` | Sorun nedeni |
+| `chat.feedback_reason_placeholder` | Bir neden seç (isteğe bağlı) |
+| `chat.feedback_reason.not_found` | Aradığım ürünleri bulamadı |
+| `chat.feedback_reason.irrelevant` | Alakasız ürünler önerdi |
+| `chat.feedback_reason.misunderstood` | İsteğimi yanlış anladı |
+| `chat.feedback_reason.wrong_info` | Yanlış bilgi verdi |
+| `chat.feedback_reason.wrong_price_or_product` | Fiyat veya ürün bilgisi hatalı |
+| `chat.feedback_reason.slow` | Yanıt çok yavaştı |
+| `chat.feedback_reason.other` | Diğer |
+| `chat.feedback_comment_label` | Ayrıntı ekle (isteğe bağlı) |
+| `chat.feedback_comment_placeholder` | Ne yanlıştı ya da ne eksikti? |
+| `chat.feedback_comment_hint` | Kişisel bilgi yazma. En fazla 500 karakter. |
+| `chat.feedback_cancel` | İptal |
+| `chat.feedback_submit` | Gönder |
+| `chat.feedback_submitting` | Gönderiliyor |
 
 ## Geri bildirim (karar 0045)
 

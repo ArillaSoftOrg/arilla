@@ -1,7 +1,8 @@
 /**
  * Yönetim gelen kutusu (`/yonetim/mesajlar`, karar 0061): `/iletisim` ve
- * `/geri-bildirim` gönderileri, yeniden eskiye. Salt okunur: yanıtlama ve
- * durum değiştirme bu sürümde yok.
+ * `/geri-bildirim` gönderileri, yeniden eskiye. Yanıt e-postayla verilir.
+ * Karar 0086: mevcut `status`/`priority` kolonlarıyla triyaj (`messages.triage`);
+ * sorumlu kişi kolonu YOK (migration gerekir), kimin değiştirdiği denetimde.
  *
  * Gönderiler ad, e-posta ve serbest metin içerir: yalnızca `messages.read`
  * (yönetici). Her liste görüntülemesi aynı istekte `messages.list_view`
@@ -16,7 +17,7 @@ import {
   type FeedbackKind,
   feedback,
 } from "@arilla/db";
-import { and, desc, eq, inArray, lt, type SQL } from "drizzle-orm";
+import { and, desc, eq, inArray, isNull, lt, type SQL } from "drizzle-orm";
 import { recordAdminEvent } from "./audit.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 
@@ -37,9 +38,44 @@ export function isInboxCategory(value: unknown): value is string {
   return typeof value === "string" && INBOX_CATEGORIES.includes(value);
 }
 
+/** `feedback_status_check` ile aynı değerler. */
+export const INBOX_STATUSES = ["new", "reviewing", "planned", "resolved", "rejected"] as const;
+export type InboxStatus = (typeof INBOX_STATUSES)[number];
+/** `feedback_priority_check`; `null` = atanmamış. */
+export const INBOX_PRIORITIES = ["low", "medium", "high"] as const;
+export type InboxPriority = (typeof INBOX_PRIORITIES)[number];
+
+export function isInboxStatus(value: unknown): value is InboxStatus {
+  return typeof value === "string" && (INBOX_STATUSES as readonly string[]).includes(value);
+}
+
+export function isInboxPriority(value: unknown): value is InboxPriority {
+  return typeof value === "string" && (INBOX_PRIORITIES as readonly string[]).includes(value);
+}
+
+/**
+ * Güvenli geçişler: yeni → incelemede/planlandı/çözüldü/reddedildi; kapanmış
+ * (çözüldü/reddedildi) mesaj ancak "incelemede"ye geri açılır. Aynı duruma
+ * geçiş değişiklik sayılmaz.
+ */
+const INBOX_TRANSITIONS: Readonly<Record<InboxStatus, readonly InboxStatus[]>> = {
+  new: ["reviewing", "planned", "resolved", "rejected"],
+  reviewing: ["planned", "resolved", "rejected"],
+  planned: ["reviewing", "resolved", "rejected"],
+  resolved: ["reviewing"],
+  rejected: ["reviewing"],
+};
+
+export function allowedInboxTransitions(from: InboxStatus): readonly InboxStatus[] {
+  return INBOX_TRANSITIONS[from];
+}
+
 export interface InboxFilter {
   kind?: FeedbackKind;
   category?: string;
+  status?: InboxStatus;
+  /** `"none"`: önceliği atanmamış. */
+  priority?: InboxPriority | "none";
   /** Bu kimlikten KÜÇÜK olanlar (daha eski sayfa). */
   beforeId?: number;
 }
@@ -53,6 +89,7 @@ export interface InboxMessage {
   subject: string;
   message: string;
   priority: string | null;
+  status: InboxStatus;
   createdAt: Date;
   /** Girişli gönderimde hesabın public kimliği (yönetimde bağlantı); anonimde null. */
   accountPublicId: string | null;
@@ -74,6 +111,9 @@ export async function listInboxMessages(
   const conditions: SQL[] = [];
   if (filter.kind) conditions.push(eq(feedback.kind, filter.kind));
   if (filter.category) conditions.push(eq(feedback.category, filter.category as never));
+  if (filter.status) conditions.push(eq(feedback.status, filter.status));
+  if (filter.priority === "none") conditions.push(isNull(feedback.priority));
+  else if (filter.priority) conditions.push(eq(feedback.priority, filter.priority));
   if (filter.beforeId) conditions.push(lt(feedback.id, filter.beforeId));
 
   const fetched = await db
@@ -86,6 +126,7 @@ export async function listInboxMessages(
       subject: feedback.title,
       message: feedback.message,
       priority: feedback.priority,
+      status: feedback.status,
       createdAt: feedback.createdAt,
       userId: feedback.userId,
     })
@@ -115,6 +156,8 @@ export async function listInboxMessages(
       filters: [
         filter.kind ? "kind" : null,
         filter.category ? "category" : null,
+        filter.status ? "status" : null,
+        filter.priority ? "priority" : null,
         filter.beforeId ? "page" : null,
       ].filter((name): name is string => name !== null),
       results: page.length,
@@ -128,4 +171,99 @@ export async function listInboxMessages(
     })),
     nextBeforeId: hasMore ? (page[page.length - 1]?.id ?? null) : null,
   };
+}
+
+export class InboxValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InboxValidationError";
+  }
+}
+
+export type InboxMutationResult =
+  | { status: "updated" }
+  | { status: "unchanged" }
+  | { status: "not_found" }
+  | { status: "conflict" };
+
+function requireMessageId(value: unknown): number {
+  if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
+  throw new InboxValidationError("Geçersiz mesaj.");
+}
+
+/**
+ * Durum değişikliği (karar 0086): yalnızca izinli geçiş, beklenen eski durum
+ * tutmazsa `conflict`. Satır kilidi + denetim AYNI işlemde; denetime yalnızca
+ * durum değerleri gider (içerik, ad, e-posta asla).
+ */
+export async function setInboxMessageStatus(
+  db: Database,
+  actor: AdminActor,
+  input: { messageId: unknown; next: unknown; expectedStatus: unknown },
+): Promise<InboxMutationResult> {
+  assertCapability(actor, "messages.triage");
+  const id = requireMessageId(input.messageId);
+  if (!isInboxStatus(input.next) || !isInboxStatus(input.expectedStatus)) {
+    throw new InboxValidationError("Geçersiz durum.");
+  }
+  if (!INBOX_TRANSITIONS[input.expectedStatus].includes(input.next)) {
+    throw new InboxValidationError("Bu durum geçişine izin verilmiyor.");
+  }
+  const next = input.next;
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ status: feedback.status })
+      .from(feedback)
+      .where(eq(feedback.id, id))
+      .for("update");
+    const current = rows[0];
+    if (!current) return { status: "not_found" };
+    if (current.status !== input.expectedStatus) return { status: "conflict" };
+    await tx
+      .update(feedback)
+      .set({ status: next, updatedAt: new Date() })
+      .where(eq(feedback.id, id));
+    await recordAdminEvent(tx, {
+      actor,
+      action: "messages.status_change",
+      targetType: "feedback",
+      targetId: id,
+      before: { status: current.status },
+      after: { status: next },
+    });
+    return { status: "updated" };
+  });
+}
+
+export async function setInboxMessagePriority(
+  db: Database,
+  actor: AdminActor,
+  input: { messageId: unknown; priority: unknown },
+): Promise<InboxMutationResult> {
+  assertCapability(actor, "messages.triage");
+  const id = requireMessageId(input.messageId);
+  if (input.priority !== null && !isInboxPriority(input.priority)) {
+    throw new InboxValidationError("Geçersiz öncelik.");
+  }
+  const priority = input.priority as InboxPriority | null;
+  return db.transaction(async (tx) => {
+    const rows = await tx
+      .select({ priority: feedback.priority })
+      .from(feedback)
+      .where(eq(feedback.id, id))
+      .for("update");
+    const current = rows[0];
+    if (!current) return { status: "not_found" };
+    if ((current.priority ?? null) === priority) return { status: "unchanged" };
+    await tx.update(feedback).set({ priority, updatedAt: new Date() }).where(eq(feedback.id, id));
+    await recordAdminEvent(tx, {
+      actor,
+      action: "messages.priority_change",
+      targetType: "feedback",
+      targetId: id,
+      before: { priority: current.priority ?? null },
+      after: { priority },
+    });
+    return { status: "updated" };
+  });
 }

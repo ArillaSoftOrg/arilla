@@ -4,6 +4,7 @@ import {
   CONSENT_VERSION,
   fromSelection,
   isConsentAllowed,
+  isOptionalCookieOf,
   needsConsentPrompt,
   parseConsentCookie,
   rejectAll,
@@ -69,5 +70,24 @@ describe("cerez rizasi", () => {
     expect(parseConsentCookie(JSON.stringify({ ...acceptAll(NOW), analytics: "true" }))).toBeNull();
     expect(parseConsentCookie(JSON.stringify({ ...acceptAll(NOW), necessary: false }))).toBeNull();
     expect(parseConsentCookie(JSON.stringify({ ...acceptAll(NOW), updatedAt: "dun" }))).toBeNull();
+  });
+});
+
+describe("GA4 çerezleri (karar 0087)", () => {
+  it("analitik kategorisine aittir; adı değişken _ga_<ID> önekle eşleşir", () => {
+    expect(CONSENT_VERSION).toBe(2);
+    expect(isOptionalCookieOf("analytics", "_ga")).toBe(true);
+    expect(isOptionalCookieOf("analytics", "_ga_ABC123DEF4")).toBe(true);
+    expect(isOptionalCookieOf("analytics", "session")).toBe(false);
+    expect(isOptionalCookieOf("analytics", "cookie_consent")).toBe(false);
+    expect(isOptionalCookieOf("marketing", "_ga")).toBe(false);
+    expect(isOptionalCookieOf("functional", "_ga_ABC123DEF4")).toBe(false);
+  });
+
+  it("eski sürümlü (v1) rıza yok sayılır: GA4 yeni rıza olmadan yüklenmez", () => {
+    const v1 = JSON.stringify({ ...acceptAll(NOW), version: 1 });
+    const parsed = parseConsentCookie(v1);
+    expect(parsed === null || !isConsentAllowed(parsed, "analytics")).toBe(true);
+    expect(needsConsentPrompt(parsed)).toBe(true);
   });
 });

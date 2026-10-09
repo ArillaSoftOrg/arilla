@@ -87,7 +87,7 @@ beforeEach(() => {
   mocks.submitUserMessage.mockResolvedValue({ status: "queued", seq: 3 });
 });
 
-describe("startChatBootstrapAction: görsel normal mesajın ekidir (karar 0080)", () => {
+describe("startChatBootstrapAction: görsel normal mesajın ekidir (karar 0091)", () => {
   it("görsel + metin TEK createConversation çağrısı; ilk tur after() ile bir kez planlanır", async () => {
     const result = await startChatBootstrapAction(form({ text: "  Bunun siyahını bul " }));
     expect(result).toEqual({ status: "created", href: `/sohbet/${ID}` });

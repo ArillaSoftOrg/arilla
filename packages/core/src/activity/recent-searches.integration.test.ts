@@ -70,7 +70,9 @@ describe("listRecentSearches", () => {
     await search(userId, "  Beyaz   SNEAKER ", later(120));
 
     const recent = await listRecentSearches(db, userId);
-    expect(recent.map((r) => r.queryNorm)).toEqual(["beyaz sneaker", "bel cantasi"]);
+    // `query_norm` yalnizca Turkce kuralla kucuk harfe cevrilir; harfler korunur
+    // (`normalizeQueryText`, sorgu yorumu onbellek anahtari ile ayni).
+    expect(recent.map((r) => r.queryNorm)).toEqual(["beyaz sneaker", "bel çantası"]);
     expect(recent[0]?.searchedAt.getTime()).toBe(later(120).getTime());
   });
 

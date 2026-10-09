@@ -1,4 +1,4 @@
-# 0080 — Görsel, normal sohbet mesajının ekidir (tek gönderim hattı)
+# 0091 — Görsel, normal sohbet mesajının ekidir (tek gönderim hattı)
 
 **Tarih:** 8 Ekim 2026
 **Durum:** Kabul edildi; kod aşamalı geliyor. `CHAT_IMAGE_ENABLED` kapalı kalır,

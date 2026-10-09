@@ -5,6 +5,7 @@ import {
   type DiagnosticResultItem,
   explainProductAbsence,
   explainSearch,
+  getSearchQualitySummary,
   PRODUCT_REF_MAX,
   type ProductAbsenceDiagnostics,
   ProductRefInputError,
@@ -16,13 +17,16 @@ import Link from "next/link";
 import type { ReactNode } from "react";
 import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
-import { ErrorNotice, KeyValues, Notice, PageHeader, Section } from "../../admin-ui.tsx";
+import { ErrorNotice, KeyValues, KpiCard, Notice, PageHeader, Section } from "../../admin-ui.tsx";
 import {
   diagnosticsHref,
+  formatCount,
   formatDateOrDash,
   formatFactor,
   formatKurus,
+  formatPercent,
   hrefWith,
+  interpretationStatusLabel,
   lexiconKindLabel,
   searchFilterLabel,
 } from "../../format.ts";
@@ -396,6 +400,10 @@ export default async function SearchDiagnosticsPage({
   const query = typeof params.q === "string" ? params.q.trim() : "";
   const productRef = typeof params.urun === "string" ? params.urun.trim() : "";
   const sort = params.sirala === "best_deal" ? "best_deal" : "balanced";
+  // Karar 0085: kimliksiz arama özeti + sorgu yorumu sonuçları (7 gün).
+  const summary = await getSearchQualitySummary(getDatabase(), actor, { days: 7 });
+  const accepted = summary.interpretation.find((row) => row.status === "accepted")?.count ?? 0;
+  const interpreted = summary.interpretation.reduce((sum, row) => sum + row.count, 0);
 
   let body: ReactNode = null;
   let absence: ReactNode = null;
@@ -449,6 +457,47 @@ export default async function SearchDiagnosticsPage({
           önbelleğe, arama sayacına, arama kalitesi özetine ve analitiğe yazılmaz.
         </p>
       </PageHeader>
+      <Section
+        id="ozet"
+        title="Son 7 gün"
+        description="Kimliksiz günlük özet (/ara metin araması) ve Gemini sorgu yorumunun saklanan sonuçları."
+        actions={<Link href="/yonetim/sozluk?gun=7&sorun=zero">Sorunlu sorgular</Link>}
+      >
+        <div className={styles.kpiGrid}>
+          <KpiCard
+            label="Metin araması"
+            value={formatCount(summary.searches)}
+            note={`${formatCount(summary.distinctQueries)} farklı sorgu`}
+            basis="count"
+          />
+          <KpiCard
+            label="Sonuçsuz"
+            value={formatPercent(summary.zeroResults, summary.searches)}
+            note={`${formatCount(summary.zeroResults)} arama`}
+            tone={summary.zeroResults > 0 ? "warning" : "neutral"}
+            basis="count"
+          />
+          <KpiCard
+            label="Yedek listeye düşen / netleştirme"
+            value={`${formatCount(summary.fallbacks)} / ${formatCount(summary.clarifications)}`}
+            basis="count"
+          />
+          <KpiCard
+            label="Sorgu yorumu kabul"
+            value={formatPercent(accepted, interpreted)}
+            note={
+              interpreted > 0
+                ? summary.interpretation
+                    .map(
+                      (row) => `${interpretationStatusLabel(row.status)} ${formatCount(row.count)}`,
+                    )
+                    .join(" · ")
+                : "Bu aralıkta yorum yok"
+            }
+            basis="count"
+          />
+        </div>
+      </Section>
       <form action="/yonetim/arama/tani" method="get" className={styles.filters}>
         <label className={styles.pageHeader}>
           <span className={styles.meta}>Sorgu</span>

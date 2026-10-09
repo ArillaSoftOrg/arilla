@@ -28,6 +28,8 @@ const ADMIN_ONLY: Capability[] = [
   "forms.manage",
   // Karar 0061: gelen kutusu ad ve e-posta icerir.
   "messages.read",
+  // Karar 0079: sohbet geri bildirimi yorumlari.
+  "feedback.chat.read",
   // Karar 0049: moderatör kullanıcı aktivitesini ve tam iletişim bilgisini göremez.
   "users.activity.read",
   "users.contact.reveal",
@@ -35,6 +37,16 @@ const ADMIN_ONLY: Capability[] = [
   "users.sessions.revoke",
   // Karar 0065: herkese görünen erken erişim sayısı yalnızca yöneticinin.
   "early_access.manage",
+  // Karar 0085: analitik merkez ekranları (AI, yolculuk, affiliate).
+  "ai.read",
+  "analytics.read",
+  "affiliate.read",
+  // Karar 0086.
+  "trends.manage",
+  "messages.triage",
+  "config.read",
+  // Karar 0087.
+  "traffic.read",
 ];
 const ALL: Capability[] = [...MODERATOR, ...ADMIN_ONLY];
 

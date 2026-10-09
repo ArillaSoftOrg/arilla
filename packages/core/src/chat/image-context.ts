@@ -1,5 +1,5 @@
 /**
- * Sohbette gorsel baglami (docs/decisions/0080 madde 6).
+ * Sohbette gorsel baglami (docs/decisions/0091 madde 6).
  *
  * Takip turlarinda gorselin kendisi degil, modelin gorselin ilk goruldugu turda
  * urettigi yapilandirilmis ozet baglama girer. Gorsel yalnizca sunlarda yeniden

@@ -14,7 +14,7 @@ import styles from "./sohbet.module.css";
 
 type Phase = "starting" | "failed" | "missing";
 
-/** Gonderilecek mesaj: metin, gorsel ya da ikisi (karar 0080). */
+/** Gonderilecek mesaj: metin, gorsel ya da ikisi (karar 0091). */
 interface Submission {
   text: string;
   /** Yalniz gorselli mesaj. */
@@ -37,7 +37,7 @@ function toActionInput(submission: Submission): string | FormData {
  * gercek URL (bootstrap history girisi birakmaz, geri tusu buraya donmez).
  * Hata -> kabuk kalir, "Tekrar dene" ayni mesaji yeniden gonderir.
  *
- * Karar 0080: gorselli mesaj AYNI kabuktan gecer. Gorsel IndexedDB'den gelir (ana sayfa
+ * Karar 0091: gorselli mesaj AYNI kabuktan gecer. Gorsel IndexedDB'den gelir (ana sayfa
  * sekmeyi acar acmaz yazar; burada `waitForImage` ile beklenir), kullanici balonunda
  * metinle birlikte gorunur ve ayni eylemle gider. Sunucu yanit verdiginde gecici kayit silinir.
  */

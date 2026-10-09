@@ -10,6 +10,10 @@
  * Sağlanmazsa hiçbir şey yazılmaz: olay yok, sayaç artışı yok, oturum ya da
  * çerez kimliğiyle "anonim" yedek kayıt yok.
  *
+ * Arama metni kişiye bağlıdır (karar 0089): kişisel veri, kimlik/sır benzeri
+ * ya da özel nitelikli veri bağlamı içeren sorguda olay yine yazılır ama
+ * `query_norm` NULL kalır (`isActivityQueryStorable`).
+ *
  * Olay ve sayaç AYNI işlemde yazılır. Kullanıcı başına danışma kilidi, tekrar
  * bastırmanın eşzamanlı iki istekte de tek olay üretmesini sağlar.
  */
@@ -22,7 +26,9 @@ import {
 import { sql } from "drizzle-orm";
 import { effectiveAnalyticsConsent, getLatestConsents } from "../consent/account-consent.ts";
 import type { CookieConsent } from "../consent/cookie-consent.ts";
+import { sensitiveCategory } from "../search/interpretation-eligibility.ts";
 import { normalizeQueryText } from "../search/normalize.ts";
+import { isSearchQualityRecordable } from "../search/quality.ts";
 import { incrementAnalyticsCounter } from "./summary.ts";
 
 export const QUERY_NORM_MAX_LENGTH = 200;
@@ -53,6 +59,15 @@ export function normalizeActivityQuery(raw: string): string | null {
   return norm.length > 0 ? norm : null;
 }
 
+/**
+ * Sorgu metni kullanıcıya bağlı olarak saklanabilir mi (karar 0089): arama
+ * kalitesi süzgeci (kişisel veri, kimlik/sır benzeri) VE özel nitelikli veri
+ * bağlamı yok. Kimliksiz `search_query_day` bilerek daha dar süzgeç kullanır.
+ */
+export function isActivityQueryStorable(queryNorm: string): boolean {
+  return isSearchQualityRecordable(queryNorm) && sensitiveCategory(queryNorm) === null;
+}
+
 export async function recordActivity(
   db: Database,
   input: RecordActivityInput,
@@ -68,6 +83,9 @@ export async function recordActivity(
   if (event.kind === "search_submitted") {
     queryNorm = normalizeActivityQuery(event.query);
     if (queryNorm === null) return "invalid";
+    // Süzgeç kesilmemiş metne uygulanır: 200 karakterde kesme bir e-postayı ya
+    // da numarayı yarıda bırakıp süzgeçten kaçırmasın.
+    if (!isActivityQueryStorable(normalizeQueryText(event.query))) queryNorm = null;
   }
 
   return db.transaction(async (tx) => {
@@ -112,9 +130,11 @@ async function isDuplicate(
     event.kind === "search_submitted"
       ? new Date(now.getTime() - SEARCH_DEDUPE_MS)
       : new Date(now.getTime() - PRODUCT_VIEW_DEDUPE_MS);
+  // NULL-güvenli: metni saklanmayan aramalar pencere içinde birbirinin tekrarı
+  // sayılır (birkaç farklı engelli arama tek olaya iner; bilinçli az sayım).
   const match =
     event.kind === "search_submitted"
-      ? sql`query_norm = ${queryNorm}`
+      ? sql`query_norm IS NOT DISTINCT FROM ${queryNorm}::text`
       : sql`product_id = ${event.productId}`;
   const result = await tx.execute(sql`
     SELECT 1 FROM user_activity_event

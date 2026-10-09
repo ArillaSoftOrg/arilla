@@ -13,9 +13,11 @@ export {
   getCharge,
   InvalidRequestKeyError,
   isValidRequestKey,
+  type PeriodUsage,
   type RefundReason,
   type ReserveSearchInput,
   type ReserveSearchResult,
+  readPeriodUsage,
   refundCharge,
   reserveSearch,
   settleCharge,
@@ -34,6 +36,7 @@ export {
   DEFAULT_DAILY_SEARCH_LIMIT,
   dailySearchLimit,
   REWARD_AMOUNTS,
+  SEARCH_RIGHTS_LIMITS,
 } from "./config.ts";
 export { istanbulDay, nextResetAt } from "./day.ts";
 export { aiSearchRateLimitKey, checkAiSearchRateLimit } from "./rate-limit.ts";
@@ -64,4 +67,5 @@ export {
   type EntitlementStatus,
   getEntitlementStatus,
   listEntitlementHistory,
+  type WindowStatus,
 } from "./status.ts";
