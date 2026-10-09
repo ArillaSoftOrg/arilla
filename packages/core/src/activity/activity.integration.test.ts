@@ -398,7 +398,9 @@ describe("rıza kapısı ve analitik", () => {
     );
     expect(consents).toHaveLength(3);
     expect(
-      consents.every((c) => c.source === "cookie_banner" && c.text_version === COOKIE_CONSENT_TEXT_VERSION),
+      consents.every(
+        (c) => c.source === "cookie_banner" && c.text_version === COOKIE_CONSENT_TEXT_VERSION,
+      ),
     ).toBe(true);
     expect(consents.every((c) => c.ip === null)).toBe(true);
   });
