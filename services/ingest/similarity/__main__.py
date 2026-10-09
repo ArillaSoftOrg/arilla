@@ -66,6 +66,7 @@ def main(argv: list[str] | None = None) -> int:
                 tracked.detail.update(
                     price_products=counts.prices.products,
                     price_aggregates=counts.prices.aggregates_updated,
+                    price_stats_removed=counts.prices.removed,
                 )
 
     if do_edges:
@@ -81,6 +82,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"  urun             {counts.prices.products}")
         print(f"  sahte indirim    {counts.prices.inflated}")
         print(f"  urun ozeti       {counts.prices.aggregates_updated}")
+        print(f"  silinen eski     {counts.prices.removed}")
 
     return 0
 
