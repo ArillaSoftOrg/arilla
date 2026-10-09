@@ -2,6 +2,7 @@
 
 import { type FormEvent, type KeyboardEvent, useId, useRef } from "react";
 import { Button } from "./Button.tsx";
+import { resolveComposerSubmit } from "./composer-submit.ts";
 import { ArrowRightIcon, CloseIcon, PlusIcon } from "./icons.tsx";
 import { listRole } from "./layout.ts";
 import { PhotoUploadButton } from "./PhotoUploadButton.tsx";
@@ -146,9 +147,15 @@ export function SearchComposer({
     if (attachment) {
       // Fotograf + metin tek mesaj: native GET/server action yolu kullanilmaz.
       event.preventDefault();
-      if (attachment.pending || submittingRef.current) return;
-      submittingRef.current = true;
       const text = (inputRef.current?.value ?? "").trim();
+      // Metin bos olabilir (yalniz fotograf); ayni kural sohbet ici kutuda da gecerli.
+      const decision = resolveComposerSubmit({
+        text,
+        hasImage: true,
+        busy: attachment.pending || submittingRef.current,
+      });
+      if (decision === "noop") return;
+      submittingRef.current = true;
       void Promise.resolve(attachment.onSubmit(text))
         .then((ok) => {
           if (ok && inputRef.current) inputRef.current.value = "";
@@ -170,8 +177,11 @@ export function SearchComposer({
     if (onSubmitText) {
       event.preventDefault();
       const text = (inputRef.current?.value ?? "").trim();
-      if (!text) return;
-      if (submittingRef.current) return;
+      if (
+        resolveComposerSubmit({ text, hasImage: false, busy: submittingRef.current }) === "noop"
+      ) {
+        return;
+      }
       submittingRef.current = true;
       void Promise.resolve(onSubmitText(text))
         .then((ok) => {

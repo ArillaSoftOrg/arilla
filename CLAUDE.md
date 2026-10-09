@@ -44,10 +44,14 @@ tamamı anlamını yitirir.
      `CHAT_DISCOVERY_ENABLED=true` bayrağıyla (varsayılan kapalı), her çağrı
      `api_usage`'a yazılır, kullanıcı başına saatlik tavanı vardır ve `/ara`
      bütçesinden ayrıdır; model yalnızca niyet çıkarır — ürün, fiyat, SQL üretmez.
-   - Sohbet görsel eki (karar 0078): `/sohbet` ilk mesajına eklenen, önceden
-     işlenmiş (≤512 px, EXIF'siz) görsel, aynı tek Gemini çağrısına çok kipli
-     girdi olarak eklenir; yalnızca `CHAT_IMAGE_ENABLED=true` ile (varsayılan
-     kapalı). Model yine yalnızca niyet çıkarır; görselden ürün/fiyat üretmez.
+   - Sohbet görsel eki (karar 0078, 0091): `/sohbet` mesajına (ilk mesaj ya da
+     sohbet içi sonraki mesaj) eklenen, önceden işlenmiş (≤512 px, EXIF'siz)
+     görsel, aynı tek Gemini çağrısına çok kipli girdi olarak eklenir; yalnızca
+     `CHAT_IMAGE_ENABLED=true` ile (varsayılan kapalı). Görsel normal mesajın
+     ekidir, ayrı bir akış değildir. Takip turlarında görselin kendisi değil,
+     saklanan yapılandırılmış özeti kullanılır; yalnızca özet yoksa ya da mesaj
+     görsele açıkça atıf yapıyorsa görsel yeniden eklenir (tur başına yine tek
+     çağrı). Model yine yalnızca niyet çıkarır; görselden ürün/fiyat üretmez.
    Başka hiçbir yerde istek anında LLM veya model çağrısı yapılmaz.
 2. **Benzerlik sorgu anında hesaplanmaz.** `similarity_edge` tablosu toplu işle
    doldurulur, istek yolu sadece okur.
@@ -68,8 +72,11 @@ tamamı anlamını yitirir.
    kontrol edilemez.
 10. **Yüklenen görsel saklanmaz.** Embedding ve hash tutulur; ham dosya en fazla
     30 gün geçici depoda kalır. Detay: `docs/kvkk.md`.
-    İstisna (karar 0078): sohbete eklenen görsel, sohbetin kendisiyle aynı
+    İstisna (karar 0078, 0091): sohbete eklenen görsel, sohbetin kendisiyle aynı
     ömürde (en fazla 90 gün) yalnızca sahibine görünür tutulur; sohbet silinince gider.
+    Ana sayfadan yeni sekmeye taşınırken tarayıcıda yalnızca tek kullanımlık, en
+    fazla 60 sn yaşayan geçici bir kayıt (IndexedDB) bulunur; sunucu teslim alınca
+    ya da süre dolunca silinir.
 11. **Seçilmiş içerik kullanıcı keşfi gibi etiketlenmez.** `public_find.source`
     ayrımı arayüzde korunur.
 12. **Sponsorlu içerik her zaman rozetlidir.** Veritabanı kısıtı bunu zorunlu
