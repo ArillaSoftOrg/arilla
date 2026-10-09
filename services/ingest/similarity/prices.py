@@ -165,14 +165,17 @@ def compute(by_offer: dict[int, list[Observation]], current_price: int | None) -
             if raised_at is None or (offer_raised and offer_raised > raised_at):
                 raised_at = offer_raised
 
-    reference = current_price if current_price is not None else prices[-1]
+    # Kullanilabilir guncel fiyat yoksa (aktif magazanin fiyatli aktif teklifi
+    # yok) yuzdelik YOKTUR: gecmis bir gozlem guncel fiyat yerine konmaz,
+    # yoksa gorunmeyen bir fiyat "son 90 gunun en dusugu" iddiasi uretir.
+    percentile = _percentile_of(current_price, prices) if current_price is not None else None
 
     return PriceStats(
         min_30d=min(prices_30) if prices_30 else None,
         min_90d=min(prices),
         max_90d=max(prices),
         median_90d=_median(prices),
-        current_percentile=_percentile_of(reference, prices),
+        current_percentile=percentile,
         # SMALLINT; teorik olarak tasabilir, kirpiyoruz.
         drop_count_90d=min(drops, 32000),
         last_drop_at=last_drop,

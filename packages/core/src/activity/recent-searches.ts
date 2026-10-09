@@ -9,7 +9,8 @@
  *
  * Aynı sorgu (normalize edilmiş) tek satıra iner, en son yapılan tarih esas
  * alınır. Sıra: en yeni önce. Gösterilen metin `query_norm`'dur (Türkçe
- * karakterleri katlanmış, kayıtta ham metin tutulmaz).
+ * kuralla küçük harfe çevrilmiş ve boşlukları sadeleşmiş; ç/ş/ı gibi harfler
+ * korunur, kayıtta ham metin tutulmaz).
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";

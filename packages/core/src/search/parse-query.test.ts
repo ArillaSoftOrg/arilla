@@ -36,6 +36,34 @@ describe("parseQueryText", () => {
     expect(b.filters.color).toEqual(["black"]);
   });
 
+  it("Turkce harfsiz yazim ayni sozluk yuzeyini bulur (metin kapisiyla ayni katlama)", () => {
+    const turkish = parseQueryText("siyah spor ayakkabı", lexicon);
+    const ascii = parseQueryText("siyah spor ayakkabi", lexicon);
+    expect(turkish.filters).toEqual({ category_path: "ayakkabi/sneaker", color: ["black"] });
+    expect(ascii.filters).toEqual(turkish.filters);
+    expect(ascii.unparsed).toBe(turkish.unparsed);
+    // Turkce harfli yuzey, Turkce harfsiz sorguda da tuketilir: kalan metne sizmaz.
+    expect(ascii.unparsed).not.toMatch(/ayakkab/);
+  });
+
+  it("katlama konumlari bozmaz: eslesen yuzeyin cevresindeki metin korunur", () => {
+    const result = parseQueryText("rahat spor ayakkabi tabanli", lexicon);
+    expect(result.filters.category_path).toBe("ayakkabi/sneaker");
+    expect(result.unparsed).toBe("rahat tabanli");
+  });
+
+  it("cok kelimeli yuzeyde kelimeler arasi noktalama/bosluk farki onemsiz", () => {
+    const plain = parseQueryText("siyah spor ayakkabı", lexicon);
+    const punctuated = parseQueryText("  Siyah,  SPOR,   ayakkabı! ", lexicon);
+    expect(punctuated.filters).toEqual(plain.filters);
+    expect(punctuated.filters.category_path).toBe("ayakkabi/sneaker");
+  });
+
+  it("noktalama yuzeyi birlestirmez: araya baska kelime giren eslesmez", () => {
+    const result = parseQueryText("spor rahat ayakkabı", lexicon);
+    expect(result.filters.category_path).toBeUndefined();
+  });
+
   it("parses a price range", () => {
     const result = parseQueryText("2000-3000 arası ayakkabı", lexicon);
     expect(result.filters.price_min).toBe(200000);

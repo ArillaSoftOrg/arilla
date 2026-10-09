@@ -1,6 +1,7 @@
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
 import { LegalIdentityBlock, PRIVACY_NOTICE_UPDATED_LABEL } from "../legal-identity-block.tsx";
+import { isGa4MeasurementActive } from "../lib/ga4.ts";
 
 export const metadata: Metadata = {
   title: "KVKK Aydınlatma Metni – ManiCepte",
@@ -15,6 +16,8 @@ export const metadata: Metadata = {
  * biri degisirse digeri de guncellenir. Hukukcu onayi bekleyen metin.
  */
 export default function KvkkAydinlatmaPage() {
+  // Karar 0087: GA4 alıcısı yalnızca etkinse anılır.
+  const ga4 = isGa4MeasurementActive();
   return (
     <LegalPageLayout title="KVKK Aydınlatma Metni" lastUpdatedLabel={PRIVACY_NOTICE_UPDATED_LABEL}>
       <section>
@@ -127,6 +130,13 @@ export default function KvkkAydinlatmaPage() {
             bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş
             arama ifadeleri,
           </li>
+          {ga4 ? (
+            <li>
+              yalnızca analitik çerezlerine açık rıza verildiğinde, sitenin toplu kullanım ölçümü
+              için Google (Google Analytics 4) — arındırılmış sayfa yolu, trafik kaynağı, cihaz ve
+              tarayıcı bilgisi ile çerez tanımlayıcısı,
+            </li>
+          ) : null}
           <li>mağazaya yönlendirme kapsamında ilgili mağaza veya affiliate ağı,</li>
           <li>kanunen yetkili kamu kurum ve kuruluşları.</li>
         </ul>

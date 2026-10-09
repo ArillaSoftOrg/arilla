@@ -8,7 +8,7 @@ import { LoginGateModal } from "../../login-gate-modal-client.tsx";
 import { SEARCH_RIGHTS_COPY, SEARCH_RIGHTS_HREF } from "../search-rights-copy.ts";
 import { pollLinkSearchAction, startLinkSearchAction } from "./actions.ts";
 import linkStyles from "./link-search.module.css";
-import { LINK_SEARCH_COPY, linkFailureCopy } from "./link-search-copy.ts";
+import { LINK_SEARCH_COPY, linkFailureCopy, linkNoRightsEarnable } from "./link-search-copy.ts";
 
 const POLL_INTERVAL_MS = 1500;
 /**
@@ -132,7 +132,7 @@ export function LinkSearchWaitClient({ url, site }: { url: string; site: string 
               <Button type="button" variant="primary" onClick={() => setLoginOpen(true)}>
                 Giriş yap
               </Button>
-            ) : phase.errorCode === "no_rights" ? (
+            ) : linkNoRightsEarnable(phase.errorCode) ? (
               <a href={SEARCH_RIGHTS_HREF}>{SEARCH_RIGHTS_COPY.earnLink}</a>
             ) : retryable ? (
               <Button type="button" variant="primary" onClick={retry}>

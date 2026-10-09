@@ -10,7 +10,15 @@ import math
 from collections import Counter
 from dataclasses import dataclass, field
 
-from curate.text import count_matches, fold, jaccard, matches, signature
+from curate.text import (
+    count_matches,
+    family_signature,
+    fold,
+    jaccard,
+    matches,
+    same_family,
+    signature,
+)
 
 #: Bir trendde gosterilecek en cok urun / altinda "az" sayilan sinir.
 TARGET_PRODUCTS = 24
@@ -74,6 +82,7 @@ class Scored:
     candidate: Candidate
     score: float
     sig: frozenset[str] = field(default_factory=frozenset)
+    family: frozenset[str] = field(default_factory=frozenset)
 
 
 def category_allowed(profile: Profile, path: str | None) -> bool:
@@ -111,7 +120,7 @@ def score_candidate(profile: Profile, candidate: Candidate) -> Scored | None:
     )
     if score < profile.min_score:
         return None
-    return Scored(candidate, score, signature(candidate.title))
+    return Scored(candidate, score, signature(candidate.title), family_signature(candidate.title))
 
 
 def select_diverse(profile: Profile, scored: list[Scored]) -> list[Scored]:
@@ -148,7 +157,11 @@ def select_diverse(profile: Profile, scored: list[Scored]) -> list[Scored]:
         cat_key = c.category_path if c.category_path and "/" in c.category_path else None
         if cat_key and categories[cat_key] >= category_cap:
             continue
-        if any(jaccard(item.sig, other.sig) >= NEAR_DUPLICATE_JACCARD for other in picked):
+        if any(
+            jaccard(item.sig, other.sig) >= NEAR_DUPLICATE_JACCARD
+            or same_family(item.family, other.family)
+            for other in picked
+        ):
             continue
         picked.append(item)
         if brand_key:

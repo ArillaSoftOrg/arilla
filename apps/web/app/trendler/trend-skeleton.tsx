@@ -2,8 +2,11 @@ import { Section, VisuallyHidden } from "@arilla/ui";
 import { TREND_COPY } from "./trend-copy.ts";
 import styles from "./trendler.module.css";
 
-/** Akis (streaming) iskeleti: baslik + ilk satir kartlari; yukleniyor durumu ekran okuyucuya bildirilir. */
-export default function Loading() {
+/**
+ * Liste icin akis (streaming) iskeleti: baslik + ilk satir kartlari. `loading.tsx` DEGIL:
+ * segment seviyesinde olsaydi `[slug]` icin de akisi baslatir, 404 durum kodu 200 kalirdi.
+ */
+export function TrendlerSkeleton() {
   return (
     <Section aria-busy="true">
       <VisuallyHidden as="p" role="status">

@@ -1,13 +1,24 @@
-import { isReviewReason, listMatchHistory } from "@arilla/core";
+import { getMatchingAccuracy, isReviewReason, listMatchHistory } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState } from "@arilla/ui";
 import Link from "next/link";
 import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
-import { PageHeader, Pager, StatusText } from "../../admin-ui.tsx";
 import {
+  DataBasis,
+  DataTable,
+  KeyValues,
+  PageHeader,
+  Pager,
+  Panel,
+  StatusText,
+} from "../../admin-ui.tsx";
+import {
+  formatCount,
   formatDateOrDash,
+  formatPercent,
   hrefWith,
+  matchMethodLabel,
   positiveInt,
   REVIEW_REASON_LABELS,
   reviewReasonLabel,
@@ -27,7 +38,11 @@ export default async function MatchHistoryPage({
     isReviewReason(params.neden) || params.neden === "superseded" ? params.neden : undefined;
   const beforeId = positiveInt(params.once);
 
-  const history = await listMatchHistory(getDatabase(), actor, { status, reason, beforeId });
+  const [history, accuracy] = await Promise.all([
+    listMatchHistory(getDatabase(), actor, { status, reason, beforeId }),
+    // Karar 0085: pencere içindeki insan kararlarının yöntem ve skor bandına göre dağılımı.
+    getMatchingAccuracy(getDatabase(), actor, { days: 30 }),
+  ]);
   const base = { durum: status, neden: reason };
 
   return (
@@ -38,6 +53,79 @@ export default async function MatchHistoryPage({
           kabuller burada değil.
         </p>
       </PageHeader>
+
+      <div className={styles.panelGrid}>
+        <Panel
+          id="dogruluk-yontem"
+          title="Son 30 gün: yönteme göre karar"
+          description="İnsan incelemesine gelen adaylarda onay oranı. Otomatik kabul ayrı sayılır."
+          actions={<DataBasis kind="count" />}
+          flush={accuracy.byMethod.length > 0}
+        >
+          <DataTable
+            rows={accuracy.byMethod}
+            rowKey={(row) => row.method}
+            empty={<p className={styles.muted}>Son 30 günde insan kararı yok.</p>}
+            columns={[
+              { key: "method", header: "Yöntem", cell: (row) => matchMethodLabel(row.method) },
+              {
+                key: "ok",
+                header: "Onay",
+                numeric: true,
+                cell: (row) => formatCount(row.accepted),
+              },
+              { key: "no", header: "Red", numeric: true, cell: (row) => formatCount(row.rejected) },
+              {
+                key: "rate",
+                header: "Onay oranı",
+                numeric: true,
+                cell: (row) => formatPercent(row.accepted, row.accepted + row.rejected),
+              },
+            ]}
+          />
+        </Panel>
+        <Panel
+          id="dogruluk-bant"
+          title="Son 30 gün: skor bandına göre"
+          description="Eşik ayarı için kanıt; eşikler burada değişmez (karar 0017)."
+          actions={<DataBasis kind="count" />}
+          flush
+        >
+          <DataTable
+            rows={accuracy.byBand}
+            rowKey={(row) => row.band}
+            columns={[
+              { key: "band", header: "Skor", cell: (row) => row.label },
+              {
+                key: "ok",
+                header: "Onay",
+                numeric: true,
+                cell: (row) => formatCount(row.accepted),
+              },
+              { key: "no", header: "Red", numeric: true, cell: (row) => formatCount(row.rejected) },
+              {
+                key: "rate",
+                header: "Onay oranı",
+                numeric: true,
+                cell: (row) => formatPercent(row.accepted, row.accepted + row.rejected),
+              },
+            ]}
+          />
+        </Panel>
+      </div>
+      <KeyValues
+        items={[
+          ["Otomatik kabul (30 gün)", formatCount(accuracy.autoAccepted)],
+          ["Bekleyen aday", formatCount(accuracy.pending)],
+          ...accuracy.rejectReasons.map(
+            (row) =>
+              [`Red nedeni: ${reviewReasonLabel(row.reason)}`, formatCount(row.count)] as [
+                string,
+                string,
+              ],
+          ),
+        ]}
+      />
 
       <form action="/yonetim/eslestirme/gecmis" method="get" className={styles.filters}>
         <label className={styles.pageHeader}>

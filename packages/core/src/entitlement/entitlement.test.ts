@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
+import { QUOTA_POLICY } from "../quota/policy.ts";
 import { isValidRequestKey } from "./charge.ts";
 import { DEFAULT_DAILY_SEARCH_LIMIT, dailySearchLimit } from "./config.ts";
 import { istanbulDay, nextResetAt } from "./day.ts";
@@ -66,6 +67,22 @@ describe("splitCharge()", () => {
     expect(splitCharge({ cost: 3, dailyLimit: 10, dailyUsed: 9, bonusBalance: 1 })).toBeNull();
   });
 
+  it("hafta/ay kalani gunluk kalandan azsa o sinirlar; bonus asar", () => {
+    expect(
+      splitCharge({ cost: 1, dailyLimit: 30, dailyUsed: 0, bonusBalance: 0, periodRemaining: 1 }),
+    ).toEqual({ fromDaily: 1, fromBonus: 0 });
+    expect(
+      splitCharge({ cost: 1, dailyLimit: 30, dailyUsed: 0, bonusBalance: 2, periodRemaining: 0 }),
+    ).toEqual({ fromDaily: 0, fromBonus: 1 });
+    expect(
+      splitCharge({ cost: 1, dailyLimit: 30, dailyUsed: 0, bonusBalance: 0, periodRemaining: 0 }),
+    ).toBeNull();
+    // Negatif kalan (limit dusuruldu) sifir sayilir.
+    expect(
+      splitCharge({ cost: 1, dailyLimit: 30, dailyUsed: 0, bonusBalance: 1, periodRemaining: -4 }),
+    ).toEqual({ fromDaily: 0, fromBonus: 1 });
+  });
+
   it("gecersiz maliyeti reddeder", () => {
     expect(() => splitCharge({ cost: 0, dailyLimit: 10, dailyUsed: 0, bonusBalance: 0 })).toThrow();
     expect(() =>
@@ -83,11 +100,13 @@ describe("cappedCredit()", () => {
 });
 
 describe("dailySearchLimit()", () => {
-  it("varsayilan 10, gecersiz degerde varsayilana doner", () => {
+  it("varsayilan politikadaki gunluk hak (30), gecersiz degerde varsayilana doner", () => {
+    expect(DEFAULT_DAILY_SEARCH_LIMIT).toBe(QUOTA_POLICY.search_rights.day);
+    expect(DEFAULT_DAILY_SEARCH_LIMIT).toBe(30);
     expect(dailySearchLimit({})).toBe(DEFAULT_DAILY_SEARCH_LIMIT);
     expect(dailySearchLimit({ AI_SEARCH_DAILY_LIMIT: "5" })).toBe(5);
-    expect(dailySearchLimit({ AI_SEARCH_DAILY_LIMIT: "-1" })).toBe(10);
-    expect(dailySearchLimit({ AI_SEARCH_DAILY_LIMIT: "abc" })).toBe(10);
+    expect(dailySearchLimit({ AI_SEARCH_DAILY_LIMIT: "-1" })).toBe(DEFAULT_DAILY_SEARCH_LIMIT);
+    expect(dailySearchLimit({ AI_SEARCH_DAILY_LIMIT: "abc" })).toBe(DEFAULT_DAILY_SEARCH_LIMIT);
   });
 });
 

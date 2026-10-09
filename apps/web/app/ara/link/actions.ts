@@ -5,6 +5,7 @@ import {
   InvalidUrlError,
   isRedisUnavailableError,
   isValidRequestKey,
+  LINK_SEARCH_PUBLIC,
   reconcileLinkRequestCharge,
   runChargedLinkSearch,
 } from "@arilla/core";
@@ -17,6 +18,7 @@ import {
 import { getDatabase } from "@arilla/db";
 import { cookies } from "next/headers";
 import { requireProductAccess } from "../../lib/dal.ts";
+import { linkNoRightsCode } from "./link-search-copy.ts";
 
 /** `ara/gorsel/actions.ts` ile aynı desen: Server Action çerez yazabilir. */
 async function ensureSessionId(): Promise<string> {
@@ -46,6 +48,9 @@ export async function startLinkSearchAction(
   requestKey: string,
 ): Promise<StartLinkSearchResult> {
   const user = await requireProductAccess();
+  // Link araması geçici olarak kapalı: arayüz gizli olsa da Server Action
+  // doğrudan çağrılabilir, yeni istek kuyruğa alınmaz.
+  if (!LINK_SEARCH_PUBLIC) return { status: "failed", errorCode: "coming_soon" };
   // 0047: link araması hesap ister.
   if (!user) return { status: "failed", errorCode: "login_required" };
   if (!isValidRequestKey(requestKey)) return { status: "failed", errorCode: "unexpected" };
@@ -60,10 +65,14 @@ export async function startLinkSearchAction(
     });
     if (result.status === "queued") return { status: "queued", requestId: result.requestId };
     // Sitenin 429'u zaten `rate_limited` kodunu tasir; kullanici hizi ayri kod.
-    return {
-      status: "failed",
-      errorCode: result.status === "rate_limited" ? "search_rate_limited" : result.status,
-    };
+    if (result.status === "rate_limited") {
+      return { status: "failed", errorCode: "search_rate_limited" };
+    }
+    // Fotografla ayni hak havuzu (`search_rights`); gunluk dolum eski `no_rights` kodudur.
+    if (result.status === "no_rights") {
+      return { status: "failed", errorCode: linkNoRightsCode(result.window) };
+    }
+    return { status: "failed", errorCode: result.status };
   } catch (error) {
     if (error instanceof InvalidUrlError) return { status: "failed", errorCode: "invalid_url" };
     if (isRedisUnavailableError(error)) {

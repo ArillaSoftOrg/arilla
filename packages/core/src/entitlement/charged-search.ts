@@ -15,6 +15,7 @@ import { InvalidUrlError } from "../discovery/normalize-url.ts";
 import { type EmbeddingClient, EmbeddingUnavailableError } from "../embedding/client.ts";
 import { EmbeddingProviderError, embedUploadedImage } from "../embedding/embed-uploaded-image.ts";
 import type { PreparedImage } from "../embedding/preprocess-image.ts";
+import type { QuotaWindow } from "../quota/policy.ts";
 import { isRedisUnavailableError } from "../redis/client.ts";
 import {
   attachImageUpload,
@@ -30,7 +31,8 @@ import { reserveSearchReconciling } from "./reconcile.ts";
 /** Hak harcamayan redler: arayuz her birine ayri metin gosterir. */
 export type ChargeBlocked =
   | { status: "rate_limited" }
-  | { status: "no_rights" }
+  /** Hak yok; `window` hangi pencerenin doldugunu soyler (arayuz metni). */
+  | { status: "no_rights"; window: QuotaWindow }
   | { status: "busy" }
   /** Ayni istek anahtariyla onceki deneme iade edildi; istemci yeni anahtarla dener. */
   | { status: "retry" };
@@ -62,7 +64,7 @@ async function reserveOrBlock(
     case "replay":
       return { kind: "replay", charge: reserved.charge };
     case "exhausted":
-      return { status: "no_rights" };
+      return { status: "no_rights", window: reserved.window };
     case "busy":
       return { status: "busy" };
   }

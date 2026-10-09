@@ -279,6 +279,7 @@ describe("query_interpretation - entegrasyon", () => {
         user_id: null,
         session_id: null,
       });
+      // Test modelinin fiyat kurali yok: 0 = "fiyatlanmamis", bedava degil (karar 0082).
       expect(Number(row.cost_micros)).toBe(0);
     }
     expect(rows.map((r) => r.units).sort()).toEqual([0, 0, 103, 103]);

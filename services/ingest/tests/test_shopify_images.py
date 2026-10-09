@@ -112,17 +112,13 @@ def test_variant_images_kept_per_color_and_other_colors_excluded() -> None:
     )
     black, beige = _offers(product)
     black_rows = _rows(black)
-    assert {r[0] for r in black_rows} == {"shared", "black-front", "black-side"}
+    # unknown != safe: bagsiz/ortak "shared" gorseli renk-bolunmus urunde galeriye girmez
+    assert {r[0] for r in black_rows} == {"black-front", "black-side"}
     assert "black-front" not in {r[0] for r in _rows(beige)}
-    # kanitli renk gorselleri once, kaynak sirasiyla; ortak gorsel sonra
     black_shown = sorted((r for r in black_rows if r[1] is not None), key=lambda r: r[1])
-    assert [r[0] for r in black_shown] == ["black-front", "black-side", "shared"]
-    assert next(r for r in _rows(beige) if r[1] == 0)[0] == "beige-front"
-    # kanitli iliski isaretli, ortak olan degil
-    flags = {r[0]: r[2] for r in black_rows}
-    assert flags["black-side"] is True
-    assert flags["shared"] is False
-
+    assert [r[0] for r in black_shown] == ["black-front", "black-side"]
+    assert [r[0] for r in _rows(beige)] == ["beige-front"]
+    assert all(r[2] for r in black_rows)  # hepsi kanitli
 
 def test_no_variant_link_means_nothing_is_invented() -> None:
     product = _product(
@@ -131,10 +127,7 @@ def test_no_variant_link_means_nothing_is_invented() -> None:
     )
     black, beige = _offers(product)
     for offer in (black, beige):
-        rows = _rows(offer)
-        assert {r[0] for r in rows} == {"a", "b"}
-        assert not any(r[2] for r in rows)
-
+        assert offer.images == ()  # kanit yok: galeri bos, hicbir sey uydurulmaz
 
 def test_image_url_equals_gallery_rank_zero() -> None:
     product = _product([_image(1, "a", 1), _image(2, "b", 2)], [_variant(10, "Siyah")])
@@ -215,7 +208,8 @@ def test_color_split_uses_filename_stem_to_drop_other_colours_and_keep_own() -> 
     green_shown = sorted((r for r in _rows(green) if r[1] is not None), key=lambda r: r[1])
     assert [r[0] for r in green_shown] == ["603349_0421_1", "603349_0421_2", "603349_0421_3"]
     stored = {r[0] for r in _rows(green)}
-    assert stored == {"603349_0421_1", "603349_0421_2", "603349_0421_3", "603349_0421_4", "detay"}
+    # "detay" bagsiz ve dosya kokunu tasimiyor: kanitsiz, galeriye girmez
+    assert stored == {"603349_0421_1", "603349_0421_2", "603349_0421_3", "603349_0421_4"}
     assert not any("0802" in name for name in stored)
     assert green.image_url == "https://cdn.example/603349_0421_1.jpg"
     assert sorted(r[0] for r in _rows(grey) if r[1] is not None) == [
@@ -226,8 +220,8 @@ def test_color_split_uses_filename_stem_to_drop_other_colours_and_keep_own() -> 
 
 
 def test_non_discriminating_filename_stem_is_not_evidence() -> None:
-    """Gercek desen (termos): butun gorseller `...-N.jpg`; kok renkleri ayirmaz.
-    Rengin kendi bagli gorseli yine ilk sirada olmali, bagsizlar ortak kalmali."""
+    """Gercek desen (termos): butun gorseller `...-N.jpg`; kok renkleri ayirmaz, kanit degil.
+    Galeriye yalniz rengin kendi bagli gorseli girer; bagsizlar girmez."""
     images = [
         _image(1, "termos-1", 1, [10]),
         _image(2, "termos-2", 2),
@@ -237,14 +231,14 @@ def test_non_discriminating_filename_stem_is_not_evidence() -> None:
     product = _product(images, [_variant(10, "Siyah"), _variant(20, "Mor")])
     _black, purple = _offers(product)
     shown = sorted((r for r in _rows(purple) if r[1] is not None), key=lambda r: r[1])
-    assert [r[0] for r in shown] == ["termos-4", "termos-2", "termos-3"]
+    assert [r[0] for r in shown] == ["termos-4"]
     assert purple.image_url == "https://cdn.example/termos-4.jpg"
 
-
-def test_color_split_without_stem_evidence_keeps_unlinked_images_shared() -> None:
+def test_color_split_without_stem_evidence_does_not_share_unlinked_images() -> None:
     product = _product(
         [_image(1, "a", 1), _image(2, "b", 2, [10]), _image(3, "c", 3, [20])],
         [_variant(10, "Siyah"), _variant(20, "Bej")],
     )
     black, _beige = _offers(product)
-    assert {r[0] for r in _rows(black)} == {"a", "b"}
+    assert {r[0] for r in _rows(black)} == {"b"}  # "a" bagsiz ve kokten kanit yok
+

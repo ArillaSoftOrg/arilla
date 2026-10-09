@@ -128,6 +128,13 @@ Font IBM Plex Sans, **depodan servis edilir**. Google Fonts veya başka bir
 üçüncü taraf CDN'inden font, ikon veya betik çekilmez — kullanıcı IP'sini yurt
 dışına aktarır. Bkz. `docs/decisions/0009-font.md`.
 
+**Tek istisna — GA4 ölçüm betiği (karar 0087):** yalnızca `GA4_MEASUREMENT_ID`
+tanımlıysa ve ziyaretçi **analitik çerez rızası** verdiyse `ConsentGate`
+arkasında yüklenir; rıza geri alınınca anında durur. Yalnızca arındırılmış
+sayfa yolu ile `page_view` gönderilir; arama metni, sorgu parametresi, token,
+kimlik ve yönetim sayfaları gönderilmez. Başka hiçbir üçüncü taraf betik bu
+istisnadan yararlanamaz.
+
 ## Dil ve içerik
 
 - Arayüz dili Türkçe. Kod, değişken adı, tablo adı, commit mesajı İngilizce.

@@ -18,7 +18,13 @@ import {
 } from "../conversational-search/stored-plan.ts";
 import type { LlmCallOptions, LlmClient, LlmJsonRequest } from "../llm/client.ts";
 import { LlmError } from "../llm/client.ts";
-import { RedisUnavailableError } from "../redis/client.ts";
+import {
+  type ProviderBudgetHooks,
+  providerBudgetKey,
+  reserveProviderBudget,
+} from "../quota/provider-budget.ts";
+import type { QuotaConsumeResult, QuotaConsumer } from "../quota/redis-windows.ts";
+import { getRedis, RedisUnavailableError } from "../redis/client.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { providerCallsToday, QUERY_INTERPRETATION_OPERATION } from "./query-interpretation.ts";
 import {
@@ -243,17 +249,53 @@ describe("laptop: '10 bin liraya kadar oyun için hafif laptop'", () => {
   });
 });
 
-describe("kişi başına anlık limit", () => {
-  it("limit dolduysa model çağrılmaz", async () => {
+describe("kişi başına anlık limit (quota/policy.ts)", () => {
+  /** Kota cagrilarini kaydeden sahte harcayici. */
+  function recordingConsume(result: QuotaConsumeResult = { allowed: true }) {
+    const calls: Array<{ pool: string; subject: string }> = [];
+    const consume: QuotaConsumer = async (input) => {
+      calls.push({ pool: input.pool, subject: input.subject });
+      return result;
+    };
+    return { calls, consume };
+  }
+
+  it("limit dolduysa model çağrılmaz, arama deterministik yoldan sürer", async () => {
     const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const { consume } = recordingConsume({ allowed: false, window: "day" });
     const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} limit`, {
       client,
       registry: REGISTRY,
       actor: { userId: null, ip: "198.51.100.77" },
-      increment: async () => 31,
+      consume,
     });
     expect(result).toEqual({ source: "none", reason: "actor_limited" });
     expect(queries).toEqual([]);
+  });
+
+  it("girişli kullanıcı kendi havuzundan, anonim IP özetiyle ayrı havuzdan harcar", async () => {
+    const { client } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const signedIn = recordingConsume();
+    await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} girisli`, {
+      client,
+      registry: REGISTRY,
+      actor: { userId: 42, ip: "198.51.100.9" },
+      consume: signedIn.consume,
+    });
+    expect(signedIn.calls).toEqual([{ pool: "realtime_interpretation_user", subject: "user:42" }]);
+
+    const anonymous = recordingConsume();
+    await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} anonim`, {
+      client,
+      registry: REGISTRY,
+      actor: { userId: null, ip: "198.51.100.9" },
+      consume: anonymous.consume,
+    });
+    expect(anonymous.calls).toHaveLength(1);
+    expect(anonymous.calls[0]?.pool).toBe("realtime_interpretation_anonymous");
+    // Ham IP anahtara girmez: yalnizca SHA-256 ozeti.
+    expect(anonymous.calls[0]?.subject).toMatch(/^ip:[0-9a-f]{64}$/);
+    expect(anonymous.calls[0]?.subject).not.toContain("198.51.100.9");
   });
 
   it("limit sayacı okunamazsa model çağrılmaz (maliyet kapalı), hata fırlamaz", async () => {
@@ -262,8 +304,8 @@ describe("kişi başına anlık limit", () => {
       client,
       registry: REGISTRY,
       actor: { userId: 7, ip: null },
-      increment: async () => {
-        throw new RedisUnavailableError("incr");
+      consume: async () => {
+        throw new RedisUnavailableError("kota");
       },
     });
     expect(result).toEqual({ source: "none", reason: "actor_limited" });
@@ -271,22 +313,62 @@ describe("kişi başına anlık limit", () => {
   });
 
   it("önbellek isabeti limiti tüketmez", async () => {
-    let increments = 0;
     const query = `kafa koruyucu ${TAG} onbellek`;
     const { client } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
     // Ilk istek yorumu saklar (limitsiz cagri); ikincisi onbellekten gelir.
     await resolveRealtimeInterpretation(getTestDb(), query, { client, registry: REGISTRY });
+    const { calls, consume } = recordingConsume();
     const result = await resolveRealtimeInterpretation(getTestDb(), query, {
       client,
       registry: REGISTRY,
       actor: { userId: 9, ip: null },
-      increment: async () => {
-        increments += 1;
-        return 1;
-      },
+      consume,
     });
     expect(result.source).toBe("stored");
-    expect(increments).toBe(0);
+    expect(calls).toEqual([]);
+  });
+
+  it("süzgece takılan ya da boş sorgu limiti tüketmez", async () => {
+    const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const { calls, consume } = recordingConsume();
+    for (const text of ["", "   ", "beni 0532 123 45 67 numarasından ara"]) {
+      const result = await resolveRealtimeInterpretation(getTestDb(), text, {
+        client,
+        registry: REGISTRY,
+        actor: { userId: 11, ip: null },
+        consume,
+      });
+      expect(result.source).toBe("none");
+    }
+    expect(calls).toEqual([]);
+    expect(queries).toEqual([]);
+  });
+
+  it("bayrak kapalıyken (deterministik arama) limit tüketilmez", async () => {
+    const { calls, consume } = recordingConsume();
+    const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} kapali`, {
+      env: {},
+      registry: REGISTRY,
+      actor: { userId: 12, ip: null },
+      consume,
+    });
+    expect(result).toEqual({ source: "none", reason: "disabled" });
+    expect(calls).toEqual([]);
+  });
+
+  it("günlük toplam tavan doluysa kişi limiti tüketilmez", async () => {
+    const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const { calls, consume } = recordingConsume();
+    const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} tavan`, {
+      client,
+      registry: REGISTRY,
+      actor: { userId: 13, ip: null },
+      dailyCallCap: 0,
+      consume,
+    });
+    expect(result).toEqual({ source: "none", reason: "daily_cap" });
+    expect(calls).toEqual([]);
+    expect(queries).toEqual([]);
   });
 });
 
@@ -532,17 +614,154 @@ describe("Gemini'ye gitmeyenler", () => {
 
   it("günlük anlık tavan dolduysa çağrılmaz; toplu iş tavanı ayrı sayılır", async () => {
     const batchBefore = await providerCallsToday(getTestDb(), new Date());
-    const today = await realtimeCallsToday();
-    const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
-    const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} tavan`, {
-      client,
-      registry: REGISTRY,
-      dailyCallCap: today,
-    });
-    expect(result).toEqual({ source: "none", reason: "daily_cap" });
-    expect(queries).toEqual([]);
+    // Atomik Redis butcesi, gercek gunun sayacina dokunmamak icin uzak bir gunde:
+    // tavan (2) once doldurulur, sonra istek reddedilmeli.
+    const testDay = new Date(Date.UTC(2102, 5, 1, 12));
+    const key = providerBudgetKey(REALTIME_INTERPRETATION_OPERATION, testDay);
+    try {
+      for (let i = 0; i < 2; i++) {
+        await reserveProviderBudget({
+          operation: REALTIME_INTERPRETATION_OPERATION,
+          amount: 1,
+          cap: 2,
+          now: testDay,
+        });
+      }
+      const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+      const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} tavan`, {
+        client,
+        registry: REGISTRY,
+        dailyCallCap: 2,
+        now: () => testDay,
+      });
+      expect(result).toEqual({ source: "none", reason: "daily_cap" });
+      expect(queries).toEqual([]);
+      expect(Number(await getRedis().get(key))).toBe(2);
+    } finally {
+      await getRedis().del(key);
+    }
     expect(await providerCallsToday(getTestDb(), new Date(), QUERY_INTERPRETATION_OPERATION)).toBe(
       batchBefore,
     );
+  });
+});
+
+describe("global saglayici butcesi (atomik, quota/provider-budget.ts)", () => {
+  /** Ayirma/kesinlestirme cagrilarini kaydeden sahte butce. */
+  function recordingBudget(allowed = true) {
+    const reserved: number[] = [];
+    const settled: number[] = [];
+    const budget: ProviderBudgetHooks = {
+      reserve: async (input) => {
+        reserved.push(input.amount);
+        return allowed
+          ? {
+              allowed: true,
+              reservation: {
+                operation: input.operation,
+                key: "provider-budget:test",
+                ttlSeconds: 60,
+                reserved: input.amount,
+              },
+            }
+          : { allowed: false };
+      },
+      settle: async (_reservation, attempts) => {
+        settled.push(attempts);
+      },
+    };
+    return { budget, reserved, settled };
+  }
+
+  it("butce okunamazsa (Redis) model çağrılmaz, kişi limiti tüketilmez", async () => {
+    const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    let consumed = 0;
+    const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} butceyok`, {
+      client,
+      registry: REGISTRY,
+      actor: { userId: 31, ip: null },
+      consume: async () => {
+        consumed += 1;
+        return { allowed: true };
+      },
+      budget: {
+        reserve: async () => {
+          throw new RedisUnavailableError("butce");
+        },
+      },
+    });
+    expect(result).toEqual({ source: "none", reason: "budget_unavailable" });
+    expect(queries).toEqual([]);
+    expect(consumed).toBe(0);
+  });
+
+  it("kişi limiti reddederse ayrılan bütçe tamamen iade edilir (sağlayıcı çağrılmadı)", async () => {
+    const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const { budget, reserved, settled } = recordingBudget();
+    const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} kisiret`, {
+      client,
+      registry: REGISTRY,
+      actor: { userId: 32, ip: null },
+      consume: async () => ({ allowed: false, window: "day" }),
+      budget,
+    });
+    expect(result).toEqual({ source: "none", reason: "actor_limited" });
+    expect(queries).toEqual([]);
+    expect(reserved).toEqual([1]);
+    expect(settled).toEqual([0]);
+  });
+
+  it("sağlayıcı çağrıldı ama hata döndü: deneme sayılı kalır", async () => {
+    const { client, queries } = fakeClient(() => ({
+      kind: "error",
+      error: new LlmError("server_error", 503),
+      httpStatus: 503,
+    }));
+    const { budget, settled } = recordingBudget();
+    const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} hata503`, {
+      client,
+      registry: REGISTRY,
+      budget,
+    });
+    expect(result).toEqual({ source: "none", reason: "provider_error" });
+    expect(queries).toHaveLength(1);
+    expect(settled).toEqual([1]);
+  });
+
+  it("saklanan yorum ve süzgeç bütçeye hiç dokunmaz", async () => {
+    const { client } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const query = `kafa koruyucu ${TAG} butce-onbellek`;
+    await resolveRealtimeInterpretation(getTestDb(), query, { client, registry: REGISTRY });
+    const { budget, reserved } = recordingBudget();
+    const stored = await resolveRealtimeInterpretation(getTestDb(), query, {
+      client,
+      registry: REGISTRY,
+      budget,
+    });
+    const filtered = await resolveRealtimeInterpretation(getTestDb(), "beni 0532 123 45 67 ara", {
+      client,
+      registry: REGISTRY,
+      budget,
+    });
+    expect(stored.source).toBe("stored");
+    expect(filtered.source).toBe("none");
+    expect(reserved).toEqual([]);
+  });
+
+  it("gerçek Redis: başarılı çağrı sayacı tam 1 artırır", async () => {
+    const testDay = new Date(Date.UTC(2102, 5, 2, 12));
+    const key = providerBudgetKey(REALTIME_INTERPRETATION_OPERATION, testDay);
+    try {
+      const { client } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+      const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} sayac`, {
+        client,
+        registry: REGISTRY,
+        now: () => testDay,
+      });
+      expect(result.source).toBe("realtime");
+      expect(Number(await getRedis().get(key))).toBe(1);
+    } finally {
+      await getRedis().del(key);
+    }
   });
 });

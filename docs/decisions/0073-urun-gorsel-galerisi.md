@@ -242,3 +242,27 @@ Karar (`normalize._images`, yani normal ingest ve backfill ayni davranir):
 Dry-run sonucu (eski -> yeni): cross-color leak 5 -> 0, primary degisimi 1.378 -> 808 (hepsi
 bolunmemis urun ya da renge ozgu kanitli), Happy Place 632 -> 85, bos kalan galeri 576.
 
+### Ek 4 (2026-10-08): `unknown != safe` - renk-bolunmus urunde yalniz kanitli gorsel
+
+Ek 3'teki politika (kanit yoksa mevcut ana gorseli rank 0 yap, ortak gorselleri galeriye al)
+1.400 renk-bolunmus offer'da bagsiz/ortak gorselleri yine de galeriye yaziyordu; bunlar baska
+rengi gosterebilir (ornek: Koyu Bej koltuk icin `antrasit-15` dosyalari). Ek 3'un ilgili kismi
+bununla degistirilir.
+
+Karar (`normalize._images`): renk-bolunmus urunde (`image_flags.split = 1`) galeriye YALNIZ bu
+renge ozgu KANITLI gorseller girer:
+- kanit = gorsel bu rengin varyantina `variant_ids` ile bagli, ya da bu rengin bagli bir
+  gorseliyle ayni dosya kokunu tasiyor ve kok baska bir rengin bagli gorselinde gecmiyor
+  (`shopify._image_stem`). Dosya adindaki renk SOZCUKLERI kanit degildir.
+- bagsiz/ortak gorsel, baska renge bagli gorsel ve eski tek-gorsel yedegi GIRMEZ.
+- kanit yoksa galeri bos; `offer.image_url` ve `product.primary_image_url` bu islem yuzunden
+  degismez. Bos galeri kabul edilen sonuctur (offer eski tek gorselle calismaya devam eder).
+- bolunmemis (tek renkli) urunde normal galeri davranisi surer.
+- `keep_current_first` ve `legacy_foreign` bayragi kaldirildi (artik gereksiz).
+
+Dry-run (10 magaza, 9.131 offer; eski = Ek 3): galeri olusan offer 8.555 -> 7.155, bos galeri
+576 -> 1.976, gallery insert 42.197 -> 25.995, kanitsiz renk-bolunmus galeri 1.400 -> 0,
+cross-color leak 0, primary degisimi 808 (degismedi), Happy Place primary 632 -> 85.
+Pilotta yazilan 22 satir (bahs 5, for-fun 6, happy-place 6, termos 5) artik kanitsiz: backfill
+bunlari `removed` yapar (silmez).
+

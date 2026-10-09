@@ -35,6 +35,7 @@ import {
   LlmIntentInterpreter,
   type ModelInterpretationOutcome,
 } from "../llm/intent-interpreter.ts";
+import { llmCallCostMicros } from "../llm/pricing.ts";
 import { withJobRun } from "../ops/job-run.ts";
 import {
   INTERPRETATION_MIN_DISTINCT_DAYS,
@@ -233,7 +234,8 @@ export async function persistOutcome(
           operation,
           modelVersion: call.modelVersion,
           units: call.usage?.totalTokens ?? 0,
-          costMicros: 0,
+          // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
+          costMicros: llmCallCostMicros(call),
           cacheHit: false,
         })),
       );

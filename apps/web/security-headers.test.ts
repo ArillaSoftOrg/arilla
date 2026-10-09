@@ -65,7 +65,10 @@ describe("güvenlik başlıkları", () => {
   });
 
   it("HSTS yalnızca Vercel üretim derlemesinde", () => {
-    expect(securityHeaderOptionsFromEnv({ NODE_ENV: "production", VERCEL: "1" })).toEqual(PROD);
+    expect(securityHeaderOptionsFromEnv({ NODE_ENV: "production", VERCEL: "1" })).toEqual({
+      ...PROD,
+      ga4: false,
+    });
     expect(securityHeaderOptionsFromEnv({ NODE_ENV: "production" }).production).toBe(false);
     expect(securityHeaderOptionsFromEnv({ NODE_ENV: "development" }).development).toBe(true);
   });
@@ -90,5 +93,64 @@ describe("güvenlik başlıkları", () => {
       expect(index).toBeGreaterThan(globalIndex);
       expect(header(routes[index]?.headers ?? [], "Referrer-Policy")).toBe("no-referrer");
     }
+  });
+
+  // Karar 0087: GA4 yalnızca geçerli ölçüm kimliğiyle ve yönetim alanı hariç.
+  it("GA4 kimliği yoksa ya da geçersizse CSP genişlemez", () => {
+    for (const value of [undefined, "", "UA-12345-1", "G-<script>", "g-abc"]) {
+      const options = securityHeaderOptionsFromEnv({
+        NODE_ENV: "production",
+        VERCEL: "1",
+        GA4_MEASUREMENT_ID: value,
+      });
+      expect(options.ga4).toBe(false);
+      const csp = contentSecurityPolicy(options);
+      expect(directive(csp, "script-src")).toEqual(["'self'", "'unsafe-inline'"]);
+      expect(directive(csp, "connect-src")).toEqual(["'self'"]);
+    }
+  });
+
+  it("GA4 etkinken yalnızca Google ölçüm kökenleri eklenir", () => {
+    const options = securityHeaderOptionsFromEnv({
+      NODE_ENV: "production",
+      VERCEL: "1",
+      GA4_MEASUREMENT_ID: "G-ABC123DEF4",
+    });
+    expect(options.ga4).toBe(true);
+    const csp = contentSecurityPolicy(options);
+    expect(directive(csp, "script-src")).toEqual([
+      "'self'",
+      "'unsafe-inline'",
+      "https://www.googletagmanager.com",
+    ]);
+    expect(directive(csp, "connect-src")).toEqual([
+      "'self'",
+      "https://*.google-analytics.com",
+      "https://*.analytics.google.com",
+      "https://www.googletagmanager.com",
+    ]);
+    // Diğer yönergeler değişmez: font, çerçeve, form ve nesne kuralları aynı.
+    expect(directive(csp, "font-src")).toEqual(["'self'"]);
+    expect(directive(csp, "frame-src")).toEqual(["'self'"]);
+    expect(directive(csp, "frame-ancestors")).toEqual(["'none'"]);
+    expect(directive(csp, "default-src")).toEqual(["'self'"]);
+  });
+
+  it("GA4 etkinken yönetim alanı Google kökenleri OLMAYAN CSP ile ezilir", () => {
+    const options = { ...PROD, ga4: true };
+    const routes = securityHeaderRoutes(options);
+    const globalIndex = routes.findIndex((r) => r.source === "/:path*");
+    for (const source of ["/yonetim", "/yonetim/:path*"]) {
+      const index = routes.findIndex((r) => r.source === source);
+      expect(index).toBeGreaterThan(globalIndex);
+      const csp = header(routes[index]?.headers ?? [], "Content-Security-Policy") ?? "";
+      expect(csp).not.toContain("googletagmanager");
+      expect(csp).not.toContain("google-analytics");
+      expect(csp).not.toContain("analytics.google");
+      expect(directive(csp, "script-src")).toEqual(["'self'", "'unsafe-inline'"]);
+    }
+    // GA4 kapalıyken yönetim girdisi CSP taşımaz (genel CSP zaten dar).
+    const plain = securityHeaderRoutes(PROD).find((r) => r.source === "/yonetim");
+    expect(header(plain?.headers ?? [], "Content-Security-Policy")).toBeUndefined();
   });
 });

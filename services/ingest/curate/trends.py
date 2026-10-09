@@ -17,7 +17,7 @@ from urllib.parse import urlparse
 
 import psycopg
 
-from curate.profiles import BY_SLUG
+from curate.profiles import BY_SLUG, PROFILES
 from curate.selection import (
     LOW_MATCH_THRESHOLD,
     MIN_PUBLIC_PRODUCTS,
@@ -70,6 +70,12 @@ class TrendResult:
         return len(self.selected)
 
     @property
+    def min_price(self) -> int | None:
+        """Secilen urunlerin en dusuk `min_price`i (kurus)."""
+        prices = [s.candidate.min_price for s in self.selected]
+        return min(prices) if prices else None
+
+    @property
     def status(self) -> str:
         if self.count == 0:
             return "bos"
@@ -112,9 +118,17 @@ def curate_trend(conn: psycopg.Connection, slug: str, title: str) -> TrendResult
 
 
 def load_trends(conn: psycopg.Connection, slugs: list[str] | None) -> list[tuple[int, str, str]]:
+    """Yayinlanmis ve taslak trendler (taslak baglari da hazir tutulur; arayuz yalniz
+    yayinlananlari okur). `trend` tablosu YOKSA (0056 uygulanmamis ortam) profillerden
+    `(0, slug, slug)` doner: yalniz KURU KOSU icin; yazim yolu `trend_id = 0` ile
+    asla calismaz (`run` bunu reddeder)."""
     with conn.cursor() as cur:
+        cur.execute("SELECT to_regclass('trend') IS NOT NULL")
+        has_table = bool(cur.fetchone()[0])
+        if not has_table:
+            return [(0, p.slug, p.slug) for p in PROFILES if not slugs or p.slug in slugs]
         cur.execute(
-            "SELECT id, slug, title FROM trend WHERE status = 'published' "
+            "SELECT id, slug, title FROM trend WHERE status IN ('published', 'draft') "
             "AND (%(all)s OR slug = ANY(%(slugs)s)) ORDER BY sort_order, id",
             {"all": not slugs, "slugs": slugs or []},
         )
@@ -142,16 +156,25 @@ def write_trend(conn: psycopg.Connection, trend_id: int, result: TrendResult) ->
 def run(
     conn: psycopg.Connection, *, apply: bool, slugs: list[str] | None = None
 ) -> list[TrendResult]:
+    """Kuru kosuda islem SUNUCU TARAFINDA salt-okunurdur (`BEGIN READ ONLY`):
+    yanlislikla bir yazim yolu eklense bile veritabani reddeder. Isleme baslamadan
+    once ayarlanir; acik bir islem varsa kapatilir."""
+    if not apply:
+        conn.rollback()
+        conn.read_only = True
     results: list[TrendResult] = []
     for trend_id, slug, title in load_trends(conn, slugs):
         result = curate_trend(conn, slug, title)
         results.append(result)
         if apply:
+            if trend_id == 0:
+                raise RuntimeError("trend tablosu yok: --apply calistirilamaz (0056 uygulanmali)")
             write_trend(conn, trend_id, result)
     if apply:
         conn.commit()
     else:
         conn.rollback()
+        conn.read_only = False
     return results
 
 

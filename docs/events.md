@@ -54,6 +54,22 @@ Domain tabloları olayların kaynağıdır, olay tablosu onları kopyalamaz:
 `session_started` ayrı bir olay değildir: oturum yalnızca girişte açılır,
 yani `login_completed` ile aynı şeydir.
 
+## GA4 (tarayıcı, karar 0087)
+
+GA4'e gönderilen **tek** olay `page_view`'dır (`GA4_ALLOWED_EVENTS`).
+Yalnızca `GA4_MEASUREMENT_ID` tanımlı ve ziyaretçi analitik çerez rızası
+vermişse, girişli ya da anonim fark etmeksizin gönderilir; yukarıdaki
+`user_activity_event` sınıfından ayrıdır ve onun yerine geçmez.
+
+| Olay | Alanlar | Not |
+| --- | --- | --- |
+| `page_view` | `page_location` (köken + arındırılmış yol + yalnızca güvenli `utm_*`), `page_title` (= arındırılmış yol), `page_referrer` (dış: yalnızca köken) | `send_page_view: false`; rota değişiminde elle. `/yonetim`, `/api`, `/giris/*`, `/abonelik-iptali` gönderilmez |
+
+Arama metni, sorgu parametreleri, token, sohbet/oturum kimliği, e-posta ve
+telefon hiçbir alanda gönderilmez (`ga4-measurement.ts`, testli). GA4
+mülkündeki "gelişmiş ölçüm" kapalı tutulur (`docs/ops.md`). Yeni bir GA4
+olayı eklemek için önce bu tablo ve izin listesi güncellenir.
+
 ## Arama
 
 | Olay | Alanlar | Not |

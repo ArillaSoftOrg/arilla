@@ -3,6 +3,7 @@ import {
   cronAuthFailureResponse,
   purgeExpiredActivity,
   purgeExpiredConversationsSafely,
+  purgeExpiredFeedbackCommentsSafely,
   purgeExpiredQueryInterpretationsSafely,
   purgeJobRuns,
   purgeSearchQueryDays,
@@ -60,9 +61,12 @@ export async function GET(request: Request): Promise<Response> {
       const queryInterpretations = await purgeExpiredQueryInterpretationsSafely(db);
       // Karar 0074: sohbet geçmişi 90 gün saklanır (yalıtılmış adım).
       const conversations = await purgeExpiredConversationsSafely(db);
+      // Karar 0079: sohbet geri bildirimi yorumları 90 gün sonra silinir (yalıtılmış adım).
+      const feedbackComments = await purgeExpiredFeedbackCommentsSafely(db);
       return {
         ...result,
         conversations,
+        feedbackComments,
         searchCharges,
         retention,
         jobRuns,
@@ -78,7 +82,9 @@ export async function GET(request: Request): Promise<Response> {
         r.queryInterpretations.truncated ||
         r.queryInterpretations.failed !== null ||
         r.conversations.truncated ||
-        r.conversations.failed !== null
+        r.conversations.failed !== null ||
+        r.feedbackComments.truncated ||
+        r.feedbackComments.failed !== null
           ? "partial"
           : "success",
     }),

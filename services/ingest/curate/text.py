@@ -96,6 +96,22 @@ def signature(title: str) -> frozenset[str]:
     return frozenset(t for t in _TOKEN.findall(cleaned) if t not in _COLORS)
 
 
+#: Cinsiyet/yas belirteci: ayni temel urunun Erkek/Kadin/Unisex kopyalarini ayirir.
+GENDER_TOKENS = frozenset({"erkek", "kadin", "unisex", "cocuk", "kiz"})
+#: Aile parmak izi en az bu kadar anlamli kelime tasimali; kisa basliklar birlesmez.
+MIN_FAMILY_TOKENS = 3
+
+
+def family_signature(title: str) -> frozenset[str]:
+    """`signature` eksi cinsiyet belirteclerinin etkisi. Yalniz TAM ESITLIK dostur:
+    cinsiyet kelimesi disinda her sey ayni olan basliklar ayni urun ailesidir."""
+    return signature(title) - GENDER_TOKENS
+
+
+def same_family(a: frozenset[str], b: frozenset[str]) -> bool:
+    return len(a) >= MIN_FAMILY_TOKENS and a == b
+
+
 def jaccard(a: frozenset[str], b: frozenset[str]) -> float:
     if not a or not b:
         return 0.0

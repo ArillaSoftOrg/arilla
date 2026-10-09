@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { resolveTrendHero } from "./hero.ts";
+import { heroCandidateUrls, MAX_HERO_CANDIDATES, resolveTrendHero } from "./hero.ts";
 import { buildTrendSections, isTrendActiveNow } from "./sections.ts";
 import { MIN_PUBLIC_TREND_PRODUCTS, type TrendSummary } from "./types.ts";
 
@@ -67,6 +67,30 @@ describe("resolveTrendHero", () => {
   });
 });
 
+describe("heroCandidateUrls", () => {
+  it("once trend gorseli, sonra urun gorselleri; tekrar ve bos elenir", () => {
+    expect(
+      heroCandidateUrls("https://a.test/h.jpg", [
+        "https://a.test/1.jpg",
+        null,
+        " ",
+        "https://a.test/1.jpg",
+        "https://a.test/2.jpg",
+      ]),
+    ).toEqual(["https://a.test/h.jpg", "https://a.test/1.jpg", "https://a.test/2.jpg"]);
+  });
+
+  it("trend gorseli yoksa yalniz urun gorselleri; hic yoksa bos (yer tutucu)", () => {
+    expect(heroCandidateUrls(null, ["https://a.test/1.jpg"])).toEqual(["https://a.test/1.jpg"]);
+    expect(heroCandidateUrls(undefined, [])).toEqual([]);
+  });
+
+  it("aday sayisi sinirli", () => {
+    const many = Array.from({ length: 20 }, (_, i) => `https://a.test/${i}.jpg`);
+    expect(heroCandidateUrls(null, many)).toHaveLength(MAX_HERO_CANDIDATES);
+  });
+});
+
 function trend(id: number, overrides: Partial<TrendSummary> = {}): TrendSummary {
   return {
     id,
@@ -79,6 +103,7 @@ function trend(id: number, overrides: Partial<TrendSummary> = {}): TrendSummary 
     activeNow: false,
     heroImageUrl: null,
     heroSource: "placeholder",
+    heroCandidates: [],
     productCount: MIN_PUBLIC_TREND_PRODUCTS,
     startingPrice: null,
     thumbnails: [],

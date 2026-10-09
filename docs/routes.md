@@ -190,13 +190,21 @@ platform sorununu hafifletir.
 /yonetim/kullanicilar      Kullanıcı araması (kısmi, denetimli) + özet liste (keyset, filtreli, maskeli); yalnızca admin (0049)
 /yonetim/kullanicilar/<id> Hesap ayrıntısı, sekmeler ?sekme=profil|aktivite|izinler|oturumlar|aramalar|affiliate|denetim; tıkla-göster iletişim (taze giriş)
 /yonetim/denetim           admin_audit_event, salt okunur (yalnızca admin)
-/yonetim/mesajlar          Gelen kutusu: iletişim ve geri bildirim mesajları, salt okunur, görüntüleme denetlenir (yalnızca admin, 0061)
-/yonetim/erken-erisim      Erken erişim sayacı: platform dışı gerçek başvuru sayısını güncelle (gerekçe zorunlu, denetlenir; yalnızca admin, 0065)
+/yonetim/mesajlar          Gelen kutusu: iletişim ve geri bildirim mesajları; durum/öncelik filtresi ve triyajı (denetlenir), görüntüleme denetlenir (yalnızca admin, 0061, 0086)
+/yonetim/ai-geri-bildirim  AI geri bildirimleri: sohbet oyları, nedenler, yorumlar, eğilim; sohbet metni yok, görüntüleme denetlenir (yalnızca admin, 0079)
+/yonetim/ai-geri-bildirim/[messageId]  Tek oy ayrıntısı (yalnızca admin, 0079)
+/yonetim/erken-erisim      Erken erişim: başvuru listesi (salt okunur, imleçli) ve sayaç; platform dışı sayı gerekçeyle, denetlenir (yalnızca admin, 0065, 0086)
 /yonetim/kampanyalar       Pazarlama e-postası kampanyaları: taslak, test, gönderim (yalnızca admin, 0048)
 /yonetim/kampanyalar/<id> Düzenleme, önizleme, uygun alıcı sayısı, test, onaylı gönderim, durum
 /yonetim/formlar          Form / anket merkezi: liste, yeni form, aç/kapat (yalnızca admin, 0058)
 /yonetim/formlar/<id>     Düzenleme, yayın, paylaşım bağlantısı
 /yonetim/formlar/<id>/sonuclar  Özet sayılar, seçenek dağılımı, metin yanıtları
+/yonetim/ai                AI operasyonları: işlem × model çağrı, token, tahmini maliyet, sağlayıcı tavanı, arama hakkı kotası, sohbet sayıları (içerik yok); ?gun=1|7|30 (yalnızca admin, 0085)
+/yonetim/yolculuk          Kullanıcı yolculuğu: kayıt/giriş, rıza oranları, kimliksiz arama, rızalı huni örneklemi (5'ten az kişi gizli), fiyat alarmı, davet, bonus (yalnızca admin, 0085)
+/yonetim/trafik            Site trafiği (GA4 Data API, rızalı örneklem): kullanıcı, oturum, görüntüleme, etkileşim, eğri, kanal, kaynak, sayfa, cihaz, ülke/bölge (5 altı birleşik); 7/28/90 gün ve özel aralık (yalnızca admin, 0087)
+/yonetim/affiliate         Affiliate: mağaza/yüzey/kanal/gün çıkış toplamı, kapsam; dönüşüm ve gelir dış entegrasyon bekliyor (yalnızca admin, 0085)
+/yonetim/trendler          Trend yönetimi: durum, görünürlük, öne çıkarma, sıra; gerekçe + taze giriş, denetlenir (yalnızca admin, 0086)
+/yonetim/ayarlar           Etkin yapılandırma: bayrak, kota, tavan; salt okunur, sır değerleri gösterilmez (yalnızca admin, 0086)
 /yonetim/trend             (ertelendi) trend_snapshot yayınlama onayı
 ```
 

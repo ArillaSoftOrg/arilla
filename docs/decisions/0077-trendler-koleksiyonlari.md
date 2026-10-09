@@ -22,7 +22,12 @@
    (görselli + fiyatlı + stokta) varsa görünür; yoksa listede yok, detay adresi 404.
    Gösterilebilirlik okuma anında uygulanır: `curate`'tan sonra stoktan düşen ürün kırık
    kart üretmez. Zorlama doldurma yok.
-6. Kapak sırası: `hero_image_url` → sort_order 0 ürünün görseli → yer tutucu kutusu.
+6. Kapak sırası: `hero_image_url` → en iyi eşleşen ürünlerin görselleri (en çok 5 aday,
+   `heroCandidates`) → yer tutucu kutusu. Görsel canlılığı sunucuda **denetlenmez** (istek
+   yolunda HEAD zinciri yok; `offer_image.status='broken'` henüz doldurulmuyor). Kırık
+   görselde tarayıcıdaki küçük `FallbackImage` (`onError` + hidrasyon öncesi hata denetimi)
+   sıradaki adayı dener; hiçbiri yüklenmezse yer tutucu. Yalnızca trend kapağı kullanır;
+   `ProductImage` ve ürün sayfaları değişmedi.
 7. `/trendler` bir ürün rotasıdır: `requireProductAccess`, proxy ürün kapısı
    (`PUBLIC_PRODUCT_PATH_PREFIXES`), `robots.txt` ve sitemap ürün kapalıyken `/kesfet`
    ile aynı davranır. Trend sayfaları **günlük değişmez** (sıra `sort_order` ve
@@ -30,10 +35,11 @@
 8. Navigasyon: üst menü/altbilgi/404'teki "Trendler" artık `/trendler`e gider. Ana
    sayfadaki `#trendler` bölümü gerçek trendlerden (önce `featured`, ilk üç) beslenir;
    veri yoksa eski demo sete düşer.
-9. Arayüz metni kuralı: başlık #40 kullanıcı listesinde "Pahalı Görünüp Ucuz Olanlar"
-   idi; `docs/glossary.md` "ucuz" kelimesini arayüzde yasakladığı için
-   **"Pahalı Görünen Uygun Fiyatlılar"** olarak tohumlandı. Kural değişirse tek satır
-   (`trend.title`) güncellenir.
+9. Arayüz metni: trend #40 başlığı kullanıcı tarafından özellikle
+   **"Pahalı Görünüp Ucuz Olanlar"** olarak istendi ve aynen tohumlandı. Bu,
+   `docs/glossary.md` ("ucuz" arayüzde geçmez) kuralına **kullanıcı onaylı tek istisnadır**;
+   genel kural değişmez. 50 başlığın tamamı kullanıcı listesiyle birebir testle sabitlenir
+   (`test_curate_profiles.py`).
 
 ## Gerekçe
 

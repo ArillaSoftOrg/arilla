@@ -129,7 +129,9 @@ const params = (slug: string) => ({ params: Promise.resolve({ slug }) });
 describe("/trendler", () => {
   it("yayinlanmis, urunlu trendi kart olarak listeler; bos ve taslak trendi gostermez", async () => {
     const { default: Page } = await import("./page.tsx");
-    const { outcome, html } = await call(() => Page());
+    expect((await call(() => Page())).outcome).toBe("ok"); // kapi gecti; govde Suspense icinde
+    const { TrendlerContent } = await import("./trendler-content.tsx");
+    const { outcome, html } = await call(() => TrendlerContent());
     expect(outcome).toBe("ok");
     expect(html).toContain(`href="/trendler/${PREFIX}-ok"`);
     expect(html).toContain("Sayfa Testi Trendi");

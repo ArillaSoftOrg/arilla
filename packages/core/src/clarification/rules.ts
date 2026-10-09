@@ -115,6 +115,9 @@ const SHOES: DomainDefinition = {
   triggers: ["ayakkabı*", "ayakkabi*"],
   blockers: ["bağcık*", "boya*", "dolab*", "dolap*", "tabanlık*", "çorap*", "kutusu"],
   retrievalTerms: ["ayakkabı"],
+  // Katalog basliklarinda bas isim cogu zaman yalnizca "sneaker"/"loafer";
+  // "ayakkabı" ile birlikte zorunlu tutulunca bu urunler kapidan gecmiyordu.
+  retrievalAlternatives: ["sneaker", "loafer"],
   facets: [
     {
       id: "shoe_type",

@@ -28,6 +28,8 @@ vi.mock("next/headers", () => ({
     delete: (arg: string | { name: string }) => {
       state.cookies.delete(typeof arg === "string" ? arg : arg.name);
     },
+    // Next'in gerçek çerez deposu gibi: tercih action'ı GA4 çerezlerini önekle bulur (0087).
+    getAll: () => [...state.cookies].map(([name, value]) => ({ name, value })),
   }),
   headers: async () => state.headers,
 }));

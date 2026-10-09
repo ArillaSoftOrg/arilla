@@ -4,6 +4,7 @@ import {
   type AssistantPreview,
   type ChatInputRequest,
   canAccessProduct,
+  consumeChatFeedbackQuota,
   createChatTimer,
   createConversation,
   getChatInterpreter,
@@ -11,6 +12,7 @@ import {
   ImageRejectedError,
   isChatDiscoveryEnabled,
   isChatImageEnabled,
+  isRedisUnavailableError,
   isUuid,
   isValidRequestKey,
   logChatTimings,
@@ -302,12 +304,17 @@ export async function startChatBootstrapAction(text: unknown): Promise<NewTabCha
   return { status: "created", href: `/sohbet/${conversationId}` };
 }
 
-/** "Bu yardimci oldu mu?" oyu (karar 0075). Metin tasimaz, analitik olayi uretmez. */
+/**
+ * "Bu yardimci oldu mu?" oyu (karar 0075, 0079). Olumsuz oy yalnizca Gonder ile gelir;
+ * neden/yorum istege baglidir. Sahiplik ve dogrulama cekirdekte; burada oturum + oran siniri.
+ * Analitik olayi uretmez.
+ */
 export async function submitResultFeedbackAction(
   conversationId: string,
   messageSeq: number,
   helpful: boolean,
-): Promise<{ status: "saved" | "not_found" | "invalid" | "unavailable" }> {
+  details?: { reasons?: string[]; comment?: string },
+): Promise<{ status: "saved" | "not_found" | "invalid" | "unavailable" | "rate_limited" }> {
   const user = await verifySession();
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { status: "unavailable" };
@@ -315,12 +322,21 @@ export async function submitResultFeedbackAction(
   if (typeof conversationId !== "string" || typeof helpful !== "boolean") {
     return { status: "invalid" };
   }
+  try {
+    if (!(await consumeChatFeedbackQuota(user.id))) return { status: "rate_limited" };
+  } catch (error) {
+    // Redis yok: yazma yolu fail-closed (sohbet etkilenmez).
+    if (isRedisUnavailableError(error)) return { status: "unavailable" };
+    throw error;
+  }
   return {
     status: await setResultFeedback(getDatabase(), {
       userId: user.id,
       conversationId,
       messageSeq: Number(messageSeq),
       helpful,
+      reasons: details?.reasons,
+      comment: details?.comment,
     }),
   };
 }

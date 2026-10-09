@@ -314,6 +314,24 @@ kişiselleştirme çerezleri gerektirir.
 Çerez bandı: kabul ve ret düğmeleri **eşit görsel ağırlıkta** olur. Reddetmeyi
 zorlaştıran tasarım kabul edilmez.
 
+### Google Analytics 4 (karar 0087)
+
+- **Dayanak:** açık rıza (analitik çerez kategorisi). Rıza yoksa betik hiç
+  yüklenmez; geri alınınca ölçüm anında durur, `_ga` / `_ga_<ID>` silinir.
+  `CONSENT_VERSION` 2: eski tercihler yeniden sorulur.
+- **Giden veri:** arındırılmış sayfa yolu (sorgu parametreleri, arama metni,
+  token, sohbet kimliği, yönetim ve giriş alt yolları YOK), yalnızca güvenli
+  UTM değerleri, yönlendiren sitenin kökeni, GA4'ün kendi topladığı cihaz,
+  tarayıcı ve IP'den çıkarılan yaklaşık konum, çerez tanımlayıcısı. `user_id`
+  gönderilmez; Google sinyalleri ve reklam kişiselleştirmesi kapalı.
+- **Yurt dışına aktarım:** Google'ın tesislerinde işlenir; aktarım açık rızaya
+  dayanır ve aydınlatma/gizlilik metinlerinde (yalnızca GA4 etkinken) anılır.
+- **Saklama:** GA4 mülkünde veri saklama 2 ay (elle ayar, `docs/ops.md`).
+- **Yönetim raporu:** yalnızca toplamlar; 5 kullanıcının altındaki ülke,
+  bölge ve kaynak satırları birleştirilir. Kişi düzeyinde veri gösterilmez.
+- **Hukuki durum:** ürün sahibi 9 Ekim 2026'da gerekliliklerin karşılandığını
+  beyan etti; depoda GA4'e özel yazılı hukuk görüşü yok (karar 0087).
+
 ## Fiyat ve stok bilgisi sorumluluğu
 
 Gösterilen fiyat ve stok bilgisi üçüncü taraf kaynaklardan gelir ve gecikmeli
@@ -396,3 +414,25 @@ saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).
 - **Etkinleştirme öncesi (açık):** hukuk danışmanı onayı (0059 yalnızca filtrelenmiş
   toplu sorgu içindi), aydınlatma/gizlilik metninde sohbet içeriği ve 90 gün saklama,
   `/hesap/veri-indir` kapsamına sohbetlerin eklenmesi kararı.
+
+### Sohbet geri bildirimi: neden ve yorum (karar 0079)
+
+- Veri: yanıt başına evet/hayır oyu (`chat_result_feedback`), olumsuzda isteğe bağlı
+  neden kodu (`reasons`) ve en çok 500 karakterlik serbest metin `comment`; oy anındaki
+  yaklaşık `model_version`. Kişi kimliği ayrı kolonda tutulmaz: sahiplik
+  `conversation.user_id` üzerinden; oy sohbetle birlikte (hesap silme, 90 gün) gider.
+- **Yorum kişisel veri içerebilir.** Arayüz "kişisel bilgi yazma" uyarısı verir. Yorum
+  son değişiklikten 90 gün sonra `NULL`'lanır (`cleanup-auth`, `purgeExpiredFeedbackComments`);
+  oy ve neden istatistiği kalır. Kamuya açık saklama süresi hukuk onayı bekler.
+- Amaç: hizmet kalitesi analizi. **Model eğitimi için kullanılmaz;** oylar modeli
+  otomatik değiştirmez, yalnızca kontrollü iyileştirme sinyalidir.
+- Yönetici erişimi: yalnızca `feedback.chat.read` (yönetici rolü); oy, neden, yorum ve
+  mesaj referansı görülür, **sohbet metni görülmez.** Her liste/detay görüntüleme
+  `admin_audit_event`'e yazılır (yorum ve neden yazılmaz).
+- Veri indirme: `/hesap/veri-indir` çıktısında her mesajın oyu (neden, yorum) bulunur.
+- **Etkinleştirme öncesi (açık):** `/gizlilik` ve `/kvkk-aydinlatma` metninde sohbet
+  içeriği, geri bildirim yorumu ve saklama süresi (sohbet bayrağı açılmadan önce, hukuk
+  onayıyla).
+- **Sohbet bağlamına yönetici erişimi bu kararda yoktur.** Ayrı faz için koşullar: kullanıcı
+  onayı (varsayılan kapalı, paylaşılacak mesajlar gösterilir), yalnızca seçilen kapsam, ayrı
+  capability, her erişim denetimde, aydınlatma metni ve hukuki inceleme.
