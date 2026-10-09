@@ -25,6 +25,12 @@ import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { LlmErrorCode } from "../llm/client.ts";
 import { llmCallCostMicros } from "../llm/pricing.ts";
 import {
+  type ProviderBudgetHooks,
+  type ProviderBudgetReservation,
+  reserveProviderBudget,
+  settleProviderBudget,
+} from "../quota/provider-budget.ts";
+import {
   consumeQuota,
   type QuotaConsumer,
   type QuotaReleaser,
@@ -34,6 +40,7 @@ import { isRedisUnavailableError } from "../redis/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
 import {
+  CHAT_CLIENT_OPTIONS,
   CHAT_DAILY_CALL_CAP,
   CHAT_LEASE_SECONDS,
   CHAT_RETENTION_DAYS,
@@ -706,6 +713,42 @@ export interface ProcessTurnInput {
   conversationId: string;
   interpreter: ChatInterpreter;
   leaseSeconds?: number;
+  /** Testler icin; varsayilan atomik Redis saglayici butcesi. */
+  budget?: ProviderBudgetHooks;
+}
+
+interface ChatProviderBudget {
+  modelAllowed: boolean;
+  /** Redis ayirmasi; yedek DB sayiminda `null` (kesinlestirilecek bir sey yok). */
+  reservation: ProviderBudgetReservation | null;
+}
+
+/**
+ * Gunluk saglayici tavani (`CHAT_DAILY_CALL_CAP`, tum kullanicilar): bir turun
+ * en fazla deneme sayisi kadar (`CHAT_CLIENT_OPTIONS.maxAttempts`) Redis'te
+ * atomik ayrilir; model cagrisindan sonra gercek deneme sayisina cekilir.
+ * Redis erisilemezse eski davranis: `api_usage` gunluk sayimi (sinirli,
+ * esanlilikta az tasabilir); sohbet kesilmez, tavan dolunca yedek cevap.
+ */
+async function chatProviderBudget(
+  db: Database,
+  hooks: ProviderBudgetHooks | undefined,
+): Promise<ChatProviderBudget> {
+  try {
+    const budget = await (hooks?.reserve ?? reserveProviderBudget)({
+      operation: CHAT_TURN_OPERATION,
+      amount: CHAT_CLIENT_OPTIONS.maxAttempts,
+      cap: CHAT_DAILY_CALL_CAP,
+    });
+    return budget.allowed
+      ? { modelAllowed: true, reservation: budget.reservation }
+      : { modelAllowed: false, reservation: null };
+  } catch (error) {
+    if (!isRedisUnavailableError(error)) throw error;
+    console.error("[chat] provider budget store unavailable; daily db count applies");
+    const callsToday = await providerCallsToday(db, new Date(), CHAT_TURN_OPERATION);
+    return { modelAllowed: callsToday < CHAT_DAILY_CALL_CAP, reservation: null };
+  }
 }
 
 /** Yazilan cevabin istemcide hemen gosterilebilen on izlemesi (kalici kayit sunucudadir). */
@@ -773,13 +816,28 @@ async function runPendingTurn(
     return exists ? { status: "busy" } : { status: "not_found" };
   }
 
+  // Saglayici butcesi: ayrildiysa tur bitmeden MUTLAKA gercek deneme sayisina
+  // cekilir (model hic cagrilmadiysa 0 = tam iade). `null` = bilinmiyor
+  // (beklenmeyen hata): ayirma oldugu gibi kalir, eksik sayilmaz.
+  let budget: ChatProviderBudget | null = null;
+  let attempts: number | null = 0;
+  let settled = false;
+  const settleBudget = async () => {
+    if (settled || !budget?.reservation || attempts === null) return;
+    settled = true;
+    await (input.budget?.settle ?? settleProviderBudget)(budget.reservation, attempts).catch(() =>
+      console.error("[chat] provider budget settle failed"),
+    );
+  };
+
   try {
     // Birbirine bagimli degil, tek tur: mesajlar, gunluk tavan, sozluk isitma (aramadan once).
-    const [rows, callsToday] = await Promise.all([
+    const [rows, providerBudget] = await Promise.all([
       timer.time("load_context", () => loadMessageRows(db, claimed.id)),
-      timer.time("provider_limit", () => providerCallsToday(db, new Date(), CHAT_TURN_OPERATION)),
+      timer.time("provider_limit", () => chatProviderBudget(db, input.budget)),
       timer.time("lexicon", () => loadLexiconCached(db)).catch(() => undefined),
     ]);
+    budget = providerBudget;
     const view = buildView(claimed, rows);
     const image = await loadContextImage(db, input.userId, view.messages);
     const maybeRequest = toInterpretRequest(view, image);
@@ -790,10 +848,13 @@ async function runPendingTurn(
     const request: InterpretRequest = maybeRequest;
     const lastSeq = view.messages.at(-1)?.seq ?? 0;
     // Kilit/islem YOK: kira yalnizca bir satir isaretidir; model cagrisi DB'yi tutmaz.
-    const modelAllowed = callsToday < CHAT_DAILY_CALL_CAP;
+    const modelAllowed = providerBudget.modelAllowed;
+    attempts = null;
     const outcome = await timer.time("gemini", () =>
       interpretTurn(input.interpreter, request, { modelAllowed }),
     );
+    attempts = outcome.calls.length;
+    await settleBudget();
 
     return await persistTurn();
 
@@ -910,6 +971,8 @@ async function runPendingTurn(
       // Kira zaten sure dolunca duser.
     }
     return { status: "provider_error", code: "unknown" };
+  } finally {
+    await settleBudget();
   }
 }
 

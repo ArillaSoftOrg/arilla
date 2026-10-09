@@ -1,4 +1,5 @@
 import type { Database } from "@arilla/db";
+import { sql } from "drizzle-orm";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { generateDiscoverySlots } from "./generate-discovery-slots.ts";
@@ -107,14 +108,42 @@ describe("generateDiscoverySlots() - havuz 20'den buyukse gunler arasi rotasyon"
     });
   });
 
-  it("ardisik gunler buyuk olcude farkli urun setleri gosterir (basit 1-adim kaydirma degil)", async () => {
-    await generateDiscoverySlots(db, dateA);
-    await generateDiscoverySlots(db, dateB);
-    await generateDiscoverySlots(db, dateC);
+  /**
+   * Rotasyon TUM `public_find`'i okur (havuz = tum curated, once organik).
+   * Veritabaninda bu testin disinda tek bir organik satir (gelistirme verisi,
+   * yarida kalmis bir kosu) ardisik gunleri cakistirir; bu yuzden olcum, diger
+   * satirlarin gizlendigi ve sonunda GERI ALINAN tek bir islemde yapilir.
+   * Kalici hicbir sey yazilmaz ya da silinmez.
+   */
+  async function withOnlyThisPool<T>(fn: (tx: Database) => Promise<T>): Promise<T> {
+    const rollback = new Error("rollback");
+    let out: T | undefined;
+    await db
+      .transaction(async (tx) => {
+        await tx.execute(
+          sql`DELETE FROM public_find WHERE NOT (product_id = ANY(${`{${poolProductIds.join(",")}}`}::bigint[]))`,
+        );
+        out = await fn(tx as unknown as Database);
+        throw rollback;
+      })
+      .catch((error: unknown) => {
+        if (error !== rollback) throw error;
+      });
+    return out as T;
+  }
 
-    const itemsA = await getDiscoverySlots(db, dateA);
-    const itemsB = await getDiscoverySlots(db, dateB);
-    const itemsC = await getDiscoverySlots(db, dateC);
+  it("ardisik gunler buyuk olcude farkli urun setleri gosterir (basit 1-adim kaydirma degil)", async () => {
+    const [itemsA, itemsB, itemsC] = await withOnlyThisPool(async (tx) => {
+      await generateDiscoverySlots(tx, dateA);
+      await generateDiscoverySlots(tx, dateB);
+      await generateDiscoverySlots(tx, dateC);
+      return Promise.all([
+        getDiscoverySlots(tx, dateA),
+        getDiscoverySlots(tx, dateB),
+        getDiscoverySlots(tx, dateC),
+      ]);
+    });
+    expect(itemsA).toHaveLength(20);
 
     const setA = new Set(itemsA.map((item) => item.productId));
     const setB = new Set(itemsB.map((item) => item.productId));

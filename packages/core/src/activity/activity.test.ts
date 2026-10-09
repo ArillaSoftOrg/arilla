@@ -1,6 +1,16 @@
 import { describe, expect, it } from "vitest";
 import { normalizeClickSurface } from "../attribution/record-click.ts";
-import { normalizeActivityQuery, QUERY_NORM_MAX_LENGTH } from "./record.ts";
+import { normalizeQueryText } from "../search/normalize.ts";
+import { isSearchQualityRecordable } from "../search/quality.ts";
+import {
+  ACTIVITY_BLOCKED_QUERIES,
+  ACTIVITY_STORED_QUERIES,
+} from "./activity-query-privacy-cases.ts";
+import {
+  isActivityQueryStorable,
+  normalizeActivityQuery,
+  QUERY_NORM_MAX_LENGTH,
+} from "./record.ts";
 import {
   classifyBrowser,
   classifyDevice,
@@ -93,6 +103,29 @@ describe("analitik sorgu normalizasyonu", () => {
     expect(normalizeActivityQuery("  Siyah   ISLAK Mendil ")).toBe("siyah ıslak mendil");
     expect(normalizeActivityQuery("a".repeat(500))?.length).toBe(QUERY_NORM_MAX_LENGTH);
     expect(normalizeActivityQuery("   ")).toBeNull();
+  });
+});
+
+describe("kullanıcıya bağlı sorgu metni süzgeci (karar 0089)", () => {
+  it.each(ACTIVITY_BLOCKED_QUERIES)("saklanmaz: %s", (_label, raw) => {
+    expect(isActivityQueryStorable(normalizeQueryText(raw))).toBe(false);
+  });
+
+  it.each(ACTIVITY_STORED_QUERIES)("saklanır: %s", (raw) => {
+    expect(isActivityQueryStorable(normalizeQueryText(raw))).toBe(true);
+  });
+
+  it("özel nitelikli alışveriş sorgusu: kimliksiz özette kalır, kişiye bağlı kayıtta kalmaz", () => {
+    for (const raw of ["hamile pantolonu", "diyabet çorabı", "yetişkin bezi"]) {
+      const queryNorm = normalizeQueryText(raw);
+      expect(isSearchQualityRecordable(queryNorm)).toBe(true);
+      expect(isActivityQueryStorable(queryNorm)).toBe(false);
+    }
+  });
+
+  it("200 karakteri aşan metin saklanmaz", () => {
+    expect(isActivityQueryStorable("x".repeat(200))).toBe(true);
+    expect(isActivityQueryStorable("x".repeat(201))).toBe(false);
   });
 });
 
