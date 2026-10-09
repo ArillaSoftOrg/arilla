@@ -74,8 +74,10 @@ beklendiği için bu karar 0082'dir.
   kullanılmıyor. Tahmin bu yüzden üst sınırdır.
 - **Başarısız denemeler** kullanım taşımıyorsa fiyatlanmamış sayılır; sağlayıcı
   bunları faturalamıyor olabilir, ama "0" bilinmediği için yazılmaz.
-- `units` hâlâ toplam token; girdi/çıktı ayrımı, sonuç ve gecikme saklanmaz
-  (kapsam kaydında `unmeasured`).
+- `units` toplam token. Girdi/çıktı ayrımı 0059'dan beri `input_tokens` /
+  `output_tokens`'ta (çıktı = yanıt + düşünme; aynı `billableTokens`; eski
+  satırlar NULL, geriye dönük doldurulmaz; kapsam kaydında `data_no_ui`).
+  Sonuç ve gecikme saklanmaz (`unmeasured`).
 
 ## Faz B önkoşulları
 

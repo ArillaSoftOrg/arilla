@@ -23,7 +23,7 @@ import {
 } from "@arilla/db";
 import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { LlmErrorCode } from "../llm/client.ts";
-import { llmCallCostMicros } from "../llm/pricing.ts";
+import { llmUsageColumns } from "../llm/pricing.ts";
 import {
   type ProviderBudgetHooks,
   type ProviderBudgetReservation,
@@ -876,9 +876,9 @@ async function runPendingTurn(
                 userId: input.userId,
                 operation: CHAT_TURN_OPERATION,
                 modelVersion: call.modelVersion,
-                units: call.usage?.totalTokens ?? 0,
-                // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
-                costMicros: llmCallCostMicros(call),
+                // Karar 0082 + 0059: toplam, girdi/cikti ayrimi ve tahmini liste
+                // fiyati; bilinmeyen kullanim NULL/0 = "fiyatlanmamis".
+                ...llmUsageColumns(call),
                 cacheHit: false,
               })),
             );

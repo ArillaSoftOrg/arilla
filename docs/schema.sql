@@ -794,6 +794,10 @@ CREATE TABLE api_usage (
     operation     TEXT        NOT NULL,    -- 'visual_search','semantic_search','review_summary'
     model_version TEXT,
     units         INTEGER     NOT NULL DEFAULT 1,
+    -- 0059: model cagrisinda saglayicinin bildirdigi girdi / faturalanan cikti
+    -- (yanit + dusunme) tokeni. NULL = bildirilmedi ya da token tabanli degil.
+    input_tokens  INTEGER CHECK (input_tokens IS NULL OR input_tokens >= 0),
+    output_tokens INTEGER CHECK (output_tokens IS NULL OR output_tokens >= 0),
     cost_micros   BIGINT      NOT NULL DEFAULT 0,   -- TRY milyonda bir
     cache_hit     BOOLEAN     NOT NULL DEFAULT FALSE,
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now()

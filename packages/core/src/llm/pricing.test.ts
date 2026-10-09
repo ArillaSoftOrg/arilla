@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import type { LlmCall } from "./client.ts";
 import { GEMINI_MODEL } from "./model.ts";
 import {
@@ -7,6 +7,7 @@ import {
   LLM_COST_FX_ENV,
   LLM_PRICE_RULES,
   type LlmPriceRule,
+  llmUsageColumns,
   parseFxMicros,
 } from "./pricing.ts";
 
@@ -154,6 +155,75 @@ describe("cagri maliyeti", () => {
     const env = { [LLM_COST_FX_ENV]: "41.123456" };
     expect(estimateLlmCallCost(call(usage(2_000_000, 500_000)), { at: AT, env })).toMatchObject({
       costMicros: 51_404_320,
+    });
+  });
+});
+
+describe("api_usage token ayrimi (0059)", () => {
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it("girdi, faturalanan cikti (dusunme dahil), toplam ve maliyet ayni kaynaktan", () => {
+    vi.stubEnv(LLM_COST_FX_ENV, "41.25");
+    expect(llmUsageColumns(call(usage(100, 50, 10)), AT)).toEqual({
+      units: 160,
+      inputTokens: 100,
+      outputTokens: 60,
+      costMicros: 4744,
+    });
+  });
+
+  it("units saglayicinin toplamidir, yeniden hesaplanmaz", () => {
+    vi.stubEnv(LLM_COST_FX_ENV, "41.25");
+    const reported = { inputTokens: 100, outputTokens: 50, thoughtTokens: 10, totalTokens: 999 };
+    expect(llmUsageColumns(call(reported), AT)).toMatchObject({ units: 999, outputTokens: 60 });
+  });
+
+  it("kullanim bildirilmedi (zaman asimi, ag): units 0, tokenler NULL, maliyet 0", () => {
+    vi.stubEnv(LLM_COST_FX_ENV, "41.25");
+    expect(llmUsageColumns(call(null), AT)).toEqual({
+      units: 0,
+      inputTokens: null,
+      outputTokens: null,
+      costMicros: 0,
+    });
+  });
+
+  it("okunamayan (hepsi 0) kullanim tokenleri NULL yazar, 0 uydurmaz", () => {
+    vi.stubEnv(LLM_COST_FX_ENV, "41.25");
+    expect(llmUsageColumns(call(usage(0, 0)), AT)).toMatchObject({
+      inputTokens: null,
+      outputTokens: null,
+      costMicros: 0,
+    });
+  });
+
+  it("kur tanimsiz ya da model kuralsiz: tokenler yine yazilir, maliyet 0 (fiyatlanmamis)", () => {
+    vi.stubEnv(LLM_COST_FX_ENV, "");
+    expect(llmUsageColumns(call(usage(100, 50, 10)), AT)).toEqual({
+      units: 160,
+      inputTokens: 100,
+      outputTokens: 60,
+      costMicros: 0,
+    });
+    vi.stubEnv(LLM_COST_FX_ENV, "41.25");
+    expect(llmUsageColumns(call(usage(100, 50), "baska-model"), AT)).toMatchObject({
+      inputTokens: 100,
+      outputTokens: 50,
+      costMicros: 0,
+    });
+  });
+
+  it("muhasebe hatasi istegi bozmaz: firlatmaz, satir fiyatlanmamis yazilir", () => {
+    vi.stubEnv(LLM_COST_FX_ENV, "41.25");
+    // Tamsayi olmayan token BigInt'i bozar; sonuc yine guvenli.
+    const broken = { inputTokens: 1.5, outputTokens: 2, thoughtTokens: 0, totalTokens: 4 };
+    expect(llmUsageColumns(call(broken), AT)).toEqual({
+      units: 4,
+      inputTokens: null,
+      outputTokens: null,
+      costMicros: 0,
     });
   });
 });

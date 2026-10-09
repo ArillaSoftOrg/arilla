@@ -203,7 +203,7 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     adminPaths: ["/yonetim/islemler", "/yonetim/ai"],
     gaps: [
       { signal: "Çağrı sonucu (başarılı/hata) ve gecikme", status: "unmeasured" },
-      { signal: "Girdi/çıktı token ayrımı (yalnızca toplam saklanıyor)", status: "unmeasured" },
+      { signal: "Girdi/çıktı token ayrımı (0059; yalnızca yeni satırlar)", status: "data_no_ui" },
       { signal: "Gerçek faturalanan tutar", status: "external" },
     ],
     privacy: "Sohbet satırlarında user_id var: kullanıcı başına AI maliyeti gösterilmez.",

@@ -156,3 +156,34 @@ export function llmCallCostMicros(call: LlmCall, at: Date = new Date()): number 
   }
   return 0;
 }
+
+export interface LlmUsageColumns {
+  /** Saglayicinin toplam tokeni (eski anlam aynen); kullanim yoksa 0. */
+  units: number;
+  /** 0059: girdi tokeni; kullanim bildirilmediyse NULL. */
+  inputTokens: number | null;
+  /** 0059: faturalanan cikti tokeni (yanit + dusunme); bildirilmediyse NULL. */
+  outputTokens: number | null;
+  costMicros: number;
+}
+
+/**
+ * Tek bir HTTP denemesinin `api_usage` model alanlari (0059 + karar 0082).
+ * Token ayrimi maliyetle AYNI kaynaktan (`billableTokens`) gelir; maliyet
+ * `llmCallCostMicros` ile hesaplanir. Asla firlatmaz: muhasebe hatasi
+ * kullanicinin istegini bozmaz, satir "fiyatlanmamis" yazilir.
+ */
+export function llmUsageColumns(call: LlmCall, at: Date = new Date()): LlmUsageColumns {
+  const units = call.usage?.totalTokens ?? 0;
+  try {
+    const tokens = billableTokens(call);
+    return {
+      units,
+      inputTokens: tokens?.input ?? null,
+      outputTokens: tokens?.output ?? null,
+      costMicros: llmCallCostMicros(call, at),
+    };
+  } catch {
+    return { units, inputTokens: null, outputTokens: null, costMicros: 0 };
+  }
+}
