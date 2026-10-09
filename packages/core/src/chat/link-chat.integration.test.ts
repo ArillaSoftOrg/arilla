@@ -60,14 +60,17 @@ async function newUser(): Promise<number> {
 
 type Scripted = unknown | Error;
 
-function model(values: Scripted[] = []): ChatInterpreter & {
+function model(
+  values: Scripted[] = [],
+  modelVersion = "test-model",
+): ChatInterpreter & {
   calls: number;
   requests: InterpretRequest[];
 } {
   const queue = [...values];
   const state = { calls: 0, requests: [] as InterpretRequest[] };
   return {
-    modelVersion: "test-model",
+    modelVersion,
     get calls() {
       return state.calls;
     },
@@ -79,11 +82,11 @@ function model(values: Scripted[] = []): ChatInterpreter & {
       state.requests.push(request);
       const next = queue.shift();
       if (next instanceof Error) {
-        opts?.onCall?.({ modelVersion: "test-model", httpStatus: null, usage: null });
+        opts?.onCall?.({ modelVersion, httpStatus: null, usage: null });
         throw next;
       }
-      opts?.onCall?.({ modelVersion: "test-model", httpStatus: 200, usage: USAGE });
-      return { value: next, usage: USAGE, modelVersion: "test-model" };
+      opts?.onCall?.({ modelVersion, httpStatus: 200, usage: USAGE });
+      return { value: next, usage: USAGE, modelVersion };
     },
   };
 }
@@ -800,6 +803,50 @@ describe("Faz 5: model yalnızca tanınmayan tercih için", () => {
     await turn(`${freshUrl()} ofiste giyebileceğim`, interpreter);
     expect(interpreter.calls).toBe(1);
     expect(settled).toEqual([0, 1]);
+  });
+
+  it("maliyet: fiyatlı modelle link tercihi çağrısı api_usage'a sıfırdan büyük maliyetle yazılır", async () => {
+    vi.stubEnv("LLM_COST_TRY_PER_USD", "40");
+    const user = await newUser();
+    const interpreter = model(
+      [searchReply({ attributes: [{ key: "style", value: SPORT }] })],
+      "gemini-3.1-flash-lite",
+    );
+    await say(user, null, `${freshUrl()} ofiste giyebileceğim`, interpreter);
+    const rows = await owner<{ cost_micros: string; model_version: string }>(
+      "SELECT cost_micros, model_version FROM api_usage WHERE user_id = $1 AND operation = 'chat_turn'",
+      [user],
+    );
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.model_version).toBe("gemini-3.1-flash-lite");
+    expect(Number(rows[0]?.cost_micros)).toBeGreaterThan(0);
+  });
+
+  it("günlük sağlayıcı tavanı dolu: link turu modele gitmez, bütçe kesinleştirilecek bir şey yok", async () => {
+    const settle = vi.fn(async () => {});
+    const user = await newUser();
+    const created = await createConversation(db, {
+      userId: user,
+      message: `${freshUrl()} ofiste giyebileceğim`,
+    });
+    if (created.status !== "created") throw new Error(`create failed: ${created.status}`);
+    conversations.push(created.conversationId);
+    const interpreter = model([searchReply({ attributes: [{ key: "style", value: SPORT }] })]);
+    const result = await processPendingTurn(db, {
+      userId: user,
+      conversationId: created.conversationId,
+      interpreter,
+      budget: { reserve: async () => ({ allowed: false }), settle },
+    });
+    expect(result.status).toBe("answered");
+    expect(interpreter.calls).toBe(0);
+    expect(await usageCount(user)).toBe(0);
+    expect(settle).not.toHaveBeenCalled();
+    const view = await loadConversation(db, {
+      userId: user,
+      conversationId: created.conversationId,
+    });
+    expect(linkOf(view?.messages.at(-1)).note).toBe("preference_not_understood");
   });
 
   it("takipte de yalnız kalıntı varsa çağrılır ve tercihler birleşir", async () => {
