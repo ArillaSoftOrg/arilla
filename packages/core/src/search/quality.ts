@@ -5,8 +5,10 @@
  * Kimlik yok — kullanıcı, oturum, IP, çerez yazılmaz; rızadan bağımsızdır
  * çünkü kişiyle ilişkilendirilemez.
  *
- * Kişisel veri süzgeci (`isRecordableQuery`): e-posta, telefon, adres, URL ya
- * da 7+ haneli rakam dizisi içeren veya 200 karakteri aşan sorgu HİÇ yazılmaz.
+ * Kişisel veri süzgeci (`isSearchQualityRecordable`): e-posta, telefon, adres,
+ * URL ya da 7+ haneli rakam dizisi içeren, 200 karakteri aşan, bölünmüş kimlik
+ * numarası ya da sır benzeri (`query-privacy.ts`) sorgu HİÇ yazılmaz. Özel
+ * nitelikli veri bağlamı burada süzülmez (yalnızca modele giden metinde).
  *
  * Gün sınırı Europe/Istanbul (UTC+3, yaz saati yok): yönetim ekranı "dün"ü
  * Türkiye takvimiyle okur; gece yarısı UTC'de bölünen bir gün kafa karıştırır.
@@ -20,6 +22,7 @@ import { findLexiconMatches, type LexiconEntry } from "./lexicon.ts";
 import { loadLexicon } from "./lexicon-repository.ts";
 import { normalizeQueryText, tokenizeWithOffsets } from "./normalize.ts";
 import { parseQueryText } from "./parse-query.ts";
+import { identifierOrSecretReason } from "./query-privacy.ts";
 
 export const SEARCH_QUALITY_QUERY_MAX = 200;
 export const SEARCH_QUALITY_TERMS_MAX = 8;
@@ -50,6 +53,14 @@ export function isRecordableQuery(queryNorm: string): boolean {
   if (PHONE_LIKE.test(queryNorm)) return false;
   if (ADDRESS_LIKE.test(queryNorm)) return false;
   return true;
+}
+
+/**
+ * `search_query_day`'e yazılabilir mi: `isRecordableQuery` ve kimlik/sır
+ * benzeri değil. Sorguya ve her tanınmayan kelimeye ayrı ayrı uygulanır.
+ */
+export function isSearchQualityRecordable(queryNorm: string): boolean {
+  return isRecordableQuery(queryNorm) && identifierOrSecretReason(queryNorm) === null;
 }
 
 /**
@@ -176,7 +187,7 @@ function cleanTerms(terms: readonly unknown[]): string[] {
     const term = raw.trim();
     if (term.length === 0 || term.length > SEARCH_QUALITY_TERM_LENGTH_MAX) continue;
     // Terim de kişisel veri süzgecinden geçer (sorgu geçtiyse zaten geçer; savunma).
-    if (!isRecordableQuery(term) || out.includes(term)) continue;
+    if (!isSearchQualityRecordable(term) || out.includes(term)) continue;
     out.push(term);
     if (out.length >= SEARCH_QUALITY_TERMS_MAX) break;
   }
@@ -205,7 +216,7 @@ export async function recordSearchQuality(
 ): Promise<SearchQualityOutcome> {
   try {
     const queryNorm = typeof input.queryNorm === "string" ? input.queryNorm : "";
-    if (!isRecordableQuery(queryNorm)) return "skipped";
+    if (!isSearchQualityRecordable(queryNorm)) return "skipped";
     const resultCount =
       Number.isFinite(input.resultCount) && input.resultCount > 0
         ? Math.min(Math.trunc(input.resultCount), 2_147_483_647)
@@ -272,7 +283,7 @@ export async function recordTextSearchQuality(
 ): Promise<SearchQualityOutcome> {
   try {
     const queryNorm = normalizeQueryText(typeof input.query === "string" ? input.query : "");
-    if (!isRecordableQuery(queryNorm)) return "skipped";
+    if (!isSearchQualityRecordable(queryNorm)) return "skipped";
     const entries = await loadLexicon(db);
     return await recordSearchQuality(
       db,

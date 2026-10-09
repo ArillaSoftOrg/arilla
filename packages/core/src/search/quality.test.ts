@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
+import { queryContentIneligibility } from "./interpretation-eligibility.ts";
 import type { LexiconEntry } from "./lexicon.ts";
-import { extractUnrecognizedTerms, isRecordableQuery } from "./quality.ts";
+import { normalizeQueryText } from "./normalize.ts";
+import {
+  extractUnrecognizedTerms,
+  isRecordableQuery,
+  isSearchQualityRecordable,
+} from "./quality.ts";
 
 describe("isRecordableQuery — kişisel veri süzgeci", () => {
   it.each([
@@ -39,6 +45,72 @@ describe("isRecordableQuery — kişisel veri süzgeci", () => {
     expect(isRecordableQuery("a".repeat(200))).toBe(true);
     expect(isRecordableQuery("a".repeat(201))).toBe(false);
     expect(isRecordableQuery(undefined as unknown as string)).toBe(false);
+  });
+});
+
+const ANALYTICS_BLOCKED: readonly [string, string][] = [
+  ["bolunmus kimlik", "tc 123 456 789 01"],
+  ["AIza anahtari", "AIzaSyD-abcdefghijklmnopqrstuvwxyz12"],
+  ["sk- anahtari", "sk-proj_abcdefgh"],
+  ["password=", "password=hunter2"],
+  ["şifre:", "şifre: Gizli123"],
+  ["JWT", "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxIn0.sig"],
+  ["uzun onaltilik", "deadbeefcafebabe0042"],
+];
+
+const ANALYTICS_RECORDABLE: readonly string[] = [
+  "siyah elbise",
+  "iphone 15 pro max kılıf",
+  "nike air force 1 42 numara",
+  "samsung galaxy s24 ultra 512 gb",
+  "rtx 4090 ekran kartı 24gb",
+];
+
+/** Ozel nitelikli baglam bu degisiklikte search_query_day'de suzulmez. */
+const SENSITIVE_SHOPPING: readonly string[] = [
+  "hamile pantolonu",
+  "diyabet çorabı",
+  "yetişkin bezi",
+  "engelli rampası",
+  "cinsel sağlık ürünleri",
+];
+
+describe("isSearchQualityRecordable — search_query_day süzgeci", () => {
+  it.each(ANALYTICS_BLOCKED)("yazılmaz: %s", (_label, raw) => {
+    const queryNorm = normalizeQueryText(raw);
+    // Bugün yazılıyordu: fark yalnızca kimlik/sır kontrolü.
+    expect(isRecordableQuery(queryNorm)).toBe(true);
+    expect(isSearchQualityRecordable(queryNorm)).toBe(false);
+  });
+
+  it.each(ANALYTICS_RECORDABLE)("alışveriş sorgusu yazılır: %s", (raw) => {
+    expect(isSearchQualityRecordable(normalizeQueryText(raw))).toBe(true);
+  });
+
+  it.each(SENSITIVE_SHOPPING)(
+    "özel nitelikli alışveriş sorgusu bugünkü gibi yazılır: %s",
+    (raw) => {
+      const queryNorm = normalizeQueryText(raw);
+      expect(isSearchQualityRecordable(queryNorm)).toBe(true);
+      expect(queryContentIneligibility(queryNorm)).toBe("sensitive");
+    },
+  );
+
+  it("isRecordableQuery'nin reddettiği her şeyi reddeder", () => {
+    for (const raw of ["ayse.yilmaz@gmail.com çanta", "0532 123 45 67", "https://ornek.com/urun"]) {
+      expect(isSearchQualityRecordable(normalizeQueryText(raw))).toBe(false);
+    }
+    expect(isSearchQualityRecordable("")).toBe(false);
+    expect(isSearchQualityRecordable("a".repeat(201))).toBe(false);
+  });
+
+  it("model aday kümesi değişmez: yeni reddedilen her sorgu modele zaten gitmiyordu", () => {
+    // `selectInterpretationCandidates` search_query_day satırlarını
+    // `queryContentIneligibility` ile yeniden süzer; burada yazılmayan bir
+    // sorgu orada da reddediliyorsa aday kümesi aynı kalır.
+    for (const [, raw] of ANALYTICS_BLOCKED) {
+      expect(queryContentIneligibility(normalizeQueryText(raw))).not.toBeNull();
+    }
   });
 });
 

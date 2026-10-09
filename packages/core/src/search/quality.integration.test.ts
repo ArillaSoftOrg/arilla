@@ -13,7 +13,11 @@ import { listSearchQualityQueries } from "../admin/search-quality.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { purgeSearchQueryDays, recordSearchQuality, recordTextSearchQuality } from "./quality.ts";
 
-const suffix = Date.now().toString(36);
+// Rakamsiz: "nadirkelime" + rakamli taban-36 parca 16+ karakterlik harf+rakam
+// karisimi olur ve kimlik/sir suzgecine (`query-privacy.ts`) takilirdi.
+const suffix = Date.now()
+  .toString(36)
+  .replace(/\d/g, (d) => "abcdefghij"[Number(d)] ?? "x");
 const Q = `s2kalite ${suffix} yogamatı`;
 const TERM = `nadirkelime${suffix}`;
 
