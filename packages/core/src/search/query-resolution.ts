@@ -7,10 +7,16 @@
  * Onbellek anahtari `query_norm` uzerinde upsert kullanilir (select-then-
  * insert degil): esazamanli ilk-kez sorgularda unique-violation yarisini
  * bastan onler.
+ *
+ * Gizlilik kapisi: `queryContentIneligibility`'nin reddettigi sorgu (kisisel
+ * veri, kimlik benzeri rakam, sir benzeri ifade, ozel nitelikli veri, uzunluk)
+ * `query_resolution`'a HIC dokunmaz - okunmaz, yazilmaz. Ayni deterministik
+ * ayristirma taze yapilir; sonuc onbellekli yolla birebir aynidir.
  */
 import { type Database, queryResolution } from "@arilla/db";
 import { eq, sql } from "drizzle-orm";
 import { decideClarification } from "./clarification.ts";
+import { queryContentIneligibility } from "./interpretation-eligibility.ts";
 import { loadLexicon } from "./lexicon-repository.ts";
 import { normalizeQueryText } from "./normalize.ts";
 import { parseQueryText } from "./parse-query.ts";
@@ -36,8 +42,29 @@ function toResult(row: QueryResolutionRow, cacheHit: boolean): ResolveQueryResul
   };
 }
 
+/** Kademe 2: sozluk + deterministik ayristirma. Model cagrisi yok. */
+async function parseFresh(db: Database, rawText: string) {
+  const lexiconEntries = await loadLexicon(db);
+  const parsed = parseQueryText(rawText, lexiconEntries);
+  // C1 kapsaminda gercek kategori agacindan aday hesaplanmaz; bos aday
+  // listesi her zaman needsClarification: false uretir. C2, ayni fonksiyona
+  // zengin aday listesi vererek imzayi degistirmeden gercek hesaplamayi ekler.
+  const clarification = decideClarification([]);
+  return {
+    parsed,
+    candidateCategories:
+      clarification.candidateCategoryIds.length > 0 ? clarification.candidateCategoryIds : null,
+    needsClarification: clarification.needsClarification,
+  };
+}
+
 export async function resolveQuery(db: Database, rawText: string): Promise<ResolveQueryResult> {
   const queryNorm = normalizeQueryText(rawText);
+
+  if (queryContentIneligibility(queryNorm) !== null) {
+    const fresh = await parseFresh(db, rawText);
+    return { ...fresh, parserTier: 2, cacheHit: false };
+  }
 
   const updated = await db
     .update(queryResolution)
@@ -50,23 +77,11 @@ export async function resolveQuery(db: Database, rawText: string): Promise<Resol
     return toResult(existing, true);
   }
 
-  const lexiconEntries = await loadLexicon(db);
-  const parsed = parseQueryText(rawText, lexiconEntries);
-  // C1 kapsaminda gercek kategori agacindan aday hesaplanmaz; bos aday
-  // listesi her zaman needsClarification: false uretir. C2, ayni fonksiyona
-  // zengin aday listesi vererek imzayi degistirmeden gercek hesaplamayi ekler.
-  const clarification = decideClarification([]);
+  const fresh = await parseFresh(db, rawText);
 
   const inserted = await db
     .insert(queryResolution)
-    .values({
-      queryNorm,
-      parsed,
-      candidateCategories:
-        clarification.candidateCategoryIds.length > 0 ? clarification.candidateCategoryIds : null,
-      needsClarification: clarification.needsClarification,
-      parserTier: 2,
-    })
+    .values({ queryNorm, ...fresh, parserTier: 2 })
     .onConflictDoUpdate({
       target: queryResolution.queryNorm,
       set: { hitCount: sql`${queryResolution.hitCount} + 1`, lastUsedAt: new Date() },
