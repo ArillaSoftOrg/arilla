@@ -1,8 +1,8 @@
 /**
- * `/yonetim` genel bakış. YALNIZCA veritabanında gerçekten var olan veri:
- * arama sayısı, sıfır sonuç oranı gibi metrikler burada YOKTUR çünkü arama
- * günlüğü tutulmuyor (docs/decisions/0039) — sahte ya da tahmini sayı
- * gösterilmez.
+ * `/yonetim` genel bakış. YALNIZCA veritabanında gerçekten var olan veri;
+ * sahte ya da tahmini sayı gösterilmez (docs/decisions/0039). Arama sayıları
+ * kimliksiz günlük özetten (`search_query_day`, karar 0052) gelir: yalnızca
+ * `/ara` metin araması; sohbet ve fotoğraf araması bu sayıya girmez.
  *
  * Her sorgu sınırlı: sayımlar kısmi indekslerden (`match_candidate_pending_idx`,
  * `offer_unmatched_idx`), zaman pencereli toplamlar son 24 saat / 7 gün.
@@ -19,6 +19,8 @@ import {
   offer,
 } from "@arilla/db";
 import { and, count, eq, gte, isNull, sql, sum } from "drizzle-orm";
+import { SEARCH_QUALITY_TIME_ZONE } from "../search/quality.ts";
+import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 import type { CostSummary } from "./cost-truth.ts";
 import { listMerchantAttention, type MerchantAttentionItem } from "./merchant-attention.ts";
@@ -49,6 +51,34 @@ export interface AdminOverview {
     last7d: CostSummary;
   };
   newUsers7d: number;
+  /**
+   * Bugün dahil son 7 takvim günü (Europe/Istanbul), `search_query_day`
+   * toplamı. Kimlik yok; e-posta/telefon içeren sorgular hiç yazılmaz (0052).
+   */
+  textSearch7d: { searches: number; zeroResults: number; fallbacks: number };
+  /**
+   * Son 7 gün mağaza çıkışı (`click`, attribution toplamı). `click`'te zaman
+   * indeksi yok: 2 sn sınırlı salt okunur sorgu; aşılırsa `null` ("Hesaplanamadı").
+   */
+  clicks7d: number | null;
+  /** Son 7 günde mesajı olan konuşma sayısı (`conversation_last_message_idx`); içerik yok. */
+  activeConversations7d: number;
+  /** Aktif fiyat alarmı (`alert_active_idx` kısmi indeksi). */
+  activePriceAlerts: number;
+}
+
+/** `click` sayımı zaman aşımına uğrarsa genel bakış düşmesin: `null` döner. */
+async function boundedClicks7d(db: Database, since: Date): Promise<number | null> {
+  try {
+    return await readOnly(db, 2_000, async (tx) => {
+      const result = await tx.execute<{ n: number }>(
+        sql`SELECT count(*)::int AS n FROM click WHERE created_at >= ${since.toISOString()}::timestamptz`,
+      );
+      return Number(result.rows[0]?.n ?? 0);
+    });
+  } catch {
+    return null;
+  }
 }
 
 /** `api_usage` toplamı; fiyatlanmamış çağrı = önbellekten değil ama maliyeti 0. */
@@ -95,6 +125,9 @@ export async function getAdminOverview(db: Database, actor: AdminActor): Promise
     usage24h,
     usage7d,
     users,
+    searchDays,
+    clicks7d,
+    engagement,
   ] = await Promise.all([
     db.select({ n: count() }).from(matchCandidate).where(eq(matchCandidate.status, "pending")),
     db
@@ -127,7 +160,22 @@ export async function getAdminOverview(db: Database, actor: AdminActor): Promise
     db.select(COST_COLUMNS).from(apiUsage).where(gte(apiUsage.createdAt, since24h)),
     db.select(COST_COLUMNS).from(apiUsage).where(gte(apiUsage.createdAt, since7d)),
     db.select({ n: count() }).from(appUser).where(gte(appUser.createdAt, since7d)),
+    // (day, query_norm) birincil anahtarının ön eki: 7 günlük aralık taraması.
+    db.execute<{ searches: number; zero_results: number; fallbacks: number }>(sql`
+      SELECT COALESCE(sum(searches), 0)::int AS searches,
+             COALESCE(sum(zero_results), 0)::int AS zero_results,
+             COALESCE(sum(fallbacks), 0)::int AS fallbacks
+      FROM search_query_day
+      WHERE day >= ((${now.toISOString()}::timestamptz AT TIME ZONE ${SEARCH_QUALITY_TIME_ZONE})::date - 6)
+    `),
+    boundedClicks7d(db, since7d),
+    db.execute<{ conversations: number; alerts: number }>(sql`
+      SELECT (SELECT count(*)::int FROM conversation
+               WHERE last_message_at >= ${since7d.toISOString()}::timestamptz) AS conversations,
+             (SELECT count(*)::int FROM alert WHERE is_active) AS alerts
+    `),
   ]);
+  const searchRow = searchDays.rows[0];
 
   return {
     generatedAt: now,
@@ -148,5 +196,13 @@ export async function getAdminOverview(db: Database, actor: AdminActor): Promise
       last7d: toCost(usage7d[0]),
     },
     newUsers7d: users[0]?.n ?? 0,
+    textSearch7d: {
+      searches: Number(searchRow?.searches ?? 0),
+      zeroResults: Number(searchRow?.zero_results ?? 0),
+      fallbacks: Number(searchRow?.fallbacks ?? 0),
+    },
+    clicks7d,
+    activeConversations7d: Number(engagement.rows[0]?.conversations ?? 0),
+    activePriceAlerts: Number(engagement.rows[0]?.alerts ?? 0),
   };
 }

@@ -13,6 +13,7 @@
     "./quota-policy": "./src/quota/policy.ts",
     "./clarification": "./src/clarification/index.ts",
     "./cookie-consent": "./src/consent/cookie-consent.ts",
+    "./ga4-measurement": "./src/analytics-ga4/measurement.ts",
     "./link-input": "./src/discovery/link-search-input.ts",
     "./legal-identity": "./src/config/legal-identity.ts",
     "./media-url": "./src/storage/media-url.ts",

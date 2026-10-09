@@ -170,7 +170,7 @@ describe("genel bakış", () => {
     expect(page).toContain('href="/yonetim/eslestirme"');
     expect(page).toContain('href="/yonetim/magazalar?durum=aktif"');
     // Yalnızca yöneticinin açabildiği sayfalara bağlantı yok.
-    expect(page).not.toContain('href="/yonetim/islemler#maliyet"');
+    expect(page).not.toContain('href="/yonetim/ai"');
     expect(page).not.toContain('href="/yonetim/kullanicilar"');
     expect(page).not.toContain("/yonetim/islemler#boru-hatti");
   });
@@ -190,7 +190,8 @@ describe("genel bakış", () => {
   it("yönetici: maliyet ve kullanıcı kartları ilgili sayfaya gider", async () => {
     state.token = tokens.admin;
     const page = await html(dashboard());
-    expect(page).toContain('href="/yonetim/islemler#maliyet"');
+    // Karar 0085: maliyet kartı ayrıntılı AI ekranına gider.
+    expect(page).toContain('href="/yonetim/ai"');
     expect(page).toContain('href="/yonetim/kullanicilar"');
     expect(page).toContain('href="/yonetim/ingest?durum=failed"');
   });
@@ -198,7 +199,7 @@ describe("genel bakış", () => {
   it("fiyatlanmamış çağrı varken maliyet asla tek başına 0,00 TL görünmez", async () => {
     state.token = tokens.admin;
     const page = await html(dashboard());
-    expect(page).toContain("fiyatlanmadı (maliyet oranı tanımsız)");
+    expect(page).toContain("fiyatlanmadı (oran, kur ya da kullanım bilgisi yok)");
     expect(page).toMatch(/Hesaplanmadı|en az /);
   });
 

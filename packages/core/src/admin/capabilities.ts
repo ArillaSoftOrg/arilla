@@ -78,7 +78,43 @@ export type Capability =
    * (karar 0065). Kamuya açık sayıyı değiştirir; yalnızca yönetici, gerekçe
    * zorunlu, her değişiklik denetime yazılır.
    */
-  | "early_access.manage";
+  | "early_access.manage"
+  /**
+   * `/yonetim/ai` (karar 0085): model kullanımı, token, tahmini maliyet, kota ve
+   * sağlayıcı tavanı — yalnızca toplamlar; kullanıcı başına AI maliyeti ve
+   * sohbet içeriği bu yetenekle de görünmez. Yalnızca yönetici.
+   */
+  | "ai.read"
+  /**
+   * `/yonetim/yolculuk` (karar 0085): kayıt, rıza oranı, arama ve rızalı
+   * huni örneklemi; kimliksiz toplamlar, küçük hücreler gizlenir. Yalnızca
+   * yönetici.
+   */
+  | "analytics.read"
+  /**
+   * `/yonetim/affiliate` (karar 0085): mağaza çıkışı (attribution) toplamları
+   * ve affiliate kapsamı. Ticari bilgi; yalnızca yönetici.
+   */
+  | "affiliate.read"
+  /**
+   * `/yonetim/trendler` (karar 0086): trendi yayınlama/geri çekme/arşivleme,
+   * öne çıkarma ve sıralama. Kamuya açık yüzeyi değiştirir: yalnızca yönetici,
+   * gerekçe zorunlu, taze giriş, her değişiklik aynı işlemde denetime.
+   * Ürün bağları (`trend_product`) curate işinindir; bu yetenekle değişmez.
+   */
+  | "trends.manage"
+  /**
+   * `/yonetim/mesajlar` durum ve öncelik (karar 0086): mevcut `feedback.status`
+   * / `priority` kolonları; geçişler sınırlı, her değişiklik denetime.
+   */
+  | "messages.triage"
+  /** `/yonetim/ayarlar` (karar 0086): etkin bayrak ve limitler, SALT OKUNUR; sır gösterilmez. */
+  | "config.read"
+  /**
+   * `/yonetim/trafik` ve genel bakış trafik özeti (karar 0087): GA4 Data API
+   * toplamları (rızalı örneklem). Salt okunur; kişi düzeyinde veri yok.
+   */
+  | "traffic.read";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -120,6 +156,16 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "users.sessions.revoke",
   // Karar 0065: herkese gorunen erken erisim sayisini yalnizca yonetici degistirir.
   "early_access.manage",
+  // Karar 0085: analitik merkez ekranlari (toplamlar) yalnizca yoneticinin.
+  "ai.read",
+  "analytics.read",
+  "affiliate.read",
+  // Karar 0086: trend yönetimi, gelen kutusu triyajı, yapılandırma görünümü.
+  "trends.manage",
+  "messages.triage",
+  "config.read",
+  // Karar 0087: GA4 trafik raporları.
+  "traffic.read",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

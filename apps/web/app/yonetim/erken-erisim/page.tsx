@@ -1,8 +1,14 @@
-import { getEarlyAccessCounterAdmin } from "@arilla/core";
+import {
+  type EarlyAccessApplication,
+  getEarlyAccessCounterAdmin,
+  listEarlyAccessApplications,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
+import Link from "next/link";
 import { requireCapability } from "../../lib/dal.ts";
 import styles from "../admin.module.css";
-import { formatDateTime } from "../format.ts";
+import { DataTable, EmptyPanel, Pager, Panel, StatusBadge } from "../admin-ui.tsx";
+import { earlyAccessStatusLabel, formatDateTime, hrefWith, positiveInt } from "../format.ts";
 import { setOffPlatformCountAction } from "./actions.ts";
 
 /**
@@ -14,11 +20,15 @@ import { setOffPlatformCountAction } from "./actions.ts";
 export default async function EarlyAccessCounterPage({
   searchParams,
 }: {
-  searchParams: Promise<{ ok?: string; hata?: string }>;
+  searchParams: Promise<{ ok?: string; hata?: string; sonra?: string }>;
 }) {
   const { actor } = await requireCapability("early_access.manage");
   const params = await searchParams;
-  const view = await getEarlyAccessCounterAdmin(getDatabase(), actor);
+  const cursor = positiveInt(params.sonra);
+  const [view, applications] = await Promise.all([
+    getEarlyAccessCounterAdmin(getDatabase(), actor),
+    listEarlyAccessApplications(getDatabase(), actor, { cursor }),
+  ]);
 
   return (
     <div className={styles.page}>
@@ -60,6 +70,47 @@ export default async function EarlyAccessCounterPage({
           </span>
         </div>
       </div>
+
+      <Panel
+        id="basvurular"
+        title="Siteden başvurular"
+        description="Yeniden eskiye, sayfa başına 50. Salt okunur: erişim verme ya da durum değiştirme bu ekranda yok. Yalnızca hesabın genel kimliği gösterilir."
+        flush={applications.rows.length > 0}
+      >
+        <DataTable<EarlyAccessApplication>
+          rows={applications.rows}
+          rowKey={(row) => row.publicId}
+          stack
+          empty={<EmptyPanel title="Başvuru yok" />}
+          columns={[
+            {
+              key: "account",
+              header: "Hesap",
+              cell: (row) => (
+                <Link href={`/yonetim/kullanicilar/${row.publicId}`}>{row.publicId}</Link>
+              ),
+            },
+            {
+              key: "status",
+              header: "Durum",
+              cell: (row) => (
+                <StatusBadge tone="neutral">{earlyAccessStatusLabel(row.status)}</StatusBadge>
+              ),
+            },
+            { key: "created", header: "Başvuru", cell: (row) => formatDateTime(row.createdAt) },
+          ]}
+        />
+        <Pager
+          label="Başvuru sayfaları"
+          first={cursor ? "/yonetim/erken-erisim#basvurular" : null}
+          next={
+            applications.nextCursor
+              ? `${hrefWith("/yonetim/erken-erisim", { sonra: applications.nextCursor })}#basvurular`
+              : null
+          }
+          nextLabel="Daha eski başvurular"
+        />
+      </Panel>
 
       <h2 className={styles.sectionTitle}>Platform dışı sayıyı güncelle</h2>
       <form action={setOffPlatformCountAction} className={styles.formGrid}>

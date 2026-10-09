@@ -37,6 +37,16 @@ const ADMIN_ONLY: Capability[] = [
   "users.sessions.revoke",
   // Karar 0065: herkese görünen erken erişim sayısı yalnızca yöneticinin.
   "early_access.manage",
+  // Karar 0085: analitik merkez ekranları (AI, yolculuk, affiliate).
+  "ai.read",
+  "analytics.read",
+  "affiliate.read",
+  // Karar 0086.
+  "trends.manage",
+  "messages.triage",
+  "config.read",
+  // Karar 0087.
+  "traffic.read",
 ];
 const ALL: Capability[] = [...MODERATOR, ...ADMIN_ONLY];
 

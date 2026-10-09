@@ -288,6 +288,10 @@ export default async function OperationsPage({
       </Section>
 
       <Section id="maliyet" title="Model maliyeti (14 gün, api_usage)">
+        <p className={styles.muted}>
+          Tutarlar tahminidir: çağrı anındaki liste fiyatı ve tanımlı kurla hesaplanır (karar 0051,
+          0082). Sağlayıcının faturası değildir; geçmiş çağrılar yeniden fiyatlanmaz.
+        </p>
         {ops.cost.ok ? (
           <>
             <div className={styles.tiles}>

@@ -14,6 +14,8 @@ paths:
 - Font IBM Plex Sans, **depodan servis edilir**. Google Fonts veya başka bir
   üçüncü taraf CDN'inden font, ikon veya betik çekilmez — kullanıcı IP'sini yurt
   dışına aktarır. Bkz. `docs/decisions/0009-font.md`.
+- Tek istisna: GA4 ölçüm betiği, yalnızca analitik rızasıyla ve `ConsentGate`
+  arkasında (karar 0087). Başka üçüncü taraf betik eklenmez.
 
 ## Akış ve rota kuralları
 

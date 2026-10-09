@@ -7,8 +7,11 @@
  * konudur; bu modul yalnizca tarayicidaki cerez tercihini anlatir.
  */
 
-/** Kategori veya politika degisince artirilir; eski surumlu cerez yok sayilir ve banner yeniden cikar. */
-export const CONSENT_VERSION = 1;
+/**
+ * Kategori veya politika degisince artirilir; eski surumlu cerez yok sayilir ve banner yeniden cikar.
+ * 2: analitik kategorisine GA4 (`_ga`, `_ga_<ID>`) eklendi (karar 0087).
+ */
+export const CONSENT_VERSION = 2;
 
 export const CONSENT_COOKIE_NAME = "cookie_consent";
 
@@ -23,15 +26,33 @@ export type ConsentCategory = "necessary" | OptionalConsentCategory;
 
 /**
  * Kategori basina BIRINCI taraf zorunlu olmayan cerez adlari. Riza geri
- * cekilince tercih kaydeden action bunlari siler (legal pack 07 §5). Bugun
- * hepsi bos: sitede zorunlu olmayan cerez yok (denetim, 26 Eylul 2026).
+ * cekilince tercih kaydeden action bunlari siler (legal pack 07 §5).
+ * Analitik: GA4 (karar 0087) - yalnizca `GA4_MEASUREMENT_ID` tanimli ve riza
+ * verilmisse yazilir; host'a ozel (`cookie_domain: none`), sunucu silebilir.
  * Yeni bir teknoloji eklenince cerezi buraya VE /cerez envanterine yazilir.
  */
 export const OPTIONAL_COOKIES: Readonly<Record<OptionalConsentCategory, readonly string[]>> = {
   functional: [],
-  analytics: [],
+  analytics: ["_ga"],
   marketing: [],
 };
+
+/** Adi degisken cerezler icin onek (GA4: `_ga_<olcum kimligi>`). Geri cekmede silinir. */
+export const OPTIONAL_COOKIE_PREFIXES: Readonly<
+  Record<OptionalConsentCategory, readonly string[]>
+> = {
+  functional: [],
+  analytics: ["_ga_"],
+  marketing: [],
+};
+
+/** Verilen cerez adi, rizasi kapali bir kategoriye mi ait (tam ad ya da onek). */
+export function isOptionalCookieOf(category: OptionalConsentCategory, name: string): boolean {
+  return (
+    OPTIONAL_COOKIES[category].includes(name) ||
+    OPTIONAL_COOKIE_PREFIXES[category].some((prefix) => name.startsWith(prefix))
+  );
+}
 
 export interface CookieConsent {
   version: number;

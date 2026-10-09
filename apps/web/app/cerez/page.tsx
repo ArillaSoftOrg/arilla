@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { CookiePreferencesPageForm } from "../cookie-consent-client.tsx";
 import { LEGAL_EFFECTIVE_LABEL, LegalIdentityBlock } from "../legal-identity-block.tsx";
 import { readConsent } from "../lib/consent.ts";
+import { isGa4MeasurementActive } from "../lib/ga4.ts";
 
 export const metadata: Metadata = {
   title: "Çerez Politikası – ManiCepte",
@@ -19,8 +20,9 @@ interface CookieRow {
 
 /**
  * Karar 0038: kod duzeyinde dogrulanmis TAM cerez envanteri (denetim, 26
- * Eylul 2026). Hepsi birinci taraf ve kesinlikle gerekli; analitik, pazarlama,
- * piksel veya affiliate cerezi YOK. Yeni cerez eklenince once bu liste ve
+ * Eylul 2026). Asagidakilerin hepsi birinci taraf ve kesinlikle gerekli.
+ * Analitik: yalnizca GA4 etkinse (karar 0087) ve yalnizca rizayla
+ * (`ANALYTICS_COOKIES`); pazarlama, piksel veya affiliate cerezi YOK. Yeni cerez eklenince once bu liste ve
  * `OPTIONAL_COOKIES` (packages/core/src/consent) guncellenir.
  *
  * Kaynaklar: lib/session-cookie.ts, proxy.ts + git/[offerId]/route.ts,
@@ -62,8 +64,24 @@ const NECESSARY_COOKIES: readonly CookieRow[] = [
   },
 ];
 
+/** Karar 0087: yalnızca GA4 etkinken ve yalnızca analitik rızasıyla. */
+const ANALYTICS_COOKIES: readonly CookieRow[] = [
+  {
+    name: "_ga",
+    purpose:
+      "Google Analytics 4: siteyi tekrar ziyaret eden tarayıcıyı ayırt ederek ziyaretçi ve oturum sayısını ölçer. Bu sitenin alan adına yazılır; Google tarafından ManiCepte adına işlenir.",
+    duration: "13 ay",
+  },
+  {
+    name: "_ga_<ölçüm kimliği>",
+    purpose: "Google Analytics 4: oturumun durumunu tutar.",
+    duration: "13 ay",
+  },
+];
+
 export default async function CerezPage() {
   const consent = await readConsent();
+  const ga4 = isGa4MeasurementActive();
 
   return (
     <LegalPageLayout title="Çerez Politikası" lastUpdatedLabel={LEGAL_EFFECTIVE_LABEL}>
@@ -76,11 +94,20 @@ export default async function CerezPage() {
 
       <section>
         <h2>1. Kısaca</h2>
-        <p>
-          ManiCepte bugün yalnızca sitenin çalışması için kesinlikle gerekli, birinci taraf çerezler
-          kullanır. Analitik, reklam, pazarlama, sosyal medya pikseli veya affiliate izleme çerezi
-          kullanmıyoruz ve üçüncü taraf betik yüklemiyoruz.
-        </p>
+        {ga4 ? (
+          <p>
+            ManiCepte sitenin çalışması için kesinlikle gerekli, birinci taraf çerezler kullanır.
+            Yalnızca izin verirseniz, sitenin nasıl kullanıldığını toplu olarak ölçmek için Google
+            Analytics 4 çalışır. Reklam, pazarlama, sosyal medya pikseli veya affiliate izleme
+            çerezi kullanmıyoruz.
+          </p>
+        ) : (
+          <p>
+            ManiCepte bugün yalnızca sitenin çalışması için kesinlikle gerekli, birinci taraf
+            çerezler kullanır. Analitik, reklam, pazarlama, sosyal medya pikseli veya affiliate
+            izleme çerezi kullanmıyoruz ve üçüncü taraf betik yüklemiyoruz.
+          </p>
+        )}
       </section>
 
       <section>
@@ -96,10 +123,20 @@ export default async function CerezPage() {
           eklenirse yalnızca izninizle çalışır.
         </p>
         <h3>Analitik / performans</h3>
-        <p>
-          Sitenin kullanımını ve performansını ölçer. Şu an bu kategoride kullandığımız bir çerez
-          veya araç yok; eklenirse izin vermeden yüklenmez.
-        </p>
+        {ga4 ? (
+          <p>
+            Sitenin kullanımını toplu olarak ölçer (ziyaretçi, oturum, görüntülenen sayfa, trafik
+            kaynağı, cihaz türü ve yaklaşık konum). Bu kategoride Google Analytics 4 kullanıyoruz;
+            izin vermezseniz hiç yüklenmez, izni geri çekerseniz ölçüm hemen durur ve çerezleri
+            silinir. Arama ifadeleri, adres satırındaki parametreler, hesap ve sohbet bilgileri
+            gönderilmez; Google sinyalleri ve reklam kişiselleştirmesi kapalıdır.
+          </p>
+        ) : (
+          <p>
+            Sitenin kullanımını ve performansını ölçer. Şu an bu kategoride kullandığımız bir çerez
+            veya araç yok; eklenirse izin vermeden yüklenmez.
+          </p>
+        )}
         <h3>Reklam / affiliate ölçüm</h3>
         <p>
           Reklam ve affiliate yönlendirmelerini cihazınızda ölçer. Şu an bu kategoride kullandığımız
@@ -112,7 +149,9 @@ export default async function CerezPage() {
 
       <section>
         <h2>3. Kullandığımız çerezler</h2>
-        <p>Tümü birinci taraf ve kesinlikle gerekli kategorisindedir; açık rıza gerektirmez.</p>
+        <p>
+          Aşağıdakiler birinci taraf ve kesinlikle gerekli kategorisindedir; açık rıza gerektirmez.
+        </p>
         <ul>
           {NECESSARY_COOKIES.map((cookie) => (
             <li key={cookie.name}>
@@ -120,6 +159,18 @@ export default async function CerezPage() {
             </li>
           ))}
         </ul>
+        {ga4 ? (
+          <>
+            <p>Analitik kategorisi (yalnızca izninizle):</p>
+            <ul>
+              {ANALYTICS_COOKIES.map((cookie) => (
+                <li key={cookie.name}>
+                  <strong>{cookie.name}</strong> — {cookie.purpose} Süre: {cookie.duration}.
+                </li>
+              ))}
+            </ul>
+          </>
+        ) : null}
       </section>
 
       <section id="tercihler">

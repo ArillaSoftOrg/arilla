@@ -96,7 +96,18 @@ export type AdminAction =
    */
   | "security.access_denied"
   | "security.admin_session_ended"
-  | "sessions.revoke_all";
+  | "sessions.revoke_all"
+  /** Karar 0086: trend yönetimi (gerekçe zorunlu; önce/sonra yalnızca alan değerleri). */
+  | "trends.publish"
+  | "trends.unpublish"
+  | "trends.archive"
+  | "trends.restore"
+  | "trends.feature"
+  | "trends.unfeature"
+  | "trends.reorder"
+  /** Karar 0086: gelen kutusu triyajı; içerik, ad, e-posta yazılmaz. */
+  | "messages.status_change"
+  | "messages.priority_change";
 
 export type AdminTargetType =
   | "match_candidate"
@@ -112,7 +123,9 @@ export type AdminTargetType =
   /** Erken erişim sayacı (tek satır, hedef kimliği "1"). */
   | "early_access_counter"
   /** `security.access_denied` hedefi: istenen yetenek adı. */
-  | "capability";
+  | "capability"
+  /** Karar 0086: `trend` satırı. */
+  | "trend";
 
 /** Filtre ve bağlantı için bilinen hedef türleri. */
 export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
@@ -126,6 +139,7 @@ export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
   "chat_feedback",
   "early_access_counter",
   "capability",
+  "trend",
 ];
 
 export function isAuditTargetType(value: unknown): value is AdminTargetType {

@@ -13,6 +13,7 @@ import { signInWithGoogle } from "../auth/google-oauth.ts";
 import { signInWithIdentity } from "../auth/identity-sign-in.ts";
 import { deleteSession, verifySessionToken } from "../auth/session.ts";
 import {
+  COOKIE_CONSENT_TEXT_VERSION,
   getLatestConsents,
   PRIVACY_NOTICE_VERSION,
   recordCookieDecision,
@@ -397,7 +398,9 @@ describe("rıza kapısı ve analitik", () => {
     );
     expect(consents).toHaveLength(3);
     expect(
-      consents.every((c) => c.source === "cookie_banner" && c.text_version === "cookie-v1"),
+      consents.every(
+        (c) => c.source === "cookie_banner" && c.text_version === COOKIE_CONSENT_TEXT_VERSION,
+      ),
     ).toBe(true);
     expect(consents.every((c) => c.ip === null)).toBe(true);
   });

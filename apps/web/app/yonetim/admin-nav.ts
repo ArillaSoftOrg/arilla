@@ -15,8 +15,10 @@ export interface AdminNavGroup {
 }
 
 /**
- * docs/routes.md §Yönetim, karar 0055: gruplar operatörün sorusuna göre.
- * Yeni modül buraya ve kendi sayfasına eklenir.
+ * docs/routes.md §Yönetim, karar 0055 ve 0083: gruplar operatörün alanına
+ * göre (katalog, arama ve AI, kullanıcılar, içerik, işletim, güvenlik).
+ * Adresler, etiketler ve yetenekler değişmez; yalnızca gruplama. Yeni modül
+ * kendi alanının grubuna eklenir (trendler → İçerik, affiliate → yeni "Gelir").
  */
 export const ADMIN_NAV: readonly AdminNavGroup[] = [
   {
@@ -31,7 +33,7 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     ],
   },
   {
-    label: "Katalog ve mağazalar",
+    label: "Katalog",
     items: [
       {
         href: "/yonetim/magazalar",
@@ -78,13 +80,13 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     ],
   },
   {
-    label: "Arama",
+    label: "Arama ve AI",
     items: [
       {
-        href: "/yonetim/sozluk",
-        label: "Sözlük",
-        capability: "dictionary.write",
-        description: "Renk, kategori, marka ve eş anlamlı karşılıkları.",
+        href: "/yonetim/ai",
+        label: "AI operasyonları",
+        capability: "ai.read",
+        description: "Model çağrısı, token, tahmini maliyet, kota ve sağlayıcı tavanı.",
       },
       {
         href: "/yonetim/arama/tani",
@@ -93,16 +95,103 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "Bir sorgunun nasıl çözüldüğü ve sonuçsuz aramalar.",
       },
       {
-        href: "/yonetim/arama/link",
-        label: "Link araması",
-        capability: "diagnostics.read",
-        description: "Link çözümleme istekleri ve hataları.",
+        href: "/yonetim/sozluk",
+        label: "Sözlük",
+        capability: "dictionary.write",
+        description: "Renk, kategori, marka ve eş anlamlı karşılıkları.",
       },
       {
         href: "/yonetim/arama/gorsel",
         label: "Görsel arama",
         capability: "diagnostics.read",
         description: "Fotoğrafla arama yüklemeleri ve sonuçları.",
+      },
+      {
+        href: "/yonetim/arama/link",
+        label: "Link araması",
+        capability: "diagnostics.read",
+        description: "Link çözümleme istekleri ve hataları.",
+      },
+      {
+        href: "/yonetim/ai-geri-bildirim",
+        label: "AI geri bildirimleri",
+        capability: "feedback.chat.read",
+        description: "Sohbet yanıtlarına verilen oylar, nedenler ve yorumlar.",
+      },
+    ],
+  },
+  {
+    label: "Kullanıcılar ve iletişim",
+    items: [
+      {
+        href: "/yonetim/kullanicilar",
+        label: "Kullanıcılar",
+        capability: "users.read",
+        description: "Hesap arama ve ayrıntısı.",
+      },
+      {
+        href: "/yonetim/yolculuk",
+        label: "Kullanıcı yolculuğu",
+        capability: "analytics.read",
+        description: "Kayıt, rıza oranı, arama ve rızalı huni örneklemi (toplamlar).",
+      },
+      {
+        href: "/yonetim/trafik",
+        label: "Site trafiği",
+        capability: "traffic.read",
+        description: "GA4: ziyaretçi, oturum, kanal, sayfa, cihaz, konum (rızalı örneklem).",
+      },
+      {
+        href: "/yonetim/erken-erisim",
+        label: "Erken erişim",
+        capability: "early_access.manage",
+        description: "Başvuru listesi (salt okunur), sayaç ve platform dışı başvurular.",
+      },
+      {
+        href: "/yonetim/mesajlar",
+        label: "Gelen kutusu",
+        capability: "messages.read",
+        description: "İletişim ve geri bildirim mesajları; durum ve öncelik.",
+      },
+      {
+        href: "/yonetim/formlar",
+        label: "Formlar ve anketler",
+        capability: "forms.manage",
+        description: "Kullanıcı anketleri ve yanıtları.",
+      },
+      {
+        href: "/yonetim/kampanyalar",
+        label: "E-posta kampanyaları",
+        capability: "marketing.manage",
+        description: "Pazarlama e-postası taslakları ve gönderimleri.",
+      },
+    ],
+  },
+  {
+    label: "Gelir",
+    items: [
+      {
+        href: "/yonetim/affiliate",
+        label: "Affiliate",
+        capability: "affiliate.read",
+        description: "Mağaza çıkışları, affiliate kapsamı; dönüşüm entegrasyon bekliyor.",
+      },
+    ],
+  },
+  {
+    label: "İçerik",
+    items: [
+      {
+        href: "/yonetim/trendler",
+        label: "Trendler",
+        capability: "trends.manage",
+        description: "Yayın, görünürlük, öne çıkarma ve sıra; gerekçe ve taze giriş ister.",
+      },
+      {
+        href: "/yonetim/seo",
+        label: "SEO tanısı",
+        capability: "catalog.read",
+        description: "Sitemap uygunluğu ve indekslenebilirlik.",
       },
     ],
   },
@@ -121,63 +210,22 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         capability: "operations.read",
         description: "Python işleri ve zamanlanmış uçların koşu geçmişi.",
       },
+      {
+        href: "/yonetim/ayarlar",
+        label: "Yapılandırma",
+        capability: "config.read",
+        description: "Etkin bayraklar, kotalar ve tavanlar; salt okunur, sırlar gizli.",
+      },
     ],
   },
   {
-    label: "Yönetim",
+    label: "Güvenlik",
     items: [
-      {
-        href: "/yonetim/kullanicilar",
-        label: "Kullanıcılar",
-        capability: "users.read",
-        description: "Hesap arama ve ayrıntısı.",
-      },
-      {
-        href: "/yonetim/erken-erisim",
-        label: "Erken erişim sayacı",
-        capability: "early_access.manage",
-        description: "Sitede gösterilen erken erişim sayısı ve platform dışı başvurular.",
-      },
-      {
-        href: "/yonetim/mesajlar",
-        label: "Gelen kutusu",
-        capability: "messages.read",
-        description: "İletişim formu ve geri bildirim mesajları.",
-      },
-      {
-        href: "/yonetim/ai-geri-bildirim",
-        label: "AI geri bildirimleri",
-        capability: "feedback.chat.read",
-        description: "Sohbet yanıtlarına verilen oylar, nedenler ve yorumlar.",
-      },
       {
         href: "/yonetim/denetim",
         label: "Denetim kaydı",
         capability: "audit.read",
         description: "Yönetim eylemlerinin kaydı.",
-      },
-    ],
-  },
-  {
-    label: "Büyüme",
-    items: [
-      {
-        href: "/yonetim/seo",
-        label: "SEO tanısı",
-        capability: "catalog.read",
-        description: "Sitemap uygunluğu ve indekslenebilirlik.",
-      },
-      {
-        href: "/yonetim/kampanyalar",
-        label: "E-posta kampanyaları",
-        capability: "marketing.manage",
-        description: "Pazarlama e-postası taslakları ve gönderimleri.",
-      },
-      {
-        href: "/yonetim/formlar",
-        label: "Formlar ve anketler",
-        capability: "forms.manage",
-        description: "Kullanıcı anketleri ve yanıtları.",
       },
     ],
   },

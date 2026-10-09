@@ -4,7 +4,14 @@ import { EmptyState } from "@arilla/ui";
 import Link from "next/link";
 import { requireCapability } from "../../lib/dal.ts";
 import styles from "../admin.module.css";
-import { ADMIN_ACTIONS, actionLabel, formatDateTime, hrefWith, positiveInt } from "../format.ts";
+import {
+  ADMIN_ACTIONS,
+  actionLabel,
+  formatDateTime,
+  hrefWith,
+  positiveInt,
+  targetTypeLabel,
+} from "../format.ts";
 
 interface DenetimSearchParams {
   eylem?: string;
@@ -14,17 +21,6 @@ interface DenetimSearchParams {
   hedefId?: string;
   once?: string;
 }
-
-const TARGET_TYPE_LABELS: Record<string, string> = {
-  match_candidate: "Eşleştirme adayı",
-  lexicon: "Sözlük satırı",
-  merchant: "Mağaza",
-  app_user: "Hesap",
-  marketing_campaign: "E-posta kampanyası",
-  form: "Form / anket",
-  feedback: "Gelen kutusu",
-  capability: "Yetenek",
-};
 
 /** Hedef kimliği: sayısal id ya da yetenek adı gibi kısa, düz değer. */
 function parseTargetId(value: string | undefined): string | undefined {
@@ -90,7 +86,7 @@ export default async function AuditLogPage({
             <option value="">Tümü</option>
             {AUDIT_TARGET_TYPES.map((t) => (
               <option key={t} value={t}>
-                {TARGET_TYPE_LABELS[t] ?? t}
+                {targetTypeLabel(t)}
               </option>
             ))}
           </select>
@@ -163,7 +159,7 @@ export default async function AuditLogPage({
                       })}
                       title="Bu hedefin tüm kayıtları"
                     >
-                      {`${TARGET_TYPE_LABELS[row.targetType] ?? row.targetType} · geçmişi`}
+                      {`${targetTypeLabel(row.targetType)} · geçmişi`}
                     </Link>
                   </td>
                   <td>{row.reason ?? "—"}</td>
