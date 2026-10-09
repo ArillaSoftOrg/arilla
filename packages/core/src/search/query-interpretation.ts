@@ -35,6 +35,7 @@ import {
   LlmIntentInterpreter,
   type ModelInterpretationOutcome,
 } from "../llm/intent-interpreter.ts";
+import { llmUsageRecord } from "../llm/pricing.ts";
 import { withJobRun } from "../ops/job-run.ts";
 import {
   INTERPRETATION_MIN_DISTINCT_DAYS,
@@ -232,8 +233,7 @@ export async function persistOutcome(
           userId: null,
           operation,
           modelVersion: call.modelVersion,
-          units: call.usage?.totalTokens ?? 0,
-          costMicros: 0,
+          ...llmUsageRecord(call),
           cacheHit: false,
         })),
       );

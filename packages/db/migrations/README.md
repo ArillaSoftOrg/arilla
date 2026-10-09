@@ -70,6 +70,7 @@ migration'lar olusturur.
 | `0056_trend_collections.sql` | Editoryal trend koleksiyonlari (0077): `trend` (slug UNIQUE, status/trend_type/category CHECK, yayin penceresi, `hero_image_url` bos olabilir) ve `trend_product` (PK `(trend_id, product_id)`, ertelenmis UNIQUE `(trend_id, sort_order)`, FK CASCADE) + 50 trendin kimlik tohumu. Urun baglari burada yok; `services/ingest/curate` doldurur. `trend_snapshot` ayri kalir. Yeni tablolar, geriye uyumlu. |
 | `0057_chat_attachment.sql` | Sohbet gorsel eki (0078): `chat_attachment` (on islenmis <=512 px gorsel BYTEA, <=512 KB CHECK, sohbete CASCADE, UPDATE geri alindi). Yeni tablo, geriye uyumlu. |
 | `0058_chat_feedback_details.sql` | Sohbet geri bildirimi ayrintilari (0079): `chat_result_feedback`e `reasons text[]` (izinli kodlar, <=3), `comment` (<=500, 90 gun sonra NULL), `model_version`; olumlu oyda neden/yorum yasak (CHECK); iki indeks. Yalnizca ekleme, veri tasinmaz. |
+| `0059_api_usage_token_split.sql` | Model maliyet telemetrisi: `api_usage`e NULL olabilen `input_tokens` ve `output_tokens` (faturalanan cikti = yanit + dusunme), negatif olamaz CHECK. NULL = saglayici bildirmedi / token tabanli degil. `units` ve `cost_micros` aynen. Yalnizca ekleme, tablo yeniden yazilmaz. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

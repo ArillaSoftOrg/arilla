@@ -55,6 +55,10 @@ export const apiUsage = pgTable("api_usage", {
   operation: text("operation").notNull(),
   modelVersion: text("model_version"),
   units: integer("units").notNull().default(1),
+  /** 0059: saglayicinin bildirdigi girdi tokeni; NULL = bildirilmedi / token tabanli degil. */
+  inputTokens: integer("input_tokens"),
+  /** 0059: faturalanan cikti tokeni (yanit + dusunme); NULL = bildirilmedi. */
+  outputTokens: integer("output_tokens"),
   /** TRY milyonda bir. */
   costMicros: bigint("cost_micros", { mode: "number" }).notNull().default(0),
   cacheHit: boolean("cache_hit").notNull().default(false),
