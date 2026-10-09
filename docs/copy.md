@@ -13,7 +13,7 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
 | `home.hero_title_lead` | Alışveriş mi? (başlık aynı alanda "Manicepte." ile dönüşümlü; ~1,6 sn / ~2 sn) |
 | `home.hero_title_accent` | Manicepte. |
-| `home.hero_subline` | Ne aradığını anlat veya görselini yükle. |
+| `home.hero_subline` | Ne aradığını anlat, görselini yükle veya linkini bırak. |
 | `home.search_ideas_title` | Arama fikirleri |
 | `home.trends_title` | Trendler |
 | `home.trends_subtitle` | Arilla'da öne çıkan stiller ve ürün fikirleri. |
