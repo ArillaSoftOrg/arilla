@@ -168,6 +168,9 @@ describe("non-AI fallback - gercek PostgreSQL", () => {
     );
   }
   const titles = (outcome: FallbackSearchOutcome) => outcome.items.map((item) => item.title);
+  /** Yalnizca bu dosyanin fixture urunleri: tohum katalogu ayni kelimeleri tasiyabilir. */
+  const fixtureTitles = (outcome: FallbackSearchOutcome) =>
+    outcome.items.filter((item) => productIds.includes(item.productId)).map((item) => item.title);
 
   beforeAll(async () => {
     db = getTestDb();
@@ -432,7 +435,13 @@ describe("non-AI fallback - gercek PostgreSQL", () => {
     const b = await find("kosu ayakkabisi");
     const c = await find("  Koşu,   AYAKKABISI! ");
     expect(a.mode).toBe("results");
-    expect(titles(a).length).toBe(3);
+    // Fixture'in uc kosu ayakkabisi eksiksiz gelir; tohum katalogundaki ayni
+    // kelimeli urunler (or. "Vira Kosu Ayakkabisi") bu sayimi bozmaz.
+    expect(fixtureTitles(a).sort()).toEqual([
+      "Adidas Duramo Koşu Ayakkabısı",
+      "Nike Pegasus Koşu Ayakkabısı",
+      "Nike Revolution Koşu Ayakkabısı",
+    ]);
     expect(titles(b).sort()).toEqual(titles(a).sort());
     expect(titles(c).sort()).toEqual(titles(a).sort());
   });

@@ -4,6 +4,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { UnsupportedSortForIntentError } from "./result-types.ts";
 import { search } from "./search.ts";
+import { createSimilarityFixture, type SimilarityFixture } from "./similarity-test-fixture.ts";
 import type { QueryObject } from "./types.ts";
 
 function baseQuery(overrides: Partial<QueryObject> = {}): QueryObject {
@@ -22,9 +23,33 @@ function baseQuery(overrides: Partial<QueryObject> = {}): QueryObject {
 
 describe("search() - integration (real seeded Postgres)", () => {
   let db: Database;
+  // `similarity_edge` ve `product_price_stats` toplu islerin ciktisidir; tohum
+  // yazmaz. Bunlara dayanan testler kendi satirlarini kurar (temiz veritabani).
+  let fixture: SimilarityFixture;
+  let inflatedId = 0;
+  let dealId = 0;
 
-  beforeAll(() => {
+  beforeAll(async () => {
     db = getTestDb();
+    fixture = await createSimilarityFixture("search");
+    inflatedId = fixture.anchorId;
+    dealId = fixture.alternativeIds[0] as number;
+    await withOwnerClient(async (client) => {
+      await client.query(
+        `INSERT INTO product_price_stats (product_id, median_90d, current_percentile, list_price_inflated)
+         VALUES ($1, 60000, 0, TRUE), ($2, 60000, 0, FALSE)`,
+        [inflatedId, dealId],
+      );
+    });
+  });
+
+  afterAll(async () => {
+    await withOwnerClient(async (client) => {
+      await client.query("DELETE FROM product_price_stats WHERE product_id = ANY($1)", [
+        [inflatedId, dealId],
+      ]);
+    });
+    await fixture.cleanup();
   });
 
   it("balanced and best_deal produce different orderings for the same filters (C2 kabul kriteri)", async () => {
@@ -43,21 +68,17 @@ describe("search() - integration (real seeded Postgres)", () => {
       sql`SELECT product_id FROM product_price_stats WHERE list_price_inflated`,
     );
     const inflatedIds = new Set(inflated.rows.map((row) => Number(row.product_id)));
-    expect(inflatedIds.size).toBeGreaterThan(0);
+    expect(inflatedIds.has(inflatedId)).toBe(true);
 
     const bestDeal = await search(db, baseQuery({ sort: "best_deal" }), { limit: 200 });
-    expect(bestDeal.items.length).toBeGreaterThan(0);
+    expect(bestDeal.items.map((item) => item.productId)).toContain(dealId);
     for (const item of bestDeal.items) {
       expect(inflatedIds.has(item.productId)).toBe(false);
     }
   });
 
   it("closest_match sorts by similarity_edge.score and differs from balanced", async () => {
-    const edgeRow = await db.execute(
-      sql`SELECT product_a FROM similarity_edge WHERE kind = 'visual' LIMIT 1`,
-    );
-    const anchorId = Number(edgeRow.rows[0]?.product_a);
-    expect(Number.isNaN(anchorId)).toBe(false);
+    const anchorId = fixture.anchorId;
 
     const closest = await search(
       db,
@@ -78,7 +99,8 @@ describe("search() - integration (real seeded Postgres)", () => {
       { limit: 24 },
     );
 
-    expect(closest.items.length).toBeGreaterThan(0);
+    // Kenar skoruna gore azalan: fixture'in alternatifleri tam bu sirada.
+    expect(closest.items.map((item) => item.productId)).toEqual(fixture.alternativeIds);
     expect(closest.items.map((item) => item.productId)).not.toEqual(
       balanced.items.map((item) => item.productId),
     );
