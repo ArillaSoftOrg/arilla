@@ -201,6 +201,7 @@ platform sorununu hafifletir.
 /yonetim/formlar/<id>/sonuclar  Özet sayılar, seçenek dağılımı, metin yanıtları
 /yonetim/ai                AI operasyonları: işlem × model çağrı, token, tahmini maliyet, sağlayıcı tavanı, arama hakkı kotası, sohbet sayıları (içerik yok); ?gun=1|7|30 (yalnızca admin, 0085)
 /yonetim/yolculuk          Kullanıcı yolculuğu: kayıt/giriş, rıza oranları, kimliksiz arama, rızalı huni örneklemi (5'ten az kişi gizli), fiyat alarmı, davet, bonus (yalnızca admin, 0085)
+/yonetim/trafik            Site trafiği (GA4 Data API, rızalı örneklem): kullanıcı, oturum, görüntüleme, etkileşim, eğri, kanal, kaynak, sayfa, cihaz, ülke/bölge (5 altı birleşik); 7/28/90 gün ve özel aralık (yalnızca admin, 0087)
 /yonetim/affiliate         Affiliate: mağaza/yüzey/kanal/gün çıkış toplamı, kapsam; dönüşüm ve gelir dış entegrasyon bekliyor (yalnızca admin, 0085)
 /yonetim/trendler          Trend yönetimi: durum, görünürlük, öne çıkarma, sıra; gerekçe + taze giriş, denetlenir (yalnızca admin, 0086)
 /yonetim/ayarlar           Etkin yapılandırma: bayrak, kota, tavan; salt okunur, sır değerleri gösterilmez (yalnızca admin, 0086)

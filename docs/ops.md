@@ -673,6 +673,53 @@ denenmez. Kampanya `sending`te takılı kaldıysa önce ekrandaki son hata
 koduna bakılır (`configuration_error`: SMTP/gönderen; `bulk_send_disabled`:
 ortam kapısı).
 
+## GA4: rızaya bağlı trafik ölçümü (karar 0087)
+
+Kod hazır; üretimde etkinleştirme bu adımlarla ELLE yapılır. Kimlik veya
+anahtar uydurulmaz, depoya yazılmaz.
+
+**1. GA4 mülkü (analytics.google.com, Yönetici):**
+- Mülk saat dilimi **Europe/Istanbul**, para birimi TRY.
+- Web veri akışı → Measurement ID'yi (`G-…`) not et.
+- Veri akışı → **Gelişmiş ölçüm KAPALI** (en azından: sayfa görüntüleme
+  altındaki "tarayıcı geçmişi olaylarına göre sayfa değişiklikleri", kaydırma,
+  giden tıklamalar, site içi arama, form etkileşimleri, video, dosya
+  indirme). Kod yalnızca elle `page_view` gönderir; açık kalan otomatik olay
+  arındırılmamış veri toplayabilir.
+- Veri saklama: **2 ay**; Google sinyalleri: **kapalı**; reklam ürünü
+  bağlantısı yok.
+
+**2. Raporlama erişimi (Google Cloud):**
+- Ayrı bir proje (ya da mevcut) → "Google Analytics Data API" etkinleştir.
+- Servis hesabı oluştur (proje rolü gerekmez) → JSON anahtar üret.
+- GA4 Yönetici → Mülk erişim yönetimi → servis hesabı e-postasını
+  **Görüntüleyici** olarak ekle (başka rol verme).
+- Anahtar kaydedildikten sonra yerel kopyayı sil; anahtarı yılda bir döndür.
+
+**3. Vercel ortamı (Production; önizleme için ayrı mülk önerilir):**
+- `GA4_MEASUREMENT_ID` = `G-…`
+- `GA4_PROPERTY_ID` = mülk kimliği (yalnızca rakam)
+- `GA4_CLIENT_EMAIL` = servis hesabı e-postası
+- `GA4_PRIVATE_KEY` = JSON'daki `private_key` (satır sonları `\n` olabilir)
+- `GA4_TEST_API_BASE_URL` **tanımlanmaz**.
+- **Yeniden dağıt:** CSP ve yasal metinler derlemede üretilir.
+
+**4. Doğrulama (dağıtım sonrası):**
+- `/yonetim/ayarlar` → "Trafik ölçümü (GA4)": hepsi "Tanımlı".
+- Gizli pencerede site: banner yeniden çıkar; reddedince ağ sekmesinde
+  `googletagmanager` isteği OLMAMALI. Yalnızca "Analitik"i açınca
+  `gtag/js` yüklenir; GA4 DebugView'da `page_view` adresinde `?q=` yok.
+- `/yonetim/trafik` 24–48 saat içinde veri gösterir; hata mesajı kodu
+  "permission" ise servis hesabı mülke eklenmemiştir.
+
+**Geri alma:** `GA4_MEASUREMENT_ID`'yi sil ve yeniden dağıt → betik, CSP
+genişlemesi ve yasal metinlerdeki GA4 anışları birlikte kalkar. Raporlama
+değişkenleri ayrı silinebilir.
+
+**Kota:** standart mülk; tam görünüm ~10 rapor (2 toplu istek), önbellek
+6 saat/15 dk. Kalan saatlik/günlük token eşiğin altındaysa istek atılmaz
+(`TRAFFIC_QUOTA_FLOOR`).
+
 ## Dağıtım
 
 - `main` dalına birleşme staging'e otomatik gider

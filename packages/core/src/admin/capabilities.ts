@@ -109,7 +109,12 @@ export type Capability =
    */
   | "messages.triage"
   /** `/yonetim/ayarlar` (karar 0086): etkin bayrak ve limitler, SALT OKUNUR; sır gösterilmez. */
-  | "config.read";
+  | "config.read"
+  /**
+   * `/yonetim/trafik` ve genel bakış trafik özeti (karar 0087): GA4 Data API
+   * toplamları (rızalı örneklem). Salt okunur; kişi düzeyinde veri yok.
+   */
+  | "traffic.read";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -159,6 +164,8 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "trends.manage",
   "messages.triage",
   "config.read",
+  // Karar 0087: GA4 trafik raporları.
+  "traffic.read",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

@@ -185,6 +185,8 @@ describe("yapılandırma görünümü: sır değeri asla dönmez", () => {
     REDIS_URL: "rediss://default:redis-SIR@cache.example:6379",
     R2_SECRET_ACCESS_KEY: "r2-SIR",
     MARKETING_TEST_RECIPIENTS: "kisi-SIR@example.test, ikinci-SIR@example.test",
+    GA4_CLIENT_EMAIL: "sir-okur@sir-proje.iam.gserviceaccount.com",
+    GA4_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----\\nSIRSIRSIR\\n-----END PRIVATE KEY-----",
   };
 
   it("hiçbir çıktıda sır parçası geçmez; sırlar yalnızca durum taşır", () => {

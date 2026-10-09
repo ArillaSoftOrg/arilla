@@ -45,6 +45,8 @@ const ADMIN_ONLY: Capability[] = [
   "trends.manage",
   "messages.triage",
   "config.read",
+  // Karar 0087.
+  "traffic.read",
 ];
 const ALL: Capability[] = [...MODERATOR, ...ADMIN_ONLY];
 

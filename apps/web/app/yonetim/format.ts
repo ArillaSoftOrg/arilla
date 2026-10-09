@@ -837,6 +837,7 @@ export function configStateLabel(value: string): string {
 const CONFIG_GROUP_LABELS: Record<string, string> = {
   product: "Ürün ve erişim",
   ai: "AI ve arama",
+  analytics: "Trafik ölçümü (GA4)",
   email: "E-posta",
   auth: "Kimlik",
   infrastructure: "Altyapı",
@@ -856,4 +857,92 @@ const QUOTA_POOL_LABELS: Record<string, string> = {
 
 export function quotaPoolLabel(value: string): string {
   return QUOTA_POOL_LABELS[value] ?? value;
+}
+
+/* ---- Karar 0087: trafik (GA4) ---- */
+
+const TRAFFIC_ERROR_LABELS: Record<string, string> = {
+  auth: "GA4 kimlik doğrulaması başarısız (servis hesabı anahtarı geçersiz ya da iptal edilmiş).",
+  permission:
+    "Servis hesabının bu GA4 mülküne erişimi yok (mülkte Görüntüleyici olarak eklenmeli).",
+  quota: "GA4 Data API kotası doldu; bir süre sonra yeniden denenir.",
+  quota_guard: "GA4 kotası koruma eşiğinin altında; yeni istek atılmadı.",
+  timeout: "GA4 yanıt vermedi (zaman aşımı).",
+  network: "GA4'e bağlanılamadı.",
+  upstream: "GA4 geçici bir sunucu hatası döndürdü.",
+  bad_request: "GA4 isteği reddetti (rapor tanımı ya da mülk kimliği).",
+  invalid_response: "GA4 yanıtı beklenen biçimde değil.",
+};
+
+export function trafficErrorLabel(code: string): string {
+  return TRAFFIC_ERROR_LABELS[code] ?? "GA4 verisi alınamadı.";
+}
+
+const MONTHS_SHORT = [
+  "Oca",
+  "Şub",
+  "Mar",
+  "Nis",
+  "May",
+  "Haz",
+  "Tem",
+  "Ağu",
+  "Eyl",
+  "Eki",
+  "Kas",
+  "Ara",
+];
+
+/** GA4 kova anahtarı → kısa etiket (`20261009` → "9 Eki", `202641` → "41. hafta", `202610` → "Eki 2026"). */
+export function trafficBucketLabel(key: string, granularity: string): string {
+  if (granularity === "gun" && /^\d{8}$/.test(key)) {
+    return `${Number(key.slice(6, 8))} ${MONTHS_SHORT[Number(key.slice(4, 6)) - 1] ?? ""}`;
+  }
+  if (granularity === "hafta" && /^\d{6}$/.test(key)) return `${Number(key.slice(4))}. hafta`;
+  if (granularity === "ay" && /^\d{6}$/.test(key)) {
+    return `${MONTHS_SHORT[Number(key.slice(4, 6)) - 1] ?? ""} ${key.slice(0, 4)}`;
+  }
+  return key;
+}
+
+/** Önceki döneme göre değişim; önceki 0 ise null (sonsuz yüzde gösterilmez). */
+export function trafficDelta(current: number, previous: number): string | null {
+  if (previous <= 0) return null;
+  const change = (current - previous) / previous;
+  const sign = change > 0 ? "+" : change < 0 ? "−" : "±";
+  return `${sign}${new Intl.NumberFormat("tr-TR", { style: "percent", maximumFractionDigits: 1 }).format(Math.abs(change))}`;
+}
+
+const ACQUISITION_CHANNEL_LABELS: Record<string, string> = {
+  Direct: "Doğrudan",
+  "Organic Search": "Organik arama",
+  "Paid Search": "Ücretli arama",
+  "Organic Social": "Organik sosyal",
+  "Paid Social": "Ücretli sosyal",
+  Referral: "Yönlendiren site",
+  Email: "E-posta",
+  Affiliates: "Ortaklık",
+  Display: "Görüntülü reklam",
+  "Organic Video": "Organik video",
+  "Paid Video": "Ücretli video",
+  "Organic Shopping": "Organik alışveriş",
+  "Paid Shopping": "Ücretli alışveriş",
+  "Cross-network": "Ağlar arası",
+  Unassigned: "Atanmamış",
+};
+
+/** GA4 varsayılan kanal grubu → Türkçe (bilinmeyen aynen). */
+export function acquisitionChannelLabel(value: string): string {
+  return ACQUISITION_CHANNEL_LABELS[value] ?? value;
+}
+
+const DEVICE_LABELS: Record<string, string> = {
+  desktop: "Masaüstü",
+  mobile: "Mobil",
+  tablet: "Tablet",
+  "smart tv": "Akıllı TV",
+};
+
+export function deviceLabel(value: string): string {
+  return DEVICE_LABELS[value] ?? value;
 }

@@ -16,6 +16,8 @@
  */
 
 import { isProductOpen } from "../access/product-access.ts";
+import { GA4_ENV, ga4ApiConfigFromEnv } from "../analytics-ga4/config.ts";
+import { parseMeasurementId } from "../analytics-ga4/measurement.ts";
 import {
   CHAT_DAILY_CALL_CAP,
   chatTurnsPerHour,
@@ -45,6 +47,7 @@ export type ConfigState = "set" | "default" | "missing" | "invalid" | "unknown" 
 export const CONFIG_GROUPS = [
   "product",
   "ai",
+  "analytics",
   "email",
   "auth",
   "infrastructure",
@@ -162,6 +165,21 @@ function positiveIntSetting(
     value: String(effective),
     note,
   };
+}
+
+function ga4MeasurementState(env: Env): ConfigState {
+  const value = raw(env, "GA4_MEASUREMENT_ID");
+  if (value === undefined) return "missing";
+  return parseMeasurementId(value) === null ? "invalid" : "set";
+}
+
+/** GA4 Data API ayarı: tanımsız / geçersiz / tanımlı. Değer asla dönmez. */
+function ga4ApiState(env: Env, key: string): ConfigState {
+  if (raw(env, key) === undefined) return "missing";
+  const result = ga4ApiConfigFromEnv(env);
+  return result.status === "invalid" && result.problems.includes(key) && raw(env, key) !== undefined
+    ? "invalid"
+    : "set";
 }
 
 const FX = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 6 });
@@ -298,6 +316,60 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
       state: "unknown",
       value: null,
       note: "Yalnızca Python işleri okur; web sürecinden görülemez",
+    },
+    // --- Trafik ölçümü (GA4, karar 0087) ---
+    {
+      key: "GA4_MEASUREMENT_ID",
+      label: "GA4 ölçüm kimliği (toplama)",
+      group: "analytics",
+      // Sayfa HTML'inde zaten görünür: sır değil.
+      secret: false,
+      state: ga4MeasurementState(env),
+      value: parseMeasurementId(raw(env, "GA4_MEASUREMENT_ID")),
+      note:
+        parseMeasurementId(raw(env, "GA4_MEASUREMENT_ID")) === null
+          ? "Tanımsız/geçersizken betik yüklenmez, CSP genişlemez"
+          : "Yalnızca analitik rızasıyla yüklenir; değişince yeniden dağıtım gerekir",
+    },
+    {
+      key: GA4_ENV.propertyId,
+      label: "GA4 mülk kimliği (raporlama)",
+      group: "analytics",
+      secret: false,
+      state: ga4ApiState(env, GA4_ENV.propertyId),
+      value:
+        ga4ApiState(env, GA4_ENV.propertyId) === "set"
+          ? (raw(env, GA4_ENV.propertyId) ?? null)
+          : null,
+    },
+    {
+      key: GA4_ENV.clientEmail,
+      label: "GA4 servis hesabı",
+      group: "analytics",
+      secret: true,
+      state: ga4ApiState(env, GA4_ENV.clientEmail),
+      value: null,
+      note: "Mülkte yalnızca Görüntüleyici; kapsam analytics.readonly",
+    },
+    {
+      key: GA4_ENV.privateKey,
+      label: "GA4 servis hesabı özel anahtarı",
+      group: "analytics",
+      secret: true,
+      state: ga4ApiState(env, GA4_ENV.privateKey),
+      value: null,
+    },
+    {
+      key: GA4_ENV.testApiBaseUrl,
+      label: "GA4 sahte uç nokta (yalnızca yerel test)",
+      group: "analytics",
+      secret: false,
+      state: ga4ApiState(env, GA4_ENV.testApiBaseUrl),
+      value: null,
+      note:
+        raw(env, GA4_ENV.testApiBaseUrl) !== undefined
+          ? "Tanımlı: raporlar gerçek GA4'ten gelmiyor"
+          : "Üretimde tanımsız olmalı",
     },
     // --- E-posta ---
     flag(

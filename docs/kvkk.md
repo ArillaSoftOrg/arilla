@@ -314,6 +314,24 @@ kişiselleştirme çerezleri gerektirir.
 Çerez bandı: kabul ve ret düğmeleri **eşit görsel ağırlıkta** olur. Reddetmeyi
 zorlaştıran tasarım kabul edilmez.
 
+### Google Analytics 4 (karar 0087)
+
+- **Dayanak:** açık rıza (analitik çerez kategorisi). Rıza yoksa betik hiç
+  yüklenmez; geri alınınca ölçüm anında durur, `_ga` / `_ga_<ID>` silinir.
+  `CONSENT_VERSION` 2: eski tercihler yeniden sorulur.
+- **Giden veri:** arındırılmış sayfa yolu (sorgu parametreleri, arama metni,
+  token, sohbet kimliği, yönetim ve giriş alt yolları YOK), yalnızca güvenli
+  UTM değerleri, yönlendiren sitenin kökeni, GA4'ün kendi topladığı cihaz,
+  tarayıcı ve IP'den çıkarılan yaklaşık konum, çerez tanımlayıcısı. `user_id`
+  gönderilmez; Google sinyalleri ve reklam kişiselleştirmesi kapalı.
+- **Yurt dışına aktarım:** Google'ın tesislerinde işlenir; aktarım açık rızaya
+  dayanır ve aydınlatma/gizlilik metinlerinde (yalnızca GA4 etkinken) anılır.
+- **Saklama:** GA4 mülkünde veri saklama 2 ay (elle ayar, `docs/ops.md`).
+- **Yönetim raporu:** yalnızca toplamlar; 5 kullanıcının altındaki ülke,
+  bölge ve kaynak satırları birleştirilir. Kişi düzeyinde veri gösterilmez.
+- **Hukuki durum:** ürün sahibi 9 Ekim 2026'da gerekliliklerin karşılandığını
+  beyan etti; depoda GA4'e özel yazılı hukuk görüşü yok (karar 0087).
+
 ## Fiyat ve stok bilgisi sorumluluğu
 
 Gösterilen fiyat ve stok bilgisi üçüncü taraf kaynaklardan gelir ve gecikmeli

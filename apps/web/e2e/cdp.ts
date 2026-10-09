@@ -39,6 +39,8 @@ export class CdpPage {
   private nextId = 1;
   private readonly pending = new Map<number, Pending>();
   private readonly waiters: { method: string; resolve: (params: unknown) => void }[] = [];
+  /** Sayfanın başlattığı tüm istek adresleri (engellenenler dahil). */
+  readonly requestedUrls: string[] = [];
 
   private constructor(
     private readonly socket: WebSocket,
@@ -72,6 +74,10 @@ export class CdpPage {
       else pending.resolve(message.result);
       return;
     }
+    if (message.method === "Network.requestWillBeSent") {
+      const url = (message.params as { request?: { url?: string } })?.request?.url;
+      if (url) this.requestedUrls.push(url);
+    }
     if (message.method) {
       const index = this.waiters.findIndex((w) => w.method === message.method);
       if (index >= 0) {
@@ -79,6 +85,15 @@ export class CdpPage {
         waiter?.resolve(message.params);
       }
     }
+  }
+
+  /**
+   * Adres kalıplarını ağ katmanında engeller (`*` joker). İstek yine
+   * `requestedUrls`'e düşer ama sunucuya hiç gitmez: testler dış servise
+   * (ör. Google Analytics) bağlanmaz.
+   */
+  async blockUrls(patterns: readonly string[]): Promise<void> {
+    await this.send("Network.setBlockedURLs", { urls: patterns });
   }
 
   send<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {

@@ -13,6 +13,7 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import Link from "next/link";
+import { Suspense } from "react";
 import { requireCapability } from "../lib/dal.ts";
 import styles from "./admin.module.css";
 import {
@@ -35,6 +36,7 @@ import {
   pipelineStateLabel,
   statusLabel,
 } from "./format.ts";
+import { TrafficSummaryGroup } from "./traffic-summary.tsx";
 
 function breakdown(record: Record<string, number>): string {
   const entries = Object.entries(record);
@@ -256,6 +258,13 @@ export default async function AdminOverviewPage() {
           </Panel>
         </div>
       </div>
+
+      {can("traffic.read") ? (
+        // Karar 0087: GA4 yavaşsa genel bakışı bekletmez (kendi sınırı).
+        <Suspense fallback={null}>
+          <TrafficSummaryGroup actor={actor} />
+        </Suspense>
+      ) : null}
 
       <div className={styles.panelGrid}>
         <Panel

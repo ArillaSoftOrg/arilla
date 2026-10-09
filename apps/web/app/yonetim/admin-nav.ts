@@ -136,6 +136,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "Kayıt, rıza oranı, arama ve rızalı huni örneklemi (toplamlar).",
       },
       {
+        href: "/yonetim/trafik",
+        label: "Site trafiği",
+        capability: "traffic.read",
+        description: "GA4: ziyaretçi, oturum, kanal, sayfa, cihaz, konum (rızalı örneklem).",
+      },
+      {
         href: "/yonetim/erken-erisim",
         label: "Erken erişim",
         capability: "early_access.manage",

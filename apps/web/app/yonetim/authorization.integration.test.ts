@@ -350,6 +350,12 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     admin: true,
     call: async () => (await import("./ayarlar/page.tsx")).default(),
   },
+  // Karar 0087: GA4 trafik (yalnızca yönetici).
+  {
+    name: "/yonetim/trafik",
+    admin: true,
+    call: async () => (await import("./trafik/page.tsx")).default(sp({})),
+  },
   {
     name: "/yonetim/formlar",
     admin: true,

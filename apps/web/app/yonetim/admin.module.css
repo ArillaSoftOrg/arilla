@@ -1817,3 +1817,132 @@ a.summaryStrip {
     padding-right: var(--space-8);
   }
 }
+
+/* ----------------------------------------------------------------------- */
+/* Trafik (karar 0087): sunucuda SVG grafik ve dağılım çubukları.          */
+/* Renkler yalnızca belirteç; seçili dönem limon karışımı + gösterge rengi, */
+/* önceki dönem kesikli soluk çizgi. Renk tek başına anlam taşımaz:        */
+/* lejant metni ve veri tablosu her zaman var.                             */
+/* ----------------------------------------------------------------------- */
+
+.chart {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.chartFrame {
+  position: relative;
+  height: calc(var(--space-32) + var(--space-16));
+  border-bottom: var(--border-width) solid var(--line-strong);
+}
+
+.chartSvg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.chartGridLine {
+  stroke: var(--line);
+  stroke-width: 1;
+  vector-effect: non-scaling-stroke;
+}
+
+.chartArea {
+  fill: var(--admin-active-bg);
+}
+
+.chartLine {
+  fill: none;
+  stroke: var(--admin-indicator);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.chartPrevious {
+  fill: none;
+  stroke: var(--ink-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+  vector-effect: non-scaling-stroke;
+}
+
+.chartMax {
+  position: absolute;
+  top: 0;
+  left: 0;
+  font-size: var(--font-size-xs);
+  color: var(--ink-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.chartAxis {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--ink-muted);
+}
+
+.chartLegend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+  font-size: var(--font-size-xs);
+  color: var(--ink-secondary);
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.legendCurrent,
+.legendPrevious {
+  display: inline-block;
+  width: var(--space-4);
+  height: 0;
+  border-top: 2px solid var(--admin-indicator);
+}
+
+.legendPrevious {
+  border-top: 2px dashed var(--ink-muted);
+}
+
+.barCell {
+  display: grid;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.barTrack {
+  height: var(--space-1);
+  border-radius: var(--radius-pill);
+  background: var(--line);
+  overflow: hidden;
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--admin-indicator);
+}
+
+.dataSummary {
+  min-height: var(--admin-control-height);
+  padding-block: var(--space-2);
+  font-size: var(--font-size-sm);
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.twoColumn {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  gap: var(--space-4);
+}

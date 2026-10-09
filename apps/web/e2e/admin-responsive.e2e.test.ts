@@ -100,6 +100,9 @@ function pages(): string[] {
     "/yonetim/trendler?durum=draft",
     "/yonetim/mesajlar?durum=new",
     "/yonetim/ayarlar",
+    // Karar 0087 (GA4 yapılandırılmamışsa "bağlı değil" durumu çizilir)
+    "/yonetim/trafik",
+    "/yonetim/trafik?gun=90&dilim=hafta&olcu=sessions",
   ];
 }
 

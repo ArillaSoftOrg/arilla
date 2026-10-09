@@ -383,6 +383,22 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     note: "Supabase/R2 panoları ve Search Console API'si; panelde yalnızca kendi SEO tanımız var.",
   },
   {
+    id: "web_traffic",
+    label: "Site trafiği (GA4, rızalı)",
+    // Veri GA4'te; veritabanında tablo yok (karar 0087).
+    tables: [],
+    status: "visible",
+    adminPaths: ["/yonetim/trafik"],
+    gaps: [
+      {
+        signal: "Analitik rızası vermeyen ziyaretçi (bilerek ölçülmez)",
+        status: "unmeasured",
+      },
+    ],
+    privacy:
+      "Yalnızca rızalı ve arındırılmış page_view; 5 kullanıcı altı coğrafya/kaynak satırı birleştirilir.",
+  },
+  {
     id: "configuration",
     label: "Özellik bayrakları ve tavanlar",
     tables: [],
@@ -492,6 +508,8 @@ export const CAPABILITY_COVERAGE: Readonly<Record<Capability, CapabilityCoverage
   "trends.manage": { class: "manage", sensitive: false },
   "messages.triage": { class: "manage", sensitive: true },
   "config.read": { class: "monitor", sensitive: false },
+  // Karar 0087: GA4 toplamları; kişi düzeyi yok.
+  "traffic.read": { class: "analyze", sensitive: false },
 };
 
 /** Her denetim hedefi bir alt sisteme bağlıdır (`Record` eksik hedefi derlemede yakalar). */

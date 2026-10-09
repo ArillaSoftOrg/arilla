@@ -2,7 +2,9 @@ import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
 import "./globals.css";
 import { readAppUrl } from "@arilla/core";
-import { ConsentProvider } from "./cookie-consent-client.tsx";
+import { parseMeasurementId } from "@arilla/core/ga4-measurement";
+import { ConsentGate, ConsentProvider } from "./cookie-consent-client.tsx";
+import { Ga4Client } from "./ga4-client.tsx";
 import { readConsent } from "./lib/consent.ts";
 import { SITE_BRAND } from "./site-config.ts";
 
@@ -49,11 +51,20 @@ export const viewport: Viewport = {
 export default async function RootLayout({ children }: { children: ReactNode }) {
   // Karar 0038: tercih sunucuda okunur; banner ilk HTML'de gelir, yanip sonmez.
   const consent = await readConsent();
+  // Karar 0087: kimlik çalışma anında sunucudan; geçersiz/yoksa GA4 hiç yok.
+  const ga4Id = parseMeasurementId(process.env.GA4_MEASUREMENT_ID);
 
   return (
     <html lang="tr">
       <body>
-        <ConsentProvider consent={consent}>{children}</ConsentProvider>
+        <ConsentProvider consent={consent}>
+          {children}
+          {ga4Id ? (
+            <ConsentGate category="analytics">
+              <Ga4Client measurementId={ga4Id} />
+            </ConsentGate>
+          ) : null}
+        </ConsentProvider>
       </body>
     </html>
   );
