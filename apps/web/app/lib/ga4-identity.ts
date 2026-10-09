@@ -1,34 +1,39 @@
 import type { Ga4Transport } from "@arilla/core";
-import { headers } from "next/headers";
+import { getVercelOidcToken } from "@vercel/oidc";
 
 /**
- * Karar 0088: GA4 Data API için çalışma ortamı kimliği. YALNIZCA sunucu.
+ * Karar 0088: GA4 Data API için çalışma ortamı kimliği. YALNIZCA sunucu
+ * (yalnızca yönetim server component'leri içe aktarır).
  *
  * Çekirdek (`packages/core`) sağlayıcıyı tanımaz; federe kipte OIDC belirtecini
- * bu taşıyıcının `subjectToken` sağlayıcısından ister. Vercel belirteci her
- * fonksiyon çağrısına `x-vercel-oidc-token` başlığıyla verir; yerel
- * geliştirmede ve derlemede `VERCEL_OIDC_TOKEN` ortam değişkeni olabilir.
+ * bu taşıyıcının `subjectToken` sağlayıcısından ister. Belirteç Vercel'in
+ * resmi `getVercelOidcToken()` API'siyle alınır: önce Vercel'in istek
+ * bağlamındaki (`@vercel/request-context`) `x-vercel-oidc-token`, yoksa
+ * `VERCEL_OIDC_TOKEN`. İstek bağlamı Next'in işlediği başlıklardan bağımsızdır;
+ * `proxy.ts`'in `/yonetim/*` için başlıkları yeniden yazması belirteci düşürmez.
  *
- * - Başlık yalnızca Vercel üzerinde (`VERCEL=1`) okunur: başka bir ortamda
- *   istemcinin gönderdiği başlık kimlik olarak kullanılmaz.
- * - Belirteç saklanmaz, loglanmaz, istemciye hiçbir yoldan dönmez; yalnızca
- *   Google STS'ye sunucudan gönderilir. Google imzayı, issuer'ı, audience'ı
- *   ve `sub` koşulunu (yalnızca bu projenin production ortamı) doğrular.
+ * - Yalnızca Vercel üzerinde (`VERCEL=1`) çağrılır. Başka ortamda kütüphanenin
+ *   yenileme yolu yerel CLI kimlik bilgilerini okuyup belirteci `process.env`
+ *   ve disk önbelleğine yazabilir; bu yüzden orada hiç çalıştırılmaz ve federe
+ *   kip `identity_unavailable` döner. Production dışı belirteçleri Google'ın
+ *   `sub` koşulu zaten reddeder.
+ * - Belirteç saklanmaz, loglanmaz, istemciye hiçbir yoldan dönmez; hata
+ *   mesajı yutulur (kütüphane mesajı yol ya da proje bilgisi taşıyabilir).
+ *   Her çağrıda yeniden okunur (Vercel: "dönen belirteci önbelleğe almayın").
  */
-const OIDC_HEADER = "x-vercel-oidc-token";
+type Env = Readonly<Record<string, string | undefined>>;
+type TokenReader = () => Promise<string>;
 
 export async function vercelOidcToken(
-  env: Readonly<Record<string, string | undefined>> = process.env,
+  env: Env = process.env,
+  read: TokenReader = getVercelOidcToken,
 ): Promise<string | null> {
-  if (env.VERCEL === "1") {
-    try {
-      const fromRequest = (await headers()).get(OIDC_HEADER)?.trim();
-      if (fromRequest) return fromRequest;
-    } catch {
-      // İstek bağlamı dışında (ör. derleme): ortam değişkenine düşülür.
-    }
+  if (env.VERCEL !== "1") return null;
+  try {
+    return (await read()).trim() || null;
+  } catch {
+    return null;
   }
-  return env.VERCEL_OIDC_TOKEN?.trim() || null;
 }
 
 /** `/yonetim/trafik` ve genel bakış için GA4 taşıyıcısı. */

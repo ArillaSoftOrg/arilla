@@ -7,8 +7,12 @@
  *   GA4_MEASUREMENT_ID=<E2E_GA4_MEASUREMENT_ID ile aynı, sahte G- kimliği>
  *   GA4_PROPERTY_ID / GA4_CLIENT_EMAIL ve kimlik kiplerinden YALNIZCA biri:
  *     anahtar: GA4_PRIVATE_KEY (test için üretilmiş)
- *     federe (karar 0088): GA4_WIF_AUDIENCE=<E2E_GA4_WIF_AUDIENCE> ve
- *       VERCEL_OIDC_TOKEN=<E2E_GA4_OIDC_TOKEN> (sahte; VERCEL tanımsız)
+ *     federe (karar 0088): GA4_WIF_AUDIENCE=<E2E_GA4_WIF_AUDIENCE>,
+ *       VERCEL=1 (yalnızca `next start` ortamında, derlemede DEĞİL) ve
+ *       VERCEL_OIDC_TOKEN=<E2E_GA4_OIDC_TOKEN>. Belirteç gerçek `@vercel/oidc`
+ *       `getVercelOidcToken()` yolundan okunur; `next start`'ta Vercel istek
+ *       bağlamı olmadığından ortam değişkenine düşer. Sahte, imzasız ama
+ *       JWT biçimli ve süresi geçmemiş olmalı (kütüphane `exp`'i denetler).
  *   GA4_TEST_API_BASE_URL=http://127.0.0.1:<E2E_GA4_FAKE_PORT>
  * Test sürecine federe kipte ayrıca E2E_GA4_WIF_AUDIENCE ve E2E_GA4_OIDC_TOKEN.
  *
@@ -408,7 +412,12 @@ describe.skipIf(!REPORTING)("/yonetim/trafik - sahte GA4 Data API (gerçek Chrom
       if (!browser) throw new Error("tarayıcı yok");
       const page = await browser.newPage();
       await page.setCookie(BASE, "session", users.adminToken);
-      await page.goto(`${BASE}/yonetim/trafik?gun=90`);
+      // Önbellek (Redis, tamamlanmış aralık 6 saat) belirteç akışını gizlemesin:
+      // her çalıştırmada benzersiz, geçmişte kalan bir özel aralık.
+      const start = new Date(Date.UTC(2025, 1, 1) + Math.floor(Math.random() * 300) * 86_400_000);
+      const end = new Date(start.getTime() + 13 * 86_400_000);
+      const day = (date: Date) => date.toISOString().slice(0, 10);
+      await page.goto(`${BASE}/yonetim/trafik?baslangic=${day(start)}&bitis=${day(end)}`);
       expect(await waitUntil(page, `document.querySelector("main figure svg[role=img]")`)).toBe(
         true,
       );
