@@ -5,8 +5,12 @@
  *
  * Sunucu şu ortamla başlatılmış olmalı (yoksa ilgili testler atlanır):
  *   GA4_MEASUREMENT_ID=<E2E_GA4_MEASUREMENT_ID ile aynı, sahte G- kimliği>
- *   GA4_PROPERTY_ID / GA4_CLIENT_EMAIL / GA4_PRIVATE_KEY (test için üretilmiş)
+ *   GA4_PROPERTY_ID / GA4_CLIENT_EMAIL ve kimlik kiplerinden YALNIZCA biri:
+ *     anahtar: GA4_PRIVATE_KEY (test için üretilmiş)
+ *     federe (karar 0088): GA4_WIF_AUDIENCE=<E2E_GA4_WIF_AUDIENCE> ve
+ *       VERCEL_OIDC_TOKEN=<E2E_GA4_OIDC_TOKEN> (sahte; VERCEL tanımsız)
  *   GA4_TEST_API_BASE_URL=http://127.0.0.1:<E2E_GA4_FAKE_PORT>
+ * Test sürecine federe kipte ayrıca E2E_GA4_WIF_AUDIENCE ve E2E_GA4_OIDC_TOKEN.
  *
  * Denetlenenler: rızasız ve reddedilmiş durumda betik/istek/dataLayer yok;
  * analitik rızasıyla yalnızca arındırılmış page_view (arama metni, token,
@@ -38,6 +42,12 @@ const MEASUREMENT_ID = process.env.E2E_GA4_MEASUREMENT_ID ?? "";
 const FAKE_PORT = Number(process.env.E2E_GA4_FAKE_PORT ?? 0);
 const COLLECTION = Boolean(CHROME && /^G-[A-Z0-9]{6,12}$/.test(MEASUREMENT_ID));
 const REPORTING = Boolean(CHROME && FAKE_PORT > 0);
+/** Karar 0088: federe kip. Sahte STS yalnızca bu audience ve bu OIDC belirtecini kabul eder. */
+const WIF_AUDIENCE = process.env.E2E_GA4_WIF_AUDIENCE ?? "";
+const OIDC_TOKEN = process.env.E2E_GA4_OIDC_TOKEN ?? "";
+const FEDERATED = Boolean(REPORTING && WIF_AUDIENCE && OIDC_TOKEN);
+const FAKE_FEDERATED = "sahte-e2e-federe-belirtec-123456";
+const FAKE_ACCESS = "sahte-e2e-belirteci-123456";
 const TAG = `ga4e2e${Date.now().toString(36)}`;
 const GOOGLE_PATTERNS = [
   "*googletagmanager.com*",
@@ -167,7 +177,41 @@ beforeAll(async () => {
         fakeRequests.push(req.url ?? "");
         res.setHeader("content-type", "application/json");
         if (req.url === "/token") {
-          res.end(JSON.stringify({ access_token: "sahte-e2e-belirteci-123456", expires_in: 3600 }));
+          res.end(JSON.stringify({ access_token: FAKE_ACCESS, expires_in: 3600 }));
+          return;
+        }
+        if (req.url === "/sts/v1/token") {
+          const form = new URLSearchParams(body);
+          const accepted =
+            FEDERATED &&
+            form.get("audience") === WIF_AUDIENCE &&
+            form.get("subject_token") === OIDC_TOKEN &&
+            form.get("grant_type") === "urn:ietf:params:oauth:grant-type:token-exchange";
+          if (!accepted) {
+            res.statusCode = 400;
+            res.end(JSON.stringify({ error: "invalid_grant" }));
+            return;
+          }
+          res.end(JSON.stringify({ access_token: FAKE_FEDERATED, expires_in: 3600 }));
+          return;
+        }
+        if (req.url?.startsWith("/iamcredentials/v1/projects/-/serviceAccounts/")) {
+          if (req.headers.authorization !== `Bearer ${FAKE_FEDERATED}`) {
+            res.statusCode = 403;
+            res.end(JSON.stringify({ error: { status: "PERMISSION_DENIED" } }));
+            return;
+          }
+          res.end(
+            JSON.stringify({
+              accessToken: FAKE_ACCESS,
+              expireTime: new Date(Date.now() + 3_600_000).toISOString(),
+            }),
+          );
+          return;
+        }
+        if (req.headers.authorization !== `Bearer ${FAKE_ACCESS}`) {
+          res.statusCode = 401;
+          res.end(JSON.stringify({ error: { status: "UNAUTHENTICATED" } }));
           return;
         }
         const parsed = JSON.parse(body || "{}") as {
@@ -357,6 +401,34 @@ describe.skipIf(!REPORTING)("/yonetim/trafik - sahte GA4 Data API (gerçek Chrom
       }
     }
   });
+
+  it.skipIf(!FEDERATED)(
+    "federe kip: OIDC → STS → bürünme; anahtar akışı yok, belirteç sayfaya sızmaz",
+    async () => {
+      if (!browser) throw new Error("tarayıcı yok");
+      const page = await browser.newPage();
+      await page.setCookie(BASE, "session", users.adminToken);
+      await page.goto(`${BASE}/yonetim/trafik?gun=90`);
+      expect(await waitUntil(page, `document.querySelector("main figure svg[role=img]")`)).toBe(
+        true,
+      );
+      // Süreç boyunca (önceki testler dahil) anahtar uç noktası hiç çağrılmadı.
+      expect(fakeRequests).not.toContain("/token");
+      expect(fakeRequests).toContain("/sts/v1/token");
+      expect(fakeRequests.some((url) => url.includes(":generateAccessToken"))).toBe(true);
+      expect(fakeRequests.some((url) => url.includes(":batchRunReports"))).toBe(true);
+      const html = await page.evaluate<string>("document.documentElement.outerHTML");
+      for (const secret of [OIDC_TOKEN, FAKE_FEDERATED, FAKE_ACCESS]) {
+        expect(html).not.toContain(secret);
+      }
+      const response = await fetch(`${BASE}/yonetim/ayarlar`, {
+        headers: { cookie: `session=${users.adminToken}` },
+      });
+      const settings = await response.text();
+      expect(settings).toContain("Kip: federe (anahtarsız)");
+      expect(settings).not.toContain(OIDC_TOKEN);
+    },
+  );
 
   it("hata durumu: yetki hatası anlaşılır mesajla, sayı uydurulmaz", async () => {
     if (!browser) throw new Error("tarayıcı yok");

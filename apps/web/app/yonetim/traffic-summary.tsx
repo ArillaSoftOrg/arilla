@@ -4,6 +4,7 @@ import {
   parseTrafficRange,
   redisTrafficCacheStore,
 } from "@arilla/core";
+import { ga4ServerTransport } from "../lib/ga4-identity.ts";
 import { KpiCard, KpiGroup } from "./admin-ui.tsx";
 import { formatCount, trafficDelta, trafficErrorLabel } from "./format.ts";
 
@@ -14,7 +15,11 @@ import { formatCount, trafficDelta, trafficErrorLabel } from "./format.ts";
  */
 export async function TrafficSummaryGroup({ actor }: { actor: AdminActor }) {
   const range = parseTrafficRange({ gun: "7" }, new Date());
-  const result = await getTrafficSummary(actor, { range }, { store: redisTrafficCacheStore() });
+  const result = await getTrafficSummary(
+    actor,
+    { range },
+    { store: redisTrafficCacheStore(), transport: ga4ServerTransport() },
+  );
   const href = "/yonetim/trafik?gun=7";
   const title = "Site trafiği (7 gün, GA4 rızalı örneklem)";
 

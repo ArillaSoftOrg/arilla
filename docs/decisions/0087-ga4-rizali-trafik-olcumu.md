@@ -52,7 +52,8 @@ yoktur; bu beyan bu karara dayanak olarak kaydedilmiştir. Aydınlatma ve
    `https://*.google-analytics.com https://*.analytics.google.com
    https://www.googletagmanager.com`. `img-src` zaten `https:`.
 5. **Raporlama yalnızca sunucuda (`packages/core/src/analytics-ga4`):** servis
-   hesabı JWT'siyle (`analytics.readonly` kapsamı, mülkte Görüntüleyici rolü)
+   hesabı kimliğiyle (anahtarsız federe kip ya da anahtar yedeği, karar 0088;
+   `analytics.readonly` kapsamı, mülkte Görüntüleyici rolü)
    GA4 Data API `batchRunReports`. Rapor tanımları kodda sabit (yalnızca
    doğrulanmış metrik/boyut adları); kullanıcı girdisi yalnızca doğrulanmış
    tarih aralığı ve zaman dilimi. Her istek 8 sn zaman aşımı; erişim belirteci

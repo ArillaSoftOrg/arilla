@@ -689,32 +689,86 @@ anahtar uydurulmaz, depoya yazılmaz.
 - Veri saklama: **2 ay**; Google sinyalleri: **kapalı**; reklam ürünü
   bağlantısı yok.
 
-**2. Raporlama erişimi (Google Cloud):**
-- Ayrı bir proje (ya da mevcut) → "Google Analytics Data API" etkinleştir.
-- Servis hesabı oluştur (proje rolü gerekmez) → JSON anahtar üret.
-- GA4 Yönetici → Mülk erişim yönetimi → servis hesabı e-postasını
-  **Görüntüleyici** olarak ekle (başka rol verme).
-- Anahtar kaydedildikten sonra yerel kopyayı sil; anahtarı yılda bir döndür.
+**2. Raporlama erişimi — federe kimlik, anahtarsız (karar 0088, önerilen):**
 
-**3. Vercel ortamı (Production; önizleme için ayrı mülk önerilir):**
+Vercel production fonksiyonu kendi OIDC belirteciyle Google STS'den federe
+belirteç alır ve servis hesabına bürünür. JSON anahtar **üretilmez**. Bu
+projenin değerleri (sır değil):
+
+| | |
+|---|---|
+| GCP projesi / numarası | `manicepte` / `535980235187` |
+| Havuz / sağlayıcı | `vercel` / `vercel-prod` |
+| Servis hesabı | `manicepte-ga4-reporting@manicepte.iam.gserviceaccount.com` |
+| Issuer (Vercel Team modu) | `https://oidc.vercel.com/yusufsari4330-5616s-projects` |
+| İzinli audience | `https://vercel.com/yusufsari4330-5616s-projects` |
+| İzinli `sub` (yalnızca production) | `owner:yusufsari4330-5616s-projects:project:arilla-ai:environment:production` |
+
+```sh
+gcloud services enable sts.googleapis.com iamcredentials.googleapis.com \
+  iam.googleapis.com analyticsdata.googleapis.com --project=manicepte
+
+gcloud iam workload-identity-pools create vercel \
+  --project=manicepte --location=global --display-name="Vercel"
+
+gcloud iam workload-identity-pools providers create-oidc vercel-prod \
+  --project=manicepte --location=global --workload-identity-pool=vercel \
+  --issuer-uri="https://oidc.vercel.com/yusufsari4330-5616s-projects" \
+  --allowed-audiences="https://vercel.com/yusufsari4330-5616s-projects" \
+  --attribute-mapping="google.subject=assertion.sub" \
+  --attribute-condition='assertion.sub == "owner:yusufsari4330-5616s-projects:project:arilla-ai:environment:production"'
+
+# Tek özneye (principalSet değil) bürünme izni; servis hesabına proje rolü verilmez.
+gcloud iam service-accounts add-iam-policy-binding \
+  manicepte-ga4-reporting@manicepte.iam.gserviceaccount.com --project=manicepte \
+  --role=roles/iam.workloadIdentityUser \
+  --member="principal://iam.googleapis.com/projects/535980235187/locations/global/workloadIdentityPools/vercel/subject/owner:yusufsari4330-5616s-projects:project:arilla-ai:environment:production"
+```
+
+- GA4 Yönetici → Mülk erişim yönetimi → servis hesabı e-postası
+  **Görüntüleyici** (başka rol verme). Federe kimlik mülke doğrudan
+  eklenemez; bu yüzden servis hesabına bürünülür.
+- Vercel → Project Settings → Security → **Secure Backend Access with OIDC
+  Federation: açık, Issuer Mode: Team**.
+- Preview ve geliştirme ortamları koşulu sağlamaz: orada `/yonetim/trafik`
+  "federe kimlik reddedildi" gösterir. Bu bilinçlidir.
+
+**2b. Yedek: özel anahtar kipi (yalnızca Vercel dışı barındırma).**
+Servis hesabı → JSON anahtar → `GA4_PRIVATE_KEY`. Yerel kopya silinir, yılda
+bir döndürülür. `GA4_WIF_AUDIENCE` ile **birlikte tanımlanamaz** (ikisi de
+"Geçersiz" görünür, istek atılmaz).
+
+**3. Vercel ortamı (yalnızca Production):**
 - `GA4_MEASUREMENT_ID` = `G-…`
 - `GA4_PROPERTY_ID` = mülk kimliği (yalnızca rakam)
-- `GA4_CLIENT_EMAIL` = servis hesabı e-postası
-- `GA4_PRIVATE_KEY` = JSON'daki `private_key` (satır sonları `\n` olabilir)
+- `GA4_CLIENT_EMAIL` = `manicepte-ga4-reporting@manicepte.iam.gserviceaccount.com`
+- `GA4_WIF_AUDIENCE` =
+  `//iam.googleapis.com/projects/535980235187/locations/global/workloadIdentityPools/vercel/providers/vercel-prod`
+- `GA4_PRIVATE_KEY` **tanımlanmaz** (federe kipte).
 - `GA4_TEST_API_BASE_URL` **tanımlanmaz**.
 - **Yeniden dağıt:** CSP ve yasal metinler derlemede üretilir.
 
 **4. Doğrulama (dağıtım sonrası):**
-- `/yonetim/ayarlar` → "Trafik ölçümü (GA4)": hepsi "Tanımlı".
+- `/yonetim/ayarlar` → "Trafik ölçümü (GA4)": hepsi "Tanımlı", servis hesabı
+  notunda "Kip: federe (anahtarsız)".
 - Gizli pencerede site: banner yeniden çıkar; reddedince ağ sekmesinde
   `googletagmanager` isteği OLMAMALI. Yalnızca "Analitik"i açınca
   `gtag/js` yüklenir; GA4 DebugView'da `page_view` adresinde `?q=` yok.
-- `/yonetim/trafik` 24–48 saat içinde veri gösterir; hata mesajı kodu
-  "permission" ise servis hesabı mülke eklenmemiştir.
+- `/yonetim/trafik` 24–48 saat içinde veri gösterir. Hata kodları:
+
+| Kod | Anlamı | Bakılacak yer |
+|---|---|---|
+| `identity_unavailable` | Fonksiyon OIDC belirteci almadı | Vercel OIDC Federation açık mı, dağıtım yeniden yapıldı mı |
+| `federation_rejected` | STS reddetti | Issuer/audience/`sub` koşulu, ekip adı, ortam production mı |
+| `impersonation_denied` | Bürünme izni yok | Servis hesabındaki `roles/iam.workloadIdentityUser` bağı |
+| `permission` | GA4 mülkü reddetti | Servis hesabı mülkte Görüntüleyici mi |
 
 **Geri alma:** `GA4_MEASUREMENT_ID`'yi sil ve yeniden dağıt → betik, CSP
 genişlemesi ve yasal metinlerdeki GA4 anışları birlikte kalkar. Raporlama
-değişkenleri ayrı silinebilir.
+değişkenleri ayrı silinebilir. Federe erişimi tümden kesmek için
+`gcloud iam workload-identity-pools providers disable vercel-prod
+--workload-identity-pool=vercel --location=global --project=manicepte`
+(belirteçler en geç 1 saatte düşer).
 
 **Kota:** standart mülk; tam görünüm ~10 rapor (2 toplu istek), önbellek
 6 saat/15 dk. Kalan saatlik/günlük token eşiğin altındaysa istek atılmaz

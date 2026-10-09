@@ -863,6 +863,12 @@ export function quotaPoolLabel(value: string): string {
 
 const TRAFFIC_ERROR_LABELS: Record<string, string> = {
   auth: "GA4 kimlik doğrulaması başarısız (servis hesabı anahtarı geçersiz ya da iptal edilmiş).",
+  identity_unavailable:
+    "Çalışma ortamı kimlik belirteci (OIDC) sağlamadı; Vercel OIDC federasyonu açık mı?",
+  federation_rejected:
+    "Google federe kimliği reddetti (sağlayıcı, audience ya da yalnızca production koşulu).",
+  impersonation_denied:
+    "Federe kimliğin servis hesabını kullanma izni yok (Workload Identity User rolü).",
   permission:
     "Servis hesabının bu GA4 mülküne erişimi yok (mülkte Görüntüleyici olarak eklenmeli).",
   quota: "GA4 Data API kotası doldu; bir süre sonra yeniden denenir.",

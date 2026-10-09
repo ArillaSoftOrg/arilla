@@ -19,6 +19,7 @@ import Link from "next/link";
 import { Suspense } from "react";
 import { requireCapability } from "../../lib/dal.ts";
 import { isGa4MeasurementActive } from "../../lib/ga4.ts";
+import { ga4ServerTransport } from "../../lib/ga4-identity.ts";
 import styles from "../admin.module.css";
 import {
   DataBasis,
@@ -186,7 +187,7 @@ async function TrafficData({
   const result = await getTrafficOverview(
     actor,
     { range, granularity },
-    { store: redisTrafficCacheStore() },
+    { store: redisTrafficCacheStore(), transport: ga4ServerTransport() },
   );
 
   if (result.state === "not_configured" || result.state === "invalid_config") {

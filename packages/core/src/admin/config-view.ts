@@ -182,6 +182,24 @@ function ga4ApiState(env: Env, key: string): ConfigState {
     : "set";
 }
 
+/** Etkin GA4 kimlik kipi (değer yok, yalnızca kip). */
+function ga4AuthNote(env: Env): string {
+  const result = ga4ApiConfigFromEnv(env);
+  if (result.status === "ready") {
+    return result.config.auth.mode === "federated"
+      ? "Kip: federe (anahtarsız)"
+      : "Kip: özel anahtar (yedek)";
+  }
+  if (
+    result.status === "invalid" &&
+    result.problems.includes(GA4_ENV.privateKey) &&
+    result.problems.includes(GA4_ENV.wifAudience)
+  ) {
+    return "Kip: çakışma (anahtar ve federe kimlik birlikte)";
+  }
+  return "Kip: hazır değil";
+}
+
 const FX = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 6 });
 
 export function getConfigView(actor: AdminActor, env: Env = process.env): ConfigView {
@@ -349,7 +367,20 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
       secret: true,
       state: ga4ApiState(env, GA4_ENV.clientEmail),
       value: null,
-      note: "Mülkte yalnızca Görüntüleyici; kapsam analytics.readonly",
+      note: `Mülkte yalnızca Görüntüleyici; kapsam analytics.readonly. ${ga4AuthNote(env)}`,
+    },
+    {
+      key: GA4_ENV.wifAudience,
+      label: "GA4 federe kimlik (Workload Identity Federation)",
+      group: "analytics",
+      // Sağlayıcı kaynak adı: sır değil, kimlik vermez.
+      secret: false,
+      state: ga4ApiState(env, GA4_ENV.wifAudience),
+      value:
+        ga4ApiState(env, GA4_ENV.wifAudience) === "set"
+          ? (raw(env, GA4_ENV.wifAudience) ?? null)
+          : null,
+      note: "Önerilen kip: çalışma ortamının OIDC belirteciyle anahtarsız erişim (karar 0088)",
     },
     {
       key: GA4_ENV.privateKey,
@@ -358,6 +389,7 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
       secret: true,
       state: ga4ApiState(env, GA4_ENV.privateKey),
       value: null,
+      note: "Yalnızca taşınabilirlik yedeği; federe kimlikle birlikte tanımlanamaz",
     },
     {
       key: GA4_ENV.testApiBaseUrl,

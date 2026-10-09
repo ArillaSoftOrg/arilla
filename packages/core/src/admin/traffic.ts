@@ -97,6 +97,14 @@ export type TrafficResult<T> =
 
 const inflight = new Map<string, Promise<unknown>>();
 
+const CREDENTIAL_ERRORS: ReadonlySet<Ga4ErrorCode> = new Set([
+  "auth",
+  "identity_unavailable",
+  "federation_rejected",
+  "impersonation_denied",
+  "permission",
+]);
+
 function cacheKey(propertyId: string, kind: string, parts: unknown): string {
   const digest = createHash("sha256").update(JSON.stringify(parts)).digest("hex").slice(0, 24);
   // Mülk kimliği anahtarda özetlenir: Redis'te açık yazılmaz.
@@ -218,7 +226,7 @@ async function cachedReports<T>(
   } catch (error) {
     if (error instanceof Ga4ApiError) {
       // Yetki/kimlik hatasında bellekteki belirteç bir daha kullanılmaz.
-      if (error.code === "auth" || error.code === "permission") clearGa4TokenCache();
+      if (CREDENTIAL_ERRORS.has(error.code)) clearGa4TokenCache();
       return fallback(error.code);
     }
     throw error;

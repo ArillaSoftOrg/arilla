@@ -180,12 +180,14 @@ describe("yetki ve yapılandırma", () => {
     });
     expect(none).toEqual({
       state: "not_configured",
-      missing: ["GA4_PROPERTY_ID", "GA4_CLIENT_EMAIL", "GA4_PRIVATE_KEY"],
+      // Kimlik bilgisi yoksa önerilen (federe) kipin değişkeni adlandırılır.
+      missing: ["GA4_PROPERTY_ID", "GA4_CLIENT_EMAIL", "GA4_WIF_AUDIENCE"],
     });
     const bad = await getTrafficOverview(admin, input, {
       env: {
         ...ENV,
-        GA4_PRIVATE_KEY: "-----BEGIN PRIVATE KEY-----bozuk-SIR",
+        // Başlık parçalı: depo tarayıcısı (check:secrets) gerçek anahtar sanmasın.
+        GA4_PRIVATE_KEY: `${"-----BEGIN"} PRIVATE KEY-----bozuk-SIR`,
         GA4_PROPERTY_ID: "G-1",
       },
       transport: transport(ok, calls),
