@@ -261,7 +261,8 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     tables: ["early_access", "early_access_counter"],
     status: "visible",
     adminPaths: ["/yonetim/erken-erisim"],
-    gaps: [{ signal: "Başvuru listesi ve durum dağılımı", status: "data_no_ui" }],
+    gaps: [],
+    note: "Başvuru durumu yalnızca 'pending' (CHECK); erişim verme akışı yok (karar 0086).",
   },
   {
     id: "inbox",
@@ -269,7 +270,8 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     tables: ["feedback"],
     status: "visible",
     adminPaths: ["/yonetim/mesajlar"],
-    gaps: [{ signal: "Durum/öncelik triyajı (kolonlar var, yazan yok)", status: "data_no_ui" }],
+    // Karar 0086: durum/öncelik triyajı var; sorumlu kişi kolonu yok (migration).
+    gaps: [{ signal: "Sorumlu kişi ve ilgilenme zamanı", status: "unmeasured" }],
   },
   {
     id: "forms",
@@ -341,9 +343,10 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     id: "trends",
     label: "Trend koleksiyonları",
     tables: ["trend", "trend_product"],
-    status: "data_no_ui",
-    adminPaths: [],
-    gaps: [{ signal: "Yayın durumu, görünürlük eşiği, ürün sayısı", status: "data_no_ui" }],
+    status: "visible",
+    adminPaths: ["/yonetim/trendler"],
+    // Karar 0086: durum, öne çıkarma, sıra yönetimde; ürün bağları curate işinde kalır.
+    gaps: [{ signal: "Yayın penceresi ve kapak görseli düzenleme", status: "data_no_ui" }],
   },
   {
     id: "jobs",
@@ -383,10 +386,11 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     id: "configuration",
     label: "Özellik bayrakları ve tavanlar",
     tables: [],
-    status: "data_no_ui",
-    adminPaths: [],
+    status: "visible",
+    adminPaths: ["/yonetim/ayarlar"],
     gaps: [],
-    privacy: "Ortam değişkenlerinden yalnızca bayrak/tavan değeri; sır asla gösterilmez.",
+    privacy:
+      "Sırlar yalnızca tanımlı/tanımsız/geçersiz olarak; değer asla gösterilmez (karar 0086).",
   },
   {
     id: "mcp",
@@ -484,6 +488,10 @@ export const CAPABILITY_COVERAGE: Readonly<Record<Capability, CapabilityCoverage
   "ai.read": { class: "monitor", sensitive: false },
   "analytics.read": { class: "analyze", sensitive: false },
   "affiliate.read": { class: "analyze", sensitive: false },
+  // Karar 0086: yönetim (gerekçe + taze giriş + denetim) ve salt okunur yapılandırma.
+  "trends.manage": { class: "manage", sensitive: false },
+  "messages.triage": { class: "manage", sensitive: true },
+  "config.read": { class: "monitor", sensitive: false },
 };
 
 /** Her denetim hedefi bir alt sisteme bağlıdır (`Record` eksik hedefi derlemede yakalar). */
@@ -496,6 +504,7 @@ export const AUDIT_TARGET_SUBSYSTEM: Readonly<Record<AdminTargetType, string>> =
   form: "forms",
   feedback: "inbox",
   chat_feedback: "chat_feedback",
+  trend: "trends",
   early_access_counter: "early_access",
   capability: "audit",
 };

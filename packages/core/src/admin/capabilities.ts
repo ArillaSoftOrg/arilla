@@ -95,7 +95,21 @@ export type Capability =
    * `/yonetim/affiliate` (karar 0085): mağaza çıkışı (attribution) toplamları
    * ve affiliate kapsamı. Ticari bilgi; yalnızca yönetici.
    */
-  | "affiliate.read";
+  | "affiliate.read"
+  /**
+   * `/yonetim/trendler` (karar 0086): trendi yayınlama/geri çekme/arşivleme,
+   * öne çıkarma ve sıralama. Kamuya açık yüzeyi değiştirir: yalnızca yönetici,
+   * gerekçe zorunlu, taze giriş, her değişiklik aynı işlemde denetime.
+   * Ürün bağları (`trend_product`) curate işinindir; bu yetenekle değişmez.
+   */
+  | "trends.manage"
+  /**
+   * `/yonetim/mesajlar` durum ve öncelik (karar 0086): mevcut `feedback.status`
+   * / `priority` kolonları; geçişler sınırlı, her değişiklik denetime.
+   */
+  | "messages.triage"
+  /** `/yonetim/ayarlar` (karar 0086): etkin bayrak ve limitler, SALT OKUNUR; sır gösterilmez. */
+  | "config.read";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -141,6 +155,10 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "ai.read",
   "analytics.read",
   "affiliate.read",
+  // Karar 0086: trend yönetimi, gelen kutusu triyajı, yapılandırma görünümü.
+  "trends.manage",
+  "messages.triage",
+  "config.read",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

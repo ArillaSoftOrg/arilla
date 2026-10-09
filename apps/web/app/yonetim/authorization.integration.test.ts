@@ -339,6 +339,17 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     admin: true,
     call: async () => (await import("./erken-erisim/page.tsx")).default(sp({})),
   },
+  // Karar 0086: yönetim özellikleri (yalnızca yönetici).
+  {
+    name: "/yonetim/trendler",
+    admin: true,
+    call: async () => (await import("./trendler/page.tsx")).default(sp({})),
+  },
+  {
+    name: "/yonetim/ayarlar",
+    admin: true,
+    call: async () => (await import("./ayarlar/page.tsx")).default(),
+  },
   {
     name: "/yonetim/formlar",
     admin: true,
@@ -652,6 +663,62 @@ const lexiconEntry = () => ({
 });
 
 const ACTIONS: ActionCase[] = [
+  // Karar 0086: geçersiz kimlik, kapıyı geçen rolde doğrulama hatasıyla döner.
+  {
+    module: "trendler",
+    name: "setTrendStatusAction",
+    moderator: false,
+    call: async () =>
+      (await import("./trendler/actions.ts")).setTrendStatusAction({
+        trendId: -1,
+        next: "published",
+        expectedStatus: "draft",
+        reason: "yetki matrisi denemesi",
+      }),
+  },
+  {
+    module: "trendler",
+    name: "setTrendFeaturedAction",
+    moderator: false,
+    call: async () =>
+      (await import("./trendler/actions.ts")).setTrendFeaturedAction({
+        trendId: -1,
+        featured: true,
+        reason: "yetki matrisi denemesi",
+      }),
+  },
+  {
+    module: "trendler",
+    name: "moveTrendAction",
+    moderator: false,
+    call: async () =>
+      (await import("./trendler/actions.ts")).moveTrendAction({
+        trendId: -1,
+        direction: "up",
+        reason: "yetki matrisi denemesi",
+      }),
+  },
+  {
+    module: "mesajlar",
+    name: "setMessageStatusAction",
+    moderator: false,
+    call: async () =>
+      (await import("./mesajlar/actions.ts")).setMessageStatusAction({
+        messageId: -1,
+        next: "reviewing",
+        expectedStatus: "new",
+      }),
+  },
+  {
+    module: "mesajlar",
+    name: "setMessagePriorityAction",
+    moderator: false,
+    call: async () =>
+      (await import("./mesajlar/actions.ts")).setMessagePriorityAction({
+        messageId: -1,
+        priority: "high",
+      }),
+  },
   {
     module: "eslestirme",
     name: "approveMatchAction",
@@ -846,7 +913,9 @@ describe("server action matrisi - her action, her rol (karar 0082)", () => {
            (SELECT count(*) FROM lexicon WHERE surface LIKE $3)::int AS lexicon,
            (SELECT row_to_json(e) FROM early_access_counter e) AS counter,
            (SELECT is_active FROM merchant WHERE id = $4) AS merchant_active,
-           (SELECT count(*) FROM session WHERE user_id = ANY($5))::int AS sessions`,
+           (SELECT count(*) FROM session WHERE user_id = ANY($5))::int AS sessions,
+           (SELECT string_agg(id || ':' || status || ':' || featured || ':' || sort_order, ',' ORDER BY id) FROM trend) AS trends,
+           (SELECT string_agg(id || ':' || status || ':' || coalesce(priority, '-'), ',' ORDER BY id) FROM feedback) AS feedback`,
         [formId, campaignPublicId, `authz-matrix-${suffix}%`, merchantId, userIds],
       );
       return res.rows[0];

@@ -197,6 +197,15 @@ const ACTION_LABELS: Record<AdminAction, string> = {
   "security.access_denied": "Yetkisiz yönetim erişimi reddedildi",
   "security.admin_session_ended": "Yönetim oturumu sonlandırıldı",
   "sessions.revoke_all": "Tüm oturumlar kapatıldı",
+  "trends.publish": "Trend yayınlandı",
+  "trends.unpublish": "Trend yayından kaldırıldı",
+  "trends.archive": "Trend arşivlendi",
+  "trends.restore": "Trend arşivden taslağa alındı",
+  "trends.feature": "Trend öne çıkarıldı",
+  "trends.unfeature": "Trend öne çıkarılmaktan çıkarıldı",
+  "trends.reorder": "Trend sırası değişti",
+  "messages.status_change": "Mesaj durumu değişti",
+  "messages.priority_change": "Mesaj önceliği değişti",
 };
 
 export function actionLabel(action: string): string {
@@ -215,6 +224,7 @@ export const TARGET_TYPE_LABELS: Record<AdminTargetType, string> = {
   chat_feedback: "AI geri bildirimi",
   early_access_counter: "Erken erişim sayacı",
   capability: "Yetenek",
+  trend: "Trend",
 };
 
 export function targetTypeLabel(targetType: string): string {
@@ -763,4 +773,87 @@ const IMAGE_STATUS_LABELS: Record<string, string> = {
 
 export function imageStatusLabel(value: string): string {
   return IMAGE_STATUS_LABELS[value] ?? value;
+}
+
+/* ---- Karar 0086: yönetim etiketleri ---- */
+
+const TREND_STATUS_LABELS: Record<string, string> = {
+  draft: "Taslak",
+  published: "Yayında",
+  archived: "Arşiv",
+};
+
+export function trendStatusLabel(value: string): string {
+  return TREND_STATUS_LABELS[value] ?? value;
+}
+
+const TREND_WINDOW_LABELS: Record<string, string> = {
+  none: "Pencere yok",
+  upcoming: "Başlamadı",
+  open: "Açık",
+  ended: "Bitti",
+};
+
+export function trendWindowLabel(value: string): string {
+  return TREND_WINDOW_LABELS[value] ?? value;
+}
+
+const INBOX_STATUS_LABELS: Record<string, string> = {
+  new: "Yeni",
+  reviewing: "İnceleniyor",
+  planned: "Planlandı",
+  resolved: "Çözüldü",
+  rejected: "Reddedildi",
+};
+
+export function inboxStatusLabel(value: string): string {
+  return INBOX_STATUS_LABELS[value] ?? value;
+}
+
+const INBOX_PRIORITY_LABELS: Record<string, string> = {
+  low: "Düşük",
+  medium: "Orta",
+  high: "Yüksek",
+  none: "Atanmamış",
+};
+
+export function inboxPriorityLabel(value: string | null): string {
+  return INBOX_PRIORITY_LABELS[value ?? "none"] ?? value ?? "Atanmamış";
+}
+
+const CONFIG_STATE_LABELS: Record<string, string> = {
+  set: "Tanımlı",
+  default: "Varsayılan",
+  missing: "Tanımsız",
+  invalid: "Geçersiz",
+  unknown: "Bilinmiyor",
+  code: "Kod sabiti",
+};
+
+export function configStateLabel(value: string): string {
+  return CONFIG_STATE_LABELS[value] ?? value;
+}
+
+const CONFIG_GROUP_LABELS: Record<string, string> = {
+  product: "Ürün ve erişim",
+  ai: "AI ve arama",
+  email: "E-posta",
+  auth: "Kimlik",
+  infrastructure: "Altyapı",
+  runtime: "Çalışma ortamı",
+};
+
+export function configGroupLabel(value: string): string {
+  return CONFIG_GROUP_LABELS[value] ?? value;
+}
+
+const QUOTA_POOL_LABELS: Record<string, string> = {
+  search_rights: "Arama hakkı (fotoğraf/link)",
+  chat_message: "Sohbet mesajı",
+  realtime_interpretation_user: "Anlık yorum (girişli)",
+  realtime_interpretation_anonymous: "Anlık yorum (anonim)",
+};
+
+export function quotaPoolLabel(value: string): string {
+  return QUOTA_POOL_LABELS[value] ?? value;
 }

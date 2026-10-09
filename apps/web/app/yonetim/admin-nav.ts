@@ -137,15 +137,15 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
       },
       {
         href: "/yonetim/erken-erisim",
-        label: "Erken erişim sayacı",
+        label: "Erken erişim",
         capability: "early_access.manage",
-        description: "Sitede gösterilen erken erişim sayısı ve platform dışı başvurular.",
+        description: "Başvuru listesi (salt okunur), sayaç ve platform dışı başvurular.",
       },
       {
         href: "/yonetim/mesajlar",
         label: "Gelen kutusu",
         capability: "messages.read",
-        description: "İletişim formu ve geri bildirim mesajları.",
+        description: "İletişim ve geri bildirim mesajları; durum ve öncelik.",
       },
       {
         href: "/yonetim/formlar",
@@ -176,6 +176,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     label: "İçerik",
     items: [
       {
+        href: "/yonetim/trendler",
+        label: "Trendler",
+        capability: "trends.manage",
+        description: "Yayın, görünürlük, öne çıkarma ve sıra; gerekçe ve taze giriş ister.",
+      },
+      {
         href: "/yonetim/seo",
         label: "SEO tanısı",
         capability: "catalog.read",
@@ -197,6 +203,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         label: "İş koşuları",
         capability: "operations.read",
         description: "Python işleri ve zamanlanmış uçların koşu geçmişi.",
+      },
+      {
+        href: "/yonetim/ayarlar",
+        label: "Yapılandırma",
+        capability: "config.read",
+        description: "Etkin bayraklar, kotalar ve tavanlar; salt okunur, sırlar gizli.",
       },
     ],
   },

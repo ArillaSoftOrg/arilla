@@ -45,6 +45,7 @@ const owner = () => {
 };
 
 const fixture = {
+  inboxId: 0,
   adminId: 0,
   adminPublicId: "",
   token: "",
@@ -94,6 +95,11 @@ function pages(): string[] {
     "/yonetim/yolculuk",
     "/yonetim/affiliate",
     "/yonetim/affiliate?durum=active",
+    // Karar 0086
+    "/yonetim/trendler",
+    "/yonetim/trendler?durum=draft",
+    "/yonetim/mesajlar?durum=new",
+    "/yonetim/ayarlar",
   ];
 }
 
@@ -148,6 +154,18 @@ beforeAll(async () => {
     [fixture.feedbackMessageId, conversation.rows[0].id],
   );
 
+  // Karar 0086: taslak trend (public'i etkilemez, sıranın sonunda) ve triyaj için mesaj.
+  await db.query(
+    `INSERT INTO trend (slug, title, description, category, status, sort_order)
+     VALUES ($1, 'Duyarlılık trendi', 'Duyarlılık açıklaması', 'genel', 'draft', 2000000000)`,
+    [`${TAG}-trend`],
+  );
+  const inboxRow = await db.query(
+    `INSERT INTO feedback (kind, category, title, message, source)
+     VALUES ('feedback', 'other', 'Duyarlılık mesajı', 'Duyarlılık gövdesi', 'public') RETURNING id`,
+  );
+  fixture.inboxId = Number(inboxRow.rows[0].id);
+
   browser = await Browser.launch(CHROME);
   page = await browser.newPage();
   await page.setCookie(BASE, "session", fixture.token);
@@ -165,6 +183,8 @@ afterAll(async () => {
     [fixture.adminId, String(fixture.adminId)],
   );
   await db.query("DELETE FROM marketing_campaign WHERE public_id = $1", [fixture.campaignPublicId]);
+  await db.query("DELETE FROM trend WHERE slug = $1", [`${TAG}-trend`]);
+  await db.query("DELETE FROM feedback WHERE id = $1", [fixture.inboxId]);
   await db.query("DELETE FROM form WHERE id = $1", [fixture.formId]);
   await db.query("DELETE FROM product WHERE id = $1", [fixture.productId]);
   await db.query("DELETE FROM merchant WHERE slug = $1", [fixture.merchantSlug]);
