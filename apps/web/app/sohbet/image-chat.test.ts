@@ -7,7 +7,8 @@ const mocks = vi.hoisted(() => ({
   createConversation: vi.fn(),
   processPendingTurn: vi.fn(),
   getChatInterpreter: vi.fn(),
-  preprocessImage: vi.fn(),
+  prepareChatImage: vi.fn(),
+  submitUserMessage: vi.fn(),
   loadChatAttachment: vi.fn(),
   after: vi.fn(),
   enabled: vi.fn(() => true),
@@ -35,20 +36,20 @@ vi.mock("@arilla/core", async () => {
     createConversation: mocks.createConversation,
     processPendingTurn: mocks.processPendingTurn,
     getChatInterpreter: mocks.getChatInterpreter,
-    preprocessImage: mocks.preprocessImage,
+    prepareChatImage: mocks.prepareChatImage,
+    submitUserMessage: mocks.submitUserMessage,
     loadChatAttachment: mocks.loadChatAttachment,
   };
 });
 
-import { ImageRejectedError } from "@arilla/core";
 import { isImeEnter, SearchComposer } from "@arilla/ui";
 import {
   IMAGE_CHAT_COPY,
   IMAGE_CHAT_ERROR_COPY,
-  outcomeForResult,
+  outcomeForNewChat,
   validateAttachmentFile,
 } from "../home-image-chat.ts";
-import { startConversationWithImageAction } from "./actions.ts";
+import { sendMessageAction, startChatBootstrapAction } from "./actions.ts";
 import { ChatUserRow } from "./chat-shell-parts.tsx";
 import { GET } from "./gorsel/[attachmentId]/route.ts";
 
@@ -61,6 +62,7 @@ const PREPARED = {
   width: 10,
   height: 8,
 };
+const READY = { ok: true as const, attachment: PREPARED };
 
 function form(options: { text?: string; file?: File | null; key?: string | null } = {}): FormData {
   const data = new FormData();
@@ -81,12 +83,13 @@ beforeEach(() => {
   mocks.verifySession.mockResolvedValue(USER);
   mocks.createConversation.mockResolvedValue({ status: "created", conversationId: ID });
   mocks.getChatInterpreter.mockReturnValue({ modelVersion: "m" });
-  mocks.preprocessImage.mockResolvedValue(PREPARED);
+  mocks.prepareChatImage.mockResolvedValue(READY);
+  mocks.submitUserMessage.mockResolvedValue({ status: "queued", seq: 3 });
 });
 
-describe("startConversationWithImageAction", () => {
+describe("startChatBootstrapAction: görsel normal mesajın ekidir (karar 0091)", () => {
   it("görsel + metin TEK createConversation çağrısı; ilk tur after() ile bir kez planlanır", async () => {
-    const result = await startConversationWithImageAction(form({ text: "  Bunun siyahını bul " }));
+    const result = await startChatBootstrapAction(form({ text: "  Bunun siyahını bul " }));
     expect(result).toEqual({ status: "created", href: `/sohbet/${ID}` });
     expect(mocks.createConversation).toHaveBeenCalledTimes(1);
     expect(mocks.createConversation).toHaveBeenCalledWith(
@@ -99,7 +102,7 @@ describe("startConversationWithImageAction", () => {
   });
 
   it("yalnız görsel: boş metinle, yine tek mesaj", async () => {
-    const result = await startConversationWithImageAction(form());
+    const result = await startChatBootstrapAction(form());
     expect(result.status).toBe("created");
     expect(mocks.createConversation).toHaveBeenCalledWith(
       { db: true },
@@ -107,74 +110,165 @@ describe("startConversationWithImageAction", () => {
     );
   });
 
+  it("metin-only çağrı görselsiz aynı hattan geçer: ek anahtarı ve anahtar yok", async () => {
+    await startChatBootstrapAction("beyaz sneaker");
+    expect(mocks.createConversation).toHaveBeenCalledWith(
+      { db: true },
+      { userId: 7, message: "beyaz sneaker" },
+    );
+    expect(mocks.prepareChatImage).not.toHaveBeenCalled();
+  });
+
   it("after() işi mevcut kira yolunu (processPendingTurn) tam bir kez kullanır", async () => {
-    await startConversationWithImageAction(form());
+    await startChatBootstrapAction(form());
     const task = mocks.after.mock.calls[0]?.[0] as () => Promise<void>;
     await task();
     expect(mocks.processPendingTurn).toHaveBeenCalledTimes(1);
   });
 
   it("metin 500 karaktere kırpılır", async () => {
-    await startConversationWithImageAction(form({ text: "a".repeat(900) }));
+    await startChatBootstrapAction(form({ text: "a".repeat(900) }));
     const call = mocks.createConversation.mock.calls[0]?.[1] as { message: string };
     expect(call.message).toHaveLength(500);
   });
 
-  it("bayrak kapalıyken hiçbir şey okunmaz/yazılmaz/çağrılmaz", async () => {
+  it("bayrak kapalıyken hiçbir şey okunmaz/yazılır ve ESKİ ARAMAYA DÜŞÜLMEZ", async () => {
     mocks.imageEnabled.mockReturnValue(false);
-    expect(await startConversationWithImageAction(form())).toEqual({ status: "unavailable" });
+    expect(await startChatBootstrapAction(form({ text: "bu" }))).toEqual({ status: "unavailable" });
     mocks.imageEnabled.mockReturnValue(true);
     mocks.enabled.mockReturnValue(false);
-    expect(await startConversationWithImageAction(form())).toEqual({ status: "unavailable" });
-    expect(mocks.preprocessImage).not.toHaveBeenCalled();
+    expect(await startChatBootstrapAction(form({ text: "bu" }))).toEqual({ status: "unavailable" });
+    expect(mocks.prepareChatImage).not.toHaveBeenCalled();
     expect(mocks.createConversation).not.toHaveBeenCalled();
     expect(mocks.after).not.toHaveBeenCalled();
   });
 
-  it("oturum yoksa login_required", async () => {
+  it("oturum yoksa login_required (görselde /ara yedeği yok)", async () => {
     mocks.verifySession.mockResolvedValue(null);
-    expect(await startConversationWithImageAction(form())).toEqual({ status: "login_required" });
+    expect(await startChatBootstrapAction(form())).toEqual({ status: "login_required" });
     expect(mocks.createConversation).not.toHaveBeenCalled();
   });
 
-  it("geçersiz girdi: anahtar yok, dosya yok, yanlış tür, çok büyük", async () => {
-    expect((await startConversationWithImageAction(form({ key: null }))).status).toBe(
-      "invalid_input",
-    );
-    expect((await startConversationWithImageAction(form({ file: null }))).status).toBe(
-      "invalid_input",
-    );
-    const gif = new File([new Uint8Array([1])], "a.gif", { type: "image/gif" });
-    expect((await startConversationWithImageAction(form({ file: gif }))).status).toBe(
-      "invalid_type",
-    );
-    const big = new File([new Uint8Array(4 * 1024 * 1024 + 1)], "b.jpg", { type: "image/jpeg" });
-    expect((await startConversationWithImageAction(form({ file: big }))).status).toBe("too_large");
+  it("geçersiz istek anahtarı: görsel gönderilmez", async () => {
+    expect(await startChatBootstrapAction(form({ key: null }))).toEqual({
+      status: "image_rejected",
+      reason: "invalid_input",
+    });
     expect(mocks.createConversation).not.toHaveBeenCalled();
   });
 
-  it("işlenemeyen görsel: unprocessable, sohbet açılmaz", async () => {
-    mocks.preprocessImage.mockRejectedValue(new ImageRejectedError("decode"));
-    expect((await startConversationWithImageAction(form())).status).toBe("unprocessable");
+  it("çekirdek doğrulama reddederse kullanıcıya sabit kod; sohbet açılmaz", async () => {
+    for (const reason of ["invalid_type", "too_large", "unprocessable", "invalid_input"] as const) {
+      mocks.prepareChatImage.mockResolvedValueOnce({ ok: false, status: reason });
+      expect(await startChatBootstrapAction(form())).toEqual({ status: "image_rejected", reason });
+    }
+    mocks.prepareChatImage.mockResolvedValueOnce({ ok: false, status: "error" });
+    expect(await startChatBootstrapAction(form())).toEqual({ status: "error" });
     expect(mocks.createConversation).not.toHaveBeenCalled();
   });
 
-  it("saatlik tavan ve veritabanı hatası kullanıcıya sabit koddur", async () => {
+  it("saatlik tavan görselde rate_limited (/ara yedeği yok); veritabanı hatası sabit koddur", async () => {
     mocks.createConversation.mockResolvedValueOnce({ status: "rate_limited" });
-    expect((await startConversationWithImageAction(form())).status).toBe("rate_limited");
+    expect(await startChatBootstrapAction(form())).toEqual({ status: "rate_limited" });
     mocks.createConversation.mockRejectedValueOnce(new Error("secret detail"));
-    const result = await startConversationWithImageAction(form());
-    expect(result).toEqual({ status: "error" });
+    expect(await startChatBootstrapAction(form())).toEqual({ status: "error" });
     expect(mocks.after).not.toHaveBeenCalled();
   });
 
   it("aynı requestKey ile ikinci çağrı createConversation'a aynı anahtarla gider (sunucu tekilleştirir)", async () => {
-    await startConversationWithImageAction(form());
-    await startConversationWithImageAction(form());
+    await startChatBootstrapAction(form());
+    await startChatBootstrapAction(form());
     const keys = mocks.createConversation.mock.calls.map(
       (call) => (call[1] as { requestKey: string }).requestKey,
     );
     expect(keys).toEqual([KEY, KEY]);
+  });
+});
+
+describe("sendMessageAction: sohbet içinden görsel aynı konuşmaya eklenir", () => {
+  const photo = () => {
+    const data = new FormData();
+    data.set("photo", new File([new Uint8Array([1, 2, 3])], "a.jpg", { type: "image/jpeg" }));
+    return data;
+  };
+  const TEXT = { kind: "text", text: "buna benzer beyaz olsun" };
+
+  it("metin + görsel TEK submitUserMessage çağrısı, aynı konuşma, ek ile", async () => {
+    const result = await sendMessageAction(ID, TEXT, KEY, photo());
+    expect(result).toEqual({ status: "queued" });
+    expect(mocks.submitUserMessage).toHaveBeenCalledTimes(1);
+    expect(mocks.submitUserMessage).toHaveBeenCalledWith(
+      { db: true },
+      {
+        userId: 7,
+        conversationId: ID,
+        request: { kind: "text", text: "buna benzer beyaz olsun" },
+        requestKey: KEY,
+        attachment: PREPARED,
+      },
+    );
+    // Yeni sohbet açılmaz.
+    expect(mocks.createConversation).not.toHaveBeenCalled();
+  });
+
+  it("yalnız görsel: boş metinle aynı çağrı", async () => {
+    await sendMessageAction(ID, { kind: "text", text: "" }, KEY, photo());
+    expect(mocks.submitUserMessage).toHaveBeenCalledWith(
+      { db: true },
+      expect.objectContaining({ request: { kind: "text", text: "" }, attachment: PREPARED }),
+    );
+  });
+
+  it("görselsiz mesajda çağrı biçimi eskisi gibi (ek anahtarı yok)", async () => {
+    await sendMessageAction(ID, TEXT, KEY);
+    const call = mocks.submitUserMessage.mock.calls[0]?.[1] as Record<string, unknown>;
+    expect(call).not.toHaveProperty("attachment");
+    expect(mocks.prepareChatImage).not.toHaveBeenCalled();
+  });
+
+  it("CHAT_IMAGE_ENABLED kapalıysa görsel işlenmez ve mesaj yazılmaz", async () => {
+    mocks.imageEnabled.mockReturnValue(false);
+    expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "unavailable" });
+    expect(mocks.prepareChatImage).not.toHaveBeenCalled();
+    expect(mocks.submitUserMessage).not.toHaveBeenCalled();
+  });
+
+  it("görsel doğrulaması başarısızsa mesaj yazılmaz ve sabit kod döner", async () => {
+    for (const status of ["invalid_type", "too_large", "unprocessable", "invalid_input"] as const) {
+      mocks.prepareChatImage.mockResolvedValueOnce({ ok: false, status });
+      expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status });
+    }
+    expect(mocks.submitUserMessage).not.toHaveBeenCalled();
+  });
+
+  it("görsel alanı olmayan FormData geçersiz girdi sayılır", async () => {
+    mocks.prepareChatImage.mockResolvedValueOnce({ ok: false, status: "invalid_input" });
+    expect(await sendMessageAction(ID, TEXT, KEY, new FormData())).toEqual({
+      status: "invalid_input",
+    });
+    expect(mocks.prepareChatImage).toHaveBeenCalledWith(null);
+  });
+
+  it("çekirdeğin durumları aynen iletilir: image_limit, busy, duplicate, rate_limited", async () => {
+    for (const status of ["image_limit", "busy", "duplicate", "rate_limited"] as const) {
+      mocks.submitUserMessage.mockResolvedValueOnce({ status });
+      expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status });
+    }
+  });
+
+  it("görselli gönderimde veritabanı hatası sabit koddur; metin yolu hatayı eskisi gibi iletir", async () => {
+    mocks.submitUserMessage.mockRejectedValueOnce(new Error("secret detail"));
+    expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "error" });
+    mocks.submitUserMessage.mockRejectedValueOnce(new Error("boom"));
+    await expect(sendMessageAction(ID, TEXT, KEY)).rejects.toThrow("boom");
+  });
+
+  it("oturum yok ya da sohbet kapalı: hiçbir şey işlenmez", async () => {
+    mocks.verifySession.mockResolvedValueOnce(null);
+    expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "unavailable" });
+    mocks.enabled.mockReturnValueOnce(false);
+    expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "unavailable" });
+    expect(mocks.prepareChatImage).not.toHaveBeenCalled();
   });
 });
 
@@ -186,15 +280,31 @@ describe("home-image-chat (saf mantık)", () => {
     expect(validateAttachmentFile({ type: "image/jpeg", size: 5 * 1024 * 1024 })).toBe("too_large");
   });
 
-  it("sonuç -> yönlendirme / giriş / hata metni", () => {
-    expect(outcomeForResult({ status: "created", href: "/sohbet/x" })).toEqual({
+  it("sonuç -> yönlendirme / giriş / hata metni; görselde /ara yedeği hiç üretilmez", () => {
+    expect(outcomeForNewChat({ status: "created", href: "/sohbet/x" })).toEqual({
       kind: "navigate",
       href: "/sohbet/x",
     });
-    expect(outcomeForResult({ status: "login_required" })).toEqual({ kind: "login" });
-    expect(outcomeForResult({ status: "too_large" })).toEqual({
+    expect(outcomeForNewChat({ status: "login_required" })).toEqual({ kind: "login" });
+    expect(outcomeForNewChat({ status: "image_rejected", reason: "too_large" })).toEqual({
       kind: "error",
       message: IMAGE_CHAT_ERROR_COPY.too_large,
+      retry: false,
+    });
+    expect(outcomeForNewChat({ status: "rate_limited" })).toEqual({
+      kind: "error",
+      message: IMAGE_CHAT_ERROR_COPY.rate_limited,
+      retry: true,
+    });
+    expect(outcomeForNewChat({ status: "unavailable" })).toMatchObject({
+      kind: "error",
+      retry: false,
+    });
+    expect(outcomeForNewChat({ status: "error" })).toMatchObject({ kind: "error", retry: true });
+    // Metin mesajının yedeği (yapay zekasız arama) bu şekilde kalır.
+    expect(outcomeForNewChat({ status: "fallback", href: "/ara?q=x" })).toEqual({
+      kind: "fallback",
+      href: "/ara?q=x",
     });
   });
 
@@ -203,8 +313,7 @@ describe("home-image-chat (saf mantık)", () => {
       " ",
     );
     expect(text).not.toMatch(/satın al|dupe|ucuz/i);
-    // Dosya biçimi adları (JPEG, PNG) büyük harfle yazılır; bağırma değildir.
-    expect(text.replace(/JPEG|PNG/g, "")).not.toMatch(/b[A-ZÇĞİÖŞÜ]{3,}b/);
+    expect(text).not.toMatch(/\p{Lu}{3,}/u);
   });
 });
 

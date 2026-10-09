@@ -20,7 +20,6 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { clientIp } from "../lib/client-ip.ts";
 import { requireProductAccess, verifySession } from "../lib/dal.ts";
-import { PhotoSearchButton } from "../photo-search-client.tsx";
 import styles from "./ara.module.css";
 import { ConversationFocusClient } from "./conversation-focus-client.tsx";
 import { ResultsRegionSkeleton } from "./search-results.tsx";
@@ -48,7 +47,7 @@ const REFINE_INPUT_ID = "aramayi-daralt";
 const QUESTION_INPUT_ID = `${QUESTION_HEADING_ID}-serbest`;
 const TITLE_ID = "arama-basligi";
 
-/** Arama kutusu + fotoğraf eylemi; tüm /ara durumlarında aynı yerde. */
+/** Arama kutusu; tüm /ara durumlarında aynı yerde. */
 function SearchToolbar({ query }: { query?: string }) {
   return (
     <>
@@ -56,7 +55,6 @@ function SearchToolbar({ query }: { query?: string }) {
         <div className={styles.toolbarSearch}>
           <SearchForm defaultValue={query} placeholder={SEARCH_PLACEHOLDER} submitLabel="Ara" />
         </div>
-        <PhotoSearchButton />
       </div>
       <SearchRightsBadge />
     </>

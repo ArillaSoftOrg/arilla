@@ -1,6 +1,7 @@
 export * from "./config.ts";
 export * from "./contract.ts";
 export * from "./feedback.ts";
+export * from "./image-context.ts";
 export * from "./intent.ts";
 export * from "./interpreter.ts";
 export * from "./link.ts";
@@ -9,4 +10,5 @@ export * from "./link-turn.ts";
 export * from "./link-view.ts";
 export * from "./search-adapter.ts";
 export * from "./service.ts";
+export * from "./submission.ts";
 export * from "./timing.ts";

@@ -842,6 +842,13 @@ production'da uygulanır (`pnpm db:migrate`, `db:verify`) → kod dağıtılır 
 onayı (docs/kvkk.md "Konuşmalı keşif") → bayrak açılır. Maliyet: `api_usage`
 `operation = 'chat_turn'`. Saklama: 90 gün, `cleanup-auth` cron'u (`job_run.detail.conversations`).
 
+**Görsel eki (karar 0078, 0091) — varsayılan kapalı.** `CHAT_IMAGE_ENABLED=true`
+(`CHAT_DISCOVERY_ENABLED` de açık olmalı). Kapalıyken ana sayfa ve sohbet kutusunda
+"+" görünmez, eski `/ara/gorsel` akışına düşülmez. Görselli mesaj metinle aynı
+sohbet turu kotasından geçer (arama hakkı harcanmaz); ek migration yok (0057 yeter).
+Etkinleştirme: hukuk onayı + aydınlatma/açık rıza metni (docs/kvkk.md "Yüklenen
+görseller"), sonra bayrak. Production'da onay olmadan açılmaz.
+
 ### Sohbette ürün linki (karar 0090) — varsayılan kapalı
 
 `CHAT_LINK_ENABLED=true` (ayrıca `CHAT_DISCOVERY_ENABLED=true` ister) sohbetteki linki mevcut link kuyruğuna verir; modele gitmez. Önkoşul: link worker'ı üretimde çalışıyor olmalı ("Link worker" bölümü; yoksa istekler 2 dk sonra 'worker yanıt vermedi' olur). `CHAT_LINK_INTERPRET_ENABLED=true` (ayrıca `CHAT_LINK_ENABLED`) deterministik ayrıştırmanın çözemediği tercih metni için tek Gemini çağrısı yapar; `api_usage` `chat_turn`, mevcut günlük/saatlik tavanlar. `/ara/link` ve `LINK_SEARCH_PUBLIC` bu bayraklardan bağımsızdır. Kademe: iç ekip → küçük kitle → herkes; izle: kuyruk uzunluğu, `error_code` dağılımı, Jina maliyeti. Geri alma: bayrakları kapat (migration yok).

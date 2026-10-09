@@ -13,7 +13,6 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { HOME_COPY } from "../../home-copy.ts";
 import { requireProductAccess } from "../../lib/dal.ts";
-import { PhotoSearchButton } from "../../photo-search-client.tsx";
 import styles from "../ara.module.css";
 import { ResultGrid, resultCountLabel } from "../search-results.tsx";
 import linkStyles from "./link-search.module.css";
@@ -40,7 +39,6 @@ function NewSearch() {
             submitLabel={LINK_SEARCH_COPY.searchSubmit}
           />
         </div>
-        <PhotoSearchButton />
       </div>
     </section>
   );

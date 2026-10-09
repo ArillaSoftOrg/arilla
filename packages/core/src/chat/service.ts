@@ -59,6 +59,11 @@ import {
   type SearchIntent,
 } from "./contract.ts";
 import { validateChatFeedback } from "./feedback.ts";
+import {
+  CHAT_ATTACHMENTS_PER_CONVERSATION,
+  decideContextImage,
+  type ImageContextDecision,
+} from "./image-context.ts";
 import { mergeSearchIntent, parseStoredIntent } from "./intent.ts";
 import {
   CHAT_CONTEXT_MESSAGES,
@@ -86,6 +91,12 @@ type Executor = Database | Tx;
 // Okuma
 // ---------------------------------------------------------------------------
 
+/** Karar 0091: asistan mesajinin `payload.imageSummary` kaydi. */
+export interface StoredImageSummary {
+  attachmentId: string;
+  text: string;
+}
+
 export type ChatMessageView =
   | {
       id: number;
@@ -105,6 +116,8 @@ export type ChatMessageView =
       kind: "clarify";
       content: string;
       question: ClarifyQuestion | null;
+      /** Karar 0091: bu turda modelin urettigi gorsel ozeti (hangi eke ait oldugu ile). */
+      imageSummary?: StoredImageSummary | null;
     }
   | {
       id: number;
@@ -118,6 +131,7 @@ export type ChatMessageView =
       helpful: boolean | null;
       /** Karar 0090: link mesajinin yuku (`payload.link`); yalnizca link `notice`larinda. */
       link?: ChatLinkPayload;
+      imageSummary?: StoredImageSummary | null;
     };
 
 export interface ConversationView {
@@ -134,6 +148,23 @@ export interface ConversationView {
 function attachmentIdOf(payload: Record<string, unknown> | null): string | null {
   const id = payload?.attachmentId;
   return typeof id === "string" && isUuid(id) ? id : null;
+}
+
+function imageSummaryOf(payload: Record<string, unknown> | null): StoredImageSummary | null {
+  const raw = payload?.imageSummary;
+  if (typeof raw !== "object" || raw === null) return null;
+  const { attachmentId, text } = raw as Record<string, unknown>;
+  if (typeof attachmentId !== "string" || !isUuid(attachmentId)) return null;
+  if (typeof text !== "string" || text.length === 0) return null;
+  return { attachmentId, text };
+}
+
+/** Ozet yoksa alan hic eklenmez: eski gorunum sekli (ve testleri) degismez. */
+function withSummary(
+  payload: Record<string, unknown> | null,
+): { imageSummary: StoredImageSummary } | Record<string, never> {
+  const summary = imageSummaryOf(payload);
+  return summary ? { imageSummary: summary } : {};
 }
 
 /** Yalniz fotograf gonderildiginde `content` yer tutucudur; gorunumde bos sayilir. */
@@ -168,6 +199,7 @@ function toView(
       kind: "clarify",
       content: row.content,
       question: parseClarifyQuestion(payload?.question),
+      ...withSummary(payload),
     };
   }
   const link = row.kind === "notice" ? parseChatLinkPayload(payload?.link) : null;
@@ -181,6 +213,7 @@ function toView(
     source: sourceOf(payload),
     helpful,
     ...(link ? { link } : {}),
+    ...withSummary(payload),
   };
 }
 
@@ -255,6 +288,8 @@ export type SubmitMessageResult =
   | { status: "busy" }
   | { status: "rate_limited" }
   | { status: "conversation_full" }
+  /** Karar 0091: konusma basina gorsel ust siniri doldu. */
+  | { status: "image_limit" }
   | { status: "invalid_input" }
   | { status: "invalid_option" }
   | { status: "not_found" };
@@ -476,11 +511,20 @@ export async function submitUserMessage(
     conversationId: string;
     request: ChatInputRequest;
     requestKey?: string;
+    /**
+     * Karar 0091: mesajin gorsel eki (metinle ayni mesaj). Yalniz `text` istegiyle birlikte;
+     * metin bos olabilir (yalniz fotograf). Ek, mesajla TEK islemde yazilir.
+     */
+    attachment?: ChatAttachmentInput;
   },
   quotaOptions: ChatQuotaOptions = {},
 ): Promise<SubmitMessageResult> {
   if (!isUuid(input.conversationId)) return { status: "not_found" };
   const requestKey = requestKeyOrNull(input.requestKey);
+  const attachment = input.attachment;
+  if (attachment && (!validAttachment(attachment) || input.request.kind !== "text")) {
+    return { status: "invalid_input" };
+  }
 
   // Kota mesaj yazilacagi kesinlesince (islem icinde, tum kontrollerden sonra)
   // harcanir; yazma basarisiz olursa geri verilir.
@@ -500,11 +544,17 @@ export async function submitUserMessage(
 
 async function submitInTx(
   tx: Tx,
-  input: { userId: number; conversationId: string; request: ChatInputRequest },
+  input: {
+    userId: number;
+    conversationId: string;
+    request: ChatInputRequest;
+    attachment?: ChatAttachmentInput;
+  },
   requestKey: string | null,
   quotaOptions: ChatQuotaOptions,
   onConsumed: () => void,
 ): Promise<SubmitMessageResult> {
+  const attachment = input.attachment;
   const [row] = await tx
     .select()
     .from(conversation)
@@ -532,17 +582,30 @@ async function submitInTx(
   ) {
     return { status: "conversation_full" };
   }
+  if (attachment) {
+    const attachments = await tx.execute(sql`
+      SELECT count(*)::int AS n FROM chat_attachment WHERE conversation_id = ${row.id}
+    `);
+    if (
+      ((attachments.rows[0] as { n?: number } | undefined)?.n ?? 0) >=
+      CHAT_ATTACHMENTS_PER_CONVERSATION
+    ) {
+      return { status: "image_limit" };
+    }
+  }
 
   const pending = parseClarifyQuestion(row.pendingQuestion);
   let kind: "text" | "option" | "skip";
   let content: string;
   let payload: Record<string, unknown> | null = null;
+  let imageOnly = false;
   const request = input.request;
   if (request.kind === "text") {
     const text = cleanUserText(request.text);
-    if (text === null) return { status: "invalid_input" };
+    if (text === null && !attachment) return { status: "invalid_input" };
     kind = "text";
-    content = text;
+    content = text ?? IMAGE_ONLY_CONTENT;
+    imageOnly = text === null;
     if (pending) payload = { answersQuestion: pending.id };
   } else if (request.kind === "option") {
     // Gecerli secenek sunucuda dogrulanir: istemci etiket ya da deger uyduramaz.
@@ -564,6 +627,28 @@ async function submitInTx(
   const quota = await consumeChatMessageQuota(tx, input.userId, quotaOptions);
   if (!quota.allowed) return { status: "rate_limited" };
   if (quota.consumed) onConsumed();
+
+  // Ek, kota gectikten sonra ve mesajla ayni islemde yazilir.
+  if (attachment) {
+    const [stored] = await tx
+      .insert(chatAttachment)
+      .values({
+        conversationId: row.id,
+        userId: input.userId,
+        mimeType: attachment.mimeType,
+        data: attachment.bytes,
+        width: attachment.width,
+        height: attachment.height,
+        sha256: createHash("sha256").update(attachment.bytes).digest("hex"),
+      })
+      .returning({ id: chatAttachment.id });
+    if (!stored) throw new Error("attachment insert returned no row");
+    payload = {
+      ...(payload ?? {}),
+      attachmentId: stored.id,
+      ...(imageOnly ? { imageOnly: true } : {}),
+    };
+  }
 
   const seq = row.messageCount + 1;
   await tx.insert(chatMessage).values({
@@ -638,6 +723,7 @@ export function countTrailingClarifications(messages: readonly ChatMessageView[]
 
 function toInterpretRequest(
   view: ConversationView,
+  decision: ImageContextDecision,
   image: ChatImageInput | null = null,
 ): InterpretRequest | null {
   const last = view.messages.at(-1);
@@ -656,12 +742,21 @@ function toInterpretRequest(
   } else {
     input = { kind: "text", text: last.content };
   }
-  const messages: TranscriptMessage[] = view.messages.map((message) => ({
-    role: message.role,
-    kind: message.kind,
-    text: transcriptText(message),
-    ...(message.role === "user" && message.attachmentId ? { hasImage: true } : {}),
-  }));
+  // Karar 0091: gorsel yalnizca karar verilen mesaja EKLENIR (`hasImage`); diger gorselli
+  // mesajlar, kayitli ozetleri varsa onunla temsil edilir.
+  const summaries = new Map<string, string>();
+  for (const message of view.messages) {
+    if (message.role === "assistant" && message.imageSummary) {
+      summaries.set(message.imageSummary.attachmentId, message.imageSummary.text);
+    }
+  }
+  const messages: TranscriptMessage[] = view.messages.map((message, index) => {
+    const base = { role: message.role, kind: message.kind, text: transcriptText(message) };
+    if (message.role !== "user" || !message.attachmentId) return base;
+    if (image && index === decision.ownerIndex) return { ...base, hasImage: true };
+    const summary = summaries.get(message.attachmentId);
+    return summary ? { ...base, imageSummary: summary } : base;
+  });
   return {
     messages,
     currentIntent: view.currentIntent,
@@ -673,21 +768,18 @@ function toInterpretRequest(
 }
 
 /**
- * Karar 0078: modele giden baglam penceresindeki ilk gorselli kullanici mesajinin
- * gorseli. Pencere disina cikarsa artik eklenmez.
+ * Karar 0078/0091: modele eklenecek gorsel. `decideContextImage` EN SON gorselli
+ * kullanici mesajini secer ve gorselin gonderilip gonderilmeyecegine karar verir
+ * (kendi turu, kayitli ozet yoksa ya da atif varsa). Pencere disina cikarsa eklenmez.
  */
 async function loadContextImage(
   db: Executor,
   userId: number,
-  messages: readonly ChatMessageView[],
+  decision: ImageContextDecision,
 ): Promise<ChatImageInput | null> {
-  if (!isChatImageEnabled()) return null;
-  const owner = messages
-    .slice(-CHAT_CONTEXT_MESSAGES)
-    .find((message) => message.role === "user" && message.attachmentId);
-  if (owner?.role !== "user" || !owner.attachmentId) return null;
+  if (!isChatImageEnabled() || !decision.sendImage || !decision.attachmentId) return null;
   try {
-    const loaded = await loadChatAttachment(db, { userId, attachmentId: owner.attachmentId });
+    const loaded = await loadChatAttachment(db, { userId, attachmentId: decision.attachmentId });
     return loaded
       ? { mimeType: loaded.mimeType, dataBase64: loaded.data.toString("base64") }
       : null;
@@ -852,6 +944,9 @@ async function runPendingTurn(
     if (isChatLinkEnabled()) {
       const lastMessage = view.messages.at(-1);
       if (lastMessage?.role === "user") {
+        // Ayrilan butce, link turunun gercek model denemesine cekilir: hata olursa
+        // bilinmiyor (`null`, ayirma oldugu gibi kalir); link degilse model yok (0).
+        attempts = null;
         const plan = await timer.time("link_turn", () =>
           planLinkTurn(db, {
             userId: input.userId,
@@ -869,12 +964,17 @@ async function runPendingTurn(
             interpreter: input.interpreter,
           }),
         );
-        if (plan) return await persistLinkTurn(plan, lastMessage.seq);
+        attempts = plan ? plan.calls.length : 0;
+        if (plan) {
+          await settleBudget();
+          return await persistLinkTurn(plan, lastMessage.seq);
+        }
       }
     }
 
-    const image = await loadContextImage(db, input.userId, view.messages);
-    const maybeRequest = toInterpretRequest(view, image);
+    const decision = decideContextImage(view.messages, CHAT_CONTEXT_MESSAGES);
+    const image = await loadContextImage(db, input.userId, decision);
+    const maybeRequest = toInterpretRequest(view, decision, image);
     if (!maybeRequest) {
       await releaseLease(db, input.conversationId);
       return { status: "idle" };
@@ -1005,6 +1105,11 @@ async function runPendingTurn(
             }
           }
 
+          // Karar 0091: gorsel bu istege eklendiyse modelin urettigi ozet saklanir (kural 3).
+          const summaryPayload =
+            image && decision.attachmentId && turn.imageSummary && source === "model"
+              ? { imageSummary: { attachmentId: decision.attachmentId, text: turn.imageSummary } }
+              : {};
           const seq = row.messageCount + 1;
           if (turn.action === "clarify") {
             await tx.insert(chatMessage).values({
@@ -1013,7 +1118,7 @@ async function runPendingTurn(
               role: "assistant",
               kind: "clarify",
               content: turn.message,
-              payload: { question: turn.question, source },
+              payload: { question: turn.question, source, ...summaryPayload },
             });
             await tx
               .update(conversation)
@@ -1035,7 +1140,12 @@ async function runPendingTurn(
             role: "assistant",
             kind: "search",
             content: turn.message,
-            payload: { intent: merged, source, fallbackReason: outcome.fallbackReason },
+            payload: {
+              intent: merged,
+              source,
+              fallbackReason: outcome.fallbackReason,
+              ...summaryPayload,
+            },
           });
           await tx
             .update(conversation)

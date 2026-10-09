@@ -1,12 +1,11 @@
 import { EmptyState, SearchForm } from "@arilla/ui";
-import { PhotoSearchButton } from "../../photo-search-client.tsx";
 import styles from "../ara.module.css";
 import { LINK_SEARCH_COPY } from "./link-search-copy.ts";
 
 /**
  * Link araması geçici olarak kapalıyken (`LINK_SEARCH_PUBLIC`) `/ara/link`
  * ve onun yükleme durumu bunu gösterir: form, bekleme ya da sonuç yok; eski
- * bağlantılar 404 vermez. Metin ve fotoğraf araması buradan sürer.
+ * bağlantılar 404 vermez. Metin araması buradan sürer.
  */
 export function LinkSearchComingSoon() {
   return (
@@ -28,7 +27,6 @@ export function LinkSearchComingSoon() {
               submitLabel={LINK_SEARCH_COPY.searchSubmit}
             />
           </div>
-          <PhotoSearchButton />
         </div>
       </section>
     </div>

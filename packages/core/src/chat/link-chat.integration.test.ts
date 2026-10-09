@@ -10,6 +10,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 import { deleteAccount } from "../account/delete-account.ts";
 import { LINK_RESOLUTION_QUEUE_KEY } from "../discovery/link-resolution.ts";
 import { LlmError } from "../llm/client.ts";
+import type { ProviderBudgetHooks, ProviderBudgetReservation } from "../quota/provider-budget.ts";
 import { getRedis } from "../redis/client.ts";
 import { invalidateLexiconCache } from "../search/lexicon-cache.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
@@ -762,6 +763,43 @@ describe("Faz 5: model yalnızca tanınmayan tercih için", () => {
     expect(interpreter.requests[0]?.purpose).toBe("link_preference");
     expect(interpreter.requests[0]?.messages.every((m) => m.role === "user")).toBe(true);
     expect(interpreter.requests[0]?.image ?? null).toBeNull();
+  });
+
+  it("sağlayıcı bütçesi: link turu gerçek deneme sayısına kesinleştirilir (0 çağrı = tam iade)", async () => {
+    const reservation: ProviderBudgetReservation = {
+      operation: "chat_turn",
+      key: `provider-budget:chat_turn:test-${run}`,
+      ttlSeconds: 60,
+      reserved: 3,
+    };
+    const settled: number[] = [];
+    const budget: ProviderBudgetHooks = {
+      reserve: async () => ({ allowed: true, reservation }),
+      settle: async (_reservation, attempts) => {
+        settled.push(attempts);
+      },
+    };
+    const turn = async (text: string, interpreter: ChatInterpreter) => {
+      const user = await newUser();
+      const created = await createConversation(db, { userId: user, message: text });
+      if (created.status !== "created") throw new Error(`create failed: ${created.status}`);
+      conversations.push(created.conversationId);
+      const result = await processPendingTurn(db, {
+        userId: user,
+        conversationId: created.conversationId,
+        interpreter,
+        budget,
+      });
+      expect(result.status).toBe("answered");
+    };
+
+    await turn(freshUrl(), model());
+    expect(settled).toEqual([0]);
+
+    const interpreter = model([searchReply({ attributes: [{ key: "style", value: SPORT }] })]);
+    await turn(`${freshUrl()} ofiste giyebileceğim`, interpreter);
+    expect(interpreter.calls).toBe(1);
+    expect(settled).toEqual([0, 1]);
   });
 
   it("takipte de yalnız kalıntı varsa çağrılır ve tercihler birleşir", async () => {

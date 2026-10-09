@@ -2,15 +2,16 @@
 
 import {
   type AssistantPreview,
+  type ChatAttachmentInput,
   type ChatInputRequest,
   canAccessProduct,
+  cleanSubmissionText,
   consumeChatFeedbackQuota,
   createChatTimer,
   createConversation,
   getChatInterpreter,
   getChatLinkView,
   getTurnStatus,
-  ImageRejectedError,
   isChatDiscoveryEnabled,
   isChatImageEnabled,
   isChatLinkEnabled,
@@ -19,7 +20,7 @@ import {
   isValidRequestKey,
   loadConversation,
   logChatTimings,
-  preprocessImage,
+  prepareChatImage,
   processPendingTurn,
   processPendingTurnDetailed,
   setResultFeedback,
@@ -83,89 +84,21 @@ export async function startConversationAction(formData: FormData): Promise<void>
   redirect(`/sohbet/${created.conversationId}`);
 }
 
-/** `ara/gorsel/actions.ts` ve `next.config.ts` (serverActions.bodySizeLimit) ile ayni sinir. */
-const MAX_IMAGE_UPLOAD_BYTES = 4 * 1024 * 1024;
-const IMAGE_MIME_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
-
-export type ImageChatResult =
-  | { status: "created"; href: string }
-  | {
-      status:
-        | "login_required"
-        | "unavailable"
-        | "invalid_input"
-        | "invalid_type"
-        | "too_large"
-        | "unprocessable"
-        | "rate_limited"
-        | "error";
-    };
-
-/**
- * Ana sayfa kutusu, fotograf + metin (karar 0078): sohbeti, gorsel eki ve ilk
- * kullanici mesajini TEK islemde olusturur; ilk turu (Gemini, gorselle birlikte)
- * yanit gittikten sonra `after()` ile baslatir. Metin bos olabilir. Gorsel burada
- * dogrulanir ve on islenir (`preprocessImage`: decode, <=512 px, EXIF'siz); ham dosya
- * saklanmaz. Hicbir hata mesaji/yanit icerigi istemciye donmez, yalnizca durum kodu.
- */
-export async function startConversationWithImageAction(
-  formData: FormData,
-): Promise<ImageChatResult> {
-  const user = await verifySession();
-  if (!user) return { status: "login_required" };
-  if (!isChatDiscoveryEnabled() || !isChatImageEnabled() || !canAccessProduct(user)) {
-    return { status: "unavailable" };
-  }
-  const requestKey = formData.get("requestKey");
-  if (!isValidRequestKey(requestKey)) return { status: "invalid_input" };
-  const file = formData.get("photo");
-  if (!(file instanceof File) || file.size === 0) return { status: "invalid_input" };
-  if (!IMAGE_MIME_TYPES.has(file.type)) return { status: "invalid_type" };
-  if (file.size > MAX_IMAGE_UPLOAD_BYTES) return { status: "too_large" };
-  const rawText = formData.get("q");
-  const text = typeof rawText === "string" ? rawText.trim().slice(0, 500) : "";
-
-  let prepared: Awaited<ReturnType<typeof preprocessImage>>;
-  try {
-    prepared = await preprocessImage(Buffer.from(await file.arrayBuffer()));
-  } catch (error) {
-    if (error instanceof ImageRejectedError) return { status: "unprocessable" };
-    return { status: "error" };
-  }
-
-  const db = getDatabase();
-  let created: Awaited<ReturnType<typeof createConversation>>;
-  try {
-    created = await createConversation(db, {
-      userId: user.id,
-      message: text,
-      requestKey,
-      attachment: {
-        bytes: prepared.bytes,
-        mimeType: prepared.mimeType,
-        width: prepared.width,
-        height: prepared.height,
-      },
-    });
-  } catch {
-    return { status: "error" };
-  }
-  if (created.status === "rate_limited") return { status: "rate_limited" };
-  if (created.status !== "created") return { status: "invalid_input" };
-  scheduleInitialTurn(db, user.id, created.conversationId);
-  return { status: "created", href: `/sohbet/${created.conversationId}` };
-}
-
 export type SendMessageStatus =
   | "queued"
   | "duplicate"
   | "busy"
   | "rate_limited"
   | "conversation_full"
+  | "image_limit"
   | "invalid_input"
+  | "invalid_type"
+  | "too_large"
+  | "unprocessable"
   | "invalid_option"
   | "not_found"
-  | "unavailable";
+  | "unavailable"
+  | "error";
 
 /** Istemciden gelen her sey `unknown` sayilir. */
 function parseRequest(raw: unknown): ChatInputRequest | null {
@@ -187,11 +120,16 @@ function parseRequest(raw: unknown): ChatInputRequest | null {
   return null;
 }
 
-/** Kullanici mesajini kaydeder (model cagrisi yok). */
+/**
+ * Kullanici mesajini kaydeder (model cagrisi yok). Karar 0091: `photo` verilirse
+ * (`FormData{photo}`) gorsel AYNI mesajin eki olur ve mevcut konusmaya eklenir; metin,
+ * secenek ve atla yolu ayni kalir. Gorsel burada dogrulanir ve on islenir.
+ */
 export async function sendMessageAction(
   conversationId: string,
   request: unknown,
   requestKey: string,
+  photo?: FormData,
 ): Promise<{ status: SendMessageStatus }> {
   const user = await verifySession();
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
@@ -201,12 +139,28 @@ export async function sendMessageAction(
   if (!parsed || typeof conversationId !== "string" || !isUuid(conversationId)) {
     return { status: "invalid_input" };
   }
-  const result = await submitUserMessage(getDatabase(), {
-    userId: user.id,
-    conversationId,
-    request: parsed,
-    requestKey: typeof requestKey === "string" ? requestKey : undefined,
-  });
+  let attachment: ChatAttachmentInput | undefined;
+  if (photo !== undefined) {
+    // Bayrak kapaliyken gorsel hicbir kosulda islenmez ya da eski aramaya dusulmez.
+    if (!isChatImageEnabled()) return { status: "unavailable" };
+    const prepared = await prepareChatImage(photo instanceof FormData ? photo.get("photo") : null);
+    if (!prepared.ok) return { status: prepared.status };
+    attachment = prepared.attachment;
+  }
+  let result: Awaited<ReturnType<typeof submitUserMessage>>;
+  try {
+    result = await submitUserMessage(getDatabase(), {
+      userId: user.id,
+      conversationId,
+      request: parsed,
+      requestKey: typeof requestKey === "string" ? requestKey : undefined,
+      ...(attachment ? { attachment } : {}),
+    });
+  } catch (error) {
+    // Metin yolu onceki gibi hatayi iletir; yalniz gorselli gonderimde sabit kod doner.
+    if (!attachment) throw error;
+    return { status: "error" };
+  }
   return { status: result.status === "queued" ? "queued" : result.status };
 }
 
@@ -273,7 +227,52 @@ export type NewTabChatResult =
   | { status: "created"; href: string }
   /** Sohbet kullanilamiyor ya da tavan: yeni sekme `/ara` (yapay zekasiz) yoluna gider. */
   | { status: "fallback"; href: string }
-  | { status: "error" };
+  | { status: "error" }
+  /**
+   * Karar 0091, yalniz GORSELLI mesaj: eski aramaya dusulmez, kullanici sohbet icinde hatayi
+   * gorur ve tekrar dener. Metin mesajinda bu durumlar yukaridaki `fallback`/`error` ile ayni kalir.
+   */
+  | {
+      status: "image_rejected";
+      reason: "invalid_type" | "too_large" | "unprocessable" | "invalid_input";
+    }
+  | { status: "rate_limited" | "unavailable" | "login_required" };
+
+interface NewChatSubmission {
+  text: string;
+  /** `FormData.photo`; yoksa `null`. Gecerlilik `prepareChatImage`te denetlenir. */
+  image: unknown;
+  requestKey: string | undefined;
+  /** Gorsel gonderildi ama istek anahtari gecersiz. */
+  invalidKey: boolean;
+}
+
+/**
+ * Metin-only: duz metin (onceki sozlesme, degismedi). Gorselli: `FormData{q, photo, requestKey}`.
+ * Ikisi de ayni eylemden ayni hatta gecer (karar 0091).
+ */
+function readNewChatSubmission(input: unknown): NewChatSubmission {
+  if (typeof input === "string") {
+    return {
+      text: cleanSubmissionText(input),
+      image: null,
+      requestKey: undefined,
+      invalidKey: false,
+    };
+  }
+  if (input instanceof FormData) {
+    const photo = input.get("photo");
+    const key = input.get("requestKey");
+    const hasKey = isValidRequestKey(key);
+    return {
+      text: cleanSubmissionText(input.get("q")),
+      image: photo,
+      requestKey: hasKey ? key : undefined,
+      invalidKey: photo !== null && !hasKey,
+    };
+  }
+  return { text: "", image: null, requestKey: undefined, invalidKey: false };
+}
 
 /**
  * Yeni sekme (`/sohbet/yeni`) acilista cagirir: sohbeti ve ilk mesaji TEK islemde
@@ -283,24 +282,61 @@ export type NewTabChatResult =
  * kullanir: kira (`processing_until`) ayni anda ikinci Gemini cagrisini
  * engeller; is dusse istemci kurtarma yolu (`runTurnAction`) devralir.
  * Gemini bu eylemin yanitini ve DB islemini BEKLETMEZ.
+ *
+ * Karar 0091: mesaj metin, gorsel ya da ikisi birden olabilir; hepsi bu hattan gecer.
+ * Gorselli mesajda bayrak/oturum yoksa `/ara`ya dusulmez (eski gorsel arama kalkti).
  */
-export async function startChatBootstrapAction(text: unknown): Promise<NewTabChatResult> {
+export async function startChatBootstrapAction(input: unknown): Promise<NewTabChatResult> {
   const timer = createChatTimer();
-  const message = typeof text === "string" ? text.trim().slice(0, 500) : "";
-  if (!message) return { status: "error" };
+  const submission = readNewChatSubmission(input);
+  const hasImage = submission.image !== null && submission.image !== undefined;
+  const message = submission.text;
+  if (!message && !hasImage) return { status: "error" };
   const user = await timer.time("session", () => verifySession());
-  if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
+
+  let attachment: ChatAttachmentInput | undefined;
+  if (hasImage) {
+    if (!user) return { status: "login_required" };
+    if (!isChatDiscoveryEnabled() || !isChatImageEnabled() || !canAccessProduct(user)) {
+      return { status: "unavailable" };
+    }
+    if (submission.invalidKey) return { status: "image_rejected", reason: "invalid_input" };
+    const prepared = await prepareChatImage(submission.image);
+    if (!prepared.ok) {
+      return prepared.status === "error"
+        ? { status: "error" }
+        : { status: "image_rejected", reason: prepared.status };
+    }
+    attachment = prepared.attachment;
+  } else if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { status: "fallback", href: plainSearchHref(message) };
   }
+  if (!user) return { status: "error" };
+
   const db = getDatabase();
-  const created = await timer.time("create_conversation", () =>
-    createConversation(db, { userId: user.id, message }),
-  );
+  let created: Awaited<ReturnType<typeof createConversation>>;
+  try {
+    created = await timer.time("create_conversation", () =>
+      createConversation(db, {
+        userId: user.id,
+        message,
+        ...(submission.requestKey !== undefined ? { requestKey: submission.requestKey } : {}),
+        ...(attachment ? { attachment } : {}),
+      }),
+    );
+  } catch (error) {
+    // Metin yolu onceki gibi hatayi iletir; yalniz gorselli gonderimde sabit kod doner.
+    if (!attachment) throw error;
+    return { status: "error" };
+  }
   logChatTimings("create", created.status, timer.finish());
   if (created.status !== "created") {
-    return created.status === "rate_limited"
-      ? { status: "fallback", href: plainSearchHref(message) }
-      : { status: "error" };
+    if (created.status === "rate_limited") {
+      return attachment
+        ? { status: "rate_limited" }
+        : { status: "fallback", href: plainSearchHref(message) };
+    }
+    return { status: "error" };
   }
   const { conversationId } = created;
   scheduleInitialTurn(db, user.id, conversationId);

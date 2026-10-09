@@ -15,6 +15,8 @@
  * ayni kurallari uygulayan dogrulayiciyi tasir; ikisi birlikte degisir.
  */
 
+import { cleanImageSummary, IMAGE_SUMMARY_MAX } from "./image-context.ts";
+
 export const CHAT_LIMITS = {
   message: 400,
   queryChars: 120,
@@ -94,9 +96,13 @@ export interface ClarifyQuestion {
   skippable: boolean;
 }
 
+/**
+ * `imageSummary`: yalnizca gorselli turlarda (karar 0091) modelin urettigi kisa,
+ * nesnel urun ozeti; saklanir ve takip turlarinda gorselin yerine baglama girer.
+ */
 export type ModelTurn =
-  | { action: "clarify"; message: string; question: ClarifyQuestion }
-  | { action: "search"; message: string; intent: SearchIntentPatch };
+  | { action: "clarify"; message: string; question: ClarifyQuestion; imageSummary?: string }
+  | { action: "search"; message: string; intent: SearchIntentPatch; imageSummary?: string };
 
 export type ModelTurnRejection =
   | "not_object"
@@ -263,29 +269,40 @@ export function parseModelTurn(raw: unknown): ParsedModelTurn {
   // Model hicbir alanda baglanti uretemez: butun cikti reddedilir (yedek arama calisir).
   if (URL_RE.test(JSON.stringify(raw))) return { ok: false, reason: "bad_message" };
   const message = cleanText(raw.message, CHAT_LIMITS.message);
+  // Gecersiz/bos ozet turu reddetmez: ozet yalnizca atilir (takipte gorsel yeniden eklenir).
+  const summary = cleanImageSummary(raw.image_summary);
+  const imageSummary = summary === undefined ? {} : { imageSummary: summary };
 
   if (raw.action === "clarify") {
     if (message === null) return { ok: false, reason: "bad_message" };
     const question = parseClarifyQuestion(raw.question);
     if (question === null) return { ok: false, reason: "bad_question" };
-    return { ok: true, turn: { action: "clarify", message, question } };
+    return { ok: true, turn: { action: "clarify", message, question, ...imageSummary } };
   }
   if (raw.action === "search") {
     if (message === null) return { ok: false, reason: "bad_message" };
     const intent = parseIntentPatch(raw.intent);
     if (intent === null) return { ok: false, reason: "bad_intent" };
-    return { ok: true, turn: { action: "search", message, intent } };
+    return { ok: true, turn: { action: "search", message, intent, ...imageSummary } };
   }
   return { ok: false, reason: "bad_action" };
 }
 
-/** Gemini `response_format.schema`. `parseModelTurn` ayni kurallari yeniden uygular. */
-export function buildModelTurnSchema(): Record<string, unknown> {
+/**
+ * Gemini `response_format.schema`. `parseModelTurn` ayni kurallari yeniden uygular.
+ * `imageSummary: true` (yalnizca gorselli turlar, karar 0091) `image_summary` alanini
+ * ekler; metin turlarinin semasi ve davranisi degismez.
+ */
+export function buildModelTurnSchema(
+  options: { imageSummary?: boolean } = {},
+): Record<string, unknown> {
   const nullableString = (maxLength: number) => ({ type: ["string", "null"], maxLength });
   return {
     type: "object",
     additionalProperties: false,
-    required: ["action", "message", "question", "intent"],
+    required: options.imageSummary
+      ? ["action", "message", "question", "intent", "image_summary"]
+      : ["action", "message", "question", "intent"],
     properties: {
       action: { type: "string", enum: ["clarify", "search"] },
       message: { type: "string", maxLength: CHAT_LIMITS.message },
@@ -363,6 +380,7 @@ export function buildModelTurnSchema(): Record<string, unknown> {
           remove: { type: "array", items: { type: "string", enum: [...REMOVABLE_FIELDS] } },
         },
       },
+      ...(options.imageSummary ? { image_summary: nullableString(IMAGE_SUMMARY_MAX) } : {}),
     },
   };
 }

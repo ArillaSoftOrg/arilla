@@ -170,11 +170,6 @@ const PRODUCT_PAGES: { name: string; call: () => Promise<unknown> }[] = [
       (await import("./ara/link/page.tsx")).default({ searchParams: Promise.resolve({}) }),
   },
   {
-    name: "/ara/gorsel",
-    call: async () =>
-      (await import("./ara/gorsel/page.tsx")).default({ searchParams: Promise.resolve({}) }),
-  },
-  {
     name: "/urun/[slug] meta",
     call: async () =>
       (await import("./urun/[slug]/page.tsx")).generateMetadata({
@@ -250,7 +245,7 @@ describe("ürün sayfaları", () => {
     for (const page of PRODUCT_PAGES) {
       const result = await outcome(page.call);
       // Geçen istek kapıya takılmaz. Sayfanın kendi dalı çalışabilir (sorgusuz
-      // /ara/link → /ara, id'siz /ara/gorsel → 404) ama kapının iki çıktısı
+      // /ara/link → /ara) ama kapının iki çıktısı
       // (başarı ekranı ya da landing) asla.
       expect(["/erken-erisim", "/"], `${role} ${page.name}: ${result}`).not.toContain(result);
     }

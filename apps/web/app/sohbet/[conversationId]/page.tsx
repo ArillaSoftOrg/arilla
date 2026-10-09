@@ -1,4 +1,4 @@
-import { isChatDiscoveryEnabled, loadConversation } from "@arilla/core";
+import { isChatDiscoveryEnabled, isChatImageEnabled, loadConversation } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { notFound } from "next/navigation";
 import { requireProductUser } from "../../lib/dal.ts";
@@ -40,6 +40,7 @@ export default async function ConversationPage({
     <ChatInteractive
       conversationId={view.id}
       awaitingReply={view.awaitingReply}
+      imageEnabled={isChatImageEnabled()}
       question={question}
       lastUserText={lastUser?.content ?? view.title}
       lastSeq={last?.seq ?? 0}
