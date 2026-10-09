@@ -9,6 +9,16 @@ export {
   type WindowLimits,
 } from "./policy.ts";
 export {
+  type ProviderBudgetClient,
+  type ProviderBudgetHooks,
+  type ProviderBudgetOperation,
+  type ProviderBudgetReservation,
+  type ProviderBudgetResult,
+  providerBudgetKey,
+  reserveProviderBudget,
+  settleProviderBudget,
+} from "./provider-budget.ts";
+export {
   consumeQuota,
   type QuotaConsumeResult,
   type QuotaConsumer,

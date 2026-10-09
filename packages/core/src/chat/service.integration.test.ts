@@ -6,10 +6,12 @@
 import type { Database } from "@arilla/db";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { LlmError } from "../llm/client.ts";
+import type { ProviderBudgetHooks } from "../quota/provider-budget.ts";
 import type { QuotaConsumeResult } from "../quota/redis-windows.ts";
 import { RedisUnavailableError } from "../redis/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
+import { CHAT_CLIENT_OPTIONS } from "./config.ts";
 import { purgeExpiredFeedbackComments } from "./feedback.ts";
 import { emptyIntent } from "./intent.ts";
 import type { ChatInterpreter } from "./interpreter.ts";
@@ -940,9 +942,15 @@ describe("hardening: stale turn, clarification loop, search guards", () => {
     expect((await lastAssistantKind(id))?.kind).toBe("search");
   });
 
-  it("the daily provider ceiling skips the model but the user still gets a search", async () => {
+  it("the daily provider ceiling skips the model but the user still gets a search (redis down, db count full)", async () => {
+    // Atomik Redis butcesi yokken eski yedek: `api_usage` gunluk sayimi tavanda.
     const id = await newConversation(userA, `${TOKEN}`);
     const model = scripted([search({ query: "model-sorgusu" })]);
+    const redisDown = {
+      reserve: async () => {
+        throw new RedisUnavailableError("butce");
+      },
+    };
     await withOwnerClient((c) =>
       c.query(
         "INSERT INTO api_usage (user_id, operation, model_version, units) SELECT $1, 'chat_turn', 'x', 0 FROM generate_series(1, 3000)",
@@ -954,6 +962,7 @@ describe("hardening: stale turn, clarification loop, search guards", () => {
         userId: userA,
         conversationId: id,
         interpreter: model,
+        budget: redisDown,
       });
       expect(result).toEqual({ status: "answered", source: "fallback", action: "search" });
       expect(model.calls).toBe(0);
@@ -1448,7 +1457,102 @@ describe("ilk tur: tek Gemini cagrisi, kira, durum (gecikme turu)", () => {
     });
     expect(counts.update).toBe(1);
     expect(counts.select).toBe(1);
-    expect(counts.execute).toBe(1);
+    // Gunluk saglayici tavani artik atomik Redis sayacidir: turda `api_usage`
+    // uzerinde count(*) (ham execute) YOK.
+    expect(counts.execute ?? 0).toBe(0);
     expect(counts.transaction).toBe(1);
+  });
+});
+
+describe("global provider budget (atomic, quota/provider-budget.ts)", () => {
+  function recordingBudget(allowed = true) {
+    const reserved: number[] = [];
+    const settled: number[] = [];
+    const budget: ProviderBudgetHooks = {
+      reserve: async (input) => {
+        reserved.push(input.amount);
+        return allowed
+          ? {
+              allowed: true,
+              reservation: {
+                operation: input.operation,
+                key: "provider-budget:test",
+                ttlSeconds: 60,
+                reserved: input.amount,
+              },
+            }
+          : { allowed: false };
+      },
+      settle: async (_reservation, attempts) => {
+        settled.push(attempts);
+      },
+    };
+    return { budget, reserved, settled };
+  }
+
+  it("reserves the per-turn attempt ceiling and settles to the real attempt count", async () => {
+    const id = await newConversation(userA, `${TOKEN} butce`);
+    const { budget, reserved, settled } = recordingBudget();
+    const model = scripted([search({ query: TOKEN })]);
+    await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: model, budget });
+    expect(reserved).toEqual([CHAT_CLIENT_OPTIONS.maxAttempts]);
+    expect(model.calls).toBe(1);
+    expect(settled).toEqual([1]);
+  });
+
+  it("exhausted budget: no provider call, safe fallback reply, nothing to settle", async () => {
+    const id = await newConversation(userA, `${TOKEN} tavan`);
+    const { budget, settled } = recordingBudget(false);
+    const model = scripted([search({ query: TOKEN })]);
+    await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: model, budget });
+    expect(model.calls).toBe(0);
+    expect(settled).toEqual([]);
+    const last = await lastAssistantKind(id);
+    expect(last?.role).toBe("assistant");
+  });
+
+  it("provider called but failed: the attempt stays counted", async () => {
+    const id = await newConversation(userA, `${TOKEN} hata`);
+    const { budget, settled } = recordingBudget();
+    const model = scripted([new LlmError("server_error", 503), new LlmError("server_error", 503)]);
+    await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: model, budget });
+    expect(model.calls).toBeGreaterThan(0);
+    expect(settled).toEqual([model.calls]);
+  });
+
+  it("no pending user message (idle): reservation is fully refunded", async () => {
+    const id = await newConversation(userA, `${TOKEN} bos`);
+    await processPendingTurn(db, {
+      userId: userA,
+      conversationId: id,
+      interpreter: scripted([search({ query: TOKEN })]),
+    });
+    const { budget, reserved, settled } = recordingBudget();
+    const again = await processPendingTurn(db, {
+      userId: userA,
+      conversationId: id,
+      interpreter: scripted([]),
+      budget,
+    });
+    expect(again).toEqual({ status: "idle" });
+    expect(reserved).toEqual([CHAT_CLIENT_OPTIONS.maxAttempts]);
+    expect(settled).toEqual([0]);
+  });
+
+  it("budget store unavailable: falls back to the daily api_usage count, chat keeps working", async () => {
+    const id = await newConversation(userA, `${TOKEN} redisyok`);
+    const model = scripted([search({ query: TOKEN })]);
+    const result = await processPendingTurn(db, {
+      userId: userA,
+      conversationId: id,
+      interpreter: model,
+      budget: {
+        reserve: async () => {
+          throw new RedisUnavailableError("butce");
+        },
+      },
+    });
+    expect(result).toMatchObject({ status: "answered" });
+    expect(model.calls).toBe(1);
   });
 });
