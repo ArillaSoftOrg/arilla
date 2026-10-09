@@ -104,8 +104,13 @@ bir ürün/hak kararıdır. Aynı kullanıcıda aktif bir link araması sürerke
   ve `material(s)` okunur. Gerçek katalogda başka ad varsa tercih `unapplied` kalır.
 - Bot korumalı mağazalarda (örn. Zara, H&M) link çalışmaz; çözüm fotoğraf ya da tarif.
   Amazon'da JSON-LD/OG yok, sezgisel katman kullanılır ve fiyat göstermez.
-- Fiyatsız kaynak embedding'leri (`image_upload` + `query` embedding) için retention işi yok;
-  30 günlük temizlik yalnızca ham dosyayı siler.
+- ~~Fiyatsız kaynak embedding'leri için retention işi yok~~ Çözüldü: `cleanup-auth` içinde
+  `purgeExpiredLinkSourceEmbeddings` (`purge_after` < now, başka `image_upload.embedding_id`
+  kullanmıyor, aktif sohbet `payload.link.requestId` anmıyor; önce `image_embedding_id` NULL).
+  Silinen kaynakta takip/iyileştirme görsel sinyalini yitirir, metne düşer (kabul). Aktif
+  sohbet referansı bunu en fazla 90 güne kadar erteler. `chat_message.payload` üzerinde
+  indeks yok: aktif başvuru kümesi parti başına bir kez taranır (hacim büyürse
+  `payload->'link'->>'requestId'` için kısmi indeks, ayrı migration).
 - Görselli mesajda URL varsa link dalı atlanır (0078 aynen).
 - Görsel tabanı katalog büyüdükçe yeniden ölçülmelidir (0035).
 - Hukuk: Gemini'ye giden yalnızca kullanıcının kendi URL'siz metnidir; yeni veri kategorisi

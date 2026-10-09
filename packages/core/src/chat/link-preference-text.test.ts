@@ -20,6 +20,36 @@ const LEX: LexiconEntry[] = [
 ];
 
 describe("parseLinkPreferences", () => {
+  it("leaves no leftover for plain similar/alternative requests (no false 'not understood' note)", () => {
+    for (const text of [
+      "Bu ürünün benzerlerini bul",
+      "bunun benzerlerini göster",
+      "bu ürünün alternatifleri neler",
+      "bunun aynısını bul",
+    ]) {
+      const parsed = parseLinkPreferences(text, LEX);
+      expect(parsed.leftover, text).toEqual([]);
+      expect(parsed.preferences, text).toEqual({});
+    }
+  });
+
+  it("reads inflected 'daha ucuzunu' and a case-suffixed category word without leftover", () => {
+    const parsed = parseLinkPreferences("Bu ayakkabının daha ucuzunu bul", LEX);
+    expect(parsed.preferences.sort).toBe("cheapest");
+    expect(parsed.leftover).toEqual([]);
+    expect(parseLinkPreferences("Bunun siyah alternatiflerini göster", LEX)).toMatchObject({
+      preferences: { colors: ["siyah"] },
+      leftover: [],
+    });
+    expect(parseLinkPreferences("daha ucuz olanlarını göster", LEX).leftover).toEqual([]);
+  });
+
+  it("still reports genuinely unknown words as leftover", () => {
+    expect(parseLinkPreferences("bunun benzerlerini bul zımbırtılı", LEX).leftover).toEqual([
+      "zımbırtılı",
+    ]);
+  });
+
   it("is empty for nothing recognizable", () => {
     const parsed = parseLinkPreferences("", LEX);
     expect(parsed).toMatchObject({ leftover: [], recognized: false, clearPrice: false });

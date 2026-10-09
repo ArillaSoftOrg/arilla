@@ -63,6 +63,16 @@ docker compose -f infra/docker-compose.worker.yml up -d --build
   saklanmaz) + `embedding(target_type='query')` yazılır, offer/fiyat/ürün
   yazılmaz. Aynı hash+model için vektör varsa Jina çağrılmaz (`cache_hit`).
   Hata/eksik görselde istek düşmez, arama metinle sürer.
+  Saklama: `purge_after` (30 gün) geçince `cleanup-auth` cron'u bu çifti siler
+  (`purgeExpiredLinkSourceEmbeddings`, karar 0079): önce
+  `link_resolution_request.image_embedding_id` NULL'a çekilir, sonra
+  `image_upload` + `embedding` silinir. Aktif sohbet (son mesajı 90 günden genç)
+  `payload.link.requestId` ile anıyorsa ya da başka bir `image_upload.embedding_id`
+  (hash önbelleğini paylaşan kullanıcı yüklemesi) kullanıyorsa dokunulmaz.
+  Silinen kaynağın takip/iyileştirmede görsel sinyali yoktur, arama metne düşer
+  (kabul edilen davranış). Cron yanıtı/`job_run` detayında `linkSources`
+  (`embeddings`, `uploads`, `detached`, `truncated`, `failed`) yalnızca sayıdır;
+  parti tavanı (500 x 20) dolarsa koşu `partial` olur, sonraki gün sürer.
 - **Zaman aşımı/hata:** sayfa ve görsel isteklerinin zaman aşımı sabittir
   (`safe_http`: 10 sn, bağlantı 5 sn); bir istek hata verirse yalnızca o satır `failed` olur, worker
   sonraki mesaja geçer. Yalnızca kopan Postgres bağlantısı süreci `1` ile
@@ -346,6 +356,7 @@ NULL'a çekilen satır sayılarını verir (kişisel veri yok).
 | --- | --- | --- |
 | `cleanup-auth` | `auth_token`, `phone_login_code`, `session` süresi dolanlar | çalışıyor |
 | `purgeExpiredActivity` | `user_activity_event` 180 gün, `query_norm` 90 gün, `auth_event` 1 yıl, `user_consent.ip` 1 yıl | çalışıyor: `cleanup-auth` içinde, ayrı cron yok (0049) |
+| `purgeExpiredLinkSourceEmbeddings` | süresi dolmuş, aktif sohbetle ilişkisiz fiyatsız link kaynağı `image_upload` + `query` embedding (30 gün) | çalışıyor: `cleanup-auth` içinde, yalıtılmış adım (0079) |
 
 İşin son koşusu `/yonetim/islemler/isler`'de (`cleanup_auth`) görünür;
 süresi geçmiş giriş kaydı birikirse işletim ekranı uyarır (0055). En eski satır süreyi aşmışsa iş çalışmıyor demektir.

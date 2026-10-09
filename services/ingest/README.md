@@ -148,6 +148,9 @@ Canli kosu ayri onay ister.
 Entegrasyon testleri kurulum ve temizligi **sahip rolle** (`DATABASE_URL_OWNER`),
 boru hattini **uygulama rolu** ile calistirir. `arilla_app` `price_point`
 satirlarini silemedigi icin temizlik baska turlu zaten yapilamaz.
+`DATABASE_URL` yanlislikla sahip/superuser rolunu gosterirse
+`test_pipeline.py` oturumu `SET ROLE arilla_app` ile uygulama rolune indirir
+(`test_pipeline_cannot_update_price_point` UPDATE ve DELETE icin 42501 bekler).
 
 ---
 

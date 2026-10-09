@@ -126,7 +126,7 @@ olacaktır.
 Kurallar:
 
 1. **Arama sonrası görsel saklanmaz.** Yalnızca embedding vektörü ve görsel
-   hash'i tutulur. Ham dosya en fazla 30 gün geçici depoda kalır, sonra silinir.
+   hash'i tutulur. Ham dosya en fazla 30 gün geçici depoda kalır, sonra silinir. Fiyatsız link kaynağının görsel izi (`image_upload` + embedding) da 30 gün sonra günlük temizlikte silinir; yalnızca süresi dolmamış bir sohbetin anmaya devam ettiği kaynak sohbetin ömrü (en fazla 90 gün) kadar kalır (karar 0079).
 2. **Yüz tespiti varsa uyarı gösterilir.** İnsan içeren fotoğraf yüklendiğinde
    kullanıcı bilgilendirilir; biyometrik veri işleme iddiasından kaçınmak için
    yüz bölgesi hiçbir modele ayrıca beslenmez.

@@ -13,7 +13,7 @@ import { findLexiconMatches, type LexiconEntry } from "../search/lexicon.ts";
 import { foldTurkish, normalizeQueryText } from "../search/normalize.ts";
 import { extractPricePatterns } from "../search/price-patterns.ts";
 import type { SearchIntentPatch } from "./contract.ts";
-import { CHEAPER_RE, REMOVE_PRICE_RE } from "./interpreter.ts";
+import { REMOVE_PRICE_RE } from "./interpreter.ts";
 import { sanitizeLinkPreferences } from "./link.ts";
 
 export interface ParsedLinkPreferences {
@@ -70,6 +70,23 @@ const STOP_WORDS = new Set(
     "benzerini",
     "benzerleri",
     "benzeri",
+    "benzerlerini",
+    "benzerlerine",
+    "benzerler",
+    "alternatif",
+    "alternatifi",
+    "alternatifleri",
+    "alternatiflerini",
+    "alternatifler",
+    "ürünün",
+    "ürüne",
+    "ürünler",
+    "ürünleri",
+    "olanlar",
+    "olanlarını",
+    "aynısı",
+    "aynısını",
+    "neler",
     "buna",
     "bunun",
     "bunu",
@@ -136,6 +153,28 @@ const STOP_WORDS = new Set(
   ].map((word) => foldTurkish(word)),
 );
 
+/**
+ * "daha ucuz", "daha ucuzunu", "ucuz olsun": hal eki kalıntı bırakmasın.
+ * `CHEAPER_RE` (modelsiz sohbet yedeği) bilerek ayrı kalır.
+ */
+const CHEAPER_LINK_RE = /daha\s+(?:ucuz|uygun|ekonomik)\p{L}*|ucuz\p{L}*\s+olsun/u;
+
+/** Hal eki için üst sınır: "ceket" + "in/i/e/ler" gibi; daha uzunu başka sözcüktür. */
+const MAX_CASE_SUFFIX = 4;
+
+/** Sözlükteki bir konu sözcüğünün (ceket, nike) hal ekli biçimi mi: "ceketin". */
+function isInflectedLexiconWord(token: string, entries: readonly LexiconEntry[]): boolean {
+  return entries.some((entry) => {
+    const surface = foldTurkish(entry.surface);
+    return (
+      surface.length >= 3 &&
+      token.length > surface.length &&
+      token.length - surface.length <= MAX_CASE_SUFFIX &&
+      token.startsWith(surface)
+    );
+  });
+}
+
 const TOPIC_KINDS = new Set<LexiconEntry["kind"]>(["category", "brand", "size"]);
 const PREFERENCE_KINDS: readonly LexiconEntry["kind"][] = [
   "color",
@@ -167,9 +206,9 @@ export function parseLinkPreferences(
     clearPrice = true;
     rest = rest.replace(REMOVE_PRICE_RE, " ");
   }
-  if (CHEAPER_RE.test(rest)) {
+  if (CHEAPER_LINK_RE.test(rest)) {
     preferences.sort = "cheapest";
-    rest = rest.replace(CHEAPER_RE, " ");
+    rest = rest.replace(CHEAPER_LINK_RE, " ");
   }
 
   // Fiyat: `parseQueryText` ile aynı sıra (konuşma dili, sonra mevcut kalıplar).
@@ -216,6 +255,8 @@ export function parseLinkPreferences(
   const leftover: string[] = [];
   for (const token of rest.split(/[^\p{L}\p{N}₺]+/u)) {
     if (token.length < 2 || STOP_WORDS.has(token) || leftover.includes(token)) continue;
+    // "Bu ceketin ...": kaynak ürüne atıf, anlaşılmayan tercih değil.
+    if (isInflectedLexiconWord(token, entries)) continue;
     leftover.push(token);
   }
   // Marka/kategori sözcükleri tercih değil ama "anlaşılmadı" sayılır.
