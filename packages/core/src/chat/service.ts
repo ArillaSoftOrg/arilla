@@ -913,7 +913,7 @@ async function runPendingTurn(
                 operation: CHAT_TURN_OPERATION,
                 modelVersion: call.modelVersion,
                 units: call.usage?.totalTokens ?? 0,
-                costMicros: 0,
+                costMicros: llmCallCostMicros(call),
                 cacheHit: false,
               })),
             );
