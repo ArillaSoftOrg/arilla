@@ -21,19 +21,35 @@ logger = logging.getLogger(__name__)
 #: 90 gunu varsayiyor (min_90d, max_90d, median_90d).
 HISTORY_DAYS = 90
 
+#: Pasif MAGAZANIN gozlemleri dagilima girmez: magaza veri kalitesi ya da
+#: para birimi nedeniyle kapatilmis olabilir (0042). Aktif magazanin PASIF
+#: teklifinin gecmisi ise gercek bir gecmis fiyattir ve kalir.
 PRICE_HISTORY = """
 SELECT o.product_id, pp.offer_id, pp.observed_at, pp.price, pp.list_price
   FROM price_point pp
   JOIN offer o ON o.id = pp.offer_id
+  JOIN merchant m ON m.id = o.merchant_id AND m.is_active
  WHERE o.product_id IS NOT NULL
    AND pp.observed_at >= now() - make_interval(days => %(days)s)
  ORDER BY o.product_id, pp.offer_id, pp.observed_at
 """
 
+#: Yuzdeligin referans fiyati: kartlardaki `product.min_price` ile AYNI kural
+#: (`db/product_aggregates.py`, aramanin `best_offer`'i) — aktif magazanin
+#: fiyatli aktif teklifi. Stok durumu, `min_price` gibi, filtrelenmez.
 CURRENT_PRICES = """
-SELECT product_id, min(current_price) FROM offer
- WHERE product_id IS NOT NULL AND is_active AND current_price IS NOT NULL
- GROUP BY product_id
+SELECT o.product_id, min(o.current_price)
+  FROM offer o
+  JOIN merchant m ON m.id = o.merchant_id AND m.is_active
+ WHERE o.product_id IS NOT NULL AND o.is_active AND o.current_price IS NOT NULL
+ GROUP BY o.product_id
+"""
+
+#: Bu kosuda hesaplanmayan urunun satiri silinir (90 gunluk aktif-magaza
+#: gecmisi kalmadi): eski bir yuzdelik "son 90 gunun en dusugu" iddiasini
+#: beslemeye devam etmesin. Tablo turetilmis veridir.
+DELETE_STALE_STATS = """
+DELETE FROM product_price_stats WHERE NOT (product_id = ANY(%(product_ids)s))
 """
 
 UPSERT_STATS = """
@@ -63,6 +79,8 @@ class PriceCounts:
     products: int = 0
     inflated: int = 0
     aggregates_updated: int = 0
+    #: Artik hesaplanmayan urunlerin silinen satirlari.
+    removed: int = 0
 
 
 @dataclass
@@ -121,6 +139,10 @@ def refresh_price_stats(conn: psycopg.Connection) -> PriceCounts:
         counts.products += 1
         if stats.list_price_inflated:
             counts.inflated += 1
+
+    with conn.cursor() as cur:
+        cur.execute(DELETE_STALE_STATS, {"product_ids": sorted(grouped)})
+        counts.removed = cur.rowcount
 
     return counts
 

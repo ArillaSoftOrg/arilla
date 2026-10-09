@@ -3,6 +3,7 @@ import {
   cronAuthFailureResponse,
   purgeExpiredActivity,
   purgeExpiredConversationsSafely,
+  purgeExpiredFeedbackCommentsSafely,
   purgeExpiredLinkSourceEmbeddingsSafely,
   purgeExpiredQueryInterpretationsSafely,
   purgeJobRuns,
@@ -36,7 +37,7 @@ import { getDatabase } from "@arilla/db";
  * silinir. Diğer saklama işlerinden yalıtılmıştır: hata verirse onlar yine
  * çalışır, koşu `partial` yazılır.
  *
- * 0079: süresi dolmuş, aktif sohbetle ilişkisiz fiyatsız link kaynağı
+ * 0090: süresi dolmuş, aktif sohbetle ilişkisiz fiyatsız link kaynağı
  * görsel izleri (`image_upload` + `query` embedding) da burada silinir
  * (`packages/core/src/discovery/link-source-retention.ts`). Yalıtılmış adım.
  */
@@ -65,11 +66,14 @@ export async function GET(request: Request): Promise<Response> {
       const queryInterpretations = await purgeExpiredQueryInterpretationsSafely(db);
       // Karar 0074: sohbet geçmişi 90 gün saklanır (yalıtılmış adım).
       const conversations = await purgeExpiredConversationsSafely(db);
-      // Karar 0079: süresi dolmuş link kaynağı görsel izi (yalıtılmış adım).
+      // Karar 0079: sohbet geri bildirimi yorumları 90 gün sonra silinir (yalıtılmış adım).
+      const feedbackComments = await purgeExpiredFeedbackCommentsSafely(db);
+      // Karar 0090: süresi dolmuş link kaynağı görsel izi (yalıtılmış adım).
       const linkSources = await purgeExpiredLinkSourceEmbeddingsSafely(db);
       return {
         ...result,
         conversations,
+        feedbackComments,
         linkSources,
         searchCharges,
         retention,
@@ -87,6 +91,8 @@ export async function GET(request: Request): Promise<Response> {
         r.queryInterpretations.failed !== null ||
         r.conversations.truncated ||
         r.conversations.failed !== null ||
+        r.feedbackComments.truncated ||
+        r.feedbackComments.failed !== null ||
         r.linkSources.truncated ||
         r.linkSources.failed !== null
           ? "partial"

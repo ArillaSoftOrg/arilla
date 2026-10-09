@@ -1,6 +1,7 @@
 import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
 import { LegalIdentityBlock, PRIVACY_NOTICE_UPDATED_LABEL } from "../legal-identity-block.tsx";
+import { isGa4MeasurementActive } from "../lib/ga4.ts";
 
 export const metadata: Metadata = {
   title: "Gizlilik Politikası – ManiCepte",
@@ -20,6 +21,8 @@ export const metadata: Metadata = {
  * reddi henuz uygulanmiyor - metinden cikarildi.
  */
 export default function GizlilikPage() {
+  // Karar 0087: GA4 yalnızca etkinse ve rızayla; metin gerçek duruma göre.
+  const ga4 = isGa4MeasurementActive();
   return (
     <LegalPageLayout title="Gizlilik Politikası" lastUpdatedLabel={PRIVACY_NOTICE_UPDATED_LABEL}>
       <section>
@@ -183,10 +186,19 @@ export default function GizlilikPage() {
             tutmak.
           </li>
         </ul>
-        <p>
-          Şu anda analitik, reklam veya pazarlama ölçümü yapan bir araç kullanmıyoruz. Böyle bir
-          araç eklenirse yalnızca açık izninizle çalıştırılır.
-        </p>
+        {ga4 ? (
+          <p>
+            Yalnızca açık izninizle (analitik çerezleri), sitenin nasıl kullanıldığını toplu olarak
+            ölçmek için Google Analytics 4 kullanırız. İzninizi Çerez Tercihleri&apos;nden
+            istediğiniz zaman geri çekebilirsiniz; ölçüm hemen durur. Reklam veya pazarlama ölçümü
+            yapan bir araç kullanmıyoruz.
+          </p>
+        ) : (
+          <p>
+            Şu anda analitik, reklam veya pazarlama ölçümü yapan bir araç kullanmıyoruz. Böyle bir
+            araç eklenirse yalnızca açık izninizle çalıştırılır.
+          </p>
+        )}
       </section>
 
       <section>
@@ -242,6 +254,14 @@ export default function GizlilikPage() {
             tespiti amacıyla ilgili kayıtları kendi koşullarında belirtilen sınırlı bir süre
             tutabilir.
           </li>
+          {ga4 ? (
+            <li>
+              <strong>Google (Google Analytics 4)</strong> — yalnızca analitik çerezlerine izin
+              verdiyseniz; sitenin toplu kullanım ölçümü için arındırılmış sayfa yolu, trafik
+              kaynağı, cihaz ve tarayıcı bilgisi ile çerez tanımlayıcısı. Arama ifadeleri, adres
+              parametreleri, hesap ve sohbet bilgileri gönderilmez.
+            </li>
+          ) : null}
           <li>
             <strong>E-posta gönderim hizmeti sağlayıcısı</strong> — giriş bağlantısı ve alarm
             e-postalarının iletilmesi.
@@ -276,6 +296,13 @@ export default function GizlilikPage() {
           maddesi kapsamında Google ile imzalanan aktarım sözleşmesine (uygun güvence) dayanılarak
           yapılır.
         </p>
+        {ga4 ? (
+          <p>
+            Analitik çerezlerine izin verdiğinizde Google Analytics 4 ile toplanan ölçüm verileri
+            Google&apos;ın yurt dışındaki tesislerinde işlenir. Bu aktarım yalnızca açık izninize
+            dayanır; izni geri çekmeniz yeni aktarımı durdurur.
+          </p>
+        ) : null}
       </section>
 
       <section>

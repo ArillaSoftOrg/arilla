@@ -1,5 +1,5 @@
 /**
- * Sohbette link turu (karar 0079). `service.ts`ın `runPendingTurn`ü, bayrak
+ * Sohbette link turu (karar 0090). `service.ts`ın `runPendingTurn`ü, bayrak
  * açıkken modelden ÖNCE buraya sorar; `null` = bu mesaj bir link turu değil,
  * normal akış sürer.
  *
@@ -22,7 +22,7 @@ import type { LlmCall } from "../llm/client.ts";
 import { isRedisUnavailableError } from "../redis/client.ts";
 import type { LexiconEntry } from "../search/lexicon.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
-import { CHAT_DAILY_CALL_CAP, isChatImageEnabled, isChatLinkInterpretEnabled } from "./config.ts";
+import { isChatImageEnabled, isChatLinkInterpretEnabled } from "./config.ts";
 import { emptyIntent } from "./intent.ts";
 import {
   type ChatInterpreter,
@@ -66,8 +66,8 @@ export interface LinkTurnInput {
   messages: readonly LinkTurnMessage[];
   /** Son (cevapsız) kullanıcı mesajının sırası: deterministik istek anahtarı. */
   lastSeq: number;
-  /** Bugünkü sohbet modeli denemesi sayısı (günlük tavan için). */
-  callsToday: number;
+  /** Sağlayıcı bütçesi model çağrısına izin veriyor mu (`chatProviderBudget`). */
+  modelAllowed: boolean;
   interpreter: ChatInterpreter;
 }
 
@@ -155,7 +155,7 @@ async function resolvePreferences(
       input: { kind: "text", text },
       purpose: "link_preference",
     },
-    { modelAllowed: input.callsToday < CHAT_DAILY_CALL_CAP },
+    { modelAllowed: input.modelAllowed },
   );
 
   if (outcome.kind === "turn" && outcome.source === "model" && outcome.turn.action === "search") {

@@ -49,6 +49,33 @@ def test_percentile_high_when_current_is_the_highest() -> None:
     assert stats.current_percentile >= 66
 
 
+def test_percentile_is_null_without_a_usable_current_price() -> None:
+    """Aktif magazanin fiyatli aktif teklifi yoksa yuzdelik YOK.
+
+    Eskiden en yeni gozlem guncel fiyat yerine konuyordu; o gozlem pasif bir
+    teklife ya da magazaya ait olabilir ve gorunmeyen bir fiyat icin "son 90
+    gunun en dusugu" iddiasi uretirdi.
+    """
+    stats = compute(one_offer([(0, 300, None), (1, 200, None), (2, 100, None)]), current_price=None)
+    assert stats.current_percentile is None
+    # Gecmis istatistikler yine hesaplanir; yalnizca guncel konum bilinmez.
+    assert (stats.min_90d, stats.max_90d, stats.median_90d) == (100, 300, 200)
+
+
+def test_percentile_uses_the_given_current_price_not_the_latest_observation() -> None:
+    # En yeni gozlem 100 ama kullanilabilir guncel fiyat 300: referans 300.
+    stats = compute(one_offer([(0, 200, None), (1, 300, None), (2, 100, None)]), current_price=300)
+    assert stats.current_percentile == 67
+
+
+def test_percentile_in_the_middle_of_the_distribution() -> None:
+    stats = compute(
+        one_offer([(0, 100, None), (1, 200, None), (2, 300, None), (3, 400, None)]),
+        current_price=250,
+    )
+    assert stats.current_percentile == 50
+
+
 def test_thirty_day_window_excludes_older_prices() -> None:
     # En dusuk fiyat 60 gun once; 30 gunluk pencereye girmemeli.
     stats = compute(

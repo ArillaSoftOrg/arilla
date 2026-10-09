@@ -1,4 +1,4 @@
-# 0079 — Sohbette ürün linki
+# 0090 — Sohbette ürün linki
 
 **Tarih:** 8 Ekim 2026
 **Durum:** Kabul edildi, kod hazır; `CHAT_LINK_ENABLED=true` (ve `CHAT_DISCOVERY_ENABLED=true`)

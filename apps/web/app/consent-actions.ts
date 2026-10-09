@@ -7,8 +7,8 @@ import {
   CONSENT_COOKIE_NAME,
   type CookieConsent,
   fromSelection,
+  isOptionalCookieOf,
   OPTIONAL_CONSENT_CATEGORIES,
-  OPTIONAL_COOKIES,
   rejectAll,
   serializeConsent,
 } from "@arilla/core/cookie-consent";
@@ -30,10 +30,14 @@ async function persist(consent: CookieConsent): Promise<void> {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
   });
-  // Riza geri cekilen kategorinin birinci taraf cerezleri silinir (legal pack 07 §5).
+  // Riza geri cekilen kategorinin cerezleri silinir (legal pack 07 §5). GA4
+  // cerezleri host'a ozel yazilir (karar 0087), bu yuzden burada silinebilir;
+  // istemcideki GA4 bileseni de sokumde ayni cerezleri siler.
   for (const category of OPTIONAL_CONSENT_CATEGORIES) {
     if (consent[category]) continue;
-    for (const name of OPTIONAL_COOKIES[category]) store.delete(name);
+    for (const { name } of store.getAll()) {
+      if (isOptionalCookieOf(category, name)) store.delete(name);
+    }
   }
   // 0049 §6: girisli kullanicinin karari hesaba da yazilir (append-only
   // gecmis). Analitik reddi/geri almasi ayni islemde kisiye bagli analitik

@@ -3,7 +3,7 @@
 import { Button } from "@arilla/ui";
 import { useEffect } from "react";
 import styles from "./admin.module.css";
-import { ErrorNotice, PageHeader } from "./admin-ui.tsx";
+import { Notice, PageHeader } from "./admin-ui.tsx";
 
 /**
  * Yönetim alanının hata sınırı. Yönetim kabuğunun (yan menü) İÇİNDE çizilir:
@@ -25,16 +25,19 @@ export default function YonetimError({
 
   return (
     <div className={styles.pageNarrow}>
-      <PageHeader title="Bu sayfa açılamadı" />
-      <ErrorNotice>
-        Veriler yüklenirken bir hata oluştu. Tekrar dene; sorun sürerse sunucu günlüğüne bak.
+      <PageHeader
+        title="Bu sayfa açılamadı"
+        description="Menü ve oturum etkilenmedi; yalnızca bu sayfanın verisi alınamadı."
+      />
+      <Notice tone="error" title="Veriler yüklenemedi">
+        Tekrar dene; sorun sürerse sunucu günlüğüne bak.
         {error.digest ? (
           <>
             {" "}
             Hata kimliği: <code>{error.digest}</code>
           </>
         ) : null}
-      </ErrorNotice>
+      </Notice>
       <div className={styles.row}>
         <Button type="button" variant="primary" onClick={() => retry()}>
           Tekrar dene

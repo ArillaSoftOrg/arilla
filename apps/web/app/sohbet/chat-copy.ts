@@ -39,6 +39,25 @@ export const CHAT_COPY = {
   feedbackNo: "Hayır, yardımcı olmadı",
   feedbackThanks: "Teşekkürler, not aldım.",
   feedbackFailed: "Kaydedemedim, tekrar dener misin?",
+  feedbackRateLimited: "Çok sık oy verdin. Biraz sonra tekrar dener misin?",
+  feedbackDialogTitle: "Bu yanıtı nasıl iyileştirebiliriz?",
+  feedbackReasonLabel: "Sorun nedeni",
+  feedbackReasonPlaceholder: "Bir neden seç (isteğe bağlı)",
+  feedbackReasons: {
+    not_found: "Aradığım ürünleri bulamadı",
+    irrelevant: "Alakasız ürünler önerdi",
+    misunderstood: "İsteğimi yanlış anladı",
+    wrong_info: "Yanlış bilgi verdi",
+    wrong_price_or_product: "Fiyat veya ürün bilgisi hatalı",
+    slow: "Yanıt çok yavaştı",
+    other: "Diğer",
+  },
+  feedbackCommentLabel: "Ayrıntı ekle (isteğe bağlı)",
+  feedbackCommentPlaceholder: "Ne yanlıştı ya da ne eksikti?",
+  feedbackCommentHint: "Kişisel bilgi yazma. En fazla 500 karakter.",
+  feedbackCancel: "İptal",
+  feedbackSubmit: "Gönder",
+  feedbackSubmitting: "Gönderiliyor",
   tabsLabel: "Sonuç sıralaması",
   tabSelected: "Seçtiklerimiz",
   tabDeals: "En iyi fırsatlar",
@@ -169,7 +188,7 @@ export function errorKindForStatus(status: string): ChatErrorKind | null {
   }
 }
 
-/** Sohbette ürün bağlantısı sonuçları (karar 0079); docs/copy.md "Sohbette link araması". */
+/** Sohbette ürün bağlantısı sonuçları (karar 0090); docs/copy.md "Sohbette link araması". */
 export const CHAT_LINK_COPY = {
   pendingTitle: "Bağlantıdaki ürün inceleniyor…",
   pendingDescription: "Ürün bilgilerini okuyup kataloğumuzda benzerlerini arıyorum.",

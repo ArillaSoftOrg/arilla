@@ -223,7 +223,7 @@ describe("link search - integration", () => {
     expect(results.signals).toEqual({ image: false, text: false, identity: false });
   });
 
-  describe("preferences (decision 0079)", () => {
+  describe("preferences (decision 0090)", () => {
     const tag = "linkpref-entegrasyon";
     const SRC_TITLE = "Zorvanta Kapsül Mont";
     const NOCOLOR_TITLE = "Qelmora Sentil Kolye";

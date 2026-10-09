@@ -48,7 +48,7 @@ export function ChatThread({
     .filter((m) => m.role === "assistant" && m.kind === "search")
     .map((m) => m.seq);
   const shown = new Set(searchSeqs.slice(-RESULT_BLOCKS_SHOWN));
-  // Link sonuçları da yalnızca en son link mesajında çizilir (karar 0079); öncekiler özet.
+  // Link sonuçları da yalnızca en son link mesajında çizilir (karar 0090); öncekiler özet.
   const linkSeqs = messages
     .filter((m) => m.role === "assistant" && m.kind === "notice" && m.link)
     .map((m) => m.seq);

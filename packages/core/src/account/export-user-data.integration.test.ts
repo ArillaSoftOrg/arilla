@@ -89,6 +89,37 @@ describe("exportUserData() - entegrasyon (gerçek Postgres)", () => {
     ]);
   });
 
+  it("sohbet oyunu neden ve yorumuyla verir; oy yoksa feedback alanı yoktur (0079)", async () => {
+    await withOwnerClient(async (client) => {
+      const c = await client.query(
+        "INSERT INTO conversation (user_id, title, message_count) VALUES ($1, 'oy dışa aktarım', 3) RETURNING id",
+        [userId],
+      );
+      const id = c.rows[0].id;
+      const voted = await client.query(
+        "INSERT INTO chat_message (conversation_id, seq, role, kind, content) VALUES ($1, 1, 'assistant', 'search', 'oylu yanıt') RETURNING id",
+        [id],
+      );
+      await client.query(
+        "INSERT INTO chat_message (conversation_id, seq, role, kind, content) VALUES ($1, 2, 'assistant', 'search', 'oysuz yanıt')",
+        [id],
+      );
+      await client.query(
+        `INSERT INTO chat_result_feedback (message_id, conversation_id, helpful, reasons, comment)
+         VALUES ($1, $2, FALSE, ARRAY['slow'], 'çok yavaştı')`,
+        [voted.rows[0].id, id],
+      );
+    });
+    const data = await exportUserData(db, userId);
+    const chat = data.conversations.find((c) => c.title === "oy dışa aktarım");
+    expect(chat?.messages[0]?.feedback).toMatchObject({
+      helpful: false,
+      reasons: ["slow"],
+      comment: "çok yavaştı",
+    });
+    expect(chat?.messages[1]).not.toHaveProperty("feedback");
+  });
+
   it("olmayan kullanıcı için UserNotFoundError fırlatır", async () => {
     await expect(exportUserData(db, 999_999_999)).rejects.toThrow(UserNotFoundError);
   });

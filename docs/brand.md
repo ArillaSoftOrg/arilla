@@ -62,6 +62,12 @@ kimliği ile ürün arayüzü aynı şey olmak zorunda değildir.
 
 Marka mavisinin kesin hex değeri yeni logo çizildiğinde sabitlenir.
 
+**Güncel durum (karar 0084):** bugünkü uygulama ikonu (`apps/web/app/apple-icon.png`)
+koyu zemin üzerinde limon yeşili "M" işaretidir (baskın piksel `#b7f52f`);
+`--brand` belirteci bundan ölçüldü ve yalnızca yönetim konsolunda kullanılır.
+Yukarıdaki "marka mavisi" ifadesi bu ikonla güncellenmeli mi, marka sahibinin
+kararıdır.
+
 ## Tipografi
 
 **IBM Plex Sans.** SIL Open Font License, genişletilmiş Latin desteği Türkçe

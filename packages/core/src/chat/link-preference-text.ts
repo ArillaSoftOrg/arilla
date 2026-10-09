@@ -1,5 +1,5 @@
 /**
- * Link aramasının tercih metni (karar 0079) — saf fonksiyonlar. Yeni sözlük yok:
+ * Link aramasının tercih metni (karar 0090) — saf fonksiyonlar. Yeni sözlük yok:
  * renk, stil ve malzeme mevcut `lexicon`dan; fiyat mevcut konuşma-dili fiyat
  * ve `price-patterns` kalıplarından; "daha uygun fiyatlı" ve "fiyat sınırını
  * kaldır" `fallbackTurn`ün kalıplarından gelir.
@@ -319,7 +319,7 @@ export function describeLinkPreferences(preferences: LinkPreferences): string[] 
 }
 
 // ---------------------------------------------------------------------------
-// Model çıktısı -> LinkPreferences (karar 0079, Faz 5)
+// Model çıktısı -> LinkPreferences (karar 0090, Faz 5)
 // ---------------------------------------------------------------------------
 
 function canonicalOf(

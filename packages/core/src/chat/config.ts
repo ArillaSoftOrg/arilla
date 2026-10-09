@@ -32,7 +32,7 @@ export function isChatImageEnabled(env: Env = process.env): boolean {
 }
 
 /**
- * Sohbette ürün linki araması (karar 0079). `CHAT_LINK_ENABLED=true` verilmedikçe
+ * Sohbette ürün linki araması (karar 0090). `CHAT_LINK_ENABLED=true` verilmedikçe
  * kapalı (varsayılan): bağlantı içeren mesaj bugünkü gibi işlenir. Sohbetin
  * kendisi de açık olmalıdır. Link çözümü modelsizdir; hak/kuyruk `runChargedLinkSearch`.
  */
@@ -41,7 +41,7 @@ export function isChatLinkEnabled(env: Env = process.env): boolean {
 }
 
 /**
- * Link tercihi metni için TEK Gemini çağrısı (karar 0079, kural 1 beşinci istisna).
+ * Link tercihi metni için TEK Gemini çağrısı (karar 0090, kural 1 beşinci istisna).
  * Varsayılan kapalı; `CHAT_LINK_ENABLED` de açık olmalıdır.
  */
 export function isChatLinkInterpretEnabled(env: Env = process.env): boolean {

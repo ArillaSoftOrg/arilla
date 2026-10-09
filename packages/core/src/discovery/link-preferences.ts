@@ -1,5 +1,5 @@
 /**
- * Link aramasının kullanıcı tercihleri (karar 0079). Sohbette URL'nin yanında
+ * Link aramasının kullanıcı tercihleri (karar 0090). Sohbette URL'nin yanında
  * ya da takip mesajında gelen "daha ucuz", "siyah", "daha spor" gibi istekler
  * bu tipe çevrilir; `findLinkSearchResults` yalnızca mevcut katalog alanlarıyla
  * (fiyat, `product.color`, `product.attributes`, lexicon) uygular. Katalogda

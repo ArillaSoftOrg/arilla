@@ -1,5 +1,5 @@
 /**
- * Sohbetteki link mesajının okuma tarafı (karar 0079). Yalnızca OKUR (+ hak
+ * Sohbetteki link mesajının okuma tarafı (karar 0090). Yalnızca OKUR (+ hak
  * uzlaşması, `/ara/link` ile aynı koşullarda); model yok.
  *
  * Durum, `/ara/link`ün adres penceresiyle (24 sa önbellek) değil, mesajın

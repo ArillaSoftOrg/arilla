@@ -83,7 +83,7 @@ function FailureBlock({ code }: { code: string }) {
 }
 
 /**
- * Link `notice` mesajının altındaki sonuç bloğu (karar 0079). Durum her gösterimde
+ * Link `notice` mesajının altındaki sonuç bloğu (karar 0090). Durum her gösterimde
  * `requestId` ile okunur: sayfa yenilemek aynı sonucu verir. Ürünler yalnızca
  * mevcut arama katmanından gelir; hata sohbeti bozmaz, yalnız bu blok kısa bir
  * mesaja döner. Sorgu hiç açılmadıysa (`requestId` yok) mesaj metni hatayı zaten

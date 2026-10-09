@@ -1,5 +1,5 @@
 /**
- * Fiyatsız link kaynaklarının görsel izi için saklama temizliği (karar 0079).
+ * Fiyatsız link kaynaklarının görsel izi için saklama temizliği (karar 0090).
  *
  * Python worker (`services/ingest/collect/link/reference_image.py`) her link
  * isteği için KENDİ `image_upload` + `embedding(target_type='query')` çiftini

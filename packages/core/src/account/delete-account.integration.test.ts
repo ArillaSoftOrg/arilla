@@ -248,3 +248,41 @@ describe("deleteAccount() - entegrasyon (gerçek Postgres)", () => {
     });
   });
 });
+
+describe("deleteAccount() - sohbet geri bildirimi (karar 0079)", () => {
+  it("sohbeti, mesajı ve oyu (neden + yorum dahil) gerçekten siler", async () => {
+    const db = getTestDb();
+    const { userId, conversationId } = await withOwnerClient(async (c) => {
+      const u = await c.query("INSERT INTO app_user (email) VALUES ($1) RETURNING id", [
+        `e3-delete-chat-${Date.now()}@example.test`,
+      ]);
+      const id = Number(u.rows[0].id);
+      const conv = await c.query(
+        "INSERT INTO conversation (user_id, title) VALUES ($1, 'silinecek') RETURNING id",
+        [id],
+      );
+      const m = await c.query(
+        "INSERT INTO chat_message (conversation_id, seq, role, kind, content) VALUES ($1, 1, 'assistant', 'search', 'x') RETURNING id",
+        [conv.rows[0].id],
+      );
+      await c.query(
+        `INSERT INTO chat_result_feedback (message_id, conversation_id, helpful, reasons, comment)
+         VALUES ($1, $2, FALSE, ARRAY['wrong_info'], 'silinecek yorum')`,
+        [m.rows[0].id, conv.rows[0].id],
+      );
+      return { userId: id, conversationId: String(conv.rows[0].id) };
+    });
+
+    await deleteAccount(db, userId);
+
+    const left = await withOwnerClient((c) =>
+      c.query(
+        `SELECT (SELECT count(*) FROM chat_result_feedback WHERE conversation_id = $1)::int AS votes,
+                (SELECT count(*) FROM chat_message WHERE conversation_id = $1)::int AS messages,
+                (SELECT count(*) FROM conversation WHERE id = $1)::int AS conversations`,
+        [conversationId],
+      ),
+    );
+    expect(left.rows[0]).toEqual({ votes: 0, messages: 0, conversations: 0 });
+  });
+});

@@ -1,0 +1,168 @@
+# Derleme, statik denetim, birim testleri ve yönetim yetki/kapsam testleri
+# (docs/decisions/0082). Güvenlik sınırı:
+# - Hiçbir secret okunmaz; workflow'da `secrets.*` YOKTUR. Üretim veritabanı,
+#   Redis, e-posta ya da ücretli API'ye (Gemini, Jina, Resend) bağlanılmaz.
+# - Entegrasyon testleri yalnızca bu işe ait tek kullanımlık servis
+#   konteynerleriyle (localhost) koşar; parolalar yalnızca bu konteynerler
+#   içindir. Testlerin kendi yalıtım kapısı (`assertIsolatedTestUrl`) uzak
+#   adresi zaten reddeder.
+# - `pull_request` (fork dahil) salt okunur token ile çalışır.
+name: ci
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  # Testlerin ve derlemenin ortamdan model/e-posta anahtarı almadığını açıkça belirtir.
+  GEMINI_API_KEY: ""
+  LLM_API_KEY: ""
+  JINA_API_KEY: ""
+  RESEND_API_KEY: ""
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  static:
+    name: typecheck + lint
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm -r typecheck
+      # Değişen dosyalar KESİN: PR'ın getirdiği her dosya biome'dan geçmeli.
+      - name: lint (değişen dosyalar)
+        run: |
+          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          if [ -z "$base" ] || ! git cat-file -e "$base" 2>/dev/null; then base="HEAD~1"; fi
+          git diff --name-only --diff-filter=ACMR "$base"...HEAD > changed.txt
+          echo "Değişen dosya sayısı: $(wc -l < changed.txt)"
+          if [ -s changed.txt ]; then
+            tr '\n' '\0' < changed.txt | xargs -0 pnpm exec biome ci \
+              --files-ignore-unknown=true --no-errors-on-unmatched
+          fi
+      # Tüm depo: ana daldaki bilinen 17 bulgu (blog SVG'leri ve üç TS dosyası)
+      # temizlenene dek uyarı olarak raporlanır; sayı ve dosyalar iş özetinde görünür.
+      - name: lint (tüm depo, bilinen bulgular raporlanır)
+        run: |
+          set +e
+          git ls-files -z | xargs -0 pnpm exec biome ci --colors=off \
+            --files-ignore-unknown=true --no-errors-on-unmatched --max-diagnostics=200 > biome-all.txt 2>&1
+          status=$?
+          set -e
+          files=$(grep -E '^\S+:[0-9]+:[0-9]+ ' biome-all.txt | sed -E 's/:[0-9]+:[0-9]+ .*//' | sort -u)
+          {
+            echo "### Biome (tüm depo)"
+            echo "Çıkış kodu: $status"
+            echo '```'
+            echo "${files:-bulgu yok}"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$status" -ne 0 ]; then
+            echo "::warning title=biome (tüm depo)::Ana daldaki bilinen lint bulguları var; iş özetine bakın."
+          fi
+
+  unit:
+    name: unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      # Birim testleri veritabanı istemez; kapsam kaydı testleri
+      # (`coverage.test.ts`, `coverage-pages.test.ts`) ve fiyat kuralları burada.
+      - run: pnpm -r test
+
+  build:
+    name: web build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm --filter @arilla/web build
+
+  integration:
+    name: admin authz + integration (isolated services)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        # infra/docker-compose.yml ile aynı imaj (PostgreSQL 16 + pgvector).
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: arilla
+          POSTGRES_PASSWORD: ci_only_owner
+          POSTGRES_DB: arilla
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U arilla -d arilla"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+      redis:
+        image: redis:7-alpine
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 3s --health-retries 20
+      mailpit:
+        # Yerel e-posta yakalayıcı: ileti makineden çıkmaz (kampanya testleri).
+        image: axllent/mailpit:v1.31.2
+        ports: ["1025:1025", "8025:8025"]
+    env:
+      DATABASE_URL_OWNER: postgresql://arilla:ci_only_owner@localhost:5432/arilla
+      APP_DB_PASSWORD: ci_only_app
+      DATABASE_URL: postgresql://arilla_app:ci_only_app@localhost:5432/arilla
+      REDIS_URL: redis://localhost:6379
+      SMTP_HOST: localhost
+      SMTP_PORT: "1025"
+      EMAIL_FROM: ci@example.test
+      APP_URL: http://localhost:3000
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: schema (boş veritabanı)
+        run: |
+          pnpm db:migrate
+          pnpm db:bootstrap-role
+          pnpm db:partitions
+          pnpm seed
+      # Yönetim: yetki matrisi (her sayfa + her action, altı rol), oturum
+      # politikası, denetim, işletim doğruluğu, kampanyalar (Mailpit) ve
+      # diğer web sınırı testleri.
+      - name: web integration (tümü)
+        run: pnpm --filter @arilla/web exec vitest run -c vitest.integration.config.ts
+      # Yönetim core'u + A0'ın dokunduğu model maliyeti yazan yollar.
+      - name: core integration (yönetim, sohbet, sorgu yorumu)
+        run: >-
+          pnpm --filter @arilla/core exec vitest run -c vitest.integration.config.ts
+          src/admin src/chat src/search/query-interpretation.integration.test.ts

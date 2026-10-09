@@ -1,5 +1,5 @@
 /**
- * Link aramasında tercih süzgeci (karar 0079) — saf fonksiyonlar, veritabanı yok.
+ * Link aramasında tercih süzgeci (karar 0090) — saf fonksiyonlar, veritabanı yok.
  *
  * İlkeler:
  * - Yalnızca katalogda GERÇEKTEN bulunan alanlarla süzülür (`minPrice`,

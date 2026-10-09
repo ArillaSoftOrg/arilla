@@ -2,7 +2,14 @@
 
 // İstemci bileşenleri de bu dosyayı içe aktarır: core'dan yalnızca TİP ve saf
 // alt yol (`@arilla/core/cost-truth`) alınır, sunucu kodu pakete girmez.
-import type { AttentionState, PipelineStage, PipelineStageState, Severity } from "@arilla/core";
+import type {
+  AdminAction,
+  AdminTargetType,
+  AttentionState,
+  PipelineStage,
+  PipelineStageState,
+  Severity,
+} from "@arilla/core";
 import { type CostSummary, costState } from "@arilla/core/cost-truth";
 
 const DATE_TIME = new Intl.DateTimeFormat("tr-TR", {
@@ -26,13 +33,15 @@ export function formatCostMicros(micros: number): string {
 }
 
 /**
- * Maliyetin dürüst gösterimi (karar 0051, core `costState`). Maliyet oranı
- * tanımsızken yazılan çağrılar 0 maliyetlidir; "0,00 TL" gerçek harcama gibi
- * görünmesin diye bu durumda tutar yerine "Hesaplanmadı" / "en az" yazılır.
+ * Maliyetin dürüst gösterimi (karar 0051, core `costState`). Fiyatlanamayan
+ * çağrılar (oran ya da kur tanımsız, fiyat kuralı olmayan model, kullanım
+ * bilgisi gelmeyen deneme; karar 0082) 0 maliyetle yazılır; "0,00 TL" gerçek
+ * harcama gibi görünmesin diye bu durumda tutar yerine "Hesaplanmadı" / "en
+ * az" yazılır. Tutar her durumda tahminidir, sağlayıcı faturası değildir.
  */
 export function formatCost(summary: CostSummary): { value: string; note: string | null } {
   const state = costState(summary);
-  const unpriced = `${formatCount(summary.unpricedCalls)} çağrı fiyatlanmadı (maliyet oranı tanımsız)`;
+  const unpriced = `${formatCount(summary.unpricedCalls)} çağrı fiyatlanmadı (oran, kur ya da kullanım bilgisi yok)`;
   if (state === "unpriced") return { value: "Hesaplanmadı", note: unpriced };
   if (state === "partial") {
     return { value: `en az ${formatCostMicros(summary.costMicros)}`, note: unpriced };
@@ -155,7 +164,8 @@ export function statusLabel(status: string): string {
   return STATUS_LABELS[status] ?? status;
 }
 
-const ACTION_LABELS: Record<string, string> = {
+/** `Record<AdminAction, …>`: denetime yeni eylem eklenince etiketi derlemede istenir (karar 0082). */
+const ACTION_LABELS: Record<AdminAction, string> = {
   "matching.approve": "Eşleştirme onaylandı",
   "matching.reject": "Eşleştirme reddedildi",
   "lexicon.create": "Sözlük satırı eklendi",
@@ -181,14 +191,44 @@ const ACTION_LABELS: Record<string, string> = {
   "forms.close": "Form kapatıldı",
   "forms.results_view": "Form sonuçları görüntülendi",
   "messages.list_view": "Gelen kutusu görüntülendi",
+  "chat_feedback.list_view": "AI geri bildirimleri görüntülendi",
+  "chat_feedback.view": "AI geri bildirim ayrıntısı görüntülendi",
   "early_access.counter_set": "Erken erişim sayacı güncellendi",
   "security.access_denied": "Yetkisiz yönetim erişimi reddedildi",
   "security.admin_session_ended": "Yönetim oturumu sonlandırıldı",
   "sessions.revoke_all": "Tüm oturumlar kapatıldı",
+  "trends.publish": "Trend yayınlandı",
+  "trends.unpublish": "Trend yayından kaldırıldı",
+  "trends.archive": "Trend arşivlendi",
+  "trends.restore": "Trend arşivden taslağa alındı",
+  "trends.feature": "Trend öne çıkarıldı",
+  "trends.unfeature": "Trend öne çıkarılmaktan çıkarıldı",
+  "trends.reorder": "Trend sırası değişti",
+  "messages.status_change": "Mesaj durumu değişti",
+  "messages.priority_change": "Mesaj önceliği değişti",
 };
 
 export function actionLabel(action: string): string {
-  return ACTION_LABELS[action] ?? action;
+  return (ACTION_LABELS as Record<string, string>)[action] ?? action;
+}
+
+/** Denetim hedef türleri; `Record<AdminTargetType, …>` eksik etiketi derlemede yakalar. */
+export const TARGET_TYPE_LABELS: Record<AdminTargetType, string> = {
+  match_candidate: "Eşleştirme adayı",
+  lexicon: "Sözlük satırı",
+  merchant: "Mağaza",
+  app_user: "Hesap",
+  marketing_campaign: "E-posta kampanyası",
+  form: "Form / anket",
+  feedback: "Gelen kutusu",
+  chat_feedback: "AI geri bildirimi",
+  early_access_counter: "Erken erişim sayacı",
+  capability: "Yetenek",
+  trend: "Trend",
+};
+
+export function targetTypeLabel(targetType: string): string {
+  return (TARGET_TYPE_LABELS as Record<string, string>)[targetType] ?? targetType;
 }
 
 export const ADMIN_ACTIONS = Object.keys(ACTION_LABELS);
@@ -668,4 +708,247 @@ export function formatJobDetail(detail: Record<string, unknown>): string {
 export function toDateTimeLocalValue(date: Date | null): string {
   if (!date) return "";
   return new Date(date.getTime() + 3 * 60 * 60 * 1000).toISOString().slice(0, 16);
+}
+
+/* ---- Karar 0085: analitik merkez etiketleri ---- */
+
+const PERCENT_FORMAT = new Intl.NumberFormat("tr-TR", {
+  style: "percent",
+  maximumFractionDigits: 1,
+});
+
+/** Pay/payda yüzdesi; payda 0 ise "—" (0/0 oran uydurulmaz). */
+export function formatPercent(part: number, whole: number): string {
+  return whole > 0 ? PERCENT_FORMAT.format(part / whole) : "—";
+}
+
+const INTERPRETATION_STATUS_LABELS: Record<string, string> = {
+  accepted: "Kabul edildi",
+  empty: "Niyet bulunamadı",
+  invalid: "Geçersiz çıktı",
+};
+
+export function interpretationStatusLabel(value: string): string {
+  return INTERPRETATION_STATUS_LABELS[value] ?? value;
+}
+
+const CHAT_KIND_LABELS: Record<string, string> = {
+  clarify: "Netleştirme sorusu",
+  search: "Arama yanıtı",
+  notice: "Bilgi / sınır mesajı",
+};
+
+export function chatKindLabel(value: string): string {
+  return CHAT_KIND_LABELS[value] ?? value;
+}
+
+const AFFILIATE_STATUS_LABELS: Record<string, string> = {
+  none: "Yok",
+  pending: "Bekliyor",
+  active: "Etkin",
+  suspended: "Askıda",
+};
+
+export function affiliateStatusLabel(value: string): string {
+  return AFFILIATE_STATUS_LABELS[value] ?? value;
+}
+
+const MATCH_METHOD_LABELS: Record<string, string> = {
+  gtin: "GTIN",
+  mpn: "MPN",
+  text: "Metin",
+  image: "Görsel",
+  hybrid: "Karma",
+};
+
+export function matchMethodLabel(value: string): string {
+  return MATCH_METHOD_LABELS[value] ?? value;
+}
+
+const IMAGE_STATUS_LABELS: Record<string, string> = {
+  active: "Etkin",
+  removed: "Kaynaktan kalktı",
+  broken: "Kırık",
+};
+
+export function imageStatusLabel(value: string): string {
+  return IMAGE_STATUS_LABELS[value] ?? value;
+}
+
+/* ---- Karar 0086: yönetim etiketleri ---- */
+
+const TREND_STATUS_LABELS: Record<string, string> = {
+  draft: "Taslak",
+  published: "Yayında",
+  archived: "Arşiv",
+};
+
+export function trendStatusLabel(value: string): string {
+  return TREND_STATUS_LABELS[value] ?? value;
+}
+
+const TREND_WINDOW_LABELS: Record<string, string> = {
+  none: "Pencere yok",
+  upcoming: "Başlamadı",
+  open: "Açık",
+  ended: "Bitti",
+};
+
+export function trendWindowLabel(value: string): string {
+  return TREND_WINDOW_LABELS[value] ?? value;
+}
+
+const INBOX_STATUS_LABELS: Record<string, string> = {
+  new: "Yeni",
+  reviewing: "İnceleniyor",
+  planned: "Planlandı",
+  resolved: "Çözüldü",
+  rejected: "Reddedildi",
+};
+
+export function inboxStatusLabel(value: string): string {
+  return INBOX_STATUS_LABELS[value] ?? value;
+}
+
+const INBOX_PRIORITY_LABELS: Record<string, string> = {
+  low: "Düşük",
+  medium: "Orta",
+  high: "Yüksek",
+  none: "Atanmamış",
+};
+
+export function inboxPriorityLabel(value: string | null): string {
+  return INBOX_PRIORITY_LABELS[value ?? "none"] ?? value ?? "Atanmamış";
+}
+
+const CONFIG_STATE_LABELS: Record<string, string> = {
+  set: "Tanımlı",
+  default: "Varsayılan",
+  missing: "Tanımsız",
+  invalid: "Geçersiz",
+  unknown: "Bilinmiyor",
+  code: "Kod sabiti",
+};
+
+export function configStateLabel(value: string): string {
+  return CONFIG_STATE_LABELS[value] ?? value;
+}
+
+const CONFIG_GROUP_LABELS: Record<string, string> = {
+  product: "Ürün ve erişim",
+  ai: "AI ve arama",
+  analytics: "Trafik ölçümü (GA4)",
+  email: "E-posta",
+  auth: "Kimlik",
+  infrastructure: "Altyapı",
+  runtime: "Çalışma ortamı",
+};
+
+export function configGroupLabel(value: string): string {
+  return CONFIG_GROUP_LABELS[value] ?? value;
+}
+
+const QUOTA_POOL_LABELS: Record<string, string> = {
+  search_rights: "Arama hakkı (fotoğraf/link)",
+  chat_message: "Sohbet mesajı",
+  realtime_interpretation_user: "Anlık yorum (girişli)",
+  realtime_interpretation_anonymous: "Anlık yorum (anonim)",
+};
+
+export function quotaPoolLabel(value: string): string {
+  return QUOTA_POOL_LABELS[value] ?? value;
+}
+
+/* ---- Karar 0087: trafik (GA4) ---- */
+
+const TRAFFIC_ERROR_LABELS: Record<string, string> = {
+  auth: "GA4 kimlik doğrulaması başarısız (servis hesabı anahtarı geçersiz ya da iptal edilmiş).",
+  identity_unavailable:
+    "Çalışma ortamı kimlik belirteci (OIDC) sağlamadı; Vercel OIDC federasyonu açık mı?",
+  federation_rejected:
+    "Google federe kimliği reddetti (sağlayıcı, audience ya da yalnızca production koşulu).",
+  impersonation_denied:
+    "Federe kimliğin servis hesabını kullanma izni yok (Workload Identity User rolü).",
+  permission:
+    "Servis hesabının bu GA4 mülküne erişimi yok (mülkte Görüntüleyici olarak eklenmeli).",
+  quota: "GA4 Data API kotası doldu; bir süre sonra yeniden denenir.",
+  quota_guard: "GA4 kotası koruma eşiğinin altında; yeni istek atılmadı.",
+  timeout: "GA4 yanıt vermedi (zaman aşımı).",
+  network: "GA4'e bağlanılamadı.",
+  upstream: "GA4 geçici bir sunucu hatası döndürdü.",
+  bad_request: "GA4 isteği reddetti (rapor tanımı ya da mülk kimliği).",
+  invalid_response: "GA4 yanıtı beklenen biçimde değil.",
+};
+
+export function trafficErrorLabel(code: string): string {
+  return TRAFFIC_ERROR_LABELS[code] ?? "GA4 verisi alınamadı.";
+}
+
+const MONTHS_SHORT = [
+  "Oca",
+  "Şub",
+  "Mar",
+  "Nis",
+  "May",
+  "Haz",
+  "Tem",
+  "Ağu",
+  "Eyl",
+  "Eki",
+  "Kas",
+  "Ara",
+];
+
+/** GA4 kova anahtarı → kısa etiket (`20261009` → "9 Eki", `202641` → "41. hafta", `202610` → "Eki 2026"). */
+export function trafficBucketLabel(key: string, granularity: string): string {
+  if (granularity === "gun" && /^\d{8}$/.test(key)) {
+    return `${Number(key.slice(6, 8))} ${MONTHS_SHORT[Number(key.slice(4, 6)) - 1] ?? ""}`;
+  }
+  if (granularity === "hafta" && /^\d{6}$/.test(key)) return `${Number(key.slice(4))}. hafta`;
+  if (granularity === "ay" && /^\d{6}$/.test(key)) {
+    return `${MONTHS_SHORT[Number(key.slice(4, 6)) - 1] ?? ""} ${key.slice(0, 4)}`;
+  }
+  return key;
+}
+
+/** Önceki döneme göre değişim; önceki 0 ise null (sonsuz yüzde gösterilmez). */
+export function trafficDelta(current: number, previous: number): string | null {
+  if (previous <= 0) return null;
+  const change = (current - previous) / previous;
+  const sign = change > 0 ? "+" : change < 0 ? "−" : "±";
+  return `${sign}${new Intl.NumberFormat("tr-TR", { style: "percent", maximumFractionDigits: 1 }).format(Math.abs(change))}`;
+}
+
+const ACQUISITION_CHANNEL_LABELS: Record<string, string> = {
+  Direct: "Doğrudan",
+  "Organic Search": "Organik arama",
+  "Paid Search": "Ücretli arama",
+  "Organic Social": "Organik sosyal",
+  "Paid Social": "Ücretli sosyal",
+  Referral: "Yönlendiren site",
+  Email: "E-posta",
+  Affiliates: "Ortaklık",
+  Display: "Görüntülü reklam",
+  "Organic Video": "Organik video",
+  "Paid Video": "Ücretli video",
+  "Organic Shopping": "Organik alışveriş",
+  "Paid Shopping": "Ücretli alışveriş",
+  "Cross-network": "Ağlar arası",
+  Unassigned: "Atanmamış",
+};
+
+/** GA4 varsayılan kanal grubu → Türkçe (bilinmeyen aynen). */
+export function acquisitionChannelLabel(value: string): string {
+  return ACQUISITION_CHANNEL_LABELS[value] ?? value;
+}
+
+const DEVICE_LABELS: Record<string, string> = {
+  desktop: "Masaüstü",
+  mobile: "Mobil",
+  tablet: "Tablet",
+  "smart tv": "Akıllı TV",
+};
+
+export function deviceLabel(value: string): string {
+  return DEVICE_LABELS[value] ?? value;
 }

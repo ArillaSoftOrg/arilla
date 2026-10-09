@@ -1,5 +1,5 @@
 /**
- * Sohbette ürün linki: saf parçalar (karar 0079). Veritabanı, ağ ve model yok.
+ * Sohbette ürün linki: saf parçalar (karar 0090). Veritabanı, ağ ve model yok.
  *
  * - `extractChatLink`: mesajın herhangi bir yerinden ilk geçerli bağlantıyı çıkarır.
  * - `ChatLinkPayload` / `parseChatLinkPayload`: asistan `notice` mesajının
@@ -123,7 +123,7 @@ export function extractChatLink(text: string): ChatLinkExtraction {
 // Mesaj yükü (payload.link)
 // ---------------------------------------------------------------------------
 
-/** Tercih metni anlaşılamadıysa kullanıcıya söylenen not (karar 0079). */
+/** Tercih metni anlaşılamadıysa kullanıcıya söylenen not (karar 0090). */
 export type ChatLinkNote = "preference_not_understood";
 
 export interface ChatLinkPayload {

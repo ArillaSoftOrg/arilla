@@ -13,7 +13,7 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
 | `home.hero_title_lead` | Alışveriş mi? (başlık aynı alanda "Manicepte." ile dönüşümlü; ~1,6 sn / ~2 sn) |
 | `home.hero_title_accent` | Manicepte. |
-| `home.hero_subline` | Ne aradığını anlat veya görselini yükle. |
+| `home.hero_subline` | Ne aradığını anlat, görselini yükle veya linkini bırak. |
 | `home.search_ideas_title` | Arama fikirleri |
 | `home.trends_title` | Trendler |
 | `home.trends_subtitle` | Arilla'da öne çıkan stiller ve ürün fikirleri. |
@@ -686,7 +686,7 @@ ifadesini göstermez.
 "Aynı ürün" yalnızca barkod ya da marka + üretici kodu eşleşmesinde yazılır;
 görsel benzerlik "aynı" diye etiketlenmez.
 
-## Sohbette link araması (karar 0079)
+## Sohbette link araması (karar 0090)
 
 Kaynak: `apps/web/app/sohbet/chat-copy.ts` (`CHAT_LINK_COPY`) ve çekirdekteki
 `chatLinkFailureCopy`. Bayrak: `CHAT_LINK_ENABLED` (varsayılan kapalı).
@@ -706,6 +706,36 @@ Kaynak: `apps/web/app/sohbet/chat-copy.ts` (`CHAT_LINK_COPY`) ve çekirdekteki
 Kaynak ürünün fiyatı yalnızca sayfanın yapılandırılmış verisinden geliyorsa
 yazılır; fiyatsız kaynakta fiyat gösterilmez. Mağaza bağlantısı yalnızca
 `/git/<offerId>?surface=search` ile verilir.
+
+## Sohbet geri bildirimi (karar 0079)
+
+Hitap "sen". Metinler `apps/web/app/sohbet/chat-copy.ts`. Neden kodları kodda
+İngilizce, metinleri Türkçedir.
+
+| Anahtar | Metin |
+| --- | --- |
+| `chat.feedback_question` | Bu yardımcı oldu mu? |
+| `chat.feedback_yes` | Evet, yardımcı oldu |
+| `chat.feedback_no` | Hayır, yardımcı olmadı |
+| `chat.feedback_thanks` | Teşekkürler, not aldım. |
+| `chat.feedback_failed` | Kaydedemedim, tekrar dener misin? |
+| `chat.feedback_rate_limited` | Çok sık oy verdin. Biraz sonra tekrar dener misin? |
+| `chat.feedback_dialog_title` | Bu yanıtı nasıl iyileştirebiliriz? |
+| `chat.feedback_reason_label` | Sorun nedeni |
+| `chat.feedback_reason_placeholder` | Bir neden seç (isteğe bağlı) |
+| `chat.feedback_reason.not_found` | Aradığım ürünleri bulamadı |
+| `chat.feedback_reason.irrelevant` | Alakasız ürünler önerdi |
+| `chat.feedback_reason.misunderstood` | İsteğimi yanlış anladı |
+| `chat.feedback_reason.wrong_info` | Yanlış bilgi verdi |
+| `chat.feedback_reason.wrong_price_or_product` | Fiyat veya ürün bilgisi hatalı |
+| `chat.feedback_reason.slow` | Yanıt çok yavaştı |
+| `chat.feedback_reason.other` | Diğer |
+| `chat.feedback_comment_label` | Ayrıntı ekle (isteğe bağlı) |
+| `chat.feedback_comment_placeholder` | Ne yanlıştı ya da ne eksikti? |
+| `chat.feedback_comment_hint` | Kişisel bilgi yazma. En fazla 500 karakter. |
+| `chat.feedback_cancel` | İptal |
+| `chat.feedback_submit` | Gönder |
+| `chat.feedback_submitting` | Gönderiliyor |
 
 ## Geri bildirim (karar 0045)
 

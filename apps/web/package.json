@@ -16,6 +16,7 @@
     "@arilla/core": "workspace:*",
     "@arilla/db": "workspace:*",
     "@arilla/ui": "workspace:*",
+    "@vercel/oidc": "3.8.9",
     "next": "^16.0.10",
     "react": "^19.2.0",
     "react-dom": "^19.2.0"

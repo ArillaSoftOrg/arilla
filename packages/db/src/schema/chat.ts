@@ -1,4 +1,5 @@
 /** 0054_conversation.sql karsiligi (docs/decisions/0074). */
+import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
@@ -56,6 +57,12 @@ export const chatResultFeedback = pgTable("chat_result_feedback", {
   messageId: bigint("message_id", { mode: "number" }).primaryKey(),
   conversationId: uuid("conversation_id").notNull(),
   helpful: boolean("helpful").notNull(),
+  /** 0058 (karar 0079): izinli neden kodlari; yalniz olumsuz oyda dolu. */
+  reasons: text("reasons").array().notNull().default(sql`'{}'`),
+  /** 0058: istege bagli serbest metin (<=500); 90 gun sonra NULL'lanir. */
+  comment: text("comment"),
+  /** 0058: oy anindaki yaklasik model surumu (api_usage'dan, FK yok). */
+  modelVersion: text("model_version"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });

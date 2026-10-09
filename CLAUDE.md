@@ -48,7 +48,7 @@ tamamı anlamını yitirir.
      işlenmiş (≤512 px, EXIF'siz) görsel, aynı tek Gemini çağrısına çok kipli
      girdi olarak eklenir; yalnızca `CHAT_IMAGE_ENABLED=true` ile (varsayılan
      kapalı). Model yine yalnızca niyet çıkarır; görselden ürün/fiyat üretmez.
-   - Sohbette ürün linki tercihi (karar 0079): `/sohbet` mesajındaki link
+   - Sohbette ürün linki tercihi (karar 0090): `/sohbet` mesajındaki link
      modele ASLA gitmez; link modelsiz, mevcut link kuyruğuyla çözülür. Yalnızca
      `CHAT_LINK_ENABLED` ve `CHAT_LINK_INTERPRET_ENABLED` açıkken, deterministik
      ayrıştırmanın çözemediği "daha spor" gibi tercih metni için, URL'si ayıklanmış
@@ -134,6 +134,13 @@ gömülmez.
 Font IBM Plex Sans, **depodan servis edilir**. Google Fonts veya başka bir
 üçüncü taraf CDN'inden font, ikon veya betik çekilmez — kullanıcı IP'sini yurt
 dışına aktarır. Bkz. `docs/decisions/0009-font.md`.
+
+**Tek istisna — GA4 ölçüm betiği (karar 0087):** yalnızca `GA4_MEASUREMENT_ID`
+tanımlıysa ve ziyaretçi **analitik çerez rızası** verdiyse `ConsentGate`
+arkasında yüklenir; rıza geri alınınca anında durur. Yalnızca arındırılmış
+sayfa yolu ile `page_view` gönderilir; arama metni, sorgu parametresi, token,
+kimlik ve yönetim sayfaları gönderilmez. Başka hiçbir üçüncü taraf betik bu
+istisnadan yararlanamaz.
 
 ## Dil ve içerik
 

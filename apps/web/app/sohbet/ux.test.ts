@@ -1,4 +1,4 @@
-import type { SearchIntent } from "@arilla/core";
+import { CHAT_FEEDBACK_COMMENT_MAX, CHAT_FEEDBACK_REASONS, type SearchIntent } from "@arilla/core";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -7,6 +7,7 @@ import { ResultFeedback } from "./chat-feedback-client.tsx";
 import { fullResultsHref } from "./chat-results.tsx";
 import { araSortParam, parseSortKey, sortModeFor } from "./chat-sort.ts";
 import { ResultTabs } from "./chat-tabs.tsx";
+import { FEEDBACK_COMMENT_MAX, FEEDBACK_REASON_CODES, FeedbackDialog } from "./feedback-dialog.tsx";
 
 vi.mock("./actions.ts", () => ({ submitResultFeedbackAction: vi.fn() }));
 
@@ -87,5 +88,64 @@ describe("ResultFeedback", () => {
     expect(out).toContain(`aria-label="${CHAT_COPY.feedbackNo}"`);
     expect(out).toMatch(/aria-pressed="true"[^>]*aria-label="Evet/);
     expect(out).toContain(CHAT_COPY.feedbackThanks);
+  });
+});
+
+describe("FeedbackDialog (karar 0079)", () => {
+  const markup = renderToStaticMarkup(
+    createElement(FeedbackDialog, {
+      open: false,
+      pending: false,
+      error: null,
+      onCancel: () => {},
+      onSubmit: () => {},
+    }),
+  );
+
+  it("is a labelled native dialog with a reason select, an optional comment and two buttons", () => {
+    expect(markup).toMatch(/<dialog[^>]*aria-labelledby=/);
+    expect(markup).toContain(CHAT_COPY.feedbackDialogTitle);
+    expect(markup).toContain(CHAT_COPY.feedbackReasonPlaceholder);
+    expect(markup).toContain(CHAT_COPY.feedbackCancel);
+    expect(markup).toContain(CHAT_COPY.feedbackSubmit);
+    expect(markup).toContain(`maxLength="${FEEDBACK_COMMENT_MAX}"`);
+    expect(markup).not.toContain("required");
+  });
+
+  it("offers exactly the reason codes the server accepts, with Turkish labels", () => {
+    expect([...FEEDBACK_REASON_CODES]).toEqual([...CHAT_FEEDBACK_REASONS]);
+    expect(FEEDBACK_COMMENT_MAX).toBe(CHAT_FEEDBACK_COMMENT_MAX);
+    for (const code of FEEDBACK_REASON_CODES) {
+      expect(markup).toContain(`value="${code}"`);
+      expect(markup).toContain(CHAT_COPY.feedbackReasons[code]);
+    }
+  });
+
+  it("shows a role=alert error only when given and disables controls while pending", () => {
+    const failed = renderToStaticMarkup(
+      createElement(FeedbackDialog, {
+        open: true,
+        pending: true,
+        error: CHAT_COPY.feedbackFailed,
+        onCancel: () => {},
+        onSubmit: () => {},
+      }),
+    );
+    expect(failed).toContain('role="alert"');
+    expect(failed).toContain(CHAT_COPY.feedbackSubmitting);
+    expect(markup).not.toContain('role="alert"');
+  });
+
+  it("copy has no ALL CAPS words or banned terms", () => {
+    const texts = [
+      CHAT_COPY.feedbackDialogTitle,
+      CHAT_COPY.feedbackRateLimited,
+      CHAT_COPY.feedbackCommentHint,
+      ...Object.values(CHAT_COPY.feedbackReasons),
+    ];
+    for (const text of texts) {
+      expect(text).not.toMatch(/\b[A-ZÇĞİÖŞÜ]{4,}\b/);
+      expect(text.toLowerCase()).not.toMatch(/satın al|dupe|ucuz/);
+    }
   });
 });

@@ -21,8 +21,15 @@ import {
   conversation,
   type Database,
 } from "@arilla/db";
-import { and, asc, eq, isNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
 import type { LlmErrorCode } from "../llm/client.ts";
+import { llmCallCostMicros } from "../llm/pricing.ts";
+import {
+  type ProviderBudgetHooks,
+  type ProviderBudgetReservation,
+  reserveProviderBudget,
+  settleProviderBudget,
+} from "../quota/provider-budget.ts";
 import {
   consumeQuota,
   type QuotaConsumer,
@@ -33,6 +40,7 @@ import { isRedisUnavailableError } from "../redis/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
 import {
+  CHAT_CLIENT_OPTIONS,
   CHAT_DAILY_CALL_CAP,
   CHAT_LEASE_SECONDS,
   CHAT_RETENTION_DAYS,
@@ -50,6 +58,7 @@ import {
   parseClarifyQuestion,
   type SearchIntent,
 } from "./contract.ts";
+import { validateChatFeedback } from "./feedback.ts";
 import { mergeSearchIntent, parseStoredIntent } from "./intent.ts";
 import {
   CHAT_CONTEXT_MESSAGES,
@@ -107,7 +116,7 @@ export type ChatMessageView =
       source: "model" | "fallback" | null;
       /** 0055: sonuc blogune verilen oy; `null` = oy yok. */
       helpful: boolean | null;
-      /** Karar 0079: link mesajinin yuku (`payload.link`); yalnizca link `notice`larinda. */
+      /** Karar 0090: link mesajinin yuku (`payload.link`); yalnizca link `notice`larinda. */
       link?: ChatLinkPayload;
     };
 
@@ -711,6 +720,42 @@ export interface ProcessTurnInput {
   conversationId: string;
   interpreter: ChatInterpreter;
   leaseSeconds?: number;
+  /** Testler icin; varsayilan atomik Redis saglayici butcesi. */
+  budget?: ProviderBudgetHooks;
+}
+
+interface ChatProviderBudget {
+  modelAllowed: boolean;
+  /** Redis ayirmasi; yedek DB sayiminda `null` (kesinlestirilecek bir sey yok). */
+  reservation: ProviderBudgetReservation | null;
+}
+
+/**
+ * Gunluk saglayici tavani (`CHAT_DAILY_CALL_CAP`, tum kullanicilar): bir turun
+ * en fazla deneme sayisi kadar (`CHAT_CLIENT_OPTIONS.maxAttempts`) Redis'te
+ * atomik ayrilir; model cagrisindan sonra gercek deneme sayisina cekilir.
+ * Redis erisilemezse eski davranis: `api_usage` gunluk sayimi (sinirli,
+ * esanlilikta az tasabilir); sohbet kesilmez, tavan dolunca yedek cevap.
+ */
+async function chatProviderBudget(
+  db: Database,
+  hooks: ProviderBudgetHooks | undefined,
+): Promise<ChatProviderBudget> {
+  try {
+    const budget = await (hooks?.reserve ?? reserveProviderBudget)({
+      operation: CHAT_TURN_OPERATION,
+      amount: CHAT_CLIENT_OPTIONS.maxAttempts,
+      cap: CHAT_DAILY_CALL_CAP,
+    });
+    return budget.allowed
+      ? { modelAllowed: true, reservation: budget.reservation }
+      : { modelAllowed: false, reservation: null };
+  } catch (error) {
+    if (!isRedisUnavailableError(error)) throw error;
+    console.error("[chat] provider budget store unavailable; daily db count applies");
+    const callsToday = await providerCallsToday(db, new Date(), CHAT_TURN_OPERATION);
+    return { modelAllowed: callsToday < CHAT_DAILY_CALL_CAP, reservation: null };
+  }
 }
 
 /** Yazilan cevabin istemcide hemen gosterilebilen on izlemesi (kalici kayit sunucudadir). */
@@ -778,16 +823,31 @@ async function runPendingTurn(
     return exists ? { status: "busy" } : { status: "not_found" };
   }
 
+  // Saglayici butcesi: ayrildiysa tur bitmeden MUTLAKA gercek deneme sayisina
+  // cekilir (model hic cagrilmadiysa 0 = tam iade). `null` = bilinmiyor
+  // (beklenmeyen hata): ayirma oldugu gibi kalir, eksik sayilmaz.
+  let budget: ChatProviderBudget | null = null;
+  let attempts: number | null = 0;
+  let settled = false;
+  const settleBudget = async () => {
+    if (settled || !budget?.reservation || attempts === null) return;
+    settled = true;
+    await (input.budget?.settle ?? settleProviderBudget)(budget.reservation, attempts).catch(() =>
+      console.error("[chat] provider budget settle failed"),
+    );
+  };
+
   try {
     // Birbirine bagimli degil, tek tur: mesajlar, gunluk tavan, sozluk isitma (aramadan once).
-    const [rows, callsToday] = await Promise.all([
+    const [rows, providerBudget] = await Promise.all([
       timer.time("load_context", () => loadMessageRows(db, claimed.id)),
-      timer.time("provider_limit", () => providerCallsToday(db, new Date(), CHAT_TURN_OPERATION)),
+      timer.time("provider_limit", () => chatProviderBudget(db, input.budget)),
       timer.time("lexicon", () => loadLexiconCached(db)).catch(() => undefined),
     ]);
+    budget = providerBudget;
     const view = buildView(claimed, rows);
 
-    // Karar 0079: bayrak aciksa baglanti iceren mesaj (ya da bir link referansinin
+    // Karar 0090: bayrak aciksa baglanti iceren mesaj (ya da bir link referansinin
     // takibi) modele GITMEDEN burada cevaplanir; bayrak kapaliyken bu blok yoktur.
     if (isChatLinkEnabled()) {
       const lastMessage = view.messages.at(-1);
@@ -805,7 +865,7 @@ async function runPendingTurn(
                 : { link: message.kind === "notice" ? (message.link ?? null) : null }),
             })),
             lastSeq: lastMessage.seq,
-            callsToday,
+            modelAllowed: providerBudget.modelAllowed,
             interpreter: input.interpreter,
           }),
         );
@@ -822,10 +882,13 @@ async function runPendingTurn(
     const request: InterpretRequest = maybeRequest;
     const lastSeq = view.messages.at(-1)?.seq ?? 0;
     // Kilit/islem YOK: kira yalnizca bir satir isaretidir; model cagrisi DB'yi tutmaz.
-    const modelAllowed = callsToday < CHAT_DAILY_CALL_CAP;
+    const modelAllowed = providerBudget.modelAllowed;
+    attempts = null;
     const outcome = await timer.time("gemini", () =>
       interpretTurn(input.interpreter, request, { modelAllowed }),
     );
+    attempts = outcome.calls.length;
+    await settleBudget();
 
     return await persistTurn();
 
@@ -905,7 +968,8 @@ async function runPendingTurn(
                 operation: CHAT_TURN_OPERATION,
                 modelVersion: call.modelVersion,
                 units: call.usage?.totalTokens ?? 0,
-                costMicros: 0,
+                // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
+                costMicros: llmCallCostMicros(call),
                 cacheHit: false,
               })),
             );
@@ -998,6 +1062,8 @@ async function runPendingTurn(
       // Kira zaten sure dolunca duser.
     }
     return { status: "provider_error", code: "unknown" };
+  } finally {
+    await settleBudget();
   }
 }
 
@@ -1116,21 +1182,45 @@ function isMissingTable(error: unknown): boolean {
   return code === "42P01";
 }
 
-export type ResultFeedbackStatus = "saved" | "not_found" | "invalid";
+export type ResultFeedbackStatus = "saved" | "not_found" | "invalid" | "unavailable";
+
+/** Oy anindaki model surumu icin aranan pencere (api_usage mesaja bagli degil; yaklasik). */
+const FEEDBACK_MODEL_LOOKBACK_MS = 10 * 60 * 1000;
+
+function isMissingColumn(error: unknown): boolean {
+  const code =
+    (error as { cause?: { code?: string } } | null)?.cause?.code ??
+    (error as { code?: string } | null)?.code;
+  return code === "42703";
+}
 
 /**
- * "Bu yardimci oldu mu?" oyu. Sahiplik sorguda: yalnizca kullanicinin kendi
- * sohbetindeki bir ARAMA mesajina oy verilebilir. Mesaj basina tek oy, degistirilebilir.
+ * "Bu yardimci oldu mu?" oyu (karar 0075, 0079). Sahiplik sorguda: yalnizca kullanicinin
+ * kendi sohbetindeki bir ARAMA mesajina oy verilebilir. Mesaj basina tek oy, degistirilebilir;
+ * ayni icerikle tekrar `updated_at`i oynatmaz. Olumsuz oy istege bagli neden/yorum tasir.
  */
 export async function setResultFeedback(
   db: Database,
-  input: { userId: number; conversationId: string; messageSeq: number; helpful: boolean },
+  input: {
+    userId: number;
+    conversationId: string;
+    messageSeq: number;
+    helpful: boolean;
+    reasons?: readonly string[];
+    comment?: string | null;
+  },
 ): Promise<ResultFeedbackStatus> {
   if (!isUuid(input.conversationId)) return "not_found";
   if (!Number.isInteger(input.messageSeq) || input.messageSeq < 1) return "invalid";
-  if (typeof input.helpful !== "boolean") return "invalid";
+  const details = validateChatFeedback(input);
+  if (!details.ok) return "invalid";
   const [message] = await db
-    .select({ id: chatMessage.id, role: chatMessage.role, kind: chatMessage.kind })
+    .select({
+      id: chatMessage.id,
+      role: chatMessage.role,
+      kind: chatMessage.kind,
+      createdAt: chatMessage.createdAt,
+    })
     .from(chatMessage)
     .innerJoin(conversation, eq(conversation.id, chatMessage.conversationId))
     .where(
@@ -1143,17 +1233,57 @@ export async function setResultFeedback(
   if (!message) return "not_found";
   if (message.role !== "assistant" || message.kind !== "search") return "invalid";
   try {
-    await db
-      .insert(chatResultFeedback)
-      .values({
-        messageId: message.id,
-        conversationId: input.conversationId,
-        helpful: input.helpful,
-      })
-      .onConflictDoUpdate({
-        target: chatResultFeedback.messageId,
-        set: { helpful: input.helpful, updatedAt: sql`now()` },
-      });
+    try {
+      const [usage] = await db
+        .select({ modelVersion: apiUsage.modelVersion })
+        .from(apiUsage)
+        .where(
+          and(
+            eq(apiUsage.operation, CHAT_TURN_OPERATION),
+            eq(apiUsage.userId, input.userId),
+            lte(apiUsage.createdAt, message.createdAt),
+            gte(
+              apiUsage.createdAt,
+              new Date(message.createdAt.getTime() - FEEDBACK_MODEL_LOOKBACK_MS),
+            ),
+          ),
+        )
+        .orderBy(desc(apiUsage.createdAt))
+        .limit(1);
+      await db
+        .insert(chatResultFeedback)
+        .values({
+          messageId: message.id,
+          conversationId: input.conversationId,
+          helpful: input.helpful,
+          reasons: details.reasons,
+          comment: details.comment,
+          modelVersion: usage?.modelVersion ?? null,
+        })
+        .onConflictDoUpdate({
+          target: chatResultFeedback.messageId,
+          set: {
+            helpful: input.helpful,
+            reasons: details.reasons,
+            comment: details.comment,
+            updatedAt: sql`now()`,
+          },
+          // Ayni icerikle tekrar: satir degismez (idempotent).
+          setWhere: sql`${chatResultFeedback.helpful} IS DISTINCT FROM ${input.helpful}
+            OR ${chatResultFeedback.reasons} IS DISTINCT FROM ${sql.raw("EXCLUDED.reasons")}
+            OR ${chatResultFeedback.comment} IS DISTINCT FROM ${sql.raw("EXCLUDED.comment")}`,
+        });
+    } catch (error) {
+      // 0058 henuz uygulanmamis: yalniz evet/hayir yazilabilir. Neden/yorum varsa "saved"
+      // DONME (kullanici yorumunun kaydoldugunu sanirdi): "unavailable", modal acik kalir.
+      if (!isMissingColumn(error)) throw error;
+      if (details.reasons.length > 0 || details.comment !== null) return "unavailable";
+      // Ham SQL: Drizzle insert'i semadaki TUM kolonlari adlandirir, 0058 oncesi yine 42703 verirdi.
+      await db.execute(sql`
+        INSERT INTO chat_result_feedback (message_id, conversation_id, helpful)
+        VALUES (${message.id}, ${input.conversationId}::uuid, ${input.helpful})
+        ON CONFLICT (message_id) DO UPDATE SET helpful = EXCLUDED.helpful, updated_at = now()`);
+    }
   } catch (error) {
     // Tablo yok (0055 bekliyor): oy kaydedilemedi, arayuz "kaydedemedim" der.
     if (isMissingTable(error)) return "invalid";

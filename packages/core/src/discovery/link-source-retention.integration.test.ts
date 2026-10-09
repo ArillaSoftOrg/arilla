@@ -1,5 +1,5 @@
 /**
- * Link kaynağı görsel izi saklaması (karar 0079) — gerçek Postgres. Python
+ * Link kaynağı görsel izi saklaması (karar 0090) — gerçek Postgres. Python
  * worker'ın yazdığı satır biçimi doğrudan SQL ile kurulur (ağ/model yok).
  */
 import { randomUUID } from "node:crypto";

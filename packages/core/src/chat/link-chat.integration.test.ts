@@ -1,5 +1,5 @@
 /**
- * Sohbette ürün linki (karar 0079) — gerçek Postgres + Redis. Worker SAHTEDİR:
+ * Sohbette ürün linki (karar 0090) — gerçek Postgres + Redis. Worker SAHTEDİR:
  * `link_resolution_request` satırı doğrudan güncellenir. Model sahte sayaçlı
  * istemcidir; ağ yok. Her senaryo kendi kullanıcısını açar (oran sınırı
  * kullanıcı başınadır).
@@ -827,7 +827,7 @@ describe("Faz 5: model yalnızca tanınmayan tercih için", () => {
       userId: user,
       conversationId,
       lastSeq: 1,
-      callsToday: 3000,
+      modelAllowed: false,
       interpreter,
       messages: [
         { role: "user", kind: "text", content: `${freshUrl()} ${BLACK} ofiste giyebileceğim` },

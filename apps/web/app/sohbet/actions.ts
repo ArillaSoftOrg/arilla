@@ -4,6 +4,7 @@ import {
   type AssistantPreview,
   type ChatInputRequest,
   canAccessProduct,
+  consumeChatFeedbackQuota,
   createChatTimer,
   createConversation,
   getChatInterpreter,
@@ -13,6 +14,7 @@ import {
   isChatDiscoveryEnabled,
   isChatImageEnabled,
   isChatLinkEnabled,
+  isRedisUnavailableError,
   isUuid,
   isValidRequestKey,
   loadConversation,
@@ -305,12 +307,17 @@ export async function startChatBootstrapAction(text: unknown): Promise<NewTabCha
   return { status: "created", href: `/sohbet/${conversationId}` };
 }
 
-/** "Bu yardimci oldu mu?" oyu (karar 0075). Metin tasimaz, analitik olayi uretmez. */
+/**
+ * "Bu yardimci oldu mu?" oyu (karar 0075, 0079). Olumsuz oy yalnizca Gonder ile gelir;
+ * neden/yorum istege baglidir. Sahiplik ve dogrulama cekirdekte; burada oturum + oran siniri.
+ * Analitik olayi uretmez.
+ */
 export async function submitResultFeedbackAction(
   conversationId: string,
   messageSeq: number,
   helpful: boolean,
-): Promise<{ status: "saved" | "not_found" | "invalid" | "unavailable" }> {
+  details?: { reasons?: string[]; comment?: string },
+): Promise<{ status: "saved" | "not_found" | "invalid" | "unavailable" | "rate_limited" }> {
   const user = await verifySession();
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { status: "unavailable" };
@@ -318,12 +325,21 @@ export async function submitResultFeedbackAction(
   if (typeof conversationId !== "string" || typeof helpful !== "boolean") {
     return { status: "invalid" };
   }
+  try {
+    if (!(await consumeChatFeedbackQuota(user.id))) return { status: "rate_limited" };
+  } catch (error) {
+    // Redis yok: yazma yolu fail-closed (sohbet etkilenmez).
+    if (isRedisUnavailableError(error)) return { status: "unavailable" };
+    throw error;
+  }
   return {
     status: await setResultFeedback(getDatabase(), {
       userId: user.id,
       conversationId,
       messageSeq: Number(messageSeq),
       helpful,
+      reasons: details?.reasons,
+      comment: details?.comment,
     }),
   };
 }
@@ -331,7 +347,7 @@ export async function submitResultFeedbackAction(
 export type ChatLinkPollState = "pending" | "done" | "unavailable";
 
 /**
- * Link incelemesi bitti mi? (karar 0079). Istemci yalnizca sohbet kimligi ve mesaj
+ * Link incelemesi bitti mi? (karar 0090). Istemci yalnizca sohbet kimligi ve mesaj
  * sirasini gonderir; `requestId` sahibin kendi mesajindan okunur (baskasinin
  * istegi sorgulanamaz). Durum okuma cekirdekte (`getChatLinkView`: hak uzlasmasi
  * dahil). Sonucu sunucu bileseni cizer; burada yalnizca sabit durum kodu doner.

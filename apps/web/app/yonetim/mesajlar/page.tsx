@@ -1,4 +1,14 @@
-import { isInboxCategory, isInboxKind, listInboxMessages } from "@arilla/core";
+import {
+  allowedInboxTransitions,
+  hasCapability,
+  INBOX_PRIORITIES,
+  INBOX_STATUSES,
+  isInboxCategory,
+  isInboxKind,
+  isInboxPriority,
+  isInboxStatus,
+  listInboxMessages,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState } from "@arilla/ui";
 import Link from "next/link";
@@ -6,12 +16,22 @@ import { FEEDBACK_CATEGORY_LABELS } from "../../geri-bildirim/feedback-copy.ts";
 import { CONTACT_CATEGORY_LABELS } from "../../iletisim/contact-copy.ts";
 import { requireCapability } from "../../lib/dal.ts";
 import styles from "../admin.module.css";
-import { formatDateTime, hrefWith, positiveInt } from "../format.ts";
+import { StatusBadge } from "../admin-ui.tsx";
+import {
+  formatDateTime,
+  hrefWith,
+  inboxPriorityLabel,
+  inboxStatusLabel,
+  positiveInt,
+} from "../format.ts";
 import inbox from "./page.module.css";
+import { InboxTriageClient } from "./triage-client.tsx";
 
 interface MesajlarSearchParams {
   tur?: string;
   konu?: string;
+  durum?: string;
+  oncelik?: string;
   once?: string;
 }
 
@@ -50,15 +70,25 @@ export default async function InboxPage({
 }: {
   searchParams: Promise<MesajlarSearchParams>;
 }) {
-  const { actor } = await requireCapability("messages.read");
+  const { user, actor } = await requireCapability("messages.read");
+  const canTriage = hasCapability(user.role, "messages.triage");
   const params = await searchParams;
   const kind = isInboxKind(params.tur) ? params.tur : undefined;
   const category = isInboxCategory(params.konu) ? params.konu : undefined;
+  const status = isInboxStatus(params.durum) ? params.durum : undefined;
+  const priority =
+    params.oncelik === "none" || isInboxPriority(params.oncelik) ? params.oncelik : undefined;
   const beforeId = positiveInt(params.once);
 
-  const page = await listInboxMessages(getDatabase(), actor, { kind, category, beforeId });
-  const base = { tur: kind, konu: category };
-  const filtered = Boolean(kind || category || beforeId);
+  const page = await listInboxMessages(getDatabase(), actor, {
+    kind,
+    category,
+    status,
+    priority,
+    beforeId,
+  });
+  const base = { tur: kind, konu: category, durum: status, oncelik: priority };
+  const filtered = Boolean(kind || category || status || priority || beforeId);
 
   return (
     <div className={styles.page}>
@@ -93,6 +123,29 @@ export default async function InboxPage({
             ))}
           </select>
         </label>
+        <label className={styles.pageHeader}>
+          <span className={styles.meta}>Durum</span>
+          <select name="durum" defaultValue={status ?? ""}>
+            <option value="">Tümü</option>
+            {INBOX_STATUSES.map((value) => (
+              <option key={value} value={value}>
+                {inboxStatusLabel(value)}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label className={styles.pageHeader}>
+          <span className={styles.meta}>Öncelik</span>
+          <select name="oncelik" defaultValue={priority ?? ""}>
+            <option value="">Tümü</option>
+            <option value="none">{inboxPriorityLabel(null)}</option>
+            {INBOX_PRIORITIES.map((value) => (
+              <option key={value} value={value}>
+                {inboxPriorityLabel(value)}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="submit">Filtrele</button>
         {filtered ? <Link href="/yonetim/mesajlar">Temizle</Link> : null}
       </form>
@@ -107,6 +160,22 @@ export default async function InboxPage({
                 <h2 className={inbox.subject}>{row.subject}</h2>
                 <p className={styles.meta}>
                   {`${KIND_LABELS[row.kind] ?? row.kind} · ${categoryLabel(row.category)} · ${formatDateTime(row.createdAt)} · #${row.id}`}
+                </p>
+                <p className={styles.row}>
+                  <StatusBadge
+                    tone={
+                      row.status === "new"
+                        ? "info"
+                        : row.status === "resolved"
+                          ? "success"
+                          : "neutral"
+                    }
+                  >
+                    {inboxStatusLabel(row.status)}
+                  </StatusBadge>
+                  <StatusBadge tone={row.priority === "high" ? "warning" : "neutral"}>
+                    {`Öncelik: ${inboxPriorityLabel(row.priority)}`}
+                  </StatusBadge>
                 </p>
               </header>
               <dl className={inbox.sender}>
@@ -130,6 +199,14 @@ export default async function InboxPage({
                 </dd>
               </dl>
               <p className={inbox.body}>{row.message}</p>
+              {canTriage ? (
+                <InboxTriageClient
+                  messageId={row.id}
+                  status={row.status}
+                  priority={row.priority}
+                  transitions={allowedInboxTransitions(row.status)}
+                />
+              ) : null}
             </li>
           ))}
         </ol>
