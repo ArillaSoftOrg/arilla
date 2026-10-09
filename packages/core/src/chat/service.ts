@@ -57,12 +57,12 @@ import {
   parseClarifyQuestion,
   type SearchIntent,
 } from "./contract.ts";
+import { validateChatFeedback } from "./feedback.ts";
 import {
   CHAT_ATTACHMENTS_PER_CONVERSATION,
   decideContextImage,
   type ImageContextDecision,
 } from "./image-context.ts";
-import { validateChatFeedback } from "./feedback.ts";
 import { mergeSearchIntent, parseStoredIntent } from "./intent.ts";
 import {
   CHAT_CONTEXT_MESSAGES,
