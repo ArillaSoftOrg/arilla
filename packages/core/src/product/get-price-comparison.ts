@@ -104,6 +104,7 @@ export async function getProductPriceComparison(
     SELECT o.id AS offer_id, o.title_raw, ov.id AS variant_id, ov.size_label, ov.size_norm,
            ov.in_stock, ov.price_override
       FROM offer o
+      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
       LEFT JOIN offer_variant ov ON ov.offer_id = o.id
      WHERE o.product_id = ${productId} AND o.is_active AND o.current_price IS NOT NULL
      ORDER BY o.id, ov.id
@@ -134,7 +135,7 @@ async function loadBatch(db: Database, productIds: readonly number[]) {
            o.in_stock AS offer_in_stock, o.title_raw,
            ov.id AS variant_id, ov.size_label, ov.size_norm, ov.in_stock, ov.price_override
       FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id
+      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
       LEFT JOIN offer_variant ov ON ov.offer_id = o.id
      WHERE o.product_id = ANY(${sql.param([...productIds])}::bigint[])
        AND o.is_active AND o.current_price IS NOT NULL
