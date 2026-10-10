@@ -183,6 +183,64 @@ const REMOVE_PRICE_RE =
   /(?:fiyat|b[uü]t[cç]e)\p{L}*\s+(?:s[ıi]n[ıi]r\p{L}*\s+)?(?:kald[ıi]r|sil|iptal)/u;
 const URL_IN_INPUT_RE = /https?:\/\/|\bwww\./i;
 
+const BUDGET_QUESTION_RE = /b[uü]t[cç]e|fiyat|price|budget/iu;
+/** "3000 tl", "3000 lira", "₺3000": tutar isaretiyle bitisik sayi. */
+const PRICE_UNIT_RE = /(\d[\d.]*)\s*(?:tl|₺|try|lira)(?![\p{L}\d])/gu;
+const PRICE_UNIT_BEFORE_RE = /(?:₺|\btl|\btry)\s*(\d[\d.]*)/gu;
+/** "bütçem 3000", "en fazla 4500", "fiyatı 2.500": tutar sozcugunden hemen sonra gelen sayi. */
+const PRICE_WORD_BEFORE_RE =
+  /(?:b[uü]t[cç]e\p{L}*|fiyat\p{L}*|en\s+fazla|en\s+az|maksimum|minimum|\bmax|\bmin)\s*:?\s*(\d[\d.]*)/gu;
+/** "5 bin" -> 5000. */
+const THOUSAND_RE = /(\d[\d.]*)\s*bin(?![\p{L}\d])/gu;
+
+function parsePlainNumber(raw: string): number | null {
+  const value = Number.parseInt(raw.replace(/\./g, ""), 10);
+  return Number.isFinite(value) ? value : null;
+}
+
+/**
+ * Kullanici metninde BUTCE olarak temellenmis tutarlar (TL).
+ *
+ * Eskiden metinde herhangi bir yerde gecen sayi temel sayiliyordu: "iPhone 15" icin
+ * modelin dondurdugu `priceMax: 15` ya da "S23" icin 23 kabul edilirdi. Bir sayi
+ * yalnizca (a) acik fiyat kalibinda, (b) tutar isareti/sozcugune bitisik ya da
+ * (c) butce sorusuna verilen cevapta gecerse temeldir.
+ */
+function groundedPriceNumbers(request: InterpretRequest): Set<number> {
+  const out = new Set<number>();
+  const add = (value: number | null, multiplier = 1) => {
+    if (value !== null && value > 0) out.add(value * multiplier);
+  };
+  for (const message of request.messages) {
+    if (message.role !== "user") continue;
+    const text = normalizeQueryText(message.text);
+    for (const match of extractPricePatterns(text)) {
+      if (match.priceMin !== undefined) add(Math.round(match.priceMin / 100));
+      if (match.priceMax !== undefined) add(Math.round(match.priceMax / 100));
+    }
+    for (const re of [PRICE_UNIT_RE, PRICE_UNIT_BEFORE_RE, PRICE_WORD_BEFORE_RE]) {
+      for (const match of text.matchAll(re)) add(parsePlainNumber(match[1] ?? ""));
+    }
+    for (const match of text.matchAll(THOUSAND_RE)) add(parsePlainNumber(match[1] ?? ""), 1000);
+  }
+  // Butce sorusunun cevabi: yalnizca o sorunun acik oldugu turda, cevaptaki sayilar.
+  const { pendingQuestion, input } = request;
+  if (
+    pendingQuestion &&
+    BUDGET_QUESTION_RE.test(`${pendingQuestion.id} ${pendingQuestion.title}`)
+  ) {
+    const answer =
+      input.kind === "text"
+        ? input.text
+        : input.kind === "option"
+          ? `${input.value} ${input.label}`
+          : "";
+    for (const raw of normalizeQueryText(answer).match(/\d[\d.]*/g) ?? [])
+      add(parsePlainNumber(raw));
+  }
+  return out;
+}
+
 /**
  * Modelin dondurdugu yamayi kullanici metniyle sinar (oncelik: kullanicinin acik
  * girdisi > deterministik kural > model). Metinde olmayan fiyat modelin uydurmasidir
@@ -194,18 +252,10 @@ export function groundPatch(
   request: InterpretRequest,
 ): SearchIntentPatch {
   const out: SearchIntentPatch = { ...patch, remove: [...patch.remove] };
-  const userText = request.messages
-    .filter((message) => message.role === "user")
-    .map((message) => normalizeQueryText(message.text))
-    .join(" ");
-  const numbers = new Set(
-    (userText.match(/\d[\d.]*/g) ?? []).map((raw) =>
-      String(Number.parseInt(raw.replace(/\./g, ""), 10)),
-    ),
-  );
+  const numbers = groundedPriceNumbers(request);
   const known = (value: number | undefined): boolean =>
     value === undefined ||
-    numbers.has(String(value)) ||
+    numbers.has(value) ||
     request.currentIntent?.priceMin === value ||
     request.currentIntent?.priceMax === value;
   if (!known(out.priceMin)) delete out.priceMin;
