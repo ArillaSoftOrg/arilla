@@ -45,7 +45,13 @@ eklenmez.
 
 Domain tabloları olayların kaynağıdır, olay tablosu onları kopyalamaz:
 
-- `click`: mağaza çıkışı (attribution).
+- `click`: mağaza çıkışı (attribution). Yazılırken: `product_id` teklifin kendi
+  ürününden gelir (adres satırından değil); `result_position` yalnızca liste
+  yüzeylerinde (`search`, `collection`, `compare`) ve 1–500 tamsayı ise yazılır;
+  `source_similarity_kind` adres satırından alınmaz (doğrulanamaz), yazan bir
+  yüzey çıkana kadar boş kalır. Önyükleme (`Sec-Purpose: prefetch`), `HEAD` ve bot
+  istekleri `/git` üzerinde 204 alır: `click` yok, yönlendirme yok. Aynı oturum+teklif
+  için 5 sn içindeki tekrar yeni satır üretmez (ve ikinci `merchant_exit` yazmaz).
 - `saved_item`: favori durumu.
 - `ai_search_charge`: fotoğraf ve link araması.
 - `product_view`: kullanıcıya gösterilen gezinme geçmişi; kendi rızası

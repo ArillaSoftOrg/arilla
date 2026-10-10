@@ -571,7 +571,7 @@ export default async function ProductPage({
           </div>
           <MerchantList
             aria-labelledby="magazalar-baslik"
-            offers={variantRows.map((row) => {
+            offers={variantRows.map((row, index) => {
               const note = unitPriceLabel(row);
               return {
                 rowKey: row.rowKey,
@@ -584,7 +584,7 @@ export default async function ProductPage({
                 totalLabel: formatTRY(row.effectiveTotal),
                 shippingLabel: offerShippingLabel(row),
                 inStock: row.inStock,
-                exitHref: `/git/${row.offerId}?surface=compare`,
+                exitHref: `/git/${row.offerId}?surface=compare&pos=${index + 1}`,
                 exitLabel: openAtMerchantLabel(row),
               };
             })}
@@ -618,13 +618,13 @@ export default async function ProductPage({
           </div>
           <MerchantList
             aria-labelledby="magazalar-baslik"
-            offers={merchantOffers.map((offer) => ({
+            offers={merchantOffers.map((offer, index) => ({
               offerId: offer.offerId,
               merchantName: offer.merchantName,
               totalLabel: formatTRY(offer.effectiveTotal),
               shippingLabel: offerShippingLabel(offer),
               inStock: offer.inStock,
-              exitHref: `/git/${offer.offerId}?surface=compare`,
+              exitHref: `/git/${offer.offerId}?surface=compare&pos=${index + 1}`,
               exitLabel: openAtMerchantLabel(offer),
             }))}
             outOfStockLabel="Şu an stokta yok"

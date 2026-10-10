@@ -22,4 +22,6 @@ export interface RecordClickInput {
 export interface RecordClickResult {
   clickId: string;
   redirectUrl: string;
+  /** true: yakin zamanda ayni oturum+teklif icin var olan satir yeniden kullanildi. */
+  deduplicated: boolean;
 }

@@ -3,6 +3,10 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { OfferNotFoundError, recordClick } from "./record-click.ts";
 
+let sessionSeq = 0;
+// Ayni ms icinde iki cagri dedupe penceresine takilmasin diye her cagri ayri oturum.
+const uniqueSession = () => `c3-test-session-${Date.now()}-${++sessionSeq}`;
+
 describe("recordClick() - integration (real seeded Postgres)", () => {
   let db: Database;
   const createdClickIds: string[] = [];
@@ -46,7 +50,7 @@ describe("recordClick() - integration (real seeded Postgres)", () => {
     it("produces a tracked redirect URL containing the generated click_id", async () => {
       const result = await recordClick(db, {
         offerId,
-        sessionId: `c3-test-session-${Date.now()}`,
+        sessionId: uniqueSession(),
         channel: "web",
       });
       createdClickIds.push(result.clickId);
@@ -57,7 +61,7 @@ describe("recordClick() - integration (real seeded Postgres)", () => {
     });
 
     it("persists a click row with the right fields", async () => {
-      const sessionId = `c3-test-session-${Date.now()}`;
+      const sessionId = uniqueSession();
       const result = await recordClick(db, {
         offerId,
         sessionId,
@@ -78,10 +82,56 @@ describe("recordClick() - integration (real seeded Postgres)", () => {
       expect(row.price_at_click).not.toBeNull();
     });
 
+    it("fills product_id from the offer, never from input", async () => {
+      const result = await recordClick(db, { offerId, sessionId: uniqueSession(), channel: "web" });
+      createdClickIds.push(result.clickId);
+      const { rows } = await withOwnerClient(async (client) => ({
+        rows: [
+          (await client.query("SELECT product_id FROM click WHERE id = $1", [result.clickId]))
+            .rows[0],
+          (await client.query("SELECT product_id FROM offer WHERE id = $1", [offerId])).rows[0],
+        ],
+      }));
+      expect(rows[0].product_id).toBe(rows[1].product_id);
+    });
+
+    it("reuses the click row for a repeat within the dedupe window", async () => {
+      const sessionId = uniqueSession();
+      const first = await recordClick(db, { offerId, sessionId, channel: "web" });
+      createdClickIds.push(first.clickId);
+      const second = await recordClick(db, { offerId, sessionId, channel: "web" });
+      expect(first.deduplicated).toBe(false);
+      expect(second.deduplicated).toBe(true);
+      expect(second.clickId).toBe(first.clickId);
+    });
+
+    it("does not dedupe across sessions", async () => {
+      const a = await recordClick(db, { offerId, sessionId: uniqueSession(), channel: "web" });
+      const b = await recordClick(db, { offerId, sessionId: uniqueSession(), channel: "web" });
+      createdClickIds.push(a.clickId, b.clickId);
+      expect(b.clickId).not.toBe(a.clickId);
+    });
+
+    it("drops an out-of-range resultPosition instead of writing it", async () => {
+      const result = await recordClick(db, {
+        offerId,
+        sessionId: uniqueSession(),
+        channel: "web",
+        resultPosition: 99999,
+      });
+      createdClickIds.push(result.clickId);
+      const row = await withOwnerClient(
+        async (client) =>
+          (await client.query("SELECT result_position FROM click WHERE id = $1", [result.clickId]))
+            .rows[0],
+      );
+      expect(row.result_position).toBeNull();
+    });
+
     it("round-trips sourceSimilarityKind and resultPosition when provided", async () => {
       const withFields = await recordClick(db, {
         offerId,
-        sessionId: `c3-test-session-${Date.now()}`,
+        sessionId: uniqueSession(),
         channel: "web",
         sourceSimilarityKind: "visual",
         resultPosition: 2,
@@ -90,7 +140,7 @@ describe("recordClick() - integration (real seeded Postgres)", () => {
 
       const withoutFields = await recordClick(db, {
         offerId,
-        sessionId: `c3-test-session-${Date.now()}`,
+        sessionId: uniqueSession(),
         channel: "web",
       });
       createdClickIds.push(withoutFields.clickId);
