@@ -200,6 +200,12 @@ const PRODUCT_PAGES: { name: string; call: () => Promise<unknown> }[] = [
   { name: "/gecmis", call: async () => (await import("./gecmis/page.tsx")).default() },
 ];
 
+/** `/git` bot/onyukleme istegini 204 ile durdurur; gercek tarayici UA'si gerekir. */
+const BROWSER_HEADERS = {
+  "user-agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+};
+
 describe("ürün sayfaları", () => {
   it.each(PRODUCT_PAGES)("normal kullanıcı $name → /erken-erisim", async ({ call }) => {
     as("user");
@@ -227,7 +233,7 @@ describe("ürün sayfaları", () => {
     const { GET } = await import("./git/[offerId]/route.ts");
     expect(
       await outcome(() =>
-        GET(new Request("http://localhost:3000/git/1"), {
+        GET(new Request("http://localhost:3000/git/1", { headers: BROWSER_HEADERS }), {
           params: Promise.resolve({ offerId: "1" }),
         }),
       ),
@@ -310,7 +316,7 @@ describe("server action ve route handler'lar (arayüz atlanarak)", () => {
     as("user");
     const { GET } = await import("./git/[offerId]/route.ts");
     const call = () =>
-      GET(new Request("http://localhost:3000/git/1"), {
+      GET(new Request("http://localhost:3000/git/1", { headers: BROWSER_HEADERS }), {
         params: Promise.resolve({ offerId: "1" }),
       });
     expect(await outcome(call)).toBe("/erken-erisim");

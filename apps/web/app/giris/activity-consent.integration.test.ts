@@ -112,6 +112,12 @@ afterAll(async () => {
   vi.unstubAllEnvs();
 });
 
+/** `/git` bot/onyukleme istegini 204 ile durdurur; gercek tarayici UA'si gerekir. */
+const BROWSER_HEADERS = {
+  "user-agent":
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36",
+};
+
 describe("giriş: geçmiş, kaba bağlam ve rıza senkronu", () => {
   it("e-posta girişi sign_up+sign_in yazar, IP/UA yeni tablolara girmez, çerez kararı hesaba aktarılır", async () => {
     const raw = generateRawToken();
@@ -169,9 +175,14 @@ describe("mağaza çıkışı: attribution ile analitik ayrı", () => {
     const { GET } = await import("../git/[offerId]/route.ts");
     const call = () =>
       redirectOf(() =>
-        GET(new Request(`http://localhost/git/${offerId}?surface=compare`), {
-          params: Promise.resolve({ offerId: String(offerId) }),
-        }),
+        GET(
+          new Request(`http://localhost/git/${offerId}?surface=compare`, {
+            headers: BROWSER_HEADERS,
+          }),
+          {
+            params: Promise.resolve({ offerId: String(offerId) }),
+          },
+        ),
       );
 
     expect(await call()).toBeTruthy();
@@ -202,6 +213,12 @@ describe("mağaza çıkışı: attribution ile analitik ayrı", () => {
     expect(exits.rows[0]?.n).toBe(0);
     expect(parseConsentCookie(state.cookies.get("cookie_consent"))?.analytics).toBe(false);
 
+    // Ikinci cikis ayri bir tiklama: ilk satir 5 sn dedupe penceresinin disina alinir.
+    await owner((client) =>
+      client.query("UPDATE click SET created_at = now() - interval '1 minute' WHERE user_id = $1", [
+        userId,
+      ]),
+    );
     expect(await call()).toBeTruthy();
     const clicks = await owner((client) =>
       client.query(

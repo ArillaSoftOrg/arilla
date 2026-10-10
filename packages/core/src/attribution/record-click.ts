@@ -4,7 +4,7 @@
  * cagri tam olarak bir `click` satiri uretir (CLAUDE.md kural 8).
  */
 import { click, type Database, merchant, offer } from "@arilla/db";
-import { and, desc, eq, gte } from "drizzle-orm";
+import { and, desc, eq, gte, isNull, sql } from "drizzle-orm";
 import { buildDeeplink } from "./build-deeplink.ts";
 import { MAX_RESULT_POSITION } from "./click-request.ts";
 import { findActiveTrackingId } from "./creator-affiliate-account.ts";
@@ -72,45 +72,50 @@ export async function recordClick(
     ? await findActiveTrackingId(db, input.creatorId, offerRow.merchantId)
     : null;
 
-  // Idempotency: yakin zamanda ayni oturum+teklif icin satir varsa onu kullan.
+  // Idempotency: yakin zamanda ayni oturum+teklif(+creator) icin satir varsa onu kullan.
+  // Es zamanli iki istek ayni anahtarda advisory lock ile siralanir (sema degisikligi
+  // yok); lock islem sonunda otomatik birakilir, ikinci istek ilk satiri gorur.
   const since = new Date(Date.now() - CLICK_DEDUPE_WINDOW_MS);
-  const recent = await db
-    .select({ id: click.id })
-    .from(click)
-    .where(
-      and(
-        eq(click.sessionId, input.sessionId),
-        eq(click.offerId, input.offerId),
-        gte(click.createdAt, since),
-      ),
-    )
-    .orderBy(desc(click.createdAt))
-    .limit(1);
+  const { id: clickId, reused } = await db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`click:${input.sessionId}:${input.offerId}`}, 0))`,
+    );
+    const recent = await tx
+      .select({ id: click.id })
+      .from(click)
+      .where(
+        and(
+          eq(click.sessionId, input.sessionId),
+          eq(click.offerId, input.offerId),
+          input.creatorId ? eq(click.creatorId, input.creatorId) : isNull(click.creatorId),
+          gte(click.createdAt, since),
+        ),
+      )
+      .orderBy(desc(click.createdAt))
+      .limit(1);
+    const existing = recent[0]?.id;
+    if (existing) return { id: existing, reused: true };
 
-  const existingId = recent[0]?.id;
-  const inserted = existingId
-    ? [{ id: existingId }]
-    : await db
-        .insert(click)
-        .values({
-          userId: input.userId ?? null,
-          sessionId: input.sessionId,
-          creatorId: input.creatorId ?? null,
-          offerId: input.offerId,
-          // Guvenilir kaynak: teklifin kendi urunu; adres satirindan gelmez.
-          productId: offerRow.productId ?? null,
-          channel: input.channel,
-          surface: normalizeClickSurface(input.surface),
-          priceAtClick: offerRow.offerPrice,
-          sourceSimilarityKind: input.sourceSimilarityKind ?? null,
-          resultPosition: sanitizePosition(input.resultPosition),
-        })
-        .returning({ id: click.id });
-
-  const clickId = inserted[0]?.id;
-  if (!clickId) {
-    throw new Error("click insert bos sonuc dondurdu");
-  }
+    const inserted = await tx
+      .insert(click)
+      .values({
+        userId: input.userId ?? null,
+        sessionId: input.sessionId,
+        creatorId: input.creatorId ?? null,
+        offerId: input.offerId,
+        // Guvenilir kaynak: teklifin kendi urunu; adres satirindan gelmez.
+        productId: offerRow.productId ?? null,
+        channel: input.channel,
+        surface: normalizeClickSurface(input.surface),
+        priceAtClick: offerRow.offerPrice,
+        sourceSimilarityKind: input.sourceSimilarityKind ?? null,
+        resultPosition: sanitizePosition(input.resultPosition),
+      })
+      .returning({ id: click.id });
+    const id = inserted[0]?.id;
+    if (!id) throw new Error("click insert bos sonuc dondurdu");
+    return { id, reused: false };
+  });
 
   const redirectUrl = buildDeeplink({
     affiliateStatus: offerRow.affiliateStatus,
@@ -120,7 +125,7 @@ export async function recordClick(
     trackingId,
   });
 
-  return { clickId, redirectUrl, deduplicated: Boolean(existingId) };
+  return { clickId, redirectUrl, deduplicated: reused };
 }
 
 function sanitizePosition(value: number | null | undefined): number | null {

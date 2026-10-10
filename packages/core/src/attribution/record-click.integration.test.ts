@@ -105,6 +105,25 @@ describe("recordClick() - integration (real seeded Postgres)", () => {
       expect(second.clickId).toBe(first.clickId);
     });
 
+    it("writes a single row for simultaneous clicks on the same session+offer", async () => {
+      const sessionId = uniqueSession();
+      const results = await Promise.all(
+        Array.from({ length: 8 }, () => recordClick(db, { offerId, sessionId, channel: "web" })),
+      );
+      createdClickIds.push(results[0]?.clickId ?? "");
+      expect(new Set(results.map((r) => r.clickId)).size).toBe(1);
+      expect(results.filter((r) => !r.deduplicated)).toHaveLength(1);
+      const count = await withOwnerClient(
+        async (client) =>
+          (
+            await client.query("SELECT count(*)::int AS n FROM click WHERE session_id = $1", [
+              sessionId,
+            ])
+          ).rows[0].n,
+      );
+      expect(count).toBe(1);
+    });
+
     it("does not dedupe across sessions", async () => {
       const a = await recordClick(db, { offerId, sessionId: uniqueSession(), channel: "web" });
       const b = await recordClick(db, { offerId, sessionId: uniqueSession(), channel: "web" });

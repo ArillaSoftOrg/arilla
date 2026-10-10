@@ -10,9 +10,9 @@
 
 export type ClickRequestKind = "human" | "prefetch" | "bot" | "head";
 
-/** Yaygin tarayici/arama motoru/link onizleme botlari. Surum numarasi aranmaz. */
+/** Bilinen bot kaliplari. Bilerek dar: `bot` alt dizisi tek basina yetmez ("Cubot" gibi cihaz adlari gercek kullanicidir); bot UA'lari `bot/`, `bot;`, `+http` kalibini tasir. */
 const BOT_UA =
-  /bot\b|crawler|spider|slurp|facebookexternalhit|embedly|preview|headless|lighthouse|curl\/|wget\/|python-requests|go-http-client|okhttp|java\//i;
+  /bot[/;)-]|bot \(|\+https?:|crawler|spider|slurp|facebookexternalhit|embedly|headless|lighthouse|^curl\/|^wget\/|python-requests|go-http-client|^okhttp\/|^java\//i;
 
 export function classifyClickRequest(input: {
   method: string;
