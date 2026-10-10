@@ -325,6 +325,11 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     call: async () => (await import("./ai/page.tsx")).default(sp({})),
   },
   {
+    name: "/yonetim/ai/kalite",
+    admin: true,
+    call: async () => (await import("./ai/kalite/page.tsx")).default(sp({})),
+  },
+  {
     name: "/yonetim/yolculuk",
     admin: true,
     call: async () => (await import("./yolculuk/page.tsx")).default(sp({})),

@@ -303,6 +303,10 @@ export default async function AiOperationsPage({
         />
       </Panel>
 
+      <p>
+        <Link href="/yonetim/ai/kalite">AI kalite ve değerlendirme paneli</Link>
+      </p>
+
       <Notice title="Ölçülmeyenler">
         Gecikme, çağrı sonucu (başarılı/hata), girdi/çıktı token ayrımı ve Redis kota reddi
         saklanmıyor; gerçek fatura sağlayıcının dökümündedir. Bunlar telemetri kararı ister (Faz E).

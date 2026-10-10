@@ -59,3 +59,9 @@ Koşu sonuçları `dataset_snapshot` / `ai_eval_run` / `ai_eval_case`, model ça
 hataları `ai_error_event` tablolarına `packages/core/src/eval/store.ts` ile yazılır.
 Ham sorgu/metin/görsel/kullanıcı kimliği yazılmaz; vaka anahtarı fixture metninin
 hash önekidir. Üretim çağıranlarına bağlama ve cron temizliği ayrı iştir.
+
+## Yönetim paneli (Faz 1A-3, karar 0097)
+
+`/yonetim/ai/kalite` kayıtlı koşuları okur; model çağırmaz. Anahtar sözleşmesi
+`packages/core/src/eval/metric-keys.ts`. Koşuları veritabanına yazan komut (`--record`)
+henüz yoktur; panel o zamana kadar "Henüz veri yok" gösterir.
