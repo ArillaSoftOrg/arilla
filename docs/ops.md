@@ -215,7 +215,11 @@ zenginleştirme, benzerlik kenarları, link çözümleme) durumunu ve elle
 çalıştırma komutunu gösterir. Aşamanın iş koşusu varsa "son çalıştı" oradan,
 yoksa üretilen verinin zamanından ("son kanıt", karar 0051) okunur. Aşamalar
 zamanlanmış değil; "geride olabilir" (bilgi) görünen aşama sırayla
-çalıştırılır.
+çalıştırılır. Worker hostunda ücretsiz aşamalar (fiyat özeti, eşleştirme,
+benzerlik kenarları) `infra/docker-compose.worker.yml` içindeki `batch`
+servisiyle elle çalıştırılır (`docker compose ... run --rm batch ...`);
+`up -d` bu servisi başlatmaz, ücretli Jina ve model çağrıları kapalıdır,
+üretim veritabanı bilgisi GitHub'a taşınmaz.
 
 Başarısız toplama koşusu (`ingest_run.status = 'failed'`) işlemi geri alır;
 0055'ten beri kayıt da oluşturulan/güncellenen/fiyat noktası sayılarını 0

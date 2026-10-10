@@ -28,3 +28,34 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+  # Elle tetiklenen toplu isler (docs/ops.md "Veri boru hatti"). `profiles`
+  # sayesinde `up -d` BUNU BASLATMAZ; yalnizca acikca cagrilinca kosar ve biter:
+  #
+  #   docker compose -f infra/docker-compose.worker.yml run --rm batch                       # fiyat ozeti
+  #   docker compose -f infra/docker-compose.worker.yml run --rm batch python -m resolve --limit 5000
+  #   docker compose -f infra/docker-compose.worker.yml run --rm batch python -m similarity --edges
+  #
+  # Ayni host ve ayni `.env.worker`: uretim veritabani kimligi GitHub'a tasinmaz.
+  # Bu servis UCRETLI islem yapmaz: `JINA_API_KEY` ve `GEMINI_API_KEY` bos
+  # ezilir (enrich ve model cagrilari bilerek yok; maliyet karari ayridir).
+  # Zamanlama bu dosyada YOKTUR; ileride host cron/systemd timer ayni komutu
+  # `-e JOB_RUN_TRIGGER=cron` ile cagirabilir (kosu `job_run`'a cron yazilir).
+  batch:
+    profiles: ["batch"]
+    build:
+      context: ../services/ingest
+    image: arilla-ingest:latest
+    command: ["python", "-m", "similarity", "--prices"]
+    env_file:
+      - .env.worker
+    environment:
+      JOB_RUN_TRIGGER: manual
+      JINA_API_KEY: ""
+      GEMINI_API_KEY: ""
+    restart: "no"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
