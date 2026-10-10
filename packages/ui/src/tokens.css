@@ -72,10 +72,13 @@
      birakacak sekilde secildi (design.md "Kontrast"). */
   --footer-glow-mint: rgba(112, 214, 196, 0.16);
   --footer-glow-lime: rgba(183, 245, 47, 0.15);
-  /* Kelime isareti seridi (metin yok): marka yesili guclu, yalnizca dekor. */
-  --footer-wordmark-from: #a8e52a;
-  --footer-wordmark-to: #8fdcc8;
-  --footer-band-glow: rgba(183, 245, 47, 0.3);
+  /* Kelime isareti (zemin motifi, yalnizca dekor): `strong` yalnizca en alttaki
+     metinsiz serit, `soft` metnin arkasi (--ink-muted >= 4.5:1, glow dahil),
+     `faint` ust uc; `glow` yalnizca metinsiz alt seritte. */
+  --footer-wordmark-strong: #a8e52a;
+  --footer-wordmark-soft: rgba(143, 220, 200, 0.2);
+  --footer-wordmark-faint: rgba(143, 220, 200, 0.08);
+  --footer-wordmark-glow: rgba(183, 245, 47, 0.3);
 
   /* --- Golge (design.md "Gölge") --- */
   --shadow-xs: 0 1px 2px rgba(22, 24, 29, 0.06);
@@ -240,9 +243,10 @@
     --tint-warm: #26221d;
     --footer-glow-mint: rgba(95, 214, 200, 0.06);
     --footer-glow-lime: rgba(183, 245, 47, 0.08);
-    --footer-wordmark-from: #b7f52f;
-    --footer-wordmark-to: rgba(183, 245, 47, 0.3);
-    --footer-band-glow: rgba(183, 245, 47, 0.16);
+    --footer-wordmark-strong: #b7f52f;
+    --footer-wordmark-soft: #1e3a14;
+    --footer-wordmark-faint: rgba(30, 58, 20, 0.4);
+    --footer-wordmark-glow: rgba(183, 245, 47, 0.16);
     --accent: #f2f3f4;
     --accent-foreground: #16181d;
     --accent-hover: #d6d9dc;
@@ -280,9 +284,10 @@
   --tint-warm: #26221d;
   --footer-glow-mint: rgba(95, 214, 200, 0.06);
   --footer-glow-lime: rgba(183, 245, 47, 0.08);
-  --footer-wordmark-from: #b7f52f;
-  --footer-wordmark-to: rgba(183, 245, 47, 0.3);
-  --footer-band-glow: rgba(183, 245, 47, 0.16);
+  --footer-wordmark-strong: #b7f52f;
+  --footer-wordmark-soft: #1e3a14;
+  --footer-wordmark-faint: rgba(30, 58, 20, 0.4);
+  --footer-wordmark-glow: rgba(183, 245, 47, 0.16);
   --accent: #f2f3f4;
   --accent-foreground: #16181d;
   --accent-hover: #d6d9dc;

@@ -66,7 +66,8 @@ Marka mavisinin kesin hex değeri yeni logo çizildiğinde sabitlenir.
 koyu zemin üzerinde limon yeşili "M" işaretidir (baskın piksel `#b7f52f`);
 `--brand` belirteci bundan ölçüldü ve yönetim konsolunda kullanılır. Karar
 0093 ile public sayfalarda yalnızca dekoratif atmosfer olarak (footer
-parıltısı ve metinsiz şeritteki kelime işareti) izinlidir; metin ya da çizgi
+parıltısı ve zemindeki kelime işareti; güçlü yeşil yalnızca metinsiz alt
+şeritte) izinlidir; metin ya da çizgi
 olarak asla. Footer'daki büyük "ManiCepte" site fontuyla yazılmış tipografik
 bir işarettir, logo değildir.
 Yukarıdaki "marka mavisi" ifadesi bu ikonla güncellenmeli mi, marka sahibinin
