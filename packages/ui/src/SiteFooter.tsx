@@ -51,12 +51,11 @@ export interface SiteFooterProps {
  * Hiyerarsi: marka blogu -> link gruplari (Urun, Hesap, Yasal) ->
  * disclosure bandi (affiliate + fiyat/stok) -> telif satiri.
  *
- * Karar 0093: markali zemin - yumusak nane/limon atmosferi ve footer'in
- * zeminine yerlesik, alttan ve iki yandan kirpilmis buyuk "ManiCepte" kelime
- * isareti (site fontuyla yazilir, cizilmis logo degil). Metnin arkasinda
- * soluk (kontrast korunur), yalnizca en alttaki metinsiz seritte guclu.
- * Ikisi de yalnizca dekordur: `aria-hidden`, tiklanmaz, zorla-renk ve
- * baskida yok.
+ * Karar 0093: markali zemin - tek, kesintisiz nane/limon atmosferi ve
+ * copyright satirinin altindaki dekor alaninda alttan kirpilmis buyuk
+ * "ManiCepte" kelime isareti (site fontuyla yazilir, cizilmis logo degil).
+ * Kelime hicbir metnin arkasinda degildir. Ikisi de yalnizca dekordur:
+ * `aria-hidden`, tiklanmaz, zorla-renk ve baskida yok.
  */
 export function SiteFooter({
   brandLabel,
@@ -128,9 +127,9 @@ export function SiteFooter({
 
         <p className={styles.copyright}>{copyrightLabel}</p>
       </Container>
-      <span className={styles.wordmark} aria-hidden="true">
-        {decorativeWordmark}
-      </span>
+      <div className={styles.wordmarkArea} aria-hidden="true">
+        <span className={styles.wordmark}>{decorativeWordmark}</span>
+      </div>
     </footer>
   );
 }
