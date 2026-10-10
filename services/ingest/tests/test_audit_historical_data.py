@@ -91,3 +91,65 @@ def test_the_script_connection_is_read_only(monkeypatch: pytest.MonkeyPatch) -> 
     monkeypatch.setattr(module, "scan_merged_products", try_to_write)
     with pytest.raises(psycopg.errors.ReadOnlySqlTransaction):
         module.main(["--limit", "1"])
+
+
+def test_veto_categories_group_by_reason_prefix() -> None:
+    module = _load()
+    assert module.veto_category("hacim: 100ml != 10ml") == "hacim"
+    assert module.veto_category("sayisal kimlik: ['23'] != ['22']") == "sayisal kimlik"
+    assert module.veto_category("") == "diger"
+
+
+def test_price_scan_counts_suspicious_offers_and_never_writes(merged_product: int, capsys) -> None:
+    def owner() -> psycopg.Connection:
+        return psycopg.connect(database_url("DATABASE_URL_OWNER"), autocommit=True)
+
+    with owner() as conn:
+        conn.execute(
+            "UPDATE offer SET current_price = 0 "
+            "WHERE external_id = 'a-0' AND merchant_id IN "
+            "(SELECT id FROM merchant WHERE domain LIKE 'test-audit-gecmis%')"
+        )
+        before = conn.execute(
+            "SELECT count(*), coalesce(sum(current_price), 0) FROM offer"
+        ).fetchone()
+    module = _load()
+    with psycopg.connect(database_url("DATABASE_URL_OWNER")) as conn:
+        conn.execute("SET TRANSACTION READ ONLY")
+        found = module.scan_prices(conn, 5)
+        conn.rollback()
+    out = capsys.readouterr().out
+    assert found >= 1
+    assert "guncel fiyat <= 0:" in out
+    with owner() as conn:
+        after = conn.execute(
+            "SELECT count(*), coalesce(sum(current_price), 0) FROM offer"
+        ).fetchone()
+    assert after == before
+
+
+def test_enter_read_only_makes_writes_fail_and_is_verified() -> None:
+    module = _load()
+    with psycopg.connect(database_url("DATABASE_URL_OWNER")) as conn:
+        module.enter_read_only(conn)
+        with pytest.raises(psycopg.errors.ReadOnlySqlTransaction):
+            conn.execute("UPDATE product SET title = title WHERE false")
+        conn.rollback()
+
+
+def test_enter_read_only_refuses_when_the_setting_cannot_be_confirmed() -> None:
+    module = _load()
+
+    class FakeCursor:
+        def __init__(self, value):
+            self.value = value
+
+        def fetchone(self):
+            return self.value
+
+    class FakeConn:
+        def execute(self, statement):
+            return FakeCursor(("off",) if statement.startswith("SHOW") else None)
+
+    with pytest.raises(module.NotReadOnlyError):
+        module.enter_read_only(FakeConn())
