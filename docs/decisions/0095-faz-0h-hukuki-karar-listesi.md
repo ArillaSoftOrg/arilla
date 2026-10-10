@@ -23,7 +23,7 @@ veri de kaynağında kişisel veri işlemeye dayanır.
 
 | # | Konu | Kanıt | Karar gerektiren |
 |---|---|---|---|
-| B1 | Kayıtta varsayılan açık rıza (`signup_default`, `granted=true`: gezinme geçmişi, kişiselleştirme, anonim keşif) | `core/account/onboarding.ts`; `kvkk.md:75` zaten "hukuk onayı bekliyor". | Varsayılan işaretli rıza açık rıza sayılır mı; değilse akış. |
+| B1 | Kayıtta varsayılan açık rıza (`signup_default`, `granted=true`: gezinme geçmişi, kişiselleştirme, anonim keşif) | `core/account/onboarding.ts`; `kvkk.md:73-75`; karar 0060 (ürün sahibi talebi, önceden işaretli kutu). | Varsayılan işaretli rıza açık rıza sayılır mı; değilse akış. |
 | B2 | Gizlilik metni ↔ kod | Metin "kullanıcıya bağlı arama geçmişi tutmayız" derken kod rızalı `query_norm` yazıyor ve "son aramalar" gösteriyor. Saklama tablosu eksik (180 gün olay, 1 yıl `auth_event`, sohbet 90 gün, `click` 5 yıl). `PRIVACY_NOTICE_VERSION = 2026-09-26` ≠ yayın tarihi (7 Ekim). | Metin içeriği ve sürüm tarihi (içerik hukuki). |
 | B3 | Alıcı listesi eksik | R2/Cloudflare, SMTP ve SMS sağlayıcısı gizlilik sayfasında adlandırılmamış. | Alıcı/aktarım listesi. |
 | B4 | Yeni amaçlar için ayrı rıza türleri | Bugün yok. | `personalization`, `model_training` gibi ayrı `user_consent.kind` ve metinleri; impression sayacı (`exposure_day`) ve `session_hash` için dayanak. |
