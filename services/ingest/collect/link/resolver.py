@@ -31,6 +31,7 @@ import psycopg
 
 from collect.link import urls
 from collect.link.extract import ExtractedProduct, extract
+from collect.link.price import parse_structured_price
 from collect.link.robots import USER_AGENT, RobotsCache, RobotsDisallowed
 from collect.link.safe_http import (
     DEFAULT_POLICY,
@@ -39,7 +40,7 @@ from collect.link.safe_http import (
     check_url,
     guarded_client,
 )
-from collect.mapping import ValueFormats
+from collect.mapping import MAX_PRICE_KURUS, ValueFormats
 from collect.records import NormalizedOffer, RecordRejected
 from collect.writer import OfferWriter
 
@@ -286,13 +287,42 @@ def search_signals(
     return signals
 
 
-def to_offer(product: ExtractedProduct, normalized: urls.NormalizedUrl) -> NormalizedOffer:
-    formats = price_formats(product.source_layer)
-    price = formats.parse_price(product.price_text)
-    if price is None:
-        raise RecordRejected(f"fiyat cozumlenemedi: {product.price_text!r}")
+def _offer_currency(product: ExtractedProduct) -> str:
+    """Para birimi UYDURULMAZ: sayfa bildirmediyse teklif yazilmaz.
 
-    list_price = formats.parse_price(product.list_price_text)
+    Sezgisel katman fiyati yalnizca "TL/₺/TRY" isaretli metinden okur, o yuzden
+    kendi kanitini tasir; yapilandirilmis katmanlarda eksik para birimi sessizce
+    TRY sayilmaz. TRY disi para birimi de yazilmaz (CLAUDE.md: para birimi TRY).
+    """
+    currency = (product.currency or "").strip().upper()
+    if not currency:
+        raise RecordRejected("para birimi bilinmiyor: sayfa bildirmedi")
+    if currency != "TRY":
+        raise RecordRejected(f"desteklenmeyen para birimi: {currency[:8]}")
+    return currency
+
+
+def _offer_price(product: ExtractedProduct, text: str | None) -> int:
+    """Fiyat metni -> kurus. Sezgisel katman Turkce gorunur bicim, digerleri belirsizse red."""
+    if product.source_layer == "heuristic":
+        price = DISPLAY_FORMATS.parse_price(text)
+        if price is None or price <= 0 or price > MAX_PRICE_KURUS:
+            raise RecordRejected(f"fiyat gecersiz: {text!r}")
+        return price
+    return parse_structured_price(text)
+
+
+def to_offer(product: ExtractedProduct, normalized: urls.NormalizedUrl) -> NormalizedOffer:
+    currency = _offer_currency(product)
+    price = _offer_price(product, product.price_text)
+
+    # Okunamayan / belirsiz liste fiyati teklifi dusurmez; yalnizca liste fiyati atilir.
+    try:
+        list_price: int | None = (
+            _offer_price(product, product.list_price_text) if product.list_price_text else None
+        )
+    except RecordRejected:
+        list_price = None
     if list_price is not None and list_price < price:
         list_price = None
 
@@ -317,7 +347,7 @@ def to_offer(product: ExtractedProduct, normalized: urls.NormalizedUrl) -> Norma
         category_raw=product.category,
         image_url=product.image_url,
         gtin=product.gtin,
-        currency=(product.currency or "TRY").upper()[:3],
+        currency=currency,
         attributes_raw=attributes,
         # Beden varyantlari JSON-LD'de guvenilir bicimde bulunmuyor;
         # user_link teklifleri varyantsiz yazilir.

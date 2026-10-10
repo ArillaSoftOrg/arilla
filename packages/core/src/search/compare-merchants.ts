@@ -41,7 +41,7 @@ export async function compareMerchants(db: Database, productId: number): Promise
     FROM offer o
     JOIN merchant m ON m.id = o.merchant_id
     WHERE o.product_id = ${productId}
-      AND o.is_active
+      AND o.is_active AND m.is_active
       AND o.current_price IS NOT NULL
     ORDER BY effective_total ASC, m.trust_score DESC, o.id ASC
   `);

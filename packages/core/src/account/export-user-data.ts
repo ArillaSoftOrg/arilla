@@ -15,6 +15,7 @@ import {
   authEvent,
   bonusAccount,
   bonusLedger,
+  chatAttachment,
   chatMessage,
   chatResultFeedback,
   click,
@@ -166,12 +167,28 @@ export interface UserDataExport {
     title: string;
     createdAt: Date;
     lastMessageAt: Date;
+    /**
+     * Karar 0078/0091: sohbete eklenen gorseller (kullanicinin kisisel verisi). Bayt icerigi
+     * base64; `summary` modelin bu gorsel icin uretip sakladigi metin ozeti (varsa).
+     */
+    attachments: Array<{
+      id: string;
+      mimeType: string;
+      width: number;
+      height: number;
+      sha256: string;
+      createdAt: Date;
+      dataBase64: string;
+      summary: string | null;
+    }>;
     messages: Array<{
       seq: number;
       role: string;
       kind: string;
       content: string;
       createdAt: Date;
+      /** Mesajin eki olan gorsel (`attachments[].id`); yoksa bulunmaz. */
+      attachmentId?: string;
       /** Karar 0079: kullanıcının bu yanıta verdiği oy; yalnızca oy varsa bulunur. */
       feedback?: {
         helpful: boolean;
@@ -498,17 +515,20 @@ async function exportConversations(
           ).map((vote) => [vote.messageId, vote]),
         )
       : new Map<number, typeof chatResultFeedback.$inferSelect>();
+    const attachments = await exportAttachments(db, chat.id, rows);
     out.push({
       publicId: chat.id,
       title: chat.title,
       createdAt: chat.createdAt,
       lastMessageAt: chat.lastMessageAt,
+      attachments,
       messages: rows.map((m) => ({
         seq: m.seq,
         role: m.role,
         kind: m.kind,
         content: m.content,
         createdAt: m.createdAt,
+        ...(attachmentIdOf(m.payload) ? { attachmentId: attachmentIdOf(m.payload) as string } : {}),
         ...(votes.has(m.id)
           ? {
               feedback: {
@@ -524,4 +544,58 @@ async function exportConversations(
     });
   }
   return out;
+}
+
+function attachmentIdOf(payload: unknown): string | undefined {
+  const id = (payload as { attachmentId?: unknown } | null)?.attachmentId;
+  return typeof id === "string" ? id : undefined;
+}
+
+/** Asistan mesajlarinin payload'indaki `imageSummary` (gorsel kimligine gore). */
+function imageSummaries(rows: Array<{ payload: unknown }>): Map<string, string> {
+  const out = new Map<string, string>();
+  for (const row of rows) {
+    const summary = (row.payload as { imageSummary?: { attachmentId?: unknown; text?: unknown } })
+      ?.imageSummary;
+    if (summary && typeof summary.attachmentId === "string" && typeof summary.text === "string") {
+      out.set(summary.attachmentId, summary.text);
+    }
+  }
+  return out;
+}
+
+/**
+ * Sohbetin gorselleri. 0057 henuz yoksa (kod migration'dan once dagitilirsa) tablo da yoktur:
+ * disa aktarim kirilmaz, gorsel listesi bos kalir. Baska her hata yukari cikar.
+ */
+async function exportAttachments(
+  db: Database,
+  conversationId: string,
+  rows: Array<{ payload: unknown }>,
+): Promise<UserDataExport["conversations"][number]["attachments"]> {
+  let stored: Array<typeof chatAttachment.$inferSelect>;
+  try {
+    stored = await db
+      .select()
+      .from(chatAttachment)
+      .where(eq(chatAttachment.conversationId, conversationId))
+      .orderBy(asc(chatAttachment.createdAt));
+  } catch (error) {
+    const code =
+      (error as { cause?: { code?: string } } | null)?.cause?.code ??
+      (error as { code?: string } | null)?.code;
+    if (code === "42P01") return [];
+    throw error;
+  }
+  const summaries = imageSummaries(rows);
+  return stored.map((attachment) => ({
+    id: attachment.id,
+    mimeType: attachment.mimeType,
+    width: attachment.width,
+    height: attachment.height,
+    sha256: attachment.sha256,
+    createdAt: attachment.createdAt,
+    dataBase64: Buffer.from(attachment.data).toString("base64"),
+    summary: summaries.get(attachment.id) ?? null,
+  }));
 }

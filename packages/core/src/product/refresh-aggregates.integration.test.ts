@@ -143,7 +143,9 @@ describe("ürün fiyat özeti - entegrasyon (gerçek Postgres)", () => {
 
   it("eşleştirme onayı ürünü aynı işlemde fiyat ve mağaza sayısıyla bütçe aramasına sokar", async () => {
     expect((await aggregates(products.matched)).counts).toEqual([0, null, null, 0]);
-    expect(await found(500000)).toEqual([]);
+    // Henüz teklifi olmayan `matched` görünmez. (`shared` bilerek bayat özetli ama gerçek
+    // aktif teklifleri var: filtre artık gösterilen fiyata bakar, o yüzden burada aranmaz.)
+    expect((await found(500000)).map((item) => item.title)).not.toContain(`${TAG} matched lamba`);
 
     const result = await approveMatch(db, admin, candidateId);
     expect(result).toMatchObject({ found: true });

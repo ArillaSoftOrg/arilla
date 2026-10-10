@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import {
   type AssistantPreview,
   type ChatAttachmentInput,
@@ -62,6 +63,17 @@ function scheduleInitialTurn(
   }
 }
 
+/**
+ * Istemci anahtar gondermediyse (JS'siz form, duz metin yolu) cift tiklama/yeniden gonderim
+ * ikinci sohbet ve ikinci kota birimi harcamasin: ayni kullanici + ayni metin icin 10 sn'lik
+ * kovada deterministik anahtar. Kova siniri seyrek bir cift gonderime izin verebilir; zararsizdir.
+ */
+function implicitRequestKey(userId: number, text: string, now: number = Date.now()): string {
+  const bucket = Math.floor(now / 10_000);
+  const digest = createHash("sha256").update(`${userId}:${bucket}:${text}`).digest("hex");
+  return `auto-${digest.slice(0, 40)}`;
+}
+
 /** Ana sayfa kutusu: sohbet olusturur, ilk mesaji kaydeder, `/sohbet/[id]`ye yonlendirir. */
 export async function startConversationAction(formData: FormData): Promise<void> {
   const raw = formData.get("q");
@@ -74,7 +86,11 @@ export async function startConversationAction(formData: FormData): Promise<void>
   }
 
   const db = getDatabase();
-  const created = await createConversation(db, { userId: user.id, message: text });
+  const created = await createConversation(db, {
+    userId: user.id,
+    message: text,
+    requestKey: implicitRequestKey(user.id, text),
+  });
   // Saatlik tavan ya da gecersiz girdi: kullanici yine de arayabilir (yapay zekasiz yol).
   if (created.status !== "created") redirect(plainSearchHref(text));
   scheduleInitialTurn(db, user.id, created.conversationId);
@@ -140,7 +156,9 @@ export async function sendMessageAction(
   if (photo !== undefined) {
     // Bayrak kapaliyken gorsel hicbir kosulda islenmez ya da eski aramaya dusulmez.
     if (!isChatImageEnabled()) return { status: "unavailable" };
-    const prepared = await prepareChatImage(photo instanceof FormData ? photo.get("photo") : null);
+    const prepared = await prepareChatImage(photo instanceof FormData ? photo.get("photo") : null, {
+      userId: user.id,
+    });
     if (!prepared.ok) return { status: prepared.status };
     attachment = prepared.attachment;
   }
@@ -298,8 +316,9 @@ export async function startChatBootstrapAction(input: unknown): Promise<NewTabCh
       return { status: "unavailable" };
     }
     if (submission.invalidKey) return { status: "image_rejected", reason: "invalid_input" };
-    const prepared = await prepareChatImage(submission.image);
+    const prepared = await prepareChatImage(submission.image, { userId: user.id });
     if (!prepared.ok) {
+      if (prepared.status === "rate_limited") return { status: "rate_limited" };
       return prepared.status === "error"
         ? { status: "error" }
         : { status: "image_rejected", reason: prepared.status };
@@ -317,7 +336,8 @@ export async function startChatBootstrapAction(input: unknown): Promise<NewTabCh
       createConversation(db, {
         userId: user.id,
         message,
-        ...(submission.requestKey !== undefined ? { requestKey: submission.requestKey } : {}),
+        // Gorselli gonderim kendi anahtarini tasir; metin-yalniz yolda anahtar yoksa ortuk anahtar.
+        requestKey: submission.requestKey ?? implicitRequestKey(user.id, message),
         ...(attachment ? { attachment } : {}),
       }),
     );

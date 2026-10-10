@@ -24,6 +24,15 @@ DROP_WINDOW = timedelta(days=21)
 #: sisirme sayilir. Kucuk dalgalanmalari sahte indirim ilan etmemek icin var.
 APPARENT_DISCOUNT_GAIN = 0.10
 
+#: Yuzdelik "bu fiyat son 90 gunun neresinde" iddiasidir; kanitsiz uretilmez.
+#: `price_point` her calismada yazildigi icin gozlem SAYISI fiyatin degistigini
+#: kanitlamaz: ayrica en az iki farkli fiyat ve en az bu kadar sure gerekir.
+#: Yetersizse yuzdelik NULL ("bilinmiyor") olur; arama bunu notr/sona koyar.
+#: Ayarlanabilir yer tutucular (docs/search.md sayi vermez).
+MIN_PERCENTILE_OBSERVATIONS = 5
+MIN_PERCENTILE_DISTINCT_PRICES = 2
+MIN_PERCENTILE_SPAN = timedelta(days=7)
+
 
 @dataclass(frozen=True)
 class Observation:
@@ -61,6 +70,16 @@ def _percentile_of(current: int, values: list[int]) -> int | None:
         return None
     below = sum(1 for value in values if value < current)
     return round(100 * below / len(values))
+
+
+def _enough_history(observations: list[Observation]) -> bool:
+    """Yuzdelik anlamli mi: yeterli gozlem, yeterli sure ve gercek fiyat degisimi."""
+    if len(observations) < MIN_PERCENTILE_OBSERVATIONS:
+        return False
+    if len({item.price for item in observations}) < MIN_PERCENTILE_DISTINCT_PRICES:
+        return False
+    span = observations[-1].observed_at - observations[0].observed_at
+    return span >= MIN_PERCENTILE_SPAN
 
 
 def detect_inflated_list_price(
@@ -168,7 +187,11 @@ def compute(by_offer: dict[int, list[Observation]], current_price: int | None) -
     # Kullanilabilir guncel fiyat yoksa (aktif magazanin fiyatli aktif teklifi
     # yok) yuzdelik YOKTUR: gecmis bir gozlem guncel fiyat yerine konmaz,
     # yoksa gorunmeyen bir fiyat "son 90 gunun en dusugu" iddiasi uretir.
-    percentile = _percentile_of(current_price, prices) if current_price is not None else None
+    percentile = (
+        _percentile_of(current_price, prices)
+        if current_price is not None and _enough_history(observations)
+        else None
+    )
 
     return PriceStats(
         min_30d=min(prices_30) if prices_30 else None,

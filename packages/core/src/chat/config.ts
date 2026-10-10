@@ -42,6 +42,26 @@ export function chatMessageLimits(env: Env = process.env): WindowLimits {
   return { ...QUOTA_POLICY.chat_message, hour: chatTurnsPerHour(env) };
 }
 
+/**
+ * Kullanici basina MODEL CAGIRAN tur sayisi (`runTurnAction` tekrar dongusu siniri).
+ * Normalde bir mesaj bir tur (saatte `chatTurnsPerHour`); saat tavani bunun 3 kati,
+ * yani yalnizca art arda basarisiz yeniden denemeleri keser. Ayri sayac anahtari
+ * kullanir (`turn:<id>`), havuz tablosu degismez.
+ */
+export function chatTurnRunLimits(env: Env = process.env): WindowLimits {
+  return { hour: chatTurnsPerHour(env) * 3, day: 200, week: 800, month: 2400 };
+}
+
+/**
+ * Gorsel COZME denemesi (CPU/bellek: sharp, 4 MB'a kadar) kullanici basina siniri. Mesaj kotasi
+ * decode'dan SONRA harcaniyordu; gecerli ama sinirsiz sayida gorsel gonderen oturumlu kullanici
+ * kota dolsa bile islemciyi yakabilirdi. Saatlik deger mesaj tavaninin 2 kati; ayri sayac
+ * anahtari (`img:<id>`), havuz tablosu degismez.
+ */
+export function chatImageDecodeLimits(env: Env = process.env): WindowLimits {
+  return { hour: chatTurnsPerHour(env) * 2, day: 120, week: 600, month: 1800 };
+}
+
 /** `api_usage.operation`; `/ara` anlik yorumundan (`query_interpretation_realtime`) AYRI butce. */
 export const CHAT_TURN_OPERATION = "chat_turn";
 

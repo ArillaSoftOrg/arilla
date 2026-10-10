@@ -10,14 +10,20 @@
  * yalnizca sabit durum kodlari.
  */
 import { ImageRejectedError, preprocessImage } from "../embedding/preprocess-image.ts";
-import { USER_MESSAGE_MAX } from "./config.ts";
+import { consumeQuota, type QuotaConsumer } from "../quota/redis-windows.ts";
+import { chatImageDecodeLimits, USER_MESSAGE_MAX } from "./config.ts";
 import type { ChatAttachmentInput } from "./service.ts";
 
 /** `next.config.ts` (serverActions.bodySizeLimit) ve `ara/gorsel/actions.ts` ile ayni sinir. */
 export const CHAT_UPLOAD_MAX_BYTES = 4 * 1024 * 1024;
 export const CHAT_UPLOAD_MIME_TYPES: readonly string[] = ["image/jpeg", "image/png", "image/webp"];
 
-export type ChatImageRejection = "invalid_input" | "invalid_type" | "too_large" | "unprocessable";
+export type ChatImageRejection =
+  | "invalid_input"
+  | "invalid_type"
+  | "too_large"
+  | "unprocessable"
+  | "rate_limited";
 
 /** `File` bu sekle uyar; testte sade bir nesne verilebilir. */
 export interface ChatUpload {
@@ -35,12 +41,36 @@ export function cleanSubmissionText(raw: unknown): string {
   return typeof raw === "string" ? raw.trim().slice(0, USER_MESSAGE_MAX) : "";
 }
 
+/** Sayac erisilemezse kullanici engellenmez (boyut/tur siniri ve mesaj kotasi yine gecerli). */
+async function allowImageDecode(userId: number, consumer?: QuotaConsumer): Promise<boolean> {
+  try {
+    const result = await (consumer ?? consumeQuota)({
+      pool: "chat_message",
+      subject: `img:${userId}`,
+      limits: chatImageDecodeLimits(),
+    });
+    return result.allowed;
+  } catch {
+    return true;
+  }
+}
+
 /**
  * Sunucu tarafi dosya denetimi + on isleme. Ham dosya saklanmaz (kural 10): yalnizca
  * `preprocessImage` ciktisi doner. Gecersiz/bozuk dosya model cagrisi ya da kota
  * harcamadan reddedilir.
  */
-export async function prepareChatImage(file: unknown): Promise<PreparedChatImage> {
+export interface PrepareChatImageOptions {
+  /** Verilirse decode'dan ONCE kullanici basina deneme sayaci harcanir. */
+  userId?: number;
+  /** Testler icin; varsayilan Redis cok pencereli kota. */
+  consume?: QuotaConsumer;
+}
+
+export async function prepareChatImage(
+  file: unknown,
+  options: PrepareChatImageOptions = {},
+): Promise<PreparedChatImage> {
   const upload = file as Partial<ChatUpload> | null;
   if (
     !upload ||
@@ -53,6 +83,10 @@ export async function prepareChatImage(file: unknown): Promise<PreparedChatImage
   }
   if (!CHAT_UPLOAD_MIME_TYPES.includes(upload.type)) return { ok: false, status: "invalid_type" };
   if (upload.size > CHAT_UPLOAD_MAX_BYTES) return { ok: false, status: "too_large" };
+  // Ucuz kontroller gecti; pahali kisim (okuma + sharp decode) oncesinde kullanici siniri.
+  if (options.userId !== undefined && !(await allowImageDecode(options.userId, options.consume))) {
+    return { ok: false, status: "rate_limited" };
+  }
   try {
     const prepared = await preprocessImage(Buffer.from(await upload.arrayBuffer()));
     return {

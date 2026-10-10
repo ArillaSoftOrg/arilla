@@ -61,9 +61,14 @@ describe("startChatBootstrapAction", () => {
     const result = await startChatBootstrapAction("beyaz sneaker");
     expect(result).toEqual({ status: "created", href: `/sohbet/${ID}` });
     expect(mocks.createConversation).toHaveBeenCalledTimes(1);
+    // Istemci anahtari yoksa cift gonderim korumasi icin ortuk anahtar eklenir.
     expect(mocks.createConversation).toHaveBeenCalledWith(
       { db: true },
-      { userId: 7, message: "beyaz sneaker" },
+      {
+        userId: 7,
+        message: "beyaz sneaker",
+        requestKey: expect.stringMatching(/^auto-[0-9a-f]{40}$/),
+      },
     );
     // Yanit donerken Gemini bekletilmez: tur yalnizca after() icinde.
     expect(mocks.after).toHaveBeenCalledTimes(1);

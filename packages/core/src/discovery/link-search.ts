@@ -198,6 +198,7 @@ async function textCandidates(
     WITH best_offer AS (
       SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
       FROM offer o
+      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
       WHERE o.product_id IS NOT NULL AND o.is_active
       ORDER BY o.product_id, o.current_price ASC NULLS LAST
     )
@@ -237,6 +238,7 @@ async function identityCandidates(
     WITH best_offer AS (
       SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
       FROM offer o
+      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
       WHERE o.product_id IS NOT NULL AND o.is_active
       ORDER BY o.product_id, o.current_price ASC NULLS LAST
     )

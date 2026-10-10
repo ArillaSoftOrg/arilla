@@ -22,7 +22,7 @@ import {
   type Database,
 } from "@arilla/db";
 import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
-import type { LlmErrorCode } from "../llm/client.ts";
+import type { LlmCall, LlmErrorCode } from "../llm/client.ts";
 import { llmCallCostMicros } from "../llm/pricing.ts";
 import {
   type ProviderBudgetHooks,
@@ -46,6 +46,7 @@ import {
   CHAT_RETENTION_DAYS,
   CHAT_TURN_OPERATION,
   chatMessageLimits,
+  chatTurnRunLimits,
   chatTurnsPerHour,
   isChatImageEnabled,
   MAX_USER_MESSAGES_PER_CONVERSATION,
@@ -413,18 +414,31 @@ export async function createConversation(
   const text = cleanUserText(input.message);
   if (text === null && !attachment) return { status: "invalid_input" };
   const requestKey = requestKeyOrNull(input.requestKey);
-  if (requestKey !== null) {
-    const existing = await findConversationByRequestKey(db, input.userId, requestKey);
-    if (existing) return { status: "created", conversationId: existing };
-  }
-  const quota = await consumeChatMessageQuota(db, input.userId, quotaOptions);
-  if (!quota.allowed) return { status: "rate_limited" };
-  try {
-    return await insertConversation(db, input, text, requestKey, attachment);
-  } catch (error) {
-    if (quota.consumed) await releaseChatMessageQuota(input.userId, quotaOptions);
-    throw error;
-  }
+  const createOnce = async (executor: Executor): Promise<CreateConversationResult> => {
+    if (requestKey !== null) {
+      const existing = await findConversationByRequestKey(executor, input.userId, requestKey);
+      if (existing) return { status: "created", conversationId: existing };
+    }
+    const quota = await consumeChatMessageQuota(executor, input.userId, quotaOptions);
+    if (!quota.allowed) return { status: "rate_limited" };
+    try {
+      return await insertConversation(db, input, text, requestKey, attachment, executor);
+    } catch (error) {
+      if (quota.consumed) await releaseChatMessageQuota(input.userId, quotaOptions);
+      throw error;
+    }
+  };
+  if (requestKey === null) return createOnce(db);
+  // Ayni anahtarla es zamanli iki istek ayni sohbeti paylasir: "ara - kota - yaz" sirasi
+  // anahtar basina bir islemde ve advisory kilit altinda yapilir. Ikinci istek kilidi
+  // bekler, birincinin sohbetini bulur ve kota harcamaz. (`chat_message_request_unique`
+  // yeni sohbette ayni `conversation_id` olmadigi icin bunu tek basina engelleyemez.)
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`chat-create:${input.userId}:${requestKey}`}, 0))`,
+    );
+    return createOnce(tx);
+  });
 }
 
 function insertConversation(
@@ -433,8 +447,10 @@ function insertConversation(
   text: string | null,
   requestKey: string | null,
   attachment: ChatAttachmentInput | undefined,
+  executor: Executor = db,
 ): Promise<CreateConversationResult> {
-  return db.transaction(async (tx) => {
+  // Kilit altindaysak zaten bir islemdeyiz (tx.transaction = savepoint); degilse yeni islem.
+  return executor.transaction(async (tx) => {
     const [created] = await tx
       .insert(conversation)
       .values({
@@ -807,6 +823,28 @@ export interface ProcessTurnInput {
   leaseSeconds?: number;
   /** Testler icin; varsayilan atomik Redis saglayici butcesi. */
   budget?: ProviderBudgetHooks;
+  /** Testler icin; varsayilan Redis kullanici tur sayaci (`allowTurnRun`). */
+  turnQuota?: QuotaConsumer;
+}
+
+/**
+ * Mesaj kotasi (`chat_message`) yazimi sinirlar; `runTurnAction` ise `provider_error`
+ * sonrasi tekrar cagrilabilir ve her cagri yeni bir Gemini denemesi demektir.
+ * Sinirlar `chatTurnRunLimits`te. Sayac erisilemezse kullanici engellenmez
+ * (global gunluk tavan yine gecerli).
+ */
+async function allowTurnRun(userId: number, consumer?: QuotaConsumer): Promise<boolean> {
+  try {
+    const result = await (consumer ?? consumeQuota)({
+      pool: "chat_message",
+      subject: `turn:${userId}`,
+      limits: chatTurnRunLimits(),
+    });
+    return result.allowed;
+  } catch (error) {
+    if (!isRedisUnavailableError(error)) console.error("[sohbet] tur sayaci hatasi");
+    return true;
+  }
 }
 
 interface ChatProviderBudget {
@@ -875,6 +913,38 @@ export async function processPendingTurnDetailed(
   return { result, preview: result.status === "answered" ? captured.preview : null, timings };
 }
 
+/**
+ * Kural 9: her HTTP denemesi (basarisiz olanlar dahil) bir `api_usage` satiri. Yanit
+ * yazimindan ayri bir yazim; gecici DB hatasina karsi bir kez daha denenir. Yine de
+ * basarisizsa turu bozmaz (kullanici cevabini alir) ama hata gorunur olur.
+ */
+async function recordTurnUsage(db: Database, userId: number, calls: readonly LlmCall[]) {
+  if (calls.length === 0) return;
+  const rows = calls.map((call) => ({
+    sessionId: null,
+    userId,
+    operation: CHAT_TURN_OPERATION,
+    modelVersion: call.modelVersion,
+    units: call.usage?.totalTokens ?? 0,
+    // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
+    costMicros: llmCallCostMicros(call),
+    cacheHit: false,
+  }));
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await db.insert(apiUsage).values(rows);
+      return;
+    } catch (error) {
+      if (attempt === 2) {
+        console.error(
+          "[sohbet] api_usage yazilamadi",
+          error instanceof Error ? error.name : "unknown",
+        );
+      }
+    }
+  }
+}
+
 async function runPendingTurn(
   db: Database,
   input: ProcessTurnInput,
@@ -941,13 +1011,21 @@ async function runPendingTurn(
     const request: InterpretRequest = maybeRequest;
     const lastSeq = view.messages.at(-1)?.seq ?? 0;
     // Kilit/islem YOK: kira yalnizca bir satir isaretidir; model cagrisi DB'yi tutmaz.
-    const modelAllowed = providerBudget.modelAllowed;
+    let modelAllowed = providerBudget.modelAllowed;
+    let blockedReason: "daily_cap" | "turn_limit" = "daily_cap";
+    if (modelAllowed && !(await allowTurnRun(input.userId, input.turnQuota))) {
+      modelAllowed = false;
+      blockedReason = "turn_limit";
+    }
     attempts = null;
     const outcome = await timer.time("gemini", () =>
-      interpretTurn(input.interpreter, request, { modelAllowed }),
+      interpretTurn(input.interpreter, request, { modelAllowed, blockedReason }),
     );
     attempts = outcome.calls.length;
     await settleBudget();
+    // Kural 9: ucret olustu; satirlar yanit yazimindan BAGIMSIZ ve hemen yazilir. Eskiden
+    // yanit islemiyle birlikte geri alinir, Redis sayaci kapanmis ama DB'de iz kalmazdi.
+    await recordTurnUsage(db, input.userId, outcome.calls);
 
     return await persistTurn();
 
@@ -960,22 +1038,6 @@ async function runPendingTurn(
             .where(eq(conversation.id, input.conversationId))
             .for("update");
           if (!row) return { status: "not_found" };
-
-          // Kural 9: her HTTP denemesi (basarisiz olanlar dahil) bir satir.
-          if (outcome.calls.length > 0) {
-            await tx.insert(apiUsage).values(
-              outcome.calls.map((call) => ({
-                sessionId: null,
-                userId: input.userId,
-                operation: CHAT_TURN_OPERATION,
-                modelVersion: call.modelVersion,
-                units: call.usage?.totalTokens ?? 0,
-                // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
-                costMicros: llmCallCostMicros(call),
-                cacheHit: false,
-              })),
-            );
-          }
 
           if (outcome.kind === "provider_error") {
             await releaseLease(tx, row.id);
