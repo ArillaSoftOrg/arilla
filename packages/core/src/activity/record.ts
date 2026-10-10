@@ -39,7 +39,7 @@ export const SEARCH_DEDUPE_MS = 10 * 60 * 1000;
 /** Aynı ürün bu süre içinde ikinci kez sayılmaz. */
 export const PRODUCT_VIEW_DEDUPE_MS = 30 * 60 * 1000;
 /**
- * Olay biçimi sürümü (migration 0061, karar 0097). 1 = eski satırlar (`event_id`
+ * Olay biçimi sürümü (migration 0061, karar 0100). 1 = eski satırlar (`event_id`
  * yok); 2 = `event_id` zorunlu. Bu yazıcı yalnızca 2 yazar.
  */
 export const ACTIVITY_SCHEMA_VERSION = 2;

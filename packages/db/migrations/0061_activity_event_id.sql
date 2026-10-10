@@ -1,4 +1,4 @@
--- 0061 — davranissal olaylara event_id ve schema_version (docs/decisions/0097)
+-- 0061 — davranissal olaylara event_id ve schema_version (docs/decisions/0100)
 --
 -- user_activity_event: tekrarlanan yazimlari (yeniden deneme, cift istek) kullanici
 -- bazinda tekillestiren `event_id` ve olay bicimini versiyonlayan `schema_version`.

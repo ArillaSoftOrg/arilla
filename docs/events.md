@@ -111,7 +111,7 @@ kaçıncı sırada gösterildiğini; `matched_kind`, o sonucu üreten
 dönüşümü sürüklediğini ölçmek içindir; sıralama ağırlıkları buna göre
 güncellenir (`docs/search.md`).
 
-## Olay kimliği ve şema sürümü (karar 0097)
+## Olay kimliği ve şema sürümü (karar 0100)
 
 `user_activity_event` satırları `event_id` (UUID) ve `schema_version` taşır:
 

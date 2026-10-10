@@ -1,5 +1,5 @@
 /**
- * Migration 0061 / karar 0097: event_id + schema_version. Gercek yerel Postgres;
+ * Migration 0061 / karar 0100: event_id + schema_version. Gercek yerel Postgres;
  * test edilen kod `arilla_app` rolu ile baglanir.
  */
 import { randomUUID } from "node:crypto";

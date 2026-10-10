@@ -1,4 +1,4 @@
-# 0097 — Davranışsal olaylarda `event_id` ve `schema_version`
+# 0100 — Davranışsal olaylarda `event_id` ve `schema_version`
 
 **Tarih:** 10 Ekim 2026 · **Durum:** kabul edildi (Faz 1B-2)
 
