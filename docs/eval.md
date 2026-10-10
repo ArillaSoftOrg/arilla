@@ -52,3 +52,10 @@ Hedeflere ulaşılmadı; sayılar sahte etiketle doldurulmadı.
 Faz 1A-2 (sonuç tabloları/migration), CI'a Python eval adımı (CI Python işi
 ayrı PR'larda yürüyor), canlı Gemini niyet doğruluğu, gerçek Jina vektörleriyle
 görsel set.
+
+## Kalıcı kayıt (Faz 1A-2, karar 0096)
+
+Koşu sonuçları `dataset_snapshot` / `ai_eval_run` / `ai_eval_case`, model çağrısı
+hataları `ai_error_event` tablolarına `packages/core/src/eval/store.ts` ile yazılır.
+Ham sorgu/metin/görsel/kullanıcı kimliği yazılmaz; vaka anahtarı fixture metninin
+hash önekidir. Üretim çağıranlarına bağlama ve cron temizliği ayrı iştir.

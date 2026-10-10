@@ -6,7 +6,7 @@
  * search↔0040 (`search_query_day`), ops↔0041 (`job_run`),
  * search↔0044 (`query_interpretation`).
  * feedback↔0032, forms↔0043, chat↔0054 (+0055 `chat_result_feedback`, +0057 `chat_attachment`),
- * trends↔0056 (`trend`, `trend_product`).
+ * trends↔0056 (`trend`, `trend_product`), ai-eval↔0060.
  * 0036'nin `session` kolonlari auth.ts'de, 0037'nin `user_consent`
  * kolonlari discovery.ts'dedir.
  *
@@ -17,6 +17,7 @@
 
 export * from "./activity.ts";
 export * from "./admin.ts";
+export * from "./ai-eval.ts";
 export * from "./attribution.ts";
 export * from "./auth.ts";
 export * from "./catalog.ts";
