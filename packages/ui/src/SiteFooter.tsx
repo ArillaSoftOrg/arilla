@@ -28,11 +28,18 @@ export interface SiteFooterProps {
   /** Wordmark'in linki; varsayilan `/`. */
   brandHref?: string;
   groups: readonly FooterGroup[];
-  affiliateNotice: string;
+  /**
+   * Verilirse disclosure bandinda affiliate notu. Karar 0093 revizyonu: public
+   * site footer'i bunu artik gostermez (bildirim urun sayfasinda, magaza
+   * baglantisinin yanindadir); bilesen secenegi korur.
+   */
+  affiliateNotice?: string;
   /** Verilirse affiliate notunun ardindan ayrintili aciklamaya link. */
   affiliateLink?: { label: string; href: string };
   priceDisclaimer: string;
   copyrightLabel: string;
+  /** Alttaki buyuk dekoratif kelime isareti; varsayilan `brandLabel`. */
+  decorativeWordmark?: string;
 }
 
 /**
@@ -44,9 +51,11 @@ export interface SiteFooterProps {
  * Hiyerarsi: marka blogu -> link gruplari (Urun, Hesap, Yasal) ->
  * disclosure bandi (affiliate + fiyat/stok) -> telif satiri.
  *
- * Karar 0093: markali zemin - alta dogru yumusak nane/limon atmosferi ve
- * kirpilmis buyuk tipografik "M" (site fontuyla, cizilmis logo degil). Ikisi de
- * yalnizca dekordur: `aria-hidden`, tiklanmaz, zorla-renk ve baskida yok.
+ * Karar 0093: markali zemin - yumusak nane/limon atmosferi ve en altta,
+ * kenarlardan kirpilmis buyuk "ManiCepte" kelime isareti (site fontuyla
+ * yazilir, cizilmis logo degil). Kelime isareti metnin ALTINDAKI kendi
+ * seridindedir, hicbir metinle ust uste binmez. Ikisi de yalnizca dekordur:
+ * `aria-hidden`, tiklanmaz, zorla-renk ve baskida yok.
  */
 export function SiteFooter({
   brandLabel,
@@ -57,12 +66,10 @@ export function SiteFooter({
   affiliateLink,
   priceDisclaimer,
   copyrightLabel,
+  decorativeWordmark = brandLabel,
 }: SiteFooterProps) {
   return (
     <footer className={styles.footer}>
-      <span className={styles.motif} aria-hidden="true">
-        M
-      </span>
       <Container size="wide" className={styles.inner}>
         <div className={styles.top}>
           <div className={styles.brand}>
@@ -102,22 +109,27 @@ export function SiteFooter({
         </div>
 
         <div className={styles.disclosure}>
-          <p className={styles.disclosureText}>
-            {affiliateNotice}
-            {affiliateLink ? (
-              <>
-                {" "}
-                <a href={affiliateLink.href} className={styles.disclosureLink}>
-                  {affiliateLink.label}
-                </a>
-              </>
-            ) : null}
-          </p>
+          {affiliateNotice ? (
+            <p className={styles.disclosureText}>
+              {affiliateNotice}
+              {affiliateLink ? (
+                <>
+                  {" "}
+                  <a href={affiliateLink.href} className={styles.disclosureLink}>
+                    {affiliateLink.label}
+                  </a>
+                </>
+              ) : null}
+            </p>
+          ) : null}
           <p className={styles.disclosureText}>{priceDisclaimer}</p>
         </div>
 
         <p className={styles.copyright}>{copyrightLabel}</p>
       </Container>
+      <div className={styles.wordmarkBand} aria-hidden="true">
+        <span className={styles.wordmark}>{decorativeWordmark}</span>
+      </div>
     </footer>
   );
 }
