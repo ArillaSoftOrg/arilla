@@ -79,7 +79,7 @@ Mevcut adlar korunur; yeni roller için yeni ad eklenir. Tek kaynak
 | Görsel üstü örtü / işaret | `--media-scrim` / `--on-media` | `rgba(14,15,17,.38)` / `#FFFFFF` | aynı |
 | Ana eylem kutusu gölgesi | `--shadow-hero` / `--shadow-hero-focus` | yumuşak geniş yayılım | aynı |
 | Footer atmosferi (dekor) | `--footer-glow-mint` / `--footer-glow-lime` | `rgba(112,214,196,.16)` / `rgba(183,245,47,.15)` | `rgba(95,214,200,.06)` / `rgba(183,245,47,.08)` |
-| Footer kelime işareti (dekor, zemin motifi) | `--footer-wordmark-strong` / `--footer-wordmark-soft` / `--footer-wordmark-faint` / `--footer-wordmark-glow` | `#A8E52A` / `rgba(143,220,200,.2)` / `rgba(143,220,200,.08)` / `rgba(183,245,47,.3)` | `#B7F52F` / `#1E3A14` / `rgba(30,58,20,.4)` / `rgba(183,245,47,.16)` |
+| Footer kelime işareti (dekor, metnin altındaki alan) | `--footer-wordmark-top` / `--footer-wordmark-bottom` / `--footer-wordmark-glow` | `rgba(134,204,92,.5)` → `#8FD13A`, parıltı `rgba(183,245,47,.22)` | `rgba(183,245,47,.45)` → `#B7F52F`, parıltı `rgba(183,245,47,.12)` |
 
 **Editoryal roller** (`/blog`, `/hakkinda`, `/ortakliklar`): bu sayfalar sıcak
 zemin ve koyu teal bölüm kullanır; roller de anlamsaldır, sayfaya özgü renk
@@ -125,11 +125,10 @@ karar 0025).
 - `--line` (~1.1–1.4:1) yalnızca **dekoratif** ayırıcı ve statik yüzey
   kenarı içindir; bir kontrolün bulunabilirliği ona bağlı olamaz.
 - `--accent-foreground` / `--accent-hover` ≥ 12:1.
-- Footer dekoru (karar 0093): metnin arkasında iki parıltı ve kelime
-  işaretinin soluk kısmı (`--footer-wordmark-soft`) en kötü üst üste
-  bindiğinde `--ink-muted` açık temada 4.57:1, koyu temada 4.77:1;
-  `--ink-secondary` ≥ 7.6:1. Güçlü yeşil (`--footer-wordmark-strong`) ve
-  parlama yalnızca copyright altındaki metinsiz şeritte, kontrast ölçülmez.
+- Footer dekoru (karar 0093): metnin arkasında yalnızca iki parıltı; en kötü
+  üst üste bindiğinde `--ink-muted` açık temada 4.81:1, koyu temada 4.90:1;
+  `--ink-secondary` ≥ 8:1. Kelime işareti ve parlaması metnin altındaki
+  metinsiz alanda, kontrast ölçülmez.
 
 Yeni bir renk eklemek bu tabloya satır eklemek demektir; kontrast değeri
 hesaplanmadan eklenmez.
@@ -605,9 +604,10 @@ metin, ikon, tek başına çizgi ya da durum rengi değildir. Dekor katmanları
 metin kontrastı ≥ 4.5:1 kalır.
 
 **Markalı footer (karar 0093):** `SiteFooter` alta doğru nane/limon
-parıltısı ve zeminine yerleşik, alttan ve yanlardan kırpılmış büyük
-"ManiCepte" kelime işareti (site fontu) taşır: metnin arkasında soluk,
-copyright altındaki metinsiz şeritte güçlü marka yeşili. Logo
+parıltısı ve copyright satırının altındaki dekor alanında, alttan kırpılmış
+büyük "ManiCepte" kelime işareti (site fontu, yumuşak dikey degrade) taşır;
+kelime hiçbir metnin arkasında değildir ve alanın kendi zemini yoktur
+(tek, kesintisiz footer yüzeyi). Logo
 çizilmez/izlenmez. Affiliate cümlesi footer'da yoktur (ürün sayfasında,
 tıklama noktasında); fiyat/stok uyarısı footer'da kalır.
 

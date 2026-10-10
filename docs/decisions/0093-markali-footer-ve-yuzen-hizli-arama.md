@@ -24,23 +24,26 @@ göre ölçülür; dekor onu 4.5:1'in altına indiremez.
   (`--footer-glow-mint`) ve limon (`--footer-glow-lime`). Açık temada sıcak
   kırık beyazdan alta doğru çok hafif nane/limon tonu; koyu temada grafit
   üzerinde çok düşük alfalı limon/nane havası.
-- Footer'ın **zeminine yerleşik**, iki yandan ve alttan kırpılmış büyük
+- Copyright satırının **altındaki** dekor alanında, alttan kırpılmış büyük
   **"ManiCepte"** kelime işareti (site fontu IBM Plex Sans, kalın ve eğik —
-  üst çubuktaki marka yazısıyla aynı dil). Ayrı bir alt şerit değildir: kutusu
-  footer'ın alt kenarına oturur, üstü disclosure/copyright satırlarının ve
-  link sütunlarının alt kısmının arkasına uzanır. Yeni bir logo SVG'si
-  çizilmedi/izlenmedi.
-- Dolgu alttan üste zayıflar: copyright satırının **altındaki** metinsiz
-  alt şeritte (`.inner` alt boşluğu, `--wordmark-clear` = kelime boyunun
-  %34'ü, telefonda sabit 12vw) güçlü marka yeşili (`--footer-wordmark-strong`),
-  copyright hizasında metin-güvenli tona (`--footer-wordmark-soft`; koyu
-  temada opak koyu yeşil, açık temada düşük alfalı nane), üst uçta
-  `--footer-wordmark-faint`. Durak konumları footer'ın alt kenarından
-  ölçülür; hiçbir metin güçlü yeşilin üstüne denk gelmez. Limon parlaması
-  (`--footer-wordmark-glow`) yalnızca metinsiz alt şerittedir.
-- Metnin arkasındaki her katman (iki parıltı + kelime işaretinin soluk
-  kısmı) en kötü üst üste binmede bile `--ink-muted` için ≥ 4.5:1 bırakır:
-  açık 4.57:1, koyu 4.77:1 (yalnızca parıltı: 4.81 / 4.90).
+  üst çubuktaki marka yazısıyla aynı dil). Yeni bir logo SVG'si
+  çizilmedi/izlenmedi. Kelime **hiçbir footer metninin arkasında değildir**
+  (link sütunları, fiyat/stok uyarısı, telif); metinle arası 24px.
+- Alanın kendi zemini yoktur: footer tek, kesintisiz bir yüzeydir, nane/limon
+  atmosferi alanın içine aynen devam eder; ayrı bant/kart/görsel gibi
+  görünmez. Alandaki limon parlaması (`--footer-wordmark-glow`) alanla
+  sınırlıdır ve üst kenarına varmadan tamamen söner.
+- Dolgu yukarıdan aşağı tek geçişli yumuşak degrade
+  (`--footer-wordmark-top` → `--footer-wordmark-bottom`); sert parlaklık
+  çizgisi yoktur. Koyu temada marka yeşili (üstte %45 alfa → altta tam),
+  açık temada neon olmayan derin yeşil.
+- Boyutlar: masaüstünde kelime `0.5rem + 19vw` (en çok 18.5rem; 1440px'te
+  282px), alan kelime boyunun %75'i (~210px); alan taban çizgisinin hemen
+  üstünde biter, yalnızca harf diplerinin ince kısmı ve "p" kuyruğu kırpılır.
+  Telefonda 22vw; kelime ekran kenarından en fazla birkaç piksel taşar,
+  yatay kaydırma yoktur.
+- Metnin arkasında yalnızca iki parıltı kalır; en kötü üst üste binmede
+  `--ink-muted` açık temada 4.81:1, koyu temada 4.90:1.
 - **Footer affiliate cümlesi kaldırıldı** ("Bazı bağlantılardan alışveriş
   yaptığında komisyon kazanabiliriz…" + bağlantı). Bildirim, tıklama
   noktasında kalır: ürün sayfasında mağaza bağlantısının yanında ve fiyat
@@ -95,7 +98,7 @@ düşük alfalı bir atmosfer kimlik kazandırırken metin kontrastını korur.
 ## Sonucu
 
 - `tokens.css`: `--footer-glow-mint`, `--footer-glow-lime`,
-  `--footer-wordmark-strong`, `--footer-wordmark-soft`,
-  `--footer-wordmark-faint`, `--footer-wordmark-glow` (iki temada); `--brand` yorumu istisnayı anar.
+  `--footer-wordmark-top`, `--footer-wordmark-bottom`,
+  `--footer-wordmark-glow` (iki temada); `--brand` yorumu istisnayı anar.
 - `docs/design.md` ve `docs/brand.md` güncellendi; `docs/copy.md`'ye
   `search.quick_label`, `search.quick_attach`, `search.quick_dismiss`.

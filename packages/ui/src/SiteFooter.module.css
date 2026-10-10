@@ -1,15 +1,16 @@
 /* Zemin `--surface`: footer icerikten ayrilir, ek cizgi/golge gerekmez.
-   Karar 0093: dekor katmanlari metnin ARKASINDA (negatif z-index,
-   `isolation`): alta dogru nane + limon atmosferi (::before), footer'in
-   zeminine yerlesik buyuk kelime isareti (.wordmark) ve yalnizca metinsiz
-   alt seritteki limon parlamasi (::after). Metnin arkasinda kalan her
-   katman `--ink-muted` icin >= 4.5:1 birakir; guclu yesil yalnizca en
-   alttaki, copyright satirinin ALTINDAKI metinsiz seritte. */
+   Karar 0093: tek, kesintisiz zemin. Alta dogru nane + limon atmosferi
+   (::before) tum footer'i kaplar; metnin arkasinda `--ink-muted` >= 4.5:1.
+   Buyuk kelime isareti copyright satirinin ALTINDAKI dekor alanindadir
+   (hicbir metnin arkasinda degil); bu alanin kendi zemini yoktur, ayni
+   atmosfer kesintisiz devam eder. Alandaki limon parlamasi (::after) ust
+   kenarina dogru tamamen soner, cizgi/kart gibi gorunmez. */
 .footer {
-  /* Kelime isaretinin boyu ve metinsiz alt seridin yuksekligi (= .inner alt
-     boslugu). Serit kelimenin alt kismini tasir; ustu metnin arkasina uzanir. */
-  --wordmark-size: clamp(5.5rem, 1rem + 22.5vw, 25rem);
-  --wordmark-clear: calc(var(--wordmark-size) * 0.34);
+  /* Kelime isaretinin boyu ve dekor alaninin yuksekligi: alan taban
+     cizgisinin hemen ustunde biter, yalnizca harf diplerinin incecik kismi ve
+     "p" kuyrugu kirpilir ("p" okunur kalir). 1440px'te ~210px. */
+  --wordmark-size: clamp(5rem, 0.5rem + 19vw, 18.5rem);
+  --wordmark-area: calc(var(--wordmark-size) * 0.75);
 
   position: relative;
   isolation: isolate;
@@ -33,62 +34,64 @@
     radial-gradient(110% 80% at 12% 122%, var(--footer-glow-mint), transparent 72%);
 }
 
-/* Limon parlamasi kelimenin alt kisminin arkasinda; yalnizca metinsiz seritte. */
+/* Parlama yalnizca dekor alaninda; ust kenara varmadan tamamen soner. */
 .footer::after {
   inset-inline: 0;
   inset-block-end: 0;
-  height: var(--wordmark-clear);
-  z-index: -2;
-  background: radial-gradient(60% 100% at 50% 100%, var(--footer-wordmark-glow), transparent 75%);
+  height: var(--wordmark-area);
+  z-index: -1;
+  background: radial-gradient(65% 100% at 50% 100%, var(--footer-wordmark-glow), transparent 78%);
 }
 
-/* Karar 0093: footer zeminine yerlesik, alttan ve iki yandan kirpilmis buyuk
-   "ManiCepte". Dolgu alttan uste zayiflar: metinsiz seritte marka yesili
-   (`strong`), copyright satirinin hizasinda metin-guvenli tona (`soft`)
-   iner, ust ucta `faint`. Durak konumlari footer'in alt kenarindan olculur
-   (kutunun alti = footer'in alti), bu yuzden hicbir metin `strong` uzerine
-   denk gelmez. Yazi ust cubuktaki marka yazisiyla ayni dil (site fontu,
-   kalin, egik); cizilmis/izlenmis logo degil. */
-.wordmark {
-  position: absolute;
-  inset-block-end: 0;
-  inset-inline-start: 50%;
-  z-index: -1;
-  transform: translateX(-50%);
-  font-size: var(--wordmark-size);
-  font-style: italic;
-  font-weight: 700;
-  /* Kutunun alti taban cizgisinin hemen altinda: "p" kuyrugu kirpilir. */
-  line-height: 0.86;
-  letter-spacing: -0.035em;
-  white-space: nowrap;
-  background: linear-gradient(
-    to top,
-    var(--footer-wordmark-strong) 0,
-    var(--footer-wordmark-strong) calc(var(--wordmark-clear) * 0.2),
-    var(--footer-wordmark-soft) calc(var(--wordmark-clear) - var(--space-1)),
-    var(--footer-wordmark-faint) 100%
-  );
-  background-clip: text;
-  -webkit-background-clip: text;
-  color: transparent;
+/* Dekor alani: kendi zemini yok (atmosfer kesintisiz), yalnizca kelimeyi
+   kirpar. */
+.wordmarkArea {
+  position: relative;
+  height: var(--wordmark-area);
+  overflow: hidden;
   pointer-events: none;
   user-select: none;
 }
 
-/* Telefonda oransal olarak daha iri ama kelime okunur kalir (yanlardan hafif
-   kirpilir). Alt serit sabit 12vw: footer yuksekligi kelime boyundan bagimsiz. */
+/* Karar 0093: alttan kirpilmis buyuk "ManiCepte". Dolgu yukaridan asagi
+   yumusak, tek gecisli degrade (sert parlaklik cizgisi yok). Yazi ust
+   cubuktaki marka yazisiyla ayni dil (site fontu, kalin, egik);
+   cizilmis/izlenmis logo degil. */
+.wordmark {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  font-size: var(--wordmark-size);
+  font-style: italic;
+  font-weight: 700;
+  line-height: 0.82;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+  /* Egik harflerin tasan ucu (son "e") dolgu alaninin icinde kalsin. */
+  padding-inline: 0.12em;
+  background: linear-gradient(
+    to bottom,
+    var(--footer-wordmark-top) 0%,
+    var(--footer-wordmark-bottom) 85%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Telefonda kelime genislige gore buyur, yanlardan yalnizca hafif kirpilir. */
 @media (max-width: 639.98px) {
   .footer {
-    --wordmark-size: 26vw;
-    --wordmark-clear: 12vw;
+    --wordmark-size: 22vw;
+    --wordmark-area: calc(var(--wordmark-size) * 0.75);
   }
 }
 
 @media (forced-colors: active) {
   .footer::before,
   .footer::after,
-  .wordmark {
+  .wordmarkArea {
     display: none;
   }
 }
@@ -96,7 +99,7 @@
 @media print {
   .footer::before,
   .footer::after,
-  .wordmark {
+  .wordmarkArea {
     display: none;
   }
 }
@@ -107,7 +110,7 @@
 .inner {
   display: grid;
   gap: var(--space-8);
-  padding-block: var(--section-space-compact) var(--wordmark-clear);
+  padding-block: var(--section-space-compact) var(--space-6);
 }
 
 /* Marka blogu + link gruplari. Telefonda alt alta; `lg` (1024px) ve
