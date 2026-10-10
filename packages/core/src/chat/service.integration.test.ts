@@ -539,6 +539,67 @@ describe("provider failure + retry", () => {
   });
 });
 
+describe("per-user turn execution limit", () => {
+  it("a user over the limit gets the deterministic fallback and NO Gemini call", async () => {
+    const id = await newConversation(userB, `${TOKEN} limit`);
+    const model = scripted([search({ query: TOKEN })]);
+    const result = await processPendingTurn(db, {
+      userId: userB,
+      conversationId: id,
+      interpreter: model,
+      turnQuota: async () => ({ allowed: false, window: "hour" }),
+    });
+    expect(result).toMatchObject({ status: "answered", source: "fallback" });
+    expect(model.calls).toBe(0);
+    const rows = await withOwnerClient((c) =>
+      c.query(
+        "SELECT payload->>'fallbackReason' AS r FROM chat_message WHERE conversation_id = $1 AND role = 'assistant'",
+        [id],
+      ),
+    );
+    expect(rows.rows.map((r) => r.r)).toEqual(["turn_limit"]);
+  });
+
+  it("repeated failing turns stop reaching Gemini once the limit is spent", async () => {
+    const id = await newConversation(userB, `${TOKEN} tekrar`);
+    let allowed = 2;
+    const model = scripted([
+      new LlmError("server_error"),
+      new LlmError("server_error"),
+      new LlmError("server_error"),
+    ]);
+    const outcomes: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const result = await processPendingTurn(db, {
+        userId: userB,
+        conversationId: id,
+        interpreter: model,
+        turnQuota: async () =>
+          allowed-- > 0 ? { allowed: true } : { allowed: false, window: "hour" },
+      });
+      outcomes.push(result.status);
+    }
+    expect(model.calls).toBe(2);
+    expect(outcomes.slice(0, 2)).toEqual(["provider_error", "provider_error"]);
+    expect(outcomes[2]).toBe("answered");
+  });
+
+  it("an unreachable counter never blocks the user (fail open)", async () => {
+    const id = await newConversation(userB, `${TOKEN} acik`);
+    const model = scripted([search({ query: TOKEN })]);
+    const result = await processPendingTurn(db, {
+      userId: userB,
+      conversationId: id,
+      interpreter: model,
+      turnQuota: async () => {
+        throw new RedisUnavailableError("test");
+      },
+    });
+    expect(result).toMatchObject({ status: "answered", source: "model" });
+    expect(model.calls).toBe(1);
+  });
+});
+
 describe("ownership", () => {
   it("another user cannot read, write to, or process a conversation", async () => {
     const id = await newConversation(userA, `${TOKEN}`);
@@ -755,6 +816,39 @@ describe("limits", () => {
       );
       expect(created.status).toBe("created");
       expect(consumed).toEqual([`chat_message:user:${userA}`]);
+    });
+
+    it("concurrent creations with the same requestKey open ONE conversation and spend ONE unit", async () => {
+      const user = userB;
+      const requestKey = `req-${run}-concurrent-create`;
+      const { consumed, options } = recording();
+      const results = await Promise.all(
+        Array.from({ length: 6 }, () =>
+          createConversation(
+            db,
+            { userId: user, message: `${TOKEN} ayni anda`, requestKey },
+            options,
+          ),
+        ),
+      );
+      const ids = new Set(
+        results.map((r) => (r.status === "created" ? r.conversationId : r.status)),
+      );
+      expect(ids.size).toBe(1);
+      expect([...ids][0]).toMatch(/^[0-9a-f-]{36}$/);
+      expect(consumed).toHaveLength(1);
+      const count = await withOwnerClient(async (c) =>
+        Number(
+          (
+            await c.query(
+              `SELECT count(*) AS n FROM chat_message m JOIN conversation c ON c.id = m.conversation_id
+                WHERE c.user_id = $1 AND m.client_request_id = $2`,
+              [user, requestKey],
+            )
+          ).rows[0].n,
+        ),
+      );
+      expect(count).toBe(1);
     });
 
     it("a full day/week/month window returns rate_limited and writes nothing", async () => {

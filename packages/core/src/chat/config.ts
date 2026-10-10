@@ -42,6 +42,16 @@ export function chatMessageLimits(env: Env = process.env): WindowLimits {
   return { ...QUOTA_POLICY.chat_message, hour: chatTurnsPerHour(env) };
 }
 
+/**
+ * Kullanici basina MODEL CAGIRAN tur sayisi (`runTurnAction` tekrar dongusu siniri).
+ * Normalde bir mesaj bir tur (saatte `chatTurnsPerHour`); saat tavani bunun 3 kati,
+ * yani yalnizca art arda basarisiz yeniden denemeleri keser. Ayri sayac anahtari
+ * kullanir (`turn:<id>`), havuz tablosu degismez.
+ */
+export function chatTurnRunLimits(env: Env = process.env): WindowLimits {
+  return { hour: chatTurnsPerHour(env) * 3, day: 200, week: 800, month: 2400 };
+}
+
 /** `api_usage.operation`; `/ara` anlik yorumundan (`query_interpretation_realtime`) AYRI butce. */
 export const CHAT_TURN_OPERATION = "chat_turn";
 

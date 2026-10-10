@@ -110,11 +110,15 @@ describe("startChatBootstrapAction: görsel normal mesajın ekidir (karar 0091)"
     );
   });
 
-  it("metin-only çağrı görselsiz aynı hattan geçer: ek anahtarı ve anahtar yok", async () => {
+  it("metin-only çağrı görselsiz aynı hattan geçer: ek yok, örtük çift gönderim anahtarı var", async () => {
     await startChatBootstrapAction("beyaz sneaker");
     expect(mocks.createConversation).toHaveBeenCalledWith(
       { db: true },
-      { userId: 7, message: "beyaz sneaker" },
+      {
+        userId: 7,
+        message: "beyaz sneaker",
+        requestKey: expect.stringMatching(/^auto-[0-9a-f]{40}$/),
+      },
     );
     expect(mocks.prepareChatImage).not.toHaveBeenCalled();
   });

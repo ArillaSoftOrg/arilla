@@ -46,6 +46,7 @@ import {
   CHAT_RETENTION_DAYS,
   CHAT_TURN_OPERATION,
   chatMessageLimits,
+  chatTurnRunLimits,
   chatTurnsPerHour,
   isChatImageEnabled,
   MAX_USER_MESSAGES_PER_CONVERSATION,
@@ -413,18 +414,31 @@ export async function createConversation(
   const text = cleanUserText(input.message);
   if (text === null && !attachment) return { status: "invalid_input" };
   const requestKey = requestKeyOrNull(input.requestKey);
-  if (requestKey !== null) {
-    const existing = await findConversationByRequestKey(db, input.userId, requestKey);
-    if (existing) return { status: "created", conversationId: existing };
-  }
-  const quota = await consumeChatMessageQuota(db, input.userId, quotaOptions);
-  if (!quota.allowed) return { status: "rate_limited" };
-  try {
-    return await insertConversation(db, input, text, requestKey, attachment);
-  } catch (error) {
-    if (quota.consumed) await releaseChatMessageQuota(input.userId, quotaOptions);
-    throw error;
-  }
+  const createOnce = async (executor: Executor): Promise<CreateConversationResult> => {
+    if (requestKey !== null) {
+      const existing = await findConversationByRequestKey(executor, input.userId, requestKey);
+      if (existing) return { status: "created", conversationId: existing };
+    }
+    const quota = await consumeChatMessageQuota(executor, input.userId, quotaOptions);
+    if (!quota.allowed) return { status: "rate_limited" };
+    try {
+      return await insertConversation(db, input, text, requestKey, attachment, executor);
+    } catch (error) {
+      if (quota.consumed) await releaseChatMessageQuota(input.userId, quotaOptions);
+      throw error;
+    }
+  };
+  if (requestKey === null) return createOnce(db);
+  // Ayni anahtarla es zamanli iki istek ayni sohbeti paylasir: "ara - kota - yaz" sirasi
+  // anahtar basina bir islemde ve advisory kilit altinda yapilir. Ikinci istek kilidi
+  // bekler, birincinin sohbetini bulur ve kota harcamaz. (`chat_message_request_unique`
+  // yeni sohbette ayni `conversation_id` olmadigi icin bunu tek basina engelleyemez.)
+  return db.transaction(async (tx) => {
+    await tx.execute(
+      sql`SELECT pg_advisory_xact_lock(hashtextextended(${`chat-create:${input.userId}:${requestKey}`}, 0))`,
+    );
+    return createOnce(tx);
+  });
 }
 
 function insertConversation(
@@ -433,8 +447,10 @@ function insertConversation(
   text: string | null,
   requestKey: string | null,
   attachment: ChatAttachmentInput | undefined,
+  executor: Executor = db,
 ): Promise<CreateConversationResult> {
-  return db.transaction(async (tx) => {
+  // Kilit altindaysak zaten bir islemdeyiz (tx.transaction = savepoint); degilse yeni islem.
+  return executor.transaction(async (tx) => {
     const [created] = await tx
       .insert(conversation)
       .values({
@@ -807,6 +823,28 @@ export interface ProcessTurnInput {
   leaseSeconds?: number;
   /** Testler icin; varsayilan atomik Redis saglayici butcesi. */
   budget?: ProviderBudgetHooks;
+  /** Testler icin; varsayilan Redis kullanici tur sayaci (`allowTurnRun`). */
+  turnQuota?: QuotaConsumer;
+}
+
+/**
+ * Mesaj kotasi (`chat_message`) yazimi sinirlar; `runTurnAction` ise `provider_error`
+ * sonrasi tekrar cagrilabilir ve her cagri yeni bir Gemini denemesi demektir.
+ * Sinirlar `chatTurnRunLimits`te. Sayac erisilemezse kullanici engellenmez
+ * (global gunluk tavan yine gecerli).
+ */
+async function allowTurnRun(userId: number, consumer?: QuotaConsumer): Promise<boolean> {
+  try {
+    const result = await (consumer ?? consumeQuota)({
+      pool: "chat_message",
+      subject: `turn:${userId}`,
+      limits: chatTurnRunLimits(),
+    });
+    return result.allowed;
+  } catch (error) {
+    if (!isRedisUnavailableError(error)) console.error("[sohbet] tur sayaci hatasi");
+    return true;
+  }
 }
 
 interface ChatProviderBudget {
@@ -973,10 +1011,15 @@ async function runPendingTurn(
     const request: InterpretRequest = maybeRequest;
     const lastSeq = view.messages.at(-1)?.seq ?? 0;
     // Kilit/islem YOK: kira yalnizca bir satir isaretidir; model cagrisi DB'yi tutmaz.
-    const modelAllowed = providerBudget.modelAllowed;
+    let modelAllowed = providerBudget.modelAllowed;
+    let blockedReason: "daily_cap" | "turn_limit" = "daily_cap";
+    if (modelAllowed && !(await allowTurnRun(input.userId, input.turnQuota))) {
+      modelAllowed = false;
+      blockedReason = "turn_limit";
+    }
     attempts = null;
     const outcome = await timer.time("gemini", () =>
-      interpretTurn(input.interpreter, request, { modelAllowed }),
+      interpretTurn(input.interpreter, request, { modelAllowed, blockedReason }),
     );
     attempts = outcome.calls.length;
     await settleBudget();

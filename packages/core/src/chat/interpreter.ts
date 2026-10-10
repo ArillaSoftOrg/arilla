@@ -361,6 +361,7 @@ export type InterpretationOutcome =
         | ModelTurnRejection
         | "filtered"
         | "daily_cap"
+        | "turn_limit"
         | "output_error"
         | "clarify_limit"
         | "no_query"
@@ -389,7 +390,7 @@ function inputText(input: UserInput): string {
 export async function interpretTurn(
   interpreter: ChatInterpreter,
   request: InterpretRequest,
-  options: { modelAllowed?: boolean } = {},
+  options: { modelAllowed?: boolean; blockedReason?: "daily_cap" | "turn_limit" } = {},
 ): Promise<InterpretationOutcome> {
   const calls: LlmCall[] = [];
   const modelVersion = interpreter.modelVersion;
@@ -418,7 +419,7 @@ export async function interpretTurn(
   if (imageOwner && isBlockedFromModel(imageOwner.text)) delete filteredRequest.image;
   if (isBlockedFromModel(inputText(request.input))) return fallback("filtered");
   // Gunluk saglayici tavani dolduysa model cagrilmaz; kullanici yedek aramayla devam eder.
-  if (options.modelAllowed === false) return fallback("daily_cap");
+  if (options.modelAllowed === false) return fallback(options.blockedReason ?? "daily_cap");
 
   let result: LlmJsonResult;
   try {
