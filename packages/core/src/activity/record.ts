@@ -17,6 +17,8 @@
  * Olay ve sayaç AYNI işlemde yazılır. Kullanıcı başına danışma kilidi, tekrar
  * bastırmanın eşzamanlı iki istekte de tek olay üretmesini sağlar.
  */
+
+import { createHash, randomUUID } from "node:crypto";
 import {
   type ActivityChannel,
   type ActivityEventKind,
@@ -36,6 +38,26 @@ export const QUERY_NORM_MAX_LENGTH = 200;
 export const SEARCH_DEDUPE_MS = 10 * 60 * 1000;
 /** Aynı ürün bu süre içinde ikinci kez sayılmaz. */
 export const PRODUCT_VIEW_DEDUPE_MS = 30 * 60 * 1000;
+/**
+ * Olay biçimi sürümü (migration 0061, karar 0097). 1 = eski satırlar (`event_id`
+ * yok); 2 = `event_id` zorunlu. Bu yazıcı yalnızca 2 yazar.
+ */
+export const ACTIVITY_SCHEMA_VERSION = 2;
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/**
+ * `merchant_exit` için belirleyici kimlik: aynı tıklama ikinci kez yazılsa da aynı
+ * `event_id` çıkar, böylece tekrar bir olay üretmez. UUID biçiminde, `click_id`
+ * dışında bilgi taşımaz (tek yönlü özet).
+ */
+export function merchantExitEventId(clickId: string): string {
+  const h = createHash("sha256").update(`merchant_exit:${clickId.toLowerCase()}`).digest();
+  h[6] = ((h[6] ?? 0) & 0x0f) | 0x50; // sürüm 5 biçimi
+  h[8] = ((h[8] ?? 0) & 0x3f) | 0x80; // RFC 4122 varyantı
+  const x = h.subarray(0, 16).toString("hex");
+  return `${x.slice(0, 8)}-${x.slice(8, 12)}-${x.slice(12, 16)}-${x.slice(16, 20)}-${x.slice(20, 32)}`;
+}
 
 export type ActivityInput =
   | { kind: "search_submitted"; query: string; resultCount: number | null }
@@ -50,6 +72,11 @@ export interface RecordActivityInput {
   event: ActivityInput;
   channel?: ActivityChannel;
   now?: Date;
+  /**
+   * İstemcinin/çağıranın ürettiği UUID: aynı kullanıcı için aynı kimlik ikinci kez
+   * yazılmaz ("duplicate"). Verilmezse üretilir (`merchant_exit` için tıklamadan türetilir).
+   */
+  eventId?: string;
 }
 
 /** Normalize edilmiş, uzunluğu sınırlı sorgu. Boşsa `null` (olay yazılmaz). */
@@ -78,6 +105,11 @@ export async function recordActivity(
   if (!effectiveAnalyticsConsent(input.cookieConsent, null)) return "no_consent";
 
   const event = input.event;
+  if (input.eventId !== undefined && !UUID_RE.test(input.eventId)) return "invalid";
+  const eventId = (
+    input.eventId ??
+    (event.kind === "merchant_exit" ? merchantExitEventId(event.clickId) : randomUUID())
+  ).toLowerCase();
   const now = input.now ?? new Date();
   let queryNorm: string | null = null;
   if (event.kind === "search_submitted") {
@@ -98,21 +130,29 @@ export async function recordActivity(
     if (await isDuplicate(tx, userId, event, queryNorm, now)) return "duplicate";
 
     const kind: ActivityEventKind = event.kind;
-    await tx.insert(userActivityEvent).values({
-      userId,
-      kind,
-      channel: input.channel ?? "web",
-      productId: event.kind === "product_viewed" ? event.productId : null,
-      offerId: event.kind === "merchant_exit" ? event.offerId : null,
-      clickId: event.kind === "merchant_exit" ? event.clickId : null,
-      searchMode: event.kind === "search_submitted" ? "text" : null,
-      queryNorm,
-      resultCount:
-        event.kind === "search_submitted" && typeof event.resultCount === "number"
-          ? Math.max(0, Math.trunc(event.resultCount))
-          : null,
-      createdAt: now,
-    });
+    const inserted = await tx
+      .insert(userActivityEvent)
+      .values({
+        userId,
+        eventId,
+        schemaVersion: ACTIVITY_SCHEMA_VERSION,
+        kind,
+        channel: input.channel ?? "web",
+        productId: event.kind === "product_viewed" ? event.productId : null,
+        offerId: event.kind === "merchant_exit" ? event.offerId : null,
+        clickId: event.kind === "merchant_exit" ? event.clickId : null,
+        searchMode: event.kind === "search_submitted" ? "text" : null,
+        queryNorm,
+        resultCount:
+          event.kind === "search_submitted" && typeof event.resultCount === "number"
+            ? Math.max(0, Math.trunc(event.resultCount))
+            : null,
+        createdAt: now,
+      })
+      // Aynı (user_id, event_id) tekrar gelirse sessizce atlanır; sayaç artmaz.
+      .onConflictDoNothing({ target: [userActivityEvent.userId, userActivityEvent.eventId] })
+      .returning({ id: userActivityEvent.id });
+    if (inserted.length === 0) return "duplicate";
     await incrementAnalyticsCounter(tx, { userId, kind, at: now });
     return "recorded";
   });

@@ -7,7 +7,7 @@
  * Bu tablolarda IP, ham user agent, token, istek basligi/govdesi ve serbest
  * JSON alani YOKTUR.
  */
-import { bigint, integer, pgTable, text, timestamp, uuid } from "drizzle-orm/pg-core";
+import { bigint, integer, pgTable, smallint, text, timestamp, uuid } from "drizzle-orm/pg-core";
 import type { BrowserFamily, DeviceClass } from "./auth.ts";
 
 export type AuthEventKind = "sign_up" | "sign_in" | "sign_out" | "session_revoked";
@@ -46,6 +46,10 @@ export const userActivityEvent = pgTable("user_activity_event", {
   queryNorm: text("query_norm"),
   resultCount: integer("result_count"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  /** 0061: yeni yazıcıda zorunlu; sürüm 1 (eski) satırlarda NULL. (user_id, event_id) tekildir. */
+  eventId: uuid("event_id"),
+  /** 0061: 1 = eski biçim (event_id yok), 2 = event_id zorunlu. */
+  schemaVersion: smallint("schema_version").notNull().default(1),
 });
 
 /** Kullanıcı başına tek satır. NULL sayaç = bilinmiyor (geçmiş uydurulmaz). */

@@ -111,6 +111,19 @@ kaçıncı sırada gösterildiğini; `matched_kind`, o sonucu üreten
 dönüşümü sürüklediğini ölçmek içindir; sıralama ağırlıkları buna göre
 güncellenir (`docs/search.md`).
 
+## Olay kimliği ve şema sürümü (karar 0097)
+
+`user_activity_event` satırları `event_id` (UUID) ve `schema_version` taşır:
+
+- `schema_version = 1`: eski biçim, `event_id` NULL. Mevcut satırlar bunlardır.
+- `schema_version = 2`: `event_id` zorunlu. Yeni yazıcı bunu yazar.
+- `(user_id, event_id)` tekildir; aynı kimlik ikinci kez gelirse olay yazılmaz ve
+  sayaç artmaz (`recordActivity` → `duplicate`). `merchant_exit` kimliği
+  `click_id`'den türetilir, yani aynı çıkış bir kez yazılır.
+- Kimlik rıza kapısını değiştirmez: rıza yoksa hiçbir şey yazılmaz.
+- Sürüm değişikliği: yeni sürüm numarası, bu bölümde biçim notu ve okuyan kodda
+  eski sürüm dalı birlikte eklenir; eski sürüm satırları silinmez.
+
 ## Hesap
 
 | Olay | Alanlar |
