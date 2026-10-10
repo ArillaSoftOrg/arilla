@@ -9,12 +9,33 @@
  */
 import { createHmac, randomBytes } from "node:crypto";
 
+/** Sir tanimsiz: cagiranlar bunu ayirt edip kapali kalabilsin (fail-closed). */
+export class SecretNotConfiguredError extends Error {
+  constructor() {
+    super("SESSION_SECRET tanimli degil. .env.example dosyasina bakin.");
+    this.name = "SecretNotConfiguredError";
+  }
+}
+
 function secret(): string {
   const value = process.env.SESSION_SECRET;
-  if (!value) {
-    throw new Error("SESSION_SECRET tanimli degil. .env.example dosyasina bakin.");
-  }
+  if (!value) throw new SecretNotConfiguredError();
   return value;
+}
+
+/** Her kullanim amaci ayri alan: ayni girdi farkli ozelliklerde farkli ozet verir. */
+export type PseudonymPurpose = "auth" | "phone" | "feedback" | "forms" | "realtime";
+
+/**
+ * IP, e-posta, telefon gibi dusuk entropili degerler icin takma ad: `SESSION_SECRET`
+ * ile HMAC-SHA256. Tuzsuz SHA-256 kucuk uzayda (IPv4) kaba kuvvetle geri
+ * cevrilebilir; sir olmadan ozet uretilemez. Ozet YALNIZCA kisa omurlu Redis
+ * sayac anahtarlari icindir ve yine kisisel veridir (anonim degildir).
+ * `hashToken` ile ayni anahtar kullanilir ama mesaj `pseudonym:v1:` onekini
+ * tasir; ham token base64url oldugu icin `:` icermez, alanlar cakismaz.
+ */
+export function pseudonymize(purpose: PseudonymPurpose, value: string): string {
+  return createHmac("sha256", secret()).update(`pseudonym:v1:${purpose}\0${value}`).digest("hex");
 }
 
 /** 256 bit rastgele token, URL'ye gomulebilir (base64url, dolgusuz). */

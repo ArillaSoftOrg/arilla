@@ -16,9 +16,13 @@
  * bugunku deterministik yoldan devam eder. Log yalnizca sabit kod tasir;
  * sorgu metni, istem ya da ham yanit loglanmaz.
  */
+// `createHash` bu dosyada artik kullanilmiyor (IP ozeti `pseudonymize`); import,
+// `feature/ai-hardening-comprehensive` (single-flight, `flightKey`) ile birlesirken
+// derlemenin kirilmamasi icin korunur. O dal main'e girince kullanilir, uyari biter.
 import { createHash } from "node:crypto";
 import { type Database, queryInterpretation } from "@arilla/db";
 import { and, eq } from "drizzle-orm";
+import { pseudonymize, SecretNotConfiguredError } from "../auth/token.ts";
 import { describeTaxonomy, type ValidatedInterpretation } from "../clarification/interpreter.ts";
 import { DEFAULT_CLARIFICATION_REGISTRY } from "../clarification/rules.ts";
 import { createInitialState } from "../clarification/state.ts";
@@ -80,9 +84,7 @@ export function realtimeActorQuota(actor: RealtimeActor): { pool: QuotaPool; sub
   if (actor.userId !== null) {
     return { pool: "realtime_interpretation_user", subject: `user:${actor.userId}` };
   }
-  const subject = actor.ip
-    ? `ip:${createHash("sha256").update(actor.ip.trim()).digest("hex")}`
-    : "ip:unknown";
+  const subject = actor.ip ? `ip:${pseudonymize("realtime", actor.ip.trim())}` : "ip:unknown";
   return { pool: "realtime_interpretation_anonymous", subject };
 }
 
@@ -255,7 +257,10 @@ export async function resolveRealtimeInterpretation(
           });
           if (!quota.allowed) return { source: "none", reason: "actor_limited" };
         } catch (error) {
-          if (!isRedisUnavailableError(error)) throw error;
+          // Kota ya da kimlik ozeti dogrulanamazsa model cagrilmaz (fail-closed).
+          if (!isRedisUnavailableError(error) && !(error instanceof SecretNotConfiguredError)) {
+            throw error;
+          }
           logFailure("actor limit", error);
           return { source: "none", reason: "actor_limited" };
         }
