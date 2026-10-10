@@ -2,6 +2,7 @@ import { type ChatMessageView, intentChips } from "@arilla/core";
 import { ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
 import { Suspense } from "react";
 import { CHAT_COPY } from "./chat-copy.ts";
+import { ChatLinkResults } from "./chat-link-results.tsx";
 import { ChatResults } from "./chat-results.tsx";
 import { ChatUserRow } from "./chat-shell-parts.tsx";
 import { type ChatSortKey, parseSortKey } from "./chat-sort.ts";
@@ -47,6 +48,11 @@ export function ChatThread({
     .filter((m) => m.role === "assistant" && m.kind === "search")
     .map((m) => m.seq);
   const shown = new Set(searchSeqs.slice(-RESULT_BLOCKS_SHOWN));
+  // Link sonuçları da yalnızca en son link mesajında çizilir (karar 0090); öncekiler özet.
+  const linkSeqs = messages
+    .filter((m) => m.role === "assistant" && m.kind === "notice" && m.link)
+    .map((m) => m.seq);
+  const linkShown = new Set(linkSeqs.slice(-RESULT_BLOCKS_SHOWN));
 
   return (
     // role="log": yeni mesajlar kibarca duyurulur, geçmiş yeniden okunmaz.
@@ -103,6 +109,14 @@ export function ChatThread({
                     </Suspense>
                   ) : null}
                 </>
+              ) : null}
+              {message.kind === "notice" && message.link && linkShown.has(message.seq) ? (
+                <ChatLinkResults
+                  link={message.link}
+                  conversationId={conversationId}
+                  messageSeq={message.seq}
+                  headingId={resultsId}
+                />
               ) : null}
             </div>
           </li>

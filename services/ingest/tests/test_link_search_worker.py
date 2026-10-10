@@ -30,6 +30,10 @@ FIXTURES = Path(__file__).parent / "fixtures" / "link"
 
 CLEANUP_STATEMENTS = (
     "DELETE FROM link_resolution_request WHERE url_raw LIKE %(pattern)s",
+    # Fiyatsiz referans gorseli: image_upload + 'query' embedding'i (oturum sabit).
+    """WITH u AS (DELETE FROM image_upload WHERE session_id = 'test-session' RETURNING id)
+       DELETE FROM embedding WHERE target_type = 'query' AND target_id IN (SELECT id FROM u)""",
+    "DELETE FROM api_usage WHERE session_id = 'test-session' AND operation = 'image_embedding'",
     # Ic adres testi alan adi disinda bir URL kullanir.
     "DELETE FROM link_resolution_request WHERE url_raw LIKE 'http://169.254.169.254/%%'",
     """DELETE FROM embedding WHERE target_type = 'offer' AND target_id IN (
@@ -239,6 +243,7 @@ def test_no_embedding_provider_resolves_text_only(clean_domain: None) -> None:
 
 
 def test_price_less_product_page_is_a_reference_not_an_offer(clean_domain: None) -> None:
+    before = _catalog_counts()
     row = _run(
         f"https://{DOMAIN}/urun/sandalye",
         _page_client("product_reference_no_price.html"),
@@ -252,16 +257,154 @@ def test_price_less_product_page_is_a_reference_not_an_offer(clean_domain: None)
     # Govdedeki "1299 TL" fiyat SAYILMADI.
     assert "price" not in source and "currency" not in source
     assert source["image_url"] == f"https://{DOMAIN}/media/sandalye-ceviz.jpg"
-    assert source["image_status"] == "not_indexed"
+    assert source["image_status"] == "embedded"
+    assert row["embedding"] is not None
+    assert _catalog_counts() == before
 
+
+def _catalog_counts() -> tuple[int, ...]:
+    """Katalog yazilmadigini kanitlamak icin: offer, price_point, product satir sayilari."""
+    with _owner() as conn, conn.cursor() as cur:
+        counts: list[int] = []
+        for table in ("offer", "price_point", "product"):
+            cur.execute(f"SELECT count(*) FROM {table}")  # noqa: S608 - sabit ad
+            counts.append(cur.fetchone()[0])  # type: ignore[index]
+    return tuple(counts)
+
+
+def _reference_rows() -> list[tuple[Any, ...]]:
     with _owner() as conn, conn.cursor() as cur:
         cur.execute(
-            "SELECT count(*) FROM offer o JOIN merchant m ON m.id = o.merchant_id"
-            " WHERE m.domain = %s",
-            (DOMAIN,),
+            """
+            SELECT u.id, u.user_id, u.session_id, u.status, u.object_key, u.has_face,
+                   length(u.image_hash), u.embedding_id, e.target_type, e.target_id,
+                   e.kind, e.model_version
+              FROM image_upload u JOIN embedding e ON e.id = u.embedding_id
+             WHERE u.session_id = 'test-session' ORDER BY u.id
+            """
         )
-        count = cur.fetchone()
-    assert count is not None and count[0] == 0
+        return cur.fetchall()
+
+
+def _usage(cache_hit: bool) -> int:
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM api_usage WHERE session_id = 'test-session'"
+            " AND operation = 'image_embedding' AND cache_hit = %s",
+            (cache_hit,),
+        )
+        return cur.fetchone()[0]  # type: ignore[index]
+
+
+def test_price_less_reference_stores_upload_and_query_embedding(clean_domain: None) -> None:
+    embedder = FakeEmbeddingClient()
+    before = _catalog_counts()
+    row = _run(
+        f"https://{DOMAIN}/urun/sandalye",
+        _page_client("product_reference_no_price.html"),
+        embedder=embedder,
+        image_http=_image_client(_good_image),
+    )
+    assert row["offer_id"] is None and row["source"]["image_status"] == "embedded"
+    assert _catalog_counts() == before
+
+    rows = _reference_rows()
+    assert len(rows) == 1
+    (
+        upload_id,
+        user_id,
+        session,
+        status,
+        object_key,
+        has_face,
+        hash_len,
+        embedding_id,
+        target_type,
+        target_id,
+        kind,
+        model_version,
+    ) = rows[0]
+    assert (user_id, session, status, object_key, has_face) == (
+        None,
+        "test-session",
+        "embedded",
+        None,
+        False,
+    )
+    assert hash_len == 64
+    assert (target_type, target_id, kind) == ("query", upload_id, "image")
+    assert model_version == embedder.model_version
+    assert row["embedding"] == embedding_id
+    assert embedder.calls == 1
+    assert _usage(cache_hit=False) == 1
+
+
+def test_same_reference_image_twice_skips_the_provider(clean_domain: None) -> None:
+    embedder = FakeEmbeddingClient()
+    ids = []
+    for _ in range(2):
+        row = _run(
+            f"https://{DOMAIN}/urun/sandalye",
+            _page_client("product_reference_no_price.html"),
+            embedder=embedder,
+            image_http=_image_client(_good_image),
+        )
+        assert row["source"]["image_status"] == "embedded"
+        ids.append(row["embedding"])
+    assert embedder.calls == 1
+    assert ids[0] != ids[1]  # her istek kendi satirini tutar
+    assert len(_reference_rows()) == 2
+    assert _usage(cache_hit=False) == 1 and _usage(cache_hit=True) == 1
+
+
+def test_price_less_without_image_is_missing(clean_domain: None) -> None:
+    embedder = FakeEmbeddingClient()
+    row = _run(
+        f"https://{DOMAIN}/urun/sehpa",
+        _page_client("product_reference_no_image.html"),
+        embedder=embedder,
+        image_http=_image_client(_good_image),
+    )
+    assert row["status"] == "resolved" and row["offer_id"] is None
+    assert row["source"]["image_status"] == "missing"
+    assert row["embedding"] is None and embedder.calls == 0
+    assert _reference_rows() == []
+
+
+def test_price_less_download_failure_is_failed(clean_domain: None) -> None:
+    def gone(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(404, text="yok")
+
+    embedder = FakeEmbeddingClient()
+    row = _run(
+        f"https://{DOMAIN}/urun/sandalye",
+        _page_client("product_reference_no_price.html"),
+        embedder=embedder,
+        image_http=_image_client(gone),
+    )
+    assert row["status"] == "resolved"
+    assert row["source"]["image_status"] == "failed"
+    assert row["embedding"] is None and embedder.calls == 0
+    assert _reference_rows() == []
+
+
+def test_price_less_rejected_image_is_rejected(clean_domain: None) -> None:
+    def broken(request: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, content=b"gorsel degil", headers={"content-type": "image/jpeg"})
+
+    row = _run(
+        f"https://{DOMAIN}/urun/sandalye",
+        _page_client("product_reference_no_price.html"),
+        embedder=FakeEmbeddingClient(),
+        image_http=_image_client(broken),
+    )
+    assert row["source"]["image_status"] == "rejected" and row["embedding"] is None
+
+
+def test_price_less_without_embedder_is_unavailable(clean_domain: None) -> None:
+    row = _run(f"https://{DOMAIN}/urun/sandalye", _page_client("product_reference_no_price.html"))
+    assert row["status"] == "resolved"
+    assert row["source"]["image_status"] == "unavailable" and row["embedding"] is None
 
 
 def test_page_without_product_fails_with_stable_code(clean_domain: None) -> None:

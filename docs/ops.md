@@ -41,6 +41,42 @@ docker compose -f infra/docker-compose.worker.yml up -d --build
   Gecikmeyi etkilemez (bekleme sırasında gelen iş anında döner); yalnızca boş
   kuyrukta Upstash'e giden komut sayısını belirler (~43 bin/ay; 5 sn'de ~520
   bin/ay idi).
+- **Ortam dosyası:** `cp infra/.env.worker.example infra/.env.worker`, değerleri
+  doldur. `REDIS_URL` üretimde `rediss://` olmalı ve web ile aynı Redis olmalı;
+  yoksa/TLS değilse worker `2` koduyla, bağlanmadan çıkar. `JINA_API_KEY` boşsa
+  worker metinle çalışır (`image_status=unavailable`); anahtar varken
+  `EMBEDDING_COST_MICROS_PER_1K_TOKENS` de doldurulmalıdır (maliyet ölçümü).
+- **Otomatik dağıtım YOK:** `main`'e push Vercel'i dağıtır, worker'ı dağıtmaz.
+  Worker kodu değişince worker hostunda elle: `git pull`, sonra
+  `docker compose -f infra/docker-compose.worker.yml up -d --build`. Önce
+  migration (şema değişikliği varsa) uygulanır, sonra worker yeniden kurulur.
+- **Sağlık:** worker HTTP endpoint'i SUNMAZ. Kuyruk döngüsü her `BRPOP`
+  dönüşünde `WORKER_HEARTBEAT_FILE` (varsayılan `/tmp/link-worker.heartbeat`)
+  dosyasına dokunur; imajdaki `HEALTHCHECK` (`python -m collect.link
+  --healthcheck`, DB/Redis'e bağlanmaz) dosya 180 sn'den eskiyse `unhealthy`
+  yapar. Redis'e ulaşılamazsa dosya yenilenmez, yani takılan worker görünür olur.
+  `docker ps` / `docker inspect --format '{{.State.Health.Status}}'` ile bakılır;
+  compose `unhealthy` kapsayıcıyı kendiliğinden yeniden başlatmaz: izleme
+  `unhealthy`yi uyarıya çevirmeli ya da elle `docker compose restart`.
+- **Fiyatsız referans görseli:** fiyatsız sayfanın görseli (varsa) aynı güvenli
+  indirme ve `img512-v1` önişlemeyle embed edilir; `image_upload` (ham dosya
+  saklanmaz) + `embedding(target_type='query')` yazılır, offer/fiyat/ürün
+  yazılmaz. Aynı hash+model için vektör varsa Jina çağrılmaz (`cache_hit`).
+  Hata/eksik görselde istek düşmez, arama metinle sürer.
+  Saklama: `purge_after` (30 gün) geçince `cleanup-auth` cron'u bu çifti siler
+  (`purgeExpiredLinkSourceEmbeddings`, karar 0090): önce
+  `link_resolution_request.image_embedding_id` NULL'a çekilir, sonra
+  `image_upload` + `embedding` silinir. Aktif sohbet (son mesajı 90 günden genç)
+  `payload.link.requestId` ile anıyorsa ya da başka bir `image_upload.embedding_id`
+  (hash önbelleğini paylaşan kullanıcı yüklemesi) kullanıyorsa dokunulmaz.
+  Silinen kaynağın takip/iyileştirmede görsel sinyali yoktur, arama metne düşer
+  (kabul edilen davranış). Cron yanıtı/`job_run` detayında `linkSources`
+  (`embeddings`, `uploads`, `detached`, `truncated`, `failed`) yalnızca sayıdır;
+  parti tavanı (500 x 20) dolarsa koşu `partial` olur, sonraki gün sürer.
+- **Zaman aşımı/hata:** sayfa ve görsel isteklerinin zaman aşımı sabittir
+  (`safe_http`: 10 sn, bağlantı 5 sn); bir istek hata verirse yalnızca o satır `failed` olur, worker
+  sonraki mesaja geçer. Yalnızca kopan Postgres bağlantısı süreci `1` ile
+  düşürür.
 
 ## Sağlayıcı bağımsızlığı
 
@@ -330,6 +366,7 @@ NULL'a çekilen satır sayılarını verir (kişisel veri yok).
 | --- | --- | --- |
 | `cleanup-auth` | `auth_token`, `phone_login_code`, `session` süresi dolanlar | çalışıyor |
 | `purgeExpiredActivity` | `user_activity_event` 180 gün, `query_norm` 90 gün, `auth_event` 1 yıl, `user_consent.ip` 1 yıl | çalışıyor: `cleanup-auth` içinde, ayrı cron yok (0049) |
+| `purgeExpiredLinkSourceEmbeddings` | süresi dolmuş, aktif sohbetle ilişkisiz fiyatsız link kaynağı `image_upload` + `query` embedding (30 gün) | çalışıyor: `cleanup-auth` içinde, yalıtılmış adım (0079) |
 
 İşin son koşusu `/yonetim/islemler/isler`'de (`cleanup_auth`) görünür;
 süresi geçmiş giriş kaydı birikirse işletim ekranı uyarır (0055). En eski satır süreyi aşmışsa iş çalışmıyor demektir.
@@ -811,3 +848,7 @@ onayı (docs/kvkk.md "Konuşmalı keşif") → bayrak açılır. Maliyet: `api_u
 sohbet turu kotasından geçer (arama hakkı harcanmaz); ek migration yok (0057 yeter).
 Etkinleştirme: hukuk onayı + aydınlatma/açık rıza metni (docs/kvkk.md "Yüklenen
 görseller"), sonra bayrak. Production'da onay olmadan açılmaz.
+
+### Sohbette ürün linki (karar 0090) — varsayılan kapalı
+
+`CHAT_LINK_ENABLED=true` (ayrıca `CHAT_DISCOVERY_ENABLED=true` ister) sohbetteki linki mevcut link kuyruğuna verir; modele gitmez. Önkoşul: link worker'ı üretimde çalışıyor olmalı ("Link worker" bölümü; yoksa istekler 2 dk sonra 'worker yanıt vermedi' olur). `CHAT_LINK_INTERPRET_ENABLED=true` (ayrıca `CHAT_LINK_ENABLED`) deterministik ayrıştırmanın çözemediği tercih metni için tek Gemini çağrısı yapar; `api_usage` `chat_turn`, mevcut günlük/saatlik tavanlar. `/ara/link` ve `LINK_SEARCH_PUBLIC` bu bayraklardan bağımsızdır. Kademe: iç ekip → küçük kitle → herkes; izle: kuyruk uzunluğu, `error_code` dağılımı, Jina maliyeti. Geri alma: bayrakları kapat (migration yok).

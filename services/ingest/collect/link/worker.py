@@ -23,6 +23,7 @@ import json
 import logging
 import time
 from datetime import UTC, datetime
+from pathlib import Path
 from typing import Any
 
 import httpx
@@ -31,9 +32,11 @@ import redis
 from psycopg.types.json import Jsonb
 
 from collect.link import urls
+from collect.link.reference_image import RequestOwner, embed_reference_image
 from collect.link.resolver import ResolutionFailed, ResolvedLink, resolve_url
 from collect.link.robots import USER_AGENT, RobotsCache
 from collect.link.safe_http import guarded_client
+from collect.link.worker_config import touch_heartbeat
 from collect.records import RecordRejected
 from enrich.client import EmbeddingClient
 
@@ -110,15 +113,28 @@ def _embed_source_image(
     resolved: ResolvedLink,
     embedder: EmbeddingClient | None,
     image_http: httpx.Client | None,
+    owner: RequestOwner | None = None,
 ) -> tuple[int | None, str]:
-    """Kaynak gorselin embedding'i -> (embedding id, `image_status`)."""
+    """Kaynak gorselin embedding'i -> (embedding id, `image_status`).
+
+    Fiyatli sayfa (offer var): offer'in `image` embedding'i. Fiyatsiz referans
+    (offer yok): kullanici yuklemesi deseninde `image_upload` + `query`
+    embedding'i (`reference_image.py`); katalog satiri YAZILMAZ.
+    """
     if not resolved.image_url:
         return None, "missing"
-    if resolved.offer_id is None:
-        # Fiyatsiz referans: offer yok, vektorun baglanacagi katalog satiri yok.
-        return None, "not_indexed"
     if embedder is None:
         return None, "unavailable"
+    if resolved.offer_id is None:
+        if owner is None:
+            return None, "not_indexed"
+        return embed_reference_image(
+            conn,
+            embedder,
+            resolved.image_url,
+            owner,
+            image_http or guarded_client(user_agent=USER_AGENT, follow_redirects=True),
+        )
 
     # Donguyu kirmamak icin gec import: enrich yalnizca gorsel gerektiginde.
     from enrich.pipeline import embed_offer_image
@@ -152,14 +168,15 @@ def process_one(
     """Tek bir kuyruk mesajini isler. Satir yoksa ya da zaten islenmisse sessizce doner."""
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT url_raw, status FROM link_resolution_request WHERE id = %s",
+            "SELECT url_raw, status, session_id, user_id FROM link_resolution_request"
+            " WHERE id = %s",
             (request_id,),
         )
         row = cur.fetchone()
     if row is None:
         logger.warning("bilinmeyen link_resolution_request: %s", request_id)
         return
-    url_raw, status = row
+    url_raw, status, session_id, user_id = row
     if status != "queued":
         # Ayni mesaj iki kez teslim edilmis olabilir (Redis en-az-bir-kez
         # garantisi verir) - `docs/decisions/0014` deseniyle ayni: yeniden
@@ -219,7 +236,9 @@ def process_one(
 
     conn.commit()
 
-    embedding_id, image_status = _embed_source_image(conn, resolved, embedder, image_http)
+    embedding_id, image_status = _embed_source_image(
+        conn, resolved, embedder, image_http, RequestOwner(session_id, user_id)
+    )
     signals = {**resolved.signals, "image_status": image_status}
 
     _mark(
@@ -244,17 +263,24 @@ def run_worker(
     embedder: EmbeddingClient | None = None,
     poll_timeout: float = POLL_TIMEOUT_SECONDS,
     max_iterations: int | None = None,
+    heartbeat: Path | None = None,
 ) -> None:
     """Kuyruk bosaldiginda bloklayarak bekler; `max_iterations` yalnizca testler icin.
 
     Tek surec, tek is: ayni anda en fazla BIR dis sayfa getirilir. Daha fazla
     esanlilik istenirse birden fazla worker sureci calistirilir; her biri
     kendi istemcisini tutar.
+
+    `heartbeat` verilirse dosyanin mtime'i her basarili kuyruk okumasinda
+    (bos beklemeler dahil) yenilenir; `python -m collect.link --healthcheck`
+    bunu okur. Redis'e ulasilamazsa yenilenmez: takilmis worker gorunur olur.
     """
     page_client = guarded_client(user_agent=USER_AGENT)
     image_client = guarded_client(user_agent=USER_AGENT, follow_redirects=True)
     robots = RobotsCache()
 
+    if heartbeat is not None:
+        touch_heartbeat(heartbeat)
     iterations = 0
     while max_iterations is None or iterations < max_iterations:
         iterations += 1
@@ -265,6 +291,8 @@ def run_worker(
             logger.warning("kuyruk okunamadi, yeniden denenecek: %s", type(error).__name__)
             time.sleep(REDIS_RETRY_SECONDS)
             continue
+        if heartbeat is not None:
+            touch_heartbeat(heartbeat)
         if item is None:
             continue
         _, raw = item

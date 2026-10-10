@@ -5,6 +5,7 @@ gerektirmez."""
 from __future__ import annotations
 
 import logging
+from pathlib import Path
 
 import pytest
 
@@ -100,3 +101,43 @@ def test_worker_cli_rejects_remote_plain_redis_without_logging_it(
     assert "rediss://" in caplog.text
     assert SECRET not in caplog.text
     assert "upstash" not in caplog.text
+
+
+# --- Heartbeat / healthcheck (dosya tabanli; HTTP endpoint yok) ---------------
+
+
+def test_heartbeat_path_defaults_when_blank() -> None:
+    from collect.link.worker_config import DEFAULT_HEARTBEAT_FILE, heartbeat_path
+
+    assert heartbeat_path(None) == Path(DEFAULT_HEARTBEAT_FILE)
+    assert heartbeat_path("  ") == Path(DEFAULT_HEARTBEAT_FILE)
+    assert heartbeat_path("/run/x.hb") == Path("/run/x.hb")
+
+
+def test_heartbeat_freshness(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    import os
+
+    from collect.link.worker_config import heartbeat_is_fresh, touch_heartbeat
+
+    path = tmp_path / "hb"
+    assert not heartbeat_is_fresh(path, 1000.0)  # dosya yok -> sagliksiz
+    touch_heartbeat(path)
+    mtime = path.stat().st_mtime
+    assert heartbeat_is_fresh(path, mtime + 10)
+    assert not heartbeat_is_fresh(path, mtime + 10_000)
+    os.utime(path, (mtime - 500, mtime - 500))
+    assert not heartbeat_is_fresh(path, mtime)
+
+
+def test_touch_heartbeat_swallows_disk_errors(tmp_path) -> None:  # type: ignore[no-untyped-def]
+    from collect.link.worker_config import touch_heartbeat
+
+    touch_heartbeat(tmp_path / "yok" / "dizin" / "hb")  # ust dizin yok: istisna firlatmaz
+
+
+def test_healthcheck_cli_exit_code(tmp_path, monkeypatch) -> None:  # type: ignore[no-untyped-def]
+    path = tmp_path / "hb"
+    monkeypatch.setenv("WORKER_HEARTBEAT_FILE", str(path))
+    assert cli.main(["--healthcheck"]) == 1
+    path.touch()
+    assert cli.main(["--healthcheck"]) == 0

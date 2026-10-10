@@ -3,6 +3,7 @@
     python -m collect.link <url>        tek bir linki cozumler
     python -m collect.link --refresh    suresi gelen user_link tekliflerini yeniler
     python -m collect.link --worker     web'in Redis kuyrugunu tuketir (D4)
+    python -m collect.link --healthcheck  worker heartbeat dosyasi taze mi (cikis 0/1)
 
 Bu servis hicbir HTTP endpoint sunmaz. Web tarafi (D4) isi Redis kuyruguna
 birakir (`packages/core/src/discovery/link-resolution.ts`); `--worker` ayni
@@ -15,6 +16,7 @@ import argparse
 import logging
 import signal
 import sys
+import time
 
 import httpx
 import redis
@@ -23,7 +25,13 @@ from collect.link.refresh import refresh_user_links
 from collect.link.resolver import ResolutionFailed, resolve_url
 from collect.link.urls import InvalidUrl
 from collect.link.worker import POLL_TIMEOUT_SECONDS, DatabaseConnectionLost, run_worker
-from collect.link.worker_config import LOCAL_REDIS_URL, WorkerConfigError, worker_redis_url
+from collect.link.worker_config import (
+    LOCAL_REDIS_URL,
+    WorkerConfigError,
+    heartbeat_is_fresh,
+    heartbeat_path,
+    worker_redis_url,
+)
 from collect.records import RecordRejected
 from db import job_run
 from db.connection import connect, env
@@ -61,6 +69,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("url", nargs="?", help="cozumlenecek urun adresi")
     parser.add_argument("--refresh", action="store_true", help="suresi gelen linkleri yenile")
     parser.add_argument("--worker", action="store_true", help="Redis kuyrugunu surekli tuket")
+    parser.add_argument(
+        "--healthcheck",
+        action="store_true",
+        help="worker heartbeat dosyasini denetle (docker HEALTHCHECK); DB/Redis'e baglanmaz",
+    )
     parser.add_argument("--limit", type=int, default=100, help="--refresh icin ust sinir")
     parser.add_argument(
         "--fake-embeddings",
@@ -69,6 +82,14 @@ def main(argv: list[str] | None = None) -> int:
     )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)
+
+    if args.healthcheck:
+        # Yalnizca dosya: HTTP endpoint yok, baglanti yok.
+        return (
+            0
+            if heartbeat_is_fresh(heartbeat_path(env("WORKER_HEARTBEAT_FILE")), time.time())
+            else 1
+        )
 
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO,
@@ -108,7 +129,12 @@ def main(argv: list[str] | None = None) -> int:
             # alinir, baglanti kapanir. Bloklu BRPOP da kesilir (PEP 475).
             signal.signal(signal.SIGTERM, _exit_on_sigterm)
             try:
-                run_worker(conn, redis_client, embedder=_worker_embedder(args.fake_embeddings))
+                run_worker(
+                    conn,
+                    redis_client,
+                    embedder=_worker_embedder(args.fake_embeddings),
+                    heartbeat=heartbeat_path(env("WORKER_HEARTBEAT_FILE")),
+                )
             except DatabaseConnectionLost as error:
                 # Sifir olmayan cikis: surec yoneticisi yeniden baslatir ve yeni
                 # bir baglanti kurulur.

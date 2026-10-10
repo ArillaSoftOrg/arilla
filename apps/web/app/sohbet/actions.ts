@@ -10,12 +10,15 @@ import {
   createChatTimer,
   createConversation,
   getChatInterpreter,
+  getChatLinkView,
   getTurnStatus,
   isChatDiscoveryEnabled,
   isChatImageEnabled,
+  isChatLinkEnabled,
   isRedisUnavailableError,
   isUuid,
   isValidRequestKey,
+  loadConversation,
   logChatTimings,
   prepareChatImage,
   processPendingTurn,
@@ -375,4 +378,32 @@ export async function submitResultFeedbackAction(
       comment: details?.comment,
     }),
   };
+}
+
+export type ChatLinkPollState = "pending" | "done" | "unavailable";
+
+/**
+ * Link incelemesi bitti mi? (karar 0090). Istemci yalnizca sohbet kimligi ve mesaj
+ * sirasini gonderir; `requestId` sahibin kendi mesajindan okunur (baskasinin
+ * istegi sorgulanamaz). Durum okuma cekirdekte (`getChatLinkView`: hak uzlasmasi
+ * dahil). Sonucu sunucu bileseni cizer; burada yalnizca sabit durum kodu doner.
+ */
+export async function pollChatLinkAction(
+  conversationId: string,
+  messageSeq: number,
+): Promise<{ state: ChatLinkPollState }> {
+  const user = await verifySession();
+  if (!isChatDiscoveryEnabled() || !isChatLinkEnabled() || !user || !canAccessProduct(user)) {
+    return { state: "unavailable" };
+  }
+  if (typeof conversationId !== "string" || !isUuid(conversationId)) {
+    return { state: "unavailable" };
+  }
+  if (!Number.isInteger(messageSeq) || messageSeq < 1) return { state: "unavailable" };
+  const db = getDatabase();
+  const view = await loadConversation(db, { userId: user.id, conversationId });
+  const message = view?.messages.find((m) => m.seq === messageSeq);
+  if (message?.kind !== "notice" || !message.link) return { state: "unavailable" };
+  const linkView = await getChatLinkView(db, message.link);
+  return { state: linkView.state === "pending" ? "pending" : "done" };
 }
