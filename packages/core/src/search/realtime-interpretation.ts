@@ -16,6 +16,10 @@
  * bugunku deterministik yoldan devam eder. Log yalnizca sabit kod tasir;
  * sorgu metni, istem ya da ham yanit loglanmaz.
  */
+// `createHash` bu dosyada artik kullanilmiyor (IP ozeti `pseudonymize`); import,
+// `feature/ai-hardening-comprehensive` (single-flight, `flightKey`) ile birlesirken
+// derlemenin kirilmamasi icin korunur. O dal main'e girince kullanilir, uyari biter.
+import { createHash } from "node:crypto";
 import { type Database, queryInterpretation } from "@arilla/db";
 import { and, eq } from "drizzle-orm";
 import { pseudonymize, SecretNotConfiguredError } from "../auth/token.ts";
