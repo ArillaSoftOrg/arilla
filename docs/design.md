@@ -79,7 +79,7 @@ Mevcut adlar korunur; yeni roller için yeni ad eklenir. Tek kaynak
 | Görsel üstü örtü / işaret | `--media-scrim` / `--on-media` | `rgba(14,15,17,.38)` / `#FFFFFF` | aynı |
 | Ana eylem kutusu gölgesi | `--shadow-hero` / `--shadow-hero-focus` | yumuşak geniş yayılım | aynı |
 | Footer atmosferi (dekor) | `--footer-glow-mint` / `--footer-glow-lime` | `rgba(112,214,196,.14)` / `rgba(183,245,47,.12)` | `rgba(95,214,200,.045)` / `rgba(183,245,47,.05)` |
-| Footer "M" motifi (dekor) | `--footer-motif` | `rgba(22,24,29,.035)` | `rgba(242,243,244,.035)` |
+| Footer kelime işareti (dekor, metinsiz şerit) | `--footer-wordmark-from` / `--footer-wordmark-to` / `--footer-band-glow` | `#A8E52A` → `#8FDCC8`, parıltı `rgba(183,245,47,.3)` | `#B7F52F` → `rgba(183,245,47,.3)`, parıltı `rgba(183,245,47,.16)` |
 
 **Editoryal roller** (`/blog`, `/hakkinda`, `/ortakliklar`): bu sayfalar sıcak
 zemin ve koyu teal bölüm kullanır; roller de anlamsaldır, sayfaya özgü renk
@@ -125,9 +125,9 @@ karar 0025).
 - `--line` (~1.1–1.4:1) yalnızca **dekoratif** ayırıcı ve statik yüzey
   kenarı içindir; bir kontrolün bulunabilirliği ona bağlı olamaz.
 - `--accent-foreground` / `--accent-hover` ≥ 12:1.
-- Footer dekoru (karar 0093): iki parıltı + "M" en kötü üst üste bindiğinde
-  `--ink-muted` açık temada 4.54:1, koyu temada 4.97:1; `--ink-secondary`
-  ≥ 7.6:1.
+- Footer dekoru (karar 0093): metin bölgesinde iki parıltı en kötü üst üste
+  bindiğinde `--ink-muted` açık temada 4.81:1, koyu temada 4.90:1;
+  `--ink-secondary` ≥ 8:1. Kelime işareti metinsiz şeritte, kontrast ölçülmez.
 
 Yeni bir renk eklemek bu tabloya satır eklemek demektir; kontrast değeri
 hesaplanmadan eklenmez.
@@ -603,8 +603,10 @@ metin, ikon, tek başına çizgi ya da durum rengi değildir. Dekor katmanları
 metin kontrastı ≥ 4.5:1 kalır.
 
 **Markalı footer (karar 0093):** `SiteFooter` alta doğru nane/limon
-parıltısı ve kırpılmış büyük tipografik "M" (site fontu, `--footer-motif`)
-taşır. Logo çizilmez/izlenmez.
+parıltısı ve en altta, metnin altındaki kendi şeridinde kırpılmış büyük
+"ManiCepte" kelime işareti (site fontu, marka yeşili degrade) taşır. Logo
+çizilmez/izlenmez. Affiliate cümlesi footer'da yoktur (ürün sayfasında,
+tıklama noktasında); fiyat/stok uyarısı footer'da kalır.
 
 **Yüzen hızlı arama (karar 0093):** ana sayfada ana kutu ekrandan çıkınca
 aşağı kaydırmada beliren, yukarı ≥ 24px kaydırmada gizlenen kompakt kutu
