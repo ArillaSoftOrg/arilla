@@ -192,7 +192,8 @@ describe("cron ve is kosulari", () => {
 describe("yetenekler", () => {
   it("ayrilmamis her yetenek kodda kullaniliyor; ayrilmis olan kullanilmiyor", () => {
     const corpus = TS_SOURCES.filter(
-      (file) => !/admin\/(capabilities|coverage)\.ts$/.test(file),
+      // Windows'ta yol ayracı `\`; eşleşme `/` ile yapılır.
+      (file) => !/admin\/(capabilities|coverage)\.ts$/.test(file.replaceAll("\\", "/")),
     ).map((file) =>
       // Yorumdaki anılma kullanım sayılmaz ("catalog.write ileride").
       readFileSync(file, "utf8")

@@ -1,7 +1,8 @@
 /* Zemin `--surface`: footer icerikten ayrilir, ek cizgi/golge gerekmez.
-   Karar 0093: alta dogru dekoratif atmosfer (nane + limon parıltısı) ve
-   kirpilmis "M". Katmanlar metnin ARKASINDA (z-index -1, `isolation`);
-   alfa degerleri en kotu ust uste binmede bile `--ink-muted` >= 4.5:1. */
+   Karar 0093: alta dogru dekoratif atmosfer (nane + limon parıltısı) metnin
+   ARKASINDA (z-index -1, `isolation`); alfa degerleri en kotu ust uste
+   binmede bile `--ink-muted` >= 4.5:1. Guclu yesil yalnizca alttaki kelime
+   isareti seridinde (metin yok). */
 .footer {
   position: relative;
   isolation: isolate;
@@ -21,32 +22,62 @@
   pointer-events: none;
 }
 
-/* Buyuk, kirpilmis tipografik "M": site fontu (IBM Plex Sans), sag altta,
-   alt kismi footer'in disinda kalir. Metin olarak secilmez, okunmaz. */
-.motif {
-  position: absolute;
-  z-index: -1;
-  inset-inline-end: -0.04em;
-  inset-block-end: -0.3em;
-  font-size: clamp(13rem, 6rem + 28vw, 30rem);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.04em;
-  color: var(--footer-motif);
+/* Karar 0093: en altta, kenarlardan kirpilmis buyuk "ManiCepte" kelime
+   isareti. Metnin ALTINDAKI kendi seridinde durur (hicbir metinle ust uste
+   binmez), bu yuzden marka yesili burada guclu kullanilabilir; yesil asla
+   footer metni degildir. Yazi ust cubuktaki marka yazisiyla ayni dil (site
+   fontu, kalin, egik); cizilmis/izlenmis logo degil. */
+.wordmarkBand {
+  --wordmark-size: clamp(5.5rem, 1rem + 22vw, 24rem);
+
+  position: relative;
+  height: calc(var(--wordmark-size) * 0.62);
+  overflow: hidden;
+  background: radial-gradient(75% 140% at 50% 100%, var(--footer-band-glow), transparent 72%);
   pointer-events: none;
   user-select: none;
 }
 
+.wordmark {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  font-size: var(--wordmark-size);
+  font-style: italic;
+  font-weight: 700;
+  line-height: 0.82;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+  background: linear-gradient(
+    180deg,
+    var(--footer-wordmark-from) 0%,
+    var(--footer-wordmark-to) 100%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Telefonda daha iri: kelime yine iki yandan kirpilir, serit daha yuksek. */
+@media (max-width: 639.98px) {
+  .wordmarkBand {
+    --wordmark-size: 30vw;
+
+    height: calc(var(--wordmark-size) * 0.68);
+  }
+}
+
 @media (forced-colors: active) {
   .footer::before,
-  .motif {
+  .wordmarkBand {
     display: none;
   }
 }
 
 @media print {
   .footer::before,
-  .motif {
+  .wordmarkBand {
     display: none;
   }
 }
@@ -57,8 +88,7 @@
 .inner {
   display: grid;
   gap: var(--space-8);
-  /* Alt bosluk motif alani: parıltının en yogun yeri metnin altinda kalir. */
-  padding-block: var(--section-space-compact) clamp(5rem, 2rem + 10vw, 9rem);
+  padding-block: var(--section-space-compact) var(--space-8);
 }
 
 /* Marka blogu + link gruplari. Telefonda alt alta; `lg` (1024px) ve
