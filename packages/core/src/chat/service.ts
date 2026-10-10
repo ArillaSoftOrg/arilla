@@ -22,7 +22,7 @@ import {
   type Database,
 } from "@arilla/db";
 import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
-import type { LlmErrorCode } from "../llm/client.ts";
+import type { LlmCall, LlmErrorCode } from "../llm/client.ts";
 import { llmCallCostMicros } from "../llm/pricing.ts";
 import {
   type ProviderBudgetHooks,
@@ -875,6 +875,38 @@ export async function processPendingTurnDetailed(
   return { result, preview: result.status === "answered" ? captured.preview : null, timings };
 }
 
+/**
+ * Kural 9: her HTTP denemesi (basarisiz olanlar dahil) bir `api_usage` satiri. Yanit
+ * yazimindan ayri bir yazim; gecici DB hatasina karsi bir kez daha denenir. Yine de
+ * basarisizsa turu bozmaz (kullanici cevabini alir) ama hata gorunur olur.
+ */
+async function recordTurnUsage(db: Database, userId: number, calls: readonly LlmCall[]) {
+  if (calls.length === 0) return;
+  const rows = calls.map((call) => ({
+    sessionId: null,
+    userId,
+    operation: CHAT_TURN_OPERATION,
+    modelVersion: call.modelVersion,
+    units: call.usage?.totalTokens ?? 0,
+    // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
+    costMicros: llmCallCostMicros(call),
+    cacheHit: false,
+  }));
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      await db.insert(apiUsage).values(rows);
+      return;
+    } catch (error) {
+      if (attempt === 2) {
+        console.error(
+          "[sohbet] api_usage yazilamadi",
+          error instanceof Error ? error.name : "unknown",
+        );
+      }
+    }
+  }
+}
+
 async function runPendingTurn(
   db: Database,
   input: ProcessTurnInput,
@@ -948,6 +980,9 @@ async function runPendingTurn(
     );
     attempts = outcome.calls.length;
     await settleBudget();
+    // Kural 9: ucret olustu; satirlar yanit yazimindan BAGIMSIZ ve hemen yazilir. Eskiden
+    // yanit islemiyle birlikte geri alinir, Redis sayaci kapanmis ama DB'de iz kalmazdi.
+    await recordTurnUsage(db, input.userId, outcome.calls);
 
     return await persistTurn();
 
@@ -960,22 +995,6 @@ async function runPendingTurn(
             .where(eq(conversation.id, input.conversationId))
             .for("update");
           if (!row) return { status: "not_found" };
-
-          // Kural 9: her HTTP denemesi (basarisiz olanlar dahil) bir satir.
-          if (outcome.calls.length > 0) {
-            await tx.insert(apiUsage).values(
-              outcome.calls.map((call) => ({
-                sessionId: null,
-                userId: input.userId,
-                operation: CHAT_TURN_OPERATION,
-                modelVersion: call.modelVersion,
-                units: call.usage?.totalTokens ?? 0,
-                // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
-                costMicros: llmCallCostMicros(call),
-                cacheHit: false,
-              })),
-            );
-          }
 
           if (outcome.kind === "provider_error") {
             await releaseLease(tx, row.id);

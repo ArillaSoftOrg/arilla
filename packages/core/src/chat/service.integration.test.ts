@@ -493,6 +493,50 @@ describe("provider failure + retry", () => {
       ["chat_turn", "test-model", 28, userB],
     ]);
   });
+
+  it("keeps the api_usage rows when persisting the reply fails after a paid call (rule 9)", async () => {
+    // Gemini cagrisi yapildi ve ucretlendi; yanit yazimi (asistan mesaji) basarisiz olur.
+    // Eskiden satirlar yanit ile AYNI islemdeydi ve birlikte geri alinirdi.
+    const user = userA;
+    const id = await newConversation(user, `${TOKEN} kayip`);
+    const count = () =>
+      withOwnerClient(async (c) =>
+        Number(
+          (
+            await c.query(
+              "SELECT count(*) AS n FROM api_usage WHERE user_id = $1 AND operation = 'chat_turn'",
+              [user],
+            )
+          ).rows[0].n,
+        ),
+      );
+    const before = await count();
+    await withOwnerClient(async (c) => {
+      await c.query(`CREATE OR REPLACE FUNCTION chat_test_block_assistant() RETURNS trigger AS $$
+        BEGIN
+          IF NEW.role = 'assistant' THEN RAISE EXCEPTION 'test: yanit yazimi engellendi'; END IF;
+          RETURN NEW;
+        END $$ LANGUAGE plpgsql`);
+      await c.query(`CREATE TRIGGER chat_test_block_assistant BEFORE INSERT ON chat_message
+        FOR EACH ROW EXECUTE FUNCTION chat_test_block_assistant()`);
+    });
+    try {
+      const model = scripted([search({ query: TOKEN })]);
+      const result = await processPendingTurn(db, {
+        userId: user,
+        conversationId: id,
+        interpreter: model,
+      });
+      expect(result).toMatchObject({ status: "provider_error" });
+      expect(model.calls).toBe(1);
+      expect((await count()) - before).toBe(1);
+    } finally {
+      await withOwnerClient(async (c) => {
+        await c.query("DROP TRIGGER IF EXISTS chat_test_block_assistant ON chat_message");
+        await c.query("DROP FUNCTION IF EXISTS chat_test_block_assistant()");
+      });
+    }
+  });
 });
 
 describe("ownership", () => {
@@ -1004,7 +1048,9 @@ describe("hardening: stale turn, clarification loop, search guards", () => {
         priceMax: 2500,
       });
       expect(result.outcome.items.every((i) => (i.minPrice ?? 0) <= 250_000)).toBe(true);
-      expect(result.droppedForPrice).toBeGreaterThanOrEqual(1);
+      // Sapma artik SQL'de kapali (fiyat filtresi gosterilen teklife bakar): son suzgecin
+      // dusurecegi kart kalmaz. Degismez yukarida: istenen tavanin ustunde kart yok.
+      expect(result.droppedForPrice).toBe(0);
     } finally {
       await withOwnerClient(async (c) => {
         await c.query("DELETE FROM offer WHERE product_id = $1", [pid]);
