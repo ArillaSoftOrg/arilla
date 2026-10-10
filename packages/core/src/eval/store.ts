@@ -83,6 +83,10 @@ function fromStatus(status: number): AiErrorClass {
 /** Gemini/Jina hatasini sabit sinif kumesine indirger. Mesaj metni kaydedilmez. */
 export function classifyAiError(error: unknown): ClassifiedError {
   if (error instanceof LlmError) {
+    // Saglayicinin sabit durum degeri guvenlik engelini gosteriyorsa ayri sinif.
+    if (error.detail && /SAFETY|BLOCKLIST|PROHIBITED|RECITATION|BLOCKED/i.test(error.detail)) {
+      return { errorClass: "safety_blocked", httpStatus: error.httpStatus };
+    }
     return { errorClass: LLM_CLASS[error.code] ?? "unknown", httpStatus: error.httpStatus };
   }
   const name = error instanceof Error ? error.name : "";
