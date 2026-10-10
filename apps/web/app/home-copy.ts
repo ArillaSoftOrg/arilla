@@ -4,7 +4,7 @@
  */
 export const HOME_COPY = {
   heroTitleLead: "Alışveriş mi?", // home.hero_title_lead
-  heroTitleAccent: "Manicepte.", // home.hero_title_accent
+  heroTitleAccent: "ManiCepte.", // home.hero_title_accent
   heroSubline: "Ne aradığını anlat, görselini yükle veya linkini bırak.", // home.hero_subline
   // Hero'da cizilmez; alt bilgi aciklamasi olarak kullanilir.
   heroSubtitle: "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.", // home.tagline
@@ -77,7 +77,7 @@ export const HOME_COPY = {
   navSaved: "Kaydettiklerim", // nav.saved
   navAlerts: "Alarmlarım", // nav.alerts
   navHistory: "Geçmişim", // nav.history
-  searchPlaceholder: "Manicepte’ye sor...", // search.placeholder
+  searchPlaceholder: "ManiCepte’ye sor...", // search.placeholder
   searchInputLabel: "Ürün ara", // search.input_label
   searchSubmitLabel: "Ara", // action.search
   loginLabel: "Giriş yap", // action.login

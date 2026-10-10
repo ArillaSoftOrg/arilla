@@ -7,15 +7,15 @@
   padding-block-start: 0;
 }
 
-/* Hero: ilk ekranin odagi. Ustte tam bolum boslugu, trendlere gecis
-   kompakt. */
+/* Hero: ilk ekranin odagi. Ustte tam bolum boslugu; kompakt kutudan
+   trendlere gecis kisa (trendler ilk ekranda gorunsun). */
 .page > .hero {
-  padding-block: var(--space-16) var(--section-space);
+  padding-block: var(--space-16) var(--space-12);
 }
 
 @media (min-width: 1024px) {
   .page > .hero {
-    padding-block-start: 5rem;
+    padding-block: 5rem var(--space-16);
   }
 }
 

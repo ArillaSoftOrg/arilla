@@ -11,8 +11,8 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | Anahtar | Metin |
 | --- | --- |
 | `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
-| `home.hero_title_lead` | Alışveriş mi? (başlık aynı alanda "Manicepte." ile dönüşümlü; ~1,6 sn / ~2 sn) |
-| `home.hero_title_accent` | Manicepte. |
+| `home.hero_title_lead` | Alışveriş mi? (başlık aynı alanda "ManiCepte." ile dönüşümlü; ~1,6 sn / ~2 sn) |
+| `home.hero_title_accent` | ManiCepte. |
 | `home.hero_subline` | Ne aradığını anlat, görselini yükle veya linkini bırak. |
 | `home.search_ideas_title` | Arama fikirleri |
 | `home.trends_title` | Trendler |
@@ -199,7 +199,7 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 
 | Anahtar | Metin |
 | --- | --- |
-| `search.placeholder` | Manicepte’ye sor... |
+| `search.placeholder` | ManiCepte’ye sor... |
 | `search.placeholder_results` | Ürün adı, marka ya da kısa bir tarif yaz |
 | `search.input_label` | Ürün ara |
 | `search.title_empty_query` | Ne arıyorsun? |

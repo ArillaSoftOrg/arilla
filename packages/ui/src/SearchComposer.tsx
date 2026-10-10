@@ -1,6 +1,6 @@
 "use client";
 
-import { type FormEvent, type KeyboardEvent, useId, useRef } from "react";
+import { type FormEvent, type KeyboardEvent, useId, useLayoutEffect, useRef } from "react";
 import { Button } from "./Button.tsx";
 import { resolveComposerSubmit } from "./composer-submit.ts";
 import { ArrowRightIcon, CloseIcon, PlusIcon } from "./icons.tsx";
@@ -43,6 +43,17 @@ export function isImeEnter(event: {
   keyCode?: number;
 }): boolean {
   return event.key === "Enter" && (event.isComposing === true || event.keyCode === 229);
+}
+
+/** Kutu en fazla bu kadar satira buyur; fazlasi kutunun icinde kayar. */
+export const COMPOSER_MAX_LINES = 4;
+
+/**
+ * Tek satirlik girdinin semantigi korunur: yapistirilan satir sonlari bosluga
+ * doner (Enter her zaman gonderir; metin yalnizca sarilarak cok satira yayilir).
+ */
+export function flattenComposerText(value: string): string {
+  return value.replace(/\r\n?|\n/g, " ");
 }
 
 export interface SearchComposerRecentProduct {
@@ -122,7 +133,7 @@ export function SearchComposer({
   onSubmitText,
 }: SearchComposerProps) {
   const formRef = useRef<HTMLFormElement>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
   const chipsTitleId = useId();
   const submittingRef = useRef(false);
 
@@ -139,8 +150,36 @@ export function SearchComposer({
     return url.protocol === "http:" || url.protocol === "https:" ? url.toString() : null;
   }
 
-  function handleKeyDown(event: KeyboardEvent<HTMLInputElement>) {
-    if (isImeEnter(event.nativeEvent)) event.preventDefault();
+  /** Gerektiginde buyur: icerik yuksekligi, `COMPOSER_MAX_LINES` satirla sinirli (CSS max-height). */
+  function resize() {
+    const input = inputRef.current;
+    if (!input) return;
+    input.style.height = "auto";
+    input.style.height = `${input.scrollHeight}px`;
+  }
+
+  function clearInput() {
+    if (!inputRef.current) return;
+    inputRef.current.value = "";
+    resize();
+  }
+
+  // Ilk boyama oncesi: varsayilan deger (ya da tarayicinin geri yukledigi metin) sigsin.
+  useLayoutEffect(resize, []);
+
+  // Eski `<input type="search">` davranisi: Enter (Shift'li de) formu gonderir, satir eklemez.
+  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
+    if (event.key !== "Enter") return;
+    event.preventDefault();
+    if (isImeEnter(event.nativeEvent)) return;
+    formRef.current?.requestSubmit();
+  }
+
+  function handleInput() {
+    const input = inputRef.current;
+    if (!input) return;
+    if (/[\r\n]/.test(input.value)) input.value = flattenComposerText(input.value);
+    resize();
   }
 
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -158,7 +197,7 @@ export function SearchComposer({
       submittingRef.current = true;
       void Promise.resolve(attachment.onSubmit(text))
         .then((ok) => {
-          if (ok && inputRef.current) inputRef.current.value = "";
+          if (ok) clearInput();
         })
         .catch(() => undefined)
         .finally(() => {
@@ -185,7 +224,7 @@ export function SearchComposer({
       submittingRef.current = true;
       void Promise.resolve(onSubmitText(text))
         .then((ok) => {
-          if (ok && inputRef.current) inputRef.current.value = "";
+          if (ok) clearInput();
         })
         .finally(() => {
           submittingRef.current = false;
@@ -213,7 +252,7 @@ export function SearchComposer({
           action={action}
           method={typeof action === "string" ? "get" : undefined}
           onSubmit={handleSubmit}
-          className={attachment ? `${styles.box} ${styles.boxWithAttachment}` : styles.box}
+          className={styles.box}
           aria-busy={busyMessage || attachment?.pending ? true : undefined}
         >
           {attachment ? (
@@ -234,9 +273,9 @@ export function SearchComposer({
               </button>
             </div>
           ) : null}
-          <input
+          <textarea
             ref={inputRef}
-            type="search"
+            rows={1}
             name={name}
             defaultValue={defaultValue}
             placeholder={placeholder}
@@ -245,10 +284,12 @@ export function SearchComposer({
             enterKeyHint={attachment ? "send" : "search"}
             readOnly={attachment?.pending}
             onKeyDown={handleKeyDown}
+            onInput={handleInput}
             // biome-ignore lint/a11y/noAutofocus: opt-in prop, sadece ana sayfada true.
             autoFocus={autoFocus}
             className={styles.input}
           />
+          {/* Alt satir: ek solda, gonder sagda (fotograf kapaliyken de sagda kalir). */}
           <div className={styles.actions}>
             {photo ? (
               <PhotoUploadButton

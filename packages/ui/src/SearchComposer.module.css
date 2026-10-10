@@ -7,19 +7,21 @@
 }
 
 /* design.md "Kutu modeli": arama kutusu --radius-lg; kontrol siniri
-   --line-strong (>= 3:1); dinlenmede --shadow-xs, vurguluyken --shadow-sm. */
+   --line-strong (>= 3:1); dinlenmede --shadow-xs, vurguluyken --shadow-sm.
+   Kompakt AI kutusu: ustte metin (gerektiginde buyur), altta kontrol satiri
+   (ek solda, gonder sagda). Bos yukseklik yok: kutu icerigi kadar. */
 .box {
   position: relative;
   display: flex;
-  align-items: flex-start;
-  min-height: 192px;
-  padding: var(--space-6);
+  flex-direction: column;
+  gap: var(--space-3);
+  padding: var(--space-5) var(--space-5) var(--space-4) var(--space-6);
   border: var(--border-width) solid var(--line);
   border-radius: 28px;
   background: var(--surface-raised);
   box-shadow:
-    0 34px 110px rgba(22, 24, 29, 0.1),
-    0 14px 38px rgba(22, 24, 29, 0.06),
+    0 24px 72px rgba(22, 24, 29, 0.08),
+    0 10px 28px rgba(22, 24, 29, 0.05),
     var(--shadow-xs);
 }
 
@@ -30,8 +32,8 @@
 .box:focus-within {
   border-color: var(--ink);
   box-shadow:
-    0 34px 110px rgba(22, 24, 29, 0.13),
-    0 14px 38px rgba(22, 24, 29, 0.08),
+    0 24px 72px rgba(22, 24, 29, 0.11),
+    0 10px 28px rgba(22, 24, 29, 0.07),
     var(--shadow-sm);
 }
 
@@ -50,13 +52,19 @@
   }
 }
 
+/* Tek satirla baslar, metin sarildikca en fazla 4 satira buyur (yukseklik
+   JS ile `scrollHeight`e esitlenir); fazlasi kutunun icinde kayar. */
 .input {
-  flex: 1 1 auto;
+  --composer-line: calc(var(--text-body-lg) * var(--line-height-normal));
+  display: block;
+  width: 100%;
   min-width: 0;
-  min-height: 116px;
+  height: var(--composer-line);
+  min-height: var(--composer-line);
+  max-height: calc(var(--composer-line) * 4);
+  margin: 0;
   padding: 0;
-  padding-block-start: var(--space-1);
-  padding-inline-end: calc(var(--size-touch-target) + var(--space-2));
+  padding-inline-end: var(--space-1);
   border: none;
   background: transparent;
   color: var(--ink);
@@ -64,13 +72,10 @@
   font-size: var(--text-body-lg);
   line-height: var(--line-height-normal);
   outline: none;
-  text-overflow: ellipsis;
-  /* type="search": WebKit'in yuvarlak/golgeli yerel gorunumu kapatilir. */
-  appearance: none;
-}
-
-.input::-webkit-search-decoration {
-  appearance: none;
+  resize: none;
+  overflow-y: auto;
+  overflow-wrap: anywhere;
+  scrollbar-width: thin;
 }
 
 .input::placeholder {
@@ -79,41 +84,38 @@
 }
 
 .actions {
-  position: absolute;
-  inset-inline: var(--space-5);
-  inset-block-end: var(--space-4);
   display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
+  align-items: center;
   gap: var(--space-2);
-  pointer-events: none;
+  /* Ghost ikon dugmesinin ic boslugu: "+" metnin sol kenariyla hizalansin. */
+  margin-inline-start: calc(-1 * var(--space-3));
 }
 
 /* Ikon dugmeleri genis dokunma hedefi tasir; --radius-md (kutunun --radius-lg
    kosesinden kucuk - ic ice yuzey kurali). */
 .box .photoButton {
-  width: 48px;
-  min-width: 48px;
-  min-height: 48px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
   padding: 0;
   color: var(--ink);
-  pointer-events: auto;
 }
 
 .box .photoButton:hover:not(:disabled) {
   color: var(--ink);
 }
 
+/* Fotograf kapaliyken de gonder dugmesi sagda kalir. */
 .box .submit {
-  width: 48px;
-  min-width: 48px;
-  min-height: 48px;
+  width: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  margin-inline-start: auto;
   padding: 0;
   border-radius: var(--radius-pill);
   background: var(--surface);
   border-color: var(--surface);
   color: var(--ink-muted);
-  pointer-events: auto;
 }
 
 .box .submit:hover:not(:disabled) {
@@ -122,49 +124,28 @@
   color: var(--ink);
 }
 
-/* Mobilde gonder dugmesi yalnizca ok ikonu; erisilebilir ad aria-label'da. */
+/* Metin yazilinca gonder dugmesi vurgulanir (yalnizca gorunum; gonderim
+   kurali `resolveComposerSubmit`te). */
+.box:has(.input:not(:placeholder-shown), .attachment) .submit:not(:disabled) {
+  background: var(--ink);
+  border-color: var(--ink);
+  color: var(--surface-raised);
+}
+
+.box:has(.input:not(:placeholder-shown), .attachment) .submit:hover:not(:disabled) {
+  background: var(--ink-secondary);
+  border-color: var(--ink-secondary);
+}
+
+/* Gonder dugmesi yalnizca ok ikonu; erisilebilir ad aria-label'da. */
 .submitLabel {
   display: none;
 }
 
-@media (min-width: 640px) {
-  .box {
-    min-height: 192px;
-  }
-
-  .box .submit {
-    width: 52px;
-    min-width: 52px;
-    min-height: 52px;
-  }
-
-  .submitLabel {
-    display: none;
-  }
-}
-
 @media (max-width: 639px) {
   .box {
-    min-height: 172px;
-    padding: var(--space-5);
+    padding: var(--space-4) var(--space-4) var(--space-2) var(--space-5);
     border-radius: 24px;
-  }
-
-  .input {
-    min-height: 96px;
-    padding-block-start: 0;
-  }
-
-  .actions {
-    inset-inline: var(--space-4);
-    inset-block-end: var(--space-3);
-  }
-
-  .box .photoButton,
-  .box .submit {
-    width: 44px;
-    min-width: 44px;
-    min-height: 44px;
   }
 }
 
@@ -262,20 +243,16 @@
 }
 
 /* Karar 0078: gonderilmemis fotograf, girdinin ustunde kucuk onizleme. */
-.box.boxWithAttachment {
-  flex-direction: column;
-  gap: var(--space-3);
-}
-
 .attachment {
   position: relative;
   align-self: flex-start;
+  margin-block: var(--space-1) var(--space-1);
 }
 
 .attachmentImage {
   display: block;
-  width: 72px;
-  height: 72px;
+  width: 64px;
+  height: 64px;
   border: var(--border-width) solid var(--line);
   border-radius: var(--radius-md);
   background: var(--surface);
