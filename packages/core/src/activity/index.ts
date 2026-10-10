@@ -15,7 +15,9 @@ export {
   type RecentSearch,
 } from "./recent-searches.ts";
 export {
+  ACTIVITY_SCHEMA_VERSION,
   type ActivityInput,
+  merchantExitEventId,
   normalizeActivityQuery,
   PRODUCT_VIEW_DEDUPE_MS,
   QUERY_NORM_MAX_LENGTH,
