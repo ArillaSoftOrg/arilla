@@ -10,8 +10,8 @@
     {"case": "buyuk kucuk harf", "a": {"title": "VIRA SUET SPOR AYAKKABI BEJ", "brand": "Vira"}, "b": {"title": "Vira Suet Spor Ayakkabi Bej", "brand": "Vira"}},
     {"case": "kisaltma ayk", "a": {"title": "Lodos Suet Spor Ayk Siyah", "brand": "Lodos"}, "b": {"title": "Lodos Suet Spor Ayakkabi Siyah", "brand": "Lodos"}},
     {"case": "kisaltma cnt", "a": {"title": "Ayda Deri Omuz Cnt Bordo", "brand": "Ayda"}, "b": {"title": "Ayda Deri Omuz Canta Bordo", "brand": "Ayda"}},
-    {"case": "gtin bir tarafta", "a": {"title": "Vira Kapitone Mont Lacivert", "brand": "Vira", "gtin": "8680000001234"}, "b": {"title": "Vira Kapitone Mont Lacivert", "brand": "Vira"}},
-    {"case": "gtin iki tarafta ayni, baslik farkli", "a": {"title": "Kapitone Mont", "brand": "Vira", "gtin": "8680000005555"}, "b": {"title": "Vira Kapitone Sisme Mont Lacivert", "brand": "Vira", "gtin": "8680000005555"}},
+    {"case": "gtin bir tarafta", "a": {"title": "Vira Kapitone Mont Lacivert", "brand": "Vira", "gtin": "8680000001232"}, "b": {"title": "Vira Kapitone Mont Lacivert", "brand": "Vira"}},
+    {"case": "gtin iki tarafta ayni, baslik farkli", "a": {"title": "Kapitone Mont", "brand": "Vira", "gtin": "8680000005551"}, "b": {"title": "Vira Kapitone Sisme Mont Lacivert", "brand": "Vira", "gtin": "8680000005551"}},
     {"case": "mpn ayni", "a": {"title": "Kuzey Deri Loafer", "brand": "Kuzey Deri", "mpn": "KD-LF-011"}, "b": {"title": "Kuzey Deri Deri Loafer Kahverengi", "brand": "Kuzey Deri", "mpn": "KD-LF-011"}},
     {"case": "renk es anlamli navy lacivert", "a": {"title": "Ela Studio Triko Elbise Navy", "brand": "Ela Studio"}, "b": {"title": "Ela Studio Triko Elbise Lacivert", "brand": "Ela Studio"}},
     {"case": "renk es anlamli black siyah", "a": {"title": "Vira Deri Ceket Black", "brand": "Vira"}, "b": {"title": "Vira Deri Ceket Siyah", "brand": "Vira"}},
@@ -33,7 +33,14 @@
     {"case": "renk es anlamli haki yesil", "a": {"title": "Lodos Deri Ceket Haki", "brand": "Lodos"}, "b": {"title": "Lodos Deri Ceket Yesil", "brand": "Lodos"}},
     {"case": "firsat eki ve sira", "a": {"title": "Firsat Bordo Baget Canta Ayda", "brand": "Ayda"}, "b": {"title": "Ayda Baget Canta Bordo", "brand": "Ayda"}},
     {"case": "ayni kademe iki tarafta", "a": {"title": "Vira Kosu Ayakkabisi Pro Siyah", "brand": "Vira"}, "b": {"title": "Kosu Ayakkabisi Pro Siyah", "brand": "Vira"}},
-    {"case": "ayni surum iki tarafta", "a": {"title": "Lodos Yun Kaban V2 Gri", "brand": "Lodos"}, "b": {"title": "Lodos Yun Kaban Gen 2 Gri", "brand": "Lodos"}}
+    {"case": "ayni surum iki tarafta", "a": {"title": "Lodos Yun Kaban V2 Gri", "brand": "Lodos"}, "b": {"title": "Lodos Yun Kaban Gen 2 Gri", "brand": "Lodos"}},
+    {"case": "hacim ondalik yazim 50 ml / 50,0ml", "a": {"title": "Numbuzin No.9 NAD Essence 50 ml", "brand": "Numbuzin"}, "b": {"title": "Numbuzin No.9 NAD Essence 50,0ml", "brand": "Numbuzin"}},
+    {"case": "iki renkli baslik sira farkli (A2-denetim)", "a": {"title": "Nike Spor Ayakkabi Siyah/Beyaz", "brand": "Nike"}, "b": {"title": "Nike Spor Ayakkabi Beyaz/Siyah", "brand": "Nike"}},
+    {"case": "kahve makinesi renk degil, model no ayni (denetim)", "a": {"title": "Philips Kahve Makinesi HD7432 Siyah", "brand": "Philips"}, "b": {"title": "Philips HD7432 Kahve Makinesi Siyah", "brand": "Philips"}},
+    {"case": "kapasite bitisik/ayri yazim 256 GB / 256GB", "a": {"title": "Apple iPhone 15 Pro 256 GB Siyah", "brand": "Apple"}, "b": {"title": "Apple iPhone 15 Pro 256GB Siyah", "brand": "Apple"}},
+    {"case": "urun kodu tire farki AB-1234 / AB1234", "a": {"title": "Nike Spor Ayakkabi AB-1234 Siyah", "brand": "Nike"}, "b": {"title": "Nike Spor Ayakkabi AB1234 Siyah", "brand": "Nike"}},
+    {"case": "surum V2 / 2. Nesil", "a": {"title": "Lodos Yun Kaban V2 Gri", "brand": "Lodos"}, "b": {"title": "Lodos Yun Kaban 2. Nesil Gri", "brand": "Lodos"}},
+    {"case": "paket adedi yazim farki 3'lu / 3 lu", "a": {"title": "Penti Corap Seti 3'lu Siyah", "brand": "Penti"}, "b": {"title": "Penti Corap Seti 3 lu Siyah", "brand": "Penti"}}
   ],
 
   "should_not_match": [
@@ -43,7 +50,7 @@
     {"case": "AYNI MODEL FARKLI RENK gri yesil", "a": {"title": "Lodos Oversize Triko Kazak Gri", "brand": "Lodos"}, "b": {"title": "Lodos Oversize Triko Kazak Yesil", "brand": "Lodos"}},
     {"case": "AYNI MODEL FARKLI RENK alan uzerinden", "a": {"title": "Ela Studio Triko Elbise", "brand": "Ela Studio", "color": "Siyah"}, "b": {"title": "Ela Studio Triko Elbise", "brand": "Ela Studio", "color": "Bordo"}},
     {"case": "AYNI MODEL FARKLI RENK es anlamli catisma", "a": {"title": "Vira Deri Ceket Black", "brand": "Vira"}, "b": {"title": "Vira Deri Ceket Camel", "brand": "Vira"}},
-    {"case": "gtin ayni renk farkli varyant tek barkod", "a": {"title": "Kuzey Deri Loafer Siyah", "brand": "Kuzey Deri", "gtin": "8680000009999"}, "b": {"title": "Kuzey Deri Loafer Kahverengi", "brand": "Kuzey Deri", "gtin": "8680000009999"}},
+    {"case": "gtin ayni renk farkli varyant tek barkod", "a": {"title": "Kuzey Deri Loafer Siyah", "brand": "Kuzey Deri", "gtin": "8680000009993"}, "b": {"title": "Kuzey Deri Loafer Kahverengi", "brand": "Kuzey Deri", "gtin": "8680000009993"}},
     {"case": "farkli hacim 50 100 ml", "a": {"title": "Ela Studio Cicek Notali Parfum 50 ml", "brand": "Ela Studio"}, "b": {"title": "Ela Studio Cicek Notali Parfum 100 ml", "brand": "Ela Studio"}},
     {"case": "farkli hacim 30 50 ml", "a": {"title": "Lodos Serum 30 ml", "brand": "Lodos"}, "b": {"title": "Lodos Serum 50 ml", "brand": "Lodos"}},
     {"case": "farkli agirlik gr", "a": {"title": "Ayda Temizleme Jeli 200 gr", "brand": "Ayda"}, "b": {"title": "Ayda Temizleme Jeli 400 gr", "brand": "Ayda"}},
@@ -77,6 +84,20 @@
     {"case": "KADEME iki tarafta farkli", "a": {"title": "Vira Kosu Ayakkabisi Pro Siyah", "brand": "Vira"}, "b": {"title": "Vira Kosu Ayakkabisi Lite Siyah", "brand": "Vira"}},
     {"case": "SHOPIFY RENK KARDESI sozlukte olmayan renk (0027)", "a": {"title": "North Tech Regular Fit Bisiklet Yaka COOLMAX® Erkek Tişört", "brand": "North Sails Erkek", "color": "Defne Yeşili"}, "b": {"title": "North Tech Regular Fit Bisiklet Yaka COOLMAX® Erkek Tişört", "brand": "North Sails Erkek", "color": "Deniz Laciverti"}},
     {"case": "SHOPIFY RENK KARDESI mobilya kumasi (0027)", "a": {"title": "Carle Small Tekli Koltuk Çift Kollu - Melanj Keten", "brand": "Normod", "color": "Kumtaşı"}, "b": {"title": "Carle Small Tekli Koltuk Çift Kollu - Melanj Keten", "brand": "Normod", "color": "Granit"}},
-    {"case": "SHOPIFY RENK KARDESI bilesik renk (0027)", "a": {"title": "WLMouse Huan M Magnezyum Wireless Mouse", "brand": "WLmouse", "color": "Siyah/Altın (Limited Edition)"}, "b": {"title": "WLMouse Huan M Magnezyum Wireless Mouse", "brand": "WLmouse", "color": "Beyaz/Gümüş (Limited Edition)"}}
+    {"case": "SHOPIFY RENK KARDESI bilesik renk (0027)", "a": {"title": "WLMouse Huan M Magnezyum Wireless Mouse", "brand": "WLmouse", "color": "Siyah/Altın (Limited Edition)"}, "b": {"title": "WLMouse Huan M Magnezyum Wireless Mouse", "brand": "WLmouse", "color": "Beyaz/Gümüş (Limited Edition)"}},
+    {"case": "hacim 100 ml / 10 ml (sondaki sifir, denetim A1)", "a": {"title": "Anua Cleansing Oil 100 ml", "brand": "Anua"}, "b": {"title": "Anua Cleansing Oil 10 ml", "brand": "Anua"}},
+    {"case": "hacim 200 ml / 20 ml (A1)", "a": {"title": "Anua Cleansing Oil 200ml", "brand": "Anua"}, "b": {"title": "Anua Cleansing Oil 20ml", "brand": "Anua"}},
+    {"case": "hacim 500 ml / 50 ml (A1)", "a": {"title": "Cetaphil Losyon 500 ml", "brand": "Cetaphil"}, "b": {"title": "Cetaphil Losyon 50 ml", "brand": "Cetaphil"}},
+    {"case": "hacim 1000 ml / 100 ml (A1)", "a": {"title": "COSRX Essence 1000 ml", "brand": "COSRX"}, "b": {"title": "COSRX Essence 100 ml", "brand": "COSRX"}},
+    {"case": "gramaj 500 gr / 50 gr (A1)", "a": {"title": "Eti Burcak 500 gr", "brand": "Eti"}, "b": {"title": "Eti Burcak 50 gr", "brand": "Eti"}},
+    {"case": "tek haneli model iPhone 7 / 6 (A2)", "a": {"title": "Apple iPhone 7 32 GB Siyah", "brand": "Apple"}, "b": {"title": "Apple iPhone 6 32 GB Siyah", "brand": "Apple"}},
+    {"case": "model S23 / S22 (A2)", "a": {"title": "Samsung Galaxy S23 Ultra 256 GB Siyah", "brand": "Samsung"}, "b": {"title": "Samsung Galaxy S22 Ultra 256 GB Siyah", "brand": "Samsung"}},
+    {"case": "kapasite 256 GB / 512 GB (A2)", "a": {"title": "Apple iPhone 15 Pro Max 256 GB Siyah", "brand": "Apple"}, "b": {"title": "Apple iPhone 15 Pro Max 512 GB Siyah", "brand": "Apple"}},
+    {"case": "kapasite 128 GB / 1 TB (A2)", "a": {"title": "Xiaomi Cep Telefonu 128 GB Siyah", "brand": "Xiaomi"}, "b": {"title": "Xiaomi Cep Telefonu 1 TB Siyah", "brand": "Xiaomi"}},
+    {"case": "paket adedi 3'lu / 6'li (A2)", "a": {"title": "Penti Corap Seti 3'lü Siyah", "brand": "Penti"}, "b": {"title": "Penti Corap Seti 6'lı Siyah", "brand": "Penti"}},
+    {"case": "ekran 43 inc / 50 inc (A2)", "a": {"title": "Vestel Akilli Televizyon 43 inç", "brand": "Vestel"}, "b": {"title": "Vestel Akilli Televizyon 50 inç", "brand": "Vestel"}},
+    {"case": "ortak cop gtin 0000000000000 (denetim)", "a": {"title": "Kuzey Deri Cuzdan Siyah", "brand": "Kuzey Deri", "gtin": "0000000000000"}, "b": {"title": "Kuzey Deri Kemer Siyah", "brand": "Kuzey Deri", "gtin": "0000000000000"}},
+    {"case": "ortak cop mpn 'yok' (denetim)", "a": {"title": "Sony Kulaklik Siyah", "brand": "Sony", "mpn": "yok"}, "b": {"title": "Sony Hoparlor Siyah", "brand": "Sony", "mpn": "yok"}},
+    {"case": "iki renkli baslik ikinci renk farkli (denetim)", "a": {"title": "Nike Spor Ayakkabi Siyah/Beyaz", "brand": "Nike"}, "b": {"title": "Nike Spor Ayakkabi Siyah/Kirmizi", "brand": "Nike"}}
   ]
 }
