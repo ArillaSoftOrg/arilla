@@ -9,6 +9,7 @@ export default defineConfig({
   esbuild: { jsx: "automatic" },
   test: {
     environment: "node",
+    env: { SESSION_SECRET: "web-birim-testi-yalnizca-yerel-sir-degil" },
     include: ["*.test.ts", "app/**/*.test.ts"],
     exclude: ["**/*.integration.test.ts", "**/node_modules/**"],
   },
