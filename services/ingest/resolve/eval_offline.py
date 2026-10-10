@@ -12,7 +12,7 @@ from pathlib import Path
 
 from resolve.calibrate import _key, load_pairs
 from resolve.eval_metrics import Confusion, compare, confusion, summarize
-from resolve.score import auto_eligible, combine, queue_threshold
+from resolve.score import auto_accept_threshold, auto_eligible, combine, queue_threshold
 
 BASELINE_PATH = (
     Path(__file__).resolve().parents[1] / "tests" / "fixtures" / "matching" / "baseline.json"
@@ -55,6 +55,7 @@ def evaluate(path: Path | None = None) -> dict:
         "queue_confusion": queue_c.__dict__,
         "auto_confusion": auto_c.__dict__,
         "metrics": metrics,
+        "thresholds": {"queue": queue_threshold(), "auto": auto_accept_threshold()},
         "errors": errors,
     }
 

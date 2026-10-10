@@ -1,12 +1,15 @@
 /**
  * Niyet degerlendirmesi (Faz 1A). Deterministik, ag/DB/model yok.
  *
- *   node scripts/eval-intent.ts [--json cikti.json]
+ *   node scripts/eval-intent.ts [--json cikti.json] [--record]
+ * `--record` yoksa veritabanina yazilmaz; varsa yalnizca yerel DATABASE_URL.
  *
  * Basarisiz vaka varsa cikis kodu 1.
  */
 import { writeFileSync } from "node:fs";
 import { runIntentEval } from "../src/eval/intent-eval.ts";
+import { intentRecord } from "../src/eval/record-adapters.ts";
+import { codeRef, recordOrExit } from "./lib/eval-record.ts";
 
 const { rows, summary } = runIntentEval();
 for (const row of rows.filter((r) => r.failures.length > 0)) {
@@ -18,5 +21,8 @@ console.log(
 const jsonIndex = process.argv.indexOf("--json");
 if (jsonIndex !== -1 && process.argv[jsonIndex + 1]) {
   writeFileSync(process.argv[jsonIndex + 1] as string, JSON.stringify({ rows, summary }, null, 2));
+}
+if (process.argv.includes("--record")) {
+  await recordOrExit(intentRecord(rows, summary, `rules@${codeRef()}`));
 }
 process.exit(rows.some((r) => r.failures.length > 0) ? 1 : 0);

@@ -65,3 +65,15 @@ hash önekidir. Üretim çağıranlarına bağlama ve cron temizliği ayrı işt
 `/yonetim/ai/kalite` kayıtlı koşuları okur; model çağırmaz. Anahtar sözleşmesi
 `packages/core/src/eval/metric-keys.ts`. Koşuları veritabanına yazan komut (`--record`)
 henüz yoktur; panel o zamana kadar "Henüz veri yok" gösterir.
+
+## Kayıt (Faz 1A-4, karar 0098)
+
+```
+pnpm --filter @arilla/core eval:intent -- --record
+node --experimental-transform-types --no-warnings scripts/search-eval.ts --record
+python -m resolve.eval_offline --json > out.json
+pnpm --filter @arilla/core eval:record-matching -- out.json --record
+```
+
+`--record` yoksa yazılmaz; yalnızca yerel DB. Aynı koşu tekrar yazılmaz. Görsel benzerlik
+için etiketli veri olmadığından kayıt yolu yoktur.
