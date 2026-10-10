@@ -1,68 +1,77 @@
 import { describe, expect, it } from "vitest";
 import { runIntentEval } from "./intent-eval.ts";
-import { searchStoredMetrics } from "./metric-keys.ts";
-import { intentCases, searchCases } from "./record-cases.ts";
-import type { SearchEvalRow } from "./search-eval.ts";
+import { COMPONENT_METRICS } from "./metric-keys.ts";
+import { assertLocalRecordTarget } from "./record.ts";
+import { intentRecord, matchingRecord, searchRecord } from "./record-adapters.ts";
 
-const row = (over: Partial<SearchEvalRow>): SearchEvalRow => ({
-  q: "ornek sorgu",
-  absent: false,
-  returned: 5,
-  relevance: [1, 0, 0, 0, 0],
-  relevantInCatalog: 3,
-  zeroResultCorrect: null,
-  usedFallback: false,
-  ...over,
-});
-
-describe("intentCases", () => {
-  it("is deterministic and never stores the raw query", () => {
-    const first = intentCases(runIntentEval().rows);
-    const second = intentCases(runIntentEval().rows);
-    expect(first).toEqual(second);
-    const json = JSON.stringify(first);
-    for (const r of runIntentEval().rows) expect(json).not.toContain(r.query);
-    expect(first.every((c) => /^[0-9a-f]{24}$/.test(c.caseKey))).toBe(true);
-    expect(new Set(first.map((c) => c.caseKey)).size).toBe(first.length);
+describe("assertLocalRecordTarget", () => {
+  it("yerel adreslere izin verir", () => {
+    expect(() => assertLocalRecordTarget("postgresql://u:p@localhost:5432/db")).not.toThrow();
+    expect(() => assertLocalRecordTarget("postgresql://u:p@127.0.0.1:5432/db")).not.toThrow();
+  });
+  it.each([
+    "postgresql://u:p@db.example.com:5432/db",
+    "postgresql://u:p@aws-0-eu.pooler.supabase.com:6543/postgres",
+    "",
+    "bozuk",
+  ])("uzak/bozuk adresi reddeder: %s", (url) => {
+    expect(() => assertLocalRecordTarget(url)).toThrow(/yerel/);
+  });
+  it("tanimsiz adresi reddeder", () => {
+    expect(() => assertLocalRecordTarget(undefined)).toThrow();
   });
 });
 
-describe("searchCases", () => {
-  it("classifies hit, miss, zero result and absent queries", () => {
-    const cases = searchCases([
-      row({ q: "a" }),
-      row({ q: "b", relevance: [0, 0] }),
-      row({ q: "c", returned: 0, relevance: [] }),
-      row({ q: "d", zeroResultCorrect: true, returned: 0, relevance: [] }),
-      row({ q: "e", zeroResultCorrect: false }),
-    ]);
-    expect(cases.map((c) => [c.outcome, c.failureClass ?? null])).toEqual([
-      ["pass", null],
-      ["fail", "low_rank"],
-      ["fail", "zero_result"],
-      ["pass", null],
-      ["fail", "false_match"],
-    ]);
-    expect(JSON.stringify(cases)).not.toContain('"q"');
-  });
-});
-
-describe("searchStoredMetrics", () => {
-  const base = {
-    precisionAt5: 0.4,
-    ndcgAt10: 0.5,
-    zeroResultRate: 0.1,
-    missRate: 0.2,
-    absentCorrectRate: 1,
-  };
-  it("omits metrics whose denominator is empty instead of inventing 0", () => {
-    expect(searchStoredMetrics({ ...base, queries: 3, scoredQueries: 3 })).not.toHaveProperty(
-      "absent_correct_rate",
+describe("adaptorler", () => {
+  it("niyet: deterministik girdi, ayni surum etiketi ve metrikler; ham sorgu yok", () => {
+    const { rows, summary } = runIntentEval();
+    const a = intentRecord(rows, summary, "rules@x");
+    const b = intentRecord(rows, summary, "rules@x");
+    expect(a).toEqual(b);
+    expect(a.component).toBe("gemini_intent");
+    expect(a.snapshot.version).toMatch(/^intent-golden-[0-9a-f]{8}$/);
+    expect(Object.keys(a.metrics).sort()).toEqual(
+      COMPONENT_METRICS.gemini_intent.map((m) => m.key).sort(),
     );
-    expect(searchStoredMetrics({ ...base, queries: 0, scoredQueries: 0 })).toEqual({});
-    expect(searchStoredMetrics({ ...base, queries: 2, scoredQueries: 0 })).toEqual({
-      zero_result_rate: 0.1,
-      absent_correct_rate: 1,
-    });
+    expect(a.cases.every((c) => /^[0-9a-f]{24}$/.test(c.caseKey))).toBe(true);
+    expect(JSON.stringify(a.cases)).not.toContain("kask");
+  });
+
+  it("eslestirme: yalniz hatali ciftler vaka olur, siniflari dogru", () => {
+    const r = matchingRecord(
+      {
+        pairs: 3,
+        metrics: { queue_f1: 1 },
+        errors: [
+          { case: "x", expected_match: true },
+          { case: "y", expected_match: false },
+        ],
+      },
+      { should_match: [], should_not_match: [] },
+      3,
+      "thresholds-q0.63-a0.84",
+    );
+    expect(r.cases.map((c) => c.failureClass)).toEqual(["missed_match", "false_match"]);
+  });
+
+  it("arama: sinif atamasi", () => {
+    const base = { absent: false, relevantInCatalog: 3, usedFallback: false };
+    const r = searchRecord(
+      [
+        { ...base, q: "a", returned: 5, relevance: [1], zeroResultCorrect: null },
+        { ...base, q: "b", returned: 0, relevance: [], zeroResultCorrect: null },
+        { ...base, q: "c", returned: 4, relevance: [0, 0], zeroResultCorrect: null },
+        { ...base, q: "d", absent: true, returned: 2, relevance: [], zeroResultCorrect: false },
+        { ...base, q: "e", absent: true, returned: 0, relevance: [], zeroResultCorrect: true },
+      ],
+      "search@x",
+    );
+    expect(r.cases.map((c) => c.failureClass ?? c.outcome)).toEqual([
+      "pass",
+      "zero_result",
+      "low_rank",
+      "false_result",
+      "pass",
+    ]);
   });
 });

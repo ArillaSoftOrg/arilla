@@ -63,26 +63,17 @@ hash önekidir. Üretim çağıranlarına bağlama ve cron temizliği ayrı işt
 ## Yönetim paneli (Faz 1A-3, karar 0097)
 
 `/yonetim/ai/kalite` kayıtlı koşuları okur; model çağırmaz. Anahtar sözleşmesi
-`packages/core/src/eval/metric-keys.ts`. Koşuları yazan `--record` seçeneği Faz 1A-4'tedir
-(aşağıda); kayıt yoksa panel "Henüz veri yok" gösterir.
+`packages/core/src/eval/metric-keys.ts`. Koşuları veritabanına yazan komut (`--record`)
+henüz yoktur; panel o zamana kadar "Henüz veri yok" gösterir.
 
-## Koşuyu kaydetme (Faz 1A-4, karar 0098)
+## Kayıt (Faz 1A-4, karar 0098)
 
 ```
 pnpm --filter @arilla/core eval:intent -- --record
-DATABASE_URL=<yerel> pnpm --filter @arilla/core eval:search -- --record
+pnpm --filter @arilla/core eval:search -- --record
+python -m resolve.eval_offline --json > out.json
+pnpm --filter @arilla/core eval:record-matching -- out.json --record
 ```
 
-- `--record` yoksa veritabanına dokunulmaz (varsayılan: yalnızca yerel ölçüm).
-- Yalnızca yerel `DATABASE_URL` kabul edilir; uzak adreste hiçbir şey yazılmaz.
-- Kayıt: `dataset_snapshot` (içerik parmak izi + sürüm etiketi), `ai_eval_run`
-  (`algorithm_version` = `EVAL_ALGORITHM_VERSIONS`, `live=false`, maliyet 0) ve
-  `ai_eval_case` (yalnızca `case_key`, sonuç, sınıf; ham sorgu yok).
-- Aynı snapshot + algoritma sürümü + metrikler + vaka sonuçları ikinci kez
-  yazılmaz; var olan koşu kimliği döner.
-- Karşılaştırma yalnızca **aynı veri seti içeriği** için: temel çizgi o snapshot'taki
-  son koşudur. Veri seti değiştiyse `regressed` NULL, temel çizgi yok ("veri seti
-  değişti").
-- Payda 0 olan metrik yazılmaz (panelde "veri yok"); 0 uydurulmaz.
-- Algoritma değişince `EVAL_ALGORITHM_VERSIONS` elle artırılır.
-- Eşleştirme (Python) ve görsel benzerlik (gerçek etiketli set yok) henüz kaydedilmez.
+`--record` yoksa yazılmaz; yalnızca yerel DB. Aynı koşu tekrar yazılmaz. Görsel benzerlik
+için etiketli veri olmadığından kayıt yolu yoktur.

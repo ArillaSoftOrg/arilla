@@ -2,7 +2,7 @@
  * Metin arama degerlendirmesi (docs/decisions/0029).
  *
  *   DATABASE_URL=postgresql://arilla_app:...@localhost:5432/arilla \
- *     node scripts/search-eval.ts [--json cikti.json] [--record]
+ *     node scripts/search-eval.ts [--json cikti.json]
  *
  * Yalnizca yerel veritabani: bootstrap katalogu (0027) yalnizca orada var.
  * Sorgu cozumlemesi `query_resolution` onbellegine yazar; bu yuzden uzak bir
@@ -10,12 +10,10 @@
  */
 import { writeFileSync } from "node:fs";
 import { createDatabase } from "@arilla/db";
-import { searchStoredMetrics } from "../src/eval/metric-keys.ts";
-import { EVAL_ALGORITHM_VERSIONS, recordEvalResult } from "../src/eval/record.ts";
-import { searchCases } from "../src/eval/record-cases.ts";
+import { searchRecord } from "../src/eval/record-adapters.ts";
 import { summarizeSearch } from "../src/eval/search-eval.ts";
-import { EVAL_QUERIES, evaluateAll } from "../src/search/eval/run-eval.ts";
-import { gitShortRef, printRecordOutcome, wantsRecord } from "./lib-eval-record.ts";
+import { evaluateAll } from "../src/search/eval/run-eval.ts";
+import { codeRef, guardRecordFlag, recordOrExit } from "./lib/eval-record.ts";
 
 const url = process.env.DATABASE_URL ?? "";
 const host = (() => {
@@ -67,21 +65,7 @@ const jsonIndex = process.argv.indexOf("--json");
 if (jsonIndex !== -1 && process.argv[jsonIndex + 1]) {
   writeFileSync(process.argv[jsonIndex + 1] as string, JSON.stringify(rows, null, 2));
 }
-if (wantsRecord()) {
-  // Yerellik yukarida zaten dogrulandi (uzak adreste bu betik hic calismaz).
-  const outcome = await recordEvalResult(db, {
-    component: "search",
-    dataset: "search",
-    datasetVersion: "bootstrap",
-    items: EVAL_QUERIES,
-    verifiedCount: EVAL_QUERIES.length,
-    algorithmVersion: EVAL_ALGORITHM_VERSIONS.search,
-    metrics: searchStoredMetrics(summary),
-    cases: searchCases(rows),
-    durationMs: elapsed,
-    ...(gitShortRef() ? { codeRef: gitShortRef() as string } : {}),
-  });
-  printRecordOutcome(outcome);
+if (guardRecordFlag()) {
+  await recordOrExit(searchRecord(rows, `search@${codeRef()}`));
 }
-await db.$client.end();
 process.exit(0);
