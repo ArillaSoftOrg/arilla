@@ -107,6 +107,8 @@ export function searchStoredMetrics(summary: {
         }
       : {}),
     ...(queries > 0 ? { zero_result_rate: summary.zeroResultRate } : {}),
-    ...(absent > 0 ? { absent_correct_rate: summary.absentCorrectRate } : {}),
+    ...(absent > 0 || summary.queries === undefined
+      ? { absent_correct_rate: summary.absentCorrectRate }
+      : {}),
   };
 }
