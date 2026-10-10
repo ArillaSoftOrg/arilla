@@ -74,6 +74,39 @@ def test_invalid_job_name_is_not_recorded_and_does_not_raise() -> None:
     job_run.finish(None, "success")  # no-op
 
 
+def test_default_trigger_comes_from_env_and_falls_back_to_manual(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.delenv(job_run.TRIGGER_ENV, raising=False)
+    assert job_run.default_trigger() == "manual"
+    for value, expected in [("cron", "cron"), (" CRON ", "cron"), ("worker", "worker")]:
+        monkeypatch.setenv(job_run.TRIGGER_ENV, value)
+        assert job_run.default_trigger() == expected
+    # Gecersiz deger kaydi dusurmez; elle kosu sayilir.
+    for value in ["", "daily", "cron; drop table job_run"]:
+        monkeypatch.setenv(job_run.TRIGGER_ENV, value)
+        assert job_run.default_trigger() == "manual"
+
+
+def test_track_uses_env_trigger_unless_one_is_given(monkeypatch: pytest.MonkeyPatch) -> None:
+    seen: list[str] = []
+
+    def fake_start(job: str, trigger: str = "manual") -> None:
+        seen.append(trigger)
+
+    monkeypatch.setattr(job_run, "start", fake_start)
+    monkeypatch.setattr(job_run, "finish", lambda *_a, **_k: None)
+    monkeypatch.setenv(job_run.TRIGGER_ENV, "cron")
+    with job_run.track("resolve"):
+        pass
+    with job_run.track("resolve", "worker"):
+        pass
+    monkeypatch.delenv(job_run.TRIGGER_ENV)
+    with job_run.track("resolve"):
+        pass
+    assert seen == ["cron", "worker", "manual"]
+
+
 def test_logging_failure_never_breaks_the_job(monkeypatch: pytest.MonkeyPatch) -> None:
     def boom(*_args: object, **_kwargs: object) -> None:
         raise psycopg.OperationalError("db down postgresql://u:p@h/db")
