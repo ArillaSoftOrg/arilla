@@ -171,15 +171,15 @@
 }
 
 .wayCard_aqua .wayVisual {
-  background: #dff7f8;
+  background: var(--tint-aqua);
 }
 
 .wayCard_mist .wayVisual {
-  background: #eef6fb;
+  background: var(--tint-mist);
 }
 
 .wayCard_warm .wayVisual {
-  background: #f3eee8;
+  background: var(--tint-warm);
 }
 
 .wayVisual_bitmap {
@@ -319,7 +319,7 @@
   width: 64px;
   height: 64px;
   border-radius: var(--radius-pill);
-  background: rgba(22, 24, 29, 0.38);
+  background: var(--media-scrim);
   transform: translate(-50%, -50%);
   box-shadow: var(--shadow-sm);
 }
@@ -330,7 +330,7 @@
   width: 0;
   height: 0;
   border-block: 10px solid transparent;
-  border-inline-start: 16px solid #ffffff;
+  border-inline-start: 16px solid var(--on-media);
   content: "";
   transform: translate(-50%, -50%);
 }

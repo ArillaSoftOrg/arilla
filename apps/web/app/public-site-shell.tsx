@@ -19,8 +19,10 @@ import {
   siteNavItems,
 } from "./home-footer-groups.ts";
 import { verifySession } from "./lib/dal.ts";
+import { readThemePreference } from "./lib/theme-cookie.ts";
 import styles from "./public-site-shell.module.css";
 import { SITE_BRAND } from "./site-config.ts";
+import { ThemeToggleControl } from "./theme-toggle-client.tsx";
 
 /** docs/design.md "Kalite tabanı": SkipLink'in hedefi, sayfada tek. */
 const MAIN_ID = "icerik";
@@ -102,6 +104,7 @@ export async function PublicSiteShell({
     links: markCurrent(group.links, currentPath),
   }));
   const loginHref = productAccess ? "/giris" : EARLY_ACCESS_LOGIN_PATH;
+  const initialTheme = await readThemePreference();
 
   return (
     <div className={styles.shell}>
@@ -121,6 +124,8 @@ export async function PublicSiteShell({
         accountAvatarLabel={user?.displayName ?? user?.email ?? SITE_BRAND}
         // Lansman öncesi, yalnızca anonim ziyaretçiye: sade "Admin Girişi"
         // (aynı giriş akışı, karar 0043). Yetki girişten sonra sunucuda.
+        themeControl={<ThemeToggleControl initialTheme={initialTheme} />}
+        themeControlLabel={HOME_COPY.themeToggleLabel}
         utilityLink={
           !productAccess && !user
             ? { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH }

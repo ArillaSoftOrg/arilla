@@ -73,6 +73,8 @@ export const HOME_COPY = {
   navDiscover: "Keşfet", // nav.discover
   navHowItWorks: "Arama yolları", // nav.how_it_works
   navAccount: "Hesabım", // nav.account
+  /** Karar 0092: tema dugmesinin erisilebilir adi; durum `aria-pressed` ile. */
+  themeToggleLabel: "Koyu tema", // nav.theme_toggle
   navDeals: "Fırsatlar", // nav.deals
   navSaved: "Kaydettiklerim", // nav.saved
   navAlerts: "Alarmlarım", // nav.alerts

@@ -115,3 +115,22 @@ export function ExternalLinkIcon(props: IconProps) {
     </Svg>
   );
 }
+
+/** Tema kontrolu (karar 0092): acik temaya gecis isareti. */
+export function SunIcon(props: IconProps) {
+  return (
+    <Svg {...props} defaultSize={20}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </Svg>
+  );
+}
+
+/** Tema kontrolu (karar 0092): koyu temaya gecis isareti. */
+export function MoonIcon(props: IconProps) {
+  return (
+    <Svg {...props} defaultSize={20}>
+      <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" />
+    </Svg>
+  );
+}

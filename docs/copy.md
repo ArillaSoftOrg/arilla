@@ -74,6 +74,7 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `nav.discover` | Keşfet |
 | `nav.how_it_works` | Nasıl Çalışır |
 | `nav.account` | Hesabım |
+| `nav.theme_toggle` | Koyu tema (üst çubuktaki tema düğmesinin erişilebilir adı; durum `aria-pressed` ile, karar 0092) |
 | `nav.deals` | Fırsatlar |
 | `nav.saved` | Kaydettiklerim |
 | `nav.alerts` | Alarmlarım |
