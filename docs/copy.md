@@ -203,6 +203,9 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `search.placeholder` | ManiCepte’ye sor... |
 | `search.placeholder_results` | Ürün adı, marka ya da kısa bir tarif yaz |
 | `search.input_label` | Ürün ara |
+| `search.quick_label` | Hızlı arama (yüzen arama kutusunun bölge adı, karar 0093) |
+| `search.quick_attach` | Fotoğraf eklemek için ana arama kutusuna git ("+" düğmesinin erişilebilir adı) |
+| `search.quick_dismiss` | Hızlı aramayı kapat ("×" düğmesinin erişilebilir adı) |
 | `search.title_empty_query` | Ne arıyorsun? |
 | `search.title` | “{q}” için sonuçlar |
 | `search.empty_query` | Aramak için aşağıya bir şey yaz ya da fotoğraf yükle. |

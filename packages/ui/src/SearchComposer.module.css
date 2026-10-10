@@ -290,3 +290,69 @@
   opacity: 0.5;
   cursor: not-allowed;
 }
+
+/* Karar 0093: yuzen hizli arama (`variant="mini"`). Tek satir: "+" solda,
+   girdi ortada, gonder sagda. Hazirlanan fotograf (ana kutudaki) kucuk bir
+   isaret olarak gorunur; kaldirma ana kutudadir. */
+.box.boxMini {
+  flex-direction: row;
+  align-items: center;
+  gap: var(--space-1);
+  min-height: 56px;
+  padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+  border-radius: var(--radius-pill);
+  box-shadow: var(--shadow-md);
+}
+
+.box.boxMini:focus-within {
+  box-shadow: var(--shadow-md);
+}
+
+.boxMini .actions {
+  display: contents;
+}
+
+.boxMini .photoButton {
+  order: -2;
+}
+
+.boxMini .attachment {
+  order: -1;
+  align-self: center;
+  margin: 0;
+}
+
+.boxMini .attachmentImage {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+}
+
+.boxMini .attachmentRemove {
+  display: none;
+}
+
+.boxMini .input {
+  flex: 1 1 auto;
+  max-height: calc(var(--composer-line) * 2);
+  padding-inline: var(--space-2);
+}
+
+.boxMini .submit {
+  order: 1;
+  margin-inline-start: 0;
+}
+
+/* Bosken yer tutucu tek satir (dar telefonda kisaltilir); yazinca normal sarma. */
+.boxMini .input:placeholder-shown {
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+@media (max-width: 639.98px) {
+  .box.boxMini {
+    padding: var(--space-1) var(--space-1) var(--space-1) var(--space-2);
+    border-radius: var(--radius-lg);
+  }
+}

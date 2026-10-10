@@ -15,6 +15,8 @@ export interface PhotoUploadButtonProps {
   className?: string;
   /** Yeni, opsiyonel - varsayilan "secondary": bugunku gorunum korunur. */
   variant?: ButtonProps["variant"];
+  /** Gorunur dugmenin kimligi (orn. baska bir kontrolden odak tasimak icin). */
+  id?: string;
 }
 
 /**
@@ -30,6 +32,7 @@ export function PhotoUploadButton({
   icon,
   className,
   variant = "secondary",
+  id,
 }: PhotoUploadButtonProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -50,6 +53,7 @@ export function PhotoUploadButton({
         hidden
       />
       <Button
+        id={id}
         type="button"
         variant={variant}
         className={className}

@@ -1,8 +1,54 @@
 /* Zemin `--surface`: footer icerikten ayrilir, ek cizgi/golge gerekmez.
-   `--ink-muted` bu zeminde 4.90:1 (design.md "Kontrast"). */
+   Karar 0093: alta dogru dekoratif atmosfer (nane + limon parıltısı) ve
+   kirpilmis "M". Katmanlar metnin ARKASINDA (z-index -1, `isolation`);
+   alfa degerleri en kotu ust uste binmede bile `--ink-muted` >= 4.5:1. */
 .footer {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
   background: var(--surface);
   border-top: var(--border-width) solid var(--line);
+}
+
+.footer::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(120% 75% at 82% 118%, var(--footer-glow-lime), transparent 70%),
+    radial-gradient(110% 80% at 12% 122%, var(--footer-glow-mint), transparent 72%);
+  pointer-events: none;
+}
+
+/* Buyuk, kirpilmis tipografik "M": site fontu (IBM Plex Sans), sag altta,
+   alt kismi footer'in disinda kalir. Metin olarak secilmez, okunmaz. */
+.motif {
+  position: absolute;
+  z-index: -1;
+  inset-inline-end: -0.04em;
+  inset-block-end: -0.3em;
+  font-size: clamp(13rem, 6rem + 28vw, 30rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -0.04em;
+  color: var(--footer-motif);
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (forced-colors: active) {
+  .footer::before,
+  .motif {
+    display: none;
+  }
+}
+
+@media print {
+  .footer::before,
+  .motif {
+    display: none;
+  }
 }
 
 /* Genislik ve yatay bosluk `Container size="wide"`'dan gelir - ust cubuk
@@ -11,7 +57,8 @@
 .inner {
   display: grid;
   gap: var(--space-8);
-  padding-block: var(--section-space-compact) var(--space-8);
+  /* Alt bosluk motif alani: parıltının en yogun yeri metnin altinda kalir. */
+  padding-block: var(--section-space-compact) clamp(5rem, 2rem + 10vw, 9rem);
 }
 
 /* Marka blogu + link gruplari. Telefonda alt alta; `lg` (1024px) ve

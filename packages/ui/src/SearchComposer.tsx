@@ -101,6 +101,27 @@ export interface SearchComposerProps {
   offerCountLabel?: (count: number) => string;
   /** true ise http(s) veya www. ile baslayan girdiler kok link cozumleme rotasina gider. */
   routeProductLinks?: boolean;
+  /**
+   * Karar 0093: `mini` = yuzen hizli arama (tek satir, kompakt). Gonderim
+   * kurallari ve yonlendirme ana kutuyla AYNI (bu bilesen); yalnizca gorunum degisir.
+   */
+  variant?: "default" | "mini";
+  /** `<search>` bolgesinin erisilebilir adi (sayfada birden fazla arama varsa). */
+  landmarkLabel?: string;
+  /** Girdinin kimligi (baska bir kontrol odagi buraya tasiyabilsin). */
+  inputId?: string;
+  /** Fotograf dugmesinin kimligi. */
+  photoButtonId?: string;
+  /**
+   * Verilirse fotograf dugmesi yerine cizilen "+" eylemi (orn. hizli aramada ana
+   * kutuya gidip fotograf eklemek). Dosya secimi yapmaz.
+   */
+  leadingAction?: { label: string; onClick: () => void; disabled?: boolean };
+  /**
+   * false: durum/hata metni gorunur ama canli bolge olarak duyurulmaz (ayni
+   * metni duyuran baska bir kutu sayfadaysa cift duyuru olmasin). Varsayilan true.
+   */
+  announce?: boolean;
 }
 
 /**
@@ -131,6 +152,12 @@ export function SearchComposer({
   offerCountLabel,
   routeProductLinks = false,
   onSubmitText,
+  variant = "default",
+  landmarkLabel,
+  inputId,
+  photoButtonId,
+  leadingAction,
+  announce = true,
 }: SearchComposerProps) {
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -246,13 +273,14 @@ export function SearchComposer({
 
   return (
     <div className={styles.wrapper}>
-      <search>
+      <search aria-label={landmarkLabel}>
         <form
           ref={formRef}
           action={action}
           method={typeof action === "string" ? "get" : undefined}
           onSubmit={handleSubmit}
-          className={styles.box}
+          className={variant === "mini" ? `${styles.box} ${styles.boxMini}` : styles.box}
+          data-variant={variant}
           aria-busy={busyMessage || attachment?.pending ? true : undefined}
         >
           {attachment ? (
@@ -275,6 +303,7 @@ export function SearchComposer({
           ) : null}
           <textarea
             ref={inputRef}
+            id={inputId}
             rows={1}
             name={name}
             defaultValue={defaultValue}
@@ -291,8 +320,20 @@ export function SearchComposer({
           />
           {/* Alt satir: ek solda, gonder sagda (fotograf kapaliyken de sagda kalir). */}
           <div className={styles.actions}>
-            {photo ? (
+            {leadingAction ? (
+              <Button
+                type="button"
+                variant="ghost"
+                aria-label={leadingAction.label}
+                disabled={leadingAction.disabled}
+                onClick={leadingAction.onClick}
+                className={styles.photoButton}
+              >
+                <PlusIcon />
+              </Button>
+            ) : photo ? (
               <PhotoUploadButton
+                id={photoButtonId}
                 iconOnly
                 icon={<PlusIcon />}
                 label={photo.label}
@@ -317,13 +358,15 @@ export function SearchComposer({
       </search>
 
       {statusMessage ? (
-        <p role="alert" className={styles.status}>
+        <p role={announce ? "alert" : undefined} className={styles.status}>
           {statusMessage}
         </p>
       ) : null}
-      <p role="status" className={styles.busy}>
-        {busyMessage ?? ""}
-      </p>
+      {announce ? (
+        <p role="status" className={styles.busy}>
+          {busyMessage ?? ""}
+        </p>
+      ) : null}
 
       {recentProducts && recentProducts.length > 0 ? (
         <div className={styles.chipsSection}>

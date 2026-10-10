@@ -43,6 +43,10 @@ export interface SiteFooterProps {
  *
  * Hiyerarsi: marka blogu -> link gruplari (Urun, Hesap, Yasal) ->
  * disclosure bandi (affiliate + fiyat/stok) -> telif satiri.
+ *
+ * Karar 0093: markali zemin - alta dogru yumusak nane/limon atmosferi ve
+ * kirpilmis buyuk tipografik "M" (site fontuyla, cizilmis logo degil). Ikisi de
+ * yalnizca dekordur: `aria-hidden`, tiklanmaz, zorla-renk ve baskida yok.
  */
 export function SiteFooter({
   brandLabel,
@@ -56,6 +60,9 @@ export function SiteFooter({
 }: SiteFooterProps) {
   return (
     <footer className={styles.footer}>
+      <span className={styles.motif} aria-hidden="true">
+        M
+      </span>
       <Container size="wide" className={styles.inner}>
         <div className={styles.top}>
           <div className={styles.brand}>

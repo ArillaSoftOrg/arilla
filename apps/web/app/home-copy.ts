@@ -82,6 +82,10 @@ export const HOME_COPY = {
   searchPlaceholder: "ManiCepte’ye sor...", // search.placeholder
   searchInputLabel: "Ürün ara", // search.input_label
   searchSubmitLabel: "Ara", // action.search
+  /** Karar 0093: yuzen hizli arama. */
+  quickSearchLabel: "Hızlı arama", // search.quick_label
+  quickSearchAttachLabel: "Fotoğraf eklemek için ana arama kutusuna git", // search.quick_attach
+  quickSearchDismissLabel: "Hızlı aramayı kapat", // search.quick_dismiss
   loginLabel: "Giriş yap", // action.login
   affiliateNotice:
     "Bazı bağlantılardan alışveriş yaptığında komisyon kazanabiliriz. Bu, sana gösterdiğimiz fiyatı değiştirmez.", // legal.affiliate_notice
