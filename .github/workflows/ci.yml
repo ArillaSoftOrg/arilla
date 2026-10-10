@@ -111,7 +111,9 @@ jobs:
       # Eslestirme regresyon seti (tests/test_resolve_regression.py) burada
       # kosar: esik degisince neyin bozuldugu yalnizca bu is ile gorulur.
       # Entegrasyon testleri veritabani ister; ayri bir is kurulana dek atlanir.
-      - run: pytest -m "not integration"
+      # `python -m pytest`: gecerli klasoru (services/ingest) import yoluna ekler;
+      # bazi testler `from tests.test_... import` kullanir, duz `pytest` bulamaz.
+      - run: python -m pytest -m "not integration"
 
   build:
     name: web build
