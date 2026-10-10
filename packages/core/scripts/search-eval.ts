@@ -10,6 +10,7 @@
  */
 import { writeFileSync } from "node:fs";
 import { createDatabase } from "@arilla/db";
+import { summarizeSearch } from "../src/eval/search-eval.ts";
 import { evaluateAll } from "../src/search/eval/run-eval.ts";
 
 const url = process.env.DATABASE_URL ?? "";
@@ -51,6 +52,11 @@ const absent = rows.filter((row) => row.zeroResultCorrect !== null);
 const mean = (values: number[]) => values.reduce((a, b) => a + b, 0) / (values.length || 1);
 console.log(
   `\nortalama ilgili@5 ${mean(scored.map((r) => r.relevantAt5)).toFixed(2)} | ilgili@10 ${mean(scored.map((r) => r.relevantAt10)).toFixed(2)} | ilk 10'da yanlis pozitif ${scored.reduce((n, r) => n + r.falsePositives.length, 0)} | yok-sorgusu dogru ${absent.filter((r) => r.zeroResultCorrect).length}/${absent.length} | ${elapsed.toFixed(0)} ms`,
+);
+
+const summary = summarizeSearch(rows);
+console.log(
+  `P@5 ${summary.precisionAt5.toFixed(3)} | NDCG@10 ${summary.ndcgAt10.toFixed(3)} | sifir sonuc ${(summary.zeroResultRate * 100).toFixed(1)}% | kacirma ${(summary.missRate * 100).toFixed(1)}% | yok-sorgusu dogru ${(summary.absentCorrectRate * 100).toFixed(1)}%`,
 );
 
 const jsonIndex = process.argv.indexOf("--json");

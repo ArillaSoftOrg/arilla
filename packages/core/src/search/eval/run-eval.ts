@@ -31,6 +31,8 @@ export interface EvalRow {
   relevantAt5: number;
   relevantAt10: number;
   firstRelevant: number | null;
+  /** Ilk 10 sonucun ikili ilgisi (1/0), sira korunur; P@K ve NDCG buradan hesaplanir. */
+  relevance: number[];
   /** Ilk 10'daki ilgisiz sonuclar (baslik ornekleri). */
   falsePositives: string[];
   /** Katalogda kac ilgili urun var (ust sinir, recall icin). */
@@ -127,6 +129,7 @@ export async function evaluateQuery(
     relevantAt5: items.slice(0, 5).filter((item) => relevant.has(item.productId)).length,
     relevantAt10: top10.filter((item) => relevant.has(item.productId)).length,
     firstRelevant: firstIndex === -1 ? null : firstIndex + 1,
+    relevance: top10.map((item) => (relevant.has(item.productId) ? 1 : 0)),
     falsePositives: top10.filter((item) => !relevant.has(item.productId)).map((item) => item.title),
     relevantInCatalog: inCatalog,
     // Katalogda ilgili urun yoksa (acikca "absent" isaretli ya da yargiya
