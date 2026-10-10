@@ -10,9 +10,22 @@ from __future__ import annotations
 
 from datetime import UTC, datetime, timedelta
 
+import pytest
+
 from similarity.prices import Observation, compute, detect_inflated_list_price
 
 START = datetime(2026, 7, 1, tzinfo=UTC)
+
+
+@pytest.fixture(autouse=True)
+def _history_gate_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bu dosya yuzdelik ARITMETIGINI / suzmeyi sinar, yeterli-gecmis kapisini degil.
+
+    Kapi gercek sabitlerle `test_price_percentile_history.py` icinde sinanir (A5).
+    """
+    monkeypatch.setattr("similarity.prices.MIN_PERCENTILE_OBSERVATIONS", 1)
+    monkeypatch.setattr("similarity.prices.MIN_PERCENTILE_DISTINCT_PRICES", 1)
+    monkeypatch.setattr("similarity.prices.MIN_PERCENTILE_SPAN", timedelta(0))
 
 
 def series(entries: list[tuple[int, int, int | None]]) -> list[Observation]:

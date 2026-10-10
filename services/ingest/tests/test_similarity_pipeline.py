@@ -9,6 +9,7 @@ Yapisal ozellikler ise vektor kalitesinden bagimsiz olarak dogru olmali.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from datetime import timedelta
 
 import psycopg
 import pytest
@@ -19,6 +20,17 @@ from similarity.pipeline import refresh_price_stats
 from similarity.vectors import to_literal
 
 pytestmark = pytest.mark.integration
+
+
+@pytest.fixture(autouse=True)
+def _history_gate_open(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Bu dosya yuzdelik ARITMETIGINI / suzmeyi sinar, yeterli-gecmis kapisini degil.
+
+    Kapi gercek sabitlerle `test_price_percentile_history.py` icinde sinanir (A5).
+    """
+    monkeypatch.setattr("similarity.prices.MIN_PERCENTILE_OBSERVATIONS", 1)
+    monkeypatch.setattr("similarity.prices.MIN_PERCENTILE_DISTINCT_PRICES", 1)
+    monkeypatch.setattr("similarity.prices.MIN_PERCENTILE_SPAN", timedelta(0))
 
 DOMAIN = "test-b5-magaza.example"
 MODEL = "test-b5-model"

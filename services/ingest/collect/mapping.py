@@ -18,6 +18,10 @@ from typing import Any
 
 from collect.records import RecordRejected
 
+#: Makul fiyat ust siniri: 10.000.000 TL (kurus). Bunun ustu besleme/sayfa hatasidir
+#: (yanlis ondalik/binlik okuma tipik olarak 10x-1000x fark yaratir).
+MAX_PRICE_KURUS = 1_000_000_000
+
 #: `mapping` icinde bulunmasi zorunlu alanlar. Bunlar olmadan bir teklif
 #: kataloga yazilamaz: kimligi, adresi ve adi olmayan urun yoktur.
 REQUIRED_FIELDS = ("external_id", "url", "title")
@@ -72,6 +76,7 @@ class ValueFormats:
         # Para birimi eki ve bosluklari at, yalnizca sayi ve ayraclar kalsin.
         keep = f"{self.decimal_separator}{self.thousands_separator}-"
         cleaned = "".join(ch for ch in text if ch.isdigit() or ch in keep)
+        self._check_separator_structure(cleaned, text)
         if self.thousands_separator:
             cleaned = cleaned.replace(self.thousands_separator, "")
         if self.decimal_separator and self.decimal_separator != ".":
@@ -85,6 +90,25 @@ class ValueFormats:
             raise RecordRejected(f"fiyat cozumlenemedi: {text!r}") from None
         # Kurusa cevir; yarim kurus yukari yuvarlanir.
         return int((lira * 100).quantize(Decimal("1")))
+
+    def _check_separator_structure(self, numeric: str, original: str) -> None:
+        """Bildirilen bicime UYMAYAN metni reddeder; sessizce yanlis okumaz.
+
+        Turkce varsayilanla "12.5" 125 TL, "1299.90" 129.990 TL olurdu. Binlik
+        ayrac varsa her grup (ilki disinda) tam 3 hane olmali ve ayrac ondalik
+        kisimda gorunmemeli; ondalik ayrac en fazla bir kez gecmeli.
+        """
+        decimal, thousands = self.decimal_separator, self.thousands_separator
+        body = numeric.lstrip("-")
+        if decimal and body.count(decimal) > 1:
+            raise RecordRejected(f"fiyat bicimi gecersiz: {original!r}")
+        head, _, tail = body.partition(decimal) if decimal and decimal in body else (body, "", "")
+        if thousands and thousands in tail:
+            raise RecordRejected(f"fiyat bicimi gecersiz: {original!r}")
+        if thousands and thousands in head:
+            groups = head.split(thousands)
+            if not 1 <= len(groups[0]) <= 3 or any(len(group) != 3 for group in groups[1:]):
+                raise RecordRejected(f"fiyat bicimi gecersiz: {original!r}")
 
     def parse_in_stock(self, raw: str | None, *, default: bool = True) -> bool:
         if raw is None:
