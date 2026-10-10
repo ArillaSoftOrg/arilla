@@ -22,6 +22,7 @@ from psycopg import pq
 from psycopg.types.json import Jsonb
 
 from db import product_aggregates
+from db.vector import tune_ann_search
 from resolve import candidates as candidate_channels
 from resolve import identifiers, products
 from resolve.normalize import ProductKey
@@ -235,6 +236,8 @@ def resolve_offers(
 ) -> ResolveCounts:
     counts = ResolveCounts()
     queue = queue_threshold()
+    # Gorsel aday kanali HNSW kullanir; suzgec sonrasi yeterli komsu icin ayar.
+    tune_ann_search(conn)
 
     with conn.cursor() as cur:
         cur.execute(PENDING_OFFERS, {"merchant_id": merchant_id, "limit": limit})
