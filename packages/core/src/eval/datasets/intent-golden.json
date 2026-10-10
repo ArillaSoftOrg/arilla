@@ -1,0 +1,210 @@
+{
+  "_aciklama": "Niyet/belirsizlik altin seti. Kaynak: clarification/regression.test.ts (elle yazilmis, mevcut gercek vakalar; kopya degil taşıma değildir, orijinal test yerinde kalir). Yeni etiket icin insan dogrulamasi gerekir; dogrulanmamislar candidates/ altinda tutulur.",
+  "cases": [
+    {
+      "query": "kask arıyorum",
+      "action": "clarify",
+      "question": "helmet_type",
+      "domain": "helmet",
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "kask",
+      "action": "clarify",
+      "question": "helmet_type",
+      "domain": "helmet",
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "full face kask arıyorum",
+      "action": "clarify",
+      "question": "use_case",
+      "notAsked": ["helmet_type"],
+      "facets": {
+        "helmet_type": "full_face"
+      },
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "full face siyah kask",
+      "action": "search",
+      "facets": {
+        "helmet_type": "full_face"
+      },
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "bisiklet kaskı",
+      "action": "search",
+      "domain": null,
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "telefon istiyorum",
+      "action": "clarify",
+      "question": "budget",
+      "domain": "phone",
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "iphone 16 kılıfı",
+      "action": "search",
+      "domain": null,
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "telefon kılıfı",
+      "action": "search",
+      "domain": null,
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "ayakkabı",
+      "action": "clarify",
+      "question": "shoe_type",
+      "domain": "shoes",
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "siyah erkek koşu ayakkabısı",
+      "action": "search",
+      "facets": {
+        "shoe_type": "running",
+        "audience": "men"
+      },
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "nike air force 1 beyaz 42",
+      "action": "search",
+      "domain": null,
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "hediye arıyorum",
+      "action": "clarify",
+      "question": "recipient",
+      "domain": "gift",
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "hediye",
+      "action": "clarify",
+      "question": "recipient",
+      "domain": "gift",
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "anneme hediye arıyorum",
+      "action": "clarify",
+      "question": "interest",
+      "notAsked": ["recipient"],
+      "facets": {
+        "recipient": "mother"
+      },
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "1000 liraya anneme hediye",
+      "action": "clarify",
+      "question": "interest",
+      "notAsked": ["recipient", "budget"],
+      "facets": {
+        "recipient": "mother"
+      },
+      "budget": {
+        "minKurus": null,
+        "maxKurus": 100000
+      },
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "500 liraya kız arkadaşıma hediye arıyorum",
+      "action": "clarify",
+      "question": "interest",
+      "notAsked": ["recipient", "budget"],
+      "facets": {
+        "recipient": "partner"
+      },
+      "budget": {
+        "minKurus": null,
+        "maxKurus": 50000
+      },
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "erkek arkadaşıma doğum günü hediyesi",
+      "action": "clarify",
+      "question": "interest",
+      "notAsked": ["recipient"],
+      "facets": {
+        "recipient": "partner"
+      },
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "10 yaşındaki çocuğa hediye",
+      "action": "clarify",
+      "question": "interest",
+      "notAsked": ["recipient", "age_band"],
+      "facets": {
+        "recipient": "child",
+        "age_band": "preteen"
+      },
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "500 TL altında hediye",
+      "action": "clarify",
+      "question": "recipient",
+      "notAsked": ["budget"],
+      "budget": {
+        "minKurus": null,
+        "maxKurus": 50000
+      },
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "anneme hediye çanta",
+      "action": "search",
+      "facets": {
+        "recipient": "mother"
+      },
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "masa lambası",
+      "action": "search",
+      "domain": null,
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "evime bir şeyler bakıyorum",
+      "action": "clarify",
+      "question": "home_type",
+      "domain": "home",
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "ucuz mouse",
+      "action": "search",
+      "domain": null,
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "500 TL altında erkek parfümü",
+      "action": "search",
+      "domain": null,
+      "label_source": "existing-regression-suite"
+    },
+    {
+      "query": "kosu ayakkabisi",
+      "action": "clarify",
+      "question": "audience",
+      "facets": {
+        "shoe_type": "running"
+      },
+      "label_source": "existing-regression-suite"
+    }
+  ]
+}
