@@ -7,9 +7,11 @@
  *
  * Yetkiler burada DEGISTIRILMEZ; onlarin tek sahibi 0010 migration'idir.
  */
-import { ownerUrl, requireEnv, withClient } from "./lib.ts";
+import { assertRemoteWriteConfirmed, ownerUrl, requireEnv, withClient } from "./lib.ts";
 
 const ROLE = "arilla_app";
+
+assertRemoteWriteConfirmed("db:bootstrap-role");
 
 await withClient(ownerUrl(), async (client) => {
   const password = requireEnv("APP_DB_PASSWORD");
