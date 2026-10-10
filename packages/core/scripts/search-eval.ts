@@ -10,8 +10,10 @@
  */
 import { writeFileSync } from "node:fs";
 import { createDatabase } from "@arilla/db";
+import { searchRecord } from "../src/eval/record-adapters.ts";
 import { summarizeSearch } from "../src/eval/search-eval.ts";
 import { evaluateAll } from "../src/search/eval/run-eval.ts";
+import { codeRef, guardRecordFlag, recordOrExit } from "./lib/eval-record.ts";
 
 const url = process.env.DATABASE_URL ?? "";
 const host = (() => {
@@ -62,5 +64,8 @@ console.log(
 const jsonIndex = process.argv.indexOf("--json");
 if (jsonIndex !== -1 && process.argv[jsonIndex + 1]) {
   writeFileSync(process.argv[jsonIndex + 1] as string, JSON.stringify(rows, null, 2));
+}
+if (guardRecordFlag()) {
+  await recordOrExit(searchRecord(rows, `search@${codeRef()}`));
 }
 process.exit(0);
