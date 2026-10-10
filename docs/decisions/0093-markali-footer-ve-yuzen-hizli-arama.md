@@ -24,11 +24,24 @@ göre ölçülür; dekor onu 4.5:1'in altına indiremez.
   (`--footer-glow-mint`) ve limon (`--footer-glow-lime`). Açık temada sıcak
   kırık beyazdan alta doğru çok hafif nane/limon tonu; koyu temada grafit
   üzerinde çok düşük alfalı limon/nane havası.
-- Sağ altta, alt kısmı kırpılmış büyük tipografik **"M"** (site fontu IBM Plex
-  Sans, `--footer-motif`). Yeni bir logo SVG'si çizilmedi/izlenmedi.
-- Alfa değerleri en kötü üst üste binmede (iki parıltı + motif) bile
-  `--ink-muted` için ≥ 4.5:1 bırakacak şekilde hesaplandı (açık 4.54:1, koyu
-  4.97:1); parıltının en yoğun yeri metnin altındaki motif alanındadır.
+- En altta, iki yandan ve alttan kırpılmış büyük **"ManiCepte"** kelime
+  işareti (site fontu IBM Plex Sans, kalın ve eğik — üst çubuktaki marka
+  yazısıyla aynı dil). Marka yeşilinden naneye (açık) ya da yeşilden koyuya
+  solan (koyu) degrade dolgu (`--footer-wordmark-from/-to`), arkasında güçlü
+  limon parıltısı (`--footer-band-glow`). Yeni bir logo SVG'si
+  çizilmedi/izlenmedi.
+- Kelime işareti metnin **altındaki kendi şeridindedir**; hiçbir footer
+  metniyle üst üste binmez (her genişlikte metinle arasında 32px). Bu yüzden
+  yeşil orada güçlü kullanılabilir; yeşil asla footer metni değildir.
+- Metin bölgesindeki parıltı alfa değerleri en kötü üst üste binmede bile
+  `--ink-muted` için ≥ 4.5:1 bırakır (açık 4.81:1, koyu 4.90:1).
+- **Footer affiliate cümlesi kaldırıldı** ("Bazı bağlantılardan alışveriş
+  yaptığında komisyon kazanabiliriz…" + bağlantı). Bildirim, tıklama
+  noktasında kalır: ürün sayfasında mağaza bağlantısının yanında ve fiyat
+  tablosunun altında; `/affiliate-aciklamasi` sayfası ve footer "Yasal"
+  sütunundaki bağlantısı aynen durur. Bu, 0026'nın "altbilgideki
+  affiliate/fiyat bildirimi" kısıtını public site footer'ı için daraltır
+  (fiyat/stok uyarısı footer'da kalır; `EditorialFooter` değişmedi).
 
 ### 3. Yüzen hızlı arama (yalnızca ana sayfa)
 
@@ -65,7 +78,7 @@ düşük alfalı bir atmosfer kimlik kazandırırken metin kontrastını korur.
 
 1. **Logoyu SVG olarak izleyip footer'a koymak.** Reddedildi: resmi vektör
    yok (docs/brand.md); izlenmiş logo marka sahibinin onayı olmadan
-   kullanılmaz. Tipografik "M" aynı izi verir.
+   kullanılmaz. Site fontuyla yazılmış kelime işareti aynı izi verir.
 2. **Kapatmayı `localStorage`/çerezde kalıcı tutmak.** Reddedildi: CLAUDE.md
    depolamaya bağımlı akışı yasaklar; oturumluk kapatma yeterli.
 3. **Hızlı arama için ayrı gönderim mantığı.** Reddedildi: kilit ve görsel
@@ -75,7 +88,8 @@ düşük alfalı bir atmosfer kimlik kazandırırken metin kontrastını korur.
 
 ## Sonucu
 
-- `tokens.css`: `--footer-glow-mint`, `--footer-glow-lime`, `--footer-motif`
+- `tokens.css`: `--footer-glow-mint`, `--footer-glow-lime`,
+  `--footer-wordmark-from`, `--footer-wordmark-to`, `--footer-band-glow`
   (iki temada); `--brand` yorumu istisnayı anar.
 - `docs/design.md` ve `docs/brand.md` güncellendi; `docs/copy.md`'ye
   `search.quick_label`, `search.quick_attach`, `search.quick_dismiss`.
