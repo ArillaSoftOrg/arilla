@@ -241,17 +241,17 @@ def test_pipeline_cannot_update_price_point(merchant: int) -> None:
 
     with _app() as conn:
         # Onkosul: gercekten superuser olmayan bir uygulama rolu (aksi halde test anlamsiz).
-        row = conn.execute(
-            "SELECT rolsuper FROM pg_roles WHERE rolname = current_user"
-        ).fetchone()
+        row = conn.execute("SELECT rolsuper FROM pg_roles WHERE rolname = current_user").fetchone()
         assert row is not None and row[0] is False
 
     for statement in (
         "UPDATE price_point SET price = 1 WHERE false",
         "DELETE FROM price_point WHERE false",
     ):
-        with _app() as conn, conn.cursor() as cur, pytest.raises(
-            psycopg.errors.InsufficientPrivilege
+        with (
+            _app() as conn,
+            conn.cursor() as cur,
+            pytest.raises(psycopg.errors.InsufficientPrivilege),
         ):
             cur.execute(statement)
 

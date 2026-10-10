@@ -22,7 +22,7 @@ import {
   type Database,
 } from "@arilla/db";
 import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
-import type { LlmErrorCode } from "../llm/client.ts";
+import type { LlmCall, LlmErrorCode } from "../llm/client.ts";
 import { llmCallCostMicros } from "../llm/pricing.ts";
 import {
   type ProviderBudgetHooks,
@@ -850,6 +850,25 @@ async function chatProviderBudget(
   }
 }
 
+/**
+ * Kural 9: sohbet turunun (normal ya da link tercihi, karar 0090) her model
+ * denemesi bir `api_usage` satiri. Iki yazim yolu da BURADAN gecer: muhasebe
+ * kolonlari (karar 0082; 0059 girdi/cikti ayrimi gelince `llmUsageColumns`)
+ * tek yerde degisir.
+ */
+function chatUsageRows(userId: number, calls: readonly LlmCall[]) {
+  return calls.map((call) => ({
+    sessionId: null,
+    userId,
+    operation: CHAT_TURN_OPERATION,
+    modelVersion: call.modelVersion,
+    units: call.usage?.totalTokens ?? 0,
+    // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
+    costMicros: llmCallCostMicros(call),
+    cacheHit: false,
+  }));
+}
+
 /** Yazilan cevabin istemcide hemen gosterilebilen on izlemesi (kalici kayit sunucudadir). */
 export interface AssistantPreview {
   seq: number;
@@ -1006,17 +1025,7 @@ async function runPendingTurn(
             .for("update");
           if (!row) return { status: "not_found" };
           if (plan.calls.length > 0) {
-            await tx.insert(apiUsage).values(
-              plan.calls.map((call) => ({
-                sessionId: null,
-                userId: input.userId,
-                operation: CHAT_TURN_OPERATION,
-                modelVersion: call.modelVersion,
-                units: call.usage?.totalTokens ?? 0,
-                costMicros: llmCallCostMicros(call),
-                cacheHit: false,
-              })),
-            );
+            await tx.insert(apiUsage).values(chatUsageRows(input.userId, plan.calls));
           }
           // Bu arada baska bir tur cevap yazdiysa (kira dolmasi) ikinci cevap yazilmaz.
           if (row.messageCount !== answeredSeq) {
@@ -1061,18 +1070,7 @@ async function runPendingTurn(
 
           // Kural 9: her HTTP denemesi (basarisiz olanlar dahil) bir satir.
           if (outcome.calls.length > 0) {
-            await tx.insert(apiUsage).values(
-              outcome.calls.map((call) => ({
-                sessionId: null,
-                userId: input.userId,
-                operation: CHAT_TURN_OPERATION,
-                modelVersion: call.modelVersion,
-                units: call.usage?.totalTokens ?? 0,
-                // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
-                costMicros: llmCallCostMicros(call),
-                cacheHit: false,
-              })),
-            );
+            await tx.insert(apiUsage).values(chatUsageRows(input.userId, outcome.calls));
           }
 
           if (outcome.kind === "provider_error") {

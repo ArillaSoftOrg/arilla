@@ -366,7 +366,7 @@ NULL'a çekilen satır sayılarını verir (kişisel veri yok).
 | --- | --- | --- |
 | `cleanup-auth` | `auth_token`, `phone_login_code`, `session` süresi dolanlar | çalışıyor |
 | `purgeExpiredActivity` | `user_activity_event` 180 gün, `query_norm` 90 gün, `auth_event` 1 yıl, `user_consent.ip` 1 yıl | çalışıyor: `cleanup-auth` içinde, ayrı cron yok (0049) |
-| `purgeExpiredLinkSourceEmbeddings` | süresi dolmuş, aktif sohbetle ilişkisiz fiyatsız link kaynağı `image_upload` + `query` embedding (30 gün) | çalışıyor: `cleanup-auth` içinde, yalıtılmış adım (0079) |
+| `purgeExpiredLinkSourceEmbeddings` | süresi dolmuş, aktif sohbetle ilişkisiz fiyatsız link kaynağı `image_upload` + `query` embedding (30 gün) | çalışıyor: `cleanup-auth` içinde, yalıtılmış adım (0090) |
 
 İşin son koşusu `/yonetim/islemler/isler`'de (`cleanup_auth`) görünür;
 süresi geçmiş giriş kaydı birikirse işletim ekranı uyarır (0055). En eski satır süreyi aşmışsa iş çalışmıyor demektir.
