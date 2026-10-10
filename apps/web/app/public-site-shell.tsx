@@ -166,8 +166,6 @@ export async function PublicSiteShell({
             productAccess ? HOME_COPY.heroSubtitle : COMING_SOON_COPY.footerDescription
           }
           groups={footerGroups}
-          affiliateNotice={HOME_COPY.affiliateNotice}
-          affiliateLink={{ label: HOME_COPY.affiliateNoticeLink, href: "/affiliate-aciklamasi" }}
           priceDisclaimer={HOME_COPY.priceDisclaimer}
           copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
         />

@@ -70,9 +70,12 @@
   /* Karar 0093: markali footer atmosferi (dekoratif, metin rengi DEGIL).
      Alfa degerleri en kotu ust uste binmede bile --ink-muted >= 4.5:1
      birakacak sekilde secildi (design.md "Kontrast"). */
-  --footer-glow-mint: rgba(112, 214, 196, 0.14);
-  --footer-glow-lime: rgba(183, 245, 47, 0.12);
-  --footer-motif: rgba(22, 24, 29, 0.035);
+  --footer-glow-mint: rgba(112, 214, 196, 0.16);
+  --footer-glow-lime: rgba(183, 245, 47, 0.15);
+  /* Kelime isareti seridi (metin yok): marka yesili guclu, yalnizca dekor. */
+  --footer-wordmark-from: #a8e52a;
+  --footer-wordmark-to: #8fdcc8;
+  --footer-band-glow: rgba(183, 245, 47, 0.3);
 
   /* --- Golge (design.md "Gölge") --- */
   --shadow-xs: 0 1px 2px rgba(22, 24, 29, 0.06);
@@ -235,9 +238,11 @@
     --tint-aqua: #132c30;
     --tint-mist: #172530;
     --tint-warm: #26221d;
-    --footer-glow-mint: rgba(95, 214, 200, 0.045);
-    --footer-glow-lime: rgba(183, 245, 47, 0.05);
-    --footer-motif: rgba(242, 243, 244, 0.035);
+    --footer-glow-mint: rgba(95, 214, 200, 0.06);
+    --footer-glow-lime: rgba(183, 245, 47, 0.08);
+    --footer-wordmark-from: #b7f52f;
+    --footer-wordmark-to: rgba(183, 245, 47, 0.3);
+    --footer-band-glow: rgba(183, 245, 47, 0.16);
     --accent: #f2f3f4;
     --accent-foreground: #16181d;
     --accent-hover: #d6d9dc;
@@ -273,9 +278,11 @@
   --tint-aqua: #132c30;
   --tint-mist: #172530;
   --tint-warm: #26221d;
-  --footer-glow-mint: rgba(95, 214, 200, 0.045);
-  --footer-glow-lime: rgba(183, 245, 47, 0.05);
-  --footer-motif: rgba(242, 243, 244, 0.035);
+  --footer-glow-mint: rgba(95, 214, 200, 0.06);
+  --footer-glow-lime: rgba(183, 245, 47, 0.08);
+  --footer-wordmark-from: #b7f52f;
+  --footer-wordmark-to: rgba(183, 245, 47, 0.3);
+  --footer-band-glow: rgba(183, 245, 47, 0.16);
   --accent: #f2f3f4;
   --accent-foreground: #16181d;
   --accent-hover: #d6d9dc;
