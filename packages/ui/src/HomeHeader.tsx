@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties, useEffect, useId, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useId, useState } from "react";
 import { Container } from "./Container.tsx";
 import styles from "./HomeHeader.module.css";
 
@@ -41,6 +41,15 @@ export interface HomeHeaderProps {
    */
   utilityLink?: { label: string; href: string };
   /**
+   * Karar 0092: tema kontrolu (cagiran saglar; tercih/kalicilik apps/web'de).
+   * 640px ve ustunde cubukta hesap alaninin solunda (sohbet varyantinda da);
+   * altinda cubuk yalin kalir, kontrol menu panelinde bir satirdir. Iki ornek
+   * ayni durumu okur.
+   */
+  themeControl?: ReactNode;
+  /** Paneldeki tema satirinin gorunur etiketi (dugmenin kendi adi zaten var). */
+  themeControlLabel?: string;
+  /**
    * `chat`: sohbet calisma alani. Cubukta yalnizca menu dugmesi + marka kalir
    * (nav, hesap, yardimci link hamburger panelinde); cubuk yapiskandir ve
    * kaydirilinca ~%20 kuculur. Varsayilan `site` davranisi degismez.
@@ -73,6 +82,8 @@ export function HomeHeader({
   accountCurrent = false,
   accountAvatarUrl,
   accountAvatarLabel,
+  themeControl,
+  themeControlLabel,
   utilityLink,
   variant = "site",
 }: HomeHeaderProps) {
@@ -172,6 +183,8 @@ export function HomeHeader({
             ))}
           </nav>
         ) : null}
+
+        {themeControl ? <div className={styles.themeSlot}>{themeControl}</div> : null}
 
         {utilityLink ? (
           <a href={utilityLink.href} className={styles.utility}>
@@ -278,6 +291,17 @@ export function HomeHeader({
               </a>
             ) : null}
           </nav>
+
+          {themeControl ? (
+            <div className={styles.mobileTheme} inert={!menuOpen}>
+              {themeControlLabel ? (
+                <span className={styles.mobileThemeLabel} aria-hidden="true">
+                  {themeControlLabel}
+                </span>
+              ) : null}
+              {themeControl}
+            </div>
+          ) : null}
         </aside>
       </div>
     </header>

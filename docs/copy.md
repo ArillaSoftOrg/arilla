@@ -11,8 +11,8 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | Anahtar | Metin |
 | --- | --- |
 | `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
-| `home.hero_title_lead` | Alışveriş mi? (başlık aynı alanda "Manicepte." ile dönüşümlü; ~1,6 sn / ~2 sn) |
-| `home.hero_title_accent` | Manicepte. |
+| `home.hero_title_lead` | Alışveriş mi? (başlık aynı alanda "ManiCepte." ile dönüşümlü; ~1,6 sn / ~2 sn) |
+| `home.hero_title_accent` | ManiCepte. |
 | `home.hero_subline` | Ne aradığını anlat, görselini yükle veya linkini bırak. |
 | `home.search_ideas_title` | Arama fikirleri |
 | `home.trends_title` | Trendler |
@@ -74,6 +74,7 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `nav.discover` | Keşfet |
 | `nav.how_it_works` | Nasıl Çalışır |
 | `nav.account` | Hesabım |
+| `nav.theme_toggle` | Koyu tema (üst çubuktaki tema düğmesinin erişilebilir adı; durum `aria-pressed` ile, karar 0092) |
 | `nav.deals` | Fırsatlar |
 | `nav.saved` | Kaydettiklerim |
 | `nav.alerts` | Alarmlarım |
@@ -199,9 +200,12 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 
 | Anahtar | Metin |
 | --- | --- |
-| `search.placeholder` | Manicepte’ye sor... |
+| `search.placeholder` | ManiCepte’ye sor... |
 | `search.placeholder_results` | Ürün adı, marka ya da kısa bir tarif yaz |
 | `search.input_label` | Ürün ara |
+| `search.quick_label` | Hızlı arama (yüzen arama kutusunun bölge adı, karar 0093) |
+| `search.quick_attach` | Fotoğraf eklemek için ana arama kutusuna git ("+" düğmesinin erişilebilir adı) |
+| `search.quick_dismiss` | Hızlı aramayı kapat ("×" düğmesinin erişilebilir adı) |
 | `search.title_empty_query` | Ne arıyorsun? |
 | `search.title` | “{q}” için sonuçlar |
 | `search.empty_query` | Aramak için aşağıya bir şey yaz ya da fotoğraf yükle. |

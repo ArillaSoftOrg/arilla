@@ -3,28 +3,33 @@
  * Renkler koda gomulmez - burada tek yerde tanimlanir, bilesenler
  * `var(--...)` ile okur.
  *
- * Acik tema `:root`'ta varsayilan. Koyu tema yalnizca cihaz/tarayici
- * tercihiyle (`prefers-color-scheme`) devreye girer; elle secim yoktur
- * (karar 0060, 0007'yi degistirir). Koyu bloga yalnizca temaya gore degisen
- * renk/golge degerleri yazilir; digerleri tek yerde kalir.
+ * Acik tema `:root`'ta varsayilan. Koyu tema iki yoldan biriyle devreye
+ * girer (karar 0092): cihaz tercihi (`prefers-color-scheme`, elle secim
+ * yoksa) veya elle secim (`<html data-theme>`, sunucu `theme` cerezinden
+ * yazar). Iki koyu blok bilerek ayni degerleri tasir: CSS bir medya
+ * sorgusunu ve bir secicinin yoklugunu tek kuralda birlestiremez; esitligi
+ * `apps/web/app/theme-tokens.test.ts` denetler. Koyu bloklara yalnizca temaya
+ * gore degisen renk/golge degerleri yazilir; digerleri tek yerde kalir.
  */
 
 :root {
   color-scheme: light dark;
 
   /* --- Renk rolleri (design.md "Renk belirteçleri", kontrast orada) --- */
-  --paper: #ffffff;
-  --surface: #f4f5f6;
+  /* Karar 0092: acik tema sicak kirik beyaz zemin; kartlar/kutular saf beyaz
+     yukselir (beyaz zeminli urun fotografi kartla bir olur, 0007). */
+  --paper: #faf8f5;
+  --surface: #f3f0eb;
   --surface-raised: #ffffff;
-  --surface-hover: #ebedef;
+  --surface-hover: #ebe7e0;
   --ink: #16181d;
-  --ink-secondary: #41454c;
-  /* Faz 0: eski #6e7278 --surface uzerinde 4.43:1 idi (AA alti). */
-  --ink-muted: #676b72;
+  --ink-secondary: #44423e;
+  /* --surface uzerinde 5.25:1, --surface-hover uzerinde 4.84:1 (AA). */
+  --ink-muted: #67635d;
   /* Dekoratif ayirici; kontrol siniri icin --line-strong. */
-  --line: #e3e5e8;
-  /* Kontrol siniri, WCAG 1.4.11 icin >= 3:1. */
-  --line-strong: #82878e;
+  --line: #e6e1d9;
+  /* Kontrol siniri, WCAG 1.4.11 icin >= 3:1 (--surface-hover uzerinde 3.14:1). */
+  --line-strong: #86817a;
   --save: #1f6f4a;
   --on-save: #ffffff;
   --warning: #8a5300;
@@ -42,8 +47,10 @@
   /* Karar 0084: marka limonu, uygulama ikonundaki "M" isaretinden olculdu
      (apps/web/app/apple-icon.png, baskin piksel #b7f52f). Beyaz uzerinde
      kontrasti ~1.3:1: metin ya da tek basina cizgi olarak acik temada
-     KULLANILMAZ; yalnizca dolgu/isaret, uzerindeki metin --on-brand. Bugun
-     yalnizca /yonetim kullanir (etkin gezinme, secim, odak). */
+     KULLANILMAZ; yalnizca dolgu/isaret, uzerindeki metin --on-brand.
+     /yonetim (etkin gezinme, secim, odak) ve karar 0093'ten beri public
+     sayfalarda YALNIZCA dekoratif atmosfer (footer parıltısı) olarak; metin,
+     tek basina cizgi ya da durum rengi olarak asla. */
   --brand: #b7f52f;
   --on-brand: #16181d;
   /* Karar 0025: --ink'in ters rolu, notr birincil eylem. */
@@ -52,10 +59,29 @@
   --accent-hover: #2e3138;
   --focus-ring-color: var(--ink);
 
+  /* Kullanim kartlarinin (ana sayfa "Arama yollari") yumusak zemin tonlari. */
+  --tint-aqua: #dff7f8;
+  --tint-mist: #eef6fb;
+  --tint-warm: #f3eee8;
+  /* Fotograf/video ustundeki isaret (oynat rozeti): iki temada da koyu
+     ortu + beyaz isaret; gorselin kendisi temaya gore degismez. */
+  --media-scrim: rgba(14, 15, 17, 0.38);
+  --on-media: #ffffff;
+  /* Karar 0093: markali footer atmosferi (dekoratif, metin rengi DEGIL).
+     Alfa degerleri en kotu ust uste binmede bile --ink-muted >= 4.5:1
+     birakacak sekilde secildi (design.md "Kontrast"). */
+  --footer-glow-mint: rgba(112, 214, 196, 0.14);
+  --footer-glow-lime: rgba(183, 245, 47, 0.12);
+  --footer-motif: rgba(22, 24, 29, 0.035);
+
   /* --- Golge (design.md "Gölge") --- */
   --shadow-xs: 0 1px 2px rgba(22, 24, 29, 0.06);
   --shadow-sm: 0 1px 2px rgba(22, 24, 29, 0.06), 0 10px 24px rgba(22, 24, 29, 0.08);
   --shadow-md: 0 2px 6px rgba(22, 24, 29, 0.06), 0 20px 48px rgba(22, 24, 29, 0.12);
+  /* Ana eylem kutusu (ana sayfa arama kutusu, link bekleme karti): genis,
+     yumusak yayilim; vurguluyken biraz koyulasir. */
+  --shadow-hero: 0 24px 72px rgba(22, 24, 29, 0.08), 0 10px 28px rgba(22, 24, 29, 0.05);
+  --shadow-hero-focus: 0 24px 72px rgba(22, 24, 29, 0.11), 0 10px 28px rgba(22, 24, 29, 0.07);
   /* Modal ortusu: iki temada da koyu, yari saydam; arkadaki icerik okunur
      kalir (karar 0002). design.md "Katmanlar". */
   --scrim: rgba(14, 15, 17, 0.45);
@@ -180,8 +206,14 @@
   }
 }
 
+/* Elle secim (karar 0092): yerel kontroller (form, kaydirma cubugu) de
+   secilen temada cizilir. */
+:root[data-theme="light"] {
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-theme="light"]) {
     --paper: #0e0f11;
     --surface: #17191c;
     --surface-raised: #1e2125;
@@ -200,6 +232,12 @@
     --feature-bg: #0f3a49;
     --teal-ink: #5fd6ea;
     --teal-soft: #12323b;
+    --tint-aqua: #132c30;
+    --tint-mist: #172530;
+    --tint-warm: #26221d;
+    --footer-glow-mint: rgba(95, 214, 200, 0.045);
+    --footer-glow-lime: rgba(183, 245, 47, 0.05);
+    --footer-motif: rgba(242, 243, 244, 0.035);
     --accent: #f2f3f4;
     --accent-foreground: #16181d;
     --accent-hover: #d6d9dc;
@@ -208,4 +246,41 @@
     --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.5);
     --scrim: rgba(0, 0, 0, 0.6);
   }
+}
+
+/* Ust bloktaki degerlerin AYNISI (esitlik testle denetlenir). */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+
+  --paper: #0e0f11;
+  --surface: #17191c;
+  --surface-raised: #1e2125;
+  --surface-hover: #262a2f;
+  --ink: #f2f3f4;
+  --ink-secondary: #c9cdd1;
+  --ink-muted: #9ba0a6;
+  --line: #2a2e33;
+  --line-strong: #737982;
+  --save: #4fbf8b;
+  --on-save: #0e0f11;
+  --warning: #e2a64a;
+  --alert: #e5705c;
+  --warm-page: #121110;
+  --warm-card: #1d1b18;
+  --feature-bg: #0f3a49;
+  --teal-ink: #5fd6ea;
+  --teal-soft: #12323b;
+  --tint-aqua: #132c30;
+  --tint-mist: #172530;
+  --tint-warm: #26221d;
+  --footer-glow-mint: rgba(95, 214, 200, 0.045);
+  --footer-glow-lime: rgba(183, 245, 47, 0.05);
+  --footer-motif: rgba(242, 243, 244, 0.035);
+  --accent: #f2f3f4;
+  --accent-foreground: #16181d;
+  --accent-hover: #d6d9dc;
+  --shadow-xs: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.4), 0 10px 24px rgba(0, 0, 0, 0.35);
+  --shadow-md: 0 2px 6px rgba(0, 0, 0, 0.4), 0 20px 48px rgba(0, 0, 0, 0.5);
+  --scrim: rgba(0, 0, 0, 0.6);
 }

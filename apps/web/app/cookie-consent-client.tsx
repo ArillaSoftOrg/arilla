@@ -34,11 +34,14 @@ import { CONSENT_COPY, CONSENT_LINKS, COOKIE_PREFERENCES_HREF } from "./consent-
 interface ConsentContextValue {
   consent: CookieConsent | null;
   openPreferences: () => void;
+  /** Alt bant (banner) ekranda mi? Alta yapisan baska ogeler onunla cakismasin diye. */
+  bannerVisible: boolean;
 }
 
 const ConsentContext = createContext<ConsentContextValue>({
   consent: null,
   openPreferences: () => {},
+  bannerVisible: false,
 });
 
 /**
@@ -55,12 +58,16 @@ export function ConsentProvider({
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const openPreferences = useCallback(() => setPanelOpen(true), []);
-  const value = useMemo(() => ({ consent, openPreferences }), [consent, openPreferences]);
+  const bannerVisible = needsConsentPrompt(consent);
+  const value = useMemo(
+    () => ({ consent, openPreferences, bannerVisible }),
+    [consent, openPreferences, bannerVisible],
+  );
 
   return (
     <ConsentContext.Provider value={value}>
       {children}
-      {needsConsentPrompt(consent) ? <ConsentBannerClient onManage={openPreferences} /> : null}
+      {bannerVisible ? <ConsentBannerClient onManage={openPreferences} /> : null}
       <ConsentDialog
         open={panelOpen}
         onClose={() => setPanelOpen(false)}
@@ -88,6 +95,11 @@ export function ConsentGate({
 }) {
   const { consent } = useContext(ConsentContext);
   return isConsentAllowed(consent, category) ? children : null;
+}
+
+/** Karar 0093: cerez bandi gorunurken alta yapisan hizli arama gizlenir (ust uste binmez). */
+export function useConsentBannerVisible(): boolean {
+  return useContext(ConsentContext).bannerVisible;
 }
 
 /** Footer'daki "Cerez Tercihleri": JS'le paneli acar, JS'siz /cerez#tercihler'e gider. */

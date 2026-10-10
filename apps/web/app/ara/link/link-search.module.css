@@ -19,9 +19,7 @@
   border: var(--border-width) solid var(--line);
   border-radius: 28px;
   background: var(--surface-raised);
-  box-shadow:
-    0 34px 110px rgba(22, 24, 29, 0.1),
-    var(--shadow-xs);
+  box-shadow: var(--shadow-hero), var(--shadow-xs);
   text-align: center;
 }
 
@@ -31,8 +29,7 @@
   min-height: 220px;
   overflow: hidden;
   border-radius: 24px;
-  background:
-    linear-gradient(135deg, rgba(213, 246, 248, 0.95), rgba(245, 250, 251, 0.8)), var(--surface);
+  background: linear-gradient(135deg, var(--teal-soft), var(--surface));
 }
 
 .waitPanel {
@@ -42,8 +39,8 @@
   align-content: center;
   gap: var(--space-5);
   border-radius: 22px;
-  background: rgba(255, 255, 255, 0.84);
-  box-shadow: 0 18px 58px rgba(22, 24, 29, 0.12);
+  background: color-mix(in srgb, var(--surface-raised) 84%, transparent);
+  box-shadow: var(--shadow-md);
 }
 
 .waitSite {
@@ -70,7 +67,7 @@
   min-height: 56px;
   margin-inline: auto;
   border-radius: var(--radius-pill);
-  background: rgba(22, 24, 29, 0.78);
+  background: color-mix(in srgb, var(--ink) 78%, transparent);
   color: var(--surface-raised);
   font-size: var(--text-h3);
   line-height: 1;

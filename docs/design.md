@@ -37,7 +37,10 @@ stilleri kullanılmaz. Arilla kendi markası, fontu ve bileşenleriyle kalır.
 ## Tema
 
 Varsayılan açık tema. Kullanıcının cihaz tercihi koyuysa koyu tema. Elle
-geçiş yoktur (karar 0060); `[data-theme]` ve `theme` çerezi kaldırıldı.
+seçim üst çubuktaki tema düğmesiyle yapılır ve cihaz tercihini geçersiz
+kılar (karar 0092): `theme` çerezi → sunucu `<html data-theme>` yazar;
+titreme, satır içi betik ve `localStorage` yoktur. Koyu değerler
+`tokens.css`'te iki blokta (cihaz tercihi + elle seçim) aynıdır.
 
 ```css
 :root { color-scheme: light dark; }
@@ -54,15 +57,15 @@ Mevcut adlar korunur; yeni roller için yeni ad eklenir. Tek kaynak
 
 | Rol | Belirteç | Açık | Koyu |
 | --- | --- | --- | --- |
-| Sayfa zemini | `--paper` | `#FFFFFF` | `#0E0F11` |
-| İnce/ikincil yüzey | `--surface` | `#F4F5F6` | `#17191C` |
+| Sayfa zemini | `--paper` | `#FAF8F5` | `#0E0F11` |
+| İnce/ikincil yüzey | `--surface` | `#F3F0EB` | `#17191C` |
 | Yükseltilmiş yüzey | `--surface-raised` | `#FFFFFF` | `#1E2125` |
-| Yüzey hover | `--surface-hover` | `#EBEDEF` | `#262A2F` |
+| Yüzey hover | `--surface-hover` | `#EBE7E0` | `#262A2F` |
 | Birincil metin | `--ink` | `#16181D` | `#F2F3F4` |
-| İkincil metin | `--ink-secondary` | `#41454C` | `#C9CDD1` |
-| Soluk metin (meta) | `--ink-muted` | `#676B72` | `#9BA0A6` |
-| Kenarlık (ayırıcı) | `--line` | `#E3E5E8` | `#2A2E33` |
-| Güçlü kenarlık (kontrol sınırı) | `--line-strong` | `#82878E` | `#737982` |
+| İkincil metin | `--ink-secondary` | `#44423E` | `#C9CDD1` |
+| Soluk metin (meta) | `--ink-muted` | `#67635D` | `#9BA0A6` |
+| Kenarlık (ayırıcı) | `--line` | `#E6E1D9` | `#2A2E33` |
+| Güçlü kenarlık (kontrol sınırı) | `--line-strong` | `#86817A` | `#737982` |
 | Birincil eylem zemini | `--accent` | `#16181D` | `#F2F3F4` |
 | Birincil eylem metni | `--accent-foreground` | `#FFFFFF` | `#16181D` |
 | Birincil eylem hover | `--accent-hover` | `#2E3138` | `#D6D9DC` |
@@ -72,6 +75,11 @@ Mevcut adlar korunur; yeni roller için yeni ad eklenir. Tek kaynak
 | Uyarı | `--warning` | `#8A5300` | `#E2A64A` |
 | Hata / yıkıcı | `--alert` | `#A8321F` | `#E5705C` |
 | Modal örtüsü | `--scrim` | `rgba(14,15,17,.45)` | `rgba(0,0,0,.6)` |
+| Kullanım kartı zeminleri | `--tint-aqua` / `--tint-mist` / `--tint-warm` | `#DFF7F8` / `#EEF6FB` / `#F3EEE8` | `#132C30` / `#172530` / `#26221D` |
+| Görsel üstü örtü / işaret | `--media-scrim` / `--on-media` | `rgba(14,15,17,.38)` / `#FFFFFF` | aynı |
+| Ana eylem kutusu gölgesi | `--shadow-hero` / `--shadow-hero-focus` | yumuşak geniş yayılım | aynı |
+| Footer atmosferi (dekor) | `--footer-glow-mint` / `--footer-glow-lime` | `rgba(112,214,196,.14)` / `rgba(183,245,47,.12)` | `rgba(95,214,200,.045)` / `rgba(183,245,47,.05)` |
+| Footer "M" motifi (dekor) | `--footer-motif` | `rgba(22,24,29,.035)` | `rgba(242,243,244,.035)` |
 
 **Editoryal roller** (`/blog`, `/hakkinda`, `/ortakliklar`): bu sayfalar sıcak
 zemin ve koyu teal bölüm kullanır; roller de anlamsaldır, sayfaya özgü renk
@@ -91,7 +99,7 @@ yoktur.
 
 Hesaplanmış kontrast: `--teal-ink` / `--teal-soft` 5.04:1 (açık), 7.96:1
 (koyu); `--feature-ink-muted` ve `--feature-accent`, `--feature-bg` üzerinde
-7.17:1 ve 5.05:1; `--ink-muted` / `--warm-card` 5.18:1. `--feature-*` ailesi
+7.17:1 ve 5.05:1; `--ink-muted` / `--warm-card` 5.78:1. `--feature-*` ailesi
 iki temada da koyu bir zemin üzerindedir, bu yüzden metin değerleri iki temada
 aynıdır.
 
@@ -107,16 +115,19 @@ karar 0025).
 - Metin rolleri (`--ink`, `--ink-secondary`, `--ink-muted`, `--save`,
   `--warning`, `--alert`) `--paper`, `--surface` ve `--surface-raised`
   üzerinde en az **4.5:1** sağlar. En düşük değer: açık temada `--ink-muted`
-  / `--surface` = 4.90:1 (eski `#6E7278` burada 4.43:1'di — Faz 0 bulgusu,
-  düzeltildi).
+  / `--surface` = 5.25:1 (karar 0092 sıcak paleti; `--surface-hover` üzerinde
+  4.84:1). Kullanım kartı zeminlerinde (`--tint-*`) metin ≥ 5.9:1.
 - `--line-strong` bu üç zeminde ve `--surface-hover` üzerinde en az **3:1**
-  sağlar (en düşük: açık tema `--surface-hover` üzerinde 3.08:1, koyu tema
+  sağlar (en düşük: açık tema `--surface-hover` üzerinde 3.14:1, koyu tema
   `--surface-hover` üzerinde 3.29:1). Etkileşimli kontrolün sınırını tek
   başına belirten her kenarlık (`input`, ikincil buton, chip) bunu kullanır
   (WCAG 1.4.11) — kontrol hover'da `--surface-hover` dolgusu alsa da.
 - `--line` (~1.1–1.4:1) yalnızca **dekoratif** ayırıcı ve statik yüzey
   kenarı içindir; bir kontrolün bulunabilirliği ona bağlı olamaz.
 - `--accent-foreground` / `--accent-hover` ≥ 12:1.
+- Footer dekoru (karar 0093): iki parıltı + "M" en kötü üst üste bindiğinde
+  `--ink-muted` açık temada 4.54:1, koyu temada 4.97:1; `--ink-secondary`
+  ≥ 7.6:1.
 
 Yeni bir renk eklemek bu tabloya satır eklemek demektir; kontrast değeri
 hesaplanmadan eklenmez.
@@ -584,6 +595,22 @@ Font adayları ve onay testi de `docs/brand.md` içinde.
 ikonundan ölçüldü) yalnızca `/yonetim`'de etkin gezinme, seçim ve odak
 göstergesinde kullanılır; açık temada metin ya da tek başına çizgi olarak
 kullanılmaz (beyaz üzerinde ~1.3:1).
+
+**Public dekoratif istisna (karar 0093):** public sayfalarda limon yalnızca
+dekoratif atmosferdir (bugün `SiteFooter` parıltısı, `--footer-glow-lime`);
+metin, ikon, tek başına çizgi ya da durum rengi değildir. Dekor katmanları
+`aria-hidden`, tıklanmaz, `forced-colors` ve baskıda gizlidir; altlarındaki
+metin kontrastı ≥ 4.5:1 kalır.
+
+**Markalı footer (karar 0093):** `SiteFooter` alta doğru nane/limon
+parıltısı ve kırpılmış büyük tipografik "M" (site fontu, `--footer-motif`)
+taşır. Logo çizilmez/izlenmez.
+
+**Yüzen hızlı arama (karar 0093):** ana sayfada ana kutu ekrandan çıkınca
+aşağı kaydırmada beliren, yukarı ≥ 24px kaydırmada gizlenen kompakt kutu
+(`SearchComposer variant="mini"`). Masaüstünde altta ortalı (≤ 640px),
+telefonda alta yapışık (güvenli alan dahil). Kapatma yalnızca sayfa ömrü
+boyunca; depolama yok.
 
 ## Karara bağlanacaklar
 

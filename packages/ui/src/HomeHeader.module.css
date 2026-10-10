@@ -213,6 +213,57 @@
   margin-inline-start: 0;
 }
 
+/* Karar 0092: tema kontrolu hesap alaninin solunda; sag gruba itilen ilk
+   oge odur, arkasindaki yardimci link/hesap ona yaslanir. */
+.themeSlot {
+  display: inline-flex;
+  flex: 0 0 auto;
+  margin-inline-start: auto;
+}
+
+.themeSlot ~ .utility,
+.themeSlot ~ .account,
+.themeSlot ~ .accountAvatar,
+.themeSlot ~ .utility + .account,
+.themeSlot ~ .utility + .accountAvatar {
+  margin-inline-start: 0;
+}
+
+/* Paneldeki tema satiri: yalnizca 640px altinda (cubuk orada yalin kalir). */
+.mobileTheme {
+  display: none;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  min-height: 52px;
+  padding-block-start: var(--space-4);
+  padding-inline: var(--space-2);
+  border-block-start: var(--border-width) solid var(--line);
+}
+
+.mobileThemeLabel {
+  color: var(--ink);
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+}
+
+@media (max-width: 639.98px) {
+  .themeSlot {
+    display: none;
+  }
+
+  .themeSlot ~ .account,
+  .themeSlot ~ .accountAvatar,
+  .themeSlot ~ .utility + .account,
+  .themeSlot ~ .utility + .accountAvatar {
+    margin-inline-start: auto;
+  }
+
+  .mobileTheme {
+    display: flex;
+  }
+}
+
 .mobileUtilityLink {
   display: flex;
   align-items: center;
@@ -252,7 +303,7 @@
   position: absolute;
   inset: 0;
   border: 0;
-  background: rgb(0 0 0 / 64%);
+  background: var(--scrim);
   opacity: 0;
   cursor: default;
 }

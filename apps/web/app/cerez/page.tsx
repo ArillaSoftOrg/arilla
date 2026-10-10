@@ -27,7 +27,7 @@ interface CookieRow {
  *
  * Kaynaklar: lib/session-cookie.ts, proxy.ts + git/[offerId]/route.ts,
  * giris/google/route.ts, giris/apple/route.ts,
- * giris/telefon/kod-gonder/route.ts, consent-actions.ts.
+ * giris/telefon/kod-gonder/route.ts, consent-actions.ts, theme-toggle-client.tsx (0092).
  */
 const NECESSARY_COOKIES: readonly CookieRow[] = [
   {
@@ -61,6 +61,12 @@ const NECESSARY_COOKIES: readonly CookieRow[] = [
     name: "phone_login",
     purpose: "Telefonla girişte, kod doğrulanana kadar telefon numaranızı taşır.",
     duration: "15 dakika",
+  },
+  {
+    name: "theme",
+    purpose:
+      "Açık ya da koyu tema seçtiyseniz bu seçimi hatırlar (yalnızca seçim yaptığınızda yazılır).",
+    duration: "1 yıl",
   },
 ];
 

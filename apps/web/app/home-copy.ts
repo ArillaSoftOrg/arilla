@@ -4,7 +4,7 @@
  */
 export const HOME_COPY = {
   heroTitleLead: "Alışveriş mi?", // home.hero_title_lead
-  heroTitleAccent: "Manicepte.", // home.hero_title_accent
+  heroTitleAccent: "ManiCepte.", // home.hero_title_accent
   heroSubline: "Ne aradığını anlat, görselini yükle veya linkini bırak.", // home.hero_subline
   // Hero'da cizilmez; alt bilgi aciklamasi olarak kullanilir.
   heroSubtitle: "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.", // home.tagline
@@ -73,13 +73,19 @@ export const HOME_COPY = {
   navDiscover: "Keşfet", // nav.discover
   navHowItWorks: "Arama yolları", // nav.how_it_works
   navAccount: "Hesabım", // nav.account
+  /** Karar 0092: tema dugmesinin erisilebilir adi; durum `aria-pressed` ile. */
+  themeToggleLabel: "Koyu tema", // nav.theme_toggle
   navDeals: "Fırsatlar", // nav.deals
   navSaved: "Kaydettiklerim", // nav.saved
   navAlerts: "Alarmlarım", // nav.alerts
   navHistory: "Geçmişim", // nav.history
-  searchPlaceholder: "Manicepte’ye sor...", // search.placeholder
+  searchPlaceholder: "ManiCepte’ye sor...", // search.placeholder
   searchInputLabel: "Ürün ara", // search.input_label
   searchSubmitLabel: "Ara", // action.search
+  /** Karar 0093: yuzen hizli arama. */
+  quickSearchLabel: "Hızlı arama", // search.quick_label
+  quickSearchAttachLabel: "Fotoğraf eklemek için ana arama kutusuna git", // search.quick_attach
+  quickSearchDismissLabel: "Hızlı aramayı kapat", // search.quick_dismiss
   loginLabel: "Giriş yap", // action.login
   affiliateNotice:
     "Bazı bağlantılardan alışveriş yaptığında komisyon kazanabiliriz. Bu, sana gösterdiğimiz fiyatı değiştirmez.", // legal.affiliate_notice
