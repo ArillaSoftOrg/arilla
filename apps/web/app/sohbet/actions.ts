@@ -156,7 +156,9 @@ export async function sendMessageAction(
   if (photo !== undefined) {
     // Bayrak kapaliyken gorsel hicbir kosulda islenmez ya da eski aramaya dusulmez.
     if (!isChatImageEnabled()) return { status: "unavailable" };
-    const prepared = await prepareChatImage(photo instanceof FormData ? photo.get("photo") : null);
+    const prepared = await prepareChatImage(photo instanceof FormData ? photo.get("photo") : null, {
+      userId: user.id,
+    });
     if (!prepared.ok) return { status: prepared.status };
     attachment = prepared.attachment;
   }
@@ -314,8 +316,9 @@ export async function startChatBootstrapAction(input: unknown): Promise<NewTabCh
       return { status: "unavailable" };
     }
     if (submission.invalidKey) return { status: "image_rejected", reason: "invalid_input" };
-    const prepared = await prepareChatImage(submission.image);
+    const prepared = await prepareChatImage(submission.image, { userId: user.id });
     if (!prepared.ok) {
+      if (prepared.status === "rate_limited") return { status: "rate_limited" };
       return prepared.status === "error"
         ? { status: "error" }
         : { status: "image_rejected", reason: prepared.status };

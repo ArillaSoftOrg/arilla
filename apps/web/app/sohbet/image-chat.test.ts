@@ -250,7 +250,8 @@ describe("sendMessageAction: sohbet içinden görsel aynı konuşmaya eklenir", 
     expect(await sendMessageAction(ID, TEXT, KEY, new FormData())).toEqual({
       status: "invalid_input",
     });
-    expect(mocks.prepareChatImage).toHaveBeenCalledWith(null);
+    // Kullanici kimligi decode oncesi sinir icin verilir (A12).
+    expect(mocks.prepareChatImage).toHaveBeenCalledWith(null, { userId: 7 });
   });
 
   it("çekirdeğin durumları aynen iletilir: image_limit, busy, duplicate, rate_limited", async () => {
