@@ -23,10 +23,11 @@ from collect.image_writer import write_offer_images
 from collect.primary_image_sync import sync_primary_images
 from collect.records import NormalizedOffer
 from db import product_aggregates
+from enrich import text as text_builder
 
 UPSERT_OFFER = """
 WITH previous AS (
-    SELECT image_url FROM offer
+    SELECT image_url, title_raw, brand_raw, category_raw FROM offer
      WHERE merchant_id = %(merchant_id)s AND external_id = %(external_id)s
 )
 INSERT INTO offer (
@@ -75,7 +76,10 @@ ON CONFLICT (merchant_id, external_id) DO UPDATE SET
 -- katmani bir offer'i urune baglamaz, bagli olani da koparmaz.
 RETURNING id, (xmax = 0) AS inserted,
           (SELECT image_url FROM previous) IS DISTINCT FROM offer.image_url AS image_changed,
-          product_id
+          product_id,
+          (SELECT title_raw FROM previous) AS previous_title,
+          (SELECT brand_raw FROM previous) AS previous_brand,
+          (SELECT category_raw FROM previous) AS previous_category
 """
 
 #: Gorseli degisen offer'in gorsel vektoru silinir; `enrich` onu yeniden
@@ -84,6 +88,13 @@ RETURNING id, (xmax = 0) AS inserted,
 DELETE_STALE_IMAGE_EMBEDDING = """
 DELETE FROM embedding
  WHERE target_type = 'offer' AND target_id = %(offer_id)s AND kind = 'image'
+"""
+
+#: Basligi/markasi/kategorisi (kanonik metni) degisen offer'in METIN vektoru silinir;
+#: aksi halde `enrich` onu bir daha secmez ve benzerlik kenarlari eski metinde kalir.
+DELETE_STALE_TEXT_EMBEDDING = """
+DELETE FROM embedding
+ WHERE target_type = 'offer' AND target_id = %(offer_id)s AND kind = 'text'
 """
 
 # Fiyat degismese bile yazilir. Ayni kosu yeniden denenirse (offer_id,
@@ -139,6 +150,7 @@ class WriteCounts:
     stock_events_written: int = 0
     variant_price_events_written: int = 0
     stale_image_embeddings: int = 0
+    stale_text_embeddings: int = 0
     images_written: int = 0
     images_removed: int = 0
     primary_images_synced: int = 0
@@ -174,13 +186,24 @@ class OfferWriter:
         self.counts.primary_images_synced += sync_primary_images(
             self.conn, self.merchant_id, [(offer.external_id, offer.image_url)]
         )
-        offer_id, inserted, image_changed, product_id = self._upsert_offer(offer)
+        offer_id, inserted, image_changed, product_id, previous_text = self._upsert_offer(offer)
         if product_id is not None:
             self.touched_product_ids.add(product_id)
         if image_changed and not inserted:
             with self.conn.cursor() as cur:
                 cur.execute(DELETE_STALE_IMAGE_EMBEDDING, {"offer_id": offer_id})
                 self.counts.stale_image_embeddings += cur.rowcount
+        # Yalnizca KANONIK metin degistiyse: fiyat, stok ya da gurultu eki (ornegin
+        # "Kampanyali") yeniden embedding maliyeti dogurmaz.
+        if (
+            not inserted
+            and previous_text is not None
+            and text_builder.build(*previous_text)
+            != text_builder.build(offer.title_raw, offer.brand_raw, offer.category_raw)
+        ):
+            with self.conn.cursor() as cur:
+                cur.execute(DELETE_STALE_TEXT_EMBEDDING, {"offer_id": offer_id})
+                self.counts.stale_text_embeddings += cur.rowcount
         self.seen_offer_ids.add(offer_id)
         if inserted:
             self.counts.offers_created += 1
@@ -198,7 +221,9 @@ class OfferWriter:
             self._write_variant(offer_id, variant, offer.current_price)
         return offer_id
 
-    def _upsert_offer(self, offer: NormalizedOffer) -> tuple[int, bool, bool, int | None]:
+    def _upsert_offer(
+        self, offer: NormalizedOffer
+    ) -> tuple[int, bool, bool, int | None, tuple[str, str | None, str | None] | None]:
         # `offer` tablosunda gtin/mpn kolonu YOKTUR — barkod kanonik `product`
         # uzerinde durur (docs/schema.sql). Ama eslestirme (B4) ilk adimda
         # gtin'e bakiyor, o yuzden kaynaktan geldiginde kaybedilmemeli:
@@ -232,7 +257,14 @@ class OfferWriter:
             )
             row = cur.fetchone()
         assert row is not None
-        return int(row[0]), bool(row[1]), bool(row[2]), None if row[3] is None else int(row[3])
+        previous_text = None if row[4] is None else (str(row[4]), row[5], row[6])
+        return (
+            int(row[0]),
+            bool(row[1]),
+            bool(row[2]),
+            None if row[3] is None else int(row[3]),
+            previous_text,
+        )
 
     def _insert_price_point(self, offer_id: int, offer: NormalizedOffer) -> None:
         with self.conn.cursor() as cur:

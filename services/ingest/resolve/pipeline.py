@@ -89,6 +89,11 @@ SELECT product_id FROM match_candidate
 """
 
 
+#: Ayni anda tek eslestirme kosusu: iki kosu ayni urunu iki kez acabilir ya da ayni teklifi
+#: farkli urunlere baglayabilir. Islem-duzeyi advisory kilit; commit/rollback ile birakilir.
+RESOLVE_LOCK_KEY = 0x41524C52  # "ARLR"
+
+
 @dataclass
 class ResolveCounts:
     considered: int = 0
@@ -227,6 +232,76 @@ def explain_match(
     }
 
 
+def _resolve_one(
+    conn: psycopg.Connection,
+    counts: ResolveCounts,
+    linked: set[int],
+    *,
+    queue: float,
+    create_missing: bool,
+    offer_id: int,
+    title: str,
+    brand: str | None,
+    category: str | None,
+    image_url: str | None,
+    category_hint: str | None,
+    merchant_id: int,
+    key: ProductKey,
+) -> None:
+    found = best_match(conn, offer_id, key, title, merchant_id)
+
+    if found is not None and found[1].score >= queue:
+        candidate, result = found
+        # AUTO_ACCEPT / REVIEW kademesi (0034): skor tek basina yetmez;
+        # kesin kimlik ya da iki tarafta bilinen ayni marka gerekir,
+        # dogrulanamayan renk (0029) her zaman REVIEW.
+        candidate_key = _candidate_key(candidate)
+        eligible = auto_eligible(result, key, candidate_key)
+        status = "auto_accepted" if eligible else "pending"
+        with conn.cursor() as cur:
+            cur.execute(
+                UPSERT_CANDIDATE,
+                {
+                    "offer_id": offer_id,
+                    "product_id": candidate.product_id,
+                    "score": round(result.score, 4),
+                    "method": result.method,
+                    "status": status,
+                    "explain": Jsonb(explain_match(result, key, candidate_key, eligible)),
+                },
+            )
+            stored = cur.fetchone()
+        # Saklanan durum insan karariysa (accepted/rejected) makine baglamaz.
+        if status == "auto_accepted" and stored is not None and stored[1] == "auto_accepted":
+            with conn.cursor() as cur:
+                cur.execute(LINK_OFFER, {"product_id": candidate.product_id, "offer_id": offer_id})
+            linked.add(int(candidate.product_id))
+            counts.auto_accepted += 1
+        else:
+            # Bilerek BAGLANMAZ: esigin altindaki iddia insan onayina duser.
+            counts.queued += 1
+        return
+
+    if not create_missing:
+        return
+
+    product_id = products.create_from_offer(
+        conn,
+        title=title,
+        brand=brand,
+        category_path=category,
+        fallback_category_path=category_hint,
+        color=key.color,
+        image_url=image_url,
+        gtin=key.gtin,
+        mpn=key.mpn,
+    )
+    with conn.cursor() as cur:
+        cur.execute(LINK_OFFER, {"product_id": product_id, "offer_id": offer_id})
+    linked.add(int(product_id))
+    counts.products_created += 1
+
+
 def resolve_offers(
     conn: psycopg.Connection,
     *,
@@ -236,6 +311,12 @@ def resolve_offers(
 ) -> ResolveCounts:
     counts = ResolveCounts()
     queue = queue_threshold()
+    with conn.cursor() as cur:
+        cur.execute("SELECT pg_try_advisory_xact_lock(%s)", (RESOLVE_LOCK_KEY,))
+        locked = cur.fetchone()
+    if not locked or not locked[0]:
+        counts.errors.append("baska bir eslestirme kosusu suruyor, bu kosu bir sey yapmadi")
+        return counts
     # Gorsel aday kanali HNSW kullanir; suzgec sonrasi yeterli komsu icin ayar.
     tune_ann_search(conn)
 
@@ -265,65 +346,28 @@ def resolve_offers(
         brand = brand or products.infer_brand(title, brands)
         key = _offer_key(title, brand, attributes)
 
+        # Teklif basina SAVEPOINT: tek bir veritabani hatasi (kisit ihlali, slug yarisi...)
+        # islemi "aborted" birakip sonraki tum teklifleri ve son commit'i bozmasin.
         try:
-            found = best_match(conn, int(offer_id), key, title, int(offer_merchant_id))
+            with conn.transaction():
+                _resolve_one(
+                    conn,
+                    counts,
+                    linked,
+                    queue=queue,
+                    create_missing=create_missing,
+                    offer_id=int(offer_id),
+                    title=title,
+                    brand=brand,
+                    category=category,
+                    image_url=image_url,
+                    category_hint=category_hint,
+                    merchant_id=int(offer_merchant_id),
+                    key=key,
+                )
         except psycopg.Error as error:
             counts.errors.append(f"offer {offer_id}: {error}")
-            logger.warning("aday uretilemedi %s: %s", offer_id, error)
-            continue
-
-        if found is not None and found[1].score >= queue:
-            candidate, result = found
-            # AUTO_ACCEPT / REVIEW kademesi (0034): skor tek basina yetmez;
-            # kesin kimlik ya da iki tarafta bilinen ayni marka gerekir,
-            # dogrulanamayan renk (0029) her zaman REVIEW.
-            candidate_key = _candidate_key(candidate)
-            eligible = auto_eligible(result, key, candidate_key)
-            status = "auto_accepted" if eligible else "pending"
-            with conn.cursor() as cur:
-                cur.execute(
-                    UPSERT_CANDIDATE,
-                    {
-                        "offer_id": offer_id,
-                        "product_id": candidate.product_id,
-                        "score": round(result.score, 4),
-                        "method": result.method,
-                        "status": status,
-                        "explain": Jsonb(explain_match(result, key, candidate_key, eligible)),
-                    },
-                )
-                stored = cur.fetchone()
-            # Saklanan durum insan karariysa (accepted/rejected) makine baglamaz.
-            if status == "auto_accepted" and stored is not None and stored[1] == "auto_accepted":
-                with conn.cursor() as cur:
-                    cur.execute(
-                        LINK_OFFER, {"product_id": candidate.product_id, "offer_id": offer_id}
-                    )
-                linked.add(int(candidate.product_id))
-                counts.auto_accepted += 1
-            else:
-                # Bilerek BAGLANMAZ: esigin altindaki iddia insan onayina duser.
-                counts.queued += 1
-            continue
-
-        if not create_missing:
-            continue
-
-        product_id = products.create_from_offer(
-            conn,
-            title=title,
-            brand=brand,
-            category_path=category,
-            fallback_category_path=category_hint,
-            color=key.color,
-            image_url=image_url,
-            gtin=key.gtin,
-            mpn=key.mpn,
-        )
-        with conn.cursor() as cur:
-            cur.execute(LINK_OFFER, {"product_id": product_id, "offer_id": offer_id})
-        linked.add(int(product_id))
-        counts.products_created += 1
+            logger.warning("teklif cozulemedi %s: %s", offer_id, error)
 
     # Yeni bagli urun ayni islemde fiyat ve magaza sayisi kazanir; yoksa
     # `offer_count = 0`, `min_price = NULL` kalir ve butce aramasi onu gormez.

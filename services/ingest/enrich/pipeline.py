@@ -31,7 +31,7 @@ import psycopg
 
 from db.usage import ModelCall, record
 from enrich import text as text_builder
-from enrich.client import EmbeddingClient, EmbeddingError
+from enrich.client import EmbeddingClient, EmbeddingError, EmbeddingRejected
 from enrich.images import (
     IMAGE_VECTORS_VALID_FROM,
     PREPROCESS_VERSION,
@@ -210,46 +210,65 @@ def embed_images(
             _write_embedding(conn, offer_id, "image", model_version, vector, valid_from)
             counts.embedded += 1
 
-    def flush() -> None:
-        nonlocal consecutive_failures
-        if not batch:
-            return
-        hashes = list(batch)
+    def send(hashes: list[str]) -> list[str]:
+        """Bu goruntuleri tek cagriyla embed eder; KALICI reddedilen gorselleri dondurur.
+
+        Parti kalici reddedilirse ikiye bolunur: tek bozuk gorsel, partideki iyi gorselleri
+        her kosuda dusurmesin (ayni parti `ORDER BY id` ile hep en basa gelirdi). Gecici
+        hata (429/5xx tukendi) bolunmez, yukari cikar.
+        """
         estimate = sum(batch[image_hash].estimated_tokens for image_hash in hashes)
         try:
             result = client.embed_images(
                 [batch[image_hash].data_url for image_hash in hashes],
                 estimated_tokens=estimate,
             )
+        except EmbeddingRejected as error:
+            if len(hashes) == 1:
+                logger.warning("gorsel saglayici tarafindan reddedildi: %s", error)
+                _note(counts, f"gorsel reddedildi ({len(waiting[hashes[0]])} offer): {error}")
+                return hashes
+            middle = len(hashes) // 2
+            return send(hashes[:middle]) + send(hashes[middle:])
+        counts.api_calls += 1
+        counts.images_sent += len(hashes)
+        counts.tokens += result.total_tokens
+        # CLAUDE.md 9. kural: basarili her cagri api_usage'a.
+        record(
+            conn,
+            ModelCall(
+                operation="image_embedding",
+                model_version=model_version,
+                units=result.total_tokens,
+            ),
+        )
+        for image_hash, vector in zip(hashes, result.vectors, strict=True):
+            known[image_hash] = vector
+            write(image_hash, waiting[image_hash])
+        logger.info(
+            "parti: %s gorsel, %s token (tahmin %s)", len(hashes), result.total_tokens, estimate
+        )
+        return []
+
+    def flush() -> None:
+        nonlocal consecutive_failures
+        if not batch:
+            return
+        hashes = list(batch)
+        try:
+            rejected = send(hashes)
         except EmbeddingError as error:
             consecutive_failures += 1
-            lost = sum(len(waiting[image_hash]) for image_hash in hashes)
+            # Bolunme sirasinda bir kismi basarili olmus olabilir: yalnizca yazilmayanlar kayip.
+            lost = sum(len(waiting[image_hash]) for image_hash in hashes if image_hash not in known)
             counts.failed += lost
             _note(counts, f"parti ({len(hashes)} gorsel, {lost} offer): {error}")
             logger.warning("parti atlandi, %s offer sonraki kosuya kaldi: %s", lost, error)
         else:
+            if rejected:
+                counts.failed += sum(len(waiting[image_hash]) for image_hash in rejected)
+            # Kalici red saglayici/ag arizasi degildir; art arda hata sayacini artirmaz.
             consecutive_failures = 0
-            counts.api_calls += 1
-            counts.images_sent += len(hashes)
-            counts.tokens += result.total_tokens
-            # CLAUDE.md 9. kural: basarili her cagri api_usage'a.
-            record(
-                conn,
-                ModelCall(
-                    operation="image_embedding",
-                    model_version=model_version,
-                    units=result.total_tokens,
-                ),
-            )
-            for image_hash, vector in zip(hashes, result.vectors, strict=True):
-                known[image_hash] = vector
-                write(image_hash, waiting[image_hash])
-            logger.info(
-                "parti: %s gorsel, %s token (tahmin %s)",
-                len(hashes),
-                result.total_tokens,
-                estimate,
-            )
         batch.clear()
         for image_hash in hashes:
             waiting.pop(image_hash, None)
@@ -370,13 +389,32 @@ def embed_texts(
             continue
         by_text.setdefault(canonical, []).append(offer_id)
 
-    vectors: dict[str, list[float]] = {}
-    for batch in _chunks(list(by_text), client.text_batch_size):
-        result = client.embed_texts(batch)
+    batches = list(_chunks(list(by_text), client.text_batch_size))
+    consecutive_failures = 0
+    embedded_texts = 0
+    for position, batch in enumerate(batches):
+        try:
+            result = client.embed_texts(batch)
+        except EmbeddingError as error:
+            # Onceki partiler ODENDI ve zaten commit edildi; bu parti sonraki kosuya kalir.
+            consecutive_failures += 1
+            lost = sum(len(by_text[text]) for text in batch)
+            counts.failed += lost
+            _note(counts, f"metin partisi ({len(batch)} metin, {lost} offer): {error}")
+            logger.warning("metin partisi atlandi, %s offer sonraki kosuya kaldi: %s", lost, error)
+            if consecutive_failures >= MAX_CONSECUTIVE_FAILURES:
+                # Saglayici ya da ag coktu: devam etmek yalnizca bekleme ve deneme harcar.
+                counts.aborted = True
+                counts.failed += sum(
+                    len(by_text[text]) for rest in batches[position + 1 :] for text in rest
+                )
+                _note(counts, f"art arda {consecutive_failures} parti basarisiz, kosu durdu")
+                break
+            continue
+        consecutive_failures = 0
         counts.api_calls += 1
         counts.tokens += result.total_tokens
-        for canonical, vector in zip(batch, result.vectors, strict=True):
-            vectors[canonical] = vector
+        # CLAUDE.md 9. kural: basarili her cagri api_usage'a, vektorlerle AYNI islemde.
         record(
             conn,
             ModelCall(
@@ -385,15 +423,16 @@ def embed_texts(
                 units=result.total_tokens,
             ),
         )
-
-    for canonical, offer_ids in by_text.items():
-        vector = vectors[canonical]
-        for offer_id in offer_ids:
-            _write_embedding(conn, offer_id, "text", model_version, vector)
-            counts.embedded += 1
+        for canonical, vector in zip(batch, result.vectors, strict=True):
+            for offer_id in by_text[canonical]:
+                _write_embedding(conn, offer_id, "text", model_version, vector)
+                counts.embedded += 1
+            embedded_texts += 1
+        # Odenmis cagri sonraki bir partinin hatasiyla geri alinmasin.
+        conn.commit()
 
     # Ayni kanonik metni paylasan her ek offer bir yineleme isabeti.
-    counts.deduped = counts.embedded - len(by_text)
+    counts.deduped = counts.embedded - embedded_texts
     return counts
 
 

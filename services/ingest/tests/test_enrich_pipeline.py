@@ -360,3 +360,123 @@ def test_vectors_older_than_valid_from_are_reembedded_not_reused(offers: int) ->
     # Satir sayisi degismedi (yerinde yenilendi), hepsi artik kesimden yeni.
     assert _count(EMBEDDINGS, ("image", DOMAIN)) == OFFER_COUNT
     assert _count(EMBEDDINGS + " AND e.created_at >= %s", ("image", DOMAIN, cutoff)) == OFFER_COUNT
+
+
+# --- metin embedding'i: hata yalitimi (AI denetimi A7) ------------------------------------
+
+TEXT_BATCH_OF_ONE = 1
+DISTINCT_TEXTS = DISTINCT_IMAGES  # her 4 offer ayni basligi paylasir
+
+
+class _OneTextPerCall(FakeEmbeddingClient):
+    """Her kanonik metin ayri cagri: coklu parti davranisi kucuk veriyle sinanir."""
+
+    @property
+    def text_batch_size(self) -> int:
+        return TEXT_BATCH_OF_ONE
+
+
+class _FailOnText(_OneTextPerCall):
+    """Belirli bir CAGRI SIRASINDA (1'den) saglayici hatasi verir."""
+
+    fail_on: tuple[int, ...] = ()
+    attempt: int = 0
+
+    def embed_texts(self, texts):  # type: ignore[override]
+        self.attempt += 1
+        if self.attempt in self.fail_on:
+            raise EmbeddingError("saglayici 503 dondu")
+        return super().embed_texts(texts)
+
+
+def _text_usage_rows() -> int:
+    return _count("SELECT count(*) FROM api_usage WHERE operation = 'text_embedding'")
+
+
+def test_a_failed_text_batch_keeps_the_earlier_paid_batches(offers: int) -> None:
+    """Eskiden tek `EmbeddingError` tum kosuyu atiyor, onceki ODENMIS partilerin vektoru ve
+    `api_usage` satiri (commit edilmemis islemde) geri aliniyordu."""
+    before = _text_usage_rows()
+    flaky = _FailOnText(model="jina-clip-v2-fake")
+    flaky.fail_on = (2,)
+
+    with _app() as conn:
+        counts = embed_texts(conn, flaky, merchant_id=offers)
+        # Ozellikle commit YOK: fonksiyon parti basina kendisi commit etmeli.
+
+    per_text = OFFER_COUNT // DISTINCT_TEXTS
+    assert counts.api_calls == 2
+    assert counts.failed == per_text
+    assert counts.embedded == OFFER_COUNT - per_text
+    assert not counts.aborted
+    assert _count(EMBEDDINGS, ("text", DOMAIN)) == OFFER_COUNT - per_text
+    assert _text_usage_rows() - before == 2
+
+
+def test_failed_text_offers_are_picked_up_by_the_next_run(offers: int) -> None:
+    flaky = _FailOnText(model="jina-clip-v2-fake")
+    flaky.fail_on = (1,)
+    with _app() as conn:
+        first = embed_texts(conn, flaky, merchant_id=offers)
+        conn.commit()
+    assert first.failed > 0
+
+    with _app() as conn:
+        second = embed_texts(conn, flaky, merchant_id=offers)
+        conn.commit()
+
+    assert second.considered == first.failed
+    assert second.failed == 0
+    assert _count(EMBEDDINGS, ("text", DOMAIN)) == OFFER_COUNT
+
+
+def test_consecutive_text_failures_abort_the_run(offers: int) -> None:
+    from enrich import pipeline
+
+    down = _FailOnText(model="jina-clip-v2-fake")
+    down.fail_on = tuple(range(1, 20))
+    with _app() as conn:
+        counts = embed_texts(conn, down, merchant_id=offers)
+        conn.commit()
+
+    assert counts.aborted
+    assert down.attempt == pipeline.MAX_CONSECUTIVE_FAILURES
+    assert counts.embedded == 0
+
+
+class _RejectsOneImage(FakeEmbeddingClient):
+    """Ilk partideki en kucuk girdiyi KALICI reddeder (4xx); digerleri basarili."""
+
+    poison: str | None = None
+
+    def embed_images(self, data_urls, *, estimated_tokens=None):  # type: ignore[override]
+        from enrich.client import EmbeddingRejected
+
+        if self.poison is None:
+            self.poison = sorted(data_urls)[0]
+        if self.poison in data_urls:
+            raise EmbeddingRejected("saglayici 400: gecersiz gorsel")
+        return super().embed_images(data_urls, estimated_tokens=estimated_tokens)
+
+
+def test_one_rejected_image_does_not_block_the_good_images_in_its_batch(offers: int) -> None:
+    """Eskiden 4xx tum partiyi (8 gorsel) dusuruyor, ayni parti her kosuda en basa geliyordu."""
+    client = _RejectsOneImage(model="jina-clip-v2-fake")
+    with _app() as conn:
+        first = embed_images(conn, client, merchant_id=offers, http=_image_client())
+        conn.commit()
+
+    per_image = OFFER_COUNT // DISTINCT_IMAGES
+    assert first.embedded == OFFER_COUNT - per_image
+    assert first.failed == per_image
+    assert not first.aborted
+    assert first.api_calls >= 2  # ikiye bolunerek iyi gorseller ayiklandi
+
+    with _app() as conn:
+        second = embed_images(conn, client, merchant_id=offers, http=_image_client())
+        conn.commit()
+
+    # Yalnizca zehirli gorselin teklifleri kaldi; yeniden denenir ama digerlerini etkilemez.
+    assert second.considered == per_image
+    assert second.embedded == 0
+    assert _count(EMBEDDINGS, ("image", DOMAIN)) == OFFER_COUNT - per_image
