@@ -24,17 +24,23 @@ göre ölçülür; dekor onu 4.5:1'in altına indiremez.
   (`--footer-glow-mint`) ve limon (`--footer-glow-lime`). Açık temada sıcak
   kırık beyazdan alta doğru çok hafif nane/limon tonu; koyu temada grafit
   üzerinde çok düşük alfalı limon/nane havası.
-- En altta, iki yandan ve alttan kırpılmış büyük **"ManiCepte"** kelime
-  işareti (site fontu IBM Plex Sans, kalın ve eğik — üst çubuktaki marka
-  yazısıyla aynı dil). Marka yeşilinden naneye (açık) ya da yeşilden koyuya
-  solan (koyu) degrade dolgu (`--footer-wordmark-from/-to`), arkasında güçlü
-  limon parıltısı (`--footer-band-glow`). Yeni bir logo SVG'si
+- Footer'ın **zeminine yerleşik**, iki yandan ve alttan kırpılmış büyük
+  **"ManiCepte"** kelime işareti (site fontu IBM Plex Sans, kalın ve eğik —
+  üst çubuktaki marka yazısıyla aynı dil). Ayrı bir alt şerit değildir: kutusu
+  footer'ın alt kenarına oturur, üstü disclosure/copyright satırlarının ve
+  link sütunlarının alt kısmının arkasına uzanır. Yeni bir logo SVG'si
   çizilmedi/izlenmedi.
-- Kelime işareti metnin **altındaki kendi şeridindedir**; hiçbir footer
-  metniyle üst üste binmez (her genişlikte metinle arasında 32px). Bu yüzden
-  yeşil orada güçlü kullanılabilir; yeşil asla footer metni değildir.
-- Metin bölgesindeki parıltı alfa değerleri en kötü üst üste binmede bile
-  `--ink-muted` için ≥ 4.5:1 bırakır (açık 4.81:1, koyu 4.90:1).
+- Dolgu alttan üste zayıflar: copyright satırının **altındaki** metinsiz
+  alt şeritte (`.inner` alt boşluğu, `--wordmark-clear` = kelime boyunun
+  %34'ü, telefonda sabit 12vw) güçlü marka yeşili (`--footer-wordmark-strong`),
+  copyright hizasında metin-güvenli tona (`--footer-wordmark-soft`; koyu
+  temada opak koyu yeşil, açık temada düşük alfalı nane), üst uçta
+  `--footer-wordmark-faint`. Durak konumları footer'ın alt kenarından
+  ölçülür; hiçbir metin güçlü yeşilin üstüne denk gelmez. Limon parlaması
+  (`--footer-wordmark-glow`) yalnızca metinsiz alt şerittedir.
+- Metnin arkasındaki her katman (iki parıltı + kelime işaretinin soluk
+  kısmı) en kötü üst üste binmede bile `--ink-muted` için ≥ 4.5:1 bırakır:
+  açık 4.57:1, koyu 4.77:1 (yalnızca parıltı: 4.81 / 4.90).
 - **Footer affiliate cümlesi kaldırıldı** ("Bazı bağlantılardan alışveriş
   yaptığında komisyon kazanabiliriz…" + bağlantı). Bildirim, tıklama
   noktasında kalır: ürün sayfasında mağaza bağlantısının yanında ve fiyat
@@ -89,7 +95,7 @@ düşük alfalı bir atmosfer kimlik kazandırırken metin kontrastını korur.
 ## Sonucu
 
 - `tokens.css`: `--footer-glow-mint`, `--footer-glow-lime`,
-  `--footer-wordmark-from`, `--footer-wordmark-to`, `--footer-band-glow`
-  (iki temada); `--brand` yorumu istisnayı anar.
+  `--footer-wordmark-strong`, `--footer-wordmark-soft`,
+  `--footer-wordmark-faint`, `--footer-wordmark-glow` (iki temada); `--brand` yorumu istisnayı anar.
 - `docs/design.md` ve `docs/brand.md` güncellendi; `docs/copy.md`'ye
   `search.quick_label`, `search.quick_attach`, `search.quick_dismiss`.
