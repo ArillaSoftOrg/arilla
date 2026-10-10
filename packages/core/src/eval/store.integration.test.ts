@@ -77,7 +77,7 @@ describe("ai_eval — entegrasyon", () => {
   it("kosu ve vakalar tek islemde yazilir; en son kosu okunur", async () => {
     const runId = await recordEvalRun(db, {
       snapshotId,
-      component: "gemini_intent",
+      component: "jina_image",
       algorithmVersion: "rules-v1",
       metrics: { macroF1: 0.9, exactPassRate: 1 },
       cases: [
@@ -90,7 +90,7 @@ describe("ai_eval — entegrasyon", () => {
         },
       ],
     });
-    const latest = await latestEvalRun(db, "gemini_intent", snapshotId);
+    const latest = await latestEvalRun(db, "jina_image", snapshotId);
     expect(latest?.id).toBe(runId);
     expect(latest?.metrics).toEqual({ macroF1: 0.9, exactPassRate: 1 });
     const cases = await ownerQuery("SELECT outcome FROM ai_eval_case WHERE run_id = $1", [runId]);

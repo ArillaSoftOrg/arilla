@@ -360,10 +360,10 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     id: "ai_eval",
     label: "AI değerlendirme ve model hata veri seti",
     tables: ["dataset_snapshot", "ai_eval_run", "ai_eval_case", "ai_error_event"],
-    status: "data_no_ui",
-    adminPaths: [],
-    // Karar 0096: şema ve yazıcı var; yönetim ekranı ve üretim çağıranlarına bağlama yok.
-    gaps: [{ signal: "Koşu karşılaştırması ve hata dağılımı ekranı", status: "data_no_ui" }],
+    status: "visible",
+    adminPaths: ["/yonetim/ai/kalite"],
+    // Karar 0096/0097: şema, yazıcı ve panel var; üretim çağıranları hata kaydına bağlı değil.
+    gaps: [{ signal: "Canlı Gemini/Jina hata kaydı (üretim çağıranları)", status: "unmeasured" }],
   },
   {
     id: "audit",
