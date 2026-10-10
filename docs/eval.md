@@ -75,5 +75,7 @@ python -m resolve.eval_offline --json > out.json
 pnpm --filter @arilla/core eval:record-matching -- out.json --record
 ```
 
-`--record` yoksa yazılmaz; yalnızca yerel DB. Aynı koşu tekrar yazılmaz. Görsel benzerlik
+`--record` yoksa yazılmaz. `--record` için izole test veritabanı gerekir:
+`EVAL_RECORD_DB_NAME=<adres sonundaki ad>` verilmeli ve ad `test`/`eval`/`scratch`/`sandbox`
+parçası taşımalı (örn. `arilla_eval_test`); aksi halde reddedilir. Aynı koşu tekrar yazılmaz. Görsel benzerlik
 için etiketli veri olmadığından kayıt yolu yoktur.

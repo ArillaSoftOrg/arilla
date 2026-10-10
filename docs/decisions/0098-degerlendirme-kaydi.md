@@ -9,7 +9,11 @@ Mevcut eval komutlarına isteğe bağlı `--record` eklenir (`eval:intent`,
 iki taraf birbirini çağırmaz). Migration ve yeni tablo yoktur.
 
 - `--record` yoksa veritabanına hiçbir şey yazılmaz (varsayılan yerel ölçüm).
-- Yalnızca yerel `DATABASE_URL` (`assertLocalRecordTarget`); uzak adreste çıkış kodu 2.
+- Yalnızca açıkça onaylanmış izole test veritabanı: fail-closed yerellik denetimi
+  (`assertIsolatedTestUrl`) + veritabanı adı `test|eval|scratch|sandbox` parçası taşımalı
+  + `EVAL_RECORD_DB_NAME` adla tam eşit + bağlandıktan sonra `current_database()`
+  doğrulaması (`verifyRecordDatabase`). SSH tüneliyle localhost'a getirilmiş üretim
+  (`arilla`, `postgres`) bu yüzden geçemez. Reddedilirse çıkış kodu 2, yazım yok.
 - Idempotent: aynı veri seti içeriği + bileşen + algoritma/model sürümü + metrikler
   ve vaka sonuçları ikinci kez yazılmaz (advisory kilit eşzamanlı çalıştırmayı da korur).
   Aynı metrik ama farklı vaka sonucu ayrı koşudur.

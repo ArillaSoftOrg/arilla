@@ -1,6 +1,6 @@
 /**
- * `--record` ortak yardimcilari (Faz 1A-4, karar 0098). Yalnizca yerel DB'ye
- * yazar; uzak adreste cikis kodu 2 ile durur. Kayit olmadan hicbir sey yazilmaz.
+ * `--record` ortak yardimcilari (Faz 1A-4, karar 0098). Yalnizca acikca onaylanmis
+ * izole test DB'sine yazar (EVAL_RECORD_DB_NAME); aksi halde cikis kodu 2. Kayit olmadan hicbir sey yazilmaz.
  */
 import { execSync } from "node:child_process";
 import { createDatabase } from "@arilla/db";
@@ -8,6 +8,7 @@ import {
   assertLocalRecordTarget,
   type RecordInput,
   recordEvaluation,
+  verifyRecordDatabase,
 } from "../../src/eval/record.ts";
 
 export function codeRef(): string {
@@ -43,6 +44,12 @@ export async function recordOrExit(input: RecordInput): Promise<void> {
     process.exit(2);
   }
   const db = createDatabase(process.env.DATABASE_URL as string);
+  try {
+    await verifyRecordDatabase(db);
+  } catch (error) {
+    console.error((error as Error).message);
+    process.exit(2);
+  }
   const result = await recordEvaluation(db, {
     ...input,
     snapshot: {

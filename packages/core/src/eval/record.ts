@@ -1,14 +1,20 @@
 /**
  * Degerlendirme sonuclarini kalici kayda cevirir (Faz 1A-4, karar 0098).
  *
- * - Yalnizca `--record` ile ve YEREL veritabanina (`assertLocalRecordTarget`).
+ * - Yalnizca `--record` ile ve YEREL veritabanina (`assertLocalRecordTarget` + `verifyRecordDatabase`).
  * - Idempotent: ayni veri seti + bilesen + algoritma/model surumu + metrikler
  *   ikinci kez yazilmaz; var olan kosunun kimligi doner.
  * - Onceki kosuyla karsilastirma yalniz AYNI veri seti icerigi (snapshot) icin
  *   yapilir; veri seti degistiyse `baseline`/`regressed` bos kalir.
  * - Ham sorgu/metin/kullanici yazilmaz: vaka anahtari hash'tir, ayrinti bos.
  */
-import { aiEvalCase, aiEvalRun, type Database, type EvalComponent } from "@arilla/db";
+import {
+  aiEvalCase,
+  aiEvalRun,
+  assertIsolatedTestUrl,
+  type Database,
+  type EvalComponent,
+} from "@arilla/db";
 import { and, desc, eq, sql } from "drizzle-orm";
 import { COMPONENT_METRICS } from "./metric-keys.ts";
 import { compareRuns } from "./metrics.ts";
@@ -19,16 +25,71 @@ import {
   type SnapshotInput,
 } from "./store.ts";
 
-/** Yerel olmayan adrese kayit yapilmaz (uzak/uretim DB'ye otomatik yazma yok). */
-export function assertLocalRecordTarget(url: string | undefined): void {
-  let host = "";
-  try {
-    host = new URL((url ?? "").trim()).hostname.toLowerCase();
-  } catch {
-    // asagida reddedilir
+/**
+ * `--record` yalnizca ACIKCA dogrulanmis izole bir veritabanina yazar. Yalniz
+ * "localhost" yetmez: SSH tuneli (`-L 5432:uretim:5432`) uretimi localhost gibi
+ * gosterir. Bu yuzden uc kosul birlikte aranir:
+ *
+ * 1. Adres, testlerin kullandigi fail-closed yerellik denetiminden gecer
+ *    (`assertIsolatedTestUrl`; bilinen uzak barindiricilar adlandirilmis olarak reddedilir).
+ * 2. `EVAL_RECORD_DB_NAME`, adresteki veritabani adina TAM esit olmali (bilincli
+ *    onay; ortamdan miras kalan bir uretim adresi kendiliginden gecmez).
+ * 3. Ad izole bir veritabani gibi gorunmeli (`test`, `eval`, `scratch`, `sandbox` parcasi);
+ *    uretim adi (`arilla`, `postgres`) hicbir onayla gecmez.
+ *
+ * Baglandiktan sonra sunucunun bildirdigi `current_database()` de ayni kosullari
+ * saglamali (`verifyRecordDatabase`): adres ile gercek hedef ayrisirsa durur.
+ * Mesajlar host/parola/ad icermez.
+ */
+export const RECORD_DB_ENV = "EVAL_RECORD_DB_NAME";
+const ISOLATED_NAME = /(^|[_-])(test|eval|scratch|sandbox)([_-]|$)/i;
+
+export class RecordTargetError extends Error {
+  constructor(reason: string) {
+    super(`--record reddedildi: ${reason}. Hicbir sey yazilmadi.`);
+    this.name = "RecordTargetError";
   }
-  if (!["localhost", "127.0.0.1", "::1", "[::1]"].includes(host)) {
-    throw new Error("DATABASE_URL yerel degil; --record yalnizca yerel veritabanina yazar.");
+}
+
+export function isIsolatedDatabaseName(name: string): boolean {
+  return ISOLATED_NAME.test(name);
+}
+
+export function assertLocalRecordTarget(
+  url: string | undefined,
+  env: Record<string, string | undefined> = process.env,
+): void {
+  if (!url) throw new RecordTargetError("DATABASE_URL tanimsiz");
+  try {
+    assertIsolatedTestUrl("DATABASE_URL", url);
+  } catch {
+    throw new RecordTargetError("DATABASE_URL yerel bir veritabanini gostermiyor");
+  }
+  let name = "";
+  try {
+    name = decodeURIComponent(new URL(url.trim()).pathname.replace(/^\//, ""));
+  } catch {
+    throw new RecordTargetError("DATABASE_URL cozumlenemiyor");
+  }
+  if (!isIsolatedDatabaseName(name)) {
+    throw new RecordTargetError(
+      "veritabani adi izole bir test/eval veritabani gibi gorunmuyor (ad 'test', 'eval', 'scratch' ya da 'sandbox' icermeli)",
+    );
+  }
+  if (env[RECORD_DB_ENV] !== name) {
+    throw new RecordTargetError(`${RECORD_DB_ENV}, veritabani adina tam esit olarak verilmeli`);
+  }
+}
+
+/** Baglandiktan sonra: sunucunun bildirdigi veritabani adi onaylananla ayni ve izole olmali. */
+export async function verifyRecordDatabase(
+  db: Database,
+  env: Record<string, string | undefined> = process.env,
+): Promise<void> {
+  const result = await db.execute<{ name: string }>(sql`SELECT current_database() AS name`);
+  const actual = result.rows[0]?.name ?? "";
+  if (!isIsolatedDatabaseName(actual) || env[RECORD_DB_ENV] !== actual) {
+    throw new RecordTargetError("baglanilan sunucu onaylanan izole veritabaniyla eslesmiyor");
   }
 }
 

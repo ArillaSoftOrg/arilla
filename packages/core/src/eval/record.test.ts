@@ -1,24 +1,52 @@
 import { describe, expect, it } from "vitest";
 import { runIntentEval } from "./intent-eval.ts";
 import { COMPONENT_METRICS } from "./metric-keys.ts";
-import { assertLocalRecordTarget } from "./record.ts";
+import { assertLocalRecordTarget, isIsolatedDatabaseName } from "./record.ts";
 import { intentRecord, matchingRecord, searchRecord } from "./record-adapters.ts";
 
 describe("assertLocalRecordTarget", () => {
-  it("yerel adreslere izin verir", () => {
-    expect(() => assertLocalRecordTarget("postgresql://u:p@localhost:5432/db")).not.toThrow();
-    expect(() => assertLocalRecordTarget("postgresql://u:p@127.0.0.1:5432/db")).not.toThrow();
+  const env = (name: string) => ({ EVAL_RECORD_DB_NAME: name });
+  const ok = "postgresql://u:p@localhost:5432/arilla_eval_test";
+
+  it("onayli izole yerel test veritabanina izin verir", () => {
+    expect(() => assertLocalRecordTarget(ok, env("arilla_eval_test"))).not.toThrow();
+    expect(() =>
+      assertLocalRecordTarget("postgresql://u:p@127.0.0.1:55432/scratch_db", env("scratch_db")),
+    ).not.toThrow();
   });
   it.each([
-    "postgresql://u:p@db.example.com:5432/db",
-    "postgresql://u:p@aws-0-eu.pooler.supabase.com:6543/postgres",
+    "postgresql://u:p@db.example.com:5432/arilla_eval_test",
+    "postgresql://u:p@aws-0-eu.pooler.supabase.com:6543/postgres_test",
     "",
     "bozuk",
   ])("uzak/bozuk adresi reddeder: %s", (url) => {
-    expect(() => assertLocalRecordTarget(url)).toThrow(/yerel/);
+    expect(() => assertLocalRecordTarget(url, env("arilla_eval_test"))).toThrow(/reddedildi/);
   });
-  it("tanimsiz adresi reddeder", () => {
-    expect(() => assertLocalRecordTarget(undefined)).toThrow();
+  it("SSH tuneli senaryosu: localhost + uretim adli veritabani onaylansa bile reddedilir", () => {
+    for (const name of ["arilla", "postgres", "production", "contest"]) {
+      expect(() =>
+        assertLocalRecordTarget(`postgresql://u:p@localhost:5432/${name}`, env(name)),
+      ).toThrow(/izole/);
+    }
+  });
+  it("onay degiskeni yok ya da farkli ise reddeder (miras kalan ortam gecmez)", () => {
+    expect(() => assertLocalRecordTarget(ok, {})).toThrow(/EVAL_RECORD_DB_NAME/);
+    expect(() => assertLocalRecordTarget(ok, env("baska_test"))).toThrow(/EVAL_RECORD_DB_NAME/);
+  });
+  it("tanimsiz adresi reddeder ve mesaj host/parola/ad icermez", () => {
+    expect(() => assertLocalRecordTarget(undefined, {})).toThrow();
+    try {
+      assertLocalRecordTarget("postgresql://admin:hunter2@prod.internal:5432/arilla", {});
+    } catch (e) {
+      const msg = (e as Error).message;
+      expect(msg).not.toMatch(/hunter2|prod\.internal|admin/);
+    }
+  });
+  it("izole ad kalibi: test/eval/scratch/sandbox parcasi, alt dize degil", () => {
+    expect(isIsolatedDatabaseName("arilla_quota_test")).toBe(true);
+    expect(isIsolatedDatabaseName("eval")).toBe(true);
+    expect(isIsolatedDatabaseName("contest")).toBe(false);
+    expect(isIsolatedDatabaseName("latest_prod")).toBe(false);
   });
 });
 
