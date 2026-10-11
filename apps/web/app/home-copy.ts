@@ -79,6 +79,10 @@ export const HOME_COPY = {
   navSaved: "Kaydettiklerim", // nav.saved
   navAlerts: "Alarmlarım", // nav.alerts
   navHistory: "Geçmişim", // nav.history
+  /** Menu panelinin kisisel bolum basligi (oturum acik). */
+  navPersonalTitle: "Kişisel", // nav.personal
+  /** Menu panelinin hesap alanindaki kisa cikis eylemi. */
+  signOutShort: "Çıkış", // action.sign_out_short
   searchPlaceholder: "ManiCepte’ye sor...", // search.placeholder
   searchInputLabel: "Ürün ara", // search.input_label
   searchSubmitLabel: "Ara", // action.search

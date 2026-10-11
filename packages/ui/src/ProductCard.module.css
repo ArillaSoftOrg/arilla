@@ -98,3 +98,18 @@
   font-size: var(--text-meta);
   line-height: var(--line-height-normal);
 }
+
+/* Kart ustu eylem (`action`): baglantinin kardesi, gorselin sag ust
+   kosesinde. Kapsayici kartla ayni boyda kalir. */
+.withAction {
+  position: relative;
+  height: 100%;
+  min-width: 0;
+}
+
+.action {
+  position: absolute;
+  inset-block-start: var(--space-2);
+  inset-inline-end: var(--space-2);
+  z-index: var(--z-raised);
+}
