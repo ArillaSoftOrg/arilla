@@ -48,9 +48,8 @@
      (apps/web/app/apple-icon.png, baskin piksel #b7f52f). Beyaz uzerinde
      kontrasti ~1.3:1: metin ya da tek basina cizgi olarak acik temada
      KULLANILMAZ; yalnizca dolgu/isaret, uzerindeki metin --on-brand.
-     /yonetim (etkin gezinme, secim, odak) ve karar 0093'ten beri public
-     sayfalarda YALNIZCA dekoratif atmosfer (footer parıltısı) olarak; metin,
-     tek basina cizgi ya da durum rengi olarak asla. */
+     /yonetim (etkin gezinme, secim, odak) ve public sayfalarda dekoratif
+     marka isareti olarak; metin ya da durum rengi olarak asla. */
   --brand: #b7f52f;
   --on-brand: #16181d;
   /* Karar 0025: --ink'in ters rolu, notr birincil eylem. */
@@ -67,14 +66,8 @@
      ortu + beyaz isaret; gorselin kendisi temaya gore degismez. */
   --media-scrim: rgba(14, 15, 17, 0.38);
   --on-media: #ffffff;
-  /* Karar 0093: markali footer atmosferi (dekoratif, metin rengi DEGIL).
-     Alfa degerleri en kotu ust uste binmede bile --ink-muted >= 4.5:1
-     birakacak sekilde secildi (design.md "Kontrast"). */
-  --footer-glow-mint: rgba(112, 214, 196, 0.16);
-  --footer-glow-lime: rgba(183, 245, 47, 0.15);
-  /* Kelime isareti (yalnizca dekor, metnin ALTINDAKI alanda; hicbir metnin
-     arkasinda degil): yukaridan asagi yumusak dolgu `top` -> `bottom`, arkasinda
-     ayni alanla sinirli parlama `glow`. Acik temada neon degil, derin yesil. */
+  /* Public footer, sayfa yuzeyinden hafif ayrilan notr marka zemini. */
+  --footer-canvas: #edf0ec;
   --footer-wordmark-top: rgba(134, 204, 92, 0.5);
   --footer-wordmark-bottom: #8fd13a;
   --footer-wordmark-glow: rgba(183, 245, 47, 0.22);
@@ -240,8 +233,7 @@
     --tint-aqua: #132c30;
     --tint-mist: #172530;
     --tint-warm: #26221d;
-    --footer-glow-mint: rgba(95, 214, 200, 0.06);
-    --footer-glow-lime: rgba(183, 245, 47, 0.08);
+    --footer-canvas: #111513;
     --footer-wordmark-top: rgba(183, 245, 47, 0.45);
     --footer-wordmark-bottom: #b7f52f;
     --footer-wordmark-glow: rgba(183, 245, 47, 0.12);
@@ -280,8 +272,7 @@
   --tint-aqua: #132c30;
   --tint-mist: #172530;
   --tint-warm: #26221d;
-  --footer-glow-mint: rgba(95, 214, 200, 0.06);
-  --footer-glow-lime: rgba(183, 245, 47, 0.08);
+  --footer-canvas: #111513;
   --footer-wordmark-top: rgba(183, 245, 47, 0.45);
   --footer-wordmark-bottom: #b7f52f;
   --footer-wordmark-glow: rgba(183, 245, 47, 0.12);

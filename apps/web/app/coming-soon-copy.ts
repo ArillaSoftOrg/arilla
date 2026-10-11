@@ -7,51 +7,72 @@ import { SITE_BRAND } from "./site-config.ts";
 export const COMING_SOON_COPY = {
   eyebrow: "Erken Erişim",
   status: `${SITE_BRAND} yakında.`,
-  headline: "Alışverişe bir de birlikte bakalım.",
-  body: "Ürün keşfi ve fiyat karşılaştırması için alışveriş arkadaşın hazırlanıyor.",
+  headline: "Tarif et, fotoğrafını göster veya linkini bırak.",
+  body: "ManiCepte ürünleri bulsun, benzerlerini çıkarsın ve mağaza fiyatlarını karşılaştırsın.",
   greeting: "Selam, hoş geldin!",
-  greetingBody: "Ben senin alışveriş arkadaşın olacağım.",
-  greetingInvitation: "Ben hazırlanırken sen de ilk tanışanlardan ol.",
-  progressGoal: (target: string) => `Hedefimiz ${target} kişiyle açılışa başlamak.`,
-  progressNote: "Biz ManiCepte'yi hazırlarken sen de yerini al. Açılışta sana haber verelim.",
+  greetingBody: "Hazır olduğumuzda ilk haberdar edeceğimiz kişilerden biri ol.",
+  greetingInvitation: "Hazır olduğumuzda ilk haberdar edeceğimiz kişilerden biri ol.",
+  stageNote: "Şu an erken erişimdeyiz, ManiCepte’yi geliştirmeye devam ediyoruz.",
+  progressGoal: (target: string) => `İlk ${target} kişiden biri ol.`,
+  progressNote:
+    "Erken erişim listemiz gerçek kayıtlarla güncelleniyor. Geliştirmeler hazır olduğunda sana haber vereceğiz.",
   availability: "Henüz kullanıma açık değil. Birlikte başlamak için hazırlanıyoruz.",
   motionLabel: "Hareket",
   ctaNote: "Hesabınla devam et ya da yeni hesap aç; listeye otomatik eklenirsin.",
-  howItWorksAnchor: "Tanışalım",
+  privacyNote: "Bilgilerin yalnızca erişim listesi için kullanılır.",
+  howItWorksAnchor: "Nasıl çalıştığını gör",
 
-  describeEyebrow: "Her şey seninle başlayacak",
-  describeTitle: "Aklındakini anlat. Oradan başlayalım.",
-  describeBody:
-    "Tam adını bilmen gerekmeyecek. Neye ihtiyacın olduğunu, neleri sevdiğini ve senin için neyin önemli olduğunu kendi cümlelerinle anlatabileceksin.",
-  exampleLabel: "Örnek bir arama",
-  exampleQuery: "“Küçük mutfağıma uygun, kolay temizlenen bir kahve makinesi arıyorum.”",
-  describeDialogue: "Küçük mutfak, büyük kahve planları. Anladım.",
-
-  compareEyebrow: "Seçenekler netleşecek",
-  compareTitle: "Bir sürü seçenek. Sana göre bir karar.",
-  compareBody:
-    "Aradığın ürünü, benzerlerini ve farklı mağazalardaki fiyatlarını birlikte inceleyebileceksin.",
-  compareDialogue: "Seçenekleri ben toparlayacağım. Son söz sende.",
-  comparisonPoints: [
-    {
-      title: "Fiyatları yan yana.",
-      body: "Aynı ürünün farklı mağazalardaki tekliflerini tek yerde karşılaştırabileceksin.",
-    },
-    {
-      title: "Alternatifler de masada.",
-      body: "Beğendiğin ürüne benzeyen seçenekleri keşfedip sana uygun olanı seçebileceksin.",
-    },
+  demoEyebrow: "Örnek deneyim",
+  demoTitle: "ManiCepte nasıl çalışır?",
+  demoBody:
+    "Aklındaki ürünü tarif et, fotoğrafını göster veya bağlantısını bırak. ManiCepte ihtiyacını anlayıp benzer ürünleri ve mağaza seçeneklerini bir araya getirir.",
+  demoInstruction:
+    "Aşağıdaki örnek deneyimde ManiCepte’nin nasıl çalıştığını adım adım görebilirsin.",
+  demoNotice: "Temsili önizleme",
+  demoModes: {
+    describe: "Tarif et",
+    photo: "Fotoğraf göster",
+    link: "Link bırak",
+  },
+  demoUserLabel: "Sen",
+  demoAssistantLabel: "ManiCepte",
+  demoUserMessage: "Gün boyu yürüyebileceğim, sade ve açık renkli bir spor ayakkabı arıyorum.",
+  demoAssistantMessage:
+    "Seni anladım. Rahat seçenekleri bulup fiyat ve özelliklerini karşılaştırıyorum.",
+  demoComposerPlaceholder: "Ne aradığını anlat, fotoğrafını göster veya linkini bırak...",
+  demoPhaseLabels: [
+    "Seni dinliyorum.",
+    "İhtiyacını alıyorum.",
+    "Neye önem verdiğini anlıyorum.",
+    "Seçenekleri araştırıyorum.",
+    "En iyi dengeyi buldum.",
   ],
+  demoScrollSteps: [
+    "İhtiyacını anlat",
+    "ManiCepte anlasın",
+    "Seçenekleri araştırsın",
+    "En iyi dengeyi gör",
+  ],
+  demoProductInsights: [
+    { title: "Günlük rahatlık", note: "Ekonomik seçenek" },
+    { title: "Yürüyüş desteği", note: "Dengeli seçenek" },
+    { title: "Hafif kullanım", note: "Dayanıklı seçenek" },
+  ],
+  demoWinner: "En iyi fiyat-kalite dengesi",
 
   enrolledTitle: "Listedesin. İyi ki geldin.",
 
   buildEyebrow: "Mutfakta neler var?",
   buildTitle: `${SITE_BRAND}'yi geliştiriyoruz.`,
-  buildBody: "Ürünü adım adım inşa ediyoruz. Şu an üzerinde çalıştıklarımız:",
+  buildBody: "Şu an üzerinde çalıştığımız temel parçalar:",
   buildStatusDone: "Tamamlandı",
   buildStatusInProgress: "Geliştiriliyor",
   buildUpdated: (month: string) => `Son güncelleme: ${month}`,
   followTitle: "Gelişmeleri takip et",
+  socialEyebrow: "ManiCepte günlüğü",
+  socialTitle: "Gelişmeleri birlikte takip edelim.",
+  socialBody:
+    "Yeni özellikleri, erken erişim davetlerini ve geliştirme notlarını resmi hesaplarımızda paylaşacağız.",
 
   faqEyebrow: "Aklına takılanlar",
   faqTitle: "Tanışmışken.",
@@ -84,10 +105,17 @@ export type BuildStatus = "done" | "in_progress";
 
 /** Real development status, maintained manually; no invented launch promises. */
 export const BUILD_ITEMS: readonly { id: string; title: string; status: BuildStatus }[] = [
-  { id: "erken-erisim", title: "Erken erişim sistemi", status: "done" },
-  { id: "arama", title: "Arama deneyimi", status: "in_progress" },
-  { id: "kesif", title: "Ürün keşfi ve karşılaştırma", status: "in_progress" },
-  { id: "altyapi", title: "Mağaza ve fiyat altyapısı", status: "in_progress" },
+  { id: "erken-erisim", title: "Erken erişim kayıtları açık.", status: "done" },
+  {
+    id: "arama",
+    title: "Ürün bulma ve karşılaştırma deneyimini geliştiriyoruz.",
+    status: "in_progress",
+  },
+  {
+    id: "kaynaklar",
+    title: "Mağaza ve ürün kaynaklarını genişletiyoruz.",
+    status: "in_progress",
+  },
 ];
 
-export const BUILD_UPDATED: string | null = "Eylül 2026";
+export const BUILD_UPDATED: string | null = null;

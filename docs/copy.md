@@ -64,6 +64,7 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `footer.product_group_title` | Ürün |
 | `footer.account_group_title` | Hesap |
 | `footer.legal_group_title` | Yasal |
+| `footer.social_group_title` | Takipte kal |
 | `footer.last_updated_prefix` | Son güncelleme: |
 
 ## Gezinme
@@ -402,56 +403,63 @@ dönen kullanıcıya gösterilir (`apps/web/app/erken-erisim/state.ts`).
 
 ## Lansman öncesi landing
 
-Ürün kapalıyken ana sayfa. İlk ekranda maskotla tanışma ve erken erişime katılım;
-ardından ihtiyacı anlatma ve seçenekleri değerlendirme sahneleri. Hizmet henüz açık değildir;
-sahte ürün, fiyat, tasarruf, sayı, yorum ya da tarih yok. Konuşmalar önceden
-yazılmış tanıtım metinleridir; model çağrısı veya çalışan arama değildir.
+Ürün kapalıyken ana sayfa. İlk ekranda sabit selam pozundaki maskotla tanışma,
+ürün vaadi, erken erişime katılım ve gerçek ilerleme görünür. Ardından tarif,
+fotoğraf ve bağlantı girişlerini gösteren açıkça temsili bir ürün önizlemesi gelir.
+Hizmet henüz açık değildir; sahte fiyat, tasarruf, sayaç, yorum ya da tarih yok.
+Konuşmalar önceden yazılmış tanıtım metinleridir; model çağrısı veya çalışan arama değildir.
 Metinler `apps/web/app/coming-soon-copy.ts` içinde; marka `SITE_BRAND`'den gelir.
-5.000 kişi açılış hedefidir; sayaç otomatik ürün erişimi açmaz. Gerçek kişi
-sayısı ve hedef sunucudan gelir. Karşılama kaydırmadan bir kez oynar;
-mobilde ilk çerez panelinin kapanmasını bekler. Kabul etmek gerekmez.
+5.000 kişi ilk topluluk hedefidir; sayaç otomatik ürün erişimi açmaz. Gerçek
+kişi sayısı ve hedef sunucudan gelir. Hero maskotu animasyon oynatmaz; elini
+kaldırmış selam pozu sabittir. Aşağıdaki rehber maskotlar görünür alana girince
+sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 
 | Anahtar | Metin |
 | --- | --- |
 | `coming_soon.eyebrow` | Erken Erişim |
 | `coming_soon.status` | ManiCepte yakında. |
-| `coming_soon.headline` | Alışverişe bir de birlikte bakalım. |
-| `coming_soon.body` | Ürün keşfi ve fiyat karşılaştırması için alışveriş arkadaşın hazırlanıyor. |
+| `coming_soon.headline` | Tarif et, fotoğrafını göster veya linkini bırak. |
+| `coming_soon.body` | ManiCepte ürünleri bulsun, benzerlerini çıkarsın ve mağaza fiyatlarını karşılaştırsın. |
 | `coming_soon.greeting` | Selam, hoş geldin! |
-| `coming_soon.greeting_body` | Ben senin alışveriş arkadaşın olacağım. |
-| `coming_soon.greeting_invitation` | Ben hazırlanırken sen de ilk tanışanlardan ol. |
-| `coming_soon.progress_goal` | Hedefimiz {hedef} kişiyle açılışa başlamak. |
-| `coming_soon.progress_note` | Biz ManiCepte'yi hazırlarken sen de yerini al. Açılışta sana haber verelim. |
+| `coming_soon.greeting_body` | Ne aradığını birlikte bulacağız. |
+| `coming_soon.greeting_invitation` | Hazır olduğumuzda seni de bekliyorum. |
+| `coming_soon.stage_note` | Şu an erken erişim aşamasındayız. |
+| `coming_soon.progress_goal` | İlk {hedef} kişiden biri ol. |
+| `coming_soon.progress_note` | Erken erişim listemiz gerçek kayıtlarla güncelleniyor. Sıran geldiğinde sana haber vereceğiz. |
 | `coming_soon.availability` | Henüz kullanıma açık değil. Birlikte başlamak için hazırlanıyoruz. |
 | `coming_soon.motion_label` | Hareket |
 | `coming_soon.cta_note` | Hesabınla devam et ya da yeni hesap aç; listeye otomatik eklenirsin. |
-| `coming_soon.how_it_works_anchor` | Tanışalım |
-| `coming_soon.describe_eyebrow` | Her şey seninle başlayacak |
-| `coming_soon.describe_title` | Aklındakini anlat. Oradan başlayalım. |
-| `coming_soon.describe_body` | Tam adını bilmen gerekmeyecek. Neye ihtiyacın olduğunu, neleri sevdiğini ve senin için neyin önemli olduğunu kendi cümlelerinle anlatabileceksin. |
-| `coming_soon.example_label` | Örnek bir arama |
-| `coming_soon.example_query` | “Küçük mutfağıma uygun, kolay temizlenen bir kahve makinesi arıyorum.” |
-| `coming_soon.describe_dialogue` | Küçük mutfak, büyük kahve planları. Anladım. |
-| `coming_soon.compare_eyebrow` | Seçenekler netleşecek |
-| `coming_soon.compare_title` | Bir sürü seçenek. Sana göre bir karar. |
-| `coming_soon.compare_body` | Aradığın ürünü, benzerlerini ve farklı mağazalardaki fiyatlarını birlikte inceleyebileceksin. |
-| `coming_soon.compare_dialogue` | Seçenekleri ben toparlayacağım. Son söz sende. |
-| `coming_soon.comparison_points.0.title` | Fiyatları yan yana. |
-| `coming_soon.comparison_points.0.body` | Aynı ürünün farklı mağazalardaki tekliflerini tek yerde karşılaştırabileceksin. |
-| `coming_soon.comparison_points.1.title` | Alternatifler de masada. |
-| `coming_soon.comparison_points.1.body` | Beğendiğin ürüne benzeyen seçenekleri keşfedip sana uygun olanı seçebileceksin. |
+| `coming_soon.privacy_note` | Bilgilerin yalnızca erişim listesi için kullanılır. |
+| `coming_soon.how_it_works_anchor` | Nasıl çalıştığını gör |
+| `coming_soon.demo_eyebrow` | Örnek deneyim |
+| `coming_soon.demo_title` | ManiCepte nasıl çalışır? |
+| `coming_soon.demo_body` | Aklındaki ürünü tarif et, fotoğrafını göster veya bağlantısını bırak. ManiCepte ihtiyacını anlayıp benzer ürünleri ve mağaza seçeneklerini bir araya getirir. |
+| `coming_soon.demo_notice` | Temsili önizleme |
+| `coming_soon.demo_mode_describe` | Tarif et |
+| `coming_soon.demo_mode_photo` | Fotoğraf göster |
+| `coming_soon.demo_mode_link` | Link bırak |
+| `coming_soon.demo_user_label` | Sen |
+| `coming_soon.demo_assistant_label` | ManiCepte |
+| `coming_soon.demo_user_message` | Gün boyu yürüyebileceğim, sade ve açık renkli bir spor ayakkabı arıyorum. |
+| `coming_soon.demo_assistant_message` | Seni anladım. Rahat seçenekleri bulup fiyat ve özelliklerini karşılaştırıyorum. |
+| `coming_soon.demo_composer_placeholder` | Ne aradığını anlat, fotoğrafını göster veya linkini bırak... |
+| `coming_soon.demo_phase_labels` | Seni dinliyorum. · İhtiyacını alıyorum. · Neye önem verdiğini anlıyorum. · Seçenekleri araştırıyorum. · En iyi dengeyi buldum. |
+| `coming_soon.demo_scroll_steps` | İhtiyacını anlat · ManiCepte anlasın · Seçenekleri araştırsın · En iyi dengeyi gör |
+| `coming_soon.demo_product_insights` | Günlük rahatlık / Ekonomik seçenek · Yürüyüş desteği / Dengeli seçenek · Hafif kullanım / Dayanıklı seçenek |
+| `coming_soon.demo_winner` | En iyi fiyat-kalite dengesi |
 | `coming_soon.enrolled_title` | Listedesin. İyi ki geldin. |
 | `coming_soon.build_eyebrow` | Mutfakta neler var? |
 | `coming_soon.build_title` | ManiCepte'yi geliştiriyoruz. |
-| `coming_soon.build_body` | Ürünü adım adım inşa ediyoruz. Şu an üzerinde çalıştıklarımız: |
+| `coming_soon.build_body` | Şu an üzerinde çalıştığımız temel parçalar: |
 | `coming_soon.build_status_done` | Tamamlandı |
 | `coming_soon.build_status_in_progress` | Geliştiriliyor |
-| `coming_soon.build_item_early_access` | Erken erişim sistemi |
-| `coming_soon.build_item_search` | Arama deneyimi |
-| `coming_soon.build_item_discovery` | Ürün keşfi ve karşılaştırma |
-| `coming_soon.build_item_data` | Mağaza ve fiyat altyapısı |
-| `coming_soon.build_updated` | Son güncelleme: {ay} |
+| `coming_soon.build_item_early_access` | Erken erişim kayıtları açık. |
+| `coming_soon.build_item_search` | Ürün bulma ve karşılaştırma deneyimini geliştiriyoruz. |
+| `coming_soon.build_item_data` | Mağaza ve ürün kaynaklarını genişletiyoruz. |
 | `coming_soon.follow_title` | Gelişmeleri takip et |
+| `coming_soon.social_eyebrow` | ManiCepte günlüğü |
+| `coming_soon.social_title` | Gelişmeleri birlikte takip edelim. |
+| `coming_soon.social_body` | Yeni özellikleri, erken erişim davetlerini ve geliştirme notlarını resmi hesaplarımızda paylaşacağız. |
 | `coming_soon.faq_eyebrow` | Aklına takılanlar |
 | `coming_soon.faq_title` | Tanışmışken. |
 | `coming_soon.questions.0.question` | ManiCepte'yi hemen kullanabilir miyim? |

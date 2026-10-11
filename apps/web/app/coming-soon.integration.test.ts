@@ -253,13 +253,14 @@ describe("landing içeriği", () => {
     const html = await landingMarkup();
     expect(html).toContain("ManiCepte yakında.");
     expect(html).toContain("Erken Erişim");
-    expect(html).toContain("Alışverişe bir de birlikte bakalım.");
+    expect(html).toContain("Tarif et, fotoğrafını göster veya linkini bırak.");
     expect(html).toContain(`href="${EARLY_ACCESS_LOGIN_PATH}"`);
     expect(html).toContain('href="#nasil-calisacak"');
     expect(html).toContain('id="nasil-calisacak"');
-    expect(html).toContain("Aklındakini anlat. Oradan başlayalım.");
+    expect(html).toContain("ManiCepte nasıl çalışır?");
+    expect(html).toContain("Temsili önizleme");
     expect(html).toContain("ManiCepte&#x27;yi geliştiriyoruz.");
-    expect(html).toContain("Son güncelleme: Eylül 2026");
+    expect(html).toContain("Erken erişim kayıtları açık.");
     expect(html).not.toMatch(PRODUCT_HREF);
     expect(html).not.toContain("<form");
     expect(html).not.toMatch(/<input[^>]+type="(?:text|search|email)"/);
@@ -272,9 +273,14 @@ describe("landing içeriği", () => {
     expect(text).not.toMatch(/satın al|dupe|ucuz|\d\s?%|%\s?\d|\bTL\b|₺/i);
   });
 
-  it("yalnızca tanımlı resmi hesap gösterilir: Instagram var, TikTok ve LinkedIn yok", async () => {
+  it("yalnızca tanımlı resmi hesaplar gösterilir: Instagram ve X var, TikTok ve LinkedIn yok", async () => {
     const html = await landingMarkup();
     expect(html).toContain('href="https://www.instagram.com/manicepte.tr"');
+    expect(html).toContain('href="https://x.com/ManiCeptetr"');
+    expect(html).toContain("ManiCepte günlüğü");
+    expect(html).toContain("Gelişmeleri birlikte takip edelim.");
+    expect(html.match(/href="https:\/\/www\.instagram\.com\/manicepte\.tr"/g)).toHaveLength(1);
+    expect(html.match(/href="https:\/\/x\.com\/ManiCeptetr"/g)).toHaveLength(1);
     expect(html).not.toMatch(/tiktok|linkedin/i);
     expect(html).not.toMatch(/utm_|stkn/);
   });
@@ -578,16 +584,19 @@ describe("SEO", () => {
 describe("yapılandırma yardımcıları", () => {
   it("sosyal bağlantılar: yalnızca tanımlı ve https olanlar, sabit sırayla", async () => {
     const { configuredSocialLinks, SOCIAL_PROFILES } = await import("./site-config.ts");
-    // Bugün yalnızca Instagram tanımlı (takip parametresiz, https).
+    // Bugün Instagram ve X tanımlı (takip parametresiz, https).
     expect(SOCIAL_PROFILES.instagram).toBe("https://www.instagram.com/manicepte.tr");
+    expect(SOCIAL_PROFILES.x).toBe("https://x.com/ManiCeptetr");
     expect(SOCIAL_PROFILES.tiktok).toBeNull();
     expect(SOCIAL_PROFILES.linkedin).toBeNull();
     expect(configuredSocialLinks()).toEqual([
       { network: "instagram", label: "Instagram", href: "https://www.instagram.com/manicepte.tr" },
+      { network: "x", label: "X", href: "https://x.com/ManiCeptetr" },
     ]);
     expect(
       configuredSocialLinks({
         instagram: "http://instagram.example/x",
+        x: " ",
         tiktok: " ",
         linkedin: "https://linkedin.example/company/x",
       }),

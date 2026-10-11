@@ -14,12 +14,27 @@ describe("prelaunch mascot story", () => {
     const html = renderToStaticMarkup(createElement(ComingSoonLanding, { signedIn: false }));
     expect(html).toContain(`href="${EARLY_ACCESS_LOGIN_PATH}"`);
     expect(html.match(/<h1\b/g)).toHaveLength(1);
-    expect(html.match(/data-mascot-stop=""/g)).toHaveLength(3);
+    expect(html.match(/data-mascot-guide=""/g)).toHaveLength(2);
+    expect(html).toContain("robot-welcome.png");
+    expect(html).toContain("robot-social-point-v2.png");
+    expect(html).toContain("Tarif et");
+    expect(html).toContain("Fotoğraf göster");
+    expect(html).toContain("Link bırak");
+    expect(html).toContain("Temsili önizleme");
+    expect(html).toContain(
+      "Aşağıdaki örnek deneyimde ManiCepte’nin nasıl çalıştığını adım adım görebilirsin.",
+    );
+    expect(html).toContain("En iyi fiyat-kalite dengesi");
+    expect(html).toContain("ManiCepte ürün araştırma akışı");
+    expect(html).toContain("Şu an erken erişimdeyiz, ManiCepte’yi geliştirmeye devam ediyoruz.");
+    expect(html).toContain("Bilgilerin yalnızca erişim listesi için kullanılır.");
     expect(html).toContain("Henüz kullanıma açık değil");
     expect(html).toContain('href="#nasil-calisacak"');
     expect(html).toContain('id="nasil-calisacak"');
     expect(html.match(/<details\b/g)).toHaveLength(3);
-    expect(html).not.toMatch(/<video|<form|hero-intro\.mp4|robot-wave|robot-body/);
+    expect(html).not.toMatch(
+      /<video|<form|hero-intro\.mp4|robot-idle|robot-wave|robot-body|data-mascot-stop|data-welcoming/,
+    );
   });
 
   it("takes enrolled visitors to their status without offering to enroll again", () => {
@@ -41,7 +56,8 @@ describe("prelaunch mascot story", () => {
     const hero = html.slice(html.indexOf("<section"), html.indexOf("</section>"));
     expect(hero).toContain('role="progressbar"');
     expect(hero).toContain('data-prominent="true"');
-    expect(hero).toContain("Hedefimiz 5.000 kişiyle açılışa başlamak.");
+    expect(hero).toContain("İlk 5.000 kişiden biri ol.");
+    expect(hero).toContain("gerçek kayıtlarla güncelleniyor");
     expect(html.match(/role="progressbar"/g)).toHaveLength(1);
     const withoutProgress = renderToStaticMarkup(
       createElement(ComingSoonLanding, { signedIn: false }),
@@ -56,6 +72,6 @@ describe("prelaunch mascot story", () => {
         progress: { count: 0, target: 10000, percent: 0 },
       }),
     );
-    expect(html).toContain("Hedefimiz 10.000 kişiyle açılışa başlamak.");
+    expect(html).toContain("İlk 10.000 kişiden biri ol.");
   });
 });
