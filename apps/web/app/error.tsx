@@ -1,7 +1,9 @@
 "use client";
 
+import { describeError } from "@arilla/core/errors";
 import { Button, Container, SkipLink } from "@arilla/ui";
 import { useEffect } from "react";
+import { ERROR_VIEW_COPY, publicErrorFromBoundary } from "./error-view.tsx";
 import { HOME_COPY } from "./home-copy.ts";
 import actions from "./public-actions.module.css";
 import styles from "./system-state.module.css";
@@ -34,6 +36,11 @@ export default function RootError({
     console.error(error);
   }, [error]);
 
+  const info = describeError(publicErrorFromBoundary(error));
+  // Neden bilinmiyorsa genel metin; biliniyorsa doğrulanmış açıklama (karar 0104).
+  const known = info.code !== "unknown";
+  const reloads = info.action === "reload";
+
   return (
     <div className={styles.bareShell}>
       <SkipLink targetId={MAIN_ID}>{HOME_COPY.skipToContent}</SkipLink>
@@ -48,12 +55,21 @@ export default function RootError({
         <Container size="wide">
           <div className={styles.page}>
             <div className={styles.text}>
-              <h1 className={styles.title}>{ERROR_COPY.title}</h1>
-              <p className={styles.body}>{ERROR_COPY.body}</p>
+              <h1 className={styles.title}>{known ? info.title : ERROR_COPY.title}</h1>
+              <p className={styles.body}>{known ? info.message : ERROR_COPY.body}</p>
+              {info.reference ? (
+                <p className={styles.body}>
+                  {ERROR_VIEW_COPY.referenceLabel} {info.reference}
+                </p>
+              ) : null}
             </div>
             <div className={actions.actions}>
-              <Button variant="accent" shape="pill" onClick={() => retry()}>
-                {ERROR_COPY.retry}
+              <Button
+                variant="accent"
+                shape="pill"
+                onClick={() => (reloads ? window.location.reload() : retry())}
+              >
+                {reloads ? ERROR_VIEW_COPY.reload : ERROR_COPY.retry}
               </Button>
               <a href="/" className={actions.secondary}>
                 {ERROR_COPY.homeAction}

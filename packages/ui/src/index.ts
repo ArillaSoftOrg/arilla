@@ -21,6 +21,7 @@ export * from "./composer-submit.ts";
 export * from "./DiscoveryCard.tsx";
 export * from "./DiscoveryGrid.tsx";
 export * from "./EmptyState.tsx";
+export * from "./ErrorNotice.tsx";
 export * from "./FallbackImage.tsx";
 export * from "./format.ts";
 export * from "./HomeHeader.tsx";

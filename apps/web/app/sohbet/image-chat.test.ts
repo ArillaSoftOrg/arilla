@@ -264,16 +264,28 @@ describe("sendMessageAction: sohbet içinden görsel aynı konuşmaya eklenir", 
     }
   });
 
-  it("görselli gönderimde veritabanı hatası sabit koddur; metin yolu hatayı eskisi gibi iletir", async () => {
+  it("veritabanı hatası (görselli ve metin) sabit kod + referans döner; ayrıntı sızmaz", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.submitUserMessage.mockRejectedValueOnce(new Error("secret detail"));
-    expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "error" });
-    mocks.submitUserMessage.mockRejectedValueOnce(new Error("boom"));
-    await expect(sendMessageAction(ID, TEXT, KEY)).rejects.toThrow("boom");
+    const withPhoto = await sendMessageAction(ID, TEXT, KEY, photo());
+    mocks.submitUserMessage.mockRejectedValueOnce(
+      new Error("(EMAXCONNSESSION) max clients reached"),
+    );
+    const textOnly = await sendMessageAction(ID, TEXT, KEY);
+    spy.mockRestore();
+    expect(withPhoto).toMatchObject({ status: "error", error: { code: "unknown" } });
+    expect(JSON.stringify(withPhoto)).not.toContain("secret");
+    // Metin yolu artık firlatmaz: istemci gercek nedeni (kapasite) gosterir, "ag hatasi" demez.
+    expect(textOnly).toMatchObject({ status: "error", error: { code: "db_capacity" } });
+    expect(textOnly.error?.reference).toMatch(/^ARL-/);
   });
 
-  it("oturum yok ya da sohbet kapalı: hiçbir şey işlenmez", async () => {
+  it("oturum yok: session_expired (girdi korunur); sohbet kapalı: hiçbir şey işlenmez", async () => {
     mocks.verifySession.mockResolvedValueOnce(null);
-    expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "unavailable" });
+    expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({
+      status: "session_expired",
+      error: { code: "session_expired" },
+    });
     mocks.enabled.mockReturnValueOnce(false);
     expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "unavailable" });
     expect(mocks.prepareChatImage).not.toHaveBeenCalled();

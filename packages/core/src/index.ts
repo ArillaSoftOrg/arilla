@@ -23,6 +23,7 @@ export * from "./data-intelligence/index.ts";
 export * from "./discovery/index.ts";
 export * from "./discovery-feed/index.ts";
 export * from "./email/index.ts";
+export * from "./errors/index.ts";
 export * from "./embedding/index.ts";
 export * from "./entitlement/index.ts";
 export * from "./feedback/index.ts";

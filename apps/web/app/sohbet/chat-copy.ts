@@ -238,6 +238,9 @@ export function errorKindForStatus(status: string): ChatErrorKind | null {
     case "unavailable":
     case "not_found":
       return status;
+    // Oturum bitti: ayrinti `PublicError` ile gelir, eski metin yedektir.
+    case "session_expired":
+      return "unavailable";
     case "error":
       return "send_failed";
     default:

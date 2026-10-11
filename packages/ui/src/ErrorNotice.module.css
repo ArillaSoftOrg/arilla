@@ -1,0 +1,48 @@
+/* Sakin hata notu: kenar cizgisi ile ayrisir, alarm rengi yok (SearchConversationNotice ile ayni dil). */
+.notice {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-inline-start-width: calc(var(--border-width) * 4);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+}
+
+.title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.message {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+  overflow-wrap: anywhere;
+}
+
+.reference {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+}
+
+.referenceCode {
+  font-variant-numeric: tabular-nums;
+  user-select: all;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
