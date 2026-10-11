@@ -27,6 +27,12 @@ export interface WebProductGroup {
   offers: WebOffer[];
   /** Dogrulanmis en dusuk fiyat, kurus; yoksa `null`. */
   minVerifiedPriceKurus: number | null;
+  /**
+   * Yalnizca TAM eslesmede ve ayni urun katalogda varsa katalogdaki (kendi
+   * feed'imizden gelen, hakki bizde olan) gorsel. Internet sayfasindan gorsel
+   * ALINMAZ (karar 0102). `null` = gorsel yok, kart notr yedek kutuyu kullanir.
+   */
+  imageUrl?: string | null;
 }
 
 export type WebSearchStatus =
@@ -42,7 +48,11 @@ export type WebSearchStatus =
 export interface WebSearchOutcome {
   status: WebSearchStatus;
   groups: WebProductGroup[];
-  cached: boolean;
+  /**
+   * Google Search Suggestions HTML'i. `status === "ok"` iken HER ZAMAN dolu:
+   * grounding sonuclari onlarsiz gosterilemez (Google kosullari).
+   */
+  searchSuggestionsHtml: string | null;
 }
 
 export interface WebSearchFeatures {
@@ -55,5 +65,5 @@ export interface WebSearchFeatures {
 }
 
 export function emptyWebOutcome(status: WebSearchStatus): WebSearchOutcome {
-  return { status, groups: [], cached: false };
+  return { status, groups: [], searchSuggestionsHtml: null };
 }

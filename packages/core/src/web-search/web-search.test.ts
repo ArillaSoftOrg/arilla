@@ -6,7 +6,12 @@ import {
   parseGroundedPayload,
   resolveCitationUrls,
 } from "./grounding-client.ts";
-import { classifyCandidate, dropCatalogDuplicates, mergeWebCandidates } from "./merge.ts";
+import {
+  attachCatalogImages,
+  classifyCandidate,
+  dropCatalogDuplicates,
+  mergeWebCandidates,
+} from "./merge.ts";
 import {
   buildGroundingEvidence,
   extractJsonObject,
@@ -443,6 +448,7 @@ describe("searchWeb", () => {
     text: model(results),
     citations: [{ url, title: "a.com.tr" }],
     searchQueries: ["q"],
+    searchSuggestionsHtml: '<div class="container">Google</div>',
     retrieved: [{ url, ok: true }],
     usage: { inputTokens: 100, outputTokens: 50, thoughtTokens: 0, totalTokens: 150 },
     modelVersion: "gemini-3.5-flash-lite",
@@ -481,12 +487,6 @@ describe("searchWeb", () => {
         },
       },
       fetch: (async () => new Response(null, { status: 500 })) as unknown as typeof fetch,
-      cache: {
-        get: async (k) => store.get(k) ?? null,
-        set: async (k, v) => {
-          store.set(k, v);
-        },
-      },
       limiter: { allow: async () => true },
       flight: { acquire: async () => true, release: async () => undefined },
       budget: {
@@ -501,7 +501,6 @@ describe("searchWeb", () => {
           settled.push(attempts);
         },
       },
-      sleep: async () => undefined,
       ...over,
     };
   }
@@ -520,8 +519,8 @@ describe("searchWeb", () => {
   const text = { kind: "text", text: "sony wh-1000xm5 siyah" } as const;
 
   it("bayrak kapaliyken model cagrilmaz, durum degismez", async () => {
-    const out = await searchWeb(db, text, actor, { env: {}, cache: makeDeps().cache });
-    expect(out).toEqual({ status: "disabled", groups: [], cached: false });
+    const out = await searchWeb(db, text, actor, { env: {} });
+    expect(out).toEqual({ status: "disabled", groups: [], searchSuggestionsHtml: null });
     expect(searches).toBe(0);
   });
 
@@ -533,24 +532,31 @@ describe("searchWeb", () => {
     expect(out.groups[0]?.offers[0]).toMatchObject({ priceKurus: 999990, priceStatus: "verified" });
     expect(searches).toBe(1);
     expect(settled).toEqual([1]);
-    expect(store.size).toBe(1);
+    expect(out.searchSuggestionsHtml).toContain("Google");
     expect(inserted).toHaveLength(1);
+    // Token satiri + ayri grounding sorgu satiri (units = benzersiz sorgu sayisi).
+    expect(inserted[0]).toHaveLength(2);
     expect(inserted[0]?.[0]).toMatchObject({ operation: "web_search_grounded", userId: 7 });
+    expect(inserted[0]?.[1]).toMatchObject({ operation: "web_search_grounding_queries", units: 1 });
   });
 
-  it("ikinci ayni sorgu onbellekten gelir; model ve butce kullanilmaz", async () => {
+  it("sonuclar onbelleklenmez: ayni sorgu her seferinde yeni (butceli) arama", async () => {
     const deps = makeDeps();
     await searchWeb(db, text, actor, deps);
-    const again = await searchWeb(
+    await searchWeb(db, text, actor, deps);
+    expect(searches).toBe(2);
+    expect(reserved).toBe(2);
+  });
+
+  it("Search Suggestions yoksa grounding sonuclari gosterilmez (Google sarti)", async () => {
+    const out = await searchWeb(
       db,
-      { kind: "text", text: "SONY  WH-1000XM5 siyah" },
+      text,
       actor,
-      deps,
+      makeDeps({ result: () => response([item()], { searchSuggestionsHtml: null }) }),
     );
-    expect(again.cached).toBe(true);
-    expect(again.status).toBe("ok");
-    expect(searches).toBe(1);
-    expect(reserved).toBe(1);
+    expect(out.status).toBe("empty");
+    expect(out.groups).toEqual([]);
   });
 
   it("fiyat belirsiz: sayfa okunamadiysa teklif fiyatsiz doner", async () => {
@@ -582,7 +588,6 @@ describe("searchWeb", () => {
     const out = await searchWeb(db, text, actor, deps);
     expect(out.status).toBe("error");
     expect(settled).toEqual([1]);
-    expect(store.size).toBe(0);
     expect(inserted).toHaveLength(1);
   });
 
@@ -637,18 +642,18 @@ describe("searchWeb", () => {
     expect(searches).toBe(0);
   });
 
-  it("onbellek (Redis) okunamazsa model cagrilmaz", async () => {
+  it("kilit (Redis) okunamazsa model cagrilmaz", async () => {
     const { RedisUnavailableError } = await import("../redis/client.ts");
     const out = await searchWeb(
       db,
       text,
       actor,
       makeDeps({
-        cache: {
-          get: async () => {
-            throw new RedisUnavailableError("onbellek");
+        flight: {
+          acquire: async () => {
+            throw new RedisUnavailableError("kilit");
           },
-          set: async () => undefined,
+          release: async () => undefined,
         },
       }),
     );
@@ -656,36 +661,15 @@ describe("searchWeb", () => {
     expect(searches).toBe(0);
   });
 
-  it("eszamanli ayni sorgu: kilidi alamayan model cagirmaz, sonucu onbellekten alir", async () => {
-    const deps = makeDeps({
-      flight: { acquire: async () => false, release: async () => undefined },
-    });
-    let polls = 0;
-    deps.cache = {
-      get: async () => {
-        polls++;
-        return polls >= 3
-          ? JSON.stringify([
-              {
-                key: "k",
-                title: "t",
-                brand: null,
-                matchKind: "exact",
-                offers: [],
-                minVerifiedPriceKurus: null,
-              },
-            ])
-          : null;
-      },
-      set: async () => undefined,
-    };
-    const out = await searchWeb(db, text, actor, deps);
-    expect(out.cached).toBe(true);
-    expect(searches).toBe(0);
-    const busy = await searchWeb(db, text, actor, {
-      ...makeDeps({ flight: { acquire: async () => false, release: async () => undefined } }),
-    });
+  it("ayni kisi ayni sorguyu eszamanli baslatirsa ikinci cagri yapilmaz", async () => {
+    const busy = await searchWeb(
+      db,
+      text,
+      actor,
+      makeDeps({ flight: { acquire: async () => false, release: async () => undefined } }),
+    );
     expect(busy.status).toBe("busy");
+    expect(searches).toBe(0);
   });
 
   it("kisisel veri iceren sorgu saglayiciya gitmez", async () => {
@@ -728,5 +712,68 @@ describe("searchWeb", () => {
     } as never;
     const out = await searchWeb(failingDb, text, actor, makeDeps());
     expect(out.status).toBe("ok");
+  });
+});
+
+describe("parseGroundedPayload: search_suggestions", () => {
+  const base = (result: unknown) => ({
+    status: "completed",
+    steps: [
+      { type: "google_search_result", call_id: "1", result },
+      { type: "model_output", content: [{ type: "text", text: "{}" }] },
+    ],
+  });
+  it("Google'in HTML parcasini degistirmeden okur", () => {
+    const html = '<div class="container"><a href="https://google.com/search?q=x">x</a></div>';
+    expect(parseGroundedPayload(base({ search_suggestions: html })).searchSuggestionsHtml).toBe(
+      html,
+    );
+    expect(parseGroundedPayload(base([{ search_suggestions: html }])).searchSuggestionsHtml).toBe(
+      html,
+    );
+  });
+  it("yoksa ya da asiri buyukse null", () => {
+    expect(parseGroundedPayload(base({})).searchSuggestionsHtml).toBeNull();
+    expect(
+      parseGroundedPayload(base({ search_suggestions: "x".repeat(30_000) })).searchSuggestionsHtml,
+    ).toBeNull();
+  });
+});
+
+describe("attachCatalogImages", () => {
+  const group = (over: Partial<WebProductGroup>): WebProductGroup => ({
+    key: "k",
+    title: "Sony WH-1000XM5 Siyah Kulaklik",
+    brand: "Sony",
+    matchKind: "exact",
+    offers: [],
+    minVerifiedPriceKurus: null,
+    ...over,
+  });
+  const catalog = [
+    { title: "Sony WH-1000XM5 Kulaklik Siyah", imageUrl: "https://cdn.ornek.com/a.jpg" },
+    { title: "Baska urun", imageUrl: "https://cdn.ornek.com/b.jpg" },
+  ];
+  it("tam eslesmeye katalogdaki ayni urunun gorselini verir", () => {
+    expect(attachCatalogImages([group({})], catalog)[0]?.imageUrl).toBe(
+      "https://cdn.ornek.com/a.jpg",
+    );
+  });
+  it("benzer alternatife, varyanti celisene ve eslesmeyene gorsel vermez", () => {
+    expect(attachCatalogImages([group({ matchKind: "similar" })], catalog)[0]?.imageUrl).toBeNull();
+    expect(
+      attachCatalogImages([group({ title: "Sony WH-1000XM5 Beyaz Kulaklik" })], catalog)[0]
+        ?.imageUrl,
+    ).toBeNull();
+    expect(
+      attachCatalogImages([group({ title: "Dyson V15 Supurge", brand: "Dyson" })], catalog)[0]
+        ?.imageUrl,
+    ).toBeNull();
+  });
+  it("katalog gorseli yoksa null (guvenli yedek)", () => {
+    expect(
+      attachCatalogImages([group({})], [{ title: catalog[0]?.title ?? "", imageUrl: null }])[0]
+        ?.imageUrl,
+    ).toBeNull();
   });
 });

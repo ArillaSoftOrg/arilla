@@ -284,8 +284,10 @@ export async function TextSearchResults({
         <Suspense fallback={<WebSearchPending />}>
           <WebSearchResults
             promise={webSearch}
-            catalogTitles={items.map((item) => item.title)}
-            surface="search"
+            catalog={items.map((item) => ({
+              title: item.title,
+              imageUrl: item.primaryImageUrl,
+            }))}
           />
         </Suspense>
       ) : null}

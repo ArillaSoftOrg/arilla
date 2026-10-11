@@ -342,3 +342,12 @@
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
+
+/* Google Search Suggestions (karar 0102): sandbox iframe, degistirilmeden. */
+.suggestions {
+  display: block;
+  width: 100%;
+  height: 6rem;
+  border: 0;
+  background: transparent;
+}

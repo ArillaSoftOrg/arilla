@@ -307,7 +307,7 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   {
     id: "affiliate_clicks",
     label: "Mağaza çıkışı (attribution)",
-    tables: ["click", "web_exit_click", "creator_affiliate_account"],
+    tables: ["click", "creator_affiliate_account"],
     status: "visible",
     adminPaths: ["/yonetim/affiliate"],
     gaps: [{ signal: "Bot/şüpheli tıklama", status: "unmeasured" }],
@@ -433,7 +433,9 @@ export type AiPricing =
   /** `llm/pricing.ts` sürümlü kuralları + kur (karar 0082). */
   | "llm_rule"
   /** `EMBEDDING_COST_MICROS_PER_1K_TOKENS` (TS ve Python aynı kural). */
-  | "embedding_env";
+  | "embedding_env"
+  /** `llm/pricing.ts` `GROUNDING_PRICE_RULES` (sorgu basina) + kur (karar 0102). */
+  | "grounding_rule";
 
 export interface AiOperationCoverage {
   label: string;
@@ -460,11 +462,16 @@ export const AI_OPERATIONS: Readonly<Record<string, AiOperationCoverage>> = {
     writer: "core",
     pricing: "llm_rule",
   },
-  // Karar 0102: model için fiyat kuralı yoksa çağrılar "fiyatlanmamış" yazılır.
+  // Karar 0102: token ve grounding sorgusu AYRI satır; kur yoksa "fiyatlanmamış".
   web_search_grounded: {
-    label: "İnternet ürün araması (Gemini grounding)",
+    label: "İnternet ürün araması, token (Gemini)",
     writer: "core",
     pricing: "llm_rule",
+  },
+  web_search_grounding_queries: {
+    label: "İnternet ürün araması, Google arama sorgusu (grounding)",
+    writer: "core",
+    pricing: "grounding_rule",
   },
 };
 

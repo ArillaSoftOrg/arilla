@@ -258,8 +258,10 @@ export default async function LinkAramaPage({
         <Suspense fallback={<WebSearchPending />}>
           <WebSearchResults
             promise={webSearch}
-            catalogTitles={[...results.same, ...results.similar].map((item) => item.title)}
-            surface="link"
+            catalog={[...results.same, ...results.similar].map((item) => ({
+              title: item.title,
+              imageUrl: item.primaryImageUrl,
+            }))}
           />
         </Suspense>
       ) : null}

@@ -9,6 +9,9 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ProductImage, VisuallyHidden } from "@arilla/ui";
+import { Suspense } from "react";
+import { WebSearchPending, WebSearchResults } from "../ara/web-search-section.tsx";
+import { startWebSearch } from "../ara/web-search-start.ts";
 import { CHAT_LINK_COPY } from "./chat-copy.ts";
 import {
   droppedNote,
@@ -120,6 +123,14 @@ export async function ChatLinkResults({
     const sameId = `${headingId}-ayni`;
     const similarId = `${headingId}-benzer`;
     const sourceId = `${headingId}-kaynak`;
+    // Karar 0102: yalnızca çözümlenmiş ürünün başlığı/markası; yapıştırılan adres gitmez.
+    const webSearch = linkState.source.title
+      ? startWebSearch({
+          kind: "link",
+          title: linkState.source.title,
+          brand: linkState.source.brand,
+        })
+      : null;
     const emptyCopy = chatLinkFailureCopy("empty", { imageEnabled: isChatImageEnabled() });
 
     return (
@@ -164,6 +175,19 @@ export async function ChatLinkResults({
             </h4>
             <ChatResultGrid items={results.similar} labelledBy={similarId} />
           </>
+        ) : null}
+        {webSearch ? (
+          <Suspense fallback={<WebSearchPending variant="chat" />}>
+            <WebSearchResults
+              promise={webSearch}
+              variant="chat"
+              idPrefix={`${headingId}-internet`}
+              catalog={[...results.same, ...results.similar].map((item) => ({
+                title: item.title,
+                imageUrl: item.primaryImageUrl,
+              }))}
+            />
+          </Suspense>
         ) : null}
         {hasLinkResults(results) ? null : (
           <>

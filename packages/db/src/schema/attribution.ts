@@ -77,22 +77,3 @@ export const ingestRun = pgTable("ingest_run", {
   pricePointsWritten: integer("price_points_written").notNull().default(0),
   errorText: text("error_text"),
 });
-
-/**
- * Internet arama sonuclarindan magaza cikisi (karar 0102). Katalogda olmayan
- * sonuc icin `offer` satiri uydurulmaz; `click` ayri kalir. APPEND-ONLY.
- */
-export const webExitClick = pgTable("web_exit_click", {
-  id: uuid("id").primaryKey().defaultRandom(),
-  userId: bigint("user_id", { mode: "number" }),
-  sessionId: text("session_id").notNull(),
-  host: text("host").notNull(),
-  url: text("url").notNull(),
-  matchKind: text("match_kind").$type<"exact" | "similar">().notNull(),
-  /** Kurus; yalnizca fiyat dogrulandiysa dolu. */
-  priceAtClick: bigint("price_at_click", { mode: "number" }),
-  priceStatus: text("price_status").$type<"verified" | "unverified">().notNull(),
-  surface: text("surface").$type<"search" | "visual" | "link" | "chat">(),
-  resultPosition: smallint("result_position"),
-  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
-});

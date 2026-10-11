@@ -51,8 +51,6 @@ Modal metni kaydolmayı engel değil kazanç olarak sunar: "Hesabın yok mu?
 /sohbet/[id]              Konuşmalı keşif (karar 0074). Giriş gerekli, noindex; CHAT_DISCOVERY_ENABLED kapalıyken 404; CHAT_LINK_ENABLED ile mesajdaki ürün linki sohbette çözülür (karar 0090)
 /urun/<slug>               Ürün sayfası: karşılaştırma, fiyat geçmişi, alternatifler
 /git/<clickId>             Merchant'a çıkış. 302. Attribution burada yazılır.
-/git/web/<token>           İnternet arama sonucundan mağazaya çıkış (karar 0102). İmzalı token,
-                           `web_exit_click` kaydı, 302. Bayrak kapalıyken ve geçersiz token'da 404.
 ```
 
 Fiyat geçmişi ayrı sayfa değil, ürün sayfasının bir bölümüdür. Ayrı sayfa hem

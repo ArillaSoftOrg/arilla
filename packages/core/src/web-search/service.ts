@@ -1,21 +1,26 @@
 /**
  * Internet urun aramasi orkestrasyonu (docs/decisions/0102).
  *
- *   bayrak -> sorgu + metin suzgeci -> Redis onbellek -> tek ucus kilidi
- *   -> gunluk butce ayirma -> kisi limiti -> Gemini (grounding + URL Context,
- *   tek deneme) -> atif adreslerini coz -> dogrula -> birlestir -> onbellege yaz
+ *   bayrak -> sorgu + metin suzgeci -> tek ucus kilidi -> gunluk butce ayirma
+ *   -> kisi limiti -> Gemini (grounding + URL Context, tek deneme) -> atif
+ *   adreslerini coz -> dogrula -> birlestir -> Search Suggestions kontrolu
+ *
+ * Google "Grounding with Google Search" kosullari geregi sonuclar ONBELLEKLENMEZ,
+ * saklanmaz ve yalnizca istegi yapan kullaniciya, Search Suggestions ile birlikte
+ * gosterilir. Bu yuzden burada sonuc onbellegi yoktur; maliyeti kisi limiti,
+ * gunluk butce ve tek-ucus kilidi sinirlar. Kilit icerik tasimaz.
  *
  * ASLA firlatmaz: kapali bayrak, suzgec, limit, Redis/saglayici hatasi ya da
  * gecersiz cikti bir `WebSearchOutcome` durumuna donusur; cagiran veritabani
  * sonuclarini oldugu gibi gosterir. Log yalnizca sabit kod tasir; sorgu metni,
- * istem ya da ham yanit loglanmaz. Sonuclar KATALOGA YAZILMAZ: yalnizca
- * Redis onbellegi (<= 6 saat) ve `api_usage` maliyet kaydi.
+ * istem ya da ham yanit loglanmaz. Sonuclar KATALOGA YAZILMAZ; kalici tek iz
+ * `api_usage` maliyet kayitlaridir (token ve grounding sorgusu ayri satir).
  */
 import { createHash } from "node:crypto";
 import { apiUsage, type Database } from "@arilla/db";
 import { pseudonymize, SecretNotConfiguredError } from "../auth/token.ts";
 import { type LlmCall, LlmError } from "../llm/client.ts";
-import { llmCallCostMicros } from "../llm/pricing.ts";
+import { groundingCostMicros, llmCallCostMicros } from "../llm/pricing.ts";
 import {
   type ProviderBudgetHooks,
   type ProviderBudgetReservation,
@@ -27,10 +32,9 @@ import {
   isWebSearchEnabled,
   WEB_SEARCH_ACTOR_LIMITS,
   WEB_SEARCH_BUDGET_KEY,
-  WEB_SEARCH_CACHE_TTL_SECONDS,
   WEB_SEARCH_DAILY_CALL_CAP,
-  WEB_SEARCH_EMPTY_CACHE_TTL_SECONDS,
   WEB_SEARCH_FLIGHT_TTL_MS,
+  WEB_SEARCH_GROUNDING_OPERATION,
   WEB_SEARCH_MODEL,
   WEB_SEARCH_OPERATION,
 } from "./config.ts";
@@ -47,18 +51,13 @@ import {
   WEB_SEARCH_SYSTEM_INSTRUCTION,
   type WebQuerySource,
 } from "./query.ts";
-import { emptyWebOutcome, type WebProductGroup, type WebSearchOutcome } from "./types.ts";
+import { emptyWebOutcome, type WebSearchOutcome } from "./types.ts";
 
 type Env = Readonly<Record<string, string | undefined>>;
 
 export interface WebSearchActor {
   userId: number | null;
   ip: string | null;
-}
-
-export interface WebSearchCache {
-  get(key: string): Promise<string | null>;
-  set(key: string, value: string, ttlSeconds: number): Promise<void>;
 }
 
 export interface WebSearchLimiter {
@@ -76,23 +75,12 @@ export interface WebSearchDeps {
   /** Testler icin; verilirse bayrak kontrolu atlanir (realtime-interpretation ile ayni desen). */
   client?: WebGroundingClient | null;
   fetch?: typeof fetch;
-  cache?: WebSearchCache;
   limiter?: WebSearchLimiter;
   flight?: WebSearchFlight;
   budget?: ProviderBudgetHooks;
   now?: () => Date;
   dailyCallCap?: number;
-  sleep?: (ms: number) => Promise<void>;
 }
-
-const redisCache: WebSearchCache = {
-  async get(key) {
-    return getRedis().get(key);
-  },
-  async set(key, value, ttlSeconds) {
-    await getRedis().set(key, value, "EX", ttlSeconds);
-  },
-};
 
 const redisFlight: WebSearchFlight = {
   async acquire(key, ttlMs) {
@@ -140,22 +128,9 @@ function logFailure(stage: string, error: unknown): void {
   );
 }
 
-function cacheKey(query: string): string {
-  return `websearch:v1:${createHash("sha256").update(query).digest("hex").slice(0, 40)}`;
-}
-
-function readCached(raw: string | null): WebProductGroup[] | null {
-  if (raw === null) return null;
-  try {
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed) ? (parsed as WebProductGroup[]) : null;
-  } catch {
-    return null;
-  }
-}
-
-function outcomeFromGroups(groups: WebProductGroup[], cached: boolean): WebSearchOutcome {
-  return { status: groups.length > 0 ? "ok" : "empty", groups, cached };
+/** Ayni sorgunun ayni anda ikinci kez odenmesini onleyen kilit anahtari (icerik yok). */
+function flightKey(query: string, subject: string): string {
+  return createHash("sha256").update(`${subject}\n${query}`).digest("hex").slice(0, 40);
 }
 
 export async function searchWeb(
@@ -170,6 +145,11 @@ export async function searchWeb(
     logFailure("unexpected", error);
     return emptyWebOutcome("error");
   }
+}
+
+/** Modelin YURUTTUGU benzersiz, bos olmayan arama sorgusu sayisi (grounding faturasi). */
+export function countGroundingQueries(queries: readonly string[]): number {
+  return new Set(queries.map((q) => q.trim().toLowerCase()).filter((q) => q.length > 0)).size;
 }
 
 async function run(
@@ -200,43 +180,22 @@ async function run(
   }
   if (client === null) return emptyWebOutcome("disabled");
 
-  const cache = deps.cache ?? redisCache;
   const flight = deps.flight ?? redisFlight;
-  const key = cacheKey(query);
   const now = deps.now ?? (() => new Date());
-  const sleep = deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+  const subject = webSearchActorSubject(actor);
+  const key = flightKey(query, subject);
 
   let flightHeld = false;
   try {
-    // Onbellek: ayni sorgu icin ikinci odeme yok. Redis yoksa model cagrilmaz (maliyet kapali).
-    try {
-      const hit = readCached(await cache.get(key));
-      if (hit !== null) return outcomeFromGroups(hit, true);
-    } catch (error) {
-      if (!isRedisUnavailableError(error)) throw error;
-      logFailure("cache read", error);
-      return emptyWebOutcome("unavailable");
-    }
-
     try {
       flightHeld = await flight.acquire(key, WEB_SEARCH_FLIGHT_TTL_MS);
     } catch (error) {
+      // Redis okunamazsa model cagrilmaz (maliyet kapali).
       if (!isRedisUnavailableError(error)) throw error;
       return emptyWebOutcome("unavailable");
     }
-    if (!flightHeld) {
-      // Ayni sorgu baska istekte araniyor: sonucu kisa sure bekle, ikinci cagri yok.
-      for (let i = 0; i < 4; i++) {
-        await sleep(1_500);
-        try {
-          const hit = readCached(await cache.get(key));
-          if (hit !== null) return outcomeFromGroups(hit, true);
-        } catch {
-          break;
-        }
-      }
-      return emptyWebOutcome("busy");
-    }
+    // Ayni kisi ayni sorguyu ayni anda ikinci kez baslatti (yenileme, cift sekme).
+    if (!flightHeld) return emptyWebOutcome("busy");
 
     const cap = Math.min(
       Math.max(0, deps.dailyCallCap ?? WEB_SEARCH_DAILY_CALL_CAP),
@@ -260,13 +219,11 @@ async function run(
 
     let attempts: number | null = 0;
     const calls: LlmCall[] = [];
+    let groundingQueries = 0;
     let outcome: WebSearchOutcome = emptyWebOutcome("error");
     try {
       try {
-        const allowed = await (deps.limiter ?? redisLimiter).allow(
-          webSearchActorSubject(actor),
-          now(),
-        );
+        const allowed = await (deps.limiter ?? redisLimiter).allow(subject, now());
         if (!allowed) return emptyWebOutcome("limited");
       } catch (error) {
         // Limit dogrulanamazsa model cagrilmaz (fail-closed).
@@ -292,19 +249,21 @@ async function run(
       attempts = calls.length;
 
       if (grounded !== null) {
+        groundingQueries = countGroundingQueries(grounded.searchQueries);
         const citationUrls = await resolveCitationUrls(grounded.citations, deps.fetch ?? fetch);
         const evidence = buildGroundingEvidence(citationUrls, grounded.retrieved);
         const { candidates } = parseAndVerifyCandidates(grounded.text, evidence);
         const groups = mergeWebCandidates({ candidates, query, features });
-        outcome = outcomeFromGroups(groups, false);
-        try {
-          await cache.set(
-            key,
-            JSON.stringify(groups),
-            groups.length > 0 ? WEB_SEARCH_CACHE_TTL_SECONDS : WEB_SEARCH_EMPTY_CACHE_TTL_SECONDS,
-          );
-        } catch (error) {
-          logFailure("cache write", error);
+        if (groups.length > 0 && grounded.searchSuggestionsHtml === null) {
+          // Google kosulu: grounding sonuclari Search Suggestions olmadan gosterilmez.
+          console.warn("[web-search] search suggestions missing; results withheld");
+          outcome = emptyWebOutcome("empty");
+        } else {
+          outcome = {
+            status: groups.length > 0 ? "ok" : "empty",
+            groups,
+            searchSuggestionsHtml: groups.length > 0 ? grounded.searchSuggestionsHtml : null,
+          };
         }
       }
     } finally {
@@ -317,20 +276,32 @@ async function run(
 
     // Kural 9: ucret olustu; gecici DB hatasi izi kaybettirmesin, bir kez daha dener.
     if (calls.length > 0) {
+      const at = now();
+      const rows = calls.map((call) => ({
+        sessionId: null,
+        userId: actor.userId,
+        operation: WEB_SEARCH_OPERATION,
+        modelVersion: call.modelVersion || WEB_SEARCH_MODEL,
+        units: call.usage?.totalTokens ?? 0,
+        // Karar 0102: token ucreti (kural yoksa/kur yoksa "fiyatlanmamis" = 0).
+        costMicros: llmCallCostMicros(call, at),
+        cacheHit: false,
+      }));
+      if (groundingQueries > 0) {
+        // Grounding sorgu ucreti token ucretinden AYRI satir: units = sorgu sayisi.
+        rows.push({
+          sessionId: null,
+          userId: actor.userId,
+          operation: WEB_SEARCH_GROUNDING_OPERATION,
+          modelVersion: WEB_SEARCH_MODEL,
+          units: groundingQueries,
+          costMicros: groundingCostMicros(groundingQueries, at),
+          cacheHit: false,
+        });
+      }
       for (let attempt = 1; attempt <= 2; attempt++) {
         try {
-          await db.insert(apiUsage).values(
-            calls.map((call) => ({
-              sessionId: null,
-              userId: actor.userId,
-              operation: WEB_SEARCH_OPERATION,
-              modelVersion: call.modelVersion || WEB_SEARCH_MODEL,
-              units: call.usage?.totalTokens ?? 0,
-              // Karar 0082/0102: fiyat kurali yoksa "fiyatlanmamis" (0); uydurma tutar yok.
-              costMicros: llmCallCostMicros(call),
-              cacheHit: false,
-            })),
-          );
+          await db.insert(apiUsage).values(rows);
           break;
         } catch (error) {
           if (attempt === 2) logFailure("persist usage", error);

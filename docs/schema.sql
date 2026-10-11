@@ -1695,25 +1695,3 @@ REVOKE UPDATE, DELETE, TRUNCATE ON ai_eval_run      FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON ai_eval_case     FROM arilla_app;
 REVOKE UPDATE, TRUNCATE          ON ai_error_event  FROM arilla_app;
 
--- ---------------------------------------------------------------------------
--- INTERNET ARAMASI CIKIS DEFTERI — 0063 (docs/decisions/0102)
--- Katalogda olmayan (offer satiri uydurulmayan) internet sonuclarindan magaza
--- cikislari. APPEND-ONLY. `click` ve donusum akisi degismez.
--- ---------------------------------------------------------------------------
-
-CREATE TABLE web_exit_click (
-    id             UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
-    user_id        BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
-    session_id     TEXT        NOT NULL,
-    host           TEXT        NOT NULL CHECK (char_length(host) BETWEEN 3 AND 253),
-    url            TEXT        NOT NULL CHECK (char_length(url) BETWEEN 10 AND 2048),
-    match_kind     TEXT        NOT NULL CHECK (match_kind IN ('exact', 'similar')),
-    price_at_click BIGINT      CHECK (price_at_click IS NULL OR price_at_click >= 0),
-    price_status   TEXT        NOT NULL CHECK (price_status IN ('verified', 'unverified')),
-    surface        TEXT        CHECK (surface IS NULL OR surface IN ('search', 'visual', 'link', 'chat')),
-    result_position SMALLINT   CHECK (result_position IS NULL OR result_position BETWEEN 1 AND 500),
-    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-CREATE INDEX web_exit_click_time_idx ON web_exit_click (created_at DESC);
-CREATE INDEX web_exit_click_host_idx ON web_exit_click (host, created_at DESC);
-CREATE INDEX web_exit_click_session_idx ON web_exit_click (session_id, created_at DESC);
