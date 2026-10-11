@@ -17,9 +17,17 @@ export type Database = ReturnType<typeof createDatabase>;
  * Serverless (Vercel) ortaminda her fonksiyon ornegi kendi havuzunu acar;
  * pg'nin varsayilan 10 baglantisi Supabase pooler istemci sinirini hizla
  * doldurur. Kucuk, ortamdan ayarlanabilir bir ust sinir ve bos baglantilarin
- * kapanmasi. SSL ayari baglanti adresinden gelir (ör. `sslmode`).
+ * hizla kapanmasi. SSL ayari baglanti adresinden gelir (ör. `sslmode`).
+ *
+ * Uretimde `DATABASE_URL` Supabase TRANSACTION pooler'ini (port 6543) gostermelidir:
+ * Session pooler (5432) her istemci baglantisina bir sunucu baglantisi ayirir ve
+ * kucuk `pool_size` (15) ile `EMAXCONNSESSION` uretir. Kod transaction moduyla
+ * uyumludur: adlandirilmis prepared statement, LISTEN ve oturum duzeyi advisory
+ * lock kullanilmaz (yalniz `pg_advisory_xact_lock`). Migration ve bakim betikleri
+ * `DATABASE_URL_OWNER` ile dogrudan/session baglantisini kullanir, bu havuzu degil.
  */
-const DEFAULT_POOL_MAX = 5;
+const DEFAULT_POOL_MAX = 3;
+const IDLE_TIMEOUT_MS = 5_000;
 
 function poolMaxFromEnv(): number {
   const raw = process.env.DATABASE_POOL_MAX;
@@ -38,7 +46,7 @@ export function createDatabase(connectionString: string) {
     new Pool({
       connectionString,
       max: poolMaxFromEnv(),
-      idleTimeoutMillis: 10_000,
+      idleTimeoutMillis: IDLE_TIMEOUT_MS,
       connectionTimeoutMillis: 10_000,
     }),
     { schema },
