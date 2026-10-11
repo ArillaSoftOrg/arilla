@@ -38,7 +38,7 @@ import { type AdminFinding, type Severity, sortFindings } from "./severity.ts";
 export const COST_SPIKE_FACTOR = 3;
 /** Bu kadar çağrının altında sapma aranmaz (küçük sayılarda gürültü). */
 export const COST_SPIKE_MIN_CALLS = 50;
-/** Link çözümleme kuyruğu (Redis) bu uzunluğu aşarsa işçi yetişmiyor. */
+/** Link çözümleme kuyruğu bu uzunluğu aşarsa işçi yetişmiyor. */
 export const LINK_QUEUE_WARN_DEPTH = 100;
 
 const OPS = "operations.read" as const;
@@ -669,9 +669,11 @@ export function linkQueueFinding(check: Check<number>, now: Date): AdminFinding 
       key: "ops.link_queue",
       severity: "unknown",
       title: "Link çözümleme kuyruğu okunamadı",
-      meaning: "Redis'e ulaşılamadı; link araması da büyük olasılıkla çalışmıyor.",
+      meaning:
+        "Kuyruğa ulaşılamadı (Redis ya da veritabanı); link araması da büyük olasılıkla çalışmıyor.",
       evidence: check.error,
-      action: "REDIS_URL'i ve Redis sağlayıcısının durumunu kontrol edin.",
+      action:
+        "LINK_QUEUE_BACKEND'e göre REDIS_URL'i/Redis durumunu ya da veritabanı bağlantısını kontrol edin.",
       href,
       capability: "diagnostics.read",
       evidenceAt: now,
@@ -689,7 +691,7 @@ export function linkQueueFinding(check: Check<number>, now: Date): AdminFinding 
       ? "İşçi yetişmiyor ya da çalışmıyor; kullanıcılar link aramasında bekliyor."
       : "Kuyruk normal.",
     action: over
-      ? "Link işçisinin (python -m collect.link --worker) çalıştığını doğrulayın."
+      ? "Link işçisinin çalıştığını doğrulayın (redis: python -m collect.link --worker; vercel: kuyruk abonesi fonksiyonunun günlükleri)."
       : "Bir şey gerekmiyor.",
     href,
     capability: "diagnostics.read",

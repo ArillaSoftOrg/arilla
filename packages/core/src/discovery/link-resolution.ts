@@ -17,11 +17,11 @@
  */
 import { type Database, linkResolutionRequest, offer, product } from "@arilla/db";
 import { and, desc, eq, gt, inArray, isNotNull, notInArray, or } from "drizzle-orm";
-import { getRedis, RedisUnavailableError } from "../redis/client.ts";
+import { type LinkQueueDeps, publishLinkResolution } from "./link-queue.ts";
 import { checkLinkSearchUrl } from "./link-search-input.ts";
 import { InvalidUrlError } from "./normalize-url.ts";
 
-export const LINK_RESOLUTION_QUEUE_KEY = "queue:link_resolution";
+export { LINK_RESOLUTION_QUEUE_KEY } from "./link-queue.ts";
 
 /** Çözülmüş bir link bu süre boyunca yeniden getirilmez. */
 export const RESOLVED_TTL_MS = 24 * 60 * 60 * 1000;
@@ -50,6 +50,8 @@ export interface EnqueueLinkResolutionOptions {
    */
   onRequestCreated?: (requestId: string) => Promise<void>;
   now?: Date;
+  /** Test için: kuyruk taşıma katmanını (Redis / Vercel Queues) değiştirir. */
+  queue?: LinkQueueDeps;
 }
 
 type RequestRow = typeof linkResolutionRequest.$inferSelect;
@@ -142,10 +144,12 @@ export async function enqueueLinkResolution(
   }
 
   try {
-    await getRedis().lpush(LINK_RESOLUTION_QUEUE_KEY, JSON.stringify({ request_id: created.id }));
+    // Taşıma katmanı `LINK_QUEUE_BACKEND` ile seçilir (karar 0107): redis | vercel.
+    await publishLinkResolution(created.id, options.queue);
   } catch (error) {
-    // Satır 'queued' kalırsa hiçbir worker onu almaz; 'failed' işaretlenir
-    // (best-effort) ve hata çağırana iletilir. Kod geçici sayılır: bir sonraki
+    // Satır 'queued' kalırsa hiçbir tüketici onu almaz; 'failed' işaretlenir
+    // (best-effort) ve hata çağırana iletilir (`LinkQueueUnavailableError`,
+    // `RedisUnavailableError` alt sınıfı). Kod geçici sayılır: bir sonraki
     // deneme önbelleğe takılmaz.
     await db
       .update(linkResolutionRequest)
@@ -157,7 +161,7 @@ export async function enqueueLinkResolution(
       })
       .where(eq(linkResolutionRequest.id, created.id))
       .catch(() => undefined);
-    throw new RedisUnavailableError("link cozumleme kuyrugu", { cause: error });
+    throw error;
   }
 
   return { requestId: created.id, reused: false };
