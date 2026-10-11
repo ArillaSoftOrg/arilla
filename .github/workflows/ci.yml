@@ -93,6 +93,28 @@ jobs:
       # (`coverage.test.ts`, `coverage-pages.test.ts`) ve fiyat kuralları burada.
       - run: pnpm -r test
 
+  python:
+    name: python unit tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: services/ingest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/ingest/pyproject.toml
+      - run: pip install -e ".[dev]"
+      # Eslestirme regresyon seti (tests/test_resolve_regression.py) burada
+      # kosar: esik degisince neyin bozuldugu yalnizca bu is ile gorulur.
+      # Entegrasyon testleri veritabani ister; ayri bir is kurulana dek atlanir.
+      # `python -m pytest`: gecerli klasoru (services/ingest) import yoluna ekler;
+      # bazi testler `from tests.test_... import` kullanir, duz `pytest` bulamaz.
+      - run: python -m pytest -m "not integration"
+
   build:
     name: web build
     runs-on: ubuntu-latest

@@ -104,6 +104,10 @@ def test_worker_cli_exits_non_zero_when_database_connection_is_lost(
         raise worker.DatabaseConnectionLost("req-1")
 
     previous = signal.getsignal(signal.SIGTERM)
+    # Redis ve veritabani asagida taklit edilir; degerler yalnizca ortam
+    # kapisini gecer (yerel DATABASE_URL oldugu icin TLS'siz Redis kabul edilir).
+    monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://arilla_app:x@localhost:5432/arilla")
     monkeypatch.setattr(cli, "connect", fake_connect)
     monkeypatch.setattr(cli, "run_worker", lost)
     monkeypatch.setattr(cli.redis.Redis, "from_url", lambda *_a, **_k: object())

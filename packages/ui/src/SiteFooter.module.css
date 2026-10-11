@@ -1,8 +1,17 @@
 /* Zemin `--surface`: footer icerikten ayrilir, ek cizgi/golge gerekmez.
-   Karar 0093: alta dogru dekoratif atmosfer (nane + limon parıltısı) ve
-   kirpilmis "M". Katmanlar metnin ARKASINDA (z-index -1, `isolation`);
-   alfa degerleri en kotu ust uste binmede bile `--ink-muted` >= 4.5:1. */
+   Karar 0093: tek, kesintisiz zemin. Alta dogru nane + limon atmosferi
+   (::before) tum footer'i kaplar; metnin arkasinda `--ink-muted` >= 4.5:1.
+   Buyuk kelime isareti copyright satirinin ALTINDAKI dekor alanindadir
+   (hicbir metnin arkasinda degil); bu alanin kendi zemini yoktur, ayni
+   atmosfer kesintisiz devam eder. Alandaki limon parlamasi (::after) ust
+   kenarina dogru tamamen soner, cizgi/kart gibi gorunmez. */
 .footer {
+  /* Kelime isaretinin boyu ve dekor alaninin yuksekligi: alan taban
+     cizgisinin hemen ustunde biter, yalnizca harf diplerinin incecik kismi ve
+     "p" kuyrugu kirpilir ("p" okunur kalir). 1440px'te ~210px. */
+  --wordmark-size: clamp(5rem, 0.5rem + 19vw, 18.5rem);
+  --wordmark-area: calc(var(--wordmark-size) * 0.75);
+
   position: relative;
   isolation: isolate;
   overflow: hidden;
@@ -10,43 +19,87 @@
   border-top: var(--border-width) solid var(--line);
 }
 
-.footer::before {
+.footer::before,
+.footer::after {
   content: "";
   position: absolute;
+  pointer-events: none;
+}
+
+.footer::before {
   inset: 0;
   z-index: -1;
   background:
     radial-gradient(120% 75% at 82% 118%, var(--footer-glow-lime), transparent 70%),
     radial-gradient(110% 80% at 12% 122%, var(--footer-glow-mint), transparent 72%);
-  pointer-events: none;
 }
 
-/* Buyuk, kirpilmis tipografik "M": site fontu (IBM Plex Sans), sag altta,
-   alt kismi footer'in disinda kalir. Metin olarak secilmez, okunmaz. */
-.motif {
-  position: absolute;
+/* Parlama yalnizca dekor alaninda; ust kenara varmadan tamamen soner. */
+.footer::after {
+  inset-inline: 0;
+  inset-block-end: 0;
+  height: var(--wordmark-area);
   z-index: -1;
-  inset-inline-end: -0.04em;
-  inset-block-end: -0.3em;
-  font-size: clamp(13rem, 6rem + 28vw, 30rem);
-  font-weight: 700;
-  line-height: 1;
-  letter-spacing: -0.04em;
-  color: var(--footer-motif);
+  background: radial-gradient(65% 100% at 50% 100%, var(--footer-wordmark-glow), transparent 78%);
+}
+
+/* Dekor alani: kendi zemini yok (atmosfer kesintisiz), yalnizca kelimeyi
+   kirpar. */
+.wordmarkArea {
+  position: relative;
+  height: var(--wordmark-area);
+  overflow: hidden;
   pointer-events: none;
   user-select: none;
 }
 
+/* Karar 0093: alttan kirpilmis buyuk "ManiCepte". Dolgu yukaridan asagi
+   yumusak, tek gecisli degrade (sert parlaklik cizgisi yok). Yazi ust
+   cubuktaki marka yazisiyla ayni dil (site fontu, kalin, egik);
+   cizilmis/izlenmis logo degil. */
+.wordmark {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline-start: 50%;
+  transform: translateX(-50%);
+  font-size: var(--wordmark-size);
+  font-style: italic;
+  font-weight: 700;
+  line-height: 0.82;
+  letter-spacing: -0.035em;
+  white-space: nowrap;
+  /* Egik harflerin tasan ucu (son "e") dolgu alaninin icinde kalsin. */
+  padding-inline: 0.12em;
+  background: linear-gradient(
+    to bottom,
+    var(--footer-wordmark-top) 0%,
+    var(--footer-wordmark-bottom) 85%
+  );
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+}
+
+/* Telefonda kelime genislige gore buyur, yanlardan yalnizca hafif kirpilir. */
+@media (max-width: 639.98px) {
+  .footer {
+    --wordmark-size: 22vw;
+    --wordmark-area: calc(var(--wordmark-size) * 0.75);
+  }
+}
+
 @media (forced-colors: active) {
   .footer::before,
-  .motif {
+  .footer::after,
+  .wordmarkArea {
     display: none;
   }
 }
 
 @media print {
   .footer::before,
-  .motif {
+  .footer::after,
+  .wordmarkArea {
     display: none;
   }
 }
@@ -57,8 +110,7 @@
 .inner {
   display: grid;
   gap: var(--space-8);
-  /* Alt bosluk motif alani: parıltının en yogun yeri metnin altinda kalir. */
-  padding-block: var(--section-space-compact) clamp(5rem, 2rem + 10vw, 9rem);
+  padding-block: var(--section-space-compact) var(--space-6);
 }
 
 /* Marka blogu + link gruplari. Telefonda alt alta; `lg` (1024px) ve

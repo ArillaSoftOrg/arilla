@@ -9,7 +9,7 @@
  */
 import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
-import { migrationsDir, ownerUrl, withClient } from "./lib.ts";
+import { assertRemoteWriteConfirmed, migrationsDir, ownerUrl, withClient } from "./lib.ts";
 
 const BOOKKEEPING = `
   CREATE TABLE IF NOT EXISTS schema_migration (
@@ -19,6 +19,7 @@ const BOOKKEEPING = `
 `;
 
 async function main(): Promise<void> {
+  assertRemoteWriteConfirmed("db:migrate");
   const files = readdirSync(migrationsDir)
     .filter((name) => name.endsWith(".sql"))
     .sort();

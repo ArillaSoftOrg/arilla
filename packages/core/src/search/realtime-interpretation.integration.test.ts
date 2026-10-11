@@ -293,7 +293,7 @@ describe("kişi başına anlık limit (quota/policy.ts)", () => {
     });
     expect(anonymous.calls).toHaveLength(1);
     expect(anonymous.calls[0]?.pool).toBe("realtime_interpretation_anonymous");
-    // Ham IP anahtara girmez: yalnizca SHA-256 ozeti.
+    // Ham IP anahtara girmez: yalnizca HMAC-SHA256 takma adi.
     expect(anonymous.calls[0]?.subject).toMatch(/^ip:[0-9a-f]{64}$/);
     expect(anonymous.calls[0]?.subject).not.toContain("198.51.100.9");
   });
@@ -309,6 +309,26 @@ describe("kişi başına anlık limit (quota/policy.ts)", () => {
       },
     });
     expect(result).toEqual({ source: "none", reason: "actor_limited" });
+    expect(queries).toEqual([]);
+  });
+
+  it("IP özeti için sır tanımsızsa model çağrılmaz (maliyet kapalı), hata fırlamaz", async () => {
+    const { client, queries } = fakeClient(() => ({ kind: "value", value: helmetFullFace }));
+    const { calls, consume } = recordingConsume();
+    const original = process.env.SESSION_SECRET;
+    delete process.env.SESSION_SECRET;
+    try {
+      const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} sirsiz`, {
+        client,
+        registry: REGISTRY,
+        actor: { userId: null, ip: "198.51.100.9" },
+        consume,
+      });
+      expect(result).toEqual({ source: "none", reason: "actor_limited" });
+    } finally {
+      process.env.SESSION_SECRET = original;
+    }
+    expect(calls).toEqual([]);
     expect(queries).toEqual([]);
   });
 
