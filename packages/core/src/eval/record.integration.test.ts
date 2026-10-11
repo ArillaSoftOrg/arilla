@@ -28,8 +28,15 @@ describe("recordEvaluation - entegrasyon", () => {
   });
 
   afterAll(async () => {
-    await owner("DELETE FROM ai_eval_run WHERE algorithm_version LIKE $1", [`t98-%${SUFFIX}`]);
-    await owner("DELETE FROM dataset_snapshot WHERE version LIKE 't98-%' AND code_ref IS NULL");
+    // Yalnizca BU kosunun satirlari (SUFFIX): baska bir kosunun ya da artigin
+    // snapshot'ini silmeye calismak FK ihlali verir (ai_eval_run -> dataset_snapshot).
+    const mine = `t98-%-${SUFFIX}`;
+    await owner(
+      "DELETE FROM ai_eval_run WHERE snapshot_id IN (SELECT id FROM dataset_snapshot WHERE version LIKE $1)",
+      [mine],
+    );
+    await owner("DELETE FROM ai_eval_run WHERE algorithm_version LIKE $1", [mine]);
+    await owner("DELETE FROM dataset_snapshot WHERE version LIKE $1", [mine]);
   });
 
   // Gercek altin set icerigi baska kosularla paylasilir; testin kendi veri
