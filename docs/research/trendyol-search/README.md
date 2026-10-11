@@ -10,6 +10,7 @@ eklenti yok, Trendyol'u ayrıca açmak yok, ücretli arama API'si yok.
 - Buybox, fiyat alanları, geniş kapsam: [`04-buybox-ve-kapsam.md`](04-buybox-ve-kapsam.md)
 - Yetkili erişimde test protokolü: [`05-test-protokolu.md`](05-test-protokolu.md)
 - Fiyat katmanları (Samba farkı), limitler, kapsam ve dizin istatistikleri: [`06-fiyat-katmanlari-ve-kapsam.md`](06-fiyat-katmanlari-ve-kapsam.md)
+- Stok-Fiyat servisi, entegratörler, dizin doğrulaması, hipotez kaydı: [`07-entegratorler-dizin-hipotezler.md`](07-entegratorler-dizin-hipotezler.md)
 - Kod (bu dal): `packages/core/src/trendyol-landing/`, `packages/core/scripts/trendyol-*-cli.ts`
 - Dal / worktree: `research/trendyol-landing-discovery` → `../repo-docs-trendyol-landing`
 - İlgili, dokunulmayan çalışmalar: PR #125 (`feature/trendyol-live-discovery-prototype`),
