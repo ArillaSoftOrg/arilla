@@ -125,3 +125,9 @@
   font-size: var(--text-meta);
   line-height: var(--line-height-normal);
 }
+
+/* Gorselsiz kompakt kart (ör. internet sonucu): bos kare alan ayrilmaz. */
+.card:not(:has(.media)) .body {
+  justify-content: center;
+  min-height: 7rem;
+}

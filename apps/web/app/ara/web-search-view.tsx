@@ -84,6 +84,7 @@ function Grid({
             <ProductCard
               href={best.url}
               external
+              compactWithoutImage
               title={group.title}
               brand={group.brand}
               imageUrl={group.imageUrl ?? null}

@@ -147,3 +147,26 @@ sayfaları 11 Ekim 2026'da okundu; ilk sürümden şu değişiklikler yapıldı:
   test edilmiş) şimdilik bir sayfaya bağlı değildir.
 - `/ara/link` şu an `LINK_SEARCH_PUBLIC` ile kapalı; entegrasyon hazır, link
   araması açıldığında devreye girer.
+
+## Ek (2026-10-11): mağaza sayfasından görsel
+
+Önceki "internet sayfasından görsel alınmaz" kararı, ürün sahibinin isteğiyle
+değiştirildi. Görsel öncelik sırası: (1) aynı ürün katalogda varsa **katalogun**
+görseli; (2) yoksa, doğrulanmış mağaza ürün sayfasının JSON-LD `Product.image`
+veya ürün işaretli `og:image` verisi. Kurallar (`web-search/store-image.ts`,
+`safe-fetch.ts`):
+
+- Ek Gemini çağrısı yok; yalnızca zaten doğrulanmış ürün bağlantıları okunur.
+- Sayfa, sunucudan **SSRF-güvenli** okunur: yalnızca https, bağlantı anında DNS
+  doğrulaması (özel/loopback/link-local ret, rebinding yok), elle ≤2 yönlendirme
+  (her adımda yeniden doğrulama), ≤400 KB gövde, 3 sn zaman aşımı, sıkıştırma yok,
+  çerez yok, açık `ManiCepteBot` User-Agent'ı. `robots.txt` ve 401/403/429
+  saygıyla karşılanır, atlatılmaz.
+- Görselin ilgili ürüne ait olması: sayfadaki ürün adı kartın ürünüyle
+  eşleşmeli (kelime kapsaması + model kodu + varyant uyumu); aksi halde görsel yok.
+  Görselin türü (jpeg/png/webp/avif/gif) ve boyutu (≤8 MB) başlıklarla denetlenir.
+- Görsel indirilmez, saklanmaz, önbelleğe alınmaz; tarayıcı doğrudan mağazadan
+  yükler (`no-referrer`). Sonuç yine katalog verisi değildir.
+- Görsel bulunamazsa kart kompakt (görselsiz) çizilir.
+- **Hukuki not:** mağaza görsellerinin hotlink ile gösterilmesi telif/kullanım
+  koşulları açısından hukuki onaya tabidir (`docs/legal-review/`).

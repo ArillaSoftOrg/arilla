@@ -5,5 +5,6 @@ export * from "./merge.ts";
 export * from "./parse.ts";
 export * from "./query.ts";
 export * from "./service.ts";
+export * from "./store-image.ts";
 export * from "./types.ts";
 export * from "./url-safety.ts";
