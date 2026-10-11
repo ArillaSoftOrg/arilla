@@ -18,6 +18,9 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
+from decimal import Decimal, InvalidOperation
+
+from resolve.identity import clean_gtin, clean_mpn
 
 WHITESPACE = re.compile(r"\s+")
 
@@ -105,6 +108,13 @@ COLOR_SYNONYMS = {
 #: "50 ml", "100ml", "1.5 l", "250 gr" — hacim/agirlik ayirt edicidir.
 VOLUME = re.compile(r"\b(\d+(?:[.,]\d+)?)\s*(ml|l|lt|litre|gr|g|kg|cl)\b")
 
+#: "256 GB", "1 TB": depolama kapasitesi ayirt edicidir; "256 GB" ile "256GB" ayni olsun.
+STORAGE = re.compile(r"\b(\d+)\s*(gb|tb)\b")
+
+#: Urun kodu: "AB-1234", "HD-7432X". Tire ayiricidir ama kodun parcasi: "AB1234" ile
+#: ayni olsun. Yalniz kisa harf + sayi bicimi; "t-shirt", "Lifting-sil" etkilenmez.
+PRODUCT_CODE = re.compile(r"\b([a-z]{1,4})-(\d{2,}[a-z]?)\b")
+
 #: "42 numara", "beden 38" — beden de ayirt edicidir.
 NUMERIC_SIZE = re.compile(r"\b(\d{2})\s*(?:numara|beden|no)\b")
 
@@ -132,15 +142,36 @@ def strip_accents(value: str) -> str:
     return "".join(char for char in decomposed if not unicodedata.combining(char))
 
 
+def _canonical_amount(raw: str) -> str:
+    """"100" -> "100", "50,0" -> "50", "0,50" -> "0.5".
+
+    Yalnizca ONDALIK kisimdaki sondaki sifirlar anlamsizdir. Tam sayidaki
+    sifirlar anlamlidir: "100" ile "10" farkli hacimdir (eskiden
+    `rstrip("0")` ikisini de "1" yapiyordu).
+    """
+    text = raw.replace(",", ".")
+    try:
+        number = Decimal(text)
+    except InvalidOperation:
+        return text
+    return format(number.normalize(), "f")
+
+
 def _volume_token(match: re.Match[str]) -> str:
     """VOLUME eslesmesini tek bir token'a cevirir: "50 ml" -> " 50ml ".
 
     Ayri token olarak kalirsa "50" ile "ml" bagimsiz kelimeler gibi
     davranir ve "50 ml" ile "50ml" farkli kumeler uretir.
     """
-    amount = match.group(1).replace(",", ".").rstrip("0").rstrip(".")
+    amount = _canonical_amount(match.group(1))
     unit = {"lt": "l", "litre": "l", "g": "gr"}.get(match.group(2), match.group(2))
     return f" {amount}{unit} "
+
+
+def _version_token(match: re.Match[str]) -> str:
+    """"v2" / "gen 2" / "2. nesil" -> " v2 ": ayni surum tek token olsun."""
+    number = next(group for group in match.groups() if group)
+    return f" v{number} "
 
 
 def title_tokens(value: str, brand: str | None = None) -> frozenset[str]:
@@ -157,6 +188,9 @@ def title_tokens(value: str, brand: str | None = None) -> frozenset[str]:
     text = strip_accents(value).lower()
     # Hacim tek bir token olsun: "50 ml" ve "50ml" ayni seydir.
     text = VOLUME.sub(_volume_token, text)
+    text = VERSION.sub(_version_token, text)
+    text = PRODUCT_CODE.sub(r"\1\2", text)
+    text = STORAGE.sub(lambda m: f" {m.group(1)}{m.group(2)} ", text)
     text = re.sub(r"[^a-z0-9\s]", " ", text)
 
     brand_tokens = set()
@@ -166,7 +200,10 @@ def title_tokens(value: str, brand: str | None = None) -> frozenset[str]:
 
     tokens: set[str] = set()
     for word in WHITESPACE.split(text):
-        if not word or len(word) < 2 or word in NOISE_WORDS or word in brand_tokens:
+        # Tek haneli SAYI kimliktir ("iPhone 7" / "iPhone 6"); yalniz tek harf atilir.
+        if not word or (len(word) < 2 and not word.isdigit()):
+            continue
+        if word in NOISE_WORDS or word in brand_tokens:
             continue
         word = ABBREVIATIONS.get(word, word)
         # Renk es anlamlilari kanonik ada indirgenir: "navy" ile "lacivert"
@@ -180,14 +217,105 @@ def normalize_title(value: str, brand: str | None = None) -> str:
     return " ".join(sorted(title_tokens(value, brand)))
 
 
-def extract_color(value: str) -> str | None:
-    """Baslikta gecen ilk rengi kanonik adiyla dondurur."""
+#: Renk zincirini baglayan ayiricilar: "Siyah/Beyaz", "Siyah - Beyaz", "Siyah ve Beyaz".
+_COLOR_JOINERS = frozenset({"/", "&", ",", "-", "ve"})
+
+#: Renk sozcugu gibi gorunen ama urun adi olan sozcukler: ardindan bu isimler
+#: geliyorsa renk DEGILDIR ("Kahve Makinesi" kahverengi degil).
+_NOT_A_COLOR_BEFORE = {
+    "kahve": frozenset(
+        {
+            "makinesi",
+            "makinasi",
+            "makina",
+            "fincani",
+            "fincan",
+            "degirmeni",
+            "ogutucu",
+            "kapsul",
+            "kapsulu",
+            "filtresi",
+            "filtre",
+            "seti",
+            "bardagi",
+            "bardak",
+            "cekirdegi",
+            "kasigi",
+            "cezvesi",
+            "kupasi",
+            "kupa",
+            "termosu",
+            "demlik",
+            "demligi",
+            "kremasi",
+            "aparati",
+        }
+    ),
+}
+
+#: Tek basina renk olmayan, yalniz belirli bir sozcukle renk olan sozcukler:
+#: "kirik" tek basina "kirik" demektir, "kirik beyaz" ise beyazdir.
+_COLOR_ONLY_BEFORE = {"kirik": frozenset({"beyaz", "krem"})}
+
+
+def _color_at(words: list[str], index: int, brand_tokens: frozenset[str]) -> str | None:
+    word = words[index]
+    canonical = COLOR_SYNONYMS.get(word)
+    # Marka adinin parcasi olan renk sozcugu renk degildir ("Mavi" markasi).
+    if canonical is None or word in brand_tokens:
+        return None
+    following = words[index + 1] if index + 1 < len(words) else ""
+    if following in _NOT_A_COLOR_BEFORE.get(word, frozenset()):
+        return None
+    required = _COLOR_ONLY_BEFORE.get(word)
+    if required is not None and following not in required:
+        return None
+    return canonical
+
+
+def extract_color(value: str, brand: str | None = None) -> str | None:
+    """Baslikta gecen ilk rengi (ya da bitisik renk zincirini) kanonik adla dondurur.
+
+    "Siyah/Beyaz" ile "Beyaz/Siyah" ayni sonucu verir ("beyaz-siyah"): zincir
+    sirali birlestirilir. Marka adindaki ve urun adi olan sozcukler renk sayilmaz.
+    """
     text = strip_accents(value).lower()
-    for word in WHITESPACE.split(re.sub(r"[^a-z0-9\s]", " ", text)):
-        canonical = COLOR_SYNONYMS.get(word)
-        if canonical:
-            return canonical
+    words = re.findall(r"[a-z0-9]+|[/&,\-]", text)
+    brand_tokens = (
+        frozenset(re.findall(r"[a-z0-9]+", strip_accents(brand).lower())) if brand else frozenset()
+    )
+    for index in range(len(words)):
+        first = _color_at(words, index, brand_tokens)
+        if first is None:
+            continue
+        chain = [first]
+        cursor = index + 1
+        while cursor + 1 < len(words) and words[cursor] in _COLOR_JOINERS:
+            following = _color_at(words, cursor + 1, brand_tokens)
+            if following is None:
+                break
+            if following not in chain:
+                chain.append(following)
+            cursor += 2
+        return "-".join(sorted(chain))
     return None
+
+
+#: Yuzde ve para tutari kimlik degil pazarlamadir ("%50 indirim", "199 TL").
+_MARKETING_NUMBER = re.compile(r"%\s*\d+|\d+\s*%|\b\d+(?:[.,]\d+)?\s*(?:tl|try)\b")
+
+
+def extract_numbers(value: str) -> frozenset[str]:
+    """Basliktaki sayi dizileri (model, kapasite, ekran, paket adedi).
+
+    Hacim cikarilir (kendi vetosu var). "iPhone 15 256 GB" -> {15, 256},
+    "AB-1234" ile "AB1234" ayni {1234}. Bu kume ProductKey'de iki taraf da
+    kendine OZGU sayi tasiyorsa veto sebebidir (bkz. `veto_reason`).
+    """
+    text = strip_accents(value).lower()
+    text = VOLUME.sub(" ", text)
+    text = _MARKETING_NUMBER.sub(" ", text)
+    return frozenset(re.findall(r"\d+", text))
 
 
 def extract_volume(value: str) -> str | None:
@@ -195,7 +323,7 @@ def extract_volume(value: str) -> str | None:
     match = VOLUME.search(strip_accents(value).lower())
     if not match:
         return None
-    amount = match.group(1).replace(",", ".").rstrip("0").rstrip(".")
+    amount = _canonical_amount(match.group(1))
     unit = {"lt": "l", "litre": "l", "g": "gr"}.get(match.group(2), match.group(2))
     return f"{amount}{unit}"
 
@@ -285,6 +413,8 @@ class ProductKey:
     #: Tam basligin tokenlari (aciklamalar dahil). `tokens` ticari cekirdektir
     #: ve metin benzerligine girer; renk dogrulamasi tam basliga bakar.
     all_tokens: frozenset[str] = frozenset()
+    #: Basliktaki sayi dizileri (model/kapasite/ekran/paket). Bkz. `extract_numbers`.
+    numbers: frozenset[str] = frozenset()
 
     @property
     def title_norm(self) -> str:
@@ -309,7 +439,7 @@ class ProductKey:
         resolved_color = (
             COLOR_SYNONYMS.get(explicit)
             or ("-".join(re.sub(r"[^a-z0-9]+", " ", explicit).split()) or None)
-            or extract_color(title)
+            or extract_color(title, brand)
         )
         all_tokens = title_tokens(title, brand)
         # Hacim ayri bir oznitelik (catisirsa veto); cekirdekte bir tarafta
@@ -328,6 +458,8 @@ class ProductKey:
             volume=extract_volume(title),
             size=extract_numeric_size(title),
             qualifier=extract_qualifier(all_tokens, title),
-            gtin=(gtin or "").strip() or None,
-            mpn=(mpn or "").strip() or None,
+            # Dogrulanamayan kimlik "yok" sayilir: cop deger kesin eslesme uretmesin.
+            gtin=clean_gtin(gtin),
+            mpn=clean_mpn(mpn),
+            numbers=extract_numbers(title),
         )

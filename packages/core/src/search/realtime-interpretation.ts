@@ -39,7 +39,7 @@ import {
   settleProviderBudget,
 } from "../quota/provider-budget.ts";
 import { consumeQuota, type QuotaConsumer } from "../quota/redis-windows.ts";
-import { isRedisUnavailableError } from "../redis/client.ts";
+import { getRedis, isRedisUnavailableError } from "../redis/client.ts";
 import { type IneligibleReason, queryContentIneligibility } from "./interpretation-eligibility.ts";
 import { currentInterpretationIdentity } from "./interpretation-identity.ts";
 import { normalizeQueryText } from "./normalize.ts";
@@ -104,6 +104,8 @@ export type RealtimeSkipReason =
   | IneligibleReason
   /** Bu kimlik icin daha once yorum yapildi ama kullanilabilir sonuc yok (bos/gecersiz). */
   | "already_interpreted"
+  /** Ayni sorgu su anda baska bir istekte yorumlaniyor; ikinci cagri yapilmaz. */
+  | "in_flight"
   | "daily_cap"
   /** Gunluk saglayici butcesi okunamadi (Redis): maliyet kapali, model yok. */
   | "budget_unavailable"
@@ -136,7 +138,34 @@ export interface RealtimeInterpretationOptions {
   consume?: QuotaConsumer;
   /** Testler icin; varsayilan atomik Redis saglayici butcesi. */
   budget?: ProviderBudgetHooks;
+  /** Testler icin; varsayilan Redis `SET NX PX` kilidi (`redisSingleFlight`). */
+  singleFlight?: SingleFlight;
+  /** Testler icin; varsayilan `persistOutcome`. */
+  persist?: typeof persistOutcome;
 }
+
+/**
+ * Ayni kimlik (sorgu + taksonomi + model) icin ayni anda TEK Gemini cagrisi: onbellek
+ * kontrolu ile cagri atomik degildi, es zamanli ayni sorgu N kez odeme demekti. Kilidi
+ * alamayan istek modeli cagirmaz (deterministik arama surer); kilit modelin zaman asimindan
+ * uzun omurlu degil ve kayit yazildiktan sonra birakilir. Sayaç erisilemezse kilitsiz devam
+ * edilir (global ve kisi limitleri yine gecerli).
+ */
+export interface SingleFlight {
+  acquire(key: string, ttlMs: number): Promise<boolean>;
+  release(key: string): Promise<void>;
+}
+
+const SINGLE_FLIGHT_TTL_MS = 10_000;
+
+const redisSingleFlight: SingleFlight = {
+  async acquire(key, ttlMs) {
+    return (await getRedis().set(`rtsf:${key}`, "1", "PX", ttlMs, "NX")) === "OK";
+  },
+  async release(key) {
+    await getRedis().del(`rtsf:${key}`);
+  },
+};
 
 function safeCode(error: unknown): string {
   const code =
@@ -210,6 +239,15 @@ export async function resolveRealtimeInterpretation(
   }
   if (client === null) return { source: "none", reason: "disabled" };
 
+  const flight = options.singleFlight ?? redisSingleFlight;
+  const flightKey = createHash("sha256")
+    .update(
+      `${queryNorm}\n${currentInterpretationIdentity(registry).taxonomyHash}\n${client.modelVersion}`,
+    )
+    .digest("hex")
+    .slice(0, 40);
+  let flightHeld = false;
+
   try {
     // Ayni kimlik (sorgu + taksonomi + model surumu) daha once yorumlandiysa
     // yeniden kullanilir; bos/gecersiz sonuc icin model TEKRAR cagrilmaz.
@@ -220,6 +258,14 @@ export async function resolveRealtimeInterpretation(
       return stored === null
         ? { source: "none", reason: "already_interpreted" }
         : { source: "stored", interpretation: stored };
+    }
+
+    try {
+      flightHeld = await flight.acquire(flightKey, SINGLE_FLIGHT_TTL_MS);
+      if (!flightHeld) return { source: "none", reason: "in_flight" };
+    } catch (error) {
+      // Kilit sayaci erisilemez: kullaniciyi engelleme, kilitsiz devam (limitler yine gecerli).
+      logFailure("single flight", error);
     }
 
     const now = options.now ?? (() => new Date());
@@ -283,16 +329,22 @@ export async function resolveRealtimeInterpretation(
       }
     }
 
-    try {
-      await persistOutcome(db, {
-        queryNorm,
-        taxonomyHash: currentInterpretationIdentity(registry).taxonomyHash,
-        outcome,
-        operation: REALTIME_INTERPRETATION_OPERATION,
-      });
-    } catch (error) {
-      // Muhasebe/yazma hatasi kullaniciyi etkilemez; dogrulanmis yorum yine kullanilir.
-      logFailure("persist", error);
+    // Kural 9: ucret olustu; gecici bir DB hatasi `api_usage` izini ve saklanan yorumu
+    // (dolayisiyla ayni sorgunun ikinci odemesini) sessizce kaybettirmesin: bir kez daha dener.
+    const persist = options.persist ?? persistOutcome;
+    for (let attempt = 1; attempt <= 2; attempt++) {
+      try {
+        await persist(db, {
+          queryNorm,
+          taxonomyHash: currentInterpretationIdentity(registry).taxonomyHash,
+          outcome,
+          operation: REALTIME_INTERPRETATION_OPERATION,
+        });
+        break;
+      } catch (error) {
+        // Yazma hatasi kullaniciyi etkilemez; dogrulanmis yorum yine kullanilir.
+        if (attempt === 2) logFailure("persist", error);
+      }
     }
 
     if (outcome.status === "accepted") {
@@ -306,5 +358,8 @@ export async function resolveRealtimeInterpretation(
   } catch (error) {
     logFailure("lookup", error);
     return { source: "none", reason: "error" };
+  } finally {
+    // Kayit yazildiktan SONRA birakilir: bekleyen ikinci istek saklanan satiri bulur.
+    if (flightHeld) await flight.release(flightKey).catch(() => undefined);
   }
 }

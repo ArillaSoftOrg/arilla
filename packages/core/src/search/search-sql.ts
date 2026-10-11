@@ -110,8 +110,18 @@ export function filterPredicates(filters: QueryFilters): { name: FilterPredicate
       name: "color",
       sql: sql`(${arrayParam(colors)}::text[] IS NULL OR p.color = ANY(${arrayParam(colors)}::text[]))`,
     },
-    { name: "price_min", sql: sql`(${priceMin}::bigint IS NULL OR p.min_price >= ${priceMin})` },
-    { name: "price_max", sql: sql`(${priceMax}::bigint IS NULL OR p.min_price <= ${priceMax})` },
+    // Kartta GOSTERILEN fiyat `best_offer.current_price`'tir (magaza/stok filtresine gore
+    // en ucuz teklif). `p.min_price` tum aktif tekliflerin en dusugudur; magaza ya da stok
+    // filtresi aciksa gosterilen fiyattan ayrisir ve kullanici 200 TL ustu filtrelese de
+    // 100 TL'lik gizli bir teklif yuzunden 500 TL'lik karti gorurdu.
+    {
+      name: "price_min",
+      sql: sql`(${priceMin}::bigint IS NULL OR bo.current_price >= ${priceMin})`,
+    },
+    {
+      name: "price_max",
+      sql: sql`(${priceMax}::bigint IS NULL OR bo.current_price <= ${priceMax})`,
+    },
     {
       name: "size",
       sql: sql`(${sizeNorm}::text IS NULL OR EXISTS (

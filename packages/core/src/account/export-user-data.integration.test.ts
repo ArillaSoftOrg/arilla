@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import type { Database } from "@arilla/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
@@ -118,6 +119,52 @@ describe("exportUserData() - entegrasyon (gerçek Postgres)", () => {
       comment: "çok yavaştı",
     });
     expect(chat?.messages[1]).not.toHaveProperty("feedback");
+  });
+
+  it("sohbete eklenen görseli baytları ve özetiyle verir (KVKK erişim hakkı, A13)", async () => {
+    const bytes = Buffer.from("ffd8ffe000104a46494600010100000100010000ffd9", "hex");
+    const sha256 = createHash("sha256").update(bytes).digest("hex");
+    const attachmentId = await withOwnerClient(async (client) => {
+      const c = await client.query(
+        "INSERT INTO conversation (user_id, title, message_count) VALUES ($1, 'görsel dışa aktarım', 2) RETURNING id",
+        [userId],
+      );
+      const id = c.rows[0].id;
+      const a = await client.query(
+        `INSERT INTO chat_attachment (conversation_id, user_id, mime_type, data, width, height, sha256)
+         VALUES ($1, $2, 'image/jpeg', $3, 1, 1, $4) RETURNING id`,
+        [id, userId, bytes, sha256],
+      );
+      const attachment = a.rows[0].id as string;
+      await client.query(
+        `INSERT INTO chat_message (conversation_id, seq, role, kind, content, payload)
+         VALUES ($1, 1, 'user', 'text', 'bu çanta', $2::jsonb)`,
+        [id, JSON.stringify({ attachmentId: attachment })],
+      );
+      await client.query(
+        `INSERT INTO chat_message (conversation_id, seq, role, kind, content, payload)
+         VALUES ($1, 2, 'assistant', 'search', 'buldum', $2::jsonb)`,
+        [id, JSON.stringify({ imageSummary: { attachmentId: attachment, text: "siyah çanta" } })],
+      );
+      return attachment;
+    });
+
+    const data = await exportUserData(db, userId);
+    const chat = data.conversations.find((c) => c.title === "görsel dışa aktarım");
+    expect(chat?.attachments).toEqual([
+      expect.objectContaining({
+        id: attachmentId,
+        mimeType: "image/jpeg",
+        width: 1,
+        height: 1,
+        sha256,
+        dataBase64: bytes.toString("base64"),
+        summary: "siyah çanta",
+      }),
+    ]);
+    expect(chat?.messages[0]?.attachmentId).toBe(attachmentId);
+    // Görselsiz sohbetlerde alan boş liste: şema her zaman aynı.
+    expect(data.conversations.find((c) => c.title === "dışa aktarım")?.attachments).toEqual([]);
   });
 
   it("olmayan kullanıcı için UserNotFoundError fırlatır", async () => {

@@ -60,6 +60,12 @@ class EmbeddingError(RuntimeError):
     """Saglayici cagrisi basarisiz. Boru hatti partiyi atlar, kosu devam eder."""
 
 
+class EmbeddingRejected(EmbeddingError):
+    """Saglayici ISTEGI kalici olarak reddetti (429 disindaki 4xx): tekrar denemek ayni
+    sonucu verir. Parti icindeki tek bir bozuk girdi olabilir; cagiran partiyi bolerek
+    iyi girdileri ayiklayabilir (`enrich.pipeline`)."""
+
+
 @dataclass(frozen=True)
 class EmbeddingBatch:
     """Bir API cagrisinin sonucu."""
@@ -207,8 +213,12 @@ class JinaEmbeddingClient(EmbeddingClient):
                 last = f"baglanti hatasi ({type(error).__name__})"
             else:
                 if response.status_code < 400:
-                    return response.json(), entry
-                if response.status_code == 429:
+                    try:
+                        return response.json(), entry
+                    except ValueError:
+                        # 200 ile donen HTML/bos govde (proxy, WAF, bakim sayfasi): gecici sayilir.
+                        last = "gecersiz JSON yaniti"
+                elif response.status_code == 429:
                     self.rate_limited += 1
                     last = "429"
                     hinted = retry_after_seconds(response.headers.get("retry-after"))
@@ -218,7 +228,9 @@ class JinaEmbeddingClient(EmbeddingClient):
                     last = str(response.status_code)
                 else:
                     # 429 disindaki 4xx kalicidir: tekrar denemek ayni hatayi alir.
-                    raise EmbeddingError(f"saglayici {response.status_code}: {response.text[:200]}")
+                    raise EmbeddingRejected(
+                        f"saglayici {response.status_code}: {response.text[:200]}"
+                    )
 
             if attempt == self.max_attempts - 1:
                 break
