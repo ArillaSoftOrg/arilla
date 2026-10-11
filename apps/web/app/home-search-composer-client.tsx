@@ -33,6 +33,7 @@ export function HomeSearchComposer({
   startChat,
   chatInNewTab = false,
   imageChat = false,
+  imageConsent = false,
   recentProducts,
 }: {
   /**
@@ -58,8 +59,10 @@ export function HomeSearchComposer({
    * mesaj olarak, metinle aynı geçişle sohbete gider. false/verilmezse "+" hiç görünmez.
    */
   imageChat?: boolean;
+  /** Karar 0101: gecerli acik riza var mi (yoksa dosya secilince bilgilendirme sorulur). */
+  imageConsent?: boolean;
 }) {
-  const submission = useHomeComposerSubmission({ chatInNewTab, imageChat });
+  const submission = useHomeComposerSubmission({ chatInNewTab, imageChat, imageConsent });
   const { chatError, staged, sending, stageFile, removeStaged, startInNewTab, startImageMessage } =
     submission;
   const mainRef = useRef<HTMLDivElement>(null);
@@ -81,6 +84,7 @@ export function HomeSearchComposer({
   return (
     <>
       <LoginGateModal open={submission.loginOpen} onClose={submission.closeLogin} />
+      {submission.consentDialog}
       <div ref={mainRef}>
         <SearchComposer
           action={startChat}

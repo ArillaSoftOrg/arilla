@@ -35,6 +35,7 @@ const COMPOSER_STAYS_OPEN = new Set([
   "too_large",
   "unprocessable",
   "send_failed",
+  "consent_required",
 ]);
 
 describe("chat copy (CLAUDE.md dil kuralları)", () => {

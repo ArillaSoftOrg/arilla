@@ -26,6 +26,7 @@ import {
   sendMessageAction,
 } from "./actions.ts";
 import { CHAT_COPY, CHAT_ERROR_COPY, type ChatErrorKind, errorKindForStatus } from "./chat-copy.ts";
+import { useChatImageConsentGate } from "./chat-image-consent.tsx";
 import { chatMark } from "./chat-metrics.ts";
 import { CHAT_MESSAGE_MAX, ChatComposer, ChatPendingRow } from "./chat-shell-parts.tsx";
 import styles from "./sohbet.module.css";
@@ -66,6 +67,8 @@ interface Props {
   conversationId: string;
   /** `CHAT_IMAGE_ENABLED`: kapaliysa "+" hic gorunmez ve eski aramaya dusulmez. */
   imageEnabled: boolean;
+  /** Karar 0101: gecerli acik riza var mi; yoksa dosya secilince bilgilendirme sorulur. */
+  imageConsent: boolean;
   /** Son mesaj kullanıcınındır: asistan yanıtı bekleniyor (ilk mesaj, yenileme, hata sonrası). */
   awaitingReply: boolean;
   /** Açık netlestirme sorusu; yalnızca son mesaj o soruysa dolu. */
@@ -91,6 +94,7 @@ interface Props {
 export function ChatInteractive({
   conversationId,
   imageEnabled,
+  imageConsent,
   awaitingReply,
   question,
   lastUserText,
@@ -114,6 +118,7 @@ export function ChatInteractive({
   const bottomRef = useRef<HTMLDivElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
   const questionId = useId();
+  const consent = useChatImageConsentGate(imageConsent);
 
   // Onizleme blob'u: degisince/kalkinca/unmount'ta serbest birakilir.
   useEffect(() => {
@@ -134,8 +139,12 @@ export function ChatInteractive({
       return;
     }
     setError(null);
-    if (stagedUrlRef.current) URL.revokeObjectURL(stagedUrlRef.current);
-    setStaged({ file, url: URL.createObjectURL(file), key: newRequestKey() });
+    // Karar 0101: riza yoksa dosya bellekte bekler; kabulden once hicbir sey gonderilmez.
+    consent.gate(file, (allowed) => {
+      if (workingRef.current) return;
+      if (stagedUrlRef.current) URL.revokeObjectURL(stagedUrlRef.current);
+      setStaged({ file: allowed, url: URL.createObjectURL(allowed), key: newRequestKey() });
+    });
   }
 
   function clearStaged(): void {
@@ -463,6 +472,8 @@ export function ChatInteractive({
       ) : null}
 
       <div ref={bottomRef} className={styles.bottom} aria-hidden="true" />
+
+      {consent.dialog}
 
       <ChatComposer
         draft={draft}

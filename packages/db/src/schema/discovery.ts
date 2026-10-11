@@ -45,7 +45,11 @@ export type CookieConsentKind = "cookie_functional" | "cookie_analytics" | "cook
  * 0037: `privacy_notice` bir RIZA DEĞİLDİR - hangi aydınlatma metni
  * sürümünün gösterildiğinin kaydıdır (0049 §6).
  */
-export type UserConsentKind = AccountConsentKind | CookieConsentKind | "privacy_notice";
+export type UserConsentKind =
+  | AccountConsentKind
+  | CookieConsentKind
+  | "privacy_notice"
+  | "chat_image";
 
 /** 0037: kaydın kaynağı. Eski satırlarda NULL ("sürümsüz kayıt"). */
 export type UserConsentSource =
@@ -55,7 +59,8 @@ export type UserConsentSource =
   | "sign_in"
   | "unsubscribe_link"
   | "signup_default"
-  | "onboarding";
+  | "onboarding"
+  | "chat_image_prompt";
 
 /**
  * KVKK riza kayitlari. Neye, ne zaman riza verildi. Gecmis tablosu: kod

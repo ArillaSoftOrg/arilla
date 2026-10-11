@@ -13,6 +13,7 @@ import {
   getChatInterpreter,
   getChatLinkView,
   getTurnStatus,
+  hasChatImageConsent,
   isChatDiscoveryEnabled,
   isChatImageEnabled,
   isChatLinkEnabled,
@@ -24,6 +25,7 @@ import {
   prepareChatImage,
   processPendingTurn,
   processPendingTurnDetailed,
+  recordChatImageConsent,
   setResultFeedback,
   submitUserMessage,
 } from "@arilla/core";
@@ -107,6 +109,7 @@ export type SendMessageStatus =
   | "rate_limited"
   | "conversation_full"
   | "image_limit"
+  | "consent_required"
   | "invalid_input"
   | "invalid_type"
   | "too_large"
@@ -159,6 +162,8 @@ export async function sendMessageAction(
   if (photo !== undefined) {
     // Bayrak kapaliyken gorsel hicbir kosulda islenmez ya da eski aramaya dusulmez.
     if (!isChatImageEnabled()) return { status: "unavailable" };
+    // Karar 0101: acik riza yoksa gorsel islenmez (istemci kapisi savunma derinligi degildir, asil kapi budur).
+    if (!(await hasChatImageConsent(getDatabase(), user.id))) return { status: "consent_required" };
     const prepared = await prepareChatImage(photo instanceof FormData ? photo.get("photo") : null, {
       userId: user.id,
     });
@@ -254,7 +259,7 @@ export type NewTabChatResult =
       status: "image_rejected";
       reason: "invalid_type" | "too_large" | "unprocessable" | "invalid_input";
     }
-  | { status: "rate_limited" | "unavailable" | "login_required" };
+  | { status: "rate_limited" | "unavailable" | "login_required" | "consent_required" };
 
 interface NewChatSubmission {
   text: string;
@@ -318,6 +323,7 @@ export async function startChatBootstrapAction(input: unknown): Promise<NewTabCh
     if (!isChatDiscoveryEnabled() || !isChatImageEnabled() || !canAccessProduct(user)) {
       return { status: "unavailable" };
     }
+    if (!(await hasChatImageConsent(getDatabase(), user.id))) return { status: "consent_required" };
     if (submission.invalidKey) return { status: "image_rejected", reason: "invalid_input" };
     const prepared = await prepareChatImage(submission.image, { userId: user.id });
     if (!prepared.ok) {
@@ -426,4 +432,47 @@ export async function pollChatLinkAction(
   if (message?.kind !== "notice" || !message.link) return { state: "unavailable" };
   const linkView = await getChatLinkView(db, message.link);
   return { state: linkView.state === "pending" ? "pending" : "done" };
+}
+
+/**
+ * Karar 0101: sohbet gorsel eki icin acik riza karari (kabul ya da geri cekme). Kendi oturum ve
+ * bayrak denetimini yapar; yanit yalnizca sabit durum kodu tasir. Karar kullanici basina en cok
+ * bir satir degisikligidir (degismeyen karar satir yazmaz), bu yuzden ayri kota gerekmez.
+ */
+export async function setChatImageConsentAction(
+  granted: boolean,
+): Promise<{ status: "saved" | "unavailable" }> {
+  if (typeof granted !== "boolean") return { status: "unavailable" };
+  const user = await verifySession();
+  if (!user || !isChatDiscoveryEnabled() || !isChatImageEnabled() || !canAccessProduct(user)) {
+    return { status: "unavailable" };
+  }
+  try {
+    await recordChatImageConsent(getDatabase(), {
+      userId: user.id,
+      granted,
+      source: "chat_image_prompt",
+    });
+  } catch {
+    return { status: "unavailable" };
+  }
+  return { status: "saved" };
+}
+
+/** Karar 0101: rizayi geri cekme HER ZAMAN calisir (bayrak kapaliyken de); yalniz oturum ister. */
+export async function withdrawChatImageConsentAction(): Promise<{
+  status: "saved" | "unavailable";
+}> {
+  const user = await verifySession();
+  if (!user) return { status: "unavailable" };
+  try {
+    await recordChatImageConsent(getDatabase(), {
+      userId: user.id,
+      granted: false,
+      source: "account_settings",
+    });
+  } catch {
+    return { status: "unavailable" };
+  }
+  return { status: "saved" };
 }
