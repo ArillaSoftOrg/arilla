@@ -65,7 +65,7 @@ export async function TextSearchResults({
    */
   summaryIntent?: SearchSummaryIntent | null;
   /**
-   * Karar 0101: veritabanı aramasıyla paralel başlatılmış internet araması
+   * Karar 0102: veritabanı aramasıyla paralel başlatılmış internet araması
    * (bayrak kapalıysa `null`). Veritabanı sonuçları bunu BEKLEMEZ.
    */
   webSearch?: Promise<WebSearchBundle> | null;
@@ -278,14 +278,16 @@ export async function TextSearchResults({
         </nav>
       ) : null}
 
-      {/* Karar 0101: internet sonuçları veritabanı sonuçlarından SONRA, kendi
+      {/* Karar 0102: internet sonuçları veritabanı sonuçlarından SONRA, kendi
           sınırında akar; ilerleme metni yalnızca arama sürerken görünür. */}
       {webSearch && page === 1 ? (
         <Suspense fallback={<WebSearchPending />}>
           <WebSearchResults
             promise={webSearch}
-            catalogTitles={items.map((item) => item.title)}
-            surface="search"
+            catalog={items.map((item) => ({
+              title: item.title,
+              imageUrl: item.primaryImageUrl,
+            }))}
           />
         </Suspense>
       ) : null}

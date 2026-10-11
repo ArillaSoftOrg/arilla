@@ -864,11 +864,11 @@ görseller"), sonra bayrak. Production'da onay olmadan açılmaz.
 
 `CHAT_LINK_ENABLED=true` (ayrıca `CHAT_DISCOVERY_ENABLED=true` ister) sohbetteki linki mevcut link kuyruğuna verir; modele gitmez. Önkoşul: link worker'ı üretimde çalışıyor olmalı ("Link worker" bölümü; yoksa istekler 2 dk sonra 'worker yanıt vermedi' olur). `CHAT_LINK_INTERPRET_ENABLED=true` (ayrıca `CHAT_LINK_ENABLED`) deterministik ayrıştırmanın çözemediği tercih metni için tek Gemini çağrısı yapar; `api_usage` `chat_turn`, mevcut günlük/saatlik tavanlar. `/ara/link` ve `LINK_SEARCH_PUBLIC` bu bayraklardan bağımsızdır. Kademe: iç ekip → küçük kitle → herkes; izle: kuyruk uzunluğu, `error_code` dağılımı, Jina maliyeti. Geri alma: bayrakları kapat (migration yok).
 
-### İnternet ürün araması (karar 0101) — varsayılan kapalı
+### İnternet ürün araması (karar 0102) — varsayılan kapalı
 
-`WEB_SEARCH_ENABLED=true` + `GEMINI_API_KEY` iken `/ara` (ve açıkken `/ara/link`) sonuç sayfası, katalog aramasıyla paralel olarak Gemini Google Search grounding + URL Context çağırır ve sonuçları katalog sonuçlarının altında akıtır. **Production'da ayrıca `WEB_SEARCH_LEGAL_APPROVED=true` gerekir**; ikisi de hukuki onaydan sonra Vercel Production'da elle açılır. Önkoşul: migration 0062 (`web_exit_click`) uygulanmış olmalı; çıkış bağlantıları `SESSION_SECRET` ile imzalanır.
+`WEB_SEARCH_ENABLED=true` + `GEMINI_API_KEY` iken `/ara` (ve açıkken `/ara/link`) sonuç sayfası, katalog aramasıyla paralel olarak Gemini Google Search grounding + URL Context çağırır ve sonuçları katalog sonuçlarının altında akıtır. **Production'da ayrıca `WEB_SEARCH_LEGAL_APPROVED=true` gerekir**; ikisi de hukuki onaydan sonra Vercel Production'da elle açılır. Migration gerekmez. Sonuçlar önbelleğe alınmaz ve izlenmez (Google şartları); bağlantılar doğrudan mağazaya gider.
 
-Sınırlar: günlük 300 sağlayıcı denemesi (`web_search` bütçesi), kişi başına saatte 8 / günde 30, sonuç önbelleği 6 saat (sonuçsuz 30 dk), Redis yoksa model çağrılmaz. Sonuçlar kataloga yazılmaz. Geri alma: bayrakları kapat (migration gerekmez; `/git/web/*` 404 verir).
+Sınırlar: günlük 300 sağlayıcı denemesi (`web_search` bütçesi), kişi başına saatte 8 / günde 30, Redis yoksa model çağrılmaz. Sonuçlar kataloga yazılmaz. Geri alma: bayrakları kapat (migration gerekmez; `/git/web/*` 404 verir).
 
 İzleme:
 
@@ -876,8 +876,8 @@ Sınırlar: günlük 300 sağlayıcı denemesi (`web_search` bütçesi), kişi b
 SELECT count(*), sum(cost_micros) FROM api_usage
  WHERE operation = 'web_search_grounded'
    AND created_at >= (now() AT TIME ZONE 'Europe/Istanbul')::date AT TIME ZONE 'Europe/Istanbul';
-SELECT host, match_kind, price_status, count(*) FROM web_exit_click
- WHERE created_at >= now() - interval '7 days' GROUP BY 1, 2, 3 ORDER BY 4 DESC;
+SELECT operation, count(*), sum(units) AS units, sum(cost_micros) FROM api_usage
+ WHERE operation LIKE 'web_search%' AND created_at >= now() - interval '7 days' GROUP BY 1;
 ```
 
-Maliyet: `gemini-3.5-flash-lite` için fiyat kuralı henüz yok (çağrılar "fiyatlanmamış" görünür) ve grounding arama başına ayrıca faturalanır; açmadan önce `LLM_PRICE_RULES` ve yönetim maliyet kalemi eklenmeli.
+Maliyet: token satırı (`web_search_grounded`) ve Google arama sorgusu satırı (`web_search_grounding_queries`, liste fiyatı; ayda 5.000 ücretsiz kontenjan düşülmez) ayrıdır; `LLM_COST_TRY_PER_USD` tanımlı olmalı.

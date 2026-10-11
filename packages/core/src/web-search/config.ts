@@ -1,5 +1,5 @@
 /**
- * Internet urun aramasi yapilandirmasi (docs/decisions/0101).
+ * Internet urun aramasi yapilandirmasi (docs/decisions/0102).
  *
  * Bayrak varsayilan KAPALI. Uretimde ek olarak hukuki onay bayragi gerekir:
  * onaysiz uretimde yeni Gemini veri akisi acilmaz (karar 0095 kisitlari).
@@ -21,6 +21,9 @@ export const WEB_SEARCH_URL = "https://generativelanguage.googleapis.com/v1beta/
 /** `api_usage.operation`. Diger Gemini akislarindan ayri sayilir. */
 export const WEB_SEARCH_OPERATION = "web_search_grounded";
 
+/** Grounding arama sorgusu ucreti, token satirindan AYRI `api_usage` satiri (units = sorgu sayisi). */
+export const WEB_SEARCH_GROUNDING_OPERATION = "web_search_grounding_queries";
+
 /** `quota/provider-budget.ts` islem anahtari (api_usage.operation degildir). */
 export const WEB_SEARCH_BUDGET_KEY = "web_search" as const;
 
@@ -34,13 +37,7 @@ export const WEB_SEARCH_MAX_OUTPUT_TOKENS = 3_072;
 /** Kisi basina (girisli hesap ya da IP ozeti) gercek model cagrisi. */
 export const WEB_SEARCH_ACTOR_LIMITS = { hour: 8, day: 30 } as const;
 
-export const WEB_SEARCH_CACHE_TTL_SECONDS = 6 * 60 * 60;
-/** Sonucsuz arama kisa onbelleklenir: ayni bos sorgu tekrar odeme olmasin. */
-export const WEB_SEARCH_EMPTY_CACHE_TTL_SECONDS = 30 * 60;
 export const WEB_SEARCH_FLIGHT_TTL_MS = 20_000;
-
-/** Cikis baglantisinin (imzali) gecerlilik suresi; sonuc onbellegiyle uyumlu. */
-export const WEB_EXIT_TOKEN_TTL_SECONDS = 12 * 60 * 60;
 
 export const WEB_SEARCH_MAX_GROUPS = 8;
 export const WEB_SEARCH_MAX_OFFERS_PER_GROUP = 5;

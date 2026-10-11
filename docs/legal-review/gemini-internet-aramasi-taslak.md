@@ -1,4 +1,4 @@
-# Gemini internet ürün araması — hukuki değerlendirme taslağı (karar 0101)
+# Gemini internet ürün araması — hukuki değerlendirme taslağı (karar 0102)
 
 **Durum:** TASLAK, onaysız. Onay gelmeden üretimde `WEB_SEARCH_LEGAL_APPROVED` açılmaz.
 
@@ -18,9 +18,8 @@
 2. Link aramasında **üçüncü taraf sayfa başlığının** modele gönderilmesi (0090 sohbet
    akışında bu yasak; burada ürün başlığı sınırlı ve süzgeçli gider).
 3. Google Search grounding kullanım şartları: gösterim ve `search_suggestions`
-   yükümlülükleri, sonuçların önbelleklenmesi (6 saat) ve türetilmiş kullanımı.
-4. Üçüncü taraf mağaza sayfalarına imzalı yönlendirme ve `web_exit_click` kaydı
-   (host, hedef adres, oturum kimliği, giriş yapmışsa kullanıcı) için saklama süresi.
+   yükümlülükleri, sonuçlar önbelleklenmez/saklanmaz; öneriler değiştirilmeden gösterilir.
+4. Mağaza bağlantıları doğrudan açılır; tıklama kaydı tutulmaz (Google şartları).
 
 ## Teknik güvenceler
 

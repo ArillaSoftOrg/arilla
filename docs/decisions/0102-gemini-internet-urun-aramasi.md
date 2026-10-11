@@ -1,4 +1,4 @@
-# 0101 — Gemini destekli internet ürün araması
+# 0102 — Gemini destekli internet ürün araması
 
 **Tarih:** 11 Ekim 2026
 **Durum:** Kabul edildi, **bayrak arkasında, üretimde kapalı**
@@ -14,9 +14,9 @@ birer not ekler.
 ## Karar
 
 1. **Akış** (`searchWeb`, `packages/core/src/web-search/`): bayrak → sorgu +
-   metin süzgeci → Redis önbelleği → tek-uçuş kilidi → günlük bütçe ayırma →
+   metin süzgeci → tek-uçuş kilidi → günlük bütçe ayırma →
    kişi limiti → Gemini (Google Search grounding + URL Context, tek deneme,
-   14 sn) → atıf adreslerini çöz → doğrula → birleştir → önbelleğe yaz.
+   14 sn) → atıf adreslerini çöz → doğrula → birleştir → Search Suggestions kontrolü.
    Katalog araması bunu **beklemez**: sayfa `startWebSearch` ile ikisini paralel
    başlatır, internet bölümü kendi `<Suspense>` sınırında, katalog
    sonuçlarından sonra akar. Katalog yeterli olsa da çalışır.
@@ -62,15 +62,9 @@ birer not ekler.
    affiliate kaybı olmasın), **başka satıcıdaki aynı ürün kalır**. Sıralama:
    tam eşleşme → doğrulanmış fiyatlı → satıcı sayısı → düşük fiyat; yalnızca
    en ucuzla sınırlı değil.
-7. **Saklama.** Sonuçlar katalog verisi **değildir**: veritabanına yazılmaz,
-   `product`/`offer`/`price_point` oluşmaz. Yalnızca Redis önbelleği (6 saat;
-   sonuçsuz 30 dk) ve `api_usage`. (Kural 3'e istisna: bu çıktı ürün başına
-   değil sorgu başına, kısa ömürlüdür.)
-8. **Çıkış** (kural 8). Katalogda `offer` olmadığı için `click` kullanılamaz
-   (`offer_id NOT NULL`); `/git/web/<token>` imzalı token (HMAC, `SESSION_SECRET`,
-   12 saat) → `web_exit_click` (migration 0062, append-only) → 302. Serbest
-   `?url=` yok; token yeniden doğrulanır (kanonik, güvenli). Affiliate değildir,
-   `click`/`conversion` akışı değişmez; kart bunu açıkça söyler. Bağlantılar
+7. **Saklama.** Sonuçlar katalog verisi **değildir** ve önbelleğe alınmaz/saklanmaz; veritabanına
+   yalnızca `api_usage` izi yazılır.
+8. **Çıkış.** Doğrudan mağaza adresi (bkz. revizyon); `click`/`web_exit_click` yok. Bağlantılar
    `nofollow noopener noreferrer sponsored`, yeni sekme.
 9. **Bütçe ve limit.** Ayrı günlük bütçe `web_search` (300 deneme/gün,
    Europe/Istanbul, atomik Redis ayırma/kesinleştirme); kişi başına saatte 8,
@@ -91,6 +85,33 @@ birer not ekler.
     sürerken ("İnternette alternatifler araştırılıyor"); gerçekleşmeyen adım
     gösterilmez. Bayrak kapalıyken davranış değişmez.
 
+## Üretime hazırlık revizyonu (resmî dokümanlarla doğrulama)
+
+Google Gemini API "Grounding with Google Search" şartları (ai.google.dev/gemini-api/terms) ve fiyat/API
+sayfaları 11 Ekim 2026'da okundu; ilk sürümden şu değişiklikler yapıldı:
+
+- **Önbellek kaldırıldı.** Şartlar grounded sonuçların önbelleklenmesini, çerçevelenmesini, analiz edilmesini
+  ve bir veritabanına dönüştürülmesini yasaklar. Redis sonuç önbelleği silindi; maliyeti kişi limiti, günlük
+  bütçe ve (kişi, sorgu) tek-uçuş kilidi sınırlar.
+- **Search Suggestions zorunlu.** Sonuçlar yalnızca `search_suggestions` HTML'iyle birlikte, değiştirilmeden
+  (betiksiz sandbox iframe) gösterilir; öneri gelmezse sonuç gösterilmez (`service.ts`).
+- **Tıklama izleme ve ara yönlendirme kaldırıldı.** Şartlar grounded bağlantılarda tıklama izlemeyi ve araya
+  yönlendirme/ara sayfa konmasını yasaklar. `/git/web/<token>`, `web_exit_click` tablosu ve migration
+  (0063 olarak yeniden numaralanan) **silindi**; bağlantılar doğrudan mağazaya gider. CLAUDE.md kural 8'e
+  istisna eklendi. Sonuç: bu özellik **migration gerektirmez**.
+- **Maliyet.** `gemini-3.5-flash-lite` fiyat kuralı eklendi (0,30 / 2,50 USD, 1M token). Grounding arama
+  ücreti (14 USD / 1000 sorgu, ayda 5.000 ücretsiz, Gemini 3+ ortak) token satırından **ayrı**
+  `api_usage` satırında (`web_search_grounding_queries`, units = benzersiz sorgu sayısı) liste fiyatıyla
+  yazılır; ücretsiz kontenjan hesaba katılmaz (üst sınır). Kur yoksa "fiyatlanmamış".
+  Dokümanda 3.5 Flash-Lite için "Search grounding: ücretsiz katmanda yok, AI Studio'da denenebilir"
+  notu var; ücretli katmanda (5.000 ücretsiz, sonra 14 USD) kullanılabilir.
+- **Görsel.** İnternet sayfasından görsel alınmaz (hak ve kaynak doğrulanamaz). Tam eşleşmede aynı ürün
+  katalogda varsa **katalogun** kendi görseli kullanılır (renk/beden/kapasite çelişirse hayır); aksi halde
+  `ProductCard` notr yedek kutuyu gösterir.
+- **Kapsam.** `/ara` (metin), `/ara/link`, sohbet metin/niyet sonuçları (görsel eki niyete dönüştüğü için
+  dolaylı) ve sohbet link sonuçları. `/ara/gorsel` kalıcı yönlendirme olduğundan ayrı yüzey yok.
+- **Gerçek API.** Doğrulanamadı (anahtar yalnızca Production'da, gizli). Bkz. "Açmadan önce".
+
 ## Reddedilen alternatifler
 
 - Katalog satırı yazmak (`product`/`offer`): doğrulanmamış veriyi katalog gibi
@@ -108,7 +129,7 @@ birer not ekler.
   `/gizlilik` ve `/kvkk-aydinlatma` güncellenmeli
   (`docs/legal-review/gemini-internet-aramasi-taslak.md`). Ardından
   `WEB_SEARCH_LEGAL_APPROVED=true` ve `WEB_SEARCH_ENABLED=true`.
-- Migration 0062 üretimde uygulanmış olmalı (kullanıcı uygular).
+- Migration gerekmez.
 - Canlı doğrulama: **geliştirme ortamında `GEMINI_API_KEY` olmadığından gerçek
   API ile denenmedi.** `url_context_result` / `url_citation` alan adları
   dokümana göre yazıldı ve toleranslı okunur; ilk açılışta önizlemede gerçek

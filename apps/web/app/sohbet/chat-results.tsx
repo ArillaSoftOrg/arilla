@@ -9,7 +9,10 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ProductCard, VisuallyHidden } from "@arilla/ui";
+import { Suspense } from "react";
 import { offerCountLabel, resultCountLabel } from "../ara/search-results.tsx";
+import { WebSearchPending, WebSearchResults } from "../ara/web-search-section.tsx";
+import { startWebSearch } from "../ara/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
 import { ResultFeedback } from "./chat-feedback-client.tsx";
 import { araSortParam, type ChatSortKey, sortModeFor } from "./chat-sort.ts";
@@ -96,6 +99,11 @@ export async function ChatResults({
   sort: ChatSortKey;
   helpful: boolean | null;
 }) {
+  // Karar 0102: internet araması katalog aramasıyla paralel başlar. Sorgu, modelin
+  // çıkardığı niyetin metinsel hâlidir (görsel eki de buna iner; görselin kendisi
+  // gitmez). Yalnızca varsayılan sekmede; sekme değişimi yeniden aramaz.
+  const webSearch =
+    sort === "secilen" ? startWebSearch({ kind: "text", text: intentSearchText(intent) }) : null;
   let result: Awaited<ReturnType<typeof searchByIntent>>;
   const timer = createChatTimer();
   try {
@@ -179,6 +187,19 @@ export async function ChatResults({
       {noteBlock}
       <ChatResultGrid items={outcome.items} labelledBy={headingId} />
       <ResultFeedback conversationId={conversationId} messageSeq={messageSeq} initial={helpful} />
+      {webSearch && !isFallback ? (
+        <Suspense fallback={<WebSearchPending variant="chat" />}>
+          <WebSearchResults
+            promise={webSearch}
+            variant="chat"
+            idPrefix={`${headingId}-internet`}
+            catalog={outcome.items.map((item) => ({
+              title: item.title,
+              imageUrl: item.primaryImageUrl,
+            }))}
+          />
+        </Suspense>
+      ) : null}
       {isFallback ? null : (
         <a className={styles.seeAll} href={fullResultsHref(intent, sort)}>
           {countKnown ? CHAT_COPY.seeAllCount(total) : CHAT_COPY.seeAll}

@@ -1,6 +1,5 @@
 export * from "./catalog.ts";
 export * from "./config.ts";
-export * from "./exit.ts";
 export * from "./grounding-client.ts";
 export * from "./merge.ts";
 export * from "./parse.ts";
