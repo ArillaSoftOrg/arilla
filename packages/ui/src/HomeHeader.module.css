@@ -237,7 +237,7 @@
   gap: var(--space-3);
   min-height: 52px;
   padding-block-start: var(--space-4);
-  padding-inline: var(--space-2);
+  padding-inline: var(--space-3) var(--space-2);
   border-block-start: var(--border-width) solid var(--line);
 }
 
@@ -269,7 +269,7 @@
   align-items: center;
   min-height: var(--size-touch-target);
   margin-block-start: var(--space-4);
-  padding-inline: var(--space-2);
+  padding-inline: var(--space-3) var(--space-2);
   border-radius: var(--radius-sm);
   color: var(--ink-muted);
   font-size: var(--text-small);
@@ -395,26 +395,31 @@
   padding-block: var(--space-5);
 }
 
-.mobileNavLink {
+/* Panel gezinme satirlari (ana + kisisel): kalici etkin-sayfa gorunumu YOK
+   (`aria-current` yalnizca anlamsal). Yalnizca imlec ustundeyken zemin
+   degisir; dokunmatikte yapiskan hover kalmasin diye `hover: hover` ile.
+   Klavye odagi ayri ve belirgin (asagidaki :focus-visible halkasi). */
+.mobileNavLink,
+.personalLink {
   display: flex;
   align-items: center;
-  min-height: 52px;
-  padding-inline: var(--space-2);
-  border-radius: var(--radius-sm);
+  padding-inline: var(--space-3);
+  border-radius: var(--radius-md);
   color: var(--ink);
-  font-size: var(--text-body-lg);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
   text-decoration: none;
 }
 
-.mobileNavLink:hover {
-  background: var(--surface);
+.mobileNavLink {
+  min-height: 52px;
+  font-size: var(--text-body-lg);
 }
 
-.mobileNavLink[aria-current="page"] {
-  text-decoration-line: underline;
-  text-decoration-thickness: var(--border-width);
-  text-underline-offset: 0.35em;
+@media (hover: hover) {
+  .mobileNavLink:hover,
+  .personalLink:hover {
+    background: var(--surface-hover);
+  }
 }
 
 /* Kisisel bolum (oturum acik): ana gezinmeden ince bir cizgiyle ayrilir,
@@ -429,7 +434,7 @@
 
 .personalTitle {
   margin: 0;
-  padding-inline: var(--space-2);
+  padding-inline: var(--space-3);
   padding-block-end: var(--space-1);
   color: var(--ink-muted);
   font-size: var(--text-meta);
@@ -438,24 +443,8 @@
 }
 
 .personalLink {
-  display: flex;
-  align-items: center;
   min-height: var(--size-touch-target);
-  padding-inline: var(--space-2);
-  border-radius: var(--radius-sm);
-  color: var(--ink);
   font-size: var(--text-body);
-  font-weight: var(--font-weight-medium);
-  text-decoration: none;
-}
-
-.personalLink:hover {
-  background: var(--surface);
-}
-
-.personalLink[aria-current="page"] {
-  background: var(--surface);
-  box-shadow: inset 3px 0 0 var(--ink);
 }
 
 /* Alt hesap alani: govde kaysa da yerinde kalir; guvenli alan dahil. */
@@ -483,10 +472,6 @@
 }
 
 .drawerAccountLink:hover {
-  background: var(--surface);
-}
-
-.drawerAccountLink[aria-current="page"] {
   background: var(--surface);
 }
 
