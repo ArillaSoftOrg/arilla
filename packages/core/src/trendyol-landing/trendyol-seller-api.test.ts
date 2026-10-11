@@ -6,6 +6,7 @@ import {
   type FetchLike,
   quotesFromApprovedResponse,
   trendyolSellerApiProvider,
+  variantLabel,
 } from "./trendyol-seller-api.ts";
 
 // SENTETIK: yanit bicimi developers.trendyol.com "Onayli Urun v2" ornegini izler
@@ -186,5 +187,17 @@ describe("enrichPrice satici onceligi", () => {
       now: () => NOW.getTime(),
     });
     expect(r.trendyolPrice?.supplierId).toBe("724838");
+  });
+});
+
+describe("variantLabel", () => {
+  it("Beden/Renk/Hafiza ozniteliklerinden etiket uretir", () => {
+    expect(
+      variantLabel([
+        { attributeName: "Beden", attributeValue: "38,5" },
+        { attributeName: "Materyal", attributeValue: "Deri" },
+      ]),
+    ).toBe("38,5");
+    expect(variantLabel(undefined)).toBeNull();
   });
 });

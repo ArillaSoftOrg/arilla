@@ -21,6 +21,8 @@ export interface ProductCard {
   /** Kesifte gorulen buybox saticisi (liste adresindeki merchantId), biliniyorsa. */
   supplierId?: string | null;
   barcode?: string | null;
+  /** Secili varyant degeri (beden "38,5", renk, kapasite), biliniyorsa. */
+  variant?: string | null;
 }
 
 export interface PriceQuote {
@@ -40,6 +42,8 @@ export interface PriceQuote {
   supplierId?: string | null;
   barcode?: string | null;
   variantId?: string | null;
+  /** Teklifin varyant degeri (beden/renk/kapasite), biliniyorsa. */
+  variant?: string | null;
   /** Fiyatin hangi alandan geldigi (ornegin "priceSeenByCustomer", "salePrice"). */
   priceBasis?: string;
   /** Teklifin dogrudan urun adresi, biliniyorsa. */
@@ -81,9 +85,70 @@ function canonicalPath(url: string | null | undefined): string | null {
  * high: ortak uretici model kodu. medium: baslik belirteclerinin >=%80'i ve depolama birebir.
  * Magaza kurali ayridir: exact bile olsa baska magazanin fiyati Trendyol fiyati olmaz.
  */
+// Canli gozlem (2026-10-12): ayni model kodu farkli renkte (Sony WH-1000XM5 Siyah 23.949 /
+// Mavi 16.999 TL) ve ayni contentId farkli bedende (Samba ID0478: 36 vs 38,5) farkli fiyatli.
+const COLORS = new Set([
+  "siyah",
+  "beyaz",
+  "mavi",
+  "lacivert",
+  "kirmizi",
+  "bordo",
+  "yesil",
+  "haki",
+  "gri",
+  "fume",
+  "pembe",
+  "mor",
+  "lila",
+  "lavanta",
+  "sari",
+  "turuncu",
+  "bej",
+  "krem",
+  "ekru",
+  "kahverengi",
+  "gumus",
+  "altin",
+  "col",
+  "naturel",
+  "black",
+  "white",
+  "blue",
+  "red",
+  "green",
+  "grey",
+  "gray",
+  "pink",
+  "purple",
+  "silver",
+  "gold",
+  "beige",
+]);
+
+const normVariant = (v: string) => tokenize(v.replace(",", ".")).join(" ");
+
+/** Varyant celiskisi: acik varyant degeri, kapasite (GB/TB) ya da renk birbirini tutmuyor. */
+export function variantConflict(card: ProductCard, quote: PriceQuote): boolean {
+  if (card.variant && quote.variant && normVariant(card.variant) !== normVariant(quote.variant)) {
+    return true;
+  }
+  const ct = tokenize(card.title);
+  const qt = tokenize(quote.title);
+  const disjoint = (pick: (t: string) => boolean) => {
+    const a = new Set(ct.filter(pick));
+    const b = new Set(qt.filter(pick));
+    return a.size > 0 && b.size > 0 && ![...a].some((x) => b.has(x));
+  };
+  return disjoint((t) => STORAGE.test(t)) || disjoint((t) => COLORS.has(t));
+}
+
 export function matchConfidence(card: ProductCard, quote: PriceQuote): Confidence {
-  if (quote.store === card.store && quote.storeProductId === card.storeProductId) return "exact";
+  // Barkod varyant basinadir: esitse ayni varyant.
   if (card.barcode && quote.barcode && card.barcode === quote.barcode) return "exact";
+  // contentId ayni olsa bile farkli beden/renk/kapasitenin fiyati baglanmaz.
+  if (variantConflict(card, quote)) return "low";
+  if (quote.store === card.store && quote.storeProductId === card.storeProductId) return "exact";
   const cp = canonicalPath(card.productUrl);
   if (cp && quote.store === card.store && cp === canonicalPath(quote.offerUrl)) return "exact";
   const a = modelCodes(card.title);

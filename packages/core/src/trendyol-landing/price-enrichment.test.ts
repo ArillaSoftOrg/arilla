@@ -138,3 +138,45 @@ describe("enrichPrice", () => {
     expect(r).toEqual({ trendyolPrice: null, otherStores: [], fallback: "Fiyatı mağazada gör" });
   });
 });
+
+describe("varyant celiskisi (canli gozlemler 2026-10-12)", () => {
+  const sony: ProductCard = {
+    store: "Trendyol",
+    storeProductId: "312097758",
+    title: "Sony Wh-1000xm5 Tamamen Kablosuz Gürültü Engelleme Özellikli Kulaklık-siyah",
+    productUrl: "https://www.trendyol.com/sony/wh-1000xm5-siyah-p-312097758",
+  };
+  it("ayni model, farkli renk -> low (Siyah 23.949 vs Mavi 16.999)", () => {
+    const mavi = q({
+      storeProductId: "802022106",
+      title: "Sony Wh-1000xm5 Tamamen Kablosuz … Kulaklık-Mavi",
+    });
+    expect(matchConfidence(sony, mavi)).toBe("low");
+  });
+  it("ayni contentId, farkli beden -> low; ayni beden -> exact", () => {
+    const card: ProductCard = { ...samba, variant: "38,5" };
+    expect(
+      matchConfidence(card, q({ storeProductId: "813659620", title: samba.title, variant: "36" })),
+    ).toBe("low");
+    expect(
+      matchConfidence(
+        card,
+        q({ storeProductId: "813659620", title: samba.title, variant: "38.5" }),
+      ),
+    ).toBe("exact");
+  });
+  it("ayni barkod her zaman exact (barkod varyant basinadir)", () => {
+    const card: ProductCard = { ...samba, variant: "38,5", barcode: "4066765863256" };
+    expect(
+      matchConfidence(
+        card,
+        q({ store: "Boyner", barcode: "4066765863256", title: "x", variant: "38.5" }),
+      ),
+    ).toBe("exact");
+  });
+  it("renk bilgisi tek tarafta varsa celiski sayilmaz", () => {
+    expect(
+      matchConfidence(sony, q({ storeProductId: "312097758", title: "Sony WH-1000XM5" })),
+    ).toBe("exact");
+  });
+});

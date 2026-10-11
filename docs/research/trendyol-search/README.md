@@ -11,6 +11,7 @@ eklenti yok, Trendyol'u ayrıca açmak yok, ücretli arama API'si yok.
 - Yetkili erişimde test protokolü: [`05-test-protokolu.md`](05-test-protokolu.md)
 - Fiyat katmanları (Samba farkı), limitler, kapsam ve dizin istatistikleri: [`06-fiyat-katmanlari-ve-kapsam.md`](06-fiyat-katmanlari-ve-kapsam.md)
 - Stok-Fiyat servisi, entegratörler, dizin doğrulaması, hipotez kaydı: [`07-entegratorler-dizin-hipotezler.md`](07-entegratorler-dizin-hipotezler.md)
+- Fiyat dağıtım zinciri, Open Prices, satıcı mağaza sitemap'i, varyant eşleştirmesi: [`08-dagitim-zinciri-ve-varyant.md`](08-dagitim-zinciri-ve-varyant.md)
 - Kod (bu dal): `packages/core/src/trendyol-landing/`, `packages/core/scripts/trendyol-*-cli.ts`
 - Dal / worktree: `research/trendyol-landing-discovery` → `../repo-docs-trendyol-landing`
 - İlgili, dokunulmayan çalışmalar: PR #125 (`feature/trendyol-live-discovery-prototype`),

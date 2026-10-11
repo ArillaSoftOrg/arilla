@@ -40,6 +40,19 @@ export interface SellerApiOptions {
 
 type Json = Record<string, unknown>;
 
+const VARIANT_ATTR = /^(beden|numara|renk|hafıza|hafiza|kapasite|dahili hafıza|ebat)$/i;
+
+/** Varyant oznitelikleri ("Beden: 38,5", "Renk: Siyah") -> tek etiket; yoksa null. */
+export function variantLabel(attrs: unknown): string | null {
+  if (!Array.isArray(attrs)) return null;
+  const parts = attrs
+    .filter((a): a is Json => !!a && typeof a === "object")
+    .filter((a) => typeof a.attributeName === "string" && VARIANT_ATTR.test(a.attributeName.trim()))
+    .map((a) => String(a.attributeValue ?? "").trim())
+    .filter(Boolean);
+  return parts.length > 0 ? parts.join(" ") : null;
+}
+
 function toKurus(v: unknown): number | null {
   if (typeof v !== "number" && typeof v !== "string") return null;
   return priceTextToKurus(String(v));
@@ -78,6 +91,7 @@ export function quotesFromApprovedResponse(
         supplierId: String(v.supplierId ?? seller.sellerId),
         barcode: typeof v.barcode === "string" ? v.barcode : null,
         variantId: v.variantId != null ? String(v.variantId) : null,
+        variant: variantLabel(v.attributes),
         offerUrl: typeof v.productUrl === "string" ? v.productUrl : null,
         priceKurus: kurus,
         currency: "TRY",
