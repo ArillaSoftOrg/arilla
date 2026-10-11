@@ -1,5 +1,6 @@
 import {
   attachCatalogImages,
+  attachStoreImages,
   type CatalogImageCandidate,
   dropCatalogDuplicates,
 } from "@arilla/core";
@@ -34,12 +35,15 @@ export async function WebSearchResults({
   }
   if (outcome.status !== "ok") return null;
 
-  const groups = attachCatalogImages(
-    dropCatalogDuplicates(outcome.groups, {
-      hosts: catalogHosts,
-      titles: catalog.map((item) => item.title),
-    }),
-    catalog,
+  // Once katalog gorseli (kendi feed'imiz), kalanlar icin magaza sayfasindan dogrulanmis gorsel.
+  const groups = await attachStoreImages(
+    attachCatalogImages(
+      dropCatalogDuplicates(outcome.groups, {
+        hosts: catalogHosts,
+        titles: catalog.map((item) => item.title),
+      }),
+      catalog,
+    ),
   );
   return (
     <WebResultsView

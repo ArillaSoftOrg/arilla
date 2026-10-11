@@ -166,7 +166,7 @@ function betterOffer(a: WebOffer, b: WebOffer): WebOffer {
   return a;
 }
 
-function sameVariant(a: WebSearchFeatures, b: WebSearchFeatures): boolean {
+export function sameVariant(a: WebSearchFeatures, b: WebSearchFeatures): boolean {
   return !(
     disjoint(a.capacities, b.capacities) ||
     disjoint(a.colors, b.colors) ||

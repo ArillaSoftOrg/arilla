@@ -42,6 +42,8 @@ export interface ProductCardProps {
   sourceLabel?: string;
   /** Dis magaza baglantisi: yeni sekmede, izleme/yonlendirici bilgisi olmadan acilir. */
   external?: boolean;
+  /** Gorsel yoksa bos kare alan ayirma; kompakt (yalnizca metin) kart cizer. */
+  compactWithoutImage?: boolean;
 }
 
 /**
@@ -65,6 +67,7 @@ export function ProductCard({
   priceLabel,
   sourceLabel,
   external = false,
+  compactWithoutImage = false,
 }: ProductCardProps) {
   const metaLabel = offerCount !== undefined && offerCountLabel ? offerCountLabel(offerCount) : "";
 
@@ -74,20 +77,22 @@ export function ProductCard({
       className={styles.card}
       {...(external ? { target: "_blank", rel: "nofollow noopener noreferrer sponsored" } : {})}
     >
-      <span className={styles.media}>
-        {imageUrl ? (
-          // design.md "Kutu modeli": fotograf kartin icinde kalir (contain) -
-          // DiscoveryCard ve urun sayfasiyla ayni cerceve; kirik gorselde
-          // ProductImage'in --surface yedegi.
-          <ProductImage
-            src={imageUrl}
-            alt=""
-            fit="contain"
-            loading={imageLoading}
-            className={styles.image}
-          />
-        ) : null}
-      </span>
+      {imageUrl || !compactWithoutImage ? (
+        <span className={styles.media}>
+          {imageUrl ? (
+            // design.md "Kutu modeli": fotograf kartin icinde kalir (contain) -
+            // DiscoveryCard ve urun sayfasiyla ayni cerceve; kirik gorselde
+            // ProductImage'in --surface yedegi.
+            <ProductImage
+              src={imageUrl}
+              alt=""
+              fit="contain"
+              loading={imageLoading}
+              className={styles.image}
+            />
+          ) : null}
+        </span>
+      ) : null}
       <span className={styles.body}>
         {sourceLabel ? <span className={styles.source}>{sourceLabel}</span> : null}
         {brand ? <span className={styles.brand}>{brand}</span> : null}
