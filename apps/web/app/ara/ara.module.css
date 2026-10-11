@@ -296,6 +296,22 @@
   margin-block-start: var(--space-8);
 }
 
+/* Tarayicide gorseli yuklenemeyen kart gizlenir (`WebGridItem`); icinde gorunur
+   kart kalmayan grup ve bolum (oneri cercevesiyle birlikte) kapanir. */
+.webGroup {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.webGroup:not(:has(li[data-web-item]:not([data-broken]))) {
+  display: none;
+}
+
+.webSection:not(:has(li[data-web-item]:not([data-broken]))) {
+  display: none;
+}
+
 .webNote {
   margin: 0;
   color: var(--ink-muted);

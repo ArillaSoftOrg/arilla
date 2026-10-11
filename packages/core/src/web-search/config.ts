@@ -40,6 +40,8 @@ export const WEB_SEARCH_ACTOR_LIMITS = { hour: 8, day: 30 } as const;
 export const WEB_SEARCH_FLIGHT_TTL_MS = 20_000;
 
 export const WEB_SEARCH_MAX_GROUPS = 8;
+/** Gorsel dogrulamasi icin degerlendirilen aday havuzu (ekranda en fazla `WEB_SEARCH_MAX_GROUPS`). */
+export const WEB_SEARCH_POOL_GROUPS = 12;
 export const WEB_SEARCH_MAX_OFFERS_PER_GROUP = 5;
 /** Modelden istenen en fazla aday; fazlasi dogrulama maliyetini artirir. */
 export const WEB_SEARCH_MAX_CANDIDATES = 12;
