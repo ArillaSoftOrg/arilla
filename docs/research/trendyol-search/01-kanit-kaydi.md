@@ -134,3 +134,17 @@ Kaynak: developers.cloudflare.com "Verified bots", "Web Bot Auth", "IP validatio
 |---|---|---|
 | 8.1 | `sitemap_index.xml` iki okuma (aynı gün, saatler arayla) | 352 TR sitemap'in **hepsi** aynı `lastmod` = `2026-10-11T16:39:34Z`; değişiklik yok → toplu (muhtemelen günlük) üretim. Ürün sitemap'lerinde ürün başına `lastmod` yok |
 | 8.2 | Günlük ürün değişim oranı | **Ölçülmedi** — sonraki oturumda: ertesi gün `sitemap_products337.xml` indirilip bugünkü kopyayla (`$TEMP/typrod/`) karşılaştırılacak |
+
+## Faz 9 — Bağımsız eklentisiz arayüz (A + B birlikte)
+
+`scripts/trendyol-search-server.ts` (127.0.0.1:5179). İstek anında Trendyol'a **hiç** bağlanmaz;
+yalnızca önceden kurulmuş ürün dizinini ve liste sayfası dizinini okur. Fiyat/stok gösterilmez
+("Fiyat ve stok: Trendyol'da").
+
+| Sorgu | Dizin | Sonuç | Görsel | Önerilen Trendyol sayfası |
+|---|---|---|---|---|
+| Nike Air Force 1 | 988.573 ürün (41/337 dosya) | 24 (gösterim sınırı), ör. "Nike Air Force 1 07 Erkek Spor Ayakkabisi" | Chrome'da yüklendi (1200 px orijinal; 400 px `mnresize/400/-/` yolu da çalışıyor) | `/nike-air-force-1-y-s8056` |
+| Adidas Samba | 1.060.900 ürün (44/337 dosya) | 24, ör. "Adidas Samba Og Erkek Sneaker Kk2267" | **24/24 yüklendi** (Referer'lı ve Referer'sız) | `/adidas-samba-y-s10410` |
+
+Arama süresi 50–170 ms (yükleme hariç). Dizin yükleme ~5 sn / 1 milyon ürün.
+Ekran görüntüsü: oturum geçici klasöründe (kalıcı değil).

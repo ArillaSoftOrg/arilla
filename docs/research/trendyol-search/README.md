@@ -46,6 +46,12 @@ eklenti yok, Trendyol'u ayrıca açmak yok, ücretli arama API'si yok.
 
 Hiçbir yöntem bugün **A (ticari kullanım doğrulandı + ürün gösterimi)** değil.
 
+## Prototipler
+
+- `scripts/trendyol-landing-cli.ts "<sorgu>" [--resolve-only]` — sorgu → liste sayfası → (izin olursa) canlı fiyatlı ürünler (C).
+- `scripts/trendyol-product-index-cli.ts build|search` — ürün sitemap dizini (B), kaldığı yerden devam eder.
+- `scripts/trendyol-search-server.ts` — eklentisiz arayüz: ad + görsel + bağlantı + en uygun Trendyol sayfası; fiyat yok (A+B).
+
 ## Sonraki oturum için devam planı
 
 1. **Tam ürün dizinini bitir** (kaldığı yerden devam eder):
