@@ -22,6 +22,7 @@ import {
   type Database,
 } from "@arilla/db";
 import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { failureFromChatTurn, recordModelFailure } from "../eval/model-errors.ts";
 import type { LlmErrorCode } from "../llm/client.ts";
 import { llmCallCostMicros } from "../llm/pricing.ts";
 import {
@@ -949,7 +950,20 @@ async function runPendingTurn(
     attempts = outcome.calls.length;
     await settleBudget();
 
-    return await persistTurn();
+    let lastUsageId: number | null = null;
+    const persisted = await persistTurn();
+    // Tur sonucu basina tek hata olayi (karar 0099); islemden sonra, sinirli sureli,
+    // asla firlatmaz. Kullanici yaniti etkilenmez.
+    if (persisted.status !== "not_found") {
+      await recordModelFailure(db, {
+        failure: failureFromChatTurn(outcome),
+        operation: CHAT_TURN_OPERATION,
+        surface: "chat",
+        modelVersion: outcome.modelVersion,
+        apiUsageId: lastUsageId,
+      });
+    }
+    return persisted;
 
     function persistTurn(): Promise<ProcessTurnResult> {
       return timer.time("persist", () =>
@@ -962,19 +976,24 @@ async function runPendingTurn(
           if (!row) return { status: "not_found" };
 
           // Kural 9: her HTTP denemesi (basarisiz olanlar dahil) bir satir.
+          lastUsageId = null;
           if (outcome.calls.length > 0) {
-            await tx.insert(apiUsage).values(
-              outcome.calls.map((call) => ({
-                sessionId: null,
-                userId: input.userId,
-                operation: CHAT_TURN_OPERATION,
-                modelVersion: call.modelVersion,
-                units: call.usage?.totalTokens ?? 0,
-                // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
-                costMicros: llmCallCostMicros(call),
-                cacheHit: false,
-              })),
-            );
+            const usageRows = await tx
+              .insert(apiUsage)
+              .values(
+                outcome.calls.map((call) => ({
+                  sessionId: null,
+                  userId: input.userId,
+                  operation: CHAT_TURN_OPERATION,
+                  modelVersion: call.modelVersion,
+                  units: call.usage?.totalTokens ?? 0,
+                  // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
+                  costMicros: llmCallCostMicros(call),
+                  cacheHit: false,
+                })),
+              )
+              .returning({ id: apiUsage.id });
+            lastUsageId = usageRows.at(-1)?.id ?? null;
           }
 
           if (outcome.kind === "provider_error") {

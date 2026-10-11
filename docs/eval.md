@@ -79,3 +79,7 @@ pnpm --filter @arilla/core eval:record-matching -- out.json --record
 `EVAL_RECORD_DB_NAME=<adres sonundaki ad>` verilmeli ve ad `test`/`eval`/`scratch`/`sandbox`
 parçası taşımalı (örn. `arilla_eval_test`); aksi halde reddedilir. Aynı koşu tekrar yazılmaz. Görsel benzerlik
 için etiketli veri olmadığından kayıt yolu yoktur.
+
+## Gemini hata kaydı (karar 0099)
+
+Sohbet ve sorgu yorumu hataları `ai_error_event`e yazılır (sonuç başına tek olay, sınırlı süreli, asla fırlatmaz).
