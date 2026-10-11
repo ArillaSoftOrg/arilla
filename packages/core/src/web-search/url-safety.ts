@@ -1,5 +1,5 @@
 /**
- * Internet sonucu adresleri icin guvenlik (docs/decisions/0101).
+ * Internet sonucu adresleri icin guvenlik (docs/decisions/0102).
  *
  * Sunucumuz bu adreslere ASLA istek atmaz (tek istisna: Google'in sabit
  * grounding yonlendirme ana makinesi, bkz. `grounding-client.ts`); adresler

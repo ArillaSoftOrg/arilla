@@ -1,5 +1,5 @@
 /**
- * `/git/web/[token]` (karar 0101): imzali internet sonucu cikisi `web_exit_click`
+ * `/git/web/[token]` (karar 0102): imzali internet sonucu cikisi `web_exit_click`
  * satiri yazar ve yonlendirir; imzasiz/suresi dolmus token, kapali bayrak 404;
  * bot/onyukleme istegi 204 (kayit ve yonlendirme yok). Gercek yerel Postgres;
  * `next/*` taklit edilir.

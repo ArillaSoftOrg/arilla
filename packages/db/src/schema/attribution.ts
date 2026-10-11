@@ -79,7 +79,7 @@ export const ingestRun = pgTable("ingest_run", {
 });
 
 /**
- * Internet arama sonuclarindan magaza cikisi (karar 0101). Katalogda olmayan
+ * Internet arama sonuclarindan magaza cikisi (karar 0102). Katalogda olmayan
  * sonuc icin `offer` satiri uydurulmaz; `click` ayri kalir. APPEND-ONLY.
  */
 export const webExitClick = pgTable("web_exit_click", {

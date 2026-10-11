@@ -1,4 +1,4 @@
-# 0101 — Gemini destekli internet ürün araması
+# 0102 — Gemini destekli internet ürün araması
 
 **Tarih:** 11 Ekim 2026
 **Durum:** Kabul edildi, **bayrak arkasında, üretimde kapalı**
@@ -68,7 +68,7 @@ birer not ekler.
    değil sorgu başına, kısa ömürlüdür.)
 8. **Çıkış** (kural 8). Katalogda `offer` olmadığı için `click` kullanılamaz
    (`offer_id NOT NULL`); `/git/web/<token>` imzalı token (HMAC, `SESSION_SECRET`,
-   12 saat) → `web_exit_click` (migration 0062, append-only) → 302. Serbest
+   12 saat) → `web_exit_click` (migration 0063, append-only) → 302. Serbest
    `?url=` yok; token yeniden doğrulanır (kanonik, güvenli). Affiliate değildir,
    `click`/`conversion` akışı değişmez; kart bunu açıkça söyler. Bağlantılar
    `nofollow noopener noreferrer sponsored`, yeni sekme.
@@ -108,7 +108,7 @@ birer not ekler.
   `/gizlilik` ve `/kvkk-aydinlatma` güncellenmeli
   (`docs/legal-review/gemini-internet-aramasi-taslak.md`). Ardından
   `WEB_SEARCH_LEGAL_APPROVED=true` ve `WEB_SEARCH_ENABLED=true`.
-- Migration 0062 üretimde uygulanmış olmalı (kullanıcı uygular).
+- Migration 0063 üretimde uygulanmış olmalı (kullanıcı uygular).
 - Canlı doğrulama: **geliştirme ortamında `GEMINI_API_KEY` olmadığından gerçek
   API ile denenmedi.** `url_context_result` / `url_citation` alan adları
   dokümana göre yazıldı ve toleranslı okunur; ilk açılışta önizlemede gerçek

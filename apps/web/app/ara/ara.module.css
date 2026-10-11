@@ -286,7 +286,7 @@
   overflow-wrap: anywhere;
 }
 
-/* Internet sonuclari (karar 0101): katalog izgarasiyla ayni dil; ayrim baslik,
+/* Internet sonuclari (karar 0102): katalog izgarasiyla ayni dil; ayrim baslik,
    not ve kart rozetiyle yapilir. */
 .webSection {
   display: flex;

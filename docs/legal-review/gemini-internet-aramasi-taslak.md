@@ -1,4 +1,4 @@
-# Gemini internet ürün araması — hukuki değerlendirme taslağı (karar 0101)
+# Gemini internet ürün araması — hukuki değerlendirme taslağı (karar 0102)
 
 **Durum:** TASLAK, onaysız. Onay gelmeden üretimde `WEB_SEARCH_LEGAL_APPROVED` açılmaz.
 

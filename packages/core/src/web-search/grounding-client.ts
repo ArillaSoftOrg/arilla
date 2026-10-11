@@ -1,5 +1,5 @@
 /**
- * Gemini Google Search grounding + URL Context istemcisi (docs/decisions/0101).
+ * Gemini Google Search grounding + URL Context istemcisi (docs/decisions/0102).
  *
  * Interactions API, dogrudan HTTP (`llm/gemini.ts` ile ayni desen: SDK yok,
  * `fetch` enjekte edilebilir, testler ag kullanmaz). Farklar:

@@ -59,7 +59,7 @@ tamamı anlamını yitirir.
      kullanıcı metniyle, 0074'ün aynı tek çağrı/`api_usage`/tavan hattından. Üçüncü
      taraf sayfa metni, başlığı ya da görseli modele gitmez; model yalnızca
      lexicon'la doğrulanan tercih alanları üretir — ürün, fiyat, stok, satıcı değil.
-   - İnternet ürün araması (karar 0101): `/ara`, `/ara/gorsel`, `/ara/link`
+   - İnternet ürün araması (karar 0102): `/ara`, `/ara/gorsel`, `/ara/link`
      sonuç sayfası başına en fazla bir Gemini çağrısı (Google Search grounding
      + URL Context); `WEB_SEARCH_ENABLED=true` bayrağıyla (varsayılan kapalı;
      üretimde ayrıca `WEB_SEARCH_LEGAL_APPROVED=true` gerekir), `GeminiWebSearch`
@@ -75,7 +75,7 @@ tamamı anlamını yitirir.
 2. **Benzerlik sorgu anında hesaplanmaz.** `similarity_edge` tablosu toplu işle
    doldurulur, istek yolu sadece okur.
 3. **Her AI çıktısı saklanır** (istisna: internet arama sonuçları katalog verisi
-   değildir, kalıcı saklanmaz; karar 0101). Yorum özeti, kategori tahmini, öznitelik
+   değildir, kalıcı saklanmaz; karar 0102). Yorum özeti, kategori tahmini, öznitelik
    çıkarımı bir kez üretilir ve veritabanına yazılır. Maliyet katalog
    büyüklüğüyle ölçeklenir, kullanıcı sayısıyla değil.
 4. **`price_point` değiştirilemez.** Sadece INSERT. UPDATE veya DELETE yazan
@@ -90,7 +90,7 @@ tamamı anlamını yitirir.
    attribution kaydı olmadan oluşturulmaz.
    İnternet arama sonuçlarının (katalogda `offer` satırı olmayan) çıkışı imzalı
    `/git/web/<token>` rotasından geçer ve `web_exit_click` defterine yazılır
-   (karar 0101); imzasız ya da süresi dolmuş bağlantıya yönlendirme yapılmaz.
+   (karar 0102); imzasız ya da süresi dolmuş bağlantıya yönlendirme yapılmaz.
 9. **Her model çağrısı `api_usage` tablosuna yazılır.** Maliyet ölçülemiyorsa
    kontrol edilemez.
 10. **Yüklenen görsel saklanmaz.** Embedding ve hash tutulur; ham dosya en fazla

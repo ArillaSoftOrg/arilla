@@ -460,7 +460,7 @@ export const AI_OPERATIONS: Readonly<Record<string, AiOperationCoverage>> = {
     writer: "core",
     pricing: "llm_rule",
   },
-  // Karar 0101: model için fiyat kuralı yoksa çağrılar "fiyatlanmamış" yazılır.
+  // Karar 0102: model için fiyat kuralı yoksa çağrılar "fiyatlanmamış" yazılır.
   web_search_grounded: {
     label: "İnternet ürün araması (Gemini grounding)",
     writer: "core",

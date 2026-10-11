@@ -1,4 +1,4 @@
--- 0062 — internet arama sonuclarindan magaza cikisi kaydi (docs/decisions/0101)
+-- 0063 — internet arama sonuclarindan magaza cikisi kaydi (docs/decisions/0102)
 --
 -- CLAUDE.md kural 8: merchant'a giden her cikis bir kayit uretir. `click.offer_id`
 -- NOT NULL ve `offer` tablosuna bagli; internetten gelen (katalogda OLMAYAN,

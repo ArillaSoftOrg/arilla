@@ -109,7 +109,7 @@ function GroupGrid({
 }
 
 /**
- * Internet sonuçları (karar 0101). Veritabanı sonuçları bu bölümden BAĞIMSIZ
+ * Internet sonuçları (karar 0102). Veritabanı sonuçları bu bölümden BAĞIMSIZ
  * ve önce görünür; bu bileşen yalnızca internet araması bittiğinde akar.
  * Başarısızlıkta veritabanı sonuçlarına dokunulmaz; kapalı/uygunsuz/limitli
  * durumlarda hiçbir şey çizilmez.

@@ -1,5 +1,5 @@
 /**
- * Dogrulanmis adaylari urun gruplarina birlestirir (docs/decisions/0101):
+ * Dogrulanmis adaylari urun gruplarina birlestirir (docs/decisions/0102):
  * yanlis eslesmeleri eler, tam eslesme ile benzer alternatifi ayirir, ayni
  * urunun farkli saticilardaki tekliflerini tek grupta toplar, yinelenenleri
  * ve katalogda zaten bulunan teklifleri atar. Saf ve deterministik.

@@ -255,7 +255,7 @@ export default async function AramaPage({
 
   const page = Math.max(1, Number.parseInt(sayfa ?? "1", 10) || 1);
 
-  // Karar 0101: internet araması veritabanı aramasıyla PARALEL başlar, sonuç
+  // Karar 0102: internet araması veritabanı aramasıyla PARALEL başlar, sonuç
   // beklenmeden akar. Bayrak kapalıysa `null`: hiçbir şey çalışmaz.
   const webSearch = page === 1 ? startWebSearch({ kind: "text", text: query }) : null;
 

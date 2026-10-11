@@ -1,5 +1,5 @@
 /**
- * Internet urun aramasi yapilandirmasi (docs/decisions/0101).
+ * Internet urun aramasi yapilandirmasi (docs/decisions/0102).
  *
  * Bayrak varsayilan KAPALI. Uretimde ek olarak hukuki onay bayragi gerekir:
  * onaysiz uretimde yeni Gemini veri akisi acilmaz (karar 0095 kisitlari).

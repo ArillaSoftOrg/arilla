@@ -1,4 +1,4 @@
-/** Internet arama sonucu tipleri (docs/decisions/0101). Katalog verisi DEGILDIR. */
+/** Internet arama sonucu tipleri (docs/decisions/0102). Katalog verisi DEGILDIR. */
 
 export type WebMatchKind = "exact" | "similar";
 export type WebPriceStatus = "verified" | "unverified";

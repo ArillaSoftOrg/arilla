@@ -1,5 +1,5 @@
 /**
- * Internet sonucundan magaza cikisi (docs/decisions/0101, CLAUDE.md kural 8).
+ * Internet sonucundan magaza cikisi (docs/decisions/0102, CLAUDE.md kural 8).
  *
  * Katalogda `offer` satiri olmayan sonuc icin `/git/web/<token>` kullanilir.
  * Token, sunucu tarafindan imzalanir (`SESSION_SECRET` ile HMAC) ve hedef

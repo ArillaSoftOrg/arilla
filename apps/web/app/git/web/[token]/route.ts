@@ -16,7 +16,7 @@ import { notFound, redirect } from "next/navigation";
 import { requireProductAccess } from "../../../lib/dal.ts";
 
 /**
- * Internet arama sonucundan magaza cikisi (karar 0101, CLAUDE.md kural 8).
+ * Internet arama sonucundan magaza cikisi (karar 0102, CLAUDE.md kural 8).
  * Katalogda `offer` satiri olmayan sonuclar `/git/[offerId]` yerine buradan
  * gecer: imzali token -> `web_exit_click` kaydi -> yonlendirme. Imzasiz,
  * suresi dolmus ya da guvensiz adresli token 404 verir; serbest `?url=`

@@ -1696,7 +1696,7 @@ REVOKE UPDATE, DELETE, TRUNCATE ON ai_eval_case     FROM arilla_app;
 REVOKE UPDATE, TRUNCATE          ON ai_error_event  FROM arilla_app;
 
 -- ---------------------------------------------------------------------------
--- INTERNET ARAMASI CIKIS DEFTERI — 0062 (docs/decisions/0101)
+-- INTERNET ARAMASI CIKIS DEFTERI — 0063 (docs/decisions/0102)
 -- Katalogda olmayan (offer satiri uydurulmayan) internet sonuclarindan magaza
 -- cikislari. APPEND-ONLY. `click` ve donusum akisi degismez.
 -- ---------------------------------------------------------------------------

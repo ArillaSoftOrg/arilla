@@ -1,5 +1,5 @@
 /**
- * İnternet arama bölümünün metinleri (karar 0101). docs/glossary.md: "satın al",
+ * İnternet arama bölümünün metinleri (karar 0102). docs/glossary.md: "satın al",
  * "dupe", "ucuz" geçmez; ALL CAPS yok. İlerleme metni yalnızca gerçekten
  * süren işi söyler: bölüm, sunucuda internet araması sürerken gösterilir.
  */

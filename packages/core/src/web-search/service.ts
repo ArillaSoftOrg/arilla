@@ -1,5 +1,5 @@
 /**
- * Internet urun aramasi orkestrasyonu (docs/decisions/0101).
+ * Internet urun aramasi orkestrasyonu (docs/decisions/0102).
  *
  *   bayrak -> sorgu + metin suzgeci -> Redis onbellek -> tek ucus kilidi
  *   -> gunluk butce ayirma -> kisi limiti -> Gemini (grounding + URL Context,
@@ -326,7 +326,7 @@ async function run(
               operation: WEB_SEARCH_OPERATION,
               modelVersion: call.modelVersion || WEB_SEARCH_MODEL,
               units: call.usage?.totalTokens ?? 0,
-              // Karar 0082/0101: fiyat kurali yoksa "fiyatlanmamis" (0); uydurma tutar yok.
+              // Karar 0082/0102: fiyat kurali yoksa "fiyatlanmamis" (0); uydurma tutar yok.
               costMicros: llmCallCostMicros(call),
               cacheHit: false,
             })),
