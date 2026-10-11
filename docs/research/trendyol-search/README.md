@@ -5,6 +5,7 @@ Amaç: kullanıcı yalnızca manicepte.com'da arama yaparak gerçek Trendyol
 eklenti yok, Trendyol'u ayrıca açmak yok, ücretli arama API'si yok.
 
 - Kanıtlar ve ham test çıktıları: [`01-kanit-kaydi.md`](01-kanit-kaydi.md)
+- Fiyat keşfi ve fiyat zenginleştirme mimarisi: [`02-fiyat-zenginlestirme.md`](02-fiyat-zenginlestirme.md)
 - Kod (bu dal): `packages/core/src/trendyol-landing/`, `packages/core/scripts/trendyol-*-cli.ts`
 - Dal / worktree: `research/trendyol-landing-discovery` → `../repo-docs-trendyol-landing`
 - İlgili, dokunulmayan çalışmalar: PR #125 (`feature/trendyol-live-discovery-prototype`),
