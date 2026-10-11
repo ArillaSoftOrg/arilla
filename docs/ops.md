@@ -896,3 +896,7 @@ SELECT operation, count(*), sum(units) AS units, sum(cost_micros) FROM api_usage
 Maliyet: token satırı (`web_search_grounded`) ve Google arama sorgusu satırı (`web_search_grounding_queries`, liste fiyatı; ayda 5.000 ücretsiz kontenjan düşülmez) ayrıdır; `LLM_COST_TRY_PER_USD` tanımlı olmalı.
 
 **Gerçek API dumanı (karar 0102):** `WEB_SEARCH_SMOKE=1 GEMINI_API_KEY=<anahtar> pnpm --filter @arilla/core web-search:smoke [1-3]` en fazla 3 sabit örnek sorgu çalıştırır (veritabanı/Redis yok, anahtar yazdırılmaz); atıf/URL Context/search_suggestions alanlarını, doğrulanan sonuçları ve tahmini maliyeti özetler. Anahtarı komut satırına yazmak yerine oturumda `read -s` ile ortama alın.
+
+### Veritabanı bağlantısı: pooler modu (EMAXCONNSESSION)
+
+Üretimde `DATABASE_URL` Supabase **Transaction pooler**'ını (port `6543`) göstermelidir; Session pooler (`5432`, `pool_size` 15) serverless'ta `EMAXCONNSESSION` verir. Uygulama başına varsayılan havuz 3 bağlantıdır (`DATABASE_POOL_MAX`). `DATABASE_URL_OWNER` (migration/bakım) Transaction pooler'a ÇEVRİLMEZ; doğrudan ya da session bağlantısıyla kalır.
