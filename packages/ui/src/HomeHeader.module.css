@@ -396,16 +396,17 @@
 }
 
 /* Panel gezinme satirlari (ana + kisisel): kalici etkin-sayfa gorunumu YOK
-   (`aria-current` yalnizca anlamsal). Yalnizca imlec ustundeyken zemin
-   degisir; dokunmatikte yapiskan hover kalmasin diye `hover: hover` ile.
-   Klavye odagi ayri ve belirgin (asagidaki :focus-visible halkasi). */
+   (`aria-current` yalnizca anlamsal), zemin her zaman saydam. Imlec
+   ustundeyken yalnizca yazi rengi `--ink-muted` -> `--ink` koyulasir;
+   dokunmatikte yapiskan hover kalmasin diye `hover: hover` ile. Klavye odagi
+   ayri ve belirgin (asagidaki :focus-visible halkasi). */
 .mobileNavLink,
 .personalLink {
   display: flex;
   align-items: center;
   padding-inline: var(--space-3);
   border-radius: var(--radius-md);
-  color: var(--ink);
+  color: var(--ink-muted);
   font-weight: var(--font-weight-medium);
   text-decoration: none;
 }
@@ -418,7 +419,7 @@
 @media (hover: hover) {
   .mobileNavLink:hover,
   .personalLink:hover {
-    background: var(--surface-hover);
+    color: var(--ink);
   }
 }
 
