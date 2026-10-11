@@ -1,89 +1,84 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import { setChatImageConsentAction } from "./actions.ts";
 import styles from "./chat-image-consent.module.css";
 import { CHAT_IMAGE_CONSENT_COPY as COPY } from "./chat-image-consent-copy.ts";
 
 /**
- * Fotograf eklemeden once bilgilendirme + ACIK riza (karar 0101). Yerel `<dialog>`.
+ * Fotograf eklerken kisa bilgilendirme + ACIK riza (karar 0101, 0105). Modal degil,
+ * kompozerin ustunde satir ici seritir; secilen fotografin onizlemesi yaninda gorunur.
  * Kabul ve ret esit agirlikli iki ayri dugmedir; hicbiri onceden secili degildir,
- * Esc ya da dis tiklama KABUL SAYILMAZ (ret gibi kapanir, kayit yazilmaz).
+ * onay kutusu yoktur. Esc ya da yok sayma KABUL SAYILMAZ (ret gibi kapanir, kayit yazilmaz).
  */
-export function ChatImageConsentDialog({
+export function ChatImageConsentPrompt({
   open,
+  previewUrl,
   pending,
   error,
   onAccept,
   onDecline,
 }: {
   open: boolean;
+  previewUrl?: string | null;
   pending: boolean;
   error: boolean;
   onAccept: () => void;
   onDecline: () => void;
 }) {
-  const ref = useRef<HTMLDialogElement>(null);
   const titleId = useId();
-
-  useEffect(() => {
-    const dialog = ref.current;
-    if (!dialog) return;
-    if (open && !dialog.open) dialog.showModal();
-    if (!open && dialog.open) dialog.close();
-  }, [open]);
-
+  if (!open) return null;
   return (
-    <dialog
-      ref={ref}
-      className={styles.dialog}
+    <section
+      className={styles.panel}
       aria-labelledby={titleId}
-      onCancel={(event) => {
-        event.preventDefault();
-        if (!pending) onDecline();
+      onKeyDown={(event) => {
+        if (event.key === "Escape" && !pending) onDecline();
       }}
     >
-      {open ? (
-        <div className={styles.body}>
-          <h2 id={titleId} className={styles.title}>
-            {COPY.title}
-          </h2>
-          <p className={styles.text}>{COPY.intro}</p>
-          <ul className={styles.list}>
-            {COPY.points.map((point) => (
-              <li key={point}>{point}</li>
-            ))}
-          </ul>
-          <p className={styles.text}>{COPY.withdraw}</p>
-          <p className={styles.text}>
-            <Link className={styles.link} href={COPY.detailsHref} target="_blank">
-              {COPY.detailsLabel}
-            </Link>
-          </p>
-          {error ? (
-            <p role="alert" className={styles.error}>
-              {COPY.saveError}
-            </p>
-          ) : null}
-          <div className={styles.actions}>
-            <button type="button" className={styles.choice} disabled={pending} onClick={onDecline}>
-              {COPY.decline}
-            </button>
-            <button type="button" className={styles.choice} disabled={pending} onClick={onAccept}>
-              {COPY.accept}
-            </button>
-          </div>
-        </div>
+      {previewUrl ? (
+        // biome-ignore lint/performance/noImgElement: yerel blob onizlemesi, optimize edilecek bir kaynak degil.
+        <img className={styles.thumb} src={previewUrl} alt={COPY.previewAlt} />
       ) : null}
-    </dialog>
+      <div className={styles.content}>
+        <h2 id={titleId} className={styles.title}>
+          {COPY.title}
+        </h2>
+        <p className={styles.text}>{COPY.summary}</p>
+        <p className={styles.text}>
+          {COPY.withdraw}{" "}
+          <Link className={styles.link} href={COPY.privacyHref} target="_blank">
+            {COPY.privacyLabel}
+          </Link>
+          {" · "}
+          <Link className={styles.link} href={COPY.detailsHref} target="_blank">
+            {COPY.detailsLabel}
+          </Link>
+        </p>
+        {error ? (
+          <p role="alert" className={styles.error}>
+            {COPY.saveError}
+          </p>
+        ) : null}
+        <div className={styles.actions}>
+          <button type="button" className={styles.choice} disabled={pending} onClick={onDecline}>
+            {COPY.decline}
+          </button>
+          <button type="button" className={styles.choice} disabled={pending} onClick={onAccept}>
+            {COPY.accept}
+          </button>
+        </div>
+      </div>
+    </section>
   );
 }
 
 /**
  * Secilen dosyayi rizaya kadar BEKLETIR (yalniz bellekte; sunucuya hicbir sey gitmez).
- * Riza varsa dosya dogrudan gecer. Kabul -> kayit -> dosya gecer; ret/Esc -> dosya atilir.
- * Sunucu eylemleri rizayi ayrica denetler; burasi yalnizca bilgilendirme ve karar anidir.
+ * Riza varsa dosya dogrudan gecer (onizleme / gonder). Kabul -> kayit -> dosya gecer;
+ * ret/Esc -> dosya atilir. Sunucu eylemleri rizayi ayrica denetler; burasi yalnizca
+ * bilgilendirme ve karar anidir.
  */
 export function useChatImageConsentGate(initiallyGranted: boolean) {
   const [granted, setGranted] = useState(initiallyGranted);
@@ -93,6 +88,19 @@ export function useChatImageConsentGate(initiallyGranted: boolean) {
   const [pending, setPending] = useState(false);
   const [error, setError] = useState(false);
   const [declined, setDeclined] = useState(false);
+  // Onizleme yalniz bellekteki dosyadan uretilir (sunucuya/depoya yazilmaz); kapaninca serbest birakilir.
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const waitingFile = waiting?.file ?? null;
+
+  useEffect(() => {
+    if (!waitingFile) {
+      setPreviewUrl(null);
+      return;
+    }
+    const url = URL.createObjectURL(waitingFile);
+    setPreviewUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [waitingFile]);
 
   function gate(file: File, proceed: (file: File) => void): void {
     setDeclined(false);
@@ -135,9 +143,10 @@ export function useChatImageConsentGate(initiallyGranted: boolean) {
     gate,
     /** Ret sonrasi kullaniciya gosterilecek kisa bilgi; yeni secimde silinir. */
     declinedNotice: declined ? COPY.declined : null,
-    dialog: (
-      <ChatImageConsentDialog
+    prompt: (
+      <ChatImageConsentPrompt
         open={waiting !== null}
+        previewUrl={previewUrl}
         pending={pending}
         error={error}
         onAccept={() => void accept()}

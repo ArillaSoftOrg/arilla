@@ -1,43 +1,41 @@
-.dialog {
-  width: min(30rem, calc(100vw - 2 * var(--space-4)));
-  max-height: calc(100dvh - 2 * var(--space-4));
-  padding: 0;
+/* Satir ici izin seridi: modal degil, sayfayi kilitlemez; kompozerin hemen ustunde durur. */
+.panel {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
   border: var(--border-width) solid var(--line-strong);
-  border-radius: var(--radius-lg);
+  border-radius: var(--radius-md);
   background: var(--surface-raised);
   color: var(--ink);
-  overflow: auto;
 }
 
-.dialog::backdrop {
-  background: var(--scrim);
+.thumb {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--surface);
 }
 
-.body {
+.content {
   display: flex;
   flex-direction: column;
-  gap: var(--space-3);
-  padding: var(--space-5);
+  gap: var(--space-2);
+  min-width: 0;
 }
 
 .title {
   margin: 0;
-  font-size: var(--text-h3);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
 }
 
 .text {
   margin: 0;
   font-size: var(--text-small);
   color: var(--ink-secondary);
-}
-
-.list {
-  margin: 0;
-  padding-left: var(--space-4);
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-2);
-  font-size: var(--text-small);
 }
 
 .link {
@@ -56,9 +54,7 @@
 .actions {
   display: flex;
   flex-wrap: wrap;
-  justify-content: flex-end;
   gap: var(--space-2);
-  margin-top: var(--space-2);
 }
 
 .choice {
@@ -78,14 +74,7 @@
 }
 
 @media (max-width: 40rem) {
-  .dialog {
-    width: 100vw;
-    max-width: 100vw;
-    margin: auto 0 0;
-    border-radius: var(--radius-lg) var(--radius-lg) 0 0;
-  }
-
-  .actions {
-    flex-direction: column-reverse;
+  .panel {
+    flex-direction: column;
   }
 }

@@ -518,7 +518,7 @@ export function ChatInteractive({
 
       <div ref={bottomRef} className={styles.bottom} aria-hidden="true" />
 
-      {consent.dialog}
+      {consent.prompt}
 
       <ChatComposer
         draft={draft}
