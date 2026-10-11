@@ -361,6 +361,12 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     admin: true,
     call: async () => (await import("./trafik/page.tsx")).default(sp({})),
   },
+  // Karar 0103: veri zekâsı (yalnızca yönetici).
+  {
+    name: "/yonetim/veri-zekasi",
+    admin: true,
+    call: async () => (await import("./veri-zekasi/page.tsx")).default(sp({})),
+  },
   {
     name: "/yonetim/formlar",
     admin: true,
@@ -889,6 +895,37 @@ const ACTIONS: ActionCase[] = [
     moderator: false,
     call: async () =>
       (await import("./kampanyalar/actions.ts")).cancelCampaignAction(missingCampaign),
+  },
+  // Karar 0103: boş form girdisi kapıyı geçen rolde doğrulama yönlendirmesiyle döner; yazım ve denetim olmaz.
+  {
+    module: "veri-zekasi",
+    name: "buildDatasetAction",
+    moderator: false,
+    call: async () => (await import("./veri-zekasi/actions.ts")).buildDatasetAction(new FormData()),
+  },
+  {
+    module: "veri-zekasi",
+    name: "requestExportAction",
+    moderator: false,
+    call: async () => (await import("./veri-zekasi/actions.ts")).requestExportAction(new FormData()),
+  },
+  {
+    module: "veri-zekasi",
+    name: "cancelExportAction",
+    moderator: false,
+    call: async () => (await import("./veri-zekasi/actions.ts")).cancelExportAction(new FormData()),
+  },
+  {
+    module: "veri-zekasi",
+    name: "drawSampleAction",
+    moderator: false,
+    call: async () => (await import("./veri-zekasi/actions.ts")).drawSampleAction(new FormData()),
+  },
+  {
+    module: "veri-zekasi",
+    name: "labelAction",
+    moderator: false,
+    call: async () => (await import("./veri-zekasi/actions.ts")).labelAction(new FormData()),
   },
 ];
 
