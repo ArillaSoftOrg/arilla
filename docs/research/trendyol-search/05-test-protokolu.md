@@ -50,3 +50,9 @@ Aynı dakika içinde, satıcının 20 satışta ürünü için:
 
 Sonuçlar `01-kanit-kaydi.md`'ye yeni faz olarak eklenir; anahtar, satıcı gizli verisi ve ham yanıt
 dökümleri kayda **konmaz** (yalnızca alan adları ve karşılaştırma sonuçları).
+
+## Ek (06): fiyat katmanları
+- T2/T3 karşılaştırmalarında **varyant (beden/barkod) ve satıcı sabitlenir**; ürün sayfası `?merchantId=<id>&v=<beden>` ile açılır.
+- Her gözlemde ayrı kaydedilir: `sellingPrice`, `discountedPrice`, `originalPrice`, `couponApplicablePrice`, görünen "Sepette %X" fiyatı, kampanya etiketleri, liste kartı `current/discountedPrice`.
+- Kullanıcıya özel fiyat şüphesi: aynı ürün aynı dakikada oturumsuz (gizli pencere) ve oturumlu görüntülenir; fark kaydedilir.
+- Kota: Buybox, satıcının yazma kotasından (200–600/dk) en fazla %10 kullanır; 10 sn/50 istek kuralına da uyulur.
