@@ -14,7 +14,7 @@
 import { type Database, userConsent } from "@arilla/db";
 import { getLatestConsents } from "../consent/account-consent.ts";
 
-export const CHAT_IMAGE_CONSENT_VERSION = "chat-image-2026-10-11";
+export const CHAT_IMAGE_CONSENT_VERSION = "chat-image-2026-10-12";
 
 export interface ChatImageConsentState {
   /** Gecerli (guncel surume verilmis, geri cekilmemis) acik riza var mi. */

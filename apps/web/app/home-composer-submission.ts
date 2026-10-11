@@ -204,7 +204,7 @@ export function useHomeComposerSubmission({
     loginOpen,
     closeLogin: () => setLoginOpen(false),
     stageFile,
-    consentDialog: consent.dialog,
+    consentDialog: consent.prompt,
     removeStaged,
     startInNewTab,
     startImageMessage,
