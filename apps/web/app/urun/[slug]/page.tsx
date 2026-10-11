@@ -157,38 +157,57 @@ export default async function ProductPage({
 
   // 0049 §7: rızalı davranışsal analitik (yalnızca girişli kullanıcı; rıza
   // kapısı ve 30 dakikalık tekrar bastırma core'da). Hata sayfayı bozmaz.
-  if (user) {
-    // Kullanıcıya gösterilen "Son baktıkların" geçmişi: kendi rızası
-    // (`browsing_history`) core'da denetlenir; analitikten bağımsızdır.
-    try {
-      await recordProductView(db, { userId: user.id, productId: product.productId });
-    } catch (error) {
-      console.error("[urun] view history failed", error instanceof Error ? error.name : "unknown");
-    }
-    try {
-      await recordActivity(db, {
-        userId: user.id,
-        cookieConsent: await readConsent(),
-        event: { kind: "product_viewed", productId: product.productId },
-      });
-    } catch (error) {
-      console.error("[urun] activity failed", error instanceof Error ? error.name : "unknown");
-    }
-  }
+  // Yazmalar veri okumalarıyla paralel başlar (render'ı sırayla bekletmez);
+  // sunucu işlevi kesilmesin diye sayfa dönmeden önce beklenir.
+  const tracking = user
+    ? Promise.all([
+        // Kullanıcıya gösterilen "Son baktıkların" geçmişi: kendi rızası
+        // (`browsing_history`) core'da denetlenir; analitikten bağımsızdır.
+        recordProductView(db, { userId: user.id, productId: product.productId }).catch(
+          (error: unknown) => {
+            console.error(
+              "[urun] view history failed",
+              error instanceof Error ? error.name : "unknown",
+            );
+          },
+        ),
+        readConsent()
+          .then((cookieConsent) =>
+            recordActivity(db, {
+              userId: user.id,
+              cookieConsent,
+              event: { kind: "product_viewed", productId: product.productId },
+            }),
+          )
+          .catch((error: unknown) => {
+            console.error(
+              "[urun] activity failed",
+              error instanceof Error ? error.name : "unknown",
+            );
+          }),
+      ])
+    : null;
 
-  const [{ merchantOffers, comparison }, alternatives, sizeOptions, priceStats, gallery] =
-    await Promise.all([
-      getProductPriceComparison(db, product.productId, requestedVariant),
-      findAlternatives(db, product.productId),
-      getSizeOptions(db, product.productId),
-      getPriceStats(db, product.productId),
-      // Karar 0073: offer_image galerisi; kayit yoksa primary_image_url yedegi.
-      getProductGallery(db, product.productId, product.primaryImageUrl),
-    ]);
+  const [
+    { merchantOffers, comparison },
+    alternatives,
+    sizeOptions,
+    priceStats,
+    gallery,
+    colorVariants,
+  ] = await Promise.all([
+    getProductPriceComparison(db, product.productId, requestedVariant),
+    findAlternatives(db, product.productId),
+    getSizeOptions(db, product.productId),
+    getPriceStats(db, product.productId),
+    // Karar 0073: offer_image galerisi; kayit yoksa primary_image_url yedegi.
+    getProductGallery(db, product.productId, product.primaryImageUrl),
+    product.modelKey
+      ? getColorVariants(db, product.modelKey, product.productId)
+      : Promise.resolve([]),
+  ]);
+  await tracking;
 
-  const colorVariants = product.modelKey
-    ? await getColorVariants(db, product.modelKey, product.productId)
-    : [];
   // Basit modda urun gecmisi; varyant modunda YALNIZCA secili varyantin
   // gecmisi (0037). Secim yoksa gecmis yok: boyutlar karismaz.
   const variantHistory =
