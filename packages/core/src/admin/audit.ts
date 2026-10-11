@@ -109,7 +109,7 @@ export type AdminAction =
   | "messages.status_change"
   | "messages.priority_change"
   /**
-   * Veri zekâsı (karar 0102). Satır içeriği ve kişi verisi YAZILMAZ; yalnızca veri
+   * Veri zekâsı (karar 0103). Satır içeriği ve kişi verisi YAZILMAZ; yalnızca veri
    * seti anahtarı, sürüm, dönem, durum ve sayılar. `data.export_download`: tek bir
    * dosyanın indirilmesi (dosya adı ve sağlama toplamı).
    */
@@ -137,7 +137,7 @@ export type AdminTargetType =
   | "capability"
   /** Karar 0086: `trend` satırı. */
   | "trend"
-  /** Karar 0102: veri seti sürümü (`di_dataset_build`) ve dışa aktarım kaydı (`di_export`). */
+  /** Karar 0103: veri seti sürümü (`di_dataset_build`) ve dışa aktarım kaydı (`di_export`). */
   | "data_build"
   | "data_export";
 

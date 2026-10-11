@@ -342,7 +342,7 @@ function BuildDetailPanel({
 }
 
 /**
- * Veri zekâsı (karar 0102, `data.read`, yalnızca yönetici). Yalnızca toplamlar ve
+ * Veri zekâsı (karar 0103, `data.read`, yalnızca yönetici). Yalnızca toplamlar ve
  * toplulaştırılmış veri seti sürümleri; kişi, oturum, sorgu metni yok. Üretim ve
  * dışa aktarım hukuki bayraklar kapalıyken devre dışıdır.
  */

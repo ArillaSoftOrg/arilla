@@ -8,7 +8,7 @@ import { getDatabase } from "@arilla/db";
 import { requireFreshCapability } from "../../../../../lib/dal.ts";
 
 /**
- * Dahili dışa aktarım indirme (karar 0102). Yetki + taze giriş + hukuki kapılar
+ * Dahili dışa aktarım indirme (karar 0103). Yetki + taze giriş + hukuki kapılar
  * core'da; dosya adı yalnızca sabit listeden. Önbelleğe alınmaz, tarayıcı
  * içerik türünü yorumlamaz, her indirme denetime yazılır.
  */

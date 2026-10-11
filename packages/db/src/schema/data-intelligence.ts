@@ -1,4 +1,4 @@
-/** 0063_data_intelligence.sql karsiligi (docs/decisions/0102). Kisitlar migration'dadir. */
+/** 0064_data_intelligence.sql karsiligi (docs/decisions/0103). Kisitlar migration'dadir. */
 import {
   bigint,
   boolean,

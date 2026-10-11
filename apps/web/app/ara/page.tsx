@@ -25,6 +25,7 @@ import { ConversationFocusClient } from "./conversation-focus-client.tsx";
 import { ResultsRegionSkeleton } from "./search-results.tsx";
 import { SearchRightsBadge } from "./search-rights-badge.tsx";
 import { TextSearchResults } from "./text-search-results.tsx";
+import { startWebSearch } from "./web-search-start.ts";
 
 const SORT_MODES: readonly SortMode[] = ["balanced", "best_deal", "closest_match"];
 
@@ -254,6 +255,15 @@ export default async function AramaPage({
 
   const page = Math.max(1, Number.parseInt(sayfa ?? "1", 10) || 1);
 
+  // Karar 0102: internet araması veritabanı aramasıyla PARALEL başlar, sonuç
+  // beklenmeden akar. Bayrak kapalıysa `null`: hiçbir şey çalışmaz.
+  // Sonuçlar önbelleklenmez (Google şartları), her başlatma ücretlidir: yalnızca
+  // varsayılan sıralamanın ilk sayfasında; sıralama sekmesi/sayfalama yeniden aramaz.
+  const webSearch =
+    page === 1 && requestedSort === "balanced"
+      ? startWebSearch({ kind: "text", text: query })
+      : null;
+
   function stepsHref(nextSteps: readonly string[]): string {
     return aramaHref({ query, steps: nextSteps, sort: conversationSort, focus: true });
   }
@@ -387,6 +397,7 @@ export default async function AramaPage({
           hrefFor={({ sort, page: target }) => aramaHref({ query, steps, sort, page: target })}
           clarificationAsked={question !== null}
           summaryIntent={summaryIntent}
+          webSearch={webSearch}
         />
       </Suspense>
     </div>

@@ -859,12 +859,15 @@ onayı (docs/kvkk.md "Konuşmalı keşif") → bayrak açılır. Maliyet: `api_u
 sohbet turu kotasından geçer (arama hakkı harcanmaz); ek migration yok (0057 yeter).
 Etkinleştirme: hukuk onayı + aydınlatma/açık rıza metni (docs/kvkk.md "Yüklenen
 görseller"), sonra bayrak. Production'da onay olmadan açılmaz.
+Ön koşul (karar 0101): migration 0057 **ve 0063** production'da uygulanmış olmalı (0063 yoksa
+rıza kaydı CHECK hatası verir ve görsel gönderimi `unavailable` döner); `/gizlilik` ve
+`/kvkk-aydinlatma` sohbet eki için hukuk onaylı metinle güncellenmiş olmalı.
 
 ### Sohbette ürün linki (karar 0090) — varsayılan kapalı
 
 `CHAT_LINK_ENABLED=true` (ayrıca `CHAT_DISCOVERY_ENABLED=true` ister) sohbetteki linki mevcut link kuyruğuna verir; modele gitmez. Önkoşul: link worker'ı üretimde çalışıyor olmalı ("Link worker" bölümü; yoksa istekler 2 dk sonra 'worker yanıt vermedi' olur). `CHAT_LINK_INTERPRET_ENABLED=true` (ayrıca `CHAT_LINK_ENABLED`) deterministik ayrıştırmanın çözemediği tercih metni için tek Gemini çağrısı yapar; `api_usage` `chat_turn`, mevcut günlük/saatlik tavanlar. `/ara/link` ve `LINK_SEARCH_PUBLIC` bu bayraklardan bağımsızdır. Kademe: iç ekip → küçük kitle → herkes; izle: kuyruk uzunluğu, `error_code` dağılımı, Jina maliyeti. Geri alma: bayrakları kapat (migration yok).
 
-## Veri zekâsı bayrakları (karar 0102)
+## Veri zekâsı bayrakları (karar 0103)
 
 Hepsi varsayılan **kapalı**; hukuki onay olmadan açılmaz.
 
@@ -873,3 +876,21 @@ Hepsi varsayılan **kapalı**; hukuki onay olmadan açılmaz.
 | `DATA_INTELLIGENCE_BUILD_ENABLED=true` | Rızalı olaylardan veri seti üretimi (`/yonetim/veri-zekasi`) |
 | `DATA_INTELLIGENCE_EXPORT_ENABLED=true` | Dahili dışa aktarım (üretim bayrağı da açık olmalı) |
 | `DATA_INTELLIGENCE_CLEARED_SOURCES=user_activity_event` | Hukuken onaylanmış kaynaklar; boş = hiçbiri |
+
+### İnternet ürün araması (karar 0102) — varsayılan kapalı
+
+`WEB_SEARCH_ENABLED=true` + `GEMINI_API_KEY` iken `/ara` (ve açıkken `/ara/link`) sonuç sayfası, katalog aramasıyla paralel olarak Gemini Google Search grounding + URL Context çağırır ve sonuçları katalog sonuçlarının altında akıtır. **Production'da ayrıca `WEB_SEARCH_LEGAL_APPROVED=true` gerekir**; ikisi de hukuki onaydan sonra Vercel Production'da elle açılır. Migration gerekmez. Sonuçlar önbelleğe alınmaz ve izlenmez (Google şartları); bağlantılar doğrudan mağazaya gider.
+
+Sınırlar: günlük 300 sağlayıcı denemesi (`web_search` bütçesi), kişi başına saatte 8 / günde 30, Redis yoksa model çağrılmaz. Sonuçlar kataloga yazılmaz. Geri alma: bayrakları kapat (migration gerekmez; `/git/web/*` 404 verir).
+
+İzleme:
+
+```sql
+SELECT count(*), sum(cost_micros) FROM api_usage
+ WHERE operation = 'web_search_grounded'
+   AND created_at >= (now() AT TIME ZONE 'Europe/Istanbul')::date AT TIME ZONE 'Europe/Istanbul';
+SELECT operation, count(*), sum(units) AS units, sum(cost_micros) FROM api_usage
+ WHERE operation LIKE 'web_search%' AND created_at >= now() - interval '7 days' GROUP BY 1;
+```
+
+Maliyet: token satırı (`web_search_grounded`) ve Google arama sorgusu satırı (`web_search_grounding_queries`, liste fiyatı; ayda 5.000 ücretsiz kontenjan düşülmez) ayrıdır; `LLM_COST_TRY_PER_USD` tanımlı olmalı.

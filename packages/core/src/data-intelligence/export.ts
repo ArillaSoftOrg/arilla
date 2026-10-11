@@ -4,7 +4,7 @@
  * belirleyici olarak yeniden üretilir ve manifest'teki SHA-256 ile doğrulanır.
  *
  * Çıktılar: data.csv, metadata.json, data_dictionary.json, quality_report.json,
- * SHA256SUMS. Parquet bu sürümde YOK (yeni bağımlılık eklenmedi; bkz. karar 0102).
+ * SHA256SUMS. Parquet bu sürümde YOK (yeni bağımlılık eklenmedi; bkz. karar 0103).
  *
  * Kapılar (hepsi geçmeli; biri kapalıysa dosya üretilmez):
  *   politika açık → sürüm hazır → anonimlik teknik kontrolleri geçti → kaynaklar

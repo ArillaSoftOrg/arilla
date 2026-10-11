@@ -18,7 +18,7 @@ import { redirect } from "next/navigation";
 import { requireFreshCapability } from "../../lib/dal.ts";
 
 /**
- * `/yonetim/veri-zekasi` (karar 0102). İnce istemci: yetki, hukuki kapılar,
+ * `/yonetim/veri-zekasi` (karar 0103). İnce istemci: yetki, hukuki kapılar,
  * doğrulama ve denetim core'dadır. Sonuç adres satırındaki `mesaj` ile gösterilir.
  */
 const PATH = "/yonetim/veri-zekasi";

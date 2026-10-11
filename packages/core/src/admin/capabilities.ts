@@ -116,18 +116,18 @@ export type Capability =
    */
   | "traffic.read"
   /**
-   * `/yonetim/veri-zekasi` (karar 0102): veri toplama denetimi, olay hacmi, veri
+   * `/yonetim/veri-zekasi` (karar 0103): veri toplama denetimi, olay hacmi, veri
    * seti geçmişi ve kalite raporları. Yalnızca toplamlar; kişi düzeyi yok.
    */
   | "data.read"
   /**
-   * Veri seti ÜRETİMİ (karar 0102): rızalı olaylardan toplulaştırma. Yalnızca
+   * Veri seti ÜRETİMİ (karar 0103): rızalı olaylardan toplulaştırma. Yalnızca
    * yönetici, gerekçe zorunlu, denetime yazılır. Hukuki bayrak kapalıyken üretim
    * yapılmaz (`DATA_INTELLIGENCE_BUILD_ENABLED`).
    */
   | "data.build"
   /**
-   * Veri seti DIŞA AKTARIMI (karar 0102): CSV/JSON/sözlük/kalite/SHA-256.
+   * Veri seti DIŞA AKTARIMI (karar 0103): CSV/JSON/sözlük/kalite/SHA-256.
    * Yalnızca yönetici, taze giriş, her indirme denetime yazılır. Hukuki bayrak ve
    * kaynak onayı olmadan çalışmaz.
    */
@@ -183,7 +183,7 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "config.read",
   // Karar 0087: GA4 trafik raporları.
   "traffic.read",
-  // Karar 0102: veri zekâsı — okuma, üretim, dışa aktarım yalnızca yöneticinin.
+  // Karar 0103: veri zekâsı — okuma, üretim, dışa aktarım yalnızca yöneticinin.
   "data.read",
   "data.build",
   "data.export",

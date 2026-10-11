@@ -1,5 +1,5 @@
 /**
- * Data Intelligence politikası (docs/decisions/0102). Tüm eşikler ve hukuki kapılar
+ * Data Intelligence politikası (docs/decisions/0103). Tüm eşikler ve hukuki kapılar
  * tek yerde. Çağıran kod eşiği gevşetemez; gevşetmek için bu dosya ve karar
  * dosyası birlikte değişir.
  *

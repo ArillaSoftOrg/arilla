@@ -33,6 +33,15 @@ export interface ProductCardProps {
    * Verilmezse isaretleme degismez.
    */
   action?: ReactNode;
+  /**
+   * Fiyat yoksa ("—" yerine) gosterilecek durum etiketi; ör. internet
+   * sonucunda dogrulanamayan fiyat icin "Fiyat mağazada". Fiyat varsa kullanilmaz.
+   */
+  priceLabel?: string;
+  /** Kaynak/dogrulama rozeti (ör. "İnternetten"); verilmezse cizilmez. */
+  sourceLabel?: string;
+  /** Dis magaza baglantisi: yeni sekmede, izleme/yonlendirici bilgisi olmadan acilir. */
+  external?: boolean;
 }
 
 /**
@@ -53,11 +62,18 @@ export function ProductCard({
   brand,
   imageLoading = "lazy",
   action,
+  priceLabel,
+  sourceLabel,
+  external = false,
 }: ProductCardProps) {
   const metaLabel = offerCount !== undefined && offerCountLabel ? offerCountLabel(offerCount) : "";
 
   const card = (
-    <a href={href} className={styles.card}>
+    <a
+      href={href}
+      className={styles.card}
+      {...(external ? { target: "_blank", rel: "nofollow noopener noreferrer sponsored" } : {})}
+    >
       <span className={styles.media}>
         {imageUrl ? (
           // design.md "Kutu modeli": fotograf kartin icinde kalir (contain) -
@@ -73,11 +89,12 @@ export function ProductCard({
         ) : null}
       </span>
       <span className={styles.body}>
+        {sourceLabel ? <span className={styles.source}>{sourceLabel}</span> : null}
         {brand ? <span className={styles.brand}>{brand}</span> : null}
         <span className={styles.title}>{title}</span>
         <span className={styles.price}>
           {minPrice === null
-            ? "—"
+            ? (priceLabel ?? "—")
             : priceFrom
               ? formatStartingPrice(minPrice)
               : formatTRY(minPrice)}

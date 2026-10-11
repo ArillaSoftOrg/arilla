@@ -33,7 +33,7 @@ const APPEND_ONLY = {
   dataset_snapshot: "dataset",
   ai_eval_run: "component",
   ai_eval_case: "outcome",
-  /** 0063: veri seti surumu degistirilmez; export/etiket yalnizca durum kolonlarini gunceller, hicbiri silinmez. */
+  /** 0064: veri seti surumu degistirilmez; export/etiket yalnizca durum kolonlarini gunceller, hicbiri silinmez. */
   di_dataset_build: "dataset_key",
   di_export: "build_id",
   di_accuracy_label: "field",

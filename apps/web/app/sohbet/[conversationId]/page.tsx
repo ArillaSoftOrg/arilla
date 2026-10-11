@@ -1,4 +1,9 @@
-import { isChatDiscoveryEnabled, isChatImageEnabled, loadConversation } from "@arilla/core";
+import {
+  hasChatImageConsent,
+  isChatDiscoveryEnabled,
+  isChatImageEnabled,
+  loadConversation,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { notFound } from "next/navigation";
 import { requireProductUser } from "../../lib/dal.ts";
@@ -36,11 +41,15 @@ export default async function ConversationPage({
     last?.role === "assistant" && last.kind === "clarify" ? view.pendingQuestion : null;
   const lastUser = [...view.messages].reverse().find((m) => m.role === "user" && m.kind === "text");
 
+  const imageEnabled = isChatImageEnabled();
+  const imageConsent = imageEnabled && (await hasChatImageConsent(getDatabase(), user.id));
+
   return (
     <ChatInteractive
       conversationId={view.id}
       awaitingReply={view.awaitingReply}
-      imageEnabled={isChatImageEnabled()}
+      imageEnabled={imageEnabled}
+      imageConsent={imageConsent}
       question={question}
       lastUserText={lastUser?.content ?? view.title}
       lastSeq={last?.seq ?? 0}

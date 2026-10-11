@@ -118,6 +118,7 @@ describe("ChatComposer (sohbet içi): ek denetimi", () => {
 describe("ChatInteractive: CHAT_IMAGE_ENABLED bayrağı '+' görünürlüğünü belirler", () => {
   const props = {
     conversationId: "11111111-1111-4111-8111-111111111111",
+    imageConsent: false,
     awaitingReply: false,
     question: null,
     lastUserText: "x",
@@ -143,6 +144,7 @@ describe("ChatInteractive: CHAT_IMAGE_ENABLED bayrağı '+' görünürlüğünü
 describe("görsel gönderim durumları sohbet içinde anlaşılır hatalara çevrilir", () => {
   it.each([
     ["image_limit", "image_limit"],
+    ["consent_required", "consent_required"],
     ["invalid_type", "invalid_type"],
     ["too_large", "too_large"],
     ["unprocessable", "unprocessable"],

@@ -1,5 +1,5 @@
 /**
- * Karar 0102: veri zekâsı - gerçek (yalıtılmış) Postgres. Yalnızca kendi `di-t-`
+ * Karar 0103: veri zekâsı - gerçek (yalıtılmış) Postgres. Yalnızca kendi `di-t-`
  * fixture'larını ve 2019'un tamamlanmış haftasını kullanır; sonunda siler.
  */
 import type { Database } from "@arilla/db";

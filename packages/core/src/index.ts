@@ -35,3 +35,4 @@ export * from "./quota/index.ts";
 export * from "./redis/index.ts";
 export * from "./search/index.ts";
 export * from "./trends/index.ts";
+export * from "./web-search/index.ts";

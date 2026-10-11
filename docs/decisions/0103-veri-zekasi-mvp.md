@@ -1,4 +1,4 @@
-# 0102 — Veri zekâsı MVP (toplulaştırılmış eğilim veri setleri)
+# 0103 — Veri zekâsı MVP (toplulaştırılmış eğilim veri setleri)
 
 **Tarih:** 11 Ekim 2026
 **Durum:** Kabul edildi; üretim ve dışa aktarım **hukuki onay gelene kadar kapalı**.

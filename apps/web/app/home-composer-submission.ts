@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import {
   IMAGE_CHAT_ERROR_COPY,
   outcomeForNewChat,
@@ -10,6 +10,7 @@ import {
 import { startChatBootstrapAction } from "./sohbet/actions.ts";
 import { browserStorage } from "./sohbet/chat-bootstrap.ts";
 import { type BootstrapImageStore, browserImageStore } from "./sohbet/chat-bootstrap-image.ts";
+import { useChatImageConsentGate } from "./sohbet/chat-image-consent.tsx";
 import { openChatInNewTab, openChatInNewTabWithImage } from "./sohbet/open-chat-tab.ts";
 
 export interface StagedImage {
@@ -22,6 +23,8 @@ export interface StagedImage {
 export interface HomeComposerSubmissionOptions {
   chatInNewTab: boolean;
   imageChat: boolean;
+  /** Karar 0101: gecerli acik riza zaten var mi. */
+  imageConsent?: boolean;
 }
 
 export interface HomeComposerSubmission {
@@ -32,6 +35,8 @@ export interface HomeComposerSubmission {
   loginOpen: boolean;
   closeLogin: () => void;
   stageFile: (file: File) => void;
+  /** Fotograf izni penceresi; `ReactNode` bilesen agacina eklenmelidir. */
+  consentDialog: ReactNode;
   removeStaged: () => void;
   startInNewTab: (text: string) => boolean;
   startImageMessage: (text: string, image: StagedImage) => Promise<boolean>;
@@ -50,6 +55,7 @@ export interface HomeComposerSubmission {
 export function useHomeComposerSubmission({
   chatInNewTab,
   imageChat,
+  imageConsent = false,
 }: HomeComposerSubmissionOptions): HomeComposerSubmission {
   const router = useRouter();
   const [chatError, setChatError] = useState<string | null>(null);
@@ -59,6 +65,7 @@ export function useHomeComposerSubmission({
   const sendingRef = useRef(false);
   const stagedUrlRef = useRef<string | null>(null);
   const imageStoreRef = useRef<BootstrapImageStore | null>(null);
+  const consent = useChatImageConsentGate(imageConsent);
 
   // Blob önizlemesi: değişince/kalkınca/unmount'ta serbest bırakılır.
   useEffect(() => {
@@ -90,8 +97,12 @@ export function useHomeComposerSubmission({
       return;
     }
     if (sendingRef.current) return;
-    if (stagedUrlRef.current) URL.revokeObjectURL(stagedUrlRef.current);
-    setStaged({ file, url: URL.createObjectURL(file), key: crypto.randomUUID() });
+    // Karar 0101: riza yoksa dosya bellekte bekler; kabulden once hicbir sey gonderilmez.
+    consent.gate(file, (allowed) => {
+      if (sendingRef.current) return;
+      if (stagedUrlRef.current) URL.revokeObjectURL(stagedUrlRef.current);
+      setStaged({ file: allowed, url: URL.createObjectURL(allowed), key: crypto.randomUUID() });
+    });
   }
 
   function clearStaged() {
@@ -187,12 +198,13 @@ export function useHomeComposerSubmission({
   }
 
   return {
-    chatError,
+    chatError: chatError ?? consent.declinedNotice,
     staged,
     sending,
     loginOpen,
     closeLogin: () => setLoginOpen(false),
     stageFile,
+    consentDialog: consent.dialog,
     removeStaged,
     startInNewTab,
     startImageMessage,

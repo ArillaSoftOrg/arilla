@@ -28,7 +28,7 @@ import { getRedis, RedisUnavailableError } from "../redis/client.ts";
 import { quotaPeriod } from "./windows.ts";
 
 /** Bu islem adlari `api_usage.operation` ile aynidir. */
-export type ProviderBudgetOperation = "query_interpretation_realtime" | "chat_turn";
+export type ProviderBudgetOperation = "query_interpretation_realtime" | "chat_turn" | "web_search";
 
 /** Gun bittikten sonra anahtarin okunabildigi pay (gec kesinlestirme, inceleme). */
 const KEY_TTL_GRACE_SECONDS = 6 * 60 * 60;

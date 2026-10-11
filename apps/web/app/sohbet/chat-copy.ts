@@ -100,6 +100,7 @@ export type ChatErrorKind =
   | "invalid_option"
   | "invalid_input"
   | "image_limit"
+  | "consent_required"
   | "invalid_type"
   | "too_large"
   | "unprocessable"
@@ -170,6 +171,12 @@ export const CHAT_ERROR_COPY: Record<ChatErrorKind, ChatErrorCopy> = {
     searchDirectly: false,
     newChat: true,
   },
+  consent_required: {
+    message: IMAGE_CHAT_ERROR_COPY.consent_required,
+    retry: false,
+    searchDirectly: false,
+    newChat: false,
+  },
   invalid_type: {
     message: IMAGE_CHAT_ERROR_COPY.invalid_type,
     retry: false,
@@ -224,6 +231,7 @@ export function errorKindForStatus(status: string): ChatErrorKind | null {
     case "invalid_option":
     case "invalid_input":
     case "image_limit":
+    case "consent_required":
     case "invalid_type":
     case "too_large":
     case "unprocessable":

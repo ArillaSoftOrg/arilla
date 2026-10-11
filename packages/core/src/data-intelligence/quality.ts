@@ -294,7 +294,7 @@ export function computeQualityReport(input: QualityReportInput): QualityReport {
     status: "NOT_MEASURED",
     value: null,
     detail:
-      "Olay üretim zamanı ile kayıt zamanı ayrı saklanmıyor (tek kolon `created_at`, sunucuda eşzamanlı yazım). İstemci tarafı toplu/asenkron olay eklenirse ayrı bir `occurred_at` kolonu gerekir (karar 0102).",
+      "Olay üretim zamanı ile kayıt zamanı ayrı saklanmıyor (tek kolon `created_at`, sunucuda eşzamanlı yazım). İstemci tarafı toplu/asenkron olay eklenirse ayrı bir `occurred_at` kolonu gerekir (karar 0103).",
   });
 
   const sourceRoles = input.spec.sources.map((id) => ({
