@@ -20,7 +20,7 @@ Bileşen adları `design.md` envanteriyle aynıdır. Metinler `copy.md` içinded
 | 5 | Keşif ızgarası | `id="kesfet"`. Masonry düzeni, `DiscoveryGrid` + `DiscoveryCard` (Faz 1C: `/kesfet` de aynı ikiliyi kullanır, ikinci bir kart uygulaması yok). Veri `discovery_slot`'tan (`getDiscoverySlots`) gelir; adapter gerçek satırları `DiscoveryItem`'a çevirir. Faz 3.1: `discovery_slot` boşsa VE `HOMEPAGE_DEMO_CONTENT=true` ise (bkz. `.env.example`) `apps/web/data/demo/homepage-discovery.ts`teki demo veri setine düşer — `NODE_ENV`'e bağlı değil, açıkça etkinleştirilen bir içerik kararı (Admitad öncesi vitrin deploy'u için). Gerçek veri her zaman demo'nun önündedir. |
 | 6 | Nasıl Çalışır | `id="nasil-calisir"`, header nav'ından anchor. Üç kart: metinle ara, fotoğrafla ara (ikisi de aktif), bağlantıyla bul (Faz 4: backend'de kök catch-all link çözümleme var ama arama kutusuna bağlı değil — "Yakında" etiketiyle gösterilir, sahte CTA yok). `HowItWorksCard`, veri `home-copy.ts`. |
 | 7 | Şeffaflık | Faz 5: `HomeTrustSection`. Sosyal kanıt değil — doğrulanmamış kullanıcı/mağaza sayısı yok, yalnızca gerçek kabiliyetler (aynı/benzer ürün bulma, mağaza tekliflerini karşılaştırma, fiyat-stok bilgisinin mağaza kaynaklı ve güncellenme zamanlı olması). Faz 1C: dördüncü nokta komisyon ilkesini açıklar (komisyon fiyatı değiştirmez, sıralamada belirleyici değildir) — bu, altbilgideki affiliate bildiriminin kopyası değil, farklı bir bilgidir. |
-| 8 | Altbilgi | Faz 5: `SiteFooter`. Yalnızca gerçekten var olan route'lara link (`#trendler`, `/kesfet`, `#nasil-calisir`, `/firsatlar`, `/giris`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`, Faz 6 sonrası `/gizlilik`, `/kosullar`, `/cerez`). `/hakkinda` yok, footer'da link YOK. Faz 8.1: `/iletisim` eklendi, Bilgi grubunda. Fiyat/stok uyarısı (`legal.price_disclaimer`) disclosure bandında; karar 0093 ile affiliate cümlesi (`legal.affiliate_notice`) footer'dan kalktı — bildirim ürün sayfasında, mağaza bağlantısının yanında; footer'da "Affiliate Açıklaması" bağlantısı kalır. En altta, metnin altındaki dekor alanında kırpılmış "ManiCepte" kelime işareti (ayrı zemini yok). Faz 7: header ve footer'daki "Keşfet", keşif bölümü bu sayfada render edildiyse `#kesfet`'e, edilmediyse `/kesfet`'e gider — `/kesfet` bugün için `discovery_slot` yokken yalnızca boş durum gösterir. Faz 8: aynı header/footer public alt sayfalarda da kullanılır (`apps/web/app/public-site-shell.tsx`, route başına ince `layout.tsx`: `/kesfet`, `/firsatlar`, `/ara`, `/giris`, `/urun/[slug]`, `/gizlilik`, `/kosullar`, `/cerez`); orada bölüm linkleri `/#trendler`, `/kesfet`, `/#nasil-calisir`. Giriş gerektiren sayfalar ve `/yonetim` kabuk kullanmaz. |
+| 8 | Altbilgi | Faz 5: `SiteFooter`. Yalnızca gerçekten var olan route'lara link (`#trendler`, `/kesfet`, `#nasil-calisir`, `/firsatlar`, `/giris`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`, Faz 6 sonrası `/gizlilik`, `/kosullar`, `/cerez`). `/hakkinda` yok, footer'da link YOK. Faz 8.1: `/iletisim` eklendi, Bilgi grubunda. Fiyat/stok uyarısı (`legal.price_disclaimer`) disclosure bandında; karar 0093 ile affiliate cümlesi (`legal.affiliate_notice`) footer'dan kalktı — bildirim ürün sayfasında, mağaza bağlantısının yanında; footer'da "Affiliate Açıklaması" bağlantısı kalır. En altta, metnin altındaki dekor alanında kırpılmış "ManiCepte" kelime işareti (ayrı zemini yok). Faz 7: header ve footer'daki "Keşfet", keşif bölümü bu sayfada render edildiyse `#kesfet`'e, edilmediyse `/kesfet`'e gider — `/kesfet` bugün için `discovery_slot` yokken yalnızca boş durum gösterir. Faz 8: aynı header/footer public alt sayfalarda da kullanılır (`apps/web/app/public-site-shell.tsx`, route başına ince `layout.tsx`: `/kesfet`, `/firsatlar`, `/ara`, `/giris`, `/urun/[slug]`, `/gizlilik`, `/kosullar`, `/cerez`, `/hesap` (ve `/hesap/gizlilik`), `/kaydettiklerim`, `/alarmlar`, `/gecmis`); orada bölüm linkleri `/#trendler`, `/kesfet`, `/#nasil-calisir`. Giriş gerektiren hesap sayfalarında oturum kapısı sayfanın kendisindedir; `/yonetim` kabuk kullanmaz. Footer "Hesap" grubu oturum açıkken Hesabım, Kaydettiklerim, Alarmlarım, Geçmişim; oturum yokken yalnızca "Giriş yap" gösterir (özel sayfalara bağlantı yok). |
 
 Kayıt istenmez. Kaydırma gerektiren tanıtım bölümleri yok.
 
@@ -197,6 +197,18 @@ yönlendirmesi gösterilir.
 ## `/kaydettiklerim`, `/alarmlar`, `/gecmis`
 
 Üçü de aynı kalıp: başlık, liste, boş durum.
+
+Üçü ve `/hesap` public site kabuğunu (header, menü paneli, footer) kullanır;
+oturum kapısı sayfanın kendisindedir (`requireProductUser` / `requireUser`).
+`/kaydettiklerim`: Başlık
+"Kaydettiklerim" ve yanında soluk ürün sayısı ("3 ürün"). Ortalanmış, en fazla
+4 sütunluk ızgara (1440px'te ~275px kart; 768px'te 3, telefonda 2 sütun); tek
+kayıtlı ürün normal kart boyunda kalır. Kart ortak `ProductCard`: görsel, ad,
+fiyat, mağaza sayısı; kartın tamamı ürün sayfasına gider. Kaydı kaldırma,
+görselin sağ üst köşesindeki dolu kalp düğmesidir (bağlantının kardeşi,
+tıklaması gezinmez; erişilebilir adı "Kaydettiklerimden kaldır: {ürün}"); ayrı
+"Kaldır" düğmesi yoktur. Boş durum: "Henüz kaydettiğin ürün yok." + kısa metin
++ "Keşfet" (`/kesfet`).
 
 `/gecmis` sayfasında **silme düğmesi zorunludur** ve gerçekten silmelidir.
 

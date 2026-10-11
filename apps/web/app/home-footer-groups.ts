@@ -44,6 +44,18 @@ export function siteNavItems(links: SiteSectionLinks): readonly HomeHeaderNavIte
 }
 
 /**
+ * Menu panelinin kisisel bolumu (oturum acik). Ic rotalar: ayni sekmede,
+ * duz baglanti. Footer "Hesap" grubuyla ayni hedefler.
+ */
+export function personalNavLinks(): readonly HomeHeaderNavItem[] {
+  return [
+    { label: HOME_COPY.navSaved, href: "/kaydettiklerim" },
+    { label: HOME_COPY.navAlerts, href: "/alarmlar" },
+    { label: HOME_COPY.navHistory, href: "/gecmis" },
+  ];
+}
+
+/**
  * docs/pages.md "/" Faz 5-6: footer navigasyon verisi. YALNIZCA gercekten
  * var olan route'lar - apps/web/app/ altinda dogrudan denetlendi:
  * /kesfet, /firsatlar, /giris, /kaydettiklerim, /alarmlar, /gecmis,
@@ -66,7 +78,14 @@ export function siteNavItems(links: SiteSectionLinks): readonly HomeHeaderNavIte
  * Faz 7-8: bolum linkleri cagirandan gelir (`homeSectionLinks` veya
  * `SUBPAGE_SECTION_LINKS`) - header ile ayni hedefler.
  */
-export function homeFooterGroups(links: SiteSectionLinks): readonly FooterGroup[] {
+export function homeFooterGroups(
+  links: SiteSectionLinks,
+  /**
+   * Oturum aciksa Hesabım + kisisel sayfalar; oturum yoksa yalnizca
+   * "Giriş yap" (ozel sayfalara baglanti verilmez).
+   */
+  signedIn = false,
+): readonly FooterGroup[] {
   return [
     {
       title: HOME_COPY.footerProductGroupTitle,
@@ -79,12 +98,9 @@ export function homeFooterGroups(links: SiteSectionLinks): readonly FooterGroup[
     },
     {
       title: HOME_COPY.footerAccountGroupTitle,
-      links: [
-        { label: HOME_COPY.loginLabel, href: "/giris" },
-        { label: HOME_COPY.navSaved, href: "/kaydettiklerim" },
-        { label: HOME_COPY.navAlerts, href: "/alarmlar" },
-        { label: HOME_COPY.navHistory, href: "/gecmis" },
-      ],
+      links: signedIn
+        ? [{ label: HOME_COPY.navAccount, href: "/hesap" }, ...personalNavLinks()]
+        : [{ label: HOME_COPY.loginLabel, href: "/giris" }],
     },
     companyFooterGroup(),
     legalFooterGroup(),

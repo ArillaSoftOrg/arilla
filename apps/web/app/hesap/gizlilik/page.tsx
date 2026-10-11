@@ -22,7 +22,7 @@ export default async function GizlilikTercihleriPage() {
   const consents = await getConsents(getDatabase(), user.id);
 
   return (
-    <main className={styles.page}>
+    <div className={styles.page}>
       <nav className={styles.breadcrumb} aria-label="Konum">
         <Link href="/hesap" className={styles.link}>
           Hesabım
@@ -38,6 +38,6 @@ export default async function GizlilikTercihleriPage() {
         historyAndPersonalization={consents.browsing_history || consents.personalization}
         publicDiscovery={consents.public_discovery}
       />
-    </main>
+    </div>
   );
 }
