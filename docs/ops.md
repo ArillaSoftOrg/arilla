@@ -98,7 +98,7 @@ Etkinleştirme sırası (Vercel panelinde; **önizleme dağıtımında doğrula*
 
 1. Proje **Root Directory**'sini `apps/web`'den repo köküne al (Settings → Build and
    Deployment). Bu, Vercel Services (Beta) için gereklidir ve web derlemesini etkiler.
-2. Repo köküne `vercel.json` ekle (taslak: `infra/vercel-services.example.json`:
+2. Repo köküne `vercel.json` ekle (repo kökündeki `vercel.json`:
    `services.web` = `apps/web`, `services.link` = `services/ingest`; kök dizin
    değişince `apps/web/vercel.json`'daki `crons` için karşılık bulunmalı).
 3. Production, Preview ve Development'ta `DATABASE_URL`'i Supabase **Transaction

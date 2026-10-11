@@ -54,7 +54,7 @@ markers = [
 
 # Vercel Queues abonesi (karar 0107). Vercel derleme aninda bu modulu ice alip
 # ozel, kuyruk tetiklemeli bir fonksiyon uretir; herkese acik rota yoktur.
-# Yalnizca Vercel `services` ile dagitilirsa anlam kazanir (infra/vercel-services.example.json);
+# Yalnizca Vercel `services` ile dagitilirsa anlam kazanir (kok vercel.json);
 # bugunku dagitimda (Root Directory apps/web) hicbir etkisi yoktur.
 [[tool.vercel.subscribers]]
 entrypoint = "collect.link.subscriber"

@@ -105,7 +105,7 @@ dağıtımında** doğrulanacak:
 7. Bu özellikler **Beta** (Queues, Python SDK, Services). Bayrak kapalıyken hiçbiri
    etkin değildir.
 
-Referans yapılandırma: `infra/vercel-services.example.json` (etkin DEĞİLDİR;
+Referans yapılandırma: `vercel.json` (repo kökü; Vercel Root Directory repo köküne alınmadıkça yok sayılır;
 Root Directory `apps/web` iken Vercel kök `vercel.json`'u okumaz, yani bu dosya
 dağıtımı etkilemez).
 
