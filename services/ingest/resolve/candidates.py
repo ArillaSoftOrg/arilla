@@ -46,19 +46,34 @@ SELECT {PRODUCT_COLUMNS}
  LIMIT %(limit)s
 """
 
+# Once vektore EN YAKIN teklifler (mesafeyle siralanir, HNSW kullanabilir), sonra
+# urun basina tek aday (urunun en yakin teklifi). Eski bicim `DISTINCT ON (p.id)
+# ... ORDER BY p.id` en yakin 30 urunu degil en kucuk 30 `id`'yi donduruyordu.
 BY_IMAGE = f"""
-SELECT DISTINCT ON (p.id) {PRODUCT_COLUMNS}
-  FROM embedding e
-  JOIN offer o ON o.id = e.target_id
-  JOIN product p ON p.id = o.product_id
+WITH nearest AS (
+    SELECT o.product_id, e.vector <=> %(vector)s::vector AS distance
+      FROM embedding e
+      JOIN offer o ON o.id = e.target_id
+     WHERE e.target_type = 'offer' AND e.kind = 'image'
+       AND e.model_version = %(model_version)s
+       AND o.product_id IS NOT NULL
+       AND e.target_id <> %(offer_id)s
+     ORDER BY e.vector <=> %(vector)s::vector
+     LIMIT %(scan)s
+), best AS (
+    SELECT product_id, min(distance) AS distance FROM nearest GROUP BY product_id
+)
+SELECT {PRODUCT_COLUMNS}
+  FROM best
+  JOIN product p ON p.id = best.product_id
   LEFT JOIN brand b ON b.id = p.brand_id
- WHERE e.target_type = 'offer' AND e.kind = 'image'
-   AND e.model_version = %(model_version)s
-   AND o.product_id IS NOT NULL
-   AND e.target_id <> %(offer_id)s
- ORDER BY p.id, e.vector <=> %(vector)s
+ ORDER BY best.distance, p.id
  LIMIT %(limit)s
 """
+
+#: Bir urunun birden cok teklifi ayni komsulukta yer alabilir; urun basina teke
+#: indirgemeden once bu kadar teklif taranir.
+IMAGE_SCAN_MULTIPLIER = 4
 
 
 @dataclass(frozen=True)
@@ -116,6 +131,7 @@ def by_image(
                 "offer_id": offer_id,
                 "vector": vector,
                 "model_version": model_version,
+                "scan": PER_CHANNEL_LIMIT * IMAGE_SCAN_MULTIPLIER,
                 "limit": PER_CHANNEL_LIMIT,
             },
         )

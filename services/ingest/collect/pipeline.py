@@ -198,12 +198,16 @@ def run_ingest(conn: psycopg.Connection, merchant_slug: str) -> IngestResult:
 
 
 def _check_currency(source_type: str, offer: NormalizedOffer) -> None:
-    """Shopify teklifi TRY disinda yazilmaz (0031). Kapi `feed_config.currency`
-    TRY'yi zaten sart kosar; bu, esleme bir kaynak para birimi alani eklerse
-    diye kayit duzeyindeki ikinci kilittir."""
-    if source_type == "shopify" and offer.currency != SHOPIFY_CURRENCY:
+    """TRY disi teklif hicbir kaynak turunde yazilmaz (0031, CLAUDE.md: para birimi TRY).
+
+    Arama ve ozetler para birimine bakmaz; 100 USD ile 100 TRY ayni kovada
+    yarisirdi. Shopify icin kapi `feed_config.currency` TRY'yi zaten sart
+    kosar; bu, esleme bir kaynak para birimi alani eklerse diye kayit
+    duzeyindeki ikinci kilittir ve artik TUM kaynak turleri icin gecerlidir."""
+    if offer.currency != SHOPIFY_CURRENCY:
         raise RecordRejected(
-            f"Shopify teklifi {SHOPIFY_CURRENCY} disinda: {offer.currency} ({offer.external_id})"
+            f"{source_type} teklifi {SHOPIFY_CURRENCY} disinda: "
+            f"{offer.currency} ({offer.external_id})"
         )
 
 

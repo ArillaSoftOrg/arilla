@@ -765,3 +765,96 @@ describe("global saglayici butcesi (atomik, quota/provider-budget.ts)", () => {
     }
   });
 });
+
+describe("eşzamanlı aynı sorgu ve kayıt dayanıklılığı (AI denetimi A10 / S2)", () => {
+  /** Yanıtı geciktiren sahte istemci: eşzamanlı isteklerin üst üste binmesini sağlar. */
+  function slowClient(delayMs: number) {
+    const queries: string[] = [];
+    const client: LlmClient = {
+      modelVersion: MODEL,
+      async generateJson(request: LlmJsonRequest, options?: LlmCallOptions) {
+        const { query } = JSON.parse(request.input) as { query: string };
+        queries.push(query);
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+        options?.onCall?.({ modelVersion: MODEL, httpStatus: 200, usage: USAGE });
+        return { value: helmetFullFace, usage: USAGE, modelVersion: MODEL };
+      },
+    };
+    return { client, queries };
+  }
+
+  it("aynı sorgu aynı anda gelirse Gemini TEK kez çağrılır", async () => {
+    const { client, queries } = slowClient(150);
+    const query = `kask ${TAG} esanli`;
+    const results = await Promise.all(
+      Array.from({ length: 5 }, () =>
+        resolveRealtimeInterpretation(getTestDb(), query, { client, registry: REGISTRY }),
+      ),
+    );
+    expect(queries).toHaveLength(1);
+    expect(results.filter((r) => r.source === "realtime")).toHaveLength(1);
+    for (const result of results) {
+      expect(["realtime", "stored", "none"]).toContain(result.source);
+      if (result.source === "none") expect(result.reason).toBe("in_flight");
+    }
+    // Tek çağrı, tek api_usage satırı.
+    const usage = await withOwnerClient((c) =>
+      c.query(
+        "SELECT count(*)::int AS n FROM api_usage WHERE operation = $1 AND model_version = $2",
+        [REALTIME_INTERPRETATION_OPERATION, MODEL],
+      ),
+    );
+    expect(usage.rows[0]?.n).toBeGreaterThanOrEqual(1);
+  });
+
+  it("farklı sorgular birbirini beklemez", async () => {
+    const { client, queries } = slowClient(80);
+    const results = await Promise.all([
+      resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} birinci`, {
+        client,
+        registry: REGISTRY,
+      }),
+      resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} ikinci`, {
+        client,
+        registry: REGISTRY,
+      }),
+    ]);
+    expect(queries).toHaveLength(2);
+    expect(results.map((r) => r.source)).toEqual(["realtime", "realtime"]);
+  });
+
+  it("kilit sayacı erişilemezse kullanıcı engellenmez (model yine çağrılır)", async () => {
+    const { client, queries } = slowClient(1);
+    const result = await resolveRealtimeInterpretation(getTestDb(), `kask ${TAG} kilitsiz`, {
+      client,
+      registry: REGISTRY,
+      singleFlight: {
+        acquire: async () => {
+          throw new RedisUnavailableError("kilit");
+        },
+        release: async () => {},
+      },
+    });
+    expect(result.source).toBe("realtime");
+    expect(queries).toHaveLength(1);
+  });
+
+  it("kayıt ilk denemede başarısız olursa yeniden denenir; ücretli çağrı iz bırakır", async () => {
+    const { client } = slowClient(1);
+    const real = await import("./query-interpretation.ts");
+    let attempts = 0;
+    const query = `kask ${TAG} kayityeniden`;
+    const result = await resolveRealtimeInterpretation(getTestDb(), query, {
+      client,
+      registry: REGISTRY,
+      persist: async (...args) => {
+        attempts += 1;
+        if (attempts === 1) throw new Error("gecici veritabani hatasi");
+        return real.persistOutcome(...args);
+      },
+    });
+    expect(result.source).toBe("realtime");
+    expect(attempts).toBe(2);
+    expect(await storedStatus(query)).toBe("accepted");
+  });
+});
