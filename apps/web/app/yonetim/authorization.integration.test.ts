@@ -907,7 +907,8 @@ const ACTIONS: ActionCase[] = [
     module: "veri-zekasi",
     name: "requestExportAction",
     moderator: false,
-    call: async () => (await import("./veri-zekasi/actions.ts")).requestExportAction(new FormData()),
+    call: async () =>
+      (await import("./veri-zekasi/actions.ts")).requestExportAction(new FormData()),
   },
   {
     module: "veri-zekasi",
