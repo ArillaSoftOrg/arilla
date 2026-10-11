@@ -50,14 +50,16 @@ describe("extractPageProduct", () => {
     })}</script>`;
     expect(extractPageProduct(html, PAGE)).toEqual({
       name: "Sony WH-1000XM5 Kulaklik",
-      image: "https://shop.com.tr/img/a.jpg",
+      image: "https://www.shop.com.tr/img/a.jpg",
     });
   });
-  it("uses og:image only when the page declares a product", () => {
+  it("uses og:image unless the page declares a non-product type", () => {
     const base = `<meta property="og:title" content="Sony &amp; Co WH-1000XM5"><meta property="og:image" content="https://cdn.shop.com.tr/p.jpg">`;
-    expect(extractPageProduct(base, PAGE)).toBeNull();
-    const withType = `${base}<meta property="og:type" content="og:product">`;
-    expect(extractPageProduct(withType, PAGE)?.image).toBe("https://cdn.shop.com.tr/p.jpg");
+    expect(extractPageProduct(base, PAGE)?.image).toBe("https://cdn.shop.com.tr/p.jpg");
+    const website = `${base}<meta property="og:type" content="website">`;
+    expect(extractPageProduct(website, PAGE)?.name).toBe("Sony & Co WH-1000XM5");
+    const article = `${base}<meta property="og:type" content="article">`;
+    expect(extractPageProduct(article, PAGE)).toBeNull();
   });
   it("rejects unsafe image urls", () => {
     const html = `<script type="application/ld+json">{"@type":"Product","name":"A B","image":"http://10.0.0.1/x.jpg"}</script>`;

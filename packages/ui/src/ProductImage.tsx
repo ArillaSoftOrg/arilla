@@ -21,6 +21,8 @@ export interface ProductImageProps {
   fit?: "cover" | "contain";
   /** LCP gorseli icin "high"; varsayilan tarayiciya birakilir. */
   fetchPriority?: "high" | "low" | "auto";
+  /** Ucuncu taraf sunucudan hotlink icin "no-referrer" (sayfa adresi sizdirilmaz). */
+  referrerPolicy?: "no-referrer";
 }
 
 /**
@@ -45,6 +47,7 @@ export function ProductImage({
   aspectRatio,
   fit = "cover",
   fetchPriority,
+  referrerPolicy,
 }: ProductImageProps) {
   const mergedStyle: CSSProperties | undefined =
     aspectRatio !== undefined ? { aspectRatio, ...style } : style;
@@ -56,6 +59,7 @@ export function ProductImage({
       loading={loading}
       decoding="async"
       fetchPriority={fetchPriority}
+      referrerPolicy={referrerPolicy}
       width={width}
       height={height}
       className={joinClassNames(styles.image, fit === "contain" && styles.contain, className)}

@@ -4,7 +4,7 @@
  * urun baglantilari, sunucuda SSRF-guvenli ve sinirli olarak okunur.
  *
  * Gorsel yalnizca sayfanin KENDI urun verisinden (JSON-LD `Product.image`, yoksa
- * urun isaretli `og:image`) ve yalnizca sayfadaki urun adi kartin urunuyle
+ * `og:image`) ve yalnizca sayfadaki urun adi kartin urunuyle
  * uyusuyorsa kullanilir (model kodu + varyant uyumu). Gorsel indirilmez,
  * saklanmaz ya da onbellege alinmaz; tarayici dogrudan magaza sunucusundan
  * yukler (hotlink, `referrerpolicy=no-referrer`). robots.txt ve erisim
@@ -126,8 +126,10 @@ export function extractPageProduct(html: string, pageUrl: string): PageProduct |
   const ogImage = metaContent(html, "og:image") ?? metaContent(html, "og:image:url");
   const ogTitle = metaContent(html, "og:title");
   const ogType = metaContent(html, "og:type") ?? "";
-  // og:image yalnizca sayfa kendini urun olarak isaretliyorsa guvenilir.
-  if (ogImage && ogTitle && /product/i.test(ogType)) {
+  // Cok magaza urun sayfasini `og:type=website` yazar; yine de makale/video gibi acik
+  // diger turler reddedilir. Asil guvence: og:title kartin urunuyle eslesmek zorunda
+  // (`productNameMatches`: model kodu + kelime kapsamasi + varyant).
+  if (ogImage && ogTitle && !/article|video|music|profile|book/i.test(ogType)) {
     const image = resolve(ogImage);
     if (image) return { name: ogTitle, image };
   }
@@ -201,15 +203,29 @@ export interface StoreImageDeps {
   budgetMs?: number;
 }
 
+export type ImageOutcome = { image: string } | { reason: string };
+
+function httpClass(status: number): string {
+  if (status === 401 || status === 403) return "http_denied";
+  if (status === 429) return "http_429";
+  if (status === 404 || status === 410) return "http_gone";
+  if (status >= 500) return "http_5xx";
+  return "http_other";
+}
+
 async function imageForOffer(
   group: WebProductGroup,
   offerUrl: string,
   get: SafeGetFn,
   signal: AbortSignal,
-): Promise<string | null> {
+): Promise<ImageOutcome> {
   const safe = toSafePublicUrl(offerUrl);
-  if (safe === null) return null;
+  if (safe === null) return { reason: "unsafe_url" };
   const parsed = new URL(safe.url);
+  let netReason: string | null = null;
+  const report = (reason: string) => {
+    netReason ??= reason;
+  };
   const robots = await get(`https://${safe.host}/robots.txt`, {
     maxBytes: ROBOTS_MAX_BYTES,
     timeoutMs: PAGE_TIMEOUT_MS,
@@ -218,7 +234,7 @@ async function imageForOffer(
   });
   if (robots && robots.status === 200) {
     if (!robotsAllows(robots.body.toString("utf8"), `${parsed.pathname}${parsed.search}`)) {
-      return null;
+      return { reason: "robots_disallow" };
     }
   }
   const page = await get(safe.url, {
@@ -226,26 +242,41 @@ async function imageForOffer(
     timeoutMs: PAGE_TIMEOUT_MS,
     accept: "text/html,application/xhtml+xml",
     signal,
+    report,
   });
+  if (!page) return { reason: `page_${netReason ?? "unreachable"}` };
   // 401/403/429 vb. erisim engeli: denenmez, atlatilmaz.
-  if (!page || page.status !== 200 || !page.contentType.includes("html")) return null;
-  const product = extractPageProduct(page.body.toString("utf8"), page.finalUrl);
-  if (!product || !productNameMatches(group, product.name)) return null;
+  if (page.status !== 200) return { reason: `page_${httpClass(page.status)}` };
+  if (!page.contentType.includes("html")) return { reason: "page_not_html" };
+  const html = page.body.toString("utf8");
+  const product = extractPageProduct(html, page.finalUrl);
+  if (!product) {
+    return {
+      reason: html.length >= PAGE_MAX_BYTES ? "no_product_data_truncated" : "no_product_data",
+    };
+  }
+  if (!productNameMatches(group, product.name)) return { reason: "name_mismatch" };
   const image = await get(product.image, {
     maxBytes: 0,
     timeoutMs: PAGE_TIMEOUT_MS,
     accept: "image/avif,image/webp,image/png,image/jpeg,image/*;q=0.5",
     headersOnly: true,
     signal,
+    report,
   });
-  if (!image || image.status !== 200 || !IMAGE_TYPES.test(image.contentType)) return null;
-  if (image.contentLength !== null && image.contentLength > IMAGE_MAX_BYTES) return null;
-  return product.image;
+  if (!image) return { reason: `image_${netReason ?? "unreachable"}` };
+  if (image.status !== 200) return { reason: `image_${httpClass(image.status)}` };
+  if (!IMAGE_TYPES.test(image.contentType)) return { reason: "image_type" };
+  if (image.contentLength !== null && image.contentLength > IMAGE_MAX_BYTES) {
+    return { reason: "image_too_large" };
+  }
+  return { image: product.image };
 }
 
 /**
  * Gorseli olmayan gruplara magaza sayfasindan gorsel ekler. Hata/zaman asimi
  * gorselin yoklugudur; sonuc listesini asla bozmaz. Toplam sure sinirlidir.
+ * Basarisiz her deneme icerik tasimayan sinif koduyla tek satirda gunlenir.
  */
 export async function attachStoreImages(
   groups: readonly WebProductGroup[],
@@ -253,19 +284,34 @@ export async function attachStoreImages(
 ): Promise<WebProductGroup[]> {
   const get = deps.get ?? safeGet;
   const signal = AbortSignal.timeout(deps.budgetMs ?? TOTAL_BUDGET_MS);
-  return Promise.all(
+  const reasons: Record<string, number> = {};
+  let found = 0;
+  const out = await Promise.all(
     groups.map(async (group, index) => {
       if (group.imageUrl || index >= MAX_GROUPS) return group;
       for (const offer of group.offers.slice(0, MAX_OFFERS_TRIED)) {
-        if (signal.aborted) break;
-        try {
-          const imageUrl = await imageForOffer(group, offer.url, get, signal);
-          if (imageUrl) return { ...group, imageUrl };
-        } catch {
-          // Gorsel yok sayilir.
+        if (signal.aborted) {
+          reasons.budget_exhausted = (reasons.budget_exhausted ?? 0) + 1;
+          break;
         }
+        let outcome: ImageOutcome;
+        try {
+          outcome = await imageForOffer(group, offer.url, get, signal);
+        } catch {
+          outcome = { reason: "exception" };
+        }
+        if ("image" in outcome) {
+          found++;
+          return { ...group, imageUrl: outcome.image };
+        }
+        const key = `${offer.host}:${outcome.reason}`;
+        reasons[key] = (reasons[key] ?? 0) + 1;
       }
       return group;
     }),
   );
+  if (Object.keys(reasons).length > 0) {
+    console.warn("[web-search] image diag", `found=${found}`, JSON.stringify(reasons));
+  }
+  return out;
 }

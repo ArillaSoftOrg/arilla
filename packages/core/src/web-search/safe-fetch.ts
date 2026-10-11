@@ -61,6 +61,8 @@ export interface SafeGetOptions {
   /** `true`: govde okunmaz, yalnizca basliklar (gorsel turu/boyut denetimi). */
   headersOnly?: boolean;
   signal?: AbortSignal;
+  /** Basarisizlik sinifi (icerik yok): `timeout`, `blocked_address`, `dns`, `network`, `bad_redirect`. */
+  report?: (reason: string) => void;
   /** Test icin: DNS cozumu. */
   lookup?: typeof dnsLookup;
 }
@@ -141,7 +143,18 @@ export async function safeGet(
     let response: Awaited<ReturnType<typeof once>>;
     try {
       response = await once(current, options);
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "";
+      const code = (error as { code?: unknown } | null)?.code;
+      options.report?.(
+        message === "timeout" || message === "aborted"
+          ? "timeout"
+          : message === "blocked_address"
+            ? "blocked_address"
+            : code === "ENOTFOUND" || code === "EAI_AGAIN"
+              ? "dns"
+              : "network",
+      );
       return null;
     }
     if (response.status >= 300 && response.status < 400) {
@@ -152,6 +165,7 @@ export async function safeGet(
         next = null;
       }
       current = next === null ? null : (toSafePublicUrl(next)?.url ?? null);
+      if (current === null) options.report?.("bad_redirect");
       continue;
     }
     const { location: _location, ...rest } = response;
