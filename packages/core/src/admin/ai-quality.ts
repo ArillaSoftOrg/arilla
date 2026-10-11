@@ -150,6 +150,11 @@ export interface VersionRow {
 }
 
 export interface AiQualityOverview {
+  /**
+   * `false`: migration 0060 (ai_eval_*) bu veritabaninda uygulanmamis. Panel bos acilir;
+   * hata sayfasi gostermez ve hicbir sey uretmez.
+   */
+  schemaReady: boolean;
   generatedAt: Date;
   days: AnalyticsWindow;
   components: ComponentQuality[];
@@ -205,7 +210,7 @@ const RUN_COLUMNS = sql`
   r.snapshot_id, s.version AS dataset_version, s.verified_count, r.metrics, r.regressed,
   r.api_calls, r.cost_micros, r.latency_p50_ms, r.latency_p95_ms`;
 
-export async function getAiQualityOverview(
+async function readQualityOverview(
   db: Database,
   actor: AdminActor,
   options: { days?: unknown } = {},
@@ -303,6 +308,7 @@ export async function getAiQualityOverview(
     }));
     const costRow = cost.rows[0];
     return {
+      schemaReady: true,
       generatedAt: now,
       days,
       components,
@@ -320,3 +326,36 @@ export async function getAiQualityOverview(
 }
 
 export { COMPONENT_LABELS, COMPONENT_ORDER } from "../eval/metric-keys.ts";
+
+/** Postgres `undefined_table`: tablo (henuz) yok. Surucu hatayi `cause` altina sarabilir. */
+export function isMissingTableError(error: unknown): boolean {
+  const code = (e: unknown) => (e as { code?: unknown } | null | undefined)?.code;
+  return code(error) === "42P01" || code((error as { cause?: unknown } | null)?.cause) === "42P01";
+}
+
+/**
+ * Migration 0060 uygulanmadan (ornegin kod, migration'dan once dagitildiysa) panel
+ * hata vermez; bos ve "uygulanmamis" isaretli doner. Baska hatalar yukari gider.
+ */
+export async function getAiQualityOverview(
+  db: Database,
+  actor: AdminActor,
+  options: { days?: unknown } = {},
+): Promise<AiQualityOverview> {
+  try {
+    return await readQualityOverview(db, actor, options);
+  } catch (error) {
+    if (!isMissingTableError(error)) throw error;
+    const days = parseAnalyticsWindow(options.days, 30);
+    return {
+      schemaReady: false,
+      generatedAt: new Date(),
+      days,
+      components: COMPONENT_ORDER.map((component) => buildComponentQuality(component, null, null)),
+      history: [],
+      errors: { total: 0, byKind: [] },
+      modelVersionsInUse: [],
+      evalCost: { runs: 0, liveRuns: 0, apiCalls: 0, costMicros: 0 },
+    };
+  }
+}

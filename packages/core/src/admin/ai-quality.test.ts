@@ -52,6 +52,34 @@ describe("yetki", () => {
   );
 });
 
+describe("migration 0060 uygulanmamışsa", () => {
+  const failing = (error: unknown) =>
+    ({
+      transaction: async () => {
+        throw error;
+      },
+    }) as unknown as Database;
+  const admin: AdminActor = { userId: 1, role: "admin" };
+
+  it("tablo yok hatasi (42P01, sarili ya da duz) bos ve schemaReady=false doner", async () => {
+    for (const error of [
+      Object.assign(new Error("x"), { cause: { code: "42P01" } }),
+      Object.assign(new Error("x"), { code: "42P01" }),
+    ]) {
+      const overview = await getAiQualityOverview(failing(error), admin);
+      expect(overview.schemaReady).toBe(false);
+      expect(overview.components.every((c) => c.latest === null)).toBe(true);
+      expect(overview.history).toEqual([]);
+    }
+  });
+
+  it("baska veritabani hatalari yutulmaz", async () => {
+    await expect(
+      getAiQualityOverview(failing(Object.assign(new Error("boom"), { code: "57014" })), admin),
+    ).rejects.toThrow("boom");
+  });
+});
+
 describe("boş veri", () => {
   it("koşu yoksa hiçbir metrik değer taşımaz (0 değil null)", () => {
     const q = buildComponentQuality("matching", null, null);

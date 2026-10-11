@@ -91,6 +91,20 @@ export default async function AiQualityPage({
   const { actor } = await requireCapability("ai.read");
   const params = await searchParams;
   const overview = await getAiQualityOverview(getDatabase(), actor, { days: params.gun });
+  if (!overview.schemaReady) {
+    return (
+      <div className={styles.page}>
+        <PageHeader
+          title="AI kalite ve değerlendirme"
+          description="Kaydedilmiş değerlendirme koşuları, regresyon ve model hataları."
+        />
+        <Notice title="Veri tabloları henüz yok">
+          Değerlendirme tabloları (migration 0060) bu veritabanında uygulanmamış. Migration
+          uygulanana kadar bu ekran boş kalır; hiçbir değer üretilmez.
+        </Notice>
+      </div>
+    );
+  }
   const anyRun = overview.components.some((c) => c.latest);
   const regressedCount = overview.components.filter((c) => c.regressed).length;
 
