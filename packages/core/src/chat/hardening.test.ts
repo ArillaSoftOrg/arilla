@@ -131,6 +131,61 @@ describe("grounding: explicit user input > deterministic rule > model", () => {
   });
 });
 
+describe("grounding: a product number is not a budget", () => {
+  const noPrice = { currentIntent: emptyIntent("x") };
+
+  it.each([
+    ["iphone 15 pro", 15],
+    ["galaxy s23 ultra", 23],
+    ["rtx 4060 ekran kartı", 4060],
+    ["samsung 55 inç televizyon", 55],
+    ["3 lü çorap seti", 3],
+  ])("drops a model-invented price taken from '%s'", (text, value) => {
+    const grounded = groundPatch(patch({ priceMax: value }), request(text, noPrice));
+    expect(grounded.priceMax).toBeUndefined();
+  });
+
+  it.each([
+    ["bütçem 3000", 3000],
+    ["3000 lira civarı", 3000],
+    ["en fazla 4500", 4500],
+    ["5 bin tl", 5000],
+    ["fiyatı 2.500 olsun", 2500],
+  ])("keeps a price tied to a price marker: '%s'", (text, value) => {
+    const grounded = groundPatch(patch({ priceMax: value }), request(text, noPrice));
+    expect(grounded.priceMax).toBe(value);
+  });
+
+  it("keeps a bare number that answers a budget question", () => {
+    const grounded = groundPatch(
+      patch({ priceMax: 2500 }),
+      request("2500", {
+        ...noPrice,
+        pendingQuestion: { id: "budget", title: "Bütçen nedir?" },
+        input: { kind: "text", text: "2500" },
+      }),
+    );
+    expect(grounded.priceMax).toBe(2500);
+  });
+
+  it("drops a bare number that answers a non-budget question", () => {
+    const grounded = groundPatch(
+      patch({ priceMax: 42 }),
+      request("42", {
+        ...noPrice,
+        pendingQuestion: { id: "size", title: "Kaç numara giyiyorsun?" },
+        input: { kind: "text", text: "42" },
+      }),
+    );
+    expect(grounded.priceMax).toBeUndefined();
+  });
+
+  it("still keeps the price already in the intent", () => {
+    const grounded = groundPatch(patch({ priceMax: 2500 }), request("siyah olsun"));
+    expect(grounded.priceMax).toBe(2500);
+  });
+});
+
 describe("model output boundaries", () => {
   it("rejects output carrying a URL anywhere", () => {
     const base = { action: "search", message: "ok", question: null };

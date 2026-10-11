@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 import logging
 import re
+import unicodedata
 from dataclasses import dataclass
 from html.parser import HTMLParser
 from typing import Any
@@ -306,6 +307,19 @@ def from_meta(parser: _PageParser, *, allow_reference: bool = False) -> Extracte
 # --- 3. katman: son care ----------------------------------------------------
 
 
+#: Tutar iceren ama URUN FIYATI olmayan metinler: "500 TL ve uzeri kargo bedava",
+#: "3 x 416,50 TL taksit", kupon tutari. Bu parcalar fiyat adayi sayilmaz.
+_NOT_A_PRICE_CONTEXT = ("kargo", "uzeri", "taksit", "kupon", "bedava")
+
+
+def _fold(text: str) -> str:
+    """Kucuk harf + aksansiz (Turkce I/i dogru): "ÜZERİ" -> "uzeri"."""
+    lowered = text.replace("İ", "i").replace("I", "ı").lower().replace("ı", "i")
+    return "".join(
+        char for char in unicodedata.normalize("NFKD", lowered) if not unicodedata.combining(char)
+    )
+
+
 def from_heuristics(parser: _PageParser) -> ExtractedProduct | None:
     """Yapilandirilmis veri yok. Basligi ve ilk fiyat gorunumlu sayiyi al.
 
@@ -318,6 +332,9 @@ def from_heuristics(parser: _PageParser) -> ExtractedProduct | None:
         return None
 
     for chunk in parser.text_chunks:
+        folded = _fold(chunk)
+        if any(word in folded for word in _NOT_A_PRICE_CONTEXT):
+            continue
         match = PRICE_PATTERN.search(chunk)
         if match:
             price = (match.group(1) or match.group(2) or "").strip()
