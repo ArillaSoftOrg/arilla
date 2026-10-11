@@ -92,6 +92,7 @@ function pages(): string[] {
     "/yonetim/denetim",
     "/yonetim/ai",
     "/yonetim/ai?gun=30",
+    "/yonetim/ai/kalite",
     "/yonetim/yolculuk",
     "/yonetim/affiliate",
     "/yonetim/affiliate?durum=active",

@@ -317,12 +317,16 @@ export type InterpretationOutcome =
         | null;
       calls: LlmCall[];
       modelVersion: string;
+      /** Yedege cikti hatasi yuzunden dusulduyse model hatasi (hata kaydi icin); yoksa undefined. */
+      modelError?: { code: LlmErrorCode; detail: string | null };
     }
   | {
       kind: "provider_error";
       code: LlmErrorCode | "unknown";
       calls: LlmCall[];
       modelVersion: string;
+      /** Saglayici durum degeri; hata kaydi icindir. */
+      errorDetail?: string | null;
     };
 
 const OUTPUT_ERROR_CODES = new Set<LlmErrorCode>([
@@ -375,8 +379,18 @@ export async function interpretTurn(
     result = await interpreter.interpret(filteredRequest, { onCall: (call) => calls.push(call) });
   } catch (error) {
     const code = error instanceof LlmError ? error.code : "unknown";
-    if (code !== "unknown" && OUTPUT_ERROR_CODES.has(code)) return fallback("output_error");
-    return { kind: "provider_error", code, calls, modelVersion };
+    const errorDetail = error instanceof LlmError ? error.detail : null;
+    if (code !== "unknown" && OUTPUT_ERROR_CODES.has(code)) {
+      const base = fallback("output_error") as Extract<InterpretationOutcome, { kind: "turn" }>;
+      return { ...base, modelError: { code, detail: errorDetail } };
+    }
+    return {
+      kind: "provider_error",
+      code,
+      calls,
+      modelVersion,
+      ...(errorDetail ? { errorDetail } : {}),
+    };
   }
 
   const parsed = parseModelTurn(result.value);
