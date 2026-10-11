@@ -1,7 +1,9 @@
 "use client";
 
+import { classifyError, type PublicError } from "@arilla/core/errors";
 import { Button, Input } from "@arilla/ui";
 import { useRef, useState } from "react";
+import { ErrorView } from "../../error-view.tsx";
 import { LoginGateModal } from "../../login-gate-modal-client.tsx";
 import { createAlertAction, saveItemAction } from "./actions.ts";
 import styles from "./product-page.module.css";
@@ -37,15 +39,36 @@ export function ProductActionsClient({
     currentPriceTRY !== null ? String(currentPriceTRY) : "",
   );
   const [loginModalOpen, setLoginModalOpen] = useState(false);
+  // Sunucu eylemi firlatirsa dugme "pending"de takili kalmaz; hata satir ici gorunur (karar 0104).
+  const [failure, setFailure] = useState<{ error: PublicError; retry: () => void } | null>(null);
   // Istek sirasinda dugme `disabled` olur ve tarayici odagi <body>'ye tasir;
   // modal kapaninca odagin donecegi dugme burada tutulur.
   const modalTriggerRef = useRef<HTMLElement | null>(null);
 
-  async function handleSave(event: React.MouseEvent<HTMLButtonElement>) {
-    modalTriggerRef.current = event.currentTarget;
+  function reportFailure(thrown: unknown, retry: () => void) {
+    const digest = (thrown as { digest?: unknown } | null)?.digest;
+    setFailure({
+      error: {
+        code: classifyError(thrown, { client: true }),
+        ...(typeof digest === "string" && digest ? { reference: digest } : {}),
+      },
+      retry,
+    });
+  }
+
+  async function handleSave(event?: React.MouseEvent<HTMLButtonElement>) {
+    if (event) modalTriggerRef.current = event.currentTarget;
     if (saveState === "pending" || saveState === "saved") return;
     setSaveState("pending");
-    const status = await saveItemAction(productId);
+    setFailure(null);
+    let status: Awaited<ReturnType<typeof saveItemAction>>;
+    try {
+      status = await saveItemAction(productId);
+    } catch (thrown) {
+      setSaveState("idle");
+      reportFailure(thrown, () => void handleSave());
+      return;
+    }
     if (status === "unauthenticated") {
       setSaveState("idle");
       setLoginModalOpen(true);
@@ -75,7 +98,15 @@ export function ProductActionsClient({
   async function submitAlert(input: Parameters<typeof createAlertAction>[0]) {
     setAlertState("pending");
     setShowPriceForm(false);
-    const status = await createAlertAction(input);
+    setFailure(null);
+    let status: Awaited<ReturnType<typeof createAlertAction>>;
+    try {
+      status = await createAlertAction(input);
+    } catch (thrown) {
+      setAlertState("idle");
+      reportFailure(thrown, () => void submitAlert(input));
+      return;
+    }
     if (status === "unauthenticated") {
       setAlertState("idle");
       setLoginModalOpen(true);
@@ -115,6 +146,8 @@ export function ProductActionsClient({
             : "Stoğa girince haber vereceğiz."
           : null}
       </p>
+
+      {failure ? <ErrorView error={failure.error} onRetry={failure.retry} /> : null}
 
       {showPriceForm ? (
         <form onSubmit={handlePriceFormSubmit} className={styles.alertForm}>
