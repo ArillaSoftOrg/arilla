@@ -1,0 +1,18 @@
+{
+  "_aciklama": "ETIKETSIZ aday havuzu. Bu sorgularin beklenen action/soru/faset degeri YOKTUR ve olcume GIRMEZ. Bir insan etiketleyip dogruladiginda datasets/intent-golden.json'a tasinir. Sahte etiketle set buyutmek yasaktir. Gercek kullanici sorgusu degildir; KVKK geregi kullanici verisi icermez.",
+  "status": "unverified",
+  "candidates": [
+    { "query": "kulaklık arıyorum", "why": "kategori genis; soru gerektirir mi?" },
+    { "query": "laptop", "why": "tek kelime elektronik, domain tanimli mi?" },
+    { "query": "babama doğum günü hediyesi", "why": "alici=baba varyanti" },
+    { "query": "2000 tl altı telefon", "why": "butce + domain" },
+    { "query": "kadın spor ayakkabı 38", "why": "beden iceren arama" },
+    { "query": "kask", "why": "tekrar adayi: golden'da var, lint yakalamali" },
+    { "query": "koşu ayakkabısı erkek 43 numara", "why": "beden + kitle" },
+    { "query": "arkadaşıma hediye 300 lira", "why": "alici=arkadas, butce" },
+    { "query": "motosiklet kaskı", "why": "kask alt turu" },
+    { "query": "iphone 15 pro max kılıf", "why": "aksesuar tuzagi (telefon sorusu sorulmamali)" },
+    { "query": "bebek arabası", "why": "domain disi kategori" },
+    { "query": "okula başlayan kız çocuğuna hediye", "why": "yas/alici dolayli" }
+  ]
+}
