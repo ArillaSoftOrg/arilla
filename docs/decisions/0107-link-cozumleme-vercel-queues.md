@@ -120,3 +120,20 @@ Migration yok. Redis yolu kaldırılmamıştır; aynı satır şeması ve aynı
 `LINK_SEARCH_PUBLIC` (kapalı kalır), `CHAT_LINK_*`, `WEB_SEARCH_*` bayrakları,
 SSRF koruması, URL doğrulama, "aynı ürün ≠ benzer ürün", 0.72 görsel tabanı,
 arama hakkı. Bu kararla hiçbiri değişmez.
+
+## Gerçek dağıtım doğrulaması (12 Ekim 2026, ayrı test projesi `arilla-link-queues-test`)
+
+Doğrulandı:
+- Kök dizin repo kökü iken `apps/web` (Next.js, pnpm workspace) `services` ile derlenir.
+- Python service'inde `framework: "python"` açıkça verilmeli (Dockerfile ile birlikte
+  "Multiple frameworks detected" hatası verir). Abone tanımları **yalnızca service
+  `entrypoint`'i `pyproject.toml` ise** okunur; aksi halde abone sessizce üretilmez.
+  Bu yapıda ASGI uygulaması gerekmez (abone-only service derlenir).
+- Üretilen fonksiyon: `services/link/_py_subscribers/collect-link-subscriber`;
+  `QUEUE_SENT` → `QUEUE_NOTIFIED` → `QUEUE_RECEIVED` (deliveryCount 1) → `QUEUE_DELETED`.
+- Geçersiz yüklü mesaj abone tarafından alındı ve `kuyruk mesaji gecersiz` günlüğüyle atlandı.
+
+Doğrulanmadı / açık: `crons` ve `maxDuration`; gerçek veritabanıyla çözümleme, SSRF
+engeli, retry, tekrar teslimat, eşzamanlılık (ayrı test veritabanı gerekir); handler
+döndükten sonra SDK'nın onayında `MessageNotInFlightError ... temporarily locked`
+günlüğü görüldü (mesaj yine de silindi; nedeni araştırılmadı).
