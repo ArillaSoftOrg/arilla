@@ -206,6 +206,12 @@ const ACTION_LABELS: Record<AdminAction, string> = {
   "trends.reorder": "Trend sırası değişti",
   "messages.status_change": "Mesaj durumu değişti",
   "messages.priority_change": "Mesaj önceliği değişti",
+  "data.build": "Veri seti üretildi",
+  "data.export": "Veri seti dışa aktarımı",
+  "data.export_cancel": "Veri seti dışa aktarımı iptal edildi",
+  "data.export_download": "Veri seti dosyası indirildi",
+  "data.accuracy_sample": "Doğruluk örneği çekildi",
+  "data.accuracy_label": "Doğruluk etiketi girildi",
 };
 
 export function actionLabel(action: string): string {
@@ -225,6 +231,8 @@ export const TARGET_TYPE_LABELS: Record<AdminTargetType, string> = {
   early_access_counter: "Erken erişim sayacı",
   capability: "Yetenek",
   trend: "Trend",
+  data_build: "Veri seti sürümü",
+  data_export: "Veri seti dışa aktarımı",
 };
 
 export function targetTypeLabel(targetType: string): string {

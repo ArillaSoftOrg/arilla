@@ -54,7 +54,94 @@ export const LLM_PRICE_RULES: readonly LlmPriceRule[] = [
     source: "https://ai.google.dev/gemini-api/docs/pricing",
     verifiedOn: "2026-10-08",
   },
+  {
+    // Internet urun aramasi (karar 0102). Arac (URL Context) ile okunan sayfa
+    // icerigi girdi token'i olarak ayni fiyattan ucretlenir; arama grounding
+    // ucreti token'dan AYRIDIR (`GROUNDING_PRICE_RULES`).
+    id: "gemini-3.5-flash-lite@2026-10-11",
+    model: "gemini-3.5-flash-lite",
+    tier: "standard",
+    effectiveFrom: new Date("2026-10-11T00:00:00Z"),
+    effectiveUntil: null,
+    // $0.30 / 1M girdi (metin/gorsel/video/ses), $2.50 / 1M cikti (dusunme dahil).
+    inputUsdMicrosPerMTok: 300_000,
+    outputUsdMicrosPerMTok: 2_500_000,
+    source: "https://ai.google.dev/gemini-api/docs/pricing",
+    verifiedOn: "2026-10-11",
+  },
 ];
+
+/**
+ * Google Search grounding ucreti: Gemini 3+ modellerinde modelin YURUTTUGU her
+ * arama sorgusu icin (bir istekte birden cok olabilir). Token ucretinden
+ * ayrildir ve ayri `api_usage` satirinda (`units` = sorgu sayisi) izlenir.
+ */
+export interface GroundingPriceRule {
+  /** Kalici kimlik; degistirilmez, yeni surum eklenir. */
+  id: string;
+  effectiveFrom: Date;
+  effectiveUntil: Date | null;
+  /** Bir arama sorgusu icin USD'nin milyonda biri (14 USD / 1000 = 14.000). */
+  usdMicrosPerQuery: number;
+  /**
+   * Aylik ucretsiz kontenjan (tum Gemini 3+ modelleri ve projeler arasi
+   * ORTAK). Satir bazli maliyet BU KONTENJANI DIKKATE ALMAZ: liste fiyatidir,
+   * yani ust sinirdir; gercek fatura daha dusuk olabilir.
+   */
+  freeMonthlyQueries: number;
+  source: string;
+  verifiedOn: string;
+}
+
+export const GROUNDING_PRICE_RULES: readonly GroundingPriceRule[] = [
+  {
+    id: "google-search-grounding@2026-10-11",
+    effectiveFrom: new Date("2026-10-11T00:00:00Z"),
+    effectiveUntil: null,
+    usdMicrosPerQuery: 14_000,
+    freeMonthlyQueries: 5_000,
+    source: "https://ai.google.dev/gemini-api/docs/pricing",
+    verifiedOn: "2026-10-11",
+  },
+];
+
+export type GroundingCostEstimate =
+  | { kind: "estimated"; costMicros: number; ruleId: string }
+  | { kind: "unpriced"; reason: "no_queries" | "unknown_rule" | "missing_fx_rate" };
+
+/** Sorgu sayisi x liste fiyati x kur; yukari yuvarlanir (BigInt). */
+export function estimateGroundingCost(
+  queries: number,
+  options: {
+    at: Date;
+    env?: Readonly<Record<string, string | undefined>>;
+    rules?: readonly GroundingPriceRule[];
+  },
+): GroundingCostEstimate {
+  if (!Number.isInteger(queries) || queries <= 0) return { kind: "unpriced", reason: "no_queries" };
+  const time = options.at.getTime();
+  const rule = (options.rules ?? GROUNDING_PRICE_RULES).find(
+    (r) =>
+      time >= r.effectiveFrom.getTime() &&
+      (r.effectiveUntil === null || time < r.effectiveUntil.getTime()),
+  );
+  if (!rule) return { kind: "unpriced", reason: "unknown_rule" };
+  const fx = parseFxMicros((options.env ?? process.env)[LLM_COST_FX_ENV]);
+  if (fx === null) return { kind: "unpriced", reason: "missing_fx_rate" };
+  const numerator = BigInt(queries) * BigInt(rule.usdMicrosPerQuery) * BigInt(fx);
+  const denominator = 1_000_000n;
+  return {
+    kind: "estimated",
+    costMicros: Number((numerator + denominator - 1n) / denominator),
+    ruleId: rule.id,
+  };
+}
+
+/** `api_usage.cost_micros` icin: tahmin varsa o, yoksa 0 ("fiyatlanmamis"). */
+export function groundingCostMicros(queries: number, at: Date = new Date()): number {
+  const estimate = estimateGroundingCost(queries, { at });
+  return estimate.kind === "estimated" ? estimate.costMicros : 0;
+}
 
 /** Kur: 1 USD kac TRY. Ondalik nokta, en cok 6 basamak; or. `41.25`. */
 export const LLM_COST_FX_ENV = "LLM_COST_TRY_PER_USD";

@@ -9,7 +9,10 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ProductCard, VisuallyHidden } from "@arilla/ui";
+import type { ReactNode } from "react";
 import { offerCountLabel, resultCountLabel } from "../ara/search-results.tsx";
+import { WebGridItems, WebOnlyResults } from "../ara/web-search-section.tsx";
+import { startWebSearch } from "../ara/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
 import { ResultFeedback } from "./chat-feedback-client.tsx";
 import { araSortParam, type ChatSortKey, sortModeFor } from "./chat-sort.ts";
@@ -31,9 +34,12 @@ interface GridItem {
 export function ChatResultGrid({
   items,
   labelledBy,
+  extra,
 }: {
   items: readonly GridItem[];
   labelledBy: string;
+  /** Aynı ızgaranın sonuna eklenen `<li>`ler (karar 0106: internet kartları). */
+  extra?: ReactNode;
 }) {
   return (
     // biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür.
@@ -53,6 +59,7 @@ export function ChatResultGrid({
           />
         </li>
       ))}
+      {extra}
     </ul>
   );
 }
@@ -96,6 +103,11 @@ export async function ChatResults({
   sort: ChatSortKey;
   helpful: boolean | null;
 }) {
+  // Karar 0102: internet araması katalog aramasıyla paralel başlar. Sorgu, modelin
+  // çıkardığı niyetin metinsel hâlidir (görsel eki de buna iner; görselin kendisi
+  // gitmez). Yalnızca varsayılan sekmede; sekme değişimi yeniden aramaz.
+  const webSearch =
+    sort === "secilen" ? startWebSearch({ kind: "text", text: intentSearchText(intent) }) : null;
   let result: Awaited<ReturnType<typeof searchByIntent>>;
   const timer = createChatTimer();
   try {
@@ -142,11 +154,8 @@ export async function ChatResults({
     // Seçtiklerimiz dışındaki bir sekme boşsa (örn. fırsat sıralaması fiyat istatistiği ister)
     // sekmeler kalır ve neden söylenir; sonuç "yok" denmez.
     const otherTab = sort !== "secilen";
-    return (
-      <section className={styles.results} data-search-mode="empty" aria-labelledby={headingId}>
-        {otherTab ? (
-          <ResultTabs conversationId={conversationId} active={sort} countLabel={null} />
-        ) : null}
+    const emptyBlock = (
+      <>
         <h3 id={headingId} className={styles.resultsHeading}>
           {otherTab ? CHAT_COPY.noResultsInTab : CHAT_COPY.noResultsTitle}
         </h3>
@@ -154,6 +163,27 @@ export async function ChatResults({
           {otherTab ? CHAT_COPY.noResultsInTabHint : CHAT_COPY.noResultsDescription}
         </p>
         {noteBlock}
+      </>
+    );
+    // Karar 0106: katalog boşken internet aramasının sonucu beklenir; "ürün yok" yalnızca
+    // bütün uygun kaynaklar tamamlandıktan sonra söylenir. Arama başarısızsa bu ayrıca belirtilir.
+    const waitForWeb = webSearch !== null && !otherTab;
+    return (
+      <section
+        className={styles.results}
+        data-search-mode="empty"
+        {...(waitForWeb
+          ? { "aria-label": CHAT_COPY.resultsRegion }
+          : { "aria-labelledby": headingId })}
+      >
+        {otherTab ? (
+          <ResultTabs conversationId={conversationId} active={sort} countLabel={null} />
+        ) : null}
+        {waitForWeb ? (
+          <WebOnlyResults promise={webSearch} variant="chat" catalog={[]} empty={emptyBlock} />
+        ) : (
+          emptyBlock
+        )}
       </section>
     );
   }
@@ -177,7 +207,22 @@ export async function ChatResults({
         />
       )}
       {noteBlock}
-      <ChatResultGrid items={outcome.items} labelledBy={headingId} />
+      <ChatResultGrid
+        items={outcome.items}
+        labelledBy={headingId}
+        extra={
+          webSearch && !isFallback ? (
+            <WebGridItems
+              promise={webSearch}
+              variant="chat"
+              catalog={outcome.items.map((item) => ({
+                title: item.title,
+                imageUrl: item.primaryImageUrl,
+              }))}
+            />
+          ) : null
+        }
+      />
       <ResultFeedback conversationId={conversationId} messageSeq={messageSeq} initial={helpful} />
       {isFallback ? null : (
         <a className={styles.seeAll} href={fullResultsHref(intent, sort)}>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { publicErrorFromBoundary } from "../error-view.tsx";
 import { SearchErrorState } from "./search-error.tsx";
 
 /** docs/pages.md "/ara" Hata satırı: "Arama şu an çalışmıyor" + tekrar dene. */
@@ -17,5 +18,5 @@ export default function AramaError({
     console.error("[ara] search error", error.name, error.digest ?? "");
   }, [error]);
 
-  return <SearchErrorState onRetry={() => retry()} />;
+  return <SearchErrorState onRetry={() => retry()} error={publicErrorFromBoundary(error)} />;
 }

@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => ({
   after: vi.fn(),
   enabled: vi.fn(() => true),
   imageEnabled: vi.fn(() => true),
+  consent: vi.fn(async () => true),
 }));
 
 vi.mock("../lib/dal.ts", () => ({ verifySession: mocks.verifySession }));
@@ -32,6 +33,7 @@ vi.mock("@arilla/core", async () => {
     ...actual,
     isChatDiscoveryEnabled: mocks.enabled,
     isChatImageEnabled: mocks.imageEnabled,
+    hasChatImageConsent: mocks.consent,
     canAccessProduct: () => true,
     createConversation: mocks.createConversation,
     processPendingTurn: mocks.processPendingTurn,
@@ -80,6 +82,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   mocks.enabled.mockReturnValue(true);
   mocks.imageEnabled.mockReturnValue(true);
+  mocks.consent.mockResolvedValue(true);
   mocks.verifySession.mockResolvedValue(USER);
   mocks.createConversation.mockResolvedValue({ status: "created", conversationId: ID });
   mocks.getChatInterpreter.mockReturnValue({ modelVersion: "m" });
@@ -261,16 +264,28 @@ describe("sendMessageAction: sohbet içinden görsel aynı konuşmaya eklenir", 
     }
   });
 
-  it("görselli gönderimde veritabanı hatası sabit koddur; metin yolu hatayı eskisi gibi iletir", async () => {
+  it("veritabanı hatası (görselli ve metin) sabit kod + referans döner; ayrıntı sızmaz", async () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
     mocks.submitUserMessage.mockRejectedValueOnce(new Error("secret detail"));
-    expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "error" });
-    mocks.submitUserMessage.mockRejectedValueOnce(new Error("boom"));
-    await expect(sendMessageAction(ID, TEXT, KEY)).rejects.toThrow("boom");
+    const withPhoto = await sendMessageAction(ID, TEXT, KEY, photo());
+    mocks.submitUserMessage.mockRejectedValueOnce(
+      new Error("(EMAXCONNSESSION) max clients reached"),
+    );
+    const textOnly = await sendMessageAction(ID, TEXT, KEY);
+    spy.mockRestore();
+    expect(withPhoto).toMatchObject({ status: "error", error: { code: "unknown" } });
+    expect(JSON.stringify(withPhoto)).not.toContain("secret");
+    // Metin yolu artık firlatmaz: istemci gercek nedeni (kapasite) gosterir, "ag hatasi" demez.
+    expect(textOnly).toMatchObject({ status: "error", error: { code: "db_capacity" } });
+    expect(textOnly.error?.reference).toMatch(/^ARL-/);
   });
 
-  it("oturum yok ya da sohbet kapalı: hiçbir şey işlenmez", async () => {
+  it("oturum yok: session_expired (girdi korunur); sohbet kapalı: hiçbir şey işlenmez", async () => {
     mocks.verifySession.mockResolvedValueOnce(null);
-    expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "unavailable" });
+    expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({
+      status: "session_expired",
+      error: { code: "session_expired" },
+    });
     mocks.enabled.mockReturnValueOnce(false);
     expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "unavailable" });
     expect(mocks.prepareChatImage).not.toHaveBeenCalled();
@@ -422,5 +437,36 @@ describe("GET /sohbet/gorsel/[id]", () => {
     expect((await GET(new Request("http://x"), params("nope"))).status).toBe(404);
     mocks.loadChatAttachment.mockResolvedValue(null);
     expect((await GET(new Request("http://x"), params(ID))).status).toBe(404);
+  });
+});
+
+describe("açık rıza yoksa görsel sunucuda işlenmez (karar 0101)", () => {
+  beforeEach(() => {
+    mocks.consent.mockResolvedValue(false);
+  });
+
+  it("sendMessageAction: consent_required; görsel işlenmez, mesaj kaydedilmez", async () => {
+    const result = await sendMessageAction(
+      ID,
+      { kind: "text", text: "ceket" },
+      KEY,
+      form({ text: "ceket" }),
+    );
+    expect(result).toEqual({ status: "consent_required" });
+    expect(mocks.prepareChatImage).not.toHaveBeenCalled();
+    expect(mocks.submitUserMessage).not.toHaveBeenCalled();
+  });
+
+  it("startChatBootstrapAction (görselli): consent_required; sohbet oluşmaz", async () => {
+    const result = await startChatBootstrapAction(form({ text: "ceket" }));
+    expect(result).toEqual({ status: "consent_required" });
+    expect(mocks.prepareChatImage).not.toHaveBeenCalled();
+    expect(mocks.createConversation).not.toHaveBeenCalled();
+  });
+
+  it("metin-only gönderim rızadan etkilenmez", async () => {
+    const result = await sendMessageAction(ID, { kind: "text", text: "ceket" }, KEY);
+    expect(result.status).toBe("queued");
+    expect(mocks.consent).not.toHaveBeenCalled();
   });
 });

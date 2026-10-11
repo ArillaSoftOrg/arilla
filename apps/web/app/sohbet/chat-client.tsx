@@ -1,6 +1,7 @@
 "use client";
 
 import type { AssistantPreview, ClarifyQuestion } from "@arilla/core";
+import { classifyError, type PublicError } from "@arilla/core/errors";
 import {
   Button,
   isSubmitKey,
@@ -18,6 +19,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { ErrorView } from "../error-view.tsx";
 import { validateAttachmentFile } from "../home-image-chat.ts";
 import {
   getTurnStatusAction,
@@ -26,6 +28,7 @@ import {
   sendMessageAction,
 } from "./actions.ts";
 import { CHAT_COPY, CHAT_ERROR_COPY, type ChatErrorKind, errorKindForStatus } from "./chat-copy.ts";
+import { useChatImageConsentGate } from "./chat-image-consent.tsx";
 import { chatMark } from "./chat-metrics.ts";
 import { CHAT_MESSAGE_MAX, ChatComposer, ChatPendingRow } from "./chat-shell-parts.tsx";
 import styles from "./sohbet.module.css";
@@ -66,6 +69,8 @@ interface Props {
   conversationId: string;
   /** `CHAT_IMAGE_ENABLED`: kapaliysa "+" hic gorunmez ve eski aramaya dusulmez. */
   imageEnabled: boolean;
+  /** Karar 0101: gecerli acik riza var mi; yoksa dosya secilince bilgilendirme sorulur. */
+  imageConsent: boolean;
   /** Son mesaj kullanıcınındır: asistan yanıtı bekleniyor (ilk mesaj, yenileme, hata sonrası). */
   awaitingReply: boolean;
   /** Açık netlestirme sorusu; yalnızca son mesaj o soruysa dolu. */
@@ -91,6 +96,7 @@ interface Props {
 export function ChatInteractive({
   conversationId,
   imageEnabled,
+  imageConsent,
   awaitingReply,
   question,
   lastUserText,
@@ -102,7 +108,9 @@ export function ChatInteractive({
   const [customOpen, setCustomOpen] = useState(false);
   const [custom, setCustom] = useState("");
   const [working, setWorking] = useState(false);
-  const [error, setError] = useState<ChatErrorKind | null>(null);
+  const [error, setErrorKind] = useState<ChatErrorKind | null>(null);
+  // Dogrulanmis neden (karar 0104); yoksa `CHAT_ERROR_COPY` metni gosterilir.
+  const [errorInfo, setErrorInfo] = useState<PublicError | null>(null);
   const [staged, setStaged] = useState<StagedImage | null>(null);
   const stagedUrlRef = useRef<string | null>(null);
   // Sunucu cevabi yazdi ama tam sayfa yenilemesi (urun sonuclari) henuz gelmedi:
@@ -114,6 +122,7 @@ export function ChatInteractive({
   const bottomRef = useRef<HTMLDivElement>(null);
   const customInputRef = useRef<HTMLInputElement>(null);
   const questionId = useId();
+  const consent = useChatImageConsentGate(imageConsent);
 
   // Onizleme blob'u: degisince/kalkinca/unmount'ta serbest birakilir.
   useEffect(() => {
@@ -126,6 +135,22 @@ export function ChatInteractive({
     [],
   );
 
+  /** Hata durumunu yazar; `info` yoksa onceki ayrinti temizlenir. */
+  function setError(kind: ChatErrorKind | null, info: PublicError | null = null): void {
+    setErrorKind(kind);
+    setErrorInfo(kind ? info : null);
+  }
+
+  /** Sunucu eylemi firlatti (ag, dagitim uyumsuzlugu, sunucu hatasi): nedeni istemcide siniflar. */
+  function failThrown(thrown: unknown): void {
+    const code = classifyError(thrown, { client: true });
+    const reference = (thrown as { digest?: unknown } | null)?.digest;
+    setError(code === "network" ? "network" : "provider", {
+      code,
+      ...(typeof reference === "string" && reference ? { reference } : {}),
+    });
+  }
+
   function stageFile(file: File): void {
     if (workingRef.current) return;
     const invalid = validateAttachmentFile(file);
@@ -134,8 +159,12 @@ export function ChatInteractive({
       return;
     }
     setError(null);
-    if (stagedUrlRef.current) URL.revokeObjectURL(stagedUrlRef.current);
-    setStaged({ file, url: URL.createObjectURL(file), key: newRequestKey() });
+    // Karar 0101: riza yoksa dosya bellekte bekler; kabulden once hicbir sey gonderilmez.
+    consent.gate(file, (allowed) => {
+      if (workingRef.current) return;
+      if (stagedUrlRef.current) URL.revokeObjectURL(stagedUrlRef.current);
+      setStaged({ file: allowed, url: URL.createObjectURL(allowed), key: newRequestKey() });
+    });
   }
 
   function clearStaged(): void {
@@ -172,7 +201,7 @@ export function ChatInteractive({
           return;
         }
         if (status.state === "not_found" || status.state === "unavailable") {
-          setError(status.state);
+          setError(status.state, status.error ?? null);
           return;
         }
         if (status.state === "pending" && Date.now() - startedAt >= RECOVERY_GRACE_MS) {
@@ -182,8 +211,8 @@ export function ChatInteractive({
         await sleep(WAIT_POLL_MS);
       }
       setError("busy");
-    } catch {
-      setError("network");
+    } catch (thrown) {
+      failThrown(thrown);
     }
   }
 
@@ -191,20 +220,20 @@ export function ChatInteractive({
   async function runTurn(): Promise<void> {
     try {
       for (let attempt = 0; attempt < MAX_BUSY_POLLS; attempt++) {
-        const { status, preview: answer } = await runTurnAction(conversationId);
+        const { status, preview: answer, error: info } = await runTurnAction(conversationId);
         if (status === "busy") {
           await sleep(BUSY_POLL_MS);
           continue;
         }
         const kind = errorKindForStatus(status);
-        if (kind) setError(kind);
+        if (kind) setError(kind, info ?? null);
         else if (answer) showPreview(answer);
         router.refresh();
         return;
       }
       setError("busy");
-    } catch {
-      setError("network");
+    } catch (thrown) {
+      failThrown(thrown);
     }
   }
 
@@ -231,21 +260,23 @@ export function ChatInteractive({
       const key = keyRef.current?.signature === signature ? keyRef.current.key : newRequestKey();
       keyRef.current = { signature, key };
       let status: SendMessageStatus;
+      let info: PublicError | undefined;
       try {
         if (image) {
           const photo = new FormData();
           photo.set("photo", image.file);
-          ({ status } = await sendMessageAction(conversationId, request, key, photo));
+          ({ status, error: info } = await sendMessageAction(conversationId, request, key, photo));
         } else {
-          ({ status } = await sendMessageAction(conversationId, request, key));
+          ({ status, error: info } = await sendMessageAction(conversationId, request, key));
         }
-      } catch {
-        setError("network");
+      } catch (thrown) {
+        // Taslak ve gorsel yerinde kalir; ayni anahtarla yeniden gonderim guvenlidir.
+        failThrown(thrown);
         return;
       }
       const kind = errorKindForStatus(status);
       if (kind) {
-        setError(kind);
+        setError(kind, info ?? null);
         if (kind === "invalid_option") router.refresh();
         return;
       }
@@ -432,7 +463,30 @@ export function ChatInteractive({
         </section>
       ) : null}
 
-      {errorCopy ? (
+      {errorInfo && errorCopy ? (
+        <ErrorView
+          error={errorInfo}
+          disabled={working}
+          onRetry={() => void (awaitingReply ? retry() : router.refresh())}
+          extraActions={
+            <>
+              {errorCopy.searchDirectly && lastUserText ? (
+                <a
+                  className={styles.errorLink}
+                  href={`/ara?${new URLSearchParams({ q: lastUserText }).toString()}`}
+                >
+                  {CHAT_COPY.searchDirectlyLabel}
+                </a>
+              ) : null}
+              {errorCopy.newChat ? (
+                <a className={styles.errorLink} href="/">
+                  {CHAT_COPY.newChatLabel}
+                </a>
+              ) : null}
+            </>
+          }
+        />
+      ) : errorCopy ? (
         <div className={styles.error} role="alert">
           <p className={styles.errorMessage}>{errorCopy.message}</p>
           <div className={styles.errorActions}>
@@ -463,6 +517,8 @@ export function ChatInteractive({
       ) : null}
 
       <div ref={bottomRef} className={styles.bottom} aria-hidden="true" />
+
+      {consent.prompt}
 
       <ChatComposer
         draft={draft}

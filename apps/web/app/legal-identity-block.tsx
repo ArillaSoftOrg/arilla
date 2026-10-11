@@ -13,7 +13,7 @@ export const LEGAL_EFFECTIVE_LABEL = "Yürürlük ve son güncelleme: 26 Eylül 
  * yorum (karar 0062) icin guncellendi. Diger yasal sayfalar degismedigi icin
  * ortak etiketi korur.
  */
-export const PRIVACY_NOTICE_UPDATED_LABEL = "Son güncelleme: 7 Ekim 2026";
+export const PRIVACY_NOTICE_UPDATED_LABEL = "Son güncelleme: 11 Ekim 2026";
 
 function MailLink({ email }: { email: string }) {
   return <a href={`mailto:${email}`}>{email}</a>;

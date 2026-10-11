@@ -24,6 +24,8 @@ import styles from "./ara.module.css";
 import { SearchFallbackResults, SearchNoResults } from "./search-fallback-results.tsx";
 import { ResultGrid, resultCountLabel } from "./search-results.tsx";
 import { SearchWallGateClient } from "./search-wall-gate-client.tsx";
+import { WebGridItems, WebOnlyResults } from "./web-search-section.tsx";
+import type { WebSearchBundle } from "./web-search-start.ts";
 
 export const PAGE_SIZE = 24;
 
@@ -44,6 +46,7 @@ export async function TextSearchResults({
   hrefFor,
   clarificationAsked = false,
   summaryIntent = null,
+  webSearch = null,
 }: {
   query: string;
   /** Konusma yolundan derlenmis sorgu; yoksa mevcut `resolveQuery` yolu. */
@@ -60,6 +63,11 @@ export async function TextSearchResults({
    * doğrulanmış yorum + gerçek sonuç sayısından kurulur; yoksa gösterilmez.
    */
   summaryIntent?: SearchSummaryIntent | null;
+  /**
+   * Karar 0102: veritabanı aramasıyla paralel başlatılmış internet araması
+   * (bayrak kapalıysa `null`). Veritabanı sonuçları bunu BEKLEMEZ.
+   */
+  webSearch?: Promise<WebSearchBundle> | null;
 }) {
   const db = getDatabase();
 
@@ -197,6 +205,17 @@ export async function TextSearchResults({
         })
       : null;
 
+  const webItems =
+    webSearch && page === 1 ? (
+      <WebGridItems
+        promise={webSearch}
+        catalog={items.map((item) => ({
+          title: item.title,
+          imageUrl: item.primaryImageUrl,
+        }))}
+      />
+    ) : null;
+
   return (
     <>
       <SearchWallGateClient show={shouldShowWall} />
@@ -233,12 +252,18 @@ export async function TextSearchResults({
         {outcome.mode === "results" ? <SortTabs tabs={tabs} /> : null}
       </div>
 
+      {/* Karar 0106: internet kartları katalog kartlarıyla AYNI ızgarada, sonuna eklenir;
+          katalog internet aramasını beklemez, mevcut kartlar yer değiştirmez. */}
       {outcome.mode === "fallback" ? (
-        <SearchFallbackResults items={items} />
+        <SearchFallbackResults items={items} extra={webItems} />
       ) : outcome.mode === "empty" ? (
-        <SearchNoResults />
+        webSearch && page === 1 ? (
+          <WebOnlyResults promise={webSearch} catalog={[]} empty={<SearchNoResults />} />
+        ) : (
+          <SearchNoResults />
+        )
       ) : (
-        <ResultGrid items={items} />
+        <ResultGrid items={items} extra={webItems} />
       )}
 
       {outcome.mode === "results" && resultTotal > PAGE_SIZE ? (

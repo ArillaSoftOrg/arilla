@@ -13,6 +13,7 @@ import {
   getChatInterpreter,
   getChatLinkView,
   getTurnStatus,
+  hasChatImageConsent,
   isChatDiscoveryEnabled,
   isChatImageEnabled,
   isChatLinkEnabled,
@@ -24,12 +25,15 @@ import {
   prepareChatImage,
   processPendingTurn,
   processPendingTurnDetailed,
+  recordChatImageConsent,
   setResultFeedback,
   submitUserMessage,
 } from "@arilla/core";
+import type { PublicError } from "@arilla/core/errors";
 import { getDatabase } from "@arilla/db";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import { actionError, errorFromLlmCode, SESSION_EXPIRED } from "../lib/action-error.ts";
 import { verifySession } from "../lib/dal.ts";
 
 /**
@@ -107,6 +111,7 @@ export type SendMessageStatus =
   | "rate_limited"
   | "conversation_full"
   | "image_limit"
+  | "consent_required"
   | "invalid_input"
   | "invalid_type"
   | "too_large"
@@ -114,6 +119,7 @@ export type SendMessageStatus =
   | "invalid_option"
   | "not_found"
   | "unavailable"
+  | "session_expired"
   | "error";
 
 /** Istemciden gelen her sey `unknown` sayilir. */
@@ -146,8 +152,11 @@ export async function sendMessageAction(
   request: unknown,
   requestKey: string,
   photo?: FormData,
-): Promise<{ status: SendMessageStatus }> {
+): Promise<{ status: SendMessageStatus; error?: PublicError }> {
   const user = await verifySession();
+  // Oturum yok/bitti: kullanici girdisi istemcide durur, yeniden giris istenir.
+  if (!user && isChatDiscoveryEnabled())
+    return { status: "session_expired", error: SESSION_EXPIRED };
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { status: "unavailable" };
   }
@@ -159,6 +168,8 @@ export async function sendMessageAction(
   if (photo !== undefined) {
     // Bayrak kapaliyken gorsel hicbir kosulda islenmez ya da eski aramaya dusulmez.
     if (!isChatImageEnabled()) return { status: "unavailable" };
+    // Karar 0101: acik riza yoksa gorsel islenmez (istemci kapisi savunma derinligi degildir, asil kapi budur).
+    if (!(await hasChatImageConsent(getDatabase(), user.id))) return { status: "consent_required" };
     const prepared = await prepareChatImage(photo instanceof FormData ? photo.get("photo") : null, {
       userId: user.id,
     });
@@ -175,9 +186,8 @@ export async function sendMessageAction(
       ...(attachment ? { attachment } : {}),
     });
   } catch (error) {
-    // Metin yolu onceki gibi hatayi iletir; yalniz gorselli gonderimde sabit kod doner.
-    if (!attachment) throw error;
-    return { status: "error" };
+    // Neden sunucuda siniflanir ve loglanir; istemciye yalnizca kod + referans doner.
+    return { status: "error", error: actionError(error, "sohbet.send") };
   }
   return { status: result.status === "queued" ? "queued" : result.status };
 }
@@ -188,6 +198,7 @@ export type RunTurnStatus =
   | "idle"
   | "not_found"
   | "provider_error"
+  | "session_expired"
   | "unavailable";
 
 /**
@@ -198,8 +209,10 @@ export type RunTurnStatus =
  */
 export async function runTurnAction(
   conversationId: string,
-): Promise<{ status: RunTurnStatus; preview?: AssistantPreview }> {
+): Promise<{ status: RunTurnStatus; preview?: AssistantPreview; error?: PublicError }> {
   const user = await verifySession();
+  if (!user && isChatDiscoveryEnabled())
+    return { status: "session_expired", error: SESSION_EXPIRED };
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { status: "unavailable" };
   }
@@ -213,11 +226,22 @@ export async function runTurnAction(
     // Anahtar tanimsiz: yapilandirma hatasi, kullaniciya "tekrar dene" gosterilir.
     return { status: "provider_error" };
   }
-  const { result, preview } = await processPendingTurnDetailed(getDatabase(), {
-    userId: user.id,
-    conversationId,
-    interpreter,
-  });
+  let detailed: Awaited<ReturnType<typeof processPendingTurnDetailed>>;
+  try {
+    detailed = await processPendingTurnDetailed(getDatabase(), {
+      userId: user.id,
+      conversationId,
+      interpreter,
+    });
+  } catch (error) {
+    return { status: "provider_error", error: actionError(error, "sohbet.turn") };
+  }
+  const { result, preview } = detailed;
+  if (result.status === "provider_error") {
+    // Saglayici hata kodu turda zaten kaydedildi; bilinmiyorsa neden uydurulmaz.
+    const error = errorFromLlmCode(result.code);
+    return error ? { status: "provider_error", error } : { status: "provider_error" };
+  }
   return preview ? { status: result.status, preview } : { status: result.status };
 }
 
@@ -226,15 +250,21 @@ export type TurnWaitState = "answered" | "in_flight" | "pending" | "not_found" |
 /** Hafif durum sorgusu (sahiplik sorguda): istemci `after()` turunu bu eylemle bekler. */
 export async function getTurnStatusAction(
   conversationId: string,
-): Promise<{ state: TurnWaitState; preview?: AssistantPreview }> {
+): Promise<{ state: TurnWaitState; preview?: AssistantPreview; error?: PublicError }> {
   const user = await verifySession();
+  if (!user && isChatDiscoveryEnabled()) return { state: "unavailable", error: SESSION_EXPIRED };
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { state: "unavailable" };
   }
   if (typeof conversationId !== "string" || !isUuid(conversationId)) {
     return { state: "not_found" };
   }
-  const status = await getTurnStatus(getDatabase(), { userId: user.id, conversationId });
+  let status: Awaited<ReturnType<typeof getTurnStatus>>;
+  try {
+    status = await getTurnStatus(getDatabase(), { userId: user.id, conversationId });
+  } catch (error) {
+    return { state: "unavailable", error: actionError(error, "sohbet.status") };
+  }
   return status.state === "answered"
     ? { state: "answered", preview: status.preview }
     : { state: status.state };
@@ -254,7 +284,7 @@ export type NewTabChatResult =
       status: "image_rejected";
       reason: "invalid_type" | "too_large" | "unprocessable" | "invalid_input";
     }
-  | { status: "rate_limited" | "unavailable" | "login_required" };
+  | { status: "rate_limited" | "unavailable" | "login_required" | "consent_required" };
 
 interface NewChatSubmission {
   text: string;
@@ -318,6 +348,7 @@ export async function startChatBootstrapAction(input: unknown): Promise<NewTabCh
     if (!isChatDiscoveryEnabled() || !isChatImageEnabled() || !canAccessProduct(user)) {
       return { status: "unavailable" };
     }
+    if (!(await hasChatImageConsent(getDatabase(), user.id))) return { status: "consent_required" };
     if (submission.invalidKey) return { status: "image_rejected", reason: "invalid_input" };
     const prepared = await prepareChatImage(submission.image, { userId: user.id });
     if (!prepared.ok) {
@@ -426,4 +457,47 @@ export async function pollChatLinkAction(
   if (message?.kind !== "notice" || !message.link) return { state: "unavailable" };
   const linkView = await getChatLinkView(db, message.link);
   return { state: linkView.state === "pending" ? "pending" : "done" };
+}
+
+/**
+ * Karar 0101: sohbet gorsel eki icin acik riza karari (kabul ya da geri cekme). Kendi oturum ve
+ * bayrak denetimini yapar; yanit yalnizca sabit durum kodu tasir. Karar kullanici basina en cok
+ * bir satir degisikligidir (degismeyen karar satir yazmaz), bu yuzden ayri kota gerekmez.
+ */
+export async function setChatImageConsentAction(
+  granted: boolean,
+): Promise<{ status: "saved" | "unavailable" }> {
+  if (typeof granted !== "boolean") return { status: "unavailable" };
+  const user = await verifySession();
+  if (!user || !isChatDiscoveryEnabled() || !isChatImageEnabled() || !canAccessProduct(user)) {
+    return { status: "unavailable" };
+  }
+  try {
+    await recordChatImageConsent(getDatabase(), {
+      userId: user.id,
+      granted,
+      source: "chat_image_prompt",
+    });
+  } catch {
+    return { status: "unavailable" };
+  }
+  return { status: "saved" };
+}
+
+/** Karar 0101: rizayi geri cekme HER ZAMAN calisir (bayrak kapaliyken de); yalniz oturum ister. */
+export async function withdrawChatImageConsentAction(): Promise<{
+  status: "saved" | "unavailable";
+}> {
+  const user = await verifySession();
+  if (!user) return { status: "unavailable" };
+  try {
+    await recordChatImageConsent(getDatabase(), {
+      userId: user.id,
+      granted: false,
+      source: "account_settings",
+    });
+  } catch {
+    return { status: "unavailable" };
+  }
+  return { status: "saved" };
 }

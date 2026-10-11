@@ -18,7 +18,8 @@
     "./legal-identity": "./src/config/legal-identity.ts",
     "./media-url": "./src/storage/media-url.ts",
     "./media-keys": "./src/storage/media-keys.ts",
-    "./storage": "./src/storage/index.ts"
+    "./storage": "./src/storage/index.ts",
+    "./errors": "./src/errors/index.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -31,6 +32,8 @@
     "eval:search": "node --experimental-transform-types --no-warnings scripts/search-eval.ts",
     "eval:record-matching": "node --experimental-transform-types --no-warnings scripts/eval-record-matching.ts",
     "eval:search-compare": "node scripts/search-eval-compare.ts",
+    "web-search:smoke": "node --experimental-transform-types --no-warnings scripts/web-search-smoke.ts",
+    "gemini:image-smoke": "node --experimental-transform-types --no-warnings scripts/gemini-image-smoke.ts",
     "gemini:smoke": "node --experimental-transform-types --no-warnings scripts/gemini-smoke.ts"
   },
   "dependencies": {

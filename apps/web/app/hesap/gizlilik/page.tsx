@@ -1,8 +1,9 @@
-import { getConsents } from "@arilla/core";
+import { getConsents, hasChatImageConsent, isChatImageEnabled } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { requireUser } from "../../lib/dal.ts";
+import { ChatImageConsentWithdraw } from "./chat-image-consent-client.tsx";
 import styles from "./page.module.css";
 import { PrivacyTogglesClient } from "./privacy-toggles-client.tsx";
 
@@ -20,6 +21,9 @@ export const metadata: Metadata = {
 export default async function GizlilikTercihleriPage() {
   const user = await requireUser();
   const consents = await getConsents(getDatabase(), user.id);
+  // Karar 0101, 0105: geri cekme bayraktan bagimsiz (izin varsa her zaman gorunur); izin yokken
+  // bolum yalniz ozellik aciksa gorunur, boylece kapali bir ozellik hakkinda bilgi gosterilmez.
+  const chatImageGranted = await hasChatImageConsent(getDatabase(), user.id);
 
   return (
     <div className={styles.page}>
@@ -38,6 +42,9 @@ export default async function GizlilikTercihleriPage() {
         historyAndPersonalization={consents.browsing_history || consents.personalization}
         publicDiscovery={consents.public_discovery}
       />
+      {chatImageGranted || isChatImageEnabled() ? (
+        <ChatImageConsentWithdraw granted={chatImageGranted} />
+      ) : null}
     </div>
   );
 }

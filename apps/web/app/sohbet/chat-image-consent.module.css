@@ -1,0 +1,80 @@
+/* Satir ici izin seridi: modal degil, sayfayi kilitlemez; kompozerin hemen ustunde durur. */
+.panel {
+  display: flex;
+  gap: var(--space-3);
+  align-items: flex-start;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: var(--ink);
+}
+
+.thumb {
+  flex: none;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  background: var(--surface);
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+}
+
+.text {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--ink-secondary);
+}
+
+.link {
+  color: var(--ink);
+  text-decoration: underline;
+}
+
+.error {
+  margin: 0;
+  font-size: var(--text-small);
+  color: var(--alert);
+  font-weight: 600;
+}
+
+/* Kabul ve ret AYNI gorsel agirlikta (docs/kvkk.md cerez bandi ilkesi): biri one cikarilmaz. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.choice {
+  min-height: var(--size-touch-target);
+  padding-inline: var(--space-4);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+  cursor: pointer;
+}
+
+.choice:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+@media (max-width: 40rem) {
+  .panel {
+    flex-direction: column;
+  }
+}
