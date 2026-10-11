@@ -1,8 +1,9 @@
 "use client";
 
-import { Badge, Button, Card, formatTRY } from "@arilla/ui";
+import { Badge, Button, formatTRY, ProductImage } from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import styles from "../account-list-page.module.css";
 import { deleteAlertAction } from "./actions.ts";
 
 export interface AlertsListClientItem {
@@ -48,50 +49,44 @@ export function AlertsListClient({ items }: { items: AlertsListClientItem[] }) {
   }
 
   return (
-    <div style={{ display: "grid", gap: 12 }}>
+    // biome-ignore lint/a11y/noRedundantRoles: `list-style: none` Safari/VoiceOver'da liste rolunu dusurur.
+    <ul role="list" className={styles.alertList}>
       {items.map((item) => {
         const detail = detailText(item);
         return (
-          <Card
-            key={item.alertId}
-            style={{ display: "flex", alignItems: "center", gap: 12, padding: 16 }}
-          >
-            {item.primaryImageUrl ? (
-              // biome-ignore lint/performance/noImgElement: urun/[slug]/page.tsx ile ayni desen.
-              <img
-                src={item.primaryImageUrl}
-                alt=""
-                style={{ width: 56, height: 56, objectFit: "cover", background: "var(--surface)" }}
-              />
-            ) : (
-              <div
-                style={{ width: 56, height: 56, background: "var(--surface)" }}
-                aria-hidden="true"
-              />
-            )}
-            <div style={{ flex: 1, display: "grid", gap: 4 }}>
-              <a href={`/urun/${item.slug}`} style={{ fontWeight: 600 }}>
+          <li key={item.alertId} className={styles.alertRow}>
+            <span className={styles.alertThumb} aria-hidden="true">
+              {item.primaryImageUrl ? (
+                <ProductImage
+                  src={item.primaryImageUrl}
+                  alt=""
+                  fit="contain"
+                  className={styles.alertThumbImage}
+                />
+              ) : null}
+            </span>
+            <div className={styles.alertBody}>
+              <a href={`/urun/${item.slug}`} className={styles.alertTitle}>
                 {item.title}
               </a>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <div className={styles.alertMeta}>
                 <Badge>{KIND_LABEL[item.kind]}</Badge>
                 {!item.isActive ? <Badge>Gönderildi</Badge> : null}
-                {detail ? (
-                  <span style={{ fontSize: 13, color: "var(--ink-muted)" }}>{detail}</span>
-                ) : null}
+                {detail ? <span className={styles.alertDetail}>{detail}</span> : null}
               </div>
             </div>
             <Button
               type="button"
               variant="secondary"
+              className={styles.alertAction}
               disabled={pendingId === item.alertId}
               onClick={() => handleDelete(item.alertId)}
             >
               Kaldır
             </Button>
-          </Card>
+          </li>
         );
       })}
-    </div>
+    </ul>
   );
 }

@@ -154,7 +154,13 @@ yoktur: eski hesaplar için özet satırı ilk olayda açılır.
 2. Önce staging'de: `pnpm db:migrate && pnpm db:verify`. `db:verify`
    `auth_event`/`user_activity_event` UPDATE'inin engellendiğini ve
    `query_norm` güncellemesinin izinli olduğunu sınar.
-3. Production'da aynı iki komut, onaylı bir pencerede. Tablolar küçük;
+3. Production'da aynı iki komut, onaylı bir pencerede. `DATABASE_URL_OWNER`
+   yerel değilse `db:migrate` (ve `db:bootstrap-role`, `db:partitions`)
+   hedefin makine adını ister: komutun başına
+   `ARILLA_CONFIRM_REMOTE_DB=<hedef makine adı>` yazılır (aynı komutta, yalnızca
+   gerçek ortamdan okunur, `.env`'den okunmaz; yanlış ya da genel değer
+   kabul edilmez). `db:verify` ve `db:partitions --check` salt okunurdur,
+   onay istemez. Tablolar küçük;
    0036'nın `app_user_created_idx` ve 0038'in trigram indeksleri tablo büyükse önce elle
    `CREATE INDEX CONCURRENTLY` ile açılır (migration `IF NOT EXISTS` ile
    boş geçer, 0030 deseni).
@@ -209,7 +215,11 @@ zenginleştirme, benzerlik kenarları, link çözümleme) durumunu ve elle
 çalıştırma komutunu gösterir. Aşamanın iş koşusu varsa "son çalıştı" oradan,
 yoksa üretilen verinin zamanından ("son kanıt", karar 0051) okunur. Aşamalar
 zamanlanmış değil; "geride olabilir" (bilgi) görünen aşama sırayla
-çalıştırılır.
+çalıştırılır. Worker hostunda ücretsiz aşamalar (fiyat özeti, eşleştirme,
+benzerlik kenarları) `infra/docker-compose.worker.yml` içindeki `batch`
+servisiyle elle çalıştırılır (`docker compose ... run --rm batch ...`);
+`up -d` bu servisi başlatmaz, ücretli Jina ve model çağrıları kapalıdır,
+üretim veritabanı bilgisi GitHub'a taşınmaz.
 
 Başarısız toplama koşusu (`ingest_run.status = 'failed'`) işlemi geri alır;
 0055'ten beri kayıt da oluşturulan/güncellenen/fiyat noktası sayılarını 0
@@ -262,7 +272,8 @@ Postgres "default partition kısıtı ihlal edilirdi" hatası verir.
 
 1. `BEGIN;`
 2. `ALTER TABLE price_point DETACH PARTITION price_point_default;`
-3. Eksik ayın partition'ını aç: `pnpm db:partitions`
+3. Eksik ayın partition'ını aç: `pnpm db:partitions` (uzak veritabanında
+   `ARILLA_CONFIRM_REMOTE_DB=<hedef makine adı>` ile)
 4. Satırları geri taşı ve ayrılmış tablodan sil:
    `INSERT INTO price_point SELECT * FROM price_point_default;`
    `DELETE FROM price_point_default;`

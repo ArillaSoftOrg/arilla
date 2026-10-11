@@ -2,6 +2,7 @@ import { listAlerts } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState } from "@arilla/ui";
 import type { Metadata } from "next";
+import styles from "../account-list-page.module.css";
 import { requireProductUser } from "../lib/dal.ts";
 import { AlertsListClient } from "./alerts-list-client.tsx";
 
@@ -16,8 +17,8 @@ export default async function AlarmlarPage() {
   const items = await listAlerts(getDatabase(), user.id);
 
   return (
-    <main style={{ padding: 24, display: "grid", gap: 16, maxWidth: 720 }}>
-      <h1 style={{ margin: 0 }}>Alarmlarım</h1>
+    <div className={styles.page}>
+      <h1 className={styles.title}>Alarmlarım</h1>
       {items.length === 0 ? (
         <EmptyState
           title="Alarmın yok."
@@ -26,6 +27,6 @@ export default async function AlarmlarPage() {
       ) : (
         <AlertsListClient items={items} />
       )}
-    </main>
+    </div>
   );
 }

@@ -15,7 +15,7 @@
  *   Redis yoksa kapali kalinir (e-posta girisiyle ayni, decision 0006).
  */
 
-import { createHash, randomInt, timingSafeEqual } from "node:crypto";
+import { randomInt, timingSafeEqual } from "node:crypto";
 import { type Database, phoneLoginCode } from "@arilla/db";
 import { and, desc, eq, gt, isNull, lt, sql } from "drizzle-orm";
 import type { RequestContext } from "../activity/request-context.ts";
@@ -26,7 +26,7 @@ import { type SignInWithIdentityResult, signInWithIdentity } from "./identity-si
 import { RateLimitExceededError } from "./rate-limit.ts";
 import { SmsDeliveryError, type SmsSender, SmsUnavailableError } from "./sms.ts";
 import { NetgsmSendError } from "./sms-netgsm.ts";
-import { hashToken } from "./token.ts";
+import { hashToken, pseudonymize } from "./token.ts";
 
 export const PHONE_CODE_LENGTH = 6;
 export const PHONE_CODE_MAX_ATTEMPTS = 5;
@@ -132,7 +132,7 @@ function hashCode(phone: string, code: string): string {
 }
 
 function digest(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
+  return pseudonymize("phone", value);
 }
 
 /** Telefon ve IP anahtara duz yazilmaz (rate-limit.ts ile ayni gerekce). */

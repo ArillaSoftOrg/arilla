@@ -24,11 +24,33 @@ göre ölçülür; dekor onu 4.5:1'in altına indiremez.
   (`--footer-glow-mint`) ve limon (`--footer-glow-lime`). Açık temada sıcak
   kırık beyazdan alta doğru çok hafif nane/limon tonu; koyu temada grafit
   üzerinde çok düşük alfalı limon/nane havası.
-- Sağ altta, alt kısmı kırpılmış büyük tipografik **"M"** (site fontu IBM Plex
-  Sans, `--footer-motif`). Yeni bir logo SVG'si çizilmedi/izlenmedi.
-- Alfa değerleri en kötü üst üste binmede (iki parıltı + motif) bile
-  `--ink-muted` için ≥ 4.5:1 bırakacak şekilde hesaplandı (açık 4.54:1, koyu
-  4.97:1); parıltının en yoğun yeri metnin altındaki motif alanındadır.
+- Copyright satırının **altındaki** dekor alanında, alttan kırpılmış büyük
+  **"ManiCepte"** kelime işareti (site fontu IBM Plex Sans, kalın ve eğik —
+  üst çubuktaki marka yazısıyla aynı dil). Yeni bir logo SVG'si
+  çizilmedi/izlenmedi. Kelime **hiçbir footer metninin arkasında değildir**
+  (link sütunları, fiyat/stok uyarısı, telif); metinle arası 24px.
+- Alanın kendi zemini yoktur: footer tek, kesintisiz bir yüzeydir, nane/limon
+  atmosferi alanın içine aynen devam eder; ayrı bant/kart/görsel gibi
+  görünmez. Alandaki limon parlaması (`--footer-wordmark-glow`) alanla
+  sınırlıdır ve üst kenarına varmadan tamamen söner.
+- Dolgu yukarıdan aşağı tek geçişli yumuşak degrade
+  (`--footer-wordmark-top` → `--footer-wordmark-bottom`); sert parlaklık
+  çizgisi yoktur. Koyu temada marka yeşili (üstte %45 alfa → altta tam),
+  açık temada neon olmayan derin yeşil.
+- Boyutlar: masaüstünde kelime `0.5rem + 19vw` (en çok 18.5rem; 1440px'te
+  282px), alan kelime boyunun %75'i (~210px); alan taban çizgisinin hemen
+  üstünde biter, yalnızca harf diplerinin ince kısmı ve "p" kuyruğu kırpılır.
+  Telefonda 22vw; kelime ekran kenarından en fazla birkaç piksel taşar,
+  yatay kaydırma yoktur.
+- Metnin arkasında yalnızca iki parıltı kalır; en kötü üst üste binmede
+  `--ink-muted` açık temada 4.81:1, koyu temada 4.90:1.
+- **Footer affiliate cümlesi kaldırıldı** ("Bazı bağlantılardan alışveriş
+  yaptığında komisyon kazanabiliriz…" + bağlantı). Bildirim, tıklama
+  noktasında kalır: ürün sayfasında mağaza bağlantısının yanında ve fiyat
+  tablosunun altında; `/affiliate-aciklamasi` sayfası ve footer "Yasal"
+  sütunundaki bağlantısı aynen durur. Bu, 0026'nın "altbilgideki
+  affiliate/fiyat bildirimi" kısıtını public site footer'ı için daraltır
+  (fiyat/stok uyarısı footer'da kalır; `EditorialFooter` değişmedi).
 
 ### 3. Yüzen hızlı arama (yalnızca ana sayfa)
 
@@ -65,7 +87,7 @@ düşük alfalı bir atmosfer kimlik kazandırırken metin kontrastını korur.
 
 1. **Logoyu SVG olarak izleyip footer'a koymak.** Reddedildi: resmi vektör
    yok (docs/brand.md); izlenmiş logo marka sahibinin onayı olmadan
-   kullanılmaz. Tipografik "M" aynı izi verir.
+   kullanılmaz. Site fontuyla yazılmış kelime işareti aynı izi verir.
 2. **Kapatmayı `localStorage`/çerezde kalıcı tutmak.** Reddedildi: CLAUDE.md
    depolamaya bağımlı akışı yasaklar; oturumluk kapatma yeterli.
 3. **Hızlı arama için ayrı gönderim mantığı.** Reddedildi: kilit ve görsel
@@ -75,7 +97,8 @@ düşük alfalı bir atmosfer kimlik kazandırırken metin kontrastını korur.
 
 ## Sonucu
 
-- `tokens.css`: `--footer-glow-mint`, `--footer-glow-lime`, `--footer-motif`
-  (iki temada); `--brand` yorumu istisnayı anar.
+- `tokens.css`: `--footer-glow-mint`, `--footer-glow-lime`,
+  `--footer-wordmark-top`, `--footer-wordmark-bottom`,
+  `--footer-wordmark-glow` (iki temada); `--brand` yorumu istisnayı anar.
 - `docs/design.md` ve `docs/brand.md` güncellendi; `docs/copy.md`'ye
   `search.quick_label`, `search.quick_attach`, `search.quick_dismiss`.

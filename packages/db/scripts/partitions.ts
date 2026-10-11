@@ -11,9 +11,12 @@
  * bu cikis kodunu kullanir. Bkz. docs/ops.md.
  */
 import { ensureMonthlyPartitions } from "./ensure-partitions.ts";
-import { ownerUrl, withClient } from "./lib.ts";
+import { assertRemoteWriteConfirmed, ownerUrl, withClient } from "./lib.ts";
 
 const MONTHS_AHEAD = 3;
+
+// `--check` salt okunur (izleme uzak veritabaninda da calisir); uretim yazar.
+if (!process.argv.includes("--check")) assertRemoteWriteConfirmed("db:partitions");
 
 await withClient(ownerUrl(), async (client) => {
   if (process.argv.includes("--check")) {

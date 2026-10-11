@@ -6,9 +6,9 @@
  * Redis erisilemezse `RedisUnavailableError` firlatir; oran siniri
  * dogrulanamadigi icin giris istegi de gonderilmez (fail-closed).
  */
-import { createHash } from "node:crypto";
 import { getRedis } from "../redis/client.ts";
 import { incrementFixedWindow } from "../redis/counter.ts";
+import { pseudonymize } from "./token.ts";
 
 const EMAIL_WINDOW_SECONDS = 60;
 const EMAIL_MAX_REQUESTS = 1;
@@ -35,12 +35,13 @@ export class RateLimitExceededError extends Error {
 }
 
 function digest(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
+  return pseudonymize("auth", value);
 }
 
 /**
  * E-posta ve IP anahtara duz yazilmaz - Redis'te (izleme araclari, `KEYS`
- * ciktisi, yedekler) kisisel veri birakmamak icin SHA-256 ile ozetlenir.
+ * ciktisi, yedekler) kisisel veri birakmamak icin HMAC-SHA256 ile takma
+ * adlandirilir (`pseudonymize`; tuzsuz SHA-256 IPv4/e-posta uzayinda geri cevrilir).
  * Eski duz anahtarlar en fazla 1 saatlik TTL ile kendiliginden silinir.
  */
 export function authRateLimitKeys(input: { email: string; ip: string | null }): {

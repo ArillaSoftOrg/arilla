@@ -79,6 +79,7 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `nav.saved` | Kaydettiklerim |
 | `nav.alerts` | Alarmlarım |
 | `nav.history` | Geçmişim |
+| `nav.personal` | Kişisel (menü panelinin oturumlu kullanıcıya özel bölüm başlığı) |
 | `nav.privacy` | Gizlilik |
 | `nav.terms` | Kullanım Koşulları |
 | `nav.cookies` | Çerez Politikası |
@@ -195,6 +196,7 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `action.clear_history` | Geçmişi sil |
 | `action.delete_account` | Hesabı sil |
 | `action.sign_out` | Çıkış yap |
+| `action.sign_out_short` | Çıkış (menü panelinin alt hesap alanındaki kısa düğme) |
 
 ## Arama
 
@@ -451,7 +453,12 @@ tarih yok. Metinler `apps/web/app/coming-soon-copy.ts`'te; marka adı
 
 | Anahtar | Metin |
 | --- | --- |
-| `empty.saved` | Henüz kaydettiğin ürün yok. Beğendiğin bir ürünü kaydet, ucuzlayınca haber verelim. |
+| `empty.saved` | Henüz kaydettiğin ürün yok. |
+| `empty.saved_description` | Beğendiğin bir ürünü kaydet; burada toplansın, fiyatlarını tek yerden takip et. |
+| `empty.saved_action` | Keşfet |
+| `saved.count` | {n} ürün (`/kaydettiklerim` başlığının yanındaki sayı) |
+| `saved.remove` | Kaydettiklerimden kaldır: {ürün} (kart üstü kalp düğmesinin erişilebilir adı) |
+| `saved.remove_error` | Ürün kaldırılamadı. Tekrar dener misin? |
 | `empty.alerts` | Alarmın yok. Bir ürünün fiyatı düşünce ya da bedenin gelince haber verelim. |
 | `empty.history` | Henüz gezindiğin ürün yok. |
 | `empty.creator_visitor` | Bu vitrin hazırlanıyor. |
