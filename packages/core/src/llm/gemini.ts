@@ -114,18 +114,31 @@ export async function clientErrorDetail(response: Response): Promise<string | nu
   const token = /^[A-Za-z][A-Za-z0-9_.[\]]{0,63}$/;
   try {
     const body = (await response.json()) as {
-      error?: { status?: unknown; details?: unknown };
+      error?: { status?: unknown; details?: unknown; message?: unknown };
     };
     const parts: string[] = [];
     const add = (value: unknown) => {
       if (typeof value === "string" && token.test(value) && parts.length < 6) parts.push(value);
     };
     add(body.error?.status);
+
     const details = Array.isArray(body.error?.details) ? body.error.details : [];
     for (const entry of details as Record<string, unknown>[]) {
       add(entry?.reason);
       const violations = Array.isArray(entry?.fieldViolations) ? entry.fieldViolations : [];
       for (const violation of violations as Record<string, unknown>[]) add(violation?.field);
+    }
+    // Yalniz yansima riski dusuk kisim: tirnak/ters tirnak icindeki her sey (gonderilen deger)
+    // atilir, kalan kisa betimleme korunur (ör. "Unknown name \"x\" at 'input[1]'" -> "Unknown name at").
+    const message = (body.error as { message?: unknown } | undefined)?.message;
+    if (typeof message === "string") {
+      const described = message
+        .replace(/"[^"]*"|'[^']*'|`[^`]*`/g, "")
+        .replace(/\s+/g, " ")
+        .replace(/[A-Za-z0-9_-]{24,}/g, "")
+        .trim()
+        .slice(0, 100);
+      if (described.length > 0) parts.push(described);
     }
     return parts.length > 0 ? parts.join(" ").slice(0, 160) : null;
   } catch {
