@@ -108,3 +108,29 @@ Kod: `product-index.ts` (bellek içi ters dizin), CLI `scripts/trendyol-product-
 
 Tam dizin indirmesi bu oturumda başlatıldı (6 sn aralık, 403/429'da durur, kaldığı yerden devam eder).
 Dizin bu yöntemle **fiyat/stok vermez**; başlık slug'dan gelir (Türkçe karakter yok: "Col" = "Çöl").
+
+## Faz 7 — Fiyata meşru erişim: Cloudflare doğrulanmış bot / Web Bot Auth (yalnızca belge incelemesi)
+
+Kaynak: developers.cloudflare.com "Verified bots", "Web Bot Auth", "IP validation",
+"Block AI bots" (Ekim 2026 sürümleri; bir alt ajan tarafından okundu).
+
+- Şartlar: dürüst kimlik (Web Bot Auth imzası **veya** yayınlanmış sabit IP listesi + sabit UA
+  **veya** reverse DNS); robots.txt'e ve crawl-delay'e uymak; "reasonable request rates";
+  `node-fetch` gibi genel UA'lar reddedilir. En az trafik hacmi ve ücret belirtilmemiş.
+- Başvuru: Cloudflare hesabında **BotBase submission form**; durum: Waiting For Review / Accepted / Rejected.
+- Web Bot Auth: Ed25519 anahtar, `/.well-known/http-message-signatures-directory` (imzalı JWKS),
+  her istekte `Signature-Agent`, `Signature-Input` (`tag="web-bot-auth"`), `Signature`;
+  test: `https://crawltest.com/cdn-cgi/web-bot-auth`.
+- **Erişim garantisi yok**: BotBase türlerinden **Data Collection** = "Price scraping,
+  competitive intelligence gathering…"; site sahipleri doğrulanmış botları türe göre
+  engelleyebilir ve WAF kurallarında `cf.bot_management.verified_bot` kullanabilir.
+  Trendyol'un bu türe politikası bilinmiyor.
+- Sonuç: ücretsiz ve yapılabilir bir **ön koşul**, ama tek başına çözüm değil; Trendyol'un
+  izni ve ticari kullanım onayı yine gerekli → sınıf **C**.
+
+## Faz 8 — Sitemap güncelliği
+
+| # | Test | Sonuç |
+|---|---|---|
+| 8.1 | `sitemap_index.xml` iki okuma (aynı gün, saatler arayla) | 352 TR sitemap'in **hepsi** aynı `lastmod` = `2026-10-11T16:39:34Z`; değişiklik yok → toplu (muhtemelen günlük) üretim. Ürün sitemap'lerinde ürün başına `lastmod` yok |
+| 8.2 | Günlük ürün değişim oranı | **Ölçülmedi** — sonraki oturumda: ertesi gün `sitemap_products337.xml` indirilip bugünkü kopyayla (`$TEMP/typrod/`) karşılaştırılacak |
