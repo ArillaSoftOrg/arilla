@@ -493,6 +493,111 @@ describe("provider failure + retry", () => {
       ["chat_turn", "test-model", 28, userB],
     ]);
   });
+
+  it("keeps the api_usage rows when persisting the reply fails after a paid call (rule 9)", async () => {
+    // Gemini cagrisi yapildi ve ucretlendi; yanit yazimi (asistan mesaji) basarisiz olur.
+    // Eskiden satirlar yanit ile AYNI islemdeydi ve birlikte geri alinirdi.
+    const user = userA;
+    const id = await newConversation(user, `${TOKEN} kayip`);
+    const count = () =>
+      withOwnerClient(async (c) =>
+        Number(
+          (
+            await c.query(
+              "SELECT count(*) AS n FROM api_usage WHERE user_id = $1 AND operation = 'chat_turn'",
+              [user],
+            )
+          ).rows[0].n,
+        ),
+      );
+    const before = await count();
+    await withOwnerClient(async (c) => {
+      await c.query(`CREATE OR REPLACE FUNCTION chat_test_block_assistant() RETURNS trigger AS $$
+        BEGIN
+          IF NEW.role = 'assistant' THEN RAISE EXCEPTION 'test: yanit yazimi engellendi'; END IF;
+          RETURN NEW;
+        END $$ LANGUAGE plpgsql`);
+      await c.query(`CREATE TRIGGER chat_test_block_assistant BEFORE INSERT ON chat_message
+        FOR EACH ROW EXECUTE FUNCTION chat_test_block_assistant()`);
+    });
+    try {
+      const model = scripted([search({ query: TOKEN })]);
+      const result = await processPendingTurn(db, {
+        userId: user,
+        conversationId: id,
+        interpreter: model,
+      });
+      expect(result).toMatchObject({ status: "provider_error" });
+      expect(model.calls).toBe(1);
+      expect((await count()) - before).toBe(1);
+    } finally {
+      await withOwnerClient(async (c) => {
+        await c.query("DROP TRIGGER IF EXISTS chat_test_block_assistant ON chat_message");
+        await c.query("DROP FUNCTION IF EXISTS chat_test_block_assistant()");
+      });
+    }
+  });
+});
+
+describe("per-user turn execution limit", () => {
+  it("a user over the limit gets the deterministic fallback and NO Gemini call", async () => {
+    const id = await newConversation(userB, `${TOKEN} limit`);
+    const model = scripted([search({ query: TOKEN })]);
+    const result = await processPendingTurn(db, {
+      userId: userB,
+      conversationId: id,
+      interpreter: model,
+      turnQuota: async () => ({ allowed: false, window: "hour" }),
+    });
+    expect(result).toMatchObject({ status: "answered", source: "fallback" });
+    expect(model.calls).toBe(0);
+    const rows = await withOwnerClient((c) =>
+      c.query(
+        "SELECT payload->>'fallbackReason' AS r FROM chat_message WHERE conversation_id = $1 AND role = 'assistant'",
+        [id],
+      ),
+    );
+    expect(rows.rows.map((r) => r.r)).toEqual(["turn_limit"]);
+  });
+
+  it("repeated failing turns stop reaching Gemini once the limit is spent", async () => {
+    const id = await newConversation(userB, `${TOKEN} tekrar`);
+    let allowed = 2;
+    const model = scripted([
+      new LlmError("server_error"),
+      new LlmError("server_error"),
+      new LlmError("server_error"),
+    ]);
+    const outcomes: string[] = [];
+    for (let i = 0; i < 4; i++) {
+      const result = await processPendingTurn(db, {
+        userId: userB,
+        conversationId: id,
+        interpreter: model,
+        turnQuota: async () =>
+          allowed-- > 0 ? { allowed: true } : { allowed: false, window: "hour" },
+      });
+      outcomes.push(result.status);
+    }
+    expect(model.calls).toBe(2);
+    expect(outcomes.slice(0, 2)).toEqual(["provider_error", "provider_error"]);
+    expect(outcomes[2]).toBe("answered");
+  });
+
+  it("an unreachable counter never blocks the user (fail open)", async () => {
+    const id = await newConversation(userB, `${TOKEN} acik`);
+    const model = scripted([search({ query: TOKEN })]);
+    const result = await processPendingTurn(db, {
+      userId: userB,
+      conversationId: id,
+      interpreter: model,
+      turnQuota: async () => {
+        throw new RedisUnavailableError("test");
+      },
+    });
+    expect(result).toMatchObject({ status: "answered", source: "model" });
+    expect(model.calls).toBe(1);
+  });
 });
 
 describe("ownership", () => {
@@ -711,6 +816,39 @@ describe("limits", () => {
       );
       expect(created.status).toBe("created");
       expect(consumed).toEqual([`chat_message:user:${userA}`]);
+    });
+
+    it("concurrent creations with the same requestKey open ONE conversation and spend ONE unit", async () => {
+      const user = userB;
+      const requestKey = `req-${run}-concurrent-create`;
+      const { consumed, options } = recording();
+      const results = await Promise.all(
+        Array.from({ length: 6 }, () =>
+          createConversation(
+            db,
+            { userId: user, message: `${TOKEN} ayni anda`, requestKey },
+            options,
+          ),
+        ),
+      );
+      const ids = new Set(
+        results.map((r) => (r.status === "created" ? r.conversationId : r.status)),
+      );
+      expect(ids.size).toBe(1);
+      expect([...ids][0]).toMatch(/^[0-9a-f-]{36}$/);
+      expect(consumed).toHaveLength(1);
+      const count = await withOwnerClient(async (c) =>
+        Number(
+          (
+            await c.query(
+              `SELECT count(*) AS n FROM chat_message m JOIN conversation c ON c.id = m.conversation_id
+                WHERE c.user_id = $1 AND m.client_request_id = $2`,
+              [user, requestKey],
+            )
+          ).rows[0].n,
+        ),
+      );
+      expect(count).toBe(1);
     });
 
     it("a full day/week/month window returns rate_limited and writes nothing", async () => {
@@ -1004,7 +1142,9 @@ describe("hardening: stale turn, clarification loop, search guards", () => {
         priceMax: 2500,
       });
       expect(result.outcome.items.every((i) => (i.minPrice ?? 0) <= 250_000)).toBe(true);
-      expect(result.droppedForPrice).toBeGreaterThanOrEqual(1);
+      // Sapma artik SQL'de kapali (fiyat filtresi gosterilen teklife bakar): son suzgecin
+      // dusurecegi kart kalmaz. Degismez yukarida: istenen tavanin ustunde kart yok.
+      expect(result.droppedForPrice).toBe(0);
     } finally {
       await withOwnerClient(async (c) => {
         await c.query("DELETE FROM offer WHERE product_id = $1", [pid]);
@@ -1554,5 +1694,83 @@ describe("global provider budget (atomic, quota/provider-budget.ts)", () => {
     });
     expect(result).toMatchObject({ status: "answered" });
     expect(model.calls).toBe(1);
+  });
+});
+
+describe("Gemini hata kaydi (karar 0099, hardening akisi ustunde)", () => {
+  // Ayri kullanici: #86'nin kullanici basina saatlik sohbet/tur sayaci (Redis) diger
+  // testlerin kullanicisini tuketmesin; bu testler kendi sayacini kullanir.
+  let errUser = 0;
+  beforeAll(async () => {
+    errUser = await withOwnerClient(async (c) => {
+      const r = await c.query("INSERT INTO app_user (email) VALUES ($1) RETURNING id", [
+        `chat-err-${run}@test.invalid`,
+      ]);
+      return Number(r.rows[0].id);
+    });
+  });
+
+  async function errorsFor(user: number) {
+    return withOwnerClient(
+      async (c) =>
+        (
+          await c.query<{ id: string; error_class: string; api_usage_id: string | null }>(
+            `SELECT e.id, e.error_class, e.api_usage_id
+               FROM ai_error_event e JOIN api_usage u ON u.id = e.api_usage_id
+              WHERE u.user_id = $1 AND u.operation = 'chat_turn' ORDER BY e.id`,
+            [user],
+          )
+        ).rows,
+    );
+  }
+  async function cleanup(user: number) {
+    await withOwnerClient(async (c) => {
+      await c.query(
+        `DELETE FROM ai_error_event WHERE api_usage_id IN
+           (SELECT id FROM api_usage WHERE user_id = $1 AND operation = 'chat_turn')`,
+        [user],
+      );
+    });
+  }
+
+  it("saglayici hatasi: tek olay, son api_usage satirina bagli; yeniden deneme basarisi olay yazmaz", async () => {
+    const id = await newConversation(errUser, `${TOKEN}`);
+    const before = (await errorsFor(errUser)).length;
+    const model = scripted([new LlmError("rate_limited", 429), search({ query: TOKEN })]);
+    expect(
+      await processPendingTurn(db, { userId: errUser, conversationId: id, interpreter: model }),
+    ).toMatchObject({ status: "provider_error" });
+    const afterFail = await errorsFor(errUser);
+    expect(afterFail.length - before).toBe(1);
+    expect(afterFail.at(-1)).toMatchObject({ error_class: "rate_limited" });
+    expect(afterFail.at(-1)?.api_usage_id).not.toBeNull();
+
+    expect(
+      await processPendingTurn(db, { userId: errUser, conversationId: id, interpreter: model }),
+    ).toMatchObject({ status: "answered" });
+    expect((await errorsFor(errUser)).length).toBe(afterFail.length);
+    await cleanup(errUser);
+  });
+
+  it("gecersiz JSON yedege duser (yanit gelir) ve schema_invalid olarak kaydedilir", async () => {
+    const id = await newConversation(errUser, `${TOKEN}`);
+    const model = scripted([new LlmError("invalid_json")]);
+    expect(
+      await processPendingTurn(db, { userId: errUser, conversationId: id, interpreter: model }),
+    ).toMatchObject({ status: "answered", source: "fallback" });
+    const rows = await errorsFor(errUser);
+    expect(rows.at(-1)?.error_class).toBe("schema_invalid");
+    await cleanup(errUser);
+  });
+
+  it("basarili tur hata olayi yazmaz", async () => {
+    const id = await newConversation(errUser, `${TOKEN}`);
+    const before = (await errorsFor(errUser)).length;
+    await processPendingTurn(db, {
+      userId: errUser,
+      conversationId: id,
+      interpreter: scripted([search({ query: TOKEN })]),
+    });
+    expect((await errorsFor(errUser)).length).toBe(before);
   });
 });

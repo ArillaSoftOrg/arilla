@@ -159,3 +159,32 @@ def test_fake_client_counts_calls() -> None:
     fake.embed_texts(["b"])
     fake.embed_texts([])
     assert fake.calls == 2
+
+
+def test_a_200_with_a_non_json_body_is_an_embedding_error_not_a_crash() -> None:
+    """Proxy/WAF HTML sayfasi 200 ile donebilir. `response.json()` `ValueError` atiyor ve
+    parti yalitimini (yalnizca `EmbeddingError` yakalanir) atlayip tum kosuyu dusuruyordu."""
+    attempts = {"n": 0}
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        return httpx.Response(200, text="<html>bakimdayiz</html>")
+
+    client = JinaEmbeddingClient(client=_client(handler), sleep=lambda _s: None, max_attempts=3)
+    with pytest.raises(EmbeddingError, match="JSON"):
+        client.embed_texts(["x"])
+    # Gecici olabilir: yeniden denenir.
+    assert attempts["n"] == 3
+
+
+def test_a_non_json_body_that_recovers_is_accepted() -> None:
+    attempts = {"n": 0}
+
+    def handler(_request: httpx.Request) -> httpx.Response:
+        attempts["n"] += 1
+        if attempts["n"] == 1:
+            return httpx.Response(200, text="<html>gecici</html>")
+        return httpx.Response(200, json=_ok(1))
+
+    client = JinaEmbeddingClient(client=_client(handler), sleep=lambda _s: None)
+    assert len(client.embed_texts(["x"]).vectors) == 1

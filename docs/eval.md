@@ -63,8 +63,8 @@ hash önekidir. Üretim çağıranlarına bağlama ve cron temizliği ayrı işt
 ## Yönetim paneli (Faz 1A-3, karar 0097)
 
 `/yonetim/ai/kalite` kayıtlı koşuları okur; model çağırmaz. Anahtar sözleşmesi
-`packages/core/src/eval/metric-keys.ts`. Koşuları veritabanına yazan komut (`--record`)
-henüz yoktur; panel o zamana kadar "Henüz veri yok" gösterir.
+`packages/core/src/eval/metric-keys.ts`. Koşular `--record` ile yazılır
+(aşağıda); kayıt yoksa panel "Henüz veri yok" gösterir.
 
 ## Kayıt (Faz 1A-4, karar 0098)
 
