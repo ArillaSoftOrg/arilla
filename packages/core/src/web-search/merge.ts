@@ -4,7 +4,7 @@
  * urunun farkli saticilardaki tekliflerini tek grupta toplar, yinelenenleri
  * ve katalogda zaten bulunan teklifleri atar. Saf ve deterministik.
  */
-import { WEB_SEARCH_MAX_GROUPS, WEB_SEARCH_MAX_OFFERS_PER_GROUP } from "./config.ts";
+import { WEB_SEARCH_MAX_OFFERS_PER_GROUP, WEB_SEARCH_POOL_GROUPS } from "./config.ts";
 import type { WebCandidate } from "./parse.ts";
 import { asciiFold, extractFeatures } from "./query.ts";
 import type { WebMatchKind, WebOffer, WebProductGroup, WebSearchFeatures } from "./types.ts";
@@ -235,7 +235,7 @@ export function mergeWebCandidates({ candidates, query, features }: MergeInput):
       minVerifiedPriceKurus: prices.length > 0 ? Math.min(...prices) : null,
     };
   });
-  return sortGroups(groups).slice(0, WEB_SEARCH_MAX_GROUPS);
+  return sortGroups(groups).slice(0, WEB_SEARCH_POOL_GROUPS);
 }
 
 /** Tam eslesme once; dogrulanmis fiyatlilar, sonra teklif sayisi ve dusuk fiyat. */

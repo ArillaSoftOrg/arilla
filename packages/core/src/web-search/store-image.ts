@@ -10,6 +10,7 @@
  * yukler (hotlink, `referrerpolicy=no-referrer`). robots.txt ve erisim
  * engelleri (401/403/429) saygiyla karsilanir; atlatilmaz.
  */
+import { WEB_SEARCH_MAX_GROUPS } from "./config.ts";
 import { sameVariant, significantTokens } from "./merge.ts";
 import { asciiFold, extractFeatures } from "./query.ts";
 import { safeGet } from "./safe-fetch.ts";
@@ -201,6 +202,8 @@ export function robotsAllows(robotsTxt: string, path: string): boolean {
 export interface StoreImageDeps {
   get?: SafeGetFn;
   budgetMs?: number;
+  /** Bu kadar gorselli urun bulununca durulur (varsayilan: ekran siniri). */
+  target?: number;
 }
 
 export type ImageOutcome = { image: string } | { reason: string };
@@ -273,27 +276,45 @@ async function imageForOffer(
   return { image: product.image };
 }
 
+const CONCURRENCY = 4;
+
 /**
- * Gorseli olmayan gruplara magaza sayfasindan gorsel ekler. Hata/zaman asimi
- * gorselin yoklugudur; sonuc listesini asla bozmaz. Toplam sure sinirlidir.
+ * Gorseli olmayan gruplara magaza sayfasindan gorsel ekler; her urun BAGIMSIZ
+ * degerlendirilir (magaza bazli engel yok). Siradaki adaylar `target` kadar
+ * gorselli urun bulunana dek, sinirli eszamanlilikla ve toplam sure butcesiyle
+ * denenir. Hata/zaman asimi gorselin yoklugudur; sonuc listesini asla bozmaz.
  * Basarisiz her deneme icerik tasimayan sinif koduyla tek satirda gunlenir.
  */
 export async function attachStoreImages(
   groups: readonly WebProductGroup[],
   deps: StoreImageDeps = {},
 ): Promise<WebProductGroup[]> {
-  const get = deps.get ?? safeGet;
+  const rawGet = deps.get ?? safeGet;
   const signal = AbortSignal.timeout(deps.budgetMs ?? TOTAL_BUDGET_MS);
+  const target = deps.target ?? WEB_SEARCH_MAX_GROUPS;
+  // Ayni magazanin robots.txt'i bir arama icinde bir kez okunur (istek sayisini azaltir).
+  const robotsCache = new Map<string, ReturnType<SafeGetFn>>();
+  const get: SafeGetFn = (url, options) => {
+    if (!url.endsWith("/robots.txt")) return rawGet(url, options);
+    const cached = robotsCache.get(url);
+    if (cached) return cached;
+    const pending = rawGet(url, options);
+    robotsCache.set(url, pending);
+    return pending;
+  };
   const reasons: Record<string, number> = {};
-  let found = 0;
-  const out = await Promise.all(
-    groups.map(async (group, index) => {
-      if (group.imageUrl || index >= MAX_GROUPS) return group;
+  const out = [...groups];
+  let found = groups.filter((g) => g.imageUrl).length;
+  let next = 0;
+
+  async function worker(): Promise<void> {
+    while (found < target && !signal.aborted) {
+      const index = next++;
+      const group = groups[index];
+      if (!group) return;
+      if (group.imageUrl) continue;
       for (const offer of group.offers.slice(0, MAX_OFFERS_TRIED)) {
-        if (signal.aborted) {
-          reasons.budget_exhausted = (reasons.budget_exhausted ?? 0) + 1;
-          break;
-        }
+        if (signal.aborted || found >= target) break;
         let outcome: ImageOutcome;
         try {
           outcome = await imageForOffer(group, offer.url, get, signal);
@@ -302,16 +323,35 @@ export async function attachStoreImages(
         }
         if ("image" in outcome) {
           found++;
-          return { ...group, imageUrl: outcome.image };
+          out[index] = { ...group, imageUrl: outcome.image };
+          break;
         }
         const key = `${offer.host}:${outcome.reason}`;
         reasons[key] = (reasons[key] ?? 0) + 1;
       }
-      return group;
-    }),
-  );
+    }
+  }
+  await Promise.all(Array.from({ length: CONCURRENCY }, worker));
+  if (signal.aborted) reasons.budget_exhausted = (reasons.budget_exhausted ?? 0) + 1;
   if (Object.keys(reasons).length > 0) {
     console.warn("[web-search] image diag", `found=${found}`, JSON.stringify(reasons));
+  }
+  return out;
+}
+
+/**
+ * Ekranda gosterilecek internet urunleri: YALNIZCA gorseli dogrulananlar, ayni
+ * gorseli paylasan ikinci urun atilir (farkli urunun gorseli riskine karsi),
+ * siralama korunur, en fazla `WEB_SEARCH_MAX_GROUPS`.
+ */
+export function selectImagedGroups(groups: readonly WebProductGroup[]): WebProductGroup[] {
+  const seen = new Set<string>();
+  const out: WebProductGroup[] = [];
+  for (const group of groups) {
+    if (!group.imageUrl || seen.has(group.imageUrl)) continue;
+    seen.add(group.imageUrl);
+    out.push(group);
+    if (out.length >= WEB_SEARCH_MAX_GROUPS) break;
   }
   return out;
 }

@@ -6,6 +6,7 @@ import {
   productNameMatches,
   robotsAllows,
   type SafeGetFn,
+  selectImagedGroups,
 } from "./store-image.ts";
 import type { WebProductGroup } from "./types.ts";
 
@@ -171,5 +172,106 @@ describe("attachStoreImages", () => {
       const [out] = await attachStoreImages([group()], { get });
       expect(out?.imageUrl ?? null).toBeNull();
     }
+  });
+});
+
+describe("pool, independence and display selection", () => {
+  const mk = (n: number, host = "shop.com.tr", title?: string): WebProductGroup =>
+    group({
+      key: `k${n}`,
+      title: title ?? `Sony WH-1000XM5 Kulaklik ${n}`,
+      offers: [
+        {
+          id: `o${n}`,
+          seller: host,
+          host,
+          url: `https://www.${host}/urun/p${n}`,
+          title: "x",
+          priceKurus: null,
+          priceStatus: "unverified",
+          inStock: null,
+        },
+      ],
+    });
+  const page = (n: number) =>
+    `<script type="application/ld+json">{"@type":"Product","name":"Sony WH-1000XM5 Kulaklik ${n}","image":"https://cdn.shop.com.tr/${n}.jpg"}</script>`;
+
+  it("judges each product on its own: a 403 on one product does not block the same store's others", async () => {
+    const get: SafeGetFn = async (url) => {
+      if (url.endsWith("/robots.txt")) return res({ body: Buffer.from("") });
+      if (url.endsWith(".jpg")) return res({ contentType: "image/png", contentLength: 10 });
+      if (url.endsWith("/p1")) return res({ status: 403 });
+      const n = Number(/\/p(\d+)$/.exec(url)?.[1]);
+      return res({ body: Buffer.from(page(n)) });
+    };
+    const out = await attachStoreImages([mk(1), mk(2), mk(3)], { get });
+    expect(out.map((g) => Boolean(g.imageUrl))).toEqual([false, true, true]);
+  });
+
+  it("goes past the first 8 candidates until enough imaged products are found", async () => {
+    const get: SafeGetFn = async (url) => {
+      if (url.endsWith("/robots.txt")) return res({ body: Buffer.from("") });
+      if (url.endsWith(".jpg")) return res({ contentType: "image/jpeg", contentLength: 10 });
+      const n = Number(/\/p(\d+)$/.exec(url)?.[1]);
+      // Ilk 9 urunun sayfasi engelli; 10-12 gorselli.
+      return n <= 9 ? res({ status: 404 }) : res({ body: Buffer.from(page(n)) });
+    };
+    const groups = Array.from({ length: 12 }, (_, i) => mk(i + 1));
+    const out = await attachStoreImages(groups, { get });
+    expect(selectImagedGroups(out).map((g) => g.key)).toEqual(["k10", "k11", "k12"]);
+  });
+
+  it("does not fetch more than needed once the target is reached", async () => {
+    let pages = 0;
+    const get: SafeGetFn = async (url) => {
+      if (url.endsWith("/robots.txt")) return res({ body: Buffer.from("") });
+      if (url.endsWith(".jpg")) return res({ contentType: "image/jpeg", contentLength: 10 });
+      pages++;
+      const n = Number(/\/p(\d+)$/.exec(url)?.[1]);
+      return res({ body: Buffer.from(page(n)) });
+    };
+    const out = await attachStoreImages(
+      Array.from({ length: 12 }, (_, i) => mk(i + 1)),
+      {
+        get,
+        target: 2,
+      },
+    );
+    expect(selectImagedGroups(out).length).toBeGreaterThanOrEqual(2);
+    expect(pages).toBeLessThan(12);
+  });
+
+  it("drops broken image urls and wrong-product images (no imageless results shown)", async () => {
+    const get: SafeGetFn = async (url) => {
+      if (url.endsWith("/robots.txt")) return res({ body: Buffer.from("") });
+      if (url.endsWith("/1.jpg")) return res({ status: 404, contentType: "text/html" });
+      return res({ body: Buffer.from(page(url.endsWith("/p2") ? 99 : 1)) });
+    };
+    const out = await attachStoreImages(
+      [mk(1), mk(2, "other.com.tr", "Sony WH-1000XM4 Kulaklik")],
+      {
+        get,
+      },
+    );
+    expect(selectImagedGroups(out)).toEqual([]);
+  });
+
+  it("selectImagedGroups keeps order, drops imageless and duplicated images, caps at 8", () => {
+    const withImg = (n: number, img: string | null) => ({ ...mk(n), imageUrl: img });
+    const input = [
+      withImg(1, "https://c/1.jpg"),
+      withImg(2, null),
+      withImg(3, "https://c/1.jpg"),
+      ...Array.from({ length: 10 }, (_, i) => withImg(i + 4, `https://c/${i + 4}.jpg`)),
+    ];
+    const out = selectImagedGroups(input);
+    expect(out.length).toBe(8);
+    expect(out[0]?.key).toBe("k1");
+    expect(out.map((g) => g.key)).not.toContain("k2");
+    expect(out.map((g) => g.key)).not.toContain("k3");
+  });
+
+  it("returns nothing when no result has a verifiable image", () => {
+    expect(selectImagedGroups([mk(1), mk(2)])).toEqual([]);
   });
 });
