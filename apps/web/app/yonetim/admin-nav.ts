@@ -89,6 +89,13 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "Model çağrısı, token, tahmini maliyet, kota ve sağlayıcı tavanı.",
       },
       {
+        href: "/yonetim/ai/kalite",
+        label: "AI kalite ve değerlendirme",
+        capability: "ai.read",
+        description:
+          "Niyet, eşleştirme, görsel benzerlik ve arama değerlendirmesi; regresyon ve model hataları.",
+      },
+      {
         href: "/yonetim/arama/tani",
         label: "Arama tanısı",
         capability: "diagnostics.read",

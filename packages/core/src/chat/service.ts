@@ -22,6 +22,7 @@ import {
   type Database,
 } from "@arilla/db";
 import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
+import { failureFromChatTurn, recordModelFailure } from "../eval/model-errors.ts";
 import type { LlmCall, LlmErrorCode } from "../llm/client.ts";
 import { llmCallCostMicros } from "../llm/pricing.ts";
 import {
@@ -918,8 +919,12 @@ export async function processPendingTurnDetailed(
  * yazimindan ayri bir yazim; gecici DB hatasina karsi bir kez daha denenir. Yine de
  * basarisizsa turu bozmaz (kullanici cevabini alir) ama hata gorunur olur.
  */
-async function recordTurnUsage(db: Database, userId: number, calls: readonly LlmCall[]) {
-  if (calls.length === 0) return;
+async function recordTurnUsage(
+  db: Database,
+  userId: number,
+  calls: readonly LlmCall[],
+): Promise<number | null> {
+  if (calls.length === 0) return null;
   const rows = calls.map((call) => ({
     sessionId: null,
     userId,
@@ -932,8 +937,8 @@ async function recordTurnUsage(db: Database, userId: number, calls: readonly Llm
   }));
   for (let attempt = 1; attempt <= 2; attempt++) {
     try {
-      await db.insert(apiUsage).values(rows);
-      return;
+      const inserted = await db.insert(apiUsage).values(rows).returning({ id: apiUsage.id });
+      return inserted.at(-1)?.id ?? null;
     } catch (error) {
       if (attempt === 2) {
         console.error(
@@ -943,6 +948,7 @@ async function recordTurnUsage(db: Database, userId: number, calls: readonly Llm
       }
     }
   }
+  return null;
 }
 
 async function runPendingTurn(
@@ -1025,9 +1031,22 @@ async function runPendingTurn(
     await settleBudget();
     // Kural 9: ucret olustu; satirlar yanit yazimindan BAGIMSIZ ve hemen yazilir. Eskiden
     // yanit islemiyle birlikte geri alinir, Redis sayaci kapanmis ama DB'de iz kalmazdi.
-    await recordTurnUsage(db, input.userId, outcome.calls);
+    const usageId = await recordTurnUsage(db, input.userId, outcome.calls);
 
-    return await persistTurn();
+    try {
+      return await persistTurn();
+    } finally {
+      // Tur sonucu basina tek hata olayi (karar 0099), `api_usage` satirina bagli. Yanit
+      // yazimi basarisiz olsa da model hatasi gercektir; kayit sinirli sureli, asla
+      // firlatmaz ve kullanici yanitini etkilemez.
+      await recordModelFailure(db, {
+        failure: failureFromChatTurn(outcome),
+        operation: CHAT_TURN_OPERATION,
+        surface: "chat",
+        modelVersion: outcome.modelVersion,
+        apiUsageId: usageId,
+      });
+    }
 
     function persistTurn(): Promise<ProcessTurnResult> {
       return timer.time("persist", () =>

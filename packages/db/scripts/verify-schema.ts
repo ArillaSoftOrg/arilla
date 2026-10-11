@@ -29,6 +29,10 @@ const APPEND_ONLY = {
   variant_stock_event: "in_stock",
   admin_audit_event: "reason",
   bonus_ledger: "reason",
+  /** 0060: degerlendirme kayitlari eklenir, degistirilmez (duzeltme = yeni satir). */
+  dataset_snapshot: "dataset",
+  ai_eval_run: "component",
+  ai_eval_case: "outcome",
 } as const;
 /** 0036: UPDATE engelli, DELETE izinli (saklama suresi ve riza geri alma). */
 const UPDATE_BLOCKED = {
@@ -38,6 +42,8 @@ const UPDATE_BLOCKED = {
   chat_message: "kind",
   /** 0057: sohbet gorsel eki eklenir, degistirilmez. */
   chat_attachment: "mime_type",
+  /** 0060: hata olayi eklenir, degistirilmez; DELETE 180 gunluk saklama icin acik. */
+  ai_error_event: "error_class",
 } as const;
 const INSUFFICIENT_PRIVILEGE = "42501";
 const FOREIGN_KEY_VIOLATION = "23503";
