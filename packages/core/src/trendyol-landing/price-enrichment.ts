@@ -14,10 +14,13 @@ import { tokenize } from "./match.ts";
 
 export interface ProductCard {
   store: "Trendyol";
-  /** Trendyol urun kimligi ("857296094"). */
+  /** Trendyol contentId ("857296094" = adresteki -p-<id>). */
   storeProductId: string;
   title: string;
   productUrl: string;
+  /** Kesifte gorulen buybox saticisi (liste adresindeki merchantId), biliniyorsa. */
+  supplierId?: string | null;
+  barcode?: string | null;
 }
 
 export interface PriceQuote {
@@ -33,6 +36,14 @@ export interface PriceQuote {
   priceKurus: number;
   currency: string;
   checkedAt: string;
+  /** Trendyol satici kimligi (supplierId = adresteki merchantId). */
+  supplierId?: string | null;
+  barcode?: string | null;
+  variantId?: string | null;
+  /** Fiyatin hangi alandan geldigi (ornegin "priceSeenByCustomer", "salePrice"). */
+  priceBasis?: string;
+  /** Teklifin dogrudan urun adresi, biliniyorsa. */
+  offerUrl?: string | null;
 }
 
 export interface PriceProvider {
@@ -55,13 +66,26 @@ export function modelCodes(text: string): Set<string> {
 const STORAGE = /^\d+(gb|tb)$/;
 const STOP = new Set(["apple", "turkiye", "garantili", "ve", "ile", "icin"]);
 
+function canonicalPath(url: string | null | undefined): string | null {
+  if (!url) return null;
+  try {
+    return new URL(url).pathname.replace(/\/+$/, "");
+  } catch {
+    return null;
+  }
+}
+
 /**
- * Bir teklifin karttaki urunle eslesme guvenilirligi.
- * exact: ayni magaza + ayni urun kimligi. high: ortak model kodu.
- * medium: kart basligindaki anlamli belirteclerin tamami teklifte (depolama dahil).
+ * Bir teklifin karttaki urunle eslesme guvenilirligi (kimlik onceligi):
+ * exact: ayni magaza + ayni contentId, ya da ayni barkod/GTIN, ya da ayni urun adresi.
+ * high: ortak uretici model kodu. medium: baslik belirteclerinin >=%80'i ve depolama birebir.
+ * Magaza kurali ayridir: exact bile olsa baska magazanin fiyati Trendyol fiyati olmaz.
  */
 export function matchConfidence(card: ProductCard, quote: PriceQuote): Confidence {
   if (quote.store === card.store && quote.storeProductId === card.storeProductId) return "exact";
+  if (card.barcode && quote.barcode && card.barcode === quote.barcode) return "exact";
+  const cp = canonicalPath(card.productUrl);
+  if (cp && quote.store === card.store && cp === canonicalPath(quote.offerUrl)) return "exact";
   const a = modelCodes(card.title);
   const b = modelCodes(quote.title);
   if ([...a].some((c) => b.has(c))) return "high";
@@ -112,7 +136,13 @@ export async function enrichPrice(
   }
   const byBest = (x: { confidence: Confidence; priceKurus: number }, y: typeof x) =>
     RANK[y.confidence] - RANK[x.confidence] || x.priceKurus - y.priceKurus;
-  const own = all.filter((q) => q.store === card.store).sort(byBest);
+  // Ayni urunde birden cok Trendyol saticisi olabilir: kesifte gorulen saticinin
+  // (kullanicinin Trendyol'da gorecegi teklif) fiyati once gelir.
+  const sameSupplier = (q: PriceQuote) =>
+    card.supplierId != null && q.supplierId === card.supplierId ? 1 : 0;
+  const own = all
+    .filter((q) => q.store === card.store)
+    .sort((x, y) => sameSupplier(y) - sameSupplier(x) || byBest(x, y));
   const others = all.filter((q) => q.store !== card.store).sort(byBest);
   return {
     trendyolPrice: own[0] ?? null,
