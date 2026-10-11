@@ -77,7 +77,7 @@ export function isBlockedHost(host: string): boolean {
 }
 
 export interface SafeUrl {
-  /** Kanonik tam adres (https, izleme parametresiz, parcasiz). */
+  /** Tam adres (https, izleme parametresiz, parcasiz); orijinal ana makine (`www.` dahil) korunur. */
   url: string;
   /** `www.` atilmis kucuk harf ana makine. */
   host: string;
@@ -117,7 +117,7 @@ export function toSafePublicUrl(input: unknown): SafeUrl | null {
   kept.sort((a, b) => (a[0] < b[0] ? -1 : a[0] > b[0] ? 1 : 0));
   const search = new URLSearchParams(kept).toString();
   const path = parsed.pathname.replace(/\/+$/, "");
-  const url = `https://${host}${path}${search ? `?${search}` : ""}`;
+  const url = `https://${parsed.hostname.toLowerCase()}${path}${search ? `?${search}` : ""}`;
   if (url.length > 2048) return null;
   return { url, host, key: `${host}${path.toLowerCase()}` };
 }

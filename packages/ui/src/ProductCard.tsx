@@ -89,6 +89,7 @@ export function ProductCard({
               fit="contain"
               loading={imageLoading}
               className={styles.image}
+              {...(external ? { referrerPolicy: "no-referrer" as const } : {})}
             />
           ) : null}
         </span>

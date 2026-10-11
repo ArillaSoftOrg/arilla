@@ -52,7 +52,7 @@ describe("toSafePublicUrl", () => {
       "https://www.Shop.com.tr/urun/abc/?utm_source=x&gclid=1&renk=siyah#top",
     );
     expect(safe).toEqual({
-      url: "https://shop.com.tr/urun/abc?renk=siyah",
+      url: "https://www.shop.com.tr/urun/abc?renk=siyah",
       host: "shop.com.tr",
       key: "shop.com.tr/urun/abc",
     });
@@ -423,7 +423,10 @@ describe("parseGroundedPayload / resolveCitationUrls", () => {
       fake,
     );
     expect(calls).toEqual(["https://vertexaisearch.cloud.google.com/grounding-api-redirect/AAA"]);
-    expect(urls.sort()).toEqual(["https://direct.com.tr/urun/1", "https://shop.com.tr/urun/abc"]);
+    expect(urls.sort()).toEqual([
+      "https://direct.com.tr/urun/1",
+      "https://www.shop.com.tr/urun/abc",
+    ]);
   });
   it("yonlendirme hedefi guvensizse atilir", async () => {
     const fake = (async () =>
