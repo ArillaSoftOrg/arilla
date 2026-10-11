@@ -73,6 +73,13 @@ def veto_reason(left: ProductKey, right: ProductKey) -> str | None:
         return f"hacim: {left.volume} != {right.volume}"
     if left.size and right.size and left.size != right.size:
         return f"beden: {left.size} != {right.size}"
+    # Model numarasi, kapasite, ekran boyutu, paket adedi: iki taraf da KENDINE
+    # OZGU bir sayi tasiyorsa celiski vardir ("S23" / "S22", "256" / "512").
+    # Yalniz bir tarafta fazladan sayi olmasi eksikliktir, veto degil.
+    only_left = left.numbers - right.numbers
+    only_right = right.numbers - left.numbers
+    if only_left and only_right:
+        return f"sayisal kimlik: {sorted(only_left)} != {sorted(only_right)}"
     if left.qualifier != right.qualifier:
         return f"model kademesi: {left.qualifier or 'yok'} != {right.qualifier or 'yok'}"
     # Marka kimliktir. Iki taraf da markasini biliyor ve markalar farkliysa
