@@ -11,10 +11,13 @@ import { getDatabase } from "@arilla/db";
 import { EmptyState, formatTRY, ProductImage, SearchForm } from "@arilla/ui";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { Suspense } from "react";
 import { HOME_COPY } from "../../home-copy.ts";
 import { requireProductAccess } from "../../lib/dal.ts";
 import styles from "../ara.module.css";
 import { ResultGrid, resultCountLabel } from "../search-results.tsx";
+import { WebSearchPending, WebSearchResults } from "../web-search-section.tsx";
+import { startWebSearch } from "../web-search-start.ts";
 import linkStyles from "./link-search.module.css";
 import { LinkSearchComingSoon } from "./link-search-coming-soon.tsx";
 import { LINK_SEARCH_COPY, linkFailureCopy } from "./link-search-copy.ts";
@@ -196,6 +199,12 @@ export default async function LinkAramaPage({
     );
   }
 
+  // Karar 0101: internet araması katalog aramasıyla paralel başlar. Sorguya
+  // yalnızca çözümlenmiş ürünün başlığı/markası girer; kullanıcının yapıştırdığı
+  // adres (ve parametreleri) asla gitmez. Bayrak kapalıysa `null`.
+  const webSearch = state.source.title
+    ? startWebSearch({ kind: "link", title: state.source.title, brand: state.source.brand })
+    : null;
   const results = await findLinkSearchResults(db, state);
   const total = results.same.length + results.similar.length;
 
@@ -243,6 +252,16 @@ export default async function LinkAramaPage({
           description={LINK_SEARCH_COPY.emptyDescription}
           headingLevel={2}
         />
+      ) : null}
+
+      {webSearch ? (
+        <Suspense fallback={<WebSearchPending />}>
+          <WebSearchResults
+            promise={webSearch}
+            catalogTitles={[...results.same, ...results.similar].map((item) => item.title)}
+            surface="link"
+          />
+        </Suspense>
       ) : null}
 
       <NewSearch />

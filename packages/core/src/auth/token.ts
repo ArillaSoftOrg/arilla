@@ -24,7 +24,14 @@ function secret(): string {
 }
 
 /** Her kullanim amaci ayri alan: ayni girdi farkli ozelliklerde farkli ozet verir. */
-export type PseudonymPurpose = "auth" | "phone" | "feedback" | "forms" | "realtime";
+export type PseudonymPurpose =
+  | "auth"
+  | "phone"
+  | "feedback"
+  | "forms"
+  | "realtime"
+  | "websearch"
+  | "webexit";
 
 /**
  * IP, e-posta, telefon gibi dusuk entropili degerler icin takma ad: `SESSION_SECRET`

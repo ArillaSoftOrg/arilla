@@ -285,3 +285,60 @@
   line-height: var(--line-height-body);
   overflow-wrap: anywhere;
 }
+
+/* Internet sonuclari (karar 0101): katalog izgarasiyla ayni dil; ayrim baslik,
+   not ve kart rozetiyle yapilir. */
+.webSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  min-width: 0;
+  margin-block-start: var(--space-8);
+}
+
+.webNote {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}
+
+.webSubTitle {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+}
+
+.webOffers {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: var(--space-2) 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.webOffer {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink);
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  text-decoration: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.webOffer:hover {
+  border-color: var(--line-strong);
+}
+
+.webOffer:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}

@@ -38,6 +38,7 @@ import {
   isRealtimeInterpretationEnabled,
   REALTIME_INTERPRETATION_DAILY_CALL_CAP,
 } from "../search/realtime-interpretation.ts";
+import { isWebSearchEnabled } from "../web-search/config.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -255,6 +256,23 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
       "ai",
       isRealtimeInterpretationEnabled(env),
       realtimeFlag && !geminiKey ? "Bayrak açık ama anahtar yok: etkin değil" : undefined,
+    ),
+    flag(
+      env,
+      "WEB_SEARCH_ENABLED",
+      "İnternet ürün araması",
+      "ai",
+      isWebSearchEnabled(env),
+      raw(env, "WEB_SEARCH_ENABLED")?.toLowerCase() === "true" && !isWebSearchEnabled(env)
+        ? "Bayrak açık ama etkin değil: anahtar yok ya da üretimde hukuki onay bayrağı yok"
+        : undefined,
+    ),
+    flag(
+      env,
+      "WEB_SEARCH_LEGAL_APPROVED",
+      "İnternet araması hukuki onayı",
+      "ai",
+      raw(env, "WEB_SEARCH_LEGAL_APPROVED")?.toLowerCase() === "true",
     ),
     flag(env, "CHAT_DISCOVERY_ENABLED", "Konuşmalı keşif (sohbet)", "ai", chatOn),
     flag(
