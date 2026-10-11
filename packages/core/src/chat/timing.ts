@@ -17,6 +17,7 @@ export const CHAT_TIMING_NAMES = [
   "provider_limit",
   "lexicon",
   "gemini",
+  "link_turn",
   "persist",
   "search",
 ] as const;
