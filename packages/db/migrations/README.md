@@ -72,7 +72,7 @@ migration'lar olusturur.
 | `0058_chat_feedback_details.sql` | Sohbet geri bildirimi ayrintilari (0079): `chat_result_feedback`e `reasons text[]` (izinli kodlar, <=3), `comment` (<=500, 90 gun sonra NULL), `model_version`; olumlu oyda neden/yorum yasak (CHECK); iki indeks. Yalnizca ekleme, veri tasinmaz. |
 | `0060_ai_eval.sql` | AI degerlendirme ve hata veri seti (0096, Faz 1A-2): `dataset_snapshot` (icerik parmak izi, degismez), `ai_eval_run` (bilesen, algoritma/model surumu, metrikler, maliyet ozeti, gecikme p50/p95; cevrimdisi kosu maliyet yazamaz), `ai_eval_case` (vaka anahtari = fixture SHA-256 oneki, ham metin yok), `ai_error_event` (saglayici x hata sinifi, kullanici/oturum/istem yok; DELETE 180 gun saklama icin acik). Maliyet `api_usage`, kosu `job_run`, ret nedeni `match_candidate.review_reason` yeniden kullanilir. 0059 baska dalda (api_usage token ayrimi) ayrildi. Yalnizca ekleme. |
 | `0061_activity_event_id.sql` | Davranissal olaylara `event_id` (nullable, kullanici kapsamli UNIQUE) ve `schema_version` (1 = eski, 2 = event_id zorunlu) (0100). Tekrar yazimlar `ON CONFLICT DO NOTHING` ile tekillesir. Yalnizca ekleme, veri tasinmaz. 0059/0060 baska dallarda. |
-| `0062_chat_image_consent.sql` | Sohbet gorsel eki acik rizasi (0101): `user_consent.kind` CHECK'ine `chat_image`, `source` CHECK'ine `chat_image_prompt`. Yalnizca CHECK genisletme, veri tasinmaz. |
+| `0063_chat_image_consent.sql` | Sohbet gorsel eki acik rizasi (0101): `user_consent.kind` CHECK'ine `chat_image`, `source` CHECK'ine `chat_image_prompt`. Yalnizca CHECK genisletme, veri tasinmaz. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

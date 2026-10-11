@@ -859,7 +859,7 @@ onayı (docs/kvkk.md "Konuşmalı keşif") → bayrak açılır. Maliyet: `api_u
 sohbet turu kotasından geçer (arama hakkı harcanmaz); ek migration yok (0057 yeter).
 Etkinleştirme: hukuk onayı + aydınlatma/açık rıza metni (docs/kvkk.md "Yüklenen
 görseller"), sonra bayrak. Production'da onay olmadan açılmaz.
-Ön koşul (karar 0101): migration 0057 **ve 0062** production'da uygulanmış olmalı (0062 yoksa
+Ön koşul (karar 0101): migration 0057 **ve 0063** production'da uygulanmış olmalı (0063 yoksa
 rıza kaydı CHECK hatası verir ve görsel gönderimi `unavailable` döner); `/gizlilik` ve
 `/kvkk-aydinlatma` sohbet eki için hukuk onaylı metinle güncellenmiş olmalı.
 

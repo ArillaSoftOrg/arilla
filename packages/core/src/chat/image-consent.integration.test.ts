@@ -1,5 +1,5 @@
 /**
- * Karar 0101 - sohbet gorsel acik rizasi, gercek yerel Postgres (migration 0062).
+ * Karar 0101 - sohbet gorsel acik rizasi, gercek yerel Postgres (migration 0063).
  */
 import type { Database } from "@arilla/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";

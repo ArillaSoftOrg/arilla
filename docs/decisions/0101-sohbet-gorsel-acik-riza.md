@@ -11,7 +11,7 @@ production'da açılmaz" şartını koydu (`docs/ops.md`, `docs/kvkk.md`). Bu ka
 ## Karar
 
 1. **Rıza türü:** `user_consent.kind = 'chat_image'`, `source = 'chat_image_prompt'`
-   (geri çekme: `account_settings`). Migration 0062 yalnızca iki CHECK'i genişletir.
+   (geri çekme: `account_settings`). Migration 0063 yalnızca iki CHECK'i genişletir.
 2. **Sunucu kapısı tek gerçek kapıdır.** `sendMessageAction` ve `startChatBootstrapAction`,
    görsel varsa `prepareChatImage`'den ÖNCE `hasChatImageConsent` bakar; rıza yoksa
    `consent_required` döner, görsel işlenmez, mesaj/sohbet oluşmaz. Metin-only mesaj etkilenmez.
@@ -56,7 +56,7 @@ süresi, aktarım hukuki dayanağı, sözleşme. Bunlar hukuk onayı sonrası ek
 
 ## Etkinleştirme sırası (güncel)
 
-0057 ve 0062 production'da uygulanır (`db:migrate`, `db:verify`) → kod dağıtılır (bayrak kapalı) →
+0057 ve 0063 production'da uygulanır (`db:migrate`, `db:verify`) → kod dağıtılır (bayrak kapalı) →
 hukuk onayı + kamu metinlerinin güncellenmesi → preview/staging'de uçtan uca tarayıcı+Gemini testi →
 `CHAT_IMAGE_ENABLED=true` (`CHAT_DISCOVERY_ENABLED` de açık) → izleme (`api_usage`, kotalar).
 
