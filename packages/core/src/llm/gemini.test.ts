@@ -309,7 +309,7 @@ describe("yeniden deneme", () => {
     [403, "auth"],
   ] as const)("%i yeniden denenmez → %s", async (status, code) => {
     const { impl, calls } = fakeFetch([
-      jsonResponse({ error: { message: `body-secret ${API_KEY}` } }, status),
+      jsonResponse({ error: { message: `bad "body-secret" ${API_KEY}` } }, status),
     ]);
     const error = await caught(client(impl).instance.generateJson(REQUEST));
     expect(error.code).toBe(code);
@@ -325,7 +325,7 @@ describe("yeniden deneme", () => {
           error: {
             code: 400,
             status: "INVALID_ARGUMENT",
-            message: `user-text-leak ${API_KEY}`,
+            message: `Invalid value at 'input' (STRING), "user-text-leak" ${API_KEY}`,
             details: [
               { "@type": "type.googleapis.com/google.rpc.ErrorInfo", reason: "BAD_FIELD" },
               {
@@ -339,7 +339,9 @@ describe("yeniden deneme", () => {
     ]);
     const error = await caught(client(impl).instance.generateJson(REQUEST));
     expect(error.code).toBe("client_error");
-    expect(error.detail).toBe("INVALID_ARGUMENT BAD_FIELD input[1].data");
+    expect(error.detail).toBe(
+      "INVALID_ARGUMENT BAD_FIELD input[1].data Invalid value at (STRING),",
+    );
     expectRedacted(error, "user-text-leak");
   });
 
