@@ -179,18 +179,28 @@ function extractText(payload: unknown): string {
 }
 
 /**
- * Gorsel yoksa duz metin (eski sozlesme, bayt ayni). Gorsel varsa
- * `[{type:"text"}, {type:"image", data, mime_type}...]` (karar 0078).
+ * Gorsel yoksa duz metin (eski sozlesme, bayt ayni). Gorsel varsa tek bir kullanici ADIMI:
+ * `[{type:"user_input", content:[{type:"text"}, {type:"image", data, mime_type}...]}]`.
+ *
+ * Interactions API `input` dizisini STEP nesneleri olarak okur (UserInputStep.content =
+ * Content[]); Content nesnelerini dogrudan diziye koymak uretimde HTTP 400 verdi
+ * ("The value ... is not supported for ... type", ~24 Step turu listelendi). Karar 0078'in
+ * ilk (Content dizisi) biçimi bu yuzden degistirildi.
  */
 export function buildGeminiInput(request: LlmJsonRequest): string | Record<string, unknown>[] {
   if (!request.images || request.images.length === 0) return request.input;
   return [
-    { type: "text", text: request.input },
-    ...request.images.map((image) => ({
-      type: "image",
-      data: image.dataBase64,
-      mime_type: image.mimeType,
-    })),
+    {
+      type: "user_input",
+      content: [
+        { type: "text", text: request.input },
+        ...request.images.map((image) => ({
+          type: "image",
+          data: image.dataBase64,
+          mime_type: image.mimeType,
+        })),
+      ],
+    },
   ];
 }
 
