@@ -202,3 +202,48 @@ function verifyOne(raw: unknown, evidence: GroundingEvidence): WebCandidate | st
     inStock,
   };
 }
+
+/**
+ * Atifli duz metinden aday uretir (model URL gormedigi/yazamadigi icin ana yol).
+ * Satir bicimi: `- AYNI|BENZER | Urun adi | Magaza`. Adres MODELDEN degil, o
+ * satira bagli Google atfindan (cozulmus, guvenli) gelir; bu yuzden uydurulamaz.
+ * Fiyat okunmadigi icin her zaman `unverified`.
+ */
+export function candidatesFromAnnotatedText(
+  text: string,
+  citations: readonly { url: string; startIndex?: number; endIndex?: number }[],
+  resolved: ReadonlyMap<string, string | null>,
+): WebCandidate[] {
+  const out: WebCandidate[] = [];
+  const seen = new Set<string>();
+  let offset = 0;
+  for (const line of text.split("\n")) {
+    const start = offset;
+    const end = offset + line.length;
+    offset = end + 1;
+    const match = /^\s*[-*•]?\s*(AYNI|BENZER)\s*\|\s*([^|]+?)\s*(?:\|\s*([^|]*))?$/i.exec(line);
+    if (!match) continue;
+    const kind = match[1]?.toUpperCase() === "AYNI" ? "exact" : "similar";
+    const title = sanitizeDisplayText(match[2], 160);
+    if (title === null) continue;
+    for (const citation of citations) {
+      if (citation.startIndex === undefined || citation.endIndex === undefined) continue;
+      if (citation.endIndex <= start || citation.startIndex >= end + 1) continue;
+      const url = toSafePublicUrl(resolved.get(citation.url));
+      if (url === null || !looksLikeProductPage(url.url) || seen.has(url.key)) continue;
+      seen.add(url.key);
+      out.push({
+        title,
+        brand: null,
+        url,
+        declaredKind: kind,
+        priceKurus: null,
+        priceStatus: "unverified",
+        inStock: null,
+      });
+      break;
+    }
+    if (out.length >= WEB_SEARCH_MAX_CANDIDATES) break;
+  }
+  return out;
+}
