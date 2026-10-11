@@ -1202,7 +1202,7 @@ CREATE TABLE user_consent (
                 CONSTRAINT user_consent_kind_check CHECK (kind IN (
                     'browsing_history','marketing_email','personalization','public_discovery',
                     'cookie_functional','cookie_analytics','cookie_marketing',
-                    'privacy_notice','chat_image')), -- 0062
+                    'privacy_notice','chat_image')), -- 0063
     granted     BOOLEAN     NOT NULL,
     granted_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     ip          INET,        -- yalnızca hesap izinleri; 1 yıl sonra NULL (0049)
@@ -1210,7 +1210,7 @@ CREATE TABLE user_consent (
     -- satırlarda NULL ("sürümsüz kayıt"); bu satırlar geçerlidir.
     source       TEXT        CHECK (source IS NULL OR source IN (
                      'account_settings','cookie_banner','cookie_sync','sign_in','unsubscribe_link',
-                     'signup_default','onboarding','chat_image_prompt')), -- 0045, 0062
+                     'signup_default','onboarding','chat_image_prompt')), -- 0045, 0063
     text_version TEXT        CHECK (text_version IS NULL OR char_length(text_version) BETWEEN 1 AND 64)
 );
 CREATE INDEX user_consent_idx ON user_consent (user_id, kind, granted_at DESC);
