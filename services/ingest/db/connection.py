@@ -53,3 +53,22 @@ def connect(variable: str = "DATABASE_URL") -> Iterator[psycopg.Connection]:
     """Tek islemlik baglanti. Blok hatasiz biterse COMMIT, aksi halde ROLLBACK."""
     with psycopg.connect(database_url(variable)) as conn:
         yield conn
+
+
+@contextmanager
+def connect_pooled(
+    variable: str = "DATABASE_URL", *, connect_timeout: int = 10
+) -> Iterator[psycopg.Connection]:
+    """Sunucusuz (Vercel Function) baglantisi: Transaction pooler ile uyumlu.
+
+    Transaction pooler'da (docs/ops.md "pooler modu") sunucu tarafi hazir
+    sorgular baglantilar arasinda karisir; `prepare_threshold=None` bunu kapatir.
+    Her cagri kendi kisa omurlu baglantisini acar ve kapatir (ortak havuz yok).
+    """
+    with psycopg.connect(
+        database_url(variable),
+        prepare_threshold=None,
+        connect_timeout=connect_timeout,
+        application_name="arilla-link-subscriber",
+    ) as conn:
+        yield conn

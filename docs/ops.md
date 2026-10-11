@@ -78,6 +78,41 @@ docker compose -f infra/docker-compose.worker.yml up -d --build
   sonraki mesaja geçer. Yalnızca kopan Postgres bağlantısı süreci `1` ile
   düşürür.
 
+### Link çözümleme: Vercel Queues (karar 0107) — varsayılan kapalı
+
+VPS'siz alternatif. `LINK_QUEUE_BACKEND=vercel` iken web, Redis yerine Vercel
+Queues `link-resolution` topic'ine yalnızca `{"request_id"}` bırakır; aynı Vercel
+projesindeki özel Python abonesi (`services/ingest/collect/link/subscriber.py`,
+`pyproject.toml` `[[tool.vercel.subscribers]]`) tetiklenir ve **aynı**
+`resolve_claimed` mantığını çalıştırır. Bayrak yokken/`redis` iken hiçbir şey
+değişmez; yukarıdaki Redis worker'ı geri alma yoludur.
+
+Davranış: abone `max_concurrency=2`, `max_attempts=3`, ilk yeniden deneme 15 sn
+(15/30/60). Sitenin durumu (404, robots, SSRF engeli, 429) kalıcı sonuçtur,
+yeniden denenmez. Altyapı hatasında yeniden denenir; son teslimatta satır
+`failed`/`unexpected` olur (Vercel Queues'ta ölü mektup kuyruğu yoktur). Jina
+token bütçesi örnek başına `JINA_TOKENS_PER_MINUTE / 2`'dir. Yönetim panelindeki
+"Link çözümleme kuyruğu" bu arka uçta son 2 dakikadaki `queued` satırları sayar.
+
+Etkinleştirme sırası (Vercel panelinde; **önizleme dağıtımında doğrula**, sonra production):
+
+1. Proje **Root Directory**'sini `apps/web`'den repo köküne al (Settings → Build and
+   Deployment). Bu, Vercel Services (Beta) için gereklidir ve web derlemesini etkiler.
+2. Repo köküne `vercel.json` ekle (taslak: `infra/vercel-services.example.json`:
+   `services.web` = `apps/web`, `services.link` = `services/ingest`; kök dizin
+   değişince `apps/web/vercel.json`'daki `crons` için karşılık bulunmalı).
+3. Production, Preview ve Development'ta `DATABASE_URL`'i Supabase **Transaction
+   pooler**'a (6543) ayarla; Python bu bağlantıyı hazır sorgusuz (`prepare_threshold=None`) kurar.
+   Abonenin ihtiyaç duyduğu değişkenler: `DATABASE_URL`, `JINA_API_KEY`,
+   `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, isteğe bağlı `JINA_TOKENS_PER_MINUTE`.
+   `REDIS_URL` abone için gerekmez.
+4. Yalnızca **Preview** ortamında `LINK_QUEUE_BACKEND=vercel` ver. `LINK_SEARCH_PUBLIC`
+   kapalı olduğundan `/ara/link` "Yakında" gösterir; kuyruğu önizlemede yalnızca sohbetteki
+   link yolu (`CHAT_DISCOVERY_ENABLED` + `CHAT_LINK_ENABLED`, **yalnızca Preview'da**) tetikler.
+   ADR 0107 "Doğrulanmamış noktalar" listesini tek tek işaretle: derleme, abone kaydı,
+   `maxDuration`, `crons`, günlüklerde `cozumlendi`/`cozumlenemedi` satırları.
+5. Production'a ancak önizleme temizse; sorun olursa `LINK_QUEUE_BACKEND=redis` + worker.
+
 ## Sağlayıcı bağımsızlığı
 
 Vercel'e özgü hiçbir hizmete kilitlenilmez. Taşınabilir muadiller kullanılır:

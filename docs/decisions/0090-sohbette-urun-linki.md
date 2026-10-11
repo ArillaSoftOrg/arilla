@@ -3,7 +3,8 @@
 **Tarih:** 8 Ekim 2026
 **Durum:** Kabul edildi, kod hazır; `CHAT_LINK_ENABLED=true` (ve `CHAT_DISCOVERY_ENABLED=true`)
 verilene kadar kapalı. Gemini'li tercih yorumu ayrıca `CHAT_LINK_INTERPRET_ENABLED=true`
-ister, varsayılan kapalı. Link worker'ı üretimde çalışmadan açılmaz.
+ister, varsayılan kapalı. Link worker'ı üretimde çalışmadan açılmaz (ya da, karar 0107, kuyruk
+`LINK_QUEUE_BACKEND=vercel` ile Vercel Queues'a alınmadan).
 
 Ürün linki bugün yalnızca `/ara/link` rotasında çözülüyor (0035) ve o rota geçici olarak
 "Yakında" (`LINK_SEARCH_PUBLIC=false`, #67/#68). Sohbette link modele gitmediği için

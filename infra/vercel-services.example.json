@@ -1,0 +1,20 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "$comment": "ORNEK - ETKIN DEGIL (karar 0107). Vercel yalnizca proje Root Directory'sindeki vercel.json'u okur; Root Directory 'apps/web' iken bu dosya hicbir sey yapmaz. Etkinlestirme docs/ops.md 'Link cozumleme: Vercel Queues' sirasiyla, ONCE ONIZLEMEDE: Root Directory repo koku olur, bu dosya kokte vercel.json adiyla kullanilir. Doğrulanmamis noktalar ADR 0107'de: Python service'in yalnizca abone ile derlenmesi, abone modulunun service root'una gore cozulmesi, kuyruk fonksiyonunun maxDuration'i (hedef 120 sn), crons'un services ile birlikte gecerliligi, pnpm workspace kurulumu.",
+  "services": {
+    "web": {
+      "root": "apps/web"
+    },
+    "link": {
+      "root": "services/ingest",
+      "functions": {}
+    }
+  },
+  "rewrites": [{ "source": "/(.*)", "destination": { "service": "web" } }],
+  "crons": [
+    { "path": "/api/cron/generate-discovery-slots", "schedule": "0 0 * * *" },
+    { "path": "/api/cron/cleanup-auth", "schedule": "30 3 * * *" },
+    { "path": "/api/cron/interpret-queries", "schedule": "30 0 * * *" },
+    { "path": "/api/cron/refresh-product-aggregates", "schedule": "45 23 * * *" }
+  ]
+}
