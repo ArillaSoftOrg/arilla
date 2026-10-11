@@ -33,6 +33,10 @@ const APPEND_ONLY = {
   dataset_snapshot: "dataset",
   ai_eval_run: "component",
   ai_eval_case: "outcome",
+  /** 0064: veri seti surumu degistirilmez; export/etiket yalnizca durum kolonlarini gunceller, hicbiri silinmez. */
+  di_dataset_build: "dataset_key",
+  di_export: "build_id",
+  di_accuracy_label: "field",
 } as const;
 /** 0036: UPDATE engelli, DELETE izinli (saklama suresi ve riza geri alma). */
 const UPDATE_BLOCKED = {

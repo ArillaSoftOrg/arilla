@@ -114,7 +114,24 @@ export type Capability =
    * `/yonetim/trafik` ve genel bakış trafik özeti (karar 0087): GA4 Data API
    * toplamları (rızalı örneklem). Salt okunur; kişi düzeyinde veri yok.
    */
-  | "traffic.read";
+  | "traffic.read"
+  /**
+   * `/yonetim/veri-zekasi` (karar 0103): veri toplama denetimi, olay hacmi, veri
+   * seti geçmişi ve kalite raporları. Yalnızca toplamlar; kişi düzeyi yok.
+   */
+  | "data.read"
+  /**
+   * Veri seti ÜRETİMİ (karar 0103): rızalı olaylardan toplulaştırma. Yalnızca
+   * yönetici, gerekçe zorunlu, denetime yazılır. Hukuki bayrak kapalıyken üretim
+   * yapılmaz (`DATA_INTELLIGENCE_BUILD_ENABLED`).
+   */
+  | "data.build"
+  /**
+   * Veri seti DIŞA AKTARIMI (karar 0103): CSV/JSON/sözlük/kalite/SHA-256.
+   * Yalnızca yönetici, taze giriş, her indirme denetime yazılır. Hukuki bayrak ve
+   * kaynak onayı olmadan çalışmaz.
+   */
+  | "data.export";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -166,6 +183,10 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "config.read",
   // Karar 0087: GA4 trafik raporları.
   "traffic.read",
+  // Karar 0103: veri zekâsı — okuma, üretim, dışa aktarım yalnızca yöneticinin.
+  "data.read",
+  "data.build",
+  "data.export",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

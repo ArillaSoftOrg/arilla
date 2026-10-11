@@ -366,6 +366,20 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     gaps: [{ signal: "Canlı Gemini/Jina hata kaydı (üretim çağıranları)", status: "unmeasured" }],
   },
   {
+    id: "data_intelligence",
+    label: "Veri zekâsı (toplulaştırılmış veri setleri)",
+    tables: ["di_dataset_build", "di_export", "di_accuracy_label"],
+    status: "visible",
+    adminPaths: ["/yonetim/veri-zekasi"],
+    // Karar 0102: üretim ve dışa aktarım hukuki bayrağa bağlı (varsayılan kapalı).
+    gaps: [
+      { signal: "Olay kayıp oranı ve üretim–kayıt gecikmesi", status: "unmeasured" },
+      { signal: "Alternatif ürün tercihi olayı (yazan yüzey yok)", status: "unmeasured" },
+    ],
+    privacy:
+      "Satırlar yalnızca k-eşikli toplulaştırılmış hücrelerdir; kişi, oturum, sorgu metni, görsel yoktur. Dışa aktarım hukuki onaya bağlı.",
+  },
+  {
     id: "audit",
     label: "Denetim kaydı",
     tables: ["admin_audit_event"],
@@ -532,6 +546,10 @@ export const CAPABILITY_COVERAGE: Readonly<Record<Capability, CapabilityCoverage
   "config.read": { class: "monitor", sensitive: false },
   // Karar 0087: GA4 toplamları; kişi düzeyi yok.
   "traffic.read": { class: "analyze", sensitive: false },
+  // Karar 0103: toplulaştırılmış veri seti; üretim ve dışa aktarım hukuki bayrağa bağlı.
+  "data.read": { class: "analyze", sensitive: false },
+  "data.build": { class: "manage", sensitive: true },
+  "data.export": { class: "manage", sensitive: true },
 };
 
 /** Her denetim hedefi bir alt sisteme bağlıdır (`Record` eksik hedefi derlemede yakalar). */
@@ -547,6 +565,8 @@ export const AUDIT_TARGET_SUBSYSTEM: Readonly<Record<AdminTargetType, string>> =
   trend: "trends",
   early_access_counter: "early_access",
   capability: "audit",
+  data_build: "data_intelligence",
+  data_export: "data_intelligence",
 };
 
 /** Kayıtta geçen bütün tablolar (test: `docs/schema.sql` ile birebir). */

@@ -438,3 +438,18 @@ saklama süresi henüz tanımlı değil (hukukçu onayıyla belirlenecek).
 - **Sohbet bağlamına yönetici erişimi bu kararda yoktur.** Ayrı faz için koşullar: kullanıcı
   onayı (varsayılan kapalı, paylaşılacak mesajlar gösterilir), yalnızca seçilen kapsam, ayrı
   capability, her erişim denetimde, aydınlatma metni ve hukuki inceleme.
+
+## Veri zekâsı — toplulaştırılmış veri setleri (karar 0103)
+
+- **Kaynak:** yalnızca rızalı `user_activity_event` (`product_viewed`,
+  `merchant_exit`). Çıktı: hafta × kategori/marka/fiyat bandı hücreleri, en az
+  10 farklı kişi, kişi sayısı bandı; kişi, oturum, IP, sorgu metni, görsel yok.
+- **Hukuki dayanak DOĞRULANMADI.** Analitik rızası (0049) hizmet analitiği
+  içindir; üçüncü tarafa lisanslama amacı rıza ve aydınlatma metninde yoktur.
+  Bu yüzden veri seti **üretimi ve dışa aktarımı varsayılan kapalıdır**
+  (`DATA_INTELLIGENCE_BUILD_ENABLED`, `DATA_INTELLIGENCE_EXPORT_ENABLED`,
+  `DATA_INTELLIGENCE_CLEARED_SOURCES`). Açmadan önce: amaç/aydınlatma metni,
+  anonim veri üretmenin kendisinin işleme faaliyeti olarak değerlendirilmesi
+  (VERBİS dahil) ve müşteri sözleşmesi.
+- Teknik kontroller riski azaltır; **anonimlik garantisi değildir**.
+- `click`, ham sohbet, görsel ve ürün linki ticari çıktıya girmez.

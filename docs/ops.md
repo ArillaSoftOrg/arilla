@@ -867,6 +867,16 @@ rıza kaydı CHECK hatası verir ve görsel gönderimi `unavailable` döner); `/
 
 `CHAT_LINK_ENABLED=true` (ayrıca `CHAT_DISCOVERY_ENABLED=true` ister) sohbetteki linki mevcut link kuyruğuna verir; modele gitmez. Önkoşul: link worker'ı üretimde çalışıyor olmalı ("Link worker" bölümü; yoksa istekler 2 dk sonra 'worker yanıt vermedi' olur). `CHAT_LINK_INTERPRET_ENABLED=true` (ayrıca `CHAT_LINK_ENABLED`) deterministik ayrıştırmanın çözemediği tercih metni için tek Gemini çağrısı yapar; `api_usage` `chat_turn`, mevcut günlük/saatlik tavanlar. `/ara/link` ve `LINK_SEARCH_PUBLIC` bu bayraklardan bağımsızdır. Kademe: iç ekip → küçük kitle → herkes; izle: kuyruk uzunluğu, `error_code` dağılımı, Jina maliyeti. Geri alma: bayrakları kapat (migration yok).
 
+## Veri zekâsı bayrakları (karar 0103)
+
+Hepsi varsayılan **kapalı**; hukuki onay olmadan açılmaz.
+
+| Değişken | Etki |
+| --- | --- |
+| `DATA_INTELLIGENCE_BUILD_ENABLED=true` | Rızalı olaylardan veri seti üretimi (`/yonetim/veri-zekasi`) |
+| `DATA_INTELLIGENCE_EXPORT_ENABLED=true` | Dahili dışa aktarım (üretim bayrağı da açık olmalı) |
+| `DATA_INTELLIGENCE_CLEARED_SOURCES=user_activity_event` | Hukuken onaylanmış kaynaklar; boş = hiçbiri |
+
 ### İnternet ürün araması (karar 0102) — varsayılan kapalı
 
 `WEB_SEARCH_ENABLED=true` + `GEMINI_API_KEY` iken `/ara` (ve açıkken `/ara/link`) sonuç sayfası, katalog aramasıyla paralel olarak Gemini Google Search grounding + URL Context çağırır ve sonuçları katalog sonuçlarının altında akıtır. **Production'da ayrıca `WEB_SEARCH_LEGAL_APPROVED=true` gerekir**; ikisi de hukuki onaydan sonra Vercel Production'da elle açılır. Migration gerekmez. Sonuçlar önbelleğe alınmaz ve izlenmez (Google şartları); bağlantılar doğrudan mağazaya gider.
