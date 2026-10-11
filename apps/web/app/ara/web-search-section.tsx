@@ -3,8 +3,7 @@ import {
   type CatalogImageCandidate,
   dropCatalogDuplicates,
 } from "@arilla/core";
-import styles from "./ara.module.css";
-import { WEB_SEARCH_COPY as COPY } from "./web-search-copy.ts";
+import { ErrorView } from "../error-view.tsx";
 import type { WebSearchBundle } from "./web-search-start.ts";
 import { WebResultsView } from "./web-search-view.tsx";
 
@@ -30,11 +29,8 @@ export async function WebSearchResults({
 }) {
   const { outcome, catalogHosts } = await promise;
   if (outcome.status === "error" || outcome.status === "unavailable") {
-    return (
-      <p className={styles.webNote} role="status">
-        {COPY.failed}
-      </p>
-    );
+    // Katalog sonuclari ayri bolumdedir ve yerinde kalir; yalnizca bu bolum hata gosterir.
+    return <ErrorView error={{ code: "web_search_unavailable" }} />;
   }
   if (outcome.status !== "ok") return null;
 

@@ -29,9 +29,11 @@ import {
   setResultFeedback,
   submitUserMessage,
 } from "@arilla/core";
+import type { PublicError } from "@arilla/core/errors";
 import { getDatabase } from "@arilla/db";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import { actionError, errorFromLlmCode, SESSION_EXPIRED } from "../lib/action-error.ts";
 import { verifySession } from "../lib/dal.ts";
 
 /**
@@ -117,6 +119,7 @@ export type SendMessageStatus =
   | "invalid_option"
   | "not_found"
   | "unavailable"
+  | "session_expired"
   | "error";
 
 /** Istemciden gelen her sey `unknown` sayilir. */
@@ -149,8 +152,11 @@ export async function sendMessageAction(
   request: unknown,
   requestKey: string,
   photo?: FormData,
-): Promise<{ status: SendMessageStatus }> {
+): Promise<{ status: SendMessageStatus; error?: PublicError }> {
   const user = await verifySession();
+  // Oturum yok/bitti: kullanici girdisi istemcide durur, yeniden giris istenir.
+  if (!user && isChatDiscoveryEnabled())
+    return { status: "session_expired", error: SESSION_EXPIRED };
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { status: "unavailable" };
   }
@@ -180,9 +186,8 @@ export async function sendMessageAction(
       ...(attachment ? { attachment } : {}),
     });
   } catch (error) {
-    // Metin yolu onceki gibi hatayi iletir; yalniz gorselli gonderimde sabit kod doner.
-    if (!attachment) throw error;
-    return { status: "error" };
+    // Neden sunucuda siniflanir ve loglanir; istemciye yalnizca kod + referans doner.
+    return { status: "error", error: actionError(error, "sohbet.send") };
   }
   return { status: result.status === "queued" ? "queued" : result.status };
 }
@@ -193,6 +198,7 @@ export type RunTurnStatus =
   | "idle"
   | "not_found"
   | "provider_error"
+  | "session_expired"
   | "unavailable";
 
 /**
@@ -203,8 +209,10 @@ export type RunTurnStatus =
  */
 export async function runTurnAction(
   conversationId: string,
-): Promise<{ status: RunTurnStatus; preview?: AssistantPreview }> {
+): Promise<{ status: RunTurnStatus; preview?: AssistantPreview; error?: PublicError }> {
   const user = await verifySession();
+  if (!user && isChatDiscoveryEnabled())
+    return { status: "session_expired", error: SESSION_EXPIRED };
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { status: "unavailable" };
   }
@@ -218,11 +226,22 @@ export async function runTurnAction(
     // Anahtar tanimsiz: yapilandirma hatasi, kullaniciya "tekrar dene" gosterilir.
     return { status: "provider_error" };
   }
-  const { result, preview } = await processPendingTurnDetailed(getDatabase(), {
-    userId: user.id,
-    conversationId,
-    interpreter,
-  });
+  let detailed: Awaited<ReturnType<typeof processPendingTurnDetailed>>;
+  try {
+    detailed = await processPendingTurnDetailed(getDatabase(), {
+      userId: user.id,
+      conversationId,
+      interpreter,
+    });
+  } catch (error) {
+    return { status: "provider_error", error: actionError(error, "sohbet.turn") };
+  }
+  const { result, preview } = detailed;
+  if (result.status === "provider_error") {
+    // Saglayici hata kodu turda zaten kaydedildi; bilinmiyorsa neden uydurulmaz.
+    const error = errorFromLlmCode(result.code);
+    return error ? { status: "provider_error", error } : { status: "provider_error" };
+  }
   return preview ? { status: result.status, preview } : { status: result.status };
 }
 
@@ -231,15 +250,21 @@ export type TurnWaitState = "answered" | "in_flight" | "pending" | "not_found" |
 /** Hafif durum sorgusu (sahiplik sorguda): istemci `after()` turunu bu eylemle bekler. */
 export async function getTurnStatusAction(
   conversationId: string,
-): Promise<{ state: TurnWaitState; preview?: AssistantPreview }> {
+): Promise<{ state: TurnWaitState; preview?: AssistantPreview; error?: PublicError }> {
   const user = await verifySession();
+  if (!user && isChatDiscoveryEnabled()) return { state: "unavailable", error: SESSION_EXPIRED };
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     return { state: "unavailable" };
   }
   if (typeof conversationId !== "string" || !isUuid(conversationId)) {
     return { state: "not_found" };
   }
-  const status = await getTurnStatus(getDatabase(), { userId: user.id, conversationId });
+  let status: Awaited<ReturnType<typeof getTurnStatus>>;
+  try {
+    status = await getTurnStatus(getDatabase(), { userId: user.id, conversationId });
+  } catch (error) {
+    return { state: "unavailable", error: actionError(error, "sohbet.status") };
+  }
   return status.state === "answered"
     ? { state: "answered", preview: status.preview }
     : { state: status.state };
