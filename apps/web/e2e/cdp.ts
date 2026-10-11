@@ -188,6 +188,17 @@ export class CdpPage {
     }
   }
 
+  /** `<input type="file">` öğesine yerel bir dosya seçtirir (gerçek `change` olayı üretir). */
+  async setFileInput(selector: string, filePath: string): Promise<void> {
+    const { root } = await this.send<{ root: { nodeId: number } }>("DOM.getDocument");
+    const { nodeId } = await this.send<{ nodeId: number }>("DOM.querySelector", {
+      nodeId: root.nodeId,
+      selector,
+    });
+    if (!nodeId) throw new Error(`öğe yok: ${selector}`);
+    await this.send("DOM.setFileInputFiles", { nodeId, files: [filePath] });
+  }
+
   /** Görünen alan ya da tam sayfa PNG (base64). */
   async screenshot(fullPage = false): Promise<string> {
     if (!fullPage) {

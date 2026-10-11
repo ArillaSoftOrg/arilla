@@ -2,6 +2,7 @@ import {
   canAccessProduct,
   getDiscoverySlots,
   getPublicTrends,
+  hasChatImageConsent,
   isChatDiscoveryEnabled,
   isChatImageEnabled,
   isProductOpen,
@@ -180,6 +181,9 @@ export default async function HomePage() {
   }
 
   const chatEnabled = isChatDiscoveryEnabled();
+  const imageChat = chatEnabled && user !== null && isChatImageEnabled();
+  const imageConsent =
+    imageChat && user !== null && (await hasChatImageConsent(getDatabase(), user.id));
   const [items, recentProducts, homeTrends] = await Promise.all([
     loadDiscoveryItems(),
     loadRecentProducts(user?.id ?? null),
@@ -202,7 +206,8 @@ export default async function HomePage() {
             <HomeSearchComposer
               startChat={chatEnabled && user ? startConversationAction : undefined}
               chatInNewTab={chatEnabled && user !== null}
-              imageChat={chatEnabled && user !== null && isChatImageEnabled()}
+              imageChat={imageChat}
+              imageConsent={imageConsent}
               recentProducts={recentProducts}
             />
           </HomeHero>
