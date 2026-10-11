@@ -1326,6 +1326,10 @@ CREATE TABLE user_activity_event (
     query_norm    TEXT        CHECK (query_norm IS NULL OR char_length(query_norm) BETWEEN 1 AND 200),
     result_count  INTEGER     CHECK (result_count IS NULL OR result_count >= 0),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    event_id       UUID,                          -- 0061; sürüm 1 satırlarda NULL
+    schema_version SMALLINT NOT NULL DEFAULT 1,   -- 0061; 1 = eski biçim, 2 = event_id zorunlu
+    CONSTRAINT user_activity_event_schema_version_check CHECK (schema_version >= 1),
+    CONSTRAINT user_activity_event_event_id_required CHECK (schema_version < 2 OR event_id IS NOT NULL),
     CONSTRAINT user_activity_event_shape CHECK (
         (kind = 'search_submitted' AND search_mode IS NOT NULL
             AND product_id IS NULL AND offer_id IS NULL AND click_id IS NULL)
@@ -1339,6 +1343,7 @@ CREATE TABLE user_activity_event (
 CREATE INDEX user_activity_event_user_idx ON user_activity_event (user_id, created_at DESC, id DESC);
 CREATE INDEX user_activity_event_user_kind_idx ON user_activity_event (user_id, kind, created_at DESC);
 CREATE INDEX user_activity_event_created_idx ON user_activity_event (created_at);
+CREATE UNIQUE INDEX user_activity_event_user_event_id_uidx ON user_activity_event (user_id, event_id);
 
 CREATE TABLE user_activity_summary (
     user_id                   BIGINT      PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
