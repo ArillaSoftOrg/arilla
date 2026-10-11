@@ -2,6 +2,7 @@ import { listHistory } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState, ProductCard } from "@arilla/ui";
 import type { Metadata } from "next";
+import styles from "../account-list-page.module.css";
 import { requireProductUser } from "../lib/dal.ts";
 import { ClearHistoryButtonClient } from "./clear-history-button-client.tsx";
 
@@ -20,34 +21,30 @@ export default async function GecmisPage() {
   const items = await listHistory(getDatabase(), user.id);
 
   return (
-    <main style={{ padding: 24, display: "grid", gap: 16, maxWidth: 960 }}>
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <h1 style={{ margin: 0 }}>Geçmişim</h1>
+    <div className={styles.page}>
+      <div className={styles.header}>
+        <h1 className={styles.title}>Geçmişim</h1>
         {items.length > 0 ? <ClearHistoryButtonClient /> : null}
       </div>
       {items.length === 0 ? (
         <EmptyState title="Henüz gezindiğin ürün yok." />
       ) : (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))",
-            gap: 16,
-          }}
-        >
+        // biome-ignore lint/a11y/noRedundantRoles: `list-style: none` Safari/VoiceOver'da liste rolunu dusurur.
+        <ul role="list" className={styles.grid}>
           {items.map((item) => (
-            <ProductCard
-              key={item.productId}
-              href={`/urun/${item.slug}`}
-              title={item.title}
-              imageUrl={item.primaryImageUrl}
-              minPrice={item.minPrice}
-              offerCount={item.offerCount}
-              offerCountLabel={(count) => `${count} mağaza`}
-            />
+            <li key={item.productId} className={styles.gridItem}>
+              <ProductCard
+                href={`/urun/${item.slug}`}
+                title={item.title}
+                imageUrl={item.primaryImageUrl}
+                minPrice={item.minPrice}
+                offerCount={item.offerCount}
+                offerCountLabel={(count) => `${count} mağaza`}
+              />
+            </li>
           ))}
-        </div>
+        </ul>
       )}
-    </main>
+    </div>
   );
 }

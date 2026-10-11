@@ -134,3 +134,24 @@ export function MoonIcon(props: IconProps) {
     </Svg>
   );
 }
+
+/** Kaydet/kaydedildi isareti. `filled`: kayitli durum (dolgu `currentColor`). */
+export function HeartIcon({ filled = false, ...props }: IconProps & { filled?: boolean }) {
+  return (
+    <Svg {...props} defaultSize={20}>
+      <path
+        d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2Z"
+        fill={filled ? "currentColor" : "none"}
+      />
+    </Svg>
+  );
+}
+
+/** Hesap alanindaki "Cikis" eylemi. */
+export function LogoutIcon(props: IconProps) {
+  return (
+    <Svg {...props} defaultSize={18}>
+      <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 17l5-5-5-5M21 12H9" />
+    </Svg>
+  );
+}
