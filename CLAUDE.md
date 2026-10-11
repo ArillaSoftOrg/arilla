@@ -22,9 +22,12 @@ Detay: `docs/architecture.md`. Terimlerin tanımı: `docs/glossary.md`.
 ## Mimari sınır — en önemli kural
 
 TypeScript tarafı ile Python tarafı **birbirini asla çağırmaz.** Aralarındaki tek
-iletişim kanalı PostgreSQL ve Redis kuyruğudur.
+iletişim kanalı PostgreSQL ve kuyruktur (Redis kuyruğu; link çözümlemede
+`LINK_QUEUE_BACKEND=vercel` iken Vercel Queues, karar 0107).
 
-- Python: kuyruktan iş alır, veritabanına yazar. Hiçbir HTTP endpoint'i sunmaz.
+- Python: kuyruktan iş alır, veritabanına yazar. Herkese açık hiçbir HTTP
+  endpoint'i sunmaz. Vercel'de çalışan kuyruk abonesi özel, yalnızca platformun
+  kuyruk bildirimiyle tetiklenen bir fonksiyondur; TypeScript onu çağırmaz.
 - TypeScript: veritabanından okur. Python'a iş vermek için kuyruğa mesaj bırakır.
 
 Bu kural bozulursa iki servis arası senkron bağımlılık oluşur ve mimarinin

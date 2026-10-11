@@ -39,6 +39,7 @@
   "dependencies": {
     "@arilla/db": "workspace:*",
     "@aws-sdk/client-s3": "^3.1146.0",
+    "@vercel/queue": "^0.8.0",
     "drizzle-orm": "^0.45.2",
     "ioredis": "^5.4.1",
     "nodemailer": "^6.9.16",

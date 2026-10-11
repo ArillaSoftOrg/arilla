@@ -254,8 +254,8 @@ export default async function OperationsPage({
                 `${formatCount(ops.jobs.value.pendingMatches)} (eşik ${ops.jobs.value.matchQueueThreshold})`,
               ],
               [
-                "Link çözümleme kuyruğu (Redis)",
-                ops.linkQueue.ok ? formatCount(ops.linkQueue.value) : "Redis'e ulaşılamadı",
+                "Link çözümleme kuyruğu",
+                ops.linkQueue.ok ? formatCount(ops.linkQueue.value) : "Kuyruğa ulaşılamadı",
               ],
             ]}
           />

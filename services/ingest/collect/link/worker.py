@@ -156,6 +156,34 @@ def _embed_source_image(
     return embedding_id, "embedded"
 
 
+def claim_request(
+    conn: psycopg.Connection, request_id: str, *, reclaim_processing: bool = False
+) -> tuple[str, str, int | None] | None:
+    """Satiri atomik sahiplenir -> (url_raw, session_id, user_id); alinamazsa `None`.
+
+    Yalnizca `queued` satir alinir. `reclaim_processing` (Vercel Queues yeniden
+    teslimati: onceki deneme dustu ya da kira doldu) `processing` satiri da
+    almaya izin verir. Cozulmus/basarisiz satira asla dokunulmaz. Tek UPDATE
+    oldugu icin es zamanli iki teslimattan yalnizca biri kazanir.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """
+            UPDATE link_resolution_request
+            SET status = 'processing'
+            WHERE id = %(id)s
+              AND (status = 'queued' OR (%(reclaim)s AND status = 'processing'))
+            RETURNING url_raw, session_id, user_id
+            """,
+            {"id": request_id, "reclaim": reclaim_processing},
+        )
+        row = cur.fetchone()
+    conn.commit()
+    if row is None:
+        return None
+    return row[0], row[1], row[2]
+
+
 def process_one(
     conn: psycopg.Connection,
     request_id: str,
@@ -185,7 +213,36 @@ def process_one(
         return
 
     _mark(conn, request_id, status="processing")
+    resolve_claimed(
+        conn,
+        request_id,
+        url_raw,
+        session_id,
+        user_id,
+        client=client,
+        robots=robots,
+        embedder=embedder,
+        image_http=image_http,
+    )
 
+
+def resolve_claimed(
+    conn: psycopg.Connection,
+    request_id: str,
+    url_raw: str,
+    session_id: str,
+    user_id: int | None,
+    *,
+    client: httpx.Client | None = None,
+    robots: RobotsCache | None = None,
+    embedder: EmbeddingClient | None = None,
+    image_http: httpx.Client | None = None,
+) -> None:
+    """Sahiplenilmis (`processing`) satiri cozer ve `resolved`/`failed` yazar.
+
+    Hem Redis dongusu (`process_one`) hem Vercel Queues aboneligi
+    (`queue_handler`) bunu cagirir: cozumleme mantiginin tek kopyasi.
+    """
     try:
         resolved = resolve_url(conn, url_raw, client=client, robots=robots, allow_reference=True)
     except ResolutionFailed as error:
