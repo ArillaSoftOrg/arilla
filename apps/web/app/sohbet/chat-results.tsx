@@ -9,9 +9,9 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ProductCard, VisuallyHidden } from "@arilla/ui";
-import { Suspense } from "react";
+import type { ReactNode } from "react";
 import { offerCountLabel, resultCountLabel } from "../ara/search-results.tsx";
-import { WebSearchPending, WebSearchResults } from "../ara/web-search-section.tsx";
+import { WebGridItems } from "../ara/web-search-section.tsx";
 import { startWebSearch } from "../ara/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
 import { ResultFeedback } from "./chat-feedback-client.tsx";
@@ -34,9 +34,12 @@ interface GridItem {
 export function ChatResultGrid({
   items,
   labelledBy,
+  extra,
 }: {
   items: readonly GridItem[];
   labelledBy: string;
+  /** Aynı ızgaranın sonuna eklenen `<li>`ler (karar 0106: internet kartları). */
+  extra?: ReactNode;
 }) {
   return (
     // biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür.
@@ -56,6 +59,7 @@ export function ChatResultGrid({
           />
         </li>
       ))}
+      {extra}
     </ul>
   );
 }
@@ -185,21 +189,23 @@ export async function ChatResults({
         />
       )}
       {noteBlock}
-      <ChatResultGrid items={outcome.items} labelledBy={headingId} />
+      <ChatResultGrid
+        items={outcome.items}
+        labelledBy={headingId}
+        extra={
+          webSearch && !isFallback ? (
+            <WebGridItems
+              promise={webSearch}
+              variant="chat"
+              catalog={outcome.items.map((item) => ({
+                title: item.title,
+                imageUrl: item.primaryImageUrl,
+              }))}
+            />
+          ) : null
+        }
+      />
       <ResultFeedback conversationId={conversationId} messageSeq={messageSeq} initial={helpful} />
-      {webSearch && !isFallback ? (
-        <Suspense fallback={<WebSearchPending variant="chat" />}>
-          <WebSearchResults
-            promise={webSearch}
-            variant="chat"
-            idPrefix={`${headingId}-internet`}
-            catalog={outcome.items.map((item) => ({
-              title: item.title,
-              imageUrl: item.primaryImageUrl,
-            }))}
-          />
-        </Suspense>
-      ) : null}
       {isFallback ? null : (
         <a className={styles.seeAll} href={fullResultsHref(intent, sort)}>
           {countKnown ? CHAT_COPY.seeAllCount(total) : CHAT_COPY.seeAll}
