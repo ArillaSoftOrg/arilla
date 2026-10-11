@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import { formatStartingPrice, formatTRY } from "./format.ts";
 import styles from "./ProductCard.module.css";
 import { ProductImage } from "./ProductImage.tsx";
@@ -25,6 +26,13 @@ export interface ProductCardProps {
   brand?: string | null;
   /** Varsayilan "lazy". Yalnizca ilk ekranda gorunen kart icin "eager". */
   imageLoading?: "lazy" | "eager";
+  /**
+   * Istege bagli kart ustu eylem (orn. `/kaydettiklerim` kaydi kaldirma
+   * dugmesi), gorselin sag ust kosesinde. Baglantinin ICINDE degil, kardes
+   * ogedir (etkilesimli oge ic ice gecmez); tiklamasi gezinme yapmaz.
+   * Verilmezse isaretleme degismez.
+   */
+  action?: ReactNode;
 }
 
 /**
@@ -44,10 +52,11 @@ export function ProductCard({
   offerCountLabel,
   brand,
   imageLoading = "lazy",
+  action,
 }: ProductCardProps) {
   const metaLabel = offerCount !== undefined && offerCountLabel ? offerCountLabel(offerCount) : "";
 
-  return (
+  const card = (
     <a href={href} className={styles.card}>
       <span className={styles.media}>
         {imageUrl ? (
@@ -76,5 +85,13 @@ export function ProductCard({
         {metaLabel ? <span className={styles.meta}>{metaLabel}</span> : null}
       </span>
     </a>
+  );
+
+  if (!action) return card;
+  return (
+    <div className={styles.withAction}>
+      {card}
+      <div className={styles.action}>{action}</div>
+    </div>
   );
 }

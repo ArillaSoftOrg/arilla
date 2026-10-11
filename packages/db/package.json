@@ -16,7 +16,8 @@
     "db:orphans": "node scripts/orphans.ts",
     "db:set-role": "node scripts/set-role.ts",
     "db:revoke-sessions": "node scripts/revoke-sessions.ts",
-    "seed": "node scripts/seed.ts"
+    "seed": "node scripts/seed.ts",
+    "test": "node --test scripts/lib.test.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

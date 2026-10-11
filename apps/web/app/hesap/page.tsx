@@ -48,18 +48,7 @@ export default async function HesapPage() {
     : undefined;
 
   return (
-    <main className={styles.page}>
-      <nav className={styles.breadcrumb} aria-label="Konum">
-        <ol className={styles.breadcrumbList}>
-          <li>
-            <Link href="/" className={styles.breadcrumbLink}>
-              Ana sayfa
-            </Link>
-          </li>
-          <li aria-current="page">Hesabım</li>
-        </ol>
-      </nav>
-
+    <div className={styles.page}>
       <header className={styles.profileCard}>
         <span className={styles.avatar} aria-hidden="true">
           {user.avatarUrl ? (
@@ -116,10 +105,10 @@ export default async function HesapPage() {
       </div>
 
       <p className={styles.footnote}>
-        <Link href="/hesap/gizlilik" className={styles.breadcrumbLink}>
+        <Link href="/hesap/gizlilik" className={styles.footnoteLink}>
           Gizlilik tercihleri
         </Link>
       </p>
-    </main>
+    </div>
   );
 }

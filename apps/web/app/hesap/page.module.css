@@ -3,34 +3,18 @@
   gap: var(--space-6);
   max-width: var(--content-width-standard);
   margin-inline: auto;
-  padding: var(--section-space-compact) var(--gutter) var(--section-space);
+  /* Yatay kenar boslugu ve <main> public site kabugundan (layout.tsx). */
+  padding-block: var(--section-space-compact) var(--section-space);
 }
 
-.breadcrumb {
-  color: var(--ink-muted);
-  font-size: var(--text-small);
-}
-
-.breadcrumbList {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--space-2);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.breadcrumbList li + li::before {
-  content: "›";
-  margin-inline-end: var(--space-2);
-}
-
-.breadcrumbLink {
+/* Alt not baglantisi ("Gizlilik tercihleri"). Konum satiri kaldirildi:
+   gezinme public site kabugunun ust cubugu ve menu panelindedir. */
+.footnoteLink {
   color: var(--ink-secondary);
   text-decoration: none;
 }
 
-.breadcrumbLink:hover {
+.footnoteLink:hover {
   text-decoration: underline;
 }
 

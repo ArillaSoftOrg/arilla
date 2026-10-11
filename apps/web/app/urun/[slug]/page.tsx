@@ -174,13 +174,6 @@ export default async function ProductPage({
     } catch (error) {
       console.error("[urun] activity failed", error instanceof Error ? error.name : "unknown");
     }
-    // "Son baktıkların" (`/hesap`, `/gecmis`): analitikten ayrı, `browsing_history`
-    // rızasına bağlı kişisel liste. Hata sayfayı bozmaz.
-    try {
-      await recordProductView(db, { userId: user.id, productId: product.productId });
-    } catch (error) {
-      console.error("[urun] recents failed", error instanceof Error ? error.name : "unknown");
-    }
   }
 
   const [{ merchantOffers, comparison }, alternatives, sizeOptions, priceStats, gallery] =
