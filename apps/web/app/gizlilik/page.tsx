@@ -105,6 +105,18 @@ export default function GizlilikPage() {
             kişisel veya başka kişileri gösteren fotoğraflar yüklemeyin.
           </li>
           <li>
+            <strong>Sohbette fotoğraf:</strong> sohbete fotoğraf eklemek için önce açık rızanız
+            istenir; rıza vermezseniz fotoğraf işlenmez ve sohbete metinle devam edebilirsiniz. Rıza
+            verdiğinizde fotoğraf sunucularımızda küçültülür, konum gibi üst bilgileri silinir ve
+            sohbetinizle birlikte veritabanımızda saklanır; yalnızca siz görebilirsiniz. Aradığınız
+            ürünü anlamak için fotoğraf, mesajınızla birlikte aşağıda belirtilen yapay zekâ
+            sağlayıcısına (Google, Gemini API) gönderilir. Fotoğraf ve sohbet, son kullanımdan
+            itibaren en fazla 90 gün sonra ya da hesabınızı sildiğinizde silinir. İzninizi Hesabım
+            &gt; Gizlilik tercihleri sayfasından istediğiniz zaman geri çekebilirsiniz; geri çekmek
+            yeni fotoğraf eklemenizi durdurur. Kimlik, kart, adres gibi kişisel bilgi içeren veya
+            başka kişileri gösteren fotoğraf yüklemeyin.
+          </li>
+          <li>
             <strong>Mağazaya yönlendirme:</strong> bir mağaza bağlantısına tıkladığınızda hangi
             teklife, hangi yüzeyden, hangi anonim oturumdan ve tıklama anındaki fiyatla gidildiği
             kaydedilir. Bu kayıtta IP adresi ve tarayıcı bilgisi tutulmaz.
@@ -252,7 +264,9 @@ export default function GizlilikPage() {
             kendi ürünlerini geliştirmek için kullanmaz ve istekler etkileşimin Google tarafında
             saklanmamasını isteyen ayarla gönderilir; ancak Google, güvenlik ve kötüye kullanımın
             tespiti amacıyla ilgili kayıtları kendi koşullarında belirtilen sınırlı bir süre
-            tutabilir.
+            tutabilir. Sohbette fotoğraf eklemeyi seçtiyseniz, fotoğrafınız ve mesajınız da bu
+            sağlayıcıya gönderilir; bu içerik için Google&apos;ın saklama ve kullanım koşulları
+            kendi hizmet şartlarında belirtilen şekildedir.
           </li>
           {ga4 ? (
             <li>
@@ -296,6 +310,11 @@ export default function GizlilikPage() {
           maddesi kapsamında Google ile imzalanan aktarım sözleşmesine (uygun güvence) dayanılarak
           yapılır.
         </p>
+        <p>
+          Sohbete eklediğiniz fotoğraf ve mesajınız, yalnızca fotoğraf eklemek için verdiğiniz açık
+          rızanıza dayanılarak Google&apos;a gönderilir ve Google&apos;ın tesislerinin bulunduğu
+          ülkelerde işlenebilir. Rızanızı geri çekmeniz yeni aktarımı durdurur.
+        </p>
         {ga4 ? (
           <p>
             Analitik çerezlerine izin verdiğinizde Google Analytics 4 ile toplanan ölçüm verileri
@@ -332,6 +351,10 @@ export default function GizlilikPage() {
           <li>
             Arama ifadelerinin yapay zekâ ile üretilen kategori yorumları: en fazla 90 gün; süre
             dolunca otomatik olarak silinir.
+          </li>
+          <li>
+            Sohbetler ve sohbete eklenen fotoğraflar: son kullanımdan itibaren en fazla 90 gün; süre
+            dolunca otomatik olarak silinir. Hesap silindiğinde hemen silinir.
           </li>
           <li>
             Hesap verileri, kayıtlı ürünler ve alarmlar: hesabınızı silene kadar. Hesap silindiğinde

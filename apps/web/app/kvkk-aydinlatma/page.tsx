@@ -50,8 +50,11 @@ export default function KvkkAydinlatmaPage() {
             kimliği.
           </li>
           <li>
-            <strong>Görsel:</strong> fotoğrafla aramada yüklenen görsel. Görsel saklanmaz; yalnızca
-            sayısal temsili ve özet değeri tutulur.
+            <strong>Görsel:</strong> fotoğrafla aramada yüklenen görsel saklanmaz; yalnızca sayısal
+            temsili ve özet değeri tutulur. Sohbete eklenen fotoğraf ise açık rızanızla küçültülüp
+            üst bilgileri silinerek sohbetinizle birlikte en fazla 90 gün saklanır; yalnızca siz
+            görebilirsiniz. Görsel, kişi veya kişisel bilgi içerebileceğinden rıza vermeden
+            işlenmez.
           </li>
           <li>
             <strong>Pazarlama ve rıza tercihleri:</strong> hesap rıza tercihleri, çerez tercihi.
@@ -128,7 +131,8 @@ export default function KvkkAydinlatmaPage() {
             arama sırasında alışveriş niyetinin yorumlanması için yurt dışında yerleşik yapay zekâ
             altyapı sağlayıcısı Google (Gemini API) — yalnızca kullanıcı kimliği, IP ve oturum
             bilgilerinden arındırılmış, deterministik süzgeçlerden geçirilerek normalleştirilmiş
-            arama ifadeleri,
+            arama ifadeleri; ayrıca sohbete fotoğraf eklemek için açık rıza verdiyseniz fotoğraf ve
+            mesajınız,
           </li>
           {ga4 ? (
             <li>
@@ -143,6 +147,11 @@ export default function KvkkAydinlatmaPage() {
         <p>
           Bu sağlayıcıların bir kısmı yurt dışında bulunduğundan veriler yurt dışına aktarılabilir;
           aktarım KVKK&apos;nın 9. maddesinde öngörülen mekanizmalara dayanılarak yapılır.
+        </p>
+        <p>
+          Sohbete eklenen fotoğraf ve mesajın Google&apos;a aktarımı yalnızca bu amaç için
+          verdiğiniz açık rızaya dayanır; rızanızı Hesabım &gt; Gizlilik tercihleri sayfasından her
+          zaman geri çekebilirsiniz.
         </p>
         <p>
           Yapay zekâ altyapı sağlayıcısına aktarım, KVKK&apos;nın 9. maddesi kapsamında Google ile
