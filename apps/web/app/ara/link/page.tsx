@@ -199,7 +199,7 @@ export default async function LinkAramaPage({
     );
   }
 
-  // Karar 0101: internet araması katalog aramasıyla paralel başlar. Sorguya
+  // Karar 0102: internet araması katalog aramasıyla paralel başlar. Sorguya
   // yalnızca çözümlenmiş ürünün başlığı/markası girer; kullanıcının yapıştırdığı
   // adres (ve parametreleri) asla gitmez. Bayrak kapalıysa `null`.
   const webSearch = state.source.title
@@ -258,8 +258,10 @@ export default async function LinkAramaPage({
         <Suspense fallback={<WebSearchPending />}>
           <WebSearchResults
             promise={webSearch}
-            catalogTitles={[...results.same, ...results.similar].map((item) => item.title)}
-            surface="link"
+            catalog={[...results.same, ...results.similar].map((item) => ({
+              title: item.title,
+              imageUrl: item.primaryImageUrl,
+            }))}
           />
         </Suspense>
       ) : null}

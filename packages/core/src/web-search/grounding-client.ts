@@ -1,5 +1,5 @@
 /**
- * Gemini Google Search grounding + URL Context istemcisi (docs/decisions/0101).
+ * Gemini Google Search grounding + URL Context istemcisi (docs/decisions/0102).
  *
  * Interactions API, dogrudan HTTP (`llm/gemini.ts` ile ayni desen: SDK yok,
  * `fetch` enjekte edilebilir, testler ag kullanmaz). Farklar:
@@ -23,6 +23,9 @@ import {
 } from "./config.ts";
 import { toSafePublicUrl } from "./url-safety.ts";
 
+/** Beklenmedik buyuk parca gosterilmez (kotu bicim / kotuye kullanim). */
+const MAX_SUGGESTIONS_HTML = 20_000;
+
 export interface GroundingCitation {
   url: string;
   title: string | null;
@@ -32,6 +35,12 @@ export interface GroundedResponse {
   text: string;
   citations: GroundingCitation[];
   searchQueries: string[];
+  /**
+   * Google'in `search_suggestions` HTML parcasi (Search Suggestions). Google
+   * kosullari gregi grounding sonuclari YALNIZCA bununla birlikte, DEGISTIRILMEDEN
+   * gosterilir; yoksa sonuc gosterilmez (`service.ts`).
+   */
+  searchSuggestionsHtml: string | null;
   /** URL Context ile okunan sayfalar; `ok` = saglayici okumayi basarili bildirdi. */
   retrieved: { url: string; ok: boolean }[];
   usage: LlmUsage;
@@ -106,6 +115,7 @@ export function parseGroundedPayload(
   const citations: GroundingCitation[] = [];
   const queries: string[] = [];
   const retrieved: { url: string; ok: boolean }[] = [];
+  const suggestions: string[] = [];
 
   for (const step of steps) {
     if (!isRecord(step)) continue;
@@ -134,6 +144,14 @@ export function parseGroundedPayload(
           for (const q of node.queries) if (typeof q === "string") queries.push(q);
         }
       });
+    } else if (step.type === "google_search_result") {
+      walk(step, (node) => {
+        if (typeof node.search_suggestions === "string") suggestions.push(node.search_suggestions);
+        else if (isRecord(node.search_suggestions)) {
+          const html = node.search_suggestions.rendered_content;
+          if (typeof html === "string") suggestions.push(html);
+        }
+      });
     } else if (step.type === "url_context_result") {
       walk(step, (node) => {
         const url =
@@ -152,7 +170,14 @@ export function parseGroundedPayload(
 
   const text = texts.join("");
   if (text.trim().length === 0) throw new LlmError("malformed_response");
-  return { text, citations, searchQueries: queries, retrieved };
+  const html = suggestions.join("\n").trim();
+  return {
+    text,
+    citations,
+    searchQueries: queries,
+    searchSuggestionsHtml: html.length > 0 && html.length <= MAX_SUGGESTIONS_HTML ? html : null,
+    retrieved,
+  };
 }
 
 export interface GeminiWebGroundingOptions {

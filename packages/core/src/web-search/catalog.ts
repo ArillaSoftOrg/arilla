@@ -1,6 +1,6 @@
 /**
  * Internet sonuclarini katalogla kiyaslamak icin gereken salt okunur veri
- * (docs/decisions/0101): aktif magazalarin ana makineleri.
+ * (docs/decisions/0102): aktif magazalarin ana makineleri.
  */
 import { type Database, merchant } from "@arilla/db";
 import { eq } from "drizzle-orm";

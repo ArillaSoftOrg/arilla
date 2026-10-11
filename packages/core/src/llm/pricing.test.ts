@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { LlmCall } from "./client.ts";
 import { GEMINI_MODEL } from "./model.ts";
 import {
+  estimateGroundingCost,
   estimateLlmCallCost,
   findLlmPriceRule,
   LLM_COST_FX_ENV,
@@ -154,6 +155,57 @@ describe("cagri maliyeti", () => {
     const env = { [LLM_COST_FX_ENV]: "41.123456" };
     expect(estimateLlmCallCost(call(usage(2_000_000, 500_000)), { at: AT, env })).toMatchObject({
       costMicros: 51_404_320,
+    });
+  });
+});
+
+describe("gemini-3.5-flash-lite fiyat kurali (karar 0102)", () => {
+  const at = new Date("2026-10-12T00:00:00Z");
+  it("token fiyati: 0,30 / 2,50 USD (1M token)", () => {
+    const rule = findLlmPriceRule("gemini-3.5-flash-lite", at);
+    expect(rule).toMatchObject({
+      inputUsdMicrosPerMTok: 300_000,
+      outputUsdMicrosPerMTok: 2_500_000,
+    });
+    const estimate = estimateLlmCallCost(
+      {
+        modelVersion: "gemini-3.5-flash-lite",
+        httpStatus: 200,
+        usage: {
+          inputTokens: 1_000_000,
+          outputTokens: 400_000,
+          thoughtTokens: 100_000,
+          totalTokens: 1_500_000,
+        },
+      },
+      { at, env: ENV },
+    );
+    // (0,30 + 0,5 x 2,50) USD x 41,25 = 63,9375 TRY
+    expect(estimate).toMatchObject({ kind: "estimated", costMicros: 63_937_500 });
+  });
+});
+
+describe("grounding sorgu ucreti (token ucretinden ayri)", () => {
+  const at = new Date("2026-10-12T00:00:00Z");
+  it("sorgu basina 0,014 USD x kur, yukari yuvarlanir", () => {
+    expect(estimateGroundingCost(1, { at, env: ENV })).toMatchObject({
+      kind: "estimated",
+      costMicros: 577_500,
+    });
+    expect(estimateGroundingCost(3, { at, env: ENV })).toMatchObject({ costMicros: 1_732_500 });
+  });
+  it("sorgu yok, kur yok ya da kural donemi disi: fiyatlanmamis (0 uydurulmaz)", () => {
+    expect(estimateGroundingCost(0, { at, env: ENV })).toEqual({
+      kind: "unpriced",
+      reason: "no_queries",
+    });
+    expect(estimateGroundingCost(2, { at, env: {} })).toEqual({
+      kind: "unpriced",
+      reason: "missing_fx_rate",
+    });
+    expect(estimateGroundingCost(2, { at: new Date("2026-01-01T00:00:00Z"), env: ENV })).toEqual({
+      kind: "unpriced",
+      reason: "unknown_rule",
     });
   });
 });

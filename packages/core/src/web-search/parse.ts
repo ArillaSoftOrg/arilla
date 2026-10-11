@@ -1,5 +1,5 @@
 /**
- * Model ciktisinin ayristirilmasi ve DOGRULANMASI (docs/decisions/0101).
+ * Model ciktisinin ayristirilmasi ve DOGRULANMASI (docs/decisions/0102).
  *
  * Model ciktisi guvenilmez veridir. Bir aday ancak su kosullarla gosterilir:
  *  1. adres guvenli, genel https adresidir (`toSafePublicUrl`);

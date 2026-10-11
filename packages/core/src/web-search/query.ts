@@ -1,5 +1,5 @@
 /**
- * Ortak internet arama sorgusu (docs/decisions/0101). Metin, gorsel ve urun
+ * Ortak internet arama sorgusu (docs/decisions/0102). Metin, gorsel ve urun
  * baglantisi ayni sorguya iner:
  *
  * - `text`: kullanicinin yazdigi sorgu (normalize + kisisel veri suzgeci);

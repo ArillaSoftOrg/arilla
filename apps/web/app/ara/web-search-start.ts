@@ -18,7 +18,7 @@ export interface WebSearchBundle {
 }
 
 /**
- * Internet aramasini veritabani aramasiyla PARALEL baslatir (karar 0101):
+ * Internet aramasini veritabani aramasiyla PARALEL baslatir (karar 0102):
  * sayfa promise'i beklemeden render eder, sonuc `<Suspense>` icinde akar.
  * Bayrak kapaliysa `null` doner ve hicbir sey calismaz (sistem davranisi
  * degismez). Asla reddetmez: her hata bir `error` sonucudur.

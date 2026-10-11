@@ -1,5 +1,5 @@
 /**
- * Dogrulanmis adaylari urun gruplarina birlestirir (docs/decisions/0101):
+ * Dogrulanmis adaylari urun gruplarina birlestirir (docs/decisions/0102):
  * yanlis eslesmeleri eler, tam eslesme ile benzer alternatifi ayirir, ayni
  * urunun farkli saticilardaki tekliflerini tek grupta toplar, yinelenenleri
  * ve katalogda zaten bulunan teklifleri atar. Saf ve deterministik.
@@ -288,4 +288,43 @@ export function dropCatalogDuplicates(
     });
   }
   return sortGroups(out);
+}
+
+export interface CatalogImageCandidate {
+  title: string;
+  imageUrl: string | null;
+}
+
+const CATALOG_IMAGE_SIMILARITY = 0.7;
+
+/**
+ * Tam eslesen internet urunune, katalogda ayni urun varsa KATALOGUN gorselini
+ * verir (kendi feed'imizden; hakki ve kaynagi dogrulanmis). Renk/beden/
+ * kapasite celisiyorsa verilmez: yanlis varyantin fotografi yaniltir. Benzer
+ * alternatiflere gorsel verilmez. Internet sayfalarindan gorsel cekilmez.
+ */
+export function attachCatalogImages(
+  groups: readonly WebProductGroup[],
+  catalog: readonly CatalogImageCandidate[],
+): WebProductGroup[] {
+  const candidates = catalog
+    .filter((item): item is { title: string; imageUrl: string } => Boolean(item.imageUrl))
+    .map((item) => ({
+      item,
+      tokens: new Set(significantTokens(item.title)),
+      features: extractFeatures(item.title),
+    }));
+  return groups.map((group) => {
+    if (group.matchKind !== "exact") return { ...group, imageUrl: null };
+    const tokens = new Set(significantTokens(`${group.brand ?? ""} ${group.title}`));
+    const features = extractFeatures(group.title, group.brand);
+    let best: { url: string; score: number } | null = null;
+    for (const candidate of candidates) {
+      const score = jaccard(candidate.tokens, tokens);
+      if (score < CATALOG_IMAGE_SIMILARITY || (best !== null && score <= best.score)) continue;
+      if (!sameVariant(candidate.features, features)) continue;
+      best = { url: candidate.item.imageUrl, score };
+    }
+    return { ...group, imageUrl: best?.url ?? null };
+  });
 }

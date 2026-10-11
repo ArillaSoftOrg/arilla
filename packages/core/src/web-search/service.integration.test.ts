@@ -39,7 +39,8 @@ const client: WebGroundingClient = {
         ],
       }),
       citations: [{ url, title: "a.com.tr" }],
-      searchQueries: [],
+      searchQueries: ["sony wh-1000xm5 fiyat"],
+      searchSuggestionsHtml: "<div>Google</div>",
       retrieved: [{ url, ok: true }],
       usage: { inputTokens: 10, outputTokens: 5, thoughtTokens: 0, totalTokens: 15 },
       modelVersion: "gemini-3.5-flash-lite",
@@ -66,28 +67,30 @@ describe("searchWeb() - integration (gercek Redis + Postgres)", () => {
     const keys = [...(await redis.keys("websearch:*")), ...(await redis.keys("wsf:*"))];
     if (keys.length > 0) await redis.del(...keys);
     await withOwnerClient((c) =>
-      c.query("DELETE FROM api_usage WHERE operation = 'web_search_grounded'"),
+      c.query("DELETE FROM api_usage WHERE operation LIKE 'web_search%'"),
     );
     getRedis().disconnect();
   });
 
-  it("ilk arama modeli cagirir, ikincisi Redis onbelleginden gelir; api_usage yazilir", async () => {
+  it("sonuclar onbelleklenmez; her arama model + grounding satiri yazar", async () => {
     const text = { kind: "text", text: `sony wh-1000xm5 siyah ${RUN}` } as const;
     const before = calls;
     const first = await searchWeb(db, text, { userId, ip }, { client, now: () => fixedNow });
     expect(first.status).toBe("ok");
-    expect(first.cached).toBe(false);
+    expect(first.searchSuggestionsHtml).toContain("Google");
     expect(first.groups[0]?.offers[0]?.priceStatus).toBe("verified");
-
     const second = await searchWeb(db, text, { userId, ip }, { client, now: () => fixedNow });
-    expect(second.cached).toBe(true);
     expect(second.status).toBe("ok");
-    expect(calls - before).toBe(1);
+    expect(calls - before).toBe(2);
 
     const rows = await withOwnerClient((c) =>
-      c.query("SELECT count(*)::int AS n FROM api_usage WHERE operation = 'web_search_grounded'"),
+      c.query(
+        "SELECT operation, count(*)::int AS n, sum(units)::int AS units FROM api_usage WHERE operation LIKE 'web_search%' GROUP BY operation",
+      ),
     );
-    expect(rows.rows[0].n).toBe(1);
+    const byOp = Object.fromEntries(rows.rows.map((r) => [r.operation, r]));
+    expect(byOp.web_search_grounded.n).toBe(2);
+    expect(byOp.web_search_grounding_queries.units).toBe(2);
   });
 
   it("kisi basina saatlik limit asilinca model cagrilmaz", async () => {
