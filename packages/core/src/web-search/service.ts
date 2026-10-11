@@ -40,11 +40,15 @@ import {
 } from "./config.ts";
 import {
   getWebGroundingClient,
-  resolveCitationUrls,
+  resolveCitationMap,
   type WebGroundingClient,
 } from "./grounding-client.ts";
 import { mergeWebCandidates } from "./merge.ts";
-import { buildGroundingEvidence, parseAndVerifyCandidates } from "./parse.ts";
+import {
+  buildGroundingEvidence,
+  candidatesFromAnnotatedText,
+  parseAndVerifyCandidates,
+} from "./parse.ts";
 import {
   buildWebSearchInput,
   buildWebSearchQuery,
@@ -253,9 +257,15 @@ async function run(
 
       if (grounded !== null) {
         groundingQueries = countGroundingQueries(grounded.searchQueries);
-        const citationUrls = await resolveCitationUrls(grounded.citations, deps.fetch ?? fetch);
+        const resolvedMap = await resolveCitationMap(grounded.citations, deps.fetch ?? fetch);
+        const citationUrls = [...new Set([...resolvedMap.values()].filter((u) => u !== null))];
         const evidence = buildGroundingEvidence(citationUrls, grounded.retrieved);
-        const { candidates, stats } = parseAndVerifyCandidates(grounded.text, evidence);
+        const parsed = parseAndVerifyCandidates(grounded.text, evidence);
+        const stats = parsed.stats;
+        const candidates =
+          parsed.candidates.length > 0
+            ? parsed.candidates
+            : candidatesFromAnnotatedText(grounded.text, grounded.citations, resolvedMap);
         const groups = mergeWebCandidates({ candidates, query, features });
         if (groups.length === 0 || grounded.searchSuggestionsHtml === null) {
           // Tanilama (icerik yok): sessiz bos sonucun nedeni gunluklerde gorunsun.
