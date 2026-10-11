@@ -52,3 +52,34 @@ Hedeflere ulaşılmadı; sayılar sahte etiketle doldurulmadı.
 Faz 1A-2 (sonuç tabloları/migration), CI'a Python eval adımı (CI Python işi
 ayrı PR'larda yürüyor), canlı Gemini niyet doğruluğu, gerçek Jina vektörleriyle
 görsel set.
+
+## Kalıcı kayıt (Faz 1A-2, karar 0096)
+
+Koşu sonuçları `dataset_snapshot` / `ai_eval_run` / `ai_eval_case`, model çağrısı
+hataları `ai_error_event` tablolarına `packages/core/src/eval/store.ts` ile yazılır.
+Ham sorgu/metin/görsel/kullanıcı kimliği yazılmaz; vaka anahtarı fixture metninin
+hash önekidir. Üretim çağıranlarına bağlama ve cron temizliği ayrı iştir.
+
+## Yönetim paneli (Faz 1A-3, karar 0097)
+
+`/yonetim/ai/kalite` kayıtlı koşuları okur; model çağırmaz. Anahtar sözleşmesi
+`packages/core/src/eval/metric-keys.ts`. Koşular `--record` ile yazılır
+(aşağıda); kayıt yoksa panel "Henüz veri yok" gösterir.
+
+## Kayıt (Faz 1A-4, karar 0098)
+
+```
+pnpm --filter @arilla/core eval:intent -- --record
+pnpm --filter @arilla/core eval:search -- --record
+python -m resolve.eval_offline --json > out.json
+pnpm --filter @arilla/core eval:record-matching -- out.json --record
+```
+
+`--record` yoksa yazılmaz. `--record` için izole test veritabanı gerekir:
+`EVAL_RECORD_DB_NAME=<adres sonundaki ad>` verilmeli ve ad `test`/`eval`/`scratch`/`sandbox`
+parçası taşımalı (örn. `arilla_eval_test`); aksi halde reddedilir. Aynı koşu tekrar yazılmaz. Görsel benzerlik
+için etiketli veri olmadığından kayıt yolu yoktur.
+
+## Gemini hata kaydı (karar 0099)
+
+Sohbet ve sorgu yorumu hataları `ai_error_event`e yazılır (sonuç başına tek olay, sınırlı süreli, asla fırlatmaz).
