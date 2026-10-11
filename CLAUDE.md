@@ -32,7 +32,7 @@ tamamı anlamını yitirir.
 
 ## Değişmez kurallar
 
-1. **İstek yolunda model çağrısı yok.** Beş istisna var:
+1. **İstek yolunda model çağrısı yok.** Altı istisna var:
    - Kullanıcının yüklediği görselin embedding'i. `EmbeddingService`
      arkasından geçer ve görsel hash'i ile cache'lenir.
    - `/ara` anlık sorgu yorumu (karar 0062): yalnızca `GEMINI_REALTIME_ENABLED`
@@ -59,10 +59,23 @@ tamamı anlamını yitirir.
      kullanıcı metniyle, 0074'ün aynı tek çağrı/`api_usage`/tavan hattından. Üçüncü
      taraf sayfa metni, başlığı ya da görseli modele gitmez; model yalnızca
      lexicon'la doğrulanan tercih alanları üretir — ürün, fiyat, stok, satıcı değil.
+   - İnternet ürün araması (karar 0101): `/ara`, `/ara/gorsel`, `/ara/link`
+     sonuç sayfası başına en fazla bir Gemini çağrısı (Google Search grounding
+     + URL Context); `WEB_SEARCH_ENABLED=true` bayrağıyla (varsayılan kapalı;
+     üretimde ayrıca `WEB_SEARCH_LEGAL_APPROVED=true` gerekir), `GeminiWebSearch`
+     arkasında, metin süzgecinden geçen sorgu için (kullanıcı görseli ve kişisel
+     veri modele/aramaya gitmez), kısa zaman aşımıyla, günlük tavan, kişi başına
+     limit ve tek-uçuş kilidiyle; her çağrı `api_usage`'a yazılır, bütçesi diğer
+     Gemini akışlarından ayrıdır. Sonuçlar katalog verisi DEĞİLDİR: veritabanına
+     yazılmaz, yalnızca ≤6 saatlik Redis önbelleğinde durur. Model ürün ve fiyat
+     "bulur" ama gösterilen her bağlantı ve fiyat doğrulama süzgecinden geçer;
+     doğrulanamayan fiyat gösterilmez. Hata/kapalı bayrak: veritabanı sonuçları
+     aynen kalır.
    Başka hiçbir yerde istek anında LLM veya model çağrısı yapılmaz.
 2. **Benzerlik sorgu anında hesaplanmaz.** `similarity_edge` tablosu toplu işle
    doldurulur, istek yolu sadece okur.
-3. **Her AI çıktısı saklanır.** Yorum özeti, kategori tahmini, öznitelik
+3. **Her AI çıktısı saklanır** (istisna: internet arama sonuçları katalog verisi
+   değildir, kalıcı saklanmaz; karar 0101). Yorum özeti, kategori tahmini, öznitelik
    çıkarımı bir kez üretilir ve veritabanına yazılır. Maliyet katalog
    büyüklüğüyle ölçeklenir, kullanıcı sayısıyla değil.
 4. **`price_point` değiştirilemez.** Sadece INSERT. UPDATE veya DELETE yazan
@@ -75,6 +88,9 @@ tamamı anlamını yitirir.
    değişmez. `(merchant_id, external_id)` üzerinde unique kısıt vardır.
 8. **Her dış çıkış `click` kaydı üretir.** Merchant'a giden hiçbir link
    attribution kaydı olmadan oluşturulmaz.
+   İnternet arama sonuçlarının (katalogda `offer` satırı olmayan) çıkışı imzalı
+   `/git/web/<token>` rotasından geçer ve `web_exit_click` defterine yazılır
+   (karar 0101); imzasız ya da süresi dolmuş bağlantıya yönlendirme yapılmaz.
 9. **Her model çağrısı `api_usage` tablosuna yazılır.** Maliyet ölçülemiyorsa
    kontrol edilemez.
 10. **Yüklenen görsel saklanmaz.** Embedding ve hash tutulur; ham dosya en fazla

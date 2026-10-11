@@ -18,12 +18,15 @@ import { getDatabase } from "@arilla/db";
 import { ClarificationBar, SortTabs } from "@arilla/ui";
 import { cookies } from "next/headers";
 import { after } from "next/server";
+import { Suspense } from "react";
 import { readConsent } from "../lib/consent.ts";
 import { verifySession } from "../lib/dal.ts";
 import styles from "./ara.module.css";
 import { SearchFallbackResults, SearchNoResults } from "./search-fallback-results.tsx";
 import { ResultGrid, resultCountLabel } from "./search-results.tsx";
 import { SearchWallGateClient } from "./search-wall-gate-client.tsx";
+import { WebSearchPending, WebSearchResults } from "./web-search-section.tsx";
+import type { WebSearchBundle } from "./web-search-start.ts";
 
 export const PAGE_SIZE = 24;
 
@@ -44,6 +47,7 @@ export async function TextSearchResults({
   hrefFor,
   clarificationAsked = false,
   summaryIntent = null,
+  webSearch = null,
 }: {
   query: string;
   /** Konusma yolundan derlenmis sorgu; yoksa mevcut `resolveQuery` yolu. */
@@ -60,6 +64,11 @@ export async function TextSearchResults({
    * doğrulanmış yorum + gerçek sonuç sayısından kurulur; yoksa gösterilmez.
    */
   summaryIntent?: SearchSummaryIntent | null;
+  /**
+   * Karar 0101: veritabanı aramasıyla paralel başlatılmış internet araması
+   * (bayrak kapalıysa `null`). Veritabanı sonuçları bunu BEKLEMEZ.
+   */
+  webSearch?: Promise<WebSearchBundle> | null;
 }) {
   const db = getDatabase();
 
@@ -267,6 +276,18 @@ export async function TextSearchResults({
             </a>
           ) : null}
         </nav>
+      ) : null}
+
+      {/* Karar 0101: internet sonuçları veritabanı sonuçlarından SONRA, kendi
+          sınırında akar; ilerleme metni yalnızca arama sürerken görünür. */}
+      {webSearch && page === 1 ? (
+        <Suspense fallback={<WebSearchPending />}>
+          <WebSearchResults
+            promise={webSearch}
+            catalogTitles={items.map((item) => item.title)}
+            surface="search"
+          />
+        </Suspense>
       ) : null}
     </>
   );

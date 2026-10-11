@@ -307,7 +307,7 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   {
     id: "affiliate_clicks",
     label: "Mağaza çıkışı (attribution)",
-    tables: ["click", "creator_affiliate_account"],
+    tables: ["click", "web_exit_click", "creator_affiliate_account"],
     status: "visible",
     adminPaths: ["/yonetim/affiliate"],
     gaps: [{ signal: "Bot/şüpheli tıklama", status: "unmeasured" }],
@@ -457,6 +457,12 @@ export const AI_OPERATIONS: Readonly<Record<string, AiOperationCoverage>> = {
   },
   query_interpretation_realtime: {
     label: "Sorgu yorumu, anlık (Gemini)",
+    writer: "core",
+    pricing: "llm_rule",
+  },
+  // Karar 0101: model için fiyat kuralı yoksa çağrılar "fiyatlanmamış" yazılır.
+  web_search_grounded: {
+    label: "İnternet ürün araması (Gemini grounding)",
     writer: "core",
     pricing: "llm_rule",
   },
