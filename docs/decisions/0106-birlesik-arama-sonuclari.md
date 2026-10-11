@@ -20,13 +20,23 @@ kota, maliyet ve doğrulama kuralları aynen kalır.
    (tam eşleşme → doğrulanmış fiyat → mağaza sayısı → fiyat) 0102'deki gibi kalır;
    fiyatı bilinmeyen teklif fiyat sıralamasında öne geçmez. Katalog ve internet
    arasında kart yeniden dizilmez: internet kartları sona eklenir.
-4. **Google Search Suggestions çubuğu çizilmez.** Bu, ürün sahibinin açık kararıdır.
-   **Risk:** Gemini "Grounding with Google Search" şartları, grounding sonuçlarının
-   Search Suggestions ile birlikte gösterilmesini ister. Çekirdek (`searchWeb`)
-   değiştirilmedi; öneri parçası hâlâ alınır ve atılır. Üretimde
-   `WEB_SEARCH_LEGAL_APPROVED` verilmeden önce hukuk bu sapmayı onaylamalıdır
-   ya da bileşen geri getirilmelidir.
-5. **Bilgilendirme.** Rozet yerine ızgara sonunda tek satır: bazı bağlantılar gelir
+4. **Google Search Suggestions korunur.** Çubuk, ızgaranın sonunda tek sade satır olarak
+   (sandbox iframe, Google'ın `renderedContent` HTML'i değiştirilmeden) sonuçlarla
+   birlikte çizilir; öneri parçası yoksa internet sonuçları gösterilmez. Doğrulanan
+   kural: öneriler grounding sonuçlarıyla birlikte ve değiştirilmeden gösterilmelidir.
+   Kaynak bağlantılarının işlenmesi/ilişkilendirilmesine dair tam Hizmet Şartları
+   metni burada doğrulanamadı; hukuk onayı (`WEB_SEARCH_LEGAL_APPROVED`) şartı sürer.
+5. **Görselsiz ürünler kaybolmaz.** Görseli doğrulanmış ürünler önce gelir (tam eşleşme
+   önce, sonra görselli, sonra çekirdek sırası); görseli bulunamayan ama doğrulanmış
+   ürün sayfası olan ürün kompakt kartla sonra gösterilir (en çok 8 görselli + 4
+   görselsiz). Aynı görseli paylaşan ikinci üründe görsel atılır (ürün kalır).
+   Tarayıcıda yüklenemeyen görsel kartı gizlemez, kompakt karta çevirir. Görsel
+   uydurulmaz, bot/robots engelleri aşılmaz (0102 kuralları aynen).
+6. **Boş ve hata durumu.** Katalog boşken internet sonucu beklenir; "ürün bulunamadı"
+   yalnızca bütün kaynaklar bittikten sonra söylenir. Arama başarısızlığı/limit,
+   sıfır ürün sonucundan ayrı bir not olarak gösterilir. Sohbet asistanı mesajı
+   sonuç bilinmeden yazıldığından "listeledim/açtım" demez; "aşağıda arıyorum" der.
+7. **Bilgilendirme.** Rozet yerine ızgara sonunda tek satır: bazı bağlantılar gelir
    ortaklığı kapsamında değildir, fiyat/stok mağazada kontrol edilir. Bağlantılar
    `nofollow noopener noreferrer sponsored`; `click` üretilmez (kural 8 istisnası).
 
@@ -39,4 +49,4 @@ ve mağazayı görmek ister.
 
 - Katalog ve internet kartlarını fiyata göre tek listede yeniden sıralamak:
   sonradan gelen sonuçlar mevcut kartları kaydırır, fiyatı bilinmeyenler haksız öne/arkaya düşer.
-- Çubuğu görünmez/küçük tutmak: "değiştirilmeden" şartını yine ihlal eder.
+- Çubuğu kaldırmak ya da gizlemek: grounding şartını ihlal eder (önceki taslakta yapılmıştı, geri alındı).

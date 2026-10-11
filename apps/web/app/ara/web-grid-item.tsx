@@ -1,25 +1,37 @@
 "use client";
 
+import { ProductCard } from "@arilla/ui";
 import { type ReactNode, useEffect, useState } from "react";
+import { WEB_SEARCH_COPY as COPY } from "./web-search-copy.ts";
 
 /**
- * Internet sonucu kartinin kapsayicisi (karar 0102). Sunucu gorselin varligini
- * dogrulamistir; yine de tarayici gorseli yukleyemezse (kirik adres, engel)
- * kart tamamen gizlenir: gorselsiz internet urunu gosterilmez. Gizleme
- * `data-broken` ile isaretlenir; bos kalan grup/bolum CSS `:has` ile kapanir.
- * Gorsel istegi `no-referrer` ile yapilir (karttaki gorselle ayni).
+ * Internet sonucu karti (karar 0102, 0106). Sunucu gorselin varligini dogrulamistir;
+ * yine de tarayici gorseli yukleyemezse (kirik adres, engel) urun KAYBOLMAZ:
+ * gorselsiz kompakt karta doner. Gorsel istegi `no-referrer` ile yapilir
+ * (karttaki gorselle ayni). Dogrudan magaza baglantisi, izleme yok.
  */
 export function WebGridItem({
   className,
+  href,
+  title,
+  brand,
   imageUrl,
+  minPrice,
+  offerCount,
   children,
 }: {
   className?: string;
-  imageUrl: string;
-  children: ReactNode;
+  href: string;
+  title: string;
+  brand: string | null;
+  imageUrl: string | null;
+  minPrice: number | null;
+  offerCount: number;
+  children?: ReactNode;
 }) {
   const [broken, setBroken] = useState(false);
   useEffect(() => {
+    if (!imageUrl) return;
     const probe = new Image();
     probe.referrerPolicy = "no-referrer";
     probe.onerror = () => setBroken(true);
@@ -29,11 +41,19 @@ export function WebGridItem({
     };
   }, [imageUrl]);
   return (
-    <li
-      className={className}
-      data-web-item=""
-      {...(broken ? { "data-broken": "true", hidden: true, style: { display: "none" } } : {})}
-    >
+    <li className={className}>
+      <ProductCard
+        href={href}
+        external
+        compactWithoutImage
+        title={title}
+        brand={brand}
+        imageUrl={broken ? null : imageUrl}
+        minPrice={minPrice}
+        priceLabel={COPY.priceUnverified}
+        offerCount={offerCount}
+        offerCountLabel={COPY.storeCount}
+      />
       {children}
     </li>
   );

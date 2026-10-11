@@ -3,6 +3,7 @@ import {
   attachStoreImages,
   type CatalogImageCandidate,
   dropCatalogDuplicates,
+  selectDisplayGroups,
   type WebProductGroup,
 } from "@arilla/core";
 import type { ReactNode } from "react";
@@ -10,38 +11,48 @@ import { Suspense } from "react";
 import { ErrorView } from "../error-view.tsx";
 import chatStyles from "../sohbet/sohbet.module.css";
 import styles from "./ara.module.css";
+import { WEB_SEARCH_COPY as COPY } from "./web-search-copy.ts";
 import type { WebSearchBundle } from "./web-search-start.ts";
 import { WebPendingItems, WebResultItems, type WebViewVariant } from "./web-search-view.tsx";
 
-type WebGroupsResult =
-  | { kind: "groups"; groups: WebProductGroup[] }
+export type WebGroupsResult =
+  | { kind: "groups"; groups: WebProductGroup[]; suggestionsHtml: string }
   | { kind: "error" }
+  | { kind: "limited" }
   | { kind: "none" };
 
 /**
  * Internet sonuclari (karar 0102, 0106), sunucu tarafi. Katalog sonuclari bu
  * adimdan BAGIMSIZ ve once gorunur; internet aramasi bittiginde ayni izgaranin
  * sonuna eklenir. Sonuclar saklanmaz. Google Search Suggestions parcasi
- * cizilmez (karar 0106).
+ * sonuclarla birlikte, degistirilmeden cizilir; yoksa sonuc gosterilmez.
+ * "Hata" (arama tamamlanamadi), "limit" ve "hic urun yok" ayri durumlardir.
  */
-async function loadWebGroups(
+export async function loadWebGroups(
   promise: Promise<WebSearchBundle>,
   catalog: readonly CatalogImageCandidate[],
 ): Promise<WebGroupsResult> {
   const { outcome, catalogHosts } = await promise;
   if (outcome.status === "error" || outcome.status === "unavailable") return { kind: "error" };
-  if (outcome.status !== "ok") return { kind: "none" };
+  if (outcome.status === "limited" || outcome.status === "busy") return { kind: "limited" };
+  if (outcome.status !== "ok" || outcome.searchSuggestionsHtml === null) return { kind: "none" };
   // Once katalog gorseli (kendi feed'imiz), kalanlar icin magaza sayfasindan dogrulanmis gorsel.
-  const groups = await attachStoreImages(
-    attachCatalogImages(
-      dropCatalogDuplicates(outcome.groups, {
-        hosts: catalogHosts,
-        titles: catalog.map((item) => item.title),
-      }),
-      catalog,
+  // Gorselli urunler once; gorseli dogrulanamayan ama gercek urun sayfasi olan urun kompakt
+  // kartla sonra gelir, kaybolmaz.
+  const groups = selectDisplayGroups(
+    await attachStoreImages(
+      attachCatalogImages(
+        dropCatalogDuplicates(outcome.groups, {
+          hosts: catalogHosts,
+          titles: catalog.map((item) => item.title),
+        }),
+        catalog,
+      ),
     ),
   );
-  return groups.length > 0 ? { kind: "groups", groups } : { kind: "none" };
+  return groups.length > 0
+    ? { kind: "groups", groups, suggestionsHtml: outcome.searchSuggestionsHtml }
+    : { kind: "none" };
 }
 
 interface WebItemsProps {
@@ -61,8 +72,14 @@ async function WebItems({ promise, catalog, variant = "ara" }: WebItemsProps) {
       </li>
     );
   }
-  if (result.kind === "none") return null;
-  return <WebResultItems groups={result.groups} variant={variant} />;
+  if (result.kind === "none" || result.kind === "limited") return null;
+  return (
+    <WebResultItems
+      groups={result.groups}
+      suggestionsHtml={result.suggestionsHtml}
+      variant={variant}
+    />
+  );
 }
 
 /**
@@ -104,10 +121,25 @@ async function WebOnlyOrEmpty({
   labelledBy,
 }: WebItemsProps & { empty: ReactNode; labelledBy?: string }) {
   const result = await loadWebGroups(promise, catalog);
-  if (result.kind !== "groups") return <>{empty}</>;
+  if (result.kind === "none") return <>{empty}</>;
+  // Arama tamamlanamadi: "urun yok" ile karistirilmaz, ayri ve acik soylenir.
+  if (result.kind === "error" || result.kind === "limited") {
+    return (
+      <>
+        {empty}
+        <p className={styles.gridNote} role="status">
+          {COPY.failed}
+        </p>
+      </>
+    );
+  }
   return (
     <WebOnlyGrid variant={variant} labelledBy={labelledBy}>
-      <WebResultItems groups={result.groups} variant={variant} />
+      <WebResultItems
+        groups={result.groups}
+        suggestionsHtml={result.suggestionsHtml}
+        variant={variant}
+      />
     </WebOnlyGrid>
   );
 }

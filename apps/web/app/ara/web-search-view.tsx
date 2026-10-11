@@ -1,7 +1,8 @@
 import type { WebProductGroup } from "@arilla/core";
-import { formatTRY, ProductCard, ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
+import { formatTRY, ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
 import chatStyles from "../sohbet/sohbet.module.css";
 import styles from "./ara.module.css";
+import { WebGridItem } from "./web-grid-item.tsx";
 import { WEB_SEARCH_COPY as COPY } from "./web-search-copy.ts";
 
 /**
@@ -34,6 +35,35 @@ export function WebPendingItems({ variant = "ara" }: { variant?: WebViewVariant 
   );
 }
 
+/**
+ * Google Search Suggestions (Gemini API "Grounding with Google Search" şartları):
+ * grounding sonuçları yalnızca bununla BİRLİKTE ve DEĞİŞTİRİLMEDEN gösterilir
+ * (Google'ın verdiği `renderedContent` HTML'i). Sayfamıza karışmaması için betiksiz,
+ * ağ erişimi kısıtlı `sandbox` iframe içinde çizilir (yalnızca bağlantı açma izni,
+ * `base target=_blank`). Biçimi, bağlantıları ve metni olduğu gibi kalır; ızgaranın
+ * sonunda tek, sade bir satırdır.
+ */
+export function SearchSuggestionsFrame({ html }: { html: string }) {
+  const doc = [
+    "<!doctype html><html><head><meta charset='utf-8'>",
+    "<meta http-equiv='Content-Security-Policy' content=\"default-src 'none'; style-src 'unsafe-inline'; img-src https: data:; font-src https: data:\">",
+    "<base target='_blank'><meta name='color-scheme' content='light dark'>",
+    "<style>html,body{margin:0;background:transparent}</style></head><body>",
+    html,
+    "</body></html>",
+  ].join("");
+  return (
+    <iframe
+      className={styles.suggestions}
+      title={COPY.suggestionsTitle}
+      srcDoc={doc}
+      sandbox="allow-popups allow-popups-to-escape-sandbox"
+      referrerPolicy="no-referrer"
+      loading="lazy"
+    />
+  );
+}
+
 /** Kartta gösterilen marka/mağaza satırı: tek mağazada gerçek mağaza adı da yazılır. */
 function storeLine(group: WebProductGroup): string | null {
   const seller = group.offers.length === 1 ? (group.offers[0]?.seller ?? null) : null;
@@ -48,35 +78,35 @@ function storeLine(group: WebProductGroup): string | null {
  */
 export function WebResultItems({
   groups,
+  suggestionsHtml,
   variant = "ara",
 }: {
   groups: readonly WebProductGroup[];
+  /** Google Search Suggestions parçası; sonuçlar yalnızca bununla birlikte çizilir. */
+  suggestionsHtml: string | null;
   variant?: WebViewVariant;
 }) {
   const item = variant === "chat" ? chatStyles.resultItem : styles.gridItem;
   const shown = groups.filter((group) => group.offers.length > 0);
-  if (shown.length === 0) return null;
+  if (shown.length === 0 || suggestionsHtml === null) return null;
   return (
     <>
       {shown.map((group) => {
         const best = group.offers[0];
         if (!best) return null;
         return (
-          <li key={group.key} className={item}>
+          <WebGridItem
+            key={group.key}
+            className={item}
+            href={best.url}
+            title={group.title}
+            brand={storeLine(group)}
+            imageUrl={group.imageUrl ?? null}
+            minPrice={group.minVerifiedPriceKurus}
+            offerCount={group.offers.length}
+          >
             {/* Doğrudan mağaza bağlantısı: Google şartları grounding bağlantılarının
                 izlenmesini, araya sayfa/yönlendirme girmesini yasaklar (karar 0102). */}
-            <ProductCard
-              href={best.url}
-              external
-              compactWithoutImage
-              title={group.title}
-              brand={storeLine(group)}
-              imageUrl={group.imageUrl ?? null}
-              minPrice={group.minVerifiedPriceKurus}
-              priceLabel={COPY.priceUnverified}
-              offerCount={group.offers.length}
-              offerCountLabel={COPY.storeCount}
-            />
             {group.offers.length > 1 ? (
               <details className={styles.webOffersBox}>
                 <summary className={styles.webOffersToggle}>{COPY.offersToggle}</summary>
@@ -102,10 +132,13 @@ export function WebResultItems({
                 </ul>
               </details>
             ) : null}
-          </li>
+          </WebGridItem>
         );
       })}
       <li className={styles.gridNote}>{COPY.footnote}</li>
+      <li className={styles.gridNote}>
+        <SearchSuggestionsFrame html={suggestionsHtml} />
+      </li>
     </>
   );
 }

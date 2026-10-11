@@ -10,6 +10,9 @@ export const WEB_SEARCH_COPY = {
   priceUnverified: "Fiyat mağazada",
   outOfStock: "Stokta yok",
   storeCount: (count: number) => `${count} mağaza`,
+  /** Katalog bos, internet aramasi tamamlanamadi (sifir urun ile ayri durum). */
+  failed: "İnternet araması şu an tamamlanamadı; biraz sonra tekrar deneyebilirsin.",
+  suggestionsTitle: "Google arama önerileri",
   offersToggle: "Mağazaları göster",
   /** Izgara sonunda tek satır: gelir ortaklığı ve doğrulama bilgisi. */
   footnote:

@@ -68,8 +68,8 @@ tamamı anlamını yitirir.
      limit ve tek-uçuş kilidiyle; her çağrı `api_usage`'a yazılır, bütçesi diğer
      Gemini akışlarından ayrıdır. Sonuçlar katalog verisi DEĞİLDİR: veritabanına
      yazılmaz, önbelleğe alınmaz (Google şartları); yalnızca `api_usage` izi kalır.
-     Sonuçlar katalog kartlarıyla aynı ızgarada, aynı kartla gösterilir; Google Search
-     Suggestions çubuğu çizilmez (karar 0106, kullanıcı kararı; hukuk riski orada). Model ürün ve fiyat
+     Sonuçlar katalog kartlarıyla aynı ızgarada, aynı kartla gösterilir ve Google Search
+     Suggestions ile birlikte, değiştirilmeden gösterilir (karar 0106). Model ürün ve fiyat
      "bulur" ama gösterilen her bağlantı ve fiyat doğrulama süzgecinden geçer;
      doğrulanamayan fiyat gösterilmez. Hata/kapalı bayrak: veritabanı sonuçları
      aynen kalır.
