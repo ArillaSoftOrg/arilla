@@ -17,7 +17,7 @@ from collect.images import (
     normalize_key,
     select_images,
 )
-from collect.mapping import FieldMapping
+from collect.mapping import MAX_PRICE_KURUS, FieldMapping
 from collect.records import NormalizedOffer, NormalizedVariant, RawRecord, RecordRejected
 
 
@@ -115,6 +115,9 @@ def normalize(record: RawRecord, mapping: FieldMapping) -> NormalizedOffer:
     # feed hatasi. Karsilastirmada "en uygun" diye one cikardi.
     if current_price <= 0:
         raise RecordRejected(f"gecersiz fiyat {current_price}: {external_id}")
+    # Makul sinirin ustu ondalik/binlik yanlis okumasinin tipik izidir.
+    if current_price > MAX_PRICE_KURUS:
+        raise RecordRejected(f"supheli fiyat {current_price}: {external_id}")
 
     shipping_cost = formats.parse_price(mapping.get(fields, "shipping_cost"))
     threshold = formats.parse_price(mapping.get(fields, "free_shipping_threshold"))

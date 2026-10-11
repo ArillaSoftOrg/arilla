@@ -70,7 +70,10 @@ describe("compareMerchants() - integration (real seeded Postgres)", () => {
 
     beforeAll(async () => {
       await withOwnerClient(async (client) => {
-        const merchantResult = await client.query("SELECT id FROM merchant LIMIT 1");
+        // Pasif magazanin teklifi karsilastirmada gorunmez; fixture AKTIF bir magaza kullanmali.
+        const merchantResult = await client.query(
+          "SELECT id FROM merchant WHERE is_active ORDER BY id LIMIT 1",
+        );
         const merchantId = Number(merchantResult.rows[0]?.id);
 
         const productResult = await client.query(
