@@ -2,6 +2,7 @@ import type { WebProductGroup } from "@arilla/core";
 import { formatTRY, ProductCard, ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
 import chatStyles from "../sohbet/sohbet.module.css";
 import styles from "./ara.module.css";
+import { WebGridItem } from "./web-grid-item.tsx";
 import { WEB_SEARCH_COPY as COPY } from "./web-search-copy.ts";
 
 /**
@@ -76,18 +77,18 @@ function Grid({
     <ul className={grid} role="list" aria-labelledby={labelledBy}>
       {groups.map((group) => {
         const best = group.offers[0];
-        if (!best) return null;
+        // Gorselsiz internet urunu gosterilmez (karar 0102).
+        if (!best || !group.imageUrl) return null;
         return (
-          <li key={group.key} className={item}>
+          <WebGridItem key={group.key} className={item} imageUrl={group.imageUrl}>
             {/* Doğrudan mağaza bağlantısı: Google şartları grounding bağlantılarının
                 izlenmesini, araya sayfa/yönlendirme girmesini yasaklar (karar 0102). */}
             <ProductCard
               href={best.url}
               external
-              compactWithoutImage
               title={group.title}
               brand={group.brand}
-              imageUrl={group.imageUrl ?? null}
+              imageUrl={group.imageUrl}
               minPrice={group.minVerifiedPriceKurus}
               priceLabel={COPY.priceUnverified}
               sourceLabel={COPY.sourceBadge}
@@ -116,7 +117,7 @@ function Grid({
                 ))}
               </ul>
             ) : null}
-          </li>
+          </WebGridItem>
         );
       })}
     </ul>
@@ -138,7 +139,7 @@ export function WebResultsView({
   variant?: WebViewVariant;
   idPrefix?: string;
 }) {
-  if (groups.length === 0 || suggestionsHtml === null) return null;
+  if (!groups.some((g) => g.imageUrl) || suggestionsHtml === null) return null;
   const exact = groups.filter((g) => g.matchKind === "exact");
   const similar = groups.filter((g) => g.matchKind === "similar");
   return (
@@ -148,20 +149,20 @@ export function WebResultsView({
       </h2>
       <p className={styles.webNote}>{COPY.note}</p>
       {exact.length > 0 ? (
-        <>
+        <div className={styles.webGroup}>
           <h3 id={`${idPrefix}-ayni`} className={styles.webSubTitle}>
             {COPY.exactHeading}
           </h3>
           <Grid groups={exact} variant={variant} labelledBy={`${idPrefix}-ayni`} />
-        </>
+        </div>
       ) : null}
       {similar.length > 0 ? (
-        <>
+        <div className={styles.webGroup}>
           <h3 id={`${idPrefix}-benzer`} className={styles.webSubTitle}>
             {COPY.similarHeading}
           </h3>
           <Grid groups={similar} variant={variant} labelledBy={`${idPrefix}-benzer`} />
-        </>
+        </div>
       ) : null}
       <SearchSuggestionsFrame html={suggestionsHtml} />
     </section>

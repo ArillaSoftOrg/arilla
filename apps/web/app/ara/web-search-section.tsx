@@ -3,6 +3,7 @@ import {
   attachStoreImages,
   type CatalogImageCandidate,
   dropCatalogDuplicates,
+  selectImagedGroups,
 } from "@arilla/core";
 import { ErrorView } from "../error-view.tsx";
 import type { WebSearchBundle } from "./web-search-start.ts";
@@ -36,13 +37,16 @@ export async function WebSearchResults({
   if (outcome.status !== "ok") return null;
 
   // Once katalog gorseli (kendi feed'imiz), kalanlar icin magaza sayfasindan dogrulanmis gorsel.
-  const groups = await attachStoreImages(
-    attachCatalogImages(
-      dropCatalogDuplicates(outcome.groups, {
-        hosts: catalogHosts,
-        titles: catalog.map((item) => item.title),
-      }),
-      catalog,
+  // Gorseli dogrulanamayan urun GOSTERILMEZ; hic biri kalmazsa bolum cizilmez, katalog sonuclari durur.
+  const groups = selectImagedGroups(
+    await attachStoreImages(
+      attachCatalogImages(
+        dropCatalogDuplicates(outcome.groups, {
+          hosts: catalogHosts,
+          titles: catalog.map((item) => item.title),
+        }),
+        catalog,
+      ),
     ),
   );
   return (
