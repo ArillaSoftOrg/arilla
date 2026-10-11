@@ -1,0 +1,15 @@
+{
+  "metrics": {
+    "queue_precision": 1.0,
+    "queue_recall": 1.0,
+    "queue_f1": 1.0,
+    "queue_macro_f1": 1.0,
+    "queue_false_match_rate": 0.0,
+    "auto_precision": 1.0,
+    "auto_recall": 0.9230769230769231,
+    "auto_f1": 0.9600000000000001,
+    "auto_macro_f1": 0.9667256637168142,
+    "auto_false_match_rate": 0.0
+  },
+  "pairs": 94
+}
