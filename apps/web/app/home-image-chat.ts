@@ -29,6 +29,7 @@ export type ImageChatErrorKind =
   | "unavailable"
   | "invalid_input"
   | "image_limit"
+  | "consent_required"
   | "error";
 
 export const IMAGE_CHAT_ERROR_COPY: Record<ImageChatErrorKind, string> = {
@@ -40,6 +41,8 @@ export const IMAGE_CHAT_ERROR_COPY: Record<ImageChatErrorKind, string> = {
   unavailable: "Fotoğrafla sohbet şu an kullanılamıyor. Biraz sonra tekrar dener misin?",
   invalid_input: "Fotoğraf gönderilemedi. Tekrar dener misin?",
   image_limit: "Bu sohbete daha fazla fotoğraf ekleyemezsin. Yeni bir sohbet başlatabilirsin.",
+  consent_required:
+    "Fotoğraf göndermek için iznin gerekiyor. Fotoğrafı kaldırıp yeniden eklersen izin sorulur.",
   error: "Bir şeyler ters gitti. Tekrar dener misin?",
 };
 
@@ -81,6 +84,8 @@ export function outcomeForNewChat(result: NewTabChatResult): NewChatOutcome {
       return { kind: "error", message: IMAGE_CHAT_ERROR_COPY.rate_limited, retry: true };
     case "unavailable":
       return { kind: "error", message: IMAGE_CHAT_ERROR_COPY.unavailable, retry: false };
+    case "consent_required":
+      return { kind: "error", message: IMAGE_CHAT_ERROR_COPY.consent_required, retry: false };
     default:
       return { kind: "error", message: IMAGE_CHAT_ERROR_COPY.error, retry: true };
   }

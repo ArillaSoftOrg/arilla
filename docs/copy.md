@@ -718,6 +718,22 @@ Kaynak ürünün fiyatı yalnızca sayfanın yapılandırılmış verisinden gel
 yazılır; fiyatsız kaynakta fiyat gösterilmez. Mağaza bağlantısı yalnızca
 `/git/<offerId>?surface=search` ile verilir.
 
+## Sohbette fotoğraf izni (karar 0101)
+
+Kaynak: `apps/web/app/sohbet/chat-image-consent-copy.ts`. Metin değişince `CHAT_IMAGE_CONSENT_VERSION` artar.
+Yalnızca kodun gerçekte yaptığı şeyler yazılır; hukuk onayı bekleyen beyanlar (model eğitimi, sağlayıcı
+saklama süresi, aktarım dayanağı) yazılmaz.
+
+| Anahtar | Metin |
+|---|---|
+| `chat_image.title` | Fotoğrafını kullanmamız için iznin gerekiyor |
+| `chat_image.intro` | Seçtiğin fotoğraf, sen Gönder'e basana kadar cihazından çıkmaz. |
+| `chat_image.accept` | Fotoğrafımın bu şekilde kullanılmasını kabul ediyorum |
+| `chat_image.decline` | Kabul etmiyorum |
+| `chat_image.withdraw` | İznini istediğin zaman Hesabım > Gizlilik tercihleri sayfasından geri çekebilirsin. Geri çekmen yeni fotoğraf eklemeni durdurur. |
+
+Kabul ve ret eşit görsel ağırlıkta, onay kutusu yok, önceden işaretli bir şey yok.
+
 ## Sohbet geri bildirimi (karar 0079)
 
 Hitap "sen". Metinler `apps/web/app/sohbet/chat-copy.ts`. Neden kodları kodda
