@@ -396,34 +396,46 @@ dönen kullanıcıya gösterilir (`apps/web/app/erken-erisim/state.ts`).
 
 ## Lansman öncesi landing
 
-Karar 0043. Ürün kapalıyken ana sayfa. Gelecek zaman bilerek kullanılır:
-hizmet henüz açık değildir. Sahte ürün, fiyat, tasarruf, sayı, yorum ya da
-tarih yok. Metinler `apps/web/app/coming-soon-copy.ts`'te; marka adı
-`SITE_BRAND`'den gelir.
+Ürün kapalıyken ana sayfa. İlk ekranda maskotla tanışma ve erken erişime katılım;
+ardından ihtiyacı anlatma ve seçenekleri değerlendirme sahneleri. Hizmet henüz açık değildir;
+sahte ürün, fiyat, tasarruf, sayı, yorum ya da tarih yok. Konuşmalar önceden
+yazılmış tanıtım metinleridir; model çağrısı veya çalışan arama değildir.
+Metinler `apps/web/app/coming-soon-copy.ts` içinde; marka `SITE_BRAND`'den gelir.
+5.000 kişi açılış hedefidir; sayaç otomatik ürün erişimi açmaz. Gerçek kişi
+sayısı ve hedef sunucudan gelir. Karşılama kaydırmadan bir kez oynar;
+mobilde ilk çerez panelinin kapanmasını bekler. Kabul etmek gerekmez.
 
 | Anahtar | Metin |
 | --- | --- |
 | `coming_soon.eyebrow` | Erken Erişim |
 | `coming_soon.status` | ManiCepte yakında. |
-| `coming_soon.headline` | Aradığın ürünü bul. Fiyatları karşılaştır. Daha akıllı alışveriş yap. |
-| `coming_soon.body` | ManiCepte, aradığın ürünü, alternatiflerini ve farklı mağazalardaki fiyatlarını tek yerde görmeni kolaylaştırmak için yapay zekâ destekli bir alışveriş asistanı olarak geliştiriliyor. |
+| `coming_soon.headline` | Alışverişe bir de birlikte bakalım. |
+| `coming_soon.body` | Ürün keşfi ve fiyat karşılaştırması için alışveriş arkadaşın hazırlanıyor. |
+| `coming_soon.greeting` | Selam, hoş geldin! |
+| `coming_soon.greeting_body` | Ben senin alışveriş arkadaşın olacağım. |
+| `coming_soon.greeting_invitation` | Ben hazırlanırken sen de ilk tanışanlardan ol. |
+| `coming_soon.progress_goal` | Hedefimiz {hedef} kişiyle açılışa başlamak. |
+| `coming_soon.progress_note` | Biz ManiCepte'yi hazırlarken sen de yerini al. Açılışta sana haber verelim. |
+| `coming_soon.availability` | Henüz kullanıma açık değil. Birlikte başlamak için hazırlanıyoruz. |
+| `coming_soon.motion_label` | Hareket |
 | `coming_soon.cta_note` | Hesabınla devam et ya da yeni hesap aç; listeye otomatik eklenirsin. |
-| `coming_soon.how_it_works_anchor` | Nasıl çalışacak? |
-| `coming_soon.benefits_title` | ManiCepte ile neler yapabileceksin? |
-| `coming_soon.benefit_describe_title` | Ne aradığını anlatarak bul |
-| `coming_soon.benefit_describe_body` | Ürünün adını bilmen gerekmeyecek. Aklındakini kendi cümlelerinle anlatabilecek, bir fotoğraf ya da ürün bağlantısıyla başlayabileceksin. |
-| `coming_soon.benefit_compare_title` | Fiyatları karşılaştır |
-| `coming_soon.benefit_compare_body` | Aynı ürünün farklı mağazalardaki tekliflerini yan yana görüp karar vermeden önce seçenekleri tartabileceksin. |
-| `coming_soon.benefit_alternatives_title` | Alternatifleri keşfet |
-| `coming_soon.benefit_alternatives_body` | Beğendiğin ürüne benzeyen, farklı bütçelere uygun seçenekleri tek yerde inceleyebileceksin. |
-| `coming_soon.how_it_works_title` | Nasıl çalışacak? |
-| `coming_soon.how_it_works_body` | ManiCepte henüz kullanıma açık değil. Açıldığında her şey üç adımda olacak. |
-| `coming_soon.step_start_title` | Ara, fotoğraf yükle veya ürün bağlantısı paylaş |
-| `coming_soon.step_start_body` | Elinde ne varsa onunla başla: kısa bir tarif, bir fotoğraf ya da beğendiğin ürünün bağlantısı. |
-| `coming_soon.step_analyze_title` | ManiCepte seçenekleri analiz etsin |
-| `coming_soon.step_analyze_body` | Aynı ürünü ve ona benzeyen seçenekleri farklı mağazalarda bulup senin için düzenler. |
-| `coming_soon.step_compare_title` | Ürünleri, alternatifleri ve fiyatları karşılaştır |
-| `coming_soon.step_compare_body` | Seçenekleri yan yana gör; sana en uygun olanı sen seç. |
+| `coming_soon.how_it_works_anchor` | Tanışalım |
+| `coming_soon.describe_eyebrow` | Her şey seninle başlayacak |
+| `coming_soon.describe_title` | Aklındakini anlat. Oradan başlayalım. |
+| `coming_soon.describe_body` | Tam adını bilmen gerekmeyecek. Neye ihtiyacın olduğunu, neleri sevdiğini ve senin için neyin önemli olduğunu kendi cümlelerinle anlatabileceksin. |
+| `coming_soon.example_label` | Örnek bir arama |
+| `coming_soon.example_query` | “Küçük mutfağıma uygun, kolay temizlenen bir kahve makinesi arıyorum.” |
+| `coming_soon.describe_dialogue` | Küçük mutfak, büyük kahve planları. Anladım. |
+| `coming_soon.compare_eyebrow` | Seçenekler netleşecek |
+| `coming_soon.compare_title` | Bir sürü seçenek. Sana göre bir karar. |
+| `coming_soon.compare_body` | Aradığın ürünü, benzerlerini ve farklı mağazalardaki fiyatlarını birlikte inceleyebileceksin. |
+| `coming_soon.compare_dialogue` | Seçenekleri ben toparlayacağım. Son söz sende. |
+| `coming_soon.comparison_points.0.title` | Fiyatları yan yana. |
+| `coming_soon.comparison_points.0.body` | Aynı ürünün farklı mağazalardaki tekliflerini tek yerde karşılaştırabileceksin. |
+| `coming_soon.comparison_points.1.title` | Alternatifler de masada. |
+| `coming_soon.comparison_points.1.body` | Beğendiğin ürüne benzeyen seçenekleri keşfedip sana uygun olanı seçebileceksin. |
+| `coming_soon.enrolled_title` | Listedesin. İyi ki geldin. |
+| `coming_soon.build_eyebrow` | Mutfakta neler var? |
 | `coming_soon.build_title` | ManiCepte'yi geliştiriyoruz. |
 | `coming_soon.build_body` | Ürünü adım adım inşa ediyoruz. Şu an üzerinde çalıştıklarımız: |
 | `coming_soon.build_status_done` | Tamamlandı |
@@ -434,8 +446,14 @@ tarih yok. Metinler `apps/web/app/coming-soon-copy.ts`'te; marka adı
 | `coming_soon.build_item_data` | Mağaza ve fiyat altyapısı |
 | `coming_soon.build_updated` | Son güncelleme: {ay} |
 | `coming_soon.follow_title` | Gelişmeleri takip et |
-| `coming_soon.closing_title` | Açıldığında ilk sen haberdar ol. |
-| `coming_soon.closing_body` | Erken erişim listesine katıl; hazır olduğumuzda sana haber verelim. |
+| `coming_soon.faq_eyebrow` | Aklına takılanlar |
+| `coming_soon.faq_title` | Tanışmışken. |
+| `coming_soon.questions.0.question` | ManiCepte'yi hemen kullanabilir miyim? |
+| `coming_soon.questions.0.answer` | Henüz değil. Arama ve karşılaştırma deneyimini geliştiriyoruz. Erken erişim listesine katıldığında, hazır olduğumuzda sana haber vereceğiz. |
+| `coming_soon.questions.1.question` | Erken erişime nasıl katılırım? |
+| `coming_soon.questions.1.answer` | Erken erişime katıl bağlantısından hesabınla devam edebilir ya da yeni bir hesap açabilirsin. Listeye otomatik eklenirsin. |
+| `coming_soon.questions.2.question` | Ne zaman açılacak? |
+| `coming_soon.questions.2.answer` | Hedefimiz 5.000 kişiyle açılışa başlamak. Bir yandan da ManiCepte'yi geliştiriyoruz; henüz kesin bir tarih yok. Açılışta listedeki herkese haber vereceğiz. |
 | `coming_soon.admin_login` | Admin Girişi |
 | `coming_soon.admin_login_title` | Hesabınla giriş yap. |
 | `coming_soon.footer_description` | ManiCepte yakında: aradığın ürünü bul, alternatiflerini keşfet, fiyatları karşılaştır. |

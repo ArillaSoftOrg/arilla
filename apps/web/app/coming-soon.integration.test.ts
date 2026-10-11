@@ -253,16 +253,17 @@ describe("landing içeriği", () => {
     const html = await landingMarkup();
     expect(html).toContain("ManiCepte yakında.");
     expect(html).toContain("Erken Erişim");
-    expect(html).toContain("Aradığın ürünü bul. Fiyatları karşılaştır. Daha akıllı alışveriş yap.");
+    expect(html).toContain("Alışverişe bir de birlikte bakalım.");
     expect(html).toContain(`href="${EARLY_ACCESS_LOGIN_PATH}"`);
     expect(html).toContain('href="#nasil-calisacak"');
     expect(html).toContain('id="nasil-calisacak"');
-    expect(html).toContain("Ne aradığını anlatarak bul");
+    expect(html).toContain("Aklındakini anlat. Oradan başlayalım.");
     expect(html).toContain("ManiCepte&#x27;yi geliştiriyoruz.");
     expect(html).toContain("Son güncelleme: Eylül 2026");
     expect(html).not.toMatch(PRODUCT_HREF);
     expect(html).not.toContain("<form");
-    expect(html).not.toContain("<input");
+    expect(html).not.toMatch(/<input[^>]+type="(?:text|search|email)"/);
+    expect(html).toContain('type="checkbox"');
     // Tek h1.
     expect(html.match(/<h1/g)).toHaveLength(1);
     // Yasak kelimeler ve sahte sayı yok (docs/copy.md).
@@ -282,7 +283,7 @@ describe("landing içeriği", () => {
     as("enrolled");
     const html = await landingMarkup();
     expect(html).toContain('href="/erken-erisim"');
-    expect(html).toContain("Erken erişim listesindesin.");
+    expect(html).toContain("Listedesin. İyi ki geldin.");
     expect(html).not.toContain(`href="${EARLY_ACCESS_LOGIN_PATH}"`);
     expect(html).not.toMatch(PRODUCT_HREF);
   });

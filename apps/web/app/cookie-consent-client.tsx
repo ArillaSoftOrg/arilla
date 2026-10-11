@@ -41,6 +41,11 @@ const ConsentContext = createContext<ConsentContextValue>({
   openPreferences: () => {},
 });
 
+/** Presentation-only consumers can wait until the initial banner is dismissed. */
+export function useNeedsConsentPrompt(): boolean {
+  return needsConsentPrompt(useContext(ConsentContext).consent);
+}
+
 /**
  * Karar 0038: kok layout sunucuda okudugu tercihi verir; banner ilk HTML'de
  * render edilir (yanip sonme yok). Server action cerezi yazinca Next rotayi
