@@ -1698,6 +1698,18 @@ describe("global provider budget (atomic, quota/provider-budget.ts)", () => {
 });
 
 describe("Gemini hata kaydi (karar 0099, hardening akisi ustunde)", () => {
+  // Ayri kullanici: #86'nin kullanici basina saatlik sohbet/tur sayaci (Redis) diger
+  // testlerin kullanicisini tuketmesin; bu testler kendi sayacini kullanir.
+  let errUser = 0;
+  beforeAll(async () => {
+    errUser = await withOwnerClient(async (c) => {
+      const r = await c.query("INSERT INTO app_user (email) VALUES ($1) RETURNING id", [
+        `chat-err-${run}@test.invalid`,
+      ]);
+      return Number(r.rows[0].id);
+    });
+  });
+
   async function errorsFor(user: number) {
     return withOwnerClient(
       async (c) =>
@@ -1722,43 +1734,43 @@ describe("Gemini hata kaydi (karar 0099, hardening akisi ustunde)", () => {
   }
 
   it("saglayici hatasi: tek olay, son api_usage satirina bagli; yeniden deneme basarisi olay yazmaz", async () => {
-    const id = await newConversation(userA, `${TOKEN}`);
-    const before = (await errorsFor(userA)).length;
+    const id = await newConversation(errUser, `${TOKEN}`);
+    const before = (await errorsFor(errUser)).length;
     const model = scripted([new LlmError("rate_limited", 429), search({ query: TOKEN })]);
     expect(
-      await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: model }),
+      await processPendingTurn(db, { userId: errUser, conversationId: id, interpreter: model }),
     ).toMatchObject({ status: "provider_error" });
-    const afterFail = await errorsFor(userA);
+    const afterFail = await errorsFor(errUser);
     expect(afterFail.length - before).toBe(1);
     expect(afterFail.at(-1)).toMatchObject({ error_class: "rate_limited" });
     expect(afterFail.at(-1)?.api_usage_id).not.toBeNull();
 
     expect(
-      await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: model }),
+      await processPendingTurn(db, { userId: errUser, conversationId: id, interpreter: model }),
     ).toMatchObject({ status: "answered" });
-    expect((await errorsFor(userA)).length).toBe(afterFail.length);
-    await cleanup(userA);
+    expect((await errorsFor(errUser)).length).toBe(afterFail.length);
+    await cleanup(errUser);
   });
 
   it("gecersiz JSON yedege duser (yanit gelir) ve schema_invalid olarak kaydedilir", async () => {
-    const id = await newConversation(userA, `${TOKEN}`);
+    const id = await newConversation(errUser, `${TOKEN}`);
     const model = scripted([new LlmError("invalid_json")]);
     expect(
-      await processPendingTurn(db, { userId: userA, conversationId: id, interpreter: model }),
+      await processPendingTurn(db, { userId: errUser, conversationId: id, interpreter: model }),
     ).toMatchObject({ status: "answered", source: "fallback" });
-    const rows = await errorsFor(userA);
+    const rows = await errorsFor(errUser);
     expect(rows.at(-1)?.error_class).toBe("schema_invalid");
-    await cleanup(userA);
+    await cleanup(errUser);
   });
 
   it("basarili tur hata olayi yazmaz", async () => {
-    const id = await newConversation(userA, `${TOKEN}`);
-    const before = (await errorsFor(userA)).length;
+    const id = await newConversation(errUser, `${TOKEN}`);
+    const before = (await errorsFor(errUser)).length;
     await processPendingTurn(db, {
-      userId: userA,
+      userId: errUser,
       conversationId: id,
       interpreter: scripted([search({ query: TOKEN })]),
     });
-    expect((await errorsFor(userA)).length).toBe(before);
+    expect((await errorsFor(errUser)).length).toBe(before);
   });
 });
