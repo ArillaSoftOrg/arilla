@@ -81,14 +81,22 @@ describe("sohbet görsel eki: model girdisi", () => {
     expect(json.messages[0]).not.toHaveProperty("has_image");
   });
 
-  it("Gemini girdisi: görsel yoksa düz metin, varsa [text, image] dizisi", () => {
+  it("Gemini girdisi: görsel yoksa düz metin, varsa tek user_input adımı (Step, Content değil)", () => {
     const base = { systemInstruction: "s", input: "{}", schema: {} };
     expect(buildGeminiInput(base)).toBe("{}");
     expect(buildGeminiInput({ ...base, images: [] })).toBe("{}");
     expect(buildGeminiInput({ ...base, images: [IMAGE] })).toEqual([
-      { type: "text", text: "{}" },
-      { type: "image", data: "AAAA", mime_type: "image/jpeg" },
+      {
+        type: "user_input",
+        content: [
+          { type: "text", text: "{}" },
+          { type: "image", data: "AAAA", mime_type: "image/jpeg" },
+        ],
+      },
     ]);
+    // Regresyon: en üst düzeyde Content türü ("text"/"image") ASLA olmamalı (üretimde HTTP 400).
+    const top = buildGeminiInput({ ...base, images: [IMAGE] }) as { type: string }[];
+    expect(top.map((item) => item.type)).toEqual(["user_input"]);
   });
 });
 
