@@ -163,7 +163,10 @@ async function run(
 
   // Saglayiciya gidecek tek sey: suzgecten gecmis urun terimleri.
   const built = buildWebSearchQuery(source);
-  if (!built.ok) return emptyWebOutcome("ineligible");
+  if (!built.ok) {
+    console.warn("[web-search] ineligible query", built.reason);
+    return emptyWebOutcome("ineligible");
+  }
   const { query, features } = built;
 
   let client: WebGroundingClient | null;
@@ -252,8 +255,20 @@ async function run(
         groundingQueries = countGroundingQueries(grounded.searchQueries);
         const citationUrls = await resolveCitationUrls(grounded.citations, deps.fetch ?? fetch);
         const evidence = buildGroundingEvidence(citationUrls, grounded.retrieved);
-        const { candidates } = parseAndVerifyCandidates(grounded.text, evidence);
+        const { candidates, stats } = parseAndVerifyCandidates(grounded.text, evidence);
         const groups = mergeWebCandidates({ candidates, query, features });
+        if (groups.length === 0 || grounded.searchSuggestionsHtml === null) {
+          // Tanilama (icerik yok): sessiz bos sonucun nedeni gunluklerde gorunsun.
+          console.warn(
+            `[web-search] diag candidates=${stats.received} rejected=${stats.rejected}`,
+            JSON.stringify(stats.reasons),
+            `citations=${grounded.citations.length} resolved=${citationUrls.length}`,
+            `retrieved=${grounded.retrieved.filter((r) => r.ok).length}/${grounded.retrieved.length}`,
+            `queries=${grounded.searchQueries.length} groups=${groups.length}`,
+            `suggestions=${grounded.searchSuggestionsHtml !== null} textLen=${grounded.text.length}`,
+            grounded.shape ?? "",
+          );
+        }
         if (groups.length > 0 && grounded.searchSuggestionsHtml === null) {
           // Google kosulu: grounding sonuclari Search Suggestions olmadan gosterilmez.
           console.warn("[web-search] search suggestions missing; results withheld");

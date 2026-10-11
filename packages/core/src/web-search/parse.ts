@@ -123,6 +123,8 @@ export function buildGroundingEvidence(
 export interface ParseStats {
   received: number;
   rejected: number;
+  /** Eleme nedenlerine gore sayac (icerik yok; yalnizca tanilama). */
+  reasons: Record<string, number>;
 }
 
 /** Ham model metnini dogrulanmis adaylara cevirir. Gecersiz her aday sessizce elenir. */
@@ -132,14 +134,16 @@ export function parseAndVerifyCandidates(
 ): { candidates: WebCandidate[]; stats: ParseStats } {
   const root = extractJsonObject(text);
   const list = isRecord(root) && Array.isArray(root.results) ? root.results : [];
-  const stats: ParseStats = { received: Math.min(list.length, 50), rejected: 0 };
+  const stats: ParseStats = { received: Math.min(list.length, 50), rejected: 0, reasons: {} };
   const candidates: WebCandidate[] = [];
   const seenKeys = new Set<string>();
 
   for (const raw of list.slice(0, WEB_SEARCH_MAX_CANDIDATES * 2)) {
     const candidate = verifyOne(raw, evidence);
-    if (candidate === null || seenKeys.has(candidate.url.key)) {
+    if (typeof candidate === "string" || seenKeys.has(candidate.url.key)) {
       stats.rejected++;
+      const reason = typeof candidate === "string" ? candidate : "duplicate";
+      stats.reasons[reason] = (stats.reasons[reason] ?? 0) + 1;
       continue;
     }
     seenKeys.add(candidate.url.key);
@@ -149,19 +153,20 @@ export function parseAndVerifyCandidates(
   return { candidates, stats };
 }
 
-function verifyOne(raw: unknown, evidence: GroundingEvidence): WebCandidate | null {
-  if (!isRecord(raw)) return null;
+function verifyOne(raw: unknown, evidence: GroundingEvidence): WebCandidate | string {
+  if (!isRecord(raw)) return "shape";
   const title = sanitizeDisplayText(raw.title, 160);
-  if (title === null) return null;
+  if (title === null) return "title";
   const url = toSafePublicUrl(raw.url);
-  if (url === null) return null;
+  if (url === null) return "unsafe_url";
   // 2) Adres aramanin dondurdugu ya da okunan sayfalardan biri olmali.
-  if (!evidence.groundedKeys.has(url.key)) return null;
+  if (!evidence.groundedKeys.has(url.key)) return "ungrounded";
   // 3) Urun sayfasi: model beyani + bariz arama/liste yolu degil.
-  if (raw.pageType !== "product" || !looksLikeProductPage(url.url)) return null;
+  if (raw.pageType !== "product") return "page_type";
+  if (!looksLikeProductPage(url.url)) return "not_product_path";
   const declaredKind =
     raw.matchKind === "exact" ? "exact" : raw.matchKind === "similar" ? "similar" : null;
-  if (declaredKind === null) return null;
+  if (declaredKind === null) return "match_kind";
 
   const pageRead = evidence.retrievedKeys.has(url.key);
   let priceKurus: number | null = null;

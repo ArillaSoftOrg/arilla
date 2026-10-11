@@ -45,6 +45,8 @@ export interface GroundedResponse {
   retrieved: { url: string; ok: boolean }[];
   usage: LlmUsage;
   modelVersion: string;
+  /** Yanit bicimi ozeti (adim turleri + alan adlari; icerik YOK). Yalnizca tanilama gunlugu icin. */
+  shape?: string;
 }
 
 export interface WebGroundingRequest {
@@ -180,6 +182,25 @@ export function parseGroundedPayload(
   };
 }
 
+/** Icerik tasimayan bicim ozeti: adim turu -> alan adlari (en fazla 2 seviye). */
+export function describePayloadShape(payload: unknown): string {
+  if (!isRecord(payload)) return "non-object";
+  const steps = Array.isArray(payload.steps) ? payload.steps : [];
+  const safeKey = (k: string) => (/^[A-Za-z0-9_]{1,40}$/.test(k) ? k : "?");
+  const parts = steps.slice(0, 20).map((step) => {
+    if (!isRecord(step)) return "?";
+    const type = typeof step.type === "string" ? safeKey(step.type) : "?";
+    const keys = Object.keys(step).map(safeKey).join("+");
+    const inner = Array.isArray(step.result) ? step.result[0] : step.result;
+    const innerKeys = isRecord(inner) ? `{${Object.keys(inner).map(safeKey).join("+")}}` : "";
+    return `${type}[${keys}]${innerKeys}`;
+  });
+  return `status=${typeof payload.status === "string" ? safeKey(payload.status) : "?"} ${parts.join(" ")}`.slice(
+    0,
+    900,
+  );
+}
+
 export interface GeminiWebGroundingOptions {
   fetch?: typeof fetch;
   timeoutMs?: number;
@@ -256,7 +277,12 @@ export class GeminiWebGrounding implements WebGroundingClient {
       httpStatus: response.status,
       usage: isRecord(payload) && "usage" in payload ? usage : null,
     });
-    return { ...parseGroundedPayload(payload), usage, modelVersion: WEB_SEARCH_MODEL };
+    return {
+      ...parseGroundedPayload(payload),
+      usage,
+      modelVersion: WEB_SEARCH_MODEL,
+      shape: describePayloadShape(payload),
+    };
   }
 }
 
