@@ -18,6 +18,7 @@ from dataclasses import dataclass, field
 
 import psycopg
 
+from db.vector import tune_ann_search
 from similarity.vectors import average, cosine, parse_vector, to_literal
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,8 @@ def build_edges(
     floor = MIN_SCORE[kind]
     counts = EdgeCounts()
 
+    # Suzgec (kind) HNSW taramasindan sonra uygulanir; yeterli komsu donsun.
+    tune_ann_search(conn)
     vectors = product_vectors(conn, embedding_kind)
     counts.products_with_vector = len(vectors)
     product_ids = sorted(vectors)[:limit] if limit else sorted(vectors)

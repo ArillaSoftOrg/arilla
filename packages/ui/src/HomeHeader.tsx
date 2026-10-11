@@ -1,8 +1,10 @@
 "use client";
 
-import { type CSSProperties, useEffect, useId, useState } from "react";
+import { type CSSProperties, type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Container } from "./Container.tsx";
 import styles from "./HomeHeader.module.css";
+import { ChevronRightIcon, CloseIcon, LogoutIcon } from "./icons.tsx";
+import { VisuallyHidden } from "./VisuallyHidden.tsx";
 
 export interface HomeHeaderNavItem {
   label: string;
@@ -41,11 +43,38 @@ export interface HomeHeaderProps {
    */
   utilityLink?: { label: string; href: string };
   /**
+   * Karar 0092: tema kontrolu (cagiran saglar; tercih/kalicilik apps/web'de).
+   * 640px ve ustunde cubukta hesap alaninin solunda (sohbet varyantinda da);
+   * altinda cubuk yalin kalir, kontrol menu panelinde bir satirdir. Iki ornek
+   * ayni durumu okur.
+   */
+  themeControl?: ReactNode;
+  /** Paneldeki tema satirinin gorunur etiketi (dugmenin kendi adi zaten var). */
+  themeControlLabel?: string;
+  /**
    * `chat`: sohbet calisma alani. Cubukta yalnizca menu dugmesi + marka kalir
    * (nav, hesap, yardimci link hamburger panelinde); cubuk yapiskandir ve
    * kaydirilinca ~%20 kuculur. Varsayilan `site` davranisi degismez.
    */
   variant?: "site" | "chat";
+  /**
+   * Menu panelinin kisisel bolumu (orn. Kaydettiklerim, Alarmlarım,
+   * Geçmişim). Yalnizca oturumu acik ve urune erisebilen kullanici icin
+   * verilir; cagiran filtreler. Bos/verilmezse bolum cizilmez.
+   */
+  personalNavItems?: readonly HomeHeaderNavItem[];
+  /** Kisisel bolumun basligi ve `nav` etiketi. */
+  personalNavLabel?: string;
+  /** Panelin alt hesap alaninda gorunen ad (yoksa e-posta, yoksa `accountLabel`). */
+  accountName?: string | null;
+  /** Hesap alaninda adin altindaki ikincil satir. */
+  accountEmail?: string | null;
+  /**
+   * Verilirse hesap alaninda kucuk "Çıkış" dugmesi: mevcut cikis server
+   * action'i (duz form POST; JS'siz de calisir).
+   */
+  logoutAction?: () => void | Promise<void>;
+  logoutLabel?: string;
 }
 
 /** Kompakt moda gecis ve donus esikleri (px); aradaki fark titremeyi onler. */
@@ -73,16 +102,30 @@ export function HomeHeader({
   accountCurrent = false,
   accountAvatarUrl,
   accountAvatarLabel,
+  themeControl,
+  themeControlLabel,
   utilityLink,
   variant = "site",
+  personalNavItems = [],
+  personalNavLabel,
+  accountName,
+  accountEmail,
+  logoutAction,
+  logoutLabel,
 }: HomeHeaderProps) {
   const [menuOpen, setMenuOpen] = useState(false);
   const [compact, setCompact] = useState(false);
   const menuId = useId();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const wasOpenRef = useRef(false);
   const accountText = accountHref ? accountLabel : loginLabel;
   const accountUrl = accountHref ?? loginHref;
   const mobileMenuTabIndex = menuOpen ? undefined : -1;
   const hasSignedInAccount = accountHref !== null;
+  const drawerName = accountName?.trim() || accountEmail?.trim() || accountLabel;
+  const drawerEmail =
+    accountEmail?.trim() && accountEmail.trim() !== drawerName ? accountEmail : null;
   const avatarFallback = (accountAvatarLabel?.trim().charAt(0) || accountText.charAt(0) || "M")
     .toLocaleUpperCase("tr-TR")
     .slice(0, 1);
@@ -114,6 +157,17 @@ export function HomeHeader({
     };
   }, [variant]);
 
+  // Panel acilinca odak kapat dugmesine, kapaninca menu dugmesine doner.
+  useEffect(() => {
+    if (menuOpen) {
+      wasOpenRef.current = true;
+      closeButtonRef.current?.focus({ preventScroll: true });
+    } else if (wasOpenRef.current) {
+      wasOpenRef.current = false;
+      menuButtonRef.current?.focus({ preventScroll: true });
+    }
+  }, [menuOpen]);
+
   useEffect(() => {
     if (!menuOpen) return;
     const previousOverflow = document.body.style.overflow;
@@ -141,6 +195,7 @@ export function HomeHeader({
     >
       <Container size="wide" className={styles.inner}>
         <button
+          ref={menuButtonRef}
           type="button"
           className={styles.menuButton}
           aria-label={menuOpen ? "Menüyü kapat" : "Menüyü aç"}
@@ -173,6 +228,8 @@ export function HomeHeader({
           </nav>
         ) : null}
 
+        {themeControl ? <div className={styles.themeSlot}>{themeControl}</div> : null}
+
         {utilityLink ? (
           <a href={utilityLink.href} className={styles.utility}>
             {utilityLink.label}
@@ -203,11 +260,15 @@ export function HomeHeader({
           tabIndex={menuOpen ? 0 : -1}
           onClick={() => setMenuOpen(false)}
         />
+        {/* Karar: panel uc bolge - ust (marka + kapat), kaydirilabilir govde
+            (gezinme, kisisel bolum, yardimci link, tema) ve altta sabit hesap
+            alani. Kapaliyken `inert`: odak ve ekran okuyucu disarida. */}
         <aside
           id={menuId}
           className={styles.mobileMenu}
           aria-label={navAriaLabel}
           aria-hidden={!menuOpen}
+          inert={!menuOpen}
         >
           <div className={styles.mobileMenuHeader}>
             <a
@@ -226,47 +287,57 @@ export function HomeHeader({
               {brandLabel}
             </a>
             <button
+              ref={closeButtonRef}
               type="button"
               className={styles.closeButton}
               aria-label="Menüyü kapat"
               tabIndex={mobileMenuTabIndex}
               onClick={() => setMenuOpen(false)}
             >
-              <span aria-hidden="true">x</span>
+              <CloseIcon size={22} />
             </button>
           </div>
 
-          <nav className={styles.mobileNav} aria-label={navAriaLabel}>
-            {navItems.map((item) => (
-              <a
-                key={item.href}
-                href={item.href}
-                className={styles.mobileNavLink}
-                aria-current={item.current ? "page" : undefined}
-                tabIndex={mobileMenuTabIndex}
-                onClick={() => setMenuOpen(false)}
-              >
-                {item.label}
-              </a>
-            ))}
-            <a
-              href={accountUrl}
-              className={styles.mobileAccountLink}
-              aria-current={accountCurrent ? "page" : undefined}
-              tabIndex={mobileMenuTabIndex}
-              onClick={() => setMenuOpen(false)}
-            >
-              {hasSignedInAccount ? (
-                <span className={styles.mobileAccountContent}>
-                  <span className={styles.mobileAccountAvatar} style={accountAvatarStyle}>
-                    {accountAvatarUrl ? null : avatarFallback}
-                  </span>
-                  <span>{accountText}</span>
-                </span>
-              ) : (
-                accountText
-              )}
-            </a>
+          <div className={styles.drawerBody}>
+            {navItems.length > 0 ? (
+              <nav className={styles.mobileNav} aria-label={navAriaLabel}>
+                {navItems.map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className={styles.mobileNavLink}
+                    aria-current={item.current ? "page" : undefined}
+                    tabIndex={mobileMenuTabIndex}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </nav>
+            ) : null}
+
+            {hasSignedInAccount && personalNavItems.length > 0 ? (
+              <nav className={styles.personalNav} aria-label={personalNavLabel}>
+                {personalNavLabel ? (
+                  <p className={styles.personalTitle} aria-hidden="true">
+                    {personalNavLabel}
+                  </p>
+                ) : null}
+                {personalNavItems.map((item) => (
+                  <a
+                    key={item.href}
+                    href={item.href}
+                    className={styles.personalLink}
+                    aria-current={item.current ? "page" : undefined}
+                    tabIndex={mobileMenuTabIndex}
+                    onClick={() => setMenuOpen(false)}
+                  >
+                    {item.label}
+                  </a>
+                ))}
+              </nav>
+            ) : null}
+
             {utilityLink ? (
               <a
                 href={utilityLink.href}
@@ -277,7 +348,66 @@ export function HomeHeader({
                 {utilityLink.label}
               </a>
             ) : null}
-          </nav>
+
+            {themeControl ? (
+              <div className={styles.mobileTheme}>
+                {themeControlLabel ? (
+                  <span className={styles.mobileThemeLabel} aria-hidden="true">
+                    {themeControlLabel}
+                  </span>
+                ) : null}
+                {themeControl}
+              </div>
+            ) : null}
+          </div>
+
+          <div className={styles.drawerAccount}>
+            {hasSignedInAccount ? (
+              <>
+                <a
+                  href={accountUrl}
+                  className={styles.drawerAccountLink}
+                  aria-current={accountCurrent ? "page" : undefined}
+                  tabIndex={mobileMenuTabIndex}
+                  onClick={() => setMenuOpen(false)}
+                >
+                  <span className={styles.drawerAccountAvatar} style={accountAvatarStyle}>
+                    {accountAvatarUrl ? null : avatarFallback}
+                  </span>
+                  <span className={styles.drawerAccountText}>
+                    <VisuallyHidden>{accountText}: </VisuallyHidden>
+                    <span className={styles.drawerAccountName}>{drawerName}</span>
+                    {drawerEmail ? (
+                      <span className={styles.drawerAccountEmail}>{drawerEmail}</span>
+                    ) : null}
+                  </span>
+                  <ChevronRightIcon size={18} className={styles.drawerAccountChevron} />
+                </a>
+                {logoutAction && logoutLabel ? (
+                  <form action={logoutAction} className={styles.drawerLogoutForm}>
+                    <button
+                      type="submit"
+                      className={styles.drawerLogout}
+                      tabIndex={mobileMenuTabIndex}
+                    >
+                      <LogoutIcon size={16} />
+                      {logoutLabel}
+                    </button>
+                  </form>
+                ) : null}
+              </>
+            ) : (
+              <a
+                href={accountUrl}
+                className={styles.drawerLogin}
+                aria-current={accountCurrent ? "page" : undefined}
+                tabIndex={mobileMenuTabIndex}
+                onClick={() => setMenuOpen(false)}
+              >
+                {accountText}
+              </a>
+            )}
+          </div>
         </aside>
       </div>
     </header>

@@ -115,3 +115,43 @@ export function ExternalLinkIcon(props: IconProps) {
     </Svg>
   );
 }
+
+/** Tema kontrolu (karar 0092): acik temaya gecis isareti. */
+export function SunIcon(props: IconProps) {
+  return (
+    <Svg {...props} defaultSize={20}>
+      <circle cx="12" cy="12" r="4" />
+      <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M4.93 19.07l1.41-1.41M17.66 6.34l1.41-1.41" />
+    </Svg>
+  );
+}
+
+/** Tema kontrolu (karar 0092): koyu temaya gecis isareti. */
+export function MoonIcon(props: IconProps) {
+  return (
+    <Svg {...props} defaultSize={20}>
+      <path d="M20.5 14.5A8.5 8.5 0 0 1 9.5 3.5a8.5 8.5 0 1 0 11 11Z" />
+    </Svg>
+  );
+}
+
+/** Kaydet/kaydedildi isareti. `filled`: kayitli durum (dolgu `currentColor`). */
+export function HeartIcon({ filled = false, ...props }: IconProps & { filled?: boolean }) {
+  return (
+    <Svg {...props} defaultSize={20}>
+      <path
+        d="M12 20.5s-7.5-4.6-7.5-10.2A4.3 4.3 0 0 1 12 7.6a4.3 4.3 0 0 1 7.5 2.7c0 5.6-7.5 10.2-7.5 10.2Z"
+        fill={filled ? "currentColor" : "none"}
+      />
+    </Svg>
+  );
+}
+
+/** Hesap alanindaki "Cikis" eylemi. */
+export function LogoutIcon(props: IconProps) {
+  return (
+    <Svg {...props} defaultSize={18}>
+      <path d="M9 4H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h3M16 17l5-5-5-5M21 12H9" />
+    </Svg>
+  );
+}

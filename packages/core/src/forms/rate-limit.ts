@@ -5,14 +5,15 @@
  *
  * - Girisli: `forms:user:<userId>:<formId>` 10 dakikada 10 gonderim.
  * - Anonim: `forms:ip:<ozet>:<formId>` 10 dakikada 5 gonderim. IP
- *   `resolveClientIp` ile cozulur ve SHA-256 ile ozetlenir; cozulemezse
+ *   `resolveClientIp` ile cozulur ve HMAC-SHA256 ile takma adlandirilir
+ *   (`pseudonymize`; sir tanimsizsa fail-closed); cozulemezse
  *   ortak kova (sinirsiz yazma yolu acilmaz).
  * - Anonim + tek yanitli form: ek olarak IP ozeti basina gunde 3 gonderim.
  *   Anonim kimlik garantisi yoktur; ortak IP (mobil operator NAT) arkasindaki
  *   gercek kullanicilari kilitlememek icin tavan 1 degil 3'tur.
  */
-import { createHash } from "node:crypto";
 import type { FixedWindowCounter } from "../auth/rate-limit.ts";
+import { pseudonymize } from "../auth/token.ts";
 import { incrementFixedWindow } from "../redis/counter.ts";
 
 export const FORM_WINDOW_SECONDS = 10 * 60;
@@ -22,7 +23,7 @@ export const FORM_ANON_SINGLE_DAILY_MAX = 3;
 const DAY_SECONDS = 24 * 60 * 60;
 
 function ipDigest(ip: string | null): string {
-  return ip ? createHash("sha256").update(ip.trim()).digest("hex") : "unknown";
+  return ip ? pseudonymize("forms", ip.trim()) : "unknown";
 }
 
 export function formRateLimitKey(input: {

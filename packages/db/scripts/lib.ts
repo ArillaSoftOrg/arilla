@@ -6,6 +6,13 @@ import { Client } from "pg";
 export const packageRoot = join(dirname(fileURLToPath(import.meta.url)), "..");
 export const migrationsDir = join(packageRoot, "migrations");
 
+/**
+ * Uzak veritabanina yazmanin onayi (bkz. `assertRemoteWriteConfirmed`). Yalniz
+ * komutla birlikte verilen GERCEK ortamdan okunur; `.env` bu degiskeni asla
+ * saglayamaz, yoksa kalici olarak korumayi kapatirdi.
+ */
+export const REMOTE_CONFIRM_ENV = "ARILLA_CONFIRM_REMOTE_DB";
+
 /** Depo kokundeki .env dosyasini okur. Gercek degerler asla depoya girmez. */
 function loadDotEnv(): void {
   for (const candidate of [
@@ -23,6 +30,7 @@ function loadDotEnv(): void {
       if (!match) continue;
       const [, key, rawValue] = match;
       if (key === undefined || rawValue === undefined) continue;
+      if (key === REMOTE_CONFIRM_ENV) continue;
       if (process.env[key] !== undefined) continue;
       process.env[key] = rawValue.trim().replace(/^["']|["']$/g, "");
     }
@@ -52,10 +60,49 @@ export function ownerUrl(): string {
  */
 export function isLocal(url: string): boolean {
   try {
-    const host = new URL(url).hostname;
-    return host === "localhost" || host === "127.0.0.1" || host === "::1";
+    const host = new URL(url).hostname.toLowerCase();
+    return host === "localhost" || host === "127.0.0.1" || host === "::1" || host === "[::1]";
   } catch {
     return false;
+  }
+}
+
+/** `local`: yerel; `confirmed`: uzak ama hedef makine adi acikca onaylandi; `blocked`: durdur. */
+export function remoteWriteDecision(
+  url: string,
+  env: Record<string, string | undefined> = process.env,
+): "local" | "confirmed" | "blocked" {
+  if (isLocal(url)) return "local";
+  let host: string;
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return "blocked";
+  }
+  const confirmed = env[REMOTE_CONFIRM_ENV]?.trim().toLowerCase();
+  return host !== "" && confirmed === host ? "confirmed" : "blocked";
+}
+
+/**
+ * Sahip baglantisiyla YAZAN betikler (migration, rol, partition) yerel olmayan
+ * bir veritabanina yanlislikla gitmesin: kok `.env` uretim adresini tasiyabilir.
+ * Uzak hedefe yazmak icin hedefin makine adi `ARILLA_CONFIRM_REMOTE_DB` ile
+ * AYNI komutta verilir (kasitli bir onay; bayrak gibi aliskanlikla yazilmaz).
+ * Mesaj makine adini ya da parolayi gostermez.
+ */
+export function assertRemoteWriteConfirmed(action: string, url: string = ownerUrl()): void {
+  const decision = remoteWriteDecision(url);
+  if (decision === "blocked") {
+    console.error(
+      `${action} durduruldu: DATABASE_URL_OWNER yerel olmayan bir veritabanini gosteriyor. ` +
+        "Bilerek uzak/uretim veritabanina yazacaksaniz hedefin makine adini " +
+        `${REMOTE_CONFIRM_ENV} ile AYNI komutta verin (.env'den okunmaz). ` +
+        "Yerel gelistirme icin DATABASE_URL_OWNER'i yerele cevirin (infra/docker-compose.yml).",
+    );
+    process.exit(1);
+  }
+  if (decision === "confirmed") {
+    console.warn(`UYARI: ${action} yerel olmayan bir veritabanina yaziyor (onaylandi).`);
   }
 }
 

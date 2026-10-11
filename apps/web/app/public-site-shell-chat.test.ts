@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("./lib/dal.ts", () => ({ verifySession: async () => null }));
+vi.mock("./lib/theme-cookie.ts", () => ({ readThemePreference: async () => null }));
 
 type Element = { type: unknown; props: Record<string, unknown> };
 

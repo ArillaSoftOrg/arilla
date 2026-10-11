@@ -35,12 +35,20 @@
   line-height: var(--line-height-normal);
 }
 
+/* Koyu tema tokens.css ile ayni iki yoldan (karar 0092): cihaz tercihi
+   (elle secim yoksa) ya da elle secim. Degerler degismedi; yalnizca secici. */
 @media (prefers-color-scheme: dark) {
-  .shell {
+  :global(:root:not([data-theme="light"])) .shell {
     --admin-active-bg: color-mix(in srgb, var(--brand) 16%, var(--paper));
     --admin-indicator: var(--brand);
     --focus-ring-color: var(--brand);
   }
+}
+
+:global(:root[data-theme="dark"]) .shell {
+  --admin-active-bg: color-mix(in srgb, var(--brand) 16%, var(--paper));
+  --admin-indicator: var(--brand);
+  --focus-ring-color: var(--brand);
 }
 
 /* Odak: dış halka --focus-ring-color (açıkta mürekkep, ≥ 3:1), aradaki boşluk

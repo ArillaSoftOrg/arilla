@@ -328,7 +328,11 @@ describe("eski görsel arama akışına bağımlılık yok (karar 0091)", () => 
   });
 
   it("görsel ve metin ana sayfada aynı sekme açma işlevlerinden geçer (ayrı rota yok)", () => {
-    const source = readFileSync(join(here, "../home-search-composer-client.tsx"), "utf8");
+    // Karar 0093: gonderim akislari ortak hook'ta; ana sayfa kutusu (ve hizli arama) onu kullanir.
+    const client = readFileSync(join(here, "../home-search-composer-client.tsx"), "utf8");
+    expect(client).toContain("useHomeComposerSubmission");
+    expect(client).not.toMatch(/router\.push\(["'`]\/ara/);
+    const source = readFileSync(join(here, "../home-composer-submission.ts"), "utf8");
     expect(source).toContain("openChatInNewTabWithImage");
     expect(source).toContain("openChatInNewTab(");
     expect(source).not.toMatch(/router\.push\(["'`]\/ara/);

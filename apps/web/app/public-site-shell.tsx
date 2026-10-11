@@ -7,6 +7,7 @@ import {
 import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
 import { Container, HomeHeader, SiteFooter, SkipLink } from "@arilla/ui";
 import type { ReactNode } from "react";
+import { logoutAction } from "./cikis-actions.ts";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "./early-access-copy.ts";
 import { EditorialFooter } from "./editorial-footer.tsx";
@@ -14,13 +15,16 @@ import { HOME_COPY } from "./home-copy.ts";
 import {
   earlyAccessFooterGroups,
   homeFooterGroups,
+  personalNavLinks,
   type SiteSectionLinks,
   SUBPAGE_SECTION_LINKS,
   siteNavItems,
 } from "./home-footer-groups.ts";
 import { verifySession } from "./lib/dal.ts";
+import { readThemePreference } from "./lib/theme-cookie.ts";
 import styles from "./public-site-shell.module.css";
 import { SITE_BRAND } from "./site-config.ts";
+import { ThemeToggleControl } from "./theme-toggle-client.tsx";
 
 /** docs/design.md "Kalite tabanı": SkipLink'in hedefi, sayfada tek. */
 const MAIN_ID = "icerik";
@@ -28,8 +32,9 @@ const MAIN_ID = "icerik";
 /**
  * Faz 8: public site kabugu - ana sayfa ile public alt sayfalar (`/kesfet`,
  * `/firsatlar`, `/ara`, `/giris`, `/urun/[slug]`, yasal sayfalar) ayni header
- * ve footer'i paylasir. Giris gerektiren (`/hesap`, `/kaydettiklerim`, ...) ve
- * yonetim sayfalari bu kabugu kullanmaz.
+ * ve footer'i paylasir. Giris gerektiren hesap sayfalari (`/hesap`,
+ * `/kaydettiklerim`, `/alarmlar`, `/gecmis`) da kabugu kullanir; oturum kapisi
+ * her sayfanin kendisindedir. Yonetim sayfalari kullanmaz.
  *
  * Faz 1B: kabuk `SkipLink -> header -> <main id="icerik"> -> footer`
  * yapisinin tek sahibidir. `<main>` ve genis `Container` (yatay `--gutter`)
@@ -84,11 +89,15 @@ export async function PublicSiteShell({
   const navItems: readonly HomeHeaderNavItem[] = productAccess
     ? markCurrent(siteNavItems(links), currentPath)
     : [];
+  // Menu panelinin kisisel bolumu: yalnizca oturumu acik ve urune erisebilen
+  // kullaniciya (lansman oncesi normal kullanici bu sayfalara giremez).
+  const personalNavItems: readonly HomeHeaderNavItem[] =
+    user && productAccess ? markCurrent(personalNavLinks(), currentPath) : [];
   // Lansman öncesi (karar 0043): "Admin Girişi" yalnızca anonim ziyaretçiye,
   // sade bir footer bağlantısı. Aynı giriş akışı; yetki girişten sonra
   // sunucuda rolden okunur. Girişli normal kullanıcı zaten yetkisizdir.
   const footerSource = productAccess
-    ? homeFooterGroups(links)
+    ? homeFooterGroups(links, user !== null)
     : earlyAccessFooterGroups(
         user
           ? [{ label: EARLY_ACCESS_COPY.navStatus, href: EARLY_ACCESS_PATH }]
@@ -102,6 +111,7 @@ export async function PublicSiteShell({
     links: markCurrent(group.links, currentPath),
   }));
   const loginHref = productAccess ? "/giris" : EARLY_ACCESS_LOGIN_PATH;
+  const initialTheme = await readThemePreference();
 
   return (
     <div className={styles.shell}>
@@ -121,11 +131,19 @@ export async function PublicSiteShell({
         accountAvatarLabel={user?.displayName ?? user?.email ?? SITE_BRAND}
         // Lansman öncesi, yalnızca anonim ziyaretçiye: sade "Admin Girişi"
         // (aynı giriş akışı, karar 0043). Yetki girişten sonra sunucuda.
+        themeControl={<ThemeToggleControl initialTheme={initialTheme} />}
+        themeControlLabel={HOME_COPY.themeToggleLabel}
         utilityLink={
           !productAccess && !user
             ? { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH }
             : undefined
         }
+        personalNavItems={personalNavItems}
+        personalNavLabel={HOME_COPY.navPersonalTitle}
+        accountName={user?.displayName ?? null}
+        accountEmail={user?.email ?? null}
+        logoutAction={user ? logoutAction : undefined}
+        logoutLabel={HOME_COPY.signOutShort}
       />
       {/* tabIndex -1: SkipLink'ten sonra odak tum tarayicilarda ana icerige tasinir. */}
       <main
@@ -161,8 +179,6 @@ export async function PublicSiteShell({
             productAccess ? HOME_COPY.heroSubtitle : COMING_SOON_COPY.footerDescription
           }
           groups={footerGroups}
-          affiliateNotice={HOME_COPY.affiliateNotice}
-          affiliateLink={{ label: HOME_COPY.affiliateNoticeLink, href: "/affiliate-aciklamasi" }}
           priceDisclaimer={HOME_COPY.priceDisclaimer}
           copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
         />

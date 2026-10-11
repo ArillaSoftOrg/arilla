@@ -11,8 +11,8 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | Anahtar | Metin |
 | --- | --- |
 | `home.tagline` | Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır. |
-| `home.hero_title_lead` | Alışveriş mi? (başlık aynı alanda "Manicepte." ile dönüşümlü; ~1,6 sn / ~2 sn) |
-| `home.hero_title_accent` | Manicepte. |
+| `home.hero_title_lead` | Alışveriş mi? (başlık aynı alanda "ManiCepte." ile dönüşümlü; ~1,6 sn / ~2 sn) |
+| `home.hero_title_accent` | ManiCepte. |
 | `home.hero_subline` | Ne aradığını anlat, görselini yükle veya linkini bırak. |
 | `home.search_ideas_title` | Arama fikirleri |
 | `home.trends_title` | Trendler |
@@ -74,10 +74,12 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `nav.discover` | Keşfet |
 | `nav.how_it_works` | Nasıl Çalışır |
 | `nav.account` | Hesabım |
+| `nav.theme_toggle` | Koyu tema (üst çubuktaki tema düğmesinin erişilebilir adı; durum `aria-pressed` ile, karar 0092) |
 | `nav.deals` | Fırsatlar |
 | `nav.saved` | Kaydettiklerim |
 | `nav.alerts` | Alarmlarım |
 | `nav.history` | Geçmişim |
+| `nav.personal` | Kişisel (menü panelinin oturumlu kullanıcıya özel bölüm başlığı) |
 | `nav.privacy` | Gizlilik |
 | `nav.terms` | Kullanım Koşulları |
 | `nav.cookies` | Çerez Politikası |
@@ -194,14 +196,18 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `action.clear_history` | Geçmişi sil |
 | `action.delete_account` | Hesabı sil |
 | `action.sign_out` | Çıkış yap |
+| `action.sign_out_short` | Çıkış (menü panelinin alt hesap alanındaki kısa düğme) |
 
 ## Arama
 
 | Anahtar | Metin |
 | --- | --- |
-| `search.placeholder` | Manicepte’ye sor... |
+| `search.placeholder` | ManiCepte’ye sor... |
 | `search.placeholder_results` | Ürün adı, marka ya da kısa bir tarif yaz |
 | `search.input_label` | Ürün ara |
+| `search.quick_label` | Hızlı arama (yüzen arama kutusunun bölge adı, karar 0093) |
+| `search.quick_attach` | Fotoğraf eklemek için ana arama kutusuna git ("+" düğmesinin erişilebilir adı) |
+| `search.quick_dismiss` | Hızlı aramayı kapat ("×" düğmesinin erişilebilir adı) |
 | `search.title_empty_query` | Ne arıyorsun? |
 | `search.title` | “{q}” için sonuçlar |
 | `search.empty_query` | Aramak için aşağıya bir şey yaz ya da fotoğraf yükle. |
@@ -447,7 +453,12 @@ tarih yok. Metinler `apps/web/app/coming-soon-copy.ts`'te; marka adı
 
 | Anahtar | Metin |
 | --- | --- |
-| `empty.saved` | Henüz kaydettiğin ürün yok. Beğendiğin bir ürünü kaydet, ucuzlayınca haber verelim. |
+| `empty.saved` | Henüz kaydettiğin ürün yok. |
+| `empty.saved_description` | Beğendiğin bir ürünü kaydet; burada toplansın, fiyatlarını tek yerden takip et. |
+| `empty.saved_action` | Keşfet |
+| `saved.count` | {n} ürün (`/kaydettiklerim` başlığının yanındaki sayı) |
+| `saved.remove` | Kaydettiklerimden kaldır: {ürün} (kart üstü kalp düğmesinin erişilebilir adı) |
+| `saved.remove_error` | Ürün kaldırılamadı. Tekrar dener misin? |
 | `empty.alerts` | Alarmın yok. Bir ürünün fiyatı düşünce ya da bedenin gelince haber verelim. |
 | `empty.history` | Henüz gezindiğin ürün yok. |
 | `empty.creator_visitor` | Bu vitrin hazırlanıyor. |

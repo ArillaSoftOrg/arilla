@@ -1,0 +1,111 @@
+/* Karar 0093: yuzen hizli arama. Masaustunde altta ortali, telefonda alta
+   yapisik (guvenli alan dahil). Gizliyken etkilesimsiz (inert + aria-hidden),
+   gorunmez ve yer kaplamaz; acilis/kapanis hareketi azaltilmis harekette yok. */
+.layer {
+  position: fixed;
+  inset-inline: 0;
+  inset-block-end: 0;
+  z-index: var(--z-dropdown);
+  display: flex;
+  justify-content: center;
+  padding-inline: var(--gutter);
+  padding-block-end: calc(var(--space-6) + env(safe-area-inset-bottom, 0px));
+  pointer-events: none;
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(var(--space-4));
+}
+
+.layer[data-visible="true"] {
+  opacity: 1;
+  visibility: visible;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .layer {
+    transition:
+      opacity var(--duration-base) var(--ease-standard),
+      transform var(--duration-base) var(--ease-standard),
+      visibility 0s linear var(--duration-base);
+  }
+
+  .layer[data-visible="true"] {
+    transition:
+      opacity var(--duration-base) var(--ease-standard),
+      transform var(--duration-base) var(--ease-standard),
+      visibility 0s;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .layer {
+    transform: none;
+  }
+}
+
+.dock {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  width: min(100%, 640px);
+  pointer-events: auto;
+}
+
+.composer {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+/* Kapat: kucuk gorunur daire, 44px dokunma hedefi (::after). */
+.dismiss {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ink-secondary);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+}
+
+.dismiss::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+}
+
+.dismiss:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.dismiss:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Telefon: alta yapisik serit; icerigin ustunde okunur zemin, guvenli alan. */
+@media (max-width: 639.98px) {
+  .layer {
+    padding-inline: var(--space-3);
+    padding-block: var(--space-3) calc(var(--space-3) + env(safe-area-inset-bottom, 0px));
+    background: linear-gradient(to top, var(--paper) 55%, transparent);
+  }
+
+  .dock {
+    width: 100%;
+  }
+}
+
+@media print {
+  .layer {
+    display: none;
+  }
+}

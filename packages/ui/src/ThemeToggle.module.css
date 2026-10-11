@@ -1,0 +1,63 @@
+/* Karar 0092: hesap dugmesiyle ayni dil (yuvarlak, ince --line siniri),
+   ondan bir kademe sakin: dolgu yok, ikon --ink-secondary. 44px dokunma
+   hedefi (design.md "Kalite tabanı"). */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: var(--size-touch-target);
+  height: var(--size-touch-target);
+  padding: 0;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.toggle:hover {
+  background: var(--surface-hover);
+  color: var(--ink);
+}
+
+.toggle:active {
+  background: var(--surface);
+}
+
+.toggle:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .toggle {
+    transition:
+      background-color var(--duration-fast) var(--ease-standard),
+      color var(--duration-fast) var(--ease-standard);
+  }
+}
+
+/* Acik temada ay (koyuya gec), koyu temada gunes (aciga gec). Etkin tema
+   tokens.css ile ayni iki yoldan okunur: elle secim ya da cihaz tercihi. */
+.sun {
+  display: none;
+}
+
+:global(:root[data-theme="dark"]) .moon {
+  display: none;
+}
+
+:global(:root[data-theme="dark"]) .sun {
+  display: block;
+}
+
+@media (prefers-color-scheme: dark) {
+  :global(:root:not([data-theme="light"])) .moon {
+    display: none;
+  }
+
+  :global(:root:not([data-theme="light"])) .sun {
+    display: block;
+  }
+}
