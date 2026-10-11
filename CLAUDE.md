@@ -32,7 +32,7 @@ tamamı anlamını yitirir.
 
 ## Değişmez kurallar
 
-1. **İstek yolunda model çağrısı yok.** Üç istisna var:
+1. **İstek yolunda model çağrısı yok.** Beş istisna var:
    - Kullanıcının yüklediği görselin embedding'i. `EmbeddingService`
      arkasından geçer ve görsel hash'i ile cache'lenir.
    - `/ara` anlık sorgu yorumu (karar 0062): yalnızca `GEMINI_REALTIME_ENABLED`
@@ -52,6 +52,13 @@ tamamı anlamını yitirir.
      saklanan yapılandırılmış özeti kullanılır; yalnızca özet yoksa ya da mesaj
      görsele açıkça atıf yapıyorsa görsel yeniden eklenir (tur başına yine tek
      çağrı). Model yine yalnızca niyet çıkarır; görselden ürün/fiyat üretmez.
+   - Sohbette ürün linki tercihi (karar 0090): `/sohbet` mesajındaki link
+     modele ASLA gitmez; link modelsiz, mevcut link kuyruğuyla çözülür. Yalnızca
+     `CHAT_LINK_ENABLED` ve `CHAT_LINK_INTERPRET_ENABLED` açıkken, deterministik
+     ayrıştırmanın çözemediği "daha spor" gibi tercih metni için, URL'si ayıklanmış
+     kullanıcı metniyle, 0074'ün aynı tek çağrı/`api_usage`/tavan hattından. Üçüncü
+     taraf sayfa metni, başlığı ya da görseli modele gitmez; model yalnızca
+     lexicon'la doğrulanan tercih alanları üretir — ürün, fiyat, stok, satıcı değil.
    Başka hiçbir yerde istek anında LLM veya model çağrısı yapılmaz.
 2. **Benzerlik sorgu anında hesaplanmaz.** `similarity_edge` tablosu toplu işle
    doldurulur, istek yolu sadece okur.
