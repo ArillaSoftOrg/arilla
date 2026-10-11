@@ -718,21 +718,22 @@ Kaynak ürünün fiyatı yalnızca sayfanın yapılandırılmış verisinden gel
 yazılır; fiyatsız kaynakta fiyat gösterilmez. Mağaza bağlantısı yalnızca
 `/git/<offerId>?surface=search` ile verilir.
 
-## Sohbette fotoğraf izni (karar 0101)
+## Sohbette fotoğraf izni (karar 0101, 0105)
 
 Kaynak: `apps/web/app/sohbet/chat-image-consent-copy.ts`. Metin değişince `CHAT_IMAGE_CONSENT_VERSION` artar.
 Yalnızca kodun gerçekte yaptığı şeyler yazılır; hukuk onayı bekleyen beyanlar (model eğitimi, sağlayıcı
-saklama süresi, aktarım dayanağı) yazılmaz.
+saklama süresi, aktarım dayanağı) yazılmaz. Modal değil, kompozerin üstünde satır içi şerit;
+seçilen fotoğrafın önizlemesi yanında görünür.
 
 | Anahtar | Metin |
 |---|---|
-| `chat_image.title` | Fotoğrafını kullanmamız için iznin gerekiyor |
-| `chat_image.intro` | Seçtiğin fotoğraf, sen Gönder'e basana kadar cihazından çıkmaz. |
-| `chat_image.accept` | Fotoğrafımın bu şekilde kullanılmasını kabul ediyorum |
-| `chat_image.decline` | Kabul etmiyorum |
-| `chat_image.withdraw` | İznini istediğin zaman Hesabım > Gizlilik tercihleri sayfasından geri çekebilirsin. Geri çekmen yeni fotoğraf eklemeni durdurur. |
+| `chat_image.title` | Fotoğrafı eklemek için iznin gerekiyor |
+| `chat_image.summary` | Gönder'e basana kadar fotoğraf cihazından çıkmaz. Gönderince sunucumuzda küçültülür, konum gibi üst bilgileri silinir ve aradığın ürünü anlamak için Google'ın Gemini yapay zekâ hizmetine gönderilir; bu, verinin yurt dışına aktarılması anlamına gelebilir. Sohbetinle birlikte en geç 90 gün saklanır, yalnızca sen görürsün. Başka kişilerin yer aldığı ya da kimlik, kart, adres gibi bilgi içeren fotoğraf ekleme. |
+| `chat_image.accept` | İzin ver ve fotoğrafı ekle |
+| `chat_image.decline` | Vazgeç |
+| `chat_image.withdraw` | İznini istediğin zaman Hesabım > Gizlilik tercihleri sayfasından geri çekebilirsin. |
 
-Kabul ve ret eşit görsel ağırlıkta, onay kutusu yok, önceden işaretli bir şey yok.
+Hesabım > Gizlilik tercihleri: aynı bilgilendirme, izin durumu ve geri çekme düğmesi. Kabul ve ret eşit görsel ağırlıkta, onay kutusu yok, önceden işaretli bir şey yok.
 
 ## Sohbet geri bildirimi (karar 0079)
 
