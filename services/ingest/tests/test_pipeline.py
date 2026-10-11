@@ -65,13 +65,28 @@ SELECT count(*) FROM variant_stock_event e
 """
 
 
+APP_ROLE = "arilla_app"
+
+
 def _owner() -> psycopg.Connection:
     return psycopg.connect(database_url("DATABASE_URL_OWNER"))
 
 
 def _app() -> psycopg.Connection:
-    """Boru hattinin kullandigi baglanti: uygulama rolu."""
-    return psycopg.connect(database_url("DATABASE_URL"))
+    """Boru hattinin kullandigi baglanti: uygulama rolu.
+
+    `DATABASE_URL` belgeli olarak `arilla_app`'i gosterir (README, 0011). Yerel
+    ortamda yanlislikla sahip/superuser rolune isaret ederse yetki katmani
+    sessizce devre disi kalirdi; bu durumda oturum `SET ROLE arilla_app` ile
+    uygulama rolune indirilir (superuser parolasiz yapabilir). Yetkiler
+    gevsetilmez; yalnizca testin onkosulu saglanir.
+    """
+    conn = psycopg.connect(database_url("DATABASE_URL"))
+    row = conn.execute("SELECT rolsuper FROM pg_roles WHERE rolname = current_user").fetchone()
+    if row and row[0]:
+        conn.execute(f"SET ROLE {APP_ROLE}")
+        conn.commit()  # oturum duzeyi; sonraki ROLLBACK geri almaz
+    return conn
 
 
 @pytest.fixture
@@ -224,8 +239,21 @@ def test_pipeline_cannot_update_price_point(merchant: int) -> None:
     with _app() as conn:
         run_ingest(conn, MERCHANT_SLUG)
 
-    with _app() as conn, conn.cursor() as cur, pytest.raises(psycopg.errors.InsufficientPrivilege):
-        cur.execute("UPDATE price_point SET price = 1 WHERE false")
+    with _app() as conn:
+        # Onkosul: gercekten superuser olmayan bir uygulama rolu (aksi halde test anlamsiz).
+        row = conn.execute(
+            "SELECT rolsuper FROM pg_roles WHERE rolname = current_user"
+        ).fetchone()
+        assert row is not None and row[0] is False
+
+    for statement in (
+        "UPDATE price_point SET price = 1 WHERE false",
+        "DELETE FROM price_point WHERE false",
+    ):
+        with _app() as conn, conn.cursor() as cur, pytest.raises(
+            psycopg.errors.InsufficientPrivilege
+        ):
+            cur.execute(statement)
 
 
 def test_failed_run_records_no_rolled_back_writes(

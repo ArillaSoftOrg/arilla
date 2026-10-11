@@ -114,14 +114,28 @@ export type ModelInterpretationOutcome =
   /** Model gecerli bicimde "bir sey bulamadim" dedi. */
   | { status: "empty"; rejected: []; calls: LlmCall[]; modelVersion: string }
   /** Cikti kullanilamaz ya da her alani reddedildi; yorum saklanmaz, durum saklanir. */
-  | { status: "invalid"; rejected: ModelRejection[]; calls: LlmCall[]; modelVersion: string }
+  | {
+      status: "invalid";
+      rejected: ModelRejection[];
+      calls: LlmCall[];
+      modelVersion: string;
+      /** Saglayici durum degeri (or. `MAX_TOKENS`); yalnizca cikti-hatasi yolunda. Hata kaydi icindir. */
+      errorDetail?: string | null;
+    }
   /** Gecici/yapilandirma hatasi; hicbir sey saklanmaz, sonraki kosu yeniden dener. */
   | {
       status: "provider_error";
       code: LlmErrorCode | "unknown";
       calls: LlmCall[];
       modelVersion: string;
+      /** Saglayici durum degeri; hata kaydi icindir, serbest metin degil. */
+      errorDetail?: string | null;
     };
+
+/** Yalnizca doluysa eklenir: mevcut sonuc bicimi (ve testleri) degismez. */
+function detailOf(error: unknown): { errorDetail?: string } {
+  return error instanceof LlmError && error.detail ? { errorDetail: error.detail } : {};
+}
 
 function isEmpty(value: ValidatedInterpretation): boolean {
   return (
@@ -156,9 +170,16 @@ export async function interpretWithModel(
         ],
         calls,
         modelVersion,
+        ...detailOf(error),
       };
     }
-    return { status: "provider_error", code, calls, modelVersion };
+    return {
+      status: "provider_error",
+      code,
+      calls,
+      modelVersion,
+      ...detailOf(error),
+    };
   }
 
   const { value, rejected } = validateInterpretation(result.value, request, registry);

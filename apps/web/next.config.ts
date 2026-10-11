@@ -46,7 +46,21 @@ const nextConfig: NextConfig = {
   },
   // Karar 0050: CSP, çerçeveleme yasağı ve diğer güvenlik başlıkları tek merkezde.
   async headers() {
-    return securityHeaderRoutes(securityHeaderOptionsFromEnv());
+    return [
+      ...securityHeaderRoutes(securityHeaderOptionsFromEnv()),
+      // Degismeyen statik varliklar: varsayilan `max-age=0` her ziyarette
+      // yeniden dogrulama yaptirir. Dosya adlari hash'siz oldugundan bir
+      // hafta + arka planda yenileme; kullaniciya ozel icerik degildir.
+      {
+        source: "/:dir(fonts|ways)/:file*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=604800, stale-while-revalidate=86400",
+          },
+        ],
+      },
+    ];
   },
   poweredByHeader: false,
   experimental: {

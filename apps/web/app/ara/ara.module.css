@@ -40,6 +40,24 @@
   color: var(--ink-muted);
 }
 
+/* Karar 0092: tarayicinin varsayilan mavisi temaya uymuyordu; metin
+   baglantisi --ink + alt cizgi (altbilgi baglantilariyla ayni dil). */
+.rightsHint a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.rightsHint a:hover {
+  text-decoration-thickness: 2px;
+}
+
+.rightsHint a:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
 .toolbarSearch {
   flex: 1 1 18rem;
   min-width: 0;

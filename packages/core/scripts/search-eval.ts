@@ -10,7 +10,10 @@
  */
 import { writeFileSync } from "node:fs";
 import { createDatabase } from "@arilla/db";
+import { searchRecord } from "../src/eval/record-adapters.ts";
+import { summarizeSearch } from "../src/eval/search-eval.ts";
 import { evaluateAll } from "../src/search/eval/run-eval.ts";
+import { codeRef, guardRecordFlag, recordOrExit } from "./lib/eval-record.ts";
 
 const url = process.env.DATABASE_URL ?? "";
 const host = (() => {
@@ -53,8 +56,16 @@ console.log(
   `\nortalama ilgili@5 ${mean(scored.map((r) => r.relevantAt5)).toFixed(2)} | ilgili@10 ${mean(scored.map((r) => r.relevantAt10)).toFixed(2)} | ilk 10'da yanlis pozitif ${scored.reduce((n, r) => n + r.falsePositives.length, 0)} | yok-sorgusu dogru ${absent.filter((r) => r.zeroResultCorrect).length}/${absent.length} | ${elapsed.toFixed(0)} ms`,
 );
 
+const summary = summarizeSearch(rows);
+console.log(
+  `P@5 ${summary.precisionAt5.toFixed(3)} | NDCG@10 ${summary.ndcgAt10.toFixed(3)} | sifir sonuc ${(summary.zeroResultRate * 100).toFixed(1)}% | kacirma ${(summary.missRate * 100).toFixed(1)}% | yok-sorgusu dogru ${(summary.absentCorrectRate * 100).toFixed(1)}%`,
+);
+
 const jsonIndex = process.argv.indexOf("--json");
 if (jsonIndex !== -1 && process.argv[jsonIndex + 1]) {
   writeFileSync(process.argv[jsonIndex + 1] as string, JSON.stringify(rows, null, 2));
+}
+if (guardRecordFlag()) {
+  await recordOrExit(searchRecord(rows, `search@${codeRef()}`));
 }
 process.exit(0);

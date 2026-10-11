@@ -1,11 +1,13 @@
 import type { Metadata, Viewport } from "next";
 import type { ReactNode } from "react";
+import { preload } from "react-dom";
 import "./globals.css";
 import { readAppUrl } from "@arilla/core";
 import { parseMeasurementId } from "@arilla/core/ga4-measurement";
 import { ConsentGate, ConsentProvider } from "./cookie-consent-client.tsx";
 import { Ga4Client } from "./ga4-client.tsx";
 import { readConsent } from "./lib/consent.ts";
+import { readThemePreference } from "./lib/theme-cookie.ts";
 import { SITE_BRAND } from "./site-config.ts";
 
 /**
@@ -51,12 +53,21 @@ export const viewport: Viewport = {
 
 export default async function RootLayout({ children }: { children: ReactNode }) {
   // Karar 0038: tercih sunucuda okunur; banner ilk HTML'de gelir, yanip sonmez.
+  // Tek degisken font her sayfada gerekir; CSS ayrisinca kesfedilmesini
+  // beklemeden ilk HTML'de preload edilir (ayni kokenli, CDN yok - karar 0009).
+  preload("/fonts/IBMPlexSansVar-Roman.woff2", {
+    as: "font",
+    type: "font/woff2",
+    crossOrigin: "anonymous",
+  });
   const consent = await readConsent();
   // Karar 0087: kimlik çalışma anında sunucudan; geçersiz/yoksa GA4 hiç yok.
   const ga4Id = parseMeasurementId(process.env.GA4_MEASUREMENT_ID);
+  // Karar 0092: elle secilen tema ilk HTML'de; yoksa cihaz tercihi (titreme yok).
+  const theme = await readThemePreference();
 
   return (
-    <html lang="tr">
+    <html lang="tr" data-theme={theme ?? undefined}>
       <body>
         <ConsentProvider consent={consent}>
           {children}

@@ -14,8 +14,11 @@
    `logoutAction`) içerir. Sunucu işlevleri (`/hesap/veri-indir`,
    `clearHistoryAction`, `logoutAllDevicesAction`, `updateConsentAction`) silinmez;
    yalnızca arayüzden çıkar.
-2. **Tema yalnızca sistem tercihidir** : `prefers-color-scheme`.
-   `theme` çerezi artık yazılmaz ve okunmaz; `[data-theme]` blokları kalktı.
+2. ~~**Tema yalnızca sistem tercihidir** : `prefers-color-scheme`.
+   `theme` çerezi artık yazılmaz ve okunmaz; `[data-theme]` blokları kalktı.~~
+   **Karar 0092 ile değişti:** üst çubukta elle seçim, `theme` çerezi →
+   `<html data-theme>`; ilk ziyaret cihaz tercihi. Profil sayfasına tema
+   ayarı geri gelmedi.
 3. **Haftalık özet, onboarding anketinin (0058) SON adımıdır.** Ayrı bir
    karşılama rotası yoktur. Anket sihirbazı, yalnızca `kind = 'onboarding'`
    formunda ve kullanıcının henüz ilk kararı yokken (`app_user.onboarded_at`

@@ -1,4 +1,11 @@
-import { OfferNotFoundError, recordActivity, recordClick } from "@arilla/core";
+import {
+  classifyClickRequest,
+  normalizeClickSurface,
+  OfferNotFoundError,
+  parseResultPosition,
+  recordActivity,
+  recordClick,
+} from "@arilla/core";
 import {
   ANONYMOUS_SESSION_COOKIE,
   anonymousSessionCookieOptions,
@@ -36,6 +43,12 @@ export async function GET(request: Request, { params }: { params: Promise<{ offe
     notFound();
   }
 
+  // Onyukleme, HEAD ve botlar gercek tiklama degildir: click satiri, cerez ve
+  // yonlendirme yok (merchant'a cikis olmadigi icin kural 8 bozulmaz).
+  if (classifyClickRequest(request) !== "human") {
+    return new Response(null, { status: 204, headers: { "Cache-Control": "no-store" } });
+  }
+
   const store = await cookies();
   const existingSessionId = validAnonymousSessionId(store.get(ANONYMOUS_SESSION_COOKIE)?.value);
   const sessionId = existingSessionId ?? newAnonymousSessionId();
@@ -45,17 +58,21 @@ export async function GET(request: Request, { params }: { params: Promise<{ offe
 
   const url = new URL(request.url);
   // Serbest metin degil: core yalnizca izinli yuzeyleri yazar.
-  const surface = url.searchParams.get("surface");
+  const surface = normalizeClickSurface(url.searchParams.get("surface"));
+  // Adres satiri guvenilmez: yalnizca liste yuzeylerinde, 1..500 tamsayi.
+  const resultPosition = parseResultPosition(url.searchParams.get("pos"), surface);
 
   const db = getDatabase();
   let redirectUrl: string;
   let clickId: string;
+  let deduplicated: boolean;
   try {
-    ({ redirectUrl, clickId } = await recordClick(db, {
+    ({ redirectUrl, clickId, deduplicated } = await recordClick(db, {
       offerId: offerIdNum,
       sessionId,
       channel: "web",
       surface,
+      resultPosition,
       userId: user?.id ?? null,
     }));
   } catch (error) {
@@ -65,7 +82,8 @@ export async function GET(request: Request, { params }: { params: Promise<{ offe
     throw error;
   }
 
-  if (user) {
+  // Tekrarlanan tiklama (deduplicated) ikinci bir merchant_exit uretmez.
+  if (user && !deduplicated) {
     try {
       await recordActivity(db, {
         userId: user.id,

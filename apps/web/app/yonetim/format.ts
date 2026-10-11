@@ -952,3 +952,48 @@ const DEVICE_LABELS: Record<string, string> = {
 export function deviceLabel(value: string): string {
   return DEVICE_LABELS[value] ?? value;
 }
+
+/** 0..1 oranı yüzde olarak yazar (ör. 0,873 -> "%87,3"). */
+export function formatRatio(value: number): string {
+  return `%${(value * 100).toLocaleString("tr-TR", { minimumFractionDigits: 1, maximumFractionDigits: 1 })}`;
+}
+
+const AI_PROVIDER_LABELS: Record<string, string> = {
+  gemini: "Gemini",
+  jina: "Jina",
+  other: "Diğer",
+};
+
+export function aiProviderLabel(value: string): string {
+  return AI_PROVIDER_LABELS[value] ?? value;
+}
+
+const AI_ERROR_CLASS_LABELS: Record<string, string> = {
+  timeout: "Zaman aşımı",
+  rate_limited: "Hız sınırı",
+  quota: "Kota",
+  auth: "Kimlik doğrulama",
+  bad_request: "Geçersiz istek",
+  schema_invalid: "Şema dışı çıktı",
+  safety_blocked: "Güvenlik engeli",
+  empty_output: "Boş ya da yarım çıktı",
+  server_error: "Sağlayıcı hatası",
+  network: "Ağ hatası",
+  unknown: "Sınıflanamadı",
+};
+
+export function aiErrorClassLabel(value: string): string {
+  return AI_ERROR_CLASS_LABELS[value] ?? value;
+}
+
+const EVAL_FAILURE_LABELS: Record<string, string> = {
+  wrong_action: "Yanlış eylem",
+  false_match: "Yanlış eşleştirme",
+  missed_match: "Kaçan eşleştirme",
+  zero_result: "Sıfır sonuç",
+  low_rank: "Düşük sıra",
+};
+
+export function evalFailureClassLabel(value: string): string {
+  return EVAL_FAILURE_LABELS[value] ?? value;
+}

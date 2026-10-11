@@ -22,6 +22,7 @@ from __future__ import annotations
 import json
 import logging
 import math
+import os
 import re
 from collections.abc import Iterator, Mapping
 from contextlib import contextmanager
@@ -37,6 +38,16 @@ logger = logging.getLogger(__name__)
 JOB_NAME = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
 TRIGGERS = frozenset({"manual", "cron", "worker"})
 FINAL_STATUSES = frozenset({"success", "partial", "failed"})
+
+#: Zamanlayici (orn. GitHub Actions) `JOB_RUN_TRIGGER=cron` verir; yonetim
+#: ekrani zamanlanmis kosuyu elle kosudan ayirir ve gecikme uyarisini bununla uretir.
+TRIGGER_ENV = "JOB_RUN_TRIGGER"
+
+
+def default_trigger() -> str:
+    """Kosunun tetigi: `JOB_RUN_TRIGGER` gecerliyse o, yoksa ya da gecersizse `manual`."""
+    value = os.environ.get(TRIGGER_ENV, "").strip().lower()
+    return value if value in TRIGGERS else "manual"
 
 MAX_ERROR_SUMMARY = 500
 #: Kisit `pg_column_size(detail) <= 4096`; JSON metni bunun epey altinda tutulur.
@@ -163,7 +174,7 @@ class JobRun:
 
 
 @contextmanager
-def track(job: str, trigger: str = "manual") -> Iterator[JobRun]:
+def track(job: str, trigger: str | None = None) -> Iterator[JobRun]:
     """Is kosusunu kaydeder.
 
         with job_run.track("resolve") as run:
@@ -175,7 +186,7 @@ def track(job: str, trigger: str = "manual") -> Iterator[JobRun]:
     Blok istisnayla (KeyboardInterrupt dahil) biterse `failed` + kirpilmis
     hata ozeti yazilir ve istisna aynen yeniden firlatilir.
     """
-    run = JobRun(job=job, id=start(job, trigger))
+    run = JobRun(job=job, id=start(job, trigger or default_trigger()))
     try:
         yield run
     except BaseException as error:

@@ -27,6 +27,7 @@ import { DEFAULT_CLARIFICATION_REGISTRY } from "../clarification/rules.ts";
 import { createInitialState } from "../clarification/state.ts";
 import type { ClarificationRegistry } from "../clarification/types.ts";
 import { planConversation } from "../conversational-search/plan.ts";
+import { failureFromInterpretation, recordModelFailure } from "../eval/model-errors.ts";
 import type { LlmCall, LlmClient, LlmErrorCode } from "../llm/client.ts";
 import { LlmError } from "../llm/client.ts";
 import { getLlmClient } from "../llm/gemini.ts";
@@ -225,20 +226,26 @@ export async function persistOutcome(
 ): Promise<{ stored: boolean; conflict: boolean }> {
   const { queryNorm, taxonomyHash, outcome } = input;
   const operation = input.operation ?? QUERY_INTERPRETATION_OPERATION;
-  return db.transaction(async (tx) => {
+  let lastUsageId: number | null = null;
+  const result = await db.transaction(async (tx) => {
+    lastUsageId = null;
     if (outcome.calls.length > 0) {
-      await tx.insert(apiUsage).values(
-        outcome.calls.map((call: LlmCall) => ({
-          sessionId: null,
-          userId: null,
-          operation,
-          modelVersion: call.modelVersion,
-          units: call.usage?.totalTokens ?? 0,
-          // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
-          costMicros: llmCallCostMicros(call),
-          cacheHit: false,
-        })),
-      );
+      const usageRows = await tx
+        .insert(apiUsage)
+        .values(
+          outcome.calls.map((call: LlmCall) => ({
+            sessionId: null,
+            userId: null,
+            operation,
+            modelVersion: call.modelVersion,
+            units: call.usage?.totalTokens ?? 0,
+            // Karar 0082: tahmini liste fiyati; bilinmeyen 0 = "fiyatlanmamis".
+            costMicros: llmCallCostMicros(call),
+            cacheHit: false,
+          })),
+        )
+        .returning({ id: apiUsage.id });
+      lastUsageId = usageRows.at(-1)?.id ?? null;
     }
     if (outcome.status === "provider_error") return { stored: false, conflict: false };
 
@@ -259,6 +266,16 @@ export async function persistOutcome(
       .returning({ id: queryInterpretation.id });
     return { stored: inserted.length > 0, conflict: inserted.length === 0 };
   });
+  // Islem tamamlandiktan SONRA, sonuc basina tek hata olayi (karar 0099). Sinirli
+  // sureli ve asla firlatmaz; yorum akisini bozmaz.
+  await recordModelFailure(db, {
+    failure: failureFromInterpretation(outcome),
+    operation,
+    surface: "search",
+    modelVersion: outcome.modelVersion,
+    apiUsageId: lastUsageId,
+  });
+  return result;
 }
 
 export interface QueryInterpretationBatchOptions {

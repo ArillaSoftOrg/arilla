@@ -45,7 +45,13 @@ eklenmez.
 
 Domain tabloları olayların kaynağıdır, olay tablosu onları kopyalamaz:
 
-- `click`: mağaza çıkışı (attribution).
+- `click`: mağaza çıkışı (attribution). Yazılırken: `product_id` teklifin kendi
+  ürününden gelir (adres satırından değil); `result_position` yalnızca liste
+  yüzeylerinde (`search`, `collection`, `compare`) ve 1–500 tamsayı ise yazılır;
+  `source_similarity_kind` adres satırından alınmaz (doğrulanamaz), yazan bir
+  yüzey çıkana kadar boş kalır. Önyükleme (`Sec-Purpose: prefetch`), `HEAD` ve bot
+  istekleri `/git` üzerinde 204 alır: `click` yok, yönlendirme yok. Aynı oturum+teklif
+  için 5 sn içindeki tekrar yeni satır üretmez (ve ikinci `merchant_exit` yazmaz).
 - `saved_item`: favori durumu.
 - `ai_search_charge`: fotoğraf ve link araması.
 - `product_view`: kullanıcıya gösterilen gezinme geçmişi; kendi rızası
@@ -110,6 +116,19 @@ kaçıncı sırada gösterildiğini; `matched_kind`, o sonucu üreten
 `substitute`). Bu iki alan, hangi benzerlik türünün gerçekte tıklamayı ve
 dönüşümü sürüklediğini ölçmek içindir; sıralama ağırlıkları buna göre
 güncellenir (`docs/search.md`).
+
+## Olay kimliği ve şema sürümü (karar 0100)
+
+`user_activity_event` satırları `event_id` (UUID) ve `schema_version` taşır:
+
+- `schema_version = 1`: eski biçim, `event_id` NULL. Mevcut satırlar bunlardır.
+- `schema_version = 2`: `event_id` zorunlu. Yeni yazıcı bunu yazar.
+- `(user_id, event_id)` tekildir; aynı kimlik ikinci kez gelirse olay yazılmaz ve
+  sayaç artmaz (`recordActivity` → `duplicate`). `merchant_exit` kimliği
+  `click_id`'den türetilir, yani aynı çıkış bir kez yazılır.
+- Kimlik rıza kapısını değiştirmez: rıza yoksa hiçbir şey yazılmaz.
+- Sürüm değişikliği: yeni sürüm numarası, bu bölümde biçim notu ve okuyan kodda
+  eski sürüm dalı birlikte eklenir; eski sürüm satırları silinmez.
 
 ## Hesap
 

@@ -1,5 +1,6 @@
 export * from "./affiliate.ts";
 export * from "./ai-operations.ts";
+export * from "./ai-quality.ts";
 export * from "./audit.ts";
 export * from "./bounds.ts";
 export * from "./capabilities.ts";

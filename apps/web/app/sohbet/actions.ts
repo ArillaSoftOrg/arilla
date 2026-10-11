@@ -1,5 +1,6 @@
 "use server";
 
+import { createHash } from "node:crypto";
 import {
   type AssistantPreview,
   type ChatAttachmentInput,
@@ -10,12 +11,15 @@ import {
   createChatTimer,
   createConversation,
   getChatInterpreter,
+  getChatLinkView,
   getTurnStatus,
   isChatDiscoveryEnabled,
   isChatImageEnabled,
+  isChatLinkEnabled,
   isRedisUnavailableError,
   isUuid,
   isValidRequestKey,
+  loadConversation,
   logChatTimings,
   prepareChatImage,
   processPendingTurn,
@@ -62,6 +66,17 @@ function scheduleInitialTurn(
   }
 }
 
+/**
+ * Istemci anahtar gondermediyse (JS'siz form, duz metin yolu) cift tiklama/yeniden gonderim
+ * ikinci sohbet ve ikinci kota birimi harcamasin: ayni kullanici + ayni metin icin 10 sn'lik
+ * kovada deterministik anahtar. Kova siniri seyrek bir cift gonderime izin verebilir; zararsizdir.
+ */
+function implicitRequestKey(userId: number, text: string, now: number = Date.now()): string {
+  const bucket = Math.floor(now / 10_000);
+  const digest = createHash("sha256").update(`${userId}:${bucket}:${text}`).digest("hex");
+  return `auto-${digest.slice(0, 40)}`;
+}
+
 /** Ana sayfa kutusu: sohbet olusturur, ilk mesaji kaydeder, `/sohbet/[id]`ye yonlendirir. */
 export async function startConversationAction(formData: FormData): Promise<void> {
   const raw = formData.get("q");
@@ -74,7 +89,11 @@ export async function startConversationAction(formData: FormData): Promise<void>
   }
 
   const db = getDatabase();
-  const created = await createConversation(db, { userId: user.id, message: text });
+  const created = await createConversation(db, {
+    userId: user.id,
+    message: text,
+    requestKey: implicitRequestKey(user.id, text),
+  });
   // Saatlik tavan ya da gecersiz girdi: kullanici yine de arayabilir (yapay zekasiz yol).
   if (created.status !== "created") redirect(plainSearchHref(text));
   scheduleInitialTurn(db, user.id, created.conversationId);
@@ -140,7 +159,9 @@ export async function sendMessageAction(
   if (photo !== undefined) {
     // Bayrak kapaliyken gorsel hicbir kosulda islenmez ya da eski aramaya dusulmez.
     if (!isChatImageEnabled()) return { status: "unavailable" };
-    const prepared = await prepareChatImage(photo instanceof FormData ? photo.get("photo") : null);
+    const prepared = await prepareChatImage(photo instanceof FormData ? photo.get("photo") : null, {
+      userId: user.id,
+    });
     if (!prepared.ok) return { status: prepared.status };
     attachment = prepared.attachment;
   }
@@ -298,8 +319,9 @@ export async function startChatBootstrapAction(input: unknown): Promise<NewTabCh
       return { status: "unavailable" };
     }
     if (submission.invalidKey) return { status: "image_rejected", reason: "invalid_input" };
-    const prepared = await prepareChatImage(submission.image);
+    const prepared = await prepareChatImage(submission.image, { userId: user.id });
     if (!prepared.ok) {
+      if (prepared.status === "rate_limited") return { status: "rate_limited" };
       return prepared.status === "error"
         ? { status: "error" }
         : { status: "image_rejected", reason: prepared.status };
@@ -317,7 +339,8 @@ export async function startChatBootstrapAction(input: unknown): Promise<NewTabCh
       createConversation(db, {
         userId: user.id,
         message,
-        ...(submission.requestKey !== undefined ? { requestKey: submission.requestKey } : {}),
+        // Gorselli gonderim kendi anahtarini tasir; metin-yalniz yolda anahtar yoksa ortuk anahtar.
+        requestKey: submission.requestKey ?? implicitRequestKey(user.id, message),
         ...(attachment ? { attachment } : {}),
       }),
     );
@@ -375,4 +398,32 @@ export async function submitResultFeedbackAction(
       comment: details?.comment,
     }),
   };
+}
+
+export type ChatLinkPollState = "pending" | "done" | "unavailable";
+
+/**
+ * Link incelemesi bitti mi? (karar 0090). Istemci yalnizca sohbet kimligi ve mesaj
+ * sirasini gonderir; `requestId` sahibin kendi mesajindan okunur (baskasinin
+ * istegi sorgulanamaz). Durum okuma cekirdekte (`getChatLinkView`: hak uzlasmasi
+ * dahil). Sonucu sunucu bileseni cizer; burada yalnizca sabit durum kodu doner.
+ */
+export async function pollChatLinkAction(
+  conversationId: string,
+  messageSeq: number,
+): Promise<{ state: ChatLinkPollState }> {
+  const user = await verifySession();
+  if (!isChatDiscoveryEnabled() || !isChatLinkEnabled() || !user || !canAccessProduct(user)) {
+    return { state: "unavailable" };
+  }
+  if (typeof conversationId !== "string" || !isUuid(conversationId)) {
+    return { state: "unavailable" };
+  }
+  if (!Number.isInteger(messageSeq) || messageSeq < 1) return { state: "unavailable" };
+  const db = getDatabase();
+  const view = await loadConversation(db, { userId: user.id, conversationId });
+  const message = view?.messages.find((m) => m.seq === messageSeq);
+  if (message?.kind !== "notice" || !message.link) return { state: "unavailable" };
+  const linkView = await getChatLinkView(db, message.link);
+  return { state: linkView.state === "pending" ? "pending" : "done" };
 }
