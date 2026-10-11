@@ -19,6 +19,7 @@ export * from "./config/index.ts";
 export * from "./consent/account-consent.ts";
 export * from "./conversational-search/index.ts";
 export * from "./cron/index.ts";
+export * from "./data-intelligence/index.ts";
 export * from "./discovery/index.ts";
 export * from "./discovery-feed/index.ts";
 export * from "./email/index.ts";

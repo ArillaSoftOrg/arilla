@@ -107,7 +107,18 @@ export type AdminAction =
   | "trends.reorder"
   /** Karar 0086: gelen kutusu triyajı; içerik, ad, e-posta yazılmaz. */
   | "messages.status_change"
-  | "messages.priority_change";
+  | "messages.priority_change"
+  /**
+   * Veri zekâsı (karar 0102). Satır içeriği ve kişi verisi YAZILMAZ; yalnızca veri
+   * seti anahtarı, sürüm, dönem, durum ve sayılar. `data.export_download`: tek bir
+   * dosyanın indirilmesi (dosya adı ve sağlama toplamı).
+   */
+  | "data.build"
+  | "data.export"
+  | "data.export_cancel"
+  | "data.export_download"
+  | "data.accuracy_sample"
+  | "data.accuracy_label";
 
 export type AdminTargetType =
   | "match_candidate"
@@ -125,7 +136,10 @@ export type AdminTargetType =
   /** `security.access_denied` hedefi: istenen yetenek adı. */
   | "capability"
   /** Karar 0086: `trend` satırı. */
-  | "trend";
+  | "trend"
+  /** Karar 0102: veri seti sürümü (`di_dataset_build`) ve dışa aktarım kaydı (`di_export`). */
+  | "data_build"
+  | "data_export";
 
 /** Filtre ve bağlantı için bilinen hedef türleri. */
 export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
@@ -140,6 +154,8 @@ export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
   "early_access_counter",
   "capability",
   "trend",
+  "data_build",
+  "data_export",
 ];
 
 export function isAuditTargetType(value: unknown): value is AdminTargetType {

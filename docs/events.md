@@ -215,6 +215,14 @@ koşuda yeniden hesaplanır, saklanan bir kimlik veya etiket değildir.
 Kişiselleştirme rızası (`user_consent.kind = 'personalization'`, bkz.
 `docs/kvkk.md`) reddedilmişse bu türetme o kullanıcı için hiç çalışmaz.
 
+## Veri setleri (karar 0102)
+
+`product_viewed` ve `merchant_exit` toplulaştırılmış, k-eşikli veri setlerinin
+kaynağıdır (`packages/core/src/data-intelligence`); arama, gösterim, tıklama ve
+satın alma olayları birbirine karıştırılmaz. Üretim ve dışa aktarım hukuki
+onaya bağlıdır (varsayılan kapalı). Yeni olay yazılırsa önce buradaki sınıf
+tablosu, sonra `COLLECTION_AUDIT` güncellenir.
+
 ## Gönderilmeyecekler
 
 - E-posta adresi, ad, IP — analitik yükünde kişisel veri taşınmaz

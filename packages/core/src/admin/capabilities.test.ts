@@ -47,6 +47,10 @@ const ADMIN_ONLY: Capability[] = [
   "config.read",
   // Karar 0087.
   "traffic.read",
+  // Karar 0102.
+  "data.read",
+  "data.build",
+  "data.export",
 ];
 const ALL: Capability[] = [...MODERATOR, ...ADMIN_ONLY];
 

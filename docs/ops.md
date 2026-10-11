@@ -863,3 +863,13 @@ görseller"), sonra bayrak. Production'da onay olmadan açılmaz.
 ### Sohbette ürün linki (karar 0090) — varsayılan kapalı
 
 `CHAT_LINK_ENABLED=true` (ayrıca `CHAT_DISCOVERY_ENABLED=true` ister) sohbetteki linki mevcut link kuyruğuna verir; modele gitmez. Önkoşul: link worker'ı üretimde çalışıyor olmalı ("Link worker" bölümü; yoksa istekler 2 dk sonra 'worker yanıt vermedi' olur). `CHAT_LINK_INTERPRET_ENABLED=true` (ayrıca `CHAT_LINK_ENABLED`) deterministik ayrıştırmanın çözemediği tercih metni için tek Gemini çağrısı yapar; `api_usage` `chat_turn`, mevcut günlük/saatlik tavanlar. `/ara/link` ve `LINK_SEARCH_PUBLIC` bu bayraklardan bağımsızdır. Kademe: iç ekip → küçük kitle → herkes; izle: kuyruk uzunluğu, `error_code` dağılımı, Jina maliyeti. Geri alma: bayrakları kapat (migration yok).
+
+## Veri zekâsı bayrakları (karar 0102)
+
+Hepsi varsayılan **kapalı**; hukuki onay olmadan açılmaz.
+
+| Değişken | Etki |
+| --- | --- |
+| `DATA_INTELLIGENCE_BUILD_ENABLED=true` | Rızalı olaylardan veri seti üretimi (`/yonetim/veri-zekasi`) |
+| `DATA_INTELLIGENCE_EXPORT_ENABLED=true` | Dahili dışa aktarım (üretim bayrağı da açık olmalı) |
+| `DATA_INTELLIGENCE_CLEARED_SOURCES=user_activity_event` | Hukuken onaylanmış kaynaklar; boş = hiçbiri |
