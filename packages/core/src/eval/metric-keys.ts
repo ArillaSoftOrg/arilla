@@ -81,19 +81,34 @@ export function intentStoredMetrics(summary: {
   };
 }
 
-/** `summarizeSearch()` → saklanacak metrikler. */
+/**
+ * `summarizeSearch()` -> saklanacak metrikler. Payda 0 ise metrik YAZILMAZ
+ * (panel "veri yok" gosterir); bos kume icin 0 uydurulmaz.
+ */
 export function searchStoredMetrics(summary: {
+  /** Verilmezse paydalar dolu sayilir (eski cagrilar). */
+  queries?: number;
+  scoredQueries?: number;
   precisionAt5: number;
   ndcgAt10: number;
   zeroResultRate: number;
   missRate: number;
   absentCorrectRate: number;
 }): Record<string, number> {
+  const queries = summary.queries ?? 1;
+  const scored = summary.scoredQueries ?? queries;
+  const absent = queries - scored;
   return {
-    precision_at_5: summary.precisionAt5,
-    ndcg_at_10: summary.ndcgAt10,
-    zero_result_rate: summary.zeroResultRate,
-    miss_rate: summary.missRate,
-    absent_correct_rate: summary.absentCorrectRate,
+    ...(scored > 0
+      ? {
+          precision_at_5: summary.precisionAt5,
+          ndcg_at_10: summary.ndcgAt10,
+          miss_rate: summary.missRate,
+        }
+      : {}),
+    ...(queries > 0 ? { zero_result_rate: summary.zeroResultRate } : {}),
+    ...(absent > 0 || summary.queries === undefined
+      ? { absent_correct_rate: summary.absentCorrectRate }
+      : {}),
   };
 }
