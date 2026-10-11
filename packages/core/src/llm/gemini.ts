@@ -97,11 +97,40 @@ function retryAfterMs(header: string | null): number | null {
   return Number.isNaN(date) ? null : Math.max(0, date - Date.now());
 }
 
-function errorForStatus(status: number): LlmError {
+function errorForStatus(status: number, detail: string | null = null): LlmError {
   if (status === 429) return new LlmError("rate_limited", status);
   if (status >= 500) return new LlmError("server_error", status);
   if (status === 401 || status === 403) return new LlmError("auth", status);
-  return new LlmError("client_error", status);
+  return new LlmError("client_error", status, detail);
+}
+
+/**
+ * Yalniz 400 (gecersiz istek) icin saglayicinin SABIT, deger yansitmayan alanlari:
+ * `error.status` (ör. INVALID_ARGUMENT), `ErrorInfo.reason` ve `fieldViolations[].field`
+ * (istek sema yolu). Serbest `message`/`description` ALINMAZ: Google bazen gonderilen
+ * degeri (kullanici metni) mesaja yansitir. Her parca kimlik benzeri bicimle sinirlidir.
+ */
+export async function clientErrorDetail(response: Response): Promise<string | null> {
+  const token = /^[A-Za-z][A-Za-z0-9_.[\]]{0,63}$/;
+  try {
+    const body = (await response.json()) as {
+      error?: { status?: unknown; details?: unknown };
+    };
+    const parts: string[] = [];
+    const add = (value: unknown) => {
+      if (typeof value === "string" && token.test(value) && parts.length < 6) parts.push(value);
+    };
+    add(body.error?.status);
+    const details = Array.isArray(body.error?.details) ? body.error.details : [];
+    for (const entry of details as Record<string, unknown>[]) {
+      add(entry?.reason);
+      const violations = Array.isArray(entry?.fieldViolations) ? entry.fieldViolations : [];
+      for (const violation of violations as Record<string, unknown>[]) add(violation?.field);
+    }
+    return parts.length > 0 ? parts.join(" ").slice(0, 160) : null;
+  } catch {
+    return null;
+  }
 }
 
 /** Yanit govdesini okumadan birakir; icerigi hataya tasimayiz. */
@@ -247,8 +276,9 @@ export class GeminiClient implements LlmClient {
         }
         this.report(onCall, { httpStatus: response.status, usage: null });
         waitHint = retryAfterMs(response.headers.get("retry-after"));
+        const detail = response.status === 400 ? await clientErrorDetail(response) : null;
         await discard(response);
-        error = errorForStatus(response.status);
+        error = errorForStatus(response.status, detail);
       } catch (caught) {
         if (caught instanceof LlmError) throw caught;
         this.report(onCall, { httpStatus: null, usage: null });
