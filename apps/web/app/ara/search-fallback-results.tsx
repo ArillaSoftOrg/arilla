@@ -1,4 +1,5 @@
 import { EmptyState } from "@arilla/ui";
+import type { ReactNode } from "react";
 import styles from "./ara.module.css";
 import { ResultGrid, type ResultGridItem } from "./search-results.tsx";
 
@@ -18,7 +19,14 @@ export const NO_RESULT_DESCRIPTION =
 
 const HEADING_ID = "en-yakin-sonuclar";
 
-export function SearchFallbackResults({ items }: { items: readonly ResultGridItem[] }) {
+export function SearchFallbackResults({
+  items,
+  extra,
+}: {
+  items: readonly ResultGridItem[];
+  /** Aynı ızgaranın sonuna eklenen `<li>`ler (karar 0106). */
+  extra?: ReactNode;
+}) {
   return (
     <section className={styles.section} data-search-mode="fallback" aria-labelledby={HEADING_ID}>
       <EmptyState
@@ -31,7 +39,7 @@ export function SearchFallbackResults({ items }: { items: readonly ResultGridIte
         <h2 id={HEADING_ID} className={styles.sectionTitle}>
           {FALLBACK_LIST_HEADING}
         </h2>
-        <ResultGrid items={items} labelledBy={HEADING_ID} />
+        <ResultGrid items={items} labelledBy={HEADING_ID} extra={extra} />
       </div>
     </section>
   );

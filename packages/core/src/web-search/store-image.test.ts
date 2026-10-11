@@ -6,7 +6,7 @@ import {
   productNameMatches,
   robotsAllows,
   type SafeGetFn,
-  selectImagedGroups,
+  selectDisplayGroups,
 } from "./store-image.ts";
 import type { WebProductGroup } from "./types.ts";
 
@@ -218,7 +218,11 @@ describe("pool, independence and display selection", () => {
     };
     const groups = Array.from({ length: 12 }, (_, i) => mk(i + 1));
     const out = await attachStoreImages(groups, { get });
-    expect(selectImagedGroups(out).map((g) => g.key)).toEqual(["k10", "k11", "k12"]);
+    expect(
+      selectDisplayGroups(out)
+        .map((g) => g.key)
+        .slice(0, 3),
+    ).toEqual(["k10", "k11", "k12"]);
   });
 
   it("does not fetch more than needed once the target is reached", async () => {
@@ -237,11 +241,11 @@ describe("pool, independence and display selection", () => {
         target: 2,
       },
     );
-    expect(selectImagedGroups(out).length).toBeGreaterThanOrEqual(2);
+    expect(selectDisplayGroups(out).filter((g) => g.imageUrl).length).toBeGreaterThanOrEqual(2);
     expect(pages).toBeLessThan(12);
   });
 
-  it("drops broken image urls and wrong-product images (no imageless results shown)", async () => {
+  it("does not attach broken-image or wrong-product images (products stay, imageless)", async () => {
     const get: SafeGetFn = async (url) => {
       if (url.endsWith("/robots.txt")) return res({ body: Buffer.from("") });
       if (url.endsWith("/1.jpg")) return res({ status: 404, contentType: "text/html" });
@@ -253,25 +257,45 @@ describe("pool, independence and display selection", () => {
         get,
       },
     );
-    expect(selectImagedGroups(out)).toEqual([]);
+    expect(out.every((g) => !g.imageUrl)).toBe(true);
+    expect(selectDisplayGroups(out).map((g) => g.key)).toEqual(["k1", "k2"]);
   });
 
-  it("selectImagedGroups keeps order, drops imageless and duplicated images, caps at 8", () => {
-    const withImg = (n: number, img: string | null) => ({ ...mk(n), imageUrl: img });
+  const withImg = (n: number, img: string | null, matchKind: "exact" | "similar" = "exact") => ({
+    ...mk(n),
+    matchKind,
+    imageUrl: img,
+  });
+
+  it("puts imaged products first, keeps imageless ones compact after, exact before similar", () => {
+    const out = selectDisplayGroups([
+      withImg(1, null, "exact"),
+      withImg(2, "https://c/2.jpg", "similar"),
+      withImg(3, "https://c/3.jpg", "exact"),
+      withImg(4, null, "similar"),
+    ]);
+    expect(out.map((g) => g.key)).toEqual(["k3", "k1", "k2", "k4"]);
+  });
+
+  it("keeps a product whose image is shared with another, but without the image", () => {
+    const out = selectDisplayGroups([withImg(1, "https://c/1.jpg"), withImg(2, "https://c/1.jpg")]);
+    expect(out.map((g) => [g.key, g.imageUrl])).toEqual([
+      ["k1", "https://c/1.jpg"],
+      ["k2", null],
+    ]);
+  });
+
+  it("caps imaged at 8 and imageless at the rest of the pool", () => {
     const input = [
-      withImg(1, "https://c/1.jpg"),
-      withImg(2, null),
-      withImg(3, "https://c/1.jpg"),
-      ...Array.from({ length: 10 }, (_, i) => withImg(i + 4, `https://c/${i + 4}.jpg`)),
+      ...Array.from({ length: 10 }, (_, i) => withImg(i + 1, `https://c/${i + 1}.jpg`)),
+      ...Array.from({ length: 6 }, (_, i) => withImg(i + 11, null)),
     ];
-    const out = selectImagedGroups(input);
-    expect(out.length).toBe(8);
-    expect(out[0]?.key).toBe("k1");
-    expect(out.map((g) => g.key)).not.toContain("k2");
-    expect(out.map((g) => g.key)).not.toContain("k3");
+    const out = selectDisplayGroups(input);
+    expect(out.filter((g) => g.imageUrl).length).toBe(8);
+    expect(out.filter((g) => !g.imageUrl).length).toBe(4);
   });
 
-  it("returns nothing when no result has a verifiable image", () => {
-    expect(selectImagedGroups([mk(1), mk(2)])).toEqual([]);
+  it("keeps imageless products when no result has a verifiable image", () => {
+    expect(selectDisplayGroups([mk(1), mk(2)]).length).toBe(2);
   });
 });

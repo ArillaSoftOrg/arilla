@@ -1,4 +1,5 @@
 import { ProductCard, ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
+import type { ReactNode } from "react";
 import styles from "./ara.module.css";
 
 /** docs/copy.md `search.offer_count`. */
@@ -35,9 +36,12 @@ const EAGER_IMAGE_COUNT = 4;
 export function ResultGrid({
   items,
   labelledBy,
+  extra,
 }: {
   items: readonly ResultGridItem[];
   labelledBy?: string;
+  /** Aynı ızgaranın sonuna eklenen `<li>`ler (karar 0106: internet kartları). */
+  extra?: ReactNode;
 }) {
   return (
     // biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür.
@@ -57,6 +61,7 @@ export function ResultGrid({
           />
         </li>
       ))}
+      {extra}
     </ul>
   );
 }

@@ -10,7 +10,7 @@
  * yukler (hotlink, `referrerpolicy=no-referrer`). robots.txt ve erisim
  * engelleri (401/403/429) saygiyla karsilanir; atlatilmaz.
  */
-import { WEB_SEARCH_MAX_GROUPS } from "./config.ts";
+import { WEB_SEARCH_MAX_GROUPS, WEB_SEARCH_POOL_GROUPS } from "./config.ts";
 import { sameVariant, significantTokens } from "./merge.ts";
 import { asciiFold, extractFeatures } from "./query.ts";
 import { safeGet } from "./safe-fetch.ts";
@@ -22,7 +22,6 @@ const ROBOTS_MAX_BYTES = 64_000;
 const PAGE_TIMEOUT_MS = 3_000;
 const IMAGE_MAX_BYTES = 8_000_000;
 const TOTAL_BUDGET_MS = 5_500;
-const MAX_GROUPS = 8;
 const MAX_OFFERS_TRIED = 2;
 const NAME_COVERAGE = 0.6;
 const IMAGE_TYPES = /^image\/(?:jpeg|jpg|png|webp|avif|gif)\b/;
@@ -340,18 +339,37 @@ export async function attachStoreImages(
 }
 
 /**
- * Ekranda gosterilecek internet urunleri: YALNIZCA gorseli dogrulananlar, ayni
- * gorseli paylasan ikinci urun atilir (farkli urunun gorseli riskine karsi),
- * siralama korunur, en fazla `WEB_SEARCH_MAX_GROUPS`.
+ * Ekranda gosterilecek internet urunleri. Gorseli dogrulananlar one gecer; gorseli
+ * dogrulanamayan ama (zaten dogrulanmis) gercek urun sayfasi olan urun KAYBEDILMEZ,
+ * kompakt gorselsiz kart olarak sonra gelir. Ayni gorseli paylasan ikinci urunun
+ * gorseli atilir (farkli urunun gorseli riskine karsi): urun kalir, gorselsiz olur.
+ * Sira: tam eslesme, gorselli, sonra cekirdek sirasi (dogrulanmis fiyat, teklif
+ * sayisi, fiyat) - fiyati bilinmeyen urun fiyat sirasinda one gecmez. En fazla
+ * `WEB_SEARCH_MAX_GROUPS` gorselli ve (havuzun kalani kadar) gorselsiz.
  */
-export function selectImagedGroups(groups: readonly WebProductGroup[]): WebProductGroup[] {
+export function selectDisplayGroups(groups: readonly WebProductGroup[]): WebProductGroup[] {
   const seen = new Set<string>();
+  const prepared = groups.map((group, index) => {
+    const image = group.imageUrl ?? null;
+    if (image === null || seen.has(image)) return { group: { ...group, imageUrl: null }, index };
+    seen.add(image);
+    return { group, index };
+  });
+  const rank = (g: WebProductGroup) => (g.matchKind === "exact" ? 0 : 1) * 2 + (g.imageUrl ? 0 : 1);
+  prepared.sort((a, b) => rank(a.group) - rank(b.group) || a.index - b.index);
+  let imaged = 0;
+  let imageless = 0;
+  const imagelessCap = Math.max(0, WEB_SEARCH_POOL_GROUPS - WEB_SEARCH_MAX_GROUPS);
   const out: WebProductGroup[] = [];
-  for (const group of groups) {
-    if (!group.imageUrl || seen.has(group.imageUrl)) continue;
-    seen.add(group.imageUrl);
+  for (const { group } of prepared) {
+    if (group.imageUrl) {
+      if (imaged >= WEB_SEARCH_MAX_GROUPS) continue;
+      imaged++;
+    } else {
+      if (imageless >= imagelessCap) continue;
+      imageless++;
+    }
     out.push(group);
-    if (out.length >= WEB_SEARCH_MAX_GROUPS) break;
   }
   return out;
 }

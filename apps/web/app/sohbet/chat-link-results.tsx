@@ -9,8 +9,7 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ProductImage, VisuallyHidden } from "@arilla/ui";
-import { Suspense } from "react";
-import { WebSearchPending, WebSearchResults } from "../ara/web-search-section.tsx";
+import { WebGridItems, WebOnlyResults } from "../ara/web-search-section.tsx";
 import { startWebSearch } from "../ara/web-search-start.ts";
 import { CHAT_LINK_COPY } from "./chat-copy.ts";
 import {
@@ -132,6 +131,23 @@ export async function ChatLinkResults({
         })
       : null;
     const emptyCopy = chatLinkFailureCopy("empty", { imageEnabled: isChatImageEnabled() });
+    const emptyNote = (
+      <>
+        <p className={styles.resultsHeading}>{emptyCopy.title}</p>
+        <p className={styles.resultsNote}>{emptyCopy.description}</p>
+      </>
+    );
+    // Karar 0106: internet kartları katalog ızgarasının sonuna eklenir (tek ızgara).
+    const webItems = webSearch ? (
+      <WebGridItems
+        promise={webSearch}
+        variant="chat"
+        catalog={[...results.same, ...results.similar].map((item) => ({
+          title: item.title,
+          imageUrl: item.primaryImageUrl,
+        }))}
+      />
+    ) : null;
 
     return (
       <section className={styles.results} data-link-state="resolved" aria-labelledby={headingId}>
@@ -165,7 +181,11 @@ export async function ChatLinkResults({
             <p className={styles.resultsNote}>
               {CHAT_LINK_COPY.sameEvidence[results.same[0]?.evidence ?? "gtin"]}
             </p>
-            <ChatResultGrid items={results.same} labelledBy={sameId} />
+            <ChatResultGrid
+              items={results.same}
+              labelledBy={sameId}
+              extra={results.similar.length === 0 ? webItems : null}
+            />
           </>
         ) : null}
         {results.similar.length > 0 ? (
@@ -173,27 +193,13 @@ export async function ChatLinkResults({
             <h4 id={similarId} className={styles.resultsHeading}>
               {CHAT_LINK_COPY.similarTitle}
             </h4>
-            <ChatResultGrid items={results.similar} labelledBy={similarId} />
+            <ChatResultGrid items={results.similar} labelledBy={similarId} extra={webItems} />
           </>
         ) : null}
-        {webSearch ? (
-          <Suspense fallback={<WebSearchPending variant="chat" />}>
-            <WebSearchResults
-              promise={webSearch}
-              variant="chat"
-              idPrefix={`${headingId}-internet`}
-              catalog={[...results.same, ...results.similar].map((item) => ({
-                title: item.title,
-                imageUrl: item.primaryImageUrl,
-              }))}
-            />
-          </Suspense>
-        ) : null}
-        {hasLinkResults(results) ? null : (
-          <>
-            <p className={styles.resultsHeading}>{emptyCopy.title}</p>
-            <p className={styles.resultsNote}>{emptyCopy.description}</p>
-          </>
+        {hasLinkResults(results) ? null : webSearch ? (
+          <WebOnlyResults promise={webSearch} variant="chat" catalog={[]} empty={emptyNote} />
+        ) : (
+          emptyNote
         )}
       </section>
     );

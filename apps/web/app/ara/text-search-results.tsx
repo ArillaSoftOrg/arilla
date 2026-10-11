@@ -18,14 +18,13 @@ import { getDatabase } from "@arilla/db";
 import { ClarificationBar, SortTabs } from "@arilla/ui";
 import { cookies } from "next/headers";
 import { after } from "next/server";
-import { Suspense } from "react";
 import { readConsent } from "../lib/consent.ts";
 import { verifySession } from "../lib/dal.ts";
 import styles from "./ara.module.css";
 import { SearchFallbackResults, SearchNoResults } from "./search-fallback-results.tsx";
 import { ResultGrid, resultCountLabel } from "./search-results.tsx";
 import { SearchWallGateClient } from "./search-wall-gate-client.tsx";
-import { WebSearchPending, WebSearchResults } from "./web-search-section.tsx";
+import { WebGridItems, WebOnlyResults } from "./web-search-section.tsx";
 import type { WebSearchBundle } from "./web-search-start.ts";
 
 export const PAGE_SIZE = 24;
@@ -206,6 +205,17 @@ export async function TextSearchResults({
         })
       : null;
 
+  const webItems =
+    webSearch && page === 1 ? (
+      <WebGridItems
+        promise={webSearch}
+        catalog={items.map((item) => ({
+          title: item.title,
+          imageUrl: item.primaryImageUrl,
+        }))}
+      />
+    ) : null;
+
   return (
     <>
       <SearchWallGateClient show={shouldShowWall} />
@@ -242,12 +252,18 @@ export async function TextSearchResults({
         {outcome.mode === "results" ? <SortTabs tabs={tabs} /> : null}
       </div>
 
+      {/* Karar 0106: internet kartları katalog kartlarıyla AYNI ızgarada, sonuna eklenir;
+          katalog internet aramasını beklemez, mevcut kartlar yer değiştirmez. */}
       {outcome.mode === "fallback" ? (
-        <SearchFallbackResults items={items} />
+        <SearchFallbackResults items={items} extra={webItems} />
       ) : outcome.mode === "empty" ? (
-        <SearchNoResults />
+        webSearch && page === 1 ? (
+          <WebOnlyResults promise={webSearch} catalog={[]} empty={<SearchNoResults />} />
+        ) : (
+          <SearchNoResults />
+        )
       ) : (
-        <ResultGrid items={items} />
+        <ResultGrid items={items} extra={webItems} />
       )}
 
       {outcome.mode === "results" && resultTotal > PAGE_SIZE ? (
@@ -276,20 +292,6 @@ export async function TextSearchResults({
             </a>
           ) : null}
         </nav>
-      ) : null}
-
-      {/* Karar 0102: internet sonuçları veritabanı sonuçlarından SONRA, kendi
-          sınırında akar; ilerleme metni yalnızca arama sürerken görünür. */}
-      {webSearch && page === 1 ? (
-        <Suspense fallback={<WebSearchPending />}>
-          <WebSearchResults
-            promise={webSearch}
-            catalog={items.map((item) => ({
-              title: item.title,
-              imageUrl: item.primaryImageUrl,
-            }))}
-          />
-        </Suspense>
       ) : null}
     </>
   );

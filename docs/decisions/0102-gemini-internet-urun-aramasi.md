@@ -167,7 +167,7 @@ veya ürün işaretli `og:image` verisi. Kurallar (`web-search/store-image.ts`,
   Görselin türü (jpeg/png/webp/avif/gif) ve boyutu (≤8 MB) başlıklarla denetlenir.
 - Görsel indirilmez, saklanmaz, önbelleğe alınmaz; tarayıcı doğrudan mağazadan
   yükler (`no-referrer`). Sonuç yine katalog verisi değildir.
-- **Görsel zorunludur:** doğrulanmış görseli olmayan internet ürünü gösterilmez (kompakt/boş kart yok).
+- **Görsel önceliklidir (0106 ile güncellendi):** doğrulanmış görselli ürün önce gelir; görseli doğrulanamayan ama doğrulanmış ürün sayfası olan ürün kompakt kartla sonra gösterilir (eski "görselsiz gösterilmez" kuralı kalktı: tüm sonuçları kaybettiriyordu).
   Her ürün bağımsız değerlendirilir (mağaza bazlı engel yok); ilk 8'de yeterli görsel çıkmazsa havuzdaki
   (≤12) diğer adaylar sınırlı eşzamanlılık ve toplam süre bütçesiyle denenir, ek Gemini çağrısı yoktur.
   Aynı görseli paylaşan ikinci ürün atılır. Tarayıcı görseli yükleyemezse kart gizlenir; hiç görselli
