@@ -84,7 +84,7 @@ describe("readAppUrl", () => {
   });
 
   it("Vercel production'da hicbir sey cozulmezse firlatir", () => {
-    expect(() => readAppUrl({ VERCEL_ENV: "production" })).toThrow(/Vercel production/);
+    expect(() => readAppUrl({ VERCEL_ENV: "production" })).toThrow(/Uretimde/);
     expect(() => readAppUrl({ VERCEL_ENV: "production", APP_URL: " " })).toThrow(/tanimli degil/);
   });
 
@@ -106,6 +106,29 @@ describe("readAppUrl", () => {
         VERCEL_PROJECT_PRODUCTION_URL: "proje.vercel.app",
       }),
     ).toThrow();
+  });
+
+  // Karar 0109: kendi sunucumuzda VERCEL_ENV yoktur; DEPLOY_ENV ayni kapilari kapatir.
+  it("DEPLOY_ENV=production: APP_URL yoksa, http ya da localhost ise firlatir", () => {
+    expect(() => readAppUrl({ DEPLOY_ENV: "production" })).toThrow(/Uretimde/);
+    expect(() => readAppUrl({ DEPLOY_ENV: "production", APP_URL: "http://alan-adi.com" })).toThrow(
+      /https/,
+    );
+    expect(() =>
+      readAppUrl({ DEPLOY_ENV: "production", APP_URL: "https://localhost:3000" }),
+    ).toThrow(/localhost/);
+  });
+
+  it("DEPLOY_ENV=production: gecerli https adresini doner", () => {
+    expect(readAppUrl({ DEPLOY_ENV: "production", APP_URL: "https://alan-adi.com/" })).toBe(
+      "https://alan-adi.com",
+    );
+  });
+
+  it("DEPLOY_ENV=staging uretim kapisini acmaz (yerel QA adresi calisir)", () => {
+    expect(readAppUrl({ DEPLOY_ENV: "staging", APP_URL: "http://localhost:3000" })).toBe(
+      "http://localhost:3000",
+    );
   });
 
   it("Vercel production'da gecerli https adresini doner", () => {

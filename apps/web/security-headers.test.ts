@@ -73,6 +73,17 @@ describe("güvenlik başlıkları", () => {
     expect(securityHeaderOptionsFromEnv({ NODE_ENV: "development" }).development).toBe(true);
   });
 
+  // Karar 0109: kendi sunucumuzda `VERCEL` yoktur; HSTS DEPLOY_ENV=production ile gelir.
+  it("HSTS kendi sunucumuzda DEPLOY_ENV=production ile gelir, stagingde gelmez", () => {
+    expect(
+      securityHeaderOptionsFromEnv({ NODE_ENV: "production", DEPLOY_ENV: "production" }),
+    ).toEqual({ ...PROD, ga4: false });
+    expect(
+      securityHeaderOptionsFromEnv({ NODE_ENV: "production", DEPLOY_ENV: "staging" }).production,
+    ).toBe(false);
+    expect(securityHeaderOptionsFromEnv({ DEPLOY_ENV: "production" }).production).toBe(false);
+  });
+
   it("yönetim yolları genel başlıkları ve noindex'i alır", () => {
     const routes = securityHeaderRoutes(PROD);
     const all = routes.find((r) => r.source === "/:path*");

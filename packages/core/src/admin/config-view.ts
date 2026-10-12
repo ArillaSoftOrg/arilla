@@ -476,6 +476,7 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
     plain(env, "R2_PUBLIC_BASE_URL", "Medya genel adresi", "infrastructure"),
     plain(env, "APP_URL", "Uygulama adresi", "infrastructure", "Tanımsızsa Vercel üretim adresi"),
     // --- Çalışma ortamı ---
+    plain(env, "DEPLOY_ENV", "Dağıtım ortamı", "runtime"),
     plain(env, "VERCEL_ENV", "Vercel ortamı", "runtime"),
     plain(env, "NODE_ENV", "Node ortamı", "runtime"),
   ];

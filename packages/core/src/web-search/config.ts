@@ -6,6 +6,8 @@
  * Kapaliyken sistem davranisi degismez: bu modul hicbir yan etki uretmez.
  */
 
+import { isProductionDeploy } from "../config/deploy-env.ts";
+
 type Env = Readonly<Record<string, string | undefined>>;
 
 /**
@@ -47,7 +49,8 @@ export const WEB_SEARCH_MAX_OFFERS_PER_GROUP = 5;
 export const WEB_SEARCH_MAX_CANDIDATES = 12;
 
 export function isProductionEnv(env: Env): boolean {
-  if (env.VERCEL_ENV) return env.VERCEL_ENV === "production";
+  if (isProductionDeploy(env)) return true;
+  if (env.VERCEL_ENV) return false;
   return env.NODE_ENV === "production";
 }
 

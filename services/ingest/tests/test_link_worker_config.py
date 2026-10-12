@@ -57,6 +57,26 @@ def test_plain_redis_outside_local_development_is_rejected(
     assert "upstash" not in str(raised.value)
 
 
+def test_plaintext_allowlisted_internal_host_is_accepted() -> None:
+    url = f"redis://:{SECRET}@redis:6379"
+    assert worker_redis_url(url, REMOTE_DB, "redis") == url
+    assert worker_redis_url(url, REMOTE_DB, " cache , Redis ") == url
+
+
+@pytest.mark.parametrize("hosts", [None, "", " , ", "cache", "redis.example.test"])
+def test_plaintext_internal_host_is_rejected_unless_listed(hosts: str | None) -> None:
+    url = f"redis://:{SECRET}@redis:6379"
+    with pytest.raises(WorkerConfigError, match="rediss://") as raised:
+        worker_redis_url(url, REMOTE_DB, hosts)
+    assert SECRET not in str(raised.value)
+
+
+def test_plaintext_allowlist_does_not_exempt_other_hosts() -> None:
+    url = f"redis://default:{SECRET}@eu1.upstash.io:6379"
+    with pytest.raises(WorkerConfigError, match="rediss://"):
+        worker_redis_url(url, REMOTE_DB, "redis")
+
+
 def test_unknown_scheme_is_rejected() -> None:
     with pytest.raises(WorkerConfigError, match="redis:// ya da rediss://"):
         worker_redis_url(f"https://default:{SECRET}@eu1.upstash.io", REMOTE_DB)
