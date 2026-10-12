@@ -21,6 +21,20 @@ function drawer(html: string): string {
 }
 
 describe("menü paneli", () => {
+  it("yardimci baglantiyi ust cubuktan kaldirip menu panelinde tutar", () => {
+    const html = renderToStaticMarkup(
+      createElement(HomeHeader, {
+        ...base,
+        accountHref: null,
+        utilityLink: { label: "Admin Girişi", href: "/yonetim" },
+        utilityInMenuOnly: true,
+      }),
+    );
+    expect(html.match(/Admin Girişi/g)).toHaveLength(1);
+    expect(drawer(html)).toContain('href="/yonetim"');
+    expect(drawer(html)).toContain("Admin Girişi");
+  });
+
   it("mobil cubukta gizlenen giris eylemini menu panelinde tutar", () => {
     const html = renderToStaticMarkup(
       createElement(HomeHeader, {

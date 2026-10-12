@@ -44,6 +44,8 @@ export interface HomeHeaderProps {
    * duz metin, telefonda menu panelinde.
    */
   utilityLink?: { label: string; href: string };
+  /** Yardimci baglantiyi ust cubukta gizler; menu panelinde erisilebilir tutar. */
+  utilityInMenuOnly?: boolean;
   /**
    * Karar 0092: tema kontrolu (cagiran saglar; tercih/kalicilik apps/web'de).
    * 640px ve ustunde cubukta hesap alaninin solunda (sohbet varyantinda da);
@@ -108,6 +110,7 @@ export function HomeHeader({
   themeControl,
   themeControlLabel,
   utilityLink,
+  utilityInMenuOnly = false,
   variant = "site",
   personalNavItems = [],
   personalNavLabel,
@@ -233,7 +236,7 @@ export function HomeHeader({
 
         {themeControl ? <div className={styles.themeSlot}>{themeControl}</div> : null}
 
-        {utilityLink ? (
+        {utilityLink && !utilityInMenuOnly ? (
           <a href={utilityLink.href} className={styles.utility}>
             {utilityLink.label}
           </a>

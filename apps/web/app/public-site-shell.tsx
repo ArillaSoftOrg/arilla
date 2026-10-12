@@ -154,6 +154,7 @@ export async function PublicSiteShell({
             ? { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH }
             : undefined
         }
+        utilityInMenuOnly={footerVariant === "prelaunch"}
         personalNavItems={personalNavItems}
         personalNavLabel={HOME_COPY.navPersonalTitle}
         accountName={user?.displayName ?? null}

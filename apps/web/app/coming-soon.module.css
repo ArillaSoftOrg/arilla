@@ -138,7 +138,7 @@
   display: block;
   width: 100%;
   min-height: 72px;
-  padding: 14px 48px 14px 14px;
+  padding: 14px;
   font-size: 13px;
   z-index: 2;
 }
@@ -167,26 +167,25 @@
 }
 
 .greetingToggle {
-  position: absolute;
-  top: 50%;
-  right: 12px;
-  display: grid;
-  width: 30px;
-  height: 30px;
-  place-items: center;
-  border: 1px solid var(--line);
-  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
   color: var(--ink-muted);
-  transform: translateY(-50%);
-}
-
-.greetingDisclosure[open] .greetingToggle {
-  top: 12px;
-  transform: none;
 }
 
 .disclosureChevron {
   transform: rotate(90deg);
+}
+
+.greetingToggle .disclosureChevron {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  padding: 6px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
 }
 
 .greetingDisclosure[open] .disclosureChevron,
@@ -990,6 +989,14 @@
     font-size: 15px;
   }
 
+  .demoScroll {
+    margin-top: 40px;
+  }
+
+  .demoSticky {
+    align-content: start;
+  }
+
   .demoTitle,
   .socialTitle {
     font-size: 44px;
@@ -1087,8 +1094,26 @@
 
 @media (max-width: 639px) {
   .hero {
-    gap: 8px;
-    padding-bottom: 24px;
+    gap: 16px;
+    padding-bottom: 36px;
+  }
+
+  .socialScene {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .socialScene .mascotGuide {
+    max-width: 220px;
+    justify-self: center;
+  }
+
+  .socialScene .guideImage {
+    transform-origin: center;
+  }
+
+  .socialLinks {
+    width: 100%;
   }
 
   .welcomeStage:has(.greetingDisclosure[open]) {
@@ -1313,7 +1338,7 @@
   }
 
   .socialScene {
-    grid-template-columns: minmax(120px, 0.8fr) minmax(160px, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 
