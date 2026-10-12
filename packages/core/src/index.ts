@@ -28,6 +28,7 @@ export * from "./entitlement/index.ts";
 export * from "./errors/index.ts";
 export * from "./feedback/index.ts";
 export * from "./forms/index.ts";
+export * from "./health/index.ts";
 export * from "./marketing/index.ts";
 export * from "./media/index.ts";
 export * from "./ops/index.ts";
