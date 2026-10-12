@@ -303,15 +303,17 @@ describe("landing içeriği", () => {
 });
 
 describe("kabuk: header ve footer", () => {
-  async function shellParts(): Promise<{
+  async function shellParts(footerVariant: "default" | "prelaunch" = "default"): Promise<{
     loginHref: unknown;
     utilityLink: unknown;
+    utilityInMenuOnly: unknown;
     groups: readonly FooterGroup[];
   }> {
     const { PublicSiteShell } = await import("./public-site-shell.tsx");
     const { SUBPAGE_SECTION_LINKS } = await import("./home-footer-groups.ts");
     const tree = (await PublicSiteShell({
       links: SUBPAGE_SECTION_LINKS,
+      footerVariant,
       children: null,
     })) as Element;
     const parts = (tree.props.children as Element[]).flat();
@@ -320,15 +322,17 @@ describe("kabuk: header ve footer", () => {
     return {
       loginHref: header.props.loginHref,
       utilityLink: header.props.utilityLink,
+      utilityInMenuOnly: header.props.utilityInMenuOnly,
       groups: footer.props.groups as readonly FooterGroup[],
     };
   }
 
   it("anonim: erken erişim ve sade Admin Girişi; ürün bağlantısı yok", async () => {
-    const { loginHref, utilityLink, groups } = await shellParts();
+    const { loginHref, utilityLink, utilityInMenuOnly, groups } = await shellParts("prelaunch");
     expect(loginHref).toBe(EARLY_ACCESS_LOGIN_PATH);
-    // Header'da sade, birincil olmayan Admin Girişi: aynı giriş akışı.
+    // Admin Girişi üst çubukta değil, yalnızca menü panelinde gösterilir.
     expect(utilityLink).toEqual({ label: "Admin Girişi", href: ADMIN_LOGIN_PATH });
+    expect(utilityInMenuOnly).toBe(true);
     const links = groups.flatMap((group) => group.links);
     expect(links).toContainEqual(
       expect.objectContaining({ label: "Admin Girişi", href: ADMIN_LOGIN_PATH }),

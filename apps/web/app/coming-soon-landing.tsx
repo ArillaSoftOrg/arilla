@@ -56,10 +56,10 @@ export function ComingSoonLanding({
             </div>
             <div className={styles.welcomeStage}>
               <div className={`${styles.dialogue} ${styles.welcomeDialogue}`}>
-                <span className={styles.dialogueGreeting}>{copy.greeting}</span>
                 <details className={styles.greetingDisclosure}>
                   <summary className={`${styles.disclosureToggle} ${styles.greetingToggle}`}>
                     <VisuallyHidden>Karşılama notunu göster</VisuallyHidden>
+                    <span className={styles.dialogueGreeting}>{copy.greeting}</span>
                     <ChevronRightIcon className={styles.disclosureChevron} size={18} />
                   </summary>
                   <p>{copy.greetingBody}</p>
