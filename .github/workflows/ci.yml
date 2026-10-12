@@ -147,7 +147,7 @@ jobs:
       - name: imajda gizli dosya / sır yok
         run: |
           found=$(docker run --rm --entrypoint sh arilla-web:ci -c \
-            'find / -xdev \( -name ".env*" -o -name "*.pem" -o -name "*.p8" \) -not -path "*/node_modules/*" 2>/dev/null')
+            'find / -xdev \( -name ".env*" -o -name "*.pem" -o -name "*.p8" \) -not -path "*/node_modules/*" 2>/dev/null || true')
           if [ -n "$found" ]; then echo "::error::imajda gizli dosya var"; echo "$found"; exit 1; fi
           if docker inspect arilla-web:ci --format '{{range .Config.Env}}{{println .}}{{end}}' \
             | grep -E '^(DATABASE_URL|REDIS_URL|SESSION_SECRET|CRON_SECRET|[A-Z_]*PASSWORD|[A-Z_]*SECRET|[A-Z_]*API_KEY)='; then
