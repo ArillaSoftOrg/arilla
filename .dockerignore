@@ -1,0 +1,68 @@
+# Docker build context (kok). Web imaji `apps/web/Dockerfile` ile kokten
+# derlenir: `docker build -f apps/web/Dockerfile .` (docs/ops.md "VPS imajlari").
+#
+# Ilke: yalnizca derlemenin gerektirdigi kaynak girer. Gizli deger, yerel
+# durum, bagimlilik klasoru ve derleme ciktisi ASLA girmez. `next.config.ts`
+# build sirasinda kok `.env`'i kendisi okur; bu yuzden `.env*` burada kesin
+# disarida tutulur - aksi halde yerel/uretim anahtarlari imaja girebilir.
+
+# --- Gizli degerler ve kimlik dosyalari --------------------------------------
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+.vercel
+**/.vercel
+.secrets
+**/*.pem
+**/*.p8
+**/*.p12
+**/*.key
+**/id_rsa*
+**/id_ed25519*
+infra/.env*
+
+# --- Surum kontrolu ve arac durumu -------------------------------------------
+.git
+.gitignore
+.github
+.claude
+.vscode
+.idea
+.worktrees
+
+# --- Bagimliliklar ve derleme ciktilari (imajda yeniden uretilir) -------------
+**/node_modules
+**/.next
+**/dist
+**/build
+**/coverage
+**/*.tsbuildinfo
+**/.turbo
+**/.pnpm-store
+
+# --- Web imajinin ihtiyac duymadigi alanlar ----------------------------------
+# Python toplu isleri kendi imajini kullanir (services/ingest/Dockerfile).
+services
+# Belgeler, markalama gorselleri, yerel arastirma uygulamalari.
+docs
+icon
+infra
+apps/live-search-*
+apps/mcp
+scripts
+*.md
+
+# --- Testler (imaj calistirmaz) ------------------------------------------------
+**/*.test.ts
+**/*.test.tsx
+**/*.integration.test.ts
+**/e2e
+**/__pycache__
+**/.pytest_cache
+**/.venv
+
+# --- Isletim sistemi ------------------------------------------------------------
+.DS_Store
+Thumbs.db

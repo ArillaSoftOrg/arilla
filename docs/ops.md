@@ -7,8 +7,14 @@
 | `local` | Docker Compose: Postgres, Redis, MinIO | Örnek feed, birkaç bin ürün |
 | `staging` | Üretimin küçük kopyası | Gerçek feed'lerin alt kümesi |
 | `production` | Web Vercel'de, worker ayrı barındırmada | Tam katalog |
+| `vps` (geçiş, karar 0109) | Hostinger KVM 4: Caddy, web, Postgres, Redis, worker, cron (Docker Compose) | Sıfırdan kurulur; katalog yeniden toplanır |
 
 Migration'lar staging'de çalışmadan production'a gitmez.
+
+Karar 0109: uygulama Vercel/Supabase/Upstash olmadan kendi sunucumuzda da
+çalışacak şekilde hazırlanır. Geçiş bitene kadar Vercel production aynen sürer;
+iki ortam birbirinin veritabanına ve Redis'ine yazmaz. Ayrıntı: aşağıda
+"VPS (Hostinger KVM 4)".
 
 **Worker Vercel'de çalışamaz.** Vercel uzun süren arka plan işlerini
 desteklemiyor; feed toplama saatler sürebilir. Python worker için ayrı bir
@@ -113,6 +119,102 @@ Etkinleştirme sırası (Vercel panelinde; **önizleme dağıtımında doğrula*
    `maxDuration`, `crons`, günlüklerde `cozumlendi`/`cozumlenemedi` satırları.
 5. Production'a ancak önizleme temizse; sorun olursa `LINK_QUEUE_BACKEND=redis` + worker.
 
+## VPS (Hostinger KVM 4) — karar 0109
+
+Bu bölüm VPS yolunun **faz 1** işletim bilgisidir (imaj, sağlık, ortam). Compose
+yığını, Caddy, yedekleme ve otomatik dağıtım sonraki fazlardır (0109 "Fazlar").
+
+### İmajlar
+
+Bağlam her zaman repo kökü (pnpm workspace):
+
+```bash
+# Web (varsayılan hedef = runner). APP_URL ve GA4_MEASUREMENT_ID sır DEĞİLDİR,
+# derlemeye gömülür (robots.txt/canonical ve CSP derlemede üretilir).
+docker build -f apps/web/Dockerfile --build-arg APP_URL=https://<alan-adi> \
+  [--build-arg GA4_MEASUREMENT_ID=G-XXXXXXXXXX] -t arilla-web .
+
+# Migration/rol/bölüm betikleri (yalnızca packages/db; dağıtımda bir kez çalışır)
+docker build -f apps/web/Dockerfile --target migrate -t arilla-migrate .
+```
+
+- `APP_URL` olmadan derleme durur. `DEPLOY_ENV=production` derlemede de üretim
+  kapılarını açar: `APP_URL` https ve localhost dışı olmak zorundadır.
+- Gizli değer imaja girmez: kök `.dockerignore` `.env*`, `.vercel`, anahtar
+  dosyalarını (`*.pem`, `*.p8`), `.git` ve `node_modules`'u dışarıda tutar;
+  `next.config.ts` kök `.env`'i derleme sırasında kendisi okuduğu için bu kural
+  kritiktir. Çalışma zamanı değerleri konteynere `env_file` ile verilir.
+- Çalışma imajı non-root (`node`, uid 1000) çalışır. Next önbelleği
+  `/app/apps/web/.next/cache` yazılabilir olmalıdır (kök dosya sistemi
+  salt-okunur çalıştırılırsa bu yol volume/tmpfs olur).
+- Yeni bir workspace paketi eklenirse `apps/web/Dockerfile` içindeki manifest
+  `COPY` satırları güncellenir (bağımlılık katmanı yalnızca manifestlere bağlıdır).
+- Python imajı değişmez: `services/ingest/Dockerfile`.
+
+### Migration job (temiz veritabanı)
+
+`migrate` imajı sahip kimliğini yalnızca çalışma anında alır; web konteynerinde
+`DATABASE_URL_OWNER` **yoktur**. Betikler yerel olmayan hedefe yazmayı reddeder
+(`lib.ts`); Compose ağındaki host adı (`postgres`) komutla **aynı satırda**
+onaylanır (`.env`'den okunmaz):
+
+```bash
+docker run --rm --network <data-agi> \
+  -e DATABASE_URL_OWNER=... -e APP_DB_PASSWORD=... -e ARILLA_CONFIRM_REMOTE_DB=postgres \
+  arilla-migrate node scripts/migrate.ts            # 0001'den itibaren, sıralı
+# ardından aynı bayraklarla:
+#   node scripts/bootstrap-app-role.ts   (arilla_app LOGIN + parola)
+#   node scripts/partitions.ts           (price_point: bu ay + 3 ay)
+#   node scripts/verify-schema.ts        (append-only ve yetki sınaması)
+```
+
+- Sıra: `migrate` → `bootstrap-app-role` → `partitions` → `verify-schema`. `seed`
+  ÇALIŞTIRILMAZ (katalogu siler). Katalog `services/ingest` ile toplanır.
+- PostgreSQL sahip rolü (`POSTGRES_USER`) superuser olmalıdır (0010: append-only
+  kuralı `arilla_app`'in superuser olmamasına dayanır).
+- Temiz zincir doğrulandı (58 dosya, `pgvector/pgvector:pg16`; CI integration
+  işi aynı sırayı koşar).
+- `price_point_default` doluluğu izlenir: `partitions.ts --check` günlük çalışmalıdır
+  (VPS'te zamanlayıcı konteynerine eklenecek; şu an hiçbir zamanlayıcı bunu çağırmıyor).
+
+### Ortam değişkenleri (VPS)
+
+| Değişken | Anlamı |
+| --- | --- |
+| `DEPLOY_ENV` | `production`: üretim kapıları (https zorunlu, TLS Redis, HSTS, pazarlama toplu gönderimi, internet arama hukuki onayı). `staging`/boş: açılmaz. Vercel'de gerekmez (`VERCEL_ENV` aynı işi görür). Çalışma imajının varsayılanı `production`'dır. |
+| `REDIS_PLAINTEXT_HOSTS` | Virgülle ayrılmış, tam host adı. Üretimde yalnızca bu host'lara düz `redis://` serbesttir (Docker iç ağı, ör. `redis`). Boş = istisna yok. Web (`redis/client.ts`) ve Python worker (`worker_config.py`) aynı değişkeni okur. |
+| `DATABASE_POOL_MAX` | VPS'te uzun ömürlü süreç: 10–15 (varsayılan 3 serverless içindir). |
+| `APP_URL` | Üretimde zorunlu, https; derleme ve çalışma zamanında. |
+
+`VERCEL`, `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_PROJECT_PRODUCTION_URL` VPS'te
+tanımsızdır ve tanımlanmaz (taklit edilmez). `DATABASE_URL` doğrudan PostgreSQL
+adresidir (`sslmode` gerekmez, iç ağ); pooler (PgBouncer) şimdilik yok.
+
+### Sağlık uçları
+
+| Uç | Ne sorar | Kim çağırır |
+| --- | --- | --- |
+| `GET /api/health` | Süreç istek alıyor mu (bağımlılığa dokunmaz) | Docker `HEALTHCHECK`, dış izleme |
+| `GET /api/health/ready` | Veritabanı `SELECT 1` + Redis `PING`; 200 / 503 | Dağıtım betiği (iç ağdan) |
+
+- Yanıt yalnızca `{"status":..,"checks":{"database":"ok|fail","redis":"ok|fail"}}`;
+  hata metni, adres, sürüm yok. Sonuç 2 sn önbelleklenir, eşzamanlı çağrılar tek
+  denetimi paylaşır.
+- **Caddy `/api/health/ready`'yi dışarıya açmaz** (veritabanı yükü ve bileşen
+  durumu bilgisi). Dış izleme yalnızca `/api/health` kullanır.
+- Redis düşerse `ready` 503 olur ama `/api/health` 200 kalır ve konteyner yeniden
+  başlatılmaz (doğrulandı).
+
+### Ağ ve gizli değerler (hedef)
+
+- Yalnızca Caddy 80/443'i yayınlar. `postgres` ve `redis` için `ports:` **yazılmaz**;
+  `internal: true` veri ağındadır (internet çıkışı yok). Web ve worker ayrıca dış
+  çıkış ağına bağlıdır (Gemini, Jina, R2, SMTP, hedef sayfalar).
+- Runtime sırlar yalnızca VPS'te (`/opt/arilla/.env`, `root:deploy 0640`); GitHub
+  Actions'ta yalnızca dağıtım için SSH anahtarı bulunur.
+- Redis: `--requirepass`, `--appendonly yes`, `--maxmemory` sabit,
+  `--maxmemory-policy noeviction` (link kuyruğu ve kota sayaçları atılmasın).
+
 ## Sağlayıcı bağımsızlığı
 
 Vercel'e özgü hiçbir hizmete kilitlenilmez. Taşınabilir muadiller kullanılır:
@@ -142,7 +244,7 @@ birindedir ve okuyan dosya yanında yazar:
 | Grup | Anlamı | Anahtarlar |
 | --- | --- | --- |
 | `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
-| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı), `LLM_COST_TRY_PER_USD` (karar 0082; boş = Gemini maliyeti fiyatlanmaz) |
+| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `DEPLOY_ENV` (VPS'te `production`, karar 0109), `REDIS_PLAINTEXT_HOSTS` (karar 0109), `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı), `LLM_COST_TRY_PER_USD` (karar 0082; boş = Gemini maliyeti fiyatlanmaz) |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
 | `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `MARKETING_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
@@ -861,6 +963,10 @@ değişkenleri ayrı silinebilir. Federe erişimi tümden kesmek için
 
 - `main` dalına birleşme staging'e otomatik gider
 - Production dağıtımı elle onaylanır
+- VPS yolu (karar 0109, sonraki fazlar): CI → GHCR imajı (`:<sha>`) → VPS betiği
+  `migrate` → `up -d` → `/api/health/ready` kapısı; kapı geçilmezse önceki sha'ya
+  otomatik dönüş. Onay politikası ilk haftalarda elle onaylı başlar, sonra kararla
+  kaldırılır.
 - Migration'lar geriye uyumlu yazılır: önce kolon eklenir, kod dağıtılır, sonra
   eski kolon kaldırılır. Tek adımda kolon silen migration reddedilir.
 - Geri alma planı her dağıtımda hazır olur

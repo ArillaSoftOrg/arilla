@@ -16,6 +16,7 @@
     "./ga4-measurement": "./src/analytics-ga4/measurement.ts",
     "./link-input": "./src/discovery/link-search-input.ts",
     "./legal-identity": "./src/config/legal-identity.ts",
+    "./deploy-env": "./src/config/deploy-env.ts",
     "./media-url": "./src/storage/media-url.ts",
     "./media-keys": "./src/storage/media-keys.ts",
     "./storage": "./src/storage/index.ts",

@@ -11,7 +11,8 @@
  * - Veritabani modulu yuklenmez: `search_query_day`, kullanici sorgusu ya da
  *   gecmis OKUNMAZ; `api_usage`/`job_run`'a yazma YOK.
  * - Acik onay sart: `GEMINI_SMOKE=1`. Uretim ortami isaretliyse
- *   (`VERCEL_ENV=production` ya da `NODE_ENV=production`) ayrica
+ *   (`DEPLOY_ENV=production`, `VERCEL_ENV=production` ya da
+ *   `NODE_ENV=production`) ayrica
  *   `GEMINI_SMOKE_ALLOW_PRODUCTION=1`.
  * - Tam olarak bir HTTP denemesi (`maxAttempts: 1`).
  * - Rapor yalnizca durum kodlari ve sayilardir: anahtar, istem, ham yanit ya
@@ -58,7 +59,10 @@ export async function runGeminiSmoke(
   options: { args?: readonly string[]; fetch?: GeminiClientOptions["fetch"] } = {},
 ): Promise<SmokeReport> {
   if (env.GEMINI_SMOKE !== "1") return { result: "refused", reason: "missing_opt_in" };
-  const production = env.VERCEL_ENV === "production" || env.NODE_ENV === "production";
+  const production =
+    env.DEPLOY_ENV === "production" ||
+    env.VERCEL_ENV === "production" ||
+    env.NODE_ENV === "production";
   if (production && env.GEMINI_SMOKE_ALLOW_PRODUCTION !== "1") {
     return { result: "refused", reason: "production_not_allowed" };
   }

@@ -21,6 +21,7 @@
  *   de rıza kapısından geçmeden yüklenmez. Yönetim alanı bu genişlemeyi
  *   almaz: `/yonetim` yanıtları GA4'süz CSP ile ezilir.
  */
+import { isHttpsProductionDeploy } from "@arilla/core/deploy-env";
 import {
   GA4_CONNECT_ORIGINS,
   GA4_SCRIPT_ORIGIN,
@@ -153,7 +154,9 @@ export function securityHeaderOptionsFromEnv(
   const production = env.NODE_ENV === "production";
   return {
     development: !production,
-    production: production && env.VERCEL === "1",
+    // HTTPS uretim: Vercel (`VERCEL=1`) ya da kendi sunucumuz (`DEPLOY_ENV=production`,
+    // karar 0109). Yerelde http uzerinden `next start` HSTS almaz.
+    production: isHttpsProductionDeploy(env),
     ga4: parseMeasurementId(env.GA4_MEASUREMENT_ID) !== null,
   };
 }

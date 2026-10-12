@@ -37,6 +37,27 @@ describe("marketingEmailConfigFromEnv", () => {
     expect(enabled.from).toBe("ManiCepte <haber@manicepte.test>");
   });
 
+  it("DEPLOY_ENV=production behaves like Vercel production (self-hosted, no VERCEL_ENV)", () => {
+    const prod = { ...REMOTE, DEPLOY_ENV: "production", NODE_ENV: "production" };
+    expect(() => marketingEmailConfigFromEnv(prod)).toThrow(MarketingConfigError);
+    const withFrom = { ...prod, MARKETING_EMAIL_FROM: "ManiCepte <haber@manicepte.test>" };
+    expect(marketingEmailConfigFromEnv(withFrom).bulkSendBlock).toBe("disabled_in_production");
+    expect(
+      marketingEmailConfigFromEnv({ ...withFrom, MARKETING_EMAIL_ENABLED: "true" }).bulkSendAllowed,
+    ).toBe(true);
+  });
+
+  it("DEPLOY_ENV=staging never allows bulk sending with a real SMTP host", () => {
+    const config = marketingEmailConfigFromEnv({
+      ...REMOTE,
+      DEPLOY_ENV: "staging",
+      NODE_ENV: "production",
+      MARKETING_EMAIL_ENABLED: "true",
+    });
+    expect(config.bulkSendAllowed).toBe(false);
+    expect(config.bulkSendBlock).toBe("non_production_remote_smtp");
+  });
+
   it("validates numeric limits without echoing values", () => {
     expect(() =>
       marketingEmailConfigFromEnv({ ...LOCAL, MARKETING_EMAIL_BATCH_SIZE: "abc" }),
