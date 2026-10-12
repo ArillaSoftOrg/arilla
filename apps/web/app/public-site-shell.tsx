@@ -141,6 +141,7 @@ export async function PublicSiteShell({
         accountLabel={accountLabel}
         loginHref={loginHref}
         loginLabel={loginLabel}
+        accountInMobileMenuOnly={footerVariant === "prelaunch" && !user}
         accountCurrent={currentPath === (accountHref ?? loginHref)}
         accountAvatarUrl={user?.avatarUrl ?? null}
         accountAvatarLabel={user?.displayName ?? user?.email ?? SITE_BRAND}

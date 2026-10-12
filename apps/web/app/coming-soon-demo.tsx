@@ -73,7 +73,12 @@ export function ComingSoonDemo() {
           {copy.demoTitle}
         </h2>
         <p className={styles.demoLead}>{copy.demoBody}</p>
-        <p className={styles.demoInstruction}>{copy.demoInstruction}</p>
+        <span className={styles.demoScrollCue} role="img" aria-label="Aşağı kaydır">
+          <span className={styles.demoScrollMouse} aria-hidden="true">
+            <span />
+          </span>
+          <span className={styles.demoScrollLabel}>{copy.demoScrollLabel}</span>
+        </span>
       </header>
 
       <div ref={scrollRef} className={styles.demoScroll}>

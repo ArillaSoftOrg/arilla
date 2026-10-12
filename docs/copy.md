@@ -416,10 +416,9 @@ sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 
 | Anahtar | Metin |
 | --- | --- |
-| `coming_soon.eyebrow` | Erken Erişim |
-| `coming_soon.status` | ManiCepte yakında. |
 | `coming_soon.headline` | Tarif et, fotoğrafını göster veya linkini bırak. |
 | `coming_soon.body` | ManiCepte ürünleri bulsun, benzerlerini çıkarsın ve mağaza fiyatlarını karşılaştırsın. |
+| `coming_soon.hero_details_label` | ManiCepte ne yapar? |
 | `coming_soon.greeting` | Selam, hoş geldin! |
 | `coming_soon.greeting_body` | Ne aradığını birlikte bulacağız. |
 | `coming_soon.greeting_invitation` | Hazır olduğumuzda seni de bekliyorum. |
@@ -427,13 +426,13 @@ sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 | `coming_soon.progress_goal` | İlk {hedef} kişiden biri ol. |
 | `coming_soon.progress_note` | Erken erişim listemiz gerçek kayıtlarla güncelleniyor. Sıran geldiğinde sana haber vereceğiz. |
 | `coming_soon.availability` | Henüz kullanıma açık değil. Birlikte başlamak için hazırlanıyoruz. |
-| `coming_soon.motion_label` | Hareket |
 | `coming_soon.cta_note` | Hesabınla devam et ya da yeni hesap aç; listeye otomatik eklenirsin. |
 | `coming_soon.privacy_note` | Bilgilerin yalnızca erişim listesi için kullanılır. |
 | `coming_soon.how_it_works_anchor` | Nasıl çalıştığını gör |
 | `coming_soon.demo_eyebrow` | Örnek deneyim |
 | `coming_soon.demo_title` | ManiCepte nasıl çalışır? |
-| `coming_soon.demo_body` | Aklındaki ürünü tarif et, fotoğrafını göster veya bağlantısını bırak. ManiCepte ihtiyacını anlayıp benzer ürünleri ve mağaza seçeneklerini bir araya getirir. |
+| `coming_soon.demo_body` | Aklındakini tarif et, fotoğrafını göster veya linkini bırak. ManiCepte seçenekleri bulup karşılaştırsın. |
+| `coming_soon.demo_scroll_label` | Aşağı Kaydır |
 | `coming_soon.demo_notice` | Temsili önizleme |
 | `coming_soon.demo_mode_describe` | Tarif et |
 | `coming_soon.demo_mode_photo` | Fotoğraf göster |
@@ -448,26 +447,26 @@ sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 | `coming_soon.demo_product_insights` | Günlük rahatlık / Ekonomik seçenek · Yürüyüş desteği / Dengeli seçenek · Hafif kullanım / Dayanıklı seçenek |
 | `coming_soon.demo_winner` | En iyi fiyat-kalite dengesi |
 | `coming_soon.enrolled_title` | Listedesin. İyi ki geldin. |
-| `coming_soon.build_eyebrow` | Mutfakta neler var? |
-| `coming_soon.build_title` | ManiCepte'yi geliştiriyoruz. |
-| `coming_soon.build_body` | Şu an üzerinde çalıştığımız temel parçalar: |
+| `coming_soon.build_eyebrow` | Geliştirme durumu |
+| `coming_soon.build_title` | Neler hazırlıyoruz? |
+| `coming_soon.build_body` | Erken erişim öncesindeki çalışma başlıklarımız. |
 | `coming_soon.build_status_done` | Tamamlandı |
 | `coming_soon.build_status_in_progress` | Geliştiriliyor |
-| `coming_soon.build_item_early_access` | Erken erişim kayıtları açık. |
-| `coming_soon.build_item_search` | Ürün bulma ve karşılaştırma deneyimini geliştiriyoruz. |
-| `coming_soon.build_item_data` | Mağaza ve ürün kaynaklarını genişletiyoruz. |
+| `coming_soon.build_item_early_access` | Erken erişim kayıtları |
+| `coming_soon.build_item_search` | Ürün bulma ve karşılaştırma |
+| `coming_soon.build_item_data` | Mağaza ve ürün kaynakları |
 | `coming_soon.follow_title` | Gelişmeleri takip et |
 | `coming_soon.social_eyebrow` | ManiCepte günlüğü |
 | `coming_soon.social_title` | Gelişmeleri birlikte takip edelim. |
 | `coming_soon.social_body` | Yeni özellikleri, erken erişim davetlerini ve geliştirme notlarını resmi hesaplarımızda paylaşacağız. |
-| `coming_soon.faq_eyebrow` | Aklına takılanlar |
-| `coming_soon.faq_title` | Tanışmışken. |
+| `coming_soon.faq_eyebrow` | Merak ettiklerin |
+| `coming_soon.faq_title` | Kısa cevaplar. |
 | `coming_soon.questions.0.question` | ManiCepte'yi hemen kullanabilir miyim? |
-| `coming_soon.questions.0.answer` | Henüz değil. Arama ve karşılaştırma deneyimini geliştiriyoruz. Erken erişim listesine katıldığında, hazır olduğumuzda sana haber vereceğiz. |
+| `coming_soon.questions.0.answer` | Henüz değil. Ürün bulma ve karşılaştırma deneyimini geliştiriyoruz. Listeye katılırsan hazır olduğunda haber alırsın. |
 | `coming_soon.questions.1.question` | Erken erişime nasıl katılırım? |
-| `coming_soon.questions.1.answer` | Erken erişime katıl bağlantısından hesabınla devam edebilir ya da yeni bir hesap açabilirsin. Listeye otomatik eklenirsin. |
+| `coming_soon.questions.1.answer` | Erken erişime katıl butonundan hesabınla devam et veya yeni hesap aç. Listeye otomatik eklenirsin. |
 | `coming_soon.questions.2.question` | Ne zaman açılacak? |
-| `coming_soon.questions.2.answer` | Hedefimiz 5.000 kişiyle açılışa başlamak. Bir yandan da ManiCepte'yi geliştiriyoruz; henüz kesin bir tarih yok. Açılışta listedeki herkese haber vereceğiz. |
+| `coming_soon.questions.2.answer` | İlk topluluk hedefimiz 5.000 kişi. Açılış için kesin bir tarih yok; ürün hazır olduğunda listedeki herkese haber vereceğiz. |
 | `coming_soon.admin_login` | Admin Girişi |
 | `coming_soon.admin_login_title` | Hesabınla giriş yap. |
 | `coming_soon.footer_description` | ManiCepte yakında: aradığın ürünü bul, alternatiflerini keşfet, fiyatları karşılaştır. |

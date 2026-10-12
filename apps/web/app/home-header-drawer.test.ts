@@ -21,6 +21,19 @@ function drawer(html: string): string {
 }
 
 describe("menü paneli", () => {
+  it("mobil cubukta gizlenen giris eylemini menu panelinde tutar", () => {
+    const html = renderToStaticMarkup(
+      createElement(HomeHeader, {
+        ...base,
+        accountHref: null,
+        accountInMobileMenuOnly: true,
+      }),
+    );
+    expect(html).toContain('data-mobile-menu-only="true"');
+    expect(drawer(html)).toContain('href="/giris"');
+    expect(drawer(html)).toContain("Giriş yap");
+  });
+
   it("oturum açıkken kişisel bölüm, hesap alanı ve çıkış; iç bağlantılar aynı sekmede", () => {
     const html = drawer(
       renderToStaticMarkup(

@@ -1,19 +1,12 @@
 "use client";
 
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { type ReactNode, useEffect, useRef, useState } from "react";
 import styles from "./coming-soon.module.css";
-import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
-
-type GreetingPhase = "introduction" | "invitation";
 
 export function MascotJourney({ children }: { children: ReactNode }) {
   const rootRef = useRef<HTMLDivElement>(null);
-  const greetedRef = useRef(false);
   const [allowsMotion, setAllowsMotion] = useState<boolean | null>(null);
-  const [paused, setPaused] = useState(false);
-  const [greeting, setGreeting] = useState<GreetingPhase>("introduction");
-  const toggleId = useId();
-  const moving = allowsMotion === true && !paused;
+  const moving = allowsMotion === true;
 
   useEffect(() => {
     const preference = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -26,13 +19,6 @@ export function MascotJourney({ children }: { children: ReactNode }) {
       preference.removeEventListener("change", update);
     };
   }, []);
-
-  useEffect(() => {
-    if (!moving || greetedRef.current || window.scrollY > 40) return;
-    greetedRef.current = true;
-    const timer = window.setTimeout(() => setGreeting("invitation"), 4200);
-    return () => window.clearTimeout(timer);
-  }, [moving]);
 
   useEffect(() => {
     const root = rootRef.current;
@@ -70,22 +56,7 @@ export function MascotJourney({ children }: { children: ReactNode }) {
   }, [moving]);
 
   return (
-    <div
-      ref={rootRef}
-      className={styles.journey}
-      data-motion={moving ? "true" : "false"}
-      data-greeting={greeting}
-    >
-      <label className={styles.motionControl} htmlFor={toggleId}>
-        <input
-          id={toggleId}
-          type="checkbox"
-          checked={moving}
-          disabled={allowsMotion !== true}
-          onChange={(event) => setPaused(!event.currentTarget.checked)}
-        />
-        {COMING_SOON_COPY.motionLabel}
-      </label>
+    <div ref={rootRef} className={styles.journey} data-motion={moving ? "true" : "false"}>
       {children}
     </div>
   );

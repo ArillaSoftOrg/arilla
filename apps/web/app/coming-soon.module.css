@@ -30,7 +30,6 @@
   min-width: 0;
 }
 
-.eyebrow,
 .chapter,
 .sectionEyebrow {
   display: flex;
@@ -42,20 +41,8 @@
   color: var(--ink-muted);
 }
 
-.statusDot {
-  width: 6px;
-  height: 6px;
-  flex: none;
-  border-radius: 50%;
-  background: var(--story-accent);
-}
-
-.eyebrowSeparator {
-  color: var(--line-strong);
-}
-
 .brandHeadline {
-  margin: 12px 0 8px;
+  margin: 0 0 8px;
   font-size: 44px;
   font-weight: 600;
   line-height: 1.1;
@@ -148,12 +135,10 @@
 }
 
 .welcomeDialogue {
-  display: grid;
-  grid-template-areas: "greeting" "body";
-  align-content: center;
+  display: block;
   width: 100%;
-  min-height: 112px;
-  padding: 12px 14px;
+  min-height: 72px;
+  padding: 14px 48px 14px 14px;
   font-size: 13px;
   z-index: 2;
 }
@@ -165,44 +150,91 @@
   transform: rotate(-45deg);
 }
 
-.greetingIntroduction,
-.greetingInvitation {
-  grid-area: body;
-}
-
-.greetingInvitation {
-  visibility: hidden;
-}
-
-.journey[data-greeting="invitation"] .greetingIntroduction {
-  visibility: hidden;
-}
-
-.journey[data-greeting="invitation"] .greetingInvitation {
-  visibility: visible;
-}
-
 .dialogueGreeting {
-  grid-area: greeting;
   display: block;
   color: var(--ink);
   font-size: 16px;
   font-weight: 500;
 }
 
-.lead {
-  max-width: 47ch;
-  margin: 12px 0 0;
-  color: var(--ink-secondary);
-  font-size: 14px;
-  line-height: 1.6;
-  text-wrap: balance;
+.disclosureToggle {
+  list-style: none;
+  cursor: pointer;
 }
 
-.stageNote {
-  margin: 12px 0 0;
-  color: var(--ink);
+.disclosureToggle::-webkit-details-marker {
+  display: none;
+}
+
+.greetingToggle {
+  position: absolute;
+  top: 50%;
+  right: 12px;
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  color: var(--ink-muted);
+  transform: translateY(-50%);
+}
+
+.greetingDisclosure[open] .greetingToggle {
+  top: 12px;
+  transform: none;
+}
+
+.disclosureChevron {
+  transform: rotate(90deg);
+}
+
+.greetingDisclosure[open] .disclosureChevron,
+.progressDisclosure[open] .disclosureChevron,
+.heroDetails[open] .disclosureChevron {
+  transform: rotate(-90deg);
+}
+
+.greetingDisclosure p {
+  margin: 8px 0 0;
+  color: var(--ink-secondary);
+}
+
+.heroDetails {
+  display: block;
+  max-width: 460px;
+  margin-top: 16px;
+}
+
+.heroDetailsToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  width: 100%;
+  padding-block: 10px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  color: var(--ink-secondary);
   font-size: 13px;
+  font-weight: 600;
+}
+
+.heroDetailsBody {
+  display: grid;
+  gap: 8px;
+  padding-top: 10px;
+}
+
+.heroDetailsBody p {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.heroDetailsBody p:last-child {
+  color: var(--ink);
   font-weight: 500;
 }
 
@@ -272,56 +304,6 @@
   line-height: 1.5;
 }
 
-.motionControl {
-  position: absolute;
-  top: 12px;
-  right: 0;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  min-height: 36px;
-  color: var(--ink-muted);
-  font-size: 12px;
-  z-index: 3;
-  cursor: pointer;
-}
-
-.motionControl input {
-  width: 28px;
-  height: 16px;
-  margin: 0;
-  border: 1px solid var(--line-strong);
-  border-radius: 20px;
-  background: var(--surface);
-  appearance: none;
-  cursor: inherit;
-}
-
-.motionControl input::before {
-  display: block;
-  width: 10px;
-  height: 10px;
-  margin: 2px;
-  border-radius: 50%;
-  background: var(--ink-muted);
-  content: "";
-}
-
-.motionControl input:checked {
-  border-color: var(--brand);
-  background: var(--brand);
-}
-
-.motionControl input:checked::before {
-  background: var(--on-brand);
-  transform: translateX(12px);
-}
-
-.motionControl:has(input:disabled) {
-  cursor: default;
-  opacity: 0.55;
-}
-
 .chapter {
   gap: 14px;
 }
@@ -358,7 +340,7 @@
 .demoHeader {
   display: grid;
   gap: 14px;
-  max-width: 760px;
+  width: 100%;
 }
 
 .demoLead {
@@ -369,15 +351,50 @@
   line-height: 1.7;
 }
 
-.demoInstruction {
-  max-width: 62ch;
-  margin: 0;
-  padding-left: 12px;
-  border-left: 2px solid var(--story-accent);
-  color: var(--ink-secondary);
-  font-size: 14px;
-  font-weight: 500;
-  line-height: 1.6;
+.demoScrollCue {
+  display: grid;
+  width: 96px;
+  justify-items: center;
+  align-items: center;
+  gap: 7px;
+  margin: 28px auto 0;
+  color: var(--story-accent);
+}
+
+.demoScrollMouse {
+  display: flex;
+  width: 22px;
+  height: 32px;
+  justify-content: center;
+  padding-top: 6px;
+  border: 1.5px solid currentColor;
+  border-radius: 12px;
+}
+
+.demoScrollMouse span {
+  width: 3px;
+  height: 7px;
+  border-radius: 2px;
+  background: currentColor;
+}
+
+.demoScrollLabel {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1;
+}
+
+@keyframes scrollWheel {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translateY(0);
+  }
+
+  50% {
+    opacity: 1;
+    transform: translateY(7px);
+  }
 }
 
 .demoScroll {
@@ -712,8 +729,20 @@
   --accent: var(--story-accent);
 }
 
+.progressDisclosure {
+  margin-top: 12px;
+}
+
+.progressToggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 36px;
+  color: var(--ink);
+}
+
 .progressGoal {
-  margin: 14px 0 4px;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
@@ -721,7 +750,7 @@
 
 .progressNote {
   max-width: 43ch;
-  margin: 0;
+  margin: 6px 0 0;
   color: var(--ink-muted);
   font-size: 13px;
   line-height: 1.6;
@@ -835,9 +864,9 @@
   margin-top: 64px;
   margin-bottom: 28px;
   padding: 36px 24px;
-  border: 1px solid var(--story-line);
+  border: 1px solid color-mix(in srgb, var(--story-accent), transparent 58%);
   border-radius: 8px;
-  background: var(--story-surface-subtle);
+  background: color-mix(in srgb, var(--story-accent), var(--story-surface) 88%);
 }
 
 .socialCopy {
@@ -891,20 +920,33 @@
 .socialLinks a {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  min-height: 58px;
-  padding: 9px 12px;
-  border: 1px solid var(--story-line);
+  gap: 12px;
+  min-height: 64px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--story-accent), var(--ink) 42%);
   border-radius: 6px;
+  background: color-mix(in srgb, var(--surface), var(--story-accent) 8%);
   color: var(--ink);
   font-size: 14px;
   font-weight: 500;
   text-decoration: none;
+  box-shadow: inset 3px 0 var(--story-accent);
 }
 
 .socialLinks a:hover {
-  border-color: var(--ink-muted);
-  background: var(--surface);
+  border-color: var(--story-accent);
+  background: color-mix(in srgb, var(--surface), var(--story-accent) 14%);
+}
+
+.socialIcon {
+  display: grid;
+  width: 38px;
+  height: 38px;
+  flex: none;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--story-accent);
+  color: var(--paper);
 }
 
 .socialAccount {
@@ -1049,8 +1091,16 @@
     padding-bottom: 24px;
   }
 
+  .welcomeStage:has(.greetingDisclosure[open]) {
+    grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
+  }
+
   .welcomeStage .mascotGuide {
     width: 180px;
+  }
+
+  .welcomeStage:has(.greetingDisclosure[open]) .mascotGuide {
+    width: 150px;
   }
 
   .heroSignup > .heroNote {
@@ -1080,6 +1130,10 @@
     padding-bottom: 48px;
   }
 
+  .demoScrollCue {
+    margin-top: 22px;
+  }
+
   .demoScroll {
     height: 230vh;
     min-height: 1350px;
@@ -1100,24 +1154,54 @@
 
   .demoRobotStage {
     grid-row: 1;
-    min-height: 132px;
-    grid-template-columns: 132px minmax(0, 150px);
+    min-height: 188px;
+    grid-template-columns: 1fr;
     align-items: center;
     justify-content: center;
-    padding: 8px 12px 0;
+    gap: 2px;
+    padding: 8px 12px 10px;
   }
 
   .demoRobotSprite {
-    width: 132px;
+    width: 148px;
+    background-image: url("/mascot/guide/robot-demo-mobile-listen.png");
+    background-position: center;
+    background-size: contain;
+  }
+
+  .demoSticky[data-phase="2"] .demoRobotSprite {
+    background-image: url("/mascot/guide/robot-demo-mobile-think.png");
+    background-position: center;
+  }
+
+  .demoSticky[data-phase="3"] .demoRobotSprite {
+    background-image: url("/mascot/guide/robot-demo-mobile-research.png");
+    background-position: center;
+  }
+
+  .demoSticky[data-phase="4"] .demoRobotSprite {
+    background-image: url("/mascot/guide/robot-demo-mobile-down.png");
+    background-position: center;
   }
 
   .demoRobotStatus {
     width: auto;
     margin: 0;
-    padding: 0 0 0 12px;
+    padding: 0;
     border-top: 0;
-    border-left: 1px solid var(--story-line);
-    text-align: left;
+    border-left: 0;
+    text-align: center;
+  }
+
+  .demoRobotStatus::after {
+    display: block;
+    width: 8px;
+    height: 8px;
+    margin: 8px auto 0;
+    border-right: 1.5px solid var(--story-accent);
+    border-bottom: 1.5px solid var(--story-accent);
+    transform: rotate(45deg);
+    content: "";
   }
 
   .demoWorkspace {
@@ -1269,11 +1353,6 @@
   .welcomeStage .mascotGuide {
     width: 150px;
   }
-
-  .lead {
-    font-size: 13px;
-    margin-top: 8px;
-  }
 }
 
 @media (prefers-color-scheme: dark) {
@@ -1300,6 +1379,10 @@
 @media (prefers-reduced-motion: no-preference) {
   :global(html:has(.journey)) {
     scroll-behavior: smooth;
+  }
+
+  .demoScrollMouse span {
+    animation: scrollWheel 1.6s ease-in-out infinite;
   }
 }
 

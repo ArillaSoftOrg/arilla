@@ -30,6 +30,8 @@ export interface HomeHeaderProps {
   accountLabel: string;
   loginHref: string;
   loginLabel: string;
+  /** Birincil hesap/giris eylemini dar mobil cubukta gizler; menu panelinde tutar. */
+  accountInMobileMenuOnly?: boolean;
   /** Hesap/giris linki su anki sayfaysa `true` (orn. `/giris`). */
   accountCurrent?: boolean;
   /** Oturum acik kullanici icin hesap linkinde gosterilecek profil fotografi. */
@@ -99,6 +101,7 @@ export function HomeHeader({
   accountLabel,
   loginHref,
   loginLabel,
+  accountInMobileMenuOnly = false,
   accountCurrent = false,
   accountAvatarUrl,
   accountAvatarLabel,
@@ -239,6 +242,7 @@ export function HomeHeader({
         <a
           href={accountUrl}
           className={hasSignedInAccount ? styles.accountAvatar : styles.account}
+          data-mobile-menu-only={accountInMobileMenuOnly ? "true" : undefined}
           aria-current={accountCurrent ? "page" : undefined}
           aria-label={hasSignedInAccount ? accountText : undefined}
         >

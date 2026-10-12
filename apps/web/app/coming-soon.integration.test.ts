@@ -249,22 +249,20 @@ describe("mod", () => {
 });
 
 describe("landing içeriği", () => {
-  it("anonim: marka, durum, başlık, tek eylem; ürün/arama/form yok", async () => {
+  it("anonim: marka, başlık ve tek eylem; ürün/arama/form yok", async () => {
     const html = await landingMarkup();
-    expect(html).toContain("ManiCepte yakında.");
-    expect(html).toContain("Erken Erişim");
     expect(html).toContain("Tarif et, fotoğrafını göster veya linkini bırak.");
     expect(html).toContain(`href="${EARLY_ACCESS_LOGIN_PATH}"`);
     expect(html).toContain('href="#nasil-calisacak"');
     expect(html).toContain('id="nasil-calisacak"');
     expect(html).toContain("ManiCepte nasıl çalışır?");
     expect(html).toContain("Temsili önizleme");
-    expect(html).toContain("ManiCepte&#x27;yi geliştiriyoruz.");
-    expect(html).toContain("Erken erişim kayıtları açık.");
+    expect(html).toContain("Neler hazırlıyoruz?");
+    expect(html).toContain("Erken erişim kayıtları");
     expect(html).not.toMatch(PRODUCT_HREF);
     expect(html).not.toContain("<form");
     expect(html).not.toMatch(/<input[^>]+type="(?:text|search|email)"/);
-    expect(html).toContain('type="checkbox"');
+    expect(html).not.toContain('type="checkbox"');
     // Tek h1.
     expect(html.match(/<h1/g)).toHaveLength(1);
     // Yasak kelimeler ve sahte sayı yok (docs/copy.md).
