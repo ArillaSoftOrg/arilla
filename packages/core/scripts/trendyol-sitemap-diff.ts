@@ -33,6 +33,25 @@ async function get(url: string): Promise<{ status: number; body: string }> {
   return { status: r.status, body: await r.text() };
 }
 
+// Onceki uretimin TUM contentId kumesi (sirali uint32; tam dizinden uretilir).
+const idsBin = join(tmpdir(), "manicepte-trendyol-ids.bin");
+const idsBuf = existsSync(idsBin) ? await readFile(idsBin) : null;
+const idsArr = idsBuf ? new Uint32Array(idsBuf.buffer, idsBuf.byteOffset, idsBuf.length / 4) : null;
+const globalHas: ((x: number) => boolean) | null = idsArr
+  ? (x: number) => {
+      let lo = 0;
+      let hi = idsArr.length - 1;
+      while (lo <= hi) {
+        const m = (lo + hi) >> 1;
+        const v = idsArr[m] as number;
+        if (v === x) return true;
+        if (v < x) lo = m + 1;
+        else hi = m - 1;
+      }
+      return false;
+    }
+  : null;
+
 const ids = (paths: { path: string }[]) =>
   new Set(paths.map((p) => p.path.match(/-p-(\d+)$/)?.[1]).filter((x): x is string => !!x));
 
@@ -90,7 +109,13 @@ for (const n of files) {
   let removed = 0;
   for (const id of now) if (!base.has(id)) added++;
   for (const id of base) if (!now.has(id)) removed++;
+  // UYARI (2026-10-12 olcumu): Trendyol her uretimde urunleri dosyalara YENIDEN dagitiyor;
+  // dosya bazli fark (~%100 degisim) urun degisimi degildir. Asil olcu tum-kume karsilastirmasi.
+  const inPrev = globalHas ? [...now].filter((id) => globalHas(Number(id))).length : null;
   process.stdout.write(
-    `${name}: ${baseLabel} -> ${mod}: ${base.size} -> ${now.size} urun, +${added} / -${removed}\n`,
+    `${name}: ${baseLabel} -> ${mod}: dosya farki +${added}/-${removed} (bilgi); ` +
+      (inPrev == null
+        ? "tum-kume dizini yok\n"
+        : `onceki TUM dizinde: ${inPrev}/${now.size} (%${((100 * inPrev) / now.size).toFixed(3)}), yeni: ${now.size - inPrev}\n`),
   );
 }
