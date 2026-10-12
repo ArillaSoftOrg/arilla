@@ -26,8 +26,11 @@ Rapor betiği: `scripts/trendyol-index-report.ts` (ağ isteği atmaz, yerel önb
   (barkod 195949771569). Her ikisinde de satıcı Akarsu (724838) ve fiyat 124.999 TL (2026-10-12T00:09Z).
 - Dizinde bu gruptan yalnızca **Siyah Titanyum** var; Çöl `857296094` **yok**. Dizindeki Apple ürünü
   sayısı yalnızca 1.603.
-- **Hipotez (tek gruba dayalı, doğrulanmadı):** sitemap renk grubu (`productGroupId`) başına bir temsilci
-  content listeliyor. Doğruysa 8,13 milyon = yaklaşık **ürün grubu** sayısıdır; renk varyantları ve
+- **DÜZELTME (10-urun-gruplari.md):** Aşağıdaki hipotez 164 grupla test edildi ve **yanlış** çıktı: liste
+  sayfalarında görülen 180 ürünün 179'u (%99,4) sitemap'te; çok üyeli 9 grubun 8'inde tüm üyeler var. Çöl
+  tekil bir eksik.
+- ~~**Hipotez (tek gruba dayalı, doğrulanmadı):** sitemap renk grubu (`productGroupId`) başına bir temsilci
+  content listeliyor.~~ Doğruysa 8,13 milyon = yaklaşık **ürün grubu** sayısıdır; renk varyantları ve
   onların fiyatları sitemap'ten görünmez.
 - Beden varyantları contentId'nin içinde (Samba ID0478: tek content, beden başına barkod).
 - Sonuç: kimlik hiyerarşisi `productGroupId (renk grubu) → contentId (renk) → barkod/varyant (beden) →

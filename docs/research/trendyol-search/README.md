@@ -13,6 +13,7 @@ eklenti yok, Trendyol'u ayrıca açmak yok, ücretli arama API'si yok.
 - Stok-Fiyat servisi, entegratörler, dizin doğrulaması, hipotez kaydı: [`07-entegratorler-dizin-hipotezler.md`](07-entegratorler-dizin-hipotezler.md)
 - Fiyat dağıtım zinciri, Open Prices, satıcı mağaza sitemap'i, varyant eşleştirmesi: [`08-dagitim-zinciri-ve-varyant.md`](08-dagitim-zinciri-ve-varyant.md)
 - Tam ürün dizini raporu (8.126.053 ürün, marka normalizasyonu, kimlik hiyerarşisi, arama kalitesi): [`09-tam-dizin-raporu.md`](09-tam-dizin-raporu.md)
+- Ürün grupları (temsilci hipotezi yanlışlandı: %99,4), birleşik keşif, Gemini incelemesi: [`10-urun-gruplari.md`](10-urun-gruplari.md)
 - Kod (bu dal): `packages/core/src/trendyol-landing/`, `packages/core/scripts/trendyol-*-cli.ts`
 - Dal / worktree: `research/trendyol-landing-discovery` → `../repo-docs-trendyol-landing`
 - İlgili, dokunulmayan çalışmalar: PR #125 (`feature/trendyol-live-discovery-prototype`),

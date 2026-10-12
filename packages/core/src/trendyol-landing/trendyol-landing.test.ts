@@ -208,3 +208,29 @@ describe("canli testte (2026-10-12) gorulen hatalar", () => {
     expect(r.products.map((p) => p.productUrl)).toEqual([`${TY}/sony/wh-p-2`]);
   });
 });
+
+describe("listing kimlik hiyerarsisi (canli bicim 2026-10-12)", () => {
+  it("contentId, groupId, supplierId ve varyanti tasir", () => {
+    const html = propsHtml([
+      {
+        ...item(
+          "Apple",
+          "iPhone 16 Pro 128GB Çöl Titanyum",
+          "124.999",
+          "/apple/iphone-16-pro-128gb-col-titanyum-p-857296094",
+          "IOS Cep Telefonları",
+        ),
+        url: "/apple/iphone-16-pro-128gb-col-titanyum-p-857296094?boutiqueId=61&merchantId=724838",
+        groupId: 653969108,
+        variantValue: "Tek Ebat",
+      },
+    ]);
+    const [p] = listingProducts(findSearchProps(html), "t");
+    expect(p).toMatchObject({
+      contentId: "857296094",
+      groupId: "653969108",
+      supplierId: "724838",
+      variant: "Tek Ebat",
+    });
+  });
+});

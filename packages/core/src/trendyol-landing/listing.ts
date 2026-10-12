@@ -16,6 +16,14 @@ export interface TrendyolListingProduct {
   availability: "unknown";
   lastCheckedAt: string;
   missing: string[];
+  /** Kimlik hiyerarsisi (canli dogrulandi 2026-10-12): renk grubu -> content -> varyant -> satici. */
+  contentId: string | null;
+  /** Renk grubu (`groupId` = urun sayfasindaki `productGroupId`). Sitemap'te YOK. */
+  groupId: string | null;
+  /** Karttaki teklifin saticisi (adresteki merchantId). */
+  supplierId: string | null;
+  /** Kartin gosterdigi varyant ("38,5", "Tek Ebat"); fiyat bu varyanta aittir. */
+  variant: string | null;
 }
 
 const PROPS_KEY = 'window["__single-search-result__PROPS"]=';
@@ -65,10 +73,18 @@ export function listingProducts(props: unknown, checkedAt: string): TrendyolList
     const cur = String(priceObj.currency ?? "").toUpperCase();
     const currency = priceKurus != null && (cur === "TL" || cur === "TRY") ? "TRY" : null;
     let productUrl: string | null = null;
+    let supplierId: string | null = null;
     try {
       const u = new URL(String(p.url ?? ""), ORIGIN);
       if (u.origin === ORIGIN && /-p-\d+$/.test(u.pathname)) productUrl = `${ORIGIN}${u.pathname}`;
+      supplierId = /^\d+$/.test(u.searchParams.get("merchantId") ?? "")
+        ? u.searchParams.get("merchantId")
+        : null;
     } catch {}
+    const idOf = (v: unknown) =>
+      (typeof v === "number" || typeof v === "string") && /^\d+$/.test(String(v))
+        ? String(v)
+        : null;
     const image = typeof p.image === "string" && p.image.startsWith("https://") ? p.image : null;
     const title =
       typeof p.name === "string"
@@ -94,6 +110,11 @@ export function listingProducts(props: unknown, checkedAt: string): TrendyolList
       availability: "unknown" as const,
       lastCheckedAt: checkedAt,
       missing,
+      contentId: productUrl ? (productUrl.match(/-p-(\d+)$/)?.[1] ?? null) : null,
+      groupId: idOf(p.groupId),
+      supplierId,
+      variant:
+        typeof p.variantValue === "string" && p.variantValue.trim() ? p.variantValue.trim() : null,
     };
   });
 }
