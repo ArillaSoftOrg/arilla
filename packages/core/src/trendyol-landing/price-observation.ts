@@ -4,9 +4,9 @@
  * Trendyol'da "fiyat" tek deger degildir (11 §1): satici fiyati, liste fiyati, tanimsiz
  * `priceSeenByCustomer`, buybox fiyati, urun sayfasi katmanlari ve sepet fiyati ayri seylerdir.
  * Bu modul her gozlemi ayri saklar ve iki fiyat turunun ESIT oldugu hipotezini YALNIZCA
- * ayni urun + ayni varyant + ayni satici + kisa zaman araliginda sinar. Farkin nedenini
- * (yuzde indirim, sabit tutar, kampanya etiketi) otomatik siniflandirir; aciklanamayan farki
- * "unexplained" olarak isaretler, asla esit varsaymaz.
+ * ayni urun + ayni varyant + ayni satici + kisa zaman araliginda sinar. Fark varsa yalnizca
+ * "differs" der; aritmetik uyum (%X, yuvarlak tutar) ve gorulen etiketler ayri IPUCU olarak
+ * eklenir (`verified: false`). Matematikten kampanya sonucu CIKARILMAZ; esitlik varsayilmaz.
  */
 
 export type PriceKind =
@@ -100,10 +100,20 @@ export const HYPOTHESES: readonly EqualityHypothesis[] = [
 
 export type Verdict =
   | { status: "equal" }
-  | { status: "percent-discount"; percent: number }
-  | { status: "fixed-discount"; amountKurus: number }
-  | { status: "campaign-tagged"; tags: readonly string[] }
-  | { status: "unexplained"; diffKurus: number }
+  | {
+      status: "differs";
+      diffKurus: number;
+      /** Yalnizca ipucu: kampanya/sepet indirimi oldugunu KANITLAMAZ. */
+      evidence: {
+        /** Buyuk fiyatin tam sayi yuzdesiyle kucuge (±1 kurus) inilebiliyor mu? */
+        arithmeticPercent: number | null;
+        /** Fark 100 TL'nin kati mi? */
+        arithmeticFixedKurus: number | null;
+        /** Gozlem aninda sayfada gorulen etiketler (kaynakta gorulen metin; neden degil). */
+        observedTags: readonly string[];
+        verified: false;
+      };
+    }
   | {
       status: "not-comparable";
       reason: "variant-mismatch" | "variant-unknown" | "seller-mismatch" | "time-gap";
@@ -160,13 +170,18 @@ export function comparePair(
     left.priceKurus > right.priceKurus
       ? [left.priceKurus, right.priceKurus]
       : [right.priceKurus, left.priceKurus];
-  const percent = detectPercentDiscount(hi, lo);
-  if (percent != null) return { status: "percent-discount", percent };
-  const fixed = detectFixedDiscount(hi, lo);
-  if (fixed != null) return { status: "fixed-discount", amountKurus: fixed };
-  const tags = [...(left.tags ?? []), ...(right.tags ?? [])];
-  if (tags.length > 0) return { status: "campaign-tagged", tags };
-  return { status: "unexplained", diffKurus: hi - lo };
+  // Fark yalnizca "farkli" olarak raporlanir. Aritmetik uyum (%X ya da yuvarlak tutar) ve
+  // sayfada gorulen etiketler IPUCUDUR; kampanya oldugu sonucu cikarilmaz (verified: false).
+  return {
+    status: "differs",
+    diffKurus: hi - lo,
+    evidence: {
+      arithmeticPercent: detectPercentDiscount(hi, lo),
+      arithmeticFixedKurus: detectFixedDiscount(hi, lo),
+      observedTags: [...(left.tags ?? []), ...(right.tags ?? [])],
+      verified: false,
+    },
+  };
 }
 
 export interface HypothesisResult {
@@ -199,10 +214,7 @@ export function evaluateHypotheses(
     }
     const counts = {
       equal: 0,
-      "percent-discount": 0,
-      "fixed-discount": 0,
-      "campaign-tagged": 0,
-      unexplained: 0,
+      differs: 0,
       "not-comparable": 0,
     } satisfies Record<Verdict["status"], number>;
     for (const p of pairs) counts[p.verdict.status]++;

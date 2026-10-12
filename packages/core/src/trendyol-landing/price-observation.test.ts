@@ -20,15 +20,17 @@ const find = (kind: PriceObservation["kind"], contentId: string, variant?: strin
   return o;
 };
 
-describe("indirim dedektorleri (gercek gozlemler)", () => {
-  it("Samba liste karti: 7.999 -> 3.999,50 = %50 (Sepette %50)", () => {
+// Bu fonksiyonlar yalnizca ARITMETIK uyumu bulur; bir kampanyanin/sepet indiriminin
+// uygulandigini kanitlamaz (o bilgi ancak sayfadaki etiket ya da yetkili kaynakla gelir).
+describe("aritmetik uyum dedektorleri (gercek gozlemlenen fiyatlar)", () => {
+  it("Samba liste karti: 7.999 -> 3.999,50 = 7.999 x %50", () => {
     expect(detectPercentDiscount(799_900, 399_950)).toBe(50);
   });
-  it("Samba 38,5 sayfa: 7.199 -> 5.399,25 = %25 sepet; 7.199 -> 5.687,21 = %21", () => {
+  it("Samba 38,5 sayfa: 7.199 -> 5.399,25 (%25); 7.199 -> 5.687,21 (%21)", () => {
     expect(detectPercentDiscount(719_900, 539_925)).toBe(25);
     expect(detectPercentDiscount(719_900, 568_721)).toBe(21);
   });
-  it("iPhone: 127.999 -> 124.999 yuzde degil, 3.000 TL sabit indirim", () => {
+  it("iPhone: 127.999 -> 124.999 tam yuzde degil; fark 3.000 TL (yuvarlak tutar)", () => {
     expect(detectPercentDiscount(12_799_900, 12_499_900)).toBeNull();
     expect(detectFixedDiscount(12_799_900, 12_499_900)).toBe(300_000);
   });
@@ -72,12 +74,28 @@ describe("comparePair: yanlis eslesmeyi engeller", () => {
       reason: "variant-mismatch",
     });
   });
-  it("Samba liste 3.999,50 vs sayfa sepet 5.399,25 (28 sn arayla): esit DEGIL, kampanya etiketli", () => {
+  it("Samba liste 3.999,50 vs sayfa sepet 5.399,25 (28 sn arayla): 'differs'; kampanya sonucu cikarilmaz", () => {
     const v = comparePair(
       find("listing.discounted", "813659620", "38,5"),
       find("page.basket", "813659620", "38,5"),
     );
-    expect(v.status).toBe("campaign-tagged");
+    expect(v).toMatchObject({
+      status: "differs",
+      diffKurus: 139_975,
+      evidence: { arithmeticPercent: null, arithmeticFixedKurus: null, verified: false },
+    });
+    // Etiketler yalnizca gozlenen metin olarak tasinir.
+    if (v.status === "differs") expect(v.evidence.observedTags).toContain("Sepette %25 İndirim");
+  });
+  it("aritmetik uyum olsa bile sonuc 'differs' + verified:false (iPhone liste 127.999 vs 124.999)", () => {
+    const v = comparePair(
+      find("listing.original", "857296094"),
+      find("listing.discounted", "857296094"),
+    );
+    expect(v).toMatchObject({
+      status: "differs",
+      evidence: { arithmeticFixedKurus: 300_000, verified: false },
+    });
   });
 });
 
