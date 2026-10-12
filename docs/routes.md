@@ -226,6 +226,8 @@ ekran olmadan katalog kalitesi yönetilemez.
 /api/cron/generate-discovery-slots  Vercel Cron, gece yarısı. CRON_SECRET.
 /api/cron/marketing-campaigns       GitHub Actions, 15 dk. Kampanya partisi. CRON_SECRET (0048).
 /api/email/unsubscribe             RFC 8058 tek tık iptal (POST, token). GET → /abonelik-iptali.
+/api/health                        Canlılık (0109): süreç ayakta mı; bağımlılığa dokunmaz. Docker HEALTHCHECK, dış izleme.
+/api/health/ready                  Hazırlık (0109): DB SELECT 1 + Redis PING, 200/503. Yalnızca iç ağ; Caddy dışarı açmaz.
 ```
 
 `/yonetim/sozluk` ürünün en çok bakım gören ekranı olacak. Sözlük
