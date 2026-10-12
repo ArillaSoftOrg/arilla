@@ -687,3 +687,124 @@ geri çekilme; host izolasyonu. Typecheck/lint temiz.
    garanti değil.
 5. **Bütçe:** 1 istek/sn global sınır, çok kullanıcıda arama başına ~11 istek → yaklaşık 5 eşzamanlı
    arama/dk üst sınırı; ölçeklenme için Pazarama ile resmî veri anlaşması gerekir.
+
+## Oturum 2026-10-12 (12. oturum) — Kapasite: ortak sayfa önbelleği, single-flight, arama kabulü (Pazarama'ya ürün/arama isteği ATILMADI)
+
+### 1–3. Arama başına istek (Faz 4b canlı ölçümünden, 8 sorgu × 3 tur)
+- Ortalama **11,4 site isteği/arama**: liste 3,6 · ürün sayfası (fiyat/stok doğrulama) 3,9 ·
+  barkod adımları (`/-p-<gtin>` + 301 hedefi) 3,9. Görsel için Pazarama'ya istek **yok** (görseller
+  `img.pzrmcdn.com` CDN'inden ziyaretçi tarayıcısına yüklenir). Ayrı fiyat doğrulama isteği yok:
+  fiyat = ürün sayfası JSON-LD'si (detay isteğinin kendisi).
+- Sorgu başına: iPhone 12 (L3 D1 B8), Samba 17 (L7 D6 B4), Nike 14 (L6 D6 B2), Sony 6 (L3 D3 B0),
+  elbise 13 (L3 D6 B4), PS5 12 (L1 D6 B5), Dyson 8 (L3 D1 B4), Lego 9 (L3 D2 B4).
+- Tekrar: aynı sorgu turlar arasında **birebir aynı ürün kimlikleri ve URL'ler** → aynı ürünü arayan
+  farklı kullanıcılar aynı sayfaları yeniden indiriyordu. Arama içi tekrar: barkodun 301 hedefi ile
+  SEO kartı aynı ürün sayfasıysa ve iki yol eşzamanlıysa iki kez indiriliyordu (arama içi Map ancak
+  biri bitince görüyordu).
+
+### 4–5. Değişiklikler (yeni altyapı yok; mevcut Redis)
+- `page-cache.ts`: kısa ömürlü **ortak sayfa önbelleği** (`InMemoryPageCache`, `RedisPageCache`).
+  Anahtar `pagecache:v1:<sha256(tür|kesme|url)>` (kullanıcı/sorgu/IP yok). TTL: liste 120 sn,
+  ürün/barkod 60 sn, 404 60 sn, 301 1 sa. **Saklanmaz:** 429, 403, 5xx, ağ hatası. Redis hatası =
+  ıska (önbellek iyileştirmedir; erişim koruması kapıdadır).
+- **Single-flight:** ıskada `SET NX PX` kilidi; kilidi alan getirir/saklar, diğerleri 100 ms
+  aralıkla önbelleğe bakar (≤ 30 sn); getiren başarısız olursa (saklanmaz) takipçi kendisi dener ve
+  kapı yine karar verir. Böylece **sorgu birleştirme** URL düzeyinde kendiliğinden olur: farklı
+  kullanıcıların aynı ürün/liste sayfaları tek istek.
+- **Arama kabul kapısı** (`admission`): aynı `HostGate` sınıfı, ayrı anahtar (`search:<host>`), hız
+  yok, eşzamanlı 2 arama, kuyruk yok. İlk **ağ** ihtiyacında alınır, arama bitince bırakılır; tamamen
+  önbellekten dönen arama kabule hiç uğramaz. Dolu ise arama siteye istek atmadan durur (HB/ÇS
+  sonuçları yine gösterilir).
+- Sonuçlara `checkedAtMs` (fiyat/stokun alındığı ürün sayfası isteğinin anı) eklendi; önbellekten
+  gelen sonuç en çok 60 sn eskidir ve bunu açıkça taşır. Rapor: `sharedHits`, `coalesced`,
+  `admissionDenied`. Harness (`pazarama-live-server.ts`) yapılandırması güncellendi, çalıştırılmadı.
+
+### 8–9. Deterministik yük testi (`capacity.test.ts`, sanal saat, ağ yok)
+Sahte site Faz 4b profiline kalibre: arama başına 2 liste, 5 kart (1 eşleşmez), 1 stoksuz, 4 barkod
+(1'i SEO kartıyla aynı ürüne 301, 1'i ek ürüne 301, 2'si 404) → tek kullanıcıda **12 istek**
+(canlı 11,4). Kapı canlı ayarlarla (1 istek/sn, eşzamanlı 2, kuyruk 20, ≤ 10 sn bekleme), istek
+gecikmesi 500 ms, 5 sanal dk, kapalı döngü (aramalar arası 5–15 sn). Karışımlar: popular (%60 iki
+sorgu), uniform (8 sorgu), mixed (%30 bu 8 sorgu, %70 hiç tekrarlanmayan ürün), distinct (paylaşım yok).
+
+| kullanıcı | karışım | mod | tamamlanan | ret (kabulde) | boşa istek | istek/tamamlanan | tamamlanan/dk | ilk ürün med / p95 (ms) |
+|---|---|---|---|---|---|---|---|---|
+| 1 | uniform | faz5 | 14 | 0 | 0 | 12,00 | 2,7 | 2500 / 2500 |
+| 1 | uniform | önbellek+kabul | 17 | 0 | 0 | 8,41 | 3,3 | 1500 / 2500 |
+| 1 | distinct | faz5 | 14 | 0 | 0 | 12,00 | 2,8 | 2500 / 2500 |
+| 1 | distinct | önbellek+kabul | 15 | 0 | 0 | 11,00 | 2,9 | 2500 / 2500 |
+| 10 | popular | faz5 | 30 | 0 | 0 | 12,00 | 4,9 | 30157 / 38632 |
+| 10 | popular | önbellek+kabul | 228 | 19 (19) | 0 | 1,08 | 42,7 | 0 / 2886 |
+| 10 | mixed | faz5 | 30 | 0 | 0 | 12,00 | 4,8 | 30493 / 38555 |
+| 10 | mixed | önbellek+kabul | 48 | 189 (189) | 0 | 6,48 | 8,8 | 4782 / 6877 |
+| 10 | distinct | faz5 | 30 | 0 | 0 | 12,00 | 4,8 | 32899 / 38756 |
+| 10 | distinct | önbellek+kabul | 28 | 213 (213) | 0 | 11,00 | 5,4 | 6453 / 6871 |
+| 50 | popular | faz5 | 15 | 1022 (0) | 153 | 22,20 | 2,6 | 36641 / 42993 |
+| 50 | popular | önbellek+kabul | 1104 | 212 (212) | 0 | 0,27 | 206,8 | 0 / 900 |
+| 50 | mixed | faz5 | 15 | 1004 (0) | 150 | 22,00 | 2,7 | 36985 / 42884 |
+| 50 | mixed | önbellek+kabul | 125 | 1277 (1277) | 0 | 2,43 | 23,7 | 0 / 6772 |
+| 50 | distinct | faz5 | 18 | 1030 (0) | 130 | 19,22 | 3,0 | 36060 / 42982 |
+| 50 | distinct | önbellek (kabulsüz) | 2 | 911 (0) | 307 | 164,50 | 0,4 | 26278 / 42930 |
+| 50 | distinct | önbellek+kabul | 28 | 1426 (1426) | 0 | 11,00 | 5,3 | 5952 / 6988 |
+| 100 | popular | faz5 | 11 | 2466 (0) | 190 | 29,27 | 2,0 | 32049 / 42790 |
+| 100 | popular | önbellek+kabul | 2297 | 350 (350) | 0 | 0,13 | 437,3 | 0 / 900 |
+| 100 | mixed | faz5 | 11 | 2459 (0) | 190 | 29,27 | 2,0 | 32987 / 42146 |
+| 100 | mixed | önbellek+kabul | 192 | 2662 (2662) | 0 | 1,64 | 35,4 | 0 / 6929 |
+| 100 | distinct | faz5 | 11 | 2475 (0) | 190 | 29,27 | 2,0 | 32152 / 42589 |
+| 100 | distinct | önbellek+kabul | 28 | 2915 (2915) | 0 | 11,00 | 5,4 | 5956 / 6997 |
+
+Tam tablo (uniform ve kabulsüz önbellek satırları dahil) testin çıktısındadır. "Ret" sayısı kapalı
+döngüde şişkindir (reddedilen kullanıcı 5–15 sn sonra yeniden dener); asıl ölçü tamamlanan/dk ve boşa
+giden istektir. Kapı beklemesi istek başına faz5'te ~17–21 sn, önbellek+kabulde ~2–3 sn.
+
+Bulgular:
+- **Faz 5 aşırı yükte çöker:** 50/100 kullanıcıda aramalar başlayıp istek harcıyor, sonra kuyruk/bekleme
+  sınırında yarıda reddediliyor → tamamlanan 4,9/dk'dan 2,0/dk'ya düşüyor, ilk ürün p95 ~43 sn.
+  10 kullanıcıda bile ilk ürün medyanı ~30 sn (kuyruk birikiyor).
+- **Önbellek tek başına yetmez:** paylaşım yokken (distinct) kabulsüz önbellek de çöker (50 kullanıcı:
+  2 tamamlanan). Kabul kapısıyla reddedilen arama **0 site isteği** harcar; benzersiz aramalar
+  için tavan ≈ 60 istek/dk ÷ 11 ≈ **5,4 arama/dk** sabit kalır, ilk ürün p95 ~7 sn.
+- **Tekrarlanan ürünlerde** kapasite site bütçesinden kopar: popüler karışımda 0,13–1,08 istek/arama,
+  dakikada yüzlerce arama; ilk ürün medyanı 0 (önbellekten anında; gerçek Redis'te birkaç ms).
+- Ödünleşim: 10 kullanıcı/distinct'te kabul kapısı 30 yerine 28 arama tamamlar ama ilk ürün medyanı
+  33 sn → 6,5 sn. Reddedilen kullanıcı Pazarama sonucu görmez (HB/ÇS görür).
+- Tek soğuk arama: istek 12 → 11 (arama içi eşzamanlı aynı sayfa birleşti), ilk ürün 2,5 sn → 2,5 sn
+  (gecikme yok), toplam 11,5 → 10,5 sn.
+
+### 6–7. Doğruluk
+Ayrıştırma/eşleştirme/fiyat kodu değişmedi; önbellek siteden alınan gövdeyi aynen döndürür. Testler:
+soğuk önbellekle sonuçlar (ürün, fiyat, görsel, barkod, renk, fiyat türü) önbelleksizle aynı; sıcak
+önbellekte ikinci kullanıcı 0 istekle aynı sonuçları ve aynı `checkedAtMs`'yi alır; TTL dolunca
+yeniden getirilir (60 sn'den eski fiyat gösterilmez); 10 eşzamanlı aynı sorgu tek arama kadar istek ve
+aynı sonuçlar; Redis hatasında ağ yoluyla aynı sonuç. Fiyat tazeliği bilinçli bir ödünleşimdir:
+önbellekli sonuç ≤ 60 sn eski olabilir (açıkça `checkedAtMs` ile).
+
+Testler: core 2006/2006; Redis entegrasyonu 12/12 (`RedisPageCache` UTF-8 gidiş-dönüş, TTL, iki
+instance'ta tek kilit, çöken kilit sahibi). Bir kez paralel yükte mevcut kapı testi istemci saatinde
+14 ms aralık gördü (eşik 15; Windows zamanlayıcı çözünürlüğü; Redis slotları 20 ms) → eşik 10 ms'ye
+indirildi, tek başına 3/3. Typecheck temiz; bu dosyalarda lint temiz (depodaki diğer 3 lint hatası bu
+işten bağımsız, önceden var).
+
+### 10. Pazarama kullanım/ticari koşulları
+- Resmî kaynak **okunamadı**: koşul araştırması sırasında www.pazarama.com yasal sayfaları
+  (`/robots.txt`, `/uyelik-sozlesmesi` + 1 yeniden deneme, `/kullanici-sozlesmesi`, `/sozlesmeler`)
+  **HTTP 429** döndü. Bu oturumdaki tek Pazarama trafiği bu ~5 sayfa isteğiydi (ürün/arama isteği yok);
+  429 sonrası yeniden denenmedi. `isortagim.pazarama.com` yalnızca istemci tarafı kabuk;
+  `isortagimapi.pazarama.com` kökü 404.
+- Web aramasında Pazarama'ya ait yayımlanmış kullanım koşulu/bot politikası bulunamadı. Benzer pazar
+  yerleri (Verapazar, Pazarmia, Paribu) yazılı izin olmadan robot/scraping'i yasaklıyor — Pazarama
+  için kanıt **değil**, ama varsayılan risk yönünü gösteriyor.
+- Satıcı API'si (İş Ortağım paneli "Entegrasyon Bilgileri", OAuth client credentials, ~30 istek/dk/satıcı)
+  yalnızca üçüncü taraf entegratör belgelerinde geçiyor; **doğrulanmadı** ve bir satıcının kendi
+  ürünleri içindir, katalog araması için değildir.
+- Sonuç: ticari kullanım izni **belirsiz**; teknik erişim izin sayılmaz.
+
+### Kalan engeller (production'a)
+1. **İzin:** Pazarama'dan yazılı izin / veri anlaşması (veya affiliate/feed). Olmadan production yok.
+2. **Canlı doğrulama:** önbellek + kabul canlıda ölçülmedi (izin + 429 soğuması sonrası, düşük hızla).
+3. **Bütçe:** benzersiz aramalar için ~5,4 arama/dk tavanı değişmedi; önbellek yalnızca tekrarlanan
+   ürünlerde ölçeklenir. Gerçek tekrar oranı bilinmiyor (üretim sorgu dağılımı yok).
+4. **Fiyat tazeliği politikası:** ≤ 60 sn eski fiyatın arayüzde nasıl gösterileceği (ürün kararı).
+5. **Kabul reddi UX'i:** kabul doluyken Pazarama bölümü "şu an yoğun" demeli; tasarlanmadı.
+6. **Uzak Redis gecikmesi:** istek başına önbellek GET + kilit + kapı Lua çağrısı; Upstash/uzak Redis'te
+   ölçülmedi. Single-flight takipçisi yoklama yapar (100 ms).
+7. Önbellek yalnız Redis'te ve kısa ömürlü; kalıcı ürün saklama yok.

@@ -70,6 +70,11 @@ export interface PazaramaResult {
    */
   basketConditionsVerified: false;
   color: string | null;
+  /**
+   * Faz 6: fiyat/stokun dogrulandigi urun sayfasinin siteden alindigi an (epoch ms). Ortak
+   * onbellekten geldiyse arama anindan en cok TTL (60 sn) eskidir; arayuz bunu gosterebilir.
+   */
+  checkedAtMs: number;
 }
 
 export interface PazaramaReport {
@@ -111,6 +116,11 @@ export interface PazaramaReport {
   };
   requests: number;
   cacheHits: number;
+  /** Faz 6: ortak onbellekten (ag istegi olmadan) gelen sayfa; `coalesced` = esanli istekle paylasilan. */
+  sharedHits: number;
+  coalesced: number;
+  /** Faz 6: arama kabul kapisi doluydu; siteye istek atilmadi (yalnizca onbellekteki sonuclar). */
+  admissionDenied: boolean;
   bytes: number;
   blockedBy: number | null;
   /** Ortak kapinin reddi: istek ATILMADI (devre acik, kuyruk dolu, bekleme uzun, Redis yok). */
@@ -200,6 +210,9 @@ export async function discoverPazarama(
     },
     requests: 0,
     cacheHits: 0,
+    sharedHits: 0,
+    coalesced: 0,
+    admissionDenied: false,
     bytes: 0,
     blockedBy: null,
     deniedBy: null,
@@ -299,6 +312,7 @@ export async function discoverPazarama(
               basketPriceKurus: p.basketPriceKurus,
               basketConditionsVerified: false,
               color: p.color,
+              checkedAtMs: res.fetchedAt,
             });
           }
         }
@@ -409,6 +423,7 @@ export async function discoverPazarama(
                   basketPriceKurus: page2.basketPriceKurus,
                   basketConditionsVerified: false,
                   color: page2.color,
+                  checkedAtMs: d.fetchedAt,
                 });
               }
             }
@@ -423,11 +438,15 @@ export async function discoverPazarama(
   };
 
   // Iki yol eszamanli; biri hata verirse/yavaslarsa digeri etkilenmez (hiz siniri ortak).
-  if (opts.parallel === false) {
-    await barcodePath();
-    await seoPath();
-  } else {
-    await Promise.all([barcodePath(), seoPath()]);
+  try {
+    if (opts.parallel === false) {
+      await barcodePath();
+      await seoPath();
+    } else {
+      await Promise.all([barcodePath(), seoPath()]);
+    }
+  } finally {
+    client.finish();
   }
 
   const tMerge = now();
@@ -435,6 +454,9 @@ export async function discoverPazarama(
   report.timings.mergeMs = now() - tMerge;
   report.requests = client.requests;
   report.cacheHits = client.cacheHits;
+  report.sharedHits = client.sharedHits;
+  report.coalesced = client.coalesced;
+  report.admissionDenied = client.admissionDenied;
   report.bytes = client.log.reduce((s, r) => s + r.bytes, 0);
   for (const r of client.log) {
     const k = report.http.byKind[r.kind] ?? { requests: 0, bytes: 0, networkMs: 0 };

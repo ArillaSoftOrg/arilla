@@ -21,6 +21,12 @@ import {
   InMemoryHostGate,
   RedisHostGate,
 } from "../src/pazarama-discovery/host-gate.ts";
+import {
+  DEFAULT_PAGE_CACHE_TTL,
+  InMemoryPageCache,
+  type PageCache,
+  RedisPageCache,
+} from "../src/pazarama-discovery/page-cache.ts";
 import { loadSeoIndex, prepareSeoIndex } from "../src/pazarama-discovery/seo-index.ts";
 import { getRedis } from "../src/redis/client.ts";
 
@@ -39,6 +45,21 @@ const bundle = readFileSync(bundlePath);
 export const SERVER_CONFIG = {
   /** Ortak kapi: 1 istek/sn, ayni anda 2, kuyruk 20, en cok 10 sn bekleme, 429'da 15 dk (Retry-After varsa o). */
   gate: { ...DEFAULT_GATE_OPTIONS },
+  /**
+   * Faz 6 arama kabulu: ayni anda en cok 2 aramanin siteye istegi; kuyruk yok (doluysa Pazarama
+   * sonucu yok, HB/CS sonuclari yine gosterilir). Kira 2 dk: yalnizca cokmede kendiliginden duser.
+   */
+  admission: {
+    ...DEFAULT_GATE_OPTIONS,
+    minIntervalMs: 0,
+    maxConcurrent: 2,
+    maxQueue: 0,
+    maxWaitMs: 0,
+    leaseMs: 120_000,
+    pollMs: 100,
+  },
+  /** Faz 6 ortak sayfa onbellegi: liste 120 sn, urun/barkod 60 sn, 404 60 sn, 301 1 sa. */
+  pageCache: { ttl: DEFAULT_PAGE_CACHE_TTL, lockMs: 30_000, pollMs: 100 },
   minIntervalMs: 1_000,
   maxRequests: 24,
   timeoutMs: 12_000,
@@ -106,6 +127,13 @@ document.getElementById("status").textContent = "ready";
 const gate: HostGate = process.env.REDIS_URL
   ? new RedisHostGate(getRedis(), SERVER_CONFIG.gate)
   : new InMemoryHostGate(SERVER_CONFIG.gate);
+/** Faz 6: ayni Redis (yeni altyapi yok). Onbellek hatasi iska; kabul kapisi Redis yoksa reddeder. */
+const pageCache: PageCache = process.env.REDIS_URL
+  ? new RedisPageCache(getRedis())
+  : new InMemoryPageCache();
+const admission: HostGate = process.env.REDIS_URL
+  ? new RedisHostGate(getRedis(), SERVER_CONFIG.admission)
+  : new InMemoryHostGate(SERVER_CONFIG.admission);
 
 createServer(async (req, res) => {
   const url = new URL(req.url ?? "/", "http://127.0.0.1");
@@ -144,6 +172,8 @@ createServer(async (req, res) => {
         maxRequests: SERVER_CONFIG.maxRequests,
         timeoutMs: SERVER_CONFIG.timeoutMs,
         gate,
+        admission,
+        pageCache: { cache: pageCache, ...SERVER_CONFIG.pageCache },
       });
       const report = await discoverPazarama(client, input, seoIndex, SERVER_CONFIG.discover);
       res.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify(report));

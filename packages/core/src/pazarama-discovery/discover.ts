@@ -11,6 +11,13 @@
 import { matchesQuery } from "../live-search-browser/match.ts";
 import { type GateDenyReason, type HostGate, parseRetryAfter } from "./host-gate.ts";
 import {
+  DEFAULT_PAGE_CACHE_TTL,
+  type PageCache,
+  type PageCacheTtl,
+  pageCacheKey,
+  ttlFor,
+} from "./page-cache.ts";
+import {
   barcodeProductUrl,
   DETAIL_STOP,
   LISTING_STOP,
@@ -70,9 +77,17 @@ export function isAllowedPazaramaUrl(raw: string): boolean {
 
 const MAX_REDIRECTS = 3;
 const PAZARAMA_HOST = new URL(PAZARAMA_ORIGIN).host;
+/** Arama kabul kapisinin anahtari (host kapisindan ayri sayaclar). */
+export const ADMISSION_KEY = `search:${PAZARAMA_HOST}`;
 
 export type GetResult =
-  | { status: number; body: string; finalUrl: string }
+  | {
+      status: number;
+      body: string;
+      finalUrl: string;
+      /** Govdenin siteden alindigi an (epoch ms). Ortak onbellekten geldiyse o anki ag istegi. */
+      fetchedAt: number;
+    }
   | { status: number; stop: true; denied?: GateDenyReason };
 
 export interface RequestLogEntry {
@@ -95,13 +110,34 @@ export interface RequestLogEntry {
  * toplam istek hizi asla siniri gecmez (indirmeler ust uste binebilir).
  * Ayni URL bir arama icinde ikinci kez indirilmez (yonlendirme sonrasi adres dahil).
  */
+export interface SharedPageOptions {
+  cache: PageCache;
+  ttl?: PageCacheTtl;
+  /** Getiren aramanin kilidi (kapi beklemesi + zaman asimi + pay). Takipci en cok bu kadar bekler. */
+  lockMs?: number;
+  /** Takipcinin onbellege bakma araligi. */
+  pollMs?: number;
+}
+
+type OnceResult =
+  | { status: number; body: string; location: string | null; fetchedAt: number }
+  | { status: number; stop: true; denied?: GateDenyReason };
+
 export class PazaramaClient {
   blockedBy: number | null = null;
   /** Ortak kapinin reddi (devre acik, kuyruk dolu, bekleme uzun, Redis yok): ag istegi ATILMADI. */
   deniedBy: GateDenyReason | null = null;
   requests = 0;
   cacheHits = 0;
+  /** Faz 6: ortak (aramalar/instance'lar arasi) onbellekten gelen sayfa sayisi; ag istegi YOK. */
+  sharedHits = 0;
+  /** Bunlarin kacinda ayni URL'yi getiren baska bir aramayi bekledi (single-flight). */
+  coalesced = 0;
+  /** Faz 6: arama kabul kapisi bu aramayi reddetti (site istegi baslamadan). */
+  admissionDenied = false;
   readonly log: RequestLogEntry[] = [];
+  private admission: Promise<boolean> | null = null;
+  private admissionTicket: { release(): void } | null = null;
   private nextSlot = 0;
   private readonly cache = new Map<string, Promise<GetResult>>();
 
@@ -121,8 +157,48 @@ export class PazaramaClient {
        * hiz siniri/eszamanlilik/devre kesici kapidadir; istemcinin kendi slotu kullanilmaz.
        */
       gate?: HostGate;
+      /**
+       * Faz 6: ortak, kisa omurlu sayfa onbellegi + single-flight. Ayni URL'yi ayni anda ya da
+       * TTL icinde isteyen aramalar tek ag istegini paylasir. Yoksa Faz 5 davranisi.
+       */
+      pageCache?: SharedPageOptions;
+      /**
+       * Faz 6: ARAMA duzeyinde kabul (ayni kapi sinifi, ayri anahtar). Ilk ag istegi gerektiginde
+       * (onbellek iskasinda) bir kez alinir, `finish()` ile birakilir. Doluysa arama siteye istek
+       * ATMADAN durur: asiri yukte baslayip yarida reddedilen aramalarin kapasite yemesi onlenir.
+       * Tamamen onbellekten donen aramalar kabul kapisina hic ugramaz.
+       */
+      admission?: HostGate;
     },
   ) {}
+
+  /** Arama bitti: kabul hakki (varsa) birakilir. Iki kez cagrilabilir. */
+  finish(): void {
+    this.admissionTicket?.release();
+    this.admissionTicket = null;
+  }
+
+  private admit(): Promise<boolean> {
+    const gate = this.opts.admission;
+    if (!gate) return Promise.resolve(true);
+    this.admission ??= gate.acquire(ADMISSION_KEY).then(
+      (d) => {
+        if (d.ok) {
+          this.admissionTicket = d;
+          return true;
+        }
+        this.admissionDenied = true;
+        this.deniedBy = d.reason;
+        return false;
+      },
+      () => {
+        this.admissionDenied = true;
+        this.deniedBy = "unavailable";
+        return false;
+      },
+    );
+    return this.admission;
+  }
 
   /**
    * Yonlendirmeler elle izlenir (en cok 3): her adim yeniden `isAllowedPazaramaUrl`
@@ -153,7 +229,7 @@ export class PazaramaClient {
       if (res.status >= 300 && res.status < 400) {
         const loc = res.location ? new URL(res.location, current).toString() : null;
         if (!loc || !isAllowedPazaramaUrl(loc)) {
-          return { status: res.status, body: "", finalUrl: current };
+          return { status: res.status, body: "", finalUrl: current, fetchedAt: res.fetchedAt };
         }
         current = loc;
         // Yonlendirme hedefi zaten okunduysa (ornegin SEO kartinin adresi) yeniden indirilmez.
@@ -164,20 +240,85 @@ export class PazaramaClient {
         }
         continue;
       }
-      const out = { status: res.status, body: res.body, finalUrl: current };
+      const out = {
+        status: res.status,
+        body: res.body,
+        finalUrl: current,
+        fetchedAt: res.fetchedAt,
+      };
       if (current !== url) this.cache.set(current, Promise.resolve(out));
       return out;
     }
-    return { status: 0, body: "", finalUrl: current };
+    return { status: 0, body: "", finalUrl: current, fetchedAt: (this.opts.now ?? Date.now)() };
   }
 
+  /**
+   * Faz 6: once ortak onbellek; yoksa single-flight kilidi. Kilidi alan getirir ve saklar; alamayan
+   * (ayni URL'yi baska arama getiriyor) kisa araliklarla onbellege bakar. Getiren basarisiz olursa
+   * (429, ag hatasi: saklanmaz) kilit birakilir ve takipci kendisi dener; kapi yine karar verir.
+   * Onbellek isabeti ag istegi degildir: `maxRequests`'ten dusmez, kapiya ugramaz.
+   */
   private async once(
     url: string,
     req: { kind?: RequestKind; stopWhen?: StopRule },
-  ): Promise<
-    | { status: number; body: string; location: string | null }
-    | { status: number; stop: true; denied?: GateDenyReason }
-  > {
+  ): Promise<OnceResult> {
+    const shared = this.opts.pageCache;
+    if (!shared) return this.onceNetwork(url, req);
+    const now = this.opts.now ?? Date.now;
+    const sleep = this.opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
+    const kind = req.kind ?? "other";
+    const cutoffOn = this.opts.cutoff !== false && req.stopWhen !== undefined;
+    // Barkod ve detay ayni okuma kuralini kullanir: yonlendirme hedefi ortak anahtarda bulunur.
+    const key = pageCacheKey(kind === "barcode" ? "detail" : kind, url, cutoffOn);
+    const fromCache = async (): Promise<OnceResult | null> => {
+      const hit = await shared.cache.get(key);
+      if (!hit) return null;
+      this.sharedHits += 1;
+      return {
+        status: hit.status,
+        body: hit.body,
+        location: hit.location,
+        fetchedAt: hit.fetchedAt,
+      };
+    };
+    const first = await fromCache();
+    if (first) return first;
+    if (this.blockedBy !== null) return { status: this.blockedBy, stop: true };
+    if (this.deniedBy !== null) return { status: 0, stop: true, denied: this.deniedBy };
+    if (this.requests >= this.opts.maxRequests) return { status: 0, stop: true };
+    const lockMs = shared.lockMs ?? 30_000;
+    const pollMs = shared.pollMs ?? 100;
+    const waitStarted = now();
+    let leader = await shared.cache.lock(key, lockMs);
+    while (!leader && now() - waitStarted < lockMs) {
+      await sleep(pollMs);
+      const hit = await fromCache();
+      if (hit) {
+        this.coalesced += 1;
+        return hit;
+      }
+      leader = await shared.cache.lock(key, lockMs);
+    }
+    try {
+      const res = await this.onceNetwork(url, req);
+      if (!("stop" in res)) {
+        const ttl = ttlFor(kind, res.status, shared.ttl ?? DEFAULT_PAGE_CACHE_TTL);
+        await shared.cache.set(
+          key,
+          { status: res.status, body: res.body, location: res.location, fetchedAt: res.fetchedAt },
+          ttl,
+        );
+      }
+      return res;
+    } finally {
+      if (leader) await shared.cache.unlock(key);
+    }
+  }
+
+  private async onceNetwork(
+    url: string,
+    req: { kind?: RequestKind; stopWhen?: StopRule },
+  ): Promise<OnceResult> {
     if (this.blockedBy !== null) return { status: this.blockedBy, stop: true };
     if (this.deniedBy !== null) return { status: 0, stop: true, denied: this.deniedBy };
     if (this.requests >= this.opts.maxRequests) return { status: 0, stop: true };
@@ -185,6 +326,10 @@ export class PazaramaClient {
     const sleep = this.opts.sleep ?? ((ms) => new Promise((r) => setTimeout(r, ms)));
     const kind = req.kind ?? "other";
     const waitStarted = now();
+    if (!(await this.admit())) {
+      return { status: 0, stop: true, denied: this.deniedBy ?? "queue-full" };
+    }
+    if (this.deniedBy !== null) return { status: 0, stop: true, denied: this.deniedBy };
     let ticket: { release(): void } | null = null;
     if (this.opts.gate) {
       // Ortak kapi: hiz, eszamanlilik, kuyruk ve devre kesici burada.
@@ -217,9 +362,7 @@ export class PazaramaClient {
     kind: RequestKind,
     waitMs: number,
     now: () => number,
-  ): Promise<
-    { status: number; body: string; location: string | null } | { status: number; stop: true }
-  > {
+  ): Promise<OnceResult> {
     const stopWhen = this.opts.cutoff === false ? undefined : req.stopWhen;
     if (this.blockedBy !== null) return { status: this.blockedBy, stop: true };
     const fetchImpl = this.opts.fetchImpl ?? (fetch as unknown as FetchText);
@@ -279,7 +422,12 @@ export class PazaramaClient {
         truncated,
       });
       if (res.status < 500) await this.opts.gate?.succeed(PAZARAMA_HOST);
-      return { status: res.status, body, location: res.headers?.get("location") ?? null };
+      return {
+        status: res.status,
+        body,
+        location: res.headers?.get("location") ?? null,
+        fetchedAt: now(),
+      };
     } catch {
       this.log.push({
         url,
@@ -290,7 +438,7 @@ export class PazaramaClient {
         bytes: 0,
         truncated: false,
       });
-      return { status: 0, body: "", location: null };
+      return { status: 0, body: "", location: null, fetchedAt: now() };
     }
   }
 }
