@@ -1,90 +1,121 @@
 /**
- * Lansman öncesi landing (karar 0043). docs/copy.md "Lansman öncesi" -
- * anahtarlar yorumda. Kurallar: ürün henüz kullanıma açık değil ima
- * edilmez; sahte ürün, fiyat, tasarruf, mağaza/kullanıcı sayısı, yorum ya da
- * tarih yok. Gelecek zaman bilerek kullanılır.
+ * Prelaunch story copy. No live product results, invented counts or launch date.
+ * Shared metadata and sign-in copy also serve other public routes.
  */
 import { SITE_BRAND } from "./site-config.ts";
 
 export const COMING_SOON_COPY = {
-  eyebrow: "Erken Erişim", // coming_soon.eyebrow
-  status: `${SITE_BRAND} yakında.`, // coming_soon.status
-  headline: "Aradığın ürünü bul. Fiyatları karşılaştır. Daha akıllı alışveriş yap.", // coming_soon.headline
-  body: `${SITE_BRAND}, aradığın ürünü, alternatiflerini ve farklı mağazalardaki fiyatlarını tek yerde görmeni kolaylaştırmak için yapay zekâ destekli bir alışveriş asistanı olarak geliştiriliyor.`, // coming_soon.body
-  ctaNote: "Hesabınla devam et ya da yeni hesap aç; listeye otomatik eklenirsin.", // coming_soon.cta_note
-  howItWorksAnchor: "Nasıl çalışacak?", // coming_soon.how_it_works_anchor
+  eyebrow: "Erken Erişim",
+  status: `${SITE_BRAND} yakında.`,
+  headline: "Tarif et, fotoğrafını göster veya linkini bırak.",
+  body: "ManiCepte ürünleri bulsun, benzerlerini çıkarsın ve mağaza fiyatlarını karşılaştırsın.",
+  greeting: "Selam, hoş geldin!",
+  greetingBody: "Hazır olduğumuzda ilk haberdar edeceğimiz kişilerden biri ol.",
+  greetingInvitation: "Hazır olduğumuzda ilk haberdar edeceğimiz kişilerden biri ol.",
+  stageNote: "Şu an erken erişimdeyiz, ManiCepte’yi geliştirmeye devam ediyoruz.",
+  progressGoal: (target: string) => `İlk ${target} kişiden biri ol.`,
+  progressNote:
+    "Erken erişim listemiz gerçek kayıtlarla güncelleniyor. Geliştirmeler hazır olduğunda sana haber vereceğiz.",
+  availability: "Henüz kullanıma açık değil. Birlikte başlamak için hazırlanıyoruz.",
+  motionLabel: "Hareket",
+  ctaNote: "Hesabınla devam et ya da yeni hesap aç; listeye otomatik eklenirsin.",
+  privacyNote: "Bilgilerin yalnızca erişim listesi için kullanılır.",
+  howItWorksAnchor: "Nasıl çalıştığını gör",
 
-  benefitsTitle: `${SITE_BRAND} ile neler yapabileceksin?`, // coming_soon.benefits_title
-  benefits: [
+  demoEyebrow: "Örnek deneyim",
+  demoTitle: "ManiCepte nasıl çalışır?",
+  demoBody:
+    "Aklındaki ürünü tarif et, fotoğrafını göster veya bağlantısını bırak. ManiCepte ihtiyacını anlayıp benzer ürünleri ve mağaza seçeneklerini bir araya getirir.",
+  demoInstruction:
+    "Aşağıdaki örnek deneyimde ManiCepte’nin nasıl çalıştığını adım adım görebilirsin.",
+  demoNotice: "Temsili önizleme",
+  demoModes: {
+    describe: "Tarif et",
+    photo: "Fotoğraf göster",
+    link: "Link bırak",
+  },
+  demoUserLabel: "Sen",
+  demoAssistantLabel: "ManiCepte",
+  demoUserMessage: "Gün boyu yürüyebileceğim, sade ve açık renkli bir spor ayakkabı arıyorum.",
+  demoAssistantMessage:
+    "Seni anladım. Rahat seçenekleri bulup fiyat ve özelliklerini karşılaştırıyorum.",
+  demoComposerPlaceholder: "Ne aradığını anlat, fotoğrafını göster veya linkini bırak...",
+  demoPhaseLabels: [
+    "Seni dinliyorum.",
+    "İhtiyacını alıyorum.",
+    "Neye önem verdiğini anlıyorum.",
+    "Seçenekleri araştırıyorum.",
+    "En iyi dengeyi buldum.",
+  ],
+  demoScrollSteps: [
+    "İhtiyacını anlat",
+    "ManiCepte anlasın",
+    "Seçenekleri araştırsın",
+    "En iyi dengeyi gör",
+  ],
+  demoProductInsights: [
+    { title: "Günlük rahatlık", note: "Ekonomik seçenek" },
+    { title: "Yürüyüş desteği", note: "Dengeli seçenek" },
+    { title: "Hafif kullanım", note: "Dayanıklı seçenek" },
+  ],
+  demoWinner: "En iyi fiyat-kalite dengesi",
+
+  enrolledTitle: "Listedesin. İyi ki geldin.",
+
+  buildEyebrow: "Mutfakta neler var?",
+  buildTitle: `${SITE_BRAND}'yi geliştiriyoruz.`,
+  buildBody: "Şu an üzerinde çalıştığımız temel parçalar:",
+  buildStatusDone: "Tamamlandı",
+  buildStatusInProgress: "Geliştiriliyor",
+  buildUpdated: (month: string) => `Son güncelleme: ${month}`,
+  followTitle: "Gelişmeleri takip et",
+  socialEyebrow: "ManiCepte günlüğü",
+  socialTitle: "Gelişmeleri birlikte takip edelim.",
+  socialBody:
+    "Yeni özellikleri, erken erişim davetlerini ve geliştirme notlarını resmi hesaplarımızda paylaşacağız.",
+
+  faqEyebrow: "Aklına takılanlar",
+  faqTitle: "Tanışmışken.",
+  questions: [
     {
-      id: "anlat",
-      title: "Ne aradığını anlatarak bul", // coming_soon.benefit_describe_title
-      body: "Ürünün adını bilmen gerekmeyecek. Aklındakini kendi cümlelerinle anlatabilecek, bir fotoğraf ya da ürün bağlantısıyla başlayabileceksin.", // coming_soon.benefit_describe_body
+      question: "ManiCepte'yi hemen kullanabilir miyim?",
+      answer:
+        "Henüz değil. Arama ve karşılaştırma deneyimini geliştiriyoruz. Erken erişim listesine katıldığında, hazır olduğumuzda sana haber vereceğiz.",
     },
     {
-      id: "karsilastir",
-      title: "Fiyatları karşılaştır", // coming_soon.benefit_compare_title
-      body: "Aynı ürünün farklı mağazalardaki tekliflerini yan yana görüp karar vermeden önce seçenekleri tartabileceksin.", // coming_soon.benefit_compare_body
+      question: "Erken erişime nasıl katılırım?",
+      answer:
+        "Erken erişime katıl bağlantısından hesabınla devam edebilir ya da yeni bir hesap açabilirsin. Listeye otomatik eklenirsin.",
     },
     {
-      id: "alternatif",
-      title: "Alternatifleri keşfet", // coming_soon.benefit_alternatives_title
-      body: "Beğendiğin ürüne benzeyen, farklı bütçelere uygun seçenekleri tek yerde inceleyebileceksin.", // coming_soon.benefit_alternatives_body
+      question: "Ne zaman açılacak?",
+      answer:
+        "Hedefimiz 5.000 kişiyle açılışa başlamak. Bir yandan da ManiCepte'yi geliştiriyoruz; henüz kesin bir tarih yok. Açılışta listedeki herkese haber vereceğiz.",
     },
   ],
 
-  howItWorksTitle: "Nasıl çalışacak?", // coming_soon.how_it_works_title
-  howItWorksBody: `${SITE_BRAND} henüz kullanıma açık değil. Açıldığında her şey üç adımda olacak.`, // coming_soon.how_it_works_body
-  steps: [
-    {
-      id: "basla",
-      title: "Ara, fotoğraf yükle veya ürün bağlantısı paylaş", // coming_soon.step_start_title
-      body: "Elinde ne varsa onunla başla: kısa bir tarif, bir fotoğraf ya da beğendiğin ürünün bağlantısı.", // coming_soon.step_start_body
-    },
-    {
-      id: "analiz",
-      title: `${SITE_BRAND} seçenekleri analiz etsin`, // coming_soon.step_analyze_title
-      body: "Aynı ürünü ve ona benzeyen seçenekleri farklı mağazalarda bulup senin için düzenler.", // coming_soon.step_analyze_body
-    },
-    {
-      id: "karsilastir",
-      title: "Ürünleri, alternatifleri ve fiyatları karşılaştır", // coming_soon.step_compare_title
-      body: "Seçenekleri yan yana gör; sana en uygun olanı sen seç.", // coming_soon.step_compare_body
-    },
-  ],
-
-  buildTitle: `${SITE_BRAND}'yi geliştiriyoruz.`, // coming_soon.build_title
-  buildBody: "Ürünü adım adım inşa ediyoruz. Şu an üzerinde çalıştıklarımız:", // coming_soon.build_body
-  buildStatusDone: "Tamamlandı", // coming_soon.build_status_done
-  buildStatusInProgress: "Geliştiriliyor", // coming_soon.build_status_in_progress
-  buildUpdated: (month: string) => `Son güncelleme: ${month}`, // coming_soon.build_updated
-  followTitle: "Gelişmeleri takip et", // coming_soon.follow_title
-
-  closingTitle: "Açıldığında ilk sen haberdar ol.", // coming_soon.closing_title
-  closingBody: "Erken erişim listesine katıl; hazır olduğumuzda sana haber verelim.", // coming_soon.closing_body
-
-  adminLogin: "Admin Girişi", // coming_soon.admin_login
-  // "Admin Girişi"nden gelen giriş ekranı: nötr; hesabın rolü hakkında bir şey söylemez.
-  adminLoginTitle: "Hesabınla giriş yap.", // coming_soon.admin_login_title
-  footerDescription: `${SITE_BRAND} yakında: aradığın ürünü bul, alternatiflerini keşfet, fiyatları karşılaştır.`, // coming_soon.footer_description
-
-  metaTitle: `${SITE_BRAND} – Yakında`, // coming_soon.meta_title
-  metaDescription: `${SITE_BRAND} yakında: aradığın ürünü bul, alternatiflerini keşfet ve farklı mağazalardaki fiyatları karşılaştır. Erken erişim listesine katıl.`, // coming_soon.meta_description
+  adminLogin: "Admin Girişi",
+  adminLoginTitle: "Hesabınla giriş yap.",
+  footerDescription: `${SITE_BRAND} yakında: aradığın ürünü bul, alternatiflerini keşfet, fiyatları karşılaştır.`,
+  metaTitle: `${SITE_BRAND} – Yakında`,
+  metaDescription: `${SITE_BRAND} yakında: aradığın ürünü bul, alternatiflerini keşfet ve farklı mağazalardaki fiyatları karşılaştır. Erken erişim listesine katıl.`,
 } as const;
 
 export type BuildStatus = "done" | "in_progress";
 
-/**
- * "Geliştiriyoruz" bölümü - elle güncellenen, gerçek durum. Yüzde, tarih ya
- * da söz yok. Bir madde bittiğinde yalnızca `status` ve `BUILD_UPDATED`
- * değişir.
- */
+/** Real development status, maintained manually; no invented launch promises. */
 export const BUILD_ITEMS: readonly { id: string; title: string; status: BuildStatus }[] = [
-  { id: "erken-erisim", title: "Erken erişim sistemi", status: "done" }, // coming_soon.build_item_early_access
-  { id: "arama", title: "Arama deneyimi", status: "in_progress" }, // coming_soon.build_item_search
-  { id: "kesif", title: "Ürün keşfi ve karşılaştırma", status: "in_progress" }, // coming_soon.build_item_discovery
-  { id: "altyapi", title: "Mağaza ve fiyat altyapısı", status: "in_progress" }, // coming_soon.build_item_data
+  { id: "erken-erisim", title: "Erken erişim kayıtları açık.", status: "done" },
+  {
+    id: "arama",
+    title: "Ürün bulma ve karşılaştırma deneyimini geliştiriyoruz.",
+    status: "in_progress",
+  },
+  {
+    id: "kaynaklar",
+    title: "Mağaza ve ürün kaynaklarını genişletiyoruz.",
+    status: "in_progress",
+  },
 ];
 
-/** Bölümün son elle güncellendiği ay. `null`: satır gösterilmez. */
-export const BUILD_UPDATED: string | null = "Eylül 2026";
+export const BUILD_UPDATED: string | null = null;
