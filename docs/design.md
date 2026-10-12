@@ -620,8 +620,8 @@ ihtiyacını yazması, ManiCepte'nin anlaması, seçenekleri araştırması ve e
 fiyat-kalite dengesini öne çıkarması. Tarif, fotoğraf ve bağlantı giriş yolları
 aynı temsili composer içinde görünür. Büyük rehber robot sahnenin sağında kalır
 ve her aşamada anlamlı, sabit bir poza geçer; zıplama veya yürüme animasyonu
-yoktur. Yukarı kaydırma aşamaları tersine çevirir. Azaltılmış hareket tercihi
-ve hareket anahtarı kapalıyken doğrudan tamamlanmış durum gösterilir. Sonuç
+yoktur. Yukarı kaydırma aşamaları tersine çevirir. Azaltılmış hareket
+tercihinde doğrudan tamamlanmış durum gösterilir. Sonuç
 alanı markasız, nötr ürün görselleri kullanır; fiyat, mağaza veya indirim
 uydurulmaz. Sayfanın sonunda footer'dan hemen önce, robot ve doğrulanmış resmi
 sosyal hesaplar aynı ManiCepte günlüğü sahnesinde yer alır; bu sayfada footer

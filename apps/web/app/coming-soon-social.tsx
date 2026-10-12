@@ -21,7 +21,9 @@ export function ComingSoonSocial({ links }: { links: readonly SocialLink[] }) {
         <nav className={styles.socialLinks} aria-label={copy.followTitle}>
           {links.map((link) => (
             <a key={link.network} href={link.href} rel="noopener noreferrer me" target="_blank">
-              <SocialMediaIcon network={link.network} size={25} />
+              <span className={styles.socialIcon} aria-hidden="true">
+                <SocialMediaIcon network={link.network} size={27} />
+              </span>
               <span className={styles.socialAccount}>
                 <strong>{link.label}</strong>
                 <small>
