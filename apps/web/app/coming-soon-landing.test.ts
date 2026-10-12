@@ -17,6 +17,9 @@ describe("prelaunch mascot story", () => {
     expect(html.match(/data-mascot-guide=""/g)).toHaveLength(2);
     expect(html).toContain("robot-welcome.png");
     expect(html).toContain("robot-social-point-v2.png");
+    expect(html).toContain("robot-social.png");
+    expect(html).toContain('href="https://www.linkedin.com/company/manicepte/"');
+    expect(html).toContain("LinkedIn");
     expect(html).toContain("Tarif et");
     expect(html).toContain("Fotoğraf göster");
     expect(html).toContain("Link bırak");

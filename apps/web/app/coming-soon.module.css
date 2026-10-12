@@ -1098,6 +1098,24 @@
     padding-bottom: 36px;
   }
 
+  .socialScene {
+    grid-template-columns: 1fr;
+    gap: 16px;
+  }
+
+  .socialScene .mascotGuide {
+    max-width: 220px;
+    justify-self: center;
+  }
+
+  .socialScene .guideImage {
+    transform-origin: center;
+  }
+
+  .socialLinks {
+    width: 100%;
+  }
+
   .welcomeStage:has(.greetingDisclosure[open]) {
     grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr);
   }
@@ -1320,7 +1338,7 @@
   }
 
   .socialScene {
-    grid-template-columns: minmax(120px, 0.8fr) minmax(160px, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 

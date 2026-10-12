@@ -31,7 +31,9 @@ export function ComingSoonSocial({ links }: { links: readonly SocialLink[] }) {
                     ? "@manicepte.tr"
                     : link.network === "x"
                       ? "@ManiCeptetr"
-                      : copy.followTitle}
+                      : link.network === "linkedin"
+                        ? "ManiCepte"
+                        : copy.followTitle}
                 </small>
               </span>
             </a>
