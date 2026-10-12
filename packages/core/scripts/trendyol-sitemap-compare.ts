@@ -35,7 +35,16 @@ async function load(arg: string): Promise<Generation> {
       files: 337,
     };
   }
+  // arg: "<lastmod>" (eski bicim, meta.json) ya da "<lastmod>-v2" (progress.json + butunluk).
   const dir = join(tmpdir(), "manicepte-trendyol-gen", arg.replace(/:/g, "-"));
+  const progress = existsSync(join(dir, "progress.json"))
+    ? (JSON.parse(await readFile(join(dir, "progress.json"), "utf8")) as {
+        lastmod: string;
+        files: number[];
+        status: string;
+        done: Record<string, { ids: number; closed: boolean }>;
+      })
+    : null;
   const meta = existsSync(join(dir, "meta.json"))
     ? (JSON.parse(await readFile(join(dir, "meta.json"), "utf8")) as {
         lastmod?: string;
@@ -43,19 +52,53 @@ async function load(arg: string): Promise<Generation> {
         complete?: boolean;
       })
     : {};
-  const all: number[] = [];
+  // Dusuk bellek: kimlikler yalnizca buyuyen Uint32Array'de (JS dizisi/Set yok).
+  let buf = new Uint32Array(1 << 20);
+  let len = 0;
   const parts = (await readdir(dir)).filter((f) => /^\d+\.txt$/.test(f));
+  let lineMismatch = 0;
   for (const f of parts) {
-    for (const line of (await readFile(join(dir, f), "utf8")).split("\n")) {
-      if (line) all.push(Number(line));
+    const text = await readFile(join(dir, f), "utf8");
+    let count = 0;
+    let start = 0;
+    while (start < text.length) {
+      let nl = text.indexOf("\n", start);
+      if (nl < 0) nl = text.length;
+      if (nl > start) {
+        if (len === buf.length) {
+          const bigger = new Uint32Array(buf.length * 2);
+          bigger.set(buf);
+          buf = bigger;
+        }
+        buf[len++] = Number(text.slice(start, nl));
+        count++;
+      }
+      start = nl + 1;
     }
+    const rec = progress?.done[f.replace(".txt", "")];
+    if (rec && rec.ids !== count) lineMismatch++;
+  }
+  const sorted = buf.subarray(0, len).sort();
+  let w = 0;
+  for (let i = 0; i < sorted.length; i++) {
+    if (i === 0 || sorted[i] !== sorted[i - 1]) sorted[w++] = sorted[i] as number;
+  }
+  const files = progress?.files.length ?? meta.files ?? null;
+  const complete = progress
+    ? progress.status === "complete" &&
+      parts.length === progress.files.length &&
+      Object.values(progress.done).every((d) => d.closed) &&
+      lineMismatch === 0
+    : meta.complete === true && parts.length === meta.files;
+  if (lineMismatch > 0) {
+    process.stderr.write(`UYARI: ${lineMismatch} dosyada satir sayisi checkpoint ile uyusmuyor\n`);
   }
   return {
     label: arg,
-    ids: Uint32Array.from(new Set(all)).sort(),
-    complete: meta.complete === true && parts.length === meta.files,
-    lastmod: meta.lastmod ?? null,
-    files: meta.files ?? null,
+    ids: sorted.slice(0, w),
+    complete,
+    lastmod: progress?.lastmod ?? meta.lastmod ?? null,
+    files,
   };
 }
 
@@ -105,6 +148,7 @@ const report = {
     complete: next.complete,
   },
   generationIntervalHours: hours == null ? null : +hours.toFixed(2),
+  peakRssMb: Math.round(process.resourceUsage().maxRSS / 1024),
   retained: kept,
   ...(next.complete && prev.complete
     ? {
