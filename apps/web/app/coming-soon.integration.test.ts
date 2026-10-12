@@ -257,7 +257,7 @@ describe("landing içeriği", () => {
     expect(html).toContain('id="nasil-calisacak"');
     expect(html).toContain("ManiCepte nasıl çalışır?");
     expect(html).toContain("Temsili önizleme");
-    expect(html).toContain("ManiCepte&#x27;yi geliştiriyoruz.");
+    expect(html).toContain("Neler hazırlıyoruz?");
     expect(html).toContain("Erken erişim kayıtları");
     expect(html).not.toMatch(PRODUCT_HREF);
     expect(html).not.toContain("<form");
