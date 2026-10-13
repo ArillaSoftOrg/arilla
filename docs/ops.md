@@ -294,6 +294,12 @@ yukarı akışa gitmeden 413 (parçalı gönderimde gövde okunurken kesilir, is
 `/api/health/ready` ve `/api/cron/*` **dışarıya 404** (büyük/küçük harf, çift slash,
 yüzde kodu, sondaki slash, sorgu dizesi denendi). Erişim günlüğünde sorgu dizesi, çerez,
 başlıklar ve istemci adresi **yoktur** (yalnız yöntem, host, yol, durum, boyut, süre).
+**www → apex:** `www.<alan-adı>` kalıcı (301) `https://<alan-adı>`'a yönlenir, yol ve sorgu korunur
+(`ARILLA_WWW_ADDRESS` / `ARILLA_CANONICAL_ORIGIN`, varsayılan `ARILLA_SITE_ADDRESS`'ten türetilir; mevcut
+`compose.env`'e ekleme gerekmez). Yönlendirme dışında içerik sunmaz (`/api/health/ready` ve `/api/cron/*`
+www üzerinden de önce apex'e gider, orada 404). `www` için ACME sertifikası ayrıca otomatik alınır;
+DNS'te `www` kaydı VPS'e çözümlenmelidir. Erişim günlüğü filtresi iki sitede de ortaktır (`privacy_log`).
+VPS'te Caddyfile'a elle eklenmiş aynı blok bu sürümle değiştirilir (davranış aynı).
 Guvenilmeyen `X-Forwarded-For` ezilir (tek eleman = bağlanan adres; `client-ip.ts`
 doğru çalışır); `X-Real-IP` yukarı akışa iletilmez. Güvenlik başlıkları uygulamadan gelir.
 

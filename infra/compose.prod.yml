@@ -45,6 +45,10 @@ services:
     image: caddy:2.10-alpine
     environment:
       ARILLA_SITE_ADDRESS: ${ARILLA_SITE_ADDRESS:?ARILLA_SITE_ADDRESS gerekli (orn. alan-adi.com)}
+      # www -> apex 301 (infra/vps/Caddyfile). Varsayilanlar alan adindan turetilir; mevcut
+      # compose.env'lere ekleme gerekmez. Yerel testte (http://:80) smoke-local.sh ezer.
+      ARILLA_WWW_ADDRESS: ${ARILLA_WWW_ADDRESS:-www.${ARILLA_SITE_ADDRESS}}
+      ARILLA_CANONICAL_ORIGIN: ${ARILLA_CANONICAL_ORIGIN:-https://${ARILLA_SITE_ADDRESS}}
     ports:
       - "${CADDY_BIND:-0.0.0.0}:${CADDY_HTTP_PORT:-80}:80"
       - "${CADDY_BIND:-0.0.0.0}:${CADDY_HTTPS_PORT:-443}:443"

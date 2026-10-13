@@ -6,6 +6,25 @@
 # packages/core/src/auth/client-ip.ts (zincirin SON elemani) dogru IP'yi alir.
 # Onune baska bir proxy (Cloudflare vb.) konursa bu karar yeniden degerlendirilir.
 
+# Erisim kaydi (tum siteler): kisisel veri YOK. Sorgu metni (q=...), token'lar, cerezler,
+# basliklar ve istemci adresi kayda girmez; yalniz yontem, host, yol, durum, boyut ve
+# sure kalir.
+(privacy_log) {
+	log {
+		output stdout
+		format filter {
+			wrap json
+			request>headers delete
+			request>uri regexp \?.* ""
+			request>remote_ip delete
+			request>remote_port delete
+			request>client_ip delete
+			request>tls delete
+			resp_headers delete
+		}
+	}
+}
+
 {$ARILLA_SITE_ADDRESS} {
 	encode zstd gzip
 
@@ -50,20 +69,15 @@
 		-Server
 	}
 
-	# Erisim kaydi: kisisel veri YOK. Sorgu metni (q=...), token'lar, cerezler,
-	# basliklar ve istemci adresi kayda girmez; yalniz yontem, host, yol, durum,
-	# boyut ve sure kalir.
-	log {
-		output stdout
-		format filter {
-			wrap json
-			request>headers delete
-			request>uri regexp \?.* ""
-			request>remote_ip delete
-			request>remote_port delete
-			request>client_ip delete
-			request>tls delete
-			resp_headers delete
-		}
-	}
+	import privacy_log
+}
+
+# www -> apex: kalici (301) HTTPS yonlendirme, yol ve sorgu korunur. Adresler compose'tan gelir
+# (varsayilan: www.<ARILLA_SITE_ADDRESS> -> https://<ARILLA_SITE_ADDRESS>). Yonlendirme
+# disinda hicbir sey sunmaz: /api/health/ready ve /api/cron/* apex sitede 404'tur, www
+# uzerinden de once apexe yonlenir. Sertifika (ACME) www icin ayrica otomatik alinir.
+{$ARILLA_WWW_ADDRESS} {
+	header -Server
+	redir {$ARILLA_CANONICAL_ORIGIN}{uri} permanent
+	import privacy_log
 }
