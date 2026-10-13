@@ -22,7 +22,11 @@ import {
   type Database,
 } from "@arilla/db";
 import { and, asc, desc, eq, gte, isNull, lt, lte, or, sql } from "drizzle-orm";
-import { failureFromChatTurn, recordModelFailure } from "../eval/model-errors.ts";
+import {
+  chatTurnFailureLog,
+  failureFromChatTurn,
+  recordModelFailure,
+} from "../eval/model-errors.ts";
 import type { LlmCall, LlmErrorCode } from "../llm/client.ts";
 import { llmCallCostMicros } from "../llm/pricing.ts";
 import {
@@ -1073,6 +1077,8 @@ async function runPendingTurn(
     // Kural 9: ucret olustu; satirlar yanit yazimindan BAGIMSIZ ve hemen yazilir. Eskiden
     // yanit islemiyle birlikte geri alinir, Redis sayaci kapanmis ama DB'de iz kalmazdi.
     const usageId = await recordTurnUsage(db, input.userId, outcome.calls);
+    const failureLog = chatTurnFailureLog(outcome);
+    if (failureLog) console.error(failureLog);
 
     try {
       return await persistTurn();

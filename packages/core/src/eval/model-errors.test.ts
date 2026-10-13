@@ -4,6 +4,7 @@ import type { InterpretationOutcome } from "../chat/interpreter.ts";
 import type { LlmCall } from "../llm/client.ts";
 import type { ModelInterpretationOutcome } from "../llm/intent-interpreter.ts";
 import {
+  chatTurnFailureLog,
   failureFromChatTurn,
   failureFromInterpretation,
   recordModelFailure,
@@ -176,5 +177,47 @@ describe("recordModelFailure", () => {
     });
     expect(ok).toBe(false);
     expect(Date.now() - started).toBeLessThan(1000);
+  });
+});
+
+describe("chatTurnFailureLog", () => {
+  const providerError = (extra: object = {}) =>
+    ({
+      kind: "provider_error",
+      code: "client_error",
+      calls: [call(400)],
+      modelVersion: "gemini-3.1-flash-lite",
+      ...extra,
+    }) as InterpretationOutcome;
+
+  it("saglayici hatasi: kod, HTTP durumu, model ve sabit ayrinti tek satirda", () => {
+    const line = chatTurnFailureLog(
+      providerError({ errorDetail: "INVALID_ARGUMENT input[0].content" }),
+    );
+    expect(line).toBe(
+      "[sohbet] model provider_error code=client_error http=400 model=gemini-3.1-flash-lite attempts=1 detail=INVALID_ARGUMENT input[0].content",
+    );
+  });
+
+  it("yanit gelmediyse http=none", () => {
+    const line = chatTurnFailureLog(providerError({ code: "network", calls: [call(null)] }));
+    expect(line).toContain("code=network http=none");
+  });
+
+  it("anahtar yok hatasi satira yansir", () => {
+    const line = chatTurnFailureLog(providerError({ code: "missing_api_key", calls: [] }));
+    expect(line).toContain("code=missing_api_key");
+    expect(line).toContain("attempts=0");
+  });
+
+  it("basarili tur icin null", () => {
+    const ok = {
+      kind: "turn",
+      source: "model",
+      fallbackReason: null,
+      calls: [call(200)],
+      modelVersion: "m",
+    } as unknown as InterpretationOutcome;
+    expect(chatTurnFailureLog(ok)).toBeNull();
   });
 });
