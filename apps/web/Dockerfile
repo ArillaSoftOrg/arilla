@@ -16,10 +16,23 @@
 # - Son asama (varsayilan hedef) calisma imajidir; `migrate` hedefi ayri, kucuk
 #   bir imajdir (yalnizca packages/db) ve dagitimda bir kez calisir.
 # - Node surumu CI ile ayni ana surum (24); pnpm, kok `package.json`
-#   `packageManager` ile ayni surume sabitlenir.
+#   `packageManager` ile ayni surume sabitlenir. Calisma imajlari `node-runtime`
+#   (debian-slim + yalniz node ikilisi) uzerindedir: npm/yarn/corepack yok, ~90 MB kucuk.
 
 ARG NODE_VERSION=24.15.0
 ARG PNPM_VERSION=11.20.0
+
+# --- node-runtime: debian-slim + YALNIZ node ikilisi -------------------------------
+# Resmi `node` imajinda npm, corepack ve yarn de gelir (~25 MB + sik raporlanan
+# bagimlilik zafiyetleri); calisma ve migrate imajlarinin hicbiri bunlari kullanmaz.
+# Node yalnizca libstdc++/libgcc ister (debian-slim'de var); kok sertifikalari Node'un
+# kendi paketindedir. Kullanici adi/uid (node:1000) resmi imajla ayni kalir.
+FROM node:${NODE_VERSION}-bookworm-slim AS node-source
+FROM debian:bookworm-slim AS node-runtime
+COPY --from=node-source /usr/local/bin/node /usr/local/bin/node
+# `apt-get upgrade`: taban imajdan sonra yayinlanan guvenlik yamalari (ornegin perl-base)
+# derleme aninda alinir; Trivy bunlari dogrular.
+RUN apt-get update     && apt-get -y --no-install-recommends upgrade     && rm -rf /var/lib/apt/lists/*     && groupadd --gid 1000 node     && useradd --uid 1000 --gid node --shell /usr/sbin/nologin --create-home node
 
 # --- base: node + pnpm ----------------------------------------------------------
 FROM node:${NODE_VERSION}-bookworm-slim AS base
@@ -72,7 +85,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 # node scripts/bootstrap-app-role.ts, node scripts/partitions.ts [--check],
 # node scripts/verify-schema.ts. Sahip kimligi (DATABASE_URL_OWNER) yalnizca bu
 # konteynere calisma aninda verilir; web konteynerinde YOKTUR.
-FROM node:${NODE_VERSION}-bookworm-slim AS migrate
+FROM node-runtime AS migrate
 ENV NODE_ENV=production
 WORKDIR /app/packages/db
 COPY --chown=node:node package.json /app/package.json
@@ -87,7 +100,7 @@ USER node
 CMD ["node", "scripts/migrate.ts"]
 
 # --- runner: calisma imaji (SON ASAMA = varsayilan hedef) ---------------------------
-FROM node:${NODE_VERSION}-bookworm-slim AS runner
+FROM node-runtime AS runner
 # Uretim varsayilani; staging `DEPLOY_ENV=staging` ile ezer (calisma zamani).
 ENV NODE_ENV=production \
     DEPLOY_ENV=production \
