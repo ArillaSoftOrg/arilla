@@ -39,6 +39,8 @@ SRC="$work/srcrepo"
 IMG="$work/img"
 mkdir -p "$ROOT" "$IMG"
 
+# grep -q ilk eslesmede cikar; uretici (docker/python) SIGPIPE ile dusup pipefail ile hatali sonuc verebilir.
+gq() { grep "$@" >/dev/null; }
 failures=0
 pass() { printf '  \033[32mOK\033[0m   %s\n' "$1"; }
 fail() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; failures=$((failures + 1)); }
@@ -175,11 +177,11 @@ run_cmd() { env ARILLA_EXTRA_PATH="$PATH" ARILLA_ROOT="$ROOT" ARILLA_REPO_URL="$
 section "3. Guvenlik kapilari (hicbir sey degismemeli)"
 env_before=$(sum_of "$ROOT/compose.env"); web_before=$(started web)
 run_deploy "$shaD" "$work/mD.json"; rc=$?
-[ $rc -eq 2 ] && grep -q "main dalinda DEGIL" "$work/out.log" && pass "main'de olmayan commit reddedildi (exit 2)" || { fail "main disi commit: rc=$rc"; tail -3 "$work/out.log"; }
+[ $rc -eq 2 ] && gq "main dalinda DEGIL" "$work/out.log" && pass "main'de olmayan commit reddedildi (exit 2)" || { fail "main disi commit: rc=$rc"; tail -3 "$work/out.log"; }
 run_deploy "$shaA" "$work/mForeign.json"; rc=$?
 [ $rc -eq 2 ] && pass "yabanci imaj oneki reddedildi (exit 2)" || fail "yabanci onek: rc=$rc"
 run_deploy "$shaA" "$work/mMismatch.json"; rc=$?
-[ $rc -eq 2 ] && grep -q "revision etiketi" "$work/out.log" && pass "revision etiketi sha ile uyusmayan imaj reddedildi (exit 2)" || { fail "etiket uyusmazligi: rc=$rc"; tail -3 "$work/out.log"; }
+[ $rc -eq 2 ] && gq "revision etiketi" "$work/out.log" && pass "revision etiketi sha ile uyusmayan imaj reddedildi (exit 2)" || { fail "etiket uyusmazligi: rc=$rc"; tail -3 "$work/out.log"; }
 run_deploy "xyz" "$work/mA.json"; rc=$?
 [ $rc -eq 2 ] && pass "gecersiz sha reddedildi" || fail "gecersiz sha: rc=$rc"
 printf '{"bozuk": ' >"$work/bad.json"
@@ -189,11 +191,11 @@ run_deploy "$shaA" "$work/bad.json"; rc=$?
 
 section "4. Basarili dagitim: A"
 run_deploy "$shaA" "$work/mA.json"; rc=$?
-if [ $rc -eq 0 ] && grep -q "^DEPLOY_RESULT=success sha=$shaA" "$work/out.log"; then pass "deploy A basarili"; else fail "deploy A rc=$rc"; tail -15 "$work/out.log"; fi
+if [ $rc -eq 0 ] && gq "^DEPLOY_RESULT=success sha=$shaA" "$work/out.log"; then pass "deploy A basarili"; else fail "deploy A rc=$rc"; tail -15 "$work/out.log"; fi
 grep "^DEPLOY_RESULT" "$work/out.log"
 [ "$(img_of web)" = "$REG/arilla-web:sha-$shaA@$(cat "$IMG/web-$shaA.digest")" ] && pass "web A digest'ine sabitlendi" || fail "web imaji: $(img_of web)"
 [ "$(img_of cron)" = "$REG/arilla-cron:sha-$shaA@$(cat "$IMG/cron-$shaA.digest")" ] && pass "cron A digest'ine sabitlendi" || fail "cron imaji"
-"$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | grep -q "current=$shaA" && pass "releases/current = A" || fail "current pointer"
+"$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | gq "current=$shaA" && pass "releases/current = A" || fail "current pointer"
 [ -f "$ROOT/releases/$shaA.infra.tar" ] && pass "altyapi paketi saklandi (manuel geri alma icin)" || fail "infra.tar yok"
 [ "$(started postgres)" = "$pg_started" ] && [ "$(started redis)" = "$redis_started" ] && pass "postgres ve redis yeniden baslatilmadi" || fail "postgres/redis yeniden basladi"
 [ "$(c exec -T postgres psql -U arilla -d arilla -Atc 'select count(*) from schema_migration' | tr -d '\r')" -ge 58 ] && pass "veritabani verisi korundu (58+ migration)" || fail "schema_migration"
@@ -202,28 +204,28 @@ section "5. Basarisiz surum (B: saglik gecmiyor) -> otomatik geri alma"
 env_a=$(sum_of "$ROOT/compose.env"); web_img_a=$(img_of web)
 run_deploy "$shaB" "$work/mB.json"; rc=$?
 [ $rc -eq 1 ] && pass "deploy B basarisiz, cikis kodu 1" || { fail "deploy B rc=$rc (1 beklenir)"; tail -8 "$work/out.log"; }
-grep -q "^DEPLOY_RESULT=failed rollback=ok sha=$shaB" "$work/out.log" && pass "sonuc: failed rollback=ok" || { fail "geri alma sonucu"; grep -E "DEPLOY_RESULT|GERI ALMA" "$work/out.log"; }
+gq "^DEPLOY_RESULT=failed rollback=ok sha=$shaB" "$work/out.log" && pass "sonuc: failed rollback=ok" || { fail "geri alma sonucu"; grep -E "DEPLOY_RESULT|GERI ALMA" "$work/out.log"; }
 [ "$(sum_of "$ROOT/compose.env")" = "$env_a" ] && pass "compose.env geri yuklendi (birebir)" || fail "compose.env geri yuklenmedi"
 [ "$(img_of web)" = "$web_img_a" ] && pass "web A imajina geri dondu" || fail "web imaji: $(img_of web)"
 [ "$(c ps --format '{{.Service}}={{.Health}}' | grep '^web=' | cut -d= -f2)" = healthy ] && pass "web healthy (geri alma sonrasi)" || fail "web healthy degil"
-"$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | grep -q "current=$shaA" && pass "releases/current hala A" || fail "current pointer degisti"
+"$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | gq "current=$shaA" && pass "releases/current hala A" || fail "current pointer degisti"
 [ "$(started postgres)" = "$pg_started" ] && [ "$(started redis)" = "$redis_started" ] && pass "postgres/redis geri alma sirasinda da dokunulmadi" || fail "postgres/redis yeniden basladi"
 curl -fsS -o /dev/null "http://127.0.0.1:$HTTP_PORT/api/health" && pass "uygulama dis erisimde yanit veriyor" || fail "/api/health"
 
 section "6. Migration + Caddyfile degisimi: C"
 run_deploy "$shaC" "$work/mC.json"; rc=$?
-if [ $rc -eq 0 ] && grep -q "^DEPLOY_RESULT=success sha=$shaC" "$work/out.log"; then pass "deploy C basarili"; else fail "deploy C rc=$rc"; tail -15 "$work/out.log"; fi
-grep -q "bekleyen migration: 1 dosya" "$work/out.log" && pass "bekleyen migration tespit edildi (1 dosya)" || fail "migration tespiti"
+if [ $rc -eq 0 ] && gq "^DEPLOY_RESULT=success sha=$shaC" "$work/out.log"; then pass "deploy C basarili"; else fail "deploy C rc=$rc"; tail -15 "$work/out.log"; fi
+gq "bekleyen migration: 1 dosya" "$work/out.log" && pass "bekleyen migration tespit edildi (1 dosya)" || fail "migration tespiti"
 ls "$ROOT"/backups/pre-migrate-*.dump >/dev/null 2>&1 && pass "migration oncesi pg_dump alindi" || fail "pg_dump yok"
 [ "$(c exec -T postgres psql -U arilla -d arilla -Atc "select count(*) from schema_migration where filename='9999_deploytest_noop.sql'" | tr -d '\r')" = 1 ] && pass "migration uygulandi (schema_migration)" || fail "migration uygulanmadi"
-grep -q "changed=.*caddy" "$work/out.log" && pass "Caddy yeniden olusturuldu" || fail "caddy degisimi"
+gq "changed=.*caddy" "$work/out.log" && pass "Caddy yeniden olusturuldu" || fail "caddy degisimi"
 [ "$(c exec -T caddy cat /etc/caddy/Caddyfile | grep -c deploytest-marker)" = 1 ] && pass "Caddy yeni Caddyfile'i goruyor" || fail "Caddyfile eski"
-"$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | tr -d '\r' | tr '\n' ' ' | grep -q "current=$shaC previous=$shaA"
+"$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | tr -d '\r' | tr '\n' ' ' | gq "current=$shaC previous=$shaA"
 [ "$(started postgres)" = "$pg_started" ] && [ "$(started redis)" = "$redis_started" ] && pass "postgres/redis hala dokunulmadi" || fail "postgres/redis yeniden basladi"
 
 section "7. Tekrar dagitim, kilit, elle geri alma"
 run_deploy "$shaC" "$work/mC.json"; rc=$?
-{ [ $rc -eq 0 ] && grep -q "servis degisikligi yok" "$work/out.log" && grep -q "bekleyen migration yok" "$work/out.log"; } && pass "ayni surumu tekrar dagitmak hicbir sey yapmaz (idempotent)" || { fail "idempotent: rc=$rc"; tail -6 "$work/out.log"; }
+{ [ $rc -eq 0 ] && gq "servis degisikligi yok" "$work/out.log" && gq "bekleyen migration yok" "$work/out.log"; } && pass "ayni surumu tekrar dagitmak hicbir sey yapmaz (idempotent)" || { fail "idempotent: rc=$rc"; tail -6 "$work/out.log"; }
 if command -v flock >/dev/null 2>&1; then
   exec 8>"$ROOT/.deploy.lock"; flock -n 8
   run_deploy "$shaC" "$work/mC.json"; rc=$?
@@ -233,12 +235,12 @@ else
   run_deploy "$shaC" "$work/mC.json"; rc=$?
   rmdir "$ROOT/.deploy.lock.d"
 fi
-[ $rc -eq 2 ] && grep -q "baska bir dagitim calisiyor" "$work/out.log" && pass "es zamanli dagitim engellendi" || fail "kilit: rc=$rc"
+[ $rc -eq 2 ] && gq "baska bir dagitim calisiyor" "$work/out.log" && pass "es zamanli dagitim engellendi" || fail "kilit: rc=$rc"
 run_cmd rollback; rc=$?
-{ [ $rc -eq 0 ] && grep -q "^DEPLOY_RESULT=success sha=$shaA" "$work/out.log"; } && pass "elle geri alma (A) basarili" || { fail "rollback rc=$rc"; tail -10 "$work/out.log"; }
+{ [ $rc -eq 0 ] && gq "^DEPLOY_RESULT=success sha=$shaA" "$work/out.log"; } && pass "elle geri alma (A) basarili" || { fail "rollback rc=$rc"; tail -10 "$work/out.log"; }
 [ "$(img_of web)" = "$REG/arilla-web:sha-$shaA@$(cat "$IMG/web-$shaA.digest")" ] && pass "web yeniden A digest'inde" || fail "rollback sonrasi web imaji"
 run_cmd status; rc=$?
-[ $rc -eq 0 ] && grep -q "web:" "$work/out.log" && pass "status calisiyor" || fail "status"
+[ $rc -eq 0 ] && gq "web:" "$work/out.log" && pass "status calisiyor" || fail "status"
 
 section "8. deploy-gate izin listesi ve gunlukte sir"
 mkdir -p "$work/shim"
@@ -246,13 +248,13 @@ printf '#!/bin/sh\nshift\necho "SUDO-CAGRISI: $*"\n' >"$work/shim/sudo"
 chmod +x "$work/shim/sudo"
 shimdir="$work/shim"; command -v cygpath >/dev/null 2>&1 && shimdir=$(cygpath -u "$work/shim")
 gate() { env PATH="$shimdir:$PATH" SSH_ORIGINAL_COMMAND="$1" bash "$here/deploy-gate" 2>&1; }
-gate "deploy $shaA" | grep -q "SUDO-CAGRISI: /opt/arilla/bin/arilla-deploy deploy $shaA" && pass "gate: deploy <sha> iletilir" || fail "gate deploy"
-gate "rollback" | grep -q "arilla-deploy rollback" && pass "gate: rollback iletilir" || fail "gate rollback"
-gate "status" | grep -q "arilla-deploy status" && pass "gate: status iletilir" || fail "gate status"
+gate "deploy $shaA" | gq "SUDO-CAGRISI: /opt/arilla/bin/arilla-deploy deploy $shaA" && pass "gate: deploy <sha> iletilir" || fail "gate deploy"
+gate "rollback" | gq "arilla-deploy rollback" && pass "gate: rollback iletilir" || fail "gate rollback"
+gate "status" | gq "arilla-deploy status" && pass "gate: status iletilir" || fail "gate status"
 bad_ok=1
 for cmd in "bash" "deploy abc" "deploy $shaA extra" "deploy $shaA; id" 'deploy $(id)' "rollback now" "status && id" "docker ps" "" "deploy ${shaA}0" "DEPLOY $shaA" "cat /etc/shadow" "deploy -$shaA"; do
   out=$(gate "$cmd"); rc=$?
-  if [ $rc -ne 126 ] || echo "$out" | grep -q "SUDO-CAGRISI"; then bad_ok=0; echo "    gecti (olmamali): [$cmd] rc=$rc"; fi
+  if [ $rc -ne 126 ] || echo "$out" | gq "SUDO-CAGRISI"; then bad_ok=0; echo "    gecti (olmamali): [$cmd] rc=$rc"; fi
 done
 [ $bad_ok -eq 1 ] && pass "gate: izin disi 14 komut reddedildi (126), sudo'ya ulasmadi" || fail "gate izin listesi"
 leak=0

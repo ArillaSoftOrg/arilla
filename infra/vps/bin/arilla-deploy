@@ -248,6 +248,9 @@ deploy_flow() { # deploy_flow <manifest> <kaynak-modu: git|tar> <tar-yolu-veya-b
     tarball="$WORK/infra.tar"
   fi
   tar -x -C "$stage" <"$tarball"   # stdin: GNU tar "C:/..." yolunu uzak sunucu sanmasin
+  # Izinleri umask'tan bagimsiz sabitle (root olmayan calismada umask 077 dosyalari 0600 yapar; Caddy/Postgres/
+  # Redis bind-mount dosyalarini kok-disi/yetkisiz kullanicilar okur). Dosya 0644, dizin ve calistirilabilirler 0755.
+  chmod -R u=rwX,go=rX "$stage"
   [ -f "$stage/infra/compose.prod.yml" ] || die "kaynakta infra/compose.prod.yml yok"
   local S="$stage/infra"
 

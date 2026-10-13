@@ -19,6 +19,8 @@ work=$(mktemp -d)
 if command -v cygpath >/dev/null 2>&1; then work=$(cygpath -m "$work"); fi
 NAME=arilla-gate-test
 PORT=${GATE_TEST_PORT:-2223}
+# grep -q ilk eslesmede cikar; uretici (docker/python) SIGPIPE ile dusup pipefail ile hatali sonuc verebilir.
+gq() { grep "$@" >/dev/null; }
 failures=0
 pass() { printf '  \033[32mOK\033[0m   %s\n' "$1"; }
 fail() { printf '  \033[31mFAIL\033[0m %s\n' "$1"; failures=$((failures + 1)); }
@@ -71,41 +73,41 @@ D visudo -c >/dev/null 2>&1 && pass "sudoers gecerli (visudo -c)" || fail "visud
 [ "$(D stat -c '%U:%G:%a' /opt/arilla/bin/deploy-gate)" = "root:root:755" ] && pass "deploy-gate root:root 755" || fail "deploy-gate sahipligi"
 [ "$(D stat -c '%U:%G:%a' /etc/sudoers.d/arilla-deploy)" = "root:root:440" ] && pass "sudoers dosyasi root:root 440" || fail "sudoers dosyasi"
 [ "$(D stat -c '%a' /opt/arilla/backups)" = "700" ] && pass "backups/ logs/ work/ releases/ yalniz root (700)" || fail "dizin izinleri"
-D id -nG deploy | grep -qw docker && fail "deploy docker grubunda" || pass "deploy docker grubunda DEGIL"
+D id -nG deploy | gq -w docker && fail "deploy docker grubunda" || pass "deploy docker grubunda DEGIL"
 
 echo "== SSH uzerinden izin verilen komutlar"
 out=$(printf '{"manifest":"x"}' | S "deploy $SHA" 2>&1)
-echo "$out" | grep -q "STUB args=deploy $SHA" && echo "$out" | grep -q "STUB uid=0" && echo "$out" | grep -q "STUB stdin_bytes=16" \
+echo "$out" | gq "STUB args=deploy $SHA" && echo "$out" | gq "STUB uid=0" && echo "$out" | gq "STUB stdin_bytes=16" \
   && pass "deploy <sha>: kok yetkisiyle, dogru argumanla, manifest stdin'den (16 bayt) ulasti" || { fail "deploy komutu: $out"; }
 out=$(S "status" 2>&1)
-echo "$out" | grep -q "STUB args=status" && echo "$out" | grep -q "STUB uid=0" && pass "status" || fail "status: $out"
+echo "$out" | gq "STUB args=status" && echo "$out" | gq "STUB uid=0" && pass "status" || fail "status: $out"
 out=$(S "rollback" 2>&1)
-echo "$out" | grep -q "STUB args=rollback" && pass "rollback" || fail "rollback: $out"
+echo "$out" | gq "STUB args=rollback" && pass "rollback" || fail "rollback: $out"
 
 echo "== SSH uzerinden izin verilmeyenler (126, kok komutu yok)"
 bad_ok=1
 for cmd in "bash" "id" "cat /etc/shadow" "deploy abc" "deploy $SHA extra" "deploy $SHA; id" 'deploy $(id)' "rollback now" "status && id" "sudo -n bash" "sh -c id" "scp -t /tmp" "DEPLOY $SHA" "arilla-deploy deploy $SHA" "/opt/arilla/bin/arilla-deploy deploy $SHA"; do
   out=$(S "$cmd" 2>&1); rc=$?
-  if [ $rc -ne 126 ] || echo "$out" | grep -q "STUB"; then bad_ok=0; echo "    gecti (olmamali): [$cmd] rc=$rc $out"; fi
+  if [ $rc -ne 126 ] || echo "$out" | gq "STUB"; then bad_ok=0; echo "    gecti (olmamali): [$cmd] rc=$rc $out"; fi
 done
 [ $bad_ok -eq 1 ] && pass "15 izin disi komut reddedildi (126) ve motora ulasmadi" || fail "izin listesi"
 out=$(S 2>&1); rc=$?
 [ $rc -eq 126 ] && pass "komutsuz (etkilesimli kabuk) oturum reddedildi" || fail "komutsuz oturum rc=$rc: $out"
 out=$(ssh -t -t -i "$work/id" -p $PORT -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR deploy@127.0.0.1 status 2>&1 </dev/null)
-echo "$out" | grep -qi "PTY allocation request failed" && pass "pty istegi reddedildi (restrict)" || fail "pty verildi: $out"
+echo "$out" | gq -i "PTY allocation request failed" && pass "pty istegi reddedildi (restrict)" || fail "pty verildi: $out"
 out=$(ssh -W 127.0.0.1:22 -i "$work/id" -p $PORT -o IdentitiesOnly=yes -o BatchMode=yes -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o ConnectTimeout=10 deploy@127.0.0.1 2>&1 </dev/null)
-echo "$out" | grep -qi "administratively prohibited\|open failed\|stdio forwarding failed" && pass "port/stdio yonlendirme (restrict) reddedildi" || fail "yonlendirme reddedilmedi: $out"
+echo "$out" | gq -i "administratively prohibited\|open failed\|stdio forwarding failed" && pass "port/stdio yonlendirme (restrict) reddedildi" || fail "yonlendirme reddedilmedi: $out"
 
 echo "== deploy kullanicisinin yetkisi (konteyner icinden, sudo kurali)"
 sudo_as() { docker exec -u deploy "$NAME" sudo -n "$@" 2>&1; }
 out=$(sudo_as /opt/arilla/bin/arilla-deploy status </dev/null); [[ "$out" == *"STUB args=status"* ]] && pass "sudo arilla-deploy status calisir" || fail "sudo status: $out"
-sudo_as /opt/arilla/bin/arilla-deploy deploy "$SHA" </dev/null | grep -q "STUB args=deploy $SHA" && pass "sudo arilla-deploy deploy <40 hane> calisir" || fail "sudo deploy"
+sudo_as /opt/arilla/bin/arilla-deploy deploy "$SHA" </dev/null | gq "STUB args=deploy $SHA" && pass "sudo arilla-deploy deploy <40 hane> calisir" || fail "sudo deploy"
 denied=1
 for args in "bash" "id" "/bin/sh -c id" "/opt/arilla/bin/arilla-deploy deploy abc" "/opt/arilla/bin/arilla-deploy deploy ${SHA}0" "/opt/arilla/bin/arilla-deploy deploy $SHA extra" "/opt/arilla/bin/arilla-deploy rollback now" "/opt/arilla/bin/arilla-deploy" "/opt/arilla/bin/deploy-gate" "cat /etc/shadow" "-l"; do
   # shellcheck disable=SC2086
   out=$(docker exec -u deploy "$NAME" sudo -n $args 2>&1 </dev/null)
-  if echo "$out" | grep -q "STUB"; then denied=0; echo "    sudo izin verdi (olmamali): $args"; fi
-  if echo "$out" | grep -q "^uid=0"; then denied=0; echo "    root kabugu (olmamali): $args"; fi
+  if echo "$out" | gq "STUB"; then denied=0; echo "    sudo izin verdi (olmamali): $args"; fi
+  if echo "$out" | gq "^uid=0"; then denied=0; echo "    root kabugu (olmamali): $args"; fi
 done
 [ $denied -eq 1 ] && pass "sudo: izin listesi disi 11 komut kok olarak calismadi" || fail "sudo kurali fazla genis"
 D su deploy -c 'echo x >> /opt/arilla/bin/arilla-deploy' 2>/dev/null && fail "deploy motoru DEGISTIREBILIYOR" || pass "deploy kullanicisi arilla-deploy'u degistiremez"
