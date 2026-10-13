@@ -4,7 +4,8 @@
 **Durum:** Kabul edildi. **Faz 1 uygulandı (#132):** imaj, sağlık uçları, ortam tespiti.
 **Faz 2 uygulandı:** `infra/compose.prod.yml`, Caddy, PostgreSQL/Redis ayarları, zamanlayıcı,
 gizli değer yapısı. **Faz 3 uygulandı:** GHCR yayın hattı (`build-push.yml`), Trivy + imaj doğrulaması, sha etiketi
-+ digest sürüm yönetimi. Yedekleme ve otomatik dağıtım sonraki fazlardır.
++ digest sürüm yönetimi. **Faz 6 uygulandı:** otomatik dağıtım (`deploy.yml`, `arilla-deploy`, SSH zorunlu komutu + dar sudo,
+otomatik geri alma). Yedekleme (faz 5) hâlâ yapılmadı.
 **Mevcut Vercel production çalışmaya devam eder;** Supabase ve Upstash bu karar
 kapsamında silinmez.
 
@@ -159,6 +160,26 @@ tamamlanınca bağımsız çalışır.
 7. 6 MB'den büyük **parçalı** (chunked) gönderim gövde okunurken kesilir (istemci 400 alır);
    `Content-Length` bilinen gönderim 413 alır.
 
+## Faz 6 kararları (otomatik dağıtım)
+
+- **Tetik:** `build-push` başarılı → `deploy.yml`. Yalnızca main'in ucundaki sürüm dağıtılır (daha yeni commit
+  varsa eskisi atlanır); eski sürüme dönüş yalnızca bilinçli `workflow_dispatch` (`allow_older`). Zorunlu
+  kontroller (ci işleri + `private-keys`) ve imajların GHCR'da digest ile varlığı dağıtımdan ÖNCE doğrulanır.
+- **Yetki ayrımı:** GitHub'daki SSH anahtarı `restrict,command=deploy-gate` ile tek bir kapıya bağlıdır;
+  `deploy` kullanıcısı docker grubunda değildir, yalnızca `arilla-deploy {deploy <sha>|rollback|status}` için
+  sudo alır. Dağıtım motoru ve kapı root-sahiplidir. Reddedilen: deploy'u docker grubuna koymak (kökle eşdeğer),
+  runner'dan dosya/komut göndermek (anahtar ele geçirilirse rastgele kök komutu).
+- **Altyapı main'den gelir:** compose/Caddyfile/yapılandırma dosyaları runner'dan değil, sha main'de olduğu
+  doğrulanarak GitHub'dan alınır; imaj `revision` etiketi sha ile eşleşmelidir. Anahtar sızarsa saldırgan en
+  fazla main'deki bir commit'i yeniden dağıtabilir.
+- **Migration:** bekleyen varsa önce `pg_dump`, sonra `migrate` + `verify-schema`, ancak ondan sonra uygulama
+  servisleri güncellenir. Başarısızlıkta uygulama güncellenmez/geri alınır; **şema otomatik geri alınmaz**
+  (geriye uyumlu migration kuralı). Yedek aynı diskte (faz 5 uzak yedekleme gelene kadar tek nokta).
+- **Dokunulmayanlar:** `postgres`/`redis` otomatik yeniden başlatılmaz, env dosyaları ve volume'lar korunur.
+- **Tek kopya web → kısa kesinti** her dağıtımda; kabul edildi.
+- **Yapılandırma yoksa dağıtım atlanır, iş yeşil kalır** (main'in kırmızıya dönmemesi için); eksik GitHub/VPS
+  adımları `docs/ops.md` "Otomatik dağıtım" bölümünde.
+
 ## Fazlar
 
 1. **(Bu PR)** Karar, imaj, standalone, sağlık uçları, ortam tespiti, CI imaj derlemesi.
@@ -166,6 +187,6 @@ tamamlanınca bağımsız çalışır.
 3. **(Uygulandı)** GHCR yayın hattı (`build-push`), imaj taraması.
 4. VPS'te staging: `migrate` → web+worker+cron, duman testleri, katalog toplama.
 5. Yedekleme (WAL arşivi, geri yükleme testi), izleme.
-6. Otomatik dağıtım ve rollback (`deploy.yml`).
+6. **(Uygulandı)** Otomatik dağıtım ve rollback (`deploy.yml`).
 7. Hukuk metinleri, alan adı geçişi, Vercel cron'larının kapatılması.
 8. Vercel/Supabase/Upstash kodunun ve belgelerinin temizliği.

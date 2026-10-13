@@ -164,11 +164,30 @@ jobs:
   compose-stack:
     name: compose stack (production topology)
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 45
     steps:
       - uses: actions/checkout@v4
+      - name: shellcheck (dagitim ve altyapi betikleri)
+        run: >-
+          shellcheck -S warning -x
+          infra/vps/bin/arilla-deploy infra/vps/bin/deploy-gate infra/vps/bin/install-deploy.sh
+          infra/vps/bin/test-deploy.sh infra/vps/bin/test-ssh-gate.sh infra/vps/bin/smoke-local.sh infra/vps/bin/db-bootstrap.sh
+          infra/vps/bin/init-secrets.sh infra/vps/bin/verify-image.sh infra/vps/cron/cron-call.sh
       - name: duman testi
         run: bash infra/vps/bin/smoke-local.sh
+      # Faz 6: dagitim motoru (yerel registry, sentetik depo; saglik gecmeyen surumde otomatik geri alma).
+      - name: dagitim motoru testi
+        run: bash infra/vps/bin/test-deploy.sh
+
+  # Faz 6: VPS yetki zinciri GERCEK sshd + sudo ile (tek kullanimlik Ubuntu 24.04 konteyneri):
+  # install-deploy.sh -> sudoers -> restrict,command=deploy-gate -> sudo -> (sahte) arilla-deploy.
+  deploy-gate:
+    name: deploy ssh gate (sshd + sudo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash infra/vps/bin/test-ssh-gate.sh
 
   integration:
     name: admin authz + integration (isolated services)
