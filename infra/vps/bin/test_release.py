@@ -108,6 +108,21 @@ class ReleaseTest(unittest.TestCase):
         self.assertEqual((self.root / "compose.env").read_text(), before)
         self.assertFalse((self.root / "releases").exists())
 
+    def test_validate_checks_prefix_and_sha_without_writing(self) -> None:
+        path = self.write(manifest(SHA_A))
+        before = sorted(p.name for p in self.root.iterdir())
+        self.assertEqual(release.main(["validate", str(path), "--sha", SHA_A, "--image-prefix", "ghcr.io/arillasoftorg/"]), 0)
+        self.assertEqual(release.main(["validate", str(path), "--sha", SHA_B]), 1)
+        self.assertEqual(release.main(["validate", str(path), "--image-prefix", "ghcr.io/baskakurum/"]), 1)
+        self.assertEqual(release.main(["validate", str(path), "--image-prefix", "ghcr.io/arillasoftorg"]), 1)  # sonda / yok
+        self.assertEqual(sorted(p.name for p in self.root.iterdir()), before)
+
+    def test_apply_with_foreign_prefix_is_rejected(self) -> None:
+        path = self.write(manifest(SHA_A))
+        before = (self.root / "compose.env").read_text()
+        self.assertEqual(self.run_cli("apply", str(path), "--image-prefix", "ghcr.io/baskakurum/"), 1)
+        self.assertEqual((self.root / "compose.env").read_text(), before)
+
     def test_stored_manifest_is_immutable(self) -> None:
         self.run_cli("apply", str(self.write(manifest(SHA_A, "1"))))
         self.assertEqual(self.run_cli("apply", str(self.write(manifest(SHA_A, "9")))), 1)
