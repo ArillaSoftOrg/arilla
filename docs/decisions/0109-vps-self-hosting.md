@@ -1,8 +1,9 @@
 # 0109 — Kendi sunucumuzda çalıştırma (Hostinger KVM 4, Docker Compose)
 
 **Tarih:** 12 Ekim 2026
-**Durum:** Kabul edildi. **Faz 1 (bu karar + bu PR) uygulandı:** imaj, sağlık uçları,
-ortam tespiti. Compose yığını, Caddy, GHCR hattı ve otomatik dağıtım sonraki fazlardır.
+**Durum:** Kabul edildi. **Faz 1 uygulandı (#132):** imaj, sağlık uçları, ortam tespiti.
+**Faz 2 uygulandı:** `infra/compose.prod.yml`, Caddy, PostgreSQL/Redis ayarları, zamanlayıcı,
+gizli değer yapısı. GHCR hattı, yedekleme ve otomatik dağıtım sonraki fazlardır.
 **Mevcut Vercel production çalışmaya devam eder;** Supabase ve Upstash bu karar
 kapsamında silinmez.
 
@@ -90,6 +91,40 @@ tamamlanınca bağımsız çalışır.
   ile güncellenir; bu kod değil hukuk onayı işidir.
 - Vercel'den çıkış sonrası (son faz): `DEPLOY_ENV` dışındaki `VERCEL*` okumaları,
   `vercel.json`, `@vercel/oidc` ve `@vercel/queue` yolu kaldırılır.
+
+## Faz 2 kararları
+
+- **Ağlar:** `data` ve `edge` `internal`; yalnız `caddy` port yayınlar; `postgres`/`redis`
+  yalnız `data` ağındadır (`ports:` yok). Dışarı çıkış yalnız `web` ve `worker`
+  (`egress` ağı).
+- **Sahip kimliği** yalnız geçici `migrate` konteynerindedir; `cron` konteynerinde
+  yoktur. Bu yüzden `price_point` bölüm üretimi/kontrolü `cron` içinde değil, `migrate`
+  konteynerini çalıştıran **systemd zamanlayıcılarındadır** (isteğin "cron konteyneri
+  içinde partition kontrolü" maddesinden bilinçli sapma: uzun ömürlü konteynere DDL
+  yetkili parola vermemek için).
+- **Caddy** `/api/health/ready` ve `/api/cron/*` yollarını dışarıya kapatır (zamanlayıcı
+  ve dağıtım ic ağdan çağırır); erişim günlüğünde sorgu dizesi, çerez, başlık ve istemci
+  adresi tutulmaz (kişisel veri günlüğe girmez).
+- **Redis parolası** komut satırına/yapılandırmaya yazılmaz (tmpfs dosyası).
+- **PostgreSQL** unix soketi resmi imaj varsayılanında (trust); ağ bağlantıları
+  `scram-sha-256`. Veri sağlama toplamları ilk kurulumda açılır.
+- **Doğrulama aracı:** `infra/vps/bin/smoke-local.sh` (yerel ve CI `compose-stack` işi).
+
+### Faz 2 sonrası, VPS'e geçmeden önce (yapılmadı / yerelde test edilemedi)
+
+1. Docker'ın yayınlanan portta **gerçek istemci IP'sini** Caddy'ye ilettiğini VPS'te doğrula
+   (Docker Desktop'ta kaynak adres ağ geçidi görünür; Linux/iptables'ta IPv4 korunur, IPv6
+   `userland-proxy` ile maskelenebilir). Gerekirse `ip6tables`/`userland-proxy: false`.
+2. Alan adı DNS A/AAAA kaydı VPS'e çevrilmeden Let's Encrypt sertifikası alınamaz; önce
+   staging alt alan adıyla dene (sertifika sınırlarını tüketme).
+3. Hostinger giden SMTP portu ve Netgsm IP izni (VPS çıkış IP'si) doğrulanmadı.
+4. Gerçek imaj adları/etiketleri (GHCR) faz 3'te; compose şimdilik `ghcr.io/arillasoftorg/...`
+   varsayılanlarını kullanır ve yerelde `build:` ile derlenir.
+5. Yedekleme (WAL arşivi, geri yükleme testi) ve izleme (faz 5) yok; `postgres_data`
+   tek diskte. Cutover'dan önce zorunlu.
+6. systemd unit'leri sözdizimi dışında çalıştırılmadı (Windows'ta systemd yok).
+7. 6 MB'den büyük **parçalı** (chunked) gönderim gövde okunurken kesilir (istemci 400 alır);
+   `Content-Length` bilinen gönderim 413 alır.
 
 ## Fazlar
 

@@ -1,0 +1,12 @@
+[Unit]
+Description=Arilla price_point_default bos mu (KRITIK kontrol)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/arilla
+# price_point_default doluysa betik sifirdan farkli kodla cikar; unit "failed"
+# olur (systemctl --failed, journalctl -u arilla-partitions-check). Runbook: docs/ops.md.
+ExecStart=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml run --rm migrate node scripts/partitions.ts --check
+TimeoutStartSec=120

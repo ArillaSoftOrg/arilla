@@ -1,0 +1,69 @@
+# Caddy - tek acik kapi (karar 0109). HTTPS otomatik (Let's Encrypt).
+#
+# ARILLA_SITE_ADDRESS: uretimde alan adi (orn. alan-adi.com). Yerel testte
+# `http://:80` (TLS yok). Caddy dogrudan internete bakar; guvenilmeyen
+# istemcinin X-Forwarded-For'unu kendi gordugu adresle ezer, bu yuzden
+# packages/core/src/auth/client-ip.ts (zincirin SON elemani) dogru IP'yi alir.
+# Onune baska bir proxy (Cloudflare vb.) konursa bu karar yeniden degerlendirilir.
+
+{$ARILLA_SITE_ADDRESS} {
+	encode zstd gzip
+
+	# Istek govdesi ust siniri: gorsel yukleme 4 MB + multipart basliklari
+	# (Server Action bodySizeLimit 4.5 MB). Asani 413.
+	request_body {
+		max_size 6MB
+	}
+	# Content-Length bilinen asiri buyuk istek, yukari akisa hic gitmeden 413 alir
+	# (max_size tek basina govdeyi okuma sirasinda keser; istemci 400 gorur).
+	@toolarge expression `{http.request.header.Content-Length}.matches("^[0-9]+$") && int({http.request.header.Content-Length}) > 6291456`
+	handle @toolarge {
+		respond "Request Entity Too Large" 413
+	}
+
+	# Iceriye ozel uclar disariya KAPALI:
+	# - /api/health/ready: DB/Redis durumu ve DB yuku; yalniz ic aga ait.
+	# - /api/cron/*: zamanlayici konteyneri ic agdan (web:3000) cagirir.
+	# Eslesme Caddy'nin normallestirilmis (yuzde-kodu cozulmus, cift slash
+	# birlestirilmis) yolu uzerindedir; buyuk/kucuk harf duyarsiz.
+	@internal path_regexp internal (?i)^/api/(health/ready|cron)(/|$)
+	handle @internal {
+		respond "Not Found" 404
+	}
+
+	handle {
+		reverse_proxy web:3000 {
+			# Istemcinin gonderdigi X-Real-IP guvenilir degildir; yukari akisa gitmez.
+			header_up -X-Real-IP
+			health_uri /api/health
+			health_interval 15s
+			health_timeout 5s
+			# Yukleme ve arama yanitlari yavas olabilir; yine de sonsuz degil.
+			transport http {
+				response_header_timeout 60s
+				dial_timeout 5s
+			}
+		}
+	}
+
+	header {
+		-Server
+	}
+
+	# Erisim kaydi: kisisel veri YOK. Sorgu metni (q=...), token'lar, cerezler,
+	# basliklar ve istemci adresi kayda girmez; yalniz yontem, host, yol, durum,
+	# boyut ve sure kalir.
+	log {
+		output stdout
+		format filter {
+			wrap json
+			request>headers delete
+			request>uri regexp \?.* ""
+			request>remote_ip delete
+			request>remote_port delete
+			request>client_ip delete
+			request>tls delete
+			resp_headers delete
+		}
+	}
+}

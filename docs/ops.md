@@ -121,8 +121,9 @@ Etkinleştirme sırası (Vercel panelinde; **önizleme dağıtımında doğrula*
 
 ## VPS (Hostinger KVM 4) — karar 0109
 
-Bu bölüm VPS yolunun **faz 1** işletim bilgisidir (imaj, sağlık, ortam). Compose
-yığını, Caddy, yedekleme ve otomatik dağıtım sonraki fazlardır (0109 "Fazlar").
+Bu bölüm VPS yolunun işletim bilgisidir: faz 1 (imaj, sağlık, ortam) ve faz 2
+(Compose yığını, Caddy, PostgreSQL/Redis ayarları, zamanlayıcı, gizli değer yapısı).
+GHCR hattı, yedekleme ve otomatik dağıtım sonraki fazlardır (0109 "Fazlar").
 
 ### İmajlar
 
@@ -205,15 +206,101 @@ adresidir (`sslmode` gerekmez, iç ağ); pooler (PgBouncer) şimdilik yok.
 - Redis düşerse `ready` 503 olur ama `/api/health` 200 kalır ve konteyner yeniden
   başlatılmaz (doğrulandı).
 
-### Ağ ve gizli değerler (hedef)
+### Üretim yığını (faz 2): `infra/compose.prod.yml`
 
-- Yalnızca Caddy 80/443'i yayınlar. `postgres` ve `redis` için `ports:` **yazılmaz**;
-  `internal: true` veri ağındadır (internet çıkışı yok). Web ve worker ayrıca dış
-  çıkış ağına bağlıdır (Gemini, Jina, R2, SMTP, hedef sayfalar).
-- Runtime sırlar yalnızca VPS'te (`/opt/arilla/.env`, `root:deploy 0640`); GitHub
-  Actions'ta yalnızca dağıtım için SSH anahtarı bulunur.
-- Redis: `--requirepass`, `--appendonly yes`, `--maxmemory` sabit,
-  `--maxmemory-policy noeviction` (link kuyruğu ve kota sayaçları atılmasın).
+`infra/` içeriği VPS'te **`/opt/arilla/`** altına kopyalanır (`compose.prod.yml` ve
+`vps/`); dağıtım betiği (faz 6) bunu her sürümde günceller. Hiçbir komut yerelden
+VPS'e bağlanmaz; aşağıdakiler VPS'te `deploy` kullanıcısıyla çalıştırılır.
+
+| Servis | İmaj | Ağlar | Not |
+| --- | --- | --- | --- |
+| `caddy` | `caddy:2.10-alpine` | public, edge | Tek açık kapı (80/443/udp 443). Let's Encrypt otomatik. |
+| `web` | `arilla-web:<tag>` | edge, data, egress | salt-okunur kök FS, `cap_drop ALL`, 3 GB, 2 CPU |
+| `worker` | `arilla-ingest:<tag>` | data, egress | `LINK_QUEUE_BACKEND=redis` kuyruğunu tüketir, 1 GB, 1.5 CPU |
+| `cron` | `arilla-cron:<tag>` | data | supercronic; yalnız HTTP + `CRON_SECRET`, DB kimliği yok |
+| `postgres` | `pgvector/pgvector:0.8.1-pg16` | data | 6 GB, `infra/vps/postgres/postgresql.conf` |
+| `redis` | `redis:7.4-alpine` | data | AOF + parola + `noeviction`, 768 MB |
+| `migrate` | `arilla-migrate:<tag>` | data | `profiles: ["ops"]`; `up -d` BAŞLATMAZ; sahip kimliği yalnız burada |
+
+**Ağlar.** `data` ve `edge` `internal: true` (internete çıkış yok). Yalnız `caddy`
+`public` ağındadır ve port yayınlar; `web` ve `worker` dışarı çıkış için `egress`
+ağındadır (Gemini, Jina, R2, SMTP, hedef siteler) ama port yayınlamaz. `postgres`
+ve `redis` yalnız `data` ağındadır, **`ports:` yoktur** ve olmayacak; yerel erişim
+gerekirse `docker compose exec postgres psql -U arilla arilla`. Duman testi bunu
+(`docker inspect` ile HostPort, internete çıkış, host portları) her çalıştırmada
+doğrular.
+
+**Kalıcı volume'lar:** `postgres_data`, `redis_data`, `caddy_data` (TLS sertifikaları —
+silinirse Let's Encrypt sınırına dikkat), `caddy_config`, `web_next_cache`. Yedekleme
+(faz 5) `postgres_data` ve `redis_data` içindir.
+
+**Healthcheck / yeniden başlatma / günlük / kaynak.** Her servisin healthcheck'i, `restart:
+unless-stopped` politikası, `json-file` günlük dönüşümü (10 MB × 3), bellek (`mem_limit` =
+`memswap_limit`, swap yok), `pids_limit` ve gerektiğinde `cpus` sınırı vardır. Toplam
+bellek sınırı ≈ 11 GB; ~5 GB işletim sistemi, disk önbelleği ve yedek için kalır. Değerler
+başlangıçtır; gerçek yük altında `docker stats` ile ayarlanır.
+
+**PostgreSQL** (`vps/postgres/postgresql.conf`): `shared_buffers=2GB`,
+`effective_cache_size=7GB`, `work_mem=16MB`, `maintenance_work_mem=512MB`,
+`max_connections=60`, `wal_compression`, `max_wal_size=4GB`, `random_page_cost=1.1`,
+`wal_level=replica` (faz 5 WAL arşivi için hazır), saat dilimi UTC, `scram-sha-256`,
+`idle_in_transaction_session_timeout=60s`. İlk kurulumda veri sağlama toplamları açılır
+(`--data-checksums`, sonradan eklenemez). Hata günlüklerine sorgu metni yazılmaz
+(`log_min_error_statement=panic`; yavaş sorgu günlüğü 500 ms).
+
+**Redis** (`vps/redis/redis.conf`): `appendonly yes` (`everysec`), `maxmemory 512mb`,
+`noeviction`, `FLUSHALL/FLUSHDB/DEBUG/KEYS` kapalı. Parola `redis.conf`'ta ve komut
+satırında YOKTUR: konteyner başlarken `REDIS_PASSWORD`'dan tmpfs'teki dosyaya yazılır
+(`ps` ile görünmez).
+
+**Caddy** (`vps/Caddyfile`): `request_body max_size 6MB` + `Content-Length` > 6 MB ise
+yukarı akışa gitmeden 413 (parçalı gönderimde gövde okunurken kesilir, istemci 400 görür).
+`/api/health/ready` ve `/api/cron/*` **dışarıya 404** (büyük/küçük harf, çift slash,
+yüzde kodu, sondaki slash, sorgu dizesi denendi). Erişim günlüğünde sorgu dizesi, çerez,
+başlıklar ve istemci adresi **yoktur** (yalnız yöntem, host, yol, durum, boyut, süre).
+Guvenilmeyen `X-Forwarded-For` ezilir (tek eleman = bağlanan adres; `client-ip.ts`
+doğru çalışır); `X-Real-IP` yukarı akışa iletilmez. Güvenlik başlıkları uygulamadan gelir.
+
+**Zamanlayıcı (`cron` + systemd).** HTTP işleri `cron` konteynerindedir
+(`vps/cron/crontab`, UTC; `apps/web/vercel.json` ile birebir, duman testi karşılaştırır):
+
+| Zaman | İş |
+| --- | --- |
+| `0 0 * * *` | `generate-discovery-slots` |
+| `30 0 * * *` | `interpret-queries` |
+| `45 23 * * *` | `refresh-product-aggregates` |
+| `30 3 * * *` | `cleanup-auth` |
+| `*/15 * * * *` | `trigger-alerts`, `marketing-campaigns` (GitHub Actions'taki 15 dk işlerin yerine) |
+
+`price_point` bölüm üretimi ve `price_point_default` kontrolü **systemd zamanlayıcıları**ndadır
+(`vps/systemd/arilla-partitions{,-check}.{service,timer}`): sahip kimliği gerektiren tek iş
+bu olduğu için uzun ömürlü `cron` konteynerine DB sahibi parolası VERİLMEZ; işler gecici
+`migrate` konteynerini çalıştırır. Kurulum: unit'leri `/etc/systemd/system/` altına kopyala,
+`systemctl enable --now arilla-partitions.timer arilla-partitions-check.timer`. Kontrol dolu
+çıkarsa unit `failed` olur (`systemctl --failed`); bildirim bağı faz 5'te (izleme).
+
+**Gizli değerler** yalnızca VPS'te, `/opt/arilla/env/*.env` (`0640`, `root:deploy`). Her servis
+yalnızca kendi dosyasını alır: `web.env` (uygulama), `worker.env`, `cron.env` (yalnız
+`CRON_SECRET`), `migrate.env` (**sahip kimliği yalnız burada**), `postgres.env`, `redis.env`;
+`compose.env` sır içermez. İlk kurulum:
+
+```bash
+sudo infra/vps/bin/init-secrets.sh --domain alan-adi.com   # rastgele sırlar; ekrana yazmaz
+sudoedit /opt/arilla/env/web.env                           # elle: OAuth, SMTP, Jina, Gemini, R2...
+infra/vps/bin/db-bootstrap.sh                              # migrate, rol, bölümler, verify-schema
+docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml up -d
+```
+
+`init-secrets.sh` var olan dosyanın üstüne yazmaz ve altı dosyanın kısmen var olmasına izin
+vermez (tutarsız parola). Parola döndürmek veri kaybettirmesin diye elle ve planlı yapılır.
+
+**Yerel doğrulama.** `infra/vps/bin/smoke-local.sh` yığını atılabilir sırlarla (`arilla-smoke`
+projesi, yalnız `127.0.0.1`) ayağa kaldırır: temiz DB'de migration zinciri, servisler arası
+bağlantı, ağ yalıtımı, Caddy kapıları, gövde limiti, cron işleri, Postgres/Redis ayarları ve
+sızıntı kontrolleri. CI'da `compose-stack` işi aynısını koşar.
+
+**VPS'e geçmeden önce** (hâlâ yapılmadı): bkz. PR açıklaması / `docs/decisions/0109`
+"Faz 2 sonrası kontrol listesi".
 
 ## Sağlayıcı bağımsızlığı
 

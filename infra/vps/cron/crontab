@@ -1,0 +1,13 @@
+# Zamanlayici (UTC). Kaynak: apps/web/vercel.json (4 gunluk is) ve
+# .github/workflows/trigger-alerts-cron.yml (15 dk). Vercel production calistigi
+# surece orada da calisirlar; VPS kendi veritabanini kullanir, ikisi ayni veriye
+# yazmaz. Bu dosya ile vercel.json arasindaki esitlik infra/vps/bin/smoke-local.sh
+# ve CI tarafindan denetlenir.
+#
+# dk saat gun ay haftagunu  komut
+0 0 * * *     cron-call generate-discovery-slots
+30 0 * * *    cron-call interpret-queries
+45 23 * * *   cron-call refresh-product-aggregates
+30 3 * * *    cron-call cleanup-auth
+*/15 * * * *  cron-call trigger-alerts
+*/15 * * * *  cron-call marketing-campaigns
