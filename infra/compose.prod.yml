@@ -187,13 +187,24 @@ services:
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --data-checksums
     volumes:
       - postgres_data:/var/lib/postgresql/data
-      - ./vps/postgres/postgresql.conf:/etc/postgresql/postgresql.conf:ro
+      # postgresql.conf + pg_hba.conf (hba_file) - istemci kimlik dogrulama kurallari
+      # veri dizinine DEGIL bu salt-okunur dizine baglidir; yeni ve mevcut kurulumlarda
+      # ayni davranis (bkz. vps/postgres/pg_hba.conf).
+      - ./vps/postgres:/etc/postgresql:ro
     networks: [data]
     shm_size: 1g
     cap_drop: [ALL]
     cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      # Konteynerin KENDI ag adresine TCP + SCRAM ile baglanir: pg_hba.conf kurallari,
+      # parola dogrulamasi ve Docker alt agi dogrulanir (yalniz unix soketi degil).
+      # Alt ag degisir ve kural kapsamazsa `healthy` olmaz, yanlis yapilandirma gorunur.
+      # Parola komut satirinda degil, ortamdadir.
+      test:
+        - CMD-SHELL
+        - >-
+          PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h "$$(hostname -i | cut -d' ' -f1)"
+          -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -Atqc 'select 1' | grep -qx 1
       interval: 10s
       timeout: 5s
       retries: 10
@@ -207,16 +218,23 @@ services:
   redis:
     <<: *service
     image: redis:7.4-alpine
-    # Parola argv'ye (ps ile gorunur) YAZILMAZ: tmpfs'teki dosyaya yazilip
-    # redis.conf `include` eder. Varsayilan entrypoint ayrica yetki dusurur.
+    # ROOT OLMADAN calisir (redis kullanicisi: uid 999, gid 1000 - resmi imajla ayni).
+    # Resmi entrypoint root olarak baslayip `chown -R` + gosu yapar; `cap_drop ALL`
+    # altinda root'un DAC_OVERRIDE'i yoktur, bu yuzden ilk baslatmadan sonra 0700
+    # `appendonlydir`'i gezemez ("find: ./appendonlydir: Permission denied") ve
+    # konteyner yeniden baslatma dongusune girer. Dogrudan redis kullanicisi olarak
+    # baslayinca entrypoint/chown/ek yetki gerekmez; /data volume'u redis'e aittir
+    # (isimli volume imajdaki /data sahipligini kopyalar).
+    user: "999:1000"
+    # Parola argv'ye (ps ile gorunur) YAZILMAZ: tmpfs'teki 0600 dosyaya yazilip
+    # redis.conf `include` eder, sonra `exec` ile redis-server PID 1 olur.
     command:
       - sh
       - -c
       - >-
         umask 077 &&
         printf 'requirepass %s\n' "$$REDIS_PASSWORD" > /tmp/redis-auth.conf &&
-        chown redis:redis /tmp/redis-auth.conf &&
-        exec docker-entrypoint.sh redis-server /usr/local/etc/redis/redis.conf
+        exec redis-server /usr/local/etc/redis/redis.conf
     env_file:
       - ${ARILLA_ENV_DIR:-/opt/arilla/env}/redis.env
     volumes:
@@ -225,7 +243,6 @@ services:
     tmpfs: [/tmp]
     networks: [data]
     cap_drop: [ALL]
-    cap_add: [CHOWN, SETGID, SETUID]
     read_only: true
     healthcheck:
       # REDISCLI_AUTH (redis.env) ile parola komut satirina girmez.

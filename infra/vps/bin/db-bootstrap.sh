@@ -21,6 +21,15 @@ for _ in $(seq 1 60); do
 done
 [ "${state:-}" = "healthy" ] || { echo "postgres healthy olmadi" >&2; exit 1; }
 
+# Docker `data` alt agi pg_hba.conf tarafindan kapsaniyor mu? (alt ag sabitlenmez; bkz.
+# vps/postgres/pg_hba.conf). Kapsanmiyorsa migrate/web "no pg_hba.conf entry" ile duser.
+PY=python3; python3 -c '' >/dev/null 2>&1 || PY=python
+net=$(c config --format json | "$PY" -c 'import json,sys;print(json.load(sys.stdin)["networks"]["data"]["name"])')
+subnets=$(docker network inspect "$net" --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}')
+# shellcheck disable=SC2086
+phere=$here; command -v cygpath >/dev/null 2>&1 && phere=$(cygpath -m "$here")  # Git Bash: Windows python icin
+"$PY" "$phere/check-pg-hba.py" "$phere/../postgres/pg_hba.conf" $subnets || exit 1
+
 for step in migrate.ts bootstrap-app-role.ts partitions.ts "partitions.ts --check" verify-schema.ts; do
   echo "== node scripts/$step"
   # shellcheck disable=SC2086

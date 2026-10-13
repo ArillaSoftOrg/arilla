@@ -107,9 +107,22 @@ tamamlanınca bağımsız çalışır.
   ve dağıtım ic ağdan çağırır); erişim günlüğünde sorgu dizesi, çerez, başlık ve istemci
   adresi tutulmaz (kişisel veri günlüğe girmez).
 - **Redis parolası** komut satırına/yapılandırmaya yazılmaz (tmpfs dosyası).
-- **PostgreSQL** unix soketi resmi imaj varsayılanında (trust); ağ bağlantıları
-  `scram-sha-256`. Veri sağlama toplamları ilk kurulumda açılır.
+- **PostgreSQL** unix soketi `trust` (yalnız `docker exec`); ağ bağlantıları `scram-sha-256`.
+  Veri sağlama toplamları ilk kurulumda açılır.
 - **Doğrulama aracı:** `infra/vps/bin/smoke-local.sh` (yerel ve CI `compose-stack` işi).
+
+## Faz 2 düzeltmeleri (ilk VPS kurulumundan)
+
+- **Redis kök dışı çalışır:** `user: "999:1000"`, doğrudan `redis-server`, `cap_add` yok.
+  Kök neden: `cap_drop: ALL` altında root'un `DAC_OVERRIDE`'ı olmadığı için resmî
+  entrypoint'in `find ... chown`'u ilk başlatmadan sonra 0700 `appendonlydir`'de
+  "Permission denied" verip konteyneri yeniden başlatma döngüsüne sokuyordu.
+  Parola yine argv'de yok (tmpfs dosyası + `include`).
+- **`pg_hba.conf` repoda sürümlenir** (`hba_file`): ilk kurulumda `initdb`/entrypoint'in
+  veri dizinine yazdığı dosyaya güvenilmez. Docker alt ağı sabitlenmez; kurallar özel
+  adres bloklarını kapsar, `check-pg-hba.py` gerçek alt ağı doğrular, healthcheck TCP+SCRAM
+  yolunu sınar. Reddedilen: alt ağı `ipam` ile sabitlemek (VPS'teki mevcut ağlarla çakışabilir),
+  `host all all all` (sınırsız adres; ikinci güvenlik katmanını kaldırır).
 
 ## Faz 3 kararları
 
