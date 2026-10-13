@@ -299,6 +299,64 @@ projesi, yalnız `127.0.0.1`) ayağa kaldırır: temiz DB'de migration zinciri, 
 bağlantı, ağ yalıtımı, Caddy kapıları, gövde limiti, cron işleri, Postgres/Redis ayarları ve
 sızıntı kontrolleri. CI'da `compose-stack` işi aynısını koşar.
 
+### Imaj yayını (faz 3): `.github/workflows/build-push.yml`
+
+| İmaj | Kaynak | Hedef |
+| --- | --- | --- |
+| `ghcr.io/arillasoftorg/arilla-web` | `apps/web/Dockerfile` | `runner` |
+| `ghcr.io/arillasoftorg/arilla-migrate` | `apps/web/Dockerfile` | `migrate` |
+| `ghcr.io/arillasoftorg/arilla-ingest` | `services/ingest/Dockerfile` | — |
+| `ghcr.io/arillasoftorg/arilla-cron` | `infra/vps/cron/Dockerfile` | — |
+
+- **Tetikleyiciler:** `pull_request` (yalnız derle + tara + doğrula, **yayınlamaz**, `packages`
+  izni yok); `workflow_run` (`ci` main'de **başarılı** bitince yayınlar); `workflow_dispatch`
+  (yalnız main, aynı commit'i yeniden yayınlar).
+- **Kapı (`gate`):** yayın yalnız main'e push'un başarılı `ci` koşusu için yapılır ve commit
+  üzerinde `private-keys`, `compose stack`, `docker images`, `web build` kontrolleri başarılı
+  olmalıdır (biri başarısızsa yayın yok).
+- **Etiket:** `sha-<40 haneli commit>`. **Değişmezdir:** etiket GHCR'da zaten varsa üstüne
+  yazılmaz, mevcut digest kullanılır. `latest`/`main` gibi hareketli etiket yoktur.
+- **Tarama (iki kez):** (1) yayından ÖNCE yerelde yüklenen imaj; (2) yayından SONRA GHCR'daki
+  digest. İkisi de `verify-image.sh` (kimlik/anahtar dosyası, PEM özel anahtar içeriği, dolu
+  sır ENV'i, root değil) ve **Trivy** (`vuln,secret`, HIGH/CRITICAL, düzeltmesi olanlar,
+  `exit-code 1`) çalıştırır. Başarısız kontrol yayını durdurur; atlanmaz. İstisna yalnızca
+  `.trivyignore` içinde gerekçe + sahip + bitiş tarihiyle yazılır (şu an boş).
+- **İzinler:** workflow düzeyinde `permissions: {}`; `gate` `contents:read` + `checks:read`;
+  `scan`/`manifest` `contents:read`; yalnız `publish` `packages:write`. Üçüncü taraf action'lar
+  tam commit sha'sıyla sabitli. Üretim sırrı kullanılmaz; VPS'e bağlanılmaz.
+- **Önbellek:** `type=gha` katman önbelleği (imaj başına kapsam); PR'lar main'in önbelleğini
+  okur, yalnız main yazar. BuildKit `--mount=type=cache` (pnpm deposu) koşular arası taşınmaz.
+- **`ARILLA_APP_URL` (depo DEĞİŞKENİ, sır değil):** `web` imajı bu adresi derlemeye gömer
+  (robots/canonical). **Tanımlı değilse `web` imajı yayınlanmaz** (yer tutucu adresle yalnızca
+  doğrulanır, uyarı verir), manifest `complete: false` olur ve dağıtım onu reddeder.
+  Tanımlamak: GitHub → Settings → Secrets and variables → Actions → Variables
+  → `ARILLA_APP_URL=https://<alan-adı>` (isteğe bağlı `GA4_MEASUREMENT_ID`).
+- **Çıktı:** her yayında `release-manifest.json` (artifact, 90 gün + iş özeti):
+  `{sha, tag, images: {web|migrate|ingest|cron: {image, tag, digest}}, complete}`.
+
+**Sürüm sabitleme ve geri alma (`infra/vps/bin/release.py`, VPS'te):**
+
+```bash
+infra/vps/bin/release.py apply release-manifest.json --dir /opt/arilla   # ARILLA_TAG + digest'ler compose.env'e
+infra/vps/bin/release.py rollback --dir /opt/arilla                       # bir önceki sürüme dön
+infra/vps/bin/release.py current|list --dir /opt/arilla
+```
+
+`apply` önce manifesti doğrular (`complete`, 40 haneli sha, `tag == sha-<sha>`, dört imaj,
+`sha256:` digest'leri, `ghcr.io/<sahip>/arilla-<ad>`); geçersizse HİÇBİR dosya değişmez. Uygulanan
+her manifest `releases/<sha>.json` olarak saklanır ve **değişmezdir**. Compose imajı
+`ad:sha-…@sha256:…` olarak çözer; digest etiketten önceliklidir, yani etiket sonradan başka bir
+imajı gösterse bile çalışan şey sabittir. Geri alma, önceki manifestin digest'lerini yeniden
+yazar (docker çağırmaz; çekme/yeniden başlatma dağıtım betiğinin işidir, faz 6).
+
+**Boyut/süre notları.** Çalışma ve migrate imajları `debian:bookworm-slim` + yalnız `node`
+ikilisi üzerindedir (resmî `node` imajındaki npm/yarn/corepack ve bunların bağımlılık zafiyetleri
+yok; ~40 MB küçük). Yerel ölçüm (açılmış): web ≈ 460 MB, migrate ≈ 318 MB, ingest ≈ 257 MB,
+cron ≈ 45 MB; web'in `next` + sharp/libvips'i ≈ 35 MB, Node ≈ 120 MB, taban ≈ 75 MB'tır.
+Taban imajlara `apt-get/apk upgrade` uygulanır (yayınlanmış güvenlik yamaları). `supercronic`
+hazır ikili yerine güncel Go ile kaynaktan derlenir (hazır ikili eski Go standart
+kütüphanesiyle HIGH Trivy bulgusu veriyordu).
+
 **VPS'e geçmeden önce** (hâlâ yapılmadı): bkz. PR açıklaması / `docs/decisions/0109`
 "Faz 2 sonrası kontrol listesi".
 

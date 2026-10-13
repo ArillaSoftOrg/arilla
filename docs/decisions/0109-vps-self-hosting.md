@@ -3,7 +3,8 @@
 **Tarih:** 12 Ekim 2026
 **Durum:** Kabul edildi. **Faz 1 uygulandı (#132):** imaj, sağlık uçları, ortam tespiti.
 **Faz 2 uygulandı:** `infra/compose.prod.yml`, Caddy, PostgreSQL/Redis ayarları, zamanlayıcı,
-gizli değer yapısı. GHCR hattı, yedekleme ve otomatik dağıtım sonraki fazlardır.
+gizli değer yapısı. **Faz 3 uygulandı:** GHCR yayın hattı (`build-push.yml`), Trivy + imaj doğrulaması, sha etiketi
++ digest sürüm yönetimi. Yedekleme ve otomatik dağıtım sonraki fazlardır.
 **Mevcut Vercel production çalışmaya devam eder;** Supabase ve Upstash bu karar
 kapsamında silinmez.
 
@@ -110,6 +111,25 @@ tamamlanınca bağımsız çalışır.
   `scram-sha-256`. Veri sağlama toplamları ilk kurulumda açılır.
 - **Doğrulama aracı:** `infra/vps/bin/smoke-local.sh` (yerel ve CI `compose-stack` işi).
 
+## Faz 3 kararları
+
+- **Etiket değişmezliği:** yalnız `sha-<40 hane>`; var olan etiketin üstüne yazılmaz; hareketli
+  etiket (`latest`, `main`) yok. Dağıtım ve geri alma her zaman açık sha + digest ile yapılır.
+- **Önce tara, sonra yayınla, sonra yayınlananı tekrar tara.** Trivy HIGH/CRITICAL (düzeltmesi
+  olan) ve sır bulgusu yayını durdurur; `.trivyignore` yalnız gerekçeli, sahipli, tarihli istisna.
+- **Yayın izni dar:** `packages:write` yalnız `publish` işinde; PR'lar yayınlayamaz; yayın yalnız
+  main'deki başarılı `ci` + `private-keys` commit'i için.
+- **`ARILLA_APP_URL` derleme değişkeni:** `web` imajı alan adını derlemeye gömdüğü için (canonical,
+  robots, statik sayfalar) tek üretim alan adı için üretilir. Değişken yoksa `web` yayınlanmaz
+  (sessizce yanlış canonical ile imaj çıkmasın). Staging aynı imajı farklı alt alan adında
+  çalıştırırsa statik sayfa canonical'ları üretim adresini gösterir (staging noindex olmalı);
+  çalışma zamanı bağlantıları (`APP_URL` env) doğru adrese gider.
+- **Güvenlik bulgusu:** ilk Trivy taramasında `next@16.3.4` için CRITICAL (next/og RCE) ve HIGH
+  (Image Optimization SSRF), `sharp@0.35.4` için HIGH bulundu (uygulama `next/og` ve `next/image`
+  kullanmıyor ama tarama kuralı atlanmaz). `next` `~16.3.8`, `sharp` `0.35.5`'e yükseltildi.
+- **Node tabanı:** resmî `node` imajı yerine `debian:bookworm-slim` + yalnız `node` ikilisi.
+- **Cron imajı:** `supercronic` Go ile kaynaktan derlenir (Go stdlib HIGH bulgularını önler).
+
 ### Faz 2 sonrası, VPS'e geçmeden önce (yapılmadı / yerelde test edilemedi)
 
 1. Docker'ın yayınlanan portta **gerçek istemci IP'sini** Caddy'ye ilettiğini VPS'te doğrula
@@ -130,7 +150,7 @@ tamamlanınca bağımsız çalışır.
 
 1. **(Bu PR)** Karar, imaj, standalone, sağlık uçları, ortam tespiti, CI imaj derlemesi.
 2. Compose yığını (`infra/`), Caddy, `postgresql.conf`, Redis ayarları, host sertleştirme.
-3. GHCR yayın hattı (`build-push`), imaj taraması.
+3. **(Uygulandı)** GHCR yayın hattı (`build-push`), imaj taraması.
 4. VPS'te staging: `migrate` → web+worker+cron, duman testleri, katalog toplama.
 5. Yedekleme (WAL arşivi, geri yükleme testi), izleme.
 6. Otomatik dağıtım ve rollback (`deploy.yml`).
