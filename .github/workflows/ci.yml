@@ -144,16 +144,8 @@ jobs:
           --build-arg APP_URL=https://ci.example.test -t arilla-web:ci .
       - name: build migrate
         run: docker build -f apps/web/Dockerfile --target migrate -t arilla-migrate:ci .
-      - name: imajda gizli dosya / sır yok
-        run: |
-          found=$(docker run --rm --entrypoint sh arilla-web:ci -c \
-            'find / -xdev \( -name ".env*" -o -name "*.pem" -o -name "*.p8" \) -not -path "*/node_modules/*" 2>/dev/null || true')
-          if [ -n "$found" ]; then echo "::error::imajda gizli dosya var"; echo "$found"; exit 1; fi
-          if docker inspect arilla-web:ci --format '{{range .Config.Env}}{{println .}}{{end}}' \
-            | grep -E '^(DATABASE_URL|REDIS_URL|SESSION_SECRET|CRON_SECRET|[A-Z_]*PASSWORD|[A-Z_]*SECRET|[A-Z_]*API_KEY)='; then
-            echo "::error::imaj ENV'inde sır var"; exit 1
-          fi
-          [ "$(docker run --rm --entrypoint id arilla-web:ci -u)" != "0" ] || { echo "::error::imaj root çalışıyor"; exit 1; }
+      - name: imajda gizli dosya / sır yok, root değil
+        run: bash infra/vps/bin/verify-image.sh arilla-web:ci arilla-migrate:ci
       - name: canlılık ucu (bağımlılıksız)
         run: |
           docker run -d --name web-ci -p 127.0.0.1:3000:3000 \
