@@ -1191,6 +1191,19 @@ görseller"), sonra bayrak. Production'da onay olmadan açılmaz.
 rıza kaydı CHECK hatası verir ve görsel gönderimi `unavailable` döner); `/gizlilik` ve
 `/kvkk-aydinlatma` sohbet eki için hukuk onaylı metinle güncellenmiş olmalı.
 
+**Tanılama: "sohbet çalışmıyor" (salt okunur).** Sırayla bakılır:
+
+1. Bayrak: `/sohbet` 404 ya da ana sayfa kutusu `/ara`ya gidiyorsa `CHAT_DISCOVERY_ENABLED`
+   tam olarak `true` değildir (`GEMINI_API_KEY` tek başına sohbeti açmaz). Değer yazdırılmadan
+   yalnızca varlığı: `docker compose exec web sh -c 'test "$CHAT_DISCOVERY_ENABLED" = true && echo on || echo off'`.
+   Lansman kapısı (`PRODUCT_ACCESS`) de ayrıca denetlenir.
+2. Konteyner günlüğü: sağlayıcı hatasında tek satır yazılır, ör.
+   `[sohbet] model provider_error code=client_error http=400 model=gemini-3.1-flash-lite attempts=1 detail=INVALID_ARGUMENT ...`.
+   `docker compose logs --since 30m web | grep '\[sohbet\]'`. Anahtar, istem ve kullanıcı metni asla yazılmaz.
+3. Veritabanı: `SELECT occurred_at, error_class, http_status, model_version, error_summary FROM ai_error_event WHERE surface = 'chat' ORDER BY occurred_at DESC LIMIT 20;`
+   ve `SELECT operation, model_version, count(*) FROM api_usage WHERE operation = 'chat_turn' AND created_at > now() - interval '1 day' GROUP BY 1, 2;`
+   (satır yoksa model hiç çağrılmamıştır: bayrak, oturum, kota ya da günlük tavan).
+
 ### Sohbette ürün linki (karar 0090) — varsayılan kapalı
 
 `CHAT_LINK_ENABLED=true` (ayrıca `CHAT_DISCOVERY_ENABLED=true` ister) sohbetteki linki mevcut link kuyruğuna verir; modele gitmez. Önkoşul: link worker'ı üretimde çalışıyor olmalı ("Link worker" bölümü; yoksa istekler 2 dk sonra 'worker yanıt vermedi' olur). `CHAT_LINK_INTERPRET_ENABLED=true` (ayrıca `CHAT_LINK_ENABLED`) deterministik ayrıştırmanın çözemediği tercih metni için tek Gemini çağrısı yapar; `api_usage` `chat_turn`, mevcut günlük/saatlik tavanlar. `/ara/link` ve `LINK_SEARCH_PUBLIC` bu bayraklardan bağımsızdır. Kademe: iç ekip → küçük kitle → herkes; izle: kuyruk uzunluğu, `error_code` dağılımı, Jina maliyeti. Geri alma: bayrakları kapat (migration yok).
