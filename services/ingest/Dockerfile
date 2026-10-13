@@ -10,6 +10,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_NO_CACHE_DIR=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
+# Taban imajdan sonra yayinlanan guvenlik yamalari derleme aninda alinir (Trivy dogrular).
+RUN apt-get update     && apt-get -y --no-install-recommends upgrade     && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app/services/ingest
 
 # Once yalnizca bagimlilik tanimi: kaynak degisince katman yeniden kurulmaz.

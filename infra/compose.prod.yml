@@ -15,6 +15,11 @@
 # postgres ve redis YALNIZCA `data` aginda: `ports:` yazilmaz, host'a ya da
 # internete acilmaz. Bu dosyaya `ports:` ekleme.
 #
+# IMAJLAR: `<ad>:${ARILLA_TAG}` ve (varsa) `@${ARILLA_<AD>_DIGEST}`. GHCR'a build-push iş akışı
+# yayinlar (etiket sha-<commit>, degismez). `infra/vps/bin/release.py apply <manifest>`
+# compose.env'e ARILLA_TAG ve digest'leri yazar; digest varsa imaj O DIGEST'e sabitlenir
+# (etiket sonradan baska bir seye isaret etse bile). Geri alma: `release.py rollback`.
+#
 # GIZLI DEGERLER bu dosyada ve imajlarda YOK. Her servis kendi env_file'ini
 # VPS'teki ${ARILLA_ENV_DIR} (varsayilan /opt/arilla/env) altindan alir; dosyalar
 # `infra/vps/bin/init-secrets.sh` ile VPS'te uretilir, depoya girmez. En az
@@ -69,7 +74,7 @@ services:
   # --- Web (Next.js standalone) --------------------------------------------------
   web:
     <<: *service
-    image: ${ARILLA_WEB_IMAGE:-ghcr.io/arillasoftorg/arilla-web}:${ARILLA_TAG:?ARILLA_TAG gerekli}
+    image: ${ARILLA_WEB_IMAGE:-ghcr.io/arillasoftorg/arilla-web}:${ARILLA_TAG:?ARILLA_TAG gerekli}${ARILLA_WEB_DIGEST:+@}${ARILLA_WEB_DIGEST:-}
     build:
       context: ..
       dockerfile: apps/web/Dockerfile
@@ -116,7 +121,7 @@ services:
   # --- Link worker (Python; HTTP SUNMAZ, kuyruktan is alir) ------------------------
   worker:
     <<: *service
-    image: ${ARILLA_INGEST_IMAGE:-ghcr.io/arillasoftorg/arilla-ingest}:${ARILLA_TAG:?ARILLA_TAG gerekli}
+    image: ${ARILLA_INGEST_IMAGE:-ghcr.io/arillasoftorg/arilla-ingest}:${ARILLA_TAG:?ARILLA_TAG gerekli}${ARILLA_INGEST_DIGEST:+@}${ARILLA_INGEST_DIGEST:-}
     build:
       context: ../services/ingest
     command: ["python", "-m", "collect.link", "--worker"]
@@ -143,7 +148,7 @@ services:
   # --- Zamanlayici (Vercel cron'larinin yerine; yalniz HTTP + CRON_SECRET) -----------
   cron:
     <<: *service
-    image: ${ARILLA_CRON_IMAGE:-ghcr.io/arillasoftorg/arilla-cron}:${ARILLA_TAG:?ARILLA_TAG gerekli}
+    image: ${ARILLA_CRON_IMAGE:-ghcr.io/arillasoftorg/arilla-cron}:${ARILLA_TAG:?ARILLA_TAG gerekli}${ARILLA_CRON_DIGEST:+@}${ARILLA_CRON_DIGEST:-}
     build:
       context: ./vps/cron
     env_file:
@@ -239,7 +244,7 @@ services:
   # Sahip kimligi (DATABASE_URL_OWNER) yalnizca bu servise verilir.
   migrate:
     profiles: ["ops"]
-    image: ${ARILLA_MIGRATE_IMAGE:-ghcr.io/arillasoftorg/arilla-migrate}:${ARILLA_TAG:?ARILLA_TAG gerekli}
+    image: ${ARILLA_MIGRATE_IMAGE:-ghcr.io/arillasoftorg/arilla-migrate}:${ARILLA_TAG:?ARILLA_TAG gerekli}${ARILLA_MIGRATE_DIGEST:+@}${ARILLA_MIGRATE_DIGEST:-}
     build:
       context: ..
       dockerfile: apps/web/Dockerfile

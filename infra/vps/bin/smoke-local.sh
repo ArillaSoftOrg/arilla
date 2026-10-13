@@ -20,6 +20,7 @@ repo=$(cd "$infra/.." && pwd)
 if command -v cygpath >/dev/null 2>&1; then
   infra=$(cygpath -m "$infra")
   repo=$(cygpath -m "$repo")
+  here=$(cygpath -m "$here")
 fi
 COMPOSE_FILE="$infra/compose.prod.yml"
 
@@ -62,10 +63,31 @@ cleanup() {
 }
 trap cleanup EXIT
 
+echo "== 0. Surum yonetimi (release.py) ve digest'li imaj referanslari"
+PY=python3; command -v python3 >/dev/null 2>&1 && python3 -c '' >/dev/null 2>&1 || PY=python
+(cd "$here" && PYTHONIOENCODING=utf-8 "$PY" test_release.py >"$work/release-test.log" 2>&1) && pass "release.py testleri" || { fail "release.py testleri"; tail -15 "$work/release-test.log"; }
+
 echo "== 1. Sablon ve ag dogrulamasi (sirlar yazdirilmaz)"
 "$here/init-secrets.sh" --dir "$work" --domain smoke.example.test --tag smoke >/dev/null || fail "init-secrets"
 sed -i "s|^ARILLA_SITE_ADDRESS=.*|ARILLA_SITE_ADDRESS=http://:80|" "$ENV_FILE"
 check "compose config gecerli" c --profile ops config -q
+# release.py -> compose.env -> imaj referansi: etiket + digest birlikte cozulur
+mf="$work/manifest.json"
+"$PY" - "$mf" <<'MANIFEST'
+import json, sys
+sha = "c" * 40
+names = ["web", "migrate", "ingest", "cron"]
+json.dump({"sha": sha, "tag": f"sha-{sha}", "complete": True, "images": {
+    n: {"image": f"ghcr.io/arillasoftorg/arilla-{n}", "tag": f"sha-{sha}", "digest": "sha256:" + str(i) * 64}
+    for i, n in enumerate(names, 1)}}, open(sys.argv[1], "w"))
+MANIFEST
+cp "$ENV_FILE" "$work/compose.env.backup"
+"$PY" "$here/release.py" apply "$mf" --dir "$work" >/dev/null && pass "release.py apply" || fail "release.py apply"
+# Surec ortami --env-file'a ustundur; testte export edilen ARILLA_TAG'i kaldirip dosyadakini sinariz.
+resolved=$(env -u ARILLA_TAG docker compose --env-file "$ENV_FILE" -f "$COMPOSE_FILE" --profile ops config --format json 2>/dev/null | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{const c=JSON.parse(s).services;console.log(["web","worker","cron","migrate"].map(n=>c[n].image).join(" "))})')
+echo "$resolved" | grep -q "arilla-web:sha-cccccccccccccccccccccccccccccccccccccccc@sha256:1111" && echo "$resolved" | grep -q "arilla-cron:sha-cccccccccccccccccccccccccccccccccccccccc@sha256:4444" && pass "imajlar etiket@digest ile cozuluyor" || fail "imaj referansi: $resolved"
+"$PY" "$here/release.py" current --dir "$work" | grep -q "current=cccc" && pass "release.py current" || fail "release.py current"
+cp "$work/compose.env.backup" "$ENV_FILE"; rm -rf "$work/releases"
 cfg=$(c --profile ops config --format json 2>/dev/null | node -e '
   let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{
     const c=JSON.parse(s),svc=c.services,out=[];
@@ -203,6 +225,7 @@ for key in POSTGRES_PASSWORD APP_DB_PASSWORD REDIS_PASSWORD SESSION_SECRET CRON_
   done
 done
 [ $leak -eq 0 ] && pass "imaj metaverisinde (ENV/History/Config) uretilmis sir yok" || fail "imajda sir"
+"$here/verify-image.sh" ghcr.io/arillasoftorg/arilla-web:smoke ghcr.io/arillasoftorg/arilla-migrate:smoke ghcr.io/arillasoftorg/arilla-ingest:smoke ghcr.io/arillasoftorg/arilla-cron:smoke >"$work/verify-image.log" 2>&1 && pass "verify-image.sh: dort imajda sir/kimlik dosyasi yok, root degil" || { fail "verify-image.sh"; grep -E "FAIL" "$work/verify-image.log"; }
 git -C "$repo" ls-files --error-unmatch infra/vps/env/web.env >/dev/null 2>&1 && fail "web.env depoda izleniyor" || pass "gercek env dosyalari depoda izlenmiyor"
 check "ortam dosyalari 0640" bash -c "[ \"\$(stat -c %a '$work/env/web.env' 2>/dev/null || stat -f %Lp '$work/env/web.env')\" = 640 ] || [ -n \"\${MSYSTEM:-}\" ]"
 
