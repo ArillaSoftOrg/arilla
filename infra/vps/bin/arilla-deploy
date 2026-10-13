@@ -1,0 +1,406 @@
+#!/usr/bin/env bash
+# arilla-deploy - production dagitim motoru (karar 0109, faz 6).
+#
+# ROOT olarak, `deploy-gate` (SSH zorunlu komutu) -> `sudo` uzerinden calisir; deploy
+# kullanicisi docker grubunda DEGILDIR. Girdiler kati dogrulanir:
+#
+#   arilla-deploy deploy <40-haneli-sha>   # release-manifest.json STDIN'den
+#   arilla-deploy rollback                 # bir onceki surume don (migration geri alinmaz)
+#   arilla-deploy status                   # salt okunur ozet
+#
+# Guven modeli: altyapi dosyalari (compose.prod.yml, Caddyfile, ...) istemciden DEGIL,
+# GitHub'dan `<sha>` icin alinir ve sha'nin `main`'de olmasi sart; imajlar manifestteki
+# digest'lerle cekilir, `org.opencontainers.image.revision` etiketi sha ile eslesmelidir.
+# Yani SSH anahtarini ele geciren biri en fazla main'deki bir commit'i yeniden dagitabilir.
+#
+# Akis (deploy): kilit -> manifest dogrula -> kaynak getir (sha main'de mi) -> on kontroller
+# (compose, Caddyfile, pg_hba) -> imaj cek + etiket dogrula -> yedek al -> dosyalari kur ->
+# release.py apply -> bekleyen migration varsa pg_dump + migrate + verify-schema ->
+# degisen servisleri sirayla yeniden olustur (web, worker, cron, caddy) + saglik -> dis
+# dogrulama. Herhangi bir adim basarisizsa OTOMATIK GERI ALMA (dosyalar + servisler).
+# PostgreSQL ve Redis OTOMATIK yeniden baslatilmaz, verileri/volume'lari ASLA silinmez.
+#
+# Cikis kodlari: 0 basarili | 1 basarisiz, geri alindi | 2 kullanim/on kosul | 3 geri alma da basarisiz
+# Sirlar ASLA yazdirilmaz (ortam dokumu, env dosyalari, anahtarlar okunup loglanmaz).
+set -Eeuo pipefail
+umask 077
+# PATH sabit (sudo env_reset zaten temizler). ARILLA_EXTRA_PATH yalnizca yerel testler icindir;
+# sudo uzerinden gelen calismada ortam degiskenleri aktarilmadigi icin etkisizdir.
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${ARILLA_EXTRA_PATH:+:$ARILLA_EXTRA_PATH}"
+export LC_ALL=C
+
+ROOT=${ARILLA_ROOT:-/opt/arilla}
+REPO_URL=${ARILLA_REPO_URL:-https://github.com/ArillaSoftOrg/arilla.git}
+MAIN_REF=${ARILLA_MAIN_REF:-refs/heads/main}
+IMAGE_PREFIX=${ARILLA_IMAGE_PREFIX:-ghcr.io/arillasoftorg/}
+PULL=${ARILLA_PULL:-1}
+KEEP=${ARILLA_KEEP:-5}
+HEALTH_TIMEOUT_WEB=${ARILLA_HEALTH_TIMEOUT_WEB:-240}
+HEALTH_TIMEOUT=${ARILLA_HEALTH_TIMEOUT:-120}
+MIN_FREE_BYTES=${ARILLA_MIN_FREE_BYTES:-3221225472}
+# Otomatik guncellenen servisler (sirali). postgres/redis BILEREK dahil degil.
+AUTO_SERVICES=(web worker cron caddy)
+IMAGE_SERVICES=(web:web worker:ingest cron:cron migrate:migrate)
+
+PY=python3
+python3 -c '' >/dev/null 2>&1 || PY=python
+
+BK=""
+SHA=""
+MIGRATE_REF=""
+ROLLBACK_ARMED=0
+IN_ROLLBACK=0
+TOUCHED=()
+LOCK_DIR_OWNED=0
+TEE_PID=""
+
+ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+log() { printf '%s [deploy] %s\n' "$(ts)" "$*"; }
+warn() { printf '%s [deploy] UYARI: %s\n' "$(ts)" "$*" >&2; }
+die() {
+  printf '%s [deploy] HATA: %s\n' "$(ts)" "$1" >&2
+  if [ "$ROLLBACK_ARMED" = 1 ]; then fail_and_rollback; fi
+  exit "${2:-2}"
+}
+
+compose() { docker compose --env-file "$ROOT/compose.env" -f "$ROOT/compose.prod.yml" "$@"; }
+
+usage() { die "kullanim: arilla-deploy deploy <sha> < manifest.json | rollback | status"; }
+
+# ---------------------------------------------------------------------------- giris
+CMD=${1:-}
+SHA_ARG=${2:-}
+case "$CMD" in
+  deploy)
+    [[ "$SHA_ARG" =~ ^[0-9a-f]{40}$ ]] || die "sha 40 haneli onaltilik olmali"
+    [ $# -eq 2 ] || usage ;;
+  rollback | status) [ $# -eq 1 ] || usage ;;
+  *) usage ;;
+esac
+
+[ -d "$ROOT" ] || die "$ROOT yok"
+{ [ -f "$ROOT/compose.prod.yml" ] && [ -f "$ROOT/compose.env" ]; } || die "$ROOT altinda compose.prod.yml/compose.env yok"
+mkdir -p "$ROOT/logs" "$ROOT/backups" "$ROOT/work" "$ROOT/releases"
+
+# ---------------------------------------------------------------------------- status
+if [ "$CMD" = status ]; then
+  "$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" || true
+  "$PY" "$ROOT/vps/bin/release.py" list --dir "$ROOT" | tail -5 || true
+  compose ps --format '{{.Service}}: {{.State}} ({{.Health}})' || true
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------- kilit + gunluk
+LOCKFILE="$ROOT/.deploy.lock"
+if command -v flock >/dev/null 2>&1; then
+  exec 9>"$LOCKFILE"
+  flock -n 9 || die "baska bir dagitim calisiyor (kilit: $LOCKFILE)"
+else # flock yok (yalniz yerel test): mkdir tabanli kilit
+  mkdir "$LOCKFILE.d" 2>/dev/null || die "baska bir dagitim calisiyor (kilit: $LOCKFILE.d)"
+  LOCK_DIR_OWNED=1
+fi
+
+STAMP=$(date -u +%Y%m%d-%H%M%S)
+LOG="$ROOT/logs/deploy-$STAMP.log"
+exec > >(tee -a "$LOG") 2>&1
+TEE_PID=$!
+{ ls -1t "$ROOT"/logs/deploy-*.log 2>/dev/null | tail -n +31 | xargs -r rm -f --; } || true
+log "baslangic: komut=$CMD pid=$$"
+
+WORK=$(mktemp -d "$ROOT/work/deploy.XXXXXX")
+cleanup() {
+  if [ -n "${WORK:-}" ] && [ -d "$WORK" ]; then rm -rf -- "$WORK"; fi
+  if [ "$LOCK_DIR_OWNED" = 1 ]; then rmdir "$LOCKFILE.d" 2>/dev/null || true; fi
+  # gunluk akisinin (tee) bitmesini bekle: cikti, cagiranin dosyasina eksiksiz yazilsin
+  if [ -n "${TEE_PID:-}" ]; then
+    exec 1>&- 2>&-
+    wait "$TEE_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+# ---------------------------------------------------------------------------- yardimcilar
+env_value() { # env_value <dosya> <anahtar> [varsayilan]  (deger yalniz cagirana doner)
+  local v
+  v=$(grep -E "^$2=" "$1" 2>/dev/null | tail -1 | cut -d= -f2- || true)
+  printf '%s' "${v:-${3:-}}"
+}
+
+wait_healthy() { # wait_healthy <servis> <saniye>
+  local svc=$1 limit=$2 end st
+  end=$((SECONDS + limit))
+  while [ "$SECONDS" -lt "$end" ]; do
+    st=$(compose ps --format '{{.Service}}={{.Health}}' 2>/dev/null | awk -F= -v s="$svc" '$1==s{print $2}')
+    [ "$st" = "healthy" ] && return 0
+    sleep 3
+  done
+  return 1
+}
+
+web_ready() {
+  local i
+  for i in 1 2 3 4 5 6 7 8; do
+    if compose exec -T web node -e "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>process.exit(r.status===200?0:1)).catch(()=>process.exit(1))" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 3
+  done
+  return 1
+}
+
+verify_public() {
+  local url=${ARILLA_VERIFY_URL:-} resolve=${ARILLA_VERIFY_RESOLVE:-} site i code
+  if [ -z "$url" ]; then
+    site=$(env_value "$ROOT/compose.env" ARILLA_SITE_ADDRESS)
+    if [[ "$site" =~ ^[a-z0-9.-]+$ ]]; then
+      url="https://$site"
+      resolve="$site:443:127.0.0.1"
+    else
+      warn "ARILLA_SITE_ADDRESS alan adi degil; dis dogrulama atlandi"
+      return 0
+    fi
+  fi
+  local opts=(-sS --max-time 10)
+  [ -n "$resolve" ] && opts+=(--resolve "$resolve")
+  for i in 1 2 3 4 5; do
+    code=$(curl "${opts[@]}" -o /dev/null -w '%{http_code}' "$url/api/health" 2>/dev/null || true)
+    [ "$code" = "200" ] && break
+    if [ "$i" = 5 ]; then warn "dis dogrulama basarisiz: /api/health -> ${code:-yok}"; return 1; fi
+    sleep 3
+  done
+  # Ic uclar disariya acik olmamali (regresyon kontrolu)
+  code=$(curl "${opts[@]}" -o /dev/null -w '%{http_code}' "$url/api/health/ready" 2>/dev/null || true)
+  if [ "$code" != "404" ]; then warn "/api/health/ready disaridan ${code:-yok} dondu (404 beklenir)"; return 1; fi
+  return 0
+}
+
+hashes() { compose config --hash '*' 2>/dev/null | sort; }
+hash_of() { awk -v s="$2" '$1==s{print $2}' <<<"$1"; }
+file_sum() { if [ -f "$1" ]; then sha256sum "$1" | cut -d' ' -f1; else echo "-"; fi; }
+
+# ---------------------------------------------------------------------------- geri alma
+rollback_now() {
+  [ "$IN_ROLLBACK" = 0 ] || return 0
+  IN_ROLLBACK=1
+  trap - ERR
+  set +e
+  warn "GERI ALMA basliyor (yedek: $BK)"
+  if [ -z "$BK" ] || [ ! -d "$BK" ]; then warn "yedek yok, geri alinamadi"; return 3; fi
+  cp -a "$BK/compose.prod.yml" "$ROOT/compose.prod.yml"
+  cp -a "$BK/compose.env" "$ROOT/compose.env"
+  [ -d "$BK/vps" ] && cp -a "$BK/vps/." "$ROOT/vps/"
+  local f
+  for f in current previous; do
+    if [ -f "$BK/releases-$f" ]; then cp -a "$BK/releases-$f" "$ROOT/releases/$f"; else rm -f "$ROOT/releases/$f"; fi
+  done
+  printf '%s rollback-otomatik %s\n' "$(ts)" "${SHA:-?}" >>"$ROOT/releases/history.log"
+  local svc rc=0
+  for svc in "${TOUCHED[@]}"; do
+    log "geri alma: $svc eski yapilandirmayla yeniden olusturuluyor"
+    compose up -d --no-deps --force-recreate "$svc" || rc=1
+  done
+  for svc in "${TOUCHED[@]}"; do
+    if [ "$svc" = web ]; then wait_healthy web "$HEALTH_TIMEOUT_WEB" || rc=1; else wait_healthy "$svc" "$HEALTH_TIMEOUT" || rc=1; fi
+  done
+  if [ "$rc" = 0 ] && verify_public; then
+    log "geri alma TAMAM: onceki surum calisiyor"
+    return 1
+  fi
+  warn "GERI ALMA DA BASARISIZ: elle mudahale gerekir (yedek: $BK)"
+  return 3
+}
+
+fail_and_rollback() {
+  local rc=0
+  trap - ERR
+  rollback_now || rc=$?
+  echo "DEPLOY_RESULT=failed rollback=$([ "$rc" = 1 ] && echo ok || echo FAILED) sha=${SHA:-?}"
+  exit "$rc"
+}
+
+on_error() {
+  local line=$1
+  trap - ERR
+  warn "hata (satir $line)"
+  if [ "$ROLLBACK_ARMED" = 1 ]; then fail_and_rollback; fi
+  echo "DEPLOY_RESULT=failed rollback=not-needed sha=${SHA:-?}"
+  exit 1
+}
+trap 'on_error $LINENO' ERR
+
+# ---------------------------------------------------------------------------- deploy akisi
+deploy_flow() { # deploy_flow <manifest> <kaynak-modu: git|tar> <tar-yolu-veya-bos>
+  local manifest=$1 mode=$2 tarball=${3:-}
+  local stage="$WORK/src"
+  mkdir -p "$stage"
+
+  # --- kaynak
+  if [ "$mode" = git ]; then
+    local bare="$ROOT/src.git"
+    if [ ! -d "$bare" ]; then
+      log "depo klonlaniyor (yalniz metaveri)"
+      git clone --bare --quiet --filter=blob:none --single-branch --branch "${MAIN_REF#refs/heads/}" "$REPO_URL" "$bare"
+    fi
+    git -C "$bare" fetch --quiet --prune --filter=blob:none "$REPO_URL" "+${MAIN_REF}:${MAIN_REF}"
+    git -C "$bare" cat-file -e "${SHA}^{commit}" 2>/dev/null || die "commit $SHA depoda yok"
+    git -C "$bare" merge-base --is-ancestor "$SHA" "$MAIN_REF" || die "commit $SHA main dalinda DEGIL; dagitilmaz"
+    git -C "$bare" archive --format=tar "$SHA" infra >"$WORK/infra.tar"
+    tarball="$WORK/infra.tar"
+  fi
+  tar -x -C "$stage" <"$tarball"   # stdin: GNU tar "C:/..." yolunu uzak sunucu sanmasin
+  [ -f "$stage/infra/compose.prod.yml" ] || die "kaynakta infra/compose.prod.yml yok"
+  local S="$stage/infra"
+
+  # --- manifest
+  "$PY" "$S/vps/bin/release.py" validate "$manifest" --sha "$SHA" --image-prefix "$IMAGE_PREFIX" || die "manifest gecersiz"
+
+  # --- on kontroller (uretim dosyalarina dokunmadan)
+  log "on kontrol: compose yapilandirmasi"
+  docker compose --env-file "$ROOT/compose.env" -f "$S/compose.prod.yml" config -q || die "yeni compose.prod.yml gecersiz"
+  local cfg
+  cfg=$(docker compose --env-file "$ROOT/compose.env" -f "$S/compose.prod.yml" config --format json)
+  log "on kontrol: Caddyfile (tek kullanimlik, aga kapali konteyner)"
+  local caddy_img caddy_env
+  caddy_img=$("$PY" -c 'import json,sys;print(json.load(sys.stdin)["services"]["caddy"]["image"])' <<<"$cfg")
+  caddy_env=$("$PY" -c 'import json,sys;e=json.load(sys.stdin)["services"]["caddy"]["environment"];print(" ".join("-e %s=%s"%(k,v) for k,v in e.items()))' <<<"$cfg")
+  # shellcheck disable=SC2086
+  docker run --rm --network none $caddy_env -v "$S/vps/Caddyfile:/etc/caddy/Caddyfile:ro" "$caddy_img" \
+    caddy validate --config /etc/caddy/Caddyfile >/dev/null 2>&1 || die "yeni Caddyfile gecersiz (caddy validate)"
+  log "on kontrol: pg_hba.conf docker agini kapsiyor mu"
+  local net subnets
+  net=$("$PY" -c 'import json,sys;print(json.load(sys.stdin)["networks"]["data"]["name"])' <<<"$cfg")
+  subnets=$(docker network inspect "$net" --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}' 2>/dev/null || true)
+  if [ -n "$subnets" ]; then
+    # shellcheck disable=SC2086
+    "$PY" "$S/vps/bin/check-pg-hba.py" "$S/vps/postgres/pg_hba.conf" $subnets >/dev/null || die "pg_hba.conf docker agini kapsamiyor"
+  fi
+
+  # --- imajlar: digest ile cek, sha etiketini dogrula
+  local entry key ref rev
+  for entry in "${IMAGE_SERVICES[@]}"; do
+    key=${entry#*:}
+    ref=$("$PY" -c 'import json,sys;i=json.load(open(sys.argv[1]))["images"][sys.argv[2]];print(i["image"]+"@"+i["digest"])' "$manifest" "$key")
+    if [ "$PULL" = 1 ]; then
+      log "imaj cekiliyor: ${ref%%@*}"
+      docker pull --quiet "$ref" >/dev/null || die "imaj cekilemedi: ${ref%%@*} (GHCR girisi: root olarak 'docker login ghcr.io')"
+    fi
+    rev=$(docker image inspect --format '{{ index .Config.Labels "org.opencontainers.image.revision" }}' "$ref" 2>/dev/null || true)
+    [ "$rev" = "$SHA" ] || die "imaj ${ref%%@*} revision etiketi $SHA degil (${rev:-yok}); reddedildi"
+    if [ "$key" = migrate ]; then MIGRATE_REF=$ref; fi
+  done
+
+  # --- yedek (geri alma noktasi)
+  BK="$ROOT/backups/deploy-$STAMP-${SHA:0:12}"
+  mkdir -p "$BK"
+  cp -a "$ROOT/compose.prod.yml" "$BK/compose.prod.yml"
+  cp -a "$ROOT/compose.env" "$BK/compose.env"
+  if [ -d "$ROOT/vps" ]; then cp -a "$ROOT/vps" "$BK/vps"; fi
+  local f
+  for f in current previous; do
+    if [ -f "$ROOT/releases/$f" ]; then cp -a "$ROOT/releases/$f" "$BK/releases-$f"; fi
+  done
+  log "yedek alindi: $BK"
+
+  local before_hashes caddy_sum_before
+  before_hashes=$(hashes)
+  caddy_sum_before=$(file_sum "$ROOT/vps/Caddyfile")
+
+  # --- kur + uygula (bu noktadan sonra hata = otomatik geri alma)
+  ROLLBACK_ARMED=1
+  install -m 0644 "$S/compose.prod.yml" "$ROOT/compose.prod.yml"
+  mkdir -p "$ROOT/vps"
+  cp -a "$S/vps/." "$ROOT/vps/"
+  "$PY" "$ROOT/vps/bin/release.py" apply "$manifest" --dir "$ROOT" --image-prefix "$IMAGE_PREFIX"
+  cmp -s "$S/vps/bin/arilla-deploy" "$ROOT/bin/arilla-deploy" 2>/dev/null || warn "kurulu arilla-deploy/deploy-gate main'dekinden farkli olabilir; guncellemek icin: sudo infra/vps/bin/install-deploy.sh"
+
+  # --- migration (kontrollu): bekleyenler varsa once pg_dump
+  local pguser pgdb applied available pending free dump
+  pguser=$(env_value "$ROOT/env/postgres.env" POSTGRES_USER arilla)
+  pgdb=$(env_value "$ROOT/env/postgres.env" POSTGRES_DB arilla)
+  applied=$(compose exec -T postgres psql -U "$pguser" -d "$pgdb" -Atc 'select filename from schema_migration order by 1') || die "schema_migration okunamadi (veritabani erisilemez)"
+  available=$(docker run --rm --pull=never --network none --entrypoint ls "$MIGRATE_REF" /app/packages/db/migrations | grep -E '^[0-9]{4}_.*[.]sql$' | sort)
+  pending=$(comm -13 <(sort <<<"$applied") <(sort <<<"$available") || true)
+  if [ -n "$pending" ]; then
+    log "bekleyen migration: $(wc -l <<<"$pending" | tr -d ' ') dosya ($(head -3 <<<"$pending" | tr '\n' ' ')...)"
+    free=$(df --output=avail -B1 "$ROOT" | tail -1 | tr -d ' ')
+    [ "$free" -ge "$MIN_FREE_BYTES" ] || die "yetersiz bos disk ($free bayt); migration oncesi yedek alinamaz"
+    dump="$ROOT/backups/pre-migrate-$STAMP-${SHA:0:12}.dump"
+    compose exec -T postgres pg_dump -U "$pguser" -Fc "$pgdb" >"$dump"
+    [ -s "$dump" ] || die "pg_dump bos"
+    compose exec -T postgres pg_restore -l <"$dump" >/dev/null || die "pg_dump dogrulanamadi"
+    log "migration oncesi yedek: $dump ($(wc -c <"$dump" | tr -d ' ') bayt)"
+    compose run -T --rm --no-deps migrate
+    compose run -T --rm --no-deps migrate node scripts/verify-schema.ts >/dev/null
+    log "migration + schema dogrulamasi tamam"
+  else
+    log "bekleyen migration yok"
+  fi
+
+  # --- degisen servisler
+  local after_hashes caddy_sum_after s
+  local changed=()
+  after_hashes=$(hashes)
+  caddy_sum_after=$(file_sum "$ROOT/vps/Caddyfile")
+  for s in "${AUTO_SERVICES[@]}"; do
+    if [ "$(hash_of "$before_hashes" "$s")" != "$(hash_of "$after_hashes" "$s")" ]; then
+      changed+=("$s")
+    elif [ "$s" = caddy ] && [ "$caddy_sum_before" != "$caddy_sum_after" ]; then
+      changed+=("$s")
+    fi
+  done
+  for s in postgres redis; do
+    if [ "$(hash_of "$before_hashes" "$s")" != "$(hash_of "$after_hashes" "$s")" ]; then
+      warn "$s yapilandirmasi degisti ama OTOMATIK yeniden baslatilmaz (veri guvenligi). Uygun bir anda elle: docker compose ... up -d --no-deps $s"
+    fi
+  done
+  if [ "${#changed[@]}" -eq 0 ]; then
+    log "servis degisikligi yok; zaten guncel"
+  else
+    log "yeniden olusturulacak: ${changed[*]}"
+  fi
+  for s in "${changed[@]}"; do
+    TOUCHED+=("$s")
+    log "guncelleniyor: $s"
+    compose up -d --no-deps --force-recreate "$s"
+    if [ "$s" = web ]; then
+      wait_healthy web "$HEALTH_TIMEOUT_WEB" || die "web healthy olmadi"
+      web_ready || die "web /api/health/ready 200 vermedi"
+    else
+      wait_healthy "$s" "$HEALTH_TIMEOUT" || die "$s healthy olmadi"
+    fi
+  done
+
+  # --- son dogrulama
+  for s in web worker cron caddy postgres redis; do
+    wait_healthy "$s" 60 || die "$s healthy degil"
+  done
+  verify_public || die "dis dogrulama basarisiz"
+
+  # --- basarili: bu surumun altyapi paketini sakla (manuel geri alma icin), eskileri buda
+  [ "$tarball" -ef "$ROOT/releases/$SHA.infra.tar" ] || cp -a "$tarball" "$ROOT/releases/$SHA.infra.tar"
+  { ls -1t "$ROOT"/releases/*.infra.tar 2>/dev/null | tail -n +$((KEEP * 2 + 1)) | xargs -r rm -f --; } || true
+  { ls -1dt "$ROOT"/backups/deploy-* 2>/dev/null | tail -n +$((KEEP + 1)) | xargs -r rm -rf --; } || true
+  { ls -1t "$ROOT"/backups/pre-migrate-*.dump 2>/dev/null | tail -n +$((KEEP + 1)) | xargs -r rm -f --; } || true
+  ROLLBACK_ARMED=0
+  log "TAMAM: sha-$SHA"
+  echo "DEPLOY_RESULT=success sha=$SHA changed=${changed[*]:-none}"
+}
+
+case "$CMD" in
+  deploy)
+    SHA=$SHA_ARG
+    head -c 65536 >"$WORK/manifest.json"
+    [ -s "$WORK/manifest.json" ] || die "manifest stdin'den okunamadi"
+    exec </dev/null
+    deploy_flow "$WORK/manifest.json" git ""
+    ;;
+  rollback)
+    PREV=$(cat "$ROOT/releases/previous" 2>/dev/null || true)
+    [[ "$PREV" =~ ^[0-9a-f]{40}$ ]] || die "geri donulecek onceki surum yok"
+    { [ -f "$ROOT/releases/$PREV.json" ] && [ -f "$ROOT/releases/$PREV.infra.tar" ]; } || die "onceki surumun manifesti/altyapi paketi eksik"
+    SHA=$PREV
+    cp "$ROOT/releases/$PREV.json" "$WORK/manifest.json"
+    log "elle geri alma: sha-$PREV (veritabani migration'lari GERI ALINMAZ)"
+    deploy_flow "$WORK/manifest.json" tar "$ROOT/releases/$PREV.infra.tar"
+    ;;
+esac
