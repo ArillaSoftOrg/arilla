@@ -248,10 +248,46 @@ başlangıçtır; gerçek yük altında `docker stats` ile ayarlanır.
 (`--data-checksums`, sonradan eklenemez). Hata günlüklerine sorgu metni yazılmaz
 (`log_min_error_statement=panic`; yavaş sorgu günlüğü 500 ms).
 
+**PostgreSQL istemci kimlik doğrulaması (`vps/postgres/pg_hba.conf`).** Kurallar repoda
+sürümlenir ve `hba_file` ile `/etc/postgresql/pg_hba.conf` (salt-okunur bağ) olarak yüklenir;
+`initdb`'nin veri dizinine yazdığı `pg_hba.conf` **kullanılmaz**. (Bu, ilk kurulumda
+yalnızca-localhost kalan VPS hatasının kalıcı çözümüdür: sonuç artık entrypoint'in dosyaya ne
+eklediğine bağlı değildir ve mevcut volume'larda da aynı davranır.) Kurallar: konteyner içi
+unix soketi `trust` (yalnız `docker exec`), loopback `scram-sha-256`, ve `arilla` veritabanına
+yalnızca `arilla`/`arilla_app` rolleri için **özel (RFC 1918) adres blokları** (`10.0.0.0/8`,
+`172.16.0.0/12`, `192.168.0.0/16`) üzerinden `scram-sha-256`. Eşleşmeyen her bağlantı reddedilir.
+Docker alt ağı **sabitlenmez**: Docker `data` ağına varsayılan havuzdan alt ağ verir ve daemon
+ayarı ya da ağın yeniden oluşturulması bunu değiştirebilir; bloklar bu yüzden alt ağın kendisini
+değil özel adres uzayını kapsar. Güvence üç yerdedir: (1) `infra/vps/bin/check-pg-hba.py` gerçek
+`data` alt ağının kuralca kapsandığını doğrular (`db-bootstrap.sh` ön kontrolü ve duman testi);
+(2) postgres healthcheck'i konteynerin kendi ağ adresine TCP + SCRAM ile bağlanır, yani alt ağ
+kapsanmazsa `healthy` olmaz; (3) `/api/health/ready` veritabanı bağlantısı koparsa 503 verir.
+Daemon `default-address-pools` özel blokların DIŞINA ayarlanırsa `pg_hba.conf`'a ilgili blok
+eklenir ve `docker compose restart postgres` yapılır. Port yayını hâlâ yoktur; `pg_hba`
+ikinci katmandır, birincisi ağ yalıtımıdır.
+
 **Redis** (`vps/redis/redis.conf`): `appendonly yes` (`everysec`), `maxmemory 512mb`,
-`noeviction`, `FLUSHALL/FLUSHDB/DEBUG/KEYS` kapalı. Parola `redis.conf`'ta ve komut
-satırında YOKTUR: konteyner başlarken `REDIS_PASSWORD`'dan tmpfs'teki dosyaya yazılır
-(`ps` ile görünmez).
+`noeviction`, `FLUSHALL/FLUSHDB/DEBUG/KEYS` kapalı. Konteyner **root olmadan** doğrudan
+`redis` kullanıcısıyla (`user: "999:1000"`, resmî imajla aynı uid/gid) başlar; ek yetki (`cap_add`)
+yoktur. Resmî entrypoint root olarak başlayıp `chown`/`gosu` yaptığı için `cap_drop: ALL`
+altında (root'un `DAC_OVERRIDE`'ı yok) ilk başlatmadan sonra 0700 `appendonlydir`'i gezemiyor ve
+`find: ./appendonlydir: Permission denied` ile yeniden başlatma döngüsüne giriyordu; doğrudan
+`redis-server` bunu ortadan kaldırır. Parola `redis.conf`'ta ve komut satırında YOKTUR:
+başlarken `REDIS_PASSWORD`'dan tmpfs'teki 0600 dosyaya yazılır, `redis.conf` bunu `include`
+eder, sonra `exec` ile `redis-server` PID 1 olur (`ps`/`docker top` çıktısında görünmez).
+
+**Mevcut bir VPS kurulumunu güncelleme** (Redis restart döngüsü / yalnızca-localhost
+`pg_hba.conf` düzeltmesi; veri ve volume'lar silinmez):
+
+1. Güncel `infra/` içeriğini `/opt/arilla/` altına kopyala (`compose.prod.yml`, `vps/`).
+2. Geçici Redis override'ını (`user: "999:1000"`) kaldır; artık temel dosyadadır.
+3. `docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml up -d postgres redis`
+   (konfigürasyon değiştiği için ikisi yeniden oluşturulur; `redis_data` ve `postgres_data`
+   volume'ları aynen kalır, AOF/RDB ve veritabanı korunur).
+4. Elle eklenmiş `PGDATA/pg_hba.conf` satırları artık kullanılmaz; silmek isteğe bağlıdır.
+5. Doğrula: `docker compose ... ps` (ikisi `healthy`), ve
+   `python3 infra/vps/bin/check-pg-hba.py /opt/arilla/vps/postgres/pg_hba.conf
+   $(docker network inspect arilla_data --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}')`.
 
 **Caddy** (`vps/Caddyfile`): `request_body max_size 6MB` + `Content-Length` > 6 MB ise
 yukarı akışa gitmeden 413 (parçalı gönderimde gövde okunurken kesilir, istemci 400 görür).
