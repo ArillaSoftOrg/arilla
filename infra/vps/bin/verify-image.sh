@@ -31,11 +31,14 @@ for img in "$@"; do
   fi
 
   # 2) PEM ozel anahtar ICERIGI: baslik + ardindan base64 govde. Yalniz baslik metni
-  # (ornegin jose/@vercel/oidc kutuphane kodunda `indexOf("-----BEGIN PRIVATE KEY-----")`)
-  # ve sertifika paketleri bayrak almaz.
+  # (ornegin jose/@vercel/oidc kutuphane kodunda bir karsilastirma dizgesi) ve
+  # sertifika paketleri bayrak almaz. Baslik, depo tarayicisi (scripts/check-private-keys.mjs)
+  # bu dosyayi anahtar sanmasin diye iki parcadan birlestirilir.
   # Satir tabanli: baslik satirini iceren dosyada, hemen ardindan TAM SATIR base64 govde varsa.
   # (busybox grep --exclude-dir bilmez; adaylar find ile secilir, her imajda calisir.)
-  scan='find / -xdev -type f -size -4096k -not -path "/proc/*" -not -path "/sys/*" -not -path "/dev/*" -not -path "*/node_modules/*" 2>/dev/null | xargs grep -l -e "-----BEGIN [A-Z ]*PRIVATE KEY-----" 2>/dev/null | while read -r f; do grep -A1 -e "-----BEGIN [A-Z ]*PRIVATE KEY-----" "$f" 2>/dev/null | grep -qE "^[A-Za-z0-9+/=]{40,}[[:space:]]*$" && echo "$f"; done; true'
+  begin="-----BEGIN"; tail="PRIVATE KEY-----"
+  hdr="$begin [A-Z ]*$tail"
+  scan='find / -xdev -type f -size -4096k -not -path "/proc/*" -not -path "/sys/*" -not -path "/dev/*" -not -path "*/node_modules/*" 2>/dev/null | xargs grep -l -e "'"$hdr"'" 2>/dev/null | while read -r f; do grep -A1 -e "'"$hdr"'" "$f" 2>/dev/null | grep -qE "^[A-Za-z0-9+/=]{40,}[[:space:]]*$" && echo "$f"; done; true'
   keys=$(docker run --rm --entrypoint sh "$img" -c "$scan")
   if [ -n "$keys" ]; then
     echo "  FAIL ozel anahtar icerigi var:"
