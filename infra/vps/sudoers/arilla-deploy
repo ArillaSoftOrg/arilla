@@ -1,0 +1,11 @@
+# /etc/sudoers.d/arilla-deploy  (mod 0440, sahip root:root; install-deploy.sh kurar)
+#
+# `deploy` kullanicisi YALNIZCA kok-sahipli dagitim motorunun uc alt komutunu, parolasiz,
+# root olarak calistirabilir. Docker grubu, genel sudo, kabuk ya da baska komut YOK.
+# Argumanlar ayrica arilla-deploy ve deploy-gate tarafindan kati dogrulanir (sha 40 hane).
+Defaults:deploy !requiretty, env_reset, secure_path="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Defaults:deploy !env_keep
+
+deploy ALL=(root) NOPASSWD: /opt/arilla/bin/arilla-deploy deploy [0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f][0-9a-f]
+deploy ALL=(root) NOPASSWD: /opt/arilla/bin/arilla-deploy rollback
+deploy ALL=(root) NOPASSWD: /opt/arilla/bin/arilla-deploy status

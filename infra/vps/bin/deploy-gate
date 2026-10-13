@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# deploy-gate - GitHub Actions SSH anahtarinin tek calistirabilecegi komut (karar 0109).
+#
+# ~deploy/.ssh/authorized_keys satiri:
+#   restrict,command="/opt/arilla/bin/deploy-gate" ssh-ed25519 AAAA... github-actions-deploy
+#
+# `restrict`: pty, port/agent/X11 yonlendirme, ~/.ssh/rc YOK. Istemcinin istedigi komut
+# SSH_ORIGINAL_COMMAND'dadir; yalnizca asagidaki IZIN LISTESI kabul edilir ve kok yetkili
+# `arilla-deploy`'a sudo ile aktarilir (docker grubu YOK, genel sudo YOK):
+#
+#   deploy <40-haneli-sha>     (manifest stdin)
+#   rollback
+#   status
+#
+# Bu betik ve arilla-deploy root'a aittir, deploy kullanicisi YAZAMAZ (install-deploy.sh).
+set -euo pipefail
+
+cmd=${SSH_ORIGINAL_COMMAND:-}
+# Kabuk meta karakterleri ve fazla bosluk yok; yalnizca kucuk harf, rakam, bosluk
+re='^[a-z0-9 ]{1,64}$'
+[[ "$cmd" =~ $re ]] || { echo "deploy-gate: gecersiz komut" >&2; exit 126; }
+
+read -r -a parts <<<"$cmd"
+case "${parts[0]:-}" in
+  deploy)
+    [ "${#parts[@]}" -eq 2 ] && [[ "${parts[1]}" =~ ^[0-9a-f]{40}$ ]] || { echo "deploy-gate: deploy <40 haneli sha>" >&2; exit 126; }
+    exec sudo -n /opt/arilla/bin/arilla-deploy deploy "${parts[1]}" ;;
+  rollback | status)
+    [ "${#parts[@]}" -eq 1 ] || { echo "deploy-gate: arguman kabul edilmez" >&2; exit 126; }
+    exec sudo -n /opt/arilla/bin/arilla-deploy "${parts[0]}" ;;
+  *)
+    echo "deploy-gate: izin verilmeyen komut" >&2
+    exit 126 ;;
+esac

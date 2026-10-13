@@ -399,6 +399,91 @@ Taban imajlara `apt-get/apk upgrade` uygulanır (yayınlanmış güvenlik yamala
 hazır ikili yerine güncel Go ile kaynaktan derlenir (hazır ikili eski Go standart
 kütüphanesiyle HIGH Trivy bulgusu veriyordu).
 
+### Otomatik dağıtım (faz 6): `.github/workflows/deploy.yml` + `infra/vps/bin/arilla-deploy`
+
+```
+push main → ci ✔ → build-push ✔ (imajlar + release-manifest) → deploy.yml
+   plan  (salt okunur): manifest + sha main'in ucu mu + zorunlu kontroller + imajlar GHCR'da digest ile var mı
+   deploy (environment vps-production): ssh deploy@VPS "deploy <sha>" < release-manifest.json
+        └─ VPS: deploy-gate (izin listesi) → sudo → arilla-deploy (root)
+```
+
+**Güvenlik modeli.**
+- GitHub Actions yalnızca **kısıtlı bir SSH anahtarı** taşır: `authorized_keys` satırı
+  `restrict,command="/opt/arilla/bin/deploy-gate"`. Anahtar kabuk, port yönlendirme, pty ya da başka komut
+  açamaz; `deploy-gate` yalnızca `deploy <40 haneli sha>` (manifest stdin), `rollback`, `status` kabul eder.
+- `deploy` kullanıcısı **docker grubunda değildir** ve genel sudo'su yoktur. `/etc/sudoers.d/arilla-deploy`
+  yalnızca `/opt/arilla/bin/arilla-deploy {deploy <sha>|rollback|status}` komutuna parolasız izin verir.
+  `arilla-deploy` ve `deploy-gate` **root'a aittir**, deploy kullanıcısı yazamaz.
+- Altyapı dosyaları (`compose.prod.yml`, `Caddyfile`, ...) istemciden **gelmez**: motor GitHub'dan `<sha>`
+  için alır ve commit'in **main'de olmasını** şart koşar. İmajlar manifestteki digest ile çekilir;
+  `org.opencontainers.image.revision` etiketi sha ile eşleşmezse reddedilir. Yani anahtarı ele geçiren biri
+  en fazla main'deki bir commit'i yeniden dağıtabilir, rastgele konteyner/yapılandırma çalıştıramaz.
+- Production sırları GitHub'a girmez (`/opt/arilla/env/*.env` yalnızca VPS'te). Dağıtım çıktısı ve günlükler
+  (`/opt/arilla/logs/deploy-*.log`, `0600`, root) sır içermez.
+
+**Ne yapar (sırayla).** Kilit (aynı anda tek dağıtım) → manifest doğrulama (`release.py validate`: `complete`,
+sha, `ghcr.io/arillasoftorg/` öneki) → kaynak getir (sha main'de mi) → **ön kontroller** (yeni compose
+geçerli mi, yeni Caddyfile `caddy validate` ile, `pg_hba.conf` Docker ağını kapsıyor mu) → imajları digest ile
+çek + sha etiketini doğrula → **yedek** (`backups/deploy-*`) → dosyaları kur + `release.py apply` →
+**bekleyen migration varsa** önce `pg_dump` (`backups/pre-migrate-*.dump`, ≥3 GB boş disk şartı), sonra
+`migrate` + `verify-schema` → değişen servisleri sırayla yeniden oluştur (`web` → `worker` → `cron` →
+`caddy`; her biri `healthy`, web ayrıca `/api/health/ready` 200) → tüm servisler healthy + internetten
+`/api/health` 200 ve `/api/health/ready` 404.
+
+**Geri alma.** Yedek noktasından sonra herhangi bir adım başarısızsa motor **otomatik** geri alır: `compose.prod.yml`,
+`vps/`, `compose.env`, `releases/` işaretçileri geri yüklenir, yeniden oluşturulan servisler eski yapılandırmayla
+tekrar başlatılır ve doğrulanır (çıkış kodu 1, `DEPLOY_RESULT=failed rollback=ok`). Geri alma da başarısız olursa
+çıkış kodu 3 ve `rollback=FAILED`: elle müdahale gerekir (yedek yolu çıktıda). **Veritabanı migration'ları geri
+alınmaz** (CLAUDE.md #14 gereği geriye uyumludur; eski kod yeni şemayla çalışır); gerekirse `pre-migrate-*.dump`
+ile elle dönülür. Elle geri alma: `ssh ... rollback` (bir önceki sürüm; manifest + altyapı paketi `releases/`
+altında saklanır) ya da `workflow_dispatch` (`build_run_id` + `allow_older`).
+
+**Dokunulmayanlar.** `postgres` ve `redis` otomatik yeniden başlatılmaz ve volume'ları asla silinmez; yapılandırmaları
+değişirse uyarı verilir ("uygun bir anda elle `up -d --no-deps postgres`"). Env dosyaları (`/opt/arilla/env`) ve
+`compose.env`'in `release.py`'nin yönettiği satırlar dışındaki içeriği korunur.
+
+**Kesinti.** Tek `web` kopyası olduğu için her dağıtımda `web` yeniden oluşturulur: birkaç ila onlarca saniye Caddy
+502 verir (sıfır kesinti için ikinci kopya + sıralı güncelleme gerekir; kapsam dışı). `worker` kuyruğu Redis'te
+beklediği için iş kaybolmaz.
+
+**Elle kurulum (bir kez) — VPS (root):**
+
+```bash
+# 1) Gerekli araçlar: git python3 curl tar (apt install) ve docker compose
+# 2) Motoru kur (depo herkese açık; kurulum kopyası geçicidir)
+git clone --depth 1 https://github.com/ArillaSoftOrg/arilla.git /tmp/arilla-src
+sudo /tmp/arilla-src/infra/vps/bin/install-deploy.sh            # /opt/arilla/bin + /etc/sudoers.d/arilla-deploy (visudo ile doğrulanır)
+# 3) GitHub Actions için ANAHTAR (çalışma bilgisayarınızda): ssh-keygen -t ed25519 -N "" -f arilla-actions
+#    Genel anahtarı deploy kullanıcısına KISITLI olarak ekleyin (/home/deploy/.ssh/authorized_keys, tek satır):
+#    restrict,command="/opt/arilla/bin/deploy-gate" ssh-ed25519 AAAA... github-actions
+# 4) GHCR girişi (paketler private): PAT (read:packages) ile ROOT için
+echo "<PAT>" | sudo docker login ghcr.io -u <kullanıcı> --password-stdin
+# 5) Dağıtım çalıştığını doğruladıktan SONRA deploy'u docker grubundan çıkar (artık gerekmez)
+sudo gpasswd -d deploy docker
+```
+
+**Elle kurulum — GitHub** (Settings → Environments → **New environment** `vps-production`; *Deployment branches*:
+yalnızca `main`; isteğe bağlı *Required reviewers* = elle onay):
+- Secret `VPS_SSH_PRIVATE_KEY` = adım 3'te üretilen özel anahtar (dosyanın tamamı).
+- Secret `VPS_SSH_KNOWN_HOSTS` = sunucu anahtarı satırı. Çalışma bilgisayarında `ssh-keyscan -t ed25519 187.7.77.163`
+  çıktısı **sunucuda** `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` parmak iziyle karşılaştırılarak alınır
+  (ilk bağlantıda kör güven yok: `StrictHostKeyChecking=yes`).
+- Variable `VPS_HOST` = `187.7.77.163`, Variable `VPS_USER` = `deploy` (yazılmazsa `deploy`).
+- Repo variable `ARILLA_APP_URL` zaten tanımlı (dış doğrulama için de kullanılır).
+Bu üçü eksikse `deploy` işi **yeşil kalır ve "Dağıtım atlandı" uyarısı verir**. Kurulum doğrulaması (yerel
+bilgisayardan): `ssh -i arilla-actions deploy@187.7.77.163 status` çalışır; `ssh ... bash` ve benzerleri
+`izin verilmeyen komut` (126) ile reddedilir.
+
+**Yerel test.** `infra/vps/bin/test-deploy.sh` (CI `compose-stack` işinde de koşar): yerel registry, sentetik
+depo, iyi/kötü sürümler; güvenlik kapıları, başarılı dağıtım, **sağlık geçmeyen sürümde otomatik geri alma**,
+bekleyen migration + `pg_dump`, Caddyfile değişimi, idempotent tekrar, es zamanlı dağıtım kilidi, elle geri
+alma, `deploy-gate` izin listesi ve günlükte sır yokluğu. `infra/vps/bin/test-ssh-gate.sh` (CI `deploy ssh gate`
+işi) **gerçek `sshd` + `sudo`** ile VPS yetki zincirini sınar (tek kullanımlık Ubuntu 24.04 konteyneri):
+`install-deploy.sh` → sudoers (`visudo`) → `restrict,command=` → `deploy-gate` → `sudo` → motor; izin verilen 3
+komut kök olarak ve doğru argümanla ulaşır, 15 izin dışı komut/pty/port yönlendirme reddedilir, `deploy` motoru,
+kapıyı ve sudoers'i değiştiremez, docker grubunda değildir.
+
 **VPS'e geçmeden önce** (hâlâ yapılmadı): bkz. PR açıklaması / `docs/decisions/0109`
 "Faz 2 sonrası kontrol listesi".
 
@@ -1149,11 +1234,11 @@ değişkenleri ayrı silinebilir. Federe erişimi tümden kesmek için
 ## Dağıtım
 
 - `main` dalına birleşme staging'e otomatik gider
-- Production dağıtımı elle onaylanır
-- VPS yolu (karar 0109, sonraki fazlar): CI → GHCR imajı (`:<sha>`) → VPS betiği
-  `migrate` → `up -d` → `/api/health/ready` kapısı; kapı geçilmezse önceki sha'ya
-  otomatik dönüş. Onay politikası ilk haftalarda elle onaylı başlar, sonra kararla
-  kaldırılır.
+- Vercel production'ı Git entegrasyonuyla dağıtılır (geçiş bitene kadar sürer)
+- VPS yolu (karar 0109, faz 6): CI ✔ → GHCR imajı (`:<sha>`, digest ile) → `deploy.yml` → VPS'te
+  `arilla-deploy` (migration yedeği + `migrate`, sağlık kapısı, **otomatik geri alma**). Aynı anda tek
+  dağıtım. Elle onay isteniyorsa `vps-production` environment'ına *Required reviewers* eklenir; kod
+  değişmez. Ayrıntı: "Otomatik dağıtım (faz 6)".
 - Migration'lar geriye uyumlu yazılır: önce kolon eklenir, kod dağıtılır, sonra
   eski kolon kaldırılır. Tek adımda kolon silen migration reddedilir.
 - Geri alma planı her dağıtımda hazır olur

@@ -7,7 +7,8 @@ Bu araç manifesti VPS'te `compose.env`e uygular (ARILLA_TAG + her imaj için
 ARILLA_*_DIGEST) ve geçmişi tutar; böylece bir önceki sürüme dönmek tek komuttur.
 Yalnızca dosya yazar: docker/compose ÇAĞIRMAZ, ağa çıkmaz, sır içermez.
 
-    release.py apply <manifest.json> [--dir /opt/arilla]
+    release.py validate <manifest.json> [--sha SHA] [--image-prefix ghcr.io/arillasoftorg/]
+    release.py apply <manifest.json> [--dir /opt/arilla] [--image-prefix ghcr.io/arillasoftorg/]
     release.py rollback              [--dir /opt/arilla]
     release.py current               [--dir /opt/arilla]
     release.py list                  [--dir /opt/arilla]
@@ -23,7 +24,9 @@ Doğrulama (uygulamadan önce, başarısızsa HİÇBİR ŞEY değişmez):
     - complete=true, dört imajın dördü de var
     - sha 40 onaltılık, tag == "sha-<sha>"
     - her digest "sha256:<64 onaltılık>"
-    - image adı `ghcr.io/<sahip>/arilla-<ad>` biçiminde
+    - image adı `ghcr.io/<sahip>/arilla-<ad>` biçiminde; `--image-prefix` verilirse tam olarak
+      `<önek>arilla-<ad>` (dağıtım motoru yalnızca kendi kuruluşunun GHCR önekini kabul eder)
+    - `--sha` verilirse manifestin sha'sı onunla aynı olmalı
 """
 
 from __future__ import annotations
@@ -53,11 +56,13 @@ class ReleaseError(Exception):
     pass
 
 
-def validate(manifest: dict) -> str:
+def validate(manifest: dict, image_prefix: str | None = None, expect_sha: str | None = None) -> str:
     """Manifesti doğrular, sha'yı döndürür."""
     sha = manifest.get("sha", "")
     if not isinstance(sha, str) or not SHA_RE.match(sha):
         raise ReleaseError("sha 40 haneli onaltılık olmalı")
+    if expect_sha is not None and sha != expect_sha:
+        raise ReleaseError("manifest sha'sı beklenen sha ile uyuşmuyor")
     if manifest.get("tag") != f"sha-{sha}":
         raise ReleaseError("tag 'sha-<sha>' olmalı (hareketli etiket kabul edilmez)")
     if manifest.get("complete") is not True:
@@ -67,7 +72,11 @@ def validate(manifest: dict) -> str:
         raise ReleaseError(f"images tam olarak {', '.join(NAMES)} içermeli")
     for name in NAMES:
         entry = images[name]
-        if not IMAGE_RE.match(entry.get("image", "")) or not entry["image"].endswith(f"arilla-{name}"):
+        image = entry.get("image", "")
+        if image_prefix is not None:
+            if image != f"{image_prefix}arilla-{name}":
+                raise ReleaseError(f"{name}: image adı {image_prefix}arilla-{name} olmalı")
+        elif not IMAGE_RE.match(image) or not image.endswith(f"arilla-{name}"):
             raise ReleaseError(f"{name}: image adı ghcr.io/<sahip>/arilla-{name} olmalı")
         if entry.get("tag") != f"sha-{sha}":
             raise ReleaseError(f"{name}: tag sha ile uyuşmuyor")
@@ -103,8 +112,8 @@ def read_pointer(releases: Path, name: str) -> str | None:
     return p.read_text(encoding="utf-8").strip() if p.exists() else None
 
 
-def apply_manifest(root: Path, manifest: dict, action: str) -> str:
-    sha = validate(manifest)
+def apply_manifest(root: Path, manifest: dict, action: str, image_prefix: str | None = None) -> str:
+    sha = validate(manifest, image_prefix)
     releases = root / "releases"
     releases.mkdir(parents=True, exist_ok=True)
 
@@ -131,9 +140,16 @@ def apply_manifest(root: Path, manifest: dict, action: str) -> str:
     return sha
 
 
-def cmd_apply(root: Path, manifest_path: Path) -> int:
+def cmd_validate(manifest_path: Path, image_prefix: str | None, expect_sha: str | None) -> int:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    sha = apply_manifest(root, manifest, "apply")
+    sha = validate(manifest, image_prefix, expect_sha)
+    print(f"geçerli: sha-{sha}")
+    return 0
+
+
+def cmd_apply(root: Path, manifest_path: Path, image_prefix: str | None = None) -> int:
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    sha = apply_manifest(root, manifest, "apply", image_prefix)
     print(f"uygulandı: sha-{sha}")
     return 0
 
@@ -169,16 +185,23 @@ def cmd_list(root: Path) -> int:
 def main(argv: list[str]) -> int:
     common = argparse.ArgumentParser(add_help=False)
     common.add_argument("--dir", default="/opt/arilla", help="compose.env ve releases/ dizini")
+    prefix = argparse.ArgumentParser(add_help=False)
+    prefix.add_argument("--image-prefix", default=None, help="izinli imaj öneki, örn. ghcr.io/arillasoftorg/")
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = parser.add_subparsers(dest="cmd", required=True)
-    sub.add_parser("apply", parents=[common]).add_argument("manifest")
+    sub.add_parser("apply", parents=[common, prefix]).add_argument("manifest")
+    val = sub.add_parser("validate", parents=[prefix])
+    val.add_argument("manifest")
+    val.add_argument("--sha", default=None)
     for name in ("rollback", "current", "list"):
         sub.add_parser(name, parents=[common])
     args = parser.parse_args(argv)
-    root = Path(args.dir)
     try:
+        if args.cmd == "validate":
+            return cmd_validate(Path(args.manifest), args.image_prefix, args.sha)
+        root = Path(args.dir)
         if args.cmd == "apply":
-            return cmd_apply(root, Path(args.manifest))
+            return cmd_apply(root, Path(args.manifest), args.image_prefix)
         if args.cmd == "rollback":
             return cmd_rollback(root)
         if args.cmd == "current":
