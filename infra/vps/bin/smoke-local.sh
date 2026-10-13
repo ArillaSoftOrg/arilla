@@ -66,6 +66,7 @@ trap cleanup EXIT
 echo "== 0. Surum yonetimi (release.py) ve digest'li imaj referanslari"
 PY=python3; command -v python3 >/dev/null 2>&1 && python3 -c '' >/dev/null 2>&1 || PY=python
 (cd "$here" && PYTHONIOENCODING=utf-8 "$PY" test_release.py >"$work/release-test.log" 2>&1) && pass "release.py testleri" || { fail "release.py testleri"; tail -15 "$work/release-test.log"; }
+(cd "$here" && PYTHONIOENCODING=utf-8 "$PY" test_check_pg_hba.py >"$work/hba-test.log" 2>&1) && pass "check-pg-hba.py testleri" || { fail "check-pg-hba.py testleri"; tail -15 "$work/hba-test.log"; }
 
 echo "== 1. Sablon ve ag dogrulamasi (sirlar yazdirilmaz)"
 "$here/init-secrets.sh" --dir "$work" --domain smoke.example.test --tag smoke >/dev/null || fail "init-secrets"
@@ -177,6 +178,20 @@ col=$(q "select column_name from information_schema.columns where table_name='pr
 upd=$(c exec -T -e PGPASSWORD="$(grep '^APP_DB_PASSWORD=' "$work/env/migrate.env" | cut -d= -f2)" postgres psql -h 127.0.0.1 -U arilla_app -d arilla -Atqc "update price_point set $col=$col where false" 2>&1 | head -1)
 echo "$upd" | grep -qi "permission denied" && pass "arilla_app price_point UPDATE yetkisiz (kural 4)" || fail "price_point UPDATE: $upd"
 
+# pg_hba: dosya repodan, salt-okunur baglanir; gercek alt ag kurallarca kapsanir
+[ "$(q 'show hba_file')" = "/etc/postgresql/pg_hba.conf" ] && pass "hba_file = /etc/postgresql/pg_hba.conf (repodan, veri dizininden degil)" || fail "hba_file"
+net=$(c config --format json 2>/dev/null | "$PY" -c 'import json,sys;print(json.load(sys.stdin)["networks"]["data"]["name"])')
+subnets=$(docker network inspect "$net" --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}')
+# shellcheck disable=SC2086
+"$PY" "$here/check-pg-hba.py" "$here/../postgres/pg_hba.conf" $subnets >/dev/null 2>&1 && pass "Docker data alt agi ($subnets) pg_hba kurallarinca kapsaniyor" || fail "alt ag pg_hba disinda: $subnets"
+pgip=$(docker inspect --format '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "${COMPOSE_PROJECT_NAME}-postgres-1")
+appw=$(grep '^APP_DB_PASSWORD=' "$work/env/migrate.env" | cut -d= -f2)
+tcp() { c exec -T -e PGPASSWORD="$1" postgres psql -h "$pgip" -U "$2" -d "$3" -Atqc 'select 1' 2>&1; }
+[ "$(tcp "$appw" arilla_app arilla | head -1)" = "1" ] && pass "TCP + scram: arilla_app -> arilla kabul" || fail "arilla_app TCP baglantisi"
+out=$(tcp "$appw" arilla_app postgres); [[ "$out" == *"no pg_hba.conf entry"* ]] && pass "baska veritabani (postgres) reddedilir" || fail "arilla_app -> postgres reddedilmedi"
+out=$(tcp "yanlis-parola" arilla_app arilla); [[ "${out,,}" == *"password authentication failed"* ]] && pass "yanlis parola reddedilir (scram)" || fail "yanlis parola kabul"
+[ "$(c ps --format '{{.Service}}={{.Health}}' | grep '^postgres=' | cut -d= -f2)" = "healthy" ] && pass "postgres healthcheck TCP+SCRAM yolundan healthy" || fail "postgres healthcheck"
+
 echo "== 8. Redis"
 [ "$(c exec -T -e REDISCLI_AUTH= redis redis-cli ping 2>&1 | head -1 | tr -d '\r')" != "PONG" ] && pass "parolasiz istek reddedilir" || fail "redis parolasiz erisim"
 r() { c exec -T redis redis-cli "$@" 2>/dev/null | tr -d '\r'; }
@@ -186,6 +201,17 @@ r() { c exec -T redis redis-cli "$@" 2>/dev/null | tr -d '\r'; }
 [ "$(r config get maxmemory | tail -1)" = "536870912" ] && pass "maxmemory 512mb" || fail "maxmemory"
 r config get requirepass 2>&1 | grep -q . && true
 check "redis ayarlari argv'de parola icermez" bash -c "! docker top ${COMPOSE_PROJECT_NAME}-redis-1 | grep -q \"$(grep '^REDIS_PASSWORD=' "$work/env/redis.env" | cut -d= -f2)\""
+
+[ "$(c exec -T redis id -u | tr -d '\r')" = "999" ] && [ "$(c exec -T redis id -g | tr -d '\r')" = "1000" ] && pass "redis root degil (uid 999, gid 1000)" || fail "redis kullanicisi"
+cmd1=$(c exec -T redis sh -c 'cat /proc/1/cmdline | tr "\0" " "'); [[ "$cmd1" == redis-server* ]] && pass "redis PID 1 = redis-server (exec ile kabuk degisti; parola argv'de degil, ustte docker top ile dogrulandi)" || fail "redis PID 1: $cmd1"
+r set smoke:persist kalici-deger >/dev/null
+[ "$(r config get appendonly | tail -1)" = "yes" ] && sleep 2
+c restart redis >/dev/null 2>&1
+for _ in $(seq 1 30); do [ "$(c ps --format '{{.Service}}={{.Health}}' | grep '^redis=' | cut -d= -f2)" = "healthy" ] && break; sleep 2; done
+[ "$(c ps --format '{{.Service}}={{.Health}}' | grep '^redis=' | cut -d= -f2)" = "healthy" ] && pass "redis yeniden baslatma sonrasi healthy (restart dongusu yok)" || fail "redis restart sonrasi healthy degil"
+[ "$(r get smoke:persist)" = "kalici-deger" ] && pass "AOF: anahtar yeniden baslatmadan sonra okundu" || fail "AOF verisi kayip"
+c exec -T redis sh -c 'ls /data/appendonlydir' 2>&1 | grep -q "appendonly.aof" && pass "appendonlydir redis kullanicisiyla okunabilir" || fail "appendonlydir okunamadi"
+[ "$(docker inspect --format '{{.RestartCount}}' "${COMPOSE_PROJECT_NAME}-redis-1")" = "0" ] && pass "redis RestartCount=0" || fail "redis RestartCount"
 
 echo "== 9. Ag yalitimi"
 check "postgres internete cikamaz" bash -c "! docker exec ${COMPOSE_PROJECT_NAME}-postgres-1 bash -c 'exec 3<>/dev/tcp/1.1.1.1/53' 2>/dev/null"
