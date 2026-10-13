@@ -29,6 +29,9 @@ export ARILLA_TAG=smoke
 export ARILLA_BUILD_APP_URL=https://smoke.example.test
 export ARILLA_SITE_ADDRESS="http://:80"
 export CADDY_BIND=127.0.0.1
+# www -> apex yonlendirmesi (Caddyfile): yerel testte http ve sahte alan adi
+export ARILLA_WWW_ADDRESS="http://www.smoke.example.test"
+export ARILLA_CANONICAL_ORIGIN="http://smoke.example.test"
 export CADDY_HTTP_PORT=${SMOKE_HTTP_PORT:-18080}
 export CADDY_HTTPS_PORT=${SMOKE_HTTPS_PORT:-18443}
 BASE="http://127.0.0.1:${CADDY_HTTP_PORT}"
@@ -146,6 +149,19 @@ done
 echo "== 5. Caddy yonlendirmesi ve dis erisim kapilari"
 [ "$(code "$BASE/api/health")" = "200" ] && pass "/api/health -> 200 (disaridan)" || fail "/api/health"
 [ "$(code "$BASE/")" = "200" ] && pass "/ -> 200" || fail "/"
+# www -> apex: kalici (301), yol ve sorgu korunur; apex etkilenmez; www uzerinden ic uclar acilmaz
+wwwhdr() { curl -s -o /dev/null -D - -H 'Host: www.smoke.example.test' "$BASE$1" | tr -d '\r'; }
+firstline() { printf '%s' "${1%%$'\n'*}"; }
+hdr=$(wwwhdr "/urun/ornek?utm=1&x=a%20b")
+[[ "$hdr" == "HTTP/1.1 301"* ]] && pass "www -> 301" || fail "www durum: $(firstline "$hdr")"
+loc=$(printf '%s\n' "$hdr" | grep -i '^location:' | cut -d' ' -f2)
+[ "$loc" = "http://smoke.example.test/urun/ornek?utm=1&x=a%20b" ] && pass "www Location = apex + yol + sorgu korunur" || fail "www Location: $loc"
+loc=$(wwwhdr "/" | grep -i '^location:' | cut -d' ' -f2)
+[ "$loc" = "http://smoke.example.test/" ] && pass "www / -> apex /" || fail "www / Location: $loc"
+for p in /api/health/ready /api/cron/cleanup-auth; do
+  hdr=$(wwwhdr "$p"); [[ "$hdr" == "HTTP/1.1 301"* ]] && pass "www$p da once apex'e yonlenir (icerik sunmaz)" || fail "www$p -> $(firstline "$hdr")"
+done
+[ "$(code -H 'Host: smoke.example.test' "$BASE/api/health")" = "200" ] && pass "apex Host ile /api/health 200 (www kurali apex'i bozmaz)" || fail "apex Host"
 for p in /api/health/ready /api/health/ready/ //api/health/ready /API/HEALTH/READY /api/health/%72eady /api/health/./ready "/api/health/ready?x=1" /api/cron/cleanup-auth /api/cron/trigger-alerts/ /api/cron/%63leanup-auth; do
   r=$(code --path-as-is "$BASE$p")
   [ "$r" = "404" ] && pass "$p -> 404" || fail "$p -> $r (404 beklenir)"
@@ -238,10 +254,11 @@ jobs=$(q "select count(distinct job) from job_run")
 
 echo "== 11. Gunluk ve sizinti"
 curl -s -o /dev/null -H 'Cookie: session=gizli-cerez-degeri' -H 'X-Forwarded-For: 203.0.113.9' "$BASE/api/health?q=gizli-sorgu-metni&token=gizli-token"
+curl -s -o /dev/null -H 'Host: www.smoke.example.test' -H 'Cookie: session=gizli-www-cerez' "$BASE/arama?q=gizli-www-sorgu"
 sleep 1
 caddy_log=$(docker logs ${COMPOSE_PROJECT_NAME}-caddy-1 2>&1)
 echo "$caddy_log" | grep -q '"/api/health"' && pass "erisim kaydi yol iceriyor" || fail "erisim kaydinda yol yok"
-echo "$caddy_log" | grep -qE 'gizli-sorgu-metni|gizli-token|gizli-cerez-degeri|203\.0\.113\.9|172\.[0-9]+\.[0-9]+\.[0-9]+"' && fail "erisim kaydinda sorgu/cerez/IP var" || pass "erisim kaydinda sorgu, cerez, IP yok"
+echo "$caddy_log" | grep -qE 'gizli-sorgu-metni|gizli-www-sorgu|gizli-www-cerez|gizli-token|gizli-cerez-degeri|203\.0\.113\.9|172\.[0-9]+\.[0-9]+\.[0-9]+"' && fail "erisim kaydinda sorgu/cerez/IP var" || pass "erisim kaydinda sorgu, cerez, IP yok"
 leak=0
 for key in POSTGRES_PASSWORD APP_DB_PASSWORD REDIS_PASSWORD SESSION_SECRET CRON_SECRET; do
   val=$(grep -h "^$key=" "$work/env/"*.env 2>/dev/null | head -1 | cut -d= -f2)
