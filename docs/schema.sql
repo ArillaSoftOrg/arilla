@@ -2102,6 +2102,8 @@ CREATE TABLE feed_source_offer (
     PRIMARY KEY (feed_source_id, offer_id)
 );
 CREATE INDEX feed_source_offer_offer_idx ON feed_source_offer (offer_id);
+-- 0068: HOT guncelleme icin sayfada bos yer.
+ALTER TABLE feed_source_offer SET (fillfactor = 70);
 
 -- ===========================================================================
 -- BAGIMSIZ FIYAT DOGRULAMA VE DOVIZ KURU (0067, karar 0113)

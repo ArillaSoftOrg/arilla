@@ -112,6 +112,7 @@ class SyncReport:
     chunks_skipped: int = 0
     gate: str | None = None
     #: Asama sureleri (sn): darbogaz teshisi (karar 0114).
+    reused_download: bool = False
     seconds_normalize: float = 0.0
     seconds_merge: float = 0.0
     seconds_parse_and_wait: float = 0.0
@@ -164,16 +165,30 @@ STAGE_COLUMNS = (
     "seller_ext, brand, image_url, affiliate_url, attributes, fingerprint"
 )
 
+# Karar 0114 (olcum): ON CONFLICT DO UPDATE kosul tutmasa da satiri KILITLER ve
+# kilit WAL'a yazilir (checkpoint sonrasi tam sayfa). Bu yuzden yalnizca YENI saticilar
+# eklenir (DO NOTHING kilitlemez); goruldu bilgisi gunde en fazla bir kez guncellenir.
 UPSERT_SELLERS = """
-INSERT INTO seller (merchant_id, external_id)
-SELECT DISTINCT %(merchant_id)s, seller_ext FROM feed_stage WHERE seller_ext IS NOT NULL
-ON CONFLICT (merchant_id, external_id) DO UPDATE SET last_seen_at = now(), is_active = TRUE
+WITH incoming AS (
+    SELECT DISTINCT seller_ext FROM feed_stage WHERE seller_ext IS NOT NULL
+), ins AS (
+    INSERT INTO seller (merchant_id, external_id)
+    SELECT %(merchant_id)s, i.seller_ext FROM incoming i
+     WHERE NOT EXISTS (SELECT 1 FROM seller x
+                        WHERE x.merchant_id = %(merchant_id)s AND x.external_id = i.seller_ext)
+    ON CONFLICT (merchant_id, external_id) DO NOTHING
+    RETURNING 1
+)
+UPDATE seller sl SET last_seen_at = now(), is_active = TRUE
+  FROM incoming i
+ WHERE sl.merchant_id = %(merchant_id)s AND sl.external_id = i.seller_ext
+   AND (NOT sl.is_active OR sl.last_seen_at < now() - interval '1 day')
 """
 
 MERGE = """
 WITH prev AS (
     SELECT o.id, o.external_id, o.fingerprint, o.current_price, o.list_price, o.in_stock,
-           o.is_active, o.image_url
+           o.is_active, o.image_url, o.feed_source_id, o.affiliate_url
       FROM offer o JOIN feed_stage s ON s.external_id = o.external_id
      WHERE o.merchant_id = %(merchant_id)s
 ), up AS (
@@ -189,6 +204,16 @@ WITH prev AS (
            %(observed_at)s, %(snapshot_id)s, s.affiliate_url
       FROM feed_stage s
       LEFT JOIN seller sl ON sl.merchant_id = %(merchant_id)s AND sl.external_id = s.seller_ext
+      LEFT JOIN prev pv ON pv.external_id = s.external_id
+     -- Degismeyen kayit upsert'e HIC girmez: ON CONFLICT kosulu tutmasa da satiri
+     -- kilitler ve WAL uretir (olcum: 50 bin degismemis kayitta 51 MB tam sayfa).
+     WHERE pv.id IS NULL
+        OR pv.fingerprint IS DISTINCT FROM s.fingerprint
+        OR NOT pv.is_active
+        OR pv.feed_source_id IS NULL
+        OR pv.affiliate_url IS DISTINCT FROM s.affiliate_url
+     -- Tutarli kilit sirasi: es zamanli iki besleme ayni teklifleri guncellerse kilitlenme olmasin.
+     ORDER BY s.external_id
     ON CONFLICT (merchant_id, external_id) DO UPDATE SET
         url              = EXCLUDED.url,
         -- Takip baglantisi kanonik adresten ayri; kaynagin guncel degeri.
@@ -401,6 +426,7 @@ class FeedSync:
         observed_at: datetime | None = None,
         sleep: Callable[[float], None] = time.sleep,
         fail_after_chunks: int | None = None,
+        prefetched: tuple[Path, str, int] | None = None,
     ) -> None:
         self.conn = conn
         self.feed_source_id = feed_source_id
@@ -411,6 +437,8 @@ class FeedSync:
         self.sleep = sleep
         self.report = SyncReport(feed_source_id)
         self._settings = settings
+        #: `sync-due` paralel indirmesi: dosya onceden indirildi (yol, sha256, bayt).
+        self.prefetched = prefetched
         # Yalnizca testler: cokme benzetimi (kaldigi yerden devam kaniti).
         self._fail_after_chunks = fail_after_chunks
 
@@ -534,12 +562,18 @@ class FeedSync:
                 for block in iter(lambda: stream.read(1 << 20), b""):
                     digest.update(block)
             return self.source_path, digest.hexdigest(), self.source_path.stat().st_size
+        if self.prefetched is not None:
+            return self.prefetched
         if self.network is None:
             raise SyncAborted("network_missing")
         directory = staging_dir()
         cleanup_staging(directory)
+        reused = self._reusable_download(feed, directory)
+        if reused is not None:
+            return reused
         url = self.network.download_url(feed.external_id)
-        target = directory / f"feed-{feed.id}-{self.observed_at:%Y%m%dT%H%M%S}.bin"
+        sample = self.max_records is not None
+        target = directory / staging_name(feed.id, self.observed_at, sample=sample)
         last: DownloadError | None = None
         for attempt in range(1, settings.download_attempts + 1):
             try:
@@ -556,6 +590,35 @@ class FeedSync:
                 self.sleep(min(30.0, 2.0**attempt))
         assert last is not None
         raise last
+
+    def _reusable_download(self, feed: FeedRow, directory: Path) -> tuple[Path, str, int] | None:
+        """Yarim kalan (cokme/kesinti) surumun indirilmis dosyasi diskte duruyorsa ve
+        kaynak o zamandan beri guncellenmediyse YENIDEN INDIRILMEZ (karar 0114:
+        Admitad baglanti basina ~0,25-0,5 MB/s; 1 GB besleme ~1 saat). Ornek dosyasi
+        (bilerek eksik) yalnizca ornek kosusunda, tam dosya yalnizca tam kosuda kullanilir.
+        """
+        row = self._exec(
+            """SELECT storage_key, sha256, bytes, started_at FROM source_snapshot
+                WHERE feed_source_id = %s AND status IN ('processing', 'failed')
+                  AND storage_key IS NOT NULL AND sha256 IS NOT NULL
+                  AND started_at > now() - interval '24 hours'
+                ORDER BY id DESC LIMIT 1""",
+            (feed.id,),
+        )
+        self.conn.commit()
+        if row is None:
+            return None
+        key, sha, size, started_at = row
+        sample = self.max_records is not None
+        if key.endswith(SAMPLE_SUFFIX) != sample:
+            return None
+        if feed.source_updated_at is not None and feed.source_updated_at > started_at:
+            return None
+        path = directory / key
+        if not path.is_file() or path.stat().st_size != size:
+            return None
+        self.report.reused_download = True
+        return path, str(sha), int(size)
 
     def _snapshot(self, feed: FeedRow, sha: str, size: int, path: Path) -> tuple[int, bool]:
         """(snapshot_id, duplicate). Ayni sha ile yarim surum varsa onu dondurur."""
@@ -940,6 +1003,13 @@ class FeedSync:
             path.unlink(missing_ok=True)
 
 
+SAMPLE_SUFFIX = "-sample.bin"
+
+
+def staging_name(feed_id: int, at: datetime, *, sample: bool) -> str:
+    return f"feed-{feed_id}-{at:%Y%m%dT%H%M%S}" + (SAMPLE_SUFFIX if sample else ".bin")
+
+
 #: Olcum (karar 0114, AliExpress YML): ~322 bayt/kayit sikistirilmis. ~1,9x pay.
 SAMPLE_BYTES_PER_RECORD = 600
 SAMPLE_MIN_BYTES = 4 << 20
@@ -950,6 +1020,31 @@ def sample_bytes(max_records: int, override: str | None) -> int:
     if override and override.isdigit():
         return int(override)
     return max(SAMPLE_MIN_BYTES, max_records * SAMPLE_BYTES_PER_RECORD)
+
+
+def prefetch_download(
+    feed: FeedRow, network: FeedNetwork, *, max_records: int | None, max_bytes: int, at: datetime
+) -> tuple[Path, str, int] | None:
+    """`sync-due` paralel indirmesi (karar 0114): Admitad baglanti basina sinirli
+    (~0,25-0,5 MB/s), 3 baglantida toplam ~2,2 kat. Hata/disk sinirinda None:
+    senkronizasyon kendi indirmesini dener ve hatayi kendi kaydina yazar.
+    """
+    directory = staging_dir()
+    target = directory / staging_name(feed.id, at, sample=max_records is not None)
+    stop_after = sample_bytes(max_records, env("FEED_SAMPLE_BYTES")) if max_records else None
+    try:
+        result = download(
+            network.download_url(feed.external_id),
+            target,
+            max_bytes=max_bytes,
+            stop_after_bytes=stop_after,
+        )
+    except (DownloadError, NetworkUnavailable) as error:
+        logger.warning(
+            "besleme %s on indirme basarisiz: %s", feed.id, getattr(error, "code", error)
+        )
+        return None
+    return result.path, result.sha256, result.bytes_on_disk
 
 
 class _PipelinedWriter:

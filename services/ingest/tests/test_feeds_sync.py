@@ -443,7 +443,8 @@ def test_degismeyen_satir_yeniden_yazilmaz_degisen_yazilir(env: Env) -> None:
     env.run(fid, items)
     before = dict(
         env.owner.execute(
-            "SELECT external_id, xmin::text FROM offer WHERE merchant_id = %s", (env.merchant_id,)
+            "SELECT external_id, xmin::text || '/' || xmax::text FROM offer WHERE merchant_id = %s",
+            (env.merchant_id,),
         ).fetchall()
     )
     changed = [*items[:19], offer(ids(20)[19], price="19.99")]
@@ -451,14 +452,116 @@ def test_degismeyen_satir_yeniden_yazilmaz_degisen_yazilir(env: Env) -> None:
     assert (report.changed, report.unchanged, report.price_points) == (1, 19, 1)
     after = dict(
         env.owner.execute(
-            "SELECT external_id, xmin::text FROM offer WHERE merchant_id = %s", (env.merchant_id,)
+            "SELECT external_id, xmin::text || '/' || xmax::text FROM offer WHERE merchant_id = %s",
+            (env.merchant_id,),
         ).fetchall()
     )
-    rewritten = [ext for ext in before if before[ext] != after[ext]]
-    assert rewritten == [ids(20)[19]]
+    # xmin: satir yeniden yazildi mi; xmax: satir KILITLENDI mi (ON CONFLICT kilidi
+    # degismeyen satirda da WAL uretir). Degismeyen 19 satirda ikisi de ayni kalmali.
+    touched = [ext for ext in before if before[ext] != after[ext]]
+    assert touched == [ids(20)[19]]
+
     # Gorulme bilgisi uyelikte guncel (offer satiri yazilmadan).
     seen = env.owner.execute(
         "SELECT count(*) FROM feed_source_offer WHERE feed_source_id = %s AND last_seen_at = %s",
         (fid, T0 + timedelta(hours=6)),
     ).fetchone()
     assert seen == (20,)
+
+
+def test_cokme_sonrasi_indirilmis_dosya_yeniden_kullanilir(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import hashlib
+
+    import feeds.sync as sync_module
+    from feeds.download import Downloaded
+
+    monkeypatch.setenv("FEED_STAGING_DIR", str(env.tmp / "staging"))
+    data = yml([offer(i) for i in ids(35)])
+    calls: list[Path] = []
+
+    def fake_download(url: str, target: Path, **_kw: object) -> Downloaded:
+        calls.append(target)
+        target.write_bytes(data)
+        return Downloaded(target, hashlib.sha256(data).hexdigest(), len(data), len(data))
+
+    class Net:
+        name = "test0112"
+
+        def download_url(self, external_id: str) -> str:
+            return "https://feed.invalid/x"
+
+    monkeypatch.setattr(sync_module, "download", fake_download)
+    fid = env.feed()
+    settings = SyncSettings(chunk_size=10, pause_ms=0)
+    with pytest.raises(_Crash):
+        FeedSync(
+            env.app,
+            fid,
+            network=Net(),
+            observed_at=T0,
+            settings=settings,
+            sleep=lambda _s: None,
+            fail_after_chunks=2,
+        ).run(force=True)
+    report = FeedSync(
+        env.app,
+        fid,
+        network=Net(),
+        observed_at=T0 + timedelta(minutes=5),
+        settings=settings,
+        sleep=lambda _s: None,
+    ).run(force=True)
+    assert len(calls) == 1  # ikinci kosu indirmedi
+    assert (report.reused_download, report.chunks_skipped, report.status) == (True, 2, "success")
+    assert offers_of(env) == 35
+    assert not calls[0].exists()  # basarili kosudan sonra hazirlik dosyasi silindi
+
+
+def test_on_indirilen_dosya_kullanilir_paralel_indirme_disk_payiyla(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import hashlib
+
+    import feeds.sync as sync_module
+    from feeds.download import Downloaded
+    from feeds.sync import load_feed, prefetch_download
+
+    monkeypatch.setenv("FEED_STAGING_DIR", str(env.tmp / "staging"))
+    data = yml([offer(i) for i in ids(12)])
+    seen: list[int | None] = []
+
+    def fake_download(url: str, target: Path, **kw: object) -> Downloaded:
+        seen.append(kw.get("max_bytes"))  # type: ignore[arg-type]
+        target.write_bytes(data)
+        return Downloaded(target, hashlib.sha256(data).hexdigest(), len(data), len(data))
+
+    class Net:
+        name = "test0112"
+
+        def download_url(self, external_id: str) -> str:
+            return "https://feed.invalid/x"
+
+    monkeypatch.setattr(sync_module, "download", fake_download)
+    fid = env.feed()
+    feed = load_feed(env.app, fid)
+    env.app.rollback()
+    pre = prefetch_download(feed, Net(), max_records=None, max_bytes=123_456, at=T0)
+    assert pre is not None and seen == [123_456]  # disk payi indirmeye iletildi
+
+    def no_download(*_a: object, **_k: object) -> Downloaded:
+        raise AssertionError("on indirilmis dosya varken yeniden indirildi")
+
+    monkeypatch.setattr(sync_module, "download", no_download)
+    report = FeedSync(
+        env.app,
+        fid,
+        network=Net(),
+        prefetched=pre,
+        observed_at=T0,
+        settings=SyncSettings(chunk_size=5, pause_ms=0),
+        sleep=lambda _s: None,
+    ).run(force=True)
+    assert (report.status, report.created) == ("success", 12)
+    assert not pre[0].exists()
