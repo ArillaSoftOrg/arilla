@@ -1,0 +1,12 @@
+[Unit]
+Description=Arilla PostgreSQL TAM yedek (pgBackRest -> R2, karar 0110)
+Requires=docker.service
+After=docker.service
+OnFailure=arilla-alert@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/arilla/vps/bin/pg-backup full
+TimeoutStartSec=6h
+Nice=10
+IOSchedulingClass=idle

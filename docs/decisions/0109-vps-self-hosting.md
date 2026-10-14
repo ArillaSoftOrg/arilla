@@ -5,7 +5,8 @@
 **Faz 2 uygulandı:** `infra/compose.prod.yml`, Caddy, PostgreSQL/Redis ayarları, zamanlayıcı,
 gizli değer yapısı. **Faz 3 uygulandı:** GHCR yayın hattı (`build-push.yml`), Trivy + imaj doğrulaması, sha etiketi
 + digest sürüm yönetimi. **Faz 6 uygulandı:** otomatik dağıtım (`deploy.yml`, `arilla-deploy`, SSH zorunlu komutu + dar sudo,
-otomatik geri alma). Yedekleme (faz 5) hâlâ yapılmadı.
+otomatik geri alma). **Faz 5 (yedekleme, izleme): karar 0110** — kod ve testler hazır, üretimde
+aktivasyon bekliyor.
 **Mevcut Vercel production çalışmaya devam eder;** Supabase ve Upstash bu karar
 kapsamında silinmez.
 

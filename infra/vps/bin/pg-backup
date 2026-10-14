@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+# pgBackRest islemleri (karar 0110) - `backup` yan konteynerinde calisir; ROOT ile (systemd).
+#
+#   pg-backup full|diff|incr     yedek al (sonrasinda saklama politikasi: expire)
+#   pg-backup check              arsiv + yedek zincirinin uctan uca kontrolu (pg_switch_wal)
+#   pg-backup verify             depodaki dosyalarin sagtoplam dogrulamasi
+#   pg-backup info               ozet (json: pg-backup info --json)
+#   pg-backup repo-ls            depo erisim testi (sir yazdirmaz)
+#
+# Sonuc /opt/arilla/state/backup-<islem>.json'a yazilir (saglik kontrolu okur). Basarisizlikta
+# cikis kodu != 0 -> systemd OnFailure alarmi. Sirlar yazdirilmaz (pgBackRest de yazdirmaz).
+set -euo pipefail
+# PATH sabit; ARILLA_EXTRA_PATH yalniz yerel testler icindir (sudo/systemd altinda tanimsiz).
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${ARILLA_EXTRA_PATH:+:$ARILLA_EXTRA_PATH}"
+export LC_ALL=C
+
+ROOT=${ARILLA_ROOT:-/opt/arilla}
+STANZA=arilla
+STATE="$ROOT/state"
+CMD=${1:-}
+shift || true
+
+# ARILLA_COMPOSE_EXTRA: yalniz yerel/CI testi (ek compose dosyasi); sudo/systemd altinda tanimsizdir.
+compose() { docker compose --env-file "$ROOT/compose.env" -f "$ROOT/compose.prod.yml" ${ARILLA_COMPOSE_EXTRA:+-f "$ARILLA_COMPOSE_EXTRA"} --profile backup "$@"; }
+pgbr() { compose exec -T backup pgbackrest --stanza="$STANZA" "$@"; }
+ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+
+write_state() { # write_state <islem> <ok:true|false> <baslangic-epoch> [detay]
+  mkdir -p "$STATE"
+  local f="$STATE/backup-$1.json" now
+  now=$(date -u +%s)
+  printf '{"op":"%s","ok":%s,"finished_at":"%s","duration_s":%d,"detail":"%s"}\n' \
+    "$1" "$2" "$(ts)" "$((now - $3))" "${4:-}" >"$f.tmp"
+  mv -f "$f.tmp" "$f"
+}
+
+require_running() {
+  local st
+  st=$(compose ps --format '{{.Service}}={{.Health}}' 2>/dev/null | awk -F= '$1=="backup"{print $2}')
+  [ "$st" = "healthy" ] || { echo "HATA: backup konteyneri calismiyor/healthy degil (${st:-yok}); bkz. pg-backup-activate" >&2; exit 2; }
+}
+
+run_op() { # run_op <durum-adi> <pgbackrest argumanlari...>
+  local name=$1 start rc
+  shift
+  start=$(date -u +%s)
+  echo "$(ts) [pg-backup] basliyor: $name"
+  set +e
+  pgbr "$@"
+  rc=$?
+  set -e
+  if [ "$rc" -eq 0 ]; then
+    write_state "$name" true "$start"
+    echo "$(ts) [pg-backup] TAMAM: $name"
+  else
+    write_state "$name" false "$start" "pgbackrest exit $rc"
+    echo "$(ts) [pg-backup] BASARISIZ: $name (pgbackrest cikis kodu $rc)" >&2
+  fi
+  return "$rc"
+}
+
+exec 9>"$ROOT/.backup.lock"
+lock() { if command -v flock >/dev/null 2>&1; then flock -n 9; else true; fi; } # flock yok: yalniz yerel test
+case "$CMD" in
+  full | diff | incr)
+    require_running
+    lock || { echo "baska bir yedek islemi suruyor" >&2; exit 75; }
+    run_op "$CMD" --type="$CMD" backup
+    ;;
+  check)
+    require_running
+    run_op check check
+    ;;
+  verify)
+    require_running
+    lock || { echo "baska bir yedek islemi suruyor" >&2; exit 75; }
+    run_op verify verify
+    ;;
+  info)
+    require_running
+    if [ "${1:-}" = "--json" ]; then pgbr --output=json info; else pgbr info; fi
+    ;;
+  repo-ls)
+    # Konteyner calismadan da: tek seferlik `run` (postgres'e baglanmaz, yalniz depo)
+    compose run --rm --no-deps -T backup pgbackrest --stanza="$STANZA" repo-ls
+    ;;
+  *)
+    echo "kullanim: pg-backup full|diff|incr|check|verify|info [--json]|repo-ls" >&2
+    exit 64
+    ;;
+esac

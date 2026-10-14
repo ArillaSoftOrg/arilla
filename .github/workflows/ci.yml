@@ -173,11 +173,25 @@ jobs:
           infra/vps/bin/arilla-deploy infra/vps/bin/deploy-gate infra/vps/bin/install-deploy.sh
           infra/vps/bin/test-deploy.sh infra/vps/bin/test-ssh-gate.sh infra/vps/bin/smoke-local.sh infra/vps/bin/db-bootstrap.sh
           infra/vps/bin/init-secrets.sh infra/vps/bin/verify-image.sh infra/vps/cron/cron-call.sh
+          infra/vps/bin/pg-backup infra/vps/bin/pg-backup-configure infra/vps/bin/pg-backup-activate
+          infra/vps/bin/pg-restore-test infra/vps/bin/test-backup.sh infra/vps/backup/restore-inner.sh
       - name: duman testi
         run: bash infra/vps/bin/smoke-local.sh
       # Faz 6: dagitim motoru (yerel registry, sentetik depo; saglik gecmeyen surumde otomatik geri alma).
       - name: dagitim motoru testi
         run: bash infra/vps/bin/test-deploy.sh
+
+  # Karar 0110: PostgreSQL yedekleme / WAL arsivi / PITR / izole geri yukleme uctan uca.
+  # R2 yerine TLS'li S3 uyumlu sunucu (VersityGW), atilabilir sirlar; uretime ve R2'ye DOKUNMAZ.
+  # Uretimle ayni sahiplik (root:999, 0640) icin root ile (sudo -E) calisir.
+  backup-pitr:
+    name: backup + PITR restore (pgBackRest, isolated)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: yedekleme ve geri yukleme testi
+        run: sudo -E bash infra/vps/bin/test-backup.sh
 
   # Faz 6: VPS yetki zinciri GERCEK sshd + sudo ile (tek kullanimlik Ubuntu 24.04 konteyneri):
   # install-deploy.sh -> sudoers -> restrict,command=deploy-gate -> sudo -> (sahte) arilla-deploy.

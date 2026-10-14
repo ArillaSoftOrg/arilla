@@ -1,0 +1,8 @@
+# WAL arsivi (karar 0110). pg-backup-activate --confirm-restart yazar:
+# /opt/arilla/backup/pg/archive.conf -> konteynerde /etc/arilla-backup/archive.conf
+# (postgresql.conf sonundaki include_if_exists). Etkinlesmesi YENIDEN BASLATMA ister.
+# Geri almak: dosyayi sil + postgres'i planli yeniden baslat (archive_mode kapanir).
+archive_mode = on
+archive_command = 'pgbackrest --stanza=@@STANZA@@ archive-push %p'
+# Dusuk trafikte bile en gec bu surede WAL dosyasi kapatilip gonderilir (RPO ust siniri).
+archive_timeout = @@ARCHIVE_TIMEOUT@@
