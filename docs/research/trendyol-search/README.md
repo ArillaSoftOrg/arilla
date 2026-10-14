@@ -19,6 +19,7 @@ eklenti yok, Trendyol'u ayrıca açmak yok, ücretli arama API'si yok.
 - İki sitemap üretiminin kimlik bazlı karşılaştırması: [`13-uretim-karsilastirmasi.md`](13-uretim-karsilastirmasi.md)
 - Yeni yöntemler (yorumlu ürün sitemap'i 505 bin, yurt dışı sitemap'ler), ücretsiz Gemini URL Context ölçüm düzeneği, katalog eşlemesi: [`14-yeni-yontemler-gemini-ve-katalog.md`](14-yeni-yontemler-gemini-ve-katalog.md)
 - H9 ölçüldü (maliyetsiz, AI Studio): URL Context fiyat doğruluğu %80 popüler / %61 rastgele, hatalar kalıcı (bayat kopya), "verified" kuralı bunu yakalamaz: [`15-h9-olcumu-url-context.md`](15-h9-olcumu-url-context.md)
+- Sözlü izinle tarayıcı tabanlı okuma (karar 0117): ürün/liste sayfası veri envanteri, alan bazında doğrulama, eklenti fizibilitesi, kapsam, haftalık/aylık kota ve kontrol noktası, katalog önizlemesi: [`16-tarayici-tabanli-okuma-fizibilite.md`](16-tarayici-tabanli-okuma-fizibilite.md)
 - Kod (bu dal): `packages/core/src/trendyol-landing/`, `packages/core/scripts/trendyol-*-cli.ts`
 - Dal / worktree: `research/trendyol-landing-discovery` → `../repo-docs-trendyol-landing`
 - İlgili, dokunulmayan çalışmalar: PR #125 (`feature/trendyol-live-discovery-prototype`),
