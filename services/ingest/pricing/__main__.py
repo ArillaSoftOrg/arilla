@@ -3,12 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import logging
 import sys
 from datetime import timedelta
 
 from db import job_run
 from db.connection import connect
+from feeds.logs import configure as configure_logging
 from pricing import fx
 from pricing.providers import default_providers
 from pricing.worker import enqueue_stale, process
@@ -57,7 +57,7 @@ def _verify(args: argparse.Namespace) -> int:
 
 
 def main(argv: list[str] | None = None) -> int:
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    configure_logging()
     parser = argparse.ArgumentParser(prog="python -m pricing")
     sub = parser.add_subparsers(dest="command", required=True)
     sub.add_parser("fx").set_defaults(func=_fx)

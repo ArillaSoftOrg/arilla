@@ -18,6 +18,7 @@ import feeds.admitad  # noqa: F401  (agi kaydeder)
 from db import job_run
 from db.connection import connect
 from feeds import discovery
+from feeds.logs import configure as configure_logging
 from feeds.network import build, registered
 from feeds.profiles import MERCHANT_PROFILES
 from feeds.sync import FeedSync, SyncAborted, load_feed
@@ -194,7 +195,7 @@ def main(argv: list[str] | None = None) -> int:
         reconfigure = getattr(stream, "reconfigure", None)
         if reconfigure is not None:
             reconfigure(encoding="utf-8", errors="replace")
-    logging.basicConfig(level=logging.INFO, format="%(levelname)s %(name)s: %(message)s")
+    configure_logging()
     parser = argparse.ArgumentParser(prog="python -m feeds")
     sub = parser.add_subparsers(dest="command", required=True)
     p = sub.add_parser("discover")

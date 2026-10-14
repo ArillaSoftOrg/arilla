@@ -13,6 +13,7 @@
  *
  * Hepsi salt okunur, zaman aşımlı ve toplam üretir.
  */
+
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { SEARCH_QUALITY_TIME_ZONE } from "../search/quality.ts";
@@ -20,6 +21,7 @@ import { type AnalyticsWindow, parseAnalyticsWindow } from "./ai-operations.ts";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 import { STALE_OFFER_DAYS } from "./catalog.ts";
+import { OFFER_SEEN_AT } from "./offer-seen.ts";
 
 type Num = string | number | null;
 const n = (value: Num | undefined): number => Number(value ?? 0);
@@ -199,9 +201,9 @@ export async function getCatalogFreshness(
       no_image: Num;
     }>(sql`
       SELECT count(*) AS active,
-             count(*) FILTER (WHERE o.last_seen_at >= ${at} - interval '1 day') AS seen24h,
-             count(*) FILTER (WHERE o.last_seen_at >= ${at} - interval '7 days') AS seen7d,
-             count(*) FILTER (WHERE o.last_seen_at < ${at} - (${STALE_OFFER_DAYS} * interval '1 day')) AS stale,
+             count(*) FILTER (WHERE ${OFFER_SEEN_AT} >= ${at} - interval '1 day') AS seen24h,
+             count(*) FILTER (WHERE ${OFFER_SEEN_AT} >= ${at} - interval '7 days') AS seen7d,
+             count(*) FILTER (WHERE ${OFFER_SEEN_AT} < ${at} - (${STALE_OFFER_DAYS} * interval '1 day')) AS stale,
              count(*) FILTER (WHERE o.in_stock) AS in_stock,
              count(*) FILTER (WHERE NOT o.in_stock) AS out_of_stock,
              count(*) FILTER (WHERE o.image_url IS NULL AND NOT EXISTS (

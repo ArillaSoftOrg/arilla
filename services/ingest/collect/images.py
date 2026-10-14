@@ -20,6 +20,7 @@ silmektense yer tutucuyu gostermek daha az kotudur.
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import re
 from collections.abc import Iterable, Mapping, Sequence
@@ -95,14 +96,22 @@ def _is_shopify_cdn(host: str, path: str) -> bool:
     return host.endswith("cdn.shopify.com") or "/cdn/shop/" in path
 
 
+#: `str.isspace` ile ayni Unicode bosluk kumesi (re `\s`, str desenlerinde).
+_WHITESPACE = re.compile(r"\s")
+
+
+@functools.lru_cache(maxsize=65_536)
 def clean_url(raw: str | None) -> str | None:
-    """Gecerli http(s) URL'sini dondurur; yoksa None. Anlam degistirmez."""
+    """Gecerli http(s) URL'sini dondurur; yoksa None. Anlam degistirmez.
+
+    Saf fonksiyon: buyuk beslemelerde ayni adres tekrar tekrar gelir (karar 0114 olcumu).
+    """
     if not raw:
         return None
     url = raw.strip()
     if url.startswith("//"):
         url = "https:" + url
-    if not url or len(url) > MAX_URL_LENGTH or any(ch.isspace() for ch in url):
+    if not url or len(url) > MAX_URL_LENGTH or _WHITESPACE.search(url):
         return None
     try:
         parts = urlsplit(url)
@@ -113,6 +122,7 @@ def clean_url(raw: str | None) -> str | None:
     return url
 
 
+@functools.lru_cache(maxsize=65_536)
 def normalize_key(url: str) -> str:
     """Esitlik anahtari: ayni gorselin farkli yazimlari ayni anahtari verir.
 

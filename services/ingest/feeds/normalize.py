@@ -22,7 +22,7 @@ from __future__ import annotations
 import hashlib
 import json
 from collections.abc import Mapping, Sequence
-from dataclasses import asdict, dataclass, field
+from dataclasses import dataclass, field
 from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
@@ -87,10 +87,27 @@ class FeedOffer:
         return self.images[0].source_url if self.images else None
 
     def fingerprint(self) -> str:
-        """Normalize alanlarin ozeti. Ayniysa kayit degismemistir."""
-        payload = asdict(self)
-        payload["images"] = [image.source_url for image in self.images]
-        payload.pop("affiliate_url", None)
+        """Normalize alanlarin ozeti. Ayniysa kayit degismemistir.
+
+        `affiliate_url` GIRMEZ: takip parametresi degisince urun degismis sayilmaz.
+        (Elle kurulur: `asdict` derin kopyasi buyuk beslemede pahaliydi.)
+        """
+        payload = {
+            "external_id": self.external_id,
+            "title": self.title,
+            "url": self.url,
+            "price_minor": self.price_minor,
+            "old_price_minor": self.old_price_minor,
+            "currency": self.currency,
+            "in_stock": self.in_stock,
+            "category_path": self.category_path,
+            "seller_external_id": self.seller_external_id,
+            "brand": self.brand,
+            "gtin": self.gtin,
+            "mpn": self.mpn,
+            "images": [image.source_url for image in self.images],
+            "attributes": self.attributes,
+        }
         raw = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
         return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 

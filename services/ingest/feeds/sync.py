@@ -30,7 +30,9 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import queue
 import statistics
+import threading
 import time
 from collections.abc import Callable, Iterator
 from dataclasses import dataclass, field
@@ -46,7 +48,7 @@ from db.connection import env
 from feeds.download import DownloadError, cleanup_staging, download, staging_dir
 from feeds.network import FeedNetwork, NetworkUnavailable
 from feeds.normalize import FeedOffer, Rejected, normalize, schema_fields, schema_fingerprint
-from feeds.parsers import FeedRecord, ParseResult, iter_records, open_decoded
+from feeds.parsers import FeedRecord, ParseResult, iter_records
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +60,8 @@ DEFAULT_REQUIRED = {
 
 @dataclass(frozen=True)
 class SyncSettings:
-    chunk_size: int = 1000
+    #: Olcum (karar 0114): 1000 -> 5000, 50 bin kayitta birlestirme 18,8 -> 15,0 sn.
+    chunk_size: int = 5000
     #: Parcalar arasi bekleme (ms): web trafigine nefes.
     pause_ms: int = 50
     #: Aktif istemci baglantisi bunun ustundeyse parcalar arasi ek bekleme.
@@ -108,6 +111,10 @@ class SyncReport:
     chunks_merged: int = 0
     chunks_skipped: int = 0
     gate: str | None = None
+    #: Asama sureleri (sn): darbogaz teshisi (karar 0114).
+    seconds_normalize: float = 0.0
+    seconds_merge: float = 0.0
+    seconds_parse_and_wait: float = 0.0
     schema_changed: bool = False
     error_code: str | None = None
 
@@ -165,7 +172,8 @@ ON CONFLICT (merchant_id, external_id) DO UPDATE SET last_seen_at = now(), is_ac
 
 MERGE = """
 WITH prev AS (
-    SELECT o.id, o.fingerprint, o.current_price, o.list_price, o.in_stock, o.is_active, o.image_url
+    SELECT o.id, o.external_id, o.fingerprint, o.current_price, o.list_price, o.in_stock,
+           o.is_active, o.image_url
       FROM offer o JOIN feed_stage s ON s.external_id = o.external_id
      WHERE o.merchant_id = %(merchant_id)s
 ), up AS (
@@ -207,13 +215,24 @@ WITH prev AS (
         fingerprint      = EXCLUDED.fingerprint,
         image_hash       = CASE WHEN offer.image_url IS DISTINCT FROM EXCLUDED.image_url
                                 THEN NULL ELSE offer.image_hash END
+    -- Karar 0114 (olcum): DEGISMEYEN satir yeniden yazilmaz. 50 bin degismemis kayitta
+    -- 343 MB WAL ve tablo sismesi olcmustuk. "Goruldu" bilgisi dar uyelik satirindadir
+    -- (feed_source_offer.last_seen_at); uyelik duserken offer.last_seen_at'e aktarilir.
+    WHERE offer.fingerprint IS DISTINCT FROM EXCLUDED.fingerprint
+       OR NOT offer.is_active
+       OR offer.feed_source_id IS NULL
+       OR offer.affiliate_url IS DISTINCT FROM EXCLUDED.affiliate_url
     RETURNING id, external_id
+), allrows AS (
+    SELECT id, external_id FROM up
+    UNION ALL
+    SELECT p.id, p.external_id FROM prev p WHERE NOT EXISTS (SELECT 1 FROM up u WHERE u.id = p.id)
 ), joined AS (
-    SELECT u.id, u.external_id, s.price, s.old_price, s.in_stock, s.fingerprint,
+    SELECT a.id, a.external_id, s.price, s.old_price, s.in_stock, s.fingerprint,
            p.id AS prev_id, p.fingerprint AS prev_fp, p.current_price AS prev_price,
            p.list_price AS prev_list, p.in_stock AS prev_stock, p.is_active AS prev_active
-      FROM up u JOIN feed_stage s ON s.external_id = u.external_id
-      LEFT JOIN prev p ON p.id = u.id
+      FROM allrows a JOIN feed_stage s ON s.external_id = a.external_id
+      LEFT JOIN prev p ON p.id = a.id
 ), pp AS (
     INSERT INTO price_point (offer_id, observed_at, price, list_price, in_stock)
     SELECT id, %(observed_at)s, price, old_price, in_stock FROM joined
@@ -256,8 +275,16 @@ SELECT count(*) FILTER (WHERE prev_id IS NULL),
 #: Kapi gecen tam surumden sonra: bu beslemede artik olmayan offer'larin UYELIGI
 #: silinir. Offer'in kendisine burada dokunulmaz.
 DROP_MEMBERSHIP = """
-DELETE FROM feed_source_offer
- WHERE feed_source_id = %(feed_source_id)s AND last_snapshot_id <> %(snapshot_id)s
+WITH gone AS (
+    DELETE FROM feed_source_offer
+     WHERE feed_source_id = %(feed_source_id)s AND last_snapshot_id <> %(snapshot_id)s
+    RETURNING offer_id, last_seen_at
+)
+-- Degismeyen offer satiri yazilmadigi icin son gorulme uyelikteydi: bekleme suresi
+-- dogru islesin diye offer'a aktarilir (yalnizca daha yeniyse).
+UPDATE offer o SET last_seen_at = g.last_seen_at
+  FROM gone g
+ WHERE o.id = g.offer_id AND o.last_seen_at < g.last_seen_at
 """
 
 #: Hicbir etkin/duraklatilmis beslemede uyeligi kalmayan VE bekleme suresinden
@@ -499,9 +526,11 @@ class FeedSync:
 
     def _acquire(self, feed: FeedRow, settings: SyncSettings) -> tuple[Path, str, int]:
         if self.source_path is not None:
-            # Yerel dosya (testler, elle dogrulama): ozet cozulmus icerikten.
+            # Yerel dosya (testler, elle dogrulama, olcum): ozet ham dosya baytlarindan.
+            # Kesik bir ornek dosya (or. besleme basi) burada cokmemeli; tamlik
+            # karari ayristirmanindir (ParseResult.complete).
             digest = hashlib.sha256()
-            with open_decoded(self.source_path) as stream:
+            with self.source_path.open("rb") as stream:
                 for block in iter(lambda: stream.read(1 << 20), b""):
                     digest.update(block)
             return self.source_path, digest.hexdigest(), self.source_path.stat().st_size
@@ -517,7 +546,7 @@ class FeedSync:
                 # Ornek kipi (--max-records): dosyanin yalnizca basi indirilir.
                 stop_after = None
                 if self.max_records is not None:
-                    stop_after = int(env("FEED_SAMPLE_BYTES") or 64 << 20)
+                    stop_after = sample_bytes(self.max_records, env("FEED_SAMPLE_BYTES"))
                 result = download(url, target, stop_after_bytes=stop_after)
                 return result.path, result.sha256, result.bytes_on_disk
             except DownloadError as error:
@@ -611,6 +640,21 @@ class FeedSync:
             cur.execute(STAGE_DDL)
         self.conn.commit()
 
+        loop_started = time.perf_counter()
+
+        def merge(item: tuple[int, list[FeedRecord], dict[str, FeedOffer], list[Any]]) -> None:
+            nonlocal processed_chunks
+            seq, batch, offers, log_now = item
+            merge_started = time.perf_counter()
+            self._merge_chunk(feed, snapshot_id, seq, batch, offers, log_now)
+            self.report.seconds_merge += time.perf_counter() - merge_started
+            processed_chunks += 1
+            self.report.chunks_merged += 1
+            if self._fail_after_chunks is not None and processed_chunks >= self._fail_after_chunks:
+                raise _Crash("benzetilmis cokme")
+            self._backpressure(settings)
+
+        writer = _PipelinedWriter(merge)
         try:
             for seq, batch in _chunks(records, settings.chunk_size):
                 if len(keys) < 10_000 and batch[0].index < settings.schema_sample:
@@ -622,6 +666,7 @@ class FeedSync:
 
                 offers: dict[str, FeedOffer] = {}
                 rejects: list[tuple[str, str | None, str, str]] = []
+                normalize_started = time.perf_counter()
                 for record in batch:
                     try:
                         offer = normalize(
@@ -638,6 +683,7 @@ class FeedSync:
                     # Ayni parcada tekrar eden kimlik: son gelen kazanir.
                     offers[offer.external_id] = offer
 
+                self.report.seconds_normalize += time.perf_counter() - normalize_started
                 self.report.records += len(batch)
                 self.report.rejected += len(rejects)
                 if seq in merged_chunks:
@@ -646,17 +692,23 @@ class FeedSync:
 
                 log_now = rejects[: max(0, settings.max_errors_logged - errors_logged)]
                 errors_logged += len(log_now)
-                self._merge_chunk(feed, snapshot_id, seq, batch, offers, log_now)
-                processed_chunks += 1
-                self.report.chunks_merged += 1
-                if (
-                    self._fail_after_chunks is not None
-                    and processed_chunks >= self._fail_after_chunks
-                ):
-                    raise _Crash("benzetilmis cokme")
-                self._backpressure(settings)
+                # Birlestirme yardimci iş parcaciginda: ana akis bir SONRAKI parcayi
+                # ayristirip normalize ederken PostgreSQL yaziyor (karar 0114).
+                writer.submit((seq, batch, offers, log_now))
+            writer.finish()
 
+            r = self.report
+            r.seconds_parse_and_wait = max(
+                0.0,
+                round(
+                    time.perf_counter() - loop_started - r.seconds_normalize - r.seconds_merge, 2
+                ),
+            )
+            r.seconds_normalize = round(r.seconds_normalize, 2)
+            r.seconds_merge = round(r.seconds_merge, 2)
         finally:
+            # Hata yolunda da yazici durdurulur; baglanti tekrar ana akisa gecer.
+            writer.close()
             # Ornek kipinde uretec sona kadar tuketilmez: dosya tutamaci acik kalmasin.
             source.close()
         fingerprint = schema_fingerprint(keys) if keys else None
@@ -886,6 +938,66 @@ class FeedSync:
     def _cleanup(self, path: Path) -> None:
         if self.source_path is None:
             path.unlink(missing_ok=True)
+
+
+#: Olcum (karar 0114, AliExpress YML): ~322 bayt/kayit sikistirilmis. ~1,9x pay.
+SAMPLE_BYTES_PER_RECORD = 600
+SAMPLE_MIN_BYTES = 4 << 20
+
+
+def sample_bytes(max_records: int, override: str | None) -> int:
+    """Ornek kipinde indirilecek bayt: kayit sayisiyla orantili (sabit 64 MiB degil)."""
+    if override and override.isdigit():
+        return int(override)
+    return max(SAMPLE_MIN_BYTES, max_records * SAMPLE_BYTES_PER_RECORD)
+
+
+class _PipelinedWriter:
+    """Tek yardimci is parcacigi + tek parcalik kuyruk (bellek sinirli).
+
+    Baglanti ayni anda yalnizca BIR is parcacigi tarafindan kullanilir: ana akis
+    yalnizca ayristirir/normalize eder, veritabanina dokunmaz. Yardimcidaki hata
+    sonraki `submit`/`finish` cagrisinda ana akista yeniden firlatilir.
+    """
+
+    _STOP = object()
+
+    def __init__(self, handler: Callable[[Any], None]) -> None:
+        self._handler = handler
+        self._queue: queue.Queue[Any] = queue.Queue(maxsize=1)
+        self._error: BaseException | None = None
+        self._thread = threading.Thread(target=self._run, name="feed-merge", daemon=True)
+        self._thread.start()
+
+    def _run(self) -> None:
+        while True:
+            item = self._queue.get()
+            if item is self._STOP:
+                return
+            if self._error is not None:
+                continue
+            try:
+                self._handler(item)
+            except BaseException as error:  # noqa: BLE001 - ana akisa tasinir
+                self._error = error
+
+    def _raise(self) -> None:
+        if self._error is not None:
+            error, self._error = self._error, None
+            raise error
+
+    def submit(self, item: Any) -> None:
+        self._raise()
+        self._queue.put(item)
+
+    def finish(self) -> None:
+        self.close()
+        self._raise()
+
+    def close(self) -> None:
+        if self._thread.is_alive():
+            self._queue.put(self._STOP)
+            self._thread.join()
 
 
 class _Crash(RuntimeError):

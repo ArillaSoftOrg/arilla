@@ -435,3 +435,30 @@ def test_profil_yalnizca_dogrulanmis_programa_uygulanir() -> None:
 
     assert profile_for("admitad", "6115")["url_unwrap"] == ["ulp", "dl_target_url"]
     assert profile_for("admitad", "20881") == {}
+
+
+def test_degismeyen_satir_yeniden_yazilmaz_degisen_yazilir(env: Env) -> None:
+    fid = env.feed()
+    items = [offer(i) for i in ids(20)]
+    env.run(fid, items)
+    before = dict(
+        env.owner.execute(
+            "SELECT external_id, xmin::text FROM offer WHERE merchant_id = %s", (env.merchant_id,)
+        ).fetchall()
+    )
+    changed = [*items[:19], offer(ids(20)[19], price="19.99")]
+    report = env.run(fid, changed, at=T0 + timedelta(hours=6), name="degisim.xml")
+    assert (report.changed, report.unchanged, report.price_points) == (1, 19, 1)
+    after = dict(
+        env.owner.execute(
+            "SELECT external_id, xmin::text FROM offer WHERE merchant_id = %s", (env.merchant_id,)
+        ).fetchall()
+    )
+    rewritten = [ext for ext in before if before[ext] != after[ext]]
+    assert rewritten == [ids(20)[19]]
+    # Gorulme bilgisi uyelikte guncel (offer satiri yazilmadan).
+    seen = env.owner.execute(
+        "SELECT count(*) FROM feed_source_offer WHERE feed_source_id = %s AND last_seen_at = %s",
+        (fid, T0 + timedelta(hours=6)),
+    ).fetchone()
+    assert seen == (20,)
