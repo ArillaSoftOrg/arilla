@@ -50,4 +50,15 @@ MERCHANT_PROFILES: dict[str, dict[str, Any]] = {
         "affiliate_status": "active",
         "deeplink_template": "{affiliate_url}&subid={click_id}",
     },
+    # Yonetici tarayicisindan toplama (karar 0115): affiliate yok, takip sablonu yok;
+    # cikis yine click kaydiyla kanonik adrese gider (kural 8).
+    "hbcollect:hepsiburada": {
+        "slug": "hepsiburada",
+        "name": "Hepsiburada",
+        "domain": "hepsiburada.com",
+        "source_type": "user_discovered",
+        "affiliate_network": None,
+        "affiliate_status": "none",
+        "deeplink_template": None,
+    },
 }

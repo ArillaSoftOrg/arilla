@@ -605,7 +605,7 @@ class FeedSync:
             self.report.status = "duplicate"
             # Icerik ayni kalsa da bekleme suresi dolan (onceki tam surumde
             # cikarilmis) offer'lar pasiflesir; uyelikler zaten guncel.
-            if self._sweep(feed, settings) == "partial":
+            if not feed.config.get("no_deactivate") and self._sweep(feed, settings) == "partial":
                 self.report.status = "partial"
             self._exec(
                 "UPDATE feed_source SET last_success_at = now(), updated_at = now() WHERE id = %s",
@@ -850,6 +850,10 @@ class FeedSync:
                 (feed.id,),
             )
         ]
+        if feed.config.get("no_deactivate"):
+            # Kismi kaynak (yonetici toplamasi, karar 0115): her kosu farkli bir alt kume olabilir;
+            # kayit sayisi karsilastirmasi anlamsiz ve hicbir sey pasiflesmeyecek.
+            return None
         if previous and r.records < settings.min_ratio_vs_median * statistics.median(previous):
             return "too_few_records"
         return None
@@ -869,7 +873,13 @@ class FeedSync:
         status = "partial"
         if gate is None:
             snapshot_status = "complete"
-            status = self._deactivate(feed, settings, snapshot_id)
+            # `no_deactivate`: kaynak tum katalogu degil taranan alt kumeyi verir; eksik
+            # olmak kaldirilmis demek degildir (karar 0115). Hicbir offer pasiflesmez.
+            status = (
+                "success"
+                if feed.config.get("no_deactivate")
+                else self._deactivate(feed, settings, snapshot_id)
+            )
         else:
             snapshot_status = "rejected"
 

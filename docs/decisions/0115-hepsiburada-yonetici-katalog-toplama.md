@@ -1,0 +1,111 @@
+# 0115 — Hepsiburada: yönetici tarayıcısından katalog toplama
+
+**Tarih:** 15 Ekim 2026
+**Durum:** Kabul edildi. Kod ve testler hazır. Kaynak `collection_source.enabled = FALSE`
+gelir; zamanlayıcı yoktur. Gerçek toplama ayrıca onay ister.
+**Bağlam:** Arşiv `research/hepsiburada-archive` (f9d5a47). Canlı tarayıcı araması
+önerisini (ziyaretçi tarayıcısından Hepsiburada'ya istek) **iptal eder**.
+
+## İzin kaydı (yazılı lisans DEĞİLDİR)
+
+Aşağıdaki kapsam, ürün sahibinin **Hepsiburada tarafıyla yaptığı görüşmeden bildirdiği
+sözlü izindir**. Yazılı sözleşme, e-posta ya da lisans metni depoda yoktur ve bu karar
+onun yerine geçmez. `collection_source.permission_basis = 'verbal_reported'` olarak
+saklanır; yazılı onay alınırsa `written_agreement` olarak güncellenir.
+
+Bildirilen kapsam:
+- Mevcut tarayıcı (CORS) yönteminin kullanılması.
+- Ürün verisinin PostgreSQL'de saklanması.
+- Toplu güncelleme: **en az 7 gün arayla, takvim ayında en fazla 4 kez**; fiyat
+  güncelleme, yeni ürün ekleme, kaldırılan ürünü işleme.
+- Sürekli toplu çekme yoktur. **İlk yükleme için ayrı bir sınırsızlık izni yoktur**; ilk
+  yükleme de aynı kotaya tabidir.
+
+Doğrulanmamış: kullanım koşulları, görsellerin yeniden kullanımı, ticari gösterim.
+Üretimde toplamayı açmadan önce yazılı onay önerilir.
+
+## Karar
+
+1. **Toplama yalnızca yöneticinin kendi tarayıcısında** (`/yonetim/katalog/toplama`,
+   `catalog.write`) yapılır. Kullanıcılar Hepsiburada'ya istek göndermez; kullanıcı
+   aramaları mevcut PostgreSQL kataloğundan (`offer` → arama) karşılanır. Sunucu
+   Hepsiburada'ya erişmez (Akamai 403 bilinen durum; aşılmaya çalışılmaz).
+2. **Çıkarıcı arşivdeki yöntemdir:** `/ara?q=` (+`&sayfa=N`) sayfası,
+   `reduxStore` → `ProductList.seoState.itemListElement`
+   (`packages/core/src/catalog-collection/extract-hepsiburada.ts`). Çerezsiz,
+   `mode: "cors"`.
+3. **Aktarım kimlikli API ile:** `POST /api/yonetim/katalog-toplama`. Oturum çerezi +
+   `catalog.write` + yönetim oturumu süresi + aynı-kökenli istek; kosu başlatmak taze
+   giriş ister; yetkisizlere 404. Gövde 1,5 MB, parti 500 kayıt. Sunucu her alanı yeniden
+   doğrular (`validate.ts`): `hepsiburada.com`/`hepsiburada.net` alan adı, https, TRY,
+   tam sayı kuruş, kaynak zamanı koşu aralığında. Gizli bilgi istemciye gitmez.
+4. **Veri modeli mevcut kataloğu kullanır, ayrı veritabanı yoktur:**
+   `catalog_intake_record` (ara depo, TS yalnız ekler) → Python `feeds hb-merge`
+   mevcut `FeedSync` hattıyla `offer`, `seller`, `price_point`, `search_outbox`,
+   `feed_source`/`source_snapshot`/`ingest_chunk` yazar. TS `offer` yazmaz
+   (mimari sınır). `merchant`: `hepsiburada` (affiliate yok; çıkış yine `click`
+   kaydıyla kanonik adrese gider, kural 8).
+5. **Kota sistem seviyesinde (migration 0068 tetikleyicileri):** `collection_run`
+   rezervasyonu en az 7 gün aralığı ve takvim ayında (UTC) 4 koşuyu uygulama
+   kodundan bağımsız zorlar; koşu süresi (6 gün) aralıktan kısadır; açık koşu kaynak
+   başına tek; manuel/CLI/ilk yükleme aynı tabloyu kullanır; `arilla_app` politikayı
+   ve koşu satırlarını silemez, kapanmış koşu yeniden açılamaz. Hiç istek atılmadan
+   bırakılan koşu (`released`) kotadan düşülür. Başarısız bir koşu da hak harcar:
+   yeniden deneme aynı açık koşuyu **sürdürmektir** (checkpoint), yeni koşu değil;
+   koşu süresi (6 gün) dolarsa kapanır ve 7 günlük aralık ondan sayılır.
+6. **İstek bütçesi:** koşu başına en fazla 500 kaynak isteği (işletici güvenlik valfi,
+   Hepsiburada'nın bildirdiği bir sayı değildir), sunucuda zorunlu. İstekler arası en az
+   2 sn. 403/429/503, doğrulama sayfası ya da beklenen yapının yokluğunda koşu durur;
+   yeniden deneme ve alternatif yöntem yoktur.
+7. **Değişen veri, gereksiz WAL yok:** parmak izi eşleşen satır yeniden yazılmaz,
+   `price_point` yalnızca yeni/değişen fiyat-stokta eklenir (0114'teki ölçüme dayanan
+   mevcut birleştirme).
+8. **Eksik sonuçtan ürün silinmez.** Kaynak tam katalog vermez, taranan alt kümeyi
+   verir. Besleme `no_deactivate` ayarlıdır: hiçbir `offer` pasifleşmez, parça sayısı
+   karşılaştırması yapılmaz. Güvenilir kaldırılma bilgisi (kaynakta 404/stokta yok
+   işareti) kullanılmadığı sürece ürün "belirsiz" kalır; tazelik `last_seen_at` ile
+   görünür. Kaldırılanı işleme, güvenilir sinyal eklenince ayrı bir karardır.
+9. **Eksik alan uydurulmaz.** Listede olmayan alanlar boş kalır: satıcı, GTIN, kategori,
+   varyant, stok adedi. Stok bilinmiyorsa (`in_stock` NOT NULL olduğundan) `false`
+   yazılır ve `attributes_raw.stock_state = "unknown"` işaretlenir; "stokta" denmez.
+10. **Zaman alanları ayrı:** kaynaktan okunma anı `catalog_intake_record.source_observed_at`,
+    sunucuya geliş `received_at`, birleştirme `merged_at`; teklifte `last_seen_at`,
+    `price_point.observed_at` (koşunun son kaynak zamanı). Ayrı bir "son doğrulama"
+    sütunu eklenmedi: bağımsız doğrulama `price_verification` (0113) işidir ve
+    Hepsiburada için izinli sağlayıcı yoktur (kaynak sunucudan erişilemez).
+11. **Denetim:** koşu başlatma ve kapatma `admin_audit_event`'e yazılır
+    (`catalog_collection.*`), ürün içeriği yazılmaz.
+12. **CSP:** yalnızca `/yonetim/katalog/toplama` yolunda `connect-src`'ye
+    `https://www.hepsiburada.com` eklenir; genel ve diğer yönetim yollarında yoktur.
+    `img-src https:` zaten izinlidir; kullanıcılara görseller mevcut galeri hattından
+    (`offer_image`) gelir.
+
+## Kapsam sınırı (güvenilir keşif)
+
+- Tek sayfa ≤ 36 ürün (arşiv ölçümü). `&sayfa=N` sayfalamasının çalıştığı **bu karar
+  yazılırken canlı doğrulanmadı** (Hepsiburada'ya istek atılmadı). Toplayıcı bunu koşuda
+  ölçer: sonraki sayfa yeni ürün getirmiyorsa sorgu orada biter ve kapanış raporunda
+  `queriesPaginationUnconfirmed` olarak görünür; tavana takılan sorgu
+  `queriesCappedByPageLimit` ile raporlanır.
+- Keşif **yöneticinin verdiği sorgu listesiyle** sınırlıdır; tüm kataloğa erişim
+  varsayılmaz. Arama sonucu, sorguya göre sıralı ve değişkendir; kapsam yüzdesi
+  hesaplanamaz, yalnızca benzersiz ürün, sorgu ve sayfa sayıları raporlanır.
+- Kategori sayfaları, sitemap ve robots durumu doğrulanmadı; ayrı bir keşif işi.
+- Bir koşu 500 istek × ≤ 36 ürün = en fazla ~18.000 ürün satırı, ayda en fazla 4 koşu.
+
+## Reddedilen alternatifler
+
+- **Kullanıcı tarayıcısından canlı arama:** KVKK/üçüncü taraf kuralları, ölçek ve
+  toplu otomasyon riski; ürün sahibi vazgeçti.
+- **Sunucudan/VPS'ten çekme, proxy, headless tarayıcı:** erişim engelini aşmak olur.
+- **Kotayı yalnızca uygulama kodunda tutmak:** başka yol (CLI, test, yeni kod) atlar;
+  tetikleyici tek zorlayıcıdır.
+- **Eksik gelen ürünü pasifleştirmek:** alt küme taramasında yanlış kaldırma üretir.
+- **Ayrı Hepsiburada tabloları/veritabanı:** mevcut `offer` modeli ve AliExpress
+  beslemesiyle aynı hat yeterli.
+
+## Açık işler
+
+Yazılı izin; sayfalama ve ürün sayfası (satıcı, varyant, GTIN) için canlı doğrulama
+(izinli ve onaylı küçük deneme); `collection_source.enabled` açılışı; `hb-merge`
+zamanlaması (bilerek yok); güvenilir kaldırılma sinyali.
