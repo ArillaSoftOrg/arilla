@@ -1,0 +1,20 @@
+<!doctype html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <title>ManiCepte</title>
+    <style>
+      /* Prototip: renk gommek yerine sistem renkleri (Canvas/CanvasText) kullanilir. */
+      :root { color-scheme: light dark; }
+      body { font: 13px system-ui, sans-serif; width: 340px; margin: 12px; background: Canvas; color: CanvasText; }
+      li { display: flex; gap: 8px; margin: 0 0 10px; list-style: none; }
+      ul { padding: 0; }
+      img { width: 56px; height: 56px; object-fit: contain; }
+      .muted { opacity: 0.7; }
+    </style>
+  </head>
+  <body>
+    <div id="out" class="muted">Bir Trendyol ya da Hepsiburada arama sayfası açın.</div>
+    <script src="popup.js" type="module"></script>
+  </body>
+</html>

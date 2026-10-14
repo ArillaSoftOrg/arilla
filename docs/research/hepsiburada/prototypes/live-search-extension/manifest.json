@@ -1,0 +1,22 @@
+{
+  "manifest_version": 3,
+  "name": "ManiCepte canlı karşılaştırma (prototip)",
+  "version": "0.0.1",
+  "description": "Açtığınız Trendyol/Hepsiburada arama sayfasındaki ürünleri okur; ağ isteği atmaz, veri göndermez.",
+  "permissions": ["storage"],
+  "background": { "service_worker": "background.js" },
+  "content_scripts": [
+    {
+      "matches": ["https://www.trendyol.com/sr*", "https://www.hepsiburada.com/ara*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["extract.js"],
+      "matches": ["https://www.trendyol.com/*", "https://www.hepsiburada.com/*"]
+    }
+  ],
+  "action": { "default_popup": "popup.html", "default_title": "ManiCepte" }
+}
