@@ -13,6 +13,7 @@ yapıştırılan link öneki. Karar:
 | Creator | `/@handle` | Instagram ve TikTok'tan tanıdık, kökü boşaltır |
 | Ürün | `/urun/...` | Açık, SEO dostu |
 | Link öneki | kök catch-all | Paylaşılabilirlik için en kısa hali gerekiyor |
+| Takip bağlantısı | `/<slug>` (tek parça) | Yönetimden tanımlanan kısa adres (`/ig`, `/arda`); karar 0115. 302 yönlendirir, sistem rotaları rezerve, tanımsız tek parçalı yol eski link-öneki davranışına düşer |
 
 Rezerve slug listesi tutulur: `ara`, `urun`, `kategori`, `marka`, `alternatif`,
 `trend`, `firsatlar`, `kesfet`, `gecmis`, `alarmlar`, `kaydettiklerim`, `git`,
@@ -184,6 +185,8 @@ platform sorununu hafifletir.
 /yonetim/arama/tani        Arama tanısı: gerçek boru hattı, salt okunur
 /yonetim/arama/link        link_resolution_request durumları ve hata kodları
 /yonetim/arama/gorsel      image_upload durumları (görsel gösterilmez)
+/yonetim/takip-baglantilari      Kısa adresler: ad, slug, hedef, kaynak, kampanya, açık/kapalı; günlük ve saatlik tıklama sayacı, tarih aralığı (yalnızca yönetici, karar 0115)
+/yonetim/takip-baglantilari/<id>  Ayrıntı: istatistik, düzenleme, kopyalama, aç/kapat
 /yonetim/seo               İç SEO tanısı (Search Console değil)
 /yonetim/islemler          Sistem sağlığı: tüm işletim bulguları (yalnızca admin, 0055)
 /yonetim/islemler/isler    İş koşuları geçmişi, job_run (yalnızca admin, 0055)

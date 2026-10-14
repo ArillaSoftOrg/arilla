@@ -95,6 +95,7 @@ let subjectPublicId = "";
 let formId = 0;
 let campaignPublicId = "";
 let feedbackMessageId = 0;
+let trackingLinkId = 0;
 /** Var olmayan kampanya: gönderim/iptal yolları hiçbir şeye dokunmadan döner. */
 const missingCampaign = "00000000-0000-4000-8000-000000000000";
 
@@ -154,6 +155,11 @@ beforeAll(async () => {
       [conversation.rows[0].id],
     );
     feedbackMessageId = Number(message.rows[0].id);
+    const link = await client.query(
+      "INSERT INTO tracking_link (name, slug, target_url) VALUES ($1, $2, '/') RETURNING id",
+      [`Authz bağlantı`, `authz-${suffix.toString(36)}`],
+    );
+    trackingLinkId = Number(link.rows[0].id);
     await client.query(
       `INSERT INTO chat_result_feedback (message_id, conversation_id, helpful)
        VALUES ($1, $2, FALSE)`,
@@ -171,6 +177,8 @@ afterAll(async () => {
       [userIds.map(String)],
     );
     await client.query("DELETE FROM lexicon WHERE surface LIKE $1", [`authz-${suffix}%`]);
+    await client.query("DELETE FROM tracking_link_click_hour WHERE link_id = $1", [trackingLinkId]);
+    await client.query("DELETE FROM tracking_link WHERE id = $1", [trackingLinkId]);
     await client.query("DELETE FROM form WHERE id = $1", [formId]);
     await client.query("DELETE FROM marketing_campaign WHERE public_id = $1", [campaignPublicId]);
     await client.query("DELETE FROM product WHERE id = $1", [productId]);
@@ -288,6 +296,21 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     name: "/yonetim/mesajlar",
     admin: true,
     call: async () => (await import("./mesajlar/page.tsx")).default(sp({})),
+  },
+  // Karar 0115: takip bağlantıları (yalnızca yönetici).
+  {
+    name: "/yonetim/takip-baglantilari",
+    admin: true,
+    call: async () => (await import("./takip-baglantilari/page.tsx")).default(sp({})),
+  },
+  {
+    name: "/yonetim/takip-baglantilari/[id]",
+    admin: true,
+    call: async () =>
+      (await import("./takip-baglantilari/[id]/page.tsx")).default({
+        params: Promise.resolve({ id: String(trackingLinkId) }),
+        searchParams: Promise.resolve({}),
+      }),
   },
   {
     name: "/yonetim/kampanyalar",
@@ -685,6 +708,44 @@ const lexiconEntry = () => ({
 });
 
 const ACTIONS: ActionCase[] = [
+  // Karar 0115: geçersiz girdi, kapıyı geçen rolde doğrulama hatasıyla döner; veri değişmez.
+  {
+    module: "takip-baglantilari",
+    name: "createTrackingLinkAction",
+    moderator: false,
+    call: async () =>
+      (await import("./takip-baglantilari/actions.ts")).createTrackingLinkAction({
+        name: "Yetki matrisi",
+        slug: "yonetim",
+        targetUrl: "https://evil.example/",
+        source: "",
+        campaign: "",
+      }),
+  },
+  {
+    module: "takip-baglantilari",
+    name: "updateTrackingLinkAction",
+    moderator: false,
+    call: async () =>
+      (await import("./takip-baglantilari/actions.ts")).updateTrackingLinkAction({
+        id: -1,
+        expectedUpdatedAt: "",
+        name: "x",
+        targetUrl: "/",
+        source: "",
+        campaign: "",
+      }),
+  },
+  {
+    module: "takip-baglantilari",
+    name: "setTrackingLinkActiveAction",
+    moderator: false,
+    call: async () =>
+      (await import("./takip-baglantilari/actions.ts")).setTrackingLinkActiveAction({
+        id: -1,
+        active: false,
+      }),
+  },
   // Karar 0086: geçersiz kimlik, kapıyı geçen rolde doğrulama hatasıyla döner.
   {
     module: "trendler",

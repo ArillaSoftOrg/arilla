@@ -1460,6 +1460,41 @@ değişkenleri ayrı silinebilir. Federe erişimi tümden kesmek için
 6 saat/15 dk. Kalan saatlik/günlük token eşiğin altındaysa istek atılmaz
 (`TRAFFIC_QUOTA_FLOOR`).
 
+## Takip bağlantıları ve Umami (karar 0115)
+
+**Takip bağlantıları** (`/yonetim/takip-baglantilari`) deploy gerektirmez: kayıt
+veritabanında, yönlendirme Next.js'te, Redis önbelleği 60 sn (düzenleme ve kapatma
+önbelleği hemen siler). Umami veya Redis kapalıyken de çalışır (Redis yoksa
+veritabanından çözülür, sayaç yine artar).
+
+- Env: `APP_URL` (zorunlu; hedefler yalnızca bu alan adı ve `www` eşi), isteğe bağlı
+  `TRACKING_LINK_EXTRA_HOSTS` (yalnızca ManiCepte'nin kendi alan adları).
+- İzleme: sayaç yazılamazsa günlükte `[takip-baglantisi] sayac yazilamadi <hata adı>`;
+  yönlendirme etkilenmez.
+- Geri alma: migration `0068` yalnızca ekler. Özelliği kapatmak için ilgili bağlantılar
+  yönetimden kapatılır (404); kod geri alınırsa `/<slug>` yolları eski link-öneki
+  davranışına (404) döner, tablolar kalır.
+
+**Umami (2. aşama, bu PR'da kod yok).** `analytics.manicepte.com` üzerinde çalışan Umami
+v3.4.0 şu an depodaki `infra/` dosyalarında YOKTUR. Dağıtım `infra/vps/Caddyfile` ve
+`infra/vps/postgres/pg_hba.conf` dosyalarını VPS'e yeniden kopyalarsa VPS'te elle yapılmış
+değişiklikler ezilir. Üretim öncesi, YALNIZ OKUYARAK (VPS'e yazmadan):
+
+1. Canlı Caddyfile ile depodakini karşılaştır:
+   `docker compose -f /opt/arilla/compose.prod.yml exec caddy cat /etc/caddy/Caddyfile`
+   ve `diff` ile `infra/vps/Caddyfile`. `analytics.manicepte.com` bloğunun, Umami
+   konteynerine ulaşmak için Caddy'nin bağlı olduğu Docker ağının ve `www`/`ARILLA_*`
+   değişkenlerinin depoya taşınması gerekir (ayrı PR).
+2. Canlı `pg_hba.conf` ile depodakini karşılaştır (`/opt/arilla/vps/postgres/pg_hba.conf`).
+   Depodaki kurallar yalnız `arilla` veritabanına izin verir; Umami veritabanı/rolü için
+   kural eklenmeden dağıtım Umami'nin veritabanı bağlantısını keser.
+   `infra/vps/bin/check-pg-hba.py` ile doğrula.
+3. Umami veritabanı Arilla'nın PostgreSQL kümesindeyse pgBackRest/WAL (karar 0110) onu da
+   kapsar; ayrı bir Postgres kapsayıcısındaysa kapsam DIŞIDIR (ayrı `pg_dump` işi gerekir).
+   `infra/vps/backup` yapılandırması ve `pg-restore-test` ile doğrula.
+4. Umami `web` ağında değildir: `web` → Umami çağrısı (2. aşama) için ağ kuralı ve
+   `UMAMI_API_KEY` (yalnızca `web.env`) gerekir.
+
 ## Dağıtım
 
 - `main` dalına birleşme staging'e otomatik gider

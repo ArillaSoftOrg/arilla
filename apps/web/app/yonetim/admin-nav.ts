@@ -212,6 +212,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         capability: "catalog.read",
         description: "Sitemap uygunluğu ve indekslenebilirlik.",
       },
+      {
+        href: "/yonetim/takip-baglantilari",
+        label: "Takip bağlantıları",
+        capability: "links.read",
+        description: "Kısa adresler (örn. /ig), hedef, kampanya ve tıklama sayıları.",
+      },
     ],
   },
   {

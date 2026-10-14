@@ -131,7 +131,17 @@ export type Capability =
    * Yalnızca yönetici, taze giriş, her indirme denetime yazılır. Hukuki bayrak ve
    * kaynak onayı olmadan çalışmaz.
    */
-  | "data.export";
+  | "data.export"
+  /**
+   * `/yonetim/takip-baglantilari` (karar 0115): bağlantı listesi ve tıklama
+   * istatistikleri (yalnızca sayaç; kişi tanımlayıcısı yok). Yalnızca yönetici.
+   */
+  | "links.read"
+  /**
+   * Takip bağlantısı oluşturma, düzenleme, pasife alma (karar 0115). Kamuya
+   * açık adresleri değiştirir: yalnızca yönetici, taze giriş, denetim kaydı.
+   */
+  | "links.manage";
 
 /** Mutasyonu yapan kişi. Rol, istek anında veritabanından okunmuş olmalıdır. */
 export interface AdminActor {
@@ -187,6 +197,9 @@ const ADMIN_CAPABILITIES: readonly Capability[] = [
   "data.read",
   "data.build",
   "data.export",
+  // Karar 0115: takip bağlantıları (kamuya açık kısa adresler) yalnızca yöneticinin.
+  "links.read",
+  "links.manage",
 ];
 
 const ROLE_CAPABILITIES: Readonly<Record<UserRole, ReadonlySet<Capability>>> = {

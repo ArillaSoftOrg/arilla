@@ -212,6 +212,10 @@ const ACTION_LABELS: Record<AdminAction, string> = {
   "data.export_download": "Veri seti dosyası indirildi",
   "data.accuracy_sample": "Doğruluk örneği çekildi",
   "data.accuracy_label": "Doğruluk etiketi girildi",
+  "links.create": "Takip bağlantısı oluşturuldu",
+  "links.update": "Takip bağlantısı düzenlendi",
+  "links.activate": "Takip bağlantısı açıldı",
+  "links.deactivate": "Takip bağlantısı kapatıldı",
 };
 
 export function actionLabel(action: string): string {
@@ -233,6 +237,7 @@ export const TARGET_TYPE_LABELS: Record<AdminTargetType, string> = {
   trend: "Trend",
   data_build: "Veri seti sürümü",
   data_export: "Veri seti dışa aktarımı",
+  tracking_link: "Takip bağlantısı",
 };
 
 export function targetTypeLabel(targetType: string): string {
