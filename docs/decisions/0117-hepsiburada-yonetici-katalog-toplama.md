@@ -1,4 +1,4 @@
-# 0115 — Hepsiburada: yönetici tarayıcısından katalog toplama
+# 0117 — Hepsiburada: yönetici tarayıcısından katalog toplama
 
 **Tarih:** 15 Ekim 2026
 **Durum:** Kabul edildi. Kod ve testler hazır. Kaynak `collection_source.enabled = FALSE`
@@ -45,7 +45,7 @@ Doğrulanmamış: kullanım koşulları, görsellerin yeniden kullanımı, ticar
    `feed_source`/`source_snapshot`/`ingest_chunk` yazar. TS `offer` yazmaz
    (mimari sınır). `merchant`: `hepsiburada` (affiliate yok; çıkış yine `click`
    kaydıyla kanonik adrese gider, kural 8).
-5. **Kota sistem seviyesinde (migration 0068 tetikleyicileri):** `collection_run`
+5. **Kota sistem seviyesinde (migration 0070 tetikleyicileri):** `collection_run`
    rezervasyonu en az 7 gün aralığı ve takvim ayında (UTC) 4 koşuyu uygulama
    kodundan bağımsız zorlar; koşu süresi (6 gün) aralıktan kısadır; açık koşu kaynak
    başına tek; manuel/CLI/ilk yükleme aynı tabloyu kullanır; `arilla_app` politikayı
@@ -53,8 +53,13 @@ Doğrulanmamış: kullanım koşulları, görsellerin yeniden kullanımı, ticar
    bırakılan koşu (`released`) kotadan düşülür. Başarısız bir koşu da hak harcar:
    yeniden deneme aynı açık koşuyu **sürdürmektir** (checkpoint), yeni koşu değil;
    koşu süresi (6 gün) dolarsa kapanır ve 7 günlük aralık ondan sayılır.
-6. **İstek bütçesi:** koşu başına en fazla 500 kaynak isteği (işletici güvenlik valfi,
-   Hepsiburada'nın bildirdiği bir sayı değildir), sunucuda zorunlu. İstekler arası en az
+6. **İstek bütçesi, ilk yükleme ve güncelleme ayrı:** kaynağın ilk kotaya sayılan koşusu
+   `initial`, sonrakiler `refresh` olur (tetikleyici yazar). Bütçeler
+   `collection_source.initial_max_requests` / `refresh_max_requests` ile ayarlanır
+   (varsayılan 500/500; işletici güvenlik valfi, Hepsiburada'nın bildirdiği bir sayı
+   değildir). İlk yükleme kotadan muaf değildir. Sözlü izin dayanağındayken politika
+   7 günden kısa aralığa ya da ayda 4'ten fazla koşuya CHECK ile gevşetilemez; bunun
+   için önce izin dayanağı yazılı sözleşmeye yükseltilir. Bütçe sunucuda zorunlu. İstekler arası en az
    2 sn. 403/429/503, doğrulama sayfası ya da beklenen yapının yokluğunda koşu durur;
    yeniden deneme ve alternatif yöntem yoktur.
 7. **Değişen veri, gereksiz WAL yok:** parmak izi eşleşen satır yeniden yazılmaz,
@@ -65,7 +70,11 @@ Doğrulanmamış: kullanım koşulları, görsellerin yeniden kullanımı, ticar
    karşılaştırması yapılmaz. Güvenilir kaldırılma bilgisi (kaynakta 404/stokta yok
    işareti) kullanılmadığı sürece ürün "belirsiz" kalır; tazelik `last_seen_at` ile
    görünür. Kaldırılanı işleme, güvenilir sinyal eklenince ayrı bir karardır.
-9. **Eksik alan uydurulmaz.** Listede olmayan alanlar boş kalır: satıcı, GTIN, kategori,
+9. **Yanlış fiyat koruması:** fiyat tam metinle kuruşa çevrilir (2'den fazla ondalık,
+   virgül, bilimsel gösterim elenir). Birleştirmede mevcut teklif fiyatından 5 kat ve
+   üstü sapma otomatik işlenmez, `ingest_error` (`price_jump_held`) olarak incelemeye
+   ayrılır. Liste fiyatı ürün sayfasıyla yalnızca 6 üründe karşılaştırılmıştır (arşiv).
+   **Eksik alan uydurulmaz.** Listede olmayan alanlar boş kalır: satıcı, GTIN, kategori,
    varyant, stok adedi. Stok bilinmiyorsa (`in_stock` NOT NULL olduğundan) `false`
    yazılır ve `attributes_raw.stock_state = "unknown"` işaretlenir; "stokta" denmez.
 10. **Zaman alanları ayrı:** kaynaktan okunma anı `catalog_intake_record.source_observed_at`,
@@ -106,6 +115,10 @@ Doğrulanmamış: kullanım koşulları, görsellerin yeniden kullanımı, ticar
 
 ## Açık işler
 
+Gerçek HTML örneği yok: arşivde kayıtlı Hepsiburada sayfası bulunmuyor; çıkarıcı eski
+çalışan yöntemle sentetik veride birebir karşılaştırıldı (görselsiz ürün tek farktır:
+yeni kod tutar, `image_url` boş kalır). İlk pilot bu yüzden gerçek örnek üretmelidir.
+Aynı ürünün `-p-` ve `-pm-` kodlarıyla iki ayrı teklif olması mümkündür (doğrulanmadı).
 Yazılı izin; sayfalama ve ürün sayfası (satıcı, varyant, GTIN) için canlı doğrulama
 (izinli ve onaylı küçük deneme); `collection_source.enabled` açılışı; `hb-merge`
 zamanlaması (bilerek yok); güvenilir kaldırılma sinyali.

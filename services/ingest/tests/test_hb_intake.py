@@ -1,4 +1,4 @@
-"""Yonetici toplamasi: kota tetikleyicisi ve ara depo -> offer birlestirmesi (karar 0115).
+"""Yonetici toplamasi: kota tetikleyicisi ve ara depo -> offer birlestirmesi (karar 0117).
 
 Sentetik kayitlar; gercek Hepsiburada verisi ya da istegi YOK.
 """
@@ -140,9 +140,10 @@ def test_aylik_tavan_aralik_dolsa_bile_zorunlu(env: psycopg.Connection) -> None:
     if today.day < 12:
         pytest.skip("ay icinde 4 kosuyu 2 gun arayla gecmise yerlestirmek icin ayin 12'si gerekir")
     with env.cursor() as cur:
-        cur.execute("ALTER TABLE collection_source DISABLE TRIGGER ALL")
-        cur.execute("UPDATE collection_source SET min_interval_days = 2, run_window_days = 1")
-        cur.execute("ALTER TABLE collection_source ENABLE TRIGGER ALL")
+        cur.execute(
+            "UPDATE collection_source SET min_interval_days = 2, run_window_days = 1,"
+            " permission_basis = 'written_agreement'"
+        )
         cur.execute("ALTER TABLE collection_run DISABLE TRIGGER collection_run_quota_guard_trg")
         cur.execute(
             """INSERT INTO collection_run (source, status, reserved_at, expires_at, closed_at,
@@ -156,7 +157,37 @@ def test_aylik_tavan_aralik_dolsa_bile_zorunlu(env: psycopg.Connection) -> None:
         _expect(env, "collection_quota_month")
     finally:
         with env.cursor() as cur:
-            cur.execute("UPDATE collection_source SET min_interval_days = 7, run_window_days = 6")
+            cur.execute(
+                "UPDATE collection_source SET min_interval_days = 7, run_window_days = 6,"
+                " permission_basis = 'verbal_reported'"
+            )
+
+
+def test_sozlu_izin_kapsami_politikayla_gevsetilemez(env: psycopg.Connection) -> None:
+    for change in ("min_interval_days = 3, run_window_days = 2", "max_runs_per_month = 5"):
+        with pytest.raises(psycopg.errors.CheckViolation), env.cursor() as cur:
+            cur.execute(f"UPDATE collection_source SET {change}")
+
+
+def test_ilk_yukleme_ve_guncelleme_ayri_butceli_ikisi_de_kotali(env: psycopg.Connection) -> None:
+    with env.cursor() as cur:
+        cur.execute(
+            "UPDATE collection_source SET initial_max_requests = 900, refresh_max_requests = 120"
+        )
+    first = _new_run(env)
+    with env.cursor() as cur:
+        cur.execute("SELECT kind, max_requests FROM collection_run WHERE id = %s", (first,))
+        assert cur.fetchone() == ("initial", 900)
+    _close(env, first)
+    _expect(env, "collection_quota_interval")  # ilk yukleme de araliga tabi
+    _rewind(env, 8)
+    second = _new_run(env)
+    with env.cursor() as cur:
+        cur.execute("SELECT kind, max_requests FROM collection_run WHERE id = %s", (second,))
+        assert cur.fetchone() == ("refresh", 120)
+        cur.execute(
+            "UPDATE collection_source SET initial_max_requests = 500, refresh_max_requests = 500"
+        )
 
 
 def test_kullanilmadan_birakilan_kosu_kotadan_dusulur(env: psycopg.Connection) -> None:
@@ -245,6 +276,33 @@ def test_birlestirme_fiyat_gecmisi_degismeyeni_yazmaz_eksigi_silmez(
     assert state["HBTEST0003"][1] is True  # eksik gelen urun PASIFLESMEZ
     with env.cursor() as cur:
         cur.execute("SELECT count(*) FROM offer WHERE deactivated_at IS NOT NULL")
+        assert cur.fetchone() == (0,)
+
+
+def test_asiri_fiyat_sapmasi_otomatik_islenmez(env: psycopg.Connection) -> None:
+    run1 = _new_run(env)
+    _add(env, run1, "HBTEST0001", 100000)
+    _add(env, run1, "HBTEST0002", 100000)
+    _close(env, run1)
+    with psycopg.connect(database_url("DATABASE_URL")) as app:
+        merge_run(app, run1)
+    _rewind(env, 8)
+    run2 = _new_run(env)
+    _add(env, run2, "HBTEST0001", 10000)  # 10x dusus: supheli
+    _add(env, run2, "HBTEST0002", 60000)  # makul indirim
+    _close(env, run2)
+    with psycopg.connect(database_url("DATABASE_URL")) as app:
+        report = merge_run(app, run2)
+    assert report.held == 1
+    state = _offer_state(env)
+    assert state["HBTEST0001"][0] == 100000  # fiyat degismedi
+    assert state["HBTEST0002"][0] == 60000
+    with env.cursor() as cur:
+        cur.execute(
+            "SELECT external_id, detail FROM ingest_error WHERE error_code = 'price_jump_held'"
+        )
+        assert cur.fetchall() == [("HBTEST0001", "onceki=100000 yeni=10000")]
+        cur.execute("SELECT count(*) FROM catalog_intake_record WHERE merged_at IS NULL")
         assert cur.fetchone() == (0,)
 
 

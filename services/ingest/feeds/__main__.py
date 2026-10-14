@@ -191,7 +191,7 @@ def _sync_due(args: argparse.Namespace) -> int:
 
 
 def _hb_merge(args: argparse.Namespace) -> int:
-    """Kapanmis toplama kosusunun ara depo kayitlarini offer modeline birlestirir (karar 0115)."""
+    """Kapanmis toplama kosusunun ara depo kayitlarini offer modeline birlestirir (karar 0117)."""
     from feeds.intake import merge_run
 
     with job_run.track("hb_merge") as run, connect() as conn:

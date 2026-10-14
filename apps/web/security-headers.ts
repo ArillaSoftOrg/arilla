@@ -40,7 +40,7 @@ export interface SecurityHeaderOptions {
   production: boolean;
   /** Geçerli GA4 ölçüm kimliği tanımlı mı (karar 0087). */
   ga4?: boolean;
-  /** Ek `connect-src` kokenleri; yalnızca katalog toplama sayfası (karar 0115). */
+  /** Ek `connect-src` kokenleri; yalnızca katalog toplama sayfası (karar 0117). */
   extraConnectOrigins?: string[];
 }
 
@@ -130,7 +130,7 @@ function adminHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
 }
 
 /**
- * Katalog toplama sayfası (karar 0115): yönetici tarayıcısı kaynak mağazadan okur.
+ * Katalog toplama sayfası (karar 0117): yönetici tarayıcısı kaynak mağazadan okur.
  * İzin YALNIZCA bu yolda ve yalnızca `connect-src` için bir kökene verilir; GA4 yok.
  */
 export const COLLECTION_CONNECT_ORIGINS = ["https://www.hepsiburada.com"];

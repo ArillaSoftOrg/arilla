@@ -15,7 +15,7 @@ import { getDatabase } from "@arilla/db";
 import { readSessionCookie } from "../../../lib/session-cookie.ts";
 
 /**
- * Yonetici tarayicisindan katalog toplama API'si (karar 0115). Is mantigi
+ * Yonetici tarayicisindan katalog toplama API'si (karar 0117). Is mantigi
  * `packages/core/src/catalog-collection`; burasi ince istemci.
  *
  * Savunma: (1) cerezli oturum + `catalog.write` (yalniz yonetici) + yonetim

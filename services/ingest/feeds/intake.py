@@ -1,4 +1,4 @@
-"""Yonetici tarayicisindan toplanan kayitlari mevcut katalog modeline birlestirir (karar 0115).
+"""Yonetici tarayicisindan toplanan kayitlari mevcut katalog modeline birlestirir (karar 0117).
 
 TS tarafi yalnizca `catalog_intake_record` yazar; `offer`/`price_point` yazimi
 BURADADIR ve mevcut `FeedSync` hattini yeniden kullanir (parmak izi ile degisiklik
@@ -64,10 +64,23 @@ SELECT id, external_id, title, url, price_minor, list_price_minor, currency, in_
 """
 
 
+#: Yanlis fiyat korumasi: mevcut teklifin fiyatindan bu kat ve ustu sapma otomatik
+#: islenmez, `ingest_error` (`price_jump_held`) olarak incelemeye ayrilir. Liste fiyati ile
+#: sepet/kampanya fiyatinin karismasi ya da ayristirma kaymasi boyle yakalanir.
+MAX_PRICE_RATIO = 5
+
+
+def price_jump(previous: int | None, new: int) -> bool:
+    if not previous or previous <= 0:
+        return False
+    return new > previous * MAX_PRICE_RATIO or new * MAX_PRICE_RATIO < previous
+
+
 @dataclass
 class MergeReport:
     run_id: int
     records: int = 0
+    held: int = 0
     status: str = "nothing_to_merge"
     detail: dict[str, Any] | None = None
 
@@ -151,6 +164,37 @@ def ensure_feed(conn: psycopg.Connection) -> int:
     return int(row[0])
 
 
+def _hold_price_jumps(
+    conn: psycopg.Connection, feed_id: int, rows: list[tuple[Any, ...]]
+) -> list[tuple[Any, ...]]:
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT o.external_id, o.current_price FROM offer o
+                 JOIN feed_source f ON f.merchant_id = o.merchant_id
+                WHERE f.id = %s AND o.external_id = ANY(%s)""",
+            (feed_id, [r[1] for r in rows]),
+        )
+        previous = {ext: int(price) for ext, price in cur.fetchall() if price is not None}
+    conn.rollback()
+    held = [r for r in rows if price_jump(previous.get(r[1]), int(r[4]))]
+    if held:
+        with conn.cursor() as cur:
+            for r in held:
+                cur.execute(
+                    """INSERT INTO ingest_error (feed_source_id, external_id, error_code, detail,
+                                                 payload)
+                       VALUES (%s, %s, 'price_jump_held', %s, %s::jsonb)""",
+                    (
+                        feed_id,
+                        r[1],
+                        f"onceki={previous[r[1]]} yeni={int(r[4])}",
+                        json.dumps({"previous_minor": previous[r[1]], "new_minor": int(r[4])}),
+                    ),
+                )
+        conn.commit()
+    return held
+
+
 def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = True) -> MergeReport:
     report = MergeReport(run_id)
     with conn.cursor() as cur:
@@ -169,6 +213,10 @@ def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = T
         return report
     feed_id = ensure_feed(conn)
     observed_at: datetime = max(r[14] for r in rows)
+    held_rows = _hold_price_jumps(conn, feed_id, rows)
+    report.held = len(held_rows)
+    held_ids = {r[0] for r in held_rows}
+    rows = [r for r in rows if r[0] not in held_ids]
     with tempfile.TemporaryDirectory(prefix="hbcollect-") as tmp:
         path = Path(tmp) / "intake.ndjson"
         with path.open("w", encoding="utf-8", newline="\n") as handle:
@@ -176,6 +224,7 @@ def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = T
                 handle.write(json.dumps(to_feed_row(row), ensure_ascii=False) + "\n")
         sync = FeedSync(conn, feed_id, source_path=path, observed_at=observed_at)
         result = sync.run(force=True)
+    rows = rows + held_rows  # held satirlar da "islendi" (incelemeye ayrildi) sayilir
     report.records = len(rows)
     report.status = result.status
     report.detail = result.detail()

@@ -119,7 +119,7 @@ export type AdminAction =
   | "data.export_download"
   | "data.accuracy_sample"
   | "data.accuracy_label"
-  /** Katalog toplama (karar 0115): kosu rezervasyonu ve kapanisi; urun icerigi YAZILMAZ. */
+  /** Katalog toplama (karar 0117): kosu rezervasyonu ve kapanisi; urun icerigi YAZILMAZ. */
   | "catalog_collection.start"
   | "catalog_collection.close";
 

@@ -1,7 +1,7 @@
 import type { ExtractedPage } from "@arilla/core/catalog-collection-extract";
 
 /**
- * Toplayıcı akış mantığı (karar 0115). Ağ, bekleme ve sunucu çağrıları
+ * Toplayıcı akış mantığı (karar 0117). Ağ, bekleme ve sunucu çağrıları
  * `CollectorEnv` ile dışarıdan verilir; böylece sınırlar (bekleme, bütçe, engelde
  * durma) sahte ortamla birim testlenir.
  *

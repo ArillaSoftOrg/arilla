@@ -2184,8 +2184,8 @@ CREATE UNIQUE INDEX price_verification_request_open_uniq
 CREATE INDEX price_verification_request_due_idx
     ON price_verification_request (priority DESC, next_attempt_at) WHERE status = 'pending';
 
--- 0068 (karar 0115): yonetici tarayicisindan katalog toplama; kota tetikleyicileri.
--- 0068 — yonetici tarayicisindan katalog toplama: kota, kapsam, ara depo (karar 0115)
+-- 0070 (karar 0117): yonetici tarayicisindan katalog toplama; kota tetikleyicileri.
+-- 0070 — yonetici tarayicisindan katalog toplama: kota, kapsam, ara depo (karar 0117)
 --
 -- YALNIZCA EKLEME. Yeni tablolar ve tetikleyiciler; mevcut hicbir sey degismez.
 --
@@ -2213,7 +2213,11 @@ CREATE TABLE collection_source (
     run_window_days      SMALLINT    NOT NULL CHECK (run_window_days >= 1),
     -- Kosu basina kaynaga atilabilecek istek tavani (isletici guvenlik valfi;
     -- kaynagin bildirdigi bir sayi DEGILDIR).
-    max_requests_per_run INTEGER     NOT NULL CHECK (max_requests_per_run >= 1),
+    -- Ilk yukleme ile sonraki (haftalik) guncelleme AYRI butcelidir; ikisi de ayarlanabilir
+    -- (politika yalnizca sahip rol/migration ile degisir). Ilk yukleme kotadan MUAF DEGILDIR:
+    -- ayni aralik ve ay tavanina tabidir.
+    initial_max_requests INTEGER     NOT NULL CHECK (initial_max_requests >= 1),
+    refresh_max_requests INTEGER     NOT NULL CHECK (refresh_max_requests >= 1),
     enabled              BOOLEAN     NOT NULL DEFAULT FALSE,
     -- Iznin dayanagi. 'verbal_reported' = kullanicinin bildirdigi sozlu izin;
     -- yazili lisans DEGILDIR.
@@ -2221,14 +2225,19 @@ CREATE TABLE collection_source (
                          CHECK (permission_basis IN ('verbal_reported', 'written_agreement', 'public_feed')),
     permission_note      TEXT        CHECK (permission_note IS NULL OR char_length(permission_note) <= 500),
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
-    CONSTRAINT collection_source_window_lt_interval CHECK (run_window_days < min_interval_days)
+    CONSTRAINT collection_source_window_lt_interval CHECK (run_window_days < min_interval_days),
+    -- Bildirilen sozlu izin kapsaminin (>= 7 gun, ayda <= 4) disina POLITIKA gevsetilemez;
+    -- gevsetmek icin once izin dayanagi yazili sozlesmeye yukseltilmelidir.
+    CONSTRAINT collection_source_verbal_scope CHECK (
+        permission_basis <> 'verbal_reported'
+        OR (min_interval_days >= 7 AND max_runs_per_month <= 4))
 );
 
 INSERT INTO collection_source
     (source, merchant_slug, min_interval_days, max_runs_per_month, run_window_days,
-     max_requests_per_run, enabled, permission_basis, permission_note)
+     initial_max_requests, refresh_max_requests, enabled, permission_basis, permission_note)
 VALUES
-    ('hepsiburada', 'hepsiburada', 7, 4, 6, 500, FALSE, 'verbal_reported',
+    ('hepsiburada', 'hepsiburada', 7, 4, 6, 500, 500, FALSE, 'verbal_reported',
      'Kullanicinin bildirdigi sozlu izin (Ekim 2026): mevcut CORS yontemi ve PostgreSQL''de saklama; '
      || 'toplu guncelleme en az 7 gun arayla, ayda en fazla 4. Yazili lisans yok.');
 
@@ -2240,6 +2249,8 @@ CREATE TABLE collection_run (
     source           TEXT        NOT NULL REFERENCES collection_source(source),
     -- Kosuyu baslatan yonetici. Hesap silinse de kosu kaydi kalir.
     started_by       BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    -- 'initial': kaynagin ilk kotaya sayilan koşusu; sonrakiler 'refresh'. Tetikleyici yazar.
+    kind             TEXT        NOT NULL DEFAULT 'initial' CHECK (kind IN ('initial', 'refresh')),
     status           TEXT        NOT NULL DEFAULT 'open'
                      CHECK (status IN ('open', 'completed', 'aborted', 'released')),
     -- Tetikleyici sunucu saatiyle yazar; istemci geriye tarihleyemez.
@@ -2286,7 +2297,12 @@ BEGIN
     NEW.closed_at := NULL;
     NEW.requests_made := 0;
     NEW.expires_at := NEW.reserved_at + make_interval(days => pol.run_window_days);
-    NEW.max_requests := pol.max_requests_per_run;
+    -- Ilk koşu = kota defterinde kotaya sayilan baska koşu yok.
+    NEW.kind := CASE WHEN EXISTS (SELECT 1 FROM collection_run
+                                   WHERE source = NEW.source AND status <> 'released')
+                     THEN 'refresh' ELSE 'initial' END;
+    NEW.max_requests := CASE NEW.kind WHEN 'initial' THEN pol.initial_max_requests
+                                      ELSE pol.refresh_max_requests END;
 
     -- 'released' (hic istek atilmadan birakilan) kosu kotadan dusulur.
     SELECT max(reserved_at) INTO last_at
@@ -2323,6 +2339,7 @@ BEGIN
        OR NEW.reserved_at IS DISTINCT FROM OLD.reserved_at
        OR NEW.expires_at IS DISTINCT FROM OLD.expires_at
        OR NEW.max_requests IS DISTINCT FROM OLD.max_requests
+       OR NEW.kind IS DISTINCT FROM OLD.kind
        OR NEW.started_by IS DISTINCT FROM OLD.started_by THEN
         RAISE EXCEPTION 'collection_run_immutable' USING ERRCODE = 'P0001';
     END IF;

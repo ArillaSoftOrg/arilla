@@ -166,7 +166,7 @@ describe("güvenlik başlıkları", () => {
   });
 });
 
-describe("katalog toplama CSP'si (karar 0115)", () => {
+describe("katalog toplama CSP'si (karar 0117)", () => {
   const options = { development: false, production: true, ga4: true };
   it("yalnız toplama sayfasında Hepsiburada connect-src alır; genel CSP almaz", () => {
     const routes = securityHeaderRoutes(options);

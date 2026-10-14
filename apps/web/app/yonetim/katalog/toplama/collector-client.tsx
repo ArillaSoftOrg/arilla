@@ -16,7 +16,7 @@ const API = "/api/yonetim/katalog-toplama";
 const FETCH_TIMEOUT_MS = 25_000;
 
 /**
- * Yöneticinin tarayıcısında çalışan toplayıcı (karar 0115, sözlü izin
+ * Yöneticinin tarayıcısında çalışan toplayıcı (karar 0117, sözlü izin
  * kapsamında; yazılı lisans değildir). Kaynak sayfası çerezsiz ve yalnızca bu
  * tarayıcının kendi kimliğiyle istenir; akış kuralları `collector-logic.ts`'te:
  * istekler arası bekleme, sunucu tarafı istek bütçesi, engelde durma.

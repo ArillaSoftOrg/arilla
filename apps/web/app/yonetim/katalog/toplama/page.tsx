@@ -7,7 +7,7 @@ import { formatCount, formatDateOrDash } from "../../format.ts";
 import { CollectorClient } from "./collector-client.tsx";
 
 /**
- * Hepsiburada katalog toplama (karar 0115). Toplama yöneticinin KENDİ
+ * Hepsiburada katalog toplama (karar 0117). Toplama yöneticinin KENDİ
  * tarayıcısında çalışır; kullanıcılar Hepsiburada'ya istek göndermez, arama
  * hazır PostgreSQL kataloğundan yanıtlanır. Kota sunucuda zorunludur.
  */
@@ -42,6 +42,11 @@ export default async function CatalogCollectionPage() {
           <KpiCard
             label="Bu ay koşu"
             value={`${formatCount(q.runsThisMonth)} / ${formatCount(q.maxRunsPerMonth)}`}
+          />
+          <KpiCard
+            label="Sonraki koşu"
+            value={q.nextKind === "initial" ? "İlk yükleme" : "Güncelleme"}
+            note={`İstek bütçesi ${formatCount(q.nextMaxRequests)}`}
           />
           <KpiCard label="En az aralık" value={`${q.minIntervalDays} gün`} />
           <KpiCard label="Sonraki izinli zaman" value={formatDateOrDash(q.nextAllowedAt)} />

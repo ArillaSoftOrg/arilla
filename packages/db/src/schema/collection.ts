@@ -1,5 +1,5 @@
 /**
- * 0068_catalog_collection.sql karsiligi (karar 0115): yonetici tarayicisindan
+ * 0070_catalog_collection.sql karsiligi (karar 0117): yonetici tarayicisindan
  * katalog toplama kosulari, kota politikasi, kapsam birimleri ve ara depo.
  *
  * Kota tetikleyicileri, indeksler ve CHECK kisitlari burada TEKRARLANMAZ; tek
@@ -27,7 +27,8 @@ export const collectionSource = pgTable("collection_source", {
   minIntervalDays: smallint("min_interval_days").notNull(),
   maxRunsPerMonth: smallint("max_runs_per_month").notNull(),
   runWindowDays: smallint("run_window_days").notNull(),
-  maxRequestsPerRun: integer("max_requests_per_run").notNull(),
+  initialMaxRequests: integer("initial_max_requests").notNull(),
+  refreshMaxRequests: integer("refresh_max_requests").notNull(),
   enabled: boolean("enabled").notNull().default(false),
   permissionBasis: text("permission_basis").$type<CollectionPermissionBasis>().notNull(),
   permissionNote: text("permission_note"),
@@ -41,6 +42,7 @@ export const collectionRun = pgTable("collection_run", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
   source: text("source").notNull(),
   startedBy: bigint("started_by", { mode: "number" }),
+  kind: text("kind").$type<"initial" | "refresh">().notNull().default("initial"),
   status: text("status").$type<CollectionRunStatus>().notNull().default("open"),
   reservedAt: timestamp("reserved_at", { withTimezone: true }).notNull().defaultNow(),
   expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),

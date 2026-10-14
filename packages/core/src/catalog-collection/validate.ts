@@ -1,5 +1,5 @@
 /**
- * Tarayicidan gelen kaydin SUNUCU tarafi dogrulamasi (karar 0115). Istemci
+ * Tarayicidan gelen kaydin SUNUCU tarafi dogrulamasi (karar 0117). Istemci
  * guvenilmez girdidir: her alan yeniden sinanir, bilinmeyen alan atilir,
  * eksik alan uydurulmaz.
  */

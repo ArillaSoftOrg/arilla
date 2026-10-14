@@ -1,5 +1,5 @@
 /**
- * Hepsiburada `/ara?q=` sayfasindan urun cikarma (karar 0115). Arsivlenen,
+ * Hepsiburada `/ara?q=` sayfasindan urun cikarma (karar 0117). Arsivlenen,
  * canli dogrulanmis yontem (research/hepsiburada-archive, f9d5a47):
  * `<script id="reduxStore">` -> voltranState.fragmentsMap.*.ProductList.seoState
  * .itemListElement (JSON metni, schema.org ItemList).

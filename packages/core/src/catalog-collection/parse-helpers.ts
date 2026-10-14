@@ -54,12 +54,17 @@ export function scriptTextById(html: string, id: string): string | null {
   return re.exec(html)?.[1] ?? null;
 }
 
-/** 1299.9 / "1299.90" -> 129990. Gecersiz ya da <= 0 ise null. */
+/**
+ * "1299.90" | 1299.9 | 289 -> kuruş (tam sayı). Ondalık metinle işlenir (float çarpımı
+ * yok); 2'den fazla ondalık, bilimsel gösterim, virgül ya da <= 0 ise null:
+ * yuvarlanmış yanlış fiyat göstermektense kaydı eler.
+ */
 export function decimalToKurus(raw: unknown): number | null {
-  const n = typeof raw === "number" ? raw : typeof raw === "string" ? Number(raw) : Number.NaN;
-  if (!Number.isFinite(n) || n <= 0) return null;
-  const kurus = Math.round(n * 100);
-  return Number.isSafeInteger(kurus) ? kurus : null;
+  const text = typeof raw === "number" ? String(raw) : typeof raw === "string" ? raw.trim() : "";
+  const m = /^(\d{1,12})(?:\.(\d{1,2}))?$/.exec(text);
+  if (!m) return null;
+  const kurus = Number(m[1]) * 100 + Number((m[2] ?? "").padEnd(2, "0") || "0");
+  return Number.isSafeInteger(kurus) && kurus > 0 ? kurus : null;
 }
 
 export function httpsUrlOn(raw: unknown, base: string, hostSuffix: string): string | null {

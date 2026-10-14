@@ -1,9 +1,9 @@
 /**
- * Yonetici tarayicisindan katalog toplama (karar 0115).
+ * Yonetici tarayicisindan katalog toplama (karar 0117).
  *
  * TS yalniz `catalog_intake_record`, `collection_run` ve `collection_unit`
  * yazar; `offer`/`price_point` yazimi Python `feeds hb-merge`tir (mimari sinir).
- * Kota SISTEM seviyesindedir: tetikleyici (migration 0068) kosu rezervasyonunu
+ * Kota SISTEM seviyesindedir: tetikleyici (migration 0070) kosu rezervasyonunu
  * reddeder; buradaki hesap yalnizca arayuze "ne zaman" bilgisi verir.
  */
 import {
@@ -75,12 +75,16 @@ export interface QuotaState {
   canStart: boolean;
   blockedBy: "disabled" | "interval" | "month" | "open_run" | null;
   nextAllowedAt: Date | null;
+  /** Bir sonraki koşunun türü ve istek bütçesi (ilk yükleme ile güncelleme ayrı bütçelidir). */
+  nextKind: "initial" | "refresh";
+  nextMaxRequests: number;
   permissionBasis: string;
   permissionNote: string | null;
 }
 
 export interface RunView {
   id: number;
+  kind: "initial" | "refresh";
   status: string;
   reservedAt: Date;
   expiresAt: Date;
@@ -101,6 +105,7 @@ export interface CatalogCollectionStatus {
 function toRunView(r: typeof collectionRun.$inferSelect): RunView {
   return {
     id: r.id,
+    kind: r.kind,
     status: r.status,
     reservedAt: r.reservedAt,
     expiresAt: r.expiresAt,
@@ -169,6 +174,8 @@ export async function getCollectionStatus(
       canStart: blockedBy === null,
       blockedBy,
       nextAllowedAt,
+      nextKind: counted.length === 0 ? "initial" : "refresh",
+      nextMaxRequests: counted.length === 0 ? policy.initialMaxRequests : policy.refreshMaxRequests,
       permissionBasis: policy.permissionBasis,
       permissionNote: policy.permissionNote,
     },

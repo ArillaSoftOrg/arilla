@@ -851,7 +851,7 @@ class FeedSync:
             )
         ]
         if feed.config.get("no_deactivate"):
-            # Kismi kaynak (yonetici toplamasi, karar 0115): her kosu farkli bir alt kume olabilir;
+            # Kismi kaynak (yonetici toplamasi, karar 0117): her kosu farkli bir alt kume olabilir;
             # kayit sayisi karsilastirmasi anlamsiz ve hicbir sey pasiflesmeyecek.
             return None
         if previous and r.records < settings.min_ratio_vs_median * statistics.median(previous):
@@ -874,7 +874,7 @@ class FeedSync:
         if gate is None:
             snapshot_status = "complete"
             # `no_deactivate`: kaynak tum katalogu degil taranan alt kumeyi verir; eksik
-            # olmak kaldirilmis demek degildir (karar 0115). Hicbir offer pasiflesmez.
+            # olmak kaldirilmis demek degildir (karar 0117). Hicbir offer pasiflesmez.
             status = (
                 "success"
                 if feed.config.get("no_deactivate")

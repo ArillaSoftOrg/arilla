@@ -64,6 +64,22 @@ describe("extractHepsiburadaPage", () => {
     );
   });
 
+  it("fiyat tam metinle kurusa cevrilir; 2'den fazla ondalik, virgul ve bilimsel gosterim elenir", () => {
+    const price = (p: unknown) =>
+      extractHepsiburadaPage(page([item({ offers: { price: p, priceCurrency: "TRY" } })])).items[0]
+        ?.priceMinor ?? null;
+    expect(price("1299.9")).toBe(129990);
+    expect(price(289)).toBe(28900);
+    expect(price("129.99")).toBe(12999);
+    expect(price("130000.00")).toBe(13000000);
+    expect(price("1.005")).toBeNull();
+    expect(price("5,50")).toBeNull();
+    expect(price("1e3")).toBeNull();
+    expect(price("0")).toBeNull();
+    expect(price(-5)).toBeNull();
+    expect(price(null)).toBeNull();
+  });
+
   it("URL'den urun kodu", () => {
     expect(externalIdFromUrl("https://www.hepsiburada.com/a-b-pm-ABC123")).toBe("ABC123");
     expect(externalIdFromUrl("https://www.hepsiburada.com/a-b")).toBeNull();
