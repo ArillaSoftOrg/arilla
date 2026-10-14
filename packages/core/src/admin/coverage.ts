@@ -66,7 +66,14 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     // Karar 0111: besleme kesfi ve artimli senkronizasyon. Yonetim gorunumu sonraki PR'da.
     id: "feed_sync",
     label: "Besleme kaynaklari ve senkronizasyon",
-    tables: ["feed_source", "source_snapshot", "ingest_chunk", "ingest_error", "search_outbox"],
+    tables: [
+      "feed_source",
+      "source_snapshot",
+      "ingest_chunk",
+      "ingest_error",
+      "search_outbox",
+      "feed_source_offer",
+    ],
     status: "data_no_ui",
     adminPaths: [],
     gaps: [

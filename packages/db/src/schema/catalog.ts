@@ -130,6 +130,8 @@ export const offer = pgTable("offer", {
   lastChangedAt: timestamp("last_changed_at", { withTimezone: true }),
   lastSnapshotId: bigint("last_snapshot_id", { mode: "number" }),
   deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
+  /** 0066 (karar 0112): kaynagin affiliate takip baglantisi; kanonik `url`'den ayri. */
+  affiliateUrl: text("affiliate_url"),
   deactivationReason: text("deactivation_reason").$type<
     "missing_from_snapshot" | "source_removed" | "admin" | "expired"
   >(),

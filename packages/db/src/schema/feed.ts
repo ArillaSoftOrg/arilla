@@ -191,3 +191,12 @@ export const searchOutbox = pgTable("search_outbox", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   processedAt: timestamp("processed_at", { withTimezone: true }),
 });
+
+/** 0066 (karar 0112): besleme x offer uyeligi; offer ancak hicbir etkin beslemede kalmayinca pasiflesir. */
+export const feedSourceOffer = pgTable("feed_source_offer", {
+  feedSourceId: bigint("feed_source_id", { mode: "number" }).notNull(),
+  offerId: bigint("offer_id", { mode: "number" }).notNull(),
+  lastSnapshotId: bigint("last_snapshot_id", { mode: "number" }).notNull(),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+});
