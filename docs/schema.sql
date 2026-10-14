@@ -148,6 +148,9 @@ CREATE TABLE offer (
     deactivated_at  TIMESTAMPTZ,
     deactivation_reason TEXT    CHECK (deactivation_reason IS NULL OR deactivation_reason IN
                                 ('missing_from_snapshot','source_removed','admin','expired')),
+    -- 0066 (karar 0112): kaynagin affiliate takip baglantisi; kanonik url'den AYRI.
+    affiliate_url   TEXT        CHECK (affiliate_url IS NULL OR (char_length(affiliate_url) <= 2048
+                                AND affiliate_url ~ '^https://')),
     CONSTRAINT offer_merchant_external_uniq UNIQUE (merchant_id, external_id)
 );
 CREATE INDEX offer_product_idx    ON offer (product_id) WHERE product_id IS NOT NULL;
@@ -2085,3 +2088,17 @@ CREATE TABLE search_outbox (
     processed_at  TIMESTAMPTZ
 );
 CREATE INDEX search_outbox_pending_idx ON search_outbox (id) WHERE processed_at IS NULL;
+
+-- Besleme x offer uyeligi (0066, karar 0112): ayni urun birden fazla beslemede
+-- olabilir; offer ancak hicbir etkin/duraklatilmis beslemede kalmayinca ve
+-- bekleme suresi dolunca pasiflesir.
+CREATE TABLE feed_source_offer (
+    feed_source_id    BIGINT      NOT NULL REFERENCES feed_source(id),
+    offer_id          BIGINT      NOT NULL REFERENCES offer(id) ON DELETE CASCADE,
+    -- Bu beslemenin offer'i en son gordugu surum.
+    last_snapshot_id  BIGINT      NOT NULL REFERENCES source_snapshot(id),
+    first_seen_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (feed_source_id, offer_id)
+);
+CREATE INDEX feed_source_offer_offer_idx ON feed_source_offer (offer_id);

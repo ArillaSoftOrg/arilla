@@ -1105,6 +1105,43 @@ Siz feed'lerden veri topluyorsunuz; rakip de sizden toplamaya çalışacak.
 - Sıradışı gezinme örüntüsü tespitinde yavaşlatma
 - `robots.txt` ve arama motoru botları için ayrı kural
 
+## Besleme keşfi ve senkronizasyonu (karar 0111, 0112)
+
+**Durum:** Kod ve testler hazır. Üretimde zamanlanmış çalışma **yok**.
+
+**Ortam:**
+- `ADMITAD_CLIENT_ID` ve `ADMITAD_CLIENT_SECRET`: `worker.env`'e eklenir.
+- İsteğe bağlı: `ADMITAD_PROGRAMS` (program filtresi).
+- `FEED_STAGING_DIR`: hazırlık dizini.
+- `FEED_MAX_BYTES`: disk tavanı, varsayılan 4 GiB.
+- `FEED_MIN_FREE_BYTES`: bu sınırın altında indirme durur. Varsayılan 15 GiB;
+  PostgreSQL, WAL ve yedek diski korunur.
+- `FEED_SAMPLE_BYTES`: örnek kipinde okunan miktar, varsayılan 64 MiB.
+
+| İş | Komut |
+| --- | --- |
+| Keşif (yeni ya da kaybolan besleme) | `python -m feeds discover` |
+| Liste | `python -m feeds list` |
+| Bağlama / etkinleştirme | `python -m feeds bind --feed ID --merchant SLUG --activate` |
+| Küçük doğrulama (pasifleştirmez) | `python -m feeds sync --feed ID --max-records 2000` |
+| Tam senkronizasyon | `python -m feeds sync --feed ID` |
+| Etkin ve değişmiş beslemeler | `python -m feeds sync-due` |
+
+**Kurallar:**
+- Yeni besleme `discovered` olarak kalır; yönetici bağlamadan senkronize edilmez.
+- TRY dışı besleme (AliExpress USD) yalnızca **etkin olmayan** merchant'a bağlanır.
+  Yaklaşık TRY gösterimi gelene kadar USD fiyat TL gibi görünemez.
+- Kesik, kısmi ya da hatalı besleme (tamlık kapısı) hiçbir offer'ı pasifleştirmez.
+- Bir offer şu üç şart birlikte sağlanınca pasifleşir:
+  - hiçbir etkin ya da duraklatılmış beslemede kalmamış;
+  - 48 saatlik bekleme süresi dolmuş;
+  - tavan (%10) aşılmamış.
+- Silme yok.
+
+**Ölçüm (14 Ekim 2026, yerel):** AliExpress "10-25$" beslemesi gzip'li hâliyle
+yüzlerce MB. İndirme ~0,7–1,1 MB/sn. Tam aktarım öncesi V4.1 §20 aşama kapıları
+uygulanır: önce 10 bin, sonra 100 bin kayıt, her aşamada disk, WAL ve yedek ölçümü.
+
 ## Bootstrap kataloğu (geçici, yalnızca yerel)
 
 `docs/decisions/0027`. Admitad öncesi test kataloğu; Shopify `/products.json`

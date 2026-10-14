@@ -38,6 +38,19 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0112: besleme keşfi ve artımlı senkronizasyon (zamanlama aktivasyonla gelir).
+  feed_discover: {
+    label: "Besleme keşfi (affiliate ağları)",
+    how: "python -m feeds discover",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  feed_sync: {
+    label: "Besleme senkronizasyonu",
+    how: "python -m feeds sync-due",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
   resolve: {
     label: "Eşleştirme",
     how: "python -m resolve",

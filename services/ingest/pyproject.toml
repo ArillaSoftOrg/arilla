@@ -32,6 +32,7 @@ packages = [
     "collect.link",
     "curate",
     "enrich",
+    "feeds",
     "resolve",
 
     "similarity",
