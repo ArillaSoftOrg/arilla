@@ -14,6 +14,7 @@ export * from "./dashboard.ts";
 export * from "./early-access.ts";
 export * from "./early-access-counter.ts";
 export * from "./image-uploads.ts";
+export * from "./feeds.ts";
 export * from "./ingest-runs.ts";
 export * from "./job-runs.ts";
 export * from "./lexicon.ts";

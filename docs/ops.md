@@ -1142,6 +1142,22 @@ Siz feed'lerden veri topluyorsunuz; rakip de sizden toplamaya çalışacak.
 yüzlerce MB. İndirme ~0,7–1,1 MB/sn. Tam aktarım öncesi V4.1 §20 aşama kapıları
 uygulanır: önce 10 bin, sonra 100 bin kayıt, her aşamada disk, WAL ve yedek ölçümü.
 
+## Fiyat doğrulama ve döviz kuru (karar 0113)
+
+**Durum:** Kod ve testler hazır. Üretimde zamanlama **yok**.
+
+| İş | Komut | Önerilen sıklık |
+| --- | --- | --- |
+| TCMB kuru | `python -m pricing fx` | Günde bir, 16:00 TR sonrası |
+| Doğrulama isteği ekle | `python -m pricing enqueue --older-than-hours 24` | Günlük |
+| Doğrula | `python -m pricing verify --limit 50` | Saatlik, düşük hacim |
+
+- Yaklaşık TRY yalnızca kur 4 günden yeniyse gösterilir; kur yoksa dönüşüm yapılmaz.
+- İzinli canlı kaynağı olmayan offer'lar (AliExpress) `unsupported` olur; sonuç yazılmaz.
+- Admitad tıklaması için `merchant.deeplink_template`'e Admitad hesabında doğrulanan
+  biçim girilir (örn. `{affiliate_url}&subid={click_id}`).
+- Yönetim: `/yonetim/ingest/beslemeler` (salt okunur).
+
 ## Bootstrap kataloğu (geçici, yalnızca yerel)
 
 `docs/decisions/0027`. Admitad öncesi test kataloğu; Shopify `/products.json`

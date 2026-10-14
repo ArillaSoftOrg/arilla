@@ -74,15 +74,20 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "search_outbox",
       "feed_source_offer",
     ],
-    status: "data_no_ui",
-    adminPaths: [],
+    status: "visible",
+    // Karar 0113: kaynaklar, son aktarim, sayilar, hata kayitlari ve fiyat dogrulama durumu.
+    adminPaths: ["/yonetim/ingest/beslemeler"],
     gaps: [
-      {
-        signal: "Besleme kaynaklari, son basarili aktarim, degisen/hatali kayit sayilari",
-        status: "data_no_ui",
-      },
-      { signal: "Hata kayitlari (dead-letter) ve yeniden deneme ayrintisi", status: "data_no_ui" },
+      { signal: "Arama indeksi olay kuyrugunun (search_outbox) tuketimi", status: "unmeasured" },
     ],
+  },
+  {
+    id: "price_verification",
+    label: "Fiyat dogrulama ve doviz kuru",
+    tables: ["price_verification", "price_verification_request", "fx_rate"],
+    status: "visible",
+    adminPaths: ["/yonetim/ingest/beslemeler"],
+    gaps: [],
   },
   {
     id: "catalog",

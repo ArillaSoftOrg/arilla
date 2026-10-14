@@ -52,7 +52,9 @@ export async function recordClick(
   const rows = await db
     .select({
       offerUrl: offer.url,
+      affiliateUrl: offer.affiliateUrl,
       offerPrice: offer.currentPrice,
+      offerCurrency: offer.currency,
       productId: offer.productId,
       merchantId: merchant.id,
       affiliateStatus: merchant.affiliateStatus,
@@ -107,7 +109,8 @@ export async function recordClick(
         productId: offerRow.productId ?? null,
         channel: input.channel,
         surface: normalizeClickSurface(input.surface),
-        priceAtClick: offerRow.offerPrice,
+        // price_at_click TL kurus varsayar; TRY disi tutar (or. USD) yazilmaz (karar 0113).
+        priceAtClick: offerRow.offerCurrency === "TRY" ? offerRow.offerPrice : null,
         sourceSimilarityKind: input.sourceSimilarityKind ?? null,
         resultPosition: sanitizePosition(input.resultPosition),
       })
@@ -121,6 +124,7 @@ export async function recordClick(
     affiliateStatus: offerRow.affiliateStatus,
     deeplinkTemplate: offerRow.deeplinkTemplate,
     offerUrl: offerRow.offerUrl,
+    affiliateUrl: offerRow.affiliateUrl,
     clickId,
     trackingId,
   });

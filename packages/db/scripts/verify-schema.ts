@@ -40,6 +40,9 @@ const APPEND_ONLY = {
   /** 0065 (karar 0111): kimlik kaniti ve eslestirme karari eklenir, degistirilmez. */
   identity_observation: "kind",
   match_decision_log: "basis",
+  /** 0067 (karar 0113): kur ve dogrulama sonucu eklenir, degistirilmez. */
+  fx_rate: "bulletin",
+  price_verification: "provider",
 } as const;
 /** 0036: UPDATE engelli, DELETE izinli (saklama suresi ve riza geri alma). */
 const UPDATE_BLOCKED = {
