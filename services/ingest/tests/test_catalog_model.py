@@ -243,15 +243,9 @@ def test_besleme_durumu_ve_surum_kisitlari(cur: psycopg.Cursor) -> None:
         "INSERT INTO source_snapshot (feed_source_id, status, sha256) VALUES (%s, 'complete', %s)",
         (fs, sha),
     )
-    # Ayni icerik ikinci kez tamamlanamaz; tekrar indirme 'duplicate' olarak kaydedilir.
-    rejects(
-        cur,
-        errors.UniqueViolation,
-        "INSERT INTO source_snapshot (feed_source_id, status, sha256) VALUES (%s, 'complete', %s)",
-        (fs, sha),
-    )
+    # Ayni icerik tekrar tamamlanabilir (A -> B -> A); tekrar tespiti uygulamadadir.
     cur.execute(
-        "INSERT INTO source_snapshot (feed_source_id, status, sha256) VALUES (%s, 'duplicate', %s)",
+        "INSERT INTO source_snapshot (feed_source_id, status, sha256) VALUES (%s, 'complete', %s)",
         (fs, sha),
     )
     rejects(

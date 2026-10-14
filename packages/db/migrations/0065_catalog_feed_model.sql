@@ -131,9 +131,10 @@ CREATE TABLE source_snapshot (
     started_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
     completed_at       TIMESTAMPTZ
 );
--- Ayni beslemenin ayni icerigi yalnizca bir kez TAMAMLANMIS olabilir (idempotent).
-CREATE UNIQUE INDEX source_snapshot_complete_sha_uniq
-    ON source_snapshot (feed_source_id, sha256) WHERE status = 'complete';
+-- Tekrar indirme tespiti: ayni icerik EN SON tamamlanan surumle ayniysa yeni
+-- surum 'duplicate' olur. Benzersiz DEGIL: icerik A -> B -> A donebilir ve
+-- ikinci A gercekten islenmelidir (aradaki deaktivasyonlar geri alinir).
+CREATE INDEX source_snapshot_sha_idx ON source_snapshot (feed_source_id, sha256);
 CREATE INDEX source_snapshot_feed_idx ON source_snapshot (feed_source_id, started_at DESC);
 
 -- ---------------------------------------------------------------------------

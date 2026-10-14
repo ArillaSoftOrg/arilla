@@ -68,7 +68,7 @@ bu modelin üzerine kurulur.
      `active` olamaz (CHECK).
    - Kimlik bilgisi (token, imzalı URL) veritabanına yazılmaz; indirme adresi
      senkronizasyonda ağ API'sinden yeniden çözülür.
-   - Aynı içerik (sha256) bir besleme için yalnız bir kez `complete` olur.
+   - Aynı içerik (sha256) en son tam sürümle aynıysa yeni sürüm `duplicate` olur ve işlenmez.
    - Deaktivasyon silme değildir: `is_active=false`, `deactivated_at` ve nedeni
      yazılır.
 
