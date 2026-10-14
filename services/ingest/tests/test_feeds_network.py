@@ -256,3 +256,12 @@ def test_tavan_bos_alana_gore_dinamik(tmp_path: Path, monkeypatch: pytest.Monkey
         "https://f.test/a", tmp_path / "b.bin", client=client_for(b"x" * 3000), min_free_bytes=6000
     )
     assert ok.bytes_on_disk == 3000
+
+
+def test_ornek_bayt_kayit_sayisiyla_orantili() -> None:
+    from feeds.sync import SAMPLE_MIN_BYTES, sample_bytes
+
+    assert sample_bytes(10_000, None) == 6_000_000
+    assert sample_bytes(100, None) == SAMPLE_MIN_BYTES
+    assert sample_bytes(100_000, None) == 60_000_000
+    assert sample_bytes(100_000, "1048576") == 1_048_576

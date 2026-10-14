@@ -16,11 +16,13 @@
  * Önemler abartılmaz (karar 0052): beklenen yaşam döngüsü `info`,
  * kullanıcıya yanlış/eksik veri gösterebilecek durum `warning`.
  */
+
 import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability, type Capability } from "./capabilities.ts";
 import { STALE_OFFER_DAYS, validGtinSql } from "./catalog.ts";
+import { OFFER_SEEN_AT } from "./offer-seen.ts";
 import { type AdminFinding, type Severity, sortFindings } from "./severity.ts";
 
 export const QUALITY_SAMPLE_LIMIT = 10;
@@ -521,7 +523,7 @@ const merchantOffers: QualityCheck = {
       sql`SELECT m.id, m.slug, m.name, m.is_active AS merchant_active,
                  count(*) FILTER (WHERE o.is_active) AS active,
                  count(*) FILTER (WHERE o.is_active
-                   AND o.last_seen_at < now() - (${STALE_OFFER_DAYS} * interval '1 day')) AS stale,
+                   AND ${OFFER_SEEN_AT} < now() - (${STALE_OFFER_DAYS} * interval '1 day')) AS stale,
                  count(*) FILTER (WHERE NOT o.is_active) AS inactive,
                  count(*) FILTER (WHERE o.is_active AND o.product_id IS NULL) AS unmatched
             FROM merchant m JOIN offer o ON o.merchant_id = m.id

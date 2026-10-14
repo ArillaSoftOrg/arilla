@@ -6,11 +6,13 @@
  * Her liste sayfalı ve zaman aşımlıdır. Başlık araması `product_title_fold_trgm`
  * indeksinin ifadesiyle (`foldedTitleExpr`) yapılır.
  */
+
 import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
 import { foldedTitleExpr } from "../search/text-match.ts";
 import { clampPage, clampPageSize, containsPattern, isPositiveId, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import { OFFER_SEEN_AT } from "./offer-seen.ts";
 import { httpUrl, safeUrl } from "./redact.ts";
 
 export const PRODUCT_QUALITY_FILTERS = [
@@ -322,7 +324,7 @@ export async function getProductDetail(
     }>(sql`
       SELECT o.id, m.slug AS merchant_slug, m.name AS merchant_name, m.is_active AS merchant_active,
              o.external_id, o.title_raw, o.url, o.current_price, o.list_price, o.currency,
-             o.in_stock, o.is_active, o.discovery_source, o.last_seen_at,
+             o.in_stock, o.is_active, o.discovery_source, ${OFFER_SEEN_AT} AS last_seen_at,
              o.attributes_raw->>'gtin' AS gtin
         FROM offer o JOIN merchant m ON m.id = o.merchant_id
        WHERE o.product_id = ${productId}
@@ -513,7 +515,7 @@ const OFFER_STATE_SQL: Record<OfferState, SQL> = {
   invalid_gtin: sql`o.is_active AND o.attributes_raw ? 'gtin'
     AND NOT ${validGtinSql(sql`(o.attributes_raw->>'gtin')`)}`,
   inactive: sql`NOT o.is_active`,
-  stale: sql`o.is_active AND o.last_seen_at < now() - (${STALE_OFFER_DAYS} * interval '1 day')`,
+  stale: sql`o.is_active AND ${OFFER_SEEN_AT} < now() - (${STALE_OFFER_DAYS} * interval '1 day')`,
   all: sql`true`,
 };
 
@@ -598,7 +600,7 @@ export async function listOffers(
                WHERE mc.offer_id = o.id AND mc.status = 'pending') AS pending,
              (SELECT count(*) FROM match_candidate mc
                WHERE mc.offer_id = o.id AND mc.status = 'rejected') AS rejected,
-             o.last_seen_at, o.first_seen_at, o.attributes_raw->>'gtin' AS gtin,
+             ${OFFER_SEEN_AT} AS last_seen_at, o.first_seen_at, o.attributes_raw->>'gtin' AS gtin,
              (o.attributes_raw ? 'gtin' OR o.attributes_raw ? 'mpn' OR EXISTS (
                SELECT 1 FROM offer_variant v WHERE v.offer_id = o.id AND v.gtin IS NOT NULL
              )) AS has_identifier,
