@@ -48,6 +48,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "Mağaza başına toplama koşuları ve hataları.",
       },
       {
+        href: "/yonetim/ingest/beslemeler",
+        label: "Beslemeler",
+        capability: "ingest.read",
+        description: "Affiliate beslemeleri, son aktarım, hata kayıtları, fiyat doğrulama ve kur.",
+      },
+      {
         href: "/yonetim/katalog/urunler",
         label: "Ürünler",
         capability: "catalog.read",

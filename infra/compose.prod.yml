@@ -149,6 +149,40 @@ services:
     pids_limit: 256
     stop_grace_period: 30s
 
+  # --- Besleme / fiyat dogrulama komutlari (karar 0112-0114) ------------------------
+  # Yalniz elle ya da zamanlayicidan `--profile feeds run --rm feeds python -m feeds ...`.
+  # Buyuk besleme RAM'deki /tmp'ye DEGIL, diskteki hazirlik dizinine iner
+  # (/opt/arilla/feed-staging, uid 10001). FEED_MIN_FREE_BYTES diskte korunan alan
+  # (PostgreSQL, WAL, yedek); indirme tavani bos alan - bu deger.
+  feeds:
+    <<: *service
+    profiles: ["feeds"]
+    restart: "no"
+    image: ${ARILLA_INGEST_IMAGE:-ghcr.io/arillasoftorg/arilla-ingest}:${ARILLA_TAG:?ARILLA_TAG gerekli}${ARILLA_INGEST_DIGEST:+@}${ARILLA_INGEST_DIGEST:-}
+    command: ["python", "-m", "feeds", "list"]
+    env_file:
+      - ${ARILLA_ENV_DIR:-/opt/arilla/env}/worker.env
+    environment:
+      FEED_STAGING_DIR: /staging
+      FEED_MIN_FREE_BYTES: "21474836480"
+      JOB_RUN_TRIGGER: manual
+    volumes:
+      - ${ARILLA_FEED_STAGING_DIR:-/opt/arilla/feed-staging}:/staging
+    networks: [data, egress]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    cpus: 1.0
+    pids_limit: 128
+    stop_grace_period: 60s
+
   # --- Zamanlayici (Vercel cron'larinin yerine; yalniz HTTP + CRON_SECRET) -----------
   cron:
     <<: *service

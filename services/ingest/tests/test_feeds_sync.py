@@ -366,15 +366,6 @@ def test_olmus_surecin_yarim_kosusu_kapatilir(env: Env) -> None:
     assert rows == [("failed", "interrupted"), ("success", None)]
 
 
-def test_usd_besleme_etkin_merchant_a_yazilmaz(env: Env) -> None:
-    fid = env.feed()
-    env.owner.execute("UPDATE merchant SET is_active = TRUE WHERE id = %s", (env.merchant_id,))
-    with pytest.raises(SyncAborted) as error:
-        env.run(fid, [offer(ids(1)[0])])
-    assert error.value.code == "currency_requires_inactive_merchant"
-    assert offers_of(env) == 0
-
-
 def test_sema_eksik_alan_birlestirme_yapmaz_ornek_mod_pasiflestirmez(env: Env) -> None:
     fid = env.feed(config={**AE_PROFILE, "required_fields": ["@id", "vendor"]})
     with pytest.raises(SyncAborted) as error:

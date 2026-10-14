@@ -19,6 +19,7 @@ from db import job_run
 from db.connection import connect
 from feeds import discovery
 from feeds.network import build, registered
+from feeds.profiles import MERCHANT_PROFILES
 from feeds.sync import FeedSync, SyncAborted, load_feed
 
 logger = logging.getLogger("feeds")
@@ -64,27 +65,70 @@ def _bind(args: argparse.Namespace) -> int:
         if row is None:
             print(f"merchant yok: {args.merchant}", file=sys.stderr)
             return 2
-        merchant_id, merchant_active = row
-        cur.execute("SELECT currency FROM feed_source WHERE id = %s", (args.feed,))
+        merchant_id = row[0]
+        feed_id = _feed_id(conn, args.feed)
+        cur.execute("SELECT id FROM feed_source WHERE id = %s", (feed_id,))
         feed = cur.fetchone()
         if feed is None:
             print(f"besleme yok: {args.feed}", file=sys.stderr)
             return 2
         status = "active" if args.activate else ("paused" if args.pause else None)
-        if status == "active" and feed[0] and feed[0] != "TRY" and merchant_active:
-            print(
-                "TRY disi besleme etkin (herkese acik) merchant'a baglanamaz: "
-                "yaklasik TRY gosterimi gelene kadar merchant etkin olmamali.",
-                file=sys.stderr,
+        # Karar 0114: uzun suredir guncellenmeyen besleme (or. Alibaba, 2022) etkinlestirilmez.
+        if status == "active" and not args.allow_stale:
+            cur.execute(
+                "SELECT source_updated_at < now() - interval '30 days'"
+                " FROM feed_source WHERE id = %s",
+                (feed_id,),
             )
-            return 2
+            stale = cur.fetchone()
+            if stale and stale[0]:
+                print(
+                    "besleme 30 gundur guncellenmiyor; etkinlestirilmedi (--allow-stale)",
+                    file=sys.stderr,
+                )
+                return 2
         cur.execute(
             """UPDATE feed_source SET merchant_id = %s, status = COALESCE(%s, status),
                       updated_at = now() WHERE id = %s""",
-            (merchant_id, status, args.feed),
+            (merchant_id, status, feed_id),
         )
         conn.commit()
     print(f"besleme {args.feed} -> {args.merchant} ({status or 'durum degismedi'})")
+    return 0
+
+
+def _feed_id(conn, value: str) -> int | None:  # type: ignore[no-untyped-def]
+    """'105' ya da 'admitad:6115:14267' -> feed_source.id."""
+    if value.isdigit():
+        return int(value)
+    network, _, external = value.partition(":")
+    row = conn.execute(
+        "SELECT id FROM feed_source WHERE network = %s AND external_id = %s", (network, external)
+    ).fetchone()
+    return int(row[0]) if row else None
+
+
+def _ensure_merchant(args: argparse.Namespace) -> int:
+    """Dogrulanmis profil icin merchant kaydi; VARSA DOKUNULMAZ (idempotent)."""
+    profile = MERCHANT_PROFILES.get(args.profile)
+    if profile is None:
+        print(f"profil yok: {args.profile}", file=sys.stderr)
+        return 2
+    with connect() as conn, conn.cursor() as cur:
+        cur.execute(
+            """INSERT INTO merchant (slug, name, domain, source_type, affiliate_network,
+                                     affiliate_status, deeplink_template, is_active)
+               VALUES (%(slug)s, %(name)s, %(domain)s, %(source_type)s, %(affiliate_network)s,
+                       %(affiliate_status)s, %(deeplink_template)s, TRUE)
+               ON CONFLICT (slug) DO NOTHING
+               RETURNING id""",
+            profile,
+        )
+        created = cur.fetchone() is not None
+        conn.commit()
+    print(
+        f"merchant {profile['slug']}: {'olusturuldu' if created else 'zaten var, degistirilmedi'}"
+    )
     return 0
 
 
@@ -107,7 +151,12 @@ def _sync_one(conn, feed_id: int, args: argparse.Namespace) -> int:  # type: ign
 def _sync(args: argparse.Namespace) -> int:
     with job_run.track("feed_sync") as run, connect() as conn:
         try:
-            code = _sync_one(conn, args.feed, args)
+            feed_id = _feed_id(conn, args.feed)
+            conn.rollback()
+            if feed_id is None:
+                print(f"besleme yok: {args.feed}", file=sys.stderr)
+                return 2
+            code = _sync_one(conn, feed_id, args)
         except SyncAborted as error:
             run.status = "failed"
             run.error_summary = error.code
@@ -152,17 +201,21 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--network")
     p.set_defaults(func=_discover)
     sub.add_parser("list").set_defaults(func=_list)
+    p = sub.add_parser("ensure-merchant")
+    p.add_argument("--profile", required=True)
+    p.set_defaults(func=_ensure_merchant)
     p = sub.add_parser("bind")
-    p.add_argument("--feed", type=int, required=True)
+    p.add_argument("--feed", required=True, help="kimlik ya da ag:kaynak_kimligi")
     p.add_argument("--merchant", required=True)
     group = p.add_mutually_exclusive_group()
     group.add_argument("--activate", action="store_true")
     group.add_argument("--pause", action="store_true")
+    p.add_argument("--allow-stale", action="store_true")
     p.set_defaults(func=_bind)
     for name, func in (("sync", _sync), ("sync-due", _sync_due)):
         p = sub.add_parser(name)
         if name == "sync":
-            p.add_argument("--feed", type=int, required=True)
+            p.add_argument("--feed", required=True, help="kimlik ya da ag:kaynak_kimligi")
             p.add_argument("--file", help="yerel dosya (dogrulama/test); agdan indirilmez")
         else:
             p.set_defaults(file=None)

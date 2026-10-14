@@ -438,10 +438,9 @@ class FeedSync:
         self._settings = settings
         if feed.status != "active" or feed.merchant_id is None:
             raise SyncAborted("feed_not_active", "besleme etkin degil ya da merchant'a bagli degil")
-        # CLAUDE.md: para birimi TRY. TRY disi besleme yalnizca ETKIN OLMAYAN
-        # merchant'a yazilir (dogrulama asamasi); doviz karari ayri ADR'dir.
-        if feed.currency and feed.currency != "TRY" and feed.merchant_active:
-            raise SyncAborted("currency_requires_inactive_merchant", feed.currency)
+        # Karar 0114: TRY disi teklifler orijinal para birimiyle saklanir ve yalnizca
+        # "Yurt disi teklifleri" yuzeyinde (yaklasik TL ile) gorunur; cozumleyici
+        # onlari urune baglamaz (resolve/pipeline.py), TL gibi gosterilemezler.
         unchanged_source = (
             feed.source_updated_at is not None
             and feed.last_success_at is not None

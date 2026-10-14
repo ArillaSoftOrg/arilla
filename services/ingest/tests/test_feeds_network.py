@@ -236,3 +236,23 @@ def test_ornek_kipi_erken_keser_hata_vermez(tmp_path: Path) -> None:
     )
     assert result.partial and result.bytes_on_disk < len(body)
     assert result.path.exists()
+
+
+def test_tavan_bos_alana_gore_dinamik(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    import feeds.download as dl
+
+    monkeypatch.delenv("FEED_MAX_BYTES", raising=False)
+    monkeypatch.setattr(dl, "_free_bytes", lambda _d: 10_000)
+    # Bos 10.000, korunacak 6.000 -> en fazla 4.000 bayt yazilir.
+    with pytest.raises(DownloadError) as error:
+        download(
+            "https://f.test/a",
+            tmp_path / "a.bin",
+            client=client_for(b"x" * 5000),
+            min_free_bytes=6000,
+        )
+    assert error.value.code == "too_large" and not list(tmp_path.iterdir())
+    ok = download(
+        "https://f.test/a", tmp_path / "b.bin", client=client_for(b"x" * 3000), min_free_bytes=6000
+    )
+    assert ok.bytes_on_disk == 3000
