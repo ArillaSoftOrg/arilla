@@ -458,6 +458,15 @@ class FeedSync:
         if not locked or not locked[0]:
             raise SyncAborted("feed_locked", "bu besleme zaten isleniyor")
         try:
+            # Kilit bizde: bu beslemenin 'running' kalmis kosulari olmus surecin
+            # (OOM, yeniden baslatma) kalintisidir.
+            self._exec(
+                """UPDATE ingest_run SET status = 'failed', finished_at = now(),
+                          error_text = 'interrupted', updated_at = now()
+                    WHERE feed_source_id = %s AND status = 'running'""",
+                (feed.id,),
+            )
+            self.conn.commit()
             self.report.run_id = self._start_run(feed)
             try:
                 self._sync(feed, settings)
@@ -590,7 +599,8 @@ class FeedSync:
         self.conn.commit()
 
         parse = ParseResult()
-        records = iter_records(path, feed.parser, feed.config, parse)
+        source = iter_records(path, feed.parser, feed.config, parse)
+        records: Iterator[FeedRecord] = source
         if self.max_records is not None:
             records = _take(records, self.max_records)
         keys: set[str] = set()
@@ -602,47 +612,54 @@ class FeedSync:
             cur.execute(STAGE_DDL)
         self.conn.commit()
 
-        for seq, batch in _chunks(records, settings.chunk_size):
-            if len(keys) < 10_000 and batch[0].index < settings.schema_sample:
-                for record in batch[: settings.schema_sample]:
-                    keys |= schema_fields(record)
-                missing = [f for f in required if f not in keys]
-                if missing:
-                    raise SyncAborted("schema_missing_fields", ",".join(missing))
+        try:
+            for seq, batch in _chunks(records, settings.chunk_size):
+                if len(keys) < 10_000 and batch[0].index < settings.schema_sample:
+                    for record in batch[: settings.schema_sample]:
+                        keys |= schema_fields(record)
+                    missing = [f for f in required if f not in keys]
+                    if missing:
+                        raise SyncAborted("schema_missing_fields", ",".join(missing))
 
-            offers: dict[str, FeedOffer] = {}
-            rejects: list[tuple[str, str | None, str, str]] = []
-            for record in batch:
-                try:
-                    offer = normalize(
-                        record,
-                        feed.config,
-                        expected_currency=feed.currency,
-                        categories=parse.categories,
-                    )
-                except Rejected as error:
-                    raw_id = record.fields.get("@id")
-                    ext = raw_id if isinstance(raw_id, str) else None
-                    rejects.append((record.ref, ext, error.code, error.detail))
+                offers: dict[str, FeedOffer] = {}
+                rejects: list[tuple[str, str | None, str, str]] = []
+                for record in batch:
+                    try:
+                        offer = normalize(
+                            record,
+                            feed.config,
+                            expected_currency=feed.currency,
+                            categories=parse.categories,
+                        )
+                    except Rejected as error:
+                        raw_id = record.fields.get("@id")
+                        ext = raw_id if isinstance(raw_id, str) else None
+                        rejects.append((record.ref, ext, error.code, error.detail))
+                        continue
+                    # Ayni parcada tekrar eden kimlik: son gelen kazanir.
+                    offers[offer.external_id] = offer
+
+                self.report.records += len(batch)
+                self.report.rejected += len(rejects)
+                if seq in merged_chunks:
+                    self.report.chunks_skipped += 1
                     continue
-                # Ayni parcada tekrar eden kimlik: son gelen kazanir.
-                offers[offer.external_id] = offer
 
-            self.report.records += len(batch)
-            self.report.rejected += len(rejects)
-            if seq in merged_chunks:
-                self.report.chunks_skipped += 1
-                continue
+                log_now = rejects[: max(0, settings.max_errors_logged - errors_logged)]
+                errors_logged += len(log_now)
+                self._merge_chunk(feed, snapshot_id, seq, batch, offers, log_now)
+                processed_chunks += 1
+                self.report.chunks_merged += 1
+                if (
+                    self._fail_after_chunks is not None
+                    and processed_chunks >= self._fail_after_chunks
+                ):
+                    raise _Crash("benzetilmis cokme")
+                self._backpressure(settings)
 
-            log_now = rejects[: max(0, settings.max_errors_logged - errors_logged)]
-            errors_logged += len(log_now)
-            self._merge_chunk(feed, snapshot_id, seq, batch, offers, log_now)
-            processed_chunks += 1
-            self.report.chunks_merged += 1
-            if self._fail_after_chunks is not None and processed_chunks >= self._fail_after_chunks:
-                raise _Crash("benzetilmis cokme")
-            self._backpressure(settings)
-
+        finally:
+            # Ornek kipinde uretec sona kadar tuketilmez: dosya tutamaci acik kalmasin.
+            source.close()
         fingerprint = schema_fingerprint(keys) if keys else None
         self._finish_snapshot(feed, settings, snapshot_id, parse, fingerprint, keys)
         self._cleanup(path)

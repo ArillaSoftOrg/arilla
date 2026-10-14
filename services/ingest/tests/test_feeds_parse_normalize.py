@@ -230,3 +230,14 @@ def test_csv_yapilandirma_eslemesiyle(tmp_path: Path) -> None:
     )
     result = normalize(rec, config, expected_currency="TRY")
     assert (result.external_id, result.price_minor, result.affiliate_url) == ("A1", 129990, None)
+
+
+def test_erken_birakilan_ayristirma_dosyayi_kapatir(tmp_path: Path) -> None:
+    """Ornek kipi: uretec sonuna kadar tuketilmez; dosya silinebilmeli (Windows dahil)."""
+    for name, gz in (("a.xml", False), ("b.gz", True)):
+        path = write(tmp_path / name, yml(offer(str(10**15 + i)) for i in range(50)), gz=gz)
+        source = iter_records(path, "yml", {}, ParseResult())
+        next(source)
+        source.close()
+        path.unlink()
+        assert not path.exists()

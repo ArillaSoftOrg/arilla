@@ -353,6 +353,19 @@ def test_cokme_sonrasi_kaldigi_yerden_devam(env: Env) -> None:
     )
 
 
+def test_olmus_surecin_yarim_kosusu_kapatilir(env: Env) -> None:
+    fid = env.feed()
+    env.owner.execute(
+        "INSERT INTO ingest_run (merchant_id, feed_source_id, status) VALUES (%s, %s, 'running')",
+        (env.merchant_id, fid),
+    )
+    env.run(fid, [offer(i) for i in ids(3)])
+    rows = env.owner.execute(
+        "SELECT status, error_text FROM ingest_run WHERE feed_source_id = %s ORDER BY id", (fid,)
+    ).fetchall()
+    assert rows == [("failed", "interrupted"), ("success", None)]
+
+
 def test_usd_besleme_etkin_merchant_a_yazilmaz(env: Env) -> None:
     fid = env.feed()
     env.owner.execute("UPDATE merchant SET is_active = TRUE WHERE id = %s", (env.merchant_id,))

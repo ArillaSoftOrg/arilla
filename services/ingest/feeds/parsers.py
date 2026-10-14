@@ -56,19 +56,52 @@ class FeedFormatError(Exception):
     """Dosya bicimi beklenenden farkli (yapilandirma ya da kaynak hatasi)."""
 
 
+class _Owning(io.RawIOBase):
+    """Ic akisi okur; kapatilinca ic akisla birlikte sahip oldugu tutamaclari da kapatir.
+
+    `gzip.GzipFile(fileobj=...)` ve `ZipFile.open()` alttaki dosyayi kapatmaz;
+    erken birakilan (ornek kipi) ayristirmada tutamac acik kalirdi.
+    """
+
+    def __init__(self, inner: IO[bytes], *owned: Any) -> None:
+        self._inner = inner
+        self._owned = owned
+
+    def readable(self) -> bool:
+        return True
+
+    def readinto(self, buffer: Any) -> int:
+        data = self._inner.read(len(buffer))
+        size = len(data)
+        buffer[:size] = data
+        return size
+
+    def close(self) -> None:
+        if not self.closed:
+            for handle in (self._inner, *self._owned):
+                handle.close()
+        super().close()
+
+
 def open_decoded(path: Path) -> IO[bytes]:
-    """Dosyayi sikistirmasi cozulmus ikili akis olarak acar."""
+    """Dosyayi sikistirmasi cozulmus ikili akis olarak acar. Kapatmak her seyi kapatir."""
     raw = path.open("rb")
     magic = raw.read(4)
     raw.seek(0)
-    if magic[:2] == b"\x1f\x8b":
-        return gzip.GzipFile(fileobj=raw)  # type: ignore[return-value]
-    if magic == b"PK\x03\x04":
-        archive = zipfile.ZipFile(raw)
-        names = [info for info in archive.infolist() if not info.is_dir()]
-        if not names:
-            raise FeedFormatError("ZIP arsivi bos")
-        return archive.open(names[0])
+    try:
+        if magic[:2] == b"\x1f\x8b":
+            inner: IO[bytes] = gzip.GzipFile(fileobj=raw)  # type: ignore[assignment]
+            return io.BufferedReader(_Owning(inner, raw), 1 << 16)  # type: ignore[return-value]
+        if magic == b"PK\x03\x04":
+            archive = zipfile.ZipFile(raw)
+            names = [info for info in archive.infolist() if not info.is_dir()]
+            if not names:
+                raise FeedFormatError("ZIP arsivi bos")
+            member = archive.open(names[0])
+            return io.BufferedReader(_Owning(member, archive, raw), 1 << 16)  # type: ignore[return-value]
+    except Exception:
+        raw.close()
+        raise
     return raw
 
 
