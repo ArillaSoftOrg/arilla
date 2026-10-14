@@ -17,6 +17,7 @@ eklenti yok, Trendyol'u ayrıca açmak yok, ücretli arama API'si yok.
 - Fiyat mimarisi (7 katman), H12–H13, 20 sayfalık kapsam (%99,86), sitemap fark ölçümü: [`11-fiyat-mimarisi-ve-kapsam.md`](11-fiyat-mimarisi-ve-kapsam.md)
 - Fiyat doğrulama sistemi, satıcı pilotu (kota/anahtar), yeni sitemap üretimi (%99,906 süreklilik): [`12-dogrulama-sistemi-ve-pilot.md`](12-dogrulama-sistemi-ve-pilot.md)
 - İki sitemap üretiminin kimlik bazlı karşılaştırması: [`13-uretim-karsilastirmasi.md`](13-uretim-karsilastirmasi.md)
+- Yeni yöntemler (yorumlu ürün sitemap'i 505 bin, yurt dışı sitemap'ler), ücretsiz Gemini URL Context ölçüm düzeneği, katalog eşlemesi: [`14-yeni-yontemler-gemini-ve-katalog.md`](14-yeni-yontemler-gemini-ve-katalog.md)
 - Kod (bu dal): `packages/core/src/trendyol-landing/`, `packages/core/scripts/trendyol-*-cli.ts`
 - Dal / worktree: `research/trendyol-landing-discovery` → `../repo-docs-trendyol-landing`
 - İlgili, dokunulmayan çalışmalar: PR #125 (`feature/trendyol-live-discovery-prototype`),
