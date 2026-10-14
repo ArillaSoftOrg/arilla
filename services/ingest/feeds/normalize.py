@@ -29,7 +29,7 @@ from urllib.parse import parse_qsl, urlsplit
 
 from collect.images import SelectedImage, SourceImage, select_images
 from collect.mapping import MAX_PRICE_KURUS
-from feeds.parsers import FeedRecord
+from feeds.parsers import MALFORMED, FeedRecord
 from resolve.identity_policy import classify_gtin, mpn_norm
 
 YML_DEFAULTS: Mapping[str, str] = {
@@ -221,6 +221,8 @@ def normalize(
 ) -> FeedOffer:
     mapping = {**YML_DEFAULTS, **(config.get("mapping") or {})}
     fields = record.fields
+    if MALFORMED in fields:
+        raise Rejected("malformed_xml", str(fields[MALFORMED]))
 
     external_id = _text(get_path(fields, mapping["id"]))
     if not external_id:

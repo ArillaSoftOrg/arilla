@@ -593,4 +593,4 @@ def test_kesik_beslemede_ayristirma_hatasi_kayda_gecer(env: Env) -> None:
     report = env.run(fid, [offer(i) for i in ids(30)], truncate=True)
     assert report.gate == "truncated" and report.parse_error
     text = env.one("SELECT error_text FROM ingest_run WHERE id = %s", (report.run_id,))[0]
-    assert text.startswith("truncated: ParseError")
+    assert text.startswith("truncated: EOFError")
