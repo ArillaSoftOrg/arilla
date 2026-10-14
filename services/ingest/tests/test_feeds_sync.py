@@ -565,3 +565,32 @@ def test_on_indirilen_dosya_kullanilir_paralel_indirme_disk_payiyla(
     ).run(force=True)
     assert (report.status, report.created) == ("success", 12)
     assert not pre[0].exists()
+
+
+def test_wal_arsivi_geride_kalirsa_bekler_cok_uzarsa_guvenle_durur(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    import feeds.sync as sync_module
+
+    lags = iter([2 << 30, 2 << 30, 0, 0, 0, 0])
+    monkeypatch.setattr(sync_module, "_archive_lag_bytes", lambda _c: next(lags, 0))
+    fid = env.feed()
+    report = env.run(fid, [offer(i) for i in ids(25)])
+    assert report.status == "success" and report.archive_wait_seconds == 10.0
+
+    monkeypatch.setattr(sync_module, "_archive_lag_bytes", lambda _c: 3 << 30)
+    settings = SyncSettings(chunk_size=10, pause_ms=0, max_archive_wait_seconds=15)
+    with pytest.raises(SyncAborted) as error:
+        env.run(
+            fid, [offer(i) for i in ids(25, 100)], at=T0 + timedelta(hours=1), settings=settings
+        )
+    assert error.value.code == "archive_lag"
+    assert active_of(env) == 25 + 10  # ilk parca yazildi, hicbir sey pasiflesmedi
+
+
+def test_kesik_beslemede_ayristirma_hatasi_kayda_gecer(env: Env) -> None:
+    fid = env.feed()
+    report = env.run(fid, [offer(i) for i in ids(30)], truncate=True)
+    assert report.gate == "truncated" and report.parse_error
+    text = env.one("SELECT error_text FROM ingest_run WHERE id = %s", (report.run_id,))[0]
+    assert text.startswith("truncated: ParseError")

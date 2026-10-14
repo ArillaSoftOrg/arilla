@@ -281,7 +281,9 @@ def iter_records(
     ) as error:
         # Kesik gzip EOFError, kesik XML ParseError verir: dosya eksik.
         result.complete = False
-        result.error = type(error).__name__
+        # Tur + konum (or. "ParseError: not well-formed (invalid token): line 1, column 9");
+        # kaynak icerigi ya da adres icermez.
+        result.error = f"{type(error).__name__}: {error}"[:200]
     except json.JSONDecodeError:
         result.complete = False
         result.error = "JSONDecodeError"

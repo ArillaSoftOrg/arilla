@@ -75,6 +75,11 @@ class SyncSettings:
     #: Surum basina yazilan en fazla hata satiri (gerisi yalnizca sayilir).
     max_errors_logged: int = 1000
     schema_sample: int = 500
+    #: Arsivlenmemis WAL bu sinirin ustundeyse parcalar arasinda beklenir.
+    max_archive_lag_bytes: int = 1 << 30
+    archive_poll_seconds: float = 5.0
+    #: Bu kadar beklemede dusmezse senkronizasyon guvenle durur (kaldigi yerden devam).
+    max_archive_wait_seconds: float = 1800.0
     download_attempts: int = 3
 
     @classmethod
@@ -113,6 +118,8 @@ class SyncReport:
     gate: str | None = None
     #: Asama sureleri (sn): darbogaz teshisi (karar 0114).
     reused_download: bool = False
+    archive_wait_seconds: float = 0.0
+    parse_error: str | None = None
     seconds_normalize: float = 0.0
     seconds_merge: float = 0.0
     seconds_parse_and_wait: float = 0.0
@@ -367,6 +374,32 @@ def _chunks(records: Iterator[FeedRecord], size: int) -> Iterator[tuple[int, lis
             batch = []
     if batch:
         yield batch[0].index // size, batch
+
+
+#: Son arsivlenen WAL dosyasinin bitisinden bugunku WAL konumuna kadar bayt.
+#: Arsiv kapaliysa (yerel/CI) ya da hic arsivlenmemisse NULL -> beklenmez.
+ARCHIVE_LAG = """
+WITH last AS (
+    SELECT ('x' || substr(a.last_archived_wal, 9, 8))::bit(32)::bigint AS log_id,
+           ('x' || substr(a.last_archived_wal, 17, 8))::bit(32)::bigint AS seg_no,
+           (SELECT setting::bigint FROM pg_settings WHERE name = 'wal_segment_size') AS seg_size
+      FROM pg_stat_archiver a
+     WHERE current_setting('archive_mode') <> 'off'
+       AND a.last_archived_wal ~ '^[0-9A-F]{24}$'
+)
+SELECT pg_wal_lsn_diff(
+           pg_current_wal_lsn(),
+           '0/0'::pg_lsn + (log_id * 4294967296 + (seg_no + 1) * seg_size)::numeric
+       )::bigint
+  FROM last
+"""
+
+
+def _archive_lag_bytes(conn: psycopg.Connection) -> int | None:
+    with conn.cursor() as cur:
+        cur.execute(ARCHIVE_LAG)
+        row = cur.fetchone()
+    return int(row[0]) if row and row[0] is not None else None
 
 
 def _busy(conn: psycopg.Connection) -> int:
@@ -892,6 +925,20 @@ class FeedSync:
             if _busy(self.conn) <= settings.busy_connections:
                 break
             self.sleep(settings.busy_wait_seconds)
+        # WAL arsivi geride kalirsa bekle (karar 0114): pgBackRest'in bekleyen WAL
+        # kuyrugu sinirlidir (4 GiB); dolarsa WAL birakilir ve PITR zinciri kopar.
+        # Olcum: 491 bin kayitlik ilk yukleme 4,6 GB WAL uretti.
+        waited = 0.0
+        while (
+            lag := _archive_lag_bytes(self.conn)
+        ) is not None and lag > settings.max_archive_lag_bytes:
+            if waited >= settings.max_archive_wait_seconds:
+                self.conn.commit()
+                raise SyncAborted("archive_lag", f"arsivlenmemis WAL {lag} bayt")
+            self.report.archive_wait_seconds += settings.archive_poll_seconds
+            self.sleep(settings.archive_poll_seconds)
+            waited += settings.archive_poll_seconds
+            self.conn.commit()
         self.conn.commit()
 
     def _gate(self, feed: FeedRow, settings: SyncSettings, parse: ParseResult) -> str | None:
@@ -965,7 +1012,9 @@ class FeedSync:
             },
         )
         r.status = status
-        self._finish_run(status, r.gate)
+        if gate == "truncated" and parse.error:
+            r.parse_error = parse.error
+        self._finish_run(status, f"{r.gate}: {parse.error}" if r.parse_error else r.gate)
 
     def _deactivate(self, feed: FeedRow, settings: SyncSettings, snapshot_id: int) -> str:
         r = self.report
