@@ -1,0 +1,234 @@
+{
+  "measuredAt": "2026-10-14",
+  "tool": "Google AI Studio arayüzü (ücretli anahtar seçili değil), Gemini 3 Flash Preview, yalnız URL Context aracı",
+  "truth": "Kullanıcının Chrome'u, trendyol.com sekmesinde aynı origin fetch, normal ziyaret; JSON-LD offers.price + gömülü discountedPrice değerleri + satıcı",
+  "rules": {
+    "mainMatch": "Gemini ana fiyatı = canlı sayfanın JSON-LD fiyatı ya da ilk gömülü discountedPrice (kuruş eşit)",
+    "storage": "Model çıktısının kendisi saklanmadı; yalnız karar, sapma yüzdesi ve kendi tarayıcı gözlemimiz"
+  },
+  "sets": [
+    {
+      "name": "belge 14 ölçüm seti (data/gemini-probe-set.json)",
+      "geminiWindowUtc": ["2026-10-14T22:08:00Z", "2026-10-14T22:09:15Z"],
+      "truthWindowsUtc": [
+        ["2026-10-14T22:06:28Z", "2026-10-14T22:07:18Z"],
+        ["2026-10-14T22:09:34Z", "2026-10-14T22:10:22Z"]
+      ],
+      "truthStableBetweenWindows": true,
+      "items": [
+        { "contentId": "857296094", "read": true, "mainMatch": true, "seller": "correct" },
+        { "contentId": "857296083", "read": true, "mainMatch": true, "seller": "correct" },
+        {
+          "contentId": "813659620",
+          "read": true,
+          "mainMatch": true,
+          "seller": "correct",
+          "layer": "jsonld (sepet %50)"
+        },
+        { "contentId": "5999429", "read": true, "mainMatch": true, "seller": "correct" },
+        { "contentId": "977783209", "read": true, "mainMatch": true, "seller": "correct" },
+        { "contentId": "904143719", "read": true, "mainMatch": true, "seller": "correct" },
+        { "contentId": "1199153821", "read": true, "mainMatch": true, "seller": "correct" },
+        {
+          "contentId": "1157405825",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": 17.7,
+          "deviationPctVsDiscounted": -1.0,
+          "truthJsonld": 264.64,
+          "seller": "correct"
+        },
+        {
+          "contentId": "312097758",
+          "read": true,
+          "mainMatch": true,
+          "layer": "discountedPrice[0] (JSON-LD daha düşük başka teklif)",
+          "seller": "unclear"
+        },
+        { "contentId": "802022106", "read": true, "mainMatch": true, "seller": "correct" },
+        {
+          "contentId": "985256863",
+          "read": true,
+          "mainMatch": true,
+          "seller": "correct (Trendyol 1P, 968)"
+        },
+        { "contentId": "745785546", "read": true, "mainMatch": true, "seller": "correct" },
+        {
+          "contentId": "808313846",
+          "read": true,
+          "mainMatch": true,
+          "layer": "discountedPrice[0]",
+          "seller": "unclear"
+        },
+        {
+          "contentId": "973411992",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": -7.7,
+          "truthJsonld": 9874,
+          "seller": "wrong"
+        },
+        {
+          "contentId": "666779333",
+          "read": true,
+          "mainMatch": true,
+          "layer": "discountedPrice[0]",
+          "seller": "wrong (marka satıcı sanıldı)"
+        },
+        { "contentId": "119301331", "read": true, "mainMatch": true, "seller": "correct" },
+        {
+          "contentId": "1056264837",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": 6.1,
+          "truthJsonld": 3025,
+          "seller": "correct"
+        },
+        {
+          "contentId": "345039208",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": -8.4,
+          "truthJsonld": 5601.39,
+          "seller": "correct"
+        },
+        { "contentId": "741160968", "read": true, "mainMatch": true, "seller": "correct" },
+        { "contentId": "774382259", "read": true, "mainMatch": true, "seller": "correct" }
+      ],
+      "summary": { "read": "20/20", "mainMatch": "16/20", "sellerCorrect": "16/20" }
+    },
+    {
+      "name": "rastgele 20 ürün (8,13 M sitemap dizininden, tohum 20261015)",
+      "geminiWindowUtc": ["2026-10-14T21:55:00Z", "2026-10-14T21:57:30Z"],
+      "truthWindowsUtc": [["2026-10-14T21:58:46Z", "2026-10-14T21:59:34Z"]],
+      "items": [
+        {
+          "contentId": "881373867",
+          "read": true,
+          "mainMatch": true,
+          "seller": "wrong (platform adı)"
+        },
+        {
+          "contentId": "31544416",
+          "read": true,
+          "mainMatch": true,
+          "seller": "wrong (platform adı)"
+        },
+        {
+          "contentId": "1080777230",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": -7.6,
+          "repeatedSameValue": true,
+          "seller": "correct (tesadüf, 968)"
+        },
+        {
+          "contentId": "1198197434",
+          "read": true,
+          "mainMatch": true,
+          "seller": "wrong (platform adı)"
+        },
+        {
+          "contentId": "655895734",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": 4.9,
+          "repeatedSameValue": true,
+          "seller": "wrong (platform adı)"
+        },
+        {
+          "contentId": "929927295",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": -30.3,
+          "repeatedSameValue": true,
+          "seller": "correct"
+        },
+        {
+          "contentId": "1176461545",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": -0.45,
+          "repeatedSameValue": false,
+          "seller": "correct"
+        },
+        { "contentId": "788662522", "read": true, "mainMatch": true, "seller": "null" },
+        { "contentId": "753866254", "read": true, "mainMatch": true, "seller": "correct" },
+        {
+          "contentId": "971261763",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": 2.7,
+          "seller": "correct"
+        },
+        {
+          "contentId": "961916867",
+          "read": true,
+          "mainMatch": null,
+          "note": "canlı sayfada JSON-LD/satıcı yok; doğrulanamadı"
+        },
+        {
+          "contentId": "963261088",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": 5.3,
+          "seller": "correct"
+        },
+        { "contentId": "1148899253", "read": true, "mainMatch": true, "seller": "null" },
+        {
+          "contentId": "857158937",
+          "read": false,
+          "note": "Access denied; canlı sayfa 200, JSON-LD yok"
+        },
+        { "contentId": "1199991339", "read": true, "mainMatch": true, "seller": "null" },
+        { "contentId": "1043386466", "read": true, "mainMatch": true, "seller": "null" },
+        { "contentId": "755722529", "read": true, "mainMatch": true, "seller": "correct" },
+        { "contentId": "959757679", "read": true, "mainMatch": true, "seller": "correct" },
+        {
+          "contentId": "818364046",
+          "read": true,
+          "mainMatch": false,
+          "deviationPctVsJsonld": -3.0,
+          "repeatedSameValue": true,
+          "seller": "null"
+        },
+        {
+          "contentId": "1154793490",
+          "read": true,
+          "mainMatch": true,
+          "seller": "wrong (platform adı)"
+        }
+      ],
+      "summary": {
+        "read": "19/20",
+        "comparable": 18,
+        "mainMatch": "11/18",
+        "sellerCorrectWhenNamed": "7/7 (+1 tesadüf), platform adı 'Trendyol' 6 kez"
+      }
+    },
+    {
+      "name": "negatif kontrol: Trendyol'da 404 olan 4 kısa URL + 1 kanonik olmayan URL",
+      "items": [
+        { "url": "/sony/p-802022106", "truth": 404, "read": false, "fabricated": false },
+        { "url": "/sony/p-961213689", "truth": 404, "read": false, "fabricated": false },
+        { "url": "/shebara/p-1199153821", "truth": 404, "read": false, "fabricated": false },
+        { "url": "/floweri-ng/p-1157405825", "truth": 404, "read": false, "fabricated": false },
+        {
+          "url": "/sony/wh-1000xm5-gurultu-onleyici-…-p-312097758 (kanonik değil)",
+          "truth": "200 (yönlendirme)",
+          "read": false,
+          "fabricated": false
+        }
+      ]
+    },
+    {
+      "name": "Google Search grounding (URL Context yok), rastgele setin 7 hatalı + 1 doğru ürünü",
+      "note": "Grounded sonuç saklanmaz (Google şartları); yalnız karar",
+      "summary": {
+        "mainMatch": "1/8 (o da JSON-LD değil gömülü discountedPrice)",
+        "null": 1,
+        "regression": "URL Context'in doğru verdiği 881373867 yanlış"
+      }
+    }
+  ]
+}
