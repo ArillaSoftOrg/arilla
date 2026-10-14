@@ -1475,7 +1475,7 @@ veritabanından çözülür, sayaç yine artar).
   yönetimden kapatılır (404); kod geri alınırsa `/<slug>` yolları eski link-öneki
   davranışına (404) döner, tablolar kalır.
 
-**Umami (2. aşama, bu PR'da kod yok).** `analytics.manicepte.com` üzerinde çalışan Umami
+**Umami** (karar 0116, ziyaretçi analitiği). `analytics.manicepte.com` üzerinde çalışan Umami
 v3.4.0 şu an depodaki `infra/` dosyalarında YOKTUR. Dağıtım `infra/vps/Caddyfile` ve
 `infra/vps/postgres/pg_hba.conf` dosyalarını VPS'e yeniden kopyalarsa VPS'te elle yapılmış
 değişiklikler ezilir. Üretim öncesi, YALNIZ OKUYARAK (VPS'e yazmadan):
@@ -1494,6 +1494,43 @@ değişiklikler ezilir. Üretim öncesi, YALNIZ OKUYARAK (VPS'e yazmadan):
    `infra/vps/backup` yapılandırması ve `pg-restore-test` ile doğrula.
 4. Umami `web` ağında değildir: `web` → Umami çağrısı (2. aşama) için ağ kuralı ve
    `UMAMI_API_KEY` (yalnızca `web.env`) gerekir.
+
+## Umami analitiğini etkinleştirme (karar 0116)
+
+Kod hazır; üretimde etkinleştirme bu adımlarla ELLE yapılır. Hiçbir anahtar depoya yazılmaz.
+Umami kapalıyken (değişkenler boş) site ve kısa bağlantılar aynen çalışır; izleyici yüklenmez,
+CSP genişlemez, `/yonetim/analitik` "yapılandırılmamış" der.
+
+1. **Umami tarafı (arayüz):** web sitesi `manicepte.com` için ayrı bir kullanıcıyla API anahtarı
+   üret (Settings > API keys; yalnız bir kez görünür). Anahtar kapsamı belgelenmediği için o
+   kullanıcının yetkisini taşıdığı varsayılır: en az yetkili kullanıcı kullan. Web sitesi
+   kimliğini (UUID) kopyala. Umami örneğinde `DISABLE_TELEMETRY=1` olduğunu doğrula
+   (aksi halde Umami kendi anonim telemetri çağrısını yapar; yasal metindeki "başka kuruluşlara
+   aktarılmaz" cümlesi buna bağlıdır).
+2. **Derleme değişkenleri (GitHub depo değişkenleri, sır DEĞİL):** `UMAMI_BASE_URL`
+   (`https://analytics.manicepte.com`), `UMAMI_WEBSITE_ID`, isteğe bağlı
+   `UMAMI_TRACKER_SCRIPT_NAME`. CSP derlemede üretildiği için değişince yeniden derleme/dağıtım
+   gerekir.
+3. **Çalışma değişkenleri (`/opt/arilla/env/web.env`):** aynı üç değer + `UMAMI_API_KEY` (SIR;
+   yalnızca bu dosyada, 0600). `web` konteyneri `analytics.manicepte.com`'a `egress` ağı
+   üzerinden herkese açık adresiyle ulaşır; ek ağ kuralı gerekmez. İç ağdan ulaşım için Umami
+   konteynerini `edge`'e bağlamak CANLI yapılandırmaya dokunur: ayrı, elle onaylı bir iş.
+4. **Doğrulama (yayından sonra, test tarayıcısı, analitik rızası VER):**
+   - Ağ sekmesinde `…/script.js` yüklenir ve yalnız `analytics.manicepte.com`'a istek gider;
+     tarayıcıda yeni çerez / `localStorage` anahtarı oluşuyorsa `/cerez` ve `/gizlilik`
+     metinleri güncellenmeden bırakılmaz (Umami belgesinde çerez davranışı doğrulanamadı).
+   - Rızayı geri çek: yeni istek gitmez.
+   - `/yonetim` sayfalarında betik yüklenmez (CSP ve yol süzgeci).
+   - `?utm_source=test&utm_campaign=kontrol` ile gel: `/yonetim/analitik` "Kampanyalar"
+     tablosunda `kontrol` görünmeli. Görünmüyorsa Umami `url`'deki `utm_*` değerlerini ayrı
+     kaydetmiyor demektir (belgede doğrulanmadı); kampanya ekranları o zaman boş kalır ve
+     bu bir hatadır, açıklama gerektirir.
+   - `/yonetim/takip-baglantilari/<id>` kampanya paneli o bağlantının `campaign` değeriyle dolar.
+5. **Hata izolasyonu denemesi:** Umami konteynerini durdurmadan `UMAMI_API_KEY`'i bozarak
+   (yalnız staging) `/yonetim/analitik`'in "anahtar reddedildi" dediğini, ana sayfa ve
+   `/<slug>` yönlendirmelerinin etkilenmediğini doğrula.
+6. **Saklama:** Umami örneğinde veri saklama süresi sürüm belgesinde doğrulanamadı; hukukçu
+   onayıyla süre belirlenip uygulanır (`docs/kvkk.md` satırı).
 
 ## Dağıtım
 

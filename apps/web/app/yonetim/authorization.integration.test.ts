@@ -383,6 +383,12 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     admin: true,
     call: async () => (await import("./ayarlar/page.tsx")).default(),
   },
+  // Karar 0116: Umami ziyaretçi analitiği (yalnızca yönetici).
+  {
+    name: "/yonetim/analitik",
+    admin: true,
+    call: async () => (await import("./analitik/page.tsx")).default(sp({})),
+  },
   // Karar 0087: GA4 trafik (yalnızca yönetici).
   {
     name: "/yonetim/trafik",

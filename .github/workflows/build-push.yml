@@ -154,6 +154,9 @@ jobs:
           NAME: ${{ matrix.name }}
           APP_URL: ${{ vars.ARILLA_APP_URL }}
           GA4: ${{ vars.GA4_MEASUREMENT_ID }}
+          UMAMI_BASE_URL: ${{ vars.UMAMI_BASE_URL }}
+          UMAMI_WEBSITE_ID: ${{ vars.UMAMI_WEBSITE_ID }}
+          UMAMI_TRACKER_SCRIPT_NAME: ${{ vars.UMAMI_TRACKER_SCRIPT_NAME }}
         run: |
           set -euo pipefail
           deployable=true
@@ -168,6 +171,9 @@ jobs:
                 echo "APP_URL=$APP_URL"
               fi
               echo "GA4_MEASUREMENT_ID=$GA4"
+              echo "UMAMI_BASE_URL=$UMAMI_BASE_URL"
+              echo "UMAMI_WEBSITE_ID=$UMAMI_WEBSITE_ID"
+              echo "UMAMI_TRACKER_SCRIPT_NAME=$UMAMI_TRACKER_SCRIPT_NAME"
             fi
             echo 'ARGS_EOF'
           } >> "$GITHUB_OUTPUT"
@@ -252,6 +258,9 @@ jobs:
           NAME: ${{ matrix.name }}
           APP_URL: ${{ vars.ARILLA_APP_URL }}
           GA4: ${{ vars.GA4_MEASUREMENT_ID }}
+          UMAMI_BASE_URL: ${{ vars.UMAMI_BASE_URL }}
+          UMAMI_WEBSITE_ID: ${{ vars.UMAMI_WEBSITE_ID }}
+          UMAMI_TRACKER_SCRIPT_NAME: ${{ vars.UMAMI_TRACKER_SCRIPT_NAME }}
         run: |
           set -euo pipefail
           publish=true
@@ -260,6 +269,9 @@ jobs:
             if [ "$NAME" = "web" ]; then
               if [ -z "$APP_URL" ]; then publish=false; else echo "APP_URL=$APP_URL"; fi
               echo "GA4_MEASUREMENT_ID=$GA4"
+              echo "UMAMI_BASE_URL=$UMAMI_BASE_URL"
+              echo "UMAMI_WEBSITE_ID=$UMAMI_WEBSITE_ID"
+              echo "UMAMI_TRACKER_SCRIPT_NAME=$UMAMI_TRACKER_SCRIPT_NAME"
             fi
             echo 'ARGS_EOF'
           } >> "$GITHUB_OUTPUT"

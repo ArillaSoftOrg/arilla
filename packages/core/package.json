@@ -20,7 +20,8 @@
     "./media-url": "./src/storage/media-url.ts",
     "./media-keys": "./src/storage/media-keys.ts",
     "./storage": "./src/storage/index.ts",
-    "./errors": "./src/errors/index.ts"
+    "./errors": "./src/errors/index.ts",
+    "./umami-tracker": "./src/analytics-umami/config.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

@@ -4,6 +4,7 @@ import { CookiePreferencesPageForm } from "../cookie-consent-client.tsx";
 import { LEGAL_EFFECTIVE_LABEL, LegalIdentityBlock } from "../legal-identity-block.tsx";
 import { readConsent } from "../lib/consent.ts";
 import { isGa4MeasurementActive } from "../lib/ga4.ts";
+import { isUmamiTrackerActive } from "../lib/umami.ts";
 
 export const metadata: Metadata = {
   title: "Çerez Politikası – ManiCepte",
@@ -88,6 +89,7 @@ const ANALYTICS_COOKIES: readonly CookieRow[] = [
 export default async function CerezPage() {
   const consent = await readConsent();
   const ga4 = isGa4MeasurementActive();
+  const umami = isUmamiTrackerActive();
 
   return (
     <LegalPageLayout title="Çerez Politikası" lastUpdatedLabel={LEGAL_EFFECTIVE_LABEL}>
@@ -106,6 +108,13 @@ export default async function CerezPage() {
             Yalnızca izin verirseniz, sitenin nasıl kullanıldığını toplu olarak ölçmek için Google
             Analytics 4 çalışır. Reklam, pazarlama, sosyal medya pikseli veya affiliate izleme
             çerezi kullanmıyoruz.
+          </p>
+        ) : umami ? (
+          <p>
+            ManiCepte sitenin çalışması için kesinlikle gerekli, birinci taraf çerezler kullanır.
+            Yalnızca izin verirseniz, sitenin nasıl kullanıldığını toplu olarak ölçmek için kendi
+            sunucumuzda çalışan Umami çalışır. Reklam, pazarlama, sosyal medya pikseli veya
+            affiliate izleme çerezi kullanmıyoruz.
           </p>
         ) : (
           <p>
@@ -137,12 +146,26 @@ export default async function CerezPage() {
             silinir. Arama ifadeleri, adres satırındaki parametreler, hesap ve sohbet bilgileri
             gönderilmez; Google sinyalleri ve reklam kişiselleştirmesi kapalıdır.
           </p>
+        ) : umami ? (
+          <p>
+            Sitenin kullanımını toplu olarak ölçer (ziyaretçi, görüntülenen sayfa, trafik kaynağı,
+            cihaz türü, tarayıcı ve yaklaşık ülke). Bu kategoride kendi sunucumuzda çalışan Umami
+            kullanıyoruz; izin vermezseniz hiç yüklenmez, izni geri çekerseniz ölçüm hemen durur.
+            Arama ifadeleri, adres satırındaki parametreler, hesap ve sohbet bilgileri gönderilmez.
+          </p>
         ) : (
           <p>
             Sitenin kullanımını ve performansını ölçer. Şu an bu kategoride kullandığımız bir çerez
             veya araç yok; eklenirse izin vermeden yüklenmez.
           </p>
         )}
+        {ga4 && umami ? (
+          <p>
+            Ayrıca, kendi sunucumuzda çalışan Umami ile de aynı amaçla ve yalnızca izninizle toplu
+            ölçüm yaparız; arama ifadeleri, adres satırındaki kişisel parametreler, hesap ve sohbet
+            bilgileri gönderilmez.
+          </p>
+        ) : null}
         <h3>Reklam / affiliate ölçüm</h3>
         <p>
           Reklam ve affiliate yönlendirmelerini cihazınızda ölçer. Şu an bu kategoride kullandığımız

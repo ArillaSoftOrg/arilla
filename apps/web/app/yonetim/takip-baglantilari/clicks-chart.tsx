@@ -30,10 +30,13 @@ export function ClicksChart({
   series,
   unitLabel,
   formatLabel,
+  valueLabel = "Tıklama",
 }: {
   series: readonly ClickPoint[];
   unitLabel: string;
   formatLabel: (label: string) => string;
+  /** Sayının adı (tıklama, sayfa görüntüleme...). */
+  valueLabel?: string;
 }) {
   const values = series.map((point) => point.clicks);
   const max = Math.max(1, ...values);
@@ -42,7 +45,7 @@ export function ClicksChart({
   const area = line ? `0,${HEIGHT} ${line} ${WIDTH},${HEIGHT}` : "";
   const first = series[0];
   const last = series[series.length - 1];
-  const label = `${unitLabel} tıklama eğrisi: ${series.length} dönem, toplam ${formatCount(total)}, en yüksek ${formatCount(Math.max(0, ...values))}.`;
+  const label = `${unitLabel} ${valueLabel.toLowerCase()} eğrisi: ${series.length} dönem, toplam ${formatCount(total)}, en yüksek ${formatCount(Math.max(0, ...values))}.`;
 
   return (
     <figure className={styles.chart}>
@@ -84,7 +87,7 @@ export function ClicksChart({
             { key: "label", header: unitLabel, cell: (point) => formatLabel(point.label) },
             {
               key: "clicks",
-              header: "Tıklama",
+              header: valueLabel,
               numeric: true,
               cell: (point) => formatCount(point.clicks),
             },

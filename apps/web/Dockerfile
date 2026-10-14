@@ -56,6 +56,10 @@ RUN --mount=type=cache,id=pnpm-store,target=/root/.local/share/pnpm/store \
 FROM deps AS build
 ARG APP_URL
 ARG GA4_MEASUREMENT_ID=""
+# Karar 0116: Umami izleyicisi (sir DEGIL; CSP derlemede uretilir). Bos = Umami kapali.
+ARG UMAMI_BASE_URL=""
+ARG UMAMI_WEBSITE_ID=""
+ARG UMAMI_TRACKER_SCRIPT_NAME=""
 # Uretim imaji: APP_URL olmadan derleme baslamaz (yanlis canonical ile canliya
 # cikmaktan iyidir). `DEPLOY_ENV=production` derlemede de uretim kapilarini acar
 # (https zorunlu, localhost reddedilir; packages/core/src/config/app-url.ts).
@@ -64,7 +68,7 @@ ENV NODE_ENV=production \
     NEXT_OUTPUT=standalone \
     DEPLOY_ENV=production \
     APP_URL=${APP_URL} \
-    GA4_MEASUREMENT_ID=${GA4_MEASUREMENT_ID}
+    GA4_MEASUREMENT_ID=${GA4_MEASUREMENT_ID} \n    UMAMI_BASE_URL=${UMAMI_BASE_URL} \n    UMAMI_WEBSITE_ID=${UMAMI_WEBSITE_ID} \n    UMAMI_TRACKER_SCRIPT_NAME=${UMAMI_TRACKER_SCRIPT_NAME}
 COPY tsconfig.base.json ./
 COPY apps/web apps/web
 COPY packages packages

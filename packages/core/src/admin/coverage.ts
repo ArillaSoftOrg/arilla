@@ -475,6 +475,23 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "Yalnızca rızalı ve arındırılmış page_view; 5 kullanıcı altı coğrafya/kaynak satırı birleştirilir.",
   },
   {
+    id: "umami_analytics",
+    label: "Ziyaretçi analitiği (Umami, rızalı)",
+    // Veri Umami'nin kendi veritabanında; Arilla veritabanında tablo yok (karar 0116).
+    tables: [],
+    status: "visible",
+    adminPaths: ["/yonetim/analitik"],
+    gaps: [
+      {
+        signal: "Kampanya bazlı dönüşüm kırılımı (olay verisi API'si doğrulanamadı)",
+        status: "external",
+      },
+      { signal: "Analitik rızası vermeyen ziyaretçi (bilerek ölçülmez)", status: "unmeasured" },
+    ],
+    privacy:
+      "Yalnızca rızalı, arındırılmış sayfa yolu ve güvenli utm_*; satır düzeyi ziyaretçi verisi gösterilmez, 5 altı hücreler Diğer'e katılır.",
+  },
+  {
     id: "configuration",
     label: "Özellik bayrakları ve tavanlar",
     tables: [],
