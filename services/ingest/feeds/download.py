@@ -2,8 +2,9 @@
 
 Korumalar (KVM 4):
 
-- `FEED_MAX_BYTES` (varsayilan 4 GiB): diske yazilan bayt tavani; asilirsa
-  indirme durur, dosya silinir.
+- Bayt tavani DINAMIK: bos alan - `FEED_MIN_FREE_BYTES`. `FEED_MAX_BYTES`
+  verilirse ek ust sinirdir. Asilirsa indirme durur, dosya silinir; kismi
+  dosya hicbir zaman islenmez (surum olusmaz, offer pasiflesmez).
 - `FEED_MIN_FREE_BYTES` (varsayilan 15 GiB): basta ve her 64 MiB'da bos alan
   denetlenir; altina inilirse indirme durur (PostgreSQL/WAL ve yedek diski
   korunur).
@@ -96,13 +97,18 @@ def download(
     stop_after_bytes: int | None = None,
 ) -> Downloaded:
     """Akisla indirir. `stop_after_bytes`: yalnizca ornek kipi; dosya bilerek eksik kalir."""
-    max_bytes = max_bytes if max_bytes is not None else _int_env("FEED_MAX_BYTES", 4 * GiB)
     min_free = (
         min_free_bytes if min_free_bytes is not None else _int_env("FEED_MIN_FREE_BYTES", 15 * GiB)
     )
     directory = target.parent
-    if _free_bytes(directory) < min_free:
+    free_at_start = _free_bytes(directory)
+    if free_at_start < min_free:
         raise DownloadError("disk_low", "indirme oncesi bos alan yetersiz")
+    # Tavan sabit degil: diskte `min_free` korunarak kullanilabilen alan kadar
+    # (4 GiB'i asan beslemeler de eksiksiz iner). FEED_MAX_BYTES verilirse ust sinirdir.
+    budget = free_at_start - min_free
+    configured = max_bytes if max_bytes is not None else _int_env("FEED_MAX_BYTES", 0)
+    max_bytes = min(configured, budget) if configured > 0 else budget
 
     http = client or httpx.Client(timeout=httpx.Timeout(60.0, read=300.0), follow_redirects=True)
     digest = hashlib.sha256()

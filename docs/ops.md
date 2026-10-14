@@ -1142,6 +1142,16 @@ Siz feed'lerden veri topluyorsunuz; rakip de sizden toplamaya çalışacak.
 yüzlerce MB. İndirme ~0,7–1,1 MB/sn. Tam aktarım öncesi V4.1 §20 aşama kapıları
 uygulanır: önce 10 bin, sonra 100 bin kayıt, her aşamada disk, WAL ve yedek ölçümü.
 
+## Production besleme komutları (karar 0114)
+
+Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-staging`.
+
+Çalıştırma: `cd /opt/arilla && docker compose --env-file compose.env -f compose.prod.yml --profile feeds run --rm feeds python -m feeds <komut>`.
+
+- Besleme dosyası diskteki `/opt/arilla/feed-staging`'e iner; RAM tabanlı `/tmp`'ye inmez.
+- Diskte en az 20 GiB boş alan korunur.
+- Kaynaklar: 1,5 GB bellek, 1 CPU.
+
 ## Fiyat doğrulama ve döviz kuru (karar 0113)
 
 **Durum:** Kod ve testler hazır. Üretimde zamanlama **yok**.

@@ -34,3 +34,20 @@ def profile_for(network: str, program_external_id: str | None) -> dict[str, Any]
     if not program_external_id:
         return {}
     return dict(PROFILES.get(f"{network}:{program_external_id}", {}))
+
+
+#: Dogrulanmis program -> merchant kaydi (karar 0114). Takip sablonu Admitad
+#: deeplink API'sinin urettigi bicimle dogrulandi (14 Ekim 2026):
+#: `rzekl.com/g/<kod>/?subid=<tiklama>&ulp=<urun>`; besleme takip baglantisi ayni
+#: host ve yolu kullanir, `subid` click kimligini tasir (kural 8).
+MERCHANT_PROFILES: dict[str, dict[str, Any]] = {
+    "admitad:6115": {
+        "slug": "aliexpress",
+        "name": "AliExpress",
+        "domain": "aliexpress.com",
+        "source_type": "affiliate_network",
+        "affiliate_network": "admitad",
+        "affiliate_status": "active",
+        "deeplink_template": "{affiliate_url}&subid={click_id}",
+    },
+}
