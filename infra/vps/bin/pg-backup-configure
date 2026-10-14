@@ -1,0 +1,175 @@
+#!/usr/bin/env bash
+# pgBackRest yapilandirmasini URETIR (karar 0110). Canli servise DOKUNMAZ: yalniz dosya yazar.
+#
+#   sudo /opt/arilla/vps/bin/pg-backup-configure [--env-file /opt/arilla/env/backup.env] [--dir /opt/arilla/backup]
+#
+# Uretilenler (<dir>):
+#   repo/pgbackrest.conf   R2 anahtari + sifreleme parolasi (yalniz `backup`/`restore` konteyneri)
+#   repo/tls/{ca.crt,server.crt,server.key}
+#   pg/pgbackrest.conf     postgres tarafi (sir YOK; yalniz TLS istemci sertifikasi)
+#   pg/tls/{ca.crt,client.crt,client.key}
+#   pg/archive.conf.pending  arsiv ayarlari - ETKIN DEGIL; pg-backup-activate --confirm-restart
+#                            bunu archive.conf olarak etkinlestirir (yeniden baslatma gerektirir)
+#
+# - Sirlar ekrana YAZILMAZ. Var olan TLS anahtarlari korunur (yeniden uretilmez).
+# - Dosyalar konteyner kullanicisi (uid/gid 999) okuyabilsin diye root:999, 0640; dizinler 0750.
+# - backup.env `source` EDILMEZ (kod calistirmaz); yalniz ANAHTAR=deger satirlari okunur.
+set -euo pipefail
+umask 027
+
+ENV_FILE=/opt/arilla/env/backup.env
+DIR=/opt/arilla/backup
+STANZA=arilla
+here=$(cd "$(dirname "$0")" && pwd)
+TEMPLATES=$(cd "$here/../backup" && pwd)
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --env-file) ENV_FILE=$2; shift 2 ;;
+    --dir) DIR=$2; shift 2 ;;
+    *) echo "bilinmeyen arguman: $1" >&2; exit 64 ;;
+  esac
+done
+
+die() { echo "HATA: $*" >&2; exit 1; }
+[ -f "$ENV_FILE" ] || die "$ENV_FILE yok (sablon: infra/vps/env/backup.env.example)"
+command -v openssl >/dev/null || die "openssl gerekli"
+
+# --- degerleri oku (source YOK) ---------------------------------------------------------
+val() { # val <ANAHTAR> [varsayilan]
+  local v
+  v=$(grep -E "^$1=" "$ENV_FILE" | tail -1 | cut -d= -f2- || true)
+  v=${v%$'\r'}
+  # cevreleyen tek/cift tirnaklari kaldir
+  if [[ "$v" =~ ^\"(.*)\"$ ]] || [[ "$v" =~ ^\'(.*)\'$ ]]; then v=${BASH_REMATCH[1]}; fi
+  printf '%s' "${v:-${2:-}}"
+}
+
+ACCOUNT=$(val R2_ACCOUNT_ID)
+JURIS=$(val R2_JURISDICTION)
+BUCKET=$(val R2_BACKUP_BUCKET)
+KEY=$(val R2_BACKUP_ACCESS_KEY_ID)
+SECRET=$(val R2_BACKUP_SECRET_ACCESS_KEY)
+CIPHER=$(val PGBACKREST_REPO_CIPHER_PASS)
+REPO_PATH=$(val PGBACKREST_REPO_PATH /pgbackrest)
+RETENTION=$(val PGBACKREST_RETENTION_FULL 4)
+QUEUE_MAX=$(val PGBACKREST_ARCHIVE_QUEUE_MAX 4GiB)
+ARCHIVE_TIMEOUT=$(val PGBACKREST_ARCHIVE_TIMEOUT 300)
+PG_USER=$(val PGBACKREST_PG_USER arilla)
+PG_DATABASE=$(val PGBACKREST_PG_DATABASE arilla)
+# Yalniz testler (MinIO): endpoint/port/CA ezilebilir. Uretimde BOS birakilir.
+ENDPOINT=$(val PGBACKREST_S3_ENDPOINT)
+PORT=$(val PGBACKREST_S3_PORT 443)
+CA_FILE=$(val PGBACKREST_S3_CA_FILE)
+REGION=$(val PGBACKREST_S3_REGION auto)
+
+if [ -z "$ENDPOINT" ]; then
+  [[ "$ACCOUNT" =~ ^[0-9a-f]{32}$ ]] || die "R2_ACCOUNT_ID 32 haneli onaltilik olmali"
+  case "$JURIS" in
+    "") ENDPOINT="$ACCOUNT.r2.cloudflarestorage.com" ;;
+    eu | fedramp | us) ENDPOINT="$ACCOUNT.$JURIS.r2.cloudflarestorage.com" ;;
+    *) die "R2_JURISDICTION bos, eu, fedramp ya da us olmali" ;;
+  esac
+fi
+[[ "$ENDPOINT" =~ ^[A-Za-z0-9.-]+$ ]] || die "endpoint gecersiz"
+[[ "$PORT" =~ ^[0-9]{1,5}$ ]] || die "port gecersiz"
+[[ "$BUCKET" =~ ^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$ ]] || die "R2_BACKUP_BUCKET gecersiz (kucuk harf, rakam, tire; 3-63)"
+[ -n "$KEY" ] && [ -n "$SECRET" ] || die "R2_BACKUP_ACCESS_KEY_ID / R2_BACKUP_SECRET_ACCESS_KEY bos"
+[[ "$KEY$SECRET" =~ ^[A-Za-z0-9]+$ ]] || die "R2 anahtarlari yalniz harf/rakam icermeli (kopyalama hatasi?)"
+[ "${#CIPHER}" -ge 32 ] || die "PGBACKREST_REPO_CIPHER_PASS en az 32 karakter olmali"
+[[ "$CIPHER" =~ ^[A-Za-z0-9+/=_-]+$ ]] || die "PGBACKREST_REPO_CIPHER_PASS yalniz base64 karakterleri icermeli"
+[[ "$REPO_PATH" =~ ^/[A-Za-z0-9/_-]+$ ]] || die "PGBACKREST_REPO_PATH gecersiz"
+[[ "$RETENTION" =~ ^[1-9][0-9]?$ ]] || die "PGBACKREST_RETENTION_FULL 1-99 olmali"
+[[ "$QUEUE_MAX" =~ ^[0-9]+(B|KiB|MiB|GiB)$ ]] || die "PGBACKREST_ARCHIVE_QUEUE_MAX ornegin 4GiB"
+[[ "$ARCHIVE_TIMEOUT" =~ ^[0-9]+$ ]] && [ "$ARCHIVE_TIMEOUT" -ge 60 ] && [ "$ARCHIVE_TIMEOUT" -le 3600 ] || die "PGBACKREST_ARCHIVE_TIMEOUT 60-3600"
+[[ "$PG_USER$PG_DATABASE" =~ ^[a-z_][a-z0-9_]*$ ]] || die "PG kullanici/veritabani adi gecersiz"
+[[ "$REGION" =~ ^[a-z0-9-]+$ ]] || die "bolge gecersiz"
+CA_LINE="# (sistem CA'lari)"
+if [ -n "$CA_FILE" ]; then
+  [[ "$CA_FILE" =~ ^/etc/arilla-backup/[A-Za-z0-9/._-]+$ ]] || die "PGBACKREST_S3_CA_FILE /etc/arilla-backup/ altinda olmali"
+  CA_LINE="repo1-storage-ca-file=$CA_FILE"
+fi
+
+# --- dizinler ve sahiplik ---------------------------------------------------------------
+own() { # own <yol...>: root:999 (konteyner postgres grubu); root degilse test kipi
+  if [ "$(id -u)" -eq 0 ]; then chown root:999 "$@"; fi
+}
+mkdir -p "$DIR/repo/tls" "$DIR/pg/tls"
+chmod 0750 "$DIR" "$DIR/repo" "$DIR/repo/tls" "$DIR/pg" "$DIR/pg/tls"
+own "$DIR" "$DIR/repo" "$DIR/repo/tls" "$DIR/pg" "$DIR/pg/tls"
+# Root olmayan calisma YALNIZ yerel/CI testindedir: konteyner uid 999 dosyalari okuyabilsin.
+if [ "$(id -u)" -ne 0 ]; then
+  echo "UYARI: root degil - test kipi: dosyalar herkesce okunabilir yazilir (uretimde KULLANMAYIN)" >&2
+  FMODE=0644
+  chmod 0755 "$DIR" "$DIR/repo" "$DIR/repo/tls" "$DIR/pg" "$DIR/pg/tls"
+else
+  FMODE=0640
+fi
+
+# --- TLS (ozel CA; var olan korunur) ------------------------------------------------------
+ca_key="$DIR/repo/tls/ca.key"
+if [ ! -s "$DIR/repo/tls/ca.crt" ]; then
+  echo "TLS: ozel CA uretiliyor (10 yil, EC P-256)"
+  tmpd=$(mktemp -d "$DIR/.tls.XXXXXX")  # hedef dizinde (Git Bash/mingw openssl /tmp yolunu cozemez)
+  trap 'rm -rf "$tmpd"' EXIT
+  openssl ecparam -name prime256v1 -genkey -noout -out "$ca_key" 2>/dev/null
+  openssl req -x509 -new -key "$ca_key" -sha256 -days 3650 -subj "/CN=arilla-backup-ca" -out "$DIR/repo/tls/ca.crt" 2>/dev/null
+  issue() { # issue <cn> <anahtar> <sertifika> [san]
+    openssl ecparam -name prime256v1 -genkey -noout -out "$2" 2>/dev/null
+    openssl req -new -key "$2" -subj "/CN=$1" -out "$tmpd/req.csr" 2>/dev/null
+    if [ -n "${4:-}" ]; then
+      printf 'subjectAltName=%s\nextendedKeyUsage=serverAuth\n' "$4" >"$tmpd/ext"
+    else
+      printf 'extendedKeyUsage=clientAuth\n' >"$tmpd/ext"
+    fi
+    openssl x509 -req -in "$tmpd/req.csr" -CA "$DIR/repo/tls/ca.crt" -CAkey "$ca_key" -CAcreateserial \
+      -days 3650 -sha256 -extfile "$tmpd/ext" -out "$3" 2>/dev/null
+  }
+  issue backup "$DIR/repo/tls/server.key" "$DIR/repo/tls/server.crt" "DNS:backup"
+  issue arilla-postgres "$DIR/pg/tls/client.key" "$DIR/pg/tls/client.crt"
+  rm -f "$DIR/repo/tls/ca.srl"
+fi
+cp "$DIR/repo/tls/ca.crt" "$DIR/pg/tls/ca.crt"
+# CA anahtari konteynere gerekmez ve okunmaz: yalniz root (yeni sertifika uretimi icin).
+chmod 0600 "$ca_key"
+[ "$(id -u)" -eq 0 ] && chown root:root "$ca_key"
+for f in "$DIR/repo/tls/ca.crt" "$DIR/repo/tls/server.crt" "$DIR/repo/tls/server.key" \
+  "$DIR/pg/tls/ca.crt" "$DIR/pg/tls/client.crt" "$DIR/pg/tls/client.key"; do
+  chmod "$FMODE" "$f"
+  own "$f"
+done
+
+# --- sablonlar --------------------------------------------------------------------------
+render() { # render <sablon> <hedef>  (degerler sed'e argv ile DEGIL, dosyadan verilir)
+  local src=$1 dst=$2 script
+  script=$(mktemp)
+  {
+    printf 's|@@S3_ENDPOINT@@|%s|g\n' "$ENDPOINT"
+    printf 's|@@S3_PORT@@|%s|g\n' "$PORT"
+    printf 's|@@S3_REGION@@|%s|g\n' "$REGION"
+    printf 's|@@S3_BUCKET@@|%s|g\n' "$BUCKET"
+    printf 's|@@S3_KEY@@|%s|g\n' "$KEY"
+    printf 's|@@S3_KEY_SECRET@@|%s|g\n' "$SECRET"
+    printf 's|@@S3_CA_LINE@@|%s|g\n' "$CA_LINE"
+    printf 's|@@REPO_PATH@@|%s|g\n' "$REPO_PATH"
+    printf 's|@@CIPHER_PASS@@|%s|g\n' "$CIPHER"
+    printf 's|@@RETENTION_FULL@@|%s|g\n' "$RETENTION"
+    printf 's|@@QUEUE_MAX@@|%s|g\n' "$QUEUE_MAX"
+    printf 's|@@ARCHIVE_TIMEOUT@@|%s|g\n' "$ARCHIVE_TIMEOUT"
+    printf 's|@@STANZA@@|%s|g\n' "$STANZA"
+    printf 's|@@PG_USER@@|%s|g\n' "$PG_USER"
+    printf 's|@@PG_DATABASE@@|%s|g\n' "$PG_DATABASE"
+  } >"$script"
+  sed -f "$script" "$src" >"$dst.tmp"
+  rm -f "$script"
+  grep -q '@@' "$dst.tmp" && { rm -f "$dst.tmp"; die "$dst: doldurulmamis yer tutucu"; }
+  chmod "$FMODE" "$dst.tmp"
+  own "$dst.tmp"
+  mv -f "$dst.tmp" "$dst"
+  echo "yazildi: $dst"
+}
+render "$TEMPLATES/repo.pgbackrest.conf.example" "$DIR/repo/pgbackrest.conf"
+render "$TEMPLATES/pg.pgbackrest.conf.example" "$DIR/pg/pgbackrest.conf"
+render "$TEMPLATES/archive.conf.example" "$DIR/pg/archive.conf.pending"
+# archive.conf'un kendisine DOKUNULMAZ (etkinse etkin kalir; etkin degilse etkinlesmez).
+echo "Tamam. Arsivleme durumu: $([ -f "$DIR/pg/archive.conf" ] && echo ETKIN || echo 'etkin degil (pg-backup-activate --confirm-restart)')"

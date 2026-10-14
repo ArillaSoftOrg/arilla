@@ -180,17 +180,29 @@ services:
   # --- PostgreSQL 16 + pgvector -----------------------------------------------------
   postgres:
     <<: *service
-    image: pgvector/pgvector:0.8.1-pg16
+    # Varsayilan: resmi imaj (pgBackRest YOK). Yedekleme aktivasyonunda (karar 0110,
+    # infra/vps/bin/pg-backup-activate) compose.env'e ARILLA_POSTGRES_IMAGE yazilir:
+    # ayni PostgreSQL + pgvector tabani, ustune pgBackRest (infra/vps/postgres/Dockerfile).
+    image: ${ARILLA_POSTGRES_IMAGE:-pgvector/pgvector:0.8.1-pg16}
     command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
     env_file:
       - ${ARILLA_ENV_DIR:-/opt/arilla/env}/postgres.env
     environment:
+      # archive_command'in kullandigi pgBackRest yapilandirmasi (yalniz TLS istemci sertifikasi;
+      # R2 anahtari ve sifreleme parolasi BU konteynerde YOK). Dosya yoksa arsivleme kapali kalir.
+      PGBACKREST_CONFIG: /etc/arilla-backup/pgbackrest.conf
       # Yalniz ilk kurulumda (bos veri dizini) uygulanir: ag baglantilari scram-sha-256,
       # sayfa sagtoplamlari. Konteyner ici unix soketi resmi imaj varsayilaninda (trust):
       # ona yalnizca `docker exec` yetkisi olan ulasir, o zaten env_file'lari okuyabilir.
       POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --data-checksums
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      # Unix soketi `backup` yan konteyneriyle paylasilir (pgBackRest yedek baslatma/bitirme).
+      - pg_run:/var/run/postgresql
+      # Yedekleme (karar 0110): postgres tarafi pgBackRest yapilandirmasi + istemci TLS sertifikasi
+      # + arsivleme ayarlari (postgresql.conf `include_if_exists`). Dagitim bu dizine DOKUNMAZ;
+      # pg-backup-activate yazar. Dizin yoksa Docker bos olusturur: arsivleme kapali kalir.
+      - ${ARILLA_BACKUP_DIR:-/opt/arilla/backup}/pg:/etc/arilla-backup:ro
       # postgresql.conf + pg_hba.conf (hba_file) - istemci kimlik dogrulama kurallari
       # veri dizinine DEGIL bu salt-okunur dizine baglidir; yeni ve mevcut kurulumlarda
       # ayni davranis (bkz. vps/postgres/pg_hba.conf).
@@ -260,6 +272,77 @@ services:
     pids_limit: 128
     stop_grace_period: 30s
 
+  # --- Yedekleme (karar 0110): pgBackRest TLS depo sunucusu -> Cloudflare R2 ---------
+  # `up -d` BASLATMAZ (profil `backup`); dagitim motoru da otomatik baslatmaz. Aktivasyon:
+  # infra/vps/bin/pg-backup-activate. postgres internete CIKMAZ: WAL'i bu konteynere
+  # (data agi, karsilikli TLS) gonderir; R2'ye yalniz bu konteyner (egress) baglanir.
+  # R2 anahtarlari ve depo sifreleme parolasi yalniz burada (/etc/arilla-backup, salt-okunur).
+  backup:
+    <<: *service
+    profiles: ["backup"]
+    image: ${ARILLA_POSTGRES_IMAGE:-arilla-postgres:local}
+    build:
+      context: ./vps/postgres
+    user: "999:999"
+    command: ["pgbackrest", "server"]
+    environment:
+      PGBACKREST_CONFIG: /etc/arilla-backup/pgbackrest.conf
+    volumes:
+      # Veri dizini SALT-OKUNUR: yedek dosyalari buradan okunur; yazma yok.
+      - postgres_data:/var/lib/postgresql/data:ro
+      - pg_run:/var/run/postgresql
+      - ${ARILLA_BACKUP_DIR:-/opt/arilla/backup}/repo:/etc/arilla-backup:ro
+      - backup_spool:/var/spool/pgbackrest
+    tmpfs: [/tmp]
+    networks:
+      data:
+        aliases: [backup]
+      egress: {}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    cap_drop: [ALL]
+    read_only: true
+    healthcheck:
+      test: ["CMD", "pgbackrest", "server-ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    pids_limit: 256
+    stop_grace_period: 60s
+
+  # --- Izole geri yukleme provasi (karar 0110) ----------------------------------------
+  # Uretim veritabanina ve `data` agina ERISIMI YOK: yalniz egress (R2). Kendi bos
+  # dizinine geri yukler, yerel soketle (TCP yok) dogrular. infra/vps/bin/pg-restore-test.
+  restore:
+    profiles: ["restore"]
+    image: ${ARILLA_POSTGRES_IMAGE:-arilla-postgres:local}
+    build:
+      context: ./vps/postgres
+    user: "999:999"
+    entrypoint: ["bash", "/opt/arilla-backup-tools/restore-inner.sh"]
+    environment:
+      PGBACKREST_CONFIG: /etc/arilla-backup/pgbackrest.conf
+    volumes:
+      - ${ARILLA_BACKUP_DIR:-/opt/arilla/backup}/repo:/etc/arilla-backup:ro
+      - ./vps/backup/restore-inner.sh:/opt/arilla-backup-tools/restore-inner.sh:ro
+      - ${ARILLA_RESTORE_DIR:-/opt/arilla/restore-test}:/restore
+    tmpfs: [/tmp, /var/run/postgresql]
+    networks: [egress]
+    restart: "no"
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 2g
+    memswap_limit: 2g
+    cpus: 1.0
+    pids_limit: 256
+
   # --- Migration / rol / bolum isleri (elle ya da dagitimda; `up -d` BASLATMAZ) ----------
   # docker compose run --rm migrate [node scripts/<betik>.ts]
   # Sahip kimligi (DATABASE_URL_OWNER) yalnizca bu servise verilir.
@@ -296,6 +379,8 @@ networks:
 
 volumes:
   postgres_data:
+  pg_run:
+  backup_spool:
   redis_data:
   caddy_data:
   caddy_config:

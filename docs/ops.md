@@ -231,8 +231,10 @@ gerekirse `docker compose exec postgres psql -U arilla arilla`. Duman testi bunu
 doğrular.
 
 **Kalıcı volume'lar:** `postgres_data`, `redis_data`, `caddy_data` (TLS sertifikaları —
-silinirse Let's Encrypt sınırına dikkat), `caddy_config`, `web_next_cache`. Yedekleme
-(faz 5) `postgres_data` ve `redis_data` içindir.
+silinirse Let's Encrypt sınırına dikkat), `caddy_config`, `web_next_cache`, `pg_run` (postgres
+unix soketi, `backup` ile paylaşılır), `backup_spool`. PostgreSQL yedeği: "Yedekleme ve geri
+yükleme (karar 0110)". `redis_data` (kuyruk/kota sayaçları) VPS dışına yedeklenmez; kaybı
+tolere edilir.
 
 **Healthcheck / yeniden başlatma / günlük / kaynak.** Her servisin healthcheck'i, `restart:
 unless-stopped` politikası, `json-file` günlük dönüşümü (10 MB × 3), bellek (`mem_limit` =
@@ -622,16 +624,180 @@ verilerek çalıştırılır. Testler arasında yerel Redis'teki `ratelimit:*`
 anahtarları birikirse giriş testleri oran sınırına takılır; yalnızca yerel
 Redis'te temizlenir.
 
-## Yedekleme
+## Yedekleme ve geri yükleme (karar 0110)
 
 **Fiyat geçmişi geriye dönük üretilemez.** Kaybedilirse savunulabilirliğin
 tamamı kaybedilir. Bu yüzden yedekleme isteğe bağlı bir konu değildir.
+**Test edilmemiş yedek yedek değildir.**
 
-- Günlük tam yedek, 30 gün saklama
-- Sürekli WAL arşivleme (zaman noktasına dönüş)
-- `price_point` partition'ları aylık olarak ayrıca soğuk depoya kopyalanır
-- **Ayda bir geri dönüş testi.** Test edilmemiş yedek yedek değildir.
-- Obje deposu (ürün görselleri) ayrı yedeklenir
+**Durum:** Kod hazır, CI'da uçtan uca sınanıyor (`backup + PITR restore` işi).
+**Üretimde ETKİN DEĞİL.** Aşağıdaki aktivasyon yapılana kadar VPS dışında yedek yoktur.
+
+### Politika
+
+| | |
+| --- | --- |
+| Araç | pgBackRest 2.59 (`infra/vps/postgres/Dockerfile`), depo Cloudflare R2, istemci tarafı AES-256 |
+| Tam yedek | Haftalık, Pazar 01:30 UTC (`arilla-backup-full.timer`) |
+| Fark yedeği | Pazartesi–Cumartesi 01:30 UTC (`arilla-backup-diff.timer`) |
+| WAL arşivi | Sürekli; `archive_timeout=300` sn (düşük trafikte RPO ≤ ~5 dk) |
+| Saklama | 4 tam yedek (~4 hafta PITR penceresi) + aradaki fark yedekleri ve WAL |
+| Depo doğrulaması | Haftalık `pgbackrest verify` (Çarşamba 02:30 UTC) |
+| Geri yükleme provası | Aylık, ayın ilk Pazar'ı 03:30 UTC (`pg-restore-test`, izole) |
+| Alarm | `arilla-healthcheck.timer` (5 dk) + yedek/prova birimlerinde `OnFailure` |
+| Ürün görselleri | R2 medya bucket'ı; ayrı yedek kapsamı (bu bölüm değil) |
+
+### Mimari (kısa)
+
+`postgres` → (WAL, karşılıklı TLS, `data` ağı) → `backup` (pgBackRest TLS sunucusu) → R2.
+
+- postgres konteyneri internete çıkmaz ve R2 anahtarlarını görmez.
+- `backup` konteyneri veri dizinini salt-okunur bağlar ve unix soketini paylaşır.
+- `restore` konteyneri yalnız `egress` ağındadır: üretim veritabanına erişemez.
+
+Yapılandırma `/opt/arilla/backup/{pg,repo}` altındadır. Dağıtım bu dizine dokunmaz.
+
+### Cloudflare R2 kurulumu (bir kez, panelden)
+
+1. **Bucket oluştur.** R2 → *Create bucket*:
+   - Ad önerisi: `manicepte-pg-backup`.
+   - **Yalnız yedek için**; medya bucket'ı kullanılmaz.
+   - Konum: *Automatic* ya da AB yurisdiksiyonu. AB seçilirse `backup.env`'de `R2_JURISDICTION=eu`
+     yapılır. Yurisdiksiyon sonradan değiştirilemez; KVKK değerlendirmesine göre seçin.
+   - Public access: **kapalı** (varsayılan). Custom domain bağlanmaz.
+2. **API token.** R2 → *Manage R2 API Tokens* → *Create API token*:
+   - Permission: **Object Read & Write**.
+   - Specify bucket(s): **yalnız** bu bucket.
+   - TTL: tercihe göre. Süreli seçilirse yenileme takvime yazılır.
+   - Çıkan **Access Key ID** ve **Secret Access Key** yalnız bir kez gösterilir: doğrudan
+     `backup.env`'e yazın.
+   - Not: R2'de "silmesiz yazma" izni yok. Token sızarsa yedekler silinebilir.
+   - Admin token **kullanmayın.**
+3. **Hesap kimliği.** R2 → Overview → *Account ID* (32 hane).
+4. **Şifreleme parolası.**
+   - Üretin: `openssl rand -base64 48`.
+   - **Önce parola yöneticisine kaydedin.** Kaybolursa yedekler açılamaz.
+5. **İsteğe bağlı, sonra:** Bucket lock (silme koruması).
+   - pgBackRest `backup.info`/`archive.info` dosyalarını yerinde yeniden yazdığı için bucket'ın
+     tamamına uygulanmaz.
+   - Prefix'e göre kural, gerçek R2'de test edilmeden açılmaz (karar 0110).
+
+### Aktivasyon (VPS, root, PLANLI PENCERE — postgres ~10–60 sn yeniden başlar)
+
+0. **Ön koşul:** Bu değişiklik main'de ve dağıtılmış olmalı. `/opt/arilla/vps/bin/pg-backup*`
+   dosyaları var. Dağıtım günlüğünde beklenen uyarı: "postgres yapılandırması değişti ama
+   OTOMATİK yeniden başlatılmaz".
+1. **İmajı al.**
+   - `build-postgres` iş akışı main'de çalışınca iş özetinde
+     `ghcr.io/arillasoftorg/arilla-postgres@sha256:...` görünür.
+   - Gerekirse Actions → build-postgres → *Run workflow* (main).
+2. **Değerleri doldur.**
+   ```bash
+   sudo install -m 0640 -o root -g deploy /opt/arilla/vps/env/backup.env.example /opt/arilla/env/backup.env
+   sudoedit /opt/arilla/env/backup.env        # R2_ACCOUNT_ID, R2_BACKUP_BUCKET, anahtarlar, PGBACKREST_REPO_CIPHER_PASS
+   ```
+3. **Ön kontrol.** Servislere dokunmaz:
+   - imaj ve PostgreSQL ana sürümü;
+   - yapılandırma üretimi;
+   - **R2 erişim testi** (`repo-ls`);
+   - disk.
+   ```bash
+   sudo /opt/arilla/vps/bin/pg-backup-activate preflight --image ghcr.io/arillasoftorg/arilla-postgres@sha256:<digest>
+   ```
+4. **Etkinleştirme.** Onaylı pencerede yapılır.
+   - Adımlar: `archive.conf` → postgres yeni imajla yeniden oluşturulur → `backup` başlar →
+     `stanza-create` → `check` → **ilk TAM yedek**.
+   ```bash
+   sudo /opt/arilla/vps/bin/pg-backup-activate activate --image <aynı-digest> --confirm-restart
+   ```
+5. **Zamanlayıcılar ve alarm.**
+   ```bash
+   sudo install -m 0640 -o root -g deploy /opt/arilla/vps/env/alert.env.example /opt/arilla/env/alert.env
+   sudoedit /opt/arilla/env/alert.env         # HEALTHCHECK_PING_URL (önerilir), ALERT_WEBHOOK_URL
+   sudo /opt/arilla/vps/bin/pg-backup-activate install-timers
+   ```
+6. **İlk geri yükleme provası** (aktivasyonun parçası):
+   ```bash
+   sudo /opt/arilla/vps/bin/pg-restore-test
+   cat /opt/arilla/state/restore-test.json     # ok=true, schema_match=true, rto_s
+   ```
+7. **Kontrol:** `sudo python3 /opt/arilla/vps/bin/arilla_healthcheck.py` (GENEL: OK).
+
+**Aktivasyonu geri alma** (arşivi kapatır; yedekler ve depo SİLİNMEZ; postgres yeniden başlar):
+`sudo /opt/arilla/vps/bin/pg-backup-activate deactivate --confirm-restart`, ardından
+`systemctl disable --now 'arilla-backup-*.timer' arilla-restore-test.timer`.
+
+### Günlük işletim
+
+| İş | Komut |
+| --- | --- |
+| Durum | `sudo /opt/arilla/vps/bin/pg-backup info` |
+| Elle yedek | `sudo /opt/arilla/vps/bin/pg-backup full` (ya da `diff`) |
+| Arşiv zinciri testi | `sudo /opt/arilla/vps/bin/pg-backup check` |
+| Sağlık | `sudo python3 /opt/arilla/vps/bin/arilla_healthcheck.py` |
+| Günlükler | `journalctl -u arilla-backup-full -u arilla-backup-diff -u arilla-restore-test` |
+
+Durum dosyaları `/opt/arilla/state/*.json`'dadır; sağlık kontrolü bunları okur.
+
+### Geri yükleme runbook'u
+
+**Kural (V4.1 §6.2):** Üretime yerinde PITR, hedef zamandan sonraki **tüm** yazmaları siler.
+Varsayılan yol **yan instance**'tır: veri oradan çıkarılır, üretime ileri-düzeltme ile yazılır.
+
+**A) Yanlış silme / bozuk veri** (üretim çalışıyor). Varsayılan yol budur.
+1. Olay zamanını belirleyin (UTC).
+2. Yan instance'a, olaydan hemen önceki ana geri yükleyin. Prova betiği dizini sildiği için bu
+   adım elle yapılır. Aşağıdaki **şablon prova edilmedi**; aynı restore ve başlatma mantığı
+   `pg-restore-test` içinde CI'da sınanıyor:
+   ```bash
+   sudo mkdir -p /opt/arilla/restore-test/manual && sudo chown 999:999 /opt/arilla/restore-test/manual
+   sudo ARILLA_RESTORE_DIR=/opt/arilla/restore-test/manual docker compose --env-file /opt/arilla/compose.env \
+     -f /opt/arilla/compose.prod.yml --profile restore run --rm --no-deps --entrypoint bash restore -c '
+       pgbackrest --stanza=arilla --pg1-path=/restore/data --archive-mode=off \
+         --type=time "--target=2026-10-14 03:00:00+00" --target-action=promote restore &&
+       pg_ctl -D /restore/data -l /restore/pg.log -o "-c listen_addresses= -c archive_mode=off -c max_connections=200" start -w &&
+       psql -h /var/run/postgresql -U arilla -d arilla -c "\copy (SELECT ...) TO /restore/kurtarilan.csv csv header"; 
+       pg_ctl -D /restore/data stop -m fast'
+   ```
+3. `kurtarilan.csv` incelenir. Üretime yeniden yazma, ileri-düzeltme olarak yapılır (migration ya da
+   onaylı tek seferlik betik).
+4. Dizini silin: `sudo rm -rf /opt/arilla/restore-test/manual`.
+
+**B) VPS tamamen kayboldu** (felaket). Hedef RTO ilk provada ölçülür (`restore-test.json` → `rto_s`).
+1. Yeni VPS → karar 0109 kurulumu (Docker, `install-deploy.sh`, `init-secrets.sh`).
+   - **Postgres'i başlatmayın.**
+2. `/opt/arilla/env/backup.env`'i aynı değerlerle yazın: R2 bilgileri ve **şifreleme parolası**
+   (parola yöneticisinden).
+3. `pg-backup-configure` → `compose.env`'e `ARILLA_POSTGRES_IMAGE=<digest>`.
+4. **[HENÜZ PROVA EDİLMEDİ — ilk felaket tatbikatında betiğe dönüştürülecek]**
+   - Boş `postgres_data` volume'una (sahibi uid 999) `pgbackrest --stanza=arilla --archive-mode=off restore`
+     çalıştırılır. Kullanılan imaj ve yapılandırma `restore` servisiyle aynıdır; pg1-path volume köküdür.
+   - Önceki sunucu kesin kapalı değilse **arşivi açmayın** (iki sunucu aynı depoya WAL yazmasın).
+     Kapalıysa `archive.conf.pending` → `archive.conf`.
+5. `up -d postgres` → kurtarma biter → `up -d` → `pg-backup check` → **yeni tam yedek** → DNS.
+6. `postgres.env`/`migrate.env` parolaları yeni sunucuda yeniden üretildiyse:
+   - `bootstrap-app-role` ile `arilla_app` parolası güncellenir.
+   - Geri yüklenen veritabanındaki rol parolaları eski sunucudakiyle aynıdır; env dosyalarını eski
+     değerlerle doldurmak en kısa yoldur (parola yöneticisi).
+
+**C) Üretime yerinde zaman noktasına dönüş.**
+- Yalnız A yolu mümkün değilse, kayıp penceresi yazılı olarak ve **açık onayla** yapılır.
+- Adımlar B.4–B.5 ile aynıdır, ama önce mevcut `postgres_data`'nın bir kopyası alınır (silinmez).
+
+### Alarmlar
+
+| Kontrol | Uyarı | Kritik |
+| --- | --- | --- |
+| Disk (`/opt/arilla`, `/var/lib/docker`) | ≥ %70 | ≥ %80 |
+| Bekleyen WAL (`pg_ls_archive_statusdir`) | ≥ 4 dosya | ≥ 16 dosya ya da 15 dk bekleyen |
+| Son yedek | — | > 30 sa |
+| Son tam yedek | — | > 8 gün |
+| Geri yükleme provası | yok ya da > 35 gün | son prova başarısız |
+| PG bağlantı | ≥ %80 | ≥ %90 |
+| Konteyner / systemd | — | sağlıksız konteyner, başarısız `arilla-*` birimi |
+
+`HEALTHCHECK_PING_URL` tanımlıysa her turda ping atılır (kritikte `/fail`). VPS düşerse ping
+kesilir ve dış servis alarm verir. İkisi de boşsa alarmlar yalnız journald'dadır. **Bu yetersizdir.**
 
 ## İzleme
 

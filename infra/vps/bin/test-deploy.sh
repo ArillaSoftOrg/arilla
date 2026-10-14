@@ -153,6 +153,7 @@ ARILLA_WWW_ADDRESS=http://www.dt.example.test
 ARILLA_CANONICAL_ORIGIN=http://dt.example.test
 EOF
 export ARILLA_ENV_DIR="$ROOT/env"
+export ARILLA_BACKUP_DIR="$ROOT/backup"  # karar 0110: host /opt/arilla/backup kullanilmaz
 bash "$here/db-bootstrap.sh" "$ROOT/compose.env" "$ROOT/compose.prod.yml" >"$work/bootstrap.log" 2>&1 && pass "temiz veritabani (db-bootstrap)" || { fail "db-bootstrap"; tail -5 "$work/bootstrap.log"; exit 1; }
 c up -d web worker cron caddy >/dev/null 2>&1
 for s in web worker cron caddy postgres redis; do

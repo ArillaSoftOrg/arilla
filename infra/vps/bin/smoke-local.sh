@@ -39,6 +39,8 @@ BASE="http://127.0.0.1:${CADDY_HTTP_PORT}"
 work=$(mktemp -d)
 if command -v cygpath >/dev/null 2>&1; then work=$(cygpath -m "$work"); fi
 export ARILLA_ENV_DIR="$work/env"
+# Yedekleme baglamasi (karar 0110) host /opt/arilla/backup yerine gecici dizine (bos: arsiv kapali)
+export ARILLA_BACKUP_DIR="$work/backup"
 ENV_FILE="$work/compose.env"
 
 failures=0
@@ -187,6 +189,7 @@ q() { c exec -T postgres psql -U arilla -d arilla -Atqc "$1" 2>/dev/null; }
 [ "$(q 'show password_encryption')" = "scram-sha-256" ] && pass "scram-sha-256" || fail "password_encryption"
 [ "$(q 'show data_checksums')" = "on" ] && pass "data_checksums=on" || fail "data_checksums"
 [ "$(q 'show timezone')" = "UTC" ] && pass "timezone=UTC" || fail "timezone"
+[ "$(q 'show archive_mode')" = "off" ] && pass "archive_mode=off (yedekleme aktivasyonu olmadan arsiv KAPALI, karar 0110)" || fail "archive_mode varsayilanda acik"
 [ "$(q "select string_agg(extname,',' order by extname) from pg_extension where extname in ('vector','pg_trgm','uuid-ossp')")" = "pg_trgm,uuid-ossp,vector" ] && pass "vector, pg_trgm, uuid-ossp" || fail "extension"
 [ "$(q 'select count(*) from schema_migration')" -ge 58 ] && pass "schema_migration >= 58" || fail "schema_migration"
 [ "$(q "select rolsuper from pg_roles where rolname='arilla_app'")" = "f" ] && pass "arilla_app superuser degil" || fail "arilla_app"

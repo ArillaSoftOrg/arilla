@@ -1,0 +1,105 @@
+#!/usr/bin/env bash
+# Izole geri yukleme provasi (karar 0110) - ROOT ile (systemd aylik ya da elle).
+#
+#   pg-restore-test                          # en son duruma (WAL sonuna) kadar
+#   pg-restore-test --time "2026-10-14 03:00:00+00"   # PITR provasi
+#
+# Uretim veritabanina YAZMAZ, onu durdurmaz: `restore` konteyneri yalniz egress agindadir,
+# bos bir gecici dizine geri yukler, ayri bir PostgreSQL'i yalniz soketle acar, dogrular,
+# siler. Uretimden yalniz SALT-OKUNUR sema ozeti ve migration defteri okunur (karsilastirma).
+# Sonuc: /opt/arilla/state/restore-test.json. Basarisizlik -> cikis kodu != 0 (alarm).
+set -euo pipefail
+# PATH sabit; ARILLA_EXTRA_PATH yalniz yerel testler icindir (sudo/systemd altinda tanimsiz).
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${ARILLA_EXTRA_PATH:+:$ARILLA_EXTRA_PATH}"
+export LC_ALL=C
+
+ROOT=${ARILLA_ROOT:-/opt/arilla}
+STATE="$ROOT/state"
+MODE=latest
+TARGET=
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --time) MODE="time"; TARGET=$2; shift 2 ;;
+    *) echo "bilinmeyen arguman: $1" >&2; exit 64 ;;
+  esac
+done
+if [ "$MODE" = time ]; then
+  [[ "$TARGET" =~ ^[0-9]{4}-[0-9]{2}-[0-9]{2}[\ T][0-9]{2}:[0-9]{2}:[0-9]{2}(\.[0-9]+)?(Z|[+-][0-9]{2}(:?[0-9]{2})?)$ ]] \
+    || { echo "--time bicimi: 'YYYY-MM-DD HH:MM:SS+00'" >&2; exit 64; }
+fi
+
+compose() { docker compose --env-file "$ROOT/compose.env" -f "$ROOT/compose.prod.yml" ${ARILLA_COMPOSE_EXTRA:+-f "$ARILLA_COMPOSE_EXTRA"} "$@"; }
+envv() { grep -E "^$2=" "$1" 2>/dev/null | tail -1 | cut -d= -f2- || true; }
+ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+PGU=$(envv "$ROOT/env/postgres.env" POSTGRES_USER); PGU=${PGU:-arilla}
+PGD=$(envv "$ROOT/env/postgres.env" POSTGRES_DB); PGD=${PGD:-arilla}
+
+STAMP=$(date -u +%Y%m%d-%H%M%S)
+RUN="$ROOT/restore-test/run-$STAMP"
+started=$(date -u +%s)
+
+finish() { # finish <ok> <json-veya-hata>
+  mkdir -p "$STATE"
+  printf '{"ok":%s,"finished_at":"%s","duration_s":%d,"result":%s}\n' "$1" "$(ts)" "$(( $(date -u +%s) - started ))" "$2" >"$STATE/restore-test.json.tmp"
+  mv -f "$STATE/restore-test.json.tmp" "$STATE/restore-test.json"
+}
+cleanup() { [ -n "${RUN:-}" ] && [ -d "$RUN" ] && rm -rf -- "$RUN"; }
+trap cleanup EXIT
+
+# --- disk on kontrolu: geri yuklenen kopya ~ veritabani boyutu kadar yer tutar ----------
+dbsize=$(compose exec -T postgres psql -U "$PGU" -d "$PGD" -Atqc 'select pg_database_size(current_database())')
+free=$(df --output=avail -B1 "$ROOT" | tail -1 | tr -d ' ')
+need=$(( dbsize * 2 + 2147483648 ))
+if [ "$free" -lt "$need" ]; then
+  finish false "{\"error\":\"yetersiz disk: bos=$free gerekli=$need\"}"
+  echo "HATA: yetersiz disk (bos $free, gerekli $need bayt); prova BASKA bir makinede yapilmali" >&2
+  exit 1
+fi
+
+if [ "$(id -u)" -eq 0 ]; then
+  mkdir -p "$RUN" && chown 999:999 "$RUN" && chmod 0700 "$RUN"  # sayisal: host'ta 999 kullanicisi olmayabilir
+else # yalniz yerel/CI testi: konteyner uid 999 yazabilsin
+  mkdir -p "$RUN" && chmod 0777 "$RUN"
+fi
+extra=()
+[ -n "${ARILLA_RESTORE_ASSERT_SQL:-}" ] && extra+=(-e "RESTORE_ASSERT_SQL=$ARILLA_RESTORE_ASSERT_SQL")
+echo "$(ts) [restore-test] basliyor: $MODE ${TARGET:-} -> $RUN"
+set +e
+out=$(ARILLA_RESTORE_DIR="$RUN" compose --profile restore run --rm --no-deps -T \
+  -e RESTORE_DB_USER="$PGU" -e RESTORE_DB_NAME="$PGD" "${extra[@]}" restore "$MODE" "$TARGET" 2>"$RUN.stderr")
+rc=$?
+set -e
+result=$(printf '%s\n' "$out" | grep '^RESULT ' | tail -1 | cut -d' ' -f2- || true)
+if [ -z "$result" ]; then
+  tail -20 "$RUN.stderr" >&2 || true
+  rm -f "$RUN.stderr"
+  finish false "{\"error\":\"restore konteyneri sonuc uretmedi (rc=$rc)\"}"
+  exit 1
+fi
+[[ "$result" == *'"ok":false'* ]] && { echo "--- restore konteyneri (son satirlar)" >&2; tail -30 "$RUN.stderr" >&2 || true; }
+rm -f "$RUN.stderr"
+
+# --- uretimle karsilastirma (salt-okunur) ----------------------------------------------
+prod_ledger=$(compose exec -T postgres psql -U "$PGU" -d "$PGD" -Atqc \
+  "select count(*)||'|'||coalesce(max(filename),'') from schema_migration" 2>/dev/null || echo "?|")
+prod_schema=$(compose exec -T postgres pg_dump -U "$PGU" -d "$PGD" --schema-only --no-owner --no-privileges \
+  | grep -vE '^(--|\\restrict|\\unrestrict)' | grep -v '^$' | sha256sum | cut -d' ' -f1)
+rest_ledger=$(printf '%s' "$result" | sed -E 's/.*"ledger":"([^"]*)".*/\1/')
+rest_schema=$(printf '%s' "$result" | sed -E 's/.*"schema_sha256":"([^"]*)".*/\1/')
+inner_ok=$(printf '%s' "$result" | sed -E 's/.*"ok":(true|false).*/\1/')
+schema_match=skip
+if [ "$MODE" = latest ] || [ "$rest_ledger" = "$prod_ledger" ]; then
+  # Ayni migration durumunda sema birebir ayni olmali.
+  if [ "$rest_ledger" = "$prod_ledger" ]; then
+    [ "$rest_schema" = "$prod_schema" ] && schema_match=true || schema_match=false
+  else
+    schema_match=false # latest geri yukleme uretimin migration durumunu yakalamaliydi
+  fi
+fi
+ok=true
+[ "$inner_ok" = true ] && [ "$rc" -eq 0 ] || ok=false
+[ "$schema_match" = false ] && ok=false
+final="${result%\}},\"prod_ledger\":\"$prod_ledger\",\"schema_match\":\"$schema_match\"}"
+finish "$ok" "$final"
+echo "$(ts) [restore-test] sonuc: $final"
+if [ "$ok" = true ]; then echo "$(ts) [restore-test] TAMAM"; else echo "$(ts) [restore-test] BASARISIZ" >&2; exit 1; fi
