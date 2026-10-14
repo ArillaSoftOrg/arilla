@@ -52,8 +52,13 @@ export function normalizeFeedOfferQuery(raw: string | null | undefined): string 
   return value.replace(/[^\p{L}\p{N}]/gu, "").length >= 2 ? value : null;
 }
 
-function escapeLike(value: string): string {
-  return value.replace(/[\\%_]/g, (ch) => `\\${ch}`);
+/**
+ * Kelime/onek aramasi (0069): "kahve kavanoz" -> "kahve:* & kavanoz:*". Yalnizca harf ve
+ * rakam kelimeleri gecer (tsquery sozdizimine kullanici metni sizmaz); en fazla 8 kelime.
+ */
+export function feedOfferTsQuery(q: string): string | null {
+  const words = (q.match(/[\p{L}\p{N}]+/gu) ?? []).slice(0, 8);
+  return words.length > 0 ? words.map((word) => `${word}:*`).join(" & ") : null;
 }
 
 type Row = {
@@ -85,7 +90,11 @@ export async function listFeedOffers(
     sql`o.current_price IS NOT NULL AND o.current_price > 0`,
     kind === "international" ? sql`o.currency <> 'TRY'` : sql`o.currency = 'TRY'`,
   ];
-  if (q) conditions.push(sql`o.title_raw ILIKE ${`%${escapeLike(q)}%`}`);
+  const tsQuery = q ? feedOfferTsQuery(q) : null;
+  // Ifade 0069 kismi indeksiyle (offer_unmatched_title_fts) birebir ayni olmali.
+  if (tsQuery) {
+    conditions.push(sql`to_tsvector('simple', o.title_raw) @@ to_tsquery('simple', ${tsQuery})`);
+  }
   const order =
     sort === "price" ? sql`o.current_price ASC, o.id ASC` : sql`o.last_seen_at DESC, o.id DESC`;
 
