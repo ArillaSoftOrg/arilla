@@ -63,6 +63,21 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     gaps: [],
   },
   {
+    // Karar 0111: besleme kesfi ve artimli senkronizasyon. Yonetim gorunumu sonraki PR'da.
+    id: "feed_sync",
+    label: "Besleme kaynaklari ve senkronizasyon",
+    tables: ["feed_source", "source_snapshot", "ingest_chunk", "ingest_error", "search_outbox"],
+    status: "data_no_ui",
+    adminPaths: [],
+    gaps: [
+      {
+        signal: "Besleme kaynaklari, son basarili aktarim, degisen/hatali kayit sayilari",
+        status: "data_no_ui",
+      },
+      { signal: "Hata kayitlari (dead-letter) ve yeniden deneme ayrintisi", status: "data_no_ui" },
+    ],
+  },
+  {
     id: "catalog",
     label: "Katalog: ürün, teklif, varyant, fiyat",
     tables: [
@@ -79,6 +94,10 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "price_point_2026_10",
       "price_point_default",
       "product_price_stats",
+      // Karar 0111: pazaryeri saticisi, kanonik varyant, kaynak kategori esleme.
+      "seller",
+      "canonical_variant",
+      "category_source_map",
     ],
     status: "visible",
     adminPaths: [
@@ -92,6 +111,8 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
         signal: "Liste fiyatı şişirilen ürünlerin listesi (bugün yalnızca sayı)",
         status: "data_no_ui",
       },
+      { signal: "Pazaryeri saticisi ve kanonik varyant (0111)", status: "data_no_ui" },
+      { signal: "Kaynak kategori esleme onayi (0111)", status: "data_no_ui" },
     ],
   },
   {
@@ -108,10 +129,15 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   {
     id: "matching",
     label: "Eşleştirme",
-    tables: ["match_candidate"],
+    tables: ["match_candidate", "product_identity", "identity_observation", "match_decision_log"],
     status: "visible",
     adminPaths: ["/yonetim/eslestirme", "/yonetim/eslestirme/gecmis"],
-    gaps: [],
+    gaps: [
+      {
+        signal: "Kesin kimlik (GTIN/MPN) celiskileri ve otomatik bag kararlari (0111)",
+        status: "data_no_ui",
+      },
+    ],
   },
   {
     id: "similarity_enrichment",
