@@ -326,6 +326,22 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `deals.savings_percent` | %{n} daha uygun |
 | `deals.savings_amount` | {tutar} tasarruf |
 
+## Mağaza ve yurt dışı teklifleri (karar 0114)
+
+| Anahtar | Metin |
+| --- | --- |
+| `offers.title` | Mağaza teklifleri |
+| `offers.lead` | Henüz bir ürün sayfasıyla eşleşmemiş teklifler. Her teklif mağazanın kendi sayfasına gider. |
+| `offers.tab_domestic` | Türkiye'deki mağazalar |
+| `offers.tab_international` | Yurt dışı teklifleri |
+| `offers.international_note` | Yurt dışı tekliflerinde fiyat mağazanın para birimiyle verilir. TL tutarı yaklaşıktır ve TCMB kuruyla hesaplanır. Kargo, gümrük ve vergi bilinmediği için toplam tutar farklı olabilir; bu teklifler fiyat sıralamasına girmez. |
+| `offers.approx` | ≈ {tutar} |
+| `offers.rate_note` | TCMB kuru, {tarih} |
+| `offers.no_rate` | Kur bilgisi yok; TL tutarı gösterilmiyor. |
+| `offers.shipping_unknown` | Kargo ve vergi belirsiz |
+| `offers.source_international` | Yurt dışı |
+| `offers.sort_price` | En uygun fiyat |
+
 ## Keşfet
 
 | Anahtar | Metin |

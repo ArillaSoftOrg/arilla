@@ -83,5 +83,12 @@ CREATE UNIQUE INDEX price_verification_request_open_uniq
 CREATE INDEX price_verification_request_due_idx
     ON price_verification_request (priority DESC, next_attempt_at) WHERE status = 'pending';
 
+-- Eslesmemis besleme teklifleri sayfasi (karar 0114): kismi indeksler yalnizca
+-- urune baglanmamis etkin teklifleri kapsar (urun sayfasi sorgularini etkilemez).
+CREATE INDEX offer_unmatched_recent_idx ON offer (last_seen_at DESC, id DESC)
+    WHERE product_id IS NULL AND is_active;
+CREATE INDEX offer_unmatched_title_trgm ON offer USING gin (title_raw gin_trgm_ops)
+    WHERE product_id IS NULL AND is_active;
+
 REVOKE UPDATE, DELETE, TRUNCATE ON fx_rate            FROM arilla_app;
 REVOKE UPDATE, DELETE, TRUNCATE ON price_verification FROM arilla_app;

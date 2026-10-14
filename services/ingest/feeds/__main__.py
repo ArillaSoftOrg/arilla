@@ -64,20 +64,26 @@ def _bind(args: argparse.Namespace) -> int:
         if row is None:
             print(f"merchant yok: {args.merchant}", file=sys.stderr)
             return 2
-        merchant_id, merchant_active = row
-        cur.execute("SELECT currency FROM feed_source WHERE id = %s", (args.feed,))
+        merchant_id = row[0]
+        cur.execute("SELECT id FROM feed_source WHERE id = %s", (args.feed,))
         feed = cur.fetchone()
         if feed is None:
             print(f"besleme yok: {args.feed}", file=sys.stderr)
             return 2
         status = "active" if args.activate else ("paused" if args.pause else None)
-        if status == "active" and feed[0] and feed[0] != "TRY" and merchant_active:
-            print(
-                "TRY disi besleme etkin (herkese acik) merchant'a baglanamaz: "
-                "yaklasik TRY gosterimi gelene kadar merchant etkin olmamali.",
-                file=sys.stderr,
+        # Karar 0114: uzun suredir guncellenmeyen besleme (or. Alibaba, 2022) etkinlestirilmez.
+        if status == "active" and not args.allow_stale:
+            cur.execute(
+                "SELECT source_updated_at < now() - interval '30 days' FROM feed_source WHERE id = %s",
+                (args.feed,),
             )
-            return 2
+            stale = cur.fetchone()
+            if stale and stale[0]:
+                print(
+                    "besleme 30 gundur guncellenmiyor; etkinlestirilmedi (--allow-stale)",
+                    file=sys.stderr,
+                )
+                return 2
         cur.execute(
             """UPDATE feed_source SET merchant_id = %s, status = COALESCE(%s, status),
                       updated_at = now() WHERE id = %s""",
@@ -158,6 +164,7 @@ def main(argv: list[str] | None = None) -> int:
     group = p.add_mutually_exclusive_group()
     group.add_argument("--activate", action="store_true")
     group.add_argument("--pause", action="store_true")
+    p.add_argument("--allow-stale", action="store_true")
     p.set_defaults(func=_bind)
     for name, func in (("sync", _sync), ("sync-due", _sync_due)):
         p = sub.add_parser(name)

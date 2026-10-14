@@ -22,6 +22,8 @@ export const CLICK_SURFACES = [
   "compare",
   "product_primary",
   "structured_data",
+  // Karar 0114: eslesmemis besleme teklifleri / yurt disi teklifleri sayfasi.
+  "feed_offers",
 ] as const;
 export type ClickSurface = (typeof CLICK_SURFACES)[number];
 

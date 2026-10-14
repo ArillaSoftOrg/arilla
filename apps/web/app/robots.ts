@@ -29,6 +29,8 @@ export default function robots(): MetadataRoute.Robots {
         "/giris/",
         "/davet/",
         "/api/",
+        // Eşleşmemiş teklif listesi ince içerik; ayrıca sayfada noindex (karar 0114).
+        "/teklifler",
         // Lansman öncesi ürün kapalı: ürün yolları taranmaz (P2).
         ...(isProductOpen()
           ? []

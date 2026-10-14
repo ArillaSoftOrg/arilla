@@ -31,6 +31,7 @@ export * from "./forms/index.ts";
 export * from "./health/index.ts";
 export * from "./marketing/index.ts";
 export * from "./media/index.ts";
+export * from "./offers/index.ts";
 export * from "./ops/index.ts";
 export * from "./pricing/index.ts";
 export * from "./product/index.ts";

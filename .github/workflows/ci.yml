@@ -261,7 +261,7 @@ jobs:
       - name: core integration (yönetim, sohbet, sorgu yorumu)
         run: >-
           pnpm --filter @arilla/core exec vitest run -c vitest.integration.config.ts
-          src/admin src/chat src/search/query-interpretation.integration.test.ts
+          src/admin src/chat src/search/query-interpretation.integration.test.ts src/offers
 
   # Karar 0111: migration guvenligi + Python ingest entegrasyon testleri.
   # Kendi tek kullanimlik PostgreSQL'i vardir (web entegrasyon testleriyle veri paylasmaz).

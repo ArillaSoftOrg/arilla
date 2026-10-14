@@ -1,0 +1,128 @@
+/* Genislik ve yatay bosluk kabuktan; burada dikey ritim, filtre ve izgara.
+   Izgara `/firsatlar` ile ayni kirilimlar (design.md "Duyarlı tasarım"). */
+.page {
+  display: grid;
+  gap: var(--space-8);
+  padding-block: var(--section-space-compact) var(--section-space);
+}
+
+.intro {
+  display: grid;
+  gap: var(--space-3);
+  max-width: var(--content-width-reading);
+}
+
+.title {
+  margin: 0;
+  font-size: var(--text-h1);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
+  letter-spacing: var(--letter-spacing-h1);
+  color: var(--ink);
+}
+
+.lead,
+.note {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--ink-secondary);
+  text-wrap: pretty;
+}
+
+.note {
+  font-size: var(--text-meta);
+}
+
+.tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tab,
+.tabActive {
+  display: inline-flex;
+  padding: var(--space-2) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  font-size: var(--text-meta);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.tabActive {
+  border-color: var(--ink);
+  font-weight: var(--font-weight-medium);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: var(--space-3);
+}
+
+.field {
+  display: grid;
+  gap: var(--space-1);
+  font-size: var(--text-meta);
+  color: var(--ink-secondary);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-8) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+@media (min-width: 640px) {
+  .grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    column-gap: var(--space-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  .grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1440px) {
+  .grid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.item {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  min-width: 0;
+}
+
+.meta {
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  color: var(--ink-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.pager {
+  display: flex;
+  gap: var(--space-4);
+}
+
+.emptyPanel {
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
