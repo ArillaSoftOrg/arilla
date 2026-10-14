@@ -37,6 +37,9 @@ const APPEND_ONLY = {
   di_dataset_build: "dataset_key",
   di_export: "build_id",
   di_accuracy_label: "field",
+  /** 0065 (karar 0111): kimlik kaniti ve eslestirme karari eklenir, degistirilmez. */
+  identity_observation: "kind",
+  match_decision_log: "basis",
 } as const;
 /** 0036: UPDATE engelli, DELETE izinli (saklama suresi ve riza geri alma). */
 const UPDATE_BLOCKED = {

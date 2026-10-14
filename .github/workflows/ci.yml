@@ -262,3 +262,72 @@ jobs:
         run: >-
           pnpm --filter @arilla/core exec vitest run -c vitest.integration.config.ts
           src/admin src/chat src/search/query-interpretation.integration.test.ts
+
+  # Karar 0111: migration guvenligi + Python ingest entegrasyon testleri.
+  # Kendi tek kullanimlik PostgreSQL'i vardir (web entegrasyon testleriyle veri paylasmaz).
+  # 1) lint, 2) main'in migration'lariyla kurulup tohumlanan veritabanina bu dalin
+  # YENI migration'lari uygulanir (yukseltme yolu, dolu tablolar), 3) ikinci kosu bos
+  # gecmeli (idempotent), 4) db:verify (Drizzle uyumu + append-only yetkileri),
+  # 5) Python entegrasyon testleri yeni semada (eski kod = N-1 uyumu kaniti).
+  migrations-ingest:
+    name: migrations (upgrade + verify) + ingest integration
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: arilla
+          POSTGRES_PASSWORD: ci_only_owner
+          POSTGRES_DB: arilla
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U arilla -d arilla"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL_OWNER: postgresql://arilla:ci_only_owner@localhost:5432/arilla
+      APP_DB_PASSWORD: ci_only_app
+      DATABASE_URL: postgresql://arilla_app:ci_only_app@localhost:5432/arilla
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/ingest/pyproject.toml
+      - run: pnpm install --frozen-lockfile
+      - name: migration lint
+        run: pnpm --filter @arilla/db db:lint-migrations
+      - name: main'in semasi + tohum veri
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
+          git ls-tree --name-only FETCH_HEAD packages/db/migrations/ | xargs -n1 basename | sort > "$RUNNER_TEMP/base.txt"
+          find packages/db/migrations -maxdepth 1 -type f -printf '%f\n' | sort > "$RUNNER_TEMP/head.txt"
+          mkdir -p "$RUNNER_TEMP/new-migrations"
+          comm -13 "$RUNNER_TEMP/base.txt" "$RUNNER_TEMP/head.txt" | grep '\.sql$' > "$RUNNER_TEMP/new.txt" || true
+          echo "Bu dalin yeni migration'lari:"; cat "$RUNNER_TEMP/new.txt"
+          while read -r f; do mv "packages/db/migrations/$f" "$RUNNER_TEMP/new-migrations/"; done < "$RUNNER_TEMP/new.txt"
+          pnpm db:migrate
+          pnpm db:bootstrap-role
+          pnpm db:partitions
+          pnpm seed
+          while read -r f; do mv "$RUNNER_TEMP/new-migrations/$f" packages/db/migrations/; done < "$RUNNER_TEMP/new.txt"
+      - name: yeni migration'lar (dolu veritabanina) + idempotent ikinci kosu
+        run: |
+          set -euo pipefail
+          pnpm db:migrate
+          pnpm db:migrate | tee "$RUNNER_TEMP/second.txt"
+          grep -q "Uygulanacak migration yok" "$RUNNER_TEMP/second.txt"
+      - name: sema dogrulama (Drizzle + append-only yetkileri)
+        run: pnpm db:verify
+      - name: python ingest integration
+        working-directory: services/ingest
+        run: |
+          pip install -e ".[dev]"
+          python -m pytest -m integration

@@ -74,6 +74,7 @@ migration'lar olusturur.
 | `0061_activity_event_id.sql` | Davranissal olaylara `event_id` (nullable, kullanici kapsamli UNIQUE) ve `schema_version` (1 = eski, 2 = event_id zorunlu) (0100). Tekrar yazimlar `ON CONFLICT DO NOTHING` ile tekillesir. Yalnizca ekleme, veri tasinmaz. 0059/0060 baska dallarda. |
 | `0063_chat_image_consent.sql` | Sohbet gorsel eki acik rizasi (0101): `user_consent.kind` CHECK'ine `chat_image`, `source` CHECK'ine `chat_image_prompt`. Yalnizca CHECK genisletme, veri tasinmaz. |
 | `0064_data_intelligence.sql` | Veri zekasi MVP (0103): `di_dataset_build` (degismez, surumlu, k-esikli toplulastirilmis satirlar + kalite/anonimlik raporu), `di_export` (disa aktarim kaydi; yalnizca durum kolonlari guncellenir), `di_accuracy_label` (elle dogruluk etiketi). Kullanici/oturum/sorgu/gorsel kolonu yok. Yalnizca ekleme. |
+| `0065_catalog_feed_model.sql` | Katalog ve besleme modeli (0111): `seller` (pazaryeri saticisi, `(merchant_id, external_id)`), `canonical_variant` (urun x normalize varyant anahtari), `feed_source` (ag beslemesi; kesifle `discovered`, merchant'siz etkinlesemez, kimlik bilgisi yok), `source_snapshot` (sha256 surumu; ayni icerik bir kez `complete`), `ingest_chunk` (parca kontrol noktasi), `ingest_error` (dead-letter, boyut sinirli), `product_identity` (gtin->varyant, marka+mpn->urun, model_hint benzersiz degil; aktif deger tek), `identity_observation` ve `match_decision_log` (append-only), `category_source_map`, `search_outbox`. `offer`, `offer_variant`, `ingest_run`'a NULL/varsayilanli kolonlar. Yalnizca ekleme. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori
@@ -94,6 +95,23 @@ pnpm seed                # gelistirme katalogu (A3) — mevcut katalogu SILER
 
 Her migration kendi isleminde calisir: biri patlarsa oncekiler kalir,
 sonrakiler denenmez.
+
+## Guvenlik kurallari (karar 0111)
+
+- `pnpm db:lint-migrations` (CI'da da kosar): numara tekrari, `price_point`
+  degistiren SQL, `CONCURRENTLY` her dosyada reddedilir. 0065 ve sonrasi ayrica:
+  ilk satir `-- kind: schema|data|grant`; yikici DDL (DROP TABLE/COLUMN, RENAME,
+  ALTER COLUMN ... TYPE, SET NOT NULL, TRUNCATE) yalnizca
+  `-- allow-destructive: <gerekce>` ile; BEGIN/COMMIT yazilmaz; veri migration'i
+  `RAISE EXCEPTION` ile dagitimi dusurmez (uretimdeki belirli satirlari varsaymaz,
+  beklenmeyeni atlar ve raporlar).
+- Calistirici ayni anda tek kosar (advisory lock) ve her dosyada
+  `lock_timeout=5s`, `statement_timeout=15min` uygular (`MIGRATION_LOCK_TIMEOUT`,
+  `MIGRATION_STATEMENT_TIMEOUT`). Kilit alinamazsa dosya geri alinir; sorgular
+  arkasinda birikmez.
+- CI `migrations-ingest` isi: main'in semasi + tohum veri -> bu dalin yeni
+  migration'lari (dolu tablolarda) -> ikinci kosu bos gecmeli -> `db:verify` ->
+  Python entegrasyon testleri.
 
 ## Roller
 
