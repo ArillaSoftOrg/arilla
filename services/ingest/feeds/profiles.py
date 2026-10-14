@@ -25,6 +25,8 @@ PROFILES: dict[str, dict[str, Any]] = {
         "affiliate_hosts": ["rzekl.com"],
         "mapping": {"seller": "param.shopId"},
         "keep_params": ["discount", "commissionRate"],
+        # Gosterilen 3 gorsel; fazlasi saklanmaz (WAL/disk, karar 0114).
+        "max_images": 3,
         "required_fields": ["@id", "name", "url", "price", "currencyId"],
     },
 }

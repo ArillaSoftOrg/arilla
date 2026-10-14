@@ -78,6 +78,7 @@ migration'lar olusturur.
 | `0066_feed_source_offer.sql` | Besleme x offer uyeligi (0112): ayni urun birden fazla beslemede olabilir; offer ancak hicbir etkin/duraklatilmis beslemede kalmayinca (ve bekleme suresi dolunca) pasiflesir. `offer.affiliate_url`: kaynagin takip baglantisi, kanonik `url`'den ayri (yalnizca https). Yalnizca ekleme. |
 | `0067_price_verification_fx.sql` | Bagimsiz fiyat dogrulama ve kur (0113): `fx_rate` (TCMB, bulten tarihli, append-only), `price_verification` (beslemeden ayri sonuc: kaynak, guvenilirlik, para birimi, varyant/satici, zaman, sonuc, kargo/vergi/indirim/kupon kosullari; append-only; izinli kaynak yoksa satir yazilmaz), `price_verification_request` (kuyruk; offer basina tek acik istek). Yalnizca ekleme. |
 | `0068_feed_source_offer_fillfactor.sql` | Besleme uyeligi `fillfactor=70` (0114, olcum): her senkronizasyondaki uyelik guncellemesi HOT olur, indeksler yeniden yazilmaz. Yalnizca depolama parametresi; tablo yeniden yazilmaz. |
+| `0069_offer_title_fts.sql` | Eslesmemis teklif aramasi trigram GIN yerine `to_tsvector('simple', title_raw)` GIN (0114, olcum: trigram indeksi ilk yukleme WAL'inin %48'i). Kismi indeks degisir; veri ve kolon degismez. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

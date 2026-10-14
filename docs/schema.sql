@@ -159,6 +159,11 @@ CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT 
 CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
 CREATE INDEX offer_seller_idx ON offer (seller_id) WHERE seller_id IS NOT NULL;
 CREATE INDEX offer_feed_source_idx ON offer (feed_source_id) WHERE feed_source_id IS NOT NULL;
+-- 0067/0069: eslesmemis teklif sayfasi (/teklifler); 0069 trigram yerine tam metin.
+CREATE INDEX offer_unmatched_recent_idx ON offer (last_seen_at DESC, id DESC)
+    WHERE product_id IS NULL AND is_active;
+CREATE INDEX offer_unmatched_title_fts ON offer USING gin (to_tsvector('simple', title_raw))
+    WHERE product_id IS NULL AND is_active;
 
 -- Offer görselleri (0053, karar 0073). Kaynak en fazla 6 görsel; kullanıcıya en
 -- fazla 3'ü gösterilir (display_rank). Görsel ilk olarak offer'dan gelir; ürün

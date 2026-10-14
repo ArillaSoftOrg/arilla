@@ -27,7 +27,13 @@ from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 from typing import Any
 from urllib.parse import parse_qsl, urlsplit
 
-from collect.images import SelectedImage, SourceImage, select_images
+from collect.images import (
+    MAX_DISPLAY_IMAGES,
+    MAX_SOURCE_IMAGES,
+    SelectedImage,
+    SourceImage,
+    select_images,
+)
 from collect.mapping import MAX_PRICE_KURUS
 from feeds.parsers import MALFORMED, FeedRecord
 from resolve.identity_policy import classify_gtin, mpn_norm
@@ -269,7 +275,16 @@ def normalize(
     images_raw = get_path(fields, mapping["images"]) or []
     if isinstance(images_raw, str):
         images_raw = [images_raw]
-    images = tuple(select_images(SourceImage(url=u, position=i) for i, u in enumerate(images_raw)))
+    # Saklanan gorsel sayisi profilden (karar 0114 olcumu: gorseller WAL'in ~%24'u);
+    # gosterilen en fazla 3, kaynak siniri 6.
+    max_images = int(config.get("max_images") or MAX_SOURCE_IMAGES)
+    images = tuple(
+        select_images(
+            (SourceImage(url=u, position=i) for i, u in enumerate(images_raw)),
+            max_source=max_images,
+            max_display=min(MAX_DISPLAY_IMAGES, max_images),
+        )
+    )
 
     gtin_info = classify_gtin(_text(get_path(fields, mapping["gtin"])))
     attributes: dict[str, str] = {}

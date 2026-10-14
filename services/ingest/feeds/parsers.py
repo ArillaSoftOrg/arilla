@@ -117,6 +117,7 @@ MALFORMED = "__malformed__"
 
 _OFFER_OPEN = re.compile(rb"<offer[\s>]")
 _OFFER_CLOSE = b"</offer>"
+_CLOSING = re.compile(rb"</offers\s*>|</yml_catalog\s*>")
 _ENCODING = re.compile(rb"""<\?xml[^>]*encoding=["']([A-Za-z0-9._-]+)["']""")
 _CATEGORY = re.compile(
     rb"""<category\s+id=["']([^"']+)["'](?:\s+parentId=["']([^"']+)["'])?\s*>(.*?)</category>""",
@@ -199,6 +200,9 @@ def _yml(stream: IO[bytes], result: ParseResult) -> Iterator[FeedRecord]:
             buffer = buffer[first.start() :] if first else b""
             header_done = True
         pos = 0
+        #: Son tam kaydin bittigi yer: kapanis etiketi BURADAN sonra aranir
+        #: (`pos` blok siniri icin geri cekilebilir; kapanis araligi kirpilmamali).
+        last_end = 0
         while True:
             opening = _OFFER_OPEN.search(buffer, pos)
             if opening is None:
@@ -215,6 +219,7 @@ def _yml(stream: IO[bytes], result: ParseResult) -> Iterator[FeedRecord]:
             end = close + len(_OFFER_CLOSE)
             fragment = buffer[opening.start() : end]
             pos = end
+            last_end = end
             try:
                 fields = _offer_fields(
                     fromstring(declaration + fragment.translate(_INVALID_XML_BYTES))
@@ -226,9 +231,10 @@ def _yml(stream: IO[bytes], result: ParseResult) -> Iterator[FeedRecord]:
                     fields["@id"] = ext.group(1).decode(encoding, "replace")
             yield FeedRecord(fields, index, f"offer #{index + 1}")
             index += 1
-        # Kapanis etiketi tamponun islenmemis kisminda ya da son islenen kaydin ardinda olabilir.
-        tail = buffer[pos:] if pos < len(buffer) else buffer[-64:]
-        if b"</offers>" in tail or b"</yml_catalog>" in tail:
+        # Kapanis: son kayittan sonraki TUM aralikta aranir. Gercek dosya girintili ve
+        # satir sonlu biter; sabit kuyruk penceresi bunu kaciriyordu (2,19 milyon
+        # kayitlik gercek tam kosu "kesik" sayildi).
+        if _CLOSING.search(buffer, last_end):
             closed = True
         # Tek kopya: islenmemis kisim tutulur (kayit basina kopya yok).
         buffer = buffer[pos:]

@@ -284,3 +284,37 @@ def test_gecersiz_kontrol_karakteri_kaydi_kurtarilir(tmp_path: Path) -> None:
     recs, result = records(path)
     assert result.complete and len(recs) == 1
     assert recs[0].fields["name"] == "Reflective E Bike Scooter"
+
+
+def test_gercek_dosya_bicimi_girintili_kapanis_tamam_sayilir(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Gercek AliExpress dosyasi girintili/satir sonlu biter; tam kosu kesik sayilmamali."""
+    import feeds.parsers as parsers
+
+    body = yml(offer(str(10**15 + i)) for i in range(120)).replace(b"</offers>", b"\n")
+    body = body.replace(b"</shop></yml_catalog>", b"")
+    real_tail = b"            </offer>\n        </offers>\n    </shop>\n</yml_catalog>\n\n"
+    data = body.rstrip(b"\n") + b"\n" + real_tail.replace(b"            </offer>\n", b"")
+    path = write(tmp_path / "f.xml", data)
+    for block in (5, 16, 33, 64, 4096, 1 << 16):
+        monkeypatch.setattr(parsers, "_BLOCK", block)
+        recs, result = records(path)
+        assert result.complete, (block, result.error)
+        assert len(recs) == 120
+
+
+def test_gercek_kaynak_kesigi_gzip_saglam_xml_yarim_kesik_sayilir(tmp_path: Path) -> None:
+    """14-15 Ekim 2026 olcumu: Admitad dosyasi gzip'i GECERLI kapatip XML'i bir
+    <picture> etiketinin ortasinda bitiriyor (</offers> ve </yml_catalog> yok).
+    Tam kabul yalnizca kapanis etiketiyle: bu dosya kesik sayilmali, yarim son kayit
+    uretilmemeli, onceki kayitlar islenmeli."""
+    full = yml(offer(str(10**15 + i)) for i in range(50))
+    cut = full.index(b"<picture>", len(full) - 900) + len(
+        b"<picture>https://ae-pic-a1.aliexpress-media.com/kf/S44e6"
+    )
+    path = write(tmp_path / "f.gz", full[:cut], gz=True)  # gzip GECERLI kapanir
+    recs, result = records(path)
+    assert not result.complete
+    assert result.error and "kapanis etiketi" in result.error
+    assert len(recs) == 49  # yarim son kayit uretilmez
