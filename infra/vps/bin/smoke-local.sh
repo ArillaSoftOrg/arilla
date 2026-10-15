@@ -7,6 +7,7 @@
 #   infra/vps/bin/smoke-local.sh            # imajlari derler, test eder
 #   SKIP_BUILD=1 infra/vps/bin/smoke-local.sh   # imajlar zaten derlenmisse
 #   KEEP=1 ...                              # sonunda yigini AYAKTA birakir
+#   BUILD_ONLY=1 ...                        # yalniz imajlari derler (CI deploy-engine isi)
 #
 # Gereksinim: docker compose, node, curl, openssl.
 set -uo pipefail
@@ -127,6 +128,8 @@ if [ "${SKIP_BUILD:-0}" != "1" ]; then
   echo "== 2. Imajlar derleniyor (web, migrate, ingest, cron)"
   c --profile ops build >/dev/null 2>&1 && pass "imajlar derlendi" || { fail "imaj derlemesi"; exit 1; }
 fi
+  # BUILD_ONLY=1: yalniz imajlari hazirla (CI `deploy-engine` isi :smoke imajlarini buradan alir).
+  if [ "${BUILD_ONLY:-0}" = "1" ]; then [ "$failures" -eq 0 ] && exit 0 || exit 1; fi
 
 echo "== 3. Temiz veritabani: migration zinciri"
 if "$here/db-bootstrap.sh" "$ENV_FILE" "$COMPOSE_FILE" >"$work/bootstrap.log" 2>&1; then

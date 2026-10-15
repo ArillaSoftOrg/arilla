@@ -17,9 +17,12 @@ on:
 permissions:
   contents: read
 
+# PR: aynı PR'a yeni push gelince eski koşu iptal edilir (geçersiz sonuç üretir).
+# main: koşu commit sha'sına özeldir ve ASLA iptal edilmez; her main commit'i tam
+# sonuç alır (build-push/deploy zinciri bu sonuçlara bakar).
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('sha-{0}', github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Testlerin ve derlemenin ortamdan model/e-posta anahtarı almadığını açıkça belirtir.
@@ -30,6 +33,43 @@ env:
   NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
+  # Yalnızca PR'larda: değişen dosyaların TAMAMI dokümantasyon ise ağır işler atlanır.
+  # Atlanan iş, zorunlu kontrol olarak "başarılı" sayılır. main'e push'ta HER ZAMAN tam
+  # koşu yapılır (build-push/deploy zorunlu kontrollerden `success` ister, `skipped` değil).
+  # `docs/schema.sql` testlerce okunduğu için dokümantasyon sayılmaz. Belirsizlikte tam koşu.
+  # typecheck + lint ve private-keys bu kapıya bağlı değildir; her zaman koşar.
+  changes:
+    name: değişiklik kapsamı
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+    steps:
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          docs_only=false
+          if [ "$EVENT" = "pull_request" ]; then
+            files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+            count=$(printf '%s\n' "$files" | grep -c . || true)
+            # API en fazla 3000 dosya döner; belirsizlikte tam koşu.
+            if [ "$count" -gt 0 ] && [ "$count" -lt 3000 ]; then
+              other=$(printf '%s\n' "$files" | grep -v -E '^(docs/|[^/]+\.md$)' || true)
+              schema=$(printf '%s\n' "$files" | grep -x 'docs/schema.sql' || true)
+              if [ -z "$other" ] && [ -z "$schema" ]; then docs_only=true; fi
+            fi
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          echo "docs_only=$docs_only"
+
   static:
     name: typecheck + lint
     runs-on: ubuntu-latest
@@ -79,6 +119,8 @@ jobs:
 
   unit:
     name: unit tests
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -95,6 +137,8 @@ jobs:
 
   python:
     name: python unit tests
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -117,6 +161,8 @@ jobs:
 
   build:
     name: web build
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -127,6 +173,14 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Next.js derleme önbelleği (resmi öneri). Yalnızca hızlandırıcıdır: Next her girdiyi
+      # içerik özetiyle doğrular. GitHub önbellek kapsamı: PR önbelleği main'e okunmaz/yazılmaz.
+      - uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx', 'packages/**/*.ts', 'packages/**/*.tsx') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
       - run: pnpm --filter @arilla/web build
 
   # Karar 0109: VPS imajları derlenir ve gizli değer girmediği doğrulanır.
@@ -134,6 +188,8 @@ jobs:
   # değildir, derlemeye gömülür (robots/canonical).
   docker:
     name: docker images (web + migrate)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -163,6 +219,8 @@ jobs:
   # `secrets.*` kullanilmaz; sirlar kosu icinde rastgele uretilir ve silinir.
   compose-stack:
     name: compose stack (production topology)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -177,8 +235,29 @@ jobs:
           infra/vps/bin/pg-restore-test infra/vps/bin/test-backup.sh infra/vps/backup/restore-inner.sh
       - name: duman testi
         run: bash infra/vps/bin/smoke-local.sh
-      # Faz 6: dagitim motoru (yerel registry, sentetik depo; saglik gecmeyen surumde otomatik geri alma).
+
+  # Faz 6: dagitim motoru (yerel registry, sentetik depo; saglik gecmeyen surumde otomatik geri alma).
+  # Duman testinden AYRI is: ikisi paralel kosar (eskiden ardisikti, ~430 sn). Ayni imajlari
+  # kullanir; BUILD_ONLY=1 smoke-local.sh yalniz sablon dogrulamasi + imaj derlemesini yapip cikar
+  # (ayni derleme tanimi, ayni :smoke etiketleri). Hicbir test atlanmaz.
+  # DT_WEB_TIMEOUT: yalniz bu testte "saglik gecmeyen" surumun bekleme suresi. Uretim
+  # varsayilani (arilla-deploy: ARILLA_HEALTH_TIMEOUT_WEB=240) DEGISMEZ. Saglikli web bu
+  # testte ~15-25 sn'de ayaga kalkiyor; 75 sn ~3 kat pay birakir.
+  deploy-engine:
+    name: deploy engine (rollback + migration, local)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: imajlari derle (duman testiyle ayni tanim)
+        env:
+          BUILD_ONLY: "1"
+        run: bash infra/vps/bin/smoke-local.sh
       - name: dagitim motoru testi
+        env:
+          DT_WEB_TIMEOUT: "75"
         run: bash infra/vps/bin/test-deploy.sh
 
   # Karar 0110: PostgreSQL yedekleme / WAL arsivi / PITR / izole geri yukleme uctan uca.
@@ -186,6 +265,8 @@ jobs:
   # Uretimle ayni sahiplik (root:999, 0640) icin root ile (sudo -E) calisir.
   backup-pitr:
     name: backup + PITR restore (pgBackRest, isolated)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 40
     steps:
@@ -197,6 +278,8 @@ jobs:
   # install-deploy.sh -> sudoers -> restrict,command=deploy-gate -> sudo -> (sahte) arilla-deploy.
   deploy-gate:
     name: deploy ssh gate (sshd + sudo)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -205,6 +288,8 @@ jobs:
 
   integration:
     name: admin authz + integration (isolated services)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -271,6 +356,8 @@ jobs:
   # 5) Python entegrasyon testleri yeni semada (eski kod = N-1 uyumu kaniti).
   migrations-ingest:
     name: migrations (upgrade + verify) + ingest integration
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
