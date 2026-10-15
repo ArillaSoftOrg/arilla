@@ -1,9 +1,12 @@
 import {
+  fetchAnalyticsReport,
   getTrackingLink,
   getTrackingLinkStats,
+  hasCapability,
   istanbulToday,
   readAppUrl,
   resolveStatsRange,
+  umamiApiFromEnv,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import Link from "next/link";
@@ -20,6 +23,7 @@ import {
   Panel,
   StatusBadge,
 } from "../../admin-ui.tsx";
+import { MetricTable, SectionNotice } from "../../analitik/umami-sections.tsx";
 import { formatCount, formatDateTime, hrefWith, positiveInt } from "../../format.ts";
 import { ClicksChart } from "../clicks-chart.tsx";
 import { CopyLinkButton, ToggleActiveButton } from "../link-actions-client.tsx";
@@ -45,7 +49,7 @@ export default async function TrackingLinkDetailPage({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ from?: string; to?: string }>;
 }) {
-  const { actor } = await requireCapability("links.read");
+  const { actor, user } = await requireCapability("links.read");
   const id = positiveInt((await params).id);
   if (!id) notFound();
   const query = await searchParams;
@@ -54,6 +58,18 @@ export default async function TrackingLinkDetailPage({
   const link = await getTrackingLink(db, actor, id);
   if (!link) notFound();
   const stats = await getTrackingLinkStats(db, actor, { linkId: id, range });
+  // Karar 0116: kampanya etiketi doluysa Umami özeti (hafif: özet + sayfalar). Umami düşse de sayfa açılır.
+  const umamiConfig = umamiApiFromEnv();
+  const campaignReport =
+    link.campaign && umamiConfig.status === "ok" && hasCapability(user.role, "traffic.read")
+      ? await fetchAnalyticsReport(
+          umamiConfig.config,
+          range,
+          { utmCampaign: link.campaign },
+          {},
+          { series: false, metrics: ["path"] },
+        )
+      : null;
   const origin = readAppUrl() ?? "";
   const publicUrl = `${origin}/${link.slug}`;
   const today = istanbulToday();
@@ -142,6 +158,35 @@ export default async function TrackingLinkDetailPage({
           <p className={styles.muted}>Seçili aralık {stats.range.days} gün.</p>
         )}
       </Panel>
+
+      {campaignReport ? (
+        <Panel
+          id="umami"
+          title={`Kampanya ziyaretçileri (${link.campaign})`}
+          description="Umami: bu utm_campaign etiketiyle gelen, analitik rızası veren ziyaretçiler. Yukarıdaki tıklama sayısından (Arilla sayacı) farklıdır; rızasız, reklam engelleyicili ve bot ziyaretçiler görünmez."
+          actions={<DataBasis kind="consent_sample" />}
+        >
+          <SectionNotice section={campaignReport.overview} />
+          {campaignReport.overview.ok ? (
+            <div className={styles.tiles}>
+              <KpiCard
+                label="Ziyaretçi"
+                value={formatCount(campaignReport.overview.value.visitors)}
+              />
+              <KpiCard label="Ziyaret" value={formatCount(campaignReport.overview.value.visits)} />
+              <KpiCard
+                label="Sayfa görüntüleme"
+                value={formatCount(campaignReport.overview.value.pageviews)}
+              />
+            </div>
+          ) : null}
+          <MetricTable
+            section={campaignReport.metrics.path}
+            firstHeader="Sayfa"
+            valueHeader="Görüntüleme"
+          />
+        </Panel>
+      ) : null}
 
       <Panel
         id="duzenle"

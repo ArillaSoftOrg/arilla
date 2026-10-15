@@ -8,7 +8,9 @@ import { ConsentGate, ConsentProvider } from "./cookie-consent-client.tsx";
 import { Ga4Client } from "./ga4-client.tsx";
 import { readConsent } from "./lib/consent.ts";
 import { readThemePreference } from "./lib/theme-cookie.ts";
+import { umamiTracker } from "./lib/umami.ts";
 import { SITE_BRAND } from "./site-config.ts";
+import { UmamiClient } from "./umami-client.tsx";
 
 /**
  * D6: `generateMetadata`'daki göreli `alternates.canonical` bu köke göre
@@ -63,6 +65,8 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
   const consent = await readConsent();
   // Karar 0087: kimlik çalışma anında sunucudan; geçersiz/yoksa GA4 hiç yok.
   const ga4Id = parseMeasurementId(process.env.GA4_MEASUREMENT_ID);
+  // Karar 0116: kök adres ve web sitesi kimliği çalışma anında sunucudan; yoksa Umami hiç yok.
+  const umami = umamiTracker();
   // Karar 0092: elle secilen tema ilk HTML'de; yoksa cihaz tercihi (titreme yok).
   const theme = await readThemePreference();
 
@@ -74,6 +78,11 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           {ga4Id ? (
             <ConsentGate category="analytics">
               <Ga4Client measurementId={ga4Id} />
+            </ConsentGate>
+          ) : null}
+          {umami ? (
+            <ConsentGate category="analytics">
+              <UmamiClient scriptUrl={umami.scriptUrl} websiteId={umami.websiteId} />
             </ConsentGate>
           ) : null}
         </ConsentProvider>

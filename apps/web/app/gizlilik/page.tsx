@@ -2,6 +2,7 @@ import { LegalPageLayout } from "@arilla/ui";
 import type { Metadata } from "next";
 import { LegalIdentityBlock, PRIVACY_NOTICE_UPDATED_LABEL } from "../legal-identity-block.tsx";
 import { isGa4MeasurementActive } from "../lib/ga4.ts";
+import { isUmamiTrackerActive } from "../lib/umami.ts";
 
 export const metadata: Metadata = {
   title: "Gizlilik Politikası – ManiCepte",
@@ -23,6 +24,7 @@ export const metadata: Metadata = {
 export default function GizlilikPage() {
   // Karar 0087: GA4 yalnızca etkinse ve rızayla; metin gerçek duruma göre.
   const ga4 = isGa4MeasurementActive();
+  const umami = isUmamiTrackerActive();
   return (
     <LegalPageLayout title="Gizlilik Politikası" lastUpdatedLabel={PRIVACY_NOTICE_UPDATED_LABEL}>
       <section>
@@ -205,12 +207,26 @@ export default function GizlilikPage() {
             istediğiniz zaman geri çekebilirsiniz; ölçüm hemen durur. Reklam veya pazarlama ölçümü
             yapan bir araç kullanmıyoruz.
           </p>
+        ) : umami ? (
+          <p>
+            Yalnızca açık izninizle (analitik çerezleri), sitenin nasıl kullanıldığını toplu olarak
+            ölçmek için kendi sunucumuzda çalışan Umami kullanırız. İzninizi Çerez
+            Tercihleri&apos;nden istediğiniz zaman geri çekebilirsiniz; ölçüm hemen durur. Reklam
+            veya pazarlama ölçümü yapan bir araç kullanmıyoruz.
+          </p>
         ) : (
           <p>
             Şu anda analitik, reklam veya pazarlama ölçümü yapan bir araç kullanmıyoruz. Böyle bir
             araç eklenirse yalnızca açık izninizle çalıştırılır.
           </p>
         )}
+        {ga4 && umami ? (
+          <p>
+            Ayrıca, kendi sunucumuzda çalışan Umami ile de aynı amaçla ve yalnızca izninizle toplu
+            ölçüm yaparız; arama ifadeleri, adres satırındaki kişisel parametreler, hesap ve sohbet
+            bilgileri gönderilmez.
+          </p>
+        ) : null}
       </section>
 
       <section>

@@ -19,6 +19,12 @@ import { isProductOpen } from "../access/product-access.ts";
 import { GA4_ENV, ga4ApiConfigFromEnv } from "../analytics-ga4/config.ts";
 import { parseMeasurementId } from "../analytics-ga4/measurement.ts";
 import {
+  parseBaseUrl,
+  parseWebsiteId,
+  UMAMI_ENV,
+  umamiApiFromEnv,
+} from "../analytics-umami/config.ts";
+import {
   CHAT_DAILY_CALL_CAP,
   chatTurnsPerHour,
   DEFAULT_CHAT_TURNS_PER_HOUR,
@@ -166,6 +172,20 @@ function positiveIntSetting(
     value: String(effective),
     note,
   };
+}
+
+function umamiPlainState(env: Env, key: string, valid: boolean): ConfigState {
+  if (raw(env, key) === undefined) return "missing";
+  return valid ? "set" : "invalid";
+}
+
+/** Umami API anahtarı: tanımsız / geçersiz / tanımlı. Değer asla dönmez. */
+function umamiKeyState(env: Env): ConfigState {
+  if (raw(env, UMAMI_ENV.apiKey) === undefined) return "missing";
+  const result = umamiApiFromEnv(env);
+  return result.status === "invalid" && result.problems.includes(UMAMI_ENV.apiKey)
+    ? "invalid"
+    : "set";
 }
 
 function ga4MeasurementState(env: Env): ConfigState {
@@ -352,6 +372,42 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
       state: "unknown",
       value: null,
       note: "Yalnızca Python işleri okur; web sürecinden görülemez",
+    },
+    // --- Ziyaretçi analitiği (Umami, karar 0116) ---
+    {
+      key: UMAMI_ENV.baseUrl,
+      label: "Umami kök adresi",
+      group: "analytics",
+      // Sayfa HTML'inde (betik adresi) zaten görünür: sır değil.
+      secret: false,
+      state: umamiPlainState(
+        env,
+        UMAMI_ENV.baseUrl,
+        parseBaseUrl(raw(env, UMAMI_ENV.baseUrl)) !== null,
+      ),
+      value: parseBaseUrl(raw(env, UMAMI_ENV.baseUrl)),
+      note: "Tanımsız/geçersizken izleyici yüklenmez, CSP genişlemez; değişince yeniden dağıtım gerekir",
+    },
+    {
+      key: UMAMI_ENV.websiteId,
+      label: "Umami web sitesi kimliği",
+      group: "analytics",
+      secret: false,
+      state: umamiPlainState(
+        env,
+        UMAMI_ENV.websiteId,
+        parseWebsiteId(raw(env, UMAMI_ENV.websiteId)) !== null,
+      ),
+      value: parseWebsiteId(raw(env, UMAMI_ENV.websiteId)),
+    },
+    {
+      key: UMAMI_ENV.apiKey,
+      label: "Umami API anahtarı (raporlama)",
+      group: "analytics",
+      secret: true,
+      state: umamiKeyState(env),
+      value: null,
+      note: "Yalnızca sunucuda; istemciye ve günlüğe girmez",
     },
     // --- Trafik ölçümü (GA4, karar 0087) ---
     {

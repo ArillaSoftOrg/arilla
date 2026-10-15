@@ -170,8 +170,17 @@ dışına aktarır. Bkz. `docs/decisions/0009-font.md`.
 tanımlıysa ve ziyaretçi **analitik çerez rızası** verdiyse `ConsentGate`
 arkasında yüklenir; rıza geri alınınca anında durur. Yalnızca arındırılmış
 sayfa yolu ile `page_view` gönderilir; arama metni, sorgu parametresi, token,
-kimlik ve yönetim sayfaları gönderilmez. Başka hiçbir üçüncü taraf betik bu
-istisnadan yararlanamaz.
+kimlik ve yönetim sayfaları gönderilmez.
+
+**İkinci istisna — Umami ölçüm betiği (karar 0116):** kendi işlettiğimiz Umami
+örneğinden (`UMAMI_BASE_URL`, bizim alt alan adımız; üçüncü taraf hizmet
+sağlayıcı değil). Yalnızca `UMAMI_WEBSITE_ID` ve `UMAMI_BASE_URL` tanımlıysa ve
+ziyaretçi **analitik çerez rızası** verdiyse `ConsentGate` arkasında yüklenir;
+rıza geri alınınca gönderim anında durur. Otomatik izleme kapalıdır; yalnızca
+arındırılmış sayfa yolu (GA4 ile aynı süzgeç, güvenli `utm_*` korunur) ile
+sayfa görüntüleme ve `docs/events.md`'de tanımlı olaylar gönderilir. API
+anahtarı yalnızca sunucuda durur. Başka hiçbir üçüncü taraf betik bu
+istisnalardan yararlanamaz.
 
 ## Dil ve içerik
 

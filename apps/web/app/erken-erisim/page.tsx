@@ -12,14 +12,17 @@ import { redirect } from "next/navigation";
 import { SURVEY_COPY } from "../anket/survey-copy.ts";
 import { logoutAction } from "../cikis-actions.ts";
 import { COMING_SOON_COPY } from "../coming-soon-copy.ts";
+import { ConsentGate } from "../cookie-consent-client.tsx";
 import { EARLY_ACCESS_COPY } from "../early-access-copy.ts";
 import { EarlyAccessProgress } from "../early-access-progress.tsx";
 import { FEEDBACK_COPY } from "../geri-bildirim/feedback-copy.ts";
 import { HOME_COPY } from "../home-copy.ts";
 import { requireUser } from "../lib/dal.ts";
 import { loadEarlyAccessProgress } from "../lib/early-access-progress.ts";
+import { isUmamiTrackerActive } from "../lib/umami.ts";
 import { SubpageShell } from "../public-site-shell.tsx";
 import { configuredSocialLinks, SITE_BRAND } from "../site-config.ts";
+import { UmamiEarlyAccessJoined } from "../umami-client.tsx";
 import { joinEarlyAccessAction } from "./actions.ts";
 import styles from "./page.module.css";
 import { earlyAccessState } from "./state.ts";
@@ -86,6 +89,12 @@ export default async function ErkenErisimPage() {
 
   return (
     <SubpageShell currentPath="/erken-erisim">
+      {/* Karar 0116: yalnızca Umami etkinse, analitik rızasıyla ve "az önce katıldı" durumunda tek olay. */}
+      {isUmamiTrackerActive() && state === "just_joined" ? (
+        <ConsentGate category="analytics">
+          <UmamiEarlyAccessJoined />
+        </ConsentGate>
+      ) : null}
       <div className={styles.page}>
         <section className={styles.hero} aria-labelledby="erken-erisim-baslik">
           {entry ? (

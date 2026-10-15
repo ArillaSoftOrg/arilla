@@ -23,6 +23,7 @@ edilmeli.
 | Kaydedilenler, alarmlar | `saved_item`, `alert` | Sözleşmenin ifası | Hesap silinene kadar |
 | Beden profili | `user_size_profile` | Açık rıza | Hesap silinene kadar |
 | Tıklama ve dönüşüm | `click`, `conversion` | Meşru menfaat + sözleşme | 5 yıl (mali mevzuat) |
+| Ziyaretçi analitiği (Umami, 0116) | Umami veritabanı (`analytics.manicepte.com`, Arilla veritabanı DEĞİL) | **Açık rıza** (analitik çerez kategorisi); izinsiz hiç yüklenmez | Umami'de saklama süresi AYRICA belirlenmelidir (sürümde belgelenmedi; hukukçu onayıyla); rıza geri alınınca gönderim durur |
 | Takip bağlantısı tıklama sayacı (0115) | `tracking_link_click_hour` | Meşru menfaat (kampanya ölçümü); **yalnızca saat başına sayı: IP, User-Agent, oturum, çerez, yönlendiren adres yazılmaz** | Sayaç satırları kalır (kişisel veri değil); bağlantı kaydı silinmez, kapatılır |
 | Yüklenen görseller | obje deposu | Açık rıza | **En fazla 30 gün** |
 | Pazarlama e-postası izni | `user_consent` | Açık rıza + İYS | İzin geri alınana kadar |

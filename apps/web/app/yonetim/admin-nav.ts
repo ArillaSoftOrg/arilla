@@ -155,6 +155,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "GA4: ziyaretçi, oturum, kanal, sayfa, cihaz, konum (rızalı örneklem).",
       },
       {
+        href: "/yonetim/analitik",
+        label: "Ziyaretçi analitiği",
+        capability: "traffic.read",
+        description: "Umami: ziyaretçi, kaynak, kampanya, ülke, cihaz, tarayıcı (rızalı örneklem).",
+      },
+      {
         href: "/yonetim/veri-zekasi",
         label: "Veri zekâsı",
         capability: "data.read",
