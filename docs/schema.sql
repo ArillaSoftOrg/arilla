@@ -155,6 +155,8 @@ CREATE TABLE offer (
 );
 CREATE INDEX offer_product_idx    ON offer (product_id) WHERE product_id IS NOT NULL;
 CREATE INDEX offer_unmatched_idx  ON offer (merchant_id) WHERE product_id IS NULL;
+-- 0071: magaza basina sayimlar icin indeks-yalniz tarama
+CREATE INDEX offer_merchant_state_idx ON offer (merchant_id, is_active, product_id);
 CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT NULL;
 CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
 CREATE INDEX offer_seller_idx ON offer (seller_id) WHERE seller_id IS NOT NULL;
