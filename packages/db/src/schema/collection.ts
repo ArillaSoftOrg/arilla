@@ -38,8 +38,16 @@ export const collectionSource = pgTable("collection_source", {
   initialLoadExempt: boolean("initial_load_exempt").notNull().default(false),
   permissionBasis: text("permission_basis").$type<CollectionPermissionBasis>().notNull(),
   permissionNote: text("permission_note"),
+  // 0073 (karar 0120): guvenlik sinirlari.
+  initialRunWindowDays: smallint("initial_run_window_days"),
+  minRequestIntervalMs: integer("min_request_interval_ms").notNull().default(2000),
+  initialMaxBytes: bigint("initial_max_bytes", { mode: "number" }).notNull(),
+  refreshMaxBytes: bigint("refresh_max_bytes", { mode: "number" }).notNull(),
+  blockedCooldownMinutes: integer("blocked_cooldown_minutes").notNull().default(60),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+export type TransferOrigin = "unknown" | "vps" | "admin_wifi" | "admin_wired" | "admin_mobile";
 
 export type CollectionRunStatus = "open" | "completed" | "aborted" | "released";
 
@@ -58,16 +66,25 @@ export const collectionRun = pgTable("collection_run", {
   options: jsonb("options").$type<Record<string, unknown>>().notNull().default({}),
   checkpoint: jsonb("checkpoint").$type<Record<string, unknown>>(),
   summary: jsonb("summary").$type<Record<string, unknown>>(),
+  // 0073 (karar 0120): bayt muhasebesi, indirme onayi, aktarim kaynagi. max_bytes tetikleyiciyle yazilir.
+  maxBytes: bigint("max_bytes", { mode: "number" }).notNull().default(0),
+  bytesDownloaded: bigint("bytes_downloaded", { mode: "number" }).notNull().default(0),
+  downloadApprovedBytes: bigint("download_approved_bytes", { mode: "number" }).notNull().default(0),
+  downloadApprovedBy: bigint("download_approved_by", { mode: "number" }),
+  downloadApprovedAt: timestamp("download_approved_at", { withTimezone: true }),
+  transferOrigin: text("transfer_origin").$type<TransferOrigin>().notNull().default("unknown"),
 });
 
-export type CollectionUnitStatus = "done" | "empty" | "failed" | "blocked";
+export type CollectionUnitStatus = "pending" | "done" | "empty" | "failed" | "blocked";
+/** 0073: 'sitemap_file' (sitemap dosyasi), 'listing_page' (liste sayfasi); 0072 ile birlesik kume. */
+export type CollectionUnitKind = "query" | "product_page" | "listing_page" | "sitemap_file";
 
 /** Kesif birimi: bir kaynak istegi = (sorgu, sayfa). Kapsam raporunun kaynagi. */
 export const collectionUnit = pgTable(
   "collection_unit",
   {
     runId: bigint("run_id", { mode: "number" }).notNull(),
-    kind: text("kind").$type<"query">().notNull(),
+    kind: text("kind").$type<CollectionUnitKind>().notNull(),
     unitKey: text("unit_key").notNull(),
     page: smallint("page").notNull().default(1),
     status: text("status").$type<CollectionUnitStatus>().notNull(),
@@ -75,7 +92,11 @@ export const collectionUnit = pgTable(
     itemsNew: integer("items_new").notNull().default(0),
     totalHint: integer("total_hint"),
     errorCode: text("error_code"),
-    fetchedAt: timestamp("fetched_at", { withTimezone: true }).notNull(),
+    // 'pending' birim henuz istenmedi (0073): fetched_at bos olabilir.
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }),
+    unitSeq: integer("unit_seq"),
+    attempts: smallint("attempts").notNull().default(0),
+    bytesReceived: bigint("bytes_received", { mode: "number" }).notNull().default(0),
     recordedAt: timestamp("recorded_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (t) => [primaryKey({ columns: [t.runId, t.kind, t.unitKey, t.page] })],
@@ -104,3 +125,34 @@ export const catalogIntakeRecord = pgTable("catalog_intake_record", {
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
   mergedAt: timestamp("merged_at", { withTimezone: true }),
 });
+
+export type DiscoveryPriceState =
+  | "unpriced"
+  | "listing_price"
+  | "page_verified"
+  | "stale"
+  | "unavailable";
+
+/**
+ * 0073 (karar 0120): fiyatsiz urun kesif defteri. offer DEGILDIR; FIYAT KOLONU YOKTUR.
+ * Birincil anahtar (source, external_id): tekrar kesif yeni satir uretmez.
+ */
+export const catalogDiscovery = pgTable(
+  "catalog_discovery",
+  {
+    source: text("source").notNull(),
+    externalId: text("external_id").notNull(),
+    codeKind: text("code_kind").$type<"pm" | "p">().notNull(),
+    url: text("url").notNull(),
+    title: text("title"),
+    imageUrl: text("image_url"),
+    sourceUnitKey: text("source_unit_key").notNull(),
+    firstSeenRunId: bigint("first_seen_run_id", { mode: "number" }).notNull(),
+    lastSeenRunId: bigint("last_seen_run_id", { mode: "number" }).notNull(),
+    firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+    priceState: text("price_state").$type<DiscoveryPriceState>().notNull().default("unpriced"),
+    priceCheckedAt: timestamp("price_checked_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.source, t.externalId] })],
+);

@@ -33,7 +33,7 @@ export class CollectionError extends Error {
 }
 
 const TRIGGER_CODES =
-  /(collection_(?:source_unknown|disabled|quota_interval|quota_month|run_not_open|run_expired|run_immutable|run_closed|requests_decrease|observed_at_out_of_range))/;
+  /(collection_(?:source_unknown|disabled|quota_interval|quota_month|run_not_open|run_expired|run_immutable|run_closed|requests_decrease|bytes_decrease|observed_at_out_of_range))/;
 
 /**
  * Postgres tetikleyici istisnalari bilinen `collection_*` kodlariyla gelir. Surucu
@@ -92,6 +92,9 @@ export interface RunView {
   closedAt: Date | null;
   requestsMade: number;
   maxRequests: number;
+  maxBytes: number;
+  bytesDownloaded: number;
+  downloadApprovedBytes: number;
   checkpoint: Record<string, unknown> | null;
   summary: Record<string, unknown> | null;
 }
@@ -113,6 +116,9 @@ function toRunView(r: typeof collectionRun.$inferSelect): RunView {
     closedAt: r.closedAt,
     requestsMade: r.requestsMade,
     maxRequests: r.maxRequests,
+    maxBytes: r.maxBytes,
+    bytesDownloaded: r.bytesDownloaded,
+    downloadApprovedBytes: r.downloadApprovedBytes,
     checkpoint: r.checkpoint,
     summary: r.summary,
   };

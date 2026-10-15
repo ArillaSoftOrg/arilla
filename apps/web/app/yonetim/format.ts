@@ -175,6 +175,7 @@ const ACTION_LABELS: Record<AdminAction, string> = {
   "merchant.deactivate": "Mağaza kapatıldı",
   "catalog_collection.start": "Katalog toplama başlatıldı",
   "catalog_collection.close": "Katalog toplama kapatıldı",
+  "catalog_collection.approve_download": "Katalog indirmesi onaylandı",
   "users.lookup": "Kullanıcı arandı",
   "users.search": "Kullanıcı arandı (kısmi)",
   "users.view": "Kullanıcı ayrıntısı görüntülendi",
