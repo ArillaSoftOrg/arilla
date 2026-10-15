@@ -14,6 +14,7 @@ export * from "./admin/index.ts";
 export * from "./analytics-ga4/index.ts";
 export * from "./attribution/index.ts";
 export * from "./auth/index.ts";
+export * from "./catalog-collection/index.ts";
 export * from "./chat/index.ts";
 export * from "./config/index.ts";
 export * from "./consent/account-consent.ts";

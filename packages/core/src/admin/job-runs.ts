@@ -51,6 +51,13 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0115: yonetici toplamasi ara deposunun katalog modeline birlestirilmesi (elle).
+  hb_merge: {
+    label: "Hepsiburada toplama birleştirme",
+    how: "python -m feeds hb-merge --run <id>",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
   // Karar 0113: resmi kur ve bagimsiz fiyat dogrulama.
   fx_rates: {
     label: "Döviz kuru (TCMB)",

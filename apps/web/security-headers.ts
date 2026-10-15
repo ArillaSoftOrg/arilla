@@ -40,6 +40,8 @@ export interface SecurityHeaderOptions {
   production: boolean;
   /** Geçerli GA4 ölçüm kimliği tanımlı mı (karar 0087). */
   ga4?: boolean;
+  /** Ek `connect-src` kokenleri; yalnızca katalog toplama sayfası (karar 0117). */
+  extraConnectOrigins?: string[];
 }
 
 export const OAUTH_FORM_TARGETS = ["https://accounts.google.com", "https://appleid.apple.com"];
@@ -65,6 +67,7 @@ export function contentSecurityPolicy(options: SecurityHeaderOptions): string {
         "'self'",
         ...(options.development ? ["ws:", "wss:"] : []),
         ...(options.ga4 ? GA4_CONNECT_ORIGINS : []),
+        ...(options.extraConnectOrigins ?? []),
       ],
     ],
     ["frame-src", ["'self'"]],
@@ -126,12 +129,34 @@ function adminHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
   ];
 }
 
+/**
+ * Katalog toplama sayfası (karar 0117): yönetici tarayıcısı kaynak mağazadan okur.
+ * İzin YALNIZCA bu yolda ve yalnızca `connect-src` için bir kökene verilir; GA4 yok.
+ */
+export const COLLECTION_CONNECT_ORIGINS = ["https://www.hepsiburada.com"];
+export const COLLECTION_PAGE_PATH = "/yonetim/katalog/toplama";
+
+function collectionHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
+  return [
+    ...ADMIN_EXTRA_HEADERS,
+    {
+      key: "Content-Security-Policy",
+      value: contentSecurityPolicy({
+        ...options,
+        ga4: false,
+        extraConnectOrigins: COLLECTION_CONNECT_ORIGINS,
+      }),
+    },
+  ];
+}
+
 /** `next.config.ts` `headers()` girdisi. Sıra önemli: özel girdiler sonra. */
 export function securityHeaderRoutes(options: SecurityHeaderOptions) {
   return [
     { source: "/:path*", headers: securityHeaders(options) },
     { source: "/yonetim", headers: adminHeaders(options) },
     { source: "/yonetim/:path*", headers: adminHeaders(options) },
+    { source: COLLECTION_PAGE_PATH, headers: collectionHeaders(options) },
     { source: "/giris/:path*", headers: PRIVATE_EXTRA_HEADERS },
     { source: "/ara", headers: PRIVATE_EXTRA_HEADERS },
     { source: "/ara/:path*", headers: PRIVATE_EXTRA_HEADERS },
