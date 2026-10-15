@@ -5,6 +5,7 @@ import styles from "../../admin.module.css";
 import { KpiCard, KpiGroup, PageHeader, Section } from "../../admin-ui.tsx";
 import { formatCount, formatDateOrDash } from "../../format.ts";
 import { CollectorClient } from "./collector-client.tsx";
+import { DiscoveryClient } from "./discovery-client.tsx";
 
 /**
  * Hepsiburada katalog toplama (karar 0117). Toplama yöneticinin KENDİ
@@ -32,6 +33,8 @@ export default async function CatalogCollectionPage() {
   const { actor } = await requireCapability("catalog.write");
   const status = await getCollectionStatus(getDatabase(), actor, "hepsiburada");
   const q = status.quota;
+  const open = status.openRun;
+  const openIsDiscovery = open?.checkpoint?.mode === "discovery";
 
   return (
     <div className={styles.page}>
@@ -74,13 +77,36 @@ export default async function CatalogCollectionPage() {
           source="hepsiburada"
           canStart={q.canStart}
           openRun={
-            status.openRun
+            status.openRun && !openIsDiscovery
               ? {
                   id: status.openRun.id,
                   requestsMade: status.openRun.requestsMade,
                   maxRequests: status.openRun.maxRequests,
                   expiresAt: status.openRun.expiresAt.toISOString(),
                   checkpoint: status.openRun.checkpoint,
+                }
+              : null
+          }
+        />
+      </Section>
+
+      <Section
+        id="kesif"
+        title="Sitemap keşfi (fiyatsız kimlikler)"
+        description="Ürün sitemap dosyaları tek tek, bekleyerek indirilir; yalnızca ürün kimliği, adres, görsel ve (varsa) ad kaydedilir. Fiyat yoktur ve uydurulmaz. İndirme için bayt onayı gerekir; onay olmadan hiçbir bayt kabul edilmez. Keşfedilen sayı katalogun tamamı olarak sunulmaz."
+      >
+        <DiscoveryClient
+          source="hepsiburada"
+          canStart={q.canStart}
+          openRun={
+            open && openIsDiscovery
+              ? {
+                  id: open.id,
+                  requestsMade: open.requestsMade,
+                  maxRequests: open.maxRequests,
+                  maxBytes: open.maxBytes,
+                  bytesDownloaded: open.bytesDownloaded,
+                  approvedBytes: open.downloadApprovedBytes,
                 }
               : null
           }
