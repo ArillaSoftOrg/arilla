@@ -15,6 +15,10 @@ Ayni SQL TypeScript tarafinda `packages/core/src/product/refresh-aggregates.ts`
 icinde durur (yonetim yazmalari ve cron Python'u cagiramaz); ikisi birlikte
 degisir.
 
+Yalnizca TRY teklifler sayilir: TRY disi (or. AliExpress USD) tutar kurus gibi
+okunup `min_price`i kirletmesin (karar 0113/0121); yurt disi teklifler urun sayfasinda
+kendi para birimiyle gosterilir.
+
 Aktif teklifi kalmayan urun sifirlanir; degismeyen satir yazilmaz (tekrar
 calistirmak 0 satir gunceller).
 """
@@ -42,6 +46,7 @@ FROM (
       FROM product p2
       LEFT JOIN (offer o JOIN merchant m ON m.id = o.merchant_id AND m.is_active)
         ON o.product_id = p2.id AND o.is_active AND o.current_price IS NOT NULL
+       AND o.currency = 'TRY'
      WHERE {scope}
      GROUP BY p2.id
 ) agg
@@ -50,8 +55,9 @@ WHERE p.id = agg.product_id
       IS DISTINCT FROM (agg.min_price, agg.max_price, agg.offer_count, agg.in_stock_count)
 """
 
-#: Tum katalog (onarim yolu).
-REFRESH_ALL = _REFRESH_TEMPLATE.format(scope="TRUE")
+#: Tum YAYINLANMIS katalog (onarim yolu). Yayinlanmamis kaynak ilanlari (milyonlarca taslak,
+#: karar 0121) teklife bagli degildir; her gece taranmalari bos is olurdu.
+REFRESH_ALL = _REFRESH_TEMPLATE.format(scope="p2.publication_state = 'published'")
 
 #: Yalnizca verilen urunler; digerleri okunmaz ve yazilmaz.
 REFRESH_PRODUCTS = _REFRESH_TEMPLATE.format(scope="p2.id = ANY(%(product_ids)s)")

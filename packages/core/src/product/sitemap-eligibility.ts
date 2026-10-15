@@ -2,7 +2,8 @@
  * docs/sitemap.md "Hangi sayfa haritaya girer". Bir ürün sayfası haritaya
  * girer (ve `noindex` almaz) ancak: en az 2 aktif mağazada teklifi varsa
  * (`offer_count`, karar 0072), YA DA tek mağazada teklifi var ama en az 14 günlük fiyat geçmişi birikmişse; VE görseli ve
- * başlığı varsa; VE kategorisi `is_discoverable` ise.
+ * başlığı varsa; VE kategorisi `is_discoverable` ise; VE `published` ise (taslak ve
+ * bekleyen kaynak ilanı asla haritaya girmez; karar 0121).
  *
  * Aynı koşul iki yerden kullanılır - ürün sayfasının `noindex` kararı
  * (`generateMetadata`) ve ürün sitemap parçalarının sorgusu
@@ -17,7 +18,8 @@ const MIN_PRICE_HISTORY_DAYS = 14;
 
 /** `p` = product, `c` = category (LEFT JOIN, kategorisiz ürün asla uygun değildir). */
 const ELIGIBILITY_CONDITION = sql`
-  p.title IS NOT NULL
+  p.publication_state = 'published'
+  AND p.title IS NOT NULL
   AND p.primary_image_url IS NOT NULL
   AND c.is_discoverable IS TRUE
   AND (

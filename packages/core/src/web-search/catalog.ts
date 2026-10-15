@@ -52,6 +52,7 @@ export async function findCatalogImageCandidates(
             LEFT JOIN brand b ON b.id = p.brand_id
            WHERE p.primary_image_url IS NOT NULL
              AND p.offer_count > 0
+             AND p.publication_state = 'published'
              AND ${foldedTitleExpr(sql`p.title`)} % ${folded}::text
            ORDER BY similarity(${foldedTitleExpr(sql`p.title`)}, ${folded}::text) DESC
            LIMIT ${CANDIDATES_PER_GROUP}

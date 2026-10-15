@@ -2,9 +2,11 @@ import {
   alertSizeNormForVariant,
   type ComparisonRow,
   findAlternatives,
+  formatMinorWithCurrency,
   getColorVariants,
   getPriceHistory,
   getPriceStats,
+  getProductForeignOffers,
   getProductGallery,
   getProductPriceComparison,
   getSizeOptions,
@@ -95,6 +97,21 @@ function formatSure(from: Date, now: Date): string {
   const hours = Math.floor(minutes / 60);
   if (hours < 24) return `${hours} saat`;
   return `${Math.floor(hours / 24)} gün`;
+}
+
+/** "2026-10-14" -> "14.10.2026" (kur tarihi). */
+function trDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+/** Fiyatın gözlendiği an, Türkiye saatiyle: "15.10.2026 03:06". */
+function trDateTime(date: Date): string {
+  return new Intl.DateTimeFormat("tr-TR", {
+    dateStyle: "short",
+    timeStyle: "short",
+    timeZone: "Europe/Istanbul",
+  }).format(date);
 }
 
 /** `generateMetadata` ve sayfa bileşeni ayni istekte ayni sluğu iki kez çözmesin. */
@@ -195,6 +212,7 @@ export default async function ProductPage({
     priceStats,
     gallery,
     colorVariants,
+    foreignOffers,
   ] = await Promise.all([
     getProductPriceComparison(db, product.productId, requestedVariant),
     findAlternatives(db, product.productId),
@@ -205,6 +223,8 @@ export default async function ProductPage({
     product.modelKey
       ? getColorVariants(db, product.modelKey, product.productId)
       : Promise.resolve([]),
+    // Karar 0121: TRY dışı teklifler kendi para birimiyle, fiyat zamanıyla (0113/0114).
+    getProductForeignOffers(db, product.productId),
   ]);
   await tracking;
 
@@ -646,6 +666,48 @@ export default async function ProductPage({
           />
           <p className={styles.disclaimer}>
             {`Fiyatlar kargo dahil toplamdır, en uygundan sıralanır. ${HOME_COPY.priceDisclaimer} ${HOME_COPY.affiliateNotice}`}
+          </p>
+        </Section>
+      ) : null}
+
+      {/* 7b. Yurt dışı teklifleri: TL listesine ve fiyat sıralamasına GİRMEZ (karar 0121). */}
+      {foreignOffers.length > 0 ? (
+        <Section
+          spacing="compact"
+          id="yurt-disi"
+          aria-labelledby="yurt-disi-baslik"
+          className={styles.offers}
+        >
+          <div className={styles.sectionHeader}>
+            <h2 id="yurt-disi-baslik" className={styles.sectionTitle}>
+              Yurt dışı teklifi
+            </h2>
+          </div>
+          {/* biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolunu dusurur. */}
+          <ul className={styles.foreignList} role="list" aria-labelledby="yurt-disi-baslik">
+            {foreignOffers.map((offer) => (
+              <li key={offer.offerId} className={styles.foreignItem}>
+                <p className={styles.foreignPrice}>
+                  {formatMinorWithCurrency(offer.priceMinor, offer.currency)}
+                  {offer.approx
+                    ? ` · ≈ ${formatTRY(offer.approx.approxTryMinor)} (TCMB kuru, ${trDate(offer.approx.quote.effectiveDate)})`
+                    : ""}
+                </p>
+                <p className={styles.sectionMeta}>
+                  {`${offer.merchantName} · fiyat ${trDateTime(offer.priceObservedAt)} tarihinde kaydedildi`}
+                </p>
+                <a
+                  className={styles.foreignLink}
+                  href={`/git/${offer.offerId}?surface=feed_offers`}
+                  rel="nofollow sponsored noopener"
+                >
+                  {`${offer.merchantName} sayfasında aç`}
+                </a>
+              </li>
+            ))}
+          </ul>
+          <p className={styles.disclaimer}>
+            {`Fiyat mağazanın para birimiyle verilir; TL tutarı yaklaşıktır. Kargo, gümrük ve vergi belirsizdir, bu yüzden bu teklif fiyat sıralamasına girmez. ${HOME_COPY.affiliateNotice}`}
           </p>
         </Section>
       ) : null}

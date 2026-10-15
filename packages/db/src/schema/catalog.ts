@@ -87,6 +87,13 @@ export const product = pgTable("product", {
   priceUpdatedAt: timestamp("price_updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  /** 0074 (karar 0121): `published` disindaki urun kullaniciya kapali kaynak ilanidir. */
+  publicationState: text("publication_state").notNull().default("published"),
+  holdReason: text("hold_reason"),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  sourceMerchantId: bigint("source_merchant_id", { mode: "number" }),
+  sourceExternalId: text("source_external_id"),
+  sourceOfferId: bigint("source_offer_id", { mode: "number" }),
 });
 
 export const productSlugHistory = pgTable("product_slug_history", {

@@ -83,7 +83,21 @@ const ISSUE_SQL: Record<ProductIssueFilter, SQL> = {
     SELECT 1 FROM product p2 WHERE p2.gtin = p.gtin AND p2.id <> p.id))`,
 };
 
+/**
+ * Yayın durumu süzgeci (karar 0121). Varsayılan `published`: milyonlarca taslak
+ * (kaynak ilanı) liste ve sayaçlara girmez. Taslaklar kimlik, slug ya da kaynak
+ * kimliğiyle bulunur (başlık indeksi yalnızca yayınlanmışları kapsar).
+ */
+export const PRODUCT_STATE_FILTERS = ["published", "draft", "ready", "held", "all"] as const;
+export type ProductStateFilter = (typeof PRODUCT_STATE_FILTERS)[number];
+
+export function isProductStateFilter(value: unknown): value is ProductStateFilter {
+  return typeof value === "string" && (PRODUCT_STATE_FILTERS as readonly string[]).includes(value);
+}
+
 export interface ProductSearchFilter {
+  /** Yayın durumu; verilmezse `published`. */
+  state?: ProductStateFilter;
   /** Sayı → id; 8–14 hane → GTIN (ürün ya da varyant); diğer → başlık. */
   query?: string;
   quality?: ProductQualityFilter;
@@ -111,6 +125,8 @@ function queryCondition(query: string | undefined): SQL | null {
   const q = query?.trim() ?? "";
   if (!q) return null;
   if (/^#?\d{1,7}$/.test(q)) return sql`p.id = ${Number(q.replace("#", ""))}`;
+  // Kaynak ilan kimliği (ör. 16 haneli AliExpress ürün kimliği): benzersiz indeksle.
+  if (/^\d{15,20}$/.test(q)) return sql`p.source_external_id = ${q}`;
   if (/^\d{8,14}$/.test(q)) {
     return sql`(p.gtin = ${q} OR EXISTS (
       SELECT 1 FROM offer_variant v JOIN offer o ON o.id = v.offer_id
@@ -129,6 +145,8 @@ export async function searchProducts(
   assertCapability(actor, "catalog.read");
   const page = clampPage(filter.page);
   const conditions: SQL[] = [sql`true`];
+  const state = isProductStateFilter(filter.state) ? filter.state : "published";
+  if (state !== "all") conditions.push(sql`p.publication_state = ${state}`);
   const q = queryCondition(filter.query);
   if (q) conditions.push(q);
   if (isProductQualityFilter(filter.quality)) conditions.push(QUALITY_SQL[filter.quality]);
@@ -188,6 +206,7 @@ export async function countProductQuality(
              count(*) FILTER (WHERE ${QUALITY_SQL.no_price}) AS no_price,
              count(*) FILTER (WHERE ${QUALITY_SQL.stale_price}) AS stale_price
         FROM product p
+       WHERE p.publication_state = 'published'
     `);
     const row = result.rows[0] ?? {};
     return {

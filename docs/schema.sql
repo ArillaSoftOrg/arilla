@@ -91,16 +91,39 @@ CREATE TABLE product (
     in_stock_count  INTEGER     NOT NULL DEFAULT 0,   -- stokta olan mağaza sayısı
     price_updated_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- 0074 (karar 0121): aktarim ile kullaniciya yayin ayridir. Mevcut urunler 'published'.
+    publication_state TEXT      NOT NULL DEFAULT 'published'
+                    CHECK (publication_state IN ('draft', 'ready', 'held', 'published')),
+    hold_reason     TEXT        CHECK (hold_reason IS NULL OR hold_reason ~ '^[a-z0-9_]{2,60}$'),
+    published_at    TIMESTAMPTZ,
+    -- Kaynak ilan kimligi: ayni kaynak ilani icin ikinci urun olusamaz.
+    source_merchant_id BIGINT   REFERENCES merchant(id),
+    source_external_id TEXT     CHECK (source_external_id IS NULL OR char_length(source_external_id) BETWEEN 1 AND 200),
+    source_offer_id BIGINT      REFERENCES offer(id),
+    CONSTRAINT product_source_pair CHECK ((source_merchant_id IS NULL) = (source_external_id IS NULL)),
+    CONSTRAINT product_source_offer_has_key CHECK (source_offer_id IS NULL OR source_merchant_id IS NOT NULL),
+    CONSTRAINT product_hold_reason_matches_state CHECK ((publication_state = 'held') = (hold_reason IS NOT NULL)),
+    CONSTRAINT product_unpublished_is_source_listing
+        CHECK (publication_state = 'published' OR source_merchant_id IS NOT NULL)
 );
+-- Kaynak kimligi ONDE: yonetim aramasi yalniz kimlikle sorar (mağaza bilinmez).
+CREATE UNIQUE INDEX product_source_key_uniq ON product (source_external_id, source_merchant_id)
+    WHERE source_merchant_id IS NOT NULL;
+CREATE UNIQUE INDEX product_source_offer_uniq ON product (source_offer_id)
+    WHERE source_offer_id IS NOT NULL;
+CREATE INDEX product_unpublished_idx ON product (publication_state, id)
+    WHERE publication_state <> 'published';
 CREATE INDEX product_brand_idx    ON product (brand_id);
 CREATE INDEX product_category_idx ON product (category_id);
 CREATE INDEX product_gtin_idx     ON product (gtin) WHERE gtin IS NOT NULL;
-CREATE INDEX product_title_trgm   ON product USING gin (title gin_trgm_ops);
+CREATE INDEX product_title_trgm   ON product USING gin (title gin_trgm_ops)
+    WHERE publication_state = 'published';
 -- Metin aramasinin aday kapisi (0029): katlanmis baslik. Ifade
 -- packages/core/src/search/text-match.ts foldedTitleExpr ile birebir ayni.
 CREATE INDEX product_title_fold_trgm ON product
-    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops);
+    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
+    WHERE publication_state = 'published';
 CREATE INDEX product_min_price_idx ON product (min_price) WHERE min_price IS NOT NULL;
 CREATE INDEX product_model_key_idx ON product (model_key) WHERE model_key IS NOT NULL;
 
@@ -2469,6 +2492,22 @@ END $$;
 CREATE TRIGGER catalog_intake_guard_trg
     BEFORE INSERT ON catalog_intake_record
     FOR EACH ROW EXECUTE FUNCTION catalog_intake_guard();
+
+-- ---------------------------------------------------------------------------
+-- KAYNAK ILANINDAN URUN AKTARIMI (0074, karar 0121)
+-- ---------------------------------------------------------------------------
+-- Kaynak basina kontrol noktasi; parti + kontrol noktasi ayni islemde yazilir.
+CREATE TABLE catalog_build_state (
+    merchant_id    BIGINT      PRIMARY KEY REFERENCES merchant(id),
+    last_offer_id  BIGINT      NOT NULL DEFAULT 0 CHECK (last_offer_id >= 0),
+    scanned        BIGINT      NOT NULL DEFAULT 0 CHECK (scanned >= 0),
+    created        BIGINT      NOT NULL DEFAULT 0 CHECK (created >= 0),
+    existing       BIGINT      NOT NULL DEFAULT 0 CHECK (existing >= 0),
+    skipped        JSONB       NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(skipped) = 'object'),
+    started_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    completed_at   TIMESTAMPTZ
+);
 
 -- ---------------------------------------------------------------------------
 -- YETKILER

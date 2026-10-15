@@ -108,6 +108,8 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     label: "Katalog: ürün, teklif, varyant, fiyat",
     tables: [
       "product",
+      // Karar 0121: kaynak ilanından taslak ürün aktarımının kontrol noktası.
+      "catalog_build_state",
       "product_slug_history",
       "brand",
       "category",

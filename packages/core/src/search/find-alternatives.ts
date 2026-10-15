@@ -57,7 +57,7 @@ export async function findAlternatives(
       SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
       FROM offer o
       JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active
+      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
       ORDER BY o.product_id, o.current_price ASC NULLS LAST
     )
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
@@ -67,6 +67,7 @@ export async function findAlternatives(
     LEFT JOIN best_offer bo ON bo.product_id = p.id
     LEFT JOIN brand b ON b.id = p.brand_id
     WHERE p.id <> ${anchorProductId} AND p.offer_count > 0
+      AND p.publication_state = 'published'
     ORDER BY e.score DESC, p.id ASC
     LIMIT ${limit}
   `);
