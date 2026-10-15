@@ -92,7 +92,13 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   {
     id: "catalog_collection",
     label: "Katalog toplama (yonetici tarayicisi)",
-    tables: ["collection_source", "collection_run", "collection_unit", "catalog_intake_record"],
+    tables: [
+      "collection_source",
+      "collection_run",
+      "collection_unit",
+      "catalog_intake_record",
+      "catalog_discovery",
+    ],
     status: "visible",
     adminPaths: ["/yonetim/katalog/toplama"],
     gaps: [],
