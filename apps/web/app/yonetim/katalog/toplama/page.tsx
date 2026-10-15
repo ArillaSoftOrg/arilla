@@ -25,9 +25,18 @@ const BASIS_TEXT: Record<string, string> = {
 const BLOCKED_TEXT: Record<string, string> = {
   disabled: "Kaynak kapalı (collection_source.enabled = false).",
   open_run: "Açık bir toplama koşusu var; sürdürülebilir.",
-  interval: "En az 7 gün aralık dolmadı.",
+  interval: "Koşular arası en az aralık dolmadı.",
   month: "Bu takvim ayının koşu hakkı doldu.",
+  daily_requests: "Bugünkü HTTP isteği hakkı doldu; UTC gün dönümünde yenilenir.",
+  monthly_requests: "Bu ayın HTTP isteği hakkı doldu; UTC ay başında yenilenir.",
+  monthly_products: "Bu ayın ürün hakkı doldu; UTC ay başında yenilenir.",
 };
+
+function limitText(used: number, limit: number | null): string {
+  return limit === null
+    ? `${formatCount(used)} / sınırsız`
+    : `${formatCount(used)} / ${formatCount(limit)}`;
+}
 
 export default async function CatalogCollectionPage() {
   const { actor } = await requireCapability("catalog.write");
@@ -49,20 +58,30 @@ export default async function CatalogCollectionPage() {
       <Section id="kota" title="Kota">
         <KpiGroup label="Kota">
           <KpiCard
-            label="Bu ay koşu"
-            value={`${formatCount(q.runsThisMonth)} / ${formatCount(q.maxRunsPerMonth)}`}
+            label="Bugün HTTP isteği (UTC)"
+            value={limitText(q.usage.day.requests, q.limits.dailyMaxRequests)}
+            note={`Yenilenme: ${formatDateOrDash(q.usage.dayResetsAt)}`}
+          />
+          <KpiCard
+            label="Bu ay HTTP isteği"
+            value={limitText(q.usage.month.requests, q.limits.monthlyMaxRequests)}
+            note={`Yenilenme: ${formatDateOrDash(q.usage.monthResetsAt)}`}
+          />
+          <KpiCard
+            label="Bu ay işlenen ürün"
+            value={limitText(q.usage.month.products, q.limits.monthlyMaxProducts)}
           />
           <KpiCard
             label="Sonraki koşu"
             value={q.nextKind === "initial" ? "İlk yükleme" : "Güncelleme"}
-            note={`İstek bütçesi ${formatCount(q.nextMaxRequests)}`}
+            note={`Koşu başına istek bütçesi ${formatCount(q.nextMaxRequests)}`}
           />
-          <KpiCard label="En az aralık" value={`${q.minIntervalDays} gün`} />
-          <KpiCard label="Sonraki izinli zaman" value={formatDateOrDash(q.nextAllowedAt)} />
           <KpiCard
             label="Durum"
-            value={q.canStart ? "Başlatılabilir" : "Başlatılamaz"}
-            tone={q.canStart ? "neutral" : "warning"}
+            value={
+              q.canStart ? "Başlatılabilir" : q.canResume ? "Devam edilebilir" : "Başlatılamaz"
+            }
+            tone={q.canStart || q.canResume ? "neutral" : "warning"}
             note={q.blockedBy ? BLOCKED_TEXT[q.blockedBy] : undefined}
           />
         </KpiGroup>
@@ -103,6 +122,7 @@ export default async function CatalogCollectionPage() {
               ? {
                   id: open.id,
                   requestsMade: open.requestsMade,
+                  requestsReserved: open.requestsReserved,
                   maxRequests: open.maxRequests,
                   maxBytes: open.maxBytes,
                   bytesDownloaded: open.bytesDownloaded,

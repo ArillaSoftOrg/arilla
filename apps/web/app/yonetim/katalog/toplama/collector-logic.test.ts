@@ -24,12 +24,15 @@ function fakeEnv(
     api: Record<string, unknown>[];
     sleeps: number[];
     logs: string[];
+    reserved: number[];
   } = {
     fetch: [],
     api: [],
     sleeps: [],
     logs: [],
+    reserved: [],
   };
+  let reservedTotal = 0;
   let stopAfter = Number.POSITIVE_INFINITY;
   const env: CollectorEnv = {
     source: "hepsiburada",
@@ -55,6 +58,12 @@ function fakeEnv(
       return { items, rawCount: items.length, structureFound: true };
     },
     async api(body) {
+      if (body.op === "discovery_reserve") {
+        // Rezervasyon her kaynak isteginden ONCE gelmeli (karar 0123): sirayi kaydet.
+        calls.reserved.push(calls.fetch.length);
+        reservedTotal += 1;
+        return { ok: true, status: 200, data: { requestsReserved: reservedTotal } };
+      }
       calls.api.push(body);
       if (body.op === "start") {
         return { ok: true, status: 200, data: { id: 9, maxRequests: 5 } };

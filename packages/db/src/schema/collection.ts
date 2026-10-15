@@ -9,6 +9,7 @@ import {
   bigint,
   boolean,
   char,
+  date,
   integer,
   jsonb,
   pgTable,
@@ -30,7 +31,8 @@ export const collectionSource = pgTable("collection_source", {
   source: text("source").primaryKey(),
   merchantSlug: text("merchant_slug").notNull(),
   minIntervalDays: smallint("min_interval_days").notNull(),
-  maxRunsPerMonth: smallint("max_runs_per_month").notNull(),
+  /** 0075: 0 = aralik kisiti yok. */
+  maxRunsPerMonth: smallint("max_runs_per_month"),
   runWindowDays: smallint("run_window_days").notNull(),
   initialMaxRequests: integer("initial_max_requests").notNull(),
   refreshMaxRequests: integer("refresh_max_requests").notNull(),
@@ -44,8 +46,28 @@ export const collectionSource = pgTable("collection_source", {
   initialMaxBytes: bigint("initial_max_bytes", { mode: "number" }).notNull(),
   refreshMaxBytes: bigint("refresh_max_bytes", { mode: "number" }).notNull(),
   blockedCooldownMinutes: integer("blocked_cooldown_minutes").notNull().default(60),
+  // 0075 (karar 0123): hacim kotasi. NULL = o kota uygulanmaz.
+  dailyMaxRequests: integer("daily_max_requests"),
+  monthlyMaxRequests: integer("monthly_max_requests"),
+  monthlyMaxProducts: integer("monthly_max_products"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * 0075 (karar 0123): UTC gun bazli rezerve istek ve islenen urun sayaci. Yalniz
+ * `collection_run_usage_guard` tetikleyicisi yazar; uygulama rolu SELECT yapar.
+ */
+export const collectionUsageDay = pgTable(
+  "collection_usage_day",
+  {
+    source: text("source").notNull(),
+    usageDate: date("usage_date", { mode: "string" }).notNull(),
+    requests: bigint("requests", { mode: "number" }).notNull().default(0),
+    products: bigint("products", { mode: "number" }).notNull().default(0),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [primaryKey({ columns: [t.source, t.usageDate] })],
+);
 
 export type TransferOrigin = "unknown" | "vps" | "admin_wifi" | "admin_wired" | "admin_mobile";
 
@@ -73,6 +95,9 @@ export const collectionRun = pgTable("collection_run", {
   downloadApprovedBy: bigint("download_approved_by", { mode: "number" }),
   downloadApprovedAt: timestamp("download_approved_at", { withTimezone: true }),
   transferOrigin: text("transfer_origin").$type<TransferOrigin>().notNull().default("unknown"),
+  // 0075 (karar 0123): HTTP isteginden ONCE rezerve edilen istek (azalmaz) ve kota defterine yazilan urun.
+  requestsReserved: integer("requests_reserved").notNull().default(0),
+  productsCounted: bigint("products_counted", { mode: "number" }).notNull().default(0),
 });
 
 export type CollectionUnitStatus = "pending" | "done" | "empty" | "failed" | "blocked";

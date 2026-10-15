@@ -11,6 +11,7 @@ import {
   isFreshAuth,
   nextDiscoveryUnits,
   planDiscoveryUnits,
+  reserveRequests,
   startCollectionRun,
   submitCollectionBatch,
   submitDiscoveryBatch,
@@ -70,6 +71,10 @@ async function authenticate(
 const STATUS_BY_CODE: Record<string, number> = {
   collection_quota_interval: 429,
   collection_quota_month: 429,
+  collection_quota_daily_requests: 429,
+  collection_quota_monthly_requests: 429,
+  collection_quota_monthly_products: 429,
+  request_not_reserved: 409,
   collection_disabled: 403,
   collection_run_already_open: 409,
   collection_run_not_open: 409,
@@ -161,6 +166,14 @@ export async function POST(request: Request): Promise<Response> {
           }),
         );
       }
+      case "discovery_reserve":
+        // Kaynaga her HTTP isteginden ONCE cagrilir (karar 0123).
+        return json(
+          await reserveRequests(db, actor, {
+            runId: Number(body.runId),
+            count: body.count === undefined ? 1 : Number(body.count),
+          }),
+        );
       case "discovery_batch":
         return json(
           await submitDiscoveryBatch(

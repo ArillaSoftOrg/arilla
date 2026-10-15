@@ -2322,6 +2322,23 @@ CREATE TABLE collection_run (
 CREATE UNIQUE INDEX collection_run_one_open_uniq ON collection_run (source) WHERE status = 'open';
 CREATE INDEX collection_run_source_idx ON collection_run (source, reserved_at DESC);
 
+-- 0075 (karar 0123): hacim kotasi. Referans ozet; gercek tanim migration'dadir.
+--   collection_source: min_interval_days >= 0 (0 = aralik yok), max_runs_per_month NULL olabilir,
+--     daily_max_requests / monthly_max_requests / monthly_max_products INTEGER (NULL = uygulanmaz);
+--     collection_source_window_lt_interval ve collection_source_reported_scope KALDIRILDI.
+--   collection_run: requests_reserved INTEGER (HTTP isteginden ONCE rezerve, azalmaz,
+--     requests_made <= requests_reserved <= max_requests), products_counted BIGINT.
+CREATE TABLE collection_usage_day (
+    source      TEXT        NOT NULL REFERENCES collection_source(source),
+    usage_date  DATE        NOT NULL,          -- UTC gun
+    requests    BIGINT      NOT NULL DEFAULT 0 CHECK (requests >= 0),
+    products    BIGINT      NOT NULL DEFAULT 0 CHECK (products >= 0),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (source, usage_date)
+);
+-- Yalniz collection_run_usage_guard (SECURITY DEFINER, BEFORE UPDATE on collection_run) yazar;
+-- arilla_app: SELECT. Gunluk/aylik istek ve aylik urun tavani advisory kilit altinda denetlenir.
+
 CREATE FUNCTION collection_run_quota_guard() RETURNS trigger
 LANGUAGE plpgsql AS $$
 DECLARE

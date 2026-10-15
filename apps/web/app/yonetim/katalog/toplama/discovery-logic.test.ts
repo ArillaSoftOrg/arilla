@@ -23,12 +23,23 @@ const stream = (text: string) =>
 
 type Files = Record<string, { status: number; text?: string }>;
 
-function fakeEnv(files: Files, over: Partial<DiscoveryEnv> = {}) {
-  const calls: { fetch: string[]; api: Record<string, unknown>[]; sleeps: number[] } = {
+function fakeEnv(
+  files: Files,
+  over: Partial<DiscoveryEnv> = {},
+  denyReserve?: { after: number; code: string },
+) {
+  const calls: {
+    fetch: string[];
+    api: Record<string, unknown>[];
+    sleeps: number[];
+    reserved: number[];
+  } = {
     fetch: [],
     api: [],
     sleeps: [],
+    reserved: [],
   };
+  let reservedTotal = 0;
   const units: { unitKey: string }[] = [];
   const done = new Set<string>();
   let bytes = 0;
@@ -48,6 +59,15 @@ function fakeEnv(files: Files, over: Partial<DiscoveryEnv> = {}) {
       return { status: f.status, body: f.text === undefined ? null : stream(f.text) };
     },
     async api(body) {
+      if (body.op === "discovery_reserve") {
+        // Her kaynak isteginden ONCE: o ana kadar atilan fetch sayisini kaydet (karar 0123).
+        calls.reserved.push(calls.fetch.length);
+        reservedTotal += 1;
+        if (denyReserve && reservedTotal > denyReserve.after) {
+          return { ok: false, status: 429, data: { error: denyReserve.code } };
+        }
+        return { ok: true, status: 200, data: { requestsReserved: reservedTotal } };
+      }
       calls.api.push(body);
       switch (body.op) {
         case "start":
@@ -99,6 +119,75 @@ const opts = {
   maxFilesThisSession: 10,
   resumeRun: null,
 };
+
+describe("runDiscovery istek rezervasyonu (karar 0123)", () => {
+  const files: Files = {
+    [SITEMAP_INDEX_KEY]: { status: 200, text: index },
+    [F1]: { status: 200, text: urlset(["1", "2"]) },
+    [F2]: { status: 200, text: urlset(["3"]) },
+  };
+
+  it("her kaynak isteginden ONCE rezerve eder (n. fetch icin n. rezervasyon once gelir)", async () => {
+    const { env, calls } = fakeEnv(files);
+    await runDiscovery(env, opts);
+    // 3 fetch icin 3 rezervasyon; i. rezervasyon aninda yalniz i-1 fetch atilmis olmali.
+    expect(calls.reserved).toEqual([0, 1, 2]);
+    expect(calls.fetch).toHaveLength(3);
+  });
+
+  it("gunluk kota reddederse kaynaga istek ATILMAZ, koşu açık kalır", async () => {
+    const { env, calls } = fakeEnv(
+      files,
+      {},
+      { after: 1, code: "collection_quota_daily_requests" },
+    );
+    expect(await runDiscovery(env, opts)).toBe("daily_quota");
+    expect(calls.fetch).toHaveLength(1); // yalniz rezerve edilen ilk istek
+    expect(calls.api.some((b) => b.op === "close")).toBe(false);
+  });
+
+  it("aylik kota reddederse temiz durur", async () => {
+    const { env, calls } = fakeEnv(
+      files,
+      {},
+      { after: 0, code: "collection_quota_monthly_requests" },
+    );
+    expect(await runDiscovery(env, opts)).toBe("monthly_quota");
+    expect(calls.fetch).toHaveLength(0);
+  });
+
+  it("baska bir rezervasyon hatasinda istek atilmaz ve hata doner", async () => {
+    const { env, calls } = fakeEnv(files, {}, { after: 0, code: "request_budget_exceeded" });
+    expect(await runDiscovery(env, opts)).toBe("error");
+    expect(calls.fetch).toHaveLength(0);
+  });
+
+  it("devamda rezerve sayaci sunucudaki degerden baslar; rezerve butce dolunca durur", async () => {
+    const { env, calls } = fakeEnv(files);
+    const reason = await runDiscovery(env, {
+      ...opts,
+      resumeRun: {
+        id: 7,
+        requestsMade: 4,
+        requestsReserved: 5,
+        maxRequests: 5,
+        bytesDownloaded: 0,
+        approvedBytes: 1_000_000,
+      },
+    });
+    expect(reason).toBe("budget");
+    expect(calls.fetch).toHaveLength(0);
+    expect(calls.reserved).toHaveLength(0);
+  });
+
+  it("indeksteki .xml.gz urun sitemap dosyalarini da planlar", async () => {
+    const gzIndex = `<sitemapindex><sitemap><loc>${SITEMAP_ORIGIN}/sitemaps/product/a.xml.gz</loc></sitemap></sitemapindex>`;
+    const { env, calls } = fakeEnv({ [SITEMAP_INDEX_KEY]: { status: 200, text: gzIndex } });
+    await runDiscovery(env, { ...opts, maxFilesThisSession: 1 });
+    const plan = calls.api.filter((b) => b.op === "discovery_plan").at(-1);
+    expect(plan?.keys).toEqual(["sitemaps/product/a.xml.gz"]);
+  });
+});
 
 describe("runDiscovery", () => {
   it("indeksi okur, dosyalari tek tek bekleyerek indirir, kimlikleri yollar ve kosuyu kapatir", async () => {

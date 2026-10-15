@@ -7,6 +7,7 @@ import { type DiscoveryEnv, runDiscovery } from "./discovery-logic.ts";
 interface OpenDiscoveryRun {
   id: number;
   requestsMade: number;
+  requestsReserved: number;
   maxRequests: number;
   maxBytes: number;
   bytesDownloaded: number;
