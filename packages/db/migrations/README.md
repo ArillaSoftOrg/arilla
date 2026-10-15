@@ -81,6 +81,7 @@ migration'lar olusturur.
 | `0069_offer_title_fts.sql` | Eslesmemis teklif aramasi trigram GIN yerine `to_tsvector('simple', title_raw)` GIN (0114, olcum: trigram indeksi ilk yukleme WAL'inin %48'i). Kismi indeks degisir; veri ve kolon degismez. |
 | `0070_catalog_collection.sql` | Yonetici tarayicisindan katalog toplama (0117): `collection_source` (kaynak politikasi: >= 7 gun aralik, ayda <= 4, ilk yukleme ve guncelleme icin AYRI istek butcesi; sozlu izin kapsami CHECK ile gevsetilemez; varsayilan kapali), `collection_run` (kota defteri; tetikleyici aralik/ay/tek acik kosu/degismezlik/ilk-guncelleme ayrimini zorlar), `collection_unit` (kapsam: sorgu x sayfa), `catalog_intake_record` (ara depo; TS yalnizca ekler, Python `feeds hb-merge` offer modeline birlestirir). Yalnizca ekleme. |
 | `0071_offer_merchant_state_idx.sql` | `offer (merchant_id, is_active, product_id)`: yonetim magaza sayfalarindaki toplam/aktif/eslesmemis sayimlari indeks-yalniz taramayla (2,8M teklifte statement_timeout 57014 duzeltmesi). Yalnizca ekleme. |
+| `0072_quality_check_indexes.sql` | Katalog kalite denetimleri: `offer (first_seen_at, id) WHERE product_id IS NULL AND is_active` ve `offer (id) INCLUDE (merchant_id, last_seen_at) WHERE is_active` (adaysiz/bayat teklif denetimlerinin 2,8M teklifte statement_timeout duzeltmesi). Yalnizca ekleme. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori
