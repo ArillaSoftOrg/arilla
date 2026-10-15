@@ -1,9 +1,10 @@
 -- kind: schema
 -- 0072 — Trendyol: yonetici tarayicisindan katalog toplama (karar 0118, 0117 altyapisi)
 --
--- YALNIZCA EKLEME. 0070'in (karar 0117, Hepsiburada) kota defteri, kapsam birimi ve ara deposu
+-- GERIYE UYUMLU (yeni satir/kolon, CHECK yalniz genisletilir). 0070'in (karar 0117, Hepsiburada) kota defteri, kapsam birimi ve ara deposu
 -- AYNEN kullanilir; burada yalnizca:
---   1) `trendyol` kaynak politikasi (KAPALI gelir, sozlu izin),
+--   0) izin dayanagina 'written_reported' (kullanici beyani; belge incelenmedi),
+--   1) `trendyol` kaynak politikasi (KAPALI gelir),
 --   2) kapsam birimine sayfa turleri (urun / liste sayfasi),
 --   3) ara depoya Trendyol'un gerektirdigi NULL'a izin veren alanlar
 --      (coklu gorsel, ana satici adi, renk grubu, beden/varyant, kosullu sepet fiyati).
@@ -13,17 +14,41 @@
 -- numaralanmasina birakildi (0068'i main ile cakisiyor).
 
 -- ---------------------------------------------------------------------------
--- 1) KAYNAK POLITIKASI: kota tetikleyicisi (0070) aynen uygulanir; sozlu izin CHECK'i
+-- 0) IZIN DAYANAGI: 'written_reported' = kullanici kurumdan YAZILI izin e-postasi
+--    aldigini BILDIRDI; belge paylasilmadi, sistemde yok ve INCELENMEDI.
+--    'written_agreement' (incelenmis yazili sozlesme) DEGILDIR. Bildirilen kapsam ayni
+--    oldugundan sozlu izin siniri (>= 7 gun, ayda <= 4) bu dayanaga da uygulanir.
+-- ---------------------------------------------------------------------------
+ALTER TABLE collection_source
+    DROP CONSTRAINT collection_source_permission_basis_check,
+    ADD CONSTRAINT collection_source_permission_basis_check
+        CHECK (permission_basis IN
+               ('verbal_reported', 'written_reported', 'written_agreement', 'public_feed')),
+    DROP CONSTRAINT collection_source_verbal_scope,
+    ADD CONSTRAINT collection_source_verbal_scope
+        CHECK (permission_basis NOT IN ('verbal_reported', 'written_reported')
+               OR (min_interval_days >= 7 AND max_runs_per_month <= 4));
+
+-- Hepsiburada icin de ayni kullanici beyani (iki kurum). Yalniz hala sozlu kayitliysa.
+UPDATE collection_source
+   SET permission_basis = 'written_reported',
+       permission_note = 'Kullanici beyani (15 Ekim 2026): Hepsiburada''dan yazili izin e-postasi '
+           || 'alindi; belge paylasilmadi, sistemde yok ve incelenmedi. Bildirilen kapsam: mevcut '
+           || 'CORS yontemi, PostgreSQL''de saklama, en az 7 gun arayla, ayda en fazla 4 guncelleme.'
+ WHERE source = 'hepsiburada' AND permission_basis = 'verbal_reported';
+
+-- ---------------------------------------------------------------------------
+-- 1) KAYNAK POLITIKASI: kota tetikleyicisi (0070) aynen uygulanir; izin kapsami CHECK'i
 --    (>= 7 gun, ayda <= 4) bu satiri da baglar. Ilk yukleme ve guncelleme 500'er sayfa.
 -- ---------------------------------------------------------------------------
 INSERT INTO collection_source
     (source, merchant_slug, min_interval_days, max_runs_per_month, run_window_days,
      initial_max_requests, refresh_max_requests, enabled, permission_basis, permission_note)
 VALUES
-    ('trendyol', 'trendyol', 7, 4, 6, 500, 500, FALSE, 'verbal_reported',
-     'Kullanicinin bildirdigi sozlu izin (Ekim 2026): resmi API ve CORS yok; yonetici '
-     || 'tarayicisinda acilan Trendyol sayfasindan ek ag istegi olmadan okuma. Yenileme en az '
-     || '7 gun arayla, takvim ayinda en fazla 4; ilk yukleme dahil. Yazili kapsam teyit edilmedi.')
+    ('trendyol', 'trendyol', 7, 4, 6, 500, 500, FALSE, 'written_reported',
+     'Kullanici beyani (15 Ekim 2026): Trendyol''dan yazili izin e-postasi alindi; belge paylasilmadi, '
+     || 'sistemde yok ve incelenmedi. Resmi API ve CORS yok; yonetici tarayicisinda acilan sayfadan ek ag '
+     || 'istegi olmadan okuma. En az 7 gun arayla, takvim ayinda en fazla 4 guncelleme; ilk yukleme dahil.')
 ON CONFLICT (source) DO NOTHING;
 
 -- ---------------------------------------------------------------------------

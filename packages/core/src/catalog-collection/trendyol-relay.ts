@@ -48,12 +48,24 @@ export function captureTrendyolPage(
   captureId: string,
 ): CapturedPage {
   const capturedAt = now.toISOString();
+  // Sorgu ve parca saklanmaz (arama terimi, takip/oturum parametreleri): yalniz koken + yol.
+  const url = sanitizeCapturedUrl(href);
   return {
     captureId,
-    url: href,
+    url,
     capturedAt,
-    page: extractTrendyolPage(collectTrendyolPageInputs(doc, href, capturedAt)),
+    page: extractTrendyolPage(collectTrendyolPageInputs(doc, url, capturedAt)),
   };
+}
+
+/** `https://www.trendyol.com/a/b-p-1?merchantId=2#x` -> `https://www.trendyol.com/a/b-p-1`. */
+export function sanitizeCapturedUrl(href: string): string {
+  try {
+    const u = new URL(href);
+    return `${u.origin}${u.pathname}`;
+  } catch {
+    return "";
+  }
 }
 
 const isObj = (v: unknown): v is Record<string, unknown> =>
@@ -105,6 +117,11 @@ export interface RelayState {
   processedCaptures: Set<string>;
   /** Bu kosuda gonderilmis urun kimlikleri (sunucu da (run, external_id) ile tekillestirir). */
   sentProducts: Set<string>;
+  /**
+   * Liste kartindan okunan, henuz gonderilmemis kayitlar. Ayni urunun urun sayfasi gelirse
+   * (ana satici adi, kazanan beden) liste kaydi dusulur; kosu kapanirken `flushPendingListings`.
+   */
+  pendingListings?: Map<string, Record<string, unknown>>;
 }
 
 export type RelayStop = "budget" | "blocked" | null;
@@ -197,7 +214,11 @@ export function planRelayBatch(state: RelayState, captured: readonly CapturedPag
       break;
     }
     if (units.length >= MAX_UNITS_PER_BATCH) break;
-    const fresh = c.page.items.filter((i) => !state.sentProducts.has(i.externalId));
+    const fresh = c.page.items.filter(
+      (i) =>
+        !state.sentProducts.has(i.externalId) &&
+        !(i.sourcePage === "listing_page" && state.pendingListings?.has(i.externalId)),
+    );
     if (records.length + fresh.length > MAX_RECORDS_PER_BATCH) break;
     state.processedCaptures.add(c.captureId);
     captureIds.push(c.captureId);
@@ -218,7 +239,14 @@ export function planRelayBatch(state: RelayState, captured: readonly CapturedPag
       break;
     }
     skipped.duplicateProducts += c.page.items.length - fresh.length;
+    const pending = (state.pendingListings ??= new Map());
     for (const item of fresh) {
+      if (item.sourcePage === "listing_page") {
+        // Urun sayfasi gelene ya da kosu kapanana dek bekler (ayni kosuda ilk gelen kazanir).
+        if (!pending.has(item.externalId)) pending.set(item.externalId, toRecord(item));
+        continue;
+      }
+      pending.delete(item.externalId);
       state.sentProducts.add(item.externalId);
       records.push(toRecord(item));
     }
@@ -266,4 +294,38 @@ export function ackCaptures(
 /** Icerik betigi yalnizca bu sayfalarda okur (urun / liste); digerlerinde hicbir sey yapmaz. */
 export function isCollectibleTrendyolUrl(href: string): boolean {
   return canonicalTrendyolProductUrl(href) != null || isTrendyolListingPath(href) != null;
+}
+
+/**
+ * Bekleyen liste kayitlarini gonderir (kosu kapanmadan once ya da birikince). Istek sayilmaz:
+ * sayfalar zaten acildi ve butceden dustu.
+ */
+export function flushPendingListings(
+  state: RelayState,
+  limit = MAX_RECORDS_PER_BATCH,
+): BatchBody | null {
+  const pending = state.pendingListings;
+  if (!pending || pending.size === 0) return null;
+  const records: Record<string, unknown>[] = [];
+  for (const [id, record] of pending) {
+    if (records.length >= limit) break;
+    pending.delete(id);
+    if (state.sentProducts.has(id)) continue;
+    state.sentProducts.add(id);
+    records.push(record);
+  }
+  return records.length > 0
+    ? {
+        op: "batch",
+        runId: state.runId,
+        records,
+        units: [],
+        requestsMade: state.requestsMade,
+        checkpoint: {
+          source: "trendyol",
+          pages: state.processedCaptures.size,
+          products: state.sentProducts.size,
+        },
+      }
+    : null;
 }

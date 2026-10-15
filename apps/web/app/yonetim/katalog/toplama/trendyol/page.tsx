@@ -4,7 +4,7 @@ import { notFound } from "next/navigation";
 import { requireCapability } from "../../../../lib/dal.ts";
 import styles from "../../../admin.module.css";
 import { KpiCard, KpiGroup, PageHeader, Section } from "../../../admin-ui.tsx";
-import { formatCount, formatDateOrDash } from "../../../format.ts";
+import { formatCount, formatDateOrDash, formatPermissionBasis } from "../../../format.ts";
 import { TrendyolRelayClient } from "./trendyol-client.tsx";
 
 /**
@@ -32,11 +32,8 @@ export default async function TrendyolCollectionPage() {
     <div className={styles.page}>
       <PageHeader title="Katalog toplama: Trendyol">
         <p className={styles.muted}>
-          İzin dayanağı:{" "}
-          <strong>
-            {q.permissionBasis === "verbal_reported" ? "bildirilen sözlü izin" : q.permissionBasis}
-          </strong>
-          ; yazılı kapsam teyit edilmedi. {q.permissionNote}
+          İzin dayanağı: <strong>{formatPermissionBasis(q.permissionBasis)}</strong>.{" "}
+          {q.permissionNote}
         </p>
       </PageHeader>
 

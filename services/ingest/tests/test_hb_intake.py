@@ -147,9 +147,11 @@ def test_aylik_tavan_aralik_dolsa_bile_zorunlu(env: psycopg.Connection) -> None:
     if today.day < 12:
         pytest.skip("ay icinde 4 kosuyu 2 gun arayla gecmise yerlestirmek icin ayin 12'si gerekir")
     with env.cursor() as cur:
+        cur.execute("SELECT permission_basis FROM collection_source WHERE source = 'hepsiburada'")
+        basis = cur.fetchone()[0]  # type: ignore[index]
         cur.execute(
             "UPDATE collection_source SET min_interval_days = 2, run_window_days = 1,"
-            " permission_basis = 'written_agreement'"
+            " permission_basis = 'written_agreement' WHERE source = 'hepsiburada'"
         )
         cur.execute("ALTER TABLE collection_run DISABLE TRIGGER collection_run_quota_guard_trg")
         cur.execute(
@@ -166,7 +168,8 @@ def test_aylik_tavan_aralik_dolsa_bile_zorunlu(env: psycopg.Connection) -> None:
         with env.cursor() as cur:
             cur.execute(
                 "UPDATE collection_source SET min_interval_days = 7, run_window_days = 6,"
-                " permission_basis = 'written_email_reported'"
+                " permission_basis = %s WHERE source = 'hepsiburada'",
+                (basis,),
             )
 
 
@@ -177,13 +180,14 @@ def test_bildirilen_izin_kapsami_politikayla_gevsetilemez(env: psycopg.Connectio
         "initial_load_exempt = TRUE",
     ):
         with pytest.raises(psycopg.errors.CheckViolation), env.cursor() as cur:
-            cur.execute(f"UPDATE collection_source SET {change}")
+            cur.execute(f"UPDATE collection_source SET {change} WHERE source = 'hepsiburada'")
 
 
 def test_ilk_yukleme_ve_guncelleme_ayri_butceli_ikisi_de_kotali(env: psycopg.Connection) -> None:
     with env.cursor() as cur:
         cur.execute(
             "UPDATE collection_source SET initial_max_requests = 900, refresh_max_requests = 120"
+            " WHERE source = 'hepsiburada'"
         )
     first = _new_run(env)
     with env.cursor() as cur:
@@ -198,6 +202,7 @@ def test_ilk_yukleme_ve_guncelleme_ayri_butceli_ikisi_de_kotali(env: psycopg.Con
         assert cur.fetchone() == ("refresh", 120)
         cur.execute(
             "UPDATE collection_source SET initial_max_requests = 500, refresh_max_requests = 500"
+            " WHERE source = 'hepsiburada'"
         )
 
 

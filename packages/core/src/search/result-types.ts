@@ -73,5 +73,10 @@ export interface MerchantOffer {
   effectiveShipping: number;
   effectiveTotal: number;
   inStock: boolean;
+  /**
+   * Kaynak stok bildiriyor mu. false: stok TOPLANMIYOR (`attributes_raw.stock_state = "unknown"`,
+   * karar 0118); arayuz "stokta"/"stokta yok" demez, JSON-LD availability yazilmaz.
+   */
+  stockKnown: boolean;
   url: string;
 }

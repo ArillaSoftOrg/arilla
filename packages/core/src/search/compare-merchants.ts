@@ -19,6 +19,7 @@ type RawRow = Record<string, unknown> & {
   shipping_cost: string | null;
   free_shipping_threshold: string | null;
   in_stock: boolean;
+  stock_known: boolean;
   url: string;
   effective_shipping: string;
   effective_total: string;
@@ -30,6 +31,8 @@ export async function compareMerchants(db: Database, productId: number): Promise
       o.id AS offer_id, o.merchant_id, m.slug AS merchant_slug, m.name AS merchant_name,
       m.trust_score, o.current_price, o.list_price, o.shipping_cost,
       o.free_shipping_threshold, o.in_stock, o.url,
+      -- Stok toplanmayan kaynak (Trendyol, karar 0118): in_stock bir iddia degildir.
+      ((o.attributes_raw ->> 'stock_state') IS DISTINCT FROM 'unknown') AS stock_known,
       (CASE
         WHEN o.free_shipping_threshold IS NOT NULL AND o.current_price >= o.free_shipping_threshold THEN 0
         ELSE COALESCE(o.shipping_cost, 0)
@@ -60,6 +63,7 @@ export async function compareMerchants(db: Database, productId: number): Promise
     effectiveShipping: Number(row.effective_shipping),
     effectiveTotal: Number(row.effective_total),
     inStock: row.in_stock,
+    stockKnown: row.stock_known,
     url: row.url,
   }));
 }

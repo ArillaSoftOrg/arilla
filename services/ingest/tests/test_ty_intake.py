@@ -199,13 +199,13 @@ def test_kota_trendyol_icin_de_sistem_seviyesinde(env: psycopg.Connection) -> No
     assert "collection_disabled" in str(info2.value)
 
 
-def test_politika_varsayilan_kapali_ve_sozlu_izin() -> None:
+def test_politika_varsayilan_kapali_ve_yazili_izin_beyani() -> None:
     with _owner() as owner, owner.cursor() as cur:
         cur.execute(
             """SELECT enabled, min_interval_days, max_runs_per_month, permission_basis
                  FROM collection_source WHERE source = 'trendyol'"""
         )
-        assert cur.fetchone() == (False, 7, 4, "verbal_reported")
+        assert cur.fetchone() == (False, 7, 4, "written_reported")
 
 
 def test_birlestirme_satis_fiyati_sepet_ayri_tekrar_yok_wal_yok_eksik_silinmez(
@@ -227,7 +227,8 @@ def test_birlestirme_satis_fiyati_sepet_ayri_tekrar_yok_wal_yok_eksik_silinmez(
     assert samba["price"] == 799900  # satis fiyati; sepet fiyati price DEGIL
     assert samba["attrs"]["basket_price"] == "3999.50"  # type: ignore[index]
     assert samba["attrs"]["variant_label"] == "38"  # type: ignore[index]
-    assert samba["attrs"]["stock_state"] == "unknown" and samba["in_stock"] is False  # type: ignore[index]
+    # Stok toplanmaz: "stokta yok" (false) YAZILMAZ; bilinmeyen durum stock_state ile korunur.
+    assert samba["attrs"]["stock_state"] == "unknown" and samba["in_stock"] is True  # type: ignore[index]
     assert samba["seller"] == "106871" and samba["images"] == 2 and samba["points"] == 1
     assert samba["url"] == "https://www.trendyol.com/marka/test-urun-p-813659620"
     assert state["857296094"]["list"] == 12799900
@@ -259,6 +260,43 @@ def test_birlestirme_satis_fiyati_sepet_ayri_tekrar_yok_wal_yok_eksik_silinmez(
             " WHERE m.slug = 'trendyol' AND o.deactivated_at IS NOT NULL"
         )
         assert cur.fetchone() == (0,)
+
+    # Ucuncu kosu: Samba bu kez BASKA bedenin (39) fiyatiyla geldi. Fiyat gecmisine karismaz:
+    # kayit incelemeye ayrilir, mevcut fiyat ve beden degismez.
+    _rewind(env, 8)
+    run3 = _new_run(env)
+    _add(env, run3, "813659620", 849900, variant_id="1084850374", variant_label="39")
+    _close(env, run3)
+    third = _merge(run3)
+    assert third.status == "held" and third.held == 1  # type: ignore[attr-defined]
+    final = _offers(env)
+    assert final["813659620"]["price"] == 799900 and final["813659620"]["points"] == 1
+    assert final["813659620"]["attrs"]["variant_label"] == "38"  # type: ignore[index]
+    with env.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM ingest_error WHERE error_code = 'variant_changed_held'"
+            " AND external_id = '813659620'"
+        )
+        assert cur.fetchone() == (1,)
+        cur.execute("SELECT count(*) FROM catalog_intake_record WHERE merged_at IS NULL")
+        assert cur.fetchone() == (0,)  # incelemeye ayrilan kayit tekrar tutulmaz
+
+
+def test_ayni_kosuda_tekrar_ve_tek_varyantli_urun_beden_kuralina_takilmaz(
+    env: psycopg.Connection,
+) -> None:
+    run1 = _new_run(env)
+    _add(env, run1, "857296094", 12499900)
+    _close(env, run1)
+    assert _merge(run1).status == "success"  # type: ignore[attr-defined]
+    _rewind(env, 8)
+    run2 = _new_run(env)
+    _add(env, run2, "857296094", 12399900)  # tek varyant (bos): fiyat degisimi normal yazilir
+    _close(env, run2)
+    second = _merge(run2)
+    assert second.status == "success" and second.held == 0  # type: ignore[attr-defined]
+    state = _offers(env)
+    assert state["857296094"]["price"] == 12399900 and state["857296094"]["points"] == 2
 
 
 def test_ndjson_satiri_sepet_fiyatini_satis_fiyatindan_ayri_tasir() -> None:
@@ -296,3 +334,7 @@ def test_ndjson_satiri_sepet_fiyatini_satis_fiyatindan_ayri_tasir() -> None:
     # Satis fiyatindan dusuk olmayan "sepet fiyati" tasinmaz.
     row2 = (*row[:20], 900000)
     assert "basket_price" not in to_feed_row(row2)["param"]
+    # Stok bilinmiyor: Trendyol ayari "available=true" + stock_state=unknown, Hepsiburada false.
+    assert to_feed_row(row, unknown_stock_available=True)["available"] == "true"
+    assert to_feed_row(row)["available"] == "false"
+    assert to_feed_row(row, unknown_stock_available=True)["param"]["stock_state"] == "unknown"

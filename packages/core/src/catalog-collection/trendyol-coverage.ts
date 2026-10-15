@@ -6,6 +6,8 @@
  * Kimlik eslemesi: sitemap `-p-<contentId>` = sayfa `product.id` = `offer.external_id`
  * (`merchant.slug = 'trendyol'`). Ayri eslesme tablosu gerekmez.
  */
+import type { Database } from "@arilla/db";
+import { sql } from "drizzle-orm";
 
 export interface SitemapCoverage {
   sitemapIds: number;
@@ -51,4 +53,13 @@ export function sitemapCoverage(
     catalogOnly: sorted.length - both,
     coveragePct: sitemapIds.length ? Math.round((100_000 * both) / sitemapIds.length) / 1000 : 0,
   };
+}
+
+/** Katalogdaki Trendyol teklif kimlikleri (yalniz okur). Pasif teklifler de sayilir: silinmez. */
+export async function loadTrendyolCatalogIds(db: Database): Promise<string[]> {
+  const result = await db.execute<{ external_id: string }>(
+    sql`SELECT o.external_id FROM offer o JOIN merchant m ON m.id = o.merchant_id
+         WHERE m.slug = 'trendyol'`,
+  );
+  return result.rows.map((r) => r.external_id);
 }

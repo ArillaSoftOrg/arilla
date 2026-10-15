@@ -72,10 +72,16 @@ TRENDYOL_FEED_CONFIG: dict[str, Any] = {
         "variant",
         "variant_id",
         "group_id",
-        "seller_name",
         "basket_price",
     ],
     "required_fields": ["external_id", "title", "url", "price", "currency"],
+    # Trendyol'dan stok TOPLANMAZ. Bilinmeyen stok "stokta yok" (false) yazilip urun aramada
+    # cezalandirilmaz/"stokta yok" denmez: katalogun kullanilabilirlik bilgisi olmayan
+    # beslemelerle ayni kurali (normalize: available yoksa in_stock=true) + stock_state=unknown.
+    # Arayuz ve "stokta olanlar" filtresi stock_state=unknown'u "bilinmiyor" sayar.
+    "unknown_stock_available": True,
+    # Fiyat bedene aittir: onceki fiyat baska bedene aitse yeni fiyat yazilmaz, incelemeye ayrilir.
+    "hold_variant_change": True,
 }
 
 
@@ -141,8 +147,13 @@ def _money(minor: int) -> str:
     return f"{minor // 100}.{minor % 100:02d}"
 
 
-def to_feed_row(row: tuple[Any, ...]) -> dict[str, Any]:
-    """Ara depo satiri -> NDJSON kaydi. Bilinmeyen alan eklenmez (uydurma yok)."""
+def to_feed_row(row: tuple[Any, ...], *, unknown_stock_available: bool = False) -> dict[str, Any]:
+    """Ara depo satiri -> NDJSON kaydi. Bilinmeyen alan eklenmez (uydurma yok).
+
+    `unknown_stock_available` (Trendyol, 0118): stok bilinmiyorsa `available` true yazilir
+    (katalogun stok bilgisi olmayan beslemelerdeki kurali) ve `stock_state=unknown` korunur.
+    Varsayilan (Hepsiburada, 0117): false + `stock_state=unknown`.
+    """
     # Ilk 17 sutun 0070 (Hepsiburada) sirasi; 0072 (Trendyol) alanlari SONDA.
     extended = row[17:]
     row = (*row[:17], *([None] * max(0, 17 - len(row))))
@@ -190,7 +201,7 @@ def to_feed_row(row: tuple[Any, ...]) -> dict[str, Any]:
     # Stok bilinmiyorsa "satista" DEMEYIZ: mevcut modelde in_stock NOT NULL oldugundan
     # temkinli olarak false yazilir ve belirsizlik `stock_state` ile isaretlenir.
     if in_stock is None:
-        record["available"] = "false"
+        record["available"] = "true" if unknown_stock_available else "false"
         param["stock_state"] = "unknown"
     else:
         record["available"] = "true" if in_stock else "false"
@@ -202,8 +213,6 @@ def to_feed_row(row: tuple[Any, ...]) -> dict[str, Any]:
         image_urls, group_id, variant_id, basket = (list(extended) + [None] * 4)[:4]
         if isinstance(image_urls, list) and image_urls:
             record["images"] = [u for u in image_urls if isinstance(u, str)][:6]
-        if seller_name:
-            param["seller_name"] = str(seller_name)[:100]
         if group_id:
             param["group_id"] = str(group_id)
         if variant_id:
@@ -296,6 +305,49 @@ def _name_sellers(conn: psycopg.Connection, feed_id: int, rows: list[tuple[Any, 
     conn.commit()
 
 
+VARIANT_INDEX = 19  # PENDING: 17 sutun (0070) + image_urls, group_external_id, variant_external_id
+
+
+def _hold_variant_changes(
+    conn: psycopg.Connection, feed_id: int, rows: list[tuple[Any, ...]]
+) -> list[tuple[Any, ...]]:
+    """Onceki fiyati BASKA bedene/varyanta ait urunun yeni fiyati yazilmaz (karar 0118).
+
+    Fiyat gecmisi teklif duzeyindedir; beden degisince fiyat farki gercek bir fiyat degisimi
+    degildir. Bu kayitlar `ingest_error` (`variant_changed_held`) ile incelemeye ayrilir.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT o.external_id, o.attributes_raw->>'variant_id' FROM offer o
+                 JOIN feed_source f ON f.merchant_id = o.merchant_id
+                WHERE f.id = %s AND o.external_id = ANY(%s)""",
+            (feed_id, [r[1] for r in rows]),
+        )
+        previous = {ext: variant for ext, variant in cur.fetchall()}
+    conn.rollback()
+
+    def variant_of(r: tuple[Any, ...]) -> str | None:
+        return str(r[VARIANT_INDEX]) if len(r) > VARIANT_INDEX and r[VARIANT_INDEX] else None
+
+    held = [r for r in rows if r[1] in previous and previous[r[1]] != variant_of(r)]
+    if held:
+        with conn.cursor() as cur:
+            for r in held:
+                cur.execute(
+                    """INSERT INTO ingest_error (feed_source_id, external_id, error_code, detail,
+                                                 payload)
+                       VALUES (%s, %s, 'variant_changed_held', %s, %s::jsonb)""",
+                    (
+                        feed_id,
+                        r[1],
+                        f"onceki_varyant={previous[r[1]]} yeni={variant_of(r)}",
+                        json.dumps({"previous_variant": previous[r[1]], "new_variant": variant_of(r)}),
+                    ),
+                )
+        conn.commit()
+    return held
+
+
 def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = True) -> MergeReport:
     report = MergeReport(run_id)
     with conn.cursor() as cur:
@@ -317,23 +369,34 @@ def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = T
         raise RuntimeError("unknown_source")
     feed_id = ensure_feed(conn, source)
     observed_at: datetime = max(r[14] for r in rows)
-    held_rows = _hold_price_jumps(conn, feed_id, rows)
+    held_rows: list[tuple[Any, ...]] = []
+    if source.config.get("hold_variant_change"):
+        held_rows = _hold_variant_changes(conn, feed_id, rows)
+        rows = [r for r in rows if r[0] not in {h[0] for h in held_rows}]
+    held_rows += _hold_price_jumps(conn, feed_id, rows) if rows else []
     report.held = len(held_rows)
     held_ids = {r[0] for r in held_rows}
     rows = [r for r in rows if r[0] not in held_ids]
-    with tempfile.TemporaryDirectory(prefix=f"{source.network}-") as tmp:
-        path = Path(tmp) / "intake.ndjson"
-        with path.open("w", encoding="utf-8", newline="\n") as handle:
-            for row in rows:
-                handle.write(json.dumps(to_feed_row(row), ensure_ascii=False) + "\n")
-        sync = FeedSync(conn, feed_id, source_path=path, observed_at=observed_at)
-        result = sync.run(force=True)
+    unknown_stock_available = bool(source.config.get("unknown_stock_available"))
+    status = "held"
+    if rows:
+        with tempfile.TemporaryDirectory(prefix=f"{source.network}-") as tmp:
+            path = Path(tmp) / "intake.ndjson"
+            with path.open("w", encoding="utf-8", newline="\n") as handle:
+                for row in rows:
+                    record = to_feed_row(row, unknown_stock_available=unknown_stock_available)
+                    handle.write(json.dumps(record, ensure_ascii=False) + "\n")
+            sync = FeedSync(conn, feed_id, source_path=path, observed_at=observed_at)
+            result = sync.run(force=True)
+        status = result.status
+        report.detail = result.detail()
     rows = rows + held_rows  # held satirlar da "islendi" (incelemeye ayrildi) sayilir
     report.records = len(rows)
-    report.status = result.status
-    report.detail = result.detail()
-    if result.status in ("success", "duplicate"):
+    report.status = status
+    if status in ("success", "duplicate"):
         _name_sellers(conn, feed_id, rows)
+    # Tum kayitlar incelemeye ayrildiysa besleme calismaz; ayni satirlar tekrar tutulmasin.
+    if status in ("success", "duplicate", "held"):
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE catalog_intake_record SET merged_at = now()"

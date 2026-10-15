@@ -43,7 +43,10 @@ export function bestOfferCte(
       WHERE o.product_id IS NOT NULL
         AND o.is_active AND m.is_active
         AND (${arrayParam(merchantIds)}::bigint[] IS NULL OR o.merchant_id = ANY(${arrayParam(merchantIds)}::bigint[]))
-        AND (NOT ${inStockOnly} OR o.in_stock)
+        -- "Stokta olanlar": stok bildirmeyen kaynak (stock_state=unknown, karar 0118) dogrulanmis
+        -- stok sayilmaz; filtre kapaliyken (varsayilan) urun gizlenmez.
+        AND (NOT ${inStockOnly} OR (o.in_stock
+             AND (o.attributes_raw ->> 'stock_state') IS DISTINCT FROM 'unknown'))
         ${only}
       ORDER BY o.product_id, o.current_price ASC NULLS LAST
     )

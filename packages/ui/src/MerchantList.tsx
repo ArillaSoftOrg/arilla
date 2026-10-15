@@ -6,6 +6,8 @@ export interface MerchantOfferRow {
   totalLabel: string;
   shippingLabel: string;
   inStock: boolean;
+  /** false: kaynak stok bildirmiyor; hicbir stok etiketi gosterilmez. Varsayilan true. */
+  stockKnown?: boolean;
   exitHref: string;
   exitLabel: string;
   /**
@@ -71,7 +73,7 @@ export function MerchantList({
               {isBest ? <span className={styles.best}>{bestOfferLabel}</span> : null}
               <span className={styles.meta}>
                 <span>{offer.shippingLabel}</span>
-                {offer.inStock ? (
+                {offer.stockKnown === false ? null : offer.inStock ? (
                   inStockLabel ? (
                     <span className={styles.inStock}>{inStockLabel}</span>
                   ) : null

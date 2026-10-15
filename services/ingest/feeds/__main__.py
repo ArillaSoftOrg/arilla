@@ -240,7 +240,7 @@ def _hb_merge(args: argparse.Namespace) -> int:
             return 2
         run.detail["records"] = report.records
         print(f"kosu {args.run}: {report.status} kayit={report.records} {report.detail or ''}")
-        return 0 if report.status in ("success", "duplicate", "nothing_to_merge") else 1
+        return 0 if report.status in ("success", "duplicate", "nothing_to_merge", "held") else 1
 
 
 def main(argv: list[str] | None = None) -> int:

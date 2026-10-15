@@ -3,7 +3,7 @@ import { getDatabase } from "@arilla/db";
 import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
 import { KpiCard, KpiGroup, PageHeader, Section } from "../../admin-ui.tsx";
-import { formatCount, formatDateOrDash } from "../../format.ts";
+import { formatCount, formatDateOrDash, formatPermissionBasis } from "../../format.ts";
 import { CollectorClient } from "./collector-client.tsx";
 
 /**

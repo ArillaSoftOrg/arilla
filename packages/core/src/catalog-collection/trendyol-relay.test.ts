@@ -6,6 +6,7 @@ import samba from "./fixtures/samba-813659620.json";
 import {
   type CapturedPage,
   captureTrendyolPage,
+  flushPendingListings,
   parseToExtensionMessage,
   parseToPageMessage,
   planRelayBatch,
@@ -41,7 +42,9 @@ describe("parti planlama", () => {
       ["product_page", "857296094", "done", 1],
       ["listing_page", "/apple-cep-telefonu-x-b101470-c103498", "done", 2],
     ]);
-    expect(plan.batch?.records).toHaveLength(3);
+    // Urun sayfasi kaydi hemen; liste kartlari kosu kapanana / urun sayfasi gelene dek bekler.
+    expect(plan.batch?.records).toHaveLength(1);
+    expect(state.pendingListings?.size).toBe(2);
     expect(plan.batch?.records[0]).toMatchObject({
       externalId: "857296094",
       priceMinor: 12_499_900,
@@ -215,5 +218,64 @@ describe("sitemap kapsami", () => {
       catalogOnly: 1,
       coveragePct: 50,
     });
+  });
+});
+
+describe("ayni kosuda liste karti ve urun sayfasi", () => {
+  it("urun sayfasi gelirse liste kaydi dusulur; kalanlar kapanista bir kez gonderilir", () => {
+    const state = fresh();
+    planRelayBatch(state, [cap(listing, "capture-l001")]);
+    expect(state.pendingListings?.size).toBe(2);
+    // Liste kartindaki urunun (1198082362) urun sayfasi: ana satici adi ve kazanan beden ile.
+    const product = cap(
+      {
+        url: "https://www.trendyol.com/apple/iphone-18-pro-max-512gb-burgundy-p-1198082362",
+        observedAt: "2026-10-12T00:50:00Z",
+        scriptTexts: [
+          'window["__envoy__SHARED_PROPS"]={"product":{"id":1198082362,"name":"iPhone 18 Pro Max 512GB Burgundy","brand":{"name":"Apple"},"merchantListing":{"merchant":{"id":968,"name":"Trendyol"},"winnerVariant":{"itemNumber":5,"price":{"currency":"TRY","sellingPrice":{"value":193899},"discountedPrice":{"value":193859},"originalPrice":{"value":197809}}},"variants":[{"itemNumber":5,"value":""}]}}}',
+        ],
+        jsonLdTexts: [],
+      },
+      "capture-p001",
+    );
+    const plan = planRelayBatch(state, [product]);
+    expect(plan.batch?.records).toEqual([
+      expect.objectContaining({
+        externalId: "1198082362",
+        sourcePage: "product_page",
+        sellerName: "Trendyol",
+        priceMinor: 19_389_900,
+        basketPriceMinor: 19_385_900,
+      }),
+    ]);
+    const flushed = flushPendingListings(state);
+    expect(flushed?.units).toEqual([]);
+    expect(flushed?.records.map((r) => r.externalId)).toEqual(["762254881"]);
+    expect(flushed?.requestsMade).toBe(2); // istek sayilmaz
+    expect(flushPendingListings(state)).toBeNull();
+    // Ayni liste tekrar acilsa da gonderilmis urunler yeniden gonderilmez.
+    const again = planRelayBatch(state, [cap(listing, "capture-l002")]);
+    expect(again.batch?.records).toEqual([]);
+    expect(state.pendingListings?.size).toBe(0);
+  });
+});
+
+describe("eklenti gizliligi", () => {
+  it("yakalanan adres sorgu ve parca tasimaz (arama terimi, takip parametresi)", async () => {
+    const { sanitizeCapturedUrl } = await import("./trendyol-relay.ts");
+    expect(sanitizeCapturedUrl("https://www.trendyol.com/sr?q=kisisel+arama&pi=2")).toBe(
+      "https://www.trendyol.com/sr",
+    );
+    expect(sanitizeCapturedUrl("https://www.trendyol.com/a/b-p-1?merchantId=2&sid=x#y")).toBe(
+      "https://www.trendyol.com/a/b-p-1",
+    );
+    const doc = { querySelectorAll: () => [] };
+    const c = captureTrendyolPage(
+      doc,
+      "https://www.trendyol.com/sr?q=gizli",
+      new Date(0),
+      "capture-0200",
+    );
+    expect(JSON.stringify(c)).not.toContain("gizli");
   });
 });

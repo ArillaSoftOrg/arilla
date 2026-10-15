@@ -2,6 +2,8 @@
 
 import {
   type CapturedPage,
+  flushPendingListings,
+  MAX_RECORDS_PER_BATCH,
   parseToPageMessage,
   planRelayBatch,
   RELAY_CHANNEL,
@@ -89,6 +91,7 @@ export function TrendyolRelayClient({
         if (plan.captureIds.length > 0) {
           send({ channel: RELAY_CHANNEL, type: "ack", captureIds: plan.captureIds });
         }
+        await sendPending(false);
         if (plan.stop) {
           setStopped(plan.stop);
           append(
@@ -145,9 +148,27 @@ export function TrendyolRelayClient({
     append(`Koşu #${r.id} açıldı (kotadan 1 hak). Trendyol sayfalarını aç; eklenti okur.`);
   }
 
+  /** Bekleyen liste kayitlarini gonderir; hata olursa false. */
+  async function sendPending(all: boolean): Promise<boolean> {
+    while (state.current) {
+      const size = state.current.pendingListings?.size ?? 0;
+      if (size === 0 || (!all && size < MAX_RECORDS_PER_BATCH)) return true;
+      const body = flushPendingListings(state.current);
+      if (!body) return true;
+      const res = await api(body as unknown as Record<string, unknown>);
+      if (!res.ok) {
+        append(`Liste kayıtları gönderilemedi: ${res.data?.error ?? res.status}`);
+        return false;
+      }
+      append(`Liste kayıtları: ${res.data.inserted} yeni, ${res.data.duplicates} tekrar.`);
+    }
+    return true;
+  }
+
   async function close(outcome: "completed" | "aborted") {
     if (!run) return;
     await flush();
+    if (outcome === "completed" && !(await sendPending(true))) return;
     send({ channel: RELAY_CHANNEL, type: "disarm" });
     const res = await api({ op: "close", runId: run.id, outcome });
     append(

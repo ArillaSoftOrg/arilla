@@ -230,6 +230,10 @@ export default async function ProductPage({
   // Birincil cikis ve "En uygun fiyat" etiketi stokta olan en uygun teklife
   // gider; hic stokta teklif yoksa en uygun teklif kalir.
   const primaryOffer = merchantOffers.find((offer) => offer.inStock) ?? cheapest;
+  // Stok toplanmayan teklifler (karar 0118): stok etiketi ve JSON-LD availability yok.
+  const unknownStock = new Set(
+    merchantOffers.filter((offer) => !offer.stockKnown).map((offer) => offer.offerId),
+  );
   const singleOffer = merchantOffers.length === 1;
 
   const positionLines: string[] = [];
@@ -299,9 +303,13 @@ export default async function ProductPage({
               ...(row.variantLabel ? { name: row.variantLabel } : {}),
               price: (row.priceKurus / 100).toFixed(2),
               priceCurrency: "TRY",
-              availability: row.inStock
-                ? "https://schema.org/InStock"
-                : "https://schema.org/OutOfStock",
+              ...(unknownStock.has(row.offerId)
+                ? {}
+                : {
+                    availability: row.inStock
+                      ? "https://schema.org/InStock"
+                      : "https://schema.org/OutOfStock",
+                  }),
               ...(siteUrl ? { url: `${siteUrl}/git/${row.offerId}?surface=structured_data` } : {}),
             })),
           }
@@ -311,9 +319,13 @@ export default async function ProductPage({
                 "@type": "Offer",
                 price: (offer.currentPrice / 100).toFixed(2),
                 priceCurrency: "TRY",
-                availability: offer.inStock
-                  ? "https://schema.org/InStock"
-                  : "https://schema.org/OutOfStock",
+                ...(offer.stockKnown
+                  ? {
+                      availability: offer.inStock
+                        ? "https://schema.org/InStock"
+                        : "https://schema.org/OutOfStock",
+                    }
+                  : {}),
                 ...(siteUrl
                   ? { url: `${siteUrl}/git/${offer.offerId}?surface=structured_data` }
                   : {}),
@@ -596,6 +608,7 @@ export default async function ProductPage({
                 totalLabel: formatTRY(row.effectiveTotal),
                 shippingLabel: offerShippingLabel(row),
                 inStock: row.inStock,
+                stockKnown: !unknownStock.has(row.offerId),
                 exitHref: `/git/${row.offerId}?surface=compare&pos=${index + 1}`,
                 exitLabel: openAtMerchantLabel(row),
               };
@@ -636,6 +649,7 @@ export default async function ProductPage({
               totalLabel: formatTRY(offer.effectiveTotal),
               shippingLabel: offerShippingLabel(offer),
               inStock: offer.inStock,
+              stockKnown: offer.stockKnown,
               exitHref: `/git/${offer.offerId}?surface=compare&pos=${index + 1}`,
               exitLabel: openAtMerchantLabel(offer),
             }))}

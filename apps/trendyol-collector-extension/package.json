@@ -6,6 +6,8 @@
   "description": "Yonetici tarayicisinda acilan Trendyol sayfasini okuyup ManiCepte yonetim sayfasina aktaran eklenti (karar 0118). Ag istegi atmaz.",
   "scripts": {
     "build": "node build.mjs",
+    "build:dev": "node build.mjs --dev",
+    "test": "node build.mjs && node audit.mjs",
     "typecheck": "tsc --noEmit -p ."
   },
   "dependencies": {

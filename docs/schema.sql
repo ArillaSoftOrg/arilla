@@ -2266,10 +2266,10 @@ INSERT INTO collection_source
     (source, merchant_slug, min_interval_days, max_runs_per_month, run_window_days,
      initial_max_requests, refresh_max_requests, enabled, permission_basis, permission_note)
 VALUES
-    ('trendyol', 'trendyol', 7, 4, 6, 500, 500, FALSE, 'verbal_reported',
-     'Kullanicinin bildirdigi sozlu izin (Ekim 2026): resmi API ve CORS yok; yonetici '
-     || 'tarayicisinda acilan Trendyol sayfasindan ek ag istegi olmadan okuma. Yenileme en az '
-     || '7 gun arayla, takvim ayinda en fazla 4; ilk yukleme dahil. Yazili kapsam teyit edilmedi.')
+    ('trendyol', 'trendyol', 7, 4, 6, 500, 500, FALSE, 'written_reported',
+     'Kullanici beyani (15 Ekim 2026): Trendyol''dan yazili izin e-postasi alindi; belge paylasilmadi, '
+     || 'sistemde yok ve incelenmedi. Resmi API ve CORS yok; yonetici tarayicisinda acilan sayfadan ek ag '
+     || 'istegi olmadan okuma. En az 7 gun arayla, takvim ayinda en fazla 4 guncelleme; ilk yukleme dahil.')
 ON CONFLICT (source) DO NOTHING;
 
 -- ---------------------------------------------------------------------------

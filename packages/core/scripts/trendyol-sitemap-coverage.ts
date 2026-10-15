@@ -11,8 +11,10 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { createDatabase } from "@arilla/db";
-import { sql } from "drizzle-orm";
-import { sitemapCoverage } from "../src/catalog-collection/trendyol-coverage.ts";
+import {
+  loadTrendyolCatalogIds,
+  sitemapCoverage,
+} from "../src/catalog-collection/trendyol-coverage.ts";
 
 function loadIds(path: string): Uint32Array {
   if (statSync(path).isDirectory()) {
@@ -39,14 +41,7 @@ if (!url) {
 }
 const ids = loadIds(source);
 const db = createDatabase(url);
-const rows = (await db.execute(
-  sql`SELECT o.external_id FROM offer o JOIN merchant m ON m.id = o.merchant_id WHERE m.slug = 'trendyol'`,
-)) as unknown as { rows?: { external_id: string }[] } & { external_id: string }[];
-const list = Array.isArray(rows) ? rows : (rows.rows ?? []);
-const report = sitemapCoverage(
-  ids,
-  list.map((r) => r.external_id),
-);
+const report = sitemapCoverage(ids, await loadTrendyolCatalogIds(db));
 process.stdout.write(
   `${JSON.stringify({ ...report, note: "Olculen oran; 8,13 M urunun tamamina erisildigi varsayilmaz." }, null, 1)}\n`,
 );

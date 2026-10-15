@@ -8,13 +8,23 @@
     {
       "matches": ["https://www.trendyol.com/*"],
       "js": ["capture.js"],
-      "run_at": "document_idle"
+      "run_at": "document_idle",
+      "exclude_matches": [
+        "https://www.trendyol.com/hesabim*",
+        "https://www.trendyol.com/sepet*",
+        "https://www.trendyol.com/sepetim*",
+        "https://www.trendyol.com/odeme*",
+        "https://www.trendyol.com/siparis*",
+        "https://www.trendyol.com/giris*",
+        "https://www.trendyol.com/uye*",
+        "https://www.trendyol.com/favoriler*",
+        "https://www.trendyol.com/yardim*"
+      ]
     },
     {
       "matches": [
         "https://manicepte.com/yonetim/katalog/toplama/trendyol*",
-        "https://www.manicepte.com/yonetim/katalog/toplama/trendyol*",
-        "http://localhost:3000/yonetim/katalog/toplama/trendyol*"
+        "https://www.manicepte.com/yonetim/katalog/toplama/trendyol*"
       ],
       "js": ["relay.js"],
       "run_at": "document_idle"
