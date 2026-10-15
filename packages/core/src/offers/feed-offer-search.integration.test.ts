@@ -79,6 +79,18 @@ describe("besleme teklifi aramasi (tam metin, 0069)", () => {
     expect(await titles("co2 valve")).toEqual([TITLES[0]]);
   });
 
+  it("yogun kelime yolu (aday siniri asilinca) ayni sonucu verir", async () => {
+    const run = (cap?: number) =>
+      listFeedOffers(db, { kind: "domestic", q: `coffee ${TAG}` }, new Date(), cap);
+    const narrow = await run();
+    const dense = await run(1);
+    expect(dense.items.map((item) => item.offerId)).toEqual(
+      narrow.items.map((item) => item.offerId),
+    );
+    expect(dense.items).toHaveLength(2);
+    expect(dense.timedOut).toBe(false);
+  });
+
   it("sorgu sozdizimi kullanici metninden etkilenmez", async () => {
     // Operatorler kelime degil: yalnizca "coffee" kalir.
     for (const q of ["coffee & | ! ( ) :* <->", "\\coffee"]) {
