@@ -1,6 +1,7 @@
 "use client";
 
 import { extractHepsiburadaPage } from "@arilla/core/catalog-collection-extract";
+import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { type CollectorEnv, runCollection } from "./collector-logic.ts";
 
@@ -40,6 +41,7 @@ export function CollectorClient({
   const [log, setLog] = useState<string[]>([]);
   const [running, setRunning] = useState(false);
   const stop = useRef(false);
+  const router = useRouter();
 
   const append = (line: string) => setLog((prev) => [...prev.slice(-199), line]);
 
@@ -93,6 +95,8 @@ export function CollectorClient({
       append(`Durdu: ${error instanceof Error ? error.message : "bilinmeyen hata"}`);
     } finally {
       setRunning(false);
+      // Kota ve acik kosu durumu sunucudan yeniden okunur (acik kalan kosu "surdur" ile devam eder).
+      router.refresh();
     }
   }
 
