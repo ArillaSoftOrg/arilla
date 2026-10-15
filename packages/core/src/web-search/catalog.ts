@@ -29,7 +29,7 @@ export async function loadCatalogHosts(db: Database): Promise<Set<string>> {
 const CANDIDATES_PER_GROUP = 6;
 
 /**
- * Internet urunlerinin KATALOGDAKI karsiliklarini bulur (karar 0107, gorsel kaynagi A):
+ * Internet urunlerinin KATALOGDAKI karsiliklarini bulur (karar 0121, gorsel kaynagi A):
  * kendi feed'imizden gelen, hakki dogrulanmis `primary_image_url`. Yalnizca aday getirir;
  * asil kimlik denetimi (marka/kelime, nesil ve siniflama, renk/kapasite) `attachCatalogImages`
  * icindedir. Salt okunur, ek model cagrisi yok; hata gorselin yoklugudur.

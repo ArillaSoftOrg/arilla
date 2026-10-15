@@ -1,5 +1,5 @@
 /**
- * Magaza urun sayfasi gorsel TESHIS betigi (docs/decisions/0102, 0107). Gemini
+ * Magaza urun sayfasi gorsel TESHIS betigi (docs/decisions/0102, 0121). Gemini
  * cagirmaz. Verilen urun adresleri icin `store-image.ts` ile AYNI asamalari tek
  * tek raporlar: robots.txt, sayfa erisimi, JSON-LD, og:image, ad eslesmesi, gorsel
  * basliklari. Engeli asmaya CALISMAZ (acik UA, robots ve 401/403/429 saygisi).

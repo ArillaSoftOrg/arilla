@@ -1,4 +1,4 @@
-# 0107 — İnternet ürünü görsel kaynakları ve model ailesi eşleştirmesi
+# 0121 — İnternet ürünü görsel kaynakları ve model ailesi eşleştirmesi
 
 **Tarih:** 11 Ekim 2026
 **Durum:** Kabul edildi. 0102 (görsel çözümleme) ve 0106'yı tamamlar.
