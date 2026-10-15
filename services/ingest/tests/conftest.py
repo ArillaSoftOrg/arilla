@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from urllib.parse import urlparse
 
 import pytest
-from urllib.parse import urlparse
 
 _LOCAL_HOSTS = {"localhost", "127.0.0.1", "::1"}
 

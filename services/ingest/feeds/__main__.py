@@ -5,6 +5,7 @@ python -m feeds list
 python -m feeds bind --feed ID --merchant SLUG [--activate | --pause]
 python -m feeds sync --feed ID [--max-records N] [--force] [--file PATH]
 python -m feeds sync-due
+python -m feeds hb-merge --run ID [--allow-open]
 """
 
 from __future__ import annotations
@@ -224,6 +225,23 @@ def _sync_due(args: argparse.Namespace) -> int:
     return 1 if failures else 0
 
 
+def _hb_merge(args: argparse.Namespace) -> int:
+    """Kapanmis toplama kosusunun ara depo kayitlarini offer modeline birlestirir (karar 0117)."""
+    from feeds.intake import merge_run
+
+    with job_run.track("hb_merge") as run, connect() as conn:
+        try:
+            report = merge_run(conn, args.run, require_closed=not args.allow_open)
+        except (RuntimeError, SyncAborted) as error:
+            run.status = "failed"
+            run.error_summary = str(getattr(error, "code", error))[:60]
+            print(f"durdu: {run.error_summary}", file=sys.stderr)
+            return 2
+        run.detail["records"] = report.records
+        print(f"kosu {args.run}: {report.status} kayit={report.records} {report.detail or ''}")
+        return 0 if report.status in ("success", "duplicate", "nothing_to_merge") else 1
+
+
 def main(argv: list[str] | None = None) -> int:
     # Besleme adlari Latin disi olabilir (Admitad: Kiril); konsol kodlamasi dusurmesin.
     for stream in (sys.stdout, sys.stderr):
@@ -260,6 +278,10 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--parallel-downloads", type=int, default=2)
         p.add_argument("--force", action="store_true")
         p.set_defaults(func=func)
+    p = sub.add_parser("hb-merge")
+    p.add_argument("--run", type=int, required=True)
+    p.add_argument("--allow-open", action="store_true")
+    p.set_defaults(func=_hb_merge)
     args = parser.parse_args(argv)
     return int(args.func(args))
 
