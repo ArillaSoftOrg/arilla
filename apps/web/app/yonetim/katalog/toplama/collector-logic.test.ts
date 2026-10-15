@@ -13,18 +13,31 @@ const item = (id: string) => ({
   brand: null,
 });
 
-function fakeEnv(pages: Record<string, { status: number; ids?: string[]; noStructure?: boolean }>) {
-  const calls: { fetch: string[]; api: Record<string, unknown>[]; sleeps: number[] } = {
+function fakeEnv(
+  pages: Record<
+    string,
+    { status: number; ids?: string[]; noStructure?: boolean; throws?: Error; badHtml?: boolean }
+  >,
+) {
+  const calls: {
+    fetch: string[];
+    api: Record<string, unknown>[];
+    sleeps: number[];
+    logs: string[];
+  } = {
     fetch: [],
     api: [],
     sleeps: [],
+    logs: [],
   };
   let stopAfter = Number.POSITIVE_INFINITY;
   const env: CollectorEnv = {
     source: "hepsiburada",
     delayMs: 3000,
     now: () => new Date("2026-10-20T10:00:00Z"),
-    log: () => {},
+    log: (line) => {
+      calls.logs.push(line);
+    },
     shouldStop: () => calls.fetch.length >= stopAfter,
     sleep: async (ms) => {
       calls.sleeps.push(ms);
@@ -32,7 +45,8 @@ function fakeEnv(pages: Record<string, { status: number; ids?: string[]; noStruc
     async fetchPage(url) {
       calls.fetch.push(url);
       const p = pages[url] ?? { status: 200, ids: [] };
-      return { status: p.status, text: JSON.stringify(p) };
+      if (p.throws) throw p.throws;
+      return { status: p.status, text: p.badHtml ? "<html" : JSON.stringify(p) };
     },
     extract(html) {
       const p = JSON.parse(html) as { ids?: string[]; noStructure?: boolean };
@@ -168,5 +182,83 @@ describe("runCollection", () => {
       "error",
     );
     expect(calls.fetch).toHaveLength(0);
+  });
+
+  describe("kaynaktan yanit alinamadi (ag/zaman asimi)", () => {
+    const timeoutError = () => {
+      const e = new Error("signal timed out");
+      e.name = "TimeoutError";
+      return e;
+    };
+
+    it("kosu KAPATILMAZ; gercek hata kaydedilir; kontrol noktasi ilerlemez", async () => {
+      const { env, calls } = fakeEnv({
+        [searchUrl("iPhone 15", 1)]: { status: 0, throws: new TypeError("Failed to fetch") },
+      });
+      const reason = await runCollection(env, {
+        queries: ["iPhone 15"],
+        maxPages: 3,
+        resumeRun: null,
+      });
+      expect(reason).toBe("network");
+      // Kapatma yok: kosu acik kalir, "surdur" ile ayni kosu devam eder (yeni kota hakki yok).
+      expect(calls.api.map((b) => b.op)).toEqual(["start", "batch"]);
+      const batch = calls.api[1] as Record<string, unknown>;
+      expect(batch.requestsMade).toBe(1);
+      expect((batch.units as Record<string, unknown>[])[0]).toMatchObject({
+        status: "failed",
+        errorCode: "network_error",
+      });
+      expect((batch.checkpoint as { done: Record<string, number> }).done).toEqual({});
+      expect(calls.logs.join(" | ")).toContain("TypeError: Failed to fetch");
+      expect(calls.logs.join(" | ")).not.toContain("Engel");
+    });
+
+    it("zaman asimi ayri kodlanir", async () => {
+      const { env, calls } = fakeEnv({
+        [searchUrl("a", 1)]: { status: 0, throws: timeoutError() },
+      });
+      expect(await runCollection(env, { queries: ["a"], maxPages: 1, resumeRun: null })).toBe(
+        "network",
+      );
+      const unit = (
+        (calls.api[1] as Record<string, unknown>).units as Record<string, unknown>[]
+      )[0];
+      expect(unit?.errorCode).toBe("timeout");
+    });
+
+    it("acik kosu surdurulunce yeni kosu acilmaz, ayni sayfa yeniden istenir", async () => {
+      const { env, calls } = fakeEnv({ [searchUrl("a", 1)]: { status: 200, ids: ["1"] } });
+      const reason = await runCollection(env, {
+        queries: ["a"],
+        maxPages: 1,
+        resumeRun: { id: 9, requestsMade: 1, maxRequests: 5, checkpoint: { done: {} } },
+      });
+      expect(reason).toBe("completed");
+      expect(calls.api.map((b) => b.op)).toEqual(["batch", "close"]);
+      expect(calls.fetch).toEqual([searchUrl("a", 1)]);
+      expect(calls.api[0]?.requestsMade).toBe(2); // butce sayimi surer
+    });
+
+    it("ayristirma hatasi ag hatasi sayilmaz: extract_error ile durur ve kapanir", async () => {
+      const { env, calls } = fakeEnv({ [searchUrl("a", 1)]: { status: 200, badHtml: true } });
+      expect(await runCollection(env, { queries: ["a"], maxPages: 1, resumeRun: null })).toBe(
+        "blocked",
+      );
+      const unit = (
+        (calls.api[1] as Record<string, unknown>).units as Record<string, unknown>[]
+      )[0];
+      expect(unit?.errorCode).toBe("extract_error");
+      expect(calls.api.map((b) => b.op)).toEqual(["start", "batch", "close"]);
+      expect(calls.api[2]?.outcome).toBe("aborted");
+    });
+
+    it("gercek engel (403) davranisi degismez: durur ve kapanir", async () => {
+      const { env, calls } = fakeEnv({ [searchUrl("a", 1)]: { status: 403 } });
+      expect(await runCollection(env, { queries: ["a"], maxPages: 1, resumeRun: null })).toBe(
+        "blocked",
+      );
+      expect(calls.api.map((b) => b.op)).toEqual(["start", "batch", "close"]);
+    });
   });
 });
