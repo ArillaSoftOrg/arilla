@@ -66,7 +66,8 @@ def test_different_valid_barcodes_are_a_veto() -> None:
     assert combine(left, right).vetoed
 
 
-def test_auto_accept_needs_identifier_or_known_same_brand() -> None:
+def test_auto_accept_needs_strong_identity() -> None:
+    """Karar 0115: benzer ad ve ayni marka kimlik degildir; yalnizca GTIN/MPN."""
     same_brand = ProductKey.build(
         title="Numbuzin No.9 NAD Bio Lifting-sil Essence 50 ml", brand="Numbuzin"
     )
@@ -76,12 +77,29 @@ def test_auto_accept_needs_identifier_or_known_same_brand() -> None:
     no_brand = ProductKey.build(title="Numbuzin No.9 NAD Bio Lifting-Sil Essence 50ml")
 
     strong = combine(same_brand, other)
-    assert auto_eligible(strong, same_brand, other)
-    # Ayni skor, marka bir tarafta bilinmiyor -> REVIEW.
+    assert strong.score >= queue_threshold()
+    # Esik ustu metin skoru + ayni marka -> REVIEW, otomatik degil.
+    assert not auto_eligible(strong, same_brand, other)
     assert not auto_eligible(combine(same_brand, no_brand), same_brand, no_brand)
     # Kesin kimlik markasiz da yeter.
     exact = ScoreResult(score=1.0, method="gtin")
     assert auto_eligible(exact, no_brand, no_brand)
+
+
+def test_restricted_gtin_and_brandless_mpn_are_not_identity() -> None:
+    # 20-29 onekli magaza ici numara: iki farkli magazada ayni olabilir.
+    left = ProductKey.build(title="Dana Kiyma 500 g", brand="Kasap", gtin="2000000000008")
+    right = ProductKey.build(title="Tavuk But 500 g", brand="Kasap", gtin="2000000000008")
+    assert combine(left, right).method != "gtin"
+
+    # Ayni MPN, farkli ya da bilinmeyen marka: kimlik degil.
+    a = ProductKey.build(title="Sarj Adaptoru 20W", brand="Anker", mpn="A2633")
+    b = ProductKey.build(title="Sarj Adaptoru 20W", brand="Baseus", mpn="A2633")
+    c = ProductKey.build(title="Sarj Adaptoru 20W", mpn="A2633")
+    assert combine(a, b).method != "mpn"
+    assert combine(a, c).method != "mpn"
+    same = ProductKey.build(title="Anker Nano 20W", brand="Anker", mpn="A2633")
+    assert combine(a, same).method == "mpn"
 
 
 def test_high_image_similarity_alone_never_auto_accepts() -> None:

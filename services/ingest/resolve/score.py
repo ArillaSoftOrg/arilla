@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from resolve.identity_policy import classify_gtin
 from resolve.normalize import COLOR_SYNONYMS, ProductKey
 
 #: gtin/mpn tam eslesmesi kesindir; katmanli akis burada durur.
@@ -91,10 +92,26 @@ def veto_reason(left: ProductKey, right: ProductKey) -> str | None:
 
 
 def exact_score(left: ProductKey, right: ProductKey) -> ScoreResult | None:
-    """1. katman: gtin / mpn. Kesin sonuc — bulunursa akis durur."""
-    if left.gtin and right.gtin and left.gtin == right.gtin:
+    """1. katman: gtin / mpn. Kesin sonuc — bulunursa akis durur.
+
+    Karar 0111/0115: kisitli dolasim GTIN'i (magaza ici, kupon, ISBN/ISSN,
+    degisken olcu) kimlik degildir; MPN ancak marka IKI tarafta bilinip
+    ayniysa kimliktir (farkli markalarin ayni MPN'i baska urundur).
+    """
+    if (
+        left.gtin
+        and right.gtin
+        and left.gtin == right.gtin
+        and classify_gtin(left.gtin).status == "valid"
+    ):
         return ScoreResult(score=EXACT_SCORE, method="gtin")
-    if left.mpn and right.mpn and left.mpn == right.mpn:
+    if (
+        left.mpn
+        and right.mpn
+        and left.mpn == right.mpn
+        and left.brand_norm
+        and left.brand_norm == right.brand_norm
+    ):
         return ScoreResult(score=EXACT_SCORE, method="mpn")
     return None
 
@@ -226,24 +243,16 @@ def combine(
 
 
 def auto_eligible(result: ScoreResult, left: ProductKey, right: ProductKey) -> bool:
-    """AUTO_ACCEPT kademesi (docs/decisions/0034).
+    """AUTO_ACCEPT kademesi (docs/decisions/0034, 0111, 0115).
 
-    Otomatik birlestirme icin skor yetmez; kanit turu da gerekir:
-    - kesin kimlik (gtin/mpn), ya da
-    - metin/hibrit skor esigin ustunde VE marka iki tarafta biliniyor ve ayni
-      VE renk dogrulanabildi (`review` bos).
-    Gorsel benzerlik tek basina hicbir zaman yetmez: hibrit skorda bile marka
-    ve metin kosulu aranir. Geri kalan esik ustu adaylar REVIEW'a gider.
+    Otomatik birlestirme yalnizca kesin kimlikle (gecerli GTIN ya da ayni marka +
+    MPN) olur. Metin ve gorsel benzerlik, marka basliktan cikarilmis olabildigi
+    icin, skor ne kadar yuksek olsa da kimlik degildir: esik ustu metin/hibrit
+    adaylar REVIEW'a gider (karar 0115, 0034'un metin kademesini kaldirir).
     """
     if result.vetoed or result.review:
         return False
-    if result.method in {"gtin", "mpn"}:
-        return True
-    return (
-        result.score >= auto_accept_threshold()
-        and bool(left.brand_norm)
-        and left.brand_norm == right.brand_norm
-    )
+    return result.method in {"gtin", "mpn"}
 
 
 def _env_float(name: str, default: float) -> float:
