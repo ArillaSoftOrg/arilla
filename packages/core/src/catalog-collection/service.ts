@@ -92,6 +92,9 @@ export interface RunView {
   closedAt: Date | null;
   requestsMade: number;
   maxRequests: number;
+  maxBytes: number;
+  bytesDownloaded: number;
+  downloadApprovedBytes: number;
   checkpoint: Record<string, unknown> | null;
   summary: Record<string, unknown> | null;
 }
@@ -113,6 +116,9 @@ function toRunView(r: typeof collectionRun.$inferSelect): RunView {
     closedAt: r.closedAt,
     requestsMade: r.requestsMade,
     maxRequests: r.maxRequests,
+    maxBytes: r.maxBytes,
+    bytesDownloaded: r.bytesDownloaded,
+    downloadApprovedBytes: r.downloadApprovedBytes,
     checkpoint: r.checkpoint,
     summary: r.summary,
   };

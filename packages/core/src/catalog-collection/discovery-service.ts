@@ -20,6 +20,15 @@ import { CollectionError, collectionErrorFrom } from "./service.ts";
 
 export const MAX_DISCOVERY_ITEMS = 12_000;
 export const MAX_PLAN_UNITS = 10_000;
+/**
+ * Veritabani boyutu tavani (disk doluluguna karsi guvenli durdurma). Disk bos alani
+ * PostgreSQL'den gorulmez; bu yuzden mutlak boyut tavani + parti basina tahmini buyume
+ * kullanilir. Tavan asilirsa parti REDDEDILIR (hicbir sey yazilmaz, hicbir sey silinmez).
+ * Varsayilan 60 GiB: 193 GB disk icin WAL, yedek ve gecici dosyalara pay birakir.
+ */
+export const DEFAULT_DB_SIZE_CEILING_BYTES = 60 * 1024 ** 3;
+/** Satir basina tahmini kalici buyume (veri + PK + WAL payi); olcum: ~273 B/satir. */
+export const ESTIMATED_BYTES_PER_NEW_ROW = 600;
 const ORIGINS = ["vps", "admin_wifi", "admin_wired", "admin_mobile"] as const;
 export type TransferOriginInput = (typeof ORIGINS)[number];
 const UNIT_KINDS = ["sitemap_file", "listing_page"] as const;
@@ -190,6 +199,7 @@ export async function submitDiscoveryBatch(
   actor: AdminActor,
   input: DiscoveryBatchInput,
   now: Date = new Date(),
+  guard: { maxDatabaseBytes?: number } = {},
 ): Promise<DiscoveryBatchResult> {
   assertCapability(actor, "catalog.write");
   if (!UNIT_KINDS.includes(input.kind) || !UNIT_KEY.test(String(input.unitKey))) {
@@ -267,6 +277,18 @@ export async function submitDiscoveryBatch(
         else byId.set(v.item.externalId, v.item);
       }
       const valid = [...byId.values()];
+
+      // Disk korumasi: tavana yaklasan veritabanina yeni kimlik yazilmaz.
+      const ceiling = guard.maxDatabaseBytes ?? DEFAULT_DB_SIZE_CEILING_BYTES;
+      if (valid.length > 0) {
+        const sizeRes = await tx.execute(
+          sql`SELECT pg_database_size(current_database())::bigint AS size`,
+        );
+        const size = Number((sizeRes.rows[0] as { size: string | number } | undefined)?.size ?? 0);
+        if (size + valid.length * ESTIMATED_BYTES_PER_NEW_ROW > ceiling) {
+          throw new CollectionError("database_size_limit");
+        }
+      }
 
       let inserted = 0;
       for (let i = 0; i < valid.length; i += CHUNK) {

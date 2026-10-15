@@ -149,6 +149,37 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
     expect(p.transferOrigin).toBe("admin_wifi");
   });
 
+  it("veritabani boyut tavani asilirsa parti reddedilir ve hicbir sey yazilmaz", async () => {
+    const open = await withOwnerClient(async (c) =>
+      Number((await c.query("SELECT id FROM collection_run WHERE status='open'")).rows[0].id),
+    );
+    await expect(
+      submitDiscoveryBatch(
+        db,
+        admin,
+        {
+          runId: open,
+          kind: "sitemap_file",
+          unitKey: U1,
+          status: "done",
+          bytesReceived: 1,
+          requestsMade: 2,
+          fetchedAt: at(10),
+          items: [item("HBC0000Z9999", U1)],
+        },
+        undefined,
+        { maxDatabaseBytes: 1 },
+      ),
+    ).rejects.toMatchObject({ code: "database_size_limit" });
+    const n = await withOwnerClient(async (c) =>
+      Number(
+        (await c.query("SELECT count(*) FROM catalog_discovery WHERE external_id='HBC0000Z9999'"))
+          .rows[0].count,
+      ),
+    );
+    expect(n).toBe(0);
+  });
+
   it("hiz siniri: 2 sn'den sik istek reddedilir", async () => {
     const open = await withOwnerClient(async (c) =>
       Number((await c.query("SELECT id FROM collection_run WHERE status='open'")).rows[0].id),

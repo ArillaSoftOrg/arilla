@@ -157,6 +157,9 @@ CREATE INDEX offer_product_idx    ON offer (product_id) WHERE product_id IS NOT 
 CREATE INDEX offer_unmatched_idx  ON offer (merchant_id) WHERE product_id IS NULL;
 -- 0071: magaza basina sayimlar icin indeks-yalniz tarama
 CREATE INDEX offer_merchant_state_idx ON offer (merchant_id, is_active, product_id);
+-- 0072: kalite denetimleri (adaysiz teklif siralamasi, bayatlik icin kapsayan indeks)
+CREATE INDEX offer_unmatched_first_seen_idx ON offer (first_seen_at, id) WHERE product_id IS NULL AND is_active;
+CREATE INDEX offer_active_seen_idx ON offer (id) INCLUDE (merchant_id, last_seen_at) WHERE is_active;
 CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT NULL;
 CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
 CREATE INDEX offer_seller_idx ON offer (seller_id) WHERE seller_id IS NOT NULL;
