@@ -1152,6 +1152,21 @@ Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-stagin
 - Diskte en az 20 GiB boş alan korunur.
 - Kaynaklar: 1,5 GB bellek, 1 CPU.
 
+**Ölçümler ve davranış (karar 0114):**
+- Darboğaz Admitad dışa aktarma sunucusu.
+  - Bağlantı başına ~0,25–0,5 MB/s sıkıştırılmış; ~292 bayt/kayıt.
+  - CSV sıkıştırılmadan geliyor (~797 bayt/kayıt); XML gzip daha hızlı.
+  - 3 paralel bağlantı toplamda ~2,2 kat hız veriyor.
+- `feeds sync-due --parallel-downloads N` (varsayılan 2, en fazla 4).
+  - İndirmeler paralel, işleme sırayla yapılır.
+  - Her indirme `(boş alan − FEED_MIN_FREE_BYTES) / N` ile sınırlıdır.
+- Kesinti ya da çökme sonrası, 24 saat içinde ve kaynak güncellenmemişse inmiş dosya yeniden indirilmez; birleştirilmiş parçalar atlanır.
+  - Örnek kipindeki (eksik) dosya tam koşuda kullanılmaz.
+- Değişmeyen teklif upsert'e girmez.
+  - `ON CONFLICT` koşulu tutmasa da satırı kilitler ve WAL üretir.
+  - Satıcı satırı günde en fazla bir kez güncellenir.
+  - Üyelik tablosu `fillfactor=70` (0068) ile HOT güncellenir.
+
 ## Fiyat doğrulama ve döviz kuru (karar 0113)
 
 **Durum:** Kod ve testler hazır. Üretimde zamanlama **yok**.
