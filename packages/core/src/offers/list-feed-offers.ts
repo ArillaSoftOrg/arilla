@@ -22,6 +22,16 @@ export type FeedOfferSort = "recent" | "price";
 export const FEED_OFFER_PAGE_SIZE = 24;
 const MAX_PAGE = 50;
 const MAX_QUERY = 100;
+/**
+ * Arama plani (milyonluk katalog): planlayici bilinmeyen bir onek icin ~%2 eslesme
+ * tahmin eder ve "en yeni" indeksini sirayla gezer; eslesmeyen kelimede tum tablo
+ * taranir (2,19M teklifte 102 sn). Bu yuzden once tam metin indeksinden en fazla
+ * SEARCH_CANDIDATE_CAP aday alinir ve yalnizca onlar siralanir. Aday sayisi siniri
+ * asarsa kelime yogundur; o zaman sirali indeks hizla 24 sonuc bulur. Her iki yol da
+ * SEARCH_TIMEOUT ile sinirlidir.
+ */
+const SEARCH_CANDIDATE_CAP = 5_000;
+const SEARCH_TIMEOUT = "4s";
 
 export interface FeedOfferCard {
   offerId: number;
@@ -44,6 +54,8 @@ export interface FeedOfferPage {
   hasMore: boolean;
   /** Kullanilan kurlar (para birimi -> kur); kur yoksa listede yok. */
   quotes: Record<string, FxQuote>;
+  /** Arama zaman asimina ugradi; sonuc yok sayilir, kullanicidan daha belirgin arama istenir. */
+  timedOut: boolean;
 }
 
 export function normalizeFeedOfferQuery(raw: string | null | undefined): string | null {
@@ -75,6 +87,8 @@ export async function listFeedOffers(
   db: Database,
   input: { kind: FeedOfferKind; q?: string | null; sort?: FeedOfferSort; page?: number },
   now: Date = new Date(),
+  /** Yalnizca test: aday siniri (yogun kelime yolunu kucuk veriyle sinamak icin). */
+  candidateCap: number = SEARCH_CANDIDATE_CAP,
 ): Promise<FeedOfferPage> {
   const kind = input.kind;
   const sort: FeedOfferSort = kind === "domestic" && input.sort === "price" ? "price" : "recent";
@@ -98,17 +112,55 @@ export async function listFeedOffers(
   const order =
     sort === "price" ? sql`o.current_price ASC, o.id ASC` : sql`o.last_seen_at DESC, o.id DESC`;
 
-  const result = await db.execute<Row>(sql`
+  const select = (where: ReturnType<typeof sql>) => sql`
     SELECT o.id, o.title_raw, o.image_url, m.name AS merchant_name, o.currency,
            o.current_price, o.list_price
       FROM offer o
       JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-     WHERE ${sql.join(conditions, sql` AND `)}
+     WHERE ${where}
      ORDER BY ${order}
      LIMIT ${FEED_OFFER_PAGE_SIZE + 1} OFFSET ${(page - 1) * FEED_OFFER_PAGE_SIZE}
-  `);
+  `;
+  const filter = sql.join(conditions, sql` AND `);
 
-  const rows = result.rows.slice(0, FEED_OFFER_PAGE_SIZE);
+  let found: Row[];
+  let timedOut = false;
+  if (!tsQuery) {
+    found = (await db.execute<Row>(select(filter))).rows;
+  } else {
+    try {
+      found = await db.transaction(async (tx) => {
+        await tx.execute(sql.raw(`SET LOCAL statement_timeout = '${SEARCH_TIMEOUT}'`));
+        // Aday asamasi yalnizca tam metin (bitmap) indeksini kullanabilsin.
+        await tx.execute(sql`SET LOCAL enable_seqscan = off`);
+        await tx.execute(sql`SET LOCAL enable_indexscan = off`);
+        const hits = await tx.execute<{ n: string }>(sql`
+          SELECT count(*) AS n FROM (
+            SELECT 1 FROM offer o WHERE ${filter} LIMIT ${candidateCap + 1}
+          ) h
+        `);
+        const dense = Number(hits.rows[0]?.n ?? 0) > candidateCap;
+        if (!dense) {
+          return (
+            await tx.execute<Row>(
+              select(sql`o.id IN (
+                SELECT o.id FROM offer o WHERE ${filter} LIMIT ${candidateCap + 1}
+              )`),
+            )
+          ).rows;
+        }
+        await tx.execute(sql`SET LOCAL enable_seqscan = on`);
+        await tx.execute(sql`SET LOCAL enable_indexscan = on`);
+        return (await tx.execute<Row>(select(filter))).rows;
+      });
+    } catch (error) {
+      if (pgCode(error) !== "57014") throw error;
+      found = [];
+      timedOut = true;
+    }
+  }
+
+  const rows = found.slice(0, FEED_OFFER_PAGE_SIZE);
   const quotes: Record<string, FxQuote> = {};
   if (kind === "international") {
     for (const currency of new Set(rows.map((row) => row.currency))) {
@@ -121,8 +173,9 @@ export async function listFeedOffers(
     kind,
     sort,
     page,
-    hasMore: result.rows.length > FEED_OFFER_PAGE_SIZE,
+    hasMore: found.length > FEED_OFFER_PAGE_SIZE,
     quotes,
+    timedOut,
     items: rows.map((row) => {
       const priceMinor = Number(row.current_price);
       return {
@@ -140,6 +193,11 @@ export async function listFeedOffers(
       };
     }),
   };
+}
+
+function pgCode(error: unknown): string | undefined {
+  const value = error as { code?: string; cause?: { code?: string } } | null;
+  return value?.code ?? value?.cause?.code;
 }
 
 /** "22,11 USD" - kaynak para birimiyle, float yok. */
