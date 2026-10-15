@@ -24,7 +24,7 @@ import {
 import { sql } from "drizzle-orm";
 import { LINK_RESOLUTION_QUEUE_KEY, linkQueueBackend } from "../discovery/link-queue.ts";
 import { IN_FLIGHT_TTL_MS } from "../discovery/link-resolution.ts";
-import { getRedis } from "../redis/client.ts";
+import { getLinkRedis } from "../redis/client.ts";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 import type { CostSummary } from "./cost-truth.ts";
@@ -334,7 +334,7 @@ export async function linkQueueDepth(db: Database, timeoutMs = 2_000): Promise<n
       ]);
       return Number(rows.rows[0]?.n ?? 0);
     }
-    return await Promise.race([getRedis().llen(LINK_RESOLUTION_QUEUE_KEY), timeout]);
+    return await Promise.race([getLinkRedis().llen(LINK_RESOLUTION_QUEUE_KEY), timeout]);
   } finally {
     clearTimeout(timer);
   }
