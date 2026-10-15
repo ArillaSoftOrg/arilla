@@ -161,11 +161,7 @@ export function validateIntakeRecord(
 
 type Extended = Pick<
   IntakeRecordInput,
-  | "imageUrls"
-  | "groupExternalId"
-  | "variantExternalId"
-  | "basketPriceMinor"
-  | "sourcePage"
+  "imageUrls" | "groupExternalId" | "variantExternalId" | "basketPriceMinor" | "sourcePage"
 >;
 
 const NO_EXTENDED: Extended = {
