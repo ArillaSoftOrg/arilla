@@ -79,7 +79,7 @@ export async function searchByImageVector(
       SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
       FROM offer o
       JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active
+      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
       ORDER BY o.product_id, o.current_price ASC NULLS LAST
     )
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
@@ -87,7 +87,7 @@ export async function searchByImageVector(
     FROM by_image bp
     JOIN product p ON p.id = bp.product_id
     LEFT JOIN best_offer bo ON bo.product_id = p.id
-    WHERE p.offer_count > 0
+    WHERE p.offer_count > 0 AND p.publication_state = 'published'
     ORDER BY bp.similarity DESC
     LIMIT ${limit}
   `);

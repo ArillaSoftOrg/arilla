@@ -93,7 +93,8 @@ Sıra kritik. Kullanıcı ilk ekranda karar verebilmeli.
 | 4 | Fiyat konumu cümlesi | `product_price_stats` — "Son 90 günün en düşüğü" |
 | 5 | Sahte indirim notu | `list_price_inflated` ise, nötr dille |
 | 6 | Beden seçici + rozet | Beden profili varsa "senin bedenin" işaretli |
-| 7 | Mağaza listesi | Fiyat, kargo dahil toplam, stok, çıkış düğmesi |
+| 7 | Mağaza listesi | Fiyat, kargo dahil toplam, stok, çıkış düğmesi. Yalnızca TRY teklifler |
+| 7b | Yurt dışı teklifi | TRY dışı teklif (ör. AliExpress): kendi para birimi, fiyatın kaydedildiği zaman, TCMB kuru varsa yaklaşık TL; fiyat sıralamasına girmez (karar 0121) |
 | 8 | Kaydet / alarm kur | Giriş yoksa modal açılır |
 | 9 | Diğer renkler | `model_key` eşleşmesi varsa |
 | 10 | Alternatif şeridi | `similarity_edge`, 4-6 ürün, yatay kaydırma |

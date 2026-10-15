@@ -224,7 +224,7 @@ async function textCandidates(
       SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
       FROM offer o
       JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active
+      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
       ORDER BY o.product_id, o.current_price ASC NULLS LAST
     )
     SELECT p.id, p.slug, p.title, p.primary_image_url, b.name AS brand_name,
@@ -234,7 +234,7 @@ async function textCandidates(
     FROM product p
     LEFT JOIN brand b ON b.id = p.brand_id
     LEFT JOIN best_offer bo ON bo.product_id = p.id
-    WHERE p.offer_count > 0 AND ${titleExpr} % ${folded}
+    WHERE p.offer_count > 0 AND p.publication_state = 'published' AND ${titleExpr} % ${folded}
     ORDER BY text_score DESC, p.id ASC
     LIMIT ${limit}
   `);
@@ -264,7 +264,7 @@ async function identityCandidates(
       SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
       FROM offer o
       JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active
+      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
       ORDER BY o.product_id, o.current_price ASC NULLS LAST
     )
     SELECT p.id, p.slug, p.title, p.primary_image_url, b.name AS brand_name,
@@ -275,7 +275,7 @@ async function identityCandidates(
     FROM product p
     LEFT JOIN brand b ON b.id = p.brand_id
     LEFT JOIN best_offer bo ON bo.product_id = p.id
-    WHERE p.offer_count > 0 AND (
+    WHERE p.offer_count > 0 AND p.publication_state = 'published' AND (
       (${gtin}::text IS NOT NULL AND p.gtin IS NOT NULL
         AND lpad(regexp_replace(p.gtin, '\\D', '', 'g'), 14, '0') = ${gtin})
       OR (${mpn}::text IS NOT NULL AND ${brand}::text IS NOT NULL AND p.mpn IS NOT NULL

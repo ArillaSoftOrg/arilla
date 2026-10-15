@@ -71,6 +71,25 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0121: kaynak ilanından taslak ürün, kalite kapısı ve açık yayın (elle).
+  catalog_build: {
+    label: "Katalog aktarımı (kaynak ilanı -> taslak ürün)",
+    how: "python -m catalog_build build --merchant aliexpress",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  catalog_gate: {
+    label: "Katalog kalite kapısı",
+    how: "python -m catalog_build gate",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  catalog_publish: {
+    label: "Katalog yayını (açık onayla)",
+    how: "python -m catalog_build publish --limit N --confirm",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
   resolve: {
     label: "Eşleştirme",
     how: "python -m resolve",

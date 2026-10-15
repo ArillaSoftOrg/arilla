@@ -2,9 +2,12 @@ import {
   countProductQuality,
   isProductIssueFilter,
   isProductQualityFilter,
+  isProductStateFilter,
   PRODUCT_QUALITY_FILTERS,
+  PRODUCT_STATE_FILTERS,
   type ProductIssueFilter,
   type ProductQualityFilter,
+  type ProductStateFilter,
   searchProducts,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -25,6 +28,15 @@ const QUALITY_LABELS: Record<ProductQualityFilter, string> = {
   stale_price: "Fiyat özeti 7+ gündür yenilenmedi",
 };
 
+/** Yayın durumu (karar 0121): kaynak ilanı taslakları varsayılan listede yok. */
+const STATE_LABELS: Record<ProductStateFilter, string> = {
+  published: "Yayında",
+  draft: "Taslak (kaynak ilanı)",
+  ready: "Hazır (yayın bekliyor)",
+  held: "Beklemede",
+  all: "Tümü",
+};
+
 /** Katalog kalitesi bağlantılarının filtresi (karar 0053); sayaç panelinde yok. */
 const ISSUE_LABELS: Record<ProductIssueFilter, string> = {
   no_active_offer: "Aktif teklifi olmayan ürünler (canlı)",
@@ -35,21 +47,28 @@ const ISSUE_LABELS: Record<ProductIssueFilter, string> = {
 export default async function ProductsPage({
   searchParams,
 }: {
-  searchParams: Promise<{ q?: string; kalite?: string; sorun?: string; sayfa?: string }>;
+  searchParams: Promise<{
+    q?: string;
+    kalite?: string;
+    sorun?: string;
+    durum?: string;
+    sayfa?: string;
+  }>;
 }) {
   const { actor } = await requireCapability("catalog.read");
   const params = await searchParams;
   const query = params.q?.trim().slice(0, 80) || undefined;
   const quality = isProductQualityFilter(params.kalite) ? params.kalite : undefined;
   const issue = isProductIssueFilter(params.sorun) ? params.sorun : undefined;
+  const state = isProductStateFilter(params.durum) ? params.durum : undefined;
   const page = positiveInt(params.sayfa) ?? 1;
 
   const db = getDatabase();
   const [result, counts] = await Promise.all([
-    searchProducts(db, actor, { query, quality, issue, page }),
+    searchProducts(db, actor, { query, quality, issue, state, page }),
     countProductQuality(db, actor),
   ]);
-  const base = { q: query, kalite: quality, sorun: issue };
+  const base = { q: query, kalite: quality, sorun: issue, durum: state };
 
   return (
     <div className={styles.page}>
@@ -108,8 +127,18 @@ export default async function ProductsPage({
             ))}
           </select>
         </label>
+        <label className={styles.pageHeader}>
+          <span className={styles.meta}>Durum</span>
+          <select name="durum" defaultValue={state ?? "published"}>
+            {PRODUCT_STATE_FILTERS.map((filter) => (
+              <option key={filter} value={filter}>
+                {STATE_LABELS[filter]}
+              </option>
+            ))}
+          </select>
+        </label>
         <button type="submit">Ara</button>
-        {query || quality ? <Link href="/yonetim/katalog/urunler">Temizle</Link> : null}
+        {query || quality || state ? <Link href="/yonetim/katalog/urunler">Temizle</Link> : null}
       </form>
 
       {result.rows.length === 0 ? (

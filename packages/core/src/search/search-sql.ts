@@ -42,6 +42,7 @@ export function bestOfferCte(
       JOIN merchant m ON m.id = o.merchant_id
       WHERE o.product_id IS NOT NULL
         AND o.is_active AND m.is_active
+        AND o.currency = 'TRY'
         AND (${arrayParam(merchantIds)}::bigint[] IS NULL OR o.merchant_id = ANY(${arrayParam(merchantIds)}::bigint[]))
         AND (NOT ${inStockOnly} OR o.in_stock)
         ${only}
@@ -184,7 +185,7 @@ export function textMatch(
     // Indeksli on filtre ONCE: `OFFSET 0` planlayicinin alt sorguyu
     // duzlestirip pahali token LATERAL'ini tum katalogda kosmasini engeller
     // (olculdu: 4.5 bin urunde 270 ms -> ~20 ms).
-    products: sql`(SELECT * FROM product pr WHERE ${headPrefilter(slots, sql`pr.id`)} OFFSET 0) p`,
+    products: sql`(SELECT * FROM product pr WHERE pr.publication_state = 'published' AND ${headPrefilter(slots, sql`pr.id`)} OFFSET 0) p`,
     lateral: sql`${rootCategoryJoin(sql`c.path`)} ${tokenMatchLateral(slots, document, tokenThreshold)}`,
     gate: tokenMatchGate(slots, tokenThreshold),
     relevance: sql`tm.rel`,

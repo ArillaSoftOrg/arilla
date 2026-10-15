@@ -184,15 +184,16 @@ export function headPrefilter(slots: readonly string[][], productId: SQL): SQL {
   return sql`${productId} IN (
     SELECT pf.id FROM unnest(${sql.param(head)}::text[]) AS h(t)
       JOIN product pf ON h.t <<% ${foldedTitleExpr(sql`pf.title`)}
+       AND pf.publication_state = 'published'
     UNION
     SELECT pb.id FROM product pb
-     WHERE pb.brand_id = ANY(ARRAY(
+     WHERE pb.publication_state = 'published' AND pb.brand_id = ANY(ARRAY(
        SELECT br.id FROM unnest(${sql.param(head)}::text[]) AS h(t)
          JOIN brand br ON h.t <<% ${foldExpr(sql`br.name`)}
      ))
     UNION
     SELECT pc.id FROM product pc
-     WHERE pc.category_id = ANY(ARRAY(
+     WHERE pc.publication_state = 'published' AND pc.category_id = ANY(ARRAY(
        SELECT cc.id FROM category cc
          JOIN category cr ON cr.path = split_part(cc.path, '/', 1)
          JOIN unnest(${sql.param(head)}::text[]) AS h(t) ON h.t <<% ${foldExpr(sql`cr.name`)}

@@ -27,7 +27,7 @@ import {
  * (karar 0086) gorunurlugu AYNI kosulla hesaplar, kural tek yerde kalir.
  */
 export const TREND_SHOWABLE_PRODUCT_SQL = sql.raw(
-  "p.primary_image_url IS NOT NULL AND p.min_price > 0 AND p.in_stock_count > 0",
+  "p.publication_state = 'published' AND p.primary_image_url IS NOT NULL AND p.min_price > 0 AND p.in_stock_count > 0",
 );
 
 interface ListRow {

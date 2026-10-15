@@ -222,14 +222,14 @@ const productFields: QualityCheck = {
                  count(*) FILTER (WHERE brand_id IS NULL) AS no_brand,
                  count(*) FILTER (WHERE category_id IS NULL) AS no_category,
                  count(*) FILTER (WHERE primary_image_url IS NULL) AS no_image
-            FROM product`,
+            FROM product WHERE publication_state = 'published'`,
     );
     const total = Number(totals?.total ?? 0);
     const sample = async (condition: SQL) =>
       (
         await rows<{ id: string; title: string }>(
           tx,
-          sql`SELECT id, title FROM product WHERE ${condition} ORDER BY id DESC LIMIT ${QUALITY_SAMPLE_LIMIT}`,
+          sql`SELECT id, title FROM product WHERE publication_state = 'published' AND ${condition} ORDER BY id DESC LIMIT ${QUALITY_SAMPLE_LIMIT}`,
         )
       ).map((r) => productSample(Number(r.id), r.title));
 
@@ -289,7 +289,7 @@ const duplicateGtin: QualityCheck = {
       tx,
       sql`SELECT gtin, count(*) AS n, (array_agg(id ORDER BY id))[1:5] AS ids,
                  count(*) OVER () AS groups
-            FROM product WHERE gtin IS NOT NULL
+            FROM product WHERE gtin IS NOT NULL AND publication_state = 'published'
            GROUP BY gtin HAVING count(*) > 1
            ORDER BY count(*) DESC, gtin
            LIMIT ${QUALITY_SAMPLE_LIMIT}`,
@@ -328,7 +328,7 @@ const probableDuplicates: QualityCheck = {
       sql`SELECT min(title) AS title, count(*) AS n, (array_agg(id ORDER BY id))[1:5] AS ids,
                  count(*) OVER () AS groups
             FROM product
-           WHERE brand_id IS NOT NULL
+           WHERE brand_id IS NOT NULL AND publication_state = 'published'
            GROUP BY brand_id, lower(btrim(title)), lower(coalesce(color, ''))
           HAVING count(*) > 1
            ORDER BY count(*) DESC, min(id)
@@ -360,7 +360,9 @@ const probableDuplicates: QualityCheck = {
 const noActiveOffers: QualityCheck = {
   keys: [{ key: "catalog.product_no_active_offer", title: "Aktif teklifi olmayan ürünler" }],
   run: async (tx) => {
-    const condition = sql`NOT EXISTS (SELECT 1 FROM offer o WHERE o.product_id = p.id AND o.is_active)`;
+    // Yayınlanmamış kaynak ilanları teklife bağlı değildir (karar 0121): saymaz.
+    const condition = sql`p.publication_state = 'published'
+      AND NOT EXISTS (SELECT 1 FROM offer o WHERE o.product_id = p.id AND o.is_active)`;
     const [total] = await rows<{ n: string }>(
       tx,
       sql`SELECT count(*) AS n FROM product p WHERE ${condition}`,
@@ -401,7 +403,7 @@ const offerGtins: QualityCheck = {
   run: async (tx) => {
     const offerGtin = sql`(o.attributes_raw->>'gtin')`;
     const invalidOffer = sql`o.is_active AND o.attributes_raw ? 'gtin' AND NOT ${validGtinSql(offerGtin)}`;
-    const invalidProduct = sql`p.gtin IS NOT NULL AND NOT ${validGtinSql(sql`p.gtin`)}`;
+    const invalidProduct = sql`p.publication_state = 'published' AND p.gtin IS NOT NULL AND NOT ${validGtinSql(sql`p.gtin`)}`;
     const conflict = sql`o.is_active AND o.product_id IS NOT NULL AND p.gtin IS NOT NULL
       AND o.attributes_raw ? 'gtin' AND ${offerGtin} <> p.gtin
       AND ${validGtinSql(offerGtin)} AND ${validGtinSql(sql`p.gtin`)}`;
@@ -857,6 +859,46 @@ const sameProductListings: QualityCheck = {
   },
 };
 
+const sourceListings: QualityCheck = {
+  keys: [{ key: "catalog.source_listing_backlog", title: "Yayın bekleyen kaynak ilanları" }],
+  run: async (tx) => {
+    // `product_unpublished_idx` (publication_state, id) yalnızca yayınlanmamışları kapsar.
+    const states = await rows<{ state: string; n: string }>(
+      tx,
+      sql`SELECT publication_state AS state, count(*) AS n
+            FROM product WHERE publication_state <> 'published' GROUP BY 1`,
+    );
+    const held = await rows<{ reason: string; n: string }>(
+      tx,
+      sql`SELECT hold_reason AS reason, count(*) AS n
+            FROM product WHERE publication_state = 'held'
+           GROUP BY 1 ORDER BY count(*) DESC LIMIT ${QUALITY_SAMPLE_LIMIT}`,
+    );
+    const count = (state: string) => Number(states.find((r) => r.state === state)?.n ?? 0);
+    const total = states.reduce((sum, r) => sum + Number(r.n), 0);
+    return [
+      finding({
+        key: "catalog.source_listing_backlog",
+        severity: noticeSeverity(total),
+        title: `${fmtCount(total)} kaynak ilanı yayın bekliyor`,
+        meaning:
+          "Aktarılan kaynak ilanları (ör. AliExpress) önce taslak ürün olur; kalite kapısından geçenler hazır, geçemeyenler beklemeye alınır. Hiçbiri yayın kararı verilmeden kullanıcıya, aramaya ya da site haritasına girmez (karar 0121).",
+        evidence: `${fmtCount(count("draft"))} taslak, ${fmtCount(count("ready"))} hazır, ${fmtCount(count("held"))} beklemede.`,
+        action:
+          "Bilgi amaçlı. Taslak kaldıysa kalite kapısını (python -m catalog_build gate) çalıştırt; yayın ayrı ve açık bir karardır (publish --confirm).",
+        capability: "catalog.read",
+        count: total,
+        samples: held.map((r) => ({
+          label: `Beklemede: ${r.reason}`,
+          detail: `${fmtCount(Number(r.n))} ürün`,
+          href: null,
+          capability: "catalog.read" as const,
+        })),
+      }),
+    ];
+  },
+};
+
 export const CATALOG_QUALITY_CHECKS: readonly QualityCheck[] = [
   unmatchedOffers,
   offerGtins,
@@ -866,6 +908,7 @@ export const CATALOG_QUALITY_CHECKS: readonly QualityCheck[] = [
   noActiveOffers,
   probableDuplicates,
   sameProductListings,
+  sourceListings,
 ];
 
 function unknownFindings(check: QualityCheck, at: Date): CatalogQualityFinding[] {
