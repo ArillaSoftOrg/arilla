@@ -12,7 +12,7 @@ import { type SQL, sql } from "drizzle-orm";
 import { foldedTitleExpr } from "../search/text-match.ts";
 import { clampPage, clampPageSize, containsPattern, isPositiveId, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
-import { OFFER_SEEN_AT } from "./offer-seen.ts";
+import { OFFER_SEEN_AT, offerNotSeenSince } from "./offer-seen.ts";
 import { httpUrl, safeUrl } from "./redact.ts";
 
 export const PRODUCT_QUALITY_FILTERS = [
@@ -515,7 +515,7 @@ const OFFER_STATE_SQL: Record<OfferState, SQL> = {
   invalid_gtin: sql`o.is_active AND o.attributes_raw ? 'gtin'
     AND NOT ${validGtinSql(sql`(o.attributes_raw->>'gtin')`)}`,
   inactive: sql`NOT o.is_active`,
-  stale: sql`o.is_active AND ${OFFER_SEEN_AT} < now() - (${STALE_OFFER_DAYS} * interval '1 day')`,
+  stale: sql`o.is_active AND ${offerNotSeenSince(sql`now() - (${STALE_OFFER_DAYS} * interval '1 day')`)}`,
   all: sql`true`,
 };
 
