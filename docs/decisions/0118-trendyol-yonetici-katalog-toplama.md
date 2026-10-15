@@ -8,7 +8,7 @@
 Gerçek toplama başlatılmadı; ayrıca onay ister.
 
 **Bağlam:**
-- Karar 0117'nin (Hepsiburada) altyapısını kullanır. Bu PR, #147'ye bağlıdır.
+- Karar 0117'nin (Hepsiburada, PR #147, main'e merge edildi: 3da1366) altyapısını kullanır.
 - Araştırma: `research/trendyol-landing-discovery`, belge 16 (ilk 0118 taslağının yerini alır).
 
 ## İzin kaydı (kullanıcı beyanı; belgeler İNCELENMEDİ)
@@ -131,4 +131,4 @@ Kayıt: `permission_basis = 'written_email_reported'`. Bu değer, Hepsiburada sa
   2. `feeds ensure-merchant --profile tycollect:trendyol`;
   3. `collection_source.enabled` (sahip rol).
 - **Eklenti dağıtımı:** Yönetici kendi tarayıcısına "paketlenmemiş" olarak yükler; mağazaya konmaz.
-- **Numaralar:** migration 0072, karar 0118. Main'de 0069'a kadar; #147 0070 ve 0117 kullanıyor. 0071, #144'ün yeniden numaralanmasına bırakıldı (0068'i main ile çakışıyor). Merge sırası #147 → bu PR.
+- **Numaralar:** migration 0072, karar 0118. Main'de 0070'e kadar (0070 = #147). 0071, #144'ün yeniden numaralanmasına bırakıldı (0068'i main ile çakışıyor).

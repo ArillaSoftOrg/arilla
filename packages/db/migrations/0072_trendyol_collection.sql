@@ -10,8 +10,8 @@
 --      varyant etiketi 0070'te (`seller_name`, `variant_label`) zaten var.
 -- Mevcut satirlar ve Hepsiburada akisi degismez.
 --
--- Numara: 0070 = PR #147 (bu dosyanin bagli oldugu), 0071 acik PR #144'un yeniden
--- numaralanmasina birakildi (0068'i main ile cakisiyor).
+-- Numara: 0070 = PR #147 (main'de), 0071 acik PR #144'un yeniden numaralanmasina
+-- birakildi (0068'i main ile cakisiyor).
 
 -- ---------------------------------------------------------------------------
 -- 1) KAYNAK POLITIKASI: kota tetikleyicisi (0070) aynen uygulanir; 0070'in
