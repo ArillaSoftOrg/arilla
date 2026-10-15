@@ -43,6 +43,10 @@ SELECT o.id, o.title_raw, o.brand_raw, o.category_raw, o.image_url, o.attributes
   FROM offer o
   JOIN merchant m ON m.id = o.merchant_id
  WHERE o.is_active AND o.product_id IS NULL
+   -- Karar 0112: TRY disi offer (or. AliExpress USD) puanli eslestirmeye girmez.
+   -- Urun sayfalari fiyati TL varsayar; yaklasik TRY gosterimi gelene kadar
+   -- USD fiyat bir urune baglanip TL gibi gorunemez.
+   AND o.currency = 'TRY'
    AND (%(merchant_id)s::bigint IS NULL OR o.merchant_id = %(merchant_id)s)
  ORDER BY o.id
  LIMIT %(limit)s

@@ -111,14 +111,15 @@ type MerchantSqlRow = {
   failures_since_success: string;
 };
 
-/** Mağaza başına sayımlar + son koşu. `ingest_run_merchant_idx` ve `offer (merchant_id, …)` indeksleri. */
+/**
+ * Mağaza başına sayımlar + son koşu. Teklif sayımları tek geçişte, `offer_merchant_state_idx`
+ * (merchant_id, is_active, product_id) üzerinde indeks-yalnız taramayla yapılır (0071);
+ * milyonlarca teklifte üç ayrı sayım zaman aşımına düşüyordu.
+ */
 const MERCHANT_COLUMNS = sql`
   m.id, m.slug, m.name, m.domain, m.source_type, m.is_active, m.affiliate_status,
   m.refresh_minutes, m.feed_config,
-  (SELECT count(*) FROM offer o WHERE o.merchant_id = m.id) AS offers_total,
-  (SELECT count(*) FROM offer o WHERE o.merchant_id = m.id AND o.is_active) AS offers_active,
-  (SELECT count(*) FROM offer o
-    WHERE o.merchant_id = m.id AND o.is_active AND o.product_id IS NULL) AS offers_unmatched,
+  oc.offers_total, oc.offers_active, oc.offers_unmatched,
   lr.status AS last_status, lr.started_at AS last_started_at, lr.finished_at AS last_finished_at,
   ls.started_at AS last_success_at,
   (SELECT count(*) FROM ingest_run r
@@ -127,6 +128,12 @@ const MERCHANT_COLUMNS = sql`
 `;
 
 const MERCHANT_JOINS = sql`
+  CROSS JOIN LATERAL (
+    SELECT count(*) AS offers_total,
+           count(*) FILTER (WHERE o.is_active) AS offers_active,
+           count(*) FILTER (WHERE o.is_active AND o.product_id IS NULL) AS offers_unmatched
+      FROM offer o WHERE o.merchant_id = m.id
+  ) oc
   LEFT JOIN LATERAL (
     SELECT r.status, r.started_at, r.finished_at FROM ingest_run r
      WHERE r.merchant_id = m.id ORDER BY r.started_at DESC LIMIT 1

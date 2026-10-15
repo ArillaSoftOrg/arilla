@@ -74,6 +74,14 @@ migration'lar olusturur.
 | `0061_activity_event_id.sql` | Davranissal olaylara `event_id` (nullable, kullanici kapsamli UNIQUE) ve `schema_version` (1 = eski, 2 = event_id zorunlu) (0100). Tekrar yazimlar `ON CONFLICT DO NOTHING` ile tekillesir. Yalnizca ekleme, veri tasinmaz. 0059/0060 baska dallarda. |
 | `0063_chat_image_consent.sql` | Sohbet gorsel eki acik rizasi (0101): `user_consent.kind` CHECK'ine `chat_image`, `source` CHECK'ine `chat_image_prompt`. Yalnizca CHECK genisletme, veri tasinmaz. |
 | `0064_data_intelligence.sql` | Veri zekasi MVP (0103): `di_dataset_build` (degismez, surumlu, k-esikli toplulastirilmis satirlar + kalite/anonimlik raporu), `di_export` (disa aktarim kaydi; yalnizca durum kolonlari guncellenir), `di_accuracy_label` (elle dogruluk etiketi). Kullanici/oturum/sorgu/gorsel kolonu yok. Yalnizca ekleme. |
+| `0065_catalog_feed_model.sql` | Katalog ve besleme modeli (0111): `seller` (pazaryeri saticisi, `(merchant_id, external_id)`), `canonical_variant` (urun x normalize varyant anahtari), `feed_source` (ag beslemesi; kesifle `discovered`, merchant'siz etkinlesemez, kimlik bilgisi yok), `source_snapshot` (sha256 surumu; tekrar tespiti en son tam surumle), `ingest_chunk` (parca kontrol noktasi), `ingest_error` (dead-letter, boyut sinirli), `product_identity` (gtin->varyant, marka+mpn->urun, model_hint benzersiz degil; aktif deger tek), `identity_observation` ve `match_decision_log` (append-only), `category_source_map`, `search_outbox`. `offer`, `offer_variant`, `ingest_run`'a NULL/varsayilanli kolonlar. Yalnizca ekleme. |
+| `0066_feed_source_offer.sql` | Besleme x offer uyeligi (0112): ayni urun birden fazla beslemede olabilir; offer ancak hicbir etkin/duraklatilmis beslemede kalmayinca (ve bekleme suresi dolunca) pasiflesir. `offer.affiliate_url`: kaynagin takip baglantisi, kanonik `url`'den ayri (yalnizca https). Yalnizca ekleme. |
+| `0067_price_verification_fx.sql` | Bagimsiz fiyat dogrulama ve kur (0113): `fx_rate` (TCMB, bulten tarihli, append-only), `price_verification` (beslemeden ayri sonuc: kaynak, guvenilirlik, para birimi, varyant/satici, zaman, sonuc, kargo/vergi/indirim/kupon kosullari; append-only; izinli kaynak yoksa satir yazilmaz), `price_verification_request` (kuyruk; offer basina tek acik istek). Yalnizca ekleme. |
+| `0068_feed_source_offer_fillfactor.sql` | Besleme uyeligi `fillfactor=70` (0114, olcum): her senkronizasyondaki uyelik guncellemesi HOT olur, indeksler yeniden yazilmaz. Yalnizca depolama parametresi; tablo yeniden yazilmaz. |
+| `0069_offer_title_fts.sql` | Eslesmemis teklif aramasi trigram GIN yerine `to_tsvector('simple', title_raw)` GIN (0114, olcum: trigram indeksi ilk yukleme WAL'inin %48'i). Kismi indeks degisir; veri ve kolon degismez. |
+| `0070_catalog_collection.sql` | Yonetici tarayicisindan katalog toplama (0117): `collection_source` (kaynak politikasi: >= 7 gun aralik, ayda <= 4, ilk yukleme ve guncelleme icin AYRI istek butcesi; sozlu izin kapsami CHECK ile gevsetilemez; varsayilan kapali), `collection_run` (kota defteri; tetikleyici aralik/ay/tek acik kosu/degismezlik/ilk-guncelleme ayrimini zorlar), `collection_unit` (kapsam: sorgu x sayfa), `catalog_intake_record` (ara depo; TS yalnizca ekler, Python `feeds hb-merge` offer modeline birlestirir). Yalnizca ekleme. |
+| `0071_offer_merchant_state_idx.sql` | `offer (merchant_id, is_active, product_id)`: yonetim magaza sayfalarindaki toplam/aktif/eslesmemis sayimlari indeks-yalniz taramayla (2,8M teklifte statement_timeout 57014 duzeltmesi). Yalnizca ekleme. |
+| `0072_quality_check_indexes.sql` | Katalog kalite denetimleri: `offer (first_seen_at, id) WHERE product_id IS NULL AND is_active` ve `offer (id) INCLUDE (merchant_id, last_seen_at) WHERE is_active` (adaysiz/bayat teklif denetimlerinin 2,8M teklifte statement_timeout duzeltmesi). Yalnizca ekleme. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori
@@ -94,6 +102,23 @@ pnpm seed                # gelistirme katalogu (A3) — mevcut katalogu SILER
 
 Her migration kendi isleminde calisir: biri patlarsa oncekiler kalir,
 sonrakiler denenmez.
+
+## Guvenlik kurallari (karar 0111)
+
+- `pnpm db:lint-migrations` (CI'da da kosar): numara tekrari, `price_point`
+  degistiren SQL, `CONCURRENTLY` her dosyada reddedilir. 0065 ve sonrasi ayrica:
+  ilk satir `-- kind: schema|data|grant`; yikici DDL (DROP TABLE/COLUMN, RENAME,
+  ALTER COLUMN ... TYPE, SET NOT NULL, TRUNCATE) yalnizca
+  `-- allow-destructive: <gerekce>` ile; BEGIN/COMMIT yazilmaz; veri migration'i
+  `RAISE EXCEPTION` ile dagitimi dusurmez (uretimdeki belirli satirlari varsaymaz,
+  beklenmeyeni atlar ve raporlar).
+- Calistirici ayni anda tek kosar (advisory lock) ve her dosyada
+  `lock_timeout=5s`, `statement_timeout=15min` uygular (`MIGRATION_LOCK_TIMEOUT`,
+  `MIGRATION_STATEMENT_TIMEOUT`). Kilit alinamazsa dosya geri alinir; sorgular
+  arkasinda birikmez.
+- CI `migrations-ingest` isi: main'in semasi + tohum veri -> bu dalin yeni
+  migration'lari (dolu tablolarda) -> ikinci kosu bos gecmeli -> `db:verify` ->
+  Python entegrasyon testleri.
 
 ## Roller
 

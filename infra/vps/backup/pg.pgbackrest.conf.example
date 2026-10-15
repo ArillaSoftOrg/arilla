@@ -1,0 +1,26 @@
+# pgBackRest - POSTGRES tarafi (archive_command), karar 0110. SABLONDUR.
+# pg-backup-configure /opt/arilla/backup/pg/pgbackrest.conf olarak yazar.
+# R2 anahtari ve sifreleme parolasi BURADA YOK: WAL, `backup` konteynerine karsilikli TLS ile
+# gider; R2'ye yalniz o baglanir. postgres konteyneri internete cikmaz (data agi internal).
+[global]
+repo1-host=backup
+repo1-host-type=tls
+repo1-host-port=8432
+repo1-host-ca-file=/etc/arilla-backup/tls/ca.crt
+repo1-host-cert-file=/etc/arilla-backup/tls/client.crt
+repo1-host-key-file=/etc/arilla-backup/tls/client.key
+
+# Asenkron arsiv: archive_command hizli doner; WAL arka planda gonderilir.
+archive-async=y
+spool-path=/var/spool/pgbackrest
+# DISK KORUMASI: depo ulasilamazsa bekleyen WAL bu sinira gelince pgBackRest WAL'i "arsivlendi"
+# sayip BIRAKIR (veritabani diski dolmaz) - bu noktadan sonra PITR KOPAR, yeni tam yedek gerekir.
+# Saglik kontrolu arsiv hatasini bu sinirdan cok once alarm olarak bildirir.
+archive-push-queue-max=@@QUEUE_MAX@@
+compress-type=zst
+log-level-console=warn
+log-level-stderr=warn
+log-level-file=off
+
+[@@STANZA@@]
+pg1-path=/var/lib/postgresql/data

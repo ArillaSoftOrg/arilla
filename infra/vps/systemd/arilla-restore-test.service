@@ -1,0 +1,12 @@
+[Unit]
+Description=Arilla izole geri yukleme provasi (karar 0110)
+Requires=docker.service
+After=docker.service
+OnFailure=arilla-alert@%n.service
+
+[Service]
+Type=oneshot
+ExecStart=/opt/arilla/vps/bin/pg-restore-test
+TimeoutStartSec=8h
+Nice=15
+IOSchedulingClass=idle

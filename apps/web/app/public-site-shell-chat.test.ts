@@ -49,6 +49,10 @@ describe("kabuk: sohbet chrome", () => {
               label: "X",
               href: "https://x.com/ManiCeptetr",
             }),
+            expect.objectContaining({
+              label: "LinkedIn",
+              href: "https://www.linkedin.com/company/manicepte/",
+            }),
           ],
         }),
       );

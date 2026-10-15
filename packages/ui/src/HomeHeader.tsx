@@ -30,6 +30,8 @@ export interface HomeHeaderProps {
   accountLabel: string;
   loginHref: string;
   loginLabel: string;
+  /** Birincil hesap/giris eylemini dar mobil cubukta gizler; menu panelinde tutar. */
+  accountInMobileMenuOnly?: boolean;
   /** Hesap/giris linki su anki sayfaysa `true` (orn. `/giris`). */
   accountCurrent?: boolean;
   /** Oturum acik kullanici icin hesap linkinde gosterilecek profil fotografi. */
@@ -42,6 +44,8 @@ export interface HomeHeaderProps {
    * duz metin, telefonda menu panelinde.
    */
   utilityLink?: { label: string; href: string };
+  /** Yardimci baglantiyi ust cubukta gizler; menu panelinde erisilebilir tutar. */
+  utilityInMenuOnly?: boolean;
   /**
    * Karar 0092: tema kontrolu (cagiran saglar; tercih/kalicilik apps/web'de).
    * 640px ve ustunde cubukta hesap alaninin solunda (sohbet varyantinda da);
@@ -99,12 +103,14 @@ export function HomeHeader({
   accountLabel,
   loginHref,
   loginLabel,
+  accountInMobileMenuOnly = false,
   accountCurrent = false,
   accountAvatarUrl,
   accountAvatarLabel,
   themeControl,
   themeControlLabel,
   utilityLink,
+  utilityInMenuOnly = false,
   variant = "site",
   personalNavItems = [],
   personalNavLabel,
@@ -230,7 +236,7 @@ export function HomeHeader({
 
         {themeControl ? <div className={styles.themeSlot}>{themeControl}</div> : null}
 
-        {utilityLink ? (
+        {utilityLink && !utilityInMenuOnly ? (
           <a href={utilityLink.href} className={styles.utility}>
             {utilityLink.label}
           </a>
@@ -239,6 +245,7 @@ export function HomeHeader({
         <a
           href={accountUrl}
           className={hasSignedInAccount ? styles.accountAvatar : styles.account}
+          data-mobile-menu-only={accountInMobileMenuOnly ? "true" : undefined}
           aria-current={accountCurrent ? "page" : undefined}
           aria-label={hasSignedInAccount ? accountText : undefined}
         >

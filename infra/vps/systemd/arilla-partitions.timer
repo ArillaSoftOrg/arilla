@@ -1,0 +1,12 @@
+[Unit]
+Description=Arilla price_point bolumlerini her ayin ilk gunu uret
+
+[Timer]
+# 3 ay ileri uretildigi icin tek bir kacirilmis kosu veri kaybina donusmez;
+# Persistent=true sunucu kapaliyken kacan kosuyu acilista yakalar.
+OnCalendar=*-*-01 02:00:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

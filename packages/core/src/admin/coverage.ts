@@ -63,6 +63,41 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     gaps: [],
   },
   {
+    // Karar 0111: besleme kesfi ve artimli senkronizasyon. Yonetim gorunumu sonraki PR'da.
+    id: "feed_sync",
+    label: "Besleme kaynaklari ve senkronizasyon",
+    tables: [
+      "feed_source",
+      "source_snapshot",
+      "ingest_chunk",
+      "ingest_error",
+      "search_outbox",
+      "feed_source_offer",
+    ],
+    status: "visible",
+    // Karar 0113: kaynaklar, son aktarim, sayilar, hata kayitlari ve fiyat dogrulama durumu.
+    adminPaths: ["/yonetim/ingest/beslemeler"],
+    gaps: [
+      { signal: "Arama indeksi olay kuyrugunun (search_outbox) tuketimi", status: "unmeasured" },
+    ],
+  },
+  {
+    id: "price_verification",
+    label: "Fiyat dogrulama ve doviz kuru",
+    tables: ["price_verification", "price_verification_request", "fx_rate"],
+    status: "visible",
+    adminPaths: ["/yonetim/ingest/beslemeler"],
+    gaps: [],
+  },
+  {
+    id: "catalog_collection",
+    label: "Katalog toplama (yonetici tarayicisi)",
+    tables: ["collection_source", "collection_run", "collection_unit", "catalog_intake_record"],
+    status: "visible",
+    adminPaths: ["/yonetim/katalog/toplama"],
+    gaps: [],
+  },
+  {
     id: "catalog",
     label: "Katalog: ürün, teklif, varyant, fiyat",
     tables: [
@@ -79,6 +114,10 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "price_point_2026_10",
       "price_point_default",
       "product_price_stats",
+      // Karar 0111: pazaryeri saticisi, kanonik varyant, kaynak kategori esleme.
+      "seller",
+      "canonical_variant",
+      "category_source_map",
     ],
     status: "visible",
     adminPaths: [
@@ -92,6 +131,8 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
         signal: "Liste fiyatı şişirilen ürünlerin listesi (bugün yalnızca sayı)",
         status: "data_no_ui",
       },
+      { signal: "Pazaryeri saticisi ve kanonik varyant (0111)", status: "data_no_ui" },
+      { signal: "Kaynak kategori esleme onayi (0111)", status: "data_no_ui" },
     ],
   },
   {
@@ -108,10 +149,15 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   {
     id: "matching",
     label: "Eşleştirme",
-    tables: ["match_candidate"],
+    tables: ["match_candidate", "product_identity", "identity_observation", "match_decision_log"],
     status: "visible",
     adminPaths: ["/yonetim/eslestirme", "/yonetim/eslestirme/gecmis"],
-    gaps: [],
+    gaps: [
+      {
+        signal: "Kesin kimlik (GTIN/MPN) celiskileri ve otomatik bag kararlari (0111)",
+        status: "data_no_ui",
+      },
+    ],
   },
   {
     id: "similarity_enrichment",
@@ -525,11 +571,8 @@ export const CAPABILITY_COVERAGE: Readonly<Record<Capability, CapabilityCoverage
   "matching.review": { class: "manage", sensitive: false },
   "dictionary.write": { class: "manage", sensitive: false },
   "merchant.manage": { class: "manage", sensitive: false },
-  "catalog.write": {
-    class: "manage",
-    sensitive: false,
-    reserved: "Katalog düzenleme ayrı karar ister (0039, catalog.ts).",
-  },
+  // Karar 0115: yalnizca Hepsiburada katalog toplama kosusu; urun duzenleme DEGIL.
+  "catalog.write": { class: "manage", sensitive: false },
   "users.sessions.revoke": { class: "manage", sensitive: false },
   "early_access.manage": { class: "manage", sensitive: false },
   "forms.manage": { class: "manage", sensitive: true },
@@ -564,6 +607,7 @@ export const AUDIT_TARGET_SUBSYSTEM: Readonly<Record<AdminTargetType, string>> =
   chat_feedback: "chat_feedback",
   trend: "trends",
   early_access_counter: "early_access",
+  collection_run: "merchants_ingest",
   capability: "audit",
   data_build: "data_intelligence",
   data_export: "data_intelligence",

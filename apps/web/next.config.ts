@@ -31,7 +31,25 @@ function loadDotEnv(): void {
 
 loadDotEnv();
 
+/**
+ * Kendi sunucumuzda (Docker, karar 0109) kendi kendine yeten `standalone` cikti.
+ * Yalnizca imaj derlemesinde `NEXT_OUTPUT=standalone` ile acilir; Vercel
+ * derlemesi bu degiskeni gormez ve cikti bicimi DEGISMEZ.
+ *
+ * `outputFileTracingRoot` monorepo kokudur: workspace paketleri
+ * (`packages/*`) kok `node_modules` uzerinden baglandigi icin izleme kokten
+ * baslamazsa `standalone` klasorune eksik kopyalanir.
+ */
+const standaloneOutput: Pick<NextConfig, "output" | "outputFileTracingRoot"> =
+  process.env.NEXT_OUTPUT === "standalone"
+    ? {
+        output: "standalone",
+        outputFileTracingRoot: join(dirname(fileURLToPath(import.meta.url)), "../.."),
+      }
+    : {};
+
 const nextConfig: NextConfig = {
+  ...standaloneOutput,
   // Workspace paketleri ham TypeScript disa aktarir; derlemesini Next yapar.
   // @arilla/db de ham .ts disa aktarir - listede olmazsa derleme yalnizca
   // pnpm'in paketi node_modules disina baglamasi sayesinde calisir.

@@ -105,7 +105,9 @@ def main(argv: list[str] | None = None) -> int:
         # Veritabanina baglanmadan ONCE: uretim benzeri ortamda REDIS_URL
         # zorunlu ve TLS (rediss://). Yalnizca sabit metin loglanir.
         try:
-            redis_url = worker_redis_url(env("REDIS_URL"), env("DATABASE_URL"))
+            redis_url = worker_redis_url(
+                env("REDIS_URL"), env("DATABASE_URL"), env("REDIS_PLAINTEXT_HOSTS")
+            )
         except WorkerConfigError as error:
             logging.error("%s", error)
             return 2

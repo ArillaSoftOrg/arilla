@@ -5,19 +5,16 @@
 import { SITE_BRAND } from "./site-config.ts";
 
 export const COMING_SOON_COPY = {
-  eyebrow: "Erken Erişim",
-  status: `${SITE_BRAND} yakında.`,
   headline: "Tarif et, fotoğrafını göster veya linkini bırak.",
   body: "ManiCepte ürünleri bulsun, benzerlerini çıkarsın ve mağaza fiyatlarını karşılaştırsın.",
+  heroDetailsLabel: "ManiCepte ne yapar?",
   greeting: "Selam, hoş geldin!",
   greetingBody: "Hazır olduğumuzda ilk haberdar edeceğimiz kişilerden biri ol.",
-  greetingInvitation: "Hazır olduğumuzda ilk haberdar edeceğimiz kişilerden biri ol.",
   stageNote: "Şu an erken erişimdeyiz, ManiCepte’yi geliştirmeye devam ediyoruz.",
   progressGoal: (target: string) => `İlk ${target} kişiden biri ol.`,
   progressNote:
     "Erken erişim listemiz gerçek kayıtlarla güncelleniyor. Geliştirmeler hazır olduğunda sana haber vereceğiz.",
   availability: "Henüz kullanıma açık değil. Birlikte başlamak için hazırlanıyoruz.",
-  motionLabel: "Hareket",
   ctaNote: "Hesabınla devam et ya da yeni hesap aç; listeye otomatik eklenirsin.",
   privacyNote: "Bilgilerin yalnızca erişim listesi için kullanılır.",
   howItWorksAnchor: "Nasıl çalıştığını gör",
@@ -25,9 +22,8 @@ export const COMING_SOON_COPY = {
   demoEyebrow: "Örnek deneyim",
   demoTitle: "ManiCepte nasıl çalışır?",
   demoBody:
-    "Aklındaki ürünü tarif et, fotoğrafını göster veya bağlantısını bırak. ManiCepte ihtiyacını anlayıp benzer ürünleri ve mağaza seçeneklerini bir araya getirir.",
-  demoInstruction:
-    "Aşağıdaki örnek deneyimde ManiCepte’nin nasıl çalıştığını adım adım görebilirsin.",
+    "Aklındakini tarif et, fotoğrafını göster veya linkini bırak. ManiCepte seçenekleri bulup karşılaştırsın.",
+  demoScrollLabel: "Aşağı Kaydır",
   demoNotice: "Temsili önizleme",
   demoModes: {
     describe: "Tarif et",
@@ -62,9 +58,9 @@ export const COMING_SOON_COPY = {
 
   enrolledTitle: "Listedesin. İyi ki geldin.",
 
-  buildEyebrow: "Mutfakta neler var?",
-  buildTitle: `${SITE_BRAND}'yi geliştiriyoruz.`,
-  buildBody: "Şu an üzerinde çalıştığımız temel parçalar:",
+  buildEyebrow: "Geliştirme durumu",
+  buildTitle: "Neler hazırlıyoruz?",
+  buildBody: "Erken erişim öncesindeki çalışma başlıklarımız.",
   buildStatusDone: "Tamamlandı",
   buildStatusInProgress: "Geliştiriliyor",
   buildUpdated: (month: string) => `Son güncelleme: ${month}`,
@@ -74,23 +70,23 @@ export const COMING_SOON_COPY = {
   socialBody:
     "Yeni özellikleri, erken erişim davetlerini ve geliştirme notlarını resmi hesaplarımızda paylaşacağız.",
 
-  faqEyebrow: "Aklına takılanlar",
-  faqTitle: "Tanışmışken.",
+  faqEyebrow: "Merak ettiklerin",
+  faqTitle: "Kısa cevaplar.",
   questions: [
     {
       question: "ManiCepte'yi hemen kullanabilir miyim?",
       answer:
-        "Henüz değil. Arama ve karşılaştırma deneyimini geliştiriyoruz. Erken erişim listesine katıldığında, hazır olduğumuzda sana haber vereceğiz.",
+        "Henüz değil. Ürün bulma ve karşılaştırma deneyimini geliştiriyoruz. Listeye katılırsan hazır olduğunda haber alırsın.",
     },
     {
       question: "Erken erişime nasıl katılırım?",
       answer:
-        "Erken erişime katıl bağlantısından hesabınla devam edebilir ya da yeni bir hesap açabilirsin. Listeye otomatik eklenirsin.",
+        "Erken erişime katıl butonundan hesabınla devam et veya yeni hesap aç. Listeye otomatik eklenirsin.",
     },
     {
       question: "Ne zaman açılacak?",
       answer:
-        "Hedefimiz 5.000 kişiyle açılışa başlamak. Bir yandan da ManiCepte'yi geliştiriyoruz; henüz kesin bir tarih yok. Açılışta listedeki herkese haber vereceğiz.",
+        "İlk topluluk hedefimiz 5.000 kişi. Açılış için kesin bir tarih yok; ürün hazır olduğunda listedeki herkese haber vereceğiz.",
     },
   ],
 
@@ -105,15 +101,15 @@ export type BuildStatus = "done" | "in_progress";
 
 /** Real development status, maintained manually; no invented launch promises. */
 export const BUILD_ITEMS: readonly { id: string; title: string; status: BuildStatus }[] = [
-  { id: "erken-erisim", title: "Erken erişim kayıtları açık.", status: "done" },
+  { id: "erken-erisim", title: "Erken erişim kayıtları", status: "done" },
   {
     id: "arama",
-    title: "Ürün bulma ve karşılaştırma deneyimini geliştiriyoruz.",
+    title: "Ürün bulma ve karşılaştırma",
     status: "in_progress",
   },
   {
     id: "kaynaklar",
-    title: "Mağaza ve ürün kaynaklarını genişletiyoruz.",
+    title: "Mağaza ve ürün kaynakları",
     status: "in_progress",
   },
 ];

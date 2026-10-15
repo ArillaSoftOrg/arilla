@@ -7,8 +7,14 @@
 | `local` | Docker Compose: Postgres, Redis, MinIO | Örnek feed, birkaç bin ürün |
 | `staging` | Üretimin küçük kopyası | Gerçek feed'lerin alt kümesi |
 | `production` | Web Vercel'de, worker ayrı barındırmada | Tam katalog |
+| `vps` (geçiş, karar 0109) | Hostinger KVM 4: Caddy, web, Postgres, Redis, worker, cron (Docker Compose) | Sıfırdan kurulur; katalog yeniden toplanır |
 
 Migration'lar staging'de çalışmadan production'a gitmez.
+
+Karar 0109: uygulama Vercel/Supabase/Upstash olmadan kendi sunucumuzda da
+çalışacak şekilde hazırlanır. Geçiş bitene kadar Vercel production aynen sürer;
+iki ortam birbirinin veritabanına ve Redis'ine yazmaz. Ayrıntı: aşağıda
+"VPS (Hostinger KVM 4)".
 
 **Worker Vercel'de çalışamaz.** Vercel uzun süren arka plan işlerini
 desteklemiyor; feed toplama saatler sürebilir. Python worker için ayrı bir
@@ -113,6 +119,376 @@ Etkinleştirme sırası (Vercel panelinde; **önizleme dağıtımında doğrula*
    `maxDuration`, `crons`, günlüklerde `cozumlendi`/`cozumlenemedi` satırları.
 5. Production'a ancak önizleme temizse; sorun olursa `LINK_QUEUE_BACKEND=redis` + worker.
 
+## VPS (Hostinger KVM 4) — karar 0109
+
+Bu bölüm VPS yolunun işletim bilgisidir: faz 1 (imaj, sağlık, ortam) ve faz 2
+(Compose yığını, Caddy, PostgreSQL/Redis ayarları, zamanlayıcı, gizli değer yapısı).
+GHCR hattı, yedekleme ve otomatik dağıtım sonraki fazlardır (0109 "Fazlar").
+
+### İmajlar
+
+Bağlam her zaman repo kökü (pnpm workspace):
+
+```bash
+# Web (varsayılan hedef = runner). APP_URL ve GA4_MEASUREMENT_ID sır DEĞİLDİR,
+# derlemeye gömülür (robots.txt/canonical ve CSP derlemede üretilir).
+docker build -f apps/web/Dockerfile --build-arg APP_URL=https://<alan-adi> \
+  [--build-arg GA4_MEASUREMENT_ID=G-XXXXXXXXXX] -t arilla-web .
+
+# Migration/rol/bölüm betikleri (yalnızca packages/db; dağıtımda bir kez çalışır)
+docker build -f apps/web/Dockerfile --target migrate -t arilla-migrate .
+```
+
+- `APP_URL` olmadan derleme durur. `DEPLOY_ENV=production` derlemede de üretim
+  kapılarını açar: `APP_URL` https ve localhost dışı olmak zorundadır.
+- Gizli değer imaja girmez: kök `.dockerignore` `.env*`, `.vercel`, anahtar
+  dosyalarını (`*.pem`, `*.p8`), `.git` ve `node_modules`'u dışarıda tutar;
+  `next.config.ts` kök `.env`'i derleme sırasında kendisi okuduğu için bu kural
+  kritiktir. Çalışma zamanı değerleri konteynere `env_file` ile verilir.
+- Çalışma imajı non-root (`node`, uid 1000) çalışır. Next önbelleği
+  `/app/apps/web/.next/cache` yazılabilir olmalıdır (kök dosya sistemi
+  salt-okunur çalıştırılırsa bu yol volume/tmpfs olur).
+- Yeni bir workspace paketi eklenirse `apps/web/Dockerfile` içindeki manifest
+  `COPY` satırları güncellenir (bağımlılık katmanı yalnızca manifestlere bağlıdır).
+- Python imajı değişmez: `services/ingest/Dockerfile`.
+
+### Migration job (temiz veritabanı)
+
+`migrate` imajı sahip kimliğini yalnızca çalışma anında alır; web konteynerinde
+`DATABASE_URL_OWNER` **yoktur**. Betikler yerel olmayan hedefe yazmayı reddeder
+(`lib.ts`); Compose ağındaki host adı (`postgres`) komutla **aynı satırda**
+onaylanır (`.env`'den okunmaz):
+
+```bash
+docker run --rm --network <data-agi> \
+  -e DATABASE_URL_OWNER=... -e APP_DB_PASSWORD=... -e ARILLA_CONFIRM_REMOTE_DB=postgres \
+  arilla-migrate node scripts/migrate.ts            # 0001'den itibaren, sıralı
+# ardından aynı bayraklarla:
+#   node scripts/bootstrap-app-role.ts   (arilla_app LOGIN + parola)
+#   node scripts/partitions.ts           (price_point: bu ay + 3 ay)
+#   node scripts/verify-schema.ts        (append-only ve yetki sınaması)
+```
+
+- Sıra: `migrate` → `bootstrap-app-role` → `partitions` → `verify-schema`. `seed`
+  ÇALIŞTIRILMAZ (katalogu siler). Katalog `services/ingest` ile toplanır.
+- PostgreSQL sahip rolü (`POSTGRES_USER`) superuser olmalıdır (0010: append-only
+  kuralı `arilla_app`'in superuser olmamasına dayanır).
+- Temiz zincir doğrulandı (58 dosya, `pgvector/pgvector:pg16`; CI integration
+  işi aynı sırayı koşar).
+- `price_point_default` doluluğu izlenir: `partitions.ts --check` günlük çalışmalıdır
+  (VPS'te zamanlayıcı konteynerine eklenecek; şu an hiçbir zamanlayıcı bunu çağırmıyor).
+
+### Ortam değişkenleri (VPS)
+
+| Değişken | Anlamı |
+| --- | --- |
+| `DEPLOY_ENV` | `production`: üretim kapıları (https zorunlu, TLS Redis, HSTS, pazarlama toplu gönderimi, internet arama hukuki onayı). `staging`/boş: açılmaz. Vercel'de gerekmez (`VERCEL_ENV` aynı işi görür). Çalışma imajının varsayılanı `production`'dır. |
+| `REDIS_PLAINTEXT_HOSTS` | Virgülle ayrılmış, tam host adı. Üretimde yalnızca bu host'lara düz `redis://` serbesttir (Docker iç ağı, ör. `redis`). Boş = istisna yok. Web (`redis/client.ts`) ve Python worker (`worker_config.py`) aynı değişkeni okur. |
+| `DATABASE_POOL_MAX` | VPS'te uzun ömürlü süreç: 10–15 (varsayılan 3 serverless içindir). |
+| `APP_URL` | Üretimde zorunlu, https; derleme ve çalışma zamanında. |
+
+`VERCEL`, `VERCEL_ENV`, `VERCEL_URL`, `VERCEL_PROJECT_PRODUCTION_URL` VPS'te
+tanımsızdır ve tanımlanmaz (taklit edilmez). `DATABASE_URL` doğrudan PostgreSQL
+adresidir (`sslmode` gerekmez, iç ağ); pooler (PgBouncer) şimdilik yok.
+
+### Sağlık uçları
+
+| Uç | Ne sorar | Kim çağırır |
+| --- | --- | --- |
+| `GET /api/health` | Süreç istek alıyor mu (bağımlılığa dokunmaz) | Docker `HEALTHCHECK`, dış izleme |
+| `GET /api/health/ready` | Veritabanı `SELECT 1` + Redis `PING`; 200 / 503 | Dağıtım betiği (iç ağdan) |
+
+- Yanıt yalnızca `{"status":..,"checks":{"database":"ok|fail","redis":"ok|fail"}}`;
+  hata metni, adres, sürüm yok. Sonuç 2 sn önbelleklenir, eşzamanlı çağrılar tek
+  denetimi paylaşır.
+- **Caddy `/api/health/ready`'yi dışarıya açmaz** (veritabanı yükü ve bileşen
+  durumu bilgisi). Dış izleme yalnızca `/api/health` kullanır.
+- Redis düşerse `ready` 503 olur ama `/api/health` 200 kalır ve konteyner yeniden
+  başlatılmaz (doğrulandı).
+
+### Üretim yığını (faz 2): `infra/compose.prod.yml`
+
+`infra/` içeriği VPS'te **`/opt/arilla/`** altına kopyalanır (`compose.prod.yml` ve
+`vps/`); dağıtım betiği (faz 6) bunu her sürümde günceller. Hiçbir komut yerelden
+VPS'e bağlanmaz; aşağıdakiler VPS'te `deploy` kullanıcısıyla çalıştırılır.
+
+| Servis | İmaj | Ağlar | Not |
+| --- | --- | --- | --- |
+| `caddy` | `caddy:2.10-alpine` | public, edge | Tek açık kapı (80/443/udp 443). Let's Encrypt otomatik. |
+| `web` | `arilla-web:<tag>` | edge, data, egress | salt-okunur kök FS, `cap_drop ALL`, 3 GB, 2 CPU |
+| `worker` | `arilla-ingest:<tag>` | data, egress | `LINK_QUEUE_BACKEND=redis` kuyruğunu tüketir, 1 GB, 1.5 CPU |
+| `cron` | `arilla-cron:<tag>` | data | supercronic; yalnız HTTP + `CRON_SECRET`, DB kimliği yok |
+| `postgres` | `pgvector/pgvector:0.8.1-pg16` | data | 6 GB, `infra/vps/postgres/postgresql.conf` |
+| `redis` | `redis:7.4-alpine` | data | AOF + parola + `noeviction`, 768 MB |
+| `migrate` | `arilla-migrate:<tag>` | data | `profiles: ["ops"]`; `up -d` BAŞLATMAZ; sahip kimliği yalnız burada |
+
+**Ağlar.** `data` ve `edge` `internal: true` (internete çıkış yok). Yalnız `caddy`
+`public` ağındadır ve port yayınlar; `web` ve `worker` dışarı çıkış için `egress`
+ağındadır (Gemini, Jina, R2, SMTP, hedef siteler) ama port yayınlamaz. `postgres`
+ve `redis` yalnız `data` ağındadır, **`ports:` yoktur** ve olmayacak; yerel erişim
+gerekirse `docker compose exec postgres psql -U arilla arilla`. Duman testi bunu
+(`docker inspect` ile HostPort, internete çıkış, host portları) her çalıştırmada
+doğrular.
+
+**Kalıcı volume'lar:** `postgres_data`, `redis_data`, `caddy_data` (TLS sertifikaları —
+silinirse Let's Encrypt sınırına dikkat), `caddy_config`, `web_next_cache`, `pg_run` (postgres
+unix soketi, `backup` ile paylaşılır), `backup_spool`. PostgreSQL yedeği: "Yedekleme ve geri
+yükleme (karar 0110)". `redis_data` (kuyruk/kota sayaçları) VPS dışına yedeklenmez; kaybı
+tolere edilir.
+
+**Healthcheck / yeniden başlatma / günlük / kaynak.** Her servisin healthcheck'i, `restart:
+unless-stopped` politikası, `json-file` günlük dönüşümü (10 MB × 3), bellek (`mem_limit` =
+`memswap_limit`, swap yok), `pids_limit` ve gerektiğinde `cpus` sınırı vardır. Toplam
+bellek sınırı ≈ 11 GB; ~5 GB işletim sistemi, disk önbelleği ve yedek için kalır. Değerler
+başlangıçtır; gerçek yük altında `docker stats` ile ayarlanır.
+
+**PostgreSQL** (`vps/postgres/postgresql.conf`): `shared_buffers=2GB`,
+`effective_cache_size=7GB`, `work_mem=16MB`, `maintenance_work_mem=512MB`,
+`max_connections=60`, `wal_compression`, `max_wal_size=4GB`, `random_page_cost=1.1`,
+`wal_level=replica` (faz 5 WAL arşivi için hazır), saat dilimi UTC, `scram-sha-256`,
+`idle_in_transaction_session_timeout=60s`. İlk kurulumda veri sağlama toplamları açılır
+(`--data-checksums`, sonradan eklenemez). Hata günlüklerine sorgu metni yazılmaz
+(`log_min_error_statement=panic`; yavaş sorgu günlüğü 500 ms).
+
+**PostgreSQL istemci kimlik doğrulaması (`vps/postgres/pg_hba.conf`).** Kurallar repoda
+sürümlenir ve `hba_file` ile `/etc/postgresql/pg_hba.conf` (salt-okunur bağ) olarak yüklenir;
+`initdb`'nin veri dizinine yazdığı `pg_hba.conf` **kullanılmaz**. (Bu, ilk kurulumda
+yalnızca-localhost kalan VPS hatasının kalıcı çözümüdür: sonuç artık entrypoint'in dosyaya ne
+eklediğine bağlı değildir ve mevcut volume'larda da aynı davranır.) Kurallar: konteyner içi
+unix soketi `trust` (yalnız `docker exec`), loopback `scram-sha-256`, ve `arilla` veritabanına
+yalnızca `arilla`/`arilla_app` rolleri için **özel (RFC 1918) adres blokları** (`10.0.0.0/8`,
+`172.16.0.0/12`, `192.168.0.0/16`) üzerinden `scram-sha-256`. Eşleşmeyen her bağlantı reddedilir.
+Docker alt ağı **sabitlenmez**: Docker `data` ağına varsayılan havuzdan alt ağ verir ve daemon
+ayarı ya da ağın yeniden oluşturulması bunu değiştirebilir; bloklar bu yüzden alt ağın kendisini
+değil özel adres uzayını kapsar. Güvence üç yerdedir: (1) `infra/vps/bin/check-pg-hba.py` gerçek
+`data` alt ağının kuralca kapsandığını doğrular (`db-bootstrap.sh` ön kontrolü ve duman testi);
+(2) postgres healthcheck'i konteynerin kendi ağ adresine TCP + SCRAM ile bağlanır, yani alt ağ
+kapsanmazsa `healthy` olmaz; (3) `/api/health/ready` veritabanı bağlantısı koparsa 503 verir.
+Daemon `default-address-pools` özel blokların DIŞINA ayarlanırsa `pg_hba.conf`'a ilgili blok
+eklenir ve `docker compose restart postgres` yapılır. Port yayını hâlâ yoktur; `pg_hba`
+ikinci katmandır, birincisi ağ yalıtımıdır.
+
+**Redis** (`vps/redis/redis.conf`): `appendonly yes` (`everysec`), `maxmemory 512mb`,
+`noeviction`, `FLUSHALL/FLUSHDB/DEBUG/KEYS` kapalı. Konteyner **root olmadan** doğrudan
+`redis` kullanıcısıyla (`user: "999:1000"`, resmî imajla aynı uid/gid) başlar; ek yetki (`cap_add`)
+yoktur. Resmî entrypoint root olarak başlayıp `chown`/`gosu` yaptığı için `cap_drop: ALL`
+altında (root'un `DAC_OVERRIDE`'ı yok) ilk başlatmadan sonra 0700 `appendonlydir`'i gezemiyor ve
+`find: ./appendonlydir: Permission denied` ile yeniden başlatma döngüsüne giriyordu; doğrudan
+`redis-server` bunu ortadan kaldırır. Parola `redis.conf`'ta ve komut satırında YOKTUR:
+başlarken `REDIS_PASSWORD`'dan tmpfs'teki 0600 dosyaya yazılır, `redis.conf` bunu `include`
+eder, sonra `exec` ile `redis-server` PID 1 olur (`ps`/`docker top` çıktısında görünmez).
+
+**Mevcut bir VPS kurulumunu güncelleme** (Redis restart döngüsü / yalnızca-localhost
+`pg_hba.conf` düzeltmesi; veri ve volume'lar silinmez):
+
+1. Güncel `infra/` içeriğini `/opt/arilla/` altına kopyala (`compose.prod.yml`, `vps/`).
+2. Geçici Redis override'ını (`user: "999:1000"`) kaldır; artık temel dosyadadır.
+3. `docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml up -d postgres redis`
+   (konfigürasyon değiştiği için ikisi yeniden oluşturulur; `redis_data` ve `postgres_data`
+   volume'ları aynen kalır, AOF/RDB ve veritabanı korunur).
+4. Elle eklenmiş `PGDATA/pg_hba.conf` satırları artık kullanılmaz; silmek isteğe bağlıdır.
+5. Doğrula: `docker compose ... ps` (ikisi `healthy`), ve
+   `python3 infra/vps/bin/check-pg-hba.py /opt/arilla/vps/postgres/pg_hba.conf
+   $(docker network inspect arilla_data --format '{{range .IPAM.Config}}{{.Subnet}} {{end}}')`.
+
+**Caddy** (`vps/Caddyfile`): `request_body max_size 6MB` + `Content-Length` > 6 MB ise
+yukarı akışa gitmeden 413 (parçalı gönderimde gövde okunurken kesilir, istemci 400 görür).
+`/api/health/ready` ve `/api/cron/*` **dışarıya 404** (büyük/küçük harf, çift slash,
+yüzde kodu, sondaki slash, sorgu dizesi denendi). Erişim günlüğünde sorgu dizesi, çerez,
+başlıklar ve istemci adresi **yoktur** (yalnız yöntem, host, yol, durum, boyut, süre).
+**www → apex:** `www.<alan-adı>` kalıcı (301) `https://<alan-adı>`'a yönlenir, yol ve sorgu korunur
+(`ARILLA_WWW_ADDRESS` / `ARILLA_CANONICAL_ORIGIN`, varsayılan `ARILLA_SITE_ADDRESS`'ten türetilir; mevcut
+`compose.env`'e ekleme gerekmez). Yönlendirme dışında içerik sunmaz (`/api/health/ready` ve `/api/cron/*`
+www üzerinden de önce apex'e gider, orada 404). `www` için ACME sertifikası ayrıca otomatik alınır;
+DNS'te `www` kaydı VPS'e çözümlenmelidir. Erişim günlüğü filtresi iki sitede de ortaktır (`privacy_log`).
+VPS'te Caddyfile'a elle eklenmiş aynı blok bu sürümle değiştirilir (davranış aynı).
+Guvenilmeyen `X-Forwarded-For` ezilir (tek eleman = bağlanan adres; `client-ip.ts`
+doğru çalışır); `X-Real-IP` yukarı akışa iletilmez. Güvenlik başlıkları uygulamadan gelir.
+
+**Zamanlayıcı (`cron` + systemd).** HTTP işleri `cron` konteynerindedir
+(`vps/cron/crontab`, UTC; `apps/web/vercel.json` ile birebir, duman testi karşılaştırır):
+
+| Zaman | İş |
+| --- | --- |
+| `0 0 * * *` | `generate-discovery-slots` |
+| `30 0 * * *` | `interpret-queries` |
+| `45 23 * * *` | `refresh-product-aggregates` |
+| `30 3 * * *` | `cleanup-auth` |
+| `*/15 * * * *` | `trigger-alerts`, `marketing-campaigns` (GitHub Actions'taki 15 dk işlerin yerine) |
+
+`price_point` bölüm üretimi ve `price_point_default` kontrolü **systemd zamanlayıcıları**ndadır
+(`vps/systemd/arilla-partitions{,-check}.{service,timer}`): sahip kimliği gerektiren tek iş
+bu olduğu için uzun ömürlü `cron` konteynerine DB sahibi parolası VERİLMEZ; işler gecici
+`migrate` konteynerini çalıştırır. Kurulum: unit'leri `/etc/systemd/system/` altına kopyala,
+`systemctl enable --now arilla-partitions.timer arilla-partitions-check.timer`. Kontrol dolu
+çıkarsa unit `failed` olur (`systemctl --failed`); bildirim bağı faz 5'te (izleme).
+
+**Gizli değerler** yalnızca VPS'te, `/opt/arilla/env/*.env` (`0640`, `root:deploy`). Her servis
+yalnızca kendi dosyasını alır: `web.env` (uygulama), `worker.env`, `cron.env` (yalnız
+`CRON_SECRET`), `migrate.env` (**sahip kimliği yalnız burada**), `postgres.env`, `redis.env`;
+`compose.env` sır içermez. İlk kurulum:
+
+```bash
+sudo infra/vps/bin/init-secrets.sh --domain alan-adi.com   # rastgele sırlar; ekrana yazmaz
+sudoedit /opt/arilla/env/web.env                           # elle: OAuth, SMTP, Jina, Gemini, R2...
+infra/vps/bin/db-bootstrap.sh                              # migrate, rol, bölümler, verify-schema
+docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml up -d
+```
+
+`init-secrets.sh` var olan dosyanın üstüne yazmaz ve altı dosyanın kısmen var olmasına izin
+vermez (tutarsız parola). Parola döndürmek veri kaybettirmesin diye elle ve planlı yapılır.
+
+**Yerel doğrulama.** `infra/vps/bin/smoke-local.sh` yığını atılabilir sırlarla (`arilla-smoke`
+projesi, yalnız `127.0.0.1`) ayağa kaldırır: temiz DB'de migration zinciri, servisler arası
+bağlantı, ağ yalıtımı, Caddy kapıları, gövde limiti, cron işleri, Postgres/Redis ayarları ve
+sızıntı kontrolleri. CI'da `compose-stack` işi aynısını koşar.
+
+### Imaj yayını (faz 3): `.github/workflows/build-push.yml`
+
+| İmaj | Kaynak | Hedef |
+| --- | --- | --- |
+| `ghcr.io/arillasoftorg/arilla-web` | `apps/web/Dockerfile` | `runner` |
+| `ghcr.io/arillasoftorg/arilla-migrate` | `apps/web/Dockerfile` | `migrate` |
+| `ghcr.io/arillasoftorg/arilla-ingest` | `services/ingest/Dockerfile` | — |
+| `ghcr.io/arillasoftorg/arilla-cron` | `infra/vps/cron/Dockerfile` | — |
+
+- **Tetikleyiciler:** `pull_request` (yalnız derle + tara + doğrula, **yayınlamaz**, `packages`
+  izni yok); `workflow_run` (`ci` main'de **başarılı** bitince yayınlar); `workflow_dispatch`
+  (yalnız main, aynı commit'i yeniden yayınlar).
+- **Kapı (`gate`):** yayın yalnız main'e push'un başarılı `ci` koşusu için yapılır ve commit
+  üzerinde `private-keys`, `compose stack`, `docker images`, `web build` kontrolleri başarılı
+  olmalıdır (biri başarısızsa yayın yok).
+- **Etiket:** `sha-<40 haneli commit>`. **Değişmezdir:** etiket GHCR'da zaten varsa üstüne
+  yazılmaz, mevcut digest kullanılır. `latest`/`main` gibi hareketli etiket yoktur.
+- **Tarama (iki kez):** (1) yayından ÖNCE yerelde yüklenen imaj; (2) yayından SONRA GHCR'daki
+  digest. İkisi de `verify-image.sh` (kimlik/anahtar dosyası, PEM özel anahtar içeriği, dolu
+  sır ENV'i, root değil) ve **Trivy** (`vuln,secret`, HIGH/CRITICAL, düzeltmesi olanlar,
+  `exit-code 1`) çalıştırır. Başarısız kontrol yayını durdurur; atlanmaz. İstisna yalnızca
+  `.trivyignore` içinde gerekçe + sahip + bitiş tarihiyle yazılır (şu an boş).
+- **İzinler:** workflow düzeyinde `permissions: {}`; `gate` `contents:read` + `checks:read`;
+  `scan`/`manifest` `contents:read`; yalnız `publish` `packages:write`. Üçüncü taraf action'lar
+  tam commit sha'sıyla sabitli. Üretim sırrı kullanılmaz; VPS'e bağlanılmaz.
+- **Önbellek:** `type=gha` katman önbelleği (imaj başına kapsam); PR'lar main'in önbelleğini
+  okur, yalnız main yazar. BuildKit `--mount=type=cache` (pnpm deposu) koşular arası taşınmaz.
+- **`ARILLA_APP_URL` (depo DEĞİŞKENİ, sır değil):** `web` imajı bu adresi derlemeye gömer
+  (robots/canonical). **Tanımlı değilse `web` imajı yayınlanmaz** (yer tutucu adresle yalnızca
+  doğrulanır, uyarı verir), manifest `complete: false` olur ve dağıtım onu reddeder.
+  Tanımlamak: GitHub → Settings → Secrets and variables → Actions → Variables
+  → `ARILLA_APP_URL=https://<alan-adı>` (isteğe bağlı `GA4_MEASUREMENT_ID`).
+- **Çıktı:** her yayında `release-manifest.json` (artifact, 90 gün + iş özeti):
+  `{sha, tag, images: {web|migrate|ingest|cron: {image, tag, digest}}, complete}`.
+
+**Sürüm sabitleme ve geri alma (`infra/vps/bin/release.py`, VPS'te):**
+
+```bash
+infra/vps/bin/release.py apply release-manifest.json --dir /opt/arilla   # ARILLA_TAG + digest'ler compose.env'e
+infra/vps/bin/release.py rollback --dir /opt/arilla                       # bir önceki sürüme dön
+infra/vps/bin/release.py current|list --dir /opt/arilla
+```
+
+`apply` önce manifesti doğrular (`complete`, 40 haneli sha, `tag == sha-<sha>`, dört imaj,
+`sha256:` digest'leri, `ghcr.io/<sahip>/arilla-<ad>`); geçersizse HİÇBİR dosya değişmez. Uygulanan
+her manifest `releases/<sha>.json` olarak saklanır ve **değişmezdir**. Compose imajı
+`ad:sha-…@sha256:…` olarak çözer; digest etiketten önceliklidir, yani etiket sonradan başka bir
+imajı gösterse bile çalışan şey sabittir. Geri alma, önceki manifestin digest'lerini yeniden
+yazar (docker çağırmaz; çekme/yeniden başlatma dağıtım betiğinin işidir, faz 6).
+
+**Boyut/süre notları.** Çalışma ve migrate imajları `debian:bookworm-slim` + yalnız `node`
+ikilisi üzerindedir (resmî `node` imajındaki npm/yarn/corepack ve bunların bağımlılık zafiyetleri
+yok; ~40 MB küçük). Yerel ölçüm (açılmış): web ≈ 460 MB, migrate ≈ 318 MB, ingest ≈ 257 MB,
+cron ≈ 45 MB; web'in `next` + sharp/libvips'i ≈ 35 MB, Node ≈ 120 MB, taban ≈ 75 MB'tır.
+Taban imajlara `apt-get/apk upgrade` uygulanır (yayınlanmış güvenlik yamaları). `supercronic`
+hazır ikili yerine güncel Go ile kaynaktan derlenir (hazır ikili eski Go standart
+kütüphanesiyle HIGH Trivy bulgusu veriyordu).
+
+### Otomatik dağıtım (faz 6): `.github/workflows/deploy.yml` + `infra/vps/bin/arilla-deploy`
+
+```
+push main → ci ✔ → build-push ✔ (imajlar + release-manifest) → deploy.yml
+   plan  (salt okunur): manifest + sha main'in ucu mu + zorunlu kontroller + imajlar GHCR'da digest ile var mı
+   deploy (environment vps-production): ssh deploy@VPS "deploy <sha>" < release-manifest.json
+        └─ VPS: deploy-gate (izin listesi) → sudo → arilla-deploy (root)
+```
+
+**Güvenlik modeli.**
+- GitHub Actions yalnızca **kısıtlı bir SSH anahtarı** taşır: `authorized_keys` satırı
+  `restrict,command="/opt/arilla/bin/deploy-gate"`. Anahtar kabuk, port yönlendirme, pty ya da başka komut
+  açamaz; `deploy-gate` yalnızca `deploy <40 haneli sha>` (manifest stdin), `rollback`, `status` kabul eder.
+- `deploy` kullanıcısı **docker grubunda değildir** ve genel sudo'su yoktur. `/etc/sudoers.d/arilla-deploy`
+  yalnızca `/opt/arilla/bin/arilla-deploy {deploy <sha>|rollback|status}` komutuna parolasız izin verir.
+  `arilla-deploy` ve `deploy-gate` **root'a aittir**, deploy kullanıcısı yazamaz.
+- Altyapı dosyaları (`compose.prod.yml`, `Caddyfile`, ...) istemciden **gelmez**: motor GitHub'dan `<sha>`
+  için alır ve commit'in **main'de olmasını** şart koşar. İmajlar manifestteki digest ile çekilir;
+  `org.opencontainers.image.revision` etiketi sha ile eşleşmezse reddedilir. Yani anahtarı ele geçiren biri
+  en fazla main'deki bir commit'i yeniden dağıtabilir, rastgele konteyner/yapılandırma çalıştıramaz.
+- Production sırları GitHub'a girmez (`/opt/arilla/env/*.env` yalnızca VPS'te). Dağıtım çıktısı ve günlükler
+  (`/opt/arilla/logs/deploy-*.log`, `0600`, root) sır içermez.
+
+**Ne yapar (sırayla).** Kilit (aynı anda tek dağıtım) → manifest doğrulama (`release.py validate`: `complete`,
+sha, `ghcr.io/arillasoftorg/` öneki) → kaynak getir (sha main'de mi) → **ön kontroller** (yeni compose
+geçerli mi, yeni Caddyfile `caddy validate` ile, `pg_hba.conf` Docker ağını kapsıyor mu) → imajları digest ile
+çek + sha etiketini doğrula → **yedek** (`backups/deploy-*`) → dosyaları kur + `release.py apply` →
+**bekleyen migration varsa** önce `pg_dump` (`backups/pre-migrate-*.dump`, ≥3 GB boş disk şartı), sonra
+`migrate` + `verify-schema` → değişen servisleri sırayla yeniden oluştur (`web` → `worker` → `cron` →
+`caddy`; her biri `healthy`, web ayrıca `/api/health/ready` 200) → tüm servisler healthy + internetten
+`/api/health` 200 ve `/api/health/ready` 404.
+
+**Geri alma.** Yedek noktasından sonra herhangi bir adım başarısızsa motor **otomatik** geri alır: `compose.prod.yml`,
+`vps/`, `compose.env`, `releases/` işaretçileri geri yüklenir, yeniden oluşturulan servisler eski yapılandırmayla
+tekrar başlatılır ve doğrulanır (çıkış kodu 1, `DEPLOY_RESULT=failed rollback=ok`). Geri alma da başarısız olursa
+çıkış kodu 3 ve `rollback=FAILED`: elle müdahale gerekir (yedek yolu çıktıda). **Veritabanı migration'ları geri
+alınmaz** (CLAUDE.md #14 gereği geriye uyumludur; eski kod yeni şemayla çalışır); gerekirse `pre-migrate-*.dump`
+ile elle dönülür. Elle geri alma: `ssh ... rollback` (bir önceki sürüm; manifest + altyapı paketi `releases/`
+altında saklanır) ya da `workflow_dispatch` (`build_run_id` + `allow_older`).
+
+**Dokunulmayanlar.** `postgres` ve `redis` otomatik yeniden başlatılmaz ve volume'ları asla silinmez; yapılandırmaları
+değişirse uyarı verilir ("uygun bir anda elle `up -d --no-deps postgres`"). Env dosyaları (`/opt/arilla/env`) ve
+`compose.env`'in `release.py`'nin yönettiği satırlar dışındaki içeriği korunur.
+
+**Kesinti.** Tek `web` kopyası olduğu için her dağıtımda `web` yeniden oluşturulur: birkaç ila onlarca saniye Caddy
+502 verir (sıfır kesinti için ikinci kopya + sıralı güncelleme gerekir; kapsam dışı). `worker` kuyruğu Redis'te
+beklediği için iş kaybolmaz.
+
+**Elle kurulum (bir kez) — VPS (root):**
+
+```bash
+# 1) Gerekli araçlar: git python3 curl tar (apt install) ve docker compose
+# 2) Motoru kur (depo herkese açık; kurulum kopyası geçicidir)
+git clone --depth 1 https://github.com/ArillaSoftOrg/arilla.git /tmp/arilla-src
+sudo /tmp/arilla-src/infra/vps/bin/install-deploy.sh            # /opt/arilla/bin + /etc/sudoers.d/arilla-deploy (visudo ile doğrulanır)
+# 3) GitHub Actions için ANAHTAR (çalışma bilgisayarınızda): ssh-keygen -t ed25519 -N "" -f arilla-actions
+#    Genel anahtarı deploy kullanıcısına KISITLI olarak ekleyin (/home/deploy/.ssh/authorized_keys, tek satır):
+#    restrict,command="/opt/arilla/bin/deploy-gate" ssh-ed25519 AAAA... github-actions
+# 4) GHCR girişi (paketler private): PAT (read:packages) ile ROOT için
+echo "<PAT>" | sudo docker login ghcr.io -u <kullanıcı> --password-stdin
+# 5) Dağıtım çalıştığını doğruladıktan SONRA deploy'u docker grubundan çıkar (artık gerekmez)
+sudo gpasswd -d deploy docker
+```
+
+**Elle kurulum — GitHub** (Settings → Environments → **New environment** `vps-production`; *Deployment branches*:
+yalnızca `main`; isteğe bağlı *Required reviewers* = elle onay):
+- Secret `VPS_SSH_PRIVATE_KEY` = adım 3'te üretilen özel anahtar (dosyanın tamamı).
+- Secret `VPS_SSH_KNOWN_HOSTS` = sunucu anahtarı satırı. Çalışma bilgisayarında `ssh-keyscan -t ed25519 187.7.77.163`
+  çıktısı **sunucuda** `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` parmak iziyle karşılaştırılarak alınır
+  (ilk bağlantıda kör güven yok: `StrictHostKeyChecking=yes`).
+- Variable `VPS_HOST` = `187.7.77.163`, Variable `VPS_USER` = `deploy` (yazılmazsa `deploy`).
+- Repo variable `ARILLA_APP_URL` zaten tanımlı (dış doğrulama için de kullanılır).
+Bu üçü eksikse `deploy` işi **yeşil kalır ve "Dağıtım atlandı" uyarısı verir**. Kurulum doğrulaması (yerel
+bilgisayardan): `ssh -i arilla-actions deploy@187.7.77.163 status` çalışır; `ssh ... bash` ve benzerleri
+`izin verilmeyen komut` (126) ile reddedilir.
+
+**Yerel test.** `infra/vps/bin/test-deploy.sh` (CI `compose-stack` işinde de koşar): yerel registry, sentetik
+depo, iyi/kötü sürümler; güvenlik kapıları, başarılı dağıtım, **sağlık geçmeyen sürümde otomatik geri alma**,
+bekleyen migration + `pg_dump`, Caddyfile değişimi, idempotent tekrar, es zamanlı dağıtım kilidi, elle geri
+alma, `deploy-gate` izin listesi ve günlükte sır yokluğu. `infra/vps/bin/test-ssh-gate.sh` (CI `deploy ssh gate`
+işi) **gerçek `sshd` + `sudo`** ile VPS yetki zincirini sınar (tek kullanımlık Ubuntu 24.04 konteyneri):
+`install-deploy.sh` → sudoers (`visudo`) → `restrict,command=` → `deploy-gate` → `sudo` → motor; izin verilen 3
+komut kök olarak ve doğru argümanla ulaşır, 15 izin dışı komut/pty/port yönlendirme reddedilir, `deploy` motoru,
+kapıyı ve sudoers'i değiştiremez, docker grubunda değildir.
+
+**VPS'e geçmeden önce** (hâlâ yapılmadı): bkz. PR açıklaması / `docs/decisions/0109`
+"Faz 2 sonrası kontrol listesi".
+
 ## Sağlayıcı bağımsızlığı
 
 Vercel'e özgü hiçbir hizmete kilitlenilmez. Taşınabilir muadiller kullanılır:
@@ -142,7 +518,7 @@ birindedir ve okuyan dosya yanında yazar:
 | Grup | Anlamı | Anahtarlar |
 | --- | --- | --- |
 | `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
-| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı), `LLM_COST_TRY_PER_USD` (karar 0082; boş = Gemini maliyeti fiyatlanmaz) |
+| `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `DEPLOY_ENV` (VPS'te `production`, karar 0109), `REDIS_PLAINTEXT_HOSTS` (karar 0109), `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı), `LLM_COST_TRY_PER_USD` (karar 0082; boş = Gemini maliyeti fiyatlanmaz) |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
 | `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `MARKETING_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
@@ -248,16 +624,180 @@ verilerek çalıştırılır. Testler arasında yerel Redis'teki `ratelimit:*`
 anahtarları birikirse giriş testleri oran sınırına takılır; yalnızca yerel
 Redis'te temizlenir.
 
-## Yedekleme
+## Yedekleme ve geri yükleme (karar 0110)
 
 **Fiyat geçmişi geriye dönük üretilemez.** Kaybedilirse savunulabilirliğin
 tamamı kaybedilir. Bu yüzden yedekleme isteğe bağlı bir konu değildir.
+**Test edilmemiş yedek yedek değildir.**
 
-- Günlük tam yedek, 30 gün saklama
-- Sürekli WAL arşivleme (zaman noktasına dönüş)
-- `price_point` partition'ları aylık olarak ayrıca soğuk depoya kopyalanır
-- **Ayda bir geri dönüş testi.** Test edilmemiş yedek yedek değildir.
-- Obje deposu (ürün görselleri) ayrı yedeklenir
+**Durum:** Kod hazır, CI'da uçtan uca sınanıyor (`backup + PITR restore` işi).
+**Üretimde ETKİN DEĞİL.** Aşağıdaki aktivasyon yapılana kadar VPS dışında yedek yoktur.
+
+### Politika
+
+| | |
+| --- | --- |
+| Araç | pgBackRest 2.59 (`infra/vps/postgres/Dockerfile`), depo Cloudflare R2, istemci tarafı AES-256 |
+| Tam yedek | Haftalık, Pazar 01:30 UTC (`arilla-backup-full.timer`) |
+| Fark yedeği | Pazartesi–Cumartesi 01:30 UTC (`arilla-backup-diff.timer`) |
+| WAL arşivi | Sürekli; `archive_timeout=300` sn (düşük trafikte RPO ≤ ~5 dk) |
+| Saklama | 4 tam yedek (~4 hafta PITR penceresi) + aradaki fark yedekleri ve WAL |
+| Depo doğrulaması | Haftalık `pgbackrest verify` (Çarşamba 02:30 UTC) |
+| Geri yükleme provası | Aylık, ayın ilk Pazar'ı 03:30 UTC (`pg-restore-test`, izole) |
+| Alarm | `arilla-healthcheck.timer` (5 dk) + yedek/prova birimlerinde `OnFailure` |
+| Ürün görselleri | R2 medya bucket'ı; ayrı yedek kapsamı (bu bölüm değil) |
+
+### Mimari (kısa)
+
+`postgres` → (WAL, karşılıklı TLS, `data` ağı) → `backup` (pgBackRest TLS sunucusu) → R2.
+
+- postgres konteyneri internete çıkmaz ve R2 anahtarlarını görmez.
+- `backup` konteyneri veri dizinini salt-okunur bağlar ve unix soketini paylaşır.
+- `restore` konteyneri yalnız `egress` ağındadır: üretim veritabanına erişemez.
+
+Yapılandırma `/opt/arilla/backup/{pg,repo}` altındadır. Dağıtım bu dizine dokunmaz.
+
+### Cloudflare R2 kurulumu (bir kez, panelden)
+
+1. **Bucket oluştur.** R2 → *Create bucket*:
+   - Ad önerisi: `manicepte-pg-backup`.
+   - **Yalnız yedek için**; medya bucket'ı kullanılmaz.
+   - Konum: *Automatic* ya da AB yurisdiksiyonu. AB seçilirse `backup.env`'de `R2_JURISDICTION=eu`
+     yapılır. Yurisdiksiyon sonradan değiştirilemez; KVKK değerlendirmesine göre seçin.
+   - Public access: **kapalı** (varsayılan). Custom domain bağlanmaz.
+2. **API token.** R2 → *Manage R2 API Tokens* → *Create API token*:
+   - Permission: **Object Read & Write**.
+   - Specify bucket(s): **yalnız** bu bucket.
+   - TTL: tercihe göre. Süreli seçilirse yenileme takvime yazılır.
+   - Çıkan **Access Key ID** ve **Secret Access Key** yalnız bir kez gösterilir: doğrudan
+     `backup.env`'e yazın.
+   - Not: R2'de "silmesiz yazma" izni yok. Token sızarsa yedekler silinebilir.
+   - Admin token **kullanmayın.**
+3. **Hesap kimliği.** R2 → Overview → *Account ID* (32 hane).
+4. **Şifreleme parolası.**
+   - Üretin: `openssl rand -base64 48`.
+   - **Önce parola yöneticisine kaydedin.** Kaybolursa yedekler açılamaz.
+5. **İsteğe bağlı, sonra:** Bucket lock (silme koruması).
+   - pgBackRest `backup.info`/`archive.info` dosyalarını yerinde yeniden yazdığı için bucket'ın
+     tamamına uygulanmaz.
+   - Prefix'e göre kural, gerçek R2'de test edilmeden açılmaz (karar 0110).
+
+### Aktivasyon (VPS, root, PLANLI PENCERE — postgres ~10–60 sn yeniden başlar)
+
+0. **Ön koşul:** Bu değişiklik main'de ve dağıtılmış olmalı. `/opt/arilla/vps/bin/pg-backup*`
+   dosyaları var. Dağıtım günlüğünde beklenen uyarı: "postgres yapılandırması değişti ama
+   OTOMATİK yeniden başlatılmaz".
+1. **İmajı al.**
+   - `build-postgres` iş akışı main'de çalışınca iş özetinde
+     `ghcr.io/arillasoftorg/arilla-postgres@sha256:...` görünür.
+   - Gerekirse Actions → build-postgres → *Run workflow* (main).
+2. **Değerleri doldur.**
+   ```bash
+   sudo install -m 0640 -o root -g deploy /opt/arilla/vps/env/backup.env.example /opt/arilla/env/backup.env
+   sudoedit /opt/arilla/env/backup.env        # R2_ACCOUNT_ID, R2_BACKUP_BUCKET, anahtarlar, PGBACKREST_REPO_CIPHER_PASS
+   ```
+3. **Ön kontrol.** Servislere dokunmaz:
+   - imaj ve PostgreSQL ana sürümü;
+   - yapılandırma üretimi;
+   - **R2 erişim testi** (`repo-ls`);
+   - disk.
+   ```bash
+   sudo /opt/arilla/vps/bin/pg-backup-activate preflight --image ghcr.io/arillasoftorg/arilla-postgres@sha256:<digest>
+   ```
+4. **Etkinleştirme.** Onaylı pencerede yapılır.
+   - Adımlar: `archive.conf` → postgres yeni imajla yeniden oluşturulur → `backup` başlar →
+     `stanza-create` → `check` → **ilk TAM yedek**.
+   ```bash
+   sudo /opt/arilla/vps/bin/pg-backup-activate activate --image <aynı-digest> --confirm-restart
+   ```
+5. **Zamanlayıcılar ve alarm.**
+   ```bash
+   sudo install -m 0640 -o root -g deploy /opt/arilla/vps/env/alert.env.example /opt/arilla/env/alert.env
+   sudoedit /opt/arilla/env/alert.env         # HEALTHCHECK_PING_URL (önerilir), ALERT_WEBHOOK_URL
+   sudo /opt/arilla/vps/bin/pg-backup-activate install-timers
+   ```
+6. **İlk geri yükleme provası** (aktivasyonun parçası):
+   ```bash
+   sudo /opt/arilla/vps/bin/pg-restore-test
+   cat /opt/arilla/state/restore-test.json     # ok=true, schema_match=true, rto_s
+   ```
+7. **Kontrol:** `sudo python3 /opt/arilla/vps/bin/arilla_healthcheck.py` (GENEL: OK).
+
+**Aktivasyonu geri alma** (arşivi kapatır; yedekler ve depo SİLİNMEZ; postgres yeniden başlar):
+`sudo /opt/arilla/vps/bin/pg-backup-activate deactivate --confirm-restart`, ardından
+`systemctl disable --now 'arilla-backup-*.timer' arilla-restore-test.timer`.
+
+### Günlük işletim
+
+| İş | Komut |
+| --- | --- |
+| Durum | `sudo /opt/arilla/vps/bin/pg-backup info` |
+| Elle yedek | `sudo /opt/arilla/vps/bin/pg-backup full` (ya da `diff`) |
+| Arşiv zinciri testi | `sudo /opt/arilla/vps/bin/pg-backup check` |
+| Sağlık | `sudo python3 /opt/arilla/vps/bin/arilla_healthcheck.py` |
+| Günlükler | `journalctl -u arilla-backup-full -u arilla-backup-diff -u arilla-restore-test` |
+
+Durum dosyaları `/opt/arilla/state/*.json`'dadır; sağlık kontrolü bunları okur.
+
+### Geri yükleme runbook'u
+
+**Kural (V4.1 §6.2):** Üretime yerinde PITR, hedef zamandan sonraki **tüm** yazmaları siler.
+Varsayılan yol **yan instance**'tır: veri oradan çıkarılır, üretime ileri-düzeltme ile yazılır.
+
+**A) Yanlış silme / bozuk veri** (üretim çalışıyor). Varsayılan yol budur.
+1. Olay zamanını belirleyin (UTC).
+2. Yan instance'a, olaydan hemen önceki ana geri yükleyin. Prova betiği dizini sildiği için bu
+   adım elle yapılır. Aşağıdaki **şablon prova edilmedi**; aynı restore ve başlatma mantığı
+   `pg-restore-test` içinde CI'da sınanıyor:
+   ```bash
+   sudo mkdir -p /opt/arilla/restore-test/manual && sudo chown 999:999 /opt/arilla/restore-test/manual
+   sudo ARILLA_RESTORE_DIR=/opt/arilla/restore-test/manual docker compose --env-file /opt/arilla/compose.env \
+     -f /opt/arilla/compose.prod.yml --profile restore run --rm --no-deps --entrypoint bash restore -c '
+       pgbackrest --stanza=arilla --pg1-path=/restore/data --archive-mode=off \
+         --type=time "--target=2026-10-14 03:00:00+00" --target-action=promote restore &&
+       pg_ctl -D /restore/data -l /restore/pg.log -o "-c listen_addresses= -c archive_mode=off -c max_connections=200" start -w &&
+       psql -h /var/run/postgresql -U arilla -d arilla -c "\copy (SELECT ...) TO /restore/kurtarilan.csv csv header"; 
+       pg_ctl -D /restore/data stop -m fast'
+   ```
+3. `kurtarilan.csv` incelenir. Üretime yeniden yazma, ileri-düzeltme olarak yapılır (migration ya da
+   onaylı tek seferlik betik).
+4. Dizini silin: `sudo rm -rf /opt/arilla/restore-test/manual`.
+
+**B) VPS tamamen kayboldu** (felaket). Hedef RTO ilk provada ölçülür (`restore-test.json` → `rto_s`).
+1. Yeni VPS → karar 0109 kurulumu (Docker, `install-deploy.sh`, `init-secrets.sh`).
+   - **Postgres'i başlatmayın.**
+2. `/opt/arilla/env/backup.env`'i aynı değerlerle yazın: R2 bilgileri ve **şifreleme parolası**
+   (parola yöneticisinden).
+3. `pg-backup-configure` → `compose.env`'e `ARILLA_POSTGRES_IMAGE=<digest>`.
+4. **[HENÜZ PROVA EDİLMEDİ — ilk felaket tatbikatında betiğe dönüştürülecek]**
+   - Boş `postgres_data` volume'una (sahibi uid 999) `pgbackrest --stanza=arilla --archive-mode=off restore`
+     çalıştırılır. Kullanılan imaj ve yapılandırma `restore` servisiyle aynıdır; pg1-path volume köküdür.
+   - Önceki sunucu kesin kapalı değilse **arşivi açmayın** (iki sunucu aynı depoya WAL yazmasın).
+     Kapalıysa `archive.conf.pending` → `archive.conf`.
+5. `up -d postgres` → kurtarma biter → `up -d` → `pg-backup check` → **yeni tam yedek** → DNS.
+6. `postgres.env`/`migrate.env` parolaları yeni sunucuda yeniden üretildiyse:
+   - `bootstrap-app-role` ile `arilla_app` parolası güncellenir.
+   - Geri yüklenen veritabanındaki rol parolaları eski sunucudakiyle aynıdır; env dosyalarını eski
+     değerlerle doldurmak en kısa yoldur (parola yöneticisi).
+
+**C) Üretime yerinde zaman noktasına dönüş.**
+- Yalnız A yolu mümkün değilse, kayıp penceresi yazılı olarak ve **açık onayla** yapılır.
+- Adımlar B.4–B.5 ile aynıdır, ama önce mevcut `postgres_data`'nın bir kopyası alınır (silinmez).
+
+### Alarmlar
+
+| Kontrol | Uyarı | Kritik |
+| --- | --- | --- |
+| Disk (`/opt/arilla`, `/var/lib/docker`) | ≥ %70 | ≥ %80 |
+| Bekleyen WAL (`pg_ls_archive_statusdir`) | ≥ 4 dosya | ≥ 16 dosya ya da 15 dk bekleyen |
+| Son yedek | — | > 30 sa |
+| Son tam yedek | — | > 8 gün |
+| Geri yükleme provası | yok ya da > 35 gün | son prova başarısız |
+| PG bağlantı | ≥ %80 | ≥ %90 |
+| Konteyner / systemd | — | sağlıksız konteyner, başarısız `arilla-*` birimi |
+
+`HEALTHCHECK_PING_URL` tanımlıysa her turda ping atılır (kritikte `/fail`). VPS düşerse ping
+kesilir ve dış servis alarm verir. İkisi de boşsa alarmlar yalnız journald'dadır. **Bu yetersizdir.**
 
 ## İzleme
 
@@ -565,6 +1105,84 @@ Siz feed'lerden veri topluyorsunuz; rakip de sizden toplamaya çalışacak.
 - Sıradışı gezinme örüntüsü tespitinde yavaşlatma
 - `robots.txt` ve arama motoru botları için ayrı kural
 
+## Besleme keşfi ve senkronizasyonu (karar 0111, 0112)
+
+**Durum:** Kod ve testler hazır. Üretimde zamanlanmış çalışma **yok**.
+
+**Ortam:**
+- `ADMITAD_CLIENT_ID` ve `ADMITAD_CLIENT_SECRET`: `worker.env`'e eklenir.
+- İsteğe bağlı: `ADMITAD_PROGRAMS` (program filtresi).
+- `FEED_STAGING_DIR`: hazırlık dizini.
+- `FEED_MAX_BYTES`: disk tavanı, varsayılan 4 GiB.
+- `FEED_MIN_FREE_BYTES`: bu sınırın altında indirme durur. Varsayılan 15 GiB;
+  PostgreSQL, WAL ve yedek diski korunur.
+- `FEED_SAMPLE_BYTES`: örnek kipinde okunan miktar, varsayılan 64 MiB.
+
+| İş | Komut |
+| --- | --- |
+| Keşif (yeni ya da kaybolan besleme) | `python -m feeds discover` |
+| Liste | `python -m feeds list` |
+| Bağlama / etkinleştirme | `python -m feeds bind --feed ID --merchant SLUG --activate` |
+| Küçük doğrulama (pasifleştirmez) | `python -m feeds sync --feed ID --max-records 2000` |
+| Tam senkronizasyon | `python -m feeds sync --feed ID` |
+| Etkin ve değişmiş beslemeler | `python -m feeds sync-due` |
+
+**Kurallar:**
+- Yeni besleme `discovered` olarak kalır; yönetici bağlamadan senkronize edilmez.
+- TRY dışı besleme (AliExpress USD) yalnızca **etkin olmayan** merchant'a bağlanır.
+  Yaklaşık TRY gösterimi gelene kadar USD fiyat TL gibi görünemez.
+- Kesik, kısmi ya da hatalı besleme (tamlık kapısı) hiçbir offer'ı pasifleştirmez.
+- Bir offer şu üç şart birlikte sağlanınca pasifleşir:
+  - hiçbir etkin ya da duraklatılmış beslemede kalmamış;
+  - 48 saatlik bekleme süresi dolmuş;
+  - tavan (%10) aşılmamış.
+- Silme yok.
+
+**Ölçüm (14 Ekim 2026, yerel):** AliExpress "10-25$" beslemesi gzip'li hâliyle
+yüzlerce MB. İndirme ~0,7–1,1 MB/sn. Tam aktarım öncesi V4.1 §20 aşama kapıları
+uygulanır: önce 10 bin, sonra 100 bin kayıt, her aşamada disk, WAL ve yedek ölçümü.
+
+## Production besleme komutları (karar 0114)
+
+Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-staging`.
+
+Çalıştırma: `cd /opt/arilla && docker compose --env-file compose.env -f compose.prod.yml --profile feeds run --rm feeds python -m feeds <komut>`.
+
+- Besleme dosyası diskteki `/opt/arilla/feed-staging`'e iner; RAM tabanlı `/tmp`'ye inmez.
+- Diskte en az 20 GiB boş alan korunur.
+- Kaynaklar: 1,5 GB bellek, 1 CPU.
+
+**Ölçümler ve davranış (karar 0114):**
+- Darboğaz Admitad dışa aktarma sunucusu.
+  - Bağlantı başına ~0,25–0,5 MB/s sıkıştırılmış; ~292 bayt/kayıt.
+  - CSV sıkıştırılmadan geliyor (~797 bayt/kayıt); XML gzip daha hızlı.
+  - 3 paralel bağlantı toplamda ~2,2 kat hız veriyor.
+- `feeds sync-due --parallel-downloads N` (varsayılan 2, en fazla 4).
+  - İndirmeler paralel, işleme sırayla yapılır.
+  - Her indirme `(boş alan − FEED_MIN_FREE_BYTES) / N` ile sınırlıdır.
+- Kesinti ya da çökme sonrası, 24 saat içinde ve kaynak güncellenmemişse inmiş dosya yeniden indirilmez; birleştirilmiş parçalar atlanır.
+  - Örnek kipindeki (eksik) dosya tam koşuda kullanılmaz.
+- Değişmeyen teklif upsert'e girmez.
+  - `ON CONFLICT` koşulu tutmasa da satırı kilitler ve WAL üretir.
+  - Satıcı satırı günde en fazla bir kez güncellenir.
+  - Üyelik tablosu `fillfactor=70` (0068) ile HOT güncellenir.
+
+## Fiyat doğrulama ve döviz kuru (karar 0113)
+
+**Durum:** Kod ve testler hazır. Üretimde zamanlama **yok**.
+
+| İş | Komut | Önerilen sıklık |
+| --- | --- | --- |
+| TCMB kuru | `python -m pricing fx` | Günde bir, 16:00 TR sonrası |
+| Doğrulama isteği ekle | `python -m pricing enqueue --older-than-hours 24` | Günlük |
+| Doğrula | `python -m pricing verify --limit 50` | Saatlik, düşük hacim |
+
+- Yaklaşık TRY yalnızca kur 4 günden yeniyse gösterilir; kur yoksa dönüşüm yapılmaz.
+- İzinli canlı kaynağı olmayan offer'lar (AliExpress) `unsupported` olur; sonuç yazılmaz.
+- Admitad tıklaması için `merchant.deeplink_template`'e Admitad hesabında doğrulanan
+  biçim girilir (örn. `{affiliate_url}&subid={click_id}`).
+- Yönetim: `/yonetim/ingest/beslemeler` (salt okunur).
+
 ## Bootstrap kataloğu (geçici, yalnızca yerel)
 
 `docs/decisions/0027`. Admitad öncesi test kataloğu; Shopify `/products.json`
@@ -860,7 +1478,11 @@ değişkenleri ayrı silinebilir. Federe erişimi tümden kesmek için
 ## Dağıtım
 
 - `main` dalına birleşme staging'e otomatik gider
-- Production dağıtımı elle onaylanır
+- Vercel production'ı Git entegrasyonuyla dağıtılır (geçiş bitene kadar sürer)
+- VPS yolu (karar 0109, faz 6): CI ✔ → GHCR imajı (`:<sha>`, digest ile) → `deploy.yml` → VPS'te
+  `arilla-deploy` (migration yedeği + `migrate`, sağlık kapısı, **otomatik geri alma**). Aynı anda tek
+  dağıtım. Elle onay isteniyorsa `vps-production` environment'ına *Required reviewers* eklenir; kod
+  değişmez. Ayrıntı: "Otomatik dağıtım (faz 6)".
 - Migration'lar geriye uyumlu yazılır: önce kolon eklenir, kod dağıtılır, sonra
   eski kolon kaldırılır. Tek adımda kolon silen migration reddedilir.
 - Geri alma planı her dağıtımda hazır olur
@@ -897,6 +1519,19 @@ görseller"), sonra bayrak. Production'da onay olmadan açılmaz.
 Ön koşul (karar 0101): migration 0057 **ve 0063** production'da uygulanmış olmalı (0063 yoksa
 rıza kaydı CHECK hatası verir ve görsel gönderimi `unavailable` döner); `/gizlilik` ve
 `/kvkk-aydinlatma` sohbet eki için hukuk onaylı metinle güncellenmiş olmalı.
+
+**Tanılama: "sohbet çalışmıyor" (salt okunur).** Sırayla bakılır:
+
+1. Bayrak: `/sohbet` 404 ya da ana sayfa kutusu `/ara`ya gidiyorsa `CHAT_DISCOVERY_ENABLED`
+   tam olarak `true` değildir (`GEMINI_API_KEY` tek başına sohbeti açmaz). Değer yazdırılmadan
+   yalnızca varlığı: `docker compose exec web sh -c 'test "$CHAT_DISCOVERY_ENABLED" = true && echo on || echo off'`.
+   Lansman kapısı (`PRODUCT_ACCESS`) de ayrıca denetlenir.
+2. Konteyner günlüğü: sağlayıcı hatasında tek satır yazılır, ör.
+   `[sohbet] model provider_error code=client_error http=400 model=gemini-3.1-flash-lite attempts=1 detail=INVALID_ARGUMENT ...`.
+   `docker compose logs --since 30m web | grep '\[sohbet\]'`. Anahtar, istem ve kullanıcı metni asla yazılmaz.
+3. Veritabanı: `SELECT occurred_at, error_class, http_status, model_version, error_summary FROM ai_error_event WHERE surface = 'chat' ORDER BY occurred_at DESC LIMIT 20;`
+   ve `SELECT operation, model_version, count(*) FROM api_usage WHERE operation = 'chat_turn' AND created_at > now() - interval '1 day' GROUP BY 1, 2;`
+   (satır yoksa model hiç çağrılmamıştır: bayrak, oturum, kota ya da günlük tavan).
 
 ### Sohbette ürün linki (karar 0090) — varsayılan kapalı
 

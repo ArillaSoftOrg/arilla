@@ -17,13 +17,14 @@ describe("prelaunch mascot story", () => {
     expect(html.match(/data-mascot-guide=""/g)).toHaveLength(2);
     expect(html).toContain("robot-welcome.png");
     expect(html).toContain("robot-social-point-v2.png");
+    expect(html).toContain("robot-social.png");
+    expect(html).toContain('href="https://www.linkedin.com/company/manicepte/"');
+    expect(html).toContain("LinkedIn");
     expect(html).toContain("Tarif et");
     expect(html).toContain("Fotoğraf göster");
     expect(html).toContain("Link bırak");
     expect(html).toContain("Temsili önizleme");
-    expect(html).toContain(
-      "Aşağıdaki örnek deneyimde ManiCepte’nin nasıl çalıştığını adım adım görebilirsin.",
-    );
+    expect(html).toContain("ManiCepte seçenekleri bulup karşılaştırsın.");
     expect(html).toContain("En iyi fiyat-kalite dengesi");
     expect(html).toContain("ManiCepte ürün araştırma akışı");
     expect(html).toContain("Şu an erken erişimdeyiz, ManiCepte’yi geliştirmeye devam ediyoruz.");
@@ -31,7 +32,9 @@ describe("prelaunch mascot story", () => {
     expect(html).toContain("Henüz kullanıma açık değil");
     expect(html).toContain('href="#nasil-calisacak"');
     expect(html).toContain('id="nasil-calisacak"');
-    expect(html.match(/<details\b/g)).toHaveLength(3);
+    expect(html.match(/<details\b/g)).toHaveLength(5);
+    expect(html).toContain("ManiCepte ne yapar?");
+    expect(html).not.toContain("Hareket");
     expect(html).not.toMatch(
       /<video|<form|hero-intro\.mp4|robot-idle|robot-wave|robot-body|data-mascot-stop|data-welcoming/,
     );

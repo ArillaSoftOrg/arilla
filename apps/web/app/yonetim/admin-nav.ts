@@ -48,6 +48,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "Mağaza başına toplama koşuları ve hataları.",
       },
       {
+        href: "/yonetim/ingest/beslemeler",
+        label: "Beslemeler",
+        capability: "ingest.read",
+        description: "Affiliate beslemeleri, son aktarım, hata kayıtları, fiyat doğrulama ve kur.",
+      },
+      {
         href: "/yonetim/katalog/urunler",
         label: "Ürünler",
         capability: "catalog.read",
@@ -58,6 +64,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         label: "Teklifler",
         capability: "catalog.read",
         description: "Mağaza teklifleri; eşleşmemişler dahil.",
+      },
+      {
+        href: "/yonetim/katalog/toplama",
+        label: "Katalog toplama",
+        capability: "catalog.write",
+        description: "Hepsiburada ürünlerini yönetici tarayıcısından topla; kota ve kapsam.",
       },
       {
         href: "/yonetim/katalog/kalite",

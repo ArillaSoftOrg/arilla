@@ -139,12 +139,36 @@ CREATE TABLE offer (
     first_seen_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_seen_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     is_active       BOOLEAN     NOT NULL DEFAULT TRUE,
+    -- 0065 (karar 0111): satici, besleme kaynagi, degisiklik tespiti, guvenli deaktivasyon.
+    seller_id       BIGINT      REFERENCES seller(id),          -- NULL = merchant'in kendisi
+    feed_source_id  BIGINT      REFERENCES feed_source(id),
+    fingerprint     TEXT        CHECK (fingerprint IS NULL OR fingerprint ~ '^[0-9a-f]{64}$'),
+    last_changed_at TIMESTAMPTZ,
+    last_snapshot_id BIGINT     REFERENCES source_snapshot(id),
+    deactivated_at  TIMESTAMPTZ,
+    deactivation_reason TEXT    CHECK (deactivation_reason IS NULL OR deactivation_reason IN
+                                ('missing_from_snapshot','source_removed','admin','expired')),
+    -- 0066 (karar 0112): kaynagin affiliate takip baglantisi; kanonik url'den AYRI.
+    affiliate_url   TEXT        CHECK (affiliate_url IS NULL OR (char_length(affiliate_url) <= 2048
+                                AND affiliate_url ~ '^https://')),
     CONSTRAINT offer_merchant_external_uniq UNIQUE (merchant_id, external_id)
 );
 CREATE INDEX offer_product_idx    ON offer (product_id) WHERE product_id IS NOT NULL;
 CREATE INDEX offer_unmatched_idx  ON offer (merchant_id) WHERE product_id IS NULL;
+-- 0071: magaza basina sayimlar icin indeks-yalniz tarama
+CREATE INDEX offer_merchant_state_idx ON offer (merchant_id, is_active, product_id);
+-- 0072: kalite denetimleri (adaysiz teklif siralamasi, bayatlik icin kapsayan indeks)
+CREATE INDEX offer_unmatched_first_seen_idx ON offer (first_seen_at, id) WHERE product_id IS NULL AND is_active;
+CREATE INDEX offer_active_seen_idx ON offer (id) INCLUDE (merchant_id, last_seen_at) WHERE is_active;
 CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT NULL;
 CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
+CREATE INDEX offer_seller_idx ON offer (seller_id) WHERE seller_id IS NOT NULL;
+CREATE INDEX offer_feed_source_idx ON offer (feed_source_id) WHERE feed_source_id IS NOT NULL;
+-- 0067/0069: eslesmemis teklif sayfasi (/teklifler); 0069 trigram yerine tam metin.
+CREATE INDEX offer_unmatched_recent_idx ON offer (last_seen_at DESC, id DESC)
+    WHERE product_id IS NULL AND is_active;
+CREATE INDEX offer_unmatched_title_fts ON offer USING gin (to_tsvector('simple', title_raw))
+    WHERE product_id IS NULL AND is_active;
 
 -- Offer görselleri (0053, karar 0073). Kaynak en fazla 6 görsel; kullanıcıya en
 -- fazla 3'ü gösterilir (display_rank). Görsel ilk olarak offer'dan gelir; ürün
@@ -189,10 +213,15 @@ CREATE TABLE offer_variant (
     -- kontrol basamağı doğru değer; kaynak 'feed' | 'products_js' | 'sku'.
     gtin           TEXT,
     gtin_source    TEXT,
+    -- 0065: saticilar arasi ortak ticari varyant + normalize eksenler.
+    canonical_variant_id BIGINT REFERENCES canonical_variant(id),
+    option_values  JSONB   NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(option_values) = 'object'),
     CONSTRAINT offer_variant_uniq UNIQUE (offer_id, external_id)
 );
 CREATE INDEX offer_variant_offer_idx ON offer_variant (offer_id) WHERE in_stock;
 CREATE INDEX offer_variant_gtin_idx  ON offer_variant (gtin) WHERE gtin IS NOT NULL;
+CREATE INDEX offer_variant_canonical_idx ON offer_variant (canonical_variant_id)
+    WHERE canonical_variant_id IS NOT NULL;
 
 -- Stok DEĞİŞİMİ olayları. Anlık görüntü değil — sadece durum değiştiğinde satır
 -- yazılır, yoksa tablo her toplama koşusunda şişer.
@@ -1045,9 +1074,21 @@ CREATE TABLE ingest_run (
     offers_created   INTEGER NOT NULL DEFAULT 0,
     offers_updated   INTEGER NOT NULL DEFAULT 0,
     price_points_written INTEGER NOT NULL DEFAULT 0,
-    error_text   TEXT
+    error_text   TEXT,
+    -- 0065: besleme/surum baglami, sayaclar, yeniden deneme, kontrol noktasi.
+    feed_source_id     BIGINT   REFERENCES feed_source(id),
+    snapshot_id        BIGINT   REFERENCES source_snapshot(id),
+    offers_unchanged   INTEGER  NOT NULL DEFAULT 0,
+    offers_deactivated INTEGER  NOT NULL DEFAULT 0,
+    records_rejected   INTEGER  NOT NULL DEFAULT 0,
+    attempt            SMALLINT NOT NULL DEFAULT 1 CHECK (attempt >= 1),
+    next_retry_at      TIMESTAMPTZ,
+    checkpoint         JSONB    CHECK (checkpoint IS NULL OR jsonb_typeof(checkpoint) = 'object'),
+    updated_at         TIMESTAMPTZ
 );
 CREATE INDEX ingest_run_merchant_idx ON ingest_run (merchant_id, started_at DESC);
+CREATE INDEX ingest_run_feed_source_idx ON ingest_run (feed_source_id, started_at DESC)
+    WHERE feed_source_id IS NOT NULL;
 
 -- 0041 (docs/decisions/0052): is kosusu gecmisi (collect, resolve, enrich,
 -- similarity, cron uclari). Isletim sinyali; denetim/analitik/log DEGIL.
@@ -1785,3 +1826,661 @@ CREATE TABLE di_accuracy_label (
     CONSTRAINT di_accuracy_label_decided CHECK ((verdict IS NULL) = (labeled_at IS NULL))
 );
 CREATE INDEX di_accuracy_label_build_idx ON di_accuracy_label (build_id);
+
+-- ===========================================================================
+-- KATALOG VE BESLEME MODELI (0065, karar 0111)
+-- offer / offer_variant / ingest_run'a eklenen kolonlar yukarida, tablolarin
+-- kendi tanimlarinda. APPEND-ONLY: identity_observation, match_decision_log
+-- (arilla_app UPDATE/DELETE/TRUNCATE yapamaz).
+-- ===========================================================================
+
+-- ---------------------------------------------------------------------------
+-- PAZARYERI SATICISI
+-- ---------------------------------------------------------------------------
+-- Pazaryerindeki magaza (or. AliExpress store). Merchant kanal/program, seller
+-- o kanalda satan magazadir. Ad kimlik degildir; degisebilir.
+CREATE TABLE seller (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    merchant_id     BIGINT      NOT NULL REFERENCES merchant(id),
+    external_id     TEXT        NOT NULL CHECK (char_length(external_id) BETWEEN 1 AND 200),
+    name            TEXT        CHECK (name IS NULL OR char_length(name) <= 300),
+    url             TEXT        CHECK (url IS NULL OR char_length(url) <= 2048),
+    is_active       BOOLEAN     NOT NULL DEFAULT TRUE,
+    first_seen_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT seller_merchant_external_uniq UNIQUE (merchant_id, external_id)
+);
+
+-- ---------------------------------------------------------------------------
+-- KANONIK VARYANT
+-- ---------------------------------------------------------------------------
+-- product renk duzeyinde kanoniktir (karar 0005). canonical_variant, ayni
+-- urunun beden/kapasite/hacim gibi TICARI varyantidir; farkli saticilarin ayni
+-- varyanti (ayni beden, ayni kapasite) burada bulusur.
+-- option_key: normalize, anahtara gore sirali "eksen=deger" listesi
+-- ("beden=42", "kapasite=256gb;renk=siyah"). Tek varyantli urun: ''.
+CREATE TABLE canonical_variant (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    product_id      BIGINT      NOT NULL REFERENCES product(id),
+    option_key      TEXT        NOT NULL CHECK (char_length(option_key) <= 500),
+    options         JSONB       NOT NULL DEFAULT '{}'::jsonb
+                    CHECK (jsonb_typeof(options) = 'object'),
+    -- GS1 kontrol basamagi dogrulanmis, 14 haneye tamamlanmis barkod.
+    gtin            TEXT        CHECK (gtin IS NULL OR gtin ~ '^[0-9]{14}$'),
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT canonical_variant_option_uniq UNIQUE (product_id, option_key)
+);
+
+-- ---------------------------------------------------------------------------
+-- BESLEME KAYNAGI, SURUM, IMLEC
+-- ---------------------------------------------------------------------------
+-- Bir affiliate aginin (ya da dogrudan magazanin) tek bir beslemesi.
+-- Kesifle OTOMATIK kaydedilir ama 'discovered' durumunda kalir: merchant'a
+-- baglanip yonetici tarafindan etkinlestirilmeden senkronize edilmez.
+-- Kimlik bilgisi (token, imzali URL parametresi) BURADA TUTULMAZ:
+-- source_url_redacted yalnizca gosterim icindir, gercek indirme adresi
+-- senkronizasyon aninda ag API'sinden yeniden cozulur.
+CREATE TABLE feed_source (
+    id                   BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    network              TEXT        NOT NULL CHECK (network ~ '^[a-z0-9_]{2,40}$'),
+    -- Agin kendi besleme kimligi (or. "<program_id>:<feed_adi>"); (network, external_id) benzersiz.
+    external_id          TEXT        NOT NULL CHECK (char_length(external_id) BETWEEN 1 AND 300),
+    merchant_id          BIGINT      REFERENCES merchant(id),
+    program_external_id  TEXT        CHECK (program_external_id IS NULL OR char_length(program_external_id) <= 100),
+    program_name         TEXT        CHECK (program_name IS NULL OR char_length(program_name) <= 300),
+    name                 TEXT        CHECK (name IS NULL OR char_length(name) <= 300),
+    format               TEXT        CHECK (format IN ('xml', 'csv', 'json', 'ndjson')),
+    compression          TEXT        CHECK (compression IN ('none', 'gzip', 'zip')),
+    source_url_redacted  TEXT        CHECK (source_url_redacted IS NULL OR char_length(source_url_redacted) <= 2048),
+    status               TEXT        NOT NULL DEFAULT 'discovered'
+                         CHECK (status IN ('discovered', 'active', 'paused', 'disabled', 'gone')),
+    -- 'snapshot': her kosu tam dosya, fark hesaplanir. 'delta': kaynak artimli veri/imlec destekliyor.
+    sync_mode            TEXT        NOT NULL DEFAULT 'snapshot' CHECK (sync_mode IN ('snapshot', 'delta')),
+    -- Kaynagin destekledigi artimli imlec (or. son degisim zamani). Kaynak desteklemiyorsa NULL.
+    sync_cursor          JSONB       CHECK (sync_cursor IS NULL OR jsonb_typeof(sync_cursor) = 'object'),
+    market               CHAR(2)     CHECK (market IS NULL OR market ~ '^[A-Z]{2}$'),
+    currency             CHAR(3)     CHECK (currency IS NULL OR currency ~ '^[A-Z]{3}$'),
+    -- Alan esleme ve tasima ayarlari (feed_config.mapping ile ayni bicim). Sir icermez.
+    config               JSONB       NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(config) = 'object'),
+    -- Gozlenen alan kumesinin ozeti; degisirse sema degisikligi algilanir.
+    schema_fingerprint   TEXT        CHECK (schema_fingerprint IS NULL OR schema_fingerprint ~ '^[0-9a-f]{64}$'),
+    schema_fields        JSONB       CHECK (schema_fields IS NULL OR jsonb_typeof(schema_fields) = 'array'),
+    schema_changed_at    TIMESTAMPTZ,
+    -- Kaynagin ilan ettigi son guncelleme (varsa); gereksiz indirmeyi onler.
+    source_updated_at    TIMESTAMPTZ,
+    discovered_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_discovery_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_success_at      TIMESTAMPTZ,
+    last_error_at        TIMESTAMPTZ,
+    last_error_code      TEXT        CHECK (last_error_code IS NULL OR last_error_code ~ '^[a-z0-9_]{2,60}$'),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT feed_source_network_external_uniq UNIQUE (network, external_id),
+    -- Etkin besleme bir merchant'a bagli olmak zorunda.
+    CONSTRAINT feed_source_active_has_merchant CHECK (status <> 'active' OR merchant_id IS NOT NULL)
+);
+CREATE INDEX feed_source_merchant_idx ON feed_source (merchant_id) WHERE merchant_id IS NOT NULL;
+CREATE INDEX feed_source_status_idx ON feed_source (status, network);
+
+-- Indirilen dosyanin surumu. Ayni icerik (sha256) ikinci kez islenmez.
+CREATE TABLE source_snapshot (
+    id                 BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    feed_source_id     BIGINT      NOT NULL REFERENCES feed_source(id),
+    kind               TEXT        NOT NULL DEFAULT 'full' CHECK (kind IN ('full', 'delta')),
+    status             TEXT        NOT NULL DEFAULT 'downloading'
+                       CHECK (status IN ('downloading', 'downloaded', 'processing', 'complete',
+                                         'duplicate', 'rejected', 'failed')),
+    sha256             TEXT        CHECK (sha256 IS NULL OR sha256 ~ '^[0-9a-f]{64}$'),
+    bytes              BIGINT      CHECK (bytes IS NULL OR bytes >= 0),
+    record_count       INTEGER     CHECK (record_count IS NULL OR record_count >= 0),
+    rejected_count     INTEGER     NOT NULL DEFAULT 0 CHECK (rejected_count >= 0),
+    schema_fingerprint TEXT        CHECK (schema_fingerprint IS NULL OR schema_fingerprint ~ '^[0-9a-f]{64}$'),
+    -- Yerel ya da nesne deposundaki anahtar (kimlik bilgisi yok).
+    storage_key        TEXT        CHECK (storage_key IS NULL OR char_length(storage_key) <= 1024),
+    -- Tamlik kapisi gecmediyse neden (or. 'too_few_records', 'truncated', 'error_rate').
+    reject_reason      TEXT        CHECK (reject_reason IS NULL OR reject_reason ~ '^[a-z0-9_]{2,60}$'),
+    started_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    completed_at       TIMESTAMPTZ
+);
+-- Tekrar indirme tespiti: ayni icerik EN SON tamamlanan surumle ayniysa yeni
+-- surum 'duplicate' olur. Benzersiz DEGIL: icerik A -> B -> A donebilir ve
+-- ikinci A gercekten islenmelidir (aradaki deaktivasyonlar geri alinir).
+CREATE INDEX source_snapshot_sha_idx ON source_snapshot (feed_source_id, sha256);
+CREATE INDEX source_snapshot_feed_idx ON source_snapshot (feed_source_id, started_at DESC);
+
+-- ---------------------------------------------------------------------------
+-- PARCA KONTROL NOKTASI VE HATA KAYITLARI
+-- ---------------------------------------------------------------------------
+-- Snapshot'in bagimsiz parcalari. Birlestirme ile 'merged' isareti AYNI
+-- islemde yazilir; cokme sonrasi ilk birlestirilmemis parcadan devam edilir.
+CREATE TABLE ingest_chunk (
+    snapshot_id   BIGINT      NOT NULL REFERENCES source_snapshot(id),
+    seq           INTEGER     NOT NULL CHECK (seq >= 0),
+    record_start  BIGINT      NOT NULL CHECK (record_start >= 0),
+    record_count  INTEGER     NOT NULL CHECK (record_count >= 0),
+    sha256        TEXT        NOT NULL CHECK (sha256 ~ '^[0-9a-f]{64}$'),
+    status        TEXT        NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'merged', 'failed')),
+    attempts      SMALLINT    NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    last_error    TEXT        CHECK (last_error IS NULL OR char_length(last_error) <= 500),
+    merged_at     TIMESTAMPTZ,
+    PRIMARY KEY (snapshot_id, seq)
+);
+
+-- Kayit duzeyi hata (dead-letter). Kosuyu durdurmaz; kaydedilir, sayilir.
+-- payload ham urun verisidir (kisisel veri degil) ve boyutu sinirlidir.
+CREATE TABLE ingest_error (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    feed_source_id  BIGINT      REFERENCES feed_source(id),
+    snapshot_id     BIGINT      REFERENCES source_snapshot(id),
+    run_id          BIGINT      REFERENCES ingest_run(id),
+    record_ref      TEXT        CHECK (record_ref IS NULL OR char_length(record_ref) <= 200),
+    external_id     TEXT        CHECK (external_id IS NULL OR char_length(external_id) <= 200),
+    error_code      TEXT        NOT NULL CHECK (error_code ~ '^[a-z0-9_]{2,60}$'),
+    detail          TEXT        CHECK (detail IS NULL OR char_length(detail) <= 1000),
+    payload         JSONB       CHECK (payload IS NULL OR pg_column_size(payload) <= 8192),
+    status          TEXT        NOT NULL DEFAULT 'open'
+                    CHECK (status IN ('open', 'retrying', 'resolved', 'ignored')),
+    attempts        SMALLINT    NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    next_retry_at   TIMESTAMPTZ,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    resolved_at     TIMESTAMPTZ
+);
+CREATE INDEX ingest_error_feed_idx ON ingest_error (feed_source_id, created_at DESC);
+CREATE INDEX ingest_error_open_idx ON ingest_error (next_retry_at) WHERE status IN ('open', 'retrying');
+
+-- ---------------------------------------------------------------------------
+-- URUN KIMLIGI VE ESLESTIRME KARARLARI
+-- ---------------------------------------------------------------------------
+-- Tanimlayicinin hangi DUZEYI tanimladigi turune baglidir (V4.1 §5.4):
+--   gtin       -> canonical_variant (her ticari varyantin kendi barkodu)
+--   mpn        -> product (marka zorunlu; marka cozulmeden MPN kimlik degildir)
+--   model_hint -> yalnizca aday uretimi; BENZERSIZ DEGIL, otomatik birlestirmez
+-- Celiski (ayni GTIN farkli marka/kategori/varyant) -> status='conflict':
+-- otomatik birlestirme durur, mevcut baglar korunur, yeniler incelemeye duser.
+CREATE TABLE product_identity (
+    id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    kind                  TEXT        NOT NULL CHECK (kind IN ('gtin', 'mpn', 'model_hint')),
+    value_norm            TEXT        NOT NULL CHECK (char_length(value_norm) BETWEEN 1 AND 100),
+    brand_id              BIGINT      REFERENCES brand(id),
+    target_level          TEXT        NOT NULL CHECK (target_level IN ('variant', 'product')),
+    canonical_variant_id  BIGINT      REFERENCES canonical_variant(id),
+    product_id            BIGINT      REFERENCES product(id),
+    status                TEXT        NOT NULL DEFAULT 'active'
+                          CHECK (status IN ('active', 'conflict', 'restricted', 'retired')),
+    source_count          INTEGER     NOT NULL DEFAULT 1 CHECK (source_count >= 0),
+    first_seen_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT product_identity_target CHECK (
+        (target_level = 'variant' AND canonical_variant_id IS NOT NULL)
+        OR (target_level = 'product' AND product_id IS NOT NULL)
+    ),
+    CONSTRAINT product_identity_gtin_shape CHECK (
+        kind <> 'gtin' OR (target_level = 'variant' AND value_norm ~ '^[0-9]{14}$')
+    ),
+    CONSTRAINT product_identity_mpn_brand CHECK (kind <> 'mpn' OR brand_id IS NOT NULL)
+);
+CREATE UNIQUE INDEX product_identity_gtin_active_uniq
+    ON product_identity (value_norm) WHERE kind = 'gtin' AND status = 'active';
+CREATE UNIQUE INDEX product_identity_mpn_active_uniq
+    ON product_identity (brand_id, value_norm) WHERE kind = 'mpn' AND status = 'active';
+CREATE INDEX product_identity_lookup_idx ON product_identity (kind, value_norm);
+CREATE INDEX product_identity_product_idx ON product_identity (product_id) WHERE product_id IS NOT NULL;
+
+-- APPEND-ONLY kanit: bir kaynak kaydinda gorulen tanimlayici. Celiski tespiti
+-- ve source_count buradan turetilir.
+CREATE TABLE identity_observation (
+    id                BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    offer_id          BIGINT      NOT NULL REFERENCES offer(id) ON DELETE CASCADE,
+    offer_variant_id  BIGINT      REFERENCES offer_variant(id) ON DELETE CASCADE,
+    kind              TEXT        NOT NULL CHECK (kind IN ('gtin', 'mpn', 'model_hint')),
+    value_raw         TEXT        NOT NULL CHECK (char_length(value_raw) BETWEEN 1 AND 200),
+    -- Gecersizse (kontrol basamagi tutmadi, kisitli onek) NULL; kimlik olarak kullanilmaz.
+    value_norm        TEXT        CHECK (value_norm IS NULL OR char_length(value_norm) <= 100),
+    is_valid          BOOLEAN     NOT NULL,
+    snapshot_id       BIGINT      REFERENCES source_snapshot(id),
+    observed_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+CREATE INDEX identity_observation_value_idx ON identity_observation (kind, value_norm)
+    WHERE value_norm IS NOT NULL;
+CREATE INDEX identity_observation_offer_idx ON identity_observation (offer_id);
+
+-- APPEND-ONLY: offer <-> product baglama/ayirma kararlarinin izi. Yanlis
+-- birlestirme bu kayitla geri alinir (yeni satir: 'unlink').
+CREATE TABLE match_decision_log (
+    id                   BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    offer_id             BIGINT      NOT NULL REFERENCES offer(id) ON DELETE CASCADE,
+    product_id           BIGINT      REFERENCES product(id),
+    previous_product_id  BIGINT      REFERENCES product(id),
+    decision             TEXT        NOT NULL CHECK (decision IN ('link', 'unlink', 'reject', 'hold')),
+    -- Kim: otomatik cozumleyici, yonetici, toplu duzeltme.
+    actor                TEXT        NOT NULL CHECK (actor IN ('resolver', 'admin', 'backfill')),
+    actor_user_id        BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    -- Hangi kanitla: 'gtin', 'mpn', 'manual', 'score' ...
+    basis                TEXT        NOT NULL CHECK (basis ~ '^[a-z0-9_]{2,40}$'),
+    evidence             JSONB       NOT NULL DEFAULT '{}'::jsonb
+                         CHECK (jsonb_typeof(evidence) = 'object' AND pg_column_size(evidence) <= 4096),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT match_decision_link_has_product CHECK (decision <> 'link' OR product_id IS NOT NULL)
+);
+CREATE INDEX match_decision_log_offer_idx ON match_decision_log (offer_id, created_at DESC);
+
+-- ---------------------------------------------------------------------------
+-- KATEGORI ESLEME VE ARAMA INDEKSI OLAYLARI
+-- ---------------------------------------------------------------------------
+-- Kaynagin kategori yolu -> bizim kategorimiz. Oneri otomatik, onay yonetici.
+CREATE TABLE category_source_map (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    merchant_id   BIGINT      NOT NULL REFERENCES merchant(id),
+    source_path   TEXT        NOT NULL CHECK (char_length(source_path) BETWEEN 1 AND 500),
+    path_norm     TEXT        NOT NULL CHECK (char_length(path_norm) BETWEEN 1 AND 500),
+    category_id   BIGINT      REFERENCES category(id),
+    status        TEXT        NOT NULL DEFAULT 'unmapped'
+                  CHECK (status IN ('unmapped', 'suggested', 'confirmed', 'rejected')),
+    offer_count   INTEGER     NOT NULL DEFAULT 0 CHECK (offer_count >= 0),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT category_source_map_uniq UNIQUE (merchant_id, path_norm),
+    CONSTRAINT category_source_map_confirmed CHECK (status <> 'confirmed' OR category_id IS NOT NULL)
+);
+
+-- Arama indeksi guncelleme olaylari (outbox). Katalog yazimiyla AYNI islemde
+-- eklenir; indeksleyici islenmemisleri sirayla tuketir. Bugun arama PostgreSQL
+-- uzerinde (indeks kendiliginden guncel); harici arama motoru gelince tuketici eklenir.
+CREATE TABLE search_outbox (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    entity        TEXT        NOT NULL CHECK (entity IN ('product', 'offer')),
+    entity_id     BIGINT      NOT NULL,
+    op            TEXT        NOT NULL CHECK (op IN ('upsert', 'delete')),
+    reason        TEXT        NOT NULL CHECK (reason ~ '^[a-z0-9_]{2,40}$'),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    processed_at  TIMESTAMPTZ
+);
+CREATE INDEX search_outbox_pending_idx ON search_outbox (id) WHERE processed_at IS NULL;
+
+-- Besleme x offer uyeligi (0066, karar 0112): ayni urun birden fazla beslemede
+-- olabilir; offer ancak hicbir etkin/duraklatilmis beslemede kalmayinca ve
+-- bekleme suresi dolunca pasiflesir.
+CREATE TABLE feed_source_offer (
+    feed_source_id    BIGINT      NOT NULL REFERENCES feed_source(id),
+    offer_id          BIGINT      NOT NULL REFERENCES offer(id) ON DELETE CASCADE,
+    -- Bu beslemenin offer'i en son gordugu surum.
+    last_snapshot_id  BIGINT      NOT NULL REFERENCES source_snapshot(id),
+    first_seen_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (feed_source_id, offer_id)
+);
+CREATE INDEX feed_source_offer_offer_idx ON feed_source_offer (offer_id);
+-- 0068: HOT guncelleme icin sayfada bos yer.
+ALTER TABLE feed_source_offer SET (fillfactor = 70);
+
+-- ===========================================================================
+-- BAGIMSIZ FIYAT DOGRULAMA VE DOVIZ KURU (0067, karar 0113)
+-- APPEND-ONLY: fx_rate, price_verification (arilla_app UPDATE/DELETE/TRUNCATE yapamaz).
+-- ===========================================================================
+
+-- Kur. Kaynagin kendi tarihiyle (`effective_date`) ve cekilme zamaniyla saklanir;
+-- gosterim "yaklasik" etiketi, kaynak ve tarihle yapilir. Kur yoksa donusum YOK.
+CREATE TABLE fx_rate (
+    id              BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source          TEXT        NOT NULL CHECK (source IN ('tcmb')),
+    base            CHAR(3)     NOT NULL CHECK (base ~ '^[A-Z]{3}$'),
+    quote           CHAR(3)     NOT NULL CHECK (quote ~ '^[A-Z]{3}$'),
+    -- 1 birim `base` = `rate` birim `quote` (TCMB "Unit" bolunmus).
+    rate            NUMERIC(20, 8) NOT NULL CHECK (rate > 0),
+    rate_kind       TEXT        NOT NULL CHECK (rate_kind IN ('forex_selling', 'forex_buying')),
+    effective_date  DATE        NOT NULL,
+    -- Kaynagin bulten kimligi (or. TCMB "2026/194").
+    bulletin        TEXT        CHECK (bulletin IS NULL OR char_length(bulletin) <= 40),
+    fetched_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT fx_rate_uniq UNIQUE (source, base, quote, rate_kind, effective_date)
+);
+CREATE INDEX fx_rate_latest_idx ON fx_rate (base, quote, rate_kind, effective_date DESC);
+
+-- Dogrulama sonucu. Besleme fiyatindan AYRI saklanir: kaynak, para birimi,
+-- varyant ve satici, zaman, sonuc, kaynak guvenilirligi, kosullar.
+-- Izinli dogrulama kaynagi yoksa satir YAZILMAZ (sahte sonuc yok).
+CREATE TABLE price_verification (
+    id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    offer_id              BIGINT      NOT NULL REFERENCES offer(id) ON DELETE CASCADE,
+    offer_variant_id      BIGINT      REFERENCES offer_variant(id) ON DELETE CASCADE,
+    seller_id             BIGINT      REFERENCES seller(id),
+    -- Saglayici adi (or. 'shopify_product_js').
+    provider              TEXT        NOT NULL CHECK (provider ~ '^[a-z0-9_]{2,40}$'),
+    source_kind           TEXT        NOT NULL
+                          CHECK (source_kind IN ('merchant_storefront', 'merchant_api', 'affiliate_api')),
+    -- 0-100: kaynagin fiyat icin guvenilirligi (saglayici tanimlar).
+    source_reliability    SMALLINT    NOT NULL CHECK (source_reliability BETWEEN 0 AND 100),
+    verified_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- match: besleme fiyatiyla ayni; mismatch: farkli; unavailable: urun/varyant
+    -- satista degil ya da bulunamadi; error: kaynak cevap vermedi.
+    result                TEXT        NOT NULL CHECK (result IN ('match', 'mismatch', 'unavailable', 'error')),
+    currency              CHAR(3)     CHECK (currency IS NULL OR currency ~ '^[A-Z]{3}$'),
+    observed_price_minor  BIGINT      CHECK (observed_price_minor IS NULL OR observed_price_minor > 0),
+    list_price_minor      BIGINT      CHECK (list_price_minor IS NULL OR list_price_minor > 0),
+    -- Dogrulama anindaki besleme fiyati (karsilastirma izi).
+    feed_price_minor      BIGINT      CHECK (feed_price_minor IS NULL OR feed_price_minor > 0),
+    in_stock              BOOLEAN,
+    -- Kosullar: kaynak vermiyorsa NULL (bilinmiyor), uydurulmaz.
+    shipping_minor        BIGINT      CHECK (shipping_minor IS NULL OR shipping_minor >= 0),
+    tax_included          BOOLEAN,
+    discount_conditions   JSONB       CHECK (discount_conditions IS NULL OR jsonb_typeof(discount_conditions) = 'object'),
+    coupon_conditions     JSONB       CHECK (coupon_conditions IS NULL OR jsonb_typeof(coupon_conditions) = 'object'),
+    error_code            TEXT        CHECK (error_code IS NULL OR error_code ~ '^[a-z0-9_]{2,60}$'),
+    CONSTRAINT price_verification_observed CHECK (
+        result NOT IN ('match', 'mismatch') OR (observed_price_minor IS NOT NULL AND currency IS NOT NULL)
+    )
+);
+CREATE INDEX price_verification_offer_idx ON price_verification (offer_id, verified_at DESC);
+
+-- Kuyruk. TS taraf yalnizca satir ekler (mimari sinir: Python'u cagirmaz);
+-- Python iscisi SKIP LOCKED ile alir.
+CREATE TABLE price_verification_request (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    offer_id         BIGINT      NOT NULL REFERENCES offer(id) ON DELETE CASCADE,
+    reason           TEXT        NOT NULL CHECK (reason IN ('stale', 'viewed', 'manual', 'price_change')),
+    priority         SMALLINT    NOT NULL DEFAULT 0 CHECK (priority BETWEEN 0 AND 9),
+    status           TEXT        NOT NULL DEFAULT 'pending'
+                     CHECK (status IN ('pending', 'running', 'done', 'failed', 'unsupported')),
+    attempts         SMALLINT    NOT NULL DEFAULT 0 CHECK (attempts >= 0),
+    next_attempt_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_error       TEXT        CHECK (last_error IS NULL OR last_error ~ '^[a-z0-9_]{2,60}$'),
+    verification_id  BIGINT      REFERENCES price_verification(id),
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- Offer basina tek acik istek.
+CREATE UNIQUE INDEX price_verification_request_open_uniq
+    ON price_verification_request (offer_id) WHERE status IN ('pending', 'running');
+CREATE INDEX price_verification_request_due_idx
+    ON price_verification_request (priority DESC, next_attempt_at) WHERE status = 'pending';
+
+-- 0070 (karar 0117): yonetici tarayicisindan katalog toplama; kota tetikleyicileri.
+-- 0070 — yonetici tarayicisindan katalog toplama: kota, kapsam, ara depo (karar 0117)
+--
+-- YALNIZCA EKLEME. Yeni tablolar ve tetikleyiciler; mevcut hicbir sey degismez.
+--
+-- Akis: yonetici tarayicisi kaynaktan (Hepsiburada) veriyi okur -> TS kimlikli
+-- istekle `catalog_intake_record`e YALNIZCA SATIR EKLER -> Python is
+-- (`python -m feeds hb-merge`) mevcut offer/price_point modeline birlestirir.
+-- TS offer yazmaz (mimari sinir). Katalog yazimi `offer` modelindedir; ayri
+-- veritabani ya da ayri urun tablosu yok.
+--
+-- KOTA SISTEM SEVIYESINDEDIR: kaynak basina en az `min_interval_days` aralik ve
+-- takvim ayinda (UTC) en fazla `max_runs_per_month` toplama kosusu. Tetikleyici
+-- uygulama kodundan bagimsiz calisir; `arilla_app` politikayi DEGISTIREMEZ.
+-- Ilk yukleme de ayni kotaya tabidir (muaf degil).
+
+-- ---------------------------------------------------------------------------
+-- KAYNAK POLITIKASI
+-- ---------------------------------------------------------------------------
+CREATE TABLE collection_source (
+    source               TEXT        PRIMARY KEY CHECK (source ~ '^[a-z0-9_]{2,40}$'),
+    merchant_slug        TEXT        NOT NULL CHECK (char_length(merchant_slug) BETWEEN 1 AND 80),
+    min_interval_days    SMALLINT    NOT NULL CHECK (min_interval_days >= 1),
+    max_runs_per_month   SMALLINT    NOT NULL CHECK (max_runs_per_month >= 1),
+    -- Kosunun en fazla yasam suresi (gun). Aralik'tan KISA olmak zorunda: iki
+    -- kosu hicbir zaman ust uste binmez.
+    run_window_days      SMALLINT    NOT NULL CHECK (run_window_days >= 1),
+    -- Kosu basina kaynaga atilabilecek istek tavani (isletici guvenlik valfi;
+    -- kaynagin bildirdigi bir sayi DEGILDIR).
+    -- Ilk yukleme ile sonraki (haftalik) guncelleme AYRI butcelidir; ikisi de ayarlanabilir
+    -- (politika yalnizca sahip rol/migration ile degisir). Ilk yukleme kotadan MUAF DEGILDIR:
+    -- ayni aralik ve ay tavanina tabidir.
+    initial_max_requests INTEGER     NOT NULL CHECK (initial_max_requests >= 1),
+    refresh_max_requests INTEGER     NOT NULL CHECK (refresh_max_requests >= 1),
+    enabled              BOOLEAN     NOT NULL DEFAULT FALSE,
+    -- Iznin dayanagi. Hepsi KULLANICI BEYANIDIR; belgeler bagimsiz incelenmemistir.
+    --   verbal_reported       kullanicinin bildirdigi sozlu izin
+    --   written_email_reported kullanicinin bildirdigi yazili e-posta izni (belge gosterilmedi)
+    --   declared_extended     kullanicinin bildirdigi, yukaridakilerden GENIS kapsam
+    --                         (not zorunlu; politika ancak bu dayanakla gevsetilebilir)
+    --   written_agreement / public_feed  sozlesme / herkese acik besleme
+    permission_basis     TEXT        NOT NULL
+                         CHECK (permission_basis IN ('verbal_reported', 'written_email_reported',
+                                'declared_extended', 'written_agreement', 'public_feed')),
+    -- Ilk yukleme kota disi mi. Varsayilan HAYIR; yalnizca ayri kapsam beyan edilmisse
+    -- ('declared_extended' + not) acilabilir.
+    initial_load_exempt  BOOLEAN     NOT NULL DEFAULT FALSE,
+    permission_note      TEXT        CHECK (permission_note IS NULL OR char_length(permission_note) <= 500),
+    created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT collection_source_window_lt_interval CHECK (run_window_days < min_interval_days),
+    -- Bildirilen kapsamin (>= 7 gun, ayda <= 4) disina POLITIKA gevsetilemez; gevsetmek icin
+    -- once izin dayanagi 'declared_extended' (notlu) ya da sozlesmeye yukseltilir.
+    CONSTRAINT collection_source_reported_scope CHECK (
+        permission_basis NOT IN ('verbal_reported', 'written_email_reported')
+        OR (min_interval_days >= 7 AND max_runs_per_month <= 4 AND NOT initial_load_exempt)),
+    CONSTRAINT collection_source_exempt_needs_declaration CHECK (
+        NOT initial_load_exempt
+        OR (permission_basis IN ('declared_extended', 'written_agreement')
+            AND permission_note IS NOT NULL))
+);
+
+INSERT INTO collection_source
+    (source, merchant_slug, min_interval_days, max_runs_per_month, run_window_days,
+     initial_max_requests, refresh_max_requests, enabled, permission_basis, permission_note)
+VALUES
+    ('hepsiburada', 'hepsiburada', 7, 4, 6, 500, 500, FALSE, 'written_email_reported',
+     'Kullanici beyani (Ekim 2026): e-posta ile bildirilen izin; admin tarayicisindan veri erisimi, '
+     || 'PostgreSQL''de saklama, haftada en fazla 1 yenileme, ayda en fazla 4. Belgeler bagimsiz '
+     || 'incelenmedi; imzali sozlesme degil.');
+
+-- ---------------------------------------------------------------------------
+-- TOPLAMA KOSUSU (kota defteri)
+-- ---------------------------------------------------------------------------
+CREATE TABLE collection_run (
+    id               BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source           TEXT        NOT NULL REFERENCES collection_source(source),
+    -- Kosuyu baslatan yonetici. Hesap silinse de kosu kaydi kalir.
+    started_by       BIGINT      REFERENCES app_user(id) ON DELETE SET NULL,
+    -- 'initial': kaynagin ilk kotaya sayilan koşusu; sonrakiler 'refresh'. Tetikleyici yazar.
+    kind             TEXT        NOT NULL DEFAULT 'initial' CHECK (kind IN ('initial', 'refresh')),
+    status           TEXT        NOT NULL DEFAULT 'open'
+                     CHECK (status IN ('open', 'completed', 'aborted', 'released')),
+    -- Tetikleyici sunucu saatiyle yazar; istemci geriye tarihleyemez.
+    reserved_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    expires_at       TIMESTAMPTZ NOT NULL,
+    closed_at        TIMESTAMPTZ,
+    requests_made    INTEGER     NOT NULL DEFAULT 0 CHECK (requests_made >= 0),
+    max_requests     INTEGER     NOT NULL CHECK (max_requests >= 1),
+    -- Kosu ayarlari (sorgu listesi sayisi, sayfa tavani); sir icermez.
+    options          JSONB       NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(options) = 'object'),
+    -- Yarim kalan kosuyu surdurmek icin tarayici kontrol noktasi.
+    checkpoint       JSONB       CHECK (checkpoint IS NULL OR (jsonb_typeof(checkpoint) = 'object'
+                                                              AND pg_column_size(checkpoint) <= 65536)),
+    -- Kapanista: kapsam ozeti (toplam ozgun urun, tavana takilan sorgular...).
+    summary          JSONB       CHECK (summary IS NULL OR jsonb_typeof(summary) = 'object'),
+    CONSTRAINT collection_run_budget CHECK (requests_made <= max_requests),
+    CONSTRAINT collection_run_released_unused CHECK (status <> 'released' OR requests_made = 0),
+    CONSTRAINT collection_run_closed CHECK ((status = 'open') = (closed_at IS NULL))
+);
+-- Acik kosu kaynak basina tek.
+CREATE UNIQUE INDEX collection_run_one_open_uniq ON collection_run (source) WHERE status = 'open';
+CREATE INDEX collection_run_source_idx ON collection_run (source, reserved_at DESC);
+
+CREATE FUNCTION collection_run_quota_guard() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    pol collection_source%ROWTYPE;
+    last_at TIMESTAMPTZ;
+    next_at TIMESTAMPTZ;
+    month_runs INTEGER;
+BEGIN
+    SELECT * INTO pol FROM collection_source WHERE source = NEW.source;
+    IF NOT FOUND THEN
+        RAISE EXCEPTION 'collection_source_unknown' USING ERRCODE = 'P0001';
+    END IF;
+    IF NOT pol.enabled THEN
+        RAISE EXCEPTION 'collection_disabled' USING ERRCODE = 'P0001';
+    END IF;
+    -- Ayni kaynakta eszamanli iki rezervasyon sirayla degerlendirilir.
+    PERFORM pg_advisory_xact_lock(hashtextextended('collection_run:' || NEW.source, 0));
+
+    NEW.reserved_at := now();
+    NEW.status := 'open';
+    NEW.closed_at := NULL;
+    NEW.requests_made := 0;
+    NEW.expires_at := NEW.reserved_at + make_interval(days => pol.run_window_days);
+    -- Ilk koşu = kota defterinde kotaya sayilan baska koşu yok.
+    NEW.kind := CASE WHEN EXISTS (SELECT 1 FROM collection_run
+                                   WHERE source = NEW.source AND status <> 'released')
+                     THEN 'refresh' ELSE 'initial' END;
+    NEW.max_requests := CASE NEW.kind WHEN 'initial' THEN pol.initial_max_requests
+                                      ELSE pol.refresh_max_requests END;
+
+    -- 'released' (hic istek atilmadan birakilan) kosu kotadan dusulur.
+    SELECT max(reserved_at) INTO last_at
+      FROM collection_run
+     WHERE source = NEW.source AND status <> 'released'
+       AND NOT (kind = 'initial' AND pol.initial_load_exempt);
+    IF last_at IS NOT NULL THEN
+        next_at := last_at + make_interval(days => pol.min_interval_days);
+        IF NEW.reserved_at < next_at THEN
+            RAISE EXCEPTION 'collection_quota_interval' USING ERRCODE = 'P0001',
+                DETAIL = 'next_allowed_at=' || to_char((next_at AT TIME ZONE 'UTC'),
+                                                       'YYYY-MM-DD"T"HH24:MI:SS"Z"');
+        END IF;
+    END IF;
+
+    SELECT count(*) INTO month_runs
+      FROM collection_run
+     WHERE source = NEW.source AND status <> 'released'
+       AND NOT (kind = 'initial' AND pol.initial_load_exempt)
+       AND date_trunc('month', reserved_at AT TIME ZONE 'UTC')
+         = date_trunc('month', NEW.reserved_at AT TIME ZONE 'UTC');
+    IF month_runs >= pol.max_runs_per_month THEN
+        RAISE EXCEPTION 'collection_quota_month' USING ERRCODE = 'P0001';
+    END IF;
+    RETURN NEW;
+END $$;
+
+CREATE TRIGGER collection_run_quota_guard_trg
+    BEFORE INSERT ON collection_run
+    FOR EACH ROW EXECUTE FUNCTION collection_run_quota_guard();
+
+-- Kimlik alanlari ve rezervasyon zamani degistirilemez; kapanan kosu yeniden acilmaz.
+CREATE FUNCTION collection_run_immutable_guard() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.source IS DISTINCT FROM OLD.source
+       OR NEW.reserved_at IS DISTINCT FROM OLD.reserved_at
+       OR NEW.expires_at IS DISTINCT FROM OLD.expires_at
+       OR NEW.max_requests IS DISTINCT FROM OLD.max_requests
+       OR NEW.kind IS DISTINCT FROM OLD.kind
+       OR NEW.started_by IS DISTINCT FROM OLD.started_by THEN
+        RAISE EXCEPTION 'collection_run_immutable' USING ERRCODE = 'P0001';
+    END IF;
+    IF OLD.status <> 'open' THEN
+        RAISE EXCEPTION 'collection_run_closed' USING ERRCODE = 'P0001';
+    END IF;
+    IF NEW.requests_made < OLD.requests_made THEN
+        RAISE EXCEPTION 'collection_requests_decrease' USING ERRCODE = 'P0001';
+    END IF;
+    IF NEW.status <> 'open' AND NEW.closed_at IS NULL THEN
+        NEW.closed_at := now();
+    END IF;
+    RETURN NEW;
+END $$;
+
+CREATE TRIGGER collection_run_immutable_guard_trg
+    BEFORE UPDATE ON collection_run
+    FOR EACH ROW EXECUTE FUNCTION collection_run_immutable_guard();
+
+-- ---------------------------------------------------------------------------
+-- KAPSAM TAKIBI: kesif birimi = (sorgu, sayfa)
+-- ---------------------------------------------------------------------------
+-- Her kaynak istegi bir birimdir. Kapsam raporu buradan turetilir: kac sorgu,
+-- kac sayfa, her sayfada kac urun, hangi sorgu SAYFA TAVANINA takildi.
+CREATE TABLE collection_unit (
+    run_id         BIGINT      NOT NULL REFERENCES collection_run(id),
+    kind           TEXT        NOT NULL CHECK (kind IN ('query')),
+    unit_key       TEXT        NOT NULL CHECK (char_length(unit_key) BETWEEN 1 AND 200),
+    page           SMALLINT    NOT NULL DEFAULT 1 CHECK (page BETWEEN 1 AND 200),
+    status         TEXT        NOT NULL CHECK (status IN ('done', 'empty', 'failed', 'blocked')),
+    items_found    INTEGER     NOT NULL DEFAULT 0 CHECK (items_found >= 0),
+    -- Sayfanin onceki sayfalarda GORULMEMIS urun sayisi (sayfalama calisiyor mu kaniti).
+    items_new      INTEGER     NOT NULL DEFAULT 0 CHECK (items_new >= 0),
+    -- Kaynagin bildirdigi toplam (yoksa NULL; uydurulmaz).
+    total_hint     INTEGER     CHECK (total_hint IS NULL OR total_hint >= 0),
+    error_code     TEXT        CHECK (error_code IS NULL OR error_code ~ '^[a-z0-9_]{2,60}$'),
+    fetched_at     TIMESTAMPTZ NOT NULL,
+    recorded_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (run_id, kind, unit_key, page)
+);
+
+-- ---------------------------------------------------------------------------
+-- ARA DEPO: dogrulanmis kaynak kayitlari (offer'a Python birlestirir)
+-- ---------------------------------------------------------------------------
+-- (run_id, external_id) benzersiz: ayni kosuda tekrar eden urun TEK satirdir.
+-- Kosular arasi tekrar `offer (merchant_id, external_id)` ile cozulur.
+-- `source_observed_at`: kaynaktan okunma ani (istemci saati, sunucuda
+-- [reserved_at, now()] araligina kisitlanir). `received_at`: sunucuya geldigi an.
+CREATE TABLE catalog_intake_record (
+    id                 BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    run_id             BIGINT      NOT NULL REFERENCES collection_run(id),
+    external_id        TEXT        NOT NULL CHECK (char_length(external_id) BETWEEN 1 AND 200),
+    title              TEXT        NOT NULL CHECK (char_length(title) BETWEEN 1 AND 500),
+    url                TEXT        NOT NULL CHECK (char_length(url) <= 2048 AND url ~ '^https://'),
+    price_minor        BIGINT      NOT NULL CHECK (price_minor > 0),
+    list_price_minor   BIGINT      CHECK (list_price_minor IS NULL OR list_price_minor > 0),
+    currency           CHAR(3)     NOT NULL CHECK (currency = 'TRY'),
+    in_stock           BOOLEAN,
+    image_url          TEXT        CHECK (image_url IS NULL OR (char_length(image_url) <= 2048
+                                                               AND image_url ~ '^https://')),
+    brand              TEXT        CHECK (brand IS NULL OR char_length(brand) <= 200),
+    category_raw       TEXT        CHECK (category_raw IS NULL OR char_length(category_raw) <= 500),
+    seller_external_id TEXT        CHECK (seller_external_id IS NULL OR char_length(seller_external_id) <= 200),
+    seller_name        TEXT        CHECK (seller_name IS NULL OR char_length(seller_name) <= 300),
+    -- Ana satici disindaki teklifler hedef degil. Varyant: kaynagin verdigi etiket (or. renk/beden).
+    variant_label      TEXT        CHECK (variant_label IS NULL OR char_length(variant_label) <= 200),
+    gtin               TEXT        CHECK (gtin IS NULL OR gtin ~ '^[0-9]{8,14}$'),
+    -- Hangi sorgu bu urunu buldu (kesif izi; kategori DEGILDIR).
+    found_via          TEXT        CHECK (found_via IS NULL OR char_length(found_via) <= 200),
+    source_observed_at TIMESTAMPTZ NOT NULL,
+    received_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    merged_at          TIMESTAMPTZ,
+    CONSTRAINT catalog_intake_run_external_uniq UNIQUE (run_id, external_id)
+);
+CREATE INDEX catalog_intake_pending_idx ON catalog_intake_record (run_id, id) WHERE merged_at IS NULL;
+
+-- Yalniz ACIK ve suresi dolmamis kosuya kayit eklenir; kaynak zamani makul olmali.
+CREATE FUNCTION catalog_intake_guard() RETURNS trigger
+LANGUAGE plpgsql AS $$
+DECLARE
+    run collection_run%ROWTYPE;
+BEGIN
+    SELECT * INTO run FROM collection_run WHERE id = NEW.run_id;
+    IF NOT FOUND OR run.status <> 'open' THEN
+        RAISE EXCEPTION 'collection_run_not_open' USING ERRCODE = 'P0001';
+    END IF;
+    IF now() >= run.expires_at THEN
+        RAISE EXCEPTION 'collection_run_expired' USING ERRCODE = 'P0001';
+    END IF;
+    NEW.received_at := now();
+    IF NEW.source_observed_at < run.reserved_at - interval '5 minutes'
+       OR NEW.source_observed_at > now() + interval '5 minutes' THEN
+        RAISE EXCEPTION 'collection_observed_at_out_of_range' USING ERRCODE = 'P0001';
+    END IF;
+    NEW.merged_at := NULL;
+    RETURN NEW;
+END $$;
+
+CREATE TRIGGER catalog_intake_guard_trg
+    BEFORE INSERT ON catalog_intake_record
+    FOR EACH ROW EXECUTE FUNCTION catalog_intake_guard();
+
+-- ---------------------------------------------------------------------------
+-- YETKILER
+-- ---------------------------------------------------------------------------
+-- Politika yalnizca sahip rol/migration ile degisir; uygulama okur.
+REVOKE INSERT, UPDATE, DELETE, TRUNCATE ON collection_source FROM arilla_app;
+GRANT SELECT ON collection_source TO arilla_app;
+-- Kota defterinden satir silinemez (silme kotayi sifirlardi).
+REVOKE DELETE, TRUNCATE ON collection_run FROM arilla_app;
+REVOKE DELETE, TRUNCATE ON collection_unit FROM arilla_app;
+-- Ara depo: TS yalnizca ekler; birlestirme (`merged_at`) Python'dadir ve ayni rolu kullanir.
+-- Kayit icerigi sonradan degistirilemez: yalnizca `merged_at` guncellenebilir.
+REVOKE UPDATE ON catalog_intake_record FROM arilla_app;
+GRANT UPDATE (merged_at) ON catalog_intake_record TO arilla_app;
+REVOKE TRUNCATE ON catalog_intake_record FROM arilla_app;

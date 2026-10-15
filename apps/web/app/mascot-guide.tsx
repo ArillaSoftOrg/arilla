@@ -3,11 +3,19 @@ import styles from "./coming-soon.module.css";
 
 type MascotPose = "welcome" | "research" | "compare" | "social";
 
-const POSE_IMAGES: Record<MascotPose, { src: string; width: number; height: number }> = {
+const POSE_IMAGES: Record<
+  MascotPose,
+  { src: string; width: number; height: number; mobileSrc?: string }
+> = {
   welcome: { src: "/mascot/guide/robot-welcome.png", width: 1254, height: 1254 },
   research: { src: "/mascot/guide/robot-research.png", width: 1254, height: 1254 },
   compare: { src: "/mascot/guide/robot-compare.png", width: 1254, height: 1254 },
-  social: { src: "/mascot/guide/robot-social-point-v2.png", width: 1536, height: 1024 },
+  social: {
+    src: "/mascot/guide/robot-social-point-v2.png",
+    mobileSrc: "/mascot/guide/robot-social.png",
+    width: 1536,
+    height: 1024,
+  },
 };
 
 export function MascotGuide({ pose, priority = false }: { pose: MascotPose; priority?: boolean }) {
@@ -23,7 +31,10 @@ export function MascotGuide({ pose, priority = false }: { pose: MascotPose; prio
 
   return (
     <div className={styles.mascotGuide} data-mascot-guide="" data-pose={pose} aria-hidden="true">
-      <Image {...imageProps} src={image.src} className={styles.guideImage} />
+      <picture>
+        {image.mobileSrc ? <source media="(max-width: 639px)" srcSet={image.mobileSrc} /> : null}
+        <Image {...imageProps} src={image.src} className={styles.guideImage} unoptimized />
+      </picture>
     </div>
   );
 }

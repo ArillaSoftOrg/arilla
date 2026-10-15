@@ -18,6 +18,7 @@
  */
 import { assertIsolatedTestUrl, isTestRuntime } from "@arilla/db";
 import Redis, { type RedisOptions } from "ioredis";
+import { isProductionDeploy } from "../config/deploy-env.ts";
 
 const CONNECT_TIMEOUT_MS = 3_000;
 const COMMAND_TIMEOUT_MS = 2_500;
@@ -47,6 +48,24 @@ export function reconnectDelayMs(attempt: number): number {
   return Math.min(Math.max(attempt, 1) * 200, MAX_RECONNECT_DELAY_MS);
 }
 
+/**
+ * `REDIS_PLAINTEXT_HOSTS` (virgülle ayrılmış, tam host adı, büyük/küçük harf
+ * duyarsız) içindeki bir host'a düz `redis://` izni. Python worker aynı
+ * değişkeni okur (`collect/link/worker_config.py`).
+ */
+export function isPlaintextAllowed(url: string, env: Record<string, string | undefined>): boolean {
+  const allowed = (env.REDIS_PLAINTEXT_HOSTS ?? "")
+    .split(",")
+    .map((host) => host.trim().toLowerCase())
+    .filter((host) => host !== "");
+  if (allowed.length === 0) return false;
+  try {
+    return allowed.includes(new URL(url).hostname.toLowerCase());
+  } catch {
+    return false;
+  }
+}
+
 export interface RedisConnectionConfig {
   url: string;
   options: RedisOptions;
@@ -65,8 +84,11 @@ export function redisOptionsFromEnv(
     throw new RedisConfigError("REDIS_URL redis:// ya da rediss:// ile baslamali.");
   }
   // Production'da parola ve kuyruk trafiği şifresiz gitmez. Yerel geliştirme
-  // ve önizleme `redis://` kullanabilir. Mesaj sabittir, adres yazılmaz.
-  if (env.VERCEL_ENV === "production" && !url.startsWith("rediss://")) {
+  // ve önizleme `redis://` kullanabilir. Tek istisna (karar 0109): Docker iç
+  // ağındaki Redis; host adı `REDIS_PLAINTEXT_HOSTS` listesinde açıkça
+  // yazılmışsa düz `redis://` kabul edilir (varsayılan: boş = istisna yok).
+  // Mesaj sabittir, adres yazılmaz.
+  if (isProductionDeploy(env) && !url.startsWith("rediss://") && !isPlaintextAllowed(url, env)) {
     throw new RedisConfigError("REDIS_URL production ortaminda rediss:// (TLS) olmali.");
   }
 

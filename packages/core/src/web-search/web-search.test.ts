@@ -40,6 +40,12 @@ describe("isWebSearchEnabled", () => {
       isWebSearchEnabled({ ...base, VERCEL_ENV: "production", WEB_SEARCH_LEGAL_APPROVED: "true" }),
     ).toBe(true);
   });
+  it("DEPLOY_ENV=production (VERCEL_ENV olmadan) hukuki onay ister", () => {
+    expect(isWebSearchEnabled({ ...base, DEPLOY_ENV: "production" })).toBe(false);
+    expect(
+      isWebSearchEnabled({ ...base, DEPLOY_ENV: "production", WEB_SEARCH_LEGAL_APPROVED: "true" }),
+    ).toBe(true);
+  });
   it("onizleme ve gelistirmede bayrak yeterli", () => {
     expect(isWebSearchEnabled({ ...base, VERCEL_ENV: "preview" })).toBe(true);
     expect(isWebSearchEnabled(base)).toBe(true);

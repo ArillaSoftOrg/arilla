@@ -3,7 +3,7 @@ import {
   EARLY_ACCESS_PATH,
   type EarlyAccessProgress as EarlyAccessProgressData,
 } from "@arilla/core";
-import { ArrowRightIcon, PlusIcon } from "@arilla/ui";
+import { ArrowRightIcon, ChevronRightIcon, PlusIcon, VisuallyHidden } from "@arilla/ui";
 import styles from "./coming-soon.module.css";
 import { BUILD_ITEMS, BUILD_UPDATED, COMING_SOON_COPY as copy } from "./coming-soon-copy.ts";
 import { ComingSoonDemo } from "./coming-soon-demo.tsx";
@@ -39,27 +39,32 @@ export function ComingSoonLanding({
         <MascotJourney>
           <section className={styles.hero} aria-labelledby="yakinda-baslik">
             <div className={styles.heroIntro}>
-              <p className={styles.eyebrow}>
-                <span className={styles.statusDot} aria-hidden="true" />
-                {copy.eyebrow}
-                <span className={styles.eyebrowSeparator} aria-hidden="true">
-                  /
-                </span>
-                {copy.status}
-              </p>
               <h1 id="yakinda-baslik" className={styles.brandHeadline}>
                 {SITE_BRAND}
               </h1>
               <p className={styles.heroHeadline}>{copy.headline}</p>
-              <p className={styles.lead}>{copy.body}</p>
-              <p className={styles.stageNote}>{copy.stageNote}</p>
+              <details className={styles.heroDetails}>
+                <summary className={`${styles.disclosureToggle} ${styles.heroDetailsToggle}`}>
+                  {copy.heroDetailsLabel}
+                  <ChevronRightIcon className={styles.disclosureChevron} size={18} />
+                </summary>
+                <div className={styles.heroDetailsBody}>
+                  <p>{copy.body}</p>
+                  <p>{copy.stageNote}</p>
+                </div>
+              </details>
             </div>
             <div className={styles.welcomeStage}>
-              <p className={`${styles.dialogue} ${styles.welcomeDialogue}`}>
-                <span className={styles.dialogueGreeting}>{copy.greeting}</span>
-                <span className={styles.greetingIntroduction}>{copy.greetingBody}</span>
-                <span className={styles.greetingInvitation}>{copy.greetingInvitation}</span>
-              </p>
+              <div className={`${styles.dialogue} ${styles.welcomeDialogue}`}>
+                <details className={styles.greetingDisclosure}>
+                  <summary className={`${styles.disclosureToggle} ${styles.greetingToggle}`}>
+                    <VisuallyHidden>Karşılama notunu göster</VisuallyHidden>
+                    <span className={styles.dialogueGreeting}>{copy.greeting}</span>
+                    <ChevronRightIcon className={styles.disclosureChevron} size={18} />
+                  </summary>
+                  <p>{copy.greetingBody}</p>
+                </details>
+              </div>
               <MascotGuide pose="welcome" priority />
             </div>
             <div className={styles.heroSignup}>
@@ -78,10 +83,15 @@ export function ComingSoonLanding({
               {progress ? (
                 <div className={styles.progress}>
                   <EarlyAccessProgress progress={progress} prominent />
-                  <p className={styles.progressGoal}>
-                    {copy.progressGoal(new Intl.NumberFormat("tr-TR").format(progress.target))}
-                  </p>
-                  <p className={styles.progressNote}>{copy.progressNote}</p>
+                  <details className={styles.progressDisclosure}>
+                    <summary className={`${styles.disclosureToggle} ${styles.progressToggle}`}>
+                      <span className={styles.progressGoal}>
+                        {copy.progressGoal(new Intl.NumberFormat("tr-TR").format(progress.target))}
+                      </span>
+                      <ChevronRightIcon className={styles.disclosureChevron} size={18} />
+                    </summary>
+                    <p className={styles.progressNote}>{copy.progressNote}</p>
+                  </details>
                 </div>
               ) : (
                 <p className={styles.heroNote}>{copy.availability}</p>

@@ -31,7 +31,7 @@ export const SOCIAL_PROFILES: Readonly<Record<SocialNetwork, string | null>> = {
   instagram: "https://www.instagram.com/manicepte.tr",
   x: "https://x.com/ManiCeptetr",
   tiktok: null,
-  linkedin: null,
+  linkedin: "https://www.linkedin.com/company/manicepte/",
 };
 
 const SOCIAL_LABELS: Readonly<Record<SocialNetwork, string>> = {

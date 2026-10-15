@@ -141,6 +141,7 @@ export async function PublicSiteShell({
         accountLabel={accountLabel}
         loginHref={loginHref}
         loginLabel={loginLabel}
+        accountInMobileMenuOnly={footerVariant === "prelaunch" && !user}
         accountCurrent={currentPath === (accountHref ?? loginHref)}
         accountAvatarUrl={user?.avatarUrl ?? null}
         accountAvatarLabel={user?.displayName ?? user?.email ?? SITE_BRAND}
@@ -153,6 +154,7 @@ export async function PublicSiteShell({
             ? { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH }
             : undefined
         }
+        utilityInMenuOnly={footerVariant === "prelaunch"}
         personalNavItems={personalNavItems}
         personalNavLabel={HOME_COPY.navPersonalTitle}
         accountName={user?.displayName ?? null}

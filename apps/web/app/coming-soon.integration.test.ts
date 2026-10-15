@@ -249,22 +249,20 @@ describe("mod", () => {
 });
 
 describe("landing içeriği", () => {
-  it("anonim: marka, durum, başlık, tek eylem; ürün/arama/form yok", async () => {
+  it("anonim: marka, başlık ve tek eylem; ürün/arama/form yok", async () => {
     const html = await landingMarkup();
-    expect(html).toContain("ManiCepte yakında.");
-    expect(html).toContain("Erken Erişim");
     expect(html).toContain("Tarif et, fotoğrafını göster veya linkini bırak.");
     expect(html).toContain(`href="${EARLY_ACCESS_LOGIN_PATH}"`);
     expect(html).toContain('href="#nasil-calisacak"');
     expect(html).toContain('id="nasil-calisacak"');
     expect(html).toContain("ManiCepte nasıl çalışır?");
     expect(html).toContain("Temsili önizleme");
-    expect(html).toContain("ManiCepte&#x27;yi geliştiriyoruz.");
-    expect(html).toContain("Erken erişim kayıtları açık.");
+    expect(html).toContain("Neler hazırlıyoruz?");
+    expect(html).toContain("Erken erişim kayıtları");
     expect(html).not.toMatch(PRODUCT_HREF);
     expect(html).not.toContain("<form");
     expect(html).not.toMatch(/<input[^>]+type="(?:text|search|email)"/);
-    expect(html).toContain('type="checkbox"');
+    expect(html).not.toContain('type="checkbox"');
     // Tek h1.
     expect(html.match(/<h1/g)).toHaveLength(1);
     // Yasak kelimeler ve sahte sayı yok (docs/copy.md).
@@ -273,15 +271,19 @@ describe("landing içeriği", () => {
     expect(text).not.toMatch(/satın al|dupe|ucuz|\d\s?%|%\s?\d|\bTL\b|₺/i);
   });
 
-  it("yalnızca tanımlı resmi hesaplar gösterilir: Instagram ve X var, TikTok ve LinkedIn yok", async () => {
+  it("yalnızca tanımlı resmi hesaplar gösterilir: Instagram, X ve LinkedIn var; TikTok yok", async () => {
     const html = await landingMarkup();
     expect(html).toContain('href="https://www.instagram.com/manicepte.tr"');
     expect(html).toContain('href="https://x.com/ManiCeptetr"');
+    expect(html).toContain('href="https://www.linkedin.com/company/manicepte/"');
     expect(html).toContain("ManiCepte günlüğü");
     expect(html).toContain("Gelişmeleri birlikte takip edelim.");
     expect(html.match(/href="https:\/\/www\.instagram\.com\/manicepte\.tr"/g)).toHaveLength(1);
     expect(html.match(/href="https:\/\/x\.com\/ManiCeptetr"/g)).toHaveLength(1);
-    expect(html).not.toMatch(/tiktok|linkedin/i);
+    expect(html.match(/href="https:\/\/www\.linkedin\.com\/company\/manicepte\/"/g)).toHaveLength(
+      1,
+    );
+    expect(html).not.toMatch(/tiktok/i);
     expect(html).not.toMatch(/utm_|stkn/);
   });
 
@@ -305,15 +307,17 @@ describe("landing içeriği", () => {
 });
 
 describe("kabuk: header ve footer", () => {
-  async function shellParts(): Promise<{
+  async function shellParts(footerVariant: "default" | "prelaunch" = "default"): Promise<{
     loginHref: unknown;
     utilityLink: unknown;
+    utilityInMenuOnly: unknown;
     groups: readonly FooterGroup[];
   }> {
     const { PublicSiteShell } = await import("./public-site-shell.tsx");
     const { SUBPAGE_SECTION_LINKS } = await import("./home-footer-groups.ts");
     const tree = (await PublicSiteShell({
       links: SUBPAGE_SECTION_LINKS,
+      footerVariant,
       children: null,
     })) as Element;
     const parts = (tree.props.children as Element[]).flat();
@@ -322,15 +326,17 @@ describe("kabuk: header ve footer", () => {
     return {
       loginHref: header.props.loginHref,
       utilityLink: header.props.utilityLink,
+      utilityInMenuOnly: header.props.utilityInMenuOnly,
       groups: footer.props.groups as readonly FooterGroup[],
     };
   }
 
   it("anonim: erken erişim ve sade Admin Girişi; ürün bağlantısı yok", async () => {
-    const { loginHref, utilityLink, groups } = await shellParts();
+    const { loginHref, utilityLink, utilityInMenuOnly, groups } = await shellParts("prelaunch");
     expect(loginHref).toBe(EARLY_ACCESS_LOGIN_PATH);
-    // Header'da sade, birincil olmayan Admin Girişi: aynı giriş akışı.
+    // Admin Girişi üst çubukta değil, yalnızca menü panelinde gösterilir.
     expect(utilityLink).toEqual({ label: "Admin Girişi", href: ADMIN_LOGIN_PATH });
+    expect(utilityInMenuOnly).toBe(true);
     const links = groups.flatMap((group) => group.links);
     expect(links).toContainEqual(
       expect.objectContaining({ label: "Admin Girişi", href: ADMIN_LOGIN_PATH }),
@@ -584,14 +590,19 @@ describe("SEO", () => {
 describe("yapılandırma yardımcıları", () => {
   it("sosyal bağlantılar: yalnızca tanımlı ve https olanlar, sabit sırayla", async () => {
     const { configuredSocialLinks, SOCIAL_PROFILES } = await import("./site-config.ts");
-    // Bugün Instagram ve X tanımlı (takip parametresiz, https).
+    // Bugün Instagram, X ve LinkedIn tanımlı (takip parametresiz, https).
     expect(SOCIAL_PROFILES.instagram).toBe("https://www.instagram.com/manicepte.tr");
     expect(SOCIAL_PROFILES.x).toBe("https://x.com/ManiCeptetr");
     expect(SOCIAL_PROFILES.tiktok).toBeNull();
-    expect(SOCIAL_PROFILES.linkedin).toBeNull();
+    expect(SOCIAL_PROFILES.linkedin).toBe("https://www.linkedin.com/company/manicepte/");
     expect(configuredSocialLinks()).toEqual([
       { network: "instagram", label: "Instagram", href: "https://www.instagram.com/manicepte.tr" },
       { network: "x", label: "X", href: "https://x.com/ManiCeptetr" },
+      {
+        network: "linkedin",
+        label: "LinkedIn",
+        href: "https://www.linkedin.com/company/manicepte/",
+      },
     ]);
     expect(
       configuredSocialLinks({

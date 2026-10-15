@@ -1,0 +1,10 @@
+[Unit]
+Description=Haftalik depo dogrulamasi (Carsamba 02:30 UTC)
+
+[Timer]
+OnCalendar=Wed *-*-* 02:30:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

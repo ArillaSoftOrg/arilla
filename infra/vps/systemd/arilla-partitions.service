@@ -1,0 +1,13 @@
+[Unit]
+Description=Arilla price_point aylik bolum uretimi (bu ay + 3 ay)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/arilla
+# Sahip kimligi yalniz gecici `migrate` konteynerinde (migrate.env); uzun omurlu
+# hicbir konteynerde yok. Sirasiyla: bolum uret, sonra price_point_default kontrolu.
+ExecStart=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml run --rm migrate node scripts/partitions.ts
+ExecStartPost=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml run --rm migrate node scripts/partitions.ts --check
+TimeoutStartSec=300

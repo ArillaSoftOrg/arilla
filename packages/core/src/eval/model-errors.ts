@@ -72,6 +72,28 @@ export function failureFromChatTurn(outcome: InterpretationOutcome): Error | nul
 }
 
 /**
+ * Sohbet turu hatasi icin TEK satirlik, icerik tasimayan konteyner log metni; hata yoksa `null`.
+ * Yalnizca sabit kod, HTTP durumu ve saglayicinin sabit durum/alan kimlikleri (`LlmError.detail`,
+ * zaten kimlik biciminle sinirli). Anahtar, istem, kullanici metni ve yanit govdesi ASLA girmez.
+ * Hata kaydi (`ai_error_event`) DB'de kalir; bu satir DB'ye ulasilamayan durumda tani saglar.
+ */
+export function chatTurnFailureLog(outcome: InterpretationOutcome): string | null {
+  const failure = failureFromChatTurn(outcome);
+  if (!failure) return null;
+  const kind = outcome.kind === "provider_error" ? "provider_error" : "fallback";
+  const llm = failure instanceof LlmError ? failure : null;
+  const parts = [
+    `[sohbet] model ${kind}`,
+    `code=${llm?.code ?? "unknown"}`,
+    `http=${llm?.httpStatus ?? "none"}`,
+    `model=${outcome.modelVersion}`,
+    `attempts=${outcome.calls.length}`,
+  ];
+  if (llm?.detail) parts.push(`detail=${llm.detail}`);
+  return parts.join(" ");
+}
+
+/**
  * Hata olayini sinirli surede yazar; yazilamazsa ya da sure dolarsa `false`.
  * ASLA firlatmaz.
  */
