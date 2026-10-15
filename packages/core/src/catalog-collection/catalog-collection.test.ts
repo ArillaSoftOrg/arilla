@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { externalIdFromUrl, extractHepsiburadaPage } from "./extract-hepsiburada.ts";
+import { extractHepsiburadaProductPage } from "./extract-product-page.ts";
 import { validateIntakeRecord } from "./validate.ts";
 
 // Sentetik sayfa: gercek Hepsiburada verisi DEGILDIR; yalnizca arsivlenen yapiyi sinar.
@@ -135,5 +136,35 @@ describe("validateIntakeRecord", () => {
   it("nesne olmayan girdiyi reddeder", () => {
     expect(validateIntakeRecord("x", rules)).toEqual({ ok: false, code: "not_object" });
     expect(validateIntakeRecord(null, rules)).toEqual({ ok: false, code: "not_object" });
+  });
+});
+
+describe("extractHepsiburadaProductPage (dogrulanmamis; standart JSON-LD)", () => {
+  const ld = (o: unknown) => `<script type="application/ld+json">${JSON.stringify(o)}</script>`;
+  it("ana satici, varyant etiketi ve gecerli GTIN'i okur", () => {
+    const r = extractHepsiburadaProductPage(
+      ld({
+        "@type": "Product",
+        color: "Siyah",
+        size: "42",
+        gtin13: "8690000000015",
+        offers: { price: "1", seller: { "@type": "Organization", name: "Ornek Magaza" } },
+      }),
+    );
+    expect(r).toEqual({
+      sellerName: "Ornek Magaza",
+      variantLabel: "Siyah / 42",
+      gtin: "8690000000015",
+    });
+  });
+  it("bulunmayani uydurmaz; uydurma GTIN'i reddeder", () => {
+    expect(extractHepsiburadaProductPage("<html></html>")).toEqual({
+      sellerName: null,
+      variantLabel: null,
+      gtin: null,
+    });
+    const r = extractHepsiburadaProductPage(ld({ "@type": "Product", gtin: "0000000000000" }));
+    expect(r.gtin).toBeNull();
+    expect(r.sellerName).toBeNull();
   });
 });

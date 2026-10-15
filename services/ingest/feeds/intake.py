@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime
@@ -51,13 +52,14 @@ FEED_CONFIG: dict[str, Any] = {
         "seller": "seller",
         "mpn": "mpn_unused",
     },
-    "keep_params": ["stock_state", "found_via"],
+    "keep_params": ["stock_state", "found_via", "variant"],
     "required_fields": ["external_id", "title", "url", "price", "currency"],
 }
 
 PENDING = """
 SELECT id, external_id, title, url, price_minor, list_price_minor, currency, in_stock,
-       image_url, brand, category_raw, seller_external_id, gtin, found_via, source_observed_at
+       image_url, brand, category_raw, seller_external_id, gtin, found_via, source_observed_at,
+       seller_name, variant_label
   FROM catalog_intake_record
  WHERE run_id = %s AND merged_at IS NULL
  ORDER BY id
@@ -85,6 +87,13 @@ class MergeReport:
     detail: dict[str, Any] | None = None
 
 
+def seller_slug(name: str) -> str:
+    """Kimliksiz satici adindan `name:<ascii-slug>`; ad kimlik degildir, etiketle ayrilir."""
+    folded = name.casefold().translate(str.maketrans("ıçğöşü", "icgosu"))
+    slug = re.sub(r"[^a-z0-9]+", "-", folded).strip("-")[:80]
+    return f"name:{slug or 'unknown'}"
+
+
 def _money(minor: int) -> str:
     return f"{minor // 100}.{minor % 100:02d}"
 
@@ -107,6 +116,8 @@ def to_feed_row(row: tuple[Any, ...]) -> dict[str, Any]:
         gtin,
         found_via,
         _observed,
+        seller_name,
+        variant_label,
     ) = row
     record: dict[str, Any] = {
         "external_id": ext,
@@ -123,8 +134,10 @@ def to_feed_row(row: tuple[Any, ...]) -> dict[str, Any]:
         record["brand"] = brand
     if category:
         record["category"] = category
-    if seller:
-        record["seller"] = seller
+    # Ana satici. Kaynak kimlik vermiyorsa ad, kararli bir ada-dayali anahtara cevrilir.
+    seller_key = seller or (seller_slug(seller_name) if seller_name else None)
+    if seller_key:
+        record["seller"] = seller_key
     if gtin:
         record["gtin"] = gtin
     param: dict[str, str] = {}
@@ -137,6 +150,8 @@ def to_feed_row(row: tuple[Any, ...]) -> dict[str, Any]:
         record["available"] = "true" if in_stock else "false"
     if found_via:
         param["found_via"] = found_via[:100]
+    if variant_label:
+        param["variant"] = variant_label[:100]
     if param:
         record["param"] = param
     return record
@@ -195,6 +210,27 @@ def _hold_price_jumps(
     return held
 
 
+def _name_sellers(conn: psycopg.Connection, feed_id: int, rows: list[tuple[Any, ...]]) -> None:
+    """Satici adini yalniz BOS olan seller satirina yazar (kaynagin adi mevcut adi ezmez)."""
+    names: dict[str, str] = {}
+    for r in rows:
+        name = r[15]
+        key = r[11] or (seller_slug(name) if name else None)
+        if key and name:
+            names[key] = name[:300]
+    if not names:
+        return
+    with conn.cursor() as cur:
+        cur.executemany(
+            """UPDATE seller s SET name = %s
+                 FROM feed_source f
+                WHERE f.id = %s AND s.merchant_id = f.merchant_id
+                  AND s.external_id = %s AND s.name IS NULL""",
+            [(name, feed_id, key) for key, name in names.items()],
+        )
+    conn.commit()
+
+
 def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = True) -> MergeReport:
     report = MergeReport(run_id)
     with conn.cursor() as cur:
@@ -229,6 +265,7 @@ def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = T
     report.status = result.status
     report.detail = result.detail()
     if result.status in ("success", "duplicate"):
+        _name_sellers(conn, feed_id, rows)
         with conn.cursor() as cur:
             cur.execute(
                 "UPDATE catalog_intake_record SET merged_at = now()"

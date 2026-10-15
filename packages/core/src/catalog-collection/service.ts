@@ -78,6 +78,7 @@ export interface QuotaState {
   /** Bir sonraki koşunun türü ve istek bütçesi (ilk yükleme ile güncelleme ayrı bütçelidir). */
   nextKind: "initial" | "refresh";
   nextMaxRequests: number;
+  initialLoadExempt: boolean;
   permissionBasis: string;
   permissionNote: string | null;
 }
@@ -151,7 +152,11 @@ export async function getCollectionStatus(
     .where(eq(collectionRun.source, source))
     .orderBy(desc(collectionRun.reservedAt))
     .limit(12);
-  const counted = runs.filter((r) => r.status !== "released");
+  // Ilk yukleme kota disi beyan edildiyse (declared_extended + not) araliga/aya sayilmaz.
+  const counted = runs.filter(
+    (r) => r.status !== "released" && !(r.kind === "initial" && policy.initialLoadExempt),
+  );
+  const anyCounted = runs.some((r) => r.status !== "released");
   const month = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
   const runsThisMonth = counted.filter((r) => month(r.reservedAt) === month(now)).length;
   const last = counted[0]?.reservedAt ?? null;
@@ -174,8 +179,9 @@ export async function getCollectionStatus(
       canStart: blockedBy === null,
       blockedBy,
       nextAllowedAt,
-      nextKind: counted.length === 0 ? "initial" : "refresh",
-      nextMaxRequests: counted.length === 0 ? policy.initialMaxRequests : policy.refreshMaxRequests,
+      nextKind: anyCounted ? "refresh" : "initial",
+      nextMaxRequests: anyCounted ? policy.refreshMaxRequests : policy.initialMaxRequests,
+      initialLoadExempt: policy.initialLoadExempt,
       permissionBasis: policy.permissionBasis,
       permissionNote: policy.permissionNote,
     },
@@ -352,6 +358,8 @@ export async function submitCollectionBatch(
               brand: r.brand,
               categoryRaw: r.categoryRaw,
               sellerExternalId: r.sellerExternalId,
+              sellerName: r.sellerName,
+              variantLabel: r.variantLabel,
               gtin: r.gtin,
               foundVia: r.foundVia,
               sourceObservedAt: r.sourceObservedAt,

@@ -46,7 +46,12 @@ def _cleanup(cur: psycopg.Cursor) -> None:
     cur.execute(f"DELETE FROM feed_source WHERE network = '{NETWORK}'")
     cur.execute("DELETE FROM collection_run")
     cur.execute("DELETE FROM merchant WHERE slug = 'hepsiburada'")
-    cur.execute("UPDATE collection_source SET enabled = FALSE WHERE source = 'hepsiburada'")
+    cur.execute(
+        "UPDATE collection_source SET enabled = FALSE, initial_load_exempt = FALSE,"
+        " permission_basis = 'written_email_reported', min_interval_days = 7,"
+        " run_window_days = 6, max_runs_per_month = 4, initial_max_requests = 500,"
+        " refresh_max_requests = 500 WHERE source = 'hepsiburada'"
+    )
 
 
 @pytest.fixture
@@ -83,8 +88,8 @@ def _add(owner: psycopg.Connection, run_id: int, ext: str, price: int, **kw: obj
         cur.execute(
             """INSERT INTO catalog_intake_record
                    (run_id, external_id, title, url, price_minor, currency, in_stock, image_url,
-                    brand, source_observed_at)
-               VALUES (%s, %s, %s, %s, %s, 'TRY', %s, %s, %s, now())""",
+                    brand, seller_name, variant_label, source_observed_at)
+               VALUES (%s, %s, %s, %s, %s, 'TRY', %s, %s, %s, %s, %s, now())""",
             (
                 run_id,
                 ext,
@@ -94,6 +99,8 @@ def _add(owner: psycopg.Connection, run_id: int, ext: str, price: int, **kw: obj
                 kw.get("in_stock", True),
                 f"https://productimages.hepsiburada.net/s/{ext}.jpg",
                 kw.get("brand"),
+                kw.get("seller_name"),
+                kw.get("variant_label"),
             ),
         )
 
@@ -159,12 +166,16 @@ def test_aylik_tavan_aralik_dolsa_bile_zorunlu(env: psycopg.Connection) -> None:
         with env.cursor() as cur:
             cur.execute(
                 "UPDATE collection_source SET min_interval_days = 7, run_window_days = 6,"
-                " permission_basis = 'verbal_reported'"
+                " permission_basis = 'written_email_reported'"
             )
 
 
-def test_sozlu_izin_kapsami_politikayla_gevsetilemez(env: psycopg.Connection) -> None:
-    for change in ("min_interval_days = 3, run_window_days = 2", "max_runs_per_month = 5"):
+def test_bildirilen_izin_kapsami_politikayla_gevsetilemez(env: psycopg.Connection) -> None:
+    for change in (
+        "min_interval_days = 3, run_window_days = 2",
+        "max_runs_per_month = 5",
+        "initial_load_exempt = TRUE",
+    ):
         with pytest.raises(psycopg.errors.CheckViolation), env.cursor() as cur:
             cur.execute(f"UPDATE collection_source SET {change}")
 
@@ -330,8 +341,91 @@ def test_ndjson_satiri_bilinmeyeni_uydurmaz() -> None:
         None,
         None,
         datetime.now(UTC) - timedelta(minutes=1),
+        None,
+        None,
     )
     record = to_feed_row(row)
     assert record["price"] == "123.45"
     for missing in ("brand", "gtin", "seller", "images", "list_price", "category"):
         assert missing not in record
+
+
+def test_ilk_yukleme_muafiyeti_yalniz_beyan_edilmis_kapsamla(env: psycopg.Connection) -> None:
+    with pytest.raises(psycopg.errors.CheckViolation), env.cursor() as cur:  # notsuz / beyansiz
+        cur.execute(
+            "UPDATE collection_source SET permission_basis = 'declared_extended',"
+            " permission_note = NULL, initial_load_exempt = TRUE"
+        )
+    with env.cursor() as cur:
+        cur.execute(
+            "UPDATE collection_source SET permission_basis = 'declared_extended',"
+            " permission_note = 'kullanici beyani: ilk yukleme ayri kapsam',"
+            " initial_load_exempt = TRUE"
+        )
+    try:
+        first = _new_run(env)
+        _close(env, first)
+        second = _new_run(env)  # muaf ilk yukleme araliga sayilmaz
+        with env.cursor() as cur:
+            cur.execute(
+                "SELECT kind FROM collection_run WHERE id IN (%s, %s) ORDER BY id", (first, second)
+            )
+            assert [r[0] for r in cur.fetchall()] == ["initial", "refresh"]
+        _close(env, second)
+        _expect(env, "collection_quota_interval")  # guncelleme yine kotali
+    finally:
+        with env.cursor() as cur:
+            cur.execute(
+                "UPDATE collection_source SET initial_load_exempt = FALSE,"
+                " permission_basis = 'written_email_reported'"
+            )
+
+
+def test_ana_satici_ve_varyant_islenir_aliexpress_satirlarina_dokunulmaz(
+    env: psycopg.Connection,
+) -> None:
+    with env.cursor() as cur:
+        cur.execute(
+            """INSERT INTO merchant (slug, name, domain, source_type, is_active)
+               VALUES ('ae-isolation-test', 'AE', 'ae-isolation-test.invalid',
+                       'affiliate_network', TRUE)
+               RETURNING id"""
+        )
+        ae = cur.fetchone()[0]  # type: ignore[index]
+        cur.execute(
+            """INSERT INTO offer (merchant_id, external_id, url, title_raw, current_price, currency,
+                                  fingerprint)
+               SELECT %s, 'AE' || g, 'https://www.aliexpress.com/item/' || g || '.html', 'ae ' || g,
+                      1000, 'USD', repeat('a', 64) FROM generate_series(1, 50) g""",
+            (ae,),
+        )
+        cur.execute(
+            "SELECT md5(string_agg(o::text, '|' ORDER BY id)) FROM offer o WHERE merchant_id = %s",
+            (ae,),
+        )
+        before = cur.fetchone()
+    try:
+        run = _new_run(env)
+        _add(env, run, "HBTEST0001", 129900, seller_name="Örnek Mağaza", variant_label="Siyah / 42")
+        _close(env, run)
+        with psycopg.connect(database_url("DATABASE_URL")) as app:
+            assert merge_run(app, run).status == "success"
+        with env.cursor() as cur:
+            cur.execute(
+                """SELECT s.name, s.external_id, o.attributes_raw->>'variant'
+                     FROM offer o JOIN seller s ON s.id = o.seller_id
+                    WHERE o.external_id = 'HBTEST0001'"""
+            )
+            assert cur.fetchone() == ("Örnek Mağaza", "name:ornek-magaza", "Siyah / 42")
+            cur.execute(
+                "SELECT md5(string_agg(o::text, '|' ORDER BY id)) FROM offer o"
+                " WHERE merchant_id = %s",
+                (ae,),
+            )
+            assert cur.fetchone() == before  # AliExpress satirlari bayt bayt ayni
+            cur.execute("SELECT count(*) FROM offer WHERE merchant_id = %s AND is_active", (ae,))
+            assert cur.fetchone() == (50,)
+    finally:
+        with env.cursor() as cur:
+            cur.execute("DELETE FROM offer WHERE merchant_id = %s", (ae,))
+            cur.execute("DELETE FROM merchant WHERE id = %s", (ae,))

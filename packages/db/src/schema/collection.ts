@@ -18,7 +18,12 @@ import {
   timestamp,
 } from "drizzle-orm/pg-core";
 
-export type CollectionPermissionBasis = "verbal_reported" | "written_agreement" | "public_feed";
+export type CollectionPermissionBasis =
+  | "verbal_reported"
+  | "written_email_reported"
+  | "declared_extended"
+  | "written_agreement"
+  | "public_feed";
 
 /** Kaynak basina kota ve izin politikasi. Uygulama rolu YALNIZCA okur. */
 export const collectionSource = pgTable("collection_source", {
@@ -30,6 +35,7 @@ export const collectionSource = pgTable("collection_source", {
   initialMaxRequests: integer("initial_max_requests").notNull(),
   refreshMaxRequests: integer("refresh_max_requests").notNull(),
   enabled: boolean("enabled").notNull().default(false),
+  initialLoadExempt: boolean("initial_load_exempt").notNull().default(false),
   permissionBasis: text("permission_basis").$type<CollectionPermissionBasis>().notNull(),
   permissionNote: text("permission_note"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
@@ -90,6 +96,8 @@ export const catalogIntakeRecord = pgTable("catalog_intake_record", {
   brand: text("brand"),
   categoryRaw: text("category_raw"),
   sellerExternalId: text("seller_external_id"),
+  sellerName: text("seller_name"),
+  variantLabel: text("variant_label"),
   gtin: text("gtin"),
   foundVia: text("found_via"),
   sourceObservedAt: timestamp("source_observed_at", { withTimezone: true }).notNull(),

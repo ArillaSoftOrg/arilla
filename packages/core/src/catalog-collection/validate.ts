@@ -17,6 +17,8 @@ export interface IntakeRecordInput {
   brand: string | null;
   categoryRaw: string | null;
   sellerExternalId: string | null;
+  sellerName: string | null;
+  variantLabel: string | null;
   gtin: string | null;
   foundVia: string | null;
   sourceObservedAt: Date;
@@ -126,6 +128,8 @@ export function validateIntakeRecord(
       brand: optText(raw.brand, 200),
       categoryRaw: optText(raw.categoryRaw, 500),
       sellerExternalId: optText(raw.sellerExternalId, 200),
+      sellerName: optText(raw.sellerName, 300),
+      variantLabel: optText(raw.variantLabel, 200),
       gtin,
       foundVia: optText(raw.foundVia, 200),
       sourceObservedAt: observed,

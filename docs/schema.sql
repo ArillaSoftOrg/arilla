@@ -2226,27 +2226,40 @@ CREATE TABLE collection_source (
     initial_max_requests INTEGER     NOT NULL CHECK (initial_max_requests >= 1),
     refresh_max_requests INTEGER     NOT NULL CHECK (refresh_max_requests >= 1),
     enabled              BOOLEAN     NOT NULL DEFAULT FALSE,
-    -- Iznin dayanagi. 'verbal_reported' = kullanicinin bildirdigi sozlu izin;
-    -- yazili lisans DEGILDIR.
+    -- Iznin dayanagi. Hepsi KULLANICI BEYANIDIR; belgeler bagimsiz incelenmemistir.
+    --   verbal_reported       kullanicinin bildirdigi sozlu izin
+    --   written_email_reported kullanicinin bildirdigi yazili e-posta izni (belge gosterilmedi)
+    --   declared_extended     kullanicinin bildirdigi, yukaridakilerden GENIS kapsam
+    --                         (not zorunlu; politika ancak bu dayanakla gevsetilebilir)
+    --   written_agreement / public_feed  sozlesme / herkese acik besleme
     permission_basis     TEXT        NOT NULL
-                         CHECK (permission_basis IN ('verbal_reported', 'written_agreement', 'public_feed')),
+                         CHECK (permission_basis IN ('verbal_reported', 'written_email_reported',
+                                'declared_extended', 'written_agreement', 'public_feed')),
+    -- Ilk yukleme kota disi mi. Varsayilan HAYIR; yalnizca ayri kapsam beyan edilmisse
+    -- ('declared_extended' + not) acilabilir.
+    initial_load_exempt  BOOLEAN     NOT NULL DEFAULT FALSE,
     permission_note      TEXT        CHECK (permission_note IS NULL OR char_length(permission_note) <= 500),
     created_at           TIMESTAMPTZ NOT NULL DEFAULT now(),
     CONSTRAINT collection_source_window_lt_interval CHECK (run_window_days < min_interval_days),
-    -- Bildirilen sozlu izin kapsaminin (>= 7 gun, ayda <= 4) disina POLITIKA gevsetilemez;
-    -- gevsetmek icin once izin dayanagi yazili sozlesmeye yukseltilmelidir.
-    CONSTRAINT collection_source_verbal_scope CHECK (
-        permission_basis <> 'verbal_reported'
-        OR (min_interval_days >= 7 AND max_runs_per_month <= 4))
+    -- Bildirilen kapsamin (>= 7 gun, ayda <= 4) disina POLITIKA gevsetilemez; gevsetmek icin
+    -- once izin dayanagi 'declared_extended' (notlu) ya da sozlesmeye yukseltilir.
+    CONSTRAINT collection_source_reported_scope CHECK (
+        permission_basis NOT IN ('verbal_reported', 'written_email_reported')
+        OR (min_interval_days >= 7 AND max_runs_per_month <= 4 AND NOT initial_load_exempt)),
+    CONSTRAINT collection_source_exempt_needs_declaration CHECK (
+        NOT initial_load_exempt
+        OR (permission_basis IN ('declared_extended', 'written_agreement')
+            AND permission_note IS NOT NULL))
 );
 
 INSERT INTO collection_source
     (source, merchant_slug, min_interval_days, max_runs_per_month, run_window_days,
      initial_max_requests, refresh_max_requests, enabled, permission_basis, permission_note)
 VALUES
-    ('hepsiburada', 'hepsiburada', 7, 4, 6, 500, 500, FALSE, 'verbal_reported',
-     'Kullanicinin bildirdigi sozlu izin (Ekim 2026): mevcut CORS yontemi ve PostgreSQL''de saklama; '
-     || 'toplu guncelleme en az 7 gun arayla, ayda en fazla 4. Yazili lisans yok.');
+    ('hepsiburada', 'hepsiburada', 7, 4, 6, 500, 500, FALSE, 'written_email_reported',
+     'Kullanici beyani (Ekim 2026): e-posta ile bildirilen izin; admin tarayicisindan veri erisimi, '
+     || 'PostgreSQL''de saklama, haftada en fazla 1 yenileme, ayda en fazla 4. Belgeler bagimsiz '
+     || 'incelenmedi; imzali sozlesme degil.');
 
 -- ---------------------------------------------------------------------------
 -- TOPLAMA KOSUSU (kota defteri)
@@ -2313,7 +2326,9 @@ BEGIN
 
     -- 'released' (hic istek atilmadan birakilan) kosu kotadan dusulur.
     SELECT max(reserved_at) INTO last_at
-      FROM collection_run WHERE source = NEW.source AND status <> 'released';
+      FROM collection_run
+     WHERE source = NEW.source AND status <> 'released'
+       AND NOT (kind = 'initial' AND pol.initial_load_exempt);
     IF last_at IS NOT NULL THEN
         next_at := last_at + make_interval(days => pol.min_interval_days);
         IF NEW.reserved_at < next_at THEN
@@ -2326,6 +2341,7 @@ BEGIN
     SELECT count(*) INTO month_runs
       FROM collection_run
      WHERE source = NEW.source AND status <> 'released'
+       AND NOT (kind = 'initial' AND pol.initial_load_exempt)
        AND date_trunc('month', reserved_at AT TIME ZONE 'UTC')
          = date_trunc('month', NEW.reserved_at AT TIME ZONE 'UTC');
     IF month_runs >= pol.max_runs_per_month THEN
@@ -2410,6 +2426,9 @@ CREATE TABLE catalog_intake_record (
     brand              TEXT        CHECK (brand IS NULL OR char_length(brand) <= 200),
     category_raw       TEXT        CHECK (category_raw IS NULL OR char_length(category_raw) <= 500),
     seller_external_id TEXT        CHECK (seller_external_id IS NULL OR char_length(seller_external_id) <= 200),
+    seller_name        TEXT        CHECK (seller_name IS NULL OR char_length(seller_name) <= 300),
+    -- Ana satici disindaki teklifler hedef degil. Varyant: kaynagin verdigi etiket (or. renk/beden).
+    variant_label      TEXT        CHECK (variant_label IS NULL OR char_length(variant_label) <= 200),
     gtin               TEXT        CHECK (gtin IS NULL OR gtin ~ '^[0-9]{8,14}$'),
     -- Hangi sorgu bu urunu buldu (kesif izi; kategori DEGILDIR).
     found_via          TEXT        CHECK (found_via IS NULL OR char_length(found_via) <= 200),

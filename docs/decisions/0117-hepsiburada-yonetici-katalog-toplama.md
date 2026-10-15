@@ -1,28 +1,36 @@
 # 0117 — Hepsiburada: yönetici tarayıcısından katalog toplama
 
 **Tarih:** 15 Ekim 2026
-**Durum:** Kabul edildi. Kod ve testler hazır. Kaynak `collection_source.enabled = FALSE`
+**Durum:** Kabul edildi (migration 0070; 0068/0069 `main`'de). Kod ve testler hazır. Kaynak `collection_source.enabled = FALSE`
 gelir; zamanlayıcı yoktur. Gerçek toplama ayrıca onay ister.
 **Bağlam:** Arşiv `research/hepsiburada-archive` (f9d5a47). Canlı tarayıcı araması
 önerisini (ziyaretçi tarayıcısından Hepsiburada'ya istek) **iptal eder**.
 
-## İzin kaydı (yazılı lisans DEĞİLDİR)
+## İzin kaydı (kullanıcı beyanı)
 
-Aşağıdaki kapsam, ürün sahibinin **Hepsiburada tarafıyla yaptığı görüşmeden bildirdiği
-sözlü izindir**. Yazılı sözleşme, e-posta ya da lisans metni depoda yoktur ve bu karar
-onun yerine geçmez. `collection_source.permission_basis = 'verbal_reported'` olarak
-saklanır; yazılı onay alınırsa `written_agreement` olarak güncellenir.
+Aşağıdaki kapsam, ürün sahibinin **Hepsiburada ile yaptığı yazışmadan bildirdiği**
+izindir: önce sözlü, sonra e-posta ile yazılı bildirim. Yazışmalar özel ticari belgedir;
+depoya konmaz, bağımsız incelenmemiştir ve bu karar onları doğrulanmış gibi göstermez.
+İmzalı sözleşme şartı koşulmaz. `collection_source.permission_basis`:
+`verbal_reported` → `written_email_reported` (varsayılan kayıt) → gerekirse
+`declared_extended` (notlu, kullanıcı beyanı) ya da `written_agreement`.
 
 Bildirilen kapsam:
-- Mevcut tarayıcı (CORS) yönteminin kullanılması.
+- Yönetici tarayıcısından veri erişimi (mevcut CORS yöntemi).
 - Ürün verisinin PostgreSQL'de saklanması.
-- Toplu güncelleme: **en az 7 gün arayla, takvim ayında en fazla 4 kez**; fiyat
-  güncelleme, yeni ürün ekleme, kaldırılan ürünü işleme.
-- Sürekli toplu çekme yoktur. **İlk yükleme için ayrı bir sınırsızlık izni yoktur**; ilk
-  yükleme de aynı kotaya tabidir.
+- **Haftada en fazla 1, takvim ayında en fazla 4 katalog yenilemesi** (fiyat, yeni ürün,
+  kaldırılan ürün).
+- Sürekli toplu çekme yoktur. **İlk yükleme için ayrı bir kapsam bildirilmemiştir**:
+  ilk yükleme kotadan muaf DEĞİLDİR. Ayrı kapsam bildirilirse yapılandırılabilir:
+  `initial_load_exempt` yalnızca `declared_extended`/`written_agreement` dayanağı ve
+  açıklama notuyla açılabilir (CHECK); bildirilen kapsamdayken (`verbal_reported`,
+  `written_email_reported`) aralık/ay tavanı da gevşetilemez. Kapsamı doğrulanmamış hiçbir
+  işlem otomatik yetkilendirilmez; her değişiklik sahip rol/migration ister.
 
-Doğrulanmamış: kullanım koşulları, görsellerin yeniden kullanımı, ticari gösterim.
-Üretimde toplamayı açmadan önce yazılı onay önerilir.
+Hedef dışı: diğer satıcıların teklifleri ve stok takibi. Yalnızca ana satıcı, ürün adı,
+TRY fiyat, görsel, bağlantı ve varsa varyant etiketi işlenir.
+
+Doğrulanmamış: kullanım koşulları metni, görsellerin yeniden kullanımı, ticari gösterim.
 
 ## Karar
 
@@ -57,9 +65,8 @@ Doğrulanmamış: kullanım koşulları, görsellerin yeniden kullanımı, ticar
    `initial`, sonrakiler `refresh` olur (tetikleyici yazar). Bütçeler
    `collection_source.initial_max_requests` / `refresh_max_requests` ile ayarlanır
    (varsayılan 500/500; işletici güvenlik valfi, Hepsiburada'nın bildirdiği bir sayı
-   değildir). İlk yükleme kotadan muaf değildir. Sözlü izin dayanağındayken politika
-   7 günden kısa aralığa ya da ayda 4'ten fazla koşuya CHECK ile gevşetilemez; bunun
-   için önce izin dayanağı yazılı sözleşmeye yükseltilir. Bütçe sunucuda zorunlu. İstekler arası en az
+   değildir). İlk yükleme kotadan muaf değildir. Bildirilen izin dayanağındayken politika
+   7 günden kısa aralığa ya da ayda 4'ten fazla koşuya CHECK ile gevşetilemez. Bütçe sunucuda zorunlu. İstekler arası en az
    2 sn. 403/429/503, doğrulama sayfası ya da beklenen yapının yokluğunda koşu durur;
    yeniden deneme ve alternatif yöntem yoktur.
 7. **Değişen veri, gereksiz WAL yok:** parmak izi eşleşen satır yeniden yazılmaz,
@@ -75,7 +82,10 @@ Doğrulanmamış: kullanım koşulları, görsellerin yeniden kullanımı, ticar
    üstü sapma otomatik işlenmez, `ingest_error` (`price_jump_held`) olarak incelemeye
    ayrılır. Liste fiyatı ürün sayfasıyla yalnızca 6 üründe karşılaştırılmıştır (arşiv).
    **Eksik alan uydurulmaz.** Listede olmayan alanlar boş kalır: satıcı, GTIN, kategori,
-   varyant, stok adedi. Stok bilinmiyorsa (`in_stock` NOT NULL olduğundan) `false`
+   varyant, stok adedi. Ana satıcı (kimlik ya da ad; yalnız ad varsa `name:<slug>` anahtarı,
+   ad yalnızca boş `seller.name`'e yazılır) ve varyant etiketi (`attributes_raw.variant`)
+   hattı uçtan uca kuruludur. Kaynak olan ürün sayfası okuyucusu (`extract-product-page.ts`,
+   standart JSON-LD) gerçek örnekle doğrulanmadığından toplayıcıya BAĞLI DEĞİLDİR. Stok bilinmiyorsa (`in_stock` NOT NULL olduğundan) `false`
    yazılır ve `attributes_raw.stock_state = "unknown"` işaretlenir; "stokta" denmez.
 10. **Zaman alanları ayrı:** kaynaktan okunma anı `catalog_intake_record.source_observed_at`,
     sunucuya geliş `received_at`, birleştirme `merged_at`; teklifte `last_seen_at`,

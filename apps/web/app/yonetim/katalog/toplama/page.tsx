@@ -13,6 +13,14 @@ import { CollectorClient } from "./collector-client.tsx";
  */
 export const dynamic = "force-dynamic";
 
+const BASIS_TEXT: Record<string, string> = {
+  verbal_reported: "kullanıcının bildirdiği sözlü izin",
+  written_email_reported: "kullanıcının bildirdiği yazılı (e-posta) izin",
+  declared_extended: "kullanıcının bildirdiği genişletilmiş kapsam",
+  written_agreement: "yazılı sözleşme",
+  public_feed: "herkese açık besleme",
+};
+
 const BLOCKED_TEXT: Record<string, string> = {
   disabled: "Kaynak kapalı (collection_source.enabled = false).",
   open_run: "Açık bir toplama koşusu var; sürdürülebilir.",
@@ -30,10 +38,8 @@ export default async function CatalogCollectionPage() {
       <PageHeader title="Katalog toplama: Hepsiburada">
         <p className={styles.muted}>
           Ürünler bu sayfadaki tarayıcıdan okunur ve kataloğa aktarılır. İzin dayanağı:{" "}
-          <strong>
-            {q.permissionBasis === "verbal_reported" ? "bildirilen sözlü izin" : q.permissionBasis}
-          </strong>
-          ; yazılı lisans değildir. {q.permissionNote}
+          <strong>{BASIS_TEXT[q.permissionBasis] ?? q.permissionBasis}</strong>. Belgeler bağımsız
+          incelenmedi. {q.permissionNote}
         </p>
       </PageHeader>
 
