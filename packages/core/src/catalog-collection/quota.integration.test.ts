@@ -120,17 +120,28 @@ describe("hacim kotasi - entegrasyon (gercek Postgres)", () => {
     expect((await usage()).requests).toBe(10);
   });
 
-  it("aylik istek tavani gunluk hak kalsa bile gecerlidir", async () => {
-    await reset({ daily: 100, monthly: 4 });
-    const id = await openRun();
-    await reserveRequests(db, admin, { runId: id, count: 4 });
-    await expect(reserveRequests(db, admin, { runId: id, count: 1 })).rejects.toMatchObject({
-      code: "collection_quota_monthly_requests",
-    });
-    const st = await getCollectionStatus(db, admin, "hepsiburada");
-    expect(st.quota.blockedBy).toBe("open_run");
-    expect(st.quota.canResume).toBe(false); // kota bitti, devam da yok
-  });
+  // Ayin 1'inde "onceki gun" ayni aya dusmez; o gun bu senaryo kurulamaz.
+  it.skipIf(new Date().getUTCDate() === 1)(
+    "aylik istek tavani gunluk hak kalsa bile gecerlidir",
+    async () => {
+      await reset({ daily: 4, monthly: 4 });
+      // Ayin onceki gunlerinde 3 istek harcanmis (bugun hak: 4, ay hak: 1).
+      await withOwnerClient(async (c) => {
+        await c.query(
+          `INSERT INTO collection_usage_day (source, usage_date, requests)
+         VALUES ('hepsiburada', date_trunc('month', now() AT TIME ZONE 'UTC')::date, 3)`,
+        );
+      });
+      const id = await openRun();
+      await reserveRequests(db, admin, { runId: id, count: 1 });
+      await expect(reserveRequests(db, admin, { runId: id, count: 1 })).rejects.toMatchObject({
+        code: "collection_quota_monthly_requests",
+      });
+      const st = await getCollectionStatus(db, admin, "hepsiburada");
+      expect(st.quota.blockedBy).toBe("open_run");
+      expect(st.quota.canResume).toBe(false); // kota bitti, devam da yok
+    },
+  );
 
   it("istek rezerve edildikten sonra parti yazimi basarisiz olsa da rezervasyon kalir", async () => {
     await reset();

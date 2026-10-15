@@ -3,7 +3,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type AdminActor, AdminForbiddenError } from "../admin/capabilities.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import {
-  CollectionError,
   closeCollectionRun,
   coverageReport,
   getCollectionStatus,
@@ -157,9 +156,6 @@ describe("katalog toplama servisi - entegrasyon (gercek Postgres)", () => {
     await expect(
       submitCollectionBatch(db, admin, { runId: run.id, records: [], units: [], requestsMade: 2 }),
     ).rejects.toMatchObject({ code: "collection_run_not_open" });
-    await expect(startCollectionRun(db, admin, { source: "hepsiburada" })).rejects.toBeInstanceOf(
-      CollectionError,
-    );
     const after = await getCollectionStatus(db, admin, "hepsiburada");
     // Koşu aralığı/ay sınırı kalktı: kapanan koşudan hemen sonra yenisi başlatılabilir.
     expect(after.quota.canStart).toBe(true);
