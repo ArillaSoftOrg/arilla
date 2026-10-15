@@ -11,7 +11,7 @@
  * engelleri (401/403/429) saygiyla karsilanir; atlatilmaz.
  */
 import { WEB_SEARCH_MAX_GROUPS, WEB_SEARCH_POOL_GROUPS } from "./config.ts";
-import { sameVariant, significantTokens } from "./merge.ts";
+import { sameProductLine, sameVariant, significantTokens } from "./merge.ts";
 import { asciiFold, extractFeatures } from "./query.ts";
 import { safeGet } from "./safe-fetch.ts";
 import type { WebProductGroup } from "./types.ts";
@@ -22,7 +22,9 @@ const ROBOTS_MAX_BYTES = 64_000;
 const PAGE_TIMEOUT_MS = 3_000;
 const IMAGE_MAX_BYTES = 8_000_000;
 const TOTAL_BUDGET_MS = 5_500;
-const MAX_OFFERS_TRIED = 2;
+const MAX_OFFERS_TRIED = 4;
+/** Bu siniflar magazanin erisimi kapattigini gosterir: ayni aramada o magazaya tekrar gidilmez. */
+const HOST_BLOCKED = /^(?:robots_disallow|page_http_denied|page_http_429)$/;
 const NAME_COVERAGE = 0.6;
 const IMAGE_TYPES = /^image\/(?:jpeg|jpg|png|webp|avif|gif)\b/;
 
@@ -146,6 +148,11 @@ export function productNameMatches(
   const page = new Set(significantTokens(pageName));
   const covered = wanted.filter((t) => page.has(t)).length / wanted.length;
   if (covered < NAME_COVERAGE) return false;
+  // Nesil ve siniflama (16 Pro / 15 Pro / 16 Pro Max) kelime ortusmesinden bagimsiz ayridir.
+  const wantedText = `${group.brand ?? ""} ${group.title}`;
+  if (!sameProductLine(wantedText, pageName) || !sameProductLine(pageName, wantedText)) {
+    return false;
+  }
   const a = extractFeatures(group.title, group.brand);
   const b = extractFeatures(pageName, null);
   const foldedPage = asciiFold(pageName).replace(/[^a-z0-9]/g, "");
@@ -301,6 +308,7 @@ export async function attachStoreImages(
     robotsCache.set(url, pending);
     return pending;
   };
+  const blockedHosts = new Set<string>();
   const reasons: Record<string, number> = {};
   const out = [...groups];
   let found = groups.filter((g) => g.imageUrl).length;
@@ -314,6 +322,8 @@ export async function attachStoreImages(
       if (group.imageUrl) continue;
       for (const offer of group.offers.slice(0, MAX_OFFERS_TRIED)) {
         if (signal.aborted || found >= target) break;
+        // Erisimi kapatan magaza bu aramada yeniden denenmez (engel asilmaz, istek azalir).
+        if (blockedHosts.has(offer.host)) continue;
         let outcome: ImageOutcome;
         try {
           outcome = await imageForOffer(group, offer.url, get, signal);
@@ -325,6 +335,7 @@ export async function attachStoreImages(
           out[index] = { ...group, imageUrl: outcome.image };
           break;
         }
+        if (HOST_BLOCKED.test(outcome.reason)) blockedHosts.add(offer.host);
         const key = `${offer.host}:${outcome.reason}`;
         reasons[key] = (reasons[key] ?? 0) + 1;
       }
