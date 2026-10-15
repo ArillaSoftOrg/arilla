@@ -2481,3 +2481,43 @@ REVOKE DELETE, TRUNCATE ON collection_unit FROM arilla_app;
 REVOKE UPDATE ON catalog_intake_record FROM arilla_app;
 GRANT UPDATE (merged_at) ON catalog_intake_record TO arilla_app;
 REVOKE TRUNCATE ON catalog_intake_record FROM arilla_app;
+
+-- ---------------------------------------------------------------------------
+-- 0073 (karar 0120): KATALOG KESIF DEFTERI VE SITEMAP KOSU ALTYAPISI
+-- ---------------------------------------------------------------------------
+-- collection_source: initial_run_window_days SMALLINT NULL (1..60), min_request_interval_ms INTEGER
+--   NOT NULL DEFAULT 2000 (>=1000), initial_max_bytes / refresh_max_bytes BIGINT NOT NULL DEFAULT 1 GiB,
+--   blocked_cooldown_minutes INTEGER NOT NULL DEFAULT 60.
+-- collection_run: max_bytes (tetikleyici yazar), bytes_downloaded, download_approved_bytes,
+--   download_approved_by -> app_user, download_approved_at, transfer_origin
+--   ('unknown','vps','admin_wifi','admin_wired','admin_mobile');
+--   CHECK bytes_downloaded <= download_approved_bytes <= max_bytes.
+-- collection_unit: kind IN ('query','product_page','listing_page','sitemap_file'), page 1..1000,
+--   status IN ('pending','done','empty','failed','blocked'), fetched_at NULL yalniz 'pending',
+--   unit_seq, attempts, bytes_received; indeks collection_unit_resume_idx (run_id, kind, unit_seq)
+--   WHERE status IN ('pending','failed').
+CREATE TABLE catalog_discovery (
+    source             TEXT        NOT NULL REFERENCES collection_source(source),
+    external_id        TEXT        NOT NULL CHECK (char_length(external_id) BETWEEN 1 AND 100),
+    code_kind          TEXT        NOT NULL CHECK (code_kind IN ('pm', 'p')),
+    url                TEXT        NOT NULL CHECK (char_length(url) <= 2048 AND url ~ '^https://'),
+    title              TEXT        CHECK (title IS NULL OR char_length(title) BETWEEN 1 AND 500),
+    image_url          TEXT        CHECK (image_url IS NULL
+                                          OR (char_length(image_url) <= 2048 AND image_url ~ '^https://')),
+    source_unit_key    TEXT        NOT NULL CHECK (char_length(source_unit_key) BETWEEN 1 AND 200),
+    first_seen_run_id  BIGINT      NOT NULL REFERENCES collection_run(id),
+    last_seen_run_id   BIGINT      NOT NULL REFERENCES collection_run(id),
+    first_seen_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- FIYAT KOLONU YOK; yalniz durum.
+    price_state        TEXT        NOT NULL DEFAULT 'unpriced'
+                       CHECK (price_state IN ('unpriced', 'listing_price', 'page_verified',
+                                              'stale', 'unavailable')),
+    price_checked_at   TIMESTAMPTZ,
+    PRIMARY KEY (source, external_id),
+    CONSTRAINT catalog_discovery_seen_order CHECK (last_seen_at >= first_seen_at),
+    CONSTRAINT catalog_discovery_price_checked
+        CHECK ((price_state = 'unpriced') = (price_checked_at IS NULL))
+) WITH (fillfactor = 85, autovacuum_vacuum_scale_factor = 0.02,
+        autovacuum_vacuum_insert_scale_factor = 0.05);
+REVOKE DELETE, TRUNCATE ON catalog_discovery FROM arilla_app;

@@ -33,7 +33,7 @@ export class CollectionError extends Error {
 }
 
 const TRIGGER_CODES =
-  /(collection_(?:source_unknown|disabled|quota_interval|quota_month|run_not_open|run_expired|run_immutable|run_closed|requests_decrease|observed_at_out_of_range))/;
+  /(collection_(?:source_unknown|disabled|quota_interval|quota_month|run_not_open|run_expired|run_immutable|run_closed|requests_decrease|bytes_decrease|observed_at_out_of_range))/;
 
 /**
  * Postgres tetikleyici istisnalari bilinen `collection_*` kodlariyla gelir. Surucu
