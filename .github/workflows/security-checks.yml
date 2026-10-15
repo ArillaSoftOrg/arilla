@@ -10,9 +10,15 @@ on:
 permissions:
   contents: read
 
+# PR: yeni push eski koşuyu iptal eder. main: koşu sha'ya özel, asla iptal edilmez.
+concurrency:
+  group: security-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('sha-{0}', github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   private-keys:
     runs-on: ubuntu-latest
+    timeout-minutes: 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
