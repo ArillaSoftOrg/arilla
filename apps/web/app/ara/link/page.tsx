@@ -116,7 +116,7 @@ export default async function LinkAramaPage({
   searchParams: Promise<{ url?: string | string[] }>;
 }) {
   await requireProductAccess();
-  // Geçici olarak kapalı: adres ne olursa olsun durum sorgusu, kuyruk ya da
+  // Kapalıyken (geri alma anahtarı): adres ne olursa olsun durum sorgusu, kuyruk ya da
   // bekleme ekranı yok; rota 404 vermeden "Yakında" gösterir.
   if (!LINK_SEARCH_PUBLIC) return <LinkSearchComingSoon />;
   const { url: urlParam } = await searchParams;
