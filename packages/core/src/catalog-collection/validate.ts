@@ -24,10 +24,8 @@ export interface IntakeRecordInput {
   sourceObservedAt: Date;
   /** 0072 (karar 0118): yalniz `extended` kurali olan kaynakta dolar; digerlerinde null. */
   imageUrls: string[] | null;
-  sellerName: string | null;
   groupExternalId: string | null;
   variantExternalId: string | null;
-  variantLabel: string | null;
   /** Sepette uygulanan kosullu fiyat; satis fiyati degildir. */
   basketPriceMinor: number | null;
   sourcePage: "search_page" | "product_page" | "listing_page" | null;
@@ -164,20 +162,16 @@ export function validateIntakeRecord(
 type Extended = Pick<
   IntakeRecordInput,
   | "imageUrls"
-  | "sellerName"
   | "groupExternalId"
   | "variantExternalId"
-  | "variantLabel"
   | "basketPriceMinor"
   | "sourcePage"
 >;
 
 const NO_EXTENDED: Extended = {
   imageUrls: null,
-  sellerName: null,
   groupExternalId: null,
   variantExternalId: null,
-  variantLabel: null,
   basketPriceMinor: null,
   sourcePage: null,
 };
@@ -214,10 +208,8 @@ function extendedFields(
   if (sourcePage != null && !SOURCE_PAGES.has(sourcePage)) return { code: "source_page" };
   return {
     imageUrls,
-    sellerName: optText(raw.sellerName, 200),
     groupExternalId,
     variantExternalId,
-    variantLabel: optText(raw.variantLabel, 100),
     basketPriceMinor,
     sourcePage: sourcePage as Extended["sourcePage"],
   };

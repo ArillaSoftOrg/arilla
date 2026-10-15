@@ -74,7 +74,7 @@ describe("Trendyol toplama servisi - entegrasyon (karar 0118)", () => {
       blockedBy: "disabled",
       minIntervalDays: 7,
       maxRunsPerMonth: 4,
-      permissionBasis: "written_reported",
+      permissionBasis: "written_email_reported",
     });
     await expect(startCollectionRun(db, admin, { source: "trendyol" })).rejects.toMatchObject({
       code: "collection_disabled",

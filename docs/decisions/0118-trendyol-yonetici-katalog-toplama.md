@@ -22,10 +22,10 @@ Gerçek toplama başlatılmadı; ayrıca onay ister.
 - Belgeler paylaşılmadı, depoda ya da sistemde yok.
 - Bu karar ve kod belgeleri **incelemedi**. İçerikleri, kapsamları ve geçerlilikleri doğrulanmadı.
 
-Kayıt: iki kaynakta da `permission_basis = 'written_reported'` (0072, yeni değer).
+Kayıt: `permission_basis = 'written_email_reported'`. Bu değer, Hepsiburada satırı ve kapsam kısıtı (`collection_source_reported_scope`) #147'deki 0070 ile gelir; 0072 Trendyol satırını aynı dayanakla ekler.
 - `written_agreement` (incelenmiş yazılı sözleşme) **kullanılmadı**.
-- Bildirilen kapsam değişmediği için 7 gün / ayda 4 kısıtı (`collection_source_verbal_scope`) bu dayanağa da uygulanır.
-- Kısıtı gevşetmek için incelenmiş sözleşme gerekir.
+- Bildirilen kapsam değişmediği için 7 gün / ayda 4 kısıtı bu dayanağa da uygulanır ve ilk yükleme muaf değildir (`initial_load_exempt = FALSE`).
+- Kısıtı gevşetmek için incelenmiş sözleşme ya da notlu `declared_extended` gerekir (0117).
 
 ## Kapsam (daraltılmış)
 

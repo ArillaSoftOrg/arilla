@@ -359,13 +359,13 @@ def test_ilk_yukleme_muafiyeti_yalniz_beyan_edilmis_kapsamla(env: psycopg.Connec
     with pytest.raises(psycopg.errors.CheckViolation), env.cursor() as cur:  # notsuz / beyansiz
         cur.execute(
             "UPDATE collection_source SET permission_basis = 'declared_extended',"
-            " permission_note = NULL, initial_load_exempt = TRUE"
+            " permission_note = NULL, initial_load_exempt = TRUE WHERE source = 'hepsiburada'"
         )
     with env.cursor() as cur:
         cur.execute(
             "UPDATE collection_source SET permission_basis = 'declared_extended',"
             " permission_note = 'kullanici beyani: ilk yukleme ayri kapsam',"
-            " initial_load_exempt = TRUE"
+            " initial_load_exempt = TRUE WHERE source = 'hepsiburada'"
         )
     try:
         first = _new_run(env)
@@ -382,7 +382,7 @@ def test_ilk_yukleme_muafiyeti_yalniz_beyan_edilmis_kapsamla(env: psycopg.Connec
         with env.cursor() as cur:
             cur.execute(
                 "UPDATE collection_source SET initial_load_exempt = FALSE,"
-                " permission_basis = 'written_email_reported'"
+                " permission_basis = 'written_email_reported' WHERE source = 'hepsiburada'"
             )
 
 

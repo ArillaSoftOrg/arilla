@@ -205,7 +205,7 @@ def test_politika_varsayilan_kapali_ve_yazili_izin_beyani() -> None:
             """SELECT enabled, min_interval_days, max_runs_per_month, permission_basis
                  FROM collection_source WHERE source = 'trendyol'"""
         )
-        assert cur.fetchone() == (False, 7, 4, "written_reported")
+        assert cur.fetchone() == (False, 7, 4, "written_email_reported")
 
 
 def test_birlestirme_satis_fiyati_sepet_ayri_tekrar_yok_wal_yok_eksik_silinmez(
@@ -226,7 +226,7 @@ def test_birlestirme_satis_fiyati_sepet_ayri_tekrar_yok_wal_yok_eksik_silinmez(
     samba = state["813659620"]
     assert samba["price"] == 799900  # satis fiyati; sepet fiyati price DEGIL
     assert samba["attrs"]["basket_price"] == "3999.50"  # type: ignore[index]
-    assert samba["attrs"]["variant_label"] == "38"  # type: ignore[index]
+    assert samba["attrs"]["variant"] == "38"  # type: ignore[index]
     # Stok toplanmaz: "stokta yok" (false) YAZILMAZ; bilinmeyen durum stock_state ile korunur.
     assert samba["attrs"]["stock_state"] == "unknown" and samba["in_stock"] is True  # type: ignore[index]
     assert samba["seller"] == "106871" and samba["images"] == 2 and samba["points"] == 1
@@ -238,6 +238,11 @@ def test_birlestirme_satis_fiyati_sepet_ayri_tekrar_yok_wal_yok_eksik_silinmez(
             " WHERE o.external_id = '813659620' AND p.price = 399950"
         )
         assert cur.fetchone() == (0,)  # sepet fiyati fiyat gecmisine GIRMEZ
+        cur.execute(
+            "SELECT s.name FROM seller s JOIN merchant m ON m.id = s.merchant_id"
+            " WHERE m.slug = 'trendyol' AND s.external_id = '106871'"
+        )
+        assert cur.fetchone() == ("Test Satici",)  # ana satici adi (yalniz ad; kisisel bilgi yok)
 
     # 8 gun sonra ikinci kosu (kota): biri degismedi, biri fiyat degistirdi, biri HIC GELMEDI.
     _rewind(env, 8)
@@ -271,7 +276,7 @@ def test_birlestirme_satis_fiyati_sepet_ayri_tekrar_yok_wal_yok_eksik_silinmez(
     assert third.status == "held" and third.held == 1  # type: ignore[attr-defined]
     final = _offers(env)
     assert final["813659620"]["price"] == 799900 and final["813659620"]["points"] == 1
-    assert final["813659620"]["attrs"]["variant_label"] == "38"  # type: ignore[index]
+    assert final["813659620"]["attrs"]["variant"] == "38"  # type: ignore[index]
     with env.cursor() as cur:
         cur.execute(
             "SELECT count(*) FROM ingest_error WHERE error_code = 'variant_changed_held'"
@@ -318,17 +323,17 @@ def test_ndjson_satiri_sepet_fiyatini_satis_fiyatindan_ayri_tasir() -> None:
         None,
         None,
         datetime.now(UTC),
-        ["https://cdn.dsmcdn.com/a.jpg", "https://cdn.dsmcdn.com/b.jpg"],
-        "SuperStep",
-        "621971282",
-        "1084850373",
-        "38",
-        399950,
+        "SuperStep",  # seller_name (0070)
+        "38",  # variant_label (0070)
+        ["https://cdn.dsmcdn.com/a.jpg", "https://cdn.dsmcdn.com/b.jpg"],  # image_urls (0072)
+        "621971282",  # group_external_id
+        "1084850373",  # variant_external_id
+        399950,  # basket_price_minor
     )
     record = to_feed_row(row)
     assert record["price"] == "7999.00"
     assert record["param"]["basket_price"] == "3999.50"
-    assert record["param"]["seller_name"] == "SuperStep"
+    assert record["param"]["variant"] == "38" and record["param"]["variant_id"] == "1084850373"
     assert record["images"] == ["https://cdn.dsmcdn.com/a.jpg", "https://cdn.dsmcdn.com/b.jpg"]
     assert "found_via" not in record["param"]  # kosudan kosuya degisen alan parmak izine girmez
     # Satis fiyatindan dusuk olmayan "sepet fiyati" tasinmaz.

@@ -106,10 +106,8 @@ export const catalogIntakeRecord = pgTable("catalog_intake_record", {
   foundVia: text("found_via"),
   // 0072 (karar 0118): Trendyol alanlari; Hepsiburada yazmaz.
   imageUrls: jsonb("image_urls").$type<string[]>(),
-  sellerName: text("seller_name"),
   groupExternalId: text("group_external_id"),
   variantExternalId: text("variant_external_id"),
-  variantLabel: text("variant_label"),
   /** Sepette uygulanan KOSULLU fiyat; satis fiyati degildir (price_minor'a girmez). */
   basketPriceMinor: bigint("basket_price_minor", { mode: "number" }),
   sourcePage: text("source_page").$type<"search_page" | "product_page" | "listing_page">(),

@@ -1013,9 +1013,11 @@ export function evalFailureClassLabel(value: string): string {
 export function formatPermissionBasis(basis: string): string {
   switch (basis) {
     case "verbal_reported":
-      return "bildirilen sözlü izin";
-    case "written_reported":
-      return "bildirilen yazılı izin (belge sistemde yok, incelenmedi)";
+      return "kullanıcının bildirdiği sözlü izin";
+    case "written_email_reported":
+      return "kullanıcının bildirdiği yazılı (e-posta) izin";
+    case "declared_extended":
+      return "kullanıcının bildirdiği genişletilmiş kapsam";
     case "written_agreement":
       return "yazılı sözleşme";
     case "public_feed":

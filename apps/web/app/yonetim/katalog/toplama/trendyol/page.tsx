@@ -32,8 +32,8 @@ export default async function TrendyolCollectionPage() {
     <div className={styles.page}>
       <PageHeader title="Katalog toplama: Trendyol">
         <p className={styles.muted}>
-          İzin dayanağı: <strong>{formatPermissionBasis(q.permissionBasis)}</strong>.{" "}
-          {q.permissionNote}
+          İzin dayanağı: <strong>{formatPermissionBasis(q.permissionBasis)}</strong>. Belgeler
+          bağımsız incelenmedi. {q.permissionNote}
         </p>
       </PageHeader>
 
