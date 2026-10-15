@@ -20,7 +20,7 @@ export const PRIVACY_CONTACT_EMAIL: string = LEGAL_IDENTITY.privacyEmail ?? "";
  */
 export const SITE_BRAND = "ManiCepte";
 
-export type SocialNetwork = "instagram" | "tiktok" | "linkedin";
+export type SocialNetwork = "instagram" | "x" | "tiktok" | "linkedin";
 
 /**
  * Resmi sosyal medya hesaplari - tek kaynak. `null` = dogrulanmis hesap yok;
@@ -29,12 +29,14 @@ export type SocialNetwork = "instagram" | "tiktok" | "linkedin";
  */
 export const SOCIAL_PROFILES: Readonly<Record<SocialNetwork, string | null>> = {
   instagram: "https://www.instagram.com/manicepte.tr",
+  x: "https://x.com/ManiCeptetr",
   tiktok: null,
-  linkedin: null,
+  linkedin: "https://www.linkedin.com/company/manicepte/",
 };
 
 const SOCIAL_LABELS: Readonly<Record<SocialNetwork, string>> = {
   instagram: "Instagram",
+  x: "X",
   tiktok: "TikTok",
   linkedin: "LinkedIn",
 };

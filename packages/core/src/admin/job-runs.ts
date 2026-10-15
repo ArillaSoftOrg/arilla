@@ -38,6 +38,39 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0112: besleme keşfi ve artımlı senkronizasyon (zamanlama aktivasyonla gelir).
+  feed_discover: {
+    label: "Besleme keşfi (affiliate ağları)",
+    how: "python -m feeds discover",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  feed_sync: {
+    label: "Besleme senkronizasyonu",
+    how: "python -m feeds sync-due",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  // Karar 0115: yonetici toplamasi ara deposunun katalog modeline birlestirilmesi (elle).
+  hb_merge: {
+    label: "Hepsiburada toplama birleştirme",
+    how: "python -m feeds hb-merge --run <id>",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  // Karar 0113: resmi kur ve bagimsiz fiyat dogrulama.
+  fx_rates: {
+    label: "Döviz kuru (TCMB)",
+    how: "python -m pricing fx",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  price_verify: {
+    label: "Fiyat doğrulama",
+    how: "python -m pricing verify",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
   resolve: {
     label: "Eşleştirme",
     how: "python -m resolve",

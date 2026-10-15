@@ -1,0 +1,7 @@
+[Unit]
+Description=Arilla alarm: %i basarisiz
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/arilla/vps/bin/arilla_healthcheck.py --unit-failed %i
+TimeoutStartSec=60

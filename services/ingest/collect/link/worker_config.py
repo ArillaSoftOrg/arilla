@@ -8,6 +8,11 @@
 
 Aksi halde `REDIS_URL` zorunludur ve `rediss://` olmalidir. Sessizce
 localhost'a dusmek uretimde kuyrugu hic tuketmeyen bir worker demektir.
+
+Tek istisna (karar 0109): Docker ic agindaki Redis. Host adi
+`REDIS_PLAINTEXT_HOSTS` (virgullu, tam host adi) listesinde ACIKCA yazilmissa
+duz `redis://` kabul edilir; varsayilan bos. Web tarafi ayni degiskeni okur
+(`packages/core/src/redis/client.ts`).
 Hata metinleri sabittir: adres, kullanici ya da parola asla yazilmaz.
 """
 
@@ -36,7 +41,17 @@ def _is_local(url: str | None) -> bool:
     return bool(url) and _host(url or "") in _LOCAL_HOSTS
 
 
-def worker_redis_url(redis_url: str | None, database_url: str | None) -> str:
+def _plaintext_allowed(url: str, plaintext_hosts: str | None) -> bool:
+    allowed = {h.strip().lower() for h in (plaintext_hosts or "").split(",") if h.strip()}
+    host = _host(url)
+    return bool(allowed) and host is not None and host.lower() in allowed
+
+
+def worker_redis_url(
+    redis_url: str | None,
+    database_url: str | None,
+    plaintext_hosts: str | None = None,
+) -> str:
     """Kullanilacak Redis adresi; uygun degilse `WorkerConfigError`."""
     local_development = _is_local(database_url)
     url = (redis_url or "").strip()
@@ -52,6 +67,8 @@ def worker_redis_url(redis_url: str | None, database_url: str | None) -> str:
     if scheme == "rediss" and _host(url):
         return url
     if scheme == "redis" and local_development and _is_local(url):
+        return url
+    if scheme == "redis" and _plaintext_allowed(url, plaintext_hosts):
         return url
     if scheme not in ("redis", "rediss"):
         raise WorkerConfigError("REDIS_URL redis:// ya da rediss:// ile baslamali.")

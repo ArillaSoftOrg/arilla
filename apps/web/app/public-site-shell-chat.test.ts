@@ -13,12 +13,13 @@ function typeName(part: unknown): string | undefined {
   return typeof type === "string" ? type : undefined;
 }
 
-async function shellParts(chrome?: "site" | "chat"): Promise<Element[]> {
+async function shellParts(chrome?: "site" | "chat", showFooterSocial = true): Promise<Element[]> {
   const { PublicSiteShell } = await import("./public-site-shell.tsx");
   const { SUBPAGE_SECTION_LINKS } = await import("./home-footer-groups.ts");
   const tree = (await PublicSiteShell({
     links: SUBPAGE_SECTION_LINKS,
     chrome,
+    showFooterSocial,
     children: null,
   })) as Element;
   return (tree.props.children as unknown[]).flat().filter(Boolean) as Element[];
@@ -34,7 +35,37 @@ describe("kabuk: sohbet chrome", () => {
       const parts = await shellParts();
       expect(parts.some((part) => typeName(part) === "SiteFooter")).toBe(true);
       const header = parts.find((part) => typeName(part) === "HomeHeader") as Element;
+      const footer = parts.find((part) => typeName(part) === "SiteFooter") as Element;
       expect(header.props.variant).toBe("site");
+      expect(footer.props.socialGroup).toEqual(
+        expect.objectContaining({
+          title: "Takipte kal",
+          links: [
+            expect.objectContaining({
+              label: "Instagram",
+              href: "https://www.instagram.com/manicepte.tr",
+            }),
+            expect.objectContaining({
+              label: "X",
+              href: "https://x.com/ManiCeptetr",
+            }),
+            expect.objectContaining({
+              label: "LinkedIn",
+              href: "https://www.linkedin.com/company/manicepte/",
+            }),
+          ],
+        }),
+      );
+    },
+    SLOW,
+  );
+
+  it(
+    "sayfa kendi takip alanını çizdiğinde footer sosyal grubunu tekrar etmez",
+    async () => {
+      const parts = await shellParts(undefined, false);
+      const footer = parts.find((part) => typeName(part) === "SiteFooter") as Element;
+      expect(footer.props.socialGroup).toBeUndefined();
     },
     SLOW,
   );

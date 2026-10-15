@@ -9,10 +9,16 @@ const NUMBER = new Intl.NumberFormat("tr-TR");
  * gerçek sayı: platform dışı gerçek başvurular + gerçek kayıtlar. İstemci
  * betiği yok; ekran okuyucu için `progressbar` rolü ve metin karşılığı var.
  */
-export function EarlyAccessProgress({ progress }: { progress: Progress }) {
+export function EarlyAccessProgress({
+  progress,
+  prominent = false,
+}: {
+  progress: Progress;
+  prominent?: boolean;
+}) {
   const label = EARLY_ACCESS_COPY.progressLabel;
   return (
-    <div className={styles.root}>
+    <div className={styles.root} data-prominent={prominent || undefined}>
       <p className={styles.label}>{label}</p>
       <div
         className={styles.track}

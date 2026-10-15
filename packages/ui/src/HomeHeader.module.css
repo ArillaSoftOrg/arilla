@@ -722,6 +722,11 @@
     padding-inline: var(--space-3);
     font-size: var(--text-small);
   }
+
+  .account[data-mobile-menu-only="true"],
+  .accountAvatar[data-mobile-menu-only="true"] {
+    display: none;
+  }
 }
 
 /* Sohbet calisma alani: yapiskan, yalin cubuk (menu + marka). Olcek 1 -> 0.8;

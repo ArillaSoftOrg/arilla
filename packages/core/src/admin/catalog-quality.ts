@@ -16,11 +16,13 @@
  * Önemler abartılmaz (karar 0052): beklenen yaşam döngüsü `info`,
  * kullanıcıya yanlış/eksik veri gösterebilecek durum `warning`.
  */
+
 import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability, type Capability } from "./capabilities.ts";
 import { STALE_OFFER_DAYS, validGtinSql } from "./catalog.ts";
+import { offerNotSeenSince } from "./offer-seen.ts";
 import { type AdminFinding, type Severity, sortFindings } from "./severity.ts";
 
 export const QUALITY_SAMPLE_LIMIT = 10;
@@ -507,34 +509,43 @@ const merchantOffers: QualityCheck = {
     { key: "catalog.merchant_mostly_unmatched", title: "Tekliflerinin çoğu eşleşmemiş mağazalar" },
   ],
   run: async (tx) => {
+    // Sayımlar `offer_merchant_state_idx` üzerinde indeks-yalnız taramadır (0071).
     const perMerchant = await rows<{
       id: string;
       slug: string;
       name: string;
       merchant_active: boolean;
       active: string;
-      stale: string;
       inactive: string;
       unmatched: string;
     }>(
       tx,
       sql`SELECT m.id, m.slug, m.name, m.is_active AS merchant_active,
                  count(*) FILTER (WHERE o.is_active) AS active,
-                 count(*) FILTER (WHERE o.is_active
-                   AND o.last_seen_at < now() - (${STALE_OFFER_DAYS} * interval '1 day')) AS stale,
                  count(*) FILTER (WHERE NOT o.is_active) AS inactive,
                  count(*) FILTER (WHERE o.is_active AND o.product_id IS NULL) AS unmatched
             FROM merchant m JOIN offer o ON o.merchant_id = m.id
            GROUP BY m.id
            LIMIT 2000`,
     );
+    // Bayatlık ayrı sorgu (kendi zaman aşımı): satır başına alt sorgu yok; önce
+    // `offer_active_seen_idx` ile indeks-yalnız tarama (0072), üyelik tablosuna anti-join.
+    const staleRows = await rows<{ merchant_id: string; stale: string }>(
+      tx,
+      sql`SELECT o.merchant_id, count(*) AS stale
+            FROM offer o
+           WHERE o.is_active
+             AND ${offerNotSeenSince(sql`now() - (${STALE_OFFER_DAYS} * interval '1 day')`)}
+           GROUP BY o.merchant_id`,
+    );
+    const staleByMerchant = new Map(staleRows.map((r) => [Number(r.merchant_id), Number(r.stale)]));
     const ms = perMerchant.map((r) => ({
       id: Number(r.id),
       slug: r.slug,
       name: r.name,
       merchantActive: r.merchant_active,
       active: Number(r.active),
-      stale: Number(r.stale),
+      stale: staleByMerchant.get(Number(r.id)) ?? 0,
       inactive: Number(r.inactive),
       unmatched: Number(r.unmatched),
     }));
@@ -644,22 +655,53 @@ const unmatchedOffers: QualityCheck = {
     { key: "catalog.unmatched_decided", title: "Kabul edilmiş ama bağlanmamış teklifler" },
   ],
   run: async (tx) => {
-    const base = sql`
+    // Adayı olan teklifler (küçük küme) adaylar tarafından bulunur; hiç adayı olmayanlar
+    // 2,8M teklif üzerinde satır başına arama yapmadan toplamdan çıkarılır (0072).
+    const RELEVANT = sql`mc.status IN ('pending', 'rejected', 'accepted', 'auto_accepted')`;
+    const withCandidates = sql`
       SELECT o.id, o.merchant_id, o.title_raw, o.first_seen_at, ${UNMATCHED_STATE_SQL} AS state,
              c.rejected
-        FROM offer o
-        LEFT JOIN LATERAL (
-          SELECT count(*) FILTER (WHERE mc.status = 'pending') AS pending,
+        FROM (
+          SELECT mc.offer_id,
+                 count(*) FILTER (WHERE mc.status = 'pending') AS pending,
                  count(*) FILTER (WHERE mc.status = 'rejected') AS rejected,
                  count(*) FILTER (WHERE mc.status IN ('accepted', 'auto_accepted')) AS decided
-            FROM match_candidate mc WHERE mc.offer_id = o.id
-        ) c ON true
+            FROM match_candidate mc
+           WHERE ${RELEVANT}
+           GROUP BY mc.offer_id
+        ) c
+        JOIN offer o ON o.id = c.offer_id
        WHERE o.product_id IS NULL AND o.is_active`;
-    const agg = await rows<{ state: UnmatchedOfferState; n: string; oldest: string | null }>(
+    const [{ n: unmatchedTotal } = { n: "0" }] = await rows<{ n: string }>(
       tx,
-      sql`SELECT state, count(*) AS n, min(first_seen_at) AS oldest FROM (${base}) u GROUP BY state`,
+      sql`SELECT count(*) AS n FROM offer o WHERE o.product_id IS NULL AND o.is_active`,
     );
-    const samples = await rows<{
+    const aggWith = await rows<{ state: UnmatchedOfferState; n: string; oldest: string | null }>(
+      tx,
+      sql`SELECT state, count(*) AS n, min(first_seen_at) AS oldest
+            FROM (${withCandidates}) u GROUP BY state`,
+    );
+    // En eski adaysız teklifler: `offer_unmatched_first_seen_idx` sırasıyla yürür, ilk
+    // kayıtlarda durur.
+    const noCandidateSamples = await rows<{
+      id: string;
+      merchant_id: string;
+      title_raw: string;
+      first_seen_at: string;
+      state: UnmatchedOfferState;
+      rejected: string;
+    }>(
+      tx,
+      sql`SELECT o.id, o.merchant_id, o.title_raw, o.first_seen_at,
+                 'no_candidate' AS state, 0 AS rejected
+            FROM offer o
+           WHERE o.product_id IS NULL AND o.is_active
+             AND NOT EXISTS (SELECT 1 FROM match_candidate mc
+                              WHERE mc.offer_id = o.id AND ${RELEVANT})
+           ORDER BY o.first_seen_at, o.id
+           LIMIT ${QUALITY_SAMPLE_LIMIT}`,
+    );
+    const withSamples = await rows<{
       id: string;
       merchant_id: string;
       title_raw: string;
@@ -670,9 +712,20 @@ const unmatchedOffers: QualityCheck = {
       tx,
       sql`SELECT * FROM (
             SELECT u.*, row_number() OVER (PARTITION BY u.state ORDER BY u.first_seen_at, u.id) AS rn
-              FROM (${base}) u WHERE u.state <> 'in_queue'
+              FROM (${withCandidates}) u WHERE u.state <> 'in_queue'
           ) x WHERE x.rn <= ${QUALITY_SAMPLE_LIMIT} ORDER BY x.state, x.rn`,
     );
+    const samples = [...noCandidateSamples, ...withSamples];
+    const agg = [
+      ...aggWith,
+      {
+        state: "no_candidate" as const,
+        n: String(
+          Math.max(0, Number(unmatchedTotal) - aggWith.reduce((t, r) => t + Number(r.n), 0)),
+        ),
+        oldest: noCandidateSamples[0]?.first_seen_at ?? null,
+      },
+    ];
     const now = Date.now();
     const byState = new Map(agg.map((r) => [r.state, r]));
     const count = (s: UnmatchedOfferState) => Number(byState.get(s)?.n ?? 0);

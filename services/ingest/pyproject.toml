@@ -9,6 +9,9 @@ dependencies = [
     "redis>=5.0",
     # Gorsel on isleme (karar 0028): cozme, EXIF, kucultme, yeniden kodlama.
     "pillow>=11.3",
+    # Link cozumleme Vercel Queues aboneligi (karar 0107). Yalnizca
+    # `collect.link.subscriber` ice aktarir; Redis worker'i etkilenmez.
+    "vercel-queue>=0.9.1,<1",
 ]
 
 [project.optional-dependencies]
@@ -29,6 +32,8 @@ packages = [
     "collect.link",
     "curate",
     "enrich",
+    "feeds",
+    "pricing",
     "resolve",
 
     "similarity",
@@ -48,3 +53,10 @@ testpaths = ["tests"]
 markers = [
     "integration: yerel PostgreSQL gerektirir",
 ]
+
+# Vercel Queues abonesi (karar 0107). Vercel derleme aninda bu modulu ice alip
+# ozel, kuyruk tetiklemeli bir fonksiyon uretir; herkese acik rota yoktur.
+# Yalnizca Vercel `services` ile dagitilirsa anlam kazanir (kok vercel.json);
+# bugunku dagitimda (Root Directory apps/web) hicbir etkisi yoktur.
+[[tool.vercel.subscribers]]
+entrypoint = "collect.link.subscriber"

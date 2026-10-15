@@ -11,6 +11,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from "@aws-sdk/client-s3";
+import { isProductionDeploy } from "../config/deploy-env.ts";
 import { mediaUrl, normalizePublicBaseUrl } from "./media-url.ts";
 
 export interface StorageConfig {
@@ -57,7 +58,7 @@ export function readStorageConfig(env: NodeJS.ProcessEnv = process.env): Storage
   if (missing.length > 0) {
     throw new Error(`R2 yapilandirmasi eksik: ${missing.join(", ")}`);
   }
-  const production = env.NODE_ENV === "production" || env.VERCEL_ENV === "production";
+  const production = env.NODE_ENV === "production" || isProductionDeploy(env);
   const publicBaseUrl = normalizePublicBaseUrl(env.R2_PUBLIC_BASE_URL, { production });
   if (publicBaseUrl === undefined) throw new Error("R2 yapilandirmasi eksik: R2_PUBLIC_BASE_URL");
   return {

@@ -45,6 +45,51 @@ describe("redisOptionsFromEnv()", () => {
     expect(options.tls).toEqual({});
   });
 
+  // Karar 0109: VPS'te Redis Docker ic agindadir; VERCEL_ENV yoktur.
+  it("DEPLOY_ENV=production: duz redis:// varsayilan olarak reddedilir", () => {
+    const REDIS_URL = "redis://:gizli-parola@redis:6379";
+    expect(() => redisOptionsFromEnv({ REDIS_URL, DEPLOY_ENV: "production" })).toThrow(
+      RedisConfigError,
+    );
+    try {
+      redisOptionsFromEnv({ REDIS_URL, DEPLOY_ENV: "production" });
+    } catch (error) {
+      expect(String((error as Error).message)).not.toMatch(/gizli|redis:6379/);
+    }
+  });
+
+  it("DEPLOY_ENV=production: yalnizca REDIS_PLAINTEXT_HOSTS listesindeki host duz redis:// alir", () => {
+    const base = { DEPLOY_ENV: "production", REDIS_PLAINTEXT_HOSTS: "redis, Cache" };
+    expect(redisOptionsFromEnv({ ...base, REDIS_URL: "redis://:p@redis:6379" }).url).toBe(
+      "redis://:p@redis:6379",
+    );
+    expect(redisOptionsFromEnv({ ...base, REDIS_URL: "redis://:p@cache:6379" }).options.tls).toBe(
+      undefined,
+    );
+    // Listede olmayan (dis) host hala TLS ister.
+    expect(() =>
+      redisOptionsFromEnv({ ...base, REDIS_URL: "redis://:p@eu1.upstash.io:6379" }),
+    ).toThrow(RedisConfigError);
+  });
+
+  it("izin listesi bos ya da gecersizse hicbir host muaf degildir", () => {
+    for (const REDIS_PLAINTEXT_HOSTS of ["", " , ", undefined]) {
+      expect(() =>
+        redisOptionsFromEnv({
+          REDIS_URL: "redis://:p@redis:6379",
+          DEPLOY_ENV: "production",
+          REDIS_PLAINTEXT_HOSTS,
+        }),
+      ).toThrow(RedisConfigError);
+    }
+  });
+
+  it("izin listesi Vercel production'da da yalnizca acikca yazilan host'u muaf tutar", () => {
+    expect(() =>
+      redisOptionsFromEnv({ REDIS_URL: "redis://:p@redis:6379", VERCEL_ENV: "production" }),
+    ).toThrow(RedisConfigError);
+  });
+
   it("yerel gelistirme ve onizleme redis://localhost kullanabilir", () => {
     for (const VERCEL_ENV of [undefined, "development", "preview"]) {
       const { url } = redisOptionsFromEnv({ REDIS_URL: "redis://localhost:6379", VERCEL_ENV });

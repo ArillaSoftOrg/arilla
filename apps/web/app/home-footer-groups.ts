@@ -4,7 +4,6 @@ import { COOKIE_PREFERENCES_HREF } from "./consent-copy.ts";
 import { CookiePreferencesLink } from "./cookie-consent-client.tsx";
 import { FEEDBACK_COPY } from "./geri-bildirim/feedback-copy.ts";
 import { HOME_COPY } from "./home-copy.ts";
-import { configuredSocialLinks } from "./site-config.ts";
 
 /**
  * Faz 8: ana sayfa bolumlerine giden uc link. Ana sayfada ayni sayfa ici
@@ -115,12 +114,6 @@ function companyFooterGroup(): FooterGroup {
       { label: HOME_COPY.navAbout, href: "/hakkinda" },
       { label: HOME_COPY.navBlog, href: "/blog" },
       { label: HOME_COPY.navPartners, href: "/ortakliklar" },
-      // Yalnizca tanimli resmi hesaplar (site-config.ts `SOCIAL_PROFILES`).
-      ...configuredSocialLinks().map((social) => ({
-        label: social.label,
-        href: social.href,
-        external: true,
-      })),
     ],
   };
 }
@@ -160,5 +153,30 @@ export function earlyAccessFooterGroups(
     { title: HOME_COPY.footerAccountGroupTitle, links: entries },
     companyFooterGroup(),
     legalFooterGroup(),
+  ];
+}
+
+/** Landing-only reduced footer; every retained link resolves to an existing route. */
+export function compactEarlyAccessFooterGroups(
+  entries: readonly { label: string; href: string }[],
+): readonly FooterGroup[] {
+  const legal = legalFooterGroup();
+  return [
+    { title: HOME_COPY.footerAccountGroupTitle, links: entries },
+    {
+      title: HOME_COPY.footerCompanyGroupTitle,
+      links: [
+        { label: HOME_COPY.navAbout, href: "/hakkinda" },
+        { label: HOME_COPY.navContact, href: "/iletisim" },
+      ],
+    },
+    {
+      title: HOME_COPY.footerLegalGroupTitle,
+      links: legal.links.filter((link) =>
+        ["/gizlilik", "/kvkk-aydinlatma", "/cerez", "/kosullar", "/sirket-bilgileri"].includes(
+          link.href,
+        ),
+      ),
+    },
   ];
 }

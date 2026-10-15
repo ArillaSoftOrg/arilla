@@ -78,8 +78,8 @@ Mevcut adlar korunur; yeni roller için yeni ad eklenir. Tek kaynak
 | Kullanım kartı zeminleri | `--tint-aqua` / `--tint-mist` / `--tint-warm` | `#DFF7F8` / `#EEF6FB` / `#F3EEE8` | `#132C30` / `#172530` / `#26221D` |
 | Görsel üstü örtü / işaret | `--media-scrim` / `--on-media` | `rgba(14,15,17,.38)` / `#FFFFFF` | aynı |
 | Ana eylem kutusu gölgesi | `--shadow-hero` / `--shadow-hero-focus` | yumuşak geniş yayılım | aynı |
-| Footer atmosferi (dekor) | `--footer-glow-mint` / `--footer-glow-lime` | `rgba(112,214,196,.16)` / `rgba(183,245,47,.15)` | `rgba(95,214,200,.06)` / `rgba(183,245,47,.08)` |
-| Footer kelime işareti (dekor, metnin altındaki alan) | `--footer-wordmark-top` / `--footer-wordmark-bottom` / `--footer-wordmark-glow` | `rgba(134,204,92,.5)` → `#8FD13A`, parıltı `rgba(183,245,47,.22)` | `rgba(183,245,47,.45)` → `#B7F52F`, parıltı `rgba(183,245,47,.12)` |
+| Footer zemini | `--footer-canvas` | `#EDF0EC` | `#111513` |
+| Footer kelime işareti | `--footer-wordmark-top` / `--footer-wordmark-bottom` / `--footer-wordmark-glow` | `rgba(134,204,92,.5)` → `#8FD13A`, parıltı `rgba(183,245,47,.22)` | `rgba(183,245,47,.45)` → `#B7F52F`, parıltı `rgba(183,245,47,.12)` |
 
 **Editoryal roller** (`/blog`, `/hakkinda`, `/ortakliklar`): bu sayfalar sıcak
 zemin ve koyu teal bölüm kullanır; roller de anlamsaldır, sayfaya özgü renk
@@ -597,19 +597,36 @@ ikonundan ölçüldü) yalnızca `/yonetim`'de etkin gezinme, seçim ve odak
 göstergesinde kullanılır; açık temada metin ya da tek başına çizgi olarak
 kullanılmaz (beyaz üzerinde ~1.3:1).
 
-**Public dekoratif istisna (karar 0093):** public sayfalarda limon yalnızca
-dekoratif atmosferdir (bugün `SiteFooter` parıltısı, `--footer-glow-lime`);
-metin, ikon, tek başına çizgi ya da durum rengi değildir. Dekor katmanları
-`aria-hidden`, tıklanmaz, `forced-colors` ve baskıda gizlidir; altlarındaki
-metin kontrastı ≥ 4.5:1 kalır.
+**Public dekoratif istisna:** public sayfalarda marka limonu metin, ikon,
+tek başına çizgi ya da durum rengi değildir. Dekor katmanları `aria-hidden`,
+tıklanmaz, `forced-colors` ve baskıda gizlidir; altlarındaki metin kontrastı
+≥ 4.5:1 kalır.
 
-**Markalı footer (karar 0093):** `SiteFooter` alta doğru nane/limon
-parıltısı ve copyright satırının altındaki dekor alanında, alttan kırpılmış
-büyük "ManiCepte" kelime işareti (site fontu, yumuşak dikey degrade) taşır;
-kelime hiçbir metnin arkasında değildir ve alanın kendi zemini yoktur
-(tek, kesintisiz footer yüzeyi). Logo
-çizilmez/izlenmez. Affiliate cümlesi footer'da yoktur (ürün sayfasında,
-tıklama noktasında); fiyat/stok uyarısı footer'da kalır.
+**Markalı footer:** `SiteFooter`, header ile aynı gerçek uygulama ikonunu ve
+ManiCepte marka adını taşır. Nötr yüzey, kısa limon vurgu çizgisi, bağlantı
+kolonları ve kompakt yasal alt banttan oluşur. En altta ManiCepte'ye ait büyük
+yeşil kelime işareti yumuşak dikey geçişi ve footer zeminiyle birleşen
+parlamasıyla tabana arka plan katmanı olarak oturur; harflerin altı kesilmez.
+Büyük marka alanı telif satırının hemen altında yer alır; footer içeriğine
+binmez ve ayrı renkli bir bölüm veya şerit oluşturmaz. Bu alan
+Dupe footer'ındaki ölçek ve yerleşim fikrini ManiCepte renkleriyle yorumlar,
+bağlantı düzenini veya görsel kimliğini kopyalamaz. Affiliate cümlesi footer'da yoktur (ürün sayfasında, tıklama
+noktasında); fiyat/stok uyarısı footer'da kalır.
+
+**Erken erişim rehberi:** Landing hero'sundaki maskot elini kaldırmış sabit
+selam pozundadır; kol veya gövde animasyonu yoktur. Örnek deneyim, sayfa
+kaydırıldıkça dört aşamayı aynı yapışkan sahnede gösterir: kullanıcının
+ihtiyacını yazması, ManiCepte'nin anlaması, seçenekleri araştırması ve en iyi
+fiyat-kalite dengesini öne çıkarması. Tarif, fotoğraf ve bağlantı giriş yolları
+aynı temsili composer içinde görünür. Büyük rehber robot sahnenin sağında kalır
+ve her aşamada anlamlı, sabit bir poza geçer; zıplama veya yürüme animasyonu
+yoktur. Yukarı kaydırma aşamaları tersine çevirir. Azaltılmış hareket
+tercihinde doğrudan tamamlanmış durum gösterilir. Sonuç
+alanı markasız, nötr ürün görselleri kullanır; fiyat, mağaza veya indirim
+uydurulmaz. Sayfanın sonunda footer'dan hemen önce, robot ve doğrulanmış resmi
+sosyal hesaplar aynı ManiCepte günlüğü sahnesinde yer alır; bu sayfada footer
+sosyal grubu tekrar çizilmez. Landing footer'ı, diğer public sayfaları
+etkilemeyen sade bağlantı varyantını kullanır.
 
 **Yüzen hızlı arama (karar 0093):** ana sayfada ana kutu ekrandan çıkınca
 aşağı kaydırmada beliren, yukarı ≥ 24px kaydırmada gizlenen kompakt kutu

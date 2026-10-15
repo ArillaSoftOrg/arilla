@@ -13,6 +13,7 @@ import { EARLY_ACCESS_COPY } from "./early-access-copy.ts";
 import { EditorialFooter } from "./editorial-footer.tsx";
 import { HOME_COPY } from "./home-copy.ts";
 import {
+  compactEarlyAccessFooterGroups,
   earlyAccessFooterGroups,
   homeFooterGroups,
   personalNavLinks,
@@ -23,7 +24,8 @@ import {
 import { verifySession } from "./lib/dal.ts";
 import { readThemePreference } from "./lib/theme-cookie.ts";
 import styles from "./public-site-shell.module.css";
-import { SITE_BRAND } from "./site-config.ts";
+import { configuredSocialLinks, SITE_BRAND } from "./site-config.ts";
+import { SocialMediaIcon } from "./social-media-icon.tsx";
 import { ThemeToggleControl } from "./theme-toggle-client.tsx";
 
 /** docs/design.md "Kalite tabanı": SkipLink'in hedefi, sayfada tek. */
@@ -61,6 +63,9 @@ export async function PublicSiteShell({
   currentPath,
   fullBleed = false,
   chrome = "site",
+  showFooterSocial = true,
+  compactFooter = false,
+  footerVariant = "default",
   children,
 }: {
   links: SiteSectionLinks;
@@ -74,6 +79,11 @@ export async function PublicSiteShell({
    * Rota ince `layout.tsx`'i secer; baska sayfalar `site` kalir.
    */
   chrome?: "site" | "chat";
+  /** A page-level social section can replace the compact footer group. */
+  showFooterSocial?: boolean;
+  /** Keeps the prelaunch landing footer concise without affecting other routes. */
+  compactFooter?: boolean;
+  footerVariant?: "default" | "prelaunch";
   children: ReactNode;
 }) {
   const isChat = chrome === "chat";
@@ -98,7 +108,7 @@ export async function PublicSiteShell({
   // sunucuda rolden okunur. Girişli normal kullanıcı zaten yetkisizdir.
   const footerSource = productAccess
     ? homeFooterGroups(links, user !== null)
-    : earlyAccessFooterGroups(
+    : (compactFooter ? compactEarlyAccessFooterGroups : earlyAccessFooterGroups)(
         user
           ? [{ label: EARLY_ACCESS_COPY.navStatus, href: EARLY_ACCESS_PATH }]
           : [
@@ -109,6 +119,11 @@ export async function PublicSiteShell({
   const footerGroups: readonly FooterGroup[] = footerSource.map((group) => ({
     ...group,
     links: markCurrent(group.links, currentPath),
+  }));
+  const socialLinks = configuredSocialLinks().map((social) => ({
+    label: social.label,
+    href: social.href,
+    icon: <SocialMediaIcon network={social.network} />,
   }));
   const loginHref = productAccess ? "/giris" : EARLY_ACCESS_LOGIN_PATH;
   const initialTheme = await readThemePreference();
@@ -126,6 +141,7 @@ export async function PublicSiteShell({
         accountLabel={accountLabel}
         loginHref={loginHref}
         loginLabel={loginLabel}
+        accountInMobileMenuOnly={footerVariant === "prelaunch" && !user}
         accountCurrent={currentPath === (accountHref ?? loginHref)}
         accountAvatarUrl={user?.avatarUrl ?? null}
         accountAvatarLabel={user?.displayName ?? user?.email ?? SITE_BRAND}
@@ -138,6 +154,7 @@ export async function PublicSiteShell({
             ? { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH }
             : undefined
         }
+        utilityInMenuOnly={footerVariant === "prelaunch"}
         personalNavItems={personalNavItems}
         personalNavLabel={HOME_COPY.navPersonalTitle}
         accountName={user?.displayName ?? null}
@@ -175,12 +192,19 @@ export async function PublicSiteShell({
       ) : (
         <SiteFooter
           brandLabel={SITE_BRAND}
+          brandLogoSrc="/icon4.png"
           brandDescription={
             productAccess ? HOME_COPY.heroSubtitle : COMING_SOON_COPY.footerDescription
           }
           groups={footerGroups}
+          socialGroup={
+            showFooterSocial
+              ? { title: HOME_COPY.footerSocialGroupTitle, links: socialLinks }
+              : undefined
+          }
           priceDisclaimer={HOME_COPY.priceDisclaimer}
           copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
+          variant={footerVariant}
         />
       )}
     </div>

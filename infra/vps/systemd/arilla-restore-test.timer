@@ -1,0 +1,10 @@
+[Unit]
+Description=Aylik geri yukleme provasi (ayin ilk Pazar'i 03:30 UTC, tam yedekten sonra)
+
+[Timer]
+OnCalendar=Sun *-*-01..07 03:30:00 UTC
+Persistent=true
+RandomizedDelaySec=900
+
+[Install]
+WantedBy=timers.target

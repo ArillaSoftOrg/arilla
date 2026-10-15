@@ -12,21 +12,24 @@
  *      adi). Tahmin edilmis bir alan adi degil; kodda hicbir alan adi gomulu
  *      degil.
  *
- * `VERCEL_ENV === "production"` iken sonuc https olmak ve localhost olmamak
- * ZORUNDA; hicbir sey cozulmezse firlatir. Boylece Vercel production'da
- * localhost/sahte canonical asla uretilmez. Yerel `next build`/`next start`
- * (NODE_ENV=production ama VERCEL_ENV yok) http://localhost'a izin verir -
- * yerel QA calisir.
+ * Uretim dagitiminda (`DEPLOY_ENV=production` ya da `VERCEL_ENV=production`,
+ * bkz. `deploy-env.ts`) sonuc https olmak ve localhost olmamak ZORUNDA;
+ * hicbir sey cozulmezse firlatir. Boylece uretimde localhost/sahte canonical
+ * asla uretilmez. Yerel `next build`/`next start` (NODE_ENV=production ama
+ * DEPLOY_ENV/VERCEL_ENV yok) http://localhost'a izin verir - yerel QA calisir.
  *
  * Bicim hatasi sessizce yutulmaz, firlatilir: yanlis bir deger deploy'u
  * build'de durdurur - yanlis canonical ile canliya cikmaktan iyidir.
  */
+
+import { isProductionDeploy } from "./deploy-env.ts";
 
 const MISSING_MESSAGE = "APP_URL tanimli degil. .env.example dosyasina bakin.";
 
 /** Cozumlemenin okudugu ortam degiskenleri. Testte `process.env` yerine verilir. */
 export interface AppUrlEnv {
   readonly APP_URL?: string | undefined;
+  readonly DEPLOY_ENV?: string | undefined;
   readonly VERCEL_ENV?: string | undefined;
   readonly VERCEL_PROJECT_PRODUCTION_URL?: string | undefined;
   /** Vercel'in bu deploy'a ozel host'u (protokolsuz); yalnizca preview e-posta linkleri. */
@@ -79,7 +82,7 @@ function vercelProductionOrigin(raw: string | undefined): string | undefined {
  * Tanimsizsa `undefined` - YALNIZCA eksik degerin guvenli oldugu yerler icin:
  * layout.tsx metadataBase (alan atlanir), robots.ts (Sitemap satiri atlanir),
  * urun JSON-LD `url` (alan atlanir), sitemap route'lari (500 doner). Bu yerler
- * goreli/yanlis URL yazmaz, sadece alani atlar. Vercel production'da ise
+ * goreli/yanlis URL yazmaz, sadece alani atlar. Uretimde ise
  * eksik deger burada da firlatir, yani `undefined` yalnizca yerel/test/preview
  * disi ortamlarda donebilir.
  */
@@ -87,18 +90,18 @@ export function readAppUrl(env: AppUrlEnv = process.env): string | undefined {
   const resolved =
     normalizeAppUrl(env.APP_URL) ?? vercelProductionOrigin(env.VERCEL_PROJECT_PRODUCTION_URL);
 
-  if (env.VERCEL_ENV?.trim() === "production") {
+  if (isProductionDeploy(env)) {
     if (!resolved) {
       throw new Error(
-        `${MISSING_MESSAGE} Vercel production'da APP_URL veya VERCEL_PROJECT_PRODUCTION_URL zorunlu.`,
+        `${MISSING_MESSAGE} Uretimde (production) APP_URL zorunlu (Vercel'de VERCEL_PROJECT_PRODUCTION_URL de olur).`,
       );
     }
     const { protocol, hostname } = new URL(resolved);
     if (protocol !== "https:") {
-      throw new Error(`Vercel production'da site adresi https olmali: "${resolved}"`);
+      throw new Error(`Uretimde (production) site adresi https olmali: "${resolved}"`);
     }
     if (LOCAL_HOSTNAMES.has(hostname) || hostname.endsWith(".localhost")) {
-      throw new Error(`Vercel production'da site adresi localhost olamaz: "${resolved}"`);
+      throw new Error(`Uretimde (production) site adresi localhost olamaz: "${resolved}"`);
     }
   }
   return resolved;

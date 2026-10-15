@@ -1,0 +1,421 @@
+# Uretim yigini - Hostinger KVM 4 (4 vCPU / 16 GB), karar 0109, faz 2.
+#
+# Yerel gelistirme icin DEGILDIR (o: infra/docker-compose.yml). VPS'te bu dosya
+# ve infra/vps/ klasoru /opt/arilla/ altina birlikte kopyalanir:
+#
+#   docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml up -d
+#
+# AG TASARIMI (docs/ops.md "VPS (Hostinger KVM 4)"):
+#   public  caddy                         yayinlanan 80/443 + ACME cikisi
+#   edge    caddy <-> web                 internal: dis dunyaya cikis YOK
+#   data    postgres, redis, web, worker, cron, migrate
+#                                         internal: internete cikis YOK
+#   egress  web, worker                   yalniz giden baglanti (Gemini, Jina,
+#                                         R2, SMTP, hedef siteler); port yayini yok
+# postgres ve redis YALNIZCA `data` aginda: `ports:` yazilmaz, host'a ya da
+# internete acilmaz. Bu dosyaya `ports:` ekleme.
+#
+# IMAJLAR: `<ad>:${ARILLA_TAG}` ve (varsa) `@${ARILLA_<AD>_DIGEST}`. GHCR'a build-push iş akışı
+# yayinlar (etiket sha-<commit>, degismez). `infra/vps/bin/release.py apply <manifest>`
+# compose.env'e ARILLA_TAG ve digest'leri yazar; digest varsa imaj O DIGEST'e sabitlenir
+# (etiket sonradan baska bir seye isaret etse bile). Geri alma: `release.py rollback`.
+#
+# GIZLI DEGERLER bu dosyada ve imajlarda YOK. Her servis kendi env_file'ini
+# VPS'teki ${ARILLA_ENV_DIR} (varsayilan /opt/arilla/env) altindan alir; dosyalar
+# `infra/vps/bin/init-secrets.sh` ile VPS'te uretilir, depoya girmez. En az
+# yetki: sahip (owner) kimligi yalniz `migrate`te, CRON_SECRET yalniz `cron`da.
+name: arilla
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+x-service: &service
+  restart: unless-stopped
+  logging: *logging
+  security_opt:
+    - no-new-privileges:true
+
+services:
+  # --- Reverse proxy + HTTPS (Let's Encrypt otomatik) -----------------------------
+  caddy:
+    <<: *service
+    image: caddy:2.10-alpine
+    environment:
+      ARILLA_SITE_ADDRESS: ${ARILLA_SITE_ADDRESS:?ARILLA_SITE_ADDRESS gerekli (orn. alan-adi.com)}
+      # www -> apex 301 (infra/vps/Caddyfile). Varsayilanlar alan adindan turetilir; mevcut
+      # compose.env'lere ekleme gerekmez. Yerel testte (http://:80) smoke-local.sh ezer.
+      ARILLA_WWW_ADDRESS: ${ARILLA_WWW_ADDRESS:-www.${ARILLA_SITE_ADDRESS}}
+      ARILLA_CANONICAL_ORIGIN: ${ARILLA_CANONICAL_ORIGIN:-https://${ARILLA_SITE_ADDRESS}}
+    ports:
+      - "${CADDY_BIND:-0.0.0.0}:${CADDY_HTTP_PORT:-80}:80"
+      - "${CADDY_BIND:-0.0.0.0}:${CADDY_HTTPS_PORT:-443}:443"
+      - "${CADDY_BIND:-0.0.0.0}:${CADDY_HTTPS_PORT:-443}:443/udp"
+    volumes:
+      - ./vps/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks: [public, edge]
+    depends_on:
+      web:
+        condition: service_healthy
+    cap_drop: [ALL]
+    cap_add: [NET_BIND_SERVICE]
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:2019/config/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    mem_limit: 256m
+    memswap_limit: 256m
+    pids_limit: 256
+
+  # --- Web (Next.js standalone) --------------------------------------------------
+  web:
+    <<: *service
+    image: ${ARILLA_WEB_IMAGE:-ghcr.io/arillasoftorg/arilla-web}:${ARILLA_TAG:?ARILLA_TAG gerekli}${ARILLA_WEB_DIGEST:+@}${ARILLA_WEB_DIGEST:-}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      target: runner
+      args:
+        # Sir DEGIL; derlemeye gomulur (robots/canonical). Yalniz yerel `compose build`.
+        APP_URL: ${ARILLA_BUILD_APP_URL:-}
+    env_file:
+      - ${ARILLA_ENV_DIR:-/opt/arilla/env}/web.env
+    environment:
+      DEPLOY_ENV: production
+      # Redis Docker ic agindadir; dis host'lar yine rediss:// ister (karar 0109).
+      REDIS_PLAINTEXT_HOSTS: redis
+      DATABASE_POOL_MAX: "12"
+      NODE_OPTIONS: --max-old-space-size=2048
+    networks: [edge, data, egress]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    volumes:
+      # Next onbellegi (ISR/veri) calisma aninda yazilir.
+      - web_next_cache:/app/apps/web/.next/cache
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
+    mem_limit: 3g
+    memswap_limit: 3g
+    cpus: 2.0
+    pids_limit: 512
+    stop_grace_period: 30s
+
+  # --- Link worker (Python; HTTP SUNMAZ, kuyruktan is alir) ------------------------
+  worker:
+    <<: *service
+    image: ${ARILLA_INGEST_IMAGE:-ghcr.io/arillasoftorg/arilla-ingest}:${ARILLA_TAG:?ARILLA_TAG gerekli}${ARILLA_INGEST_DIGEST:+@}${ARILLA_INGEST_DIGEST:-}
+    build:
+      context: ../services/ingest
+    command: ["python", "-m", "collect.link", "--worker"]
+    env_file:
+      - ${ARILLA_ENV_DIR:-/opt/arilla/env}/worker.env
+    environment:
+      REDIS_PLAINTEXT_HOSTS: redis
+    networks: [data, egress]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    # HEALTHCHECK imajdadir (heartbeat dosyasi tazeligi, services/ingest/Dockerfile).
+    mem_limit: 1g
+    memswap_limit: 1g
+    cpus: 1.5
+    pids_limit: 256
+    stop_grace_period: 30s
+
+  # --- Besleme / fiyat dogrulama komutlari (karar 0112-0114) ------------------------
+  # Yalniz elle ya da zamanlayicidan `--profile feeds run --rm feeds python -m feeds ...`.
+  # Buyuk besleme RAM'deki /tmp'ye DEGIL, diskteki hazirlik dizinine iner
+  # (/opt/arilla/feed-staging, uid 10001). FEED_MIN_FREE_BYTES diskte korunan alan
+  # (PostgreSQL, WAL, yedek); indirme tavani bos alan - bu deger.
+  feeds:
+    <<: *service
+    profiles: ["feeds"]
+    restart: "no"
+    image: ${ARILLA_INGEST_IMAGE:-ghcr.io/arillasoftorg/arilla-ingest}:${ARILLA_TAG:?ARILLA_TAG gerekli}${ARILLA_INGEST_DIGEST:+@}${ARILLA_INGEST_DIGEST:-}
+    command: ["python", "-m", "feeds", "list"]
+    env_file:
+      - ${ARILLA_ENV_DIR:-/opt/arilla/env}/worker.env
+    environment:
+      FEED_STAGING_DIR: /staging
+      FEED_MIN_FREE_BYTES: "21474836480"
+      JOB_RUN_TRIGGER: manual
+    volumes:
+      - ${ARILLA_FEED_STAGING_DIR:-/opt/arilla/feed-staging}:/staging
+    networks: [data, egress]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      disable: true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: ["/tmp:size=64m"]
+    mem_limit: 1536m
+    memswap_limit: 1536m
+    cpus: 1.0
+    pids_limit: 128
+    stop_grace_period: 60s
+
+  # --- Zamanlayici (Vercel cron'larinin yerine; yalniz HTTP + CRON_SECRET) -----------
+  cron:
+    <<: *service
+    image: ${ARILLA_CRON_IMAGE:-ghcr.io/arillasoftorg/arilla-cron}:${ARILLA_TAG:?ARILLA_TAG gerekli}${ARILLA_CRON_DIGEST:+@}${ARILLA_CRON_DIGEST:-}
+    build:
+      context: ./vps/cron
+    env_file:
+      - ${ARILLA_ENV_DIR:-/opt/arilla/env}/cron.env
+    environment:
+      ARILLA_WEB_URL: http://web:3000
+      TZ: UTC
+    networks: [data]
+    depends_on:
+      web:
+        condition: service_healthy
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    healthcheck:
+      test: ["CMD-SHELL", "pidof supercronic >/dev/null"]
+      interval: 60s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+    mem_limit: 128m
+    memswap_limit: 128m
+    pids_limit: 64
+
+  # --- PostgreSQL 16 + pgvector -----------------------------------------------------
+  postgres:
+    <<: *service
+    # Varsayilan: resmi imaj (pgBackRest YOK). Yedekleme aktivasyonunda (karar 0110,
+    # infra/vps/bin/pg-backup-activate) compose.env'e ARILLA_POSTGRES_IMAGE yazilir:
+    # ayni PostgreSQL + pgvector tabani, ustune pgBackRest (infra/vps/postgres/Dockerfile).
+    image: ${ARILLA_POSTGRES_IMAGE:-pgvector/pgvector:0.8.1-pg16}
+    command: ["postgres", "-c", "config_file=/etc/postgresql/postgresql.conf"]
+    env_file:
+      - ${ARILLA_ENV_DIR:-/opt/arilla/env}/postgres.env
+    environment:
+      # archive_command'in kullandigi pgBackRest yapilandirmasi (yalniz TLS istemci sertifikasi;
+      # R2 anahtari ve sifreleme parolasi BU konteynerde YOK). Dosya yoksa arsivleme kapali kalir.
+      PGBACKREST_CONFIG: /etc/arilla-backup/pgbackrest.conf
+      # Yalniz ilk kurulumda (bos veri dizini) uygulanir: ag baglantilari scram-sha-256,
+      # sayfa sagtoplamlari. Konteyner ici unix soketi resmi imaj varsayilaninda (trust):
+      # ona yalnizca `docker exec` yetkisi olan ulasir, o zaten env_file'lari okuyabilir.
+      POSTGRES_INITDB_ARGS: --auth-host=scram-sha-256 --data-checksums
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      # Unix soketi `backup` yan konteyneriyle paylasilir (pgBackRest yedek baslatma/bitirme).
+      - pg_run:/var/run/postgresql
+      # Yedekleme (karar 0110): postgres tarafi pgBackRest yapilandirmasi + istemci TLS sertifikasi
+      # + arsivleme ayarlari (postgresql.conf `include_if_exists`). Dagitim bu dizine DOKUNMAZ;
+      # pg-backup-activate yazar. Dizin yoksa Docker bos olusturur: arsivleme kapali kalir.
+      - ${ARILLA_BACKUP_DIR:-/opt/arilla/backup}/pg:/etc/arilla-backup:ro
+      # postgresql.conf + pg_hba.conf (hba_file) - istemci kimlik dogrulama kurallari
+      # veri dizinine DEGIL bu salt-okunur dizine baglidir; yeni ve mevcut kurulumlarda
+      # ayni davranis (bkz. vps/postgres/pg_hba.conf).
+      - ./vps/postgres:/etc/postgresql:ro
+    networks: [data]
+    shm_size: 1g
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER, SETGID, SETUID]
+    healthcheck:
+      # Konteynerin KENDI ag adresine TCP + SCRAM ile baglanir: pg_hba.conf kurallari,
+      # parola dogrulamasi ve Docker alt agi dogrulanir (yalniz unix soketi degil).
+      # Alt ag degisir ve kural kapsamazsa `healthy` olmaz, yanlis yapilandirma gorunur.
+      # Parola komut satirinda degil, ortamdadir.
+      test:
+        - CMD-SHELL
+        - >-
+          PGPASSWORD="$${POSTGRES_PASSWORD}" psql -h "$$(hostname -i | cut -d' ' -f1)"
+          -U "$${POSTGRES_USER}" -d "$${POSTGRES_DB}" -Atqc 'select 1' | grep -qx 1
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+    mem_limit: 6g
+    memswap_limit: 6g
+    pids_limit: 512
+    stop_grace_period: 60s
+
+  # --- Redis 7: AOF + parola + noeviction -----------------------------------------------
+  redis:
+    <<: *service
+    image: redis:7.4-alpine
+    # ROOT OLMADAN calisir (redis kullanicisi: uid 999, gid 1000 - resmi imajla ayni).
+    # Resmi entrypoint root olarak baslayip `chown -R` + gosu yapar; `cap_drop ALL`
+    # altinda root'un DAC_OVERRIDE'i yoktur, bu yuzden ilk baslatmadan sonra 0700
+    # `appendonlydir`'i gezemez ("find: ./appendonlydir: Permission denied") ve
+    # konteyner yeniden baslatma dongusune girer. Dogrudan redis kullanicisi olarak
+    # baslayinca entrypoint/chown/ek yetki gerekmez; /data volume'u redis'e aittir
+    # (isimli volume imajdaki /data sahipligini kopyalar).
+    user: "999:1000"
+    # Parola argv'ye (ps ile gorunur) YAZILMAZ: tmpfs'teki 0600 dosyaya yazilip
+    # redis.conf `include` eder, sonra `exec` ile redis-server PID 1 olur.
+    command:
+      - sh
+      - -c
+      - >-
+        umask 077 &&
+        printf 'requirepass %s\n' "$$REDIS_PASSWORD" > /tmp/redis-auth.conf &&
+        exec redis-server /usr/local/etc/redis/redis.conf
+    env_file:
+      - ${ARILLA_ENV_DIR:-/opt/arilla/env}/redis.env
+    volumes:
+      - redis_data:/data
+      - ./vps/redis/redis.conf:/usr/local/etc/redis/redis.conf:ro
+    tmpfs: [/tmp]
+    networks: [data]
+    cap_drop: [ALL]
+    read_only: true
+    healthcheck:
+      # REDISCLI_AUTH (redis.env) ile parola komut satirina girmez.
+      test: ["CMD-SHELL", "redis-cli ping | grep -q PONG"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+      start_period: 10s
+    mem_limit: 768m
+    memswap_limit: 768m
+    pids_limit: 128
+    stop_grace_period: 30s
+
+  # --- Yedekleme (karar 0110): pgBackRest TLS depo sunucusu -> Cloudflare R2 ---------
+  # `up -d` BASLATMAZ (profil `backup`); dagitim motoru da otomatik baslatmaz. Aktivasyon:
+  # infra/vps/bin/pg-backup-activate. postgres internete CIKMAZ: WAL'i bu konteynere
+  # (data agi, karsilikli TLS) gonderir; R2'ye yalniz bu konteyner (egress) baglanir.
+  # R2 anahtarlari ve depo sifreleme parolasi yalniz burada (/etc/arilla-backup, salt-okunur).
+  backup:
+    <<: *service
+    profiles: ["backup"]
+    image: ${ARILLA_POSTGRES_IMAGE:-arilla-postgres:local}
+    build:
+      context: ./vps/postgres
+    user: "999:999"
+    command: ["pgbackrest", "server"]
+    environment:
+      PGBACKREST_CONFIG: /etc/arilla-backup/pgbackrest.conf
+    volumes:
+      # Veri dizini SALT-OKUNUR: yedek dosyalari buradan okunur; yazma yok.
+      - postgres_data:/var/lib/postgresql/data:ro
+      - pg_run:/var/run/postgresql
+      - ${ARILLA_BACKUP_DIR:-/opt/arilla/backup}/repo:/etc/arilla-backup:ro
+      - backup_spool:/var/spool/pgbackrest
+    tmpfs: [/tmp]
+    networks:
+      data:
+        aliases: [backup]
+      egress: {}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    cap_drop: [ALL]
+    read_only: true
+    healthcheck:
+      test: ["CMD", "pgbackrest", "server-ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    pids_limit: 256
+    stop_grace_period: 60s
+
+  # --- Izole geri yukleme provasi (karar 0110) ----------------------------------------
+  # Uretim veritabanina ve `data` agina ERISIMI YOK: yalniz egress (R2). Kendi bos
+  # dizinine geri yukler, yerel soketle (TCP yok) dogrular. infra/vps/bin/pg-restore-test.
+  restore:
+    profiles: ["restore"]
+    image: ${ARILLA_POSTGRES_IMAGE:-arilla-postgres:local}
+    build:
+      context: ./vps/postgres
+    user: "999:999"
+    entrypoint: ["bash", "/opt/arilla-backup-tools/restore-inner.sh"]
+    environment:
+      PGBACKREST_CONFIG: /etc/arilla-backup/pgbackrest.conf
+    volumes:
+      - ${ARILLA_BACKUP_DIR:-/opt/arilla/backup}/repo:/etc/arilla-backup:ro
+      - ./vps/backup/restore-inner.sh:/opt/arilla-backup-tools/restore-inner.sh:ro
+      - ${ARILLA_RESTORE_DIR:-/opt/arilla/restore-test}:/restore
+    tmpfs: [/tmp, /var/run/postgresql]
+    networks: [egress]
+    restart: "no"
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 2g
+    memswap_limit: 2g
+    cpus: 1.0
+    pids_limit: 256
+
+  # --- Migration / rol / bolum isleri (elle ya da dagitimda; `up -d` BASLATMAZ) ----------
+  # docker compose run --rm migrate [node scripts/<betik>.ts]
+  # Sahip kimligi (DATABASE_URL_OWNER) yalnizca bu servise verilir.
+  migrate:
+    profiles: ["ops"]
+    image: ${ARILLA_MIGRATE_IMAGE:-ghcr.io/arillasoftorg/arilla-migrate}:${ARILLA_TAG:?ARILLA_TAG gerekli}${ARILLA_MIGRATE_DIGEST:+@}${ARILLA_MIGRATE_DIGEST:-}
+    build:
+      context: ..
+      dockerfile: apps/web/Dockerfile
+      target: migrate
+      args:
+        APP_URL: ${ARILLA_BUILD_APP_URL:-}
+    command: ["node", "scripts/migrate.ts"]
+    env_file:
+      - ${ARILLA_ENV_DIR:-/opt/arilla/env}/migrate.env
+    networks: [data]
+    restart: "no"
+    logging: *logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    read_only: true
+    tmpfs: [/tmp]
+    mem_limit: 512m
+    memswap_limit: 512m
+
+networks:
+  public: {}
+  edge:
+    internal: true
+  data:
+    internal: true
+  egress: {}
+
+volumes:
+  postgres_data:
+  pg_run:
+  backup_spool:
+  redis_data:
+  caddy_data:
+  caddy_config:
+  web_next_cache:

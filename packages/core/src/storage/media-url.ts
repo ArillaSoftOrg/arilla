@@ -4,6 +4,7 @@
  * bilesenlerinden guvenle cagrilir. Baz URL ozel alan adi olmalidir
  * (orn. https://media.alan-adi.com); `*.r2.dev` uretimde reddedilir.
  */
+import { isProductionDeploy } from "../config/deploy-env.ts";
 import { isValidMediaKey } from "./media-keys.ts";
 
 export function normalizePublicBaseUrl(
@@ -31,7 +32,7 @@ export function normalizePublicBaseUrl(
 }
 
 function isProduction(env: NodeJS.ProcessEnv): boolean {
-  return env.NODE_ENV === "production" || env.VERCEL_ENV === "production";
+  return env.NODE_ENV === "production" || isProductionDeploy(env);
 }
 
 export function readPublicBaseUrl(env: NodeJS.ProcessEnv = process.env): string | undefined {

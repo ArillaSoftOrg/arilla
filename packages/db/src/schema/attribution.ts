@@ -3,6 +3,7 @@ import {
   bigint,
   boolean,
   integer,
+  jsonb,
   pgTable,
   smallint,
   text,
@@ -76,4 +77,14 @@ export const ingestRun = pgTable("ingest_run", {
   offersUpdated: integer("offers_updated").notNull().default(0),
   pricePointsWritten: integer("price_points_written").notNull().default(0),
   errorText: text("error_text"),
+  /** 0065 (karar 0111): besleme kosusu baglami, sayaclar, yeniden deneme, kontrol noktasi. */
+  feedSourceId: bigint("feed_source_id", { mode: "number" }),
+  snapshotId: bigint("snapshot_id", { mode: "number" }),
+  offersUnchanged: integer("offers_unchanged").notNull().default(0),
+  offersDeactivated: integer("offers_deactivated").notNull().default(0),
+  recordsRejected: integer("records_rejected").notNull().default(0),
+  attempt: smallint("attempt").notNull().default(1),
+  nextRetryAt: timestamp("next_retry_at", { withTimezone: true }),
+  checkpoint: jsonb("checkpoint").$type<Record<string, unknown>>(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }),
 });

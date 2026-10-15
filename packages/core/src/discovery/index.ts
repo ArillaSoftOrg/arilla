@@ -1,5 +1,6 @@
 export * from "./known-offer.ts";
 export * from "./link-preferences.ts";
+export * from "./link-queue.ts";
 export * from "./link-ranking.ts";
 export * from "./link-resolution.ts";
 export * from "./link-search.ts";

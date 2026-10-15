@@ -38,6 +38,38 @@
   font-weight: var(--font-weight-semibold);
 }
 
+.root[data-prominent] {
+  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-areas: "value label" "track track";
+  align-items: baseline;
+  gap: 10px 16px;
+  max-inline-size: none;
+}
+
+.root[data-prominent] .label {
+  grid-area: label;
+  justify-self: end;
+  max-inline-size: 18ch;
+  text-align: right;
+  font-size: 12px;
+}
+
+.root[data-prominent] .value {
+  grid-area: value;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.root[data-prominent] .value strong {
+  font-size: 32px;
+  line-height: 1;
+}
+
+.root[data-prominent] .track {
+  grid-area: track;
+  block-size: 8px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fill {
     transition: none;
