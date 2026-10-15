@@ -94,7 +94,7 @@ def veto_reason(left: ProductKey, right: ProductKey) -> str | None:
 def exact_score(left: ProductKey, right: ProductKey) -> ScoreResult | None:
     """1. katman: gtin / mpn. Kesin sonuc — bulunursa akis durur.
 
-    Karar 0111/0115: kisitli dolasim GTIN'i (magaza ici, kupon, ISBN/ISSN,
+    Karar 0111/0119: kisitli dolasim GTIN'i (magaza ici, kupon, ISBN/ISSN,
     degisken olcu) kimlik degildir; MPN ancak marka IKI tarafta bilinip
     ayniysa kimliktir (farkli markalarin ayni MPN'i baska urundur).
     """
@@ -243,12 +243,12 @@ def combine(
 
 
 def auto_eligible(result: ScoreResult, left: ProductKey, right: ProductKey) -> bool:
-    """AUTO_ACCEPT kademesi (docs/decisions/0034, 0111, 0115).
+    """AUTO_ACCEPT kademesi (docs/decisions/0034, 0111, 0119).
 
     Otomatik birlestirme yalnizca kesin kimlikle (gecerli GTIN ya da ayni marka +
     MPN) olur. Metin ve gorsel benzerlik, marka basliktan cikarilmis olabildigi
     icin, skor ne kadar yuksek olsa da kimlik degildir: esik ustu metin/hibrit
-    adaylar REVIEW'a gider (karar 0115, 0034'un metin kademesini kaldirir).
+    adaylar REVIEW'a gider (karar 0119, 0034'un metin kademesini kaldirir).
     """
     if result.vetoed or result.review:
         return False

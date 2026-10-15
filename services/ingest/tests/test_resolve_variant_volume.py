@@ -118,6 +118,6 @@ def test_text_match_to_unsold_volume_goes_to_review(merchants: tuple[int, int]) 
         resolve_offers(conn, merchant_id=merchant_b)
         conn.commit()
 
-        # Karar 0115: metin eslesmesi kimlik degil; ayni hacim de incelemeye gider.
+        # Karar 0119: metin eslesmesi kimlik degil; ayni hacim de incelemeye gider.
         assert _status(conn, same_volume) == "pending"
         assert _status(conn, other_volume) == "pending"

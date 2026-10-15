@@ -67,7 +67,7 @@ def test_different_valid_barcodes_are_a_veto() -> None:
 
 
 def test_auto_accept_needs_strong_identity() -> None:
-    """Karar 0115: benzer ad ve ayni marka kimlik degildir; yalnizca GTIN/MPN."""
+    """Karar 0119: benzer ad ve ayni marka kimlik degildir; yalnizca GTIN/MPN."""
     same_brand = ProductKey.build(
         title="Numbuzin No.9 NAD Bio Lifting-sil Essence 50 ml", brand="Numbuzin"
     )

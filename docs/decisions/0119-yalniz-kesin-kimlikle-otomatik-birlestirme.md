@@ -1,4 +1,4 @@
-# 0115 — Otomatik birleştirme yalnız kesin kimlikle
+# 0119 — Otomatik birleştirme yalnız kesin kimlikle
 
 **Tarih:** 15 Ekim 2026
 **Durum:** Önerildi. 0034'ün metin/hibrit otomatik kabul kademesini kaldırır; 0111'in
