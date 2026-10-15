@@ -24,6 +24,7 @@ from typing import Any
 
 import psycopg
 
+from feeds.discovery_catalog import link_prices
 from feeds.sync import FeedSync
 
 logger = logging.getLogger(__name__)
@@ -83,6 +84,8 @@ class MergeReport:
     run_id: int
     records: int = 0
     held: int = 0
+    #: Kesif defterinde ayni kodla dogrulanmis fiyata baglanan urun (karar 0120).
+    discovery_linked: int = 0
     status: str = "nothing_to_merge"
     detail: dict[str, Any] | None = None
 
@@ -273,4 +276,6 @@ def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = T
                 (run_id, [int(r[0]) for r in rows]),
             )
         conn.commit()
+        # Kesif defteri: ayni urun kodunun dogrulanmis fiyati baglanir (ad benzerligi YOK).
+        report.discovery_linked = link_prices(conn, run_id)
     return report

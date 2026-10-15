@@ -44,6 +44,11 @@ def _cleanup(cur: psycopg.Cursor) -> None:
         cur.execute("DELETE FROM seller WHERE merchant_id = %s", (row[0],))
     cur.execute(f"DELETE FROM source_snapshot WHERE feed_source_id IN ({feeds})")
     cur.execute(f"DELETE FROM feed_source WHERE network = '{NETWORK}'")
+    # 0074: kesif operasyonlari kota satirina baglidir (karar 0120).
+    cur.execute("DELETE FROM catalog_discovery")
+    cur.execute("DELETE FROM catalog_sync_request")
+    cur.execute("DELETE FROM catalog_sync_unit")
+    cur.execute("DELETE FROM catalog_sync_operation")
     cur.execute("DELETE FROM collection_run")
     cur.execute("DELETE FROM merchant WHERE slug = 'hepsiburada'")
     cur.execute(

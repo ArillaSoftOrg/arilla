@@ -27,6 +27,19 @@ export function formatCount(n: number): string {
 }
 
 /** `api_usage.cost_micros`: TRY'nin milyonda biri (tamsayı). */
+/** Bayt: ikili birimlerle, Turkce ondalik (or. "1,5 GB"). */
+export function formatBytes(bytes: number): string {
+  const units = ["B", "KB", "MB", "GB", "TB"];
+  let value = Math.max(0, bytes);
+  let unit = 0;
+  while (value >= 1024 && unit < units.length - 1) {
+    value /= 1024;
+    unit += 1;
+  }
+  const digits = unit === 0 || value >= 100 ? 0 : 1;
+  return `${value.toLocaleString("tr-TR", { maximumFractionDigits: digits })} ${units[unit]}`;
+}
+
 export function formatCostMicros(micros: number): string {
   const lira = micros / 1_000_000;
   return `${lira.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} TL`;
@@ -175,6 +188,10 @@ const ACTION_LABELS: Record<AdminAction, string> = {
   "merchant.deactivate": "Mağaza kapatıldı",
   "catalog_collection.start": "Katalog toplama başlatıldı",
   "catalog_collection.close": "Katalog toplama kapatıldı",
+  "catalog_discovery.start": "Sitemap keşfi başlatıldı",
+  "catalog_discovery.pause": "Sitemap keşfi duraklatıldı",
+  "catalog_discovery.resume": "Sitemap keşfi sürdürüldü",
+  "catalog_discovery.cancel": "Sitemap keşfi iptal edildi",
   "users.lookup": "Kullanıcı arandı",
   "users.search": "Kullanıcı arandı (kısmi)",
   "users.view": "Kullanıcı ayrıntısı görüntülendi",
@@ -232,6 +249,7 @@ export const TARGET_TYPE_LABELS: Record<AdminTargetType, string> = {
   chat_feedback: "AI geri bildirimi",
   early_access_counter: "Erken erişim sayacı",
   collection_run: "Katalog toplama kosusu",
+  catalog_sync_operation: "Sitemap keşif operasyonu",
   capability: "Yetenek",
   trend: "Trend",
   data_build: "Veri seti sürümü",

@@ -94,6 +94,8 @@ export interface RunView {
   maxRequests: number;
   checkpoint: Record<string, unknown> | null;
   summary: Record<string, unknown> | null;
+  /** Kosu ayarlari; sitemap yenilemesinde `{ mode: "sitemap_refresh" }` (karar 0120). */
+  options: Record<string, unknown>;
 }
 
 export interface CatalogCollectionStatus {
@@ -115,6 +117,7 @@ function toRunView(r: typeof collectionRun.$inferSelect): RunView {
     maxRequests: r.maxRequests,
     checkpoint: r.checkpoint,
     summary: r.summary,
+    options: r.options,
   };
 }
 

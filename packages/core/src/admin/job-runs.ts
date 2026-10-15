@@ -58,6 +58,19 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0120: sitemap kesif defteri -> fiyatsiz teklif yayini ve tam tarama sonrasi kaldirma.
+  discovery_publish: {
+    label: "Keşif defteri yayını (fiyatsız teklif)",
+    how: "python -m feeds discovery-publish --source hepsiburada --limit <n>",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  discovery_finalize: {
+    label: "Keşif taraması sonlandırma (kaldırılan ürünler)",
+    how: "python -m feeds discovery-finalize --operation <id>",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
   // Karar 0113: resmi kur ve bagimsiz fiyat dogrulama.
   fx_rates: {
     label: "Döviz kuru (TCMB)",

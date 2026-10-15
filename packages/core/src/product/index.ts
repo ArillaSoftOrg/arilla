@@ -9,5 +9,6 @@ export * from "./refresh-aggregates.ts";
 export * from "./resolve-product-slug.ts";
 export * from "./result-types.ts";
 export * from "./sitemap-eligibility.ts";
+export * from "./unpriced-offers.ts";
 export * from "./variant-price.ts";
 export * from "./variant-price-history.ts";

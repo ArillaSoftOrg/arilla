@@ -7,7 +7,7 @@
  * search↔0044 (`query_interpretation`).
  * feedback↔0032, forms↔0043, chat↔0054 (+0055 `chat_result_feedback`, +0057 `chat_attachment`),
  * trends↔0056 (`trend`, `trend_product`), ai-eval↔0060, data-intelligence↔0064,
- * collection↔0070, pricing↔0067, feed↔0065, 0066 (yeni tablolar; 0065'in `seller`/`canonical_variant` ve offer/offer_variant
+ * collection↔0070, catalog-discovery↔0074, pricing↔0067, feed↔0065, 0066 (yeni tablolar; 0065'in `seller`/`canonical_variant` ve offer/offer_variant
  * kolonlari catalog.ts'de, `ingest_run` kolonlari attribution.ts'dedir).
  * 0036'nin `session` kolonlari auth.ts'de, 0037'nin `user_consent`
  * kolonlari discovery.ts'dedir.
@@ -23,6 +23,7 @@ export * from "./ai-eval.ts";
 export * from "./attribution.ts";
 export * from "./auth.ts";
 export * from "./catalog.ts";
+export * from "./catalog-discovery.ts";
 export * from "./chat.ts";
 export * from "./collection.ts";
 export * from "./creator.ts";

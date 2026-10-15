@@ -43,6 +43,8 @@ const APPEND_ONLY = {
   /** 0067 (karar 0113): kur ve dogrulama sonucu eklenir, degistirilmez. */
   fx_rate: "bulletin",
   price_verification: "provider",
+  /** 0074 (karar 0120): kesif istek defteri eklenir; gunluk tavan buradan hesaplanir. */
+  catalog_sync_request: "seq",
 } as const;
 /** 0036: UPDATE engelli, DELETE izinli (saklama suresi ve riza geri alma). */
 const UPDATE_BLOCKED = {

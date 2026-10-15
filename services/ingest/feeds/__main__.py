@@ -238,8 +238,62 @@ def _hb_merge(args: argparse.Namespace) -> int:
             print(f"durdu: {run.error_summary}", file=sys.stderr)
             return 2
         run.detail["records"] = report.records
+        run.detail["discovery_linked"] = report.discovery_linked
         print(f"kosu {args.run}: {report.status} kayit={report.records} {report.detail or ''}")
         return 0 if report.status in ("success", "duplicate", "nothing_to_merge") else 1
+
+
+def _discovery_publish(args: argparse.Namespace) -> int:
+    """Kesif defterinden fiyatsiz teklif acar (karar 0120). Fiyat uydurulmaz."""
+    from feeds.discovery_catalog import publish
+
+    with job_run.track("discovery_publish") as run, connect() as conn:
+        try:
+            report = publish(conn, args.source, limit=args.limit, dry_run=args.dry_run)
+        except (RuntimeError, ValueError) as error:
+            run.status = "failed"
+            run.error_summary = str(error)[:60]
+            print(f"durdu: {run.error_summary}", file=sys.stderr)
+            return 2
+        run.detail.update(
+            considered=report.considered,
+            created=report.created,
+            linked_existing=report.linked_existing,
+            dry_run=report.dry_run,
+        )
+        print(
+            f"{args.source}: aday={report.considered} yeni_teklif={report.created}"
+            f" mevcut_teklife_baglanan={report.linked_existing}"
+            + (f" (kuru calisma, ornek={report.sample})" if report.dry_run else "")
+        )
+    return 0
+
+
+def _discovery_finalize(args: argparse.Namespace) -> int:
+    """Tamamlanmis TAM haftalik taramada kaldirilma degerlendirmesi (karar 0120)."""
+    from feeds.discovery_catalog import finalize
+
+    with job_run.track("discovery_finalize") as run, connect() as conn:
+        try:
+            report = finalize(conn, args.operation)
+        except RuntimeError as error:
+            run.status = "failed"
+            run.error_summary = str(error)[:60]
+            print(f"durdu: {run.error_summary}", file=sys.stderr)
+            return 2
+        run.detail.update(
+            status=report.status,
+            reason=report.reason,
+            missing=report.missing,
+            removed=report.removed,
+            withdrawn=report.withdrawn,
+            stale=report.stale,
+        )
+        print(
+            f"operasyon {args.operation}: {report.status} ({report.reason}) eksik={report.missing}"
+            f" kaldirilan={report.removed} geri_cekilen={report.withdrawn} bayat={report.stale}"
+        )
+    return 0
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -282,6 +336,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--run", type=int, required=True)
     p.add_argument("--allow-open", action="store_true")
     p.set_defaults(func=_hb_merge)
+    p = sub.add_parser("discovery-publish")
+    p.add_argument("--source", required=True)
+    p.add_argument("--limit", type=int, required=True)
+    p.add_argument("--dry-run", action="store_true")
+    p.set_defaults(func=_discovery_publish)
+    p = sub.add_parser("discovery-finalize")
+    p.add_argument("--operation", type=int, required=True)
+    p.set_defaults(func=_discovery_finalize)
     args = parser.parse_args(argv)
     return int(args.func(args))
 

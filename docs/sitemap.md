@@ -52,6 +52,14 @@ Bir ürün sayfası haritaya girer, ancak:
 - Kategorisi `is_discoverable` ise.
 
 Şartı sağlamayan sayfa yayında kalır ama haritaya girmez ve `noindex` alır.
+
+**Fiyatsız ürün (karar 0120, varsayılan kapalı).** `SEO_UNPRICED_PRODUCTS_ENABLED=true`
+iken doğrulanmış fiyatı olmayan (`offer_count = 0`) ürün de girebilir; yalnızca yukarıdaki
+görsel/başlık/kategori şartlarına EK olarak: markası var, başlığı en az 15 karakter, en az
+3 teknik özelliği var ve son 14 günde kaynakta görülmüş aktif bir teklifi var. Yalnızca ad
+ve görsel taşıyan sayfa girmez. Hepsiburada sitemap'leri yalnızca keşif içindir; ManiCepte
+haritası kendi sayfalarımızı bildirir. Kaynaktan kaldırılan ürünün fiyatsız teklifi pasifleşir:
+sayfa yayında kalır, haritadan düşer ve `noindex` alır.
 Şart sonradan sağlanınca otomatik olarak haritaya girer.
 
 Alternatif sayfası (`/alternatif/<slug>`) haritaya girer, ancak en az

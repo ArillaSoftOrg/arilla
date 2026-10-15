@@ -32,6 +32,10 @@ describe("katalog toplama servisi - entegrasyon (gercek Postgres)", () => {
     await withOwnerClient(async (c) => {
       await c.query("DELETE FROM catalog_intake_record");
       await c.query("DELETE FROM collection_unit");
+      // 0074: kesif operasyonlari kota satirina baglidir (karar 0120).
+      await c.query("DELETE FROM catalog_sync_request");
+      await c.query("DELETE FROM catalog_sync_unit");
+      await c.query("DELETE FROM catalog_sync_operation");
       await c.query("DELETE FROM collection_run");
       await c.query("UPDATE collection_source SET enabled = TRUE WHERE source = 'hepsiburada'");
     });

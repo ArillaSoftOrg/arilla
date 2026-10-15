@@ -9,7 +9,9 @@ import {
   getProductPriceComparison,
   getSizeOptions,
   getVariantPriceHistory,
+  isChatDiscoveryEnabled,
   isProductSitemapEligible,
+  listUnpricedOfferExits,
   readAppUrl,
   recordActivity,
   recordProductView,
@@ -207,6 +209,13 @@ export default async function ProductPage({
       : Promise.resolve([]),
   ]);
   await tracking;
+
+  // Karar 0120: doğrulanmış fiyatı olmayan (keşiften açılan) üründe mağazaya çıkış. Fiyat
+  // gösterilmez; çıkış `/git` ile `click` üretir.
+  const unpricedExits =
+    comparison.mode !== "variants" && merchantOffers.length === 0
+      ? await listUnpricedOfferExits(db, product.productId)
+      : [];
 
   // Basit modda urun gecmisi; varyant modunda YALNIZCA secili varyantin
   // gecmisi (0037). Secim yoksa gecmis yok: boyutlar karismaz.
@@ -414,6 +423,11 @@ export default async function ProductPage({
             ) : (
               <p className={styles.noOffers}>Şu an bu ürün için mağaza fiyatı yok.</p>
             )}
+            {unpricedExits.length > 0 ? (
+              <p className={styles.noOffers}>
+                Fiyat henüz doğrulanmadı; güncel fiyatı mağazada görebilirsin.
+              </p>
+            ) : null}
 
             {/* 4. Fiyat konumu cümlesi */}
             <PricePositionText lines={positionLines} />
@@ -510,6 +524,27 @@ export default async function ProductPage({
               {/* design.md envanteri: affiliate bildirimi çıkış öncesi ve altbilgide. */}
               <p className={styles.notice}>{HOME_COPY.affiliateNotice}</p>
             </div>
+          ) : unpricedExits[0] ? (
+            <div className={styles.primaryOffer}>
+              {/* Karar 0120: fiyatsız teklif; attribution yine /git üzerinden (kural 8). */}
+              <a
+                href={`/git/${unpricedExits[0].offerId}?surface=product_primary`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={styles.primaryCta}
+              >
+                {`${withLocativeSuffix(unpricedExits[0].merchantName)} görüntüle`}
+              </a>
+              <p className={styles.notice}>{HOME_COPY.affiliateNotice}</p>
+            </div>
+          ) : null}
+
+          {isChatDiscoveryEnabled() ? (
+            <p className={styles.variantHint}>
+              <a href="/sohbet" className={styles.compareLink}>
+                ManiCepte asistanına sor
+              </a>
+            </p>
           ) : null}
 
           {/* Varyant modu stok alarmı (0037): ayrı bir seçici yok, ?boyut= seçimi. */}
