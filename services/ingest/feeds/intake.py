@@ -341,7 +341,9 @@ def _hold_variant_changes(
                         feed_id,
                         r[1],
                         f"onceki_varyant={previous[r[1]]} yeni={variant_of(r)}",
-                        json.dumps({"previous_variant": previous[r[1]], "new_variant": variant_of(r)}),
+                        json.dumps(
+                            {"previous_variant": previous[r[1]], "new_variant": variant_of(r)}
+                        ),
                     ),
                 )
         conn.commit()

@@ -239,7 +239,8 @@ export function planRelayBatch(state: RelayState, captured: readonly CapturedPag
       break;
     }
     skipped.duplicateProducts += c.page.items.length - fresh.length;
-    const pending = (state.pendingListings ??= new Map());
+    if (!state.pendingListings) state.pendingListings = new Map();
+    const pending = state.pendingListings;
     for (const item of fresh) {
       if (item.sourcePage === "listing_page") {
         // Urun sayfasi gelene ya da kosu kapanana dek bekler (ayni kosuda ilk gelen kazanir).
