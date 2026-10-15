@@ -1,4 +1,7 @@
-"""Yonetici tarayicisindan toplanan kayitlari mevcut katalog modeline birlestirir (karar 0117).
+"""Yonetici tarayicisindan toplanan kayitlari katalog modeline birlestirir (karar 0117, 0118).
+
+Kaynak basina ayar `SOURCES`: Hepsiburada (0117) ve Trendyol (0118). Kosunun kaynagi
+`collection_run.source`tan okunur; ayni birlestirme hatti kullanilir.
 
 TS tarafi yalnizca `catalog_intake_record` yazar; `offer`/`price_point` yazimi
 BURADADIR ve mevcut `FeedSync` hattini yeniden kullanir (parmak izi ile degisiklik
@@ -56,10 +59,50 @@ FEED_CONFIG: dict[str, Any] = {
     "required_fields": ["external_id", "title", "url", "price", "currency"],
 }
 
+#: Trendyol (karar 0118). Parmak izine giren `param` alanlari KOSUDAN KOSUYA SABITTIR
+#: (degismeyen urun yeniden yazilmaz, gereksiz WAL yok): `found_via` gibi kesif izi YOK.
+#: `basket_price` sepette uygulanan kosullu fiyattir; satis fiyati (`price`) DEGILDIR.
+TRENDYOL_FEED_CONFIG: dict[str, Any] = {
+    "parser": "ndjson",
+    "no_deactivate": True,
+    "url_hosts": ["trendyol.com"],
+    "mapping": {**FEED_CONFIG["mapping"]},
+    "keep_params": [
+        "stock_state",
+        "variant",
+        "variant_id",
+        "group_id",
+        "seller_name",
+        "basket_price",
+    ],
+    "required_fields": ["external_id", "title", "url", "price", "currency"],
+}
+
+
+@dataclass(frozen=True)
+class IntakeSource:
+    network: str
+    feed_external_id: str
+    merchant_slug: str
+    feed_name: str
+    config: dict[str, Any]
+
+
+SOURCES: dict[str, IntakeSource] = {
+    "hepsiburada": IntakeSource(
+        NETWORK, FEED_EXTERNAL_ID, MERCHANT_SLUG, "Hepsiburada yonetici toplamasi", FEED_CONFIG
+    ),
+    "trendyol": IntakeSource(
+        "tycollect", "trendyol", "trendyol", "Trendyol yonetici toplamasi", TRENDYOL_FEED_CONFIG
+    ),
+}
+
+# Ilk 17 sutun 0070 ile ayni sirada; 0072 (Trendyol) alanlari SONA eklenir.
 PENDING = """
 SELECT id, external_id, title, url, price_minor, list_price_minor, currency, in_stock,
        image_url, brand, category_raw, seller_external_id, gtin, found_via, source_observed_at,
-       seller_name, variant_label
+       seller_name, variant_label,
+       image_urls, group_external_id, variant_external_id, basket_price_minor
   FROM catalog_intake_record
  WHERE run_id = %s AND merged_at IS NULL
  ORDER BY id
@@ -100,6 +143,9 @@ def _money(minor: int) -> str:
 
 def to_feed_row(row: tuple[Any, ...]) -> dict[str, Any]:
     """Ara depo satiri -> NDJSON kaydi. Bilinmeyen alan eklenmez (uydurma yok)."""
+    # Ilk 17 sutun 0070 (Hepsiburada) sirasi; 0072 (Trendyol) alanlari SONDA.
+    extended = row[17:]
+    row = (*row[:17], *([None] * max(0, 17 - len(row))))
     (
         _id,
         ext,
@@ -152,26 +198,45 @@ def to_feed_row(row: tuple[Any, ...]) -> dict[str, Any]:
         param["found_via"] = found_via[:100]
     if variant_label:
         param["variant"] = variant_label[:100]
+    if extended:
+        image_urls, group_id, variant_id, basket = (list(extended) + [None] * 4)[:4]
+        if isinstance(image_urls, list) and image_urls:
+            record["images"] = [u for u in image_urls if isinstance(u, str)][:6]
+        if seller_name:
+            param["seller_name"] = str(seller_name)[:100]
+        if group_id:
+            param["group_id"] = str(group_id)
+        if variant_id:
+            param["variant_id"] = str(variant_id)
+        # Kosullu sepet fiyati satis fiyatindan AYRI tasinir; price/price_point'a girmez.
+        if basket is not None and int(basket) < int(price):
+            param["basket_price"] = _money(int(basket))
     if param:
         record["param"] = param
     return record
 
 
-def ensure_feed(conn: psycopg.Connection) -> int:
-    """Toplama beslemesi (yoksa 'paused' olusur; etkinlestirme yoneticinin kararidir)."""
+def ensure_feed(conn: psycopg.Connection, source: IntakeSource | None = None) -> int:
+    """Toplama beslemesi (kaynak basina tek). Merchant onceden `ensure-merchant` ile olusur."""
+    src = source or SOURCES["hepsiburada"]
     with conn.cursor() as cur:
-        cur.execute("SELECT id FROM merchant WHERE slug = %s", (MERCHANT_SLUG,))
+        cur.execute("SELECT id FROM merchant WHERE slug = %s", (src.merchant_slug,))
         merchant = cur.fetchone()
         if merchant is None:
             raise RuntimeError("merchant_missing")
         cur.execute(
             """INSERT INTO feed_source (network, external_id, merchant_id, name, format, status,
                                         currency, market, config)
-               VALUES (%s, %s, %s, 'Hepsiburada yonetici toplamasi', 'ndjson', 'active',
-                       'TRY', 'TR', %s::jsonb)
+               VALUES (%s, %s, %s, %s, 'ndjson', 'active', 'TRY', 'TR', %s::jsonb)
                ON CONFLICT (network, external_id) DO UPDATE SET updated_at = feed_source.updated_at
                RETURNING id""",
-            (NETWORK, FEED_EXTERNAL_ID, merchant[0], json.dumps(FEED_CONFIG)),
+            (
+                src.network,
+                src.feed_external_id,
+                merchant[0],
+                src.feed_name,
+                json.dumps(src.config),
+            ),
         )
         row = cur.fetchone()
     conn.commit()
@@ -247,13 +312,16 @@ def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = T
     conn.rollback()
     if not rows:
         return report
-    feed_id = ensure_feed(conn)
+    source = SOURCES.get(str(run[1]))
+    if source is None:
+        raise RuntimeError("unknown_source")
+    feed_id = ensure_feed(conn, source)
     observed_at: datetime = max(r[14] for r in rows)
     held_rows = _hold_price_jumps(conn, feed_id, rows)
     report.held = len(held_rows)
     held_ids = {r[0] for r in held_rows}
     rows = [r for r in rows if r[0] not in held_ids]
-    with tempfile.TemporaryDirectory(prefix="hbcollect-") as tmp:
+    with tempfile.TemporaryDirectory(prefix=f"{source.network}-") as tmp:
         path = Path(tmp) / "intake.ndjson"
         with path.open("w", encoding="utf-8", newline="\n") as handle:
             for row in rows:

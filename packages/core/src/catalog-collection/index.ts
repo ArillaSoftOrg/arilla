@@ -1,4 +1,7 @@
 export * from "./extract-hepsiburada.ts";
 export * from "./extract-product-page.ts";
+export * from "./extract-trendyol.ts";
 export * from "./service.ts";
+export * from "./trendyol-coverage.ts";
+export * from "./trendyol-relay.ts";
 export * from "./validate.ts";

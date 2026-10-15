@@ -2261,6 +2261,17 @@ VALUES
      || 'PostgreSQL''de saklama, haftada en fazla 1 yenileme, ayda en fazla 4. Belgeler bagimsiz '
      || 'incelenmedi; imzali sozlesme degil.');
 
+-- 0072 (karar 0118): Trendyol; KAPALI gelir, sozlu izin, ayni kota.
+INSERT INTO collection_source
+    (source, merchant_slug, min_interval_days, max_runs_per_month, run_window_days,
+     initial_max_requests, refresh_max_requests, enabled, permission_basis, permission_note)
+VALUES
+    ('trendyol', 'trendyol', 7, 4, 6, 500, 500, FALSE, 'verbal_reported',
+     'Kullanicinin bildirdigi sozlu izin (Ekim 2026): resmi API ve CORS yok; yonetici '
+     || 'tarayicisinda acilan Trendyol sayfasindan ek ag istegi olmadan okuma. Yenileme en az '
+     || '7 gun arayla, takvim ayinda en fazla 4; ilk yukleme dahil. Yazili kapsam teyit edilmedi.')
+ON CONFLICT (source) DO NOTHING;
+
 -- ---------------------------------------------------------------------------
 -- TOPLAMA KOSUSU (kota defteri)
 -- ---------------------------------------------------------------------------
@@ -2389,7 +2400,10 @@ CREATE TRIGGER collection_run_immutable_guard_trg
 -- kac sayfa, her sayfada kac urun, hangi sorgu SAYFA TAVANINA takildi.
 CREATE TABLE collection_unit (
     run_id         BIGINT      NOT NULL REFERENCES collection_run(id),
-    kind           TEXT        NOT NULL CHECK (kind IN ('query')),
+    -- 'query' (Hepsiburada sorgu+sayfa); 0072: 'product_page' (unit_key = contentId),
+    -- 'listing_page' (unit_key = liste yolu). Bir acilan sayfa = bir kaynak istegi.
+    kind           TEXT        NOT NULL CONSTRAINT collection_unit_kind_check
+                               CHECK (kind IN ('query', 'product_page', 'listing_page')),
     unit_key       TEXT        NOT NULL CHECK (char_length(unit_key) BETWEEN 1 AND 200),
     page           SMALLINT    NOT NULL DEFAULT 1 CHECK (page BETWEEN 1 AND 200),
     status         TEXT        NOT NULL CHECK (status IN ('done', 'empty', 'failed', 'blocked')),
@@ -2432,6 +2446,17 @@ CREATE TABLE catalog_intake_record (
     gtin               TEXT        CHECK (gtin IS NULL OR gtin ~ '^[0-9]{8,14}$'),
     -- Hangi sorgu bu urunu buldu (kesif izi; kategori DEGILDIR).
     found_via          TEXT        CHECK (found_via IS NULL OR char_length(found_via) <= 200),
+    -- 0072 (karar 0118): Trendyol alanlari, hepsi NULL olabilir.
+    image_urls         JSONB       CHECK (image_urls IS NULL OR (jsonb_typeof(image_urls) = 'array'
+                                          AND jsonb_array_length(image_urls) BETWEEN 1 AND 6)),
+    -- Sayfadaki ANA teklifin saticisi; yalniz ad (kisisel/kurumsal bilgi yok).
+    seller_name        TEXT        CHECK (seller_name IS NULL OR char_length(seller_name) BETWEEN 1 AND 200),
+    group_external_id  TEXT        CHECK (group_external_id IS NULL OR group_external_id ~ '^[0-9]{1,20}$'),
+    variant_external_id TEXT       CHECK (variant_external_id IS NULL OR variant_external_id ~ '^[0-9A-Za-z_-]{1,100}$'),
+    variant_label      TEXT        CHECK (variant_label IS NULL OR char_length(variant_label) BETWEEN 1 AND 100),
+    -- Sepette uygulanan KOSULLU fiyat; satis fiyati DEGILDIR (price_minor/price_point'a girmez).
+    basket_price_minor BIGINT      CHECK (basket_price_minor IS NULL OR basket_price_minor > 0),
+    source_page        TEXT        CHECK (source_page IS NULL OR source_page IN ('search_page', 'product_page', 'listing_page')),
     source_observed_at TIMESTAMPTZ NOT NULL,
     received_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     merged_at          TIMESTAMPTZ,

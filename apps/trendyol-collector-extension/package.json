@@ -1,0 +1,17 @@
+{
+  "name": "@arilla/trendyol-collector-extension",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Yonetici tarayicisinda acilan Trendyol sayfasini okuyup ManiCepte yonetim sayfasina aktaran eklenti (karar 0118). Ag istegi atmaz.",
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc --noEmit -p ."
+  },
+  "dependencies": {
+    "@arilla/core": "workspace:*"
+  },
+  "devDependencies": {
+    "esbuild": "0.25.12"
+  }
+}

@@ -62,12 +62,16 @@ export const collectionRun = pgTable("collection_run", {
 
 export type CollectionUnitStatus = "done" | "empty" | "failed" | "blocked";
 
-/** Kesif birimi: bir kaynak istegi = (sorgu, sayfa). Kapsam raporunun kaynagi. */
+/**
+ * Kesif birimi: bir kaynak istegi. Hepsiburada: (sorgu, sayfa); Trendyol (0072): acilan
+ * urun sayfasi (unit_key = contentId) ya da liste sayfasi (unit_key = yol). Kapsam raporunun kaynagi.
+ */
+export type CollectionUnitKind = "query" | "product_page" | "listing_page";
 export const collectionUnit = pgTable(
   "collection_unit",
   {
     runId: bigint("run_id", { mode: "number" }).notNull(),
-    kind: text("kind").$type<"query">().notNull(),
+    kind: text("kind").$type<CollectionUnitKind>().notNull(),
     unitKey: text("unit_key").notNull(),
     page: smallint("page").notNull().default(1),
     status: text("status").$type<CollectionUnitStatus>().notNull(),
@@ -81,7 +85,7 @@ export const collectionUnit = pgTable(
   (t) => [primaryKey({ columns: [t.runId, t.kind, t.unitKey, t.page] })],
 );
 
-/** Dogrulanmis kaynak kayitlari; Python `hb-merge` offer modeline birlestirir. */
+/** Dogrulanmis kaynak kayitlari; Python `collect-merge` offer modeline birlestirir. */
 export const catalogIntakeRecord = pgTable("catalog_intake_record", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
   runId: bigint("run_id", { mode: "number" }).notNull(),
@@ -100,6 +104,15 @@ export const catalogIntakeRecord = pgTable("catalog_intake_record", {
   variantLabel: text("variant_label"),
   gtin: text("gtin"),
   foundVia: text("found_via"),
+  // 0072 (karar 0118): Trendyol alanlari; Hepsiburada yazmaz.
+  imageUrls: jsonb("image_urls").$type<string[]>(),
+  sellerName: text("seller_name"),
+  groupExternalId: text("group_external_id"),
+  variantExternalId: text("variant_external_id"),
+  variantLabel: text("variant_label"),
+  /** Sepette uygulanan KOSULLU fiyat; satis fiyati degildir (price_minor'a girmez). */
+  basketPriceMinor: bigint("basket_price_minor", { mode: "number" }),
+  sourcePage: text("source_page").$type<"search_page" | "product_page" | "listing_page">(),
   sourceObservedAt: timestamp("source_observed_at", { withTimezone: true }).notNull(),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
   mergedAt: timestamp("merged_at", { withTimezone: true }),

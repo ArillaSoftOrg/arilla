@@ -22,6 +22,15 @@ export interface IntakeRecordInput {
   gtin: string | null;
   foundVia: string | null;
   sourceObservedAt: Date;
+  /** 0072 (karar 0118): yalniz `extended` kurali olan kaynakta dolar; digerlerinde null. */
+  imageUrls: string[] | null;
+  sellerName: string | null;
+  groupExternalId: string | null;
+  variantExternalId: string | null;
+  variantLabel: string | null;
+  /** Sepette uygulanan kosullu fiyat; satis fiyati degildir. */
+  basketPriceMinor: number | null;
+  sourcePage: "search_page" | "product_page" | "listing_page" | null;
 }
 
 /** 100 milyon TL: ustu veri hatasi sayilir. */
@@ -37,13 +46,24 @@ export type RecordRejection =
   | "currency"
   | "image_url"
   | "observed_at"
-  | "gtin";
+  | "gtin"
+  | "image_urls"
+  | "basket_price"
+  | "variant"
+  | "group"
+  | "source_page";
 
 export interface ValidationRules {
   urlHost: string;
   imageHost: string;
   now: Date;
   runStart: Date;
+  /** Kaynak kimligi bicimi (varsayilan: harf/rakam/_/-, 2-200). */
+  externalIdPattern?: RegExp;
+  /** Adres kaynak kimligiyle tutarli kanonik urun adresi mi (Trendyol: `-p-<contentId>`). */
+  canonicalUrl?: (url: string, externalId: string) => boolean;
+  /** 0072 alanlari (coklu gorsel, satici adi, grup, varyant, sepet fiyati, sayfa turu) kabul edilir. */
+  extended?: boolean;
 }
 
 function hostOk(raw: string, suffix: string): boolean {
@@ -74,13 +94,14 @@ export function validateIntakeRecord(
 ): { ok: true; record: IntakeRecordInput } | { ok: false; code: RecordRejection } {
   if (!isRecord(raw)) return { ok: false, code: "not_object" };
   const externalId = optText(raw.externalId, 200);
-  if (!(externalId && /^[A-Za-z0-9_-]{2,200}$/.test(externalId))) {
+  if (!(externalId && (rules.externalIdPattern ?? /^[A-Za-z0-9_-]{2,200}$/).test(externalId))) {
     return { ok: false, code: "external_id" };
   }
   const title = optText(raw.title, 500);
   if (!title) return { ok: false, code: "title" };
   const url = typeof raw.url === "string" ? raw.url : "";
   if (url.length > 2048 || !hostOk(url, rules.urlHost)) return { ok: false, code: "url" };
+  if (rules.canonicalUrl && !rules.canonicalUrl(url, externalId)) return { ok: false, code: "url" };
   if (!validPrice(raw.priceMinor)) return { ok: false, code: "price" };
   const priceMinor = raw.priceMinor;
   let listPriceMinor: number | null = null;
@@ -114,6 +135,8 @@ export function validateIntakeRecord(
   }
   const gtin = optText(raw.gtin, 14);
   if (gtin && !/^[0-9]{8,14}$/.test(gtin)) return { ok: false, code: "gtin" };
+  const ext = rules.extended ? extendedFields(raw, priceMinor, rules.imageHost) : NO_EXTENDED;
+  if ("code" in ext) return { ok: false, code: ext.code };
   return {
     ok: true,
     record: {
@@ -133,6 +156,69 @@ export function validateIntakeRecord(
       gtin,
       foundVia: optText(raw.foundVia, 200),
       sourceObservedAt: observed,
+      ...ext,
     },
+  };
+}
+
+type Extended = Pick<
+  IntakeRecordInput,
+  | "imageUrls"
+  | "sellerName"
+  | "groupExternalId"
+  | "variantExternalId"
+  | "variantLabel"
+  | "basketPriceMinor"
+  | "sourcePage"
+>;
+
+const NO_EXTENDED: Extended = {
+  imageUrls: null,
+  sellerName: null,
+  groupExternalId: null,
+  variantExternalId: null,
+  variantLabel: null,
+  basketPriceMinor: null,
+  sourcePage: null,
+};
+
+const SOURCE_PAGES = new Set(["search_page", "product_page", "listing_page"]);
+
+function extendedFields(
+  raw: Record<string, unknown>,
+  priceMinor: number,
+  imageHost: string,
+): Extended | { code: RecordRejection } {
+  let imageUrls: string[] | null = null;
+  if (raw.imageUrls != null) {
+    if (!Array.isArray(raw.imageUrls) || raw.imageUrls.length > 6) return { code: "image_urls" };
+    const list = raw.imageUrls.filter(
+      (u): u is string => typeof u === "string" && u.length <= 2048 && hostOk(u, imageHost),
+    );
+    if (list.length !== raw.imageUrls.length) return { code: "image_urls" };
+    imageUrls = list.length > 0 ? [...new Set(list)] : null;
+  }
+  let basketPriceMinor: number | null = null;
+  if (raw.basketPriceMinor != null) {
+    if (!validPrice(raw.basketPriceMinor)) return { code: "basket_price" };
+    // Satis fiyatindan dusuk olmayan "sepet fiyati" indirim bilgisi degildir.
+    basketPriceMinor = raw.basketPriceMinor < priceMinor ? raw.basketPriceMinor : null;
+  }
+  const groupExternalId = optText(raw.groupExternalId, 20);
+  if (groupExternalId && !/^[0-9]{1,20}$/.test(groupExternalId)) return { code: "group" };
+  const variantExternalId = optText(raw.variantExternalId, 100);
+  if (variantExternalId && !/^[0-9A-Za-z_-]{1,100}$/.test(variantExternalId)) {
+    return { code: "variant" };
+  }
+  const sourcePage = raw.sourcePage == null ? null : String(raw.sourcePage);
+  if (sourcePage != null && !SOURCE_PAGES.has(sourcePage)) return { code: "source_page" };
+  return {
+    imageUrls,
+    sellerName: optText(raw.sellerName, 200),
+    groupExternalId,
+    variantExternalId,
+    variantLabel: optText(raw.variantLabel, 100),
+    basketPriceMinor,
+    sourcePage: sourcePage as Extended["sourcePage"],
   };
 }

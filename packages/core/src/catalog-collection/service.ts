@@ -16,7 +16,7 @@ import {
 import { and, desc, eq, sql } from "drizzle-orm";
 import { recordAdminEvent } from "../admin/audit.ts";
 import { type AdminActor, assertCapability } from "../admin/capabilities.ts";
-import { type RecordRejection, validateIntakeRecord } from "./validate.ts";
+import { type RecordRejection, type ValidationRules, validateIntakeRecord } from "./validate.ts";
 
 export const MAX_BATCH_RECORDS = 500;
 export const MAX_BATCH_UNITS = 100;
@@ -58,12 +58,66 @@ export function collectionErrorFrom(error: unknown): CollectionError | null {
   return found;
 }
 
-const SOURCES = new Set(["hepsiburada"]);
+type UnitKind = "query" | "product_page" | "listing_page";
+
+interface SourceConfig {
+  rules: Omit<ValidationRules, "now" | "runStart">;
+  unitKinds: readonly UnitKind[];
+}
+
+/** Trendyol kanonik urun adresi: `https://www.trendyol.com/<marka>/<slug>-p-<contentId>`. */
+function trendyolCanonical(url: string, externalId: string): boolean {
+  try {
+    const u = new URL(url);
+    return (
+      u.hostname === "www.trendyol.com" &&
+      /^\/[^/]+\/[^/]+-p-[0-9]{1,20}$/.test(u.pathname) &&
+      u.pathname.endsWith(`-p-${externalId}`)
+    );
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Kaynak basina kurallar. Kota/izin politikasi veritabanindadir (`collection_source`,
+ * tetikleyici); burasi yalniz kayit bicimi ve kapsam birimi turleridir.
+ */
+const SOURCE_CONFIG: Record<string, SourceConfig> = {
+  hepsiburada: {
+    rules: { urlHost: "hepsiburada.com", imageHost: "hepsiburada.net" },
+    unitKinds: ["query"],
+  },
+  // Karar 0118: yonetici tarayicisinda acilan sayfa (eklenti), ek ag istegi yok.
+  trendyol: {
+    rules: {
+      urlHost: "trendyol.com",
+      imageHost: "dsmcdn.com",
+      externalIdPattern: /^[0-9]{1,20}$/,
+      canonicalUrl: trendyolCanonical,
+      extended: true,
+    },
+    unitKinds: ["product_page", "listing_page"],
+  },
+};
+
+/**
+ * Trendyol kaynagi (karar 0118) ayrica ortam bayragi ister (varsayilan KAPALI). Veritabanindaki
+ * `collection_source.enabled` da varsayilan kapalidir; ikisi birden acik olmalidir.
+ */
+export function isSourceFlagEnabled(
+  source: string,
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): boolean {
+  if (source !== "trendyol") return true;
+  return env.TRENDYOL_COLLECTION_ENABLED?.trim().toLowerCase() === "true";
+}
 
 function assertSource(source: unknown): asserts source is string {
-  if (typeof source !== "string" || !SOURCES.has(source)) {
+  if (typeof source !== "string" || !(source in SOURCE_CONFIG)) {
     throw new CollectionError("unknown_source");
   }
+  if (!isSourceFlagEnabled(source)) throw new CollectionError("unknown_source");
 }
 
 export interface QuotaState {
@@ -248,6 +302,9 @@ export async function startCollectionRun(
 }
 
 export interface UnitInput {
+  /** Kapsam birimi turu; verilmezse "query" (Hepsiburada). Kaynagin izin verdigi turlerden olmali. */
+  kind?: UnitKind;
+  /** Birim anahtari: sorgu (Hepsiburada), contentId ya da liste yolu (Trendyol). */
   query: string;
   page: number;
   status: "done" | "empty" | "failed" | "blocked";
@@ -315,12 +372,9 @@ export async function submitCollectionBatch(
         .where(eq(collectionSource.source, run.source));
       if (!policy?.enabled) throw new CollectionError("collection_disabled");
 
-      const rules = {
-        urlHost: "hepsiburada.com",
-        imageHost: "hepsiburada.net",
-        now,
-        runStart: run.reservedAt,
-      };
+      const config = SOURCE_CONFIG[run.source];
+      if (!config || !isSourceFlagEnabled(run.source)) throw new CollectionError("unknown_source");
+      const rules: ValidationRules = { ...config.rules, now, runStart: run.reservedAt };
       const rejectedByCode: Partial<Record<RecordRejection, number>> = {};
       const valid = [];
       const seen = new Set<string>();
@@ -363,6 +417,13 @@ export async function submitCollectionBatch(
               gtin: r.gtin,
               foundVia: r.foundVia,
               sourceObservedAt: r.sourceObservedAt,
+              imageUrls: r.imageUrls,
+              sellerName: r.sellerName,
+              groupExternalId: r.groupExternalId,
+              variantExternalId: r.variantExternalId,
+              variantLabel: r.variantLabel,
+              basketPriceMinor: r.basketPriceMinor,
+              sourcePage: r.sourcePage,
             })),
           )
           .onConflictDoNothing({
@@ -389,12 +450,14 @@ export async function submitCollectionBatch(
         ) {
           throw new CollectionError("bad_unit");
         }
+        const kind: UnitKind = u.kind ?? "query";
+        if (!config.unitKinds.includes(kind)) throw new CollectionError("bad_unit");
         const errorCode = u.errorCode && UNIT_ERROR.test(u.errorCode) ? u.errorCode : null;
         await tx
           .insert(collectionUnit)
           .values({
             runId: run.id,
-            kind: "query",
+            kind,
             unitKey: query,
             page: u.page,
             status: u.status,
@@ -458,6 +521,9 @@ export interface CoverageReport {
   queriesCappedByPageLimit: number;
   /** Ilk sayfadan sonra sayfalama yeni urun getirmeyen sorgular: sayfalama dogrulanamadi. */
   queriesPaginationUnconfirmed: number;
+  /** Trendyol (0118): acilan urun sayfasi ve liste sayfasi sayilari. */
+  productPages: number;
+  listingPages: number;
   note: string;
 }
 
@@ -470,6 +536,7 @@ export async function coverageReport(
   const units = await db.select().from(collectionUnit).where(eq(collectionUnit.runId, runId));
   const byQuery = new Map<string, (typeof units)[number][]>();
   for (const u of units) {
+    if (u.kind !== "query") continue;
     const list = byQuery.get(u.unitKey) ?? [];
     list.push(u);
     byQuery.set(u.unitKey, list);
@@ -500,7 +567,9 @@ export async function coverageReport(
     blockedUnits: units.filter((u) => u.status === "blocked").length,
     queriesCappedByPageLimit: capped,
     queriesPaginationUnconfirmed: unconfirmed,
-    note: "Kapsam yalnizca taranan sorgularla sinirlidir; kaynagin tum katalogu varsayilmaz.",
+    productPages: units.filter((u) => u.kind === "product_page").length,
+    listingPages: units.filter((u) => u.kind === "listing_page").length,
+    note: "Kapsam yalnizca taranan sorgu/sayfalarla sinirlidir; kaynagin tum katalogu varsayilmaz.",
   };
 }
 

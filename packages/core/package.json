@@ -21,6 +21,8 @@
     "./media-keys": "./src/storage/media-keys.ts",
     "./storage": "./src/storage/index.ts",
     "./catalog-collection-extract": "./src/catalog-collection/extract-hepsiburada.ts",
+    "./catalog-collection-trendyol": "./src/catalog-collection/extract-trendyol.ts",
+    "./catalog-collection-trendyol-relay": "./src/catalog-collection/trendyol-relay.ts",
     "./errors": "./src/errors/index.ts"
   },
   "scripts": {
