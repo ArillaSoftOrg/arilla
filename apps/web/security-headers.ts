@@ -28,6 +28,7 @@ import {
   parseMeasurementId,
 } from "@arilla/core/ga4-measurement";
 import { umamiTrackerFromEnv } from "@arilla/core/umami-tracker";
+import { COLLECTION_PAGE_PATH } from "./app/yonetim/katalog/toplama/document-load.ts";
 
 export interface SecurityHeader {
   key: string;
@@ -142,7 +143,8 @@ function adminHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
  * İzin YALNIZCA bu yolda ve yalnızca `connect-src` için bir kökene verilir; GA4 yok.
  */
 export const COLLECTION_CONNECT_ORIGINS = ["https://www.hepsiburada.com"];
-export const COLLECTION_PAGE_PATH = "/yonetim/katalog/toplama";
+// Yol tek kaynaktan: toplayici ayni sabitle belgenin bu yolda yuklendigini dogrular.
+export { COLLECTION_PAGE_PATH };
 
 function collectionHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
   return [
