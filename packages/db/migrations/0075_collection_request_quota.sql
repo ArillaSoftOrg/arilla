@@ -3,7 +3,7 @@
 --
 -- Kullanici beyani (Ekim 2026, belge incelenmedi): 7 gunluk kosu araligi ve ayda 4 kosu siniri
 -- KALKTI; eski 1.000/gun ve 30.000/ay istek sinirlari gecersiz. Yeni sinirlar: gunluk 20.000
--- HTTP istegi, aylik 60.000 HTTP istegi, aylik 5.000.000 urun. Yalniz urun kimligi, ad, gorsel
+-- HTTP istegi, aylik 60.000 HTTP istegi; urun sayisi sinirsiz (yalniz izlenir). Yalniz urun kimligi, ad, gorsel
 -- ve URL toplanir; fiyat toplama kapsam disidir.
 --
 -- Kota artik KOSU SAYISI uzerinden degil, istek/urun HACMI uzerinden ve VERITABANI
@@ -284,12 +284,12 @@ UPDATE collection_source
        max_runs_per_month = NULL,
        daily_max_requests = 20000,
        monthly_max_requests = 60000,
-       monthly_max_products = 5000000,
+       monthly_max_products = NULL,  -- urun sayisi sinirsiz; products_counted yalniz izleme
        initial_max_requests = 20000,
        refresh_max_requests = 20000,
        permission_basis = 'declared_extended',
        permission_note = 'Kullanici beyani (Ekim 2026), belge incelenmedi: kosu araligi ve aylik kosu siniri '
-           || 'kaldirildi; gunluk 20.000 ve aylik 60.000 HTTP istegi, aylik 5.000.000 urun. Yalniz '
+           || 'kaldirildi; gunluk 20.000 ve aylik 60.000 HTTP istegi, urun sayisi sinirsiz. Yalniz '
            || 'urun kimligi, ad, gorsel, URL; fiyat toplanmaz.'
  WHERE source = 'hepsiburada';
 
