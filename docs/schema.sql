@@ -11,6 +11,9 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- 0078: sorgu istatistikleri ayri semada; uygulama rolu erisemez. Rapor: pnpm db:health.
+CREATE SCHEMA IF NOT EXISTS monitoring;
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA monitoring;
 
 -- ---------------------------------------------------------------------------
 -- KATALOG

@@ -14,11 +14,12 @@
     "db:partitions": "node scripts/partitions.ts",
     "db:verify": "node scripts/verify-schema.ts",
     "db:orphans": "node scripts/orphans.ts",
+    "db:health": "node scripts/db-health.ts",
     "db:set-role": "node scripts/set-role.ts",
     "db:revoke-sessions": "node scripts/revoke-sessions.ts",
     "seed": "node scripts/seed.ts",
     "db:lint-migrations": "node scripts/lint-migrations.ts",
-    "test": "node --test scripts/lib.test.ts scripts/migration-lint.test.ts"
+    "test": "node --test scripts/lib.test.ts scripts/migration-lint.test.ts scripts/db-health-lib.test.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
