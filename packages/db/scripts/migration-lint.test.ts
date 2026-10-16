@@ -3,7 +3,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { test } from "node:test";
 import { migrationsDir } from "./lib.ts";
-import { BASELINE, lintMigrations, stripSql } from "./migration-lint.ts";
+import { BASELINE, lintMigrations, splitStatements, stripSql } from "./migration-lint.ts";
 
 const NEXT = String(BASELINE + 1).padStart(4, "0");
 const rules = (name: string, sql: string) =>
@@ -39,6 +39,48 @@ test("price_point degistiren SQL her dosyada reddedilir; yorum ve metin sayilmaz
 
 test("CONCURRENTLY reddedilir (calistirici islem icinde yurutur)", () => {
   assert.deepEqual(rules("0003_x.sql", "CREATE INDEX CONCURRENTLY i ON t (a);"), ["concurrently"]);
+  assert.deepEqual(
+    rules(`${NEXT}_x.sql`, "-- kind: schema\nCREATE INDEX CONCURRENTLY IF NOT EXISTS i ON t (a);"),
+    ["concurrently"],
+  );
+  // Eski (baseline) dosya "kind: concurrent" yazsa da muaf degil.
+  assert.deepEqual(
+    rules("0064_x.sql", "-- kind: concurrent\nCREATE INDEX CONCURRENTLY IF NOT EXISTS i ON t (a);"),
+    ["concurrently"],
+  );
+});
+
+test("kind: concurrent yalnizca IF [NOT] EXISTS'li CONCURRENTLY indeks ifadesi alir", () => {
+  const ok = [
+    "CREATE INDEX CONCURRENTLY IF NOT EXISTS offer_x_idx ON offer (product_id) WHERE currency = 'TRY';",
+    "CREATE UNIQUE INDEX CONCURRENTLY IF NOT EXISTS u_idx ON t (a);\nDROP INDEX CONCURRENTLY IF EXISTS old_idx;",
+  ];
+  for (const sql of ok) {
+    assert.deepEqual(
+      rules(`${NEXT}_x.sql`, `-- kind: concurrent\n-- aciklama; noktali virgul\n${sql}`),
+      [],
+    );
+  }
+  const bad = [
+    "CREATE INDEX IF NOT EXISTS i ON t (a);", // CONCURRENTLY yok: kilitler
+    "CREATE INDEX CONCURRENTLY i ON t (a);", // IF NOT EXISTS yok: yeniden kosu duser
+    "DROP INDEX CONCURRENTLY i;",
+    "CREATE INDEX CONCURRENTLY IF NOT EXISTS i ON t (a);\nALTER TABLE t ADD COLUMN b int;",
+    "",
+  ];
+  for (const sql of bad) {
+    assert.ok(rules(`${NEXT}_x.sql`, `-- kind: concurrent\n${sql}`).includes("concurrent"), sql);
+  }
+});
+
+test("splitStatements: yorum atilir, tirnak ve $$ icindeki noktali virgul korunur", () => {
+  assert.deepEqual(
+    splitStatements(
+      "-- a; b\nCREATE INDEX i ON t (a)\n  WHERE x = 'a;b';\n/* c; */ DO $$ BEGIN PERFORM 1; END $$;\n",
+    ),
+    ["CREATE INDEX i ON t (a) WHERE x = 'a;b'", "DO $$ BEGIN PERFORM 1; END $$"],
+  );
+  assert.deepEqual(splitStatements("-- yalnizca yorum\n"), []);
 });
 
 test("yeni dosya ilk satirda kind ister", () => {
