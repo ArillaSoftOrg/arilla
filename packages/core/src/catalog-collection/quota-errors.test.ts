@@ -3,7 +3,7 @@ import { collectionErrorFrom, remainingQuota, type UsageSnapshot } from "./servi
 
 const wrap = (message: string) => ({ message: "Failed query", cause: { message } });
 
-describe("collectionErrorFrom (karar 0123 kodlari)", () => {
+describe("collectionErrorFrom (karar 0124 kodlari)", () => {
   it.each([
     "collection_quota_daily_requests",
     "collection_quota_monthly_requests",
@@ -29,12 +29,12 @@ describe("remainingQuota", () => {
   });
   const limits = {
     dailyMaxRequests: 20000,
-    monthlyMaxRequests: 600000,
+    monthlyMaxRequests: 60000,
     monthlyMaxProducts: 5_000_000,
   };
 
   it("gunluk hak aylik kalani asamaz", () => {
-    expect(remainingQuota(limits, usage(100, 599_950, 0))).toEqual({
+    expect(remainingQuota(limits, usage(100, 59_950, 0))).toEqual({
       requestsToday: 50,
       requestsMonth: 50,
       productsMonth: 5_000_000,

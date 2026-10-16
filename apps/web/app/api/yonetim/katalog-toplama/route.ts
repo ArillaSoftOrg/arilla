@@ -167,7 +167,7 @@ export async function POST(request: Request): Promise<Response> {
         );
       }
       case "discovery_reserve":
-        // Kaynaga her HTTP isteginden ONCE cagrilir (karar 0123).
+        // Kaynaga her HTTP isteginden ONCE cagrilir (karar 0124).
         return json(
           await reserveRequests(db, actor, {
             runId: Number(body.runId),

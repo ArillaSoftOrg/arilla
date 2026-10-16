@@ -96,6 +96,7 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "collection_source",
       "collection_run",
       "collection_unit",
+      "collection_usage_day",
       "catalog_intake_record",
       "catalog_discovery",
     ],

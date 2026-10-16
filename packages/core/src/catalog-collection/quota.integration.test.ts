@@ -12,7 +12,7 @@ import {
 import { closeCollectionRun, getCollectionStatus, startCollectionRun } from "./service.ts";
 
 /**
- * Hacim kotasi (karar 0123, migration 0075): atomik istek rezervasyonu, gunluk/aylik tavan,
+ * Hacim kotasi (karar 0124, migration 0075): atomik istek rezervasyonu, gunluk/aylik tavan,
  * aylik urun tavani, tukenmis kotada yeni kosu ve defter yetkisi. Gercek Postgres gerekir;
  * kaynaga HICBIR HTTP istegi atilmaz.
  */
@@ -42,7 +42,7 @@ describe("hacim kotasi - entegrasyon (gercek Postgres)", () => {
       await c.query(
         `UPDATE collection_source SET enabled = TRUE, daily_max_requests = $1,
            monthly_max_requests = $2, monthly_max_products = $3 WHERE source = 'hepsiburada'`,
-        [limits.daily ?? 20000, limits.monthly ?? 600000, limits.products ?? 5000000],
+        [limits.daily ?? 20000, limits.monthly ?? 60000, limits.products ?? 5000000],
       );
     });
   }

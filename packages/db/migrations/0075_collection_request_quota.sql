@@ -1,9 +1,9 @@
 -- kind: schema
--- 0075 — Hepsiburada kota modeli: gunluk/aylik HTTP istegi + aylik urun (karar 0123)
+-- 0075 — Hepsiburada kota modeli: gunluk/aylik HTTP istegi + aylik urun (karar 0124)
 --
 -- Kullanici beyani (Ekim 2026, belge incelenmedi): 7 gunluk kosu araligi ve ayda 4 kosu siniri
 -- KALKTI; eski 1.000/gun ve 30.000/ay istek sinirlari gecersiz. Yeni sinirlar: gunluk 20.000
--- HTTP istegi, aylik 600.000 HTTP istegi, aylik 5.000.000 urun. Yalniz urun kimligi, ad, gorsel
+-- HTTP istegi, aylik 60.000 HTTP istegi, aylik 5.000.000 urun. Yalniz urun kimligi, ad, gorsel
 -- ve URL toplanir; fiyat toplama kapsam disidir.
 --
 -- Kota artik KOSU SAYISI uzerinden degil, istek/urun HACMI uzerinden ve VERITABANI
@@ -38,10 +38,19 @@ ALTER TABLE collection_source
     ADD COLUMN monthly_max_products INTEGER CHECK (monthly_max_products IS NULL OR monthly_max_products >= 1),
     ADD CONSTRAINT collection_source_request_quota_order
         CHECK (daily_max_requests IS NULL OR monthly_max_requests IS NULL
-               OR daily_max_requests <= monthly_max_requests);
+               OR daily_max_requests <= monthly_max_requests),
+    -- 0070'in iki korumasi silinmez, yeni modele uyarlanir: aralik tanimliysa (> 0) pencere
+    -- araliktan kisa kalir; yalniz bildirilen izinle (sozlu / e-posta) politika 7 gun ve ayda
+    -- 4 kosunun disina gevsetilemez. Hacim kotasi icin dayanak 'declared_extended' ya da sozlesmedir.
+    ADD CONSTRAINT collection_source_window_lt_interval
+        CHECK (min_interval_days = 0 OR run_window_days < min_interval_days),
+    ADD CONSTRAINT collection_source_reported_scope CHECK (
+        permission_basis NOT IN ('verbal_reported', 'written_email_reported')
+        OR (min_interval_days >= 7 AND max_runs_per_month IS NOT NULL
+            AND max_runs_per_month <= 4 AND NOT initial_load_exempt));
 
 COMMENT ON COLUMN collection_source.min_interval_days IS
-    'Iki kosu arasi en az gun; 0 = aralik kisiti yok (karar 0123).';
+    'Iki kosu arasi en az gun; 0 = aralik kisiti yok (karar 0124).';
 COMMENT ON COLUMN collection_source.max_runs_per_month IS
     'Ayda en fazla kosu; NULL = kosu sayisi sinirsiz, hacim kotasi (istek/urun) gecerlidir.';
 COMMENT ON COLUMN collection_source.daily_max_requests IS
@@ -83,7 +92,7 @@ CREATE TABLE collection_usage_day (
     PRIMARY KEY (source, usage_date)
 );
 COMMENT ON TABLE collection_usage_day IS
-    'Kaynak basina UTC gun bazli rezerve istek ve islenen urun sayaci. Yalniz collection_run tetikleyicisi yazar (karar 0123).';
+    'Kaynak basina UTC gun bazli rezerve istek ve islenen urun sayaci. Yalniz collection_run tetikleyicisi yazar (karar 0124).';
 
 INSERT INTO collection_usage_day (source, usage_date, requests, products)
 SELECT source, (reserved_at AT TIME ZONE 'UTC')::date, sum(requests_reserved), 0
@@ -257,7 +266,7 @@ BEGIN
 END $$;
 
 COMMENT ON FUNCTION collection_run_usage_guard() IS
-    'YETKI NOTU — SECURITY DEFINER: collection_usage_day yalniz bu tetikleyiciyle yazilir; cagiranin yetkisini atlar. search_path sabit. Karar 0123.';
+    'YETKI NOTU — SECURITY DEFINER: collection_usage_day yalniz bu tetikleyiciyle yazilir; cagiranin yetkisini atlar. search_path sabit. Karar 0124.';
 
 -- Trigger fonksiyonu dogrudan cagrilamaz; yine de EXECUTE herkese acik birakilmaz.
 REVOKE ALL ON FUNCTION collection_run_usage_guard() FROM PUBLIC;
@@ -274,13 +283,13 @@ UPDATE collection_source
    SET min_interval_days = 0,
        max_runs_per_month = NULL,
        daily_max_requests = 20000,
-       monthly_max_requests = 600000,
+       monthly_max_requests = 60000,
        monthly_max_products = 5000000,
        initial_max_requests = 20000,
        refresh_max_requests = 20000,
        permission_basis = 'declared_extended',
        permission_note = 'Kullanici beyani (Ekim 2026), belge incelenmedi: kosu araligi ve aylik kosu siniri '
-           || 'kaldirildi; gunluk 20.000 ve aylik 600.000 HTTP istegi, aylik 5.000.000 urun. Yalniz '
+           || 'kaldirildi; gunluk 20.000 ve aylik 60.000 HTTP istegi, aylik 5.000.000 urun. Yalniz '
            || 'urun kimligi, ad, gorsel, URL; fiyat toplanmaz.'
  WHERE source = 'hepsiburada';
 

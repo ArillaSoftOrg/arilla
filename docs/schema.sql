@@ -2322,10 +2322,11 @@ CREATE TABLE collection_run (
 CREATE UNIQUE INDEX collection_run_one_open_uniq ON collection_run (source) WHERE status = 'open';
 CREATE INDEX collection_run_source_idx ON collection_run (source, reserved_at DESC);
 
--- 0075 (karar 0123): hacim kotasi. Referans ozet; gercek tanim migration'dadir.
+-- 0075 (karar 0124): hacim kotasi. Referans ozet; gercek tanim migration'dadir.
 --   collection_source: min_interval_days >= 0 (0 = aralik yok), max_runs_per_month NULL olabilir,
 --     daily_max_requests / monthly_max_requests / monthly_max_products INTEGER (NULL = uygulanmaz);
---     collection_source_window_lt_interval ve collection_source_reported_scope KALDIRILDI.
+--     collection_source_window_lt_interval yalniz min_interval_days > 0 iken uygulanir;
+--     collection_source_reported_scope korunur (bildirilen izinde max_runs_per_month NOT NULL ve <= 4).
 --   collection_run: requests_reserved INTEGER (HTTP isteginden ONCE rezerve, azalmaz,
 --     requests_made <= requests_reserved <= max_requests), products_counted BIGINT.
 CREATE TABLE collection_usage_day (

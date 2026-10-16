@@ -60,7 +60,7 @@ function fakeEnv(
     },
     async api(body) {
       if (body.op === "discovery_reserve") {
-        // Her kaynak isteginden ONCE: o ana kadar atilan fetch sayisini kaydet (karar 0123).
+        // Her kaynak isteginden ONCE: o ana kadar atilan fetch sayisini kaydet (karar 0124).
         calls.reserved.push(calls.fetch.length);
         reservedTotal += 1;
         if (denyReserve && reservedTotal > denyReserve.after) {
@@ -120,7 +120,7 @@ const opts = {
   resumeRun: null,
 };
 
-describe("runDiscovery istek rezervasyonu (karar 0123)", () => {
+describe("runDiscovery istek rezervasyonu (karar 0124)", () => {
   const files: Files = {
     [SITEMAP_INDEX_KEY]: { status: 200, text: index },
     [F1]: { status: 200, text: urlset(["1", "2"]) },

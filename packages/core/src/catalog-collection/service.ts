@@ -72,7 +72,7 @@ export interface UsageWindow {
   products: number;
 }
 
-/** UTC gun/ay kullanimi (karar 0123): rezerve edilen istek ve islenen urun. */
+/** UTC gun/ay kullanimi (karar 0124): rezerve edilen istek ve islenen urun. */
 export interface UsageSnapshot {
   day: UsageWindow;
   month: UsageWindow;
@@ -162,7 +162,7 @@ export function remainingQuota(
 
 export interface QuotaState {
   enabled: boolean;
-  /** 0 = aralik kisiti yok (karar 0123). */
+  /** 0 = aralik kisiti yok (karar 0124). */
   minIntervalDays: number;
   /** null = ayda kosu sayisi sinirsiz. */
   maxRunsPerMonth: number | null;
@@ -288,7 +288,7 @@ export async function getCollectionStatus(
     monthlyMaxProducts: policy.monthlyMaxProducts,
   };
   const remaining = remainingQuota(limits, usage);
-  // Hacim kotasi (karar 0123): bugun/bu ay istek ve ay urun hakki bitmisse yeni kosu da, rezervasyon da yok.
+  // Hacim kotasi (karar 0124): bugun/bu ay istek ve ay urun hakki bitmisse yeni kosu da, rezervasyon da yok.
   let volumeBlock: QuotaBlock | null = null;
   if (remaining.requestsMonth === 0) volumeBlock = "monthly_requests";
   else if (remaining.productsMonth === 0) volumeBlock = "monthly_products";

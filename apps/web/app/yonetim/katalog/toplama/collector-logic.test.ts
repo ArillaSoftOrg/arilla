@@ -59,7 +59,7 @@ function fakeEnv(
     },
     async api(body) {
       if (body.op === "discovery_reserve") {
-        // Rezervasyon her kaynak isteginden ONCE gelmeli (karar 0123): sirayi kaydet.
+        // Rezervasyon her kaynak isteginden ONCE gelmeli (karar 0124): sirayi kaydet.
         calls.reserved.push(calls.fetch.length);
         reservedTotal += 1;
         return { ok: true, status: 200, data: { requestsReserved: reservedTotal } };

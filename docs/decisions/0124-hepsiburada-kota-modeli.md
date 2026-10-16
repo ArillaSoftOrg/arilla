@@ -1,4 +1,4 @@
-# 0123 — Hepsiburada kota modeli: HTTP ve ürün hacmi, atomik rezervasyon
+# 0124 — Hepsiburada kota modeli: HTTP ve ürün hacmi, atomik rezervasyon
 
 **Tarih:** 15 Ekim 2026
 **Durum:** Kod hazır (migration 0075); merge/deploy ve production uygulaması yok. Hiçbir koşu başlatılmadı,
@@ -10,8 +10,11 @@ saklanır, `permission_basis = declared_extended`).
 
 1. **Eski koşu sayısı kotası kaldırıldı:** 7 gün aralık ve ayda 4 koşu politikada `0` / `NULL`. Kolonlar silinmez;
    tetikleyici bu kısıtları yalnız tanımlıysa uygular. Tek açık koşu kuralı (`collection_run_one_open_uniq`) sürer.
-2. **Yeni sınırlar** (`collection_source`, NULL = uygulanmaz): günlük 20.000 HTTP isteği, aylık 600.000 HTTP isteği,
-   aylık 5.000.000 ürün. Gün ve ay UTC'dir. Eski 1.000/gün ve 30.000/ay sınırları geçersizdir.
+2. **Yeni sınırlar** (`collection_source`, NULL = uygulanmaz): günlük 20.000 HTTP isteği, aylık 60.000 HTTP isteği,
+   aylık 5.000.000 ürün. Gün ve ay UTC'dir. Eski 1.000/gün ve 30.000/ay sınırları geçersizdir. Aylık istek
+   hakkı, günlük tavan sürekli kullanılırsa en erken 3 günde biter (16 Ekim 2026 kullanıcı kararı: aylık 60.000).
+   0070'in iki koruması silinmez: aralık tanımlıysa koşu penceresi aralıktan kısadır; sözlü / e-posta bildirimli
+   izinde politika 7 gün ve ayda 4 koşunun dışına gevşetilemez (`collection_source_reported_scope`).
 3. **İstek, gerçek HTTP'den ÖNCE rezerve edilir.** `reserveRequests` tek işlemde `collection_run.requests_reserved`
    değerini artırır; `collection_run_usage_guard` (SECURITY DEFINER, advisory kilit) günlük/aylık tavanı denetler ve
    `collection_usage_day` defterini yazar. Toplayıcı rezervasyon commit edilmeden kaynağa istek atmaz
@@ -37,5 +40,6 @@ saklanır, `permission_basis = declared_extended`).
 
 ## Doğrulanmayanlar
 
-Migration yerel PostgreSQL'de uygulanıp çalıştırılmadı; entegrasyon testleri yazıldı ama çalıştırılmadı
-(`quota.integration.test.ts`). Gerçek ağ trafiği ve kaynağın izin beyanı doğrulanmadı.
+16 Ekim 2026: migration main şemasına + tohum veriye uygulandı, ikinci koşu idempotent, `db:verify` geçti; TS
+katalog/yönetim entegrasyon testleri (`quota.integration.test.ts` dahil) ve Python `test_hb_intake.py` yerel
+PostgreSQL'de geçti. Gerçek ağ trafiği ve kaynağın izin beyanı doğrulanmadı.

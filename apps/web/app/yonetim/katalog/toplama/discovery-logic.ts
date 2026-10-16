@@ -291,7 +291,7 @@ export async function runDiscovery(
       break;
     }
     if (requests > 0) await env.sleep(env.delayMs);
-    // Kaynaga istek atmadan ONCE atomik rezervasyon (karar 0123). Reddedilirse istek ATILMAZ.
+    // Kaynaga istek atmadan ONCE atomik rezervasyon (karar 0124). Reddedilirse istek ATILMAZ.
     const hold = await env.api({ op: "discovery_reserve", runId, count: 1 });
     if (!hold.ok) {
       const code = String(hold.data?.error ?? hold.status);

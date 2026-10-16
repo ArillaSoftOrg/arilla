@@ -24,7 +24,7 @@ const item = (code: string, unit: string, over: Record<string, unknown> = {}) =>
 });
 
 /**
- * Karar 0123: tamamlanan istek once rezerve edilmis olmali. Eski testler yalniz `requestsMade`
+ * Karar 0124: tamamlanan istek once rezerve edilmis olmali. Eski testler yalniz `requestsMade`
  * verdigi icin eksik rezervasyonu burada tamamlariz (gercek servisle); butce asimi ayni kodla doner.
  */
 async function submit(
@@ -301,7 +301,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
     expect(n).toBe(3); // eksik tarama/kapanis hicbir kimligi silmez ya da pasiflestirmez
   });
 
-  it("migration 0075: yeni politika (20.000/gun, 600.000/ay, 5.000.000 urun) ve aralik kalkti", async () => {
+  it("migration 0075: yeni politika (20.000/gun, 60.000/ay, 5.000.000 urun) ve aralik kalkti", async () => {
     const pol = await withOwnerClient(
       async (c) =>
         (
@@ -317,7 +317,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
       max_runs_per_month: null,
       run_window_days: 6,
       daily_max_requests: 20000,
-      monthly_max_requests: 600000,
+      monthly_max_requests: 60000,
       monthly_max_products: 5000000,
     });
     // arilla_app kesif defterinden silemez.

@@ -31,7 +31,7 @@ export const collectionSource = pgTable("collection_source", {
   source: text("source").primaryKey(),
   merchantSlug: text("merchant_slug").notNull(),
   minIntervalDays: smallint("min_interval_days").notNull(),
-  /** 0075: 0 = aralik kisiti yok. */
+  /** 0075: NULL = ayda kosu sayisi sinirsiz. */
   maxRunsPerMonth: smallint("max_runs_per_month"),
   runWindowDays: smallint("run_window_days").notNull(),
   initialMaxRequests: integer("initial_max_requests").notNull(),
@@ -46,7 +46,7 @@ export const collectionSource = pgTable("collection_source", {
   initialMaxBytes: bigint("initial_max_bytes", { mode: "number" }).notNull(),
   refreshMaxBytes: bigint("refresh_max_bytes", { mode: "number" }).notNull(),
   blockedCooldownMinutes: integer("blocked_cooldown_minutes").notNull().default(60),
-  // 0075 (karar 0123): hacim kotasi. NULL = o kota uygulanmaz.
+  // 0075 (karar 0124): hacim kotasi. NULL = o kota uygulanmaz.
   dailyMaxRequests: integer("daily_max_requests"),
   monthlyMaxRequests: integer("monthly_max_requests"),
   monthlyMaxProducts: integer("monthly_max_products"),
@@ -54,7 +54,7 @@ export const collectionSource = pgTable("collection_source", {
 });
 
 /**
- * 0075 (karar 0123): UTC gun bazli rezerve istek ve islenen urun sayaci. Yalniz
+ * 0075 (karar 0124): UTC gun bazli rezerve istek ve islenen urun sayaci. Yalniz
  * `collection_run_usage_guard` tetikleyicisi yazar; uygulama rolu SELECT yapar.
  */
 export const collectionUsageDay = pgTable(
@@ -95,7 +95,7 @@ export const collectionRun = pgTable("collection_run", {
   downloadApprovedBy: bigint("download_approved_by", { mode: "number" }),
   downloadApprovedAt: timestamp("download_approved_at", { withTimezone: true }),
   transferOrigin: text("transfer_origin").$type<TransferOrigin>().notNull().default("unknown"),
-  // 0075 (karar 0123): HTTP isteginden ONCE rezerve edilen istek (azalmaz) ve kota defterine yazilan urun.
+  // 0075 (karar 0124): HTTP isteginden ONCE rezerve edilen istek (azalmaz) ve kota defterine yazilan urun.
   requestsReserved: integer("requests_reserved").notNull().default(0),
   productsCounted: bigint("products_counted", { mode: "number" }).notNull().default(0),
 });

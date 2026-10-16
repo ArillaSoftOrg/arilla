@@ -183,7 +183,7 @@ export interface ReserveResult {
 }
 
 /**
- * Gercek HTTP isteginden ONCE atomik istek rezervasyonu (karar 0123). Tek islemde koşu satiri
+ * Gercek HTTP isteginden ONCE atomik istek rezervasyonu (karar 0124). Tek islemde koşu satiri
  * kilitlenir ve `requests_reserved` artirilir; gunluk/aylik kotayi 0075 tetikleyicisi advisory
  * kilit altinda denetler ve defteri yazar. Toplayici bu cagri commit edilmeden kaynaga istek
  * ATMAZ. Rezervasyon iade edilmez: istek atildiktan sonra yazim basarisiz olsa bile kota asilmaz.
@@ -296,7 +296,7 @@ export async function submitDiscoveryBatch(
       // Istek tavani ve hiz: kosu icinde istek sayisi artar ama butceyi asamaz.
       if (input.requestsMade > run.maxRequests)
         throw new CollectionError("request_budget_exceeded");
-      // Her istek once rezerve edilir (karar 0123): rezervasyonu asan tamamlanma bildirilemez.
+      // Her istek once rezerve edilir (karar 0124): rezervasyonu asan tamamlanma bildirilemez.
       if (input.requestsMade > run.requestsReserved)
         throw new CollectionError("request_not_reserved");
       if (input.requestsMade < run.requestsMade) throw new CollectionError("bad_requests");
