@@ -6,6 +6,10 @@ migration'lar olusturur.
 ## Kurallar
 
 - Dosya adi: `NNNN_kisa_ad.sql`, sirali.
+- Ilk satir `-- kind: schema|data|grant|concurrent`. Buyuk tabloya indeks
+  `-- kind: concurrent` dosyasiyla eklenir/kaldirilir: islem disi, yalnizca
+  `CREATE INDEX CONCURRENTLY IF NOT EXISTS` / `DROP INDEX CONCURRENTLY IF EXISTS`;
+  calistirici yarim kalmis gecersiz indeksi kaldirip yeniden kurar (karar 0125).
 - **Geriye uyumlu yazilir.** Once kolon eklenir, kod dagitilir, sonra eski
   kolon kaldirilir. Tek adimda kolon silen migration reddedilir.
 - Semanin tek sahibi `packages/db`. Python tarafi okur ve yazar, migration
