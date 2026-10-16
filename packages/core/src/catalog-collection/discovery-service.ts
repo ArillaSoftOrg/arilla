@@ -16,7 +16,14 @@ import {
   UNIT_KEY,
   validateDiscoveryItem,
 } from "./discovery-validate.ts";
-import { CollectionError, collectionErrorFrom } from "./service.ts";
+import {
+  CollectionError,
+  collectionErrorFrom,
+  type QuotaRemaining,
+  remainingQuota,
+  type UsageSnapshot,
+  usageSnapshot,
+} from "./service.ts";
 
 export const MAX_DISCOVERY_ITEMS = 12_000;
 export const MAX_PLAN_UNITS = 10_000;
@@ -166,6 +173,61 @@ export async function approveRunDownload(
   }
 }
 
+export const MAX_RESERVE_COUNT = 100;
+
+export interface ReserveResult {
+  reserved: number;
+  requestsReserved: number;
+  maxRequests: number;
+  remaining: QuotaRemaining;
+}
+
+/**
+ * Gercek HTTP isteginden ONCE atomik istek rezervasyonu (karar 0124). Tek islemde koşu satiri
+ * kilitlenir ve `requests_reserved` artirilir; gunluk/aylik kotayi 0075 tetikleyicisi advisory
+ * kilit altinda denetler ve defteri yazar. Toplayici bu cagri commit edilmeden kaynaga istek
+ * ATMAZ. Rezervasyon iade edilmez: istek atildiktan sonra yazim basarisiz olsa bile kota asilmaz.
+ */
+export async function reserveRequests(
+  db: Database,
+  actor: AdminActor,
+  input: { runId: number; count?: number },
+  now: Date = new Date(),
+): Promise<ReserveResult> {
+  assertCapability(actor, "catalog.write");
+  const count = input.count ?? 1;
+  if (!(Number.isSafeInteger(count) && count >= 1 && count <= MAX_RESERVE_COUNT)) {
+    throw new CollectionError("bad_requests");
+  }
+  try {
+    return await db.transaction(async (tx) => {
+      const run = await openOwnedRun(tx, actor, input.runId, now);
+      const [policy] = await tx
+        .select()
+        .from(collectionSource)
+        .where(eq(collectionSource.source, run.source));
+      if (!policy?.enabled) throw new CollectionError("collection_disabled");
+      if (run.requestsReserved + count > run.maxRequests) {
+        throw new CollectionError("request_budget_exceeded");
+      }
+      const [updated] = await tx
+        .update(collectionRun)
+        .set({ requestsReserved: run.requestsReserved + count })
+        .where(eq(collectionRun.id, run.id))
+        .returning({ requestsReserved: collectionRun.requestsReserved });
+      const usage = await usageSnapshot(tx as unknown as Database, run.source, now);
+      return {
+        reserved: count,
+        requestsReserved: updated?.requestsReserved ?? run.requestsReserved + count,
+        maxRequests: run.maxRequests,
+        remaining: remainingQuota(policy, usage),
+      };
+    });
+  } catch (error) {
+    throw collectionErrorFrom(error) ?? error;
+  }
+}
+
 export interface DiscoveryBatchInput {
   runId: number;
   kind: DiscoveryUnitKind;
@@ -234,6 +296,9 @@ export async function submitDiscoveryBatch(
       // Istek tavani ve hiz: kosu icinde istek sayisi artar ama butceyi asamaz.
       if (input.requestsMade > run.maxRequests)
         throw new CollectionError("request_budget_exceeded");
+      // Her istek once rezerve edilir (karar 0124): rezervasyonu asan tamamlanma bildirilemez.
+      if (input.requestsMade > run.requestsReserved)
+        throw new CollectionError("request_not_reserved");
       if (input.requestsMade < run.requestsMade) throw new CollectionError("bad_requests");
       const newRequests = input.requestsMade - run.requestsMade;
       const [times] = await tx
@@ -277,6 +342,17 @@ export async function submitDiscoveryBatch(
         else byId.set(v.item.externalId, v.item);
       }
       const valid = [...byId.values()];
+
+      // Aylik urun kotasi: parti sigmiyorsa HICBIR sey yazilmaz (tetikleyici de ayni siniri uygular).
+      if (valid.length > 0) {
+        const left = remainingQuota(
+          policy,
+          await usageSnapshot(tx as unknown as Database, run.source, now),
+        );
+        if (left.productsMonth !== null && valid.length > left.productsMonth) {
+          throw new CollectionError("collection_quota_monthly_products");
+        }
+      }
 
       // Disk korumasi: tavana yaklasan veritabanina yeni kimlik yazilmaz.
       const ceiling = guard.maxDatabaseBytes ?? DEFAULT_DB_SIZE_CEILING_BYTES;
@@ -366,6 +442,7 @@ export async function submitDiscoveryBatch(
         .set({
           requestsMade: input.requestsMade,
           bytesDownloaded,
+          productsCounted: run.productsCounted + valid.length,
           ...(checkpoint ? { checkpoint } : {}),
         })
         .where(eq(collectionRun.id, run.id));
@@ -384,6 +461,11 @@ export async function submitDiscoveryBatch(
 }
 
 export interface DiscoveryProgress {
+  requestsReserved: number;
+  requestsMade: number;
+  productsCounted: number;
+  usage: UsageSnapshot;
+  remaining: QuotaRemaining;
   uniqueProducts: number;
   byPriceState: Record<string, number>;
   unitsByStatus: Record<string, number>;
@@ -414,7 +496,19 @@ export async function discoveryProgress(
     .from(collectionUnit)
     .where(eq(collectionUnit.runId, input.runId))
     .groupBy(collectionUnit.status);
+  const [policy] = await db
+    .select()
+    .from(collectionSource)
+    .where(eq(collectionSource.source, input.source));
+  const usage = await usageSnapshot(db, input.source);
   return {
+    requestsReserved: run.requestsReserved,
+    requestsMade: run.requestsMade,
+    productsCounted: run.productsCounted,
+    usage,
+    remaining: policy
+      ? remainingQuota(policy, usage)
+      : { requestsToday: null, requestsMonth: null, productsMonth: null },
     uniqueProducts: states.reduce((s, r) => s + r.n, 0),
     byPriceState: Object.fromEntries(states.map((r) => [r.s, r.n])),
     unitsByStatus: Object.fromEntries(units.map((r) => [r.s, r.n])),

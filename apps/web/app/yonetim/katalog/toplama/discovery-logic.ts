@@ -20,7 +20,7 @@ import type { ApiData } from "./collector-logic.ts";
  */
 export const SITEMAP_ORIGIN = "https://www.hepsiburada.com";
 export const SITEMAP_INDEX_KEY = "sitemaps/product/sitemap.xml";
-const PRODUCT_SITEMAP_PATH = /^\/sitemaps\/product\/[A-Za-z0-9_./-]{1,150}\.xml$/;
+const PRODUCT_SITEMAP_PATH = /^\/sitemaps\/product\/[A-Za-z0-9_./-]{1,150}\.xml(?:\.gz)?$/;
 const BLOCK_STATUSES = new Set([401, 403, 429, 503]);
 
 export interface DiscoveryEnv {
@@ -45,6 +45,8 @@ export interface DiscoveryRunOptions {
   resumeRun: {
     id: number;
     requestsMade: number;
+    /** Sunucuda rezerve edilmis toplam (>= requestsMade); yoksa requestsMade. */
+    requestsReserved?: number;
     maxRequests: number;
     bytesDownloaded: number;
     approvedBytes: number;
@@ -57,6 +59,8 @@ export type DiscoveryStopReason =
   | "blocked"
   | "budget"
   | "bytes"
+  | "daily_quota"
+  | "monthly_quota"
   | "session_limit"
   | "error";
 
@@ -201,6 +205,7 @@ export async function runDiscovery(
 ): Promise<DiscoveryStopReason> {
   let runId: number;
   let requests: number;
+  let reserved: number;
   let maxRequests: number;
   let bytes: number;
   let approved: number;
@@ -213,6 +218,7 @@ export async function runDiscovery(
       bytesDownloaded: bytes,
     } = options.resumeRun);
     approved = options.resumeRun.approvedBytes;
+    reserved = Math.max(options.resumeRun.requestsReserved ?? 0, requests);
     env.log(`Koşu #${runId} sürdürülüyor (${requests}/${maxRequests} istek, ${bytes} bayt).`);
   } else {
     const started = await env.api({ op: "start", source: env.source, options: {} });
@@ -222,6 +228,7 @@ export async function runDiscovery(
     }
     runId = started.data.id;
     requests = 0;
+    reserved = 0;
     bytes = 0;
     approved = 0;
     maxRequests = started.data.maxRequests;
@@ -275,7 +282,7 @@ export async function runDiscovery(
       reason = "session_limit";
       break;
     }
-    if (requests >= maxRequests) {
+    if (reserved >= maxRequests) {
       reason = "budget";
       break;
     }
@@ -284,6 +291,23 @@ export async function runDiscovery(
       break;
     }
     if (requests > 0) await env.sleep(env.delayMs);
+    // Kaynaga istek atmadan ONCE atomik rezervasyon (karar 0124). Reddedilirse istek ATILMAZ.
+    const hold = await env.api({ op: "discovery_reserve", runId, count: 1 });
+    if (!hold.ok) {
+      const code = String(hold.data?.error ?? hold.status);
+      if (code === "collection_quota_daily_requests") {
+        env.log("Bugünkü HTTP isteği hakkı doldu; UTC gün dönümünden sonra sürdürülebilir.");
+        reason = "daily_quota";
+      } else if (code === "collection_quota_monthly_requests") {
+        env.log("Bu ayın HTTP isteği hakkı doldu; UTC ay başından sonra sürdürülebilir.");
+        reason = "monthly_quota";
+      } else {
+        env.log(`İstek rezervasyonu reddedildi: ${code}. İstek atılmadı.`);
+        return "error";
+      }
+      break;
+    }
+    reserved = Number(hold.data.requestsReserved);
     requests += 1;
     files += 1;
     const fetchedAt = env.now().toISOString();

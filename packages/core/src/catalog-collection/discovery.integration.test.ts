@@ -8,6 +8,7 @@ import {
   discoveryProgress,
   nextDiscoveryUnits,
   planDiscoveryUnits,
+  reserveRequests,
   submitDiscoveryBatch,
 } from "./discovery-service.ts";
 import { closeCollectionRun, startCollectionRun } from "./service.ts";
@@ -21,6 +22,33 @@ const item = (code: string, unit: string, over: Record<string, unknown> = {}) =>
   sourceUnitKey: unit,
   ...over,
 });
+
+/**
+ * Karar 0124: tamamlanan istek once rezerve edilmis olmali. Eski testler yalniz `requestsMade`
+ * verdigi icin eksik rezervasyonu burada tamamlariz (gercek servisle); butce asimi ayni kodla doner.
+ */
+async function submit(
+  db: Database,
+  actor: AdminActor,
+  input: Parameters<typeof submitDiscoveryBatch>[2],
+  ...rest: unknown[]
+) {
+  const have = await withOwnerClient(async (c) =>
+    Number(
+      (await c.query("SELECT requests_reserved FROM collection_run WHERE id = $1", [input.runId]))
+        .rows[0]?.requests_reserved ?? 0,
+    ),
+  );
+  if (input.requestsMade > have) {
+    await reserveRequests(db, actor, { runId: input.runId, count: input.requestsMade - have });
+  }
+  return (submitDiscoveryBatch as (...a: unknown[]) => ReturnType<typeof submitDiscoveryBatch>)(
+    db,
+    actor,
+    input,
+    ...rest,
+  );
+}
 
 describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
   let db: Database;
@@ -37,6 +65,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
       await c.query("DELETE FROM catalog_intake_record");
       await c.query("DELETE FROM collection_unit");
       await c.query("DELETE FROM collection_run");
+      await c.query("DELETE FROM collection_usage_day");
       await c.query("UPDATE collection_source SET enabled = $1 WHERE source = 'hepsiburada'", [
         enabled,
       ]);
@@ -72,7 +101,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
     expect(run.kind).toBe("initial");
     await planDiscoveryUnits(db, admin, { runId: run.id, kind: "sitemap_file", keys: [U1, U2] });
     await expect(
-      submitDiscoveryBatch(db, admin, {
+      submit(db, admin, {
         runId: run.id,
         kind: "sitemap_file",
         unitKey: U1,
@@ -99,7 +128,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
       bytes: 50_000_000,
       transferOrigin: "admin_wifi",
     });
-    const r1 = await submitDiscoveryBatch(db, admin, {
+    const r1 = await submit(db, admin, {
       runId: open,
       kind: "sitemap_file",
       unitKey: U1,
@@ -116,7 +145,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
     });
     expect(r1).toMatchObject({ inserted: 2, seenAgain: 0, rejected: 1, bytesDownloaded: 4000 });
     // Ayni urunler baska dosyada yeniden gorulur; bos baslik eldeki basligi silmez.
-    const r2 = await submitDiscoveryBatch(db, admin, {
+    const r2 = await submit(db, admin, {
       runId: open,
       kind: "sitemap_file",
       unitKey: U2,
@@ -190,7 +219,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
       keys: ["sitemaps/product/sitemap_3.xml"],
     });
     await expect(
-      submitDiscoveryBatch(db, admin, {
+      submit(db, admin, {
         runId: open,
         kind: "sitemap_file",
         unitKey: "sitemaps/product/sitemap_3.xml",
@@ -207,7 +236,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
     const open = await withOwnerClient(async (c) =>
       Number((await c.query("SELECT id FROM collection_run WHERE status='open'")).rows[0].id),
     );
-    await submitDiscoveryBatch(db, admin, {
+    await submit(db, admin, {
       runId: open,
       kind: "sitemap_file",
       unitKey: "sitemaps/product/sitemap_3.xml",
@@ -233,7 +262,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
     const open = await withOwnerClient(async (c) =>
       Number((await c.query("SELECT id FROM collection_run WHERE status='open'")).rows[0].id),
     );
-    await submitDiscoveryBatch(db, admin, {
+    await submit(db, admin, {
       runId: open,
       kind: "sitemap_file",
       unitKey: "sitemaps/product/sitemap_3.xml",
@@ -245,7 +274,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
       errorCode: "http_403",
     });
     await expect(
-      submitDiscoveryBatch(db, admin, {
+      submit(db, admin, {
         runId: open,
         kind: "sitemap_file",
         unitKey: U1,
@@ -258,35 +287,38 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
     ).rejects.toMatchObject({ code: "blocked_cooldown" });
   });
 
-  it("kapanis ve kota: ikinci kosu araliktan once alinamaz; defter korunur", async () => {
+  it("kapanis: aralik/ay-kosu siniri kalkti, ikinci kosu hemen acilir; defter korunur", async () => {
     const open = await withOwnerClient(async (c) =>
       Number((await c.query("SELECT id FROM collection_run WHERE status='open'")).rows[0].id),
     );
     await closeCollectionRun(db, admin, { runId: open, outcome: "aborted" });
-    await expect(startCollectionRun(db, admin, { source: "hepsiburada" })).rejects.toMatchObject({
-      code: "collection_quota_interval",
-    });
+    const second = await startCollectionRun(db, admin, { source: "hepsiburada" });
+    expect(second.kind).toBe("refresh");
+    expect(second.requestsReserved).toBe(0);
     const n = await withOwnerClient(async (c) =>
       Number((await c.query("SELECT count(*) FROM catalog_discovery")).rows[0].count),
     );
     expect(n).toBe(3); // eksik tarama/kapanis hicbir kimligi silmez ya da pasiflestirmez
   });
 
-  it("migration: politika degismedi, eski kosu 'initial' kuralı ve bayt tetikleyicisi", async () => {
+  it("migration 0075: yeni politika (20.000/gun, 60.000/ay, 5.000.000 urun) ve aralik kalkti", async () => {
     const pol = await withOwnerClient(
       async (c) =>
         (
           await c.query(
-            "SELECT initial_max_requests, refresh_max_requests, min_interval_days, max_runs_per_month, run_window_days FROM collection_source WHERE source='hepsiburada'",
+            "SELECT initial_max_requests, refresh_max_requests, min_interval_days, max_runs_per_month, run_window_days, daily_max_requests, monthly_max_requests, monthly_max_products FROM collection_source WHERE source='hepsiburada'",
           )
         ).rows[0],
     );
     expect(pol).toEqual({
-      initial_max_requests: 500,
-      refresh_max_requests: 500,
-      min_interval_days: 7,
-      max_runs_per_month: 4,
+      initial_max_requests: 20000,
+      refresh_max_requests: 20000,
+      min_interval_days: 0,
+      max_runs_per_month: null,
       run_window_days: 6,
+      daily_max_requests: 20000,
+      monthly_max_requests: 60000,
+      monthly_max_products: 5000000,
     });
     // arilla_app kesif defterinden silemez.
     await expect(db.execute(sql`DELETE FROM catalog_discovery`)).rejects.toBeTruthy();
