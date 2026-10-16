@@ -193,26 +193,26 @@ def process_one(
     embedder: EmbeddingClient | None = None,
     image_http: httpx.Client | None = None,
 ) -> None:
-    """Tek bir kuyruk mesajini isler. Satir yoksa ya da zaten islenmisse sessizce doner."""
-    with conn.cursor() as cur:
-        cur.execute(
-            "SELECT url_raw, status, session_id, user_id FROM link_resolution_request"
-            " WHERE id = %s",
-            (request_id,),
-        )
-        row = cur.fetchone()
-    if row is None:
-        logger.warning("bilinmeyen link_resolution_request: %s", request_id)
-        return
-    url_raw, status, session_id, user_id = row
-    if status != "queued":
-        # Ayni mesaj iki kez teslim edilmis olabilir (Redis en-az-bir-kez
-        # garantisi verir) - `docs/decisions/0014` deseniyle ayni: yeniden
-        # islemek yerine atla.
-        logger.info("zaten islenmis (%s), atlaniyor: %s", status, request_id)
+    """Tek bir kuyruk mesajini isler. Satir yoksa ya da zaten islenmisse sessizce doner.
+
+    Sahiplenme `claim_request` ile tek UPDATE'tir: ayni mesaj iki isciye teslim
+    edilse (Redis en-az-bir-kez) yalnizca biri `queued -> processing` gecisini
+    kazanir. Eski SELECT-sonra-UPDATE iki iscinin ikisini de isletebiliyordu.
+    """
+    claimed = claim_request(conn, request_id)
+    if claimed is None:
+        with conn.cursor() as cur:
+            cur.execute("SELECT status FROM link_resolution_request WHERE id = %s", (request_id,))
+            row = cur.fetchone()
+        conn.rollback()
+        if row is None:
+            logger.warning("bilinmeyen link_resolution_request: %s", request_id)
+        else:
+            # `docs/decisions/0014` deseniyle ayni: yeniden islemek yerine atla.
+            logger.info("zaten islenmis (%s), atlaniyor: %s", row[0], request_id)
         return
 
-    _mark(conn, request_id, status="processing")
+    url_raw, session_id, user_id = claimed
     resolve_claimed(
         conn,
         request_id,
