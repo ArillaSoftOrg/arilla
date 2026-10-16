@@ -158,10 +158,13 @@ export function AdminMobileNav({
   sections,
   brand,
   roleLabel,
+  siteHref,
 }: {
   sections: AdminNavSection[];
   brand: string;
   roleLabel: string;
+  /** Public sitenin kökü; ayrı yönetim ana makinesinde mutlak adres (karar 0056). */
+  siteHref: string;
 }) {
   const pathname = usePathname();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -232,7 +235,7 @@ export function AdminMobileNav({
           <AdminNavClient sections={sections} />
         </div>
         <div className={styles.sidebarFooter}>
-          <a href="/" className={styles.navLink}>
+          <a href={siteHref} className={styles.navLink}>
             Siteye dön
           </a>
         </div>
