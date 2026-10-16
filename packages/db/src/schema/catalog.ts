@@ -84,6 +84,8 @@ export const product = pgTable("product", {
   maxPrice: bigint("max_price", { mode: "number" }),
   offerCount: integer("offer_count").notNull().default(0),
   inStockCount: integer("in_stock_count").notNull().default(0),
+  /** 0076 (karar 0124): yalnizca TRY disi teklifi olan farkli magaza sayisi. */
+  foreignOfferCount: integer("foreign_offer_count").notNull().default(0),
   priceUpdatedAt: timestamp("price_updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),

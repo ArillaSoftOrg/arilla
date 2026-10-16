@@ -89,6 +89,9 @@ CREATE TABLE product (
     max_price       BIGINT,
     offer_count     INTEGER     NOT NULL DEFAULT 0,   -- farklı mağaza sayısı ("N mağaza")
     in_stock_count  INTEGER     NOT NULL DEFAULT 0,   -- stokta olan mağaza sayısı
+    -- 0076 (karar 0124): yalnızca TRY dışı teklifi olan farklı mağaza sayısı. Fiyat
+    -- özeti (min/max/offer_count) TRY-only kalır; arama uygunluğu ikisinin toplamıdır.
+    foreign_offer_count INTEGER NOT NULL DEFAULT 0 CHECK (foreign_offer_count >= 0),
     price_updated_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -187,6 +190,9 @@ CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT 
 CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
 CREATE INDEX offer_seller_idx ON offer (seller_id) WHERE seller_id IS NOT NULL;
 CREATE INDEX offer_feed_source_idx ON offer (feed_source_id) WHERE feed_source_id IS NOT NULL;
+-- 0076 (karar 0124): metinsiz aramanin TRY-only best_offer yolu, yurt disi hacminden bagimsiz.
+CREATE INDEX offer_try_product_idx ON offer (product_id, current_price)
+    WHERE product_id IS NOT NULL AND is_active AND currency = 'TRY';
 -- 0067/0069: eslesmemis teklif sayfasi (/teklifler); 0069 trigram yerine tam metin.
 CREATE INDEX offer_unmatched_recent_idx ON offer (last_seen_at DESC, id DESC)
     WHERE product_id IS NULL AND is_active;
