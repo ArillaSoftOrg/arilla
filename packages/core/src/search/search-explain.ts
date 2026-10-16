@@ -11,6 +11,7 @@ import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
 import {
   bestOfferCte,
+  candidateOfferScope,
   distinctImage,
   type FilterPredicateName,
   filterPredicates,
@@ -154,7 +155,7 @@ export async function candidateFunnel(
   );
 
   const result = await db.execute<Row>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
+    WITH ${bestOfferCte(inStockOnly, merchantIds, null, candidateOfferScope(text.slots))},
     base AS (
       SELECT p.id, p.primary_image_url,
              (bo.product_id IS NOT NULL) AS has_offer,

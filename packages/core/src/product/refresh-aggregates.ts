@@ -9,7 +9,9 @@
  * fiyatlı aktif TRY teklifi sayılır (TRY dışı tutar kuruş gibi okunup özeti
  * kirletmesin; karar 0121). `offer_count` = böyle teklifi olan farklı
  * mağaza sayısı; `in_stock_count` = bunlardan stokta olan mağaza sayısı. Kolon
- * adları migration gerektirmesin diye korunur.
+ * adları migration gerektirmesin diye korunur. `foreign_offer_count` (0076,
+ * karar 0124) = fiyatlı aktif TRY DIŞI teklifi olan farklı mağaza sayısı; arama
+ * uygunluğu `offer_count > 0 OR foreign_offer_count > 0`'dır.
  *
  * Aynı SQL Python tarafında `services/ingest/db/product_aggregates.py`
  * içindedir (toplama/eşleştirme bunu çağıramaz); ikisi birlikte değişir.
@@ -53,24 +55,28 @@ export async function refreshProductAggregates(
         max_price        = agg.max_price,
         offer_count      = agg.offer_count,
         in_stock_count   = agg.in_stock_count,
+        foreign_offer_count = agg.foreign_offer_count,
         price_updated_at = now(),
         updated_at       = now()
     FROM (
         SELECT p2.id AS product_id,
-               min(o.current_price)                                         AS min_price,
-               max(o.current_price)                                         AS max_price,
-               count(DISTINCT o.merchant_id)::int                           AS offer_count,
-               count(DISTINCT o.merchant_id) FILTER (WHERE o.in_stock)::int AS in_stock_count
+               min(o.current_price) FILTER (WHERE o.currency = 'TRY') AS min_price,
+               max(o.current_price) FILTER (WHERE o.currency = 'TRY') AS max_price,
+               count(DISTINCT o.merchant_id) FILTER (WHERE o.currency = 'TRY')::int AS offer_count,
+               count(DISTINCT o.merchant_id)
+                   FILTER (WHERE o.currency = 'TRY' AND o.in_stock)::int AS in_stock_count,
+               count(DISTINCT o.merchant_id)
+                   FILTER (WHERE o.currency <> 'TRY')::int AS foreign_offer_count
           FROM product p2
           LEFT JOIN (offer o JOIN merchant m ON m.id = o.merchant_id AND m.is_active)
             ON o.product_id = p2.id AND o.is_active AND o.current_price IS NOT NULL
-           AND o.currency = 'TRY'
          WHERE ${condition}
          GROUP BY p2.id
     ) agg
     WHERE p.id = agg.product_id
-      AND (p.min_price, p.max_price, p.offer_count, p.in_stock_count)
-          IS DISTINCT FROM (agg.min_price, agg.max_price, agg.offer_count, agg.in_stock_count)
+      AND (p.min_price, p.max_price, p.offer_count, p.in_stock_count, p.foreign_offer_count)
+          IS DISTINCT FROM (agg.min_price, agg.max_price, agg.offer_count, agg.in_stock_count,
+                            agg.foreign_offer_count)
   `);
   return result.rowCount ?? 0;
 }

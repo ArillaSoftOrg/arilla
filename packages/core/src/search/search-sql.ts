@@ -7,7 +7,9 @@
  * Dahili detay — `index.ts`'ten dışa açılmaz.
  */
 import { type SQL, sql } from "drizzle-orm";
+import { MAX_RATE_AGE_DAYS } from "../pricing/fx.ts";
 import { arrayParam, balancedScoreExpr, balancedScoreFactors } from "./ranking.ts";
+import type { ForeignPrice } from "./result-types.ts";
 import {
   foldedDocumentExpr,
   headPrefilter,
@@ -25,30 +27,121 @@ export function merchantIdsOf(filters: QueryFilters): number[] | null {
 }
 
 /**
+ * Eşit alakada TRY teklifli ürün önde (karar 0124): yurt dışı teklifin mağaza
+ * güveni bu çarpanla düşürülür. Kargo/gümrük/teslim belirsizliğinin karşılığıdır.
+ */
+export const FOREIGN_OFFER_TRUST_FACTOR = 0.8;
+
+/**
+ * Yaklaşık TRY için en güncel TCMB döviz satış kuru, para birimi başına
+ * (`pricing/fx.ts` ile aynı kural: `MAX_RATE_AGE_DAYS`'ten eski kur kullanılmaz,
+ * kur uydurulmaz).
+ */
+function fxCte(): SQL {
+  return sql`
+    fx AS (
+      SELECT DISTINCT ON (f.base) f.base, f.rate, f.effective_date
+      FROM fx_rate f
+      WHERE f.source = 'tcmb' AND f.quote = 'TRY' AND f.rate_kind = 'forex_selling'
+        AND f.effective_date >= (now() AT TIME ZONE 'UTC')::date - ${MAX_RATE_AGE_DAYS}::int
+        AND f.effective_date <= (now() AT TIME ZONE 'UTC')::date
+      ORDER BY f.base, f.effective_date DESC
+    )
+  `;
+}
+
+/**
  * `best_offer`: urun basina en dusuk fiyatli aktif teklif. `onlyProductId`
  * yalnizca tani icindir: tek urunun satirini ayni kuralla hesaplar.
+ *
+ * Karar 0124: TRY teklif her zaman once secilir. Yalnizca yurt disi teklifi olan
+ * urunde `current_price` TCMB kuruyla YAKLASIK kurustur (numeric, float yok,
+ * yarim yukari); orijinal tutar `original_price`/`original_currency`, kur tarihi
+ * `fx_date` olarak tasinir. Guncel kur yoksa yurt disi teklif secilmez.
+ *
+ * Yurt disi teklif (milyonlarca AliExpress satiri) YALNIZCA aday kumesi sinirliyken
+ * taranir: `productIds` (metnin bas isim on filtresi, benzerlik kenarlari) ya da
+ * `onlyProductId`. Sinir yoksa (metinsiz filtre sorgusu) CTE eskisi gibi TRY-only'dir
+ * ve `offer_try_product_idx`'i kullanir; her aramada tum teklif tablosu taranmaz.
  */
 export function bestOfferCte(
   inStockOnly: boolean,
   merchantIds: number[] | null,
   onlyProductId: number | null = null,
+  productIds: SQL | null = null,
 ): SQL {
   const only = onlyProductId === null ? sql`` : sql`AND o.product_id = ${onlyProductId}`;
-  return sql`
+  const scoped = productIds === null ? sql`` : sql`AND ${productIds}`;
+  const merchantFilter = sql`(${arrayParam(merchantIds)}::bigint[] IS NULL OR o.merchant_id = ANY(${arrayParam(merchantIds)}::bigint[]))`;
+  if (onlyProductId === null && productIds === null) {
+    return sql`
     best_offer AS (
       SELECT DISTINCT ON (o.product_id)
-        o.product_id, o.id AS offer_id, o.current_price, o.in_stock, o.merchant_id, m.trust_score
+        o.product_id, o.id AS offer_id, o.current_price, o.in_stock, o.merchant_id, m.trust_score,
+        FALSE AS is_foreign, NULL::bigint AS original_price, NULL::text AS original_currency,
+        NULL::text AS fx_date
       FROM offer o
       JOIN merchant m ON m.id = o.merchant_id
       WHERE o.product_id IS NOT NULL
         AND o.is_active AND m.is_active
         AND o.currency = 'TRY'
-        AND (${arrayParam(merchantIds)}::bigint[] IS NULL OR o.merchant_id = ANY(${arrayParam(merchantIds)}::bigint[]))
+        AND ${merchantFilter}
         AND (NOT ${inStockOnly} OR o.in_stock)
-        ${only}
       ORDER BY o.product_id, o.current_price ASC NULLS LAST
     )
   `;
+  }
+  const priceTry = sql`(CASE WHEN o.currency = 'TRY' THEN o.current_price
+                         ELSE round(o.current_price * fx.rate)::bigint END)`;
+  return sql`
+    ${fxCte()},
+    best_offer AS (
+      SELECT DISTINCT ON (o.product_id)
+        o.product_id, o.id AS offer_id, ${priceTry} AS current_price, o.in_stock, o.merchant_id,
+        m.trust_score,
+        (o.currency <> 'TRY') AS is_foreign,
+        o.current_price AS original_price, o.currency AS original_currency,
+        fx.effective_date::text AS fx_date
+      FROM offer o
+      JOIN merchant m ON m.id = o.merchant_id
+      LEFT JOIN fx ON o.currency <> 'TRY' AND fx.base = o.currency
+      WHERE o.product_id IS NOT NULL
+        AND o.is_active AND m.is_active
+        AND (o.currency = 'TRY' OR (fx.rate IS NOT NULL AND o.current_price > 0))
+        AND ${merchantFilter}
+        AND (NOT ${inStockOnly} OR o.in_stock)
+        ${only}
+        ${scoped}
+      ORDER BY o.product_id, (o.currency <> 'TRY'), ${priceTry} ASC NULLS LAST
+    )
+  `;
+}
+
+/** Yurt disi teklifte guveni `FOREIGN_OFFER_TRUST_FACTOR` ile dusurulmus guven. */
+const originAdjustedTrust = sql`(bo.trust_score * CASE WHEN bo.is_foreign THEN ${FOREIGN_OFFER_TRUST_FACTOR}::numeric ELSE 1 END)`;
+
+/** Kart icin best_offer'in yurt disi kolonlari (`foreignPriceOf` okur). */
+export const BEST_OFFER_ORIGIN_COLUMNS = sql`bo.is_foreign, bo.original_price, bo.original_currency, bo.fx_date`;
+
+/** `BEST_OFFER_ORIGIN_COLUMNS` satir tipi (LEFT JOIN'de hepsi null olabilir). */
+export interface OriginColumns {
+  is_foreign: boolean | null;
+  original_price: string | null;
+  original_currency: string | null;
+  /** YYYY-MM-DD (SQL'de metne cevrilir: surucu tarih saat dilimine kaymasin). */
+  fx_date: string | null;
+}
+
+/** Karar 0124: secilen teklif yurt disiysa orijinal tutar ve kur tarihi. */
+export function foreignPriceOf(row: OriginColumns): ForeignPrice | undefined {
+  if (!row.is_foreign || row.original_price === null || !row.original_currency || !row.fx_date) {
+    return undefined;
+  }
+  return {
+    originalMinor: Number(row.original_price),
+    currency: row.original_currency.trim(),
+    fxDate: row.fx_date,
+  };
 }
 
 /**
@@ -149,6 +242,14 @@ export function buildFilterClause(filters: QueryFilters): SQL {
   );
 }
 
+/**
+ * `best_offer`'in aday kapsami: metin varsa ayni bas isim on filtresi (`/ara` urunleri
+ * de ondan gecer, sonuc degismez), yoksa null (TRY-only CTE; karar 0124).
+ */
+export function candidateOfferScope(slots: readonly string[][]): SQL | null {
+  return slots.length === 0 ? null : headPrefilter(slots, sql`o.product_id`);
+}
+
 /** Metin kapisinin slotlari: onbellekteki eski satirlarda `text_slots` yoktur. */
 export function textSlotsOf(query: QueryObject): string[][] {
   return query.text_slots ?? matchTokens(query.unparsed).map((token) => [token]);
@@ -212,12 +313,13 @@ export function scoredCtes(
   if (sort === "best_deal") {
     const extra = explain ? sql`, ${text.relevance}::double precision AS f_relevance` : sql``;
     return sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
+    WITH ${bestOfferCte(inStockOnly, merchantIds, null, candidateOfferScope(text.slots))},
     scored AS (
       SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
              b.name AS brand_name, c.path AS category_path,
              bo.current_price, bo.in_stock, bo.trust_score,
              pps.current_percentile, pps.list_price_inflated, p.offer_count,
+             ${BEST_OFFER_ORIGIN_COLUMNS},
              (100 - COALESCE(pps.current_percentile, 100))::double precision AS score${extra}
       FROM ${text.products}
       JOIN best_offer bo ON bo.product_id = p.id
@@ -225,7 +327,8 @@ export function scoredCtes(
       LEFT JOIN brand b ON b.id = p.brand_id
       LEFT JOIN category c ON c.id = p.category_id
       ${text.lateral}
-      WHERE pps.list_price_inflated = FALSE
+      -- Fiyat yuzdeligi TRY gecmisidir; yurt disi teklif "en iyi fiyat" sekmesine girmez (0124).
+      WHERE pps.list_price_inflated = FALSE AND NOT bo.is_foreign
         AND ${buildFilterClause(query.filters)}
         AND ${text.gate}
     )
@@ -234,7 +337,7 @@ export function scoredCtes(
 
   const inputs = [
     text.relevance,
-    sql`bo.trust_score`,
+    originAdjustedTrust,
     sql`bo.in_stock`,
     sql`pps.current_percentile`,
   ] as const;
@@ -249,12 +352,13 @@ export function scoredCtes(
              ${f.price}::double precision AS f_price`;
   }
   return sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
+    WITH ${bestOfferCte(inStockOnly, merchantIds, null, candidateOfferScope(text.slots))},
     scored AS (
       SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
              b.name AS brand_name, c.path AS category_path,
              bo.current_price, bo.in_stock, bo.trust_score,
              pps.current_percentile, pps.list_price_inflated, p.offer_count,
+             ${BEST_OFFER_ORIGIN_COLUMNS},
              ${score} AS score${extra}
       FROM ${text.products}
       JOIN best_offer bo ON bo.product_id = p.id

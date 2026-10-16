@@ -29,6 +29,20 @@ export interface SearchResultItem {
    * farkli fiyatli); kart "...'den baslayan" yazar.
    */
   priceFromVariants?: boolean;
+  /**
+   * Karar 0124: secilen teklif yurt disi (TRY disi) ise dolu. O zaman `minPrice`
+   * TCMB kuruyla YAKLASIK kurustur; kart "yaklaşık" yazar ve orijinal tutari,
+   * kur tarihiyle birlikte gosterir. TRY teklifte yoktur.
+   */
+  foreignPrice?: ForeignPrice;
+}
+
+export interface ForeignPrice {
+  /** Orijinal tutar, para biriminin alt birimi (cent). */
+  originalMinor: number;
+  currency: string;
+  /** TCMB bulten tarihi, YYYY-MM-DD. */
+  fxDate: string;
 }
 
 export interface SearchResult {
@@ -58,6 +72,8 @@ export interface AlternativeProduct {
   similarityKind: "same" | "visual" | "semantic" | "substitute";
   /** 0037: bkz. `SearchResultItem.priceFromVariants`. */
   priceFromVariants?: boolean;
+  /** Karar 0124: bkz. `SearchResultItem.foreignPrice`. */
+  foreignPrice?: ForeignPrice;
 }
 
 export interface MerchantOffer {

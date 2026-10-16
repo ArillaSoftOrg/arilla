@@ -17,7 +17,9 @@ degisir.
 
 Yalnizca TRY teklifler sayilir: TRY disi (or. AliExpress USD) tutar kurus gibi
 okunup `min_price`i kirletmesin (karar 0113/0121); yurt disi teklifler urun sayfasinda
-kendi para birimiyle gosterilir.
+kendi para birimiyle gosterilir. `foreign_offer_count` (0076, karar 0124) = fiyatli
+aktif TRY DISI teklifi olan farkli magaza sayisi; arama uygunlugu
+`offer_count > 0 OR foreign_offer_count > 0`dir.
 
 Aktif teklifi kalmayan urun sifirlanir; degismeyen satir yazilmaz (tekrar
 calistirmak 0 satir gunceller).
@@ -35,24 +37,28 @@ UPDATE product p SET
     max_price        = agg.max_price,
     offer_count      = agg.offer_count,
     in_stock_count   = agg.in_stock_count,
+    foreign_offer_count = agg.foreign_offer_count,
     price_updated_at = now(),
     updated_at       = now()
 FROM (
     SELECT p2.id AS product_id,
-           min(o.current_price)                                         AS min_price,
-           max(o.current_price)                                         AS max_price,
-           count(DISTINCT o.merchant_id)::int                           AS offer_count,
-           count(DISTINCT o.merchant_id) FILTER (WHERE o.in_stock)::int AS in_stock_count
+           min(o.current_price) FILTER (WHERE o.currency = 'TRY') AS min_price,
+           max(o.current_price) FILTER (WHERE o.currency = 'TRY') AS max_price,
+           count(DISTINCT o.merchant_id) FILTER (WHERE o.currency = 'TRY')::int AS offer_count,
+           count(DISTINCT o.merchant_id)
+               FILTER (WHERE o.currency = 'TRY' AND o.in_stock)::int AS in_stock_count,
+           count(DISTINCT o.merchant_id)
+               FILTER (WHERE o.currency <> 'TRY')::int AS foreign_offer_count
       FROM product p2
       LEFT JOIN (offer o JOIN merchant m ON m.id = o.merchant_id AND m.is_active)
         ON o.product_id = p2.id AND o.is_active AND o.current_price IS NOT NULL
-       AND o.currency = 'TRY'
      WHERE {scope}
      GROUP BY p2.id
 ) agg
 WHERE p.id = agg.product_id
-  AND (p.min_price, p.max_price, p.offer_count, p.in_stock_count)
-      IS DISTINCT FROM (agg.min_price, agg.max_price, agg.offer_count, agg.in_stock_count)
+  AND (p.min_price, p.max_price, p.offer_count, p.in_stock_count, p.foreign_offer_count)
+      IS DISTINCT FROM (agg.min_price, agg.max_price, agg.offer_count, agg.in_stock_count,
+                        agg.foreign_offer_count)
 """
 
 #: Tum YAYINLANMIS katalog (onarim yolu). Yayinlanmamis kaynak ilanlari (milyonlarca taslak,
