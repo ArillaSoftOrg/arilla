@@ -4,6 +4,7 @@ import { extractHepsiburadaPage } from "@arilla/core/catalog-collection-extract"
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { type CollectorEnv, runCollection } from "./collector-logic.ts";
+import { collectionPageLoadedAsDocument, RELOAD_REQUIRED_TEXT } from "./document-load.ts";
 
 interface OpenRun {
   id: number;
@@ -56,6 +57,12 @@ export function CollectorClient({
     ];
     if (list.length === 0) {
       append("Sorgu listesi boş.");
+      return;
+    }
+    // CSP izni yalniz belge bu yolda yuklendiyse gecerli; degilse istek ATILMAZ (butce harcanmaz).
+    if (!collectionPageLoadedAsDocument()) {
+      append(RELOAD_REQUIRED_TEXT);
+      window.location.reload();
       return;
     }
     stop.current = false;

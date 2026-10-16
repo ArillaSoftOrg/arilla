@@ -7,7 +7,7 @@ import {
   SitemapParseError,
   SitemapUrlsetParser,
 } from "@arilla/core/catalog-discovery-extract";
-import type { ApiData } from "./collector-logic.ts";
+import { type ApiData, describeFetchError } from "./collector-logic.ts";
 
 /**
  * Sitemap kesfi akis mantigi (karar 0120). Ag, bekleme ve sunucu cagrilari
@@ -62,6 +62,7 @@ export type DiscoveryStopReason =
   | "daily_quota"
   | "monthly_quota"
   | "session_limit"
+  | "network"
   | "error";
 
 type FileOutcome =
@@ -73,7 +74,8 @@ type FileOutcome =
       errorCode: string;
       reason: DiscoveryStopReason;
       bytes: number;
-    };
+    }
+  | { kind: "network"; failure: { code: string; detail: string } };
 
 async function readUnit(
   env: DiscoveryEnv,
@@ -83,14 +85,10 @@ async function readUnit(
   let res: Awaited<ReturnType<DiscoveryEnv["fetchSource"]>>;
   try {
     res = await env.fetchSource(`${SITEMAP_ORIGIN}/${key}`);
-  } catch {
-    return {
-      kind: "stop",
-      status: "failed",
-      errorCode: "network_error",
-      reason: "error",
-      bytes: 0,
-    };
+  } catch (error) {
+    // HTTP yaniti hic yok (ag, zaman asimi, CSP, okunamayan yanit): engel kaniti degil, birim
+    // basarisiz sayilmaz (deneme hakki yanmaz), kosu acik kalir (karar 0117 madde 6).
+    return { kind: "network", failure: describeFetchError(error) };
   }
   if (BLOCK_STATUSES.has(res.status)) {
     await res.body?.cancel().catch(() => {});
@@ -313,6 +311,16 @@ export async function runDiscovery(
     const fetchedAt = env.now().toISOString();
     const out = await readUnit(env, unit.unitKey, approved - bytes);
 
+    if (out.kind === "network") {
+      // Birim yazilmaz: durumu ve deneme sayisi degismez. Istek rezervasyonu iade edilmez
+      // (karar 0124); `requests_made` sonraki partide birlikte yazilir.
+      env.log(
+        `${unit.unitKey}: kaynaktan yanıt alınamadı (${out.failure.code}: ${out.failure.detail}). Engel kanıtı değildir; ayrıntı tarayıcı konsolundadır. Koşu AÇIK; nedeni giderip aynı birimden sürdürülebilir. Otomatik yeniden deneme yok.`,
+      );
+      reason = "network";
+      break;
+    }
+
     if (out.kind === "index") {
       if (out.keys.length === 0) {
         env.log("İndeks ürün sitemap dosyası içermiyor; durdu.");
@@ -377,13 +385,16 @@ export async function runDiscovery(
     const prog = await env.api({ op: "discovery_progress", source: env.source, runId });
     const u = (prog.data?.unitsByStatus ?? {}) as Record<string, number>;
     const open = (u.pending ?? 0) + (u.failed ?? 0) + (u.blocked ?? 0);
-    const closed = await env.api({
-      op: "close",
-      runId,
-      outcome: open === 0 ? "completed" : "aborted",
-    });
+    const outcome = open === 0 ? "completed" : "aborted";
+    const closed = await env.api({ op: "close", runId, outcome });
+    // Sonuc acikca yazilir: "kapandi" tek basina basari demek degildir.
+    const result = !closed.ok
+      ? "kapatılamadı"
+      : outcome === "completed"
+        ? "tamamlandı"
+        : "eksik birimlerle durduruldu: kalan birimlerin deneme hakkı tükendi";
     env.log(
-      `Koşu kapandı (${closed.ok ? "tamam" : "kapatılamadı"}): ${prog.data?.uniqueProducts ?? "?"} benzersiz kimlik; tamamlanmamış birim ${open}. Bu sayı katalogun tamamı olarak sunulmaz.`,
+      `Koşu kapandı (${result}): ${prog.data?.uniqueProducts ?? "?"} benzersiz kimlik; tamamlanmamış birim ${open}. Bu sayı katalogun tamamı olarak sunulmaz.`,
     );
   } else if (reason === "blocked") {
     await env.api({ op: "close", runId, outcome: "aborted" });
