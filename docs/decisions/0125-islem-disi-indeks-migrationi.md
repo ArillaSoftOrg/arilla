@@ -15,7 +15,7 @@
 3. Kilit süresi ayrıdır: `MIGRATION_CONCURRENT_LOCK_TIMEOUT` (varsayılan 10 dk).
    CIC yazımı kilitlemez, fakat başlamadan önce açık işlemlerin bitmesini bekler;
    normal dosyaların 5 sn'lik süresi bu bekleyişi her uzun toplu işte düşürürdü.
-4. Ölçüm: `pg_stat_statements` ayrı `monitoring` şemasında (migration 0078) ve
+4. Ölçüm: `pg_stat_statements` ayrı `monitoring` şemasında (migration 0081) ve
    `shared_preload_libraries` ile (`infra/vps/postgres/postgresql.conf`, yeniden
    başlatma ister). Rapor `pnpm db:health` (salt okunur): indekssiz FK, gereksiz ve
    kullanılmayan indeks, ölü satır, en pahalı 20 sorgu. Aynı yeniden başlatmayla

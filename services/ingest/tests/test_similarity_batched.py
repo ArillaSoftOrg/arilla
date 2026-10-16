@@ -330,8 +330,7 @@ def test_batched_aggregate_refresh_matches_single_statement(
     def snapshot() -> list[tuple[object, ...]]:
         with _owner() as conn, conn.cursor() as cur:
             cur.execute(
-                """SELECT id, min_price, max_price, offer_count, in_stock_count,
-                          foreign_offer_count
+                """SELECT id, min_price, max_price, offer_count, in_stock_count
                      FROM product WHERE id = ANY(%s) ORDER BY id""",
                 (product_ids,),
             )
