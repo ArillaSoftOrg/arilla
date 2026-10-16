@@ -124,6 +124,7 @@ export function HomeHeader({
   const menuId = useId();
   const menuButtonRef = useRef<HTMLButtonElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const menuRef = useRef<HTMLElement>(null);
   const wasOpenRef = useRef(false);
   const accountText = accountHref ? accountLabel : loginLabel;
   const accountUrl = accountHref ?? loginHref;
@@ -176,11 +177,58 @@ export function HomeHeader({
 
   useEffect(() => {
     if (!menuOpen) return;
+    const menu = menuRef.current;
+    if (!menu) return;
     const previousOverflow = document.body.style.overflow;
+    // Hide the background from keyboard and assistive technology while open.
+    const background: { element: HTMLElement; inert: boolean }[] = [];
+    let branch: HTMLElement = menu.parentElement ?? menu;
+    while (branch.parentElement) {
+      for (const sibling of branch.parentElement.children) {
+        if (sibling !== branch && sibling instanceof HTMLElement) {
+          background.push({ element: sibling, inert: sibling.inert });
+          sibling.inert = true;
+        }
+      }
+      branch = branch.parentElement;
+      if (branch === document.body) break;
+    }
 
     function handleKeyDown(event: KeyboardEvent) {
       if (event.key === "Escape") {
+        event.preventDefault();
         setMenuOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !menu) return;
+      const items = Array.from(
+        menu.querySelectorAll<HTMLElement>(
+          'a[href], button, input, select, textarea, [tabindex]',
+        ),
+      ).filter(
+        (element) =>
+          element.tabIndex >= 0 &&
+          !element.matches(":disabled") &&
+          !element.closest("[inert]") &&
+          element.getClientRects().length > 0,
+      );
+      const first = items[0];
+      const last = items[items.length - 1];
+      if (!first || !last) {
+        event.preventDefault();
+        menu.focus();
+      } else if (
+        event.shiftKey &&
+        (document.activeElement === first || !menu.contains(document.activeElement))
+      ) {
+        event.preventDefault();
+        last.focus();
+      } else if (
+        !event.shiftKey &&
+        (document.activeElement === last || !menu.contains(document.activeElement))
+      ) {
+        event.preventDefault();
+        first.focus();
       }
     }
 
@@ -190,6 +238,7 @@ export function HomeHeader({
     return () => {
       document.removeEventListener("keydown", handleKeyDown);
       document.body.style.overflow = previousOverflow;
+      for (const { element, inert } of background) element.inert = inert;
     };
   }, [menuOpen]);
 
@@ -264,14 +313,19 @@ export function HomeHeader({
           type="button"
           className={styles.mobileMenuScrim}
           aria-label="Menüyü kapat"
-          tabIndex={menuOpen ? 0 : -1}
+          aria-hidden="true"
+          tabIndex={-1}
           onClick={() => setMenuOpen(false)}
         />
         {/* Karar: panel uc bolge - ust (marka + kapat), kaydirilabilir govde
             (gezinme, kisisel bolum, yardimci link, tema) ve altta sabit hesap
             alani. Kapaliyken `inert`: odak ve ekran okuyucu disarida. */}
         <aside
+          ref={menuRef}
           id={menuId}
+          role="dialog"
+          aria-modal={menuOpen ? true : undefined}
+          tabIndex={-1}
           className={styles.mobileMenu}
           aria-label={navAriaLabel}
           aria-hidden={!menuOpen}
