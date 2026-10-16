@@ -6,11 +6,13 @@
  * Her liste sayfalı ve zaman aşımlıdır. Başlık araması `product_title_fold_trgm`
  * indeksinin ifadesiyle (`foldedTitleExpr`) yapılır.
  */
+
 import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
 import { foldedTitleExpr } from "../search/text-match.ts";
 import { clampPage, clampPageSize, containsPattern, isPositiveId, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import { OFFER_SEEN_AT, offerNotSeenSince } from "./offer-seen.ts";
 import { httpUrl, safeUrl } from "./redact.ts";
 
 export const PRODUCT_QUALITY_FILTERS = [
@@ -81,7 +83,21 @@ const ISSUE_SQL: Record<ProductIssueFilter, SQL> = {
     SELECT 1 FROM product p2 WHERE p2.gtin = p.gtin AND p2.id <> p.id))`,
 };
 
+/**
+ * Yayın durumu süzgeci (karar 0121). Varsayılan `published`: milyonlarca taslak
+ * (kaynak ilanı) liste ve sayaçlara girmez. Taslaklar kimlik, slug ya da kaynak
+ * kimliğiyle bulunur (başlık indeksi yalnızca yayınlanmışları kapsar).
+ */
+export const PRODUCT_STATE_FILTERS = ["published", "draft", "ready", "held", "all"] as const;
+export type ProductStateFilter = (typeof PRODUCT_STATE_FILTERS)[number];
+
+export function isProductStateFilter(value: unknown): value is ProductStateFilter {
+  return typeof value === "string" && (PRODUCT_STATE_FILTERS as readonly string[]).includes(value);
+}
+
 export interface ProductSearchFilter {
+  /** Yayın durumu; verilmezse `published`. */
+  state?: ProductStateFilter;
   /** Sayı → id; 8–14 hane → GTIN (ürün ya da varyant); diğer → başlık. */
   query?: string;
   quality?: ProductQualityFilter;
@@ -109,6 +125,8 @@ function queryCondition(query: string | undefined): SQL | null {
   const q = query?.trim() ?? "";
   if (!q) return null;
   if (/^#?\d{1,7}$/.test(q)) return sql`p.id = ${Number(q.replace("#", ""))}`;
+  // Kaynak ilan kimliği (ör. 16 haneli AliExpress ürün kimliği): benzersiz indeksle.
+  if (/^\d{15,20}$/.test(q)) return sql`p.source_external_id = ${q}`;
   if (/^\d{8,14}$/.test(q)) {
     return sql`(p.gtin = ${q} OR EXISTS (
       SELECT 1 FROM offer_variant v JOIN offer o ON o.id = v.offer_id
@@ -127,6 +145,8 @@ export async function searchProducts(
   assertCapability(actor, "catalog.read");
   const page = clampPage(filter.page);
   const conditions: SQL[] = [sql`true`];
+  const state = isProductStateFilter(filter.state) ? filter.state : "published";
+  if (state !== "all") conditions.push(sql`p.publication_state = ${state}`);
   const q = queryCondition(filter.query);
   if (q) conditions.push(q);
   if (isProductQualityFilter(filter.quality)) conditions.push(QUALITY_SQL[filter.quality]);
@@ -186,6 +206,7 @@ export async function countProductQuality(
              count(*) FILTER (WHERE ${QUALITY_SQL.no_price}) AS no_price,
              count(*) FILTER (WHERE ${QUALITY_SQL.stale_price}) AS stale_price
         FROM product p
+       WHERE p.publication_state = 'published'
     `);
     const row = result.rows[0] ?? {};
     return {
@@ -322,7 +343,7 @@ export async function getProductDetail(
     }>(sql`
       SELECT o.id, m.slug AS merchant_slug, m.name AS merchant_name, m.is_active AS merchant_active,
              o.external_id, o.title_raw, o.url, o.current_price, o.list_price, o.currency,
-             o.in_stock, o.is_active, o.discovery_source, o.last_seen_at,
+             o.in_stock, o.is_active, o.discovery_source, ${OFFER_SEEN_AT} AS last_seen_at,
              o.attributes_raw->>'gtin' AS gtin
         FROM offer o JOIN merchant m ON m.id = o.merchant_id
        WHERE o.product_id = ${productId}
@@ -513,7 +534,7 @@ const OFFER_STATE_SQL: Record<OfferState, SQL> = {
   invalid_gtin: sql`o.is_active AND o.attributes_raw ? 'gtin'
     AND NOT ${validGtinSql(sql`(o.attributes_raw->>'gtin')`)}`,
   inactive: sql`NOT o.is_active`,
-  stale: sql`o.is_active AND o.last_seen_at < now() - (${STALE_OFFER_DAYS} * interval '1 day')`,
+  stale: sql`o.is_active AND ${offerNotSeenSince(sql`now() - (${STALE_OFFER_DAYS} * interval '1 day')`)}`,
   all: sql`true`,
 };
 
@@ -598,7 +619,7 @@ export async function listOffers(
                WHERE mc.offer_id = o.id AND mc.status = 'pending') AS pending,
              (SELECT count(*) FROM match_candidate mc
                WHERE mc.offer_id = o.id AND mc.status = 'rejected') AS rejected,
-             o.last_seen_at, o.first_seen_at, o.attributes_raw->>'gtin' AS gtin,
+             ${OFFER_SEEN_AT} AS last_seen_at, o.first_seen_at, o.attributes_raw->>'gtin' AS gtin,
              (o.attributes_raw ? 'gtin' OR o.attributes_raw ? 'mpn' OR EXISTS (
                SELECT 1 FROM offer_variant v WHERE v.offer_id = o.id AND v.gtin IS NOT NULL
              )) AS has_identifier,

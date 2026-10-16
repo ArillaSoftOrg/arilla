@@ -1,5 +1,5 @@
 /**
- * Trendyol canli urun kesfi PROTOTIPI (docs/decisions/0106).
+ * Trendyol canli urun kesfi PROTOTIPI (docs/decisions/0126).
  *
  * Model, Jina, Gemini, veritabani, Redis YOK. Hicbir sey saklanmaz. Arama
  * sayfasi (/sr?q=) robots.txt ile yasak oldugu icin KULLANILMAZ; kesif:

@@ -9,9 +9,9 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ProductCard, VisuallyHidden } from "@arilla/ui";
-import { Suspense } from "react";
+import type { ReactNode } from "react";
 import { offerCountLabel, resultCountLabel } from "../ara/search-results.tsx";
-import { WebSearchPending, WebSearchResults } from "../ara/web-search-section.tsx";
+import { WebGridItems, WebOnlyResults } from "../ara/web-search-section.tsx";
 import { startWebSearch } from "../ara/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
 import { ResultFeedback } from "./chat-feedback-client.tsx";
@@ -34,9 +34,12 @@ interface GridItem {
 export function ChatResultGrid({
   items,
   labelledBy,
+  extra,
 }: {
   items: readonly GridItem[];
   labelledBy: string;
+  /** Aynı ızgaranın sonuna eklenen `<li>`ler (karar 0106: internet kartları). */
+  extra?: ReactNode;
 }) {
   return (
     // biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür.
@@ -56,6 +59,7 @@ export function ChatResultGrid({
           />
         </li>
       ))}
+      {extra}
     </ul>
   );
 }
@@ -150,11 +154,8 @@ export async function ChatResults({
     // Seçtiklerimiz dışındaki bir sekme boşsa (örn. fırsat sıralaması fiyat istatistiği ister)
     // sekmeler kalır ve neden söylenir; sonuç "yok" denmez.
     const otherTab = sort !== "secilen";
-    return (
-      <section className={styles.results} data-search-mode="empty" aria-labelledby={headingId}>
-        {otherTab ? (
-          <ResultTabs conversationId={conversationId} active={sort} countLabel={null} />
-        ) : null}
+    const emptyBlock = (
+      <>
         <h3 id={headingId} className={styles.resultsHeading}>
           {otherTab ? CHAT_COPY.noResultsInTab : CHAT_COPY.noResultsTitle}
         </h3>
@@ -162,6 +163,27 @@ export async function ChatResults({
           {otherTab ? CHAT_COPY.noResultsInTabHint : CHAT_COPY.noResultsDescription}
         </p>
         {noteBlock}
+      </>
+    );
+    // Karar 0106: katalog boşken internet aramasının sonucu beklenir; "ürün yok" yalnızca
+    // bütün uygun kaynaklar tamamlandıktan sonra söylenir. Arama başarısızsa bu ayrıca belirtilir.
+    const waitForWeb = webSearch !== null && !otherTab;
+    return (
+      <section
+        className={styles.results}
+        data-search-mode="empty"
+        {...(waitForWeb
+          ? { "aria-label": CHAT_COPY.resultsRegion }
+          : { "aria-labelledby": headingId })}
+      >
+        {otherTab ? (
+          <ResultTabs conversationId={conversationId} active={sort} countLabel={null} />
+        ) : null}
+        {waitForWeb ? (
+          <WebOnlyResults promise={webSearch} variant="chat" catalog={[]} empty={emptyBlock} />
+        ) : (
+          emptyBlock
+        )}
       </section>
     );
   }
@@ -185,21 +207,23 @@ export async function ChatResults({
         />
       )}
       {noteBlock}
-      <ChatResultGrid items={outcome.items} labelledBy={headingId} />
+      <ChatResultGrid
+        items={outcome.items}
+        labelledBy={headingId}
+        extra={
+          webSearch && !isFallback ? (
+            <WebGridItems
+              promise={webSearch}
+              variant="chat"
+              catalog={outcome.items.map((item) => ({
+                title: item.title,
+                imageUrl: item.primaryImageUrl,
+              }))}
+            />
+          ) : null
+        }
+      />
       <ResultFeedback conversationId={conversationId} messageSeq={messageSeq} initial={helpful} />
-      {webSearch && !isFallback ? (
-        <Suspense fallback={<WebSearchPending variant="chat" />}>
-          <WebSearchResults
-            promise={webSearch}
-            variant="chat"
-            idPrefix={`${headingId}-internet`}
-            catalog={outcome.items.map((item) => ({
-              title: item.title,
-              imageUrl: item.primaryImageUrl,
-            }))}
-          />
-        </Suspense>
-      ) : null}
       {isFallback ? null : (
         <a className={styles.seeAll} href={fullResultsHref(intent, sort)}>
           {countKnown ? CHAT_COPY.seeAllCount(total) : CHAT_COPY.seeAll}

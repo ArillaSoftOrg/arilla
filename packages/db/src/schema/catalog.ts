@@ -87,6 +87,13 @@ export const product = pgTable("product", {
   priceUpdatedAt: timestamp("price_updated_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+  /** 0074 (karar 0121): `published` disindaki urun kullaniciya kapali kaynak ilanidir. */
+  publicationState: text("publication_state").notNull().default("published"),
+  holdReason: text("hold_reason"),
+  publishedAt: timestamp("published_at", { withTimezone: true }),
+  sourceMerchantId: bigint("source_merchant_id", { mode: "number" }),
+  sourceExternalId: text("source_external_id"),
+  sourceOfferId: bigint("source_offer_id", { mode: "number" }),
 });
 
 export const productSlugHistory = pgTable("product_slug_history", {
@@ -122,6 +129,19 @@ export const offer = pgTable("offer", {
   firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
   lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
   isActive: boolean("is_active").notNull().default(true),
+  /** 0065 (karar 0111): pazaryeri saticisi; NULL = merchant'in kendisi satiyor. */
+  sellerId: bigint("seller_id", { mode: "number" }),
+  feedSourceId: bigint("feed_source_id", { mode: "number" }),
+  /** Normalize alanlarin sha256'si; degismediyse satir yazilmaz. */
+  fingerprint: text("fingerprint"),
+  lastChangedAt: timestamp("last_changed_at", { withTimezone: true }),
+  lastSnapshotId: bigint("last_snapshot_id", { mode: "number" }),
+  deactivatedAt: timestamp("deactivated_at", { withTimezone: true }),
+  /** 0066 (karar 0112): kaynagin affiliate takip baglantisi; kanonik `url`'den ayri. */
+  affiliateUrl: text("affiliate_url"),
+  deactivationReason: text("deactivation_reason").$type<
+    "missing_from_snapshot" | "source_removed" | "admin" | "expired"
+  >(),
 });
 
 /**
@@ -162,6 +182,37 @@ export const offerVariant = pgTable("offer_variant", {
   gtin: text("gtin"),
   /** 'feed' | 'products_js' | 'sku' */
   gtinSource: text("gtin_source"),
+  /** 0065: ayni ticari varyantin saticilar arasi ortak kaydi. */
+  canonicalVariantId: bigint("canonical_variant_id", { mode: "number" }),
+  /** 0065: normalize varyant eksenleri, or. {"beden":"42","renk":"siyah"}. */
+  optionValues: jsonb("option_values").$type<Record<string, string>>().notNull().default({}),
+});
+
+/** 0065 (karar 0111): pazaryerindeki magaza. Kimlik (merchant_id, external_id). */
+export const seller = pgTable("seller", {
+  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+  merchantId: bigint("merchant_id", { mode: "number" }).notNull(),
+  externalId: text("external_id").notNull(),
+  name: text("name"),
+  url: text("url"),
+  isActive: boolean("is_active").notNull().default(true),
+  firstSeenAt: timestamp("first_seen_at", { withTimezone: true }).notNull().defaultNow(),
+  lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
+ * 0065: urunun ticari varyanti (beden/kapasite/hacim). `optionKey` normalize,
+ * sirali "eksen=deger" listesi; tek varyantli urunde ''.
+ */
+export const canonicalVariant = pgTable("canonical_variant", {
+  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+  productId: bigint("product_id", { mode: "number" }).notNull(),
+  optionKey: text("option_key").notNull(),
+  options: jsonb("options").$type<Record<string, string>>().notNull().default({}),
+  /** GS1 dogrulanmis, 14 haneli. */
+  gtin: text("gtin"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
 /**

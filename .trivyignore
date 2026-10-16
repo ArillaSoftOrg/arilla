@@ -1,0 +1,5 @@
+# Trivy istisnalari (infra/vps ve build-push.yml). BOS TUTULUR.
+# Bir bulgu burada ancak gerekcesi, sahibi ve bitis tarihiyle yazilir:
+#   CVE-YYYY-NNNNN  # gerekce; sahip; son tarih YYYY-MM-DD
+# `ignore-unfixed` zaten duzeltmesi olmayanlari atlar; buraya yalnizca duzeltmesi OLAN
+# ama gecici olarak uygulanamayan bulgular girer.

@@ -31,8 +31,9 @@ PRODUCT_COLUMNS = """
 BY_EXACT_ID = f"""
 SELECT {PRODUCT_COLUMNS}
   FROM product p LEFT JOIN brand b ON b.id = p.brand_id
- WHERE (p.gtin IS NOT NULL AND p.gtin = %(gtin)s)
-    OR (p.mpn IS NOT NULL AND p.mpn = %(mpn)s)
+ WHERE ((p.gtin IS NOT NULL AND p.gtin = %(gtin)s)
+    OR (p.mpn IS NOT NULL AND p.mpn = %(mpn)s))
+   AND p.publication_state = 'published'
  LIMIT %(limit)s
 """
 
@@ -41,7 +42,7 @@ SELECT {PRODUCT_COLUMNS}
 BY_TRIGRAM = f"""
 SELECT {PRODUCT_COLUMNS}
   FROM product p LEFT JOIN brand b ON b.id = p.brand_id
- WHERE p.title %% %(title)s
+ WHERE p.title %% %(title)s AND p.publication_state = 'published'
  ORDER BY similarity(p.title, %(title)s) DESC
  LIMIT %(limit)s
 """
@@ -65,7 +66,7 @@ WITH nearest AS (
 )
 SELECT {PRODUCT_COLUMNS}
   FROM best
-  JOIN product p ON p.id = best.product_id
+  JOIN product p ON p.id = best.product_id AND p.publication_state = 'published'
   LEFT JOIN brand b ON b.id = p.brand_id
  ORDER BY best.distance, p.id
  LIMIT %(limit)s

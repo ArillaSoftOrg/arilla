@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { publicErrorFromBoundary } from "../../error-view.tsx";
 import { SearchErrorState } from "../search-error.tsx";
 
 /** docs/pages.md "/ara" Hata satırının görsel arama karşılığı. */
@@ -15,5 +16,5 @@ export default function GorselAramaError({
     console.error(error);
   }, [error]);
 
-  return <SearchErrorState onRetry={() => retry()} />;
+  return <SearchErrorState onRetry={() => retry()} error={publicErrorFromBoundary(error)} />;
 }

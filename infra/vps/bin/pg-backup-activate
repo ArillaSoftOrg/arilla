@@ -1,0 +1,136 @@
+#!/usr/bin/env bash
+# Yedeklemenin uretimde ETKINLESTIRILMESI (karar 0110) - ROOT ile, ELLE, ONAYLI pencerede.
+#
+#   1) on kontrol (servislere DOKUNMAZ):
+#      sudo /opt/arilla/vps/bin/pg-backup-activate preflight --image ghcr.io/arillasoftorg/arilla-postgres@sha256:<digest>
+#   2) etkinlestirme (postgres YENIDEN BASLAR, ~10-60 sn kesinti):
+#      sudo /opt/arilla/vps/bin/pg-backup-activate activate --image <ayni> --confirm-restart
+#   3) zamanlayicilari kur:
+#      sudo /opt/arilla/vps/bin/pg-backup-activate install-timers
+#   Geri alma (arsivlemeyi kapat; postgres yeniden baslar):
+#      sudo /opt/arilla/vps/bin/pg-backup-activate deactivate --confirm-restart
+#
+# Hicbir adim veri SILMEZ, mevcut yedeklere/volume'lara dokunmaz, sir yazdirmaz.
+set -euo pipefail
+# PATH sabit; ARILLA_EXTRA_PATH yalniz yerel testler icindir (sudo/systemd altinda tanimsiz).
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${ARILLA_EXTRA_PATH:+:$ARILLA_EXTRA_PATH}"
+export LC_ALL=C
+
+ROOT=${ARILLA_ROOT:-/opt/arilla}
+BDIR=${ARILLA_BACKUP_DIR:-$ROOT/backup}
+here=$(cd "$(dirname "$0")" && pwd)
+CMD=${1:-}
+shift || true
+IMAGE=
+CONFIRM=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --image) IMAGE=$2; shift 2 ;;
+    --confirm-restart) CONFIRM=1; shift ;;
+    *) echo "bilinmeyen arguman: $1" >&2; exit 64 ;;
+  esac
+done
+
+ts() { date -u +%H:%M:%S; }
+log() { printf '%s [activate] %s\n' "$(ts)" "$*"; }
+die() { printf '%s [activate] HATA: %s\n' "$(ts)" "$*" >&2; exit 1; }
+compose() { docker compose --env-file "$ROOT/compose.env" -f "$ROOT/compose.prod.yml" ${ARILLA_COMPOSE_EXTRA:+-f "$ARILLA_COMPOSE_EXTRA"} "$@"; }
+health() { compose --profile backup ps --format '{{.Service}}={{.Health}}' 2>/dev/null | awk -F= -v s="$1" '$1==s{print $2}'; }
+wait_healthy() { local _; for _ in $(seq 1 "${2:-60}"); do [ "$(health "$1")" = healthy ] && return 0; sleep 2; done; return 1; }
+
+[ "${ARILLA_ACTIVATE_ALLOW_NONROOT:-0}" = 1 ] || [ "$(id -u)" -eq 0 ] || die "root olarak calistirin"
+[ -f "$ROOT/compose.prod.yml" ] && [ -f "$ROOT/compose.env" ] || die "$ROOT altinda compose.prod.yml/compose.env yok"
+
+set_image_env() { # compose.env'de ARILLA_POSTGRES_IMAGE (yalniz bu satir degisir)
+  local f="$ROOT/compose.env" tmp
+  tmp=$(mktemp "$ROOT/.compose.env.XXXXXX")
+  grep -v '^ARILLA_POSTGRES_IMAGE=' "$f" >"$tmp" || true
+  printf 'ARILLA_POSTGRES_IMAGE=%s\n' "$1" >>"$tmp"
+  chmod --reference="$f" "$tmp" 2>/dev/null || true
+  chown --reference="$f" "$tmp" 2>/dev/null || true
+  mv -f "$tmp" "$f"
+}
+
+preflight() {
+  [ -n "$IMAGE" ] || die "--image gerekli (ghcr.io/arillasoftorg/arilla-postgres@sha256:...)"
+  [[ "$IMAGE" =~ ^[a-z0-9./:_-]+@sha256:[0-9a-f]{64}$ ]] || [[ "${ARILLA_ACTIVATE_ALLOW_TAG:-0}" = 1 ]] \
+    || die "--image digest ile sabitlenmeli (...@sha256:<64 hane>)"
+  log "imaj cekiliyor ve dogrulaniyor"
+  if [ "${ARILLA_PULL:-1}" = 1 ]; then docker pull --quiet "$IMAGE" >/dev/null || die "imaj cekilemedi (root 'docker login ghcr.io'?)"; fi
+  local v run_v
+  v=$(docker run --rm --network none --entrypoint pgbackrest "$IMAGE" version) || die "imajda pgbackrest yok"
+  log "imaj: $v, $(docker run --rm --network none --entrypoint postgres "$IMAGE" --version)"
+  run_v=$(compose exec -T postgres postgres --version 2>/dev/null || true)
+  log "calisan: ${run_v:-?}"
+  docker run --rm --network none --entrypoint sh "$IMAGE" -c 'test -x /usr/lib/postgresql/16/bin/postgres' \
+    || die "imaj PostgreSQL 16 icermiyor (ana surum degisemez)"
+  [ -f "$ROOT/env/backup.env" ] || die "$ROOT/env/backup.env yok (sablon: vps/env/backup.env.example)"
+  log "yapilandirma uretiliyor (pg-backup-configure)"
+  "$here/pg-backup-configure" --env-file "$ROOT/env/backup.env" --dir "$BDIR" >/dev/null
+  [ -f "$BDIR/repo/pgbackrest.conf" ] && [ -f "$BDIR/pg/pgbackrest.conf" ] && [ -f "$BDIR/pg/archive.conf.pending" ] || die "yapilandirma eksik"
+  if getent passwd 999 >/dev/null 2>&1; then
+    log "not: host uid 999 = $(getent passwd 999 | cut -d: -f1) (yedek yapilandirmasini grup 999 okuyabilir)"
+  fi
+  log "depo erisim testi (R2 kimlik, TLS, bucket; postgres'e baglanmaz)"
+  ARILLA_POSTGRES_IMAGE="$IMAGE" compose --profile backup run --rm --no-deps -T backup \
+    pgbackrest --stanza=arilla --log-level-console=warn repo-ls >/dev/null || die "R2 deposuna erisilemedi (endpoint/bucket/anahtar/izin?)"
+  local free
+  free=$(df --output=avail -B1 "$ROOT" | tail -1 | tr -d ' ')
+  [ "$free" -ge "${ARILLA_MIN_FREE_BYTES:-10737418240}" ] || die "yetersiz bos disk (bos: $free bayt; gerekli ${ARILLA_MIN_FREE_BYTES:-10737418240})"
+  log "ON KONTROL TAMAM - servislere dokunulmadi"
+}
+
+case "$CMD" in
+  preflight)
+    preflight
+    ;;
+  activate)
+    [ "$CONFIRM" = 1 ] || die "postgres yeniden baslatilacak: --confirm-restart olmadan devam edilmez (once: preflight)"
+    preflight
+    log "1/6 compose.env: ARILLA_POSTGRES_IMAGE"
+    set_image_env "$IMAGE"
+    log "2/6 arsiv ayarlari etkinlestiriliyor (archive.conf)"
+    install -m 0644 "$BDIR/pg/archive.conf.pending" "$BDIR/pg/archive.conf"
+    [ "$(id -u)" -eq 0 ] && chown root:999 "$BDIR/pg/archive.conf"
+    log "3/6 postgres YENIDEN OLUSTURULUYOR (yeni imaj + yedek baglamalari + archive_mode=on)"
+    compose up -d --no-deps --force-recreate postgres
+    wait_healthy postgres 90 || die "postgres healthy olmadi: GERI ALMA -> pg-backup-activate deactivate --confirm-restart"
+    [ "$(compose exec -T postgres psql -U arilla -d arilla -Atqc 'show archive_mode' 2>/dev/null)" = on ] || die "archive_mode on degil"
+    log "4/6 backup konteyneri baslatiliyor"
+    compose --profile backup up -d --no-deps backup
+    wait_healthy backup 60 || die "backup konteyneri healthy olmadi"
+    log "5/6 stanza-create + check (arsiv zinciri uctan uca)"
+    compose --profile backup exec -T backup pgbackrest --stanza=arilla stanza-create
+    "$here/pg-backup" check
+    log "6/6 ilk TAM yedek"
+    "$here/pg-backup" full
+    "$here/pg-backup" info
+    log "ETKIN. Sonraki: pg-backup-activate install-timers ve pg-restore-test"
+    ;;
+  deactivate)
+    [ "$CONFIRM" = 1 ] || die "postgres yeniden baslatilacak: --confirm-restart gerekli"
+    log "archive.conf kaldiriliyor (yedekler ve depo SILINMEZ)"
+    rm -f "$BDIR/pg/archive.conf"
+    compose up -d --no-deps --force-recreate postgres
+    wait_healthy postgres 90 || die "postgres healthy olmadi"
+    log "archive_mode=$(compose exec -T postgres psql -U arilla -d arilla -Atqc 'show archive_mode')"
+    compose --profile backup stop backup || true
+    log "arsivleme KAPALI. Zamanlayicilar: systemctl disable --now 'arilla-backup-*.timer' arilla-restore-test.timer"
+    ;;
+  install-timers)
+    for u in "$ROOT"/vps/systemd/arilla-backup-*.service "$ROOT"/vps/systemd/arilla-backup-*.timer \
+      "$ROOT"/vps/systemd/arilla-restore-test.service "$ROOT"/vps/systemd/arilla-restore-test.timer \
+      "$ROOT"/vps/systemd/arilla-healthcheck.service "$ROOT"/vps/systemd/arilla-healthcheck.timer \
+      "$ROOT"/vps/systemd/arilla-alert@.service; do
+      install -m 0644 "$u" /etc/systemd/system/
+    done
+    systemctl daemon-reload
+    systemctl enable --now arilla-backup-full.timer arilla-backup-diff.timer arilla-backup-verify.timer \
+      arilla-restore-test.timer arilla-healthcheck.timer
+    systemctl list-timers 'arilla-*' --no-pager
+    ;;
+  *)
+    echo "kullanim: pg-backup-activate preflight|activate --image <ref@sha256> [--confirm-restart] | deactivate --confirm-restart | install-timers" >&2
+    exit 64
+    ;;
+esac

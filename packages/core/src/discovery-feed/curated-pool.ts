@@ -31,14 +31,17 @@ export class ProductNotFoundError extends Error {
  */
 export async function addToCuratedPool(db: Database, productId: number): Promise<void> {
   const rows = await db
-    .select({ categoryIsDiscoverable: category.isDiscoverable })
+    .select({
+      categoryIsDiscoverable: category.isDiscoverable,
+      publicationState: product.publicationState,
+    })
     .from(product)
     .leftJoin(category, eq(category.id, product.categoryId))
     .where(eq(product.id, productId))
     .limit(1);
 
   const row = rows[0];
-  if (!row) {
+  if (row?.publicationState !== "published") {
     throw new ProductNotFoundError(productId);
   }
   if (row.categoryIsDiscoverable === false) {

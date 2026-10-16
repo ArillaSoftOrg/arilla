@@ -309,13 +309,40 @@ describe("yeniden deneme", () => {
     [403, "auth"],
   ] as const)("%i yeniden denenmez → %s", async (status, code) => {
     const { impl, calls } = fakeFetch([
-      jsonResponse({ error: { message: `body-secret ${API_KEY}` } }, status),
+      jsonResponse({ error: { message: `bad "body-secret" ${API_KEY}` } }, status),
     ]);
     const error = await caught(client(impl).instance.generateJson(REQUEST));
     expect(error.code).toBe(code);
     expect(error.retryable).toBe(false);
     expect(calls).toHaveLength(1);
     expectRedacted(error, "body-secret");
+  });
+
+  it("400: yalniz sabit durum/reason/alan yolu kaydedilir, mesaj ve deger yansimasi atilir", async () => {
+    const { impl } = fakeFetch([
+      jsonResponse(
+        {
+          error: {
+            code: 400,
+            status: "INVALID_ARGUMENT",
+            message: `Invalid value at 'input' (STRING), "user-text-leak" ${API_KEY}`,
+            details: [
+              { "@type": "type.googleapis.com/google.rpc.ErrorInfo", reason: "BAD_FIELD" },
+              {
+                fieldViolations: [{ field: "input[1].data", description: "user-text-leak" }],
+              },
+            ],
+          },
+        },
+        400,
+      ),
+    ]);
+    const error = await caught(client(impl).instance.generateJson(REQUEST));
+    expect(error.code).toBe("client_error");
+    expect(error.detail).toBe(
+      "INVALID_ARGUMENT BAD_FIELD input[1].data Invalid value at (STRING),",
+    );
+    expectRedacted(error, "user-text-leak");
   });
 
   it("ag hatasi yeniden denenir; ham hata mesaji tasinmaz", async () => {

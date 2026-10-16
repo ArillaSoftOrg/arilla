@@ -6,6 +6,8 @@
  * Kapaliyken sistem davranisi degismez: bu modul hicbir yan etki uretmez.
  */
 
+import { isProductionDeploy } from "../config/deploy-env.ts";
+
 type Env = Readonly<Record<string, string | undefined>>;
 
 /**
@@ -40,12 +42,15 @@ export const WEB_SEARCH_ACTOR_LIMITS = { hour: 8, day: 30 } as const;
 export const WEB_SEARCH_FLIGHT_TTL_MS = 20_000;
 
 export const WEB_SEARCH_MAX_GROUPS = 8;
+/** Gorsel dogrulamasi icin degerlendirilen aday havuzu (ekranda en fazla `WEB_SEARCH_MAX_GROUPS`). */
+export const WEB_SEARCH_POOL_GROUPS = 12;
 export const WEB_SEARCH_MAX_OFFERS_PER_GROUP = 5;
 /** Modelden istenen en fazla aday; fazlasi dogrulama maliyetini artirir. */
 export const WEB_SEARCH_MAX_CANDIDATES = 12;
 
 export function isProductionEnv(env: Env): boolean {
-  if (env.VERCEL_ENV) return env.VERCEL_ENV === "production";
+  if (isProductionDeploy(env)) return true;
+  if (env.VERCEL_ENV) return false;
   return env.NODE_ENV === "production";
 }
 

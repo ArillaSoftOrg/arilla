@@ -11,6 +11,7 @@ import {
   classifyCandidate,
   dropCatalogDuplicates,
   mergeWebCandidates,
+  sameProductLine,
 } from "./merge.ts";
 import {
   buildGroundingEvidence,
@@ -40,6 +41,12 @@ describe("isWebSearchEnabled", () => {
       isWebSearchEnabled({ ...base, VERCEL_ENV: "production", WEB_SEARCH_LEGAL_APPROVED: "true" }),
     ).toBe(true);
   });
+  it("DEPLOY_ENV=production (VERCEL_ENV olmadan) hukuki onay ister", () => {
+    expect(isWebSearchEnabled({ ...base, DEPLOY_ENV: "production" })).toBe(false);
+    expect(
+      isWebSearchEnabled({ ...base, DEPLOY_ENV: "production", WEB_SEARCH_LEGAL_APPROVED: "true" }),
+    ).toBe(true);
+  });
   it("onizleme ve gelistirmede bayrak yeterli", () => {
     expect(isWebSearchEnabled({ ...base, VERCEL_ENV: "preview" })).toBe(true);
     expect(isWebSearchEnabled(base)).toBe(true);
@@ -52,7 +59,7 @@ describe("toSafePublicUrl", () => {
       "https://www.Shop.com.tr/urun/abc/?utm_source=x&gclid=1&renk=siyah#top",
     );
     expect(safe).toEqual({
-      url: "https://shop.com.tr/urun/abc?renk=siyah",
+      url: "https://www.shop.com.tr/urun/abc?renk=siyah",
       host: "shop.com.tr",
       key: "shop.com.tr/urun/abc",
     });
@@ -254,7 +261,11 @@ describe("classifyCandidate / mergeWebCandidates", () => {
         cand({ host: "a.com.tr", title: "Sony WH-1000XM5 Siyah Kulaklik", priceKurus: 1_000_000 }),
         cand({ host: "b.com.tr", title: "Sony WH-1000XM5 Kulaklik Siyah", priceKurus: 900_000 }),
         cand({ host: "c.com.tr", title: "Sony WH-1000XM5 Siyah Kulaklik" }),
-        cand({ host: "b.com.tr", title: "Sony WH-1000XM5 Siyah Kulaklik 2", priceKurus: 950_000 }),
+        cand({
+          host: "b.com.tr",
+          title: "Sony WH-1000XM5 Siyah Kulaklik Garantili",
+          priceKurus: 950_000,
+        }),
       ],
     });
     expect(groups).toHaveLength(1);
@@ -423,7 +434,10 @@ describe("parseGroundedPayload / resolveCitationUrls", () => {
       fake,
     );
     expect(calls).toEqual(["https://vertexaisearch.cloud.google.com/grounding-api-redirect/AAA"]);
-    expect(urls.sort()).toEqual(["https://direct.com.tr/urun/1", "https://shop.com.tr/urun/abc"]);
+    expect(urls.sort()).toEqual([
+      "https://direct.com.tr/urun/1",
+      "https://www.shop.com.tr/urun/abc",
+    ]);
   });
   it("yonlendirme hedefi guvensizse atilir", async () => {
     const fake = (async () =>
@@ -759,8 +773,11 @@ describe("attachCatalogImages", () => {
       "https://cdn.ornek.com/a.jpg",
     );
   });
-  it("benzer alternatife, varyanti celisene ve eslesmeyene gorsel vermez", () => {
-    expect(attachCatalogImages([group({ matchKind: "similar" })], catalog)[0]?.imageUrl).toBeNull();
+  it("varyanti celisene, rengi belirsize ve eslesmeyene gorsel vermez", () => {
+    // Benzer alternatif de olsa grubun KENDI urunu katalogda varsa gorseli verilir.
+    expect(attachCatalogImages([group({ matchKind: "similar" })], catalog)[0]?.imageUrl).toBe(
+      "https://cdn.ornek.com/a.jpg",
+    );
     expect(
       attachCatalogImages([group({ title: "Sony WH-1000XM5 Beyaz Kulaklik" })], catalog)[0]
         ?.imageUrl,
@@ -775,5 +792,56 @@ describe("attachCatalogImages", () => {
       attachCatalogImages([group({})], [{ title: catalog[0]?.title ?? "", imageUrl: null }])[0]
         ?.imageUrl,
     ).toBeNull();
+  });
+});
+
+describe("model family guard (nesil ve siniflama)", () => {
+  const g = (title: string): WebProductGroup => ({
+    key: "k",
+    title,
+    brand: "Apple",
+    matchKind: "exact",
+    offers: [],
+    minVerifiedPriceKurus: null,
+  });
+  const catalog = [
+    { title: "Apple iPhone 16 Pro Max 256 GB Siyah Titanyum", imageUrl: "https://c/max.jpg" },
+    { title: "Apple iPhone 15 Pro 256 GB Siyah Titanyum", imageUrl: "https://c/15.jpg" },
+    { title: "Apple iPhone 16 Pro 256 GB Siyah Titanyum", imageUrl: "https://c/16pro.jpg" },
+  ];
+  it("iPhone 16 Pro, Pro Max ya da 15 Pro gorselini almaz", () => {
+    const out = attachCatalogImages([g("Apple iPhone 16 Pro 256 GB Siyah Titanyum")], catalog);
+    expect(out[0]?.imageUrl).toBe("https://c/16pro.jpg");
+    const none = attachCatalogImages(
+      [g("Apple iPhone 16 Pro 256 GB Siyah Titanyum")],
+      catalog.slice(0, 2),
+    );
+    expect(none[0]?.imageUrl).toBeNull();
+  });
+  it("rengi/kapasitesi belirsiz ilana belirli renk fotografi verilmez", () => {
+    expect(attachCatalogImages([g("Apple iPhone 16 Pro 256 GB")], catalog)[0]?.imageUrl).toBeNull();
+    expect(
+      attachCatalogImages([g("Apple iPhone 16 Pro Siyah Titanyum")], catalog)[0]?.imageUrl,
+    ).toBeNull();
+  });
+  it("sameProductLine nesil ve siniflamayi ayirir, kapasite sayisini saymaz", () => {
+    expect(sameProductLine("iPhone 16 Pro 128 GB", "Apple iPhone 16 Pro 256 GB Siyah")).toBe(true);
+    expect(sameProductLine("iPhone 16 Pro", "iPhone 16 Pro Max")).toBe(false);
+    expect(sameProductLine("iPhone 16 Pro", "iPhone 15 Pro")).toBe(false);
+    expect(sameProductLine("iPhone 16", "iPhone 16 Plus")).toBe(false);
+    expect(sameProductLine("AirPods Pro 2", "AirPods Pro")).toBe(false);
+  });
+  it("Pro ile Pro Max satici teklifleri tek grupta birlesmez", () => {
+    const q = buildWebSearchQuery({ kind: "text", text: "iphone 16 pro" });
+    if (!q.ok) throw new Error("query");
+    const groups = mergeWebCandidates({
+      query: q.query,
+      features: q.features,
+      candidates: [
+        cand({ host: "a.com.tr", title: "Apple iPhone 16 Pro 256 GB" }),
+        cand({ host: "b.com.tr", title: "Apple iPhone 16 Pro Max 256 GB" }),
+      ],
+    });
+    expect(groups.length).toBe(2);
   });
 });

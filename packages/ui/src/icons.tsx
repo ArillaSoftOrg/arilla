@@ -155,3 +155,60 @@ export function LogoutIcon(props: IconProps) {
     </Svg>
   );
 }
+
+/** Resmi Instagram profil baglantisi. Erisilebilir ad tasiyici baglantidadir. */
+export function InstagramIcon(props: IconProps) {
+  return (
+    <Svg {...props} defaultSize={28}>
+      <rect x="3" y="3" width="18" height="18" rx="5" />
+      <circle cx="12" cy="12" r="4" />
+      <circle cx="17.5" cy="6.5" r="0.75" fill="currentColor" stroke="none" />
+    </Svg>
+  );
+}
+
+/** Resmi X (Twitter) profil baglantisi. */
+export function XIcon(props: IconProps) {
+  const px = props.size ?? 28;
+  return (
+    <svg
+      className={props.className}
+      viewBox="0 0 24 24"
+      width={px}
+      height={px}
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231 5.451-6.231Zm-1.161 17.52h1.833L7.084 4.126H5.117L17.083 19.77Z" />
+    </svg>
+  );
+}
+
+/** Resmi TikTok profil baglantisi. */
+export function TikTokIcon(props: IconProps) {
+  return (
+    <Svg {...props} defaultSize={28}>
+      <path d="M15 4v10.5a4.5 4.5 0 1 1-3.5-4.4" />
+      <path d="M15 4c.8 2.4 2.5 3.8 5 4" />
+    </Svg>
+  );
+}
+
+/** Resmi LinkedIn profil baglantisi. */
+export function LinkedInIcon(props: IconProps) {
+  const px = props.size ?? 28;
+  return (
+    <svg
+      className={props.className}
+      viewBox="0 0 24 24"
+      width={px}
+      height={px}
+      fill="currentColor"
+      aria-hidden="true"
+      focusable="false"
+    >
+      <path d="M5.34 3.5A2.34 2.34 0 1 1 5.34 8.18 2.34 2.34 0 0 1 5.34 3.5ZM3.32 9.82h4.04V22H3.32V9.82Zm6.36 0h3.87v1.67h.05c.54-1.02 1.86-2.1 3.82-2.1 4.08 0 4.84 2.69 4.84 6.18V22h-4.03v-5.7c0-1.36-.03-3.11-1.9-3.11-1.9 0-2.19 1.48-2.19 3.01V22H9.68V9.82Z" />
+    </svg>
+  );
+}

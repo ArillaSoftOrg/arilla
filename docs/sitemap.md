@@ -49,7 +49,10 @@ Bir ürün sayfası haritaya girer, ancak:
   demektir; `offer_count`, karar 0072), veya
 - Tek mağazada teklifi var ama en az **14 günlük fiyat geçmişi** birikmişse, ve
 - Ürünün görseli ve başlığı varsa, ve
-- Kategorisi `is_discoverable` ise.
+- Kategorisi `is_discoverable` ise, ve
+- `publication_state = 'published'` ise. Kaynak ilanından aktarılan taslak, hazır ve
+  bekleyen ürünler (ör. AliExpress, karar 0121) kaliteleri ve yurt dışı gösterim kararı
+  ayrı verilene kadar haritaya girmez; ürün sayfaları 404 döner.
 
 Şartı sağlamayan sayfa yayında kalır ama haritaya girmez ve `noindex` alır.
 Şart sonradan sağlanınca otomatik olarak haritaya girer.

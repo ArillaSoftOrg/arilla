@@ -10,13 +10,15 @@
  * 2. **Gerçek (toplu) gönderim** yalnızca şu iki durumda açıktır:
  *    - SMTP yerel röle (localhost/mailpit): ileti makineden çıkmaz; yerel
  *      veritabanındaki adresler Mailpit'te görünür, gerçek kutuya gitmez.
- *    - `VERCEL_ENV=production` VE `MARKETING_EMAIL_ENABLED=true`: üretimde
+ *    - `DEPLOY_ENV=production` (Vercel'de `VERCEL_ENV=production`) VE
+ *      `MARKETING_EMAIL_ENABLED=true`: üretimde
  *      bilinçli açma anahtarı. Preview, yanlış `.env` ya da gerçek SMTP'li
  *      bir geliştirici makinesi gerçek kullanıcılara kampanya gönderemez.
  *
  * Gönderen: `MARKETING_EMAIL_FROM` (işlemsel `EMAIL_FROM`'dan ayrı itibar).
  * Üretimde zorunlu; yerelde boşsa `EMAIL_FROM` kullanılır.
  */
+import { isProductionDeploy } from "../config/deploy-env.ts";
 import { SmtpConfigError, smtpConfigFromEnv } from "../email/transport.ts";
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -82,7 +84,7 @@ export function isLocalSmtpRelay(env: Env): boolean {
 }
 
 function isVercelProduction(env: Env): boolean {
-  return env.VERCEL_ENV?.trim() === "production";
+  return isProductionDeploy(env);
 }
 
 /**

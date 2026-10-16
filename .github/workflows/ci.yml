@@ -17,9 +17,12 @@ on:
 permissions:
   contents: read
 
+# PR: aynı PR'a yeni push gelince eski koşu iptal edilir (geçersiz sonuç üretir).
+# main: koşu commit sha'sına özeldir ve ASLA iptal edilmez; her main commit'i tam
+# sonuç alır (build-push/deploy zinciri bu sonuçlara bakar).
 concurrency:
-  group: ci-${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ci-${{ github.event_name == 'pull_request' && format('pr-{0}', github.event.pull_request.number) || format('sha-{0}', github.sha) }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
   # Testlerin ve derlemenin ortamdan model/e-posta anahtarı almadığını açıkça belirtir.
@@ -30,6 +33,43 @@ env:
   NEXT_TELEMETRY_DISABLED: "1"
 
 jobs:
+  # Yalnızca PR'larda: değişen dosyaların TAMAMI dokümantasyon ise ağır işler atlanır.
+  # Atlanan iş, zorunlu kontrol olarak "başarılı" sayılır. main'e push'ta HER ZAMAN tam
+  # koşu yapılır (build-push/deploy zorunlu kontrollerden `success` ister, `skipped` değil).
+  # `docs/schema.sql` testlerce okunduğu için dokümantasyon sayılmaz. Belirsizlikte tam koşu.
+  # typecheck + lint ve private-keys bu kapıya bağlı değildir; her zaman koşar.
+  changes:
+    name: değişiklik kapsamı
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      docs_only: ${{ steps.scope.outputs.docs_only }}
+    steps:
+      - id: scope
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          docs_only=false
+          if [ "$EVENT" = "pull_request" ]; then
+            files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[] | .filename, (.previous_filename // empty)')
+            count=$(printf '%s\n' "$files" | grep -c . || true)
+            # API en fazla 3000 dosya döner; belirsizlikte tam koşu.
+            if [ "$count" -gt 0 ] && [ "$count" -lt 3000 ]; then
+              other=$(printf '%s\n' "$files" | grep -v -E '^(docs/|[^/]+\.md$)' || true)
+              schema=$(printf '%s\n' "$files" | grep -x 'docs/schema.sql' || true)
+              if [ -z "$other" ] && [ -z "$schema" ]; then docs_only=true; fi
+            fi
+          fi
+          echo "docs_only=$docs_only" >> "$GITHUB_OUTPUT"
+          echo "docs_only=$docs_only"
+
   static:
     name: typecheck + lint
     runs-on: ubuntu-latest
@@ -79,6 +119,8 @@ jobs:
 
   unit:
     name: unit tests
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -95,6 +137,8 @@ jobs:
 
   python:
     name: python unit tests
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -117,6 +161,8 @@ jobs:
 
   build:
     name: web build
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -127,10 +173,123 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
+      # Next.js derleme önbelleği (resmi öneri). Yalnızca hızlandırıcıdır: Next her girdiyi
+      # içerik özetiyle doğrular. GitHub önbellek kapsamı: PR önbelleği main'e okunmaz/yazılmaz.
+      - uses: actions/cache@v4
+        with:
+          path: apps/web/.next/cache
+          key: nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-${{ hashFiles('apps/web/**/*.ts', 'apps/web/**/*.tsx', 'packages/**/*.ts', 'packages/**/*.tsx') }}
+          restore-keys: |
+            nextjs-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}-
       - run: pnpm --filter @arilla/web build
+
+  # Karar 0109: VPS imajları derlenir ve gizli değer girmediği doğrulanır.
+  # Yayın YOK (GHCR hattı sonraki faz); `secrets.*` kullanılmaz. `APP_URL` sır
+  # değildir, derlemeye gömülür (robots/canonical).
+  docker:
+    name: docker images (web + migrate)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: build web
+        run: >-
+          docker build -f apps/web/Dockerfile
+          --build-arg APP_URL=https://ci.example.test -t arilla-web:ci .
+      - name: build migrate
+        run: docker build -f apps/web/Dockerfile --target migrate -t arilla-migrate:ci .
+      - name: imajda gizli dosya / sır yok, root değil
+        run: bash infra/vps/bin/verify-image.sh arilla-web:ci arilla-migrate:ci
+      - name: canlılık ucu (bağımlılıksız)
+        run: |
+          docker run -d --name web-ci -p 127.0.0.1:3000:3000 \
+            -e APP_URL=https://ci.example.test arilla-web:ci
+          for i in $(seq 1 30); do
+            curl -fsS http://127.0.0.1:3000/api/health && exit 0
+            sleep 2
+          done
+          docker logs web-ci
+          exit 1
+
+  # Karar 0109 faz 2: uretim Compose yigini (infra/compose.prod.yml) atilabilir
+  # sirlarla ayaga kalkar; temiz DB migration zinciri, ag yalitimi, Caddy
+  # kapilari, cron ve sizinti kontrolleri infra/vps/bin/smoke-local.sh'tadir.
+  # `secrets.*` kullanilmaz; sirlar kosu icinde rastgele uretilir ve silinir.
+  compose-stack:
+    name: compose stack (production topology)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - name: shellcheck (dagitim ve altyapi betikleri)
+        run: >-
+          shellcheck -S warning -x
+          infra/vps/bin/arilla-deploy infra/vps/bin/deploy-gate infra/vps/bin/install-deploy.sh
+          infra/vps/bin/test-deploy.sh infra/vps/bin/test-ssh-gate.sh infra/vps/bin/smoke-local.sh infra/vps/bin/db-bootstrap.sh
+          infra/vps/bin/init-secrets.sh infra/vps/bin/verify-image.sh infra/vps/cron/cron-call.sh
+          infra/vps/bin/pg-backup infra/vps/bin/pg-backup-configure infra/vps/bin/pg-backup-activate
+          infra/vps/bin/pg-restore-test infra/vps/bin/test-backup.sh infra/vps/backup/restore-inner.sh
+      - name: duman testi
+        run: bash infra/vps/bin/smoke-local.sh
+
+  # Faz 6: dagitim motoru (yerel registry, sentetik depo; saglik gecmeyen surumde otomatik geri alma).
+  # Duman testinden AYRI is: ikisi paralel kosar (eskiden ardisikti, ~430 sn). Ayni imajlari
+  # kullanir; BUILD_ONLY=1 smoke-local.sh yalniz sablon dogrulamasi + imaj derlemesini yapip cikar
+  # (ayni derleme tanimi, ayni :smoke etiketleri). Hicbir test atlanmaz.
+  # DT_WEB_TIMEOUT: yalniz bu testte "saglik gecmeyen" surumun bekleme suresi. Uretim
+  # varsayilani (arilla-deploy: ARILLA_HEALTH_TIMEOUT_WEB=240) DEGISMEZ. Saglikli web bu
+  # testte ~15-25 sn'de ayaga kalkiyor; 75 sn ~3 kat pay birakir.
+  deploy-engine:
+    name: deploy engine (rollback + migration, local)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: imajlari derle (duman testiyle ayni tanim)
+        env:
+          BUILD_ONLY: "1"
+        run: bash infra/vps/bin/smoke-local.sh
+      - name: dagitim motoru testi
+        env:
+          DT_WEB_TIMEOUT: "75"
+        run: bash infra/vps/bin/test-deploy.sh
+
+  # Karar 0110: PostgreSQL yedekleme / WAL arsivi / PITR / izole geri yukleme uctan uca.
+  # R2 yerine TLS'li S3 uyumlu sunucu (VersityGW), atilabilir sirlar; uretime ve R2'ye DOKUNMAZ.
+  # Uretimle ayni sahiplik (root:999, 0640) icin root ile (sudo -E) calisir.
+  backup-pitr:
+    name: backup + PITR restore (pgBackRest, isolated)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: yedekleme ve geri yukleme testi
+        run: sudo -E bash infra/vps/bin/test-backup.sh
+
+  # Faz 6: VPS yetki zinciri GERCEK sshd + sudo ile (tek kullanimlik Ubuntu 24.04 konteyneri):
+  # install-deploy.sh -> sudoers -> restrict,command=deploy-gate -> sudo -> (sahte) arilla-deploy.
+  deploy-gate:
+    name: deploy ssh gate (sshd + sudo)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - run: bash infra/vps/bin/test-ssh-gate.sh
 
   integration:
     name: admin authz + integration (isolated services)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     services:
@@ -187,4 +346,75 @@ jobs:
       - name: core integration (yönetim, sohbet, sorgu yorumu)
         run: >-
           pnpm --filter @arilla/core exec vitest run -c vitest.integration.config.ts
-          src/admin src/chat src/search/query-interpretation.integration.test.ts
+          src/admin src/chat src/search/query-interpretation.integration.test.ts src/offers
+
+  # Karar 0111: migration guvenligi + Python ingest entegrasyon testleri.
+  # Kendi tek kullanimlik PostgreSQL'i vardir (web entegrasyon testleriyle veri paylasmaz).
+  # 1) lint, 2) main'in migration'lariyla kurulup tohumlanan veritabanina bu dalin
+  # YENI migration'lari uygulanir (yukseltme yolu, dolu tablolar), 3) ikinci kosu bos
+  # gecmeli (idempotent), 4) db:verify (Drizzle uyumu + append-only yetkileri),
+  # 5) Python entegrasyon testleri yeni semada (eski kod = N-1 uyumu kaniti).
+  migrations-ingest:
+    name: migrations (upgrade + verify) + ingest integration
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: arilla
+          POSTGRES_PASSWORD: ci_only_owner
+          POSTGRES_DB: arilla
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U arilla -d arilla"
+          --health-interval 5s --health-timeout 5s --health-retries 20
+    env:
+      DATABASE_URL_OWNER: postgresql://arilla:ci_only_owner@localhost:5432/arilla
+      APP_DB_PASSWORD: ci_only_app
+      DATABASE_URL: postgresql://arilla_app:ci_only_app@localhost:5432/arilla
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: services/ingest/pyproject.toml
+      - run: pnpm install --frozen-lockfile
+      - name: migration lint
+        run: pnpm --filter @arilla/db db:lint-migrations
+      - name: main'in semasi + tohum veri
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin main
+          git ls-tree --name-only FETCH_HEAD packages/db/migrations/ | xargs -n1 basename | sort > "$RUNNER_TEMP/base.txt"
+          find packages/db/migrations -maxdepth 1 -type f -printf '%f\n' | sort > "$RUNNER_TEMP/head.txt"
+          mkdir -p "$RUNNER_TEMP/new-migrations"
+          comm -13 "$RUNNER_TEMP/base.txt" "$RUNNER_TEMP/head.txt" | grep '\.sql$' > "$RUNNER_TEMP/new.txt" || true
+          echo "Bu dalin yeni migration'lari:"; cat "$RUNNER_TEMP/new.txt"
+          while read -r f; do mv "packages/db/migrations/$f" "$RUNNER_TEMP/new-migrations/"; done < "$RUNNER_TEMP/new.txt"
+          pnpm db:migrate
+          pnpm db:bootstrap-role
+          pnpm db:partitions
+          pnpm seed
+          while read -r f; do mv "$RUNNER_TEMP/new-migrations/$f" packages/db/migrations/; done < "$RUNNER_TEMP/new.txt"
+      - name: yeni migration'lar (dolu veritabanina) + idempotent ikinci kosu
+        run: |
+          set -euo pipefail
+          pnpm db:migrate
+          pnpm db:migrate | tee "$RUNNER_TEMP/second.txt"
+          grep -q "Uygulanacak migration yok" "$RUNNER_TEMP/second.txt"
+      - name: sema dogrulama (Drizzle + append-only yetkileri)
+        run: pnpm db:verify
+      - name: python ingest integration
+        working-directory: services/ingest
+        run: |
+          pip install -e ".[dev]"
+          python -m pytest -m integration

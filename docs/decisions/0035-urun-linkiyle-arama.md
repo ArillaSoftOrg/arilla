@@ -1,6 +1,6 @@
 # 0035 — Ürün linkiyle arama: tek kanonik rota, SSRF koruması, hibrit benzerlik
 
-**Tarih:** 2026-09 · **Durum:** kabul edildi (arayüz QA'sı tamamlanana kadar ana sayfada "Yakında")
+**Tarih:** 2026-09 · **Durum:** kabul edildi; "Yakında" kapısı 0108 ile kaldırıldı. Kuyruk taşıma katmanı artık bayrakla Vercel Queues'a da alınabilir: bkz. 0107; çözümleme mantığı değişmedi.
 
 ## Karar
 

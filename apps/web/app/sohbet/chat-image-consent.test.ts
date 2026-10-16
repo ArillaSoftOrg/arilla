@@ -4,13 +4,13 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { outcomeForNewChat } from "../home-image-chat.ts";
 import { CHAT_ERROR_COPY, errorKindForStatus } from "./chat-copy.ts";
-import { ChatImageConsentDialog } from "./chat-image-consent.tsx";
+import { ChatImageConsentPrompt } from "./chat-image-consent.tsx";
 import { CHAT_IMAGE_CONSENT_COPY as COPY } from "./chat-image-consent-copy.ts";
 
 const noop = () => {};
 const render = (props: { pending?: boolean; error?: boolean } = {}) =>
   renderToStaticMarkup(
-    createElement(ChatImageConsentDialog, {
+    createElement(ChatImageConsentPrompt, {
       open: true,
       pending: props.pending ?? false,
       error: props.error ?? false,
@@ -19,7 +19,7 @@ const render = (props: { pending?: boolean; error?: boolean } = {}) =>
     }),
   );
 
-describe("fotoğraf izni penceresi (karar 0101)", () => {
+describe("fotoğraf izni şeridi (karar 0101, 0105)", () => {
   it("onay kutusu yok, önceden işaretli hiçbir şey yok; kabul ve ret ayrı düğmeler", () => {
     const html = render();
     expect(html).not.toContain('type="checkbox"');
@@ -53,6 +53,38 @@ describe("fotoğraf izni penceresi (karar 0101)", () => {
     const all = JSON.stringify(COPY);
     expect(all.replaceAll("KVKK", "")).not.toMatch(/\b\p{Lu}{4,}\b/u);
     expect(all).not.toMatch(/satın al|dupe|ucuz/i);
+  });
+
+  it("modal değildir: dialog yok, sayfayı kilitlemez; önizleme ve gizlilik bağlantıları var", () => {
+    const html = renderToStaticMarkup(
+      createElement(ChatImageConsentPrompt, {
+        open: true,
+        previewUrl: "blob:x",
+        pending: false,
+        error: false,
+        onAccept: noop,
+        onDecline: noop,
+      }),
+    );
+    expect(html).not.toContain("<dialog");
+    expect(html).not.toContain("aria-modal");
+    expect(html).toContain(`src="blob:x"`);
+    expect(html).toContain(`href="${COPY.privacyHref}"`);
+    expect(html).toContain(`href="${COPY.detailsHref}"`);
+    expect(COPY.privacyHref).toBe("/hesap/gizlilik");
+  });
+
+  it("kapalıyken hiçbir şey çizilmez", () => {
+    const html = renderToStaticMarkup(
+      createElement(ChatImageConsentPrompt, {
+        open: false,
+        pending: false,
+        error: false,
+        onAccept: noop,
+        onDecline: noop,
+      }),
+    );
+    expect(html).toBe("");
   });
 
   it("hata gösterilir", () => {

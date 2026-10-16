@@ -78,7 +78,8 @@ hash cache'ine bağlar.
 
 **Bu, mimari sınırı bozmaz.** Python ile TypeScript birbirini çağırmıyor;
 ikisi de aynı dış API'yi bağımsız olarak çağırıyor. Aralarındaki tek kanal
-hâlâ PostgreSQL ve Redis kuyruğu.
+hâlâ PostgreSQL ve kuyruk (Redis; link çözümlemede isteğe bağlı olarak Vercel
+Queues, karar 0107).
 
 Her iki çağrı da `api_usage` tablosuna yazılır (`CLAUDE.md` 9. kural):
 ölçülmeyen maliyet kontrol edilemez.

@@ -1,0 +1,9 @@
+[Unit]
+Description=Arilla saglik kontrolu: disk, PostgreSQL, WAL arsivi, yedek yasi (karar 0110)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/python3 /opt/arilla/vps/bin/arilla_healthcheck.py --notify
+TimeoutStartSec=120

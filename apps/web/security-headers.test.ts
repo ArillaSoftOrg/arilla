@@ -73,6 +73,17 @@ describe("güvenlik başlıkları", () => {
     expect(securityHeaderOptionsFromEnv({ NODE_ENV: "development" }).development).toBe(true);
   });
 
+  // Karar 0109: kendi sunucumuzda `VERCEL` yoktur; HSTS DEPLOY_ENV=production ile gelir.
+  it("HSTS kendi sunucumuzda DEPLOY_ENV=production ile gelir, stagingde gelmez", () => {
+    expect(
+      securityHeaderOptionsFromEnv({ NODE_ENV: "production", DEPLOY_ENV: "production" }),
+    ).toEqual({ ...PROD, ga4: false });
+    expect(
+      securityHeaderOptionsFromEnv({ NODE_ENV: "production", DEPLOY_ENV: "staging" }).production,
+    ).toBe(false);
+    expect(securityHeaderOptionsFromEnv({ DEPLOY_ENV: "production" }).production).toBe(false);
+  });
+
   it("yönetim yolları genel başlıkları ve noindex'i alır", () => {
     const routes = securityHeaderRoutes(PROD);
     const all = routes.find((r) => r.source === "/:path*");
@@ -152,5 +163,23 @@ describe("güvenlik başlıkları", () => {
     // GA4 kapalıyken yönetim girdisi CSP taşımaz (genel CSP zaten dar).
     const plain = securityHeaderRoutes(PROD).find((r) => r.source === "/yonetim");
     expect(header(plain?.headers ?? [], "Content-Security-Policy")).toBeUndefined();
+  });
+});
+
+describe("katalog toplama CSP'si (karar 0117)", () => {
+  const options = { development: false, production: true, ga4: true };
+  it("yalnız toplama sayfasında Hepsiburada connect-src alır; genel CSP almaz", () => {
+    const routes = securityHeaderRoutes(options);
+    const csp = (source: string) =>
+      routes
+        .filter((r) => r.source === source)
+        .flatMap((r) => r.headers)
+        .find((h) => h.key === "Content-Security-Policy")?.value ?? "";
+    expect(csp("/yonetim/katalog/toplama")).toContain(
+      "connect-src 'self' https://www.hepsiburada.com",
+    );
+    expect(csp("/yonetim/katalog/toplama")).not.toContain("googletagmanager");
+    expect(csp("/:path*")).not.toContain("hepsiburada");
+    expect(csp("/yonetim/:path*")).not.toContain("hepsiburada");
   });
 });

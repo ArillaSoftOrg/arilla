@@ -1,0 +1,150 @@
+name: build-postgres
+
+# Karar 0110: PostgreSQL 16 + pgvector + pgBackRest imaji (infra/vps/postgres/Dockerfile).
+# Uygulama surumlerinden BAGIMSIZDIR: release manifestine girmez, `deploy` is akisini TETIKLEMEZ
+# (deploy yalniz build-push'a baglidir). Uretim postgres'i bu imaja yalniz ONAYLI aktivasyonla
+# (infra/vps/bin/pg-backup-activate --image <digest>) gecer.
+#
+# - pull_request: derle + verify-image + Trivy (YAYIN YOK, `packages` izni yok)
+# - push (main, Dockerfile degisince) / workflow_dispatch (yalniz main): yayinla
+#   etiket: pg16-<40 haneli sha> (DEGISMEZ; varsa ustune yazilmaz), digest ozeti is ozetine yazilir.
+
+on:
+  pull_request:
+    paths:
+      - "infra/vps/postgres/Dockerfile"
+      - ".github/workflows/build-postgres.yml"
+      - "infra/vps/bin/verify-image.sh"
+  push:
+    branches: [main]
+    paths:
+      - "infra/vps/postgres/Dockerfile"
+      - ".github/workflows/build-postgres.yml"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: build-postgres-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  scan:
+    name: postgres imaji (derle + verify + trivy)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: derle (yerel yukle)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: infra/vps/postgres
+          load: true
+          push: false
+          provenance: false
+          sbom: false
+          tags: local/arilla-postgres:scan
+      - name: pgBackRest ve PostgreSQL surumu
+        run: |
+          v=$(docker run --rm --network none --entrypoint pgbackrest local/arilla-postgres:scan version)
+          p=$(docker run --rm --network none --entrypoint postgres local/arilla-postgres:scan --version)
+          echo "$v / $p"
+          echo "| $v | $p |" >> "$GITHUB_STEP_SUMMARY"
+      - name: imaj icinde sir / kimlik dosyasi / root kontrolu
+        run: bash infra/vps/bin/verify-image.sh local/arilla-postgres:scan
+      - name: Trivy (zafiyet + sir) - HIGH/CRITICAL, duzeltilmis olanlar
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: local/arilla-postgres:scan
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          trivyignores: .trivyignore
+
+  publish:
+    name: postgres imaji (yayinla, yalniz main)
+    needs: scan
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    env:
+      TAG: pg16-${{ github.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: imaj adi (kucuk harf)
+        env:
+          OWNER: ${{ github.repository_owner }}
+        run: echo "IMAGE=ghcr.io/$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')/arilla-postgres" >> "$GITHUB_ENV"
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: etiket zaten var mi (degismez etiket)
+        id: exists
+        run: |
+          set -euo pipefail
+          if digest=$(docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{.Manifest.Digest}}' 2>/dev/null); then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+            echo "::notice::$IMAGE:$TAG zaten yayinlanmis; ustune yazilmaz ($digest)"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: derle ve yayinla
+        id: push
+        if: steps.exists.outputs.exists == 'false'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: infra/vps/postgres
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ env.IMAGE }}:${{ env.TAG }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+            org.opencontainers.image.title=arilla-postgres
+      - name: yayinlanan digest
+        id: digest
+        env:
+          NEW: ${{ steps.push.outputs.digest }}
+          OLD: ${{ steps.exists.outputs.digest }}
+        run: |
+          set -euo pipefail
+          digest="${NEW:-$OLD}"
+          [ -n "$digest" ] || { echo "::error::digest bulunamadi"; exit 1; }
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+          {
+            echo "### arilla-postgres"
+            echo ""
+            echo "Aktivasyonda kullanilacak referans (digest ile sabit):"
+            echo ""
+            echo "\`$IMAGE@$digest\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: yayinlanan imaji (digest ile) tara
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.digest.outputs.digest }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          trivyignores: .trivyignore
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ github.token }}

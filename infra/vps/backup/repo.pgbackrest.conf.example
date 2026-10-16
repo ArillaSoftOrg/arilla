@@ -1,0 +1,52 @@
+# pgBackRest - DEPO tarafi (`backup` yan konteyneri), karar 0110. SABLONDUR.
+# infra/vps/bin/pg-backup-configure bunu /opt/arilla/env/backup.env degerleriyle doldurup
+# /opt/arilla/backup/repo/pgbackrest.conf olarak yazar (0640 root:999). Depoya sir GIRMEZ.
+# Bu dosya R2 anahtarlarini ve depo sifreleme parolasini icerir; YALNIZ `backup` ve `restore`
+# konteynerlerine baglanir, postgres konteynerine BAGLANMAZ.
+[global]
+# --- Depo: Cloudflare R2 (S3 uyumlu) ---------------------------------------------------
+repo1-type=s3
+repo1-s3-endpoint=@@S3_ENDPOINT@@
+repo1-storage-port=@@S3_PORT@@
+# R2 bolgesi her zaman "auto" (Cloudflare R2 S3 API belgesi).
+repo1-s3-region=@@S3_REGION@@
+repo1-s3-bucket=@@S3_BUCKET@@
+repo1-s3-key=@@S3_KEY@@
+repo1-s3-key-secret=@@S3_KEY_SECRET@@
+# Yol bicimi: https://<hesap>.r2.cloudflarestorage.com/<bucket>/... (sertifika tam host adina uyar)
+repo1-s3-uri-style=path
+@@S3_CA_LINE@@
+repo1-path=@@REPO_PATH@@
+# Istemci tarafi sifreleme (R2'ye yalniz sifreli veri gider). Parola KAYBOLURSA YEDEKLER ACILAMAZ:
+# cevrimdisi (parola yoneticisi) saklanmasi aktivasyon on kosuludur.
+repo1-cipher-type=aes-256-cbc
+repo1-cipher-pass=@@CIPHER_PASS@@
+# Saklama: haftalik tam yedek x 4 (~4 hafta) + aradaki fark yedekleri ve WAL (PITR penceresi).
+repo1-retention-full-type=count
+repo1-retention-full=@@RETENTION_FULL@@
+# Nesne depolari icin onerilen: kucuk dosyalari paketle (istek sayisi ve maliyet azalir).
+repo1-bundle=y
+
+# --- Genel ------------------------------------------------------------------------------
+compress-type=zst
+process-max=2
+start-fast=y
+# Konteyner salt-okunur: dosya gunlugu yok, cikti systemd/journald'a gider.
+log-level-console=info
+log-level-stderr=warn
+log-level-file=off
+
+# --- TLS depo sunucusu (postgres archive-push buraya baglanir; yalniz `data` agi) -----------
+tls-server-address=*
+tls-server-port=8432
+tls-server-ca-file=/etc/arilla-backup/tls/ca.crt
+tls-server-cert-file=/etc/arilla-backup/tls/server.crt
+tls-server-key-file=/etc/arilla-backup/tls/server.key
+# Yalniz bu istemci sertifikasi (CN) ve yalniz bu stanza.
+tls-server-auth=arilla-postgres=@@STANZA@@
+
+[@@STANZA@@]
+pg1-path=/var/lib/postgresql/data
+pg1-socket-path=/var/run/postgresql
+pg1-user=@@PG_USER@@
+pg1-database=@@PG_DATABASE@@

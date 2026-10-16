@@ -1,5 +1,5 @@
 /**
- * Trendyol canli urun kesfi test araci (docs/decisions/0106). Prototip:
+ * Trendyol canli urun kesfi test araci (docs/decisions/0126). Prototip:
  * veritabani, Redis, Gemini, Jina KULLANMAZ; hicbir sey saklanmaz.
  *
  *   pnpm --filter @arilla/core live-discovery "iPhone 16 Pro 128 GB"

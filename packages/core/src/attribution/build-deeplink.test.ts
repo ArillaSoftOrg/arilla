@@ -101,3 +101,48 @@ describe("buildDeeplink", () => {
     );
   });
 });
+
+describe("affiliate_url sablonu (karar 0113)", () => {
+  const base = {
+    affiliateStatus: "active" as const,
+    offerUrl: "https://www.aliexpress.com/item/1005013326267337.html",
+    clickId: "c-1",
+  };
+
+  it("takip baglantisi kodlanmadan yerlesir, click_id kodlanir", () => {
+    expect(
+      buildDeeplink({
+        ...base,
+        deeplinkTemplate: "{affiliate_url}&subid={click_id}",
+        affiliateUrl: "https://rzekl.com/g/abc/?i=5&ulp=x",
+      }),
+    ).toBe("https://rzekl.com/g/abc/?i=5&ulp=x&subid=c-1");
+  });
+
+  it("takip baglantisi yoksa kanonik adrese gider (click yine kayitli)", () => {
+    expect(
+      buildDeeplink({
+        ...base,
+        deeplinkTemplate: "{affiliate_url}&subid={click_id}",
+        affiliateUrl: null,
+      }),
+    ).toBe(base.offerUrl);
+    expect(
+      buildDeeplink({
+        ...base,
+        deeplinkTemplate: "{affiliate_url}&subid={click_id}",
+        affiliateUrl: "http://insecure.test/x",
+      }),
+    ).toBe(base.offerUrl);
+  });
+
+  it("click_id'siz sablon yine reddedilir", () => {
+    expect(() =>
+      buildDeeplink({
+        ...base,
+        deeplinkTemplate: "{affiliate_url}",
+        affiliateUrl: "https://a.test/x",
+      }),
+    ).toThrow();
+  });
+});

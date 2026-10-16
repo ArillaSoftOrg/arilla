@@ -29,6 +29,9 @@ const MAX_SUGGESTIONS_HTML = 20_000;
 export interface GroundingCitation {
   url: string;
   title: string | null;
+  /** Atifin kapsadigi metin araligi (birlesik model metni icinde, karakter). */
+  startIndex?: number;
+  endIndex?: number;
 }
 
 export interface GroundedResponse {
@@ -114,6 +117,7 @@ export function parseGroundedPayload(
   }
   const steps = Array.isArray(payload.steps) ? payload.steps : [];
   const texts: string[] = [];
+  let textLength = 0;
   const citations: GroundingCitation[] = [];
   const queries: string[] = [];
   const retrieved: { url: string; ok: boolean }[] = [];
@@ -124,7 +128,9 @@ export function parseGroundedPayload(
     if (step.type === "model_output" && Array.isArray(step.content)) {
       for (const item of step.content) {
         if (!isRecord(item) || item.type !== "text" || typeof item.text !== "string") continue;
+        const base = textLength;
         texts.push(item.text);
+        textLength += item.text.length;
         if (Array.isArray(item.annotations)) {
           for (const annotation of item.annotations) {
             if (
@@ -135,6 +141,13 @@ export function parseGroundedPayload(
               citations.push({
                 url: annotation.url,
                 title: typeof annotation.title === "string" ? annotation.title : null,
+                ...(typeof annotation.start_index === "number" &&
+                typeof annotation.end_index === "number"
+                  ? {
+                      startIndex: base + annotation.start_index,
+                      endIndex: base + annotation.end_index,
+                    }
+                  : {}),
               });
             }
           }
@@ -308,10 +321,11 @@ const REDIRECT_PATH_PREFIX = "/grounding-api-redirect/";
 const REDIRECT_TIMEOUT_MS = 3_000;
 const MAX_REDIRECT_LOOKUPS = 16;
 
-export async function resolveCitationUrls(
+/** Ham atif adresi -> gercek, guvenli magaza adresi (cozulemeyen/guvenli olmayan: `null`). */
+export async function resolveCitationMap(
   citations: readonly GroundingCitation[],
   fetchImpl: typeof fetch = fetch,
-): Promise<string[]> {
+): Promise<Map<string, string | null>> {
   const unique = [...new Set(citations.map((c) => c.url))].slice(0, MAX_REDIRECT_LOOKUPS);
   const resolved = await Promise.all(
     unique.map(async (raw): Promise<string | null> => {
@@ -342,10 +356,19 @@ export async function resolveCitationUrls(
       }
     }),
   );
-  const safe = new Set<string>();
-  for (const url of resolved) {
+  const map = new Map<string, string | null>();
+  unique.forEach((raw, i) => {
+    const url = resolved[i] ?? null;
     const checked = url === null ? null : toSafePublicUrl(url);
-    if (checked) safe.add(checked.url);
-  }
-  return [...safe];
+    map.set(raw, checked ? checked.url : null);
+  });
+  return map;
+}
+
+export async function resolveCitationUrls(
+  citations: readonly GroundingCitation[],
+  fetchImpl: typeof fetch = fetch,
+): Promise<string[]> {
+  const map = await resolveCitationMap(citations, fetchImpl);
+  return [...new Set([...map.values()].filter((u): u is string => u !== null))];
 }

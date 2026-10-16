@@ -118,7 +118,12 @@ export type AdminAction =
   | "data.export_cancel"
   | "data.export_download"
   | "data.accuracy_sample"
-  | "data.accuracy_label";
+  | "data.accuracy_label"
+  /** Katalog toplama (karar 0117): kosu rezervasyonu ve kapanisi; urun icerigi YAZILMAZ. */
+  | "catalog_collection.start"
+  | "catalog_collection.close"
+  /** Karar 0120: buyuk indirme onayi (bayt tavani, aktarim kaynagi); icerik YAZILMAZ. */
+  | "catalog_collection.approve_download";
 
 export type AdminTargetType =
   | "match_candidate"
@@ -133,6 +138,8 @@ export type AdminTargetType =
   | "chat_feedback"
   /** Erken erişim sayacı (tek satır, hedef kimliği "1"). */
   | "early_access_counter"
+  /** Katalog toplama kosusu (`collection_run`). */
+  | "collection_run"
   /** `security.access_denied` hedefi: istenen yetenek adı. */
   | "capability"
   /** Karar 0086: `trend` satırı. */
@@ -152,6 +159,7 @@ export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
   "feedback",
   "chat_feedback",
   "early_access_counter",
+  "collection_run",
   "capability",
   "trend",
   "data_build",

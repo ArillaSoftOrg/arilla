@@ -22,8 +22,9 @@ import {
   toOrphanGroup,
 } from "@arilla/db";
 import { sql } from "drizzle-orm";
-import { LINK_RESOLUTION_QUEUE_KEY } from "../discovery/link-resolution.ts";
-import { getRedis } from "../redis/client.ts";
+import { LINK_RESOLUTION_QUEUE_KEY, linkQueueBackend } from "../discovery/link-queue.ts";
+import { IN_FLIGHT_TTL_MS } from "../discovery/link-resolution.ts";
+import { getLinkRedis } from "../redis/client.ts";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 import type { CostSummary } from "./cost-truth.ts";
@@ -310,16 +311,30 @@ export async function costWindow(db: Database): Promise<CostWindow> {
 }
 
 /**
- * Link çözümleme kuyruğunun Redis'teki uzunluğu. Redis yoksa ya da 2 sn'de
- * cevap vermezse hata olarak döner; sayfa beklemez.
+ * Link çözümleme kuyruğunun bekleyen iş sayısı. `redis` arka ucunda Redis
+ * listesinin uzunluğu; `vercel` arka ucunda (karar 0107) Vercel Queues'un
+ * uzunluğu okunamadığı için son `IN_FLIGHT_TTL_MS` içindeki `queued` satır
+ * sayısı (web de daha eskisini ölü sayar). Kaynak yoksa ya da 2 sn'de cevap
+ * vermezse hata olarak döner; sayfa beklemez.
  */
-export async function linkQueueDepth(timeoutMs = 2_000): Promise<number> {
+export async function linkQueueDepth(db: Database, timeoutMs = 2_000): Promise<number> {
   let timer: ReturnType<typeof setTimeout> | undefined;
   const timeout = new Promise<never>((_, reject) => {
-    timer = setTimeout(() => reject(new Error("redis zaman aşımı")), timeoutMs);
+    timer = setTimeout(() => reject(new Error("kuyruk zaman aşımı")), timeoutMs);
   });
   try {
-    return await Promise.race([getRedis().llen(LINK_RESOLUTION_QUEUE_KEY), timeout]);
+    if (linkQueueBackend() === "vercel") {
+      const since = new Date(Date.now() - IN_FLIGHT_TTL_MS);
+      const rows = await Promise.race([
+        db.execute<{ n: string }>(
+          sql`SELECT count(*) AS n FROM link_resolution_request
+               WHERE status = 'queued' AND created_at > ${since.toISOString()}::timestamptz`,
+        ),
+        timeout,
+      ]);
+      return Number(rows.rows[0]?.n ?? 0);
+    }
+    return await Promise.race([getLinkRedis().llen(LINK_RESOLUTION_QUEUE_KEY), timeout]);
   } finally {
     clearTimeout(timer);
   }
@@ -354,7 +369,7 @@ export async function getOperationsOverview(
       check(() => costByDay(db)),
       check(() => complianceHealth(db)),
       check(() => jobEvidence(db)),
-      check(() => linkQueueDepth()),
+      check(() => linkQueueDepth(db)),
       getPipelineEvidence(db, actor),
       check(() => readJobRunSummary(db)),
       check(() => costWindow(db)),

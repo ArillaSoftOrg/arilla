@@ -1,0 +1,394 @@
+# GHCR imaj yayin hatti (docs/decisions/0109, faz 3).
+#
+# - `pull_request`  : imajlari derler, tarar, dogrular. YAYINLAMAZ (packages izni yok).
+# - `workflow_run`  : `ci` main'de BASARILI bitince derler, tarar, GHCR'a yayinlar.
+# - `workflow_dispatch`: yalnizca main; ayni sha icin yayini yeniden dener.
+#
+# Imajlar: arilla-web, arilla-migrate, arilla-ingest, arilla-cron
+# Etiket : sha-<40 haneli commit sha'si> (DEGISMEZ: var olan etiketin ustune yazilmaz).
+#          `latest` / `main` gibi hareketli etiket YOKTUR; dagitim her zaman acik sha ile yapilir.
+# Cikti  : release-manifest.json (artifact + is ozeti) - sha, her imajin digest'i;
+#          geri alma (rollback) bu dosyalardan onceki surume doner (infra/vps/bin/release.py).
+#
+# Guvenlik:
+# - Workflow izinleri bos; her is yalniz ihtiyacini ister. Yayin isi disinda packages:write YOK.
+# - Uretim sirlari GitHub'a girmez; imajlar sir icermez (verify-image.sh + Trivy secret).
+# - Ucuncu taraf action'lar tam commit sha'siyla sabitlenmistir.
+# - Yayin yalniz main'deki, ci + private-keys kontrolleri BASARILI commit icin yapilir.
+# - VPS'e baglanilmaz, dagitim yapilmaz (faz 6).
+name: build-push
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/build-push.yml"
+      - "apps/web/Dockerfile"
+      - "apps/web/package.json"
+      - "packages/*/package.json"
+      - "pnpm-lock.yaml"
+      - ".dockerignore"
+      - "services/ingest/**"
+      - "infra/vps/cron/**"
+      - "infra/vps/bin/verify-image.sh"
+      - "infra/vps/bin/release.py"
+  workflow_run:
+    workflows: ["ci"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: build-push-${{ github.event_name }}-${{ github.event.workflow_run.head_sha || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  REGISTRY: ghcr.io
+  # Sabit surumler (tam sha): docker/setup-buildx-action v4.4.1, login-action v4.6.0,
+  # build-push-action v7.4.0, aquasecurity/trivy-action v0.36.0, upload-artifact v7.0.2, download-artifact v8.0.2.
+  NEXT_TELEMETRY_DISABLED: "1"
+
+jobs:
+  gate:
+    name: gate (hangi commit, yayinlanacak mi)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # `workflow_run`: yalniz main'e push'un basarili `ci` kosusu.
+    if: >-
+      github.event_name != 'workflow_run' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push' &&
+       github.event.workflow_run.head_branch == 'main')
+    permissions:
+      contents: read
+      checks: read
+    outputs:
+      sha: ${{ steps.pick.outputs.sha }}
+      publish: ${{ steps.pick.outputs.publish }}
+      owner: ${{ steps.pick.outputs.owner }}
+    steps:
+      - name: commit ve yayin karari
+        id: pick
+        env:
+          EVENT: ${{ github.event_name }}
+          RUN_SHA: ${{ github.event.workflow_run.head_sha }}
+          REF: ${{ github.ref }}
+          OWNER: ${{ github.repository_owner }}
+        run: |
+          set -euo pipefail
+          case "$EVENT" in
+            workflow_run) sha="$RUN_SHA"; publish=true ;;
+            workflow_dispatch)
+              [ "$REF" = "refs/heads/main" ] || { echo "::error::workflow_dispatch yalnizca main'de"; exit 1; }
+              sha="$GITHUB_SHA"; publish=true ;;
+            *) sha="$GITHUB_SHA"; publish=false ;;
+          esac
+          {
+            echo "sha=$sha"
+            echo "publish=$publish"
+            echo "owner=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')"
+          } >> "$GITHUB_OUTPUT"
+      - name: zorunlu kontroller bu commit icin basarili mi
+        if: steps.pick.outputs.publish == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.pick.outputs.sha }}
+          REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          # `ci` (workflow_run) zaten basarili; guvenlik kontrolu ayri iş akışı olduğu için
+          # ve dispatch'te ci de ayrica dogrulanir. Biten kosu beklenir (en çok ~5 dk).
+          required=("private-keys" "compose stack (production topology)" "docker images (web + migrate)" "web build")
+          for attempt in $(seq 1 20); do
+            runs=$(gh api "repos/$REPO/commits/$SHA/check-runs?per_page=100" --jq '.check_runs[] | "\(.name)|\(.status)|\(.conclusion)"')
+            missing=0
+            for name in "${required[@]}"; do
+              line=$(echo "$runs" | grep -F "$name|" | head -1 || true)
+              case "$line" in
+                *"|completed|success") ;;
+                *"|completed|"*) echo "::error::'$name' basarisiz: $line"; exit 1 ;;
+                *) missing=1 ;;
+              esac
+            done
+            # Yeni kontrol: eski commit'lerde YOK (o zaman test "compose stack" icindeydi); varsa basarili olmali.
+            line=$(echo "$runs" | grep -F "deploy engine (rollback + migration, local)|" | head -1 || true)
+            case "$line" in
+              "" | *"|completed|success") ;;
+              *"|completed|"*) echo "::error::'deploy engine' basarisiz: $line"; exit 1 ;;
+              *) missing=1 ;;
+            esac
+            [ "$missing" -eq 0 ] && { echo "zorunlu kontroller basarili ($SHA)"; exit 0; }
+            echo "bekleniyor ($attempt/20)..."; sleep 15
+          done
+          echo "::error::zorunlu kontroller zamaninda tamamlanmadi"; exit 1
+
+  scan:
+    name: build + verify + trivy (${{ matrix.name }})
+    needs: gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            context: .
+            file: apps/web/Dockerfile
+            target: runner
+          - name: migrate
+            context: .
+            file: apps/web/Dockerfile
+            target: migrate
+          - name: ingest
+            context: services/ingest
+            file: services/ingest/Dockerfile
+            target: ""
+          - name: cron
+            context: infra/vps/cron
+            file: infra/vps/cron/Dockerfile
+            target: ""
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+          persist-credentials: false
+      - name: derleme degiskenleri
+        id: args
+        env:
+          NAME: ${{ matrix.name }}
+          APP_URL: ${{ vars.ARILLA_APP_URL }}
+          GA4: ${{ vars.GA4_MEASUREMENT_ID }}
+        run: |
+          set -euo pipefail
+          deployable=true
+          {
+            echo 'build_args<<ARGS_EOF'
+            if [ "$NAME" = "web" ]; then
+              if [ -z "$APP_URL" ]; then
+                # Alan adi degiskeni yok: yalniz dogrulama icin yer tutucu; bu imaj YAYINLANMAZ.
+                echo "APP_URL=https://placeholder.example.test"
+                deployable=false
+              else
+                echo "APP_URL=$APP_URL"
+              fi
+              echo "GA4_MEASUREMENT_ID=$GA4"
+            fi
+            echo 'ARGS_EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo "deployable=$deployable" >> "$GITHUB_OUTPUT"
+          if [ "$deployable" = "false" ]; then
+            echo "::warning title=ARILLA_APP_URL tanimli degil::web imaji yer tutucu adresle yalnizca dogrulanir, YAYINLANMAZ. Depo degiskeni ARILLA_APP_URL=https://<alan-adi> tanimlayin."
+          fi
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+      - name: derle (yerel yukle)
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          build-args: ${{ steps.args.outputs.build_args }}
+          load: true
+          push: false
+          provenance: false
+          sbom: false
+          tags: local/arilla-${{ matrix.name }}:scan
+          # Katman onbellegi: PR'lar main'in onbellegini okur; yalniz main yazar.
+          cache-from: type=gha,scope=${{ matrix.name }}
+          cache-to: ${{ github.event_name != 'pull_request' && format('type=gha,mode=max,scope={0},ignore-error=true', matrix.name) || '' }}
+      - name: imaj icinde sir / kimlik dosyasi / root kontrolu
+        run: bash infra/vps/bin/verify-image.sh local/arilla-${{ matrix.name }}:scan
+      - name: Trivy (zafiyet + sir) - HIGH/CRITICAL, duzeltilmis olanlar
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: local/arilla-${{ matrix.name }}:scan
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          trivyignores: .trivyignore
+      - name: boyut
+        if: always()
+        run: |
+          size=$(docker image inspect --format '{{.Size}}' local/arilla-${{ matrix.name }}:scan)
+          echo "| ${{ matrix.name }} | $((size / 1024 / 1024)) MB |" >> "$GITHUB_STEP_SUMMARY"
+
+  publish:
+    name: publish (${{ matrix.name }})
+    needs: [gate, scan]
+    if: needs.gate.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: web
+            context: .
+            file: apps/web/Dockerfile
+            target: runner
+          - name: migrate
+            context: .
+            file: apps/web/Dockerfile
+            target: migrate
+          - name: ingest
+            context: services/ingest
+            file: services/ingest/Dockerfile
+            target: ""
+          - name: cron
+            context: infra/vps/cron
+            file: infra/vps/cron/Dockerfile
+            target: ""
+    env:
+      IMAGE: ghcr.io/${{ needs.gate.outputs.owner }}/arilla-${{ matrix.name }}
+      TAG: sha-${{ needs.gate.outputs.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ needs.gate.outputs.sha }}
+          persist-credentials: false
+      - name: derleme degiskenleri
+        id: args
+        env:
+          NAME: ${{ matrix.name }}
+          APP_URL: ${{ vars.ARILLA_APP_URL }}
+          GA4: ${{ vars.GA4_MEASUREMENT_ID }}
+        run: |
+          set -euo pipefail
+          publish=true
+          {
+            echo 'build_args<<ARGS_EOF'
+            if [ "$NAME" = "web" ]; then
+              if [ -z "$APP_URL" ]; then publish=false; else echo "APP_URL=$APP_URL"; fi
+              echo "GA4_MEASUREMENT_ID=$GA4"
+            fi
+            echo 'ARGS_EOF'
+          } >> "$GITHUB_OUTPUT"
+          echo "publish=$publish" >> "$GITHUB_OUTPUT"
+          [ "$publish" = "true" ] || echo "::warning title=web yayinlanmadi::ARILLA_APP_URL depo degiskeni tanimli degil."
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
+        if: steps.args.outputs.publish == 'true'
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        if: steps.args.outputs.publish == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: etiket zaten var mi (degismez etiket)
+        id: exists
+        if: steps.args.outputs.publish == 'true'
+        run: |
+          set -euo pipefail
+          if digest=$(docker buildx imagetools inspect "$IMAGE:$TAG" --format '{{.Manifest.Digest}}' 2>/dev/null); then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "digest=$digest" >> "$GITHUB_OUTPUT"
+            echo "::notice::$IMAGE:$TAG zaten yayinlanmis; ustune yazilmaz ($digest)"
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+      - name: derle ve yayinla
+        id: push
+        if: steps.args.outputs.publish == 'true' && steps.exists.outputs.exists == 'false'
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7.4.0
+        with:
+          context: ${{ matrix.context }}
+          file: ${{ matrix.file }}
+          target: ${{ matrix.target }}
+          build-args: ${{ steps.args.outputs.build_args }}
+          push: true
+          provenance: false
+          sbom: false
+          tags: ${{ env.IMAGE }}:${{ env.TAG }}
+          labels: |
+            org.opencontainers.image.source=https://github.com/${{ github.repository }}
+            org.opencontainers.image.revision=${{ needs.gate.outputs.sha }}
+            org.opencontainers.image.title=arilla-${{ matrix.name }}
+          cache-from: type=gha,scope=${{ matrix.name }}
+      - name: yayinlanan digest
+        id: digest
+        if: steps.args.outputs.publish == 'true'
+        env:
+          NEW: ${{ steps.push.outputs.digest }}
+          OLD: ${{ steps.exists.outputs.digest }}
+        run: |
+          set -euo pipefail
+          digest="${NEW:-$OLD}"
+          [ -n "$digest" ] || { echo "::error::digest bulunamadi"; exit 1; }
+          echo "digest=$digest" >> "$GITHUB_OUTPUT"
+      - name: yayinlanan imaji (digest ile) tara
+        if: steps.args.outputs.publish == 'true'
+        uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
+        with:
+          image-ref: ${{ env.IMAGE }}@${{ steps.digest.outputs.digest }}
+          scanners: vuln,secret
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          format: table
+          trivyignores: .trivyignore
+        env:
+          TRIVY_USERNAME: ${{ github.actor }}
+          TRIVY_PASSWORD: ${{ github.token }}
+      - name: bildirim dosyasi
+        if: steps.args.outputs.publish == 'true'
+        env:
+          NAME: ${{ matrix.name }}
+          DIGEST: ${{ steps.digest.outputs.digest }}
+        run: |
+          mkdir -p out
+          printf '{"name":"%s","image":"%s","tag":"%s","digest":"%s"}\n' \
+            "$NAME" "$IMAGE" "$TAG" "$DIGEST" > "out/$NAME.json"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.args.outputs.publish == 'true'
+        with:
+          name: image-${{ matrix.name }}
+          path: out/${{ matrix.name }}.json
+          retention-days: 90
+          if-no-files-found: error
+
+  manifest:
+    name: release manifest
+    needs: [gate, publish]
+    if: needs.gate.outputs.publish == 'true' && !cancelled() && needs.publish.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          pattern: image-*
+          path: parts
+          merge-multiple: true
+      - name: birlestir
+        env:
+          SHA: ${{ needs.gate.outputs.sha }}
+        run: |
+          set -euo pipefail
+          jq -s --arg sha "$SHA" --arg tag "sha-$SHA" --arg created "$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+            { sha: $sha, tag: $tag, created: $created,
+              images: (map({ (.name): { image: .image, tag: .tag, digest: .digest } }) | add),
+              complete: ((map(.name) | sort) == ["cron","ingest","migrate","web"]) }
+          ' parts/*.json > release-manifest.json
+          cat release-manifest.json
+          {
+            echo "### Release \`sha-$SHA\`"
+            echo
+            echo "| imaj | digest |"
+            echo "| --- | --- |"
+            jq -r '.images | to_entries[] | "| \(.value.image) | `\(.value.digest)` |"' release-manifest.json
+            echo
+            jq -r 'if .complete then "Tam surum: dort imaj da yayinlandi." else "**EKSIK surum** (web yayinlanmamis olabilir: ARILLA_APP_URL depo degiskeni). Dagitim bu manifesti REDDEDER." end' release-manifest.json
+          } >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: release-manifest-${{ needs.gate.outputs.sha }}
+          path: release-manifest.json
+          retention-days: 90
+          if-no-files-found: error

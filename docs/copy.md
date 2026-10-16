@@ -64,6 +64,7 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `footer.product_group_title` | Ürün |
 | `footer.account_group_title` | Hesap |
 | `footer.legal_group_title` | Yasal |
+| `footer.social_group_title` | Takipte kal |
 | `footer.last_updated_prefix` | Son güncelleme: |
 
 ## Gezinme
@@ -325,6 +326,22 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `deals.savings_percent` | %{n} daha uygun |
 | `deals.savings_amount` | {tutar} tasarruf |
 
+## Mağaza ve yurt dışı teklifleri (karar 0114)
+
+| Anahtar | Metin |
+| --- | --- |
+| `offers.title` | Mağaza teklifleri |
+| `offers.lead` | Henüz bir ürün sayfasıyla eşleşmemiş teklifler. Her teklif mağazanın kendi sayfasına gider. |
+| `offers.tab_domestic` | Türkiye'deki mağazalar |
+| `offers.tab_international` | Yurt dışı teklifleri |
+| `offers.international_note` | Yurt dışı tekliflerinde fiyat mağazanın para birimiyle verilir. TL tutarı yaklaşıktır ve TCMB kuruyla hesaplanır. Kargo, gümrük ve vergi bilinmediği için toplam tutar farklı olabilir; bu teklifler fiyat sıralamasına girmez. |
+| `offers.approx` | ≈ {tutar} |
+| `offers.rate_note` | TCMB kuru, {tarih} |
+| `offers.no_rate` | Kur bilgisi yok; TL tutarı gösterilmiyor. |
+| `offers.shipping_unknown` | Kargo ve vergi belirsiz |
+| `offers.source_international` | Yurt dışı |
+| `offers.sort_price` | En uygun fiyat |
+
 ## Keşfet
 
 | Anahtar | Metin |
@@ -402,46 +419,70 @@ dönen kullanıcıya gösterilir (`apps/web/app/erken-erisim/state.ts`).
 
 ## Lansman öncesi landing
 
-Karar 0043. Ürün kapalıyken ana sayfa. Gelecek zaman bilerek kullanılır:
-hizmet henüz açık değildir. Sahte ürün, fiyat, tasarruf, sayı, yorum ya da
-tarih yok. Metinler `apps/web/app/coming-soon-copy.ts`'te; marka adı
-`SITE_BRAND`'den gelir.
+Ürün kapalıyken ana sayfa. İlk ekranda sabit selam pozundaki maskotla tanışma,
+ürün vaadi, erken erişime katılım ve gerçek ilerleme görünür. Ardından tarif,
+fotoğraf ve bağlantı girişlerini gösteren açıkça temsili bir ürün önizlemesi gelir.
+Hizmet henüz açık değildir; sahte fiyat, tasarruf, sayaç, yorum ya da tarih yok.
+Konuşmalar önceden yazılmış tanıtım metinleridir; model çağrısı veya çalışan arama değildir.
+Metinler `apps/web/app/coming-soon-copy.ts` içinde; marka `SITE_BRAND`'den gelir.
+5.000 kişi ilk topluluk hedefidir; sayaç otomatik ürün erişimi açmaz. Gerçek
+kişi sayısı ve hedef sunucudan gelir. Hero maskotu animasyon oynatmaz; elini
+kaldırmış selam pozu sabittir. Aşağıdaki rehber maskotlar görünür alana girince
+sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 
 | Anahtar | Metin |
 | --- | --- |
-| `coming_soon.eyebrow` | Erken Erişim |
-| `coming_soon.status` | ManiCepte yakında. |
-| `coming_soon.headline` | Aradığın ürünü bul. Fiyatları karşılaştır. Daha akıllı alışveriş yap. |
-| `coming_soon.body` | ManiCepte, aradığın ürünü, alternatiflerini ve farklı mağazalardaki fiyatlarını tek yerde görmeni kolaylaştırmak için yapay zekâ destekli bir alışveriş asistanı olarak geliştiriliyor. |
+| `coming_soon.headline` | Tarif et, fotoğrafını göster veya linkini bırak. |
+| `coming_soon.body` | ManiCepte ürünleri bulsun, benzerlerini çıkarsın ve mağaza fiyatlarını karşılaştırsın. |
+| `coming_soon.hero_details_label` | ManiCepte ne yapar? |
+| `coming_soon.greeting` | Selam, hoş geldin! |
+| `coming_soon.greeting_body` | Ne aradığını birlikte bulacağız. |
+| `coming_soon.greeting_invitation` | Hazır olduğumuzda seni de bekliyorum. |
+| `coming_soon.stage_note` | Şu an erken erişim aşamasındayız. |
+| `coming_soon.progress_goal` | İlk {hedef} kişiden biri ol. |
+| `coming_soon.progress_note` | Erken erişim listemiz gerçek kayıtlarla güncelleniyor. Sıran geldiğinde sana haber vereceğiz. |
+| `coming_soon.availability` | Henüz kullanıma açık değil. Birlikte başlamak için hazırlanıyoruz. |
 | `coming_soon.cta_note` | Hesabınla devam et ya da yeni hesap aç; listeye otomatik eklenirsin. |
-| `coming_soon.how_it_works_anchor` | Nasıl çalışacak? |
-| `coming_soon.benefits_title` | ManiCepte ile neler yapabileceksin? |
-| `coming_soon.benefit_describe_title` | Ne aradığını anlatarak bul |
-| `coming_soon.benefit_describe_body` | Ürünün adını bilmen gerekmeyecek. Aklındakini kendi cümlelerinle anlatabilecek, bir fotoğraf ya da ürün bağlantısıyla başlayabileceksin. |
-| `coming_soon.benefit_compare_title` | Fiyatları karşılaştır |
-| `coming_soon.benefit_compare_body` | Aynı ürünün farklı mağazalardaki tekliflerini yan yana görüp karar vermeden önce seçenekleri tartabileceksin. |
-| `coming_soon.benefit_alternatives_title` | Alternatifleri keşfet |
-| `coming_soon.benefit_alternatives_body` | Beğendiğin ürüne benzeyen, farklı bütçelere uygun seçenekleri tek yerde inceleyebileceksin. |
-| `coming_soon.how_it_works_title` | Nasıl çalışacak? |
-| `coming_soon.how_it_works_body` | ManiCepte henüz kullanıma açık değil. Açıldığında her şey üç adımda olacak. |
-| `coming_soon.step_start_title` | Ara, fotoğraf yükle veya ürün bağlantısı paylaş |
-| `coming_soon.step_start_body` | Elinde ne varsa onunla başla: kısa bir tarif, bir fotoğraf ya da beğendiğin ürünün bağlantısı. |
-| `coming_soon.step_analyze_title` | ManiCepte seçenekleri analiz etsin |
-| `coming_soon.step_analyze_body` | Aynı ürünü ve ona benzeyen seçenekleri farklı mağazalarda bulup senin için düzenler. |
-| `coming_soon.step_compare_title` | Ürünleri, alternatifleri ve fiyatları karşılaştır |
-| `coming_soon.step_compare_body` | Seçenekleri yan yana gör; sana en uygun olanı sen seç. |
-| `coming_soon.build_title` | ManiCepte'yi geliştiriyoruz. |
-| `coming_soon.build_body` | Ürünü adım adım inşa ediyoruz. Şu an üzerinde çalıştıklarımız: |
+| `coming_soon.privacy_note` | Bilgilerin yalnızca erişim listesi için kullanılır. |
+| `coming_soon.how_it_works_anchor` | Nasıl çalıştığını gör |
+| `coming_soon.demo_eyebrow` | Örnek deneyim |
+| `coming_soon.demo_title` | ManiCepte nasıl çalışır? |
+| `coming_soon.demo_body` | Aklındakini tarif et, fotoğrafını göster veya linkini bırak. ManiCepte seçenekleri bulup karşılaştırsın. |
+| `coming_soon.demo_scroll_label` | Aşağı Kaydır |
+| `coming_soon.demo_notice` | Temsili önizleme |
+| `coming_soon.demo_mode_describe` | Tarif et |
+| `coming_soon.demo_mode_photo` | Fotoğraf göster |
+| `coming_soon.demo_mode_link` | Link bırak |
+| `coming_soon.demo_user_label` | Sen |
+| `coming_soon.demo_assistant_label` | ManiCepte |
+| `coming_soon.demo_user_message` | Gün boyu yürüyebileceğim, sade ve açık renkli bir spor ayakkabı arıyorum. |
+| `coming_soon.demo_assistant_message` | Seni anladım. Rahat seçenekleri bulup fiyat ve özelliklerini karşılaştırıyorum. |
+| `coming_soon.demo_composer_placeholder` | Ne aradığını anlat, fotoğrafını göster veya linkini bırak... |
+| `coming_soon.demo_phase_labels` | Seni dinliyorum. · İhtiyacını alıyorum. · Neye önem verdiğini anlıyorum. · Seçenekleri araştırıyorum. · En iyi dengeyi buldum. |
+| `coming_soon.demo_scroll_steps` | İhtiyacını anlat · ManiCepte anlasın · Seçenekleri araştırsın · En iyi dengeyi gör |
+| `coming_soon.demo_product_insights` | Günlük rahatlık / Ekonomik seçenek · Yürüyüş desteği / Dengeli seçenek · Hafif kullanım / Dayanıklı seçenek |
+| `coming_soon.demo_winner` | En iyi fiyat-kalite dengesi |
+| `coming_soon.enrolled_title` | Listedesin. İyi ki geldin. |
+| `coming_soon.build_eyebrow` | Geliştirme durumu |
+| `coming_soon.build_title` | Neler hazırlıyoruz? |
+| `coming_soon.build_body` | Erken erişim öncesindeki çalışma başlıklarımız. |
 | `coming_soon.build_status_done` | Tamamlandı |
 | `coming_soon.build_status_in_progress` | Geliştiriliyor |
-| `coming_soon.build_item_early_access` | Erken erişim sistemi |
-| `coming_soon.build_item_search` | Arama deneyimi |
-| `coming_soon.build_item_discovery` | Ürün keşfi ve karşılaştırma |
-| `coming_soon.build_item_data` | Mağaza ve fiyat altyapısı |
-| `coming_soon.build_updated` | Son güncelleme: {ay} |
+| `coming_soon.build_item_early_access` | Erken erişim kayıtları |
+| `coming_soon.build_item_search` | Ürün bulma ve karşılaştırma |
+| `coming_soon.build_item_data` | Mağaza ve ürün kaynakları |
 | `coming_soon.follow_title` | Gelişmeleri takip et |
-| `coming_soon.closing_title` | Açıldığında ilk sen haberdar ol. |
-| `coming_soon.closing_body` | Erken erişim listesine katıl; hazır olduğumuzda sana haber verelim. |
+| `coming_soon.social_eyebrow` | ManiCepte günlüğü |
+| `coming_soon.social_title` | Gelişmeleri birlikte takip edelim. |
+| `coming_soon.social_body` | Yeni özellikleri, erken erişim davetlerini ve geliştirme notlarını resmi hesaplarımızda paylaşacağız. |
+| `coming_soon.faq_eyebrow` | Merak ettiklerin |
+| `coming_soon.faq_title` | Kısa cevaplar. |
+| `coming_soon.questions.0.question` | ManiCepte'yi hemen kullanabilir miyim? |
+| `coming_soon.questions.0.answer` | Henüz değil. Ürün bulma ve karşılaştırma deneyimini geliştiriyoruz. Listeye katılırsan hazır olduğunda haber alırsın. |
+| `coming_soon.questions.1.question` | Erken erişime nasıl katılırım? |
+| `coming_soon.questions.1.answer` | Erken erişime katıl butonundan hesabınla devam et veya yeni hesap aç. Listeye otomatik eklenirsin. |
+| `coming_soon.questions.2.question` | Ne zaman açılacak? |
+| `coming_soon.questions.2.answer` | İlk topluluk hedefimiz 5.000 kişi. Açılış için kesin bir tarih yok; ürün hazır olduğunda listedeki herkese haber vereceğiz. |
 | `coming_soon.admin_login` | Admin Girişi |
 | `coming_soon.admin_login_title` | Hesabınla giriş yap. |
 | `coming_soon.footer_description` | ManiCepte yakında: aradığın ürünü bul, alternatiflerini keşfet, fiyatları karşılaştır. |
@@ -718,21 +759,22 @@ Kaynak ürünün fiyatı yalnızca sayfanın yapılandırılmış verisinden gel
 yazılır; fiyatsız kaynakta fiyat gösterilmez. Mağaza bağlantısı yalnızca
 `/git/<offerId>?surface=search` ile verilir.
 
-## Sohbette fotoğraf izni (karar 0101)
+## Sohbette fotoğraf izni (karar 0101, 0105)
 
 Kaynak: `apps/web/app/sohbet/chat-image-consent-copy.ts`. Metin değişince `CHAT_IMAGE_CONSENT_VERSION` artar.
 Yalnızca kodun gerçekte yaptığı şeyler yazılır; hukuk onayı bekleyen beyanlar (model eğitimi, sağlayıcı
-saklama süresi, aktarım dayanağı) yazılmaz.
+saklama süresi, aktarım dayanağı) yazılmaz. Modal değil, kompozerin üstünde satır içi şerit;
+seçilen fotoğrafın önizlemesi yanında görünür.
 
 | Anahtar | Metin |
 |---|---|
-| `chat_image.title` | Fotoğrafını kullanmamız için iznin gerekiyor |
-| `chat_image.intro` | Seçtiğin fotoğraf, sen Gönder'e basana kadar cihazından çıkmaz. |
-| `chat_image.accept` | Fotoğrafımın bu şekilde kullanılmasını kabul ediyorum |
-| `chat_image.decline` | Kabul etmiyorum |
-| `chat_image.withdraw` | İznini istediğin zaman Hesabım > Gizlilik tercihleri sayfasından geri çekebilirsin. Geri çekmen yeni fotoğraf eklemeni durdurur. |
+| `chat_image.title` | Fotoğrafı eklemek için iznin gerekiyor |
+| `chat_image.summary` | Gönder'e basana kadar fotoğraf cihazından çıkmaz. Gönderince sunucumuzda küçültülür, konum gibi üst bilgileri silinir ve aradığın ürünü anlamak için Google'ın Gemini yapay zekâ hizmetine gönderilir; bu, verinin yurt dışına aktarılması anlamına gelebilir. Sohbetinle birlikte en geç 90 gün saklanır, yalnızca sen görürsün. Başka kişilerin yer aldığı ya da kimlik, kart, adres gibi bilgi içeren fotoğraf ekleme. |
+| `chat_image.accept` | İzin ver ve fotoğrafı ekle |
+| `chat_image.decline` | Vazgeç |
+| `chat_image.withdraw` | İznini istediğin zaman Hesabım > Gizlilik tercihleri sayfasından geri çekebilirsin. |
 
-Kabul ve ret eşit görsel ağırlıkta, onay kutusu yok, önceden işaretli bir şey yok.
+Hesabım > Gizlilik tercihleri: aynı bilgilendirme, izin durumu ve geri çekme düğmesi. Kabul ve ret eşit görsel ağırlıkta, onay kutusu yok, önceden işaretli bir şey yok.
 
 ## Sohbet geri bildirimi (karar 0079)
 

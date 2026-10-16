@@ -286,36 +286,47 @@
   overflow-wrap: anywhere;
 }
 
-/* Internet sonuclari (karar 0102): katalog izgarasiyla ayni dil; ayrim baslik,
-   not ve kart rozetiyle yapilir. */
-.webSection {
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-4);
+/* Birlesik sonuc izgarasi (karar 0106): internet kartlari katalog kartlariyla
+   ayni izgarada ve ayni kartla gosterilir; asagidakiler izgaranin tum satirini
+   kaplayan notlar ve cok magazali kartin teklif listesidir. */
+.gridNote {
+  grid-column: 1 / -1;
   min-width: 0;
-  margin-block-start: var(--space-8);
-}
-
-.webNote {
   margin: 0;
   color: var(--ink-muted);
   font-size: var(--text-small);
   line-height: var(--line-height-normal);
 }
 
-.webSubTitle {
-  margin: 0;
-  color: var(--ink);
-  font-size: var(--text-body);
-  font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-heading);
+/* Yalnizca ekran okuyucuya durum bildirir; izgarada hucre ve bosluk olusturmaz. */
+.gridStatus {
+  display: contents;
+}
+
+.webOffersBox {
+  margin-block-start: var(--space-2);
+}
+
+.webOffersToggle {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  cursor: pointer;
+}
+
+.webOffersToggle:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .webOffers {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  margin: var(--space-2) 0 0;
+  margin: var(--space-1) 0 0;
   padding: 0;
   list-style: none;
 }
@@ -350,4 +361,40 @@
   height: 6rem;
   border: 0;
   background: transparent;
+}
+
+/* Internet karti: kart + (varsa) magaza listesi tek sutunda akar. Kartin `height: 100%`
+   degeri satiri doldurup altindaki listeyi sonraki satirin ustune tasiyordu (cakisma);
+   burada kart icerigi kadar yer kaplar, liste altinda ayri bir blok olur. */
+.webItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.webItem > a {
+  flex: 1 1 auto;
+  height: auto;
+}
+
+/* Gorselsiz kompakt kart satirdaki gorselli komsusu kadar uzamaz. */
+.webItemCompact {
+  align-self: start;
+}
+
+.webOffer > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.webOffer > span:last-child {
+  flex-shrink: 0;
+  text-align: end;
+}
+
+/* Telefonda Google onerileri birkac satira sarar; sabit yukseklik kirpmasin. */
+@media (max-width: 639px) {
+  .suggestions {
+    height: 9rem;
+  }
 }

@@ -11,12 +11,11 @@ import { getDatabase } from "@arilla/db";
 import { EmptyState, formatTRY, ProductImage, SearchForm } from "@arilla/ui";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { Suspense } from "react";
 import { HOME_COPY } from "../../home-copy.ts";
 import { requireProductAccess } from "../../lib/dal.ts";
 import styles from "../ara.module.css";
 import { ResultGrid, resultCountLabel } from "../search-results.tsx";
-import { WebSearchPending, WebSearchResults } from "../web-search-section.tsx";
+import { WebGridItems, WebOnlyResults } from "../web-search-section.tsx";
 import { startWebSearch } from "../web-search-start.ts";
 import linkStyles from "./link-search.module.css";
 import { LinkSearchComingSoon } from "./link-search-coming-soon.tsx";
@@ -117,7 +116,7 @@ export default async function LinkAramaPage({
   searchParams: Promise<{ url?: string | string[] }>;
 }) {
   await requireProductAccess();
-  // Geçici olarak kapalı: adres ne olursa olsun durum sorgusu, kuyruk ya da
+  // Kapalıyken (geri alma anahtarı): adres ne olursa olsun durum sorgusu, kuyruk ya da
   // bekleme ekranı yok; rota 404 vermeden "Yakında" gösterir.
   if (!LINK_SEARCH_PUBLIC) return <LinkSearchComingSoon />;
   const { url: urlParam } = await searchParams;
@@ -207,6 +206,24 @@ export default async function LinkAramaPage({
     : null;
   const results = await findLinkSearchResults(db, state);
   const total = results.same.length + results.similar.length;
+  // Karar 0106: internet kartları katalog ızgarasının sonuna eklenir (tek ızgara).
+  const webItems = webSearch ? (
+    <WebGridItems
+      promise={webSearch}
+      catalog={[...results.same, ...results.similar].map((item) => ({
+        title: item.title,
+        imageUrl: item.primaryImageUrl,
+      }))}
+    />
+  ) : null;
+  const emptyState = (
+    <EmptyState
+      className={styles.emptyPanel}
+      title={LINK_SEARCH_COPY.emptyTitle}
+      description={LINK_SEARCH_COPY.emptyDescription}
+      headingLevel={2}
+    />
+  );
 
   return (
     <div className={styles.page}>
@@ -229,7 +246,11 @@ export default async function LinkAramaPage({
           <p className={styles.lede}>
             {LINK_SEARCH_COPY.sameEvidence[results.same[0]?.evidence ?? "gtin"]}
           </p>
-          <ResultGrid items={results.same} labelledBy="ayni-urun" />
+          <ResultGrid
+            items={results.same}
+            labelledBy="ayni-urun"
+            extra={results.similar.length === 0 ? webItems : null}
+          />
         </section>
       ) : null}
 
@@ -241,29 +262,16 @@ export default async function LinkAramaPage({
           <p className={linkStyles.signals}>
             {results.signals.image ? LINK_SEARCH_COPY.signalsImage : LINK_SEARCH_COPY.signalsText}
           </p>
-          <ResultGrid items={results.similar} labelledBy="benzer-urunler" />
+          <ResultGrid items={results.similar} labelledBy="benzer-urunler" extra={webItems} />
         </section>
       ) : null}
 
       {total === 0 ? (
-        <EmptyState
-          className={styles.emptyPanel}
-          title={LINK_SEARCH_COPY.emptyTitle}
-          description={LINK_SEARCH_COPY.emptyDescription}
-          headingLevel={2}
-        />
-      ) : null}
-
-      {webSearch ? (
-        <Suspense fallback={<WebSearchPending />}>
-          <WebSearchResults
-            promise={webSearch}
-            catalog={[...results.same, ...results.similar].map((item) => ({
-              title: item.title,
-              imageUrl: item.primaryImageUrl,
-            }))}
-          />
-        </Suspense>
+        webSearch ? (
+          <WebOnlyResults promise={webSearch} catalog={[]} empty={emptyState} />
+        ) : (
+          emptyState
+        )
       ) : null}
 
       <NewSearch />

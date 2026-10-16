@@ -5,8 +5,9 @@ paths:
 
 # Ingest (Python) kuralları
 
-- Python hiçbir HTTP endpoint'i sunmaz ve TypeScript'i çağırmaz; kuyruktan iş
-  alır, PostgreSQL'e yazar.
+- Python herkese açık hiçbir HTTP endpoint'i sunmaz ve TypeScript'i çağırmaz;
+  kuyruktan iş alır (Redis ya da, karar 0107, Vercel Queues aboneliği),
+  PostgreSQL'e yazar.
 - Migration üretmez; şema `packages/db`'nin sahipliğindedir.
 - Toplama idempotent: aynı feed iki kez işlenince sonuç değişmez
   (`(merchant_id, external_id)` unique).

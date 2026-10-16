@@ -34,6 +34,7 @@ describe("katalog kalitesi - entegrasyon", () => {
   const merchantIds: number[] = [];
   const productIds: number[] = [];
   let brandId = 0;
+  let feedSourceId = 0;
   const ids: Record<string, number> = {};
   let baseline: CatalogQualityReport;
 
@@ -149,6 +150,7 @@ describe("katalog kalitesi - entegrasyon", () => {
       // Aynı başlık, farklı renk: olası çift SAYILMAZ (renk düzeyinde kanonik).
       await product("ikiz-c", { title: `${tag} Ikiz Urun`, color: "bej" });
       await product("teklifsiz", { brand: false });
+      const fedProduct = await product("beslenen", {});
       const conflictProduct = await product("catisma", { gtin: VALID_B });
 
       const offer = async (
@@ -186,6 +188,22 @@ describe("katalog kalitesi - entegrasyon", () => {
       await offer("catisan", open, conflictProduct, { gtin: VALID_C });
       await offer("bayat", open, dupA, {}, { lastSeenDays: 30 });
       await offer("pasif", open, dupA, {}, { active: false });
+      // Teklif satırı eski ama besleme üyeliği taze: bayat SAYILMAZ (karar 0114).
+      const fed = await offer("besleniyor", open, fedProduct, {}, { lastSeenDays: 30 });
+      const feed = await client.query(
+        `INSERT INTO feed_source (network, external_id) VALUES ('admitad', $1) RETURNING id`,
+        [`${tag}-feed`],
+      );
+      feedSourceId = Number(feed.rows[0].id);
+      const snap = await client.query(
+        "INSERT INTO source_snapshot (feed_source_id) VALUES ($1) RETURNING id",
+        [feedSourceId],
+      );
+      await client.query(
+        `INSERT INTO feed_source_offer (feed_source_id, offer_id, last_snapshot_id, last_seen_at)
+         VALUES ($1, $2, $3, now())`,
+        [feedSourceId, fed, Number(snap.rows[0].id)],
+      );
       for (let i = 0; i < 3; i++) await offer(`kopya-${i}`, open, twinA);
       await offer("kapali-aktif", closed, twinA);
       for (let i = 0; i < 20; i++) await offer(`toplu-${i}`, bulk, null);
@@ -206,6 +224,8 @@ describe("katalog kalitesi - entegrasyon", () => {
         [merchantIds],
       );
       await client.query("DELETE FROM offer WHERE merchant_id = ANY($1)", [merchantIds]);
+      await client.query("DELETE FROM source_snapshot WHERE feed_source_id = $1", [feedSourceId]);
+      await client.query("DELETE FROM feed_source WHERE id = $1", [feedSourceId]);
       await client.query("DELETE FROM product WHERE id = ANY($1)", [productIds]);
       await client.query("DELETE FROM brand WHERE id = $1", [brandId]);
       await client.query("DELETE FROM merchant WHERE id = ANY($1)", [merchantIds]);
@@ -294,6 +314,11 @@ describe("katalog kalitesi - entegrasyon", () => {
     const invalid = await listOffers(db, moderator, { state: "invalid_gtin", merchantId });
     expect(invalid.rows.map((r) => r.id)).toEqual([ids.o_gecersiz]);
     expect(invalid.rows[0]).toMatchObject({ gtin: INVALID, hasIdentifier: true });
+
+    const stale = await listOffers(db, moderator, { state: "stale", merchantId });
+    expect(stale.rows.map((r) => r.id)).toEqual([ids.o_bayat]);
+    const fedRow = await listOffers(db, moderator, { state: "all", query: `#${ids.o_besleniyor}` });
+    expect(Date.now() - (fedRow.rows[0]?.lastSeenAt.getTime() ?? 0)).toBeLessThan(60_000);
 
     const byId = await listOffers(db, moderator, { state: "all", query: `#${ids.o_catisan}` });
     expect(byId.rows.map((r) => r.id)).toEqual([ids.o_catisan]);

@@ -22,9 +22,12 @@ Detay: `docs/architecture.md`. Terimlerin tanımı: `docs/glossary.md`.
 ## Mimari sınır — en önemli kural
 
 TypeScript tarafı ile Python tarafı **birbirini asla çağırmaz.** Aralarındaki tek
-iletişim kanalı PostgreSQL ve Redis kuyruğudur.
+iletişim kanalı PostgreSQL ve kuyruktur (Redis kuyruğu; link çözümlemede
+`LINK_QUEUE_BACKEND=vercel` iken Vercel Queues, karar 0107).
 
-- Python: kuyruktan iş alır, veritabanına yazar. Hiçbir HTTP endpoint'i sunmaz.
+- Python: kuyruktan iş alır, veritabanına yazar. Herkese açık hiçbir HTTP
+  endpoint'i sunmaz. Vercel'de çalışan kuyruk abonesi özel, yalnızca platformun
+  kuyruk bildirimiyle tetiklenen bir fonksiyondur; TypeScript onu çağırmaz.
 - TypeScript: veritabanından okur. Python'a iş vermek için kuyruğa mesaj bırakır.
 
 Bu kural bozulursa iki servis arası senkron bağımlılık oluşur ve mimarinin
@@ -68,7 +71,8 @@ tamamı anlamını yitirir.
      limit ve tek-uçuş kilidiyle; her çağrı `api_usage`'a yazılır, bütçesi diğer
      Gemini akışlarından ayrıdır. Sonuçlar katalog verisi DEĞİLDİR: veritabanına
      yazılmaz, önbelleğe alınmaz (Google şartları); yalnızca `api_usage` izi kalır.
-     Sonuçlar Google Search Suggestions ile birlikte, değiştirilmeden gösterilir. Model ürün ve fiyat
+     Sonuçlar katalog kartlarıyla aynı ızgarada, aynı kartla gösterilir ve Google Search
+     Suggestions ile birlikte, değiştirilmeden gösterilir (karar 0106). Model ürün ve fiyat
      "bulur" ama gösterilen her bağlantı ve fiyat doğrulama süzgecinden geçer;
      doğrulanamayan fiyat gösterilmez. Hata/kapalı bayrak: veritabanı sonuçları
      aynen kalır.
@@ -93,7 +97,8 @@ tamamı anlamını yitirir.
    Google şartları gereği izlenemez ve araya yönlendirme/ara sayfa konamaz; bu
    yüzden internet arama sonuçları (katalogda `offer` olmayan, affiliate olmayan)
    doğrudan mağaza adresine, `nofollow noopener sponsored` ile verilir ve `click`
-   üretmez. Kartta kaynak rozeti ve "gelir ortaklığı kapsamında değil" notu vardır.
+   üretmez. Kaynak rozeti yoktur; ızgara sonunda tek satır "gelir ortaklığı kapsamında
+   değildir" notu vardır (karar 0106).
 9. **Her model çağrısı `api_usage` tablosuna yazılır.** Maliyet ölçülemiyorsa
    kontrol edilemez.
 10. **Yüklenen görsel saklanmaz.** Embedding ve hash tutulur; ham dosya en fazla

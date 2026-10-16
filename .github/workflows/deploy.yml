@@ -1,0 +1,234 @@
+# Production dagitimi (docs/decisions/0109, faz 6): GHCR'a yayinlanan dogrulanmis surumu VPS'e dagitir.
+#
+# Zincir: push main -> ci (basarili) -> build-push (imajlar + release-manifest) -> BU is akisi.
+# - `plan`  : salt okunur. Manifesti ve zorunlu kontrolleri dogrular, imajlarin GHCR'da digest ile
+#             VAR oldugunu sorar, surum main'in ucu degilse (daha yeni commit var) ATLAR.
+# - `deploy`: environment `vps-production`; SSH ile VPS'teki kisitli `deploy-gate` komutunu cagirir
+#             (`deploy <sha>`, manifest stdin). Docker/root yetkisi runner'da DEGIL, VPS'te sudo
+#             kuralinin (yalniz arilla-deploy) arkasindadir. Basarisizsa VPS otomatik geri alir.
+# - Ayni anda tek dagitim (concurrency); bekleyenlerin en yenisi kazanir.
+# - Gerekli GitHub/VPS yapilandirmasi yoksa is YESIL kalir ve uyari verir (dagitim atlanir).
+#
+# Gerekli (elle, bir kez): docs/ops.md "Otomatik dagitim".
+#   Environment `vps-production`: secret VPS_SSH_PRIVATE_KEY, secret VPS_SSH_KNOWN_HOSTS,
+#   variable VPS_HOST, variable VPS_USER (varsayilan deploy). Repo variable ARILLA_APP_URL (build-push).
+name: deploy
+
+on:
+  workflow_run:
+    workflows: ["build-push"]
+    types: [completed]
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      build_run_id:
+        description: "Dagitilacak build-push kosusunun numarasi (artifact: release-manifest-<sha>)"
+        required: true
+      allow_older:
+        description: "main'in ucunden ESKI bir surume izin ver (bilincli geri donus)"
+        type: boolean
+        default: false
+
+permissions: {}
+
+concurrency:
+  group: production-deploy
+  cancel-in-progress: false
+
+jobs:
+  plan:
+    name: plan (manifest + kontroller + GHCR)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    # build-push basarili, main'den ve BU depodan olmali (fork PR'i "main" adli dal acsa bile islenmez).
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event != 'pull_request' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    permissions:
+      contents: read
+      actions: read
+      checks: read
+      packages: read
+    outputs:
+      proceed: ${{ steps.plan.outputs.proceed }}
+      sha: ${{ steps.plan.outputs.sha }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+      - name: build-push kosusunu ve manifesti al
+        id: manifest
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          EVENT: ${{ github.event_name }}
+          RUN_ID: ${{ github.event.workflow_run.id || inputs.build_run_id }}
+        run: |
+          set -euo pipefail
+          [[ "$RUN_ID" =~ ^[0-9]+$ ]] || { echo "::error::gecersiz build_run_id"; exit 1; }
+          info=$(gh api "repos/$REPO/actions/runs/$RUN_ID" --jq '[.name, .conclusion, .head_branch, .event, .head_repository.full_name] | @tsv')
+          IFS=$'\t' read -r name conclusion branch event repo_full <<<"$info"
+          [ "$name" = "build-push" ] || { echo "::error::kosu build-push degil ($name)"; exit 1; }
+          [ "$conclusion" = "success" ] || { echo "::error::build-push basarili degil ($conclusion)"; exit 1; }
+          [ "$branch" = "main" ] || { echo "::error::build-push main'den degil ($branch)"; exit 1; }
+          [ "$event" != "pull_request" ] || { echo "::error::pull_request kosusu dagitilmaz"; exit 1; }
+          [ "$repo_full" = "$REPO" ] || { echo "::error::baska depodan kosu"; exit 1; }
+          mkdir -p parts
+          gh run download "$RUN_ID" --repo "$REPO" -p 'release-manifest-*' -D parts
+          count=$(find parts -name release-manifest.json | wc -l)
+          [ "$count" -eq 1 ] || { echo "::error::tam olarak bir release-manifest.json beklenir ($count)"; exit 1; }
+          cp "$(find parts -name release-manifest.json)" release-manifest.json
+      - name: manifest dogrulama, guncellik, zorunlu kontroller
+        id: plan
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          OWNER: ${{ github.repository_owner }}
+          ALLOW_OLDER: ${{ inputs.allow_older }}
+        run: |
+          set -euo pipefail
+          owner=$(echo "$OWNER" | tr '[:upper:]' '[:lower:]')
+          sha=$(python3 -c 'import json;print(json.load(open("release-manifest.json"))["sha"])')
+          [[ "$sha" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::manifest sha gecersiz"; exit 1; }
+          # complete=true, tag=sha-<sha>, dort imaj, sha256 digest'ler, onek ghcr.io/<sahip>/
+          python3 infra/vps/bin/release.py validate release-manifest.json --sha "$sha" --image-prefix "ghcr.io/$owner/"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+
+          # Surum main'in ucu mu? Daha yeni commit varsa onun kendi hatti dagitir; eskisi dagitilmaz.
+          head=$(gh api "repos/$REPO/commits/main" --jq .sha)
+          status=$(gh api "repos/$REPO/compare/$sha...main" --jq .status)
+          case "$status" in identical | ahead) ;; *) echo "::error::$sha main'in atasi degil ($status)"; exit 1 ;; esac
+          if [ "$sha" != "$head" ] && [ "$ALLOW_OLDER" != "true" ]; then
+            echo "::notice::$sha main'in ucu degil ($head); daha yeni surum kendi hattiyla dagitilir. Atlandi."
+            echo "proceed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # Bu commit icin zorunlu kontroller (ci + guvenlik) basarili mi?
+          required=("private-keys" "typecheck + lint" "unit tests" "python unit tests" "web build" \
+                    "docker images (web + migrate)" "compose stack (production topology)" \
+                    "admin authz + integration (isolated services)")
+          runs=$(gh api "repos/$REPO/commits/$sha/check-runs?per_page=100" --jq '.check_runs[] | "\(.name)|\(.status)|\(.conclusion)"')
+          for name in "${required[@]}"; do
+            line=$(echo "$runs" | grep -F "$name|" | head -1 || true)
+            case "$line" in
+              *"|completed|success") ;;
+              *) echo "::error::zorunlu kontrol basarili degil: '$name' -> ${line:-yok}"; exit 1 ;;
+            esac
+          done
+          # Yeni kontrol: eski commit'lerde YOK (test "compose stack" icindeydi; bilincli geri donus
+          # icin eski surumler dagitilabilsin); varsa basarili olmali.
+          line=$(echo "$runs" | grep -F "deploy engine (rollback + migration, local)|" | head -1 || true)
+          case "$line" in
+            "" | *"|completed|success") ;;
+            *) echo "::error::zorunlu kontrol basarili degil: 'deploy engine' -> $line"; exit 1 ;;
+          esac
+          echo "proceed=true" >> "$GITHUB_OUTPUT"
+      - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
+        if: steps.plan.outputs.proceed == 'true'
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ github.token }}
+      - name: imajlar GHCR'da digest ile var mi
+        if: steps.plan.outputs.proceed == 'true'
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF' > refs.txt
+          import json
+          m = json.load(open("release-manifest.json"))
+          for n, i in sorted(m["images"].items()):
+              print(f'{i["image"]}@{i["digest"]}')
+          PYEOF
+          while read -r ref; do
+            docker buildx imagetools inspect "$ref" >/dev/null || { echo "::error::imaj GHCR'da yok / okunamiyor: ${ref%%@*}"; exit 1; }
+            echo "var: ${ref%%@*}"
+          done <refs.txt
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: steps.plan.outputs.proceed == 'true'
+        with:
+          name: deploy-manifest
+          path: release-manifest.json
+          retention-days: 30
+          if-no-files-found: error
+
+  deploy:
+    name: deploy (VPS)
+    needs: plan
+    if: needs.plan.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: vps-production
+    permissions: {}
+    env:
+      SHA: ${{ needs.plan.outputs.sha }}
+    steps:
+      - name: yapilandirma var mi
+        id: cfg
+        env:
+          KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          KNOWN: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          HOST: ${{ vars.VPS_HOST }}
+        run: |
+          if [ -z "$KEY" ] || [ -z "$KNOWN" ] || [ -z "$HOST" ]; then
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::warning title=Dagitim atlandi::environment 'vps-production' icin VPS_SSH_PRIVATE_KEY, VPS_SSH_KNOWN_HOSTS (secret) ve VPS_HOST (variable) tanimli degil. docs/ops.md 'Otomatik dagitim'."
+          else
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          fi
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        if: steps.cfg.outputs.configured == 'true'
+        with:
+          name: deploy-manifest
+      - name: SSH ile dagit
+        if: steps.cfg.outputs.configured == 'true'
+        env:
+          KEY: ${{ secrets.VPS_SSH_PRIVATE_KEY }}
+          KNOWN: ${{ secrets.VPS_SSH_KNOWN_HOSTS }}
+          HOST: ${{ vars.VPS_HOST }}
+          SSH_USER: ${{ vars.VPS_USER || 'deploy' }}
+        run: |
+          set -euo pipefail
+          umask 077
+          dir=$(mktemp -d)
+          trap 'rm -rf "$dir"' EXIT
+          printf '%s\n' "$KEY" > "$dir/id"
+          printf '%s\n' "$KNOWN" > "$dir/known_hosts"
+          [[ "$SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "::error::sha gecersiz"; exit 1; }
+          set +e
+          ssh -T -i "$dir/id" -o IdentitiesOnly=yes -o BatchMode=yes \
+              -o StrictHostKeyChecking=yes -o UserKnownHostsFile="$dir/known_hosts" \
+              -o ConnectTimeout=20 -o ServerAliveInterval=20 -o ServerAliveCountMax=6 \
+              "$SSH_USER@$HOST" "deploy $SHA" < release-manifest.json 2>&1 | tee deploy-output.txt
+          rc=${PIPESTATUS[0]}
+          set -e
+          result=$(grep -E '^DEPLOY_RESULT=' deploy-output.txt | tail -1 || true)
+          {
+            echo "### Dagitim sha-${SHA:0:12}"
+            echo
+            echo "- cikis kodu: \`$rc\`"
+            echo "- sonuc: \`${result:-bilinmiyor}\`"
+          } >> "$GITHUB_STEP_SUMMARY"
+          if [ "$rc" -ne 0 ]; then
+            case "$rc" in
+              1) echo "::error::Dagitim basarisiz; VPS onceki surume OTOMATIK geri aldi." ;;
+              3) echo "::error::Dagitim basarisiz VE geri alma da basarisiz. VPS'e elle mudahale gerekir." ;;
+              *) echo "::error::Dagitim baslamadi / on kosul hatasi (kod $rc)." ;;
+            esac
+            exit "$rc"
+          fi
+      - name: dis dogrulama (internetten)
+        if: steps.cfg.outputs.configured == 'true'
+        env:
+          APP_URL: ${{ vars.ARILLA_APP_URL }}
+        run: |
+          set -euo pipefail
+          [ -n "$APP_URL" ] || { echo "::warning::ARILLA_APP_URL yok; dis dogrulama atlandi"; exit 0; }
+          code=$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "$APP_URL/api/health")
+          [ "$code" = 200 ] || { echo "::error::$APP_URL/api/health -> $code"; exit 1; }
+          code=$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "$APP_URL/api/health/ready")
+          [ "$code" = 404 ] || { echo "::error::/api/health/ready disaridan $code (404 beklenir)"; exit 1; }
+          echo "dis dogrulama tamam"

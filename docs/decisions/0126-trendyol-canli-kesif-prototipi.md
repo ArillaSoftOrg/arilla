@@ -1,4 +1,4 @@
-# 0106 — Trendyol canlı ürün keşfi prototipi (Faz 1)
+# 0126 — Trendyol canlı ürün keşfi prototipi (Faz 1)
 
 Durum: **prototip, üretime bağlı değil.** İstek yoluna, Gemini/Jina/sohbet/arama
 akışlarına, veritabanına ve Redis'e dokunmaz. Hiçbir şey saklanmaz.

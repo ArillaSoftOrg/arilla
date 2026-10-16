@@ -16,9 +16,13 @@
     "./ga4-measurement": "./src/analytics-ga4/measurement.ts",
     "./link-input": "./src/discovery/link-search-input.ts",
     "./legal-identity": "./src/config/legal-identity.ts",
+    "./deploy-env": "./src/config/deploy-env.ts",
     "./media-url": "./src/storage/media-url.ts",
     "./media-keys": "./src/storage/media-keys.ts",
-    "./storage": "./src/storage/index.ts"
+    "./storage": "./src/storage/index.ts",
+    "./catalog-collection-extract": "./src/catalog-collection/extract-hepsiburada.ts",
+    "./catalog-discovery-extract": "./src/catalog-collection/discovery-extract.ts",
+    "./errors": "./src/errors/index.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -32,17 +36,20 @@
     "eval:record-matching": "node --experimental-transform-types --no-warnings scripts/eval-record-matching.ts",
     "eval:search-compare": "node scripts/search-eval-compare.ts",
     "live-discovery": "node --experimental-transform-types --no-warnings scripts/live-discovery-cli.ts",
+    "web-search:image-probe": "node --experimental-transform-types --no-warnings scripts/store-image-probe.ts",
     "web-search:smoke": "node --experimental-transform-types --no-warnings scripts/web-search-smoke.ts",
+    "gemini:image-smoke": "node --experimental-transform-types --no-warnings scripts/gemini-image-smoke.ts",
     "gemini:smoke": "node --experimental-transform-types --no-warnings scripts/gemini-smoke.ts"
   },
   "dependencies": {
     "@arilla/db": "workspace:*",
     "@aws-sdk/client-s3": "^3.1146.0",
+    "@vercel/queue": "^0.8.0",
     "drizzle-orm": "^0.45.2",
     "ioredis": "^5.4.1",
     "nodemailer": "^6.9.16",
     "pg": "^8.23.0",
-    "sharp": "0.35.4"
+    "sharp": "0.35.5"
   },
   "devDependencies": {
     "@types/nodemailer": "^6.4.17",

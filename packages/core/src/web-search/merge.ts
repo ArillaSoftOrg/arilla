@@ -4,9 +4,9 @@
  * urunun farkli saticilardaki tekliflerini tek grupta toplar, yinelenenleri
  * ve katalogda zaten bulunan teklifleri atar. Saf ve deterministik.
  */
-import { WEB_SEARCH_MAX_GROUPS, WEB_SEARCH_MAX_OFFERS_PER_GROUP } from "./config.ts";
+import { WEB_SEARCH_MAX_OFFERS_PER_GROUP, WEB_SEARCH_POOL_GROUPS } from "./config.ts";
 import type { WebCandidate } from "./parse.ts";
-import { asciiFold, extractFeatures } from "./query.ts";
+import { asciiFold, CAPACITY_RE, extractFeatures } from "./query.ts";
 import type { WebMatchKind, WebOffer, WebProductGroup, WebSearchFeatures } from "./types.ts";
 
 const STOPWORDS = new Set([
@@ -166,7 +166,66 @@ function betterOffer(a: WebOffer, b: WebOffer): WebOffer {
   return a;
 }
 
-function sameVariant(a: WebSearchFeatures, b: WebSearchFeatures): boolean {
+/** Ayni model ailesinde ayri urun yapan siniflama sozcukleri (Pro / Pro Max / Plus ...). */
+const TIER_WORDS = new Set([
+  "pro",
+  "max",
+  "plus",
+  "ultra",
+  "mini",
+  "lite",
+  "se",
+  "fe",
+  "air",
+  "neo",
+  "turbo",
+  "edge",
+  "prime",
+]);
+
+/**
+ * Urun kimligi: marka-disi serbest sayilar (nesil: "16", "s24") ve siniflama
+ * sozcukleri. Kapasite/RAM sayilari (128 GB) burada sayilmaz, varyant olarak ayri
+ * degerlendirilir.
+ */
+function lineIdentity(text: string): { numbers: Set<string>; tiers: Set<string> } {
+  const folded = asciiFold(text).replace(CAPACITY_RE, " ");
+  const numbers = new Set<string>();
+  const tiers = new Set<string>();
+  for (const token of folded.split(/[^a-z0-9]+/)) {
+    if (!token) continue;
+    if (TIER_WORDS.has(token)) tiers.add(token);
+    else if (/^\d{1,3}$/.test(token)) numbers.add(token);
+  }
+  return { numbers, tiers };
+}
+
+/**
+ * Iki baslik AYNI model ailesinde mi: "iPhone 16 Pro" ile "iPhone 15 Pro" (nesil) ya da
+ * "iPhone 16 Pro" ile "iPhone 16 Pro Max" (siniflama) AYRI urundur; kelime ortusmesi
+ * yuksek olsa da eslestirilmez. `wanted` icindeki her sayi `other`de bulunmali,
+ * siniflama sozcuk kumeleri esit olmali.
+ */
+export function sameProductLine(wanted: string, other: string): boolean {
+  const a = lineIdentity(wanted);
+  const b = lineIdentity(other);
+  for (const n of a.numbers) if (!b.numbers.has(n)) return false;
+  if (a.tiers.size !== b.tiers.size) return false;
+  for (const t of a.tiers) if (!b.tiers.has(t)) return false;
+  return true;
+}
+
+/**
+ * Katalog gorseli icin sıkı varyant: renk, kapasite, beden her biri iki tarafta da bos ya da
+ * ortak olmali. Baslikta rengi olmayan ilana belirli bir rengin fotografi verilmez.
+ */
+export function strictSameVariant(a: WebSearchFeatures, b: WebSearchFeatures): boolean {
+  const agree = (x: readonly string[], y: readonly string[]) =>
+    (x.length === 0 && y.length === 0) || overlapsAny(x, y);
+  return agree(a.colors, b.colors) && agree(a.capacities, b.capacities) && agree(a.sizes, b.sizes);
+}
+
+export function sameVariant(a: WebSearchFeatures, b: WebSearchFeatures): boolean {
   return !(
     disjoint(a.capacities, b.capacities) ||
     disjoint(a.colors, b.colors) ||
@@ -198,6 +257,14 @@ export function mergeWebCandidates({ candidates, query, features }: MergeInput):
       (d) =>
         d.kind === classified.kind &&
         sameVariant(d.features, classified.features) &&
+        sameProductLine(
+          `${d.brand ?? ""} ${d.title}`,
+          `${candidate.brand ?? ""} ${candidate.title}`,
+        ) &&
+        sameProductLine(
+          `${candidate.brand ?? ""} ${candidate.title}`,
+          `${d.brand ?? ""} ${d.title}`,
+        ) &&
         jaccard(d.tokens, tokens) >= GROUP_SIMILARITY,
     );
     if (target) {
@@ -235,7 +302,7 @@ export function mergeWebCandidates({ candidates, query, features }: MergeInput):
       minVerifiedPriceKurus: prices.length > 0 ? Math.min(...prices) : null,
     };
   });
-  return sortGroups(groups).slice(0, WEB_SEARCH_MAX_GROUPS);
+  return sortGroups(groups).slice(0, WEB_SEARCH_POOL_GROUPS);
 }
 
 /** Tam eslesme once; dogrulanmis fiyatlilar, sonra teklif sayisi ve dusuk fiyat. */
@@ -277,7 +344,12 @@ export function dropCatalogDuplicates(
     const offers = group.offers.filter((offer) => {
       if (!catalog.hosts.has(offer.host)) return true;
       const tokens = new Set(significantTokens(offer.title));
-      return !catalogTokens.some((c) => jaccard(c, tokens) >= CATALOG_DUPLICATE_SIMILARITY);
+      return !catalogTokens.some(
+        (c, i) =>
+          jaccard(c, tokens) >= CATALOG_DUPLICATE_SIMILARITY &&
+          sameProductLine(catalog.titles[i] ?? "", offer.title) &&
+          sameProductLine(offer.title, catalog.titles[i] ?? ""),
+      );
     });
     if (offers.length === 0) continue;
     const prices = offers.map((o) => o.priceKurus).filter((p): p is number => p !== null);
@@ -298,10 +370,12 @@ export interface CatalogImageCandidate {
 const CATALOG_IMAGE_SIMILARITY = 0.7;
 
 /**
- * Tam eslesen internet urunune, katalogda ayni urun varsa KATALOGUN gorselini
- * verir (kendi feed'imizden; hakki ve kaynagi dogrulanmis). Renk/beden/
- * kapasite celisiyorsa verilmez: yanlis varyantin fotografi yaniltir. Benzer
- * alternatiflere gorsel verilmez. Internet sayfalarindan gorsel cekilmez.
+ * Internet urunune, katalogda AYNI urun varsa KATALOGUN gorselini verir (kendi
+ * feed'imizden; hakki ve kaynagi dogrulanmis). Kimlik: marka/kelime benzerligi +
+ * ayni model ailesi (nesil, Pro/Max/Plus) + siki varyant (renk, kapasite, beden iki
+ * tarafta da ayni ya da ikisi de bos). Yanlis urunun ya da yanlis rengin fotografi
+ * yaniltir, bu yuzden belirsizse gorsel verilmez. Benzer alternatif de olsa grubun
+ * KENDI urunu katalogda varsa gorseli verilir. Internet sayfalarindan gorsel cekilmez.
  */
 export function attachCatalogImages(
   groups: readonly WebProductGroup[],
@@ -315,16 +389,18 @@ export function attachCatalogImages(
       features: extractFeatures(item.title),
     }));
   return groups.map((group) => {
-    if (group.matchKind !== "exact") return { ...group, imageUrl: null };
-    const tokens = new Set(significantTokens(`${group.brand ?? ""} ${group.title}`));
+    const text = `${group.brand ?? ""} ${group.title}`;
+    const tokens = new Set(significantTokens(text));
     const features = extractFeatures(group.title, group.brand);
     let best: { url: string; score: number } | null = null;
     for (const candidate of candidates) {
       const score = jaccard(candidate.tokens, tokens);
       if (score < CATALOG_IMAGE_SIMILARITY || (best !== null && score <= best.score)) continue;
-      if (!sameVariant(candidate.features, features)) continue;
+      if (!strictSameVariant(candidate.features, features)) continue;
+      if (!sameProductLine(text, candidate.item.title)) continue;
+      if (!sameProductLine(candidate.item.title, text)) continue;
       best = { url: candidate.item.imageUrl, score };
     }
-    return { ...group, imageUrl: best?.url ?? null };
+    return { ...group, imageUrl: best?.url ?? group.imageUrl ?? null };
   });
 }

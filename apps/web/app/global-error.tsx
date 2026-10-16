@@ -1,6 +1,7 @@
 "use client";
 
 import "./globals.css";
+import { classifyError, describeError } from "@arilla/core/errors";
 import { useEffect } from "react";
 import actions from "./public-actions.module.css";
 import styles from "./system-state.module.css";
@@ -34,6 +35,13 @@ export default function GlobalError({
     console.error(error);
   }, [error]);
 
+  const info = describeError({
+    code: classifyError(error, { client: true }),
+    reference: error.digest,
+  });
+  const known = info.code !== "unknown";
+  const reloads = info.action === "reload";
+
   return (
     <html lang="tr">
       <body>
@@ -41,12 +49,19 @@ export default function GlobalError({
         <main className={`${styles.bareShell} ${styles.gutter}`}>
           <div className={styles.page}>
             <div className={styles.text}>
-              <h1 className={styles.title}>{GLOBAL_ERROR_COPY.title}</h1>
-              <p className={styles.body}>{GLOBAL_ERROR_COPY.body}</p>
+              <h1 className={styles.title}>{known ? info.title : GLOBAL_ERROR_COPY.title}</h1>
+              <p className={styles.body}>{known ? info.message : GLOBAL_ERROR_COPY.body}</p>
+              {info.reference ? (
+                <p className={styles.body}>Referans kodu: {info.reference}</p>
+              ) : null}
             </div>
             <div className={actions.actions}>
-              <button type="button" className={actions.primary} onClick={() => retry()}>
-                {GLOBAL_ERROR_COPY.retry}
+              <button
+                type="button"
+                className={actions.primary}
+                onClick={() => (reloads ? window.location.reload() : retry())}
+              >
+                {reloads ? "Sayfayı yenile" : GLOBAL_ERROR_COPY.retry}
               </button>
               <a href="/" className={actions.secondary}>
                 {GLOBAL_ERROR_COPY.homeAction}
