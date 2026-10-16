@@ -19,7 +19,7 @@
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { findLexiconMatches, type LexiconEntry } from "./lexicon.ts";
-import { loadLexicon } from "./lexicon-repository.ts";
+import { loadLexiconCached } from "./lexicon-cache.ts";
 import { normalizeQueryText, tokenizeWithOffsets } from "./normalize.ts";
 import { parseQueryText } from "./parse-query.ts";
 import { identifierOrSecretReason } from "./query-privacy.ts";
@@ -284,7 +284,7 @@ export async function recordTextSearchQuality(
   try {
     const queryNorm = normalizeQueryText(typeof input.query === "string" ? input.query : "");
     if (!isSearchQualityRecordable(queryNorm)) return "skipped";
-    const entries = await loadLexicon(db);
+    const entries = await loadLexiconCached(db);
     return await recordSearchQuality(
       db,
       {
