@@ -6,6 +6,10 @@ migration'lar olusturur.
 ## Kurallar
 
 - Dosya adi: `NNNN_kisa_ad.sql`, sirali.
+- Ilk satir `-- kind: schema|data|grant|concurrent`. Buyuk tabloya indeks
+  `-- kind: concurrent` dosyasiyla eklenir/kaldirilir: islem disi, yalnizca
+  `CREATE INDEX CONCURRENTLY IF NOT EXISTS` / `DROP INDEX CONCURRENTLY IF EXISTS`;
+  calistirici yarim kalmis gecersiz indeksi kaldirip yeniden kurar (karar 0125).
 - **Geriye uyumlu yazilir.** Once kolon eklenir, kod dagitilir, sonra eski
   kolon kaldirilir. Tek adimda kolon silen migration reddedilir.
 - Semanin tek sahibi `packages/db`. Python tarafi okur ve yazar, migration
@@ -86,6 +90,8 @@ migration'lar olusturur.
 | `0075_collection_request_quota.sql` | Hepsiburada kota modeli (karar 0124): gunluk 20.000 / aylik 60.000 HTTP istegi ve aylik 5.000.000 urun tavani; 7 gun aralik ve ayda 4 kosu siniri kaldirildi (politikada 0/NULL). `collection_run.requests_reserved` (HTTP isteginden once atomik rezervasyon, iade yok) + `products_counted`; `collection_usage_day` (UTC gun defteri, yalniz SECURITY DEFINER tetikleyici yazar). Kolon silinmez; mevcut kosular `requests_made` ile doldurulur. |
 | `0078_hepsiburada_no_product_cap.sql` | Hepsiburada aylik urun tavani kaldirildi (karar 0124): `monthly_max_products = NULL`; yalniz gunluk 20.000 / aylik 60.000 istek siniri. `products_counted` izleme icin kalir. Yalniz veri. 0076/0077 acik dala ayrildi. |
 | `0074_source_listing_catalog.sql` | Kaynak ilanindan urun (karar 0121): `product.publication_state` (draft/ready/held/published; mevcut urunler `published`), `hold_reason`, `published_at`, kaynak kimligi `(source_merchant_id, source_external_id)` benzersiz + `source_offer_id`, yalniz kaynak ilani yayinlanmamis olabilir (CHECK), `catalog_build_state` (kontrol noktasi). Baslik trigram GIN indeksleri yalniz yayinlanmislari kapsar. `offer`a dokunmaz. 0073 = kesif defteri (karar 0120). |
+| `0077_drop_redundant_indexes.sql` | Yinelenen indeksler kaldirilir: `price_point_offer_time_idx` (PK ile ayni), `embedding_target_idx`, `user_consent_idx`, `auth_token_cleanup_idx`, `discovery_slot_date_idx` (baska indeksin on eki) ve her `/ara` isabetinde artan kolonu indeksleyen `query_resolution_popular_idx` (HOT'u engelliyordu). Yalnizca indeks; geriye uyumlu. |
+| `0081_pg_stat_statements.sql` | Sorgu istatistikleri: `pg_stat_statements` ayri `monitoring` semasina kurulur (uygulama rolu okuyamaz; `public` varsayilan yetkileri uzanmaz). Sayaclar `shared_preload_libraries` ile Postgres yeniden baslatilinca toplanir; rapor `pnpm db:health`. Yalnizca ekleme. |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf
 DDL'ydi (`grep -l "INSERT INTO" migrations/*.sql` bos donerdi). Kategori

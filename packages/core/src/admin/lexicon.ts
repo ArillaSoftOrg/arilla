@@ -7,6 +7,7 @@
 import { type Database, lexicon, queryResolution } from "@arilla/db";
 import { and, desc, eq, gte, ilike, or } from "drizzle-orm";
 import type { LexiconKind } from "../search/lexicon.ts";
+import { invalidateLexiconCache } from "../search/lexicon-cache.ts";
 import { recordAdminEvent } from "./audit.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 
@@ -148,7 +149,7 @@ export async function upsertLexiconEntry(
   assertCapability(actor, "dictionary.write");
   const input = validateLexiconInput(rawInput);
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const existing =
       input.id !== undefined
         ? await tx.select().from(lexicon).where(eq(lexicon.id, input.id)).for("update")
@@ -188,6 +189,9 @@ export async function upsertLexiconEntry(
     });
     return { found: true };
   });
+  // Bu surecin sozluk onbellegi aninda tazelenir; diger surecler TTL ile.
+  invalidateLexiconCache(db);
+  return result;
 }
 
 /** Sil. Önbellek aynı gerekçeyle temizlenir; silinen satır denetim kaydında kalır. */
@@ -201,7 +205,7 @@ export async function deleteLexiconEntry(
     throw new LexiconValidationError("id", "Geçersiz satır.");
   }
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx) => {
     const deleted = await tx.delete(lexicon).where(eq(lexicon.id, id)).returning();
     const row = deleted[0];
     if (!row) return { found: false };
@@ -216,6 +220,8 @@ export async function deleteLexiconEntry(
     });
     return { found: true };
   });
+  invalidateLexiconCache(db);
+  return result;
 }
 
 export interface Tier3Query {

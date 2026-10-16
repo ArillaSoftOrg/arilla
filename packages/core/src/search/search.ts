@@ -129,11 +129,11 @@ async function searchByClosestMatch(
   const result = await db.execute<RawRow>(sql`
     WITH ${bestOfferCte(inStockOnly, merchantIds)},
     edges AS (
-      SELECT (CASE WHEN product_a = ${anchorProductId} THEN product_b ELSE product_a END) AS other_id,
-             max(score) AS score
+      -- Cift yonlu yazilir; yalnizca product_a okunur (similarity_lookup_idx).
+      SELECT product_b AS other_id, max(score) AS score
       FROM similarity_edge
-      WHERE kind = ANY(${arrayParam(kinds)}::text[]) AND (product_a = ${anchorProductId} OR product_b = ${anchorProductId})
-      GROUP BY other_id
+      WHERE product_a = ${anchorProductId} AND kind = ANY(${arrayParam(kinds)}::text[])
+      GROUP BY product_b
     )
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
            b.name AS brand_name, c.path AS category_path,
