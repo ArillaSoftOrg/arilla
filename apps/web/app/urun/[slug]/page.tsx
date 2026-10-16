@@ -36,6 +36,7 @@ import {
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
+import { cardPriceProps } from "../../ara/search-results.tsx";
 import { HOME_COPY } from "../../home-copy.ts";
 import { readConsent } from "../../lib/consent.ts";
 import { requireProductAccess } from "../../lib/dal.ts";
@@ -724,13 +725,13 @@ export default async function ProductPage({
           <ul className={styles.altList} role="list" aria-labelledby="alternatifler-baslik">
             {alternatives.map((alt) => (
               <li key={alt.productId}>
-                {/* AlternativeProduct'ta offerCount yok (C2 kapsami) - meta satiri cizilmez. */}
+                {/* AlternativeProduct'ta offerCount yok (C2 kapsami) - TRY kartta meta satiri
+                    cizilmez; yurt disi kartta kur/kargo notu (karar 0124). */}
                 <ProductCard
                   href={`/urun/${alt.slug}`}
                   title={alt.title}
                   imageUrl={alt.primaryImageUrl}
-                  minPrice={alt.minPrice}
-                  priceFrom={alt.priceFromVariants ?? false}
+                  {...cardPriceProps(alt)}
                   brand={alt.brandName}
                 />
               </li>

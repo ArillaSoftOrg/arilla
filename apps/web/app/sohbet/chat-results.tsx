@@ -1,6 +1,7 @@
 import {
   CHAT_RESULT_LIMIT,
   createChatTimer,
+  type ForeignPrice,
   IntentSearchTimeoutError,
   intentSearchText,
   logChatTimings,
@@ -10,7 +11,7 @@ import {
 import { getDatabase } from "@arilla/db";
 import { ProductCard, VisuallyHidden } from "@arilla/ui";
 import type { ReactNode } from "react";
-import { offerCountLabel, resultCountLabel } from "../ara/search-results.tsx";
+import { cardPriceProps, resultCountLabel } from "../ara/search-results.tsx";
 import { WebGridItems, WebOnlyResults } from "../ara/web-search-section.tsx";
 import { startWebSearch } from "../ara/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
@@ -28,6 +29,8 @@ interface GridItem {
   priceFromVariants?: boolean;
   offerCount: number;
   brandName: string | null;
+  /** Karar 0124: bkz. `cardPriceProps`. */
+  foreignPrice?: ForeignPrice;
 }
 
 /** Konuşma içi ürün kartları: `/ara` ile aynı `ProductCard`, konteynere göre akan ızgara. */
@@ -52,10 +55,7 @@ export function ChatResultGrid({
             brand={item.brandName}
             imageUrl={item.primaryImageUrl}
             imageLoading={index < 4 ? "eager" : "lazy"}
-            minPrice={item.minPrice}
-            priceFrom={item.priceFromVariants ?? false}
-            offerCount={item.offerCount}
-            offerCountLabel={offerCountLabel}
+            {...cardPriceProps(item)}
           />
         </li>
       ))}
