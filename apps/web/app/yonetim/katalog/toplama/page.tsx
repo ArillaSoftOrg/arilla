@@ -6,6 +6,7 @@ import { KpiCard, KpiGroup, PageHeader, Section } from "../../admin-ui.tsx";
 import { formatCount, formatDateOrDash } from "../../format.ts";
 import { CollectorClient } from "./collector-client.tsx";
 import { DiscoveryClient } from "./discovery-client.tsx";
+import { DocumentLoadGuard } from "./document-load-guard.tsx";
 
 /**
  * Hepsiburada katalog toplama (karar 0117). Toplama yöneticinin KENDİ
@@ -47,6 +48,7 @@ export default async function CatalogCollectionPage() {
 
   return (
     <div className={styles.page}>
+      <DocumentLoadGuard />
       <PageHeader title="Katalog toplama: Hepsiburada">
         <p className={styles.muted}>
           Ürünler bu sayfadaki tarayıcıdan okunur ve kataloğa aktarılır. İzin dayanağı:{" "}

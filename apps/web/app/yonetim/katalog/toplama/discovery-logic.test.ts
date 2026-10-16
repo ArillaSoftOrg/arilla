@@ -256,6 +256,46 @@ describe("runDiscovery", () => {
     expect(calls.api.some((b) => b.op === "close")).toBe(false);
   });
 
+  it("yanit alinamazsa (CSP/ag) birim yazilmaz, deneme hakki yanmaz, kosu acik kalir", async () => {
+    const logs: string[] = [];
+    const { env, calls } = fakeEnv({}, { log: (l) => logs.push(l) });
+    env.fetchSource = async (url) => {
+      calls.fetch.push(url);
+      throw new TypeError("Failed to fetch");
+    };
+    expect(await runDiscovery(env, opts)).toBe("network");
+    expect(calls.fetch).toHaveLength(1);
+    expect(calls.api.some((b) => b.op === "discovery_batch")).toBe(false);
+    expect(calls.api.some((b) => b.op === "close")).toBe(false);
+    expect(logs.join("\n")).toContain("network_error: TypeError: Failed to fetch");
+  });
+
+  it("zaman asimi ayri kodla raporlanir", async () => {
+    const logs: string[] = [];
+    const { env } = fakeEnv({}, { log: (l) => logs.push(l) });
+    env.fetchSource = async () => {
+      throw new DOMException("signal timed out", "TimeoutError");
+    };
+    expect(await runDiscovery(env, opts)).toBe("network");
+    expect(logs.join("\n")).toContain("(timeout:");
+  });
+
+  it("kalan birimler varken kapanis 'tamamlandi' demez", async () => {
+    const logs: string[] = [];
+    const { env } = fakeEnv({}, { log: (l) => logs.push(l) });
+    const api = env.api;
+    env.api = async (b) =>
+      b.op === "discovery_next"
+        ? { ok: true, status: 200, data: { units: [] } }
+        : b.op === "discovery_progress"
+          ? { ok: true, status: 200, data: { uniqueProducts: 0, unitsByStatus: { failed: 1 } } }
+          : api(b);
+    expect(await runDiscovery(env, opts)).toBe("completed");
+    const line = logs.find((l) => l.startsWith("Koşu kapandı"));
+    expect(line).toContain("eksik birimlerle durduruldu");
+    expect(line).not.toContain("tamamlandı");
+  });
+
   it("onayli bayt tavani indirme sirasinda uygulanir", async () => {
     const { env, calls } = fakeEnv({
       [SITEMAP_INDEX_KEY]: { status: 200, text: index },
