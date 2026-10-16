@@ -14,10 +14,12 @@ import { assertIsolatedTestUrl, isTestRuntime } from "./test-isolation.ts";
 export type Database = ReturnType<typeof createDatabase>;
 
 /**
- * Serverless (Vercel) ortaminda her fonksiyon ornegi kendi havuzunu acar;
- * pg'nin varsayilan 10 baglantisi Supabase pooler istemci sinirini hizla
- * doldurur. Kucuk, ortamdan ayarlanabilir bir ust sinir ve bos baglantilarin
- * hizla kapanmasi. SSL ayari baglanti adresinden gelir (ör. `sslmode`).
+ * Havuz boyutu ortamdan: uretim VPS'inde (karar 0109) `DATABASE_POOL_MAX=12`
+ * (`infra/compose.prod.yml`, sunucu `max_connections = 60`). Varsayilan 3,
+ * serverless (Vercel) ornekleri icindir: her fonksiyon ornegi kendi havuzunu
+ * acar ve pooler istemci sinirini hizla doldurur. Bos baglantilar hizla kapanir.
+ * SSL ayari baglanti adresinden gelir (ör. `sslmode`). `application_name`
+ * `pg_stat_activity` / `pg_stat_statements`'ta web'i toplu islerden ayirir.
  *
  * Uretimde `DATABASE_URL` Supabase TRANSACTION pooler'ini (port 6543) gostermelidir:
  * Session pooler (5432) her istemci baglantisina bir sunucu baglantisi ayirir ve
@@ -48,6 +50,7 @@ export function createDatabase(connectionString: string) {
       max: poolMaxFromEnv(),
       idleTimeoutMillis: IDLE_TIMEOUT_MS,
       connectionTimeoutMillis: 10_000,
+      application_name: process.env.DATABASE_APPLICATION_NAME ?? "arilla-app",
     }),
     { schema },
   );
