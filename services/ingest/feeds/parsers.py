@@ -22,12 +22,15 @@ import csv
 import gzip
 import io
 import json
+import re
 import zipfile
+import zlib
 from collections.abc import Iterator
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import IO, Any
-from xml.etree.ElementTree import ParseError, iterparse
+from xml.etree.ElementTree import ParseError, fromstring, iterparse
+from xml.sax.saxutils import unescape
 
 FORMATS = frozenset({"yml", "xml", "csv", "ndjson", "json"})
 
@@ -109,45 +112,141 @@ def _local(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
+#: Bozuk tek kaydin isareti: normalizasyon bunu `malformed_xml` olarak reddeder.
+MALFORMED = "__malformed__"
+
+_OFFER_OPEN = re.compile(rb"<offer[\s>]")
+_OFFER_CLOSE = b"</offer>"
+_CLOSING = re.compile(rb"</offers\s*>|</yml_catalog\s*>")
+_ENCODING = re.compile(rb"""<\?xml[^>]*encoding=["']([A-Za-z0-9._-]+)["']""")
+_CATEGORY = re.compile(
+    rb"""<category\s+id=["']([^"']+)["'](?:\s+parentId=["']([^"']+)["'])?\s*>(.*?)</category>""",
+    re.S,
+)
+_OFFER_ID = re.compile(rb"""<offer[^>]*\sid=["']([^"']{1,200})["']""")
+#: Kucuk blok: kesik sikistirilmis akista gzip son okumanin verisini atar; kayip <= 64 KB.
+_BLOCK = 1 << 16
+#: XML 1.0'da GECERSIZ kontrol karakterleri -> bosluk. Gercek AliExpress beslemesinde
+#: bir urun adindaki 0x1E tum dosyayi durduruyordu (karar 0114). UTF-8 cok baytli
+#: karakterler bu baytlari icermez; donusum guvenlidir.
+_INVALID_XML_BYTES = bytes.maketrans(
+    bytes([*range(0x00, 0x09), 0x0B, 0x0C, *range(0x0E, 0x20)]), b" " * 29
+)
+#: Tek bir kaydin ust siniri: kapanmayan dev bir parca bellegi buyutmesin.
+_MAX_RECORD_BYTES = 4 << 20
+
+
+def _offer_fields(elem: Any) -> dict[str, Any]:
+    fields: dict[str, Any] = {f"@{k}": v for k, v in elem.attrib.items()}
+    params: dict[str, str] = {}
+    for child in elem:
+        ctag = _local(child.tag)
+        text = (child.text or "").strip()
+        if ctag == "param":
+            name = child.get("name")
+            if name and text:
+                params[name] = text
+        elif ctag == "picture":
+            if text:
+                fields.setdefault("picture", []).append(text)
+        elif text:
+            fields[ctag] = text
+    if params:
+        fields["param"] = params
+    return fields
+
+
 def _yml(stream: IO[bytes], result: ParseResult) -> Iterator[FeedRecord]:
+    """YML'i KAYIT KAYIT ayristirir (karar 0114).
+
+    Gercek AliExpress beslemesinde tek bir bozuk karakter (8,5 milyonuncu satir)
+    standart akis ayristiricisini durdurup tum dosyayi "kesik" yapiyordu: tam
+    senkronizasyon hic tamamlanamiyordu. Burada her `<offer>` ayri ayristirilir;
+    bozuk kayit `MALFORMED` isaretiyle uretilir (hata kaydina duser), dosya devam
+    eder. Dosya yalnizca kapanis etiketi goruldugunde `complete` sayilir.
+    """
     index = 0
-    #: Acik ogelerin yigini: biten offer/category ebeveyninden O(1) cikarilir,
-    #: bellek kayit sayisiyla buyumez.
-    stack: list[Any] = []
-    for event, elem in iterparse(stream, events=("start", "end")):
-        if event == "start":
-            stack.append(elem)
-            continue
-        stack.pop()
-        tag = _local(elem.tag)
-        if tag == "category":
-            cid = elem.get("id")
-            if cid:
-                result.categories[cid] = ((elem.text or "").strip(), elem.get("parentId"))
-        elif tag == "offer":
-            fields: dict[str, Any] = {f"@{k}": v for k, v in elem.attrib.items()}
-            params: dict[str, str] = {}
-            for child in elem:
-                ctag = _local(child.tag)
-                text = (child.text or "").strip()
-                if ctag == "param":
-                    name = child.get("name")
-                    if name and text:
-                        params[name] = text
-                elif ctag == "picture":
-                    if text:
-                        fields.setdefault("picture", []).append(text)
-                elif text:
-                    fields[ctag] = text
-            if params:
-                fields["param"] = params
+    buffer = b""
+    header_done = False
+    encoding = "utf-8"
+    declaration = b""
+    closed = False
+    stream_error: BaseException | None = None
+    while True:
+        try:
+            block = stream.read(_BLOCK)
+        except (EOFError, zlib.error, OSError) as error:
+            # Kesik sikistirilmis akis: tamponda kalan TAM kayitlar yine islenir,
+            # dosya sonra "kesik" sayilir.
+            block, stream_error = b"", error
+        eof = not block
+        buffer += block
+        if not header_done:
+            first = _OFFER_OPEN.search(buffer)
+            if first is None and not eof and len(buffer) < 64 << 20:
+                continue
+            header = buffer[: first.start()] if first else buffer
+            found = _ENCODING.search(header[:200])
+            if found:
+                encoding = found.group(1).decode("ascii")
+                declaration = f'<?xml version="1.0" encoding="{encoding}"?>'.encode("ascii")
+            for cid, parent, name in _CATEGORY.findall(header):
+                text = name.decode(encoding, "replace").strip()
+                text = unescape(text, {"&quot;": '"', "&apos;": "'", "&#39;": "'"})
+                result.categories[cid.decode(encoding, "replace")] = (
+                    text,
+                    parent.decode(encoding, "replace") or None,
+                )
+            buffer = buffer[first.start() :] if first else b""
+            header_done = True
+        pos = 0
+        #: Son tam kaydin bittigi yer: kapanis etiketi BURADAN sonra aranir
+        #: (`pos` blok siniri icin geri cekilebilir; kapanis araligi kirpilmamali).
+        last_end = 0
+        while True:
+            opening = _OFFER_OPEN.search(buffer, pos)
+            if opening is None:
+                # Blok siniri "<offer" etiketinin ortasina dusmus olabilir: son
+                # birkac bayt bir sonraki bloga tasinir (kayit kaybolmasin).
+                pos = max(pos, len(buffer) - 16)
+                break
+            close = buffer.find(_OFFER_CLOSE, opening.start())
+            if close < 0:
+                if len(buffer) - opening.start() > _MAX_RECORD_BYTES:
+                    raise FeedFormatError("kapanmayan kayit (4 MiB ustu)")
+                pos = opening.start()
+                break
+            end = close + len(_OFFER_CLOSE)
+            fragment = buffer[opening.start() : end]
+            pos = end
+            last_end = end
+            try:
+                fields = _offer_fields(
+                    fromstring(declaration + fragment.translate(_INVALID_XML_BYTES))
+                )
+            except ParseError as error:
+                ext = _OFFER_ID.search(fragment)
+                fields = {MALFORMED: f"{type(error).__name__}: {error}"[:200]}
+                if ext:
+                    fields["@id"] = ext.group(1).decode(encoding, "replace")
             yield FeedRecord(fields, index, f"offer #{index + 1}")
             index += 1
-        else:
-            continue
-        elem.clear()
-        if stack:
-            stack[-1].remove(elem)
+        # Kapanis: son kayittan sonraki TUM aralikta aranir. Gercek dosya girintili ve
+        # satir sonlu biter; sabit kuyruk penceresi bunu kaciriyordu (2,19 milyon
+        # kayitlik gercek tam kosu "kesik" sayildi).
+        if _CLOSING.search(buffer, last_end):
+            closed = True
+        # Tek kopya: islenmemis kisim tutulur (kayit basina kopya yok).
+        buffer = buffer[pos:]
+        if eof:
+            break
+        # Kayitlar arasi bosluk/etiket artiklari birikmesin.
+        if _OFFER_OPEN.search(buffer) is None and len(buffer) > 1024:
+            buffer = buffer[-1024:]
+    if stream_error is not None:
+        raise EOFError(f"sikistirilmis akis kesik: {type(stream_error).__name__}")
+    if not closed:
+        raise EOFError("besleme kapanis etiketi olmadan bitti")
 
 
 def _xml(stream: IO[bytes], record_tag: str) -> Iterator[FeedRecord]:
@@ -281,7 +380,9 @@ def iter_records(
     ) as error:
         # Kesik gzip EOFError, kesik XML ParseError verir: dosya eksik.
         result.complete = False
-        result.error = type(error).__name__
+        # Tur + konum (or. "ParseError: not well-formed (invalid token): line 1, column 9");
+        # kaynak icerigi ya da adres icermez.
+        result.error = f"{type(error).__name__}: {error}"[:200]
     except json.JSONDecodeError:
         result.complete = False
         result.error = "JSONDecodeError"

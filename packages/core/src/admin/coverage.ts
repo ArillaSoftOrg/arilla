@@ -90,10 +90,27 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     gaps: [],
   },
   {
+    id: "catalog_collection",
+    label: "Katalog toplama (yonetici tarayicisi)",
+    tables: [
+      "collection_source",
+      "collection_run",
+      "collection_unit",
+      "collection_usage_day",
+      "catalog_intake_record",
+      "catalog_discovery",
+    ],
+    status: "visible",
+    adminPaths: ["/yonetim/katalog/toplama"],
+    gaps: [],
+  },
+  {
     id: "catalog",
     label: "Katalog: ürün, teklif, varyant, fiyat",
     tables: [
       "product",
+      // Karar 0121: kaynak ilanından taslak ürün aktarımının kontrol noktası.
+      "catalog_build_state",
       "product_slug_history",
       "brand",
       "category",
@@ -595,11 +612,8 @@ export const CAPABILITY_COVERAGE: Readonly<Record<Capability, CapabilityCoverage
   "matching.review": { class: "manage", sensitive: false },
   "dictionary.write": { class: "manage", sensitive: false },
   "merchant.manage": { class: "manage", sensitive: false },
-  "catalog.write": {
-    class: "manage",
-    sensitive: false,
-    reserved: "Katalog düzenleme ayrı karar ister (0039, catalog.ts).",
-  },
+  // Karar 0115: yalnizca Hepsiburada katalog toplama kosusu; urun duzenleme DEGIL.
+  "catalog.write": { class: "manage", sensitive: false },
   "users.sessions.revoke": { class: "manage", sensitive: false },
   "early_access.manage": { class: "manage", sensitive: false },
   "forms.manage": { class: "manage", sensitive: true },
@@ -637,6 +651,7 @@ export const AUDIT_TARGET_SUBSYSTEM: Readonly<Record<AdminTargetType, string>> =
   chat_feedback: "chat_feedback",
   trend: "trends",
   early_access_counter: "early_access",
+  collection_run: "merchants_ingest",
   capability: "audit",
   data_build: "data_intelligence",
   data_export: "data_intelligence",

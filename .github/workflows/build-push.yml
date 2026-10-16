@@ -111,6 +111,13 @@ jobs:
                 *) missing=1 ;;
               esac
             done
+            # Yeni kontrol: eski commit'lerde YOK (o zaman test "compose stack" icindeydi); varsa basarili olmali.
+            line=$(echo "$runs" | grep -F "deploy engine (rollback + migration, local)|" | head -1 || true)
+            case "$line" in
+              "" | *"|completed|success") ;;
+              *"|completed|"*) echo "::error::'deploy engine' basarisiz: $line"; exit 1 ;;
+              *) missing=1 ;;
+            esac
             [ "$missing" -eq 0 ] && { echo "zorunlu kontroller basarili ($SHA)"; exit 0; }
             echo "bekleniyor ($attempt/20)..."; sleep 15
           done

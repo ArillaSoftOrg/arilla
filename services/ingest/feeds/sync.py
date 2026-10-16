@@ -75,6 +75,11 @@ class SyncSettings:
     #: Surum basina yazilan en fazla hata satiri (gerisi yalnizca sayilir).
     max_errors_logged: int = 1000
     schema_sample: int = 500
+    #: Arsivlenmemis WAL bu sinirin ustundeyse parcalar arasinda beklenir.
+    max_archive_lag_bytes: int = 1 << 30
+    archive_poll_seconds: float = 5.0
+    #: Bu kadar beklemede dusmezse senkronizasyon guvenle durur (kaldigi yerden devam).
+    max_archive_wait_seconds: float = 1800.0
     download_attempts: int = 3
 
     @classmethod
@@ -112,6 +117,9 @@ class SyncReport:
     chunks_skipped: int = 0
     gate: str | None = None
     #: Asama sureleri (sn): darbogaz teshisi (karar 0114).
+    reused_download: bool = False
+    archive_wait_seconds: float = 0.0
+    parse_error: str | None = None
     seconds_normalize: float = 0.0
     seconds_merge: float = 0.0
     seconds_parse_and_wait: float = 0.0
@@ -164,16 +172,30 @@ STAGE_COLUMNS = (
     "seller_ext, brand, image_url, affiliate_url, attributes, fingerprint"
 )
 
+# Karar 0114 (olcum): ON CONFLICT DO UPDATE kosul tutmasa da satiri KILITLER ve
+# kilit WAL'a yazilir (checkpoint sonrasi tam sayfa). Bu yuzden yalnizca YENI saticilar
+# eklenir (DO NOTHING kilitlemez); goruldu bilgisi gunde en fazla bir kez guncellenir.
 UPSERT_SELLERS = """
-INSERT INTO seller (merchant_id, external_id)
-SELECT DISTINCT %(merchant_id)s, seller_ext FROM feed_stage WHERE seller_ext IS NOT NULL
-ON CONFLICT (merchant_id, external_id) DO UPDATE SET last_seen_at = now(), is_active = TRUE
+WITH incoming AS (
+    SELECT DISTINCT seller_ext FROM feed_stage WHERE seller_ext IS NOT NULL
+), ins AS (
+    INSERT INTO seller (merchant_id, external_id)
+    SELECT %(merchant_id)s, i.seller_ext FROM incoming i
+     WHERE NOT EXISTS (SELECT 1 FROM seller x
+                        WHERE x.merchant_id = %(merchant_id)s AND x.external_id = i.seller_ext)
+    ON CONFLICT (merchant_id, external_id) DO NOTHING
+    RETURNING 1
+)
+UPDATE seller sl SET last_seen_at = now(), is_active = TRUE
+  FROM incoming i
+ WHERE sl.merchant_id = %(merchant_id)s AND sl.external_id = i.seller_ext
+   AND (NOT sl.is_active OR sl.last_seen_at < now() - interval '1 day')
 """
 
 MERGE = """
 WITH prev AS (
     SELECT o.id, o.external_id, o.fingerprint, o.current_price, o.list_price, o.in_stock,
-           o.is_active, o.image_url
+           o.is_active, o.image_url, o.feed_source_id, o.affiliate_url
       FROM offer o JOIN feed_stage s ON s.external_id = o.external_id
      WHERE o.merchant_id = %(merchant_id)s
 ), up AS (
@@ -189,6 +211,16 @@ WITH prev AS (
            %(observed_at)s, %(snapshot_id)s, s.affiliate_url
       FROM feed_stage s
       LEFT JOIN seller sl ON sl.merchant_id = %(merchant_id)s AND sl.external_id = s.seller_ext
+      LEFT JOIN prev pv ON pv.external_id = s.external_id
+     -- Degismeyen kayit upsert'e HIC girmez: ON CONFLICT kosulu tutmasa da satiri
+     -- kilitler ve WAL uretir (olcum: 50 bin degismemis kayitta 51 MB tam sayfa).
+     WHERE pv.id IS NULL
+        OR pv.fingerprint IS DISTINCT FROM s.fingerprint
+        OR NOT pv.is_active
+        OR pv.feed_source_id IS NULL
+        OR pv.affiliate_url IS DISTINCT FROM s.affiliate_url
+     -- Tutarli kilit sirasi: es zamanli iki besleme ayni teklifleri guncellerse kilitlenme olmasin.
+     ORDER BY s.external_id
     ON CONFLICT (merchant_id, external_id) DO UPDATE SET
         url              = EXCLUDED.url,
         -- Takip baglantisi kanonik adresten ayri; kaynagin guncel degeri.
@@ -344,6 +376,32 @@ def _chunks(records: Iterator[FeedRecord], size: int) -> Iterator[tuple[int, lis
         yield batch[0].index // size, batch
 
 
+#: Son arsivlenen WAL dosyasinin bitisinden bugunku WAL konumuna kadar bayt.
+#: Arsiv kapaliysa (yerel/CI) ya da hic arsivlenmemisse NULL -> beklenmez.
+ARCHIVE_LAG = """
+WITH last AS (
+    SELECT ('x' || substr(a.last_archived_wal, 9, 8))::bit(32)::bigint AS log_id,
+           ('x' || substr(a.last_archived_wal, 17, 8))::bit(32)::bigint AS seg_no,
+           (SELECT setting::bigint FROM pg_settings WHERE name = 'wal_segment_size') AS seg_size
+      FROM pg_stat_archiver a
+     WHERE current_setting('archive_mode') <> 'off'
+       AND a.last_archived_wal ~ '^[0-9A-F]{24}$'
+)
+SELECT pg_wal_lsn_diff(
+           pg_current_wal_lsn(),
+           '0/0'::pg_lsn + (log_id * 4294967296 + (seg_no + 1) * seg_size)::numeric
+       )::bigint
+  FROM last
+"""
+
+
+def _archive_lag_bytes(conn: psycopg.Connection) -> int | None:
+    with conn.cursor() as cur:
+        cur.execute(ARCHIVE_LAG)
+        row = cur.fetchone()
+    return int(row[0]) if row and row[0] is not None else None
+
+
 def _busy(conn: psycopg.Connection) -> int:
     with conn.cursor() as cur:
         cur.execute(
@@ -401,6 +459,7 @@ class FeedSync:
         observed_at: datetime | None = None,
         sleep: Callable[[float], None] = time.sleep,
         fail_after_chunks: int | None = None,
+        prefetched: tuple[Path, str, int] | None = None,
     ) -> None:
         self.conn = conn
         self.feed_source_id = feed_source_id
@@ -411,6 +470,8 @@ class FeedSync:
         self.sleep = sleep
         self.report = SyncReport(feed_source_id)
         self._settings = settings
+        #: `sync-due` paralel indirmesi: dosya onceden indirildi (yol, sha256, bayt).
+        self.prefetched = prefetched
         # Yalnizca testler: cokme benzetimi (kaldigi yerden devam kaniti).
         self._fail_after_chunks = fail_after_chunks
 
@@ -534,12 +595,18 @@ class FeedSync:
                 for block in iter(lambda: stream.read(1 << 20), b""):
                     digest.update(block)
             return self.source_path, digest.hexdigest(), self.source_path.stat().st_size
+        if self.prefetched is not None:
+            return self.prefetched
         if self.network is None:
             raise SyncAborted("network_missing")
         directory = staging_dir()
         cleanup_staging(directory)
+        reused = self._reusable_download(feed, directory)
+        if reused is not None:
+            return reused
         url = self.network.download_url(feed.external_id)
-        target = directory / f"feed-{feed.id}-{self.observed_at:%Y%m%dT%H%M%S}.bin"
+        sample = self.max_records is not None
+        target = directory / staging_name(feed.id, self.observed_at, sample=sample)
         last: DownloadError | None = None
         for attempt in range(1, settings.download_attempts + 1):
             try:
@@ -556,6 +623,35 @@ class FeedSync:
                 self.sleep(min(30.0, 2.0**attempt))
         assert last is not None
         raise last
+
+    def _reusable_download(self, feed: FeedRow, directory: Path) -> tuple[Path, str, int] | None:
+        """Yarim kalan (cokme/kesinti) surumun indirilmis dosyasi diskte duruyorsa ve
+        kaynak o zamandan beri guncellenmediyse YENIDEN INDIRILMEZ (karar 0114:
+        Admitad baglanti basina ~0,25-0,5 MB/s; 1 GB besleme ~1 saat). Ornek dosyasi
+        (bilerek eksik) yalnizca ornek kosusunda, tam dosya yalnizca tam kosuda kullanilir.
+        """
+        row = self._exec(
+            """SELECT storage_key, sha256, bytes, started_at FROM source_snapshot
+                WHERE feed_source_id = %s AND status IN ('processing', 'failed')
+                  AND storage_key IS NOT NULL AND sha256 IS NOT NULL
+                  AND started_at > now() - interval '24 hours'
+                ORDER BY id DESC LIMIT 1""",
+            (feed.id,),
+        )
+        self.conn.commit()
+        if row is None:
+            return None
+        key, sha, size, started_at = row
+        sample = self.max_records is not None
+        if key.endswith(SAMPLE_SUFFIX) != sample:
+            return None
+        if feed.source_updated_at is not None and feed.source_updated_at > started_at:
+            return None
+        path = directory / key
+        if not path.is_file() or path.stat().st_size != size:
+            return None
+        self.report.reused_download = True
+        return path, str(sha), int(size)
 
     def _snapshot(self, feed: FeedRow, sha: str, size: int, path: Path) -> tuple[int, bool]:
         """(snapshot_id, duplicate). Ayni sha ile yarim surum varsa onu dondurur."""
@@ -605,7 +701,7 @@ class FeedSync:
             self.report.status = "duplicate"
             # Icerik ayni kalsa da bekleme suresi dolan (onceki tam surumde
             # cikarilmis) offer'lar pasiflesir; uyelikler zaten guncel.
-            if self._sweep(feed, settings) == "partial":
+            if not feed.config.get("no_deactivate") and self._sweep(feed, settings) == "partial":
                 self.report.status = "partial"
             self._exec(
                 "UPDATE feed_source SET last_success_at = now(), updated_at = now() WHERE id = %s",
@@ -829,6 +925,20 @@ class FeedSync:
             if _busy(self.conn) <= settings.busy_connections:
                 break
             self.sleep(settings.busy_wait_seconds)
+        # WAL arsivi geride kalirsa bekle (karar 0114): pgBackRest'in bekleyen WAL
+        # kuyrugu sinirlidir (4 GiB); dolarsa WAL birakilir ve PITR zinciri kopar.
+        # Olcum: 491 bin kayitlik ilk yukleme 4,6 GB WAL uretti.
+        waited = 0.0
+        while (
+            lag := _archive_lag_bytes(self.conn)
+        ) is not None and lag > settings.max_archive_lag_bytes:
+            if waited >= settings.max_archive_wait_seconds:
+                self.conn.commit()
+                raise SyncAborted("archive_lag", f"arsivlenmemis WAL {lag} bayt")
+            self.report.archive_wait_seconds += settings.archive_poll_seconds
+            self.sleep(settings.archive_poll_seconds)
+            waited += settings.archive_poll_seconds
+            self.conn.commit()
         self.conn.commit()
 
     def _gate(self, feed: FeedRow, settings: SyncSettings, parse: ParseResult) -> str | None:
@@ -850,6 +960,10 @@ class FeedSync:
                 (feed.id,),
             )
         ]
+        if feed.config.get("no_deactivate"):
+            # Kismi kaynak (yonetici toplamasi, karar 0117): her kosu farkli bir alt kume olabilir;
+            # kayit sayisi karsilastirmasi anlamsiz ve hicbir sey pasiflesmeyecek.
+            return None
         if previous and r.records < settings.min_ratio_vs_median * statistics.median(previous):
             return "too_few_records"
         return None
@@ -869,7 +983,13 @@ class FeedSync:
         status = "partial"
         if gate is None:
             snapshot_status = "complete"
-            status = self._deactivate(feed, settings, snapshot_id)
+            # `no_deactivate`: kaynak tum katalogu degil taranan alt kumeyi verir; eksik
+            # olmak kaldirilmis demek degildir (karar 0117). Hicbir offer pasiflesmez.
+            status = (
+                "success"
+                if feed.config.get("no_deactivate")
+                else self._deactivate(feed, settings, snapshot_id)
+            )
         else:
             snapshot_status = "rejected"
 
@@ -902,7 +1022,9 @@ class FeedSync:
             },
         )
         r.status = status
-        self._finish_run(status, r.gate)
+        if gate == "truncated" and parse.error:
+            r.parse_error = parse.error
+        self._finish_run(status, f"{r.gate}: {parse.error}" if r.parse_error else r.gate)
 
     def _deactivate(self, feed: FeedRow, settings: SyncSettings, snapshot_id: int) -> str:
         r = self.report
@@ -940,6 +1062,13 @@ class FeedSync:
             path.unlink(missing_ok=True)
 
 
+SAMPLE_SUFFIX = "-sample.bin"
+
+
+def staging_name(feed_id: int, at: datetime, *, sample: bool) -> str:
+    return f"feed-{feed_id}-{at:%Y%m%dT%H%M%S}" + (SAMPLE_SUFFIX if sample else ".bin")
+
+
 #: Olcum (karar 0114, AliExpress YML): ~322 bayt/kayit sikistirilmis. ~1,9x pay.
 SAMPLE_BYTES_PER_RECORD = 600
 SAMPLE_MIN_BYTES = 4 << 20
@@ -950,6 +1079,31 @@ def sample_bytes(max_records: int, override: str | None) -> int:
     if override and override.isdigit():
         return int(override)
     return max(SAMPLE_MIN_BYTES, max_records * SAMPLE_BYTES_PER_RECORD)
+
+
+def prefetch_download(
+    feed: FeedRow, network: FeedNetwork, *, max_records: int | None, max_bytes: int, at: datetime
+) -> tuple[Path, str, int] | None:
+    """`sync-due` paralel indirmesi (karar 0114): Admitad baglanti basina sinirli
+    (~0,25-0,5 MB/s), 3 baglantida toplam ~2,2 kat. Hata/disk sinirinda None:
+    senkronizasyon kendi indirmesini dener ve hatayi kendi kaydina yazar.
+    """
+    directory = staging_dir()
+    target = directory / staging_name(feed.id, at, sample=max_records is not None)
+    stop_after = sample_bytes(max_records, env("FEED_SAMPLE_BYTES")) if max_records else None
+    try:
+        result = download(
+            network.download_url(feed.external_id),
+            target,
+            max_bytes=max_bytes,
+            stop_after_bytes=stop_after,
+        )
+    except (DownloadError, NetworkUnavailable) as error:
+        logger.warning(
+            "besleme %s on indirme basarisiz: %s", feed.id, getattr(error, "code", error)
+        )
+        return None
+    return result.path, result.sha256, result.bytes_on_disk
 
 
 class _PipelinedWriter:

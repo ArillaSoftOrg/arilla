@@ -1,5 +1,5 @@
 -- kind: schema
--- 0068 — takip baglantilari (karar 0115)
+-- 0080 — takip baglantilari (karar 0115)
 --
 -- YALNIZCA EKLEME. Yeni tablolar; mevcut hicbir sey degismez.
 --

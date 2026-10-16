@@ -3,9 +3,11 @@ import {
   attachStoreImages,
   type CatalogImageCandidate,
   dropCatalogDuplicates,
+  findCatalogImageCandidates,
   selectDisplayGroups,
   type WebProductGroup,
 } from "@arilla/core";
+import { getDatabase } from "@arilla/db";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
 import { ErrorView } from "../error-view.tsx";
@@ -36,19 +38,17 @@ export async function loadWebGroups(
   if (outcome.status === "error" || outcome.status === "unavailable") return { kind: "error" };
   if (outcome.status === "limited" || outcome.status === "busy") return { kind: "limited" };
   if (outcome.status !== "ok" || outcome.searchSuggestionsHtml === null) return { kind: "none" };
-  // Once katalog gorseli (kendi feed'imiz), kalanlar icin magaza sayfasindan dogrulanmis gorsel.
-  // Gorselli urunler once; gorseli dogrulanamayan ama gercek urun sayfasi olan urun kompakt
-  // kartla sonra gelir, kaybolmaz.
+  // Gorsel kaynaklari, sirayla: (A) katalogdaki AYNI urunun kendi feed'imizden gelen gorseli
+  // (sonuc sayfasindaki urunler + dogrudan katalog aramasi), (C) erisimine izin verilen magaza
+  // sayfasi. Gorselli urunler once; gorseli dogrulanamayan ama gercek urun sayfasi olan urun
+  // kompakt kartla sonra gelir, kaybolmaz.
+  const deduped = dropCatalogDuplicates(outcome.groups, {
+    hosts: catalogHosts,
+    titles: catalog.map((item) => item.title),
+  });
+  const catalogMatches = await findCatalogImageCandidates(getDatabase(), deduped).catch(() => []);
   const groups = selectDisplayGroups(
-    await attachStoreImages(
-      attachCatalogImages(
-        dropCatalogDuplicates(outcome.groups, {
-          hosts: catalogHosts,
-          titles: catalog.map((item) => item.title),
-        }),
-        catalog,
-      ),
-    ),
+    await attachStoreImages(attachCatalogImages(deduped, [...catalog, ...catalogMatches])),
   );
   return groups.length > 0
     ? { kind: "groups", groups, suggestionsHtml: outcome.searchSuggestionsHtml }

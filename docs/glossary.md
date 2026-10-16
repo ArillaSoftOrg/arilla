@@ -8,6 +8,8 @@ karşılığı sabitler.
 | `product` | ürün | Kanonik ürün. Renk düzeyinde tekildir: siyah ve bej ayrı `product`. |
 | `offer` | mağaza teklifi | Bir merchant'ın bir ürün sayfası. Bir `product`'ın birden çok `offer`'ı olur. |
 | `offer_variant` | beden | Bir `offer`'ın beden satırı. Stok bu düzeyde takip edilir. |
+| `publication_state` | yayın durumu | `product` kullanıcıya açık mı: `draft` (aktarıldı, kontrol edilmedi), `ready` (kalite kapısını geçti), `held` (kapıdan düştü, `hold_reason` var), `published`. Yayın ayrı ve açık bir karardır (karar 0121). |
+| kaynak ilanı | — | Kaynaktaki tek ilan (ör. bir AliExpress ürün kimliği). Kimliği `(source_merchant_id, source_external_id)`; başka ilanla başlık benzerliğiyle birleştirilmez. |
 | `merchant` | mağaza | Satıcı site. Trendyol, bağımsız marka, vb. |
 | `model_key` | — | Aynı modelin farklı renklerini bağlayan anahtar. Arayüzde "diğer renkler". |
 | `price_point` | fiyat geçmişi | Zaman içindeki fiyat gözlemi. Sadece eklenir. |

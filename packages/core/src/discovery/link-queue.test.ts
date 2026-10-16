@@ -2,6 +2,7 @@
  * Link çözümleme kuyruğu taşıma katmanı (karar 0107): arka uç seçimi, mesaj
  * içeriği, idempotans anahtarı ve hata sınıflandırması. Ağ ve Redis yok.
  */
+import { readFileSync } from "node:fs";
 import { describe, expect, it, vi } from "vitest";
 import { isRedisUnavailableError } from "../redis/client.ts";
 import {
@@ -52,6 +53,40 @@ describe("publishLinkResolution", () => {
       { idempotencyKey: ID, retentionSeconds: LINK_MESSAGE_RETENTION_SECONDS },
     );
     expect(redisPush).not.toHaveBeenCalled();
+  });
+
+  it("redis: varsayılan itici LINK_REDIS_URL istemcisine yazar, genel istemciye değil", async () => {
+    vi.resetModules();
+    const lpush = vi.fn().mockResolvedValue(1);
+    const generalLpush = vi.fn().mockResolvedValue(1);
+    vi.doMock("../redis/client.ts", async (importOriginal) => ({
+      ...(await importOriginal<typeof import("../redis/client.ts")>()),
+      getLinkRedis: () => ({ lpush }),
+      getRedis: () => ({ lpush: generalLpush }),
+    }));
+    try {
+      const { publishLinkResolution: publish } = await import("./link-queue.ts");
+      await publish(ID, { backend: "redis" });
+      expect(lpush).toHaveBeenCalledWith(LINK_RESOLUTION_QUEUE_KEY, `{"request_id":"${ID}"}`);
+      expect(generalLpush).not.toHaveBeenCalled();
+    } finally {
+      vi.doUnmock("../redis/client.ts");
+      vi.resetModules();
+    }
+  });
+
+  it("Python worker ile kuyruk sözleşmesi: aynı anahtar, aynı topic, yük yalnızca request_id", () => {
+    const worker = readFileSync(
+      new URL("../../../../services/ingest/collect/link/worker.py", import.meta.url),
+      "utf8",
+    );
+    const handler = readFileSync(
+      new URL("../../../../services/ingest/collect/link/queue_handler.py", import.meta.url),
+      "utf8",
+    );
+    expect(worker).toContain(`QUEUE_KEY = "${LINK_RESOLUTION_QUEUE_KEY}"`);
+    expect(handler).toContain(`LINK_TOPIC = "${LINK_RESOLUTION_TOPIC}"`);
+    expect(worker).toContain('payload["request_id"]');
   });
 
   it("topic adı ve saklama süresi Python tarafıyla ve 2 dk'lık bekleme penceresiyle uyumlu", () => {

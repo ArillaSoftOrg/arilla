@@ -25,6 +25,8 @@ PROFILES: dict[str, dict[str, Any]] = {
         "affiliate_hosts": ["rzekl.com"],
         "mapping": {"seller": "param.shopId"},
         "keep_params": ["discount", "commissionRate"],
+        # Gosterilen 3 gorsel; fazlasi saklanmaz (WAL/disk, karar 0114).
+        "max_images": 3,
         "required_fields": ["@id", "name", "url", "price", "currencyId"],
     },
 }
@@ -49,5 +51,16 @@ MERCHANT_PROFILES: dict[str, dict[str, Any]] = {
         "affiliate_network": "admitad",
         "affiliate_status": "active",
         "deeplink_template": "{affiliate_url}&subid={click_id}",
+    },
+    # Yonetici tarayicisindan toplama (karar 0115): affiliate yok, takip sablonu yok;
+    # cikis yine click kaydiyla kanonik adrese gider (kural 8).
+    "hbcollect:hepsiburada": {
+        "slug": "hepsiburada",
+        "name": "Hepsiburada",
+        "domain": "hepsiburada.com",
+        "source_type": "user_discovered",
+        "affiliate_network": None,
+        "affiliate_status": "none",
+        "deeplink_template": None,
     },
 }

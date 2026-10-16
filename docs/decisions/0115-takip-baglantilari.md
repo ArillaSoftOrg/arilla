@@ -12,7 +12,7 @@ zaman bazında izlenebilmeli. Umami v3.4.0 VPS'te ayrı bir alt alan adında
 
 ## Karar
 
-1. **Ana kaynak Arilla PostgreSQL** (`tracking_link`, migration 0068).
+1. **Ana kaynak Arilla PostgreSQL** (`tracking_link`, migration 0080).
    Yönlendirme Next.js route handler'ında (`app/[slug]/route.ts`); Umami'ye
    bağımlı DEĞİL. Umami kapalıyken bağlantılar çalışır.
 2. **Tıklama sayacı Arilla'da**, `tracking_link_click_hour`: saat başına

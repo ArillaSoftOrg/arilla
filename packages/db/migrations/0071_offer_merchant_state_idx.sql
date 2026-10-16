@@ -1,0 +1,13 @@
+-- kind: schema
+-- 0071 — magaza basina teklif sayimlari icin kapsayan indeks
+--
+-- /yonetim/magazalar ve /yonetim/magazalar/<slug> her magaza icin toplam, aktif
+-- ve eslesmemis teklif sayar. Milyonlarca teklifli magazada (AliExpress ~2,8M)
+-- bu sayimlar `offer` yigininin tamamini okuyup statement_timeout'a (57014)
+-- takiliyordu. (merchant_id, is_active, product_id) yalnizca bu uc kolonu
+-- icerir; sayim indeks-yalniz taramayla yigina inmeden yapilir (sentetik 2,8M
+-- satirda 794 ms -> 164 ms, ~19 MB). Yazma yolunu etkilemez: uc kolon da
+-- satir yazimi sirasinda zaten degismeyen ya da seyrek degisen alanlardir.
+--
+-- YALNIZCA EKLEME. Yeni indeks; veri ve sema degismez.
+CREATE INDEX offer_merchant_state_idx ON offer (merchant_id, is_active, product_id);

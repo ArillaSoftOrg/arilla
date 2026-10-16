@@ -2,6 +2,7 @@
 
 import { ProductCard } from "@arilla/ui";
 import { type ReactNode, useEffect, useState } from "react";
+import styles from "./ara.module.css";
 import { WEB_SEARCH_COPY as COPY } from "./web-search-copy.ts";
 
 /**
@@ -41,7 +42,11 @@ export function WebGridItem({
     };
   }, [imageUrl]);
   return (
-    <li className={className}>
+    <li
+      className={[className, styles.webItem, imageUrl && !broken ? "" : styles.webItemCompact]
+        .filter(Boolean)
+        .join(" ")}
+    >
       <ProductCard
         href={href}
         external

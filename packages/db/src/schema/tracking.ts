@@ -1,4 +1,4 @@
-/** 0068_tracking_link.sql karsiligi (docs/decisions/0115). */
+/** 0080_tracking_link.sql karsiligi (docs/decisions/0115). */
 import {
   bigint,
   boolean,

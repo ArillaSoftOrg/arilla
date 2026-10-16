@@ -51,6 +51,13 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0115: yonetici toplamasi ara deposunun katalog modeline birlestirilmesi (elle).
+  hb_merge: {
+    label: "Hepsiburada toplama birleştirme",
+    how: "python -m feeds hb-merge --run <id>",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
   // Karar 0113: resmi kur ve bagimsiz fiyat dogrulama.
   fx_rates: {
     label: "Döviz kuru (TCMB)",
@@ -61,6 +68,25 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
   price_verify: {
     label: "Fiyat doğrulama",
     how: "python -m pricing verify",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  // Karar 0121: kaynak ilanından taslak ürün, kalite kapısı ve açık yayın (elle).
+  catalog_build: {
+    label: "Katalog aktarımı (kaynak ilanı -> taslak ürün)",
+    how: "python -m catalog_build build --merchant aliexpress",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  catalog_gate: {
+    label: "Katalog kalite kapısı",
+    how: "python -m catalog_build gate",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  catalog_publish: {
+    label: "Katalog yayını (açık onayla)",
+    how: "python -m catalog_build publish --limit N --confirm",
     kind: "pipeline",
     overdueAfterMs: null,
   },

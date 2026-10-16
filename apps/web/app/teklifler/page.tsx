@@ -39,6 +39,8 @@ const OFFERS_COPY = {
   sourceInternational: "Yurt dışı",
   emptyTitle: "Bu aramaya uyan teklif yok.",
   emptyBody: "Farklı bir kelimeyle aramayı dene ya da diğer sekmeye bak.",
+  timedOutTitle: "Arama tamamlanamadı.",
+  timedOutBody: "Daha belirgin kelimelerle tekrar dene.",
   next: "Sonraki sayfa",
   prev: "Önceki sayfa",
 } as const;
@@ -175,8 +177,8 @@ export default async function OffersPage({
         <EmptyState
           className={styles.emptyPanel}
           headingLevel={2}
-          title={OFFERS_COPY.emptyTitle}
-          description={OFFERS_COPY.emptyBody}
+          title={result.timedOut ? OFFERS_COPY.timedOutTitle : OFFERS_COPY.emptyTitle}
+          description={result.timedOut ? OFFERS_COPY.timedOutBody : OFFERS_COPY.emptyBody}
         />
       ) : (
         // biome-ignore lint/a11y/noRedundantRoles: `list-style: none` Safari/VoiceOver'da liste rolunu dusurur.

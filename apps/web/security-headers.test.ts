@@ -216,3 +216,21 @@ describe("güvenlik başlıkları", () => {
     }
   });
 });
+
+describe("katalog toplama CSP'si (karar 0117)", () => {
+  const options = { development: false, production: true, ga4: true };
+  it("yalnız toplama sayfasında Hepsiburada connect-src alır; genel CSP almaz", () => {
+    const routes = securityHeaderRoutes(options);
+    const csp = (source: string) =>
+      routes
+        .filter((r) => r.source === source)
+        .flatMap((r) => r.headers)
+        .find((h) => h.key === "Content-Security-Policy")?.value ?? "";
+    expect(csp("/yonetim/katalog/toplama")).toContain(
+      "connect-src 'self' https://www.hepsiburada.com",
+    );
+    expect(csp("/yonetim/katalog/toplama")).not.toContain("googletagmanager");
+    expect(csp("/:path*")).not.toContain("hepsiburada");
+    expect(csp("/yonetim/:path*")).not.toContain("hepsiburada");
+  });
+});

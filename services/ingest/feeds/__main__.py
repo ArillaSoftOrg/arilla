@@ -5,23 +5,28 @@ python -m feeds list
 python -m feeds bind --feed ID --merchant SLUG [--activate | --pause]
 python -m feeds sync --feed ID [--max-records N] [--force] [--file PATH]
 python -m feeds sync-due
+python -m feeds hb-merge --run ID [--allow-open]
 """
 
 from __future__ import annotations
 
 import argparse
 import logging
+import shutil
 import sys
+from concurrent.futures import ThreadPoolExecutor
+from datetime import UTC, datetime
 from pathlib import Path
 
 import feeds.admitad  # noqa: F401  (agi kaydeder)
 from db import job_run
-from db.connection import connect
+from db.connection import connect, env
 from feeds import discovery
+from feeds.download import staging_dir
 from feeds.logs import configure as configure_logging
 from feeds.network import build, registered
 from feeds.profiles import MERCHANT_PROFILES
-from feeds.sync import FeedSync, SyncAborted, load_feed
+from feeds.sync import FeedSync, SyncAborted, load_feed, prefetch_download
 
 logger = logging.getLogger("feeds")
 
@@ -133,7 +138,7 @@ def _ensure_merchant(args: argparse.Namespace) -> int:
     return 0
 
 
-def _sync_one(conn, feed_id: int, args: argparse.Namespace) -> int:  # type: ignore[no-untyped-def]
+def _sync_one(conn, feed_id: int, args: argparse.Namespace, prefetched=None) -> int:  # type: ignore[no-untyped-def]
     feed = load_feed(conn, feed_id)
     conn.rollback()
     network = None if args.file else build(feed.network)
@@ -143,6 +148,7 @@ def _sync_one(conn, feed_id: int, args: argparse.Namespace) -> int:  # type: ign
         network=network,
         source_path=Path(args.file) if args.file else None,
         max_records=args.max_records,
+        prefetched=prefetched,
     )
     report = sync.run(force=args.force or bool(args.file))
     print(f"besleme {feed_id}: {report.status} {report.detail()}")
@@ -169,24 +175,71 @@ def _sync(args: argparse.Namespace) -> int:
 
 
 def _sync_due(args: argparse.Namespace) -> int:
+    """Etkin beslemeler. Indirmeler PARALEL (en fazla `--parallel-downloads`), isleme SIRAYLA:
+    bir besleme islenirken digerleri iner. Her indirme bos diskin payina sinirlidir."""
     failures = 0
+    parallel = max(1, min(int(args.parallel_downloads), 4))
     with job_run.track("feed_sync") as run, connect() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM feed_source WHERE status = 'active' ORDER BY id")
             ids = [int(r[0]) for r in cur.fetchall()]
         conn.commit()
-        for feed_id in ids:
-            try:
-                failures += _sync_one(conn, feed_id, args)
-            except Exception as error:  # bir besleme digerlerini durdurmaz
-                conn.rollback()
-                failures += 1
-                print(f"besleme {feed_id}: {getattr(error, 'code', type(error).__name__)}")
+        feeds = [load_feed(conn, feed_id) for feed_id in ids]
+        conn.rollback()
+        due = [
+            f
+            for f in feeds
+            if args.force
+            or f.source_updated_at is None
+            or f.last_success_at is None
+            or f.source_updated_at > f.last_success_at
+        ]
+        free = shutil.disk_usage(staging_dir()).free
+        min_free = int(env("FEED_MIN_FREE_BYTES") or 15 << 30)
+        budget = max(0, (free - min_free) // parallel)
+        with ThreadPoolExecutor(max_workers=parallel) as pool:
+            futures = {
+                f.id: pool.submit(
+                    prefetch_download,
+                    f,
+                    build(f.network),
+                    max_records=args.max_records,
+                    max_bytes=budget,
+                    at=datetime.now(UTC),
+                )
+                for f in due
+            }
+            for feed_id in ids:
+                try:
+                    prefetched = futures[feed_id].result() if feed_id in futures else None
+                    failures += _sync_one(conn, feed_id, args, prefetched)
+                except Exception as error:  # bir besleme digerlerini durdurmaz
+                    conn.rollback()
+                    failures += 1
+                    print(f"besleme {feed_id}: {getattr(error, 'code', type(error).__name__)}")
         run.detail["feeds"] = len(ids)
+        run.detail["downloaded_parallel"] = len(futures)
         run.detail["failures"] = failures
         if failures:
             run.status = "partial"
     return 1 if failures else 0
+
+
+def _hb_merge(args: argparse.Namespace) -> int:
+    """Kapanmis toplama kosusunun ara depo kayitlarini offer modeline birlestirir (karar 0117)."""
+    from feeds.intake import merge_run
+
+    with job_run.track("hb_merge") as run, connect() as conn:
+        try:
+            report = merge_run(conn, args.run, require_closed=not args.allow_open)
+        except (RuntimeError, SyncAborted) as error:
+            run.status = "failed"
+            run.error_summary = str(getattr(error, "code", error))[:60]
+            print(f"durdu: {run.error_summary}", file=sys.stderr)
+            return 2
+        run.detail["records"] = report.records
+        print(f"kosu {args.run}: {report.status} kayit={report.records} {report.detail or ''}")
+        return 0 if report.status in ("success", "duplicate", "nothing_to_merge") else 1
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -221,8 +274,14 @@ def main(argv: list[str] | None = None) -> int:
         else:
             p.set_defaults(file=None)
         p.add_argument("--max-records", type=int)
+        if name == "sync-due":
+            p.add_argument("--parallel-downloads", type=int, default=2)
         p.add_argument("--force", action="store_true")
         p.set_defaults(func=func)
+    p = sub.add_parser("hb-merge")
+    p.add_argument("--run", type=int, required=True)
+    p.add_argument("--allow-open", action="store_true")
+    p.set_defaults(func=_hb_merge)
     args = parser.parse_args(argv)
     return int(args.func(args))
 

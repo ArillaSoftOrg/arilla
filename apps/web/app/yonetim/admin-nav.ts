@@ -66,6 +66,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "Mağaza teklifleri; eşleşmemişler dahil.",
       },
       {
+        href: "/yonetim/katalog/toplama",
+        label: "Katalog toplama",
+        capability: "catalog.write",
+        description: "Hepsiburada ürünlerini yönetici tarayıcısından topla; kota ve kapsam.",
+      },
+      {
         href: "/yonetim/katalog/kalite",
         label: "Katalog kalitesi",
         capability: "catalog.read",

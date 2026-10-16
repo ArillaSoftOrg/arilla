@@ -20,6 +20,8 @@
     "./media-url": "./src/storage/media-url.ts",
     "./media-keys": "./src/storage/media-keys.ts",
     "./storage": "./src/storage/index.ts",
+    "./catalog-collection-extract": "./src/catalog-collection/extract-hepsiburada.ts",
+    "./catalog-discovery-extract": "./src/catalog-collection/discovery-extract.ts",
     "./errors": "./src/errors/index.ts",
     "./umami-tracker": "./src/analytics-umami/config.ts"
   },
@@ -34,6 +36,7 @@
     "eval:search": "node --experimental-transform-types --no-warnings scripts/search-eval.ts",
     "eval:record-matching": "node --experimental-transform-types --no-warnings scripts/eval-record-matching.ts",
     "eval:search-compare": "node scripts/search-eval-compare.ts",
+    "web-search:image-probe": "node --experimental-transform-types --no-warnings scripts/store-image-probe.ts",
     "web-search:smoke": "node --experimental-transform-types --no-warnings scripts/web-search-smoke.ts",
     "gemini:image-smoke": "node --experimental-transform-types --no-warnings scripts/gemini-image-smoke.ts",
     "gemini:smoke": "node --experimental-transform-types --no-warnings scripts/gemini-smoke.ts"

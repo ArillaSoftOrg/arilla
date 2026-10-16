@@ -85,7 +85,7 @@ export function asciiFold(text: string): string {
   return foldTurkish(text).replace(/[ığüşöçâîû]/g, (ch) => TURKISH_ASCII[ch] ?? ch);
 }
 
-const CAPACITY_RE =
+export const CAPACITY_RE =
   /(?<![a-z0-9])(\d{1,4}(?:[.,]\d)?)\s?(gb|tb|mb|ml|lt|l|kg|g|cm|mm|mah|w)(?![a-z0-9])/g;
 const SIZE_WORD_RE = /(?<![a-z0-9])(xxs|xs|xxl|xl|3xl|4xl)(?![a-z0-9])/g;
 const SIZE_NUMBER_RE = /(?<![a-z0-9])(\d{2})\s?(?:numara|no)(?![a-z0-9])/g;

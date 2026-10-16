@@ -35,12 +35,12 @@ const BLOCKED_SUFFIXES = [
 ];
 
 /**
- * Link araması herkese açık mı. `false`: `/ara/link` "Yakında" gösterir, yeni
- * istek kuyruğa alınmaz, ana sayfa bu yolu tanıtmaz. Rota, kuyruk, worker ve
- * yönetim tanısı yerinde kalır; açmak bu sabiti `true` yapmaktır (link worker
- * üretimde çalışmadan açılmaz).
+ * Link araması herkese açık mı (karar 0108). `true`: `/ara/link` gerçek akışı
+ * çalıştırır, ana sayfa bu yolu tanıtır. `false` geri alma anahtarıdır: rota
+ * "Yakında" gösterir, yeni istek kuyruğa alınmaz. Kuyruk tüketicisi (Python
+ * abonesi, `LINK_QUEUE_BACKEND=vercel`, karar 0107) üretimde çalışmadan açılmaz.
  */
-export const LINK_SEARCH_PUBLIC = false;
+export const LINK_SEARCH_PUBLIC = true;
 
 /** Arama kutusuna yazılan metin bir link araması mı? Yalnızca http(s) ile başlayan. */
 export function isLinkSearchInput(raw: string | null | undefined): boolean {

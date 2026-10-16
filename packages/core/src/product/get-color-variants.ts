@@ -16,7 +16,13 @@ export async function getColorVariants(
       primaryImageUrl: product.primaryImageUrl,
     })
     .from(product)
-    .where(and(eq(product.modelKey, modelKey), ne(product.id, excludeProductId)));
+    .where(
+      and(
+        eq(product.modelKey, modelKey),
+        ne(product.id, excludeProductId),
+        eq(product.publicationState, "published"),
+      ),
+    );
 
   return rows;
 }

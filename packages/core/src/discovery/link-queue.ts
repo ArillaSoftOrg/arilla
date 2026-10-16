@@ -4,8 +4,9 @@
  * İki taşıma katmanı vardır; durumun tek doğrusu her ikisinde de PostgreSQL'deki
  * `link_resolution_request` satırıdır, kuyruk yalnızca "çalış" sinyalidir:
  *
- * - `redis` (varsayılan): `queue:link_resolution` listesine LPUSH; ayrı hostta
- *   çalışan Python worker'ı BRPOP ile alır (0014, 0035).
+ * - `redis` (varsayılan): `queue:link_resolution` listesine LPUSH; Python
+ *   worker'ı BRPOP ile alır (0014, 0035). Liste `LINK_REDIS_URL`'deki Redis'e
+ *   yazılır (yoksa `REDIS_URL`); worker'ın dinlediği sunucu ile aynı olmalı (0123).
  * - `vercel`: Vercel Queues `link-resolution` topic'ine mesaj; aynı Vercel
  *   projesindeki özel Python abonesi (`services/ingest/collect/link/subscriber.py`)
  *   tetiklenir. Web onu çağırmaz, yalnızca mesaj bırakır.
@@ -14,7 +15,7 @@
  * kullanıcı bilgisi kuyruğa girmez. Topic adı ve alan adı Python tarafıyla
  * (`collect/link/queue_handler.py`) elle senkronize edilir.
  */
-import { getRedis, RedisUnavailableError } from "../redis/client.ts";
+import { getLinkRedis, RedisUnavailableError } from "../redis/client.ts";
 
 export const LINK_RESOLUTION_QUEUE_KEY = "queue:link_resolution";
 export const LINK_RESOLUTION_TOPIC = "link-resolution";
@@ -84,7 +85,7 @@ export async function publishLinkResolution(
         retentionSeconds: LINK_MESSAGE_RETENTION_SECONDS,
       });
     } else {
-      const push = deps.redisPush ?? ((key, value) => getRedis().lpush(key, value));
+      const push = deps.redisPush ?? ((key, value) => getLinkRedis().lpush(key, value));
       await push(LINK_RESOLUTION_QUEUE_KEY, JSON.stringify(payload));
     }
   } catch (error) {

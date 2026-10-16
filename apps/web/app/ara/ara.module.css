@@ -362,3 +362,39 @@
   border: 0;
   background: transparent;
 }
+
+/* Internet karti: kart + (varsa) magaza listesi tek sutunda akar. Kartin `height: 100%`
+   degeri satiri doldurup altindaki listeyi sonraki satirin ustune tasiyordu (cakisma);
+   burada kart icerigi kadar yer kaplar, liste altinda ayri bir blok olur. */
+.webItem {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.webItem > a {
+  flex: 1 1 auto;
+  height: auto;
+}
+
+/* Gorselsiz kompakt kart satirdaki gorselli komsusu kadar uzamaz. */
+.webItemCompact {
+  align-self: start;
+}
+
+.webOffer > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.webOffer > span:last-child {
+  flex-shrink: 0;
+  text-align: end;
+}
+
+/* Telefonda Google onerileri birkac satira sarar; sabit yukseklik kirpmasin. */
+@media (max-width: 639px) {
+  .suggestions {
+    height: 9rem;
+  }
+}
