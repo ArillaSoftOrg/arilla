@@ -202,9 +202,7 @@ export function HomeHeader({
       }
       if (event.key !== "Tab" || !menu) return;
       const items = Array.from(
-        menu.querySelectorAll<HTMLElement>(
-          'a[href], button, input, select, textarea, [tabindex]',
-        ),
+        menu.querySelectorAll<HTMLElement>("a[href], button, input, select, textarea, [tabindex]"),
       ).filter(
         (element) =>
           element.tabIndex >= 0 &&
