@@ -1,17 +1,18 @@
 -- kind: schema
--- 0072 — Trendyol: yonetici tarayicisindan katalog toplama (karar 0118, 0117 altyapisi)
+-- 0079 — Trendyol: yonetici tarayicisindan katalog toplama (karar 0118, 0117 altyapisi)
 --
 -- GERIYE UYUMLU (yeni satir/kolon, CHECK yalniz genisletilir). 0070'in (karar 0117, Hepsiburada) kota defteri, kapsam birimi ve ara deposu
 -- AYNEN kullanilir; burada yalnizca:
 --   1) `trendyol` kaynak politikasi (KAPALI gelir),
---   2) kapsam birimine sayfa turleri (urun / liste sayfasi),
+--   2) kapsam birimi sayfa turleri (urun / liste sayfasi) 0073'te zaten var; burada DEGISMEZ,
 --   3) ara depoya Trendyol'un gerektirdigi NULL'a izin veren alanlar
 --      (coklu gorsel, renk grubu, varyant kimligi, kosullu sepet fiyati). Ana satici adi ve
 --      varyant etiketi 0070'te (`seller_name`, `variant_label`) zaten var.
 -- Mevcut satirlar ve Hepsiburada akisi degismez.
 --
--- Numara: 0070 = PR #147 (main'de), 0071 acik PR #144'un yeniden numaralanmasina
--- birakildi (0068'i main ile cakisiyor).
+-- Numara: 0072-0075 main'de, 0076/0077 acik yurt disi urun dalina, 0078 Hepsiburada urun
+-- tavanina ayrildi. 0075 (karar 0124) kota tetikleyicisi bu kaynagi da baglar: hacim kotasi
+-- tanimsiz (NULL), 7 gun / ayda 4 kosu kurali `collection_source_reported_scope` ile korunur.
 
 -- ---------------------------------------------------------------------------
 -- 1) KAYNAK POLITIKASI: kota tetikleyicisi (0070) aynen uygulanir; 0070'in
@@ -29,16 +30,7 @@ VALUES
 ON CONFLICT (source) DO NOTHING;
 
 -- ---------------------------------------------------------------------------
--- 2) KAPSAM BIRIMI: sayfa turleri. Bir acilan sayfa = bir kaynak istegi.
---    'product_page': unit_key = contentId; 'listing_page': unit_key = liste yolu.
--- ---------------------------------------------------------------------------
-ALTER TABLE collection_unit
-    DROP CONSTRAINT collection_unit_kind_check,
-    ADD CONSTRAINT collection_unit_kind_check
-        CHECK (kind IN ('query', 'product_page', 'listing_page'));
-
--- ---------------------------------------------------------------------------
--- 3) ARA DEPO: Trendyol alanlari (hepsi NULL olabilir; Hepsiburada yazmaz).
+-- 2) ARA DEPO: Trendyol alanlari (hepsi NULL olabilir; Hepsiburada yazmaz).
 -- ---------------------------------------------------------------------------
 ALTER TABLE catalog_intake_record
     -- En fazla 6 https gorsel (offer_image siniri, karar 0073). image_url ilk gorseldir.

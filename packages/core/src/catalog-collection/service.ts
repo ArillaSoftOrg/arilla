@@ -11,9 +11,10 @@ import {
   collectionRun,
   collectionSource,
   collectionUnit,
+  collectionUsageDay,
   type Database,
 } from "@arilla/db";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { recordAdminEvent } from "../admin/audit.ts";
 import { type AdminActor, assertCapability } from "../admin/capabilities.ts";
 import { type RecordRejection, type ValidationRules, validateIntakeRecord } from "./validate.ts";
@@ -33,7 +34,7 @@ export class CollectionError extends Error {
 }
 
 const TRIGGER_CODES =
-  /(collection_(?:source_unknown|disabled|quota_interval|quota_month|run_not_open|run_expired|run_immutable|run_closed|requests_decrease|observed_at_out_of_range))/;
+  /(collection_(?:source_unknown|disabled|quota_interval|quota_month|quota_daily_requests|quota_monthly_requests|quota_monthly_products|run_not_open|run_expired|run_immutable|run_closed|requests_decrease|products_decrease|bytes_decrease|observed_at_out_of_range))(?![a-z_])/;
 
 /**
  * Postgres tetikleyici istisnalari bilinen `collection_*` kodlariyla gelir. Surucu
@@ -120,15 +121,119 @@ function assertSource(source: unknown): asserts source is string {
   if (!isSourceFlagEnabled(source)) throw new CollectionError("unknown_source");
 }
 
+export interface UsageWindow {
+  requests: number;
+  products: number;
+}
+
+/** UTC gun/ay kullanimi (karar 0124): rezerve edilen istek ve islenen urun. */
+export interface UsageSnapshot {
+  day: UsageWindow;
+  month: UsageWindow;
+  dayResetsAt: Date;
+  monthResetsAt: Date;
+}
+
+export type QuotaBlock =
+  | "disabled"
+  | "open_run"
+  | "interval"
+  | "month"
+  | "daily_requests"
+  | "monthly_requests"
+  | "monthly_products";
+
+export interface QuotaRemaining {
+  /** null = o kota uygulanmaz. */
+  requestsToday: number | null;
+  requestsMonth: number | null;
+  productsMonth: number | null;
+}
+
+/** Bugunku/aylik kullanim: `collection_usage_day` (en fazla 31 satir, PK araligi). */
+export async function usageSnapshot(
+  db: Database,
+  source: string,
+  now: Date = new Date(),
+): Promise<UsageSnapshot> {
+  const y = now.getUTCFullYear();
+  const m = now.getUTCMonth();
+  const monthStart = new Date(Date.UTC(y, m, 1));
+  const monthEnd = new Date(Date.UTC(y, m + 1, 1));
+  const iso = (d: Date) => d.toISOString().slice(0, 10);
+  const rows = await db
+    .select({
+      day: collectionUsageDay.usageDate,
+      requests: collectionUsageDay.requests,
+      products: collectionUsageDay.products,
+    })
+    .from(collectionUsageDay)
+    .where(
+      and(
+        eq(collectionUsageDay.source, source),
+        gte(collectionUsageDay.usageDate, iso(monthStart)),
+        lt(collectionUsageDay.usageDate, iso(monthEnd)),
+      ),
+    );
+  const today = iso(now);
+  const out: UsageSnapshot = {
+    day: { requests: 0, products: 0 },
+    month: { requests: 0, products: 0 },
+    dayResetsAt: new Date(Date.UTC(y, m, now.getUTCDate() + 1)),
+    monthResetsAt: monthEnd,
+  };
+  for (const r of rows) {
+    out.month.requests += Number(r.requests);
+    out.month.products += Number(r.products);
+    if (r.day === today) {
+      out.day.requests += Number(r.requests);
+      out.day.products += Number(r.products);
+    }
+  }
+  return out;
+}
+
+/** Kalan kota; politika sinirsizsa null. Negatif olmaz. */
+export function remainingQuota(
+  policy: {
+    dailyMaxRequests: number | null;
+    monthlyMaxRequests: number | null;
+    monthlyMaxProducts: number | null;
+  },
+  usage: UsageSnapshot,
+): QuotaRemaining {
+  const left = (limit: number | null, used: number) =>
+    limit === null ? null : Math.max(limit - used, 0);
+  const daily = left(policy.dailyMaxRequests, usage.day.requests);
+  const monthly = left(policy.monthlyMaxRequests, usage.month.requests);
+  return {
+    // Gunluk istek hakki, aylik kalani asamaz.
+    requestsToday: daily === null ? monthly : monthly === null ? daily : Math.min(daily, monthly),
+    requestsMonth: monthly,
+    productsMonth: left(policy.monthlyMaxProducts, usage.month.products),
+  };
+}
+
 export interface QuotaState {
   enabled: boolean;
+  /** 0 = aralik kisiti yok (karar 0124). */
   minIntervalDays: number;
-  maxRunsPerMonth: number;
+  /** null = ayda kosu sayisi sinirsiz. */
+  maxRunsPerMonth: number | null;
   runsThisMonth: number;
-  /** Bu istekte rezervasyon yapilabilir mi (tetikleyici yine son karari verir). */
+  /** Bu istekte YENI kosu rezervasyonu yapilabilir mi (tetikleyici yine son karari verir). */
   canStart: boolean;
-  blockedBy: "disabled" | "interval" | "month" | "open_run" | null;
+  /** Acik kosu var ve kota devam etmeye izin veriyor. */
+  canResume: boolean;
+  blockedBy: QuotaBlock | null;
   nextAllowedAt: Date | null;
+  usage: UsageSnapshot;
+  remaining: QuotaRemaining;
+  limits: {
+    dailyMaxRequests: number | null;
+    monthlyMaxRequests: number | null;
+    monthlyMaxProducts: number | null;
+  };
   /** Bir sonraki koşunun türü ve istek bütçesi (ilk yükleme ile güncelleme ayrı bütçelidir). */
   nextKind: "initial" | "refresh";
   nextMaxRequests: number;
@@ -145,7 +250,13 @@ export interface RunView {
   expiresAt: Date;
   closedAt: Date | null;
   requestsMade: number;
+  /** HTTP isteginden once rezerve edilen toplam (>= requestsMade). */
+  requestsReserved: number;
+  productsCounted: number;
   maxRequests: number;
+  maxBytes: number;
+  bytesDownloaded: number;
+  downloadApprovedBytes: number;
   checkpoint: Record<string, unknown> | null;
   summary: Record<string, unknown> | null;
 }
@@ -166,7 +277,12 @@ function toRunView(r: typeof collectionRun.$inferSelect): RunView {
     expiresAt: r.expiresAt,
     closedAt: r.closedAt,
     requestsMade: r.requestsMade,
+    requestsReserved: r.requestsReserved,
+    productsCounted: r.productsCounted,
     maxRequests: r.maxRequests,
+    maxBytes: r.maxBytes,
+    bytesDownloaded: r.bytesDownloaded,
+    downloadApprovedBytes: r.downloadApprovedBytes,
     checkpoint: r.checkpoint,
     summary: r.summary,
   };
@@ -214,15 +330,30 @@ export async function getCollectionStatus(
   const month = (d: Date) => `${d.getUTCFullYear()}-${d.getUTCMonth()}`;
   const runsThisMonth = counted.filter((r) => month(r.reservedAt) === month(now)).length;
   const last = counted[0]?.reservedAt ?? null;
-  const nextAllowedAt = last
-    ? new Date(last.getTime() + policy.minIntervalDays * 86_400_000)
-    : null;
+  const nextAllowedAt =
+    last && policy.minIntervalDays > 0
+      ? new Date(last.getTime() + policy.minIntervalDays * 86_400_000)
+      : null;
   const open = runs.find((r) => r.status === "open") ?? null;
+  const usage = await usageSnapshot(db, source, now);
+  const limits = {
+    dailyMaxRequests: policy.dailyMaxRequests,
+    monthlyMaxRequests: policy.monthlyMaxRequests,
+    monthlyMaxProducts: policy.monthlyMaxProducts,
+  };
+  const remaining = remainingQuota(limits, usage);
+  // Hacim kotasi (karar 0124): bugun/bu ay istek ve ay urun hakki bitmisse yeni kosu da, rezervasyon da yok.
+  let volumeBlock: QuotaBlock | null = null;
+  if (remaining.requestsMonth === 0) volumeBlock = "monthly_requests";
+  else if (remaining.productsMonth === 0) volumeBlock = "monthly_products";
+  else if (remaining.requestsToday === 0) volumeBlock = "daily_requests";
   let blockedBy: QuotaState["blockedBy"] = null;
   if (!policy.enabled) blockedBy = "disabled";
   else if (open) blockedBy = "open_run";
   else if (nextAllowedAt && now < nextAllowedAt) blockedBy = "interval";
-  else if (runsThisMonth >= policy.maxRunsPerMonth) blockedBy = "month";
+  else if (policy.maxRunsPerMonth !== null && runsThisMonth >= policy.maxRunsPerMonth) {
+    blockedBy = "month";
+  } else if (volumeBlock) blockedBy = volumeBlock;
   return {
     source,
     quota: {
@@ -231,8 +362,12 @@ export async function getCollectionStatus(
       maxRunsPerMonth: policy.maxRunsPerMonth,
       runsThisMonth,
       canStart: blockedBy === null,
+      canResume: policy.enabled && open !== null && volumeBlock === null,
       blockedBy,
       nextAllowedAt,
+      usage,
+      remaining,
+      limits,
       nextKind: anyCounted ? "refresh" : "initial",
       nextMaxRequests: anyCounted ? policy.refreshMaxRequests : policy.initialMaxRequests,
       initialLoadExempt: policy.initialLoadExempt,
@@ -589,8 +724,8 @@ export async function closeCollectionRun(
         .where(eq(collectionRun.id, input.runId))
         .for("update");
       if (run?.status !== "open") throw new CollectionError("collection_run_not_open");
-      // Hic istek atilmadan birakilan kosu kotadan dusulur.
-      const status = run.requestsMade === 0 ? "released" : input.outcome;
+      // Hic istek REZERVE edilmeden birakilan kosu kotadan dusulur (rezerve istek defterde kalir).
+      const status = run.requestsReserved === 0 ? "released" : input.outcome;
       await tx
         .update(collectionRun)
         .set({ status, summary: report as unknown as Record<string, unknown> })

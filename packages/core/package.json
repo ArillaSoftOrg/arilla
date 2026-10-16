@@ -23,6 +23,7 @@
     "./catalog-collection-extract": "./src/catalog-collection/extract-hepsiburada.ts",
     "./catalog-collection-trendyol": "./src/catalog-collection/extract-trendyol.ts",
     "./catalog-collection-trendyol-relay": "./src/catalog-collection/trendyol-relay.ts",
+    "./catalog-discovery-extract": "./src/catalog-collection/discovery-extract.ts",
     "./errors": "./src/errors/index.ts"
   },
   "scripts": {
@@ -36,6 +37,7 @@
     "eval:search": "node --experimental-transform-types --no-warnings scripts/search-eval.ts",
     "eval:record-matching": "node --experimental-transform-types --no-warnings scripts/eval-record-matching.ts",
     "eval:search-compare": "node scripts/search-eval-compare.ts",
+    "web-search:image-probe": "node --experimental-transform-types --no-warnings scripts/store-image-probe.ts",
     "web-search:smoke": "node --experimental-transform-types --no-warnings scripts/web-search-smoke.ts",
     "gemini:image-smoke": "node --experimental-transform-types --no-warnings scripts/gemini-image-smoke.ts",
     "gemini:smoke": "node --experimental-transform-types --no-warnings scripts/gemini-smoke.ts"

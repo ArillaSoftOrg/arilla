@@ -325,7 +325,7 @@ def test_ndjson_satiri_sepet_fiyatini_satis_fiyatindan_ayri_tasir() -> None:
         datetime.now(UTC),
         "SuperStep",  # seller_name (0070)
         "38",  # variant_label (0070)
-        ["https://cdn.dsmcdn.com/a.jpg", "https://cdn.dsmcdn.com/b.jpg"],  # image_urls (0072)
+        ["https://cdn.dsmcdn.com/a.jpg", "https://cdn.dsmcdn.com/b.jpg"],  # image_urls (0079)
         "621971282",  # group_external_id
         "1084850373",  # variant_external_id
         399950,  # basket_price_minor

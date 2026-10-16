@@ -58,7 +58,20 @@ export interface RunOptions {
   } | null;
 }
 
-export type StopReason = "completed" | "paused" | "blocked" | "budget" | "error";
+/**
+ * `network`: kaynaktan HTTP yaniti HIC alinamadi (ag/DNS hatasi, zaman asimi, tarayicinin
+ * okuyamadigi yanit). Bu bir engel kaniti degildir; kosu KAPATILMAZ, acik kalir ve yonetici
+ * nedeni giderip ayni kosuyu surdurebilir (yeni kota hakki harcanmaz; otomatik yeniden deneme yok).
+ */
+export type StopReason = "completed" | "paused" | "blocked" | "budget" | "network" | "error";
+
+/** Tarayici `fetch` hatasinin adi ve mesaji (gizli bilgi icermez; kullaniciya gosterilir). */
+export function describeFetchError(error: unknown): { code: string; detail: string } {
+  const name = error instanceof Error ? error.name : typeof error;
+  const message = error instanceof Error ? error.message : String(error);
+  const code = name === "TimeoutError" || name === "AbortError" ? "timeout" : "network_error";
+  return { code, detail: `${name}: ${message}`.slice(0, 200) };
+}
 
 export function searchUrl(query: string, page: number): string {
   const q = encodeURIComponent(query);
@@ -126,47 +139,80 @@ export async function runCollection(env: CollectorEnv, options: RunOptions): Pro
         break outer;
       }
       if (requests > 0) await env.sleep(env.delayMs);
+      // Kaynaga istek atmadan ONCE atomik rezervasyon (karar 0124); reddedilirse istek ATILMAZ.
+      const hold = await env.api({ op: "discovery_reserve", runId, count: 1 });
+      if (!hold.ok) {
+        const code = String(hold.data?.error ?? hold.status);
+        if (!code.startsWith("collection_quota_")) {
+          env.log(`İstek rezervasyonu reddedildi: ${code}. İstek atılmadı.`);
+          return "error";
+        }
+        env.log(
+          `Kota doldu (${code}); istek atılmadı. Koşu açık, kota yenilenince sürdürülebilir.`,
+        );
+        reason = "budget";
+        break outer;
+      }
       requests += 1;
       const fetchedAt = env.now().toISOString();
       let unit: Record<string, unknown>;
       let records: CollectedItem[] = [];
       let blocked = false;
+      let networkFailure: { code: string; detail: string } | null = null;
+      let res: { status: number; text: string } | null = null;
       try {
-        const res = await env.fetchPage(searchUrl(query, page));
-        if (BLOCK_STATUSES.has(res.status)) {
+        res = await env.fetchPage(searchUrl(query, page));
+      } catch (error) {
+        // HTTP yaniti yok: tarayici ayrintiyi cogu zaman gizler ("Failed to fetch"); gercek neden
+        // (ag, DNS, zaman asimi, okunamayan yanit) tarayici konsolundadir. Engel varsayilmaz.
+        networkFailure = describeFetchError(error);
+      }
+      if (networkFailure || !res) {
+        const failure = networkFailure ?? { code: "network_error", detail: "yanit yok" };
+        unit = status(query, page, "failed", 0, 0, failure.code, fetchedAt);
+      } else if (BLOCK_STATUSES.has(res.status)) {
+        blocked = true;
+        unit = status(query, page, "blocked", 0, 0, `http_${res.status}`, fetchedAt);
+      } else if (res.status !== 200) {
+        unit = status(query, page, "failed", 0, 0, `http_${res.status}`, fetchedAt);
+        blocked = true; // beklenmeyen durumda da dur: yeniden deneme yok
+      } else {
+        let parsed: ExtractedPage | null = null;
+        try {
+          parsed = env.extract(res.text);
+        } catch (error) {
+          env.log(`Sayfa ayrıştırılamadı: ${describeFetchError(error).detail}`);
+        }
+        if (!parsed?.structureFound) {
           blocked = true;
-          unit = status(query, page, "blocked", 0, 0, `http_${res.status}`, fetchedAt);
-        } else if (res.status !== 200) {
-          unit = status(query, page, "failed", 0, 0, `http_${res.status}`, fetchedAt);
-          blocked = true; // beklenmeyen durumda da dur: yeniden deneme yok
+          unit = status(
+            query,
+            page,
+            "blocked",
+            0,
+            0,
+            parsed ? "structure_missing" : "extract_error",
+            fetchedAt,
+          );
         } else {
-          const parsed = env.extract(res.text);
-          if (!parsed.structureFound) {
-            blocked = true;
-            unit = status(query, page, "blocked", 0, 0, "structure_missing", fetchedAt);
-          } else {
-            const fresh = parsed.items.filter((i) => !seen.has(i.externalId));
-            for (const i of parsed.items) seen.add(i.externalId);
-            records = parsed.items.map((i) => ({ ...i }));
-            const empty = parsed.items.length === 0;
-            unit = status(
-              query,
-              page,
-              empty ? "empty" : "done",
-              parsed.items.length,
-              fresh.length,
-              null,
-              fetchedAt,
-            );
-            if (empty) checkpoint.finished[query] = "empty_page";
-            else if (page > 1 && fresh.length === 0) {
-              checkpoint.finished[query] = "no_new_items";
-            }
+          const fresh = parsed.items.filter((i) => !seen.has(i.externalId));
+          for (const i of parsed.items) seen.add(i.externalId);
+          records = parsed.items.map((i) => ({ ...i }));
+          const empty = parsed.items.length === 0;
+          unit = status(
+            query,
+            page,
+            empty ? "empty" : "done",
+            parsed.items.length,
+            fresh.length,
+            null,
+            fetchedAt,
+          );
+          if (empty) checkpoint.finished[query] = "empty_page";
+          else if (page > 1 && fresh.length === 0) {
+            checkpoint.finished[query] = "no_new_items";
           }
         }
-      } catch {
-        blocked = true;
-        unit = status(query, page, "failed", 0, 0, "network_error", fetchedAt);
       }
 
       const sent = await env.api({
@@ -175,18 +221,26 @@ export async function runCollection(env: CollectorEnv, options: RunOptions): Pro
         requestsMade: requests,
         records: records.map((r) => ({ ...r, foundVia: query, sourceObservedAt: fetchedAt })),
         units: [unit],
-        checkpoint: blocked
-          ? checkpoint
-          : { ...checkpoint, done: { ...checkpoint.done, [query]: page } },
+        checkpoint:
+          blocked || networkFailure
+            ? checkpoint
+            : { ...checkpoint, done: { ...checkpoint.done, [query]: page } },
       });
       if (!sent.ok) {
         env.log(`Sunucu reddetti: ${sent.data?.error ?? sent.status}. Koşu duruyor.`);
         return "error";
       }
-      if (!blocked) checkpoint.done[query] = page;
+      if (!blocked && !networkFailure) checkpoint.done[query] = page;
       env.log(
         `${query} s.${page}: ${records.length} ürün, sunucuda yeni ${sent.data.inserted}, tekrar ${sent.data.duplicates}, reddedilen ${sent.data.rejected}`,
       );
+      if (networkFailure) {
+        env.log(
+          `Kaynaktan yanıt alınamadı (${networkFailure.code}: ${networkFailure.detail}). Bu bir engel kanıtı değildir; ayrıntı tarayıcı konsolundadır. Koşu AÇIK bırakıldı: nedeni giderip "Açık koşuyu sürdür" ile aynı koşu, aynı sayfadan sürdürülebilir (yeni kota hakkı harcanmaz). Otomatik yeniden deneme yok.`,
+        );
+        reason = "network";
+        break outer;
+      }
       if (blocked) {
         env.log(
           `Engel ya da beklenmeyen yanıt (${String(unit.errorCode)}). Koşu durduruldu; yeniden denenmez.`,
@@ -211,7 +265,7 @@ export async function runCollection(env: CollectorEnv, options: RunOptions): Pro
         `Koşu kapandı: ${c.uniqueRecords} benzersiz ürün, ${c.queries} sorgu, ${c.pagesFetched} sayfa; sayfa tavanında kesilen sorgu ${c.queriesCappedByPageLimit}; sayfalama doğrulanamayan ${c.queriesPaginationUnconfirmed}.`,
       );
     }
-  } else {
+  } else if (reason === "paused") {
     env.log("Duraklatıldı; koşu açık, kaldığı yerden sürdürülebilir.");
   }
   return reason;

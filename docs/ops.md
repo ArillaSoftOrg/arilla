@@ -21,6 +21,29 @@ desteklemiyor; feed toplama saatler sürebilir. Python worker için ayrı bir
 barındırma gerekir (küçük bir VPS yeterli). "Başta Vercel" ilk günden iki ortam
 demektir.
 
+### Link kuyruğu Redis'i (`LINK_REDIS_URL`, karar 0123)
+
+Web `queue:link_resolution` listesine `LINK_REDIS_URL`'deki Redis'e yazar (boşsa
+`REDIS_URL`); Python worker `worker.env`'deki `REDIS_URL`'i dinler. **İkisi aynı
+sunucuyu göstermelidir**, aksi halde istekler `queued` kalır ve 60 sn sonra zaman
+aşımı görünür (worker "healthy" olsa bile). VPS'te yerel Redis kullanılır;
+`REDIS_URL` (oran sınırı, bütçe, önbellek) değişmez.
+
+Üretimde etkinleştirme (kod dağıtıldıktan sonra, bakım penceresinde, parola ekrana
+basılmadan; geri alınabilir):
+
+```
+sudo cp -p /opt/arilla/env/web.env /opt/arilla/env/web.env.bak
+sudo sh -c "grep '^REDIS_URL=' /opt/arilla/env/worker.env | sed 's/^REDIS_URL=/LINK_REDIS_URL=/' >> /opt/arilla/env/web.env"
+sudo docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml up -d web
+```
+
+Doğrulama (yalnız host/port/db yazar): web ve worker'da
+`new URL(process.env.<DEĞİŞKEN>)` ile `hostname port pathname`; `redis-cli info
+commandstats` içinde `cmdstat_lpush` ve `cmdstat_brpop` artışı; `llen
+queue:link_resolution` işlendikten sonra 0. Geri alma: `web.env.bak`'ı geri kopyala ve
+`up -d web`. Yönetim paneli kuyruk göstergesi de bu Redis'i okur.
+
 ### Link worker
 
 `queue:link_resolution` tüketicisi (`python -m collect.link --worker`), Docker
@@ -1182,6 +1205,37 @@ Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-stagin
 - Admitad tıklaması için `merchant.deeplink_template`'e Admitad hesabında doğrulanan
   biçim girilir (örn. `{affiliate_url}&subid={click_id}`).
 - Yönetim: `/yonetim/ingest/beslemeler` (salt okunur).
+
+## Kaynak ilanından katalog (karar 0121)
+
+AliExpress gibi kesin kimliği (GTIN/marka) olmayan kaynakların teklifleri **taslak ürün** olur;
+yayın ayrı ve açık bir karardır. Hiçbir adım `offer` fiyatına/para birimine yazmaz, hiçbiri
+zamanlanmış değildir (yalnızca elle). `python -m resolve` AliExpress'e dokunmaz (TRY dışı
+teklifleri atlar, 0112) ve taslakları aday saymaz.
+
+```bash
+cd services/ingest
+# 0. YALNIZCA OKUR. Kaç teklif ürün olmaya uygun, neden elenenler? (uretimde guvenli)
+python -m catalog_build audit  --merchant aliexpress
+# 1. Aktarım: taslak ürün. Parti + kontrol noktası tek işlemde; Ctrl+C / kill sonrası aynı komut sürer.
+python -m catalog_build build  --merchant aliexpress --batch 5000 --sleep-ms 100
+python -m catalog_build status --merchant aliexpress
+# 2. Kalite kapısı: draft/held/ready. Yurt dışı teklif karar bekler (draft kalır, satır yazılmaz).
+python -m catalog_build gate
+# 3. Yayın (AÇIK onay): ready -> published, offer.product_id bağlanır, özet yenilenir.
+python -m catalog_build publish --limit 500 --merchant aliexpress --confirm
+#    TRY dışı ürün için ayrıca: CATALOG_PUBLISH_FOREIGN_APPROVED=true ve --allow-foreign
+# Geri alma (bağ + durum; teklif/fiyat verisine dokunmaz):
+python -m catalog_build unpublish --product-id 123 --confirm
+```
+
+Üretimde ilk koşu için öneri: `audit` -> `build --max-batches 20` (yaklaşık 100 bin teklif) ->
+`status` -> sorun yoksa `build`. İlk koşu sonrası `VACUUM (ANALYZE) product`. Yazma yükü
+(2,5 milyon ürün): yaklaşık 1,5 GB tablo+indeks, benzer büyüklükte WAL (`pg_wal` ve
+pgBackRest arşivini izle). Feed senkronizasyonu çalışırken de çalışabilir (offer'a yazmaz);
+yine de yoğun saatte `--sleep-ms` kullan. Yönetimde: `/yonetim/katalog/urunler?durum=draft`
+(kimlik/slug/kaynak kimliğiyle ara) ve `/yonetim/katalog/kalite` "Yayın bekleyen kaynak
+ilanları".
 
 ## Bootstrap kataloğu (geçici, yalnızca yerel)
 

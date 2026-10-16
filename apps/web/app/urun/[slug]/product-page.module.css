@@ -488,3 +488,32 @@
   font-size: var(--text-small);
   color: var(--ink-secondary);
 }
+
+/* Yurt disi teklifleri (karar 0121): TL listesinden ayri, fiyat siralamasina girmez. */
+.foreignList {
+  display: grid;
+  gap: var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.foreignItem {
+  display: grid;
+  gap: var(--space-2);
+}
+
+.foreignPrice {
+  margin: 0;
+  font-size: var(--text-body);
+  line-height: var(--line-height-body);
+  color: var(--ink-primary);
+  font-variant-numeric: tabular-nums;
+}
+
+.foreignLink {
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  text-decoration: underline;
+  text-underline-offset: 0.15em;
+}

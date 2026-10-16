@@ -4,7 +4,7 @@
  * gecmis tablosunda aranir.
  */
 import { brand, type Database, product, productSlugHistory } from "@arilla/db";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import type { ProductDetail, SlugResolution } from "./result-types.ts";
 
 function toProductDetail(row: {
@@ -52,7 +52,8 @@ async function findBySlug(db: Database, slug: string) {
     })
     .from(product)
     .leftJoin(brand, eq(brand.id, product.brandId))
-    .where(eq(product.slug, slug))
+    // Taslak/bekleyen kaynak ilanı (karar 0121) herkese kapalıdır: sayfa yok.
+    .where(and(eq(product.slug, slug), eq(product.publicationState, "published")))
     .limit(1);
   return rows[0];
 }
@@ -76,7 +77,7 @@ export async function resolveProductSlug(db: Database, slug: string): Promise<Sl
   const currentRows = await db
     .select({ slug: product.slug })
     .from(product)
-    .where(eq(product.id, historyRow.productId))
+    .where(and(eq(product.id, historyRow.productId), eq(product.publicationState, "published")))
     .limit(1);
   const current = currentRows[0];
   if (!current) {

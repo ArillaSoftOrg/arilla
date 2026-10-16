@@ -3,7 +3,6 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { type AdminActor, AdminForbiddenError } from "../admin/capabilities.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import {
-  CollectionError,
   closeCollectionRun,
   coverageReport,
   getCollectionStatus,
@@ -33,6 +32,7 @@ describe("katalog toplama servisi - entegrasyon (gercek Postgres)", () => {
       await c.query("DELETE FROM catalog_intake_record");
       await c.query("DELETE FROM collection_unit");
       await c.query("DELETE FROM collection_run");
+      await c.query("DELETE FROM collection_usage_day");
       await c.query("UPDATE collection_source SET enabled = TRUE WHERE source = 'hepsiburada'");
     });
   }
@@ -86,12 +86,12 @@ describe("katalog toplama servisi - entegrasyon (gercek Postgres)", () => {
     expect(status.quota.canStart).toBe(true);
 
     const run = await startCollectionRun(db, admin, { source: "hepsiburada" });
-    expect(run.maxRequests).toBe(500);
+    expect(run.maxRequests).toBe(20000);
     expect(run.expiresAt.getTime() - run.reservedAt.getTime()).toBe(6 * 86_400_000);
 
-    // Acik kosu varken (aralik) ikinci kosu baslamaz.
+    // Aralik kisiti kalkti; ama kaynak basina tek ACIK kosu kurali sürer.
     await expect(startCollectionRun(db, admin, { source: "hepsiburada" })).rejects.toMatchObject({
-      code: "collection_quota_interval",
+      code: "collection_run_already_open",
     });
 
     const unit = (page: number, found: number, fresh: number) => ({
@@ -133,7 +133,7 @@ describe("katalog toplama servisi - entegrasyon (gercek Postgres)", () => {
         runId: run.id,
         records: [],
         units: [],
-        requestsMade: 501,
+        requestsMade: 20001,
       }),
     ).rejects.toMatchObject({ code: "request_budget_exceeded" });
 
@@ -156,12 +156,11 @@ describe("katalog toplama servisi - entegrasyon (gercek Postgres)", () => {
     await expect(
       submitCollectionBatch(db, admin, { runId: run.id, records: [], units: [], requestsMade: 2 }),
     ).rejects.toMatchObject({ code: "collection_run_not_open" });
-    await expect(startCollectionRun(db, admin, { source: "hepsiburada" })).rejects.toBeInstanceOf(
-      CollectionError,
-    );
     const after = await getCollectionStatus(db, admin, "hepsiburada");
-    expect(after.quota.canStart).toBe(false);
-    expect(after.quota.blockedBy).toBe("interval");
+    // Koşu aralığı/ay sınırı kalktı: kapanan koşudan hemen sonra yenisi başlatılabilir.
+    expect(after.quota.canStart).toBe(true);
+    expect(after.quota.blockedBy).toBeNull();
+    expect(after.quota.usage.day.requests).toBe(2);
 
     const audit = await withOwnerClient(async (c) =>
       (

@@ -91,16 +91,39 @@ CREATE TABLE product (
     in_stock_count  INTEGER     NOT NULL DEFAULT 0,   -- stokta olan mağaza sayısı
     price_updated_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- 0074 (karar 0121): aktarim ile kullaniciya yayin ayridir. Mevcut urunler 'published'.
+    publication_state TEXT      NOT NULL DEFAULT 'published'
+                    CHECK (publication_state IN ('draft', 'ready', 'held', 'published')),
+    hold_reason     TEXT        CHECK (hold_reason IS NULL OR hold_reason ~ '^[a-z0-9_]{2,60}$'),
+    published_at    TIMESTAMPTZ,
+    -- Kaynak ilan kimligi: ayni kaynak ilani icin ikinci urun olusamaz.
+    source_merchant_id BIGINT   REFERENCES merchant(id),
+    source_external_id TEXT     CHECK (source_external_id IS NULL OR char_length(source_external_id) BETWEEN 1 AND 200),
+    source_offer_id BIGINT      REFERENCES offer(id),
+    CONSTRAINT product_source_pair CHECK ((source_merchant_id IS NULL) = (source_external_id IS NULL)),
+    CONSTRAINT product_source_offer_has_key CHECK (source_offer_id IS NULL OR source_merchant_id IS NOT NULL),
+    CONSTRAINT product_hold_reason_matches_state CHECK ((publication_state = 'held') = (hold_reason IS NOT NULL)),
+    CONSTRAINT product_unpublished_is_source_listing
+        CHECK (publication_state = 'published' OR source_merchant_id IS NOT NULL)
 );
+-- Kaynak kimligi ONDE: yonetim aramasi yalniz kimlikle sorar (mağaza bilinmez).
+CREATE UNIQUE INDEX product_source_key_uniq ON product (source_external_id, source_merchant_id)
+    WHERE source_merchant_id IS NOT NULL;
+CREATE UNIQUE INDEX product_source_offer_uniq ON product (source_offer_id)
+    WHERE source_offer_id IS NOT NULL;
+CREATE INDEX product_unpublished_idx ON product (publication_state, id)
+    WHERE publication_state <> 'published';
 CREATE INDEX product_brand_idx    ON product (brand_id);
 CREATE INDEX product_category_idx ON product (category_id);
 CREATE INDEX product_gtin_idx     ON product (gtin) WHERE gtin IS NOT NULL;
-CREATE INDEX product_title_trgm   ON product USING gin (title gin_trgm_ops);
+CREATE INDEX product_title_trgm   ON product USING gin (title gin_trgm_ops)
+    WHERE publication_state = 'published';
 -- Metin aramasinin aday kapisi (0029): katlanmis baslik. Ifade
 -- packages/core/src/search/text-match.ts foldedTitleExpr ile birebir ayni.
 CREATE INDEX product_title_fold_trgm ON product
-    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops);
+    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
+    WHERE publication_state = 'published';
 CREATE INDEX product_min_price_idx ON product (min_price) WHERE min_price IS NOT NULL;
 CREATE INDEX product_model_key_idx ON product (model_key) WHERE model_key IS NOT NULL;
 
@@ -155,6 +178,11 @@ CREATE TABLE offer (
 );
 CREATE INDEX offer_product_idx    ON offer (product_id) WHERE product_id IS NOT NULL;
 CREATE INDEX offer_unmatched_idx  ON offer (merchant_id) WHERE product_id IS NULL;
+-- 0071: magaza basina sayimlar icin indeks-yalniz tarama
+CREATE INDEX offer_merchant_state_idx ON offer (merchant_id, is_active, product_id);
+-- 0072: kalite denetimleri (adaysiz teklif siralamasi, bayatlik icin kapsayan indeks)
+CREATE INDEX offer_unmatched_first_seen_idx ON offer (first_seen_at, id) WHERE product_id IS NULL AND is_active;
+CREATE INDEX offer_active_seen_idx ON offer (id) INCLUDE (merchant_id, last_seen_at) WHERE is_active;
 CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT NULL;
 CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
 CREATE INDEX offer_seller_idx ON offer (seller_id) WHERE seller_id IS NOT NULL;
@@ -2261,7 +2289,7 @@ VALUES
      || 'PostgreSQL''de saklama, haftada en fazla 1 yenileme, ayda en fazla 4. Belgeler bagimsiz '
      || 'incelenmedi; imzali sozlesme degil.');
 
--- 0072 (karar 0118): Trendyol; KAPALI gelir, kullanici beyani yazili e-posta izni, ayni kota.
+-- 0079 (karar 0118): Trendyol; KAPALI gelir, kullanici beyani yazili e-posta izni, ayni kota.
 INSERT INTO collection_source
     (source, merchant_slug, min_interval_days, max_runs_per_month, run_window_days,
      initial_max_requests, refresh_max_requests, enabled, permission_basis, permission_note)
@@ -2304,6 +2332,24 @@ CREATE TABLE collection_run (
 -- Acik kosu kaynak basina tek.
 CREATE UNIQUE INDEX collection_run_one_open_uniq ON collection_run (source) WHERE status = 'open';
 CREATE INDEX collection_run_source_idx ON collection_run (source, reserved_at DESC);
+
+-- 0075 (karar 0124): hacim kotasi. Referans ozet; gercek tanim migration'dadir.
+--   collection_source: min_interval_days >= 0 (0 = aralik yok), max_runs_per_month NULL olabilir,
+--     daily_max_requests / monthly_max_requests / monthly_max_products INTEGER (NULL = uygulanmaz);
+--     collection_source_window_lt_interval yalniz min_interval_days > 0 iken uygulanir;
+--     collection_source_reported_scope korunur (bildirilen izinde max_runs_per_month NOT NULL ve <= 4).
+--   collection_run: requests_reserved INTEGER (HTTP isteginden ONCE rezerve, azalmaz,
+--     requests_made <= requests_reserved <= max_requests), products_counted BIGINT.
+CREATE TABLE collection_usage_day (
+    source      TEXT        NOT NULL REFERENCES collection_source(source),
+    usage_date  DATE        NOT NULL,          -- UTC gun
+    requests    BIGINT      NOT NULL DEFAULT 0 CHECK (requests >= 0),
+    products    BIGINT      NOT NULL DEFAULT 0 CHECK (products >= 0),
+    updated_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (source, usage_date)
+);
+-- Yalniz collection_run_usage_guard (SECURITY DEFINER, BEFORE UPDATE on collection_run) yazar;
+-- arilla_app: SELECT. Gunluk/aylik istek ve aylik urun tavani advisory kilit altinda denetlenir.
 
 CREATE FUNCTION collection_run_quota_guard() RETURNS trigger
 LANGUAGE plpgsql AS $$
@@ -2400,10 +2446,7 @@ CREATE TRIGGER collection_run_immutable_guard_trg
 -- kac sayfa, her sayfada kac urun, hangi sorgu SAYFA TAVANINA takildi.
 CREATE TABLE collection_unit (
     run_id         BIGINT      NOT NULL REFERENCES collection_run(id),
-    -- 'query' (Hepsiburada sorgu+sayfa); 0072: 'product_page' (unit_key = contentId),
-    -- 'listing_page' (unit_key = liste yolu). Bir acilan sayfa = bir kaynak istegi.
-    kind           TEXT        NOT NULL CONSTRAINT collection_unit_kind_check
-                               CHECK (kind IN ('query', 'product_page', 'listing_page')),
+    kind           TEXT        NOT NULL CHECK (kind IN ('query')),
     unit_key       TEXT        NOT NULL CHECK (char_length(unit_key) BETWEEN 1 AND 200),
     page           SMALLINT    NOT NULL DEFAULT 1 CHECK (page BETWEEN 1 AND 200),
     status         TEXT        NOT NULL CHECK (status IN ('done', 'empty', 'failed', 'blocked')),
@@ -2446,7 +2489,7 @@ CREATE TABLE catalog_intake_record (
     gtin               TEXT        CHECK (gtin IS NULL OR gtin ~ '^[0-9]{8,14}$'),
     -- Hangi sorgu bu urunu buldu (kesif izi; kategori DEGILDIR).
     found_via          TEXT        CHECK (found_via IS NULL OR char_length(found_via) <= 200),
-    -- 0072 (karar 0118): Trendyol alanlari, hepsi NULL olabilir.
+    -- 0079 (karar 0118): Trendyol alanlari, hepsi NULL olabilir.
     image_urls         JSONB       CHECK (image_urls IS NULL OR (jsonb_typeof(image_urls) = 'array'
                                           AND jsonb_array_length(image_urls) BETWEEN 1 AND 6)),
     group_external_id  TEXT        CHECK (group_external_id IS NULL OR group_external_id ~ '^[0-9]{1,20}$'),
@@ -2488,6 +2531,22 @@ CREATE TRIGGER catalog_intake_guard_trg
     FOR EACH ROW EXECUTE FUNCTION catalog_intake_guard();
 
 -- ---------------------------------------------------------------------------
+-- KAYNAK ILANINDAN URUN AKTARIMI (0074, karar 0121)
+-- ---------------------------------------------------------------------------
+-- Kaynak basina kontrol noktasi; parti + kontrol noktasi ayni islemde yazilir.
+CREATE TABLE catalog_build_state (
+    merchant_id    BIGINT      PRIMARY KEY REFERENCES merchant(id),
+    last_offer_id  BIGINT      NOT NULL DEFAULT 0 CHECK (last_offer_id >= 0),
+    scanned        BIGINT      NOT NULL DEFAULT 0 CHECK (scanned >= 0),
+    created        BIGINT      NOT NULL DEFAULT 0 CHECK (created >= 0),
+    existing       BIGINT      NOT NULL DEFAULT 0 CHECK (existing >= 0),
+    skipped        JSONB       NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(skipped) = 'object'),
+    started_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    completed_at   TIMESTAMPTZ
+);
+
+-- ---------------------------------------------------------------------------
 -- YETKILER
 -- ---------------------------------------------------------------------------
 -- Politika yalnizca sahip rol/migration ile degisir; uygulama okur.
@@ -2501,3 +2560,43 @@ REVOKE DELETE, TRUNCATE ON collection_unit FROM arilla_app;
 REVOKE UPDATE ON catalog_intake_record FROM arilla_app;
 GRANT UPDATE (merged_at) ON catalog_intake_record TO arilla_app;
 REVOKE TRUNCATE ON catalog_intake_record FROM arilla_app;
+
+-- ---------------------------------------------------------------------------
+-- 0073 (karar 0120): KATALOG KESIF DEFTERI VE SITEMAP KOSU ALTYAPISI
+-- ---------------------------------------------------------------------------
+-- collection_source: initial_run_window_days SMALLINT NULL (1..60), min_request_interval_ms INTEGER
+--   NOT NULL DEFAULT 2000 (>=1000), initial_max_bytes / refresh_max_bytes BIGINT NOT NULL DEFAULT 1 GiB,
+--   blocked_cooldown_minutes INTEGER NOT NULL DEFAULT 60.
+-- collection_run: max_bytes (tetikleyici yazar), bytes_downloaded, download_approved_bytes,
+--   download_approved_by -> app_user, download_approved_at, transfer_origin
+--   ('unknown','vps','admin_wifi','admin_wired','admin_mobile');
+--   CHECK bytes_downloaded <= download_approved_bytes <= max_bytes.
+-- collection_unit: kind IN ('query','product_page','listing_page','sitemap_file'), page 1..1000,
+--   status IN ('pending','done','empty','failed','blocked'), fetched_at NULL yalniz 'pending',
+--   unit_seq, attempts, bytes_received; indeks collection_unit_resume_idx (run_id, kind, unit_seq)
+--   WHERE status IN ('pending','failed').
+CREATE TABLE catalog_discovery (
+    source             TEXT        NOT NULL REFERENCES collection_source(source),
+    external_id        TEXT        NOT NULL CHECK (char_length(external_id) BETWEEN 1 AND 100),
+    code_kind          TEXT        NOT NULL CHECK (code_kind IN ('pm', 'p')),
+    url                TEXT        NOT NULL CHECK (char_length(url) <= 2048 AND url ~ '^https://'),
+    title              TEXT        CHECK (title IS NULL OR char_length(title) BETWEEN 1 AND 500),
+    image_url          TEXT        CHECK (image_url IS NULL
+                                          OR (char_length(image_url) <= 2048 AND image_url ~ '^https://')),
+    source_unit_key    TEXT        NOT NULL CHECK (char_length(source_unit_key) BETWEEN 1 AND 200),
+    first_seen_run_id  BIGINT      NOT NULL REFERENCES collection_run(id),
+    last_seen_run_id   BIGINT      NOT NULL REFERENCES collection_run(id),
+    first_seen_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    last_seen_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    -- FIYAT KOLONU YOK; yalniz durum.
+    price_state        TEXT        NOT NULL DEFAULT 'unpriced'
+                       CHECK (price_state IN ('unpriced', 'listing_price', 'page_verified',
+                                              'stale', 'unavailable')),
+    price_checked_at   TIMESTAMPTZ,
+    PRIMARY KEY (source, external_id),
+    CONSTRAINT catalog_discovery_seen_order CHECK (last_seen_at >= first_seen_at),
+    CONSTRAINT catalog_discovery_price_checked
+        CHECK ((price_state = 'unpriced') = (price_checked_at IS NULL))
+) WITH (fillfactor = 85, autovacuum_vacuum_scale_factor = 0.02,
+        autovacuum_vacuum_insert_scale_factor = 0.05);
+REVOKE DELETE, TRUNCATE ON catalog_discovery FROM arilla_app;

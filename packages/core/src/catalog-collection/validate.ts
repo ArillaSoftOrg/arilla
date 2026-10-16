@@ -22,7 +22,7 @@ export interface IntakeRecordInput {
   gtin: string | null;
   foundVia: string | null;
   sourceObservedAt: Date;
-  /** 0072 (karar 0118): yalniz `extended` kurali olan kaynakta dolar; digerlerinde null. */
+  /** 0079 (karar 0118): yalniz `extended` kurali olan kaynakta dolar; digerlerinde null. */
   imageUrls: string[] | null;
   groupExternalId: string | null;
   variantExternalId: string | null;
@@ -60,7 +60,7 @@ export interface ValidationRules {
   externalIdPattern?: RegExp;
   /** Adres kaynak kimligiyle tutarli kanonik urun adresi mi (Trendyol: `-p-<contentId>`). */
   canonicalUrl?: (url: string, externalId: string) => boolean;
-  /** 0072 alanlari (coklu gorsel, satici adi, grup, varyant, sepet fiyati, sayfa turu) kabul edilir. */
+  /** 0079 alanlari (coklu gorsel, satici adi, grup, varyant, sepet fiyati, sayfa turu) kabul edilir. */
   extended?: boolean;
 }
 

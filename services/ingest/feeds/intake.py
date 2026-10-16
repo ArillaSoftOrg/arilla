@@ -103,7 +103,7 @@ SOURCES: dict[str, IntakeSource] = {
     ),
 }
 
-# Ilk 17 sutun 0070 ile ayni sirada; 0072 (Trendyol) alanlari SONA eklenir.
+# Ilk 17 sutun 0070 ile ayni sirada; 0079 (Trendyol) alanlari SONA eklenir.
 PENDING = """
 SELECT id, external_id, title, url, price_minor, list_price_minor, currency, in_stock,
        image_url, brand, category_raw, seller_external_id, gtin, found_via, source_observed_at,
@@ -154,7 +154,7 @@ def to_feed_row(row: tuple[Any, ...], *, unknown_stock_available: bool = False) 
     (katalogun stok bilgisi olmayan beslemelerdeki kurali) ve `stock_state=unknown` korunur.
     Varsayilan (Hepsiburada, 0117): false + `stock_state=unknown`.
     """
-    # Ilk 17 sutun 0070 (Hepsiburada) sirasi; 0072 (Trendyol) alanlari SONDA.
+    # Ilk 17 sutun 0070 (Hepsiburada) sirasi; 0079 (Trendyol) alanlari SONDA.
     extended = row[17:]
     row = (*row[:17], *([None] * max(0, 17 - len(row))))
     (

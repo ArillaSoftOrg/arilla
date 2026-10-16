@@ -1,3 +1,5 @@
+export * from "./discovery-service.ts";
+export * from "./discovery-validate.ts";
 export * from "./extract-hepsiburada.ts";
 export * from "./extract-product-page.ts";
 export * from "./extract-trendyol.ts";

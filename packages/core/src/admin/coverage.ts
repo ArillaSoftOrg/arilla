@@ -92,7 +92,14 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   {
     id: "catalog_collection",
     label: "Katalog toplama (yonetici tarayicisi)",
-    tables: ["collection_source", "collection_run", "collection_unit", "catalog_intake_record"],
+    tables: [
+      "collection_source",
+      "collection_run",
+      "collection_unit",
+      "collection_usage_day",
+      "catalog_intake_record",
+      "catalog_discovery",
+    ],
     status: "visible",
     adminPaths: ["/yonetim/katalog/toplama"],
     gaps: [],
@@ -102,6 +109,8 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     label: "Katalog: ürün, teklif, varyant, fiyat",
     tables: [
       "product",
+      // Karar 0121: kaynak ilanından taslak ürün aktarımının kontrol noktası.
+      "catalog_build_state",
       "product_slug_history",
       "brand",
       "category",

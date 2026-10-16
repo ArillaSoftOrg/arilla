@@ -6,7 +6,8 @@
  * `offer_count`'u okur.
  *
  * Anlam aramanın `best_offer` kuralıyla aynıdır: yalnızca AKTİF MAĞAZANIN
- * fiyatlı aktif teklifi sayılır. `offer_count` = böyle teklifi olan farklı
+ * fiyatlı aktif TRY teklifi sayılır (TRY dışı tutar kuruş gibi okunup özeti
+ * kirletmesin; karar 0121). `offer_count` = böyle teklifi olan farklı
  * mağaza sayısı; `in_stock_count` = bunlardan stokta olan mağaza sayısı. Kolon
  * adları migration gerektirmesin diye korunur.
  *
@@ -26,7 +27,8 @@ export type AggregateScope =
   | { all: true };
 
 function scopeCondition(scope: AggregateScope): SQL | null {
-  if ("all" in scope) return sql`TRUE`;
+  // Yayınlanmamış kaynak ilanları (karar 0121) teklife bağlı değildir: onarım taramasına girmez.
+  if ("all" in scope) return sql`p2.publication_state = 'published'`;
   if ("merchantId" in scope) {
     // Mağazanın pasif teklifleri de: aç/kapat onların ürünlerini de etkiler.
     return sql`p2.id IN (SELECT so.product_id FROM offer so
@@ -62,6 +64,7 @@ export async function refreshProductAggregates(
           FROM product p2
           LEFT JOIN (offer o JOIN merchant m ON m.id = o.merchant_id AND m.is_active)
             ON o.product_id = p2.id AND o.is_active AND o.current_price IS NOT NULL
+           AND o.currency = 'TRY'
          WHERE ${condition}
          GROUP BY p2.id
     ) agg

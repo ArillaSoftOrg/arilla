@@ -39,7 +39,7 @@ SELECT p.id, p.title, b.name, p.color, p.gtin, p.mpn, x.gtin, x.size_label
     UNION
     SELECT p2.id, p2.gtin, NULL FROM product p2 WHERE p2.gtin = ANY(%(gtins)s)
   ) x
-  JOIN product p ON p.id = x.product_id
+  JOIN product p ON p.id = x.product_id AND p.publication_state = 'published'
   LEFT JOIN brand b ON b.id = p.brand_id
 """
 

@@ -20,6 +20,9 @@ const BLOCKED_TEXT: Record<string, string> = {
   open_run: "Açık bir toplama koşusu var; sürdürülebilir.",
   interval: "En az 7 gün aralık dolmadı.",
   month: "Bu takvim ayının koşu hakkı doldu.",
+  daily_requests: "Bugünkü HTTP isteği hakkı doldu; UTC gün dönümünde yenilenir.",
+  monthly_requests: "Bu ayın HTTP isteği hakkı doldu; UTC ay başında yenilenir.",
+  monthly_products: "Bu ayın ürün hakkı doldu; UTC ay başında yenilenir.",
 };
 
 export default async function TrendyolCollectionPage() {
@@ -41,7 +44,9 @@ export default async function TrendyolCollectionPage() {
         <KpiGroup label="Kota">
           <KpiCard
             label="Bu ay koşu"
-            value={`${formatCount(q.runsThisMonth)} / ${formatCount(q.maxRunsPerMonth)}`}
+            value={`${formatCount(q.runsThisMonth)} / ${
+              q.maxRunsPerMonth === null ? "sınırsız" : formatCount(q.maxRunsPerMonth)
+            }`}
           />
           <KpiCard label="En az aralık" value={`${q.minIntervalDays} gün`} />
           <KpiCard label="Sonraki izinli zaman" value={formatDateOrDash(q.nextAllowedAt)} />

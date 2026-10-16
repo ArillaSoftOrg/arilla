@@ -2,7 +2,7 @@
 
 **Tarih:** 15 Ekim 2026
 **Durum:** Kabul edildi. Kod ve testler hazır. Kaynak iki yerden **kapalı** gelir:
-- `collection_source.enabled = FALSE` (migration 0072);
+- `collection_source.enabled = FALSE` (migration 0079);
 - `TRENDYOL_COLLECTION_ENABLED` ortam bayrağı (yokken sayfa ve API 404).
 
 Gerçek toplama başlatılmadı; ayrıca onay ister.
@@ -131,4 +131,4 @@ Kayıt: `permission_basis = 'written_email_reported'`. Bu değer, Hepsiburada sa
   2. `feeds ensure-merchant --profile tycollect:trendyol`;
   3. `collection_source.enabled` (sahip rol).
 - **Eklenti dağıtımı:** Yönetici kendi tarayıcısına "paketlenmemiş" olarak yükler; mağazaya konmaz.
-- **Numaralar:** migration 0072, karar 0118. Main'de 0070'e kadar (0070 = #147). 0071, #144'ün yeniden numaralanmasına bırakıldı (0068'i main ile çakışıyor).
+- **Numaralar:** migration 0079, karar 0118 (17 Ekim 2026: main 0075'e kadar; 0076/0077 yurt dışı ürün dalına, 0078 Hepsiburada ürün tavanına ayrıldı). Kapsam birimi türleri `product_page`/`listing_page` 0073'ten gelir; 0075 (karar 0124) kota tetikleyicisi bu kaynağı da bağlar.

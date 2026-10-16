@@ -1,14 +1,20 @@
 import {
   type AdminActor,
+  approveRunDownload,
   type BatchInput,
   CollectionError,
   closeCollectionRun,
+  discoveryProgress,
   evaluateAdminSession,
   getCollectionStatus,
   hasCapability,
   isFreshAuth,
+  nextDiscoveryUnits,
+  planDiscoveryUnits,
+  reserveRequests,
   startCollectionRun,
   submitCollectionBatch,
+  submitDiscoveryBatch,
   verifySessionToken,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -25,7 +31,7 @@ import { readSessionCookie } from "../../../lib/session-cookie.ts";
  */
 export const dynamic = "force-dynamic";
 
-const MAX_BODY_BYTES = 1_500_000;
+const MAX_BODY_BYTES = 4_000_000;
 const NO_STORE = { "Cache-Control": "no-store" };
 
 function json(body: unknown, status = 200): Response {
@@ -67,12 +73,27 @@ const STATUS_BY_CODE: Record<string, number> = {
   unknown_source: 404,
   collection_quota_interval: 429,
   collection_quota_month: 429,
+  collection_quota_daily_requests: 429,
+  collection_quota_monthly_requests: 429,
+  collection_quota_monthly_products: 429,
+  request_not_reserved: 409,
   collection_disabled: 403,
   collection_run_already_open: 409,
   collection_run_not_open: 409,
   collection_run_expired: 410,
   request_budget_exceeded: 429,
+  download_not_approved: 403,
+  download_budget_exceeded: 429,
+  request_rate_exceeded: 429,
+  blocked_cooldown: 429,
+  database_size_limit: 507,
 };
+
+/** Disk doluluguna karsi veritabani boyutu tavani (bayt); yoksa cekirdek varsayilani. */
+function databaseCeiling(): number | undefined {
+  const n = Number(process.env.CATALOG_DISCOVERY_DB_MAX_BYTES);
+  return Number.isSafeInteger(n) && n > 0 ? n : undefined;
+}
 
 export async function POST(request: Request): Promise<Response> {
   const auth = await authenticate(request);
@@ -115,6 +136,72 @@ export async function POST(request: Request): Promise<Response> {
           await closeCollectionRun(db, actor, {
             runId: Number(body.runId),
             outcome: body.outcome === "aborted" ? "aborted" : "completed",
+          }),
+        );
+      case "discovery_plan":
+        return json(
+          await planDiscoveryUnits(db, actor, {
+            runId: Number(body.runId),
+            kind: body.kind as "sitemap_file" | "listing_page",
+            keys: body.keys as string[],
+          }),
+        );
+      case "discovery_next":
+        return json({
+          units: await nextDiscoveryUnits(db, actor, {
+            runId: Number(body.runId),
+            limit: Number(body.limit) || 1,
+          }),
+        });
+      case "discovery_approve": {
+        // Indirme onayi tutari bagladigi icin taze giris ister.
+        if (!auth.fresh) return json({ error: "fresh_login_required" }, 403);
+        return json(
+          await approveRunDownload(db, actor, {
+            runId: Number(body.runId),
+            bytes: Number(body.bytes),
+            transferOrigin: body.transferOrigin as
+              | "vps"
+              | "admin_wifi"
+              | "admin_wired"
+              | "admin_mobile",
+          }),
+        );
+      }
+      case "discovery_reserve":
+        // Kaynaga her HTTP isteginden ONCE cagrilir (karar 0124).
+        return json(
+          await reserveRequests(db, actor, {
+            runId: Number(body.runId),
+            count: body.count === undefined ? 1 : Number(body.count),
+          }),
+        );
+      case "discovery_batch":
+        return json(
+          await submitDiscoveryBatch(
+            db,
+            actor,
+            {
+              runId: Number(body.runId),
+              kind: body.kind as "sitemap_file" | "listing_page",
+              unitKey: String(body.unitKey),
+              status: body.status as "done" | "empty" | "failed" | "blocked",
+              bytesReceived: Number(body.bytesReceived),
+              requestsMade: Number(body.requestsMade),
+              fetchedAt: String(body.fetchedAt),
+              items: (body.items ?? []) as unknown[],
+              errorCode: typeof body.errorCode === "string" ? body.errorCode : null,
+              checkpoint: (body.checkpoint ?? null) as Record<string, unknown> | null,
+            },
+            new Date(),
+            { maxDatabaseBytes: databaseCeiling() },
+          ),
+        );
+      case "discovery_progress":
+        return json(
+          await discoveryProgress(db, actor, {
+            source: String(body.source),
+            runId: Number(body.runId),
           }),
         );
       default:

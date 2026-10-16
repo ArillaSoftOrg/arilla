@@ -44,7 +44,10 @@ def _cleanup(cur: psycopg.Cursor) -> None:
         cur.execute("DELETE FROM seller WHERE merchant_id = %s", (row[0],))
     cur.execute(f"DELETE FROM source_snapshot WHERE feed_source_id IN ({feeds})")
     cur.execute(f"DELETE FROM feed_source WHERE network = '{NETWORK}'")
+    # Yarida kalan bir test tetikleyiciyi kapali birakmis olabilir; sonraki testler kotayi gormeli.
+    cur.execute("ALTER TABLE collection_run ENABLE TRIGGER USER")
     cur.execute("DELETE FROM collection_run")
+    cur.execute("DELETE FROM collection_usage_day")
     cur.execute("DELETE FROM merchant WHERE slug = 'hepsiburada'")
     cur.execute(
         "UPDATE collection_source SET enabled = FALSE, initial_load_exempt = FALSE,"
@@ -154,14 +157,17 @@ def test_aylik_tavan_aralik_dolsa_bile_zorunlu(env: psycopg.Connection) -> None:
             " permission_basis = 'written_agreement' WHERE source = 'hepsiburada'"
         )
         cur.execute("ALTER TABLE collection_run DISABLE TRIGGER collection_run_quota_guard_trg")
-        cur.execute(
-            """INSERT INTO collection_run (source, status, reserved_at, expires_at, closed_at,
-                                           requests_made, max_requests)
-               SELECT 'hepsiburada', 'completed', date_trunc('month', now())
-                      + g * interval '2 days',
-                      now(), now(), 1, 500 FROM generate_series(1, 4) g"""
-        )
-        cur.execute("ALTER TABLE collection_run ENABLE TRIGGER collection_run_quota_guard_trg")
+        try:
+            # requests_made <= requests_reserved (0075, karar 0124).
+            cur.execute(
+                """INSERT INTO collection_run (source, status, reserved_at, expires_at, closed_at,
+                                               requests_made, requests_reserved, max_requests)
+                   SELECT 'hepsiburada', 'completed', date_trunc('month', now())
+                          + g * interval '2 days',
+                          now(), now(), 1, 1, 500 FROM generate_series(1, 4) g"""
+            )
+        finally:
+            cur.execute("ALTER TABLE collection_run ENABLE TRIGGER collection_run_quota_guard_trg")
     try:
         _expect(env, "collection_quota_month")
     finally:

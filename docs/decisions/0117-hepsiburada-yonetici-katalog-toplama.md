@@ -69,6 +69,12 @@ Doğrulanmamış: kullanım koşulları metni, görsellerin yeniden kullanımı,
    7 günden kısa aralığa ya da ayda 4'ten fazla koşuya CHECK ile gevşetilemez. Bütçe sunucuda zorunlu. İstekler arası en az
    2 sn. 403/429/503, doğrulama sayfası ya da beklenen yapının yokluğunda koşu durur;
    yeniden deneme ve alternatif yöntem yoktur.
+   **Yanıt hiç alınamazsa** (tarayıcı `fetch` hatası: ağ/DNS, zaman aşımı, okunamayan yanıt;
+   kod `network_error` / `timeout`) bu bir engel kanıtı değildir: koşu durur ama **kapatılmaz**.
+   Hata adı ve mesajı yönetici günlüğüne yazılır; yönetici nedeni giderip aynı koşuyu aynı
+   sayfadan sürdürür (istek bütçesinden düşer, yeni kota hakkı harcanmaz). Otomatik yeniden
+   deneme yoktur. (15 Ekim 2026: ilk production koşusu bu durumda kapatılıp 7 günlük aralığı
+   başlatmıştı.)
 7. **Değişen veri, gereksiz WAL yok:** parmak izi eşleşen satır yeniden yazılmaz,
    `price_point` yalnızca yeni/değişen fiyat-stokta eklenir (0114'teki ölçüme dayanan
    mevcut birleştirme).
