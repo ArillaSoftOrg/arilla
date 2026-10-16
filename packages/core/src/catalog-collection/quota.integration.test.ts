@@ -42,7 +42,7 @@ describe("hacim kotasi - entegrasyon (gercek Postgres)", () => {
       await c.query(
         `UPDATE collection_source SET enabled = TRUE, daily_max_requests = $1,
            monthly_max_requests = $2, monthly_max_products = $3 WHERE source = 'hepsiburada'`,
-        [limits.daily ?? 20000, limits.monthly ?? 60000, limits.products ?? 5000000],
+        [limits.daily ?? 20000, limits.monthly ?? 60000, limits.products ?? null],
       );
     });
   }
@@ -211,6 +211,26 @@ describe("hacim kotasi - entegrasyon (gercek Postgres)", () => {
     expect((await usage()).products).toBe(2);
     const st = await getCollectionStatus(db, admin, "hepsiburada");
     expect(st.quota.remaining.productsMonth).toBe(0);
+  });
+
+  it("urun tavani NULL (Hepsiburada politikasi): parti reddedilmez, urun yalniz sayilir", async () => {
+    await reset();
+    const id = await openRun();
+    await reserveRequests(db, admin, { runId: id, count: 1 });
+    await submitDiscoveryBatch(db, admin, {
+      runId: id,
+      kind: "sitemap_file",
+      unitKey: U1,
+      status: "done",
+      bytesReceived: 10,
+      requestsMade: 1,
+      fetchedAt: new Date().toISOString(),
+      items: [item("HBC0000Q0020"), item("HBC0000Q0021"), item("HBC0000Q0022")],
+    });
+    expect((await usage()).products).toBe(3);
+    const st = await getCollectionStatus(db, admin, "hepsiburada");
+    expect(st.quota.remaining.productsMonth).toBeNull();
+    expect(st.quota.blockedBy).not.toBe("monthly_products");
   });
 
   it("kota tukenmisse yeni kosu acilmaz; rezervasyonlu kosu 'released' olmaz", async () => {
