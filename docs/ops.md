@@ -934,6 +934,23 @@ yavaş sorgu günlüğüne bağlı parametre değerleri yazılmaz (KVKK).
 Sayaçları sıfırlamak (ör. büyük bir değişiklik sonrası temiz ölçüm):
 `SELECT monitoring.pg_stat_statements_reset();` (sahip rol).
 
+### Gece toplu işleri: parti ve işlem süresi (Faz 3)
+
+- `python -m similarity`: kenarlar (ürün vektörü SQL'de, 500 ürünlük `LATERAL` kNN
+  partileri), fiyat istatistikleri ve özet onarımı (1 000 ürünlük partiler) **parti
+  başına commit** eder; uzun işlem, xmin tutma ve geniş satır kilidi yoktur. Aynı anda
+  tek kenar koşusu (advisory kilit; ikincisi hata verir). `--dry-run` tek işlemdir,
+  sonunda geri alır.
+- `--prune` (isteğe bağlı, varsayılan KAPALI): tam koşuda üretilmeyen eski kenarları
+  siler. `--limit` ile birlikte etkisizdir.
+- Model sürümleri karışmaz: her `model_version` ayrı ortalanır ve karşılaştırılır;
+  birden fazla sürüm varsa uyarı yazılır, baskın sürüm en son işlenir.
+- Kenar koşusu geçici tabloda ürün başına bir vektör tutar (768 boyut ≈ 3 KB): 1 milyon
+  üründe kenar türü başına ~3 GB geçici disk.
+- `collect`: kaynak taraması veritabanı işlemi AÇMADAN yapılır (teklifler geçici
+  dosyada), yazım tek işlemde 500'lük partilerle. Koşu yine "ya hepsi ya hiç".
+- `enrich`: görsel indirmesi ve sağlayıcı çağrısı açık işlem içinde yapılmaz.
+
 ### Runbook — `price_point_default` doldu
 
 `price_point_default` **normal durumda boştur.** Dolu olması aylık partition

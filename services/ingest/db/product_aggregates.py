@@ -69,10 +69,49 @@ REFRESH_ALL = _REFRESH_TEMPLATE.format(scope="p2.publication_state = 'published'
 REFRESH_PRODUCTS = _REFRESH_TEMPLATE.format(scope="p2.id = ANY(%(product_ids)s)")
 
 
+#: Tam onarimin parti buyuklugu: her parti kendi isleminde kisa surer, degisen
+#: `product` satirlari yalnizca parti boyunca kilitli kalir (ingest yazicilari beklemez).
+REFRESH_BATCH_SIZE = 1000
+
+_NEXT_PUBLISHED = """
+SELECT id FROM product
+ WHERE publication_state = 'published' AND id > %(after)s
+ ORDER BY id
+ LIMIT %(limit)s
+"""
+
+
 def refresh_all(conn: psycopg.Connection) -> int:
     with conn.cursor() as cur:
         cur.execute(REFRESH_ALL)
         return cur.rowcount
+
+
+def refresh_all_batched(
+    conn: psycopg.Connection, *, commit: bool = False, batch_size: int = REFRESH_BATCH_SIZE
+) -> int:
+    """`refresh_all` ile ayni sonuc, yayinlanmis urunler artan kimlikle partiler halinde.
+
+    Tek dev UPDATE butun degisen satirlari islem sonuna kadar kilitler; ayni anda
+    calisan toplama/eslestirme `refresh_products` bu satirlarda bekler. `commit=True`
+    her partiyi kaydeder; varsayilan cagiranin islemidir (sonuc yine dogru, kilit
+    suresi kisalmaz).
+    """
+    updated = 0
+    after = 0
+    while True:
+        with conn.cursor() as cur:
+            cur.execute(_NEXT_PUBLISHED, {"after": after, "limit": batch_size})
+            ids = [int(row[0]) for row in cur.fetchall()]
+        if not ids:
+            break
+        updated += refresh_products(conn, ids)
+        if commit:
+            conn.commit()
+        after = ids[-1]
+        if len(ids) < batch_size:
+            break
+    return updated
 
 
 def refresh_products(conn: psycopg.Connection, product_ids: Iterable[int]) -> int:
