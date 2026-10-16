@@ -299,7 +299,7 @@ CREATE TABLE price_point_2026_10 PARTITION OF price_point
 -- çalışmamış demektir; kritik uyarı üretir. Runbook: docs/ops.md.
 CREATE TABLE price_point_default PARTITION OF price_point DEFAULT;
 
-CREATE INDEX price_point_offer_time_idx ON price_point (offer_id, observed_at DESC);
+-- 0077: price_point_offer_time_idx kaldirildi (PK ile ayni; geriye taranir).
 
 -- Gece toplu işiyle doldurulur. İstek yolu fiyat geçmişini taramaz, burayı okur.
 -- "Şu an iyi fiyat mı?" ve sahte indirim tespiti bu tablodan cevaplanır.
@@ -344,7 +344,7 @@ CREATE TABLE embedding (
 CREATE INDEX embedding_ann_idx ON embedding
     USING hnsw (vector vector_cosine_ops)
     WHERE target_type = 'offer';
-CREATE INDEX embedding_target_idx ON embedding (target_type, target_id);
+-- 0077: embedding_target_idx kaldirildi (embedding_uniq on eki).
 
 -- Eşleştirme kuyruğu. Eşiğin üstü otomatik kabul, altı insan onayına düşer.
 CREATE TABLE match_candidate (
@@ -521,8 +521,7 @@ CREATE TABLE auth_token (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX auth_token_email_idx ON auth_token (email, created_at DESC);
-CREATE INDEX auth_token_cleanup_idx ON auth_token (expires_at) WHERE consumed_at IS NULL;
--- 0030: temizlik isi tuketilmis satirlari da siler; kismi indeks onlari kapsamaz.
+-- 0030: temizlik isi tuketilmis satirlari da siler (0077: eski kismi indeks kaldirildi).
 CREATE INDEX auth_token_expires_idx ON auth_token (expires_at);
 
 CREATE TABLE session (
@@ -1185,7 +1184,7 @@ CREATE TABLE query_resolution (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_used_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX query_resolution_popular_idx ON query_resolution (hit_count DESC);
+-- 0077: hit_count indeksi kaldirildi (her isabette artan kolon; HOT engelliyordu).
 
 -- 0040 (docs/decisions/0052): arama kalitesi gunluk ozeti. OLAY tablosu degil;
 -- (gun, normalize sorgu) basina tek satir, kimlik YOK, 90 gun saklanir.
@@ -1283,7 +1282,6 @@ CREATE TABLE user_consent (
                      'signup_default','onboarding','chat_image_prompt')), -- 0045, 0063
     text_version TEXT        CHECK (text_version IS NULL OR char_length(text_version) BETWEEN 1 AND 64)
 );
-CREATE INDEX user_consent_idx ON user_consent (user_id, kind, granted_at DESC);
 CREATE INDEX user_consent_latest_idx ON user_consent (user_id, kind, granted_at DESC, id DESC); -- 0037
 
 -- Trend listeleri. Haftalık toplu işle üretilir, sayfa statik servis edilir.
@@ -1352,7 +1350,6 @@ CREATE TABLE discovery_slot (
     source      TEXT     NOT NULL CHECK (source IN ('curated','organic')),
     PRIMARY KEY (slot_date, position)
 );
-CREATE INDEX discovery_slot_date_idx ON discovery_slot (slot_date);
 
 -- ---------------------------------------------------------------------------
 -- KULLANICI AKTİVİTESİ — 0036 (docs/decisions/0049)
