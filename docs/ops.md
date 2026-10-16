@@ -894,6 +894,69 @@ günüyle); kural değişikliği geçmiş satırları yeniden fiyatlamaz.
 Maliyet uyarısı diğerleri kadar önemlidir. `api_usage` tablosundan günlük
 oturum başına maliyet raporu üretilir ve eşiği aşınca bildirim gider.
 
+### Veritabanı sağlık raporu ve sorgu istatistikleri
+
+`pnpm db:health` (sahip rol, salt okunur oturum, uzak veritabanında onaysız çalışır)
+beş bölüm raporlar: indekssiz foreign key'ler, başka bir indeksin baş kolonlarıyla
+aynı olan gereksiz indeksler, istatistik sıfırlanmasından beri hiç taranmamış
+indeksler, ölü satır birikimi ve **en pahalı 20 sorgu** (`pg_stat_statements`).
+Sorgu metni normalize biçimdedir (`$1`, `$2`); parametre değeri (arama metni, kimlik)
+içermez. Optimizasyon önce ve sonra bu raporla karşılaştırılır. VPS'te migrate
+imajıyla: `docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml run --rm migrate node scripts/db-health.ts`.
+
+`pg_stat_statements` iki adımda etkinleşir:
+
+1. Migration `0081` eklentiyi ayrı `monitoring` şemasına kurar (uygulama rolü
+   okuyamaz). Normal dağıtımla gelir; ön yükleme olmadan da hata vermez.
+2. `infra/vps/postgres/postgresql.conf` içindeki `shared_preload_libraries` ancak
+   Postgres **yeniden başlatılınca** etkinleşir. Dağıtım dosyayı `/opt/arilla/vps/postgres`
+   altına koyar ama Postgres'i yeniden başlatmaz. **Dikkat:** dosya sunucuya ulaştıktan
+   sonra plansız her yeniden başlatma (VPS reboot, Docker güncellemesi) yeni ayarı
+   yükler; kütüphane yoksa Postgres AÇILMAZ. Bu yüzden merge'den önce 0. adım yapılır.
+
+Aynı yeniden başlatmayla `log_parameter_max_length = 0` de etkinleşir: 500 ms üstü
+yavaş sorgu günlüğüne bağlı parametre değerleri yazılmaz (KVKK).
+
+#### Yeniden başlatma prosedürü (planlı pencere, root/deploy kullanıcısı)
+
+`C="docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml"`
+
+0. **Ön kontrol (merge'den ÖNCE, kesintisiz):** çalışan imajda kütüphane var mı:
+   `$C exec -T postgres ls /usr/lib/postgresql/16/lib/pg_stat_statements.so` (yoksa
+   merge etme). Yedekleme etkinse çalışan imaj `arilla-postgres`'tir (aynı taban +
+   pgBackRest); kütüphane PostgreSQL paketinin parçasıdır, taban
+   `pgvector/pgvector:0.8.1-pg16`'da (16.12) doğrulandı. Kontrol yine çalışan konteynerde yapılır.
+1. **Pencere:** 04:00–05:30 UTC. Yedek (01:30), aylık bölüm (02:00), haftalık iş
+   (02:30), geri yükleme tatbikatı (03:30, ayın ilk pazarı), aggregate onarımı (23:45)
+   ve sorgu yorumu (00:30) bunun dışında. `*/15` cron uçları bir turu kaçırır, sorun değil.
+   Elle çalışan ingest işi yok: `$C ps` ve `docker ps --filter name=ingest`.
+2. **Dağıtım geldi mi:** `grep pg_stat_statements /opt/arilla/vps/postgres/postgresql.conf`
+   ve 0081 uygulandı mı:
+   `$C exec -T postgres psql -U arilla -d arilla -Atc "select 1 from schema_migration where filename like '0081%'"`.
+3. **Yeniden başlat:** `$C restart postgres`. (`up -d` YETMEZ: bağlanan dosya
+   değişince Compose konteyneri yeniden oluşturmaz.) Durdurma sinyali SIGINT (hızlı
+   kapanış: açık işlemler geri alınır), `stop_grace_period` sınırı içinde kapanır.
+4. **Beklenen kesinti:** kapanış denetim noktası + açılış genelde 5–30 sn, üst sınır
+   ~60 sn. Bu sürede web isteklerinin bir kısmı 5xx/zaman aşımı alır, havuz yeniden
+   bağlanır; worker/cron yeniden dener. WAL arşivi kesintisiz devam eder.
+5. **Doğrulama:**
+   - `$C exec -T postgres pg_isready -U arilla` ve `$C ps postgres` → healthy
+   - `$C exec -T postgres psql -U arilla -d arilla -Atc "show shared_preload_libraries; show log_parameter_max_length"`
+     → `pg_stat_statements`, `0`
+   - İç ağdan hazırlık (dışarı kapalı): `$C exec -T web node -e "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>console.log(r.status))"` → 200
+   - Birkaç dakika sonra `$C run --rm migrate node scripts/db-health.ts`: "En pahalı
+     sorgular" bölümü dolu.
+   - `$C logs --since 10m postgres 2>&1 | grep -iE "fatal|error"` boş.
+6. **Geri dönüş:** Postgres açılmazsa (`could not access file "pg_stat_statements"`):
+   `/opt/arilla/vps/postgres/postgresql.conf` içinde `shared_preload_libraries` ve
+   `pg_stat_statements.*` satırlarını `#` ile kapat, `$C up -d --no-deps postgres`
+   (konteyner durmuşsa başlatır) ve 5. adımı tekrarla. Sonra depoda aynı geri alma
+   commit'i yapılır; aksi halde sonraki dağıtım dosyayı yeniden getirir. Ayar geri
+   alınırsa veri kaybı yok; eklenti nesneleri (0081) zararsız kalır.
+
+Sayaçları sıfırlamak (ör. büyük bir değişiklik sonrası temiz ölçüm):
+`SELECT monitoring.pg_stat_statements_reset();` (sahip rol).
+
 ### Runbook — `price_point_default` doldu
 
 `price_point_default` **normal durumda boştur.** Dolu olması aylık partition
