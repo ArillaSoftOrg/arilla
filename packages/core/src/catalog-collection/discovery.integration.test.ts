@@ -301,7 +301,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
     expect(n).toBe(3); // eksik tarama/kapanis hicbir kimligi silmez ya da pasiflestirmez
   });
 
-  it("migration 0075: yeni politika (20.000/gun, 60.000/ay, 5.000.000 urun) ve aralik kalkti", async () => {
+  it("migration 0075 + 0078: yeni politika (20.000/gun, 60.000/ay, urun sinirsiz) ve aralik kalkti", async () => {
     const pol = await withOwnerClient(
       async (c) =>
         (
@@ -318,7 +318,7 @@ describe("kesif defteri - entegrasyon (gercek Postgres)", () => {
       run_window_days: 6,
       daily_max_requests: 20000,
       monthly_max_requests: 60000,
-      monthly_max_products: 5000000,
+      monthly_max_products: null,
     });
     // arilla_app kesif defterinden silemez.
     await expect(db.execute(sql`DELETE FROM catalog_discovery`)).rejects.toBeTruthy();
