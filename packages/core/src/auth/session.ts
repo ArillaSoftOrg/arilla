@@ -81,6 +81,9 @@ export async function createSessionForUser(
   return rawSessionToken;
 }
 
+/** `session.last_used_at` yazimlari arasindaki en kisa aralik. */
+export const SESSION_TOUCH_INTERVAL_MS = 60 * 1000;
+
 export async function verifySessionToken(
   db: Database,
   rawToken: string,
@@ -111,7 +114,12 @@ export async function verifySessionToken(
   }
 
   const now = new Date();
-  await db.update(session).set({ lastUsedAt: now }).where(eq(session.id, row.sessionId));
+  // Sicak satir yazimi: sohbet 700 ms'de bir yokladigi icin her istekte UPDATE
+  // atilmaz. En fazla dakikada bir yazilir; yonetim bosta kalma karari (30 dk)
+  // en fazla bu kadar erken duser — guvenli taraf.
+  if (now.getTime() - row.sessionLastUsedAt.getTime() >= SESSION_TOUCH_INTERVAL_MS) {
+    await db.update(session).set({ lastUsedAt: now }).where(eq(session.id, row.sessionId));
+  }
   // 0049: "son aktif" en fazla 15 dakikada bir yazilir; bu oturumun onceki
   // kullanimi yeniyse sorgu bile atilmaz.
   await touchLastActive(db, { userId: row.userId, previousUse: row.sessionLastUsedAt, now });

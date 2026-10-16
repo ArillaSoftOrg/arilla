@@ -33,8 +33,8 @@ describe("findAlternatives() - integration (gercek Postgres, kendi benzerlik fix
     }
   });
 
-  it("finds the reverse side of an edge too (product_a = anchor OR product_b = anchor)", async () => {
-    // Kenar yalnizca (capa, alternatif) yonunde yazildi; alternatiften aranir.
+  it("finds the anchor from the alternative's side (edges are stored in both directions)", async () => {
+    // Yazici iki yonu de yazar; sorgu yalnizca `product_a` (similarity_lookup_idx) okur.
     const [firstAlternative] = fixture.alternativeIds;
     const alternativesFromB = await findAlternatives(db, firstAlternative as number, { limit: 50 });
     expect(alternativesFromB.some((alt) => alt.productId === fixture.anchorId)).toBe(true);
