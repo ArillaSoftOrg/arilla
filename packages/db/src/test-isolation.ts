@@ -51,7 +51,7 @@ export function assertIsolatedTestUrl(name: string, url: string): void {
 
 /** Tanımlı olan bağlantı değişkenlerinin hepsini denetler (setup dosyaları için). */
 export function assertIsolatedTestEnv(env: Record<string, string | undefined> = process.env): void {
-  for (const name of ["DATABASE_URL", "DATABASE_URL_OWNER", "REDIS_URL"]) {
+  for (const name of ["DATABASE_URL", "DATABASE_URL_OWNER", "REDIS_URL", "LINK_REDIS_URL"]) {
     const value = env[name];
     if (value) assertIsolatedTestUrl(name, value);
   }

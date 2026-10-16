@@ -21,6 +21,29 @@ desteklemiyor; feed toplama saatler sürebilir. Python worker için ayrı bir
 barındırma gerekir (küçük bir VPS yeterli). "Başta Vercel" ilk günden iki ortam
 demektir.
 
+### Link kuyruğu Redis'i (`LINK_REDIS_URL`, karar 0123)
+
+Web `queue:link_resolution` listesine `LINK_REDIS_URL`'deki Redis'e yazar (boşsa
+`REDIS_URL`); Python worker `worker.env`'deki `REDIS_URL`'i dinler. **İkisi aynı
+sunucuyu göstermelidir**, aksi halde istekler `queued` kalır ve 60 sn sonra zaman
+aşımı görünür (worker "healthy" olsa bile). VPS'te yerel Redis kullanılır;
+`REDIS_URL` (oran sınırı, bütçe, önbellek) değişmez.
+
+Üretimde etkinleştirme (kod dağıtıldıktan sonra, bakım penceresinde, parola ekrana
+basılmadan; geri alınabilir):
+
+```
+sudo cp -p /opt/arilla/env/web.env /opt/arilla/env/web.env.bak
+sudo sh -c "grep '^REDIS_URL=' /opt/arilla/env/worker.env | sed 's/^REDIS_URL=/LINK_REDIS_URL=/' >> /opt/arilla/env/web.env"
+sudo docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml up -d web
+```
+
+Doğrulama (yalnız host/port/db yazar): web ve worker'da
+`new URL(process.env.<DEĞİŞKEN>)` ile `hostname port pathname`; `redis-cli info
+commandstats` içinde `cmdstat_lpush` ve `cmdstat_brpop` artışı; `llen
+queue:link_resolution` işlendikten sonra 0. Geri alma: `web.env.bak`'ı geri kopyala ve
+`up -d web`. Yönetim paneli kuyruk göstergesi de bu Redis'i okur.
+
 ### Link worker
 
 `queue:link_resolution` tüketicisi (`python -m collect.link --worker`), Docker

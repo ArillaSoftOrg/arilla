@@ -71,17 +71,21 @@ export interface RedisConnectionConfig {
   options: RedisOptions;
 }
 
+/** Bağlantı adresinin okunduğu ortam değişkeni; hata mesajlarında yalnızca bu ad geçer. */
+type RedisUrlVariable = "REDIS_URL" | "LINK_REDIS_URL";
+
 /** Saf fonksiyon - bağlantı açmaz, birim testlenir. */
 export function redisOptionsFromEnv(
   env: Record<string, string | undefined> = process.env,
+  variable: RedisUrlVariable = "REDIS_URL",
 ): RedisConnectionConfig {
   // Next dışı bağlamlarda (betik, test) `.env` tırnaklarıyla gelebilir.
-  const url = env.REDIS_URL?.trim().replace(/^["']|["']$/g, "");
+  const url = env[variable]?.trim().replace(/^["']|["']$/g, "");
   if (!url) {
-    throw new RedisConfigError("REDIS_URL tanimli degil. .env.example dosyasina bakin.");
+    throw new RedisConfigError(`${variable} tanimli degil. .env.example dosyasina bakin.`);
   }
   if (!url.startsWith("redis://") && !url.startsWith("rediss://")) {
-    throw new RedisConfigError("REDIS_URL redis:// ya da rediss:// ile baslamali.");
+    throw new RedisConfigError(`${variable} redis:// ya da rediss:// ile baslamali.`);
   }
   // Production'da parola ve kuyruk trafiği şifresiz gitmez. Yerel geliştirme
   // ve önizleme `redis://` kullanabilir. Tek istisna (karar 0109): Docker iç
@@ -89,7 +93,7 @@ export function redisOptionsFromEnv(
   // yazılmışsa düz `redis://` kabul edilir (varsayılan: boş = istisna yok).
   // Mesaj sabittir, adres yazılmaz.
   if (isProductionDeploy(env) && !url.startsWith("rediss://") && !isPlaintextAllowed(url, env)) {
-    throw new RedisConfigError("REDIS_URL production ortaminda rediss:// (TLS) olmali.");
+    throw new RedisConfigError(`${variable} production ortaminda rediss:// (TLS) olmali.`);
   }
 
   const options: RedisOptions = {
@@ -110,14 +114,14 @@ export function redisOptionsFromEnv(
 
 // Next dev HMR modülleri yeniden değerlendirir; globalThis önbelleği
 // her yeniden yüklemede yeni bir bağlantı sızmasını önler.
-const globalForRedis = globalThis as typeof globalThis & { __arillaRedis?: Redis };
+const globalForRedis = globalThis as typeof globalThis & {
+  __arillaRedis?: Redis;
+  __arillaLinkRedis?: Redis;
+};
 
-export function getRedis(): Redis {
-  const existing = globalForRedis.__arillaRedis;
-  if (existing) return existing;
-
-  const { url, options } = redisOptionsFromEnv();
-  if (isTestRuntime()) assertIsolatedTestUrl("REDIS_URL", url);
+function createClient(variable: RedisUrlVariable, label: string): Redis {
+  const { url, options } = redisOptionsFromEnv(process.env, variable);
+  if (isTestRuntime()) assertIsolatedTestUrl(variable, url);
   const client = new Redis(url, options);
 
   // Dinleyici olmadan ioredis her yeniden bağlanma denemesinde "Unhandled
@@ -127,12 +131,42 @@ export function getRedis(): Redis {
   client.on("error", (error: Error & { code?: string }) => {
     if (reported) return;
     reported = true;
-    console.error(`[redis] baglanti hatasi: ${error.code ?? error.name}`);
+    console.error(`[${label}] baglanti hatasi: ${error.code ?? error.name}`);
   });
   client.on("ready", () => {
     reported = false;
   });
+  return client;
+}
 
+export function getRedis(): Redis {
+  const existing = globalForRedis.__arillaRedis;
+  if (existing) return existing;
+  const client = createClient("REDIS_URL", "redis");
   globalForRedis.__arillaRedis = client;
+  return client;
+}
+
+/** `LINK_REDIS_URL` tanımlı ve boş değilse true (saf; birim testlenir). */
+export function hasDedicatedLinkRedis(
+  env: Record<string, string | undefined> = process.env,
+): boolean {
+  return (env.LINK_REDIS_URL?.trim() ?? "") !== "";
+}
+
+/**
+ * Link çözümleme kuyruğunun Redis'i (karar 0123). Web'in yazdığı liste ile Python
+ * worker'ın okuduğu liste aynı sunucuda olmalıdır; VPS'te bu yerel Redis'tir
+ * (worker `REDIS_URL`'i orayı gösterir), oran sınırı/bütçe/önbellek ise
+ * `REDIS_URL`'de (Upstash) kalır. `LINK_REDIS_URL` yoksa `getRedis()` ile aynı
+ * bağlantıdır: davranış değişmez. Aynı güvenlik doğrulamaları (production'da
+ * `rediss://` ya da `REDIS_PLAINTEXT_HOSTS`) ve aynı zaman aşımları geçerlidir.
+ */
+export function getLinkRedis(): Redis {
+  if (!hasDedicatedLinkRedis()) return getRedis();
+  const existing = globalForRedis.__arillaLinkRedis;
+  if (existing) return existing;
+  const client = createClient("LINK_REDIS_URL", "redis:link");
+  globalForRedis.__arillaLinkRedis = client;
   return client;
 }
