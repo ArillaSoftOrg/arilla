@@ -191,6 +191,8 @@ q() { c exec -T postgres psql -U arilla -d arilla -Atqc "$1" 2>/dev/null; }
 [ "$(q 'show max_connections')" = "60" ] && pass "max_connections=60" || fail "max_connections"
 [ "$(q 'show password_encryption')" = "scram-sha-256" ] && pass "scram-sha-256" || fail "password_encryption"
 [ "$(q 'show data_checksums')" = "on" ] && pass "data_checksums=on" || fail "data_checksums"
+[ "$(q 'show shared_preload_libraries')" = "pg_stat_statements" ] && pass "pg_stat_statements yuklu" || fail "shared_preload_libraries"
+[ "$(q 'show log_parameter_max_length')" = "0" ] && pass "yavas sorgu gunlugu parametre yazmaz" || fail "log_parameter_max_length"
 [ "$(q 'show timezone')" = "UTC" ] && pass "timezone=UTC" || fail "timezone"
 [ "$(q 'show archive_mode')" = "off" ] && pass "archive_mode=off (yedekleme aktivasyonu olmadan arsiv KAPALI, karar 0110)" || fail "archive_mode varsayilanda acik"
 [ "$(q "select string_agg(extname,',' order by extname) from pg_extension where extname in ('vector','pg_trgm','uuid-ossp')")" = "pg_trgm,uuid-ossp,vector" ] && pass "vector, pg_trgm, uuid-ossp" || fail "extension"

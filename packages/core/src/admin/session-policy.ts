@@ -5,8 +5,8 @@
  *
  * - En uzun omur: giristen itibaren 12 saat (`ADMIN_SESSION_MAX_AGE_MS`).
  * - Bosta kalma: son istekten itibaren 30 dakika (`ADMIN_IDLE_TIMEOUT_MS`).
- *   `last_used_at` her dogrulanmis istekte guncellenir; karar ONCEKI deger
- *   uzerinden verilir.
+ *   `last_used_at` dogrulanmis istekte en fazla dakikada bir guncellenir
+ *   (`SESSION_TOUCH_INTERVAL_MS`); karar ONCEKI deger uzerinden verilir.
  * - Taze giris: yuksek etkili mutasyonlar giristen itibaren 1 saat
  *   (`FRESH_AUTH_MAX_AGE_MS`) icinde yapilmali.
  *

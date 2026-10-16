@@ -36,6 +36,10 @@ type RawRow = Record<string, unknown> & {
   similarity: number;
 };
 
+/** HNSW aday taramasi: Python `DEFAULT_EF_SEARCH` ile ayni taban; pgvector ust siniri 1000. */
+const ANN_EF_SEARCH_MIN = 100;
+const ANN_EF_SEARCH_MAX = 1000;
+
 /** pgvector metin girdi biçimi: `'[0.1,0.2,...]'::vector`. */
 function toVectorLiteral(vector: readonly number[]): string {
   return `[${vector.join(",")}]`;
@@ -53,7 +57,17 @@ export async function searchByImageVector(
   const candidateLimit = limit * 8;
   const vectorLiteral = toVectorLiteral(vector);
 
-  const result = await db.execute<RawRow>(sql`
+  // `embedding_ann_idx` yalnizca `target_type = 'offer'` ile kismi; `kind` ve
+  // `model_version` suzgecleri HNSW taramasindan SONRA uygulanir. Varsayilan
+  // `ef_search = 40` ile istenen aday havuzunun cogu gelmez. Python tarafi
+  // (`services/ingest/db/vector.py`) ile ayni ayar, islem-yerel.
+  const efSearch = Math.min(Math.max(ANN_EF_SEARCH_MIN, candidateLimit), ANN_EF_SEARCH_MAX);
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`
+      SELECT set_config('hnsw.ef_search', ${String(efSearch)}, true),
+             set_config('hnsw.iterative_scan', 'relaxed_order', true)
+    `);
+    return tx.execute<RawRow>(sql`
     WITH nearest AS (
       SELECT e.target_id AS offer_id, 1 - (e.vector <=> ${vectorLiteral}::vector) AS similarity
       FROM embedding e
@@ -91,6 +105,7 @@ export async function searchByImageVector(
     ORDER BY bp.similarity DESC
     LIMIT ${limit}
   `);
+  });
 
   return result.rows.map((row) => ({
     productId: Number(row.id),
