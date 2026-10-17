@@ -43,7 +43,17 @@ export function cardPriceProps(item: {
   "minPrice" | "priceFrom" | "priceLabel" | "sourceLabel" | "offerCount" | "offerCountLabel"
 > {
   const foreign = item.foreignPrice;
-  if (!foreign || item.minPrice === null) {
+  if (foreign && (item.minPrice === null || foreign.fxDate === null)) {
+    // Guncel kur yok: yalnizca orijinal tutar; yaklasik TL uydurulmaz.
+    return {
+      minPrice: null,
+      priceLabel: formatMinorWithCurrency(foreign.originalMinor, foreign.currency),
+      sourceLabel: FOREIGN_CARD_COPY.source,
+      offerCount: item.offerCount ?? 0,
+      offerCountLabel: () => FOREIGN_CARD_COPY.shippingUnknown,
+    };
+  }
+  if (!foreign || item.minPrice === null || foreign.fxDate === null) {
     return {
       minPrice: item.minPrice,
       priceFrom: item.priceFromVariants ?? false,

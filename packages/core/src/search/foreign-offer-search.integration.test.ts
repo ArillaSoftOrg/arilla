@@ -175,12 +175,16 @@ describe("yurt disi teklifli urun aramada (karar 0129)", () => {
     expect(byId.get(tryTwin)).toMatchObject({ offer_count: 1, foreign_offer_count: 0 });
   });
 
-  it("metin aramasinda yaklasik TL ile gorunur, TRY esdegeri onde, kursuz gorunmez", async () => {
+  it("metin aramasinda yaklasik TL ile gorunur, TRY esdegeri onde, kursuz TL fiyatsiz gorunur", async () => {
     const result = await search(db, textQuery("balanced"));
     const ids = result.items.map((item) => item.productId);
     expect(ids).toContain(foreignOnly);
     expect(ids).toContain(tryTwin);
-    expect(ids).not.toContain(noRate);
+    // Kur yok: urun yine bulunur, yaklasik TL uydurulmaz (yalnizca orijinal tutar).
+    expect(ids).toContain(noRate);
+    const unrated = result.items.find((item) => item.productId === noRate);
+    expect(unrated?.minPrice).toBeNull();
+    expect(unrated?.foreignPrice).toEqual({ originalMinor: 3_000, currency: "XYZ", fxDate: null });
     expect(ids.indexOf(tryTwin)).toBeLessThan(ids.indexOf(foreignOnly));
 
     const foreign = result.items.find((item) => item.productId === foreignOnly);

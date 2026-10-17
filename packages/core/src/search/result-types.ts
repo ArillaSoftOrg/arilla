@@ -41,8 +41,8 @@ export interface ForeignPrice {
   /** Orijinal tutar, para biriminin alt birimi (cent). */
   originalMinor: number;
   currency: string;
-  /** TCMB bulten tarihi, YYYY-MM-DD. */
-  fxDate: string;
+  /** TCMB bulten tarihi, YYYY-MM-DD; guncel kur yoksa null (yaklasik TL yok). */
+  fxDate: string | null;
 }
 
 export interface SearchResult {

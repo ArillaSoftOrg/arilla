@@ -61,7 +61,9 @@ function fxCte(): SQL {
  * Karar 0129: TRY teklif her zaman once secilir. Yalnizca yurt disi teklifi olan
  * urunde `current_price` TCMB kuruyla YAKLASIK kurustur (numeric, float yok,
  * yarim yukari); orijinal tutar `original_price`/`original_currency`, kur tarihi
- * `fx_date` olarak tasinir. Guncel kur yoksa yurt disi teklif secilmez.
+ * `fx_date` olarak tasinir. Guncel kur yoksa yurt disi teklif yine secilir ama
+ * `current_price` NULL kalir (yaklasik TL uydurulmaz; fiyat suzgeci onu disarida birakir,
+ * urun kesfi fiyattan bagimsiz calisir).
  */
 export function bestOfferCte(
   inStockOnly: boolean,
@@ -88,7 +90,7 @@ export function bestOfferCte(
       LEFT JOIN fx ON o.currency <> 'TRY' AND fx.base = o.currency
       WHERE o.product_id IS NOT NULL
         AND o.is_active AND m.is_active
-        AND (o.currency = 'TRY' OR (fx.rate IS NOT NULL AND o.current_price > 0))
+        AND (o.currency = 'TRY' OR o.current_price > 0)
         AND ${merchantFilter}
         AND (NOT ${inStockOnly} OR o.in_stock)
         ${only}
@@ -115,13 +117,13 @@ export interface OriginColumns {
 
 /** Karar 0129: secilen teklif yurt disiysa orijinal tutar ve kur tarihi. */
 export function foreignPriceOf(row: OriginColumns): ForeignPrice | undefined {
-  if (!row.is_foreign || row.original_price === null || !row.original_currency || !row.fx_date) {
+  if (!row.is_foreign || row.original_price === null || !row.original_currency) {
     return undefined;
   }
   return {
     originalMinor: Number(row.original_price),
     currency: row.original_currency.trim(),
-    fxDate: row.fx_date,
+    fxDate: row.fx_date ?? null,
   };
 }
 
