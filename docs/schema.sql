@@ -195,28 +195,44 @@ CREATE TABLE offer (
 );
 CREATE INDEX offer_product_idx    ON offer (product_id) WHERE product_id IS NOT NULL;
 
--- 0086: urun fiyat ozetinin TEK kaynagi (TS ve Python cagirir; karar 0127 anlami).
+-- 0086/0090: urun fiyat ozetinin TEK kaynagi (karar 0127 anlami). Kural salt okunur
+-- `product_aggregate_values`te (0090); `refresh_product_aggregates` (TS ve Python) ve toplu
+-- yayinin tek UPDATE'i (karar 0135) ayni degerleri okur.
+CREATE OR REPLACE FUNCTION product_aggregate_values(product_ids bigint[])
+RETURNS TABLE (
+    product_id          bigint,
+    min_price           bigint,
+    max_price           bigint,
+    offer_count         integer,
+    in_stock_count      integer,
+    foreign_offer_count integer
+)
+LANGUAGE sql STABLE
+SET search_path = public, pg_temp
+AS $$
+    SELECT p2.id,
+           min(o.current_price) FILTER (WHERE o.currency = 'TRY'),
+           max(o.current_price) FILTER (WHERE o.currency = 'TRY'),
+           count(DISTINCT o.merchant_id) FILTER (WHERE o.currency = 'TRY')::int,
+           count(DISTINCT o.merchant_id) FILTER (WHERE o.currency = 'TRY' AND o.in_stock)::int,
+           count(DISTINCT o.merchant_id) FILTER (WHERE o.currency <> 'TRY')::int
+      FROM product p2
+      LEFT JOIN (offer o JOIN merchant m ON m.id = o.merchant_id AND m.is_active)
+        ON o.product_id = p2.id AND o.is_active AND o.current_price IS NOT NULL
+     WHERE p2.id = ANY(product_ids)
+     GROUP BY p2.id
+$$;
+
+REVOKE ALL ON FUNCTION product_aggregate_values(bigint[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION product_aggregate_values(bigint[]) TO arilla_app;
+
 CREATE OR REPLACE FUNCTION refresh_product_aggregates(product_ids bigint[]) RETURNS integer
 LANGUAGE sql
 SET search_path = public, pg_temp
 AS $$
-    WITH agg AS (
-        SELECT p2.id AS product_id,
-               min(o.current_price) FILTER (WHERE o.currency = 'TRY') AS min_price,
-               max(o.current_price) FILTER (WHERE o.currency = 'TRY') AS max_price,
-               count(DISTINCT o.merchant_id) FILTER (WHERE o.currency = 'TRY')::int AS offer_count,
-               count(DISTINCT o.merchant_id)
-                   FILTER (WHERE o.currency = 'TRY' AND o.in_stock)::int AS in_stock_count,
-               count(DISTINCT o.merchant_id)
-                   FILTER (WHERE o.currency <> 'TRY')::int AS foreign_offer_count
-          FROM product p2
-          LEFT JOIN (offer o JOIN merchant m ON m.id = o.merchant_id AND m.is_active)
-            ON o.product_id = p2.id AND o.is_active AND o.current_price IS NOT NULL
-         WHERE p2.id = ANY(product_ids)
-         GROUP BY p2.id
-    ), target AS (
+    WITH target AS (
         SELECT p.id, agg.*
-          FROM product p JOIN agg ON agg.product_id = p.id
+          FROM product p JOIN product_aggregate_values(product_ids) agg ON agg.product_id = p.id
          WHERE (p.min_price, p.max_price, p.offer_count, p.in_stock_count, p.foreign_offer_count)
                IS DISTINCT FROM (agg.min_price, agg.max_price, agg.offer_count,
                                  agg.in_stock_count, agg.foreign_offer_count)
