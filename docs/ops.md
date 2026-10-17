@@ -914,6 +914,51 @@ günüyle); kural değişikliği geçmiş satırları yeniden fiyatlamaz.
 Maliyet uyarısı diğerleri kadar önemlidir. `api_usage` tablosundan günlük
 oturum başına maliyet raporu üretilir ve eşiği aşınca bildirim gider.
 
+### Üretimde salt okunur arama ve sohbet doğrulaması (karar 0136)
+
+Hiçbiri veri yazmaz; sırayla ve **elle** çalıştırılır (zamanlayıcı yok, kendiliğinden koşmaz).
+Bulunabilirlik SQL'leri `psql` ile salt okunur oturumda çalışır:
+
+```sql
+SET default_transaction_read_only = on;
+SET statement_timeout = '60s';
+-- 1) Yayındaki ürünlerin aranabilirlik bölümleri (TRY / yalnız yurt dışı / teklifsiz)
+SELECT count(*) FILTER (WHERE offer_count > 0) AS try_bolumu,
+       count(*) FILTER (WHERE offer_count = 0 AND foreign_offer_count > 0) AS yurt_disi,
+       count(*) FILTER (WHERE offer_count = 0 AND foreign_offer_count = 0) AS teklifsiz
+  FROM product WHERE publication_state = 'published';
+-- 2) AliExpress yayındaki üründe etkin, fiyatlı teklif bağı olmayanlar (kartta fiyat/çıkış olmaz)
+SELECT count(*) FROM product p
+ WHERE p.source_merchant_id = (SELECT id FROM merchant WHERE slug = 'aliexpress')
+   AND p.publication_state = 'published'
+   AND NOT EXISTS (SELECT 1 FROM offer o WHERE o.product_id = p.id AND o.is_active
+                    AND o.current_price > 0);
+-- 3) Takip bağlantısız AliExpress teklifi (çıkış kanonik adrese düşer; click yine yazılır)
+SELECT count(*) FROM offer
+ WHERE merchant_id = (SELECT id FROM merchant WHERE slug = 'aliexpress')
+   AND product_id IS NOT NULL AND is_active AND affiliate_url IS NULL;
+-- 4) Görsel arama kapsamı: görsel embedding'i olan AliExpress teklifi
+SELECT count(*) FROM embedding e JOIN offer o ON o.id = e.target_id
+ WHERE e.target_type = 'offer' AND e.kind = 'image'
+   AND o.merchant_id = (SELECT id FROM merchant WHERE slug = 'aliexpress');
+```
+
+Gecikme ölçümü, gerçek kullanıcı yolundan ve sınırlı sayıda:
+
+1. `pg_stat_statements_reset()` ÇAĞRILMAZ (veri değiştirir). Önce `pnpm db:health` "En pahalı
+   sorgular" çıktısı kaydedilir (taban).
+2. Oturum açılmış tarayıcıda `/ara` için 10 sorgu (Türkçe: "kablosuz kulaklık", "omuz çantası",
+   "telefon kılıfı", "termos", "akıllı saat"; İngilizce: "wireless earbuds", "phone case", "smart
+   watch"; seyrek: "airpdos pro", "xqzvbn") ve `/sohbet`'te 5 mesaj, aralarında ≥ 5 sn.
+3. Süreler Caddy erişim kaydından (`/ara`, `/api/chat*` istek süreleri) ve tekrar `pnpm db:health`
+   çıktısındaki `cand_raw` sorgularının ortalamasından okunur. Beklenen (yerel 1,04 M ölçümüyle
+   ölçeklenmiş tahmin): metin araması p95 ≤ 2–3 sn, sohbet 4 sn sınırının altında.
+4. Sonuç kartlarından 3'ü açılır: `/urun/<slug>` doğru ürün, "Mağazaya git" `/git/<offerId>` →
+   AliExpress (Admitad) adresine gider; kendi tıklaman `click` üretir (analitikte ayıklanır).
+
+Yük testi aracı, paralel istek ya da perf düzeneği (`scale.perf.integration.test.ts`) üretimde
+ÇALIŞTIRILMAZ; düzenek yalnız yalıtılmış, önceden doldurulmuş veritabanı içindir.
+
 ### Veritabanı sağlık raporu ve sorgu istatistikleri
 
 `pnpm db:health` (sahip rol, salt okunur oturum, uzak veritabanında onaysız çalışır)
