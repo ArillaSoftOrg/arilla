@@ -101,10 +101,13 @@ export const collectionRun = pgTable("collection_run", {
 });
 
 export type CollectionUnitStatus = "pending" | "done" | "empty" | "failed" | "blocked";
-/** 0073: 'sitemap_file' (sitemap dosyasi), 'listing_page' (liste sayfasi); 0072 ile birlesik kume. */
+/** 0073: 'sitemap_file' (sitemap dosyasi), 'listing_page' (liste sayfasi); Trendyol (0118) ayni kumeyi kullanir. */
 export type CollectionUnitKind = "query" | "product_page" | "listing_page" | "sitemap_file";
 
-/** Kesif birimi: bir kaynak istegi = (sorgu, sayfa). Kapsam raporunun kaynagi. */
+/**
+ * Kesif birimi: bir kaynak istegi. Hepsiburada: (sorgu, sayfa); Trendyol (0118): acilan
+ * urun sayfasi (unit_key = contentId) ya da liste sayfasi (unit_key = yol). Kapsam raporunun kaynagi.
+ */
 export const collectionUnit = pgTable(
   "collection_unit",
   {
@@ -127,7 +130,7 @@ export const collectionUnit = pgTable(
   (t) => [primaryKey({ columns: [t.runId, t.kind, t.unitKey, t.page] })],
 );
 
-/** Dogrulanmis kaynak kayitlari; Python `hb-merge` offer modeline birlestirir. */
+/** Dogrulanmis kaynak kayitlari; Python `collect-merge` offer modeline birlestirir. */
 export const catalogIntakeRecord = pgTable("catalog_intake_record", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
   runId: bigint("run_id", { mode: "number" }).notNull(),
@@ -146,6 +149,13 @@ export const catalogIntakeRecord = pgTable("catalog_intake_record", {
   variantLabel: text("variant_label"),
   gtin: text("gtin"),
   foundVia: text("found_via"),
+  // 0079 (karar 0118): Trendyol alanlari; Hepsiburada yazmaz.
+  imageUrls: jsonb("image_urls").$type<string[]>(),
+  groupExternalId: text("group_external_id"),
+  variantExternalId: text("variant_external_id"),
+  /** Sepette uygulanan KOSULLU fiyat; satis fiyati degildir (price_minor'a girmez). */
+  basketPriceMinor: bigint("basket_price_minor", { mode: "number" }),
+  sourcePage: text("source_page").$type<"search_page" | "product_page" | "listing_page">(),
   sourceObservedAt: timestamp("source_observed_at", { withTimezone: true }).notNull(),
   receivedAt: timestamp("received_at", { withTimezone: true }).notNull().defaultNow(),
   mergedAt: timestamp("merged_at", { withTimezone: true }),

@@ -95,8 +95,9 @@ export interface MerchantOffer {
   effectiveTotal: number;
   inStock: boolean;
   /**
-   * Kaynak stok bildirmedi (karar 0130; Hepsiburada toplamasi). `inStock` bu durumda
-   * temkinli olarak false'tur ama arayuz "stokta yok" YAZMAZ.
+   * Kaynak stok bildirmedi (`attributes_raw.stock_state = "unknown"`; karar 0130 Hepsiburada,
+   * 0118 Trendyol). `inStock` Hepsiburada'da temkinli false, Trendyol'da true'dur; arayuz ikisinde
+   * de "stokta"/"stokta yok" YAZMAZ ve JSON-LD availability vermez.
    */
   stockUnknown?: boolean;
   url: string;

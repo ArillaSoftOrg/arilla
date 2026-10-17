@@ -150,9 +150,11 @@ def test_aylik_tavan_aralik_dolsa_bile_zorunlu(env: psycopg.Connection) -> None:
     if today.day < 12:
         pytest.skip("ay icinde 4 kosuyu 2 gun arayla gecmise yerlestirmek icin ayin 12'si gerekir")
     with env.cursor() as cur:
+        cur.execute("SELECT permission_basis FROM collection_source WHERE source = 'hepsiburada'")
+        basis = cur.fetchone()[0]  # type: ignore[index]
         cur.execute(
             "UPDATE collection_source SET min_interval_days = 2, run_window_days = 1,"
-            " permission_basis = 'written_agreement'"
+            " permission_basis = 'written_agreement' WHERE source = 'hepsiburada'"
         )
         cur.execute("ALTER TABLE collection_run DISABLE TRIGGER collection_run_quota_guard_trg")
         try:
@@ -172,7 +174,8 @@ def test_aylik_tavan_aralik_dolsa_bile_zorunlu(env: psycopg.Connection) -> None:
         with env.cursor() as cur:
             cur.execute(
                 "UPDATE collection_source SET min_interval_days = 7, run_window_days = 6,"
-                " permission_basis = 'written_email_reported'"
+                " permission_basis = %s WHERE source = 'hepsiburada'",
+                (basis,),
             )
 
 
@@ -183,13 +186,14 @@ def test_bildirilen_izin_kapsami_politikayla_gevsetilemez(env: psycopg.Connectio
         "initial_load_exempt = TRUE",
     ):
         with pytest.raises(psycopg.errors.CheckViolation), env.cursor() as cur:
-            cur.execute(f"UPDATE collection_source SET {change}")
+            cur.execute(f"UPDATE collection_source SET {change} WHERE source = 'hepsiburada'")
 
 
 def test_ilk_yukleme_ve_guncelleme_ayri_butceli_ikisi_de_kotali(env: psycopg.Connection) -> None:
     with env.cursor() as cur:
         cur.execute(
             "UPDATE collection_source SET initial_max_requests = 900, refresh_max_requests = 120"
+            " WHERE source = 'hepsiburada'"
         )
     first = _new_run(env)
     with env.cursor() as cur:
@@ -204,6 +208,7 @@ def test_ilk_yukleme_ve_guncelleme_ayri_butceli_ikisi_de_kotali(env: psycopg.Con
         assert cur.fetchone() == ("refresh", 120)
         cur.execute(
             "UPDATE collection_source SET initial_max_requests = 500, refresh_max_requests = 500"
+            " WHERE source = 'hepsiburada'"
         )
 
 
@@ -360,13 +365,13 @@ def test_ilk_yukleme_muafiyeti_yalniz_beyan_edilmis_kapsamla(env: psycopg.Connec
     with pytest.raises(psycopg.errors.CheckViolation), env.cursor() as cur:  # notsuz / beyansiz
         cur.execute(
             "UPDATE collection_source SET permission_basis = 'declared_extended',"
-            " permission_note = NULL, initial_load_exempt = TRUE"
+            " permission_note = NULL, initial_load_exempt = TRUE WHERE source = 'hepsiburada'"
         )
     with env.cursor() as cur:
         cur.execute(
             "UPDATE collection_source SET permission_basis = 'declared_extended',"
             " permission_note = 'kullanici beyani: ilk yukleme ayri kapsam',"
-            " initial_load_exempt = TRUE"
+            " initial_load_exempt = TRUE WHERE source = 'hepsiburada'"
         )
     try:
         first = _new_run(env)
@@ -383,7 +388,7 @@ def test_ilk_yukleme_muafiyeti_yalniz_beyan_edilmis_kapsamla(env: psycopg.Connec
         with env.cursor() as cur:
             cur.execute(
                 "UPDATE collection_source SET initial_load_exempt = FALSE,"
-                " permission_basis = 'written_email_reported'"
+                " permission_basis = 'written_email_reported' WHERE source = 'hepsiburada'"
             )
 
 

@@ -268,6 +268,21 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     call: async () => (await import("./katalog/toplama/page.tsx")).default(),
   },
   {
+    // Karar 0118: bayrak kapaliyken sayfa yoktur (404); yetki kontrolu bayraktan ONCE calisir.
+    name: "/yonetim/katalog/toplama/trendyol",
+    admin: true,
+    call: async () => {
+      const previous = process.env.TRENDYOL_COLLECTION_ENABLED;
+      process.env.TRENDYOL_COLLECTION_ENABLED = "true";
+      try {
+        return await (await import("./katalog/toplama/trendyol/page.tsx")).default();
+      } finally {
+        if (previous === undefined) delete process.env.TRENDYOL_COLLECTION_ENABLED;
+        else process.env.TRENDYOL_COLLECTION_ENABLED = previous;
+      }
+    },
+  },
+  {
     name: "/yonetim/katalog/kalite",
     admin: false,
     call: async () => (await import("./katalog/kalite/page.tsx")).default(),

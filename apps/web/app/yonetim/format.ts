@@ -1035,3 +1035,21 @@ const EVAL_FAILURE_LABELS: Record<string, string> = {
 export function evalFailureClassLabel(value: string): string {
   return EVAL_FAILURE_LABELS[value] ?? value;
 }
+
+/** Katalog toplama izin dayanagi (0117, 0118). Bildirilen izin, incelenmis belge DEGILDIR. */
+export function formatPermissionBasis(basis: string): string {
+  switch (basis) {
+    case "verbal_reported":
+      return "kullanıcının bildirdiği sözlü izin";
+    case "written_email_reported":
+      return "kullanıcının bildirdiği yazılı (e-posta) izin";
+    case "declared_extended":
+      return "kullanıcının bildirdiği genişletilmiş kapsam";
+    case "written_agreement":
+      return "yazılı sözleşme";
+    case "public_feed":
+      return "herkese açık besleme";
+    default:
+      return basis;
+  }
+}
