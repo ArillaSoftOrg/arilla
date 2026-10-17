@@ -1,0 +1,791 @@
+#!/usr/bin/env bash
+# catalog-publish - kaynak ilani katalogunun toplu yayini (gate + publish), bekci ve WAL geri
+# basinciyla (karar 0121, 0134). /opt/arilla/ali-publish.sh'in depodaki, yeniden tasarlanmis hali.
+#
+# VPS'te ROOT olarak, tmux icinde calistir (oturum koparsa is surer):
+#   tmux new -s ali
+#   EXPECT_SHA=<prod main sha> bash /opt/arilla/vps/bin/catalog-publish run
+#
+# Alt komutlar:
+#   preflight  yalniz okur: servis/deploy/migration/yedek/WAL/disk/RAM kontrolu
+#   dryrun     yalniz okur: gate'in ne yapacagini (diger magazalar dahil) hesaplar
+#   run        preflight + dryrun + (gerekirse yedek) + gate + publish + VACUUM + rapor
+#   publish    preflight + YALNIZ publish (gate bitmisse; kalan `ready`'den surer) + rapor
+#   walstat    yalniz okur: pg_wal siniflandirmasi + 30 sn WAL uretim/arsiv hizi + checkpoint
+#   status     anlik durum (ayri bir pencereden)
+#   stop       guvenli dur: mevcut parti biter, devam etmez (STOP dosyasi)
+#   pause      gecici dur (PAUSE dosyasi); `resume` ile kaldirilir
+#   report     son sayimlar
+#   measure    dusuk yogunluklu olcum: urun sayfalari, gorseller, Caddy sureleri, PG sorgu sureleri
+#
+# WAL modeli (karar 0134). pg_wal dizini DORT tur dosya tutar; yalniz ikisi borctur:
+#   recycled   : max_wal_size'a kadar onceden ayrilmis, YENIDEN KULLANILACAK segmentler (borc degil)
+#   removable  : arsivlenmis, son checkpoint'in redo'sundan eski; SONRAKI checkpoint siler (borc degil)
+#   since_redo : son checkpoint'ten beri; cokme kurtarmasi icin gerekli (checkpoint'le duser)
+#   ready      : ARSIVLENMEMIS. pgBackRest archive-push-queue-max'i asarsa WAL BIRAKILIR -> PITR kopar
+# Eski bekci pg_wal TOPLAMINA gore devam ediyordu: arsiv bosaldiktan sonra da recycled + removable
+# yuzunden (checkpoint_timeout + yayilma = ~28 dk) esigin ustunde kaliyordu; elle CHECKPOINT gerekti.
+# Yeni bekci: duraklama/devam ARSIV BORCUNA (ready) gore. Tutulan WAL (redo sonrasi + ready) yalniz
+# checkpoint'in yetismedigi patolojide bekletir. Dizin toplami ESIK DEGIL, gozlemdir (recycled ve
+# removable'i PostgreSQL kendisi geri alir); disk korumasi DISK_RESERVE_GB (KESIN DUR).
+# Asil hiz denetimi isin icindedir (`catalog_build --wal-*`): partiler arasi uyku, uretimi arsiv
+# hizina ceker; bekci yalniz emniyet agi.
+#
+# Guvenlik ilkeleri (degismedi):
+# - Mevcut `catalog_build gate/publish` kullanilir; tek dev transaction YOK. Yeni urun satiri
+#   yazilmaz, fiyat degismez, tamamlanan parti geri alinmaz.
+# - KESIN DUR (insan karari): disk rezervi, arsiv uzun sure basarisiz, pgBackRest WAL biraktı,
+#   postgres sagliksiz, degismez ihlali, STOP. Hicbir kontrol devre disi birakilmaz.
+# - Calisma suresince deploy kilidi tutulur (HOLD_DEPLOY_LOCK=1).
+# - Bekcinin kendisi SIGTERM/SIGINT/SIGHUP alirsa isi guvenle durdurur (mevcut parti biter).
+#
+# CALISAN BIR KOPYAYI YERINDE DUZENLEME: bash betigi calisirken dosyadan okur; yerinde degisiklik
+# calisan bekciyi bozar. Yeni surumu ayri yola kopyala, `stop` ile eskisini durdur, yenisini baslat.
+set -uo pipefail
+export LC_ALL=C
+
+ROOT=${ARILLA_ROOT:-/opt/arilla}
+S=${STATE_DIR:-$ROOT/state/ali-publish}
+mkdir -p "$S"
+LOG=$S/run.log
+METRICS=$S/wal-metrics.csv
+SITE=${SITE:-https://manicepte.com}
+MERCHANT=${MERCHANT:-aliexpress}
+JOB=${JOB:-ali-catalog-job}
+EXPECT_SHA=${EXPECT_SHA:-}
+HOLD_DEPLOY_LOCK=${HOLD_DEPLOY_LOCK:-1}
+ALLOW_OTHER_MERCHANTS=${ALLOW_OTHER_MERCHANTS:-0}
+MIN_READY_PCT=${MIN_READY_PCT:-80}
+BACKUP_MAX_AGE_H=${BACKUP_MAX_AGE_H:-12}
+PUBLISH_BATCH=${PUBLISH_BATCH:-500}
+
+# --- Esikler (VPS: 6 GB postgres, max_connections 60) -------------------------------------
+DISK_RESERVE_GB=${DISK_RESERVE_GB:-40}  # bos alan bunun altina inerse KESIN DUR
+START_FREE_GB=${START_FREE_GB:-70}      # baslamak icin: rezerv + tahmini buyume + pay
+ARCHIVE_FAIL_S=${ARCHIVE_FAIL_S:-900}   # arsiv bu kadar sure basarisizsa KESIN DUR
+MEM_PAUSE_MB=${MEM_PAUSE_MB:-1500}      # MemAvailable
+MEM_RESUME_MB=${MEM_RESUME_MB:-2500}
+LOAD_PAUSE_X=${LOAD_PAUSE_X:-2.0}       # loadavg1 > nproc * X -> bekle
+LOAD_RESUME_X=${LOAD_RESUME_X:-1.2}
+LONG_TX_S=${LONG_TX_S:-300}             # baska bir aktif transaction bu kadar suruyorsa bekle
+LOCK_WAIT_S=${LOCK_WAIT_S:-30}          # kilit bekleyen oturum
+CONN_PAUSE=${CONN_PAUSE:-45}            # 60 baglantidan
+WEB_PAUSE_MS=${WEB_PAUSE_MS:-2500}      # web yaniti medyani (son 5 olcum)
+WEB_RESUME_MS=${WEB_RESUME_MS:-1200}
+CHECK_EVERY=${CHECK_EVERY:-20}
+RESUME_HEALTHY_S=${RESUME_HEALTHY_S:-60}
+MAX_CRASHES=${MAX_CRASHES:-3}
+EXIT_WAL_BACKPRESSURE=3                 # catalog_build: WAL siniri yuzunden durdu (cokme degil)
+
+ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+log() { echo "$(ts) $*" | tee -a "$LOG"; }
+die() { log "HATA: $*"; exit 1; }
+compose() { docker compose --env-file "$ROOT/compose.env" -f "$ROOT/compose.prod.yml" "$@"; }
+env_value() { local v; v=$(grep -E "^$2=" "$1" 2>/dev/null | tail -1 | cut -d= -f2- | tr -d "\"'"); echo "${v:-$3}"; }
+PGU=$(env_value "$ROOT/env/postgres.env" POSTGRES_USER arilla)
+PGD=$(env_value "$ROOT/env/postgres.env" POSTGRES_DB arilla)
+# Salt okunur bekci sorgulari: application_name ile isaretli; kendi oturumu sayilmaz.
+# ARILLA_PSQL: yalniz yerel test (test-wal-backpressure.sh); uretimde tanimsiz.
+psql_cmd() {
+  if [ -n "${ARILLA_PSQL:-}" ]; then
+    # shellcheck disable=SC2086 # bilerek kelimelere bolunur (komut + argumanlar)
+    PGAPPNAME=ali-publish-watch $ARILLA_PSQL "$@"
+  else
+    compose exec -T -e PGAPPNAME=ali-publish-watch postgres psql -U "$PGU" -d "$PGD" "$@"
+  fi
+}
+q() { psql_cmd -XAtq -v ON_ERROR_STOP=1 -F'|' -c "$1"; }
+qf() { psql_cmd -X -v ON_ERROR_STOP=1 -P pager=off -c "$1"; }
+
+ali_id() { q "SELECT id FROM merchant WHERE slug = '$MERCHANT'"; }
+
+# --- olcumler ---------------------------------------------------------------------------
+pg_volume_dir() { docker volume inspect arilla_postgres_data -f '{{.Mountpoint}}' 2>/dev/null || echo /var/lib/docker; }
+disk_free_gb() { df -B1G --output=avail "$(pg_volume_dir)" | tail -1 | tr -d ' '; }
+mem_avail_mb() { awk '/MemAvailable/{print int($2/1024)}' /proc/meminfo; }
+load_x100() { awk -v n="$(nproc)" '{printf "%d", ($1/n)*100}' /proc/loadavg; }
+svc_health() { compose ps --format '{{.Service}}={{.Health}}' 2>/dev/null | awk -F= -v s="$1" '$1==s{print $2}'; }
+pg_logs_since() { compose logs --no-log-prefix --since "$1" postgres 2>&1; }
+
+# pgBackRest kuyruk siniri (MB). Asilirsa pgBackRest WAL'i "arsivlendi" sayip BIRAKIR (PITR kopar).
+# Tum WAL esikleri bundan turetilir. Okunamazsa pgBackRest varsayilani degil, sablonun varsayilani
+# (4GiB, infra/vps/backup/pg.pgbackrest.conf.example) kullanilir ve uyarilir.
+queue_max_mb() {
+  local f=${PGBACKREST_PG_CONF:-$ROOT/backup/pg/pgbackrest.conf} v n u
+  v=$(sed -n 's/^[[:space:]]*archive-push-queue-max[[:space:]]*=[[:space:]]*//p' "$f" 2>/dev/null | tail -1 | tr -d ' ')
+  if [[ "$v" =~ ^([0-9]+)(B|KiB|MiB|GiB|TiB|KB|MB|GB|TB)?$ ]]; then
+    n=${BASH_REMATCH[1]}; u=${BASH_REMATCH[2]:-B}
+    case "$u" in
+      B) echo $((n / 1048576)) ;; KiB|KB) echo $((n / 1024)) ;; MiB|MB) echo "$n" ;;
+      GiB|GB) echo $((n * 1024)) ;; TiB|TB) echo $((n * 1048576)) ;;
+    esac
+  else
+    echo 4096
+  fi
+}
+
+# --- WAL esikleri (karar 0134) --------------------------------------------------------------
+# init_wal_thresholds: gercek yapilandirmadan (kuyruk siniri, max_wal_size, segment boyu) hesaplar.
+# Eski degiskenler (READY_PAUSE/READY_RESUME dosya sayisi, WAL_PAUSE_GB/WAL_RESUME_GB) okunur
+# ama ANLAMI degisti: WAL_*_GB artik toplam dizin degil, TUTULAN (arsivlenmemis + redo sonrasi) WAL.
+init_wal_thresholds() {
+  local seg_mb max_wal_mb
+  seg_mb=$(( $(q "SELECT setting FROM pg_settings WHERE name = 'wal_segment_size'") / 1048576 ))
+  max_wal_mb=$(q "SELECT setting FROM pg_settings WHERE name = 'max_wal_size'")
+  [ "${seg_mb:-0}" -gt 0 ] && [ "${max_wal_mb:-0}" -gt 0 ] || die "WAL ayarlari okunamadi"
+  SEG_MB=$seg_mb MAX_WAL_MB=$max_wal_mb
+  QUEUE_MAX_MB=${QUEUE_MAX_MB:-$(queue_max_mb)}
+  [ -n "${READY_PAUSE:-}" ] && : "${READY_PAUSE_MB:=$((READY_PAUSE * seg_mb))}"
+  [ -n "${READY_RESUME:-}" ] && : "${READY_RESUME_MB:=$((READY_RESUME * seg_mb))}"
+  READY_PAUSE_MB=${READY_PAUSE_MB:-$((QUEUE_MAX_MB / 2))}   # bekci: kuyruk sinirinin yarisi
+  READY_RESUME_MB=${READY_RESUME_MB:-$((QUEUE_MAX_MB / 8))}
+  JOB_WAL_TARGET_MB=${JOB_WAL_TARGET_MB:-$((QUEUE_MAX_MB / 4))}  # is ici: yavaslama baslar
+  JOB_WAL_PAUSE_MB=${JOB_WAL_PAUSE_MB:-$((QUEUE_MAX_MB * 3 / 8))} # is ici: parti baslatmaz
+  JOB_WAL_RESUME_MB=${JOB_WAL_RESUME_MB:-$((QUEUE_MAX_MB / 8))}
+  [ -n "${WAL_PAUSE_GB:-}" ] && : "${RETAINED_PAUSE_MB:=$((WAL_PAUSE_GB * 1024))}"
+  # Tutulan = since_redo + ready. Olagan ust deger ~2x max_wal_size (yayilan checkpoint) + ready.
+  RETAINED_PAUSE_MB=${RETAINED_PAUSE_MB:-$((max_wal_mb * 2 + READY_PAUSE_MB))}
+  # Dizin toplami icin bu degerin ustu yalniz UYARI (gunluk); esik degil (bkz. ust aciklama).
+  WAL_TOTAL_WARN_MB=${WAL_TOTAL_WARN_MB:-$((max_wal_mb * 4 + QUEUE_MAX_MB))}
+  # Yapilandirma emniyeti: bekci duraklamasi kuyruk sinirinin %75'ini gecemez (bir parti + SIGTERM
+  # gecikmesi kadar asim payi kalmali); is ici sinirlar bekcinin altinda olmali.
+  if [ $((READY_PAUSE_MB * 4)) -gt $((QUEUE_MAX_MB * 3)) ]; then
+    die "READY_PAUSE ${READY_PAUSE_MB} MB, pgBackRest kuyruk sinirinin (${QUEUE_MAX_MB} MB) %75'ini asiyor: asimda WAL BIRAKILIR (PITR kopar). Esigi dusur ya da archive-push-queue-max'i buyut."
+  fi
+  if ! [ "$JOB_WAL_RESUME_MB" -lt "$JOB_WAL_TARGET_MB" ] || ! [ "$JOB_WAL_TARGET_MB" -lt "$JOB_WAL_PAUSE_MB" ] || ! [ "$JOB_WAL_PAUSE_MB" -lt "$READY_PAUSE_MB" ]; then
+    die "WAL esikleri tutarsiz: is ici resume ${JOB_WAL_RESUME_MB} < target ${JOB_WAL_TARGET_MB} < pause ${JOB_WAL_PAUSE_MB} < bekci ${READY_PAUSE_MB} MB olmali"
+  fi
+  [ "$READY_RESUME_MB" -lt "$READY_PAUSE_MB" ] || die "READY_RESUME_MB ($READY_RESUME_MB) < READY_PAUSE_MB ($READY_PAUSE_MB) olmali"
+  WAL_THRESHOLDS_READY=1
+}
+wal_thresholds_summary() {
+  echo "kuyruk siniri ${QUEUE_MAX_MB} MB, max_wal_size ${MAX_WAL_MB} MB, segment ${SEG_MB} MB | is ici: hedef ${JOB_WAL_TARGET_MB} / duraklama ${JOB_WAL_PAUSE_MB} / devam ${JOB_WAL_RESUME_MB} MB | bekci: arsivlenmemis ${READY_PAUSE_MB}->${READY_RESUME_MB} MB, tutulan ${RETAINED_PAUSE_MB} MB | dizin uyarisi ${WAL_TOTAL_WARN_MB} MB (esik degil)"
+}
+job_wal_args() {
+  echo "--wal-target-mb $JOB_WAL_TARGET_MB --wal-pause-mb $JOB_WAL_PAUSE_MB --wal-resume-mb $JOB_WAL_RESUME_MB --wal-failing-grace-s $ARCHIVE_FAIL_S"
+}
+
+# pg_wal siniflandirmasi + sayaclar (superuser; tek sorgu). Alanlar (bayt / sayi):
+# total|recycled|removable|since_redo|ready|ready_files|oldest_ready_s|insert_lsn|archived_count|
+# failed_count|archived_epoch|failed_epoch|ckpt_timed|ckpt_req|wal_fpi|wal_records|wal_bytes|lag
+WAL_STATE_SQL="WITH s AS (SELECT setting::bigint AS seg FROM pg_settings WHERE name = 'wal_segment_size'),
+lsn AS (SELECT floor((pg_current_wal_insert_lsn() - '0/0'::pg_lsn) / s.seg) AS cur,
+               floor(((SELECT redo_lsn FROM pg_control_checkpoint()) - '0/0'::pg_lsn) / s.seg) AS redo,
+               s.seg FROM s),
+st AS (SELECT left(name, 24) AS name, bool_or(name LIKE '%.ready') AS ready, min(modification) AS since
+         FROM pg_ls_archive_statusdir() GROUP BY 1),
+f AS (SELECT w.size, st.ready, st.since,
+             ('x' || substr(w.name, 9, 8))::bit(32)::bigint * (4294967296 / lsn.seg)
+             + ('x' || substr(w.name, 17, 8))::bit(32)::bigint AS segno
+        FROM pg_ls_waldir() w LEFT JOIN st USING (name), lsn
+       WHERE w.name ~ '^[0-9A-F]{24}\$'),
+c AS (SELECT coalesce(sum(size), 0) AS total,
+             coalesce(sum(size) FILTER (WHERE segno > lsn.cur), 0) AS recycled,
+             coalesce(sum(size) FILTER (WHERE segno < lsn.redo AND NOT coalesce(ready, false)), 0) AS removable,
+             coalesce(sum(size) FILTER (WHERE segno BETWEEN lsn.redo AND lsn.cur AND NOT coalesce(ready, false)), 0) AS since_redo,
+             coalesce(sum(size) FILTER (WHERE ready), 0) AS ready,
+             count(*) FILTER (WHERE ready) AS ready_files,
+             coalesce(extract(epoch FROM now() - min(since) FILTER (WHERE ready))::bigint, 0) AS oldest_ready_s
+        FROM f, lsn),
+a AS (SELECT archived_count, failed_count, last_archived_wal,
+             coalesce(extract(epoch FROM last_archived_time)::bigint, 0) AS archived_epoch,
+             coalesce(extract(epoch FROM last_failed_time)::bigint, 0) AS failed_epoch
+        FROM pg_stat_archiver)
+SELECT c.total, c.recycled, c.removable, c.since_redo, c.ready, c.ready_files, c.oldest_ready_s,
+       (pg_current_wal_insert_lsn() - '0/0'::pg_lsn)::bigint,
+       a.archived_count, a.failed_count, a.archived_epoch, a.failed_epoch,
+       b.checkpoints_timed, b.checkpoints_req, w.wal_fpi, w.wal_records, w.wal_bytes::bigint,
+       CASE WHEN a.last_archived_wal ~ '^[0-9A-F]{24}\$' THEN
+         greatest(0, (pg_current_wal_lsn() - '0/0'::pg_lsn)::bigint
+           - ((('x' || substr(a.last_archived_wal, 9, 8))::bit(32)::bigint * (4294967296 / s.seg)
+               + ('x' || substr(a.last_archived_wal, 17, 8))::bit(32)::bigint + 1) * s.seg))
+       ELSE c.ready END
+  FROM c, a, s, pg_stat_bgwriter b, pg_stat_wal w"
+
+W_TOTAL=0 W_RECYCLED=0 W_REMOVABLE=0 W_SINCE_REDO=0 W_READY=0 W_READY_FILES=0 W_OLDEST_READY_S=0
+W_LSN=0 W_ARCHIVED=0 W_FAILED=0 W_ARCH_T=0 W_FAIL_T=0 W_CKPT_TIMED=0 W_CKPT_REQ=0 W_FPI=0
+W_RECORDS=0 W_BYTES=0 W_LAG=0 W_AT=0
+P_LSN=0 P_ARCHIVED=0 P_FPI=0 P_RECORDS=0 P_AT=0
+WAL_GEN_MBPS=0 WAL_ARCH_MBPS=0 WAL_FPI_PCT=0
+read_wal_state() {
+  local r
+  r=$(q "$WAL_STATE_SQL") || return 1
+  P_LSN=$W_LSN P_ARCHIVED=$W_ARCHIVED P_FPI=$W_FPI P_RECORDS=$W_RECORDS P_AT=$W_AT
+  IFS='|' read -r W_TOTAL W_RECYCLED W_REMOVABLE W_SINCE_REDO W_READY W_READY_FILES W_OLDEST_READY_S \
+    W_LSN W_ARCHIVED W_FAILED W_ARCH_T W_FAIL_T W_CKPT_TIMED W_CKPT_REQ W_FPI W_RECORDS W_BYTES W_LAG <<<"$r"
+  W_AT=$(date -u +%s)
+  [ -n "$W_LAG" ] || return 1
+  local dt=$((W_AT - P_AT))
+  if [ "$P_AT" -gt 0 ] && [ "$dt" -gt 0 ]; then
+    WAL_GEN_MBPS=$(awk -v a="$W_LSN" -v b="$P_LSN" -v t="$dt" 'BEGIN{printf "%.1f", (a-b)/t/1048576}')
+    WAL_ARCH_MBPS=$(awk -v a="$W_ARCHIVED" -v b="$P_ARCHIVED" -v s="$SEG_MB" -v t="$dt" 'BEGIN{printf "%.1f", (a-b)*s/t}')
+    WAL_FPI_PCT=$(awk -v f="$((W_FPI - P_FPI))" -v r="$((W_RECORDS - P_RECORDS))" 'BEGIN{printf "%.0f", (r > 0 ? 100 * f / r : 0)}')
+  fi
+  return 0
+}
+mb() { echo $(($1 / 1048576)); }
+# Saglik kontrolune (arilla_healthcheck.py) kalp atisi: toplu yayin suresince bekleyen WAL alarmi
+# bekcinin duraklama esigine cikar; 10 dk tazelenmezse (bekci oldu) normal esiklere doner.
+write_bulk_window() {
+  printf '{"ready_crit": %d, "until": %d, "pid": %d}\n' "$((READY_PAUSE_MB / SEG_MB))" "$(($(date -u +%s) + 600))" "$$" >"$S/bulk-window.json.tmp" &&
+    mv -f "$S/bulk-window.json.tmp" "$S/bulk-window.json"
+}
+clear_bulk_window() { rm -f "$S/bulk-window.json"; }
+write_metrics() { # write_metrics <durum>
+  [ -f "$METRICS" ] || echo "ts,total_mb,recycled_mb,removable_mb,since_redo_mb,ready_mb,lag_mb,gen_mb_s,arch_mb_s,fpi_pct,ckpt_timed,ckpt_req,disk_free_gb,state" >"$METRICS"
+  echo "$(ts),$(mb "$W_TOTAL"),$(mb "$W_RECYCLED"),$(mb "$W_REMOVABLE"),$(mb "$W_SINCE_REDO"),$(mb "$W_READY"),$(mb "$W_LAG"),$WAL_GEN_MBPS,$WAL_ARCH_MBPS,$WAL_FPI_PCT,$W_CKPT_TIMED,$W_CKPT_REQ,${1#*:},${1%%:*}" >>"$METRICS"
+}
+
+# pg_health (kalan oturum sinyalleri): long_tx|lock_waits|conns
+pg_health() {
+  q "SELECT (SELECT count(*) FROM pg_stat_activity
+              WHERE backend_type = 'client backend' AND state <> 'idle'
+                AND application_name <> 'ali-publish-watch'
+                AND xact_start < now() - interval '$LONG_TX_S seconds'),
+            (SELECT count(*) FROM pg_stat_activity
+              WHERE wait_event_type = 'Lock' AND query_start < now() - interval '$LOCK_WAIT_S seconds'),
+            (SELECT count(*) FROM pg_stat_activity WHERE backend_type = 'client backend')"
+}
+
+# pgBackRest kuyruk siniri asildiysa WAL'i birakir ve uyarir ("dropped WAL file ... because archive
+# queue exceeded"). Bu PITR zincirinde KALICI bir bosluktur: yeni tam yedek alinmadan devam yok.
+DROP_CHECK_SINCE=""
+wal_dropped_count() { pg_logs_since "${1:-$DROP_CHECK_SINCE}" | grep -ciE 'dropped WAL file|archive queue exceeded'; }
+
+PROBE_SLUG=""
+WEB_SAMPLES=()
+WEB_LAST_CODE=""
+# Web yaniti: ERKEN ERISIM modunda /urun/* 307 ile yonlenir - bu NORMALDIR ve yalniz sunucunun
+# yanit verdigini gosterir (ara katman), urun sayfasi performansi DEGILDIR. 2xx/3xx -> sure;
+# 000/4xx/5xx -> 10000 ms (sagliksiz). Raporda 200 ile 307 ayri gosterilir.
+web_probe_ms() {
+  local t code
+  read -r code t < <(curl -s -o /dev/null -w '%{http_code} %{time_total}' --max-time 10 "$SITE/urun/$PROBE_SLUG" || echo "000 10")
+  WEB_LAST_CODE=$code
+  case "$code" in 2??|3??) ;; *) t=10 ;; esac
+  awk -v t="$t" 'BEGIN{printf "%d", t*1000}'
+}
+web_median_ms() {
+  WEB_SAMPLES+=("$(web_probe_ms)")
+  [ "${#WEB_SAMPLES[@]}" -gt 5 ] && WEB_SAMPLES=("${WEB_SAMPLES[@]: -5}")
+  printf '%s\n' "${WEB_SAMPLES[@]}" | sort -n | awk '{a[NR]=$1} END{print a[int((NR+1)/2)]}'
+}
+
+ARCH_FAIL_SINCE=0
+# check_health <mode: run|resume> -> 0 saglikli, 1 bekle (PAUSE), 2 KESIN DUR. Nedeni $REASON.
+check_health() {
+  local mode=$1 free mem load long locks conns web pgst
+  REASON=""
+  [ "${WAL_THRESHOLDS_READY:-0}" = 1 ] || init_wal_thresholds
+  [ -f "$S/STOP" ] && { REASON="STOP dosyasi"; return 2; }
+  free=$(disk_free_gb)
+  [ "$free" -lt "$DISK_RESERVE_GB" ] && { REASON="disk bos ${free} GB < rezerv ${DISK_RESERVE_GB} GB"; return 2; }
+  pgst=$(svc_health postgres)
+  [ "$pgst" = healthy ] || { REASON="postgres $pgst"; return 2; }
+  read_wal_state || { REASON="WAL durumu okunamadi"; return 1; }
+  write_metrics "$mode:$free"
+  write_bulk_window
+  local now; now=$(date -u +%s)
+  if [ "$W_FAIL_T" -gt "$W_ARCH_T" ]; then
+    [ "$ARCH_FAIL_SINCE" -eq 0 ] && ARCH_FAIL_SINCE=$now
+    if [ $((now - ARCH_FAIL_SINCE)) -ge "$ARCHIVE_FAIL_S" ]; then
+      REASON="WAL arsivi ${ARCHIVE_FAIL_S}s'dir basarisiz (failed_count=$W_FAILED)"; return 2
+    fi
+    REASON="WAL arsivi basarisiz (son hata arsivden yeni)"; return 1
+  fi
+  ARCH_FAIL_SINCE=0
+  IFS='|' read -r long locks conns < <(pg_health) || { REASON="pg_health okunamadi"; return 1; }
+  mem=$(mem_avail_mb); load=$(load_x100); web=$(web_median_ms)
+  local ready_mb retained_mb total_mb
+  ready_mb=$(mb "$W_READY"); retained_mb=$(mb $((W_SINCE_REDO + W_READY))); total_mb=$(mb "$W_TOTAL")
+  local readyp=$READY_PAUSE_MB retp=$RETAINED_PAUSE_MB memp=$MEM_PAUSE_MB loadp webp=$WEB_PAUSE_MS
+  loadp=$(awk -v x="$LOAD_PAUSE_X" 'BEGIN{printf "%d", x*100}')
+  if [ "$mode" = resume ]; then
+    # Devam arsiv borcuna bakar; recycled ve removable segmentler borc degildir (kok neden,
+    # karar 0134) ve hicbir esige girmez.
+    readyp=$READY_RESUME_MB retp=$((RETAINED_PAUSE_MB * 8 / 10))
+    memp=$MEM_RESUME_MB webp=$WEB_RESUME_MS
+    loadp=$(awk -v x="$LOAD_RESUME_X" 'BEGIN{printf "%d", x*100}')
+  fi
+  echo "$(ts) disk=${free}G mem=${mem}M load%=${load} wal_dizin=${total_mb}M (recycled=$(mb "$W_RECYCLED") removable=$(mb "$W_REMOVABLE") redo_sonrasi=$(mb "$W_SINCE_REDO")) arsivlenmemis=${ready_mb}M lag=$(mb "$W_LAG")M uretim=${WAL_GEN_MBPS}MB/s arsiv=${WAL_ARCH_MBPS}MB/s fpi%=${WAL_FPI_PCT} ckpt=${W_CKPT_TIMED}t/${W_CKPT_REQ}r longtx=${long} lockwait=${locks} conns=${conns} web_med=${web}ms(${WEB_LAST_CODE})" >>"$S/health.log"
+  [ -f "$S/PAUSE" ] && { REASON="PAUSE dosyasi"; return 1; }
+  for s in web worker redis; do
+    [ "$(svc_health $s)" = healthy ] || { REASON="$s sagliksiz"; return 1; }
+  done
+  [ "$ready_mb" -ge "$readyp" ] && { REASON="arsivlenmemis WAL ${ready_mb} MB >= ${readyp} MB (kuyruk siniri ${QUEUE_MAX_MB} MB)"; return 1; }
+  [ "$retained_mb" -ge "$retp" ] && { REASON="tutulan WAL (redo sonrasi + arsivlenmemis) ${retained_mb} MB >= ${retp} MB: checkpoint yetismiyor"; return 1; }
+  if [ "$total_mb" -ge "$WAL_TOTAL_WARN_MB" ]; then
+    echo "$(ts) UYARI: pg_wal dizini ${total_mb} MB >= ${WAL_TOTAL_WARN_MB} MB (esik degil; disk rezervi korur)" >>"$S/health.log"
+  fi
+  [ "$mem" -lt "$memp" ] && { REASON="MemAvailable ${mem} MB < ${memp} MB"; return 1; }
+  [ "$load" -gt "$loadp" ] && { REASON="load/cpu %${load} > %${loadp}"; return 1; }
+  [ "$long" -gt 0 ] && { REASON="${long} uzun transaction (> ${LONG_TX_S}s)"; return 1; }
+  [ "$locks" -gt 0 ] && { REASON="${locks} oturum kilit bekliyor (> ${LOCK_WAIT_S}s)"; return 1; }
+  [ "$conns" -ge "$CONN_PAUSE" ] && { REASON="baglanti ${conns} >= ${CONN_PAUSE}"; return 1; }
+  [ "$web" -ge "$webp" ] && { REASON="web yanit medyani ${web} ms >= ${webp} ms (son kod ${WEB_LAST_CODE})"; return 1; }
+  return 0
+}
+
+# --- preflight --------------------------------------------------------------------------
+preflight() {
+  [ "$(id -u)" -eq 0 ] || die "root olarak calistir (docker + pg-backup)"
+  [ -f "$ROOT/compose.prod.yml" ] && [ -f "$ROOT/compose.env" ] || die "$ROOT altinda compose dosyalari yok"
+  log "== preflight"
+  local st; st=$("$ROOT/bin/arilla-deploy" status 2>&1) || die "arilla-deploy status basarisiz"
+  echo "$st" | tee -a "$LOG"
+  local cur; cur=$(echo "$st" | sed -n 's/^current=//p')
+  [ -z "$EXPECT_SHA" ] || [ "$cur" = "$EXPECT_SHA" ] || die "prod surumu $cur, beklenen $EXPECT_SHA (deploy bitmedi ya da yeni merge var)"
+  for s in postgres redis web worker cron backup caddy; do
+    [ "$(svc_health $s)" = healthy ] || die "$s healthy degil"
+  done
+  pgrep -f '/opt/arilla/bin/arilla-deploy' >/dev/null && die "bir deploy calisiyor"
+  q "SELECT 1 FROM schema_migration WHERE filename LIKE '0083\_%' ESCAPE '\'" | grep -qx 1 || die "migration 0083 yok"
+  q "SELECT 1 FROM schema_migration WHERE filename LIKE '0087\_%' ESCAPE '\'" | grep -qx 1 || die "migration 0087 yok"
+  log "migration: $(q 'SELECT count(*) FROM schema_migration') uygulanmis; son: $(q 'SELECT filename FROM schema_migration ORDER BY 1 DESC LIMIT 3' | tr '\n' ' ')"
+  local free mem; free=$(disk_free_gb); mem=$(mem_avail_mb)
+  log "disk bos ${free} GB (en az ${START_FREE_GB}), MemAvailable ${mem} MB, nproc $(nproc), load $(cut -d' ' -f1-3 /proc/loadavg)"
+  [ "$free" -ge "$START_FREE_GB" ] || die "disk bos alani yetersiz"
+  init_wal_thresholds
+  log "WAL esikleri: $(wal_thresholds_summary)"
+  # Is ici geri basinc (karar 0134) ingest imajinda olmali: eski imaj --wal-* bayraklarini tanimaz.
+  compose --profile feeds run --rm --no-deps -T feeds python -m catalog_build publish --help 2>/dev/null |
+    grep -q -- '--wal-target-mb' || die "dagitilmis ingest imaji WAL geri basincini (catalog_build --wal-*) icermiyor: once karar 0134'u dagit"
+  read_wal_state || die "WAL durumu okunamadi"
+  local long locks conns
+  IFS='|' read -r long locks conns < <(pg_health)
+  log "pg_wal $(mb "$W_TOTAL") MB (recycled $(mb "$W_RECYCLED"), removable $(mb "$W_REMOVABLE"), redo sonrasi $(mb "$W_SINCE_REDO"), arsivlenmemis $(mb "$W_READY")), arsiv hata sayisi $W_FAILED, uzun tx $long, kilit bekleyen $locks, baglanti $conns"
+  [ "$W_FAIL_T" -le "$W_ARCH_T" ] || die "WAL arsivi son denemede basarisiz (pg_stat_archiver)"
+  [ "$(mb "$W_READY")" -lt "$READY_RESUME_MB" ] || die "arsiv geride ($(mb "$W_READY") MB)"
+  [ "$long" -eq 0 ] || die "uzun transaction var"
+  local dropped; dropped=$(wal_dropped_count "${DROP_LOOKBACK:-168h}")
+  if [ "$dropped" -gt 0 ] && [ "${ACK_WAL_DROP:-0}" != 1 ]; then
+    die "postgres gunlugunde son ${DROP_LOOKBACK:-168h} icinde $dropped 'dropped WAL' satiri var: PITR zincirinde bosluk. 'pg-backup full' al, 'pg-backup check' gecsin, sonra ACK_WAL_DROP=1 ile calistir."
+  fi
+  log "pg-backup check (arsiv + yedek zinciri)"
+  "$ROOT/bin/pg-backup" check >>"$LOG" 2>&1 || die "pg-backup check basarisiz: yayin baslatilmaz"
+  local age_h
+  age_h=$("$ROOT/bin/pg-backup" info --json 2>/dev/null | python3 -c '
+import json,sys,time
+d=json.load(sys.stdin); b=[x for s in d for x in s.get("backup",[])]
+print(int((time.time()-max(x["timestamp"]["stop"] for x in b))//3600) if b else 9999)' 2>/dev/null || echo 9999)
+  log "son basarili yedek: ${age_h} saat once"
+  if [ "$age_h" -ge "$BACKUP_MAX_AGE_H" ]; then
+    log "yedek ${BACKUP_MAX_AGE_H} saatten eski: pg-backup diff aliniyor"
+    "$ROOT/bin/pg-backup" diff >>"$LOG" 2>&1 || die "yeni yedek alinamadi: yayin baslatilmaz"
+  fi
+  local ali; ali=$(ali_id); [ -n "$ali" ] || die "$MERCHANT merchant yok"
+  log "$MERCHANT urun durumu:"; qf "SELECT publication_state, hold_reason, count(*) FROM product WHERE source_merchant_id = $ali GROUP BY 1, 2 ORDER BY 3 DESC" | tee -a "$LOG"
+  log "kur: $(q "SELECT coalesce(max(effective_date)::text, 'YOK') FROM fx_rate WHERE base = 'USD' AND quote = 'TRY'") (yoksa kartta yalniz USD gosterilir)"
+  log "preflight TAMAM"
+}
+
+# --- dryrun: gate'in AYNI kurallari, yazmadan -------------------------------------------
+dryrun() {
+  local ali; ali=$(ali_id)
+  log "== dryrun (yalniz okur; ~2,8M satir okunur, birkac dakika surebilir)"
+  q "SET default_transaction_read_only = on;
+     WITH _v AS (
+     SELECT p.id, p.source_merchant_id, p.publication_state AS old_state, p.hold_reason AS old_reason,
+            CASE
+              WHEN o.id IS NULL THEN 'source_offer_missing'
+              WHEN NOT o.is_active THEN 'source_offer_inactive'
+              WHEN o.current_price IS NULL OR o.current_price <= 0 THEN 'no_price'
+              WHEN p.title IS NULL OR btrim(p.title) = '' THEN 'title_missing'
+              WHEN p.primary_image_url IS NULL OR btrim(p.primary_image_url) = '' THEN 'no_image'
+              WHEN o.product_id IS NOT NULL AND o.product_id <> p.id THEN 'offer_linked_elsewhere'
+              WHEN seen.at < now() - interval '7 days' THEN 'stale_source_offer'
+            END AS reason
+       FROM product p
+       LEFT JOIN offer o ON o.id = p.source_offer_id
+       LEFT JOIN LATERAL (SELECT GREATEST(o.last_seen_at, max(fo.last_seen_at)) AS at
+                            FROM feed_source_offer fo WHERE fo.offer_id = o.id) seen ON true
+      WHERE p.publication_state IN ('draft', 'held', 'ready'))
+     SELECT 'R', CASE WHEN source_merchant_id = $ali THEN '$MERCHANT' ELSE coalesce((SELECT slug FROM merchant WHERE id = source_merchant_id), '(kaynaksiz)') END,
+            old_state, coalesce(old_reason, '-'),
+            CASE WHEN reason IS NULL THEN 'ready' ELSE 'held' END, coalesce(reason, '-'),
+            count(*),
+            count(*) FILTER (WHERE (old_state, old_reason) IS DISTINCT FROM
+                                   (CASE WHEN reason IS NULL THEN 'ready' ELSE 'held' END, reason))
+       FROM _v GROUP BY 2, 3, 4, 5, 6 ORDER BY 2, 7 DESC" >"$S/dryrun.txt" || die "dryrun sorgusu basarisiz"
+  { echo "kaynak|eski_durum|eski_neden|yeni_durum|yeni_neden|satir|degisecek"; sed -n 's/^R|//p' "$S/dryrun.txt"; } | column -t -s'|' | tee -a "$LOG"
+  local other ali_total ali_ready
+  other=$(awk -F'|' -v m="$MERCHANT" '$1=="R" && $2!=m{s+=$8} END{print s+0}' "$S/dryrun.txt")
+  ali_total=$(awk -F'|' -v m="$MERCHANT" '$1=="R" && $2==m{s+=$7} END{print s+0}' "$S/dryrun.txt")
+  ali_ready=$(awk -F'|' -v m="$MERCHANT" '$1=="R" && $2==m && $5=="ready"{s+=$7} END{print s+0}' "$S/dryrun.txt")
+  log "$MERCHANT: taranan $ali_total, ready olacak $ali_ready; DIGER magazalarda degisecek satir: $other"
+  if [ "$other" -gt 0 ] && [ "$ALLOW_OTHER_MERCHANTS" != 1 ]; then
+    die "gate diger magazalarin $other urununu degistirecek (yukaridaki tablo). Inceleyip uygunsa ALLOW_OTHER_MERCHANTS=1 ile tekrar calistir."
+  fi
+  [ "$ali_total" -gt 0 ] || die "taranacak $MERCHANT urunu yok"
+  local pct=$((ali_ready * 100 / ali_total))
+  [ "$pct" -ge "$MIN_READY_PCT" ] || die "yalniz %$pct ready olacak (< %$MIN_READY_PCT): neden tablosunu incele (bayat besleme?). Kalite kurali gevsetilmez."
+  log "dryrun TAMAM (%$pct ready)"
+}
+
+# --- is yonetimi ------------------------------------------------------------------------
+job_running() { [ "$(docker inspect -f '{{.State.Running}}' "$JOB" 2>/dev/null)" = true ]; }
+start_job() { # start_job <logfile> <args...>
+  local lf=$1; shift
+  docker rm "$JOB" >/dev/null 2>&1 || true
+  compose --profile feeds run -d --no-deps --name "$JOB" \
+    -e PYTHONUNBUFFERED=1 -e CATALOG_PUBLISH_FOREIGN_APPROVED=true \
+    feeds python -m catalog_build "$@" >/dev/null || return 1
+  (docker logs -f "$JOB" >>"$lf" 2>&1 &)
+  log "is basladi: catalog_build $* (log: $lf)"
+}
+stop_job() { # guvenli: SIGTERM -> mevcut parti biter. 5 dk icinde bitmezse docker stop (acik parti geri alinir, tamamlananlar kalir)
+  job_running || return 0
+  log "isi durduruyorum (SIGTERM, mevcut parti bitecek): $1"
+  docker kill --signal TERM "$JOB" >/dev/null 2>&1 || true
+  local _
+  for _ in $(seq 1 60); do job_running || break; sleep 5; done
+  job_running && { log "5 dk icinde durmadi: docker stop"; docker stop -t 30 "$JOB" >/dev/null 2>&1 || true; }
+}
+job_exit() { docker inspect -f '{{.State.ExitCode}}' "$JOB" 2>/dev/null || echo 255; }
+
+# Bekcinin kendisi sinyal alirsa (tmux kapandi, kill): isi denetimsiz birakmaz. Mevcut parti biter,
+# is durur, kilit birakilir. Ayni komut kaldigi yerden surer.
+on_signal() {
+  trap - TERM INT HUP
+  log "bekci sinyal aldi ($1): is guvenle durduruluyor; ayni komutla kaldigi yerden surer"
+  stop_job "bekci sinyali $1"
+  docker rm "$JOB" >/dev/null 2>&1 || true
+  clear_bulk_window
+  exit 143
+}
+install_signal_traps() {
+  trap 'on_signal TERM' TERM
+  trap 'on_signal INT' INT
+  trap 'on_signal HUP' HUP
+}
+
+wait_until_healthy() { # 0 = devam, 2 = kesin dur
+  local ok_since=0 rc
+  while true; do
+    check_health resume; rc=$?
+    [ $rc -eq 2 ] && { log "KESIN DUR: $REASON"; return 2; }
+    if [ $rc -eq 0 ]; then
+      [ $ok_since -eq 0 ] && ok_since=$(date -u +%s)
+      [ $(($(date -u +%s) - ok_since)) -ge "$RESUME_HEALTHY_S" ] && return 0
+    else
+      ok_since=0
+      echo "$(ts) bekliyor: $REASON" >>"$S/health.log"
+    fi
+    sleep "$CHECK_EVERY"
+  done
+}
+
+PUB_START_OUTBOX=0 PUB_START_MDL=0 PUB_START_PUBLISHED=0 VERIFIED_UPTO=0
+verify_published() { # islenmis kimlik araligindaki degismezler; ihlal -> KESIN DUR
+  # publish `ready` urunleri kimlik sirasiyla isler: kalan en kucuk ready kimliginin altindaki
+  # her urun islenmistir. Pencere (VERIFIED_UPTO, hi] birincil anahtarla okunur.
+  local ali hi r n nopub nolink noagg outbox mdl pub
+  ali=$(ali_id)
+  hi=$(q "SELECT coalesce((SELECT min(id) - 1 FROM product WHERE publication_state = 'ready' AND source_merchant_id = $ali),
+                          (SELECT max(id) FROM product WHERE source_merchant_id = $ali), 0)")
+  [ "$hi" -gt "$VERIFIED_UPTO" ] || return 0
+  r=$(q "SELECT count(*),
+                count(*) FILTER (WHERE p.published_at IS NULL),
+                count(*) FILTER (WHERE o.product_id IS DISTINCT FROM p.id),
+                count(*) FILTER (WHERE p.offer_count = 0 AND p.foreign_offer_count = 0)
+           FROM product p LEFT JOIN offer o ON o.id = p.source_offer_id
+          WHERE p.id > $VERIFIED_UPTO AND p.id <= $hi
+            AND p.source_merchant_id = $ali AND p.publication_state = 'published'")
+  IFS='|' read -r n nopub nolink noagg <<<"$r"
+  IFS='|' read -r outbox mdl pub < <(q "SELECT
+      (SELECT count(*) FROM search_outbox WHERE id > $PUB_START_OUTBOX AND reason = 'source_listing_published'),
+      (SELECT count(*) FROM match_decision_log WHERE id > $PUB_START_MDL AND basis = 'source_listing' AND decision = 'link'),
+      (SELECT count(*) FROM product WHERE source_merchant_id = $ali AND publication_state = 'published')")
+  log "dogrulama ($VERIFIED_UPTO, $hi]: yayinlanan $n, published_at bos $nopub, teklif bagi yok $nolink, ozet bos $noagg | toplam published $pub (+$((pub - PUB_START_PUBLISHED))), outbox +$outbox, karar kaydi +$mdl"
+  if [ "$nopub" -gt 0 ] || [ "$nolink" -gt 0 ] || [ "$noagg" -gt 0 ]; then
+    REASON="degismez ihlali: published_at=$nopub bag=$nolink ozet=$noagg"; return 2
+  fi
+  if [ "$outbox" -lt $((pub - PUB_START_PUBLISHED)) ] || [ "$mdl" -lt $((pub - PUB_START_PUBLISHED)) ]; then
+    REASON="outbox ($outbox) / karar kaydi ($mdl) < yeni yayin ($((pub - PUB_START_PUBLISHED)))"; return 2
+  fi
+  VERIFIED_UPTO=$hi
+}
+
+# Periyodik (~5 dk) kesin kontroller: pgBackRest WAL birakti mi?
+periodic_hard_checks() {
+  local dropped; dropped=$(wal_dropped_count)
+  if [ "$dropped" -gt 0 ]; then
+    REASON="pgBackRest $dropped WAL dosyasini kuyruk siniri yuzunden BIRAKTI: PITR zincirinde bosluk; 'pg-backup full' gerekir"
+    return 2
+  fi
+  return 0
+}
+
+# run_phase gate|publish -> 0 bitti, 2 kesin dur
+run_phase() {
+  local phase=$1 attempt=0 crashes=0 lf rc after=0 last prev_left="" wal_args
+  wal_args=$(job_wal_args)
+  while true; do
+    attempt=$((attempt + 1))
+    lf=$S/job-$phase-$attempt.log
+    if [ "$phase" = gate ]; then
+      # shellcheck disable=SC2086 # wal_args bilerek bolunur
+      start_job "$lf" gate --allow-foreign --after-id "$after" $wal_args || return 2
+    else
+      # shellcheck disable=SC2086
+      start_job "$lf" publish --merchant "$MERCHANT" --allow-foreign --limit 3000000 --batch "$PUBLISH_BATCH" --confirm $wal_args || return 2
+    fi
+    local paused=0 tick=0
+    sleep 10
+    while job_running; do
+      check_health run; rc=$?
+      if [ $rc -ne 0 ]; then
+        stop_job "$REASON"; paused=$rc
+        log "$([ $rc -eq 2 ] && echo 'KESIN DUR' || echo 'BEKLEME'): $REASON"
+        break
+      fi
+      tick=$((tick + 1))
+      if [ $((tick % 15)) -eq 0 ]; then # ~5 dk
+        docker stats --no-stream --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}}' >>"$S/health.log" 2>/dev/null
+        if ! periodic_hard_checks; then stop_job "$REASON"; log "KESIN DUR: $REASON"; return 2; fi
+        [ "$phase" = gate ] && log "gate: $(grep -E '^parti ' "$lf" | tail -1)"
+        if [ "$phase" = publish ]; then
+          if ! verify_published; then stop_job "$REASON"; log "KESIN DUR: $REASON"; return 2; fi
+        fi
+        log "wal: uretim ${WAL_GEN_MBPS} MB/s, arsiv ${WAL_ARCH_MBPS} MB/s, arsivlenmemis $(mb "$W_READY") MB, dizin $(mb "$W_TOTAL") MB (recycled $(mb "$W_RECYCLED"), removable $(mb "$W_REMOVABLE")), fpi %${WAL_FPI_PCT}, is ici: $(grep -E 'wal (yavaslatma|duraklama|devam|arsiv-hatasi)' "$lf" | tail -1)"
+      fi
+      sleep "$CHECK_EVERY"
+    done
+    local code; code=$(job_exit); docker rm "$JOB" >/dev/null 2>&1 || true
+    log "is cikti: kod $code ($phase, deneme $attempt); son satir: $(tail -1 "$lf" 2>/dev/null)"
+    if ! periodic_hard_checks; then log "KESIN DUR: $REASON"; return 2; fi
+    if [ "$phase" = gate ]; then
+      last=$(grep -oE 'son_urun [0-9]+' "$lf" | tail -1 | awk '{print $2}')
+      [ -n "$last" ] && after=$last
+      grep -q '^bitti=True' "$lf" && [ $paused -eq 0 ] && { log "gate BITTI"; return 0; }
+    else
+      if ! verify_published; then log "KESIN DUR: $REASON"; return 2; fi
+      local left; left=$(q "SELECT count(*) FROM product WHERE source_merchant_id = $(ali_id) AND publication_state = 'ready'")
+      log "ready kalan: $left"
+      [ "$left" -eq 0 ] && [ $paused -eq 0 ] && { log "publish BITTI"; return 0; }
+      if [ $paused -eq 0 ] && [ "$code" = 0 ] && [ "$left" -ge "${prev_left:-999999999}" ]; then
+        log "KESIN DUR: publish hatasiz cikti ama ready kalan azalmadi ($left); job loguna bak"; return 2
+      fi
+      prev_left=$left
+    fi
+    [ $paused -eq 2 ] && return 2
+    if [ $paused -eq 0 ] && [ "$code" = "$EXIT_WAL_BACKPRESSURE" ]; then
+      # Is kendi WAL sinirinda durdu (arsiv uzun sure basarisiz / gecikme inmedi): cokme degil.
+      log "is WAL geri basinci nedeniyle durdu (kod $code): saglik beklenip kaldigi yerden surer"
+    elif [ $paused -eq 0 ] && [ "$code" != 0 ]; then
+      crashes=$((crashes + 1))
+      [ $crashes -ge "$MAX_CRASHES" ] && { log "KESIN DUR: is $crashes kez hatayla cikti"; return 2; }
+      log "is hatayla cikti; 60 sn sonra yeniden (kaldigi yerden)"; sleep 60
+    fi
+    wait_until_healthy || return 2
+    log "saglik normal: $phase kaldigi yerden devam"
+  done
+}
+
+snapshot_counters() {
+  local ali; ali=$(ali_id)
+  IFS='|' read -r PUB_START_OUTBOX PUB_START_MDL PUB_START_PUBLISHED < <(q "SELECT
+     (SELECT coalesce(max(id), 0) FROM search_outbox), (SELECT coalesce(max(id), 0) FROM match_decision_log),
+     (SELECT count(*) FROM product WHERE source_merchant_id = $ali AND publication_state = 'published')")
+  VERIFIED_UPTO=0
+  q "SELECT count(*), count(*) FILTER (WHERE product_id IS NOT NULL), coalesce(sum(current_price), 0) FROM offer WHERE merchant_id = $ali" >"$S/offers-before.txt"
+  q "SELECT count(*) FROM product WHERE source_merchant_id = $ali" >"$S/products-before.txt"
+  local ns; ns=$(q "SELECT extnamespace::regnamespace FROM pg_extension WHERE extname = 'pg_stat_statements'")
+  [ -n "$ns" ] && q "SELECT queryid, calls, total_exec_time FROM $ns.pg_stat_statements" >"$S/pgss-before.txt"
+  log "baslangic: published $PUB_START_PUBLISHED, outbox max id $PUB_START_OUTBOX, teklif (sayi|bagli|fiyat toplami) $(cat "$S/offers-before.txt"), urun $(cat "$S/products-before.txt")"
+}
+
+report() {
+  local ali; ali=$(ali_id)
+  log "== rapor"
+  qf "SELECT publication_state, hold_reason, count(*) FROM product WHERE source_merchant_id = $ali GROUP BY 1, 2 ORDER BY 3 DESC" | tee -a "$LOG"
+  qf "SELECT count(*) AS urun,
+             count(*) FILTER (WHERE publication_state = 'published') AS published,
+             count(*) FILTER (WHERE publication_state = 'draft') AS draft,
+             count(*) FILTER (WHERE publication_state = 'held') AS held,
+             count(*) FILTER (WHERE primary_image_url IS NOT NULL AND btrim(primary_image_url) <> '') AS gorselli
+        FROM product WHERE source_merchant_id = $ali" | tee -a "$LOG"
+  qf "SELECT count(*) AS teklif, count(*) FILTER (WHERE product_id IS NOT NULL) AS bagli,
+             coalesce(sum(current_price), 0) AS fiyat_toplami FROM offer WHERE merchant_id = $ali" | tee -a "$LOG"
+  [ -f "$S/offers-before.txt" ] && log "once (sayi|bagli|fiyat toplami): $(cat "$S/offers-before.txt"); urun once: $(cat "$S/products-before.txt" 2>/dev/null)"
+  qf "SELECT count(*) FILTER (WHERE processed_at IS NULL) AS outbox_bekleyen, count(*) AS outbox_toplam FROM search_outbox" | tee -a "$LOG"
+  qf "SELECT c.relname, pg_size_pretty(pg_total_relation_size(c.oid)) AS toplam, pg_size_pretty(pg_relation_size(c.oid)) AS tablo_ya_da_indeks
+        FROM pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace AND n.nspname = 'public'
+       WHERE c.relname IN ('product', 'offer', 'match_decision_log', 'search_outbox', 'product_title_trgm',
+                           'product_title_fold_trgm', 'product_title_fold_try_trgm', 'product_title_fold_foreign_trgm',
+                           'product_unpublished_idx', 'product_source_state_idx')
+       ORDER BY pg_total_relation_size(c.oid) DESC" | tee -a "$LOG"
+  [ "${WAL_THRESHOLDS_READY:-0}" = 1 ] || init_wal_thresholds
+  read_wal_state
+  log "db $(q "SELECT pg_size_pretty(pg_database_size(current_database()))"), pg_wal $(mb "$W_TOTAL") MB (recycled $(mb "$W_RECYCLED"), removable $(mb "$W_REMOVABLE")), arsivlenmemis $(mb "$W_READY") MB, arsiv hata sayisi $W_FAILED, disk bos $(disk_free_gb) GB"
+}
+
+# walstat: yalniz okur. Kok neden ve ayar kararlari icin kanit (karar 0134).
+walstat() {
+  init_wal_thresholds
+  local secs=${WALSTAT_SECONDS:-30}
+  read_wal_state || die "WAL durumu okunamadi"
+  sleep "$secs"
+  read_wal_state || die "WAL durumu okunamadi"
+  echo "== pg_wal siniflandirmasi (MB)"
+  printf '  %-12s %8s  %s\n' toplam "$(mb "$W_TOTAL")" "dizin (df ile ayni sey degil: disk rezervi ayrica)" \
+    recycled "$(mb "$W_RECYCLED")" "yeniden kullanilacak, max_wal_size'a kadar (BORC DEGIL)" \
+    removable "$(mb "$W_REMOVABLE")" "arsivlendi, sonraki checkpoint siler (BORC DEGIL)" \
+    redo_sonrasi "$(mb "$W_SINCE_REDO")" "cokme kurtarmasi icin (checkpoint'le duser)" \
+    arsivsiz "$(mb "$W_READY")" "ARSIV BORCU ($W_READY_FILES dosya, en eski ${W_OLDEST_READY_S} sn)" \
+    lag "$(mb "$W_LAG")" "insert LSN - son arsivlenen (is ici geri basinc bunu kullanir)"
+  echo "== hiz (${secs} sn)"
+  echo "  WAL uretimi ${WAL_GEN_MBPS} MB/s, arsiv ${WAL_ARCH_MBPS} MB/s, FPI kayit orani %${WAL_FPI_PCT} (istatistik sifirlamadan beri toplam $(mb "$W_BYTES") MB WAL)"
+  echo "== checkpoint: zamanli ${W_CKPT_TIMED}, istenen (WAL/elle) ${W_CKPT_REQ}"
+  echo "   istenen >> zamanli ise max_wal_size kucuk: her checkpoint sonrasi tam sayfa yazimi (FPI) WAL'i sisirir"
+  echo "== esikler: $(wal_thresholds_summary)"
+  qf "SELECT name, setting, unit FROM pg_settings WHERE name IN ('max_wal_size','min_wal_size','checkpoint_timeout','checkpoint_completion_target','wal_compression','wal_buffers','archive_timeout','archive_mode','full_page_writes') ORDER BY 1"
+}
+
+measure() {
+  local ali n=${PAGES:-40} ok=0 redir=0 bad=0 img_ok=0 img_bad=0 slug img code t
+  ali=$(ali_id)
+  log "== olcum: $n rastgele urun sayfasi + gorsel (1 sn arayla)"
+  : >"$S/pages.txt"
+  while IFS='|' read -r slug img; do
+    read -r code t < <(curl -s -o /dev/null -w '%{http_code} %{time_total}' --max-time 15 "$SITE/urun/$slug")
+    echo "$code $t $slug" >>"$S/pages.txt"
+    case "$code" in 200) ok=$((ok + 1)) ;; 3??) redir=$((redir + 1)) ;; *) bad=$((bad + 1)) ;; esac
+    code=$(curl -s -L -o /dev/null -w '%{http_code}:%{content_type}' --max-time 15 -r 0-1023 "$img")
+    case "$code" in 20[06]:image/*) img_ok=$((img_ok + 1)) ;; *) img_bad=$((img_bad + 1)); echo "gorsel $code $img" >>"$S/pages.txt" ;; esac
+    sleep 1
+  done < <(q "SELECT slug, primary_image_url FROM product TABLESAMPLE SYSTEM (0.05)
+               WHERE source_merchant_id = $ali AND publication_state = 'published' LIMIT $n")
+  log "urun sayfasi: 200=$ok yonlendirme(3xx)=$redir diger=$bad | gorsel: acilan=$img_ok acilmayan=$img_bad (ayrinti $S/pages.txt)"
+  if [ "$ok" -gt 0 ]; then
+    awk '$1==200{print $2*1000}' "$S/pages.txt" | sort -n | awk '{a[NR]=$1} END{if(NR) printf "urun sayfasi (200) ms: p50 %d p95 %d en kotu %d (n=%d)\n", a[int(NR*0.5+0.5)], a[int(NR*0.95+0.5)], a[NR], NR}' | tee -a "$LOG"
+  fi
+  if [ "$redir" -gt 0 ]; then
+    log "UYARI: $redir istek erken erisim yonlendirmesi (3xx) aldi. Bu sureler ara katmanin yanitidir; URUN SAYFASI PERFORMANSI DEGILDIR. Gercek sayfa olcumu icin Caddy kaydi (asagida, oturumlu trafik) ve pg_stat_statements kullanilir."
+    awk '$1 ~ /^3/{print $2*1000}' "$S/pages.txt" | sort -n | awk '{a[NR]=$1} END{if(NR) printf "  yonlendirme yaniti ms: p50 %d p95 %d (n=%d)\n", a[int(NR*0.5+0.5)], a[int(NR*0.95+0.5)], NR}' | tee -a "$LOG"
+  fi
+  log "Caddy erisim kaydi (gercek trafik, son ${SINCE:-3h}; yalniz 200 yanitlar; sorgu metni kayitta yok):"
+  compose logs --no-log-prefix --since "${SINCE:-3h}" caddy 2>/dev/null | python3 -c '
+import json,sys,collections
+d=collections.defaultdict(list); r3=collections.Counter()
+for line in sys.stdin:
+    try: e=json.loads(line)
+    except Exception: continue
+    r=e.get("request") or {}; u=r.get("uri") or ""; dur=e.get("duration"); st=e.get("status")
+    if dur is None: continue
+    for k in ("/ara/gorsel","/ara/link","/ara","/sohbet","/urun/"):
+        if u.startswith(k):
+            if st == 200: d[r.get("method","GET")+" "+k].append(float(dur)*1000)
+            elif isinstance(st, int) and 300 <= st < 400: r3[k]+=1
+            break
+for k,v in sorted(d.items()):
+    v.sort(); n=len(v); p=lambda q: v[min(n-1,int(q*n))]
+    print(f"  {k:<18} n={n:<5} p50={p(0.5):.0f}ms p95={p(0.95):.0f}ms en_kotu={v[-1]:.0f}ms")
+for k,c in sorted(r3.items()):
+    print(f"  {k:<18} yonlendirme(3xx)={c} (olcume katilmadi)")
+' | tee -a "$LOG"
+  local ns; ns=$(q "SELECT extnamespace::regnamespace FROM pg_extension WHERE extname = 'pg_stat_statements'")
+  if [ -n "$ns" ]; then
+    log "PostgreSQL arama sorgulari (pg_stat_statements; aday kumesi sorgulari):"
+    qf "SELECT calls, round(mean_exec_time::numeric, 1) AS ort_ms, round(max_exec_time::numeric, 1) AS en_kotu_ms,
+               round(stddev_exec_time::numeric, 1) AS sapma_ms, left(regexp_replace(query, '\s+', ' ', 'g'), 70) AS sorgu
+          FROM $ns.pg_stat_statements
+         WHERE query LIKE '%cand_raw%' OR query LIKE '%cand_meta%'
+         ORDER BY calls DESC LIMIT 10" | tee -a "$LOG"
+    if [ -f "$S/pgss-before.txt" ]; then
+      log "yayindan SONRAKI cagrilar (onceki anlik goruntuye gore fark):"
+      q "SELECT queryid, calls, total_exec_time FROM $ns.pg_stat_statements
+          WHERE query LIKE '%cand_raw%' OR query LIKE '%cand_meta%'" | python3 -c '
+import sys
+before={}
+for l in open(sys.argv[1]):
+    p=l.strip().split("|")
+    if len(p)==3: before[p[0]]=(int(p[1]),float(p[2]))
+calls=tot=0
+for l in sys.stdin:
+    q,c,t=l.strip().split("|"); c=int(c); t=float(t)
+    bc,bt=before.get(q,(0,0.0)); calls+=c-bc; tot+=t-bt
+print(f"  arama aday sorgulari: {calls} cagri, ortalama {tot/calls:.1f} ms" if calls else "  yeni arama cagrisi yok")
+' "$S/pgss-before.txt" | tee -a "$LOG"
+    fi
+  fi
+  docker stats --no-stream --format '{{.Name}} cpu={{.CPUPerc}} mem={{.MemUsage}}' | tee -a "$LOG"
+}
+
+status_cmd() {
+  echo "is: $(job_running && echo calisiyor || echo yok)"
+  tail -5 "$LOG" 2>/dev/null; tail -3 "$S/health.log" 2>/dev/null; tail -3 "$METRICS" 2>/dev/null
+  local ali; ali=$(ali_id)
+  q "SELECT publication_state, count(*) FROM product WHERE source_merchant_id = $ali GROUP BY 1 ORDER BY 1"
+}
+
+begin_run() { # ortak baslangic: kilit, sinyal, preflight, olcum sayfasi, sayac
+  rm -f "$S/STOP" "$S/PAUSE"
+  if [ "$HOLD_DEPLOY_LOCK" = 1 ]; then
+    exec 8>"$ROOT/.deploy.lock"
+    flock -n 8 || die "deploy kilidi alinamadi (bir deploy suruyor)"
+    log "deploy kilidi tutuluyor (yayin bitene kadar deploy baslamaz)"
+  fi
+  install_signal_traps
+  DROP_CHECK_SINCE=$(ts)
+  preflight || exit 1
+}
+begin_publishing() {
+  PROBE_SLUG=$(q "SELECT slug FROM product WHERE source_merchant_id = $(ali_id) AND publication_state = 'published' ORDER BY id LIMIT 1")
+  [ -n "$PROBE_SLUG" ] || die "olcum icin yayinda urun yok"
+  log "web olcum sayfasi: /urun/$PROBE_SLUG (erken erisimde 307 normaldir; yalniz yanit/canlilik)"
+  snapshot_counters
+  check_health resume || die "baslangicta saglik esigi asili: $REASON"
+}
+finish_publishing() {
+  log "== VACUUM (ANALYZE) (yavaslatilmis)"
+  q "SET vacuum_cost_delay = 2; SET vacuum_cost_limit = 1000; VACUUM (ANALYZE) product;" >>"$LOG" 2>&1
+  q "SET vacuum_cost_delay = 2; SET vacuum_cost_limit = 1000; VACUUM (ANALYZE) offer;" >>"$LOG" 2>&1
+  q "ANALYZE match_decision_log; ANALYZE search_outbox;" >>"$LOG" 2>&1
+  clear_bulk_window
+  report
+  measure
+}
+
+run_all() {
+  log "===== $MERCHANT tam katalog yayini basliyor"
+  begin_run
+  dryrun || exit 1
+  begin_publishing
+  log "== GATE --allow-foreign"
+  run_phase gate || { log "gate kesin durdu; tamamlanan partiler kalir. Sorun giderilince ayni komutla tekrar calistir."; report; exit 2; }
+  log "== PUBLISH --merchant $MERCHANT --allow-foreign"
+  run_phase publish || { log "publish kesin durdu; tamamlanan partiler kalir. Ayni komut kaldigi yerden surer."; report; exit 2; }
+  finish_publishing
+  log "===== BITTI: tum uygun $MERCHANT urunleri islendi (rapor yukarida, $LOG)"
+}
+
+publish_only() {
+  log "===== $MERCHANT yayini (yalniz publish; gate tamamlanmis olmali) basliyor"
+  begin_run
+  begin_publishing
+  log "== PUBLISH --merchant $MERCHANT --allow-foreign (kalan ready'den)"
+  run_phase publish || { log "publish kesin durdu; tamamlanan partiler kalir. Ayni komut kaldigi yerden surer."; report; exit 2; }
+  finish_publishing
+  log "===== BITTI: kalan ready urunleri islendi (rapor yukarida, $LOG)"
+}
+
+# Testler betigi `CATALOG_PUBLISH_LIB=1 source` ile yukler (yalniz fonksiyonlar).
+if [ "${CATALOG_PUBLISH_LIB:-0}" = 1 ]; then
+  return 0 2>/dev/null || exit 0
+fi
+
+case "${1:-}" in
+  preflight) preflight ;;
+  dryrun) dryrun ;;
+  run) run_all ;;
+  publish) publish_only ;;
+  walstat) walstat ;;
+  status) status_cmd ;;
+  stop) touch "$S/STOP"; echo "STOP: mevcut parti bitince durur, devam etmez" ;;
+  pause) touch "$S/PAUSE"; echo "PAUSE: mevcut parti bitince durur; 'resume' ile surer" ;;
+  resume) rm -f "$S/PAUSE"; echo "PAUSE kaldirildi" ;;
+  report) report ;;
+  measure) measure ;;
+  *) sed -n '2,20p' "$0"; exit 2 ;;
+esac
