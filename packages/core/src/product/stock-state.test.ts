@@ -3,9 +3,10 @@ import { offerStockState } from "./stock-state.ts";
 import { buildPriceComparison, type OfferInput } from "./variant-price.ts";
 
 describe("offerStockState (karar 0130)", () => {
-  it("stokta olan teklif bildirimden bagimsiz available", () => {
+  it("stokta olan teklif available; bildirilen unknown stok iddiasi degildir (karar 0118)", () => {
     expect(offerStockState(true, null)).toBe("available");
-    expect(offerStockState(true, "unknown")).toBe("available");
+    expect(offerStockState(true, "available")).toBe("available");
+    expect(offerStockState(true, "unknown")).toBe("unknown");
   });
 
   it("stok bildirilmediyse unknown, aksi halde unavailable", () => {

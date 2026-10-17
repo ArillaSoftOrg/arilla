@@ -79,13 +79,13 @@ export function MerchantList({
               {isBest ? <span className={styles.best}>{bestOfferLabel}</span> : null}
               <span className={styles.meta}>
                 <span>{offer.shippingLabel}</span>
-                {offer.inStock ? (
-                  inStockLabel ? (
-                    <span className={styles.inStock}>{inStockLabel}</span>
-                  ) : null
-                ) : offer.stockUnknown ? (
+                {offer.stockUnknown ? (
                   unknownStockLabel ? (
                     <span className={styles.stockUnknown}>{unknownStockLabel}</span>
+                  ) : null
+                ) : offer.inStock ? (
+                  inStockLabel ? (
+                    <span className={styles.inStock}>{inStockLabel}</span>
                   ) : null
                 ) : (
                   <span className={styles.outOfStock}>{outOfStockLabel}</span>

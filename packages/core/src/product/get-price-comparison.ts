@@ -12,6 +12,7 @@ import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { compareMerchants } from "../search/compare-merchants.ts";
 import type { MerchantOffer } from "../search/result-types.ts";
+import { offerStockState } from "./stock-state.ts";
 import {
   buildPriceComparison,
   type OfferInput,
@@ -127,6 +128,7 @@ type BatchRow = OfferVariantRow & {
   shipping_cost: string | null;
   free_shipping_threshold: string | null;
   offer_in_stock: boolean;
+  stock_state: string | null;
 };
 
 async function loadBatch(db: Database, productIds: readonly number[]) {
@@ -135,6 +137,7 @@ async function loadBatch(db: Database, productIds: readonly number[]) {
     SELECT o.product_id, o.id AS offer_id, o.merchant_id, m.name AS merchant_name, m.trust_score,
            o.current_price, o.list_price, o.shipping_cost, o.free_shipping_threshold,
            o.in_stock AS offer_in_stock, o.title_raw,
+           o.attributes_raw ->> 'stock_state' AS stock_state,
            ov.id AS variant_id, ov.size_label, ov.size_norm, ov.in_stock, ov.price_override
       FROM offer o
       JOIN merchant m ON m.id = o.merchant_id AND m.is_active
@@ -171,6 +174,7 @@ function offerInputsFromBatch(rows: readonly BatchRow[]): OfferInput[] {
       effectiveShipping: 0,
       effectiveTotal: 0,
       inStock: row.offer_in_stock,
+      stockUnknown: offerStockState(row.offer_in_stock, row.stock_state) === "unknown",
       url: "",
     });
   }
