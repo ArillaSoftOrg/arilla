@@ -242,6 +242,18 @@ jobs:
           infra/vps/bin/pg-backup infra/vps/bin/pg-backup-configure infra/vps/bin/pg-backup-activate
           infra/vps/bin/pg-restore-test infra/vps/bin/test-backup.sh infra/vps/backup/restore-inner.sh
           infra/vps/bin/batch-timers infra/vps/bin/catalog-publish infra/vps/bin/test-wal-backpressure.sh
+      # Shebang'li betik Git'te 100755 olmali: dagitim dosya kipini korur; 100644 kalan
+      # catalog-publish uretimde dogrudan calistirilamadi (elle chmod gerekti).
+      - name: shebang'li betikler calistirilabilir (100755)
+        run: |
+          bad=$(git ls-files -s | awk '$1 == "100644" { print $4 }' | while read -r f; do
+            if [ -f "$f" ] && [ "$(head -c 2 "$f" | tr -d '\000')" = '#!' ]; then echo "$f"; fi
+          done)
+          if [ -n "$bad" ]; then
+            echo "Shebang'li ama calistirilabilir olmayan dosyalar (git update-index --chmod=+x):"
+            echo "$bad"
+            exit 1
+          fi
       - name: duman testi
         run: bash infra/vps/bin/smoke-local.sh
 
