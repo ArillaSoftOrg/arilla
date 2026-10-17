@@ -1,4 +1,6 @@
 import {
+  adminHostPolicy,
+  authOriginForHost,
   buildGoogleAuthorizeUrl,
   classifyGoogleFailure,
   generateRawToken,
@@ -6,14 +8,15 @@ import {
   googleRedirectUri,
   requireAppUrl,
 } from "@arilla/core";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { rememberAuthNext } from "../next-cookie.ts";
 import { GOOGLE_STATE_COOKIE } from "./google-cookies.ts";
 
 /**
  * Google'a gidis. `redirect_uri` callback'in token adimiyla AYNI
- * fonksiyondan (`googleRedirectUri`) uretilir. Yapilandirma eksikse kullanici
+ * fonksiyondan (`googleRedirectUri`) uretilir; yonetim ana makinesinde
+ * (karar 0056) koken o ana makinedir, oturum cerezi oraya yazilsin. Yapilandirma eksikse kullanici
  * Google'a hic gonderilmez; log yalnizca eksik degiskenin ADINI tasir.
  */
 export async function GET(request: Request) {
@@ -25,7 +28,7 @@ export async function GET(request: Request) {
     redirect("/giris?error=google");
   }
 
-  const appUrl = requireAppUrl();
+  const appUrl = authOriginForHost(adminHostPolicy(), (await headers()).get("host"), requireAppUrl);
   const state = generateRawToken();
   const store = await cookies();
   rememberAuthNext(store, new URL(request.url).searchParams.get("next"));

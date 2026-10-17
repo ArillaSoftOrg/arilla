@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./admin-host": "./src/admin/admin-host.ts",
     "./admin-session": "./src/admin/session-policy.ts",
     "./cost-truth": "./src/admin/cost-truth.ts",
     "./auth-redirect": "./src/auth/safe-redirect.ts",

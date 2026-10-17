@@ -1457,6 +1457,38 @@ kötüye kullanıldığını gösterir, olay olarak ele alınır.
 Yetkili hesap kendi hesabını `/hesap`'tan silemez; önce rolü bu yolla düşürülür.
 Rolü düşürülmüş hesap silinince denetim satırları kalır, aktör bağlantısı boşalır.
 
+## Yönetim ana makinesi (`ADMIN_HOST`, karar 0056)
+
+`ADMIN_HOST` tanımsızken konsol bugünkü gibi `/yonetim`'dedir. Tanımlıyken
+(ör. `admin.manicepte.com`) konsol, `/api/yonetim/*` ve yönetim yetenekleri
+YALNIZCA o ana makinede çalışır; public sitedeki `/yonetim*` oraya 308 ile
+gider, oradaki public yollar public siteye döner. Yönetim girişi orada yalnızca
+Google'dır. Oturum çerezi host-only olduğu için yönetim oturumu public
+oturumdan ayrıdır: geçişten sonra yöneticiler admin alan adında bir kez daha
+giriş yapar.
+
+Kod değişkensiz dağıtılabilir (etkisizdir). Açma sırası — sıra bozulursa
+yönetim girişi kırılır, public site etkilenmez:
+
+1. DNS: `admin` kaydı web'i gösterir (Vercel: CNAME `cname.vercel-dns.com`;
+   VPS: A kaydı + Caddyfile'a `admin.<alan>` site bloğu, aynı `reverse_proxy`).
+2. Vercel: Project → Settings → Domains → `admin.<alan>` ekle, sertifika "Valid"
+   olsun. `https://admin.<alan>/yonetim/giris` açılmalı (henüz yönlendirme yok).
+3. Google Cloud Console → OAuth istemcisi → Authorized redirect URIs'e
+   `https://admin.<alan>/giris/google/callback` ekle (eskisi KALIR).
+4. Ortam: `ADMIN_HOST=admin.<alan>` yalnızca Production'a (preview'a değil),
+   yeniden dağıt. Üretimde değer port/localhost içerirse ya da biçim bozuksa
+   konsol hiçbir yerde açılmaz (fail-closed), public site çalışır.
+5. Doğrula:
+   - `curl -sI https://<alan>/yonetim` → `308`, `location: https://admin.<alan>/yonetim`
+   - `curl -sI https://admin.<alan>/` → `307` → `/yonetim`
+   - `curl -sI https://admin.<alan>/hakkinda` → `308` → `https://<alan>/hakkinda`
+   - `curl -s -o /dev/null -w '%{http_code}' -X POST https://<alan>/api/yonetim/katalog-toplama` → `404`
+   - Tarayıcıda admin alan adında Google ile giriş, bir konsol sayfası ve bir
+     işlem (ör. kullanıcı arama).
+
+Geri alma: `ADMIN_HOST`'u sil ve yeniden dağıt; konsol `/yonetim`'e döner.
+
 ## Acil oturum kapatma (ele geçirilmiş hesap)
 
 Karar 0050. Üç yol, en hızlısından:

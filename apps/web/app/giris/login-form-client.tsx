@@ -71,13 +71,18 @@ export interface ProviderAvailability {
  * `availability`: yapılandırılmamış sağlayıcı bağlantı olmaz, "şu an
  * kullanılamıyor" notuyla devre dışı gösterilir - kullanıcı bozuk bir
  * akışa gönderilmez. Başlangıç route'ları aynı kontrolü ayrıca yapar.
+ *
+ * `googleOnly`: yönetim ana makinesi (karar 0056) yalnızca Google girişi sunar;
+ * Apple düğmesi hiç çizilmez.
  */
 export function LoginFormClient({
   next,
   availability,
+  googleOnly = false,
 }: {
   next?: string;
   availability?: ProviderAvailability;
+  googleOnly?: boolean;
 } = {}) {
   const withNext = (href: string) =>
     next && next !== "/" ? `${href}?next=${encodeURIComponent(next)}` : href;
@@ -102,7 +107,7 @@ export function LoginFormClient({
   return (
     <div className={styles.authChoices}>
       {provider("google", "/giris/google", COPY.google, <GoogleMark />)}
-      {provider("apple", "/giris/apple", COPY.apple, <AppleMark />)}
+      {googleOnly ? null : provider("apple", "/giris/apple", COPY.apple, <AppleMark />)}
     </div>
   );
 }
