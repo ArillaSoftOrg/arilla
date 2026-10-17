@@ -16,7 +16,14 @@ import Link from "next/link";
 import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
 import { PageHeader, Pager, Tile } from "../../admin-ui.tsx";
-import { formatCount, formatDateOrDash, formatKurus, hrefWith, positiveInt } from "../../format.ts";
+import {
+  formatCount,
+  formatDateOrDash,
+  formatForeignPrices,
+  formatKurus,
+  hrefWith,
+  positiveInt,
+} from "../../format.ts";
 
 const QUALITY_LABELS: Record<ProductQualityFilter, string> = {
   no_brand: "Markasız",
@@ -26,6 +33,7 @@ const QUALITY_LABELS: Record<ProductQualityFilter, string> = {
   no_price: "Fiyatsız",
   // Karar 0051: mağaza fiyatının eskiliği DEĞİL; fiyat özetinin son değiştiği an.
   stale_price: "Fiyat özeti 7+ gündür yenilenmedi",
+  foreign_only: "Yalnız yurt dışı fiyatlı",
 };
 
 /** Yayın durumu (karar 0121): kaynak ilanı taslakları varsayılan listede yok. */
@@ -174,8 +182,26 @@ export default async function ProductsPage({
                     <br />
                     <span className={styles.meta}>{row.categoryPath ?? "kategorisiz"}</span>
                   </td>
-                  <td className={styles.num}>{formatKurus(row.minPrice)}</td>
-                  <td className={styles.num}>{`${row.offerCount} (${row.inStockCount})`}</td>
+                  <td className={styles.num}>
+                    {formatKurus(row.minPrice)}
+                    {row.foreignPrices.length > 0 ? (
+                      <>
+                        <br />
+                        <span className={styles.meta}>
+                          {`yurt dışı ${formatForeignPrices(row.foreignPrices)}`}
+                        </span>
+                      </>
+                    ) : null}
+                  </td>
+                  <td className={styles.num}>
+                    {`${row.offerCount} (${row.inStockCount})`}
+                    {row.foreignOfferCount > 0 ? (
+                      <>
+                        <br />
+                        <span className={styles.meta}>{`yurt dışı ${row.foreignOfferCount}`}</span>
+                      </>
+                    ) : null}
+                  </td>
                   <td>{formatDateOrDash(row.priceUpdatedAt)}</td>
                 </tr>
               ))}

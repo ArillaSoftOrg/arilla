@@ -5,7 +5,7 @@ import Link from "next/link";
 import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
 import { Notice, PageHeader, Pager } from "../../admin-ui.tsx";
-import { formatDateOrDash, formatKurus, hrefWith, positiveInt } from "../../format.ts";
+import { formatDateOrDash, formatMinor, hrefWith, positiveInt } from "../../format.ts";
 
 const STATE_LABELS: Record<OfferState, string> = {
   unmatched: "Eşleşmemiş (aktif)",
@@ -129,7 +129,7 @@ export default async function OffersPage({
                   <td>
                     <Link href={`/yonetim/magazalar/${o.merchantSlug}`}>{o.merchantName}</Link>
                   </td>
-                  <td className={styles.num}>{formatKurus(o.price)}</td>
+                  <td className={styles.num}>{formatMinor(o.price, o.currency)}</td>
                   <td>
                     {o.productId ? (
                       <Link href={`/yonetim/katalog/urunler/${o.productId}`}>

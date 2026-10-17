@@ -2,6 +2,7 @@ import {
   alertSizeNormForVariant,
   type ComparisonRow,
   findAlternatives,
+  foreignHeadlineOffer,
   formatMinorWithCurrency,
   getColorVariants,
   getPriceHistory,
@@ -12,6 +13,7 @@ import {
   getSizeOptions,
   getVariantPriceHistory,
   isProductSitemapEligible,
+  type ProductForeignOffer,
   readAppUrl,
   recordActivity,
   recordProductView,
@@ -125,6 +127,13 @@ function trDateTime(date: Date): string {
     timeStyle: "short",
     timeZone: "Europe/Istanbul",
   }).format(date);
+}
+
+/** Yaklaşık TL yalnızca güncel TCMB kuru varsa (karar 0113); kur yoksa null, uydurulmaz. */
+function approxTryText(offer: ProductForeignOffer): string | null {
+  return offer.approx
+    ? `≈ ${formatTRY(offer.approx.approxTryMinor)} (TCMB kuru, ${trDate(offer.approx.quote.effectiveDate)})`
+    : null;
 }
 
 /** `generateMetadata` ve sayfa bileşeni ayni istekte ayni sluğu iki kez çözmesin. */
@@ -268,6 +277,13 @@ export default async function ProductPage({
     merchantOffers.find((offer) => offer.stockUnknown) ??
     cheapest;
   const singleOffer = merchantOffers.length === 1;
+  // Karar 0127: TL teklifi yoksa başlıkta yurt dışı teklif KENDİ para birimiyle gösterilir
+  // ("mağaza fiyatı yok" yanlış olurdu). Varyant modu yalnızca TL tekliflerden oluşur.
+  const foreignHeadline = variantMode
+    ? null
+    : foreignHeadlineOffer(merchantOffers.length > 0, foreignOffers);
+  // Tek yurt dışı teklif başlıkta gösterildiyse aynı satır aşağıda tekrar edilmez.
+  const showForeignList = foreignOffers.length > (foreignHeadline ? 1 : 0);
 
   const positionLines: string[] = [];
   // Urun duzeyi fiyat istatistigi boyutlari karistirir; varyant modunda
@@ -444,6 +460,16 @@ export default async function ProductPage({
                 listPriceLabel="Liste fiyatı"
                 currentPriceLabel="En uygun teklif"
               />
+            ) : foreignHeadline ? (
+              <div className={styles.startingPrice}>
+                <p className={styles.startingLabel}>Yurt dışı teklifi</p>
+                <p className={styles.startingValue}>
+                  {formatMinorWithCurrency(foreignHeadline.priceMinor, foreignHeadline.currency)}
+                </p>
+                <p className={styles.variantHint}>
+                  {`${approxTryText(foreignHeadline) ?? "Güncel kur olmadığı için TL karşılığı verilmiyor."} Kargo, gümrük ve vergi belirsiz.`}
+                </p>
+              </div>
             ) : (
               <p className={styles.noOffers}>Şu an bu ürün için mağaza fiyatı yok.</p>
             )}
@@ -455,7 +481,11 @@ export default async function ProductPage({
             {listPriceNoteText ? <ListPriceNote text={listPriceNoteText} /> : null}
 
             {/* 12. Son güncelleme - design.md: "Fiyatın yanında güncellenme zamanı yazılır". */}
-            {product.priceUpdatedAt ? (
+            {foreignHeadline ? (
+              <UpdatedAt
+                text={`Fiyat ${trDateTime(foreignHeadline.priceObservedAt)} tarihinde kaydedildi`}
+              />
+            ) : product.priceUpdatedAt ? (
               <UpdatedAt text={`${formatSure(product.priceUpdatedAt, now)} önce güncellendi`} />
             ) : null}
           </div>
@@ -549,6 +579,19 @@ export default async function ProductPage({
                 </a>
               ) : null}
               {/* design.md envanteri: affiliate bildirimi çıkış öncesi ve altbilgide. */}
+              <p className={styles.notice}>{HOME_COPY.affiliateNotice}</p>
+            </div>
+          ) : foreignHeadline ? (
+            <div className={styles.primaryOffer}>
+              {/* attribution: kural 8 - /git uzerinden; TRY disi tutar click'e yazilmaz (0113). */}
+              <a
+                href={`/git/${foreignHeadline.offerId}?surface=product_primary`}
+                target="_blank"
+                rel="nofollow sponsored noopener"
+                className={styles.primaryCta}
+              >
+                {`${foreignHeadline.merchantName} sayfasında aç`}
+              </a>
               <p className={styles.notice}>{HOME_COPY.affiliateNotice}</p>
             </div>
           ) : null}
@@ -699,7 +742,7 @@ export default async function ProductPage({
       ) : null}
 
       {/* 7b. Yurt dışı teklifleri: TL listesine ve fiyat sıralamasına GİRMEZ (karar 0121). */}
-      {foreignOffers.length > 0 ? (
+      {showForeignList ? (
         <Section
           spacing="compact"
           id="yurt-disi"
@@ -717,9 +760,7 @@ export default async function ProductPage({
               <li key={offer.offerId} className={styles.foreignItem}>
                 <p className={styles.foreignPrice}>
                   {formatMinorWithCurrency(offer.priceMinor, offer.currency)}
-                  {offer.approx
-                    ? ` · ≈ ${formatTRY(offer.approx.approxTryMinor)} (TCMB kuru, ${trDate(offer.approx.quote.effectiveDate)})`
-                    : ""}
+                  {approxTryText(offer) ? ` · ${approxTryText(offer)}` : ""}
                 </p>
                 <p className={styles.sectionMeta}>
                   {`${offer.merchantName} · fiyat ${trDateTime(offer.priceObservedAt)} tarihinde kaydedildi`}

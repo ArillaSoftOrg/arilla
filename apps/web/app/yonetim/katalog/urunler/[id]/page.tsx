@@ -5,7 +5,14 @@ import { notFound } from "next/navigation";
 import { requireCapability } from "../../../../lib/dal.ts";
 import styles from "../../../admin.module.css";
 import { KeyValues, PageHeader, Section, StatusText } from "../../../admin-ui.tsx";
-import { formatDateOrDash, formatKurus, positiveInt, reviewReasonLabel } from "../../../format.ts";
+import {
+  formatDateOrDash,
+  formatForeignPrices,
+  formatKurus,
+  formatMinor,
+  positiveInt,
+  reviewReasonLabel,
+} from "../../../format.ts";
 
 function attributeText(value: unknown): string {
   if (value === null || value === undefined) return "—";
@@ -58,9 +65,12 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         <Section id="fiyat" title="Fiyat">
           <KeyValues
             items={[
-              ["En düşük", formatKurus(product.minPrice)],
-              ["En yüksek", formatKurus(product.maxPrice)],
-              ["Mağaza / stokta", `${product.offerCount} / ${product.inStockCount}`],
+              ["En düşük (TRY)", formatKurus(product.minPrice)],
+              ["En yüksek (TRY)", formatKurus(product.maxPrice)],
+              ["Mağaza / stokta (TRY)", `${product.offerCount} / ${product.inStockCount}`],
+              // Karar 0127: TRY dışı teklifler özette ayrı sayılır, TL'ye çevrilmez.
+              ["Yurt dışı mağaza", String(product.foreignOfferCount)],
+              ["Yurt dışı en düşük", formatForeignPrices(product.foreignPrices)],
               // Karar 0051: teklif sayısı ve en düşük/yüksek fiyat bu özetten gelir.
               ["Fiyat özeti yenilendi", formatDateOrDash(product.priceUpdatedAt)],
               ["30 gün en düşük", formatKurus(detail.priceStats?.min30d ?? null)],
@@ -126,11 +136,13 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
                     </span>
                   </td>
                   <td className={styles.num}>
-                    {formatKurus(o.price)}
+                    {formatMinor(o.price, o.currency)}
                     {o.listPrice && o.listPrice !== o.price ? (
                       <>
                         <br />
-                        <span className={styles.meta}>{`liste ${formatKurus(o.listPrice)}`}</span>
+                        <span className={styles.meta}>
+                          {`liste ${formatMinor(o.listPrice, o.currency)}`}
+                        </span>
                       </>
                     ) : null}
                   </td>
