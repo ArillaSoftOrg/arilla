@@ -5,9 +5,12 @@ Yayin aninda, tek islemde parti parti:
 1. Kaynak teklif OKUNUR ve politika yeniden uygulanir (kapidan sonra veri degismis olabilir).
 2. `offer.product_id` BAGLANIR (yalnizca hala bagsiz, aktif ve izinli para birimindeki
    teklif). Bag kurulamayan urun `held` olur, yayinlanmaz.
-3. Urun `published` olur; baslik/gorsel kaynaktan tazelenir (slug SABIT kalir).
-4. Fiyat ozeti yenilenir (TRY-only; yurt disi teklif min_price'i kirletmez).
-5. `match_decision_log` (link, actor=backfill, basis=source_listing) ve `search_outbox`.
+3. Urun `published` olur; baslik/gorsel kaynaktan tazelenir (slug SABIT kalir) ve fiyat
+   ozeti AYNI UPDATE'te yazilir (TRY-only; yurt disi teklif min_price'i kirletmez). Kural
+   `product_aggregate_values` (migration 0090). Urun satiri bir kez yazilir (karar 0135):
+   ayri ozet yenilemesi ikinci, HOT olmayan bir surum uretip butun indekslere yeniden
+   giriyordu.
+4. `match_decision_log` (link, actor=backfill, basis=source_listing) ve `search_outbox`.
 
 TRY disi urunler `CATALOG_PUBLISH_FOREIGN_APPROVED=true` olmadan YAYINLANMAZ: yurt disi
 fiyatin herkese acik gosterimi acik bir urun karari (karar 0113/0114).
@@ -26,7 +29,6 @@ import psycopg
 from psycopg.types.json import Jsonb
 
 from catalog_build.policy import POLICIES, SourceOffer, SourcePolicy, evaluate
-from db import product_aggregates
 
 DEFAULT_BATCH = 500
 FOREIGN_APPROVAL_ENV = "CATALOG_PUBLISH_FOREIGN_APPROVED"
@@ -51,12 +53,30 @@ UPDATE offer o SET product_id = t.pid
 RETURNING t.pid
 """
 
+#: Yayin + fiyat ozeti tek yazimda. Ozet, ayni islemde az once baglanan teklifleri okur
+#: (`LINK_OFFERS` bu ifadeden once calisir). `cur` guncelleme ONCESI satirdir: ozet
+#: degismediyse `price_updated_at` korunur ve satir `aggregates_updated` sayilmaz
+#: (`refresh_product_aggregates` ile ayni anlam). Satirlar SELECT_READY'de kilitlendi.
 PUBLISH_PRODUCTS = """
 UPDATE product p SET publication_state = 'published', hold_reason = NULL,
        published_at = now(), updated_at = now(),
-       title = t.title, primary_image_url = t.image
+       title = t.title, primary_image_url = t.image,
+       min_price = a.min_price, max_price = a.max_price, offer_count = a.offer_count,
+       in_stock_count = a.in_stock_count, foreign_offer_count = a.foreign_offer_count,
+       price_updated_at = CASE
+           WHEN (cur.min_price, cur.max_price, cur.offer_count, cur.in_stock_count,
+                 cur.foreign_offer_count)
+                IS DISTINCT FROM (a.min_price, a.max_price, a.offer_count, a.in_stock_count,
+                                  a.foreign_offer_count)
+           THEN now() ELSE cur.price_updated_at END
   FROM unnest(%(pids)s::bigint[], %(titles)s::text[], %(images)s::text[]) AS t(pid, title, image)
+  JOIN product_aggregate_values(%(pids)s::bigint[]) AS a ON a.product_id = t.pid
+  JOIN product cur ON cur.id = t.pid
  WHERE p.id = t.pid AND p.publication_state = 'ready'
+RETURNING (cur.min_price, cur.max_price, cur.offer_count, cur.in_stock_count,
+           cur.foreign_offer_count)
+          IS DISTINCT FROM (a.min_price, a.max_price, a.offer_count, a.in_stock_count,
+                            a.foreign_offer_count)
 """
 
 HOLD_PRODUCTS = """
@@ -93,7 +113,8 @@ WITH picked AS (
       FROM unlinked
 ), reverted AS (
     UPDATE product p SET publication_state = 'ready', published_at = NULL, updated_at = now(),
-           min_price = NULL, max_price = NULL, offer_count = 0, in_stock_count = 0
+           min_price = NULL, max_price = NULL, offer_count = 0, in_stock_count = 0,
+           foreign_offer_count = 0
       FROM picked WHERE p.id = picked.id
     RETURNING p.id
 )
@@ -214,6 +235,7 @@ def publish_ready(
                         "images": [ok_image[i] for i in publish_idx],
                     },
                 )
+                totals.aggregates_updated += sum(1 for (changed,) in cur.fetchall() if changed)
                 cur.execute(
                     LOG_LINKS,
                     {
@@ -224,7 +246,6 @@ def publish_ready(
                 )
                 cur.execute(OUTBOX, {"pids": pids, "reason": "source_listing_published"})
                 totals.published += len(pids)
-                totals.aggregates_updated += product_aggregates.refresh_products(conn, pids)
             if hold_p:
                 cur.execute(HOLD_PRODUCTS, {"pids": hold_p, "reasons": hold_reason})
         conn.commit()

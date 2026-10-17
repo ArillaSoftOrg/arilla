@@ -566,3 +566,120 @@ def test_gate_and_publish_never_change_offer_price_or_currency(world):
     assert fetch(
         "SELECT current_price, currency, is_active FROM offer WHERE id = %s", offer_id
     ) == [(1999, "TRY", True)]
+
+
+def test_publish_writes_price_summary_once_and_equal_to_refresh(world, monkeypatch):
+    """Karar 0135: ozet yayin UPDATE'inde yazilir; ayni kural (0090), ayni sonuc."""
+    m, other = world[SLUG], world[OTHER_SLUG]
+    with _owner() as owner, owner.cursor() as cur:
+        try_offer = add_offer(cur, m, 1, currency="TRY", price=25000)
+        usd_offer = add_offer(cur, m, 2, currency="USD", price=1299)
+        owner.commit()
+    build(world)
+    with _app() as conn:
+        gate_mod.run_gate(conn, allow_foreign=True)
+    (try_pid,) = fetch("SELECT id FROM product WHERE source_offer_id = %s", try_offer)[0]
+    with _owner() as owner, owner.cursor() as cur:
+        # Baska magazanin daha ucuz, stoksuz TRY teklifi ayni urune zaten bagli.
+        cheaper = add_offer(cur, other, 50, currency="TRY", price=19900)
+        cur.execute(
+            "UPDATE offer SET product_id = %s, in_stock = false WHERE id = %s", (try_pid, cheaper)
+        )
+        owner.commit()
+
+    monkeypatch.setenv(publish_mod.FOREIGN_APPROVAL_ENV, "true")
+    with _app() as conn:
+        counts = publish_mod.publish_ready(conn, policies=POLICIES, limit=10, allow_foreign=True)
+    assert counts.published == 2
+    assert counts.aggregates_updated == 2
+
+    rows = {
+        r[0]: r[1:]
+        for r in fetch(
+            """SELECT p.source_offer_id, p.publication_state, p.min_price, p.max_price,
+                      p.offer_count, p.in_stock_count, p.foreign_offer_count,
+                      p.price_updated_at IS NOT NULL
+                 FROM product p WHERE p.source_merchant_id = %s""",
+            m,
+        )
+    }
+    assert rows[try_offer] == ("published", 19900, 25000, 2, 1, 0, True)
+    assert rows[usd_offer] == ("published", None, None, 0, 0, 1, True)
+    # Tek kural: ayni urunlerde tam yenileme hicbir satiri degistirmez.
+    pids = [r[0] for r in fetch("SELECT id FROM product WHERE source_merchant_id = %s", m)]
+    assert fetch("SELECT refresh_product_aggregates(%s::bigint[])", pids) == [(0,)]
+
+
+def test_publish_keeps_price_timestamp_when_summary_is_unchanged(world):
+    m = world[SLUG]
+    with _owner() as owner, owner.cursor() as cur:
+        offer_id = add_offer(cur, m, 1, currency="TRY", price=25000)
+        owner.commit()
+    build(world)
+    with _app() as conn:
+        gate_mod.run_gate(conn)
+    (pid,) = fetch("SELECT id FROM product WHERE source_offer_id = %s", offer_id)[0]
+    with _owner() as owner, owner.cursor() as cur:
+        # Ozet onceden dogru (or. yeniden yayin): damga ve sayac degismez.
+        cur.execute(
+            """UPDATE product SET min_price = 25000, max_price = 25000, offer_count = 1,
+                      in_stock_count = 1, price_updated_at = '2026-01-01T00:00:00Z' WHERE id = %s""",
+            (pid,),
+        )
+        owner.commit()
+    with _app() as conn:
+        counts = publish_mod.publish_ready(conn, policies=POLICIES, limit=10)
+    assert counts.published == 1 and counts.aggregates_updated == 0
+    assert fetch(
+        "SELECT publication_state, min_price, price_updated_at = '2026-01-01T00:00:00Z' FROM product WHERE id = %s",
+        pid,
+    ) == [("published", 25000, True)]
+
+
+def test_publish_with_merchant_filter_never_touches_other_sources(world, monkeypatch):
+    m, other = world[SLUG], world[OTHER_SLUG]
+    with _owner() as owner, owner.cursor() as cur:
+        add_offer(cur, m, 1, currency="USD")
+        other_offer = add_offer(cur, other, 2, currency="USD")
+        # Diger kaynagin `ready` urunu kimlik sirasinda araya girer.
+        cur.execute(
+            """INSERT INTO product (slug, title, primary_image_url, source_merchant_id,
+                                    source_external_id, source_offer_id, publication_state)
+               VALUES ('test-cb-other-ready', 'Other Source Ready Product', NULL, %s, %s, %s, 'ready')
+               RETURNING id""",
+            (other, ext(2), other_offer),
+        )
+        other_pid = cur.fetchone()[0]
+        owner.commit()
+    build(world)
+    with _app() as conn:
+        gate_mod.run_gate(conn, allow_foreign=True)
+    before = fetch("SELECT * FROM product WHERE id = %s", other_pid)
+    monkeypatch.setenv(publish_mod.FOREIGN_APPROVAL_ENV, "true")
+    with _app() as conn:
+        counts = publish_mod.publish_ready(
+            conn, policies=POLICIES, limit=10, merchant_id=m, allow_foreign=True
+        )
+    assert counts.published == 1 and counts.held == {}
+    assert fetch("SELECT * FROM product WHERE id = %s", other_pid) == before
+    assert fetch("SELECT product_id FROM offer WHERE id = %s", other_offer) == [(None,)]
+
+
+def test_unpublish_resets_foreign_offer_count(world, monkeypatch):
+    m = world[SLUG]
+    with _owner() as owner, owner.cursor() as cur:
+        offer_id = add_offer(cur, m, 1, currency="USD")
+        owner.commit()
+    build(world)
+    monkeypatch.setenv(publish_mod.FOREIGN_APPROVAL_ENV, "true")
+    with _app() as conn:
+        gate_mod.run_gate(conn, allow_foreign=True)
+        publish_mod.publish_ready(conn, policies=POLICIES, limit=5, allow_foreign=True)
+    (pid,) = fetch("SELECT id FROM product WHERE source_offer_id = %s", offer_id)[0]
+    assert fetch("SELECT foreign_offer_count FROM product WHERE id = %s", pid) == [(1,)]
+    with _app() as conn:
+        assert publish_mod.unpublish(conn, [pid]) == 1
+    assert fetch(
+        "SELECT publication_state, foreign_offer_count FROM product WHERE id = %s", pid
+    ) == [("ready", 0)]
+    assert fetch("SELECT refresh_product_aggregates(ARRAY[%s]::bigint[])", pid) == [(0,)]
