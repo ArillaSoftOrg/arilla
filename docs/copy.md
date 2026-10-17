@@ -338,6 +338,7 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `offers.international_note` | Yurt dışı tekliflerinde fiyat mağazanın para birimiyle verilir. TL tutarı yaklaşıktır ve TCMB kuruyla hesaplanır. Kargo, gümrük ve vergi bilinmediği için toplam tutar farklı olabilir; bu teklifler fiyat sıralamasına girmez. |
 | `offers.approx` | ≈ {tutar} |
 | `offers.rate_note` | TCMB kuru, {tarih} |
+| `offers.no_rate` | TL karşılığı için güncel kur yok |
 | `offers.no_rate` | Kur bilgisi yok; TL tutarı gösterilmiyor. |
 | `offers.shipping_unknown` | Kargo ve vergi belirsiz |
 | `offers.source_international` | Yurt dışı |

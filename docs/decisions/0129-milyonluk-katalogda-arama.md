@@ -86,7 +86,8 @@ TCMB kuru), 0121 (kaynak ilanından ürün), 0125 (`kind: concurrent`), 0127 (yu
    (`fx_rate`, en fazla `MAX_RATE_AGE_DAYS` = 4 gün eski, gelecek tarihli değil) **yaklaşık kuruş** olur:
    `round(current_price * rate)` — numeric, float yok, yarım yukarı (`pricing/fx.ts` ile aynı). Güncel kur
    yoksa yurt dışı teklif seçilmez; kur uydurulmaz. Orijinal tutar, para birimi ve kur tarihi
-   (`foreignPrice`) sonuçla taşınır.
+   (`foreignPrice`) sonuçla taşınır. **0132 ile değişti:** kur yoksa teklif yine seçilir, TL fiyatı NULL kalır, kart
+   tutarı kendi para birimiyle gösterir.
 4. **Sıralama.** "Bizim seçtiklerimiz"de yurt dışı teklifin mağaza güveni `FOREIGN_OFFER_TRUST_FACTOR`
    (0,8) ile çarpılır: eşit alakada TRY teklifli ürün öndedir (kargo/gümrük/teslim belirsizliği).
    "En iyi fırsatlar" sekmesine yurt dışı teklif girmez (fiyat yüzdeliği TRY geçmişidir). Fiyat süzgeci
