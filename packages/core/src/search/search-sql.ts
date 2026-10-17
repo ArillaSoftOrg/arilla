@@ -94,7 +94,10 @@ export function bestOfferCte(
         AND o.is_active AND m.is_active
         AND (o.currency = 'TRY' OR o.current_price > 0)
         AND ${merchantFilter}
-        AND (NOT ${inStockOnly} OR o.in_stock)
+        -- "Stokta olanlar": stok bildirmeyen kaynak (stock_state=unknown, karar 0118) dogrulanmis
+        -- stok sayilmaz; filtre kapaliyken (varsayilan) urun gizlenmez.
+        AND (NOT ${inStockOnly} OR (o.in_stock
+             AND (o.attributes_raw ->> 'stock_state') IS DISTINCT FROM 'unknown'))
         ${only}
         ${scoped}
       ORDER BY o.product_id, (o.currency <> 'TRY'), ${priceTry} ASC NULLS LAST

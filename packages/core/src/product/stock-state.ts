@@ -6,10 +6,13 @@
  * = 'unknown' ile tasinir (services/ingest/feeds/intake.py). Bu durumda arayuz "stokta yok"
  * DEMEZ: bilinmeyen bilgi uydurulmaz. Diger tum beslemeler icin anahtar yoktur ve sonuc
  * eskisiyle aynidir.
+ *
+ * Bildirilen `unknown` `inStock`tan once gelir: Trendyol (karar 0118) bilinmeyen stogu aramada
+ * cezalandirmamak icin `in_stock = true` yazar; bu da bir stok iddiasi degildir.
  */
 export type StockState = "available" | "unavailable" | "unknown";
 
 export function offerStockState(inStock: boolean, declared: string | null | undefined): StockState {
-  if (inStock) return "available";
-  return declared === "unknown" ? "unknown" : "unavailable";
+  if (declared === "unknown") return "unknown";
+  return inStock ? "available" : "unavailable";
 }

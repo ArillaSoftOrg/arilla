@@ -18,6 +18,16 @@ importers:
         specifier: ^3.2.4
         version: 3.2.7(@types/node@24.13.3)(tsx@4.23.13)
 
+  apps/trendyol-collector-extension:
+    dependencies:
+      '@arilla/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+    devDependencies:
+      esbuild:
+        specifier: 0.25.12
+        version: 0.25.12
+
   apps/web:
     dependencies:
       '@arilla/core':

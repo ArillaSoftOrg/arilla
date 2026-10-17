@@ -63,4 +63,15 @@ MERCHANT_PROFILES: dict[str, dict[str, Any]] = {
         "affiliate_status": "none",
         "deeplink_template": None,
     },
+    # Trendyol yonetici tarayicisindan toplama (karar 0118): affiliate yok; cikis click
+    # kaydiyla kanonik urun adresine gider (kural 8).
+    "tycollect:trendyol": {
+        "slug": "trendyol",
+        "name": "Trendyol",
+        "domain": "trendyol.com",
+        "source_type": "user_discovered",
+        "affiliate_network": None,
+        "affiliate_status": "none",
+        "deeplink_template": None,
+    },
 }
