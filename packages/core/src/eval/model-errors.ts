@@ -1,5 +1,6 @@
 /**
- * Gemini cagri sonuclarindan `ai_error_event` kaydi (karar 0099).
+ * Model cagri sonuclarindan `ai_error_event` kaydi (karar 0099): Gemini (sohbet,
+ * sorgu yorumu, internet aramasi) ve Jina (kullanici gorseli embedding'i).
  *
  * - Sonuc (outcome) TEK hata olayi uretir; HTTP denemesi basina degil. Yeniden
  *   denemeler `api_usage`ta ayri satirdir, hata olayi ise cagrinin sonucudur.
@@ -7,9 +8,10 @@
  * - Kayit sinirli sureli ve asla firlatmaz; kullanici islemini bozmaz/geciktirmez.
  * - Yeni model cagrisi yapmaz.
  */
-import type { AiSurface, Database } from "@arilla/db";
+import type { AiProvider, AiSurface, Database } from "@arilla/db";
 import type { ModelTurnRejection } from "../chat/contract.ts";
 import type { InterpretationOutcome } from "../chat/interpreter.ts";
+import { EmbeddingError } from "../embedding/client.ts";
 import { type LlmCall, LlmError, type LlmErrorCode } from "../llm/client.ts";
 import type { ModelInterpretationOutcome } from "../llm/intent-interpreter.ts";
 import { recordAiError } from "./store.ts";
@@ -72,6 +74,25 @@ export function failureFromChatTurn(outcome: InterpretationOutcome): Error | nul
 }
 
 /**
+ * Jina embedding hatasi -> icerik tasimayan hata. Saglayici yanit govdesi (ilk 200
+ * karakter) mesajdan atilir; yalniz HTTP durumu ya da zaman asimi kalir ki
+ * `classifyAiError` sinifi dogru cikarsin.
+ */
+export function failureFromEmbedding(error: unknown): Error {
+  const message = error instanceof Error ? error.message : "";
+  const status = /sağlayıcı (\d{3})/.exec(message)?.[1];
+  if (status) return new EmbeddingError(`HTTP ${status}`);
+  if (/zaman aşımı/.test(message)) return new EmbeddingError("timeout");
+  if (error instanceof Error && (error.name === "TimeoutError" || error.name === "AbortError")) {
+    return new EmbeddingError("timeout");
+  }
+  if (/ECONNRESET|ENOTFOUND|ECONNREFUSED|fetch failed/i.test(message)) {
+    return new EmbeddingError("fetch failed");
+  }
+  return new Error(error instanceof EmbeddingError ? "embedding response rejected" : "unknown");
+}
+
+/**
  * Sohbet turu hatasi icin TEK satirlik, icerik tasimayan konteyner log metni; hata yoksa `null`.
  * Yalnizca sabit kod, HTTP durumu ve saglayicinin sabit durum/alan kimlikleri (`LlmError.detail`,
  * zaten kimlik biciminle sinirli). Anahtar, istem, kullanici metni ve yanit govdesi ASLA girmez.
@@ -101,6 +122,8 @@ export async function recordModelFailure(
   db: Database,
   input: {
     failure: Error | null;
+    /** Varsayilan `gemini`. */
+    provider?: AiProvider;
     operation: string;
     surface: AiSurface;
     modelVersion: string;
@@ -115,7 +138,7 @@ export async function recordModelFailure(
       timer = setTimeout(() => resolve(false), input.timeoutMs ?? AI_ERROR_RECORD_TIMEOUT_MS);
     });
     const write = recordAiError(db, {
-      provider: "gemini",
+      provider: input.provider ?? "gemini",
       operation: input.operation,
       surface: input.surface,
       error: input.failure,

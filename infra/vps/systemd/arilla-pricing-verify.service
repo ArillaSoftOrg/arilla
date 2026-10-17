@@ -1,0 +1,11 @@
+[Unit]
+Description=Arilla fiyat dogrulama (dusuk hacim, karar 0113)
+Requires=docker.service
+After=docker.service
+OnFailure=arilla-alert@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/arilla
+ExecStart=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml --profile feeds run --rm -e JOB_RUN_TRIGGER=cron feeds python -m pricing verify --limit 50
+TimeoutStartSec=30min

@@ -19,6 +19,7 @@
 import { createHash } from "node:crypto";
 import { apiUsage, type Database } from "@arilla/db";
 import { pseudonymize, SecretNotConfiguredError } from "../auth/token.ts";
+import { recordModelFailure } from "../eval/model-errors.ts";
 import { type LlmCall, LlmError } from "../llm/client.ts";
 import { groundingCostMicros, llmCallCostMicros } from "../llm/pricing.ts";
 import {
@@ -227,6 +228,7 @@ async function run(
     let attempts: number | null = 0;
     const calls: LlmCall[] = [];
     let groundingQueries = 0;
+    let providerFailure: Error | null = null;
     let outcome: WebSearchOutcome = emptyWebOutcome("error");
     try {
       try {
@@ -249,6 +251,7 @@ async function run(
         );
       } catch (error) {
         logFailure("provider", error);
+        providerFailure = error instanceof Error ? error : new Error("unknown model error");
         outcome = emptyWebOutcome(
           error instanceof LlmError && error.code === "rate_limited" ? "limited" : "error",
         );
@@ -333,6 +336,13 @@ async function run(
         }
       }
     }
+    // Karar 0099: sonuc basina tek hata olayi; sinirli sureli, asla firlatmaz.
+    await recordModelFailure(db, {
+      failure: providerFailure,
+      operation: WEB_SEARCH_OPERATION,
+      surface: "search",
+      modelVersion: calls.at(-1)?.modelVersion || WEB_SEARCH_MODEL,
+    });
     return outcome;
   } finally {
     if (flightHeld) await flight.release(key).catch(() => undefined);

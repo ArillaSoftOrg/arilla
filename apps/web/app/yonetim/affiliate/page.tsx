@@ -40,8 +40,8 @@ function windowLabel(days: number): string {
 /**
  * Affiliate (karar 0085, `affiliate.read`, yalnızca yönetici). Mağaza çıkışı
  * (`click`) yalnızca attribution toplamı olarak: mağaza, yüzey, kanal, gün.
- * Davranış analitiği değildir. Dönüşüm ve gelir dış entegrasyon gelene kadar
- * yoktur; tahmin edilmez.
+ * Davranış analitiği değildir. Dönüşüm yalnızca affiliate ağının raporundan
+ * (`python -m affiliate conversions`, karar 0128) gelir; tahmin edilmez.
  */
 export default async function AffiliatePage({
   searchParams,
@@ -103,7 +103,7 @@ export default async function AffiliatePage({
           note={
             overview.conversions.total > 0
               ? `Toplam ${formatCount(overview.conversions.total)} kayıt`
-              : "Affiliate ağından dönüşüm alan entegrasyon yok"
+              : "Henüz kayıt yok; ağ raporu günlük okunur (python -m affiliate conversions)"
           }
           basis="external"
         />
@@ -269,9 +269,9 @@ export default async function AffiliatePage({
       </Panel>
 
       <Notice title="Attribution sınırları">
-        Çıkış kaydı satın alma değildir. Dönüşüm, gelir ve iade affiliate ağının raporu ya da
-        postback entegrasyonu olmadan bilinemez; bu ekranda tahmin edilmez. Çıkış kayıtları
-        kullanıcı davranışı analizine ya da segmente kaynak olarak kullanılmaz.
+        Çıkış kaydı satın alma değildir. Dönüşüm, gelir ve iade yalnızca affiliate ağının raporundan
+        okunur (Admitad, günlük; karar 0128); bu ekranda tahmin edilmez. Çıkış kayıtları kullanıcı
+        davranışı analizine ya da segmente kaynak olarak kullanılmaz.
       </Notice>
     </div>
   );

@@ -7,8 +7,8 @@ import { SITE_BRAND } from "../../../site-config.ts";
  * `sending` durumundaki kampanyalardan SINIRLI bir parti işler
  * (`MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_TIME_BUDGET_MS`) ve döner;
  * gönderen kampanya yoksa hiçbir şey yapmaz. Çağıran:
- * `.github/workflows/trigger-alerts-cron.yml` (15 dakikada bir, alarm işiyle
- * aynı iş akışı). Kimlik doğrulama: `Bearer ${CRON_SECRET}`, diğer cron
+ * VPS cron konteyneri (`infra/vps/cron/crontab`, 15 dakikada bir, alarm
+ * işiyle aynı sıklık). Kimlik doğrulama: `Bearer ${CRON_SECRET}`, diğer cron
  * uçlarıyla aynı (`cronAuthFailureResponse`). Yanıt yalnızca sayılardır.
  */
 export const maxDuration = 60;

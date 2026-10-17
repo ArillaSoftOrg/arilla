@@ -10,7 +10,7 @@ import sharp from "sharp";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { deleteAccount } from "../account/delete-account.ts";
 import { LINK_RESOLUTION_QUEUE_KEY } from "../discovery/link-resolution.ts";
-import type { EmbeddingClient } from "../embedding/client.ts";
+import { type EmbeddingClient, EmbeddingError } from "../embedding/client.ts";
 import { type PreparedImage, preprocessImage } from "../embedding/preprocess-image.ts";
 import { getRedis } from "../redis/client.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
@@ -145,6 +145,40 @@ describe("hak harcayan arama - entegrasyon", () => {
       );
       expect(charge).toEqual({ state: "refunded", refund_reason: "provider_error" });
       expect((await getEntitlementStatus(db, user)).dailyUsed).toBe(0);
+    });
+
+    it("saglayici hatasi tek ai_error_event yazar (jina, yalniz sinif ve HTTP durumu)", async () => {
+      const user = await newUser();
+      const modelVersion = `fake-fail-${tag}`;
+      const client: EmbeddingClient = {
+        modelVersion,
+        async embedImage() {
+          throw new EmbeddingError('sağlayıcı 503: {"detail":"data:image/jpeg;base64,AAAA"}');
+        },
+      };
+      await expect(
+        runChargedVisualSearch(
+          db,
+          { userId: user, sessionId: tag, requestKey: randomUUID(), prepared: await uniqueImage() },
+          client,
+        ),
+      ).rejects.toThrow();
+      const rows = await owner(
+        `SELECT provider, operation, surface, error_class, http_status, error_summary
+           FROM ai_error_event WHERE model_version = $1`,
+        [modelVersion],
+      );
+      await owner("DELETE FROM ai_error_event WHERE model_version = $1", [modelVersion]);
+      expect(rows).toEqual([
+        {
+          provider: "jina",
+          operation: "visual_search",
+          surface: "search",
+          error_class: "server_error",
+          http_status: 503,
+          error_summary: "HTTP 503",
+        },
+      ]);
     });
 
     it("ayni istek anahtari (cift gonderim) saglayiciyi ikinci kez cagirmaz", async () => {

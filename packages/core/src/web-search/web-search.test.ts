@@ -590,7 +590,7 @@ describe("searchWeb", () => {
     expect(out.groups).toEqual([]);
   });
 
-  it("saglayici hatasi: 'error', maliyet kaydi ve butce kesinlestirme yine yapilir", async () => {
+  it("saglayici hatasi: 'error', maliyet kaydi, butce kesinlestirme ve tek hata olayi", async () => {
     const deps = makeDeps();
     deps.client = {
       modelVersion: "gemini-3.5-flash-lite",
@@ -602,7 +602,22 @@ describe("searchWeb", () => {
     const out = await searchWeb(db, text, actor, deps);
     expect(out.status).toBe("error");
     expect(settled).toEqual([1]);
-    expect(inserted).toHaveLength(1);
+    // api_usage partisi + ai_error_event (karar 0099); sorgu metni hata olayina girmez.
+    expect(inserted).toHaveLength(2);
+    expect(inserted[1]).toMatchObject({
+      provider: "gemini",
+      operation: "web_search_grounded",
+      surface: "search",
+      errorClass: "server_error",
+      httpStatus: 503,
+    });
+    expect(JSON.stringify(inserted[1])).not.toContain("sony");
+  });
+
+  it("basarili aramada hata olayi yazilmaz", async () => {
+    const deps = makeDeps();
+    await searchWeb(db, text, actor, deps);
+    expect(inserted.every((rows) => Array.isArray(rows))).toBe(true);
   });
 
   it("zaman asimi hatasi 'error' doner, firlatmaz", async () => {

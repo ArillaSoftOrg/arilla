@@ -7,8 +7,9 @@
  *   analitiği ya da kullanıcı segmenti üretilmez (events.md, karar 0049 §5).
  * - Kapsam: `merchant.affiliate_status`, ağ, deeplink şablonu ve komisyon
  *   (yalnızca tanımlı mı; oran sıralamada belirleyici değildir, CLAUDE.md).
- * - Dönüşüm ve gelir: `conversion` tablosuna yazan entegrasyon yok (dış
- *   kaynak gerekli). Satır sayısı dürüstçe gösterilir; tahmin üretilmez.
+ * - Dönüşüm ve gelir: `conversion` tablosunu Admitad eylem istatistiğinden
+ *   `python -m affiliate conversions` yazar (karar 0128, günlük). Satır sayısı
+ *   dürüstçe gösterilir; tahmin üretilmez.
  *
  * `click`'te `created_at` indeksi yok (karar 0085 "Sınırlar"): sorgular
  * salt okunur, zaman aşımlı ve pencere ile sınırlı; büyüyen hacimde indeks
