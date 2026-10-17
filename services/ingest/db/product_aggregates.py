@@ -11,9 +11,9 @@ fiyatli aktif teklifi sayilir. `offer_count` = boyle teklifi olan farkli magaza
 sayisi ("N magaza"); `in_stock_count` = bunlardan stokta olan magaza sayisi.
 Kolon adlari migration gerektirmesin diye korunur.
 
-Ayni SQL TypeScript tarafinda `packages/core/src/product/refresh-aggregates.ts`
-icinde durur (yonetim yazmalari ve cron Python'u cagiramaz); ikisi birlikte
-degisir.
+Kural tek yerde: veritabani fonksiyonu `refresh_product_aggregates(bigint[])`
+(migration 0083). TypeScript (`packages/core/src/product/refresh-aggregates.ts`,
+yonetim yazmalari ve cron) ayni fonksiyonu cagirir; iki dilde kopya SQL yoktur.
 
 Yalnizca TRY teklifler sayilir: TRY disi (or. AliExpress USD) tutar kurus gibi
 okunup `min_price`i kirletmesin (karar 0113/0121); yurt disi teklifler urun sayfasinda
@@ -31,42 +31,9 @@ from collections.abc import Iterable
 
 import psycopg
 
-_REFRESH_TEMPLATE = """
-UPDATE product p SET
-    min_price        = agg.min_price,
-    max_price        = agg.max_price,
-    offer_count      = agg.offer_count,
-    in_stock_count   = agg.in_stock_count,
-    foreign_offer_count = agg.foreign_offer_count,
-    price_updated_at = now(),
-    updated_at       = now()
-FROM (
-    SELECT p2.id AS product_id,
-           min(o.current_price) FILTER (WHERE o.currency = 'TRY') AS min_price,
-           max(o.current_price) FILTER (WHERE o.currency = 'TRY') AS max_price,
-           count(DISTINCT o.merchant_id) FILTER (WHERE o.currency = 'TRY')::int AS offer_count,
-           count(DISTINCT o.merchant_id)
-               FILTER (WHERE o.currency = 'TRY' AND o.in_stock)::int AS in_stock_count,
-           count(DISTINCT o.merchant_id)
-               FILTER (WHERE o.currency <> 'TRY')::int AS foreign_offer_count
-      FROM product p2
-      LEFT JOIN (offer o JOIN merchant m ON m.id = o.merchant_id AND m.is_active)
-        ON o.product_id = p2.id AND o.is_active AND o.current_price IS NOT NULL
-     WHERE {scope}
-     GROUP BY p2.id
-) agg
-WHERE p.id = agg.product_id
-  AND (p.min_price, p.max_price, p.offer_count, p.in_stock_count, p.foreign_offer_count)
-      IS DISTINCT FROM (agg.min_price, agg.max_price, agg.offer_count, agg.in_stock_count,
-                        agg.foreign_offer_count)
-"""
-
-#: Tum YAYINLANMIS katalog (onarim yolu). Yayinlanmamis kaynak ilanlari (milyonlarca taslak,
-#: karar 0121) teklife bagli degildir; her gece taranmalari bos is olurdu.
-REFRESH_ALL = _REFRESH_TEMPLATE.format(scope="p2.publication_state = 'published'")
-
-#: Yalnizca verilen urunler; digerleri okunmaz ve yazilmaz.
-REFRESH_PRODUCTS = _REFRESH_TEMPLATE.format(scope="p2.id = ANY(%(product_ids)s)")
+#: Kural veritabaninda tek yerde (migration 0083); TypeScript de ayni fonksiyonu cagirir.
+#: Donus: guncellenen satir sayisi. Kimlikler artan sirada kilitlenir.
+REFRESH_PRODUCTS = "SELECT refresh_product_aggregates(%(product_ids)s::bigint[])"
 
 
 #: Tam onarimin parti buyuklugu: her parti kendi isleminde kisa surer, degisen
@@ -82,9 +49,8 @@ SELECT id FROM product
 
 
 def refresh_all(conn: psycopg.Connection) -> int:
-    with conn.cursor() as cur:
-        cur.execute(REFRESH_ALL)
-        return cur.rowcount
+    """Tum yayinlanmis katalog, cagiranin isleminde (bkz. `refresh_all_batched`)."""
+    return refresh_all_batched(conn)
 
 
 def refresh_all_batched(
@@ -120,4 +86,5 @@ def refresh_products(conn: psycopg.Connection, product_ids: Iterable[int]) -> in
         return 0
     with conn.cursor() as cur:
         cur.execute(REFRESH_PRODUCTS, {"product_ids": ids})
-        return cur.rowcount
+        row = cur.fetchone()
+    return int(row[0]) if row else 0
