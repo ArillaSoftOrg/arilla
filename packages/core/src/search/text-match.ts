@@ -24,6 +24,7 @@
  * Esik tek bir sihirli sayi degil, olculmus bir secim:
  * `packages/core/src/search/eval/` degerlendirme seti ile ayarlandi.
  */
+import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
 import type { LexiconEntry } from "./lexicon.ts";
 import { foldTurkish } from "./normalize.ts";
@@ -176,6 +177,9 @@ export function rootCategoryJoin(categoryPath: SQL): SQL {
  */
 export const CANDIDATE_LIMIT = 1000;
 
+/** "Bir eksik" dallarinin paylasimli sinirinin tabani. */
+const MIN_BRANCH_LIMIT = 200;
+
 /** Aday dalina itilen urun kolonu filtreleri (`buildFilterClause` ile ayni kosullar). */
 export interface CandidateFilters {
   category_path?: string | undefined;
@@ -202,7 +206,8 @@ const REGEX_SPECIAL = /[\\^$.|?*+()[\]{}]/g;
 
 /**
  * Bir alternatifin aday dali regex'i: her kelimenin koku KELIME BASINDA (`\m`),
- * cok kelimeli alternatifte kelimeler arka arkaya. Trigram GIN regex'ten tum
+ * cok kelimeli alternatifte kelimeler arka arkaya; kokten sonra kelimenin kalani
+ * (`\w*`) serbesttir ("akıllı saat" -> `\makil\w*\s+saat`: "akilli saat"). Trigram GIN regex'ten tum
  * trigramlari (VE) cikarir; `<<%` ise kisa kelimede (" ca", "ta ") yaygin trigramlarla
  * kayipli aday alir ve hepsini yeniden denetler (olculdu, karar 0129: 3,77M urunde
  * "canta" icin `<<%` 19 sn, `~ '\mcant'` 7 ms). Nihai kabul yine metin kapisidir.
@@ -212,29 +217,138 @@ export function candidatePattern(alternative: string): string | null {
   // 1-2 harfli kelime ("tv", "4k") trigram uretmez: regex indeksi kullanamaz.
   if (words.length === 0 || words.some((word) => word.length < 3)) return null;
   const stems = words.map((word) => candidateStem(word).replace(REGEX_SPECIAL, "\\$&"));
-  return `\\m${stems.join("\\s+")}`;
+  return `\\m${stems.join("\\w*\\s+")}`;
+}
+
+/**
+ * Aday dalinin baslik kosullari: birbirini kapsayan alternatifler tek kosula iner.
+ * `\mkulakl` ("kulaklik") `\mkulakli` ("kulakligi") ve `\mkulakl`i zaten kapsar; ek
+ * kosul ayni satirlari bir daha arar (esanlamlilarla bir slot 9 alternatife cikiyordu,
+ * olculdu). 1-2 harfli kelime `<<%` kosulu olarak kalir.
+ */
+export function retrievalArms(slot: readonly string[]): { pattern: string | null; alt: string }[] {
+  const arms = slot.map((alt) => ({ alt, pattern: candidatePattern(alt) }));
+  const kept: { pattern: string | null; alt: string }[] = [];
+  for (const arm of [...arms].sort((a, b) => (a.pattern?.length ?? 0) - (b.pattern?.length ?? 0))) {
+    if (arm.pattern === null) {
+      if (!kept.some((k) => k.pattern === null && k.alt === arm.alt)) kept.push(arm);
+      continue;
+    }
+    const pattern = arm.pattern;
+    if (!kept.some((k) => k.pattern !== null && pattern.startsWith(k.pattern))) kept.push(arm);
+  }
+  return kept;
+}
+
+/**
+ * Kapinin alternatifleri: bir alternatifin 1-2 harf ekli bicimi ("earphones",
+ * "kilifi", "cantasi") ayni slotta kisa bicimi varken atilir. Kisa bicimin ekli
+ * kelimeye benzerligi esigin ustunde kalir (or. "kilif"/"kilifi" 0,62), slotun kabul
+ * karari degismez; her aday satirinda bir benzerlik hesabi eksilir.
+ */
+export function gateAlternatives(slot: readonly string[]): string[] {
+  const sorted = [...slot].sort((a, b) => a.length - b.length);
+  const kept: string[] = [];
+  for (const alt of sorted) {
+    const covered = kept.some(
+      (k) =>
+        !/\s/.test(k) &&
+        !/\s/.test(alt) &&
+        k.length >= 4 &&
+        alt.startsWith(k) &&
+        alt.length - k.length <= 2,
+    );
+    if (!covered) kept.push(alt);
+  }
+  // Slot sirasi korunur (ilk alternatif sorgudaki bicimdir).
+  return slot.filter((alt) => kept.includes(alt));
+}
+
+/** Bir slotun eslestigi marka ve ana kategori (alt kategorileriyle) kimlikleri. */
+export interface SlotLookup {
+  brandIds: number[];
+  categoryIds: number[];
+}
+
+/**
+ * Slot basina marka/kategori eslesmeleri, aramadan ONCE ayri ve kucuk bir sorguyla
+ * (karar 0131). Kimlikler aday sorgusuna sabit olarak gomulur: eslesmesi olmayan slot
+ * icin dal hic uretilmez, olanlarda planlayici gercek dizi boyutunu gorup marka
+ * indeksini kullanir. Alt sorgu olarak kaldiginda planlayici diziyi bilmiyor, bos
+ * olsa bile basligin bitmap'iyle gidip satir suzuyordu (olculdu: 1,7 sn, 0 sonuc).
+ */
+export async function resolveSlotLookups(
+  db: Database,
+  slots: readonly string[][],
+  /** Ayni ifadede ek SQL (or. `withCandidatePlan`in plan ayari); tek gidis-donus. */
+  alongside: SQL | null = null,
+): Promise<SlotLookup[]> {
+  const lookups: SlotLookup[] = slots.map(() => ({ brandIds: [], categoryIds: [] }));
+  if (slots.length === 0) {
+    if (alongside) await db.execute(sql`SELECT ${alongside}`);
+    return lookups;
+  }
+  const index: number[] = [];
+  const alternatives: string[] = [];
+  slots.forEach((slot, i) => {
+    for (const alt of gateAlternatives(slot)) {
+      index.push(i + 1);
+      alternatives.push(alt);
+    }
+  });
+  const pairs = sql`unnest(${sql.param(index)}::int[], ${sql.param(alternatives)}::text[]) AS h(i, t)`;
+  const result = await db.execute<{ i: number; kind: string; id: string }>(sql`
+    SELECT DISTINCT h.i, 'b' AS kind, br.id::text AS id
+      FROM ${pairs} JOIN brand br ON h.t <<% ${foldExpr(sql`br.name`)}
+    UNION ALL
+    SELECT DISTINCT h.i, 'c' AS kind, cc.id::text AS id FROM category cc
+      JOIN category cr ON cr.path = split_part(cc.path, '/', 1)
+      JOIN ${pairs} ON h.t <<% ${foldExpr(sql`cr.name`)}
+    ${alongside ? sql`UNION ALL SELECT 0, 'x', ${alongside}::text` : sql``}
+  `);
+  for (const row of result.rows) {
+    const lookup = lookups[Number(row.i) - 1];
+    if (!lookup) continue;
+    (row.kind === "b" ? lookup.brandIds : lookup.categoryIds).push(Number(row.id));
+  }
+  return lookups;
 }
 
 /**
  * Bir slotun indeksli eslesmesi: alternatiflerinden biri katlanmis baslikta,
  * markada ya da ana kategori adinda gecer. Baslik kosullari bolumun kismi trigram
  * GIN'ini (kok regex'i; 1-2 harfli kelimede `<<%`), marka/kategori kosullari kendi
- * btree indekslerini kullanir.
+ * btree indekslerini kullanir; eslesen marka/kategori `slotLookupCtes`ten okunur.
+ * `slotNumber` 1'den baslar.
  */
-function slotMatch(slot: readonly string[], alias: string): SQL {
+function slotMatch(slot: readonly string[], lookup: SlotLookup | undefined, alias: string): SQL {
+  const byLookup = slotLookupMatch(lookup, alias);
+  return byLookup
+    ? sql`(${slotTitleMatch(slot, alias)} OR ${byLookup})`
+    : slotTitleMatch(slot, alias);
+}
+
+/** Slotun yalnizca baslik kosulu (bolum GIN'i). */
+function slotTitleMatch(slot: readonly string[], alias: string): SQL {
   const title = foldedTitleExpr(sql.raw(`${alias}.title`));
-  const titleArms = slot.map((alt) => {
-    const pattern = candidatePattern(alt);
-    return pattern === null ? sql`${alt}::text <<% ${title}` : sql`${title} ~ ${pattern}::text`;
-  });
-  return sql`(${sql.join(titleArms, sql` OR `)}
-    OR ${sql.raw(alias)}.brand_id = ANY(ARRAY(
-      SELECT br.id FROM unnest(${sql.param([...slot])}::text[]) AS h(t)
-        JOIN brand br ON h.t <<% ${foldExpr(sql`br.name`)}))
-    OR ${sql.raw(alias)}.category_id = ANY(ARRAY(
-      SELECT cc.id FROM category cc
-        JOIN category cr ON cr.path = split_part(cc.path, '/', 1)
-        JOIN unnest(${sql.param([...slot])}::text[]) AS h(t) ON h.t <<% ${foldExpr(sql`cr.name`)})))`;
+  const titleArms = retrievalArms(slot).map(({ alt, pattern }) =>
+    pattern === null ? sql`${alt}::text <<% ${title}` : sql`${title} ~ ${pattern}::text`,
+  );
+  return sql`(${sql.join(titleArms, sql` OR `)})`;
+}
+
+/** Slotun marka/ana kategori kosulu (btree); eslesme yoksa null (dal uretilmez). */
+function slotLookupMatch(lookup: SlotLookup | undefined, alias: string): SQL | null {
+  const a = sql.raw(alias);
+  const parts: SQL[] = [];
+  if (lookup && lookup.brandIds.length > 0) {
+    parts.push(sql`${a}.brand_id = ANY(${sql.param(lookup.brandIds)}::bigint[])`);
+  }
+  if (lookup && lookup.categoryIds.length > 0) {
+    parts.push(sql`${a}.category_id = ANY(${sql.param(lookup.categoryIds)}::bigint[])`);
+  }
+  if (parts.length === 0) return null;
+  return parts.length === 1 ? (parts[0] as SQL) : sql`(${sql.join(parts, sql` OR `)})`;
 }
 
 /**
@@ -279,8 +393,12 @@ const PARTITIONS: readonly SQL[] = [sql`p.offer_count > 0`, sql`p.offer_count = 
  * (varsayilan 0.5 = TOKEN_MATCH_THRESHOLD). Esik 0.5'in altina inerse aday
  * dallari adaylari kacirir; ikisi birlikte degismeli.
  */
-export function headSlotMatch(slots: readonly string[][], alias: string): SQL {
-  return slotMatch(slots[slots.length - 1] ?? [], alias);
+export function headSlotMatch(
+  slots: readonly string[][],
+  lookups: readonly SlotLookup[],
+  alias: string,
+): SQL {
+  return slotMatch(slots[slots.length - 1] ?? [], lookups[slots.length - 1], alias);
 }
 
 /**
@@ -299,6 +417,8 @@ export function fuzzyWords(slots: readonly string[][]): string[] {
 }
 
 export interface CandidateOptions {
+  /** `resolveSlotLookups` sonucu; verilmezse marka/kategori dali yoktur. */
+  lookups?: readonly SlotLookup[] | undefined;
   limit?: number | undefined;
   /**
    * Bulanik (typo) adim: kok regex'i yazim hatasini tutmaz. Her uzun kelime icin TEK
@@ -346,55 +466,83 @@ export function candidateCtes(
           WHERE ps.product_id = p.id AND ps.list_price_inflated = FALSE)`,
       ]
     : PARTITIONS;
-  const head = slots[slots.length - 1] ?? [];
-  const all =
-    slots.length >= 2
-      ? sql.join(
-          slots.map((slot) => slotMatch(slot, "p")),
-          sql` AND `,
-        )
-      : null;
+  const n = slots.length;
+  const lookups = options.lookups ?? [];
+  const headLookup = slotLookupMatch(lookups[n - 1], "p");
+  const head = slots[n - 1] ?? [];
+  const titles = slots.map((slot) => slotTitleMatch(slot, "p"));
+  const and = (parts: SQL[]) => sql.join(parts, sql` AND `);
+  const or = (parts: SQL[]) => sql`(${sql.join(parts, sql` OR `)})`;
+  // Siki aile (1): tum slotlar baslikta; ya da TEK slot markada/kategoride, digerleri
+  // baslikta. Kosullar ayni ifade GIN'inde oldugu icin planlayici bitmap duzeyinde
+  // kesistirir (marka kolu her slotta olunca tek slotun bitmap'iyle gidip digerlerini
+  // satir satir denetliyordu: "bluetooth hoparlor" 3,7 sn, olculdu).
+  const strictConditions: SQL[] =
+    n >= 2
+      ? [
+          and(titles),
+          ...slots.flatMap((_, i) => {
+            const byLookup = slotLookupMatch(lookups[i], "p");
+            return byLookup ? [and([byLookup, ...titles.filter((_, j) => j !== i)])] : [];
+          }),
+        ]
+      : [];
+  // Bas isim ailesi (2): tek slotta bas isim (baslik/marka/kategori). 3+ slotta kapi
+  // bas ismi ve en fazla BIR eksik niteleyiciyi kabul eder; tam ust kumesi "her seferinde
+  // bir niteleyici disarida" kalan n-1 dal: hepsi yalnizca baslik kosulu, GIN'de kesisir.
+  // ("bas isim VE herhangi biri" 337 bin "case" icinden kapidan gecemeyen 1000 aday
+  // getiriyordu, olculdu.) Bas isim markada/kategorideyse niteleyicilerden biri yeter.
+  const others = titles.slice(0, -1);
+  const headTitle = titles[n - 1] as SQL;
+  const headConditions: SQL[] =
+    n === 1
+      ? [slotMatch(head, lookups[0], "p")]
+      : n >= 3
+        ? [
+            ...others.map((_, skip) => and([headTitle, ...others.filter((_, j) => j !== skip)])),
+            ...(headLookup ? [and([headLookup, or(others)])] : []),
+          ]
+        : [];
   const typoWords = options.fuzzy ? fuzzyWords(slots) : [];
   const title = foldedTitleExpr(sql.raw("p.title"));
   const branches: SQL[] = [];
-  const completeBranch = slots.length === 2 && allowedMisses(2) === 0 ? 1 : 2;
+  let sequence = 0;
+  // Kapidan gecen her urunu kapsayan dal ailesi: tek slotta bas isim, iki slotta siki,
+  // 3+ slotta siki + "bir eksik" dallari (ikisi birlikte).
+  const completeKinds = n === 1 || n === 0 ? [2] : n === 2 && allowedMisses(2) === 0 ? [1] : [1, 2];
   partitions.forEach((partition, index) => {
     const where = sql.join([...base, partition], sql` AND `);
     // branch: 10*bolum + (1 siki | 2 bas isim/metinsiz/bulanik)
     const strictBranch = 10 * index + 1;
     const headBranch = 10 * index + 2;
+    const branch = (kind: number, condition: SQL | null, cap: number = limit) => {
+      sequence += 1;
+      const filter = condition ? sql` AND ${condition}` : sql``;
+      return sql`(SELECT p.id, ${kind}::int AS branch, ${sequence}::int AS seq, ${cap}::int AS cap
+        FROM product p WHERE ${where}${filter} LIMIT ${cap})`;
+    };
     if (typoWords.length > 0) {
-      for (const word of typoWords) {
-        branches.push(
-          sql`(SELECT p.id, ${headBranch}::int AS branch FROM product p WHERE ${where} AND ${word}::text <<% ${title} LIMIT ${limit})`,
-        );
-      }
+      for (const word of typoWords)
+        branches.push(branch(headBranch, sql`${word}::text <<% ${title}`));
       return;
     }
-    if (slots.length === 0) {
-      branches.push(
-        sql`(SELECT p.id, ${headBranch}::int AS branch FROM product p WHERE ${where} LIMIT ${limit})`,
-      );
+    if (n === 0) {
+      branches.push(branch(headBranch, null));
       return;
     }
-    if (all) {
-      branches.push(
-        sql`(SELECT p.id, ${strictBranch}::int AS branch FROM product p WHERE ${where} AND ${all} LIMIT ${limit})`,
-      );
-    }
-    // Iki slotta kapi iki slotu da ister: bas isim dalinin siki dalda olmayan adayi
-    // kapidan gecemez (yalnizca puanlama maliyeti olurdu, olculdu ~0,5 sn).
-    if (completeBranch === 1) return;
-    branches.push(
-      sql`(SELECT p.id, ${headBranch}::int AS branch FROM product p WHERE ${where} AND ${slotMatch(head, "p")} LIMIT ${limit})`,
-    );
+    for (const condition of strictConditions) branches.push(branch(strictBranch, condition));
+    // "Bir eksik" dallari bolum basina toplam butceyi paylasir (5 slotta 4 dal x 1000
+    // aday puanlamada 2+ sn tutuyordu, olculdu); tek slotta bas isim dali tam sinirdadir.
+    const headCap = n >= 3 ? Math.max(MIN_BRANCH_LIMIT, Math.ceil(limit / (n - 1))) : limit;
+    for (const condition of headConditions) branches.push(branch(headBranch, condition, headCap));
   });
   return sql`
     cand_raw AS (${sql.join(branches, sql` UNION ALL `)}),
     cand AS (SELECT DISTINCT id FROM cand_raw),
     cand_meta AS (
-      SELECT COALESCE(bool_or(n >= ${limit}), FALSE) AS capped
-      FROM (SELECT count(*) AS n FROM cand_raw WHERE branch % 10 = ${completeBranch} GROUP BY branch) x
+      SELECT COALESCE(bool_or(n >= cap), FALSE) AS capped
+      FROM (SELECT count(*) AS n, max(cap) AS cap FROM cand_raw
+             WHERE branch % 10 = ANY(${sql.param(completeKinds)}::int[]) GROUP BY seq) x
     )`;
 }
 
@@ -411,7 +559,7 @@ export function tokenMatchLateral(
   const slotIndex: number[] = [];
   const alternatives: string[] = [];
   slots.forEach((slot, i) => {
-    for (const alt of slot) {
+    for (const alt of gateAlternatives(slot)) {
       slotIndex.push(i + 1);
       alternatives.push(alt);
     }
