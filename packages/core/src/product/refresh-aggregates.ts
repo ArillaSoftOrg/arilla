@@ -79,7 +79,7 @@ export async function refreshProductAggregates(
 export const PRODUCT_AGGREGATES_JOB = "product_aggregates";
 
 /**
- * Günlük onarım (Vercel cron): olağan yenileme yazma işleminin içinde olur;
+ * Günlük onarım (VPS cron, 23:45 UTC): olağan yenileme yazma işleminin içinde olur;
  * bu koşu atlanmış bir yolu (elle SQL, yeni bir yazan) bir gün içinde
  * düzeltir. Tutarlıysa 0 satır yazar. Toplama işini bekletmesin diye kilit
  * beklemesi ve süre sınırlıdır; aşılırsa koşu `failed` yazılır, veri değişmez.

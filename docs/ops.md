@@ -337,7 +337,7 @@ doğru çalışır); `X-Real-IP` yukarı akışa iletilmez. Güvenlik başlıkla
 | `30 0 * * *` | `interpret-queries` |
 | `45 23 * * *` | `refresh-product-aggregates` |
 | `30 3 * * *` | `cleanup-auth` |
-| `*/15 * * * *` | `trigger-alerts`, `marketing-campaigns` (GitHub Actions'taki 15 dk işlerin yerine) |
+| `*/15 * * * *` | `trigger-alerts`, `marketing-campaigns` (eski GitHub Actions iş akışı kaldırıldı) |
 
 `price_point` bölüm üretimi ve `price_point_default` kontrolü **systemd zamanlayıcıları**ndadır
 (`vps/systemd/arilla-partitions{,-check}.{service,timer}`): sahip kimliği gerektiren tek iş
@@ -561,7 +561,7 @@ birindedir ve okuyan dosya yanında yazar:
 | `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
 | `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `DEPLOY_ENV` (VPS'te `production`, karar 0109), `REDIS_PLAINTEXT_HOSTS` (karar 0109), `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı), `LLM_COST_TRY_PER_USD` (karar 0082; boş = Gemini maliyeti fiyatlanmaz) |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
-| `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `MARKETING_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
+| `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
 \* `APP_URL` boşsa Vercel'in verdiği `VERCEL_PROJECT_PRODUCTION_URL`
 kullanılır (`https://` eklenir). `VERCEL_ENV=production` iken sonuç https ve
@@ -1536,8 +1536,8 @@ Karar 0048. Yönetim: `/yonetim/kampanyalar` (yalnızca yönetici).
 **Açma (üretim).** Gerçek gönderim varsayılan olarak kapalıdır. Açmadan önce:
 İYS kaydı ve rıza metninin hukuk onayı (`docs/kvkk.md`), sağlayıcıda gönderen
 alan adı doğrulaması (SPF/DKIM/DMARC). Sonra Vercel production'da
-`MARKETING_EMAIL_FROM` ve `MARKETING_EMAIL_ENABLED=true`, GitHub Actions'ta
-`MARKETING_CRON_URL` secret'ı. Kapatmak için `MARKETING_EMAIL_ENABLED`
+`MARKETING_EMAIL_FROM` ve `MARKETING_EMAIL_ENABLED=true` (teslim ucu VPS cron'unda
+15 dakikada bir zaten çağrılır). Kapatmak için `MARKETING_EMAIL_ENABLED`
 boşaltılır: sürmekte olan kampanya `sending`te bekler, ileti gitmez,
 yönetim ekranı "gerçek gönderim kapalı" der.
 
@@ -1547,7 +1547,7 @@ e-postası ya da doğrulanmış Google/Apple e-postası) veya
 saatte en fazla 10 (karar 0050). Başka adres reddedilir ve sayılmaz.
 
 **İlerleme.** Gönderim partiler hâlinde: başlatma anında bir parti, sonra
-`trigger-alerts-cron.yml` ile 15 dakikada bir parti (varsayılan 40 ileti).
+VPS cron'u (`infra/vps/cron/crontab`) ile 15 dakikada bir parti (varsayılan 40 ileti).
 Büyük liste için `MARKETING_EMAIL_BATCH_SIZE` artırılır (süre bütçesine
 dikkat) ya da kampanya sayfasındaki "sonraki partiyi şimdi işle" kullanılır.
 Yerelde cron yok; düğme ya da `curl -H "Authorization: Bearer $CRON_SECRET"
