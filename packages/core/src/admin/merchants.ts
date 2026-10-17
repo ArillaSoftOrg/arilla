@@ -12,7 +12,7 @@
  */
 import { type Database, merchant } from "@arilla/db";
 import { eq, sql } from "drizzle-orm";
-import { refreshProductAggregates } from "../product/refresh-aggregates.ts";
+import { refreshMerchantAggregates } from "../product/refresh-aggregates.ts";
 import { recordAdminEvent } from "./audit.ts";
 import { clampPage, containsPattern, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
@@ -290,7 +290,21 @@ export interface SetMerchantActiveResult {
   found: boolean;
   /** false: zaten istenen durumdaydı, hiçbir şey yazılmadı. */
   changed: boolean;
+  /**
+   * true: durum kaydedildi ama ürünlerin fiyat özeti süre içinde bitmedi (çok
+   * ürünlü mağaza) ya da bir parti kilit beklemesinde düştü; kalanı günlük
+   * onarım (`runProductAggregateRepair`) tamamlar.
+   */
+  aggregatesPending?: boolean;
 }
+
+/**
+ * Aç/kapat sonrası fiyat özetine ayrılan süre (ms). Özet artık durum değişikliğinin
+ * işleminde yenilenmez: milyonlarca teklifli bir mağazada (AliExpress, karar 0121)
+ * tek işlem dakikalarca `product` satırlarını kilitler ve isteği zaman aşımına
+ * düşürürdü.
+ */
+export const MERCHANT_AGGREGATE_BUDGET_MS = 10_000;
 
 /**
  * Mağazayı veri toplamaya aç/kapat. Kapalı mağaza için `collect/gate.py`
@@ -315,7 +329,7 @@ export async function setMerchantActive(
     );
   }
 
-  return db.transaction(async (tx) => {
+  const result = await db.transaction(async (tx): Promise<SetMerchantActiveResult> => {
     const locked = await tx
       .select({ slug: merchant.slug, isActive: merchant.isActive })
       .from(merchant)
@@ -332,8 +346,6 @@ export async function setMerchantActive(
       .update(merchant)
       .set({ isActive: input.active, updatedAt: new Date() })
       .where(eq(merchant.id, input.merchantId));
-    // Arama pasif mağazanın teklifini kullanmaz; özet de aynı işlemde izler.
-    await refreshProductAggregates(tx, { merchantId: input.merchantId });
     await recordAdminEvent(tx, {
       actor,
       action: input.active ? "merchant.activate" : "merchant.deactivate",
@@ -345,4 +357,20 @@ export async function setMerchantActive(
     });
     return { found: true, changed: true };
   });
+  if (!result.changed) return result;
+
+  // Arama pasif mağazanın teklifini hemen kullanmaz (`bestOfferJoin` `m.is_active`
+  // okur); özet ürün başına kısa işlemlerle ardından gelir.
+  try {
+    const refresh = await refreshMerchantAggregates(db, input.merchantId, {
+      budgetMs: MERCHANT_AGGREGATE_BUDGET_MS,
+    });
+    return refresh.pending ? { ...result, aggregatesPending: true } : result;
+  } catch (error) {
+    console.error(
+      "[merchants] aggregate refresh deferred to the daily repair",
+      error instanceof Error ? error.name : "unknown",
+    );
+    return { ...result, aggregatesPending: true };
+  }
 }

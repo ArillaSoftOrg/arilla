@@ -625,6 +625,7 @@ mutasyonu aynı yeteneği tekrar denetler (docs/decisions/0039).
 | `admin.merchants.reason_label` | Gerekçe (denetim kaydına yazılır) |
 | `admin.merchants.confirm_label` | Onaylamak için mağazanın kısa adını yaz: {slug} |
 | `admin.merchants.stale_session` | Güvenlik için bu işlemden önce yeniden giriş yap (son girişin 1 saatten eski). |
+| `admin.merchants.aggregates_pending` | Kaydedildi. Ürünlerin fiyat özeti gece onarımında tamamlanacak. |
 | `admin.ingest.title` | Veri toplama |
 | `admin.ingest.note` | Koşular komut satırı ya da zamanlayıcıdan çalışır; bu ekran yalnızca izlerini gösterir. |
 | `admin.catalog.products_title` | Ürünler |
