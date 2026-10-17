@@ -72,6 +72,22 @@ class EvaluateTest(unittest.TestCase):
         # tek dosya bile 15 dakikadir bekliyorsa kritik (depo erisilemez)
         self.assertEqual(levels(hc.evaluate(facts(pg=pg(ready_count=1, oldest_ready_s=1200)), NOW))["wal-archive"], hc.CRIT)
 
+    def test_bulk_publish_window_raises_ready_threshold(self):
+        live = {"ready_crit": 128, "until": (NOW + timedelta(minutes=5)).timestamp()}
+        stale = {"ready_crit": 128, "until": (NOW - timedelta(seconds=1)).timestamp()}
+        lv = lambda **o: levels(hc.evaluate(facts(**o), NOW))["wal-archive"]  # noqa: E731
+        self.assertEqual(lv(pg=pg(ready_count=60), bulk_window=live), hc.OK)
+        self.assertEqual(lv(pg=pg(ready_count=70), bulk_window=live), hc.WARN)
+        self.assertEqual(lv(pg=pg(ready_count=128), bulk_window=live), hc.CRIT)
+        # bayat kalp atisi (bekci oldu) normal esiklere doner
+        self.assertEqual(lv(pg=pg(ready_count=20), bulk_window=stale), hc.CRIT)
+        # depo erisilemez kurali pencerede de gecerli
+        self.assertEqual(lv(pg=pg(ready_count=2, oldest_ready_s=1200), bulk_window=live), hc.CRIT)
+        # bozuk / asiri deger
+        self.assertEqual(lv(pg=pg(ready_count=20), bulk_window={"until": "x"}), hc.CRIT)
+        huge = dict(live, ready_crit=10**9)
+        self.assertEqual(lv(pg=pg(ready_count=hc.BULK_WINDOW_MAX_READY), bulk_window=huge), hc.CRIT)
+
     def test_recent_failure_is_warning(self):
         p = pg(failed_count=3, last_failed="2026-10-14 11:59:00+00", last_archived="2026-10-14 11:00:00+00")
         self.assertEqual(levels(hc.evaluate(facts(pg=p), NOW))["wal-archive"], hc.WARN)

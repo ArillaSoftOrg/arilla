@@ -55,6 +55,7 @@ REPO_PATH=$(val PGBACKREST_REPO_PATH /pgbackrest)
 RETENTION=$(val PGBACKREST_RETENTION_FULL 4)
 QUEUE_MAX=$(val PGBACKREST_ARCHIVE_QUEUE_MAX 4GiB)
 ARCHIVE_TIMEOUT=$(val PGBACKREST_ARCHIVE_TIMEOUT 300)
+PUSH_PROCESS_MAX=$(val PGBACKREST_ARCHIVE_PUSH_PROCESS_MAX 2)
 PG_USER=$(val PGBACKREST_PG_USER arilla)
 PG_DATABASE=$(val PGBACKREST_PG_DATABASE arilla)
 # Yalniz testler (MinIO): endpoint/port/CA ezilebilir. Uretimde BOS birakilir.
@@ -81,6 +82,7 @@ fi
 [[ "$REPO_PATH" =~ ^/[A-Za-z0-9/_-]+$ ]] || die "PGBACKREST_REPO_PATH gecersiz"
 [[ "$RETENTION" =~ ^[1-9][0-9]?$ ]] || die "PGBACKREST_RETENTION_FULL 1-99 olmali"
 [[ "$QUEUE_MAX" =~ ^[0-9]+(B|KiB|MiB|GiB)$ ]] || die "PGBACKREST_ARCHIVE_QUEUE_MAX ornegin 4GiB"
+[[ "$PUSH_PROCESS_MAX" =~ ^[1-4]$ ]] || die "PGBACKREST_ARCHIVE_PUSH_PROCESS_MAX 1-4"
 [[ "$ARCHIVE_TIMEOUT" =~ ^[0-9]+$ ]] && [ "$ARCHIVE_TIMEOUT" -ge 60 ] && [ "$ARCHIVE_TIMEOUT" -le 3600 ] || die "PGBACKREST_ARCHIVE_TIMEOUT 60-3600"
 [[ "$PG_USER$PG_DATABASE" =~ ^[a-z_][a-z0-9_]*$ ]] || die "PG kullanici/veritabani adi gecersiz"
 [[ "$REGION" =~ ^[a-z0-9-]+$ ]] || die "bolge gecersiz"
@@ -156,6 +158,7 @@ render() { # render <sablon> <hedef>  (degerler sed'e argv ile DEGIL, dosyadan v
     printf 's|@@RETENTION_FULL@@|%s|g\n' "$RETENTION"
     printf 's|@@QUEUE_MAX@@|%s|g\n' "$QUEUE_MAX"
     printf 's|@@ARCHIVE_TIMEOUT@@|%s|g\n' "$ARCHIVE_TIMEOUT"
+    printf 's|@@ARCHIVE_PUSH_PROCESS_MAX@@|%s|g\n' "$PUSH_PROCESS_MAX"
     printf 's|@@STANZA@@|%s|g\n' "$STANZA"
     printf 's|@@PG_USER@@|%s|g\n' "$PG_USER"
     printf 's|@@PG_DATABASE@@|%s|g\n' "$PG_DATABASE"

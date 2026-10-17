@@ -22,5 +22,11 @@ log-level-console=warn
 log-level-stderr=warn
 log-level-file=off
 
+# Paralel WAL gonderimi (karar 0134): toplu yayinda arsiv hizi WAL uretimini sinirlar. Asenkron
+# kipte birden fazla segment ayni anda gonderilir (R2 gidis-donus suresi baskin). Etkisi
+# yeniden baslatma istemez: pgBackRest yapilandirmayi her archive-push cagrisinda okur.
+[global:archive-push]
+process-max=@@ARCHIVE_PUSH_PROCESS_MAX@@
+
 [@@STANZA@@]
 pg1-path=/var/lib/postgresql/data
