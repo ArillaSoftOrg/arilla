@@ -294,6 +294,7 @@ def build_source_products(
     on_batch: Callable[[BuildCounts], None] | None = None,
     policy: SourcePolicy | None = None,
     dry_run: bool = False,
+    throttle: Callable[[], bool] | None = None,
 ) -> BuildCounts:
     """Kontrol noktasindan devam eder; `rescan` basa alir (urunler yine tekrarlanmaz).
 
@@ -324,6 +325,9 @@ def build_source_products(
         if max_batches is not None and totals.batches >= max_batches:
             break
         if max_seconds is not None and time.monotonic() - started >= max_seconds:
+            break
+        # WAL geri basinci (karar 0134): False = arsiv geride/basarisiz, kontrol noktasinda dur.
+        if throttle is not None and not dry_run and not throttle():
             break
 
         offers = _read_batch(conn, merchant_id, after, batch_size)

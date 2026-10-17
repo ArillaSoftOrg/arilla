@@ -40,6 +40,20 @@ def test_yml_kategoriler_teklifler_parametreler(tmp_path: Path) -> None:
     assert result.categories["200000920"] == ("Kitchen Storage", "15")
 
 
+def test_yml_kategori_ozniteliklerinin_sirasi_onemsiz(tmp_path: Path) -> None:
+    """Karar 0133: `parentId` once gelirse ya da ek oznitelik varsa agac kaybolmamali."""
+    body = yml([offer(AE, category="300")]).replace(
+        b'<category id="200000920" parentId="15">Kitchen Storage</category>',
+        b'<category parentId="15" id="300" lang="en">Coffeeware</category>'
+        b"<category id='301'>Mugs</category>",
+    )
+    recs, result = records(write(tmp_path / "f.xml", body))
+    assert len(recs) == 1
+    assert result.categories["15"] == ("Home & Garden", None)
+    assert result.categories["300"] == ("Coffeeware", "15")
+    assert result.categories["301"] == ("Mugs", None)
+
+
 def test_kesik_dosya_tamamlanmis_sayilmaz(tmp_path: Path) -> None:
     path = write(
         tmp_path / "f.xml", yml([offer(str(10**15 + i)) for i in range(50)], truncate=True)

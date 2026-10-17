@@ -109,11 +109,15 @@ def run_gate(
     allow_foreign: bool = False,
     should_stop: Callable[[], bool] = lambda: False,
     on_batch: Callable[[GateCounts], None] | None = None,
+    throttle: Callable[[], bool] | None = None,
 ) -> GateCounts:
     totals = GateCounts(last_product_id=after_id)
     after = after_id
     while True:
         if should_stop() or (max_batches is not None and totals.batches >= max_batches):
+            break
+        # WAL geri basinci (karar 0134): False = dur; `--after-id son_urun` ile surer.
+        if throttle is not None and not throttle():
             break
         with conn.cursor() as cur:
             cur.execute(

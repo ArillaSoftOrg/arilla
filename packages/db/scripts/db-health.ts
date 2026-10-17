@@ -1,17 +1,20 @@
 /**
  * Veritabani saglik raporu (salt okunur). Darbogaz calismasinin olcum adimi:
  * indekssiz foreign key'ler, gereksiz/kullanilmayan indeksler, olu satir
- * birikimi ve en pahali sorgular (`pg_stat_statements`, migration 0081).
+ * birikimi, arama olay kuyrugu birikimi (karar 0136) ve en pahali sorgular
+ * (`pg_stat_statements`, migration 0081).
  *
  * Hicbir sey yazmaz; uzak veritabaninda da onaysiz calisir (`--check`
  * betikleriyle ayni). Sorgu metni normalize bicimdedir ($1, $2), parametre
  * degeri icermez. Kullanim: `pnpm db:health`. Bkz. docs/ops.md.
  */
 import {
+  describeSearchOutbox,
   findRedundantIndexes,
   formatBytes,
   loadDeadTuples,
   loadIndexes,
+  loadSearchOutbox,
   loadTopStatements,
   loadUnindexedForeignKeys,
   loadUnusedIndexes,
@@ -62,6 +65,11 @@ await withClient(ownerUrl(), async (client) => {
     const vacuum = table.lastAutovacuum ? table.lastAutovacuum.toISOString() : "hic";
     console.log(`  ${table.table}: ${table.dead} olu / ${table.live} canli, son vacuum ${vacuum}`);
   }
+
+  section("Arama indeksi olay kuyrugu (search_outbox)");
+  const outbox = await loadSearchOutbox(client);
+  if (!outbox) console.log("  tablo yok");
+  else for (const line of describeSearchOutbox(outbox)) console.log(`  ${line}`);
 
   section("En pahali sorgular (toplam sure)");
   const top = await loadTopStatements(client);

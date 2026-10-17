@@ -78,7 +78,11 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     // Karar 0113: kaynaklar, son aktarim, sayilar, hata kayitlari ve fiyat dogrulama durumu.
     adminPaths: ["/yonetim/ingest/beslemeler"],
     gaps: [
-      { signal: "Arama indeksi olay kuyrugunun (search_outbox) tuketimi", status: "unmeasured" },
+      // Karar 0136: tuketici yok (arama PostgreSQL'i dogrudan okur); birikim `pnpm db:health`te.
+      {
+        signal: "Arama indeksi olay kuyrugu (search_outbox) birikimi; tuketici yok",
+        status: "data_no_ui",
+      },
     ],
   },
   {
@@ -128,6 +132,9 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "seller",
       "canonical_variant",
       "category_source_map",
+      // Karar 0133: urun siniflandirma kaniti ve kontrol noktasi (panelde sayaclar).
+      "product_classification",
+      "product_classification_state",
     ],
     status: "visible",
     adminPaths: [

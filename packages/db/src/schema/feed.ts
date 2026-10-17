@@ -12,6 +12,7 @@ import {
   integer,
   jsonb,
   pgTable,
+  primaryKey,
   smallint,
   text,
   timestamp,
@@ -177,9 +178,54 @@ export const categorySourceMap = pgTable("category_source_map", {
     .notNull()
     .default("unmapped"),
   offerCount: integer("offer_count").notNull().default(0),
+  /** 0088 (karar 0133): kural onerisinin guveni ve surumu; onay/ret yoneticinindir. */
+  confidence: smallint("confidence"),
+  ruleVersion: smallint("rule_version"),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/** 0088 (karar 0133): urun basina marka/kategori siniflandirma kaniti. */
+export const productClassification = pgTable("product_classification", {
+  productId: bigint("product_id", { mode: "number" }).primaryKey(),
+  ruleVersion: smallint("rule_version").notNull(),
+  state: text("state").$type<"applied" | "review" | "error">().notNull(),
+  brandId: bigint("brand_id", { mode: "number" }),
+  brandBasis: text("brand_basis")
+    .$type<"existing" | "source" | "title" | "none" | "ambiguous">()
+    .notNull(),
+  categoryId: bigint("category_id", { mode: "number" }),
+  categoryBasis: text("category_basis")
+    .$type<
+      "existing" | "source" | "source_title" | "title" | "none" | "conflict" | "low_confidence"
+    >()
+    .notNull(),
+  confidence: smallint("confidence").notNull(),
+  compatibleBrands: text("compatible_brands").array(),
+  wroteBrand: boolean("wrote_brand").notNull().default(false),
+  wroteCategory: boolean("wrote_category").notNull().default(false),
+  detail: text("detail"),
+  classifiedAt: timestamp("classified_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/** 0088: siniflandirma kontrol noktasi (kural surumu + kapsam). */
+export const productClassificationState = pgTable(
+  "product_classification_state",
+  {
+    ruleVersion: smallint("rule_version").notNull(),
+    scope: text("scope").notNull().default("all"),
+    lastProductId: bigint("last_product_id", { mode: "number" }).notNull().default(0),
+    scanned: bigint("scanned", { mode: "number" }).notNull().default(0),
+    brandSet: bigint("brand_set", { mode: "number" }).notNull().default(0),
+    categorySet: bigint("category_set", { mode: "number" }).notNull().default(0),
+    review: bigint("review", { mode: "number" }).notNull().default(0),
+    errors: bigint("errors", { mode: "number" }).notNull().default(0),
+    startedAt: timestamp("started_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+  },
+  (t) => [primaryKey({ columns: [t.ruleVersion, t.scope] })],
+);
 
 /** Arama indeksi guncelleme olaylari (outbox). */
 export const searchOutbox = pgTable("search_outbox", {

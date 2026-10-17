@@ -106,6 +106,13 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0133: marka + merkezi kategori; model çağrısı yok, elle başlatılır.
+  classify_products: {
+    label: "Ürün sınıflandırma (marka ve kategori)",
+    how: "python -m classify products --confirm",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
   // Gece katalog hatti (infra/vps/systemd/arilla-catalog-pipeline): resolve, sonra kenarlar.
   resolve: {
     label: "Eşleştirme",

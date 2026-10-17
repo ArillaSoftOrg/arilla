@@ -149,6 +149,7 @@ def publish_ready(
     allow_foreign: bool = False,
     should_stop: Callable[[], bool] = lambda: False,
     policies: dict[str, SourcePolicy] | None = None,
+    throttle: Callable[[], bool] | None = None,
 ) -> PublishCounts:
     """En fazla `limit` urun yayinlar. `allow_foreign` YETMEZ: ortam onayi da gerekir."""
     foreign_ok = allow_foreign and foreign_approved()
@@ -157,6 +158,10 @@ def publish_ready(
     after = 0
     remaining = max(0, limit)
     while remaining > 0 and not should_stop():
+        # WAL geri basinci (karar 0134): parti ACIK ISLEM YOKKEN bekler; False = dur.
+        # Kalan urunler `ready` kalir, ayni komut kaldigi yerden surer.
+        if throttle is not None and not throttle():
+            break
         take = min(batch_size, remaining)
         with conn.cursor() as cur:
             cur.execute(SELECT_READY, {"after": after, "limit": take, "merchant_id": merchant_id})

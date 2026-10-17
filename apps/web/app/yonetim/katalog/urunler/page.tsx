@@ -1,4 +1,5 @@
 import {
+  countProductClassification,
   countProductQuality,
   isProductIssueFilter,
   isProductQualityFilter,
@@ -26,7 +27,7 @@ import {
 } from "../../format.ts";
 
 const QUALITY_LABELS: Record<ProductQualityFilter, string> = {
-  no_brand: "Markasız",
+  no_brand: "Markası bilinmeyen",
   no_category: "Kategorisiz",
   no_image: "Görselsiz",
   no_offers: "Aktif mağazası yok",
@@ -72,9 +73,10 @@ export default async function ProductsPage({
   const page = positiveInt(params.sayfa) ?? 1;
 
   const db = getDatabase();
-  const [result, counts] = await Promise.all([
+  const [result, counts, classification] = await Promise.all([
     searchProducts(db, actor, { query, quality, issue, state, page }),
     countProductQuality(db, actor),
+    countProductClassification(db, actor),
   ]);
   const base = { q: query, kalite: quality, sorun: issue, durum: state };
 
@@ -98,6 +100,11 @@ export default async function ProductsPage({
 
       <section className={styles.tiles} aria-label="Katalog kalitesi">
         <Tile label="Toplam ürün" value={formatCount(counts.total)} />
+        <Tile label="Markası belirlenen" value={formatCount(counts.total - counts.no_brand)} />
+        <Tile
+          label="Kategorisi belirlenen"
+          value={formatCount(counts.total - counts.no_category)}
+        />
         {PRODUCT_QUALITY_FILTERS.map((filter) => (
           <Link
             key={filter}
@@ -111,6 +118,21 @@ export default async function ProductsPage({
             />
           </Link>
         ))}
+        {/* Karar 0133: `classify products` kontrol noktasi ve inceleme kuyrugu. */}
+        <Tile
+          label="Sınıflandırma bekleyen"
+          value={formatCount(classification.pending)}
+          note={
+            classification.ruleVersion === null
+              ? "Sınıflandırma henüz çalışmadı"
+              : `İncelemede ${formatCount(classification.review)} · kural v${classification.ruleVersion}`
+          }
+        />
+        <Tile
+          label="Sınıflandırma hataları"
+          value={formatCount(classification.errors)}
+          warning={classification.errors > 0}
+        />
       </section>
 
       <form action="/yonetim/katalog/urunler" method="get" className={styles.filters}>

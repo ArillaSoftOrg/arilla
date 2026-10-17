@@ -37,6 +37,7 @@ packages = [
     "pricing",
     "resolve",
     "catalog_build",
+    "classify",
     "similarity",
 ]
 
