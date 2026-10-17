@@ -61,7 +61,9 @@ function fxCte(): SQL {
  * Karar 0129: TRY teklif her zaman once secilir. Yalnizca yurt disi teklifi olan
  * urunde `current_price` TCMB kuruyla YAKLASIK kurustur (numeric, float yok,
  * yarim yukari); orijinal tutar `original_price`/`original_currency`, kur tarihi
- * `fx_date` olarak tasinir. Guncel kur yoksa yurt disi teklif secilmez.
+ * `fx_date` olarak tasinir. Guncel kur yoksa yurt disi teklif YINE secilir (karar 0132):
+ * `current_price` NULL kalir (kur uydurulmaz, USD kurus gibi okunmaz), kart tutari kendi
+ * para birimiyle gosterir; TL fiyat suzgeci ve TL siralamasi onu almaz.
  */
 export function bestOfferCte(
   inStockOnly: boolean,
@@ -88,7 +90,7 @@ export function bestOfferCte(
       LEFT JOIN fx ON o.currency <> 'TRY' AND fx.base = o.currency
       WHERE o.product_id IS NOT NULL
         AND o.is_active AND m.is_active
-        AND (o.currency = 'TRY' OR (fx.rate IS NOT NULL AND o.current_price > 0))
+        AND (o.currency = 'TRY' OR o.current_price > 0)
         AND ${merchantFilter}
         -- "Stokta olanlar": stok bildirmeyen kaynak (stock_state=unknown, karar 0118) dogrulanmis
         -- stok sayilmaz; filtre kapaliyken (varsayilan) urun gizlenmez.
@@ -96,7 +98,8 @@ export function bestOfferCte(
              AND (o.attributes_raw ->> 'stock_state') IS DISTINCT FROM 'unknown'))
         ${only}
         ${scoped}
-      ORDER BY o.product_id, (o.currency <> 'TRY'), ${priceTry} ASC NULLS LAST
+      -- TRY once; yurt disinda kurla cevrilebilen once (kursuz tutar NULL, sona).
+      ORDER BY o.product_id, (o.currency <> 'TRY'), ${priceTry} ASC NULLS LAST, o.id
     )
   `;
 }
@@ -112,19 +115,19 @@ export interface OriginColumns {
   is_foreign: boolean | null;
   original_price: string | null;
   original_currency: string | null;
-  /** YYYY-MM-DD (SQL'de metne cevrilir: surucu tarih saat dilimine kaymasin). */
+  /** YYYY-MM-DD (SQL'de metne cevrilir: surucu tarih saat dilimine kaymasin); kur yoksa null. */
   fx_date: string | null;
 }
 
 /** Karar 0129: secilen teklif yurt disiysa orijinal tutar ve kur tarihi. */
 export function foreignPriceOf(row: OriginColumns): ForeignPrice | undefined {
-  if (!row.is_foreign || row.original_price === null || !row.original_currency || !row.fx_date) {
+  if (!row.is_foreign || row.original_price === null || !row.original_currency) {
     return undefined;
   }
   return {
     originalMinor: Number(row.original_price),
     currency: row.original_currency.trim(),
-    fxDate: row.fx_date,
+    fxDate: row.fx_date ?? null,
   };
 }
 
