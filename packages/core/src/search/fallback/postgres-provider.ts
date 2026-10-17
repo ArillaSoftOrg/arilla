@@ -34,20 +34,45 @@ function toQueryObject(query: SearchQuery): QueryObject {
   };
 }
 
-export function createPostgresSearchProvider(db: Database): SearchProvider {
+/**
+ * `/ara` metin aramasinda adim basina sorgu tavani (ms). Asilirsa sorgu iptal
+ * edilir (57014) ve hata sinirina duser; baglanti havuzu sinirsiz tutulmaz.
+ */
+export const TEXT_SEARCH_TIMEOUT_MS = 5_000;
+
+export interface PostgresSearchProviderOptions {
+  /** Verilirse her adim kendi isleminde `statement_timeout` ile sinirlanir. */
+  statementTimeoutMs?: number;
+}
+
+export function createPostgresSearchProvider(
+  db: Database,
+  options: PostgresSearchProviderOptions = {},
+): SearchProvider {
+  const timeoutMs =
+    options.statementTimeoutMs === undefined
+      ? null
+      : Math.max(1, Math.floor(options.statementTimeoutMs));
   return {
     name: "postgres",
     async search(query: SearchQuery): Promise<ProviderPage> {
       const queryObject = toQueryObject(query);
       const page = { limit: query.limit, offset: query.offset };
-      if (!query.fuzzy) {
+      if (!query.fuzzy && timeoutMs === null) {
         const result = await search(db, queryObject, page);
         return { items: result.items, total: result.total, totalCapped: result.totalCapped };
       }
-      // `<<%` indeks on filtresi `pg_trgm.strict_word_similarity_threshold`a
-      // bakar; yalnizca bu islem icin dusurulur (`is_local`), havuzdaki baglanti
-      // temiz doner.
+      // GUC'lar yalnizca bu islem icin degisir (`is_local`), havuzdaki baglanti
+      // temiz doner. `<<%` indeks on filtresi `pg_trgm.strict_word_similarity_threshold`a
+      // bakar; bulanik adimda dusurulur.
       return db.transaction(async (tx) => {
+        if (timeoutMs !== null) {
+          await tx.execute(sql`SELECT set_config('statement_timeout', ${String(timeoutMs)}, true)`);
+        }
+        if (!query.fuzzy) {
+          const result = await search(tx as unknown as Database, queryObject, page);
+          return { items: result.items, total: result.total, totalCapped: result.totalCapped };
+        }
         await tx.execute(
           sql`SELECT set_config('pg_trgm.strict_word_similarity_threshold', ${String(FUZZY_TOKEN_THRESHOLD)}, true)`,
         );
