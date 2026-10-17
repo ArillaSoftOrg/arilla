@@ -15,7 +15,9 @@ import {
   candidateCtes,
   foldedDocumentExpr,
   matchTokens,
+  resolveSlotLookups,
   rootCategoryJoin,
+  type SlotLookup,
   TOKEN_MATCH_THRESHOLD,
   tokenMatchGate,
   tokenMatchLateral,
@@ -81,7 +83,7 @@ export function bestOfferCte(
     best_offer AS (
       SELECT DISTINCT ON (o.product_id)
         o.product_id, o.id AS offer_id, ${priceTry} AS current_price, o.in_stock, o.merchant_id,
-        m.trust_score,
+        m.trust_score, m.name AS merchant_name,
         (o.currency <> 'TRY') AS is_foreign,
         o.current_price AS original_price, o.currency AS original_currency,
         fx.effective_date::text AS fx_date
@@ -104,7 +106,7 @@ export function bestOfferCte(
 const originAdjustedTrust = sql`(bo.trust_score * CASE WHEN bo.is_foreign THEN ${FOREIGN_OFFER_TRUST_FACTOR}::numeric ELSE 1 END)`;
 
 /** Kart icin best_offer'in yurt disi kolonlari (`foreignPriceOf` okur). */
-export const BEST_OFFER_ORIGIN_COLUMNS = sql`bo.is_foreign, bo.original_price, bo.original_currency, bo.fx_date`;
+export const BEST_OFFER_ORIGIN_COLUMNS = sql`bo.is_foreign, bo.original_price, bo.original_currency, bo.fx_date, bo.merchant_name`;
 
 /** `BEST_OFFER_ORIGIN_COLUMNS` satir tipi (LEFT JOIN'de hepsi null olabilir). */
 export interface OriginColumns {
@@ -113,6 +115,8 @@ export interface OriginColumns {
   original_currency: string | null;
   /** YYYY-MM-DD (SQL'de metne cevrilir: surucu tarih saat dilimine kaymasin). */
   fx_date: string | null;
+  /** Secilen teklifin magazasi (kartta kaynak magaza). */
+  merchant_name: string | null;
 }
 
 /** Karar 0129: secilen teklif yurt disiysa orijinal tutar ve kur tarihi. */
@@ -243,6 +247,7 @@ export function textMatch(
   tokenThreshold?: number,
   candidateLimit?: number,
   bestDeal = false,
+  lookups: readonly SlotLookup[] = [],
 ): {
   slots: string[][];
   ctes: SQL;
@@ -253,7 +258,12 @@ export function textMatch(
 } {
   const slots = textSlotsOf(query);
   const fuzzy = tokenThreshold !== undefined && tokenThreshold < TOKEN_MATCH_THRESHOLD;
-  const ctes = candidateCtes(slots, query.filters, { limit: candidateLimit, bestDeal, fuzzy });
+  const ctes = candidateCtes(slots, query.filters, {
+    limit: candidateLimit,
+    bestDeal,
+    fuzzy,
+    lookups,
+  });
   const products = sql`cand ca JOIN product p ON p.id = ca.id`;
   if (slots.length === 0) {
     return { slots, ctes, products, lateral: sql``, gate: sql`TRUE`, relevance: sql`1.0` };
@@ -284,11 +294,16 @@ export function textMatch(
  */
 export async function withCandidatePlan<T>(
   db: Database,
-  fn: (tx: Database) => Promise<T>,
+  query: QueryObject,
+  fn: (tx: Database, lookups: SlotLookup[]) => Promise<T>,
 ): Promise<T> {
   return db.transaction(async (tx) => {
-    await tx.execute(sql`SELECT set_config('enable_seqscan', 'off', true)`);
-    return fn(tx as unknown as Database);
+    const lookups = await resolveSlotLookups(
+      tx as unknown as Database,
+      textSlotsOf(query),
+      sql`set_config('enable_seqscan', 'off', true)`,
+    );
+    return fn(tx as unknown as Database, lookups);
   });
 }
 
@@ -307,10 +322,11 @@ export function scoredCtes(
   explain = false,
   tokenThreshold?: number,
   candidateLimit?: number,
+  lookups: readonly SlotLookup[] = [],
 ): SQL {
   const merchantIds = merchantIdsOf(query.filters);
   const inStockOnly = query.filters.in_stock_only ?? false;
-  const text = textMatch(query, tokenThreshold, candidateLimit, sort === "best_deal");
+  const text = textMatch(query, tokenThreshold, candidateLimit, sort === "best_deal", lookups);
   // "En iyi fiyat" sekmesi de ayni metin kapisindan gecer: alakasiz ama
   // indirimli bir urun bu sekmede de one cikmamali.
   if (sort === "best_deal") {

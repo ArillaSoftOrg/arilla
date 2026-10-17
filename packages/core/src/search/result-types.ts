@@ -35,6 +35,8 @@ export interface SearchResultItem {
    * kur tarihiyle birlikte gosterir. TRY teklifte yoktur.
    */
   foreignPrice?: ForeignPrice;
+  /** Secilen en iyi teklifin magazasi (karar 0131: kartta kaynak magaza). */
+  merchantName?: string | null;
 }
 
 export interface ForeignPrice {
@@ -79,6 +81,8 @@ export interface AlternativeProduct {
   priceFromVariants?: boolean;
   /** Karar 0129: bkz. `SearchResultItem.foreignPrice`. */
   foreignPrice?: ForeignPrice;
+  /** Karar 0131: bkz. `SearchResultItem.merchantName`. */
+  merchantName?: string | null;
 }
 
 export interface MerchantOffer {

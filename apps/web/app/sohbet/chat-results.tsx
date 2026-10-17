@@ -30,7 +30,8 @@ interface GridItem {
   offerCount: number;
   brandName: string | null;
   /** Karar 0129: bkz. `cardPriceProps`. */
-  foreignPrice?: ForeignPrice;
+  foreignPrice?: ForeignPrice /** Karar 0131: kaynak magaza; bkz. `cardPriceProps`. */;
+  merchantName?: string | null;
 }
 
 /** Konuşma içi ürün kartları: `/ara` ile aynı `ProductCard`, konteynere göre akan ızgara. */

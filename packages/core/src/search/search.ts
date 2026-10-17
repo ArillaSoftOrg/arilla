@@ -89,6 +89,7 @@ function toResultItem(row: RawRow): SearchResultItem {
     offerCount: Number(row.offer_count),
     score: row.score,
     ...(foreignPrice ? { foreignPrice } : {}),
+    merchantName: row.merchant_name ?? null,
   };
 }
 
@@ -114,9 +115,9 @@ async function searchByText(
   offset: number,
   tokenThreshold?: number,
 ): Promise<SearchResult> {
-  const result = await withCandidatePlan(db, (tx) =>
+  const result = await withCandidatePlan(db, query, (tx, lookups) =>
     tx.execute<RawRow>(sql`
-    ${scoredCtes(query, sort, false, tokenThreshold)}
+    ${scoredCtes(query, sort, false, tokenThreshold, undefined, lookups)}
     SELECT s.*, count(*) OVER()::text AS total_count,
            (SELECT capped FROM cand_meta) AS total_capped
     FROM (${distinctImage(sql`scored`)}) s

@@ -8,6 +8,7 @@ import { sql } from "drizzle-orm";
 import { describe, it } from "vitest";
 import { getTestDb } from "../../test-db.ts";
 import { distinctImage, finalOrder, scoredCtes } from "../search-sql.ts";
+import { resolveSlotLookups } from "../text-match.ts";
 import type { QueryObject } from "../types.ts";
 import { FUZZY_TOKEN_THRESHOLD } from "./postgres-provider.ts";
 
@@ -45,7 +46,7 @@ describe.skipIf(process.env.SEARCH_PERF !== "1")("EXPLAIN ANALYZE", () => {
       const db = getTestDb();
       const body = sql`
         EXPLAIN (ANALYZE, BUFFERS, COSTS OFF, TIMING ON)
-        ${scoredCtes(q, "balanced", false, fuzzy ? FUZZY_TOKEN_THRESHOLD : undefined)}
+        ${scoredCtes(q, "balanced", false, fuzzy ? FUZZY_TOKEN_THRESHOLD : undefined, undefined, await resolveSlotLookups(db, q.text_slots ?? []))}
         SELECT s.*, count(*) OVER()::text AS total_count
         FROM (${distinctImage(sql`scored`)}) s
         ORDER BY ${finalOrder("balanced")}
