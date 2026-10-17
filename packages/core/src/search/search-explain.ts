@@ -10,7 +10,8 @@
 import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
 import {
-  bestOfferCte,
+  bestOfferJoin,
+  bestOfferStrategy,
   distinctImage,
   type FilterPredicateName,
   filterPredicates,
@@ -154,15 +155,14 @@ export async function candidateFunnel(
   );
 
   const result = await db.execute<Row>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
-    base AS (
+    WITH base AS (
       SELECT p.id, p.primary_image_url,
              (bo.product_id IS NOT NULL) AS has_offer,
              COALESCE(${text.gate}, FALSE) AS gate_ok,
              ${statsOk} AS stats_ok,
              ${predicateColumns}
       FROM ${text.products}
-      LEFT JOIN best_offer bo ON bo.product_id = p.id
+      ${bestOfferJoin(sql`p.id`, { inStockOnly, merchantIds }, "left", bestOfferStrategy(query.filters, text.slots.length))}
       LEFT JOIN product_price_stats pps ON pps.product_id = p.id
       LEFT JOIN brand b ON b.id = p.brand_id
       LEFT JOIN category c ON c.id = p.category_id
@@ -209,7 +209,7 @@ export interface ProductProbe {
     activeOnActiveMerchant: number;
     activeInStock: number;
   };
-  /** Sorgunun mağaza/stok filtresiyle `best_offer` satırı var mı. */
+  /** Sorgunun mağaza/stok filtresiyle en iyi teklifi (`bo`) var mı. */
   hasBestOffer: boolean;
   /** Metin yoksa null (kapı yok). */
   prefilterPass: boolean | null;
@@ -270,7 +270,6 @@ export async function probeProduct(
     sql`, `,
   );
   const gateRows = await db.execute<Row>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds, productId)}
     SELECT (bo.product_id IS NOT NULL) AS has_offer,
            ${prefilter} AS prefilter_ok,
            ${tmColumns},
@@ -279,7 +278,7 @@ export async function probeProduct(
            pps.list_price_inflated,
            ${predicateColumns}
     FROM product p
-    LEFT JOIN best_offer bo ON bo.product_id = p.id
+    ${bestOfferJoin(sql`p.id`, { inStockOnly, merchantIds }, "left")}
     LEFT JOIN product_price_stats pps ON pps.product_id = p.id
     LEFT JOIN brand b ON b.id = p.brand_id
     LEFT JOIN category c ON c.id = p.category_id

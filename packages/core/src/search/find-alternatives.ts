@@ -14,6 +14,7 @@ import { sql } from "drizzle-orm";
 import { withStartingFrom } from "../product/get-price-comparison.ts";
 import { arrayParam } from "./ranking.ts";
 import type { AlternativeProduct } from "./result-types.ts";
+import { bestOfferJoin } from "./search-sql.ts";
 
 export interface FindAlternativesOptions {
   /** Varsayilan ["visual","semantic"] - "same" ve "substitute" tohum veride bos. */
@@ -51,19 +52,12 @@ export async function findAlternatives(
         WHERE product_a = ${anchorProductId} AND kind = ANY(${arrayParam(kinds)}::text[])
       ) matched
       ORDER BY other_id, score DESC
-    ),
-    best_offer AS (
-      SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
-      FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
-      ORDER BY o.product_id, o.current_price ASC NULLS LAST
     )
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
            b.name AS brand_name, bo.current_price, e.score, e.kind
     FROM product p
     JOIN edges e ON e.other_id = p.id
-    LEFT JOIN best_offer bo ON bo.product_id = p.id
+    ${bestOfferJoin(sql`p.id`, {}, "left")}
     LEFT JOIN brand b ON b.id = p.brand_id
     WHERE p.id <> ${anchorProductId} AND p.offer_count > 0
       AND p.publication_state = 'published'

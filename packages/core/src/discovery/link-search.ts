@@ -12,6 +12,7 @@ import { type Database, embedding, offer } from "@arilla/db";
 import { and, eq, sql } from "drizzle-orm";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { arrayParam } from "../search/ranking.ts";
+import { bestOfferJoin } from "../search/search-sql.ts";
 import { foldedTitleExpr, foldForMatch } from "../search/text-match.ts";
 import { searchByImageVector } from "../search/visual-search.ts";
 import {
@@ -220,20 +221,13 @@ async function textCandidates(
   const brandExpr = foldedTitleExpr(sql`b.name`);
 
   const result = await db.execute<ProductRow & { text_score: number; brand_match: boolean }>(sql`
-    WITH best_offer AS (
-      SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
-      FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
-      ORDER BY o.product_id, o.current_price ASC NULLS LAST
-    )
     SELECT p.id, p.slug, p.title, p.primary_image_url, b.name AS brand_name,
            bo.current_price, p.offer_count,
            similarity(${titleExpr}, ${folded})::double precision AS text_score,
            (${brandFolded}::text IS NOT NULL AND b.name IS NOT NULL AND ${brandExpr} = ${brandFolded}) AS brand_match
     FROM product p
     LEFT JOIN brand b ON b.id = p.brand_id
-    LEFT JOIN best_offer bo ON bo.product_id = p.id
+    ${bestOfferJoin(sql`p.id`, {}, "left")}
     WHERE p.offer_count > 0 AND p.publication_state = 'published' AND ${titleExpr} % ${folded}
     ORDER BY text_score DESC, p.id ASC
     LIMIT ${limit}
@@ -260,13 +254,6 @@ async function identityCandidates(
 
   const brandExpr = foldedTitleExpr(sql`b.name`);
   const result = await db.execute<ProductRow & { evidence: IdentityEvidence }>(sql`
-    WITH best_offer AS (
-      SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
-      FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
-      ORDER BY o.product_id, o.current_price ASC NULLS LAST
-    )
     SELECT p.id, p.slug, p.title, p.primary_image_url, b.name AS brand_name,
            bo.current_price, p.offer_count,
            CASE WHEN ${gtin}::text IS NOT NULL
@@ -274,7 +261,7 @@ async function identityCandidates(
                 THEN 'gtin' ELSE 'mpn' END AS evidence
     FROM product p
     LEFT JOIN brand b ON b.id = p.brand_id
-    LEFT JOIN best_offer bo ON bo.product_id = p.id
+    ${bestOfferJoin(sql`p.id`, {}, "left")}
     WHERE p.offer_count > 0 AND p.publication_state = 'published' AND (
       (${gtin}::text IS NOT NULL AND p.gtin IS NOT NULL
         AND lpad(regexp_replace(p.gtin, '\\D', '', 'g'), 14, '0') = ${gtin})

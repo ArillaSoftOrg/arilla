@@ -1,7 +1,7 @@
 /**
  * Pasif magazanin teklifi hicbir yuzeyde gorunmemeli (AI denetimi).
  *
- * Arama (`bestOfferCte`) ve urun ozetleri (`refresh-aggregates`) `m.is_active`
+ * Arama (`bestOfferJoin`) ve urun ozetleri (`refresh-aggregates`) `m.is_active`
  * uygular; mağaza karsilastirma, urun fiyat karsilastirma, alternatifler ve
  * gorsel arama yalnizca `o.is_active` uyguluyordu. Pasife alinan bir magazanin
  * (orn. para birimi dogrulanamadi) fiyati urun sayfasinda ve alternatif

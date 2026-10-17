@@ -9,6 +9,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { bestOfferJoin } from "./search-sql.ts";
 
 export interface VisualSearchItem {
   productId: number;
@@ -88,19 +89,12 @@ export async function searchByImageVector(
       SELECT DISTINCT ON (COALESCE(bp.image_hash, bp.product_id::text)) bp.product_id, bp.similarity
       FROM by_product bp
       ORDER BY COALESCE(bp.image_hash, bp.product_id::text), bp.similarity DESC, bp.product_id
-    ),
-    best_offer AS (
-      SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
-      FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
-      ORDER BY o.product_id, o.current_price ASC NULLS LAST
     )
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
            bo.current_price, p.offer_count, bp.similarity
     FROM by_image bp
     JOIN product p ON p.id = bp.product_id
-    LEFT JOIN best_offer bo ON bo.product_id = p.id
+    ${bestOfferJoin(sql`p.id`, {}, "left")}
     WHERE p.offer_count > 0 AND p.publication_state = 'published'
     ORDER BY bp.similarity DESC
     LIMIT ${limit}
