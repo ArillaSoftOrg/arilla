@@ -51,12 +51,7 @@ export function MerchantToggleClient({
       setReason("");
       setConfirmSlug("");
       setMessage({
-        // docs/copy.md `admin.merchants.aggregates_pending`
-        text: !result.changed
-          ? "Mağaza zaten bu durumdaydı."
-          : result.aggregatesPending
-            ? "Kaydedildi. Ürünlerin fiyat özeti gece onarımında tamamlanacak."
-            : "Kaydedildi.",
+        text: result.changed ? "Kaydedildi." : "Mağaza zaten bu durumdaydı.",
         error: false,
       });
       router.refresh();

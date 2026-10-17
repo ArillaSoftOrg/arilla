@@ -14,6 +14,12 @@ import { sql } from "drizzle-orm";
 import { withStartingFrom } from "../product/get-price-comparison.ts";
 import { arrayParam } from "./ranking.ts";
 import type { AlternativeProduct } from "./result-types.ts";
+import {
+  BEST_OFFER_ORIGIN_COLUMNS,
+  bestOfferCte,
+  foreignPriceOf,
+  type OriginColumns,
+} from "./search-sql.ts";
 
 export interface FindAlternativesOptions {
   /** Varsayilan ["visual","semantic"] - "same" ve "substitute" tohum veride bos. */
@@ -22,17 +28,18 @@ export interface FindAlternativesOptions {
   limit?: number;
 }
 
-type RawRow = Record<string, unknown> & {
-  id: string;
-  public_id: string;
-  slug: string;
-  title: string;
-  primary_image_url: string | null;
-  brand_name: string | null;
-  current_price: string | null;
-  score: number;
-  kind: "same" | "visual" | "semantic" | "substitute";
-};
+type RawRow = Record<string, unknown> &
+  OriginColumns & {
+    id: string;
+    public_id: string;
+    slug: string;
+    title: string;
+    primary_image_url: string | null;
+    brand_name: string | null;
+    current_price: string | null;
+    score: number;
+    kind: "same" | "visual" | "semantic" | "substitute";
+  };
 
 export async function findAlternatives(
   db: Database,
@@ -52,35 +59,33 @@ export async function findAlternatives(
       ) matched
       ORDER BY other_id, score DESC
     ),
-    best_offer AS (
-      SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
-      FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
-      ORDER BY o.product_id, o.current_price ASC NULLS LAST
-    )
+    ${bestOfferCte(false, null, null, sql`o.product_id IN (SELECT other_id FROM edges)`)}
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
-           b.name AS brand_name, bo.current_price, e.score, e.kind
+           b.name AS brand_name, bo.current_price, e.score, e.kind, ${BEST_OFFER_ORIGIN_COLUMNS}
     FROM product p
     JOIN edges e ON e.other_id = p.id
     LEFT JOIN best_offer bo ON bo.product_id = p.id
     LEFT JOIN brand b ON b.id = p.brand_id
-    WHERE p.id <> ${anchorProductId} AND p.offer_count > 0
+    WHERE p.id <> ${anchorProductId} AND (p.offer_count > 0 OR p.foreign_offer_count > 0)
       AND p.publication_state = 'published'
     ORDER BY e.score DESC, p.id ASC
     LIMIT ${limit}
   `);
 
-  const items = result.rows.map((row) => ({
-    productId: Number(row.id),
-    publicId: row.public_id,
-    slug: row.slug,
-    title: row.title,
-    primaryImageUrl: row.primary_image_url,
-    minPrice: row.current_price === null ? null : Number(row.current_price),
-    brandName: row.brand_name,
-    similarityScore: row.score,
-    similarityKind: row.kind,
-  }));
+  const items = result.rows.map((row) => {
+    const foreignPrice = foreignPriceOf(row);
+    return {
+      productId: Number(row.id),
+      publicId: row.public_id,
+      slug: row.slug,
+      title: row.title,
+      primaryImageUrl: row.primary_image_url,
+      minPrice: row.current_price === null ? null : Number(row.current_price),
+      brandName: row.brand_name,
+      similarityScore: row.score,
+      similarityKind: row.kind,
+      ...(foreignPrice ? { foreignPrice } : {}),
+    };
+  });
   return withStartingFrom(db, items);
 }

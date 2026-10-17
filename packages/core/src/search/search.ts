@@ -17,13 +17,17 @@ import {
   UnsupportedSortForIntentError,
 } from "./result-types.ts";
 import {
+  BEST_OFFER_ORIGIN_COLUMNS,
   bestOfferCte,
   buildFilterClause,
   distinctImage,
   finalOrder,
+  foreignPriceOf,
   merchantIdsOf,
+  type OriginColumns,
   scoredCtes,
   type TextSort,
+  withCandidatePlan,
 } from "./search-sql.ts";
 import type { QueryObject } from "./types.ts";
 
@@ -47,25 +51,28 @@ const INTENT_KIND: Partial<
   similar_cheaper: ["visual", "semantic"],
 };
 
-type RawRow = Record<string, unknown> & {
-  id: string;
-  public_id: string;
-  slug: string;
-  title: string;
-  primary_image_url: string | null;
-  brand_name: string | null;
-  category_path: string | null;
-  current_price: string | null;
-  in_stock: boolean | null;
-  trust_score: number | null;
-  current_percentile: number | null;
-  list_price_inflated: boolean | null;
-  offer_count: number;
-  total_count: string;
-  score: number;
-};
+type RawRow = Record<string, unknown> &
+  OriginColumns & {
+    id: string;
+    public_id: string;
+    slug: string;
+    title: string;
+    primary_image_url: string | null;
+    brand_name: string | null;
+    category_path: string | null;
+    current_price: string | null;
+    in_stock: boolean | null;
+    trust_score: number | null;
+    current_percentile: number | null;
+    list_price_inflated: boolean | null;
+    offer_count: number;
+    total_count: string;
+    total_capped?: boolean | null;
+    score: number;
+  };
 
 function toResultItem(row: RawRow): SearchResultItem {
+  const foreignPrice = foreignPriceOf(row);
   return {
     productId: Number(row.id),
     publicId: row.public_id,
@@ -81,6 +88,7 @@ function toResultItem(row: RawRow): SearchResultItem {
     listPriceInflated: row.list_price_inflated ?? false,
     offerCount: Number(row.offer_count),
     score: row.score,
+    ...(foreignPrice ? { foreignPrice } : {}),
   };
 }
 
@@ -88,6 +96,7 @@ function toResult(rows: RawRow[], sort: QueryObject["sort"]): SearchResult {
   return {
     items: rows.map(toResultItem),
     total: rows.length === 0 ? 0 : Number(rows[0]?.total_count ?? 0),
+    ...(rows[0]?.total_capped === true ? { totalCapped: true } : {}),
     sort,
   };
 }
@@ -105,13 +114,16 @@ async function searchByText(
   offset: number,
   tokenThreshold?: number,
 ): Promise<SearchResult> {
-  const result = await db.execute<RawRow>(sql`
+  const result = await withCandidatePlan(db, (tx) =>
+    tx.execute<RawRow>(sql`
     ${scoredCtes(query, sort, false, tokenThreshold)}
-    SELECT s.*, count(*) OVER()::text AS total_count
+    SELECT s.*, count(*) OVER()::text AS total_count,
+           (SELECT capped FROM cand_meta) AS total_capped
     FROM (${distinctImage(sql`scored`)}) s
     ORDER BY ${finalOrder(sort)}
     LIMIT ${limit} OFFSET ${offset}
-  `);
+  `),
+  );
   return toResult(result.rows, sort);
 }
 
@@ -127,18 +139,19 @@ async function searchByClosestMatch(
   const inStockOnly = query.filters.in_stock_only ?? false;
 
   const result = await db.execute<RawRow>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
-    edges AS (
+    WITH edges AS (
       -- Cift yonlu yazilir; yalnizca product_a okunur (similarity_lookup_idx).
       SELECT product_b AS other_id, max(score) AS score
       FROM similarity_edge
       WHERE product_a = ${anchorProductId} AND kind = ANY(${arrayParam(kinds)}::text[])
       GROUP BY product_b
-    )
+    ),
+    ${bestOfferCte(inStockOnly, merchantIds, null, sql`o.product_id IN (SELECT other_id FROM edges)`)}
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
            b.name AS brand_name, c.path AS category_path,
            bo.current_price, bo.in_stock, bo.trust_score,
            pps.current_percentile, pps.list_price_inflated, p.offer_count,
+           ${BEST_OFFER_ORIGIN_COLUMNS},
            count(*) OVER()::text AS total_count,
            e.score::double precision AS score
     FROM product p

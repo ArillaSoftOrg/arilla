@@ -13,7 +13,7 @@ export interface SetMerchantActiveActionInput {
 }
 
 export type MerchantActionResult =
-  | { ok: true; changed: boolean; aggregatesPending?: true }
+  | { ok: true; changed: boolean }
   | { ok: false; message: string; reauthHref?: string };
 
 /**
@@ -41,9 +41,7 @@ export async function setMerchantActiveAction(
     });
     if (!result.found) return { ok: false, message: "Mağaza bulunamadı." };
     revalidatePath("/yonetim/magazalar", "layout");
-    return result.aggregatesPending
-      ? { ok: true, changed: result.changed, aggregatesPending: true }
-      : { ok: true, changed: result.changed };
+    return { ok: true, changed: result.changed };
   } catch (error) {
     if (error instanceof MerchantValidationError) return { ok: false, message: error.message };
     throw error;

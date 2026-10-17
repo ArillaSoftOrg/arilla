@@ -38,6 +38,7 @@ import {
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
+import { cardPriceProps } from "../../ara/search-results.tsx";
 import { HOME_COPY } from "../../home-copy.ts";
 import { readConsent } from "../../lib/consent.ts";
 import { requireProductAccess } from "../../lib/dal.ts";
@@ -92,6 +93,18 @@ function offerTotalLabel(offer: OfferLike): string {
 
 /** docs/copy.md `product.price_lowest_90d`: yalnizca gercekten dusukse gosterilir. */
 const LOWEST_PERCENTILE_THRESHOLD = 5;
+
+/**
+ * docs/copy.md `product.stock_unknown` (karar 0130): kaynak stok bildirmediginde
+ * "stokta yok" YAZILMAZ; bilinmeyen bilgi uydurulmaz.
+ */
+const STOCK_UNKNOWN_LABEL = "Stok durumu mağazada görülür";
+
+/** JSON-LD: stok bilinmiyorsa `availability` verilmez (yanlis "OutOfStock" yok). */
+function schemaAvailability(row: { inStock: boolean; stockUnknown?: boolean }) {
+  if (row.inStock) return { availability: "https://schema.org/InStock" };
+  return row.stockUnknown ? {} : { availability: "https://schema.org/OutOfStock" };
+}
 
 function formatSure(from: Date, now: Date): string {
   const minutes = Math.max(1, Math.floor((now.getTime() - from.getTime()) / 60_000));
@@ -258,7 +271,11 @@ export default async function ProductPage({
   // compareMerchants yalnizca kargo dahil toplama gore siralar (stok bilmez).
   // Birincil cikis ve "En uygun fiyat" etiketi stokta olan en uygun teklife
   // gider; hic stokta teklif yoksa en uygun teklif kalir.
-  const primaryOffer = merchantOffers.find((offer) => offer.inStock) ?? cheapest;
+  // Stogu bilinmeyen teklif, stokta olmadigi BILINEN tekliften once gelir (karar 0130).
+  const primaryOffer =
+    merchantOffers.find((offer) => offer.inStock) ??
+    merchantOffers.find((offer) => offer.stockUnknown) ??
+    cheapest;
   const singleOffer = merchantOffers.length === 1;
   // Karar 0127: TL teklifi yoksa başlıkta yurt dışı teklif KENDİ para birimiyle gösterilir
   // ("mağaza fiyatı yok" yanlış olurdu). Varyant modu yalnızca TL tekliflerden oluşur.
@@ -335,9 +352,7 @@ export default async function ProductPage({
               ...(row.variantLabel ? { name: row.variantLabel } : {}),
               price: (row.priceKurus / 100).toFixed(2),
               priceCurrency: "TRY",
-              availability: row.inStock
-                ? "https://schema.org/InStock"
-                : "https://schema.org/OutOfStock",
+              ...schemaAvailability(row),
               ...(siteUrl ? { url: `${siteUrl}/git/${row.offerId}?surface=structured_data` } : {}),
             })),
           }
@@ -347,9 +362,7 @@ export default async function ProductPage({
                 "@type": "Offer",
                 price: (offer.currentPrice / 100).toFixed(2),
                 priceCurrency: "TRY",
-                availability: offer.inStock
-                  ? "https://schema.org/InStock"
-                  : "https://schema.org/OutOfStock",
+                ...schemaAvailability(offer),
                 ...(siteUrl
                   ? { url: `${siteUrl}/git/${offer.offerId}?surface=structured_data` }
                   : {}),
@@ -497,9 +510,13 @@ export default async function ProductPage({
                     >
                       <span>{option.label}</span>
                       <span
-                        className={option.inStock ? styles.variantMeta : styles.variantUnavailable}
+                        className={
+                          option.inStock || option.stockUnknown
+                            ? styles.variantMeta
+                            : styles.variantUnavailable
+                        }
                       >
-                        {option.inStock
+                        {option.inStock || option.stockUnknown
                           ? `${formatTRY(option.minPriceKurus)}'den`
                           : "Şu an stokta yok"}
                       </span>
@@ -523,7 +540,9 @@ export default async function ProductPage({
                 </a>
                 <p className={styles.primaryMeta}>
                   <span>{offerTotalLabel(variantBest)}</span>
-                  {variantBest.inStock ? null : (
+                  {variantBest.inStock ? null : variantBest.stockUnknown ? (
+                    <span className={styles.stockUnknown}>{STOCK_UNKNOWN_LABEL}</span>
+                  ) : (
                     <span className={styles.outOfStock}>Şu an stokta yok</span>
                   )}
                 </p>
@@ -548,7 +567,9 @@ export default async function ProductPage({
               </a>
               <p className={styles.primaryMeta}>
                 <span>{offerTotalLabel(primaryOffer)}</span>
-                {primaryOffer.inStock ? null : (
+                {primaryOffer.inStock ? null : primaryOffer.stockUnknown ? (
+                  <span className={styles.stockUnknown}>{STOCK_UNKNOWN_LABEL}</span>
+                ) : (
                   <span className={styles.outOfStock}>Şu an stokta yok</span>
                 )}
               </p>
@@ -576,7 +597,10 @@ export default async function ProductPage({
           ) : null}
 
           {/* Varyant modu stok alarmı (0037): ayrı bir seçici yok, ?boyut= seçimi. */}
-          {variantMode && selectedOption && !selectedOption.inStock ? (
+          {variantMode &&
+          selectedOption &&
+          !selectedOption.inStock &&
+          !selectedOption.stockUnknown ? (
             <VariantRestockClient
               productId={product.productId}
               sizeNorm={alertSizeNormForVariant(selectedOption.key)}
@@ -604,7 +628,7 @@ export default async function ProductPage({
           {/* 8. Kaydet / alarm kur */}
           <ProductActionsClient
             productId={product.productId}
-            isInStock={merchantOffers.some((offer) => offer.inStock)}
+            isInStock={merchantOffers.some((offer) => offer.inStock || offer.stockUnknown)}
             currentPriceTRY={
               variantMode
                 ? Math.floor((variantBest?.priceKurus ?? variantMode.startingPriceKurus) / 100)
@@ -659,12 +683,14 @@ export default async function ProductPage({
                 totalLabel: formatTRY(row.effectiveTotal),
                 shippingLabel: offerShippingLabel(row),
                 inStock: row.inStock,
+                stockUnknown: row.stockUnknown,
                 exitHref: `/git/${row.offerId}?surface=compare&pos=${index + 1}`,
                 exitLabel: openAtMerchantLabel(row),
               };
             })}
             outOfStockLabel="Şu an stokta yok"
             inStockLabel="Stokta"
+            unknownStockLabel={STOCK_UNKNOWN_LABEL}
             {...(variantBest
               ? { bestOfferLabel: "En uygun fiyat", bestOfferId: variantBest.offerId }
               : {})}
@@ -699,11 +725,13 @@ export default async function ProductPage({
               totalLabel: formatTRY(offer.effectiveTotal),
               shippingLabel: offerShippingLabel(offer),
               inStock: offer.inStock,
+              stockUnknown: offer.stockUnknown ?? false,
               exitHref: `/git/${offer.offerId}?surface=compare&pos=${index + 1}`,
               exitLabel: openAtMerchantLabel(offer),
             }))}
             outOfStockLabel="Şu an stokta yok"
             inStockLabel="Stokta"
+            unknownStockLabel={STOCK_UNKNOWN_LABEL}
             bestOfferLabel="En uygun fiyat"
             bestOfferId={primaryOffer?.offerId}
           />
@@ -765,13 +793,13 @@ export default async function ProductPage({
           <ul className={styles.altList} role="list" aria-labelledby="alternatifler-baslik">
             {alternatives.map((alt) => (
               <li key={alt.productId}>
-                {/* AlternativeProduct'ta offerCount yok (C2 kapsami) - meta satiri cizilmez. */}
+                {/* AlternativeProduct'ta offerCount yok (C2 kapsami) - TRY kartta meta satiri
+                    cizilmez; yurt disi kartta kur/kargo notu (karar 0129). */}
                 <ProductCard
                   href={`/urun/${alt.slug}`}
                   title={alt.title}
                   imageUrl={alt.primaryImageUrl}
-                  minPrice={alt.minPrice}
-                  priceFrom={alt.priceFromVariants ?? false}
+                  {...cardPriceProps(alt)}
                   brand={alt.brandName}
                 />
               </li>

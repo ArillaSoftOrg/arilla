@@ -27,13 +27,19 @@ function sortSizeOptions(options: readonly SizeOption[]): SizeOption[] {
  * docs/pages.md "Beden secici": beden `offer_variant`de, urun degil teklif
  * bazinda. Ayni beden farkli tekliflerde farkli stok durumunda olabilir -
  * en az bir teklifte stoktaysa "mevcut" sayilir (bool_or).
+ *
+ * Kapsam fiyat tablosuyla AYNI: aktif magazanin fiyatli aktif teklifi. Eskiden
+ * pasif magazanin ve fiyatsiz teklifin bedeni de sayiliyordu; sayfada hicbir
+ * gorunur teklifte olmayan beden "mevcut" gorunebiliyordu.
  */
 export async function getSizeOptions(db: Database, productId: number): Promise<SizeOption[]> {
   const result = await db.execute<RawRow>(sql`
     SELECT ov.size_norm, MIN(ov.size_label) AS size_label, bool_or(ov.in_stock) AS in_stock
     FROM offer_variant ov
     JOIN offer o ON o.id = ov.offer_id
-    WHERE o.product_id = ${productId} AND o.is_active AND ov.size_norm IS NOT NULL
+    JOIN merchant m ON m.id = o.merchant_id AND m.is_active
+    WHERE o.product_id = ${productId} AND o.is_active AND o.current_price IS NOT NULL
+      AND ov.size_norm IS NOT NULL
     GROUP BY ov.size_norm
   `);
 

@@ -311,7 +311,7 @@ def test_full_repair_is_idempotent(merchants: dict[str, int]) -> None:
 def test_foreign_offers_counted_separately_price_summary_try_only(
     merchants: dict[str, int],
 ) -> None:
-    """Karar 0124: TRY disi teklif `min_price`/`offer_count`'u kirletmez, ayrica sayilir."""
+    """Karar 0127: TRY disi teklif `min_price`/`offer_count`'u kirletmez, ayrica sayilir."""
     side, feed = merchants[SIDE_SLUG], merchants[FEED_SLUG]
     product = merchants["a"]
     _insert_offer(side, "usd-1", 3000, product)  # 30,00 USD: kurus gibi okunmamali

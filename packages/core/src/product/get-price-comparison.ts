@@ -74,6 +74,7 @@ export function toOfferInputs(
               sizeNorm: null,
               priceKurus: offer.currentPrice,
               inStock: offer.inStock,
+              stockUnknown: offer.stockUnknown ?? false,
               fromVariantRow: false,
             },
           ];
@@ -86,6 +87,7 @@ export function toOfferInputs(
       shippingCost: offer.shippingCost,
       freeShippingThreshold: offer.freeShippingThreshold,
       inStock: offer.inStock,
+      stockUnknown: offer.stockUnknown ?? false,
       variants,
     };
   });

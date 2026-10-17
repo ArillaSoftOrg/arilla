@@ -1,9 +1,10 @@
-import { getCollectionStatus } from "@arilla/core";
+import { getCatalogFunnel, getCollectionStatus } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
 import { KpiCard, KpiGroup, PageHeader, Section } from "../../admin-ui.tsx";
 import { formatCount, formatDateOrDash } from "../../format.ts";
+import { CatalogFunnelSection } from "./catalog-funnel-section.tsx";
 import { CollectorClient } from "./collector-client.tsx";
 import { DiscoveryClient } from "./discovery-client.tsx";
 import { DocumentLoadGuard } from "./document-load-guard.tsx";
@@ -41,7 +42,11 @@ function limitText(used: number, limit: number | null): string {
 
 export default async function CatalogCollectionPage() {
   const { actor } = await requireCapability("catalog.write");
-  const status = await getCollectionStatus(getDatabase(), actor, "hepsiburada");
+  const db = getDatabase();
+  const [status, funnel] = await Promise.all([
+    getCollectionStatus(db, actor, "hepsiburada"),
+    getCatalogFunnel(db, actor, "hepsiburada"),
+  ]);
   const q = status.quota;
   const open = status.openRun;
   const openIsDiscovery = open?.checkpoint?.mode === "discovery";
@@ -134,6 +139,8 @@ export default async function CatalogCollectionPage() {
           }
         />
       </Section>
+
+      <CatalogFunnelSection funnel={funnel} />
 
       <Section id="gecmis" title="Son koşular">
         <div className={styles.tableWrap}>
