@@ -94,5 +94,10 @@ export interface MerchantOffer {
   effectiveShipping: number;
   effectiveTotal: number;
   inStock: boolean;
+  /**
+   * Kaynak stok bildirmedi (karar 0130; Hepsiburada toplamasi). `inStock` bu durumda
+   * temkinli olarak false'tur ama arayuz "stokta yok" YAZMAZ.
+   */
+  stockUnknown?: boolean;
   url: string;
 }

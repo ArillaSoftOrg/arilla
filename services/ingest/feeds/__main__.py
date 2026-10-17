@@ -237,8 +237,20 @@ def _hb_merge(args: argparse.Namespace) -> int:
             run.error_summary = str(getattr(error, "code", error))[:60]
             print(f"durdu: {run.error_summary}", file=sys.stderr)
             return 2
-        run.detail["records"] = report.records
+        run.detail.update(
+            records=report.records,
+            held=report.held,
+            discovery_marked=report.discovery_marked,
+            discovery_kind_mismatch=report.discovery_kind_mismatch,
+        )
         print(f"kosu {args.run}: {report.status} kayit={report.records} {report.detail or ''}")
+        print(
+            f"kesif defteri: fiyat goruldu={report.discovery_marked}"
+            f" tur_uyusmayan(baglanmadi)={report.discovery_kind_mismatch}"
+            f" fiyat_sicramasi_bekleyen={report.held}"
+        )
+        # Teklif urune DOGRUDAN baglanmaz: `python -m catalog_build build --merchant hepsiburada`
+        # taslak uretir, kapi + acik yayin ister (karar 0130).
         return 0 if report.status in ("success", "duplicate", "nothing_to_merge") else 1
 
 

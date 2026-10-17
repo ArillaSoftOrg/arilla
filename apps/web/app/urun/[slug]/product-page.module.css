@@ -214,6 +214,11 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* Karar 0130: stok bilinmiyor; uyari rengi kullanilmaz. */
+.stockUnknown {
+  color: var(--ink-muted);
+}
+
 .outOfStock {
   color: var(--alert);
 }
