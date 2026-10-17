@@ -9,7 +9,14 @@ python -m catalog_build status  --merchant aliexpress
 python -m catalog_build gate    [--after-id N] [--batch 5000] [--max-batches N]
                                 [--stale-days 7] [--allow-foreign]
 python -m catalog_build publish --limit N --confirm [--merchant aliexpress] [--allow-foreign]
+                                [--batch 500]
 python -m catalog_build unpublish --product-id N [--product-id M ...] --confirm
+
+`build`, `gate` ve `publish` WAL geri basinciyla calisir (karar 0134): parti oncesi
+arsivlenmemis WAL olculur; `--wal-target-mb` ustunde parti arasi uyku, `--wal-pause-mb`
+ustunde `--wal-resume-mb` altina inene kadar bekleme, arsiv hatasinda bekleme. Sinir
+asilirsa is 3 koduyla cikar (tamamlanan partiler kalir; ayni komut kaldigi yerden surer).
+`archive_mode=off` (yerel) iken etkisizdir.
 
 `build-discovery` (karar 0130) fiyatsiz kesif defterinden yalnizca TASLAK urun acar; offer
 ve fiyat uretmez, her kosu acik `--limit` ister. `--dry-run` yalnizca okur.
@@ -31,7 +38,7 @@ from catalog_build import build as build_mod
 from catalog_build import discovery as discovery_mod
 from catalog_build import gate as gate_mod
 from catalog_build import publish as publish_mod
-from db import job_run
+from db import job_run, wal_pressure
 from db.connection import connect
 
 _stop = False
@@ -45,6 +52,49 @@ def _request_stop(_signum: int, _frame: object) -> None:
 
 def _should_stop() -> bool:
     return _stop
+
+
+#: Is WAL siniri yuzunden durdu (karar 0134): sarmalayici bunu cokme saymaz, bekleyip surer.
+EXIT_WAL_BACKPRESSURE = 3
+
+
+def _add_wal_args(p: argparse.ArgumentParser) -> None:
+    g = p.add_argument_group("WAL geri basinci (karar 0134)")
+    g.add_argument("--wal-target-mb", type=int, default=1024, help="bu gecikmenin ustunde yavasla")
+    g.add_argument("--wal-pause-mb", type=int, default=1536, help="bu gecikmede parti baslatma")
+    g.add_argument("--wal-resume-mb", type=int, default=512, help="duraklamadan bu gecikmede cik")
+    g.add_argument("--wal-max-sleep-s", type=float, default=30.0, help="parti arasi en uzun uyku")
+    g.add_argument("--wal-max-pause-s", type=float, default=3600.0, help="en uzun duraklama")
+    g.add_argument(
+        "--wal-failing-grace-s", type=float, default=900.0, help="arsiv hatasi toleransi"
+    )
+
+
+def _wal_policy(args: argparse.Namespace) -> wal_pressure.WalPolicy:
+    return wal_pressure.policy_from_mb(
+        target_mb=args.wal_target_mb,
+        pause_mb=args.wal_pause_mb,
+        resume_mb=args.wal_resume_mb,
+        max_sleep_s=args.wal_max_sleep_s,
+        max_pause_s=args.wal_max_pause_s,
+        failing_grace_s=args.wal_failing_grace_s,
+    )
+
+
+def _governor(conn: psycopg.Connection, args: argparse.Namespace) -> wal_pressure.WalGovernor:
+    return wal_pressure.WalGovernor.for_connection(
+        conn, _wal_policy(args), should_stop=_should_stop
+    )
+
+
+def _finish_wal(run: job_run.JobRun, gov: wal_pressure.WalGovernor) -> int:
+    run.detail.update(gov.stats.as_detail())
+    if gov.stopped_reason is None:
+        return 0
+    run.status = "partial"
+    run.error_summary = f"WAL geri basinci: {gov.stopped_reason}"
+    print(f"WAL geri basinci nedeniyle durdu: {gov.stopped_reason}", file=sys.stderr)
+    return EXIT_WAL_BACKPRESSURE
 
 
 def _status(conn: psycopg.Connection, merchant: str) -> int:
@@ -103,6 +153,7 @@ def main(argv: list[str] | None = None) -> int:
     p_build.add_argument("--max-seconds", type=float, default=None)
     p_build.add_argument("--sleep-ms", type=int, default=0)
     p_build.add_argument("--rescan", action="store_true")
+    _add_wal_args(p_build)
 
     p_audit = sub.add_parser("audit", help="YALNIZCA OKUR: kac teklif urun olmaya uygun")
     p_audit.add_argument("--merchant", required=True)
@@ -129,18 +180,26 @@ def main(argv: list[str] | None = None) -> int:
     p_gate.add_argument("--max-batches", type=int, default=None)
     p_gate.add_argument("--stale-days", type=int, default=gate_mod.DEFAULT_STALE_DAYS)
     p_gate.add_argument("--allow-foreign", action="store_true")
+    _add_wal_args(p_gate)
 
     p_pub = sub.add_parser("publish")
     p_pub.add_argument("--limit", type=int, required=True)
     p_pub.add_argument("--merchant", default=None)
     p_pub.add_argument("--allow-foreign", action="store_true")
     p_pub.add_argument("--confirm", action="store_true")
+    p_pub.add_argument("--batch", type=int, default=publish_mod.DEFAULT_BATCH)
+    _add_wal_args(p_pub)
 
     p_unpub = sub.add_parser("unpublish")
     p_unpub.add_argument("--product-id", type=int, action="append", required=True)
     p_unpub.add_argument("--confirm", action="store_true")
 
     args = parser.parse_args(argv)
+    if hasattr(args, "wal_target_mb"):
+        try:
+            _wal_policy(args)
+        except ValueError as error:  # yazmadan once, acik hata (kod 2)
+            parser.error(str(error))
     logging.basicConfig(
         level=logging.DEBUG if args.verbose else logging.INFO, format="%(levelname)s %(message)s"
     )
@@ -202,6 +261,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "build":
         with job_run.track("catalog_build") as run, connect() as conn:
+            gov = _governor(conn, args)
             counts = build_mod.build_source_products(
                 conn,
                 merchant_slug=args.merchant,
@@ -216,6 +276,7 @@ def main(argv: list[str] | None = None) -> int:
                     f"var {c.existing} atlanan {sum(c.skipped.values())} "
                     f"son_offer {c.last_offer_id}"
                 ),
+                throttle=gov.before_batch,
             )
             run.detail.update(
                 scanned=counts.scanned,
@@ -226,14 +287,16 @@ def main(argv: list[str] | None = None) -> int:
                 batches=counts.batches,
                 completed=counts.completed,
             )
+            code = _finish_wal(run, gov)
         print(
             f"\nbitti={counts.completed} olusan={counts.created} "
             f"kesif_taslagina_baglanan={counts.attached} atlanan={counts.skipped}"
         )
-        return 0
+        return code
 
     if args.command == "gate":
         with job_run.track("catalog_gate") as run, connect() as conn:
+            gov = _governor(conn, args)
             counts = gate_mod.run_gate(
                 conn,
                 after_id=args.after_id,
@@ -246,15 +309,17 @@ def main(argv: list[str] | None = None) -> int:
                     f"parti {c.batches}: taranan {c.scanned} hazir {c.ready} "
                     f"son_urun {c.last_product_id}"
                 ),
+                throttle=gov.before_batch,
             )
             run.detail.update(
                 scanned=counts.scanned, ready=counts.ready, held=sum(counts.held.values())
             )
+            code = _finish_wal(run, gov)
         print(
             f"\nbitti={counts.completed} hazir={counts.ready} beklemede={counts.held} "
             f"yurt_disi_karar_bekliyor={counts.foreign_blocked}"
         )
-        return 0
+        return code
 
     if args.command == "publish":
         if not args.confirm:
@@ -262,20 +327,24 @@ def main(argv: list[str] | None = None) -> int:
             return 2
         with job_run.track("catalog_publish") as run, connect() as conn:
             merchant_id = build_mod.merchant_id_for(conn, args.merchant) if args.merchant else None
+            gov = _governor(conn, args)
             counts = publish_mod.publish_ready(
                 conn,
                 limit=args.limit,
                 merchant_id=merchant_id,
+                batch_size=max(1, min(args.batch, publish_mod.DEFAULT_BATCH)),
                 allow_foreign=args.allow_foreign,
                 should_stop=_should_stop,
+                throttle=gov.before_batch,
             )
             run.detail.update(
                 selected=counts.selected, published=counts.published, held=sum(counts.held.values())
             )
+            code = _finish_wal(run, gov)
         print(
             f"yayinlanan={counts.published} beklemeye={counts.held} hazir_kalan={counts.left_ready}"
         )
-        return 0
+        return code
 
     if args.command == "unpublish":
         if not args.confirm:
