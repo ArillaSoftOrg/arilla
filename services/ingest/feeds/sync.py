@@ -12,7 +12,8 @@ Akis:
 4. Akisla ayristirma + normalizasyon; kayit sirasina gore sabit parcalar.
    Her parca TEK islemde: COPY -> satici upsert -> offer upsert (parmak izi ile
    degisiklik tespiti) -> `price_point` (yalnizca yeni/degisen fiyat-stok,
-   INSERT) -> `search_outbox` -> uyelik -> `ingest_chunk = merged` ->
+   INSERT) -> `search_outbox` -> uyelik -> bayat embedding silme (gorsel ya da
+   kanonik metin degisti) -> bagli urunlerin fiyat ozeti -> `ingest_chunk = merged` ->
    `ingest_run` kontrol noktasi. Reddedilen kayitlar `ingest_error`'a.
 5. Tamlik kapisi: dosya sonuna hatasiz ulasildi, red orani esigin altinda,
    kayit sayisi son tam surumlerin medyaninin %85'inden az degil. Gecmezse
@@ -44,7 +45,9 @@ import psycopg
 
 from collect.image_writer import write_offer_images
 from collect.images import SelectedImage
+from db import product_aggregates
 from db.connection import env
+from enrich import text as text_builder
 from feeds.download import DownloadError, cleanup_staging, download, staging_dir
 from feeds.network import FeedNetwork, NetworkUnavailable
 from feeds.normalize import FeedOffer, Rejected, normalize, schema_fields, schema_fingerprint
@@ -112,6 +115,9 @@ class SyncReport:
     reactivated: int = 0
     deactivated: int = 0
     price_points: int = 0
+    stale_image_embeddings: int = 0
+    stale_text_embeddings: int = 0
+    aggregates_updated: int = 0
     outbox: int = 0
     chunks_merged: int = 0
     chunks_skipped: int = 0
@@ -195,7 +201,8 @@ UPDATE seller sl SET last_seen_at = now(), is_active = TRUE
 MERGE = """
 WITH prev AS (
     SELECT o.id, o.external_id, o.fingerprint, o.current_price, o.list_price, o.in_stock,
-           o.is_active, o.image_url, o.feed_source_id, o.affiliate_url
+           o.is_active, o.image_url, o.feed_source_id, o.affiliate_url,
+           o.title_raw, o.brand_raw, o.category_raw, o.product_id
       FROM offer o JOIN feed_stage s ON s.external_id = o.external_id
      WHERE o.merchant_id = %(merchant_id)s
 ), up AS (
@@ -262,7 +269,9 @@ WITH prev AS (
 ), joined AS (
     SELECT a.id, a.external_id, s.price, s.old_price, s.in_stock, s.fingerprint,
            p.id AS prev_id, p.fingerprint AS prev_fp, p.current_price AS prev_price,
-           p.list_price AS prev_list, p.in_stock AS prev_stock, p.is_active AS prev_active
+           p.list_price AS prev_list, p.in_stock AS prev_stock, p.is_active AS prev_active,
+           p.image_url AS prev_image, s.image_url, p.title_raw AS prev_title,
+           p.brand_raw AS prev_brand, p.category_raw AS prev_category, p.product_id
       FROM allrows a JOIN feed_stage s ON s.external_id = a.external_id
       LEFT JOIN prev p ON p.id = a.id
 ), pp AS (
@@ -292,6 +301,13 @@ WITH prev AS (
 , ch AS (
     SELECT id, external_id FROM joined
      WHERE prev_id IS NULL OR prev_fp IS DISTINCT FROM fingerprint
+), ed AS (
+    -- Degisen MEVCUT teklifler ve onceki metin/gorsel: bayat embedding'i cagiran
+    -- toplama yaziciyla ayni kuralla secer (kanonik metin Python'da kurulur).
+    SELECT id, external_id, prev_image IS DISTINCT FROM image_url AS image_changed,
+           prev_title, prev_brand, prev_category
+      FROM joined
+     WHERE prev_id IS NOT NULL AND prev_fp IS DISTINCT FROM fingerprint
 )
 SELECT count(*) FILTER (WHERE prev_id IS NULL),
        count(*) FILTER (WHERE prev_id IS NOT NULL AND prev_fp IS DISTINCT FROM fingerprint),
@@ -300,8 +316,24 @@ SELECT count(*) FILTER (WHERE prev_id IS NULL),
        (SELECT count(*) FROM ob),
        (SELECT count(*) FROM mem),
        (SELECT coalesce(array_agg(id ORDER BY id), '{}') FROM ch),
-       (SELECT coalesce(array_agg(external_id ORDER BY id), '{}') FROM ch)
+       (SELECT coalesce(array_agg(external_id ORDER BY id), '{}') FROM ch),
+       (SELECT coalesce(array_agg(id ORDER BY id), '{}') FROM ed),
+       (SELECT coalesce(array_agg(external_id ORDER BY id), '{}') FROM ed),
+       (SELECT coalesce(array_agg(image_changed ORDER BY id), '{}') FROM ed),
+       (SELECT coalesce(array_agg(prev_title ORDER BY id), '{}') FROM ed),
+       (SELECT coalesce(array_agg(prev_brand ORDER BY id), '{}') FROM ed),
+       (SELECT coalesce(array_agg(prev_category ORDER BY id), '{}') FROM ed),
+       -- Fiyat ozeti etkilenebilecek bagli urunler (fiyat/stok/para birimi parmak izinde).
+       (SELECT coalesce(array_agg(DISTINCT product_id), '{}') FROM joined
+         WHERE product_id IS NOT NULL AND (NOT prev_active OR prev_fp IS DISTINCT FROM fingerprint))
   FROM joined
+"""
+
+#: Gorseli ya da kanonik metni degisen teklifin eski vektoru: enrich eksik sayip
+#: yeniden uretir (toplama yazicisinin `DELETE_STALE_EMBEDDINGS` kurali).
+DELETE_STALE_EMBEDDINGS = """
+DELETE FROM embedding
+ WHERE target_type = 'offer' AND kind = %(kind)s AND target_id = ANY(%(offer_ids)s::bigint[])
 """
 
 #: Kapi gecen tam surumden sonra: bu beslemede artik olmayan offer'larin UYELIGI
@@ -337,13 +369,15 @@ WITH d AS (
     UPDATE offer o SET is_active = FALSE, deactivated_at = %(observed_at)s,
                        deactivation_reason = 'missing_from_snapshot'
      WHERE o.id = ANY(%(ids)s) AND o.is_active
-    RETURNING o.id
+    RETURNING o.id, o.product_id
 ), ob AS (
     INSERT INTO search_outbox (entity, entity_id, op, reason)
     SELECT 'offer', id, 'delete', 'feed_missing' FROM d
     RETURNING 1
 )
-SELECT count(*) FROM d
+SELECT count(*),
+       coalesce(array_agg(DISTINCT product_id) FILTER (WHERE product_id IS NOT NULL), '{}')
+  FROM d
 """
 
 ACTIVE_FEED_OFFERS = """
@@ -863,13 +897,45 @@ class FeedSync:
                 cur.execute(MERGE, params)
                 row = cur.fetchone()
                 assert row is not None
-                created, changed, reactivated, pp, ob, _mem, changed_ids, changed_ext = row
+                (
+                    created,
+                    changed,
+                    reactivated,
+                    pp,
+                    ob,
+                    _mem,
+                    changed_ids,
+                    changed_ext,
+                    edited_ids,
+                    edited_ext,
+                    image_changed,
+                    prev_titles,
+                    prev_brands,
+                    prev_categories,
+                    product_ids,
+                ) = row
                 images: list[tuple[int, tuple[SelectedImage, ...]]] = [
                     (oid, offers[ext].images)
                     for oid, ext in zip(changed_ids, changed_ext, strict=True)
                 ]
                 if images:
                     write_offer_images(self.conn, images)
+                self._invalidate_embeddings(
+                    offers,
+                    zip(
+                        edited_ids,
+                        edited_ext,
+                        image_changed,
+                        prev_titles,
+                        prev_brands,
+                        prev_categories,
+                        strict=True,
+                    ),
+                )
+                # Teklif ve bagli urunun fiyat ozeti ayni islemde gorunur (toplama yazicisi gibi).
+                self.report.aggregates_updated += product_aggregates.refresh_products(
+                    self.conn, product_ids
+                )
             if rejects:
                 cur.execute(
                     INSERT_ERRORS,
@@ -918,6 +984,33 @@ class FeedSync:
                 ),
             )
         self.conn.commit()
+
+    def _invalidate_embeddings(
+        self,
+        offers: dict[str, FeedOffer],
+        edited: Iterator[tuple[int, str, bool, str | None, str | None, str | None]],
+    ) -> None:
+        stale_image: list[int] = []
+        stale_text: list[int] = []
+        for offer_id, ext, image_changed, title, brand, category in edited:
+            if image_changed:
+                stale_image.append(offer_id)
+            offer = offers[ext]
+            # Yalnizca KANONIK metin degistiyse: fiyat/stok degisimi yeniden embedding
+            # maliyeti dogurmaz.
+            if title is not None and text_builder.build(
+                title, brand, category
+            ) != text_builder.build(offer.title, offer.brand, offer.category_path):
+                stale_text.append(offer_id)
+        with self.conn.cursor() as cur:
+            for kind, ids in (("image", stale_image), ("text", stale_text)):
+                if not ids:
+                    continue
+                cur.execute(DELETE_STALE_EMBEDDINGS, {"kind": kind, "offer_ids": ids})
+                if kind == "image":
+                    self.report.stale_image_embeddings += cur.rowcount
+                else:
+                    self.report.stale_text_embeddings += cur.rowcount
 
     def _backpressure(self, settings: SyncSettings) -> None:
         self.sleep(settings.pause_ms / 1000)
@@ -1054,7 +1147,11 @@ class FeedSync:
             if len(ids) > settings.max_deactivate_ratio * max(int(active), 1):
                 r.gate = "deactivation_cap"
                 return "partial"
-            r.deactivated = int(self._exec(SWEEP, {"ids": ids, "observed_at": self.observed_at})[0])
+            deactivated, product_ids = self._exec(
+                SWEEP, {"ids": ids, "observed_at": self.observed_at}
+            )
+            r.deactivated = int(deactivated)
+            r.aggregates_updated += product_aggregates.refresh_products(self.conn, product_ids)
         return "success"
 
     def _cleanup(self, path: Path) -> None:

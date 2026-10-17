@@ -104,6 +104,12 @@ Doğrulanmamış: kullanım koşulları metni, görsellerin yeniden kullanımı,
     `https://www.hepsiburada.com` eklenir; genel ve diğer yönetim yollarında yoktur.
     `img-src https:` zaten izinlidir; kullanıcılara görseller mevcut galeri hattından
     (`offer_image`) gelir.
+    **Tam yükleme şartı (17 Ekim 2026):** tarayıcı CSP'yi yalnızca belge yüklenirken uygular.
+    Panelden istemci geçişiyle (next/link) gelinirse ilk sayfanın `connect-src 'self'` kuralı
+    kalır ve istek tarayıcıda engellenir ("Failed to fetch"; koşu #1 ve #3'ün ilk denemesi).
+    Menü bu sayfaya düz bağlantıyla gider, sayfa istemci geçişini algılayınca kendini bir kez
+    yeniden yükler ve toplayıcı belge bu yolda yüklenmediyse istek atmaz. Sitemap keşfinde
+    yanıtsız istek (ağ/CSP/zaman aşımı) birimi `failed` yapmaz, deneme hakkını yakmaz; koşu açık kalır.
 
 ## Kapsam sınırı (güvenilir keşif)
 

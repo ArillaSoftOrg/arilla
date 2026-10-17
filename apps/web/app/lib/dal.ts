@@ -9,12 +9,14 @@
  */
 import {
   type AdminActor,
+  adminHostPolicy,
   adminLoginPath,
   type Capability,
   canAccessProduct,
   deleteSession,
   evaluateAdminSession,
   hasCapability,
+  isAdminRequestHost,
   isFreshAuth,
   productAccessRedirect,
   recordAccessDenied,
@@ -64,6 +66,9 @@ async function recordSecurityEvent(name: string, write: () => Promise<void>): Pr
  * kolaylıktır, action'ları korumaz. Rol her istekte veritabanından okunur:
  * rolü düşürülen kişi bir sonraki istekte erişimi kaybeder.
  *
+ * - Yönetim ana makinesi dışından (karar 0056, `ADMIN_HOST` tanımlıyken) → 404,
+ *   oturuma bakılmadan. Server action'lar her yola POST edilebilir; public
+ *   sitedeki bir XSS yöneticinin public oturumuyla konsol işlemi yapamaz.
  * - Anonim → `/yonetim/giris` (dönüş yoluyla).
  * - Girişli ama yetkisiz → 404: yönetim alanının varlığı doğrulanmaz;
  *   deneme denetim kaydına `security.access_denied` olarak yazılır.
@@ -76,6 +81,9 @@ async function recordSecurityEvent(name: string, write: () => Promise<void>): Pr
 export async function requireCapability(
   capability: Capability,
 ): Promise<{ user: SessionUser; actor: AdminActor }> {
+  if (!isAdminRequestHost(adminHostPolicy(), (await headers()).get("host"))) {
+    notFound();
+  }
   const user = await verifySession();
   if (!user) {
     redirect(adminLoginPath(await currentAdminPath()));

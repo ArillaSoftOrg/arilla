@@ -226,8 +226,10 @@ function Pipeline({ d }: { d: SearchDiagnostics }) {
                 : `${funnel.textSlots.map((s) => `[${s.join(" | ")}]`).join(" ")} · en az ${funnel.requiredSlots}/${funnel.textSlots.length} slot, son slot (baş isim) zorunlu`,
             ],
             [
-              funnel.textSlots.length === 0 ? "Katalog" : "Baş isim ön filtresi",
-              String(funnel.prefilter),
+              funnel.textSlots.length === 0 ? "Aday kümesi (filtreler)" : "Aday kümesi (baş isim)",
+              funnel.capped
+                ? `${funnel.prefilter} · sınıra ulaştı, sayılar alt sınır`
+                : String(funnel.prefilter),
             ],
             ["Aktif mağazada aktif teklif", String(funnel.withActiveOffer)],
             ["Metin kapısı", String(funnel.textGate)],

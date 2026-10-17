@@ -33,7 +33,7 @@ import {
   rankWithFactors,
   type ScoreFactors,
 } from "../search/search-explain.ts";
-import { TOKEN_MATCH_THRESHOLD } from "../search/text-match.ts";
+import { CANDIDATE_LIMIT, TOKEN_MATCH_THRESHOLD } from "../search/text-match.ts";
 import type { QueryObject, SortMode } from "../search/types.ts";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
@@ -311,6 +311,7 @@ export type AbsenceReasonCode =
   | "merchant_inactive"
   | "offer_filter"
   | "prefilter"
+  | "candidate_cap"
   | "text_gate"
   | "filter"
   | "no_price_stats"
@@ -379,6 +380,11 @@ export function absenceReasons(
     reasons.push({
       code: "prefilter",
       text: "Baş isim (son kelime) başlıkta, markada ya da ana kategori adında eşik üstü geçmiyor; ürün aday bile olmuyor.",
+    });
+  } else if (probe.candidateCapped) {
+    reasons.push({
+      code: "candidate_cap",
+      text: `Eşleşen ürün sayısı aday sınırını (${CANDIDATE_LIMIT}) aşıyor ve bu ürün sınırlı aday kümesine girmedi; sorguya niteleyici eklemek onu öne alır.`,
     });
   }
   if (probe.text && !probe.textGatePass) {

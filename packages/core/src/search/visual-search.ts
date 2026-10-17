@@ -9,6 +9,13 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import type { ForeignPrice } from "./result-types.ts";
+import {
+  BEST_OFFER_ORIGIN_COLUMNS,
+  bestOfferCte,
+  foreignPriceOf,
+  type OriginColumns,
+} from "./search-sql.ts";
 
 export interface VisualSearchItem {
   productId: number;
@@ -19,22 +26,29 @@ export interface VisualSearchItem {
   minPrice: number | null;
   offerCount: number;
   similarityScore: number;
+  /** Karar 0129: bkz. `SearchResultItem.foreignPrice`. */
+  foreignPrice?: ForeignPrice;
 }
 
 export interface VisualSearchOptions {
   limit?: number;
 }
 
-type RawRow = Record<string, unknown> & {
-  id: string;
-  public_id: string;
-  slug: string;
-  title: string;
-  primary_image_url: string | null;
-  current_price: string | null;
-  offer_count: number;
-  similarity: number;
-};
+type RawRow = Record<string, unknown> &
+  OriginColumns & {
+    id: string;
+    public_id: string;
+    slug: string;
+    title: string;
+    primary_image_url: string | null;
+    current_price: string | null;
+    offer_count: number;
+    similarity: number;
+  };
+
+/** HNSW aday taramasi: Python `DEFAULT_EF_SEARCH` ile ayni taban; pgvector ust siniri 1000. */
+const ANN_EF_SEARCH_MIN = 100;
+const ANN_EF_SEARCH_MAX = 1000;
 
 /** pgvector metin girdi biçimi: `'[0.1,0.2,...]'::vector`. */
 function toVectorLiteral(vector: readonly number[]): string {
@@ -53,7 +67,17 @@ export async function searchByImageVector(
   const candidateLimit = limit * 8;
   const vectorLiteral = toVectorLiteral(vector);
 
-  const result = await db.execute<RawRow>(sql`
+  // `embedding_ann_idx` yalnizca `target_type = 'offer'` ile kismi; `kind` ve
+  // `model_version` suzgecleri HNSW taramasindan SONRA uygulanir. Varsayilan
+  // `ef_search = 40` ile istenen aday havuzunun cogu gelmez. Python tarafi
+  // (`services/ingest/db/vector.py`) ile ayni ayar, islem-yerel.
+  const efSearch = Math.min(Math.max(ANN_EF_SEARCH_MIN, candidateLimit), ANN_EF_SEARCH_MAX);
+  const result = await db.transaction(async (tx) => {
+    await tx.execute(sql`
+      SELECT set_config('hnsw.ef_search', ${String(efSearch)}, true),
+             set_config('hnsw.iterative_scan', 'relaxed_order', true)
+    `);
+    return tx.execute<RawRow>(sql`
     WITH nearest AS (
       SELECT e.target_id AS offer_id, 1 - (e.vector <=> ${vectorLiteral}::vector) AS similarity
       FROM embedding e
@@ -75,31 +99,30 @@ export async function searchByImageVector(
       FROM by_product bp
       ORDER BY COALESCE(bp.image_hash, bp.product_id::text), bp.similarity DESC, bp.product_id
     ),
-    best_offer AS (
-      SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
-      FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
-      ORDER BY o.product_id, o.current_price ASC NULLS LAST
-    )
+    ${bestOfferCte(false, null, null, sql`o.product_id IN (SELECT product_id FROM by_image)`)}
     SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
-           bo.current_price, p.offer_count, bp.similarity
+           bo.current_price, p.offer_count, bp.similarity, ${BEST_OFFER_ORIGIN_COLUMNS}
     FROM by_image bp
     JOIN product p ON p.id = bp.product_id
     LEFT JOIN best_offer bo ON bo.product_id = p.id
-    WHERE p.offer_count > 0 AND p.publication_state = 'published'
+    WHERE (p.offer_count > 0 OR p.foreign_offer_count > 0) AND p.publication_state = 'published'
     ORDER BY bp.similarity DESC
     LIMIT ${limit}
   `);
+  });
 
-  return result.rows.map((row) => ({
-    productId: Number(row.id),
-    publicId: row.public_id,
-    slug: row.slug,
-    title: row.title,
-    primaryImageUrl: row.primary_image_url,
-    minPrice: row.current_price === null ? null : Number(row.current_price),
-    offerCount: Number(row.offer_count),
-    similarityScore: row.similarity,
-  }));
+  return result.rows.map((row) => {
+    const foreignPrice = foreignPriceOf(row);
+    return {
+      productId: Number(row.id),
+      publicId: row.public_id,
+      slug: row.slug,
+      title: row.title,
+      primaryImageUrl: row.primary_image_url,
+      minPrice: row.current_price === null ? null : Number(row.current_price),
+      offerCount: Number(row.offer_count),
+      similarityScore: row.similarity,
+      ...(foreignPrice ? { foreignPrice } : {}),
+    };
+  });
 }

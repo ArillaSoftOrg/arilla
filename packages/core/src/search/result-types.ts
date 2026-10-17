@@ -29,11 +29,30 @@ export interface SearchResultItem {
    * farkli fiyatli); kart "...'den baslayan" yazar.
    */
   priceFromVariants?: boolean;
+  /**
+   * Karar 0129: secilen teklif yurt disi (TRY disi) ise dolu. O zaman `minPrice`
+   * TCMB kuruyla YAKLASIK kurustur; kart "yaklaşık" yazar ve orijinal tutari,
+   * kur tarihiyle birlikte gosterir. TRY teklifte yoktur.
+   */
+  foreignPrice?: ForeignPrice;
+}
+
+export interface ForeignPrice {
+  /** Orijinal tutar, para biriminin alt birimi (cent). */
+  originalMinor: number;
+  currency: string;
+  /** TCMB bulten tarihi, YYYY-MM-DD. */
+  fxDate: string;
 }
 
 export interface SearchResult {
   items: SearchResultItem[];
   total: number;
+  /**
+   * Karar 0129: aday kumesi sinira ulasti; `total` gercek eslesme sayisinin alt
+   * sinirdir ("1.000+ sonuc"). Yoksa `total` kesindir.
+   */
+  totalCapped?: boolean;
   sort: SortMode;
 }
 
@@ -58,6 +77,8 @@ export interface AlternativeProduct {
   similarityKind: "same" | "visual" | "semantic" | "substitute";
   /** 0037: bkz. `SearchResultItem.priceFromVariants`. */
   priceFromVariants?: boolean;
+  /** Karar 0129: bkz. `SearchResultItem.foreignPrice`. */
+  foreignPrice?: ForeignPrice;
 }
 
 export interface MerchantOffer {
@@ -73,5 +94,10 @@ export interface MerchantOffer {
   effectiveShipping: number;
   effectiveTotal: number;
   inStock: boolean;
+  /**
+   * Kaynak stok bildirmedi (karar 0130; Hepsiburada toplamasi). `inStock` bu durumda
+   * temkinli olarak false'tur ama arayuz "stokta yok" YAZMAZ.
+   */
+  stockUnknown?: boolean;
   url: string;
 }

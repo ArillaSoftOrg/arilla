@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 import { useEffect, useId, useRef, useState } from "react";
 import styles from "./admin.module.css";
 import { activeNavHref } from "./admin-nav.ts";
+import { COLLECTION_PAGE_PATH } from "./katalog/toplama/document-load.ts";
 
 export interface AdminNavLink {
   href: string;
@@ -38,6 +39,23 @@ function PendingHint() {
 }
 
 function NavItemLink({ item, active }: { item: AdminNavLink; active: boolean }) {
+  // Katalog toplama sayfasinin kaynak magaza izni CSP basligindadir; tarayici CSP'yi yalniz
+  // belge yuklenirken uygular. Bu yuzden bu sayfaya istemci gecisi degil, tam yukleme (karar 0117).
+  if (item.href === COLLECTION_PAGE_PATH) {
+    return (
+      <a
+        href={item.href}
+        className={active ? `${styles.navLink} ${styles.navLinkActive}` : styles.navLink}
+        aria-current={active ? "page" : undefined}
+      >
+        <span className={styles.navText}>
+          <span>{item.label}</span>
+          {item.description ? <span className={styles.navDesc}>{item.description}</span> : null}
+        </span>
+        <span aria-hidden="true" className={styles.navPending} />
+      </a>
+    );
+  }
   return (
     <Link
       href={item.href}
@@ -158,10 +176,13 @@ export function AdminMobileNav({
   sections,
   brand,
   roleLabel,
+  siteHref,
 }: {
   sections: AdminNavSection[];
   brand: string;
   roleLabel: string;
+  /** Public sitenin kökü; ayrı yönetim ana makinesinde mutlak adres (karar 0056). */
+  siteHref: string;
 }) {
   const pathname = usePathname();
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -232,7 +253,7 @@ export function AdminMobileNav({
           <AdminNavClient sections={sections} />
         </div>
         <div className={styles.sidebarFooter}>
-          <a href="/" className={styles.navLink}>
+          <a href={siteHref} className={styles.navLink}>
             Siteye dön
           </a>
         </div>

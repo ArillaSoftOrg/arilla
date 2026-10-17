@@ -1,10 +1,14 @@
 import {
   type AdminLoginReason,
+  adminHostPolicy,
   authProviderAvailability,
   hasCapability,
+  isAdminHostRequest,
+  publicSiteHref,
   safeAdminNext,
 } from "@arilla/core";
 import type { Metadata } from "next";
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { verifySession } from "../../lib/dal.ts";
 import { LoginFormClient } from "../login-form-client.tsx";
@@ -35,7 +39,8 @@ function isReason(value: string | undefined): value is AdminLoginReason {
 
 /**
  * `/yonetim/giris` (proxy bu adresi buraya rewrite eder; yönetim kabuğu ve
- * yetki kapısı dışında). Aynı giriş seçenekleri (Google, Apple); fark
+ * yetki kapısı dışında). Aynı giriş seçenekleri (Google, Apple; yönetim ana
+ * makinesinde yalnızca Google, karar 0056); fark
  * yalnızca dönüş yolu: `next` her zaman güvenli bir
  * `/yonetim` yoludur ve sunucuda her adımda yeniden süzülür.
  *
@@ -59,6 +64,9 @@ export default async function YonetimGirisPage({
   if (user && hasCapability(user.role, "admin.access") && !isReason(neden)) {
     redirect(target);
   }
+  const policy = adminHostPolicy();
+  const googleOnly = isAdminHostRequest(policy, (await headers()).get("host"));
+  const siteHref = publicSiteHref(policy);
   const signedInWithoutAccess = user !== null && !hasCapability(user.role, "admin.access");
   const notice = signedInWithoutAccess
     ? COPY.noAccess
@@ -68,7 +76,7 @@ export default async function YonetimGirisPage({
 
   return (
     <div className={styles.page}>
-      <a className={styles.brand} href="/" aria-label="Ana sayfa">
+      <a className={styles.brand} href={siteHref} aria-label="Ana sayfa">
         ManiCepte
       </a>
       <section className={styles.panel} aria-labelledby="yonetim-giris-baslik">
@@ -81,8 +89,12 @@ export default async function YonetimGirisPage({
             {notice}
           </p>
         ) : null}
-        <LoginFormClient next={target} availability={authProviderAvailability()} />
-        <a className={styles.legal} href="/">
+        <LoginFormClient
+          next={target}
+          availability={authProviderAvailability()}
+          googleOnly={googleOnly}
+        />
+        <a className={styles.legal} href={siteHref}>
           {COPY.back}
         </a>
       </section>

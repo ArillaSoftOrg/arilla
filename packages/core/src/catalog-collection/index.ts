@@ -1,3 +1,4 @@
+export * from "./catalog-funnel.ts";
 export * from "./discovery-service.ts";
 export * from "./discovery-validate.ts";
 export * from "./extract-hepsiburada.ts";

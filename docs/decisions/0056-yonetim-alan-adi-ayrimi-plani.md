@@ -1,7 +1,7 @@
 # 0056 — Yönetim konsolunu ayrı alan adına taşıma (plan)
 
 **Tarih:** 3 Ekim 2026
-**Durum:** Kabul edildi — uygulama ayrı dağıtım görevi
+**Durum:** Kabul edildi — Adım 1 uygulandı (17 Ekim 2026); `ADMIN_HOST` üretimde açılınca etkin
 
 Hedef: yönetim konsolu `www.<alan>/yonetim` yerine `admin.<alan>` üzerinden
 sunulsun (üretim alanı bugün `manicepte.com`). Konsol olgunlaştı (0039–0055);
@@ -62,3 +62,35 @@ ve vekil ikinci uygulamaya kopyalanır.
 - **Geniş alan çerezi (`.manicepte.com`):** yönetim oturumunu public alt
   alanlara açar; kesinlikle yapılmaz.
 - **Gizli yol / belirsiz adres:** güvenlik sağlamaz (0050).
+
+## Uygulama — Adım 1 (17 Ekim 2026)
+
+Kurallar `packages/core/src/admin/admin-host.ts`'te (saf, birim testli);
+`proxy.ts`, `app/lib/dal.ts`, Google giriş rotaları ve `/api/yonetim/*` yalnızca
+onu çağırır. Plandan farklar ve gerekçeleri:
+
+- **Yetenek kapısı ana makineye bağlı.** Yol yönlendirmesi yetmez: Next, bir
+  server action'ı hangi sayfaya POST edilirse edilsin bulur ve sahibi olan
+  sayfaya içeride iletir. Yerelde doğrulandı: `ADMIN_HOST` yokken
+  `searchUsersAction` kimliği `/hakkinda`'ya POST edildiğinde çalıştı. Bu yüzden
+  `requireCapability` ve yönetim API'si, `ADMIN_HOST` tanımlıyken istek o ana
+  makineden gelmiyorsa oturuma bakmadan 404 verir. Public sitedeki bir XSS,
+  yöneticinin public oturumuyla konsol işlemi yapamaz.
+- **Yönetim ana makinesinde yalnızca Google.** Apple dönüş adresi kaydı
+  gerekmez; doğrulanmış e-postayla hesap bağlama yüzeyi yönetim girişinde tek
+  sağlayıcıya iner. Apple/telefon/e-posta yolları public siteye yönlenir.
+- **Önce kod, sonra yapılandırma.** Kod `ADMIN_HOST` olmadan etkisizdir; bu
+  yüzden dış kayıtlardan önce dağıtılabilir. Sıra yalnızca değişkeni açarken
+  önemlidir (docs/ops.md "Yönetim ana makinesi").
+- **Bozuk değer kapalı kalır.** Biçimi bozuk ya da üretimde port/localhost
+  içeren `ADMIN_HOST` konsolu hiçbir yerde açmaz; public site etkilenmez.
+- **Yönlendirmeler mutlak `Location` ile.** `NextResponse.redirect(URL)`
+  localhost adlarını isteğin ana makinesiyle değiştirdiği için proxy başlığı
+  doğrudan yazar.
+- Proxy matcher'ı genişledi (dosyalar ve `_next` hariç her yol); diğer proxy
+  görevleri yalnızca kendi yollarına bakar.
+
+Açık: çerez savurma (cookie tossing) — public alt alandaki bir XSS
+`Domain=.<alan>` ile `session` çerezi yazıp yöneticiyi kendi (yetkisiz)
+hesabına sokabilir. Etki düşük (yetkisiz hesap 404 görür); kapatmak için
+yönetim ana makinesinde `__Host-` önekli ayrı çerez adı ayrı bir adımdır.

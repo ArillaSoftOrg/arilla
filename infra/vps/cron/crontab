@@ -1,5 +1,5 @@
-# Zamanlayici (UTC). Kaynak: apps/web/vercel.json (4 gunluk is) ve
-# .github/workflows/trigger-alerts-cron.yml (15 dk). Vercel production calistigi
+# Zamanlayici (UTC). Kaynak: apps/web/vercel.json (4 gunluk is) ve 15 dk'lik
+# iki is (eski GitHub Actions trigger-alerts-cron.yml'in yerine). Vercel production calistigi
 # surece orada da calisirlar; VPS kendi veritabanini kullanir, ikisi ayni veriye
 # yazmaz. Bu dosya ile vercel.json arasindaki esitlik infra/vps/bin/smoke-local.sh
 # ve CI tarafindan denetlenir.

@@ -11,6 +11,9 @@
 CREATE EXTENSION IF NOT EXISTS vector;
 CREATE EXTENSION IF NOT EXISTS pg_trgm;
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+-- 0081: sorgu istatistikleri ayri semada; uygulama rolu erisemez. Rapor: pnpm db:health.
+CREATE SCHEMA IF NOT EXISTS monitoring;
+CREATE EXTENSION IF NOT EXISTS pg_stat_statements WITH SCHEMA monitoring;
 
 -- ---------------------------------------------------------------------------
 -- KATALOG
@@ -89,6 +92,9 @@ CREATE TABLE product (
     max_price       BIGINT,
     offer_count     INTEGER     NOT NULL DEFAULT 0,   -- farklı mağaza sayısı ("N mağaza")
     in_stock_count  INTEGER     NOT NULL DEFAULT 0,   -- stokta olan mağaza sayısı
+    -- 0076 (karar 0127): yalnızca TRY dışı teklifi olan farklı mağaza sayısı. Fiyat
+    -- özeti (min/max/offer_count/in_stock_count) TRY-only kalır; USD tutar kuruş değildir.
+    foreign_offer_count INTEGER NOT NULL DEFAULT 0 CHECK (foreign_offer_count >= 0),
     price_updated_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -114,6 +120,9 @@ CREATE UNIQUE INDEX product_source_offer_uniq ON product (source_offer_id)
     WHERE source_offer_id IS NOT NULL;
 CREATE INDEX product_unpublished_idx ON product (publication_state, id)
     WHERE publication_state <> 'published';
+-- 0085 (karar 0130): magaza basina durum/neden sayimi (yonetim hunisi, catalog_build status).
+CREATE INDEX product_source_state_idx ON product (source_merchant_id, publication_state, hold_reason)
+    WHERE source_merchant_id IS NOT NULL;
 CREATE INDEX product_brand_idx    ON product (brand_id);
 CREATE INDEX product_category_idx ON product (category_id);
 CREATE INDEX product_gtin_idx     ON product (gtin) WHERE gtin IS NOT NULL;
@@ -124,6 +133,14 @@ CREATE INDEX product_title_trgm   ON product USING gin (title gin_trgm_ops)
 CREATE INDEX product_title_fold_trgm ON product
     USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
     WHERE publication_state = 'published';
+-- 0083 (karar 0129): metin aramasinin aday bolumleri; TRY teklifli urunler yurt disi
+-- ilan yigininda filtrelenmez. Ifade/yuklem `search/text-match.ts` ile ayni.
+CREATE INDEX product_title_fold_try_trgm ON product
+    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
+    WHERE publication_state = 'published' AND offer_count > 0;
+CREATE INDEX product_title_fold_foreign_trgm ON product
+    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
+    WHERE publication_state = 'published' AND offer_count = 0;
 CREATE INDEX product_min_price_idx ON product (min_price) WHERE min_price IS NOT NULL;
 CREATE INDEX product_model_key_idx ON product (model_key) WHERE model_key IS NOT NULL;
 
@@ -177,6 +194,53 @@ CREATE TABLE offer (
     CONSTRAINT offer_merchant_external_uniq UNIQUE (merchant_id, external_id)
 );
 CREATE INDEX offer_product_idx    ON offer (product_id) WHERE product_id IS NOT NULL;
+
+-- 0086: urun fiyat ozetinin TEK kaynagi (TS ve Python cagirir; karar 0127 anlami).
+CREATE OR REPLACE FUNCTION refresh_product_aggregates(product_ids bigint[]) RETURNS integer
+LANGUAGE sql
+SET search_path = public, pg_temp
+AS $$
+    WITH agg AS (
+        SELECT p2.id AS product_id,
+               min(o.current_price) FILTER (WHERE o.currency = 'TRY') AS min_price,
+               max(o.current_price) FILTER (WHERE o.currency = 'TRY') AS max_price,
+               count(DISTINCT o.merchant_id) FILTER (WHERE o.currency = 'TRY')::int AS offer_count,
+               count(DISTINCT o.merchant_id)
+                   FILTER (WHERE o.currency = 'TRY' AND o.in_stock)::int AS in_stock_count,
+               count(DISTINCT o.merchant_id)
+                   FILTER (WHERE o.currency <> 'TRY')::int AS foreign_offer_count
+          FROM product p2
+          LEFT JOIN (offer o JOIN merchant m ON m.id = o.merchant_id AND m.is_active)
+            ON o.product_id = p2.id AND o.is_active AND o.current_price IS NOT NULL
+         WHERE p2.id = ANY(product_ids)
+         GROUP BY p2.id
+    ), target AS (
+        SELECT p.id, agg.*
+          FROM product p JOIN agg ON agg.product_id = p.id
+         WHERE (p.min_price, p.max_price, p.offer_count, p.in_stock_count, p.foreign_offer_count)
+               IS DISTINCT FROM (agg.min_price, agg.max_price, agg.offer_count,
+                                 agg.in_stock_count, agg.foreign_offer_count)
+         ORDER BY p.id
+           FOR UPDATE OF p
+    ), changed AS (
+        UPDATE product p SET
+            min_price           = t.min_price,
+            max_price           = t.max_price,
+            offer_count         = t.offer_count,
+            in_stock_count      = t.in_stock_count,
+            foreign_offer_count = t.foreign_offer_count,
+            price_updated_at    = now(),
+            updated_at          = now()
+          FROM target t
+         WHERE p.id = t.id
+        RETURNING 1
+    )
+    SELECT count(*)::int FROM changed
+$$;
+
+REVOKE ALL ON FUNCTION refresh_product_aggregates(bigint[]) FROM PUBLIC;
+GRANT EXECUTE ON FUNCTION refresh_product_aggregates(bigint[]) TO arilla_app;
+
 CREATE INDEX offer_unmatched_idx  ON offer (merchant_id) WHERE product_id IS NULL;
 -- 0071: magaza basina sayimlar icin indeks-yalniz tarama
 CREATE INDEX offer_merchant_state_idx ON offer (merchant_id, is_active, product_id);
@@ -293,7 +357,7 @@ CREATE TABLE price_point_2026_10 PARTITION OF price_point
 -- çalışmamış demektir; kritik uyarı üretir. Runbook: docs/ops.md.
 CREATE TABLE price_point_default PARTITION OF price_point DEFAULT;
 
-CREATE INDEX price_point_offer_time_idx ON price_point (offer_id, observed_at DESC);
+-- 0077: price_point_offer_time_idx kaldirildi (PK ile ayni; geriye taranir).
 
 -- Gece toplu işiyle doldurulur. İstek yolu fiyat geçmişini taramaz, burayı okur.
 -- "Şu an iyi fiyat mı?" ve sahte indirim tespiti bu tablodan cevaplanır.
@@ -338,7 +402,7 @@ CREATE TABLE embedding (
 CREATE INDEX embedding_ann_idx ON embedding
     USING hnsw (vector vector_cosine_ops)
     WHERE target_type = 'offer';
-CREATE INDEX embedding_target_idx ON embedding (target_type, target_id);
+-- 0077: embedding_target_idx kaldirildi (embedding_uniq on eki).
 
 -- Eşleştirme kuyruğu. Eşiğin üstü otomatik kabul, altı insan onayına düşer.
 CREATE TABLE match_candidate (
@@ -515,8 +579,7 @@ CREATE TABLE auth_token (
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 CREATE INDEX auth_token_email_idx ON auth_token (email, created_at DESC);
-CREATE INDEX auth_token_cleanup_idx ON auth_token (expires_at) WHERE consumed_at IS NULL;
--- 0030: temizlik isi tuketilmis satirlari da siler; kismi indeks onlari kapsamaz.
+-- 0030: temizlik isi tuketilmis satirlari da siler (0077: eski kismi indeks kaldirildi).
 CREATE INDEX auth_token_expires_idx ON auth_token (expires_at);
 
 CREATE TABLE session (
@@ -1179,7 +1242,7 @@ CREATE TABLE query_resolution (
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     last_used_at    TIMESTAMPTZ NOT NULL DEFAULT now()
 );
-CREATE INDEX query_resolution_popular_idx ON query_resolution (hit_count DESC);
+-- 0077: hit_count indeksi kaldirildi (her isabette artan kolon; HOT engelliyordu).
 
 -- 0040 (docs/decisions/0052): arama kalitesi gunluk ozeti. OLAY tablosu degil;
 -- (gun, normalize sorgu) basina tek satir, kimlik YOK, 90 gun saklanir.
@@ -1277,7 +1340,6 @@ CREATE TABLE user_consent (
                      'signup_default','onboarding','chat_image_prompt')), -- 0045, 0063
     text_version TEXT        CHECK (text_version IS NULL OR char_length(text_version) BETWEEN 1 AND 64)
 );
-CREATE INDEX user_consent_idx ON user_consent (user_id, kind, granted_at DESC);
 CREATE INDEX user_consent_latest_idx ON user_consent (user_id, kind, granted_at DESC, id DESC); -- 0037
 
 -- Trend listeleri. Haftalık toplu işle üretilir, sayfa statik servis edilir.
@@ -1346,7 +1408,6 @@ CREATE TABLE discovery_slot (
     source      TEXT     NOT NULL CHECK (source IN ('curated','organic')),
     PRIMARY KEY (slot_date, position)
 );
-CREATE INDEX discovery_slot_date_idx ON discovery_slot (slot_date);
 
 -- ---------------------------------------------------------------------------
 -- KULLANICI AKTİVİTESİ — 0036 (docs/decisions/0049)
@@ -2581,3 +2642,20 @@ CREATE TABLE catalog_discovery (
 ) WITH (fillfactor = 85, autovacuum_vacuum_scale_factor = 0.02,
         autovacuum_vacuum_insert_scale_factor = 0.05);
 REVOKE DELETE, TRUNCATE ON catalog_discovery FROM arilla_app;
+-- 0085 (karar 0130): fiyat durumu bilinen azinlik satirlar (panel sayimi).
+CREATE INDEX catalog_discovery_priced_idx ON catalog_discovery (source, price_state)
+    WHERE price_state <> 'unpriced';
+
+-- 0084 (karar 0130): kesif defterinden taslak urun aktarimi kontrol noktasi. Anahtar metin
+-- oldugu icin `catalog_build_state`'ten ayri; parti + kontrol noktasi ayni islemde.
+CREATE TABLE catalog_discovery_build_state (
+    source            TEXT        PRIMARY KEY REFERENCES collection_source(source),
+    last_external_id  TEXT        NOT NULL DEFAULT '' CHECK (char_length(last_external_id) <= 100),
+    scanned           BIGINT      NOT NULL DEFAULT 0 CHECK (scanned >= 0),
+    created           BIGINT      NOT NULL DEFAULT 0 CHECK (created >= 0),
+    existing          BIGINT      NOT NULL DEFAULT 0 CHECK (existing >= 0),
+    skipped           JSONB       NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(skipped) = 'object'),
+    started_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    completed_at      TIMESTAMPTZ
+);

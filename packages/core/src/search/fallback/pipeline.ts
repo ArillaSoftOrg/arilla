@@ -140,6 +140,7 @@ export async function searchWithFallback(
     total: number,
     stage: SearchStageId,
     reason: FallbackReason | null,
+    totalCapped = false,
   ): FallbackSearchOutcome => {
     const trace: SearchTrace = {
       queryNorm: analysis.normalized || parsed.text.trim().toLowerCase(),
@@ -158,7 +159,7 @@ export async function searchWithFallback(
     } catch {
       // Gozlem aramayi asla bozmaz.
     }
-    return { mode, items, total, sort, trace };
+    return { mode, items, total, ...(totalCapped ? { totalCapped: true } : {}), sort, trace };
   };
 
   const asExact = (items: SearchQueryItems, stage: SearchStageId, relaxed: Relaxation[] = []) =>
@@ -177,7 +178,14 @@ export async function searchWithFallback(
   );
 
   if (!verify && first.items.length > 0) {
-    return finish("results", asExact(first.items, "exact"), first.total, "exact", null);
+    return finish(
+      "results",
+      asExact(first.items, "exact"),
+      first.total,
+      "exact",
+      null,
+      first.totalCapped === true,
+    );
   }
   // Sayfa sinirinin otesi: "sonuc yok" degil, fallback gostermeyiz.
   if (offset > 0 && first.items.length === 0) {

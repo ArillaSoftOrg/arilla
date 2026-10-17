@@ -12,6 +12,7 @@ import {
   type SearchSummaryIntent,
   type SortMode,
   searchWithFallback,
+  TEXT_SEARCH_TIMEOUT_MS,
 } from "@arilla/core";
 import { ANONYMOUS_SESSION_COOKIE, validAnonymousSessionId } from "@arilla/core/anonymous-session";
 import { getDatabase } from "@arilla/db";
@@ -117,7 +118,7 @@ export async function TextSearchResults({
   // ya da yalnizca model kodu celiskili urunler varsa kontrollu gevsetme. Istek
   // yolunda model cagrisi yok.
   const outcome = await searchWithFallback(
-    createPostgresSearchProvider(db),
+    createPostgresSearchProvider(db, { statementTimeoutMs: TEXT_SEARCH_TIMEOUT_MS }),
     { parsed: { ...parsed, sort: effectiveSort }, sort: effectiveSort, page, pageSize: PAGE_SIZE },
     {
       aliases: createSeedAliasSource(),
@@ -229,7 +230,7 @@ export async function TextSearchResults({
 
       {outcome.mode === "results" ? (
         <p id="sonuc-sayisi" className={styles.count} role="status">
-          {resultCountLabel(resultTotal)}
+          {resultCountLabel(resultTotal, outcome.totalCapped === true)}
         </p>
       ) : null}
 

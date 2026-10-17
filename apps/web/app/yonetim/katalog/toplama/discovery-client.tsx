@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useRef, useState } from "react";
 import { type DiscoveryEnv, runDiscovery } from "./discovery-logic.ts";
+import { collectionPageLoadedAsDocument, RELOAD_REQUIRED_TEXT } from "./document-load.ts";
 
 interface OpenDiscoveryRun {
   id: number;
@@ -52,6 +53,12 @@ export function DiscoveryClient({
   const append = (line: string) => setLog((prev) => [...prev.slice(-199), line]);
 
   async function run(resume: boolean) {
+    // CSP izni yalniz belge bu yolda yuklendiyse gecerli; degilse istek ATILMAZ (butce harcanmaz).
+    if (!collectionPageLoadedAsDocument()) {
+      append(RELOAD_REQUIRED_TEXT);
+      window.location.reload();
+      return;
+    }
     stop.current = false;
     setRunning(true);
     const env: DiscoveryEnv = {

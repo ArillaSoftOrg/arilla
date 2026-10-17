@@ -1,0 +1,13 @@
+[Unit]
+Description=Arilla affiliate donusumleri: Admitad eylem istatistigi -> conversion (karar 0128)
+Requires=docker.service
+After=docker.service
+OnFailure=arilla-alert@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/arilla
+# Son 90 gunun eylemleri; ayni eylem idempotent yazilir, yalniz durum/tutar
+# degisirse guncellenir. ADMITAD_CLIENT_ID/SECRET worker.env'de (statistics kapsami).
+ExecStart=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml --profile feeds run --rm -e JOB_RUN_TRIGGER=cron feeds python -m affiliate conversions
+TimeoutStartSec=30min

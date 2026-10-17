@@ -14,6 +14,11 @@ da `ingest_run`'a `failed` + `refused:<kod>` olarak yazilir; magazaya istek
 gitmez, offer ya da `price_point` yazilmaz. Connector da ilk katalog
 isteginden once `IngestRefused` ile reddedebilir (Shopify robots.txt,
 docs/decisions/0042); ayni sekilde kaydedilir.
+
+Faz 3: kaynak taramasi veritabani islemi ACIK DEGILKEN yapilir, teklifler disk
+tamponuna (`collect/spool.py`) yazilir; tarama bitince yazim TEK islemde,
+partiler halinde (`OfferWriter.write_many`) yapilir. "Ya hepsi ya hic" sozlesmesi
+ayni kalir; islem kaynagi beklerken acik kalmaz ve bellek partiyle sinirlidir.
 """
 
 from __future__ import annotations
@@ -31,12 +36,16 @@ from collect.gate import SHOPIFY_CURRENCY, IngestRefused, ingest_refusal
 from collect.mapping import FieldMapping
 from collect.normalize import normalize
 from collect.records import NormalizedOffer, RecordRejected
+from collect.spool import OfferSpool
 from collect.writer import OfferWriter, WriteCounts
 
 logger = logging.getLogger(__name__)
 
 #: `error_text` alanina sigacak kadar ornek tut; tamami log'a gider.
 MAX_ERROR_SAMPLES = 5
+
+#: Yazim partisi: parti basina sabit sayida ifade; bellekte en fazla bu kadar teklif.
+WRITE_BATCH_SIZE = 500
 
 
 @dataclass
@@ -114,12 +123,14 @@ def run_ingest(conn: psycopg.Connection, merchant_slug: str) -> IngestResult:
     status = "success"
     deactivated = 0
 
+    spool = OfferSpool(WRITE_BATCH_SIZE)
     try:
         mapping = FieldMapping.from_config(merchant["feed_config"])
         source = connector_registry.build(
             merchant["source_type"], merchant["feed_url"], merchant["feed_config"]
         )
 
+        # 1) Tarama: bu dongude veritabanina ifade gitmez, islem acik degildir.
         for record in source.fetch():
             offers_seen += 1
             try:
@@ -137,8 +148,11 @@ def run_ingest(conn: psycopg.Connection, merchant_slug: str) -> IngestResult:
                 duplicates += 1
                 continue
             seen_external_ids.add(offer.external_id)
+            spool.add(offer)
 
-            writer.write(offer)
+        # 2) Yazim: tek islem, partiler halinde; commit asagida, ozetle birlikte.
+        for batch in spool.batches():
+            writer.write_many(batch)
 
         if rejected:
             status = "partial"
@@ -183,6 +197,9 @@ def run_ingest(conn: psycopg.Connection, merchant_slug: str) -> IngestResult:
         logger.exception("ingest kosusu basarisiz: %s", merchant_slug)
         _close_run(conn, run_id, status, offers_seen, WriteCounts(), errors, duplicates)
         raise
+
+    finally:
+        spool.close()
 
     _close_run(conn, run_id, status, offers_seen, writer.counts, errors, duplicates)
 
