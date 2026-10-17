@@ -102,8 +102,8 @@ const STOCK_UNKNOWN_LABEL = "Stok durumu mağazada görülür";
 
 /** JSON-LD: stok bilinmiyorsa `availability` verilmez (yanlis "OutOfStock" yok). */
 function schemaAvailability(row: { inStock: boolean; stockUnknown?: boolean }) {
-  if (row.inStock) return { availability: "https://schema.org/InStock" };
-  return row.stockUnknown ? {} : { availability: "https://schema.org/OutOfStock" };
+  if (row.stockUnknown) return {};
+  return { availability: `https://schema.org/${row.inStock ? "InStock" : "OutOfStock"}` };
 }
 
 function formatSure(from: Date, now: Date): string {

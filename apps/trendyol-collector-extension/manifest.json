@@ -1,0 +1,33 @@
+{
+  "manifest_version": 3,
+  "name": "ManiCepte Trendyol toplayici (yonetici)",
+  "version": "0.1.0",
+  "description": "Yoneticinin actigi Trendyol urun/liste sayfasindaki veriyi okur ve ManiCepte yonetim sayfasina aktarir. Ag istegi atmaz (karar 0118).",
+  "permissions": ["storage"],
+  "content_scripts": [
+    {
+      "matches": ["https://www.trendyol.com/*"],
+      "js": ["capture.js"],
+      "run_at": "document_idle",
+      "exclude_matches": [
+        "https://www.trendyol.com/hesabim*",
+        "https://www.trendyol.com/sepet*",
+        "https://www.trendyol.com/sepetim*",
+        "https://www.trendyol.com/odeme*",
+        "https://www.trendyol.com/siparis*",
+        "https://www.trendyol.com/giris*",
+        "https://www.trendyol.com/uye*",
+        "https://www.trendyol.com/favoriler*",
+        "https://www.trendyol.com/yardim*"
+      ]
+    },
+    {
+      "matches": [
+        "https://manicepte.com/yonetim/katalog/toplama/trendyol*",
+        "https://www.manicepte.com/yonetim/katalog/toplama/trendyol*"
+      ],
+      "js": ["relay.js"],
+      "run_at": "document_idle"
+    }
+  ]
+}
