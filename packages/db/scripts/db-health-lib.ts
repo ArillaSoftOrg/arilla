@@ -332,3 +332,62 @@ export function formatBytes(bytes: number): string {
   if (bytes >= 1024) return `${(bytes / 1024).toFixed(0)} kB`;
   return `${bytes} B`;
 }
+
+export interface SearchOutboxInfo {
+  /** Tablo satir tahmini (reltuples / n_live_tup); toplam icin tam sayim yapilmaz. */
+  estimatedRows: number;
+  /** `processed_at IS NULL` satirlari: kismi indeksten TAM sayim (bayat tahmin yaniltir). */
+  pending: number;
+  totalBytes: number;
+  oldestPendingAt: Date | null;
+}
+
+/**
+ * Arama indeksi olay kuyrugu (karar 0136). Bugun TUKETICISI YOKTUR: arama PostgreSQL'i
+ * dogrudan okur, kuyruk ileride harici bir arama motoru icin ayrilmis bir degisim
+ * kaydidir. Okuma sinirlidir: bekleyen sayim yalniz kismi `search_outbox_pending_idx`
+ * uzerinden (5,6 M satirda ~1-2 sn), toplam tahminden, en eski olay tek satir.
+ */
+export async function loadSearchOutbox(client: Client): Promise<SearchOutboxInfo | null> {
+  const { rows } = await client.query<{ rows: string; bytes: string }>(`
+    -- reltuples hic VACUUM/ANALYZE gormemis tabloda -1'dir; n_live_tup surekli guncellenir.
+    SELECT greatest(t.reltuples, coalesce(s.n_live_tup, 0), 0)::bigint::text AS rows,
+           pg_total_relation_size(t.oid)::text AS bytes
+      FROM pg_class t
+      LEFT JOIN pg_stat_user_tables s ON s.relid = t.oid
+     WHERE t.oid = to_regclass('public.search_outbox')
+  `);
+  const row = rows[0];
+  if (!row) return null;
+  const pending = await client.query<{ n: string; oldest: Date | null }>(`
+    SELECT count(*)::text AS n,
+           (SELECT created_at FROM search_outbox WHERE processed_at IS NULL
+             ORDER BY id LIMIT 1) AS oldest
+      FROM search_outbox WHERE processed_at IS NULL
+  `);
+  const n = Number(pending.rows[0]?.n ?? 0);
+  return {
+    estimatedRows: Math.max(Number(row.rows), n),
+    pending: n,
+    totalBytes: Number(row.bytes),
+    oldestPendingAt: pending.rows[0]?.oldest ?? null,
+  };
+}
+
+/** Rapor satirlari. Tuketici olmadigi icin %100 bekleyen BEKLENEN durumdur, ariza degil. */
+export function describeSearchOutbox(info: SearchOutboxInfo, now: Date = new Date()): string[] {
+  const pendingShare =
+    info.estimatedRows > 0 ? Math.min(100, (100 * info.pending) / info.estimatedRows) : 0;
+  const lines = [
+    `~${info.estimatedRows} olay (${formatBytes(info.totalBytes)}), ${info.pending} islenmemis ` +
+      `(~%${pendingShare.toFixed(0)})`,
+  ];
+  if (info.oldestPendingAt) {
+    const days = Math.floor((now.getTime() - info.oldestPendingAt.getTime()) / 86_400_000);
+    lines.push(`en eski islenmemis olay: ${info.oldestPendingAt.toISOString()} (${days} gun)`);
+  }
+  lines.push(
+    "tuketici yok (karar 0136): arama/sohbet PostgreSQL'i dogrudan okur; birikim arama icin gerekmez",
+  );
+  return lines;
+}

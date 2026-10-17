@@ -917,9 +917,12 @@ oturum başına maliyet raporu üretilir ve eşiği aşınca bildirim gider.
 ### Veritabanı sağlık raporu ve sorgu istatistikleri
 
 `pnpm db:health` (sahip rol, salt okunur oturum, uzak veritabanında onaysız çalışır)
-beş bölüm raporlar: indekssiz foreign key'ler, başka bir indeksin baş kolonlarıyla
+altı bölüm raporlar: indekssiz foreign key'ler, başka bir indeksin baş kolonlarıyla
 aynı olan gereksiz indeksler, istatistik sıfırlanmasından beri hiç taranmamış
-indeksler, ölü satır birikimi ve **en pahalı 20 sorgu** (`pg_stat_statements`).
+indeksler, ölü satır birikimi, arama olay kuyruğu (`search_outbox`) birikimi ve
+**en pahalı 20 sorgu** (`pg_stat_statements`). Olay kuyruğunun tüketicisi YOKTUR
+(karar 0136): arama ve sohbet PostgreSQL'i doğrudan okur, "%100 işlenmemiş" beklenen
+durumdur; kayıtlar silinmez ve işlenmiş işaretlenmez.
 Sorgu metni normalize biçimdedir (`$1`, `$2`); parametre değeri (arama metni, kimlik)
 içermez. Optimizasyon önce ve sonra bu raporla karşılaştırılır. VPS'te migrate
 imajıyla: `docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml run --rm migrate node scripts/db-health.ts`.

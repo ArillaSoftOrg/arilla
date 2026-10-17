@@ -2226,6 +2226,8 @@ CREATE TABLE product_classification_state (
 -- Arama indeksi guncelleme olaylari (outbox). Katalog yazimiyla AYNI islemde
 -- eklenir; indeksleyici islenmemisleri sirayla tuketir. Bugun arama PostgreSQL
 -- uzerinde (indeks kendiliginden guncel); harici arama motoru gelince tuketici eklenir.
+-- Karar 0136: bugun TUKETICI YOK, processed_at hep NULL (ariza degil); kayit silinmez,
+-- islenmis isaretlenmez. Birikim `pnpm db:health` raporunda.
 CREATE TABLE search_outbox (
     id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     entity        TEXT        NOT NULL CHECK (entity IN ('product', 'offer')),
