@@ -271,6 +271,27 @@ export function formatKurus(kurus: number | null): string {
   return `${lira.toLocaleString("tr-TR")}${rest ? `,${String(rest).padStart(2, "0")}` : ""} TL`;
 }
 
+/**
+ * Küçük birim → kendi para birimiyle tutar: TRY "1.299,90 TL", diğerleri
+ * "12,34 USD". TRY dışı tutar TL'ye çevrilmez ve TL gibi yazılmaz (karar 0113).
+ */
+export function formatMinor(minor: number | null, currency: string): string {
+  if (currency === "TRY") return formatKurus(minor);
+  if (minor === null) return "—";
+  const whole = Math.trunc(minor / 100);
+  const rest = Math.abs(minor % 100);
+  return `${whole.toLocaleString("tr-TR")},${String(rest).padStart(2, "0")} ${currency}`;
+}
+
+/** Para birimi başına en düşük yurt dışı fiyat: "12,34 USD · 9,99 EUR"; yoksa "—". */
+export function formatForeignPrices(
+  prices: readonly { currency: string; minPrice: number }[],
+): string {
+  return prices.length > 0
+    ? prices.map((price) => formatMinor(price.minPrice, price.currency)).join(" · ")
+    : "—";
+}
+
 export function formatDuration(ms: number | null): string {
   if (ms === null) return "—";
   if (ms < 1_000) return `${ms} ms`;

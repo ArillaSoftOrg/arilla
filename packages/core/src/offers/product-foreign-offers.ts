@@ -73,3 +73,15 @@ export async function getProductForeignOffers(
     };
   });
 }
+
+/**
+ * Ürün sayfası başlığında gösterilecek yurt dışı teklif (karar 0127): yalnızca TL
+ * teklifi YOKKEN. TL teklif varsa başlık onundur; yurt dışı tutar TL ile yarıştırılmaz.
+ * Fiyat sıralaması yoktur (toplam doğrulanmadı): liste sırası, yani en yeni gözlenen.
+ */
+export function foreignHeadlineOffer(
+  hasTryOffer: boolean,
+  offers: readonly ProductForeignOffer[],
+): ProductForeignOffer | null {
+  return hasTryOffer ? null : (offers[0] ?? null);
+}
