@@ -306,3 +306,62 @@ def test_full_repair_is_idempotent(merchants: dict[str, int]) -> None:
     assert first >= 1
     assert second == 0
     assert _aggregates(merchants["baska"]) == (1, 61000, 61000, 1)
+
+
+def test_foreign_offers_counted_separately_price_summary_try_only(
+    merchants: dict[str, int],
+) -> None:
+    """Karar 0124: TRY disi teklif `min_price`/`offer_count`'u kirletmez, ayrica sayilir."""
+    side, feed = merchants[SIDE_SLUG], merchants[FEED_SLUG]
+    product = merchants["a"]
+    _insert_offer(side, "usd-1", 3000, product)  # 30,00 USD: kurus gibi okunmamali
+    with _owner() as owner, owner.cursor() as cur:
+        cur.execute(
+            "UPDATE offer SET currency = 'USD' WHERE merchant_id = %s AND external_id = 'usd-1'",
+            (side,),
+        )
+    with _app() as conn:
+        product_aggregates.refresh_products(conn, [product])
+        conn.commit()
+    assert _aggregates(product) == (0, None, None, 0)
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute("SELECT foreign_offer_count FROM product WHERE id = %s", (product,))
+        assert cur.fetchone() == (1,)
+
+    _insert_offer(feed, "try-1", 150000, product)
+    with _app() as conn:
+        product_aggregates.refresh_products(conn, [product])
+        again = product_aggregates.refresh_products(conn, [product])
+        conn.commit()
+    assert again == 0
+    assert _aggregates(product) == (1, 150000, 150000, 1)
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute("SELECT foreign_offer_count FROM product WHERE id = %s", (product,))
+        assert cur.fetchone() == (1,)
+
+
+def test_foreign_only_product_summary_is_written(merchants: dict[str, int]) -> None:
+    """Karar 0127: yalniz USD teklifli urunun ozeti yazilir (`price_updated_at` dolar).
+
+    Eskiden TRY-only ozet (NULL, NULL, 0, 0) urunun varsayilaniyla ayniydi; satir hic
+    yazilmadigi icin yonetim paneli urunu "7+ gundur yenilenmedi" sayiyordu.
+    """
+    side = merchants[SIDE_SLUG]
+    product = merchants["a"]
+    _insert_offer(side, "usd-only", 1999, product)
+    with _owner() as owner, owner.cursor() as cur:
+        cur.execute(
+            "UPDATE offer SET currency = 'USD' WHERE merchant_id = %s AND external_id = 'usd-only'",
+            (side,),
+        )
+        cur.execute("UPDATE product SET price_updated_at = NULL WHERE id = %s", (product,))
+    with _app() as conn:
+        assert product_aggregates.refresh_products(conn, [product]) == 1
+        conn.commit()
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT min_price, offer_count, foreign_offer_count, price_updated_at IS NOT NULL"
+            "  FROM product WHERE id = %s",
+            (product,),
+        )
+        assert cur.fetchone() == (None, 0, 1, True)

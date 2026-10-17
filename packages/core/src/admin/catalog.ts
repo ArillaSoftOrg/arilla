@@ -22,6 +22,7 @@ export const PRODUCT_QUALITY_FILTERS = [
   "no_offers",
   "no_price",
   "stale_price",
+  "foreign_only",
 ] as const;
 export type ProductQualityFilter = (typeof PRODUCT_QUALITY_FILTERS)[number];
 
@@ -40,13 +41,21 @@ export function isProductQualityFilter(value: unknown): value is ProductQualityF
  */
 export const STALE_PRICE_DAYS = 7;
 
+/**
+ * Fiyat özeti TRY-only'dir (`min_price`, `offer_count`; karar 0121): yalnızca yurt
+ * dışı (ör. AliExpress USD) teklifi olan ürün orada "mağazasız, fiyatsız" görünür.
+ * `foreign_offer_count` (0076, karar 0127) aktif mağazanın fiyatlı aktif TRY dışı
+ * teklifini sayar; "mağazası yok" ve "fiyatsız" ikisine birden bakar.
+ */
 const QUALITY_SQL: Record<ProductQualityFilter, SQL> = {
   no_brand: sql`p.brand_id IS NULL`,
   no_category: sql`p.category_id IS NULL`,
   no_image: sql`p.primary_image_url IS NULL`,
-  no_offers: sql`p.offer_count = 0`,
-  no_price: sql`p.min_price IS NULL`,
+  no_offers: sql`(p.offer_count = 0 AND p.foreign_offer_count = 0)`,
+  no_price: sql`(p.min_price IS NULL AND p.foreign_offer_count = 0)`,
   stale_price: sql`(p.price_updated_at IS NULL OR p.price_updated_at < now() - (${STALE_PRICE_DAYS} * interval '1 day'))`,
+  // Kusur değil, durum: fiyatı yalnızca yurt dışı para biriminde (TL karşılaştırmasına girmez).
+  foreign_only: sql`(p.offer_count = 0 AND p.foreign_offer_count > 0)`,
 };
 
 export interface ProductListRow {
@@ -57,10 +66,21 @@ export interface ProductListRow {
   categoryPath: string | null;
   imageUrl: string | null;
   gtin: string | null;
+  /** TRY en düşük fiyat, kuruş. TRY dışı tutar buraya girmez. */
   minPrice: number | null;
   offerCount: number;
   inStockCount: number;
+  /** TRY dışı fiyatlı aktif teklifi olan aktif mağaza sayısı (karar 0127). */
+  foreignOfferCount: number;
+  /** Para birimi başına en düşük TRY dışı fiyat (kendi küçük biriminde); TL'ye çevrilmez. */
+  foreignPrices: ForeignPrice[];
   priceUpdatedAt: Date | null;
+}
+
+export interface ForeignPrice {
+  currency: string;
+  /** Para biriminin küçük birimi (USD için cent). */
+  minPrice: number;
 }
 
 /**
@@ -118,8 +138,41 @@ type ProductRow = {
   min_price: string | null;
   offer_count: number;
   in_stock_count: number;
+  foreign_offer_count: number;
   price_updated_at: string | null;
 };
+
+/**
+ * Verilen ürünlerin para birimi başına en düşük TRY dışı fiyatı. Özetle aynı kural
+ * (aktif mağazanın fiyatlı aktif teklifi). Yalnızca `foreign_offer_count > 0` olan
+ * sayfa satırları için çağrılır: TRY kataloğu için ek sorgu yok.
+ */
+async function foreignPriceSummaries(
+  tx: Pick<Database, "execute">,
+  productIds: number[],
+): Promise<Map<number, ForeignPrice[]>> {
+  const byProduct = new Map<number, ForeignPrice[]>();
+  if (productIds.length === 0) return byProduct;
+  const result = await tx.execute<{ product_id: string; currency: string; min_price: string }>(sql`
+    SELECT o.product_id, o.currency, min(o.current_price) AS min_price
+      FROM offer o JOIN merchant m ON m.id = o.merchant_id AND m.is_active
+     WHERE o.product_id = ANY(${sql.param(productIds)}::bigint[])
+       AND o.is_active AND o.current_price IS NOT NULL AND o.currency <> 'TRY'
+     GROUP BY o.product_id, o.currency
+     ORDER BY o.product_id, o.currency
+  `);
+  for (const row of result.rows) {
+    const id = Number(row.product_id);
+    const list = byProduct.get(id) ?? [];
+    list.push({ currency: row.currency, minPrice: Number(row.min_price) });
+    byProduct.set(id, list);
+  }
+  return byProduct;
+}
+
+function foreignIds(rows: readonly ProductRow[]): number[] {
+  return rows.filter((row) => row.foreign_offer_count > 0).map((row) => Number(row.id));
+}
 
 function queryCondition(query: string | undefined): SQL | null {
   const q = query?.trim() ?? "";
@@ -156,7 +209,7 @@ export async function searchProducts(
     const result = await tx.execute<ProductRow>(sql`
       SELECT p.id, p.slug, p.title, b.name AS brand_name, c.path AS category_path,
              p.primary_image_url, p.gtin, p.min_price, p.offer_count, p.in_stock_count,
-             p.price_updated_at
+             p.foreign_offer_count, p.price_updated_at
         FROM product p
         LEFT JOIN brand b ON b.id = p.brand_id
         LEFT JOIN category c ON c.id = p.category_id
@@ -164,17 +217,19 @@ export async function searchProducts(
        ORDER BY p.id DESC
        LIMIT ${CATALOG_PAGE_SIZE + 1} OFFSET ${(page - 1) * CATALOG_PAGE_SIZE}
     `);
-    return result.rows;
+    const pageRows = result.rows.slice(0, CATALOG_PAGE_SIZE);
+    const foreign = await foreignPriceSummaries(tx, foreignIds(pageRows));
+    return { all: result.rows, pageRows, foreign };
   });
 
   return {
-    rows: rows.slice(0, CATALOG_PAGE_SIZE).map(toProductRow),
-    hasNext: rows.length > CATALOG_PAGE_SIZE,
+    rows: rows.pageRows.map((row) => toProductRow(row, rows.foreign.get(Number(row.id)) ?? [])),
+    hasNext: rows.all.length > CATALOG_PAGE_SIZE,
     page,
   };
 }
 
-function toProductRow(row: ProductRow): ProductListRow {
+function toProductRow(row: ProductRow, foreignPrices: ForeignPrice[]): ProductListRow {
   return {
     id: Number(row.id),
     slug: row.slug,
@@ -186,6 +241,8 @@ function toProductRow(row: ProductRow): ProductListRow {
     minPrice: row.min_price === null ? null : Number(row.min_price),
     offerCount: row.offer_count,
     inStockCount: row.in_stock_count,
+    foreignOfferCount: row.foreign_offer_count,
+    foreignPrices,
     priceUpdatedAt: row.price_updated_at ? new Date(row.price_updated_at) : null,
   };
 }
@@ -204,7 +261,8 @@ export async function countProductQuality(
              count(*) FILTER (WHERE ${QUALITY_SQL.no_image}) AS no_image,
              count(*) FILTER (WHERE ${QUALITY_SQL.no_offers}) AS no_offers,
              count(*) FILTER (WHERE ${QUALITY_SQL.no_price}) AS no_price,
-             count(*) FILTER (WHERE ${QUALITY_SQL.stale_price}) AS stale_price
+             count(*) FILTER (WHERE ${QUALITY_SQL.stale_price}) AS stale_price,
+             count(*) FILTER (WHERE ${QUALITY_SQL.foreign_only}) AS foreign_only
         FROM product p
        WHERE p.publication_state = 'published'
     `);
@@ -217,6 +275,7 @@ export async function countProductQuality(
       no_offers: Number(row.no_offers ?? 0),
       no_price: Number(row.no_price ?? 0),
       stale_price: Number(row.stale_price ?? 0),
+      foreign_only: Number(row.foreign_only ?? 0),
     };
   });
 }
@@ -314,7 +373,7 @@ export async function getProductDetail(
     >(sql`
       SELECT p.id, p.slug, p.title, b.name AS brand_name, c.path AS category_path,
              p.primary_image_url, p.gtin, p.min_price, p.offer_count, p.in_stock_count,
-             p.price_updated_at, p.public_id, p.mpn, p.model_key, p.color, p.attributes,
+             p.foreign_offer_count, p.price_updated_at, p.public_id, p.mpn, p.model_key, p.color, p.attributes,
              p.max_price, p.created_at, p.updated_at, c.is_discoverable
         FROM product p
         LEFT JOIN brand b ON b.id = p.brand_id
@@ -323,6 +382,7 @@ export async function getProductDetail(
     `);
     const row = productResult.rows[0];
     if (!row) return null;
+    const foreign = await foreignPriceSummaries(tx, foreignIds([row]));
 
     const offers = await tx.execute<{
       id: string;
@@ -413,7 +473,7 @@ export async function getProductDetail(
     const s = stats.rows[0];
     return {
       product: {
-        ...toProductRow(row),
+        ...toProductRow(row, foreign.get(Number(row.id)) ?? []),
         publicId: row.public_id,
         mpn: row.mpn,
         modelKey: row.model_key,
@@ -545,7 +605,9 @@ export interface OfferListRow {
   externalId: string;
   title: string;
   brand: string | null;
+  /** Teklifin kendi para biriminde, küçük birim (TRY için kuruş). */
   price: number | null;
+  currency: string;
   inStock: boolean;
   isActive: boolean;
   productId: number | null;
@@ -600,6 +662,7 @@ export async function listOffers(
       title_raw: string;
       brand_raw: string | null;
       current_price: string | null;
+      currency: string;
       in_stock: boolean;
       is_active: boolean;
       product_id: string | null;
@@ -613,7 +676,7 @@ export async function listOffers(
       has_image_vector: boolean;
     }>(sql`
       SELECT o.id, m.slug AS merchant_slug, m.name AS merchant_name, o.external_id, o.title_raw,
-             o.brand_raw, o.current_price, o.in_stock, o.is_active, o.product_id,
+             o.brand_raw, o.current_price, o.currency, o.in_stock, o.is_active, o.product_id,
              p.slug AS product_slug,
              (SELECT count(*) FROM match_candidate mc
                WHERE mc.offer_id = o.id AND mc.status = 'pending') AS pending,
@@ -645,6 +708,7 @@ export async function listOffers(
       title: o.title_raw,
       brand: o.brand_raw,
       price: o.current_price === null ? null : Number(o.current_price),
+      currency: o.currency,
       inStock: o.in_stock,
       isActive: o.is_active,
       productId: o.product_id === null ? null : Number(o.product_id),

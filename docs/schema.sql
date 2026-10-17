@@ -92,6 +92,9 @@ CREATE TABLE product (
     max_price       BIGINT,
     offer_count     INTEGER     NOT NULL DEFAULT 0,   -- farklı mağaza sayısı ("N mağaza")
     in_stock_count  INTEGER     NOT NULL DEFAULT 0,   -- stokta olan mağaza sayısı
+    -- 0076 (karar 0127): yalnızca TRY dışı teklifi olan farklı mağaza sayısı. Fiyat
+    -- özeti (min/max/offer_count/in_stock_count) TRY-only kalır; USD tutar kuruş değildir.
+    foreign_offer_count INTEGER NOT NULL DEFAULT 0 CHECK (foreign_offer_count >= 0),
     price_updated_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
