@@ -68,6 +68,7 @@ describe("güvenlik başlıkları", () => {
     expect(securityHeaderOptionsFromEnv({ NODE_ENV: "production", VERCEL: "1" })).toEqual({
       ...PROD,
       ga4: false,
+      umamiOrigin: null,
     });
     expect(securityHeaderOptionsFromEnv({ NODE_ENV: "production" }).production).toBe(false);
     expect(securityHeaderOptionsFromEnv({ NODE_ENV: "development" }).development).toBe(true);
@@ -77,7 +78,7 @@ describe("güvenlik başlıkları", () => {
   it("HSTS kendi sunucumuzda DEPLOY_ENV=production ile gelir, stagingde gelmez", () => {
     expect(
       securityHeaderOptionsFromEnv({ NODE_ENV: "production", DEPLOY_ENV: "production" }),
-    ).toEqual({ ...PROD, ga4: false });
+    ).toEqual({ ...PROD, ga4: false, umamiOrigin: null });
     expect(
       securityHeaderOptionsFromEnv({ NODE_ENV: "production", DEPLOY_ENV: "staging" }).production,
     ).toBe(false);
@@ -163,6 +164,56 @@ describe("güvenlik başlıkları", () => {
     // GA4 kapalıyken yönetim girdisi CSP taşımaz (genel CSP zaten dar).
     const plain = securityHeaderRoutes(PROD).find((r) => r.source === "/yonetim");
     expect(header(plain?.headers ?? [], "Content-Security-Policy")).toBeUndefined();
+  });
+
+  // Karar 0116: Umami yalnızca geçerli kök adres + web sitesi kimliğiyle ve yönetim alanı hariç.
+  const UMAMI_SITE = "123e4567-e89b-42d3-a456-426614174000";
+  const UMAMI_ENV = {
+    NODE_ENV: "production",
+    VERCEL: "1",
+    UMAMI_BASE_URL: "https://analytics.manicepte.com",
+    UMAMI_WEBSITE_ID: UMAMI_SITE,
+  };
+
+  it("Umami yapılandırması eksik ya da geçersizse CSP genişlemez", () => {
+    for (const env of [
+      { ...UMAMI_ENV, UMAMI_WEBSITE_ID: undefined },
+      { ...UMAMI_ENV, UMAMI_BASE_URL: undefined },
+      { ...UMAMI_ENV, UMAMI_BASE_URL: "http://analytics.manicepte.com" },
+      { ...UMAMI_ENV, UMAMI_BASE_URL: "https://analytics.manicepte.com/x" },
+      { ...UMAMI_ENV, UMAMI_WEBSITE_ID: "<script>" },
+    ]) {
+      const options = securityHeaderOptionsFromEnv(env);
+      expect(options.umamiOrigin).toBeNull();
+      const csp = contentSecurityPolicy(options);
+      expect(directive(csp, "script-src")).toEqual(["'self'", "'unsafe-inline'"]);
+      expect(directive(csp, "connect-src")).toEqual(["'self'"]);
+    }
+  });
+
+  it("Umami etkinken yalnızca o köken script-src ve connect-src'ye eklenir", () => {
+    const options = securityHeaderOptionsFromEnv(UMAMI_ENV);
+    expect(options.umamiOrigin).toBe("https://analytics.manicepte.com");
+    const csp = contentSecurityPolicy(options);
+    expect(directive(csp, "script-src")).toEqual([
+      "'self'",
+      "'unsafe-inline'",
+      "https://analytics.manicepte.com",
+    ]);
+    expect(directive(csp, "connect-src")).toEqual(["'self'", "https://analytics.manicepte.com"]);
+    expect(directive(csp, "default-src")).toEqual(["'self'"]);
+    expect(directive(csp, "frame-src")).toEqual(["'self'"]);
+  });
+
+  it("Umami etkinken yönetim alanı Umami kökeni OLMAYAN CSP ile ezilir", () => {
+    const options = securityHeaderOptionsFromEnv(UMAMI_ENV);
+    const routes = securityHeaderRoutes(options);
+    for (const source of ["/yonetim", "/yonetim/:path*"]) {
+      const route = routes.find((r) => r.source === source);
+      const csp = header(route?.headers ?? [], "Content-Security-Policy") ?? "";
+      expect(csp).not.toContain("analytics.manicepte.com");
+      expect(directive(csp, "script-src")).toEqual(["'self'", "'unsafe-inline'"]);
+    }
   });
 });
 

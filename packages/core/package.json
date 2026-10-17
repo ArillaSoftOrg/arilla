@@ -25,7 +25,8 @@
     "./catalog-collection-trendyol": "./src/catalog-collection/extract-trendyol.ts",
     "./catalog-collection-trendyol-relay": "./src/catalog-collection/trendyol-relay.ts",
     "./catalog-discovery-extract": "./src/catalog-collection/discovery-extract.ts",
-    "./errors": "./src/errors/index.ts"
+    "./errors": "./src/errors/index.ts",
+    "./umami-tracker": "./src/analytics-umami/config.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

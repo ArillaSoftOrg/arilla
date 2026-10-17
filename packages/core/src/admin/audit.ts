@@ -119,6 +119,14 @@ export type AdminAction =
   | "data.export_download"
   | "data.accuracy_sample"
   | "data.accuracy_label"
+  /**
+   * Takip bağlantıları (karar 0115). Hedefin yalnız ana makine adı + yolu yazılır
+   * (sorgu dizgesi yazılmaz); tıklama sayısı ve ziyaretçi verisi burada yok.
+   */
+  | "links.create"
+  | "links.update"
+  | "links.activate"
+  | "links.deactivate"
   /** Katalog toplama (karar 0117): kosu rezervasyonu ve kapanisi; urun icerigi YAZILMAZ. */
   | "catalog_collection.start"
   | "catalog_collection.close"
@@ -146,7 +154,9 @@ export type AdminTargetType =
   | "trend"
   /** Karar 0103: veri seti sürümü (`di_dataset_build`) ve dışa aktarım kaydı (`di_export`). */
   | "data_build"
-  | "data_export";
+  | "data_export"
+  /** Karar 0115: `tracking_link` satırı. */
+  | "tracking_link";
 
 /** Filtre ve bağlantı için bilinen hedef türleri. */
 export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
@@ -164,6 +174,7 @@ export const AUDIT_TARGET_TYPES: readonly AdminTargetType[] = [
   "trend",
   "data_build",
   "data_export",
+  "tracking_link",
 ];
 
 export function isAuditTargetType(value: unknown): value is AdminTargetType {

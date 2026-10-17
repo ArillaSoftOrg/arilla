@@ -436,6 +436,21 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "Satırlar yalnızca k-eşikli toplulaştırılmış hücrelerdir; kişi, oturum, sorgu metni, görsel yoktur. Dışa aktarım hukuki onaya bağlı.",
   },
   {
+    id: "tracking_links",
+    label: "Takip bağlantıları (kısa adresler)",
+    tables: ["tracking_link", "tracking_link_click_hour"],
+    status: "visible",
+    adminPaths: ["/yonetim/takip-baglantilari"],
+    gaps: [
+      {
+        signal: "Hedef sayfa ziyaretçi ve kampanya analitiği (Umami, 2. aşama)",
+        status: "external",
+      },
+    ],
+    privacy:
+      "Yalnızca saat başına tıklama sayacı; IP, User-Agent, oturum, çerez ve yönlendiren adres yazılmaz (karar 0115).",
+  },
+  {
     id: "audit",
     label: "Denetim kaydı",
     tables: ["admin_audit_event"],
@@ -476,6 +491,23 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
     ],
     privacy:
       "Yalnızca rızalı ve arındırılmış page_view; 5 kullanıcı altı coğrafya/kaynak satırı birleştirilir.",
+  },
+  {
+    id: "umami_analytics",
+    label: "Ziyaretçi analitiği (Umami, rızalı)",
+    // Veri Umami'nin kendi veritabanında; Arilla veritabanında tablo yok (karar 0116).
+    tables: [],
+    status: "visible",
+    adminPaths: ["/yonetim/analitik"],
+    gaps: [
+      {
+        signal: "Kampanya bazlı dönüşüm kırılımı (olay verisi API'si doğrulanamadı)",
+        status: "external",
+      },
+      { signal: "Analitik rızası vermeyen ziyaretçi (bilerek ölçülmez)", status: "unmeasured" },
+    ],
+    privacy:
+      "Yalnızca rızalı, arındırılmış sayfa yolu ve güvenli utm_*; satır düzeyi ziyaretçi verisi gösterilmez, 5 altı hücreler Diğer'e katılır.",
   },
   {
     id: "configuration",
@@ -603,6 +635,9 @@ export const CAPABILITY_COVERAGE: Readonly<Record<Capability, CapabilityCoverage
   "data.read": { class: "analyze", sensitive: false },
   "data.build": { class: "manage", sensitive: true },
   "data.export": { class: "manage", sensitive: true },
+  // Karar 0115: yalnızca sayaç; kişi tanımlayıcısı yok.
+  "links.read": { class: "analyze", sensitive: false },
+  "links.manage": { class: "manage", sensitive: false },
 };
 
 /** Her denetim hedefi bir alt sisteme bağlıdır (`Record` eksik hedefi derlemede yakalar). */
@@ -621,6 +656,7 @@ export const AUDIT_TARGET_SUBSYSTEM: Readonly<Record<AdminTargetType, string>> =
   capability: "audit",
   data_build: "data_intelligence",
   data_export: "data_intelligence",
+  tracking_link: "tracking_links",
 };
 
 /** Kayıtta geçen bütün tablolar (test: `docs/schema.sql` ile birebir). */

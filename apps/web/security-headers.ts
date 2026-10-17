@@ -27,6 +27,7 @@ import {
   GA4_SCRIPT_ORIGIN,
   parseMeasurementId,
 } from "@arilla/core/ga4-measurement";
+import { umamiTrackerFromEnv } from "@arilla/core/umami-tracker";
 import { COLLECTION_PAGE_PATH } from "./app/yonetim/katalog/toplama/document-load.ts";
 
 export interface SecurityHeader {
@@ -41,6 +42,8 @@ export interface SecurityHeaderOptions {
   production: boolean;
   /** Geçerli GA4 ölçüm kimliği tanımlı mı (karar 0087). */
   ga4?: boolean;
+  /** Umami kökeni (karar 0116); yalnızca izleyici etkinken. Betik yine rıza kapısındadır. */
+  umamiOrigin?: string | null;
   /** Ek `connect-src` kokenleri; yalnızca katalog toplama sayfası (karar 0117). */
   extraConnectOrigins?: string[];
 }
@@ -57,6 +60,7 @@ export function contentSecurityPolicy(options: SecurityHeaderOptions): string {
         "'unsafe-inline'",
         ...(options.development ? ["'unsafe-eval'"] : []),
         ...(options.ga4 ? [GA4_SCRIPT_ORIGIN] : []),
+        ...(options.umamiOrigin ? [options.umamiOrigin] : []),
       ],
     ],
     ["style-src", ["'self'", "'unsafe-inline'"]],
@@ -68,6 +72,7 @@ export function contentSecurityPolicy(options: SecurityHeaderOptions): string {
         "'self'",
         ...(options.development ? ["ws:", "wss:"] : []),
         ...(options.ga4 ? GA4_CONNECT_ORIGINS : []),
+        ...(options.umamiOrigin ? [options.umamiOrigin] : []),
         ...(options.extraConnectOrigins ?? []),
       ],
     ],
@@ -123,10 +128,13 @@ export const TOKEN_URL_PATHS = ["/giris/dogrula", "/abonelik-iptali", "/api/emai
 
 /** Yönetim: dizin dışı + GA4 kökenleri OLMAYAN CSP (yalnızca GA4 açıkken ezmek gerekir). */
 function adminHeaders(options: SecurityHeaderOptions): SecurityHeader[] {
-  if (!options.ga4) return ADMIN_EXTRA_HEADERS;
+  if (!options.ga4 && !options.umamiOrigin) return ADMIN_EXTRA_HEADERS;
   return [
     ...ADMIN_EXTRA_HEADERS,
-    { key: "Content-Security-Policy", value: contentSecurityPolicy({ ...options, ga4: false }) },
+    {
+      key: "Content-Security-Policy",
+      value: contentSecurityPolicy({ ...options, ga4: false, umamiOrigin: null }),
+    },
   ];
 }
 
@@ -185,5 +193,6 @@ export function securityHeaderOptionsFromEnv(
     // karar 0109). Yerelde http uzerinden `next start` HSTS almaz.
     production: isHttpsProductionDeploy(env),
     ga4: parseMeasurementId(env.GA4_MEASUREMENT_ID) !== null,
+    umamiOrigin: umamiTrackerFromEnv(env)?.baseUrl ?? null,
   };
 }

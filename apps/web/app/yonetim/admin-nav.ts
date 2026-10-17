@@ -161,6 +161,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "GA4: ziyaretçi, oturum, kanal, sayfa, cihaz, konum (rızalı örneklem).",
       },
       {
+        href: "/yonetim/analitik",
+        label: "Ziyaretçi analitiği",
+        capability: "traffic.read",
+        description: "Umami: ziyaretçi, kaynak, kampanya, ülke, cihaz, tarayıcı (rızalı örneklem).",
+      },
+      {
         href: "/yonetim/veri-zekasi",
         label: "Veri zekâsı",
         capability: "data.read",
@@ -217,6 +223,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         label: "SEO tanısı",
         capability: "catalog.read",
         description: "Sitemap uygunluğu ve indekslenebilirlik.",
+      },
+      {
+        href: "/yonetim/takip-baglantilari",
+        label: "Takip bağlantıları",
+        capability: "links.read",
+        description: "Kısa adresler (örn. /ig), hedef, kampanya ve tıklama sayıları.",
       },
     ],
   },

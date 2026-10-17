@@ -76,6 +76,19 @@ telefon hiçbir alanda gönderilmez (`ga4-measurement.ts`, testli). GA4
 mülkündeki "gelişmiş ölçüm" kapalı tutulur (`docs/ops.md`). Yeni bir GA4
 olayı eklemek için önce bu tablo ve izin listesi güncellenir.
 
+## Umami (tarayıcı, karar 0116)
+
+Umami'ye (kendi sunucumuz) gönderilen olaylar yalnızca şunlardır. Yalnızca
+`UMAMI_BASE_URL` + `UMAMI_WEBSITE_ID` tanımlı ve ziyaretçi analitik çerez rızası
+vermişse gönderilir; `user_activity_event` sınıfından ve GA4'ten ayrıdır.
+
+| Olay | Alanlar | Not |
+| --- | --- | --- |
+| sayfa görüntüleme | `url` (arındırılmış yol + yalnızca güvenli `utm_*`), `title` (= arındırılmış yol), `referrer` (dış: yalnızca köken) | Otomatik izleme kapalı; rota değişiminde elle, GA4 ile aynı süzgeç (`sanitizePage`). `/yonetim`, `/api`, `/giris/*`, `/abonelik-iptali` gönderilmez |
+| `early_access_joined` | `campaign`, `source` (iniş sayfasındaki güvenli `utm_campaign` / `utm_source`; yoksa boş) | Erken erişim kaydı "az önce katıldı" durumundayken tek sefer (`sessionStorage` bayrağı). Kullanıcı kimliği, e-posta, hesap numarası YOK; `identify` çağrılmaz |
+
+Başka Umami olayı eklemek için önce bu tablo güncellenir.
+
 ## Arama
 
 | Olay | Alanlar | Not |
