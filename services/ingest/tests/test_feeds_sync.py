@@ -204,7 +204,10 @@ def test_kanonik_adres_affiliate_ayri_eslestirme_yok_kur_uydurulmaz(env: Env) ->
     assert (cur_, price, product_id, seller) == ("USD", 2211, None, "1105855203")
     # TRY disi offer puanli cozumleyiciye girmez (TL gibi gorunemez).
     with env.owner.cursor() as cur:
-        cur.execute(PENDING_OFFERS, {"merchant_id": env.merchant_id, "limit": 100})
+        cur.execute(
+            PENDING_OFFERS,
+            {"merchant_id": env.merchant_id, "limit": 100, "source_listing": []},
+        )
         assert cur.fetchall() == []
 
 

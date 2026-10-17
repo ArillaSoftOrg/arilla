@@ -6,6 +6,11 @@ export interface MerchantOfferRow {
   totalLabel: string;
   shippingLabel: string;
   inStock: boolean;
+  /**
+   * Kaynak stok bildirmedi (karar 0130): `inStock` false olsa da "stokta yok" yazilmaz,
+   * `unknownStockLabel` gosterilir.
+   */
+  stockUnknown?: boolean;
   exitHref: string;
   exitLabel: string;
   /**
@@ -25,6 +30,8 @@ export interface MerchantListProps {
   outOfStockLabel: string;
   /** Verilirse stoktaki satirda gosterilir ("Stokta"). */
   inStockLabel?: string;
+  /** docs/copy.md `product.stock_unknown`: stok bilinmeyen satirda (karar 0130). */
+  unknownStockLabel?: string;
   /**
    * Verilirse bir satir bu etiketle isaretlenir ("En uygun fiyat"):
    * `bestOfferId` verilmisse o teklif, verilmemisse ilk satir (siralama
@@ -50,6 +57,7 @@ export function MerchantList({
   offers,
   outOfStockLabel,
   inStockLabel,
+  unknownStockLabel,
   bestOfferLabel,
   bestOfferId,
   "aria-labelledby": labelledBy,
@@ -74,6 +82,10 @@ export function MerchantList({
                 {offer.inStock ? (
                   inStockLabel ? (
                     <span className={styles.inStock}>{inStockLabel}</span>
+                  ) : null
+                ) : offer.stockUnknown ? (
+                  unknownStockLabel ? (
+                    <span className={styles.stockUnknown}>{unknownStockLabel}</span>
                   ) : null
                 ) : (
                   <span className={styles.outOfStock}>{outOfStockLabel}</span>
