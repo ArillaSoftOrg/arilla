@@ -73,11 +73,11 @@ export interface ProductListRow {
   /** TRY dışı fiyatlı aktif teklifi olan aktif mağaza sayısı (karar 0127). */
   foreignOfferCount: number;
   /** Para birimi başına en düşük TRY dışı fiyat (kendi küçük biriminde); TL'ye çevrilmez. */
-  foreignPrices: ForeignPrice[];
+  foreignPrices: CatalogForeignPrice[];
   priceUpdatedAt: Date | null;
 }
 
-export interface ForeignPrice {
+export interface CatalogForeignPrice {
   currency: string;
   /** Para biriminin küçük birimi (USD için cent). */
   minPrice: number;
@@ -150,8 +150,8 @@ type ProductRow = {
 async function foreignPriceSummaries(
   tx: Pick<Database, "execute">,
   productIds: number[],
-): Promise<Map<number, ForeignPrice[]>> {
-  const byProduct = new Map<number, ForeignPrice[]>();
+): Promise<Map<number, CatalogForeignPrice[]>> {
+  const byProduct = new Map<number, CatalogForeignPrice[]>();
   if (productIds.length === 0) return byProduct;
   const result = await tx.execute<{ product_id: string; currency: string; min_price: string }>(sql`
     SELECT o.product_id, o.currency, min(o.current_price) AS min_price
@@ -229,7 +229,7 @@ export async function searchProducts(
   };
 }
 
-function toProductRow(row: ProductRow, foreignPrices: ForeignPrice[]): ProductListRow {
+function toProductRow(row: ProductRow, foreignPrices: CatalogForeignPrice[]): ProductListRow {
   return {
     id: Number(row.id),
     slug: row.slug,
