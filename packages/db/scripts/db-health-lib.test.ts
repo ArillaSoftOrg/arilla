@@ -1,6 +1,11 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
-import { compactStatement, findRedundantIndexes, type IndexInfo } from "./db-health-lib.ts";
+import {
+  compactStatement,
+  describeSearchOutbox,
+  findRedundantIndexes,
+  type IndexInfo,
+} from "./db-health-lib.ts";
 
 function index(partial: Partial<IndexInfo> & Pick<IndexInfo, "name" | "columns">): IndexInfo {
   return {
@@ -79,4 +84,30 @@ test("sorgu metni tek satira indirilir ve kirpilir", () => {
   const long = compactStatement(`SELECT ${"x, ".repeat(200)}`);
   assert.equal(long.length, 200);
   assert.ok(long.endsWith("…"));
+});
+
+test("arama olay kuyrugu: tuketicisiz birikim ariza diye raporlanmaz (karar 0136)", () => {
+  const lines = describeSearchOutbox(
+    {
+      estimatedRows: 5_572_716,
+      pending: 5_572_716,
+      totalBytes: 600 * 1024 * 1024,
+      oldestPendingAt: new Date("2026-10-14T00:00:00Z"),
+    },
+    new Date("2026-10-18T00:00:00Z"),
+  );
+  assert.match(lines[0] ?? "", /~5572716 olay .* 5572716 islenmemis \(~%100\)/);
+  assert.match(lines[1] ?? "", /2026-10-14.*\(4 gun\)/);
+  assert.match(lines[2] ?? "", /tuketici yok \(karar 0136\)/);
+});
+
+test("arama olay kuyrugu: bos tablo", () => {
+  const lines = describeSearchOutbox({
+    estimatedRows: 0,
+    pending: 0,
+    totalBytes: 8192,
+    oldestPendingAt: null,
+  });
+  assert.equal(lines.length, 2);
+  assert.match(lines[0] ?? "", /0 islenmemis \(~%0\)/);
 });
