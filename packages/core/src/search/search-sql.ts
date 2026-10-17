@@ -24,31 +24,76 @@ export function merchantIdsOf(filters: QueryFilters): number[] | null {
   return filters.merchant_ids && filters.merchant_ids.length > 0 ? filters.merchant_ids : null;
 }
 
+export interface BestOfferScope {
+  inStockOnly?: boolean;
+  merchantIds?: number[] | null;
+}
+
 /**
- * `best_offer`: urun basina en dusuk fiyatli aktif teklif. `onlyProductId`
- * yalnizca tani icindir: tek urunun satirini ayni kuralla hesaplar.
+ * `lateral`: urun basina okuma; aday kumesi sinirliyken (metin, kategori, renk,
+ * marka, beden). `scan`: tum katalogun tek gecisi; aday kumesi sinirsizken
+ * (or. yalnizca "1000 TL alti") planlayici paralel hash join secebilir.
  */
-export function bestOfferCte(
-  inStockOnly: boolean,
-  merchantIds: number[] | null,
-  onlyProductId: number | null = null,
+export type BestOfferStrategy = "lateral" | "scan";
+
+/**
+ * Metin sekmelerinde hangi yol. Olcek olcumu (200 bin urun, 1 milyon teklif):
+ * 1000 urunluk kategoride lateral 266 -> 14 ms; filtresiz sorguda ise lateral
+ * 853 -> 1936 ms (urun basina 181 bin okuma, paralel plan yok). Sinir, aday
+ * kumesini daraltan bir sey olup olmamasi.
+ */
+export function bestOfferStrategy(filters: QueryFilters, textSlots: number): BestOfferStrategy {
+  const narrowed =
+    textSlots > 0 ||
+    Boolean(filters.category_path) ||
+    (filters.color?.length ?? 0) > 0 ||
+    (filters.brand_include?.length ?? 0) > 0 ||
+    Boolean(filters.size_norm);
+  return narrowed ? "lateral" : "scan";
+}
+
+/**
+ * `bo`: urunun en dusuk fiyatli aktif teklifi (aktif magaza, TRY; magaza/stok
+ * suzgeci verilirse ona gore). Iki yol ayni kosulu ayni ifadeden kurar; yalnizca
+ * okuma bicimi farklidir (`BestOfferStrategy`). Eski `DISTINCT ON` CTE'si sorgu
+ * ne kadar secici olursa olsun tum katalogu tariyordu (gorsel aramada 254 ms'nin
+ * 242 ms'i). `offer_try_product_idx` (0082) ile lateral urun basina birkac sayfa
+ * okur ve ilk satirda durur. Ikinci bir siralama anahtari (or. `o.id`) EKLENMEZ:
+ * indeks sirasini bozar, urunun tum tekliflerini okutup siralatir (tum katalogda
+ * 1,6 sn -> 7,9 sn olculdu).
+ *
+ * `left`: teklifi olmayan urun de kalir (`bo.*` NULL); aksi halde elenir.
+ */
+export function bestOfferJoin(
+  product: SQL,
+  { inStockOnly = false, merchantIds = null }: BestOfferScope = {},
+  mode: "inner" | "left" = "inner",
+  strategy: BestOfferStrategy = "lateral",
 ): SQL {
-  const only = onlyProductId === null ? sql`` : sql`AND o.product_id = ${onlyProductId}`;
-  return sql`
-    best_offer AS (
-      SELECT DISTINCT ON (o.product_id)
-        o.product_id, o.id AS offer_id, o.current_price, o.in_stock, o.merchant_id, m.trust_score
-      FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id
-      WHERE o.product_id IS NOT NULL
-        AND o.is_active AND m.is_active
+  const columns = sql`o.product_id, o.id AS offer_id, o.current_price, o.in_stock, o.merchant_id,
+             m.trust_score`;
+  const where = sql`o.is_active AND m.is_active
         AND o.currency = 'TRY'
         AND (${arrayParam(merchantIds)}::bigint[] IS NULL OR o.merchant_id = ANY(${arrayParam(merchantIds)}::bigint[]))
-        AND (NOT ${inStockOnly} OR o.in_stock)
-        ${only}
+        AND (NOT ${inStockOnly} OR o.in_stock)`;
+  const join = mode === "left" ? sql`LEFT JOIN` : sql`JOIN`;
+  if (strategy === "scan") {
+    return sql`${join} (
+      SELECT DISTINCT ON (o.product_id) ${columns}
+      FROM offer o
+      JOIN merchant m ON m.id = o.merchant_id
+      WHERE o.product_id IS NOT NULL AND ${where}
       ORDER BY o.product_id, o.current_price ASC NULLS LAST
-    )
-  `;
+    ) bo ON bo.product_id = ${product}`;
+  }
+  return sql`${join} LATERAL (
+      SELECT ${columns}
+      FROM offer o
+      JOIN merchant m ON m.id = o.merchant_id
+      WHERE o.product_id = ${product} AND ${where}
+      ORDER BY o.current_price ASC NULLS LAST
+      LIMIT 1
+    ) bo ON TRUE`;
 }
 
 /**
@@ -111,7 +156,7 @@ export function filterPredicates(filters: QueryFilters): { name: FilterPredicate
       name: "color",
       sql: sql`(${arrayParam(colors)}::text[] IS NULL OR p.color = ANY(${arrayParam(colors)}::text[]))`,
     },
-    // Kartta GOSTERILEN fiyat `best_offer.current_price`'tir (magaza/stok filtresine gore
+    // Kartta GOSTERILEN fiyat `bo.current_price`'tir (magaza/stok filtresine gore
     // en ucuz teklif). `p.min_price` tum aktif tekliflerin en dusugudur; magaza ya da stok
     // filtresi aciksa gosterilen fiyattan ayrisir ve kullanici 200 TL ustu filtrelese de
     // 100 TL'lik gizli bir teklif yuzunden 500 TL'lik karti gorurdu.
@@ -193,7 +238,7 @@ export function textMatch(
 }
 
 /**
- * `WITH best_offer AS (...), scored AS (...)`: kapidan gecen her urun ve
+ * `WITH scored AS (...)`: kapidan gecen her urun ve
  * skoru. `explain` yalnizca tanida: skor carpanlarini ayri kolon olarak da
  * secer (`f_relevance`, `f_trust`, `f_stock`, `f_price`). `/ara` bunu
  * `false` ile cagirir; SQL'i tanidan once ne ise odur.
@@ -207,20 +252,25 @@ export function scoredCtes(
   const merchantIds = merchantIdsOf(query.filters);
   const inStockOnly = query.filters.in_stock_only ?? false;
   const text = textMatch(query, tokenThreshold);
+  const bestOffer = bestOfferJoin(
+    sql`p.id`,
+    { inStockOnly, merchantIds },
+    "inner",
+    bestOfferStrategy(query.filters, text.slots.length),
+  );
   // "En iyi fiyat" sekmesi de ayni metin kapisindan gecer: alakasiz ama
   // indirimli bir urun bu sekmede de one cikmamali.
   if (sort === "best_deal") {
     const extra = explain ? sql`, ${text.relevance}::double precision AS f_relevance` : sql``;
     return sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
-    scored AS (
+    WITH scored AS (
       SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
              b.name AS brand_name, c.path AS category_path,
              bo.current_price, bo.in_stock, bo.trust_score,
              pps.current_percentile, pps.list_price_inflated, p.offer_count,
              (100 - COALESCE(pps.current_percentile, 100))::double precision AS score${extra}
       FROM ${text.products}
-      JOIN best_offer bo ON bo.product_id = p.id
+      ${bestOffer}
       JOIN product_price_stats pps ON pps.product_id = p.id
       LEFT JOIN brand b ON b.id = p.brand_id
       LEFT JOIN category c ON c.id = p.category_id
@@ -249,15 +299,14 @@ export function scoredCtes(
              ${f.price}::double precision AS f_price`;
   }
   return sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
-    scored AS (
+    WITH scored AS (
       SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
              b.name AS brand_name, c.path AS category_path,
              bo.current_price, bo.in_stock, bo.trust_score,
              pps.current_percentile, pps.list_price_inflated, p.offer_count,
              ${score} AS score${extra}
       FROM ${text.products}
-      JOIN best_offer bo ON bo.product_id = p.id
+      ${bestOffer}
       LEFT JOIN product_price_stats pps ON pps.product_id = p.id
       LEFT JOIN brand b ON b.id = p.brand_id
       LEFT JOIN category c ON c.id = p.category_id

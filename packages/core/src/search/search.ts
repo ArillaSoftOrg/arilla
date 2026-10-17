@@ -17,7 +17,7 @@ import {
   UnsupportedSortForIntentError,
 } from "./result-types.ts";
 import {
-  bestOfferCte,
+  bestOfferJoin,
   buildFilterClause,
   distinctImage,
   finalOrder,
@@ -127,8 +127,7 @@ async function searchByClosestMatch(
   const inStockOnly = query.filters.in_stock_only ?? false;
 
   const result = await db.execute<RawRow>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
-    edges AS (
+    WITH edges AS (
       -- Cift yonlu yazilir; yalnizca product_a okunur (similarity_lookup_idx).
       SELECT product_b AS other_id, max(score) AS score
       FROM similarity_edge
@@ -143,7 +142,7 @@ async function searchByClosestMatch(
            e.score::double precision AS score
     FROM product p
     JOIN edges e ON e.other_id = p.id
-    LEFT JOIN best_offer bo ON bo.product_id = p.id
+    ${bestOfferJoin(sql`p.id`, { inStockOnly, merchantIds }, "left")}
     LEFT JOIN product_price_stats pps ON pps.product_id = p.id
     LEFT JOIN brand b ON b.id = p.brand_id
     LEFT JOIN category c ON c.id = p.category_id
