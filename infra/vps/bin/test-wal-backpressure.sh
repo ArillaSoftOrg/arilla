@@ -11,8 +11,14 @@
 # siniri (kod 3) sonrasi cokme sayilmadan kaldigi yerden devam.
 #
 # KEEP=1: konteyner silinmez (hata ayiklama). WAL_TEST_IMAGE: imaj (varsayilan uretim tabani).
+# shellcheck source-path=SCRIPTDIR
+# Sahte isin ve kutuphanenin okudugu degiskenler (WEB_LAST_CODE, ARCH_FAIL_SINCE, MAX_CRASHES...)
+# bu dosyada atanir, catalog-publish icinde okunur.
+# shellcheck disable=SC2034
 set -uo pipefail
 export LC_ALL=C MSYS_NO_PATHCONV=1
+# Bekcinin uzun beklemeleri (run_phase'te 10/60 sn) testte 1 sn'ye kisalir; kisa olanlar aynen.
+sleep() { command sleep "$(awk -v s="$1" 'BEGIN{print (s>2?1:s)}')"; }
 
 HERE=$(cd "$(dirname "$0")" && pwd)
 IMAGE=${WAL_TEST_IMAGE:-pgvector/pgvector:0.8.1-pg16}
@@ -190,7 +196,6 @@ start_job() { # sira NEXT_JOB'dan: "<kod>|satir1|satir2"
   bash "$FJ/job.sh" "${parts[@]}" >>"$lf" 2>&1 &
   echo $! >"$FJ/pid"
 }
-sleep() { command sleep "$(awk -v s="$1" 'BEGIN{print (s>2?1:s)}')"; } # run_phase'in 10/60 sn'lik beklemeleri kisalir
 
 echo "== 7. is ici WAL siniri (kod 3) cokme sayilmaz; kaldigi yerden (--after-id) surer"
 : >"$FJ/starts"
