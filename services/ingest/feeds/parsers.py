@@ -119,10 +119,11 @@ _OFFER_OPEN = re.compile(rb"<offer[\s>]")
 _OFFER_CLOSE = b"</offer>"
 _CLOSING = re.compile(rb"</offers\s*>|</yml_catalog\s*>")
 _ENCODING = re.compile(rb"""<\?xml[^>]*encoding=["']([A-Za-z0-9._-]+)["']""")
-_CATEGORY = re.compile(
-    rb"""<category\s+id=["']([^"']+)["'](?:\s+parentId=["']([^"']+)["'])?\s*>(.*?)</category>""",
-    re.S,
-)
+#: Kategori etiketi: oznitelik SIRASINDAN bagimsiz (`parentId` once gelebilir, baska oznitelik
+#: olabilir). Agac kaybolursa `category_raw` cozulmemis kimlik olarak kalir (karar 0133).
+_CATEGORY = re.compile(rb"<category(\s[^>]*)?>(.*?)</category>", re.S)
+_CATEGORY_ID = re.compile(rb"""\sid=["']([^"']+)["']""")
+_CATEGORY_PARENT = re.compile(rb"""\sparentId=["']([^"']+)["']""")
 _OFFER_ID = re.compile(rb"""<offer[^>]*\sid=["']([^"']{1,200})["']""")
 #: Kucuk blok: kesik sikistirilmis akista gzip son okumanin verisini atar; kayip <= 64 KB.
 _BLOCK = 1 << 16
@@ -190,7 +191,13 @@ def _yml(stream: IO[bytes], result: ParseResult) -> Iterator[FeedRecord]:
             if found:
                 encoding = found.group(1).decode("ascii")
                 declaration = f'<?xml version="1.0" encoding="{encoding}"?>'.encode("ascii")
-            for cid, parent, name in _CATEGORY.findall(header):
+            for attrs, name in _CATEGORY.findall(header):
+                found_id = _CATEGORY_ID.search(b" " + attrs)
+                if found_id is None:
+                    continue
+                cid = found_id.group(1)
+                found_parent = _CATEGORY_PARENT.search(b" " + attrs)
+                parent = found_parent.group(1) if found_parent else b""
                 text = name.decode(encoding, "replace").strip()
                 text = unescape(text, {"&quot;": '"', "&apos;": "'", "&#39;": "'"})
                 result.categories[cid.decode(encoding, "replace")] = (

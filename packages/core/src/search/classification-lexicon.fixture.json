@@ -1,0 +1,656 @@
+[
+  {
+    "kind": "category",
+    "surface": "elektronik",
+    "normalized": "elektronik",
+    "weight": 1.0
+  },
+  {
+    "kind": "category",
+    "surface": "cep telefonu",
+    "normalized": "elektronik/telefon/cep-telefonu",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "akıllı telefon",
+    "normalized": "elektronik/telefon/cep-telefonu",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "telefon",
+    "normalized": "elektronik/telefon/cep-telefonu",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "telefon aksesuarı",
+    "normalized": "elektronik/telefon/aksesuar",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "telefon aksesuarları",
+    "normalized": "elektronik/telefon/aksesuar",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "telefon kılıfı",
+    "normalized": "elektronik/telefon/aksesuar/kilif",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "kılıf",
+    "normalized": "elektronik/telefon/aksesuar/kilif",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "kılıfı",
+    "normalized": "elektronik/telefon/aksesuar/kilif",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "ekran koruyucu",
+    "normalized": "elektronik/telefon/aksesuar/ekran-koruyucu",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "kırılmaz cam",
+    "normalized": "elektronik/telefon/aksesuar/ekran-koruyucu",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "şarj cihazı",
+    "normalized": "elektronik/telefon/aksesuar/sarj-kablo",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "şarj aleti",
+    "normalized": "elektronik/telefon/aksesuar/sarj-kablo",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "şarj kablosu",
+    "normalized": "elektronik/telefon/aksesuar/sarj-kablo",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "hızlı şarj",
+    "normalized": "elektronik/telefon/aksesuar/sarj-kablo",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "powerbank",
+    "normalized": "elektronik/telefon/aksesuar/powerbank",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "taşınabilir şarj",
+    "normalized": "elektronik/telefon/aksesuar/powerbank",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "telefon tutucu",
+    "normalized": "elektronik/telefon/aksesuar/tutucu",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "kulaklık",
+    "normalized": "elektronik/ses/kulaklik",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "kulaklığı",
+    "normalized": "elektronik/ses/kulaklik",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "kablosuz kulaklık",
+    "normalized": "elektronik/ses/kulaklik/kablosuz",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "kablosuz kulaklığı",
+    "normalized": "elektronik/ses/kulaklik/kablosuz",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "bluetooth kulaklık",
+    "normalized": "elektronik/ses/kulaklik/kablosuz",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "bluetooth kulaklığı",
+    "normalized": "elektronik/ses/kulaklik/kablosuz",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "oyuncu kulaklığı",
+    "normalized": "elektronik/ses/kulaklik/oyuncu",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "oyuncu kulaklık",
+    "normalized": "elektronik/ses/kulaklik/oyuncu",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "gaming kulaklık",
+    "normalized": "elektronik/ses/kulaklik/oyuncu",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "oyun kulaklığı",
+    "normalized": "elektronik/ses/kulaklik/oyuncu",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "kablolu kulaklık",
+    "normalized": "elektronik/ses/kulaklik/kablolu",
+    "weight": 4.0
+  },
+  {
+    "kind": "category",
+    "surface": "hoparlör",
+    "normalized": "elektronik/ses/hoparlor",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "bluetooth hoparlör",
+    "normalized": "elektronik/ses/hoparlor",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "mikrofon",
+    "normalized": "elektronik/ses/mikrofon",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "laptop",
+    "normalized": "elektronik/bilgisayar/dizustu",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "dizüstü bilgisayar",
+    "normalized": "elektronik/bilgisayar/dizustu",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "tablet",
+    "normalized": "elektronik/bilgisayar/tablet",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "klavye",
+    "normalized": "elektronik/bilgisayar/klavye-mouse",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "mouse",
+    "normalized": "elektronik/bilgisayar/klavye-mouse",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "usb bellek",
+    "normalized": "elektronik/bilgisayar/depolama",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "hafıza kartı",
+    "normalized": "elektronik/bilgisayar/depolama",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "harici disk",
+    "normalized": "elektronik/bilgisayar/depolama",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "akıllı saat",
+    "normalized": "elektronik/giyilebilir/akilli-saat",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "akıllı bileklik",
+    "normalized": "elektronik/giyilebilir/akilli-bileklik",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "saat kordonu",
+    "normalized": "elektronik/giyilebilir/kordon",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "akıllı saat kordonu",
+    "normalized": "elektronik/giyilebilir/kordon",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "aksiyon kamerası",
+    "normalized": "elektronik/kamera/aksiyon-kamerasi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "güvenlik kamerası",
+    "normalized": "elektronik/kamera/guvenlik-kamerasi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "ip kamera",
+    "normalized": "elektronik/kamera/guvenlik-kamerasi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "drone",
+    "normalized": "elektronik/kamera/drone",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "projeksiyon",
+    "normalized": "elektronik/tv-goruntu/projeksiyon",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "projektör",
+    "normalized": "elektronik/tv-goruntu/projeksiyon",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "oyun konsolu",
+    "normalized": "elektronik/oyun/konsol",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "oyun kolu",
+    "normalized": "elektronik/oyun/aksesuar",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "gamepad",
+    "normalized": "elektronik/oyun/aksesuar",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "mutfak",
+    "normalized": "ev-yasam/mutfak",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "kahve ekipmanları",
+    "normalized": "ev-yasam/mutfak/kahve-ekipmanlari",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "kahve ekipmanı",
+    "normalized": "ev-yasam/mutfak/kahve-ekipmanlari",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "kahve makinesi",
+    "normalized": "ev-yasam/mutfak/kahve-ekipmanlari",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "kahve öğütücü",
+    "normalized": "ev-yasam/mutfak/kahve-ekipmanlari",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "pişirme gereçleri",
+    "normalized": "ev-yasam/mutfak/pisirme-gerecleri",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "tencere",
+    "normalized": "ev-yasam/mutfak/pisirme-gerecleri",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "tava",
+    "normalized": "ev-yasam/mutfak/pisirme-gerecleri",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "termos",
+    "normalized": "ev-yasam/mutfak/termos-matara",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "matara",
+    "normalized": "ev-yasam/mutfak/termos-matara",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "aydınlatma",
+    "normalized": "ev-yasam/aydinlatma",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "lamba",
+    "normalized": "ev-yasam/aydinlatma",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "avize",
+    "normalized": "ev-yasam/aydinlatma",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "süpürge",
+    "normalized": "ev-yasam/ev-aletleri/supurge",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "robot süpürge",
+    "normalized": "ev-yasam/ev-aletleri/supurge",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "kadın giyim",
+    "normalized": "moda/kadin-giyim",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "elbise",
+    "normalized": "moda/kadin-giyim/elbise",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "erkek giyim",
+    "normalized": "moda/erkek-giyim",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "ayakkabı",
+    "normalized": "moda/ayakkabi",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "spor ayakkabı",
+    "normalized": "moda/ayakkabi/spor-ayakkabi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "spor ayakkabısı",
+    "normalized": "moda/ayakkabi/spor-ayakkabi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "sneaker",
+    "normalized": "moda/ayakkabi/spor-ayakkabi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "bot",
+    "normalized": "moda/ayakkabi/bot",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "çizme",
+    "normalized": "moda/ayakkabi/bot",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "çanta",
+    "normalized": "moda/canta",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "omuz çantası",
+    "normalized": "moda/canta/omuz-cantasi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "omuz çantaları",
+    "normalized": "moda/canta/omuz-cantasi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "çapraz çanta",
+    "normalized": "moda/canta/capraz-canta",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "çapraz askılı çanta",
+    "normalized": "moda/canta/capraz-canta",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "el çantası",
+    "normalized": "moda/canta/el-cantasi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "sırt çantası",
+    "normalized": "moda/canta/sirt-cantasi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "cüzdan",
+    "normalized": "moda/canta/cuzdan",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "valiz",
+    "normalized": "moda/canta/valiz",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "bavul",
+    "normalized": "moda/canta/valiz",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "takı",
+    "normalized": "moda/aksesuar/taki",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "kolye",
+    "normalized": "moda/aksesuar/taki",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "küpe",
+    "normalized": "moda/aksesuar/taki",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "yüzük",
+    "normalized": "moda/aksesuar/taki",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "kol saati",
+    "normalized": "moda/aksesuar/saat",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "güneş gözlüğü",
+    "normalized": "moda/aksesuar/gunes-gozlugu",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "makyaj",
+    "normalized": "saglik-kozmetik/kozmetik/makyaj",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "cilt bakımı",
+    "normalized": "saglik-kozmetik/kozmetik/cilt-bakimi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "parfüm",
+    "normalized": "saglik-kozmetik/kozmetik/parfum",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "oyuncak",
+    "normalized": "anne-bebek/oyuncak",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "fitness",
+    "normalized": "spor-outdoor/fitness",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "kamp malzemesi",
+    "normalized": "spor-outdoor/kamp-outdoor",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "çadır",
+    "normalized": "spor-outdoor/kamp-outdoor",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "bisiklet",
+    "normalized": "spor-outdoor/bisiklet",
+    "weight": 2.0
+  },
+  {
+    "kind": "synonym",
+    "surface": "kadın",
+    "normalized": "kadin",
+    "weight": 1.0
+  },
+  {
+    "kind": "synonym",
+    "surface": "women",
+    "normalized": "kadin",
+    "weight": 1.0
+  },
+  {
+    "kind": "synonym",
+    "surface": "womens",
+    "normalized": "kadin",
+    "weight": 1.0
+  },
+  {
+    "kind": "synonym",
+    "surface": "ladies",
+    "normalized": "kadin",
+    "weight": 1.0
+  },
+  {
+    "kind": "synonym",
+    "surface": "oyuncu",
+    "normalized": "oyuncu",
+    "weight": 1.0
+  },
+  {
+    "kind": "synonym",
+    "surface": "gaming",
+    "normalized": "oyuncu",
+    "weight": 1.0
+  },
+  {
+    "kind": "synonym",
+    "surface": "omuz",
+    "normalized": "omuz",
+    "weight": 1.0
+  },
+  {
+    "kind": "synonym",
+    "surface": "shoulder",
+    "normalized": "omuz",
+    "weight": 1.0
+  }
+]

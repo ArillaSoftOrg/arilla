@@ -280,6 +280,69 @@ export async function countProductQuality(
   });
 }
 
+/**
+ * Yayındaki ürünlerin marka/kategori sınıflandırma durumu (karar 0133).
+ *
+ * - `pending`: sınıflandırma işinin (`classify products`, kapsam `all`) henüz taramadığı
+ *   ve markası ya da kategorisi eksik yayındaki ürünler + incelemede bekleyenler.
+ * - `review`: kanıt yetersiz/çelişkili olduğu için kategorisi yazılmamış, bekleyen ürünler.
+ * - `errors`: işlenemeyen (ör. eşzamanlı değişiklik) ürünler; sonraki tarama yeniden dener.
+ * Kontrol noktası en yeni kural sürümünündür; iş hiç çalışmadıysa tüm eksikler bekler.
+ */
+export interface ProductClassificationCounts {
+  pending: number;
+  review: number;
+  errors: number;
+  ruleVersion: number | null;
+  lastRunAt: Date | null;
+  completedAt: Date | null;
+}
+
+export async function countProductClassification(
+  db: Database,
+  actor: AdminActor,
+): Promise<ProductClassificationCounts> {
+  assertCapability(actor, "catalog.read");
+  return readOnly(db, 5_000, async (tx) => {
+    const state = await tx.execute<{
+      rule_version: number;
+      last_product_id: string;
+      updated_at: string;
+      completed_at: string | null;
+    }>(sql`
+      SELECT rule_version, last_product_id, updated_at, completed_at
+        FROM product_classification_state
+       WHERE scope = 'all'
+       ORDER BY rule_version DESC
+       LIMIT 1
+    `);
+    const checkpoint = state.rows[0];
+    const after = checkpoint ? Number(checkpoint.last_product_id) : 0;
+    const result = await tx.execute<{ unscanned: string; review: string; errors: string }>(sql`
+      SELECT
+        (SELECT count(*) FROM product p
+          WHERE p.publication_state = 'published' AND p.id > ${after}
+            AND (p.brand_id IS NULL OR p.category_id IS NULL)) AS unscanned,
+        (SELECT count(*) FROM product_classification pc
+           JOIN product p ON p.id = pc.product_id AND p.publication_state = 'published'
+          WHERE pc.state = 'review' AND pc.product_id <= ${after}) AS review,
+        (SELECT count(*) FROM product_classification pc
+           JOIN product p ON p.id = pc.product_id AND p.publication_state = 'published'
+          WHERE pc.state = 'error') AS errors
+    `);
+    const row = result.rows[0];
+    const review = Number(row?.review ?? 0);
+    return {
+      pending: Number(row?.unscanned ?? 0) + review,
+      review,
+      errors: Number(row?.errors ?? 0),
+      ruleVersion: checkpoint ? Number(checkpoint.rule_version) : null,
+      lastRunAt: checkpoint ? new Date(checkpoint.updated_at) : null,
+      completedAt: checkpoint?.completed_at ? new Date(checkpoint.completed_at) : null,
+    };
+  });
+}
+
 export interface ProductOfferRow {
   id: number;
   merchantSlug: string;

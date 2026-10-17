@@ -27,6 +27,7 @@ veritabani tarafindan reddedilir.
 | `enrich/` | Gorsel indirme, hash, embedding uretimi | B3 ✅ |
 | `resolve/` | Katmanli eslestirme, `match_candidate` yazimi | B4 ✅ |
 | `similarity/` | Gecelik `similarity_edge` ve `product_price_stats` | B5 ✅ |
+| `classify/` | Urun marka + merkezi kategori siniflandirmasi (karar 0133); model cagrisi yok | ✅ |
 | `db/` | Ortak veritabani baglantisi | — |
 
 ## Kurulum
@@ -390,6 +391,24 @@ degerler: `docs/decisions/0017-eslestirme-esikleri.md`.
 Insan karari (`accepted` / `rejected`) makine tarafindan **ezilmez**.
 
 ---
+
+## Siniflandirma: marka + kategori (karar 0133)
+
+Model cagrisi yok. Kurallar `classify/taxonomy.py` (kategori) ve `classify/brands.py` (marka,
+uyumluluk ayrimi); zorunlu regresyon seti `tests/classify_regression.json`.
+
+```
+python -m classify report  [--merchant aliexpress]          # YALNIZCA OKUR: kac urun siniflanir
+python -m classify sources --merchant aliexpress [--apply]  # kaynak kategori yollari ve eslemesi
+python -m classify products --confirm [--merchant aliexpress] [--sleep-ms 200]
+python -m classify status
+python -m classify lexicon [--apply]                        # arama/sohbet kategori sozlugu
+```
+
+`products` yalniz bos (ya da kendi yazdigi) `brand_id`/`category_id`yi doldurur; parti basina
+tek islem + kontrol noktasi, Ctrl+C sonrasi ayni komutla surer. `catalog_build` oturumu varken
+baslamaz; WAL arsiv gecikmesi esigi asarsa bekler. `lexicon --apply` siniflandirma bittikten SONRA
+(kategori yuzeyi aramada kati filtredir).
 
 ## Benzerlik ve fiyat istatistikleri (B5)
 
