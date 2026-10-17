@@ -3,7 +3,7 @@ import styles from "../../admin.module.css";
 import { KpiCard, KpiGroup, Section } from "../../admin-ui.tsx";
 import { formatCount, formatDateOrDash } from "../../format.ts";
 
-/** Kapida tutulma nedenleri (karar 0121/0129). Bilinmeyen kod oldugu gibi gosterilir. */
+/** Kapida tutulma nedenleri (karar 0121/0130). Bilinmeyen kod oldugu gibi gosterilir. */
 const HOLD_TEXT: Record<string, string> = {
   source_offer_missing: "Fiyatlı teklif yok (keşif kaydı, fiyat bekliyor)",
   no_price: "Teklifte fiyat yok",
@@ -64,7 +64,7 @@ function ReasonTable({ title, rows }: { title: string; rows: Record<string, numb
 }
 
 /**
- * Iki toplayicinin merkezi katalogdaki ilerleyisi (karar 0129). Sayilar
+ * Iki toplayicinin merkezi katalogdaki ilerleyisi (karar 0130). Sayilar
  * `getCatalogFunnel` ile salt okunur; buyuk tablolarda ust sinirli ("en az").
  */
 export function CatalogFunnelSection({ funnel }: { funnel: CatalogFunnel }) {

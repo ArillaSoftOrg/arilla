@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { offerStockState } from "./stock-state.ts";
 import { buildPriceComparison, type OfferInput } from "./variant-price.ts";
 
-describe("offerStockState (karar 0129)", () => {
+describe("offerStockState (karar 0130)", () => {
   it("stokta olan teklif bildirimden bagimsiz available", () => {
     expect(offerStockState(true, null)).toBe("available");
     expect(offerStockState(true, "unknown")).toBe("available");

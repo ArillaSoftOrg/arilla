@@ -250,7 +250,7 @@ def _hb_merge(args: argparse.Namespace) -> int:
             f" fiyat_sicramasi_bekleyen={report.held}"
         )
         # Teklif urune DOGRUDAN baglanmaz: `python -m catalog_build build --merchant hepsiburada`
-        # taslak uretir, kapi + acik yayin ister (karar 0129).
+        # taslak uretir, kapi + acik yayin ister (karar 0130).
         return 0 if report.status in ("success", "duplicate", "nothing_to_merge") else 1
 
 

@@ -1,4 +1,4 @@
-"""Kesif defterinden (sitemap, fiyatsiz) taslak urun aktarimi (karar 0129).
+"""Kesif defterinden (sitemap, fiyatsiz) taslak urun aktarimi (karar 0130).
 
 `catalog_discovery` (0073) satiri `offer` DEGILDIR ve fiyati yoktur. Buradan yalnizca
 `draft` urun uretilir; `source_offer_id` NULL kalir, hicbir `offer`/`price_point` satiri

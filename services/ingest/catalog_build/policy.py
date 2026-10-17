@@ -43,7 +43,7 @@ SKIP_REASONS = (
     "bad_image",
     "no_price",
     "slug_conflict",
-    # Karar 0129 (kesif defteri): ayni kod defterde baska adres turuyle kayitli.
+    # Karar 0130 (kesif defteri): ayni kod defterde baska adres turuyle kayitli.
     "discovery_kind_conflict",
 )
 
@@ -63,7 +63,7 @@ class SourcePolicy:
     id_pattern: re.Pattern[str]
     #: Kanonik `offer.url`; ILK grup kaynak kimligidir ve `external_id` ile AYNI olmali.
     url_pattern: re.Pattern[str]
-    #: Fiyatsiz kesif defteri kaynagi (`catalog_discovery.source`, karar 0129). Varsa
+    #: Fiyatsiz kesif defteri kaynagi (`catalog_discovery.source`, karar 0130). Varsa
     #: defterden taslak urun uretilebilir ve teklif geldiginde ayni kimlige baglanir.
     discovery_source: str | None = None
     #: Adresten kimlik TURU (or. Hepsiburada `p`/`pm`). Kesif defteriyle bag yalnizca ayni
@@ -72,7 +72,7 @@ class SourcePolicy:
 
 
 #: Hepsiburada urun adresi: `/<slug>-p-<KOD>` (varyant) ya da `/<slug>-pm-<KOD>` (model).
-#: Iki tur AYRI kimliktir; aralarindaki iliski dogrulanmadi (karar 0129), birbirine
+#: Iki tur AYRI kimliktir; aralarindaki iliski dogrulanmadi (karar 0130), birbirine
 #: baglanmaz. Kod tek basina kimliktir; tur adresten okunur ve eslesmede ayrica denetlenir.
 HEPSIBURADA_URL = re.compile(
     r"^https://www\.hepsiburada\.com/[^/?#\s]+-(?:p|pm)-([A-Za-z0-9]{3,60})$"
@@ -96,7 +96,7 @@ POLICIES: dict[str, SourcePolicy] = {
             r"^https://(?:www\.|[a-z]{2}\.)?aliexpress\.com/item/([0-9]{10,20})\.html$"
         ),
     ),
-    # Yonetici toplamasi (karar 0117/0129): `offer.external_id` adres sonundaki koddur
+    # Yonetici toplamasi (karar 0117/0130): `offer.external_id` adres sonundaki koddur
     # (feeds/intake.py), kanonik adres sorgusuz/parcasiz `www.hepsiburada.com`.
     "hepsiburada": SourcePolicy(
         merchant_slug="hepsiburada",
@@ -109,7 +109,7 @@ POLICIES: dict[str, SourcePolicy] = {
 
 #: Urunu YALNIZCA kaynak ilani hattindan (taslak -> kapi -> acik yayin) acilan magazalar.
 #: Cozumleyici (`python -m resolve`) bu magazalarin tekliflerinden urun ACMAZ ve onlari
-#: baslik/gorsel benzerligiyle baska urune baglamaz (karar 0129).
+#: baslik/gorsel benzerligiyle baska urune baglamaz (karar 0130).
 SOURCE_LISTING_MERCHANTS: frozenset[str] = frozenset(POLICIES)
 
 

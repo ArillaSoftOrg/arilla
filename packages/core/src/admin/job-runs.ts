@@ -87,7 +87,7 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
-  // Karar 0129: fiyatsız keşif defterinden yalnızca taslak ürün (teklif/fiyat yok).
+  // Karar 0130: fiyatsız keşif defterinden yalnızca taslak ürün (teklif/fiyat yok).
   catalog_build_discovery: {
     label: "Keşif defteri aktarımı (fiyatsız taslak ürün)",
     how: "python -m catalog_build build-discovery --merchant hepsiburada --limit N",

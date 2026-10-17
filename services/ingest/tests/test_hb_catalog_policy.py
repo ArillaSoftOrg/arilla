@@ -1,4 +1,4 @@
-"""Hepsiburada kaynak ilani politikasi ve uc durumlu stok (karar 0129). Veritabani yok."""
+"""Hepsiburada kaynak ilani politikasi ve uc durumlu stok (karar 0130). Veritabani yok."""
 
 from __future__ import annotations
 

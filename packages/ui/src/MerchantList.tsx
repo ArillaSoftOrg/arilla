@@ -7,7 +7,7 @@ export interface MerchantOfferRow {
   shippingLabel: string;
   inStock: boolean;
   /**
-   * Kaynak stok bildirmedi (karar 0129): `inStock` false olsa da "stokta yok" yazilmaz,
+   * Kaynak stok bildirmedi (karar 0130): `inStock` false olsa da "stokta yok" yazilmaz,
    * `unknownStockLabel` gosterilir.
    */
   stockUnknown?: boolean;
@@ -30,7 +30,7 @@ export interface MerchantListProps {
   outOfStockLabel: string;
   /** Verilirse stoktaki satirda gosterilir ("Stokta"). */
   inStockLabel?: string;
-  /** docs/copy.md `product.stock_unknown`: stok bilinmeyen satirda (karar 0129). */
+  /** docs/copy.md `product.stock_unknown`: stok bilinmeyen satirda (karar 0130). */
   unknownStockLabel?: string;
   /**
    * Verilirse bir satir bu etiketle isaretlenir ("En uygun fiyat"):

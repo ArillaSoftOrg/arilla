@@ -93,7 +93,7 @@ function offerTotalLabel(offer: OfferLike): string {
 const LOWEST_PERCENTILE_THRESHOLD = 5;
 
 /**
- * docs/copy.md `product.stock_unknown` (karar 0129): kaynak stok bildirmediginde
+ * docs/copy.md `product.stock_unknown` (karar 0130): kaynak stok bildirmediginde
  * "stokta yok" YAZILMAZ; bilinmeyen bilgi uydurulmaz.
  */
 const STOCK_UNKNOWN_LABEL = "Stok durumu mağazada görülür";
@@ -262,7 +262,7 @@ export default async function ProductPage({
   // compareMerchants yalnizca kargo dahil toplama gore siralar (stok bilmez).
   // Birincil cikis ve "En uygun fiyat" etiketi stokta olan en uygun teklife
   // gider; hic stokta teklif yoksa en uygun teklif kalir.
-  // Stogu bilinmeyen teklif, stokta olmadigi BILINEN tekliften once gelir (karar 0129).
+  // Stogu bilinmeyen teklif, stokta olmadigi BILINEN tekliften once gelir (karar 0130).
   const primaryOffer =
     merchantOffers.find((offer) => offer.inStock) ??
     merchantOffers.find((offer) => offer.stockUnknown) ??

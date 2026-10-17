@@ -1,5 +1,5 @@
 /**
- * Hepsiburada katalog hunisi (karar 0129): iki toplayicidan gelen kayitlarin merkezi
+ * Hepsiburada katalog hunisi (karar 0130): iki toplayicidan gelen kayitlarin merkezi
  * katalogda nereye kadar ilerledigi. YALNIZCA OKUR.
  *
  *   arama toplayicisi -> catalog_intake_record -> (hb-merge) offer

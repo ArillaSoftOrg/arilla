@@ -11,7 +11,7 @@ python -m catalog_build gate    [--after-id N] [--batch 5000] [--max-batches N]
 python -m catalog_build publish --limit N --confirm [--merchant aliexpress] [--allow-foreign]
 python -m catalog_build unpublish --product-id N [--product-id M ...] --confirm
 
-`build-discovery` (karar 0129) fiyatsiz kesif defterinden yalnizca TASLAK urun acar; offer
+`build-discovery` (karar 0130) fiyatsiz kesif defterinden yalnizca TASLAK urun acar; offer
 ve fiyat uretmez, her kosu acik `--limit` ister. `--dry-run` yalnizca okur.
 
 `build` offer'lara DOKUNMAZ ve hicbir seyi yayinlamaz. Ctrl+C / SIGTERM mevcut partiyi

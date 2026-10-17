@@ -1,7 +1,7 @@
-# 0129 — Hepsiburada: iki toplayıcının merkezi katalogda birleşmesi
+# 0130 — Hepsiburada: iki toplayıcının merkezi katalogda birleşmesi
 
 **Tarih:** 17 Ekim 2026
-**Durum:** Kabul edildi (migration 0082, 0083). Kod ve testler hazır. Üretimde **hiçbir şey
+**Durum:** Kabul edildi (migration 0084, 0085). Kod ve testler hazır. Üretimde **hiçbir şey
 çalıştırılmadı**: birleştirme, aktarım, kapı ve yayın komutları elle ve sırayla çalıştırılmalı.
 **Bağlam:** 0117 (yönetici tarayıcısından toplama, `catalog_intake_record`), 0120 (sitemap keşif
 defteri, `catalog_discovery`), 0121 (kaynak ilanından ürün: taslak → kapı → açık yayın), 0119
@@ -37,7 +37,7 @@ defteri, `catalog_discovery`), 0121 (kaynak ilanından ürün: taslak → kapı 
    `price_point` ya da fiyat üretilmez**. Kapı bu ürünleri `held(source_offer_missing)` tutar:
    yayına çıkamaz. Adı ya da görseli olmayan satır ürün olmaz (ad uydurulmaz). Her koşu açık bir
    `--limit` ister; `--dry-run` yalnızca okur. Kontrol noktası `catalog_discovery_build_state`
-   (0082): metin anahtarlı, parti ile aynı işlemde.
+   (0084): metin anahtarlı, parti ile aynı işlemde.
 4. **Bağ yalnızca birebir kimlikle.** Fiyatlı teklif gelince `build`, keşiften doğmuş taslağa
    teklifi bağlar (`source_offer_id`) — yalnızca **aynı mağaza + aynı kod + defterdeki adres türü
    (`p`/`pm`) teklif adresininkiyle aynı** ise. Yayınlanmış ürüne ve başka ürünün kaynağı olan
@@ -58,7 +58,7 @@ defteri, `catalog_discovery`), 0121 (kaynak ilanından ürün: taslak → kapı 
    sitemap keşif kaydı, birleştirilmiş kayıt (teklif), ürüne aktarılan, fiyatı olan, fiyat
    bekleyen, yayınlanan, hatalı/incelemede ve atlanma nedenleri. Salt okunur, 4 sn zaman aşımı.
    Büyük tablolar üst sınırlı sayılır (1.000.000'da durur, "en az" gösterilir); ürün durumları
-   `product_source_state_idx`, fiyatlı keşif durumları `catalog_discovery_priced_idx` (0083,
+   `product_source_state_idx`, fiyatlı keşif durumları `catalog_discovery_priced_idx` (0085,
    `kind: concurrent`) ile sayılır.
 
 ## `-p-` ve `-pm-` (model/varyant) araştırması
@@ -128,5 +128,5 @@ python -m catalog_build publish --merchant hepsiburada --limit 50 --confirm
   beklemeye düşer (yayınlanmışlar etkilenmez).
 - Keşiften toplu taslak üretimi disk ister (0121 ölçümü ~590 B/ürün). Önce `--dry-run`, sonra
   küçük `--limit`.
-- 0083 üretimde `product` ve `catalog_discovery` üzerinde işlem dışı indeks kurar (yazımı
+- 0085 üretimde `product` ve `catalog_discovery` üzerinde işlem dışı indeks kurar (yazımı
   kilitlemez); boyut ürün sayısıyla orantılı.

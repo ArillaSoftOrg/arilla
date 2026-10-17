@@ -1,4 +1,4 @@
-"""Hepsiburada iki toplayicinin merkezi katalogda birlesmesi (karar 0129). Gercek PostgreSQL.
+"""Hepsiburada iki toplayicinin merkezi katalogda birlesmesi (karar 0130). Gercek PostgreSQL.
 
 Akis: ara depo -> hb-merge -> offer (+ kesif defteri isareti) -> catalog_build build ->
 taslak -> kapi -> acik yayin. Sitemap defteri -> build-discovery -> fiyatsiz taslak (offer

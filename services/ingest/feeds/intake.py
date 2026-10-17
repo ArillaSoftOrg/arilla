@@ -85,7 +85,7 @@ MERGE_UNLOCK = "SELECT pg_advisory_unlock(hashtextextended('hb_merge:' || %s::te
 
 #: Kesif defteri (sitemap, 0073) ile BIREBIR kimlik: ayni kod VE ayni adres turu (`p`/`pm`).
 #: Esleseni "liste fiyati goruldu" (`listing_price`) isaretler; fiyat degeri defterde
-#: tutulmaz (teklifte durur). Tur farkli ise baglanmaz, yalnizca sayilir (karar 0129).
+#: tutulmaz (teklifte durur). Tur farkli ise baglanmaz, yalnizca sayilir (karar 0130).
 #: Sayfa ile dogrulanmis (`page_verified`) durum geri dusurulmez; eski gozlem yenisini ezmez.
 MARK_DISCOVERY = """
 WITH merged AS (
@@ -173,7 +173,7 @@ def to_feed_row(row: tuple[Any, ...]) -> dict[str, Any]:
         record["seller"] = seller_key
     if gtin:
         record["gtin"] = gtin
-    # Stok UC durumludur (karar 0129): available / unavailable / unknown. Stok bilinmiyorsa
+    # Stok UC durumludur (karar 0130): available / unavailable / unknown. Stok bilinmiyorsa
     # "satista" DEMEYIZ: `offer.in_stock` NOT NULL oldugundan temkinli olarak false yazilir;
     # ayrim `attributes_raw.stock_state` ile tasinir ve arayuz "stokta yok" DEMEZ.
     # Anahtar HER kayitta yazilir: FeedSync `attributes_raw`'i birlestirir (`||`), eksik

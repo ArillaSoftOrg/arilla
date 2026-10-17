@@ -48,7 +48,7 @@ SELECT o.id, o.title_raw, o.brand_raw, o.category_raw, o.image_url, o.attributes
    -- Urun sayfalari fiyati TL varsayar; yaklasik TRY gosterimi gelene kadar
    -- USD fiyat bir urune baglanip TL gibi gorunemez.
    AND o.currency = 'TRY'
-   -- Karar 0129: kaynak ilani magazalari (Hepsiburada, AliExpress) urunu yalnizca
+   -- Karar 0130: kaynak ilani magazalari (Hepsiburada, AliExpress) urunu yalnizca
    -- `catalog_build` hattindan (taslak -> kalite kapisi -> acik yayin) alir. Cozumleyici
    -- onlardan dogrudan yayinlanmis urun ACMAZ, baslik benzerligiyle baska urune BAGLAMAZ.
    AND m.slug <> ALL(%(source_listing)s::text[])

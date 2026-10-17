@@ -1,5 +1,5 @@
 /**
- * Teklif stok durumu UC durumludur (karar 0129): `available`, `unavailable`, `unknown`.
+ * Teklif stok durumu UC durumludur (karar 0130): `available`, `unavailable`, `unknown`.
  *
  * `offer.in_stock` NOT NULL bir bayraktir; stok bildirmeyen kaynakta (Hepsiburada yonetici
  * toplamasi) temkinli olarak false yazilir ve belirsizlik `offer.attributes_raw.stock_state`

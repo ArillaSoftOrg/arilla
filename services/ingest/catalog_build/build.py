@@ -98,7 +98,7 @@ ON CONFLICT (merchant_id) DO UPDATE SET
 
 MERCHANT_BY_SLUG = "SELECT id FROM merchant WHERE slug = %(slug)s"
 
-#: Karar 0129: kesif defterinden (fiyatsiz) dogmus taslak urune teklif bagi. Kosul BIREBIR
+#: Karar 0130: kesif defterinden (fiyatsiz) dogmus taslak urune teklif bagi. Kosul BIREBIR
 #: kimliktir: ayni magaza + ayni kod + defterdeki adres turu teklif adresininkiyle ayni.
 #: Yayinlanmis urune ve baska urunun kaynagi olan teklife dokunulmaz. Baslik benzerligi yok.
 ATTACH_DISCOVERY = """
@@ -135,7 +135,7 @@ class BuildCounts:
     scanned: int = 0
     created: int = 0
     existing: int = 0
-    #: Kesif defterinden dogmus taslaga baglanan teklif (karar 0129).
+    #: Kesif defterinden dogmus taslaga baglanan teklif (karar 0130).
     attached: int = 0
     skipped: dict[str, int] = field(default_factory=dict)
     batches: int = 0

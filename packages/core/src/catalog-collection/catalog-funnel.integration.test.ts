@@ -6,7 +6,7 @@ import { compareMerchants } from "../search/compare-merchants.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
 import { getCatalogFunnel } from "./catalog-funnel.ts";
 
-/** Karar 0129: Hepsiburada katalog hunisi gercek Postgres'te; sentetik veri, istek yok. */
+/** Karar 0130: Hepsiburada katalog hunisi gercek Postgres'te; sentetik veri, istek yok. */
 describe("katalog hunisi - entegrasyon (gercek Postgres)", () => {
   let db: Database;
   let admin: AdminActor;

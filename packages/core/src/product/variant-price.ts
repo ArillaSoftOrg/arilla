@@ -118,7 +118,7 @@ export interface VariantInput {
   sizeNorm: string | null;
   priceKurus: number;
   inStock: boolean;
-  /** Kaynak stok bildirmedi (karar 0129): "stokta yok" DEGIL, bilinmiyor. */
+  /** Kaynak stok bildirmedi (karar 0130): "stokta yok" DEGIL, bilinmiyor. */
   stockUnknown?: boolean;
   /** true: etiket bir varyant satirindan; false: teklifin kendi basligindan. */
   fromVariantRow: boolean;
@@ -133,7 +133,7 @@ export interface OfferInput {
   shippingCost: number | null;
   freeShippingThreshold: number | null;
   inStock: boolean;
-  /** Kaynak stok bildirmedi (karar 0129). */
+  /** Kaynak stok bildirmedi (karar 0130). */
   stockUnknown?: boolean;
   variants: readonly VariantInput[];
 }
@@ -174,7 +174,7 @@ export interface ComparisonRow {
   effectiveShipping: number;
   effectiveTotal: number;
   inStock: boolean;
-  /** Stok bilinmiyor (karar 0129); `inStock` false iken "stokta yok" yazilmaz. */
+  /** Stok bilinmiyor (karar 0130); `inStock` false iken "stokta yok" yazilmaz. */
   stockUnknown: boolean;
   /** 100 ml / 100 g basina; guvenilir miktar yoksa null. */
   unitPriceKurus: number | null;
