@@ -128,6 +128,9 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "seller",
       "canonical_variant",
       "category_source_map",
+      // Karar 0133: urun siniflandirma kaniti ve kontrol noktasi (panelde sayaclar).
+      "product_classification",
+      "product_classification_state",
     ],
     status: "visible",
     adminPaths: [
