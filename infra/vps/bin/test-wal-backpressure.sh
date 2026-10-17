@@ -13,8 +13,9 @@
 # KEEP=1: konteyner silinmez (hata ayiklama). WAL_TEST_IMAGE: imaj (varsayilan uretim tabani).
 # shellcheck source-path=SCRIPTDIR
 # Sahte isin ve kutuphanenin okudugu degiskenler (WEB_LAST_CODE, ARCH_FAIL_SINCE, MAX_CRASHES...)
-# bu dosyada atanir, catalog-publish icinde okunur.
-# shellcheck disable=SC2034
+# bu dosyada atanir, catalog-publish icinde okunur. `docker`/`sleep` testin ilerisinde BILEREK
+# sahtelenir (SC2218): onceki cagrilar gercek komutu kullanir.
+# shellcheck disable=SC2034,SC2218
 set -uo pipefail
 export LC_ALL=C MSYS_NO_PATHCONV=1
 # Bekcinin uzun beklemeleri (run_phase'te 10/60 sn) testte 1 sn'ye kisalir; kisa olanlar aynen.
