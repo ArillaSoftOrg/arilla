@@ -73,6 +73,13 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "cron",
     overdueAfterMs: 3 * HOUR,
   },
+  // Karar 0128: affiliate agi eylemleri -> `conversion` (infra/vps/systemd/arilla-affiliate-conversions).
+  affiliate_conversions: {
+    label: "Affiliate dönüşümleri (Admitad)",
+    how: "python -m affiliate conversions · VPS zamanlayıcı (günlük 05:00 UTC)",
+    kind: "cron",
+    overdueAfterMs: 30 * HOUR,
+  },
   // Karar 0121: kaynak ilanından taslak ürün, kalite kapısı ve açık yayın (elle).
   catalog_build: {
     label: "Katalog aktarımı (kaynak ilanı -> taslak ürün)",

@@ -9,7 +9,7 @@ SYSTEMD = HERE.parent / "systemd"
 COMPOSE = HERE.parent.parent / "compose.prod.yml"
 
 # Zamanlanabilen ucretsiz moduller. enrich (Jina) ve feeds (buyuk indirme) bilerek yok.
-ALLOWED_MODULES = {"resolve", "similarity", "pricing"}
+ALLOWED_MODULES = {"resolve", "similarity", "pricing", "affiliate"}
 RUN_PREFIX = (
     "/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml "
     "--profile feeds run --rm -e JOB_RUN_TRIGGER=cron feeds python -m "

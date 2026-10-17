@@ -358,6 +358,7 @@ indirme, disk/WAL yükü) bilerek elle kalır.
 | Her gün 04:00 | `arilla-pricing-enqueue` | `pricing enqueue --older-than-hours 24` |
 | Saatlik | `arilla-pricing-verify` | `pricing verify --limit 50` |
 | Her gün 13:30 | `arilla-pricing-fx` | `pricing fx` (TCMB, 16:30 TR) |
+| Her gün 05:00 | `arilla-affiliate-conversions` | `affiliate conversions` (Admitad, son 90 gün) |
 
 Kurulum (root, tek satır): `sudo /opt/arilla/vps/bin/batch-timers install`. Durum:
 `batch-timers status`; durdurma: `batch-timers disable`. Başarısız koşu `arilla-alert@` ile
@@ -1305,6 +1306,22 @@ Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-stagin
 - Admitad tıklaması için `merchant.deeplink_template`'e Admitad hesabında doğrulanan
   biçim girilir (örn. `{affiliate_url}&subid={click_id}`).
 - Yönetim: `/yonetim/ingest/beslemeler` (salt okunur).
+
+## Affiliate dönüşümleri (karar 0128)
+
+**Durum:** Kod ve testler hazır; Admitad `statistics/actions` ucu gerçek hesapta henüz
+doğrulanmadı. VPS'te `arilla-affiliate-conversions` (günlük 05:00 UTC) ile zamanlanır.
+
+- Ortam: `worker.env` içinde `ADMITAD_CLIENT_ID` / `ADMITAD_CLIENT_SECRET`. Admitad
+  uygulamasına `statistics` kapsamı verilmiş olmalı.
+- Elle: `python -m affiliate conversions --dry-run` (yazmaz, sayıları basar), sonra
+  `python -m affiliate conversions [--days 90]`.
+- Program → merchant: `feed_source.program_external_id`. Bağlı merchant yoksa eylem
+  `skipped_unknown_program` olur; önce `feeds bind` ile beslemeyi merchant'a bağla.
+- TRY dışı tutar TCMB alış kuruyla çevrilir; kur yoksa `skipped_fx_missing` olur ve koşu
+  `partial` biter (önce `pricing fx`).
+- Tıklama bağı yalnızca deeplink'te `subid={click_id}` varsa kurulur (`click_linked`).
+- Yönetim: `/yonetim/affiliate` "Dönüşüm" kartı; koşular `/yonetim/islemler/isler`.
 
 ## Kaynak ilanından katalog (karar 0121)
 
