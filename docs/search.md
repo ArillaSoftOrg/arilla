@@ -151,6 +151,13 @@ zorunlu), eşanlam sözlüğü (`lexicon.kind = 'synonym'`) ve aynı görselli
 sonuçların tekilleştirilmesi: `docs/decisions/0029`. Değerlendirme seti:
 `packages/core/src/search/eval/`.
 
+Kapı, **sınırlı bir aday kümesinde** çalışır (`docs/decisions/0129`): TRY
+teklifli ürünler ve geri kalan yayındaki ürünler (yurt dışı kaynak ilanları)
+ayrı bölümlerden, her biri baş isim dalı ve tüm slotlar dalı olarak en fazla
+1000 ürünle toplanır. Teklif seçimi, skor ve sayım yalnızca bu kümede yapılır.
+Yurt dışı teklifli ürün TCMB kuruyla yaklaşık TL fiyatla, eşit alakada TRY
+teklifli üründen sonra görünür.
+
 ## Sıralama
 
 Üç sekme. Her birinin tanımı sabittir; tanımsız sekme kullanıcıyı yanıltır.
@@ -172,7 +179,8 @@ Saf `similarity_edge.score`. Fiyat hesaba katılmaz.
 ## Sonuç sayısı ve sayfalama
 
 Varsayılan 24 sonuç, `?sayfa=` ile devam. `maxResults` sorgu nesnesinin parçası
-değil, API çağrısının parametresidir.
+değil, API çağrısının parametresidir. Aday kümesi sınıra ulaştıysa toplam bir
+alt sınırdır ve "1.000+ sonuç" biçiminde gösterilir (`totalCapped`, karar 0129).
 
 ## Gereken tablolar
 

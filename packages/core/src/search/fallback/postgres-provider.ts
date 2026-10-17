@@ -42,7 +42,7 @@ export function createPostgresSearchProvider(db: Database): SearchProvider {
       const page = { limit: query.limit, offset: query.offset };
       if (!query.fuzzy) {
         const result = await search(db, queryObject, page);
-        return { items: result.items, total: result.total };
+        return { items: result.items, total: result.total, totalCapped: result.totalCapped };
       }
       // `<<%` indeks on filtresi `pg_trgm.strict_word_similarity_threshold`a
       // bakar; yalnizca bu islem icin dusurulur (`is_local`), havuzdaki baglanti
@@ -55,7 +55,7 @@ export function createPostgresSearchProvider(db: Database): SearchProvider {
           ...page,
           tokenThreshold: FUZZY_TOKEN_THRESHOLD,
         });
-        return { items: result.items, total: result.total };
+        return { items: result.items, total: result.total, totalCapped: result.totalCapped };
       });
     },
   };

@@ -229,7 +229,7 @@ export async function TextSearchResults({
 
       {outcome.mode === "results" ? (
         <p id="sonuc-sayisi" className={styles.count} role="status">
-          {resultCountLabel(resultTotal)}
+          {resultCountLabel(resultTotal, outcome.totalCapped === true)}
         </p>
       ) : null}
 

@@ -10,6 +10,7 @@ function probe(overrides: Partial<ProductProbe> = {}): ProductProbe {
     offers: { total: 1, active: 1, activeOnActiveMerchant: 1, activeInStock: 1 },
     hasBestOffer: true,
     prefilterPass: true,
+    candidateCapped: false,
     text: { matched: 1, head: 0.9, relevance: 0.9, required: 1 },
     textGatePass: true,
     predicates: [

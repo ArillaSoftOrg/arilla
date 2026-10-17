@@ -169,36 +169,233 @@ export function rootCategoryJoin(categoryPath: SQL): SQL {
 }
 
 /**
- * Indeksli on filtre: bas isim katlanmis baslikta, markada ya da ana
- * kategori adinda gecmeli.
- * `<<%` = strict_word_similarity >= `pg_trgm.strict_word_similarity_threshold`
- * (varsayilan 0.5 = TOKEN_MATCH_THRESHOLD). Esik 0.5'in altina inerse bu on
- * filtre adaylari kacirir; ikisi birlikte degismeli.
- *
- * UNION bilerek: `baslik <<% .. OR brand_id IN (..)` bicimi planlayicinin
- * indeksi birakip her basligi taramasina yol aciyordu (olculdu: 4 bin urunde
- * 113 ms -> UNION ile ~20 ms). Iki dal da kendi indeksini kullanir.
+ * Aday kumesinin dal basina ust siniri (karar 0129). Milyonluk katalogda yaygin
+ * bir bas isim ("kilif", "case") yuz binlerce urunle eslesir; kapi, skor ve
+ * gorsel tekillestirmesi bunlarin hepsinde kosarsa sorgu saniyeler surer. Dal
+ * bu kadar urunle durur; toplam o zaman alt sinirdir (`cand_meta.capped`).
  */
-export function headPrefilter(slots: readonly string[][], productId: SQL): SQL {
+export const CANDIDATE_LIMIT = 1000;
+
+/** Aday dalina itilen urun kolonu filtreleri (`buildFilterClause` ile ayni kosullar). */
+export interface CandidateFilters {
+  category_path?: string | undefined;
+  color?: string[] | undefined;
+  brand_include?: string[] | undefined;
+  brand_exclude?: string[] | undefined;
+}
+
+/**
+ * Aday dalinin baslik eslesmesinde kelime koku: kelimenin basi, sonundan en fazla
+ * iki harf atilmis (en az 4 harf kalir). Turkce ek ve unsuz yumusamasi kokun
+ * arkasina gelir: "cantasi" -> "canta" ("canta", "cantasi"), "koltuk" -> "kolt"
+ * ("koltugu"), "kulaklik" -> "kulakl". 4 harf ve kisasi oldugu gibi kalir.
+ */
+export function candidateStem(word: string): string {
+  return word.length <= 4 ? word : word.slice(0, Math.max(4, word.length - 2));
+}
+
+/** Bulanik adayda `<<%` kullanilan en kisa kelime (harf) ve en fazla kac kelime. */
+const FUZZY_MIN_LENGTH = 5;
+const FUZZY_MAX_WORDS = 3;
+
+const REGEX_SPECIAL = /[\\^$.|?*+()[\]{}]/g;
+
+/**
+ * Bir alternatifin aday dali regex'i: her kelimenin koku KELIME BASINDA (`\m`),
+ * cok kelimeli alternatifte kelimeler arka arkaya. Trigram GIN regex'ten tum
+ * trigramlari (VE) cikarir; `<<%` ise kisa kelimede (" ca", "ta ") yaygin trigramlarla
+ * kayipli aday alir ve hepsini yeniden denetler (olculdu, karar 0129: 3,77M urunde
+ * "canta" icin `<<%` 19 sn, `~ '\mcant'` 7 ms). Nihai kabul yine metin kapisidir.
+ */
+export function candidatePattern(alternative: string): string | null {
+  const words = alternative.split(/\s+/).filter((word) => word.length > 0);
+  // 1-2 harfli kelime ("tv", "4k") trigram uretmez: regex indeksi kullanamaz.
+  if (words.length === 0 || words.some((word) => word.length < 3)) return null;
+  const stems = words.map((word) => candidateStem(word).replace(REGEX_SPECIAL, "\\$&"));
+  return `\\m${stems.join("\\s+")}`;
+}
+
+/**
+ * Bir slotun indeksli eslesmesi: alternatiflerinden biri katlanmis baslikta,
+ * markada ya da ana kategori adinda gecer. Baslik kosullari bolumun kismi trigram
+ * GIN'ini (kok regex'i; 1-2 harfli kelimede `<<%`), marka/kategori kosullari kendi
+ * btree indekslerini kullanir.
+ */
+function slotMatch(slot: readonly string[], alias: string): SQL {
+  const title = foldedTitleExpr(sql.raw(`${alias}.title`));
+  const titleArms = slot.map((alt) => {
+    const pattern = candidatePattern(alt);
+    return pattern === null ? sql`${alt}::text <<% ${title}` : sql`${title} ~ ${pattern}::text`;
+  });
+  return sql`(${sql.join(titleArms, sql` OR `)}
+    OR ${sql.raw(alias)}.brand_id = ANY(ARRAY(
+      SELECT br.id FROM unnest(${sql.param([...slot])}::text[]) AS h(t)
+        JOIN brand br ON h.t <<% ${foldExpr(sql`br.name`)}))
+    OR ${sql.raw(alias)}.category_id = ANY(ARRAY(
+      SELECT cc.id FROM category cc
+        JOIN category cr ON cr.path = split_part(cc.path, '/', 1)
+        JOIN unnest(${sql.param([...slot])}::text[]) AS h(t) ON h.t <<% ${foldExpr(sql`cr.name`)})))`;
+}
+
+/**
+ * Aday dalinin ortak kosullari: yayindaki urun ve urun kolonu filtreleri. Filtreler
+ * sonradan `buildFilterClause` ile AYNEN yeniden uygulanir; burada yalnizca sinirli
+ * dalin seyrek filtreli bir sorguda eslesmeyen urunlerle dolmasini onler.
+ */
+function candidateBase(filters: CandidateFilters, alias: string): SQL[] {
+  const a = sql.raw(alias);
+  const parts: SQL[] = [sql`${a}.publication_state = 'published'`];
+  if (filters.category_path) {
+    parts.push(sql`${a}.category_id IN (
+      SELECT id FROM category WHERE path = ${filters.category_path} OR path LIKE ${filters.category_path} || '/%')`);
+  }
+  if (filters.color && filters.color.length > 0) {
+    parts.push(sql`${a}.color = ANY(${sql.param(filters.color)}::text[])`);
+  }
+  if (filters.brand_include && filters.brand_include.length > 0) {
+    parts.push(sql`${a}.brand_id IN (
+      SELECT id FROM brand WHERE name_norm = ANY(${sql.param(filters.brand_include)}::text[]))`);
+  }
+  if (filters.brand_exclude && filters.brand_exclude.length > 0) {
+    parts.push(sql`(${a}.brand_id IS NULL OR ${a}.brand_id NOT IN (
+      SELECT id FROM brand WHERE name_norm = ANY(${sql.param(filters.brand_exclude)}::text[])))`);
+  }
+  return parts;
+}
+
+/**
+ * Aday bolumleri (karar 0129). Bir bolumun sinirli dali digerini dolduramaz:
+ * 2,8M yurt disi ilan, ayni bas ismi tasiyan TRY teklifli urunleri adaydan
+ * itmez. `offer_count` TRY ozetidir; `= 0` bolumu yurt disi ilanlari VE ozeti
+ * gecikmis urunleri tasir, yani iki bolum birlikte tum yayindaki urunleri kapsar
+ * (hicbir urun bolumsuz kalmaz). Her bolumun kendi kismi baslik GIN'i vardir
+ * (migration 0083); kosul ifadeleri indeks yuklemiyle AYNI yazilir.
+ */
+const PARTITIONS: readonly SQL[] = [sql`p.offer_count > 0`, sql`p.offer_count = 0`];
+
+/**
+ * Tek urun icin bas isim eslesmesi (yonetim tanisi): bas isim dalinin kosulu.
+ * `<<%` = strict_word_similarity >= `pg_trgm.strict_word_similarity_threshold`
+ * (varsayilan 0.5 = TOKEN_MATCH_THRESHOLD). Esik 0.5'in altina inerse aday
+ * dallari adaylari kacirir; ikisi birlikte degismeli.
+ */
+export function headSlotMatch(slots: readonly string[][], alias: string): SQL {
+  return slotMatch(slots[slots.length - 1] ?? [], alias);
+}
+
+/**
+ * Bulanik (typo) adimin kelimeleri: yalnizca uzunlar, en uzun once. 3-4 harfte
+ * esik 0.3 neredeyse her basligi aday yapar ("pro": 3,77M urunde 588 bin aday,
+ * 14 sn, olculdu) ve bir duzeltme degeri tasimaz.
+ */
+export function fuzzyWords(slots: readonly string[][]): string[] {
+  const words = new Set<string>();
+  for (const slot of slots) {
+    for (const alt of slot) {
+      if (!/\s/.test(alt) && alt.length >= FUZZY_MIN_LENGTH) words.add(alt);
+    }
+  }
+  return [...words].sort((a, b) => b.length - a.length).slice(0, FUZZY_MAX_WORDS);
+}
+
+export interface CandidateOptions {
+  limit?: number | undefined;
+  /**
+   * Bulanik (typo) adim: kok regex'i yazim hatasini tutmaz. Her uzun kelime icin TEK
+   * kosullu bir `<<%` dali (esik islem icinde 0.3); kapi yine tum slotlari olcer.
+   * Kosullar birlestirilmez: planlayici aksi halde yaygin kisa kelimenin bitmap'ini
+   * surup her satirda benzerlik hesaplar.
+   */
+  fuzzy?: boolean | undefined;
+  /**
+   * "En iyi firsatlar": yalnizca TRY bolumu ve sisik olmayan fiyat istatistigi olan
+   * urun (sekmenin kendi kosulu; aksi halde sinirli dal yurt disi ilanlarla dolar).
+   */
+  bestDeal?: boolean | undefined;
+}
+
+/**
+ * Sinirli aday kumesi (karar 0129): `cand_raw`, `cand`, `cand_meta` CTE'leri.
+ *
+ * Her bolum (`PARTITIONS`) icin:
+ * - Bas isim dali: bas isim slotu (baslik/marka/ana kategori) eslesen en fazla
+ *   `limit` urun — eski `headPrefilter`in kumesi, sinirli.
+ * - Siki dal (2+ slot): TUM slotlari eslesen en fazla `limit` urun. Bas isim dali
+ *   doldugunda bile en alakali urunler (tum niteleyiciler) aday kalir. Iki slotta
+ *   tek daldir (kapi iki slotu da ister).
+ * - Bulanik adim: her uzun kelime icin tek kosullu `<<%` dali (`fuzzyWords`).
+ * - Metin yoksa: urun kolonu filtreleriyle en fazla `limit` urun.
+ *
+ * Aday kumesi kapidan (`tokenMatchGate`) ONCE bir kez hesaplanir; teklif secimi,
+ * kapi, skor ve tekillestirme yalnizca onun uzerinde calisir. `cand_meta.capped`:
+ * toplamin alt sinir oldugu durum. Kapidan gecen her urunu kapsamasi gereken dal
+ * sinira ulasti: tek slotta bas isim dali; iki slotta (eksik izni yok) siki dal;
+ * uc ve daha cok slotta (bir niteleyici eksik olabilir) yine bas isim dali.
+ */
+export function candidateCtes(
+  slots: readonly string[][],
+  filters: CandidateFilters,
+  options: CandidateOptions = {},
+): SQL {
+  const limit = options.limit ?? CANDIDATE_LIMIT;
+  const base = candidateBase(filters, "p");
+  const partitions = options.bestDeal
+    ? [
+        sql`${PARTITIONS[0] as SQL} AND EXISTS (
+          SELECT 1 FROM product_price_stats ps
+          WHERE ps.product_id = p.id AND ps.list_price_inflated = FALSE)`,
+      ]
+    : PARTITIONS;
   const head = slots[slots.length - 1] ?? [];
-  return sql`${productId} IN (
-    SELECT pf.id FROM unnest(${sql.param(head)}::text[]) AS h(t)
-      JOIN product pf ON h.t <<% ${foldedTitleExpr(sql`pf.title`)}
-       AND pf.publication_state = 'published'
-    UNION
-    SELECT pb.id FROM product pb
-     WHERE pb.publication_state = 'published' AND pb.brand_id = ANY(ARRAY(
-       SELECT br.id FROM unnest(${sql.param(head)}::text[]) AS h(t)
-         JOIN brand br ON h.t <<% ${foldExpr(sql`br.name`)}
-     ))
-    UNION
-    SELECT pc.id FROM product pc
-     WHERE pc.publication_state = 'published' AND pc.category_id = ANY(ARRAY(
-       SELECT cc.id FROM category cc
-         JOIN category cr ON cr.path = split_part(cc.path, '/', 1)
-         JOIN unnest(${sql.param(head)}::text[]) AS h(t) ON h.t <<% ${foldExpr(sql`cr.name`)}
-     ))
-  )`;
+  const all =
+    slots.length >= 2
+      ? sql.join(
+          slots.map((slot) => slotMatch(slot, "p")),
+          sql` AND `,
+        )
+      : null;
+  const typoWords = options.fuzzy ? fuzzyWords(slots) : [];
+  const title = foldedTitleExpr(sql.raw("p.title"));
+  const branches: SQL[] = [];
+  const completeBranch = slots.length === 2 && allowedMisses(2) === 0 ? 1 : 2;
+  partitions.forEach((partition, index) => {
+    const where = sql.join([...base, partition], sql` AND `);
+    // branch: 10*bolum + (1 siki | 2 bas isim/metinsiz/bulanik)
+    const strictBranch = 10 * index + 1;
+    const headBranch = 10 * index + 2;
+    if (typoWords.length > 0) {
+      for (const word of typoWords) {
+        branches.push(
+          sql`(SELECT p.id, ${headBranch}::int AS branch FROM product p WHERE ${where} AND ${word}::text <<% ${title} LIMIT ${limit})`,
+        );
+      }
+      return;
+    }
+    if (slots.length === 0) {
+      branches.push(
+        sql`(SELECT p.id, ${headBranch}::int AS branch FROM product p WHERE ${where} LIMIT ${limit})`,
+      );
+      return;
+    }
+    if (all) {
+      branches.push(
+        sql`(SELECT p.id, ${strictBranch}::int AS branch FROM product p WHERE ${where} AND ${all} LIMIT ${limit})`,
+      );
+    }
+    // Iki slotta kapi iki slotu da ister: bas isim dalinin siki dalda olmayan adayi
+    // kapidan gecemez (yalnizca puanlama maliyeti olurdu, olculdu ~0,5 sn).
+    if (completeBranch === 1) return;
+    branches.push(
+      sql`(SELECT p.id, ${headBranch}::int AS branch FROM product p WHERE ${where} AND ${slotMatch(head, "p")} LIMIT ${limit})`,
+    );
+  });
+  return sql`
+    cand_raw AS (${sql.join(branches, sql` UNION ALL `)}),
+    cand AS (SELECT DISTINCT id FROM cand_raw),
+    cand_meta AS (
+      SELECT COALESCE(bool_or(n >= ${limit}), FALSE) AS capped
+      FROM (SELECT count(*) AS n FROM cand_raw WHERE branch % 10 = ${completeBranch} GROUP BY branch) x
+    )`;
 }
 
 /**

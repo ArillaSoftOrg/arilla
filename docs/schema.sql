@@ -92,6 +92,9 @@ CREATE TABLE product (
     max_price       BIGINT,
     offer_count     INTEGER     NOT NULL DEFAULT 0,   -- farklı mağaza sayısı ("N mağaza")
     in_stock_count  INTEGER     NOT NULL DEFAULT 0,   -- stokta olan mağaza sayısı
+    -- 0076 (karar 0127): yalnızca TRY dışı teklifi olan farklı mağaza sayısı. Fiyat
+    -- özeti (min/max/offer_count/in_stock_count) TRY-only kalır; USD tutar kuruş değildir.
+    foreign_offer_count INTEGER NOT NULL DEFAULT 0 CHECK (foreign_offer_count >= 0),
     price_updated_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -127,6 +130,14 @@ CREATE INDEX product_title_trgm   ON product USING gin (title gin_trgm_ops)
 CREATE INDEX product_title_fold_trgm ON product
     USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
     WHERE publication_state = 'published';
+-- 0083 (karar 0129): metin aramasinin aday bolumleri; TRY teklifli urunler yurt disi
+-- ilan yigininda filtrelenmez. Ifade/yuklem `search/text-match.ts` ile ayni.
+CREATE INDEX product_title_fold_try_trgm ON product
+    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
+    WHERE publication_state = 'published' AND offer_count > 0;
+CREATE INDEX product_title_fold_foreign_trgm ON product
+    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
+    WHERE publication_state = 'published' AND offer_count = 0;
 CREATE INDEX product_min_price_idx ON product (min_price) WHERE min_price IS NOT NULL;
 CREATE INDEX product_model_key_idx ON product (model_key) WHERE model_key IS NOT NULL;
 
