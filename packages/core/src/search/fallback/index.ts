@@ -8,5 +8,9 @@ export {
   type FallbackSearchRequest,
   searchWithFallback,
 } from "./pipeline.ts";
-export { createPostgresSearchProvider } from "./postgres-provider.ts";
+export {
+  createPostgresSearchProvider,
+  type PostgresSearchProviderOptions,
+  TEXT_SEARCH_TIMEOUT_MS,
+} from "./postgres-provider.ts";
 export * from "./types.ts";
