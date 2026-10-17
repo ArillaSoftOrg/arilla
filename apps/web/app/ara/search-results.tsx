@@ -1,4 +1,11 @@
-import { ProductCard, ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
+import { type ForeignPrice, formatMinorWithCurrency } from "@arilla/core";
+import {
+  formatTRY,
+  ProductCard,
+  type ProductCardProps,
+  ProductCardSkeleton,
+  VisuallyHidden,
+} from "@arilla/ui";
 import type { ReactNode } from "react";
 import styles from "./ara.module.css";
 
@@ -7,9 +14,60 @@ export function offerCountLabel(count: number): string {
   return `${count} mağaza`;
 }
 
+/** docs/copy.md `offers.approx`, `offers.source_international`, `offers.rate_note`, `offers.shipping_unknown`. */
+const FOREIGN_CARD_COPY = {
+  approx: (tl: string) => `≈ ${tl}`,
+  source: "Yurt dışı",
+  rateNote: (date: string) => `TCMB kuru, ${date}`,
+  shippingUnknown: "Kargo ve vergi belirsiz",
+} as const;
+
+function trDate(iso: string): string {
+  const [y, m, d] = iso.split("-");
+  return `${d}.${m}.${y}`;
+}
+
+/**
+ * Kartin fiyat/mağaza satiri. Karar 0129: secilen teklif yurt disiysa yaklasik TL
+ * `minPrice`'a VERILMEZ (kesin fiyat gibi gorunmesin; `/teklifler` ile ayni desen):
+ * "≈ 1.234 TL · 30,00 USD", "Yurt dışı" rozeti, kur tarihi ve kargo/vergi belirsizligi.
+ */
+export function cardPriceProps(item: {
+  minPrice: number | null;
+  priceFromVariants?: boolean;
+  /** Verilmezse (alternatif seridi) TRY kartta magaza sayisi satiri cizilmez. */
+  offerCount?: number;
+  foreignPrice?: ForeignPrice;
+}): Pick<
+  ProductCardProps,
+  "minPrice" | "priceFrom" | "priceLabel" | "sourceLabel" | "offerCount" | "offerCountLabel"
+> {
+  const foreign = item.foreignPrice;
+  if (!foreign || item.minPrice === null) {
+    return {
+      minPrice: item.minPrice,
+      priceFrom: item.priceFromVariants ?? false,
+      ...(item.offerCount === undefined ? {} : { offerCount: item.offerCount, offerCountLabel }),
+    };
+  }
+  const original = formatMinorWithCurrency(foreign.originalMinor, foreign.currency);
+  const meta = `${FOREIGN_CARD_COPY.rateNote(trDate(foreign.fxDate))} · ${FOREIGN_CARD_COPY.shippingUnknown}`;
+  return {
+    minPrice: null,
+    priceLabel: `${FOREIGN_CARD_COPY.approx(formatTRY(item.minPrice))} · ${original}`,
+    sourceLabel: FOREIGN_CARD_COPY.source,
+    offerCount: item.offerCount ?? 0,
+    offerCountLabel: () => meta,
+  };
+}
+
 /** docs/copy.md `search.result_count` - binlik ayraçlı ("1.240 sonuç"). */
-export function resultCountLabel(count: number): string {
-  return `${count.toLocaleString("tr-TR")} sonuç`;
+/**
+ * Karar 0129: `capped` iken toplam sınırlı aday kümesinin içinden sayılmıştır;
+ * gerçek eşleşme daha fazladır ("1.000+ sonuç").
+ */
+export function resultCountLabel(count: number, capped = false): string {
+  return `${count.toLocaleString("tr-TR")}${capped ? "+" : ""} sonuç`;
 }
 
 /**
@@ -27,6 +85,8 @@ export interface ResultGridItem {
   priceFromVariants?: boolean;
   offerCount: number;
   brandName?: string | null;
+  /** Karar 0129: secilen teklif yurt disiysa; `minPrice` o zaman yaklasik TL'dir. */
+  foreignPrice?: ForeignPrice;
 }
 
 /** İlk ekrandaki (mobilde ilk iki satır) görseller gecikmeden yüklenir. */
@@ -54,10 +114,7 @@ export function ResultGrid({
             brand={item.brandName ?? null}
             imageUrl={item.primaryImageUrl}
             imageLoading={index < EAGER_IMAGE_COUNT ? "eager" : "lazy"}
-            minPrice={item.minPrice}
-            priceFrom={item.priceFromVariants ?? false}
-            offerCount={item.offerCount}
-            offerCountLabel={offerCountLabel}
+            {...cardPriceProps(item)}
           />
         </li>
       ))}

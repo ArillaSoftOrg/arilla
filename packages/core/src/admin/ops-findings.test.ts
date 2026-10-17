@@ -151,6 +151,31 @@ describe("jobRunFindings", () => {
     expect(out["jobs.stuck_old"]).toBe("info");
   });
 
+  it("VPS zamanlayıcılı Python işi: gecikme uyarısı systemd'yi, cron işi cron konteynerini gösterir", () => {
+    const summary: JobRunSummary = {
+      jobs: [
+        job("resolve", { startedAt: ago(31 * HOUR) }),
+        job("similarity_edges", { startedAt: ago(20 * HOUR) }),
+        job("price_verify", { startedAt: ago(4 * HOUR) }),
+        job("fx_rates", null),
+        job("discovery_slots", { startedAt: ago(31 * HOUR) }),
+      ],
+      stuck: [],
+    };
+    const out = jobRunFindings(ok(summary), NOW);
+    expect(severities(out)).toEqual({
+      "jobs.resolve.overdue": "warning",
+      "jobs.price_verify.overdue": "warning",
+      "jobs.discovery_slots.overdue": "warning",
+      "jobs.no_record": "info",
+    });
+    const action = (key: string) => out.find((f) => f.key === key)?.action ?? "";
+    expect(action("jobs.resolve.overdue")).toContain("batch-timers");
+    expect(action("jobs.discovery_slots.overdue")).toContain("cron");
+    expect(action("jobs.discovery_slots.overdue")).not.toContain("batch-timers");
+    expect(out.find((f) => f.key === "jobs.no_record")?.evidence).toContain("Döviz kuru");
+  });
+
   it("okunamazsa bilinmiyor", () => {
     expect(jobRunFindings(fail, NOW)[0]?.severity).toBe("unknown");
   });

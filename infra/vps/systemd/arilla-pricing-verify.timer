@@ -1,0 +1,10 @@
+[Unit]
+Description=Fiyat dogrulama (saatlik)
+
+[Timer]
+OnCalendar=hourly
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

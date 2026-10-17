@@ -205,7 +205,7 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         href: "/yonetim/affiliate",
         label: "Affiliate",
         capability: "affiliate.read",
-        description: "Mağaza çıkışları, affiliate kapsamı; dönüşüm entegrasyon bekliyor.",
+        description: "Mağaza çıkışları, affiliate kapsamı ve ağ raporundan dönüşümler.",
       },
     ],
   },

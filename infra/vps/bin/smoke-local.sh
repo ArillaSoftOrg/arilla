@@ -73,6 +73,7 @@ echo "== 0. Surum yonetimi (release.py) ve digest'li imaj referanslari"
 PY=python3; command -v python3 >/dev/null 2>&1 && python3 -c '' >/dev/null 2>&1 || PY=python
 (cd "$here" && PYTHONIOENCODING=utf-8 "$PY" test_release.py >"$work/release-test.log" 2>&1) && pass "release.py testleri" || { fail "release.py testleri"; tail -15 "$work/release-test.log"; }
 (cd "$here" && PYTHONIOENCODING=utf-8 "$PY" test_check_pg_hba.py >"$work/hba-test.log" 2>&1) && pass "check-pg-hba.py testleri" || { fail "check-pg-hba.py testleri"; tail -15 "$work/hba-test.log"; }
+(cd "$here" && PYTHONIOENCODING=utf-8 "$PY" test_batch_timers.py >"$work/batch-timers-test.log" 2>&1) && pass "batch-timers testleri" || { fail "batch-timers testleri"; tail -15 "$work/batch-timers-test.log"; }
 
 echo "== 1. Sablon ve ag dogrulamasi (sirlar yazdirilmaz)"
 "$here/init-secrets.sh" --dir "$work" --domain smoke.example.test --tag smoke >/dev/null || fail "init-secrets"

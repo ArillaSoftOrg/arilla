@@ -111,6 +111,7 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "product",
       // Karar 0121: kaynak ilanından taslak ürün aktarımının kontrol noktası.
       "catalog_build_state",
+      "catalog_discovery_build_state",
       "product_slug_history",
       "brand",
       "category",

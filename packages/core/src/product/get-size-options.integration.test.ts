@@ -12,6 +12,7 @@ describe("getSizeOptions() - integration (gercek Postgres, kendi fixture'i)", ()
   const suffix = Date.now();
   const domain = `size-options-${suffix}.example.test`;
   let merchantId = 0;
+  let inactiveMerchantId = 0;
   let apparelId = 0;
   let perfumeId = 0;
 
@@ -63,6 +64,33 @@ describe("getSizeOptions() - integration (gercek Postgres, kendi fixture'i)", ()
         [second, "xl", true],
         [second, "xs", false],
       ];
+      // Gorunmeyen teklifler (fiyat tablosunda yok): pasif magaza ve fiyatsiz teklif.
+      // Stoktaki bedenleri secicide gorunmemeli; "xs" hala stokta degil sayilmali.
+      const inactive = await client.query(
+        `INSERT INTO merchant (slug, name, domain, source_type, is_active)
+         VALUES ($1, 'Pasif Beden Magazasi', $2, 'xml_feed', FALSE) RETURNING id`,
+        [`size-options-off-${suffix}`, `off-${domain}`],
+      );
+      inactiveMerchantId = Number(inactive.rows[0].id);
+      const hidden = await client.query(
+        `INSERT INTO offer (merchant_id, product_id, external_id, url, title_raw,
+                            current_price, is_active, in_stock)
+         VALUES ($1, $2, $3, $4, $3, 90000, TRUE, TRUE) RETURNING id`,
+        [inactiveMerchantId, apparelId, `apparel-off-${suffix}`, `https://off-${domain}/a`],
+      );
+      const unpriced = await client.query(
+        `INSERT INTO offer (merchant_id, product_id, external_id, url, title_raw,
+                            current_price, is_active, in_stock)
+         VALUES ($1, $2, $3, $4, $3, NULL, TRUE, TRUE) RETURNING id`,
+        [merchantId, apparelId, `apparel-unpriced-${suffix}`, `https://${domain}/unpriced`],
+      );
+      variants.push(
+        [Number(hidden.rows[0].id), "xxl", true],
+        [Number(hidden.rows[0].id), "xs", true],
+        [Number(unpriced.rows[0].id), "xxl", true],
+        [Number(unpriced.rows[0].id), "xs", true],
+      );
+
       for (const [offerId, size, inStock] of variants) {
         await client.query(
           `INSERT INTO offer_variant (offer_id, external_id, size_label, size_norm, in_stock)
@@ -75,9 +103,13 @@ describe("getSizeOptions() - integration (gercek Postgres, kendi fixture'i)", ()
 
   afterAll(async () => {
     await withOwnerClient(async (client) => {
-      await client.query("DELETE FROM offer WHERE merchant_id = $1", [merchantId]);
+      await client.query("DELETE FROM offer WHERE merchant_id = ANY($1)", [
+        [merchantId, inactiveMerchantId],
+      ]);
       await client.query("DELETE FROM product WHERE id = ANY($1)", [[apparelId, perfumeId]]);
-      await client.query("DELETE FROM merchant WHERE id = $1", [merchantId]);
+      await client.query("DELETE FROM merchant WHERE id = ANY($1)", [
+        [merchantId, inactiveMerchantId],
+      ]);
     });
   });
 

@@ -92,6 +92,9 @@ CREATE TABLE product (
     max_price       BIGINT,
     offer_count     INTEGER     NOT NULL DEFAULT 0,   -- farklı mağaza sayısı ("N mağaza")
     in_stock_count  INTEGER     NOT NULL DEFAULT 0,   -- stokta olan mağaza sayısı
+    -- 0076 (karar 0127): yalnızca TRY dışı teklifi olan farklı mağaza sayısı. Fiyat
+    -- özeti (min/max/offer_count/in_stock_count) TRY-only kalır; USD tutar kuruş değildir.
+    foreign_offer_count INTEGER NOT NULL DEFAULT 0 CHECK (foreign_offer_count >= 0),
     price_updated_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -117,6 +120,9 @@ CREATE UNIQUE INDEX product_source_offer_uniq ON product (source_offer_id)
     WHERE source_offer_id IS NOT NULL;
 CREATE INDEX product_unpublished_idx ON product (publication_state, id)
     WHERE publication_state <> 'published';
+-- 0085 (karar 0130): magaza basina durum/neden sayimi (yonetim hunisi, catalog_build status).
+CREATE INDEX product_source_state_idx ON product (source_merchant_id, publication_state, hold_reason)
+    WHERE source_merchant_id IS NOT NULL;
 CREATE INDEX product_brand_idx    ON product (brand_id);
 CREATE INDEX product_category_idx ON product (category_id);
 CREATE INDEX product_gtin_idx     ON product (gtin) WHERE gtin IS NOT NULL;
@@ -127,6 +133,14 @@ CREATE INDEX product_title_trgm   ON product USING gin (title gin_trgm_ops)
 CREATE INDEX product_title_fold_trgm ON product
     USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
     WHERE publication_state = 'published';
+-- 0083 (karar 0129): metin aramasinin aday bolumleri; TRY teklifli urunler yurt disi
+-- ilan yigininda filtrelenmez. Ifade/yuklem `search/text-match.ts` ile ayni.
+CREATE INDEX product_title_fold_try_trgm ON product
+    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
+    WHERE publication_state = 'published' AND offer_count > 0;
+CREATE INDEX product_title_fold_foreign_trgm ON product
+    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
+    WHERE publication_state = 'published' AND offer_count = 0;
 CREATE INDEX product_min_price_idx ON product (min_price) WHERE min_price IS NOT NULL;
 CREATE INDEX product_model_key_idx ON product (model_key) WHERE model_key IS NOT NULL;
 
@@ -2581,6 +2595,23 @@ CREATE TABLE catalog_discovery (
 ) WITH (fillfactor = 85, autovacuum_vacuum_scale_factor = 0.02,
         autovacuum_vacuum_insert_scale_factor = 0.05);
 REVOKE DELETE, TRUNCATE ON catalog_discovery FROM arilla_app;
+-- 0085 (karar 0130): fiyat durumu bilinen azinlik satirlar (panel sayimi).
+CREATE INDEX catalog_discovery_priced_idx ON catalog_discovery (source, price_state)
+    WHERE price_state <> 'unpriced';
+
+-- 0084 (karar 0130): kesif defterinden taslak urun aktarimi kontrol noktasi. Anahtar metin
+-- oldugu icin `catalog_build_state`'ten ayri; parti + kontrol noktasi ayni islemde.
+CREATE TABLE catalog_discovery_build_state (
+    source            TEXT        PRIMARY KEY REFERENCES collection_source(source),
+    last_external_id  TEXT        NOT NULL DEFAULT '' CHECK (char_length(last_external_id) <= 100),
+    scanned           BIGINT      NOT NULL DEFAULT 0 CHECK (scanned >= 0),
+    created           BIGINT      NOT NULL DEFAULT 0 CHECK (created >= 0),
+    existing          BIGINT      NOT NULL DEFAULT 0 CHECK (existing >= 0),
+    skipped           JSONB       NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(skipped) = 'object'),
+    started_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
+    completed_at      TIMESTAMPTZ
+);
 
 -- ---------------------------------------------------------------------------
 -- TAKIP BAGLANTILARI (0080, karar 0115)

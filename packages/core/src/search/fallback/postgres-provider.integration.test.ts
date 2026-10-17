@@ -321,6 +321,66 @@ describe("non-AI fallback - gercek PostgreSQL", () => {
     }
   });
 
+  it("sorgu tavani adimin isleminde uygulanir, havuzdaki baglantiya SIZMAZ", async () => {
+    vi.stubEnv("DATABASE_POOL_MAX", "1");
+    const single = createDatabase(process.env.DATABASE_URL as string);
+    // Islemdeki ilk sorgudan (tavan ayari) sonra yavas bir adim: tavan oradaysa iptal eder.
+    const slow = new Proxy(single, {
+      get(obj, key, receiver) {
+        const value = Reflect.get(obj, key, receiver);
+        if (key !== "transaction" || typeof value !== "function") return value;
+        return (fn: (tx: Database) => unknown) =>
+          value.call(obj, (tx: Database) => {
+            let slept = false;
+            const wrapped = new Proxy(tx, {
+              get(t, k, r) {
+                const v = Reflect.get(t, k, r);
+                if (k !== "execute" || typeof v !== "function") return v;
+                return async (...args: unknown[]) => {
+                  const result = await v.apply(t, args);
+                  if (!slept) {
+                    slept = true;
+                    await t.execute(sql`SELECT pg_sleep(0.3)`);
+                  }
+                  return result;
+                };
+              },
+            });
+            return fn(wrapped);
+          });
+      },
+    }) as Database;
+    const query = {
+      text: "iphone 17 pro",
+      slots: [["iphone"], ["17"], ["pro"]],
+      filters: {},
+      sort: "balanced" as const,
+      limit: 5,
+      offset: 0,
+      fuzzy: false,
+    };
+    try {
+      const timeout = async () =>
+        String(
+          (await single.execute(sql`SELECT current_setting('statement_timeout') AS v`)).rows[0]?.v,
+        );
+      const before = await timeout();
+      await expect(
+        createPostgresSearchProvider(slow, { statementTimeoutMs: 100 }).search(query),
+      ).rejects.toMatchObject({ cause: { code: "57014" } });
+      expect(await timeout()).toBe(before);
+      const plain = await createPostgresSearchProvider(single).search(query);
+      const bounded = await createPostgresSearchProvider(single, {
+        statementTimeoutMs: 5_000,
+      }).search(query);
+      expect(bounded).toEqual(plain);
+      expect(await timeout()).toBe(before);
+    } finally {
+      vi.unstubAllEnvs();
+      await (single as unknown as { $client: { end(): Promise<void> } }).$client.end();
+    }
+  });
+
   // ---- asamalar -------------------------------------------------------------------
 
   it("exact: birebir urun, tek DB sorgusu cifti, kopya tek satir", async () => {
@@ -473,10 +533,12 @@ describe("non-AI fallback - gercek PostgreSQL", () => {
       };
     }
     console.info("[fallback-cost]", JSON.stringify(report));
-    // exact sonuc: ilk adimda durur (arama + starting-from = 2 sorgu).
-    expect(report["nike koşu ayakkabısı"]?.queries).toBe(2);
-    expect(report["iphone 17 pro"]?.queries).toBeLessThanOrEqual(2);
-    // zero-result: en kotu durum sinirli (<=10 adim x (arama + starting-from + fuzzy set_config)).
-    for (const entry of Object.values(report)) expect(entry.queries).toBeLessThanOrEqual(30);
+    // exact sonuc: ilk adimda durur (indeksli plan ayari + arama + starting-from = 3
+    // sorgu; karar 0129 `withCandidatePlan`).
+    expect(report["nike koşu ayakkabısı"]?.queries).toBe(3);
+    expect(report["iphone 17 pro"]?.queries).toBeLessThanOrEqual(3);
+    // zero-result: en kotu durum sinirli (<=10 adim x (plan ayari + arama + starting-from
+    // + fuzzy set_config)).
+    for (const entry of Object.values(report)) expect(entry.queries).toBeLessThanOrEqual(40);
   });
 });
