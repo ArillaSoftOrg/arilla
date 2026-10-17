@@ -1,3 +1,4 @@
+import { adminHostPolicy, publicOriginFor, routeAdminHost } from "@arilla/core/admin-host";
 import { ADMIN_LOGIN_PAGE_PATH, adminLoginPath, isAdminPath } from "@arilla/core/admin-session";
 import {
   ANONYMOUS_SESSION_COOKIE,
@@ -26,8 +27,13 @@ const USER_ROUTE_PREFIXES = ["/hesap", "/kaydettiklerim", "/alarmlar", "/gecmis"
  * `middleware.ts` DEĞİL - Next 16'da bu dosya adı deprecated, `proxy.ts`
  * oldu (bkz. node_modules/next/dist/docs/.../file-conventions/proxy.md).
  *
- * Üç bağımsız görev, tek dosyada matcher paylaştıkları için:
+ * Dört bağımsız görev, tek dosyada matcher paylaştıkları için:
  *
+ * 0. Yönetim ana makinesi (karar 0056): `ADMIN_HOST` tanımlıysa konsol
+ *    yalnızca orada açılır; oradaki public yollar public siteye, public
+ *    sitedeki `/yonetim*` oraya gider. Tanımsızken hiçbir şey değişmez.
+ *    Matcher bu yüzden geniştir (dosyalar ve `_next` hariç her yol); diğer
+ *    görevler yalnızca kendi yollarına bakar.
  * 1. `/yonetim/*`, `/hesap/*`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`:
  *    yalnızca iyimser kontrol - `session` çerezi yoksa `/giris`'e
  *    yönlendirir. Veritabanına gitmez, rolü doğrulamaz - gerçek kontrol
@@ -48,6 +54,27 @@ const USER_ROUTE_PREFIXES = ["/hesap", "/kaydettiklerim", "/alarmlar", "/gecmis"
  */
 export function proxy(request: NextRequest): NextResponse {
   const { pathname, searchParams } = request.nextUrl;
+
+  // 0. Yönetim ana makinesi. Yol yönlendirmesi kolaylıktır; server action'lar
+  // her yola POST edilebildiği için asıl kural `dal.ts` yetenek kapısında da var.
+  const policy = adminHostPolicy();
+  const hostRoute = routeAdminHost(policy, {
+    host: request.headers.get("host"),
+    pathname,
+    search: request.nextUrl.search,
+    publicOrigin: publicOriginFor(policy),
+  });
+  if (hostRoute.action === "redirect") {
+    // Mutlak adres, başlık doğrudan: `NextResponse.redirect` localhost'u isteğin
+    // ana makinesine çevirir (yerelde döngü).
+    return new NextResponse(null, {
+      status: hostRoute.status,
+      headers: { location: hostRoute.location },
+    });
+  }
+  if (hostRoute.action === "not_found") {
+    return new NextResponse(null, { status: 404 });
+  }
 
   // Yönetim alanı (P3, docs/decisions/0044):
   // - `/yonetim/giris` ayrı giriş ekranıdır; adres aynı kalır, sayfa yönetim
@@ -123,17 +150,8 @@ export function proxy(request: NextRequest): NextResponse {
 }
 
 export const config = {
-  matcher: [
-    "/yonetim/:path*",
-    "/hesap/:path*",
-    "/ara/:path*",
-    "/urun/:path*",
-    "/kesfet",
-    "/firsatlar",
-    "/trendler/:path*",
-    "/git/:path*",
-    "/kaydettiklerim",
-    "/alarmlar",
-    "/gecmis",
-  ],
+  // Dosyalar (`.png`, `.woff2`, `.xml` ...) ve `_next` dışındaki her yol: yönetim
+  // ana makinesi ayrımı (görev 0) her sayfayı görmeli. Önceki dar listenin
+  // yollarına bakan görevler aynen çalışır; diğer yollar `next()` ile geçer.
+  matcher: ["/((?!_next/static|_next/image|.*\\.[a-zA-Z0-9]{2,5}$).*)"],
 };

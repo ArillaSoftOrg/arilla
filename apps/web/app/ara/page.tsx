@@ -1,6 +1,6 @@
 import {
   type ConversationPlan,
-  loadLexicon,
+  loadLexiconCached,
   planConversationWithRealtimeInterpretation,
   type ReplyResult,
   type SearchSummaryIntent,
@@ -115,7 +115,7 @@ async function planSafely(
   request: { query: string; steps: readonly string[]; reply: string | null },
 ): Promise<{ plan: ConversationPlan; summaryIntent: SearchSummaryIntent | null }> {
   try {
-    const lexicon = await loadLexicon(db);
+    const lexicon = await loadLexiconCached(db);
     // Karar 0062: `GEMINI_REALTIME_ENABLED` aciksa yorum bu istekte alinir
     // (saklanan varsa yeniden kullanilir, yoksa Gemini; 2,5 sn, tek deneme) ve
     // en dusuk oncelikle uygulanir. Kapaliysa karar 0059 yolu: yalnizca

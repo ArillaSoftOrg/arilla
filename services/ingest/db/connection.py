@@ -9,6 +9,7 @@ burada veritabani tarafindan reddedilir.
 from __future__ import annotations
 
 import os
+import sys
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -48,10 +49,25 @@ def database_url(variable: str = "DATABASE_URL") -> str:
     return url
 
 
+def _application_name() -> str:
+    """`pg_stat_activity` / `pg_stat_statements` icin is adi.
+
+    `python -m similarity` -> `arilla-ingest:similarity`.
+
+    Hangi toplu isin kilit tuttugunu ya da yavas sorguyu urettigini ayirt etmenin
+    tek yolu budur; deger kimlik ya da sir icermez.
+    """
+    script = Path(sys.argv[0]) if sys.argv and sys.argv[0] else None
+    if script is None:
+        return "arilla-ingest"
+    name = script.parent.name if script.name == "__main__.py" else script.stem
+    return f"arilla-ingest:{name}"[:63] if name else "arilla-ingest"
+
+
 @contextmanager
 def connect(variable: str = "DATABASE_URL") -> Iterator[psycopg.Connection]:
     """Tek islemlik baglanti. Blok hatasiz biterse COMMIT, aksi halde ROLLBACK."""
-    with psycopg.connect(database_url(variable)) as conn:
+    with psycopg.connect(database_url(variable), application_name=_application_name()) as conn:
         yield conn
 
 

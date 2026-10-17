@@ -185,6 +185,8 @@ def embed_images(
     counts = EnrichCounts()
     model_version = client.model_version
     rows = _pending(conn, "image", model_version, limit, merchant_id, valid_from, offer_id)
+    # Okuma islemi ilk indirmeden once kapanir (ag beklerken acik islem yok).
+    conn.commit()
     counts.considered = len(rows)
     if not rows:
         return counts
@@ -245,6 +247,9 @@ def embed_images(
         for image_hash, vector in zip(hashes, result.vectors, strict=True):
             known[image_hash] = vector
             write(image_hash, waiting[image_hash])
+        # Odenmis cagri ve vektorleri hemen kalici: bolunmus partinin sonraki cagrisi
+        # (ag) acik islem icinde beklemez.
+        conn.commit()
         logger.info(
             "parti: %s gorsel, %s token (tahmin %s)", len(hashes), result.total_tokens, estimate
         )
@@ -294,29 +299,31 @@ def embed_images(
 
         if image.sha256 in known:
             write(image.sha256, [offer_id])
-            continue
-        if image.sha256 in batch:
+        elif image.sha256 in batch:
             waiting[image.sha256].append(offer_id)
-            continue
+        else:
+            # Veritabaninda bu hash icin vektor var mi? Varsa API'ye hic gitme.
+            with conn.cursor() as cur:
+                cur.execute(
+                    VECTOR_BY_IMAGE_HASH,
+                    {
+                        "model_version": model_version,
+                        "image_hash": image.sha256,
+                        "valid_from": valid_from,
+                    },
+                )
+                found = cur.fetchone()
+            if found is not None:
+                known[image.sha256] = _parse_vector(found[0])
+                write(image.sha256, [offer_id])
+            else:
+                batch[image.sha256] = image
+                waiting[image.sha256] = [offer_id]
 
-        # Veritabaninda bu hash icin vektor var mi? Varsa API'ye hic gitme.
-        with conn.cursor() as cur:
-            cur.execute(
-                VECTOR_BY_IMAGE_HASH,
-                {
-                    "model_version": model_version,
-                    "image_hash": image.sha256,
-                    "valid_from": valid_from,
-                },
-            )
-            found = cur.fetchone()
-        if found is not None:
-            known[image.sha256] = _parse_vector(found[0])
-            write(image.sha256, [offer_id])
-            continue
-
-        batch[image.sha256] = image
-        waiting[image.sha256] = [offer_id]
+        # Islem ag beklerken (sonraki gorsel indirmesi, saglayici cagrisi) acik
+        # kalmaz: kilit/xmin tutulmaz, `idle_in_transaction_session_timeout` (60 s)
+        # oturumu dusurmez. Hash ve hazir vektor zaten kalici olmasi istenen olgular.
+        conn.commit()
         if len(batch) >= client.image_batch_size:
             flush()
 
@@ -376,6 +383,8 @@ def embed_texts(
     counts = EnrichCounts()
     model_version = client.model_version
     rows = _pending(conn, "text", model_version, limit, merchant_id)
+    # Okuma islemi ilk saglayici cagrisindan once kapanir (ag beklerken acik islem yok).
+    conn.commit()
     counts.considered = len(rows)
     if not rows:
         return counts

@@ -3,10 +3,11 @@
  * `similarity_edge`, 4-6 urun, yatay kaydirma. Sekme/siralama secimi yok -
  * ucu sekmenin tumu zaten `search()` ile saglaniyor (bkz. C2 plani).
  *
- * `similarity_edge`'in PK'i (product_a, product_b, kind); kenarin hangi
- * tarafta yazildigina guvenmeden her iki yonu de sorgular (seed cift yonlu
- * yaziyor ama bu B5'in henuz yazilmamis uretim koduna dayanacak kirilgan
- * bir varsayim olurdu).
+ * `similarity_edge` cift yonlu yazilir (`services/ingest/similarity/edges.py`
+ * `_write_edges`); sorgu yalnizca `product_a` uzerinden okur ve
+ * `similarity_lookup_idx (product_a, kind, score DESC)` ile cozulur. Eski
+ * `product_a = X OR product_b = X` yuklemi `product_b` indeksi olmadigi icin
+ * tabloyu tararken her urun sayfasinda calisiyordu.
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
@@ -45,11 +46,9 @@ export async function findAlternatives(
     WITH edges AS (
       SELECT DISTINCT ON (other_id) other_id, kind, score
       FROM (
-        SELECT
-          (CASE WHEN product_a = ${anchorProductId} THEN product_b ELSE product_a END) AS other_id,
-          kind, score
+        SELECT product_b AS other_id, kind, score
         FROM similarity_edge
-        WHERE kind = ANY(${arrayParam(kinds)}::text[]) AND (product_a = ${anchorProductId} OR product_b = ${anchorProductId})
+        WHERE product_a = ${anchorProductId} AND kind = ANY(${arrayParam(kinds)}::text[])
       ) matched
       ORDER BY other_id, score DESC
     ),

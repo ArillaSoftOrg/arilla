@@ -3,8 +3,8 @@
  * `similarity_edge` toplu isin (python -m similarity) ciktisidir ve tohum onu
  * yazmaz; tabloda "ne varsa" ilk satiri alan bir test temiz veritabaninda NaN
  * kimlikle kosar. Bu fixture aktif bir magaza, bir capa ve skoru bilinen
- * alternatifler kurar; kenarlar YALNIZCA `product_a = capa` yonunde yazilir
- * (ters yon aramasi da sinanabilsin).
+ * alternatifler kurar; kenarlar uretim yazicisi gibi (`similarity/edges.py`
+ * `_write_both_directions`) IKI yonde yazilir — okuma yalnizca `product_a`'dan.
  *
  * Yalnizca testlerden cagrilir (`test-db.ts` ile ayni sozlesme).
  */
@@ -55,7 +55,8 @@ export async function createSimilarityFixture(
       const id = await product(`alt-${index}`, 40_000 + index * 1_000);
       alternativeIds.push(id);
       await client.query(
-        "INSERT INTO similarity_edge (product_a, product_b, kind, score) VALUES ($1, $2, 'visual', $3)",
+        `INSERT INTO similarity_edge (product_a, product_b, kind, score)
+         VALUES ($1, $2, 'visual', $3), ($2, $1, 'visual', $3)`,
         [anchorId, id, score],
       );
     }

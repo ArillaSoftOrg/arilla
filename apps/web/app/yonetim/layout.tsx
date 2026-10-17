@@ -1,4 +1,4 @@
-import { hasCapability } from "@arilla/core";
+import { adminHostPolicy, hasCapability, publicSiteHref } from "@arilla/core";
 import { SkipLink } from "@arilla/ui";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
@@ -36,6 +36,8 @@ export default async function YonetimLayout({ children }: { children: ReactNode 
       .map(({ href, label, description }) => ({ href, label, description })),
   })).filter((group) => group.items.length > 0);
   const roleLabel = ROLE_LABEL[user.role] ?? user.role;
+  // Ayrı yönetim ana makinesinde (karar 0056) "/" konsola döner; public site mutlak adresle.
+  const siteHref = publicSiteHref(adminHostPolicy());
 
   return (
     <div className={styles.shell}>
@@ -57,14 +59,19 @@ export default async function YonetimLayout({ children }: { children: ReactNode 
           <AdminNavClient sections={sections} />
         </div>
         <div className={styles.sidebarFooter}>
-          <a href="/" className={styles.navLink}>
+          <a href={siteHref} className={styles.navLink}>
             Siteye dön
           </a>
         </div>
       </aside>
       <div className={styles.mainColumn}>
         <header className={styles.topbar}>
-          <AdminMobileNav sections={sections} brand={SITE_BRAND} roleLabel={roleLabel} />
+          <AdminMobileNav
+            sections={sections}
+            brand={SITE_BRAND}
+            roleLabel={roleLabel}
+            siteHref={siteHref}
+          />
           <AdminBreadcrumbs sections={sections} />
         </header>
         <main id="icerik" className={styles.main} tabIndex={-1}>

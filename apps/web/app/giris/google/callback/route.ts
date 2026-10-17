@@ -1,4 +1,6 @@
 import {
+  adminHostPolicy,
+  authOriginForHost,
   classifyGoogleFailure,
   completeGoogleSignIn,
   googleRedirectUri,
@@ -59,7 +61,10 @@ export async function GET(request: Request) {
   try {
     const signedIn = await completeGoogleSignIn(getDatabase(), {
       code,
-      redirectUri: googleRedirectUri(requireAppUrl()),
+      // Baslangic rotasiyla ayni koken (karar 0056): ayni ana makine.
+      redirectUri: googleRedirectUri(
+        authOriginForHost(adminHostPolicy(), headerStore.get("host"), requireAppUrl),
+      ),
       ip: clientIp(headerStore),
       userAgent: headerStore.get("user-agent"),
       context: requestContextFromHeaders(headerStore),

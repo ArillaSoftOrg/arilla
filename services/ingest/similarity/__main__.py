@@ -4,6 +4,7 @@
     python -m similarity --edges      yalnizca kenarlar
     python -m similarity --prices     yalnizca fiyat istatistikleri
     python -m similarity --dry-run    yaz, commit etme
+    python -m similarity --prune      bu kosuda uretilmeyen eski kenarlari da sil
 
 Gece toplu isidir. `pnpm seed` bu tablolari ARTIK doldurmuyor (tek dogru
 kaynak burasi), o yuzden tohum verisinden sonra bu komut kosulmalidir.
@@ -34,6 +35,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--prices", action="store_true", help="yalnizca fiyat istatistikleri")
     parser.add_argument("--limit", type=int, default=None, help="urun sayisi siniri")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument(
+        "--prune",
+        action="store_true",
+        help="tam kosu sonunda bu kosuda uretilmeyen eski kenarlari sil (varsayilan: silme)",
+    )
     parser.add_argument("--verbose", "-v", action="store_true")
     args = parser.parse_args(argv)
 
@@ -48,12 +54,21 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.dry_run:
         with connect() as conn:
+            # Tek islem, sonunda geri alinir: ara commit yok.
             counts = run(conn, do_edges=do_edges, do_prices=do_prices, limit=args.limit)
             conn.rollback()
             print("(dry-run: hicbir degisiklik yazilmadi)\n")
     else:
         with job_run.track(job_name(do_edges, do_prices)) as tracked, connect() as conn:
-            counts = run(conn, do_edges=do_edges, do_prices=do_prices, limit=args.limit)
+            # Parti basina commit: uzun islem, xmin tutma ve genis satir kilidi yok.
+            counts = run(
+                conn,
+                do_edges=do_edges,
+                do_prices=do_prices,
+                limit=args.limit,
+                commit=True,
+                prune=args.prune,
+            )
             conn.commit()
             if do_edges:
                 tracked.detail.update(
@@ -61,6 +76,7 @@ def main(argv: list[str] | None = None) -> int:
                     semantic_edges=counts.semantic.edges_written,
                     visual_products=counts.visual.products_with_vector,
                     semantic_products=counts.semantic.products_with_vector,
+                    edges_pruned=counts.visual.edges_pruned + counts.semantic.edges_pruned,
                 )
             if do_prices:
                 tracked.detail.update(

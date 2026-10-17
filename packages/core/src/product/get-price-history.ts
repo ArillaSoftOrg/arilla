@@ -1,7 +1,7 @@
 /**
  * docs/decisions/0019: architecture.md'nin "istek yolu fiyat gecmisini
  * asla taramaz" kuralina TEK istisna. Tek urune, 90 gune ve indekslere
- * (`offer_product_idx`, `price_point_offer_time_idx`) sinirli - EXPLAIN ile
+ * (`offer_product_idx`, `price_point` PK `(offer_id, observed_at)`) sinirli - EXPLAIN ile
  * dogrulanmis, hicbir sequential scan yok.
  */
 import type { Database } from "@arilla/db";
@@ -23,6 +23,9 @@ export async function getPriceHistory(
     FROM price_point pp
     JOIN offer o ON o.id = pp.offer_id
     WHERE o.product_id = ${productId}
+      -- price_point para birimi tasimaz; kuruş grafigi yalnizca TRY tekliflerden
+      -- kurulur (yurt disi teklifin cent'i kurus gibi okunup MIN'i bozmasin).
+      AND o.currency = 'TRY'
       AND pp.observed_at >= now() - (${days}::text || ' days')::interval
     GROUP BY 1
     ORDER BY 1
