@@ -628,7 +628,7 @@ const merchantOffers: QualityCheck = {
             ? `${fmtCount(sum(mostly, (m) => m.unmatched))} eşleşmemiş teklif.`
             : null,
         action:
-          "Eşleştirme işini (python -m resolve) bu mağaza için çalıştırt; aynı mağaza tekrar listelenirse aşağıdaki adaysız teklifleri incele.",
+          "Eşleştirme her gece 02:30 UTC'de çalışır (VPS zamanlayıcısı, 5000 teklif); beklemeden işlemek için bu mağaza için python -m resolve --merchant-id <id> çalıştırt. Aynı mağaza tekrar listelenirse aşağıdaki adaysız teklifleri incele.",
         count: mostly.length,
         samples: mostly
           .sort((a, b) => b.unmatched - a.unmatched)
@@ -769,7 +769,7 @@ const unmatchedOffers: QualityCheck = {
             ? `${fmtCount(noCandidate)} teklif; ayrıca ${fmtCount(inQueue)} teklif insan kuyruğunda.`
             : `${fmtCount(inQueue)} eşleşmemiş teklif insan kuyruğunda.`,
         action:
-          "Eşleştirme işini (python -m resolve) çalıştırt. Aynı teklifler bir koşudan sonra hâlâ adaysızsa koşu çıktısındaki hata satırlarına bak.",
+          "Eşleştirme her gece 02:30 UTC'de çalışır (VPS zamanlayıcısı, 5000 teklif); gece koşusunu bekle ya da python -m resolve çalıştırt. Aynı teklifler bir koşudan sonra hâlâ adaysızsa İş koşuları sayfasındaki hata özetine bak.",
         href: noCandidate > 0 ? `${OFFERS}?durum=no_candidate` : null,
         capability: "catalog.read",
         evidenceAt: noCandidateOldest,
@@ -784,7 +784,7 @@ const unmatchedOffers: QualityCheck = {
           "Moderatör bu tekliflerin önerilen ürünlerini reddetti. Resolver reddedilen ürünü bir daha önermez (karar 0040); sonraki koşuda ya başka bir aday yazar ya da yeni ürün açar. Koşu yapılmadıkça teklif eşleşmemiş kalır.",
         evidence: rejectedOnly > 0 ? `${fmtCount(rejectedOnly)} teklif.` : null,
         action:
-          "Eşleştirme işini çalıştırt. Aynı teklif tekrar tekrar burada kalıyorsa ret nedenlerini (eşleştirme geçmişi) ve teklif verisini incele.",
+          "Eşleştirme her gece 02:30 UTC'de çalışır (VPS zamanlayıcısı, 5000 teklif); gece koşusunu bekle ya da elle çalıştırt. Aynı teklif tekrar tekrar burada kalıyorsa ret nedenlerini (eşleştirme geçmişi) ve teklif verisini incele.",
         href: rejectedOnly > 0 ? `${OFFERS}?durum=rejected_only` : null,
         capability: "catalog.read",
         evidenceAt: oldest("rejected_only"),

@@ -19,6 +19,7 @@ export interface KnownJob {
   label: string;
   /** Elle çalıştırma komutu ya da tetikleyen. */
   how: string;
+  /** `cron`: zamanlanmış (VPS cron konteyneri ya da systemd zamanlayıcısı); `pipeline`: elle. */
   kind: "pipeline" | "cron";
   /** Zamanlanmış iş: son koşu bundan eskiyse gecikmiş. Elle çalışan işte `null`. */
   overdueAfterMs: number | null;
@@ -58,18 +59,19 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
-  // Karar 0113: resmi kur ve bagimsiz fiyat dogrulama.
+  // Karar 0113: resmi kur ve bagimsiz fiyat dogrulama. VPS systemd zamanlayicilari
+  // (infra/vps/systemd/arilla-pricing-*); kurulum `batch-timers install`.
   fx_rates: {
     label: "Döviz kuru (TCMB)",
-    how: "python -m pricing fx",
-    kind: "pipeline",
-    overdueAfterMs: null,
+    how: "python -m pricing fx · VPS zamanlayıcı (günlük 13:30 UTC)",
+    kind: "cron",
+    overdueAfterMs: 30 * HOUR,
   },
   price_verify: {
     label: "Fiyat doğrulama",
-    how: "python -m pricing verify",
-    kind: "pipeline",
-    overdueAfterMs: null,
+    how: "python -m pricing verify · VPS zamanlayıcı (saatlik)",
+    kind: "cron",
+    overdueAfterMs: 3 * HOUR,
   },
   // Karar 0121: kaynak ilanından taslak ürün, kalite kapısı ve açık yayın (elle).
   catalog_build: {
@@ -90,11 +92,12 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Gece katalog hatti (infra/vps/systemd/arilla-catalog-pipeline): resolve, sonra kenarlar.
   resolve: {
     label: "Eşleştirme",
-    how: "python -m resolve",
-    kind: "pipeline",
-    overdueAfterMs: null,
+    how: "python -m resolve · VPS zamanlayıcı (günlük 02:30 UTC)",
+    kind: "cron",
+    overdueAfterMs: 30 * HOUR,
   },
   enrich: {
     label: "Zenginleştirme (vektör)",
@@ -110,9 +113,9 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
   },
   similarity_edges: {
     label: "Benzerlik kenarları",
-    how: "python -m similarity --edges",
-    kind: "pipeline",
-    overdueAfterMs: null,
+    how: "python -m similarity --edges · VPS zamanlayıcı (günlük 02:30 UTC)",
+    kind: "cron",
+    overdueAfterMs: 30 * HOUR,
   },
   similarity_prices: {
     label: "Fiyat özeti",
@@ -126,11 +129,11 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
-  // Karar 0059: Vercel cron, günlük 00:30 UTC. Anahtar yoksa koşu "atlandı"
+  // Karar 0059: VPS cron (infra/vps/cron/crontab), günlük 00:30 UTC. Anahtar yoksa koşu "atlandı"
   // olarak yine yazılır; gecikme eşiği diğer günlük cron'larla aynı.
   query_interpretation: {
     label: "Sorgu yorumlama (model, çevrimdışı)",
-    how: "Vercel cron (günlük 00:30 UTC); GEMINI_API_KEY yoksa atlanır",
+    how: "VPS cron (günlük 00:30 UTC); GEMINI_API_KEY yoksa atlanır",
     kind: "cron",
     overdueAfterMs: 30 * HOUR,
   },
@@ -138,31 +141,31 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
   // atlanmış yolları bir gün içinde onarır (refresh-aggregates.ts).
   product_aggregates: {
     label: "Fiyat özeti onarımı",
-    how: "Vercel cron (günlük 23:45 UTC)",
+    how: "VPS cron (günlük 23:45 UTC)",
     kind: "cron",
     overdueAfterMs: 30 * HOUR,
   },
   discovery_slots: {
     label: "Keşfet slotları",
-    how: "Vercel cron (günlük)",
+    how: "VPS cron (günlük 00:00 UTC)",
     kind: "cron",
     overdueAfterMs: 30 * HOUR,
   },
   cleanup_auth: {
     label: "Günlük temizlik (giriş, arama hakkı, saklama)",
-    how: "Vercel cron (günlük)",
+    how: "VPS cron (günlük 03:30 UTC)",
     kind: "cron",
     overdueAfterMs: 30 * HOUR,
   },
   trigger_alerts: {
     label: "Fiyat alarmları",
-    how: "GitHub Actions (15 dk)",
+    how: "VPS cron (15 dk)",
     kind: "cron",
     overdueAfterMs: 2 * HOUR,
   },
   marketing_campaigns: {
     label: "Pazarlama e-postası teslimi",
-    how: "GitHub Actions (15 dk)",
+    how: "VPS cron (15 dk)",
     kind: "cron",
     overdueAfterMs: 2 * HOUR,
   },
