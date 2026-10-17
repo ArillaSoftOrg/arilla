@@ -3,11 +3,16 @@
 python -m catalog_build build   --merchant aliexpress [--batch 5000] [--max-batches N]
                                 [--max-seconds S] [--sleep-ms MS] [--rescan]
 python -m catalog_build audit   --merchant aliexpress [--batch 5000]
+python -m catalog_build build-discovery --merchant hepsiburada --limit N [--batch 5000]
+                                [--max-seconds S] [--sleep-ms MS] [--rescan] [--dry-run]
 python -m catalog_build status  --merchant aliexpress
 python -m catalog_build gate    [--after-id N] [--batch 5000] [--max-batches N]
                                 [--stale-days 7] [--allow-foreign]
 python -m catalog_build publish --limit N --confirm [--merchant aliexpress] [--allow-foreign]
 python -m catalog_build unpublish --product-id N [--product-id M ...] --confirm
+
+`build-discovery` (karar 0129) fiyatsiz kesif defterinden yalnizca TASLAK urun acar; offer
+ve fiyat uretmez, her kosu acik `--limit` ister. `--dry-run` yalnizca okur.
 
 `build` offer'lara DOKUNMAZ ve hicbir seyi yayinlamaz. Ctrl+C / SIGTERM mevcut partiyi
 bitirip durur; ayni komut kaldigi yerden surer. Yalnizca elle calistirilir (zamanlama yok).
@@ -23,6 +28,7 @@ import sys
 import psycopg
 
 from catalog_build import build as build_mod
+from catalog_build import discovery as discovery_mod
 from catalog_build import gate as gate_mod
 from catalog_build import publish as publish_mod
 from db import job_run
@@ -69,6 +75,19 @@ def _status(conn: psycopg.Connection, merchant: str) -> int:
         print(f"tamamlandi        {row[7]}")
     for state, n in states:
         print(f"urun {state:<10} {n}")
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT s.last_external_id, s.scanned, s.created, s.existing, s.skipped,
+                      s.completed_at
+                 FROM catalog_discovery_build_state s WHERE s.source = %s""",
+            (merchant,),
+        )
+        disc = cur.fetchone()
+    if disc is not None:
+        print(
+            f"kesif defteri: son kimlik {disc[0]!r} taranan {disc[1]} olusan {disc[2]}"
+            f" var {disc[3]} atlanan {disc[4]} tamamlandi {disc[5]}"
+        )
     return 0
 
 
@@ -89,6 +108,17 @@ def main(argv: list[str] | None = None) -> int:
     p_audit.add_argument("--merchant", required=True)
     p_audit.add_argument("--batch", type=int, default=build_mod.DEFAULT_BATCH)
     p_audit.add_argument("--max-batches", type=int, default=None)
+
+    p_disc = sub.add_parser(
+        "build-discovery", help="fiyatsiz kesif defterinden TASLAK urun (offer/fiyat yok)"
+    )
+    p_disc.add_argument("--merchant", required=True)
+    p_disc.add_argument("--limit", type=int, required=True)
+    p_disc.add_argument("--batch", type=int, default=discovery_mod.DEFAULT_BATCH)
+    p_disc.add_argument("--max-seconds", type=float, default=None)
+    p_disc.add_argument("--sleep-ms", type=int, default=0)
+    p_disc.add_argument("--rescan", action="store_true")
+    p_disc.add_argument("--dry-run", action="store_true")
 
     p_status = sub.add_parser("status")
     p_status.add_argument("--merchant", required=True)
@@ -137,6 +167,39 @@ def main(argv: list[str] | None = None) -> int:
         print(f"bitti={counts.completed} (hicbir sey yazilmadi)")
         return 0
 
+    if args.command == "build-discovery":
+        with job_run.track("catalog_build_discovery") as run, connect() as conn:
+            dcounts = discovery_mod.build_discovery_products(
+                conn,
+                merchant_slug=args.merchant,
+                limit=args.limit,
+                batch_size=args.batch,
+                max_seconds=args.max_seconds,
+                rescan=args.rescan,
+                sleep_seconds=args.sleep_ms / 1000,
+                should_stop=_should_stop,
+                dry_run=args.dry_run,
+                on_batch=lambda c: print(
+                    f"parti {c.batches}: taranan {c.scanned} olusan {c.created} "
+                    f"var {c.existing} atlanan {sum(c.skipped.values())} "
+                    f"son_kimlik {c.last_external_id}"
+                ),
+            )
+            run.detail.update(
+                scanned=dcounts.scanned,
+                created=dcounts.created,
+                existing=dcounts.existing,
+                skipped=sum(dcounts.skipped.values()),
+                completed=dcounts.completed,
+                dry_run=args.dry_run,
+            )
+        suffix = " (hicbir sey yazilmadi)" if args.dry_run else ""
+        print(
+            f"bitti={dcounts.completed} olusan={dcounts.created} var={dcounts.existing} "
+            f"atlanan={dcounts.skipped}{suffix}"
+        )
+        return 0
+
     if args.command == "build":
         with job_run.track("catalog_build") as run, connect() as conn:
             counts = build_mod.build_source_products(
@@ -158,11 +221,15 @@ def main(argv: list[str] | None = None) -> int:
                 scanned=counts.scanned,
                 created=counts.created,
                 existing=counts.existing,
+                attached=counts.attached,
                 skipped=sum(counts.skipped.values()),
                 batches=counts.batches,
                 completed=counts.completed,
             )
-        print(f"\nbitti={counts.completed} olusan={counts.created} atlanan={counts.skipped}")
+        print(
+            f"\nbitti={counts.completed} olusan={counts.created} "
+            f"kesif_taslagina_baglanan={counts.attached} atlanan={counts.skipped}"
+        )
         return 0
 
     if args.command == "gate":

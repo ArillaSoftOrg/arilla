@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
@@ -42,6 +43,8 @@ SKIP_REASONS = (
     "bad_image",
     "no_price",
     "slug_conflict",
+    # Karar 0129 (kesif defteri): ayni kod defterde baska adres turuyle kayitli.
+    "discovery_kind_conflict",
 )
 
 _PLACEHOLDER_TITLES = frozenset(
@@ -60,6 +63,27 @@ class SourcePolicy:
     id_pattern: re.Pattern[str]
     #: Kanonik `offer.url`; ILK grup kaynak kimligidir ve `external_id` ile AYNI olmali.
     url_pattern: re.Pattern[str]
+    #: Fiyatsiz kesif defteri kaynagi (`catalog_discovery.source`, karar 0129). Varsa
+    #: defterden taslak urun uretilebilir ve teklif geldiginde ayni kimlige baglanir.
+    discovery_source: str | None = None
+    #: Adresten kimlik TURU (or. Hepsiburada `p`/`pm`). Kesif defteriyle bag yalnizca ayni
+    #: kod VE ayni tur ise kurulur.
+    url_kind: Callable[[str], str | None] | None = None
+
+
+#: Hepsiburada urun adresi: `/<slug>-p-<KOD>` (varyant) ya da `/<slug>-pm-<KOD>` (model).
+#: Iki tur AYRI kimliktir; aralarindaki iliski dogrulanmadi (karar 0129), birbirine
+#: baglanmaz. Kod tek basina kimliktir; tur adresten okunur ve eslesmede ayrica denetlenir.
+HEPSIBURADA_URL = re.compile(
+    r"^https://www\.hepsiburada\.com/[^/?#\s]+-(?:p|pm)-([A-Za-z0-9]{3,60})$"
+)
+_HEPSIBURADA_KIND = re.compile(r"-(p|pm)-[A-Za-z0-9]{3,60}$")
+
+
+def hepsiburada_code_kind(url: str) -> str | None:
+    """`p` (varyant adresi) / `pm` (model adresi); urun adresi degilse None."""
+    match = _HEPSIBURADA_KIND.search(url)
+    return match.group(1) if match else None
 
 
 POLICIES: dict[str, SourcePolicy] = {
@@ -72,7 +96,21 @@ POLICIES: dict[str, SourcePolicy] = {
             r"^https://(?:www\.|[a-z]{2}\.)?aliexpress\.com/item/([0-9]{10,20})\.html$"
         ),
     ),
+    # Yonetici toplamasi (karar 0117/0129): `offer.external_id` adres sonundaki koddur
+    # (feeds/intake.py), kanonik adres sorgusuz/parcasiz `www.hepsiburada.com`.
+    "hepsiburada": SourcePolicy(
+        merchant_slug="hepsiburada",
+        id_pattern=re.compile(r"^[A-Za-z0-9]{3,60}$"),
+        url_pattern=HEPSIBURADA_URL,
+        discovery_source="hepsiburada",
+        url_kind=hepsiburada_code_kind,
+    ),
 }
+
+#: Urunu YALNIZCA kaynak ilani hattindan (taslak -> kapi -> acik yayin) acilan magazalar.
+#: Cozumleyici (`python -m resolve`) bu magazalarin tekliflerinden urun ACMAZ ve onlari
+#: baslik/gorsel benzerligiyle baska urune baglamaz (karar 0129).
+SOURCE_LISTING_MERCHANTS: frozenset[str] = frozenset(POLICIES)
 
 
 @dataclass(frozen=True)
@@ -91,7 +129,8 @@ class SourceOffer:
 
 @dataclass(frozen=True)
 class ProductDraft:
-    offer_id: int
+    #: Kesif defterinden gelen (fiyatsiz) taslakta None: teklif yoktur, uydurulmaz.
+    offer_id: int | None
     external_id: str
     slug: str
     title: str

@@ -98,12 +98,45 @@ ON CONFLICT (merchant_id) DO UPDATE SET
 
 MERCHANT_BY_SLUG = "SELECT id FROM merchant WHERE slug = %(slug)s"
 
+#: Karar 0129: kesif defterinden (fiyatsiz) dogmus taslak urune teklif bagi. Kosul BIREBIR
+#: kimliktir: ayni magaza + ayni kod + defterdeki adres turu teklif adresininkiyle ayni.
+#: Yayinlanmis urune ve baska urunun kaynagi olan teklife dokunulmaz. Baslik benzerligi yok.
+ATTACH_DISCOVERY = """
+WITH t AS (
+    SELECT * FROM unnest(%(exts)s::text[], %(kinds)s::text[], %(oids)s::bigint[])
+                  AS t(ext, kind, oid)
+), target AS (
+    SELECT DISTINCT ON (p.id) p.id, t.oid
+      FROM t
+      JOIN product p ON p.source_external_id = t.ext AND p.source_merchant_id = %(merchant_id)s
+      JOIN catalog_discovery d ON d.source = %(source)s AND d.external_id = t.ext
+                              AND d.code_kind = t.kind
+     WHERE p.source_offer_id IS NULL AND p.publication_state <> 'published'
+       AND NOT EXISTS (SELECT 1 FROM product q WHERE q.source_offer_id = t.oid)
+     ORDER BY p.id, t.oid
+)
+UPDATE product p SET source_offer_id = target.oid, updated_at = now()
+  FROM target WHERE p.id = target.id
+RETURNING p.id
+"""
+
+#: Ayni kod, defterde BASKA turle kayitli ve urun teklifsiz: baglanmaz, sayilir.
+KIND_CONFLICTS = """
+SELECT count(*)
+  FROM unnest(%(exts)s::text[], %(kinds)s::text[]) AS t(ext, kind)
+  JOIN product p ON p.source_external_id = t.ext AND p.source_merchant_id = %(merchant_id)s
+  JOIN catalog_discovery d ON d.source = %(source)s AND d.external_id = t.ext
+ WHERE p.source_offer_id IS NULL AND d.code_kind <> t.kind
+"""
+
 
 @dataclass
 class BuildCounts:
     scanned: int = 0
     created: int = 0
     existing: int = 0
+    #: Kesif defterinden dogmus taslaga baglanan teklif (karar 0129).
+    attached: int = 0
     skipped: dict[str, int] = field(default_factory=dict)
     batches: int = 0
     last_offer_id: int = 0
@@ -201,6 +234,45 @@ def _insert_drafts(
         return created
 
 
+def _attach_discovery(
+    conn: psycopg.Connection,
+    merchant_id: int,
+    policy: SourcePolicy,
+    drafts: list[ProductDraft],
+    urls: dict[int, str],
+    counts: BuildCounts,
+) -> None:
+    """Var olan (fiyatsiz kesif) taslagina teklifi baglar; tur farkini sayar."""
+    if not drafts or policy.discovery_source is None or policy.url_kind is None:
+        return
+    rows = [
+        (d.external_id, policy.url_kind(urls[d.offer_id]), d.offer_id)
+        for d in drafts
+        if d.offer_id is not None
+    ]
+    rows = [r for r in rows if r[1] is not None]
+    if not rows:
+        return
+    params = {
+        "merchant_id": merchant_id,
+        "source": policy.discovery_source,
+        "exts": [r[0] for r in rows],
+        "kinds": [r[1] for r in rows],
+        "oids": [r[2] for r in rows],
+    }
+    with conn.cursor() as cur:
+        cur.execute(ATTACH_DISCOVERY, params)
+        attached = len(cur.fetchall())
+        cur.execute(KIND_CONFLICTS, params)
+        row = cur.fetchone()
+    conflicts = int(row[0]) if row else 0
+    counts.attached += attached
+    # Tur cakisan teklif urunsuz kalir: "zaten var" degil, atlanan olarak sayilir.
+    if conflicts:
+        counts.existing -= conflicts
+        counts.skip("discovery_kind_conflict", conflicts)
+
+
 def _now(conn: psycopg.Connection):
     with conn.cursor() as cur:
         cur.execute("SELECT now()")
@@ -272,6 +344,15 @@ def build_source_products(
             conn.rollback()
         else:
             batch.created = _insert_drafts(conn, merchant_id, drafts, batch)
+            if policy is not None:
+                _attach_discovery(
+                    conn,
+                    merchant_id,
+                    policy,
+                    drafts,
+                    {o.offer_id: o.url for o in offers},
+                    batch,
+                )
             with conn.cursor() as cur:
                 cur.execute(
                     SAVE_STATE,
@@ -292,6 +373,7 @@ def build_source_products(
         totals.scanned += batch.scanned
         totals.created += batch.created
         totals.existing += batch.existing
+        totals.attached += batch.attached
         for reason, n in batch.skipped.items():
             totals.skip(reason, n)
         totals.last_offer_id = after
