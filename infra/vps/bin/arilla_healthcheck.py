@@ -151,6 +151,8 @@ class Collector:
                     facts["backup_info"] = None
 
         facts["restore_test"] = read_json(self.root / "state" / "restore-test.json")
+        # Toplu katalog yayini bekcisinin kalp atisi (karar 0134; infra/vps/bin/catalog-publish).
+        facts["bulk_window"] = read_json(self.root / "state" / "ali-publish" / "bulk-window.json")
         rc, out = self.run(["systemctl", "list-units", "--state=failed", "--plain", "--no-legend", "arilla-*"], 15)
         units = [line.split()[0] for line in out.splitlines() if line.strip()] if rc == 0 else []
         facts["failed_units"] = [u for u in units if u not in SELF_UNITS and not u.startswith("arilla-alert@")]
@@ -209,6 +211,23 @@ def human(seconds: float) -> str:
     return f"{s // 86400} gun"
 
 
+#: Kalp atisi ne kadar gecerli olursa olsun ust sinir (16 MB x 1024 = 16 GB).
+BULK_WINDOW_MAX_READY = 1024
+
+
+def bulk_window_ready_crit(window, now: datetime) -> int:
+    """Taze ve gecerli kalp atisi -> bekcinin duraklama esigi (dosya); aksi halde 0."""
+    if not isinstance(window, dict):
+        return 0
+    try:
+        until, crit = float(window["until"]), int(window["ready_crit"])
+    except (KeyError, TypeError, ValueError):
+        return 0
+    if now.timestamp() > until or crit <= 0:
+        return 0
+    return min(crit, BULK_WINDOW_MAX_READY)
+
+
 def evaluate(facts: dict, now: datetime, t: dict = THRESHOLDS) -> list[Check]:
     out: list[Check] = []
 
@@ -237,12 +256,22 @@ def evaluate(facts: dict, now: datetime, t: dict = THRESHOLDS) -> list[Check]:
                              else "WAL arsivi ETKIN DEGIL (yedekleme aktivasyonu bekliyor)"))
         else:
             ready, oldest = pg["ready_count"], pg["oldest_ready_s"]
+            warn_n, crit_n = t["archive_ready_warn"], t["archive_ready_crit"]
+            window = bulk_window_ready_crit(facts.get("bulk_window"), now)
+            if window:
+                # Toplu yayin sirasinda arsiv BILEREK birkac yuz dosya geride tutulur (geri basinc).
+                # Kritik esik bekcinin duraklama sinirina (kuyruk sinirinin yarisi) cikar; en eski
+                # dosya yasi (depo erisilemez) kurali AYNEN kalir.
+                crit_n = max(crit_n, window)
+                warn_n = max(warn_n, crit_n // 2)
             lvl = OK
-            if ready >= t["archive_ready_crit"] or (ready > 0 and oldest >= t["archive_oldest_ready_crit_s"]):
+            if ready >= crit_n or (ready > 0 and oldest >= t["archive_oldest_ready_crit_s"]):
                 lvl = CRIT
-            elif ready >= t["archive_ready_warn"]:
+            elif ready >= warn_n:
                 lvl = WARN
             msg = f"bekleyen WAL {ready} (en eski {human(oldest)}), pg_wal {pg['wal_bytes'] // 1048576} MB"
+            if window:
+                msg += f"; toplu yayin penceresi (kritik {crit_n})"
             last_failed, last_ok = parse_ts(pg.get("last_failed")), parse_ts(pg.get("last_archived"))
             if last_failed and (not last_ok or last_failed > last_ok) and lvl == OK:
                 lvl = WARN
