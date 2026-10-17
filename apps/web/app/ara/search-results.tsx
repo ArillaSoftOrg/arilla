@@ -14,11 +14,12 @@ export function offerCountLabel(count: number): string {
   return `${count} mağaza`;
 }
 
-/** docs/copy.md `offers.approx`, `offers.source_international`, `offers.rate_note`, `offers.shipping_unknown`. */
+/** docs/copy.md `offers.approx`, `offers.source_international`, `offers.rate_note`, `offers.no_rate`, `offers.shipping_unknown`. */
 const FOREIGN_CARD_COPY = {
   approx: (tl: string) => `≈ ${tl}`,
   source: "Yurt dışı",
   rateNote: (date: string) => `TCMB kuru, ${date}`,
+  noRate: "TL karşılığı için güncel kur yok",
   shippingUnknown: "Kargo ve vergi belirsiz",
 } as const;
 
@@ -43,7 +44,18 @@ export function cardPriceProps(item: {
   "minPrice" | "priceFrom" | "priceLabel" | "sourceLabel" | "offerCount" | "offerCountLabel"
 > {
   const foreign = item.foreignPrice;
-  if (!foreign || item.minPrice === null) {
+  const fxDate = foreign?.fxDate ?? null;
+  // Karar 0132: kur yoksa yaklaşık TL yok; tutar yalnızca kendi para birimiyle.
+  if (foreign && (fxDate === null || item.minPrice === null)) {
+    return {
+      minPrice: null,
+      priceLabel: formatMinorWithCurrency(foreign.originalMinor, foreign.currency),
+      sourceLabel: FOREIGN_CARD_COPY.source,
+      offerCount: item.offerCount ?? 0,
+      offerCountLabel: () => `${FOREIGN_CARD_COPY.noRate} · ${FOREIGN_CARD_COPY.shippingUnknown}`,
+    };
+  }
+  if (!foreign || fxDate === null || item.minPrice === null) {
     return {
       minPrice: item.minPrice,
       priceFrom: item.priceFromVariants ?? false,
@@ -51,7 +63,7 @@ export function cardPriceProps(item: {
     };
   }
   const original = formatMinorWithCurrency(foreign.originalMinor, foreign.currency);
-  const meta = `${FOREIGN_CARD_COPY.rateNote(trDate(foreign.fxDate))} · ${FOREIGN_CARD_COPY.shippingUnknown}`;
+  const meta = `${FOREIGN_CARD_COPY.rateNote(trDate(fxDate))} · ${FOREIGN_CARD_COPY.shippingUnknown}`;
   return {
     minPrice: null,
     priceLabel: `${FOREIGN_CARD_COPY.approx(formatTRY(item.minPrice))} · ${original}`,
