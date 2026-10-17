@@ -267,7 +267,7 @@ başlangıçtır; gerçek yük altında `docker stats` ile ayarlanır.
 
 **PostgreSQL** (`vps/postgres/postgresql.conf`): `shared_buffers=2GB`,
 `effective_cache_size=7GB`, `work_mem=16MB`, `maintenance_work_mem=512MB`,
-`max_connections=60`, `wal_compression`, `max_wal_size=4GB`, `random_page_cost=1.1`,
+`max_connections=60`, `wal_compression=zstd`, `max_wal_size=16GB` (karar 0134), `random_page_cost=1.1`,
 `wal_level=replica` (faz 5 WAL arşivi için hazır), saat dilimi UTC, `scram-sha-256`,
 `idle_in_transaction_session_timeout=60s`. İlk kurulumda veri sağlama toplamları açılır
 (`--data-checksums`, sonradan eklenemez). Hata günlüklerine sorgu metni yazılmaz
@@ -831,7 +831,7 @@ Varsayılan yol **yan instance**'tır: veri oradan çıkarılır, üretime ileri
 | Kontrol | Uyarı | Kritik |
 | --- | --- | --- |
 | Disk (`/opt/arilla`, `/var/lib/docker`) | ≥ %70 | ≥ %80 |
-| Bekleyen WAL (`pg_ls_archive_statusdir`) | ≥ 4 dosya | ≥ 16 dosya ya da 15 dk bekleyen |
+| Bekleyen WAL (`pg_ls_archive_statusdir`) | ≥ 4 dosya | ≥ 16 dosya ya da 15 dk bekleyen (toplu yayın penceresinde kritik = bekçi sınırı, karar 0134) |
 | Son yedek | — | > 30 sa |
 | Son tam yedek | — | > 8 gün |
 | Geri yükleme provası | yok ya da > 35 gün | son prova başarısız |
@@ -1353,6 +1353,154 @@ pgBackRest arşivini izle). Feed senkronizasyonu çalışırken de çalışabili
 yine de yoğun saatte `--sleep-ms` kullan. Yönetimde: `/yonetim/katalog/urunler?durum=draft`
 (kimlik/slug/kaynak kimliğiyle ara) ve `/yonetim/katalog/kalite` "Yayın bekleyen kaynak
 ilanları".
+
+### Toplu yayın ve WAL geri basıncı (karar 0134)
+
+Milyonluk `gate`/`publish` koşusu bekçi betiğiyle yapılır: `infra/vps/bin/catalog-publish`
+(eski `/opt/arilla/ali-publish.sh`'in yerine geçer). ROOT ile, tmux içinde:
+
+```bash
+tmux new -s ali
+EXPECT_SHA=<prod main sha> bash /opt/arilla/vps/bin/catalog-publish run      # gate + publish
+EXPECT_SHA=<prod main sha> bash /opt/arilla/vps/bin/catalog-publish publish  # gate bittiyse: yalnız publish
+bash /opt/arilla/vps/bin/catalog-publish walstat   # YALNIZ OKUR: pg_wal sınıfları + 30 sn hız
+bash /opt/arilla/vps/bin/catalog-publish status | stop | pause | resume | report | measure
+```
+
+**Çalışan bekçi dosyasını yerinde düzenleme.** Bash betiği çalışırken dosyadan okur. Yeni sürüm
+ayrı yola kopyalanır, eskisi `stop` ile durdurulur, yenisi başlatılır.
+
+**İki katman.** Hız denetimi işin içindedir: `catalog_build` her partiden önce arşivlenmemiş WAL'i
+ölçer, hedefin üstünde partiler arasında uyur, duraklama sınırında bekler, arşiv hatasında yazmaz.
+Bekçi yalnızca emniyet ağıdır. İş WAL sınırında durursa 3 koduyla çıkar; bekçi bunu çökme
+saymaz, sağlık dönünce kaldığı yerden başlatır.
+
+**`pg_wal` dizin boyutu arşiv borcu değildir.** `walstat` dizini dört sınıfa ayırır:
+
+| Sınıf | Anlamı | Borç mu? |
+| --- | --- | --- |
+| `recycled` | Yeniden kullanılacak, önceden ayrılmış segment (≤ `max_wal_size`) | Hayır |
+| `removable` | Arşivlendi; bir sonraki checkpoint siler (≤ ~28 dk) | Hayır |
+| `redo sonrası` | Çökme kurtarması için gerekli; checkpoint'le düşer | Yalnız patolojide |
+| `arşivlenmemiş` | `.ready`; pgBackRest kuyruğu | **Evet** — kuyruk sınırı aşılırsa WAL bırakılır, PITR kopar |
+
+Elle `CHECKPOINT` gerekmez ve önerilmez. Yayılmayan checkpoint `shared_buffers`'ı tam hızla
+yazar ve site gecikmesini sıçratır.
+
+**Eşikler** (hepsi `archive-push-queue-max`'tan türetilir; 4 GiB için):
+
+| Katman | Eşik | Değer | Davranış |
+| --- | --- | --- | --- |
+| İş içi | hedef (%25) | 1024 MB | üstünde partiler arası uyku (≤ 30 sn), üretim → arşiv hızı |
+| İş içi | duraklama / devam (%37,5 / %12,5) | 1536 / 512 MB | duraklama ≤ 1 sa, sonra kod 3 |
+| İş içi | arşiv hatası | 900 sn | yazmaz; aşılırsa kod 3 |
+| Bekçi | arşivlenmemiş duraklama / devam (%50 / %12,5) | 2048 / 512 MB | iş SIGTERM, parti biter |
+| Bekçi | tutulan WAL (redo sonrası + arşivlenmemiş) | 2 × `max_wal_size` + 2048 MB | checkpoint yetişmiyor: bekle |
+| Bekçi | `pg_wal` toplamı | 4 × `max_wal_size` + kuyruk | **yalnız uyarı** (eşik değil) |
+| Bekçi | disk rezervi | 40 GB | KESİN DUR |
+| Bekçi | arşiv hatası | 900 sn | KESİN DUR |
+| Bekçi | `dropped WAL file` günlükte | > 0 | KESİN DUR (yeni tam yedek gerekir) |
+| Bekçi | değişmez doğrulaması | ihlal | KESİN DUR |
+
+Bekçi duraklaması kuyruk sınırının %75'ini aşarsa (örneğin eski `READY_PAUSE=256` = %100) bekçi
+başlamaz. Eski değişkenler okunur: `READY_PAUSE`/`READY_RESUME` dosya sayısıdır;
+`WAL_PAUSE_GB` artık tutulan WAL sınırıdır, dizin toplamı değil. `RESUME_HEALTHY_S`
+varsayılanı 60 sn.
+
+**Web yoklaması.** Erken erişim modunda `/urun/*` 307 döner; bu normaldir. Yoklama 2xx/3xx'i
+yalnız "sunucu yanıt veriyor" sinyali olarak sayar; ürün sayfası performansı **değildir**.
+`measure` 200 ile 3xx'i ayrı raporlar. Gerçek sayfa süresi Caddy kaydındaki 200 yanıtlardan ve
+`pg_stat_statements`'tan okunur.
+
+**İzleme.** `/opt/arilla/state/ali-publish/`:
+
+| Dosya | İçerik |
+| --- | --- |
+| `wal-metrics.csv` | her denetimde: dizin/recycled/removable/redo sonrası/arşivlenmemiş/lag (MB), üretim ve arşiv MB/sn, FPI oranı, checkpoint sayaçları, boş disk |
+| `health.log` | aynı değerler + bekleme nedeni, ~5 dk'da bir `docker stats` |
+| `run.log` | aşamalar, ~5 dk'da bir `wal:` özeti ve iş içi son geri basınç satırı, doğrulamalar |
+| `job-<aşama>-<n>.log` | işin kendi çıktısı (`wal yavaslatma/duraklama/devam/arsiv-hatasi`) |
+
+`job_run.detail` her koşu için `wal_paced_s`, `wal_pauses`, `wal_paused_s`,
+`wal_archive_failing_s`, `wal_max_lag_mb` tutar. Yorum:
+
+- Arşiv hızı ≈ üretim hızı ve `wal_pauses = 0`: denetim sağlıklı (verim = arşiv kapasitesi).
+- `ckpt_req` hızla artıyor, `ckpt_timed` artmıyor: `max_wal_size` küçük. Checkpoint'ler WAL ile
+  tetikleniyor ve FPI WAL'i şişiriyor (aşağıdaki ayar önerisi).
+- Arşiv hızı düşük ve sabit: darboğaz R2 gidiş-dönüşü (`archive-push` `process-max`).
+
+**Kurtarma prosedürleri**
+
+| Durum | Belirti | Yapılacak |
+| --- | --- | --- |
+| Arşiv geride | `bekliyor: arsivlenmemis WAL ...` | Bekleme beklenen davranıştır. `walstat` ile arşiv hızını gör; `backup` konteyneri ve R2 erişimini kontrol et (`pg-backup check`). WAL dosyası **silinmez**. |
+| Arşiv başarısız | `WAL arsivi basarisiz`, sonra KESİN DUR | `docker compose logs postgres backup` → `archive-push` hatası. Düzelt; `pg-backup check` geçsin; `catalog-publish publish` kaldığı yerden sürer. |
+| WAL bırakıldı | KESİN DUR: `pgBackRest ... BIRAKTI` | PITR zincirinde boşluk var. `pg-backup full` → `pg-backup check` → `ACK_WAL_DROP=1 ... catalog-publish publish`. |
+| Disk rezervi | KESİN DUR: `disk bos ... < rezerv` | Yer aç (eski imajlar/günlükler). **`pg_wal` elle silinmez.** Arşiv geride ise önce arşivi düzelt. |
+| Tutulan WAL yüksek | `checkpoint yetismiyor` | Disk G/Ç'si ve `log_checkpoints` satırlarına bak. Kendiliğinden düşer; elle `CHECKPOINT` yerine beklemek tercih edilir. |
+| İş kod 3 | `WAL geri basinci nedeniyle durdu` | Kendiliğinden sürer. Tekrarlıyorsa arşiv kapasitesi yük için yetersiz: `process-max`, kuyruk sınırı. |
+| Bekçi öldü / tmux kapandı | `bekci sinyal aldi` | İş güvenle durmuştur. Aynı komutla yeniden başlat (gate `--after-id`, publish `ready`'den). |
+| Değişmez ihlali | KESİN DUR: `degismez ihlali` | Yayını sürdürme. `run.log`'daki kimlik aralığını incele; `unpublish` yalnız insan kararıyla. |
+
+**Önerilen PostgreSQL / pgBackRest ayarları.** Hiçbiri yeniden başlatma istemez.
+
+| Ayar | Eski | Yeni | Gerekçe |
+| --- | --- | --- | --- |
+| `max_wal_size` | 4GB | 16GB | Yoğun yazımda checkpoint WAL ile tetikleniyor; her checkpoint sonrası FPI. Laboratuvarda 8× pay WAL'i −%34 düşürdü. Bedeli ≤ 16 GB yeniden kullanılacak segment + daha uzun çökme kurtarması. |
+| `min_wal_size` | 1GB | 2GB | Boşta da ön ayrılmış segment kalır (yeniden oluşturma maliyeti yok). |
+| `wal_compression` | `on` (pglz) | `zstd` | Aynı yükte WAL −%35 (pglz'ye göre); yazma süresi ~%10 daha uzun (CPU). |
+| `checkpoint_timeout` / `_completion_target` | 15min / 0.9 | aynı | 16GB ile checkpoint'ler zamanlı ve yayılmış olur. |
+| `archive_timeout` | 300 | aynı | RPO; yayınla ilgisi yok. |
+| pgBackRest `archive-push` `process-max` | 1 | 2 (`PGBACKREST_ARCHIVE_PUSH_PROCESS_MAX`) | Asenkron arşivde segmentler paralel gönderilir; R2 gidiş-dönüşü baskın. Her `archive-push` çağrısında okunur. |
+| pgBackRest `archive-push-queue-max` | 4GiB | aynı (isteğe bağlı 8GiB) | Tüm WAL eşikleri bundan türer. Büyütmek bekleme payını büyütür, diski kullanır. |
+
+Laboratuvar ölçümü (aynı başlangıç, 150 bin ürün, 300 parti × 500; `shared_buffers` 256MB):
+
+| `max_wal_size` | `wal_compression` | WAL | ürün başı | checkpoint |
+| --- | --- | --- | --- | --- |
+| 256MB | pglz | 1108 MB | 7,7 KB | 8 |
+| 2GB | pglz | 728 MB | 5,1 KB | 0 |
+| 256MB | lz4 | 786 MB | 5,5 KB | 6 |
+| 256MB | zstd | 721 MB | 5,0 KB | 5 |
+| 2GB | zstd | 678 MB | 4,7 KB | 0 |
+
+Oranlar yön gösterir; üretimdeki gerçek kazanç `walstat`'ın FPI oranı ve `ckpt_req`/`ckpt_timed`
+farkıyla doğrulanır (ayar öncesi ve sonrası birer `walstat` çıktısı saklanır).
+
+**Üretime uygulama** (sırayla; her adım ayrı onay, çalışan yayın DURDURULMAZ):
+
+1. **Salt okunur ölçüm (yayın çalışırken):** yeni betiği çalışanın yanına ayrı yola kopyala
+   (örneğin `/opt/arilla/catalog-publish.new`) ve yalnız `walstat` çalıştır. Arşiv/üretim hızı,
+   sınıflar ve checkpoint sayaçları kök nedeni üretimde doğrular. Son 7 günde WAL bırakılmış mı:
+   `docker compose ... logs --since 168h postgres | grep -ciE 'dropped WAL file|archive queue exceeded'`.
+   0 değilse `pg-backup full` gerekir.
+2. **Merge + dağıtım:** yayın deploy kilidini tuttuğu için otomatik dağıtım "başka bir dağıtım
+   çalışıyor" ile durur. Yayın bitene kadar beklenir ya da güvenli geçişte (adım 4) dağıtım
+   yeniden çalıştırılır. Dağıtım `postgresql.conf`'u yazar ama **yüklemez**.
+3. **Ayarlar (planlı, yük düşükken):** `pg-backup-configure` yeniden çalıştırılır
+   (`process-max=2` yazar; yeniden başlatma yok). Sonra
+   `docker compose ... exec postgres psql -U arilla -c "SELECT pg_reload_conf()"` ve
+   `SHOW max_wal_size; SHOW wal_compression;` ile doğrulanır. Şu sorgu boş dönmeli:
+   `SELECT name FROM pg_settings WHERE pending_restart`.
+4. **Bekçi geçişi:** `bash /opt/arilla/ali-publish.sh stop` (mevcut parti biter, iş durur, eski
+   bekçi çıkar) → iş konteyneri yokken `bash /opt/arilla/vps/bin/catalog-publish publish`.
+   Kaldığı `ready`'den sürer; eski `READY_PAUSE`/`WAL_*_GB` ortam değişkenleri **verilmez**.
+   Yeni bekçi, iş içi geri basıncı içeren ingest imajı dağıtılmadan başlamaz (preflight
+   `catalog_build publish --help`'te `--wal-target-mb` arar); yani adım 2 bundan önce gelir.
+5. **İzleme:** ilk 30 dk `wal-metrics.csv`: arşiv hızı ≈ üretim, `wal_pauses` 0, FPI oranı
+   düşüyor. Elle CHECKPOINT yok.
+
+**Riskler ve geri alma**
+
+| Risk | Önlem | Geri alma |
+| --- | --- | --- |
+| Yeni bekçi/iş hatası | Kabuk ve Python testleri gerçek arşivleyen PG16 ile; KESİN DUR kuralları korunur | `catalog-publish stop`; eski `/opt/arilla/ali-publish.sh` ile devam (iş idempotent, `ready`'den sürer) |
+| İş içi denetim fazla yavaşlatır | Uyku ≤ 30 sn; simülasyonda verim = arşiv hızı | `JOB_WAL_TARGET_MB` büyüt (bekçi sınırının altında kalmalı) |
+| `max_wal_size=16GB` disk kullanır | 150 GB boş, rezerv 40 GB; recycled ≤ 16 GB | `max_wal_size = 4GB` geri yaz + `pg_reload_conf()` (fazla segmentler sonraki checkpoint'lerde silinir) |
+| zstd CPU | ~%10 daha uzun yazma | `wal_compression = on` + `pg_reload_conf()` |
+| Çökme kurtarması uzar | ≤ 16 GB WAL tekrarı | `max_wal_size` düşür |
+| `process-max=2` R2'yi zorlar | Asenkron + 2 süreç; hata `pg_stat_archiver`'da görünür | `PGBACKREST_ARCHIVE_PUSH_PROCESS_MAX=1` + `pg-backup-configure` |
+| Sağlık alarmı gürültüsü | Bekçi kalp atışıyla bekleyen WAL eşiği bekçi sınırına çıkar; 10 dk bayatlarsa normale döner; "en eski dosya 15 dk" kritik kuralı aynen kalır | `bulk-window.json` silinir |
 
 ## Bootstrap kataloğu (geçici, yalnızca yerel)
 
