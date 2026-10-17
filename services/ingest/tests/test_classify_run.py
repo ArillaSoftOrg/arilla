@@ -330,7 +330,7 @@ def test_confirmed_source_map_is_authoritative(world: dict[str, int]) -> None:
         cur.execute(
             """INSERT INTO category_source_map (merchant_id, source_path, path_norm, category_id,
                                                 status)
-               VALUES (%s, %s, %s, (SELECT id FROM category WHERE path = 'moda/canta'),
+               VALUES (%s, %s, %s, (SELECT min(id) FROM category WHERE path = 'moda/canta'),
                        'confirmed')""",
             (world[f"merchant_{SLUG}"], WEAK, path_norm(WEAK)),
         )
