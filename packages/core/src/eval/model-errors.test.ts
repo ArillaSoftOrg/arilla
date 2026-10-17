@@ -1,11 +1,13 @@
 import type { Database } from "@arilla/db";
 import { describe, expect, it } from "vitest";
 import type { InterpretationOutcome } from "../chat/interpreter.ts";
+import { EmbeddingError } from "../embedding/client.ts";
 import type { LlmCall } from "../llm/client.ts";
 import type { ModelInterpretationOutcome } from "../llm/intent-interpreter.ts";
 import {
   chatTurnFailureLog,
   failureFromChatTurn,
+  failureFromEmbedding,
   failureFromInterpretation,
   recordModelFailure,
 } from "./model-errors.ts";
@@ -177,6 +179,47 @@ describe("recordModelFailure", () => {
     });
     expect(ok).toBe(false);
     expect(Date.now() - started).toBeLessThan(1000);
+  });
+
+  it("saglayici verilmezse gemini, verilirse o yazilir", async () => {
+    const written: Record<string, unknown>[] = [];
+    const capturing = {
+      insert: () => ({
+        values: async (row: Record<string, unknown>) => {
+          written.push(row);
+        },
+      }),
+    } as unknown as Database;
+    await recordModelFailure(capturing, { ...input, failure: new Error("x") });
+    await recordModelFailure(capturing, {
+      ...input,
+      provider: "jina",
+      operation: "visual_search",
+      surface: "search",
+      failure: failureFromEmbedding(new EmbeddingError("sağlayıcı 503 döndü; 3 deneme")),
+    });
+    expect(written.map((r) => r.provider)).toEqual(["gemini", "jina"]);
+    expect(written[1]).toMatchObject({ errorClass: "server_error", httpStatus: 503 });
+  });
+});
+
+describe("failureFromEmbedding", () => {
+  it("HTTP durumu korunur, saglayici yanit govdesi atilir", () => {
+    const failure = failureFromEmbedding(
+      new EmbeddingError('sağlayıcı 400: {"detail":"data:image/jpeg;base64,AAAA"}'),
+    );
+    expect(failure.message).toBe("HTTP 400");
+    expect(cls(failure)).toEqual({ errorClass: "bad_request", httpStatus: 400 });
+  });
+
+  it.each([
+    [new EmbeddingError("sağlayıcı 429 döndü; 3 deneme / 30000 ms içinde geçmedi"), "rate_limited"],
+    [new EmbeddingError("sağlayıcı zaman aşımına uğradı; 3 deneme"), "timeout"],
+    [Object.assign(new Error("aborted"), { name: "TimeoutError" }), "timeout"],
+    [new TypeError("fetch failed"), "network"],
+    [new EmbeddingError("vektör boyutu 1024 bekleniyordu, 3 geldi"), "unknown"],
+  ])("%s -> %s", (error, expected) => {
+    expect(cls(failureFromEmbedding(error))?.errorClass).toBe(expected);
   });
 });
 

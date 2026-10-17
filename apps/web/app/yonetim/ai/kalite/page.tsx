@@ -141,7 +141,7 @@ export default async function AiQualityPage({
         <KpiCard
           label={`Model hatası (${windowLabel(overview.days).toLowerCase()})`}
           value={formatCount(overview.errors.total)}
-          note="Kayıtlı hata olayı; üretim çağıranları henüz bağlı olmayabilir"
+          note="Sohbet, sorgu yorumu, internet araması ve görsel embedding hataları"
           basis="count"
         />
         <KpiCard
@@ -241,7 +241,7 @@ export default async function AiQualityPage({
             empty={
               <EmptyPanel
                 title="Bu aralıkta kayıtlı hata yok"
-                description="Hata kaydı bağlantısı üretimde henüz açık olmayabilir."
+                description="Sohbet, sorgu yorumu, internet araması ve görsel embedding hataları burada sayılır."
               />
             }
             columns={[
