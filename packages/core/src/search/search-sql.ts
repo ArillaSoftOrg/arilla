@@ -63,9 +63,9 @@ function fxCte(): SQL {
  * Karar 0129: TRY teklif her zaman once secilir. Yalnizca yurt disi teklifi olan
  * urunde `current_price` TCMB kuruyla YAKLASIK kurustur (numeric, float yok,
  * yarim yukari); orijinal tutar `original_price`/`original_currency`, kur tarihi
- * `fx_date` olarak tasinir. Guncel kur yoksa yurt disi teklif yine secilir ama
- * `current_price` NULL kalir (yaklasik TL uydurulmaz; fiyat suzgeci onu disarida birakir,
- * urun kesfi fiyattan bagimsiz calisir).
+ * `fx_date` olarak tasinir. Guncel kur yoksa yurt disi teklif YINE secilir (karar 0132):
+ * `current_price` NULL kalir (kur uydurulmaz, USD kurus gibi okunmaz), kart tutari kendi
+ * para birimiyle gosterir; TL fiyat suzgeci ve TL siralamasi onu almaz.
  */
 export function bestOfferCte(
   inStockOnly: boolean,
@@ -100,7 +100,8 @@ export function bestOfferCte(
              AND (o.attributes_raw ->> 'stock_state') IS DISTINCT FROM 'unknown'))
         ${only}
         ${scoped}
-      ORDER BY o.product_id, (o.currency <> 'TRY'), ${priceTry} ASC NULLS LAST
+      -- TRY once; yurt disinda kurla cevrilebilen once (kursuz tutar NULL, sona).
+      ORDER BY o.product_id, (o.currency <> 'TRY'), ${priceTry} ASC NULLS LAST, o.id
     )
   `;
 }
@@ -116,7 +117,7 @@ export interface OriginColumns {
   is_foreign: boolean | null;
   original_price: string | null;
   original_currency: string | null;
-  /** YYYY-MM-DD (SQL'de metne cevrilir: surucu tarih saat dilimine kaymasin). */
+  /** YYYY-MM-DD (SQL'de metne cevrilir: surucu tarih saat dilimine kaymasin); kur yoksa null. */
   fx_date: string | null;
   /** Secilen teklifin magazasi (kartta kaynak magaza). */
   merchant_name: string | null;

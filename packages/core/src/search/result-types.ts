@@ -43,7 +43,10 @@ export interface ForeignPrice {
   /** Orijinal tutar, para biriminin alt birimi (cent). */
   originalMinor: number;
   currency: string;
-  /** TCMB bulten tarihi, YYYY-MM-DD; guncel kur yoksa null (yaklasik TL yok). */
+  /**
+   * TCMB bulten tarihi, YYYY-MM-DD. Guncel kur yoksa null (karar 0132): o zaman
+   * `minPrice` da null'dir; kart yalnizca orijinal tutari gosterir.
+   */
   fxDate: string | null;
 }
 

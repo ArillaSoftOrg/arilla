@@ -1,7 +1,8 @@
 /**
  * Karar 0129: yalnizca yurt disi (TRY disi) teklifi olan yayinlanmis urun arama
  * yuzeylerinde gorunur; fiyati TCMB kuruyla YAKLASIK kurustur ve orijinal tutar
- * `foreignPrice` ile tasinir. Kur yoksa gorunmez (kur uydurulmaz). Esit alakada
+ * `foreignPrice` ile tasinir. Kur yoksa da gorunur (karar 0132): TL fiyati yoktur
+ * (kur uydurulmaz), tutar kendi para birimiyle tasinir, TL fiyat suzgecine girmez. Esit alakada
  * TRY teklifli urun onde; "en iyi fiyat" sekmesine yurt disi girmez. Fiyat ozeti
  * (`min_price`, `offer_count`) TRY-only kalir, `foreign_offer_count` sayilir.
  */
@@ -175,16 +176,12 @@ describe("yurt disi teklifli urun aramada (karar 0129)", () => {
     expect(byId.get(tryTwin)).toMatchObject({ offer_count: 1, foreign_offer_count: 0 });
   });
 
-  it("metin aramasinda yaklasik TL ile gorunur, TRY esdegeri onde, kursuz TL fiyatsiz gorunur", async () => {
+  it("metin aramasinda yaklasik TL ile gorunur, TRY esdegeri onde, kursuz da gorunur", async () => {
     const result = await search(db, textQuery("balanced"));
     const ids = result.items.map((item) => item.productId);
     expect(ids).toContain(foreignOnly);
     expect(ids).toContain(tryTwin);
-    // Kur yok: urun yine bulunur, yaklasik TL uydurulmaz (yalnizca orijinal tutar).
     expect(ids).toContain(noRate);
-    const unrated = result.items.find((item) => item.productId === noRate);
-    expect(unrated?.minPrice).toBeNull();
-    expect(unrated?.foreignPrice).toEqual({ originalMinor: 3_000, currency: "XYZ", fxDate: null });
     expect(ids.indexOf(tryTwin)).toBeLessThan(ids.indexOf(foreignOnly));
 
     const foreign = result.items.find((item) => item.productId === foreignOnly);
@@ -193,6 +190,23 @@ describe("yurt disi teklifli urun aramada (karar 0129)", () => {
     const domestic = result.items.find((item) => item.productId === tryTwin);
     expect(domestic?.minPrice).toBe(150_000);
     expect(domestic?.foreignPrice).toBeUndefined();
+  });
+
+  it("kur yoksa TL fiyat yok, tutar kendi para biriminde (karar 0132)", async () => {
+    const result = await search(db, textQuery("balanced"));
+    const item = result.items.find((x) => x.productId === noRate);
+    expect(item?.minPrice).toBeNull();
+    expect(item?.foreignPrice).toEqual({ originalMinor: 3_000, currency: "XYZ", fxDate: null });
+  });
+
+  it("kursuz yurt disi urun TL fiyat suzgecine girmez", async () => {
+    const result = await search(db, {
+      ...textQuery("balanced"),
+      filters: { price_max: 1_000_000_000 },
+    });
+    const ids = result.items.map((item) => item.productId);
+    expect(ids).toContain(foreignOnly);
+    expect(ids).not.toContain(noRate);
   });
 
   it("yaklasik TL fiyat suzgecine girer", async () => {
