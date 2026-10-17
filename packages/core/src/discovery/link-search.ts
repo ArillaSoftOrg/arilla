@@ -206,6 +206,20 @@ const CANDIDATE_POOL_WITH_PREFERENCES = 120;
  */
 export const VISUAL_MIN_SIMILARITY = 0.72;
 
+/**
+ * Adayın (`c`) kart fiyatı: aktif mağazanın en ucuz aktif TRY teklifi. Yalnızca seçilen
+ * adaylar için okunur; eskiden her link aramasında tüm TRY teklifleri taranıyordu.
+ */
+const candidateBestOffer = sql`
+    LEFT JOIN LATERAL (
+      SELECT o.current_price
+      FROM offer o
+      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
+      WHERE o.product_id = c.id AND o.is_active AND o.currency = 'TRY'
+      ORDER BY o.current_price ASC NULLS LAST
+      LIMIT 1
+    ) bo ON TRUE`;
+
 /** pg_trgm `%` eşiği (varsayılan 0.3) indeksle çalışır; ölçüm: 0035. */
 async function textCandidates(
   db: Database,
@@ -220,23 +234,21 @@ async function textCandidates(
   const brandExpr = foldedTitleExpr(sql`b.name`);
 
   const result = await db.execute<ProductRow & { text_score: number; brand_match: boolean }>(sql`
-    WITH best_offer AS (
-      SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
-      FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
-      ORDER BY o.product_id, o.current_price ASC NULLS LAST
+    WITH c AS (
+      SELECT p.id, p.slug, p.title, p.primary_image_url, b.name AS brand_name, p.offer_count,
+             similarity(${titleExpr}, ${folded})::double precision AS text_score,
+             (${brandFolded}::text IS NOT NULL AND b.name IS NOT NULL AND ${brandExpr} = ${brandFolded}) AS brand_match
+      FROM product p
+      LEFT JOIN brand b ON b.id = p.brand_id
+      WHERE p.offer_count > 0 AND p.publication_state = 'published' AND ${titleExpr} % ${folded}
+      ORDER BY text_score DESC, p.id ASC
+      LIMIT ${limit}
     )
-    SELECT p.id, p.slug, p.title, p.primary_image_url, b.name AS brand_name,
-           bo.current_price, p.offer_count,
-           similarity(${titleExpr}, ${folded})::double precision AS text_score,
-           (${brandFolded}::text IS NOT NULL AND b.name IS NOT NULL AND ${brandExpr} = ${brandFolded}) AS brand_match
-    FROM product p
-    LEFT JOIN brand b ON b.id = p.brand_id
-    LEFT JOIN best_offer bo ON bo.product_id = p.id
-    WHERE p.offer_count > 0 AND p.publication_state = 'published' AND ${titleExpr} % ${folded}
-    ORDER BY text_score DESC, p.id ASC
-    LIMIT ${limit}
+    SELECT c.id, c.slug, c.title, c.primary_image_url, c.brand_name, bo.current_price,
+           c.offer_count, c.text_score, c.brand_match
+    FROM c
+    ${candidateBestOffer}
+    ORDER BY c.text_score DESC, c.id ASC
   `);
   return {
     rows: result.rows,
@@ -260,21 +272,13 @@ async function identityCandidates(
 
   const brandExpr = foldedTitleExpr(sql`b.name`);
   const result = await db.execute<ProductRow & { evidence: IdentityEvidence }>(sql`
-    WITH best_offer AS (
-      SELECT DISTINCT ON (o.product_id) o.product_id, o.current_price
-      FROM offer o
-      JOIN merchant m ON m.id = o.merchant_id AND m.is_active
-      WHERE o.product_id IS NOT NULL AND o.is_active AND o.currency = 'TRY'
-      ORDER BY o.product_id, o.current_price ASC NULLS LAST
-    )
-    SELECT p.id, p.slug, p.title, p.primary_image_url, b.name AS brand_name,
-           bo.current_price, p.offer_count,
+    WITH c AS (
+    SELECT p.id, p.slug, p.title, p.primary_image_url, b.name AS brand_name, p.offer_count,
            CASE WHEN ${gtin}::text IS NOT NULL
                  AND lpad(regexp_replace(coalesce(p.gtin, ''), '\\D', '', 'g'), 14, '0') = ${gtin}
                 THEN 'gtin' ELSE 'mpn' END AS evidence
     FROM product p
     LEFT JOIN brand b ON b.id = p.brand_id
-    LEFT JOIN best_offer bo ON bo.product_id = p.id
     WHERE p.offer_count > 0 AND p.publication_state = 'published' AND (
       (${gtin}::text IS NOT NULL AND p.gtin IS NOT NULL
         AND lpad(regexp_replace(p.gtin, '\\D', '', 'g'), 14, '0') = ${gtin})
@@ -283,6 +287,11 @@ async function identityCandidates(
         AND replace(lower(p.mpn), ' ', '') = ${mpn})
     )
     LIMIT 10
+    )
+    SELECT c.id, c.slug, c.title, c.primary_image_url, c.brand_name, bo.current_price,
+           c.offer_count, c.evidence
+    FROM c
+    ${candidateBestOffer}
   `);
   return {
     rows: result.rows,
