@@ -697,15 +697,35 @@ await withClient(ownerUrl(), async (client) => {
   // --- category ---
   // Yalnizca tohumun kendi kategorileri yazilir; migration kategorileri
   // yukarida dogrulandi ve oldugu gibi kalir.
+  // Ayni `path` baska bir slug'la zaten varsa (0089 taksonomisi, ornegin `moda-canta`) yeni
+  // satir YAZILMAZ: o satir kullanilir. Aksi halde ayni yol iki kez olusur ve
+  // `WHERE path = ...` sorgulari (siniflandirma, kaynak eslemesi) birden fazla satir bulur.
+  const aliases = new Map<string, number>();
   for (const category of CATEGORIES) {
     if (category.owner === "migration") continue;
+    const existing = await client.query<{ id: string }>(
+      "SELECT id FROM category WHERE path = $1 AND slug <> $2 ORDER BY id LIMIT 1",
+      [category.path, category.slug],
+    );
+    if (existing.rows[0]) {
+      aliases.set(category.slug, Number(existing.rows[0].id));
+      continue;
+    }
+    const parentAlias = category.parent ? aliases.get(category.parent) : undefined;
     await client.query(
       `INSERT INTO category (slug, name, parent_id, path, is_discoverable)
-       VALUES ($1, $2, (SELECT id FROM category WHERE slug = $3), $4, $5)
+       VALUES ($1, $2, COALESCE($6::bigint, (SELECT id FROM category WHERE slug = $3)), $4, $5)
        ON CONFLICT (slug) DO UPDATE SET
          name = EXCLUDED.name, parent_id = EXCLUDED.parent_id,
          path = EXCLUDED.path, is_discoverable = EXCLUDED.is_discoverable`,
-      [category.slug, category.name, category.parent ?? null, category.path, category.discoverable],
+      [
+        category.slug,
+        category.name,
+        category.parent ?? null,
+        category.path,
+        category.discoverable,
+        parentAlias ?? null,
+      ],
     );
   }
   const categoryIds = new Map(
@@ -713,6 +733,7 @@ await withClient(ownerUrl(), async (client) => {
       (row) => [row.slug, Number(row.id)],
     ),
   );
+  for (const [slug, id] of aliases) categoryIds.set(slug, id);
 
   // --- product ---
   // Ayni modelin farkli renkleri ayni model_key'i paylasir; product renk
