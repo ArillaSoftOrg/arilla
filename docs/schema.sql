@@ -180,6 +180,9 @@ CREATE TABLE offer (
     CONSTRAINT offer_merchant_external_uniq UNIQUE (merchant_id, external_id)
 );
 CREATE INDEX offer_product_idx    ON offer (product_id) WHERE product_id IS NOT NULL;
+-- 0082 (concurrent): urun basina en ucuz TRY teklifi (`bestOfferJoin`).
+CREATE INDEX offer_try_product_idx ON offer (product_id, current_price)
+    WHERE product_id IS NOT NULL AND is_active AND currency = 'TRY';
 CREATE INDEX offer_unmatched_idx  ON offer (merchant_id) WHERE product_id IS NULL;
 -- 0071: magaza basina sayimlar icin indeks-yalniz tarama
 CREATE INDEX offer_merchant_state_idx ON offer (merchant_id, is_active, product_id);
