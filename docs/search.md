@@ -156,7 +156,10 @@ teklifli ürünler ve geri kalan yayındaki ürünler (yurt dışı kaynak ilanl
 ayrı bölümlerden, her biri baş isim dalı ve tüm slotlar dalı olarak en fazla
 1000 ürünle toplanır. Teklif seçimi, skor ve sayım yalnızca bu kümede yapılır.
 Yurt dışı teklifli ürün TCMB kuruyla yaklaşık TL fiyatla, eşit alakada TRY
-teklifli üründen sonra görünür.
+teklifli üründen sonra görünür; güncel kur yoksa yalnızca orijinal tutarla
+görünür (yaklaşık TL uydurulmaz, fiyat süzgecine girmez). Türkçe sorgunun
+İngilizce başlıkları (AliExpress) bulması eş anlamlı sözlükle olur
+(`docs/decisions/0131`). Sohbet (`/sohbet`) aynı aramayı kullanır.
 
 ## Sıralama
 

@@ -39,27 +39,40 @@ export function cardPriceProps(item: {
   /** Verilmezse (alternatif seridi) TRY kartta magaza sayisi satiri cizilmez. */
   offerCount?: number;
   foreignPrice?: ForeignPrice;
+  /** Karar 0131: secilen teklifin magazasi (kaynak magaza). */
+  merchantName?: string | null;
 }): Pick<
   ProductCardProps,
   "minPrice" | "priceFrom" | "priceLabel" | "sourceLabel" | "offerCount" | "offerCountLabel"
 > {
   const foreign = item.foreignPrice;
   const fxDate = foreign?.fxDate ?? null;
+  const merchant = item.merchantName?.trim() || null;
+  const foreignSource = merchant
+    ? `${FOREIGN_CARD_COPY.source} · ${merchant}`
+    : FOREIGN_CARD_COPY.source;
   // Karar 0132: kur yoksa yaklaşık TL yok; tutar yalnızca kendi para birimiyle.
   if (foreign && (fxDate === null || item.minPrice === null)) {
     return {
       minPrice: null,
       priceLabel: formatMinorWithCurrency(foreign.originalMinor, foreign.currency),
-      sourceLabel: FOREIGN_CARD_COPY.source,
+      sourceLabel: foreignSource,
       offerCount: item.offerCount ?? 0,
       offerCountLabel: () => `${FOREIGN_CARD_COPY.noRate} · ${FOREIGN_CARD_COPY.shippingUnknown}`,
     };
   }
   if (!foreign || fxDate === null || item.minPrice === null) {
+    // Tek magazali urunde "1 mağaza" yerine magazanin kendisi (kaynak magaza).
+    const label =
+      merchant && item.offerCount !== undefined && item.offerCount <= 1
+        ? () => merchant
+        : offerCountLabel;
     return {
       minPrice: item.minPrice,
       priceFrom: item.priceFromVariants ?? false,
-      ...(item.offerCount === undefined ? {} : { offerCount: item.offerCount, offerCountLabel }),
+      ...(item.offerCount === undefined
+        ? {}
+        : { offerCount: item.offerCount, offerCountLabel: label }),
     };
   }
   const original = formatMinorWithCurrency(foreign.originalMinor, foreign.currency);
@@ -67,7 +80,7 @@ export function cardPriceProps(item: {
   return {
     minPrice: null,
     priceLabel: `${FOREIGN_CARD_COPY.approx(formatTRY(item.minPrice))} · ${original}`,
-    sourceLabel: FOREIGN_CARD_COPY.source,
+    sourceLabel: foreignSource,
     offerCount: item.offerCount ?? 0,
     offerCountLabel: () => meta,
   };
@@ -99,6 +112,8 @@ export interface ResultGridItem {
   brandName?: string | null;
   /** Karar 0129: secilen teklif yurt disiysa; `minPrice` o zaman yaklasik TL'dir. */
   foreignPrice?: ForeignPrice;
+  /** Karar 0131: kaynak magaza. */
+  merchantName?: string | null;
 }
 
 /** İlk ekrandaki (mobilde ilk iki satır) görseller gecikmeden yüklenir. */

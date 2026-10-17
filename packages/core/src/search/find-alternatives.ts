@@ -85,6 +85,7 @@ export async function findAlternatives(
       similarityScore: row.score,
       similarityKind: row.kind,
       ...(foreignPrice ? { foreignPrice } : {}),
+      merchantName: row.merchant_name ?? null,
     };
   });
   return withStartingFrom(db, items);

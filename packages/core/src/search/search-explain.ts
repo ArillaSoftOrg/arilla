@@ -21,9 +21,10 @@ import {
   scoredCtes,
   type TextSort,
   textMatch,
+  textSlotsOf,
   withCandidatePlan,
 } from "./search-sql.ts";
-import { allowedMisses, headSlotMatch } from "./text-match.ts";
+import { allowedMisses, headSlotMatch, resolveSlotLookups } from "./text-match.ts";
 import type { QueryObject } from "./types.ts";
 
 export interface ScoreFactors {
@@ -92,9 +93,9 @@ export async function rankWithFactors(
   sort: TextSort,
   limit: number,
 ): Promise<{ total: number; items: ExplainedItem[] }> {
-  const result = await withCandidatePlan(db, (tx) =>
+  const result = await withCandidatePlan(db, query, (tx, lookups) =>
     tx.execute<Row>(sql`
-    ${scoredCtes(query, sort, true)}
+    ${scoredCtes(query, sort, true, undefined, undefined, lookups)}
     SELECT s.*, count(*) OVER()::text AS total_count
     FROM (${distinctImage(sql`scored`)}) s
     ORDER BY ${finalOrder(sort)}
@@ -140,7 +141,8 @@ export async function candidateFunnel(
 ): Promise<CandidateFunnel> {
   const merchantIds = merchantIdsOf(query.filters);
   const inStockOnly = query.filters.in_stock_only ?? false;
-  const text = textMatch(query, undefined, undefined, sort === "best_deal");
+  const lookups = await resolveSlotLookups(db, textSlotsOf(query));
+  const text = textMatch(query, undefined, undefined, sort === "best_deal", lookups);
   const predicates = filterPredicates(query.filters);
   const statsOk =
     sort === "best_deal"
@@ -162,7 +164,7 @@ export async function candidateFunnel(
     sql`, `,
   );
 
-  const result = await withCandidatePlan(db, (tx) =>
+  const result = await withCandidatePlan(db, query, (tx) =>
     tx.execute<Row>(sql`
     WITH ${text.ctes},
     ${bestOfferCte(inStockOnly, merchantIds, null, CANDIDATE_OFFER_SCOPE)},
@@ -258,7 +260,8 @@ export async function probeProduct(
 ): Promise<ProductProbe | null> {
   const merchantIds = merchantIdsOf(query.filters);
   const inStockOnly = query.filters.in_stock_only ?? false;
-  const text = textMatch(query, undefined, undefined, sort === "best_deal");
+  const lookups = await resolveSlotLookups(db, textSlotsOf(query));
+  const text = textMatch(query, undefined, undefined, sort === "best_deal", lookups);
   const predicates = filterPredicates(query.filters);
   const hasText = text.slots.length > 0;
 
@@ -277,7 +280,7 @@ export async function probeProduct(
   const product = productRows.rows[0];
   if (!product) return null;
 
-  const prefilter: SQL = hasText ? headSlotMatch(text.slots, "p") : sql`TRUE`;
+  const prefilter: SQL = hasText ? headSlotMatch(text.slots, lookups, "p") : sql`TRUE`;
   const tmColumns: SQL = hasText
     ? sql`tm.matched AS tm_matched, tm.head AS tm_head, tm.rel AS tm_rel`
     : sql`NULL::int AS tm_matched, NULL::float8 AS tm_head, NULL::float8 AS tm_rel`;
@@ -285,7 +288,7 @@ export async function probeProduct(
     predicates.map((p, i) => sql`COALESCE(${p.sql}, FALSE) AS ${sql.raw(`f${i}`)}`),
     sql`, `,
   );
-  const gateRows = await withCandidatePlan(db, (tx) =>
+  const gateRows = await withCandidatePlan(db, query, (tx) =>
     tx.execute<Row>(sql`
     WITH ${text.ctes},
     ${bestOfferCte(inStockOnly, merchantIds, productId)}
@@ -308,9 +311,9 @@ export async function probeProduct(
   );
   const gate = gateRows.rows[0] ?? {};
 
-  const rankRows = await withCandidatePlan(db, (tx) =>
+  const rankRows = await withCandidatePlan(db, query, (tx) =>
     tx.execute<Row>(sql`
-    ${scoredCtes(query, sort, true)},
+    ${scoredCtes(query, sort, true, undefined, undefined, lookups)},
     ir AS (${imageRanked(sql`scored`)}),
     fin AS (
       SELECT s.id, row_number() OVER (ORDER BY ${finalOrder(sort)})::int AS final_rank,
