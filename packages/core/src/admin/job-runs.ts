@@ -83,7 +83,14 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
   // Karar 0121: kaynak ilanından taslak ürün, kalite kapısı ve açık yayın (elle).
   catalog_build: {
     label: "Katalog aktarımı (kaynak ilanı -> taslak ürün)",
-    how: "python -m catalog_build build --merchant aliexpress",
+    how: "python -m catalog_build build --merchant aliexpress|hepsiburada",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
+  // Karar 0129: fiyatsız keşif defterinden yalnızca taslak ürün (teklif/fiyat yok).
+  catalog_build_discovery: {
+    label: "Keşif defteri aktarımı (fiyatsız taslak ürün)",
+    how: "python -m catalog_build build-discovery --merchant hepsiburada --limit N",
     kind: "pipeline",
     overdueAfterMs: null,
   },

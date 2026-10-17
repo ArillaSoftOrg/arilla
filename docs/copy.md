@@ -268,6 +268,7 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `product.list_price_note` | Liste fiyatı {gün} gün önce {tutar} idi. |
 | `product.updated_at` | {süre} önce güncellendi |
 | `product.out_of_stock` | Şu an stokta yok |
+| `product.stock_unknown` | Stok durumu mağazada görülür (kaynak stok bildirmediğinde; "stokta yok" yazılmaz, karar 0129) |
 | `product.your_size` | Senin bedenin |
 | `product.size_unavailable` | Bu beden şu an yok |
 | `product.other_colors` | Diğer renkler |

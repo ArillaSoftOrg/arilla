@@ -64,6 +64,11 @@
   color: var(--alert);
 }
 
+/* Karar 0129: bilinmeyen stok bir uyari degildir; notr gosterilir. */
+.stockUnknown {
+  color: var(--ink-muted);
+}
+
 .total {
   grid-area: total;
   font-size: var(--text-body-lg);

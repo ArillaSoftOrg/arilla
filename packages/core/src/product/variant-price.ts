@@ -118,6 +118,8 @@ export interface VariantInput {
   sizeNorm: string | null;
   priceKurus: number;
   inStock: boolean;
+  /** Kaynak stok bildirmedi (karar 0129): "stokta yok" DEGIL, bilinmiyor. */
+  stockUnknown?: boolean;
   /** true: etiket bir varyant satirindan; false: teklifin kendi basligindan. */
   fromVariantRow: boolean;
 }
@@ -131,6 +133,8 @@ export interface OfferInput {
   shippingCost: number | null;
   freeShippingThreshold: number | null;
   inStock: boolean;
+  /** Kaynak stok bildirmedi (karar 0129). */
+  stockUnknown?: boolean;
   variants: readonly VariantInput[];
 }
 
@@ -170,6 +174,8 @@ export interface ComparisonRow {
   effectiveShipping: number;
   effectiveTotal: number;
   inStock: boolean;
+  /** Stok bilinmiyor (karar 0129); `inStock` false iken "stokta yok" yazilmaz. */
+  stockUnknown: boolean;
   /** 100 ml / 100 g basina; guvenilir miktar yoksa null. */
   unitPriceKurus: number | null;
   unitLabel: string | null;
@@ -181,6 +187,8 @@ export interface VariantOption {
   /** Stoktaki uyumlu tekliflerin en dusugu; hic stok yoksa tum uyumlularin. */
   minPriceKurus: number;
   inStock: boolean;
+  /** Stokta teklif yok ama en az birinin stogu bilinmiyor: "stokta yok" denmez. */
+  stockUnknown: boolean;
   offerCount: number;
 }
 
@@ -248,6 +256,7 @@ export function buildPriceComparison(
               sizeNorm: null,
               priceKurus: offer.currentPrice,
               inStock: offer.inStock,
+              stockUnknown: offer.stockUnknown ?? false,
               fromVariantRow: false,
             },
           ];
@@ -272,6 +281,7 @@ export function buildPriceComparison(
         effectiveShipping: shipping,
         effectiveTotal: variant.priceKurus + shipping,
         inStock: variant.inStock,
+        stockUnknown: !variant.inStock && (variant.stockUnknown ?? false),
         unitPriceKurus: unit,
         unitLabel: unit === null || !info?.quantity ? null : `100 ${info.quantity.unit}`,
       });
@@ -304,6 +314,8 @@ export function buildPriceComparison(
       label: info.label,
       minPriceKurus: Math.min(...priced.map((row) => row.priceKurus)),
       inStock: matching.some((row) => row.inStock),
+      stockUnknown:
+        !matching.some((row) => row.inStock) && matching.some((row) => row.stockUnknown),
       offerCount: new Set(matching.map((row) => row.offerId)).size,
     };
   });
@@ -326,7 +338,11 @@ export function buildPriceComparison(
       selectedKey,
       selectedMissing: false,
       rows: compatible,
-      best: compatible.find((row) => row.inStock) ?? compatible[0] ?? null,
+      best:
+        compatible.find((row) => row.inStock) ??
+        compatible.find((row) => row.stockUnknown) ??
+        compatible[0] ??
+        null,
       startingPriceKurus,
     };
   }
