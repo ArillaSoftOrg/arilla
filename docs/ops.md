@@ -346,6 +346,24 @@ bu olduğu için uzun ömürlü `cron` konteynerine DB sahibi parolası VERİLME
 `systemctl enable --now arilla-partitions.timer arilla-partitions-check.timer`. Kontrol dolu
 çıkarsa unit `failed` olur (`systemctl --failed`); bildirim bağı faz 5'te (izleme).
 
+**Toplu Python işleri** de systemd zamanlayıcılarındadır (`vps/systemd/arilla-catalog-pipeline`,
+`arilla-pricing-{fx,enqueue,verify}`). Her biri `feeds` servisini geçici çalıştırır
+(`--profile feeds run --rm -e JOB_RUN_TRIGGER=cron feeds python -m ...`; `worker.env`, ingest
+rolü, sahip kimliği yok). Yalnızca ücretsiz işler; `enrich` (Jina) ve `feeds sync-due` (büyük
+indirme, disk/WAL yükü) bilerek elle kalır.
+
+| Zaman (UTC) | Unit | İş |
+| --- | --- | --- |
+| Her gün 02:30 | `arilla-catalog-pipeline` | `resolve --limit 5000`, ardından `similarity --edges` |
+| Her gün 04:00 | `arilla-pricing-enqueue` | `pricing enqueue --older-than-hours 24` |
+| Saatlik | `arilla-pricing-verify` | `pricing verify --limit 50` |
+| Her gün 13:30 | `arilla-pricing-fx` | `pricing fx` (TCMB, 16:30 TR) |
+
+Kurulum (root, tek satır): `sudo /opt/arilla/vps/bin/batch-timers install`. Durum:
+`batch-timers status`; durdurma: `batch-timers disable`. Başarısız koşu `arilla-alert@` ile
+bildirilir ve `/yonetim/islemler` "zamanında çalışmadı" uyarısı üretir. Elle tek koşu:
+`sudo systemctl start arilla-catalog-pipeline.service`.
+
 **Gizli değerler** yalnızca VPS'te, `/opt/arilla/env/*.env` (`0640`, `root:deploy`). Her servis
 yalnızca kendi dosyasını alır: `web.env` (uygulama), `worker.env`, `cron.env` (yalnız
 `CRON_SECRET`), `migrate.env` (**sahip kimliği yalnız burada**), `postgres.env`, `redis.env`;
@@ -847,9 +865,10 @@ yazmaz) ve cron uçları (`discovery_slots`, `cleanup_auth`, `trigger_alerts`,
 "Veri boru hattı" bölümü her aşamanın (toplama, eşleştirme, fiyat özeti,
 zenginleştirme, benzerlik kenarları, link çözümleme) durumunu ve elle
 çalıştırma komutunu gösterir. Aşamanın iş koşusu varsa "son çalıştı" oradan,
-yoksa üretilen verinin zamanından ("son kanıt", karar 0051) okunur. Aşamalar
-zamanlanmış değil; "geride olabilir" (bilgi) görünen aşama sırayla
-çalıştırılır. Worker hostunda ücretsiz aşamalar (fiyat özeti, eşleştirme,
+yoksa üretilen verinin zamanından ("son kanıt", karar 0051) okunur. Eşleştirme
+ve benzerlik kenarları her gece VPS'te zamanlanmıştır (`arilla-catalog-pipeline`,
+yukarıda); toplama ve zenginleştirme elle kalır. "Geride olabilir" (bilgi) görünen
+aşama sırayla çalıştırılır. Worker hostunda ücretsiz aşamalar (fiyat özeti, eşleştirme,
 benzerlik kenarları) `infra/docker-compose.worker.yml` içindeki `batch`
 servisiyle elle çalıştırılır (`docker compose ... run --rm batch ...`);
 `up -d` bu servisi başlatmaz, ücretli Jina ve model çağrıları kapalıdır,
@@ -879,7 +898,7 @@ günüyle); kural değişikliği geçmiş satırları yeniden fiyatlamaz.
 | --- | --- | --- |
 | `ingest_run` başarısızlığı | Aynı merchant 2 kez üst üste (tek başarısızlık: bilgi) | Uyarı |
 | İş koşusu takılı | 2 saat "sürüyor" | Uyarı |
-| Zamanlanmış iş gecikti | Günlük 30 saat, 15 dk'lık 2 saat | Uyarı |
+| Zamanlanmış iş gecikti | Günlük 30 saat, saatlik 3 saat, 15 dk'lık 2 saat | Uyarı |
 | Model çağrısı sapması | Son 24 saat > önceki 7 günün günlük ortalaması × 3 (en az 50 çağrı) | Uyarı |
 | Link çözümleme kuyruğu (Redis) | 100 üzeri | Uyarı |
 | Feed'siz geçen süre | 24 saat | Uyarı |
@@ -1272,12 +1291,13 @@ Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-stagin
 
 ## Fiyat doğrulama ve döviz kuru (karar 0113)
 
-**Durum:** Kod ve testler hazır. Üretimde zamanlama **yok**.
+**Durum:** VPS'te systemd zamanlayıcılarıyla zamanlanır (`batch-timers install`, yukarıda
+"Toplu Python işleri").
 
-| İş | Komut | Önerilen sıklık |
+| İş | Komut | Sıklık |
 | --- | --- | --- |
-| TCMB kuru | `python -m pricing fx` | Günde bir, 16:00 TR sonrası |
-| Doğrulama isteği ekle | `python -m pricing enqueue --older-than-hours 24` | Günlük |
+| TCMB kuru | `python -m pricing fx` | Her gün 13:30 UTC (16:30 TR) |
+| Doğrulama isteği ekle | `python -m pricing enqueue --older-than-hours 24` | Her gün 04:00 UTC |
 | Doğrula | `python -m pricing verify --limit 50` | Saatlik, düşük hacim |
 
 - Yaklaşık TRY yalnızca kur 4 günden yeniyse gösterilir; kur yoksa dönüşüm yapılmaz.

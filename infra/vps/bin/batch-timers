@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+# Toplu Python islerinin zamanlayicilari (eslestirme, benzerlik, fiyat dogrulama, kur).
+# ROOT ile, ELLE (deploy unit dosyalarini /opt/arilla/vps/systemd'e kopyalar ama kurmaz):
+#
+#   sudo /opt/arilla/vps/bin/batch-timers install    # kopyala + etkinlestir
+#   sudo /opt/arilla/vps/bin/batch-timers status     # sonraki kosular
+#   sudo /opt/arilla/vps/bin/batch-timers disable    # durdur (unit dosyalari kalir)
+#
+# Yalniz ucretsiz isler (model/Jina cagrisi yok). `feeds sync-due` bilerek YOK:
+# buyuk besleme indirmesi disk/WAL yuku getirir, elle calisir (docs/ops.md).
+# Isler `feeds` servisiyle (worker.env, ingest rolu) calisir; sahip kimligi kullanmaz.
+set -euo pipefail
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export LC_ALL=C
+
+ROOT=${ARILLA_ROOT:-/opt/arilla}
+# test_batch_timers.py bu listeyi systemd/ klasoruyle karsilastirir.
+TIMERS="arilla-catalog-pipeline arilla-pricing-fx arilla-pricing-enqueue arilla-pricing-verify"
+
+case "${1:-}" in
+  install)
+    for name in $TIMERS; do
+      install -m 0644 "$ROOT/vps/systemd/$name.service" "$ROOT/vps/systemd/$name.timer" /etc/systemd/system/
+    done
+    # OnFailure hedefi; yedek kurulumu yapilmamis olsa da bulunsun.
+    install -m 0644 "$ROOT/vps/systemd/arilla-alert@.service" /etc/systemd/system/
+    systemctl daemon-reload
+    for name in $TIMERS; do systemctl enable --now "$name.timer"; done
+    systemctl list-timers 'arilla-*' --no-pager
+    ;;
+  status)
+    systemctl list-timers 'arilla-*' --no-pager
+    ;;
+  disable)
+    for name in $TIMERS; do systemctl disable --now "$name.timer" || true; done
+    ;;
+  *)
+    echo "kullanim: batch-timers install|status|disable" >&2
+    exit 64
+    ;;
+esac
