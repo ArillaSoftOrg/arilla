@@ -74,6 +74,8 @@ async function authenticate(
 }
 
 const STATUS_BY_CODE: Record<string, number> = {
+  // Bilinmeyen ya da bayragi kapali kaynak (Trendyol, karar 0118): varligi sezdirilmez.
+  unknown_source: 404,
   collection_quota_interval: 429,
   collection_quota_month: 429,
   collection_quota_daily_requests: 429,

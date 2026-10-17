@@ -2350,6 +2350,17 @@ VALUES
      || 'PostgreSQL''de saklama, haftada en fazla 1 yenileme, ayda en fazla 4. Belgeler bagimsiz '
      || 'incelenmedi; imzali sozlesme degil.');
 
+-- 0079 (karar 0118): Trendyol; KAPALI gelir, kullanici beyani yazili e-posta izni, ayni kota.
+INSERT INTO collection_source
+    (source, merchant_slug, min_interval_days, max_runs_per_month, run_window_days,
+     initial_max_requests, refresh_max_requests, enabled, permission_basis, permission_note)
+VALUES
+    ('trendyol', 'trendyol', 7, 4, 6, 500, 500, FALSE, 'written_email_reported',
+     'Kullanici beyani (15 Ekim 2026): Trendyol''dan yazili izin e-postasi alindi; belge paylasilmadi, '
+     || 'sistemde yok ve incelenmedi. Resmi API ve CORS yok; yonetici tarayicisinda acilan sayfadan ek ag '
+     || 'istegi olmadan okuma. En az 7 gun arayla, takvim ayinda en fazla 4 guncelleme; ilk yukleme dahil.')
+ON CONFLICT (source) DO NOTHING;
+
 -- ---------------------------------------------------------------------------
 -- TOPLAMA KOSUSU (kota defteri)
 -- ---------------------------------------------------------------------------
@@ -2539,6 +2550,14 @@ CREATE TABLE catalog_intake_record (
     gtin               TEXT        CHECK (gtin IS NULL OR gtin ~ '^[0-9]{8,14}$'),
     -- Hangi sorgu bu urunu buldu (kesif izi; kategori DEGILDIR).
     found_via          TEXT        CHECK (found_via IS NULL OR char_length(found_via) <= 200),
+    -- 0079 (karar 0118): Trendyol alanlari, hepsi NULL olabilir.
+    image_urls         JSONB       CHECK (image_urls IS NULL OR (jsonb_typeof(image_urls) = 'array'
+                                          AND jsonb_array_length(image_urls) BETWEEN 1 AND 6)),
+    group_external_id  TEXT        CHECK (group_external_id IS NULL OR group_external_id ~ '^[0-9]{1,20}$'),
+    variant_external_id TEXT       CHECK (variant_external_id IS NULL OR variant_external_id ~ '^[0-9A-Za-z_-]{1,100}$'),
+    -- Sepette uygulanan KOSULLU fiyat; satis fiyati DEGILDIR (price_minor/price_point'a girmez).
+    basket_price_minor BIGINT      CHECK (basket_price_minor IS NULL OR basket_price_minor > 0),
+    source_page        TEXT        CHECK (source_page IS NULL OR source_page IN ('search_page', 'product_page', 'listing_page')),
     source_observed_at TIMESTAMPTZ NOT NULL,
     received_at        TIMESTAMPTZ NOT NULL DEFAULT now(),
     merged_at          TIMESTAMPTZ,

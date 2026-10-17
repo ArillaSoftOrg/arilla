@@ -281,7 +281,8 @@ export function buildPriceComparison(
         effectiveShipping: shipping,
         effectiveTotal: variant.priceKurus + shipping,
         inStock: variant.inStock,
-        stockUnknown: !variant.inStock && (variant.stockUnknown ?? false),
+        // Teklif duzeyinde bildirilen `unknown` (0130/0118) inStock'tan bagimsiz tasinir.
+        stockUnknown: variant.stockUnknown ?? false,
         unitPriceKurus: unit,
         unitLabel: unit === null || !info?.quantity ? null : `100 ${info.quantity.unit}`,
       });
