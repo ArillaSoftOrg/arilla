@@ -30,6 +30,8 @@ export interface ProviderPage {
   items: SearchResultItem[];
   /** Saglayicinin bildirdigi toplam (sayfalamadan once). */
   total: number;
+  /** Karar 0129: `total` bir alt sinirdir (aday kumesi sinira ulasti). */
+  totalCapped?: boolean;
 }
 
 export interface SearchProvider {
@@ -100,6 +102,8 @@ export interface FallbackSearchOutcome {
   items: RankedSearchItem[];
   /** `results` modunda sayfalama toplami; digerlerinde `items.length`. */
   total: number;
+  /** Karar 0129: `total` bir alt sinirdir ("1.000+ sonuc"). */
+  totalCapped?: boolean;
   sort: SortMode;
   trace: SearchTrace;
 }

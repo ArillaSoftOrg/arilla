@@ -73,6 +73,7 @@ echo "== 0. Surum yonetimi (release.py) ve digest'li imaj referanslari"
 PY=python3; command -v python3 >/dev/null 2>&1 && python3 -c '' >/dev/null 2>&1 || PY=python
 (cd "$here" && PYTHONIOENCODING=utf-8 "$PY" test_release.py >"$work/release-test.log" 2>&1) && pass "release.py testleri" || { fail "release.py testleri"; tail -15 "$work/release-test.log"; }
 (cd "$here" && PYTHONIOENCODING=utf-8 "$PY" test_check_pg_hba.py >"$work/hba-test.log" 2>&1) && pass "check-pg-hba.py testleri" || { fail "check-pg-hba.py testleri"; tail -15 "$work/hba-test.log"; }
+(cd "$here" && PYTHONIOENCODING=utf-8 "$PY" test_batch_timers.py >"$work/batch-timers-test.log" 2>&1) && pass "batch-timers testleri" || { fail "batch-timers testleri"; tail -15 "$work/batch-timers-test.log"; }
 
 echo "== 1. Sablon ve ag dogrulamasi (sirlar yazdirilmaz)"
 "$here/init-secrets.sh" --dir "$work" --domain smoke.example.test --tag smoke >/dev/null || fail "init-secrets"
@@ -191,6 +192,8 @@ q() { c exec -T postgres psql -U arilla -d arilla -Atqc "$1" 2>/dev/null; }
 [ "$(q 'show max_connections')" = "60" ] && pass "max_connections=60" || fail "max_connections"
 [ "$(q 'show password_encryption')" = "scram-sha-256" ] && pass "scram-sha-256" || fail "password_encryption"
 [ "$(q 'show data_checksums')" = "on" ] && pass "data_checksums=on" || fail "data_checksums"
+[ "$(q 'show shared_preload_libraries')" = "pg_stat_statements" ] && pass "pg_stat_statements yuklu" || fail "shared_preload_libraries"
+[ "$(q 'show log_parameter_max_length')" = "0" ] && pass "yavas sorgu gunlugu parametre yazmaz" || fail "log_parameter_max_length"
 [ "$(q 'show timezone')" = "UTC" ] && pass "timezone=UTC" || fail "timezone"
 [ "$(q 'show archive_mode')" = "off" ] && pass "archive_mode=off (yedekleme aktivasyonu olmadan arsiv KAPALI, karar 0110)" || fail "archive_mode varsayilanda acik"
 [ "$(q "select string_agg(extname,',' order by extname) from pg_extension where extname in ('vector','pg_trgm','uuid-ossp')")" = "pg_trgm,uuid-ossp,vector" ] && pass "vector, pg_trgm, uuid-ossp" || fail "extension"

@@ -204,7 +204,10 @@ def test_kanonik_adres_affiliate_ayri_eslestirme_yok_kur_uydurulmaz(env: Env) ->
     assert (cur_, price, product_id, seller) == ("USD", 2211, None, "1105855203")
     # TRY disi offer puanli cozumleyiciye girmez (TL gibi gorunemez).
     with env.owner.cursor() as cur:
-        cur.execute(PENDING_OFFERS, {"merchant_id": env.merchant_id, "limit": 100})
+        cur.execute(
+            PENDING_OFFERS,
+            {"merchant_id": env.merchant_id, "limit": 100, "source_listing": []},
+        )
         assert cur.fetchall() == []
 
 
@@ -594,3 +597,79 @@ def test_kesik_beslemede_ayristirma_hatasi_kayda_gecer(env: Env) -> None:
     assert report.gate == "truncated" and report.parse_error
     text = env.one("SELECT error_text FROM ingest_run WHERE id = %s", (report.run_id,))[0]
     assert text.startswith("truncated: EOFError")
+
+
+def _vector() -> str:
+    return "[" + ",".join(["0.01"] * 768) + "]"
+
+
+def test_gorsel_ya_da_metin_degisince_bayat_embedding_silinir(env: Env) -> None:
+    fid = env.feed()
+    base = [offer(i) for i in ids(3)]
+    env.run(fid, base)
+    with env.owner.cursor() as cur:
+        cur.execute(
+            """INSERT INTO embedding (target_type, target_id, kind, model_version, vector)
+               SELECT 'offer', o.id, k.kind, 'test-0112', %s::vector
+                 FROM offer o CROSS JOIN (VALUES ('image'), ('text')) AS k(kind)
+                WHERE o.merchant_id = %s""",
+            (_vector(), env.merchant_id),
+        )
+    try:
+        image, title, price = (dict(o) for o in base)
+        image["pictures"] = ["https://ae-pic-a1.aliexpress-media.com/kf/Snew.png"]
+        title["name"] = "Completely different product"
+        price["price"] = "19.99"
+        report = env.run(fid, [image, title, price], at=T0 + timedelta(days=1))
+        assert (report.changed, report.stale_image_embeddings, report.stale_text_embeddings) == (
+            3,
+            1,
+            1,
+        )
+        with env.owner.cursor() as cur:
+            cur.execute(
+                """SELECT o.external_id, array_agg(e.kind ORDER BY e.kind)
+                     FROM offer o JOIN embedding e ON e.target_type = 'offer' AND e.target_id = o.id
+                    WHERE o.merchant_id = %s GROUP BY 1 ORDER BY 1""",
+                (env.merchant_id,),
+            )
+            left = dict(cur.fetchall())
+        assert left == {ids(3)[0]: ["text"], ids(3)[1]: ["image"], ids(3)[2]: ["image", "text"]}
+    finally:
+        with env.owner.cursor() as cur:
+            cur.execute(
+                """DELETE FROM embedding WHERE target_type = 'offer'
+                     AND target_id IN (SELECT id FROM offer WHERE merchant_id = %s)""",
+                (env.merchant_id,),
+            )
+
+
+def test_bagli_urunun_fiyat_ozeti_ayni_islemde_yenilenir(env: Env) -> None:
+    fid = env.feed(currency="TRY")
+    items = [offer(i, currency="TRY", price="100.00") for i in ids(20)]
+    env.run(fid, items)
+    linked = ids(20)[0]
+    with env.owner.cursor() as cur:
+        cur.execute("UPDATE merchant SET is_active = TRUE WHERE id = %s", (env.merchant_id,))
+        cur.execute("INSERT INTO product (slug, title) VALUES ('t0112-agg', 'Test') RETURNING id")
+        row = cur.fetchone()
+        assert row
+        product_id = int(row[0])
+        cur.execute(
+            "UPDATE offer SET product_id = %s WHERE merchant_id = %s AND external_id = %s",
+            (product_id, env.merchant_id, linked),
+        )
+    summary = "SELECT min_price, offer_count, in_stock_count FROM product WHERE id = %s"
+    try:
+        changed = [offer(linked, currency="TRY", price="80.00"), *items[1:]]
+        report = env.run(fid, changed, at=T0 + timedelta(days=1))
+        assert report.aggregates_updated == 1
+        assert env.one(summary, (product_id,)) == (8000, 1, 1)
+        # Beslemeden cikan bagli teklif pasiflesince ozet sifirlanir.
+        gone = env.run(fid, items[1:], at=T0 + timedelta(days=4), name="gone.xml")
+        assert (gone.deactivated, gone.aggregates_updated) == (1, 1)
+        assert env.one(summary, (product_id,)) == (None, 0, 0)
+    finally:
+        with env.owner.cursor() as cur:
+            cur.execute("UPDATE offer SET product_id = NULL WHERE product_id = %s", (product_id,))
+            cur.execute("DELETE FROM product WHERE id = %s", (product_id,))

@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": "./src/index.ts",
+    "./admin-host": "./src/admin/admin-host.ts",
     "./admin-session": "./src/admin/session-policy.ts",
     "./cost-truth": "./src/admin/cost-truth.ts",
     "./auth-redirect": "./src/auth/safe-redirect.ts",
@@ -48,12 +49,11 @@
     "@vercel/queue": "^0.8.0",
     "drizzle-orm": "^0.45.2",
     "ioredis": "^5.4.1",
-    "nodemailer": "^6.9.16",
+    "nodemailer": "^10.0.16",
     "pg": "^8.23.0",
     "sharp": "0.35.5"
   },
   "devDependencies": {
-    "@types/nodemailer": "^6.4.17",
     "@types/pg": "^8.23.1",
     "typescript": "^5.9.3",
     "vitest": "^3.2.4"

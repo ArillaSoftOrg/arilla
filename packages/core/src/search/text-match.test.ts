@@ -3,6 +3,8 @@ import type { LexiconEntry } from "./lexicon.ts";
 import {
   allowedMisses,
   buildTextSlots,
+  candidatePattern,
+  candidateStem,
   foldForMatch,
   MAX_QUERY_TOKENS,
   matchTokens,
@@ -86,5 +88,36 @@ describe("gate rules", () => {
 
   it("uses the pg_trgm strict word similarity default so the indexed prefilter agrees", () => {
     expect(TOKEN_MATCH_THRESHOLD).toBe(0.5);
+  });
+});
+
+describe("aday koku ve regex'i (karar 0129)", () => {
+  it("Turkce ek ve unsuz yumusamasini kokun arkasinda birakir", () => {
+    expect(candidateStem("cantasi")).toBe("canta");
+    expect(candidateStem("canta")).toBe("cant");
+    expect(candidateStem("koltuk")).toBe("kolt");
+    expect(candidateStem("kulaklik")).toBe("kulakl");
+    expect(candidateStem("case")).toBe("case");
+    expect(candidateStem("65w")).toBe("65w");
+  });
+
+  it("kok kelime basinda aranir; kok bir ekli bicimin onekidir", () => {
+    const pattern = candidatePattern("koltugu") as string;
+    expect(pattern).toBe(String.raw`\mkoltu`);
+    // PostgreSQL `\m` = kelime basi; JS karsiligi `\b`.
+    const js = new RegExp(pattern.replace(String.raw`\m`, String.raw`\b`));
+    expect(js.test("3'lu koltuk takimi")).toBe(true);
+    expect(js.test("yatak odasi")).toBe(false);
+    expect(candidatePattern("kilif")).toBe(String.raw`\mkili`);
+    expect(candidatePattern("cantasi")).toBe(String.raw`\mcanta`);
+  });
+
+  it("cok kelimeli alternatif ardisik kelimelerdir", () => {
+    expect(candidatePattern("spor ayakkabi")).toBe(String.raw`\mspor\s+ayakka`);
+  });
+
+  it("1-2 harfli kelimede regex yok (trigram uretmez; `<<%` kullanilir)", () => {
+    expect(candidatePattern("tv")).toBeNull();
+    expect(candidatePattern("4k monitor")).toBeNull();
   });
 });

@@ -3,7 +3,7 @@
  * binlerce ileti gönderilmez: her çağrı SINIRLI bir parti işler (ileti
  * sayısı + süre bütçesi) ve döner. Sürekliliği kalıcı durum sağlar
  * (`marketing_campaign_delivery`); çağıran cron (`/api/cron/marketing-
- * campaigns`, GitHub Actions) ya da yöneticinin "sonraki partiyi işle"
+ * campaigns`, VPS cron) ya da yöneticinin "sonraki partiyi işle"
  * düğmesidir. Tarayıcının açık kalması gerekmez.
  *
  * Teslim başına adımlar:

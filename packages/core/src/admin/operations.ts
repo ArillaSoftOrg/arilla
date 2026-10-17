@@ -214,9 +214,9 @@ export async function complianceHealth(db: Database): Promise<ComplianceHealth> 
 }
 
 export interface JobEvidence {
-  /** `generate-discovery-slots` (Vercel cron, gece yarısı): en ileri `slot_date`. */
+  /** `generate-discovery-slots` (VPS cron, gece yarısı): en ileri `slot_date`. */
   latestDiscoverySlot: string | null;
-  /** `trigger-alerts` (GitHub Actions, 15 dk): son bildirim. */
+  /** `trigger-alerts` (VPS cron, 15 dk): son bildirim. */
   lastAlertNotifiedAt: Date | null;
   activeAlerts: number;
   /** Veri toplama: son koşu başlangıcı ve 2 saatten uzun `running` kalan koşu. */

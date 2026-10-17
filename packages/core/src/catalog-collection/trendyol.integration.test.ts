@@ -268,7 +268,7 @@ describe("Trendyol toplama servisi - entegrasyon (karar 0118)", () => {
       expect(await best(true)).toBe(0); // "stokta olanlar": dogrulanmamis stok sayilmaz
       const offers = await compareMerchants(db, productId);
       expect(offers).toEqual([
-        expect.objectContaining({ currentPrice: 799900, inStock: true, stockKnown: false }),
+        expect.objectContaining({ currentPrice: 799900, inStock: true, stockUnknown: true }),
       ]);
     } finally {
       await withOwnerClient(async (c) => {

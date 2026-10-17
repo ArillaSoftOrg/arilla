@@ -1,0 +1,10 @@
+[Unit]
+Description=Affiliate donusumleri (her gun 05:00 UTC)
+
+[Timer]
+OnCalendar=*-*-* 05:00:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

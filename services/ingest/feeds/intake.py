@@ -27,6 +27,7 @@ from typing import Any
 
 import psycopg
 
+from catalog_build.policy import hepsiburada_code_kind
 from feeds.sync import FeedSync
 
 logger = logging.getLogger(__name__)
@@ -127,6 +128,34 @@ def price_jump(previous: int | None, new: int) -> bool:
     return new > previous * MAX_PRICE_RATIO or new * MAX_PRICE_RATIO < previous
 
 
+#: Ayni kosunun iki birlestirmesi ayni anda calismaz (ikincisi bekletilmez, reddedilir).
+MERGE_LOCK = "SELECT pg_try_advisory_lock(hashtextextended('hb_merge:' || %s::text, 0))"
+MERGE_UNLOCK = "SELECT pg_advisory_unlock(hashtextextended('hb_merge:' || %s::text, 0))"
+
+#: Kesif defteri (sitemap, 0073) ile BIREBIR kimlik: ayni kod VE ayni adres turu (`p`/`pm`).
+#: Esleseni "liste fiyati goruldu" (`listing_price`) isaretler; fiyat degeri defterde
+#: tutulmaz (teklifte durur). Tur farkli ise baglanmaz, yalnizca sayilir (karar 0130).
+#: Sayfa ile dogrulanmis (`page_verified`) durum geri dusurulmez; eski gozlem yenisini ezmez.
+MARK_DISCOVERY = """
+WITH merged AS (
+    SELECT t.ext, t.kind FROM unnest(%(exts)s::text[], %(kinds)s::text[]) AS t(ext, kind)
+), hit AS (
+    SELECT d.external_id, d.code_kind, m.kind
+      FROM catalog_discovery d JOIN merged m ON m.ext = d.external_id
+     WHERE d.source = %(source)s
+), marked AS (
+    UPDATE catalog_discovery d
+       SET price_state = 'listing_price', price_checked_at = %(observed_at)s
+      FROM hit h
+     WHERE d.source = %(source)s AND d.external_id = h.external_id AND h.code_kind = h.kind
+       AND d.price_state IN ('unpriced', 'listing_price', 'stale', 'unavailable')
+       AND (d.price_checked_at IS NULL OR d.price_checked_at < %(observed_at)s)
+    RETURNING 1
+)
+SELECT (SELECT count(*) FROM marked), (SELECT count(*) FROM hit WHERE code_kind <> kind)
+"""
+
+
 @dataclass
 class MergeReport:
     run_id: int
@@ -134,6 +163,10 @@ class MergeReport:
     held: int = 0
     status: str = "nothing_to_merge"
     detail: dict[str, Any] | None = None
+    #: Kesif defterinde birebir kimlikle `listing_price` isaretlenen satir.
+    discovery_marked: int = 0
+    #: Ayni kod defterde baska adres turuyle var: baglanmadi (dogrulanmamis iliski).
+    discovery_kind_mismatch: int = 0
 
 
 def seller_slug(name: str) -> str:
@@ -197,14 +230,17 @@ def to_feed_row(row: tuple[Any, ...], *, unknown_stock_available: bool = False) 
         record["seller"] = seller_key
     if gtin:
         record["gtin"] = gtin
-    param: dict[str, str] = {}
-    # Stok bilinmiyorsa "satista" DEMEYIZ: mevcut modelde in_stock NOT NULL oldugundan
-    # temkinli olarak false yazilir ve belirsizlik `stock_state` ile isaretlenir.
-    if in_stock is None:
-        record["available"] = "true" if unknown_stock_available else "false"
-        param["stock_state"] = "unknown"
-    else:
-        record["available"] = "true" if in_stock else "false"
+    # Stok UC durumludur (karar 0130): available / unavailable / unknown. Stok bilinmiyorsa
+    # "satista" DEMEYIZ: `offer.in_stock` NOT NULL oldugundan temkinli olarak false yazilir;
+    # ayrim `attributes_raw.stock_state` ile tasinir ve arayuz "stokta yok" DEMEZ.
+    # Anahtar HER kayitta yazilir: FeedSync `attributes_raw`'i birlestirir (`||`), eksik
+    # anahtar onceki kosunun "unknown" degerini birakirdi.
+    # Trendyol (0118, `unknown_stock_available`): bilinmeyen stok katalogun stok bilgisi
+    # olmayan beslemelerdeki kuralla true yazilir; `stock_state=unknown` yine korunur.
+    state = stock_state(in_stock)
+    available = state == "available" or (state == "unknown" and unknown_stock_available)
+    record["available"] = "true" if available else "false"
+    param: dict[str, str] = {"stock_state": state}
     if found_via:
         param["found_via"] = found_via[:100]
     if variant_label:
@@ -220,9 +256,15 @@ def to_feed_row(row: tuple[Any, ...], *, unknown_stock_available: bool = False) 
         # Kosullu sepet fiyati satis fiyatindan AYRI tasinir; price/price_point'a girmez.
         if basket is not None and int(basket) < int(price):
             param["basket_price"] = _money(int(basket))
-    if param:
-        record["param"] = param
+    record["param"] = param
     return record
+
+
+def stock_state(in_stock: bool | None) -> str:
+    """Ara depo stok alani -> `available` / `unavailable` / `unknown` (uydurma yok)."""
+    if in_stock is None:
+        return "unknown"
+    return "available" if in_stock else "unavailable"
 
 
 def ensure_feed(conn: psycopg.Connection, source: IntakeSource | None = None) -> int:
@@ -350,7 +392,52 @@ def _hold_variant_changes(
     return held
 
 
+def mark_discovery(
+    conn: psycopg.Connection,
+    source: str,
+    rows: list[tuple[Any, ...]],
+    observed_at: datetime,
+) -> tuple[int, int]:
+    """(isaretlenen, tur_uyusmayan). Kimlik: kod + adres turu; ad benzerligi KULLANILMAZ."""
+    pairs = [(str(r[1]), hepsiburada_code_kind(str(r[3]))) for r in rows]
+    pairs = [(ext, kind) for ext, kind in pairs if kind is not None]
+    if not pairs:
+        return 0, 0
+    with conn.cursor() as cur:
+        cur.execute(
+            MARK_DISCOVERY,
+            {
+                "source": source,
+                "exts": [ext for ext, _ in pairs],
+                "kinds": [kind for _, kind in pairs],
+                "observed_at": observed_at,
+            },
+        )
+        row = cur.fetchone()
+    conn.commit()
+    assert row is not None
+    return int(row[0]), int(row[1])
+
+
 def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = True) -> MergeReport:
+    """Kosuyu birlestirir. Idempotent: islenen kayit `merged_at` alir ve tekrar secilmez;
+    `offer` `(merchant_id, external_id)` ile tekildir ve FeedSync degismeyen satiri yazmaz."""
+    with conn.cursor() as cur:
+        cur.execute(MERGE_LOCK, (run_id,))
+        locked = cur.fetchone()
+    conn.commit()
+    if not locked or not locked[0]:
+        raise RuntimeError("run_merge_in_progress")
+    try:
+        return _merge_run(conn, run_id, require_closed=require_closed)
+    finally:
+        conn.rollback()
+        with conn.cursor() as cur:
+            cur.execute(MERGE_UNLOCK, (run_id,))
+        conn.commit()
+
+
+def _merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool) -> MergeReport:
     report = MergeReport(run_id)
     with conn.cursor() as cur:
         cur.execute("SELECT status, source FROM collection_run WHERE id = %s", (run_id,))
@@ -406,4 +493,8 @@ def merge_run(conn: psycopg.Connection, run_id: int, *, require_closed: bool = T
                 (run_id, [int(r[0]) for r in rows]),
             )
         conn.commit()
+        # Fiyat sicramasi yuzunden incelemeye ayrilanlar teklife yazilmadi: isaretlenmez.
+        report.discovery_marked, report.discovery_kind_mismatch = mark_discovery(
+            conn, str(run[1]), [r for r in rows if r[0] not in held_ids], observed_at
+        )
     return report

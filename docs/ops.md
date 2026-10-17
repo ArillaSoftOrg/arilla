@@ -337,7 +337,7 @@ doğru çalışır); `X-Real-IP` yukarı akışa iletilmez. Güvenlik başlıkla
 | `30 0 * * *` | `interpret-queries` |
 | `45 23 * * *` | `refresh-product-aggregates` |
 | `30 3 * * *` | `cleanup-auth` |
-| `*/15 * * * *` | `trigger-alerts`, `marketing-campaigns` (GitHub Actions'taki 15 dk işlerin yerine) |
+| `*/15 * * * *` | `trigger-alerts`, `marketing-campaigns` (eski GitHub Actions iş akışı kaldırıldı) |
 
 `price_point` bölüm üretimi ve `price_point_default` kontrolü **systemd zamanlayıcıları**ndadır
 (`vps/systemd/arilla-partitions{,-check}.{service,timer}`): sahip kimliği gerektiren tek iş
@@ -345,6 +345,25 @@ bu olduğu için uzun ömürlü `cron` konteynerine DB sahibi parolası VERİLME
 `migrate` konteynerini çalıştırır. Kurulum: unit'leri `/etc/systemd/system/` altına kopyala,
 `systemctl enable --now arilla-partitions.timer arilla-partitions-check.timer`. Kontrol dolu
 çıkarsa unit `failed` olur (`systemctl --failed`); bildirim bağı faz 5'te (izleme).
+
+**Toplu Python işleri** de systemd zamanlayıcılarındadır (`vps/systemd/arilla-catalog-pipeline`,
+`arilla-pricing-{fx,enqueue,verify}`). Her biri `feeds` servisini geçici çalıştırır
+(`--profile feeds run --rm -e JOB_RUN_TRIGGER=cron feeds python -m ...`; `worker.env`, ingest
+rolü, sahip kimliği yok). Yalnızca ücretsiz işler; `enrich` (Jina) ve `feeds sync-due` (büyük
+indirme, disk/WAL yükü) bilerek elle kalır.
+
+| Zaman (UTC) | Unit | İş |
+| --- | --- | --- |
+| Her gün 02:30 | `arilla-catalog-pipeline` | `resolve --limit 5000`, ardından `similarity --edges` |
+| Her gün 04:00 | `arilla-pricing-enqueue` | `pricing enqueue --older-than-hours 24` |
+| Saatlik | `arilla-pricing-verify` | `pricing verify --limit 50` |
+| Her gün 13:30 | `arilla-pricing-fx` | `pricing fx` (TCMB, 16:30 TR) |
+| Her gün 05:00 | `arilla-affiliate-conversions` | `affiliate conversions` (Admitad, son 90 gün) |
+
+Kurulum (root, tek satır): `sudo /opt/arilla/vps/bin/batch-timers install`. Durum:
+`batch-timers status`; durdurma: `batch-timers disable`. Başarısız koşu `arilla-alert@` ile
+bildirilir ve `/yonetim/islemler` "zamanında çalışmadı" uyarısı üretir. Elle tek koşu:
+`sudo systemctl start arilla-catalog-pipeline.service`.
 
 **Gizli değerler** yalnızca VPS'te, `/opt/arilla/env/*.env` (`0640`, `root:deploy`). Her servis
 yalnızca kendi dosyasını alır: `web.env` (uygulama), `worker.env`, `cron.env` (yalnız
@@ -543,7 +562,7 @@ birindedir ve okuyan dosya yanında yazar:
 | `REQUIRED_PRODUCTION` | Vercel production'da tanımlı olmalı | `APP_URL`*, `DATABASE_URL`, `REDIS_URL`, `SESSION_SECRET`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASS`, `EMAIL_FROM`, `JINA_API_KEY`, `CRON_SECRET` |
 | `OPTIONAL_PRODUCTION` | Boşsa kod varsayılanı | `DEPLOY_ENV` (VPS'te `production`, karar 0109), `REDIS_PLAINTEXT_HOSTS` (karar 0109), `SMTP_SECURE`, `DATABASE_POOL_MAX`, `AUTH_TOKEN_TTL_MINUTES`, `SESSION_TTL_DAYS`, `FREE_SEARCHES_BEFORE_LOGIN`, `AI_SEARCH_DAILY_LIMIT`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`, `MATCH_AUTO_ACCEPT_THRESHOLD`, `MATCH_QUEUE_THRESHOLD` (yalnızca Python), `HOMEPAGE_DEMO_CONTENT`, `MARKETING_EMAIL_FROM` (pazarlama gönderimi için üretimde zorunlu), `MARKETING_EMAIL_ENABLED`, `MARKETING_EMAIL_REPLY_TO`, `MARKETING_EMAIL_BATCH_SIZE`, `MARKETING_EMAIL_SEND_INTERVAL_MS`, `MARKETING_EMAIL_TIME_BUDGET_MS`, `MARKETING_EMAIL_MAX_ATTEMPTS` (karar 0048), `GEMINI_REALTIME_ENABLED` (karar 0062; boş = kapalı), `LLM_COST_TRY_PER_USD` (karar 0082; boş = Gemini maliyeti fiyatlanmaz) |
 | `DEVELOPMENT_ONLY` | Üretimde tanımlanmaz | `EMBEDDING_FAKE_CLIENT` (production'da reddedilir) |
-| `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; GitHub Actions secret'ları `ALERT_CRON_URL`, `MARKETING_CRON_URL`, `CRON_SECRET`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
+| `TOOLING_ONLY` | Uygulama okumaz | `DATABASE_URL_OWNER` (Vercel'de **tanımlanmaz**), `APP_DB_PASSWORD`, `SEED_IMAGE_BASE_URL`; Vercel ayarı `ENABLE_EXPERIMENTAL_COREPACK=1` |
 
 \* `APP_URL` boşsa Vercel'in verdiği `VERCEL_PROJECT_PRODUCTION_URL`
 kullanılır (`https://` eklenir). `VERCEL_ENV=production` iken sonuç https ve
@@ -847,9 +866,10 @@ yazmaz) ve cron uçları (`discovery_slots`, `cleanup_auth`, `trigger_alerts`,
 "Veri boru hattı" bölümü her aşamanın (toplama, eşleştirme, fiyat özeti,
 zenginleştirme, benzerlik kenarları, link çözümleme) durumunu ve elle
 çalıştırma komutunu gösterir. Aşamanın iş koşusu varsa "son çalıştı" oradan,
-yoksa üretilen verinin zamanından ("son kanıt", karar 0051) okunur. Aşamalar
-zamanlanmış değil; "geride olabilir" (bilgi) görünen aşama sırayla
-çalıştırılır. Worker hostunda ücretsiz aşamalar (fiyat özeti, eşleştirme,
+yoksa üretilen verinin zamanından ("son kanıt", karar 0051) okunur. Eşleştirme
+ve benzerlik kenarları her gece VPS'te zamanlanmıştır (`arilla-catalog-pipeline`,
+yukarıda); toplama ve zenginleştirme elle kalır. "Geride olabilir" (bilgi) görünen
+aşama sırayla çalıştırılır. Worker hostunda ücretsiz aşamalar (fiyat özeti, eşleştirme,
 benzerlik kenarları) `infra/docker-compose.worker.yml` içindeki `batch`
 servisiyle elle çalıştırılır (`docker compose ... run --rm batch ...`);
 `up -d` bu servisi başlatmaz, ücretli Jina ve model çağrıları kapalıdır,
@@ -879,7 +899,7 @@ günüyle); kural değişikliği geçmiş satırları yeniden fiyatlamaz.
 | --- | --- | --- |
 | `ingest_run` başarısızlığı | Aynı merchant 2 kez üst üste (tek başarısızlık: bilgi) | Uyarı |
 | İş koşusu takılı | 2 saat "sürüyor" | Uyarı |
-| Zamanlanmış iş gecikti | Günlük 30 saat, 15 dk'lık 2 saat | Uyarı |
+| Zamanlanmış iş gecikti | Günlük 30 saat, saatlik 3 saat, 15 dk'lık 2 saat | Uyarı |
 | Model çağrısı sapması | Son 24 saat > önceki 7 günün günlük ortalaması × 3 (en az 50 çağrı) | Uyarı |
 | Link çözümleme kuyruğu (Redis) | 100 üzeri | Uyarı |
 | Feed'siz geçen süre | 24 saat | Uyarı |
@@ -893,6 +913,86 @@ günüyle); kural değişikliği geçmiş satırları yeniden fiyatlamaz.
 
 Maliyet uyarısı diğerleri kadar önemlidir. `api_usage` tablosundan günlük
 oturum başına maliyet raporu üretilir ve eşiği aşınca bildirim gider.
+
+### Veritabanı sağlık raporu ve sorgu istatistikleri
+
+`pnpm db:health` (sahip rol, salt okunur oturum, uzak veritabanında onaysız çalışır)
+beş bölüm raporlar: indekssiz foreign key'ler, başka bir indeksin baş kolonlarıyla
+aynı olan gereksiz indeksler, istatistik sıfırlanmasından beri hiç taranmamış
+indeksler, ölü satır birikimi ve **en pahalı 20 sorgu** (`pg_stat_statements`).
+Sorgu metni normalize biçimdedir (`$1`, `$2`); parametre değeri (arama metni, kimlik)
+içermez. Optimizasyon önce ve sonra bu raporla karşılaştırılır. VPS'te migrate
+imajıyla: `docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml run --rm migrate node scripts/db-health.ts`.
+
+`pg_stat_statements` iki adımda etkinleşir:
+
+1. Migration `0081` eklentiyi ayrı `monitoring` şemasına kurar (uygulama rolü
+   okuyamaz). Normal dağıtımla gelir; ön yükleme olmadan da hata vermez.
+2. `infra/vps/postgres/postgresql.conf` içindeki `shared_preload_libraries` ancak
+   Postgres **yeniden başlatılınca** etkinleşir. Dağıtım dosyayı `/opt/arilla/vps/postgres`
+   altına koyar ama Postgres'i yeniden başlatmaz. **Dikkat:** dosya sunucuya ulaştıktan
+   sonra plansız her yeniden başlatma (VPS reboot, Docker güncellemesi) yeni ayarı
+   yükler; kütüphane yoksa Postgres AÇILMAZ. Bu yüzden merge'den önce 0. adım yapılır.
+
+Aynı yeniden başlatmayla `log_parameter_max_length = 0` de etkinleşir: 500 ms üstü
+yavaş sorgu günlüğüne bağlı parametre değerleri yazılmaz (KVKK).
+
+#### Yeniden başlatma prosedürü (planlı pencere, root/deploy kullanıcısı)
+
+`C="docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml"`
+
+0. **Ön kontrol (merge'den ÖNCE, kesintisiz):** çalışan imajda kütüphane var mı:
+   `$C exec -T postgres ls /usr/lib/postgresql/16/lib/pg_stat_statements.so` (yoksa
+   merge etme). Yedekleme etkinse çalışan imaj `arilla-postgres`'tir (aynı taban +
+   pgBackRest); kütüphane PostgreSQL paketinin parçasıdır, taban
+   `pgvector/pgvector:0.8.1-pg16`'da (16.12) doğrulandı. Kontrol yine çalışan konteynerde yapılır.
+1. **Pencere:** 04:00–05:30 UTC. Yedek (01:30), aylık bölüm (02:00), haftalık iş
+   (02:30), geri yükleme tatbikatı (03:30, ayın ilk pazarı), aggregate onarımı (23:45)
+   ve sorgu yorumu (00:30) bunun dışında. `*/15` cron uçları bir turu kaçırır, sorun değil.
+   Elle çalışan ingest işi yok: `$C ps` ve `docker ps --filter name=ingest`.
+2. **Dağıtım geldi mi:** `grep pg_stat_statements /opt/arilla/vps/postgres/postgresql.conf`
+   ve 0081 uygulandı mı:
+   `$C exec -T postgres psql -U arilla -d arilla -Atc "select 1 from schema_migration where filename like '0081%'"`.
+3. **Yeniden başlat:** `$C restart postgres`. (`up -d` YETMEZ: bağlanan dosya
+   değişince Compose konteyneri yeniden oluşturmaz.) Durdurma sinyali SIGINT (hızlı
+   kapanış: açık işlemler geri alınır), `stop_grace_period` sınırı içinde kapanır.
+4. **Beklenen kesinti:** kapanış denetim noktası + açılış genelde 5–30 sn, üst sınır
+   ~60 sn. Bu sürede web isteklerinin bir kısmı 5xx/zaman aşımı alır, havuz yeniden
+   bağlanır; worker/cron yeniden dener. WAL arşivi kesintisiz devam eder.
+5. **Doğrulama:**
+   - `$C exec -T postgres pg_isready -U arilla` ve `$C ps postgres` → healthy
+   - `$C exec -T postgres psql -U arilla -d arilla -Atc "show shared_preload_libraries; show log_parameter_max_length"`
+     → `pg_stat_statements`, `0`
+   - İç ağdan hazırlık (dışarı kapalı): `$C exec -T web node -e "fetch('http://127.0.0.1:3000/api/health/ready').then(r=>console.log(r.status))"` → 200
+   - Birkaç dakika sonra `$C run --rm migrate node scripts/db-health.ts`: "En pahalı
+     sorgular" bölümü dolu.
+   - `$C logs --since 10m postgres 2>&1 | grep -iE "fatal|error"` boş.
+6. **Geri dönüş:** Postgres açılmazsa (`could not access file "pg_stat_statements"`):
+   `/opt/arilla/vps/postgres/postgresql.conf` içinde `shared_preload_libraries` ve
+   `pg_stat_statements.*` satırlarını `#` ile kapat, `$C up -d --no-deps postgres`
+   (konteyner durmuşsa başlatır) ve 5. adımı tekrarla. Sonra depoda aynı geri alma
+   commit'i yapılır; aksi halde sonraki dağıtım dosyayı yeniden getirir. Ayar geri
+   alınırsa veri kaybı yok; eklenti nesneleri (0081) zararsız kalır.
+
+Sayaçları sıfırlamak (ör. büyük bir değişiklik sonrası temiz ölçüm):
+`SELECT monitoring.pg_stat_statements_reset();` (sahip rol).
+
+### Gece toplu işleri: parti ve işlem süresi (Faz 3)
+
+- `python -m similarity`: kenarlar (ürün vektörü SQL'de, 500 ürünlük `LATERAL` kNN
+  partileri), fiyat istatistikleri ve özet onarımı (1 000 ürünlük partiler) **parti
+  başına commit** eder; uzun işlem, xmin tutma ve geniş satır kilidi yoktur. Aynı anda
+  tek kenar koşusu (advisory kilit; ikincisi hata verir). `--dry-run` tek işlemdir,
+  sonunda geri alır.
+- `--prune` (isteğe bağlı, varsayılan KAPALI): tam koşuda üretilmeyen eski kenarları
+  siler. `--limit` ile birlikte etkisizdir.
+- Model sürümleri karışmaz: her `model_version` ayrı ortalanır ve karşılaştırılır;
+  birden fazla sürüm varsa uyarı yazılır, baskın sürüm en son işlenir.
+- Kenar koşusu geçici tabloda ürün başına bir vektör tutar (768 boyut ≈ 3 KB): 1 milyon
+  üründe kenar türü başına ~3 GB geçici disk.
+- `collect`: kaynak taraması veritabanı işlemi AÇMADAN yapılır (teklifler geçici
+  dosyada), yazım tek işlemde 500'lük partilerle. Koşu yine "ya hepsi ya hiç".
+- `enrich`: görsel indirmesi ve sağlayıcı çağrısı açık işlem içinde yapılmaz.
 
 ### Runbook — `price_point_default` doldu
 
@@ -1192,12 +1292,13 @@ Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-stagin
 
 ## Fiyat doğrulama ve döviz kuru (karar 0113)
 
-**Durum:** Kod ve testler hazır. Üretimde zamanlama **yok**.
+**Durum:** VPS'te systemd zamanlayıcılarıyla zamanlanır (`batch-timers install`, yukarıda
+"Toplu Python işleri").
 
-| İş | Komut | Önerilen sıklık |
+| İş | Komut | Sıklık |
 | --- | --- | --- |
-| TCMB kuru | `python -m pricing fx` | Günde bir, 16:00 TR sonrası |
-| Doğrulama isteği ekle | `python -m pricing enqueue --older-than-hours 24` | Günlük |
+| TCMB kuru | `python -m pricing fx` | Her gün 13:30 UTC (16:30 TR) |
+| Doğrulama isteği ekle | `python -m pricing enqueue --older-than-hours 24` | Her gün 04:00 UTC |
 | Doğrula | `python -m pricing verify --limit 50` | Saatlik, düşük hacim |
 
 - Yaklaşık TRY yalnızca kur 4 günden yeniyse gösterilir; kur yoksa dönüşüm yapılmaz.
@@ -1205,6 +1306,22 @@ Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-stagin
 - Admitad tıklaması için `merchant.deeplink_template`'e Admitad hesabında doğrulanan
   biçim girilir (örn. `{affiliate_url}&subid={click_id}`).
 - Yönetim: `/yonetim/ingest/beslemeler` (salt okunur).
+
+## Affiliate dönüşümleri (karar 0128)
+
+**Durum:** Kod ve testler hazır; Admitad `statistics/actions` ucu gerçek hesapta henüz
+doğrulanmadı. VPS'te `arilla-affiliate-conversions` (günlük 05:00 UTC) ile zamanlanır.
+
+- Ortam: `worker.env` içinde `ADMITAD_CLIENT_ID` / `ADMITAD_CLIENT_SECRET`. Admitad
+  uygulamasına `statistics` kapsamı verilmiş olmalı.
+- Elle: `python -m affiliate conversions --dry-run` (yazmaz, sayıları basar), sonra
+  `python -m affiliate conversions [--days 90]`.
+- Program → merchant: `feed_source.program_external_id`. Bağlı merchant yoksa eylem
+  `skipped_unknown_program` olur; önce `feeds bind` ile beslemeyi merchant'a bağla.
+- TRY dışı tutar TCMB alış kuruyla çevrilir; kur yoksa `skipped_fx_missing` olur ve koşu
+  `partial` biter (önce `pricing fx`).
+- Tıklama bağı yalnızca deeplink'te `subid={click_id}` varsa kurulur (`click_linked`).
+- Yönetim: `/yonetim/affiliate` "Dönüşüm" kartı; koşular `/yonetim/islemler/isler`.
 
 ## Kaynak ilanından katalog (karar 0121)
 
@@ -1377,6 +1494,38 @@ kötüye kullanıldığını gösterir, olay olarak ele alınır.
 Yetkili hesap kendi hesabını `/hesap`'tan silemez; önce rolü bu yolla düşürülür.
 Rolü düşürülmüş hesap silinince denetim satırları kalır, aktör bağlantısı boşalır.
 
+## Yönetim ana makinesi (`ADMIN_HOST`, karar 0056)
+
+`ADMIN_HOST` tanımsızken konsol bugünkü gibi `/yonetim`'dedir. Tanımlıyken
+(ör. `admin.manicepte.com`) konsol, `/api/yonetim/*` ve yönetim yetenekleri
+YALNIZCA o ana makinede çalışır; public sitedeki `/yonetim*` oraya 308 ile
+gider, oradaki public yollar public siteye döner. Yönetim girişi orada yalnızca
+Google'dır. Oturum çerezi host-only olduğu için yönetim oturumu public
+oturumdan ayrıdır: geçişten sonra yöneticiler admin alan adında bir kez daha
+giriş yapar.
+
+Kod değişkensiz dağıtılabilir (etkisizdir). Açma sırası — sıra bozulursa
+yönetim girişi kırılır, public site etkilenmez:
+
+1. DNS: `admin` kaydı web'i gösterir (Vercel: CNAME `cname.vercel-dns.com`;
+   VPS: A kaydı + Caddyfile'a `admin.<alan>` site bloğu, aynı `reverse_proxy`).
+2. Vercel: Project → Settings → Domains → `admin.<alan>` ekle, sertifika "Valid"
+   olsun. `https://admin.<alan>/yonetim/giris` açılmalı (henüz yönlendirme yok).
+3. Google Cloud Console → OAuth istemcisi → Authorized redirect URIs'e
+   `https://admin.<alan>/giris/google/callback` ekle (eskisi KALIR).
+4. Ortam: `ADMIN_HOST=admin.<alan>` yalnızca Production'a (preview'a değil),
+   yeniden dağıt. Üretimde değer port/localhost içerirse ya da biçim bozuksa
+   konsol hiçbir yerde açılmaz (fail-closed), public site çalışır.
+5. Doğrula:
+   - `curl -sI https://<alan>/yonetim` → `308`, `location: https://admin.<alan>/yonetim`
+   - `curl -sI https://admin.<alan>/` → `307` → `/yonetim`
+   - `curl -sI https://admin.<alan>/hakkinda` → `308` → `https://<alan>/hakkinda`
+   - `curl -s -o /dev/null -w '%{http_code}' -X POST https://<alan>/api/yonetim/katalog-toplama` → `404`
+   - Tarayıcıda admin alan adında Google ile giriş, bir konsol sayfası ve bir
+     işlem (ör. kullanıcı arama).
+
+Geri alma: `ADMIN_HOST`'u sil ve yeniden dağıt; konsol `/yonetim`'e döner.
+
 ## Acil oturum kapatma (ele geçirilmiş hesap)
 
 Karar 0050. Üç yol, en hızlısından:
@@ -1404,8 +1553,8 @@ Karar 0048. Yönetim: `/yonetim/kampanyalar` (yalnızca yönetici).
 **Açma (üretim).** Gerçek gönderim varsayılan olarak kapalıdır. Açmadan önce:
 İYS kaydı ve rıza metninin hukuk onayı (`docs/kvkk.md`), sağlayıcıda gönderen
 alan adı doğrulaması (SPF/DKIM/DMARC). Sonra Vercel production'da
-`MARKETING_EMAIL_FROM` ve `MARKETING_EMAIL_ENABLED=true`, GitHub Actions'ta
-`MARKETING_CRON_URL` secret'ı. Kapatmak için `MARKETING_EMAIL_ENABLED`
+`MARKETING_EMAIL_FROM` ve `MARKETING_EMAIL_ENABLED=true` (teslim ucu VPS cron'unda
+15 dakikada bir zaten çağrılır). Kapatmak için `MARKETING_EMAIL_ENABLED`
 boşaltılır: sürmekte olan kampanya `sending`te bekler, ileti gitmez,
 yönetim ekranı "gerçek gönderim kapalı" der.
 
@@ -1415,7 +1564,7 @@ e-postası ya da doğrulanmış Google/Apple e-postası) veya
 saatte en fazla 10 (karar 0050). Başka adres reddedilir ve sayılmaz.
 
 **İlerleme.** Gönderim partiler hâlinde: başlatma anında bir parti, sonra
-`trigger-alerts-cron.yml` ile 15 dakikada bir parti (varsayılan 40 ileti).
+VPS cron'u (`infra/vps/cron/crontab`) ile 15 dakikada bir parti (varsayılan 40 ileti).
 Büyük liste için `MARKETING_EMAIL_BATCH_SIZE` artırılır (süre bütçesine
 dikkat) ya da kampanya sayfasındaki "sonraki partiyi şimdi işle" kullanılır.
 Yerelde cron yok; düğme ya da `curl -H "Authorization: Bearer $CRON_SECRET"

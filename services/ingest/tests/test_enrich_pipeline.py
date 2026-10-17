@@ -480,3 +480,46 @@ def test_one_rejected_image_does_not_block_the_good_images_in_its_batch(offers: 
     assert second.considered == per_image
     assert second.embedded == 0
     assert _count(EMBEDDINGS, ("image", DOMAIN)) == OFFER_COUNT - per_image
+
+
+def test_no_transaction_is_open_while_waiting_on_the_network(offers: int) -> None:
+    """Gorsel indirmesi ve saglayici cagrisi acik islem icinde yapilmaz (Faz 3).
+
+    Acik islem ag beklerken kilit ve xmin tutar; uretimde
+    `idle_in_transaction_session_timeout = 60s` yavas bir saglayici cagrisinda
+    oturumu dusururdu.
+    """
+    states: list[tuple[str, psycopg.pq.TransactionStatus]] = []
+    with _app() as conn:
+        images = _images()
+
+        def handler(request: httpx.Request) -> httpx.Response:
+            states.append(("download", conn.info.transaction_status))
+            index = int(request.url.path.rsplit("/", 1)[-1].split(".")[0])
+            return httpx.Response(
+                200, content=images[index % len(images)], headers={"content-type": "image/png"}
+            )
+
+        class _Watching(_OneTextPerCall):
+            def embed_images(self, data_urls, *, estimated_tokens=None):  # type: ignore[override]
+                states.append(("image_api", conn.info.transaction_status))
+                return super().embed_images(data_urls, estimated_tokens=estimated_tokens)
+
+            def embed_texts(self, texts):  # type: ignore[override]
+                states.append(("text_api", conn.info.transaction_status))
+                return super().embed_texts(texts)
+
+        client = _Watching()
+        embed_images(
+            conn,
+            client,
+            merchant_id=offers,
+            http=httpx.Client(transport=httpx.MockTransport(handler)),
+        )
+        embed_texts(conn, client, merchant_id=offers)
+        conn.commit()
+
+    kinds = {kind for kind, _ in states}
+    assert {"download", "image_api", "text_api"} <= kinds
+    open_states = [(kind, s) for kind, s in states if s != psycopg.pq.TransactionStatus.IDLE]
+    assert open_states == []

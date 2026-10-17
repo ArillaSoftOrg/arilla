@@ -4,9 +4,9 @@ import { getDatabase } from "@arilla/db";
 /**
  * "Alarm tetikleme işi" (docs/backlog.md E2). Vercel Hobby planı cron
  * başına günde tek çalıştırmayla sınırlı (15 dakikada bir burada
- * yetmiyor), o yüzden bu uç artık `apps/web/vercel.json`'da değil -
- * `.github/workflows/trigger-alerts-cron.yml` GitHub Actions üzerinden
- * 15 dakikada bir buraya HTTP isteği atar. Kimlik doğrulama: `Bearer
+ * yetmiyor), o yüzden bu uç `apps/web/vercel.json`'da değil - VPS cron
+ * konteyneri (`infra/vps/cron/crontab`) 15 dakikada bir buraya iç ağdan
+ * HTTP isteği atar. Kimlik doğrulama: `Bearer
  * ${CRON_SECRET}` (`cronAuthFailureResponse`, packages/core/src/cron).
  * İş mantığının tamamı `packages/core/src/account/trigger-alerts.ts`'te - bu route ince bir istemci (CLAUDE.md kural 6).
  */

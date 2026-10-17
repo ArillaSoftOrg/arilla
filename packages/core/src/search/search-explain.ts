@@ -11,6 +11,7 @@ import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
 import {
   bestOfferCte,
+  CANDIDATE_OFFER_SCOPE,
   distinctImage,
   type FilterPredicateName,
   filterPredicates,
@@ -20,8 +21,9 @@ import {
   scoredCtes,
   type TextSort,
   textMatch,
+  withCandidatePlan,
 } from "./search-sql.ts";
-import { allowedMisses, headPrefilter } from "./text-match.ts";
+import { allowedMisses, headSlotMatch } from "./text-match.ts";
 import type { QueryObject } from "./types.ts";
 
 export interface ScoreFactors {
@@ -90,13 +92,15 @@ export async function rankWithFactors(
   sort: TextSort,
   limit: number,
 ): Promise<{ total: number; items: ExplainedItem[] }> {
-  const result = await db.execute<Row>(sql`
+  const result = await withCandidatePlan(db, (tx) =>
+    tx.execute<Row>(sql`
     ${scoredCtes(query, sort, true)}
     SELECT s.*, count(*) OVER()::text AS total_count
     FROM (${distinctImage(sql`scored`)}) s
     ORDER BY ${finalOrder(sort)}
     LIMIT ${limit}
-  `);
+  `),
+  );
   const rows = result.rows;
   return {
     total: rows.length === 0 ? 0 : Number(rows[0]?.total_count ?? 0),
@@ -105,8 +109,13 @@ export async function rankWithFactors(
 }
 
 export interface CandidateFunnel {
-  /** Metin varsa: baş isim ön filtresinden geçen ürün; yoksa tüm katalog. */
+  /**
+   * Sınırlı aday kümesi (karar 0129): metin varsa baş isim dalı + tüm slotlar dalı,
+   * yoksa ürün kolonu filtreleri; dal başına en fazla `CANDIDATE_LIMIT`.
+   */
   prefilter: number;
+  /** Baş isim (ya da metinsiz) dalı sınıra ulaştı: sayılar alt sınırdır. */
+  capped: boolean;
   /** + aktif mağazada aktif teklifi olan (mağaza/stok filtresiyle). */
   withActiveOffer: number;
   /** + metin kapısı (baş isim ve niteleyiciler). */
@@ -131,7 +140,7 @@ export async function candidateFunnel(
 ): Promise<CandidateFunnel> {
   const merchantIds = merchantIdsOf(query.filters);
   const inStockOnly = query.filters.in_stock_only ?? false;
-  const text = textMatch(query);
+  const text = textMatch(query, undefined, undefined, sort === "best_deal");
   const predicates = filterPredicates(query.filters);
   const statsOk =
     sort === "best_deal"
@@ -153,8 +162,10 @@ export async function candidateFunnel(
     sql`, `,
   );
 
-  const result = await db.execute<Row>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
+  const result = await withCandidatePlan(db, (tx) =>
+    tx.execute<Row>(sql`
+    WITH ${text.ctes},
+    ${bestOfferCte(inStockOnly, merchantIds, null, CANDIDATE_OFFER_SCOPE)},
     base AS (
       SELECT p.id, p.primary_image_url,
              (bo.product_id IS NOT NULL) AS has_offer,
@@ -178,12 +189,15 @@ export async function candidateFunnel(
            count(*) FILTER (WHERE has_offer AND gate_ok AND ${allFilters})::int AS filters,
            count(*) FILTER (WHERE has_offer AND gate_ok AND ${allFilters} AND stats_ok)::int AS price_stats,
            (SELECT count(DISTINCT COALESCE(primary_image_url, id::text) COLLATE "C") FROM passed)::int AS dedup,
+           (SELECT capped FROM cand_meta) AS capped,
            ${rejectCounts}
     FROM base
-  `);
+  `),
+  );
   const row = result.rows[0] ?? {};
   return {
     prefilter: Number(row.prefilter ?? 0),
+    capped: row.capped === true,
     withActiveOffer: Number(row.with_offer ?? 0),
     textGate: Number(row.text_gate ?? 0),
     filterRejects: predicates.map((p, i) => ({
@@ -211,8 +225,10 @@ export interface ProductProbe {
   };
   /** Sorgunun mağaza/stok filtresiyle `best_offer` satırı var mı. */
   hasBestOffer: boolean;
-  /** Metin yoksa null (kapı yok). */
+  /** Baş isim dalının koşulu (başlık/marka/ana kategori); metin yoksa null (kapı yok). */
   prefilterPass: boolean | null;
+  /** Baş isim eşleşiyor ama ürün sınırlı aday kümesine girmedi (karar 0129). */
+  candidateCapped: boolean;
   text: { matched: number; head: number; relevance: number; required: number } | null;
   textGatePass: boolean;
   predicates: { name: FilterPredicateName; pass: boolean }[];
@@ -242,7 +258,7 @@ export async function probeProduct(
 ): Promise<ProductProbe | null> {
   const merchantIds = merchantIdsOf(query.filters);
   const inStockOnly = query.filters.in_stock_only ?? false;
-  const text = textMatch(query);
+  const text = textMatch(query, undefined, undefined, sort === "best_deal");
   const predicates = filterPredicates(query.filters);
   const hasText = text.slots.length > 0;
 
@@ -261,7 +277,7 @@ export async function probeProduct(
   const product = productRows.rows[0];
   if (!product) return null;
 
-  const prefilter: SQL = hasText ? headPrefilter(text.slots, sql`p.id`) : sql`TRUE`;
+  const prefilter: SQL = hasText ? headSlotMatch(text.slots, "p") : sql`TRUE`;
   const tmColumns: SQL = hasText
     ? sql`tm.matched AS tm_matched, tm.head AS tm_head, tm.rel AS tm_rel`
     : sql`NULL::int AS tm_matched, NULL::float8 AS tm_head, NULL::float8 AS tm_rel`;
@@ -269,10 +285,13 @@ export async function probeProduct(
     predicates.map((p, i) => sql`COALESCE(${p.sql}, FALSE) AS ${sql.raw(`f${i}`)}`),
     sql`, `,
   );
-  const gateRows = await db.execute<Row>(sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds, productId)}
+  const gateRows = await withCandidatePlan(db, (tx) =>
+    tx.execute<Row>(sql`
+    WITH ${text.ctes},
+    ${bestOfferCte(inStockOnly, merchantIds, productId)}
     SELECT (bo.product_id IS NOT NULL) AS has_offer,
            ${prefilter} AS prefilter_ok,
+           (p.id IN (SELECT id FROM cand)) AS in_cand,
            ${tmColumns},
            COALESCE(${text.gate}, FALSE) AS gate_ok,
            (pps.product_id IS NOT NULL) AS has_stats,
@@ -285,10 +304,12 @@ export async function probeProduct(
     LEFT JOIN category c ON c.id = p.category_id
     ${text.lateral}
     WHERE p.id = ${productId}
-  `);
+  `),
+  );
   const gate = gateRows.rows[0] ?? {};
 
-  const rankRows = await db.execute<Row>(sql`
+  const rankRows = await withCandidatePlan(db, (tx) =>
+    tx.execute<Row>(sql`
     ${scoredCtes(query, sort, true)},
     ir AS (${imageRanked(sql`scored`)}),
     fin AS (
@@ -304,7 +325,8 @@ export async function probeProduct(
     LEFT JOIN ir w ON me.image_rank > 1 AND w.image_rank = 1
       AND COALESCE(w.primary_image_url, w.id::text) COLLATE "C"
         = COALESCE(me.primary_image_url, me.id::text) COLLATE "C"
-  `);
+  `),
+  );
   const probeRow = rankRows.rows[0] ?? {};
   const total = Number(probeRow.final_total ?? 0);
   const ranked = probeRow.id !== null && probeRow.id !== undefined ? probeRow : null;
@@ -322,6 +344,7 @@ export async function probeProduct(
     },
     hasBestOffer: gate.has_offer === true,
     prefilterPass: hasText ? gate.prefilter_ok === true : null,
+    candidateCapped: (!hasText || gate.prefilter_ok === true) && gate.in_cand !== true,
     text: hasText
       ? {
           matched: Number(gate.tm_matched ?? 0),

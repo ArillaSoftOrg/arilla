@@ -6,13 +6,17 @@
  *
  * Dahili detay — `index.ts`'ten dışa açılmaz.
  */
+import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
+import { MAX_RATE_AGE_DAYS } from "../pricing/fx.ts";
 import { arrayParam, balancedScoreExpr, balancedScoreFactors } from "./ranking.ts";
+import type { ForeignPrice } from "./result-types.ts";
 import {
+  candidateCtes,
   foldedDocumentExpr,
-  headPrefilter,
   matchTokens,
   rootCategoryJoin,
+  TOKEN_MATCH_THRESHOLD,
   tokenMatchGate,
   tokenMatchLateral,
 } from "./text-match.ts";
@@ -25,33 +29,103 @@ export function merchantIdsOf(filters: QueryFilters): number[] | null {
 }
 
 /**
- * `best_offer`: urun basina en dusuk fiyatli aktif teklif. `onlyProductId`
- * yalnizca tani icindir: tek urunun satirini ayni kuralla hesaplar.
+ * Eşit alakada TRY teklifli ürün önde (karar 0129): yurt dışı teklifin mağaza
+ * güveni bu çarpanla düşürülür. Kargo/gümrük/teslim belirsizliğinin karşılığıdır.
+ */
+export const FOREIGN_OFFER_TRUST_FACTOR = 0.8;
+
+/**
+ * Yaklaşık TRY için en güncel TCMB döviz satış kuru, para birimi başına
+ * (`pricing/fx.ts` ile aynı kural: `MAX_RATE_AGE_DAYS`'ten eski kur kullanılmaz,
+ * kur uydurulmaz).
+ */
+function fxCte(): SQL {
+  return sql`
+    fx AS (
+      SELECT DISTINCT ON (f.base) f.base, f.rate, f.effective_date
+      FROM fx_rate f
+      WHERE f.source = 'tcmb' AND f.quote = 'TRY' AND f.rate_kind = 'forex_selling'
+        AND f.effective_date >= (now() AT TIME ZONE 'UTC')::date - ${MAX_RATE_AGE_DAYS}::int
+        AND f.effective_date <= (now() AT TIME ZONE 'UTC')::date
+      ORDER BY f.base, f.effective_date DESC
+    )
+  `;
+}
+
+/**
+ * `best_offer`: urun basina en dusuk fiyatli aktif teklif, YALNIZCA sinirli bir
+ * aday kumesi icin (`productIds`: metin aramasinin `cand`i, benzerlik kenarlari,
+ * gorsel adaylar) ya da tek urun icin (`onlyProductId`, tani). Tum teklif tablosu
+ * hicbir aramada taranmaz (karar 0129; eski metinsiz yol 2,8M teklifi tarardi).
+ *
+ * Karar 0129: TRY teklif her zaman once secilir. Yalnizca yurt disi teklifi olan
+ * urunde `current_price` TCMB kuruyla YAKLASIK kurustur (numeric, float yok,
+ * yarim yukari); orijinal tutar `original_price`/`original_currency`, kur tarihi
+ * `fx_date` olarak tasinir. Guncel kur yoksa yurt disi teklif secilmez.
  */
 export function bestOfferCte(
   inStockOnly: boolean,
   merchantIds: number[] | null,
-  onlyProductId: number | null = null,
+  onlyProductId: number | null,
+  productIds: SQL | null = null,
 ): SQL {
   const only = onlyProductId === null ? sql`` : sql`AND o.product_id = ${onlyProductId}`;
+  const scoped = productIds === null ? sql`` : sql`AND ${productIds}`;
+  const merchantFilter = sql`(${arrayParam(merchantIds)}::bigint[] IS NULL OR o.merchant_id = ANY(${arrayParam(merchantIds)}::bigint[]))`;
+  const priceTry = sql`(CASE WHEN o.currency = 'TRY' THEN o.current_price
+                         ELSE round(o.current_price * fx.rate)::bigint END)`;
   return sql`
+    ${fxCte()},
     best_offer AS (
       SELECT DISTINCT ON (o.product_id)
-        o.product_id, o.id AS offer_id, o.current_price, o.in_stock, o.merchant_id, m.trust_score
+        o.product_id, o.id AS offer_id, ${priceTry} AS current_price, o.in_stock, o.merchant_id,
+        m.trust_score,
+        (o.currency <> 'TRY') AS is_foreign,
+        o.current_price AS original_price, o.currency AS original_currency,
+        fx.effective_date::text AS fx_date
       FROM offer o
       JOIN merchant m ON m.id = o.merchant_id
+      LEFT JOIN fx ON o.currency <> 'TRY' AND fx.base = o.currency
       WHERE o.product_id IS NOT NULL
         AND o.is_active AND m.is_active
-        AND o.currency = 'TRY'
-        AND (${arrayParam(merchantIds)}::bigint[] IS NULL OR o.merchant_id = ANY(${arrayParam(merchantIds)}::bigint[]))
+        AND (o.currency = 'TRY' OR (fx.rate IS NOT NULL AND o.current_price > 0))
+        AND ${merchantFilter}
         -- "Stokta olanlar": stok bildirmeyen kaynak (stock_state=unknown, karar 0118) dogrulanmis
         -- stok sayilmaz; filtre kapaliyken (varsayilan) urun gizlenmez.
         AND (NOT ${inStockOnly} OR (o.in_stock
              AND (o.attributes_raw ->> 'stock_state') IS DISTINCT FROM 'unknown'))
         ${only}
-      ORDER BY o.product_id, o.current_price ASC NULLS LAST
+        ${scoped}
+      ORDER BY o.product_id, (o.currency <> 'TRY'), ${priceTry} ASC NULLS LAST
     )
   `;
+}
+
+/** Yurt disi teklifte guveni `FOREIGN_OFFER_TRUST_FACTOR` ile dusurulmus guven. */
+const originAdjustedTrust = sql`(bo.trust_score * CASE WHEN bo.is_foreign THEN ${FOREIGN_OFFER_TRUST_FACTOR}::numeric ELSE 1 END)`;
+
+/** Kart icin best_offer'in yurt disi kolonlari (`foreignPriceOf` okur). */
+export const BEST_OFFER_ORIGIN_COLUMNS = sql`bo.is_foreign, bo.original_price, bo.original_currency, bo.fx_date`;
+
+/** `BEST_OFFER_ORIGIN_COLUMNS` satir tipi (LEFT JOIN'de hepsi null olabilir). */
+export interface OriginColumns {
+  is_foreign: boolean | null;
+  original_price: string | null;
+  original_currency: string | null;
+  /** YYYY-MM-DD (SQL'de metne cevrilir: surucu tarih saat dilimine kaymasin). */
+  fx_date: string | null;
+}
+
+/** Karar 0129: secilen teklif yurt disiysa orijinal tutar ve kur tarihi. */
+export function foreignPriceOf(row: OriginColumns): ForeignPrice | undefined {
+  if (!row.is_foreign || row.original_price === null || !row.original_currency || !row.fx_date) {
+    return undefined;
+  }
+  return {
+    originalMinor: Number(row.original_price),
+    currency: row.original_currency.trim(),
+    fxDate: row.fx_date,
+  };
 }
 
 /**
@@ -161,34 +235,35 @@ export function textSlotsOf(query: QueryObject): string[][] {
  * Metin kosulu (docs/decisions/0029). Ayristiricinin filtreye cevirdigi
  * kelimeler (fiyat, beden, renk, marka) `unparsed`'ta yoktur; kapi yalnizca
  * geriye kalan metne uygulanir. Metin yoksa kapi ve LATERAL yoktur.
+ *
+ * `ctes`: sinirli aday kumesi (`cand`, karar 0129); `products` onu urunle
+ * birlestirir. Metin olsun olmasin her sorgu `cand` uzerinden gecer.
  */
 export function textMatch(
   query: QueryObject,
   tokenThreshold?: number,
+  candidateLimit?: number,
+  bestDeal = false,
 ): {
   slots: string[][];
+  ctes: SQL;
   products: SQL;
   lateral: SQL;
   gate: SQL;
   relevance: SQL;
 } {
   const slots = textSlotsOf(query);
+  const fuzzy = tokenThreshold !== undefined && tokenThreshold < TOKEN_MATCH_THRESHOLD;
+  const ctes = candidateCtes(slots, query.filters, { limit: candidateLimit, bestDeal, fuzzy });
+  const products = sql`cand ca JOIN product p ON p.id = ca.id`;
   if (slots.length === 0) {
-    return {
-      slots,
-      products: sql`product p`,
-      lateral: sql``,
-      gate: sql`TRUE`,
-      relevance: sql`1.0`,
-    };
+    return { slots, ctes, products, lateral: sql``, gate: sql`TRUE`, relevance: sql`1.0` };
   }
   const document = foldedDocumentExpr(sql`p.title`, sql`b.name`, sql`p.color`, sql`rc.name`);
   return {
     slots,
-    // Indeksli on filtre ONCE: `OFFSET 0` planlayicinin alt sorguyu
-    // duzlestirip pahali token LATERAL'ini tum katalogda kosmasini engeller
-    // (olculdu: 4.5 bin urunde 270 ms -> ~20 ms).
-    products: sql`(SELECT * FROM product pr WHERE pr.publication_state = 'published' AND ${headPrefilter(slots, sql`pr.id`)} OFFSET 0) p`,
+    ctes,
+    products,
     lateral: sql`${rootCategoryJoin(sql`c.path`)} ${tokenMatchLateral(slots, document, tokenThreshold)}`,
     gate: tokenMatchGate(slots, tokenThreshold),
     relevance: sql`tm.rel`,
@@ -196,7 +271,33 @@ export function textMatch(
 }
 
 /**
- * `WITH best_offer AS (...), scored AS (...)`: kapidan gecen her urun ve
+ * Aday sorgusunu (`cand`) iceren bir ifadeyi indeksli planla calistirir (karar 0129).
+ *
+ * Aday dallari `... LIMIT 1000` bicimindedir. Planlayici trigram yuklemlerinin
+ * seciciligini bilemez (pg_trgm sabit tahmin verir) ve LIMIT'e guvenerek sirali
+ * taramayi secer: eslesmesi olmayan bolumde (or. yurt disi ilanlarda "canta")
+ * 3,77M satir tek tek denetlenir (olculdu: 39 sn; indeksle 78 ms). `enable_seqscan`
+ * yalnizca bu islemde kapatilir (`set_config(..., true)`), islem bitince duser;
+ * havuzdaki baglantiya sizmaz. Cagiran zaten bir islemdeyse (sohbet aramasi,
+ * bulanik adim) ayar o islemin sonuna kadar surer; oradaki sorgular da ayni indeksli
+ * arama sorgularidir. Kucuk tablolarda (marka, kategori) baska yol olmadigi icin
+ * sirali tarama yine kullanilir.
+ */
+export async function withCandidatePlan<T>(
+  db: Database,
+  fn: (tx: Database) => Promise<T>,
+): Promise<T> {
+  return db.transaction(async (tx) => {
+    await tx.execute(sql`SELECT set_config('enable_seqscan', 'off', true)`);
+    return fn(tx as unknown as Database);
+  });
+}
+
+/** `best_offer`in kapsami: yalnizca aday kumesi. */
+export const CANDIDATE_OFFER_SCOPE = sql`o.product_id IN (SELECT id FROM cand)`;
+
+/**
+ * `WITH cand.., best_offer AS (...), scored AS (...)`: kapidan gecen her aday ve
  * skoru. `explain` yalnizca tanida: skor carpanlarini ayri kolon olarak da
  * secer (`f_relevance`, `f_trust`, `f_stock`, `f_price`). `/ara` bunu
  * `false` ile cagirir; SQL'i tanidan once ne ise odur.
@@ -206,21 +307,24 @@ export function scoredCtes(
   sort: TextSort,
   explain = false,
   tokenThreshold?: number,
+  candidateLimit?: number,
 ): SQL {
   const merchantIds = merchantIdsOf(query.filters);
   const inStockOnly = query.filters.in_stock_only ?? false;
-  const text = textMatch(query, tokenThreshold);
+  const text = textMatch(query, tokenThreshold, candidateLimit, sort === "best_deal");
   // "En iyi fiyat" sekmesi de ayni metin kapisindan gecer: alakasiz ama
   // indirimli bir urun bu sekmede de one cikmamali.
   if (sort === "best_deal") {
     const extra = explain ? sql`, ${text.relevance}::double precision AS f_relevance` : sql``;
     return sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
+    WITH ${text.ctes},
+    ${bestOfferCte(inStockOnly, merchantIds, null, CANDIDATE_OFFER_SCOPE)},
     scored AS (
       SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
              b.name AS brand_name, c.path AS category_path,
              bo.current_price, bo.in_stock, bo.trust_score,
              pps.current_percentile, pps.list_price_inflated, p.offer_count,
+             ${BEST_OFFER_ORIGIN_COLUMNS},
              (100 - COALESCE(pps.current_percentile, 100))::double precision AS score${extra}
       FROM ${text.products}
       JOIN best_offer bo ON bo.product_id = p.id
@@ -228,7 +332,8 @@ export function scoredCtes(
       LEFT JOIN brand b ON b.id = p.brand_id
       LEFT JOIN category c ON c.id = p.category_id
       ${text.lateral}
-      WHERE pps.list_price_inflated = FALSE
+      -- Fiyat yuzdeligi TRY gecmisidir; yurt disi teklif "en iyi fiyat" sekmesine girmez (0129).
+      WHERE pps.list_price_inflated = FALSE AND NOT bo.is_foreign
         AND ${buildFilterClause(query.filters)}
         AND ${text.gate}
     )
@@ -237,7 +342,7 @@ export function scoredCtes(
 
   const inputs = [
     text.relevance,
-    sql`bo.trust_score`,
+    originAdjustedTrust,
     sql`bo.in_stock`,
     sql`pps.current_percentile`,
   ] as const;
@@ -252,12 +357,14 @@ export function scoredCtes(
              ${f.price}::double precision AS f_price`;
   }
   return sql`
-    WITH ${bestOfferCte(inStockOnly, merchantIds)},
+    WITH ${text.ctes},
+    ${bestOfferCte(inStockOnly, merchantIds, null, CANDIDATE_OFFER_SCOPE)},
     scored AS (
       SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
              b.name AS brand_name, c.path AS category_path,
              bo.current_price, bo.in_stock, bo.trust_score,
              pps.current_percentile, pps.list_price_inflated, p.offer_count,
+             ${BEST_OFFER_ORIGIN_COLUMNS},
              ${score} AS score${extra}
       FROM ${text.products}
       JOIN best_offer bo ON bo.product_id = p.id

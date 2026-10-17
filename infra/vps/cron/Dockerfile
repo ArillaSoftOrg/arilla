@@ -1,5 +1,5 @@
 # Zamanlayici imaji (karar 0109): Vercel cron'larinin ve GitHub Actions
-# `trigger-alerts-cron.yml`'in yerine, VPS'te web'in /api/cron/* uclarini ic
+# (kaldirilan) `trigger-alerts-cron.yml`'in yerine, VPS'te web'in /api/cron/* uclarini ic
 # agdan cagirir. Yalnizca HTTP + CRON_SECRET; veritabani kimligi YOKTUR.
 #
 # supercronic kaynaktan, GUNCEL Go ile derlenir (go.sum/sumdb dogrulamali): hazir

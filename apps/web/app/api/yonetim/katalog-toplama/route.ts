@@ -1,5 +1,6 @@
 import {
   type AdminActor,
+  adminHostPolicy,
   approveRunDownload,
   type BatchInput,
   CollectionError,
@@ -8,6 +9,7 @@ import {
   evaluateAdminSession,
   getCollectionStatus,
   hasCapability,
+  isAdminRequestHost,
   isFreshAuth,
   nextDiscoveryUnits,
   planDiscoveryUnits,
@@ -24,7 +26,7 @@ import { readSessionCookie } from "../../../lib/session-cookie.ts";
  * Yonetici tarayicisindan katalog toplama API'si (karar 0117). Is mantigi
  * `packages/core/src/catalog-collection`; burasi ince istemci.
  *
- * Savunma: (1) cerezli oturum + `catalog.write` (yalniz yonetici) + yonetim
+ * Savunma: (0) yalniz yonetim ana makinesi (karar 0056, `ADMIN_HOST`), (1) cerezli oturum + `catalog.write` (yalniz yonetici) + yonetim
  * oturumu suresi, (2) ayni-kokenli istek (Origin), (3) kosu baslatmak taze
  * giris ister, (4) govde boyut siniri. Yanit gizli bilgi icermez; hata
  * yalnizca kod doner. Yetkisiz isteklere 404 (yonetim alaninin varligi sezdirilmez).
@@ -52,6 +54,9 @@ function sameOrigin(request: Request): boolean {
 async function authenticate(
   request: Request,
 ): Promise<{ actor: AdminActor; fresh: boolean } | Response> {
+  if (!isAdminRequestHost(adminHostPolicy(), request.headers.get("host"))) {
+    return json({ error: "not_found" }, 404);
+  }
   if (!sameOrigin(request)) return json({ error: "not_found" }, 404);
   const token = await readSessionCookie();
   const user = token ? await verifySessionToken(getDatabase(), token) : null;

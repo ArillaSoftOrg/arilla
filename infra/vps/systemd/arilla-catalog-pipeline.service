@@ -1,0 +1,19 @@
+[Unit]
+Description=Arilla gece katalog hatti: eslestirme (resolve) + benzerlik kenarlari
+Requires=docker.service
+After=docker.service
+OnFailure=arilla-alert@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/arilla
+# Ucretsiz adimlar (model/Jina cagrisi yok), sirayla; biri basarisizsa sonraki
+# calismaz ve OnFailure alarmi tetiklenir. Kimlik: `feeds` servisi
+# (worker.env, ingest rolu, sahip kimligi YOK). resolve kendi advisory kilidini
+# alir; elle kosu ayni anda calisirsa ikincisi bos doner. Gecelik tavan 5000
+# teklif (varsayilan 500 birikimi eritmez). Fiyat ozeti onarimi
+# 23:45 cron'unda (refresh-product-aggregates), burada tekrarlanmaz.
+ExecStart=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml --profile feeds run --rm -e JOB_RUN_TRIGGER=cron feeds python -m resolve --limit 5000
+ExecStart=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml --profile feeds run --rm -e JOB_RUN_TRIGGER=cron feeds python -m similarity --edges
+TimeoutStartSec=3h
+Nice=10

@@ -6,6 +6,10 @@ migration'lar olusturur.
 ## Kurallar
 
 - Dosya adi: `NNNN_kisa_ad.sql`, sirali.
+- Ilk satir `-- kind: schema|data|grant|concurrent`. Buyuk tabloya indeks
+  `-- kind: concurrent` dosyasiyla eklenir/kaldirilir: islem disi, yalnizca
+  `CREATE INDEX CONCURRENTLY IF NOT EXISTS` / `DROP INDEX CONCURRENTLY IF EXISTS`;
+  calistirici yarim kalmis gecersiz indeksi kaldirip yeniden kurar (karar 0125).
 - **Geriye uyumlu yazilir.** Once kolon eklenir, kod dagitilir, sonra eski
   kolon kaldirilir. Tek adimda kolon silen migration reddedilir.
 - Semanin tek sahibi `packages/db`. Python tarafi okur ve yazar, migration
@@ -86,6 +90,12 @@ migration'lar olusturur.
 | `0075_collection_request_quota.sql` | Hepsiburada kota modeli (karar 0124): gunluk 20.000 / aylik 60.000 HTTP istegi ve aylik 5.000.000 urun tavani; 7 gun aralik ve ayda 4 kosu siniri kaldirildi (politikada 0/NULL). `collection_run.requests_reserved` (HTTP isteginden once atomik rezervasyon, iade yok) + `products_counted`; `collection_usage_day` (UTC gun defteri, yalniz SECURITY DEFINER tetikleyici yazar). Kolon silinmez; mevcut kosular `requests_made` ile doldurulur. |
 | `0078_hepsiburada_no_product_cap.sql` | Hepsiburada aylik urun tavani kaldirildi (karar 0124): `monthly_max_products = NULL`; yalniz gunluk 20.000 / aylik 60.000 istek siniri. `products_counted` izleme icin kalir. Yalniz veri. 0076/0077 acik dala ayrildi. |
 | `0074_source_listing_catalog.sql` | Kaynak ilanindan urun (karar 0121): `product.publication_state` (draft/ready/held/published; mevcut urunler `published`), `hold_reason`, `published_at`, kaynak kimligi `(source_merchant_id, source_external_id)` benzersiz + `source_offer_id`, yalniz kaynak ilani yayinlanmamis olabilir (CHECK), `catalog_build_state` (kontrol noktasi). Baslik trigram GIN indeksleri yalniz yayinlanmislari kapsar. `offer`a dokunmaz. 0073 = kesif defteri (karar 0120). |
+| `0077_drop_redundant_indexes.sql` | Yinelenen indeksler kaldirilir: `price_point_offer_time_idx` (PK ile ayni), `embedding_target_idx`, `user_consent_idx`, `auth_token_cleanup_idx`, `discovery_slot_date_idx` (baska indeksin on eki) ve her `/ara` isabetinde artan kolonu indeksleyen `query_resolution_popular_idx` (HOT'u engelliyordu). Yalnizca indeks; geriye uyumlu. |
+| `0081_pg_stat_statements.sql` | Sorgu istatistikleri: `pg_stat_statements` ayri `monitoring` semasina kurulur (uygulama rolu okuyamaz; `public` varsayilan yetkileri uzanmaz). Sayaclar `shared_preload_libraries` ile Postgres yeniden baslatilinca toplanir; rapor `pnpm db:health`. Yalnizca ekleme. |
+| `0083_product_title_partition_trgm.sql` | `kind: concurrent` (karar 0129): metin aramasinin aday bolumleri icin iki kismi trigram GIN: `product_title_fold_try_trgm` (`published AND offer_count > 0`) ve `product_title_fold_foreign_trgm` (`published AND offer_count = 0`). Yalnizca yayindakiler; taslaklar girmez. Yalnizca ekleme; eski `product_title_fold_trgm` yonetim aramasi icin kalir. 0079/0080 acik PR'lara ayrildi. |
+| `0076_product_foreign_offer_count.sql` | Yurt disi teklif sayisi (karar 0127): `product.foreign_offer_count` (aktif magazanin fiyatli aktif TRY disi teklifi olan farkli magaza sayisi, varsayilan 0, CHECK >= 0). Fiyat ozeti TRY-only kalir; yonetim paneli "fiyatsiz/magazasiz" sayaclari bunu da okur. Deger fiyat ozeti onarimiyla yazilir. Yalnizca ekleme. |
+| `0084_discovery_catalog_build.sql` | Kesif defterinden taslak urun (karar 0130): `catalog_discovery_build_state` (kaynak basina metin anahtarli kontrol noktasi; sayaclar + `skipped` neden bazinda). Fiyatsiz kesif satiri yalniz `draft` urun olur, `offer` acilmaz. Yeni tablo, geriye uyumlu. |
+| `0085_source_catalog_count_indexes.sql` | `kind: concurrent` (karar 0130): `product_source_state_idx` (kaynak ilani urunleri magaza + durum + neden; yonetim hunisi sayimi AliExpress urunlerini taramaz) ve `catalog_discovery_priced_idx` (yalniz fiyat durumu bilinen kesif satirlari). Yalnizca indeks. |
 | `0079_trendyol_collection.sql` | Trendyol yonetici toplamasi (0118), 0070 (karar 0117) uzerine: `collection_source` `trendyol` satiri (KAPALI, `written_email_reported`, 7 gun / ayda 4 / kosu 500 sayfa), `collection_unit.kind` `product_page`/`listing_page` 0073'ten (degismez), `catalog_intake_record`a NULL olabilen alanlar (`image_urls` <=6, `group_external_id`, `variant_external_id`, kosullu `basket_price_minor` - satis fiyati degil, `source_page`). 0071 acik PR #144'un (0068 main ile cakisiyor) yeniden numaralanmasina birakildi. Geriye uyumlu (CHECK yalniz genisletilir). |
 
 Not: `0016` repodaki ilk veri-tasiyan migration'dir — buraya kadar hepsi saf

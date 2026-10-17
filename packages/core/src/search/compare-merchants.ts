@@ -6,6 +6,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { offerStockState } from "../product/stock-state.ts";
 import type { MerchantOffer } from "./result-types.ts";
 
 type RawRow = Record<string, unknown> & {
@@ -19,7 +20,7 @@ type RawRow = Record<string, unknown> & {
   shipping_cost: string | null;
   free_shipping_threshold: string | null;
   in_stock: boolean;
-  stock_known: boolean;
+  stock_state: string | null;
   url: string;
   effective_shipping: string;
   effective_total: string;
@@ -30,9 +31,8 @@ export async function compareMerchants(db: Database, productId: number): Promise
     SELECT
       o.id AS offer_id, o.merchant_id, m.slug AS merchant_slug, m.name AS merchant_name,
       m.trust_score, o.current_price, o.list_price, o.shipping_cost,
-      o.free_shipping_threshold, o.in_stock, o.url,
-      -- Stok toplanmayan kaynak (Trendyol, karar 0118): in_stock bir iddia degildir.
-      ((o.attributes_raw ->> 'stock_state') IS DISTINCT FROM 'unknown') AS stock_known,
+      o.free_shipping_threshold, o.in_stock, o.attributes_raw->>'stock_state' AS stock_state,
+      o.url,
       (CASE
         WHEN o.free_shipping_threshold IS NOT NULL AND o.current_price >= o.free_shipping_threshold THEN 0
         ELSE COALESCE(o.shipping_cost, 0)
@@ -64,7 +64,7 @@ export async function compareMerchants(db: Database, productId: number): Promise
     effectiveShipping: Number(row.effective_shipping),
     effectiveTotal: Number(row.effective_total),
     inStock: row.in_stock,
-    stockKnown: row.stock_known,
+    stockUnknown: offerStockState(row.in_stock, row.stock_state) === "unknown",
     url: row.url,
   }));
 }

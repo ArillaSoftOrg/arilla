@@ -97,8 +97,8 @@ Kayıt: `permission_basis = 'written_email_reported'`. Bu değer, Hepsiburada sa
      - `attributes_raw.stock_state = "unknown"` işaretlenir.
      - `false` yazılmaz: ürün aramada stoksuz cezası almaz ve "stokta yok" denmez.
    - Okuma tarafı bilinmeyen durumu korur:
-     - `MerchantOffer.stockKnown = false`;
-     - mağaza listesinde stok etiketi ve ürün JSON-LD'sinde `availability` yok;
+     - `MerchantOffer.stockUnknown = true` (karar 0130 ile ortak alan; `offerStockState`'te bildirilen `unknown` `in_stock`tan önce gelir);
+     - mağaza listesinde "stokta"/"stokta yok" yerine 0130'un nötr notu ("Stok durumu mağazada görülür"), ürün JSON-LD'sinde `availability` yok;
      - "stokta olanlar" filtresi doğrulanmamış stoğu dahil etmez.
    - `price_point.in_stock` da NOT NULL'dur. Bu kaynakta stok bilgisi taşımaz; yorum `stock_state` ile yapılır.
    - Hepsiburada (0117) şimdilik `false` kuralındadır; aynı ayar (`unknown_stock_available`) kaynak bazlıdır.

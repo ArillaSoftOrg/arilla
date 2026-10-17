@@ -21,6 +21,7 @@ import psycopg
 from psycopg import pq
 from psycopg.types.json import Jsonb
 
+from catalog_build.policy import SOURCE_LISTING_MERCHANTS
 from db import product_aggregates
 from db.vector import tune_ann_search
 from resolve import candidates as candidate_channels
@@ -47,6 +48,10 @@ SELECT o.id, o.title_raw, o.brand_raw, o.category_raw, o.image_url, o.attributes
    -- Urun sayfalari fiyati TL varsayar; yaklasik TRY gosterimi gelene kadar
    -- USD fiyat bir urune baglanip TL gibi gorunemez.
    AND o.currency = 'TRY'
+   -- Karar 0130: kaynak ilani magazalari (Hepsiburada, AliExpress) urunu yalnizca
+   -- `catalog_build` hattindan (taslak -> kalite kapisi -> acik yayin) alir. Cozumleyici
+   -- onlardan dogrudan yayinlanmis urun ACMAZ, baslik benzerligiyle baska urune BAGLAMAZ.
+   AND m.slug <> ALL(%(source_listing)s::text[])
    AND (%(merchant_id)s::bigint IS NULL OR o.merchant_id = %(merchant_id)s)
  ORDER BY o.id
  LIMIT %(limit)s
@@ -325,7 +330,14 @@ def resolve_offers(
     tune_ann_search(conn)
 
     with conn.cursor() as cur:
-        cur.execute(PENDING_OFFERS, {"merchant_id": merchant_id, "limit": limit})
+        cur.execute(
+            PENDING_OFFERS,
+            {
+                "merchant_id": merchant_id,
+                "limit": limit,
+                "source_listing": sorted(SOURCE_LISTING_MERCHANTS),
+            },
+        )
         rows = cur.fetchall()
     brands = products.load_brand_index(conn)
     counts.considered = len(rows)
