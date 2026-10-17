@@ -113,7 +113,13 @@ describe("aday koku ve regex'i (karar 0129)", () => {
   });
 
   it("cok kelimeli alternatif ardisik kelimelerdir", () => {
-    expect(candidatePattern("spor ayakkabi")).toBe(String.raw`\mspor\s+ayakka`);
+    expect(candidatePattern("spor ayakkabi")).toBe(String.raw`\mspor\w*\s+ayakka`);
+    // Ilk kelimenin koku kisaltilmis olsa da kelimenin kalani eslesir.
+    const pattern = candidatePattern("akilli saat") as string;
+    expect(pattern).toBe(String.raw`\makil\w*\s+saat`);
+    const js = new RegExp(pattern.replace(String.raw`\m`, String.raw`\b`));
+    expect(js.test("garmin akilli saat siyah")).toBe(true);
+    expect(js.test("akilli bileklik")).toBe(false);
   });
 
   it("1-2 harfli kelimede regex yok (trigram uretmez; `<<%` kullanilir)", () => {

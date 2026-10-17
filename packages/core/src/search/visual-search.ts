@@ -28,6 +28,8 @@ export interface VisualSearchItem {
   similarityScore: number;
   /** Karar 0129: bkz. `SearchResultItem.foreignPrice`. */
   foreignPrice?: ForeignPrice;
+  /** Karar 0131: bkz. `SearchResultItem.merchantName`. */
+  merchantName?: string | null;
 }
 
 export interface VisualSearchOptions {
@@ -123,6 +125,7 @@ export async function searchByImageVector(
       offerCount: Number(row.offer_count),
       similarityScore: row.similarity,
       ...(foreignPrice ? { foreignPrice } : {}),
+      merchantName: row.merchant_name ?? null,
     };
   });
 }
