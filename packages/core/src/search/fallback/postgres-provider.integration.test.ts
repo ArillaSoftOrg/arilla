@@ -473,10 +473,12 @@ describe("non-AI fallback - gercek PostgreSQL", () => {
       };
     }
     console.info("[fallback-cost]", JSON.stringify(report));
-    // exact sonuc: ilk adimda durur (arama + starting-from = 2 sorgu).
-    expect(report["nike koşu ayakkabısı"]?.queries).toBe(2);
-    expect(report["iphone 17 pro"]?.queries).toBeLessThanOrEqual(2);
-    // zero-result: en kotu durum sinirli (<=10 adim x (arama + starting-from + fuzzy set_config)).
-    for (const entry of Object.values(report)) expect(entry.queries).toBeLessThanOrEqual(30);
+    // exact sonuc: ilk adimda durur (indeksli plan ayari + arama + starting-from = 3
+    // sorgu; karar 0129 `withCandidatePlan`).
+    expect(report["nike koşu ayakkabısı"]?.queries).toBe(3);
+    expect(report["iphone 17 pro"]?.queries).toBeLessThanOrEqual(3);
+    // zero-result: en kotu durum sinirli (<=10 adim x (plan ayari + arama + starting-from
+    // + fuzzy set_config)).
+    for (const entry of Object.values(report)) expect(entry.queries).toBeLessThanOrEqual(40);
   });
 });
