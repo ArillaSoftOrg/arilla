@@ -1,0 +1,10 @@
+[Unit]
+Description=TCMB kuru (her gun 13:30 UTC = 16:30 TR, bulten yayinindan sonra)
+
+[Timer]
+OnCalendar=*-*-* 13:30:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

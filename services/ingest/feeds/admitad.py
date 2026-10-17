@@ -72,6 +72,7 @@ class AdmitadNetwork:
         client: httpx.Client | None = None,
         sleep: Callable[[float], None] = time.sleep,
         programs: frozenset[str] | None = None,
+        scope: str = SCOPE,
     ) -> None:
         self._id = client_id or env("ADMITAD_CLIENT_ID")
         self._secret = client_secret or env("ADMITAD_CLIENT_SECRET")
@@ -79,6 +80,7 @@ class AdmitadNetwork:
             raise NetworkUnavailable("ADMITAD_CLIENT_ID / ADMITAD_CLIENT_SECRET tanimli degil")
         self._http = client or httpx.Client(timeout=30.0)
         self._sleep = sleep
+        self._scope = scope
         self._token: str | None = None
         self._token_expires = 0.0
         # Istege bagli program filtresi (ADMITAD_PROGRAMS="6115,123").
@@ -117,7 +119,11 @@ class AdmitadNetwork:
                 "POST",
                 "/token/",
                 headers={"Authorization": f"Basic {basic}"},
-                data={"grant_type": "client_credentials", "client_id": self._id, "scope": SCOPE},
+                data={
+                    "grant_type": "client_credentials",
+                    "client_id": self._id,
+                    "scope": self._scope,
+                },
             )
             if response.status_code != 200:
                 raise NetworkUnavailable(f"admitad token -> {response.status_code}")
@@ -137,6 +143,10 @@ class AdmitadNetwork:
         if response.status_code != 200:
             raise NetworkUnavailable(f"admitad {path} -> {response.status_code}")
         return response.json()
+
+    def get_json(self, path: str, params: dict[str, Any] | None = None) -> Any:
+        """Kimlik dogrulamali GET (diger Admitad uclari, or. affiliate/admitad_actions.py)."""
+        return self._get(path, params)
 
     # -- Kesif -----------------------------------------------------------------
     def websites(self) -> list[int]:

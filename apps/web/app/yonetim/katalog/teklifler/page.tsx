@@ -24,7 +24,7 @@ const STATE_LABELS: Record<OfferState, string> = {
  */
 const STATE_NOTES: Partial<Record<OfferState, string>> = {
   no_candidate:
-    "Varsayılan eşleştirme koşusu her eşleşmemiş aktif teklife ya aday yazar ya da yeni ürün açıp bağlar. Hiç aday kaydı olmayan teklife koşu henüz ulaşmamıştır: teklif son koşudan sonra gelmiş, koşu kotası (500 teklif, kimlik sırasıyla) dolmuş, koşu yeni ürün açmadan (--no-create) çalışmış ya da bu teklifte hata vermiştir. Eşleştirme işini çalıştırt.",
+    "Varsayılan eşleştirme koşusu her eşleşmemiş aktif teklife ya aday yazar ya da yeni ürün açıp bağlar. Hiç aday kaydı olmayan teklife koşu henüz ulaşmamıştır: teklif son koşudan sonra gelmiş, koşu tavanı (gece koşusunda 5000, elle varsayılan 500 teklif, kimlik sırasıyla) dolmuş, koşu yeni ürün açmadan (--no-create) çalışmış ya da bu teklifte hata vermiştir. Eşleştirme her gece 02:30 UTC'de çalışır; beklemeden işlemek için python -m resolve çalıştırt.",
   rejected_only:
     "Önerilen her ürün moderatör tarafından reddedildi. Resolver reddedilen ürünü bir daha önermez (karar 0040); sonraki koşuda başka bir aday yazar ya da yeni ürün açar.",
   invalid_gtin:

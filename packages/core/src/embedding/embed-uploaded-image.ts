@@ -9,6 +9,7 @@
 import { createHash } from "node:crypto";
 import { apiUsage, type Database, embedding, imageUpload } from "@arilla/db";
 import { and, desc, eq, isNotNull } from "drizzle-orm";
+import { failureFromEmbedding, recordModelFailure } from "../eval/model-errors.ts";
 import { type EmbeddingClient, getEmbeddingClient } from "./client.ts";
 import { type PreparedImage, preprocessImage } from "./preprocess-image.ts";
 
@@ -150,6 +151,14 @@ export async function embedUploadedImage(
   try {
     result = await client.embedImage(dataUrl);
   } catch (error) {
+    // Karar 0099: yalniz sinif + HTTP durumu; gorsel ve yanit govdesi yazilmaz.
+    await recordModelFailure(db, {
+      failure: failureFromEmbedding(error),
+      provider: "jina",
+      operation: "visual_search",
+      surface: "search",
+      modelVersion: client.modelVersion,
+    });
     throw new EmbeddingProviderError(error);
   }
 

@@ -485,7 +485,9 @@ export function jobRunFindings(check: Check<JobRunSummary>, now: Date): AdminFin
           title: `${meta.label}: zamanında çalışmadı`,
           meaning: `Zamanlanmış iş (${meta.how}) beklenen aralıkta koşu bırakmadı.`,
           evidence: null,
-          action: "Zamanlayıcıyı (Vercel cron / GitHub Actions) ve CRON_SECRET'ı kontrol edin.",
+          action: meta.how.startsWith("python")
+            ? "VPS'te `batch-timers status` ve `systemctl --failed` ile zamanlayıcıyı kontrol edin; kurulu değilse `batch-timers install`."
+            : "VPS cron konteynerini (`docker compose ps cron`, günlüğü) ve CRON_SECRET'ı kontrol edin.",
           href: jobHref,
           capability: OPS,
           evidenceAt: run.startedAt,
