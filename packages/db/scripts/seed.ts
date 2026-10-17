@@ -696,23 +696,32 @@ await withClient(ownerUrl(), async (client) => {
 
   // --- category ---
   // Yalnizca tohumun kendi kategorileri yazilir; migration kategorileri
-  // yukarida dogrulandi ve oldugu gibi kalir.
+  // yukarida dogrulandi ve oldugu gibi kalir. Anahtar YOLDUR (karar 0133): ayni yol
+  // migration'la (0089, slug `moda-canta`) zaten varsa tohum ikinci bir satir acmaz;
+  // ebeveyn de yoldan bulunur. Aksi halde `path` cift olur ve yola gore arayan
+  // sorgular (kategori filtresi, siniflandirma) birden fazla satir gorur.
   for (const category of CATEGORIES) {
     if (category.owner === "migration") continue;
+    const parentPath = category.path.includes("/")
+      ? category.path.slice(0, category.path.lastIndexOf("/"))
+      : null;
     await client.query(
       `INSERT INTO category (slug, name, parent_id, path, is_discoverable)
-       VALUES ($1, $2, (SELECT id FROM category WHERE slug = $3), $4, $5)
+       SELECT $1, $2, (SELECT id FROM category WHERE path = $3 ORDER BY id LIMIT 1), $4, $5
+        WHERE NOT EXISTS (SELECT 1 FROM category WHERE path = $4 AND slug <> $1)
        ON CONFLICT (slug) DO UPDATE SET
          name = EXCLUDED.name, parent_id = EXCLUDED.parent_id,
          path = EXCLUDED.path, is_discoverable = EXCLUDED.is_discoverable`,
-      [category.slug, category.name, category.parent ?? null, category.path, category.discoverable],
+      [category.slug, category.name, parentPath, category.path, category.discoverable],
     );
   }
-  const categoryIds = new Map(
-    (await client.query<{ id: string; slug: string }>("SELECT id, slug FROM category")).rows.map(
-      (row) => [row.slug, Number(row.id)],
-    ),
-  );
+  // Yol -> kimlik (ayni yolda eski bir cift varsa en eskisi).
+  const categoryIds = new Map<string, number>();
+  for (const row of (
+    await client.query<{ id: string; path: string }>("SELECT id, path FROM category ORDER BY id")
+  ).rows) {
+    if (!categoryIds.has(row.path)) categoryIds.set(row.path, Number(row.id));
+  }
 
   // --- product ---
   // Ayni modelin farkli renkleri ayni model_key'i paylasir; product renk
@@ -752,7 +761,7 @@ await withClient(ownerUrl(), async (client) => {
         slug,
         title,
         brandIds[brandIndex] ?? null,
-        categoryIds.get(category.slug) ?? null,
+        categoryIds.get(category.path) ?? null,
         // Turkiye'de barkod siklikla bos; ucte birine veriyoruz.
         rng() < 0.33 ? String(8680000000000 + productSeeds.length) : null,
         modelKey,
