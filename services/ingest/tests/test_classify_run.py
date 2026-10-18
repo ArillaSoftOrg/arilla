@@ -406,3 +406,95 @@ def test_lexicon_apply_is_idempotent(world: dict[str, int]) -> None:
             ("kahve ekipmanları",),
         )
         assert cur.fetchone() == ("ev-yasam/mutfak/kahve-ekipmanlari", 3.0)
+
+
+def test_wal_throttle_stops_before_writing_and_resumes(world: dict[str, int]) -> None:
+    """Karar 0134: geri basinc partiden ONCE sorulur; False -> hicbir sey yazilmaz."""
+    stopped = _run(throttle=lambda: False)
+    assert stopped.stopped_reason == "wal" and not stopped.completed
+    assert stopped.scanned == 0
+    assert _classification(world["case"]) is None
+    assert all(row[9] is None for k, row in _products(world).items() if k != "manual")
+
+    calls: list[int] = []
+
+    def allow() -> bool:
+        calls.append(1)
+        return True
+
+    done = _run(throttle=allow)
+    assert done.completed and done.stopped_reason is None
+    assert len(calls) >= 1
+    assert _products(world)["bag"][9] == "moda/canta/omuz-cantasi"
+
+
+def test_lock_timeout_retries_batch_without_losing_or_corrupting_rows(
+    world: dict[str, int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original = run_mod._process_batch
+    failures = {"left": 1}
+
+    def flaky(conn, catalog, rows, *, dry_run):
+        result = original(conn, catalog, rows, dry_run=dry_run)
+        if failures["left"]:
+            # Marka ve esleme satirlari bu islemde yazildiktan SONRA kilit hatasi: geri alinir.
+            failures["left"] -= 1
+            raise psycopg.errors.LockNotAvailable("simulated")
+        return result
+
+    monkeypatch.setattr(run_mod, "_process_batch", flaky)
+    monkeypatch.setattr(run_mod, "LOCK_RETRY_SLEEP_SECONDS", 0.0)
+    counts = _run()
+    assert counts.completed and counts.errors == 0
+    after = _products(world)
+    assert brand_key(after["buds"][8]) == "xiaomi"
+    assert after["case"][9] == "elektronik/telefon/aksesuar/kilif"
+
+
+def test_persistent_lock_timeout_aborts_safely(
+    world: dict[str, int], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    def always_locked(conn, catalog, rows, *, dry_run):
+        raise psycopg.errors.LockNotAvailable("simulated")
+
+    monkeypatch.setattr(run_mod, "_process_batch", always_locked)
+    monkeypatch.setattr(run_mod, "LOCK_RETRY_SLEEP_SECONDS", 0.0)
+    with pytest.raises(run_mod.ClassifyAborted) as error:
+        _run()
+    assert error.value.code == "lock_timeout"
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT last_product_id FROM product_classification_state WHERE scope = %s",
+            (f"merchant:{SLUG}",),
+        )
+        row = cur.fetchone()
+    assert row is None or row[0] == 0
+
+
+def test_real_wal_governor_does_not_block_without_archiving(world: dict[str, int]) -> None:
+    from db import wal_pressure
+
+    with _app() as conn:
+        gov = wal_pressure.WalGovernor.for_connection(conn)
+        counts = run_mod.classify_products(conn, merchant_slug=SLUG, throttle=gov.before_batch)
+    assert counts.completed and gov.stopped_reason is None
+
+
+def test_sample_is_read_only_and_matches_batch_decisions(world: dict[str, int]) -> None:
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM product_classification")
+        before = cur.fetchone()
+    with _app() as conn:
+        pairs = run_mod.sample_decisions(conn, n=50, merchant_slug=SLUG, seed=7)
+    assert pairs and len({row.product_id for row, _ in pairs}) == len(pairs)
+    by_id = {row.product_id: decision for row, decision in pairs}
+    if world["bag"] in by_id:
+        assert by_id[world["bag"]].category_path == "moda/canta/omuz-cantasi"
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute("SELECT count(*) FROM product_classification")
+        assert cur.fetchone() == before
+        cur.execute(
+            "SELECT count(*) FROM category_source_map WHERE merchant_id = %s",
+            (world[f"merchant_{SLUG}"],),
+        )
+        assert cur.fetchone()[0] == 0  # type: ignore[index]

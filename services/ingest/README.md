@@ -407,7 +407,8 @@ python -m classify lexicon [--apply]                        # arama/sohbet kateg
 
 `products` yalniz bos (ya da kendi yazdigi) `brand_id`/`category_id`yi doldurur; parti basina
 tek islem + kontrol noktasi, Ctrl+C sonrasi ayni komutla surer. `catalog_build` oturumu varken
-baslamaz; WAL arsiv gecikmesi esigi asarsa bekler. `lexicon --apply` siniflandirma bittikten SONRA
+baslamaz; WAL geri basinci `catalog_build` ile ayni (`--wal-target-mb` vb., karar 0134; cikis 3 =
+WAL nedeniyle durdu, ayni komutla surer). `sample --n 200` YALNIZCA OKUR: etiketleme icin TSV. `lexicon --apply` siniflandirma bittikten SONRA
 (kategori yuzeyi aramada kati filtredir).
 
 ## Benzerlik ve fiyat istatistikleri (B5)
