@@ -231,11 +231,12 @@ jobs:
       - uses: actions/checkout@v4
       # Windows'ta `chmod +x` git'e yansimaz (core.filemode=false): shebang'li altyapi betigi
       # 100644 kalirsa VPS'te dogrudan calistirilamaz. Dagitim git archive ile modu tasir.
-      - name: yurutme biti (infra/vps altindaki shebang'li dosyalar 100755)
+      - name: yurutme biti (depodaki shebang'li dosyalar 100755)
         run: |
           set -euo pipefail
-          bad=$(git ls-files -s infra/vps | while read -r mode _ _ path; do
-            [ "$mode" = 100644 ] && [ "$(head -c 2 "$path")" = '#!' ] && echo "$path"; done || true)
+          # Tum depo: scripts/check-private-keys.mjs infra/vps disinda kalip 100644 kalmisti.
+          bad=$(git ls-files -s | while read -r mode _ _ path; do
+            [ "$mode" = 100644 ] && [ "$(head -c 2 "$path" | tr -d '\000')" = '#!' ] && echo "$path"; done || true)
           [ -z "$bad" ] || { echo "::error::yurutme biti eksik (git update-index --chmod=+x):"; echo "$bad"; exit 1; }
       - name: shellcheck (dagitim ve altyapi betikleri)
         run: >-

@@ -1044,6 +1044,66 @@ yavaş sorgu günlüğüne bağlı parametre değerleri yazılmaz (KVKK).
 Sayaçları sıfırlamak (ör. büyük bir değişiklik sonrası temiz ölçüm):
 `SELECT monitoring.pg_stat_statements_reset();` (sahip rol).
 
+### Arama ve bulunabilirlik ölçümü (salt okunur)
+
+Elle yapılan karşılığı: "Üretimde salt okunur arama ve sohbet doğrulaması (karar 0136)". Bu araç oradaki kart/bağlantı adımını ve bulunabilirlik sorgularının bir kısmını otomatikleştirir. Oturumlu tarayıcı ve sohbetin model yorumu adımları orada kalır.
+
+`/app/tools/search-probe.mjs` (`packages/core/scripts/search-probe.ts`, web imajına derlenir).
+Çalıştığı yollar:
+
+- `/ara` ile aynı arama yolu: `peekQuery` + `searchWithFallback`, 24 kart, 5 sn sınırı.
+- Sohbetin katalog yolu: `searchByIntent`, 6 ürün, 4 sn sınırı. Model çağrısı **yok**; sohbetin
+  Gemini yorumu ölçülmez.
+
+Her sorgu için raporlananlar:
+
+- Süre, sonuç modu ve `1000+` sınırı.
+- Kartlarda fiyat dağılımı: TL / kurla çevrilmiş / yalnız USD / fiyatsız.
+- Marka ve kategori dolu oranı.
+- İlk 3 kart için iki kontrol:
+  - `/urun/<slug>` gerçekten çözülüyor mu.
+  - Ürün sayfasındaki `/git/<teklif>` çıkışının gideceği adres (affiliate şablonu, https, host).
+    Bu adres `buildDeeplink` ile sahte bir click kimliğiyle hesaplanır.
+
+Sonda verilenler:
+
+- En yavaş 5 sorgu (`/ara` / sohbet ms).
+- Mağazanın affiliate durumu ve şablon host'u. Durum `active` değilse çıkışlar düz adrese gider:
+  gelir yok, sorun olarak işaretlenir.
+- Katalog özeti: yayın durumları, %1 örneklemde eksik marka/kategori/görsel/TL fiyat, USD/TRY kur yaşı.
+- **Bulunabilirlik (recall):** yayındaki 20 ürün örneklenir, her biri başlığının ilk 5 kelimesiyle
+  `/ara` yolunda aranır. İlk 24 kartta çıkmayanlar `gorunmeyen` satırında (slug, sorgu, sonuç
+  modu) listelenir.
+
+Çıkış kodu: 0 = temiz; 1 = hata, zaman aşımı ya da bağlantı sorunu; 2 = oturum salt okunur değil.
+
+Güvenlik:
+
+- Oturum `default_transaction_read_only=on` ile açılır ve doğrulanır; her yazım veritabanında
+  reddedilir. `query_resolution` okunur, sayacı artmaz.
+- `/git` çağrılmaz, `click` yazılmaz.
+- Tek bağlantı, sorgular arasında 1 sn.
+- Varsayılan 32 sorgu × 2 tur + 20 bulunabilirlik araması ≈ 5 dk (`PROBE_RECALL_N=0` kapatır).
+
+```bash
+P="docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml"
+$P exec -T web node /app/tools/search-probe.mjs | tee /root/search-probe-$(date -u +%F).txt
+# kendi sorgularin / tek tur / JSON:
+$P exec -T -e PROBE_QUERIES="kulaklık|çanta" -e PROBE_ROUNDS=1 -e PROBE_JSON=1 web node /app/tools/search-probe.mjs
+```
+
+Yorum:
+
+- p95 5 sn'ye yaklaşıyorsa `timeout` görülür.
+- `sonucsuz sorgu` listesi bulunabilirlik açığıdır (kontrol sorgusu `qzxwvkj` dışında).
+- `cikis invalid/no_offer`: kart açılır ama satın alma yönlendirmesi kırık.
+
+Ölçmediği şeyler: tarayıcıda kartın görünümü, oturumlu sayfa süresi (Caddy kaydı:
+`catalog-publish measure`) ve sohbetin model yorumu.
+Bunlar oturumlu bir tarayıcıda elle denetlenir: birkaç `/ara` sorgusu, 3 kart, birkaç sohbet
+mesajı. Her sohbet mesajı bir Gemini çağrısı ve bir `api_usage` satırıdır. Çıkış bağlantısına
+tıklamak gerçek bir `click` yazar.
+
 ### Gece toplu işleri: parti ve işlem süresi (Faz 3)
 
 - `python -m similarity`: kenarlar (ürün vektörü SQL'de, 500 ürünlük `LATERAL` kNN
