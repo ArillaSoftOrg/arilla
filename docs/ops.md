@@ -954,7 +954,8 @@ Gecikme ölçümü, gerçek kullanıcı yolundan ve sınırlı sayıda:
    çıktısındaki `cand_raw` sorgularının ortalamasından okunur. Beklenen (yerel 1,04 M ölçümüyle
    ölçeklenmiş tahmin): metin araması p95 ≤ 2–3 sn, sohbet 4 sn sınırının altında.
 4. Sonuç kartlarından 3'ü açılır: `/urun/<slug>` doğru ürün, "Mağazaya git" `/git/<offerId>` →
-   AliExpress (Admitad) adresine gider; kendi tıklaman `click` üretir (analitikte ayıklanır).
+   AliExpress (Admitad) adresine gider. Kendi tıklaman da gerçek bir `click` kaydı üretir;
+   tıklama raporunda bu birkaç kaydı hesaba kat (otomatik ayıklama yok).
 
 Yük testi aracı, paralel istek ya da perf düzeneği (`scale.perf.integration.test.ts`) üretimde
 ÇALIŞTIRILMAZ; düzenek yalnız yalıtılmış, önceden doldurulmuş veritabanı içindir.
