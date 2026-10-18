@@ -1063,8 +1063,17 @@ Her sorgu için raporlananlar:
   - Ürün sayfasındaki `/git/<teklif>` çıkışının gideceği adres (affiliate şablonu, https, host).
     Bu adres `buildDeeplink` ile sahte bir click kimliğiyle hesaplanır.
 
-Sonda katalog özeti verilir: yayın durumları, %1 örneklemde eksik marka/kategori/görsel/TL fiyat,
-USD/TRY kur yaşı.
+Sonda verilenler:
+
+- En yavaş 5 sorgu (`/ara` / sohbet ms).
+- Mağazanın affiliate durumu ve şablon host'u. Durum `active` değilse çıkışlar düz adrese gider:
+  gelir yok, sorun olarak işaretlenir.
+- Katalog özeti: yayın durumları, %1 örneklemde eksik marka/kategori/görsel/TL fiyat, USD/TRY kur yaşı.
+- **Bulunabilirlik (recall):** yayındaki 20 ürün örneklenir, her biri başlığının ilk 5 kelimesiyle
+  `/ara` yolunda aranır. İlk 24 kartta çıkmayanlar `gorunmeyen` satırında (slug, sorgu, sonuç
+  modu) listelenir.
+
+Çıkış kodu: 0 = temiz; 1 = hata, zaman aşımı ya da bağlantı sorunu; 2 = oturum salt okunur değil.
 
 Güvenlik:
 
@@ -1072,7 +1081,7 @@ Güvenlik:
   reddedilir. `query_resolution` okunur, sayacı artmaz.
 - `/git` çağrılmaz, `click` yazılmaz.
 - Tek bağlantı, sorgular arasında 1 sn.
-- Varsayılan 32 sorgu × 2 tur ≈ 4 dk.
+- Varsayılan 32 sorgu × 2 tur + 20 bulunabilirlik araması ≈ 5 dk (`PROBE_RECALL_N=0` kapatır).
 
 ```bash
 P="docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml"

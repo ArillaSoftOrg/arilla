@@ -17,7 +17,10 @@
  * Calistirma: docs/ops.md "Arama ve bulunabilirlik olcumu". Yerel:
  *   DATABASE_URL=... node --experimental-transform-types --no-warnings scripts/search-probe.ts
  * Ortam: PROBE_QUERIES ("|" ile ayrilmis), PROBE_ROUNDS (2), PROBE_DELAY_MS, PROBE_MERCHANT
- * (aliexpress), PROBE_SAMPLE_PCT, PROBE_JSON=1 (sonda tek satir JSON).
+ * (aliexpress), PROBE_SAMPLE_PCT, PROBE_RECALL_N (20; 0 = kapali), PROBE_JSON=1 (sonda JSON).
+ *
+ * Bulunabilirlik (recall): magazanin yayindaki urunlerinden orneklenen N tanesi kendi
+ * basliginin ilk kelimeleriyle /ara yolunda aranir; ilk 24 kartta cikmayanlar raporlanir.
  */
 import { pathToFileURL } from "node:url";
 import { createDatabase, type Database } from "@arilla/db";
@@ -88,6 +91,9 @@ const ROUNDS = Math.max(1, Math.floor(num("PROBE_ROUNDS", 2)));
 const DELAY_MS = num("PROBE_DELAY_MS", 1000);
 const MERCHANT = env("PROBE_MERCHANT", "aliexpress");
 const SAMPLE_PCT = Math.min(10, Math.max(0.01, num("PROBE_SAMPLE_PCT", 1)));
+const RECALL_N = Math.min(100, Math.floor(num("PROBE_RECALL_N", 20)));
+const RECALL_WORDS = 5;
+const PROBE_CLICK_ID = "probe-0000-0000";
 
 /** Baglanti dizesine salt okunur oturum secenegi ekler (her baglanti, her islem). */
 export function readOnlyUrl(url: string): string {
@@ -171,9 +177,40 @@ interface LinkCheck {
   slug: string;
   productPage: "found" | "redirect" | "not_found" | "error";
   offerId: string | null;
+  merchant: string | null;
   outbound: "affiliate" | "plain" | "invalid" | "no_offer";
   host: string | null;
   detail?: string;
+}
+
+/**
+ * `buildDeeplink` sonucunun dogrulamasi (saf; /git cagrilmaz). Affiliate adres https olmali,
+ * click kimligini ve hedefi (kodlanmis `offer.url` ya da `affiliate_url` tabani) icermeli.
+ * Probe'un magazasi icin duz adres (`plain`) affiliate'in kapali oldugu anlamina gelir.
+ */
+export function classifyOutbound(
+  target: string,
+  offer: { url: string; affiliateUrl: string | null },
+  clickId: string,
+): Pick<LinkCheck, "outbound" | "host" | "detail"> {
+  let u: URL;
+  try {
+    u = new URL(target);
+  } catch {
+    return { outbound: "invalid", host: null, detail: "gecersiz URL" };
+  }
+  if (u.protocol !== "https:") return { outbound: "invalid", host: u.host, detail: "https degil" };
+  if (target === offer.url) return { outbound: "plain", host: u.host };
+  if (!target.includes(encodeURIComponent(clickId)) && !target.includes(clickId)) {
+    return { outbound: "invalid", host: u.host, detail: "click_id sablona yerlesmedi" };
+  }
+  const embedsTarget =
+    target.includes(encodeURIComponent(offer.url)) ||
+    (offer.affiliateUrl !== null && target.startsWith(offer.affiliateUrl));
+  if (!embedsTarget) {
+    return { outbound: "invalid", host: u.host, detail: "hedef urun adresi baglantida yok" };
+  }
+  return { outbound: "affiliate", host: u.host };
 }
 
 /** Kartin /urun/<slug> hedefi ve urun sayfasindaki /git/<teklif> cikisinin gidecegi adres. */
@@ -182,6 +219,7 @@ async function checkLinks(db: Database, item: SearchResultItem): Promise<LinkChe
     slug: item.slug,
     productPage: "error",
     offerId: null,
+    merchant: null,
     outbound: "no_offer",
     host: null,
   };
@@ -197,8 +235,10 @@ async function checkLinks(db: Database, item: SearchResultItem): Promise<LinkChe
     affiliate_url: string | null;
     affiliate_status: "none" | "pending" | "active" | "suspended";
     deeplink_template: string | null;
+    merchant: string;
   }>(sql`
-    SELECT o.id::text, o.url, o.affiliate_url, m.affiliate_status, m.deeplink_template
+    SELECT o.id::text, o.url, o.affiliate_url, m.affiliate_status, m.deeplink_template,
+           m.slug AS merchant
       FROM offer o JOIN merchant m ON m.id = o.merchant_id
      WHERE o.product_id = ${item.productId} AND o.is_active AND m.is_active
      ORDER BY (o.currency <> 'TRY'), o.current_price NULLS LAST, o.id
@@ -206,22 +246,23 @@ async function checkLinks(db: Database, item: SearchResultItem): Promise<LinkChe
   const offer = rows.rows[0];
   if (!offer) return check;
   check.offerId = offer.id;
+  check.merchant = offer.merchant;
   try {
     const target = buildDeeplink({
       affiliateStatus: offer.affiliate_status,
       deeplinkTemplate: offer.deeplink_template,
       offerUrl: offer.url,
       affiliateUrl: offer.affiliate_url,
-      clickId: "probe-0000-0000",
+      clickId: PROBE_CLICK_ID,
     });
-    const u = new URL(target);
-    check.host = u.host;
-    if (u.protocol !== "https:") check.outbound = "invalid";
-    else check.outbound = target === offer.url ? "plain" : "affiliate";
-    if (check.outbound === "affiliate" && !target.includes("probe-0000-0000")) {
-      check.outbound = "invalid";
-      check.detail = "click_id sablona yerlesmedi";
-    }
+    Object.assign(
+      check,
+      classifyOutbound(
+        target,
+        { url: offer.url, affiliateUrl: offer.affiliate_url },
+        PROBE_CLICK_ID,
+      ),
+    );
   } catch (error) {
     check.outbound = "invalid";
     check.detail = (error as Error).message.slice(0, 120);
@@ -267,6 +308,100 @@ async function catalogGaps(db: Database, merchantId: number) {
     SELECT max(effective_date)::text AS quote_date, (current_date - max(effective_date))::text AS age_days
       FROM fx_rate WHERE base = 'USD' AND quote = 'TRY' AND rate_kind = 'forex_selling'`);
   return { states: states.rows, sample: sample.rows[0] ?? null, fx: fx.rows[0] ?? null };
+}
+
+/** Magazanin affiliate yapilandirmasi; sablonun yalniz host'u yazilir (kimlikler degil). */
+async function merchantAffiliate(db: Database, merchantId: number) {
+  const rows = await db.execute<{
+    affiliate_status: string;
+    deeplink_template: string | null;
+    is_active: boolean;
+  }>(
+    sql`SELECT affiliate_status, deeplink_template, is_active FROM merchant WHERE id = ${merchantId}`,
+  );
+  const m = rows.rows[0];
+  if (!m) return null;
+  return {
+    affiliateStatus: m.affiliate_status,
+    hasTemplate: m.deeplink_template !== null,
+    templateHost: m.deeplink_template ? templateHost(m.deeplink_template) : null,
+    isActive: m.is_active,
+  };
+}
+
+/** Sablonun host'u; yer tutucular (`{url}`) bosaltilir. Sorgu parametreleri yazilmaz. */
+export function templateHost(template: string): string {
+  try {
+    return new URL(template.replaceAll(/\{[a-z_]+\}/g, "")).host || "(sablon basta yer tutucu)";
+  } catch {
+    return "(sablon basta yer tutucu)";
+  }
+}
+
+/** Baslik -> kullanicinin yazacagi kisa sorgu (ilk kelimeler, harf/rakam). */
+export function titleQuery(title: string, words = RECALL_WORDS): string {
+  return (title.normalize("NFC").match(/[\p{L}\p{N}]+/gu) ?? []).slice(0, words).join(" ");
+}
+
+interface RecallMiss {
+  slug: string;
+  query: string;
+  mode: string | null;
+  total: number | null;
+  error?: string;
+}
+
+async function recallCheck(db: Database, merchantId: number) {
+  let rows = (
+    await db.execute<{ id: string; slug: string; title: string }>(
+      sql.raw(`
+      SELECT id::text, slug, title FROM product TABLESAMPLE SYSTEM (0.05)
+       WHERE source_merchant_id = ${merchantId} AND publication_state = 'published'
+       LIMIT ${RECALL_N}`),
+    )
+  ).rows;
+  if (rows.length === 0) {
+    // Kucuk katalogda TABLESAMPLE bos donebilir: en yeni N urun (birincil anahtar).
+    rows = (
+      await db.execute<{ id: string; slug: string; title: string }>(sql`
+        SELECT id::text, slug, title FROM product
+         WHERE source_merchant_id = ${merchantId} AND publication_state = 'published'
+         ORDER BY id DESC LIMIT ${RECALL_N}`)
+    ).rows;
+  }
+  const positions: number[] = [];
+  const misses: RecallMiss[] = [];
+  for (const row of rows) {
+    const query = titleQuery(row.title);
+    if (!query) continue;
+    const res = await timed(async () => {
+      const { parsed } = await peekQuery(db, query);
+      return searchWithFallback(
+        createPostgresSearchProvider(db, { statementTimeoutMs: TEXT_SEARCH_TIMEOUT_MS }),
+        { parsed: { ...parsed, sort: "balanced" }, sort: "balanced", page: 1, pageSize: PAGE_SIZE },
+        { aliases: createSeedAliasSource() },
+      );
+    });
+    const index = res.value?.items.findIndex((i) => i.productId === Number(row.id)) ?? -1;
+    if (index >= 0) positions.push(index + 1);
+    else
+      misses.push({
+        slug: row.slug,
+        query,
+        mode: res.value?.mode ?? null,
+        total: res.value?.total ?? null,
+        error: res.error,
+      });
+    await sleep(DELAY_MS);
+  }
+  const tried = positions.length + misses.length;
+  return {
+    tried,
+    found: positions.length,
+    recallPct: tried ? Math.round((100 * positions.length) / tried) : null,
+    medianPosition: percentile(positions, 0.5),
+    misses,
+  };
 }
 
 async function main(): Promise<number> {
@@ -392,10 +527,20 @@ async function main(): Promise<number> {
       ),
       hosts: [...new Set(links.map((l) => l.host).filter(Boolean))],
       problems: links.filter(
-        (l) => l.productPage !== "found" || l.outbound === "invalid" || l.outbound === "no_offer",
+        (l) =>
+          l.productPage !== "found" ||
+          l.outbound === "invalid" ||
+          l.outbound === "no_offer" ||
+          (l.merchant === MERCHANT && l.outbound === "plain"),
       ),
     },
+    slowest: [...results]
+      .sort((a, b) => b.ara.ms - a.ara.ms)
+      .slice(0, 5)
+      .map((r) => ({ query: r.query, round: r.round, araMs: r.ara.ms, sohbetMs: r.sohbet.ms })),
+    affiliate: merchantId === null ? null : await merchantAffiliate(db, merchantId),
     catalog: merchantId === null ? null : await catalogGaps(db, merchantId),
+    recall: merchantId === null || RECALL_N === 0 ? null : await recallCheck(db, merchantId),
   };
 
   console.log("\n== ozet (son tur)");
@@ -408,6 +553,16 @@ async function main(): Promise<number> {
   console.log(`hata: ${summary.errors.length ? summary.errors.join("; ") : "yok"}`);
   console.log(`sonucsuz sorgu: ${zero.length ? zero.join(", ") : "yok"}`);
   console.log(
+    `en yavas: ${summary.slowest.map((x) => `${x.query} (t${x.round}) ${x.araMs}/${x.sohbetMs} ms`).join("; ")}`,
+  );
+  if (summary.affiliate) {
+    const a = summary.affiliate;
+    const warn = a.affiliateStatus !== "active" ? " -> cikislar duz adres, gelir yok" : "";
+    console.log(
+      `affiliate (${MERCHANT}): durum ${a.affiliateStatus}, sablon ${a.hasTemplate ? `var (${a.templateHost})` : "YOK"}, magaza ${a.isActive ? "aktif" : "PASIF"}${warn}`,
+    );
+  }
+  console.log(
     `baglanti: ${summary.links.productPageFound}/${summary.links.checked} urun sayfasi bulundu; cikis ${JSON.stringify(summary.links.outbound)}; host ${summary.links.hosts.join(", ")}`,
   );
   for (const p of summary.links.problems) console.log(`  sorun: ${JSON.stringify(p)}`);
@@ -418,8 +573,15 @@ async function main(): Promise<number> {
     console.log(`  orneklem %${SAMPLE_PCT}: ${JSON.stringify(summary.catalog.sample)}`);
     console.log(`  USD/TRY kuru: ${JSON.stringify(summary.catalog.fx)}`);
   }
+  if (summary.recall) {
+    const r = summary.recall;
+    console.log(
+      `bulunabilirlik: ${r.found}/${r.tried} urun kendi basligiyla ilk ${PAGE_SIZE} kartta (%${r.recallPct}), medyan sira ${r.medianPosition}`,
+    );
+    for (const m of r.misses) console.log(`  gorunmeyen: ${JSON.stringify(m)}`);
+  }
   if (process.env.PROBE_JSON === "1") console.log(JSON.stringify({ summary, results }));
-  return summary.errors.length > 0 ? 1 : 0;
+  return summary.errors.length > 0 || summary.links.problems.length > 0 ? 1 : 0;
 }
 
 const entry = process.argv[1] ?? "";

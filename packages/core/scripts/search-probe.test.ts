@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { SearchResultItem } from "../src/search/result-types.ts";
-import { cardStats, readOnlyUrl } from "./search-probe.ts";
+import {
+  cardStats,
+  classifyOutbound,
+  readOnlyUrl,
+  templateHost,
+  titleQuery,
+} from "./search-probe.ts";
 
 function item(over: Partial<SearchResultItem>): SearchResultItem {
   return {
@@ -67,5 +73,54 @@ describe("cardStats", () => {
       withCategory: 3,
       withImage: 3,
     });
+  });
+});
+
+describe("classifyOutbound", () => {
+  const offer = { url: "https://www.aliexpress.com/item/1005001.html", affiliateUrl: null };
+  const id = "probe-0000-0000";
+
+  it("affiliate: https, click kimligi ve kodlanmis hedef var", () => {
+    const target = `https://go.example/g/abc?ulp=${encodeURIComponent(offer.url)}&subid=${id}`;
+    expect(classifyOutbound(target, offer, id)).toEqual({
+      outbound: "affiliate",
+      host: "go.example",
+    });
+  });
+
+  it("duz adres affiliate degildir", () => {
+    expect(classifyOutbound(offer.url, offer, id).outbound).toBe("plain");
+  });
+
+  it("click kimligi ya da hedef yoksa gecersiz", () => {
+    expect(
+      classifyOutbound(`https://go.example/g?ulp=${encodeURIComponent(offer.url)}`, offer, id)
+        .outbound,
+    ).toBe("invalid");
+    expect(classifyOutbound(`https://go.example/g?subid=${id}`, offer, id).detail).toBe(
+      "hedef urun adresi baglantida yok",
+    );
+    expect(classifyOutbound("http://go.example/x", offer, id).outbound).toBe("invalid");
+  });
+
+  it("affiliate_url tabanli sablonu kabul eder", () => {
+    const withAff = { url: offer.url, affiliateUrl: "https://ad.example/r/xyz" };
+    expect(classifyOutbound(`${withAff.affiliateUrl}?subid=${id}`, withAff, id).outbound).toBe(
+      "affiliate",
+    );
+  });
+});
+
+describe("templateHost ve titleQuery", () => {
+  it("sablondan yalniz host", () => {
+    expect(templateHost("https://go.example/g/123/?ulp={url}&subid={click_id}")).toBe("go.example");
+    expect(templateHost("{affiliate_url}&subid={click_id}")).toBe("(sablon basta yer tutucu)");
+  });
+
+  it("basliktan ilk kelimeler", () => {
+    expect(titleQuery("Kablosuz Bluetooth 5.3 Kulaklık, Gürültü Önleyici (Siyah)")).toBe(
+      "Kablosuz Bluetooth 5 3 Kulaklık",
+    );
+    expect(titleQuery("---")).toBe("");
   });
 });
