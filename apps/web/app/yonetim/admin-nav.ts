@@ -78,6 +78,13 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
         description: "Eksik ya da çelişkili katalog verisi bulguları.",
       },
       {
+        href: "/yonetim/katalog/siniflandirma",
+        label: "Sınıflandırma izleme",
+        capability: "catalog.read",
+        description:
+          "Marka/kategori sınıflandırma işinin ilerlemesi, koşuları ve inceleme kuyruğu.",
+      },
+      {
         href: "/yonetim/eslestirme",
         label: "Eşleştirme kuyruğu",
         capability: "matching.review",
