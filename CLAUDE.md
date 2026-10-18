@@ -156,6 +156,22 @@ tamamı anlamını yitirir.
   şimdilik zorunlu değil. **Eşleştirme mantığı için regresyon test seti
   zorunludur** — eşik değiştiğinde neyin bozulduğu başka türlü görülemez.
 
+## PR protokolü (Claude Code)
+
+Ayrıntı: `docs/decisions/0137`. Görev bitince:
+
+1. İlgili testleri yerelde çalıştır; sonucu olduğu gibi raporla.
+2. `main`'den açılmış ayrı dalda commit + push; PR aç. Başka PR'a bağlıysa gövdeye
+   `Depends on #N` yaz.
+3. CI'ı izle: `gh pr checks <n> --watch`. Kırmızı kontrolü atlama, yeniden koşturup geçirmeye
+   çalışma; nedenini düzelt ya da raporla.
+4. `pr policy` düşük risk diyorsa: `gh pr merge <n> --auto --squash` (merge queue sıraya alır).
+   Yüksek riskse auto-merge açma; neyin incelenmesi gerektiğini kullanıcıya yaz.
+5. **`risk-approved` etiketini asla ekleme**, dal korumasını/kural setini gevşetme, `--admin`
+   ile birleştirme, çakışmayı inceleyip anlamadan çözme.
+6. Oturum sürerken birleşmeyi ve `deploy/vps-production` durumunu izle; manuel müdahale
+   gerektiren her şeyi (onay, çakışma, kırmızı kontrol, başarısız dağıtım) açıkça bildir.
+
 ## Tema ve tipografi
 
 Varsayılan açık tema, cihaz tercihi koyuysa koyu. İki tema da ilk günden
