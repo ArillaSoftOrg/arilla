@@ -24,6 +24,7 @@ SLUG = "test-cls-src"
 HB_SLUG = "test-cls-hb"
 ROOT = Path(__file__).resolve().parents[3]
 TAXONOMY_SQL = ROOT / "packages" / "db" / "migrations" / "0089_category_taxonomy.sql"
+TAXONOMY_V3_SQL = ROOT / "packages" / "db" / "migrations" / "0091_category_taxonomy_v3.sql"
 
 PHONE_CASES = "Phones & Telecommunications > Mobile Phone Accessories > Phone Bags & Cases"
 HEADPHONES = "Consumer Electronics > Portable Audio & Video > Earphones & Headphones"
@@ -490,6 +491,7 @@ def test_taxonomy_migration_is_idempotent(world: dict[str, int]) -> None:
         cur.execute("SELECT count(*), max(id) FROM category")
         before = cur.fetchone()
         cur.execute(TAXONOMY_SQL.read_text(encoding="utf-8"))
+        cur.execute(TAXONOMY_V3_SQL.read_text(encoding="utf-8"))
         cur.execute("SELECT count(*), max(id) FROM category")
         assert cur.fetchone() == before
         conn.rollback()

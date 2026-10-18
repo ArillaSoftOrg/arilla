@@ -79,6 +79,8 @@ class Decision:
     brand_basis: str
     compatible: tuple[str, ...]
     detail: str | None
+    #: Marka bos kaldiysa nedeni (`brands.NO_KNOWN_BRAND` ...); veritabanina yazilmaz.
+    brand_reason: str | None = None
 
     @property
     def state(self) -> str:
@@ -95,8 +97,21 @@ Verdict = tuple[str | None, str, int, str | None]
 def _against_source(evidence: TitleEvidence, src: SourceVerdict, confidence: int) -> Verdict | None:
     """Baslik kaynakla celisiyorsa inceleme karari; celismiyorsa None (kaynak kurallari surer)."""
     assert src.path is not None
-    if any(_related(p, src.path) for p in evidence.paths):
-        # Baslik kaynak dalini dogruluyor: baska aday ya da isaret olsa da kaynak surer.
+    supported = [c for p, c in evidence.paths.items() if _related(p, src.path)]
+    if supported:
+        # Baslik kaynak dalini dogruluyor: zayif bir yabanci kelime kaynagi bozmaz. Ama yabanci
+        # dal destekten DAHA guclu kanitliyorsa (karar 0139: "fitness stepper ... hydraulic")
+        # baslik kaynagi dogrulamiyor, iki alan arasinda kaliyor: inceleme.
+        strongest_foreign = max(
+            (
+                c
+                for p, c in evidence.paths.items()
+                if c >= CONFLICT_MIN_CONFIDENCE and not _related(p, src.path)
+            ),
+            default=0,
+        )
+        if strongest_foreign > max(supported):
+            return None, "conflict", confidence, "source_title_conflict"
         return None
     foreign = [
         p
@@ -145,7 +160,12 @@ def _category(facts: ProductFacts) -> Verdict:
             if deeper and refined.confidence >= APPLY_MIN_CONFIDENCE - 5:
                 return refined.path, "source_title", max(confidence, refined.confidence), None
             return src.path, "source", confidence, None
-        if deeper or (refined.path == src.path and not _title_device(src.path, evidence)):
+        # Zayif kaynagi dogrulamak icin baslik kanitinin kendisi esigi gecmeli: tek bir genel
+        # kelime ("hydraulic") onaylamaz (karar 0139).
+        confirmed = refined.path is not None and refined.confidence >= APPLY_MIN_CONFIDENCE
+        if confirmed and (
+            deeper or (refined.path == src.path and not _title_device(src.path, evidence))
+        ):
             return refined.path, "source_title", AGREEMENT_CONFIDENCE, None
         broad = evidence.guess
         if broad.path is not None and is_within(src.path, broad.path):
@@ -172,6 +192,7 @@ def decide(facts: ProductFacts) -> Decision:
     path, basis, confidence, detail = _category(facts)
     accessory = path is not None and any(is_within(path, p) for p in ACCESSORY_PREFIXES)
     finding = find_title_brand(facts.title, accessory=accessory, category_known=path is not None)
+    brand_reason: str | None = None
     if facts.kept_brand:
         brand_name, brand_basis = None, "existing"
     else:
@@ -180,6 +201,7 @@ def decide(facts: ProductFacts) -> Decision:
             brand_name, brand_basis = source_brand, "source"
         else:
             brand_name, brand_basis = finding.brand, finding.basis
+            brand_reason = finding.reason
     return Decision(
         category_path=path,
         category_basis=basis,
@@ -188,4 +210,5 @@ def decide(facts: ProductFacts) -> Decision:
         brand_basis=brand_basis,
         compatible=finding.compatible,
         detail=detail,
+        brand_reason=brand_reason,
     )

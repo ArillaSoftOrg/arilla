@@ -20,15 +20,26 @@ from classify.taxonomy import APPLY_MIN_CONFIDENCE, DEVICE_PATHS, RULES, all_pat
 from classify.text import PhraseIndex, path_norm, words
 
 ROOT = Path(__file__).resolve().parents[3]
-MIGRATION = ROOT / "packages" / "db" / "migrations" / "0089_category_taxonomy.sql"
+MIGRATIONS = tuple(
+    ROOT / "packages" / "db" / "migrations" / name
+    for name in ("0089_category_taxonomy.sql", "0091_category_taxonomy_v3.sql")
+)
+NODE = re.compile(r"\('([a-z0-9/-]+)', '([^']+)', (?:TRUE|FALSE)\)")
 REGRESSION = json.loads(
     (Path(__file__).parent / "classify_regression.json").read_text(encoding="utf-8")
 )
 
 
+def _migration_entries() -> list[tuple[str, str]]:
+    return [
+        entry
+        for migration in MIGRATIONS
+        for entry in NODE.findall(migration.read_text(encoding="utf-8"))
+    ]
+
+
 def _migration_paths() -> set[str]:
-    sql = MIGRATION.read_text(encoding="utf-8")
-    return set(re.findall(r"\('([a-z0-9/-]+)', '[^']+', (?:TRUE|FALSE)\)", sql))
+    return {path for path, _ in _migration_entries()}
 
 
 # --- agac ve kural tutarliligi ---------------------------------------------------------
@@ -49,9 +60,9 @@ def test_taxonomy_migration_has_parents_before_children() -> None:
 
 
 def test_taxonomy_has_no_duplicate_paths_or_names_under_one_parent() -> None:
-    sql = MIGRATION.read_text(encoding="utf-8")
-    entries = re.findall(r"\('([a-z0-9/-]+)', '([^']+)', (?:TRUE|FALSE)\)", sql)
+    entries = _migration_entries()
     paths = [p for p, _ in entries]
+    # 0091 ana kategorileri tekrar etmez; 0089'daki tekrar yok (yol benzersiz).
     assert len(paths) == len(set(paths))
     siblings: dict[tuple[str, str], str] = {}
     for path, name in entries:
@@ -313,13 +324,20 @@ def test_confirmed_source_map_keeps_priority_over_cues_but_not_over_strong_confl
 def test_part_source_never_maps_to_the_device_itself() -> None:
     for raw in (
         "Computer & Office > Laptop Parts & Accessories",
-        "Tools > Power Tool Parts & Accessories",
         "Computer & Office > Tablet Accessories & Parts",
         "Home Appliances > Home Appliance Parts",
     ):
         guess = guess_source(raw)
         assert guess.path not in DEVICE_PATHS, raw
         assert guess.path is None or guess.confidence < APPLY_MIN_CONFIDENCE, (raw, guess)
+    # Karar 0139: alet parcasi/aksesuari artik kendi dalina gider; karisik "Tool Parts" zayif kalir.
+    guess = guess_source("Tools > Power Tool Parts & Accessories")
+    # Satici cop kovasi: kaynak zayif, baslik dogrulamadikca yazilmaz (v3 olcumunde %88'de
+    # kahve yazicisi ve motor kaputu "olcu aleti" oluyordu).
+    assert guess.path == "ev-yasam/yapi-market/alet-yedek-parca"
+    assert guess.confidence < APPLY_MIN_CONFIDENCE
+    mixed = guess_source("Tools > Tool Parts")
+    assert mixed.path == "ev-yasam/yapi-market" and mixed.confidence < APPLY_MIN_CONFIDENCE
     # Yalniz "aksesuar" diyen bolum cihazin aksesuar dalina gider.
     guess = guess_source("Consumer Electronics > Camera & Photo > Camera & Photo Accessories")
     assert (guess.path, guess.confidence >= APPLY_MIN_CONFIDENCE) == (

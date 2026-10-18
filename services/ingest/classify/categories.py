@@ -76,6 +76,31 @@ def common_ancestor(paths: Sequence[str]) -> str | None:
     return "/".join(common) or None
 
 
+def _covered(
+    start: int,
+    end: int,
+    length: int,
+    index: int,
+    spans: list[tuple[int, int, int, int]],
+    rules: Sequence[Rule],
+) -> bool:
+    """Daha uzun, bu ifadeyi ICINE alan baska (aday) kuralin ifadesi varsa bu kural eler.
+
+    "stroller organizer" (bebek arabasi aksesuari) icindeki "organizer" (duzenleme) ya da
+    "gaming headset" icindeki "headset" bagimsiz kanit degildir: ozel ifade genelin yerine
+    gecer (karar 0139). Baglam ve alan-isareti kurallari bu elemeye katilmaz.
+    """
+    for s, e, j, n in spans:
+        if j == index or n <= length:
+            continue
+        other = rules[j]
+        if other.context or other.cue:
+            continue
+        if s <= start and end <= e:
+            return True
+    return False
+
+
 class _Matcher:
     def __init__(self, rules: Sequence[Rule]) -> None:
         self.rules = tuple(rules)
@@ -91,23 +116,27 @@ class _Matcher:
     ) -> tuple[list[tuple[Rule, int]], set[str], set[str]]:
         """(kural, en uzun ifade uzunlugu) listesi, baglam yollari ve alan isaretleri."""
         excluded = {i for _, _, i in self._excludes.find(text)}
-        best: dict[int, int] = {}
-        for _, length, i in self._phrases.find(text):
+        best: dict[int, tuple[int, int]] = {}  # kural -> (uzunluk, baslangic) en uzun eslesme
+        for start, length, i in self._phrases.find(text):
             if i in excluded:
                 continue
             rule = self.rules[i]
             if (rule.source_only and not source) or (rule.cue and source):
                 continue
-            best[i] = max(best.get(i, 0), length)
+            if i not in best or length > best[i][0]:
+                best[i] = (length, start)
         context: set[str] = set()
         cues: set[str] = set()
         matched: list[tuple[Rule, int]] = []
-        for i, length in best.items():
+        spans = [(start, start + length, i, length) for i, (length, start) in best.items()]
+        for i, (length, start) in best.items():
             rule = self.rules[i]
             if rule.context:
                 context.update(rule.paths)
             elif rule.cue:
                 cues.update(rule.paths)
+            elif _covered(start, start + length, length, i, spans, self.rules):
+                continue
             else:
                 matched.append((rule, length))
         return matched, context, cues

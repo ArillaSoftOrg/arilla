@@ -9,6 +9,8 @@ python -m classify products --confirm [--merchant aliexpress] [--batch 2000] [--
 python -m classify status
 python -m classify sample   --merchant aliexpress [--n 200] [--seed 1]   # YALNIZCA OKUR, TSV
 python -m classify recheck  [--merchant aliexpress] [--limit N]          # YALNIZCA OKUR, TSV
+python -m classify evaluate --labels dosya.tsv [--split dev|eval|all] [--json cikti.json]
+                            # dosya = `sample` TSV'si (expected_* etiketli); veritabani YOK
 python -m classify lexicon  [--apply]
 
 `report` ve `sources` (`--apply` olmadan) YALNIZCA OKUR: uretimde guvenle olcer, hicbir sey
@@ -159,12 +161,24 @@ def main(argv: list[str] | None = None) -> int:
     p_sample.add_argument("--merchant", default=None)
     p_sample.add_argument("--n", type=int, default=200)
     p_sample.add_argument("--seed", type=int, default=None)
+    p_sample.add_argument(
+        "--per-source",
+        type=int,
+        default=None,
+        help="tabakali: genis bir rastgele havuzdan kaynak kategori basina en fazla K urun",
+    )
+    p_sample.add_argument("--split", choices=("dev", "eval", "all"), default="all")
 
     p_re = sub.add_parser(
         "recheck", help="YALNIZCA OKUR: sahip olunan urunler yeni kurallarla (eski/yeni, TSV)"
     )
     p_re.add_argument("--merchant", default=None)
     p_re.add_argument("--limit", type=int, default=None)
+
+    p_ev = sub.add_parser("evaluate", help="etiketli TSV uzerinde precision/kapsama (DB yok)")
+    p_ev.add_argument("--labels", required=True)
+    p_ev.add_argument("--split", choices=("dev", "eval", "all"), default="all")
+    p_ev.add_argument("--json", default=None)
 
     p_lex = sub.add_parser("lexicon", help="arama/sohbet kategori sozlugu")
     p_lex.add_argument("--apply", action="store_true")
@@ -295,11 +309,41 @@ def main(argv: list[str] | None = None) -> int:
         print(f"sahip olunan {len(checks)}: {actions}", file=sys.stderr)
         return 0
 
+    if args.command == "evaluate":
+        from pathlib import Path
+
+        from classify import evaluate as ev
+
+        rows = ev.read_labels(Path(args.labels))
+        if args.split != "all":
+            rows = [r for r in rows if ev.split_of(r.product_id) == args.split]
+        metrics = ev.score(rows)
+        text = ev.dump(metrics)
+        print(text)
+        if args.json:
+            Path(args.json).write_text(f"{text}\n", encoding="utf-8")
+        if metrics.n_category_labeled == 0:
+            print("UYARI: etiketli kategori yok; precision hesaplanamaz", file=sys.stderr)
+        return 0
+
     if args.command == "sample":
+        from classify import evaluate as ev
+
+        pool = max(1, min(args.n, 5_000))
         with connect() as conn:
             pairs = run_mod.sample_decisions(
-                conn, n=max(1, min(args.n, 5_000)), merchant_slug=args.merchant, seed=args.seed
+                conn,
+                n=pool if args.per_source is None else 5_000,
+                merchant_slug=args.merchant,
+                seed=args.seed,
             )
+        if args.per_source is not None:
+            chosen = ev.stratified_sample(
+                pairs, lambda p: p[0].category_raw or "", args.per_source, args.seed or 0
+            )
+            pairs = chosen[:pool]
+        if args.split != "all":
+            pairs = [p for p in pairs if ev.split_of(str(p[0].product_id)) == args.split]
         # expected_*: etiketleyen kisi doldurur; dogruluk = eslesen / etiketlenen.
         cols = (
             "product_id", "title", "source_category", "category", "category_basis",

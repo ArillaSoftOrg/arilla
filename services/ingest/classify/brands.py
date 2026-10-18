@@ -96,6 +96,9 @@ class KnownBrand:
     device: bool = False
     #: Markayi ima eden model/alt marka adlari ("redmi" -> Xiaomi, "iphone" -> Apple).
     models: tuple[str, ...] = ()
+    #: Yalniz basligin ilk iki kelimesinde marka sayilir (karar 0139): sanayi markalari satici
+    #: basligin basinda yazar ("KEYENCE LV-N11N"), ortada gecerse uyumluluk ya da aciklamadir.
+    lead_only: bool = False
 
 
 def B(
@@ -104,8 +107,9 @@ def B(
     title_ok: bool = False,
     device: bool = False,
     models: tuple[str, ...] = (),
+    lead_only: bool = False,
 ) -> KnownBrand:
-    return KnownBrand(name, (name, *aliases), title_ok, device, models)
+    return KnownBrand(name, (name, *aliases), title_ok, device, models, lead_only)
 
 
 KNOWN_BRANDS: tuple[KnownBrand, ...] = (
@@ -251,6 +255,20 @@ KNOWN_BRANDS: tuple[KnownBrand, ...] = (
     B("Stihl", device=True),
     B("Delonghi", "de longhi", device=True),
     B("Nespresso", device=True),
+    # Sanayi otomasyonu/olcum markalari (karar 0139): yalniz basligin basinda.
+    B("Keyence", title_ok=True, lead_only=True),
+    B("ABB", title_ok=True, lead_only=True),
+    B("IFM", title_ok=True, lead_only=True),
+    B("SMC", title_ok=True, lead_only=True),
+    B("Omron", title_ok=True, lead_only=True),
+    B("Siemens", title_ok=True, lead_only=True),
+    B("Schneider", "schneider electric", title_ok=True, lead_only=True),
+    B("Festo", title_ok=True, lead_only=True),
+    B("Yaskawa", title_ok=True, lead_only=True),
+    B("Autonics", title_ok=True, lead_only=True),
+    B("Mean Well", "meanwell", title_ok=True, lead_only=True),
+    B("Hikvision", title_ok=True, lead_only=True),
+    B("Dahua", title_ok=True, lead_only=True),
     # Taklidi yaygin: yalnizca yapilandirilmis kaynaktan
     B("JBL"),
     B("Bose"),
@@ -362,11 +380,22 @@ _MODEL_WORDS = frozenset(
 MAX_BRAND_POSITION = 8
 
 
+#: Marka bos kalma nedenleri (olculebilir rapor; `BrandFinding.reason`). Veritabanina yazilmaz.
+NO_KNOWN_BRAND = "no_known_brand"  # basliktaki hicbir ad secilmis listede degil
+COMPATIBLE_ONLY = "compatible_only"  # ad var ama uyumluluk ("for Makita")
+COUNTERFEIT_PRONE = "counterfeit_prone"  # taklidi yaygin marka: yalniz yapilandirilmis kaynak
+DEVICE_NEEDS_CATEGORY = "device_needs_category"  # cihaz ureticisi, kategori bilinmiyor
+LATE_POSITION = "late_position"  # ad basligin cok ilerisinde / lead_only disinda
+AMBIGUOUS = "ambiguous"  # birden fazla marka, hangisi urun belli degil
+
+
 @dataclass(frozen=True)
 class BrandFinding:
     brand: str | None
     basis: str  # 'title' | 'none' | 'ambiguous'
     compatible: tuple[str, ...]
+    #: basis != 'title' ise nedeni (yukaridaki sabitler).
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -400,7 +429,7 @@ def find_title_brand(title: str, *, accessory: bool, category_known: bool = True
     text = words(title)
     hits = _INDEX.find(text)
     if not hits:
-        return BrandFinding(None, "none", ())
+        return BrandFinding(None, "none", (), NO_KNOWN_BRAND)
     first_prefix = min((start for start, _, _ in _PREFIX.find(text)), default=None)
     postfix_at = {start for start, _, _ in _POSTFIX.find(text)}
 
@@ -410,6 +439,7 @@ def find_title_brand(title: str, *, accessory: bool, category_known: bool = True
     compatible: list[str] = []
     candidates: dict[str, KnownBrand] = {}
     restricted: set[str] = set()
+    reasons: list[str] = []
     for start, length, mention in hits:
         span = set(range(start, start + length))
         if span & taken:
@@ -430,20 +460,23 @@ def find_title_brand(title: str, *, accessory: bool, category_known: bool = True
             if brand.name not in compatible:
                 compatible.append(brand.name)
             continue
-        if start >= MAX_BRAND_POSITION:
+        if start >= MAX_BRAND_POSITION or (brand.lead_only and start > 1):
+            reasons.append(LATE_POSITION)
             continue
         if brand.title_ok and (category_known or not brand.device):
             candidates[brand.name] = brand
         else:
             restricted.add(brand.name)
+            reasons.append(COUNTERFEIT_PRONE if not brand.title_ok else DEVICE_NEEDS_CATEGORY)
 
     compat_out = tuple(compatible[:8])
     names = set(candidates) | restricted
     if len(names) > 1:
-        return BrandFinding(None, "ambiguous", compat_out)
+        return BrandFinding(None, "ambiguous", compat_out, AMBIGUOUS)
     if len(candidates) == 1:
         return BrandFinding(next(iter(candidates)), "title", compat_out)
-    return BrandFinding(None, "none", compat_out)
+    reason = reasons[0] if reasons else COMPATIBLE_ONLY
+    return BrandFinding(None, "none", compat_out, reason)
 
 
 def clean_source_brand(raw: str | None, *, merchant_name: str | None = None) -> str | None:
