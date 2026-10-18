@@ -1,4 +1,10 @@
-import { getClassificationMonitor, jobLabel, STALL_AFTER_MS } from "@arilla/core";
+import {
+  type ClassificationMonitor,
+  getClassificationMonitor,
+  hasCapability,
+  jobLabel,
+  STALL_AFTER_MS,
+} from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import Link from "next/link";
 import { requireCapability } from "../../../lib/dal.ts";
@@ -6,6 +12,7 @@ import styles from "../../admin.module.css";
 import {
   DataTable,
   EmptyPanel,
+  ErrorNotice,
   KpiCard,
   KpiGroup,
   Notice,
@@ -27,8 +34,23 @@ const PRODUCTS = "/yonetim/katalog/urunler";
  * başlatmaz ya da durdurmaz; komut `services/ingest` tarafındadır.
  */
 export default async function ClassificationMonitorPage() {
-  const { actor } = await requireCapability("catalog.read");
-  const monitor = await getClassificationMonitor(getDatabase(), actor);
+  const { user, actor } = await requireCapability("catalog.read");
+  // Koşu hata özeti işletim kaydıdır: koşu ekranı gibi yalnızca `operations.read` (yönetici).
+  const showErrors = hasCapability(user.role, "operations.read");
+  let monitor: ClassificationMonitor;
+  try {
+    monitor = await getClassificationMonitor(getDatabase(), actor);
+  } catch {
+    return (
+      <div className={styles.page}>
+        <PageHeader title="Sınıflandırma izleme" actions={<Link href={PRODUCTS}>Ürünler</Link>} />
+        <ErrorNotice>
+          Sınıflandırma kayıtları zaman sınırında okunamadı (veritabanı yoğun olabilir). Biraz sonra
+          yeniden deneyin.
+        </ErrorNotice>
+      </div>
+    );
+  }
   const { current } = monitor;
   const status = RUN_STATUS_BADGES[monitor.status];
   const lastRun = monitor.runs[0] ?? null;
@@ -257,7 +279,16 @@ export default async function ClassificationMonitorPage() {
                   ? formatDuration(row.finishedAt.getTime() - row.startedAt.getTime())
                   : "sürüyor",
             },
-            { key: "err", header: "Hata özeti", cell: (row) => row.errorSummary ?? "—" },
+            {
+              key: "err",
+              header: "Hata özeti",
+              cell: (row) =>
+                showErrors
+                  ? (row.errorSummary ?? "—")
+                  : row.errorSummary
+                    ? "Yönetici görebilir"
+                    : "—",
+            },
           ]}
         />
       </Panel>
