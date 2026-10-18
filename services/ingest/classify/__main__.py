@@ -4,8 +4,9 @@ python -m classify report   [--merchant aliexpress] [--batch 2000] [--max-batche
 python -m classify sources  --merchant aliexpress [--apply] [--top 40]
 python -m classify products --confirm [--merchant aliexpress] [--batch 2000] [--max-batches N]
                             [--max-seconds S]
-                            [--sleep-ms MS] [--rescan] [--max-archive-lag-gb 2]
+                            [--sleep-ms MS] [--rescan] [--wal-target-mb 1024 ...]
 python -m classify status
+python -m classify sample   --merchant aliexpress [--n 200] [--seed 1]   # YALNIZCA OKUR, TSV
 python -m classify lexicon  [--apply]
 
 `report` ve `sources` (`--apply` olmadan) YALNIZCA OKUR: uretimde guvenle olcer, hicbir sey
@@ -26,7 +27,7 @@ import psycopg
 from classify import lexicon as lexicon_mod
 from classify import run as run_mod
 from classify.taxonomy import APPLY_MIN_CONFIDENCE, RULE_VERSION
-from db import job_run
+from db import job_run, wal_pressure
 from db.connection import connect
 
 _stop = False
@@ -40,6 +41,19 @@ def _request_stop(_signum: int, _frame: object) -> None:
 
 def _should_stop() -> bool:
     return _stop
+
+
+#: WAL geri basinci nedeniyle durdu (karar 0134; `catalog_build` ile ayni kod): cokme degil,
+#: arsiv yetisince ayni komut kaldigi yerden surer.
+EXIT_WAL_BACKPRESSURE = 3
+#: Guvenlik kontrolu (catalog_build calisiyor, zaten calisiyor, kilit zaman asimi) ile durdu.
+EXIT_ABORTED = 4
+
+TSV_SEP = "\t"
+
+
+def _tsv_cell(value: object) -> str:
+    return str(value).replace("\t", " ").replace("\r", " ").replace("\n", " ")
 
 
 def _progress(c: run_mod.Counts) -> None:
@@ -110,9 +124,24 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--max-seconds", type=float, default=None)
     p_run.add_argument("--sleep-ms", type=int, default=200)
     p_run.add_argument("--rescan", action="store_true")
-    p_run.add_argument("--max-archive-lag-gb", type=float, default=2.0)
+    wal = p_run.add_argument_group("WAL geri basinci (karar 0134; catalog_build ile ayni)")
+    wal.add_argument(
+        "--wal-target-mb", type=int, default=1024, help="bu gecikmenin ustunde yavasla"
+    )
+    wal.add_argument("--wal-pause-mb", type=int, default=1536, help="bu gecikmede parti baslatma")
+    wal.add_argument("--wal-resume-mb", type=int, default=512, help="duraklamadan bu gecikmede cik")
+    wal.add_argument("--wal-max-sleep-s", type=float, default=30.0, help="parti arasi en uzun uyku")
+    wal.add_argument("--wal-max-pause-s", type=float, default=3600.0, help="en uzun duraklama")
+    wal.add_argument(
+        "--wal-failing-grace-s", type=float, default=900.0, help="arsiv hatasi toleransi"
+    )
 
     sub.add_parser("status")
+
+    p_sample = sub.add_parser("sample", help="YALNIZCA OKUR: rastgele urun + karar (etiketleme)")
+    p_sample.add_argument("--merchant", default=None)
+    p_sample.add_argument("--n", type=int, default=200)
+    p_sample.add_argument("--seed", type=int, default=None)
 
     p_lex = sub.add_parser("lexicon", help="arama/sohbet kategori sozlugu")
     p_lex.add_argument("--apply", action="store_true")
@@ -164,6 +193,18 @@ def main(argv: list[str] | None = None) -> int:
             print("yazmak icin --confirm gerekli; olcum icin `report`", file=sys.stderr)
             return 2
         with job_run.track("classify_products") as run, connect() as conn:
+            gov = wal_pressure.WalGovernor.for_connection(
+                conn,
+                wal_pressure.policy_from_mb(
+                    target_mb=args.wal_target_mb,
+                    pause_mb=args.wal_pause_mb,
+                    resume_mb=args.wal_resume_mb,
+                    max_sleep_s=args.wal_max_sleep_s,
+                    max_pause_s=args.wal_max_pause_s,
+                    failing_grace_s=args.wal_failing_grace_s,
+                ),
+                should_stop=_should_stop,
+            )
             try:
                 counts = run_mod.classify_products(
                     conn,
@@ -173,7 +214,7 @@ def main(argv: list[str] | None = None) -> int:
                     sleep_seconds=args.sleep_ms / 1000,
                     rescan=args.rescan,
                     merchant_slug=args.merchant,
-                    max_archive_lag=int(args.max_archive_lag_gb * (1 << 30)),
+                    throttle=gov.before_batch,
                     should_stop=_should_stop,
                     on_batch=_progress,
                 )
@@ -181,7 +222,7 @@ def main(argv: list[str] | None = None) -> int:
                 run.status = "failed"
                 run.error_summary = error.code
                 print(f"durdu: {error}", file=sys.stderr)
-                return 3
+                return EXIT_ABORTED
             run.detail.update(
                 rule_version=RULE_VERSION,
                 scanned=counts.scanned,
@@ -192,9 +233,37 @@ def main(argv: list[str] | None = None) -> int:
                 last_product_id=counts.last_product_id,
                 completed=counts.completed,
             )
+            run.detail.update(gov.stats.as_detail())
             if counts.errors:
                 run.status = "partial"
+            if gov.stopped_reason is not None:
+                run.status = "partial"
+                run.error_summary = f"WAL geri basinci: {gov.stopped_reason}"
         _summary(counts, dry_run=False)
+        if gov.stopped_reason is not None:
+            print(f"WAL geri basinci nedeniyle durdu: {gov.stopped_reason}", file=sys.stderr)
+            return EXIT_WAL_BACKPRESSURE
+        return 0
+
+    if args.command == "sample":
+        with connect() as conn:
+            pairs = run_mod.sample_decisions(
+                conn, n=max(1, min(args.n, 5_000)), merchant_slug=args.merchant, seed=args.seed
+            )
+        # expected_*: etiketleyen kisi doldurur; dogruluk = eslesen / etiketlenen.
+        cols = (
+            "product_id", "title", "source_category", "category", "category_basis",
+            "confidence", "brand", "brand_basis", "compatible", "expected_category",
+            "expected_brand",
+        )  # fmt: skip
+        print(TSV_SEP.join(cols))
+        for row, d in pairs:
+            cells = (
+                row.product_id, row.title, row.category_raw or "", d.category_path or "",
+                d.category_basis, d.confidence, d.brand_name or "", d.brand_basis,
+                ",".join(d.compatible), "", "",
+            )  # fmt: skip
+            print(TSV_SEP.join(_tsv_cell(c) for c in cells))
         return 0
 
     if args.command == "status":

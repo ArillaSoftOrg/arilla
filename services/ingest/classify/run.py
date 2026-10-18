@@ -21,6 +21,7 @@ kullanir, bu isin tuttugu satiri atlardi.
 from __future__ import annotations
 
 import logging
+import random
 import time
 from collections import Counter
 from collections.abc import Callable
@@ -33,7 +34,6 @@ from classify.categories import guess_source
 from classify.decide import Decision, ProductFacts, SourceVerdict, decide
 from classify.taxonomy import RULE_VERSION
 from classify.text import path_norm
-from feeds.sync import ARCHIVE_LAG
 from resolve.products import slugify
 
 logger = logging.getLogger(__name__)
@@ -41,12 +41,12 @@ logger = logging.getLogger(__name__)
 DEFAULT_BATCH = 2_000
 MAX_BATCH = 10_000
 LOCK_KEY = 4_133_001
-#: Arsivlenmemis WAL bu esigi asarsa parti arasi beklenir (pgBackRest kuyrugu sinirli).
-DEFAULT_MAX_ARCHIVE_LAG = 2 << 30
-ARCHIVE_POLL_SECONDS = 15.0
-MAX_ARCHIVE_WAIT_SECONDS = 1_800.0
+#: Kilit zaman asiminda parti geri alinir ve bu kadar kez (artan beklemeyle) yeniden denenir;
+#: ard arda asilirsa is durur (kontrol noktasi korunur, ayni komut surer).
+LOCK_RETRIES = 3
+LOCK_RETRY_SLEEP_SECONDS = 5.0
 
-SELECT_BATCH = """
+_SELECT_ROWS = """
 SELECT p.id, p.title, p.brand_id, p.category_id,
        COALESCE(so.merchant_id, lo.merchant_id), COALESCE(so.brand_raw, lo.brand_raw),
        COALESCE(so.category_raw, lo.category_raw),
@@ -60,11 +60,27 @@ SELECT p.id, p.title, p.brand_id, p.category_id,
          ORDER BY o.id
          LIMIT 1) lo ON TRUE
   LEFT JOIN product_classification pc ON pc.product_id = p.id
+"""
+
+SELECT_BATCH = (
+    _SELECT_ROWS
+    + """
  WHERE p.id > %(after)s
    AND (%(merchant_id)s::bigint IS NULL OR p.source_merchant_id = %(merchant_id)s)
  ORDER BY p.id
  LIMIT %(limit)s
 """
+)
+
+#: Orneklem: rastgele kimlikler birincil anahtarla okunur (tam tarama yok).
+SELECT_SAMPLE = (
+    _SELECT_ROWS
+    + """
+ WHERE p.id = ANY(%(ids)s::bigint[])
+   AND (%(merchant_id)s::bigint IS NULL OR p.source_merchant_id = %(merchant_id)s)
+ ORDER BY p.id
+"""
+)
 
 UPDATE_PRODUCTS = """
 UPDATE product p SET brand_id = t.nb, category_id = t.nc, updated_at = now()
@@ -173,6 +189,8 @@ class Counts:
     batches: int = 0
     last_product_id: int = 0
     completed: bool = False
+    #: Is neden erken durdu: 'wal' (geri basinc). None = tamamlandi ya da sinir/istek.
+    stopped_reason: str | None = None
     brand_basis: Counter[str] = field(default_factory=Counter)
     category_basis: Counter[str] = field(default_factory=Counter)
     #: Inceleme bekleyen kaynak yollari (rapor; en cok urunlu once).
@@ -281,7 +299,10 @@ class Catalog:
 def _read(conn: psycopg.Connection, after: int, limit: int, merchant_id: int | None) -> list[_Row]:
     with conn.cursor() as cur:
         cur.execute(SELECT_BATCH, {"after": after, "limit": limit, "merchant_id": merchant_id})
-        rows = cur.fetchall()
+        return _rows(cur.fetchall())
+
+
+def _rows(rows: list[tuple]) -> list[_Row]:
     return [
         _Row(
             product_id=int(r[0]),
@@ -509,26 +530,6 @@ def _process_batch(
     return counts
 
 
-def _archive_lag(conn: psycopg.Connection) -> int | None:
-    with conn.cursor() as cur:
-        cur.execute(ARCHIVE_LAG)
-        row = cur.fetchone()
-    return int(row[0]) if row and row[0] is not None else None
-
-
-def _wait_for_archive(
-    conn: psycopg.Connection, max_lag: int, sleep: Callable[[float], None]
-) -> None:
-    waited = 0.0
-    while (lag := _archive_lag(conn)) is not None and lag > max_lag:
-        conn.commit()
-        if waited >= MAX_ARCHIVE_WAIT_SECONDS:
-            raise ClassifyAborted("archive_lag", f"arsivlenmemis WAL {lag} bayt")
-        sleep(ARCHIVE_POLL_SECONDS)
-        waited += ARCHIVE_POLL_SECONDS
-    conn.commit()
-
-
 def classify_products(
     conn: psycopg.Connection,
     *,
@@ -541,8 +542,8 @@ def classify_products(
     after_id: int | None = None,
     merchant_slug: str | None = None,
     allow_concurrent_catalog_build: bool = False,
-    max_archive_lag: int = DEFAULT_MAX_ARCHIVE_LAG,
     lock_timeout_ms: int = 3_000,
+    throttle: Callable[[], bool] | None = None,
     should_stop: Callable[[], bool] = lambda: False,
     on_batch: Callable[[Counts], None] | None = None,
     sleep: Callable[[float], None] = time.sleep,
@@ -551,6 +552,10 @@ def classify_products(
 
     `merchant_slug`: yalnizca o kaynagin urunleri (`product.source_merchant_id`); kendi
     kontrol noktasi (`scope = 'merchant:<slug>'`) vardir, tum katalog noktasini ilerletmez.
+
+    `throttle`: WAL geri basinci (karar 0134, `db.wal_pressure.WalGovernor.before_batch`).
+    Her yazan partiden ONCE, acik islem yokken cagrilir; False donerse is durur
+    (`stopped_reason = "wal"`), tamamlanan partiler ve kontrol noktasi kalir.
     """
     batch_size = max(1, min(batch_size, MAX_BATCH))
     merchant_id: int | None = None
@@ -594,11 +599,15 @@ def classify_products(
     totals.last_product_id = after
     catalog = Catalog(conn)
     conn.commit()
+    lock_failures = 0
     try:
         while not should_stop():
             if max_batches is not None and totals.batches >= max_batches:
                 break
             if max_seconds is not None and time.monotonic() - started >= max_seconds:
+                break
+            if not dry_run and throttle is not None and not throttle():
+                totals.stopped_reason = "wal"
                 break
             if not dry_run:
                 with conn.cursor() as cur:
@@ -607,7 +616,22 @@ def classify_products(
             rows = _read(conn, after, batch_size, merchant_id)
             done = len(rows) < batch_size
             last = rows[-1].product_id if rows else after
-            batch = _process_batch(conn, catalog, rows, dry_run=dry_run)
+            try:
+                batch = _process_batch(conn, catalog, rows, dry_run=dry_run)
+            except psycopg.errors.LockNotAvailable:
+                # Baska yazar (or. fiyat ozeti yenileme) ayni urunu tutuyor: parti tamamen geri
+                # alinir, kontrol noktasi ilerlemez; ayni parti biraz sonra yeniden denenir.
+                conn.rollback()
+                # Geri alinan partide acilan marka/esleme satirlari artik yok: onbellek yeniden.
+                catalog = Catalog(conn)
+                conn.commit()
+                lock_failures += 1
+                if lock_failures > LOCK_RETRIES:
+                    raise
+                logger.warning("kilit zaman asimi, parti yeniden denenecek (%d)", lock_failures)
+                sleep(LOCK_RETRY_SLEEP_SECONDS * lock_failures)
+                continue
+            lock_failures = 0
             if dry_run:
                 conn.rollback()
             else:
@@ -642,8 +666,6 @@ def classify_products(
             if done:
                 totals.completed = True
                 break
-            if not dry_run:
-                _wait_for_archive(conn, max_archive_lag, sleep)
             if sleep_seconds:
                 sleep(sleep_seconds)
     except psycopg.errors.LockNotAvailable as error:
@@ -660,6 +682,51 @@ def classify_products(
             except psycopg.Error:  # pragma: no cover
                 pass
     return totals
+
+
+def sample_decisions(
+    conn: psycopg.Connection,
+    *,
+    n: int,
+    merchant_slug: str | None = None,
+    seed: int | None = None,
+    max_rounds: int = 20,
+) -> list[tuple[_Row, Decision]]:
+    """YALNIZCA OKUR: rastgele `n` urun ve siniflandiricinin karari (insan etiketlemesi icin).
+
+    Kimlikler [min, max] araligindan secilir ve birincil anahtarla okunur; magaza filtresi
+    sonradan uygulanir (eksik kalirsa yeni tur). Hicbir sey yazilmaz; islem geri alinir.
+    """
+    rng = random.Random(seed)
+    merchant_id: int | None = None
+    if merchant_slug is not None:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM merchant WHERE slug = %s", (merchant_slug,))
+            found = cur.fetchone()
+        if found is None:
+            raise ClassifyAborted("merchant_missing", merchant_slug)
+        merchant_id = int(found[0])
+    with conn.cursor() as cur:
+        cur.execute("SELECT min(id), max(id) FROM product")
+        lo, hi = cur.fetchone()  # type: ignore[misc]
+    if lo is None:
+        conn.rollback()
+        return []
+    catalog = Catalog(conn)
+    picked: dict[int, _Row] = {}
+    for _ in range(max_rounds):
+        if len(picked) >= n:
+            break
+        ids = list({rng.randint(int(lo), int(hi)) for _ in range(max(n * 4, 50))})
+        with conn.cursor() as cur:
+            cur.execute(SELECT_SAMPLE, {"ids": ids, "merchant_id": merchant_id})
+            for row in _rows(cur.fetchall()):
+                if len(picked) < n:
+                    picked.setdefault(row.product_id, row)
+    out = [(row, decide(facts_for(row, catalog))) for row in picked.values()]
+    catalog.pending_sources.clear()
+    conn.rollback()
+    return sorted(out, key=lambda item: item[0].product_id)
 
 
 def source_coverage(
