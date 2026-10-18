@@ -12,6 +12,18 @@ import { type SQL, sql } from "drizzle-orm";
 import { foldedTitleExpr } from "../search/text-match.ts";
 import { clampPage, clampPageSize, containsPattern, isPositiveId, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import {
+  CONFIDENCE_HIGH_MIN,
+  CONFIDENCE_MEDIUM_MIN,
+  FRESHNESS_DAYS,
+  type ProductBrandFilter,
+  type ProductClassificationFilter,
+  type ProductConfidenceFilter,
+  type ProductFreshnessFilter,
+  type ProductImageFilter,
+  type ProductPriceFilter,
+  UNASSIGNED,
+} from "./catalog-filters.ts";
 import { OFFER_SEEN_AT, offerNotSeenSince } from "./offer-seen.ts";
 import { httpUrl, safeUrl } from "./redact.ts";
 
@@ -75,6 +87,31 @@ export interface ProductListRow {
   /** Para birimi başına en düşük TRY dışı fiyat (kendi küçük biriminde); TL'ye çevrilmez. */
   foreignPrices: CatalogForeignPrice[];
   priceUpdatedAt: Date | null;
+  publicationState: ProductPublicationState;
+  holdReason: string | null;
+  /** Kaynak ilanın mağazası (karar 0121); eşleştirmeyle oluşan üründe yok. */
+  sourceMerchant: { slug: string; name: string } | null;
+  /** Sınıflandırma kanıtı (karar 0133); iş bu ürüne gelmediyse `null`. */
+  classification: ProductClassificationSummary | null;
+}
+
+export type ProductPublicationState = "draft" | "ready" | "held" | "published";
+
+export interface ProductClassificationSummary {
+  state: "applied" | "review" | "error";
+  /** Kategori kararının güveni (0–100); ≥ 80 ürüne yazılır. */
+  confidence: number;
+  brandBasis: string;
+  categoryBasis: string;
+  wroteBrand: boolean;
+  wroteCategory: boolean;
+  ruleVersion: number;
+}
+
+/** Liste satırının teklif mağazaları (aktif teklif; sayfa satırları için tek ek sorgu). */
+export interface ProductListMerchant {
+  slug: string;
+  name: string;
 }
 
 export interface CatalogForeignPrice {
@@ -122,7 +159,36 @@ export interface ProductSearchFilter {
   query?: string;
   quality?: ProductQualityFilter;
   issue?: ProductIssueFilter;
+  /** Aktif teklifi olan mağaza (slug; `offer_merchant_state_idx`). */
+  merchant?: string;
+  brand?: ProductBrandFilter;
+  /** Kategori yolu (alt dallar dahil) ya da `none`. */
+  category?: string;
+  classification?: ProductClassificationFilter;
+  confidence?: ProductConfidenceFilter;
+  price?: ProductPriceFilter;
+  image?: ProductImageFilter;
+  freshness?: ProductFreshnessFilter;
+  /** Anahtar kümeli imleç: `p.id < before` (sonraki sayfa). */
+  before?: number;
+  /** Anahtar kümeli imleç: `p.id > after` (önceki sayfa). */
+  after?: number;
+  /** Eski ofset sayfalaması (imleç yoksa). */
   page?: number;
+}
+
+export interface ProductSearchResult {
+  rows: ProductListRow[];
+  /** Sayfa satırlarının aktif teklif mağazaları (ürün başına en çok 3, ada göre). */
+  merchants: Map<number, ProductListMerchant[]>;
+  hasNext: boolean;
+  /** Bu sayfadan önce satır olabilir mi (imleçle gelindiyse ya da ofset > 0). */
+  hasPrev: boolean;
+  /** Sonraki sayfa imleci (`before`); yoksa `null`. */
+  nextBefore: number | null;
+  /** Önceki sayfa imleci (`after`); yoksa `null`. */
+  prevAfter: number | null;
+  page: number;
 }
 
 export const CATALOG_PAGE_SIZE = 50;
@@ -140,7 +206,35 @@ type ProductRow = {
   in_stock_count: number;
   foreign_offer_count: number;
   price_updated_at: string | null;
+  publication_state: ProductPublicationState;
+  hold_reason: string | null;
+  source_merchant_slug: string | null;
+  source_merchant_name: string | null;
+  pc_state: "applied" | "review" | "error" | null;
+  pc_confidence: number | null;
+  pc_brand_basis: string | null;
+  pc_category_basis: string | null;
+  pc_wrote_brand: boolean | null;
+  pc_wrote_category: boolean | null;
+  pc_rule_version: number | null;
 };
+
+/** Liste ve ayrıntı satırının ortak kolonları (`p`, `b`, `c`, `sm`, `pc` takma adlarıyla). */
+const PRODUCT_ROW_COLUMNS = sql`
+  p.id, p.slug, p.title, b.name AS brand_name, c.path AS category_path,
+  p.primary_image_url, p.gtin, p.min_price, p.offer_count, p.in_stock_count,
+  p.foreign_offer_count, p.price_updated_at, p.publication_state, p.hold_reason,
+  sm.slug AS source_merchant_slug, sm.name AS source_merchant_name,
+  pc.state AS pc_state, pc.confidence AS pc_confidence, pc.brand_basis AS pc_brand_basis,
+  pc.category_basis AS pc_category_basis, pc.wrote_brand AS pc_wrote_brand,
+  pc.wrote_category AS pc_wrote_category, pc.rule_version AS pc_rule_version`;
+
+/** Birincil anahtar birleştirmeleri: sayfa başına en çok 51 satır için ucuz. */
+const PRODUCT_ROW_JOINS = sql`
+  LEFT JOIN brand b ON b.id = p.brand_id
+  LEFT JOIN category c ON c.id = p.category_id
+  LEFT JOIN merchant sm ON sm.id = p.source_merchant_id
+  LEFT JOIN product_classification pc ON pc.product_id = p.id`;
 
 /**
  * Verilen ürünlerin para birimi başına en düşük TRY dışı fiyatı. Özetle aynı kural
@@ -190,13 +284,55 @@ function queryCondition(query: string | undefined): SQL | null {
   return sql`(p.slug = ${q} OR ${foldedTitleExpr(sql`p.title`)} LIKE ${foldedTitleExpr(sql`${pattern}`)})`;
 }
 
-export async function searchProducts(
-  db: Database,
-  actor: AdminActor,
-  filter: ProductSearchFilter = {},
-): Promise<{ rows: ProductListRow[]; hasNext: boolean; page: number }> {
-  assertCapability(actor, "catalog.read");
-  const page = clampPage(filter.page);
+function brandCondition(brand: ProductBrandFilter): SQL {
+  if (brand === UNASSIGNED) return sql`p.brand_id IS NULL`;
+  if (typeof brand === "number") return sql`p.brand_id = ${brand}`;
+  // Ad ya da slug, birebir (büyük/küçük harf duyarsız). Marka tablosu küçük; tarama ucuz.
+  const name = brand.name.trim().slice(0, 80);
+  return sql`p.brand_id IN (SELECT bf.id FROM brand bf
+                              WHERE bf.slug = ${name} OR lower(bf.name) = lower(${name}))`;
+}
+
+function categoryCondition(category: string): SQL {
+  if (category === UNASSIGNED) return sql`p.category_id IS NULL`;
+  // Yol `[a-z0-9-/]` ile doğrulandı (LIKE jokeri içermez); `category_path_idx` önek araması.
+  return sql`p.category_id IN (SELECT cf.id FROM category cf
+                                 WHERE cf.path = ${category} OR cf.path LIKE ${`${category}/%`})`;
+}
+
+const CLASSIFICATION_SQL: Record<ProductClassificationFilter, SQL> = {
+  applied: sql`pc.state = 'applied'`,
+  auto_written: sql`(pc.wrote_brand OR pc.wrote_category)`,
+  // `product_classification_open_idx` (state, product_id) WHERE state <> 'applied'.
+  review: sql`pc.state = 'review'`,
+  error: sql`pc.state = 'error'`,
+  unscanned: sql`pc.product_id IS NULL`,
+};
+
+function confidenceCondition(confidence: ProductConfidenceFilter): SQL {
+  if (confidence === "high") return sql`pc.confidence >= ${CONFIDENCE_HIGH_MIN}`;
+  if (confidence === "medium") {
+    return sql`(pc.confidence >= ${CONFIDENCE_MEDIUM_MIN} AND pc.confidence < ${CONFIDENCE_HIGH_MIN})`;
+  }
+  return sql`pc.confidence < ${CONFIDENCE_MEDIUM_MIN}`;
+}
+
+function priceCondition(price: ProductPriceFilter): SQL {
+  if (price === "try") return sql`p.min_price IS NOT NULL`;
+  return price === "foreign_only" ? QUALITY_SQL.foreign_only : QUALITY_SQL.no_price;
+}
+
+function imageCondition(image: ProductImageFilter): SQL {
+  return image === "with" ? sql`p.primary_image_url IS NOT NULL` : QUALITY_SQL.no_image;
+}
+
+function freshnessCondition(freshness: ProductFreshnessFilter): SQL {
+  if (freshness === "stale") return QUALITY_SQL.stale_price;
+  return sql`p.price_updated_at >= now() - (${FRESHNESS_DAYS[freshness]} * interval '1 day')`;
+}
+
+/** Süzgeç → WHERE koşulları (hepsi AND ile birleşir). */
+function productConditions(filter: ProductSearchFilter): SQL[] {
   const conditions: SQL[] = [sql`true`];
   const state = isProductStateFilter(filter.state) ? filter.state : "published";
   if (state !== "all") conditions.push(sql`p.publication_state = ${state}`);
@@ -204,27 +340,117 @@ export async function searchProducts(
   if (q) conditions.push(q);
   if (isProductQualityFilter(filter.quality)) conditions.push(QUALITY_SQL[filter.quality]);
   if (isProductIssueFilter(filter.issue)) conditions.push(ISSUE_SQL[filter.issue]);
+  if (filter.merchant) {
+    // `offer_merchant_state_idx` (merchant_id, is_active, product_id): yalnız indeks taraması.
+    conditions.push(sql`p.id IN (SELECT mo.product_id FROM offer mo
+                                  WHERE mo.merchant_id = (SELECT mf.id FROM merchant mf
+                                                           WHERE mf.slug = ${filter.merchant})
+                                    AND mo.is_active AND mo.product_id IS NOT NULL)`);
+  }
+  if (filter.brand !== undefined) conditions.push(brandCondition(filter.brand));
+  if (filter.category) conditions.push(categoryCondition(filter.category));
+  if (filter.classification) conditions.push(CLASSIFICATION_SQL[filter.classification]);
+  if (filter.confidence) conditions.push(confidenceCondition(filter.confidence));
+  if (filter.price) conditions.push(priceCondition(filter.price));
+  if (filter.image) conditions.push(imageCondition(filter.image));
+  if (filter.freshness) conditions.push(freshnessCondition(filter.freshness));
+  return conditions;
+}
+
+/** Sayfa satırlarının aktif teklif mağazaları (ürün başına en çok 3). */
+async function pageMerchants(
+  tx: Pick<Database, "execute">,
+  productIds: number[],
+): Promise<Map<number, ProductListMerchant[]>> {
+  const byProduct = new Map<number, ProductListMerchant[]>();
+  if (productIds.length === 0) return byProduct;
+  const result = await tx.execute<{ product_id: string; slug: string; name: string }>(sql`
+    SELECT DISTINCT o.product_id, m.slug, m.name
+      FROM offer o JOIN merchant m ON m.id = o.merchant_id
+     WHERE o.product_id = ANY(${sql.param(productIds)}::bigint[]) AND o.is_active
+     ORDER BY o.product_id, m.name
+  `);
+  for (const row of result.rows) {
+    const id = Number(row.product_id);
+    const list = byProduct.get(id) ?? [];
+    if (list.length < 3) list.push({ slug: row.slug, name: row.name });
+    byProduct.set(id, list);
+  }
+  return byProduct;
+}
+
+/**
+ * Ürün listesi: en yeni önce (`p.id DESC`), sunucu tarafı süzgeç ve sayfalama.
+ * Toplam sayım ÇALIŞTIRILMAZ (2,7 M satırda her sayfada COUNT pahalıdır);
+ * `LIMIT n+1` ile yalnızca sonraki sayfanın varlığı bilinir. Sayfalama anahtar
+ * kümelidir (`before`/`after`): derin sayfada ofset taraması yok.
+ */
+export async function searchProducts(
+  db: Database,
+  actor: AdminActor,
+  filter: ProductSearchFilter = {},
+): Promise<ProductSearchResult> {
+  assertCapability(actor, "catalog.read");
+  const before = isPositiveId(filter.before) ? filter.before : undefined;
+  const after = before === undefined && isPositiveId(filter.after) ? filter.after : undefined;
+  const page = before === undefined && after === undefined ? clampPage(filter.page) : 1;
+  const conditions = productConditions(filter);
+  if (before !== undefined) conditions.push(sql`p.id < ${before}`);
+  if (after !== undefined) conditions.push(sql`p.id > ${after}`);
+  // Önceki sayfa: artan sırayla okunur, sonra ters çevrilir (yine indeks sırası).
+  const order = after !== undefined ? sql`p.id ASC` : sql`p.id DESC`;
+  const offset = (page - 1) * CATALOG_PAGE_SIZE;
+
+  // Sınıflandırma tablosu süzgeçte yalnızca o filtre seçiliyse birleşir.
+  const classificationJoin =
+    filter.classification || filter.confidence
+      ? sql`LEFT JOIN product_classification pc ON pc.product_id = p.id`
+      : sql``;
 
   const rows = await readOnly(db, 5_000, async (tx) => {
+    // İki aşama: önce yalnızca `product` üzerinde süz ve sayfanın kimliklerini al;
+    // görüntü birleştirmeleri yalnızca bu en çok 51 satıra uygulanır (geniş bir
+    // başlık eşleşmesinde 200 bin satırın her birine değil).
     const result = await tx.execute<ProductRow>(sql`
-      SELECT p.id, p.slug, p.title, b.name AS brand_name, c.path AS category_path,
-             p.primary_image_url, p.gtin, p.min_price, p.offer_count, p.in_stock_count,
-             p.foreign_offer_count, p.price_updated_at
-        FROM product p
-        LEFT JOIN brand b ON b.id = p.brand_id
-        LEFT JOIN category c ON c.id = p.category_id
-       WHERE ${sql.join(conditions, sql` AND `)}
-       ORDER BY p.id DESC
-       LIMIT ${CATALOG_PAGE_SIZE + 1} OFFSET ${(page - 1) * CATALOG_PAGE_SIZE}
+      WITH page AS (
+        SELECT p.id
+          FROM product p
+          ${classificationJoin}
+         WHERE ${sql.join(conditions, sql` AND `)}
+         ORDER BY ${order}
+         LIMIT ${CATALOG_PAGE_SIZE + 1} OFFSET ${offset}
+      )
+      SELECT ${PRODUCT_ROW_COLUMNS}
+        FROM page JOIN product p ON p.id = page.id
+        ${PRODUCT_ROW_JOINS}
+       ORDER BY ${order}
     `);
-    const pageRows = result.rows.slice(0, CATALOG_PAGE_SIZE);
+    const more = result.rows.length > CATALOG_PAGE_SIZE;
+    const sliced = result.rows.slice(0, CATALOG_PAGE_SIZE);
+    const pageRows = after !== undefined ? sliced.reverse() : sliced;
     const foreign = await foreignPriceSummaries(tx, foreignIds(pageRows));
-    return { all: result.rows, pageRows, foreign };
+    const merchants = await pageMerchants(
+      tx,
+      pageRows.map((row) => Number(row.id)),
+    );
+    return { more, pageRows, foreign, merchants };
   });
 
+  const list = rows.pageRows.map((row) =>
+    toProductRow(row, rows.foreign.get(Number(row.id)) ?? []),
+  );
+  const first = list[0]?.id ?? null;
+  const last = list.at(-1)?.id ?? null;
+  // `after` ile gelindiyse sonrası vardır (oradan gelindi); fazlalık satır öncesini gösterir.
+  const hasNext = after !== undefined ? last !== null : rows.more;
+  const hasPrev = after !== undefined ? rows.more : before !== undefined || page > 1;
   return {
-    rows: rows.pageRows.map((row) => toProductRow(row, rows.foreign.get(Number(row.id)) ?? [])),
-    hasNext: rows.all.length > CATALOG_PAGE_SIZE,
+    rows: list,
+    merchants: rows.merchants,
+    hasNext,
+    hasPrev,
+    nextBefore: hasNext ? last : null,
+    prevAfter: hasPrev ? first : null,
     page,
   };
 }
@@ -244,6 +470,23 @@ function toProductRow(row: ProductRow, foreignPrices: CatalogForeignPrice[]): Pr
     foreignOfferCount: row.foreign_offer_count,
     foreignPrices,
     priceUpdatedAt: row.price_updated_at ? new Date(row.price_updated_at) : null,
+    publicationState: row.publication_state,
+    holdReason: row.hold_reason,
+    sourceMerchant:
+      row.source_merchant_slug && row.source_merchant_name
+        ? { slug: row.source_merchant_slug, name: row.source_merchant_name }
+        : null,
+    classification: row.pc_state
+      ? {
+          state: row.pc_state,
+          confidence: Number(row.pc_confidence ?? 0),
+          brandBasis: row.pc_brand_basis ?? "none",
+          categoryBasis: row.pc_category_basis ?? "none",
+          wroteBrand: Boolean(row.pc_wrote_brand),
+          wroteCategory: Boolean(row.pc_wrote_category),
+          ruleVersion: Number(row.pc_rule_version ?? 0),
+        }
+      : null,
   };
 }
 
@@ -434,13 +677,10 @@ export async function getProductDetail(
         is_discoverable: boolean | null;
       }
     >(sql`
-      SELECT p.id, p.slug, p.title, b.name AS brand_name, c.path AS category_path,
-             p.primary_image_url, p.gtin, p.min_price, p.offer_count, p.in_stock_count,
-             p.foreign_offer_count, p.price_updated_at, p.public_id, p.mpn, p.model_key, p.color, p.attributes,
+      SELECT ${PRODUCT_ROW_COLUMNS}, p.public_id, p.mpn, p.model_key, p.color, p.attributes,
              p.max_price, p.created_at, p.updated_at, c.is_discoverable
         FROM product p
-        LEFT JOIN brand b ON b.id = p.brand_id
-        LEFT JOIN category c ON c.id = p.category_id
+        ${PRODUCT_ROW_JOINS}
        WHERE p.id = ${productId}
     `);
     const row = productResult.rows[0];

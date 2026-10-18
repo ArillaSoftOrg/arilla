@@ -6,6 +6,8 @@ export * from "./audit.ts";
 export * from "./bounds.ts";
 export * from "./capabilities.ts";
 export * from "./catalog.ts";
+export * from "./catalog-filters.ts";
+export * from "./catalog-panel.ts";
 export * from "./catalog-quality.ts";
 export * from "./chat-feedback.ts";
 export * from "./config-view.ts";

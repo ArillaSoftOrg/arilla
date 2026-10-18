@@ -141,6 +141,7 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "/yonetim/katalog/urunler",
       "/yonetim/katalog/teklifler",
       "/yonetim/katalog/kalite",
+      "/yonetim/katalog/siniflandirma",
     ],
     // Karar 0085: tazelik, stok ve liste fiyatı şişirme sayısı kalite sayfasında.
     gaps: [
