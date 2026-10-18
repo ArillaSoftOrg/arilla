@@ -1,0 +1,136 @@
+# PR politikası (docs/decisions/0137): risk sınıfı, bağımlılık, insan onayı, çakışma raporu.
+#
+# Zorunlu durum `pr policy` (commit status) her PR head commit'ine ve her merge queue grubuna yazılır:
+# - düşük risk + bağımlılıklar birleşmiş           -> success (auto-merge / merge queue ile birleşir)
+# - yüksek risk (migration, auth, prod config, ...) -> failure, ta ki yazma yetkili bir İNSAN
+#   `risk-approved` etiketini eklesin; yeni push etiketi düşürür.
+# - `Depends on #N` satırındaki PR birleşmemişse  -> failure
+#
+# Güvenlik:
+# - `pull_request_target`: iş akışı ve betik TABAN daldan (main) gelir; PR kendi kapısını değiştiremez.
+#   PR kodu checkout EDİLMEZ, çalıştırılmaz; yalnızca API'den dosya listesi/gövde/etiket okunur.
+# - Hiçbir secret okunmaz; yalnızca GITHUB_TOKEN, iş başına en dar izinle.
+# - GITHUB_TOKEN ile yapılan etiket/yorum değişiklikleri yeni iş akışı tetiklemez (döngü yok).
+# - Çakışmalar otomatik çözülmez; yalnızca `merge-conflict` etiketi + tek yorum.
+name: pr-policy
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited, labeled, unlabeled, ready_for_review, closed]
+  merge_group:
+  push:
+    branches: [main]
+  schedule:
+    - cron: "23 */6 * * *"
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: pr-policy-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.event.merge_group.head_sha || 'sweep' }}
+  cancel-in-progress: ${{ github.event_name != 'merge_group' }}
+
+jobs:
+  evaluate:
+    name: evaluate
+    if: github.event_name == 'pull_request_target' && github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: scripts
+      - name: yeni push insan onayını düşürür
+        if: github.event.action == 'synchronize' && contains(github.event.pull_request.labels.*.name, 'risk-approved')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: gh api -X DELETE "repos/$REPO/issues/$PR/labels/risk-approved" --silent || true
+      - name: değerlendir
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          RISK_APPROVERS: ${{ vars.RISK_APPROVERS }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/pr-policy.mjs evaluate "$PR"
+
+  dependents:
+    name: dependents
+    if: github.event_name == 'pull_request_target' && github.event.action == 'closed' && github.event.pull_request.merged
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: scripts
+      - name: bu PR'a bağımlı açık PR'ları yeniden değerlendir
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          PR: ${{ github.event.pull_request.number }}
+          RISK_APPROVERS: ${{ vars.RISK_APPROVERS }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/pr-policy.mjs dependents "$PR"
+
+  merge-group:
+    name: merge group
+    if: github.event_name == 'merge_group'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+      issues: read
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.repository.default_branch }}
+          persist-credentials: false
+          sparse-checkout: scripts
+      - name: kuyruk grubu için aynı karar
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SHA: ${{ github.event.merge_group.head_sha }}
+          REF: ${{ github.event.merge_group.head_ref }}
+          RISK_APPROVERS: ${{ vars.RISK_APPROVERS }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/pr-policy.mjs merge-group "$SHA" "$REF"
+
+  sweep:
+    name: sweep (conflicts + re-evaluate)
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      statuses: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          sparse-checkout: scripts
+      - name: açık PR'lar
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          RISK_APPROVERS: ${{ vars.RISK_APPROVERS }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: node scripts/pr-policy.mjs sweep

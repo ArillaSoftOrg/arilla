@@ -11,6 +11,8 @@ name: ci
 
 on:
   pull_request:
+  # Merge queue (karar 0137): kuyruk grubu commit'i main'in güncel ucu + PR olarak tam koşar.
+  merge_group:
   push:
     branches: [main]
 
@@ -85,10 +87,12 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
+      - name: PR politikası birim testleri (karar 0137)
+        run: node --test scripts/pr-policy.test.mjs
       # Değişen dosyalar KESİN: PR'ın getirdiği her dosya biome'dan geçmeli.
       - name: lint (değişen dosyalar)
         run: |
-          base="${{ github.event.pull_request.base.sha || github.event.before }}"
+          base="${{ github.event.pull_request.base.sha || github.event.merge_group.base_sha || github.event.before }}"
           if [ -z "$base" ] || ! git cat-file -e "$base" 2>/dev/null; then base="HEAD~1"; fi
           git diff --name-only --diff-filter=ACMR "$base"...HEAD > changed.txt
           echo "Değişen dosya sayısı: $(wc -l < changed.txt)"
@@ -451,6 +455,15 @@ jobs:
           docker restart "$PG_CONTAINER"
           for _ in $(seq 1 60); do pg_isready -h localhost -U arilla -d arilla && break; sleep 1; done
           psql "$DATABASE_URL_OWNER" -Atc "SHOW archive_mode" | grep -qx on
+          # Arsiv yeni acildi: arsivlenmis segment yok (`last_archived_wal` NULL). WAL yoneticisi
+          # (karar 0134) olcu yokken bilerek yazmaz ve en cok 1 sa bekler; uretimdeki gibi gecmisi
+          # olan bir arsivci icin ilk segmenti kapatip arsivlenmesini bekle.
+          psql "$DATABASE_URL_OWNER" -Atqc "SELECT pg_switch_wal()" >/dev/null
+          for _ in $(seq 1 60); do
+            [ "$(psql "$DATABASE_URL_OWNER" -Atc "SELECT last_archived_wal IS NOT NULL FROM pg_stat_archiver")" = t ] && break
+            sleep 1
+          done
+          psql "$DATABASE_URL_OWNER" -Atc "SELECT last_archived_wal FROM pg_stat_archiver" | grep -qE '^[0-9A-F]{24}$'
       - name: python ingest integration
         working-directory: services/ingest
         env:
@@ -458,3 +471,41 @@ jobs:
         run: |
           pip install -e ".[dev]"
           python -m pytest -m integration
+
+  # Tek zorunlu CI kontrolü (karar 0137): yukarıdaki işlerin TAMAMI başarılı ya da (salt
+  # dokümantasyon PR'ında) atlanmış olmalı. Yeni iş eklenince `needs` listesine eklenir; dal
+  # koruması iş adlarını tek tek bilmek zorunda kalmaz. Başarısız/iptal edilen iş asla geçmez.
+  ci-ok:
+    name: ci ok
+    if: always()
+    needs:
+      - changes
+      - static
+      - unit
+      - python
+      - build
+      - docker
+      - compose-stack
+      - deploy-engine
+      - backup-pitr
+      - wal-backpressure
+      - deploy-gate
+      - integration
+      - migrations-ingest
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: sonuçlar
+        env:
+          RESULTS: ${{ toJSON(needs) }}
+          EVENT: ${{ github.event_name }}
+        run: |
+          set -euo pipefail
+          echo "$RESULTS" | jq -r 'to_entries[] | "\(.key): \(.value.result)"'
+          bad=$(echo "$RESULTS" | jq -r '[to_entries[] | select(.value.result != "success" and .value.result != "skipped") | .key] | join(", ")')
+          [ -z "$bad" ] || { echo "::error::başarısız / iptal: $bad"; exit 1; }
+          # Atlama yalnız PR'da (salt dokümantasyon) meşrudur; main ve merge queue tam koşar.
+          if [ "$EVENT" != "pull_request" ]; then
+            skipped=$(echo "$RESULTS" | jq -r '[to_entries[] | select(.value.result == "skipped") | .key] | join(", ")')
+            [ -z "$skipped" ] || { echo "::error::$EVENT koşusunda atlanan iş: $skipped"; exit 1; }
+          fi

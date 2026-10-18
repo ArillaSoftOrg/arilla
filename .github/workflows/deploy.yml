@@ -163,6 +163,8 @@ jobs:
     timeout-minutes: 30
     environment: vps-production
     permissions: {}
+    outputs:
+      configured: ${{ steps.cfg.outputs.configured }}
     env:
       SHA: ${{ needs.plan.outputs.sha }}
     steps:
@@ -232,3 +234,32 @@ jobs:
           code=$(curl -sS --max-time 15 -o /dev/null -w '%{http_code}' "$APP_URL/api/health/ready")
           [ "$code" = 404 ] || { echo "::error::/api/health/ready disaridan $code (404 beklenir)"; exit 1; }
           echo "dis dogrulama tamam"
+
+  # Sonuç GitHub'da commit durumu olarak görünür (karar 0137): `deploy/vps-production` ->
+  # success | failure | error (yapılandırma yok, atlandı). Environment geçmişi ayrıca tutulur.
+  report:
+    name: report (commit status)
+    needs: [plan, deploy]
+    if: always() && needs.plan.outputs.proceed == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      statuses: write
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          SHA: ${{ needs.plan.outputs.sha }}
+          RESULT: ${{ needs.deploy.result }}
+          CONFIGURED: ${{ needs.deploy.outputs.configured }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          set -euo pipefail
+          case "$RESULT/$CONFIGURED" in
+            success/true) state=success; desc="VPS'e dağıtıldı, sağlık kontrolleri geçti" ;;
+            success/*) state=error; desc="Dağıtım atlandı: vps-production yapılandırması eksik" ;;
+            cancelled/*) state=error; desc="Dağıtım iptal edildi" ;;
+            *) state=failure; desc="Dağıtım başarısız; VPS otomatik geri alma sonucu için koşuya bakın" ;;
+          esac
+          gh api "repos/$REPO/statuses/$SHA" -f state="$state" -f context="deploy/vps-production"             -f description="$desc" -f target_url="$RUN_URL" --silent
+          echo "deploy/vps-production -> $state: $desc"
