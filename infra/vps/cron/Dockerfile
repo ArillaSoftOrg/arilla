@@ -9,9 +9,12 @@ ARG SUPERCRONIC_VERSION=v0.2.49
 RUN CGO_ENABLED=0 GOBIN=/out go install -trimpath -ldflags="-s -w" \
     "github.com/aptible/supercronic@${SUPERCRONIC_VERSION}"
 
-FROM alpine:3.21
+# 3.23: 3.21'in destegi Kasim 2026'da biter; 3.21'deki curl 8.14.1-r2 Trivy'de 10 HIGH verdi.
+FROM alpine:3.23
 
-# Taban imajdan sonra yayinlanan guvenlik yamalari derleme aninda alinir.
+# Taban imajdan sonra yayinlanan guvenlik yamalari derleme aninda alinir. DIKKAT: CI bu
+# katmani GHA onbelleginden (scope=cron) yeniden kullanir; yeni yama ancak bu katman ya da
+# taban imaj degisince gelir. Trivy yamasi cikmis HIGH bulursa taban surumunu yukselt.
 RUN apk upgrade --no-cache \
     && apk add --no-cache curl ca-certificates tzdata \
     && adduser -S -u 10001 -H arilla
