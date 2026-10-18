@@ -401,13 +401,20 @@ async function main() {
   const [cmd, arg, arg2] = process.argv.slice(2);
   if (!process.env.GITHUB_TOKEN || !REPO)
     throw new Error("GITHUB_TOKEN ve GITHUB_REPOSITORY gerekli");
-  await ensureLabel(RISK_LABELS.high, "d93f0b", "PR politikası: yüksek risk, insan onayı gerekli");
-  await ensureLabel(RISK_LABELS.low, "0e8a16", "PR politikası: düşük risk");
-  await ensureLabel(
-    APPROVAL_LABEL,
-    "5319e7",
-    "Yüksek riskli PR insan tarafından incelendi (yeni push düşürür)",
-  );
+  // Merge queue işi yalnızca durum yazar (etiket izni yok); etiketler PR olaylarında oluşur.
+  if (cmd !== "merge-group") {
+    await ensureLabel(
+      RISK_LABELS.high,
+      "d93f0b",
+      "PR politikası: yüksek risk, insan onayı gerekli",
+    );
+    await ensureLabel(RISK_LABELS.low, "0e8a16", "PR politikası: düşük risk");
+    await ensureLabel(
+      APPROVAL_LABEL,
+      "5319e7",
+      "Yüksek riskli PR insan tarafından incelendi (yeni push düşürür)",
+    );
+  }
   const n = Number(arg);
   if (cmd === "evaluate" && n > 0) await evaluate(n);
   else if (cmd === "dependents" && n > 0) await dependents(n);
