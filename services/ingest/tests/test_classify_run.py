@@ -471,13 +471,43 @@ def test_persistent_lock_timeout_aborts_safely(
     assert row is None or row[0] == 0
 
 
-def test_real_wal_governor_does_not_block_without_archiving(world: dict[str, int]) -> None:
+def test_real_wal_governor_is_bounded_and_keeps_checkpoint(world: dict[str, int]) -> None:
+    """Gercek WalGovernor, birkac saniyelik sinirlarla: hicbir ortamda asili kalmaz.
+
+    CI bu iste WAL arsivini acar (arsiv hatasi da sinanir); varsayilan politika orada 15 dk
+    ile 1 sa arasi bekleyebilir. Sinirli politikayla is ya tamamlanir ya da 'wal' nedeniyle
+    durur; ikisinde de kontrol noktasi tutarlidir. Arsiv kapaliysa (yerel) tamamlanmalidir.
+    """
+    import time as _time
+
     from db import wal_pressure
 
+    policy = wal_pressure.WalPolicy(
+        max_sleep_s=0.2, max_pause_s=2.0, failing_grace_s=2.0, poll_s=0.2, rate_window_s=2.0
+    )
+    started = _time.monotonic()
     with _app() as conn:
-        gov = wal_pressure.WalGovernor.for_connection(conn)
+        with conn.cursor() as cur:
+            cur.execute("SELECT current_setting('archive_mode')")
+            archive_mode = str(cur.fetchone()[0])  # type: ignore[index]
+        conn.rollback()
+        gov = wal_pressure.WalGovernor.for_connection(conn, policy)
         counts = run_mod.classify_products(conn, merchant_slug=SLUG, throttle=gov.before_batch)
-    assert counts.completed and gov.stopped_reason is None
+    assert _time.monotonic() - started < 60
+    if archive_mode == "off":
+        assert counts.completed and gov.stopped_reason is None
+    else:
+        assert counts.completed or counts.stopped_reason == "wal"
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT last_product_id FROM product_classification_state WHERE scope = %s",
+            (f"merchant:{SLUG}",),
+        )
+        row = cur.fetchone()
+    if counts.completed:
+        assert row is not None and row[0] == counts.last_product_id
+    else:
+        assert row is None or row[0] == counts.last_product_id
 
 
 def test_sample_is_read_only_and_matches_batch_decisions(world: dict[str, int]) -> None:
