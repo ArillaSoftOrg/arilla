@@ -1,0 +1,755 @@
+/*
+ * Yönetim > Katalog > Ürünler. Ortak yönetim stilleri admin.module.css'te;
+ * burada yalnızca bu ekrana özgü olanlar. Yalnızca tokens.css belirteçleri
+ * (renk gömülmez), gölge/gradyan yok, kırılımlar 640 / 1024 / 1440.
+ */
+
+/* ------------------------------------------------------------------ */
+/* Öncelikli metrikler                                                 */
+/* ------------------------------------------------------------------ */
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+  gap: var(--space-3);
+}
+
+.metric {
+  display: grid;
+  align-content: start;
+  gap: var(--space-1);
+  min-width: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Dar ekranda metrikler iki sütun ve daha sıkı: liste ilk ekranda görünür kalır. */
+@media (max-width: 639px) {
+  .metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: var(--space-2);
+  }
+
+  .metric {
+    padding: var(--space-2) var(--space-3);
+  }
+}
+
+a.metric:hover {
+  border-color: var(--line-strong);
+  background: var(--surface-hover);
+}
+
+.metricLabel {
+  color: var(--ink-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.metricValueRow {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.metricValue {
+  font-size: var(--font-size-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  font-variant-numeric: tabular-nums;
+}
+
+.metricPercent {
+  color: var(--save);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.metricNote {
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+/* Tamamlanma çubuğu: değer metin olarak da yazılır (renk tek başına anlam taşımaz). */
+.bar {
+  height: 6px;
+  overflow: hidden;
+  border-radius: var(--radius-pill);
+  background: var(--surface);
+}
+
+.barFill {
+  display: block;
+  height: 100%;
+  border-radius: var(--radius-pill);
+  background: var(--save);
+}
+
+/* İkincil metrikler: tek satırlık kompakt şerit, her biri filtre bağlantısı. */
+.secondary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: 28px;
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-xs);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.chip:hover {
+  border-color: var(--line-strong);
+  color: var(--ink);
+}
+
+.chipActive {
+  border-color: var(--ink);
+  background: var(--admin-active-bg);
+  color: var(--ink);
+}
+
+.chipWarn {
+  border-color: var(--warning);
+}
+
+.chipValue {
+  color: var(--ink);
+  font-weight: var(--font-weight-semibold);
+  font-variant-numeric: tabular-nums;
+}
+
+.statsFoot {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+/* ------------------------------------------------------------------ */
+/* Filtreler                                                           */
+/* ------------------------------------------------------------------ */
+
+.filterForm {
+  display: grid;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.filterGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 180px), 1fr));
+  gap: var(--space-2) var(--space-3);
+  align-items: end;
+}
+
+.filterSearch {
+  grid-column: span 2;
+}
+
+.filterGrid select,
+.filterGrid input {
+  width: 100%;
+}
+
+.filterFoot {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.filterActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.filterHint {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+/* Dar ekranda filtre gövdesi düğmeyle açılır; geniş ekranda her zaman açık. */
+.filterToggle {
+  display: none;
+}
+
+.filterBody,
+.filterBodyOpen {
+  display: grid;
+  gap: var(--space-3);
+}
+
+@media (max-width: 1023px) {
+  .filterToggle {
+    display: inline-flex;
+    align-items: center;
+    justify-self: start;
+    min-height: var(--admin-control-height);
+    padding: 0 var(--space-3);
+    border: var(--border-width) solid var(--line-strong);
+    border-radius: var(--radius-sm);
+    background: var(--surface-raised);
+    color: var(--ink);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+  }
+
+  .filterBody {
+    display: none;
+  }
+
+  .filterSearch {
+    grid-column: auto;
+  }
+}
+
+/* Etkin filtre etiketleri (kaldırma bağlantılı). */
+.activeFilters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-xs);
+}
+
+.activeFilter {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: 2px var(--space-2);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ink);
+  text-decoration: none;
+}
+
+.activeFilter:hover {
+  background: var(--surface-hover);
+}
+
+/* ------------------------------------------------------------------ */
+/* Sonuçlar ve tablo                                                   */
+/* ------------------------------------------------------------------ */
+
+.results {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+/* Izgara öğesi: içerik (geniş tablo) sütunu genişletmesin; tablo kendi kabında kayar. */
+.resultsBody,
+.resultsBodyPending {
+  display: grid;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.resultsBodyPending {
+  opacity: 0.55;
+}
+
+.pendingNote {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+.resultsHead {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+/* Kaydırma kabı: başlık bu kabın içinde yapışır (sayfa kaydırmasında da görünür). */
+.tableScroll {
+  max-height: calc(100dvh - var(--space-24));
+  overflow: auto;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+}
+
+.table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: var(--font-size-sm);
+}
+
+.table th,
+.table td {
+  padding: var(--space-2) var(--space-3);
+  border-bottom: var(--border-width) solid var(--line);
+  text-align: left;
+  vertical-align: middle;
+}
+
+.table thead th {
+  position: sticky;
+  top: 0;
+  z-index: var(--z-raised);
+  background: var(--surface);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+  white-space: nowrap;
+}
+
+.table tbody tr:hover td {
+  background: var(--surface);
+}
+
+.table tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.table tbody tr.rowSelected td {
+  background: var(--admin-active-bg);
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.table th.num,
+.table td.num {
+  text-align: right;
+}
+
+.thumbCell {
+  width: 48px;
+  padding-right: 0;
+}
+
+.thumb {
+  display: block;
+  width: 44px;
+  height: 44px;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  object-fit: cover;
+}
+
+.thumbEmpty {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: var(--border-width) dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  font-size: 10px;
+  text-align: center;
+  line-height: 1.1;
+}
+
+.productCell {
+  min-width: 260px;
+  max-width: 520px;
+}
+
+/* Uzun başlık iki satırla sınırlı; tamamı `title` niteliğinde ve panelde. */
+.title {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  color: var(--ink);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-heading);
+  text-decoration: none;
+}
+
+.title:hover {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.sub {
+  display: block;
+  margin-top: 2px;
+  overflow: hidden;
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cellStack {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.missing {
+  color: var(--warning);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.muted {
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+.nowrap {
+  white-space: nowrap;
+}
+
+.clip {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1);
+}
+
+/* 1440 altında fiyat özeti tarihi gizlenir (panelde var); 640 altında satır karta döner. */
+@media (max-width: 1439px) {
+  .table .hideMd {
+    display: none;
+  }
+}
+
+@media (max-width: 639px) {
+  .tableScroll {
+    max-height: none;
+  }
+
+  .table thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
+  }
+
+  .table,
+  .table tbody,
+  .table tr {
+    display: block;
+    width: 100%;
+  }
+
+  .table tr {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: var(--space-1) var(--space-2);
+    padding: var(--space-3);
+    border-bottom: var(--border-width) solid var(--line);
+  }
+
+  .table td {
+    display: grid;
+    grid-template-columns: minmax(84px, 34%) minmax(0, 1fr);
+    gap: var(--space-2);
+    align-items: start;
+    justify-items: start;
+    padding: 0;
+    border: none;
+    text-align: left;
+  }
+
+  .table td.num {
+    text-align: left;
+  }
+
+  .table td.thumbCell,
+  .table td.productCell {
+    display: block;
+  }
+
+  .thumbCell {
+    grid-row: span 6;
+    width: auto;
+  }
+
+  .table .hideMd {
+    display: none;
+  }
+
+  .productCell {
+    min-width: 0;
+  }
+
+  .table td[data-label]:not(.productCell)::before {
+    content: attr(data-label);
+    color: var(--ink-muted);
+    font-size: var(--font-size-xs);
+    line-height: 20px;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Sağ panel                                                           */
+/* ------------------------------------------------------------------ */
+
+.drawer {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: var(--z-overlay);
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+  width: min(100vw, 480px);
+  border-left: var(--border-width) solid var(--line-strong);
+  background: var(--paper);
+}
+
+.drawerBackdrop {
+  display: none;
+}
+
+@media (max-width: 1023px) {
+  .drawerBackdrop {
+    position: fixed;
+    inset: 0;
+    z-index: calc(var(--z-overlay) - 1);
+    display: block;
+    background: color-mix(in srgb, var(--ink) 35%, transparent);
+  }
+}
+
+.drawerTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-bottom: var(--border-width) solid var(--line);
+}
+
+.drawerEyebrow {
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+  font-variant-numeric: tabular-nums;
+}
+
+.drawerClose {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-height: var(--admin-control-height);
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.drawerClose:hover {
+  background: var(--surface-hover);
+}
+
+.kbd {
+  padding: 0 var(--space-1);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-sm);
+  color: var(--ink-muted);
+  font-size: 10px;
+}
+
+.drawerBody {
+  display: grid;
+  align-content: start;
+  gap: var(--space-4);
+  overflow-y: auto;
+  padding: var(--space-4);
+}
+
+.panelHero {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  gap: var(--space-3);
+  align-items: start;
+}
+
+.panelImage {
+  width: 96px;
+  height: 96px;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  object-fit: cover;
+}
+
+.panelImageEmpty {
+  display: grid;
+  place-items: center;
+  width: 96px;
+  height: 96px;
+  border: var(--border-width) dashed var(--line-strong);
+  border-radius: var(--radius-md);
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+}
+
+.panelTitle {
+  margin: 0 0 var(--space-2);
+  font-size: var(--font-size-base);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  overflow-wrap: anywhere;
+}
+
+/* Başlık etkileşimli değil (tabIndex -1): yalnız panel açılınca odak buraya taşınır. */
+.panelTitle:focus,
+.panelTitle:focus-visible {
+  outline: none;
+  box-shadow: none;
+}
+
+.panelLinks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+  font-size: var(--font-size-xs);
+}
+
+.panelSection {
+  display: grid;
+  gap: var(--space-2);
+  padding-top: var(--space-3);
+  border-top: var(--border-width) solid var(--line);
+}
+
+.panelSectionTitle {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-semibold);
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: minmax(110px, 38%) minmax(0, 1fr);
+  gap: var(--space-1) var(--space-3);
+  margin: 0;
+  font-size: var(--font-size-sm);
+}
+
+.facts dt {
+  color: var(--ink-muted);
+  font-size: var(--font-size-xs);
+  line-height: 20px;
+}
+
+.facts dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.mono {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: var(--font-size-xs);
+  overflow-wrap: anywhere;
+}
+
+.offerList {
+  display: grid;
+  gap: var(--space-1);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.offerItem {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 2px var(--space-3);
+  padding: var(--space-2) 0;
+  border-bottom: var(--border-width) solid var(--line);
+  font-size: var(--font-size-sm);
+}
+
+.offerItem:last-child {
+  border-bottom: none;
+}
+
+.readonlyNote {
+  margin: 0;
+  padding: var(--space-2) var(--space-3);
+  border: var(--border-width) dashed var(--line-strong);
+  border-radius: var(--radius-sm);
+  color: var(--ink-secondary);
+  font-size: var(--font-size-xs);
+}
+
+/* ------------------------------------------------------------------ */
+/* Sınıflandırma izleme                                                */
+/* ------------------------------------------------------------------ */
+
+.progressRow {
+  display: grid;
+  gap: var(--space-1);
+}
+
+.progressHead {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-2);
+  font-size: var(--font-size-xs);
+  color: var(--ink-secondary);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}

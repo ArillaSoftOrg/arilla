@@ -68,6 +68,8 @@ function pages(): string[] {
     `/yonetim/katalog/urunler/${fixture.productId}`,
     "/yonetim/katalog/teklifler",
     "/yonetim/katalog/kalite",
+    "/yonetim/katalog/siniflandirma",
+    `/yonetim/katalog/urunler?urun=${fixture.productId}`,
     "/yonetim/eslestirme",
     "/yonetim/eslestirme/gecmis",
     "/yonetim/arama/tani",

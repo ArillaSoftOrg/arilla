@@ -179,7 +179,9 @@ platform sorununu hafifletir.
 /yonetim/magazalar         Mağaza listesi: teklif sayıları, son koşu, son başarı
 /yonetim/magazalar/<slug>  Ayrıntı, koşu geçmişi, veri toplamayı aç/kapat (yalnızca admin)
 /yonetim/ingest            ingest_run geçmişi ve hatalar (salt okunur, "çalıştır" yok)
-/yonetim/katalog/urunler   Ürün arama (id/GTIN/başlık) + kalite filtreleri
+/yonetim/katalog/urunler   Ürün arama (id/GTIN/başlık) + birleşik filtreler (mağaza, marka,
+                           kategori, sınıflandırma, güven, fiyat, görsel, güncellik); ?urun=<id> sağ panel
+/yonetim/katalog/siniflandirma  Sınıflandırma izleme (karar 0133): kontrol noktası, koşular, açık kuyruk; salt okunur
 /yonetim/katalog/urunler/<id>  Teklifler, varyant barkodları, adaylar, fiyat istatistiği
 /yonetim/katalog/teklifler Eşleşmemiş / pasif / bayat teklifler
 /yonetim/arama/tani        Arama tanısı: gerçek boru hattı, salt okunur

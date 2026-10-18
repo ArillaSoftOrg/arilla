@@ -258,6 +258,11 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
       }),
   },
   {
+    name: "/yonetim/katalog/siniflandirma",
+    admin: false,
+    call: async () => (await import("./katalog/siniflandirma/page.tsx")).default(),
+  },
+  {
     name: "/yonetim/katalog/teklifler",
     admin: false,
     call: async () => (await import("./katalog/teklifler/page.tsx")).default(sp({})),
