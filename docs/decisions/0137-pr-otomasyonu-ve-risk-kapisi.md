@@ -66,3 +66,8 @@ ya da onay yerine geçemez;** Claude Code `risk-approved` etiketini asla eklemez
 - **"Branch güncel olmalı"yı kapatıp yalnızca auto-merge:** main'de birlikte test edilmemiş
   birleşimler. Reddedildi.
 - **Mergify / Kodiak gibi dış servis:** ek üçüncü taraf yetkisi; GitHub'ın yerleşik kuyruğu yeterli.
+
+## Uygulama
+
+- 2026-10-18: PR #187 main'de; `scripts/github-settings.sh --apply` uygulandı (merge queue squash,
+  zorunlu `ci ok` + `pr policy`, auto-merge ve update-branch açık).
