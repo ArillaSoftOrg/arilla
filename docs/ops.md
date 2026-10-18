@@ -443,6 +443,24 @@ Taban imajlara `apt-get/apk upgrade` uygulanır (yayınlanmış güvenlik yamala
 hazır ikili yerine güncel Go ile kaynaktan derlenir (hazır ikili eski Go standart
 kütüphanesiyle HIGH Trivy bulgusu veriyordu).
 
+### PR otomasyonu (karar 0137): merge queue + `pr policy`
+
+```
+PR aç → ci + security-checks + pr-policy (risk, bağımlılık, onay)
+   düşük risk:  gh pr merge <n> --auto --squash → merge queue (main ucu + PR, tam CI) → main
+   yüksek risk: insan inceler, `risk-approved` etiketi ekler (yeni push düşürür) → auto-merge
+main'e push → ci → build-push → deploy → commit durumu `deploy/vps-production`
+```
+
+- Zorunlu kontroller: `ci ok`, `pr policy`, `private-keys` (+ eski dört iş adı). Kırmızı kontrol
+  atlanamaz; kural setinde bypass yoktur.
+- Çakışma: `merge-conflict` etiketi + yorum; elle çözülür. Bağımlılık: PR gövdesinde `Depends on #N`.
+- Tek seferlik ayar (karar 0137 PR'ı main'e girdikten sonra): `bash scripts/github-settings.sh`
+  (gösterir) → `bash scripts/github-settings.sh --apply` (merge queue + zorunlu kontroller +
+  auto-merge/update-branch ayarı). İsteğe bağlı depo değişkeni `RISK_APPROVERS`.
+- Kuyruk takılırsa: auto-merge'ü kapat (`gh pr merge <n> --disable-auto`), nedeni `merge group`
+  koşusunda. Merge queue'yu kapatmak: kural setinden `merge_queue` kuralını kaldır.
+
 ### Otomatik dağıtım (faz 6): `.github/workflows/deploy.yml` + `infra/vps/bin/arilla-deploy`
 
 ```
