@@ -97,21 +97,10 @@ Verdict = tuple[str | None, str, int, str | None]
 def _against_source(evidence: TitleEvidence, src: SourceVerdict, confidence: int) -> Verdict | None:
     """Baslik kaynakla celisiyorsa inceleme karari; celismiyorsa None (kaynak kurallari surer)."""
     assert src.path is not None
-    supported = [c for p, c in evidence.paths.items() if _related(p, src.path)]
-    if supported:
-        # Baslik kaynak dalini dogruluyor: zayif bir yabanci kelime kaynagi bozmaz. Ama yabanci
-        # dal destekten DAHA guclu kanitliyorsa (karar 0139: "fitness stepper ... hydraulic")
-        # baslik kaynagi dogrulamiyor, iki alan arasinda kaliyor: inceleme.
-        strongest_foreign = max(
-            (
-                c
-                for p, c in evidence.paths.items()
-                if c >= CONFLICT_MIN_CONFIDENCE and not _related(p, src.path)
-            ),
-            default=0,
-        )
-        if strongest_foreign > max(supported):
-            return None, "conflict", confidence, "source_title_conflict"
+    if any(_related(p, src.path) for p in evidence.paths):
+        # Baslik kaynak dalini dogruluyor: baska alandan bir kelime kaynagi bozmaz. ("makeup
+        # table" mobilyadir, "hair chain" takidir.) Karar 0139 olcumunde "yabanci kanit daha
+        # guclu ise celiski" kurali dogru atamalarin cogunu incelemeye dusurdu; geri alindi.
         return None
     foreign = [
         p

@@ -1025,6 +1025,8 @@ RULES: tuple[Rule, ...] = (
        "booster pump", "high pressure pump", "air compressor", "endustriyel*", "hidrolik*",
        "pnomatik*", "tezgah*"),
       ("car", "arac*", "oto", "automobile", "truck", "trucks", "vehicle", "automotive", "suv",
+       "bmw", "mercedes", "audi", "volkswagen", "vw", "porsche", "peugeot", "citroen", "renault",
+       "opel", "skoda", "fiat", "seat", "kia", "mazda", "subaru", "lexus", "tesla", "dacia",
        "bike",
        "bicycle", "bisiklet*", "motorcycle", "motosiklet*", "breast", "baby", "bebek*",
        "aquarium", "akvaryum*", "fish", "pool", "pet", "dog", "cat", "kopek*", "kedi*", "toy",
@@ -1206,6 +1208,17 @@ LEXICON: dict[str, tuple[str, ...]] = {
     "spor-outdoor/fitness": ("fitness",),
     "spor-outdoor/kamp-outdoor": ("kamp malzemesi", "çadır"),
     "spor-outdoor/bisiklet": ("bisiklet",),
+    # karar 0139
+    "elektronik/guc-batarya": ("güç ve batarya",),
+    "elektronik/guc-batarya/batarya": ("pil", "batarya", "lityum pil", "akü"),
+    "elektronik/guc-batarya/sarj-cihazi": ("pil şarj cihazı", "batarya şarj cihazı"),
+    "elektronik/guc-batarya/adaptor-guc-kaynagi": ("adaptör", "güç kaynağı", "trafo"),
+    "ev-yasam/yapi-market/elektrik-tesisati": ("elektrik tesisatı", "sigorta", "şalter"),
+    "ev-yasam/yapi-market/olcum-aletleri": ("ölçü aleti", "multimetre", "test cihazı"),
+    "ev-yasam/yapi-market/alet-yedek-parca": ("alet yedek parçası", "matkap ucu"),
+    "anne-bebek/bebek-arabasi": ("bebek arabası", "puset"),
+    "anne-bebek/bebek-arabasi/aksesuar": ("bebek arabası aksesuarı",),
+    "oto-bahce/bahce/mangal-barbeku": ("mangal", "barbekü"),
 }
 
 #: Arama esanlamlari (kind='synonym'): AliExpress basliklari Ingilizcedir. Ayni `normalized`

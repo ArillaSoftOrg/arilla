@@ -426,6 +426,24 @@
       "accessory": false,
       "brand": null,
       "compatible": []
+    },
+    {
+      "text": "American Fire Dept. Fire Fears Me, Honor Courage Valor. Firefighter T-Shirt",
+      "accessory": false,
+      "brand": null,
+      "compatible": []
+    },
+    {
+      "text": "Honor 90 Smartphone 5G 512GB",
+      "accessory": false,
+      "brand": "Honor",
+      "compatible": []
+    },
+    {
+      "text": "Case for Honor Magic6 Pro Leather Flip",
+      "accessory": true,
+      "brand": null,
+      "compatible": ["Honor"]
     }
   ],
   "decision": [

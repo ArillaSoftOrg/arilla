@@ -140,3 +140,45 @@ def test_read_labels_roundtrip(tmp_path: Path) -> None:
     rows = ev.read_labels(path)
     assert rows[0].expected_category == "ev-yasam/mutfak" and rows[0].expected_brand == "-"
     assert rows[1].expected_category is None and rows[1].expected_brand is None
+
+
+# --- sabit etiketli kume ve "onlenen hata geri gelmesin" korumasi (karar 0139) ----------------
+
+FIXTURES = Path(__file__).parent
+
+
+def test_prevented_errors_never_come_back() -> None:
+    """v1/v2'nin yanlis yazdigi urunlere hicbir surum ayni yolu yeniden yazmaz."""
+    import json
+
+    from classify.decide import ProductFacts, decide
+
+    cases = json.loads((FIXTURES / "classify_prevented_errors.json").read_text(encoding="utf-8"))
+    assert len(cases["cases"]) >= 50
+    back = []
+    for case in cases["cases"]:
+        d = decide(
+            ProductFacts(
+                title=case["title"],
+                kept_brand=False,
+                kept_category_path=None,
+                brand_raw=None,
+                merchant_name=None,
+                source=ev.verdict_for(case["source_category"]),
+            )
+        )
+        if d.state == "applied" and d.category_path == case["wrong_path"]:
+            back.append((case["origin"], case["title"][:60], case["wrong_path"]))
+    assert back == []
+
+
+def test_frozen_eval_labels_score_is_sane() -> None:
+    """Sabit etiketli kume (model etiketli, insan dogrulamasi yok): yalniz asiri gerileme alarmi."""
+    rows = ev.read_labels(FIXTURES / "classify_eval_labels.tsv")
+    assert len(rows) >= 200
+    m = ev.score(rows)
+    assert m.n_category_labeled == len(rows)
+    # v1 ~%58 isabetti, %27 yanlisti; v2/v3 ~%71-72 ve ~%13-14. Esikler bilerek gevsek.
+    assert m.precision_strict is not None and m.precision_strict >= 0.66
+    assert m.wrong_rate is not None and m.wrong_rate <= 0.20
+    assert m.accessory_confusion == 0

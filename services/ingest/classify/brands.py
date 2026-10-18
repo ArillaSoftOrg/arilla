@@ -138,7 +138,7 @@ KNOWN_BRANDS: tuple[KnownBrand, ...] = (
         models=("redmi", "poco", "mijia", "mi band", "xiaomi mi"),
     ),
     B("Huawei", title_ok=True, device=True, models=("matebook", "matepad", "freebuds")),
-    B("Honor", title_ok=True, device=True),
+    B("Honor", title_ok=True, device=True, lead_only=True),  # "Honor Courage Valor" (karar 0139)
     B("Oppo", title_ok=True, device=True),
     B("Vivo", title_ok=True, device=True),
     B("Realme", title_ok=True, device=True),
