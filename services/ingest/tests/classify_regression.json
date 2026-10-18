@@ -607,6 +607,57 @@
       "source": { "path": "ev-yasam/ev-tekstili", "confidence": 88, "status": "suggested" },
       "path": "ev-yasam/ev-tekstili",
       "state": "applied"
+    },
+    {
+      "text": "Animal theme AB Diamond Painting Polar Bear Family DIY Diamond Embroidery Wall Decor",
+      "source": { "path": "kitap-muzik-hobi", "confidence": 65, "status": "suggested" },
+      "path": "kitap-muzik-hobi",
+      "state": "applied"
+    },
+    {
+      "text": "Original High Quality New For 2Pcs 728311040 Turbo Boost Pressure Vacuum Solenoid Valve for Saab 9-3 9-5",
+      "source": { "path": "oto-bahce", "confidence": 80, "status": "suggested" },
+      "path": "oto-bahce",
+      "state": "applied"
+    },
+    {
+      "text": "Solenoid Valve 6680749 For BOBCAT T300 Excavator",
+      "source": { "path": "oto-bahce", "confidence": 80, "status": "suggested" },
+      "path": null,
+      "state": "review",
+      "detail": "source_title_conflict"
+    },
+    {
+      "text": "8Pcs Tool Set, Tooth Extraction Pliers, Stainless Steel Tooth Stand Set",
+      "source": {
+        "path": "ev-yasam/yapi-market/olcum-aletleri",
+        "confidence": 75,
+        "status": "suggested"
+      },
+      "path": null,
+      "state": "review",
+      "detail": "source_title_conflict"
+    },
+    {
+      "text": "Stainless Steel Digital Multimeter True RMS Auto Range Clamp Meter",
+      "source": {
+        "path": "ev-yasam/yapi-market/olcum-aletleri",
+        "confidence": 75,
+        "status": "suggested"
+      },
+      "path": "ev-yasam/yapi-market/olcum-aletleri",
+      "state": "applied"
+    },
+    {
+      "text": "Coffee Latte Art Printer Edible Ink Cartridge 200DPI",
+      "source": {
+        "path": "ev-yasam/yapi-market/olcum-aletleri",
+        "confidence": 75,
+        "status": "suggested"
+      },
+      "path": null,
+      "state": "review",
+      "detail": "weak_source"
     }
   ]
 }

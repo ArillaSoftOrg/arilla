@@ -186,7 +186,7 @@ def test_frozen_eval_labels_score_is_sane() -> None:
 
 def test_wilson_interval_matches_known_values() -> None:
     lo, hi = ev.wilson(49, 60)  # type: ignore[misc]
-    assert (round(lo, 2), round(hi, 2)) == (0.7, 0.9)
+    assert 0.69 < lo < 0.71 and 0.88 < hi < 0.90  # bilinen deger: ~(0.70, 0.89)
     assert ev.wilson(0, 0) is None
     lo, hi = ev.wilson(0, 10)  # type: ignore[misc]
     assert lo == 0.0 and 0.2 < hi < 0.35  # 0/10 bile %0 kesin degil

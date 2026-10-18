@@ -31,7 +31,15 @@ from dataclasses import dataclass
 
 from classify.brands import clean_source_brand, find_title_brand
 from classify.categories import TitleEvidence, is_within, title_evidence
-from classify.taxonomy import ACCESSORY_PREFIXES, APPLY_MIN_CONFIDENCE, DEVICE_PATHS
+from classify.taxonomy import (
+    ACCESSORY_PREFIXES,
+    APPLY_MIN_CONFIDENCE,
+    DEVICE_PATHS,
+    MACHINERY_WORDS,
+)
+from classify.text import words
+
+ENDUSTRIYEL = "ev-yasam/yapi-market/endustriyel"
 
 #: Iki zayif kanit (kaynak + baslik) ayni dali gosterdiginde verilen guven.
 AGREEMENT_CONFIDENCE = 85
@@ -94,7 +102,9 @@ class Decision:
 Verdict = tuple[str | None, str, int, str | None]
 
 
-def _against_source(evidence: TitleEvidence, src: SourceVerdict, confidence: int) -> Verdict | None:
+def _against_source(
+    evidence: TitleEvidence, src: SourceVerdict, confidence: int, title: str
+) -> Verdict | None:
     """Baslik kaynakla celisiyorsa inceleme karari; celismiyorsa None (kaynak kurallari surer)."""
     assert src.path is not None
     if any(_related(p, src.path) for p in evidence.paths):
@@ -108,6 +118,18 @@ def _against_source(evidence: TitleEvidence, src: SourceVerdict, confidence: int
         if c >= CONFLICT_MIN_CONFIDENCE and not _related(p, src.path)
     ]
     if foreign:
+        # Arac parcasi kaynaginda ("Engines & Engine Parts") baslik yalniz bilesen soyluyorsa
+        # (vana, pompa, sensor) ve is makinesi sozcugu yoksa urun oto parcasidir (karar 0139).
+        if (
+            _top(src.path) == "oto-bahce"
+            and all(is_within(p, ENDUSTRIYEL) for p in foreign)
+            and any(_related(c, src.path) for c in evidence.cues)  # olumlu arac sinyali
+            and not MACHINERY_WORDS & set(words(title))
+        ):
+            return None
+        # Denendi ve KALDIRILDI (karar 0139): zayif cop kovasinda "tek guclu kardes dal baslik
+        # karar versin" kurali dis hekimi pensesi, kaya matkabi cekici gibi onlenmis hatalari geri
+        # getirdi (koruma testi yakaladi). Genel alet sozcukleri bu kovalarda guvenilir kanit degil.
         # Ayni ana kategoride kardes dal ve baslik kaynagin alanini da soyluyor ("Car Headlight
         # Film" Exterior Accessories'te: "headlight" yedek parca kurali, "car" arac alani):
         # urun alani dogru, yaprak secimi saticinin; kaynak surer.
@@ -135,7 +157,7 @@ def _category(facts: ProductFacts) -> Verdict:
         src = None
     if src is not None and src.path is not None:
         confidence = 100 if src.status == "confirmed" else src.confidence
-        against = _against_source(evidence, src, confidence)
+        against = _against_source(evidence, src, confidence, facts.title)
         if against is not None:
             return against
         refined = evidence.within(src.path)
@@ -151,7 +173,12 @@ def _category(facts: ProductFacts) -> Verdict:
             return src.path, "source", confidence, None
         # Zayif kaynagi dogrulamak icin baslik kanitinin kendisi esigi gecmeli: tek bir genel
         # kelime ("hydraulic") onaylamaz (karar 0139).
-        confirmed = refined.path is not None and refined.confidence >= APPLY_MIN_CONFIDENCE
+        # Iki alt dal kaynagin KENDI ust dalinda bulusuyorsa (elmas boyama + nakis -> hobi) da
+        # onaydir: v2 bunu kabul ediyordu ve olcumde dogruydu.
+        confirmed = refined.path is not None and (
+            refined.confidence >= APPLY_MIN_CONFIDENCE
+            or (refined.kind == "lca" and refined.path == src.path)
+        )
         if confirmed and (
             deeper or (refined.path == src.path and not _title_device(src.path, evidence))
         ):
