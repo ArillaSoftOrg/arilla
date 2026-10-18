@@ -11,9 +11,10 @@ fiyatli aktif teklifi sayilir. `offer_count` = boyle teklifi olan farkli magaza
 sayisi ("N magaza"); `in_stock_count` = bunlardan stokta olan magaza sayisi.
 Kolon adlari migration gerektirmesin diye korunur.
 
-Kural tek yerde: veritabani fonksiyonu `refresh_product_aggregates(bigint[])`
-(migration 0086). TypeScript (`packages/core/src/product/refresh-aggregates.ts`,
-yonetim yazmalari ve cron) ayni fonksiyonu cagirir; iki dilde kopya SQL yoktur.
+Kural tek yerde: salt okunur `product_aggregate_values(bigint[])` (migration 0090);
+`refresh_product_aggregates(bigint[])` (0086) onu okuyup degisen satiri yazar. TypeScript
+(`packages/core/src/product/refresh-aggregates.ts`, yonetim yazmalari ve cron) ayni
+fonksiyonu cagirir; toplu yayin ozeti yayin UPDATE'inde yazar (karar 0135). Kopya SQL yoktur.
 
 Yalnizca TRY teklifler sayilir: TRY disi (or. AliExpress USD) tutar kurus gibi
 okunup `min_price`i kirletmesin (karar 0113/0121); yurt disi teklifler urun sayfasinda
