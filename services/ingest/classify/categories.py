@@ -10,15 +10,30 @@ Ayni kural kumesi (`taxonomy.RULES`) iki metne uygulanir:
   aday kalirsa ortak ata (LCA): ayni ana kategoride derin bir ata kabul edilir, yalnizca
   ana kategoride bulusan ya da farkli ana kategorilere dagilan adaylar inceleme bekler.
 
+Kaynak yolunda parca/aksesuar bolumu ("Laptop Parts & Accessories") cihaz kategorisine
+(`taxonomy.DEVICE_PATHS`) eslenmez (karar 0138): yalniz aksesuar diyorsa cihazin aksesuar dali,
+aksi halde aday dusurulur ve ust bolumun sonucu ZAYIF kalir (baslik dogrulamasi gerekir).
+
+`title_evidence` basligi kaynaktan BAGIMSIZ okur: tum adaylar + alan isaretleri (`cue`).
+Karar katmani bununla kaynak/baslik celiskisini olcer.
+
 Guven 0-100; `taxonomy.APPLY_MIN_CONFIDENCE` altindaki sonuc urune yazilmaz.
 """
 
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
-from classify.taxonomy import RULES, Rule
+from classify.taxonomy import (
+    ACCESSORY_OF,
+    ACCESSORY_WORDS,
+    COMPAT_WORDS,
+    DEVICE_PATHS,
+    PART_WORDS,
+    RULES,
+    Rule,
+)
 from classify.text import PhraseIndex, segments, words
 
 #: Baslik kanitinin kurala gore indirimi (anahtar kelime yigini, pazarlama metni).
@@ -27,6 +42,8 @@ TITLE_PENALTY = 5
 SOURCE_LEVEL_PENALTY = 5
 #: Celisen kaynak ust bolumu (or. Home & Garden > Pet Products) icin.
 ANCESTOR_MISMATCH_PENALTY = 5
+#: Parca/aksesuar bolumunun cihaz adayi dusuruldugunde ust bolum sonucuna (esigin altina iner).
+PART_PENALTY = 10
 
 
 @dataclass(frozen=True)
@@ -71,26 +88,29 @@ class _Matcher:
 
     def match(
         self, text: Sequence[str], *, source: bool
-    ) -> tuple[list[tuple[Rule, int]], set[str]]:
-        """(kural, en uzun ifade uzunlugu) listesi ve baglam yollari."""
+    ) -> tuple[list[tuple[Rule, int]], set[str], set[str]]:
+        """(kural, en uzun ifade uzunlugu) listesi, baglam yollari ve alan isaretleri."""
         excluded = {i for _, _, i in self._excludes.find(text)}
         best: dict[int, int] = {}
         for _, length, i in self._phrases.find(text):
             if i in excluded:
                 continue
             rule = self.rules[i]
-            if rule.source_only and not source:
+            if (rule.source_only and not source) or (rule.cue and source):
                 continue
             best[i] = max(best.get(i, 0), length)
         context: set[str] = set()
+        cues: set[str] = set()
         matched: list[tuple[Rule, int]] = []
         for i, length in best.items():
             rule = self.rules[i]
             if rule.context:
                 context.update(rule.paths)
+            elif rule.cue:
+                cues.update(rule.paths)
             else:
                 matched.append((rule, length))
-        return matched, context
+        return matched, context, cues
 
 
 _MATCHER = _Matcher(RULES)
@@ -128,9 +148,9 @@ def _reduce(cands: dict[str, int]) -> CategoryGuess:
     return CategoryGuess(lca, max(conf, 0), "lca")
 
 
-def guess_title(title: str, *, within: str | None = None) -> CategoryGuess:
-    """Basliktan tahmin. `within`: kaynak kategorisi biliniyorsa onun altindaki adaylar."""
-    matched, context = _MATCHER.match(words(title), source=False)
+def _title_guess(
+    matched: list[tuple[Rule, int]], context: set[str], within: str | None
+) -> CategoryGuess:
     cands = _candidates(matched, context, {within} if within else set())
     if within is not None:
         inside = {p: c for p, c in cands.items() if is_within(p, within)}
@@ -142,24 +162,93 @@ def guess_title(title: str, *, within: str | None = None) -> CategoryGuess:
     return CategoryGuess(guess.path, max(guess.confidence - TITLE_PENALTY, 0), guess.kind)
 
 
+def guess_title(title: str, *, within: str | None = None) -> CategoryGuess:
+    """Basliktan tahmin. `within`: kaynak kategorisi biliniyorsa onun altindaki adaylar."""
+    matched, context, _ = _MATCHER.match(words(title), source=False)
+    return _title_guess(matched, context, within)
+
+
+@dataclass(frozen=True)
+class TitleEvidence:
+    """Basligin kaynaktan bagimsiz okunusu (karar 0138)."""
+
+    #: `guess_title(title)` ile ayni sonuc.
+    guess: CategoryGuess
+    #: Tum aday yollar -> baslik guveni (TITLE_PENALTY dusulmus); indirgemeden once.
+    paths: dict[str, int]
+    #: Alan isaretleri (`cue` kurallari): atamaya yetmez, celiski olcer.
+    cues: frozenset[str]
+    #: Parca/aksesuar/uyumluluk basligi ("Replacement ... for", "Suitable for ...").
+    part: bool
+    _matched: list[tuple[Rule, int]] = field(repr=False, compare=False)
+    _context: set[str] = field(repr=False, compare=False)
+
+    def within(self, path: str) -> CategoryGuess:
+        """`guess_title(title, within=path)`; eslesme yeniden yapilmaz."""
+        return _title_guess(self._matched, self._context, path)
+
+
+def title_evidence(title: str) -> TitleEvidence:
+    text = words(title)
+    matched, context, cues = _MATCHER.match(text, source=False)
+    cands = _candidates(matched, context, set())
+    guess = _reduce(cands)
+    if guess.path is not None:
+        guess = CategoryGuess(guess.path, max(guess.confidence - TITLE_PENALTY, 0), guess.kind)
+    paths = {p: max(c - TITLE_PENALTY, 0) for p, c in cands.items()}
+    part = any(w in PART_WORDS or w in ACCESSORY_WORDS or w in COMPAT_WORDS for w in text)
+    return TitleEvidence(guess, paths, frozenset(cues), part, matched, context)
+
+
+def _device_part(cands: dict[str, int], part: bool) -> tuple[dict[str, int], bool]:
+    """Parca/aksesuar bolumunde cihaz adaylari: aksesuar dalina tasinir ya da dusurulur."""
+    out: dict[str, int] = {}
+    dropped = False
+    for path, conf in cands.items():
+        if path not in DEVICE_PATHS:
+            out[path] = max(out.get(path, 0), conf)
+        elif not part and path in ACCESSORY_OF:
+            target = ACCESSORY_OF[path]
+            out[target] = max(out.get(target, 0), conf)
+        else:
+            dropped = True
+    return out, dropped
+
+
 def guess_source(source_path: str) -> CategoryGuess:
     """Kaynak kategori yolundan tahmin (yol basina bir kez; sonuc onbelleklenir)."""
     parts = segments(source_path)
     if not parts:
         return NONE
-    layers = [_MATCHER.match(words(part), source=True) for part in parts]
+    texts = [words(part) for part in parts]
+    layers = [_MATCHER.match(text, source=True) for text in texts]
     context: set[str] = set()
-    for _, ctx in layers:
+    for _, ctx, _ in layers:
         context |= ctx
     # Her bolumun kendi adaylari (ust bolum adaylari alt bolumu daraltir).
     ancestors: set[str] = set()
     per_layer: list[dict[str, int]] = []
-    for matched, _ in layers:
+    for matched, _, _ in layers:
         cands = _candidates(matched, context, ancestors)
         per_layer.append(cands)
         ancestors |= set(cands)
+    # Parca/aksesuar isareti: bolumun kendisinde ya da altindaki bir bolumde.
+    qualifier: list[tuple[bool, bool]] = []
+    below_part = below_accessory = False
+    for text in reversed(texts):
+        below_part = below_part or any(w in PART_WORDS for w in text)
+        below_accessory = below_accessory or any(w in ACCESSORY_WORDS for w in text)
+        qualifier.append((below_part, below_accessory))
+    qualifier.reverse()
+    penalty = 0
     for level in range(len(parts) - 1, -1, -1):
         cands = per_layer[level]
+        part, accessory = qualifier[level]
+        if cands and (part or accessory):
+            cands, dropped = _device_part(cands, part)
+            if dropped:
+                # Bolumun asil anlami (cihaz parcasi) kayboldu: kalan genel eslesme zayiftir.
+                penalty = PART_PENALTY
         if not cands:
             continue
         above = set().union(*per_layer[:level]) if level else set()
@@ -171,7 +260,7 @@ def guess_source(source_path: str) -> CategoryGuess:
         guess = _reduce(compatible or cands)
         if guess.path is None:
             return guess
-        conf = guess.confidence - SOURCE_LEVEL_PENALTY * (len(parts) - 1 - level)
+        conf = guess.confidence - SOURCE_LEVEL_PENALTY * (len(parts) - 1 - level) - penalty
         if mismatch:
             conf -= ANCESTOR_MISMATCH_PENALTY
         return CategoryGuess(guess.path, max(conf, 0), guess.kind)

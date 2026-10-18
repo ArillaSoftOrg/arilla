@@ -16,6 +16,10 @@ Urune dokunus SINIRLIDIR:
 
 Uretimde `catalog_build` (aktarim/kapi/yayin) calisirken BASLAMAZ: yayin `SKIP LOCKED`
 kullanir, bu isin tuttugu satiri atlardi.
+
+`owned_only` (karar 0138): yalnizca bu isin yazdigi degeri hala tasiyan urunler yeni kural
+surumuyle yeniden karar alir (uretim pilotundaki 618 urun gibi). Kontrol noktasi YAZILMAZ ve
+tum katalog taramasi baslamaz; insan/yonetici degeri zaten bu kumede degildir.
 """
 
 from __future__ import annotations
@@ -66,6 +70,18 @@ SELECT_BATCH = (
     _SELECT_ROWS
     + """
  WHERE p.id > %(after)s
+   AND (%(merchant_id)s::bigint IS NULL OR p.source_merchant_id = %(merchant_id)s)
+ ORDER BY p.id
+ LIMIT %(limit)s
+"""
+)
+
+#: Yalnizca bu isin yazdigi (sahip oldugu) marka/kategori: yeni kural surumuyle duzeltme.
+SELECT_OWNED = (
+    _SELECT_ROWS
+    + """
+ WHERE p.id > %(after)s
+   AND (pc.wrote_category OR pc.wrote_brand)
    AND (%(merchant_id)s::bigint IS NULL OR p.source_merchant_id = %(merchant_id)s)
  ORDER BY p.id
  LIMIT %(limit)s
@@ -296,9 +312,19 @@ class Catalog:
         return verdict
 
 
-def _read(conn: psycopg.Connection, after: int, limit: int, merchant_id: int | None) -> list[_Row]:
+def _read(
+    conn: psycopg.Connection,
+    after: int,
+    limit: int,
+    merchant_id: int | None,
+    *,
+    owned_only: bool = False,
+) -> list[_Row]:
     with conn.cursor() as cur:
-        cur.execute(SELECT_BATCH, {"after": after, "limit": limit, "merchant_id": merchant_id})
+        cur.execute(
+            SELECT_OWNED if owned_only else SELECT_BATCH,
+            {"after": after, "limit": limit, "merchant_id": merchant_id},
+        )
         return _rows(cur.fetchall())
 
 
@@ -541,6 +567,7 @@ def classify_products(
     dry_run: bool = False,
     after_id: int | None = None,
     merchant_slug: str | None = None,
+    owned_only: bool = False,
     allow_concurrent_catalog_build: bool = False,
     lock_timeout_ms: int = 3_000,
     throttle: Callable[[], bool] | None = None,
@@ -556,7 +583,12 @@ def classify_products(
     `throttle`: WAL geri basinci (karar 0134, `db.wal_pressure.WalGovernor.before_batch`).
     Her yazan partiden ONCE, acik islem yokken cagrilir; False donerse is durur
     (`stopped_reason = "wal"`), tamamlanan partiler ve kontrol noktasi kalir.
+
+    `owned_only`: yalnizca bu isin yazdigi degerleri tasiyan urunler; kontrol noktasi okunmaz
+    ve yazilmaz (`rescan` ile birlikte verilemez), `after_id` ile surdurulur.
     """
+    if owned_only and rescan:
+        raise ClassifyAborted("owned_only_rescan", "--owned-only ve --rescan birlikte verilemez")
     batch_size = max(1, min(batch_size, MAX_BATCH))
     merchant_id: int | None = None
     scope = "all"
@@ -584,12 +616,14 @@ def classify_products(
                 raise ClassifyAborted("already_running")
             if rescan:
                 cur.execute(RESET_STATE, {"version": RULE_VERSION, "scope": scope})
-            cur.execute(
-                """SELECT last_product_id FROM product_classification_state
-                    WHERE rule_version = %s AND scope = %s""",
-                (RULE_VERSION, scope),
-            )
-            state = cur.fetchone()
+            state = None
+            if not owned_only:
+                cur.execute(
+                    """SELECT last_product_id FROM product_classification_state
+                        WHERE rule_version = %s AND scope = %s""",
+                    (RULE_VERSION, scope),
+                )
+                state = cur.fetchone()
         conn.commit()
         after = int(state[0]) if state else 0
     else:
@@ -613,7 +647,7 @@ def classify_products(
                 with conn.cursor() as cur:
                     cur.execute(f"SET LOCAL lock_timeout = '{int(lock_timeout_ms)}ms'")
                     cur.execute("SET LOCAL statement_timeout = '120s'")
-            rows = _read(conn, after, batch_size, merchant_id)
+            rows = _read(conn, after, batch_size, merchant_id, owned_only=owned_only)
             done = len(rows) < batch_size
             last = rows[-1].product_id if rows else after
             try:
@@ -634,6 +668,8 @@ def classify_products(
             lock_failures = 0
             if dry_run:
                 conn.rollback()
+            elif owned_only:
+                conn.commit()
             else:
                 with conn.cursor() as cur:
                     cur.execute(
@@ -727,6 +763,68 @@ def sample_decisions(
     catalog.pending_sources.clear()
     conn.rollback()
     return sorted(out, key=lambda item: item[0].product_id)
+
+
+@dataclass(frozen=True)
+class Recheck:
+    """Sahip olunan urunun eski ve yeni degeri (YALNIZCA OKUR; pilot ve geri alma kaydi)."""
+
+    row: _Row
+    decision: Decision
+    old_category: str | None
+    new_category: str | None
+    new_category_id: int | None
+    new_brand_id: int | None
+
+    @property
+    def action(self) -> str:
+        if self.row.category_id == self.new_category_id:
+            return "keep"
+        return "clear" if self.new_category_id is None else "change"
+
+
+def recheck_owned(
+    conn: psycopg.Connection, *, merchant_slug: str | None = None, limit: int | None = None
+) -> list[Recheck]:
+    """YALNIZCA OKUR: bu isin yazdigi degerleri tasiyan urunler yeni kurallarla ne olur.
+
+    `products --owned-only` ile ayni secim ve ayni `_target`; hicbir sey yazilmaz. Cikti uretim
+    pilotunun onizlemesi ve geri alma kaydidir (eski `category_id` / `brand_id`).
+    """
+    merchant_id: int | None = None
+    if merchant_slug is not None:
+        with conn.cursor() as cur:
+            cur.execute("SELECT id FROM merchant WHERE slug = %s", (merchant_slug,))
+            found = cur.fetchone()
+        if found is None:
+            raise ClassifyAborted("merchant_missing", merchant_slug)
+        merchant_id = int(found[0])
+    catalog = Catalog(conn)
+    out: list[Recheck] = []
+    after = 0
+    while limit is None or len(out) < limit:
+        rows = _read(conn, after, DEFAULT_BATCH, merchant_id, owned_only=True)
+        if not rows:
+            break
+        for row in rows:
+            decision = decide(facts_for(row, catalog))
+            brand, category = _target(row, decision, catalog)
+            out.append(
+                Recheck(
+                    row=row,
+                    decision=decision,
+                    old_category=catalog.path_by_id.get(row.category_id)
+                    if row.category_id
+                    else None,
+                    new_category=catalog.path_by_id.get(category) if category else None,
+                    new_category_id=category,
+                    new_brand_id=brand,
+                )
+            )
+        after = rows[-1].product_id
+    catalog.pending_sources.clear()
+    conn.rollback()
+    return out[:limit] if limit is not None else out
 
 
 def source_coverage(

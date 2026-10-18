@@ -16,7 +16,7 @@ from classify.brands import brand_key, clean_source_brand, find_title_brand, nam
 from classify.categories import common_ancestor, guess_source, guess_title
 from classify.decide import ProductFacts, SourceVerdict, decide
 from classify.lexicon import rows as lexicon_rows
-from classify.taxonomy import APPLY_MIN_CONFIDENCE, RULES, all_paths
+from classify.taxonomy import APPLY_MIN_CONFIDENCE, DEVICE_PATHS, RULES, all_paths
 from classify.text import PhraseIndex, path_norm, words
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -189,9 +189,14 @@ def test_source_wins_and_title_refines_below_it() -> None:
     src = SourceVerdict("elektronik/ses/kulaklik", 90, "suggested")
     d = decide(_facts("RGB Gaming Headset 7.1 Surround", src))
     assert (d.category_path, d.category_basis) == ("elektronik/ses/kulaklik/oyuncu", "source_title")
-    # Baslik baska bir dali gosterse de yapilandirilmis kaynak kazanir.
+    # Karar 0138: baslik kaynak dalini hic desteklemeyip guclu bicimde baska dal gosteriyorsa
+    # kaynak yazilmaz, baslik da kategoriyi tek basina degistirmez: inceleme.
     d = decide(_facts("Phone Case Silicone", src))
-    assert (d.category_path, d.category_basis) == ("elektronik/ses/kulaklik", "source")
+    assert (d.category_path, d.category_basis, d.detail) == (
+        None,
+        "conflict",
+        "source_title_conflict",
+    )
 
 
 def test_weak_source_needs_title_agreement() -> None:
@@ -200,9 +205,9 @@ def test_weak_source_needs_title_agreement() -> None:
     assert d.category_path == "ev-yasam/mutfak/kahve-ekipmanlari"
     assert d.state == "applied"
     d = decide(_facts("Original Gift Hot Sale", weak))
-    assert d.category_path is None and d.state == "review"
+    assert (d.category_path, d.category_basis, d.detail) == (None, "low_confidence", "weak_source")
     d = decide(_facts("Dog Collar Leather", weak))
-    assert d.category_path is None and d.category_basis == "low_confidence"
+    assert d.category_path is None and d.category_basis == "conflict"
 
 
 def test_confirmed_and_rejected_source_map() -> None:
@@ -242,6 +247,116 @@ def test_source_brand_beats_title() -> None:
     d = decide(_facts("Xiaomi uyumlu kablo", brand_raw="Ugreen"))
     assert (d.brand_name, d.brand_basis) == ("Ugreen", "source")
     assert d.compatible == ("Xiaomi",)
+
+
+# --- karar 0138: kaynak/baslik celiskisi, parca/aksesuar, marka uyumlulugu ----------------
+
+
+def _source(case: dict) -> SourceVerdict | None:
+    src = case.get("source")
+    if src is None:
+        return None
+    return SourceVerdict(src["path"], src["confidence"], src["status"])
+
+
+@pytest.mark.parametrize("case", REGRESSION["decision"], ids=lambda c: c["text"][:60])
+def test_decision_regression(case: dict) -> None:
+    d = decide(_facts(case["text"], _source(case), brand_raw=case.get("brand_raw")))
+    assert (d.category_path, d.state) == (case["path"], case["state"]), d
+    if "detail" in case:
+        assert d.detail == case["detail"], d
+    if "brand" in case:
+        assert d.brand_name == case["brand"], d
+    if "compatible" in case:
+        assert list(d.compatible) == case["compatible"], d
+
+
+def test_independent_title_reading_does_not_override_source() -> None:
+    """Baslik baska dali gosterse de kategoriyi kendisi DEGISTIRMEZ (olcumde yarisi yanlisti)."""
+    kitchen = SourceVerdict("ev-yasam/mutfak", 88, "suggested")
+    d = decide(
+        _facts("LED screen treadmill intelligent commercial gym treadmill household", kitchen)
+    )
+    assert (d.category_path, d.detail) == (None, "source_title_conflict")
+    # Ayni urun kaynaksiz gelseydi baslik tek basina yeterliydi.
+    d = decide(_facts("LED screen treadmill intelligent commercial gym treadmill household"))
+    assert d.category_path is None or d.category_basis == "title"
+
+
+def test_title_support_keeps_source_despite_foreign_words() -> None:
+    kitchen = SourceVerdict("ev-yasam/mutfak", 88, "suggested")
+    # "car" yabanci alan isareti ama "coffee mug" kaynak dalini destekliyor.
+    d = decide(_facts("Insulated Coffee Mug for Car Home Office", kitchen))
+    assert d.state == "applied" and d.category_path.startswith("ev-yasam/mutfak")  # type: ignore[union-attr]
+
+
+def test_same_domain_sibling_with_domain_cue_keeps_source() -> None:
+    exterior = SourceVerdict("oto-bahce/oto-aksesuar", 88, "suggested")
+    # "headlight" oto yedek parca kurali; "car" arac alani: urun arac aksesuari, kaynak surer.
+    d = decide(_facts("Car Headlight Protective Film Smoke Black Tint", exterior))
+    assert (d.category_path, d.category_basis) == ("oto-bahce/oto-aksesuar", "source")
+    # Alan isareti olmadan kardes dal celiskisi incelemeye duser.
+    d = decide(_facts("Motorcycle Exhaust Muffler Stainless", exterior))
+    assert d.category_path is None and d.detail == "source_title_conflict"
+
+
+def test_confirmed_source_map_keeps_priority_over_cues_but_not_over_strong_conflict() -> None:
+    confirmed = SourceVerdict("ev-yasam/mutfak", 100, "confirmed")
+    # Yalniz alan isareti: yonetici eslemesi korunur.
+    d = decide(_facts("Car Cup Holder Organizer", confirmed))
+    assert (d.category_path, d.confidence) == ("ev-yasam/mutfak", 100)
+    # Guclu ve acik celiski: yonetici YOLU onayladi, bu urunu degil; yazilmaz, inceleme.
+    d = decide(_facts("Phone Case Silicone Shockproof", confirmed))
+    assert d.category_path is None and d.detail == "source_title_conflict"
+
+
+def test_part_source_never_maps_to_the_device_itself() -> None:
+    for raw in (
+        "Computer & Office > Laptop Parts & Accessories",
+        "Tools > Power Tool Parts & Accessories",
+        "Computer & Office > Tablet Accessories & Parts",
+        "Home Appliances > Home Appliance Parts",
+    ):
+        guess = guess_source(raw)
+        assert guess.path not in DEVICE_PATHS, raw
+        assert guess.path is None or guess.confidence < APPLY_MIN_CONFIDENCE, (raw, guess)
+    # Yalniz "aksesuar" diyen bolum cihazin aksesuar dalina gider.
+    guess = guess_source("Consumer Electronics > Camera & Photo > Camera & Photo Accessories")
+    assert (guess.path, guess.confidence >= APPLY_MIN_CONFIDENCE) == (
+        "elektronik/kamera/aksesuar",
+        True,
+    )
+    # Alan kategorisinde (bisiklet) parca kategorinin parcasidir: degismez.
+    assert guess_source("Sports & Entertainment > Cycling > Bicycle Parts").path == (
+        "spor-outdoor/bisiklet"
+    )
+
+
+def test_part_title_never_proves_a_device_category() -> None:
+    weak_tools = SourceVerdict("ev-yasam/yapi-market", 70, "suggested")
+    d = decide(
+        _facts("SDS Plus Rotary Hammer Chuck Replacement for TE24 Rotary Hammers", weak_tools)
+    )
+    assert (d.category_path, d.detail) == (None, "part_title")
+    # Ayni kaynakta gercek el aleti seti baslikla dogrulanir.
+    d = decide(_facts("10Pcs Screwdriver Set Magnetic Bits", weak_tools))
+    assert (d.category_path, d.category_basis) == (
+        "ev-yasam/yapi-market/el-aletleri",
+        "source_title",
+    )
+    # Kaynaksiz: cihaz basligi kategori olur, parca basligi olmaz.
+    assert decide(_facts("Cordless Drill 21V Brushless Electric Drill")).category_basis == "title"
+    d = decide(_facts("Suitable for Cordless Drill 21V Replacement Chuck"))
+    assert d.category_path is None
+
+
+def test_title_rules_do_not_fire_on_lookalike_words() -> None:
+    assert guess_title("Food Grade Stainless Steel Drain Basket").path is None
+    assert guess_title("Portable Small Air Conditioner Compressor").path is None
+    assert guess_title("Kazakhstan Pizza Oven Door").path is None
+    assert guess_title("Hair Conditioner Argan Oil 500ml").path == (
+        "saglik-kozmetik/kozmetik/sac-bakimi"
+    )
 
 
 def test_ts_lexicon_fixture_matches_taxonomy() -> None:

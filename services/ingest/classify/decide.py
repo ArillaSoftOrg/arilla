@@ -1,12 +1,26 @@
 """Tek urun icin marka + kategori karari (SAF; veritabani yok, ayni girdi ayni sonuc).
 
-Oncelik (karar 0133):
+Oncelik (karar 0133, 0138):
 1. Urunde insan/besleme tarafindan yazilmis deger varsa KORUNUR (`existing`).
 2. Kaynak kategori eslemesi (`category_source_map`: onayli = 100, oneri = kural guveni).
+   Baslik kaynaktan BAGIMSIZ da okunur (karar 0138): AliExpress kaynagi iki seviyelidir ve
+   saticinin secimidir ("Kitchen,Dining & Bar" icinde priz, NAS, yakit tanki). Baslikta kaynak
+   dalini destekleyen kural yoksa ve
+   a. baslik guclu bicimde BASKA bir dali gosteriyorsa: inceleme (`conflict`,
+      `source_title_conflict`). Baslik kategoriyi tek basina DEGISTIRMEZ: olcumde bu tur
+      "baslik kazansin" kararlarinin yarisi yanlisti (meyve kasesi -> mobilya, bira musluğu ->
+      banyo). Onayli esleme de bu durumda incelemeye duser (yonetici yolu onayladi, urunu degil).
+   b. yalnizca alan isareti ("car", "garden", "plug") baska alani gosteriyorsa: onerilmis
+      kaynakta inceleme (`source_cue_conflict`); onayli kaynak korunur.
 3. Baslik, kaynak kategorisinin ALTINDA daha ozel bir dal gosteriyorsa onu secer
    ("Earphones & Headphones" + "Gaming Headset" -> oyuncu kulakligi).
 4. Kaynak zayifsa baslik ayni dali dogrularsa kabul; dogrulamazsa inceleme.
-5. Kaynak yoksa yalnizca baslik; guven esigi gecilmezse inceleme.
+5. Kaynak yoksa yalnizca baslik; guven esigi gecilmezse inceleme. Kaynak yolu olup agacta
+   karsiligi yoksa (`unmapped`, or. endustriyel kategoriler) baslik daha yuksek esik ister:
+   olcumde bu kovada baslik tek basina cogunlukla yanlisti (kaynak makinesi -> taki).
+Parca/uyumluluk basligi ("Replacement Chuck for Rotary Hammer", "Suitable for Coffee Machine")
+bir cihaz kategorisine (`DEVICE_PATHS`) baslik kanitiyla girmez: basliktaki cihaz urunun
+kendisi degil, uyumlu oldugu cihazdir.
 Marka: yapilandirilmis kaynak > secilmis listeden baslik (uyumluluk ayrilir) > yok.
 Model cagrisi YOK; belirsiz urun 'review' ile bekler (yanlis kategori yazilmaz).
 """
@@ -16,11 +30,24 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from classify.brands import clean_source_brand, find_title_brand
-from classify.categories import CategoryGuess, guess_title, is_within
-from classify.taxonomy import ACCESSORY_PREFIXES, APPLY_MIN_CONFIDENCE
+from classify.categories import TitleEvidence, is_within, title_evidence
+from classify.taxonomy import ACCESSORY_PREFIXES, APPLY_MIN_CONFIDENCE, DEVICE_PATHS
 
 #: Iki zayif kanit (kaynak + baslik) ayni dali gosterdiginde verilen guven.
 AGREEMENT_CONFIDENCE = 85
+#: Bu baslik guveninde (kural >= 85) kaynak disi aday celiski sayilir.
+CONFLICT_MIN_CONFIDENCE = APPLY_MIN_CONFIDENCE
+#: Kaynak yolu var ama agacta karsiligi yok ("Industrial & Business > Packaging ..."): urun
+#: buyuk olasilikla hicbir dala ait degil; baslik ancak bu guvende (kural >= 90) yazilir.
+UNMAPPED_TITLE_MIN_CONFIDENCE = 85
+
+
+def _related(path: str, other: str) -> bool:
+    return is_within(path, other) or is_within(other, path)
+
+
+def _top(path: str) -> str:
+    return path.split("/", 1)[0]
 
 
 @dataclass(frozen=True)
@@ -62,32 +89,77 @@ class Decision:
         )
 
 
-def _category(facts: ProductFacts) -> tuple[str | None, str, int, str | None]:
+Verdict = tuple[str | None, str, int, str | None]
+
+
+def _against_source(evidence: TitleEvidence, src: SourceVerdict, confidence: int) -> Verdict | None:
+    """Baslik kaynakla celisiyorsa inceleme karari; celismiyorsa None (kaynak kurallari surer)."""
+    assert src.path is not None
+    if any(_related(p, src.path) for p in evidence.paths):
+        # Baslik kaynak dalini dogruluyor: baska aday ya da isaret olsa da kaynak surer.
+        return None
+    foreign = [
+        p
+        for p, c in evidence.paths.items()
+        if c >= CONFLICT_MIN_CONFIDENCE and not _related(p, src.path)
+    ]
+    if foreign:
+        # Ayni ana kategoride kardes dal ve baslik kaynagin alanini da soyluyor ("Car Headlight
+        # Film" Exterior Accessories'te: "headlight" yedek parca kurali, "car" arac alani):
+        # urun alani dogru, yaprak secimi saticinin; kaynak surer.
+        if any(_related(c, src.path) for c in evidence.cues) and all(
+            _top(p) == _top(src.path) for p in foreign
+        ):
+            return None
+        return None, "conflict", confidence, "source_title_conflict"
+    if src.status != "confirmed" and any(not _related(c, src.path) for c in evidence.cues):
+        return None, "conflict", confidence, "source_cue_conflict"
+    return None
+
+
+def _title_device(path: str | None, evidence: TitleEvidence) -> bool:
+    """Parca/uyumluluk basligi bir cihaz kategorisini gosteriyor: kanit sayilmaz."""
+    return evidence.part and path in DEVICE_PATHS
+
+
+def _category(facts: ProductFacts) -> Verdict:
     if facts.kept_category_path is not None:
         return facts.kept_category_path, "existing", 100, None
+    evidence = title_evidence(facts.title)
     src = facts.source
     if src is not None and src.status == "rejected":
         src = None
     if src is not None and src.path is not None:
         confidence = 100 if src.status == "confirmed" else src.confidence
-        refined = guess_title(facts.title, within=src.path)
+        against = _against_source(evidence, src, confidence)
+        if against is not None:
+            return against
+        refined = evidence.within(src.path)
         deeper = (
             refined.path is not None
             and refined.path != src.path
             and is_within(refined.path, src.path)
+            and not _title_device(refined.path, evidence)
         )
         if confidence >= APPLY_MIN_CONFIDENCE:
             if deeper and refined.confidence >= APPLY_MIN_CONFIDENCE - 5:
                 return refined.path, "source_title", max(confidence, refined.confidence), None
             return src.path, "source", confidence, None
-        if deeper or refined.path == src.path:
+        if deeper or (refined.path == src.path and not _title_device(src.path, evidence)):
             return refined.path, "source_title", AGREEMENT_CONFIDENCE, None
-        broad = guess_title(facts.title)
+        broad = evidence.guess
         if broad.path is not None and is_within(src.path, broad.path):
             return src.path, "source_title", AGREEMENT_CONFIDENCE, None
+        if evidence.part and refined.path is not None:
+            return None, "low_confidence", confidence, "part_title"
         return None, "low_confidence", confidence, "weak_source"
-    guess: CategoryGuess = guess_title(facts.title)
+    guess = evidence.guess
+    unmapped = src is not None and src.status == "unmapped"
     if guess.path is not None and guess.confidence >= APPLY_MIN_CONFIDENCE:
+        if _title_device(guess.path, evidence):
+            return None, "low_confidence", guess.confidence, "part_title"
+        if unmapped and guess.confidence < UNMAPPED_TITLE_MIN_CONFIDENCE:
+            return None, "low_confidence", guess.confidence, "unmapped_source"
         return guess.path, "title", guess.confidence, None
     if guess.kind == "conflict":
         return None, "conflict", 0, "title_conflict"

@@ -8,6 +8,11 @@ Kural: bir ya da daha fazla hedef yol + guven + ifadeler (+ dislayan ifadeler).
 - Dislayan ifade metnin HERHANGI bir yerinde gecerse kural eslesmez ("phone case" kuralini
   "airpods" dislar). Ingilizce cogul eki iki tarafta da kirpilir (`text.words`).
 - `*` ile biten kelime onektir (en az 3 harf): `kilif*` -> kilifi, kiliflari.
+- `cue` kurallari (karar 0138) yalnizca baslikta, yalnizca CELISKI olcmek icindir: "car",
+  "garden", "plug" bir urunu kategoriye ATAMAYA yetmez ama kaynak "Kitchen" derken basligin
+  baska bir alana ait oldugunu gosterir. Aday uretmez.
+- Parca/aksesuar kaynak bolumu ("Laptop Parts & Accessories") `DEVICE_PATHS` icindeki bir
+  cihaz kategorisine eslenmez (karar 0138): aksesuar dali varsa oraya, yoksa zayif ust dala.
 
 Bir kurali degistirmek siniflandirma sonucunu degistirir: `RULE_VERSION` artirilir ve
 `tests/classify_regression.json` yeniden dogrulanir (CLAUDE.md: regresyon seti zorunlu).
@@ -18,7 +23,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 #: Kural kumesinin surumu. Kontrol noktasi ve `product_classification.rule_version` bunu tasir.
-RULE_VERSION = 1
+#: 2 (karar 0138): parca/aksesuar kaynak bolumu cihaz kategorisine eslenmez; baslik kaynakla
+#: celisirse inceleme (ya da guclu baslik kaniti); `cue` kurallari.
+RULE_VERSION = 2
 
 #: Bu guvenin altindaki karar urune YAZILMAZ; urun 'review' ile bekler.
 APPLY_MIN_CONFIDENCE = 80
@@ -33,6 +40,8 @@ class Rule:
     source_only: bool = False
     #: Yalnizca cok yollu kurallari ayirmak icin baglam (cinsiyet); kendisi aday degildir.
     context: bool = False
+    #: Yalnizca baslikta alan isareti (karar 0138); aday degildir, celiski olcer.
+    cue: bool = False
 
 
 def R(
@@ -43,6 +52,7 @@ def R(
     *,
     source_only: bool = False,
     context: bool = False,
+    cue: bool = False,
 ) -> Rule:
     return Rule(
         paths=(paths,) if isinstance(paths, str) else tuple(paths),
@@ -51,6 +61,7 @@ def R(
         exclude=tuple(exclude),
         source_only=source_only,
         context=context,
+        cue=cue,
     )
 
 
@@ -83,7 +94,10 @@ RULES: tuple[Rule, ...] = (
     R("elektronik", 80, ("consumer electronics", "home audio video"), source_only=True),
     R("ev-yasam", 72, ("home garden",), source_only=True),
     R("ev-yasam/yapi-market", 75, ("home improvement",), source_only=True),
-    R("ev-yasam/yapi-market", 80, ("tools",), source_only=True),
+    R("ev-yasam/yapi-market", 80, ("tools",), ("tool parts",), source_only=True),
+    # "Tools > Tool Parts" AliExpress'in karisik kovasi (motor, arac, makine parcasi; karar 0138):
+    # yalniz baslik dogrularsa.
+    R("ev-yasam/yapi-market", 70, ("tool parts",), source_only=True),
     R("ev-yasam/yapi-market/hirdavat", 85, ("hardware",), source_only=True),
     R("moda/ayakkabi/topuklu", 88, ("pumps",), source_only=True),
     R("oto-bahce/oto-aksesuar", 88,
@@ -92,7 +106,9 @@ RULES: tuple[Rule, ...] = (
     R("elektronik", 80, ("elektronik",)),
     R("ev-yasam", 80, ("ev yasam",)),
     R("moda", 80, ("fashion", "moda")),
-    R("supermarket", 85, ("food", "supermarket", "market urun*")),
+    # "Food" yalniz kaynak adi: baslikta "Food Safe", "Food Grade", "Food Truck" gecer.
+    R("supermarket", 85, ("food",), source_only=True),
+    R("supermarket", 85, ("supermarket", "market urun*"), ("display", "cart", "trolley", "shelf")),
     # --- Elektronik / Telefon ---------------------------------------------------------
     R("elektronik/telefon", 88, ("phones telecommunications", "phone telecommunication")),
     R("elektronik/telefon/cep-telefonu", 90,
@@ -177,7 +193,8 @@ RULES: tuple[Rule, ...] = (
     R("elektronik/ses/hoparlor", 88,
       ("speaker", "speakers", "bluetooth speaker", "soundbar", "sound bar", "subwoofer",
        "hoparlor*", "ses bombasi"),
-      ("car", "speaker cable", "speaker stand", "speaker grill", "speaker wire", "mount",
+      ("car", "speaker cable", "speaker stand", "speaker grill", "speaker grille", "speaker ring",
+       "speaker wire", "mount",
        "bracket", "mesh", "phone", "earphone", "headphone", "arac*", "oto", "case", "kilif*",
        "headset", "part")),
     R("elektronik/ses/mikrofon", 88,
@@ -466,7 +483,8 @@ RULES: tuple[Rule, ...] = (
     R(_both("ust-giyim"), 88,
       ("t shirt", "t shirts", "tshirt", "tee shirt", "tops tees", "tank top", "crop top",
        "shirt", "shirts", "polo shirt", "hoodie", "hoodies", "sweatshirt", "sweatshirts",
-       "sweater", "sweaters", "cardigan", "pullover", "tisort*", "gomlek*", "kazak*",
+       "sweater", "sweaters", "cardigan", "pullover", "tisort*", "gomlek*", "kazak", "kazagi",
+       "kazaklar",
        "hirka*", "sweatshirt*", "atlet", "atleti"),
       KIDS + PETS + ("doll", "shirt collar", "shirt stay", "sportswear", "jersey",
                      "shirt dress", "elbise*", "pajama", "pyjama", "pijama*", "sleepwear",
@@ -479,12 +497,14 @@ RULES: tuple[Rule, ...] = (
       KIDS + PETS + ("short sleeve", "short sleeved", "short sleeves", "doll", "pajama",
                      "pyjama", "pijama*", "sleepwear", "yoga", "sport", "sports", "gym",
                      "running", "cycling", "tracksuit", "spor*")),
-    R(f"{KADIN}/alt-giyim", 88, ("skirt", "skirts", "etek*", "mini skirt", "midi skirt")),
+    R(f"{KADIN}/alt-giyim", 88, ("skirt", "skirts", "etek*", "mini skirt", "midi skirt"),
+      ("side skirt", "side skirts", "car", "bumper")),
     R(_both("dis-giyim"), 88,
       ("jacket", "jackets", "coat", "coats", "jackets coats", "parka", "down jacket",
        "windbreaker", "blazer", "trench coat", "puffer", "mont", "montu", "montlar",
        "kaban*", "ceket*", "yagmurluk*", "trenckot*", "yelek*"),
       KIDS + PETS + ("life jacket", "can yelek*", "coat hanger", "coat rack", "car cover",
+                     "coat of arms",
                      "doll", "cycling", "motorcycle", "motosiklet*", "reflective",
                      "safety vest")),
     R(f"{KADIN}/elbise", 90,
@@ -644,7 +664,7 @@ RULES: tuple[Rule, ...] = (
        "sampuan*", "sac bakim*", "sac krem*", "sac maske*", "sac boya*", "sac yag*",
        "sac spreyi", "sac serum*"),
       ("dog", "pet", "cat", "kopek*", "kedi*", "wig", "hair extension", "peruk*", "carpet",
-       "car shampoo", "oto sampuan*")),
+       "car shampoo", "oto sampuan*", "air conditioner", "air conditioning")),
     R("saglik-kozmetik/kozmetik/parfum", 90,
       ("perfume", "perfumes", "fragrance", "eau de parfum", "eau de toilette", "cologne",
        "body mist", "deodorant", "parfum*", "deodorant*", "kolonya*", "edp", "edt"),
@@ -892,8 +912,92 @@ RULES: tuple[Rule, ...] = (
        "kopek kiyafet*", "kopek kab*")),
     R("petshop/akvaryum", 90,
       ("aquarium", "fish tank", "aquarium filter", "aquarium pump", "akvaryum*")),
+    # --- Alan isaretleri (yalniz baslik, aday degil; karar 0138) ------------------------
+    # Kaynak baska bir alani soylerken bu kelimeler basligin o alana ait OLMADIGINI gosterir
+    # ("Semiconductor Car Cup Cooler" Kitchen kaynaginda). Yuksek isabetli kelimeler secilir;
+    # "auto" (auto shut-off), "wire" (wire whisk), "pet" (PET plastik), "dog"/"toddler"
+    # (baski motifi: "Cowardly Dog Pillowcase", cocuk mobilyasi) bilerek YOK.
+    # Arac alani ana kategori duzeyinde: "car" oto parca/aksesuar/elektronik kaynaginin hepsini
+    # destekler. Arac ureticisi adlari da arac baglamidir ("For Toyota Corolla ...").
+    R("oto-bahce", 0,
+      ("car", "cars", "vehicle", "vehicles", "automotive", "truck", "trucks", "suv",
+       "motorhome", "caravan", "windshield", "obd", "obd2", "key programmer", "arac*",
+       "araba*", "toyota", "bmw", "mercedes", "audi", "volkswagen", "vw", "honda", "ford",
+       "hyundai", "kia", "nissan", "mazda", "renault", "peugeot", "opel", "skoda", "chevrolet",
+       "jeep", "land rover", "volvo", "tesla", "byd", "subaru", "mitsubishi", "lexus",
+       "porsche", "citroen", "dacia", "cupra", "chery", "geely", "haval", "zeekr"),
+      ("toy car", "car toy", "car shaped", "oyuncak*"), cue=True),
+    R("oto-bahce/bahce", 0,
+      ("garden", "lawn", "patio", "greenhouse", "backyard", "bahce*"), cue=True),
+    R("ev-yasam/yapi-market", 0,
+      # Yalin "plug"/"socket" YOK: "EU Plug" (cihaz ozelligi), "Chair Leg Plug", "socket set".
+      ("power plug", "plug adapter", "travel adapter", "plug socket", "power socket",
+       "wall socket", "socket outlet", "power outlet", "wall outlet", "circuit breaker",
+       "relay", "electric shock", "electrical", "junction box", "power strip",
+       "extension cord", "surge protector", "voltage protector", "priz*", "sigorta*"),
+      cue=True),
+    R("elektronik/bilgisayar", 0,
+      ("nas", "raid", "server rack", "rack server", "pcie", "pci", "sata",
+       "network attached storage", "gpu", "cpu", "computer", "desktop pc", "ethernet", "ddr4",
+       "ddr5", "bilgisayar*"),
+      ("computer controlled", "computer control"), cue=True),
+    R("elektronik/telefon", 0,
+      ("phone", "smartphone", "cellphone", "iphone", "telefon*"), cue=True),
+    R("elektronik", 0, ("hologram",), cue=True),
 )
 # fmt: on
+
+#: Cihaz kategorileri (karar 0138): bir kaynak bolumu parca/aksesuar diyorsa ("Laptop Parts &
+#: Accessories", "Power Tool Parts") urun cihazin KENDISI degildir; bu yollara eslenmez.
+DEVICE_PATHS: frozenset[str] = frozenset(
+    {
+        "elektronik/telefon/cep-telefonu",
+        "elektronik/bilgisayar/dizustu",
+        "elektronik/bilgisayar/tablet",
+        "elektronik/kamera",
+        "elektronik/kamera/aksiyon-kamerasi",
+        "elektronik/kamera/guvenlik-kamerasi",
+        "elektronik/kamera/drone",
+        "elektronik/oyun",
+        "elektronik/oyun/konsol",
+        "elektronik/tv-goruntu",
+        "elektronik/tv-goruntu/projeksiyon",
+        "elektronik/tv-goruntu/medya-oynatici",
+        "elektronik/ses/kulaklik",
+        "elektronik/ses/kulaklik/kablosuz",
+        "elektronik/ses/kulaklik/oyuncu",
+        "elektronik/ses/kulaklik/kablolu",
+        "elektronik/ses/hoparlor",
+        "elektronik/ses/mikrofon",
+        "elektronik/giyilebilir/akilli-saat",
+        "elektronik/giyilebilir/akilli-bileklik",
+        "ev-yasam/ev-aletleri",
+        "ev-yasam/ev-aletleri/kucuk-ev-aletleri",
+        "ev-yasam/ev-aletleri/supurge",
+        "ev-yasam/yapi-market/elektrikli-aletler",
+        # Alet parcasi ("Chuck for Rotary Hammer") aletin kendisi degildir.
+        "ev-yasam/yapi-market/el-aletleri",
+    }
+)
+
+#: Yalniz "aksesuar" diyen (parca demeyen) kaynak bolumu icin cihazin aksesuar dali.
+ACCESSORY_OF: dict[str, str] = {
+    "elektronik/telefon/cep-telefonu": "elektronik/telefon/aksesuar",
+    "elektronik/bilgisayar/dizustu": "elektronik/bilgisayar/aksesuar",
+    "elektronik/bilgisayar/tablet": "elektronik/bilgisayar/aksesuar",
+    "elektronik/kamera": "elektronik/kamera/aksesuar",
+    "elektronik/kamera/aksiyon-kamerasi": "elektronik/kamera/aksesuar",
+    "elektronik/kamera/guvenlik-kamerasi": "elektronik/kamera/aksesuar",
+    "elektronik/kamera/drone": "elektronik/kamera/aksesuar",
+    "elektronik/oyun": "elektronik/oyun/aksesuar",
+    "elektronik/oyun/konsol": "elektronik/oyun/aksesuar",
+}
+
+#: Kaynak bolumu kelimeleri (katlanmis, tekil): parca ve aksesuar isaretleri.
+PART_WORDS = frozenset({"part", "spare", "replacement"})
+ACCESSORY_WORDS = frozenset({"accessory", "accessorie"})
+#: Baslikta uyumluluk isareti: "Suitable for", "Applicable To", "Compatible with".
+COMPAT_WORDS = frozenset({"suitable", "applicable", "compatible"})
 
 
 #: Aksesuar dallari: cihaz markasi (Apple, Samsung, Xiaomi...) bu kategorilerde URUNUN markasi
@@ -904,6 +1008,10 @@ ACCESSORY_PREFIXES: tuple[str, ...] = (
     "elektronik/bilgisayar/aksesuar",
     "elektronik/kamera/aksesuar",
     "elektronik/oyun/aksesuar",
+    # Oto parca/aksesuar (karar 0138): "Toyota Corolla Headlight" ucuncu taraf parcadir.
+    "oto-bahce/oto-aksesuar",
+    "oto-bahce/oto-yedek-parca",
+    "oto-bahce/oto-elektronik",
 )
 
 # fmt: off
@@ -989,4 +1097,6 @@ def all_paths() -> set[str]:
         paths.update(rule.paths)
     paths.update(LEXICON)
     paths.update(ACCESSORY_PREFIXES)
+    paths.update(DEVICE_PATHS)
+    paths.update(ACCESSORY_OF.values())
     return paths
