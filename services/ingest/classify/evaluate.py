@@ -8,6 +8,10 @@ Girdi: `classify sample` ciktisi TSV (ya da ayni sutunlu dosya). Etiketleyen kis
 - `expected_category`: dogru yaprak yol; `-` = agacta uygun kategori yok (urun incelemede kalmali);
   bos = etiketlenmemis.
 - `expected_brand`: dogru urun markasi; `-` = markasiz (ya da yalniz uyumlu marka); bos = etiketsiz.
+- `label_source`: `human` (insan dogrulamali) ya da `model` (model atadi, insan dogrulamasi YOK).
+  Iki kaynak ASLA birlestirilmez: `score_by_label_source` her biri icin ayri metrik uretir; bos
+  deger `unspecified` sayilir ve insan etiketi gibi okunmaz.
+Her oran Wilson %95 guven araligiyla birlikte verilir (`ci`); kucuk orneklemde aralik genistir.
 
 Karar ayni girdiyle (baslik + kaynak kategori yolu, kaynak onerisi `guess_source`) KOSAN KODLA
 yeniden hesaplanir; boylece ayni etiketli veride iki surum (v2/v3) karsilastirilir: her surumun
@@ -49,7 +53,9 @@ TSV_FIELDS = (
     "source_category",
     "expected_category",
     "expected_brand",
+    "label_source",
 )
+LABEL_SOURCES = ("human", "model", "unspecified")
 
 
 @dataclass(frozen=True)
@@ -59,6 +65,7 @@ class LabeledRow:
     source_category: str
     expected_category: str | None  # None = etiketsiz
     expected_brand: str | None  # None = etiketsiz; NONE_LABEL = markasiz
+    label_source: str = "unspecified"  # 'human' | 'model' | 'unspecified'
 
 
 @dataclass
@@ -90,6 +97,19 @@ class Metrics:
     brand_recall: float | None = None
     brand_empty_reasons: dict[str, int] = field(default_factory=dict)
     failures_by_source: dict[str, dict[str, int]] = field(default_factory=dict)
+    #: Wilson %95 guven araligi: {metrik: [alt, ust]}; payda 0 ise yok.
+    ci: dict[str, list[float]] = field(default_factory=dict)
+
+
+def wilson(successes: int, n: int, z: float = 1.96) -> tuple[float, float] | None:
+    """Binom orani icin Wilson %95 araligi; n = 0 ise None."""
+    if n <= 0:
+        return None
+    p = successes / n
+    denom = 1 + z * z / n
+    centre = (p + z * z / (2 * n)) / denom
+    half = z * ((p * (1 - p) / n + z * z / (4 * n * n)) ** 0.5) / denom
+    return (round(max(0.0, centre - half), 4), round(min(1.0, centre + half), 4))
 
 
 def read_labels(path: Path) -> list[LabeledRow]:
@@ -105,6 +125,7 @@ def read_labels(path: Path) -> list[LabeledRow]:
                     source_category=str(rec.get("source_category", "")),
                     expected_category=cat or None,
                     expected_brand=brand or None,
+                    label_source=(rec.get("label_source") or "unspecified").strip().lower(),
                 )
             )
     return rows
@@ -217,7 +238,30 @@ def score(
     m.brand_recall = _ratio(m.brand_correct, m.brand_expected)
     m.brand_empty_reasons = dict(reasons.most_common())
     m.failures_by_source = {k: dict(v) for k, v in sorted(fails.items())}
+    for name, (k, n) in {
+        "precision_strict": (m.exact, m.applied_labeled),
+        "precision_lenient": (m.exact + m.coarse, m.applied_labeled),
+        "wrong_rate": (m.wrong, m.applied_labeled),
+        "review_rate": (m.review_labeled, m.n_category_labeled),
+        "recall_strict": (m.exact, assignable),
+        "brand_precision": (m.brand_correct, m.brand_predicted),
+        "brand_recall": (m.brand_correct, m.brand_expected),
+    }.items():
+        interval = wilson(k, n)
+        if interval is not None:
+            m.ci[name] = list(interval)
     return m
+
+
+def score_by_label_source(
+    rows: Sequence[LabeledRow],
+    decider: Callable[[LabeledRow], Decision] | None = None,
+) -> dict[str, Metrics]:
+    """Etiket kaynagina gore AYRI metrik (human / model / unspecified); asla birlestirilmez."""
+    groups: dict[str, list[LabeledRow]] = defaultdict(list)
+    for row in rows:
+        groups[row.label_source if row.label_source in LABEL_SOURCES else "unspecified"].append(row)
+    return {name: score(group, decider) for name, group in sorted(groups.items())}
 
 
 def split_of(product_id: str, dev_percent: int = 50) -> str:

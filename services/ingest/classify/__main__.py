@@ -26,6 +26,7 @@ yonetici/besleme degeri ve henuz siniflandirilmamis urunler dokunulmaz.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import signal
 import sys
@@ -317,12 +318,23 @@ def main(argv: list[str] | None = None) -> int:
         rows = ev.read_labels(Path(args.labels))
         if args.split != "all":
             rows = [r for r in rows if ev.split_of(r.product_id) == args.split]
-        metrics = ev.score(rows)
-        text = ev.dump(metrics)
+        by_source = ev.score_by_label_source(rows)
+        text = json.dumps(
+            {k: v.__dict__ for k, v in by_source.items()},
+            ensure_ascii=False,
+            indent=2,
+            sort_keys=True,
+        )
         print(text)
         if args.json:
             Path(args.json).write_text(f"{text}\n", encoding="utf-8")
-        if metrics.n_category_labeled == 0:
+        if "human" not in by_source:
+            print(
+                "UYARI: insan etiketi yok; rakamlar model/belirtilmemis etiketlidir ve dogruluk "
+                "kaniti SAYILMAZ",
+                file=sys.stderr,
+            )
+        if all(m.n_category_labeled == 0 for m in by_source.values()):
             print("UYARI: etiketli kategori yok; precision hesaplanamaz", file=sys.stderr)
         return 0
 

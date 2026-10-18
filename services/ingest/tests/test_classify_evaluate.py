@@ -182,3 +182,31 @@ def test_frozen_eval_labels_score_is_sane() -> None:
     assert m.precision_strict is not None and m.precision_strict >= 0.66
     assert m.wrong_rate is not None and m.wrong_rate <= 0.20
     assert m.accessory_confusion == 0
+
+
+def test_wilson_interval_matches_known_values() -> None:
+    lo, hi = ev.wilson(49, 60)  # type: ignore[misc]
+    assert (round(lo, 2), round(hi, 2)) == (0.7, 0.9)
+    assert ev.wilson(0, 0) is None
+    lo, hi = ev.wilson(0, 10)  # type: ignore[misc]
+    assert lo == 0.0 and 0.2 < hi < 0.35  # 0/10 bile %0 kesin degil
+
+
+def test_human_and_model_labels_are_never_mixed() -> None:
+    rows = [
+        ev.LabeledRow("1", "t", "s", "moda/canta", None, "human"),
+        ev.LabeledRow("2", "t", "s", "moda/canta", None, "model"),
+        ev.LabeledRow("3", "t", "s", "moda/canta", None),  # belirtilmemis
+    ]
+    out = ev.score_by_label_source(
+        rows, lambda r: _dec("moda/canta" if r.product_id != "2" else None)
+    )
+    assert set(out) == {"human", "model", "unspecified"}
+    assert out["human"].exact == 1 and out["model"].missed == 1
+    assert out["unspecified"].n_category_labeled == 1  # insan etiketi gibi sayilmaz
+
+
+def test_interval_is_reported_with_precision() -> None:
+    rows = [_row(str(i), "t", "s", "moda/canta") for i in range(10)]
+    m = ev.score(rows, lambda r: _dec("moda/canta"))
+    assert m.precision_strict == 1.0 and m.ci["precision_strict"][0] < 1.0
