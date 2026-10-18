@@ -932,6 +932,52 @@ günüyle); kural değişikliği geçmiş satırları yeniden fiyatlamaz.
 Maliyet uyarısı diğerleri kadar önemlidir. `api_usage` tablosundan günlük
 oturum başına maliyet raporu üretilir ve eşiği aşınca bildirim gider.
 
+### Üretimde salt okunur arama ve sohbet doğrulaması (karar 0136)
+
+Hiçbiri veri yazmaz; sırayla ve **elle** çalıştırılır (zamanlayıcı yok, kendiliğinden koşmaz).
+Bulunabilirlik SQL'leri `psql` ile salt okunur oturumda çalışır:
+
+```sql
+SET default_transaction_read_only = on;
+SET statement_timeout = '60s';
+-- 1) Yayındaki ürünlerin aranabilirlik bölümleri (TRY / yalnız yurt dışı / teklifsiz)
+SELECT count(*) FILTER (WHERE offer_count > 0) AS try_bolumu,
+       count(*) FILTER (WHERE offer_count = 0 AND foreign_offer_count > 0) AS yurt_disi,
+       count(*) FILTER (WHERE offer_count = 0 AND foreign_offer_count = 0) AS teklifsiz
+  FROM product WHERE publication_state = 'published';
+-- 2) AliExpress yayındaki üründe etkin, fiyatlı teklif bağı olmayanlar (kartta fiyat/çıkış olmaz)
+SELECT count(*) FROM product p
+ WHERE p.source_merchant_id = (SELECT id FROM merchant WHERE slug = 'aliexpress')
+   AND p.publication_state = 'published'
+   AND NOT EXISTS (SELECT 1 FROM offer o WHERE o.product_id = p.id AND o.is_active
+                    AND o.current_price > 0);
+-- 3) Takip bağlantısız AliExpress teklifi (çıkış kanonik adrese düşer; click yine yazılır)
+SELECT count(*) FROM offer
+ WHERE merchant_id = (SELECT id FROM merchant WHERE slug = 'aliexpress')
+   AND product_id IS NOT NULL AND is_active AND affiliate_url IS NULL;
+-- 4) Görsel arama kapsamı: görsel embedding'i olan AliExpress teklifi
+SELECT count(*) FROM embedding e JOIN offer o ON o.id = e.target_id
+ WHERE e.target_type = 'offer' AND e.kind = 'image'
+   AND o.merchant_id = (SELECT id FROM merchant WHERE slug = 'aliexpress');
+```
+
+Gecikme ölçümü, gerçek kullanıcı yolundan ve sınırlı sayıda:
+
+1. `pg_stat_statements_reset()` ÇAĞRILMAZ (veri değiştirir). Önce `pnpm db:health` "En pahalı
+   sorgular" çıktısı kaydedilir (taban).
+2. Oturum açılmış tarayıcıda `/ara` için 10 sorgu (Türkçe: "kablosuz kulaklık", "omuz çantası",
+   "telefon kılıfı", "termos", "akıllı saat"; İngilizce: "wireless earbuds", "phone case", "smart
+   watch"; seyrek: "airpdos pro", "xqzvbn") ve `/sohbet`'te 5 mesaj, aralarında ≥ 5 sn.
+3. Süreler Caddy erişim kaydından (`/ara`, `/api/chat*` istek süreleri) ve tekrar `pnpm db:health`
+   çıktısındaki `cand_raw` sorgularının ortalamasından okunur. Beklenen (yerel 1,04 M ölçümüyle
+   ölçeklenmiş tahmin): metin araması p95 ≤ 2–3 sn, sohbet 4 sn sınırının altında.
+4. Sonuç kartlarından 3'ü açılır: `/urun/<slug>` doğru ürün, "Mağazaya git" `/git/<offerId>` →
+   AliExpress (Admitad) adresine gider. Kendi tıklaman da gerçek bir `click` kaydı üretir;
+   tıklama raporunda bu birkaç kaydı hesaba kat (otomatik ayıklama yok).
+
+Yük testi aracı, paralel istek ya da perf düzeneği (`scale.perf.integration.test.ts`) üretimde
+ÇALIŞTIRILMAZ; düzenek yalnız yalıtılmış, önceden doldurulmuş veritabanı içindir.
+
 ### Veritabanı sağlık raporu ve sorgu istatistikleri
 
 `pnpm db:health` (sahip rol, salt okunur oturum, uzak veritabanında onaysız çalışır)
@@ -997,6 +1043,66 @@ yavaş sorgu günlüğüne bağlı parametre değerleri yazılmaz (KVKK).
 
 Sayaçları sıfırlamak (ör. büyük bir değişiklik sonrası temiz ölçüm):
 `SELECT monitoring.pg_stat_statements_reset();` (sahip rol).
+
+### Arama ve bulunabilirlik ölçümü (salt okunur)
+
+Elle yapılan karşılığı: "Üretimde salt okunur arama ve sohbet doğrulaması (karar 0136)". Bu araç oradaki kart/bağlantı adımını ve bulunabilirlik sorgularının bir kısmını otomatikleştirir. Oturumlu tarayıcı ve sohbetin model yorumu adımları orada kalır.
+
+`/app/tools/search-probe.mjs` (`packages/core/scripts/search-probe.ts`, web imajına derlenir).
+Çalıştığı yollar:
+
+- `/ara` ile aynı arama yolu: `peekQuery` + `searchWithFallback`, 24 kart, 5 sn sınırı.
+- Sohbetin katalog yolu: `searchByIntent`, 6 ürün, 4 sn sınırı. Model çağrısı **yok**; sohbetin
+  Gemini yorumu ölçülmez.
+
+Her sorgu için raporlananlar:
+
+- Süre, sonuç modu ve `1000+` sınırı.
+- Kartlarda fiyat dağılımı: TL / kurla çevrilmiş / yalnız USD / fiyatsız.
+- Marka ve kategori dolu oranı.
+- İlk 3 kart için iki kontrol:
+  - `/urun/<slug>` gerçekten çözülüyor mu.
+  - Ürün sayfasındaki `/git/<teklif>` çıkışının gideceği adres (affiliate şablonu, https, host).
+    Bu adres `buildDeeplink` ile sahte bir click kimliğiyle hesaplanır.
+
+Sonda verilenler:
+
+- En yavaş 5 sorgu (`/ara` / sohbet ms).
+- Mağazanın affiliate durumu ve şablon host'u. Durum `active` değilse çıkışlar düz adrese gider:
+  gelir yok, sorun olarak işaretlenir.
+- Katalog özeti: yayın durumları, %1 örneklemde eksik marka/kategori/görsel/TL fiyat, USD/TRY kur yaşı.
+- **Bulunabilirlik (recall):** yayındaki 20 ürün örneklenir, her biri başlığının ilk 5 kelimesiyle
+  `/ara` yolunda aranır. İlk 24 kartta çıkmayanlar `gorunmeyen` satırında (slug, sorgu, sonuç
+  modu) listelenir.
+
+Çıkış kodu: 0 = temiz; 1 = hata, zaman aşımı ya da bağlantı sorunu; 2 = oturum salt okunur değil.
+
+Güvenlik:
+
+- Oturum `default_transaction_read_only=on` ile açılır ve doğrulanır; her yazım veritabanında
+  reddedilir. `query_resolution` okunur, sayacı artmaz.
+- `/git` çağrılmaz, `click` yazılmaz.
+- Tek bağlantı, sorgular arasında 1 sn.
+- Varsayılan 32 sorgu × 2 tur + 20 bulunabilirlik araması ≈ 5 dk (`PROBE_RECALL_N=0` kapatır).
+
+```bash
+P="docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml"
+$P exec -T web node /app/tools/search-probe.mjs | tee /root/search-probe-$(date -u +%F).txt
+# kendi sorgularin / tek tur / JSON:
+$P exec -T -e PROBE_QUERIES="kulaklık|çanta" -e PROBE_ROUNDS=1 -e PROBE_JSON=1 web node /app/tools/search-probe.mjs
+```
+
+Yorum:
+
+- p95 5 sn'ye yaklaşıyorsa `timeout` görülür.
+- `sonucsuz sorgu` listesi bulunabilirlik açığıdır (kontrol sorgusu `qzxwvkj` dışında).
+- `cikis invalid/no_offer`: kart açılır ama satın alma yönlendirmesi kırık.
+
+Ölçmediği şeyler: tarayıcıda kartın görünümü, oturumlu sayfa süresi (Caddy kaydı:
+`catalog-publish measure`) ve sohbetin model yorumu.
+Bunlar oturumlu bir tarayıcıda elle denetlenir: birkaç `/ara` sorgusu, 3 kart, birkaç sohbet
+mesajı. Her sohbet mesajı bir Gemini çağrısı ve bir `api_usage` satırıdır. Çıkış bağlantısına
+tıklamak gerçek bir `click` yazar.
 
 ### Gece toplu işleri: parti ve işlem süresi (Faz 3)
 

@@ -456,6 +456,15 @@ jobs:
           docker restart "$PG_CONTAINER"
           for _ in $(seq 1 60); do pg_isready -h localhost -U arilla -d arilla && break; sleep 1; done
           psql "$DATABASE_URL_OWNER" -Atc "SHOW archive_mode" | grep -qx on
+          # Arsiv yeni acildi: arsivlenmis segment yok (`last_archived_wal` NULL). WAL yoneticisi
+          # (karar 0134) olcu yokken bilerek yazmaz ve en cok 1 sa bekler; uretimdeki gibi gecmisi
+          # olan bir arsivci icin ilk segmenti kapatip arsivlenmesini bekle.
+          psql "$DATABASE_URL_OWNER" -Atqc "SELECT pg_switch_wal()" >/dev/null
+          for _ in $(seq 1 60); do
+            [ "$(psql "$DATABASE_URL_OWNER" -Atc "SELECT last_archived_wal IS NOT NULL FROM pg_stat_archiver")" = t ] && break
+            sleep 1
+          done
+          psql "$DATABASE_URL_OWNER" -Atc "SELECT last_archived_wal FROM pg_stat_archiver" | grep -qE '^[0-9A-F]{24}$'
       - name: python ingest integration
         working-directory: services/ingest
         env:

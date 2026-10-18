@@ -58,6 +58,25 @@ async function parseFresh(db: Database, rawText: string) {
   };
 }
 
+/**
+ * `resolveQuery` ile ayni sonuc, HICBIR YAZIM olmadan (salt okunur olcum araci,
+ * `scripts/search-probe.ts`): onbellekte satir varsa okunur (sayac artmaz), yoksa ayni
+ * deterministik ayristirma calisir ve sonuc saklanmaz.
+ */
+export async function peekQuery(db: Database, rawText: string): Promise<ResolveQueryResult> {
+  const queryNorm = normalizeQueryText(rawText);
+  if (queryContentIneligibility(queryNorm) === null) {
+    const rows = await db
+      .select()
+      .from(queryResolution)
+      .where(eq(queryResolution.queryNorm, queryNorm))
+      .limit(1);
+    if (rows[0]) return toResult(rows[0], true);
+  }
+  const fresh = await parseFresh(db, rawText);
+  return { ...fresh, parserTier: 2, cacheHit: false };
+}
+
 export async function resolveQuery(db: Database, rawText: string): Promise<ResolveQueryResult> {
   const queryNorm = normalizeQueryText(rawText);
 

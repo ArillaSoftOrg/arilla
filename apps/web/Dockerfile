@@ -76,6 +76,9 @@ COPY tsconfig.base.json ./
 COPY apps/web apps/web
 COPY packages packages
 RUN pnpm --filter @arilla/web build
+# Salt okunur arama olcum araci (docs/ops.md "Arama ve bulunabilirlik olcumu"): tek dosya,
+# bagimliliklar icinde; calisma imajinda yalniz /app/tools/search-probe.mjs olarak durur.
+RUN pnpm --filter @arilla/core probe:bundle
 
 # --- migrate-deps: yalnizca packages/db uretim bagimliliklari ----------------------
 FROM base AS migrate-deps
@@ -120,6 +123,7 @@ WORKDIR /app
 COPY --from=build --chown=node:node /app/apps/web/.next/standalone ./
 COPY --from=build --chown=node:node /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=build --chown=node:node /app/apps/web/public ./apps/web/public
+COPY --from=build --chown=node:node /app/packages/core/dist/search-probe.mjs ./tools/search-probe.mjs
 # Next onbellegi (ISR/veri) calisma aninda yazilir; kok dosya sistemi salt-okunur
 # calistirilirsa bu yol bir volume/tmpfs olmali (infra/compose).
 RUN mkdir -p /app/apps/web/.next/cache && chown -R node:node /app/apps/web/.next/cache

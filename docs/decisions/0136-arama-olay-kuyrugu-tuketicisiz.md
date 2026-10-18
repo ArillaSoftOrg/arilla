@@ -55,3 +55,50 @@ Yani %0 işlenmiş olması bir arıza değil, tüketicinin hiç yazılmamış ol
   tüketici (artımlı, yeniden başlatılabilir, idempotent) ve saklama birlikte tasarlanır.
 - Bilinçli kapsam dışı (0129 madde 6, değişmedi): link araması aday üretimi, mağaza karşılaştırma
   ve internet sonucu katalog görseli TRY-only; yalnız USD teklifli AliExpress ürünleri orada yoktur.
+
+## Ek A — Uzun vadeli büyüme ve güvenli saklama seçenekleri (18 Ekim 2026)
+
+**Boyut (ölçüldü, yerel 500 bin satır):** satır başına ~143 B (yığın 89 B + birincil anahtar 27 B +
+kısmi `search_outbox_pending_idx` 27 B). Üretimdeki 5,57 M ≈ **~800 MB**.
+
+**Büyüme kaynağı:** yayın ürün başına bir kez yazar (sınırlı). Asıl büyüme `feeds/sync.py`:
+teklifin parmak izi (fiyat dahil) her değiştiğinde bir `feed_change` satırı. AliExpress fiyatları sık
+değiştiğinden tam bir senkronizasyon günde ~2,8 M satıra (~400 MB/gün) kadar çıkabilir; gerçek oran
+ölçülmedi. Ölçüm: `pnpm db:health` "Arama indeksi olay kuyruğu" bölümünü birkaç gün aralıkla
+karşılaştırmak (toplam ve en eski olay).
+
+| Seçenek | Ne yapar | Kayıp | Ön koşul |
+| --- | --- | --- | --- |
+| A. Bugünkü gibi bırak + izle | Hiçbir şey silinmez | Yok | — (bu karar) |
+| B. Varlık başına sıkıştırma | Aynı `(entity, entity_id)` için yalnız en yeni olay kalır | Ara durumlar (tüketici zaten son hali okur) | Ayrı karar; parti parti, `processed_at` dokunulmaz |
+| C. Üretimi daralt | Yalnız fiyat değişiminde `feed_change` yazılmaz (fiyat `price_point`'ta) | Yok (aramayı etkilemez) | Ayrı karar; yayın doğrulaması (`catalog-publish`) yalnız `source_listing_published` sayar |
+| D. Aylık bölümleme | Eski ay `DROP PARTITION` ile ucuz silinir | Saklama süresi dışı | Migration + tablo yeniden kurulumu; harici motor kararıyla |
+| E. Süreli saklama | N günden eski satır silinir | N günden eski değişim | Harici motor ilk doldurmayı tablolardan yaptığında |
+
+**Öneri:** şimdilik A. Günlük büyüme ölçüldüğünde ~100 MB/gün'ü (≈ ayda 3 GB) aşıyorsa önce C (en
+ucuz, kayıpsız), gerekirse B. D/E harici arama motoru kararıyla birlikte. Hiçbiri bu karar kapsamında
+uygulanmaz; 5.572.716 kayıt silinmez ve işlenmiş işaretlenmez.
+
+## Ek B — Yalnız USD teklifli AliExpress ürünleri ve arama politikası
+
+Fiyat özeti TRY-only'dir (`offer_count`, `min_price`; karar 0127): yalnız USD teklifli ürün
+`offer_count = 0`, `foreign_offer_count > 0`. Yüzey bazında (karar 0129, 0132):
+
+| Yüzey | AliExpress (yalnız USD) ürünü | Not |
+| --- | --- | --- |
+| `/ara` metin araması | **Görünür** | Ayrı aday bölümü + `product_title_fold_foreign_trgm` (0083); sıralamada yurt dışı güven ×0,8 |
+| `/sohbet` | **Görünür** | Aynı arama yolu (`searchByIntent`), 4 sn sınırı |
+| Ürün sayfası, alternatif şeridi | **Görünür** | Tutar kendi para biriminde; kur varsa "yaklaşık TL" |
+| TL fiyat süzgeci (`price_min/max`) | Kur yoksa **görünmez** | Kursuz tutar NULL; kur uydurulmaz (0132) |
+| "En iyi fırsatlar" sekmesi | **Görünmez** | TRY-only (0129 B.4) |
+| `/ara/gorsel` | Yalnız görsel embedding'i varsa | Uygunluk 0129 #2'de açık; embedding toplu iştir (`enrich`), maliyetli |
+| `/ara/link` aday üretimi, mağaza karşılaştırma | **Görünmez** | Bilinçli TRY-only (0129 #6) |
+| İnternet sonucu katalog görseli | **Görünmez** | Bilinçli TRY-only (0129 #6) |
+
+Bu tabloyu değiştirmek (ör. link aramasında yurt dışı aday) ayrı bir ürün kararıdır.
+
+## Ek C — Bu çalışmanın dışındakiler
+
+- **Marka/kategori eksikliği** ayrı görevdir: sınıflandırma altyapısı #177 ile `main`'de (karar 0133);
+  üretimde `classify sources/report` (salt okunur) → `products --confirm` → `lexicon --apply`
+  sırası kullanıcı onayıyla çalıştırılır.
