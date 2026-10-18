@@ -42,7 +42,8 @@ satırı yoktu: sohbetin `intent.category` alanı bugün hiçbir kategoriye çev
 5. **Toplu güncelleme.** 2.000'lik partiler, her parti tek kısa işlem (marka + kaynak eşleme önerisi
    + ürün + kanıt + `search_outbox` + kontrol noktası). `product_classification_state (rule_version,
    scope)` kaldığı yerden devam eder; `--rescan` baştan, yeni kural sürümü yeni satır. `lock_timeout`
-   3 sn; WAL arşiv gecikmesi > 2 GiB ise bekler; `catalog_build` oturumu varken başlamaz (yayın
+   3 sn (parti geri alınır, 3 kez artan beklemeyle yeniden denenir); WAL geri basıncı
+   `catalog_build` ile aynı `WalGovernor` (karar 0134, `--wal-*` bayrakları; çıkış 3); `catalog_build` oturumu varken başlamaz (yayın
    `SKIP LOCKED` kullanır, tutulan satırı atlardı).
 6. **Arama/sohbet sözlüğü siniflandirmadan SONRA açılır.** `classify lexicon --apply` kategori
    yüzeylerini (ağırlık = derinlik; "mutfak için kahve ekipmanları" → en derin dal) ve birkaç TR↔EN
