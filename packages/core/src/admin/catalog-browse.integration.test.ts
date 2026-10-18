@@ -366,6 +366,61 @@ describe("yönetim ürün listesi: filtreler, panel, izleme - entegrasyon (gerç
     expect(options.categories.find((c) => c.path === childPath)?.depth).toBeGreaterThan(1);
   });
 
+  it("bilinmeyen marka adı ve olmayan kategori yolu boş sonuç verir (kimlik dizisi boş)", async () => {
+    expect(await list({ brand: { name: `yok-${suffix}` } })).toEqual([]);
+    expect(await list({ category: `yok-${suffix}/alt` })).toEqual([]);
+    expect(await list({ brand: { name: `zebra-${suffix}` } })).toEqual(sorted("a"));
+  });
+
+  it("taranmadı: yalnızca kontrol noktasından sonraki kanıtsız ürünler", async () => {
+    // d kontrol noktasından (c) sonra ve kanıtsız → listede.
+    expect(await list({ classification: "unscanned", state: "all" })).toEqual(sorted("d"));
+    await withOwnerClient((client) =>
+      client.query(
+        "UPDATE product_classification_state SET last_product_id = $1 WHERE rule_version = 3",
+        [ids.d],
+      ),
+    );
+    try {
+      // Nokta d'yi geçti: iş onu taramış sayılır (iş kimlik sırasıyla her ürüne satır yazar).
+      expect(await list({ classification: "unscanned", state: "all" })).toEqual([]);
+    } finally {
+      await withOwnerClient((client) =>
+        client.query(
+          "UPDATE product_classification_state SET last_product_id = $1 WHERE rule_version = 3",
+          [ids.c],
+        ),
+      );
+    }
+  });
+
+  it("izleme: koşu hata özeti okurken arındırılır (adres sorgu dizisi)", async () => {
+    const id = await withOwnerClient(async (client) => {
+      const res = await client.query(
+        `INSERT INTO job_run (job, status, started_at, finished_at, error_summary)
+         VALUES ('classify_products', 'failed', now() - interval '10 years',
+                 now() - interval '10 years', $1) RETURNING id`,
+        ["bağlantı hatası https://db.example/x?password=gizli123&user=u"],
+      );
+      return Number(res.rows[0].id);
+    });
+    try {
+      // En eski koşu son 5'e girmez; doğrudan okunan satırı yeni koşuyla kıyasla.
+      await withOwnerClient((client) =>
+        client.query("UPDATE job_run SET started_at = now() + interval '1 minute' WHERE id = $1", [
+          id,
+        ]),
+      );
+      const monitor = await getClassificationMonitor(db, moderator);
+      const run = monitor.runs.find((r) => r.id === id);
+      expect(run?.errorSummary).toBeTruthy();
+      expect(run?.errorSummary).not.toContain("gizli123");
+      expect(monitor.status).toBe("failed");
+    } finally {
+      await withOwnerClient((client) => client.query("DELETE FROM job_run WHERE id = $1", [id]));
+    }
+  });
+
   it("hepsi catalog.read ister", async () => {
     const user = { userId, role: "user" } as unknown as AdminActor;
     await expect(searchProducts(db, user, {})).rejects.toThrow();

@@ -647,6 +647,12 @@ async function ProductResults({
                       ) : (
                         <span className={local.missing}>aktif teklif yok</span>
                       )}
+                      {/* Eski "Mağaza (stokta)" sütununun sayıları (fiyat özeti, TRY). */}
+                      {row.offerCount > 0 ? (
+                        <span className={local.muted}>
+                          {`${row.offerCount} TL mağaza · ${row.inStockCount} stokta`}
+                        </span>
+                      ) : null}
                       {row.sourceMerchant &&
                       !merchants.some((m) => m.slug === row.sourceMerchant?.slug) ? (
                         <span className={local.muted}>{`kaynak: ${row.sourceMerchant.name}`}</span>
