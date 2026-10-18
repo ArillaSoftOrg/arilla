@@ -57,7 +57,19 @@ describe("ürünler ekranı etiketleri", () => {
       expect(categoryBasisLabel(basis)).not.toBe(basis);
     }
     expect(categoryBasisLabel("yeni_dayanak")).toBe("yeni_dayanak");
-    expect(classificationDetailLabel("concurrent_change")).toMatch(/değişti/);
+    for (const detail of [
+      "weak_source",
+      "weak_title",
+      "title_conflict",
+      "no_evidence",
+      "concurrent_change",
+      "source_title_conflict",
+      "source_cue_conflict",
+      "part_title",
+      "unmapped_source",
+    ]) {
+      expect(classificationDetailLabel(detail)).not.toBe(detail);
+    }
     expect(classificationDetailLabel("bilinmeyen")).toBe("bilinmeyen");
     expect(classificationDetailLabel(null)).toBe("—");
   });

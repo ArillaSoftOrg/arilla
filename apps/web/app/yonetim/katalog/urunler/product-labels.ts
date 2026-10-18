@@ -110,13 +110,17 @@ const CATEGORY_BASIS_LABELS: Record<string, string> = {
   low_confidence: "Düşük güven",
 };
 
-/** `product_classification.detail`: inceleme/hata nedeni. */
+/** `product_classification.detail`: inceleme/hata nedeni (karar 0133, 0138). */
 const DETAIL_LABELS: Record<string, string> = {
   weak_source: "Mağaza kategorisi zayıf eşleşti",
   weak_title: "Başlık eşleşmesi zayıf",
   title_conflict: "Başlık birden çok kategoriye uyuyor",
   no_evidence: "Kategori kanıtı yok",
   concurrent_change: "Ürün işlem sırasında başka yerden değişti",
+  source_title_conflict: "Başlık mağaza kategorisinden başka bir dalı gösteriyor",
+  source_cue_conflict: "Başlıktaki alan işareti mağaza kategorisiyle çelişiyor",
+  part_title: "Parça/aksesuar başlığı cihaz dalına düşüyor",
+  unmapped_source: "Mağaza kategorisi ağaçta yok; başlık eşiği geçilmedi",
 };
 
 export function brandBasisLabel(value: string): string {
