@@ -1046,6 +1046,8 @@ Sayaçları sıfırlamak (ör. büyük bir değişiklik sonrası temiz ölçüm)
 
 ### Arama ve bulunabilirlik ölçümü (salt okunur)
 
+Elle yapılan karşılığı: "Üretimde salt okunur arama ve sohbet doğrulaması (karar 0136)". Bu araç oradaki kart/bağlantı adımını ve bulunabilirlik sorgularının bir kısmını otomatikleştirir. Oturumlu tarayıcı ve sohbetin model yorumu adımları orada kalır.
+
 `/app/tools/search-probe.mjs` (`packages/core/scripts/search-probe.ts`, web imajına derlenir).
 Çalıştığı yollar:
 
