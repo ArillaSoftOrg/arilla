@@ -191,7 +191,7 @@
     },
     {
       "text": "Tools > Power Tool Parts & Accessories",
-      "path": "ev-yasam/yapi-market",
+      "path": "ev-yasam/yapi-market/alet-yedek-parca",
       "apply": false
     },
     {
@@ -212,7 +212,7 @@
     { "text": "Home & Garden > Kitchen,Dining & Bar", "path": "ev-yasam/mutfak" },
     {
       "text": "Home Improvement > Electrical Equipment & Supplies",
-      "path": "ev-yasam/yapi-market",
+      "path": "ev-yasam/yapi-market/elektrik-tesisati",
       "apply": false
     }
   ],
@@ -450,7 +450,7 @@
       "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
       "path": null,
       "state": "review",
-      "detail": "source_cue_conflict"
+      "detail": "source_title_conflict"
     },
     {
       "pilot_product": 26,
@@ -561,8 +561,8 @@
     {
       "text": "UNI-T UT33D+ Digital Multimeter Auto Range",
       "source": null,
-      "path": null,
-      "state": "review",
+      "path": "ev-yasam/yapi-market/olcum-aletleri",
+      "state": "applied",
       "brand": "UNI-T"
     },
     {
@@ -570,7 +570,7 @@
       "source": { "path": null, "confidence": 0, "status": "unmapped" },
       "path": null,
       "state": "review",
-      "detail": "unmapped_source"
+      "detail": "title_conflict"
     },
     {
       "text": "Phone Case for iPhone 15 Shockproof",
