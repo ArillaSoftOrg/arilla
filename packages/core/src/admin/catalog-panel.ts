@@ -12,7 +12,7 @@ import { sql } from "drizzle-orm";
 import { isPositiveId, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 import { STUCK_JOB_AFTER_MS } from "./job-runs.ts";
-import { httpUrl, safeUrl } from "./redact.ts";
+import { httpUrl, redactText, safeUrl } from "./redact.ts";
 
 export interface ProductPanelOffer {
   id: number;
@@ -412,7 +412,8 @@ export async function getClassificationMonitor(
       trigger: r.trigger,
       startedAt: new Date(r.started_at),
       finishedAt: r.finished_at ? new Date(r.finished_at) : null,
-      errorSummary: r.error_summary ? r.error_summary.slice(0, 300) : null,
+      // Yazarken arındırıldı (`db/job_run.py`); eski/elle yazılmış satır için okurken yeniden.
+      errorSummary: redactText(r.error_summary, 300),
     }));
 
     const open = await tx.execute<{ state: "review" | "error"; detail: string | null; n: string }>(

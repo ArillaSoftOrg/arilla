@@ -284,20 +284,51 @@ function queryCondition(query: string | undefined): SQL | null {
   return sql`(p.slug = ${q} OR ${foldedTitleExpr(sql`p.title`)} LIKE ${foldedTitleExpr(sql`${pattern}`)})`;
 }
 
-function brandCondition(brand: ProductBrandFilter): SQL {
-  if (brand === UNASSIGNED) return sql`p.brand_id IS NULL`;
-  if (typeof brand === "number") return sql`p.brand_id = ${brand}`;
-  // Ad ya da slug, birebir (büyük/küçük harf duyarsız). Marka tablosu küçük; tarama ucuz.
-  const name = brand.name.trim().slice(0, 80);
-  return sql`p.brand_id IN (SELECT bf.id FROM brand bf
-                              WHERE bf.slug = ${name} OR lower(bf.name) = lower(${name}))`;
+/**
+ * Marka adı ve kategori yolu önce KİMLİĞE çözülür, sonra `= ANY(dizi)` ile süzülür.
+ * Alt sorgu (`IN (SELECT …)`) seçiciliğini planlayıcı kestiremez ve nadir/boş bir
+ * kategoride bile tüm tabloyu `p.id` sırasıyla geriye tarar (2 M satırda 2,6 sn);
+ * değer dizisiyle istatistik kullanılır, nadir değerde `product_brand_idx` /
+ * `product_category_idx` seçilir (0,1 ms), boş dizi hiç satır okumaz.
+ */
+interface ResolvedIds {
+  brandIds?: number[];
+  categoryIds?: number[];
 }
 
-function categoryCondition(category: string): SQL {
+async function resolveFilterIds(
+  tx: Pick<Database, "execute">,
+  filter: ProductSearchFilter,
+): Promise<ResolvedIds> {
+  const resolved: ResolvedIds = {};
+  const brand = filter.brand;
+  if (brand !== undefined && brand !== UNASSIGNED && typeof brand !== "number") {
+    // Ad ya da slug, birebir (büyük/küçük harf duyarsız). Marka tablosu küçük.
+    const name = brand.name.trim().slice(0, 80);
+    const result = await tx.execute<{ id: string }>(sql`
+      SELECT id FROM brand WHERE slug = ${name} OR lower(name) = lower(${name}) LIMIT 50
+    `);
+    resolved.brandIds = result.rows.map((r) => Number(r.id));
+  }
+  if (filter.category && filter.category !== UNASSIGNED) {
+    // Yol `[a-z0-9-/]` ile doğrulandı (LIKE jokeri içermez); `category_path_idx` önek araması.
+    const result = await tx.execute<{ id: string }>(sql`
+      SELECT id FROM category WHERE path = ${filter.category} OR path LIKE ${`${filter.category}/%`}
+    `);
+    resolved.categoryIds = result.rows.map((r) => Number(r.id));
+  }
+  return resolved;
+}
+
+function brandCondition(brand: ProductBrandFilter, ids: number[] | undefined): SQL {
+  if (brand === UNASSIGNED) return sql`p.brand_id IS NULL`;
+  if (typeof brand === "number") return sql`p.brand_id = ${brand}`;
+  return sql`p.brand_id = ANY(${sql.param(ids ?? [])}::bigint[])`;
+}
+
+function categoryCondition(category: string, ids: number[] | undefined): SQL {
   if (category === UNASSIGNED) return sql`p.category_id IS NULL`;
-  // Yol `[a-z0-9-/]` ile doğrulandı (LIKE jokeri içermez); `category_path_idx` önek araması.
-  return sql`p.category_id IN (SELECT cf.id FROM category cf
-                                 WHERE cf.path = ${category} OR cf.path LIKE ${`${category}/%`})`;
+  return sql`p.category_id = ANY(${sql.param(ids ?? [])}::bigint[])`;
 }
 
 const CLASSIFICATION_SQL: Record<ProductClassificationFilter, SQL> = {
@@ -306,7 +337,13 @@ const CLASSIFICATION_SQL: Record<ProductClassificationFilter, SQL> = {
   // `product_classification_open_idx` (state, product_id) WHERE state <> 'applied'.
   review: sql`pc.state = 'review'`,
   error: sql`pc.state = 'error'`,
-  unscanned: sql`pc.product_id IS NULL`,
+  // Kontrol noktasından SONRAKİ kanıtsız ürünler (`countProductClassification`
+  // "bekleyen" ile aynı sınır). İş ürünleri kimlik sırasıyla tarar; noktanın
+  // gerisindeki her ürünün kanıt satırı vardır. Sınır olmadan, sınıflandırma
+  // bitince bu süzgeç 2,7 M ürünün her biri için kanıt arardı (2 M satırda 14 sn).
+  unscanned: sql`(pc.product_id IS NULL AND p.id > (
+    SELECT coalesce(max(cs.last_product_id), 0) FROM product_classification_state cs
+     WHERE cs.scope = 'all'))`,
 };
 
 function confidenceCondition(confidence: ProductConfidenceFilter): SQL {
@@ -332,7 +369,7 @@ function freshnessCondition(freshness: ProductFreshnessFilter): SQL {
 }
 
 /** Süzgeç → WHERE koşulları (hepsi AND ile birleşir). */
-function productConditions(filter: ProductSearchFilter): SQL[] {
+function productConditions(filter: ProductSearchFilter, ids: ResolvedIds = {}): SQL[] {
   const conditions: SQL[] = [sql`true`];
   const state = isProductStateFilter(filter.state) ? filter.state : "published";
   if (state !== "all") conditions.push(sql`p.publication_state = ${state}`);
@@ -347,8 +384,8 @@ function productConditions(filter: ProductSearchFilter): SQL[] {
                                                            WHERE mf.slug = ${filter.merchant})
                                     AND mo.is_active AND mo.product_id IS NOT NULL)`);
   }
-  if (filter.brand !== undefined) conditions.push(brandCondition(filter.brand));
-  if (filter.category) conditions.push(categoryCondition(filter.category));
+  if (filter.brand !== undefined) conditions.push(brandCondition(filter.brand, ids.brandIds));
+  if (filter.category) conditions.push(categoryCondition(filter.category, ids.categoryIds));
   if (filter.classification) conditions.push(CLASSIFICATION_SQL[filter.classification]);
   if (filter.confidence) conditions.push(confidenceCondition(filter.confidence));
   if (filter.price) conditions.push(priceCondition(filter.price));
@@ -394,9 +431,9 @@ export async function searchProducts(
   const before = isPositiveId(filter.before) ? filter.before : undefined;
   const after = before === undefined && isPositiveId(filter.after) ? filter.after : undefined;
   const page = before === undefined && after === undefined ? clampPage(filter.page) : 1;
-  const conditions = productConditions(filter);
-  if (before !== undefined) conditions.push(sql`p.id < ${before}`);
-  if (after !== undefined) conditions.push(sql`p.id > ${after}`);
+  const cursor: SQL[] = [];
+  if (before !== undefined) cursor.push(sql`p.id < ${before}`);
+  if (after !== undefined) cursor.push(sql`p.id > ${after}`);
   // Önceki sayfa: artan sırayla okunur, sonra ters çevrilir (yine indeks sırası).
   const order = after !== undefined ? sql`p.id ASC` : sql`p.id DESC`;
   const offset = (page - 1) * CATALOG_PAGE_SIZE;
@@ -408,6 +445,10 @@ export async function searchProducts(
       : sql``;
 
   const rows = await readOnly(db, 5_000, async (tx) => {
+    const conditions = [
+      ...productConditions(filter, await resolveFilterIds(tx, filter)),
+      ...cursor,
+    ];
     // İki aşama: önce yalnızca `product` üzerinde süz ve sayfanın kimliklerini al;
     // görüntü birleştirmeleri yalnızca bu en çok 51 satıra uygulanır (geniş bir
     // başlık eşleşmesinde 200 bin satırın her birine değil).
