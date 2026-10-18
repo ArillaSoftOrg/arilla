@@ -4,15 +4,21 @@ python -m classify report   [--merchant aliexpress] [--batch 2000] [--max-batche
 python -m classify sources  --merchant aliexpress [--apply] [--top 40]
 python -m classify products --confirm [--merchant aliexpress] [--batch 2000] [--max-batches N]
                             [--max-seconds S]
-                            [--sleep-ms MS] [--rescan] [--wal-target-mb 1024 ...]
+                            [--sleep-ms MS] [--rescan | --owned-only [--after-id N]]
+                            [--wal-target-mb 1024 ...]
 python -m classify status
 python -m classify sample   --merchant aliexpress [--n 200] [--seed 1]   # YALNIZCA OKUR, TSV
+python -m classify recheck  [--merchant aliexpress] [--limit N]          # YALNIZCA OKUR, TSV
 python -m classify lexicon  [--apply]
 
 `report` ve `sources` (`--apply` olmadan) YALNIZCA OKUR: uretimde guvenle olcer, hicbir sey
 yazmaz. `products` `--confirm` olmadan calismaz; `catalog_build` oturumu varken baslamaz;
 Ctrl+C / SIGTERM mevcut partiyi bitirip durur, ayni komut kaldigi yerden surer.
 `lexicon --apply` arama/sohbete kategori filtresini acar: siniflandirma bittikten SONRA.
+
+Yeni kural surumunden sonra (karar 0138) once `recheck` (eski/yeni deger, geri alma kaydi),
+sonra `products --confirm --owned-only`: yalnizca bu isin yazdigi degerler yeniden karar alir;
+yonetici/besleme degeri ve henuz siniflandirilmamis urunler dokunulmaz.
 """
 
 from __future__ import annotations
@@ -124,6 +130,17 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--max-seconds", type=float, default=None)
     p_run.add_argument("--sleep-ms", type=int, default=200)
     p_run.add_argument("--rescan", action="store_true")
+    p_run.add_argument(
+        "--owned-only",
+        action="store_true",
+        help="yalnizca bu isin yazdigi degerleri tasiyan urunler (kontrol noktasi yok)",
+    )
+    p_run.add_argument(
+        "--after-id",
+        type=int,
+        default=None,
+        help="bu urun kimliginden sonra (--owned-only surdurme)",
+    )
     wal = p_run.add_argument_group("WAL geri basinci (karar 0134; catalog_build ile ayni)")
     wal.add_argument(
         "--wal-target-mb", type=int, default=1024, help="bu gecikmenin ustunde yavasla"
@@ -142,6 +159,12 @@ def main(argv: list[str] | None = None) -> int:
     p_sample.add_argument("--merchant", default=None)
     p_sample.add_argument("--n", type=int, default=200)
     p_sample.add_argument("--seed", type=int, default=None)
+
+    p_re = sub.add_parser(
+        "recheck", help="YALNIZCA OKUR: sahip olunan urunler yeni kurallarla (eski/yeni, TSV)"
+    )
+    p_re.add_argument("--merchant", default=None)
+    p_re.add_argument("--limit", type=int, default=None)
 
     p_lex = sub.add_parser("lexicon", help="arama/sohbet kategori sozlugu")
     p_lex.add_argument("--apply", action="store_true")
@@ -214,6 +237,8 @@ def main(argv: list[str] | None = None) -> int:
                     sleep_seconds=args.sleep_ms / 1000,
                     rescan=args.rescan,
                     merchant_slug=args.merchant,
+                    owned_only=args.owned_only,
+                    after_id=args.after_id,
                     throttle=gov.before_batch,
                     should_stop=_should_stop,
                     on_batch=_progress,
@@ -225,6 +250,7 @@ def main(argv: list[str] | None = None) -> int:
                 return EXIT_ABORTED
             run.detail.update(
                 rule_version=RULE_VERSION,
+                owned_only=args.owned_only,
                 scanned=counts.scanned,
                 brand_set=counts.brand_set,
                 category_set=counts.category_set,
@@ -243,6 +269,30 @@ def main(argv: list[str] | None = None) -> int:
         if gov.stopped_reason is not None:
             print(f"WAL geri basinci nedeniyle durdu: {gov.stopped_reason}", file=sys.stderr)
             return EXIT_WAL_BACKPRESSURE
+        return 0
+
+    if args.command == "recheck":
+        with connect() as conn:
+            checks = run_mod.recheck_owned(conn, merchant_slug=args.merchant, limit=args.limit)
+        # old_*_id: geri alma kaydi (karar 0138); action: keep | change | clear.
+        cols = (
+            "product_id", "title", "source_category", "old_category", "new_category", "action",
+            "state", "category_basis", "confidence", "detail", "old_category_id",
+            "new_category_id", "old_brand_id", "new_brand_id", "brand", "compatible",
+        )  # fmt: skip
+        print(TSV_SEP.join(cols))
+        for c in checks:
+            d = c.decision
+            cells = (
+                c.row.product_id, c.row.title, c.row.category_raw or "", c.old_category or "",
+                c.new_category or "", c.action, d.state, d.category_basis, d.confidence,
+                d.detail or "", c.row.category_id or "", c.new_category_id or "",
+                c.row.brand_id or "", c.new_brand_id or "", d.brand_name or "",
+                ",".join(d.compatible),
+            )  # fmt: skip
+            print(TSV_SEP.join(_tsv_cell(x) for x in cells))
+        actions = {a: sum(1 for c in checks if c.action == a) for a in ("keep", "change", "clear")}
+        print(f"sahip olunan {len(checks)}: {actions}", file=sys.stderr)
         return 0
 
     if args.command == "sample":

@@ -1,5 +1,5 @@
 {
-  "_doc": "Siniflandirma regresyon seti (karar 0133). Kural degisince bu set gecmeli; bilincli degisiklikte beklenen deger guncellenir ve RULE_VERSION artirilir. path=null: urune kategori YAZILMAMALI (inceleme). brand=null: marka yazilmamali.",
+  "_doc": "Siniflandirma regresyon seti (karar 0133). Kural degisince bu set gecmeli; bilincli degisiklikte beklenen deger guncellenir ve RULE_VERSION artirilir. path=null: urune kategori YAZILMAMALI (inceleme). brand=null: marka yazilmamali. decision (karar 0138): kaynak + baslik birlikte; pilot_product = uretim pilotundaki urun sirasi (baslik kullanicinin raporundaki gorunen kisim).",
   "source": [
     {
       "text": "Phones & Telecommunications > Mobile Phone Accessories > Phone Bags & Cases",
@@ -183,7 +183,38 @@
     { "text": "Spor Ayakkabı", "path": "moda/ayakkabi/spor-ayakkabi" },
     { "text": "Elbise", "path": "moda/kadin-giyim/elbise" },
     { "text": "Akıllı Saat", "path": "elektronik/giyilebilir/akilli-saat" },
-    { "text": "Cep Telefonu", "path": "elektronik/telefon/cep-telefonu" }
+    { "text": "Cep Telefonu", "path": "elektronik/telefon/cep-telefonu" },
+    {
+      "text": "Computer & Office > Laptop Parts & Accessories",
+      "path": "elektronik/bilgisayar",
+      "apply": false
+    },
+    {
+      "text": "Tools > Power Tool Parts & Accessories",
+      "path": "ev-yasam/yapi-market",
+      "apply": false
+    },
+    {
+      "text": "Computer & Office > Tablet Accessories & Parts",
+      "path": "elektronik/bilgisayar",
+      "apply": false
+    },
+    { "text": "Home Appliances > Home Appliance Parts", "path": null },
+    {
+      "text": "Consumer Electronics > Camera & Photo > Camera & Photo Accessories",
+      "path": "elektronik/kamera/aksesuar"
+    },
+    {
+      "text": "Consumer Electronics > Video Games > Game Accessories",
+      "path": "elektronik/oyun/aksesuar"
+    },
+    { "text": "Sports & Entertainment > Cycling > Bicycle Parts", "path": "spor-outdoor/bisiklet" },
+    { "text": "Home & Garden > Kitchen,Dining & Bar", "path": "ev-yasam/mutfak" },
+    {
+      "text": "Home Improvement > Electrical Equipment & Supplies",
+      "path": "ev-yasam/yapi-market",
+      "apply": false
+    }
   ],
   "title": [
     {
@@ -262,7 +293,10 @@
     { "text": "Air Pump Electric for Inflatable", "path": null },
     { "text": "Original Gift Free Shipping Hot Sale 2024", "path": null },
     { "text": "Phone Case Wallet Card Holder", "path": "elektronik/telefon/aksesuar/kilif" },
-    { "text": "Sex Toy Vibrator Women", "path": "saglik-kozmetik/cinsel-saglik" }
+    { "text": "Sex Toy Vibrator Women", "path": "saglik-kozmetik/cinsel-saglik" },
+    { "text": "Food Grade Stainless Steel Drain Basket", "path": null },
+    { "text": "Portable Small Air Conditioner Compressor", "path": null },
+    { "text": "Dry Carbon Fiber Front Lip Rear Diffuser Side Skirts", "path": null }
   ],
   "brand": [
     {
@@ -356,6 +390,205 @@
       "accessory": false,
       "brand": null,
       "compatible": []
+    },
+    {
+      "text": "Applicable To Delonghi Coffee Machine Steam Pipe",
+      "accessory": false,
+      "brand": null,
+      "compatible": ["Delonghi"]
+    },
+    {
+      "text": "Battery Adapter Converter for Bosch Makita Milwaukee",
+      "accessory": false,
+      "brand": null,
+      "compatible": ["Bosch", "Makita", "Milwaukee"]
+    },
+    {
+      "text": "Toyota Corolla 2019 Headlight Assembly",
+      "accessory": true,
+      "brand": null,
+      "compatible": ["Toyota"]
+    },
+    {
+      "text": "UNI-T UT33D+ Digital Multimeter",
+      "accessory": false,
+      "brand": "UNI-T",
+      "compatible": []
+    },
+    {
+      "text": "ANENG AN8008 True RMS Multimeter",
+      "accessory": false,
+      "brand": "Aneng",
+      "compatible": []
+    },
+    {
+      "text": "Tuya Smart WiFi Circuit Breaker 2P 63A",
+      "accessory": false,
+      "brand": null,
+      "compatible": []
+    }
+  ],
+  "decision": [
+    {
+      "pilot_product": 16,
+      "text": "Premium Manual Coffee Grinders",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
+      "path": "ev-yasam/mutfak/kahve-ekipmanlari",
+      "state": "applied"
+    },
+    {
+      "pilot_product": 17,
+      "text": "proof electric shock protection plug European standard",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
+      "path": null,
+      "state": "review",
+      "detail": "source_cue_conflict"
+    },
+    {
+      "pilot_product": 24,
+      "text": "Outdoor Garden Grill Cover",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
+      "path": null,
+      "state": "review",
+      "detail": "source_cue_conflict"
+    },
+    {
+      "pilot_product": 26,
+      "text": "Semiconductor Cup Cooler Car Cup Cooler",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
+      "path": null,
+      "state": "review",
+      "detail": "source_cue_conflict"
+    },
+    {
+      "text": "Stainless Steel Non Stick Frying Pan 28cm",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
+      "path": "ev-yasam/mutfak/pisirme-gerecleri",
+      "state": "applied"
+    },
+    {
+      "text": "1Pcs Round Large Cake Cooling Rack Stainless Steel Bread Drying Rack",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
+      "path": "ev-yasam/mutfak",
+      "state": "applied",
+      "detail": null
+    },
+    {
+      "text": "Broadcom MegaRaid 9560-8i Raid Card PCIE Server Storage Controller",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
+      "path": null,
+      "state": "review",
+      "detail": "source_cue_conflict"
+    },
+    {
+      "text": "550L Portable Fuel Tank with Pump Mobile Dispenser Truck Refuel Accessory",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
+      "path": null,
+      "state": "review",
+      "detail": "source_cue_conflict"
+    },
+    {
+      "text": "LED screen treadmill intelligent commercial gym treadmill household",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
+      "path": null,
+      "state": "review",
+      "detail": "source_title_conflict"
+    },
+    {
+      "text": "Car Cup Holder Organizer",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 100, "status": "confirmed" },
+      "path": "ev-yasam/mutfak",
+      "state": "applied"
+    },
+    {
+      "text": "Phone Case Silicone Shockproof",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 100, "status": "confirmed" },
+      "path": null,
+      "state": "review",
+      "detail": "source_title_conflict"
+    },
+    {
+      "text": "Moka Pot Espresso Maker",
+      "source": { "path": "ev-yasam", "confidence": 62, "status": "suggested" },
+      "path": "ev-yasam/mutfak/kahve-ekipmanlari",
+      "state": "applied"
+    },
+    {
+      "text": "Original Gift Hot Sale",
+      "source": { "path": "ev-yasam", "confidence": 62, "status": "suggested" },
+      "path": null,
+      "state": "review",
+      "detail": "weak_source"
+    },
+    {
+      "text": "SDS Plus Rotary Hammer Chuck Replacement for TE24 Rotary Hammers",
+      "source": { "path": "ev-yasam/yapi-market", "confidence": 70, "status": "suggested" },
+      "path": null,
+      "state": "review",
+      "detail": "part_title"
+    },
+    {
+      "text": "10Pcs Screwdriver Set Magnetic Bits",
+      "source": { "path": "ev-yasam/yapi-market", "confidence": 70, "status": "suggested" },
+      "path": "ev-yasam/yapi-market/el-aletleri",
+      "state": "applied"
+    },
+    {
+      "text": "Applicable To Delonghi Coffee Machine Steam Pipe Milk Foam Accessories",
+      "source": { "path": "ev-yasam/mutfak", "confidence": 88, "status": "suggested" },
+      "path": "ev-yasam/mutfak/kahve-ekipmanlari",
+      "state": "applied",
+      "brand": null,
+      "compatible": ["Delonghi"]
+    },
+    {
+      "text": "For Toyota Corolla 2019 Car Headlight Protective Film",
+      "source": { "path": "oto-bahce/oto-aksesuar", "confidence": 88, "status": "suggested" },
+      "path": "oto-bahce/oto-aksesuar",
+      "state": "applied",
+      "brand": null,
+      "compatible": ["Toyota"]
+    },
+    {
+      "text": "Xiaomi uyumlu kablo",
+      "source": null,
+      "brand_raw": "Ugreen",
+      "path": null,
+      "state": "review",
+      "brand": "Ugreen",
+      "compatible": ["Xiaomi"]
+    },
+    {
+      "text": "UNI-T UT33D+ Digital Multimeter Auto Range",
+      "source": null,
+      "path": null,
+      "state": "review",
+      "brand": "UNI-T"
+    },
+    {
+      "text": "TIG200P AC/DC Argon Welding Machine Jewelry Spot Welding Machine",
+      "source": { "path": null, "confidence": 0, "status": "unmapped" },
+      "path": null,
+      "state": "review",
+      "detail": "unmapped_source"
+    },
+    {
+      "text": "Phone Case for iPhone 15 Shockproof",
+      "source": { "path": null, "confidence": 0, "status": "unmapped" },
+      "path": "elektronik/telefon/aksesuar/kilif",
+      "state": "applied"
+    },
+    {
+      "text": "Plastic Tubing End Caps Chair Leg Caps Furniture Glide Plug Dust Cover",
+      "source": { "path": "ev-yasam/mobilya", "confidence": 88, "status": "suggested" },
+      "path": "ev-yasam/mobilya",
+      "state": "applied"
+    },
+    {
+      "text": "Courage the Cowardly Dog Pillow Case Pillowcase Soft",
+      "source": { "path": "ev-yasam/ev-tekstili", "confidence": 88, "status": "suggested" },
+      "path": "ev-yasam/ev-tekstili",
+      "state": "applied"
     }
   ]
 }

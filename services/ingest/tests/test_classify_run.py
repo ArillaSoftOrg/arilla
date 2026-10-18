@@ -366,8 +366,8 @@ def test_concurrent_change_is_never_overwritten(
 ) -> None:
     original = run_mod._read
 
-    def read_then_admin_edits(conn, after, limit, merchant_id):
-        rows = original(conn, after, limit, merchant_id)
+    def read_then_admin_edits(conn, after, limit, merchant_id, **kwargs):
+        rows = original(conn, after, limit, merchant_id, **kwargs)
         with _owner() as other, other.cursor() as cur:
             cur.execute(
                 "UPDATE product SET category_id = %s WHERE id = %s", (world["mutfak"], world["bag"])
@@ -380,6 +380,109 @@ def test_concurrent_change_is_never_overwritten(
     assert _products(world)["bag"][9] == "ev-yasam/mutfak"
     state = _classification(world["bag"])
     assert state is not None and (state[0], state[6]) == ("error", "concurrent_change")
+
+
+KITCHEN = "Home & Garden > Kitchen,Dining & Bar"
+#: Kural surumu 1'in yazdigi (uretim pilotu gibi) kategori: (anahtar, baslik).
+V1_OWNED = (
+    ("own_plug", "proof electric shock protection plug European standard"),
+    ("own_grinder", "Premium Manual Coffee Grinders"),
+    ("own_rack", "Round Large Cake Cooling Rack Stainless Steel"),
+)
+
+
+def _add_product(cur: psycopg.Cursor, merchant_id: int, key: str, title: str, n: int) -> int:
+    ext = f"{9_200_000_000 + n}"
+    cur.execute(
+        """INSERT INTO offer (merchant_id, external_id, url, title_raw, category_raw, image_url,
+                              current_price, currency)
+           VALUES (%s, %s, %s, %s, %s, %s, 1999, 'USD') RETURNING id""",
+        (
+            merchant_id,
+            ext,
+            f"https://{SLUG}.example/item/{ext}",
+            title,
+            KITCHEN,
+            f"https://img.{SLUG}.example/{ext}.jpg",
+        ),
+    )
+    oid = int(cur.fetchone()[0])  # type: ignore[index]
+    cur.execute(
+        """INSERT INTO product (slug, title, primary_image_url, source_merchant_id,
+                                source_external_id, source_offer_id, publication_state, min_price)
+           VALUES (%s, %s, %s, %s, %s, %s, 'draft', 5000) RETURNING id""",
+        (f"test-cls-{key}", title, f"https://img.{SLUG}.example/{ext}.jpg", merchant_id, ext, oid),
+    )
+    return int(cur.fetchone()[0])  # type: ignore[index]
+
+
+def test_owned_only_recheck_fixes_only_own_writes(world: dict[str, int]) -> None:
+    """Karar 0138: yeni kurallar yalnizca bu isin yazdigi kategoriyi duzeltir (pilot 618 urun)."""
+    mid = world[f"merchant_{SLUG}"]
+    owned: dict[str, int] = {}
+    with _owner() as conn, conn.cursor() as cur:
+        for n, (key, title) in enumerate(V1_OWNED):
+            pid = _add_product(cur, mid, key, title, n)
+            owned[key] = pid
+            cur.execute("UPDATE product SET category_id = %s WHERE id = %s", (world["mutfak"], pid))
+            cur.execute(
+                """INSERT INTO product_classification
+                       (product_id, rule_version, state, brand_basis, category_id, category_basis,
+                        confidence, wrote_brand, wrote_category)
+                   VALUES (%s, 1, 'applied', 'none', %s, 'source', 88, FALSE, TRUE)""",
+                (pid, world["mutfak"]),
+            )
+        # Hic siniflandirilmamis urun: --owned-only ona DOKUNMAZ (toplu tarama baslamaz).
+        untouched = _add_product(cur, mid, "own_untouched", "Stainless Steel Frying Pan", 9)
+
+    checks = {c.row.product_id: c for c in _recheck()}
+    assert set(checks) == set(owned.values())  # yonetici ("manual") ve dokunulmamis urun yok
+    assert checks[owned["own_plug"]].action == "clear"
+    assert checks[owned["own_grinder"]].new_category == "ev-yasam/mutfak/kahve-ekipmanlari"
+    assert checks[owned["own_rack"]].action == "keep"
+    # recheck YALNIZCA OKUR.
+    assert _category_of(owned["own_plug"]) == "ev-yasam/mutfak"
+
+    counts = _run(owned_only=True)
+    assert counts.completed and counts.errors == 0 and counts.scanned == len(V1_OWNED)
+    assert _category_of(owned["own_plug"]) is None
+    assert _category_of(owned["own_grinder"]) == "ev-yasam/mutfak/kahve-ekipmanlari"
+    assert _category_of(owned["own_rack"]) == "ev-yasam/mutfak"
+    assert _category_of(untouched) is None and _classification(untouched) is None
+    assert _products(world)["manual"][9] == "ev-yasam/mutfak"
+    plug = _classification(owned["own_plug"])
+    assert plug is not None
+    assert (plug[0], plug[5], plug[6]) == ("review", False, "source_cue_conflict")
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM product_classification_state WHERE scope = %s",
+            (f"merchant:{SLUG}",),
+        )
+        assert int(cur.fetchone()[0]) == 0  # type: ignore[index]  # kontrol noktasi yok
+    # Ikinci kosu hicbir seyi degistirmez (temizlenen urun artik sahip olunan degil).
+    again = _run(owned_only=True)
+    assert again.category_set == 0 and again.scanned == 2
+
+
+def test_owned_only_refuses_rescan(world: dict[str, int]) -> None:
+    with pytest.raises(run_mod.ClassifyAborted) as error:
+        _run(owned_only=True, rescan=True)
+    assert error.value.code == "owned_only_rescan"
+
+
+def _recheck() -> list[run_mod.Recheck]:
+    with _app() as conn:
+        return run_mod.recheck_owned(conn, merchant_slug=SLUG)
+
+
+def _category_of(pid: int) -> str | None:
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            """SELECT c.path FROM product p LEFT JOIN category c ON c.id = p.category_id
+                WHERE p.id = %s""",
+            (pid,),
+        )
+        return cur.fetchone()[0]  # type: ignore[index]
 
 
 def test_taxonomy_migration_is_idempotent(world: dict[str, int]) -> None:
