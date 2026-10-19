@@ -4,8 +4,7 @@
  */
 export const CONSENT_COPY = {
   bannerTitle: "Çerez tercihleri", // consent.banner_title
-  bannerBody:
-    "Zorunlu çerezler siteyi çalıştırır. Diğerleri yalnızca izninle kullanılır.", // consent.banner_body
+  bannerBody: "Zorunlu çerezler siteyi çalıştırır. Diğerleri yalnızca izninle kullanılır.", // consent.banner_body
   rejectAll: "Reddet", // consent.reject_all
   manage: "Ayarla", // consent.manage
   acceptAll: "Kabul et", // consent.accept_all
