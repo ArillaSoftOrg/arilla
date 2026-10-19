@@ -6,39 +6,33 @@ import { FEEDBACK_COPY } from "./geri-bildirim/feedback-copy.ts";
 import { HOME_COPY } from "./home-copy.ts";
 
 /**
- * Faz 8: ana sayfa bolumlerine giden uc link. Ana sayfada ayni sayfa ici
- * anchor, alt sayfalarda (public site kabugu) ana sayfaya donen `/#...` -
- * alt sayfada `#kesfet` hicbir yere gitmeyen bir no-op olurdu. Trendler
- * artik kendi rotasi (`/trendler`, karar 0077): her yerde ayni adrese gider.
+ * Ana sayfa bolumlerine giden linkler. Ana sayfada kesif ayni sayfa ici
+ * anchor olabilir; alt sayfalarda gercek rotaya gider. Trendler kendi
+ * rotasina (`/trendler`, karar 0077) gider.
  */
 export interface SiteSectionLinks {
   trendsHref: string;
   discoverHref: string;
-  howItWorksHref: string;
 }
 
 /** Ana sayfa: `discoverHref` kesif bolumu render edildiyse `#kesfet`, degilse `/kesfet`. */
 export function homeSectionLinks(discoverHref: string): SiteSectionLinks {
-  return { trendsHref: "/trendler", discoverHref, howItWorksHref: "#nasil-calisir" };
+  return { trendsHref: "/trendler", discoverHref };
 }
 
 /**
- * Alt sayfalar. `#nasil-calisir` ana sayfada her zaman render
- * edilir (kosulsuz); Trendler gercek `/trendler` rotasina gider; Kesfet ise gercek
- * `/kesfet` sayfasina gider - ana sayfanin kesif bolumu kosullu oldugu icin
- * `/#kesfet` her zaman var olmayabilir.
+ * Alt sayfalar. Trendler gercek `/trendler` rotasina, Kesfet ise gercek
+ * `/kesfet` sayfasina gider.
  */
 export const SUBPAGE_SECTION_LINKS: SiteSectionLinks = {
   trendsHref: "/trendler",
   discoverHref: "/kesfet",
-  howItWorksHref: "/#nasil-calisir",
 };
 
 export function siteNavItems(links: SiteSectionLinks): readonly HomeHeaderNavItem[] {
   return [
     { label: HOME_COPY.navTrends, href: links.trendsHref },
     { label: HOME_COPY.navDiscover, href: links.discoverHref },
-    { label: HOME_COPY.navHowItWorks, href: links.howItWorksHref },
   ];
 }
 
@@ -59,8 +53,6 @@ export function personalNavLinks(): readonly HomeHeaderNavItem[] {
  * var olan route'lar - apps/web/app/ altinda dogrudan denetlendi:
  * /kesfet, /firsatlar, /giris, /kaydettiklerim, /alarmlar, /gecmis,
  * /gizlilik, /kosullar, /cerez, /trendler (hepsinin page.tsx'i mevcut).
- * #nasil-calisir ayni sayfadaki gercek section.
- *
  * Faz 6: /gizlilik ve /kosullar TASLAK sayfalar (bkz. docs/kvkk.md "Faz 6
  * notu") - yine de gercekten var olan, calisan route'lar oldugundan dead
  * link degil.
@@ -91,7 +83,6 @@ export function homeFooterGroups(
       links: [
         { label: HOME_COPY.navTrends, href: links.trendsHref },
         { label: HOME_COPY.navDiscover, href: links.discoverHref },
-        { label: HOME_COPY.navHowItWorks, href: links.howItWorksHref },
         { label: HOME_COPY.navDeals, href: "/firsatlar" },
       ],
     },

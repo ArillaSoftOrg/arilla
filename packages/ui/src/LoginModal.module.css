@@ -37,6 +37,11 @@
   box-shadow: var(--shadow-md);
 }
 
+.compactDialog {
+  max-width: 26rem;
+  padding: var(--space-6);
+}
+
 /* Diyalogun kendisi yalnizca programatik odak alir (icinde odaklanabilir
    alan yoksa); gorunur halka icerikteki kontrollerdedir. */
 .dialog:focus {

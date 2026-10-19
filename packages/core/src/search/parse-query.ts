@@ -30,6 +30,39 @@ export interface ParseQueryOptions {
 
 const DEFAULT_MIN_CONFIDENCE = 0.35;
 
+/**
+ * Kullanıcının ürün tarifine konuşma doğallığı katan, ancak katalogda
+ * aranması gerekmeyen kelimeler. Gerçek ürün nitelikleri bu listede değildir.
+ */
+const CONVERSATIONAL_FILLER_WORDS: ReadonlySet<string> = new Set([
+  "arıyorum",
+  "arayışındayım",
+  "istiyorum",
+  "bakıyorum",
+  "lazım",
+  "alacağım",
+  "almak",
+  "bana",
+  "ben",
+  "bir",
+  "bi",
+  "merhaba",
+  "selam",
+  "lütfen",
+]);
+
+function conversationalWord(token: string): string {
+  return token.replace(/[^\p{L}\p{N}]+/gu, "");
+}
+
+/** Konuşma cümlesini katalog aramasında kullanılacak kısa ürün tarifine indirger. */
+export function stripConversationalSearchFillers(text: string): string {
+  return normalizeQueryText(text)
+    .split(" ")
+    .filter((token) => !CONVERSATIONAL_FILLER_WORDS.has(conversationalWord(token)))
+    .join(" ");
+}
+
 const SIZE_NUMARA_RE = /(\d+)\s*numara/gu;
 const SIZE_BEDEN_RE = /(\p{L}+)\s*beden/gu;
 
@@ -176,6 +209,15 @@ export function parseQueryText(
       }
     }
   }
+
+  // "Ayakkabı arıyorum" ile "ayakkabı" aynı katalog niyetidir. Konuşma
+  // dolgularını metin aramasına taşımak, ürün başlıklarında bu fiiller
+  // bulunmadığı için geçerli kategori sonuçlarını sıfırlardı.
+  tokens.forEach((token, index) => {
+    if (consumed[index]) return;
+    const word = conversationalWord(token.value);
+    if (CONVERSATIONAL_FILLER_WORDS.has(word)) consumed[index] = true;
+  });
 
   const consumedCount = consumed.filter(Boolean).length;
   const confidence = tokens.length === 0 ? 0 : consumedCount / tokens.length;

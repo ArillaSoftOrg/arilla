@@ -132,6 +132,17 @@ describe("startConversationAction (JS'siz yol)", () => {
     await expect(startConversationAction(form)).rejects.toThrow(`REDIRECT:/sohbet/${ID}`);
     expect(mocks.after).toHaveBeenCalledTimes(1);
   });
+
+  it("anonim sorguyu sonuc hazirlandiginda acilan giris kapisina tasir", async () => {
+    mocks.verifySession.mockResolvedValue(null);
+    const form = new FormData();
+    form.set("q", "rahat yürüyüş ayakkabısı");
+
+    await expect(startConversationAction(form)).rejects.toThrow(
+      "REDIRECT:/sohbet/misafir?q=rahat+y%C3%BCr%C3%BCy%C3%BC%C5%9F+ayakkab%C4%B1s%C4%B1",
+    );
+    expect(mocks.createConversation).not.toHaveBeenCalled();
+  });
 });
 
 describe("submitResultFeedbackAction", () => {

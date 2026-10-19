@@ -86,18 +86,21 @@ export function CookieBanner({ title, body, links, linksLabel, actions }: Cookie
             {title}
           </h2>
           <p className={styles.bannerBody}>{body}</p>
-          <nav aria-label={linksLabel}>
-            {/* biome-ignore lint/a11y/noRedundantRoles: `list-style: none` Safari/VoiceOver'da liste rolunu dusurur. */}
-            <ul role="list" className={styles.linkList}>
-              {links.map((link) => (
-                <li key={link.href}>
-                  <a href={link.href} className={styles.inlineLink}>
-                    {link.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </nav>
+          <details className={styles.details}>
+            <summary className={styles.detailsSummary}>{linksLabel}</summary>
+            <nav aria-label={linksLabel}>
+              {/* biome-ignore lint/a11y/noRedundantRoles: `list-style: none` Safari/VoiceOver'da liste rolunu dusurur. */}
+              <ul role="list" className={styles.linkList}>
+                {links.map((link) => (
+                  <li key={link.href}>
+                    <a href={link.href} className={styles.inlineLink}>
+                      {link.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </details>
         </div>
         {actions}
       </div>

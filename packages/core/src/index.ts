@@ -17,6 +17,15 @@ export * from "./attribution/index.ts";
 export * from "./auth/index.ts";
 export * from "./catalog-collection/index.ts";
 export * from "./chat/index.ts";
+export { compileQuery } from "./clarification/compile.ts";
+export { replayConversation } from "./clarification/engine.ts";
+export { DEFAULT_CLARIFICATION_REGISTRY } from "./clarification/rules.ts";
+export { findDomain } from "./clarification/state.ts";
+export type {
+  ClarificationInput,
+  ClarificationQuestion,
+} from "./clarification/types.ts";
+export { decodeInputs, encodeInput } from "./clarification/url-state.ts";
 export * from "./config/index.ts";
 export * from "./consent/account-consent.ts";
 export * from "./conversational-search/index.ts";

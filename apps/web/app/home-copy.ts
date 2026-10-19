@@ -3,26 +3,25 @@
  * tanimli - anahtarlar yorum olarak burada tutulur.
  */
 export const HOME_COPY = {
-  heroTitleLead: "Alışveriş mi?", // home.hero_title_lead
-  heroTitleAccent: "ManiCepte.", // home.hero_title_accent
-  heroSubline: "Ne aradığını anlat, görselini yükle veya linkini bırak.", // home.hero_subline
+  heroTitleLead: "Doğru seçeneği", // home.hero_title_lead
+  heroTitleAccent: "birlikte bulalım.", // home.hero_title_accent
   // Hero'da cizilmez; alt bilgi aciklamasi olarak kullanilir.
   heroSubtitle: "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.", // home.tagline
   // Kullanicinin gercek son aramalari; gecmis yoksa bolum hic cizilmez.
   searchIdeasTitle: "Alışverişe devam et", // home.search_ideas_title
   trendsTitle: "Trendler", // home.trends_title
-  trendsSubtitle: "Arilla'da öne çıkan stiller ve ürün fikirleri.", // home.trends_subtitle
-  discoveryTitle: "Arilla'da keşfedilenler", // home.discovery_title
+  trendsSubtitle: "Bakmaya devam etmek istersen, güncel ürün fikirlerine göz at.", // home.trends_subtitle
+  discoveryTitle: "ManiCepte'de keşfedilenler", // home.discovery_title
   discoverySubtitle: "Farklı kategorilerden öne çıkan ürünler, tek bakışta.", // home.discovery_subtitle
-  howItWorksTitle: "Arilla nasıl çalışır?", // home.how_it_works_title
+  howItWorksTitle: "ManiCepte nasıl çalışır?", // home.how_it_works_title
   howItWorksSubtitle:
-    "Ürünü tarif et veya fotoğrafını yükle. Arilla aynı ve benzer seçenekleri farklı mağazalarda karşılaştırmana yardımcı olur.", // home.how_it_works_subtitle
+    "Ürünü tarif et veya fotoğrafını yükle. ManiCepte aynı ve benzer seçenekleri farklı mağazalarda karşılaştırmana yardımcı olur.", // home.how_it_works_subtitle
   howItWorksTextSearchTitle: "Metinle ara", // home.how_it_works_text_search_title
   howItWorksTextSearchDescription:
-    "Ürün adını, markayı ya da kısa bir tarifle ara. Arilla fiyat aralığı ve kategori gibi ayrıntıları anlar.", // home.how_it_works_text_search_description
+    "Ürün adını, markayı ya da kısa bir tarifle ara. ManiCepte fiyat aralığı ve kategori gibi ayrıntıları anlar.", // home.how_it_works_text_search_description
   howItWorksPhotoSearchTitle: "Fotoğrafla ara", // home.how_it_works_photo_search_title
   howItWorksPhotoSearchDescription:
-    "Ürünün fotoğrafını yükle, Arilla aynı veya benzer seçenekleri bulsun. Fotoğrafın sistemde kalıcı olarak saklanmaz.", // home.how_it_works_photo_search_description
+    "Ürünün fotoğrafını yükle, ManiCepte aynı veya benzer seçenekleri bulsun. Fotoğrafın sistemde kalıcı olarak saklanmaz.", // home.how_it_works_photo_search_description
   howItWorksLinkSearchTitle: "Bağlantıyla bul", // home.how_it_works_link_search_title
   howItWorksLinkSearchDescription: "Beğendiğin bir ürünün bağlantısını paylaşarak arama.", // home.how_it_works_link_search_description
   howItWorksLinkSearchStatus: "Yakında", // home.how_it_works_link_search_status
@@ -72,7 +71,6 @@ export const HOME_COPY = {
   privacyContactSuffix: "adresine yazabilirsin.", // privacy.contact_suffix
   navTrends: "Trendler", // nav.trends
   navDiscover: "Keşfet", // nav.discover
-  navHowItWorks: "Arama yolları", // nav.how_it_works
   navAccount: "Hesabım", // nav.account
   /** Karar 0092: tema dugmesinin erisilebilir adi; durum `aria-pressed` ile. */
   themeToggleLabel: "Koyu tema", // nav.theme_toggle
@@ -84,7 +82,7 @@ export const HOME_COPY = {
   navPersonalTitle: "Kişisel", // nav.personal
   /** Menu panelinin hesap alanindaki kisa cikis eylemi. */
   signOutShort: "Çıkış", // action.sign_out_short
-  searchPlaceholder: "ManiCepte’ye sor...", // search.placeholder
+  searchPlaceholder: "Ne aradığını anlat, fotoğraf ekle veya bağlantı bırak…", // search.placeholder
   searchInputLabel: "Ürün ara", // search.input_label
   searchSubmitLabel: "Ara", // action.search
   /** Karar 0093: yuzen hizli arama. */

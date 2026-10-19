@@ -79,10 +79,12 @@ export function LoginFormClient({
   next,
   availability,
   googleOnly = false,
+  compact = false,
 }: {
   next?: string;
   availability?: ProviderAvailability;
   googleOnly?: boolean;
+  compact?: boolean;
 } = {}) {
   const withNext = (href: string) =>
     next && next !== "/" ? `${href}?next=${encodeURIComponent(next)}` : href;
@@ -105,7 +107,7 @@ export function LoginFormClient({
     );
 
   return (
-    <div className={styles.authChoices}>
+    <div className={`${styles.authChoices} ${compact ? styles.authChoicesCompact : ""}`}>
       {provider("google", "/giris/google", COPY.google, <GoogleMark />)}
       {googleOnly ? null : provider("apple", "/giris/apple", COPY.apple, <AppleMark />)}
     </div>

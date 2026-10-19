@@ -49,6 +49,11 @@ function plainSearchHref(text: string): string {
   return text ? `/ara?${new URLSearchParams({ q: text }).toString()}` : "/ara";
 }
 
+/** Anonim ana sayfa aramasi: sorguyu misafir sohbet kabugunda sonuc anina tasir. */
+function gatedSearchHref(text: string): string {
+  return `/sohbet/misafir?${new URLSearchParams({ q: text }).toString()}`;
+}
+
 /**
  * Ilk turu yanit gittikten sonra baslatir (`after()`); `processPendingTurn`in kirasi
  * es zamanli ikinci Gemini cagrisini engeller. Kurulamazsa (anahtar yok, `after`
@@ -88,6 +93,9 @@ export async function startConversationAction(formData: FormData): Promise<void>
   if (!text) redirect("/ara");
 
   const user = await verifySession();
+  if (isChatDiscoveryEnabled() && !user && canAccessProduct(user)) {
+    redirect(gatedSearchHref(text));
+  }
   if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
     redirect(plainSearchHref(text));
   }

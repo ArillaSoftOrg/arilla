@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { LexiconEntry } from "./lexicon.ts";
-import { parseQueryText } from "./parse-query.ts";
+import { parseQueryText, stripConversationalSearchFillers } from "./parse-query.ts";
 
 const lexicon: LexiconEntry[] = [
   { kind: "color", surface: "siyah", normalized: "black", weight: 1 },
   { kind: "color", surface: "beyaz", normalized: "white", weight: 1 },
   { kind: "category", surface: "sneaker", normalized: "ayakkabi/sneaker", weight: 1 },
+  { kind: "category", surface: "ayakkabı", normalized: "ayakkabi", weight: 1 },
   { kind: "category", surface: "spor ayakkabı", normalized: "ayakkabi/sneaker", weight: 1 },
   { kind: "category", surface: "spor ayakkabısı", normalized: "ayakkabi/sneaker", weight: 1 },
   { kind: "brand", surface: "nike", normalized: "nike", weight: 1 },
@@ -50,6 +51,16 @@ describe("parseQueryText", () => {
     const result = parseQueryText("rahat spor ayakkabi tabanli", lexicon);
     expect(result.filters.category_path).toBe("ayakkabi/sneaker");
     expect(result.unparsed).toBe("rahat tabanli");
+  });
+
+  it("konusma dolgularini katalog metnine tasimaz", () => {
+    const plain = parseQueryText("ayakkabı", lexicon);
+    const conversational = parseQueryText("merhaba ben bi ayakkabı arıyorum", lexicon);
+
+    expect(conversational.filters).toEqual(plain.filters);
+    expect(conversational.unparsed).toBe("");
+    expect(conversational.text_slots).toEqual(plain.text_slots);
+    expect(stripConversationalSearchFillers("Merhaba, ben bi ayakkabı arıyorum.")).toBe("ayakkabı");
   });
 
   it("cok kelimeli yuzeyde kelimeler arasi noktalama/bosluk farki onemsiz", () => {

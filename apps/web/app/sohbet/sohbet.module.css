@@ -332,6 +332,7 @@ a.tabActive:hover {
   color: var(--ink);
   font-family: inherit;
   text-align: start;
+  text-decoration: none;
   cursor: pointer;
 }
 
@@ -385,6 +386,7 @@ a.tabActive:hover {
   font-family: inherit;
   font-size: var(--text-small);
   font-weight: var(--font-weight-medium);
+  text-decoration: none;
   cursor: pointer;
 }
 

@@ -1,6 +1,7 @@
 "use client";
 
 import {
+  ImageIcon,
   SearchComposer,
   type SearchComposerAttachment,
   type SearchComposerRecentProduct,
@@ -33,6 +34,7 @@ export function HomeSearchComposer({
   startChat,
   chatInNewTab = false,
   imageChat = false,
+  imageEntryAvailable = false,
   imageConsent = false,
   recentProducts,
 }: {
@@ -59,6 +61,8 @@ export function HomeSearchComposer({
    * mesaj olarak, metinle aynı geçişle sohbete gider. false/verilmezse "+" hiç görünmez.
    */
   imageChat?: boolean;
+  /** Fotoğraf özelliği açık ama anonim kullanıcıysa giriş kapısını gösterir. */
+  imageEntryAvailable?: boolean;
   /** Karar 0101: gecerli acik riza var mi (yoksa dosya secilince bilgilendirme sorulur). */
   imageConsent?: boolean;
 }) {
@@ -83,7 +87,13 @@ export function HomeSearchComposer({
 
   return (
     <>
-      <LoginGateModal open={submission.loginOpen} onClose={submission.closeLogin} />
+      <LoginGateModal
+        open={submission.loginOpen}
+        onClose={submission.closeLogin}
+        title="Fotoğrafla aramaya devam et"
+        description="Aynı ve benzer ürünleri bulup seçenekleri karşılaştırmak için giriş yap."
+        compact
+      />
       {submission.consentDialog}
       <div ref={mainRef}>
         <SearchComposer
@@ -105,6 +115,15 @@ export function HomeSearchComposer({
                   label: staged ? IMAGE_CHAT_COPY.replaceLabel : IMAGE_CHAT_COPY.uploadLabel,
                   onFileSelected: stageFile,
                   disabled: sending,
+                }
+              : undefined
+          }
+          leadingAction={
+            imageEntryAvailable && !imageChat
+              ? {
+                  label: IMAGE_CHAT_COPY.uploadLabel,
+                  onClick: submission.openLogin,
+                  icon: <ImageIcon />,
                 }
               : undefined
           }

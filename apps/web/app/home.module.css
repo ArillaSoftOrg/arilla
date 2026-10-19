@@ -10,12 +10,15 @@
 /* Hero: ilk ekranin odagi. Ustte tam bolum boslugu; kompakt kutudan
    trendlere gecis kisa (trendler ilk ekranda gorunsun). */
 .page > .hero {
-  padding-block: var(--space-16) var(--space-12);
+  display: grid;
+  align-items: center;
+  min-height: calc(100svh - 72px);
+  padding-block: var(--space-12) var(--space-14);
 }
 
 @media (min-width: 1024px) {
   .page > .hero {
-    padding-block: 5rem var(--space-16);
+    padding-block: var(--space-10) 10rem;
   }
 }
 
@@ -25,34 +28,58 @@
   scroll-margin-block-start: var(--space-8);
 }
 
-/* Trendler: telefon 1, tablet 2, laptop+ 3 sutun. 640-900px araliginda
-   kartlar sıkışmadan okunur; masaustunde referans feed yogunluguna doner. */
+/* Ana sayfada trendler mobilde kisa bir yatay kesif rayidir; kullaniciyi
+   ana arama gorevinden uzaklastirmadan ikinci sirada kalir. */
+.trendsViewport {
+  margin-inline: calc(-1 * var(--gutter));
+  overflow: hidden;
+}
+
+.trendsViewport > ul,
 .trendGrid {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-10);
+  display: flex;
+  gap: var(--space-4);
   margin: 0;
-  padding: 0;
+  padding: 0 var(--gutter) var(--space-2);
   list-style: none;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  scroll-padding-inline: var(--gutter);
+  scroll-snap-type: x mandatory;
+  scrollbar-width: none;
 }
 
-@media (min-width: 640px) {
-  .trendGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: var(--space-4);
-  }
+.trendsViewport > ul::-webkit-scrollbar,
+.trendGrid::-webkit-scrollbar {
+  display: none;
 }
 
-@media (min-width: 1024px) {
-  .trendGrid {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: var(--space-6);
-  }
-}
-
+.trendsViewport > ul > li,
 .trendItem {
   display: grid;
+  flex: 0 0 min(82vw, 320px);
   min-width: 0;
+  scroll-snap-align: start;
+}
+
+@media (min-width: 768px) {
+  .trendsViewport {
+    margin-inline: 0;
+  }
+
+  .trendsViewport > ul,
+  .trendGrid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--space-6);
+    padding-inline: 0;
+    overflow: visible;
+  }
+
+  .trendsViewport > ul > li,
+  .trendItem {
+    min-width: 0;
+  }
 }
 
 .trendsMore {
@@ -81,15 +108,13 @@
 
 .ways {
   display: grid;
-  gap: var(--space-6);
+  gap: var(--space-8);
   margin-inline: calc(-1 * var(--gutter));
 }
 
 .waysHeader {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4);
   padding-inline: var(--gutter);
 }
 
@@ -101,39 +126,9 @@
   color: var(--ink);
 }
 
-.waysControls {
-  display: flex;
-  gap: var(--space-3);
-}
-
-.waysControl {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 56px;
-  height: 56px;
-  border: var(--border-width) solid transparent;
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--ink);
-  font: inherit;
-  font-size: var(--text-h3);
-  line-height: 1;
-  cursor: pointer;
-}
-
-.waysControl:hover {
-  background: var(--surface-hover);
-}
-
-.waysControl:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
-}
-
 .waysTrack {
   display: flex;
-  gap: var(--space-5);
+  gap: var(--space-4);
   margin: 0;
   padding: 0 var(--gutter) var(--space-2);
   list-style: none;
@@ -149,23 +144,24 @@
 }
 
 .wayItem {
-  flex: 0 0 min(82vw, 560px);
+  flex: 0 0 min(78vw, 300px);
   min-width: 0;
   scroll-snap-align: start;
 }
 
 .wayCard {
   display: grid;
-  gap: var(--space-4);
+  grid-template-rows: auto 1fr;
   min-width: 0;
+  height: 100%;
+  overflow: hidden;
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface-raised);
 }
 
 .wayVisual {
-  position: relative;
-  display: grid;
-  min-height: 360px;
-  padding: var(--space-8);
-  border-radius: var(--radius-lg);
+  aspect-ratio: 16 / 10;
   overflow: hidden;
   background: var(--surface);
 }
@@ -182,209 +178,63 @@
   background: var(--tint-warm);
 }
 
-.wayVisual_bitmap {
-  padding: 0;
-  background: var(--surface);
-}
-
 .wayMockImage {
+  display: block;
   width: 100%;
   height: 100%;
-  min-height: inherit;
-  border-radius: inherit;
   object-fit: cover;
   background: transparent;
 }
 
-.wayChrome {
-  position: absolute;
-  inset-inline: 8%;
-  inset-block-start: var(--space-8);
-  z-index: 1;
+.wayBody {
   display: grid;
-  gap: var(--space-4);
+  grid-template-columns: auto minmax(0, 1fr);
+  align-content: start;
+  gap: var(--space-2) var(--space-3);
   padding: var(--space-4);
-  border-radius: var(--radius-lg);
-  background: color-mix(in srgb, var(--paper) 92%, transparent);
-  box-shadow: var(--shadow-sm);
-}
-
-.wayChrome_link {
-  inset-inline-end: 16%;
-}
-
-.wayChrome_chat {
-  inset-inline-start: 12%;
-  inset-inline-end: 12%;
-}
-
-.wayChrome_compare {
-  inset-inline-end: 20%;
-}
-
-.wayChromeTop {
-  display: flex;
-  gap: var(--space-1);
-}
-
-.wayDot {
-  width: 8px;
-  height: 8px;
-  border-radius: var(--radius-pill);
-  background: var(--line-strong);
-  opacity: 0.45;
-}
-
-.wayMockLabel {
-  display: flex;
-  align-items: center;
-  min-width: 0;
-  gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
-  border-radius: var(--radius-pill);
-  background: var(--surface);
-  color: var(--ink-secondary);
-  font-size: var(--text-body-lg);
-  font-weight: var(--font-weight-medium);
-  line-height: var(--line-height-heading);
-}
-
-.wayMockIcon {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--radius-pill);
-  background: var(--ink);
-  color: var(--paper);
-  font-size: var(--text-body);
-  font-weight: 700;
-  line-height: 1;
-}
-
-.wayMockText {
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.wayImage {
-  position: absolute;
-  inset-inline: 8%;
-  inset-block-end: 4%;
-  width: 84%;
-  height: 64%;
-  object-fit: contain;
-  background: transparent;
-}
-
-.wayResultRail {
-  position: absolute;
-  inset-inline-start: 10%;
-  inset-block-end: var(--space-6);
-  z-index: 1;
-  display: grid;
-  width: min(58%, 360px);
-  gap: var(--space-2);
-  padding: var(--space-3);
-  border-radius: var(--radius-md);
-  background: color-mix(in srgb, var(--paper) 88%, transparent);
-  box-shadow: var(--shadow-xs);
-}
-
-.wayResultTitle {
-  color: var(--ink);
-  font-size: var(--text-small);
-  font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-heading);
-}
-
-.wayResultLine {
-  width: 100%;
-  height: 6px;
-  border-radius: var(--radius-pill);
-  background: var(--line);
-}
-
-.wayResultLine:last-child {
-  width: 68%;
-}
-
-.playBadge {
-  position: absolute;
-  inset: 50% auto auto 50%;
-  width: 64px;
-  height: 64px;
-  border-radius: var(--radius-pill);
-  background: var(--media-scrim);
-  transform: translate(-50%, -50%);
-  box-shadow: var(--shadow-sm);
-}
-
-.playBadge::before {
-  position: absolute;
-  inset: 50% auto auto 52%;
-  width: 0;
-  height: 0;
-  border-block: 10px solid transparent;
-  border-inline-start: 16px solid var(--on-media);
-  content: "";
-  transform: translate(-50%, -50%);
 }
 
 .wayCaption {
   margin: 0;
-  padding-inline: var(--space-2);
-  font-size: var(--text-h3);
+  font-size: var(--text-body-lg);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-heading);
   color: var(--ink);
 }
 
-@media (min-width: 1024px) {
-  .wayItem {
-    flex-basis: min(52vw, 760px);
-  }
-
-  .wayVisual {
-    min-height: 460px;
-  }
-
-  .wayItem:nth-child(even) {
-    flex-basis: min(36vw, 560px);
-  }
+.wayNumber {
+  grid-row: 1 / span 2;
+  color: var(--save);
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
 }
 
-@media (max-width: 639.98px) {
-  .waysControls {
-    display: none;
+.wayDescription {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}
+
+@media (min-width: 768px) {
+  .ways {
+    margin-inline: 0;
   }
 
-  .wayVisual {
-    min-height: 280px;
-    padding: var(--space-5);
+  .waysHeader,
+  .waysTrack {
+    padding-inline: 0;
   }
 
-  .wayChrome {
-    inset-inline: var(--space-5);
-    inset-block-start: var(--space-5);
+  .waysTrack {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    overflow: visible;
   }
 
-  .wayMockLabel {
-    font-size: var(--text-body);
-  }
-
-  .wayImage {
-    inset-inline: 10%;
-    width: 80%;
-    height: 58%;
-  }
-
-  .wayResultRail {
-    width: 68%;
+  .wayItem {
+    min-width: 0;
   }
 }
 

@@ -61,7 +61,8 @@ export function PhotoUploadButton({
         aria-label={iconOnly ? label : undefined}
         onClick={() => inputRef.current?.click()}
       >
-        {iconOnly ? icon : label}
+        {icon ? icon : null}
+        {iconOnly ? null : label}
       </Button>
     </>
   );

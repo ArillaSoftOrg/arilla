@@ -3,12 +3,12 @@
  * önce copy.md'de değişir, sonra burada.
  */
 export const CONSENT_COPY = {
-  bannerTitle: "Gizlilik tercihlerini yönet", // consent.banner_title
+  bannerTitle: "Çerez tercihleri", // consent.banner_title
   bannerBody:
-    "Sitenin çalışması için gerekli çerezleri kullanıyoruz. Analitik, işlevsel ve reklam/affiliate ölçüm teknolojilerini yalnızca izin verdiğin kategoriler için etkinleştiririz; şu an bu kategorilerde kullandığımız bir teknoloji yok. Tercihini istediğin zaman değiştirebilirsin.", // consent.banner_body
-  rejectAll: "Tümünü Reddet", // consent.reject_all
-  manage: "Tercihleri Yönet", // consent.manage
-  acceptAll: "Tümünü Kabul Et", // consent.accept_all
+    "Zorunlu çerezler siteyi çalıştırır. Diğerleri yalnızca izninle kullanılır.", // consent.banner_body
+  rejectAll: "Reddet", // consent.reject_all
+  manage: "Ayarla", // consent.manage
+  acceptAll: "Kabul et", // consent.accept_all
   save: "Tercihleri Kaydet", // consent.save
   close: "Kapat", // consent.close
   panelTitle: "Çerez tercihleri", // consent.panel_title
@@ -24,7 +24,7 @@ export const CONSENT_COPY = {
   marketingBody: "Reklam ve affiliate yönlendirmelerini cihazında ölçer.", // consent.marketing_body
   categoryUnused: "Şu an bu kategoride kullandığımız bir teknoloji yok.", // consent.category_unused
   alwaysOn: "Her zaman açık.", // consent.always_on
-  linksLabel: "Ayrıntılar", // consent.links_label
+  linksLabel: "Politikalar", // consent.links_label
 } as const;
 
 /** Banner ve panelde gösterilen aydınlatma bağlantıları (legal pack 07 §6). */

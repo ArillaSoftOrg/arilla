@@ -10,6 +10,7 @@ export interface LoginModalProps {
   title: string;
   description: string;
   closeLabel: string;
+  compact?: boolean;
   /**
    * Kapaninca odagin donecegi oge. Verilmezse acilis anindaki
    * `document.activeElement`. Acan dugme istek sirasinda `disabled` olursa
@@ -58,6 +59,7 @@ export function LoginModal({
   title,
   description,
   closeLabel,
+  compact = false,
   returnFocusRef,
   children,
 }: LoginModalProps) {
@@ -147,7 +149,7 @@ export function LoginModal({
     <div className={styles.overlay}>
       <div
         ref={dialogRef}
-        className={styles.dialog}
+        className={`${styles.dialog} ${compact ? styles.compactDialog : ""}`}
         role="dialog"
         aria-modal="true"
         aria-labelledby={titleId}

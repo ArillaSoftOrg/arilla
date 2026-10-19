@@ -33,6 +33,7 @@ export interface HomeComposerSubmission {
   /** Ortak gonderim kilidi: ana kutu ve hizli arama ayni anda gonderemez. */
   sending: boolean;
   loginOpen: boolean;
+  openLogin: () => void;
   closeLogin: () => void;
   stageFile: (file: File) => void;
   /** Fotograf izni penceresi; `ReactNode` bilesen agacina eklenmelidir. */
@@ -202,6 +203,7 @@ export function useHomeComposerSubmission({
     staged,
     sending,
     loginOpen,
+    openLogin: () => setLoginOpen(true),
     closeLogin: () => setLoginOpen(false),
     stageFile,
     consentDialog: consent.prompt,

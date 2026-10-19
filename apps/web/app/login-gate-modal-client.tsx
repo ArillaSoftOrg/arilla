@@ -7,6 +7,10 @@ import { LoginFormClient } from "./giris/login-form-client.tsx";
 export interface LoginGateModalProps {
   open: boolean;
   onClose: () => void;
+  title?: string;
+  description?: string;
+  compact?: boolean;
+  next?: string;
   /** Kapaninca odagin donecegi oge (bkz. `LoginModal.returnFocusRef`). */
   returnFocusRef?: RefObject<HTMLElement | null>;
 }
@@ -18,23 +22,33 @@ export interface LoginGateModalProps {
  * docs/events.md `login_modal_shown.trigger` üçü için de aynı akışı
  * tanımlıyor.
  */
-export function LoginGateModal({ open, onClose, returnFocusRef }: LoginGateModalProps) {
+export function LoginGateModal({
+  open,
+  onClose,
+  title = "Sonuçlarını kaydedelim mi?",
+  description = "Hesabın yok mu? Ücretsiz kaydol, bu sonuçları senin için saklayalım.",
+  compact = false,
+  next,
+  returnFocusRef,
+}: LoginGateModalProps) {
   // Girişten sonra kullanıcı modalın açıldığı sayfaya (sorgusuyla) döner.
   // Modal yalnızca etkileşimle açılır; yol yalnızca açıkken istemcide okunur.
-  const next =
-    open && typeof window !== "undefined"
+  const resolvedNext =
+    next ??
+    (open && typeof window !== "undefined"
       ? `${window.location.pathname}${window.location.search}`
-      : undefined;
+      : undefined);
   return (
     <LoginModal
       open={open}
       onClose={onClose}
+      compact={compact}
       returnFocusRef={returnFocusRef}
-      title="Sonuçlarını kaydedelim mi?"
-      description="Hesabın yok mu? Ücretsiz kaydol, bu sonuçları senin için saklayalım."
+      title={title}
+      description={description}
       closeLabel="Kapat"
     >
-      <LoginFormClient next={next} />
+      <LoginFormClient next={resolvedNext} compact={compact} />
     </LoginModal>
   );
 }

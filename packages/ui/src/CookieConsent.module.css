@@ -58,6 +58,32 @@
   list-style: none;
 }
 
+.details {
+  width: fit-content;
+}
+
+.detailsSummary {
+  width: fit-content;
+  min-height: var(--size-touch-target);
+  display: inline-flex;
+  align-items: center;
+  font-size: var(--text-small);
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.detailsSummary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+  border-radius: var(--radius-sm);
+}
+
+.details[open] .linkList {
+  padding-top: var(--space-1);
+}
+
 .inlineLink {
   display: inline-flex;
   align-items: center;
@@ -78,13 +104,72 @@
 /* Telefonda uc eylem alt alta, tam genislik; 640px ustunde yan yana. */
 .actions {
   display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--space-2);
 }
 
 @media (min-width: 640px) {
   .actions {
+    grid-template-columns: none;
     grid-auto-flow: column;
     grid-auto-columns: 1fr;
+  }
+}
+
+@media (max-width: 639px) {
+  .banner {
+    bottom: max(var(--space-3), env(safe-area-inset-bottom));
+    width: calc(100% - 2 * var(--space-3));
+    margin-inline: auto;
+    margin-bottom: 0;
+    border: var(--border-width) solid var(--line-strong);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+  }
+
+  .bannerInner {
+    gap: var(--space-2);
+    padding: var(--space-3);
+  }
+
+  .bannerText {
+    gap: var(--space-1);
+  }
+
+  .bannerTitle {
+    font-size: var(--text-small);
+  }
+
+  .bannerBody {
+    font-size: var(--text-caption);
+    line-height: var(--line-height-normal);
+  }
+
+  .detailsSummary {
+    min-height: 2rem;
+    font-size: var(--text-caption);
+  }
+
+  .linkList {
+    display: flex;
+    gap: var(--space-1) var(--space-3);
+  }
+
+  .inlineLink {
+    min-height: 2rem;
+    font-size: var(--text-caption);
+    line-height: var(--line-height-snug);
+  }
+
+  .actions {
+    gap: var(--space-1);
+  }
+
+  .action {
+    min-height: var(--size-touch-target);
+    padding: var(--space-1);
+    font-size: var(--text-caption);
+    line-height: var(--line-height-snug);
   }
 }
 

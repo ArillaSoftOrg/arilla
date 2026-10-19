@@ -14,7 +14,7 @@ const NOT_FOUND_COPY = {
   body: "Bağlantı değişmiş, taşınmış ya da henüz yayına alınmamış olabilir. Arilla'da aramaya devam etmek için aşağıdaki yollardan birini deneyebilirsin.", // error.not_found_body
   homeAction: "Aramaya dön", // error.home_action
   backAction: "Önceki sayfaya dön",
-  hint: "İstersen ürünü yeniden arayabilir, öne çıkanlara bakabilir veya arama yollarını inceleyebilirsin.",
+  hint: "İstersen ürünü yeniden arayabilir veya öne çıkanlara bakabilirsin.",
   technicalTitle: "Site bilgileri",
   technicalBody: "Site haritası ve tarama dosyaları teknik kontroller için burada.",
   // Lansman öncesi (karar 0043): ürün bağlantısı ve arama önerisi yok.
@@ -61,7 +61,6 @@ export default function NotFound() {
                 ? [
                     { href: "/trendler", label: HOME_COPY.navTrends },
                     { href: "/kesfet", label: HOME_COPY.navDiscover },
-                    { href: "/#nasil-calisir", label: HOME_COPY.navHowItWorks },
                   ]
                 : []
             }

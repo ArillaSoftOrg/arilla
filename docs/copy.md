@@ -682,11 +682,11 @@ ağırlıktadır; hiçbiri vurgulanmaz.
 
 | Anahtar | Metin |
 | --- | --- |
-| `consent.banner_title` | Gizlilik tercihlerini yönet |
-| `consent.banner_body` | Sitenin çalışması için gerekli çerezleri kullanıyoruz. Analitik, işlevsel ve reklam/affiliate ölçüm teknolojilerini yalnızca izin verdiğin kategoriler için etkinleştiririz; şu an bu kategorilerde kullandığımız bir teknoloji yok. Tercihini istediğin zaman değiştirebilirsin. |
-| `consent.reject_all` | Tümünü Reddet |
-| `consent.manage` | Tercihleri Yönet |
-| `consent.accept_all` | Tümünü Kabul Et |
+| `consent.banner_title` | Çerez tercihleri |
+| `consent.banner_body` | Zorunlu çerezler siteyi çalıştırır. Diğerleri yalnızca izninle kullanılır. |
+| `consent.reject_all` | Reddet |
+| `consent.manage` | Ayarla |
+| `consent.accept_all` | Kabul et |
 | `consent.save` | Tercihleri Kaydet |
 | `consent.close` | Kapat |
 | `consent.panel_title` | Çerez tercihleri |
@@ -701,7 +701,7 @@ ağırlıktadır; hiçbiri vurgulanmaz.
 | `consent.marketing_body` | Reklam ve affiliate yönlendirmelerini cihazında ölçer. |
 | `consent.category_unused` | Şu an bu kategoride kullandığımız bir teknoloji yok. |
 | `consent.always_on` | Her zaman açık. |
-| `consent.links_label` | Ayrıntılar |
+| `consent.links_label` | Politikalar |
 
 ## SEO
 

@@ -1,9 +1,16 @@
 "use client";
 
-import { type FormEvent, type KeyboardEvent, useId, useLayoutEffect, useRef } from "react";
+import {
+  type FormEvent,
+  type KeyboardEvent,
+  type ReactNode,
+  useId,
+  useLayoutEffect,
+  useRef,
+} from "react";
 import { Button } from "./Button.tsx";
 import { resolveComposerSubmit } from "./composer-submit.ts";
-import { ArrowRightIcon, CloseIcon, PlusIcon } from "./icons.tsx";
+import { ArrowRightIcon, CloseIcon, ImageIcon, PlusIcon } from "./icons.tsx";
 import { listRole } from "./layout.ts";
 import { PhotoUploadButton } from "./PhotoUploadButton.tsx";
 import { ProductCard } from "./ProductCard.tsx";
@@ -116,7 +123,7 @@ export interface SearchComposerProps {
    * Verilirse fotograf dugmesi yerine cizilen "+" eylemi (orn. hizli aramada ana
    * kutuya gidip fotograf eklemek). Dosya secimi yapmaz.
    */
-  leadingAction?: { label: string; onClick: () => void; disabled?: boolean };
+  leadingAction?: { label: string; onClick: () => void; disabled?: boolean; icon?: ReactNode };
   /**
    * false: durum/hata metni gorunur ama canli bolge olarak duyurulmaz (ayni
    * metni duyuran baska bir kutu sayfadaysa cift duyuru olmasin). Varsayilan true.
@@ -329,13 +336,13 @@ export function SearchComposer({
                 onClick={leadingAction.onClick}
                 className={styles.photoButton}
               >
-                <PlusIcon />
+                {leadingAction.icon ?? <PlusIcon />}
               </Button>
             ) : photo ? (
               <PhotoUploadButton
                 id={photoButtonId}
                 iconOnly
-                icon={<PlusIcon />}
+                icon={<ImageIcon />}
                 label={photo.label}
                 onFileSelected={photo.onFileSelected}
                 disabled={photo.disabled || attachment?.pending}
