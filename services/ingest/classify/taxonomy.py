@@ -486,7 +486,8 @@ RULES: tuple[Rule, ...] = (
     # Alet yedek parca ve aksesuari (karar 0139): aletin kendisi degil.
     R("ev-yasam/yapi-market/alet-yedek-parca", 88,
       ("power tool accessories", "power tool accessory", "tool accessories", "carbon brush",
-       "armature", "stator", "drill chuck", "keyless chuck", "drill bit", "drill bits",
+       "armature", "stator", "drill chuck", "keyless chuck", "lathe chuck", "scroll chuck",
+       "drill bit", "drill bits",
        "saw blade", "saw blades", "grinding wheel", "cutting disc", "cutting disk",
        "sanding disc", "sanding pad",
        "polishing pad", "collet", "yedek parca matkap*", "matkap ucu",
@@ -1025,6 +1026,10 @@ RULES: tuple[Rule, ...] = (
        "booster pump", "high pressure pump", "air compressor", "endustriyel*", "hidrolik*",
        "pnomatik*", "tezgah*"),
       ("car", "arac*", "oto", "automobile", "truck", "trucks", "vehicle", "automotive", "suv",
+       "bmw", "mercedes", "audi", "volkswagen", "vw", "porsche", "peugeot", "citroen", "renault",
+       "opel", "skoda", "fiat", "seat", "kia", "mazda", "subaru", "lexus", "tesla", "dacia",
+       "vauxhall", "buick", "geely", "changan", "cadillac", "chrysler", "dodge", "gmc",
+       "infiniti", "acura", "jaguar", "saab", "alfa romeo",
        "bike",
        "bicycle", "bisiklet*", "motorcycle", "motosiklet*", "breast", "baby", "bebek*",
        "aquarium", "akvaryum*", "fish", "pool", "pet", "dog", "cat", "kopek*", "kedi*", "toy",
@@ -1032,7 +1037,8 @@ RULES: tuple[Rule, ...] = (
        "bahce*", "coffee", "espresso", "kahve*", "kitchen", "food", "makeup", "nail", "tirnak*",
        "hair", "sewing", "dikis*",
        "foot pump", "hand pump", "air pump", "ball pump", "inflator", "fuel pump",
-       "oil pump", "engine", "washing machine", "cleaning machine", "massage")),
+       "oil pump", "engine", "washing machine", "cleaning machine", "massage", "auto parts",
+       "auto part", "headlight", "brake", "wrench", "screwdriver", "chuck")),
     R("oto-bahce/bahce/mangal-barbeku", 88,
       ("bbq grill", "barbecue grill", "charcoal grill", "gas grill", "bbq", "barbecue",
        "barbeque", "grill", "mangal*", "barbeku*", "izgara"),
@@ -1106,6 +1112,17 @@ DEVICE_PATHS: frozenset[str] = frozenset(
         "ev-yasam/yapi-market/el-aletleri",
     }
 )
+
+#: Is makinesi/agir ekipman sozcukleri (katlanmis, tekil): arac parcasi kaynaginda baslik YALNIZ
+#: vana/pompa/sensor gibi bilesen diyorsa urun oto parcasidir; bu sozcuklerden biri varsa makinedir
+#: ("Solenoid Valve for Excavator" -> endustriyel; "Solenoid Valve for BMW" -> oto parca).
+MACHINERY_WORDS = frozenset(
+    {
+        "excavator", "forklift", "loader", "bulldozer", "tractor", "crane", "backhoe", "komatsu",
+        "caterpillar", "kubota", "cummins", "hitachi", "doosan", "sany", "xcmg", "liugong",
+        "hydraulic", "generator", "welding", "compressor", "machinery",
+    }
+)  # fmt: skip
 
 #: Yalniz "aksesuar" diyen (parca demeyen) kaynak bolumu icin cihazin aksesuar dali.
 ACCESSORY_OF: dict[str, str] = {
@@ -1206,6 +1223,17 @@ LEXICON: dict[str, tuple[str, ...]] = {
     "spor-outdoor/fitness": ("fitness",),
     "spor-outdoor/kamp-outdoor": ("kamp malzemesi", "çadır"),
     "spor-outdoor/bisiklet": ("bisiklet",),
+    # karar 0139
+    "elektronik/guc-batarya": ("güç ve batarya",),
+    "elektronik/guc-batarya/batarya": ("pil", "batarya", "lityum pil", "akü"),
+    "elektronik/guc-batarya/sarj-cihazi": ("pil şarj cihazı", "batarya şarj cihazı"),
+    "elektronik/guc-batarya/adaptor-guc-kaynagi": ("adaptör", "güç kaynağı", "trafo"),
+    "ev-yasam/yapi-market/elektrik-tesisati": ("elektrik tesisatı", "sigorta", "şalter"),
+    "ev-yasam/yapi-market/olcum-aletleri": ("ölçü aleti", "multimetre", "test cihazı"),
+    "ev-yasam/yapi-market/alet-yedek-parca": ("alet yedek parçası", "matkap ucu"),
+    "anne-bebek/bebek-arabasi": ("bebek arabası", "puset"),
+    "anne-bebek/bebek-arabasi/aksesuar": ("bebek arabası aksesuarı",),
+    "oto-bahce/bahce/mangal-barbeku": ("mangal", "barbekü"),
 }
 
 #: Arama esanlamlari (kind='synonym'): AliExpress basliklari Ingilizcedir. Ayni `normalized`

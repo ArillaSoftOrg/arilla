@@ -606,6 +606,144 @@
     "weight": 2.0
   },
   {
+    "kind": "category",
+    "surface": "güç ve batarya",
+    "normalized": "elektronik/guc-batarya",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "pil",
+    "normalized": "elektronik/guc-batarya/batarya",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "batarya",
+    "normalized": "elektronik/guc-batarya/batarya",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "lityum pil",
+    "normalized": "elektronik/guc-batarya/batarya",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "akü",
+    "normalized": "elektronik/guc-batarya/batarya",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "pil şarj cihazı",
+    "normalized": "elektronik/guc-batarya/sarj-cihazi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "batarya şarj cihazı",
+    "normalized": "elektronik/guc-batarya/sarj-cihazi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "adaptör",
+    "normalized": "elektronik/guc-batarya/adaptor-guc-kaynagi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "güç kaynağı",
+    "normalized": "elektronik/guc-batarya/adaptor-guc-kaynagi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "trafo",
+    "normalized": "elektronik/guc-batarya/adaptor-guc-kaynagi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "elektrik tesisatı",
+    "normalized": "ev-yasam/yapi-market/elektrik-tesisati",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "sigorta",
+    "normalized": "ev-yasam/yapi-market/elektrik-tesisati",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "şalter",
+    "normalized": "ev-yasam/yapi-market/elektrik-tesisati",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "ölçü aleti",
+    "normalized": "ev-yasam/yapi-market/olcum-aletleri",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "multimetre",
+    "normalized": "ev-yasam/yapi-market/olcum-aletleri",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "test cihazı",
+    "normalized": "ev-yasam/yapi-market/olcum-aletleri",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "alet yedek parçası",
+    "normalized": "ev-yasam/yapi-market/alet-yedek-parca",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "matkap ucu",
+    "normalized": "ev-yasam/yapi-market/alet-yedek-parca",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "bebek arabası",
+    "normalized": "anne-bebek/bebek-arabasi",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "puset",
+    "normalized": "anne-bebek/bebek-arabasi",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "bebek arabası aksesuarı",
+    "normalized": "anne-bebek/bebek-arabasi/aksesuar",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "mangal",
+    "normalized": "oto-bahce/bahce/mangal-barbeku",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "barbekü",
+    "normalized": "oto-bahce/bahce/mangal-barbeku",
+    "weight": 3.0
+  },
+  {
     "kind": "synonym",
     "surface": "kadın",
     "normalized": "kadin",

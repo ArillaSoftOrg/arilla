@@ -1,0 +1,502 @@
+{
+  "_doc": "Karar 0139: v1/v2'nin YANLIS yazdigi (elle etiketli) urunler. Hicbir surum bu urune bu yolu yeniden yazmamali. Etiketler model tarafindan atandi (insan dogrulamasi yok); yeni insan etiketi bulununca duzeltin.",
+  "cases": [
+    {
+      "title": "Factory Hot Sale Indoor Horizontal Touch LCD Display Machine For Retail Store And Education Multimedia Intelligent Query Tool",
+      "source_category": "Tools > Tool Parts",
+      "wrong_path": "ev-yasam/yapi-market",
+      "origin": "v1",
+      "expected": "elektronik/tv-goruntu"
+    },
+    {
+      "title": "Aluminum alloy propeller is suitable for outboard engine, thruster motor, two-punch and four-punch matching",
+      "source_category": "Tools > Tool Parts",
+      "wrong_path": "ev-yasam/yapi-market",
+      "origin": "v1",
+      "expected": "-"
+    },
+    {
+      "title": "09 belly basin bathroom cabinet combination extremely narrow washbasin washbasin",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v1",
+      "expected": "ev-yasam/banyo"
+    },
+    {
+      "title": "630065-00 Hold Down Clamp for Workshop Repair Table Saw Accessory Mounting Hardware Metal Construction Easy Installation",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "ev-yasam/yapi-market/alet-yedek-parca"
+    },
+    {
+      "title": "Light luxury post-modern marble dining table and chair combination rectangular living room modern and simple for home use",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v1",
+      "expected": "ev-yasam/mobilya"
+    },
+    {
+      "title": "New SMT Spare Parts Asm Type 2034 CPL Nozzle 03059862",
+      "source_category": "Industrial & Business > Packaging, Printing & Supporting Equipment",
+      "wrong_path": "oto-bahce/oto-yedek-parca",
+      "origin": "v1",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Mar.For DHP482 DDF482 Cordless Drill Replacement Switches- Part Numbers 632F27-4 650754-5 Power Tool Accessories",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "ev-yasam/yapi-market/alet-yedek-parca"
+    },
+    {
+      "title": "Multifunctional sink wrench 8-in-1 faucet bathroom artifact household water pipe looser tool",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "ev-yasam/yapi-market/el-aletleri"
+    },
+    {
+      "title": "American vintage butterfly double-layer flower rack storage rack creative semi-circle tote basket fruit snack storage basket",
+      "source_category": "Furniture > Furniture Accessories",
+      "wrong_path": "ev-yasam/mobilya",
+      "origin": "v1",
+      "expected": "ev-yasam/duzenleme-temizlik"
+    },
+    {
+      "title": "Y400A J~2 Pack Spring Balancer, 6.6lbs - 11lbs Bearing Retractable Tool Fixture Holder for Assembly-Line",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "18V Motor  Engine 1607022669 JOHNSON For BOSCH GSR180-LI GSR18V-21 GSB18V-21 160702266N",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "ev-yasam/yapi-market/alet-yedek-parca"
+    },
+    {
+      "title": "12 flat Oxford cloth outdoor inflatable tent, camping automatic inflatable tent, ridge hut",
+      "source_category": "Tools > Tool Parts",
+      "wrong_path": "ev-yasam/yapi-market",
+      "origin": "v1",
+      "expected": "spor-outdoor/kamp-outdoor"
+    },
+    {
+      "title": "Premium Tents for Camping & Outdoor Adventures - Durable, Lightweight, Weather-Resistant Gear for All Season",
+      "source_category": "Tools > Tool Parts",
+      "wrong_path": "ev-yasam/yapi-market",
+      "origin": "v1",
+      "expected": "spor-outdoor/kamp-outdoor"
+    },
+    {
+      "title": "Creative hand-woven imitation rattan storage basket National characteristics",
+      "source_category": "Tools > Tool Parts",
+      "wrong_path": "ev-yasam/yapi-market",
+      "origin": "v1",
+      "expected": "ev-yasam/duzenleme-temizlik"
+    },
+    {
+      "title": "2 Pcs Soft Start Switch Module 24A 125/250V 5E4 50/60HZ For Maschinen Electric Equipment Machine Power Tools Accessories",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "elektronik/bilesen"
+    },
+    {
+      "title": "Battery Adapter Converter for Makita 18V Lithium-ion Batteries for CRAFTSMAN 20V for Stanley 18V V20 Lithium Battery Power Tools",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "elektronik/guc-batarya/adaptor-guc-kaynagi"
+    },
+    {
+      "title": "IC660HHM501 used in good condition",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Suitable for Vacuum Cleaner Accessories Floor Brush FC6729 6728 6725 6726 24 6823/XC7042",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "ev-yasam/ev-aletleri/supurge"
+    },
+    {
+      "title": "Dip Box High Precision Portable Digital Display Electronic Slope Angle Ruler with Magnetic Specification Slope Leveler",
+      "source_category": "Industrial & Business > Packaging, Printing & Supporting Equipment",
+      "wrong_path": "kitap-muzik-hobi/kirtasiye-ofis",
+      "origin": "v1",
+      "expected": "ev-yasam/yapi-market/olcum-aletleri"
+    },
+    {
+      "title": "Modern Light Emitting Diode Makeup Lights Wall Mounted Bedroom Size Natural Travertine Spray Painted Modern Bathroom Mirror",
+      "source_category": "Tools > Tool Parts",
+      "wrong_path": "ev-yasam/yapi-market",
+      "origin": "v1",
+      "expected": "ev-yasam/aydinlatma"
+    },
+    {
+      "title": "Customizable Il miglior mini camino manuale moderno in biometallo da tavolo per uso interno ed esterno",
+      "source_category": "Tools > Tool Parts",
+      "wrong_path": "ev-yasam/yapi-market",
+      "origin": "v1",
+      "expected": "ev-yasam/dekorasyon"
+    },
+    {
+      "title": "Wet and dry separation of precipitation in fluidized bed filter box of large fish tank koi fish fish pond Hot sales Hot sales Ho",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v1",
+      "expected": "petshop/akvaryum"
+    },
+    {
+      "title": "Warm air water valve 4H0121671D Automobile air conditioner warm air water valve, warm water valve",
+      "source_category": "Tools > Tool Parts",
+      "wrong_path": "ev-yasam/yapi-market",
+      "origin": "v1",
+      "expected": "oto-bahce/oto-yedek-parca"
+    },
+    {
+      "title": "50pcs Charms Bird Birdcage 25*17mm Tibetan Silver Color Pendants Antique Jewelry Making DIY Handmade Craft F0777",
+      "source_category": "Jewelry & Accessories > Fashion Jewelry",
+      "wrong_path": "moda/aksesuar/taki",
+      "origin": "v1",
+      "expected": "kitap-muzik-hobi/hobi-sanat"
+    },
+    {
+      "title": "WW22 Thickened Knee Mower Leg Pads Grass Garden Protection Irrigation Cutting Labor Protection Extended Fixed Knee Pads",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v1",
+      "expected": "oto-bahce/bahce"
+    },
+    {
+      "title": "AOCKE Tungsten Needle Holder Tungsten Electrode Sharpener Max Diameter 4MM Argon Arc Welding Tungsten Needle Grinding Clamp",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Temperature Humidity Sensor For Philips DE5205 5206 5207 HU3915 Purifier",
+      "source_category": "Tools > Power Tool Parts & Accessories",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v1",
+      "expected": "-"
+    },
+    {
+      "title": "Custom Low Profile Cross Stem Keycaps, Universal Thin Key Caps For Mechanical Radio Mainboard DIY Replacement Parts",
+      "source_category": "Furniture > Furniture Accessories",
+      "wrong_path": "ev-yasam/mobilya",
+      "origin": "v1",
+      "expected": "elektronik/bilgisayar/klavye-mouse"
+    },
+    {
+      "title": "8 Grids Mexican Tucker Frying Taco Basket with Non Slip Dip Plastic Handle Fried Rack Perfect for Home Party Food Serving",
+      "source_category": "Tools > Tool Parts",
+      "wrong_path": "ev-yasam/yapi-market",
+      "origin": "v1",
+      "expected": "ev-yasam/mutfak"
+    },
+    {
+      "title": "Men Sexy Lingerie Tights Thin Elastic Seamless Pantyhose Sheath Pouch Leggings Erotic Underwear",
+      "source_category": "Automobiles, Parts & Accessories > Interior Accessories",
+      "wrong_path": "oto-bahce/oto-aksesuar",
+      "origin": "v1",
+      "expected": "moda/erkek-giyim/ic-giyim"
+    },
+    {
+      "title": "Manual Hydraulic CP-700 Small Portable Large Oil Storage Pressure Reducing Hydraulic Pump With Anti-Vibration Oil Injection Tool",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "3 Phase NEMA42 20Nm Closed loop Stepper servo motor driver kit JMC 110J12190EC-1000+3HSS2208H",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "421-43-27460 Hydraulic Pump Main Relief Valve 4214327460 For Komatsu Loader WA380 WA400 WA420 WA430 WA450 WA450L",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Sea Water Pump 5265995 52659950 3964765 3866493 5265994 4003526 526599600 5265999 52659900 3897194 for 6CT 6BTA 6CTA Series",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "The Whole Positive and Negative Electric Drill Machine Can Be Sterilized At High Temperature",
+      "source_category": "Home Improvement > Electrical Equipment & Supplies",
+      "wrong_path": "ev-yasam/yapi-market/elektrikli-aletler",
+      "origin": "v2",
+      "expected": "-"
+    },
+    {
+      "title": "V2003 V2203 V2403 Water Pump W/Gasket 1G730-73030 1G730-73032 1G730-73035 for Kubota KX04-4 KX91-3S2 KX161-3ST KX161-3S",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "U2JC Mini Tripods with 1/4 inches Screw Desktop Tabletops Stand Tripods for Mobile Camera",
+      "source_category": "Tools > Measurement & Analysis Instruments",
+      "wrong_path": "ev-yasam/yapi-market/hirdavat",
+      "origin": "v2",
+      "expected": "elektronik/kamera/aksesuar"
+    },
+    {
+      "title": "Durable Screw Air Compressor Drain Valve Kit 2901159230 Drain Valve Repair Kit",
+      "source_category": "Tools > Measurement & Analysis Instruments",
+      "wrong_path": "ev-yasam/yapi-market/hirdavat",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "GHH58-12G5000BML5 Rotary Encoder Replace RI58-D/5000AF.47RB-F0",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "1PC 220/380V XD-020 Rotary Vane Vacuum Pump Vacuum Packaging Machine Accessories Blister Press Industrial 220V  380V",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "HG0 Hydraulic Pumps HG0-16-01R-VPC HG0-20-01R-VPC HG High Pressure Internal Gear Pumps",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "723-60-23800 For 709-90-73100 Komatsu PC120/130-6-7 Main Control Valve Overflow Valve Safety Valve Excavator Parts",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "AKS32 060G2070  060G2079  060G2080  060G2082  060G2013 Danfoss Pressure Sensor",
+      "source_category": "Electronic Components & Supplies > Active Components",
+      "wrong_path": "elektronik/bilesen",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "155-4651 1554651 CA1554652 155-4652 1554652 24V Stop Solenoid For Caterpillar Wheel Excavator M320 M320MH M325BMH M318MH",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Sea Water Pump 21141637 JPR-VP0030DA for D3-110I-A D3-130I-B D3-160I-B",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Intelligent Electric Water Pump Constant Pressure Centrifugal Booster Pump Variable Frequency Permanent Magnet for Water Supply",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "LH all-electric handling hydraulic forklift pallet hand-towed forklift",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Hot Sale Forklift Attachment Side Shifter Assy for 2 Ton, 2.5 Ton, 3 Ton, 4 Ton Forklift",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "24V Universal Double Solenoid Valve, Internal Thread Design, Gas Oven Repair Replacement Part",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "-"
+    },
+    {
+      "title": "80 SPE/SPF Series Straight Gear Reducer,speed  Precision Planetary Servo Gearbox Gearhead",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "800P Vegetable Tanned Leather Belt Peeling Machine Leather Goods Processing Homemade Hand Tools",
+      "source_category": "Tools > Measurement & Analysis Instruments",
+      "wrong_path": "ev-yasam/yapi-market/el-aletleri",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Commercial Auto Rotisserie Grill Machine for Whole Lamb Pig Chicken Charcoal BBQ Roaster",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "oto-bahce/bahce/mangal-barbeku"
+    },
+    {
+      "title": "Stainless Steel Electric Rotisserie Grill Charcoal Barbecue Outdoor Cooking Station with Side Shelves Wheels and Glass Lid",
+      "source_category": "Home & Garden > Kitchen,Dining & Bar",
+      "wrong_path": "ev-yasam/mutfak",
+      "origin": "v2",
+      "expected": "oto-bahce/bahce/mangal-barbeku"
+    },
+    {
+      "title": "For (24V/650W) Forklift parts Z130D650-24A1-26.5S travel motor",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "【2026 Hot Selling】ANDELI  200Amp 110/220V Dual Voltage 6 in 1 Flux MIG/Solid Wire/Lift TIG/Stick Arc  Aluminium  Welding Machine",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Current Transformer New Original BSY2-100/4IOV2 BSY2-200HC -300-400-500-600",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/elektrik-tesisati"
+    },
+    {
+      "title": "For GS-MA5M Safety Door Lock Switch Sensor Small Safety Door Switch New Original GS-MA5M",
+      "source_category": "Tools > Measurement & Analysis Instruments",
+      "wrong_path": "ev-yasam/yapi-market/hirdavat",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Turbo RHC92 Turbocharger 114400-3830 For Hitachi Excavator FV30 LX300-7 ZX450",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "hydraulic lift forklift 1 ton 2 tons semi-electric charging forklift manual hydraulic stacker forklift loading",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "4438889 4438888 hydraulic pump M tube high pressure tubing excavator parts for Hitachi ZAX120/200/210/230/240-5/6",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "For Lejiadis/for Hobarts/for Dishwashers/for Cup Washer Suitable for Electric Heating Pipe 220V3KW Heating Pipe Fittings",
+      "source_category": "Tools > Measurement & Analysis Instruments",
+      "wrong_path": "ev-yasam/yapi-market/hirdavat",
+      "origin": "v2",
+      "expected": "-"
+    },
+    {
+      "title": "12V Proportional Solenoid Valve TM68502 Compatible for Excavator Construction Machinery Parts",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "KH1610 50-600mm Precise Automation Manufacturer Heavy-duty C0 Grade Linear Motion Rails Ball Screw Linear Module Slide",
+      "source_category": "Tools > Measurement & Analysis Instruments",
+      "wrong_path": "ev-yasam/yapi-market/hirdavat",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Excavator Parts for Daewoos Doosans 215 220 225 300-5-7-9 Reverse Buckle Locking Position Door Lock Assembly",
+      "source_category": "Tools > Measurement & Analysis Instruments",
+      "wrong_path": "ev-yasam/yapi-market/hirdavat",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "8Pcs Tool Set, Tooth Extraction Pliers, Stainless Steel Tooth Stand Set. s",
+      "source_category": "Tools > Measurement & Analysis Instruments",
+      "wrong_path": "ev-yasam/yapi-market/el-aletleri",
+      "origin": "v2",
+      "expected": "-"
+    },
+    {
+      "title": "T3350352 24V Hydraulic Pump Solenoid Valve is suitable for CLG856H CLG836 CLG855N loaders",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Excavator Element Kit Original Manufacturer Genuin E Parts K9000995 Element Kit",
+      "source_category": "Home & Garden > Home Decor",
+      "wrong_path": "ev-yasam/dekorasyon",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Cost Effective High Air Flow DTH Hammer Model DHD350 DHD380 for Limestone Quarry Efficient Rock Breaking",
+      "source_category": "Tools > Measurement & Analysis Instruments",
+      "wrong_path": "ev-yasam/yapi-market/el-aletleri",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "EC210 EC210B Water Pump 0429-9412 02937441 21247955 20502535 2937441 EC290 EC290B Water Pump VOE2937441 VOE21247955 VOE20502535",
+      "source_category": "Automobiles, Parts & Accessories > Engines & Engine Parts",
+      "wrong_path": "oto-bahce",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "Excavator Accessories for Komatsus PC60-7/200-6/120/300-6 Cab Door Lock Assembly Inner and Outer Pulls",
+      "source_category": "Tools > Measurement & Analysis Instruments",
+      "wrong_path": "ev-yasam/yapi-market/hirdavat",
+      "origin": "v2",
+      "expected": "ev-yasam/yapi-market/endustriyel"
+    },
+    {
+      "title": "This premium 15.6 inch Super AMOLED display is designed for tech enthusiasts, DIY laptop builders, and professional repair",
+      "source_category": "Industrial & Business > Packaging, Printing & Supporting Equipment",
+      "wrong_path": "elektronik/bilgisayar/dizustu",
+      "origin": "v2",
+      "expected": "elektronik/bilgisayar/bilesen"
+    }
+  ]
+}

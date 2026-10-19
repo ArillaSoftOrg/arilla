@@ -140,3 +140,73 @@ def test_read_labels_roundtrip(tmp_path: Path) -> None:
     rows = ev.read_labels(path)
     assert rows[0].expected_category == "ev-yasam/mutfak" and rows[0].expected_brand == "-"
     assert rows[1].expected_category is None and rows[1].expected_brand is None
+
+
+# --- sabit etiketli kume ve "onlenen hata geri gelmesin" korumasi (karar 0139) ----------------
+
+FIXTURES = Path(__file__).parent
+
+
+def test_prevented_errors_never_come_back() -> None:
+    """v1/v2'nin yanlis yazdigi urunlere hicbir surum ayni yolu yeniden yazmaz."""
+    import json
+
+    from classify.decide import ProductFacts, decide
+
+    cases = json.loads((FIXTURES / "classify_prevented_errors.json").read_text(encoding="utf-8"))
+    assert len(cases["cases"]) >= 50
+    back = []
+    for case in cases["cases"]:
+        d = decide(
+            ProductFacts(
+                title=case["title"],
+                kept_brand=False,
+                kept_category_path=None,
+                brand_raw=None,
+                merchant_name=None,
+                source=ev.verdict_for(case["source_category"]),
+            )
+        )
+        if d.state == "applied" and d.category_path == case["wrong_path"]:
+            back.append((case["origin"], case["title"][:60], case["wrong_path"]))
+    assert back == []
+
+
+def test_frozen_eval_labels_score_is_sane() -> None:
+    """Sabit etiketli kume (model etiketli, insan dogrulamasi yok): yalniz asiri gerileme alarmi."""
+    rows = ev.read_labels(FIXTURES / "classify_eval_labels.tsv")
+    assert len(rows) >= 200
+    m = ev.score(rows)
+    assert m.n_category_labeled == len(rows)
+    # v1 ~%58 isabetti, %27 yanlisti; v2/v3 ~%71-72 ve ~%13-14. Esikler bilerek gevsek.
+    assert m.precision_strict is not None and m.precision_strict >= 0.66
+    assert m.wrong_rate is not None and m.wrong_rate <= 0.20
+    assert m.accessory_confusion == 0
+
+
+def test_wilson_interval_matches_known_values() -> None:
+    lo, hi = ev.wilson(49, 60)  # type: ignore[misc]
+    assert 0.69 < lo < 0.71 and 0.88 < hi < 0.90  # bilinen deger: ~(0.70, 0.89)
+    assert ev.wilson(0, 0) is None
+    lo, hi = ev.wilson(0, 10)  # type: ignore[misc]
+    assert lo == 0.0 and 0.2 < hi < 0.35  # 0/10 bile %0 kesin degil
+
+
+def test_human_and_model_labels_are_never_mixed() -> None:
+    rows = [
+        ev.LabeledRow("1", "t", "s", "moda/canta", None, "human"),
+        ev.LabeledRow("2", "t", "s", "moda/canta", None, "model"),
+        ev.LabeledRow("3", "t", "s", "moda/canta", None),  # belirtilmemis
+    ]
+    out = ev.score_by_label_source(
+        rows, lambda r: _dec("moda/canta" if r.product_id != "2" else None)
+    )
+    assert set(out) == {"human", "model", "unspecified"}
+    assert out["human"].exact == 1 and out["model"].missed == 1
+    assert out["unspecified"].n_category_labeled == 1  # insan etiketi gibi sayilmaz
+
+
+def test_interval_is_reported_with_precision() -> None:
+    rows = [_row(str(i), "t", "s", "moda/canta") for i in range(10)]
+    m = ev.score(rows, lambda r: _dec("moda/canta"))
+    assert m.precision_strict == 1.0 and m.ci["precision_strict"][0] < 1.0

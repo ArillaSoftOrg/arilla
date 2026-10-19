@@ -497,6 +497,74 @@ def test_taxonomy_migration_is_idempotent(world: dict[str, int]) -> None:
         conn.rollback()
 
 
+SNAPSHOT = """
+SELECT
+  (SELECT md5(string_agg(c.id || c.path || c.slug, ',' ORDER BY c.id)) FROM category c),
+  (SELECT md5(string_agg(p.id || ':' || coalesce(p.category_id, 0) || ':' ||
+                         coalesce(p.brand_id, 0), ',' ORDER BY p.id)) FROM product p),
+  (SELECT coalesce(md5(string_agg(pc.product_id || ':' || pc.state || ':' ||
+                                  coalesce(pc.category_id, 0) || ':' || pc.wrote_category,
+                                  ',' ORDER BY pc.product_id)), '-') FROM product_classification pc)
+"""
+
+
+def test_taxonomy_v3_migration_only_adds_categories_and_keeps_classifications(
+    world: dict[str, int],
+) -> None:
+    """Karar 0139: 0091 yalnizca kategori ekler; urun ve siniflandirma kayitlari degismez."""
+    _run()  # gercek siniflandirma kayitlari olussun
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(
+            "SELECT id, path, slug FROM category WHERE path LIKE 'moda/%' ORDER BY id LIMIT 50"
+        )
+        old_nodes = cur.fetchall()
+        cur.execute(SNAPSHOT)
+        before = cur.fetchone()
+        assert before[2] != "-"  # siniflandirma kaydi var
+        cur.execute(TAXONOMY_V3_SQL.read_text(encoding="utf-8"))
+        cur.execute(TAXONOMY_V3_SQL.read_text(encoding="utf-8"))  # ikinci kosu
+        cur.execute(SNAPSHOT)
+        after = cur.fetchone()
+        assert after[1:] == before[1:]  # urun + siniflandirma ayni
+        cur.execute(
+            "SELECT id, path, slug FROM category WHERE id = ANY(%s) ORDER BY id",
+            ([n[0] for n in old_nodes],),
+        )
+        assert cur.fetchall() == old_nodes  # var olan dugum degismedi
+        conn.rollback()
+
+
+def test_category_tree_integrity(world: dict[str, int]) -> None:
+    """Agac butunlugu (karar 0139): yol benzersiz, ebeveyn yolun on eki, slug benzersiz."""
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(TAXONOMY_V3_SQL.read_text(encoding="utf-8"))
+        cur.execute("SELECT count(*) - count(DISTINCT path) FROM category")
+        assert cur.fetchone()[0] == 0  # type: ignore[index]
+        cur.execute("SELECT count(*) - count(DISTINCT slug) FROM category")
+        assert cur.fetchone()[0] == 0  # type: ignore[index]
+        cur.execute(
+            """SELECT c.path FROM category c LEFT JOIN category p ON p.id = c.parent_id
+                WHERE position('/' IN c.path) > 0
+                  AND (p.id IS NULL OR p.path <> regexp_replace(c.path, '/[^/]+$', ''))"""
+        )
+        assert cur.fetchall() == []  # ebeveyni olmayan ya da yol-ebeveyn uyumsuz dugum yok
+        cur.execute(
+            "SELECT path FROM category WHERE position('/' IN path) = 0 AND parent_id IS NOT NULL"
+        )
+        assert cur.fetchall() == []  # kok dugumun ebeveyni yok
+        cur.execute(
+            "SELECT count(*) FROM category WHERE path IN "
+            "('elektronik/guc-batarya/batarya','ev-yasam/yapi-market/endustriyel',"
+            "'anne-bebek/bebek-arabasi/aksesuar','oto-bahce/bahce/mangal-barbeku')"
+        )
+        assert cur.fetchone()[0] == 4  # type: ignore[index]
+        cur.execute(
+            "SELECT is_discoverable FROM category WHERE path = 'ev-yasam/yapi-market/endustriyel'"
+        )
+        assert cur.fetchone()[0] is False  # type: ignore[index]
+        conn.rollback()
+
+
 def test_lexicon_apply_is_idempotent(world: dict[str, int]) -> None:
     with _app() as conn:
         first = lexicon_mod.apply(conn, write=True)
