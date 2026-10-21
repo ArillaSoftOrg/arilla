@@ -17,6 +17,8 @@ const MODERATOR: Capability[] = [
   "ingest.read",
 ];
 const ADMIN_ONLY: Capability[] = [
+  "maintenance.read",
+  "maintenance.manage",
   "merchant.manage",
   "catalog.write",
   "audit.read",

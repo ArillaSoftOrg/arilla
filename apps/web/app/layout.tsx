@@ -10,6 +10,7 @@ import { readConsent } from "./lib/consent.ts";
 import { readThemePreference } from "./lib/theme-cookie.ts";
 import { umamiTracker } from "./lib/umami.ts";
 import { SITE_BRAND } from "./site-config.ts";
+import { SystemStatusClient } from "./system-status-client.tsx";
 import { UmamiClient } from "./umami-client.tsx";
 
 /**
@@ -74,6 +75,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
     <html lang="tr" data-theme={theme ?? undefined}>
       <body>
         <ConsentProvider consent={consent}>
+          <SystemStatusClient />
           {children}
           {ga4Id ? (
             <ConsentGate category="analytics">

@@ -335,16 +335,16 @@ describe("server action ve route handler'lar (arayüz atlanarak)", () => {
 describe("public sayfalar, landing ve başarı ekranı", () => {
   it("proxy: anonim ürün yolu landing'e, public sayfa serbest", async () => {
     const { proxy } = await import("../proxy.ts");
-    const product = proxy(new NextRequest(`http://localhost:3000/urun/${productSlug}`));
+    const product = await proxy(new NextRequest(`http://localhost:3000/urun/${productSlug}`));
     expect(new URL(product.headers.get("location") ?? "").pathname).toBe("/");
     for (const path of ["/gizlilik", "/giris", "/kosullar"]) {
       expect(
-        proxy(new NextRequest(`http://localhost:3000${path}`)).headers.get("location"),
+        (await proxy(new NextRequest(`http://localhost:3000${path}`))).headers.get("location"),
       ).toBeNull();
     }
 
     vi.stubEnv("PRODUCT_ACCESS", "open");
-    const open = proxy(new NextRequest(`http://localhost:3000/urun/${productSlug}`));
+    const open = await proxy(new NextRequest(`http://localhost:3000/urun/${productSlug}`));
     expect(open.headers.get("location")).toBeNull();
   });
 

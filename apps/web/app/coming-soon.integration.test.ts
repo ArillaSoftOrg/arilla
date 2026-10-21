@@ -523,7 +523,7 @@ describe("yönlendirme ve döngü", () => {
     ];
     for (const path of open) {
       expect(
-        proxy(new NextRequest(`http://localhost:3000${path}`)).headers.get("location"),
+        (await proxy(new NextRequest(`http://localhost:3000${path}`))).headers.get("location"),
         path,
       ).toBeNull();
       // Eşleştirici bu yolları hiç yakalamaz.

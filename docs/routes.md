@@ -294,3 +294,11 @@ uzunlukla ters orantılıdır.
 
 Yönetim ekranlarının MVP-0'da olması sürpriz gelebilir; sebebi eşleştirme
 kuyruğunun ilk günden dolmaya başlaması. Onaysız kuyruk, kötü katalog demektir.
+# Bakım ve sistem durumu
+
+- `/durum`: bağımsız HTML sistem durumu ekranı; `next` güvenli yerel dönüş yoludur.
+- `/api/system-status`: önbelleksiz public durum JSON'u; yönetici bilgisi içermez.
+- `/yonetim/bakim`: admin rolüne özel mod, mesaj, tahmini bitiş ve hizmet yönetimi.
+
+Kurulum, erişilebilirlik sınırları ve bağımsız Worker uçları: [maintenance.md](maintenance.md).
+

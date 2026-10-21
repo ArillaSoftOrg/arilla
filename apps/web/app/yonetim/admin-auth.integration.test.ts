@@ -371,7 +371,7 @@ describe("yönetim girişi ve next güvenliği", () => {
 describe("proxy", () => {
   it("/yonetim/giris ayrı sayfaya rewrite edilir, adres değişmez", async () => {
     const { proxy } = await import("../../proxy.ts");
-    const response = proxy(
+    const response = await proxy(
       new NextRequest("http://localhost:3000/yonetim/giris?next=%2Fyonetim%2Fsozluk"),
     );
     expect(response.headers.get("location")).toBeNull();
@@ -382,7 +382,7 @@ describe("proxy", () => {
 
   it("oturumsuz yönetim isteği dönüş yoluyla yönetim girişine", async () => {
     const { proxy } = await import("../../proxy.ts");
-    const response = proxy(new NextRequest("http://localhost:3000/yonetim/denetim?sayfa=2"));
+    const response = await proxy(new NextRequest("http://localhost:3000/yonetim/denetim?sayfa=2"));
     const location = new URL(response.headers.get("location") ?? "");
     expect(location.pathname).toBe("/yonetim/giris");
     expect(location.searchParams.get("next")).toBe("/yonetim/denetim?sayfa=2");
@@ -393,7 +393,7 @@ describe("proxy", () => {
     const request = new NextRequest("http://localhost:3000/yonetim/sozluk", {
       headers: { cookie: "session=x", "x-arilla-path": "//evil.example" },
     });
-    const response = proxy(request);
+    const response = await proxy(request);
     expect(response.headers.get("x-middleware-request-x-arilla-path")).toBe("/yonetim/sozluk");
   });
 });

@@ -13,6 +13,9 @@ import {
   isLinkSearchInput,
   LINK_SEARCH_PATH,
 } from "@arilla/core/link-input";
+import { bypassMaintenance, isBlocked } from "@arilla/core/maintenance";
+import { MAINTENANCE_HEADERS, maintenanceDocument } from "@arilla/core/maintenance-document";
+import { readSystemStatus } from "@arilla/core/maintenance-service";
 import { isProductOpen, isPublicProductPath } from "@arilla/core/product-access";
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
@@ -52,7 +55,7 @@ const USER_ROUTE_PREFIXES = ["/hesap", "/kaydettiklerim", "/alarmlar", "/gecmis"
  *    (docs/decisions/0035). Ana sayfa ve /ara formları aynı GET'i yapar;
  *    tek yakınsama noktası burası.
  */
-export function proxy(request: NextRequest): NextResponse {
+export async function proxy(request: NextRequest): Promise<NextResponse> {
   const { pathname, searchParams } = request.nextUrl;
 
   // 0. Yönetim ana makinesi. Yol yönlendirmesi kolaylıktır; server action'lar
@@ -95,6 +98,30 @@ export function proxy(request: NextRequest): NextResponse {
     const forwarded = new Headers(request.headers);
     forwarded.set(ADMIN_PATH_HEADER, target);
     return NextResponse.next({ request: { headers: forwarded } });
+  }
+
+  if (!bypassMaintenance(pathname)) {
+    const status = await readSystemStatus();
+    if (status && isBlocked(status, pathname)) {
+      // RSC and action responses must not be mistaken for an HTML payload.
+      if (
+        request.method !== "GET" ||
+        pathname.startsWith("/api/") ||
+        request.headers.get("rsc") === "1"
+      ) {
+        return NextResponse.json(
+          { error: "maintenance", ...status },
+          {
+            status: 503,
+            headers: { "cache-control": "no-store", "retry-after": "30" },
+          },
+        );
+      }
+      return new NextResponse(maintenanceDocument({ status, returnPath: pathname }), {
+        status: 503,
+        headers: MAINTENANCE_HEADERS,
+      });
+    }
   }
 
   // 0. Lansman öncesi ürün kapısı (P2): oturumu olmayan ziyaretçi public

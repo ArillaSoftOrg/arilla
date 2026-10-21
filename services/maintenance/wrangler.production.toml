@@ -1,0 +1,22 @@
+name = "manicepte-maintenance"
+main = "worker.ts"
+compatibility_date = "2026-10-01"
+# Standard Cloudflare Route proxy: subrequests reach the existing DNS origin,
+# rather than entering the public Worker route again.
+compatibility_flags = ["global_fetch_private_origin"]
+workers_dev = true
+preview_urls = false
+routes = [{ pattern = "manicepte.com/_maintenance-canary/*", zone_name = "manicepte.com" }]
+
+[vars]
+APP_URL = "https://manicepte.com"
+GATEWAY_ORIGIN = "https://manicepte.com"
+GATEWAY_PASSTHROUGH = "true"
+
+[[durable_objects.bindings]]
+name = "STATUS"
+class_name = "MaintenanceState"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["MaintenanceState"]

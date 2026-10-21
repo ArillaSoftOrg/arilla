@@ -607,6 +607,8 @@ export interface CapabilityCoverage {
 
 /** Her yetenek sınıflandırılır; `Record<Capability, …>` eksik yeteneği derlemede yakalar. */
 export const CAPABILITY_COVERAGE: Readonly<Record<Capability, CapabilityCoverage>> = {
+  "maintenance.read": { class: "monitor", sensitive: false },
+  "maintenance.manage": { class: "manage", sensitive: false },
   "admin.access": { class: "monitor", sensitive: false },
   "merchant.read": { class: "monitor", sensitive: false },
   "ingest.read": { class: "monitor", sensitive: false },

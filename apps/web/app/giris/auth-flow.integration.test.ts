@@ -237,7 +237,7 @@ describe("next çerezi (Google / Apple / telefon)", () => {
 describe("proxy: girişsiz korumalı sayfa", () => {
   it("dönüş yolunu next ile /giris'e taşır", async () => {
     const { proxy } = await import("../../proxy.ts");
-    const response = proxy(new NextRequest("http://localhost:3000/alarmlar?sekme=aktif"));
+    const response = await proxy(new NextRequest("http://localhost:3000/alarmlar?sekme=aktif"));
     const location = new URL(response.headers.get("location") ?? "");
     expect(location.pathname).toBe("/giris");
     expect(location.searchParams.get("next")).toBe("/alarmlar?sekme=aktif");
