@@ -25,6 +25,7 @@ export const TARGET_MAX = 2000;
  * düzey rota eklenip buraya yazılmazsa test kırılır.
  */
 export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
+  "durum",
   // Mevcut üst düzey rotalar (apps/web/app)
   "abonelik-iptali",
   "affiliate-aciklamasi",

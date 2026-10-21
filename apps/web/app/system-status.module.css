@@ -1,0 +1,16 @@
+.banner {
+  padding: var(--space-4);
+  border-bottom: 1px solid var(--warning);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: var(--font-size-sm);
+  overflow-wrap: anywhere;
+}
+.banner p {
+  margin: var(--space-2) 0;
+  white-space: pre-wrap;
+}
+.banner a {
+  color: var(--ink);
+  text-decoration: underline;
+}

@@ -7,6 +7,7 @@
     "node": ">=22"
   },
   "scripts": {
+    "test:maintenance": "node --test services/maintenance/tests/*.test.mjs",
     "build": "pnpm -r build",
     "dev": "pnpm --filter @arilla/web dev",
     "typecheck": "pnpm -r typecheck",

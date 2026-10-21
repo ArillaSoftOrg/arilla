@@ -189,6 +189,11 @@ afterAll(async () => {
 });
 
 const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = [
+  {
+    name: "/yonetim/bakim",
+    admin: true,
+    call: async () => (await import("./bakim/page.tsx")).default(),
+  },
   { name: "/yonetim", admin: false, call: async () => (await import("./page.tsx")).default() },
   {
     name: "/yonetim/eslestirme",
@@ -739,6 +744,13 @@ const lexiconEntry = () => ({
 });
 
 const ACTIONS: ActionCase[] = [
+  {
+    module: "bakim",
+    name: "saveMaintenance",
+    moderator: false,
+    // Invalid status stops before any independent service request or mutation.
+    call: async () => (await import("./bakim/actions.ts")).saveMaintenance({}),
+  },
   // Karar 0115: geçersiz girdi, kapıyı geçen rolde doğrulama hatasıyla döner; veri değişmez.
   {
     module: "takip-baglantilari",

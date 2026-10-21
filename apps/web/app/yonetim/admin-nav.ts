@@ -243,6 +243,12 @@ export const ADMIN_NAV: readonly AdminNavGroup[] = [
     label: "İşletim",
     items: [
       {
+        href: "/yonetim/bakim",
+        label: "Bakım ve sistem durumu",
+        capability: "maintenance.read",
+        description: "Bakım modu, duyuru, etkilenen hizmetler ve işlem geçmişi.",
+      },
+      {
         href: "/yonetim/islemler",
         label: "Sistem sağlığı",
         capability: "operations.read",

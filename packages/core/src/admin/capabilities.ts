@@ -13,6 +13,8 @@
 import type { UserRole } from "../auth/types.ts";
 
 export type Capability =
+  | "maintenance.read"
+  | "maintenance.manage"
   | "admin.access"
   | "matching.review"
   | "dictionary.write"
@@ -160,6 +162,8 @@ const MODERATOR_CAPABILITIES: readonly Capability[] = [
 ];
 
 const ADMIN_CAPABILITIES: readonly Capability[] = [
+  "maintenance.read",
+  "maintenance.manage",
   ...MODERATOR_CAPABILITIES,
   "merchant.manage",
   "catalog.write",

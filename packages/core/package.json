@@ -4,6 +4,9 @@
   "private": true,
   "type": "module",
   "exports": {
+    "./maintenance": "./src/maintenance/policy.ts",
+    "./maintenance-document": "./src/maintenance/document.ts",
+    "./maintenance-service": "./src/maintenance/service.ts",
     ".": "./src/index.ts",
     "./admin-host": "./src/admin/admin-host.ts",
     "./admin-session": "./src/admin/session-policy.ts",
