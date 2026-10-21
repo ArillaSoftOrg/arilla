@@ -6,7 +6,7 @@ compatibility_date = "2026-10-01"
 compatibility_flags = ["global_fetch_private_origin"]
 workers_dev = true
 preview_urls = false
-routes = [{ pattern = "manicepte.com/_maintenance-canary/*", zone_name = "manicepte.com" }]
+routes = [{ pattern = "manicepte.com/*", zone_name = "manicepte.com" }]
 
 [vars]
 APP_URL = "https://manicepte.com"
