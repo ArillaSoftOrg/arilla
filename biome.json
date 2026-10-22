@@ -7,6 +7,7 @@
       "!**/.venv",
       "!**/__pycache__",
       "!services/ingest/tests/fixtures",
+      "!docs/reference/trendyol",
       "!**/.next",
       "!**/dist",
       "!**/next-env.d.ts",
