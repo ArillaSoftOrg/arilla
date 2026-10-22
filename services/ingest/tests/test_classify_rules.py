@@ -22,7 +22,11 @@ from classify.text import PhraseIndex, path_norm, words
 ROOT = Path(__file__).resolve().parents[3]
 MIGRATIONS = tuple(
     ROOT / "packages" / "db" / "migrations" / name
-    for name in ("0089_category_taxonomy.sql", "0091_category_taxonomy_v3.sql")
+    for name in (
+        "0089_category_taxonomy.sql",
+        "0091_category_taxonomy_v3.sql",
+        "0094_category_taxonomy_v4.sql",
+    )
 )
 NODE = re.compile(r"\('([a-z0-9/-]+)', '([^']+)', (?:TRUE|FALSE)\)")
 REGRESSION = json.loads(

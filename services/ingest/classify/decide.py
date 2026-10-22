@@ -40,6 +40,23 @@ from classify.taxonomy import (
 from classify.text import words
 
 ENDUSTRIYEL = "ev-yasam/yapi-market/endustriyel"
+MOTOSIKLET = "oto-bahce/motosiklet"
+TEKNE = "oto-bahce/tekne-deniz"
+
+#: OEM/parca numarasi tasiyan basligin dogal oldugu ust dallar (karar 0141). Bebek, moda, kozmetik
+#: gibi tuketici dallarinda parca numarasi, urunun yanlis kovaya konmus bir yedek parca oldugunu
+#: gosterir ("Baby Strollers" kovasinda Porsche kupa tutucu): kaynak guveni ne olursa olsun
+#: inceleme.
+PART_NUMBER_TOPS = ("oto-bahce", "elektronik", "ev-yasam/yapi-market")
+#: Arac TURUNU soyleyen dallar: parca numarasi tek basina turu (otomobil mi, motosiklet mi, tekne
+#: mi) kanitlamaz; baslik de turu desteklemiyorsa inceleme.
+VEHICLE_TYPED = (MOTOSIKLET, TEKNE)
+#: Baslik kelimelerinin bu orani sonrasi "son" sayilir: kaynak dalini yalnizca sonda destekleyen
+#: baslik, basinda baska bir urun turu soyluyorsa anahtar kelime yiginidir ("IC Chip Picker ...
+#: Manicure Cotton Ball Claw" tirnak kovasinda).
+TAIL_FRACTION = 0.75
+HEAD_FRACTION = 0.4
+MIN_TAIL_WORDS = 12
 
 #: Iki zayif kanit (kaynak + baslik) ayni dali gosterdiginde verilen guven.
 AGREEMENT_CONFIDENCE = 85
@@ -65,6 +82,8 @@ class SourceVerdict:
     path: str | None
     confidence: int
     status: str  # 'confirmed' | 'suggested' | 'unmapped' | 'rejected'
+    #: Kaynak yolunun cinsiyet baglami (`categories.source_gender`); eslemede kaybolan bilgi.
+    gender: frozenset[str] = frozenset()
 
 
 @dataclass(frozen=True)
@@ -107,11 +126,21 @@ def _against_source(
 ) -> Verdict | None:
     """Baslik kaynakla celisiyorsa inceleme karari; celismiyorsa None (kaynak kurallari surer)."""
     assert src.path is not None
-    if any(_related(p, src.path) for p in evidence.paths):
+    # Kaynak "Men's Clothing" derken baslik yalnizca kadini soyluyorsa (ya da tersi) urun kaynakla
+    # celisir; kaynak onayli olsa da (yonetici yolu onayladi, urunu degil) inceleme (karar 0141).
+    if src.gender and evidence.gender and not src.gender & evidence.gender:
+        return None, "conflict", confidence, "gender_conflict"
+    supporting = [p for p in evidence.paths if _related(p, src.path)]
+    if supporting and not _stuffed_tail(evidence, supporting, src.path):
         # Baslik kaynak dalini dogruluyor: baska alandan bir kelime kaynagi bozmaz. ("makeup
         # table" mobilyadir, "hair chain" takidir.) Karar 0139 olcumunde "yabanci kanit daha
         # guclu ise celiski" kurali dogru atamalarin cogunu incelemeye dusurdu; geri alindi.
         return None
+    if not supporting and evidence.part_number:
+        # Destek yok + OEM/parca numarasi (karar 0141): yanlis kovaya konmus yedek parca.
+        consumer = not any(is_within(src.path, t) for t in PART_NUMBER_TOPS)
+        if consumer or any(is_within(src.path, v) for v in VEHICLE_TYPED):
+            return None, "conflict", confidence, "part_number_conflict"
     foreign = [
         p
         for p, c in evidence.paths.items()
@@ -141,6 +170,30 @@ def _against_source(
     if src.status != "confirmed" and any(not _related(c, src.path) for c in evidence.cues):
         return None, "conflict", confidence, "source_cue_conflict"
     return None
+
+
+def _stuffed_tail(evidence: TitleEvidence, supporting: list[str], source_path: str) -> bool:
+    """Kaynak dalini YALNIZ basligin sonundaki tek kelime destekliyor, basinda ise baska bir alan
+    daha uzun (cok kelimeli) bir ifadeyle gucluce konusuyor (karar 0141): baslik urun turunu once
+    soyler, sonu anahtar kelime yiginidir ("IC Chip Picker / Electronic Component ... Manicure").
+    Kisa baslik, ayni ana dal icindeki kardes dal ve tek kelimelik yabanci kanit yigin sayilmaz."""
+    if evidence.length < MIN_TAIL_WORDS:
+        return False
+    head_end = evidence.length * HEAD_FRACTION
+    tail_start = evidence.length * TAIL_FRACTION
+    support_pos = min(evidence.first[p][0] for p in supporting)
+    support_len = max(evidence.first[p][1] for p in supporting)
+    if support_pos < tail_start:
+        return False
+    return any(
+        c >= CONFLICT_MIN_CONFIDENCE
+        and not _related(p, source_path)
+        and _top(p) != _top(source_path)
+        and evidence.first[p][0] < head_end
+        and evidence.first[p][1] >= 2
+        and evidence.first[p][1] > support_len
+        for p, c in evidence.paths.items()
+    )
 
 
 def _title_device(path: str | None, evidence: TitleEvidence) -> bool:

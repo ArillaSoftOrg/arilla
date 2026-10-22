@@ -34,7 +34,7 @@ from dataclasses import dataclass, field
 import psycopg
 
 from classify.brands import brand_key, name_norm
-from classify.categories import guess_source
+from classify.categories import guess_source, source_gender
 from classify.decide import Decision, ProductFacts, SourceVerdict, decide
 from classify.taxonomy import RULE_VERSION
 from classify.text import path_norm
@@ -295,13 +295,18 @@ class Catalog:
         if row is not None and row[1] in ("confirmed", "rejected"):
             cid, status, conf, _ = row
             path = self.path_by_id.get(cid) if cid is not None else None
-            return SourceVerdict(path, 100 if status == "confirmed" else int(conf or 0), status)
+            return SourceVerdict(
+                path, 100 if status == "confirmed" else int(conf or 0), status, source_gender(raw)
+            )
         verdict = self._guess_cache.get(norm)
         if verdict is None:
             guess = guess_source(raw)
             path = guess.path if guess.path in self.id_by_path else None
             verdict = SourceVerdict(
-                path, guess.confidence if path else 0, "suggested" if path else "unmapped"
+                path,
+                guess.confidence if path else 0,
+                "suggested" if path else "unmapped",
+                source_gender(raw),
             )
             self._guess_cache[norm] = verdict
         cid = self.id_by_path.get(verdict.path) if verdict.path else None

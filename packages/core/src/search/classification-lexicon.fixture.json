@@ -744,6 +744,54 @@
     "weight": 3.0
   },
   {
+    "kind": "category",
+    "surface": "tekne",
+    "normalized": "oto-bahce/tekne-deniz",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "tekne parçası",
+    "normalized": "oto-bahce/tekne-deniz",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "deniz aracı",
+    "normalized": "oto-bahce/tekne-deniz",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "duş jeli",
+    "normalized": "saglik-kozmetik/kisisel-bakim/banyo-vucut",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "banyo ve vücut bakımı",
+    "normalized": "saglik-kozmetik/kisisel-bakim/banyo-vucut",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "kutu oyunu",
+    "normalized": "kitap-muzik-hobi/masa-kart-oyunlari",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "kart oyunu",
+    "normalized": "kitap-muzik-hobi/masa-kart-oyunlari",
+    "weight": 2.0
+  },
+  {
+    "kind": "category",
+    "surface": "masa oyunu",
+    "normalized": "kitap-muzik-hobi/masa-kart-oyunlari",
+    "weight": 2.0
+  },
+  {
     "kind": "synonym",
     "surface": "kadın",
     "normalized": "kadin",
