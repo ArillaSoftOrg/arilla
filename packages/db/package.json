@@ -20,7 +20,8 @@
     "seed": "node scripts/seed.ts",
     "db:lint-migrations": "node scripts/lint-migrations.ts",
     "db:trendyol-categories": "node scripts/trendyol-categories.ts",
-    "test": "node --test scripts/lib.test.ts scripts/migration-lint.test.ts scripts/db-health-lib.test.ts scripts/trendyol-categories-lib.test.ts"
+    "db:hepsiburada-categories": "node scripts/hepsiburada-categories.ts",
+    "test": "node --test scripts/lib.test.ts scripts/migration-lint.test.ts scripts/db-health-lib.test.ts scripts/trendyol-categories-lib.test.ts scripts/hepsiburada-categories-lib.test.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",

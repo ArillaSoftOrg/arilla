@@ -2186,8 +2186,10 @@ CREATE TABLE IF NOT EXISTS external_category_import (
     source          TEXT        NOT NULL CHECK (source ~ '^[a-z][a-z0-9_]{1,30}$'),
     source_sha256   TEXT        NOT NULL CHECK (source_sha256 ~ '^[0-9a-f]{64}$'),
     category_count  INTEGER     NOT NULL CHECK (category_count > 0),
-    root_count      INTEGER     NOT NULL CHECK (root_count > 0),
-    max_depth       SMALLINT    NOT NULL CHECK (max_depth > 0),
+    root_count      INTEGER     CHECK (root_count IS NULL OR root_count > 0),
+    max_depth       SMALLINT    CHECK (max_depth IS NULL OR max_depth > 0),
+    source_kind     TEXT        NOT NULL DEFAULT 'api' CHECK (source_kind IN ('api', 'sitemap')),
+    suspect_count   INTEGER     NOT NULL DEFAULT 0 CHECK (suspect_count >= 0),
     imported_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE (source, source_sha256)
 );
@@ -2198,19 +2200,38 @@ CREATE TABLE IF NOT EXISTS external_category_import (
 -- ice aktarimda kaynaktan kalkan kategori silinmez, isaretlenir.
 CREATE TABLE IF NOT EXISTS external_category (
     source              TEXT        NOT NULL CHECK (source ~ '^[a-z][a-z0-9_]{1,30}$'),
-    external_id         BIGINT      NOT NULL CHECK (external_id > 0),
+    external_id         BIGINT      NOT NULL,
     parent_external_id  BIGINT,
     name                TEXT        NOT NULL CHECK (btrim(name) <> ''),
-    depth               SMALLINT    NOT NULL CHECK (depth > 0),
-    is_leaf             BOOLEAN     NOT NULL,
-    path_ids            BIGINT[]    NOT NULL CHECK (cardinality(path_ids) = depth),
-    path_text           TEXT        NOT NULL,
+    -- 0098 (karar 0144): hierarchy_status = 'unknown' iken depth/is_leaf/path_ids/path_text/parent NULL.
+    depth               SMALLINT,
+    is_leaf             BOOLEAN,
+    path_ids            BIGINT[],
+    path_text           TEXT,
     import_id           BIGINT      NOT NULL REFERENCES external_category_import(id),
     retired_at          TIMESTAMPTZ,
     created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    hierarchy_status    TEXT        NOT NULL DEFAULT 'verified' CHECK (hierarchy_status IN ('verified', 'unknown')),
+    name_basis          TEXT        NOT NULL DEFAULT 'source' CHECK (name_basis IN ('source', 'slug')),
+    quality             TEXT        NOT NULL DEFAULT 'valid' CHECK (quality IN ('valid', 'suspect')),
+    quality_reason      TEXT,
+    slug                TEXT,
+    source_url          TEXT,
+    source_attrs        JSONB       NOT NULL DEFAULT '{}'::jsonb,
     PRIMARY KEY (source, external_id),
     FOREIGN KEY (source, parent_external_id) REFERENCES external_category (source, external_id),
-    CHECK ((depth = 1) = (parent_external_id IS NULL))
+    CONSTRAINT external_category_hierarchy_chk CHECK (
+        (hierarchy_status = 'verified'
+            AND depth IS NOT NULL AND is_leaf IS NOT NULL AND path_ids IS NOT NULL AND path_text IS NOT NULL
+            AND depth > 0 AND cardinality(path_ids) = depth
+            AND (depth = 1) = (parent_external_id IS NULL))
+        OR
+        (hierarchy_status = 'unknown'
+            AND depth IS NULL AND is_leaf IS NULL AND path_ids IS NULL AND path_text IS NULL
+            AND parent_external_id IS NULL)
+    ),
+    CONSTRAINT external_category_id_chk CHECK (external_id > 0 OR (external_id = 0 AND quality = 'suspect')),
+    CONSTRAINT external_category_quality_chk CHECK (quality = 'valid' OR quality_reason IS NOT NULL)
 );
 CREATE INDEX IF NOT EXISTS external_category_parent_idx
     ON external_category (source, parent_external_id);
@@ -2234,8 +2255,26 @@ CREATE TABLE IF NOT EXISTS external_category_map (
 );
 CREATE INDEX IF NOT EXISTS external_category_map_category_idx ON external_category_map (category_id);
 
+-- 0098 (karar 0144): supheli kategori yalnizca 'rejected' eslesebilir.
+CREATE OR REPLACE FUNCTION external_category_map_guard() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.status <> 'rejected' AND EXISTS (
+        SELECT 1 FROM external_category e
+         WHERE e.source = NEW.source AND e.external_id = NEW.external_id AND e.quality <> 'valid'
+    ) THEN
+        RAISE EXCEPTION 'external_category_map: supheli kategori eslestirilemez (%/%)',
+            NEW.source, NEW.external_id USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+END $$;
+
+CREATE OR REPLACE TRIGGER external_category_map_guard
+    BEFORE INSERT OR UPDATE ON external_category_map
+    FOR EACH ROW EXECUTE FUNCTION external_category_map_guard();
+
 -- Kullanilmayan kategori raporu (salt okunur). 'unmapped': eslesme yok; 'mapped_empty':
--- eslesen ManiCepte kategorisinde urun yok; 'in_use': urun var; 'rejected': elenmis.
+-- eslesen ManiCepte kategorisinde urun yok; 'in_use': urun var; 'rejected': elenmis; 'suspect' (0098): supheli kayit.
 -- Urun sayimi yalnizca eslesen (az sayida) kategori icin `product_category_idx` uzerinden
 -- EXISTS ile yapilir; tum katalog taranmaz.
 CREATE OR REPLACE VIEW external_category_usage AS
@@ -2248,11 +2287,16 @@ SELECT ec.source,
        m.category_id,
        m.status AS map_status,
        CASE
+           WHEN ec.quality <> 'valid' THEN 'suspect'
            WHEN m.external_id IS NULL THEN 'unmapped'
            WHEN m.status = 'rejected' THEN 'rejected'
            WHEN EXISTS (SELECT 1 FROM product p WHERE p.category_id = m.category_id) THEN 'in_use'
            ELSE 'mapped_empty'
-       END AS usage
+       END AS usage,
+       ec.quality,
+       ec.hierarchy_status,
+       ec.name,
+       ec.slug
   FROM external_category ec
   LEFT JOIN external_category_map m
     ON m.source = ec.source AND m.external_id = ec.external_id;
