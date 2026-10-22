@@ -66,7 +66,7 @@ describe("kaldirilma takibi - entegrasyon (gercek Postgres, karar 0140)", () => 
         status: "done",
         bytesReceived: 1000,
         requestsMade: requests,
-        fetchedAt: new Date(Date.now() - 100_000_000 + seq * 60_000),
+        fetchedAt: new Date(Date.now() - 100_000_000 + seq * 60_000).toISOString(),
         items: u.items.map((c) => item(c, u.key)),
       });
     }
