@@ -1716,6 +1716,12 @@ COMMENT ON TABLE trend IS
 COMMENT ON TABLE trend_product IS
     'Trend-urun baglari; curate toplu isi yazar, istek yolu yalnizca okur. Karar 0077.';
 
+-- 0095 (karar 0142): urun baglarinin sahibi. 'auto' = curate yazar (varsayilan,
+-- 0077 davranisi); 'manual' = editor yazar, curate bu trendi okumaz/yazmaz.
+ALTER TABLE trend
+    ADD COLUMN IF NOT EXISTS curation TEXT NOT NULL DEFAULT 'auto'
+        CONSTRAINT trend_curation_check CHECK (curation IN ('auto', 'manual'));
+
 -- 0057 (karar 0078): sohbet gorsel eki. Tam metin: migrations/0057_chat_attachment.sql.
 CREATE TABLE IF NOT EXISTS chat_attachment (
     id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
