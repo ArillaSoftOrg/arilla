@@ -43,6 +43,7 @@ SELECT_BATCH = """
 SELECT d.external_id, d.code_kind, d.url, d.title, d.image_url
   FROM catalog_discovery d
  WHERE d.source = %(source)s AND d.external_id > %(after)s
+   AND d.presence <> 'removed'  -- karar 0140: kaldırılmış kayıttan taslak açılmaz
  ORDER BY d.external_id
  LIMIT %(limit)s
 """
