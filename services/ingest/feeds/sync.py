@@ -284,7 +284,7 @@ WITH prev AS (
     ON CONFLICT (offer_id, observed_at) DO NOTHING
     RETURNING 1
 ), ob AS (
-    -- Karar 0143: arama olayi yalniz aramanin/indeksin gorecegi icerik degisince yazilir
+    -- Karar 0146: arama olayi yalniz aramanin/indeksin gorecegi icerik degisince yazilir
     -- (ekleme, yeniden etkinlesme, baslik/marka/kategori/gorsel). Fiyat, eski fiyat, stok,
     -- indirim ve komisyon degisimi `price_point`'ta ve offer satirindadir; her biri icin
     -- olay yazmak gunluk tam senkronizasyonda milyonlarca gereksiz satir uretirdi.

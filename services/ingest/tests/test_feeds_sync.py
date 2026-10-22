@@ -229,7 +229,7 @@ def test_fiyat_degisimi_gecmise_yazilir_degismeyen_yazilmaz(env: Env) -> None:
             WHERE b.entity = 'offer' AND o.merchant_id = %s""",
         (env.merchant_id,),
     )[0]
-    # 5 ekleme; yalniz fiyat degisimi arama olayi URETMEZ (karar 0143), gecmis price_point'ta.
+    # 5 ekleme; yalniz fiyat degisimi arama olayi URETMEZ (karar 0146), gecmis price_point'ta.
     assert outbox == 5
 
 
@@ -677,7 +677,7 @@ def test_bagli_urunun_fiyat_ozeti_ayni_islemde_yenilenir(env: Env) -> None:
 
 
 # --------------------------------------------------------------------------
-# Karar 0143: arama olayi (search_outbox) yalniz icerik degisince yazilir.
+# Karar 0146: arama olayi (search_outbox) yalniz icerik degisince yazilir.
 
 
 def _outbox(env: Env) -> list[tuple[str, str]]:

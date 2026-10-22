@@ -1,4 +1,4 @@
-# 0143 — Arama olayı (search_outbox) yalnızca içerik değişiminde yazılır
+# 0146 — Arama olayı (search_outbox) yalnızca içerik değişiminde yazılır
 
 **Tarih:** 22 Ekim 2026
 **Durum:** Önerildi (PR). 0136 Ek A'daki **C seçeneğini** uygular ve genişletir. Migration yok.
