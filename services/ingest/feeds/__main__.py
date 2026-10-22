@@ -5,6 +5,8 @@ python -m feeds list
 python -m feeds bind --feed ID --merchant SLUG [--activate | --pause]
 python -m feeds sync --feed ID [--max-records N] [--force] [--file PATH]
 python -m feeds sync-due
+python -m feeds daily --merchant SLUG
+python -m feeds freshness --merchant SLUG
 python -m feeds hb-merge --run ID [--allow-open]
 python -m feeds collect-merge --run ID [--allow-open]  (kaynak kosudan: hepsiburada, trendyol)
 """
@@ -13,21 +15,18 @@ from __future__ import annotations
 
 import argparse
 import logging
-import shutil
 import sys
-from concurrent.futures import ThreadPoolExecutor
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
 import feeds.admitad  # noqa: F401  (agi kaydeder)
 from db import job_run
-from db.connection import connect, env
-from feeds import discovery
-from feeds.download import staging_dir
+from db.connection import connect
+from feeds import daily, discovery, freshness, runner
 from feeds.logs import configure as configure_logging
 from feeds.network import build, registered
 from feeds.profiles import MERCHANT_PROFILES
-from feeds.sync import FeedSync, SyncAborted, load_feed, prefetch_download
+from feeds.sync import FeedSync, SyncAborted, load_feed
 
 logger = logging.getLogger("feeds")
 
@@ -178,8 +177,6 @@ def _sync(args: argparse.Namespace) -> int:
 def _sync_due(args: argparse.Namespace) -> int:
     """Etkin beslemeler. Indirmeler PARALEL (en fazla `--parallel-downloads`), isleme SIRAYLA:
     bir besleme islenirken digerleri iner. Her indirme bos diskin payina sinirlidir."""
-    failures = 0
-    parallel = max(1, min(int(args.parallel_downloads), 4))
     with job_run.track("feed_sync") as run, connect() as conn:
         with conn.cursor() as cur:
             cur.execute("SELECT id FROM feed_source WHERE status = 'active' ORDER BY id")
@@ -187,43 +184,69 @@ def _sync_due(args: argparse.Namespace) -> int:
         conn.commit()
         feeds = [load_feed(conn, feed_id) for feed_id in ids]
         conn.rollback()
-        due = [
-            f
-            for f in feeds
-            if args.force
-            or f.source_updated_at is None
-            or f.last_success_at is None
-            or f.source_updated_at > f.last_success_at
-        ]
-        free = shutil.disk_usage(staging_dir()).free
-        min_free = int(env("FEED_MIN_FREE_BYTES") or 15 << 30)
-        budget = max(0, (free - min_free) // parallel)
-        with ThreadPoolExecutor(max_workers=parallel) as pool:
-            futures = {
-                f.id: pool.submit(
-                    prefetch_download,
-                    f,
-                    build(f.network),
-                    max_records=args.max_records,
-                    max_bytes=budget,
-                    at=datetime.now(UTC),
-                )
-                for f in due
-            }
-            for feed_id in ids:
-                try:
-                    prefetched = futures[feed_id].result() if feed_id in futures else None
-                    failures += _sync_one(conn, feed_id, args, prefetched)
-                except Exception as error:  # bir besleme digerlerini durdurmaz
-                    conn.rollback()
-                    failures += 1
-                    print(f"besleme {feed_id}: {getattr(error, 'code', type(error).__name__)}")
+        outcomes = runner.sync_feeds(
+            conn,
+            feeds,
+            parallel=args.parallel_downloads,
+            max_records=args.max_records,
+            force=args.force,
+            on_outcome=_print_outcome,
+        )
+        failures = sum(1 for o in outcomes if not o.ok)
         run.detail["feeds"] = len(ids)
-        run.detail["downloaded_parallel"] = len(futures)
+        run.detail["downloaded_parallel"] = sum(1 for f in feeds if runner.is_due(f, args.force))
         run.detail["failures"] = failures
         if failures:
             run.status = "partial"
     return 1 if failures else 0
+
+
+def _print_outcome(outcome: runner.FeedOutcome) -> None:
+    if outcome.report is not None:
+        print(f"besleme {outcome.feed_id}: {outcome.report.status} {outcome.report.detail()}")
+    else:
+        print(f"besleme {outcome.feed_id}: {outcome.error_code}")
+
+
+def _daily(args: argparse.Namespace) -> int:
+    """Gunluk tazeleme (karar 0142): kesif -> senkronizasyon -> tazelik. Zamanlayici cagirir."""
+    opts = daily.DailyOptions(
+        merchant=args.merchant,
+        parallel_downloads=max(1, min(args.parallel_downloads, runner.MAX_PARALLEL_DOWNLOADS)),
+        retries=max(0, min(args.retries, 5)),
+        retry_wait_seconds=max(0.0, args.retry_wait_seconds),
+        max_source_age=timedelta(hours=args.max_source_age_hours),
+        discover=not args.skip_discovery,
+    )
+    with job_run.track("feed_daily") as run, connect() as conn:
+        result = daily.run_daily(conn, opts)
+        run.status = result.status
+        run.detail.update(result.detail)
+        run.error_summary = result.error_summary
+    print(f"gunluk {args.merchant}: {result.status} {result.detail}")
+    if result.error_summary:
+        print(f"sorunlar: {result.error_summary}", file=sys.stderr)
+    return result.exit_code
+
+
+def _freshness(args: argparse.Namespace) -> int:
+    """YALNIZCA OKUR: bir merchant'in besleme ve offer fiyat tazeligi."""
+    with connect() as conn:
+        report = freshness.measure(
+            conn,
+            args.merchant,
+            now=datetime.now(UTC),
+            max_source_age=timedelta(hours=args.max_source_age_hours),
+        )
+    for f in report.feeds:
+        src = f.source_updated_at.isoformat(timespec="minutes") if f.source_updated_at else "-"
+        ok = f.last_success_at.isoformat(timespec="minutes") if f.last_success_at else "-"
+        print(
+            f"{f.feed_id:>5} {f.external_id:<16} {f.status:<7} {f.state.value:<20} "
+            f"kaynak={src} yazim={ok} uye={f.members} hata={f.last_error_code or '-'}"
+        )
+    print(report.detail())
+    return 1 if report.problems else 0
 
 
 def _hb_merge(args: argparse.Namespace) -> int:
@@ -291,6 +314,18 @@ def main(argv: list[str] | None = None) -> int:
             p.add_argument("--parallel-downloads", type=int, default=2)
         p.add_argument("--force", action="store_true")
         p.set_defaults(func=func)
+    p = sub.add_parser("daily")
+    p.add_argument("--merchant", required=True)
+    p.add_argument("--parallel-downloads", type=int, default=2)
+    p.add_argument("--retries", type=int, default=2, help="gecici hatada ek tur (en fazla 5)")
+    p.add_argument("--retry-wait-seconds", type=float, default=600.0)
+    p.add_argument("--max-source-age-hours", type=float, default=168.0)
+    p.add_argument("--skip-discovery", action="store_true")
+    p.set_defaults(func=_daily)
+    p = sub.add_parser("freshness")
+    p.add_argument("--merchant", required=True)
+    p.add_argument("--max-source-age-hours", type=float, default=168.0)
+    p.set_defaults(func=_freshness)
     # `collect-merge` genel addir (karar 0118); `hb-merge` geriye uyumluluk icin kalir.
     for name in ("hb-merge", "collect-merge"):
         p = sub.add_parser(name)

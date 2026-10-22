@@ -52,6 +52,15 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0142: günlük AliExpress fiyat tazeleme (keşif + senkronizasyon + tazelik ölçümü).
+  // Zamanlayıcı ayrı ve onaylı bir adımla etkinleşir (`feeds-timers install`); kurulana kadar
+  // kayıt yoktur. Günde iki tetik (06:30, 18:30 UTC); 36 saat koşusuz kalırsa gecikmiş sayılır.
+  feed_daily: {
+    label: "Günlük fiyat tazeleme (AliExpress)",
+    how: "python -m feeds daily --merchant aliexpress · VPS zamanlayıcı (günde iki kez)",
+    kind: "cron",
+    overdueAfterMs: 36 * HOUR,
+  },
   // Karar 0115: yonetici toplamasi ara deposunun katalog modeline birlestirilmesi (elle).
   hb_merge: {
     label: "Hepsiburada toplama birleştirme",

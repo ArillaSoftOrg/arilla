@@ -1,0 +1,15 @@
+[Unit]
+Description=Gunluk AliExpress fiyat tazeleme (her gun 06:30 ve 18:30 UTC)
+
+[Timer]
+# Gece hatlarindan sonra: yedekler 01:30, katalog hatti 02:30 (en fazla 3 saat), donusumler 05:00.
+# Ikinci tetik 18:30: TCMB kuru 13:30'da gelir; gecici hatayla kacan ya da kaynagin gun icinde
+# yayinladigi yeni surum yakalanir. Kaynak degismediyse kosu indirmeden biter (idempotent).
+OnCalendar=*-*-* 06:30:00 UTC
+OnCalendar=*-*-* 18:30:00 UTC
+# Sunucu kapaliyken kacan kosu acilista calisir; tekrarlanan kosu veriyi bozmaz.
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target
