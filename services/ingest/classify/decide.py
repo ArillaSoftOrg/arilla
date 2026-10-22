@@ -32,6 +32,7 @@ from dataclasses import dataclass
 from classify.brands import clean_source_brand, find_title_brand
 from classify.categories import TitleEvidence, is_within, title_evidence
 from classify.taxonomy import (
+    ACCESSORY_HOSTS,
     ACCESSORY_PREFIXES,
     APPLY_MIN_CONFIDENCE,
     DEVICE_PATHS,
@@ -196,6 +197,27 @@ def _stuffed_tail(evidence: TitleEvidence, supporting: list[str], source_path: s
     )
 
 
+def _mentions(title: str, phrases: tuple[str, ...]) -> bool:
+    text = " " + " ".join(words(title)) + " "
+    return any(" " + " ".join(words(p)) + " " in text for p in phrases)
+
+
+def _host_missing(src: SourceVerdict, evidence: TitleEvidence, title: str) -> bool:
+    """Aksesuar dali kaynagi, basligin ana urunu anmasini ister (karar 0142).
+
+    "Baby Strollers & Accessories" kovasinda mama sandalyesi minderi: urun bir aksesuar ama
+    bebek arabasinin degil. Baslik dali kendi kuraliyla destekliyorsa ya da ana urunu aniyorsa
+    sorun yok; onayli esleme (yonetici) bu kontrolden muaftir.
+    """
+    assert src.path is not None
+    hosts = ACCESSORY_HOSTS.get(src.path)
+    if not hosts or src.status == "confirmed":
+        return False
+    if any(_related(p, src.path) for p in evidence.paths):
+        return False
+    return not _mentions(title, hosts)
+
+
 def _title_device(path: str | None, evidence: TitleEvidence) -> bool:
     """Parca/uyumluluk basligi bir cihaz kategorisini gosteriyor: kanit sayilmaz."""
     return evidence.part and path in DEVICE_PATHS
@@ -213,6 +235,8 @@ def _category(facts: ProductFacts) -> Verdict:
         against = _against_source(evidence, src, confidence, facts.title)
         if against is not None:
             return against
+        if _host_missing(src, evidence, facts.title):
+            return None, "low_confidence", confidence, "accessory_host_missing"
         refined = evidence.within(src.path)
         deeper = (
             refined.path is not None
