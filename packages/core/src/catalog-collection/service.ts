@@ -17,6 +17,7 @@ import {
 import { and, desc, eq, gte, lt, sql } from "drizzle-orm";
 import { recordAdminEvent } from "../admin/audit.ts";
 import { type AdminActor, assertCapability } from "../admin/capabilities.ts";
+import { applyRunPresence } from "./discovery-presence.ts";
 import { type RecordRejection, type ValidationRules, validateIntakeRecord } from "./validate.ts";
 
 export const MAX_BATCH_RECORDS = 500;
@@ -738,6 +739,23 @@ export async function closeCollectionRun(
         before: { status: run.status },
         after: { status, uniqueRecords: report.uniqueRecords, requests: run.requestsMade },
       });
+      // Karar 0140: yalnızca tamamlanmış ve kapsamı doğrulanmış koşu kaldırılma hesabına girer.
+      if (status === "completed") {
+        const presence = await applyRunPresence(tx as unknown as Database, {
+          source: run.source,
+          runId: run.id,
+        });
+        if (presence.applied) {
+          await recordAdminEvent(tx, {
+            actor,
+            action: "catalog_collection.presence",
+            targetType: "collection_run",
+            targetId: run.id,
+            before: null,
+            after: { seen: presence.seen, missed: presence.missed, removed: presence.removed },
+          });
+        }
+      }
     });
   } catch (error) {
     const mapped = collectionErrorFrom(error);
