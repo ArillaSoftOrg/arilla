@@ -7,9 +7,7 @@
       "expect": {
         "path": "saglik-kozmetik/kisisel-bakim/banyo-vucut",
         "state": "applied",
-        "must_not": [
-          "saglik-kozmetik/kozmetik/parfum"
-        ]
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
       },
       "why": "dus jeli: koku sifati (scent/fragrance) urun turunu ezmemeli",
       "origin": "prod-sample-196"
@@ -20,9 +18,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "saglik-kozmetik/kozmetik/parfum"
-        ]
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
       },
       "why": "ter onleyici ped: parfum/deodorant kovasinda hijyen urunu",
       "origin": "prod-sample-196"
@@ -33,9 +29,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "saglik-kozmetik/kozmetik/tirnak"
-        ]
+        "must_not": ["saglik-kozmetik/kozmetik/tirnak"]
       },
       "why": "IC cip tutucu: tirnak kelimesi yalniz basligin sonundaki anahtar kelime yigini",
       "origin": "prod-sample-196"
@@ -46,9 +40,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "elektronik/bilgisayar/klavye-mouse"
-        ]
+        "must_not": ["elektronik/bilgisayar/klavye-mouse"]
       },
       "why": "kart oyunu mati fare altligi degildir",
       "origin": "prod-sample-196"
@@ -58,10 +50,7 @@
       "source_category": "Men's Clothing > Middle East Fashion",
       "expect": {
         "state": "applied",
-        "must_not": [
-          "moda/kadin-giyim",
-          "moda/kadin-giyim/elbise"
-        ]
+        "must_not": ["moda/kadin-giyim", "moda/kadin-giyim/elbise"]
       },
       "why": "erkek thobe, kadin elbisesi degil: baslik \"Men's\" derken \"dress\" karsi cinsiyet dalina atamamali",
       "origin": "prod-sample-196"
@@ -72,9 +61,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "anne-bebek/bebek-arabasi/aksesuar"
-        ]
+        "must_not": ["anne-bebek/bebek-arabasi/aksesuar"]
       },
       "why": "OEM parca numarali oto parcasi bebek arabasi kovasinda",
       "origin": "prod-sample-196"
@@ -85,9 +72,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "anne-bebek/bebek-arabasi/aksesuar"
-        ]
+        "must_not": ["anne-bebek/bebek-arabasi/aksesuar"]
       },
       "why": "OEM kodlu Porsche parcasi bebek arabasi kovasinda",
       "origin": "prod-sample-196"
@@ -98,9 +83,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "oto-bahce/motosiklet"
-        ]
+        "must_not": ["oto-bahce/motosiklet"]
       },
       "why": "otomobil parcasi motosiklet kovasinda: arac turu baslikla desteklenmiyor",
       "origin": "prod-sample-196"
@@ -111,9 +94,7 @@
       "expect": {
         "path": "oto-bahce/tekne-deniz",
         "state": "applied",
-        "must_not": [
-          "oto-bahce/motosiklet"
-        ]
+        "must_not": ["oto-bahce/motosiklet"]
       },
       "why": "tekne motoru parcasi motosiklet degildir",
       "origin": "prod-sample-196"
@@ -124,9 +105,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "moda/canta/valiz"
-        ]
+        "must_not": ["moda/canta/valiz"]
       },
       "why": "evcil hayvan tasima cantasi valiz degildir",
       "origin": "prod-sample-196"
@@ -137,9 +116,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "anne-bebek/bebek-arabasi/aksesuar"
-        ],
+        "must_not": ["anne-bebek/bebek-arabasi/aksesuar"],
         "detail": "part_number_conflict"
       },
       "why": "farkli arac parcasi ayni kovada: kural kimlik degil parca numarasi isaretine dayanir",
@@ -171,9 +148,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "saglik-kozmetik/kozmetik/parfum"
-        ]
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
       },
       "why": "bos sise/atomizer ambalajdir, parfum degil",
       "origin": "synthetic"
@@ -184,9 +159,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "saglik-kozmetik/kozmetik/parfum"
-        ]
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
       },
       "why": "hijyen urunu koku kovasinda",
       "origin": "synthetic"
@@ -197,9 +170,7 @@
       "expect": {
         "path": "saglik-kozmetik/kisisel-bakim/banyo-vucut",
         "state": "applied",
-        "must_not": [
-          "saglik-kozmetik/kozmetik/parfum"
-        ]
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
       },
       "why": "urun turu adi (dus jeli) koku sifatini ezer",
       "origin": "synthetic"
@@ -210,9 +181,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "elektronik/bilgisayar/klavye-mouse"
-        ]
+        "must_not": ["elektronik/bilgisayar/klavye-mouse"]
       },
       "why": "kart oyunu mati bilgisayar cevre birimi degildir",
       "origin": "synthetic"
@@ -221,9 +190,7 @@
       "title": "Baby Play Mat Crawling Foam Puzzle Activity Gym",
       "source_category": null,
       "expect": {
-        "must_not": [
-          "kitap-muzik-hobi/masa-kart-oyunlari"
-        ]
+        "must_not": ["kitap-muzik-hobi/masa-kart-oyunlari"]
       },
       "why": "bebek oyun mati kart oyunu degildir",
       "origin": "synthetic"
@@ -253,10 +220,7 @@
       "source_category": "Men's Clothing > Middle East Fashion",
       "expect": {
         "state": "applied",
-        "must_not": [
-          "moda/kadin-giyim",
-          "moda/kadin-giyim/elbise"
-        ]
+        "must_not": ["moda/kadin-giyim", "moda/kadin-giyim/elbise"]
       },
       "why": "erkek giyim kaynagi + erkek baglami: kadin dali olamaz",
       "origin": "synthetic"
@@ -265,9 +229,7 @@
       "title": "Men's Gown Dress Loose Casual",
       "source_category": null,
       "expect": {
-        "must_not": [
-          "moda/kadin-giyim/elbise"
-        ]
+        "must_not": ["moda/kadin-giyim/elbise"]
       },
       "why": "kaynaksiz: baslik 'Men's' derken kadin elbisesi aday olamaz",
       "origin": "synthetic"
@@ -278,9 +240,7 @@
       "expect": {
         "path": "oto-bahce/tekne-deniz",
         "state": "applied",
-        "must_not": [
-          "oto-bahce/motosiklet"
-        ]
+        "must_not": ["oto-bahce/motosiklet"]
       },
       "why": "tekne kovasi motosiklet degildir",
       "origin": "synthetic"
@@ -289,9 +249,7 @@
       "title": "Boat Neck Sweater Women Loose Knit Pullover",
       "source_category": null,
       "expect": {
-        "must_not": [
-          "oto-bahce/tekne-deniz"
-        ]
+        "must_not": ["oto-bahce/tekne-deniz"]
       },
       "why": "'boat neck' yaka tipidir, tekne degil",
       "origin": "synthetic"
@@ -312,9 +270,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "moda/canta/valiz"
-        ]
+        "must_not": ["moda/canta/valiz"]
       },
       "why": "evcil hayvan cantasi valiz degildir",
       "origin": "synthetic"
@@ -335,9 +291,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "saglik-kozmetik/kozmetik/tirnak"
-        ]
+        "must_not": ["saglik-kozmetik/kozmetik/tirnak"]
       },
       "why": "kaynagi yalniz sondaki tek kelime destekliyor, basta cok kelimeli baska alan",
       "origin": "synthetic"
@@ -358,9 +312,7 @@
       "expect": {
         "path": null,
         "state": "review",
-        "must_not": [
-          "ev-yasam/yapi-market/el-aletleri"
-        ]
+        "must_not": ["ev-yasam/yapi-market/el-aletleri"]
       },
       "why": "'Hair Tools' icindeki 'Tools' el aleti anlamina gelmez",
       "origin": "synthetic"
@@ -371,9 +323,7 @@
       "expect": {
         "path": "saglik-kozmetik/peruk",
         "state": "applied",
-        "must_not": [
-          "ev-yasam/yapi-market/el-aletleri"
-        ]
+        "must_not": ["ev-yasam/yapi-market/el-aletleri"]
       },
       "why": "peruk aksesuari: ust bolum yaprak adini ezer, baslik dogrular",
       "origin": "synthetic"
