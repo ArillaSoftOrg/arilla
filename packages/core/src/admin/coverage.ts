@@ -135,6 +135,10 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       // Karar 0133: urun siniflandirma kaniti ve kontrol noktasi (panelde sayaclar).
       "product_classification",
       "product_classification_state",
+      // Karar 0143: dis kaynak (Trendyol) kategori referansi; yonetim sayfasi yok, siniflandirici okumaz.
+      "external_category_import",
+      "external_category",
+      "external_category_map",
     ],
     status: "visible",
     adminPaths: [
