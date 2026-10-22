@@ -8,6 +8,7 @@
       "!**/__pycache__",
       "!services/ingest/tests/fixtures",
       "!docs/reference/trendyol",
+      "!docs/reference/hepsiburada",
       "!**/.next",
       "!**/dist",
       "!**/next-env.d.ts",
