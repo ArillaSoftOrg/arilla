@@ -27,7 +27,10 @@ from dataclasses import dataclass
 #: celisirse inceleme (ya da guclu baslik kaniti); `cue` kurallari.
 #: 3 (karar 0139): guc/batarya, elektrik tesisati, olcum, alet yedek parca, endustriyel,
 #: bebek arabasi, mangal dallari (migration 0091); endustriyel kaynak eslemeleri.
-RULE_VERSION = 3
+#: 4 (karar 0141): tekne/deniz, banyo ve vucut, masa/kart oyunlari dallari (migration 0094);
+#: cinsiyet celiskisi, parca numarasi celiskisi, basliktaki anahtar kelime yigini, urun turu
+#: (ambalaj, hijyen, cihaz) kurallari.
+RULE_VERSION = 4
 
 #: Bu guvenin altindaki karar urune YAZILMAZ; urun 'review' ile bekler.
 APPLY_MIN_CONFIDENCE = 80
@@ -235,7 +238,8 @@ RULES: tuple[Rule, ...] = (
        "mechanical keyboard", "keycap", "keycaps", "mouse pad", "mousepad", "klavye*"),
       ("piano", "musical", "midi", "electronic organ", "mouse trap", "mousetrap", "rat",
        "mickey", "minnie", "toy", "tablet case", "ipad case", "case for ipad", "fare kapan*",
-       "piyano*")),
+       "piyano*", "playmat", "play mat", "tcg", "ccg", "trading card", "card game",
+       "board game")),
     R("elektronik/bilgisayar/depolama", 88,
       ("usb flash drive", "flash drive", "pendrive", "pen drive", "memory card", "micro sd",
        "sd card", "tf card", "ssd", "hard drive", "hdd", "external hard", "nvme",
@@ -608,7 +612,7 @@ RULES: tuple[Rule, ...] = (
       ("suitcase", "suitcases", "luggage", "travel bag", "travel bags", "carry on",
        "trolley bag", "duffel bag", "valiz*", "bavul*", "seyahat canta*"),
       ("luggage bags", "luggage tag", "luggage scale", "luggage strap", "luggage lock",
-       "cover", "kilif*", "toy", "oyuncak*")),
+       "cover", "kilif*", "toy", "oyuncak*", "storage box", "puppy", "pet", "kopek*", "evcil*")),
     # --- Moda / Aksesuar --------------------------------------------------------------
     R("moda/aksesuar", 88,
       ("apparel accessories", "fashion accessories", "moda aksesuar*", "giyim aksesuar*")),
@@ -696,7 +700,14 @@ RULES: tuple[Rule, ...] = (
        "body mist", "deodorant", "parfum*", "deodorant*", "kolonya*", "edp", "edt"),
       ("car perfume", "car air freshener", "car fragrance", "diffuser", "oda koku*",
        "arac koku*", "oto koku*", "araba koku*", "fragrance oil", "candle", "mum*",
-       "perfume bottle", "empty bottle", "laundry", "camasir*")),
+       "perfume bottle", "empty bottle", "laundry", "camasir*",
+       # Urun turu ismi koku sifatini ezer: "Shower Gel ... Fragrance" dus jelidir (karar 0141).
+       "shower gel", "body wash", "shower milk", "bath milk", "soap", "lotion", "shampoo",
+       "conditioner", "detergent", "softener", "hand wash", "body scrub", "sabun*",
+       "dus jeli*", "sampuan*", "losyon*",
+       # Ambalaj ve parca parfum degildir: sise, damlalik, atomizer, pompa basligi.
+       "dropper", "pipette", "atomizer", "spray top", "pump top", "spray pump", "refillable",
+       "sub bottle", "bottle cap", "perspiration pad", "sweat pad", "underarm pad")),
     R("saglik-kozmetik/kozmetik/tirnak", 90,
       ("nail polish", "gel polish", "nail gel", "nail art", "nail tips", "press on nails",
        "nail lamp", "nail drill", "manicure", "pedicure", "nail file", "nail clipper",
@@ -706,7 +717,10 @@ RULES: tuple[Rule, ...] = (
     R("saglik-kozmetik/kisisel-bakim", 88,
       ("personal care", "hair dryer", "hair straightener", "flat iron", "curling iron",
        "hair curler", "hot air brush", "massager", "massage gun", "kisisel bakim*",
-       "sac kurutma*", "sac duzlestirici*", "sac masa*", "masaj alet*", "masaj tabanca*"),
+       "sac kurutma*", "sac duzlestirici*", "sac masa*", "masaj alet*", "masaj tabanca*",
+       # Hijyen/cihaz urunleri (karar 0141): koku ya da sac bakimi kovasina konsa da urun turu.
+       "perspiration pad", "sweat pad", "underarm pad", "armpit pad", "straightening comb",
+       "hair straightening comb", "electric hair comb", "hot comb"),
       ("car", "dog", "pet", "stand", "holder", "case", "kilif*", "stand*", "replacement",
        "part")),
     R("saglik-kozmetik/kisisel-bakim/tiras-epilasyon", 90,
@@ -939,6 +953,8 @@ RULES: tuple[Rule, ...] = (
     # --- Petshop ----------------------------------------------------------------------
     R("petshop", 88,
       ("pet products", "pet supplies", "pet bed", "pet bowl", "pet feeder", "pet carrier",
+       "pet bag", "pet sling", "pet backpack", "pet travel bag", "puppy bag", "pet shoulder bag",
+       "puppy sling",
        "pet toy", "pet toys", "pet clothes", "pet grooming", "pet collar", "pet leash",
        "pet hair", "evcil hayvan*", "petshop", "pet shop")),
     R("petshop/kedi", 88,
@@ -956,6 +972,39 @@ RULES: tuple[Rule, ...] = (
        "kopek kiyafet*", "kopek kab*")),
     R("petshop/akvaryum", 90,
       ("aquarium", "fish tank", "aquarium filter", "aquarium pump", "akvaryum*")),
+    # --- Tekne ve deniz (karar 0141) ---------------------------------------------------
+    # "Motorcycle Equipments & Parts > Boats" gibi kovalar motosiklet dalina dusuyordu: dal yoktu.
+    R("oto-bahce/tekne-deniz", 90,
+      ("boat", "boating", "outboard", "outboard motor", "outboard engine", "yacht", "jet ski",
+       "jetski", "personal watercraft", "trolling motor", "marine stereo", "marine radio",
+       "marine hardware", "marine engine", "marine grade", "marine battery", "marine speaker",
+       "marine light", "tekne*", "deniz arac*"),
+      ("boat neck", "boat shoe", "boat sock", "boat tote", "tote", "toy", "rc", "rc boat",
+       "model", "oyuncak*", "dress", "sweater", "shirt", "sandal", "slipper", "bag", "shoe",
+       "kids", "diecast", "gemi maket*")),
+    # --- Banyo ve vucut bakimi (karar 0141): "Shower Gel ... Fragrance" parfum degildir -------
+    R("saglik-kozmetik/kisisel-bakim/banyo-vucut", 88,
+      ("shower gel", "body wash", "shower milk", "bath milk", "bath bomb", "bath salt",
+       "bubble bath", "body scrub", "bath scrub", "bath brush", "shower brush", "body brush",
+       "back scrubber", "loofah", "exfoliating glove", "bath glove", "scrub glove",
+       "bath sponge", "shower sponge", "body sponge", "exfoliating towel", "exfoliating scrub",
+       "scrub towel", "bar soap", "hand soap", "bath shower", "banyo urun*", "dus jeli*",
+       "vucut yikama*", "sabun*"),
+      ("dog", "pet", "cat", "kopek*", "kedi*", "baby", "kids", "bebek*", "mold", "mould",
+       "making", "dispenser", "dish", "holder", "box", "curtain", "mat", "bathtub",
+       "cleaning", "car", "laundry", "kitchen", "detergent", "camasir*", "sabunluk*")),
+    # --- Masa ve kart oyunlari (karar 0141): oyun mati fare altligi degildir ------------------
+    R("kitap-muzik-hobi/masa-kart-oyunlari", 90,
+      ("playmat", "play mat", "tcg", "ccg", "trading card", "card game", "board game",
+       "tabletop game", "playing cards", "poker cards", "card sleeve", "deck box",
+       "kutu oyun*", "kart oyun*", "masa oyun*", "iskambil*"),
+      ("baby", "infant", "toddler", "crawling", "bebek*", "yoga", "pet", "dog", "cat", "kopek*",
+       "kedi*", "gym", "exercise", "fitness", "car", "toy", "wallpaper")),
+    # Ambalaj alan isareti (yalniz celiski olcer): sise/damlalik/atomizer "parfum" ya da "ozel
+    # bakim" degildir, ambalajdir; kaynak kozmetik dalina koyduysa baslik bunu desteklemelidir.
+    R("ev-yasam", 80,
+      ("dropper", "pipette", "atomizer", "refillable", "sub bottle", "empty bottle", "spray top",
+       "pump top", "bottle cap", "diffuser bottle"), cue=True),
     # --- Guc ve batarya (karar 0139) ---------------------------------------------------
     R("elektronik/guc-batarya/batarya", 90,
       ("lithium battery", "lithium ion battery", "li ion battery", "lifepo4 battery",
@@ -1156,6 +1205,7 @@ ACCESSORY_PREFIXES: tuple[str, ...] = (
     "oto-bahce/oto-aksesuar",
     "oto-bahce/oto-yedek-parca",
     "oto-bahce/oto-elektronik",
+    "oto-bahce/tekne-deniz",
 )
 
 # fmt: off
@@ -1234,6 +1284,10 @@ LEXICON: dict[str, tuple[str, ...]] = {
     "anne-bebek/bebek-arabasi": ("bebek arabası", "puset"),
     "anne-bebek/bebek-arabasi/aksesuar": ("bebek arabası aksesuarı",),
     "oto-bahce/bahce/mangal-barbeku": ("mangal", "barbekü"),
+    # karar 0141
+    "oto-bahce/tekne-deniz": ("tekne", "tekne parçası", "deniz aracı"),
+    "saglik-kozmetik/kisisel-bakim/banyo-vucut": ("duş jeli", "banyo ve vücut bakımı"),
+    "kitap-muzik-hobi/masa-kart-oyunlari": ("kutu oyunu", "kart oyunu", "masa oyunu"),
 }
 
 #: Arama esanlamlari (kind='synonym'): AliExpress basliklari Ingilizcedir. Ayni `normalized`

@@ -35,7 +35,7 @@ from collections.abc import Callable, Iterable, Sequence
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from classify.categories import guess_source, is_within
+from classify.categories import guess_source, is_within, source_gender
 from classify.decide import Decision, ProductFacts, SourceVerdict, decide
 from classify.taxonomy import ACCESSORY_PREFIXES, all_paths
 
@@ -137,7 +137,12 @@ def verdict_for(source_category: str) -> SourceVerdict | None:
         return None
     guess = guess_source(source_category)
     path = guess.path
-    return SourceVerdict(path, guess.confidence if path else 0, "suggested" if path else "unmapped")
+    return SourceVerdict(
+        path,
+        guess.confidence if path else 0,
+        "suggested" if path else "unmapped",
+        source_gender(source_category),
+    )
 
 
 def decide_row(row: LabeledRow, cache: dict[str, SourceVerdict | None] | None = None) -> Decision:
