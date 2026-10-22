@@ -75,6 +75,9 @@ karşılaştırmak (toplam ve en eski olay).
 | D. Aylık bölümleme | Eski ay `DROP PARTITION` ile ucuz silinir | Saklama süresi dışı | Migration + tablo yeniden kurulumu; harici motor kararıyla |
 | E. Süreli saklama | N günden eski satır silinir | N günden eski değişim | Harici motor ilk doldurmayı tablolardan yaptığında |
 
+**Güncelleme (karar 0143):** C uygulandı, genişletilerek: `feed_change` yalnız başlık/marka/kategori/kapak
+görseli değişince yazılır (fiyat, stok, indirim, komisyon yazmaz).
+
 **Öneri:** şimdilik A. Günlük büyüme ölçüldüğünde ~100 MB/gün'ü (≈ ayda 3 GB) aşıyorsa önce C (en
 ucuz, kayıpsız), gerekirse B. D/E harici arama motoru kararıyla birlikte. Hiçbiri bu karar kapsamında
 uygulanmaz; 5.572.716 kayıt silinmez ve işlenmiş işaretlenmez.
