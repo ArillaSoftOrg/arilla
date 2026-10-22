@@ -1,5 +1,5 @@
 /**
- * 0096_external_category_reference.sql karsiligi (karar 0143): dis kaynak (Trendyol) kategori
+ * 0096_external_category_reference.sql + 0098 (karar 0143, 0144) karsiligi: dis kaynak (Trendyol) kategori
  * referans agaci. ManiCepte `category` agacindan ayridir; `external_id` dahili `category.id`
  * ile karismaz. Kisitlar ve indeksler burada TEKRARLANMAZ; tek sahibi migration'dir.
  */
@@ -7,6 +7,7 @@ import {
   bigint,
   boolean,
   integer,
+  jsonb,
   pgTable,
   primaryKey,
   smallint,
@@ -19,8 +20,12 @@ export const externalCategoryImport = pgTable("external_category_import", {
   source: text("source").notNull(),
   sourceSha256: text("source_sha256").notNull(),
   categoryCount: integer("category_count").notNull(),
-  rootCount: integer("root_count").notNull(),
-  maxDepth: smallint("max_depth").notNull(),
+  /** 0098: hiyerarsisi bilinmeyen kaynakta (Hepsiburada sitemap) NULL. */
+  rootCount: integer("root_count"),
+  maxDepth: smallint("max_depth"),
+  /** 0098 (karar 0144): kaynagin turu. */
+  sourceKind: text("source_kind").$type<"api" | "sitemap">().notNull().default("api"),
+  suspectCount: integer("suspect_count").notNull().default(0),
   importedAt: timestamp("imported_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
@@ -31,12 +36,25 @@ export const externalCategory = pgTable(
     externalId: bigint("external_id", { mode: "number" }).notNull(),
     parentExternalId: bigint("parent_external_id", { mode: "number" }),
     name: text("name").notNull(),
-    depth: smallint("depth").notNull(),
-    isLeaf: boolean("is_leaf").notNull(),
-    pathIds: bigint("path_ids", { mode: "number" }).array().notNull(),
-    pathText: text("path_text").notNull(),
+    /** 0098: `hierarchy_status = 'unknown'` iken depth/isLeaf/pathIds/pathText NULL. */
+    depth: smallint("depth"),
+    isLeaf: boolean("is_leaf"),
+    pathIds: bigint("path_ids", { mode: "number" }).array(),
+    pathText: text("path_text"),
     importId: bigint("import_id", { mode: "number" }).notNull(),
     retiredAt: timestamp("retired_at", { withTimezone: true }),
+    /** 0098 (karar 0144). */
+    hierarchyStatus: text("hierarchy_status")
+      .$type<"verified" | "unknown">()
+      .notNull()
+      .default("verified"),
+    nameBasis: text("name_basis").$type<"source" | "slug">().notNull().default("source"),
+    /** `suspect`: eslestirilemez, siniflandirmada kullanilmaz. */
+    quality: text("quality").$type<"valid" | "suspect">().notNull().default("valid"),
+    qualityReason: text("quality_reason"),
+    slug: text("slug"),
+    sourceUrl: text("source_url"),
+    sourceAttrs: jsonb("source_attrs").$type<Record<string, unknown>>().notNull().default({}),
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.source, table.externalId] })],

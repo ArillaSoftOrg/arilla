@@ -21,7 +21,7 @@ Kaynak: kullanıcının sağladığı `categories.raw.xml` (Hepsiburada kategori
 | Benzersiz slug | 5.953; **303 slug birden çok ID'de** (örn. `dus-aksesuarlari` 18021932 & 13003275) |
 | Bozuk URL | 1 (`sauna-ekipmanlari`, ana adres ve `-c-80857470` iki kez; iki ID parçası aynı olduğu için ID 80857470 kurtarıldı, `urlAnomaly` ile işaretli) |
 | Büyük harfli slug (`Icecekler`, `Ithal`) | 33 — Türkçe İ/ı'nın bozuk ASCII'leştirilmesi; olduğu gibi tutuldu |
-| Yer tutucu ID | 27: `0` (`hepsiburada-com`) ve 2147483634…2147483646 (INT_MAX'a yakın; `kitaplar`, `telefonlar`, `muzik`, `filmler`, `giyim-ayakkabi`… eski üst başlık görünümlü) |
+| Yer tutucu ID | 27: `0` (`hepsiburada-com`) ve 2147483601…2147483646 (INT_MAX'a yakın; `kitaplar`, `telefonlar`, `muzik`, `filmler`, `giyim-ayakkabi`… eski üst başlık görünümlü) |
 | ID aralığı | 0–2.147.483.646; 8 haneli 4.776, 5–7 haneli 1.376 |
 
 Dosyada **ana/yaprak ayrımı, ebeveyn ID, derinlik ve durum yoktur**. 303 slug'ın birden çok ID'de görünmesi
