@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { REMOVAL_MISSED_SCANS, verifyFullScan } from "./discovery-presence.ts";
 
-const done = (n: number) => Array.from({ length: n }, () => ({ kind: "sitemap_file", status: "done" }));
+const done = (n: number) =>
+  Array.from({ length: n }, () => ({ kind: "sitemap_file", status: "done" }));
 
 describe("verifyFullScan (karar 0140)", () => {
   it("accepts a run whose every sitemap file is done", () => {

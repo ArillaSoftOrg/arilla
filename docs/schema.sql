@@ -2747,6 +2747,9 @@ CREATE TABLE catalog_discovery_scan_state (
     last_finalized_run_id BIGINT      NOT NULL REFERENCES collection_run(id),
     finalized_at          TIMESTAMPTZ NOT NULL DEFAULT now()
 );
+-- 0093 (karar 0140): kaldırılma takibi kısmi indeksi (concurrent).
+CREATE INDEX catalog_discovery_unhealthy_idx ON catalog_discovery (source)
+    WHERE presence <> 'present' OR missed_scans <> 0;
 
 -- 0084 (karar 0130): kesif defterinden taslak urun aktarimi kontrol noktasi. Anahtar metin
 -- oldugu icin `catalog_build_state`'ten ayri; parti + kontrol noktasi ayni islemde.

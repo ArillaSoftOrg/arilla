@@ -7,7 +7,7 @@
  * Hiçbir satır silinmez.
  */
 import { catalogDiscovery, collectionUnit, type Database } from "@arilla/db";
-import { and, eq, sql } from "drizzle-orm";
+import { and, eq, ne, or, sql } from "drizzle-orm";
 
 export const REMOVAL_MISSED_SCANS = 2;
 
@@ -77,6 +77,7 @@ export async function applyRunPresence(
     return { applied: false, verdict: null, seen: 0, missed: 0, removed: 0 };
   }
 
+  // Yalnızca değişen satırlar yazılır: sağlıklı satırların yeniden yazılması WAL üretir.
   const seenRows = await tx
     .update(catalogDiscovery)
     .set({ missedScans: 0, presence: "present" })
@@ -84,6 +85,7 @@ export async function applyRunPresence(
       and(
         eq(catalogDiscovery.source, input.source),
         eq(catalogDiscovery.lastSeenRunId, input.runId),
+        or(ne(catalogDiscovery.missedScans, 0), ne(catalogDiscovery.presence, "present")),
       ),
     )
     .returning({ id: catalogDiscovery.externalId });
@@ -95,6 +97,7 @@ export async function applyRunPresence(
                            THEN 'removed' ELSE 'missing' END
      WHERE source = ${input.source}
        AND last_seen_run_id <> ${input.runId}
+       AND presence <> 'removed'
     RETURNING presence
   `);
   const removed = missedRows.rows.filter((r) => (r as { presence: string }).presence === "removed");
