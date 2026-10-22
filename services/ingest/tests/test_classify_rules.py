@@ -26,6 +26,7 @@ MIGRATIONS = tuple(
         "0089_category_taxonomy.sql",
         "0091_category_taxonomy_v3.sql",
         "0094_category_taxonomy_v4.sql",
+        "0095_category_taxonomy_v5.sql",
     )
 )
 NODE = re.compile(r"\('([a-z0-9/-]+)', '([^']+)', (?:TRUE|FALSE)\)")

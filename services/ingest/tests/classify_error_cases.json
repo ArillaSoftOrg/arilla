@@ -1,5 +1,5 @@
 {
-  "_doc": "Karar 0141: uretim ornegi (196 urun) hatalarindan turetilen regresyon seti. origin=prod-sample-196 gercek baslik+kaynak yolu; synthetic = ayni kok nedenin genellemesi ve koruma (dogru kalmasi gereken) vakalari. expect.path/state tam esitlik, expect.must_not yasakli yollar (yanlis atamayi yeniden uretmesin), expect.detail incelemenin nedeni. Etiketler model/gelistirici yargisidir; insan dogrulamasi yok. Kimlik/urun-ozel kural YOK: bu vakalar kok nedenin genel kurallarini sinar.",
+  "_doc": "Karar 0141: uretim ornegi (196 urun) hatalarindan turetilen regresyon seti. origin=prod-sample-196 gercek baslik+kaynak yolu; synthetic = ayni kok nedenin genellemesi ve koruma (dogru kalmasi gereken) vakalari. expect.path/state tam esitlik, expect.must_not yasakli yollar (yanlis atamayi yeniden uretmesin), expect.detail incelemenin nedeni. Etiketler model/gelistirici yargisidir; insan dogrulamasi yok. Kimlik/urun-ozel kural YOK: bu vakalar kok nedenin genel kurallarini sinar. Karar 0142: origin=prod-sample-189 ikinci uretim orneginden (189 urun) gelistirme yarisindaki 8 hata; synthetic vakalar ayni kok nedenleri ve korumayi sinar.",
   "cases": [
     {
       "title": "Spes Shower Gel Tent Goose Pear Scent Bath Shower Milk Moisturizing, Cleansing, Refreshing and Long-lasting Fragrance 500ml",
@@ -279,10 +279,11 @@
       "title": "Cat Moon Duffel Bag Gym Travel Tote Luggage Weekend",
       "source_category": "Luggage & Bags > Travel Bags",
       "expect": {
-        "path": "moda/canta/valiz",
-        "state": "applied"
+        "path": "moda/canta/spor-seyahat-cantasi",
+        "state": "applied",
+        "must_not": ["moda/canta/valiz"]
       },
-      "why": "koruma: 'cat' baski deseni evcil hayvan urunu yapmaz",
+      "why": "koruma: 'cat' baski deseni evcil hayvan urunu yapmaz; duffel spor/seyahat cantasidir, valiz degil (karar 0142)",
       "origin": "synthetic"
     },
     {
@@ -326,6 +327,207 @@
         "must_not": ["ev-yasam/yapi-market/el-aletleri"]
       },
       "why": "peruk aksesuari: ust bolum yaprak adini ezer, baslik dogrular",
+      "origin": "synthetic"
+    },
+    {
+      "title": "10 PCS Silicone Urinal Screen Deodorizers Purple Blue Triangle Shape Scented Urinal Mat Scented Anti Splash Design",
+      "source_category": "Beauty & Health > Fragrances & Deodorants",
+      "expect": {
+        "state": "review",
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
+      },
+      "why": "pisuar koku gidericisi parfum degildir (kullanim amaci)",
+      "origin": "prod-sample-189"
+    },
+    {
+      "title": "10ml Frosted Glass Roller Bottles 5 Pack Empty Essential Oil Perfume Containers Leakproof Portable",
+      "source_category": "Beauty & Health > Fragrances & Deodorants",
+      "expect": {
+        "state": "review",
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
+      },
+      "why": "bos parfum/roll-on sisesi ambalajdir",
+      "origin": "prod-sample-189"
+    },
+    {
+      "title": "10Pcs Cut Line Cap Essential Oil Roll-on Bottles Leakproof Glass Perfume Containers Travel Portable Rollerball Bottle Set",
+      "source_category": "Beauty & Health > Fragrances & Deodorants",
+      "expect": {
+        "state": "review",
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
+      },
+      "why": "bos roll-on sisesi ambalajdir",
+      "origin": "prod-sample-189"
+    },
+    {
+      "title": "Wooden Essential Oil Diffuser Small Portable Passive Aromatherapy Decor for Home Office Living Room",
+      "source_category": "Beauty & Health > Fragrances & Deodorants",
+      "expect": {
+        "state": "review",
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
+      },
+      "why": "aroma difuzoru ev dekorasyonu, parfum degil",
+      "origin": "prod-sample-189"
+    },
+    {
+      "title": "Wrestler Roman Reigns Wrestling Large Duffle Gym Bag Waterproof Duffle Travel Bags Handbags Fitness bag",
+      "source_category": "Luggage & Bags > Travel Bags",
+      "expect": {
+        "path": "moda/canta/spor-seyahat-cantasi",
+        "state": "applied",
+        "must_not": ["moda/canta/valiz"]
+      },
+      "why": "duffel spor cantasi valiz degildir",
+      "origin": "prod-sample-189"
+    },
+    {
+      "title": "Frieren Beyond Journey's End Anime (11) Beach Tote Bag Sport Gym Yoga Duffle Large Tote Bag Women Travel Bag Fitness bag",
+      "source_category": "Luggage & Bags > Travel Bags",
+      "expect": {
+        "must_not": ["moda/canta/valiz"]
+      },
+      "why": "plaj/spor cantasi valiz degildir",
+      "origin": "prod-sample-189"
+    },
+    {
+      "title": "Baby High Chair Cushions Cover Shopping Cart Seat Breathable Foam For Infant Chair Comfortable Cushions Cloth Seat Cover",
+      "source_category": "Mother & Kids > Baby Strollers&Accessories",
+      "expect": {
+        "state": "review",
+        "must_not": ["anne-bebek/bebek-arabasi/aksesuar"]
+      },
+      "why": "mama sandalyesi minderi bebek arabasi aksesuari degildir",
+      "origin": "prod-sample-189"
+    },
+    {
+      "title": "Baby Chair Cushion Oxford Cover Compatible Dinner High Chair Seat Case Cartoon Replacement Protection Pad Baby Accessories",
+      "source_category": "Mother & Kids > Baby Strollers&Accessories",
+      "expect": {
+        "state": "review",
+        "must_not": ["anne-bebek/bebek-arabasi/aksesuar"]
+      },
+      "why": "mama sandalyesi kilifi bebek arabasi aksesuari degildir",
+      "origin": "prod-sample-189"
+    },
+    {
+      "title": "Empty Amber Glass Roll On Bottles 10ml for Essential Oils Perfume",
+      "source_category": "Beauty & Health > Fragrances & Deodorants",
+      "expect": {
+        "state": "review",
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
+      },
+      "why": "bos kap, 'perfume' kelimesi gecse de ambalajdir",
+      "origin": "synthetic"
+    },
+    {
+      "title": "Men Cologne Eau de Toilette 100ml Woody Long Lasting",
+      "source_category": "Beauty & Health > Fragrances & Deodorants",
+      "expect": {
+        "path": "saglik-kozmetik/kozmetik/parfum",
+        "state": "applied"
+      },
+      "why": "koruma: zayif kaynak + basligin dogruladigi parfum yazilir",
+      "origin": "synthetic"
+    },
+    {
+      "title": "Roll-On Deodorant for Women 48h Fresh Antiperspirant",
+      "source_category": "Beauty & Health > Fragrances & Deodorants",
+      "expect": {
+        "path": "saglik-kozmetik/kozmetik/parfum",
+        "state": "applied"
+      },
+      "why": "koruma: roll-on deodorant urunun kendisidir",
+      "origin": "synthetic"
+    },
+    {
+      "title": "Ultrasonic Aroma Diffuser 300ml Essential Oil Humidifier Night Light",
+      "source_category": "Beauty & Health > Fragrances & Deodorants",
+      "expect": {
+        "state": "review",
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
+      },
+      "why": "ortam kokusu cihazi parfum degildir",
+      "origin": "synthetic"
+    },
+    {
+      "title": "Reed Diffuser Set Home Fragrance Lavender with Sticks",
+      "source_category": null,
+      "expect": {
+        "path": "ev-yasam/dekorasyon",
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
+      },
+      "why": "kaynaksiz: ortam kokusu dekorasyon",
+      "origin": "synthetic"
+    },
+    {
+      "title": "Urinal Screen Deodorizer Cake Scented 10 Pack",
+      "source_category": "Beauty & Health > Fragrances & Deodorants",
+      "expect": {
+        "state": "review",
+        "must_not": ["saglik-kozmetik/kozmetik/parfum"]
+      },
+      "why": "tuvalet koku gidericisi parfum degildir",
+      "origin": "synthetic"
+    },
+    {
+      "title": "Large Duffle Bag Weekender Overnight Travel Bag Waterproof",
+      "source_category": "Luggage & Bags > Travel Bags",
+      "expect": {
+        "path": "moda/canta/spor-seyahat-cantasi",
+        "state": "applied"
+      },
+      "why": "hafta sonu cantasi spor/seyahat dalinda",
+      "origin": "synthetic"
+    },
+    {
+      "title": "20 Inch Carry On Suitcase Spinner Wheels Hardshell Luggage",
+      "source_category": "Luggage & Bags > Luggage",
+      "expect": {
+        "path": "moda/canta/valiz",
+        "state": "applied"
+      },
+      "why": "koruma: gercek valiz etkilenmez",
+      "origin": "synthetic"
+    },
+    {
+      "title": "Baby High Chair Cushion Seat Pad Washable Booster Cover",
+      "source_category": "Mother & Kids > Baby Strollers&Accessories",
+      "expect": {
+        "state": "review",
+        "must_not": ["anne-bebek/bebek-arabasi/aksesuar"]
+      },
+      "why": "mama sandalyesi urunu stroller kovasinda",
+      "origin": "synthetic"
+    },
+    {
+      "title": "Mommy Bag With Smart Division Easy Cleaning Large Capacity",
+      "source_category": "Mother & Kids > Baby Strollers&Accessories",
+      "expect": {
+        "state": "review",
+        "must_not": ["anne-bebek/bebek-arabasi/aksesuar"],
+        "detail": "accessory_host_missing"
+      },
+      "why": "aksesuar kovasi: baslik ana urunu (bebek arabasi) anmiyor",
+      "origin": "synthetic"
+    },
+    {
+      "title": "Stroller Hook Universal Bag Hanger for Pram 2 Pack",
+      "source_category": "Mother & Kids > Baby Strollers&Accessories",
+      "expect": {
+        "path": "anne-bebek/bebek-arabasi/aksesuar",
+        "state": "applied"
+      },
+      "why": "koruma: bebek arabasi aksesuari etkilenmez",
+      "origin": "synthetic"
+    },
+    {
+      "title": "Pushchair Footmuff Winter Warm Sleeping Bag",
+      "source_category": "Mother & Kids > Baby Strollers&Accessories",
+      "expect": {
+        "path": "anne-bebek/bebek-arabasi/aksesuar",
+        "state": "applied"
+      },
+      "why": "koruma: ana urun (pushchair) aniliyor",
       "origin": "synthetic"
     }
   ]

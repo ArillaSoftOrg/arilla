@@ -140,3 +140,13 @@ def test_existing_manual_category_is_still_kept() -> None:
         kept="ev-yasam/mutfak",
     )
     assert (d.category_path, d.category_basis) == ("ev-yasam/mutfak", "existing")
+
+
+def test_mixed_source_buckets_are_weak_or_remapped() -> None:
+    """Karar 0142: karisik koku kovasi tek basina yazmaz; "Travel Bags" valiz degildir."""
+    fragrances = guess_source("Beauty & Health > Fragrances & Deodorants")
+    assert fragrances.path == "saglik-kozmetik/kozmetik/parfum"
+    assert fragrances.confidence < 80
+    travel = guess_source("Luggage & Bags > Travel Bags")
+    assert travel.path == "moda/canta/spor-seyahat-cantasi"
+    assert guess_source("Luggage & Bags > Luggage").path == "moda/canta/valiz"
