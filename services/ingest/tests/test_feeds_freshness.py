@@ -1,4 +1,4 @@
-"""Besleme tazeligi siniflandirmasi (karar 0142). Veritabani gerekmez."""
+"""Besleme tazeligi siniflandirmasi (karar 0145). Veritabani gerekmez."""
 
 from __future__ import annotations
 

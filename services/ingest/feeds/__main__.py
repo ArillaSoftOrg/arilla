@@ -209,7 +209,7 @@ def _print_outcome(outcome: runner.FeedOutcome) -> None:
 
 
 def _daily(args: argparse.Namespace) -> int:
-    """Gunluk tazeleme (karar 0142): kesif -> senkronizasyon -> tazelik. Zamanlayici cagirir."""
+    """Gunluk tazeleme (karar 0145): kesif -> senkronizasyon -> tazelik. Zamanlayici cagirir."""
     opts = daily.DailyOptions(
         merchant=args.merchant,
         parallel_downloads=max(1, min(args.parallel_downloads, runner.MAX_PARALLEL_DOWNLOADS)),

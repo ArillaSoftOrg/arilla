@@ -176,7 +176,7 @@ describe("jobRunFindings", () => {
     expect(out.find((f) => f.key === "jobs.no_record")?.evidence).toContain("Döviz kuru");
   });
 
-  it("günlük fiyat tazeleme: 36 saatten eskiyse gecikmiş; yönlendirme batch-timers'a değil feeds-timers'a (karar 0142)", () => {
+  it("günlük fiyat tazeleme: 36 saatten eskiyse gecikmiş; yönlendirme batch-timers'a değil feeds-timers'a (karar 0145)", () => {
     const late = jobRunFindings(
       ok({ jobs: [job("feed_daily", { startedAt: ago(37 * HOUR) })], stuck: [] }),
       NOW,

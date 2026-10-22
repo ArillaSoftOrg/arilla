@@ -9,7 +9,7 @@ SYSTEMD = HERE.parent / "systemd"
 COMPOSE = HERE.parent.parent / "compose.prod.yml"
 
 # Zamanlanabilen ucretsiz moduller. enrich (Jina) ve feeds (buyuk indirme) bilerek yok.
-# Gunluk besleme tazeleme (karar 0142) AYRI bir zamanlayicidir: `feeds-timers`, onayli etkinlestirme.
+# Gunluk besleme tazeleme (karar 0145) AYRI bir zamanlayicidir: `feeds-timers`, onayli etkinlestirme.
 OPT_IN_UNITS = {"arilla-feeds-daily"}
 ALLOWED_MODULES = {"resolve", "similarity", "pricing", "affiliate"}
 RUN_PREFIX = (

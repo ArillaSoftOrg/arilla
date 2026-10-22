@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Gunluk AliExpress fiyat tazeleme zamanlayicisi (karar 0142). batch-timers'tan AYRIDIR:
+# Gunluk AliExpress fiyat tazeleme zamanlayicisi (karar 0145). batch-timers'tan AYRIDIR:
 # buyuk besleme indirmesi disk/WAL yuku getirir; etkinlestirme bilincli ve onaylidir.
 # ROOT ile, ELLE:
 #

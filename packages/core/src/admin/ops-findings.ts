@@ -402,7 +402,7 @@ const STAGE_JOB_NAMES = new Set(Object.values(STAGE_JOBS).flat());
 /** Gecikmiş zamanlanmış iş için ne yapılacağı. Besleme zamanlayıcısı `batch-timers`'ta DEĞİLDİR. */
 function overdueAction(job: string, how: string): string {
   if (job === "feed_daily")
-    return "VPS'te `feeds-timers status` ve `systemctl --failed` ile kontrol edin; kurulu değilse etkinleştirme ayrı onay adımıdır (docs/ops.md, karar 0142).";
+    return "VPS'te `feeds-timers status` ve `systemctl --failed` ile kontrol edin; kurulu değilse etkinleştirme ayrı onay adımıdır (docs/ops.md, karar 0145).";
   return how.startsWith("python")
     ? "VPS'te `batch-timers status` ve `systemctl --failed` ile zamanlayıcıyı kontrol edin; kurulu değilse `batch-timers install`."
     : "VPS cron konteynerini (`docker compose ps cron`, günlüğü) ve CRON_SECRET'ı kontrol edin.";

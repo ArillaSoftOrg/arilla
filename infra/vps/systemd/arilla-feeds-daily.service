@@ -1,5 +1,5 @@
 [Unit]
-Description=Arilla gunluk AliExpress fiyat tazeleme: kesif + besleme senkronizasyonu + tazelik olcumu (karar 0142)
+Description=Arilla gunluk AliExpress fiyat tazeleme: kesif + besleme senkronizasyonu + tazelik olcumu (karar 0145)
 Requires=docker.service
 After=docker.service
 OnFailure=arilla-alert@%n.service

@@ -1,4 +1,4 @@
-"""Birden fazla beslemeyi sirayla senkronize eder (karar 0114, 0142).
+"""Birden fazla beslemeyi sirayla senkronize eder (karar 0114, 0145).
 
 `feeds sync-due` ve `feeds daily` ayni dongüyu kullanir: indirmeler PARALEL
 (en fazla 4), isleme SIRAYLA; bir besleme digerini durdurmaz. Her indirme bos

@@ -1,4 +1,4 @@
-"""Gunluk besleme tazeleme: veritabani uzerinde uctan uca (karar 0142).
+"""Gunluk besleme tazeleme: veritabani uzerinde uctan uca (karar 0145).
 
 Gercek Admitad/AliExpress'e istek YOK: ag ve indirme sahtedir, besleme icerigi
 sentetiktir (`tests/feed_fixtures.py`). Uygulama rolu (arilla_app) kullanilir.

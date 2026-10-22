@@ -1,4 +1,4 @@
-"""Gunluk besleme tazeleme (karar 0142): kesif -> senkronizasyon -> tazelik olcumu.
+"""Gunluk besleme tazeleme (karar 0145): kesif -> senkronizasyon -> tazelik olcumu.
 
 AliExpress fiyatlari Admitad beslemesinden gelir (karar 0112); bu modul
 BESLEME MOTORUNA YENI MANTIK EKLEMEZ. Var olan parcalari sirayla ve guvenle

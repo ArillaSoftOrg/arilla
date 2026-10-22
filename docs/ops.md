@@ -1358,7 +1358,7 @@ Siz feed'lerden veri topluyorsunuz; rakip de sizden toplamaya çalışacak.
 ## Besleme keşfi ve senkronizasyonu (karar 0111, 0112)
 
 **Durum:** Kod ve testler hazır. Üretimde zamanlanmış çalışma **yok**; günlük çalışma için
-bkz. "Günlük AliExpress fiyat tazeleme (karar 0142)" (etkinleştirme ayrı onaylı adım).
+bkz. "Günlük AliExpress fiyat tazeleme (karar 0145)" (etkinleştirme ayrı onaylı adım).
 
 **Ortam:**
 - `ADMITAD_CLIENT_ID` ve `ADMITAD_CLIENT_SECRET`: `worker.env`'e eklenir.
@@ -1435,7 +1435,7 @@ Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-stagin
   biçim girilir (örn. `{affiliate_url}&subid={click_id}`).
 - Yönetim: `/yonetim/ingest/beslemeler` (salt okunur).
 
-## Günlük AliExpress fiyat tazeleme (karar 0142)
+## Günlük AliExpress fiyat tazeleme (karar 0145)
 
 **Durum:** Kod ve testler hazır. Zamanlayıcı üretimde **kurulu değil**; kurulumu ayrı ve
 onaylı bir adımdır (`feeds-timers install --confirm`). `batch-timers` bu birimi **kurmaz**.
@@ -1477,7 +1477,7 @@ Seçenekler (`daily`): `--retries N` (varsayılan 2), `--retry-wait-seconds` (60
 
 **Etkinleştirme kontrol listesi (hepsi tamamlanmadan `install --confirm` çalıştırılmaz):**
 
-1. Karar 0142'nin migration'ı yoktur; üretimde şema değişikliği gerekmez.
+1. Karar 0145'nin migration'ı yoktur; üretimde şema değişikliği gerekmez.
 2. `worker.env` içinde `ADMITAD_CLIENT_ID/SECRET` tanımlı; AliExpress beslemesi `active` ve
    `aliexpress` merchant'ına bağlı (`feeds list`).
 3. İlk yükleme aşama kapıları geçilmiş: besleme için en az bir `complete` sürüm var
@@ -1509,7 +1509,7 @@ verir; systemd `arilla-alert@` alarmı gönderir. 36 saat koşu yoksa panel "zam
 **Sınırlar.** Kaynak günde bir kez güncellenmeyebilir: fiyat taze demek kaynak kadar taze demektir.
 `--max-source-age-hours` (varsayılan 168) Admitad'in gerçek güncelleme sıklığı ölçülmeden
 kesinleşmez; ilk haftanın `source_age_hours` değerleriyle ayarlanır. Eski fiyatı **gizleyen** okuma
-yolu koruması bu işin kapsamında değildir (karar 0142 "Sınırlar ve açık işler").
+yolu koruması bu işin kapsamında değildir (karar 0145 "Sınırlar ve açık işler").
 
 ## Affiliate dönüşümleri (karar 0128)
 

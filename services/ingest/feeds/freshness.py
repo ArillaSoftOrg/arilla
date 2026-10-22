@@ -1,4 +1,4 @@
-"""Besleme fiyatlarinin tazeligi (karar 0142). YALNIZCA OKUR.
+"""Besleme fiyatlarinin tazeligi (karar 0145). YALNIZCA OKUR.
 
 Iki ayri tarih vardir ve karistirilmaz:
 
@@ -11,7 +11,7 @@ sayilir. Offer'in kendi `last_seen_at`'ine bakilmaz: degismeyen offer satiri
 yeniden yazilmaz (karar 0114), "goruldu" bilgisi `feed_source_offer`'dadir.
 
 Bu modul fiyat gizlemez, offer pasiflestirmez: gorunurluk karari okuma
-yolundadir (karar 0142 "Sinirlar"). Burada yalnizca olcum ve siniflandirma var.
+yolundadir (karar 0145 "Sinirlar"). Burada yalnizca olcum ve siniflandirma var.
 """
 
 from __future__ import annotations

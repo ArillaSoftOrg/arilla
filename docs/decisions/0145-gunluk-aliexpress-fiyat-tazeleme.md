@@ -1,4 +1,4 @@
-# 0142 — Günlük AliExpress fiyat tazeleme
+# 0145 — Günlük AliExpress fiyat tazeleme
 
 **Tarih:** 22 Ekim 2026
 **Durum:** Kabul edildi. Kod ve testler hazır; **üretimde zamanlayıcı kurulu değil**, etkinleştirme
