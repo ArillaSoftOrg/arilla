@@ -13,7 +13,8 @@
  * `conflict` döner, hiçbir şey değişmez. `updated_at` kullanılmaz: curate işi
  * bağları yeniden yazarken onu da günceller.
  *
- * `trend_product` (ürün bağları) curate işinindir ve burada YAZILMAZ.
+ * `trend_product` (ürün bağları) burada YAZILMAZ: otomatik trendde curate işinin,
+ * elle seçilmiş (`curation = 'manual'`) trendde `trend-collections.ts`'in (karar 0149).
  */
 import { type Database, trend } from "@arilla/db";
 import { eq, sql } from "drizzle-orm";
@@ -65,6 +66,8 @@ export interface AdminTrendRow {
   category: string;
   trendType: string;
   status: TrendStatus;
+  /** Bağların sahibi (karar 0147): `manual` = editör, `auto` = curate. */
+  curation: "auto" | "manual";
   featured: boolean;
   sortOrder: number;
   activeFrom: Date | null;
@@ -103,6 +106,7 @@ export async function listTrendsForAdmin(
       category: string;
       trend_type: string;
       status: TrendStatus;
+      curation: "auto" | "manual";
       featured: boolean;
       sort_order: Num;
       active_from: Date | string | null;
@@ -110,7 +114,7 @@ export async function listTrendsForAdmin(
       linked: Num;
       showable: Num;
     }>(sql`
-      SELECT t.id, t.slug, t.title, t.category, t.trend_type, t.status, t.featured, t.sort_order,
+      SELECT t.id, t.slug, t.title, t.category, t.trend_type, t.status, t.curation, t.featured, t.sort_order,
              t.active_from, t.active_until,
              count(tp.product_id) AS linked,
              count(p.id) AS showable
@@ -139,6 +143,7 @@ export async function listTrendsForAdmin(
           category: row.category,
           trendType: row.trend_type,
           status: row.status,
+          curation: row.curation,
           featured: row.featured,
           sortOrder: Number(row.sort_order ?? 0),
           activeFrom,
@@ -164,7 +169,23 @@ export type TrendMutationResult =
   | { status: "updated" }
   | { status: "unchanged" }
   | { status: "not_found" }
-  | { status: "conflict" };
+  | { status: "conflict" }
+  /** Yayın kapısı (karar 0149): gösterilebilir ürün `MIN_PUBLIC_TREND_PRODUCTS` altında. */
+  | { status: "below_threshold"; showable: number; required: number };
+
+/** Trendin şu an gösterilebilir (görselli + fiyatlı + stokta, yayında) bağlı ürün sayısı. */
+export async function countShowableTrendProducts(
+  tx: Pick<Database, "execute">,
+  trendId: number,
+): Promise<number> {
+  const rows = await tx.execute<{ n: Num }>(sql`
+    SELECT count(*) AS n
+      FROM trend_product tp
+      JOIN product p ON p.id = tp.product_id AND ${TREND_SHOWABLE_PRODUCT_SQL}
+     WHERE tp.trend_id = ${trendId}
+  `);
+  return Number(rows.rows[0]?.n ?? 0);
+}
 
 function requireId(value: unknown): number {
   if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
@@ -196,7 +217,12 @@ async function lockTrend(tx: Parameters<Parameters<Database["transaction"]>[0]>[
   return rows[0];
 }
 
-/** Durum geçişi. Yayın eşik altındaysa da yapılabilir; public kural yine gizler (ekranda uyarılır). */
+/**
+ * Durum geçişi. Yayına alma (karar 0149) aynı işlemde, satır kilidinden SONRA eşiği
+ * denetler: gösterilebilir ürün `MIN_PUBLIC_TREND_PRODUCTS` altındaysa `below_threshold`
+ * döner, hiçbir şey yazılmaz. Yayındaki trendin sonradan eşik altına düşmesi (stok) public
+ * kuralla gizlenir; bu kapı yalnızca bilinçli yayın kararını korur.
+ */
 export async function setTrendStatus(
   db: Database,
   actor: AdminActor,
@@ -216,6 +242,12 @@ export async function setTrendStatus(
     const current = await lockTrend(tx, id);
     if (!current) return { status: "not_found" };
     if (current.status !== input.expectedStatus) return { status: "conflict" };
+    if (next === "published") {
+      const showable = await countShowableTrendProducts(tx, id);
+      if (showable < MIN_PUBLIC_TREND_PRODUCTS) {
+        return { status: "below_threshold", showable, required: MIN_PUBLIC_TREND_PRODUCTS };
+      }
+    }
     await tx.update(trend).set({ status: next, updatedAt: new Date() }).where(eq(trend.id, id));
     await recordAdminEvent(tx, {
       actor,

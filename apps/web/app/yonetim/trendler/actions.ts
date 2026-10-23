@@ -28,6 +28,11 @@ function done(result: Awaited<ReturnType<typeof setTrendStatus>>): TrendActionRe
       return { ok: false, message: "Trend bulunamadı." };
     case "conflict":
       return { ok: false, message: "Trend bu arada değişti. Sayfayı yenileyip tekrar dene." };
+    case "below_threshold":
+      return {
+        ok: false,
+        message: `Yayın için en az ${result.required} gösterilebilir ürün gerekli (şu an ${result.showable}).`,
+      };
   }
 }
 
