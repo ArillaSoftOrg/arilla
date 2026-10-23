@@ -6,6 +6,8 @@ uzerinde indeksli `LIKE ANY`) -> Python puanlama ve cesitlilikli secim ->
 
 Varsayilan KURU KOSUDUR: hicbir sey yazmaz, rapor basar. Yazim tek islemde,
 trend basina "sil + ekle"dir; ayni girdi ayni sonucu verir (idempotent).
+Yalnizca `curation = 'auto'` trendler islenir: `manual` trendin baglari editorundur,
+bu is onlari okumaz ve yazmaz (karar 0147).
 Bu is HTTP sunmaz; TypeScript tarafi onu cagirmaz, yalnizca `trend_product`
 satirlarini okur.
 """
@@ -118,10 +120,11 @@ def curate_trend(conn: psycopg.Connection, slug: str, title: str) -> TrendResult
 
 
 def load_trends(conn: psycopg.Connection, slugs: list[str] | None) -> list[tuple[int, str, str]]:
-    """Yayinlanmis ve taslak trendler (taslak baglari da hazir tutulur; arayuz yalniz
-    yayinlananlari okur). `trend` tablosu YOKSA (0056 uygulanmamis ortam) profillerden
-    `(0, slug, slug)` doner: yalniz KURU KOSU icin; yazim yolu `trend_id = 0` ile
-    asla calismaz (`run` bunu reddeder)."""
+    """Yayinlanmis ve taslak OTOMATIK trendler (taslak baglari da hazir tutulur; arayuz
+    yalniz yayinlananlari okur). `manual` trendler `--slug` ile istense bile donmez.
+    `trend` tablosu YOKSA (0056 uygulanmamis ortam) profillerden `(0, slug, slug)` doner:
+    yalniz KURU KOSU icin; yazim yolu `trend_id = 0` ile asla calismaz (`run` bunu
+    reddeder)."""
     with conn.cursor() as cur:
         cur.execute("SELECT to_regclass('trend') IS NOT NULL")
         has_table = bool(cur.fetchone()[0])
@@ -129,21 +132,31 @@ def load_trends(conn: psycopg.Connection, slugs: list[str] | None) -> list[tuple
             return [(0, p.slug, p.slug) for p in PROFILES if not slugs or p.slug in slugs]
         cur.execute(
             "SELECT id, slug, title FROM trend WHERE status IN ('published', 'draft') "
+            "AND curation = 'auto' "
             "AND (%(all)s OR slug = ANY(%(slugs)s)) ORDER BY sort_order, id",
             {"all": not slugs, "slugs": slugs or []},
         )
         return list(cur.fetchall())
 
 
-def write_trend(conn: psycopg.Connection, trend_id: int, result: TrendResult) -> None:
+def write_trend(conn: psycopg.Connection, trend_id: int, result: TrendResult) -> bool:
     """Trend baglarini yeniden yazar. Esigin altindaki trend icin baglar TEMIZLENIR
-    (eski eslesme bayatlamis olabilir; az urunle bozuk izgara gosterilmez)."""
+    (eski eslesme bayatlamis olabilir; az urunle bozuk izgara gosterilmez).
+
+    Silmeden once trend satiri kilitlenir ve `curation` yeniden okunur: `load_trends`
+    ile bu an arasinda trendi `manual`a ceviren islem ya COMMIT etmistir (burada
+    gorulur, yazim atlanir) ya da kilidi tutar (burada beklenir, sonra gorulur).
+    Yazildiysa True, atlandiysa False."""
     rows = (
         [(trend_id, s.candidate.product_id, i) for i, s in enumerate(result.selected)]
         if result.count >= MIN_PUBLIC_PRODUCTS
         else []
     )
     with conn.cursor() as cur:
+        cur.execute("SELECT curation FROM trend WHERE id = %s FOR UPDATE", (trend_id,))
+        row = cur.fetchone()
+        if row is None or row[0] != "auto":
+            return False
         cur.execute("DELETE FROM trend_product WHERE trend_id = %s", (trend_id,))
         if rows:
             cur.executemany(
@@ -151,6 +164,7 @@ def write_trend(conn: psycopg.Connection, trend_id: int, result: TrendResult) ->
                 rows,
             )
         cur.execute("UPDATE trend SET updated_at = now() WHERE id = %s", (trend_id,))
+    return True
 
 
 def run(
@@ -169,7 +183,8 @@ def run(
         if apply:
             if trend_id == 0:
                 raise RuntimeError("trend tablosu yok: --apply calistirilamaz (0056 uygulanmali)")
-            write_trend(conn, trend_id, result)
+            if not write_trend(conn, trend_id, result):
+                result.note = "manuel: atlandi"
     if apply:
         conn.commit()
     else:
