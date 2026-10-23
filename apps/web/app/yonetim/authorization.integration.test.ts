@@ -96,6 +96,7 @@ let formId = 0;
 let campaignPublicId = "";
 let feedbackMessageId = 0;
 let trackingLinkId = 0;
+let trendId = 0;
 /** Var olmayan kampanya: gönderim/iptal yolları hiçbir şeye dokunmadan döner. */
 const missingCampaign = "00000000-0000-4000-8000-000000000000";
 
@@ -160,6 +161,13 @@ beforeAll(async () => {
       [`Authz bağlantı`, `authz-${suffix.toString(36)}`],
     );
     trackingLinkId = Number(link.rows[0].id);
+    // Karar 0149: koleksiyon ayrıntı sayfası için taslak, elle seçilmiş trend.
+    const trendRow = await client.query(
+      `INSERT INTO trend (slug, title, description, category, status, curation)
+       VALUES ($1, 'Authz koleksiyon', 'Authz açıklama', 'genel', 'draft', 'manual') RETURNING id`,
+      [`authz-trend-${suffix.toString(36)}`],
+    );
+    trendId = Number(trendRow.rows[0].id);
     await client.query(
       `INSERT INTO chat_result_feedback (message_id, conversation_id, helpful)
        VALUES ($1, $2, FALSE)`,
@@ -179,6 +187,7 @@ afterAll(async () => {
     await client.query("DELETE FROM lexicon WHERE surface LIKE $1", [`authz-${suffix}%`]);
     await client.query("DELETE FROM tracking_link_click_hour WHERE link_id = $1", [trackingLinkId]);
     await client.query("DELETE FROM tracking_link WHERE id = $1", [trackingLinkId]);
+    await client.query("DELETE FROM trend WHERE id = $1", [trendId]);
     await client.query("DELETE FROM form WHERE id = $1", [formId]);
     await client.query("DELETE FROM marketing_campaign WHERE public_id = $1", [campaignPublicId]);
     await client.query("DELETE FROM product WHERE id = $1", [productId]);
@@ -407,6 +416,20 @@ const PAGES: { name: string; admin: boolean; call: () => Promise<unknown> }[] = 
     name: "/yonetim/trendler",
     admin: true,
     call: async () => (await import("./trendler/page.tsx")).default(sp({})),
+  },
+  // Karar 0149: koleksiyon oluşturma ve ayrıntı (yalnızca yönetici).
+  {
+    name: "/yonetim/trendler/yeni",
+    admin: true,
+    call: async () => (await import("./trendler/yeni/page.tsx")).default(),
+  },
+  {
+    name: "/yonetim/trendler/[id]",
+    admin: true,
+    call: async () =>
+      (await import("./trendler/[id]/page.tsx")).default({
+        params: Promise.resolve({ id: String(trendId) }),
+      }),
   },
   {
     name: "/yonetim/ayarlar",
@@ -823,6 +846,63 @@ const ACTIONS: ActionCase[] = [
         direction: "up",
         reason: "yetki matrisi denemesi",
       }),
+  },
+  // Karar 0149: geçersiz girdi, kapıyı geçen rolde doğrulama hatasıyla döner (yazım yok).
+  {
+    module: "trendler",
+    name: "createTrendAction",
+    moderator: false,
+    call: async () =>
+      (await import("./trendler/actions.ts")).createTrendAction({
+        slug: "Yetki Matrisi",
+        details: {},
+        curation: "manual",
+        featured: false,
+        reason: "yetki matrisi denemesi",
+      }),
+  },
+  {
+    module: "trendler",
+    name: "updateTrendDetailsAction",
+    moderator: false,
+    call: async () =>
+      (await import("./trendler/actions.ts")).updateTrendDetailsAction({
+        trendId: -1,
+        expected: {},
+        next: {},
+        reason: "yetki matrisi denemesi",
+      }),
+  },
+  {
+    module: "trendler",
+    name: "setTrendCurationAction",
+    moderator: false,
+    call: async () =>
+      (await import("./trendler/actions.ts")).setTrendCurationAction({
+        trendId: -1,
+        next: "manual",
+        expected: "auto",
+        reason: "yetki matrisi denemesi",
+      }),
+  },
+  {
+    module: "trendler",
+    name: "setTrendProductsAction",
+    moderator: false,
+    call: async () =>
+      (await import("./trendler/actions.ts")).setTrendProductsAction({
+        trendId: -1,
+        productIds: [],
+        expectedProductIds: [],
+        reason: "yetki matrisi denemesi",
+      }),
+  },
+  {
+    module: "trendler",
+    name: "searchTrendProductsAction",
+    moderator: false,
+    call: async () =>
+      (await import("./trendler/actions.ts")).searchTrendProductsAction({ query: "a" }),
   },
   {
     module: "mesajlar",

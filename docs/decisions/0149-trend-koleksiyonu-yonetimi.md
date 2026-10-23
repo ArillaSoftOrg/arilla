@@ -38,6 +38,10 @@ betiğe bağlı, yanlış ürün/eşik denetimi elle. `/yonetim/trendler` (0086)
    3 katı aşıyor, affiliate bağlantısı yok). Orijinallik iddiası değildir.
 7. Ürün araması katalog aramasının aynısıdır (`searchProducts`, yalnızca yayındaki ürünler).
 8. Migration yok, yeni bağımlılık yok. Ürün, teklif, fiyat ve stok satırlarına yazılmaz.
+9. Arayüz: `/yonetim/trendler` listesine tür sütunu ve "Yeni koleksiyon"; `/yonetim/trendler/yeni`
+   (taslak oluşturma) ve `/yonetim/trendler/[id]` (hazırlık, ürünler, ayrıntılar). Ürün sırası
+   sürükle-bırak ya da klavyeyle (yukarı/aşağı düğmeleri) değişir; kayıt tek seferde, gerekçeyle.
+   Durum/öne çıkarma/sıra mevcut diyalogla (0086) yapılır. Her action yetki matrisindedir (0082).
 
 ## Reddedilen alternatifler
 

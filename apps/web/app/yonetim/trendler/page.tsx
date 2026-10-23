@@ -6,6 +6,7 @@ import {
   TREND_STATUSES,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
+import Link from "next/link";
 import { requireCapability } from "../../lib/dal.ts";
 import styles from "../admin.module.css";
 import {
@@ -22,6 +23,7 @@ import {
   formatCount,
   formatDateOrDash,
   hrefWith,
+  trendCurationLabel,
   trendStatusLabel,
   trendWindowLabel,
 } from "../format.ts";
@@ -32,8 +34,8 @@ const PATH = "/yonetim/trendler";
 /**
  * Trend yönetimi (karar 0086, `trends.manage`, yalnızca yönetici). Görünürlük
  * public kuralla aynı hesaplanır (yayında + gösterilebilir ürün eşiği).
- * Değişiklikler gerekçe + taze giriş ister ve denetime yazılır; ürün bağları
- * curate işinindir, burada değişmez.
+ * Değişiklikler gerekçe + taze giriş ister ve denetime yazılır. Koleksiyon
+ * oluşturma ve elle seçilmiş ürünler `/yonetim/trendler/[id]` (karar 0149).
  */
 export default async function TrendsAdminPage({
   searchParams,
@@ -51,20 +53,23 @@ export default async function TrendsAdminPage({
     <div className={styles.page}>
       <PageHeader
         title="Trendler"
-        description={`Yayın durumu, görünürlük, öne çıkarma ve sıra. Bir trend yalnızca yayındaysa ve en az ${list.minProducts} gösterilebilir ürünü (görselli, fiyatlı, stokta) varsa /trendler'de görünür.`}
+        description={`Koleksiyonlar: yayın durumu, görünürlük, öne çıkarma, sıra ve ürünler. Bir trend yalnızca yayındaysa ve en az ${list.minProducts} gösterilebilir ürünü (görselli, fiyatlı, stokta) varsa /trendler'de görünür; daha azıyla yayına alınamaz.`}
         actions={
-          <Tabs
-            label="Durum"
-            items={[
-              { href: PATH, label: "Tümü", active: !status, count: total },
-              ...TREND_STATUSES.map((value) => ({
-                href: hrefWith(PATH, { durum: value }),
-                label: trendStatusLabel(value),
-                active: status === value,
-                count: list.counts.find((row) => row.status === value)?.count ?? 0,
-              })),
-            ]}
-          />
+          <span className={styles.row}>
+            <Link href={`${PATH}/yeni`}>Yeni koleksiyon</Link>
+            <Tabs
+              label="Durum"
+              items={[
+                { href: PATH, label: "Tümü", active: !status, count: total },
+                ...TREND_STATUSES.map((value) => ({
+                  href: hrefWith(PATH, { durum: value }),
+                  label: trendStatusLabel(value),
+                  active: status === value,
+                  count: list.counts.find((row) => row.status === value)?.count ?? 0,
+                })),
+              ]}
+            />
+          </span>
         }
       />
 
@@ -87,10 +92,15 @@ export default async function TrendsAdminPage({
               header: "Trend",
               cell: (row) => (
                 <span className={styles.list}>
-                  <span>{row.title}</span>
+                  <Link href={`${PATH}/${row.id}`}>{row.title}</Link>
                   <span className={styles.meta}>{`/${row.slug} · ${row.category}`}</span>
                 </span>
               ),
+            },
+            {
+              key: "curation",
+              header: "Tür",
+              cell: (row) => trendCurationLabel(row.curation),
             },
             {
               key: "status",
@@ -166,9 +176,10 @@ export default async function TrendsAdminPage({
       </Panel>
 
       <Notice title="Kapsam">
-        Ürün bağları curate toplu işinindir (services/ingest/curate) ve bu ekrandan değişmez. Yayın
-        penceresi ve kapak görseli düzenleme bu fazda yok. Her değişiklik gerekçesiyle denetim
-        kaydına yazılır.
+        Otomatik koleksiyonların ürünlerini curate toplu işi (services/ingest/curate) seçer; elle
+        seçilmiş koleksiyonların ürünleri, ayrıntıları, yayın penceresi ve kapak görseli koleksiyon
+        sayfasından yönetilir ve curate onlara dokunmaz. Her değişiklik gerekçesiyle denetim kaydına
+        yazılır.
       </Notice>
     </div>
   );
