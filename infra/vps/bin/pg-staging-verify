@@ -201,15 +201,18 @@ fail() { # fail <hata> : raporla ve cik
 # --- 1. restore ------------------------------------------------------------------------
 if [ "$MODE" = backup ]; then
   # Disk: kopya ~ veritabani boyutu; migration buyutebilir. Boyut YEDEK bilgisinden okunur
-  # (uretim veritabanina baglanmadan).
-  info=$(compose --profile restore run --rm --no-deps -T --entrypoint pgbackrest restore \
+  # (uretim veritabanina baglanmadan). `restore` servisinin /restore baglamasi varsayilan
+  # restore-test dizini yerine bu kosunun BOS gecici dizinidir: info oraya yazmaz (asagida
+  # denetlenir), restore-test'in kendisine erisim verilmez.
+  mkdir -p "$RUN" && chown 999:999 "$RUN" && chmod 0700 "$RUN"
+  info=$(ARILLA_RESTORE_DIR="$RUN" compose --profile restore run --rm --no-deps -T --entrypoint pgbackrest restore \
     --stanza=arilla --output=json info 2>/dev/null) || die "pgbackrest info okunamadi"
+  [ -z "$(ls -A "$RUN")" ] || die "pgbackrest info gecici dizine yazdi (beklenmeyen)"
   dbsize=$(printf '%s' "$info" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["backup"][-1]["info"]["size"])') \
     || die "yedek boyutu okunamadi (yedek yok mu?)"
   free=$(df --output=avail -B1 "$ROOT" | tail -1 | tr -d ' ')
   need=$(( dbsize * 2 + 2147483648 ))
   [ "$free" -ge "$need" ] || die "yetersiz disk: bos=$free gerekli=$need bayt (uretim diskini doldurmamak icin durdu)"
-  mkdir -p "$RUN" && chown 999:999 "$RUN" && chmod 0700 "$RUN"
   log "1/5 yedekten geri yukleme (en son durum) -> $RUN"
   set +e
   ARILLA_RESTORE_DIR="$RUN" compose --profile restore run --rm --no-deps -T \
