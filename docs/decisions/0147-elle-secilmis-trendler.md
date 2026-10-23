@@ -1,7 +1,7 @@
-# 0142 — Elle seçilmiş (editoryal) trend koleksiyonları
+# 0147 — Elle seçilmiş (editoryal) trend koleksiyonları
 
 **Tarih:** 22 Ekim 2026
-**Durum:** Önerildi (PR). Migration 0095 (0092/0093 karar 0140'a, açık PR #201, ayrılmıştır).
+**Durum:** Önerildi (PR). Migration 0100 (0095–0097 main'de; 0092/0093 karar 0140'a, 0098/0099 karar 0144'e, açık dallarda ayrılmıştır).
 **İlişkili:** 0077 (trend koleksiyonları)
 
 ## Sorun
@@ -15,7 +15,7 @@ bağları **temizlenir**. Editörün gerçek ürünlerle elle kurduğu bir kolek
 ## Karar
 
 1. `trend.curation TEXT NOT NULL DEFAULT 'auto' CHECK (curation IN ('auto','manual'))`
-   (migration 0095). Bağların sahibi trend düzeyinde tek alandır.
+   (migration 0100). Bağların sahibi trend düzeyinde tek alandır.
    - `auto`: bugünkü davranış; curate okur, puanlar, yeniden yazar.
    - `manual`: bağları editör yazar; curate bu trendi **listelemez ve yazmaz**.
 2. Mevcut trendler varsayılanla `auto` olur; otomatik kürasyonun çıktısı değişmez.

@@ -229,7 +229,8 @@ def test_fiyat_degisimi_gecmise_yazilir_degismeyen_yazilmaz(env: Env) -> None:
             WHERE b.entity = 'offer' AND o.merchant_id = %s""",
         (env.merchant_id,),
     )[0]
-    assert outbox == 6  # 5 ekleme + 1 degisim
+    # 5 ekleme; yalniz fiyat degisimi arama olayi URETMEZ (karar 0146), gecmis price_point'ta.
+    assert outbox == 5
 
 
 def test_kesik_besleme_hicbir_seyi_pasiflestirmez(env: Env) -> None:
@@ -673,3 +674,162 @@ def test_bagli_urunun_fiyat_ozeti_ayni_islemde_yenilenir(env: Env) -> None:
         with env.owner.cursor() as cur:
             cur.execute("UPDATE offer SET product_id = NULL WHERE product_id = %s", (product_id,))
             cur.execute("DELETE FROM product WHERE id = %s", (product_id,))
+
+
+# --------------------------------------------------------------------------
+# Karar 0146: arama olayi (search_outbox) yalniz icerik degisince yazilir.
+
+
+def _outbox(env: Env) -> list[tuple[str, str]]:
+    return env.owner.execute(
+        """SELECT o.external_id, b.reason FROM search_outbox b JOIN offer o ON o.id = b.entity_id
+            WHERE b.entity = 'offer' AND o.merchant_id = %s ORDER BY b.id""",
+        (env.merchant_id,),
+    ).fetchall()
+
+
+def _row_versions(env: Env) -> dict[str, str]:
+    return dict(
+        env.owner.execute(
+            "SELECT external_id, xmin::text || '/' || xmax::text FROM offer WHERE merchant_id = %s",
+            (env.merchant_id,),
+        ).fetchall()
+    )
+
+
+def _prices(env: Env, ext: str) -> list[int]:
+    return env.one(
+        """SELECT array_agg(p.price ORDER BY p.observed_at) FROM price_point p
+             JOIN offer o ON o.id = p.offer_id WHERE o.external_id = %s""",
+        (ext,),
+    )[0]
+
+
+def test_outbox_degismeyen_besleme_hicbir_sey_yazmaz(env: Env) -> None:
+    fid = env.feed()
+    items = [offer(i) for i in ids(10)]
+    env.run(fid, items)
+    outbox_before, versions = len(_outbox(env)), _row_versions(env)
+    pp_before = env.one("SELECT count(*) FROM price_point")[0]
+    report = env.run(fid, items, at=T0 + timedelta(days=1), name="same.xml")
+    assert (report.changed, report.price_points, report.outbox) == (0, 0, 0)
+    assert len(_outbox(env)) == outbox_before
+    assert _row_versions(env) == versions
+    assert env.one("SELECT count(*) FROM price_point")[0] == pp_before
+
+
+@pytest.mark.parametrize(
+    ("label", "change"),
+    [
+        ("fiyat", {"price": "19.99"}),
+        ("eski_fiyat", {"oldprice": "35.00"}),
+        ("stok", {"available": "false"}),
+        ("indirim", {"discount": "40%"}),
+        ("komisyon", {"commission": "9.00%"}),
+    ],
+)
+def test_outbox_fiyat_stok_indirim_komisyon_degisimi_olay_yazmaz(
+    env: Env, label: str, change: dict[str, str]
+) -> None:
+    fid = env.feed()
+    items = [offer(i) for i in ids(5)]
+    env.run(fid, items)
+    before, versions = len(_outbox(env)), _row_versions(env)
+    target = ids(5)[4]
+    report = env.run(
+        fid, [*items[:4], offer(target, **change)], at=T0 + timedelta(days=1), name=f"{label}.xml"
+    )
+    # Teklif satiri yine guncellenir (okuma yolu dogru kalir); arama olayi yazilmaz.
+    assert (report.changed, report.unchanged, report.outbox) == (1, 4, 0)
+    assert len(_outbox(env)) == before
+    after = _row_versions(env)
+    assert [e for e in versions if versions[e] != after[e]] == [target]
+    # Fiyat/stok gecmisi korunur: yalniz fiyat, eski fiyat ya da stok degisince yeni nokta.
+    expected = 0 if label in ("indirim", "komisyon") else 1
+    assert report.price_points == expected
+    if label == "fiyat":
+        assert _prices(env, target) == [2211, 1999]
+
+
+def test_outbox_baslik_marka_kategori_gorsel_degisimi_olay_yazar(env: Env) -> None:
+    fid = env.feed()
+    items = [offer(i, brand="Acme") for i in ids(5)]
+    env.run(fid, items)
+    base = len(_outbox(env))
+    a, b, c, d = ids(5)[:4]
+    changed = [
+        offer(a, title="Yeni baslik", brand="Acme"),
+        offer(b, brand="Other"),
+        offer(c, brand="Acme", category="15"),
+        offer(d, brand="Acme", image_tag="v2"),
+        items[4],
+    ]
+    report = env.run(fid, changed, at=T0 + timedelta(days=1), name="icerik.xml")
+    assert (report.changed, report.outbox) == (4, 4)
+    got = _outbox(env)[base:]
+    assert sorted(e for e, _ in got) == sorted([a, b, c, d])
+    assert {r for _, r in got} == {"feed_change"}
+
+
+def test_outbox_yalniz_galeri_ek_gorseli_degisimi_olay_yazmaz(env: Env) -> None:
+    # Arama/indeks yalniz kapak gorselini (offer.image_url) kullanir; galeri ek gorseli
+    # `offer_image`'ta tutulur ve kendi yolundan gider.
+    fid = env.feed()
+    items = [offer(i) for i in ids(3)]
+    env.run(fid, items)
+    base = len(_outbox(env))
+    report = env.run(
+        fid, [offer(ids(3)[0], pictures=3), *items[1:]], at=T0 + timedelta(days=1), name="gal.xml"
+    )
+    assert (report.changed, report.outbox) == (1, 0)
+    assert len(_outbox(env)) == base
+
+
+def test_outbox_fiyat_ve_icerik_birlikte_degisince_tek_olay(env: Env) -> None:
+    fid = env.feed()
+    items = [offer(i) for i in ids(3)]
+    env.run(fid, items)
+    base = len(_outbox(env))
+    target = ids(3)[0]
+    env.run(
+        fid,
+        [offer(target, price="5.00", title="Baska ad"), *items[1:]],
+        at=T0 + timedelta(days=1),
+        name="ikisi.xml",
+    )
+    assert _outbox(env)[base:] == [(target, "feed_change")]
+    assert _prices(env, target) == [2211, 500]
+
+
+def test_outbox_ekleme_kaldirma_yeniden_yayin_korunur(env: Env) -> None:
+    fid = env.feed()
+    items = [offer(i) for i in ids(100)]
+    env.run(fid, items)
+    assert [r for _, r in _outbox(env)] == ["feed_insert"] * 100
+    # 6 urun kaynaktan cikti: bekleme suresi gecince pasif + `feed_missing` silme olayi.
+    env.run(fid, items[:94], at=T0 + timedelta(hours=24), name="g1.xml")
+    env.run(fid, items[:94], at=T0 + timedelta(days=3), name="g2.xml")
+    missing = [e for e, r in _outbox(env) if r == "feed_missing"]
+    assert sorted(missing) == sorted(ids(100)[94:])
+    ops = env.owner.execute(
+        "SELECT DISTINCT op FROM search_outbox WHERE reason = 'feed_missing'"
+    ).fetchall()
+    assert ops == [("delete",)]
+    # Geri gelince fiyat degismese bile yeniden etkinlesme olayi yazilir.
+    env.run(fid, items, at=T0 + timedelta(days=4), name="g3.xml")
+    assert sorted(e for e, r in _outbox(env) if r == "feed_reactivate") == sorted(ids(100)[94:])
+
+
+def test_outbox_yarida_kesilen_kosu_tekrarinda_olay_cogalmaz(env: Env) -> None:
+    fid = env.feed()
+    items = [offer(i) for i in ids(35)]
+    env.run(fid, items)
+    changed = [offer(i, price="9.99") for i in ids(35)]
+    with pytest.raises(_Crash):
+        env.run(fid, changed, at=T0 + timedelta(days=1), name="kes.xml", fail_after_chunks=2)
+    env.run(fid, changed, at=T0 + timedelta(days=1), name="kes.xml")
+    again = env.run(fid, changed, at=T0 + timedelta(days=2), name="kes2.xml")
+    assert (again.changed, again.price_points, again.outbox) == (0, 0, 0)
+    # Yalniz ilk 35 ekleme; 35 fiyat degisimi icin hic olay yok.
+    assert [r for _, r in _outbox(env)] == ["feed_insert"] * 35
+    assert all(_prices(env, e) == [2211, 999] for e in ids(35))

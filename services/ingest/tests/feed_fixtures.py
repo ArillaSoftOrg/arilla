@@ -40,9 +40,16 @@ def offer(
     title: str | None = None,
     pictures: int = 2,
     url: str | None = None,
+    discount: str = "26%",
+    commission: str = "5.38%",
+    available: str | None = None,
+    brand: str | None = None,
+    image_tag: str = "",
 ) -> dict[str, object]:
     return {
         "id": product_id,
+        "available": available,
+        "vendor": brand,
         "name": title or f"Test product {product_id}",
         "url": url if url is not None else tracking_url(product_id),
         "price": price,
@@ -50,12 +57,12 @@ def offer(
         "currencyId": currency,
         "categoryId": category,
         "pictures": [
-            f"https://ae-pic-a1.aliexpress-media.com/kf/S{product_id}{i}.png"
+            f"https://ae-pic-a1.aliexpress-media.com/kf/S{product_id}{image_tag}{i}.png"
             for i in range(pictures)
         ],
         "params": {
-            "discount": "26%",
-            "commissionRate": "5.38%",
+            "discount": discount,
+            "commissionRate": commission,
             **({"shopId": shop} if shop else {}),
         },
     }
@@ -71,9 +78,12 @@ def yml(offers: Iterable[Mapping[str, object]], *, truncate: bool = False) -> by
         "</categories><offers>",
     ]
     for o in offers:
-        parts.append(f'<offer id="{o["id"]}">')
+        avail = f' available="{o["available"]}"' if o.get("available") else ""
+        parts.append(f'<offer id="{o["id"]}"{avail}>')
         parts.append(f"<name>{escape(str(o['name']))}</name>")
         parts.append(f"<url>{escape(str(o['url']))}</url>")
+        if o.get("vendor"):
+            parts.append(f"<vendor>{escape(str(o['vendor']))}</vendor>")
         parts.append(f"<price>{o['price']}</price>")
         if o.get("oldprice"):
             parts.append(f"<oldprice>{o['oldprice']}</oldprice>")

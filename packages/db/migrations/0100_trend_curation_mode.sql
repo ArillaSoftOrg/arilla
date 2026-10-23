@@ -1,5 +1,5 @@
 -- kind: schema
--- 0095 — trend.curation: elle secilmis (editoryal) trend koleksiyonlari (docs/decisions/0142)
+-- 0100 — trend.curation: elle secilmis (editoryal) trend koleksiyonlari (docs/decisions/0147)
 --
 -- `services/ingest/curate --apply` her trend icin `trend_product` baglarini
 -- "sil + ekle" ile yeniden yazar (0077). Editorun elle sectigi urunler bir
@@ -13,7 +13,7 @@
 -- (tablo yeniden yazilmaz). Eski kod kolonu bilmeden INSERT edebilir.
 --
 -- Yalnizca ekleme; veri silinmez/tasinmaz, yetki degismez. Geriye uyumlu
--- (CLAUDE.md kural 14). 0092/0093 karar 0140 (acik PR #201) icin ayrilmistir.
+-- (CLAUDE.md kural 14). 0092/0093 (karar 0140) ve 0098/0099 (karar 0144) acik dallara ayrilmistir.
 -- Geri alma: ALTER TABLE trend DROP COLUMN curation; (once curate kodu geri alinir).
 
 ALTER TABLE trend
@@ -21,4 +21,4 @@ ALTER TABLE trend
         CONSTRAINT trend_curation_check CHECK (curation IN ('auto', 'manual'));
 
 COMMENT ON COLUMN trend.curation IS
-    'Urun baglarinin sahibi: auto = curate toplu isi yazar, manual = editor yazar, curate dokunmaz. Karar 0142.';
+    'Urun baglarinin sahibi: auto = curate toplu isi yazar, manual = editor yazar, curate dokunmaz. Karar 0147.';

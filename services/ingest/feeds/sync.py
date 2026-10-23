@@ -268,6 +268,7 @@ WITH prev AS (
     SELECT p.id, p.external_id FROM prev p WHERE NOT EXISTS (SELECT 1 FROM up u WHERE u.id = p.id)
 ), joined AS (
     SELECT a.id, a.external_id, s.price, s.old_price, s.in_stock, s.fingerprint,
+           s.title, s.brand, s.category_path,
            p.id AS prev_id, p.fingerprint AS prev_fp, p.current_price AS prev_price,
            p.list_price AS prev_list, p.in_stock AS prev_stock, p.is_active AS prev_active,
            p.image_url AS prev_image, s.image_url, p.title_raw AS prev_title,
@@ -283,12 +284,21 @@ WITH prev AS (
     ON CONFLICT (offer_id, observed_at) DO NOTHING
     RETURNING 1
 ), ob AS (
+    -- Karar 0146: arama olayi yalniz aramanin/indeksin gorecegi icerik degisince yazilir
+    -- (ekleme, yeniden etkinlesme, baslik/marka/kategori/gorsel). Fiyat, eski fiyat, stok,
+    -- indirim ve komisyon degisimi `price_point`'ta ve offer satirindadir; her biri icin
+    -- olay yazmak gunluk tam senkronizasyonda milyonlarca gereksiz satir uretirdi.
     INSERT INTO search_outbox (entity, entity_id, op, reason)
     SELECT 'offer', id, 'upsert',
            CASE WHEN prev_id IS NULL THEN 'feed_insert'
                 WHEN NOT prev_active THEN 'feed_reactivate' ELSE 'feed_change' END
       FROM joined
-     WHERE prev_id IS NULL OR NOT prev_active OR prev_fp IS DISTINCT FROM fingerprint
+     WHERE prev_id IS NULL OR NOT prev_active
+        OR (prev_fp IS DISTINCT FROM fingerprint
+            AND (prev_title IS DISTINCT FROM title
+                 OR prev_brand IS DISTINCT FROM brand
+                 OR prev_category IS DISTINCT FROM category_path
+                 OR prev_image IS DISTINCT FROM image_url))
     RETURNING 1
 ), mem AS (
     INSERT INTO feed_source_offer

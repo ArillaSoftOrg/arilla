@@ -792,6 +792,18 @@
     "weight": 2.0
   },
   {
+    "kind": "category",
+    "surface": "spor çantası",
+    "normalized": "moda/canta/spor-seyahat-cantasi",
+    "weight": 3.0
+  },
+  {
+    "kind": "category",
+    "surface": "seyahat çantası",
+    "normalized": "moda/canta/spor-seyahat-cantasi",
+    "weight": 3.0
+  },
+  {
     "kind": "synonym",
     "surface": "kadın",
     "normalized": "kadin",

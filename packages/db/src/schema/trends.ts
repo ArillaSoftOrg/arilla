@@ -12,7 +12,7 @@ import {
 export type TrendCategory = "moda" | "guzellik" | "ev-yasam" | "ogrenci" | "genel";
 export type TrendStatus = "draft" | "published" | "archived";
 export type TrendType = "evergreen" | "seasonal" | "campaign";
-/** Urun baglarinin sahibi (0095, docs/decisions/0142): `manual` trende curate dokunmaz. */
+/** Urun baglarinin sahibi (0100, docs/decisions/0147): `manual` trende curate dokunmaz. */
 export type TrendCuration = "auto" | "manual";
 
 /**
