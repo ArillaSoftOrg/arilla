@@ -1,9 +1,15 @@
+import type { SessionUser } from "@arilla/core";
+import type { HomeHeaderProps } from "@arilla/ui";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { verifySession } from "./lib/dal.ts";
 
-vi.mock("./lib/dal.ts", () => ({ verifySession: async () => null }));
+vi.mock("./lib/dal.ts", () => ({ verifySession: vi.fn(async () => null) }));
 vi.mock("./lib/theme-cookie.ts", () => ({ readThemePreference: async () => null }));
+
+beforeEach(() => vi.mocked(verifySession).mockResolvedValue(null));
+afterEach(() => vi.unstubAllEnvs());
 
 type Element = { type: unknown; props: Record<string, unknown> };
 
@@ -27,6 +33,45 @@ async function shellParts(chrome?: "site" | "chat", showFooterSocial = true): Pr
 
 // Ilk dinamik import agir (core + db zinciri): varsayilan 5 sn yetmez.
 const SLOW = 30_000;
+
+describe("yönetim bağlantısının görünürlüğü", () => {
+  it.each(["site", "chat"] as const)(
+    "%s: yalnızca doğrulanmış admin oturumuna yönetim bağlantısı sunar",
+    async (chrome) => {
+      vi.stubEnv("PRODUCT_ACCESS", "open");
+      const { HomeHeader } = await import("@arilla/ui");
+      for (const role of [null, "user", "moderator", "admin"] as const) {
+        vi.mocked(verifySession).mockResolvedValue(
+          role
+            ? ({
+                id: 3,
+                publicId: "test-user",
+                role,
+                email: "admin@example.test",
+                displayName: "Test",
+                avatarUrl: null,
+              } satisfies SessionUser)
+            : null,
+        );
+        const header = (await shellParts(chrome)).find(
+          (part) => typeName(part) === "HomeHeader",
+        ) as Element;
+        const html = renderToStaticMarkup(
+          createElement(HomeHeader, header.props as unknown as HomeHeaderProps),
+        );
+        if (role === "admin") {
+          expect(header.props.utilityLink).toEqual({ label: "Yönetim paneli", href: "/yonetim" });
+          expect(html.slice(html.indexOf("<aside"))).toContain("Yönetim paneli");
+        } else {
+          expect(header.props.utilityLink).toBeUndefined();
+          expect(html).not.toContain("Yönetim paneli");
+          expect(html).not.toContain('href="/yonetim"');
+        }
+      }
+    },
+    SLOW,
+  );
+});
 
 describe("kabuk: sohbet chrome", () => {
   it(

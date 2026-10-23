@@ -145,14 +145,16 @@ export async function PublicSiteShell({
         accountCurrent={currentPath === (accountHref ?? loginHref)}
         accountAvatarUrl={user?.avatarUrl ?? null}
         accountAvatarLabel={user?.displayName ?? user?.email ?? SITE_BRAND}
-        // Lansman öncesi, yalnızca anonim ziyaretçiye: sade "Admin Girişi"
-        // (aynı giriş akışı, karar 0043). Yetki girişten sonra sunucuda.
+        // Rol doğrulanmış sunucu oturumundan gelir. Bağlantı görünürlüğü,
+        // yönetim sayfalarındaki bağımsız yetki denetimlerinin yerine geçmez.
         themeControl={<ThemeToggleControl initialTheme={initialTheme} />}
         themeControlLabel={HOME_COPY.themeToggleLabel}
         utilityLink={
-          !productAccess && !user
-            ? { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH }
-            : undefined
+          user?.role === "admin"
+            ? { label: "Yönetim paneli", href: "/yonetim" }
+            : !productAccess && !user
+              ? { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH }
+              : undefined
         }
         utilityInMenuOnly={footerVariant === "prelaunch"}
         personalNavItems={personalNavItems}
