@@ -66,6 +66,8 @@ export interface AdminTrendRow {
   category: string;
   trendType: string;
   status: TrendStatus;
+  /** Bağların sahibi (karar 0147): `manual` = editör, `auto` = curate. */
+  curation: "auto" | "manual";
   featured: boolean;
   sortOrder: number;
   activeFrom: Date | null;
@@ -104,6 +106,7 @@ export async function listTrendsForAdmin(
       category: string;
       trend_type: string;
       status: TrendStatus;
+      curation: "auto" | "manual";
       featured: boolean;
       sort_order: Num;
       active_from: Date | string | null;
@@ -111,7 +114,7 @@ export async function listTrendsForAdmin(
       linked: Num;
       showable: Num;
     }>(sql`
-      SELECT t.id, t.slug, t.title, t.category, t.trend_type, t.status, t.featured, t.sort_order,
+      SELECT t.id, t.slug, t.title, t.category, t.trend_type, t.status, t.curation, t.featured, t.sort_order,
              t.active_from, t.active_until,
              count(tp.product_id) AS linked,
              count(p.id) AS showable
@@ -140,6 +143,7 @@ export async function listTrendsForAdmin(
           category: row.category,
           trendType: row.trend_type,
           status: row.status,
+          curation: row.curation,
           featured: row.featured,
           sortOrder: Number(row.sort_order ?? 0),
           activeFrom,

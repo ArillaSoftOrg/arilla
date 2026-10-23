@@ -17,7 +17,7 @@ import {
   setTrendProducts,
   updateTrendDetails,
 } from "./trend-collections.ts";
-import { setTrendStatus } from "./trends-admin.ts";
+import { listTrendsForAdmin, setTrendStatus } from "./trends-admin.ts";
 
 describe("trend koleksiyonu yönetimi - entegrasyon (karar 0149)", () => {
   let db: Database;
@@ -151,6 +151,10 @@ describe("trend koleksiyonu yönetimi - entegrasyon (karar 0149)", () => {
       [id],
     );
     expect(row).toMatchObject({ status: "draft", curation: "manual" });
+    const listed = (await listTrendsForAdmin(db, admin, { status: "draft" })).rows.find(
+      (r) => r.id === id,
+    );
+    expect(listed).toMatchObject({ curation: "manual", linkedProducts: 0, visible: false });
     expect(await audits(id)).toMatchObject([
       {
         action: "trends.create",
