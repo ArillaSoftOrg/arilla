@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Gunluk AliExpress fiyat tazeleme zamanlayicisi (karar 0145). batch-timers'tan AYRIDIR:
+# buyuk besleme indirmesi disk/WAL yuku getirir; etkinlestirme bilincli ve onaylidir.
+# ROOT ile, ELLE:
+#
+#   sudo /opt/arilla/vps/bin/feeds-timers preflight            # YALNIZ OKUR: besleme tazeligi
+#   sudo /opt/arilla/vps/bin/feeds-timers install --confirm    # kopyala + etkinlestir
+#   sudo /opt/arilla/vps/bin/feeds-timers status               # sonraki kosular
+#   sudo /opt/arilla/vps/bin/feeds-timers disable              # durdur (unit dosyalari kalir)
+#
+# Etkinlestirmeden once docs/ops.md "Gunluk AliExpress fiyat tazeleme" kontrol listesi:
+# ilk yukleme asama kapilari gecilmis, kur zamanlayicisi (batch-timers) acik, disk/WAL payi var.
+set -euo pipefail
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export LC_ALL=C
+
+ROOT=${ARILLA_ROOT:-/opt/arilla}
+UNIT=arilla-feeds-daily
+MERCHANT=aliexpress
+
+compose_run() {
+  docker compose --env-file "$ROOT/compose.env" -f "$ROOT/compose.prod.yml" --profile feeds \
+    run --rm -e JOB_RUN_TRIGGER=manual feeds "$@"
+}
+
+case "${1:-}" in
+  preflight)
+    # Okur: yazmaz, indirmez, ag istegi yapmaz.
+    compose_run python -m feeds freshness --merchant "$MERCHANT" || {
+      echo "UYARI: sorunlu besleme var (never_synced = ilk yukleme yapilmamis olabilir)." >&2
+      exit 1
+    }
+    ;;
+  install)
+    if [ "${2:-}" != "--confirm" ]; then
+      echo "Zamanlayici uretimde gunluk besleme indirir ve fiyat yazar." >&2
+      echo "Once: feeds-timers preflight; docs/ops.md kontrol listesi. Sonra: install --confirm" >&2
+      exit 64
+    fi
+    if ! systemctl is-enabled arilla-pricing-fx.timer >/dev/null 2>&1; then
+      echo "UYARI: arilla-pricing-fx.timer etkin degil (batch-timers install). Kur olmadan" >&2
+      echo "yurt disi fiyatlarin TL karsiligi gosterilmez; fiyat yazimi etkilenmez." >&2
+    fi
+    install -m 0644 "$ROOT/vps/systemd/$UNIT.service" "$ROOT/vps/systemd/$UNIT.timer" /etc/systemd/system/
+    # OnFailure hedefi; yedek kurulumu yapilmamis olsa da bulunsun.
+    install -m 0644 "$ROOT/vps/systemd/arilla-alert@.service" /etc/systemd/system/
+    systemctl daemon-reload
+    systemctl enable --now "$UNIT.timer"
+    systemctl list-timers "$UNIT.timer" --no-pager
+    ;;
+  status)
+    systemctl list-timers 'arilla-*' --no-pager
+    ;;
+  disable)
+    systemctl disable --now "$UNIT.timer" || true
+    ;;
+  *)
+    echo "kullanim: feeds-timers preflight|install --confirm|status|disable" >&2
+    exit 64
+    ;;
+esac
