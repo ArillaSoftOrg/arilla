@@ -190,6 +190,7 @@ veritabanı gerektiğinde ayrı bir karar olarak alınır.
 
 - `local` — Docker Compose: Postgres, Redis, MinIO
 - `staging` — üretimin küçük kopyası, gerçek feed'lerin bir alt kümesiyle
+  (kalıcı ortam henüz yok; migration doğrulaması geçici yan instance ile, karar 0148)
 - `production`
 
 Migration'lar staging'de çalışmadan production'a gitmez.
