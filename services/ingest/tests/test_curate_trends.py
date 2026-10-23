@@ -1,7 +1,10 @@
-"""Trend eslestirme isi - gercek yerel Postgres (kuru kosu, yazim, idempotans, esik temizligi)."""
+"""Trend eslestirme isi - gercek yerel Postgres (kuru kosu, yazim, idempotans, esik temizligi,
+elle secilmis trendlerin korunmasi)."""
 
 from __future__ import annotations
 
+import threading
+import time
 from collections.abc import Iterator
 
 import psycopg
@@ -16,11 +19,16 @@ pytestmark = pytest.mark.integration
 
 SLUG = "test-curate-trend"
 SLUG_FEW = "test-curate-few"
+#: Profili SLUG ile ayni: otomatik olsaydi 6 urunle yeniden yazilirdi.
+SLUG_MANUAL = "test-curate-manual"
 PREFIX = "test-curate"
 PROFILES = {
     SLUG: Profile(SLUG, core=("kurasyon kazak",), categories=()),
     SLUG_FEW: Profile(SLUG_FEW, core=("kurasyon esarp",), categories=()),
+    SLUG_MANUAL: Profile(SLUG_MANUAL, core=("kurasyon kazak",), categories=()),
 }
+#: Editorun elle sectigi baglar (sirasiyla).
+MANUAL_PICKS = [f"{PREFIX}-p5", f"{PREFIX}-p3"]
 
 
 @pytest.fixture
@@ -94,12 +102,31 @@ def conn(monkeypatch: pytest.MonkeyPatch) -> Iterator[psycopg.Connection]:
                 "SELECT t.id, p.id, 0 FROM trend t, product p WHERE t.slug = %s AND p.slug = %s",
                 (SLUG_FEW, f"{PREFIX}-p1"),
             )
+            cur.execute(
+                "INSERT INTO trend (slug, title, description, category, status, curation) "
+                "VALUES (%s, 'Elle', 'Elle.', 'moda', 'published', 'manual')",
+                (SLUG_MANUAL,),
+            )
+            for order, product_slug in enumerate(MANUAL_PICKS):
+                add_link(cur, SLUG_MANUAL, product_slug, order)
         connection.commit()
         monkeypatch.setattr(trends_mod, "BY_SLUG", PROFILES)
         yield connection
     finally:
         clean()
         connection.close()
+
+
+def add_link(cur: psycopg.Cursor, trend_slug: str, product_slug: str, order: int) -> None:
+    cur.execute(
+        "INSERT INTO trend_product (trend_id, product_id, sort_order) "
+        "SELECT t.id, p.id, %s FROM trend t, product p WHERE t.slug = %s AND p.slug = %s",
+        (order, trend_slug, product_slug),
+    )
+
+
+def set_curation(cur: psycopg.Cursor, slug: str, curation: str) -> None:
+    cur.execute("UPDATE trend SET curation = %s WHERE slug = %s", (curation, slug))
 
 
 def links(conn: psycopg.Connection, slug: str) -> list[str]:
@@ -167,3 +194,122 @@ def test_dry_run_is_server_side_read_only(conn: psycopg.Connection, monkeypatch)
     run(conn, apply=False, slugs=[SLUG])
     assert seen == [True]
     assert links(conn, SLUG) == []
+
+
+def test_manual_trend_is_not_loaded_even_when_requested(conn: psycopg.Connection):
+    results = run(conn, apply=False, slugs=[SLUG, SLUG_MANUAL])
+    assert [r.slug for r in results] == [SLUG]
+    assert links(conn, SLUG_MANUAL) == MANUAL_PICKS
+
+
+def test_apply_keeps_manual_links_across_repeated_runs(conn: psycopg.Connection):
+    """Ayni profilli otomatik trend yeniden yazilir; elle secilmis trend iki kosuda da aynen
+    kalir."""
+    for _ in range(2):
+        run(conn, apply=True, slugs=[SLUG, SLUG_MANUAL])
+        assert len(links(conn, SLUG)) == 6
+        assert links(conn, SLUG_MANUAL) == MANUAL_PICKS
+
+
+def test_switch_to_manual_after_load_is_respected(conn: psycopg.Connection, monkeypatch):
+    """Kosu trendi `auto` iken yukledi; yazimdan once baska bir islem onu `manual`a cevirip
+    kendi secimini COMMIT etti. Yazim yolu kilitle yeniden okur ve dokunmaz."""
+    real_load = trends_mod.load_trends
+
+    def load_then_editor_commits(c, slugs):
+        loaded = real_load(c, slugs)
+        with psycopg.connect(database_url("DATABASE_URL_OWNER")) as editor, editor.cursor() as cur:
+            set_curation(cur, SLUG, "manual")
+            add_link(cur, SLUG, f"{PREFIX}-p4", 0)
+        return loaded
+
+    monkeypatch.setattr(trends_mod, "load_trends", load_then_editor_commits)
+    results = run(conn, apply=True, slugs=[SLUG])
+    assert results[0].note == "manuel: atlandi"
+    assert links(conn, SLUG) == [f"{PREFIX}-p4"]
+
+
+def test_apply_waits_for_concurrent_switch_to_manual(conn: psycopg.Connection):
+    """Editor islemi trendi `manual`a cevirmis ama henuz COMMIT etmemisken kosu baslar:
+    yazim yolu satir kilidinde bekler, COMMIT'ten sonra `manual` gorur ve atlar."""
+    editor = psycopg.connect(database_url("DATABASE_URL_OWNER"))
+    try:
+        with editor.cursor() as cur:
+            set_curation(cur, SLUG, "manual")  # kilit editorde, COMMIT yok
+        outcome: dict[str, object] = {}
+
+        def apply_run() -> None:
+            try:
+                outcome["results"] = run(conn, apply=True, slugs=[SLUG])
+            except BaseException as error:  # pragma: no cover - teshis icin
+                outcome["error"] = error
+
+        worker = threading.Thread(target=apply_run)
+        worker.start()
+        with psycopg.connect(database_url("DATABASE_URL_OWNER"), autocommit=True) as watcher:
+            deadline = time.monotonic() + 10
+            waiting = False
+            while time.monotonic() < deadline and not waiting:
+                waiting = bool(
+                    watcher.execute(
+                        "SELECT count(*) FROM pg_stat_activity WHERE wait_event_type = 'Lock' "
+                        "AND query LIKE 'SELECT curation FROM trend%%FOR UPDATE'"
+                    ).fetchone()[0]
+                )
+                time.sleep(0.05)
+        assert waiting, "curate yazimi editor kilidini beklemedi"
+        with editor.cursor() as cur:
+            add_link(cur, SLUG, f"{PREFIX}-p2", 0)
+        editor.commit()
+        worker.join(timeout=10)
+        assert not worker.is_alive()
+        assert "error" not in outcome
+        assert outcome["results"][0].note == "manuel: atlandi"
+        assert links(conn, SLUG) == [f"{PREFIX}-p2"]
+    finally:
+        editor.rollback()
+        editor.close()
+
+
+def test_below_threshold_never_clears_manual_links(conn: psycopg.Connection, monkeypatch):
+    """Esik temizligi (silme yolu) yalniz otomatik trende uygulanir: profili hic urun bulmayan
+    elle secilmis trendin baglari kalir."""
+    profile = Profile(SLUG_MANUAL, core=("kurasyon esarp",), categories=())
+    monkeypatch.setitem(trends_mod.BY_SLUG, SLUG_MANUAL, profile)
+    results = run(conn, apply=True, slugs=[SLUG_FEW, SLUG_MANUAL])
+    assert [r.slug for r in results] == [SLUG_FEW]
+    assert links(conn, SLUG_FEW) == []
+    assert links(conn, SLUG_MANUAL) == MANUAL_PICKS
+
+
+def test_switch_back_to_auto_is_curated_again(conn: psycopg.Connection):
+    """`auto`ya geri alinan trend yeniden kurator isine girer; elle secim yerini otomatik
+    eslesmeye birakir."""
+    with conn.cursor() as cur:
+        set_curation(cur, SLUG_MANUAL, "auto")
+    conn.commit()
+    run(conn, apply=True, slugs=[SLUG_MANUAL])
+    assert len(links(conn, SLUG_MANUAL)) == 6
+
+
+def test_trend_deleted_after_load_is_skipped(conn: psycopg.Connection, monkeypatch):
+    """Kosu trendi yukledikten sonra baska bir islem trendi sildi: yazim yolu satiri bulamaz,
+    hata vermeden atlar ve sahipsiz bag yazmaz."""
+    real_load = trends_mod.load_trends
+
+    def load_then_delete(c, slugs):
+        loaded = real_load(c, slugs)
+        with psycopg.connect(database_url("DATABASE_URL_OWNER")) as other, other.cursor() as cur:
+            cur.execute("DELETE FROM trend WHERE slug = %s", (SLUG,))
+        return loaded
+
+    monkeypatch.setattr(trends_mod, "load_trends", load_then_delete)
+    run(conn, apply=True, slugs=[SLUG])
+    with conn.cursor() as cur:
+        cur.execute(
+            "SELECT count(*) FROM trend_product tp JOIN product p ON p.id = tp.product_id "
+            "WHERE p.slug LIKE %s AND NOT EXISTS (SELECT 1 FROM trend t WHERE t.id = tp.trend_id)",
+            (f"{PREFIX}%",),
+        )
+        assert cur.fetchone()[0] == 0
+    assert links(conn, SLUG_MANUAL) == MANUAL_PICKS
