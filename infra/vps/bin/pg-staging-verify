@@ -1,0 +1,327 @@
+#!/usr/bin/env bash
+# Gecici staging dogrulamasi (karar 0148) - ROOT ile, ELLE, onayli bir pencerede.
+#
+#   pg-staging-verify --image <migrate-imaji> [--expect <NNNN_ad.sql>]... [--assert-sql <sorgu>] [--keep]
+#
+# Bir migration'i uretime gitmeden once URETIMIN EN SON YEDEGINDEN acilan, AGSIZ ve atilabilir
+# bir kopyada calistirir (docs/ops.md "Staging dogrulamasi"). Asamalar:
+#
+#   1. restore : en son yedek bos gecici dizine geri yuklenir. Mevcut `restore` servisi ve
+#                restore-inner.sh kullanilir (pg-restore-test ile ayni, CI'da sinanan yol:
+#                yalniz egress agi, arsiv KAPALI, amcheck). Uretim veritabanina BAGLANILMAZ.
+#   2. start   : kopya ayri bir PostgreSQL'de acilir: `--network none` (yalniz kendi loopback'i),
+#                yalniz gecici dizindeki unix soketi, pg_hba yalniz `local` satiri, arsiv KAPALI.
+#   3. migrate : verilen migrate imaji yine `--network none` ile, yalniz o sokete baglanarak
+#                `scripts/migrate.ts` ve `scripts/verify-schema.ts` calistirir. Konteynere uretim
+#                env dosyasi/sirri VERILMEZ; adres betikte sabittir (`localhost` + soket): ag yok,
+#                yani soket yanlis olsa bile baglanti uretime degil hicbir yere gitmez.
+#   4. report  : $STATE/staging-verify.json (yalniz ozet: dosya adlari, sayilar, ozetler; satir
+#                verisi YOK) + $STATE/staging-verify.schema.diff (yalniz DDL farki). Ham ciktilar
+#                gecici dizinde kalir ve silinir; ekrana yalniz suzulmus satirlar basilir.
+#   5. cleanup : konteyner ve gecici dizin her durumda kaldirilir (trap). `--keep` dizini birakir.
+#
+# Cikis: 0 = tum bekleyen migration'lar uygulandi + verify gecti + (varsa) iddia gecti.
+#
+# Yerel/CI provasi (root DEGIL): ARILLA_ROOT gecici bir dizin, ARILLA_STAGING_TEST_DATADIR hazir
+# (durdurulmus) bir sentetik veri dizini. Bu kip yedek geri yuklemez, veri dizinini kopyalar;
+# root ile ya da ARILLA_ROOT=/opt/arilla iken REDDEDILIR. Bkz. test-staging-verify.sh.
+set -euo pipefail
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${ARILLA_EXTRA_PATH:+:$ARILLA_EXTRA_PATH}"
+export LC_ALL=C
+umask 077
+
+ROOT=${ARILLA_ROOT:-/opt/arilla}
+STATE="$ROOT/state"
+IMAGE=
+ASSERT_SQL=
+KEEP=0
+EXPECT=()
+usage() { echo "kullanim: $0 --image <migrate-imaji> [--expect NNNN_ad.sql]... [--assert-sql SORGU] [--keep]" >&2; exit 64; }
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --image) [ $# -ge 2 ] || usage; IMAGE=$2; shift 2 ;;
+    --expect)
+      [ $# -ge 2 ] || usage
+      [[ "$2" =~ ^[0-9]{4}_[a-z0-9_]+\.sql$ ]] || { echo "--expect bicimi: NNNN_ad.sql" >&2; exit 64; }
+      EXPECT+=("$2"); shift 2 ;;
+    --assert-sql) [ $# -ge 2 ] || usage; ASSERT_SQL=$2; shift 2 ;;
+    --keep) KEEP=1; shift ;;
+    *) usage ;;
+  esac
+done
+[ -n "$IMAGE" ] || usage
+
+ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
+log() { echo "$(ts) [staging-verify] $*"; }
+die() { echo "$(ts) [staging-verify] HATA: $*" >&2; exit 1; }
+envv() { grep -E "^$2=" "$1" 2>/dev/null | tail -1 | cut -d= -f2- || true; }
+
+# --- kip: gercek (root, yedekten) ya da prova (root degil, sentetik veri dizini) ----------
+TEST_DATADIR=${ARILLA_STAGING_TEST_DATADIR:-}
+if [ -n "$TEST_DATADIR" ]; then
+  [ "$(id -u)" -ne 0 ] || die "ARILLA_STAGING_TEST_DATADIR yalniz root OLMAYAN provada kullanilir"
+  [ "$ROOT" != /opt/arilla ] || die "prova kipi /opt/arilla altinda calismaz"
+  [ -d "$TEST_DATADIR" ] || die "sentetik veri dizini yok"
+  MODE="test"
+else
+  [ "$(id -u)" -eq 0 ] || die "root gerekli (sudo); yerel prova icin bkz. test-staging-verify.sh"
+  MODE="backup"
+fi
+
+PGU=$(envv "$ROOT/env/postgres.env" POSTGRES_USER); PGU=${PGU:-arilla}
+PGD=$(envv "$ROOT/env/postgres.env" POSTGRES_DB); PGD=${PGD:-arilla}
+APP_ROLE=arilla_app
+[[ "$PGU" =~ ^[a-z_][a-z0-9_]*$ && "$PGD" =~ ^[a-z_][a-z0-9_]*$ ]] || die "beklenmeyen veritabani/kullanici adi"
+PGIMG=${ARILLA_POSTGRES_IMAGE:-$(envv "$ROOT/compose.env" ARILLA_POSTGRES_IMAGE)}
+[ -n "$PGIMG" ] || die "ARILLA_POSTGRES_IMAGE yok (compose.env)"
+docker image inspect "$PGIMG" >/dev/null 2>&1 || die "postgres imaji yerelde yok: $PGIMG"
+docker image inspect "$IMAGE" >/dev/null 2>&1 || die "migrate imaji yerelde yok (cekilmez): $IMAGE"
+IMAGE_ID=$(docker image inspect -f '{{.Id}}' "$IMAGE")
+
+compose() { docker compose --env-file "$ROOT/compose.env" -f "$ROOT/compose.prod.yml" ${ARILLA_COMPOSE_EXTRA:+-f "$ARILLA_COMPOSE_EXTRA"} "$@"; }
+
+STAMP=$(date -u +%Y%m%d-%H%M%S)
+RUN="$ROOT/restore-test/staging-$STAMP"
+NAME="arilla-staging-verify-$STAMP"
+started=$(date -u +%s)
+# Gecici dizin YALNIZ bu kaliba uyabilir; temizlik baska hicbir yolu silemez.
+[[ "$RUN" =~ /restore-test/staging-[0-9]{8}-[0-9]{6}$ ]] || die "gecici dizin yolu beklenmeyen"
+[ ! -e "$RUN" ] || die "gecici dizin zaten var: $RUN"
+
+cleanup() {
+  docker rm -f "$NAME" >/dev/null 2>&1 || true
+  if [ "$KEEP" = 1 ]; then
+    [ -d "${RUN:-}" ] && echo "$(ts) [staging-verify] --keep: gecici dizin SUNUCUDA birakildi: $RUN (isiniz bitince silin)" >&2
+    return 0
+  fi
+  if [[ "${RUN:-}" =~ /restore-test/staging-[0-9]{8}-[0-9]{6}$ ]] && [ -d "$RUN" ]; then
+    if [ "$MODE" = test ]; then
+      # Prova: uid 999'un 0700 dosyalarini root olmayan kullanici silemez; yalniz bu dizinin
+      # ICERIGI, ag'siz tek kullanimlik konteynerde silinir.
+      docker run --rm --network none --log-driver none --user 0 -v "$RUN:/r" --entrypoint sh "$PGIMG" \
+        -c 'find /r -mindepth 1 -delete' >/dev/null 2>&1 || true
+    fi
+    rm -rf -- "${RUN:?}"
+  fi
+}
+trap 'rc=$?; cleanup; exit $rc' EXIT
+
+# --- rapor --------------------------------------------------------------------------------
+# Tum alanlar ozettir. Ham migrate/verify ciktisi, PostgreSQL kaydi ve sema dokumu RAPORA
+# girmez; hata satirlari yalniz SAYI olarak gecer (deger iceren DETAIL satirlari sizmaz).
+ERRORS=()
+report() { # report <ok>
+  mkdir -p "$STATE"
+  local diff_out="$STATE/staging-verify.schema.diff"
+  if [ -f "$RUN/schema.diff" ]; then install -m 0640 "$RUN/schema.diff" "$diff_out"; else rm -f "$diff_out"; fi
+  OK="$1" RUN_DIR="$RUN" MODE="$MODE" IMAGE="$IMAGE" IMAGE_ID="$IMAGE_ID" STAMP="$STAMP" \
+  DURATION="$(( $(date -u +%s) - started ))" FINISHED="$(ts)" DIFF_OUT="$diff_out" \
+  EXPECT="${EXPECT[*]:-}" ASSERT_SET="$([ -n "$ASSERT_SQL" ] && echo 1 || echo 0)" \
+  ERRORS="$(IFS='|'; echo "${ERRORS[*]:-}")" python3 - >"$STATE/staging-verify.json.tmp" <<'PY'
+import hashlib, json, os, re
+run = os.environ["RUN_DIR"]
+def lines(name):
+    try:
+        with open(os.path.join(run, name), encoding="utf-8", errors="replace") as fh:
+            return [l.rstrip("\n") for l in fh if l.strip()]
+    except FileNotFoundError:
+        return None
+def text(name):
+    v = lines(name)
+    return None if v is None else "\n".join(v)
+def sha(name):
+    try:
+        with open(os.path.join(run, name), "rb") as fh:
+            return hashlib.sha256(fh.read()).hexdigest()
+    except FileNotFoundError:
+        return None
+before, after = lines("ledger.before"), lines("ledger.after")
+migrate_log = lines("migrate.log") or []
+# Yalniz calistiricinin kendi ilerleme satirlari: "  NNNN_ad.sql ... tamam|HATA".
+step = re.compile(r"^\s*([0-9]{4}_[a-z0-9_]+\.sql) \.\.\. (tamam(?: \(islem disi\))?|HATA)")
+results = [{"file": m.group(1), "status": m.group(2)} for l in migrate_log if (m := step.match(l))]
+verify_log = lines("verify.log") or []
+diff = lines("schema.diff") or []
+restore = {}
+raw = text("restore.result")
+if raw:
+    try:
+        restore = json.loads(raw)
+    except ValueError:
+        restore = {"ok": False, "error": "RESULT okunamadi"}
+for k in ("target",):
+    restore.pop(k, None)
+assert_res = text("assert.result")
+report = {
+    "ok": os.environ["OK"] == "true",
+    "finished_at": os.environ["FINISHED"],
+    "duration_s": int(os.environ["DURATION"]),
+    "stamp": os.environ["STAMP"],
+    "mode": os.environ["MODE"],
+    "image": {"ref": os.environ["IMAGE"], "id": os.environ["IMAGE_ID"]},
+    "restore": restore,
+    "isolation": json.loads(text("isolation.json") or "{}"),
+    "migrations": {
+        "ledger_before": {"count": len(before), "max": before[-1] if before else None} if before is not None else None,
+        "pending": lines("pending") or [],
+        "expected": os.environ["EXPECT"].split() if os.environ["EXPECT"] else [],
+        "results": results,
+        "applied": sorted(set(after or []) - set(before or [])) if after is not None else [],
+        "ledger_after": {"count": len(after), "max": after[-1] if after else None} if after is not None else None,
+        "migrate_exit": int(text("migrate.rc") or -1),
+    },
+    "verify": {
+        "exit": int(text("verify.rc") or -1),
+        "passed": any(l.strip() == "Tum dogrulamalar gecti." for l in verify_log),
+        "error_lines": sum(1 for l in verify_log if "HATA" in l or "FAIL" in l),
+        "skipped_checks": sum(1 for l in verify_log if "ATLANDI" in l),
+    },
+    "assert": "skip" if os.environ["ASSERT_SET"] == "0" else (assert_res or "fail"),
+    "schema": {
+        "before_sha256": sha("schema.before.sql"),
+        "after_sha256": sha("schema.after.sql"),
+        "diff_added": sum(1 for l in diff if l.startswith("+") and not l.startswith("+++")),
+        "diff_removed": sum(1 for l in diff if l.startswith("-") and not l.startswith("---")),
+        "diff_file": os.environ["DIFF_OUT"] if diff else None,
+    },
+    "errors": [e for e in os.environ["ERRORS"].split("|") if e],
+}
+print(json.dumps(report, ensure_ascii=False))
+PY
+  chmod 0640 "$STATE/staging-verify.json.tmp"
+  mv -f "$STATE/staging-verify.json.tmp" "$STATE/staging-verify.json"
+}
+fail() { # fail <hata> : raporla ve cik
+  ERRORS+=("$1")
+  report false || true
+  echo "$(ts) [staging-verify] BASARISIZ: $1 (rapor: $STATE/staging-verify.json)" >&2
+  exit 1
+}
+
+# --- 1. restore ------------------------------------------------------------------------
+if [ "$MODE" = backup ]; then
+  # Disk: kopya ~ veritabani boyutu; migration buyutebilir. Boyut YEDEK bilgisinden okunur
+  # (uretim veritabanina baglanmadan).
+  info=$(compose --profile restore run --rm --no-deps -T --entrypoint pgbackrest restore \
+    --stanza=arilla --output=json info 2>/dev/null) || die "pgbackrest info okunamadi"
+  dbsize=$(printf '%s' "$info" | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["backup"][-1]["info"]["size"])') \
+    || die "yedek boyutu okunamadi (yedek yok mu?)"
+  free=$(df --output=avail -B1 "$ROOT" | tail -1 | tr -d ' ')
+  need=$(( dbsize * 2 + 2147483648 ))
+  [ "$free" -ge "$need" ] || die "yetersiz disk: bos=$free gerekli=$need bayt (uretim diskini doldurmamak icin durdu)"
+  mkdir -p "$RUN" && chown 999:999 "$RUN" && chmod 0700 "$RUN"
+  log "1/5 yedekten geri yukleme (en son durum) -> $RUN"
+  set +e
+  ARILLA_RESTORE_DIR="$RUN" compose --profile restore run --rm --no-deps -T \
+    -e RESTORE_DB_USER="$PGU" -e RESTORE_DB_NAME="$PGD" restore latest "" >"$RUN/restore.out" 2>"$RUN/restore.err"
+  rc=$?
+  set -e
+  grep '^RESULT ' "$RUN/restore.out" | tail -1 | cut -d' ' -f2- >"$RUN/restore.result" || true
+  [ -s "$RUN/restore.result" ] || fail "restore konteyneri sonuc uretmedi (rc=$rc)"
+  grep -q '"ok":true' "$RUN/restore.result" && [ "$rc" -eq 0 ] || fail "geri yukleme/amcheck basarisiz (restore.result)"
+else
+  mkdir -p "$RUN" && chmod 0777 "$RUN"  # prova: konteyner uid 999 yazabilsin
+  log "1/5 PROVA: sentetik veri dizini kopyalaniyor -> $RUN"
+  # Kaynak uid 999 / 0700: kopya ag'siz konteynerde uid 999 ile (veri dizininin sahibi postgres
+  # kullanicisi olmali), kaynak SALT-OKUNUR baglanir.
+  docker run --rm --network none --log-driver none --user 999:999 -v "$TEST_DATADIR:/src:ro" -v "$RUN:/dst" \
+    --entrypoint cp "$PGIMG" -R --preserve=mode,timestamps /src /dst/data || die "sentetik veri dizini kopyalanamadi"
+  echo '{"ok":true,"mode":"test-datadir"}' >"$RUN/restore.result"
+fi
+
+# --- 2. agsiz PostgreSQL ----------------------------------------------------------------
+mkdir -p "$RUN/sock"
+printf 'local all all trust\n' >"$RUN/staging_hba.conf"
+if [ "$MODE" = backup ]; then
+  chown 999:999 "$RUN/sock" "$RUN/staging_hba.conf"; chmod 0755 "$RUN/sock"; chmod 0600 "$RUN/staging_hba.conf"
+else
+  chmod 0777 "$RUN/sock"; chmod 0644 "$RUN/staging_hba.conf"
+fi
+log "2/5 agsiz PostgreSQL (yalniz soket, arsiv kapali)"
+docker run -d --name "$NAME" --label arilla.staging-verify="$STAMP" \
+  --network none --log-driver none --user 999:999 \
+  --cap-drop ALL --security-opt no-new-privileges:true \
+  --memory 2g --memory-swap 2g --cpus 1 --pids-limit 256 \
+  --tmpfs /tmp --tmpfs /var/run/postgresql \
+  -v "$RUN:/restore" --entrypoint bash "$PGIMG" -c \
+  'exec postgres -D /restore/data -c listen_addresses= -c unix_socket_directories=/restore/sock \
+     -c hba_file=/restore/staging_hba.conf -c archive_mode=off -c archive_command=/bin/false \
+     -c ssl=off -c port=5432 -c max_connections=200 -c shared_buffers=256MB -c logging_collector=off \
+     >>/restore/postgres.log 2>&1' >/dev/null || fail "staging PostgreSQL baslatilamadi"
+sq() { docker exec "$NAME" psql -h /restore/sock -U "$PGU" -d "$PGD" -v ON_ERROR_STOP=1 -AtqXc "$1"; }
+ready=0
+for _ in $(seq 1 900); do
+  [ "$(docker inspect -f '{{.State.Running}}' "$NAME" 2>/dev/null)" = true ] || break
+  if docker exec "$NAME" pg_isready -q -h /restore/sock -d "$PGD" 2>/dev/null; then ready=1; break; fi
+  sleep 1
+done
+[ "$ready" = 1 ] || fail "staging PostgreSQL hazir olmadi"
+
+# Yalitim KANITI: bu denetimler gecmeden migration calismaz.
+netmode=$(docker inspect -f '{{.HostConfig.NetworkMode}}' "$NAME")
+settings=$(sq "select current_setting('data_directory')||'|'||current_setting('listen_addresses')||'|'||current_setting('archive_mode')||'|'||pg_is_in_recovery()::text")
+hba_remote=$(sq "select count(*) from pg_hba_file_rules where type <> 'local'")
+printf '{"network":"%s","data_directory":"%s","listen_addresses":"%s","archive_mode":"%s","in_recovery":"%s","hba_non_local_rules":%s}\n' \
+  "$netmode" "$(cut -d'|' -f1 <<<"$settings")" "$(cut -d'|' -f2 <<<"$settings")" "$(cut -d'|' -f3 <<<"$settings")" \
+  "$(cut -d'|' -f4 <<<"$settings")" "${hba_remote:-null}" >"$RUN/isolation.json"
+[ "$netmode" = none ] || fail "yalitim: staging konteynerinin agi none degil"
+[ "$settings" = "/restore/data||off|false" ] || fail "yalitim: beklenmeyen ayar (veri dizini/dinleme/arsiv/kurtarma)"
+[ "$hba_remote" = 0 ] || fail "yalitim: pg_hba yerel olmayan kural iceriyor"
+
+dump_schema() { # dump_schema <hedef>
+  docker exec "$NAME" pg_dump -h /restore/sock -U "$PGU" -d "$PGD" --schema-only --no-owner --no-privileges \
+    | grep -vE '^(--|\\restrict|\\unrestrict)' | grep -v '^$' >"$1"
+}
+sq "select filename from schema_migration order by 1" >"$RUN/ledger.before" || fail "schema_migration okunamadi"
+dump_schema "$RUN/schema.before.sql" || fail "sema dokumu (once) alinamadi"
+
+# Imajdaki migration'lar (arilla-deploy ile ayni yontem) ve bekleyenler.
+docker run --rm --pull=never --network none --log-driver none --entrypoint ls "$IMAGE" /app/packages/db/migrations \
+  | grep -E '^[0-9]{4}_.*[.]sql$' | sort >"$RUN/available" || fail "imajdaki migration listesi okunamadi"
+comm -23 "$RUN/available" "$RUN/ledger.before" >"$RUN/pending"
+unknown=$(comm -13 "$RUN/available" "$RUN/ledger.before" | wc -l | tr -d ' ')
+[ "$unknown" = 0 ] || fail "imaj uretimden eski: yedekte uygulanmis $unknown migration imajda yok"
+[ -s "$RUN/pending" ] || fail "bekleyen migration yok (yanlis imaj ya da zaten uygulanmis)"
+for e in ${EXPECT[@]+"${EXPECT[@]}"}; do
+  grep -qxF "$e" "$RUN/pending" || fail "beklenen migration bekleyenler arasinda degil: $e"
+done
+log "bekleyen migration: $(wc -l <"$RUN/pending" | tr -d ' ') dosya ($(head -3 "$RUN/pending" | tr '\n' ' '))"
+
+# --- 3. migrate + verify (agsiz) ----------------------------------------------------------
+mig() { # mig <betik> : migrate imaji, ag yok, yalniz soket; sir/env dosyasi yok
+  docker run --rm --pull=never --network none --log-driver none --read-only --tmpfs /tmp \
+    --cap-drop ALL --security-opt no-new-privileges:true --memory 1g --memory-swap 1g \
+    -e "DATABASE_URL_OWNER=postgresql://$PGU@localhost/$PGD?host=/sock" \
+    -e "DATABASE_URL=postgresql://$APP_ROLE@localhost/$PGD?host=/sock" \
+    -e MIGRATION_LOCK_TIMEOUT=5s \
+    -v "$RUN/sock:/sock" "$IMAGE" node "scripts/$1"
+}
+log "3/5 migrate (agsiz konteyner)"
+set +e
+mig migrate.ts >"$RUN/migrate.log" 2>&1; echo $? >"$RUN/migrate.rc"
+set -e
+grep -E '^\s*[0-9]{4}_[a-z0-9_]+\.sql \.\.\. (tamam|HATA)' "$RUN/migrate.log" | sed 's/^/    /' || true
+[ "$(cat "$RUN/migrate.rc")" = 0 ] || fail "migrate basarisiz (ayrinti yalniz gecici dizinde; --keep ile sunucuda inceleyin)"
+log "verify-schema"
+set +e
+mig verify-schema.ts >"$RUN/verify.log" 2>&1; echo $? >"$RUN/verify.rc"
+set -e
+[ "$(cat "$RUN/verify.rc")" = 0 ] || fail "verify-schema basarisiz"
+grep -qx 'Tum dogrulamalar gecti.' "$RUN/verify.log" || fail "verify-schema basari satiri yok"
+
+if [ -n "$ASSERT_SQL" ]; then
+  if [ "$(sq "$ASSERT_SQL" 2>/dev/null || true)" = 1 ]; then echo pass >"$RUN/assert.result"; else echo fail >"$RUN/assert.result"; fi
+fi
+
+# --- 4. rapor ---------------------------------------------------------------------------
+log "4/5 sonuc ve sema farki"
+sq "select filename from schema_migration order by 1" >"$RUN/ledger.after" || fail "schema_migration (sonra) okunamadi"
+dump_schema "$RUN/schema.after.sql" || fail "sema dokumu (sonra) alinamadi"
+diff -u --label sema.once --label sema.sonra "$RUN/schema.before.sql" "$RUN/schema.after.sql" >"$RUN/schema.diff" || true
+missing=$(comm -23 "$RUN/pending" "$RUN/ledger.after" | wc -l | tr -d ' ')
+[ "$missing" = 0 ] || fail "$missing bekleyen migration deftere yazilmadi"
+[ ! -f "$RUN/assert.result" ] || [ "$(cat "$RUN/assert.result")" = pass ] || fail "iddia sorgusu 1 dondurmedi"
+
+report true
+log "5/5 temizlik (konteyner + gecici dizin)"
+log "TAMAM: $(wc -l <"$RUN/pending" | tr -d ' ') migration uygulandi, verify gecti. Rapor: $STATE/staging-verify.json"

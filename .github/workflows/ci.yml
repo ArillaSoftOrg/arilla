@@ -246,6 +246,7 @@ jobs:
           infra/vps/bin/init-secrets.sh infra/vps/bin/verify-image.sh infra/vps/cron/cron-call.sh
           infra/vps/bin/pg-backup infra/vps/bin/pg-backup-configure infra/vps/bin/pg-backup-activate
           infra/vps/bin/pg-restore-test infra/vps/bin/test-backup.sh infra/vps/backup/restore-inner.sh
+          infra/vps/bin/pg-staging-verify infra/vps/bin/test-staging-verify.sh
           infra/vps/bin/batch-timers infra/vps/bin/catalog-publish infra/vps/bin/test-wal-backpressure.sh
       - name: duman testi
         run: bash infra/vps/bin/smoke-local.sh
@@ -287,6 +288,22 @@ jobs:
       - uses: actions/checkout@v4
       - name: yedekleme ve geri yukleme testi
         run: sudo -E bash infra/vps/bin/test-backup.sh
+
+  # Karar 0148: gecici staging dogrulamasi (pg-staging-verify) PROVASI. Sentetik "uretim" veri
+  # dizini (imajdaki migration'lar eksi sonuncusu) agsiz kopyada migrate + verify; yalitim, veri
+  # sizintisi, temizlik ve hata yollari sinanir. Yedege/R2'ye/sirlara dokunmaz; root gerekmez.
+  staging-verify:
+    name: staging verify rehearsal (synthetic, no network)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - name: migrate imaji
+        run: docker build -q -f apps/web/Dockerfile --target migrate -t arilla-migrate:staging-test .
+      - name: prova
+        run: MIGRATE_IMAGE=arilla-migrate:staging-test bash infra/vps/bin/test-staging-verify.sh
 
   # Karar 0134: katalog yayini bekcisi (infra/vps/bin/catalog-publish) WAL kararlari, gercek
   # arsivleyen PostgreSQL 16 ile (yavas/hatali arsiv, disk, birakilan WAL, SIGTERM, devam).
@@ -489,6 +506,7 @@ jobs:
       - compose-stack
       - deploy-engine
       - backup-pitr
+      - staging-verify
       - wal-backpressure
       - deploy-gate
       - integration

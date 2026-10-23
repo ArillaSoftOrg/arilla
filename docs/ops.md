@@ -5,11 +5,13 @@
 | Ortam | Ne çalışır | Veri |
 | --- | --- | --- |
 | `local` | Docker Compose: Postgres, Redis, MinIO | Örnek feed, birkaç bin ürün |
-| `staging` | Üretimin küçük kopyası | Gerçek feed'lerin alt kümesi |
+| `staging` | Üretimin küçük kopyası (kalıcı ortam henüz YOK; migration için geçici yan instance, karar 0148) | Gerçek feed'lerin alt kümesi |
 | `production` | Web Vercel'de, worker ayrı barındırmada | Tam katalog |
 | `vps` (geçiş, karar 0109) | Hostinger KVM 4: Caddy, web, Postgres, Redis, worker, cron (Docker Compose) | Sıfırdan kurulur; katalog yeniden toplanır |
 
-Migration'lar staging'de çalışmadan production'a gitmez.
+Migration'lar staging'de çalışmadan production'a gitmez. Kalıcı staging kurulana kadar bu,
+üretimin en son yedeğinden açılan **geçici, ağsız yan instance**ta `pg-staging-verify` ile yapılır
+(karar 0148, "Staging doğrulaması" bölümü). CI'daki migration işleri bunun yerine geçmez.
 
 Karar 0109: uygulama Vercel/Supabase/Upstash olmadan kendi sunucumuzda da
 çalışacak şekilde hazırlanır. Geçiş bitene kadar Vercel production aynen sürer;
@@ -683,6 +685,84 @@ Entegrasyon testleri, `db:migrate`, `db:verify` ve `seed` komutları
 verilerek çalıştırılır. Testler arasında yerel Redis'teki `ratelimit:*`
 anahtarları birikirse giriş testleri oran sınırına takılır; yalnızca yerel
 Redis'te temizlenir.
+
+## Staging doğrulaması (geçici yan instance, karar 0148)
+
+**Ne zaman:** migration içeren her PR, birleşmeden önce. `main`e birleşme migration'ı doğrudan
+production'da çalıştırır; bu adım "staging'de çalışmadan production'a gitmez" kuralının karşılığıdır.
+
+**Ne yapar** (`/opt/arilla/vps/bin/pg-staging-verify`, root, elle):
+
+1. **restore** — en son yedek, boş geçici dizine (`/opt/arilla/restore-test/staging-<zaman>`) geri
+   yüklenir. Mevcut `restore` servisi + `restore-inner.sh` kullanılır (`pg-restore-test` ile aynı,
+   CI'da sınanan yol: yalnız egress ağı, arşiv kapalı, `pg_amcheck`). **Üretim veritabanına
+   bağlanılmaz**; disk ön kontrolü bile yedek bilgisinden (`pgbackrest info`) yapılır.
+2. **start** — kopya ayrı bir PostgreSQL'de açılır: `--network none`, yalnız geçici dizindeki
+   unix soketi (`listen_addresses=''`), `pg_hba` yalnız `local all all trust`, `archive_mode=off`
+   (kopya depoya ASLA WAL göndermez), `--log-driver none` (sunucu kaydı geçici dizinde kalır).
+3. **migrate** — test edilen migrate imajı yine `--network none` ile, yalnız o sokete
+   `scripts/migrate.ts` ve `scripts/verify-schema.ts` çalıştırır. Konteynere üretim env dosyası
+   ya da sırrı **verilmez**; adres betikte sabittir (`localhost` + soket). Ağ olmadığı için yanlış
+   bir adres bile üretime değil hiçbir yere gitmez.
+4. **report** — `/opt/arilla/state/staging-verify.json` (0640) ve `staging-verify.schema.diff`
+   (yalnız DDL farkı). Rapor yalnız özettir: bekleyen/uygulanan dosya adları, çalıştırıcının
+   `tamam/HATA` satırları, verify sonucu ve hata **sayısı**, yalıtım kanıtı, şema özetleri,
+   iddia sonucu. Ham migrate/verify çıktısı ve PostgreSQL kaydı rapora girmez (hata ayrıntısında
+   satır değeri olabilir).
+5. **cleanup** — konteyner ve geçici dizin her durumda silinir (`trap`; yalnız
+   `restore-test/staging-NNNNNNNN-NNNNNN` kalıbındaki dizin).
+
+**Migration'dan önce zorunlu yalıtım denetimleri** (biri tutmazsa durur): konteyner ağı `none`,
+`data_directory=/restore/data`, `listen_addresses` boş, `archive_mode=off`, kurtarma bitmiş,
+`pg_hba_file_rules` içinde `local` dışı kural yok. Ayrıca: yedekte uygulanmış olup imajda olmayan
+migration varsa (imaj üretimden eski) ve bekleyen migration yoksa durur; `--expect` ile verilen
+dosya bekleyenler arasında olmalıdır.
+
+**Ön koşullar (her biri elle onaylanır):**
+
+- Bu betik main'de ve dağıtılmış (`/opt/arilla/vps/bin/pg-staging-verify` var).
+- Yedekleme etkin ve son yedek sağlıklı (`pg-backup check`, `restore-test.json` → `ok=true`).
+- Diskte `2 × veritabanı + 2 GiB` boş yer (betik denetler, yoksa durur).
+- Düşük trafik penceresi: geri yükleme + `pg_amcheck` CPU/disk/R2 okuması kullanır
+  (`restore` 1 CPU / 2 GiB, yan instance 1 CPU / 2 GiB sınırlı).
+- Test edilen PR'ın migrate imajı VPS'te yerel olarak var (betik imaj **çekmez**).
+
+**Adımlar** (PR #N, başı `<sha>`):
+
+```bash
+# Geliştirici makinesi: PR başından migrate imajı (yalnız kod; sır içermediği doğrulanır)
+git fetch origin pull/<N>/head && git archive <sha> | tar -x -C /tmp/pr-<N>
+docker build -f /tmp/pr-<N>/apps/web/Dockerfile --target migrate -t arilla-migrate:pr<N>-<sha7> /tmp/pr-<N>
+bash infra/vps/bin/verify-image.sh arilla-migrate:pr<N>-<sha7>
+docker save arilla-migrate:pr<N>-<sha7> | ssh <yonetici>@<vps> 'sudo docker load'
+
+# VPS (root, onaylı pencere)
+sudo /opt/arilla/vps/bin/pg-staging-verify --image arilla-migrate:pr<N>-<sha7> \
+  --expect <NNNN_ad.sql> --assert-sql "<1 döndürmesi gereken sorgu>"
+sudo cat /opt/arilla/state/staging-verify.json
+sudo cat /opt/arilla/state/staging-verify.schema.diff
+sudo docker image rm arilla-migrate:pr<N>-<sha7>
+```
+
+PR'a **yalnız** rapordaki özet alanlar yazılır (`ok`, `image.id`, `migrations.pending/applied/results`,
+`verify`, `isolation`, `assert`, `schema.*_sha256`, fark satır sayıları). Geri yüklenen kopyada
+gerçek kişisel veri vardır: kopya, dökümü ve ham kayıtlar **sunucudan çıkmaz**, ekran görüntüsü
+ya da log olarak paylaşılmaz.
+
+**Başarısızlık:** rapordaki `errors` ve `migrations.results` hangi adımın düştüğünü söyler. Ayrıntı
+gerekirse `--keep` ile yeniden çalıştırılır; geçici dizin sunucuda kalır (0700, root/999), yalnız
+sunucuda incelenir ve iş bitince `sudo rm -rf /opt/arilla/restore-test/staging-<zaman>` ile silinir.
+Üretim veritabanı ve yedek deposu hiçbir durumda değişmez.
+
+**Prova:** `MIGRATE_IMAGE=<imaj> infra/vps/bin/test-staging-verify.sh` (root gerekmez; CI işi
+"staging verify rehearsal"). Sentetik "üretim" veri dizini (imajdaki migration'lar eksi sonuncusu)
+kurulur; başarılı yol, yalıtım, veri sızıntısı (sentetik gizli işaret), izinler, temizlik, kaynağın
+değişmediği ve hata yolları sınanır. `ARILLA_STAGING_TEST_DATADIR` prova kipi root ile ya da
+`/opt/arilla` altında reddedilir.
+
+**Sınırlar:** "en son durum" son arşivlenmiş WAL'e kadardır (RPO ≤ ~5 dk). Kopya verify'ın TRUNCATE
+probunu da çalıştırır (`localhost`: yerel sayılır); bu yalnız kopyayı etkiler. Migration süresi
+üretimde kilit beklemeleri yüzünden farklı olabilir; `lock_timeout` her iki yerde 5 sn'dir.
 
 ## Yedekleme ve geri yükleme (karar 0110)
 
@@ -2027,7 +2107,9 @@ CSP genişlemez, `/yonetim/analitik` "yapılandırılmamış" der.
 
 ## Dağıtım
 
-- `main` dalına birleşme staging'e otomatik gider
+- `main` dalına birleşme **doğrudan VPS production'a** otomatik gider (ara staging aşaması yok).
+  Bu yüzden migration içeren PR, birleşmeden ÖNCE "Staging doğrulaması" (karar 0148) ile
+  doğrulanır; sonuç özeti PR'a yazılır.
 - Vercel production'ı Git entegrasyonuyla dağıtılır (geçiş bitene kadar sürer)
 - VPS yolu (karar 0109, faz 6): CI ✔ → GHCR imajı (`:<sha>`, digest ile) → `deploy.yml` → VPS'te
   `arilla-deploy` (migration yedeği + `migrate`, sağlık kapısı, **otomatik geri alma**). Aynı anda tek
