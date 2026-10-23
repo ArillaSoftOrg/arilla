@@ -258,10 +258,15 @@ async function lockTrendForEdit(tx: Tx, id: number) {
   return rows[0];
 }
 
+/** Formdaki metin `requireText` ile sadeleşir; karşılaştırma için kayıttaki metin de aynı biçime. */
+function collapse(text: string): string {
+  return text.trim().replace(/\s+/g, " ");
+}
+
 function detailsOf(row: NonNullable<Awaited<ReturnType<typeof lockTrendForEdit>>>): TrendDetails {
   return {
-    title: row.title,
-    description: row.description,
+    title: collapse(row.title),
+    description: collapse(row.description),
     category: row.category,
     trendType: row.trendType,
     heroImageUrl: row.heroImageUrl,
@@ -728,8 +733,8 @@ export async function getTrendEditor(
       featured: row.featured,
       sortOrder: row.sortOrder,
       details: {
-        title: row.title,
-        description: row.description,
+        title: collapse(row.title),
+        description: collapse(row.description),
         category: row.category,
         trendType: row.trendType,
         heroImageUrl: row.heroImageUrl,

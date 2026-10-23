@@ -384,6 +384,22 @@ describe("trend koleksiyonu yönetimi - entegrasyon (karar 0149)", () => {
     expect(Object.keys(last?.after as object).sort()).toEqual(["activeFrom", "title"]);
   });
 
+  it("kayıttaki fazla boşluk formla eşleşir (sonsuz conflict olmaz)", async () => {
+    const id = trendIds[1] as number;
+    await q("UPDATE trend SET description = $1 WHERE id = $2", ["Serin  havalar\niçin seçki.", id]);
+    const editor = await getTrendEditor(db, admin, id);
+    expect(editor?.details.description).toBe("Serin havalar için seçki.");
+    const expected = { ...details, ...editor?.details };
+    expect(
+      await updateTrendDetails(db, admin, {
+        trendId: id,
+        expected,
+        next: { ...expected, description: "Yeni açıklama." },
+        reason: "boşluk düzeltme",
+      }),
+    ).toEqual({ status: "updated" });
+  });
+
   it("denetim yazılamazsa bağlar ve ayrıntılar geri alınır (atomik)", async () => {
     const id = trendIds[1] as number;
     const current = await links(id);
