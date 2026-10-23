@@ -13,7 +13,8 @@
  * `conflict` döner, hiçbir şey değişmez. `updated_at` kullanılmaz: curate işi
  * bağları yeniden yazarken onu da günceller.
  *
- * `trend_product` (ürün bağları) curate işinindir ve burada YAZILMAZ.
+ * `trend_product` (ürün bağları) burada YAZILMAZ: otomatik trendde curate işinin,
+ * elle seçilmiş (`curation = 'manual'`) trendde `trend-collections.ts`'in (karar 0149).
  */
 import { type Database, trend } from "@arilla/db";
 import { eq, sql } from "drizzle-orm";
@@ -164,7 +165,23 @@ export type TrendMutationResult =
   | { status: "updated" }
   | { status: "unchanged" }
   | { status: "not_found" }
-  | { status: "conflict" };
+  | { status: "conflict" }
+  /** Yayın kapısı (karar 0149): gösterilebilir ürün `MIN_PUBLIC_TREND_PRODUCTS` altında. */
+  | { status: "below_threshold"; showable: number; required: number };
+
+/** Trendin şu an gösterilebilir (görselli + fiyatlı + stokta, yayında) bağlı ürün sayısı. */
+export async function countShowableTrendProducts(
+  tx: Pick<Database, "execute">,
+  trendId: number,
+): Promise<number> {
+  const rows = await tx.execute<{ n: Num }>(sql`
+    SELECT count(*) AS n
+      FROM trend_product tp
+      JOIN product p ON p.id = tp.product_id AND ${TREND_SHOWABLE_PRODUCT_SQL}
+     WHERE tp.trend_id = ${trendId}
+  `);
+  return Number(rows.rows[0]?.n ?? 0);
+}
 
 function requireId(value: unknown): number {
   if (typeof value === "number" && Number.isSafeInteger(value) && value > 0) return value;
@@ -196,7 +213,12 @@ async function lockTrend(tx: Parameters<Parameters<Database["transaction"]>[0]>[
   return rows[0];
 }
 
-/** Durum geçişi. Yayın eşik altındaysa da yapılabilir; public kural yine gizler (ekranda uyarılır). */
+/**
+ * Durum geçişi. Yayına alma (karar 0149) aynı işlemde, satır kilidinden SONRA eşiği
+ * denetler: gösterilebilir ürün `MIN_PUBLIC_TREND_PRODUCTS` altındaysa `below_threshold`
+ * döner, hiçbir şey yazılmaz. Yayındaki trendin sonradan eşik altına düşmesi (stok) public
+ * kuralla gizlenir; bu kapı yalnızca bilinçli yayın kararını korur.
+ */
 export async function setTrendStatus(
   db: Database,
   actor: AdminActor,
@@ -216,6 +238,12 @@ export async function setTrendStatus(
     const current = await lockTrend(tx, id);
     if (!current) return { status: "not_found" };
     if (current.status !== input.expectedStatus) return { status: "conflict" };
+    if (next === "published") {
+      const showable = await countShowableTrendProducts(tx, id);
+      if (showable < MIN_PUBLIC_TREND_PRODUCTS) {
+        return { status: "below_threshold", showable, required: MIN_PUBLIC_TREND_PRODUCTS };
+      }
+    }
     await tx.update(trend).set({ status: next, updatedAt: new Date() }).where(eq(trend.id, id));
     await recordAdminEvent(tx, {
       actor,

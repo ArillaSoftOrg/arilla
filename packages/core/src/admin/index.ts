@@ -39,6 +39,7 @@ export * from "./seo.ts";
 export * from "./session-policy.ts";
 export * from "./severity.ts";
 export * from "./traffic.ts";
+export * from "./trend-collections.ts";
 export * from "./trends-admin.ts";
 export * from "./user-journey.ts";
 export * from "./users.ts";
