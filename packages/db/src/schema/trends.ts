@@ -12,6 +12,8 @@ import {
 export type TrendCategory = "moda" | "guzellik" | "ev-yasam" | "ogrenci" | "genel";
 export type TrendStatus = "draft" | "published" | "archived";
 export type TrendType = "evergreen" | "seasonal" | "campaign";
+/** Urun baglarinin sahibi (0100, docs/decisions/0147): `manual` trende curate dokunmaz. */
+export type TrendCuration = "auto" | "manual";
 
 /**
  * Editoryal urun kesfi koleksiyonu. Blog degil: baslik, tek cumle aciklama ve
@@ -29,6 +31,7 @@ export const trend = pgTable("trend", {
   featured: boolean("featured").notNull().default(false),
   trendType: text("trend_type").$type<TrendType>().notNull().default("evergreen"),
   sortOrder: integer("sort_order").notNull().default(0),
+  curation: text("curation").$type<TrendCuration>().notNull().default("auto"),
   activeFrom: timestamp("active_from", { withTimezone: true }),
   activeUntil: timestamp("active_until", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
