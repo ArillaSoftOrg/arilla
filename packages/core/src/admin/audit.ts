@@ -135,6 +135,8 @@ export type AdminAction =
   /** Katalog toplama (karar 0117): kosu rezervasyonu ve kapanisi; urun icerigi YAZILMAZ. */
   | "catalog_collection.start"
   | "catalog_collection.close"
+  /** Karar 0140: kapanan tam taramanın kaldırılma sayımı (görülen / eksik / kaldırılan). */
+  | "catalog_collection.presence"
   /** Karar 0120: buyuk indirme onayi (bayt tavani, aktarim kaynagi); icerik YAZILMAZ. */
   | "catalog_collection.approve_download";
 

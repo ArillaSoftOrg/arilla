@@ -168,6 +168,9 @@ export type DiscoveryPriceState =
   | "stale"
   | "unavailable";
 
+/** 0092 (karar 0140): kaldırılma takibi durumu. */
+export type DiscoveryPresence = "present" | "missing" | "removed";
+
 /**
  * 0073 (karar 0120): fiyatsiz urun kesif defteri. offer DEGILDIR; FIYAT KOLONU YOKTUR.
  * Birincil anahtar (source, external_id): tekrar kesif yeni satir uretmez.
@@ -188,6 +191,16 @@ export const catalogDiscovery = pgTable(
     lastSeenAt: timestamp("last_seen_at", { withTimezone: true }).notNull().defaultNow(),
     priceState: text("price_state").$type<DiscoveryPriceState>().notNull().default("unpriced"),
     priceCheckedAt: timestamp("price_checked_at", { withTimezone: true }),
+    // 0092 (karar 0140): kaldırılma takibi. Yalnızca tam ve doğrulanmış taramalar sayar.
+    presence: text("presence").$type<DiscoveryPresence>().notNull().default("present"),
+    missedScans: integer("missed_scans").notNull().default(0),
   },
   (t) => [primaryKey({ columns: [t.source, t.externalId] })],
 );
+
+/** 0092 (karar 0140): kaynak başına son finalize edilmiş tam tarama. */
+export const catalogDiscoveryScanState = pgTable("catalog_discovery_scan_state", {
+  source: text("source").primaryKey(),
+  lastFinalizedRunId: bigint("last_finalized_run_id", { mode: "number" }).notNull(),
+  finalizedAt: timestamp("finalized_at", { withTimezone: true }).notNull().defaultNow(),
+});

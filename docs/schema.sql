@@ -2897,6 +2897,20 @@ REVOKE DELETE, TRUNCATE ON catalog_discovery FROM arilla_app;
 -- 0085 (karar 0130): fiyat durumu bilinen azinlik satirlar (panel sayimi).
 CREATE INDEX catalog_discovery_priced_idx ON catalog_discovery (source, price_state)
     WHERE price_state <> 'unpriced';
+-- 0092 (karar 0140): kaldırılma takibi. Yalnızca ekleme.
+ALTER TABLE catalog_discovery
+    ADD COLUMN presence TEXT NOT NULL DEFAULT 'present'
+        CHECK (presence IN ('present', 'missing', 'removed')),
+    ADD COLUMN missed_scans SMALLINT NOT NULL DEFAULT 0
+        CHECK (missed_scans >= 0);
+CREATE TABLE catalog_discovery_scan_state (
+    source                TEXT        PRIMARY KEY REFERENCES collection_source(source),
+    last_finalized_run_id BIGINT      NOT NULL REFERENCES collection_run(id),
+    finalized_at          TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- 0093 (karar 0140): kaldırılma takibi kısmi indeksi (concurrent).
+CREATE INDEX catalog_discovery_unhealthy_idx ON catalog_discovery (source)
+    WHERE presence <> 'present' OR missed_scans <> 0;
 
 -- 0084 (karar 0130): kesif defterinden taslak urun aktarimi kontrol noktasi. Anahtar metin
 -- oldugu icin `catalog_build_state`'ten ayri; parti + kontrol noktasi ayni islemde.

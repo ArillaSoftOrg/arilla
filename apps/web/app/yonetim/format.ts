@@ -176,6 +176,7 @@ const ACTION_LABELS: Record<AdminAction, string> = {
   "catalog_collection.start": "Katalog toplama başlatıldı",
   "catalog_collection.close": "Katalog toplama kapatıldı",
   "catalog_collection.approve_download": "Katalog indirmesi onaylandı",
+  "catalog_collection.presence": "Kaldırılma takibi işlendi",
   "users.lookup": "Kullanıcı arandı",
   "users.search": "Kullanıcı arandı (kısmi)",
   "users.view": "Kullanıcı ayrıntısı görüntülendi",
