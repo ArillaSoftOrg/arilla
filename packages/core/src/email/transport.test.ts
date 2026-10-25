@@ -1,5 +1,5 @@
-import { describe, expect, it } from "vitest";
-import { SmtpConfigError, smtpConfigFromEnv } from "./transport.ts";
+import { afterEach, describe, expect, it } from "vitest";
+import { emailReplyTo, SmtpConfigError, smtpConfigFromEnv } from "./transport.ts";
 
 describe("smtpConfigFromEnv", () => {
   it("allows local Mailpit without auth (dev)", () => {
@@ -110,5 +110,29 @@ describe("smtpConfigFromEnv", () => {
     } catch (error) {
       expect(String(error)).not.toContain("s3cret!");
     }
+  });
+});
+
+describe("emailReplyTo", () => {
+  const saved = { from: process.env.EMAIL_FROM, reply: process.env.EMAIL_REPLY_TO };
+  afterEach(() => {
+    if (saved.from === undefined) delete process.env.EMAIL_FROM;
+    else process.env.EMAIL_FROM = saved.from;
+    if (saved.reply === undefined) delete process.env.EMAIL_REPLY_TO;
+    else process.env.EMAIL_REPLY_TO = saved.reply;
+  });
+
+  it("uses EMAIL_REPLY_TO when set", () => {
+    process.env.EMAIL_FROM = "ManiCepte <noreply@example.test>";
+    process.env.EMAIL_REPLY_TO = "team@example.test";
+    expect(emailReplyTo()).toBe("team@example.test");
+  });
+
+  it("falls back to the address inside EMAIL_FROM", () => {
+    process.env.EMAIL_FROM = "ManiCepte <team@example.test>";
+    delete process.env.EMAIL_REPLY_TO;
+    expect(emailReplyTo()).toBe("team@example.test");
+    process.env.EMAIL_FROM = "plain@example.test";
+    expect(emailReplyTo()).toBe("plain@example.test");
   });
 });

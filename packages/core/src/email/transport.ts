@@ -131,3 +131,15 @@ export function emailFrom(): string {
   }
   return from;
 }
+
+/**
+ * Yanıt adresi: `EMAIL_REPLY_TO` (örn. team@alanadi.com); boşsa `EMAIL_FROM`
+ * içindeki adres. Adres kodda sabitlenmez.
+ */
+export function emailReplyTo(): string {
+  const explicit = nonEmpty(process.env.EMAIL_REPLY_TO);
+  if (explicit) return explicit;
+  const from = emailFrom();
+  const bracketed = /<([^<>]+)>\s*$/.exec(from);
+  return (bracketed?.[1] ?? from).trim();
+}
