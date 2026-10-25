@@ -162,8 +162,8 @@ platform sorununu hafifletir.
 /giris?next=/yol           E-posta bağlantısı isteme. `next`: giriş sonrası dönüş (yalnızca göreli yol)
 /giris/dogrula?token=...   Onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir. Tek kullanımlık, 15 dk.
 /giris/eposta              E-posta + şifre ile giriş (0150). `?durum=` doğrulama/sıfırlama sonuçlarını taşır. noindex. SMTP/Argon2id hazır değilse seçenek ve eylemler kapalı.
-/giris/kayit               E-posta + şifre ile kayıt. Hesap yalnızca e-posta doğrulanınca açılır. noindex.
-/giris/eposta-dogrula?token=...  Doğrulama onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir; hesap + oturum burada açılır. Tek kullanımlık, 60 dk. `no-referrer`.
+/giris/kayit               E-posta + şifre ile kayıt (e-posta + şifre; ad alanı yok). Hesap yalnızca e-posta doğrulanınca açılır. noindex. Erken erişim CTA'sı `/giris?next=%2Ferken-erisim&kayit=1` ile gelir; "E-posta ile devam edin" buraya, "Giriş yap" `/giris/eposta`'ya gider.
+/giris/eposta-dogrula?token=...  Doğrulama onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir; hesap + oturum burada açılır. Tek kullanımlık, 15 dk. `no-referrer`.
 /giris/sifre-unuttum       Şifre belirleme/sıfırlama bağlantısı iste. Yanıt hesabın varlığını belli etmez.
 /giris/sifre-sifirla?token=...   Yeni şifre formu (GET token'ı tüketmez, yalnız geçerliliğine bakar). Tek kullanımlık, 30 dk. Tüm oturumlar kapanır; oturum açılmaz. `no-referrer`.
 /hesap/sifre               Şifreni değiştir (bu oturum dışındakiler kapanır) ya da, şifresi olmayan hesap için, e-postaya şifre belirleme bağlantısı iste. Personel hesapları kullanmaz.

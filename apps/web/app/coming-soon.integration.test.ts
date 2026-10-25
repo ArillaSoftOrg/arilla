@@ -15,7 +15,7 @@
  */
 import {
   ADMIN_LOGIN_PATH,
-  EARLY_ACCESS_LOGIN_PATH,
+  EARLY_ACCESS_SIGNUP_PATH,
   generateRawToken,
   hashToken,
 } from "@arilla/core";
@@ -252,7 +252,7 @@ describe("landing içeriği", () => {
   it("anonim: marka, başlık ve tek eylem; ürün/arama/form yok", async () => {
     const html = await landingMarkup();
     expect(html).toContain("Tarif et, fotoğrafını göster veya linkini bırak.");
-    expect(html).toContain(`href="${EARLY_ACCESS_LOGIN_PATH}"`);
+    expect(html).toContain(`href="${EARLY_ACCESS_SIGNUP_PATH.replaceAll("&", "&amp;")}"`);
     expect(html).toContain('href="#nasil-calisacak"');
     expect(html).toContain('id="nasil-calisacak"');
     expect(html).toContain("ManiCepte nasıl çalışır?");
@@ -292,7 +292,7 @@ describe("landing içeriği", () => {
     const html = await landingMarkup();
     expect(html).toContain('href="/erken-erisim"');
     expect(html).toContain("Listedesin. İyi ki geldin.");
-    expect(html).not.toContain(`href="${EARLY_ACCESS_LOGIN_PATH}"`);
+    expect(html).not.toContain(`href="${EARLY_ACCESS_SIGNUP_PATH.replaceAll("&", "&amp;")}"`);
     expect(html).not.toMatch(PRODUCT_HREF);
   });
 
@@ -333,7 +333,7 @@ describe("kabuk: header ve footer", () => {
 
   it("anonim: erken erişim ve sade Admin Girişi; ürün bağlantısı yok", async () => {
     const { loginHref, utilityLink, utilityInMenuOnly, groups } = await shellParts("prelaunch");
-    expect(loginHref).toBe(EARLY_ACCESS_LOGIN_PATH);
+    expect(loginHref).toBe(EARLY_ACCESS_SIGNUP_PATH);
     // Admin Girişi üst çubukta değil, yalnızca menü panelinde gösterilir.
     expect(utilityLink).toEqual({ label: "Admin Girişi", href: ADMIN_LOGIN_PATH });
     expect(utilityInMenuOnly).toBe(true);
@@ -433,7 +433,7 @@ describe("erken erişim akışı", () => {
 
   it("yeni ziyaretçi: CTA → giriş → kayıt → başarı ekranı; tekrar giriş idempotent", async () => {
     const email = `yakinda-yeni-${suffix}@test.local`;
-    const next = new URL(EARLY_ACCESS_LOGIN_PATH, "http://x").searchParams.get("next") ?? "";
+    const next = new URL(EARLY_ACCESS_SIGNUP_PATH, "http://x").searchParams.get("next") ?? "";
     expect(await loginWithEmail(email, next)).toBe("/erken-erisim");
     expect(await earlyAccessRows(email)).toBe(1);
     expect(await loginWithEmail(email, next)).toBe("/erken-erisim");

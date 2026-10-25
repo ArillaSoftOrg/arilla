@@ -18,11 +18,14 @@ export default async function KayitPage({
 }) {
   const safeNext = safeRedirectPath((await searchParams).next);
   const available = authProviderAvailability().email;
+  // Kayıt niyeti geri dönüşte korunur: Google/Apple seçenekleri aynı `next` ile açılır.
+  const chooserHref = withNext("/giris?kayit=1", safeNext);
 
   return (
     <CredentialShell
       titleId="kayit-baslik"
       title={COPY.registerTitle}
+      backHref={chooserHref}
       notice={available ? undefined : COPY.unavailableNotice}
       footer={
         <a className={styles.legal} href={withNext("/giris/eposta", safeNext)}>

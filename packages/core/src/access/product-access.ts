@@ -29,6 +29,15 @@ export const EARLY_ACCESS_PATH = "/erken-erisim";
 export const EARLY_ACCESS_LOGIN_PATH = loginPathWithNext(EARLY_ACCESS_PATH);
 
 /**
+ * "Erken erişime katıl" eyleminin hedefi: `EARLY_ACCESS_LOGIN_PATH` ile aynı giriş
+ * ekranı ve aynı `next`; `kayit=1` yalnızca kayıt niyetini taşır. Google/Apple
+ * davranışı aynı kalır, "E-posta ile devam edin" doğrudan kayıt ekranına gider
+ * (`/giris/kayit`). Erişim kuralları değişmez; "Giriş yap" bağlantıları bu yolu
+ * kullanmaz.
+ */
+export const EARLY_ACCESS_SIGNUP_PATH = `${EARLY_ACCESS_LOGIN_PATH}&kayit=1`;
+
+/**
  * Sade "Admin Girişi" baglantisi: ayni giris akisi, `next=/yonetim`. Ayri
  * parola, gizli adres ya da belirtec YOK. Yetki girisin ardindan sunucuda
  * rolden okunur (`postAuthRedirect` + `/yonetim`'in `requireCapability`'si);

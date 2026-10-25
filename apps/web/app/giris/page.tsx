@@ -8,6 +8,7 @@ import styles from "./page.module.css";
 interface GirisSearchParams {
   error?: string;
   next?: string;
+  kayit?: string;
 }
 
 const ERROR_COPY: Record<string, string> = {
@@ -34,7 +35,7 @@ export default async function GirisPage({
 }: {
   searchParams: Promise<GirisSearchParams>;
 }) {
-  const { error, next } = await searchParams;
+  const { error, next, kayit } = await searchParams;
   const errorText = error ? ERROR_COPY[error] : undefined;
   // Giriş sonrası dönüş yolu; güvensizse `/` (open redirect yok).
   const safeNext = safeRedirectPath(next);
@@ -61,7 +62,11 @@ export default async function GirisPage({
             {errorText}
           </p>
         ) : null}
-        <LoginFormClient next={safeNext} availability={authProviderAvailability()} />
+        <LoginFormClient
+          next={safeNext}
+          availability={authProviderAvailability()}
+          signup={kayit === "1"}
+        />
         <p className={styles.legal}>
           Devam ederek {SITE_BRAND}'nin <a href="/kosullar">Hizmet Şartlarını</a> kabul etmiş ve{" "}
           <a href="/gizlilik">Gizlilik Politikasını</a> okumuş olursun.

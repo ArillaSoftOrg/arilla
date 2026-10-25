@@ -1,4 +1,4 @@
-import { EARLY_ACCESS_LOGIN_PATH, EARLY_ACCESS_PATH } from "@arilla/core";
+import { EARLY_ACCESS_PATH, EARLY_ACCESS_SIGNUP_PATH } from "@arilla/core";
 import { createElement, type ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
@@ -12,7 +12,7 @@ import { ComingSoonLanding } from "./coming-soon-landing.tsx";
 describe("prelaunch mascot story", () => {
   it("keeps enrollment links and all story content usable without client JavaScript", () => {
     const html = renderToStaticMarkup(createElement(ComingSoonLanding, { signedIn: false }));
-    expect(html).toContain(`href="${EARLY_ACCESS_LOGIN_PATH}"`);
+    expect(html).toContain(`href="${EARLY_ACCESS_SIGNUP_PATH.replaceAll("&", "&amp;")}"`);
     expect(html.match(/<h1\b/g)).toHaveLength(1);
     expect(html.match(/data-mascot-guide=""/g)).toHaveLength(2);
     expect(html).toContain("robot-welcome.png");
@@ -43,7 +43,7 @@ describe("prelaunch mascot story", () => {
   it("takes enrolled visitors to their status without offering to enroll again", () => {
     const html = renderToStaticMarkup(createElement(ComingSoonLanding, { signedIn: true }));
     expect(html).toContain(`href="${EARLY_ACCESS_PATH}"`);
-    expect(html).not.toContain(`href="${EARLY_ACCESS_LOGIN_PATH}"`);
+    expect(html).not.toContain(`href="${EARLY_ACCESS_SIGNUP_PATH.replaceAll("&", "&amp;")}"`);
     expect(html).toContain("Listedesin. İyi ki geldin.");
   });
 

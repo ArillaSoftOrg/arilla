@@ -36,6 +36,7 @@ export * from "./LoginModal.tsx";
 export type { SpaceStep } from "./layout.ts";
 export * from "./locative.ts";
 export * from "./MerchantList.tsx";
+export * from "./PasswordInput.tsx";
 export * from "./PhotoUploadButton.tsx";
 export * from "./PriceChart.tsx";
 export * from "./PriceDiffBlock.tsx";

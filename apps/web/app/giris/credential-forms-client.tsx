@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Input } from "@arilla/ui";
+import { Button, Input, PasswordInput } from "@arilla/ui";
 import { type ReactNode, useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import {
@@ -17,6 +17,7 @@ import {
   PASSWORD_FIELD_ERRORS,
 } from "./credential-copy.ts";
 import type { CredentialFormState } from "./credential-errors.ts";
+import { NewPasswordFields } from "./new-password-fields.tsx";
 import styles from "./page.module.css";
 
 const IDLE: CredentialFormState = { status: "idle" };
@@ -138,12 +139,13 @@ export function LoginForm({ next }: { next: string }) {
         required
         error={emailError(state)}
       />
-      <Input
+      <PasswordInput
         label={COPY.passwordLabel}
         name="password"
-        type="password"
         autoComplete="current-password"
         required
+        showLabel={COPY.showPassword}
+        hideLabel={COPY.hidePassword}
       />
       <SubmitButton label={COPY.loginSubmit} pending={COPY.loginPending} />
     </form>
@@ -164,14 +166,6 @@ export function RegisterForm({ next }: { next: string }) {
       <input type="hidden" name="next" value={next} />
       <FormNotice state={state} />
       <Input
-        label={COPY.nameLabel}
-        name="name"
-        type="text"
-        autoComplete="name"
-        maxLength={80}
-        defaultValue={state.status === "error" ? state.name : undefined}
-      />
-      <Input
         label={COPY.emailLabel}
         name="email"
         type="email"
@@ -181,17 +175,7 @@ export function RegisterForm({ next }: { next: string }) {
         required
         error={emailError(state)}
       />
-      <Input
-        label={COPY.passwordLabel}
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        minLength={10}
-        maxLength={128}
-        required
-        hint={COPY.passwordHint}
-        error={passwordError(state)}
-      />
+      <NewPasswordFields label={COPY.passwordLabel} error={passwordError(state)} />
       <SubmitButton label={COPY.registerSubmit} pending={COPY.registerPending} />
     </form>
   );
@@ -234,25 +218,10 @@ export function ResetPasswordForm({ token }: { token: string }) {
           {COPY.requestNewLink}
         </a>
       ) : null}
-      <Input
+      <NewPasswordFields
         label={COPY.newPasswordLabel}
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        minLength={10}
-        maxLength={128}
-        required
-        hint={COPY.passwordHint}
+        confirmName="confirm"
         error={passwordError(state)}
-      />
-      <Input
-        label={COPY.confirmPasswordLabel}
-        name="confirm"
-        type="password"
-        autoComplete="new-password"
-        minLength={10}
-        maxLength={128}
-        required
       />
       <SubmitButton label={COPY.resetSubmit} pending={COPY.resetPending} />
     </form>

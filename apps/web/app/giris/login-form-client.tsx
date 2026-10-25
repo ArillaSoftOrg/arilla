@@ -104,6 +104,9 @@ export interface ProviderAvailability {
  * kullanılamıyor" notuyla devre dışı gösterilir - kullanıcı bozuk bir
  * akışa gönderilmez. Başlangıç route'ları aynı kontrolü ayrıca yapar.
  *
+ * `signup`: `/giris?kayit=1` (erken erişim CTA'sı) - yalnızca e-posta seçeneğinin hedefi
+ * değişir; Google/Apple davranışı ve `next` aynıdır.
+ *
  * `googleOnly`: yönetim ana makinesi (karar 0056) yalnızca Google girişi sunar;
  * Apple düğmesi hiç çizilmez.
  */
@@ -112,11 +115,14 @@ export function LoginFormClient({
   availability,
   googleOnly = false,
   compact = false,
+  signup = false,
 }: {
   next?: string;
   availability?: ProviderAvailability;
   googleOnly?: boolean;
   compact?: boolean;
+  /** Kayıt niyeti (erken erişim): "E-posta ile devam edin" kayıt ekranına gider. Google/Apple aynı. */
+  signup?: boolean;
 } = {}) {
   const withNext = (href: string) =>
     next && next !== "/" ? `${href}?next=${encodeURIComponent(next)}` : href;
@@ -144,7 +150,7 @@ export function LoginFormClient({
       {googleOnly ? null : provider("apple", "/giris/apple", COPY.apple, <AppleMark />)}
       {googleOnly || !availability?.email
         ? null
-        : provider("email", "/giris/eposta", COPY.email, <EmailMark />)}
+        : provider("email", signup ? "/giris/kayit" : "/giris/eposta", COPY.email, <EmailMark />)}
     </div>
   );
 }

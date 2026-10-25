@@ -245,3 +245,39 @@
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
+
+/* Yeni sifre araclari: "Guclu sifre olustur" / "Kopyala" (new-password-fields.tsx). */
+.passwordTools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2) var(--space-4);
+}
+
+.textButton {
+  min-height: var(--size-touch-target);
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-small);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+  cursor: pointer;
+}
+
+.textButton:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.passwordStatus {
+  margin: 0;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  color: var(--ink-secondary);
+}
+
+.passwordStatus:empty {
+  display: none;
+}

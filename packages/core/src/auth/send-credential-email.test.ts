@@ -42,6 +42,17 @@ describe("buildCredentialEmail", () => {
     },
   );
 
+  it("doğrulama bağlantısı 15 dakika, sıfırlama 30 dakika geçerlidir ve metinler karışmaz", () => {
+    expect(VERIFY_EMAIL_TTL_MINUTES).toBe(15);
+    expect(RESET_PASSWORD_TTL_MINUTES).toBe(30);
+    const verify = buildCredentialEmail("verify_email", URL_WITH_TOKEN);
+    expect(verify.text).toContain("15 dakika");
+    expect(verify.text).not.toContain("60 dakika");
+    const reset = buildCredentialEmail("reset_password", URL_WITH_TOKEN);
+    expect(reset.text).toContain("30 dakika");
+    expect(reset.text).not.toContain("15 dakika");
+  });
+
   it("şifre değişikliği bildirimi bağlantı ve hassas bilgi taşımaz", () => {
     const mail = buildCredentialEmail("password_changed");
     expect(mail.html).not.toMatch(/href=/);
@@ -77,8 +88,8 @@ describe("buildCredentialEmail", () => {
     },
   );
 
-  it("süre sabitleri sunucudaki token süreleriyle aynıdır (60 / 30)", () => {
-    expect(VERIFY_EMAIL_TTL_MINUTES).toBe(60);
+  it("süre sabitleri sunucudaki token süreleriyle aynıdır (15 / 30)", () => {
+    expect(VERIFY_EMAIL_TTL_MINUTES).toBe(15);
     expect(RESET_PASSWORD_TTL_MINUTES).toBe(30);
   });
 

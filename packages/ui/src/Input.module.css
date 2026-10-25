@@ -69,3 +69,38 @@
     transition: border-color var(--duration-fast) var(--ease-standard);
   }
 }
+
+/* Sifre alani: goster/gizle dugmesi girdinin sag ucunda, 44px dokunma hedefi. */
+.passwordWrap {
+  position: relative;
+  display: flex;
+}
+
+.passwordInput {
+  padding-inline-end: var(--size-touch-target);
+}
+
+.passwordToggle {
+  position: absolute;
+  inset-block: 0;
+  inset-inline-end: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--size-touch-target);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radius-md);
+  background: transparent;
+  color: var(--ink-secondary);
+  cursor: pointer;
+}
+
+.passwordToggle:hover {
+  color: var(--ink);
+}
+
+.passwordToggle:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: calc(var(--focus-ring-offset) * -1);
+}
