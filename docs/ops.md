@@ -5,11 +5,13 @@
 | Ortam | Ne çalışır | Veri |
 | --- | --- | --- |
 | `local` | Docker Compose: Postgres, Redis, MinIO | Örnek feed, birkaç bin ürün |
-| `staging` | Üretimin küçük kopyası | Gerçek feed'lerin alt kümesi |
+| `staging` | Üretimin küçük kopyası (kalıcı ortam henüz YOK; migration için geçici yan instance, karar 0148) | Gerçek feed'lerin alt kümesi |
 | `production` | Web Vercel'de, worker ayrı barındırmada | Tam katalog |
 | `vps` (geçiş, karar 0109) | Hostinger KVM 4: Caddy, web, Postgres, Redis, worker, cron (Docker Compose) | Sıfırdan kurulur; katalog yeniden toplanır |
 
-Migration'lar staging'de çalışmadan production'a gitmez.
+Migration'lar staging'de çalışmadan production'a gitmez. Kalıcı staging kurulana kadar bu,
+üretimin en son yedeğinden açılan **geçici, ağsız yan instance**ta `pg-staging-verify` ile yapılır
+(karar 0148, "Staging doğrulaması" bölümü). CI'daki migration işleri bunun yerine geçmez.
 
 Karar 0109: uygulama Vercel/Supabase/Upstash olmadan kendi sunucumuzda da
 çalışacak şekilde hazırlanır. Geçiş bitene kadar Vercel production aynen sürer;
@@ -684,6 +686,84 @@ verilerek çalıştırılır. Testler arasında yerel Redis'teki `ratelimit:*`
 anahtarları birikirse giriş testleri oran sınırına takılır; yalnızca yerel
 Redis'te temizlenir.
 
+## Staging doğrulaması (geçici yan instance, karar 0148)
+
+**Ne zaman:** migration içeren her PR, birleşmeden önce. `main`e birleşme migration'ı doğrudan
+production'da çalıştırır; bu adım "staging'de çalışmadan production'a gitmez" kuralının karşılığıdır.
+
+**Ne yapar** (`/opt/arilla/vps/bin/pg-staging-verify`, root, elle):
+
+1. **restore** — en son yedek, boş geçici dizine (`/opt/arilla/restore-test/staging-<zaman>`) geri
+   yüklenir. Mevcut `restore` servisi + `restore-inner.sh` kullanılır (`pg-restore-test` ile aynı,
+   CI'da sınanan yol: yalnız egress ağı, arşiv kapalı, `pg_amcheck`). **Üretim veritabanına
+   bağlanılmaz**; disk ön kontrolü bile yedek bilgisinden (`pgbackrest info`) yapılır.
+2. **start** — kopya ayrı bir PostgreSQL'de açılır: `--network none`, yalnız geçici dizindeki
+   unix soketi (`listen_addresses=''`), `pg_hba` yalnız `local all all trust`, `archive_mode=off`
+   (kopya depoya ASLA WAL göndermez), `--log-driver none` (sunucu kaydı geçici dizinde kalır).
+3. **migrate** — test edilen migrate imajı yine `--network none` ile, yalnız o sokete
+   `scripts/migrate.ts` ve `scripts/verify-schema.ts` çalıştırır. Konteynere üretim env dosyası
+   ya da sırrı **verilmez**; adres betikte sabittir (`localhost` + soket). Ağ olmadığı için yanlış
+   bir adres bile üretime değil hiçbir yere gitmez.
+4. **report** — `/opt/arilla/state/staging-verify.json` (0640) ve `staging-verify.schema.diff`
+   (yalnız DDL farkı). Rapor yalnız özettir: bekleyen/uygulanan dosya adları, çalıştırıcının
+   `tamam/HATA` satırları, verify sonucu ve hata **sayısı**, yalıtım kanıtı, şema özetleri,
+   iddia sonucu. Ham migrate/verify çıktısı ve PostgreSQL kaydı rapora girmez (hata ayrıntısında
+   satır değeri olabilir).
+5. **cleanup** — konteyner ve geçici dizin her durumda silinir (`trap`; yalnız
+   `restore-test/staging-NNNNNNNN-NNNNNN` kalıbındaki dizin).
+
+**Migration'dan önce zorunlu yalıtım denetimleri** (biri tutmazsa durur): konteyner ağı `none`,
+`data_directory=/restore/data`, `listen_addresses` boş, `archive_mode=off`, kurtarma bitmiş,
+`pg_hba_file_rules` içinde `local` dışı kural yok. Ayrıca: yedekte uygulanmış olup imajda olmayan
+migration varsa (imaj üretimden eski) ve bekleyen migration yoksa durur; `--expect` ile verilen
+dosya bekleyenler arasında olmalıdır.
+
+**Ön koşullar (her biri elle onaylanır):**
+
+- Bu betik main'de ve dağıtılmış (`/opt/arilla/vps/bin/pg-staging-verify` var).
+- Yedekleme etkin ve son yedek sağlıklı (`pg-backup check`, `restore-test.json` → `ok=true`).
+- Diskte `2 × veritabanı + 2 GiB` boş yer (betik denetler, yoksa durur).
+- Düşük trafik penceresi: geri yükleme + `pg_amcheck` CPU/disk/R2 okuması kullanır
+  (`restore` 1 CPU / 2 GiB, yan instance 1 CPU / 2 GiB sınırlı).
+- Test edilen PR'ın migrate imajı VPS'te yerel olarak var (betik imaj **çekmez**).
+
+**Adımlar** (PR #N, başı `<sha>`):
+
+```bash
+# Geliştirici makinesi: PR başından migrate imajı (yalnız kod; sır içermediği doğrulanır)
+git fetch origin pull/<N>/head && git archive <sha> | tar -x -C /tmp/pr-<N>
+docker build -f /tmp/pr-<N>/apps/web/Dockerfile --target migrate -t arilla-migrate:pr<N>-<sha7> /tmp/pr-<N>
+bash infra/vps/bin/verify-image.sh arilla-migrate:pr<N>-<sha7>
+docker save arilla-migrate:pr<N>-<sha7> | ssh <yonetici>@<vps> 'sudo docker load'
+
+# VPS (root, onaylı pencere)
+sudo /opt/arilla/vps/bin/pg-staging-verify --image arilla-migrate:pr<N>-<sha7> \
+  --expect <NNNN_ad.sql> --assert-sql "<1 döndürmesi gereken sorgu>"
+sudo cat /opt/arilla/state/staging-verify.json
+sudo cat /opt/arilla/state/staging-verify.schema.diff
+sudo docker image rm arilla-migrate:pr<N>-<sha7>
+```
+
+PR'a **yalnız** rapordaki özet alanlar yazılır (`ok`, `image.id`, `migrations.pending/applied/results`,
+`verify`, `isolation`, `assert`, `schema.*_sha256`, fark satır sayıları). Geri yüklenen kopyada
+gerçek kişisel veri vardır: kopya, dökümü ve ham kayıtlar **sunucudan çıkmaz**, ekran görüntüsü
+ya da log olarak paylaşılmaz.
+
+**Başarısızlık:** rapordaki `errors` ve `migrations.results` hangi adımın düştüğünü söyler. Ayrıntı
+gerekirse `--keep` ile yeniden çalıştırılır; geçici dizin sunucuda kalır (0700, root/999), yalnız
+sunucuda incelenir ve iş bitince `sudo rm -rf /opt/arilla/restore-test/staging-<zaman>` ile silinir.
+Üretim veritabanı ve yedek deposu hiçbir durumda değişmez.
+
+**Prova:** `MIGRATE_IMAGE=<imaj> infra/vps/bin/test-staging-verify.sh` (root gerekmez; CI işi
+"staging verify rehearsal"). Sentetik "üretim" veri dizini (imajdaki migration'lar eksi sonuncusu)
+kurulur; başarılı yol, yalıtım, veri sızıntısı (sentetik gizli işaret), izinler, temizlik, kaynağın
+değişmediği ve hata yolları sınanır. `ARILLA_STAGING_TEST_DATADIR` prova kipi root ile ya da
+`/opt/arilla` altında reddedilir.
+
+**Sınırlar:** "en son durum" son arşivlenmiş WAL'e kadardır (RPO ≤ ~5 dk). Kopya verify'ın TRUNCATE
+probunu da çalıştırır (`localhost`: yerel sayılır); bu yalnız kopyayı etkiler. Migration süresi
+üretimde kilit beklemeleri yüzünden farklı olabilir; `lock_timeout` her iki yerde 5 sn'dir.
+
 ## Yedekleme ve geri yükleme (karar 0110)
 
 **Fiyat geçmişi geriye dönük üretilemez.** Kaybedilirse savunulabilirliğin
@@ -1357,7 +1437,8 @@ Siz feed'lerden veri topluyorsunuz; rakip de sizden toplamaya çalışacak.
 
 ## Besleme keşfi ve senkronizasyonu (karar 0111, 0112)
 
-**Durum:** Kod ve testler hazır. Üretimde zamanlanmış çalışma **yok**.
+**Durum:** Kod ve testler hazır. Üretimde zamanlanmış çalışma **yok**; günlük çalışma için
+bkz. "Günlük AliExpress fiyat tazeleme (karar 0145)" (etkinleştirme ayrı onaylı adım).
 
 **Ortam:**
 - `ADMITAD_CLIENT_ID` ve `ADMITAD_CLIENT_SECRET`: `worker.env`'e eklenir.
@@ -1433,6 +1514,82 @@ Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-stagin
 - Admitad tıklaması için `merchant.deeplink_template`'e Admitad hesabında doğrulanan
   biçim girilir (örn. `{affiliate_url}&subid={click_id}`).
 - Yönetim: `/yonetim/ingest/beslemeler` (salt okunur).
+
+## Günlük AliExpress fiyat tazeleme (karar 0145)
+
+**Durum:** Kod ve testler hazır. Zamanlayıcı üretimde **kurulu değil**; kurulumu ayrı ve
+onaylı bir adımdır (`feeds-timers install --confirm`). `batch-timers` bu birimi **kurmaz**.
+
+AliExpress fiyatı tek yerden gelir: Admitad beslemesi (karar 0112). Yeni bir veri kaynağı,
+kazıma ya da canlı fiyat çağrısı yoktur. Günlük iş mevcut besleme motorunu sırayla çağırır:
+
+1. **Kilit:** `(4302, merchant_id)` advisory kilidi. Aynı anda ikinci günlük koşu hata vermeden
+   `skipped=already_running` ile çıkar. Besleme başına kilit (4301) `FeedSync`'tedir.
+2. **Uygunluk (aşama kapıları atlanmaz):** yalnız **etkin** ve en az bir kez **tam** (`complete`)
+   sürümü olan besleme. Tam sürümü olmayan besleme `initial_load_required` olarak raporlanır ve
+   indirilmez; ilk yükleme 10 bin → 100 bin → tam aşama kapılarıyla elle ve onayla yapılır (0114).
+3. **Keşif:** `feeds discover` ile kaynağın `source_updated_at` imleci tazelenir. Keşifsiz
+   `sync-due` yeni sürümü hiç görmez. Keşif hatası: yeniden dene, olmazsa koşu `partial`.
+4. **Senkronizasyon:** `sync-due` ile aynı döngü (`feeds/runner.py`). Kaynak değişmediyse indirme
+   yok. Değiştiyse parça parça, kontrol noktalı, tamlık kapılı yazım; `price_point` yalnız yeni ya
+   da değişen fiyat/stok için INSERT. Geçici ağ/indirme hatasında koşu içinde en fazla 2 ek tur
+   (10 dk, 20 dk bekleyerek); ek olarak günde ikinci tetik (18:30) vardır.
+5. **Tazelik ölçümü:** koşu sonunda besleme ve offer tazeliği `job_run.detail`'e yazılır.
+
+**Fiyat sıfırlanmaz, offer silinmez.** Kaynakta olmayan offer yalnız 48 saatlik bekleme ve %10
+tavan koşuluyla pasifleşir (0112). Bozuk fiyat (boş, sayı değil, ≤ 0, aralık dışı) kayıt bazında
+reddedilir; red oranı %2'yi aşarsa sürüm reddedilir (`error_rate`) ve hiçbir offer pasifleşmez.
+
+**Kur.** USD fiyat olduğu gibi (orijinal para birimiyle) saklanır; TRY **yazılmaz**. TL karşılığı
+okuma yolunda son TCMB kuruyla hesaplanır ve kur 4 günden eskiyse **gösterilmez** (0113, 0124).
+Kur zamanlayıcısı `arilla-pricing-fx` (13:30 UTC, `batch-timers`). Günlük iş kuru çekmez (çoğaltma
+yok), yalnız yaşını ölçer; kur kullanılamıyorsa koşu `partial` biter (`fx_stale`), fiyat yazımı durmaz.
+
+| Komut | Ne yapar |
+| --- | --- |
+| `python -m feeds daily --merchant aliexpress` | Günlük tazeleme (zamanlayıcı bunu çağırır) |
+| `python -m feeds freshness --merchant aliexpress` | **Yalnız okur.** Besleme ve offer tazeliği |
+| `feeds-timers preflight` | Aynı okuma, VPS'te `feeds` servisiyle |
+
+Seçenekler (`daily`): `--retries N` (varsayılan 2), `--retry-wait-seconds` (600),
+`--parallel-downloads` (2), `--max-source-age-hours` (168), `--skip-discovery`. Örnek kip
+(`--max-records`) ve `--force` bilerek yok.
+
+**Etkinleştirme kontrol listesi (hepsi tamamlanmadan `install --confirm` çalıştırılmaz):**
+
+1. Karar 0145'nin migration'ı yoktur; üretimde şema değişikliği gerekmez.
+2. `worker.env` içinde `ADMITAD_CLIENT_ID/SECRET` tanımlı; AliExpress beslemesi `active` ve
+   `aliexpress` merchant'ına bağlı (`feeds list`).
+3. İlk yükleme aşama kapıları geçilmiş: besleme için en az bir `complete` sürüm var
+   (`feeds freshness --merchant aliexpress` çıktısında `never_synced` yok).
+4. Disk ve WAL payı: `FEED_MIN_FREE_BYTES` (20 GiB) korunuyor; son yedek ve WAL arşivi sağlıklı.
+5. `batch-timers status` içinde `arilla-pricing-fx.timer` var (aksi halde TL karşılığı çıkmaz).
+6. `feeds-timers preflight` sorunsuz; sonra `sudo /opt/arilla/vps/bin/feeds-timers install --confirm`.
+7. İlk iki koşu izlenir: `/yonetim/islemler/isler?is=feed_daily`, `journalctl -u arilla-feeds-daily`.
+
+Durdurma: `feeds-timers disable`. Birim dosyaları kalır, veri değişmez.
+
+**İzleme (`job_run.job = feed_daily`, `/yonetim/islemler/isler`).** `detail` alanları:
+
+| Alan | Anlam |
+| --- | --- |
+| `last_success_at`, `source_updated_at` | Son tam yazım zamanı / kaynağın bildirdiği güncelleme (**ayrı iki tarih**) |
+| `source_age_hours`, `oldest_source_age_hours` | Kaynağın yaşı (en yeni / en eski besleme) |
+| `feeds_synced`, `feeds_unchanged`, `feeds_failed`, `feeds_gate_rejected` | Besleme sonuçları |
+| `records`, `created`, `changed`, `unchanged`, `price_points`, `rejected`, `deactivated` | Kayıt sayaçları; `price_points` = yeni fiyat/stok noktası |
+| `offers_active`, `offers_fresh`, `offers_stale` | Eski fiyat taşıyan offer = etkin − güncel bir beslemede olan |
+| `fx_ok`, `fx_date`, `fx_age_days` | Kur kullanılabilirliği (4 gün kuralı) |
+| `duration_s`, `attempts`, `discovery` | Süre, tur sayısı, keşif durumu |
+
+`error_summary` ilk birkaç sorun kodunu taşır: `initial_load_required`, `no_active_feeds`,
+`feed_<id>:<neden>` (indirme/kapı hatası ya da `behind`, `source_stale`, `never_synced`),
+`discovery_failed:<ağ>`, `fx_stale`, `feeds_gone`. Başarısız ya da `partial` koşu çıkış kodu 1
+verir; systemd `arilla-alert@` alarmı gönderir. 36 saat koşu yoksa panel "zamanında çalışmadı" der.
+
+**Sınırlar.** Kaynak günde bir kez güncellenmeyebilir: fiyat taze demek kaynak kadar taze demektir.
+`--max-source-age-hours` (varsayılan 168) Admitad'in gerçek güncelleme sıklığı ölçülmeden
+kesinleşmez; ilk haftanın `source_age_hours` değerleriyle ayarlanır. Eski fiyatı **gizleyen** okuma
+yolu koruması bu işin kapsamında değildir (karar 0145 "Sınırlar ve açık işler").
 
 ## Affiliate dönüşümleri (karar 0128)
 
@@ -2027,7 +2184,9 @@ CSP genişlemez, `/yonetim/analitik` "yapılandırılmamış" der.
 
 ## Dağıtım
 
-- `main` dalına birleşme staging'e otomatik gider
+- `main` dalına birleşme **doğrudan VPS production'a** otomatik gider (ara staging aşaması yok).
+  Bu yüzden migration içeren PR, birleşmeden ÖNCE "Staging doğrulaması" (karar 0148) ile
+  doğrulanır; sonuç özeti PR'a yazılır.
 - Vercel production'ı Git entegrasyonuyla dağıtılır (geçiş bitene kadar sürer)
 - VPS yolu (karar 0109, faz 6): CI ✔ → GHCR imajı (`:<sha>`, digest ile) → `deploy.yml` → VPS'te
   `arilla-deploy` (migration yedeği + `migrate`, sağlık kapısı, **otomatik geri alma**). Aynı anda tek
@@ -2120,3 +2279,46 @@ Maliyet: token satırı (`web_search_grounded`) ve Google arama sorgusu satırı
 ### Veritabanı bağlantısı: pooler modu (EMAXCONNSESSION)
 
 Üretimde `DATABASE_URL` Supabase **Transaction pooler**'ını (port `6543`) göstermelidir; Session pooler (`5432`, `pool_size` 15) serverless'ta `EMAXCONNSESSION` verir. Uygulama başına varsayılan havuz 3 bağlantıdır (`DATABASE_POOL_MAX`). `DATABASE_URL_OWNER` (migration/bakım) Transaction pooler'a ÇEVRİLMEZ; doğrudan ya da session bağlantısıyla kalır.
+
+## E-posta + şifre girişi (karar 0150)
+
+Google/Apple girişi aynen çalışır; e-posta + şifre üçüncü seçenektir ve yalnızca
+yapılandırma hazırsa görünür (`authProviderAvailability().email`).
+
+**Ön koşullar (üretim, elle):**
+
+1. **Migration 0101** (`password_credential`, `email_credential_token`): önce staging, sonra
+   üretimde `pnpm db:migrate`. Yalnızca ekleme; geri alma migration başlığında.
+   main'e push Vercel'e otomatik dağıtır — migration kod dağıtımından ÖNCE uygulanmalı.
+2. **Ortam:** yeni değişken yok. `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`+`SMTP_PASS`,
+   `EMAIL_FROM`, `APP_URL`, `SESSION_SECRET`, `REDIS_URL` tanımlı olmalı (hepsi zaten
+   `REQUIRED_PRODUCTION`). Çalışma ortamı Node ≥ 24.7 (Vercel varsayılanı Node 24).
+3. **Gönderen alan adı DNS'i:** `EMAIL_FROM` alan adı için SPF + DKIM + DMARC. Bunlar yoksa
+   doğrulama e-postaları gereksiz klasörüne düşer ya da reddedilir; kayıt akışı
+   "çalışıyor ama kimse hesap açamıyor" gibi görünür. İşlemsel iletiler pazarlama
+   gönderen adresinden (`MARKETING_EMAIL_FROM`) ayrı kalır.
+4. **Doğrulama:** üretimde bir test adresiyle kayıt → e-posta gelişi → onay → giriş →
+   şifre sıfırlama → eski oturumun kapanması elle denenir; ardından aynı adresle
+   Google ile giriş yapılabildiği (hesap tekrarı olmadığı) kontrol edilir.
+
+**Dağıtım sırası (merge sonrası).** İki hedef vardır ve migration davranışları farklıdır:
+
+- **VPS (`deploy.yml`):** push main → ci → build-push → deploy. `arilla-deploy` bekleyen
+  migration'ı (0101) `pg_dump` yedeğinden sonra, `web` yeniden oluşturulmadan ÖNCE uygular ve
+  `verify-schema` çalıştırır; başarısızlıkta otomatik geri alır. Ek adım gerekmez.
+- **Vercel (hâlâ canlıysa):** main'e push kodu migration'a BAKMADAN dağıtır. Vercel'in kullandığı
+  veritabanına 0101 merge'den ÖNCE elle uygulanmalıdır; aksi halde yeni kod şemayı bulamaz
+  (`/hesap` silme, `cleanup-auth` cron'u ve kayıt hata verir). Eski kod yeni şemayla sorunsuz
+  çalışır (yalnızca ekleme), bu yüzden migration'ı önce uygulamak her zaman güvenlidir.
+
+Her iki hedefte de e-posta seçeneği `SMTP_HOST`/`EMAIL_FROM` tanımlanana kadar görünmez; kod ve
+şema canlıya çıksa bile özellik açılmaz. Vercel'de Node sürümü 24 olmalı (proje ayarı); değilse
+`crypto.argon2` yoktur ve seçenek kendiliğinden gizli kalır.
+
+**Kapatma:** `SMTP_HOST` boşaltılırsa seçenek giriş ekranından kaybolur ve eylemler
+"kullanılamıyor" döner; mevcut oturumlar ve Google/Apple etkilenmez. Tabloları silmek
+gerekmez.
+
+**İzleme:** başarısız teslimler `[giris] ... email delivery failed: <kod>` olarak loglanır
+(adres ve bağlantı loglanmaz). `rate limit unavailable` Redis erişilemezliğini gösterir;
+giriş/kayıt bu durumda KAPALI kalır (fail-closed).

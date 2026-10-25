@@ -649,6 +649,34 @@ CREATE TABLE phone_login_code (
 CREATE INDEX phone_login_code_phone_idx ON phone_login_code (phone, created_at DESC);
 CREATE INDEX phone_login_code_expires_idx ON phone_login_code (expires_at);  -- 0030: temizlik isi
 
+-- E-posta + sifre (0101, docs/decisions/0150). Sifre ozeti YALNIZCA e-posta
+-- kontrolu kanitlandiktan sonra yazilir. Token duz metin saklanmaz (HMAC-SHA256).
+CREATE TABLE password_credential (
+    user_id       BIGINT      PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
+    password_hash TEXT        NOT NULL CHECK (password_hash LIKE '$argon2id$%'),  -- PHC dizgisi
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE email_credential_token (
+    id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    purpose               TEXT        NOT NULL CHECK (purpose IN ('verify_email', 'reset_password')),
+    email                 TEXT        NOT NULL,
+    token_hash            TEXT        NOT NULL UNIQUE,
+    pending_password_hash TEXT,        -- yalnizca verify_email: kayitta secilen sifrenin ozeti
+    pending_display_name  TEXT,
+    expires_at            TIMESTAMPTZ NOT NULL,
+    consumed_at           TIMESTAMPTZ,
+    request_ip            INET,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT email_credential_token_pending_only_verify
+        CHECK (purpose = 'verify_email' OR (pending_password_hash IS NULL AND pending_display_name IS NULL)),
+    CONSTRAINT email_credential_token_verify_has_hash
+        CHECK (purpose <> 'verify_email' OR pending_password_hash IS NOT NULL)
+);
+CREATE INDEX email_credential_token_email_idx   ON email_credential_token (email, purpose, created_at DESC);
+CREATE INDEX email_credential_token_expires_idx ON email_credential_token (expires_at);
+
 -- Erken erişim listesi (0031). Kullanıcı başına tek satır (PK = user_id):
 -- her başarılı girişte idempotent oluşur (ON CONFLICT DO NOTHING). Ürün
 -- kapısı bu tabloya değil `PRODUCT_ACCESS` bayrağına ve role bakar; satır
@@ -1716,6 +1744,12 @@ COMMENT ON TABLE trend IS
 COMMENT ON TABLE trend_product IS
     'Trend-urun baglari; curate toplu isi yazar, istek yolu yalnizca okur. Karar 0077.';
 
+-- 0100 (karar 0147): urun baglarinin sahibi. 'auto' = curate yazar (varsayilan,
+-- 0077 davranisi); 'manual' = editor yazar, curate bu trendi okumaz/yazmaz.
+ALTER TABLE trend
+    ADD COLUMN IF NOT EXISTS curation TEXT NOT NULL DEFAULT 'auto'
+        CONSTRAINT trend_curation_check CHECK (curation IN ('auto', 'manual'));
+
 -- 0057 (karar 0078): sohbet gorsel eki. Tam metin: migrations/0057_chat_attachment.sql.
 CREATE TABLE IF NOT EXISTS chat_attachment (
     id               UUID        PRIMARY KEY DEFAULT uuid_generate_v4(),
@@ -2167,6 +2201,133 @@ CREATE TABLE match_decision_log (
     CONSTRAINT match_decision_link_has_product CHECK (decision <> 'link' OR product_id IS NOT NULL)
 );
 CREATE INDEX match_decision_log_offer_idx ON match_decision_log (offer_id, created_at DESC);
+
+-- ---------------------------------------------------------------------------
+-- DIS KAYNAK KATEGORI REFERANSI (0096, karar 0143): Trendyol agaci. `category` ile
+-- KARISMAZ; esleme (external_category_map) bos acilir, siniflandirici okumaz.
+-- Tohum verisi 0097'dedir (3.867 satir; semaya dahil degildir).
+-- ---------------------------------------------------------------------------
+-- Bir ice aktarimin kaydi: hangi ham dosya (sha256), kac kategori. Ayni dosya ikinci kez
+-- ice aktarilamaz (UNIQUE); satirlar `import_id` ile geri alinabilir.
+CREATE TABLE IF NOT EXISTS external_category_import (
+    id              BIGINT      GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    source          TEXT        NOT NULL CHECK (source ~ '^[a-z][a-z0-9_]{1,30}$'),
+    source_sha256   TEXT        NOT NULL CHECK (source_sha256 ~ '^[0-9a-f]{64}$'),
+    category_count  INTEGER     NOT NULL CHECK (category_count > 0),
+    root_count      INTEGER     CHECK (root_count IS NULL OR root_count > 0),
+    max_depth       SMALLINT    CHECK (max_depth IS NULL OR max_depth > 0),
+    source_kind     TEXT        NOT NULL DEFAULT 'api' CHECK (source_kind IN ('api', 'sitemap')),
+    suspect_count   INTEGER     NOT NULL DEFAULT 0 CHECK (suspect_count >= 0),
+    imported_at     TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (source, source_sha256)
+);
+
+-- Kaynak kategorisi. Hiyerarsi kaynak kimligiyle korunur: (source, parent_external_id) ayni
+-- tablodaki (source, external_id) satirini gosterir (kendi kendine bilesik yabanci anahtar;
+-- tek INSERT icinde, ebeveyn ve cocuk birlikte eklenebilir). `retired_at`: sonraki bir
+-- ice aktarimda kaynaktan kalkan kategori silinmez, isaretlenir.
+CREATE TABLE IF NOT EXISTS external_category (
+    source              TEXT        NOT NULL CHECK (source ~ '^[a-z][a-z0-9_]{1,30}$'),
+    external_id         BIGINT      NOT NULL,
+    parent_external_id  BIGINT,
+    name                TEXT        NOT NULL CHECK (btrim(name) <> ''),
+    -- 0098 (karar 0144): hierarchy_status = 'unknown' iken depth/is_leaf/path_ids/path_text/parent NULL.
+    depth               SMALLINT,
+    is_leaf             BOOLEAN,
+    path_ids            BIGINT[],
+    path_text           TEXT,
+    import_id           BIGINT      NOT NULL REFERENCES external_category_import(id),
+    retired_at          TIMESTAMPTZ,
+    created_at          TIMESTAMPTZ NOT NULL DEFAULT now(),
+    hierarchy_status    TEXT        NOT NULL DEFAULT 'verified' CHECK (hierarchy_status IN ('verified', 'unknown')),
+    name_basis          TEXT        NOT NULL DEFAULT 'source' CHECK (name_basis IN ('source', 'slug')),
+    quality             TEXT        NOT NULL DEFAULT 'valid' CHECK (quality IN ('valid', 'suspect')),
+    quality_reason      TEXT,
+    slug                TEXT,
+    source_url          TEXT,
+    source_attrs        JSONB       NOT NULL DEFAULT '{}'::jsonb,
+    PRIMARY KEY (source, external_id),
+    FOREIGN KEY (source, parent_external_id) REFERENCES external_category (source, external_id),
+    CONSTRAINT external_category_hierarchy_chk CHECK (
+        (hierarchy_status = 'verified'
+            AND depth IS NOT NULL AND is_leaf IS NOT NULL AND path_ids IS NOT NULL AND path_text IS NOT NULL
+            AND depth > 0 AND cardinality(path_ids) = depth
+            AND (depth = 1) = (parent_external_id IS NULL))
+        OR
+        (hierarchy_status = 'unknown'
+            AND depth IS NULL AND is_leaf IS NULL AND path_ids IS NULL AND path_text IS NULL
+            AND parent_external_id IS NULL)
+    ),
+    CONSTRAINT external_category_id_chk CHECK (external_id > 0 OR (external_id = 0 AND quality = 'suspect')),
+    CONSTRAINT external_category_quality_chk CHECK (quality = 'valid' OR quality_reason IS NOT NULL)
+);
+CREATE INDEX IF NOT EXISTS external_category_parent_idx
+    ON external_category (source, parent_external_id);
+CREATE INDEX IF NOT EXISTS external_category_import_idx ON external_category (import_id);
+
+-- Kaynak kategori -> ManiCepte kategorisi. BOS acilir; siniflandirici okumaz. 'suggested'
+-- bir oneridir, 'confirmed' insan onayidir (category_source_map ile ayni durum anlami).
+CREATE TABLE IF NOT EXISTS external_category_map (
+    source          TEXT        NOT NULL,
+    external_id     BIGINT      NOT NULL,
+    category_id     BIGINT      NOT NULL REFERENCES category(id),
+    status          TEXT        NOT NULL DEFAULT 'suggested'
+                    CHECK (status IN ('suggested', 'confirmed', 'rejected')),
+    decided_by      TEXT,
+    note            TEXT,
+    created_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at      TIMESTAMPTZ NOT NULL DEFAULT now(),
+    PRIMARY KEY (source, external_id),
+    FOREIGN KEY (source, external_id) REFERENCES external_category (source, external_id)
+        ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS external_category_map_category_idx ON external_category_map (category_id);
+
+-- 0098 (karar 0144): supheli kategori yalnizca 'rejected' eslesebilir.
+CREATE OR REPLACE FUNCTION external_category_map_guard() RETURNS trigger
+LANGUAGE plpgsql AS $$
+BEGIN
+    IF NEW.status <> 'rejected' AND EXISTS (
+        SELECT 1 FROM external_category e
+         WHERE e.source = NEW.source AND e.external_id = NEW.external_id AND e.quality <> 'valid'
+    ) THEN
+        RAISE EXCEPTION 'external_category_map: supheli kategori eslestirilemez (%/%)',
+            NEW.source, NEW.external_id USING ERRCODE = 'check_violation';
+    END IF;
+    RETURN NEW;
+END $$;
+
+CREATE OR REPLACE TRIGGER external_category_map_guard
+    BEFORE INSERT OR UPDATE ON external_category_map
+    FOR EACH ROW EXECUTE FUNCTION external_category_map_guard();
+
+-- Kullanilmayan kategori raporu (salt okunur). 'unmapped': eslesme yok; 'mapped_empty':
+-- eslesen ManiCepte kategorisinde urun yok; 'in_use': urun var; 'rejected': elenmis; 'suspect' (0098): supheli kayit.
+-- Urun sayimi yalnizca eslesen (az sayida) kategori icin `product_category_idx` uzerinden
+-- EXISTS ile yapilir; tum katalog taranmaz.
+CREATE OR REPLACE VIEW external_category_usage AS
+SELECT ec.source,
+       ec.external_id,
+       ec.depth,
+       ec.is_leaf,
+       ec.path_text,
+       ec.retired_at,
+       m.category_id,
+       m.status AS map_status,
+       CASE
+           WHEN ec.quality <> 'valid' THEN 'suspect'
+           WHEN m.external_id IS NULL THEN 'unmapped'
+           WHEN m.status = 'rejected' THEN 'rejected'
+           WHEN EXISTS (SELECT 1 FROM product p WHERE p.category_id = m.category_id) THEN 'in_use'
+           ELSE 'mapped_empty'
+       END AS usage,
+       ec.quality,
+       ec.hierarchy_status,
+       ec.name,
+       ec.slug
+  FROM external_category ec
+  LEFT JOIN external_category_map m
+    ON m.source = ec.source AND m.external_id = ec.external_id;
 
 -- ---------------------------------------------------------------------------
 -- KATEGORI ESLEME VE ARAMA INDEKSI OLAYLARI

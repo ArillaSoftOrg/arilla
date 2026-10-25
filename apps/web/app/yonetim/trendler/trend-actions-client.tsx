@@ -114,7 +114,7 @@ export function TrendActionsClient({ row }: { row: TrendRowControls }) {
           </fieldset>
           {op?.kind === "status" && op.next === "published" && row.belowThreshold ? (
             <p className={styles.statusWarn}>
-              Gösterilebilir ürün eşiğin altında: yayınlansa da /trendler'de görünmez.
+              Gösterilebilir ürün eşiğin altında: yayına alınamaz. Önce ürün ekle (karar 0149).
             </p>
           ) : null}
           <label htmlFor={reasonId}>

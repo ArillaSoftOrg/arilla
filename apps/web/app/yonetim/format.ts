@@ -208,6 +208,10 @@ const ACTION_LABELS: Record<AdminAction, string> = {
   "trends.feature": "Trend öne çıkarıldı",
   "trends.unfeature": "Trend öne çıkarılmaktan çıkarıldı",
   "trends.reorder": "Trend sırası değişti",
+  "trends.create": "Koleksiyon oluşturuldu",
+  "trends.update": "Koleksiyon ayrıntıları düzenlendi",
+  "trends.curation": "Koleksiyon türü değişti (elle/otomatik)",
+  "trends.products": "Koleksiyon ürünleri değişti",
   "messages.status_change": "Mesaj durumu değişti",
   "messages.priority_change": "Mesaj önceliği değişti",
   "data.build": "Veri seti üretildi",
@@ -835,6 +839,55 @@ const TREND_WINDOW_LABELS: Record<string, string> = {
 
 export function trendWindowLabel(value: string): string {
   return TREND_WINDOW_LABELS[value] ?? value;
+}
+
+/** Karar 0149: bağların sahibi. */
+const TREND_CURATION_LABELS: Record<string, string> = {
+  manual: "Elle seçilmiş",
+  auto: "Otomatik",
+};
+
+export function trendCurationLabel(value: string): string {
+  return TREND_CURATION_LABELS[value] ?? value;
+}
+
+const TREND_CATEGORY_LABELS: Record<string, string> = {
+  moda: "Moda",
+  guzellik: "Güzellik",
+  "ev-yasam": "Ev & Yaşam",
+  ogrenci: "Öğrenci",
+  genel: "Genel",
+};
+
+export function trendCategoryLabel(value: string): string {
+  return TREND_CATEGORY_LABELS[value] ?? value;
+}
+
+const TREND_TYPE_LABELS: Record<string, string> = {
+  evergreen: "Kalıcı",
+  seasonal: "Sezonluk",
+  campaign: "Kampanya",
+};
+
+export function trendTypeLabel(value: string): string {
+  return TREND_TYPE_LABELS[value] ?? value;
+}
+
+/** Karar 0149: ürün kartı uyarıları (veri tazeliği/tutarlılığı; orijinallik iddiası değil). */
+const TREND_PRODUCT_WARNING_LABELS: Record<string, string> = {
+  not_published: "Yayında değil",
+  missing_image: "Görsel yok",
+  no_try_price: "TL fiyatı yok",
+  out_of_stock: "Stokta değil",
+  stale_price: "Fiyat 7 günden eski",
+  stale_offer: "Teklif 7 gündür görülmedi",
+  thin_price_history: "Fiyat geçmişi tek gözlem",
+  price_spread: "Mağazalar arası fiyat farkı çok büyük",
+  no_affiliate: "Affiliate bağlantısı yok",
+};
+
+export function trendProductWarningLabel(value: string): string {
+  return TREND_PRODUCT_WARNING_LABELS[value] ?? value;
 }
 
 const INBOX_STATUS_LABELS: Record<string, string> = {

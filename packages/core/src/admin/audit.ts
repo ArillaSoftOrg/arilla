@@ -105,6 +105,11 @@ export type AdminAction =
   | "trends.feature"
   | "trends.unfeature"
   | "trends.reorder"
+  /** Karar 0149: koleksiyon oluşturma/düzenleme, bağ sahipliği ve elle ürün bağları. */
+  | "trends.create"
+  | "trends.update"
+  | "trends.curation"
+  | "trends.products"
   /** Karar 0086: gelen kutusu triyajı; içerik, ad, e-posta yazılmaz. */
   | "messages.status_change"
   | "messages.priority_change"

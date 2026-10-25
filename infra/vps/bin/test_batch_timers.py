@@ -9,6 +9,8 @@ SYSTEMD = HERE.parent / "systemd"
 COMPOSE = HERE.parent.parent / "compose.prod.yml"
 
 # Zamanlanabilen ucretsiz moduller. enrich (Jina) ve feeds (buyuk indirme) bilerek yok.
+# Gunluk besleme tazeleme (karar 0145) AYRI bir zamanlayicidir: `feeds-timers`, onayli etkinlestirme.
+OPT_IN_UNITS = {"arilla-feeds-daily"}
 ALLOWED_MODULES = {"resolve", "similarity", "pricing", "affiliate"}
 RUN_PREFIX = (
     "/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml "
@@ -39,7 +41,9 @@ class BatchTimersTest(unittest.TestCase):
         batch_units = sorted(
             p.stem
             for p in SYSTEMD.glob("arilla-*.service")
-            if "run --rm" in p.read_text(encoding="utf-8") and " feeds python -m " in p.read_text(encoding="utf-8")
+            if "run --rm" in p.read_text(encoding="utf-8")
+            and " feeds python -m " in p.read_text(encoding="utf-8")
+            and p.stem not in OPT_IN_UNITS
         )
         self.assertEqual(sorted(script_timers()), batch_units)
 
@@ -59,6 +63,32 @@ class BatchTimersTest(unittest.TestCase):
                 self.assertIn(module, ALLOWED_MODULES, start)
             self.assertEqual(dict(timer).get("Persistent"), "true", name)
             self.assertIn("OnCalendar", dict(timer), name)
+
+    def test_feeds_daily_is_opt_in_never_in_batch_timers(self):
+        """Gunluk besleme zamanlayicisi `batch-timers install` ile SESSIZCE etkinlesemez."""
+        self.assertNotIn("arilla-feeds-daily", script_timers())
+        text = (HERE / "feeds-timers").read_text(encoding="utf-8")
+        self.assertIn("--confirm", text)
+        self.assertIn('UNIT=arilla-feeds-daily', text)
+        self.assertIn("preflight", text)
+
+    def test_feeds_daily_units(self):
+        service = directives(SYSTEMD / "arilla-feeds-daily.service")
+        timer = directives(SYSTEMD / "arilla-feeds-daily.timer")
+        keys = dict(service)
+        self.assertEqual(keys.get("Type"), "oneshot")
+        self.assertEqual(keys.get("OnFailure"), "arilla-alert@%n.service")
+        self.assertIn("TimeoutStartSec", keys)
+        starts = [v for k, v in service if k == "ExecStart"]
+        self.assertEqual(
+            starts, [RUN_PREFIX + "feeds daily --merchant aliexpress"]
+        )
+        # Gunde iki tetik; Persistent: kacan kosu acilista yakalanir.
+        self.assertEqual(len([v for k, v in timer if k == "OnCalendar"]), 2)
+        self.assertEqual(dict(timer).get("Persistent"), "true")
+        # Ornek mod / zorlama bayragi zamanlayicida OLMAZ.
+        for flag in ("--force", "--max-records", "--skip-discovery"):
+            self.assertNotIn(flag, starts[0])
 
     def test_job_run_trigger_is_known(self):
         # services/ingest/db/job_run.py TRIGGERS; bilinmeyen deger sessizce 'manual' olurdu.

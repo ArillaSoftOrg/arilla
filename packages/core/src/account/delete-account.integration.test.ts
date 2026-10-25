@@ -140,6 +140,15 @@ describe("deleteAccount() - entegrasyon (gerçek Postgres)", () => {
         `INSERT INTO auth_token (email, token_hash, expires_at) VALUES ($1, 'e3-delete-token-hash', now() + interval '15 minutes')`,
         [email],
       );
+      // 0101: bekleyen kayit token'i ve sifre kaydi hesapla birlikte silinmeli.
+      await client.query(
+        `INSERT INTO email_credential_token (purpose, email, token_hash, pending_password_hash, expires_at) VALUES ('verify_email', $1, 'e3-delete-cred-token-hash', '$argon2id$x', now() + interval '60 minutes')`,
+        [email],
+      );
+      await client.query(
+        `INSERT INTO password_credential (user_id, password_hash) VALUES ($1, '$argon2id$x')`,
+        [userId],
+      );
     });
   });
 
@@ -167,6 +176,7 @@ describe("deleteAccount() - entegrasyon (gerçek Postgres)", () => {
       await client.query("DELETE FROM product WHERE slug LIKE $1", [`e3-delete-product-${suffix}`]);
       await client.query("DELETE FROM merchant WHERE id = $1", [merchantId]);
       await client.query("DELETE FROM auth_token WHERE email LIKE 'e3-delete-%'");
+      await client.query("DELETE FROM email_credential_token WHERE email LIKE 'e3-delete-%'");
       await client.query("DELETE FROM app_user WHERE email LIKE 'e3-delete-%' OR id = $1", [
         followerId,
       ]);
@@ -212,6 +222,16 @@ describe("deleteAccount() - entegrasyon (gerçek Postgres)", () => {
 
       const authTokenRow = await client.query("SELECT 1 FROM auth_token WHERE email = $1", [email]);
       expect(authTokenRow.rows).toHaveLength(0);
+      const credentialToken = await client.query(
+        "SELECT 1 FROM email_credential_token WHERE email = $1",
+        [email],
+      );
+      expect(credentialToken.rows).toHaveLength(0);
+      const credential = await client.query(
+        "SELECT 1 FROM password_credential WHERE user_id = $1",
+        [userId],
+      );
+      expect(credential.rows).toHaveLength(0);
 
       // Kimliksizlestirilir, SILINMEZ - satir hala var, user_id NULL.
       const clickRow = await client.query("SELECT user_id FROM click WHERE id = $1", [clickId]);

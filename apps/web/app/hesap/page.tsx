@@ -108,6 +108,14 @@ export default async function HesapPage() {
         <Link href="/hesap/gizlilik" className={styles.footnoteLink}>
           Gizlilik tercihleri
         </Link>
+        {user.role === "moderator" || user.role === "admin" || !user.email ? null : (
+          <>
+            {" · "}
+            <Link href="/hesap/sifre" className={styles.footnoteLink}>
+              Şifre
+            </Link>
+          </>
+        )}
       </p>
     </div>
   );

@@ -124,7 +124,13 @@ export const PRIVATE_EXTRA_HEADERS: SecurityHeader[] = [
  * ve sayfa bunu zaten ister, config başlığı onu bastırmasın. Next'te aynı
  * anahtar için listede SONRAKİ eşleşme kazanır.
  */
-export const TOKEN_URL_PATHS = ["/giris/dogrula", "/abonelik-iptali", "/api/email/unsubscribe"];
+export const TOKEN_URL_PATHS = [
+  "/giris/dogrula",
+  "/giris/eposta-dogrula",
+  "/giris/sifre-sifirla",
+  "/abonelik-iptali",
+  "/api/email/unsubscribe",
+];
 
 /** Yönetim: dizin dışı + GA4 kökenleri OLMAYAN CSP (yalnızca GA4 açıkken ezmek gerekir). */
 function adminHeaders(options: SecurityHeaderOptions): SecurityHeader[] {

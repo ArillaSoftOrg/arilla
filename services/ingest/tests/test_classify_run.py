@@ -25,6 +25,8 @@ HB_SLUG = "test-cls-hb"
 ROOT = Path(__file__).resolve().parents[3]
 TAXONOMY_SQL = ROOT / "packages" / "db" / "migrations" / "0089_category_taxonomy.sql"
 TAXONOMY_V3_SQL = ROOT / "packages" / "db" / "migrations" / "0091_category_taxonomy_v3.sql"
+TAXONOMY_V4_SQL = ROOT / "packages" / "db" / "migrations" / "0094_category_taxonomy_v4.sql"
+TAXONOMY_V5_SQL = ROOT / "packages" / "db" / "migrations" / "0095_category_taxonomy_v5.sql"
 
 PHONE_CASES = "Phones & Telecommunications > Mobile Phone Accessories > Phone Bags & Cases"
 HEADPHONES = "Consumer Electronics > Portable Audio & Video > Earphones & Headphones"
@@ -492,6 +494,8 @@ def test_taxonomy_migration_is_idempotent(world: dict[str, int]) -> None:
         before = cur.fetchone()
         cur.execute(TAXONOMY_SQL.read_text(encoding="utf-8"))
         cur.execute(TAXONOMY_V3_SQL.read_text(encoding="utf-8"))
+        cur.execute(TAXONOMY_V4_SQL.read_text(encoding="utf-8"))
+        cur.execute(TAXONOMY_V5_SQL.read_text(encoding="utf-8"))
         cur.execute("SELECT count(*), max(id) FROM category")
         assert cur.fetchone() == before
         conn.rollback()
@@ -534,10 +538,71 @@ def test_taxonomy_v3_migration_only_adds_categories_and_keeps_classifications(
         conn.rollback()
 
 
+def test_taxonomy_v4_migration_only_adds_categories_and_keeps_classifications(
+    world: dict[str, int],
+) -> None:
+    """Karar 0141: 0094 yalnizca kategori ekler; urun ve siniflandirma kayitlari degismez."""
+    _run()
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(TAXONOMY_V3_SQL.read_text(encoding="utf-8"))
+        cur.execute("SELECT id, path, slug FROM category ORDER BY id")
+        old_nodes = cur.fetchall()
+        cur.execute(SNAPSHOT)
+        before = cur.fetchone()
+        assert before[2] != "-"  # siniflandirma kaydi var
+        cur.execute(TAXONOMY_V4_SQL.read_text(encoding="utf-8"))
+        cur.execute(TAXONOMY_V4_SQL.read_text(encoding="utf-8"))  # ikinci kosu
+        cur.execute(SNAPSHOT)
+        after = cur.fetchone()
+        assert after[1:] == before[1:]  # urun + siniflandirma ayni
+        cur.execute(
+            "SELECT id, path, slug FROM category WHERE id = ANY(%s) ORDER BY id",
+            ([n[0] for n in old_nodes],),
+        )
+        assert cur.fetchall() == old_nodes  # var olan dugum degismedi
+        cur.execute(
+            "SELECT count(*) FROM category WHERE path IN "
+            "('oto-bahce/tekne-deniz','saglik-kozmetik/kisisel-bakim/banyo-vucut',"
+            "'kitap-muzik-hobi/masa-kart-oyunlari')"
+        )
+        assert cur.fetchone()[0] == 3  # type: ignore[index]
+        conn.rollback()
+
+
+def test_taxonomy_v5_migration_only_adds_categories_and_keeps_classifications(
+    world: dict[str, int],
+) -> None:
+    """Karar 0142: 0095 yalnizca kategori ekler; urun ve siniflandirma kayitlari degismez."""
+    _run()
+    with _owner() as conn, conn.cursor() as cur:
+        cur.execute(TAXONOMY_V3_SQL.read_text(encoding="utf-8"))
+        cur.execute(TAXONOMY_V4_SQL.read_text(encoding="utf-8"))
+        cur.execute("SELECT id, path, slug FROM category ORDER BY id")
+        old_nodes = cur.fetchall()
+        cur.execute(SNAPSHOT)
+        before = cur.fetchone()
+        assert before[2] != "-"  # siniflandirma kaydi var
+        cur.execute(TAXONOMY_V5_SQL.read_text(encoding="utf-8"))
+        cur.execute(TAXONOMY_V5_SQL.read_text(encoding="utf-8"))  # ikinci kosu
+        cur.execute(SNAPSHOT)
+        after = cur.fetchone()
+        assert after[1:] == before[1:]  # urun + siniflandirma ayni
+        cur.execute(
+            "SELECT id, path, slug FROM category WHERE id = ANY(%s) ORDER BY id",
+            ([n[0] for n in old_nodes],),
+        )
+        assert cur.fetchall() == old_nodes  # var olan dugum degismedi
+        cur.execute("SELECT count(*) FROM category WHERE path = 'moda/canta/spor-seyahat-cantasi'")
+        assert cur.fetchone()[0] == 1  # type: ignore[index]
+        conn.rollback()
+
+
 def test_category_tree_integrity(world: dict[str, int]) -> None:
     """Agac butunlugu (karar 0139): yol benzersiz, ebeveyn yolun on eki, slug benzersiz."""
     with _owner() as conn, conn.cursor() as cur:
         cur.execute(TAXONOMY_V3_SQL.read_text(encoding="utf-8"))
+        cur.execute(TAXONOMY_V4_SQL.read_text(encoding="utf-8"))
+        cur.execute(TAXONOMY_V5_SQL.read_text(encoding="utf-8"))
         cur.execute("SELECT count(*) - count(DISTINCT path) FROM category")
         assert cur.fetchone()[0] == 0  # type: ignore[index]
         cur.execute("SELECT count(*) - count(DISTINCT slug) FROM category")
