@@ -57,6 +57,7 @@ import { DEFAULT_REDIRECT_PATH, safeRedirectPath } from "./safe-redirect.ts";
 import {
   RESET_PASSWORD_TTL_MINUTES,
   sendCredentialEmail,
+  sendCredentialNoticeBestEffort,
   VERIFY_EMAIL_TTL_MINUTES,
 } from "./send-credential-email.ts";
 import { createSessionForUser } from "./session.ts";
@@ -364,6 +365,22 @@ export async function confirmEmailVerification(
   db: Database,
   input: ConfirmEmailVerificationInput,
 ): Promise<PasswordSignInResult> {
+  const result = await confirmEmailVerificationTx(db, input);
+  // Hesap olustu; hos geldin e-postasi bilgilendirmedir, hatasi kaydi bozmaz.
+  if (result.user.email) {
+    await sendCredentialNoticeBestEffort({
+      kind: "welcome",
+      email: result.user.email,
+      url: requireAppUrl(),
+    });
+  }
+  return result;
+}
+
+async function confirmEmailVerificationTx(
+  db: Database,
+  input: ConfirmEmailVerificationInput,
+): Promise<PasswordSignInResult> {
   return retryOnUniqueViolation(() =>
     db.transaction(async (tx) => {
       const token = await loadUsableToken(tx, input.rawToken, "verify_email");
@@ -510,7 +527,8 @@ export async function requestPasswordReset(
   try {
     const rawToken = await issueToken(db, { purpose: "reset_password", email, ip: input.ip });
     await sendCredentialEmail({
-      kind: "reset_password",
+      // Sifresi olmayan (Google/Apple) hesap icin "hesaba sifre ekle" sablonu.
+      kind: (await hasPasswordCredential(db, user.id)) ? "reset_password" : "add_password",
       email,
       url: buildResetPasswordUrl(appUrl, rawToken),
     });
@@ -569,6 +587,7 @@ export async function resetPasswordWithToken(
       );
     await revokeSessions(tx, user.id);
   });
+  await sendCredentialNoticeBestEffort({ kind: "password_changed", email: token.email });
 }
 
 async function revokeSessions(tx: Tx, userId: number, keepTokenHash?: string): Promise<number> {
@@ -639,11 +658,15 @@ export async function changePassword(
   if (violation) throw new PasswordPolicyError(violation);
   const passwordHash = await hashPassword(input.newPassword);
 
-  return db.transaction(async (tx) => {
+  const revoked = await db.transaction(async (tx) => {
     await tx
       .update(passwordCredential)
       .set({ passwordHash, updatedAt: new Date() })
       .where(eq(passwordCredential.userId, input.userId));
     return revokeSessions(tx, input.userId, hashToken(input.currentSessionToken));
   });
+  if (row.email) {
+    await sendCredentialNoticeBestEffort({ kind: "password_changed", email: row.email });
+  }
+  return revoked;
 }

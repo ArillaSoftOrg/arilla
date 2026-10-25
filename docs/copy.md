@@ -387,9 +387,14 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `auth.password_generate` | Güçlü şifre oluştur |
 | `auth.credential_reset_sent` | Bu adresle bir hesap varsa şifre belirleme bağlantısını gönderdik. Bağlantı 30 dakika geçerli. Gelmezse gereksiz klasörüne de bak. |
 | `auth.credential_rate_limited` | Çok fazla deneme yapıldı. Birkaç dakika sonra tekrar dene. |
-| `email.credential_verify_subject` | ManiCepte e-posta adresini doğrula |
+| `email.credential_verify_subject` | ManiCepte hesabını doğrula |
+| `email.credential_welcome_subject` | ManiCepte'ye hoş geldin |
 | `email.credential_reset_subject` | ManiCepte şifreni sıfırla |
+| `email.credential_changed_subject` | ManiCepte şifren değiştirildi |
+| `email.credential_add_password_subject` | ManiCepte hesabına şifre ekle |
 | `email.credential_exists_subject` | ManiCepte hesabın zaten var |
+
+Gövde metinleri `packages/core/src/email/transactional-templates.ts` içindedir (karar 0151).
 
 `auth.rate_limited` mesajı hesabın var olup olmadığını belli etmez; her iki
 durumda da aynı metin gösterilir.

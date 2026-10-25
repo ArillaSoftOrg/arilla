@@ -2282,6 +2282,12 @@ Maliyet: token satırı (`web_search_grounded`) ve Google arama sorgusu satırı
 
 ## E-posta + şifre girişi (karar 0150)
 
+**İşlemsel e-posta şablonları (karar 0151):** altı şablon kodda durur; Resend panelinde ayrıca şablon
+oluşturmak gerekmez (Resend yalnızca SMTP rölesi). Gönderen `EMAIL_FROM` (örn.
+`ManiCepte <team@manicepte.com>`), yanıt adresi isteğe bağlı `EMAIL_REPLY_TO` (boşsa `EMAIL_FROM`
+adresi). `team@manicepte.com`un Resend'te doğrulanmış alan adından gönderildiğini ve gelen kutusunun
+izlendiğini doğrulayın: şifre değişikliği e-postası "yanıtlayarak bildir" der.
+
 Google/Apple girişi aynen çalışır; e-posta + şifre üçüncü seçenektir ve yalnızca
 yapılandırma hazırsa görünür (`authProviderAvailability().email`).
 
