@@ -4,6 +4,7 @@ import type { RequestContext } from "../activity/request-context.ts";
 import { createSessionForUser } from "./session.ts";
 import type { SessionUser } from "./types.ts";
 import { retryOnUniqueViolation } from "./unique-race.ts";
+import { sendWelcomeEmailIfNewAccount } from "./welcome-email.ts";
 
 export interface GoogleProfile {
   sub: string;
@@ -44,7 +45,9 @@ export async function signInWithGoogle(
   }
 
   // Esanli ilk giris yarisi (`unique-race.ts`): kaybeden islem bir kez tekrar.
-  return retryOnUniqueViolation(() => signInWithGoogleOnce(db, input, email));
+  const result = await retryOnUniqueViolation(() => signInWithGoogleOnce(db, input, email));
+  await sendWelcomeEmailIfNewAccount({ ...result, emailVerified: input.profile.emailVerified });
+  return result;
 }
 
 function signInWithGoogleOnce(

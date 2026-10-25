@@ -53,13 +53,25 @@ export async function sendCredentialEmail(input: {
  * tamamlanmistir, gonderim hatasi kullanicinin islemini bozmaz. Hata yalnizca
  * kodu ile loglanir (adres/baglanti/token loglanmaz).
  */
+/** Bilgilendirme e-postasi icin yanitin en fazla bekleyecegi sure. */
+const NOTICE_WAIT_MS = 4000;
+
 export async function sendCredentialNoticeBestEffort(
   input: Parameters<typeof sendCredentialEmail>[0],
 ): Promise<void> {
-  try {
-    await sendCredentialEmail(input);
-  } catch (error) {
+  const send = sendCredentialEmail(input).catch((error: unknown) => {
     const code = error instanceof Error && "code" in error ? String(error.code) : "unknown";
     console.error(`[giris] ${input.kind} notice delivery failed: ${code}`);
+  });
+  // Yanit, takili bir SMTP baglantisini (nodemailer varsayilani dakikalar) beklemez;
+  // gonderim arka planda surer ve hatasi yukaridaki catch ile loglanir.
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const budget = new Promise<void>((resolve) => {
+    timer = setTimeout(resolve, NOTICE_WAIT_MS);
+  });
+  try {
+    await Promise.race([send, budget]);
+  } finally {
+    clearTimeout(timer);
   }
 }

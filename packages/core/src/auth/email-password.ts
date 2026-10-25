@@ -33,6 +33,7 @@ import { recordSessionEnd } from "../activity/auth-events.ts";
 import type { RequestContext } from "../activity/request-context.ts";
 import { requireAppUrl } from "../config/app-url.ts";
 import { EmailDeliveryError } from "../email/delivery-error.ts";
+import { isApplePrivateRelayEmail } from "./email-address.ts";
 import {
   EmailAlreadyRegisteredError,
   InvalidCredentialsError,
@@ -69,6 +70,7 @@ import {
   TokenExpiredError,
   TokenNotFoundError,
 } from "./verify-login-token.ts";
+import { sendWelcomeEmailIfNewAccount } from "./welcome-email.ts";
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
@@ -89,9 +91,7 @@ export function isValidCredentialEmail(email: string): boolean {
 }
 
 /** Apple "E-postami Gizle" donusturucu adresi. */
-export function isApplePrivateRelayEmail(email: string): boolean {
-  return email.endsWith("@privaterelay.appleid.com");
-}
+export { isApplePrivateRelayEmail };
 
 function assertUsableEmail(email: string): void {
   if (!isValidCredentialEmail(email)) throw new InvalidEmailError();
@@ -367,13 +367,7 @@ export async function confirmEmailVerification(
 ): Promise<PasswordSignInResult> {
   const result = await confirmEmailVerificationTx(db, input);
   // Hesap olustu; hos geldin e-postasi bilgilendirmedir, hatasi kaydi bozmaz.
-  if (result.user.email) {
-    await sendCredentialNoticeBestEffort({
-      kind: "welcome",
-      email: result.user.email,
-      url: requireAppUrl(),
-    });
-  }
+  await sendWelcomeEmailIfNewAccount({ ...result, emailVerified: true });
   return result;
 }
 

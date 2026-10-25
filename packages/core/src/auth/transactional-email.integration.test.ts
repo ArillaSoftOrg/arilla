@@ -9,6 +9,7 @@ import {
   requestPasswordReset,
   resetPasswordWithToken,
 } from "./email-password.ts";
+import { InvalidEmailError } from "./password-errors.ts";
 import { sendCredentialNoticeBestEffort } from "./send-credential-email.ts";
 
 /**
@@ -104,11 +105,14 @@ describe("işlemsel e-posta şablonları - entegrasyon", () => {
     expect(verify.Text + verify.HTML).not.toContain(PASSWORD);
 
     const url = linkIn(verify, "/giris/eposta-dogrula");
+    // Bağlantılar yalnızca yapılandırılmış APP_URL alan adına gider.
+    expect(new URL(url).origin).toBe(new URL(process.env.APP_URL ?? "").origin);
     const token = new URL(url).searchParams.get("token") ?? "";
     await confirmEmailVerification(db, { rawToken: token, ip, userAgent: "vitest" });
 
     const welcome = await waitForMail(email, "ManiCepte'ye hoş geldin");
     expect(welcome.ReplyTo.map((r) => r.Address)).toEqual([process.env.EMAIL_REPLY_TO]);
+    expect(welcome.Text).toContain(new URL(process.env.APP_URL ?? "").origin);
     expect(welcome.Text + welcome.HTML).not.toContain(token);
     expect(welcome.Text + welcome.HTML).not.toContain(PASSWORD);
   });
@@ -175,6 +179,22 @@ describe("işlemsel e-posta şablonları - entegrasyon", () => {
     const changed = await waitForMail(email, "ManiCepte şifren değiştirildi");
     expect(changed.Text + changed.HTML).not.toContain(PASSWORD);
     expect(changed.Text + changed.HTML).not.toContain(NEW_PASSWORD);
+  });
+
+  it("e-posta başlığı enjeksiyonu: satır sonu/virgül içeren adres reddedilir, hiçbir ileti gitmez", async () => {
+    const ip = freshIp();
+    for (const evil of [
+      `a-${suffix}@example.test
+Bcc: victim@example.test`,
+      `a-${suffix}@example.test,victim@example.test`,
+      `a-${suffix}@example.test
+Subject: x`,
+    ]) {
+      await expect(
+        registerWithPassword(db, { email: evil, password: PASSWORD, ip }),
+      ).rejects.toThrow(InvalidEmailError);
+    }
+    expect(await subjectsFor(`victim@example.test`)).toEqual([]);
   });
 
   it("bilgilendirme e-postası gönderilemezse işlem bozulmaz; yalnızca hata kodu loglanır", async () => {

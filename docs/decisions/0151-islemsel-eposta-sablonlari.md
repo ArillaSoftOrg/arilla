@@ -27,8 +27,15 @@ Hesap e-postaları tek bir şablon sisteminden üretilir
   yansımaz; yalnızca hata kodu loglanır. Doğrulama/sıfırlama e-postaları eskisi gibi
   hatayı yüzeye çıkarır ve oran sınırı hakkını geri verir. Hoş geldin ve değişiklik
   bildirimi kendi başına yeni bir istek yolu açmaz (zaten sınırlı bir işlemin sonucudur).
-- **Hoş geldin yalnızca e-posta + şifre kaydı için** gider. Google/Apple ile ilk girişte
-  gönderilmez (ayrı bir tetikleyici ve iş akışı gerekir; bu kararın kapsamı dışında).
+- **Hoş geldin ilk hesap oluşturmada gider** (e-posta+şifre, Google, Apple, e-posta giriş
+  bağlantısı): `isNewUser=true` dönen girişin commit sonrasında `welcome-email.ts` ile. Gitmeyen
+  durumlar: tekrar giriş, mevcut hesapla eşleşme (Google ile aynı e-posta `isNewUser=false`),
+  doğrulanmamış e-posta, Apple gizli aktarma adresi (kayıtlı gönderen olmadan düşer, itibarı
+  bozar), e-postasız Apple/telefon girişi. Geçmişe dönük toplu gönderim yoktur. Tek seferlik
+  garanti için ek tablo/migration gerekmedi: garanti "en fazla bir kez"dir (gönderim sırasında
+  süreç ölürse ileti kaybolur, ikinci kez gitmez); hoş geldin kritik değildir.
+- **Bekleme sınırı:** bilgilendirme e-postaları yanıtı en fazla 4 sn bekletir; takılan SMTP
+  bağlantısı arka planda sürer, hatası yalnızca kodla loglanır.
 - **İçerik kuralları:** şifre ya da ham token bildirim e-postalarında asla yer almaz;
   hoş geldin e-postası pazarlama içeriği/izin gerektiren öğe taşımaz, erken erişim
   durumunu belirtir (`docs/copy.md` `early_access.*` ile uyumlu).

@@ -14,6 +14,7 @@ import { createSessionForUser } from "./session.ts";
 import { hashToken } from "./token.ts";
 import type { SessionUser, VerifyLoginTokenInput, VerifyLoginTokenResult } from "./types.ts";
 import { retryOnUniqueViolation } from "./unique-race.ts";
+import { sendWelcomeEmailIfNewAccount } from "./welcome-email.ts";
 
 export class TokenNotFoundError extends Error {
   constructor() {
@@ -44,7 +45,9 @@ export async function verifyLoginToken(
 
   // Ayni e-postayla esanli ilk giris: kaybeden islem (token tuketimi dahil)
   // geri alinir ve bir kez yeniden calisir (`unique-race.ts`).
-  return retryOnUniqueViolation(() => verifyInTransaction(db, tokenHash, input));
+  const result = await retryOnUniqueViolation(() => verifyInTransaction(db, tokenHash, input));
+  await sendWelcomeEmailIfNewAccount({ ...result, emailVerified: true });
+  return result;
 }
 
 function verifyInTransaction(

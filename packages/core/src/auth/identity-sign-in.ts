@@ -13,6 +13,7 @@ import type { RequestContext } from "../activity/request-context.ts";
 import { createSessionForUser } from "./session.ts";
 import type { SessionUser } from "./types.ts";
 import { retryOnUniqueViolation } from "./unique-race.ts";
+import { sendWelcomeEmailIfNewAccount } from "./welcome-email.ts";
 
 export interface SignInWithIdentityInput {
   provider: Exclude<IdentityProvider, "google">;
@@ -40,7 +41,10 @@ export async function signInWithIdentity(
   const email = input.email?.trim().toLowerCase() || null;
 
   // Esanli ilk giris yarisi (`unique-race.ts`): kaybeden islem bir kez tekrar.
-  return retryOnUniqueViolation(() => signInWithIdentityOnce(db, input, email));
+  const result = await retryOnUniqueViolation(() => signInWithIdentityOnce(db, input, email));
+  // `user.email` yalnizca saglayicinin dogruladigi adres icin dolar.
+  await sendWelcomeEmailIfNewAccount({ ...result, emailVerified: input.emailVerified });
+  return result;
 }
 
 function signInWithIdentityOnce(
