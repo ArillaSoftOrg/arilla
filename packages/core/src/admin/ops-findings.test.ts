@@ -176,6 +176,23 @@ describe("jobRunFindings", () => {
     expect(out.find((f) => f.key === "jobs.no_record")?.evidence).toContain("Döviz kuru");
   });
 
+  it("günlük fiyat tazeleme: 36 saatten eskiyse gecikmiş; yönlendirme batch-timers'a değil feeds-timers'a (karar 0145)", () => {
+    const late = jobRunFindings(
+      ok({ jobs: [job("feed_daily", { startedAt: ago(37 * HOUR) })], stuck: [] }),
+      NOW,
+    );
+    expect(severities(late)).toEqual({ "jobs.feed_daily.overdue": "warning" });
+    const action = late.find((f) => f.key === "jobs.feed_daily.overdue")?.action ?? "";
+    expect(action).toContain("feeds-timers");
+    expect(action).not.toContain("batch-timers install");
+    // Günde iki tetikten biri kaçsa (en çok ~12 saat) uyarı yok.
+    const fine = jobRunFindings(
+      ok({ jobs: [job("feed_daily", { startedAt: ago(14 * HOUR) })], stuck: [] }),
+      NOW,
+    );
+    expect(severities(fine)).toEqual({ jobs: "healthy" });
+  });
+
   it("okunamazsa bilinmiyor", () => {
     expect(jobRunFindings(fail, NOW)[0]?.severity).toBe("unknown");
   });

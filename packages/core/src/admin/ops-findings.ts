@@ -399,6 +399,15 @@ export function merchantFindings(
 
 const STAGE_JOB_NAMES = new Set(Object.values(STAGE_JOBS).flat());
 
+/** Gecikmiş zamanlanmış iş için ne yapılacağı. Besleme zamanlayıcısı `batch-timers`'ta DEĞİLDİR. */
+function overdueAction(job: string, how: string): string {
+  if (job === "feed_daily")
+    return "VPS'te `feeds-timers status` ve `systemctl --failed` ile kontrol edin; kurulu değilse etkinleştirme ayrı onay adımıdır (docs/ops.md, karar 0145).";
+  return how.startsWith("python")
+    ? "VPS'te `batch-timers status` ve `systemctl --failed` ile zamanlayıcıyı kontrol edin; kurulu değilse `batch-timers install`."
+    : "VPS cron konteynerini (`docker compose ps cron`, günlüğü) ve CRON_SECRET'ı kontrol edin.";
+}
+
 /**
  * `job_run` bulguları. Boru hattı aşamasına bağlı işlerin başarısızlığı
  * aşama bulgusunda görünür; burada tekrar edilmez.
@@ -485,9 +494,7 @@ export function jobRunFindings(check: Check<JobRunSummary>, now: Date): AdminFin
           title: `${meta.label}: zamanında çalışmadı`,
           meaning: `Zamanlanmış iş (${meta.how}) beklenen aralıkta koşu bırakmadı.`,
           evidence: null,
-          action: meta.how.startsWith("python")
-            ? "VPS'te `batch-timers status` ve `systemctl --failed` ile zamanlayıcıyı kontrol edin; kurulu değilse `batch-timers install`."
-            : "VPS cron konteynerini (`docker compose ps cron`, günlüğü) ve CRON_SECRET'ı kontrol edin.",
+          action: overdueAction(job.job, meta.how),
           href: jobHref,
           capability: OPS,
           evidenceAt: run.startedAt,

@@ -1,0 +1,21 @@
+[Unit]
+Description=Arilla gunluk AliExpress fiyat tazeleme: kesif + besleme senkronizasyonu + tazelik olcumu (karar 0145)
+Requires=docker.service
+After=docker.service
+OnFailure=arilla-alert@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/arilla
+# Yalniz `feeds-timers install --confirm` ile kurulur (batch-timers KURMAZ): buyuk besleme
+# indirmesi disk/WAL yuku getirir, etkinlestirme ayri ve onayli bir adimdir.
+# Hic TAM surumu olmayan besleme icin ilk yukleme asama kapilari (10 bin -> 100 bin -> tam)
+# elle gecilmeden gunluk is o beslemeye dokunmaz ("initial_load_required").
+# Besleme kimlik bilgisi worker.env'de (ADMITAD_CLIENT_ID/SECRET); sahip kimligi YOK.
+# Ayni anda ikinci kosu: merchant advisory kilidi (4302) sessizce vazgecer; systemd de
+# calisan oneshot birimi ikinci kez baslatmaz. Gecici hatada kosu icinde 2 ek tur denenir.
+ExecStart=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml --profile feeds run --rm -e JOB_RUN_TRIGGER=cron feeds python -m feeds daily --merchant aliexpress
+# 1 GB'lik besleme: ~1 saat indirme (0114) + isleme + geri basinc beklemesi.
+TimeoutStartSec=6h
+Nice=10
+IOSchedulingClass=idle

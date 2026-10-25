@@ -1437,7 +1437,8 @@ Siz feed'lerden veri topluyorsunuz; rakip de sizden toplamaya çalışacak.
 
 ## Besleme keşfi ve senkronizasyonu (karar 0111, 0112)
 
-**Durum:** Kod ve testler hazır. Üretimde zamanlanmış çalışma **yok**.
+**Durum:** Kod ve testler hazır. Üretimde zamanlanmış çalışma **yok**; günlük çalışma için
+bkz. "Günlük AliExpress fiyat tazeleme (karar 0145)" (etkinleştirme ayrı onaylı adım).
 
 **Ortam:**
 - `ADMITAD_CLIENT_ID` ve `ADMITAD_CLIENT_SECRET`: `worker.env`'e eklenir.
@@ -1513,6 +1514,82 @@ Bir kez, root ile: `install -d -o 10001 -g 10001 -m 0750 /opt/arilla/feed-stagin
 - Admitad tıklaması için `merchant.deeplink_template`'e Admitad hesabında doğrulanan
   biçim girilir (örn. `{affiliate_url}&subid={click_id}`).
 - Yönetim: `/yonetim/ingest/beslemeler` (salt okunur).
+
+## Günlük AliExpress fiyat tazeleme (karar 0145)
+
+**Durum:** Kod ve testler hazır. Zamanlayıcı üretimde **kurulu değil**; kurulumu ayrı ve
+onaylı bir adımdır (`feeds-timers install --confirm`). `batch-timers` bu birimi **kurmaz**.
+
+AliExpress fiyatı tek yerden gelir: Admitad beslemesi (karar 0112). Yeni bir veri kaynağı,
+kazıma ya da canlı fiyat çağrısı yoktur. Günlük iş mevcut besleme motorunu sırayla çağırır:
+
+1. **Kilit:** `(4302, merchant_id)` advisory kilidi. Aynı anda ikinci günlük koşu hata vermeden
+   `skipped=already_running` ile çıkar. Besleme başına kilit (4301) `FeedSync`'tedir.
+2. **Uygunluk (aşama kapıları atlanmaz):** yalnız **etkin** ve en az bir kez **tam** (`complete`)
+   sürümü olan besleme. Tam sürümü olmayan besleme `initial_load_required` olarak raporlanır ve
+   indirilmez; ilk yükleme 10 bin → 100 bin → tam aşama kapılarıyla elle ve onayla yapılır (0114).
+3. **Keşif:** `feeds discover` ile kaynağın `source_updated_at` imleci tazelenir. Keşifsiz
+   `sync-due` yeni sürümü hiç görmez. Keşif hatası: yeniden dene, olmazsa koşu `partial`.
+4. **Senkronizasyon:** `sync-due` ile aynı döngü (`feeds/runner.py`). Kaynak değişmediyse indirme
+   yok. Değiştiyse parça parça, kontrol noktalı, tamlık kapılı yazım; `price_point` yalnız yeni ya
+   da değişen fiyat/stok için INSERT. Geçici ağ/indirme hatasında koşu içinde en fazla 2 ek tur
+   (10 dk, 20 dk bekleyerek); ek olarak günde ikinci tetik (18:30) vardır.
+5. **Tazelik ölçümü:** koşu sonunda besleme ve offer tazeliği `job_run.detail`'e yazılır.
+
+**Fiyat sıfırlanmaz, offer silinmez.** Kaynakta olmayan offer yalnız 48 saatlik bekleme ve %10
+tavan koşuluyla pasifleşir (0112). Bozuk fiyat (boş, sayı değil, ≤ 0, aralık dışı) kayıt bazında
+reddedilir; red oranı %2'yi aşarsa sürüm reddedilir (`error_rate`) ve hiçbir offer pasifleşmez.
+
+**Kur.** USD fiyat olduğu gibi (orijinal para birimiyle) saklanır; TRY **yazılmaz**. TL karşılığı
+okuma yolunda son TCMB kuruyla hesaplanır ve kur 4 günden eskiyse **gösterilmez** (0113, 0124).
+Kur zamanlayıcısı `arilla-pricing-fx` (13:30 UTC, `batch-timers`). Günlük iş kuru çekmez (çoğaltma
+yok), yalnız yaşını ölçer; kur kullanılamıyorsa koşu `partial` biter (`fx_stale`), fiyat yazımı durmaz.
+
+| Komut | Ne yapar |
+| --- | --- |
+| `python -m feeds daily --merchant aliexpress` | Günlük tazeleme (zamanlayıcı bunu çağırır) |
+| `python -m feeds freshness --merchant aliexpress` | **Yalnız okur.** Besleme ve offer tazeliği |
+| `feeds-timers preflight` | Aynı okuma, VPS'te `feeds` servisiyle |
+
+Seçenekler (`daily`): `--retries N` (varsayılan 2), `--retry-wait-seconds` (600),
+`--parallel-downloads` (2), `--max-source-age-hours` (168), `--skip-discovery`. Örnek kip
+(`--max-records`) ve `--force` bilerek yok.
+
+**Etkinleştirme kontrol listesi (hepsi tamamlanmadan `install --confirm` çalıştırılmaz):**
+
+1. Karar 0145'nin migration'ı yoktur; üretimde şema değişikliği gerekmez.
+2. `worker.env` içinde `ADMITAD_CLIENT_ID/SECRET` tanımlı; AliExpress beslemesi `active` ve
+   `aliexpress` merchant'ına bağlı (`feeds list`).
+3. İlk yükleme aşama kapıları geçilmiş: besleme için en az bir `complete` sürüm var
+   (`feeds freshness --merchant aliexpress` çıktısında `never_synced` yok).
+4. Disk ve WAL payı: `FEED_MIN_FREE_BYTES` (20 GiB) korunuyor; son yedek ve WAL arşivi sağlıklı.
+5. `batch-timers status` içinde `arilla-pricing-fx.timer` var (aksi halde TL karşılığı çıkmaz).
+6. `feeds-timers preflight` sorunsuz; sonra `sudo /opt/arilla/vps/bin/feeds-timers install --confirm`.
+7. İlk iki koşu izlenir: `/yonetim/islemler/isler?is=feed_daily`, `journalctl -u arilla-feeds-daily`.
+
+Durdurma: `feeds-timers disable`. Birim dosyaları kalır, veri değişmez.
+
+**İzleme (`job_run.job = feed_daily`, `/yonetim/islemler/isler`).** `detail` alanları:
+
+| Alan | Anlam |
+| --- | --- |
+| `last_success_at`, `source_updated_at` | Son tam yazım zamanı / kaynağın bildirdiği güncelleme (**ayrı iki tarih**) |
+| `source_age_hours`, `oldest_source_age_hours` | Kaynağın yaşı (en yeni / en eski besleme) |
+| `feeds_synced`, `feeds_unchanged`, `feeds_failed`, `feeds_gate_rejected` | Besleme sonuçları |
+| `records`, `created`, `changed`, `unchanged`, `price_points`, `rejected`, `deactivated` | Kayıt sayaçları; `price_points` = yeni fiyat/stok noktası |
+| `offers_active`, `offers_fresh`, `offers_stale` | Eski fiyat taşıyan offer = etkin − güncel bir beslemede olan |
+| `fx_ok`, `fx_date`, `fx_age_days` | Kur kullanılabilirliği (4 gün kuralı) |
+| `duration_s`, `attempts`, `discovery` | Süre, tur sayısı, keşif durumu |
+
+`error_summary` ilk birkaç sorun kodunu taşır: `initial_load_required`, `no_active_feeds`,
+`feed_<id>:<neden>` (indirme/kapı hatası ya da `behind`, `source_stale`, `never_synced`),
+`discovery_failed:<ağ>`, `fx_stale`, `feeds_gone`. Başarısız ya da `partial` koşu çıkış kodu 1
+verir; systemd `arilla-alert@` alarmı gönderir. 36 saat koşu yoksa panel "zamanında çalışmadı" der.
+
+**Sınırlar.** Kaynak günde bir kez güncellenmeyebilir: fiyat taze demek kaynak kadar taze demektir.
+`--max-source-age-hours` (varsayılan 168) Admitad'in gerçek güncelleme sıklığı ölçülmeden
+kesinleşmez; ilk haftanın `source_age_hours` değerleriyle ayarlanır. Eski fiyatı **gizleyen** okuma
+yolu koruması bu işin kapsamında değildir (karar 0145 "Sınırlar ve açık işler").
 
 ## Affiliate dönüşümleri (karar 0128)
 
