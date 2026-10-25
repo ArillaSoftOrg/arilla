@@ -2301,6 +2301,20 @@ yapılandırma hazırsa görünür (`authProviderAvailability().email`).
    şifre sıfırlama → eski oturumun kapanması elle denenir; ardından aynı adresle
    Google ile giriş yapılabildiği (hesap tekrarı olmadığı) kontrol edilir.
 
+**Dağıtım sırası (merge sonrası).** İki hedef vardır ve migration davranışları farklıdır:
+
+- **VPS (`deploy.yml`):** push main → ci → build-push → deploy. `arilla-deploy` bekleyen
+  migration'ı (0101) `pg_dump` yedeğinden sonra, `web` yeniden oluşturulmadan ÖNCE uygular ve
+  `verify-schema` çalıştırır; başarısızlıkta otomatik geri alır. Ek adım gerekmez.
+- **Vercel (hâlâ canlıysa):** main'e push kodu migration'a BAKMADAN dağıtır. Vercel'in kullandığı
+  veritabanına 0101 merge'den ÖNCE elle uygulanmalıdır; aksi halde yeni kod şemayı bulamaz
+  (`/hesap` silme, `cleanup-auth` cron'u ve kayıt hata verir). Eski kod yeni şemayla sorunsuz
+  çalışır (yalnızca ekleme), bu yüzden migration'ı önce uygulamak her zaman güvenlidir.
+
+Her iki hedefte de e-posta seçeneği `SMTP_HOST`/`EMAIL_FROM` tanımlanana kadar görünmez; kod ve
+şema canlıya çıksa bile özellik açılmaz. Vercel'de Node sürümü 24 olmalı (proje ayarı); değilse
+`crypto.argon2` yoktur ve seçenek kendiliğinden gizli kalır.
+
 **Kapatma:** `SMTP_HOST` boşaltılırsa seçenek giriş ekranından kaybolur ve eylemler
 "kullanılamıyor" döner; mevcut oturumlar ve Google/Apple etkilenmez. Tabloları silmek
 gerekmez.

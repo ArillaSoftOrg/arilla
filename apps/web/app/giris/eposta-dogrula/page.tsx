@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { SITE_BRAND } from "../../site-config.ts";
 import { confirmVerificationAction } from "../credential-actions.ts";
 import { CREDENTIAL_COPY as COPY } from "../credential-copy.ts";
+import { LegalNote } from "../credential-shell.tsx";
 import styles from "../page.module.css";
 
 export const metadata: Metadata = {
@@ -45,6 +46,7 @@ export default async function EpostaDogrulaPage({
             {COPY.verifySubmit}
           </Button>
         </form>
+        <LegalNote />
       </section>
     </div>
   );

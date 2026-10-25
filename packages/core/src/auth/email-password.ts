@@ -71,7 +71,9 @@ import {
 
 type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
 
-const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Alici ayristiran karakterler (`,` `;` `<` `>` `"` ...) reddedilir: nodemailer `to` degerini
+// adres listesi olarak ayristirir; `a,b@x.com` iki alici olur ve baglanti baska birine gider.
+const EMAIL_PATTERN = /^[^\s@,;:<>()[\]"\\]+@[^\s@,;:<>()[\]"\\]+\.[^\s@,;:<>()[\]"\\]+$/;
 const EMAIL_MAX_LENGTH = 254;
 const DISPLAY_NAME_MAX_LENGTH = 80;
 /** Bekleyen kaydin "yeniden gonder" ile canlandirilabilecegi en uzun sure. */

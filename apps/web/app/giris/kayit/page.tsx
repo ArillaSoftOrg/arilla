@@ -2,7 +2,7 @@ import { authProviderAvailability, safeRedirectPath } from "@arilla/core";
 import type { Metadata } from "next";
 import { CREDENTIAL_COPY as COPY } from "../credential-copy.ts";
 import { RegisterForm } from "../credential-forms-client.tsx";
-import { CredentialShell, withNext } from "../credential-shell.tsx";
+import { CredentialShell, LegalNote, withNext } from "../credential-shell.tsx";
 import styles from "../page.module.css";
 
 export const metadata: Metadata = {
@@ -31,6 +31,7 @@ export default async function KayitPage({
       }
     >
       {available ? <RegisterForm next={safeNext} /> : null}
+      {available ? <LegalNote /> : null}
     </CredentialShell>
   );
 }

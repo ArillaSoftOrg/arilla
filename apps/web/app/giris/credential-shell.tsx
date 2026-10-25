@@ -53,6 +53,16 @@ export function CredentialShell({
   );
 }
 
+/** `/giris` ile aynı yasal not (Hizmet Şartları + Gizlilik); hesap açılan ekranlarda gösterilir. */
+export function LegalNote() {
+  return (
+    <p className={styles.legal}>
+      Devam ederek {SITE_BRAND}'nin <a href="/kosullar">Hizmet Şartlarını</a> kabul etmiş ve{" "}
+      <a href="/gizlilik">Gizlilik Politikasını</a> okumuş olursun.
+    </p>
+  );
+}
+
 /** `next` değerini bağlantılara taşır (yalnızca güvenli yol; sunucu yine süzer). */
 export function withNext(href: string, next: string): string {
   return next && next !== "/" ? `${href}?next=${encodeURIComponent(next)}` : href;

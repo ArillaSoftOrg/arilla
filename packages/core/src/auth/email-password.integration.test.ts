@@ -14,6 +14,7 @@ import {
 import {
   EmailAlreadyRegisteredError,
   InvalidCredentialsError,
+  InvalidEmailError,
   PasswordPolicyError,
   PrivateRelayEmailError,
 } from "./password-errors.ts";
@@ -181,6 +182,19 @@ describe("e-posta + şifre akışı - entegrasyon", () => {
       await expect(
         confirmEmailVerification(db, { rawToken: token, ip, userAgent: null }),
       ).rejects.toThrow();
+    });
+
+    it("alıcı ayrıştıran karakterli adresler reddedilir (iki alıcıya e-posta gitmez)", async () => {
+      for (const bad of [
+        "x,victim@example.test",
+        "x;y@example.test",
+        "<x>@example.test",
+        'a"b@example.test',
+      ]) {
+        await expect(
+          registerWithPassword(db, { email: bad, password: PASSWORD, ip: freshIp() }),
+        ).rejects.toThrow(InvalidEmailError);
+      }
     });
 
     it("zayıf şifre ve Apple gizli adresi reddedilir; token yazılmaz", async () => {
