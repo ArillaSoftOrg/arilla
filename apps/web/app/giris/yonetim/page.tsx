@@ -91,7 +91,8 @@ export default async function YonetimGirisPage({
         ) : null}
         <LoginFormClient
           next={target}
-          availability={authProviderAvailability()}
+          // Karar 0150: personel şifreyle girmez; yönetim girişinde e-posta seçeneği çizilmez.
+          availability={{ ...authProviderAvailability(), email: false }}
           googleOnly={googleOnly}
         />
         <a className={styles.legal} href={siteHref}>

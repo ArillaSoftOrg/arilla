@@ -378,13 +378,29 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `auth.provider_unavailable` | şu an kullanılamıyor |
 | `auth.phone_unavailable` | Telefonla giriş şu an kullanılamıyor. Başka bir yöntemle devam edebilirsin. |
 | `auth.phone_country_unsupported` | Şu an yalnızca Türkiye (+90) numaralarıyla giriş yapılabiliyor. |
+| `auth.credential_entry` | E-posta ile devam edin |
+| `auth.credential_invalid` | E-posta adresi ya da şifre hatalı. |
+| `auth.credential_check_email_title` | E-postanı kontrol et |
+| `auth.credential_check_email_body` | Bu adrese devam etmen için bir bağlantı gönderdik. Bağlantı 60 dakika geçerli. Birkaç dakika içinde gelmezse gereksiz klasörüne de bak. |
+| `auth.credential_reset_sent` | Bu adresle bir hesap varsa şifre belirleme bağlantısını gönderdik. Bağlantı 30 dakika geçerli. Gelmezse gereksiz klasörüne de bak. |
+| `auth.credential_rate_limited` | Çok fazla deneme yapıldı. Birkaç dakika sonra tekrar dene. |
+| `email.credential_verify_subject` | ManiCepte e-posta adresini doğrula |
+| `email.credential_reset_subject` | ManiCepte şifreni sıfırla |
+| `email.credential_exists_subject` | ManiCepte hesabın zaten var |
 
 `auth.rate_limited` mesajı hesabın var olup olmadığını belli etmez; her iki
 durumda da aynı metin gösterilir.
 
-Giriş ekranları (`/giris`, `/yonetim/giris`) yalnızca Google ve Apple gösterir.
-E-posta bağlantısı ve telefon metinleri, backend'leri yeniden açılabilsin diye
-burada kalır.
+Giriş ekranı (`/giris`) Google ve Apple'ın yanında, SMTP ve Argon2id hazırsa
+"E-posta ile devam edin" gösterir (karar 0150; metinlerin tamamı
+`apps/web/app/giris/credential-copy.ts`). `/yonetim/giris` yalnızca Google
+gösterir. Tek kullanımlık e-posta bağlantısı ve telefon metinleri,
+backend'leri yeniden açılabilsin diye burada kalır.
+
+`auth.credential_invalid`, `auth.credential_check_email_*` ve
+`auth.credential_reset_sent` hesabın var olup olmadığını belli etmez; var olan
+ve olmayan adres için aynı metin gösterilir. Parola hatası ve token durumu
+metinleri `credential-copy.ts` içindedir.
 
 ## Erken erişim
 

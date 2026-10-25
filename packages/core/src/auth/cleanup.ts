@@ -23,6 +23,8 @@ const DEFAULT_MAX_BATCHES = 20;
 export interface AuthCleanupResult {
   authTokens: number;
   phoneLoginCodes: number;
+  /** 0101: e-posta/sifre dogrulama ve sifirlama token'lari. */
+  emailCredentialTokens: number;
   sessions: number;
   /** Parti tavanina ulasildi; kalan kayitlar bir sonraki calistirmada silinir. */
   truncated: boolean;
@@ -34,7 +36,7 @@ export interface AuthCleanupOptions {
   maxBatches?: number;
 }
 
-type CleanupTable = "auth_token" | "phone_login_code" | "session";
+type CleanupTable = "auth_token" | "phone_login_code" | "session" | "email_credential_token";
 
 async function deleteExpired(
   db: Database,
@@ -72,12 +74,21 @@ export async function cleanupExpiredAuthRecords(
 
   const tokens = await deleteExpired(db, "auth_token", cutoff, batchSize, maxBatches);
   const codes = await deleteExpired(db, "phone_login_code", cutoff, batchSize, maxBatches);
+  const credentialTokens = await deleteExpired(
+    db,
+    "email_credential_token",
+    cutoff,
+    batchSize,
+    maxBatches,
+  );
   const sessions = await deleteExpired(db, "session", cutoff, batchSize, maxBatches);
 
   return {
     authTokens: tokens.deleted,
     phoneLoginCodes: codes.deleted,
+    emailCredentialTokens: credentialTokens.deleted,
     sessions: sessions.deleted,
-    truncated: tokens.truncated || codes.truncated || sessions.truncated,
+    truncated:
+      tokens.truncated || codes.truncated || credentialTokens.truncated || sessions.truncated,
   };
 }

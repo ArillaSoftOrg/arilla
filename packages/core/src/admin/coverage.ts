@@ -285,6 +285,8 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "session",
       "auth_token",
       "phone_login_code",
+      "email_credential_token",
+      "password_credential",
       "user_size_profile",
     ],
     status: "visible",

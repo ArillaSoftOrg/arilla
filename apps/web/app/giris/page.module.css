@@ -209,3 +209,39 @@
     padding-inline: var(--space-4);
   }
 }
+
+/* E-posta + şifre ekranları (karar 0150): başlık, bağlantı satırı, "gelmedi mi" açılırı. */
+.sentTitle {
+  margin: 0;
+  font-size: var(--text-body-lg);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-heading);
+  color: var(--ink);
+}
+
+.linkRow {
+  display: grid;
+  gap: var(--space-2);
+  justify-items: center;
+}
+
+.linkRow .legal {
+  margin: 0 auto;
+}
+
+.resendDetails {
+  border-top: var(--border-width) solid var(--line);
+  padding-top: var(--space-4);
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+}
+
+.resendDetails summary {
+  cursor: pointer;
+  margin-bottom: var(--space-3);
+}
+
+.resendDetails summary:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}

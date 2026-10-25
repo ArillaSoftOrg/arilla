@@ -105,6 +105,34 @@ export const phoneLoginCode = pgTable("phone_login_code", {
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
 
+/**
+ * 0101 (karar 0150): sifre ozeti (Argon2id PHC dizgisi). Satir yalnizca e-posta
+ * kontrolu kanitlandiktan sonra yazilir. Duz metin sifre saklanmaz/loglanmaz.
+ */
+export const passwordCredential = pgTable("password_credential", {
+  userId: bigint("user_id", { mode: "number" }).primaryKey(),
+  passwordHash: text("password_hash").notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+export type EmailCredentialPurpose = "verify_email" | "reset_password";
+
+/** 0101: amaca ozel tek kullanimlik baglanti; token HMAC ozeti olarak saklanir. */
+export const emailCredentialToken = pgTable("email_credential_token", {
+  id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+  purpose: text("purpose").$type<EmailCredentialPurpose>().notNull(),
+  email: text("email").notNull(),
+  tokenHash: text("token_hash").notNull(),
+  /** Yalnizca `verify_email`: kayitta secilen sifrenin Argon2id ozeti. */
+  pendingPasswordHash: text("pending_password_hash"),
+  pendingDisplayName: text("pending_display_name"),
+  expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+  consumedAt: timestamp("consumed_at", { withTimezone: true }),
+  requestIp: inet("request_ip"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 export type EarlyAccessStatus = "pending";
 
 /** 0031: erken erisim listesi. Kullanici basina tek satir (PK = user_id). */

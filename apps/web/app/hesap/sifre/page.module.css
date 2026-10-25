@@ -1,0 +1,47 @@
+.page {
+  display: grid;
+  gap: var(--space-4);
+  max-width: 28rem;
+  margin-inline: auto;
+  /* Yatay kenar boslugu ve <main> public site kabugundan (hesap/layout.tsx). */
+  padding-block: var(--section-space-compact) var(--section-space);
+}
+
+.breadcrumb {
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+}
+
+.link {
+  color: var(--ink-secondary);
+}
+
+.title {
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-h2);
+  font-weight: var(--font-weight-semibold);
+}
+
+.text {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
+}
+
+.form {
+  display: grid;
+  gap: var(--space-4);
+}
+
+.notice {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-md);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}

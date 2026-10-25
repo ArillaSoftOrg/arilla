@@ -4,9 +4,10 @@ import type { ReactNode } from "react";
 import styles from "./page.module.css";
 
 /**
- * Giriş ekranı yalnızca sosyal girişi gösterir: Google ve Apple.
+ * Giriş ekranı Google ve Apple'ı gösterir; yapılandırma hazırsa (SMTP + Argon2id)
+ * üçüncü seçenek olarak "E-posta ile devam edin" (e-posta + şifre, karar 0150) eklenir.
  *
- * E-posta bağlantısı ve telefonla giriş arayüzden kaldırıldı; backend'leri
+ * Tek kullanımlık e-posta bağlantısı ve telefonla giriş arayüzden kaldırıldı; backend'leri
  * (`requestLoginLinkAction`, `/giris/dogrula`, `/giris/telefon/*`, core
  * `auth` modülleri, tablolar) duruyor ve ileride yeniden açılabilir.
  * Metinler docs/copy.md `auth.*`.
@@ -14,6 +15,7 @@ import styles from "./page.module.css";
 const COPY = {
   google: "Google ile devam edin",
   apple: "Apple ile devam edin",
+  email: "E-posta ile devam edin", // auth.credential_entry
   unavailable: "şu an kullanılamıyor", // auth.provider_unavailable
 } as const;
 
@@ -57,10 +59,40 @@ function AppleMark() {
   );
 }
 
+function EmailMark() {
+  return (
+    <span className={styles.providerIcon} aria-hidden="true">
+      <svg className={styles.googleMark} viewBox="0 0 24 24" focusable="false">
+        <title>E-posta</title>
+        <rect
+          x="3"
+          y="5"
+          width="18"
+          height="14"
+          rx="2"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+        />
+        <path
+          d="m4 7 8 6 8-6"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.6"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        />
+      </svg>
+    </span>
+  );
+}
+
 /** Sunucunun `authProviderAvailability()` sonucu; verilmezse ikisi de açık sayılır. */
 export interface ProviderAvailability {
   google: boolean;
   apple: boolean;
+  /** Karar 0150: e-posta + şifre; verilmezse seçenek gösterilmez. */
+  email?: boolean;
 }
 
 /**
@@ -89,12 +121,12 @@ export function LoginFormClient({
   const withNext = (href: string) =>
     next && next !== "/" ? `${href}?next=${encodeURIComponent(next)}` : href;
   const provider = (
-    key: keyof ProviderAvailability,
+    key: "google" | "apple" | "email",
     href: string,
     label: string,
     mark: ReactNode,
   ) =>
-    availability && !availability[key] ? (
+    availability && availability[key] === false ? (
       <span className={styles.providerButton} aria-disabled="true">
         {mark}
         {label} ({COPY.unavailable})
@@ -110,6 +142,9 @@ export function LoginFormClient({
     <div className={`${styles.authChoices} ${compact ? styles.authChoicesCompact : ""}`}>
       {provider("google", "/giris/google", COPY.google, <GoogleMark />)}
       {googleOnly ? null : provider("apple", "/giris/apple", COPY.apple, <AppleMark />)}
+      {googleOnly || !availability?.email
+        ? null
+        : provider("email", "/giris/eposta", COPY.email, <EmailMark />)}
     </div>
   );
 }

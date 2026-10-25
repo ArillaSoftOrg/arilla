@@ -126,6 +126,7 @@ describe("provider availability", () => {
       google: false,
       apple: false,
       phone: false,
+      email: false,
     });
     expect(
       authProviderAvailability({
@@ -137,8 +138,19 @@ describe("provider availability", () => {
         NETGSM_USERCODE: "8500000000",
         NETGSM_PASSWORD: "p",
         NETGSM_MSGHEADER: "MANICEPTE",
+        SMTP_HOST: "smtp.example.test",
+        SMTP_PORT: "587",
+        SMTP_USER: "u",
+        SMTP_PASS: "p",
+        EMAIL_FROM: "ManiCepte <noreply@example.test>",
       }),
-    ).toEqual({ google: true, apple: true, phone: true });
+    ).toEqual({ google: true, apple: true, phone: true, email: true });
+  });
+
+  it("reports email + password as unavailable without a complete SMTP config", () => {
+    expect(
+      authProviderAvailability({ SMTP_HOST: "smtp.example.test", SMTP_PORT: "587" }).email,
+    ).toBe(false);
   });
 
   it("treats an invalid Apple key and partial Netgsm config as unavailable", () => {

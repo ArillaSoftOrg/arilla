@@ -161,6 +161,12 @@ platform sorununu hafifletir.
 /davet/<kod>               Davet linki (0047). Kod: eski 8 karakterli ya da `YS-49577` (0067). Kodu httpOnly çereze yazar, girişe yönlendirir. noindex, modal yok.
 /giris?next=/yol           E-posta bağlantısı isteme. `next`: giriş sonrası dönüş (yalnızca göreli yol)
 /giris/dogrula?token=...   Onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir. Tek kullanımlık, 15 dk.
+/giris/eposta              E-posta + şifre ile giriş (0150). `?durum=` doğrulama/sıfırlama sonuçlarını taşır. noindex. SMTP/Argon2id hazır değilse seçenek ve eylemler kapalı.
+/giris/kayit               E-posta + şifre ile kayıt. Hesap yalnızca e-posta doğrulanınca açılır. noindex.
+/giris/eposta-dogrula?token=...  Doğrulama onay sayfası (GET yan etkisiz). Token formun POST'unda tüketilir; hesap + oturum burada açılır. Tek kullanımlık, 60 dk. `no-referrer`.
+/giris/sifre-unuttum       Şifre belirleme/sıfırlama bağlantısı iste. Yanıt hesabın varlığını belli etmez.
+/giris/sifre-sifirla?token=...   Yeni şifre formu (GET token'ı tüketmez, yalnız geçerliliğine bakar). Tek kullanımlık, 30 dk. Tüm oturumlar kapanır; oturum açılmaz. `no-referrer`.
+/hesap/sifre               Şifreni değiştir (bu oturum dışındakiler kapanır) ya da, şifresi olmayan hesap için, e-postaya şifre belirleme bağlantısı iste. Personel hesapları kullanmaz.
 ```
 
 `/hesap` altında gezinme geçmişini ve hesabı silme seçenekleri gerçekten

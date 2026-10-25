@@ -15,6 +15,7 @@ edilmeli.
 | Veri | Nerede | Hukuki sebep | Saklama |
 | --- | --- | --- | --- |
 | E-posta adresi | `app_user` | Sözleşmenin ifası | Hesap silinene kadar |
+| Şifre özeti ve doğrulama/sıfırlama token'ları | `password_credential` (Argon2id özeti; düz metin şifre tutulmaz), `email_credential_token` (token HMAC özeti; kayıt doğrulamasında bekleyen şifre özeti) | Sözleşmenin ifası (hesap) ve meşru menfaat (güvenlik) | Token 60/30 dk, süresi dolan satır en geç 1 gün sonra silinir; şifre özeti hesap silinene kadar (0150) |
 | Oturum ve giriş kayıtları | `session`, `auth_token` | Meşru menfaat (güvenlik) | Token 15 dk, oturum 90 gün |
 | Erken erişim kaydı | `early_access` | Sözleşmenin ifası (listeye katılma) | Hesap silinene kadar |
 | Arama hakları ve bonus defteri | `ai_quota_day`, `bonus_account`, `bonus_ledger`, `ai_search_charge` | Sözleşmenin ifası (hak hesabı) | Hesap silinene kadar (0047) |
@@ -27,7 +28,7 @@ edilmeli.
 | Takip bağlantısı tıklama sayacı (0115) | `tracking_link_click_hour` | Meşru menfaat (kampanya ölçümü); **yalnızca saat başına sayı: IP, User-Agent, oturum, çerez, yönlendiren adres yazılmaz** | Sayaç satırları kalır (kişisel veri değil); bağlantı kaydı silinmez, kapatılır |
 | Yüklenen görseller | obje deposu | Açık rıza | **En fazla 30 gün** |
 | Pazarlama e-postası izni | `user_consent` | Açık rıza + İYS | İzin geri alınana kadar |
-| IP adresi | `auth_token`, `phone_login_code`, `session`, `user_consent` (eski satırlar) | Meşru menfaat (güvenlik) | Giriş kayıtları en fazla 1 gün, oturum ömrü kadar; `user_consent.ip` 1 yıl sonra NULL (0049). Yeni çerez ve aydınlatma kayıtlarına IP yazılmaz (0049); hesap izinleri (`setConsent`) IP yazmaya devam eder. |
+| IP adresi | `auth_token`, `email_credential_token`, `phone_login_code`, `session`, `user_consent` (eski satırlar) | Meşru menfaat (güvenlik) | Giriş kayıtları en fazla 1 gün, oturum ömrü kadar; `user_consent.ip` 1 yıl sonra NULL (0049). Yeni çerez ve aydınlatma kayıtlarına IP yazılmaz (0049); hesap izinleri (`setConsent`) IP yazmaya devam eder. |
 | Giriş/çıkış geçmişi (0049, 0036/0037) | `auth_event` | Meşru menfaat (güvenlik) | 1 yıl |
 | Kaba cihaz/tarayıcı/ülke (0049, 0036/0037) | `session`, `auth_event`, `user_activity_summary` | Meşru menfaat (güvenlik) | Bağlı satırla birlikte; ham user agent ve IP'den konum yok |
 | Hesap özeti, son aktif zamanı (0049, 0036/0037) | `user_activity_summary` | Sözleşmenin ifası / meşru menfaat | Hesap silinene kadar; analitik sayaçları rıza geri alınınca NULL |
