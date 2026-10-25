@@ -98,7 +98,7 @@ describe("işlemsel e-posta şablonları - entegrasyon", () => {
     const verify = await waitForMail(email, "ManiCepte hesabını doğrula");
     expect(verify.From.Address).toBe(process.env.EMAIL_FROM?.match(/<(.+)>/)?.[1]);
     expect(verify.ReplyTo.map((r) => r.Address)).toEqual([process.env.EMAIL_REPLY_TO]);
-    expect(verify.Text).toContain("60 dakika geçerli");
+    expect(verify.Text).toContain("15 dakika geçerli");
     expect(verify.HTML).toContain("prefers-color-scheme:dark");
     // Düz metinde bağlantı var; şifre hiçbir iletide yok.
     expect(verify.Text + verify.HTML).not.toContain(PASSWORD);
