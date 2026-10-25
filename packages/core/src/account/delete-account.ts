@@ -31,7 +31,8 @@
  *   aynı e-postaya ait tüketilmemiş bir token'ın silme sonrası hesabı
  *   sessizce yeniden açmasını önlemek için hijyen amacıyla temizlenir.
  *   Hesabın e-postası VE bağlı giriş kimliklerinin (Google/Apple)
- *   e-postaları, harf duyarsız.
+ *   e-postaları, harf duyarsız. `email_credential_token` (0101) aynı kuralla
+ *   silinir; `password_credential` `ON DELETE CASCADE` ile gider.
  *
  * Yetkili hesap (karar 0050): moderatör/yönetici kendi hesabını SİLEMEZ
  * (`StaffAccountDeletionError`). Önce rolü düşürülür (veritabanı
@@ -53,6 +54,7 @@ import {
   creator,
   creatorAffiliateAccount,
   type Database,
+  emailCredentialToken,
   follow,
   imageUpload,
   linkResolutionRequest,
@@ -121,6 +123,10 @@ export async function deleteAccount(db: Database, userId: number): Promise<void>
     ];
     if (loginEmails.length > 0) {
       await tx.delete(authToken).where(inArray(sql`lower(${authToken.email})`, loginEmails));
+      // 0101: bekleyen kayit/sifirlama token'lari (bekleyen sifre ozeti dahil) ayni sekilde silinir.
+      await tx
+        .delete(emailCredentialToken)
+        .where(inArray(sql`lower(${emailCredentialToken.email})`, loginEmails));
     }
     // 0025: telefon kodlari numarayi tasir; kullanicinin telefon kimlikleriyle
     // birlikte silinir (user_identity app_user ile CASCADE gider).

@@ -649,6 +649,34 @@ CREATE TABLE phone_login_code (
 CREATE INDEX phone_login_code_phone_idx ON phone_login_code (phone, created_at DESC);
 CREATE INDEX phone_login_code_expires_idx ON phone_login_code (expires_at);  -- 0030: temizlik isi
 
+-- E-posta + sifre (0101, docs/decisions/0150). Sifre ozeti YALNIZCA e-posta
+-- kontrolu kanitlandiktan sonra yazilir. Token duz metin saklanmaz (HMAC-SHA256).
+CREATE TABLE password_credential (
+    user_id       BIGINT      PRIMARY KEY REFERENCES app_user(id) ON DELETE CASCADE,
+    password_hash TEXT        NOT NULL CHECK (password_hash LIKE '$argon2id$%'),  -- PHC dizgisi
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE email_credential_token (
+    id                    BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    purpose               TEXT        NOT NULL CHECK (purpose IN ('verify_email', 'reset_password')),
+    email                 TEXT        NOT NULL,
+    token_hash            TEXT        NOT NULL UNIQUE,
+    pending_password_hash TEXT,        -- yalnizca verify_email: kayitta secilen sifrenin ozeti
+    pending_display_name  TEXT,
+    expires_at            TIMESTAMPTZ NOT NULL,
+    consumed_at           TIMESTAMPTZ,
+    request_ip            INET,
+    created_at            TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT email_credential_token_pending_only_verify
+        CHECK (purpose = 'verify_email' OR (pending_password_hash IS NULL AND pending_display_name IS NULL)),
+    CONSTRAINT email_credential_token_verify_has_hash
+        CHECK (purpose <> 'verify_email' OR pending_password_hash IS NOT NULL)
+);
+CREATE INDEX email_credential_token_email_idx   ON email_credential_token (email, purpose, created_at DESC);
+CREATE INDEX email_credential_token_expires_idx ON email_credential_token (expires_at);
+
 -- Erken erişim listesi (0031). Kullanıcı başına tek satır (PK = user_id):
 -- her başarılı girişte idempotent oluşur (ON CONFLICT DO NOTHING). Ürün
 -- kapısı bu tabloya değil `PRODUCT_ACCESS` bayrağına ve role bakar; satır

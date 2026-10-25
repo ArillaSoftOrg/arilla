@@ -28,7 +28,7 @@ const IP_MAX_REQUESTS = 10;
 export type FixedWindowCounter = (key: string, windowSeconds: number) => Promise<number>;
 
 export class RateLimitExceededError extends Error {
-  constructor(scope: "email" | "ip" | "phone") {
+  constructor(scope: "email" | "ip" | "phone" | "login") {
     super(`giris istegi oran sinirina takildi: ${scope}`);
     this.name = "RateLimitExceededError";
   }

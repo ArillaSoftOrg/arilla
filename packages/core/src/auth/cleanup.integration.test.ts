@@ -46,6 +46,11 @@ describe("cleanupExpiredAuthRecords - entegrasyon", () => {
           "INSERT INTO auth_token (email, token_hash, expires_at) VALUES ($1, $2, $3)",
           [EMAIL, `cleanup-${suffix}-${label}`, expiresAt],
         );
+        // 0101: e-posta/sifre dogrulama ve sifirlama token'lari ayni esikle silinir.
+        await client.query(
+          "INSERT INTO email_credential_token (purpose, email, token_hash, pending_password_hash, expires_at) VALUES ('verify_email', $1, $2, '$argon2id$cleanup', $3)",
+          [EMAIL, `cleanup-${suffix}-cred-${label}`, expiresAt],
+        );
         await client.query(
           "INSERT INTO phone_login_code (phone, code_hash, expires_at) VALUES ($1, $2, $3)",
           [PHONE, `cleanup-${suffix}-${label}`, expiresAt],
@@ -66,6 +71,7 @@ describe("cleanupExpiredAuthRecords - entegrasyon", () => {
   afterAll(async () => {
     await withOwnerClient(async (client) => {
       await client.query("DELETE FROM auth_token WHERE email = $1", [EMAIL]);
+      await client.query("DELETE FROM email_credential_token WHERE email = $1", [EMAIL]);
       await client.query("DELETE FROM phone_login_code WHERE phone = $1", [PHONE]);
       await client.query("DELETE FROM app_user WHERE id = $1", [userId]);
     });
@@ -82,12 +88,19 @@ describe("cleanupExpiredAuthRecords - entegrasyon", () => {
 
     expect(await remaining("auth_token", "email", EMAIL)).toEqual(["recent", "valid"]);
     expect(await remaining("phone_login_code", "phone", PHONE)).toEqual(["recent", "valid"]);
+    expect(await remaining("email_credential_token", "email", EMAIL)).toEqual(["recent", "valid"]);
     expect(await remaining("session", "user_id", userId)).toEqual(["recent", "valid"]);
   });
 
   it("idempotent: ikinci calistirma hicbir sey silmez", async () => {
     const again = await cleanupExpiredAuthRecords(db);
-    expect(again).toEqual({ authTokens: 0, phoneLoginCodes: 0, sessions: 0, truncated: false });
+    expect(again).toEqual({
+      authTokens: 0,
+      phoneLoginCodes: 0,
+      emailCredentialTokens: 0,
+      sessions: 0,
+      truncated: false,
+    });
     expect(await remaining("auth_token", "email", EMAIL)).toEqual(["recent", "valid"]);
   });
 });

@@ -348,6 +348,8 @@ describe("giriş ekranları: yalnızca Google ve Apple", () => {
   }
 
   it("yapılandırılmışsa public ve yönetim girişinde yalnızca Google + Apple bağlantısı var", async () => {
+    // SMTP hazır değilken e-posta + şifre seçeneği (karar 0150) hiç çizilmez.
+    vi.stubEnv("SMTP_HOST", "");
     vi.stubEnv("GOOGLE_CLIENT_ID", "123-abc.apps.googleusercontent.com");
     vi.stubEnv("GOOGLE_CLIENT_SECRET", "test-only");
     appleEnv();
@@ -360,6 +362,26 @@ describe("giriş ekranları: yalnızca Google ve Apple", () => {
       expect(markup).toContain("Apple ile devam edin");
       expectSocialOnly(markup);
     }
+  });
+
+  it("SMTP ve Argon2id hazırsa public girişte e-posta seçeneği çıkar; yönetim girişinde çıkmaz (personel şifreyle girmez)", async () => {
+    vi.stubEnv("GOOGLE_CLIENT_ID", "123-abc.apps.googleusercontent.com");
+    vi.stubEnv("GOOGLE_CLIENT_SECRET", "test-only");
+    appleEnv();
+    vi.stubEnv("SMTP_HOST", "localhost");
+    vi.stubEnv("SMTP_PORT", "1025");
+    vi.stubEnv("EMAIL_FROM", "ManiCepte <noreply@example.test>");
+
+    const publicMarkup = await html("page");
+    const publicLinks = [...publicMarkup.matchAll(/href="(\/giris\/[a-z]+)[^"]*"/g)].map(
+      (m) => m[1],
+    );
+    expect(publicLinks).toEqual(["/giris/google", "/giris/apple", "/giris/eposta"]);
+    expect(publicMarkup).toContain("E-posta ile devam edin");
+
+    const adminMarkup = await html("yonetim/page");
+    expect(adminMarkup).not.toContain("/giris/eposta");
+    expect(adminMarkup).not.toContain("E-posta ile devam edin");
   });
 
   it("yönetim girişi Google/Apple bağlantılarına yönetim next'ini taşır", async () => {
@@ -375,6 +397,7 @@ describe("giriş ekranları: yalnızca Google ve Apple", () => {
   });
 
   it("yapılandırılmamış Apple bağlantı olmaz; telefon/e-posta hiç görünmez", async () => {
+    vi.stubEnv("SMTP_HOST", "");
     vi.stubEnv("SMS_PROVIDER", "netgsm");
     for (const path of ["page", "yonetim/page"] as const) {
       const markup = await html(path);

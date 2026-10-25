@@ -2279,3 +2279,32 @@ Maliyet: token satırı (`web_search_grounded`) ve Google arama sorgusu satırı
 ### Veritabanı bağlantısı: pooler modu (EMAXCONNSESSION)
 
 Üretimde `DATABASE_URL` Supabase **Transaction pooler**'ını (port `6543`) göstermelidir; Session pooler (`5432`, `pool_size` 15) serverless'ta `EMAXCONNSESSION` verir. Uygulama başına varsayılan havuz 3 bağlantıdır (`DATABASE_POOL_MAX`). `DATABASE_URL_OWNER` (migration/bakım) Transaction pooler'a ÇEVRİLMEZ; doğrudan ya da session bağlantısıyla kalır.
+
+## E-posta + şifre girişi (karar 0150)
+
+Google/Apple girişi aynen çalışır; e-posta + şifre üçüncü seçenektir ve yalnızca
+yapılandırma hazırsa görünür (`authProviderAvailability().email`).
+
+**Ön koşullar (üretim, elle):**
+
+1. **Migration 0101** (`password_credential`, `email_credential_token`): önce staging, sonra
+   üretimde `pnpm db:migrate`. Yalnızca ekleme; geri alma migration başlığında.
+   main'e push Vercel'e otomatik dağıtır — migration kod dağıtımından ÖNCE uygulanmalı.
+2. **Ortam:** yeni değişken yok. `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`+`SMTP_PASS`,
+   `EMAIL_FROM`, `APP_URL`, `SESSION_SECRET`, `REDIS_URL` tanımlı olmalı (hepsi zaten
+   `REQUIRED_PRODUCTION`). Çalışma ortamı Node ≥ 24.7 (Vercel varsayılanı Node 24).
+3. **Gönderen alan adı DNS'i:** `EMAIL_FROM` alan adı için SPF + DKIM + DMARC. Bunlar yoksa
+   doğrulama e-postaları gereksiz klasörüne düşer ya da reddedilir; kayıt akışı
+   "çalışıyor ama kimse hesap açamıyor" gibi görünür. İşlemsel iletiler pazarlama
+   gönderen adresinden (`MARKETING_EMAIL_FROM`) ayrı kalır.
+4. **Doğrulama:** üretimde bir test adresiyle kayıt → e-posta gelişi → onay → giriş →
+   şifre sıfırlama → eski oturumun kapanması elle denenir; ardından aynı adresle
+   Google ile giriş yapılabildiği (hesap tekrarı olmadığı) kontrol edilir.
+
+**Kapatma:** `SMTP_HOST` boşaltılırsa seçenek giriş ekranından kaybolur ve eylemler
+"kullanılamıyor" döner; mevcut oturumlar ve Google/Apple etkilenmez. Tabloları silmek
+gerekmez.
+
+**İzleme:** başarısız teslimler `[giris] ... email delivery failed: <kod>` olarak loglanır
+(adres ve bağlantı loglanmaz). `rate limit unavailable` Redis erişilemezliğini gösterir;
+giriş/kayıt bu durumda KAPALI kalır (fail-closed).
