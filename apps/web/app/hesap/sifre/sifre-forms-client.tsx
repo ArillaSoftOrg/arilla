@@ -1,6 +1,6 @@
 "use client";
 
-import { Button, Input } from "@arilla/ui";
+import { Button, PasswordInput } from "@arilla/ui";
 import { useActionState } from "react";
 import { useFormStatus } from "react-dom";
 import {
@@ -8,6 +8,7 @@ import {
   credentialErrorText,
   PASSWORD_FIELD_ERRORS,
 } from "../../giris/credential-copy.ts";
+import { NewPasswordFields } from "../../giris/new-password-fields.tsx";
 import { changePasswordAction, requestPasswordSetupAction } from "./actions.ts";
 import styles from "./page.module.css";
 
@@ -37,33 +38,19 @@ export function ChangePasswordForm() {
           {credentialErrorText(error.code)}
         </p>
       ) : null}
-      <Input
+      <PasswordInput
         label={COPY.currentPasswordLabel}
         name="current"
-        type="password"
         autoComplete="current-password"
         required
+        showLabel={COPY.showPassword}
+        hideLabel={COPY.hidePassword}
         error={error?.code === "wrong_current" ? COPY.wrongCurrent : undefined}
       />
-      <Input
+      <NewPasswordFields
         label={COPY.newPasswordLabel}
-        name="password"
-        type="password"
-        autoComplete="new-password"
-        minLength={10}
-        maxLength={128}
-        required
-        hint={COPY.passwordHint}
+        confirmName="confirm"
         error={fieldError ? credentialErrorText(fieldError) : undefined}
-      />
-      <Input
-        label={COPY.confirmPasswordLabel}
-        name="confirm"
-        type="password"
-        autoComplete="new-password"
-        minLength={10}
-        maxLength={128}
-        required
       />
       <Submit label={COPY.changeSubmit} pending={COPY.changePending} />
     </form>

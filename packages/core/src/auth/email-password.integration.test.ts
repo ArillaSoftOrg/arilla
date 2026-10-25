@@ -214,6 +214,76 @@ describe("e-posta + şifre akışı - entegrasyon", () => {
       ).toHaveLength(0);
     });
 
+    it("yeni doğrulama token'ı 15 dakika, sıfırlama token'ı 30 dakika geçerlidir", async () => {
+      const email = freshEmail("ttl");
+      await registerWithPassword(db, { email, password: PASSWORD, ip: freshIp() });
+      const verify = await owner<{ minutes: number }>(
+        "SELECT extract(epoch FROM (expires_at - created_at)) / 60 AS minutes FROM email_credential_token WHERE email = $1 AND purpose = 'verify_email'",
+        [email],
+      );
+      expect(Math.round(Number(verify[0]?.minutes))).toBe(15);
+
+      const known = freshEmail("ttl-reset");
+      const result = await registerAndConfirm(known);
+      expect(result.user.email).toBe(known);
+      await requestPasswordReset(db, { email: known, ip: freshIp() });
+      const reset = await owner<{ minutes: number }>(
+        "SELECT extract(epoch FROM (expires_at - created_at)) / 60 AS minutes FROM email_credential_token WHERE email = $1 AND purpose = 'reset_password' AND consumed_at IS NULL",
+        [known],
+      );
+      expect(Math.round(Number(reset[0]?.minutes))).toBe(30);
+    });
+
+    it("önceden verilmiş (eski süreli) token'ın kayıtlı süresi korunur", async () => {
+      const email = freshEmail("legacy-ttl");
+      const ip = freshIp();
+      await registerWithPassword(db, { email, password: PASSWORD, ip });
+      const { token } = await latestMailLink(email, "/giris/eposta-dogrula");
+      // 60 dakikalık eski süre: kalan 50 dakika hâlâ geçerli olmalı.
+      await owner(
+        "UPDATE email_credential_token SET created_at = now() - interval '10 minutes', expires_at = now() + interval '50 minutes' WHERE email = $1",
+        [email],
+      );
+      const ok = await confirmEmailVerification(db, { rawToken: token, ip, userAgent: null });
+      expect(ok.user.email).toBe(email);
+    });
+
+    it("süresi dolan doğrulama bağlantısı yeniden gönderilir; yeni bağlantı hesabı açar", async () => {
+      const email = freshEmail("expired-resend");
+      const ip = freshIp();
+      await registerWithPassword(db, { email, password: PASSWORD, ip });
+      const expired = await latestMailLink(email, "/giris/eposta-dogrula");
+      await owner(
+        "UPDATE email_credential_token SET expires_at = now() - interval '1 minute' WHERE email = $1",
+        [email],
+      );
+      await expect(
+        confirmEmailVerification(db, { rawToken: expired.token, ip, userAgent: null }),
+      ).rejects.toThrow(TokenExpiredError);
+
+      await resendVerificationEmail(db, { email, ip });
+      for (let i = 0; i < 30 && (await mailCount(email)) < 2; i++) {
+        await new Promise((resolve) => setTimeout(resolve, 100));
+      }
+      const fresh = await latestMailLink(email, "/giris/eposta-dogrula");
+      expect(fresh.token).not.toBe(expired.token);
+      const ok = await confirmEmailVerification(db, { rawToken: fresh.token, ip, userAgent: null });
+      expect(ok.user.email).toBe(email);
+    });
+
+    it("ad alanı olmadan kayıt çalışır; görünen ad boş kalır", async () => {
+      const email = freshEmail("noname");
+      const ip = freshIp();
+      await registerWithPassword(db, { email, password: PASSWORD, ip });
+      const { token } = await latestMailLink(email, "/giris/eposta-dogrula");
+      const ok = await confirmEmailVerification(db, { rawToken: token, ip, userAgent: null });
+      const rows = await owner<{ display_name: string | null }>(
+        "SELECT display_name FROM app_user WHERE id = $1",
+        [ok.user.id],
+      );
+      expect(rows[0]?.display_name).toBeNull();
+    });
+
     it("yeniden gönder: eski token geçersiz olur, yenisi çalışır; bekleyen kayıt yoksa sessizce biter", async () => {
       const email = freshEmail("resend");
       const ip = freshIp();

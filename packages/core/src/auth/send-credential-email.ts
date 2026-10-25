@@ -17,7 +17,8 @@ export interface CredentialEmailContent {
   html: string;
 }
 
-export const VERIFY_EMAIL_TTL_MINUTES = 60;
+/** Yalnizca YENI token'lara uygulanir; `expires_at` yazildigi anda sabitlenir, eski token'lar etkilenmez. */
+export const VERIFY_EMAIL_TTL_MINUTES = 15;
 export const RESET_PASSWORD_TTL_MINUTES = 30;
 
 const BRAND = "ManiCepte";

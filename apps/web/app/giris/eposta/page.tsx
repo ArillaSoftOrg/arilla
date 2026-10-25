@@ -22,6 +22,8 @@ export default async function EpostaGirisPage({
   const { durum, next } = await searchParams;
   const safeNext = safeRedirectPath(next);
   const available = authProviderAvailability().email;
+  // Süresi dolmuş/geçersiz doğrulama bağlantısı: yeniden gönderme formu açık gelir.
+  const verifyProblem = durum === "suresi_doldu" || durum === "gecersiz";
   const notice = !available
     ? COPY.unavailableNotice
     : durum
@@ -48,7 +50,7 @@ export default async function EpostaGirisPage({
       {available ? (
         <>
           <LoginForm next={safeNext} />
-          <details className={styles.resendDetails}>
+          <details className={styles.resendDetails} open={verifyProblem || undefined}>
             <summary>{COPY.resendHeading}</summary>
             <ResendVerificationForm next={safeNext} />
           </details>

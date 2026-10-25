@@ -6,6 +6,7 @@ import {
   canAccessProduct,
   EARLY_ACCESS_LOGIN_PATH,
   EARLY_ACCESS_PATH,
+  EARLY_ACCESS_SIGNUP_PATH,
   isProductOpen,
   isPublicProductPath,
   postAuthRedirect,
@@ -146,6 +147,13 @@ describe("isPublicProductPath", () => {
 describe("landing login paths", () => {
   it("early-access CTA reuses the login flow with a safe next", () => {
     expect(EARLY_ACCESS_LOGIN_PATH).toBe("/giris?next=%2Ferken-erisim");
+  });
+
+  it("early-access signup path is the same login screen plus the signup intent", () => {
+    expect(EARLY_ACCESS_SIGNUP_PATH).toBe("/giris?next=%2Ferken-erisim&kayit=1");
+    const url = new URL(EARLY_ACCESS_SIGNUP_PATH, "http://x");
+    expect(url.searchParams.get("next")).toBe(EARLY_ACCESS_PATH);
+    expect(url.searchParams.get("kayit")).toBe("1");
   });
 
   it("admin entry is the same login flow, no secret parameter", () => {

@@ -25,6 +25,7 @@ import { clientIp } from "../lib/client-ip.ts";
 import { setSessionCookie } from "../lib/session-cookie.ts";
 import { syncConsentAfterSignIn } from "./consent-sync.ts";
 import { type CredentialFormState, credentialErrorCode } from "./credential-errors.ts";
+import { withNext } from "./credential-shell.tsx";
 import { settleReferralAfterSignIn } from "./referral-cookie.ts";
 
 /**
@@ -81,20 +82,18 @@ export async function registerAction(
   formData: FormData,
 ): Promise<CredentialFormState> {
   const email = field(formData, "email").trim().toLowerCase();
-  const name = field(formData, "name");
-  if (!available()) return { status: "error", code: "unavailable", email, name };
+  if (!available()) return { status: "error", code: "unavailable", email };
 
   const headerStore = await headers();
   try {
     await registerWithPassword(getDatabase(), {
       email,
       password: field(formData, "password"),
-      displayName: name,
       ip: clientIp(headerStore),
       next: field(formData, "next"),
     });
   } catch (error) {
-    return { status: "error", code: await credentialErrorCode(error), email, name };
+    return { status: "error", code: await credentialErrorCode(error), email };
   }
   return { status: "sent", email, kind: "register" };
 }
@@ -178,7 +177,7 @@ export async function confirmVerificationAction(formData: FormData): Promise<voi
     else if (error instanceof TokenAlreadyUsedError || error instanceof TokenNotFoundError) {
       status = "gecersiz";
     } else throw error;
-    redirect(`/giris/eposta?durum=${status}`);
+    redirect(withNext(`/giris/eposta?durum=${status}`, next));
   }
   await finishSignIn(signedIn, next);
 }

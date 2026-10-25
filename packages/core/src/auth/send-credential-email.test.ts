@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { buildCredentialEmail } from "./send-credential-email.ts";
+import {
+  buildCredentialEmail,
+  RESET_PASSWORD_TTL_MINUTES,
+  VERIFY_EMAIL_TTL_MINUTES,
+} from "./send-credential-email.ts";
 
 const URL_WITH_TOKEN =
   "https://manicepte.example/giris/eposta-dogrula?token=abc_DEF-123&next=%2Fara";
@@ -16,6 +20,18 @@ describe("buildCredentialEmail", () => {
       expect(mail.subject).toContain("ManiCepte");
     },
   );
+
+  it("doğrulama bağlantısı 15 dakika, sıfırlama 30 dakika geçerlidir ve metinler birbirine karışmaz", () => {
+    expect(VERIFY_EMAIL_TTL_MINUTES).toBe(15);
+    expect(RESET_PASSWORD_TTL_MINUTES).toBe(30);
+    const verify = buildCredentialEmail("verify_email", URL_WITH_TOKEN);
+    expect(verify.text).toContain("15 dakika geçerli");
+    expect(verify.html).toContain("15 dakika geçerli");
+    expect(verify.text).not.toContain("60 dakika");
+    const reset = buildCredentialEmail("reset_password", URL_WITH_TOKEN);
+    expect(reset.text).toContain("30 dakika geçerli");
+    expect(reset.text).not.toContain("15 dakika");
+  });
 
   it("bağlantıya gömülen kötü niyetli değer HTML olarak yorumlanmaz", () => {
     const mail = buildCredentialEmail(

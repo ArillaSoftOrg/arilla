@@ -136,7 +136,7 @@ describe("e-posta + şifre web akışı", () => {
   async function registerAndVerify(email: string, next = "/") {
     const sent = await actions.registerAction(
       { status: "idle" },
-      form({ email, password: PASSWORD, name: "Web Test", next }),
+      form({ email, password: PASSWORD, next }),
     );
     expect(sent).toEqual({ status: "sent", email, kind: "register" });
     const token = await mailToken(email, "/giris/eposta-dogrula");

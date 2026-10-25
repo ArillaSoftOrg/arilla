@@ -20,7 +20,7 @@ import type { CredentialErrorCode } from "./credential-copy.ts";
  */
 export type CredentialFormState =
   | { status: "idle" }
-  | { status: "error"; code: CredentialErrorCode; email?: string; name?: string }
+  | { status: "error"; code: CredentialErrorCode; email?: string }
   | { status: "sent"; email: string; kind: "register" | "resend" | "forgot" };
 
 /** Bilinen hatayı koda çevirir; bilinmeyen hata yeniden fırlatılır. */

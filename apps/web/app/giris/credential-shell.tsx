@@ -13,6 +13,7 @@ export function CredentialShell({
   notice,
   noticeRole = "alert",
   closeHref = "/giris",
+  backHref = "/giris",
   children,
   footer,
 }: {
@@ -21,6 +22,8 @@ export function CredentialShell({
   notice?: string;
   noticeRole?: "alert" | "status";
   closeHref?: string;
+  /** "Diğer giriş seçenekleri" hedefi (kayıt niyetini ve `next`'i taşıyabilir). */
+  backHref?: string;
   children: ReactNode;
   footer?: ReactNode;
 }) {
@@ -44,7 +47,7 @@ export function CredentialShell({
         {children}
         <div className={styles.linkRow}>
           {footer}
-          <a className={styles.legal} href="/giris">
+          <a className={styles.legal} href={backHref}>
             {COPY.back}
           </a>
         </div>
@@ -65,5 +68,6 @@ export function LegalNote() {
 
 /** `next` değerini bağlantılara taşır (yalnızca güvenli yol; sunucu yine süzer). */
 export function withNext(href: string, next: string): string {
-  return next && next !== "/" ? `${href}?next=${encodeURIComponent(next)}` : href;
+  if (!next || next === "/") return href;
+  return `${href}${href.includes("?") ? "&" : "?"}next=${encodeURIComponent(next)}`;
 }

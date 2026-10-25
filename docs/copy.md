@@ -381,7 +381,10 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `auth.credential_entry` | E-posta ile devam edin |
 | `auth.credential_invalid` | E-posta adresi ya da şifre hatalı. |
 | `auth.credential_check_email_title` | E-postanı kontrol et |
-| `auth.credential_check_email_body` | Bu adrese devam etmen için bir bağlantı gönderdik. Bağlantı 60 dakika geçerli. Birkaç dakika içinde gelmezse gereksiz klasörüne de bak. |
+| `auth.credential_check_email_body` | Hesabını doğrulaman için e-posta adresine bir bağlantı gönderdik. Bağlantı 15 dakika geçerlidir. E-posta birkaç dakika içinde ulaşmazsa spam klasörünü kontrol edebilirsin. |
+| `auth.verify_expired` | Doğrulama bağlantısının süresi dolmuş (15 dakika geçerlidir). E-posta adresini aşağıya yazarak yeni bir doğrulama bağlantısı isteyebilirsin. |
+| `auth.password_show` / `auth.password_hide` | Şifreyi göster / Şifreyi gizle |
+| `auth.password_generate` | Güçlü şifre oluştur |
 | `auth.credential_reset_sent` | Bu adresle bir hesap varsa şifre belirleme bağlantısını gönderdik. Bağlantı 30 dakika geçerli. Gelmezse gereksiz klasörüne de bak. |
 | `auth.credential_rate_limited` | Çok fazla deneme yapıldı. Birkaç dakika sonra tekrar dene. |
 | `email.credential_verify_subject` | ManiCepte e-posta adresini doğrula |

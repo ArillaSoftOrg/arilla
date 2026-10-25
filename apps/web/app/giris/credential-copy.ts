@@ -17,12 +17,19 @@ export const CREDENTIAL_COPY = {
   verifySubmit: "Doğrula ve giriş yap",
 
   emailLabel: "E-posta adresin",
-  nameLabel: "Adın (isteğe bağlı)",
   passwordLabel: "Şifre",
   newPasswordLabel: "Yeni şifre",
   confirmPasswordLabel: "Şifreyi tekrar gir",
   currentPasswordLabel: "Mevcut şifre",
   passwordHint: "En az 10 karakter. Kolay tahmin edilen şifreler kabul edilmez.",
+  showPassword: "Şifreyi göster", // auth.password_show
+  hidePassword: "Şifreyi gizle", // auth.password_hide
+  generatePassword: "Güçlü şifre oluştur", // auth.password_generate
+  copyPassword: "Şifreyi kopyala", // auth.password_copy
+  generatedNotice:
+    "Güçlü bir şifre oluşturduk ve alana yazdık. Hesabı açmadan önce parola yöneticine kaydet ya da kopyala.", // auth.password_generated
+  copiedNotice: "Şifre panoya kopyalandı.", // auth.password_copied
+  copyFailedNotice: "Şifre kopyalanamadı. Alandaki şifreyi elle seçip kopyalayabilirsin.", // auth.password_copy_failed
 
   loginSubmit: "Giriş yap",
   loginPending: "Giriş yapılıyor…",
@@ -44,9 +51,9 @@ export const CREDENTIAL_COPY = {
   invalidCredentials: "E-posta adresi ya da şifre hatalı.", // auth.credential_invalid
   checkEmailTitle: "E-postanı kontrol et", // auth.credential_check_email_title
   checkEmailBody:
-    "Bu adrese devam etmen için bir bağlantı gönderdik. Bağlantı 60 dakika geçerli. Birkaç dakika içinde gelmezse gereksiz klasörüne de bak.", // auth.credential_check_email_body
+    "Hesabını doğrulaman için e-posta adresine bir bağlantı gönderdik. Bağlantı 15 dakika geçerlidir. E-posta birkaç dakika içinde ulaşmazsa spam klasörünü kontrol edebilirsin.", // auth.credential_check_email_body
   resentBody:
-    "Bu adrese bekleyen bir kayıt varsa doğrulama bağlantısını tekrar gönderdik. Birkaç dakika içinde gelmezse gereksiz klasörüne de bak.",
+    "Bu adrese bekleyen bir kayıt varsa doğrulama bağlantısını tekrar gönderdik. Bağlantı 15 dakika geçerlidir. E-posta birkaç dakika içinde ulaşmazsa spam klasörünü kontrol edebilirsin.", // auth.credential_resent_body
   forgotSentTitle: "Bağlantıyı gönderdik",
   forgotSentBody:
     "Bu adresle bir hesap varsa şifre belirleme bağlantısını gönderdik. Bağlantı 30 dakika geçerli. Gelmezse gereksiz klasörüne de bak.", // auth.credential_reset_sent
@@ -67,6 +74,11 @@ export const CREDENTIAL_COPY = {
   sameAsEmail: "Şifre e-posta adresinden farklı olmalı.",
 
   tokenExpired: "Bu bağlantının süresi dolmuş. Yeni bir bağlantı isteyebilirsin.",
+  // Yalnızca hesap doğrulama bağlantısı için (şifre sıfırlamadan ayrı; süre 15 dakika).
+  verifyExpired:
+    "Doğrulama bağlantısının süresi dolmuş (15 dakika geçerlidir). E-posta adresini aşağıya yazarak yeni bir doğrulama bağlantısı isteyebilirsin.", // auth.verify_expired
+  verifyInvalid:
+    "Bu doğrulama bağlantısı geçersiz ya da daha önce kullanılmış. E-posta adresini aşağıya yazarak yeni bir bağlantı isteyebilirsin.", // auth.verify_invalid
   tokenUsed: "Bu bağlantı geçersiz ya da daha önce kullanılmış. Yeni bir bağlantı isteyebilirsin.",
   accountExists:
     "Bu e-posta adresiyle zaten bir hesap var. Google ya da Apple ile giriş yapabilir ya da şifreni sıfırlayabilirsin.",
@@ -137,8 +149,8 @@ export const PASSWORD_FIELD_ERRORS: ReadonlySet<CredentialErrorCode> = new Set([
 
 /** `?hata=` ile dönen doğrulama bağlantısı sonuçları (`/giris/eposta`). */
 export const LOGIN_PAGE_NOTICES: Record<string, string> = {
-  suresi_doldu: CREDENTIAL_COPY.tokenExpired,
-  gecersiz: CREDENTIAL_COPY.tokenUsed,
+  suresi_doldu: CREDENTIAL_COPY.verifyExpired,
+  gecersiz: CREDENTIAL_COPY.verifyInvalid,
   hesap_var: CREDENTIAL_COPY.accountExists,
   sifre_degisti: CREDENTIAL_COPY.passwordChanged,
 };

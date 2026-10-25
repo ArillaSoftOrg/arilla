@@ -1,6 +1,6 @@
 import {
-  EARLY_ACCESS_LOGIN_PATH,
   EARLY_ACCESS_PATH,
+  EARLY_ACCESS_SIGNUP_PATH,
   type EarlyAccessProgress as EarlyAccessProgressData,
 } from "@arilla/core";
 import { ArrowRightIcon, ChevronRightIcon, PlusIcon, VisuallyHidden } from "@arilla/ui";
@@ -24,7 +24,7 @@ export function ComingSoonLanding({
   signedIn: boolean;
   progress?: EarlyAccessProgressData | null;
 }) {
-  const primaryHref = signedIn ? EARLY_ACCESS_PATH : EARLY_ACCESS_LOGIN_PATH;
+  const primaryHref = signedIn ? EARLY_ACCESS_PATH : EARLY_ACCESS_SIGNUP_PATH;
   const primaryLabel = signedIn ? EARLY_ACCESS_COPY.viewStatus : EARLY_ACCESS_COPY.cta;
   const socialLinks = configuredSocialLinks();
 

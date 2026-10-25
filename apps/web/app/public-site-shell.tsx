@@ -1,8 +1,8 @@
 import {
   ADMIN_LOGIN_PATH,
   canAccessProduct,
-  EARLY_ACCESS_LOGIN_PATH,
   EARLY_ACCESS_PATH,
+  EARLY_ACCESS_SIGNUP_PATH,
 } from "@arilla/core";
 import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
 import { Container, HomeHeader, SiteFooter, SkipLink } from "@arilla/ui";
@@ -112,7 +112,7 @@ export async function PublicSiteShell({
         user
           ? [{ label: EARLY_ACCESS_COPY.navStatus, href: EARLY_ACCESS_PATH }]
           : [
-              { label: EARLY_ACCESS_COPY.cta, href: EARLY_ACCESS_LOGIN_PATH },
+              { label: EARLY_ACCESS_COPY.cta, href: EARLY_ACCESS_SIGNUP_PATH },
               { label: COMING_SOON_COPY.adminLogin, href: ADMIN_LOGIN_PATH },
             ],
       );
@@ -125,7 +125,7 @@ export async function PublicSiteShell({
     href: social.href,
     icon: <SocialMediaIcon network={social.network} />,
   }));
-  const loginHref = productAccess ? "/giris" : EARLY_ACCESS_LOGIN_PATH;
+  const loginHref = productAccess ? "/giris" : EARLY_ACCESS_SIGNUP_PATH;
   const initialTheme = await readThemePreference();
 
   return (

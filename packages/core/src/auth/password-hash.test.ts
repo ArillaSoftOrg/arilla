@@ -1,3 +1,5 @@
+import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 import {
   burnPasswordVerification,
@@ -57,5 +59,30 @@ describe("password-hash (Argon2id)", () => {
 
   it("burnPasswordVerification hata fırlatmadan tamamlanır", async () => {
     await expect(burnPasswordVerification("herhangi bir sey")).resolves.toBeUndefined();
+  });
+
+  it("Argon2id parametreleri OWASP alt sınırının altına düşmez ve tuz/özet boyutları yeterlidir", async () => {
+    // OWASP Password Storage Cheat Sheet: Argon2id, en az 19 MiB, 2 geçiş, 1 kulvar.
+    expect(DEFAULT_ARGON2_PARAMS.memory).toBeGreaterThanOrEqual(19_456);
+    expect(DEFAULT_ARGON2_PARAMS.passes).toBeGreaterThanOrEqual(2);
+    expect(DEFAULT_ARGON2_PARAMS.parallelism).toBe(1);
+    const parsed = parsePasswordHash(await hashPassword("Mavi-Kedi-Pazar-42"));
+    expect(parsed?.salt.length).toBeGreaterThanOrEqual(16);
+    expect(parsed?.tag.length).toBeGreaterThanOrEqual(32);
+  });
+
+  it("kaynakta sabit zamanlı karşılaştırma kullanılır ve auth dosyaları şifre/token loglamaz", () => {
+    const read = (name: string) =>
+      readFileSync(fileURLToPath(new URL(name, import.meta.url)), "utf8");
+    expect(read("./password-hash.ts")).toContain("timingSafeEqual");
+    for (const name of ["./password-hash.ts", "./email-password.ts", "./password-policy.ts"]) {
+      const logLines = read(name)
+        .split(String.fromCharCode(10))
+        .filter((line) => /console\.(log|info|warn|error|debug)/.test(line));
+      for (const line of logLines) {
+        // Yalnızca hata kodu loglanabilir; şifre, özet ya da token değil.
+        expect(line, `${name}: ${line}`).not.toMatch(/password|hash|rawToken|token/i);
+      }
+    }
   });
 });

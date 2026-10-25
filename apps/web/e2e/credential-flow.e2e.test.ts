@@ -10,6 +10,7 @@
  */
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
+import { createDatabase } from "@arilla/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { Browser, type CdpPage, findChrome } from "./cdp.ts";
 
@@ -48,6 +49,23 @@ async function until<T>(fn: () => Promise<T | false | null | undefined>, what: s
   throw new Error(`zaman aşımı: ${what}`);
 }
 
+/** Hidrasyon bitmeden tıklama etkisiz kalabilir: koşul sağlanana dek tekrar tıklar. */
+async function clickUntil(
+  selector: string,
+  done: () => Promise<boolean>,
+  what: string,
+): Promise<void> {
+  for (let i = 0; i < 40; i++) {
+    await reveal(selector);
+    await page.click(selector);
+    for (let j = 0; j < 4; j++) {
+      if (await done()) return;
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+  throw new Error(`zaman aşımı: ${what}`);
+}
+
 const here = () => page.evaluate<string>("location.pathname + location.search");
 const text = () => page.evaluate<string>("document.body.innerText");
 
@@ -60,7 +78,15 @@ async function fill(name: string, value: string): Promise<void> {
   })()`);
 }
 
+/** Dokunmatik ekranda düğme görünüm alanının dışında kalabilir: önce görünür kılınır. */
+async function reveal(selector: string): Promise<void> {
+  await page.evaluate(
+    `document.querySelector(${JSON.stringify(selector)})?.scrollIntoView({ block: "center" })`,
+  );
+}
+
 async function submit(): Promise<void> {
+  await reveal("form button[type=submit]");
   await page.click("form button[type=submit]");
 }
 
@@ -225,4 +251,149 @@ describe.each(VIEWPORTS)("e-posta + şifre arayüzü ($name)", (vp) => {
     await submit();
     await until(async () => (await here()) === "/", "yeni şifreyle giriş");
   });
+
+  it.skipIf(!CHROME)(
+    "erken erişim kaydı, şifre göster/gizle, güçlü şifre ve süresi dolan bağlantı",
+    async () => {
+      page = await (browser as Browser).newPage();
+      await page.setViewport(vp);
+      await page.send("Network.clearBrowserCookies");
+      const email = `e2e-ux-${TAG}-${vp.name}@example.test`;
+      const passwordType = () =>
+        page.evaluate<string>("document.querySelector('input[name=password]').type");
+      const passwordValue = () =>
+        page.evaluate<string>("document.querySelector('input[name=password]').value");
+      const tag = (labelText: string, attr: string) =>
+        page.evaluate(`(() => {
+          const el = [...document.querySelectorAll('button, a')].find((n) => n.textContent.includes(${JSON.stringify(labelText)}));
+          if (!el) throw new Error('öğe yok: ${labelText}');
+          el.setAttribute('data-e2e', ${JSON.stringify(attr)});
+        })()`);
+
+      // Erken erişim: Google/Apple aynı, e-posta seçeneği doğrudan kayıt ekranına.
+      await page.goto(`${BASE}/giris?next=%2Ferken-erisim&kayit=1`);
+      const hrefs = await page.evaluate<string[]>(
+        "[...document.querySelectorAll('a')].map((a) => a.getAttribute('href'))",
+      );
+      // Google/Apple seçenekleri kalır (yerelde yapılandırılmamışsa "kullanılamıyor" notuyla);
+      // bağlantı biçimleri birim testte doğrulanır.
+      expect(await text()).toContain("Google ile devam edin");
+      expect(await text()).toContain("Apple ile devam edin");
+      expect(hrefs).toContain("/giris/kayit?next=%2Ferken-erisim");
+      await checkLayout(vp, "erken-erisim-secenekler");
+      await tag("E-posta ile devam edin", "email-choice");
+      await page.click("[data-e2e=email-choice]");
+      await until(async () => (await here()).startsWith("/giris/kayit"), "kayıt ekranı");
+      expect(await here()).toContain("next=%2Ferken-erisim");
+      // Giriş niyeti ayrı: normal giriş e-posta ekranına gider.
+      await page.goto(`${BASE}/giris?next=%2Ferken-erisim`);
+      expect(
+        await page.evaluate<string[]>(
+          "[...document.querySelectorAll('a')].map((a) => a.getAttribute('href'))",
+        ),
+      ).toContain("/giris/eposta?next=%2Ferken-erisim");
+
+      // Kayıt ekranı: ad alanı yok; şifre göster/gizle fare ve klavyeyle çalışır.
+      await page.goto(`${BASE}/giris/kayit?next=%2Ferken-erisim`);
+      expect(await text()).toContain("Zaten hesabın var mı? Giriş yap");
+      expect(await page.evaluate<boolean>("!document.querySelector('input[name=name]')")).toBe(
+        true,
+      );
+      expect(await passwordType()).toBe("password");
+      expect(
+        await page.evaluate<string>("document.querySelector('input[name=password]').autocomplete"),
+      ).toBe("new-password");
+      await clickUntil(
+        "button[aria-controls]",
+        async () => (await passwordType()) === "text",
+        "şifreyi göster",
+      );
+      expect(
+        await page.evaluate<string>("document.querySelector('button[aria-controls]').ariaLabel"),
+      ).toBe("Şifreyi gizle");
+      expect(
+        await page.evaluate<string>("document.querySelector('button[aria-controls]').ariaPressed"),
+      ).toBe("true");
+      await page.click("button[aria-controls]");
+      await until(async () => (await passwordType()) === "password", "şifreyi gizle");
+
+      // Klavye: şifre alanından Tab ile düğmeye gelinir (yerel <button>: Enter/Space çalışır).
+      await page.evaluate("document.querySelector('input[name=password]').focus()");
+      await page.press("Tab");
+      expect(
+        await page.evaluate<string>(
+          "document.activeElement.getAttribute('aria-label') + ':' + document.activeElement.tagName",
+        ),
+      ).toBe("Şifreyi göster:BUTTON");
+
+      // Güçlü şifre oluştur: alana yazılır, görünür olur, 20 karakter.
+      await tag("Güçlü şifre oluştur", "gen");
+      await clickUntil(
+        "[data-e2e=gen]",
+        async () => (await passwordValue()).length === 20,
+        "şifre üretimi",
+      );
+      const generated = await passwordValue();
+      expect(await passwordType()).toBe("text");
+      expect(await text()).toContain("Güçlü bir şifre oluşturduk");
+      expect(await text()).toContain("Şifreyi kopyala");
+      await checkLayout(vp, "kayit-guclu-sifre");
+
+      // Sunucu hatası (Apple gizli adresi) sonrası üretilen şifre kaybolmaz.
+      await fill("email", `x-${TAG}@privaterelay.appleid.com`);
+      await submit();
+      await until(async () => (await text()).includes("gizli e-posta adresiyle"), "sunucu hatası");
+      expect(await passwordValue()).toBe(generated);
+
+      // Geçerli adres: yeni bilgilendirme metni (15 dakika).
+      await fill("email", email);
+      await submit();
+      await until(async () => (await text()).includes("E-postanı kontrol et"), "kayıt bildirimi");
+      expect(await text()).toContain(
+        "Hesabını doğrulaman için e-posta adresine bir bağlantı gönderdik. Bağlantı 15 dakika geçerlidir.",
+      );
+      expect(await text()).not.toContain("60 dakika");
+      const firstUrl = await mailLink(email, "/giris/eposta-dogrula");
+
+      // Süresi dolmuş bağlantı: anlaşılır mesaj + açık yeniden gönderme formu.
+      const owner = createDatabase(requireLocal("DATABASE_URL_OWNER")).$client;
+      await owner.query(
+        "UPDATE email_credential_token SET expires_at = now() - interval '1 minute' WHERE email = $1",
+        [email],
+      );
+      await page.goto(firstUrl);
+      await submit();
+      await until(
+        async () => (await here()).startsWith("/giris/eposta?durum=suresi_doldu"),
+        "süresi dolmuş bağlantı",
+      );
+      expect(await text()).toContain(
+        "Doğrulama bağlantısının süresi dolmuş (15 dakika geçerlidir)",
+      );
+      expect(await page.evaluate<boolean>("!!document.querySelector('details[open]')")).toBe(true);
+      await checkLayout(vp, "suresi-doldu");
+      await page.evaluate(
+        "(() => { const f = document.querySelector('details form'); f.querySelector('input[name=email]').setAttribute('data-e2e', 'resend-email'); f.querySelector('button[type=submit]').setAttribute('data-e2e', 'resend-submit'); })()",
+      );
+      await page.evaluate(`(() => {
+        const el = document.querySelector('[data-e2e=resend-email]');
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, ${JSON.stringify(email)});
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+      })()`);
+      await reveal("[data-e2e=resend-submit]");
+      await page.click("[data-e2e=resend-submit]");
+      await until(
+        async () => (await text()).includes("doğrulama bağlantısını tekrar gönderdik"),
+        "yeniden gönderim bildirimi",
+      );
+      const secondUrl = await until(async () => {
+        const url = await mailLink(email, "/giris/eposta-dogrula");
+        return url !== firstUrl ? url : false;
+      }, "yeni doğrulama e-postası");
+      await page.goto(secondUrl);
+      await submit();
+      await until(async () => !(await here()).startsWith("/giris"), "yeni bağlantıyla doğrulama");
+      await owner.end();
+    },
+  );
 });
