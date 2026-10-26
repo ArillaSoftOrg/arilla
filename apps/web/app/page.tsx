@@ -72,7 +72,8 @@ export function generateMetadata(): Metadata {
  *   sessizce atlanir" davranisini zaten destekliyor; `getDiscoverySlots`in
  *   kendisi degismez). Gercek veri > `HOMEPAGE_DEMO_CONTENT=true` demo >
  *   bos; bkz. discovery-adapter.ts. Ayni `DiscoveryGrid` `/kesfet`te.
- * Performans: hero'da gorsel yok. Ilk trend kapagi LCP adayi (eager +
+ * Performans: karşılama vitrini yerel temsili görseli next/image ile optimize eder.
+ * İlk vitrin görseli eager, diğerleri lazy yüklenir. İlk trend kapağı eager +
  * yuksek oncelik); diger tum trend/kesif gorselleri lazy + async decode,
  * yer `aspect-ratio` ile ayrilir (duzen kaymasi yok).
  */
