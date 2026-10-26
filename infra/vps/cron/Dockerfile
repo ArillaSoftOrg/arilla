@@ -14,8 +14,10 @@ FROM alpine:3.23
 
 # Taban imajdan sonra yayinlanan guvenlik yamalari derleme aninda alinir. DIKKAT: CI bu
 # katmani GHA onbelleginden (scope=cron) yeniden kullanir; yeni yama ancak bu katman ya da
-# taban imaj degisince gelir. Trivy yamasi cikmis HIGH bulursa taban surumunu yukselt.
-RUN apk upgrade --no-cache \
+# taban imaj degisince gelir. Trivy yamasi cikmis HIGH bulursa taban surumunu yukselt
+# ya da APK_REFRESH degerini degistirip katmani yeniden uret (RUN'a girdigi icin onbellegi atar).
+ARG APK_REFRESH=2026-10-26
+RUN : "apk refresh ${APK_REFRESH}"     && apk upgrade --no-cache \
     && apk add --no-cache curl ca-certificates tzdata \
     && adduser -S -u 10001 -H arilla
 
