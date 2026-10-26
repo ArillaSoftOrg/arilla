@@ -43,7 +43,7 @@ beslemelerde boyut karşılaştırması hiç yapılmıyordu; `truncated` yeniden
    ayarlanabilir) önce de karantinaya alındıysa kaynak değişmemiştir: kabul edilir (`drop_confirmed`).
    Günde iki tetik (06:30, 18:30) olduğundan bir sonraki koşuda kendiliğinden olur. İçerik her seferinde
    değişen kesik dosya bu yoldan geçemez; üstelik kesik dosya 2. maddede zaten elenir.
-5. **`truncated` yeniden denenir.** `DownloadError('truncated'|'corrupt')` artık `retryable`; yazmadan
+5. **`truncated` yeniden denenir** (main'deki #224 ile birleşik: orada kesik dosya yazıldıktan sonra yeniden deneniyordu, burada yazmadan önce). `DownloadError('truncated'|'corrupt')` artık `retryable`; yazmadan
    önceki kapı `truncated` derse günlük iş aynı koşuda 10 ve 20 dk arayla yeniden indirir, `ingest_run`
    `next_retry_at` yazar. `too_few_records` koşu içinde yeniden denenmez (aynı içerik gelir).
 6. **HTTP tanılama.** İndirme yanıtından izin listeli başlıklar (`content-length`, `content-encoding`,

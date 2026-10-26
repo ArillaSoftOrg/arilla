@@ -1534,6 +1534,8 @@ kazıma ya da canlı fiyat çağrısı yoktur. Günlük iş mevcut besleme motor
    yok. Değiştiyse parça parça, kontrol noktalı, tamlık kapılı yazım; `price_point` yalnız yeni ya
    da değişen fiyat/stok için INSERT. Geçici ağ/indirme hatasında koşu içinde en fazla 2 ek tur
    (10 dk, 20 dk bekleyerek); ek olarak günde ikinci tetik (18:30) vardır.
+   Kaynak dosya yarım üretilmişse (tamlık kapısı `truncated`) de aynı tur/bekleme sınırıyla
+   yeniden denenir; diğer kapılar (`error_rate` vb.) içerik sorunu olduğundan denenmez.
 5. **Tazelik ölçümü:** koşu sonunda besleme ve offer tazeliği `job_run.detail`'e yazılır.
 
 **Eksik/anormal dosya yazmadan reddedilir (karar 0152).** Dosya veritabanına yazılmadan önce taranır:

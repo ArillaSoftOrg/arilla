@@ -6,6 +6,7 @@ sentetiktir (`tests/feed_fixtures.py`). Uygulama rolu (arilla_app) kullanilir.
 
 from __future__ import annotations
 
+import gzip
 import hashlib
 import json
 from collections.abc import Iterator
@@ -69,6 +70,8 @@ class FakeNet:
     discover_error: Exception | None = None
     #: Siradaki indirmeler icin hatalar (bosalinca basari).
     download_errors: list[Exception] = field(default_factory=list)
+    #: Siradaki indirmelerin icerigi (bosalinca `content`).
+    contents: list[bytes] = field(default_factory=list)
     downloads: int = 0
     discoveries: int = 0
 
@@ -199,9 +202,10 @@ def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Env]:
         net.downloads += 1
         if net.download_errors:
             raise net.download_errors.pop(0)
-        target.write_bytes(net.content)
-        digest = hashlib.sha256(net.content).hexdigest()
-        return Downloaded(target, digest, len(net.content), len(net.content))
+        content = net.contents.pop(0) if net.contents else net.content
+        target.write_bytes(content)
+        digest = hashlib.sha256(content).hexdigest()
+        return Downloaded(target, digest, len(content), len(content))
 
     monkeypatch.setattr(sync_module, "download", fake_download)
     try:
@@ -330,6 +334,183 @@ def test_kalici_olmayan_hata_yeniden_denenmez(env: Env) -> None:
     env.net.download_errors = [DownloadError("too_large")] * 100
     result = env.daily()
     assert result.detail["attempts"] == 1  # type: ignore[attr-defined]
+    assert result.sleeps == []  # type: ignore[attr-defined]
+
+
+def _cut(offers: list[dict]) -> bytes:
+    """gzip acisindan TAMAM, XML kapanis etiketleri EKSIK (kaynakta yarim uretilmis dosya)."""
+    return gzip.compress(yml(offers, truncate=True))
+
+
+def _full(offers: list[dict]) -> bytes:
+    return gzip.compress(yml(offers))
+
+
+def _pp_and_outbox(env: Env) -> tuple[int, int, int]:
+    """(price_point, ayni teklif-ayni an cift satir, teklif basina birden fazla feed_insert)."""
+    pp = price_points(env)
+    dup = env.one(
+        "SELECT count(*) FROM (SELECT p.offer_id, p.observed_at FROM price_point p"
+        " JOIN offer o ON o.id = p.offer_id WHERE o.merchant_id = %s"
+        " GROUP BY 1, 2 HAVING count(*) > 1) t",
+        (env.merchant_id,),
+    )[0]
+    ob = env.one(
+        "SELECT count(*) FROM (SELECT entity_id FROM search_outbox WHERE reason = 'feed_insert'"
+        " AND entity_id IN (SELECT id FROM offer WHERE merchant_id = %s)"
+        " GROUP BY 1 HAVING count(*) > 1) t",
+        (env.merchant_id,),
+    )[0]
+    return pp, int(dup), int(ob)
+
+
+def test_kesik_besleme_yeniden_denenir_ikinci_tam_surum_basarili_ve_mukerrer_yok(
+    env: Env,
+) -> None:
+    env.load(items(10, price="10.00"))
+    env.fx()
+    target = [offer(i, price="20.00") for i in ids(15)]  # 10 fiyat degisimi + 5 yeni
+    env.publish(target)
+    env.net.contents = [_cut(target), _full(target)]
+
+    result = env.daily()
+    d = result.detail  # type: ignore[attr-defined]
+    assert result.status == "success", result.problems  # type: ignore[attr-defined]
+    assert d["attempts"] == 2 and d["feeds_gate_rejected"] == 0
+    assert result.sleeps == [0.0]  # type: ignore[attr-defined]
+    assert env.net.downloads == 2
+    statuses = [
+        r[0]
+        for r in env.owner.execute(
+            "SELECT status FROM source_snapshot WHERE feed_source_id = %s AND kind = 'full'"
+            " ORDER BY id",
+            (env.feed_id,),
+        ).fetchall()
+    ]
+    assert statuses[-2:] == ["rejected", "complete"]
+    # Mukerrer yok: 15 teklif; ilk yukleme 10 + 10 degisim + 5 yeni = 25 nokta;
+    # ayni anda cift satir ve cift feed_insert yok.
+    offers = env.one("SELECT count(*) FROM offer WHERE merchant_id = %s", (env.merchant_id,))[0]
+    assert offers == 15
+    assert _pp_and_outbox(env) == (25, 0, 0)
+    # Optimizasyon korunur: fiyat degisimi outbox'a olay yazmaz.
+    changes = env.one(
+        "SELECT count(*) FROM search_outbox WHERE reason = 'feed_change'"
+        " AND entity_id IN (SELECT id FROM offer WHERE merchant_id = %s)",
+        (env.merchant_id,),
+    )[0]
+    assert changes == 0
+
+
+def test_tum_denemeler_kesikse_kosu_partial_ve_basarisiz_cikar(
+    env: Env, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from feeds.__main__ import main
+
+    env.load(items(10, price="10.00"))
+    env.fx()
+    target = [offer(i, price="20.00") for i in ids(15)]
+    env.publish(target)
+    cut = _cut(target)
+    env.net.contents = [cut, cut, cut]
+
+    result = env.daily()  # retries=2 -> 3 deneme
+    assert result.status == "partial"  # type: ignore[attr-defined]
+    assert result.detail["attempts"] == 3  # type: ignore[attr-defined]
+    assert env.net.downloads == 3
+    assert any("truncated" in p for p in result.problems)  # type: ignore[attr-defined]
+    assert result.detail["deactivated"] == 0  # type: ignore[attr-defined]
+    # Ayni kesik icerik tekrarlansa da fiyat noktasi cogalmaz.
+    pp, dup, ob = _pp_and_outbox(env)
+    assert (dup, ob) == (0, 0)
+    env.net.contents = [cut]
+    env.daily(retries=0)
+    assert _pp_and_outbox(env)[0] == pp
+    # CLI: kismi kosu basarisiz cikis kodu doner.
+    env.net.contents = [cut, cut, cut]
+    monkeypatch.setenv("JOB_RUN_TRIGGER", "cron")
+    network_module.register(NETWORK, lambda: env.net)
+    try:
+        code = main(
+            ["daily", "--merchant", SLUG, "--parallel-downloads", "1", "--retry-wait-seconds", "0"]
+        )
+    finally:
+        network_module._REGISTRY.pop(NETWORK, None)
+    assert code != 0
+
+
+def test_kesik_deneme_no_deactivate_ve_kapilari_korur(env: Env) -> None:
+    env.owner.execute(
+        "UPDATE feed_source SET config = config || %s::jsonb WHERE id = %s",
+        ('{"no_deactivate": true}', env.feed_id),
+    )
+    env.load(items(10, price="10.00"))
+    env.fx()
+    # Kaynak 1 urunu cikarmis (%90, karar 0152 esiginin ustu); ilk teslimat kesik.
+    target = [offer(i, price="12.00") for i in ids(9)]
+    env.publish(target)
+    env.net.contents = [_cut(target), _full(target)]
+
+    result = env.daily()
+    assert result.status == "success", result.problems  # type: ignore[attr-defined]
+    assert result.detail["attempts"] == 2  # type: ignore[attr-defined]
+    assert result.detail["deactivated"] == 0  # type: ignore[attr-defined]
+    active = env.one(
+        "SELECT count(*) FILTER (WHERE is_active) FROM offer WHERE merchant_id = %s",
+        (env.merchant_id,),
+    )[0]
+    assert active == 10
+
+
+def test_kesik_deneme_hicbir_satir_yazmaz_yalniz_tam_surum_yazar(env: Env) -> None:
+    """Karar 0152: kesik ilk teslimat fiyat/teklif yazmaz; tam ikinci teslimat yazar."""
+    env.load(items(10, price="10.00"))
+    env.fx()
+    target = [offer(i, price="20.00") for i in ids(10)] + [offer(i) for i in ids(5, 100)]
+    env.publish(target)
+    before = price_points(env)
+    env.net.contents = [_cut(target), _cut(target), _cut(target)]
+    result = env.daily()  # retries=2 -> 3 deneme, hepsi kesik
+    assert result.status == "partial"  # type: ignore[attr-defined]
+    assert result.detail["attempts"] == 3  # type: ignore[attr-defined]
+    assert price_points(env) == before  # tek fiyat noktasi yazilmadi
+    offers = env.one("SELECT count(*) FROM offer WHERE merchant_id = %s", (env.merchant_id,))[0]
+    assert offers == 10  # yeni teklif yok
+    assert result.detail["records"] == 0  # type: ignore[attr-defined]
+
+
+def test_anormal_dusus_yeniden_denenmez_ve_yazmadan_karantinaya_alinir(env: Env) -> None:
+    env.owner.execute(
+        "UPDATE feed_source SET config = config || %s::jsonb WHERE id = %s",
+        ('{"no_deactivate": true}', env.feed_id),
+    )
+    env.load(items(10, price="10.00"))
+    env.fx()
+    target = [offer(i, price="12.00") for i in ids(5)]  # %50: anormal dusus
+    env.publish(target)
+    before = price_points(env)
+    result = env.daily()
+    assert result.detail["attempts"] == 1  # type: ignore[attr-defined]
+    assert env.net.downloads == 1
+    assert f"feed_{env.feed_id}:too_few_records" in result.problems  # type: ignore[attr-defined]
+    assert price_points(env) == before
+    active = env.one(
+        "SELECT count(*) FILTER (WHERE is_active) FROM offer WHERE merchant_id = %s",
+        (env.merchant_id,),
+    )[0]
+    assert active == 10
+
+
+def test_icerik_kapilari_yeniden_denenmez(env: Env) -> None:
+    env.load(items(25, price="10.00"))
+    env.fx()
+    broken = items(25, price="11.00")
+    for i in (3, 7, 9):
+        broken[i]["price"] = "abc"
+    env.publish(broken)
+    result = env.daily()
+    assert result.detail["attempts"] == 1  # type: ignore[attr-defined]
+    assert env.net.downloads == 1
     assert result.sleeps == []  # type: ignore[attr-defined]
 
 

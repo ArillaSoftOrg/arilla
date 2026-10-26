@@ -101,6 +101,10 @@ def sync_one(
             error_code=str(getattr(error, "code", type(error).__name__))[:60],
             retryable=retryable,
         )
+    # Tamlik kapisi `truncated`: kaynak dosya yarim uretilmis/kesilmis olabilir ve genelde
+    # bir sonraki indirmede tamamlanir; gunluk is mevcut tur/bekleme siniriyla yeniden dener.
+    # Diger kapilar (error_rate, too_few_records...) icerik sorunudur: yeniden denenmez.
+    # Karar 0152: `truncated` artik YAZMADAN ONCE yakalanir; deneme hicbir satir yazmaz.
     return FeedOutcome(
         feed_id,
         report.status,
