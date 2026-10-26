@@ -2400,6 +2400,18 @@ CREATE TABLE product_classification_state (
     PRIMARY KEY (rule_version, scope)
 );
 
+-- Dinamik kategori adayi kapsami (0103, karar 0154). BOS acilir: satir yoksa hicbir dal siniflandiriciya
+-- acik degildir. `mode = 'apply'` satiri o dalin ALTINDAKI kategorilere dinamik aday secimiyle yazmaya izin
+-- verir (yalniz `classify ... --dynamic` ile); denetim izi job_run. Trendyol'dan gelen dugumler icindir.
+CREATE TABLE classifier_scope (
+    scope_category_id  BIGINT      PRIMARY KEY REFERENCES category(id),
+    mode               TEXT        NOT NULL DEFAULT 'off' CHECK (mode IN ('off', 'apply')),
+    decided_by         TEXT        NOT NULL CHECK (char_length(btrim(decided_by)) BETWEEN 2 AND 60),
+    note               TEXT        CHECK (note IS NULL OR char_length(note) BETWEEN 1 AND 200),
+    created_at         TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at         TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
 -- Arama indeksi guncelleme olaylari (outbox). Katalog yazimiyla AYNI islemde
 -- eklenir; indeksleyici islenmemisleri sirayla tuketir. Bugun arama PostgreSQL
 -- uzerinde (indeks kendiliginden guncel); harici arama motoru gelince tuketici eklenir.

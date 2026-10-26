@@ -28,7 +28,7 @@ import logging
 import random
 import time
 from collections import Counter
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 
 import psycopg
@@ -36,6 +36,7 @@ import psycopg
 from classify.brands import brand_key, name_norm
 from classify.categories import guess_source, source_gender
 from classify.decide import Decision, ProductFacts, SourceVerdict, decide
+from classify.dynamic import ACTIVE_VERSION_BUMP, DynamicIndex, refine
 from classify.taxonomy import RULE_VERSION
 from classify.text import path_norm
 from resolve.products import slugify
@@ -188,6 +189,23 @@ SELECT count(*) FROM pg_stat_activity
 """
 
 
+def active_scopes(conn: psycopg.Connection) -> list[str]:
+    """Etkin (`mode = 'apply'`) dinamik kapsamlarin kategori yollari (karar 0154)."""
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT c.path FROM classifier_scope s JOIN category c ON c.id = s.scope_category_id
+                WHERE s.mode = 'apply' ORDER BY c.path"""
+        )
+        return [str(r[0]) for r in cur.fetchall()]
+
+
+def active_rule_version(conn: psycopg.Connection, dynamic: bool) -> int:
+    """Kosunun kural surumu: dinamik motor yalniz bayrakla VE etkin kapsam varsa V5'ten ayrilir."""
+    if dynamic and active_scopes(conn):
+        return RULE_VERSION + ACTIVE_VERSION_BUMP
+    return RULE_VERSION
+
+
 class ClassifyAborted(RuntimeError):
     def __init__(self, code: str, detail: str = "") -> None:
         super().__init__(f"{code}: {detail}" if detail else code)
@@ -256,10 +274,17 @@ class _Row:
 class Catalog:
     """Kosu basina bir kez okunan kucuk tablolar: kategori, marka, magaza, kaynak esleme."""
 
-    def __init__(self, conn: psycopg.Connection) -> None:
+    def __init__(
+        self,
+        conn: psycopg.Connection,
+        *,
+        dynamic: bool = False,
+        scopes: Sequence[str] | None = None,
+    ) -> None:
         with conn.cursor() as cur:
-            cur.execute("SELECT id, path FROM category")
-            rows = cur.fetchall()
+            cur.execute("SELECT id, path, name FROM category")
+            category_rows = cur.fetchall()
+            rows = [(i, p) for i, p, _n in category_rows]
             self.path_by_id: dict[int, str] = {int(i): str(p) for i, p in rows}
             self.id_by_path: dict[str, int] = {}
             for i, p in sorted(rows):
@@ -282,9 +307,24 @@ class Catalog:
                 (int(m), str(n)): (None if c is None else int(c), str(s), conf, ver)
                 for m, n, c, s, conf, ver in cur.fetchall()
             }
+        #: Dinamik aday secimi (karar 0154): YALNIZ `dynamic=True` ve etkin kapsam varsa.
+        self.dynamic: DynamicIndex | None = None
+        if dynamic:
+            use = list(scopes) if scopes is not None else active_scopes(conn)
+            if use:
+                self.dynamic = DynamicIndex([(str(p), str(n)) for _i, p, n in category_rows], use)
+        #: Bu kosunun kural surumu: dinamik motor etkinse V5 + 1 (kontrol noktasi ayri).
+        self.rule_version = RULE_VERSION + (ACTIVE_VERSION_BUMP if self.dynamic else 0)
         self._guess_cache: dict[str, SourceVerdict] = {}
         #: Bu kosuda yazilacak/guncellenecek kaynak esleme satirlari.
         self.pending_sources: dict[tuple[int, str], tuple[str, int | None, str, int]] = {}
+
+    def decide(self, facts: ProductFacts) -> Decision:
+        """V5 karari; dinamik motor etkinse ve ise yariyorsa yalniz INCELTIR (karar 0154)."""
+        decision = decide(facts)
+        if self.dynamic is None or not facts.source_raw:
+            return decision
+        return refine(decision, self.dynamic.guess(facts.title, facts.source_raw))
 
     def source_verdict(self, merchant_id: int, raw: str) -> SourceVerdict | None:
         norm = path_norm(raw)
@@ -310,7 +350,7 @@ class Catalog:
             )
             self._guess_cache[norm] = verdict
         cid = self.id_by_path.get(verdict.path) if verdict.path else None
-        wanted = (cid, verdict.status, verdict.confidence, RULE_VERSION)
+        wanted = (cid, verdict.status, verdict.confidence, self.rule_version)
         if row != wanted and key not in self.pending_sources:
             self.pending_sources[key] = (raw[:500], cid, verdict.status, verdict.confidence)
             self.source_rows[key] = wanted
@@ -368,6 +408,7 @@ def facts_for(row: _Row, catalog: Catalog) -> ProductFacts:
         brand_raw=row.brand_raw,
         merchant_name=catalog.merchant_name.get(row.merchant_id) if row.merchant_id else None,
         source=source,
+        source_raw=row.category_raw,
     )
 
 
@@ -399,7 +440,7 @@ def _flush_sources(conn: psycopg.Connection, catalog: Catalog) -> None:
         cur.execute(
             UPSERT_SOURCE_MAP,
             {
-                "version": RULE_VERSION,
+                "version": catalog.rule_version,
                 "mids": [k[0] for k, _ in items],
                 "norms": [k[1] for k, _ in items],
                 "srcs": [v[0] for _, v in items],
@@ -447,7 +488,7 @@ def _process_batch(
             counts.unchanged += 1
             continue
         try:
-            decision = decide(facts_for(row, catalog))
+            decision = catalog.decide(facts_for(row, catalog))
         except Exception:  # pragma: no cover - kayit duzeyi hata kosuyu durdurmaz
             logger.exception("siniflandirma hatasi: urun %s", row.product_id)
             counts.errors += 1
@@ -557,7 +598,7 @@ def _process_batch(
         pc["details"].append(detail)
     if pc["pids"]:
         with conn.cursor() as cur:
-            cur.execute(UPSERT_CLASSIFICATION, {"version": RULE_VERSION, **pc})
+            cur.execute(UPSERT_CLASSIFICATION, {"version": catalog.rule_version, **pc})
     return counts
 
 
@@ -573,6 +614,7 @@ def classify_products(
     after_id: int | None = None,
     merchant_slug: str | None = None,
     owned_only: bool = False,
+    dynamic: bool = False,
     allow_concurrent_catalog_build: bool = False,
     lock_timeout_ms: int = 3_000,
     throttle: Callable[[], bool] | None = None,
@@ -591,6 +633,10 @@ def classify_products(
 
     `owned_only`: yalnizca bu isin yazdigi degerleri tasiyan urunler; kontrol noktasi okunmaz
     ve yazilmaz (`rescan` ile birlikte verilemez), `after_id` ile surdurulur.
+
+    `dynamic` (karar 0154): etkin kapsamlarda (`classifier_scope.mode = 'apply'`) dinamik aday
+    secimi V5 kararini inceltir; kural surumu V5 + 1 olur (kontrol noktasi ayri). Varsayilan
+    kapali: V5 davranisi aynen.
     """
     if owned_only and rescan:
         raise ClassifyAborted("owned_only_rescan", "--owned-only ve --rescan birlikte verilemez")
@@ -604,6 +650,8 @@ def classify_products(
         if found is None:
             raise ClassifyAborted("merchant_missing", merchant_slug)
         merchant_id, scope = int(found[0]), f"merchant:{merchant_slug}"
+    version = active_rule_version(conn, dynamic)
+    conn.commit()
     totals = Counts()
     started = time.monotonic()
     locked = False
@@ -620,13 +668,13 @@ def classify_products(
                 conn.rollback()
                 raise ClassifyAborted("already_running")
             if rescan:
-                cur.execute(RESET_STATE, {"version": RULE_VERSION, "scope": scope})
+                cur.execute(RESET_STATE, {"version": version, "scope": scope})
             state = None
             if not owned_only:
                 cur.execute(
                     """SELECT last_product_id FROM product_classification_state
                         WHERE rule_version = %s AND scope = %s""",
-                    (RULE_VERSION, scope),
+                    (version, scope),
                 )
                 state = cur.fetchone()
         conn.commit()
@@ -636,7 +684,7 @@ def classify_products(
     if after_id is not None:
         after = after_id
     totals.last_product_id = after
-    catalog = Catalog(conn)
+    catalog = Catalog(conn, dynamic=dynamic)
     conn.commit()
     lock_failures = 0
     try:
@@ -662,7 +710,7 @@ def classify_products(
                 # alinir, kontrol noktasi ilerlemez; ayni parti biraz sonra yeniden denenir.
                 conn.rollback()
                 # Geri alinan partide acilan marka/esleme satirlari artik yok: onbellek yeniden.
-                catalog = Catalog(conn)
+                catalog = Catalog(conn, dynamic=dynamic)
                 conn.commit()
                 lock_failures += 1
                 if lock_failures > LOCK_RETRIES:
@@ -680,7 +728,7 @@ def classify_products(
                     cur.execute(
                         SAVE_STATE,
                         {
-                            "version": RULE_VERSION,
+                            "version": version,
                             "scope": scope,
                             "last": last,
                             "scanned": batch.scanned,
@@ -695,7 +743,7 @@ def classify_products(
                         cur.execute(
                             """UPDATE product_classification_state SET completed_at = now()
                                 WHERE rule_version = %s AND scope = %s""",
-                            (RULE_VERSION, scope),
+                            (version, scope),
                         )
                 conn.commit()
             after = last
@@ -732,6 +780,7 @@ def sample_decisions(
     merchant_slug: str | None = None,
     seed: int | None = None,
     max_rounds: int = 20,
+    dynamic: bool = False,
 ) -> list[tuple[_Row, Decision]]:
     """YALNIZCA OKUR: rastgele `n` urun ve siniflandiricinin karari (insan etiketlemesi icin).
 
@@ -753,7 +802,7 @@ def sample_decisions(
     if lo is None:
         conn.rollback()
         return []
-    catalog = Catalog(conn)
+    catalog = Catalog(conn, dynamic=dynamic)
     picked: dict[int, _Row] = {}
     for _ in range(max_rounds):
         if len(picked) >= n:
@@ -764,7 +813,7 @@ def sample_decisions(
             for row in _rows(cur.fetchall()):
                 if len(picked) < n:
                     picked.setdefault(row.product_id, row)
-    out = [(row, decide(facts_for(row, catalog))) for row in picked.values()]
+    out = [(row, catalog.decide(facts_for(row, catalog))) for row in picked.values()]
     catalog.pending_sources.clear()
     conn.rollback()
     return sorted(out, key=lambda item: item[0].product_id)
@@ -789,7 +838,11 @@ class Recheck:
 
 
 def recheck_owned(
-    conn: psycopg.Connection, *, merchant_slug: str | None = None, limit: int | None = None
+    conn: psycopg.Connection,
+    *,
+    merchant_slug: str | None = None,
+    limit: int | None = None,
+    dynamic: bool = False,
 ) -> list[Recheck]:
     """YALNIZCA OKUR: bu isin yazdigi degerleri tasiyan urunler yeni kurallarla ne olur.
 
@@ -804,7 +857,7 @@ def recheck_owned(
         if found is None:
             raise ClassifyAborted("merchant_missing", merchant_slug)
         merchant_id = int(found[0])
-    catalog = Catalog(conn)
+    catalog = Catalog(conn, dynamic=dynamic)
     out: list[Recheck] = []
     after = 0
     while limit is None or len(out) < limit:
@@ -812,7 +865,7 @@ def recheck_owned(
         if not rows:
             break
         for row in rows:
-            decision = decide(facts_for(row, catalog))
+            decision = catalog.decide(facts_for(row, catalog))
             brand, category = _target(row, decision, catalog)
             out.append(
                 Recheck(

@@ -12,6 +12,12 @@ python -m classify recheck  [--merchant aliexpress] [--limit N]          # YALNI
 python -m classify evaluate --labels dosya.tsv [--split dev|eval|all] [--json cikti.json]
                             # dosya = `sample` TSV'si (expected_* etiketli); veritabani YOK
 python -m classify lexicon  [--apply]
+python -m classify compare  [--n 5000] [--mode random|first] [--seed 1] [--scope PATH ...]
+                            [--tsv dosya] [--only-changed]   # YALNIZCA OKUR (karar 0154)
+python -m classify scope list
+python -m classify scope set --path PATH --mode apply|off --by AD --reason METIN --confirm
+`--dynamic` (products/report/recheck/sample): etkin kapsamlarda dinamik aday secimi V5'i inceltir
+(karar 0154); varsayilan KAPALI. Etkin kapsam yoksa V5 ile ayni.
 
 `report` ve `sources` (`--apply` olmadan) YALNIZCA OKUR: uretimde guvenle olcer, hicbir sey
 yazmaz. `products` `--confirm` olmadan calismaz; `catalog_build` oturumu varken baslamaz;
@@ -33,8 +39,10 @@ import sys
 
 import psycopg
 
+from classify import compare as compare_mod
 from classify import lexicon as lexicon_mod
 from classify import run as run_mod
+from classify import scope as scope_mod
 from classify.taxonomy import APPLY_MIN_CONFIDENCE, RULE_VERSION
 from db import job_run, wal_pressure
 from db.connection import connect
@@ -120,6 +128,8 @@ def main(argv: list[str] | None = None) -> int:
     p_report.add_argument("--after-id", type=int, default=0)
     p_report.add_argument("--merchant", default=None)
 
+    p_report.add_argument("--dynamic", action="store_true", help="dinamik aday secimi (karar 0154)")
+
     p_src = sub.add_parser("sources", help="kaynak kategori yollari ve eslemeleri")
     p_src.add_argument("--merchant", required=True)
     p_src.add_argument("--apply", action="store_true", help="onerileri category_source_map'e yaz")
@@ -133,6 +143,11 @@ def main(argv: list[str] | None = None) -> int:
     p_run.add_argument("--max-seconds", type=float, default=None)
     p_run.add_argument("--sleep-ms", type=int, default=200)
     p_run.add_argument("--rescan", action="store_true")
+    p_run.add_argument(
+        "--dynamic",
+        action="store_true",
+        help="etkin kapsamlarda dinamik aday secimi V5'i inceltir (karar 0154; kural surumu +1)",
+    )
     p_run.add_argument(
         "--owned-only",
         action="store_true",
@@ -169,12 +184,42 @@ def main(argv: list[str] | None = None) -> int:
         help="tabakali: genis bir rastgele havuzdan kaynak kategori basina en fazla K urun",
     )
     p_sample.add_argument("--split", choices=("dev", "eval", "all"), default="all")
+    p_sample.add_argument("--dynamic", action="store_true")
 
     p_re = sub.add_parser(
         "recheck", help="YALNIZCA OKUR: sahip olunan urunler yeni kurallarla (eski/yeni, TSV)"
     )
     p_re.add_argument("--merchant", default=None)
     p_re.add_argument("--limit", type=int, default=None)
+    p_re.add_argument("--dynamic", action="store_true")
+
+    p_cmp = sub.add_parser(
+        "compare", help="YALNIZCA OKUR: V5 ve dinamik karar yan yana (karar 0154)"
+    )
+    p_cmp.add_argument("--n", type=int, default=5000)
+    p_cmp.add_argument("--mode", choices=("random", "first"), default="random")
+    p_cmp.add_argument("--seed", type=int, default=1)
+    p_cmp.add_argument("--after-id", type=int, default=0)
+    p_cmp.add_argument("--merchant", default=None)
+    p_cmp.add_argument(
+        "--scope",
+        action="append",
+        default=None,
+        help="kategori yolu (tekrarlanabilir); yoksa tum Trendyol dallari",
+    )
+    p_cmp.add_argument("--tsv", default=None, help="degisen/tum satirlari TSV'ye yaz")
+    p_cmp.add_argument("--only-changed", action="store_true")
+    p_cmp.add_argument("--json", default=None)
+
+    p_scope = sub.add_parser("scope", help="dinamik kapsam yonetimi (karar 0154)")
+    scope_sub = p_scope.add_subparsers(dest="scope_command", required=True)
+    scope_sub.add_parser("list")
+    p_set = scope_sub.add_parser("set")
+    p_set.add_argument("--path", required=True)
+    p_set.add_argument("--mode", choices=("apply", "off"), required=True)
+    p_set.add_argument("--by", required=True)
+    p_set.add_argument("--reason", required=True)
+    p_set.add_argument("--confirm", action="store_true")
 
     p_ev = sub.add_parser("evaluate", help="etiketli TSV uzerinde precision/kapsama (DB yok)")
     p_ev.add_argument("--labels", required=True)
@@ -198,6 +243,7 @@ def main(argv: list[str] | None = None) -> int:
                 after_id=args.after_id,
                 merchant_slug=args.merchant,
                 dry_run=True,
+                dynamic=args.dynamic,
                 should_stop=_should_stop,
                 on_batch=_progress,
             )
@@ -253,6 +299,7 @@ def main(argv: list[str] | None = None) -> int:
                     rescan=args.rescan,
                     merchant_slug=args.merchant,
                     owned_only=args.owned_only,
+                    dynamic=args.dynamic,
                     after_id=args.after_id,
                     throttle=gov.before_batch,
                     should_stop=_should_stop,
@@ -264,7 +311,8 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"durdu: {error}", file=sys.stderr)
                 return EXIT_ABORTED
             run.detail.update(
-                rule_version=RULE_VERSION,
+                rule_version=run_mod.active_rule_version(conn, args.dynamic),
+                dynamic=args.dynamic,
                 owned_only=args.owned_only,
                 scanned=counts.scanned,
                 brand_set=counts.brand_set,
@@ -288,7 +336,9 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.command == "recheck":
         with connect() as conn:
-            checks = run_mod.recheck_owned(conn, merchant_slug=args.merchant, limit=args.limit)
+            checks = run_mod.recheck_owned(
+                conn, merchant_slug=args.merchant, limit=args.limit, dynamic=args.dynamic
+            )
         # old_*_id: geri alma kaydi (karar 0138); action: keep | change | clear.
         cols = (
             "product_id", "title", "source_category", "old_category", "new_category", "action",
@@ -308,6 +358,56 @@ def main(argv: list[str] | None = None) -> int:
             print(TSV_SEP.join(_tsv_cell(x) for x in cells))
         actions = {a: sum(1 for c in checks if c.action == a) for a in ("keep", "change", "clear")}
         print(f"sahip olunan {len(checks)}: {actions}", file=sys.stderr)
+        return 0
+
+    if args.command == "compare":
+        from pathlib import Path
+
+        with connect() as conn:
+            result = compare_mod.compare(
+                conn,
+                n=args.n,
+                mode=args.mode,
+                seed=args.seed,
+                after_id=args.after_id,
+                merchant_slug=args.merchant,
+                scopes=args.scope,
+            )
+        summary = result.summary()
+        print(json.dumps({"scopes": len(result.scopes), **summary}, ensure_ascii=False, indent=2))
+        if args.tsv:
+            Path(args.tsv).write_text(
+                compare_mod.tsv(result, only_changed=args.only_changed), encoding="utf-8"
+            )
+        if args.json:
+            Path(args.json).write_text(
+                json.dumps(summary, ensure_ascii=False, indent=2) + "\n", encoding="utf-8"
+            )
+        return 0
+
+    if args.command == "scope":
+        with connect() as conn:
+            if args.scope_command == "list":
+                rows = scope_mod.list_scopes(conn)
+                if not rows:
+                    print("etkin kapsam yok (siniflandirici V5 davranisinda)")
+                for r in rows:
+                    print(
+                        f"{r.mode:<5} {r.path} ({r.nodes} dugum) {r.decided_by} "
+                        f"{r.updated_at:%Y-%m-%d %H:%M} | {r.note or ''}"
+                    )
+                return 0
+            if not args.confirm:
+                print("yazilmadi: degistirmek icin --confirm ekleyin", file=sys.stderr)
+                return 0
+            try:
+                row = scope_mod.set_scope(
+                    conn, args.path, args.mode, by=args.by, reason=args.reason
+                )
+            except scope_mod.ScopeError as error:
+                print(f"degistirilmedi: {error}", file=sys.stderr)
+                return 2
+            print(f"{row.mode} {row.path} ({row.nodes} dugum), kayit: {row.decided_by}")
         return 0
 
     if args.command == "evaluate":
@@ -348,6 +448,7 @@ def main(argv: list[str] | None = None) -> int:
                 n=pool if args.per_source is None else 5_000,
                 merchant_slug=args.merchant,
                 seed=args.seed,
+                dynamic=args.dynamic,
             )
         if args.per_source is not None:
             chosen = ev.stratified_sample(

@@ -227,6 +227,16 @@ export const productClassificationState = pgTable(
   (t) => [primaryKey({ columns: [t.ruleVersion, t.scope] })],
 );
 
+/** 0103 (karar 0154): siniflandiricinin dinamik aday secimiyle yazabilecegi kategori dallari. */
+export const classifierScope = pgTable("classifier_scope", {
+  scopeCategoryId: bigint("scope_category_id", { mode: "number" }).primaryKey(),
+  mode: text("mode").$type<"off" | "apply">().notNull().default("off"),
+  decidedBy: text("decided_by").notNull(),
+  note: text("note"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
 /** Arama indeksi guncelleme olaylari (outbox). */
 export const searchOutbox = pgTable("search_outbox", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
