@@ -301,9 +301,12 @@ export async function resolveSlotLookups(
     SELECT DISTINCT h.i, 'b' AS kind, br.id::text AS id
       FROM ${pairs} JOIN brand br ON h.t <<% ${foldExpr(sql`br.name`)}
     UNION ALL
-    SELECT DISTINCT h.i, 'c' AS kind, cc.id::text AS id FROM category cc
-      JOIN category cr ON cr.path = split_part(cc.path, '/', 1)
-      JOIN ${pairs} ON h.t <<% ${foldExpr(sql`cr.name`)}
+    SELECT DISTINCT rh.i, 'c' AS kind, cc.id::text AS id
+      FROM (
+        SELECT h.i, cr.path FROM ${pairs}
+          JOIN category cr ON position('/' IN cr.path) = 0 AND h.t <<% ${foldExpr(sql`cr.name`)}
+      ) rh
+      JOIN category cc ON split_part(cc.path, '/', 1) = rh.path
     ${alongside ? sql`UNION ALL SELECT 0, 'x', ${alongside}::text` : sql``}
   `);
   for (const row of result.rows) {

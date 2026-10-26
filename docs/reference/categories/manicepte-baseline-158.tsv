@@ -1,0 +1,159 @@
+path	slug	name	discoverable
+anne-bebek	anne-bebek	Anne / Bebek	1
+anne-bebek/bebek-arabasi	anne-bebek-bebek-arabasi	Bebek Arabaları	1
+anne-bebek/bebek-arabasi/aksesuar	anne-bebek-bebek-arabasi-aksesuar	Bebek Arabası Aksesuarları	1
+anne-bebek/bebek-bakim	anne-bebek-bebek-bakim	Bebek Bakım	1
+anne-bebek/cocuk-giyim	anne-bebek-cocuk-giyim	Bebek ve Çocuk Giyim	1
+anne-bebek/oyuncak	anne-bebek-oyuncak	Oyuncak	1
+anne-bebek/oyuncak/egitici	anne-bebek-oyuncak-egitici	Eğitici Oyuncaklar	1
+anne-bebek/oyuncak/figur-model	anne-bebek-oyuncak-figur-model	Figür ve Model	1
+anne-bebek/oyuncak/pelus	anne-bebek-oyuncak-pelus	Peluş Oyuncaklar	1
+anne-bebek/oyuncak/uzaktan-kumandali	anne-bebek-oyuncak-uzaktan-kumandali	Uzaktan Kumandalı Oyuncaklar	1
+elektronik	elektronik	Elektronik	1
+elektronik/akilli-ev	elektronik-akilli-ev	Akıllı Ev	1
+elektronik/bilesen	elektronik-bilesen	Elektronik Bileşenler ve Modüller	1
+elektronik/bilgisayar	elektronik-bilgisayar	Bilgisayar	1
+elektronik/bilgisayar/ag	elektronik-bilgisayar-ag	Ağ Ürünleri	1
+elektronik/bilgisayar/aksesuar	elektronik-bilgisayar-aksesuar	Bilgisayar Aksesuarları	1
+elektronik/bilgisayar/bilesen	elektronik-bilgisayar-bilesen	Bilgisayar Bileşenleri	1
+elektronik/bilgisayar/depolama	elektronik-bilgisayar-depolama	Depolama ve Bellek	1
+elektronik/bilgisayar/dizustu	elektronik-bilgisayar-dizustu	Dizüstü Bilgisayarlar	1
+elektronik/bilgisayar/klavye-mouse	elektronik-bilgisayar-klavye-mouse	Klavye ve Mouse	1
+elektronik/bilgisayar/tablet	elektronik-bilgisayar-tablet	Tabletler	1
+elektronik/giyilebilir	elektronik-giyilebilir	Giyilebilir Teknoloji	1
+elektronik/giyilebilir/akilli-bileklik	elektronik-giyilebilir-akilli-bileklik	Akıllı Bileklikler	1
+elektronik/giyilebilir/akilli-saat	elektronik-giyilebilir-akilli-saat	Akıllı Saatler	1
+elektronik/giyilebilir/kordon	elektronik-giyilebilir-kordon	Akıllı Saat Kordonları	1
+elektronik/guc-batarya	elektronik-guc-batarya	Güç ve Batarya	1
+elektronik/guc-batarya/adaptor-guc-kaynagi	elektronik-guc-batarya-adaptor-guc-kaynagi	Adaptörler ve Güç Kaynakları	1
+elektronik/guc-batarya/batarya	elektronik-guc-batarya-batarya	Piller ve Bataryalar	1
+elektronik/guc-batarya/sarj-cihazi	elektronik-guc-batarya-sarj-cihazi	Batarya Şarj Cihazları	1
+elektronik/kamera	elektronik-kamera	Kamera ve Fotoğraf	1
+elektronik/kamera/aksesuar	elektronik-kamera-aksesuar	Kamera Aksesuarları	1
+elektronik/kamera/aksiyon-kamerasi	elektronik-kamera-aksiyon-kamerasi	Aksiyon Kameraları	1
+elektronik/kamera/drone	elektronik-kamera-drone	Drone	1
+elektronik/kamera/guvenlik-kamerasi	elektronik-kamera-guvenlik-kamerasi	Güvenlik Kameraları	1
+elektronik/oyun	elektronik-oyun	Oyun ve Konsol	1
+elektronik/oyun/aksesuar	elektronik-oyun-aksesuar	Oyun Aksesuarları	1
+elektronik/oyun/konsol	elektronik-oyun-konsol	Oyun Konsolları	1
+elektronik/ses	elektronik-ses	Ses Sistemleri	1
+elektronik/ses/hoparlor	elektronik-ses-hoparlor	Hoparlörler	1
+elektronik/ses/kulaklik	elektronik-ses-kulaklik	Kulaklıklar	1
+elektronik/ses/kulaklik/kablolu	elektronik-ses-kulaklik-kablolu	Kablolu Kulaklıklar	1
+elektronik/ses/kulaklik/kablosuz	elektronik-ses-kulaklik-kablosuz	Kablosuz Kulaklıklar	1
+elektronik/ses/kulaklik/oyuncu	elektronik-ses-kulaklik-oyuncu	Oyuncu Kulaklıkları	1
+elektronik/ses/mikrofon	elektronik-ses-mikrofon	Mikrofonlar	1
+elektronik/telefon	elektronik-telefon	Telefon	1
+elektronik/telefon/aksesuar	elektronik-telefon-aksesuar	Telefon Aksesuarları	1
+elektronik/telefon/aksesuar/ekran-koruyucu	elektronik-telefon-aksesuar-ekran-koruyucu	Ekran Koruyucular	1
+elektronik/telefon/aksesuar/kilif	elektronik-telefon-aksesuar-kilif	Telefon Kılıfları	1
+elektronik/telefon/aksesuar/powerbank	elektronik-telefon-aksesuar-powerbank	Powerbank	1
+elektronik/telefon/aksesuar/sarj-kablo	elektronik-telefon-aksesuar-sarj-kablo	Şarj Cihazları ve Kablolar	1
+elektronik/telefon/aksesuar/tutucu	elektronik-telefon-aksesuar-tutucu	Telefon Tutucular	1
+elektronik/telefon/cep-telefonu	elektronik-telefon-cep-telefonu	Cep Telefonları	1
+elektronik/tv-goruntu	elektronik-tv-goruntu	TV ve Görüntü	1
+elektronik/tv-goruntu/medya-oynatici	elektronik-tv-goruntu-medya-oynatici	TV Box ve Medya Oynatıcılar	1
+elektronik/tv-goruntu/projeksiyon	elektronik-tv-goruntu-projeksiyon	Projeksiyon Cihazları	1
+ev-yasam	ev-yasam	Ev / Yasam	1
+ev-yasam/aydinlatma	ev-yasam-aydinlatma	Aydınlatma	1
+ev-yasam/banyo	ev-yasam-banyo	Banyo	1
+ev-yasam/dekorasyon	ev-yasam-dekorasyon	Dekorasyon	1
+ev-yasam/duzenleme-temizlik	ev-yasam-duzenleme-temizlik	Düzenleme ve Temizlik	1
+ev-yasam/ev-aletleri	ev-yasam-ev-aletleri	Ev Aletleri	1
+ev-yasam/ev-aletleri/kucuk-ev-aletleri	ev-yasam-ev-aletleri-kucuk-ev-aletleri	Küçük Ev Aletleri	1
+ev-yasam/ev-aletleri/supurge	ev-yasam-ev-aletleri-supurge	Süpürgeler	1
+ev-yasam/ev-tekstili	ev-yasam-ev-tekstili	Ev Tekstili	1
+ev-yasam/mobilya	ev-yasam-mobilya	Mobilya	1
+ev-yasam/mutfak	ev-yasam-mutfak	Mutfak	1
+ev-yasam/mutfak/kahve-ekipmanlari	ev-yasam-mutfak-kahve-ekipmanlari	Kahve Ekipmanları	1
+ev-yasam/mutfak/mutfak-gerecleri	ev-yasam-mutfak-mutfak-gerecleri	Mutfak Gereçleri	1
+ev-yasam/mutfak/pisirme-gerecleri	ev-yasam-mutfak-pisirme-gerecleri	Pişirme Gereçleri	1
+ev-yasam/mutfak/saklama	ev-yasam-mutfak-saklama	Saklama Kapları	1
+ev-yasam/mutfak/sofra	ev-yasam-mutfak-sofra	Sofra ve Servis	1
+ev-yasam/mutfak/termos-matara	ev-yasam-mutfak-termos-matara	Termos ve Mataralar	1
+ev-yasam/yapi-market	ev-yasam-yapi-market	Yapı Market	1
+ev-yasam/yapi-market/alet-yedek-parca	ev-yasam-yapi-market-alet-yedek-parca	El Aleti Yedek Parça ve Aksesuarları	1
+ev-yasam/yapi-market/el-aletleri	ev-yasam-yapi-market-el-aletleri	El Aletleri	1
+ev-yasam/yapi-market/elektrik-tesisati	ev-yasam-yapi-market-elektrik-tesisati	Elektrik Tesisatı	1
+ev-yasam/yapi-market/elektrikli-aletler	ev-yasam-yapi-market-elektrikli-aletler	Elektrikli Aletler	1
+ev-yasam/yapi-market/endustriyel	ev-yasam-yapi-market-endustriyel	Endüstriyel Ekipman	0
+ev-yasam/yapi-market/hirdavat	ev-yasam-yapi-market-hirdavat	Hırdavat	1
+ev-yasam/yapi-market/olcum-aletleri	ev-yasam-yapi-market-olcum-aletleri	Ölçü ve Test Aletleri	1
+kitap-muzik-hobi	kitap-muzik-hobi	Kitap / Muzik / Hobi	1
+kitap-muzik-hobi/dikis-orgu	kitap-muzik-hobi-dikis-orgu	Dikiş ve Örgü	1
+kitap-muzik-hobi/hobi-sanat	kitap-muzik-hobi-hobi-sanat	Hobi ve Sanat	1
+kitap-muzik-hobi/kirtasiye-ofis	kitap-muzik-hobi-kirtasiye-ofis	Kırtasiye ve Ofis	1
+kitap-muzik-hobi/kitap	kitap-muzik-hobi-kitap	Kitap	1
+kitap-muzik-hobi/masa-kart-oyunlari	kitap-muzik-hobi-masa-kart-oyunlari	Masa ve Kart Oyunları	1
+kitap-muzik-hobi/muzik-aletleri	kitap-muzik-hobi-muzik-aletleri	Müzik Aletleri	1
+kitap-muzik-hobi/parti	kitap-muzik-hobi-parti	Parti ve Kutlama	1
+moda	moda	Moda	1
+moda/aksesuar	moda-aksesuar	Aksesuar	1
+moda/aksesuar/atki-sal	moda-aksesuar-atki-sal	Atkı ve Şal	1
+moda/aksesuar/gunes-gozlugu	moda-aksesuar-gunes-gozlugu	Güneş Gözlüğü	1
+moda/aksesuar/kemer	moda-aksesuar-kemer	Kemer	1
+moda/aksesuar/saat	moda-aksesuar-saat	Saat	1
+moda/aksesuar/sac-aksesuari	moda-aksesuar-sac-aksesuari	Saç Aksesuarları	1
+moda/aksesuar/sapka-bere	moda-aksesuar-sapka-bere	Şapka ve Bere	1
+moda/aksesuar/taki	moda-aksesuar-taki	Takı	1
+moda/ayakkabi	moda-ayakkabi	Ayakkabı	1
+moda/ayakkabi/bot	moda-ayakkabi-bot	Bot ve Çizme	1
+moda/ayakkabi/gunluk	moda-ayakkabi-gunluk	Günlük Ayakkabı	1
+moda/ayakkabi/sandalet-terlik	moda-ayakkabi-sandalet-terlik	Sandalet ve Terlik	1
+moda/ayakkabi/spor-ayakkabi	moda-ayakkabi-spor-ayakkabi	Spor Ayakkabı	1
+moda/ayakkabi/topuklu	moda-ayakkabi-topuklu	Topuklu Ayakkabı	1
+moda/canta	moda-canta	Çanta	1
+moda/canta/bel-cantasi	moda-canta-bel-cantasi	Bel Çantaları	1
+moda/canta/capraz-canta	moda-canta-capraz-canta	Çapraz Askılı Çantalar	1
+moda/canta/cuzdan	moda-canta-cuzdan	Cüzdanlar	1
+moda/canta/el-cantasi	moda-canta-el-cantasi	El Çantaları	1
+moda/canta/omuz-cantasi	moda-canta-omuz-cantasi	Omuz Çantaları	1
+moda/canta/sirt-cantasi	moda-canta-sirt-cantasi	Sırt Çantaları	1
+moda/canta/spor-seyahat-cantasi	moda-canta-spor-seyahat-cantasi	Spor ve Seyahat Çantaları	1
+moda/canta/valiz	moda-canta-valiz	Valiz ve Seyahat	1
+moda/erkek-giyim	moda-erkek-giyim	Erkek Giyim	1
+moda/erkek-giyim/alt-giyim	moda-erkek-giyim-alt-giyim	Erkek Alt Giyim	1
+moda/erkek-giyim/dis-giyim	moda-erkek-giyim-dis-giyim	Erkek Dış Giyim	1
+moda/erkek-giyim/ic-giyim	moda-erkek-giyim-ic-giyim	Erkek İç Giyim	0
+moda/erkek-giyim/ust-giyim	moda-erkek-giyim-ust-giyim	Erkek Üst Giyim	1
+moda/kadin-giyim	moda-kadin-giyim	Kadın Giyim	1
+moda/kadin-giyim/alt-giyim	moda-kadin-giyim-alt-giyim	Kadın Alt Giyim	1
+moda/kadin-giyim/dis-giyim	moda-kadin-giyim-dis-giyim	Kadın Dış Giyim	1
+moda/kadin-giyim/elbise	moda-kadin-giyim-elbise	Elbise	1
+moda/kadin-giyim/ic-giyim	moda-kadin-giyim-ic-giyim	Kadın İç Giyim	0
+moda/kadin-giyim/mayo-bikini	moda-kadin-giyim-mayo-bikini	Mayo ve Bikini	0
+moda/kadin-giyim/ust-giyim	moda-kadin-giyim-ust-giyim	Kadın Üst Giyim	1
+oto-bahce	oto-bahce	Oto / Bahce	1
+oto-bahce/bahce	oto-bahce-bahce	Bahçe	1
+oto-bahce/bahce/mangal-barbeku	oto-bahce-bahce-mangal-barbeku	Mangal ve Barbekü	1
+oto-bahce/motosiklet	oto-bahce-motosiklet	Motosiklet	1
+oto-bahce/oto-aksesuar	oto-bahce-oto-aksesuar	Oto Aksesuar	1
+oto-bahce/oto-elektronik	oto-bahce-oto-elektronik	Oto Elektronik	1
+oto-bahce/oto-yedek-parca	oto-bahce-oto-yedek-parca	Oto Yedek Parça	1
+oto-bahce/tekne-deniz	oto-bahce-tekne-deniz	Tekne ve Deniz Araçları	1
+petshop	petshop	Petshop	0
+petshop/akvaryum	petshop-akvaryum	Akvaryum	0
+petshop/kedi	petshop-kedi	Kedi	0
+petshop/kopek	petshop-kopek	Köpek	0
+saglik-kozmetik	saglik-kozmetik	Saglik / Kozmetik	1
+saglik-kozmetik/cinsel-saglik	saglik-kozmetik-cinsel-saglik	Cinsel Sağlık	0
+saglik-kozmetik/kisisel-bakim	saglik-kozmetik-kisisel-bakim	Kişisel Bakım	1
+saglik-kozmetik/kisisel-bakim/agiz-dis	saglik-kozmetik-kisisel-bakim-agiz-dis	Ağız ve Diş Bakımı	1
+saglik-kozmetik/kisisel-bakim/banyo-vucut	saglik-kozmetik-kisisel-bakim-banyo-vucut	Banyo ve Vücut Bakımı	1
+saglik-kozmetik/kisisel-bakim/tiras-epilasyon	saglik-kozmetik-kisisel-bakim-tiras-epilasyon	Tıraş ve Epilasyon	1
+saglik-kozmetik/kozmetik	saglik-kozmetik-kozmetik	Kozmetik	1
+saglik-kozmetik/kozmetik/cilt-bakimi	saglik-kozmetik-kozmetik-cilt-bakimi	Cilt Bakımı	1
+saglik-kozmetik/kozmetik/makyaj	saglik-kozmetik-kozmetik-makyaj	Makyaj	1
+saglik-kozmetik/kozmetik/parfum	saglik-kozmetik-kozmetik-parfum	Parfüm	1
+saglik-kozmetik/kozmetik/sac-bakimi	saglik-kozmetik-kozmetik-sac-bakimi	Saç Bakımı	1
+saglik-kozmetik/kozmetik/tirnak	saglik-kozmetik-kozmetik-tirnak	Tırnak Bakımı	1
+saglik-kozmetik/peruk	saglik-kozmetik-peruk	Peruk ve Saç Ekleme	1
+saglik-kozmetik/saglik	saglik-kozmetik-saglik	Sağlık	0
+spor-outdoor	spor-outdoor	Spor / Outdoor	1
+spor-outdoor/balikcilik	spor-outdoor-balikcilik	Balıkçılık	1
+spor-outdoor/bisiklet	spor-outdoor-bisiklet	Bisiklet	1
+spor-outdoor/fitness	spor-outdoor-fitness	Fitness	1
+spor-outdoor/kamp-outdoor	spor-outdoor-kamp-outdoor	Kamp ve Outdoor	1
+spor-outdoor/spor-giyim	spor-outdoor-spor-giyim	Spor Giyim	1
+spor-outdoor/su-sporlari	spor-outdoor-su-sporlari	Su Sporları	1
+supermarket	supermarket	Supermarket	0

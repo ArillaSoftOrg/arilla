@@ -10,6 +10,17 @@ dosyalar bayt bayt korunur.
 
 Özet: 3.867 kategori, 16 ana kategori, 6 seviye, 3.361 yaprak, tekrarlanan kimlik yok.
 
+## Aktif ağaca entegrasyon (karar 0153, migration 0102)
+
+| Dosya | İçerik |
+| --- | --- |
+| `category-tree-map.csv` | **Kalıcı eşleme** (üretilmiş): her Trendyol kimliği için eylem (`match`/`create`), ManiCepte yolu, slug'ı ve adı, keşfet bayrağı. 3.867 satır |
+| `category-tree-rollback.sql` | Elle, onayla çalıştırılan geri alma (yalnız oluşturulan 3.862 kategori + eşleme; ürün bağlıysa hiçbir şey silinmez). Migration değildir |
+| `../categories/manicepte-baseline-158.tsv` | Entegrasyon ÖNCESİ 158 ManiCepte kategorisinin değişmez görüntüsü (yol, slug, ad, keşfet) |
+
+`pnpm --filter @arilla/db db:trendyol-category-tree` planı özetler, `--check` uyumu doğrular, `--generate`
+migration, CSV ve geri alma betiğini yeniden yazar. Elle düzenlenmez.
+
 ## Yenileme (bilinçli adım)
 
 1. `curl -sS -o product-categories.raw.json https://apigw.trendyol.com/integration/product/product-categories`
