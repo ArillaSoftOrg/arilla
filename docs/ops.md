@@ -2358,3 +2358,18 @@ gerekmez.
 **İzleme:** başarısız teslimler `[giris] ... email delivery failed: <kod>` olarak loglanır
 (adres ve bağlantı loglanmaz). `rate limit unavailable` Redis erişilemezliğini gösterir;
 giriş/kayıt bu durumda KAPALI kalır (fail-closed).
+
+## Dinamik kategori motoru (karar 0154) — varsayılan kapalı
+
+Trendyol'dan eklenen kategorilerle AliExpress ürünlerini inceltir. Hiçbir kapsam etkin değildir.
+
+```
+python -m classify compare --n 5000 --mode random --seed 1 --tsv out.tsv   # salt okunur
+python -m classify scope list
+python -m classify scope set <kategori-yolu> apply --by <ad> --reason "<15-200 karakter>" --confirm
+python -m classify products --dynamic ...      # yalnızca etkin kapsam varsa motor devreye girer
+```
+
+- Etkinleştirmeden önce kapsam başına ≥300 insan etiketi ve Wilson alt sınırı ≥0,80 gerekir.
+- Geri alma: `scope set <yol> off ... --confirm`, ardından `--dynamic --owned-only` ile yeniden sınıflandır.
+- Üretimde önce `compare` ile örnek incele; toplu çalıştırma ayrı onay gerektirir.

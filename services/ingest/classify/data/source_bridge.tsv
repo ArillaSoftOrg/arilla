@@ -1,0 +1,280 @@
+# Karar 0154. AliExpress kaynak kategori yolu -> Trendyol kaynakli BOLGELER (ManiCepte yollari).
+# Kaynak yolu YALNIZ bolgeyi sinirlar (kategori vermez): siniflandirici, bu bolgelerin ALTINDAKI
+# kategoriler arasindan baslik kanitiyla secer. `-` = bolge yok (bu kaynak icin dinamik aday uretilmez).
+# Bicim: kaynak_yolu<TAB>bolge1,bolge2 (`category.path`; kok, L2 ya da L3). Elle gozden gecirilir;
+# her bolge 0102 planinda bulunmali (birim testi), her kaynak yolu tam bir kez yazilmali.
+Apparel Accessories > Apparel Fabrics & Textiles	hobi-eglence/hobi-malzemeleri
+Apparel Accessories > Belt Buckle	aksesuar/kemer-pantolon-askisi
+Apparel Accessories > DIY Accessories	hobi-eglence/hobi-malzemeleri
+Apparel Accessories > Fashionable Canes	aksesuar/diger-aksesuar
+Apparel Accessories > Knee Sleeve & Leg Warmer	spor-outdoor/ekipman-aksesuar
+Apparel Accessories > Mask（New）	-
+Apparel Accessories > Neck Wear	aksesuar/sal-fular,aksesuar/atki-bere-eldiven
+Apparel Accessories > New Headwear	aksesuar/sapka,aksesuar/atki-bere-eldiven
+Apparel Accessories > Oversleeve & Arm Warmer	aksesuar/atki-bere-eldiven
+Apparel Accessories > Pocket Squares	aksesuar/kravat-kol-dugmesi
+Apparel Accessories > new Scarf &Wrap	aksesuar/sal-fular,aksesuar/atki-bere-eldiven
+Automobiles, Parts & Accessories > Auto Sale	-
+Automobiles, Parts & Accessories > Automotive Sensors	otomobil-motosiklet/otomobil-yedek-parca,otomobil-motosiklet/otomobil
+Automobiles, Parts & Accessories > Car Electronics	otomobil-motosiklet/oto-ses-goruntu-sistemleri,otomobil-motosiklet/otomobil
+Automobiles, Parts & Accessories > Car Lights	otomobil-motosiklet/otomobil-yedek-parca,otomobil-motosiklet/otomobil
+Automobiles, Parts & Accessories > Car Lock System	otomobil-motosiklet/otomobil,otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > Car Maintenance Tools	otomobil-motosiklet/otomobil,otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > Car Repair Tool	otomobil-motosiklet/otomobil,otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > Car Wash & Maintenance	otomobil-motosiklet/otomobil,otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > Chassis Parts	otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > Electrical Equipment	otomobil-motosiklet/otomobil-yedek-parca,otomobil-motosiklet/otomobil
+Automobiles, Parts & Accessories > Engines & Engine Parts	otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > Exterior Accessories	otomobil-motosiklet/otomobil
+Automobiles, Parts & Accessories > Exterior Parts	otomobil-motosiklet/otomobil,otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > Interior Accessories	otomobil-motosiklet/otomobil
+Automobiles, Parts & Accessories > Interior Parts	otomobil-motosiklet/otomobil,otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > New Energy Vehicle Parts & Accessories	otomobil-motosiklet/otomobil
+Automobiles, Parts & Accessories > Other Vehicle Parts & Accessories	otomobil-motosiklet/otomobil,otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > RV Parts & Accessories	otomobil-motosiklet/karavan
+Automobiles, Parts & Accessories > Wear Parts	otomobil-motosiklet/otomobil-yedek-parca
+Beauty & Health > Bath & Shower	kozmetik-kisisel-bakim
+Beauty & Health > Beauty Equipment	elektronik/kisisel-bakim-aletleri
+Beauty & Health > Dental Supplies	kozmetik-kisisel-bakim/agiz-bakim
+Beauty & Health > Fragrances & Deodorants	kozmetik-kisisel-bakim/parfum-ve-deodorant
+Beauty & Health > Hair Care & Styling	kozmetik-kisisel-bakim/sac-bakim,elektronik/kisisel-bakim-aletleri
+Beauty & Health > Health Care	supermarket/saglik
+Beauty & Health > Massage & Relaxation	elektronik/kisisel-bakim-aletleri,supermarket/saglik
+Beauty & Health > Nail Art & Tools	kozmetik-kisisel-bakim/makyaj
+Beauty & Health > Perfume	kozmetik-kisisel-bakim/parfum-ve-deodorant
+Beauty & Health > Rehabilitation Supplies	supermarket/saglik
+Beauty & Health > Sex Products	-
+Beauty & Health > Tattoo & Body Art	kozmetik-kisisel-bakim/diger-kisisel-bakim-urunleri
+Books & Cultural Merchandise > Books	-
+Books & Cultural Merchandise > Cultural Derivatives(Office Supplies)	kirtasiye-ofis-malzemeleri/kirtasiye
+Books & Cultural Merchandise > Music, CDs & Vinyl Records	hobi-eglence/muzik-alet-ve-ekipmanlari
+Computer & Office > 3D Printing & Additive Manufacturing	elektronik/bilgisayar-grubu
+Computer & Office > Computer & Office Bundle	-
+Computer & Office > Computer Components	elektronik/bilgisayar-grubu
+Computer & Office > Computer Peripherals	elektronik/bilgisayar-grubu,elektronik/elektronik-aksesuarlar/bilgisayar-aksesuarlari
+Computer & Office > Laptop Parts & Accessories	elektronik/elektronik-aksesuarlar/bilgisayar-aksesuarlari,elektronik/bilgisayar-grubu
+Computer & Office > Networking	elektronik/bilgisayar-grubu
+Computer & Office > Office Electronics	kirtasiye-ofis-malzemeleri/ofis-teknolojileri,elektronik/bilgisayar-grubu
+Computer & Office > Servers & Industrial Computer	elektronik/bilgisayar-grubu
+Computer & Office > Storage Device	elektronik/bilgisayar-grubu
+Computer & Office > Tablet Accessories & Parts	elektronik/tablet-grubu,elektronik/elektronik-aksesuarlar/tablet-aksesuarlari
+Computer & Office > Tablets	elektronik/tablet-grubu
+Consumer Electronics > Accessories & Parts	elektronik/elektronik-aksesuarlar
+Consumer Electronics > Electronic Cigarettes	hobi-eglence/tutun-tutun-aksesuarlari
+Consumer Electronics > Portable Audio & Video	elektronik/hoparlor-projeksiyon-sistemleri,elektronik/giyilebilir
+Consumer Electronics > Smart Electronics	elektronik/akilli-ev-aletleri
+Food > Coffee	supermarket/gida-icecek
+Food > Grocery	supermarket/gida-icecek
+Furniture > Café Furniture	ev-mobilya/mobilya
+Furniture > Senior Furniture	ev-mobilya/mobilya
+Hair Extensions & Wigs > Beauty Supply	kozmetik-kisisel-bakim/sac-bakim,aksesuar/sac-aksesuari
+Hair Extensions & Wigs > Hair For Asian	kozmetik-kisisel-bakim/sac-bakim,aksesuar/sac-aksesuari
+Hair Extensions & Wigs > Hair Salon Supply	kozmetik-kisisel-bakim/sac-bakim,aksesuar/sac-aksesuari
+Hair Extensions & Wigs > Hair Tools & Accessories	kozmetik-kisisel-bakim/sac-bakim,aksesuar/sac-aksesuari
+Hair Extensions & Wigs > Human Hair (For Black)	kozmetik-kisisel-bakim/sac-bakim,aksesuar/sac-aksesuari
+Hair Extensions & Wigs > Human Hair (For White)	kozmetik-kisisel-bakim/sac-bakim,aksesuar/sac-aksesuari
+Hair Extensions & Wigs > Synthetic Hair	kozmetik-kisisel-bakim/sac-bakim,aksesuar/sac-aksesuari
+Hair Extensions & Wigs > Synthetic Hair(For White)	kozmetik-kisisel-bakim/sac-bakim,aksesuar/sac-aksesuari
+Home & Garden > Arts,Crafts & Sewing	hobi-eglence/hobi-malzemeleri,kirtasiye-ofis-malzemeleri/sanatsal-malzemeler,elektronik/elektrikli-ev-aletleri
+Home & Garden > Collectibles	hobi-eglence/hediyelik-urunler
+Home & Garden > Festive & Party Supplies	hobi-eglence/parti-malzemeleri
+Home & Garden > Home Decor	ev-mobilya/ev
+Home & Garden > Home Storage & Organization	ev-mobilya/ev
+Home & Garden > Household Merchandises	ev-mobilya/ev,banyo-yapi-hirdavat/hirdavat
+Home & Garden > Kitchen,Dining & Bar	ev-mobilya/ev,elektronik/elektrikli-ev-aletleri
+Home & Garden > Pet Products	supermarket/pet-shop
+Home Appliances > Commercial Appliances	elektronik/beyaz-esya-iklimlendirme,elektronik/elektrikli-ev-aletleri
+Home Appliances > Household Appliances	elektronik/beyaz-esya-iklimlendirme,elektronik/elektrikli-ev-aletleri
+Home Appliances > Major Appliances	elektronik/beyaz-esya-iklimlendirme,elektronik/elektrikli-ev-aletleri
+Home Appliances > Personal Care Appliances	elektronik/kisisel-bakim-aletleri
+Home Improvement > Bathroom Fixture	banyo-yapi-hirdavat/banyo-yapi-malzemeleri
+Home Improvement > Building Supplies	banyo-yapi-hirdavat/hirdavat
+Home Improvement > Electrical Equipment & Supplies	banyo-yapi-hirdavat/elektrik-tesisat-malzemesi,bahce-elektrikli-el-aletleri/enerji-sistemleri
+Home Improvement > Family Intelligence System	elektronik/akilli-ev-aletleri,banyo-yapi-hirdavat/elektrik-tesisat-malzemesi
+Home Improvement > Functional Material	banyo-yapi-hirdavat/hirdavat
+Home Improvement > Heating, Cooling & Vents	banyo-yapi-hirdavat/hirdavat,elektronik/beyaz-esya-iklimlendirme
+Home Improvement > Kitchen Fixture	banyo-yapi-hirdavat/banyo-yapi-malzemeleri
+Home Improvement > Painting Supplies & Wall Treatments	banyo-yapi-hirdavat/boya
+Home Improvement > Plumbing	banyo-yapi-hirdavat/banyo-yapi-malzemeleri,banyo-yapi-hirdavat/hirdavat
+Industrial & Business > Agricultural Machinery & Supplies	bahce-elektrikli-el-aletleri/bahce
+Industrial & Business > Air Compressors, Pneumatics & Hydraulics	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Industrial & Business > Blowers, Industrial Fans & Exhaust Equipment	banyo-yapi-hirdavat/hirdavat
+Industrial & Business > Chemicals	-
+Industrial & Business > Commercial Equipment	-
+Industrial & Business > Construction Machinery & Accessories	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Industrial & Business > Fabric & Textile Raw Material	hobi-eglence/hobi-malzemeleri
+Industrial & Business > Food Machine and Supporting Equipment	elektronik/elektrikli-ev-aletleri
+Industrial & Business > Industrial Automation Control & Accessories	bahce-elektrikli-el-aletleri/enerji-sistemleri,banyo-yapi-hirdavat/elektrik-tesisat-malzemesi
+Industrial & Business > Industrial Spare Parts	banyo-yapi-hirdavat/hirdavat
+Industrial & Business > Industrial and Commercial Cleaning Equipment	banyo-yapi-hirdavat/hirdavat
+Industrial & Business > Industry Machinery & Equipment	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Industrial & Business > Metals & Alloys	-
+Industrial & Business > Packaging, Printing & Supporting Equipment	kirtasiye-ofis-malzemeleri/ofis-teknolojileri,banyo-yapi-hirdavat/hirdavat
+Industrial & Business > Rubbers & Plastics	-
+Jewelry & Accessories > Customized Jewelry	aksesuar/taki-mucevher,aksesuar/altin
+Jewelry & Accessories > Fine Jewelry	aksesuar/taki-mucevher,aksesuar/altin
+Jewelry & Accessories > Jewelry Making	hobi-eglence/hobi-malzemeleri,aksesuar/taki-mucevher
+Jewelry & Accessories > Jewelry Packaging & Display	hobi-eglence/hediyelik-urunler
+Jewelry & Accessories > Jewelry Tools & Equipments	hobi-eglence/hobi-malzemeleri
+Jewelry & Accessories > Smart Jewelry	elektronik/giyilebilir
+Lights & Lighting > Commercial Lighting	elektronik/akilli-ev-aletleri,banyo-yapi-hirdavat/elektrik-tesisat-malzemesi
+Lights & Lighting > Novelty Lighting（new）	elektronik/akilli-ev-aletleri,banyo-yapi-hirdavat/elektrik-tesisat-malzemesi
+Lights & Lighting > Professional Light	elektronik/akilli-ev-aletleri,banyo-yapi-hirdavat/elektrik-tesisat-malzemesi
+Lights & Lighting > Smart Lighting	elektronik/akilli-ev-aletleri
+Lights & Lighting > Special Engineering Lighting	elektronik/akilli-ev-aletleri,banyo-yapi-hirdavat/elektrik-tesisat-malzemesi
+Luggage & Bags > Backpack	aksesuar/canta
+Luggage & Bags > Chest Bags	aksesuar/canta
+Luggage & Bags > Kids' Bags	aksesuar/canta
+Luggage & Bags > Luggage	aksesuar/canta
+Luggage & Bags > Men's Bags	aksesuar/canta
+Luggage & Bags > Organizer Bag	aksesuar/canta
+Luggage & Bags > Summer Bags	aksesuar/canta
+Luggage & Bags > Travel Accessories	aksesuar/canta
+Luggage & Bags > Travel Bags	aksesuar/canta
+Luggage & Bags > Waist Packs	aksesuar/canta
+Luggage & Bags > Winter Bags	aksesuar/canta
+Luggage & Bags > Women's Handbags	aksesuar/canta
+Men's Clothing > Basic Clothing	giyim/ust-giyim,giyim/alt-giyim
+Men's Clothing > Denim（New）	giyim/alt-giyim
+Men's Clothing > Down Coats	giyim/dis-giyim
+Men's Clothing > Men's Sets（new）	giyim/takimlar,giyim/ust-giyim,giyim/alt-giyim
+Men's Clothing > Men's Shirts	giyim/ust-giyim
+Men's Clothing > Middle East Fashion	giyim
+Men's Clothing > Pants	giyim/alt-giyim
+Men's Clothing > Parkas	giyim/dis-giyim
+Men's Clothing > Shorts	giyim/alt-giyim
+Men's Clothing > Suits & Blazer	giyim/takim-elbise,giyim/dis-giyim
+Men's Clothing > Sweaters	giyim/ust-giyim
+Men's Clothing > Traditional Men's Clothing	giyim
+Mother & Kids > Activity & Gear	anne-bebek-cocuk/cocuk-gerecleri
+Mother & Kids > Baby Care	supermarket/anne-ve-bebek-bakim
+Mother & Kids > Baby Diaper & Wipes	supermarket/anne-ve-bebek-bakim
+Mother & Kids > Baby Furniture	anne-bebek-cocuk/cocuk-gerecleri,ev-mobilya/mobilya
+Mother & Kids > Baby Souvenirs	anne-bebek-cocuk/cocuk-gerecleri
+Mother & Kids > Baby Strollers&Accessories	anne-bebek-cocuk/cocuk-gerecleri
+Mother & Kids > Baby Sterilization & Appliances	anne-bebek-cocuk/cocuk-gerecleri
+Mother & Kids > Car Seats & Accessories	anne-bebek-cocuk/cocuk-gerecleri
+Mother & Kids > Children's Clothing	giyim/bebek-giyim
+Mother & Kids > Diapering & Toilet Training	supermarket/anne-ve-bebek-bakim
+Mother & Kids > Feeding	anne-bebek-cocuk/cocuk-gerecleri,supermarket/anne-ve-bebek-bakim
+Mother & Kids > Kids Accessories	aksesuar,giyim/bebek-giyim
+Mother & Kids > Kids Shoes	ayakkabi
+Mother & Kids > Pregnancy & Maternity	giyim/hamile-giyim
+Mother & Kids > Safety	anne-bebek-cocuk/cocuk-gerecleri
+Motorcycle Equipments & Parts > Aircraft	hobi-eglence/uzaktan-kumandali-araclar
+Motorcycle Equipments & Parts > Boats	spor-outdoor/ekipman-aksesuar
+Motorcycle Equipments & Parts > Modification&Protection	otomobil-motosiklet/motosiklet
+Motorcycle Equipments & Parts > Motorcycle & ATV	otomobil-motosiklet/motosiklet
+Motorcycle Equipments & Parts > Motorcycle Accessories	otomobil-motosiklet/motosiklet
+Motorcycle Equipments & Parts > Motorcycle Equipments	otomobil-motosiklet/motosiklet
+Motorcycle Equipments & Parts > Motorcycle Parts	otomobil-motosiklet/motosiklet
+Motorcycle Equipments & Parts > Ornamental & Cleaning	otomobil-motosiklet/motosiklet
+Novelty & Special Use > Cosplay Accessories	giyim/kostum,hobi-eglence/parti-malzemeleri
+Novelty & Special Use > Cosplay Costumes	giyim/kostum,hobi-eglence/parti-malzemeleri
+Novelty & Special Use > Functional Apparel	giyim
+Office & School Supplies > Accounting Supplies	kirtasiye-ofis-malzemeleri/ofis-teknolojileri
+Office & School Supplies > Filing Products	kirtasiye-ofis-malzemeleri/dosyalama-arsivleme
+Office & School Supplies > Mailing & Shipping	kirtasiye-ofis-malzemeleri/kirtasiye
+Office & School Supplies > Office Binding Supplies	kirtasiye-ofis-malzemeleri/dosyalama-arsivleme
+Office & School Supplies > Pens, Pencils & Writing Supplies	kirtasiye-ofis-malzemeleri/kalem
+Office & School Supplies > Printing Products	kirtasiye-ofis-malzemeleri/ofis-teknolojileri,kirtasiye-ofis-malzemeleri/kirtasiye-kagit-urunleri
+Office & School Supplies > Stationery Sticker	kirtasiye-ofis-malzemeleri/kirtasiye
+Phones & Telecommunications > Mobile Phone Parts	elektronik/telefon,elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications > Used&Refurbished Phones	elektronik/telefon
+Phones & Telecommunications > Walkie Talkie Accessories & Parts	elektronik/telefon
+Phones & Telecommunications Accessories > Holders & Stands	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Mobile Phone Accessories	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Mobile Phone Cases & Covers	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Mobile Phone Decorations	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Mobile Phone Photography Accessories	elektronik/foto-kamera,elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Mobile Phone Protective Film	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Sim Cards & Accessories	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Security & Protection > Access Building Automation	banyo-yapi-hirdavat/elektrik-tesisat-malzemesi,elektronik/akilli-ev-aletleri
+Security & Protection > Emergency Safety Supplies	spor-outdoor/acil-durum-guvenlik-ekipman,banyo-yapi-hirdavat/hirdavat
+Security & Protection > Smart Public Safety Systems	banyo-yapi-hirdavat/elektrik-tesisat-malzemesi,elektronik/akilli-ev-aletleri
+Shoes > Men's Shoes	ayakkabi
+Shoes > Women's Shoes	ayakkabi
+Special Category > Additional Pay on Your Order	-
+Special Category > Custom-made-Charge	-
+Special Category > Giftcard	-
+Special Category > Giveaways	-
+Special Category > Home Textile Size Chart Test Only	-
+Special Category > Mobilephone & Plug Type Test Only	-
+Special Category > Plug Type Test Only	-
+Special Category > Test	-
+Special Category > children shoes size chart test only	-
+Sports & Entertainment > Basketball（New）	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Camping & Hiking	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Cycling	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Entertainment	spor-outdoor/ekipman-aksesuar,hobi-eglence/hobi-malzemeleri
+Sports & Entertainment > Football（New）	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Hunting	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Racquet Sports	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Roller,Skateboard	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Skiing & Snowboarding	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Team Sports	spor-outdoor/ekipman-aksesuar
+Sports Shoes,Clothing&Accessories > Children's Sports	giyim/spor-giyim,ayakkabi/spor-ayakkabi
+Sports Shoes,Clothing&Accessories > Dance	giyim/spor-giyim,ayakkabi/spor-ayakkabi
+Sports Shoes,Clothing&Accessories > Sneakers	ayakkabi/spor-ayakkabi
+Sports Shoes,Clothing&Accessories > Sport Bags	aksesuar/canta,spor-outdoor/ekipman-aksesuar
+Sports Shoes,Clothing&Accessories > Sports Accessories	spor-outdoor/ekipman-aksesuar
+Tools > Abrasive Tools & Abrasives	banyo-yapi-hirdavat/hirdavat,bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Tools > Drill Bits, Saw Blades & Cutting Tools	banyo-yapi-hirdavat/hirdavat,bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Tools > Hand Tools	banyo-yapi-hirdavat/hirdavat
+Tools > Laser Engraving Machine & Accessories	banyo-yapi-hirdavat/hirdavat,bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Tools > Measurement & Analysis Instruments	banyo-yapi-hirdavat/hirdavat,bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Tools > Power Tool Parts & Accessories	banyo-yapi-hirdavat/hirdavat,bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Tools > Riveter Guns	banyo-yapi-hirdavat/hirdavat
+Tools > Tool Parts	banyo-yapi-hirdavat/hirdavat,bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Tools > Tool Sets	banyo-yapi-hirdavat/hirdavat,bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Toys & Hobbies > ACG Goods	hobi-eglence/hediyelik-urunler,anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Action & Toy Figures	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Arts & Crafts, DIY toys	anne-bebek-cocuk/oyuncak,hobi-eglence/hobi-malzemeleri
+Toys & Hobbies > Building & Construction Toys	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Dolls & Accessories	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Electronic Toys	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Games and Puzzles	hobi-eglence/oyun-gruplari,anne-bebek-cocuk/oyuncak
+Toys & Hobbies > High Tech Toys	anne-bebek-cocuk/oyuncak,hobi-eglence/uzaktan-kumandali-araclar
+Toys & Hobbies > Hobby & Collectibles	hobi-eglence/hobi-malzemeleri,hobi-eglence/hediyelik-urunler
+Toys & Hobbies > Kid's Party	hobi-eglence/parti-malzemeleri
+Toys & Hobbies > Novelty & Gag Toys	anne-bebek-cocuk/oyuncak,hobi-eglence/hediyelik-urunler
+Toys & Hobbies > Play Vehicles & Models	anne-bebek-cocuk/oyuncak,hobi-eglence/uzaktan-kumandali-araclar,hobi-eglence/oyun-gruplari
+Toys & Hobbies > Pools & Water Fun	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Remote Control Toys	hobi-eglence/uzaktan-kumandali-araclar,hobi-eglence/drone
+Toys & Hobbies > Stress Relief Toy	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Stuffed Animals & Plush	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Trendy Blind Box	anne-bebek-cocuk/oyuncak,hobi-eglence/hediyelik-urunler
+Underwear > Men Socks	giyim/ic-giyim
+Underwear > Men's Sleep & Lounge	giyim/ev-giyim,giyim/ic-giyim
+Underwear > Men's Underwears	giyim/ic-giyim
+Underwear > Women's Sleep & Lounge	giyim/ev-giyim,giyim/ic-giyim
+Watches > Children's Watches	aksesuar/saat,aksesuar/saat-seti
+Watches > Couple Watches	aksesuar/saat,aksesuar/saat-seti
+Watches > Customized Watches	aksesuar/saat,aksesuar/saat-seti
+Watches > Men's Watches	aksesuar/saat,aksesuar/saat-seti
+Watches > Women's Watches	aksesuar/saat,aksesuar/saat-seti
+Weddings & Events > Haute Couture Dresses	giyim/abiye-mezuniyet-elbisesi,giyim/gelinlik
+Weddings & Events > Party & Vacation Wear	giyim/abiye-mezuniyet-elbisesi,hobi-eglence/parti-malzemeleri
+Women's Clothing > Basic Clothing	giyim/ust-giyim,giyim/alt-giyim
+Women's Clothing > Blazer & Suits	giyim/dis-giyim,giyim/takimlar
+Women's Clothing > Customized Blouses & Shirts	giyim/ust-giyim
+Women's Clothing > Customized Dresses	giyim/elbise
+Women's Clothing > Customized Skirts	giyim/alt-giyim
+Women's Clothing > Down Coats	giyim/dis-giyim
+Women's Clothing > Dresses	giyim/elbise
+Women's Clothing > Faux Leather	giyim/dis-giyim
+Women's Clothing > Fur & Faux Fur	giyim/dis-giyim
+Women's Clothing > Genuine Leather	giyim/dis-giyim
+Women's Clothing > Jeans（New）	giyim/alt-giyim
+Women's Clothing > Jumpsuits&Rompers	giyim/salopet-tulum
+Women's Clothing > Matching Sets	giyim/takimlar,giyim/ust-giyim,giyim/alt-giyim
+Women's Clothing > Muslim Fashion	giyim/tesettur-giyim
+Women's Clothing > Parkas	giyim/dis-giyim
+Women's Clothing > Plus Size Clothes	giyim/buyuk-beden
+Women's Clothing > Ready-to-wear Dresses	giyim/elbise
+Women's Clothing > Real Fur	giyim/dis-giyim
+Women's Clothing > Shirts & Blouses	giyim/ust-giyim
+Women's Clothing > Sweaters&Jumpers	giyim/ust-giyim
+Women's Clothing > Swimwears	giyim/plaj-giyim
+Women's Clothing > Traditional Women's Clothing	giyim
+Women's Clothing > Women's Sets	giyim/takimlar

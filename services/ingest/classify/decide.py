@@ -96,6 +96,8 @@ class ProductFacts:
     brand_raw: str | None
     merchant_name: str | None
     source: SourceVerdict | None
+    #: Ham kaynak kategori yolu (karar 0154: dinamik aday secimi bolgesi icin; V5 kullanmaz).
+    source_raw: str | None = None
 
 
 @dataclass(frozen=True)
