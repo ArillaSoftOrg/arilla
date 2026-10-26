@@ -10,7 +10,7 @@ import {
   todaySlotDate,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { DiscoveryGrid, HomeHero, Section, TrendCollectionCard } from "@arilla/ui";
+import { DiscoveryGrid, Section, TrendCollectionCard } from "@arilla/ui";
 import type { Metadata } from "next";
 import { DEMO_HOMEPAGE_TRENDS } from "../data/demo/homepage-trends.ts";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
@@ -22,6 +22,7 @@ import { homeSectionLinks } from "./home-footer-groups.ts";
 import { loadRecentProducts } from "./home-recent-products.ts";
 import { HomeSearchComposer } from "./home-search-composer-client.tsx";
 import { HomeSectionHeading } from "./home-section-heading.tsx";
+import { HomeWelcome } from "./home-welcome.tsx";
 import { verifySession } from "./lib/dal.ts";
 import { loadCachedEarlyAccessProgress } from "./lib/early-access-progress.ts";
 import { PublicSiteShell } from "./public-site-shell.tsx";
@@ -146,11 +147,7 @@ export default async function HomePage() {
     <PublicSiteShell links={homeSectionLinks(discoverHref)}>
       <div className={styles.page}>
         <Section spacing="none" aria-labelledby="anasayfa-baslik" className={styles.hero}>
-          <HomeHero
-            titleId="anasayfa-baslik"
-            titleLead={HOME_COPY.heroTitleLead}
-            titleAccent={HOME_COPY.heroTitleAccent}
-          >
+          <HomeWelcome>
             <HomeSearchComposer
               startChat={chatEnabled ? startConversationAction : undefined}
               chatInNewTab={chatEnabled && user !== null}
@@ -159,7 +156,7 @@ export default async function HomePage() {
               imageConsent={imageConsent}
               recentProducts={recentProducts}
             />
-          </HomeHero>
+          </HomeWelcome>
         </Section>
 
         {homeTrends.length > 0 ? (
