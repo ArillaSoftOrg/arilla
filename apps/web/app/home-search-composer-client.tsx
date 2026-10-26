@@ -11,6 +11,7 @@ import { FloatingHomeComposer } from "./floating-composer-client.tsx";
 import { useHomeComposerSubmission } from "./home-composer-submission.ts";
 import { HOME_COPY } from "./home-copy.ts";
 import { IMAGE_CHAT_COPY } from "./home-image-chat.ts";
+import styles from "./home-welcome.module.css";
 import { LoginGateModal } from "./login-gate-modal-client.tsx";
 
 /**
@@ -129,6 +130,29 @@ export function HomeSearchComposer({
           }
           attachment={attachment}
         />
+        <section className={styles.suggestions} aria-label="Örnek aramalar">
+          <span className={styles.suggestionsLabel}>Nereden başlamalı? Bir fikir seç.</span>
+          {["Günlük beyaz spor ayakkabı", "Küçük bir çalışma masası", "Kablosuz kulaklık"].map(
+            (example) => (
+              <button
+                className={styles.suggestion}
+                type="button"
+                key={example}
+                disabled={sending}
+                onClick={() => {
+                  const input = mainRef.current?.querySelector("textarea");
+                  if (!input) return;
+                  input.value = example;
+                  input.dispatchEvent(new Event("input", { bubbles: true }));
+                  input.focus();
+                }}
+              >
+                {example}
+                <span aria-hidden="true">↗</span>
+              </button>
+            ),
+          )}
+        </section>
       </div>
       <FloatingHomeComposer
         mainRef={mainRef}

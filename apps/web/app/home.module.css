@@ -12,13 +12,13 @@
 .page > .hero {
   display: grid;
   align-items: center;
-  min-height: calc(100svh - 72px);
-  padding-block: var(--space-12) var(--space-14);
+  min-height: min(760px, calc(100svh - 80px));
+  padding-block: var(--space-12) var(--space-16);
 }
 
 @media (min-width: 1024px) {
   .page > .hero {
-    padding-block: var(--space-10) 10rem;
+    padding-block: var(--space-12) var(--space-16);
   }
 }
 
