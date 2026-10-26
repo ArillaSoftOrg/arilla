@@ -255,6 +255,7 @@ def _summarize(result: DailyResult, outcomes: list[runner.FeedOutcome]) -> None:
             "reactivated",
             "deactivated",
             "price_points",
+            "records_in_file",
         ),
         0,
     )
@@ -275,7 +276,8 @@ def _summarize(result: DailyResult, outcomes: list[runner.FeedOutcome]) -> None:
         elif report.status == "success":
             synced += 1
         else:
-            # Tamlik kapisi ya da deaktivasyon tavani: veri yazildi ama surum reddedildi.
+            # Butunluk/boyut kapisi (karar 0152: yazim yok), yazim sonrasi tamlik kapisi ya da
+            # deaktivasyon tavani: surum reddedildi, `last_success_at` ilerlemedi.
             rejected_gate += 1
             result.problem(f"feed_{outcome.feed_id}:{report.gate or report.status}")
     result.detail.update(totals)

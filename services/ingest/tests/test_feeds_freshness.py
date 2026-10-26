@@ -121,3 +121,41 @@ def test_detail_yalniz_duz_deger_ve_sirsiz() -> None:
     assert all(isinstance(v, str | int | float | bool) for v in detail.values())
     # Besleme adresi/kimligi taşınmaz.
     assert not any("http" in str(v) for v in detail.values())
+
+
+def test_reddedilen_surum_nedeniyle_raporlanir_ve_duz_kalir() -> None:
+    report = Freshness(merchant="aliexpress", now=NOW)
+    report.feeds = [
+        FeedFreshness(
+            7,
+            "6115:14267",
+            "active",
+            FeedState.BEHIND,
+            NOW - timedelta(hours=12),
+            NOW - timedelta(hours=18),
+            "truncated",
+            3_753_373,
+            rejected_reason="truncated",
+            rejected_at=NOW - timedelta(hours=1),
+            members_in_rejected=896_842,
+            members_missing=845_506,
+        )
+    ]
+    report.offers_active, report.offers_fresh, report.offers_stale = 3_753_373, 0, 3_753_373
+    detail = report.detail()
+    assert detail["feeds_rejected"] == 1
+    assert detail["rejected_reasons"] == "truncated"
+    assert detail["offers_in_rejected"] == 896_842
+    assert detail["offers_missing_from_latest"] == 845_506
+    assert detail["feeds_behind"] == 1
+    assert all(isinstance(v, str | int | float | bool) for v in detail.values())
+
+
+def test_reddedilen_surum_yoksa_ek_alan_yok() -> None:
+    report = Freshness(merchant="aliexpress", now=NOW)
+    report.feeds = [
+        FeedFreshness(1, "x", "active", FeedState.CURRENT, NOW, NOW, None, 10),
+    ]
+    detail = report.detail()
+    for key in ("feeds_rejected", "rejected_reasons", "offers_in_rejected"):
+        assert key not in detail

@@ -19,12 +19,14 @@ Indirme adresi kimlik bilgisi tasiyabilir: loglanmaz, hata metnine girmez.
 from __future__ import annotations
 
 import hashlib
+import json
 import os
+import re
 import shutil
 import tempfile
 import time
 import zlib
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import httpx
@@ -45,7 +47,9 @@ class DownloadError(Exception):
 
     @property
     def retryable(self) -> bool:
-        return self.code in {"http_5xx", "http_429", "network", "timeout"}
+        # `truncated`/`corrupt`: kesik akis gecici olabilir (kaynak ya da ara katman dosyayi
+        # yarim verdi); yeniden indirmek anlamli. Disk/boyut hatalari kalicidir.
+        return self.code in {"http_5xx", "http_429", "network", "timeout", "truncated", "corrupt"}
 
 
 @dataclass(frozen=True)
@@ -56,6 +60,70 @@ class Downloaded:
     bytes_decoded: int
     #: Ornek kipi: `stop_after_bytes` ile bilerek erken kesildi (dosya eksik).
     partial: bool = False
+    #: Izin listeli HTTP tanilama (adres, sorgu, kimlik bilgisi YOK); bkz. `http_diagnostics`.
+    diagnostics: dict[str, object] = field(default_factory=dict)
+
+
+#: Yanit basliklarindan yalnizca bunlar saklanir. Adres, sorgu, `Set-Cookie`, `Authorization`,
+#: `Location` gibi kimlik/sir tasiyabilecek hicbir sey kaydedilmez.
+DIAGNOSTIC_HEADERS = (
+    "content-length",
+    "content-encoding",
+    "transfer-encoding",
+    "content-type",
+    "etag",
+    "last-modified",
+    "date",
+    "accept-ranges",
+    "age",
+    "cf-cache-status",
+    "x-cache",
+)
+_SAFE_VALUE = re.compile(r"[^\w\s.,;:=/+()*\"'-]")
+DIAGNOSTICS_SUFFIX = ".http.json"
+
+
+def _safe_value(value: str) -> str | None:
+    """Adres/sir gibi gorunen degeri dusurur; geri kalani kirpar ve temizler."""
+    if "://" in value or "token" in value.lower() or "key=" in value.lower():
+        return None
+    return _SAFE_VALUE.sub("", value)[:120]
+
+
+def http_diagnostics(response: httpx.Response) -> dict[str, object]:
+    """Teshis icin yanit ozeti: durum, izin listeli basliklar, yonlendirme sayisi, host.
+
+    Yalnizca HOST yazilir (yol ve sorgu degil): indirme adresi kimlik bilgisi tasiyabilir.
+    """
+    out: dict[str, object] = {
+        "status": response.status_code,
+        "http_version": response.http_version,
+        "redirects": len(response.history),
+    }
+    host = response.url.host
+    if host:
+        out["host"] = host[:120]
+    headers: dict[str, str] = {}
+    for name in DIAGNOSTIC_HEADERS:
+        value = response.headers.get(name)
+        safe = _safe_value(value) if value else None
+        if safe:
+            headers[name] = safe
+    out["headers"] = headers
+    return out
+
+
+def diagnostics_path(target: Path) -> Path:
+    return target.with_name(target.name + DIAGNOSTICS_SUFFIX)
+
+
+def read_diagnostics(target: Path) -> dict[str, object]:
+    """Indirmeyle birlikte yazilan tanilama dosyasi; yoksa/bozuksa bos."""
+    try:
+        data = json.loads(diagnostics_path(target).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return data if isinstance(data, dict) else {}
 
 
 def _int_env(name: str, default: int) -> int:
@@ -125,6 +193,8 @@ def download(
                 raise DownloadError("http_5xx", str(response.status_code))
             if response.status_code != 200:
                 raise DownloadError("http_status", str(response.status_code))
+            diagnostics = http_diagnostics(response)
+            declared = response.headers.get("content-length", "")
             gzipped = response.headers.get("content-encoding", "").lower() == "gzip"
             inflater = zlib.decompressobj(16 + zlib.MAX_WBITS) if gzipped else None
             with partial.open("wb") as out:
@@ -149,9 +219,20 @@ def download(
                     digest.update(tail)
                     if not inflater.eof:
                         raise DownloadError("truncated", "gzip akisi tamamlanmadi")
+                if declared.isdigit() and not partial_sample and written != int(declared):
+                    # Sunucu "N bayt" dedi, N'den azini/cogunu verdi: dosya eksik/bozuk.
+                    raise DownloadError("truncated", f"content-length {declared} != {written}")
                 out.flush()
                 os.fsync(out.fileno())
+        diagnostics.update(
+            bytes_on_disk=written,
+            bytes_decoded=decoded,
+            gzip_complete=bool(inflater.eof) if inflater is not None else None,
+            sample=partial_sample,
+        )
         partial.replace(target)
+        # Tanilama indirmenin yanina yazilir (ingest_run.checkpoint'e senkronizasyon tasir).
+        diagnostics_path(target).write_text(json.dumps(diagnostics), encoding="utf-8")
     except DownloadError:
         partial.unlink(missing_ok=True)
         raise
@@ -167,4 +248,4 @@ def download(
     finally:
         if client is None:
             http.close()
-    return Downloaded(target, digest.hexdigest(), written, decoded, partial_sample)
+    return Downloaded(target, digest.hexdigest(), written, decoded, partial_sample, diagnostics)
