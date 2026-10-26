@@ -360,10 +360,36 @@ describe("yönetim ürün listesi: filtreler, panel, izleme - entegrasyon (gerç
     expect(monitor.maxProductId).toBeGreaterThanOrEqual(ids.d);
   });
 
-  it("filtre seçenekleri mağaza ve kategori ağacını verir", async () => {
+  it("filtre seçenekleri: mağazalar ve yalnız ana/ikinci seviye (binlerce kategori yüklenmez)", async () => {
     const options = await listProductFilterOptions(db, moderator);
     expect(options.merchants.some((m) => m.slug === merchants.src)).toBe(true);
+    // Karar 0153: ağaç binlerce düğümdür; seçim olmadan yalnız kök ve ikinci seviye gelir.
+    expect(options.categories.length).toBeGreaterThan(20);
+    expect(options.categories.length).toBeLessThan(600);
+    expect(Math.max(...options.categories.map((c) => c.depth))).toBeLessThanOrEqual(1);
+    expect(options.categories.filter((c) => c.depth === 0).length).toBeGreaterThanOrEqual(10);
+    expect(options.categories.some((c) => c.path === childPath)).toBe(false);
+  });
+
+  it("filtre seçenekleri: seçili derin kategori ve ataları/çocukları görünür kalır", async () => {
+    const options = await listProductFilterOptions(db, moderator, childPath);
+    const paths = options.categories.map((c) => c.path);
+    expect(paths).toContain(childPath); // seçim her zaman görünür
     expect(options.categories.find((c) => c.path === childPath)?.depth).toBeGreaterThan(1);
+    // Her ata görünür (ağaç boyunca inilebilir).
+    const parts = childPath.split("/");
+    for (let i = 1; i <= parts.length; i++) expect(paths).toContain(parts.slice(0, i).join("/"));
+    // Sıralı ve sınırlı: tüm ağaç dönmez.
+    expect(paths).toEqual([...paths].sort());
+    expect(paths.length).toBeLessThan(1000);
+  });
+
+  it("filtre seçenekleri: geçersiz/zararlı kategori yolu yok sayılır", async () => {
+    const plain = await listProductFilterOptions(db, moderator);
+    for (const bad of ["x') OR 1=1 --", "A/B", "a//b", "../etc", "", "a".repeat(400), "none"]) {
+      const options = await listProductFilterOptions(db, moderator, bad);
+      expect(options.categories).toEqual(plain.categories);
+    }
   });
 
   it("bilinmeyen marka adı ve olmayan kategori yolu boş sonuç verir (kimlik dizisi boş)", async () => {

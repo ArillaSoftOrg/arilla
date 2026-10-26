@@ -454,21 +454,43 @@ export async function getClassificationMonitor(
   });
 }
 
-/** Filtre seçenekleri: mağazalar ve kategori ağacı (ikisi de küçük tablo). */
+/** Kategori yolu biçimi (`category.path`): küçük harf, rakam, tire; `/` ile bölümlenir. */
+const CATEGORY_PATH = /^[a-z0-9][a-z0-9-]*(\/[a-z0-9][a-z0-9-]*){0,9}$/;
+
+/**
+ * Filtre seçenekleri: mağazalar ve kategori ağacının YALNIZ görünen kısmı (karar 0153).
+ *
+ * Ağaç binlerce düğümdür (Trendyol entegrasyonu); hepsini her istekte yüklemek ve tek bir
+ * `<select>`e basmak yerine ana kategoriler ve ikinci seviye gelir. Seçili bir kategori varsa
+ * onun atalarıyla ve ata/kendi çocuklarıyla genişler: seçim her zaman görünür ve altına
+ * inilebilir (seç, uygula, bir seviye daha). Filtrenin kendisi (`kategori=<yol>` + alt dallar)
+ * ve URL sözleşmesi değişmez. Tüm ağaç döndürülmez; üst sınır 1000 satırdır.
+ */
 export async function listProductFilterOptions(
   db: Database,
   actor: AdminActor,
+  selectedCategory?: string | null,
 ): Promise<{
   merchants: { slug: string; name: string; isActive: boolean }[];
   categories: { path: string; name: string; depth: number }[];
 }> {
   assertCapability(actor, "catalog.read");
+  const selected =
+    selectedCategory && CATEGORY_PATH.test(selectedCategory) ? selectedCategory : null;
+  // Seçili yolun kendisi ve tüm ataları ("a/b/c" -> a, a/b, a/b/c).
+  const expand = selected
+    ? selected.split("/").map((_, index, parts) => parts.slice(0, index + 1).join("/"))
+    : [];
   return readOnly(db, 2_000, async (tx) => {
     const merchants = await tx.execute<{ slug: string; name: string; is_active: boolean }>(
       sql`SELECT slug, name, is_active FROM merchant ORDER BY is_active DESC, name LIMIT 500`,
     );
     const categories = await tx.execute<{ path: string; name: string }>(
-      sql`SELECT path, name FROM category ORDER BY path LIMIT 1000`,
+      sql`SELECT path, name FROM category
+           WHERE position('/' IN path) <= 1
+              OR path = ANY(${sql.param(expand)}::text[])
+              OR regexp_replace(path, '/[^/]+$', '') = ANY(${sql.param(expand)}::text[])
+           ORDER BY path LIMIT 1000`,
     );
     return {
       merchants: merchants.rows.map((m) => ({ slug: m.slug, name: m.name, isActive: m.is_active })),

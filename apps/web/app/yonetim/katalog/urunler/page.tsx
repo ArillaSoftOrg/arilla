@@ -99,7 +99,8 @@ export default async function ProductsPage({
   const params = await searchParams;
   const parsed = parseProductListParams(params);
   const { state, panelId } = parsed;
-  const options = await listProductFilterOptions(getDatabase(), actor);
+  // Kategori seçeneklerinde yalnız ana/ikinci seviye + seçili dal gelir (karar 0153).
+  const options = await listProductFilterOptions(getDatabase(), actor, state.kategori);
   const activeCount = activeFilterCount(state);
   const cursor = { once: params.once, sonra: params.sonra };
 
@@ -161,7 +162,7 @@ export default async function ProductsPage({
               />
             </label>
             <SelectField
-              label="Kategori (alt dallar dahil)"
+              label="Kategori (alt dallar dahil; seçince bir alt seviye açılır)"
               name="kategori"
               value={state.kategori ?? ""}
             >

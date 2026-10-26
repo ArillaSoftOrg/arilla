@@ -21,7 +21,8 @@
     "db:lint-migrations": "node scripts/lint-migrations.ts",
     "db:trendyol-categories": "node scripts/trendyol-categories.ts",
     "db:hepsiburada-categories": "node scripts/hepsiburada-categories.ts",
-    "test": "node --test scripts/lib.test.ts scripts/migration-lint.test.ts scripts/db-health-lib.test.ts scripts/trendyol-categories-lib.test.ts scripts/hepsiburada-categories-lib.test.ts"
+    "db:trendyol-category-tree": "node scripts/trendyol-category-tree.ts",
+    "test": "node --test scripts/lib.test.ts scripts/migration-lint.test.ts scripts/db-health-lib.test.ts scripts/trendyol-categories-lib.test.ts scripts/hepsiburada-categories-lib.test.ts scripts/trendyol-category-tree-lib.test.ts"
   },
   "dependencies": {
     "drizzle-orm": "^0.45.2",
