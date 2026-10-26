@@ -57,7 +57,8 @@ def _cleanup(cur: psycopg.Cursor) -> None:
     cur.execute(f"DELETE FROM source_snapshot WHERE feed_source_id IN ({feeds})")
     cur.execute(f"DELETE FROM feed_source WHERE network = '{NETWORK}'")
     cur.execute("DELETE FROM merchant WHERE domain = %s OR slug = 't0142-other'", (DOMAIN,))
-    cur.execute("DELETE FROM job_run WHERE job = 'feed_daily'")
+    jobs = "'feed_daily', 'feed_drop_approval', 'feed_drop_accepted'"
+    cur.execute(f"DELETE FROM job_run WHERE job IN ({jobs})")
 
 
 @dataclass
@@ -439,14 +440,96 @@ def test_tum_denemeler_kesikse_kosu_partial_ve_basarisiz_cikar(
     assert code != 0
 
 
-def test_kesik_deneme_no_deactivate_ve_kapilari_korur(env: Env) -> None:
+def _no_deactivate(env: Env) -> None:
     env.owner.execute(
         "UPDATE feed_source SET config = config || %s::jsonb WHERE id = %s",
         ('{"no_deactivate": true}', env.feed_id),
     )
+
+
+def _prices(env: Env) -> list[int]:
+    rows = env.owner.execute(
+        "SELECT current_price FROM offer WHERE merchant_id = %s ORDER BY external_id",
+        (env.merchant_id,),
+    ).fetchall()
+    return [int(r[0]) for r in rows]
+
+
+def test_kesik_deneme_no_deactivate_ve_kapilari_korur(env: Env) -> None:
+    """#224'un senaryosu (kesik ilk teslimat + kaynak 3 urunu cikarmis, `no_deactivate`).
+
+    #224 bunu "yeniden dene, ikinci teslimat basarili" diye dogruluyordu: %70'lik dusus
+    sessizce kabul ediliyordu. Karar 0152 ile %85 altindaki dusus acik onay ister; test
+    bu yuzden yeni davranisi dogrular, esigi gevsetmez:
+
+    1. kesik ilk teslimat yeniden denenir ve hicbir sey yazmaz (#224'un amaci korunur);
+    2. ikinci teslimat TAM ama %70: karantina, yeniden denenmez, sifir yazim;
+    3. acik onaydan sonra ayni icerik kabul edilir, `no_deactivate` korunur (hicbir teklif
+       pasiflesmez), kapi atlanmaz.
+    """
+    from feeds import approvals
+
+    _no_deactivate(env)
     env.load(items(10, price="10.00"))
     env.fx()
-    # Kaynak 1 urunu cikarmis (%90, karar 0152 esiginin ustu); ilk teslimat kesik.
+    target = [offer(i, price="12.00") for i in ids(7)]
+    env.publish(target)
+    before_pp, before_prices = price_points(env), _prices(env)
+    env.net.contents = [_cut(target), _full(target)]
+
+    result = env.daily()
+    d = result.detail  # type: ignore[attr-defined]
+    assert result.status == "partial"  # type: ignore[attr-defined]
+    assert d["attempts"] == 2 and env.net.downloads == 2  # kesik denendi, %70 denenmedi
+    assert f"feed_{env.feed_id}:too_few_records" in result.problems  # type: ignore[attr-defined]
+    assert (d["records"], d["deactivated"]) == (0, 0)
+    assert price_points(env) == before_pp and _prices(env) == before_prices  # sifir yazim
+    statuses = [
+        r[0]
+        for r in env.owner.execute(
+            "SELECT reject_reason FROM source_snapshot WHERE feed_source_id = %s"
+            " AND status = 'rejected' ORDER BY id",
+            (env.feed_id,),
+        ).fetchall()
+    ]
+    assert statuses[-2:] == ["truncated", "too_few_records"]
+
+    # Ayni icerik bir sonraki gun yine gelir: onay OLMADAN yine karantina.
+    env.publish(target)
+    env.net.contents = [_full(target)]
+    again = env.daily()
+    assert f"feed_{env.feed_id}:too_few_records" in again.problems  # type: ignore[attr-defined]
+    assert price_points(env) == before_pp
+
+    # Insan onayi sonrasi kabul edilir.
+    (snapshot_id,) = env.one(
+        "SELECT max(id) FROM source_snapshot WHERE feed_source_id = %s"
+        " AND reject_reason = 'too_few_records'",
+        (env.feed_id,),
+    )
+    approvals.approve(
+        env.app, env.feed_id, int(snapshot_id), by="yusuf", reason="kaynak 3 urunu cikardi (test)"
+    )
+    env.publish(target)
+    env.net.contents = [_full(target)]
+    approved = env.daily()
+    assert approved.status == "success", approved.problems  # type: ignore[attr-defined]
+    assert approved.detail["deactivated"] == 0  # type: ignore[attr-defined]
+    active = env.one(
+        "SELECT count(*) FILTER (WHERE is_active) FROM offer WHERE merchant_id = %s",
+        (env.merchant_id,),
+    )[0]
+    assert active == 10  # `no_deactivate`: kaynakta olmayan 3 teklif pasiflesmedi
+    assert _prices(env).count(1200) == 7  # onayli 7 teklifin fiyati yazildi
+
+
+def test_kesik_ilk_teslimat_sonrasi_mesru_kucuk_dusus_yeniden_denemeyle_kabul_edilir(
+    env: Env,
+) -> None:
+    """#224'un yeniden deneme davranisi esigin ustundeki (%90) dususte aynen calisir."""
+    _no_deactivate(env)
+    env.load(items(10, price="10.00"))
+    env.fx()
     target = [offer(i, price="12.00") for i in ids(9)]
     env.publish(target)
     env.net.contents = [_cut(target), _full(target)]

@@ -20,8 +20,9 @@ Akis:
    `</offer>`, en az bir kayit; ayrica kayit sayisi son tam surumlerin medyaninin
    `min_ratio_vs_median` (%85) altindaysa karantina (`too_few_records`). Gecmezse surum
    `rejected`, HICBIR offer/price_point/uyelik yazilmaz, dosya silinir. Kesik dosya
-   (`truncated`) yeniden denenir; ayni icerik `drop_confirm_hours` sonra yine gelirse
-   mesru kuculme sayilir ve kabul edilir (kalici engel yok).
+   (`truncated`) yeniden denenir. Karantina OTOMATIK kalkmaz: mesru kuculme icin bir insan
+   `feeds approve-drop` ile o icerigi (sha256) acikca onaylar (`feeds.approvals`; denetim izi
+   `job_run`). Onay yalniz kayit sayisi kapisini gecirir, diger kapilar aynen calisir.
 5. Tamlik kapisi (yazimdan sonra, onlem): dosya sonuna hatasiz ulasildi, red orani
    esigin altinda, kayit sayisi son tam surumlerin medyaninin %85'inden az degil.
    Gecmezse surum `rejected`: birlestirilen kayitlar kalir, HICBIR offer pasiflesmez.
@@ -55,7 +56,7 @@ from collect.images import SelectedImage
 from db import product_aggregates
 from db.connection import env
 from enrich import text as text_builder
-from feeds import integrity
+from feeds import approvals, integrity
 from feeds.download import (
     DownloadError,
     cleanup_staging,
@@ -99,9 +100,6 @@ class SyncSettings:
     #: Bu kadar beklemede dusmezse senkronizasyon guvenle durur (kaldigi yerden devam).
     max_archive_wait_seconds: float = 1800.0
     download_attempts: int = 3
-    #: Boyut dususu nedeniyle karantinaya alinan AYNI icerik (sha256) bu kadar saat sonra
-    #: yine gelirse mesru kuculme sayilir ve islenir (karar 0152).
-    drop_confirm_hours: float = 6.0
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> SyncSettings:
@@ -113,7 +111,6 @@ class SyncSettings:
                 "min_ratio_vs_median",
                 "max_deactivate_ratio",
                 "deactivate_grace_hours",
-                "drop_confirm_hours",
             )
             if isinstance(config.get(key), int | float)
         }
@@ -153,8 +150,8 @@ class SyncReport:
     #: Yazmadan onceki tarama (karar 0152): dosyadaki tam kayit sayisi ve sure.
     records_in_file: int = 0
     integrity_seconds: float = 0.0
-    #: Boyut dususu daha once karantinaya alinmis ayni icerikle dogrulandi ve kabul edildi.
-    drop_confirmed: bool = False
+    #: Kayit dususu bir insan tarafindan ACIKCA onaylanmis icerikle kabul edildi (karar 0152).
+    drop_approved: bool = False
 
     def detail(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items() if v not in (None, False)}
@@ -930,15 +927,13 @@ class FeedSync:
     def _size_drop(
         self, feed: FeedRow, settings: SyncSettings, snapshot_id: int, sha: str, records: int
     ) -> tuple[bool, float]:
-        """(engelle, onceki_medyan). Anormal dusus karantinaya alinir, kalici engellenmez.
+        """(engelle, onceki_medyan). Anormal dusus karantinaya alinir; kendiliginden kalkmaz.
 
         Karar 0152: son tam surumlerin medyaninin `min_ratio_vs_median` altindaki dosya
-        reddedilir (kesik/bozuk kaynak). Ayni icerik (sha256) `drop_confirm_hours` once de
-        karantinaya alinmissa kaynak DEGISMEMIS demektir: mesru kuculme olarak kabul edilir.
-        `size_guard: false` besleme ayariyla kapatilabilir.
+        reddedilir. Ayni icerigin tekrar gelmesi ya da sure gecmesi onay SAYILMAZ. Yalnizca
+        `feeds approve-drop` ile bu beslemenin BU icerigi (sha256) icin verilmis, sureli ve
+        kullanilmamis bir onay varsa gecer (`feeds.approvals`). Kapatma ayari yoktur.
         """
-        if feed.config.get("size_guard") is False:
-            return False, 0.0
         previous = [
             int(row[0])
             for row in self._fetchall(
@@ -953,24 +948,27 @@ class FeedSync:
         median = float(statistics.median(previous))
         if records >= settings.min_ratio_vs_median * median:
             return False, median
-        earlier = self._exec(
-            """SELECT 1 FROM source_snapshot
-                WHERE feed_source_id = %s AND sha256 = %s AND id <> %s
-                  AND status = 'rejected' AND reject_reason = 'too_few_records'
-                  AND completed_at <= now() - make_interval(secs => %s) LIMIT 1""",
-            (feed.id, sha, snapshot_id, settings.drop_confirm_hours * 3600),
+        approval = approvals.find_valid(self.conn, feed.id, sha, snapshot_id=snapshot_id)
+        if approval is None:
+            return True, median
+        approvals.record_accepted(
+            self.conn,
+            approval,
+            feed_id=feed.id,
+            snapshot_id=snapshot_id,
+            sha256=sha,
+            records=records,
+            median=median,
         )
-        self.conn.commit()
-        if earlier:
-            self.report.drop_confirmed = True
-            logger.warning(
-                "besleme %s: kayit dususu dogrulandi (%s < medyan %.0f), kabul edildi",
-                feed.id,
-                records,
-                median,
-            )
-            return False, median
-        return True, median
+        self.report.drop_approved = True
+        logger.warning(
+            "besleme %s: kayit dususu onayli (%s < medyan %.0f, onay %s), kabul edildi",
+            feed.id,
+            records,
+            median,
+            approval,
+        )
+        return False, median
 
     def _reject_before_write(
         self,
@@ -1229,7 +1227,12 @@ class FeedSync:
             # Kismi kaynak (yonetici toplamasi, karar 0117): her kosu farkli bir alt kume olabilir;
             # kayit sayisi karsilastirmasi anlamsiz ve hicbir sey pasiflesmeyecek.
             return None
-        if previous and r.records < settings.min_ratio_vs_median * statistics.median(previous):
+        # Onayli dusus (karar 0152): kapi yazimdan once zaten insan onayiyla gecirildi.
+        if (
+            previous
+            and not r.drop_approved
+            and r.records < settings.min_ratio_vs_median * statistics.median(previous)
+        ):
             return "too_few_records"
         return None
 

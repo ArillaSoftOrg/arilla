@@ -6,6 +6,7 @@ de sinanir. Kurulum ve temizlik sahip rolle.
 
 from __future__ import annotations
 
+import gzip
 import json
 from collections.abc import Iterator
 from dataclasses import dataclass
@@ -16,7 +17,7 @@ import psycopg
 import pytest
 
 from db.connection import database_url
-from feeds import discovery
+from feeds import approvals, discovery
 from feeds.network import DiscoveredFeed
 from feeds.sync import FeedSync, SyncAborted, SyncSettings, _Crash
 from resolve.pipeline import PENDING_OFFERS
@@ -58,6 +59,9 @@ def _cleanup(cur: psycopg.Cursor) -> None:
     cur.execute(f"DELETE FROM source_snapshot WHERE feed_source_id IN ({feeds})")
     cur.execute("DELETE FROM feed_source WHERE network = 'test0112'")
     cur.execute("DELETE FROM merchant WHERE domain = %s", (DOMAIN,))
+    cur.execute("DELETE FROM product WHERE slug = 't0112-guard'")
+    # Onay denetim izi (karar 0152) test veritabanina aittir; testler arasi sizmasin.
+    cur.execute("DELETE FROM job_run WHERE job IN ('feed_drop_approval', 'feed_drop_accepted')")
 
 
 @dataclass
@@ -608,10 +612,11 @@ def test_kesik_beslemede_neden_kayda_gecer(env: Env) -> None:
 NO_DEACTIVATE = {**AE_PROFILE, "no_deactivate": True}
 
 
-def writes_of(env: Env) -> tuple[int, ...]:
-    """Bu merchant'in tum yazilabilir izleri: bir sey degisirse demet degisir."""
+def writes_of(env: Env) -> tuple[object, ...]:
+    """Merchant izleri (teklif, fiyat, urun, uyelik...): bir sey yazilirsa demet degisir."""
     m = (env.merchant_id,)
     offers = "SELECT id FROM offer WHERE merchant_id = %s"
+    products = "SELECT product_id FROM offer WHERE merchant_id = %s AND product_id IS NOT NULL"
     rows = [
         "SELECT count(*) FROM offer WHERE merchant_id = %s",
         f"SELECT count(*) FROM price_point WHERE offer_id IN ({offers})",
@@ -621,10 +626,74 @@ def writes_of(env: Env) -> tuple[int, ...]:
         "SELECT count(*) FROM seller WHERE merchant_id = %s",
         "SELECT coalesce(sum(current_price), 0)::bigint FROM offer WHERE merchant_id = %s",
         "SELECT count(*) FROM offer WHERE merchant_id = %s AND NOT is_active",
-        f"SELECT coalesce(max(last_snapshot_id), 0) FROM feed_source_offer "
+        "SELECT coalesce(max(last_changed_at)::text || max(last_seen_at)::text, '') FROM offer "
+        "WHERE merchant_id = %s",
+        "SELECT coalesce(max(last_snapshot_id), 0) FROM feed_source_offer "
         f"WHERE offer_id IN ({offers})",
+        f"SELECT count(*) FROM product WHERE id IN ({products})",
+        "SELECT coalesce(md5(string_agg(p.id::text || ':' || coalesce(p.min_price, 0)::text"
+        " || ':' || p.offer_count::text || ':' || p.in_stock_count::text || ':'"
+        " || p.updated_at::text, ',' ORDER BY p.id)), '') FROM product p"
+        f" WHERE p.id IN ({products})",
+        "SELECT count(*) FROM ingest_error WHERE feed_source_id IN "
+        "(SELECT id FROM feed_source WHERE merchant_id = %s)",
     ]
-    return tuple(int(env.one(sql, m)[0]) for sql in rows)
+    return tuple(env.one(sql, m)[0] for sql in rows)
+
+
+def link_product(env: Env, count: int = 5) -> int:
+    """Birkac teklifi bir urune baglar: yazim olsaydi urun ozeti (min_price...) degisirdi."""
+    with env.owner.cursor() as cur:
+        cur.execute("UPDATE merchant SET is_active = TRUE WHERE id = %s", (env.merchant_id,))
+        cur.execute("INSERT INTO product (slug, title) VALUES ('t0112-guard', 'Test') RETURNING id")
+        row = cur.fetchone()
+        assert row
+        product_id = int(row[0])
+        cur.execute(
+            """UPDATE offer SET product_id = %s WHERE id IN
+                   (SELECT id FROM offer WHERE merchant_id = %s ORDER BY id LIMIT %s)""",
+            (product_id, env.merchant_id, count),
+        )
+        cur.execute(
+            "UPDATE product SET min_price = 1, offer_count = 99 WHERE id = %s", (product_id,)
+        )
+    return product_id
+
+
+def unlink_product(env: Env, product_id: int) -> None:
+    with env.owner.cursor() as cur:
+        cur.execute("UPDATE offer SET product_id = NULL WHERE product_id = %s", (product_id,))
+        cur.execute("DELETE FROM product WHERE id = %s", (product_id,))
+
+
+def run_bytes(
+    env: Env,
+    feed_id: int,
+    data: bytes,
+    *,
+    at: datetime = T0,
+    name: str = "raw.xml",
+    gz: bool = False,
+    **kw: object,
+):
+    """Ham baytlarla senkronizasyon (kesik/bozuk/yanlis icerik senaryolari)."""
+    path = write(env.tmp / name, data, gz=gz)
+    sync = FeedSync(
+        env.app,
+        feed_id,
+        source_path=path,
+        observed_at=at,
+        settings=SyncSettings(chunk_size=10, pause_ms=0),
+        sleep=lambda _s: None,
+        **kw,
+    )  # type: ignore[arg-type]
+    return sync.run(force=True)
+
+
+def approve_drop(env: Env, feed_id: int, snapshot_id: int, **kw: object) -> int:
+    values = {"by": "ops-test", "reason": "katalog bilincli olarak kuculdu (test)", **kw}
+    # Uygulama rolu: CLI uretimde de bu rolle calisir (job_run yazma yetkisi sinanir).
+    return approvals.approve(env.app, feed_id, snapshot_id, **values)  # type: ignore[arg-type]
 
 
 def test_kesik_besleme_hicbir_satir_yazmaz(env: Env) -> None:
@@ -662,28 +731,21 @@ def test_kesik_besleme_hicbir_satir_yazmaz(env: Env) -> None:
 
 def test_kesik_ilk_yukleme_hicbir_sey_yazmaz(env: Env) -> None:
     fid = env.feed(config=NO_DEACTIVATE)
+    empty = writes_of(env)
     report = env.run(fid, [offer(i) for i in ids(50)], truncate=True)
     assert report.gate == "truncated"
-    assert writes_of(env) == (0,) * 9
+    assert writes_of(env) == empty
+    assert offers_of(env) == 0
 
 
 def test_kapanis_etiketsiz_tam_kayitli_dosya_da_reddedilir(env: Env) -> None:
     """Dosya kayit sinirinda bitti (gzip/HTTP duzeyinde "tamam"): kapanis etiketi yok."""
     fid = env.feed(config=NO_DEACTIVATE)
-    path = env.tmp / "cut-at-boundary.xml"
+    empty = writes_of(env)
     data = yml([offer(i) for i in ids(40)])
-    path.write_bytes(data[: data.rindex(b"</offers>")])
-    sync = FeedSync(
-        env.app,
-        fid,
-        source_path=path,
-        observed_at=T0,
-        settings=SyncSettings(chunk_size=10, pause_ms=0),
-        sleep=lambda _s: None,
-    )
-    report = sync.run(force=True)
+    report = run_bytes(env, fid, data[: data.rindex(b"</offers>")])
     assert report.gate == "truncated" and report.records_in_file == 40
-    assert writes_of(env) == (0,) * 9
+    assert writes_of(env) == empty
 
 
 def test_anormal_dusus_yazilmadan_karantinaya_alinir(env: Env) -> None:
@@ -711,40 +773,326 @@ def test_mesru_kucuk_dusus_engellenmez(env: Env) -> None:
     assert (report.status, report.gate) == ("success", None)
 
 
-def test_mesru_kuculme_ayni_icerik_onay_suresi_sonra_kabul_edilir(env: Env) -> None:
-    """Katalog gercekten kuculdu: ayni icerik 6 saat sonra yine gelirse kalici engel yok."""
-    fid = env.feed(config=NO_DEACTIVATE)
+SMALL = [offer(i, price="5.00") for i in ids(40)]
+
+
+def quarantine_once(env: Env, fid: int, *, at: datetime = T0 + timedelta(days=1)):
+    """100 teklifli tam surum + 40 teklifli (%40) dosya: karantinaya alinan raporu doner."""
     env.run(fid, [offer(i) for i in ids(100)])
-    small = [offer(i) for i in ids(40)]
-    first = env.run(fid, small, at=T0 + timedelta(days=1), name="small.xml")
-    assert first.gate == "too_few_records"
-    # Hemen tekrar: onay suresi dolmadi, hala karantina.
-    again = env.run(fid, small, at=T0 + timedelta(days=1, hours=1), name="small.xml")
-    assert again.gate == "too_few_records" and not again.drop_confirmed
-    # Farkli icerik (kucuk) onayi sifirlar: sha256 eslesmez.
+    report = env.run(fid, SMALL, at=at, name="small.xml")
+    assert report.gate == "too_few_records"
+    return report
+
+
+def test_karantina_kendiliginden_kalkmaz_ayni_icerik_zaman_ve_sayi(env: Env) -> None:
+    """Ayni icerik tekrar gelse, gunler/saatler gecse, kayit sayisi artsa da onay SAYILMAZ."""
+    fid = env.feed(config=NO_DEACTIVATE)
+    first = quarantine_once(env, fid)
+    before = writes_of(env)
+    for days in (1, 2, 9):
+        with env.owner.cursor() as cur:  # tum karantina kayitlarini eskit: sure gecmesi
+            cur.execute(
+                "UPDATE source_snapshot SET completed_at = completed_at - interval '30 hours' "
+                "WHERE feed_source_id = %s AND status = 'rejected'",
+                (fid,),
+            )
+        again = env.run(fid, SMALL, at=T0 + timedelta(days=days + 1), name="small.xml")
+        assert (again.status, again.gate, again.drop_approved) == (
+            "partial",
+            "too_few_records",
+            False,
+        )
+    # Sayi artsa da %85 altindaysa (80/100) hala karantina; esigin ustu (90) gecer.
+    low = env.run(fid, [offer(i) for i in ids(80)], at=T0 + timedelta(days=12), name="eighty.xml")
+    assert low.gate == "too_few_records"
+    assert writes_of(env) == before
+    assert first.snapshot_id != low.snapshot_id
+    assert not [q for q in approvals.quarantined(env.app, fid) if q.approval_id]
+
+
+def test_acik_onay_ayni_icerigi_bir_kez_kabul_ettirir_ve_denetim_izi_birakir(env: Env) -> None:
+    fid = env.feed(config=NO_DEACTIVATE)
+    first = quarantine_once(env, fid)
+    (waiting,) = approvals.quarantined(env.app, fid)
+    assert (waiting.snapshot_id, waiting.records, waiting.approval_id) == (
+        first.snapshot_id,
+        40,
+        None,
+    )
+    approval = approve_drop(
+        env, fid, first.snapshot_id, by="yusuf", reason="katalog daraldi (test)"
+    )
+
+    accepted = env.run(fid, SMALL, at=T0 + timedelta(days=2), name="small.xml")
+    assert (accepted.status, accepted.gate, accepted.drop_approved) == ("success", None, True)
+    assert accepted.records == 40 and accepted.price_points == 40
+    # `no_deactivate` korunur: eksik 60 teklif pasiflesmez.
+    assert active_of(env) == 100
+    # Denetim izi: kim, neden, hangi surum/icerik; kabul de kayitli.
+    row = env.one(
+        """SELECT detail ->> 'approved_by', detail ->> 'reason', detail ->> 'snapshot_id',
+                  length(detail ->> 'sha256') FROM job_run WHERE id = %s""",
+        (approval,),
+    )
+    assert row == ("yusuf", "katalog daraldi (test)", str(first.snapshot_id), 64)
+    used = env.one(
+        """SELECT detail ->> 'approval_id', detail ->> 'snapshot_id', detail ->> 'records'
+             FROM job_run WHERE job = 'feed_drop_accepted' AND detail ->> 'feed_id' = %s""",
+        (str(fid),),
+    )
+    assert used == (str(approval), str(accepted.snapshot_id), "40")
+
+    # Tek kullanim: tam surum geri geldi, sonra AYNI kucuk icerik yine dustu: yeni onay ister.
+    env.run(fid, [offer(i) for i in ids(100)], at=T0 + timedelta(days=3), name="full.xml")
+    env.run(
+        fid, [offer(i, price="6.00") for i in ids(100)], at=T0 + timedelta(days=4), name="f2.xml"
+    )
+    again = env.run(fid, SMALL, at=T0 + timedelta(days=5), name="small.xml")
+    assert (again.gate, again.drop_approved) == ("too_few_records", False)
+
+
+def test_onay_yalniz_onaylanan_icerik_icin_gecerli(env: Env) -> None:
+    fid = env.feed(config=NO_DEACTIVATE)
+    first = quarantine_once(env, fid)
+    approve_drop(env, fid, first.snapshot_id)
+    other = [offer(i, price="7.77") for i in ids(40)]  # ayni sayi, FARKLI icerik
+    report = env.run(fid, other, at=T0 + timedelta(days=2), name="other.xml")
+    assert (report.gate, report.drop_approved) == ("too_few_records", False)
+
+
+def test_onay_suresi_dolar(env: Env) -> None:
+    fid = env.feed(config=NO_DEACTIVATE)
+    first = quarantine_once(env, fid)
+    approval = approve_drop(env, fid, first.snapshot_id, ttl_days=3)
     with env.owner.cursor() as cur:
         cur.execute(
-            "UPDATE source_snapshot SET completed_at = now() - interval '7 hours' "
-            "WHERE feed_source_id = %s AND reject_reason = 'too_few_records'",
-            (fid,),
+            "UPDATE job_run SET started_at = now() - interval '4 days' WHERE id = %s", (approval,)
         )
-    other = env.run(
-        fid, [offer(i, price="7.77") for i in ids(40)], at=T0 + timedelta(days=2), name="o.xml"
+    report = env.run(fid, SMALL, at=T0 + timedelta(days=2), name="small.xml")
+    assert (report.gate, report.drop_approved) == ("too_few_records", False)
+
+
+def test_onay_dogrulamalari(env: Env) -> None:
+    fid = env.feed(config=NO_DEACTIVATE)
+    other_fid = env.feed("6115:2", config=NO_DEACTIVATE)
+    first = quarantine_once(env, fid)
+    sid = first.snapshot_id
+    ok = {"by": "yusuf", "reason": "katalog daraldi (test)"}
+
+    def refused(feed: int, snapshot: int, **kw: object) -> str:
+        with pytest.raises(approvals.ApprovalError) as error:
+            approvals.approve(env.app, feed, snapshot, **{**ok, **kw})  # type: ignore[arg-type]
+        return str(error.value)
+
+    assert "bu beslemeye ait degil" in refused(other_fid, sid)
+    assert "bu beslemeye ait degil" in refused(fid, sid + 999)
+    assert "--reason" in refused(fid, sid, reason="kisa")
+    assert "--by" in refused(fid, sid, by="x")
+    assert "--ttl-days" in refused(fid, sid, ttl_days=99)
+    # Kesik dosya onaylanamaz: yalniz `too_few_records`.
+    cut = env.run(fid, SMALL, at=T0 + timedelta(days=2), truncate=True, name="cut.xml")
+    assert cut.gate == "truncated"
+    assert "kesik/bos dosya onaylanamaz" in refused(fid, cut.snapshot_id)
+    # Tam (complete) surum onaylanamaz.
+    complete = env.one(
+        "SELECT max(id) FROM source_snapshot WHERE feed_source_id = %s AND status = 'complete'",
+        (fid,),
+    )[0]
+    assert "yalniz 'too_few_records'" in refused(fid, int(complete))
+    # Gecerli onay bir kez; ikincisi reddedilir.
+    approve_drop(env, fid, sid)
+    assert "zaten var" in refused(fid, sid)
+    # Karantina eskidi (daha yeni tam surum geldi): onay verilemez.
+    env.run(
+        fid,
+        [offer(i, price="23.00") for i in ids(100)],
+        at=T0 + timedelta(days=3),
+        name="again.xml",
     )
-    assert other.gate == "too_few_records"
-    # Ayni icerik, onay suresi dolduktan sonra: kabul edilir ve normal yazilir.
-    accepted = env.run(fid, small, at=T0 + timedelta(days=3), name="small.xml")
-    assert (accepted.status, accepted.gate, accepted.drop_confirmed) == ("success", None, True)
-    assert accepted.records == 40
-    # `no_deactivate` korunur: eksik 60 urun pasiflesmez.
+    assert "eskimis" in refused(fid, sid)
+
+
+def test_onayli_surum_yarim_kalirsa_ayni_onayla_surer(env: Env) -> None:
+    fid = env.feed(config=NO_DEACTIVATE)
+    first = quarantine_once(env, fid)
+    approve_drop(env, fid, first.snapshot_id)
+    with pytest.raises(_Crash):
+        env.run(fid, SMALL, at=T0 + timedelta(days=2), name="small.xml", fail_after_chunks=1)
+    resumed = env.run(fid, SMALL, at=T0 + timedelta(days=2), name="small.xml")
+    assert (resumed.status, resumed.drop_approved) == ("success", True)
+    used = env.one(
+        "SELECT count(*) FROM job_run WHERE job = 'feed_drop_accepted' "
+        "AND detail ->> 'feed_id' = %s",
+        (str(fid),),
+    )[0]
+    assert used == 1
+
+
+def test_onay_yalniz_kayit_sayisi_kapisini_gecirir_deaktivasyon_tavani_kalir(env: Env) -> None:
+    """`no_deactivate` OLMAYAN besleme: onayli kucuk surum yazilir ama 60 teklif pasiflesmez."""
+    fid = env.feed()  # AE_PROFILE: deaktivasyon acik
+    first = quarantine_once(env, fid)
+    approve_drop(env, fid, first.snapshot_id)
+    report = env.run(fid, SMALL, at=T0 + timedelta(days=2), name="small.xml")
+    assert report.drop_approved and report.records == 40
+    assert (report.status, report.gate, report.deactivated) == ("partial", "deactivation_cap", 0)
     assert active_of(env) == 100
 
 
-def test_size_guard_kapatilabilir(env: Env) -> None:
-    fid = env.feed(config={**NO_DEACTIVATE, "size_guard": False})
-    env.run(fid, [offer(i) for i in ids(100)])
-    report = env.run(fid, [offer(i) for i in ids(40)], at=T0 + timedelta(days=1))
-    assert (report.status, report.gate) == ("success", None)
+def test_onay_diger_kapilari_atlamaz_kesik_dosya_onayliyken_de_reddedilir(env: Env) -> None:
+    fid = env.feed(config=NO_DEACTIVATE)
+    first = quarantine_once(env, fid)
+    approve_drop(env, fid, first.snapshot_id)
+    before = writes_of(env)
+    report = env.run(fid, SMALL, at=T0 + timedelta(days=2), truncate=True, name="cut.xml")
+    assert (report.gate, report.drop_approved) == ("truncated", False)
+    assert writes_of(env) == before
+
+
+def test_cli_karantina_ve_onay(env: Env, capsys: pytest.CaptureFixture[str]) -> None:
+    from feeds.__main__ import main
+
+    fid = env.feed(config=NO_DEACTIVATE)
+    first = quarantine_once(env, fid)
+    sid = str(first.snapshot_id)
+    assert main(["quarantine", "--feed", str(fid)]) == 0
+    assert "onay BEKLIYOR" in capsys.readouterr().out
+    base = ["approve-drop", "--feed", str(fid), "--snapshot", sid, "--by", "yusuf"]
+    # --confirm yok: yazmaz.
+    assert main([*base, "--reason", "katalog daraldi (test)"]) == 0
+    assert "yazilmadi" in capsys.readouterr().out
+    assert env.one("SELECT count(*) FROM job_run WHERE job = 'feed_drop_approval'")[0] == 0
+    # Gecersiz gerekce: reddedilir.
+    assert main([*base, "--reason", "kisa", "--confirm"]) == 2
+    assert "--reason" in capsys.readouterr().err
+    # Gecerli: onay kaydedilir, listede "onayli".
+    assert main([*base, "--reason", "katalog daraldi (test)", "--confirm"]) == 0
+    capsys.readouterr()
+    assert main(["quarantine", "--feed", str(fid)]) == 0
+    assert "onayli" in capsys.readouterr().out
+    assert env.one("SELECT count(*) FROM job_run WHERE job = 'feed_drop_approval'")[0] == 1
+    # Olmayan surum / besleme.
+    assert (
+        main(
+            [
+                "approve-drop",
+                "--feed",
+                str(fid),
+                "--snapshot",
+                "999999",
+                "--by",
+                "yusuf",
+                "--reason",
+                "katalog daraldi (test)",
+                "--confirm",
+            ]
+        )
+        == 2
+    )
+    capsys.readouterr()
+
+
+BAD_FILES = {
+    # ad: (baytlar, gz, beklenen kapi)
+    "kesik_yml_kayit_ortasinda": (lambda ok: ok[: int(len(ok) * 0.34)], False, "truncated"),
+    "kesik_yml_etiket_ortasinda": (
+        lambda ok: ok[: ok.index(b"<offer id=", 4000) + 9],
+        False,
+        "truncated",
+    ),
+    "kapanis_etiketi_yok": (lambda ok: ok[: ok.rindex(b"</offers>")], False, "truncated"),
+    "gecerli_gzip_icinde_kesik_belge": (lambda ok: ok[: int(len(ok) * 0.34)], True, "truncated"),
+    "gzip_akisi_kesik": (lambda ok: gzip.compress(ok)[:300], True, "truncated"),
+    "http_200_html_hata_sayfasi": (
+        lambda ok: b"<html><body><h1>502 Bad Gateway</h1></body></html>",
+        False,
+        "empty",
+    ),
+    "ikili_cop": (lambda ok: bytes(range(256)) * 40, False, "empty"),
+    "kayitsiz_bos_belge": (lambda ok: yml([]), False, "empty"),
+    "acilmis_kapanmamis_kayit": (lambda ok: ok.replace(b"</offer>", b"", 3), False, "truncated"),
+}
+
+
+@pytest.mark.parametrize("name", sorted(BAD_FILES))
+def test_bozuk_ya_da_eksik_besleme_urun_teklif_fiyat_tablolarini_degistirmez(
+    env: Env, name: str
+) -> None:
+    """Gercek PostgreSQL: reddedilen dosya sonrasi teklif/fiyat/urun/uyelik/outbox birebir ayni."""
+    make, gz, gate = BAD_FILES[name]
+    fid = env.feed(currency="TRY", config=NO_DEACTIVATE)
+    items = [offer(i, currency="TRY", price="100.00") for i in ids(60)]
+    ok_bytes = yml([offer(i, currency="TRY", price="55.00") for i in ids(60)])
+    env.run(fid, items)
+    product_id = link_product(env)
+    try:
+        before = writes_of(env)
+        last_success = env.one("SELECT last_success_at FROM feed_source WHERE id = %s", (fid,))[0]
+        data = make(ok_bytes)
+        for turn in range(3):  # tekrarlanan eksik besleme: her seferinde sifir yazim
+            report = run_bytes(
+                env,
+                fid,
+                gzip.compress(data) if gz and name != "gzip_akisi_kesik" else data,
+                at=T0 + timedelta(days=1 + turn),
+                name=f"{name}-{turn}.bin",
+                gz=False,
+            )
+            assert (report.status, report.gate) == ("partial", gate), (turn, report.gate)
+            assert report.records == 0 and report.price_points == 0 and report.created == 0
+            assert writes_of(env) == before, turn
+            assert env.one(
+                "SELECT status, reject_reason FROM source_snapshot WHERE id = %s",
+                (report.snapshot_id,),
+            ) == ("rejected", gate)
+        assert env.one("SELECT last_success_at FROM feed_source WHERE id = %s", (fid,))[0] == (
+            last_success
+        )
+        assert env.one(
+            "SELECT min_price, offer_count FROM product WHERE id = %s", (product_id,)
+        ) == (
+            1,
+            99,
+        )  # urun ozeti yenilenmedi
+    finally:
+        unlink_product(env, product_id)
+
+
+def test_dusuk_kayit_sayisi_urun_teklif_fiyat_tablolarini_degistirmez(env: Env) -> None:
+    fid = env.feed(currency="TRY", config=NO_DEACTIVATE)
+    env.run(fid, [offer(i, currency="TRY", price="100.00") for i in ids(100)])
+    product_id = link_product(env)
+    try:
+        before = writes_of(env)
+        for turn in range(3):
+            report = env.run(
+                fid,
+                [offer(i, currency="TRY", price="50.00") for i in ids(40)],
+                at=T0 + timedelta(days=1 + turn),
+                name="low.xml",
+            )
+            assert (report.status, report.gate) == ("partial", "too_few_records")
+            assert writes_of(env) == before
+        assert env.one(
+            "SELECT min_price, offer_count FROM product WHERE id = %s", (product_id,)
+        ) == (
+            1,
+            99,
+        )
+    finally:
+        unlink_product(env, product_id)
+
+
+def test_tek_bozuk_kayit_dosyayi_durdurmaz_karar_0114_korunur(env: Env) -> None:
+    """Kayit duzeyi bozukluk butunluk taramasinda DEGIL, hata orani kapisinda kalir."""
+    fid = env.feed(config=NO_DEACTIVATE)
+    data = yml([offer(i) for i in ids(100)])
+    marker = f"<name>Test product {ids(100)[3]}</name>".encode()
+    assert marker in data
+    broken = data.replace(marker, b"<name>bozuk < etiket</name>")
+    report = run_bytes(env, fid, broken)
+    assert (report.status, report.gate, report.rejected) == ("success", None, 1)
+    assert offers_of(env) == 99
 
 
 def test_ilk_yuklemede_boyut_karsilastirmasi_yok(env: Env) -> None:
