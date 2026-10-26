@@ -140,6 +140,8 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "external_category_import",
       "external_category",
       "external_category_map",
+      // Karar 0154: dinamik siniflandirma kapsam anahtari; bos gelir, yonetim sayfasi yok (CLI).
+      "classifier_scope",
     ],
     status: "visible",
     adminPaths: [
