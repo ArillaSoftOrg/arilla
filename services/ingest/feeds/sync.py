@@ -15,9 +15,16 @@ Akis:
    INSERT) -> `search_outbox` -> uyelik -> bayat embedding silme (gorsel ya da
    kanonik metin degisti) -> bagli urunlerin fiyat ozeti -> `ingest_chunk = merged` ->
    `ingest_run` kontrol noktasi. Reddedilen kayitlar `ingest_error`'a.
-5. Tamlik kapisi: dosya sonuna hatasiz ulasildi, red orani esigin altinda,
-   kayit sayisi son tam surumlerin medyaninin %85'inden az degil. Gecmezse
-   surum `rejected`: birlestirilen kayitlar kalir, HICBIR offer pasiflesmez.
+4a. YAZMADAN ONCE butunluk (karar 0152): indirilen dosya veritabanina tek satir
+   yazilmadan taranir (`feeds.integrity`): kapanis etiketi, her `<offer>` icin bir
+   `</offer>`, en az bir kayit; ayrica kayit sayisi son tam surumlerin medyaninin
+   `min_ratio_vs_median` (%85) altindaysa karantina (`too_few_records`). Gecmezse surum
+   `rejected`, HICBIR offer/price_point/uyelik yazilmaz, dosya silinir. Kesik dosya
+   (`truncated`) yeniden denenir; ayni icerik `drop_confirm_hours` sonra yine gelirse
+   mesru kuculme sayilir ve kabul edilir (kalici engel yok).
+5. Tamlik kapisi (yazimdan sonra, onlem): dosya sonuna hatasiz ulasildi, red orani
+   esigin altinda, kayit sayisi son tam surumlerin medyaninin %85'inden az degil.
+   Gecmezse surum `rejected`: birlestirilen kayitlar kalir, HICBIR offer pasiflesmez.
 6. Kapi gecerse guvenli deaktivasyon: bu beslemede artik olmayan ve baska
    hicbir etkin beslemede bulunmayan offer'lar `is_active=false` (silme yok).
    Tavan (`max_deactivate_ratio`) asilirsa deaktivasyon yapilmaz, kosu `partial`.
@@ -48,7 +55,15 @@ from collect.images import SelectedImage
 from db import product_aggregates
 from db.connection import env
 from enrich import text as text_builder
-from feeds.download import DownloadError, cleanup_staging, download, staging_dir
+from feeds import integrity
+from feeds.download import (
+    DownloadError,
+    cleanup_staging,
+    diagnostics_path,
+    download,
+    read_diagnostics,
+    staging_dir,
+)
 from feeds.network import FeedNetwork, NetworkUnavailable
 from feeds.normalize import FeedOffer, Rejected, normalize, schema_fields, schema_fingerprint
 from feeds.parsers import FeedRecord, ParseResult, iter_records
@@ -84,6 +99,9 @@ class SyncSettings:
     #: Bu kadar beklemede dusmezse senkronizasyon guvenle durur (kaldigi yerden devam).
     max_archive_wait_seconds: float = 1800.0
     download_attempts: int = 3
+    #: Boyut dususu nedeniyle karantinaya alinan AYNI icerik (sha256) bu kadar saat sonra
+    #: yine gelirse mesru kuculme sayilir ve islenir (karar 0152).
+    drop_confirm_hours: float = 6.0
 
     @classmethod
     def from_config(cls, config: dict[str, Any]) -> SyncSettings:
@@ -95,6 +113,7 @@ class SyncSettings:
                 "min_ratio_vs_median",
                 "max_deactivate_ratio",
                 "deactivate_grace_hours",
+                "drop_confirm_hours",
             )
             if isinstance(config.get(key), int | float)
         }
@@ -131,6 +150,11 @@ class SyncReport:
     seconds_parse_and_wait: float = 0.0
     schema_changed: bool = False
     error_code: str | None = None
+    #: Yazmadan onceki tarama (karar 0152): dosyadaki tam kayit sayisi ve sure.
+    records_in_file: int = 0
+    integrity_seconds: float = 0.0
+    #: Boyut dususu daha once karantinaya alinmis ayni icerikle dogrulandi ve kabul edildi.
+    drop_confirmed: bool = False
 
     def detail(self) -> dict[str, Any]:
         return {k: v for k, v in self.__dict__.items() if v not in (None, False)}
@@ -516,6 +540,9 @@ class FeedSync:
         self._settings = settings
         #: `sync-due` paralel indirmesi: dosya onceden indirildi (yol, sha256, bayt).
         self.prefetched = prefetched
+        #: Indirmenin izin listeli HTTP tanilamasi (`feeds.download.http_diagnostics`).
+        #: `ingest_run.checkpoint`e eklenen tanilama: {"http": ..., "integrity": ...}.
+        self._diagnostics: dict[str, object] = {}
         # Yalnizca testler: cokme benzetimi (kaldigi yerden devam kaniti).
         self._fail_after_chunks = fail_after_chunks
 
@@ -757,6 +784,9 @@ class FeedSync:
             self._cleanup(path)
             return
 
+        if self._preflight(feed, settings, path, sha, snapshot_id):
+            return
+
         merged_chunks = {
             r[0]
             for r in self._fetchall(
@@ -854,6 +884,131 @@ class FeedSync:
         fingerprint = schema_fingerprint(keys) if keys else None
         self._finish_snapshot(feed, settings, snapshot_id, parse, fingerprint, keys)
         self._cleanup(path)
+
+    # -- yazmadan onceki denetim (karar 0152) -----------------------------------
+    def _preflight(
+        self, feed: FeedRow, settings: SyncSettings, path: Path, sha: str, snapshot_id: int
+    ) -> bool:
+        """Dosyayi YAZMADAN dogrular. True: surum reddedildi, hicbir sey yazilmadi."""
+        if self.max_records is not None:  # ornek kipi: dosya bilerek eksik
+            return False
+        started = time.perf_counter()
+        result = integrity.verify(path, feed.parser)
+        if result is None:  # bu bicim icin on tarama yok (ndjson, toplayici)
+            return False
+        r = self.report
+        r.integrity_seconds = round(time.perf_counter() - started, 2)
+        r.records_in_file = result.records
+        self._diagnostics = {"http": read_diagnostics(path), "integrity": result.summary()}
+        self._merge_checkpoint(self._diagnostics)
+        if not result.ok:
+            assert result.code is not None
+            self._reject_before_write(
+                feed,
+                snapshot_id,
+                path,
+                result.code,
+                f"{result.code}: {result.detail}",
+                result.records,
+                # Kesik akis gecici olabilir (kaynak/ara katman); eksik dosya tekrar indirilir.
+                retry_in=timedelta(minutes=30) if result.code == "truncated" else None,
+            )
+            return True
+        blocked, median = self._size_drop(feed, settings, snapshot_id, sha, result.records)
+        if blocked:
+            self._reject_before_write(
+                feed,
+                snapshot_id,
+                path,
+                "too_few_records",
+                f"too_few_records: {result.records} kayit, onceki medyan {median:.0f}",
+                result.records,
+            )
+            return True
+        return False
+
+    def _size_drop(
+        self, feed: FeedRow, settings: SyncSettings, snapshot_id: int, sha: str, records: int
+    ) -> tuple[bool, float]:
+        """(engelle, onceki_medyan). Anormal dusus karantinaya alinir, kalici engellenmez.
+
+        Karar 0152: son tam surumlerin medyaninin `min_ratio_vs_median` altindaki dosya
+        reddedilir (kesik/bozuk kaynak). Ayni icerik (sha256) `drop_confirm_hours` once de
+        karantinaya alinmissa kaynak DEGISMEMIS demektir: mesru kuculme olarak kabul edilir.
+        `size_guard: false` besleme ayariyla kapatilabilir.
+        """
+        if feed.config.get("size_guard") is False:
+            return False, 0.0
+        previous = [
+            int(row[0])
+            for row in self._fetchall(
+                """SELECT record_count FROM source_snapshot
+                    WHERE feed_source_id = %s AND status = 'complete' AND record_count IS NOT NULL
+                    ORDER BY completed_at DESC LIMIT 3""",
+                (feed.id,),
+            )
+        ]
+        if not previous:
+            return False, 0.0
+        median = float(statistics.median(previous))
+        if records >= settings.min_ratio_vs_median * median:
+            return False, median
+        earlier = self._exec(
+            """SELECT 1 FROM source_snapshot
+                WHERE feed_source_id = %s AND sha256 = %s AND id <> %s
+                  AND status = 'rejected' AND reject_reason = 'too_few_records'
+                  AND completed_at <= now() - make_interval(secs => %s) LIMIT 1""",
+            (feed.id, sha, snapshot_id, settings.drop_confirm_hours * 3600),
+        )
+        self.conn.commit()
+        if earlier:
+            self.report.drop_confirmed = True
+            logger.warning(
+                "besleme %s: kayit dususu dogrulandi (%s < medyan %.0f), kabul edildi",
+                feed.id,
+                records,
+                median,
+            )
+            return False, median
+        return True, median
+
+    def _reject_before_write(
+        self,
+        feed: FeedRow,
+        snapshot_id: int,
+        path: Path,
+        code: str,
+        error_text: str,
+        records: int,
+        *,
+        retry_in: timedelta | None = None,
+    ) -> None:
+        """Surumu `rejected` yapar. offer, price_point, uyelik, urun: HICBIRINE DOKUNULMAZ."""
+        self._exec(
+            """UPDATE source_snapshot SET status = 'rejected', record_count = %s,
+                      rejected_count = 0, reject_reason = %s, completed_at = now()
+                WHERE id = %s""",
+            (records or None, code, snapshot_id),
+        )
+        # `last_success_at` degismez: tazelik olcumu "geride" kalir ve gunluk is yeniden dener.
+        self._exec(
+            """UPDATE feed_source SET last_error_at = now(), last_error_code = %s,
+                      updated_at = now() WHERE id = %s""",
+            (code, feed.id),
+        )
+        self.report.gate = code
+        self.report.status = "partial"
+        self._finish_run("partial", error_text, retry_in)
+        self._cleanup(path)
+
+    def _merge_checkpoint(self, extra: dict[str, object]) -> None:
+        """`ingest_run.checkpoint`e anahtar ekler (parca kontrol noktasini ezmez)."""
+        self._exec(
+            """UPDATE ingest_run SET checkpoint = COALESCE(checkpoint, '{}'::jsonb) || %s::jsonb,
+                      updated_at = now() WHERE id = %s""",
+            (json.dumps(extra), self.report.run_id),
+        )
+        self.conn.commit()
 
     def _fetchall(self, sql: str, params: Any) -> list[tuple[Any, ...]]:
         with self.conn.cursor() as cur:
@@ -982,7 +1137,14 @@ class FeedSync:
                           price_points_written = %s, updated_at = now()
                     WHERE id = %s""",
                 (
-                    json.dumps({"snapshot_id": snapshot_id, "chunk": seq, "records": r.records}),
+                    json.dumps(
+                        {
+                            "snapshot_id": snapshot_id,
+                            "chunk": seq,
+                            "records": r.records,
+                            **self._diagnostics,
+                        }
+                    ),
                     snapshot_id,
                     r.records,
                     r.created,
@@ -1167,6 +1329,7 @@ class FeedSync:
     def _cleanup(self, path: Path) -> None:
         if self.source_path is None:
             path.unlink(missing_ok=True)
+            diagnostics_path(path).unlink(missing_ok=True)
 
 
 SAMPLE_SUFFIX = "-sample.bin"

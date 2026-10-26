@@ -10,6 +10,12 @@ Bir offer'in fiyati, bagli oldugu beslemelerden en az biri "guncel" ise guncel
 sayilir. Offer'in kendi `last_seen_at`'ine bakilmaz: degismeyen offer satiri
 yeniden yazilmaz (karar 0114), "goruldu" bilgisi `feed_source_offer`'dadir.
 
+Reddedilen surumler (karar 0152): `rejected` bir surum (kesik dosya, anormal boyut dususu)
+`last_success_at`i ILERLETMEZ; bu yuzden besleme "geride" kalir ve offer'lar guncel
+SAYILMAZ. Raporda nedeni ayrica gorunur: `feeds_rejected`, `rejected_reasons`,
+`offers_in_rejected` (eski akista reddedilen surume yazilmis offer'lar),
+`offers_missing_from_latest` (son TAM surumde bulunmayan offer'lar; pasiflestirilmez).
+
 Bu modul fiyat gizlemez, offer pasiflestirmez: gorunurluk karari okuma
 yolundadir (karar 0145 "Sinirlar"). Burada yalnizca olcum ve siniflandirma var.
 """
@@ -78,6 +84,13 @@ class FeedFreshness:
     last_success_at: datetime | None
     last_error_code: str | None
     members: int
+    #: Son TAM surumden sonra reddedilen en yeni surumun nedeni ve zamani (yoksa None).
+    rejected_reason: str | None = None
+    rejected_at: datetime | None = None
+    #: Uyeligi reddedilen (son tam surumden yeni) bir surume bagli offer sayisi.
+    members_in_rejected: int = 0
+    #: Son tam surumde GORULMEMIS offer sayisi (uyeligi daha eski bir surumde kalmis).
+    members_missing: int = 0
 
 
 @dataclass
@@ -154,14 +167,39 @@ class Freshness:
             count = sum(1 for f in self.feeds if f.state is state)
             if count:
                 out[f"feeds_{state.value}"] = count
+        rejected = [f for f in self.feeds if f.rejected_reason]
+        if rejected:
+            out["feeds_rejected"] = len(rejected)
+            out["rejected_reasons"] = ",".join(sorted({str(f.rejected_reason) for f in rejected}))
+        in_rejected = sum(f.members_in_rejected for f in self.feeds)
+        if in_rejected:
+            out["offers_in_rejected"] = in_rejected
+        missing = sum(f.members_missing for f in self.feeds)
+        if missing:
+            out["offers_missing_from_latest"] = missing
         return out
 
 
 FEEDS_SQL = """
 SELECT f.id, f.external_id, f.status, f.source_updated_at, f.last_success_at,
-       f.last_error_code,
-       (SELECT count(*) FROM feed_source_offer m WHERE m.feed_source_id = f.id)
+       f.last_error_code, agg.members,
+       rej.reject_reason, rej.completed_at, agg.in_rejected, agg.missing
   FROM feed_source f JOIN merchant mer ON mer.id = f.merchant_id
+  LEFT JOIN LATERAL (
+        SELECT max(s.id) AS id FROM source_snapshot s
+         WHERE s.feed_source_id = f.id AND s.status = 'complete') lc ON TRUE
+  LEFT JOIN LATERAL (
+        SELECT s.reject_reason, s.completed_at FROM source_snapshot s
+         WHERE s.feed_source_id = f.id AND s.status = 'rejected' AND s.id > COALESCE(lc.id, 0)
+         ORDER BY s.id DESC LIMIT 1) rej ON TRUE
+  LEFT JOIN LATERAL (
+        SELECT count(*) AS members,
+               count(*) FILTER (WHERE m.last_snapshot_id < lc.id) AS missing,
+               count(*) FILTER (WHERE m.last_snapshot_id IN (
+                     SELECT s.id FROM source_snapshot s
+                      WHERE s.feed_source_id = f.id AND s.status = 'rejected'
+                        AND s.id > COALESCE(lc.id, 0))) AS in_rejected
+          FROM feed_source_offer m WHERE m.feed_source_id = f.id) agg ON TRUE
  WHERE mer.slug = %s AND f.status IN ('active', 'paused')
  ORDER BY f.id
 """
@@ -207,7 +245,19 @@ def measure(
     with conn.cursor() as cur:
         cur.execute(FEEDS_SQL, (merchant,))
         rows = cur.fetchall()
-        for fid, ext, status, source_at, success_at, error_code, members in rows:
+        for (
+            fid,
+            ext,
+            status,
+            source_at,
+            success_at,
+            error_code,
+            members,
+            rejected_reason,
+            rejected_at,
+            in_rejected,
+            missing,
+        ) in rows:
             report.feeds.append(
                 FeedFreshness(
                     feed_id=int(fid),
@@ -223,6 +273,10 @@ def measure(
                     last_success_at=success_at,
                     last_error_code=error_code,
                     members=int(members),
+                    rejected_reason=rejected_reason,
+                    rejected_at=rejected_at,
+                    members_in_rejected=int(in_rejected or 0),
+                    members_missing=int(missing or 0),
                 )
             )
         cur.execute(ACTIVE_OFFERS_SQL, (merchant,))

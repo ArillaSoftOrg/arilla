@@ -26,6 +26,10 @@ from feeds.network import FeedNetwork, NetworkUnavailable, build
 from feeds.sync import FeedRow, FeedSync, SyncAborted, SyncReport, prefetch_download
 
 OK_STATUSES = frozenset({"success", "duplicate", "skipped"})
+#: Yazmadan onceki kapi bu nedenle reddettiyse yeniden indirmek anlamli (karar 0152):
+#: kesik dosya kaynak/ara katman kaynakli gecici olabilir. `too_few_records` yeniden
+#: denenmez (ayni icerik gelir); karantina suresi dolunca kendiliginden kabul edilir.
+RETRYABLE_GATES = frozenset({"truncated"})
 MAX_PARALLEL_DOWNLOADS = 4
 
 
@@ -100,7 +104,13 @@ def sync_one(
     # Tamlik kapisi `truncated`: kaynak dosya yarim uretilmis/kesilmis olabilir ve genelde
     # bir sonraki indirmede tamamlanir; gunluk is mevcut tur/bekleme siniriyla yeniden dener.
     # Diger kapilar (error_rate, too_few_records...) icerik sorunudur: yeniden denenmez.
-    return FeedOutcome(feed_id, report.status, report=report, retryable=report.gate == "truncated")
+    # Karar 0152: `truncated` artik YAZMADAN ONCE yakalanir; deneme hicbir satir yazmaz.
+    return FeedOutcome(
+        feed_id,
+        report.status,
+        report=report,
+        retryable=report.status == "partial" and report.gate in RETRYABLE_GATES,
+    )
 
 
 def sync_feeds(

@@ -446,8 +446,8 @@ def test_kesik_deneme_no_deactivate_ve_kapilari_korur(env: Env) -> None:
     )
     env.load(items(10, price="10.00"))
     env.fx()
-    # Kaynak 3 urunu cikarmis ve ilk teslimat kesik.
-    target = [offer(i, price="12.00") for i in ids(7)]
+    # Kaynak 1 urunu cikarmis (%90, karar 0152 esiginin ustu); ilk teslimat kesik.
+    target = [offer(i, price="12.00") for i in ids(9)]
     env.publish(target)
     env.net.contents = [_cut(target), _full(target)]
 
@@ -455,6 +455,45 @@ def test_kesik_deneme_no_deactivate_ve_kapilari_korur(env: Env) -> None:
     assert result.status == "success", result.problems  # type: ignore[attr-defined]
     assert result.detail["attempts"] == 2  # type: ignore[attr-defined]
     assert result.detail["deactivated"] == 0  # type: ignore[attr-defined]
+    active = env.one(
+        "SELECT count(*) FILTER (WHERE is_active) FROM offer WHERE merchant_id = %s",
+        (env.merchant_id,),
+    )[0]
+    assert active == 10
+
+
+def test_kesik_deneme_hicbir_satir_yazmaz_yalniz_tam_surum_yazar(env: Env) -> None:
+    """Karar 0152: kesik ilk teslimat fiyat/teklif yazmaz; tam ikinci teslimat yazar."""
+    env.load(items(10, price="10.00"))
+    env.fx()
+    target = [offer(i, price="20.00") for i in ids(10)] + [offer(i) for i in ids(5, 100)]
+    env.publish(target)
+    before = price_points(env)
+    env.net.contents = [_cut(target), _cut(target), _cut(target)]
+    result = env.daily()  # retries=2 -> 3 deneme, hepsi kesik
+    assert result.status == "partial"  # type: ignore[attr-defined]
+    assert result.detail["attempts"] == 3  # type: ignore[attr-defined]
+    assert price_points(env) == before  # tek fiyat noktasi yazilmadi
+    offers = env.one("SELECT count(*) FROM offer WHERE merchant_id = %s", (env.merchant_id,))[0]
+    assert offers == 10  # yeni teklif yok
+    assert result.detail["records"] == 0  # type: ignore[attr-defined]
+
+
+def test_anormal_dusus_yeniden_denenmez_ve_yazmadan_karantinaya_alinir(env: Env) -> None:
+    env.owner.execute(
+        "UPDATE feed_source SET config = config || %s::jsonb WHERE id = %s",
+        ('{"no_deactivate": true}', env.feed_id),
+    )
+    env.load(items(10, price="10.00"))
+    env.fx()
+    target = [offer(i, price="12.00") for i in ids(5)]  # %50: anormal dusus
+    env.publish(target)
+    before = price_points(env)
+    result = env.daily()
+    assert result.detail["attempts"] == 1  # type: ignore[attr-defined]
+    assert env.net.downloads == 1
+    assert f"feed_{env.feed_id}:too_few_records" in result.problems  # type: ignore[attr-defined]
+    assert price_points(env) == before
     active = env.one(
         "SELECT count(*) FILTER (WHERE is_active) FROM offer WHERE merchant_id = %s",
         (env.merchant_id,),

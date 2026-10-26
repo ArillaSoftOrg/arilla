@@ -1538,6 +1538,21 @@ kazıma ya da canlı fiyat çağrısı yoktur. Günlük iş mevcut besleme motor
    yeniden denenir; diğer kapılar (`error_rate` vb.) içerik sorunu olduğundan denenmez.
 5. **Tazelik ölçümü:** koşu sonunda besleme ve offer tazeliği `job_run.detail`'e yazılır.
 
+**Eksik/anormal dosya yazmadan reddedilir (karar 0152).** Dosya veritabanına yazılmadan önce taranır:
+kapanış etiketi, her `<offer>` için `</offer>`, son 3 tam sürümün medyanına göre kayıt sayısı
+(`< %85` ise karantina). Reddedilen sürüm hiçbir teklif/fiyat/ürün satırı yazmaz; `last_success_at`
+ilerlemez. Teşhis (salt okunur):
+
+- `source_snapshot` `status='rejected'`, `reject_reason`: `truncated` (kesik dosya; koşu içinde 10 ve
+  20 dk arayla yeniden indirilir), `too_few_records` (anormal düşüş; **aynı içerik** 6 saat sonra yine
+  gelirse meşru küçülme sayılıp kabul edilir), `empty`, `unreadable`.
+- `ingest_run.checkpoint`: `integrity` (tarama özeti) ve `http` (durum, izin listeli başlıklar, host,
+  bayt, gzip tamlığı; adres/sorgu/kimlik yok).
+- `job_run.detail` (`feed_daily`): `feeds_rejected`, `rejected_reasons`, `offers_in_rejected`,
+  `offers_missing_from_latest` (son tam sürümde olmayan, pasifleştirilmeyen teklifler).
+- `FeedSync` ayarları (besleme `config`): `drop_confirm_hours` (6), `min_ratio_vs_median` (0,85),
+  `size_guard: false` (yalnız bilinçli kapatma).
+
 **Fiyat sıfırlanmaz, offer silinmez.** Kaynakta olmayan offer yalnız 48 saatlik bekleme ve %10
 tavan koşuluyla pasifleşir (0112). Bozuk fiyat (boş, sayı değil, ≤ 0, aralık dışı) kayıt bazında
 reddedilir; red oranı %2'yi aşarsa sürüm reddedilir (`error_rate`) ve hiçbir offer pasifleşmez.
