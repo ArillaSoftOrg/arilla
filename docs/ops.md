@@ -1544,14 +1544,27 @@ kapanış etiketi, her `<offer>` için `</offer>`, son 3 tam sürümün medyanı
 ilerlemez. Teşhis (salt okunur):
 
 - `source_snapshot` `status='rejected'`, `reject_reason`: `truncated` (kesik dosya; koşu içinde 10 ve
-  20 dk arayla yeniden indirilir), `too_few_records` (anormal düşüş; **aynı içerik** 6 saat sonra yine
-  gelirse meşru küçülme sayılıp kabul edilir), `empty`, `unreadable`.
+  20 dk arayla yeniden indirilir), `too_few_records` (anormal düşüş; **kendiliğinden kalkmaz**, insan onayı
+  ister), `empty`, `unreadable`.
 - `ingest_run.checkpoint`: `integrity` (tarama özeti) ve `http` (durum, izin listeli başlıklar, host,
   bayt, gzip tamlığı; adres/sorgu/kimlik yok).
 - `job_run.detail` (`feed_daily`): `feeds_rejected`, `rejected_reasons`, `offers_in_rejected`,
   `offers_missing_from_latest` (son tam sürümde olmayan, pasifleştirilmeyen teklifler).
-- `FeedSync` ayarları (besleme `config`): `drop_confirm_hours` (6), `min_ratio_vs_median` (0,85),
-  `size_guard: false` (yalnız bilinçli kapatma).
+- `FeedSync` ayarı (besleme `config`): `min_ratio_vs_median` (0,85). Kapatma ayarı yoktur.
+
+**Karantinadaki küçülmeyi onaylama (meşru katalog küçülmesi).** Önce nedenini doğrula (kaynak
+gerçekten mi küçüldü, dosya kesik mi: `feeds quarantine`, `ingest_run.checkpoint -> http/integrity`,
+`offers_missing_from_latest`). Sonra:
+
+```
+python -m feeds quarantine --feed 7
+python -m feeds approve-drop --feed 7 --snapshot <surum> --by <ad> --reason "<gerekce>" --confirm
+```
+
+`--confirm` olmadan yazmaz. Onay yalnız o içerik (sha256) için, 7 gün (`--ttl-days`, en çok 30) ve
+tek kullanımlıktır; kesik/boş dosya onaylanamaz. Denetim izi: `job_run` `feed_drop_approval` ve
+`feed_drop_accepted` satırları (kim, neden, sürüm, kayıt, medyan; 180 gün). Sonraki günlük koşu aynı
+içeriği kabul eder; `no_deactivate`, hata oranı ve deaktivasyon tavanı aynen geçerlidir.
 
 **Fiyat sıfırlanmaz, offer silinmez.** Kaynakta olmayan offer yalnız 48 saatlik bekleme ve %10
 tavan koşuluyla pasifleşir (0112). Bozuk fiyat (boş, sayı değil, ≤ 0, aralık dışı) kayıt bazında

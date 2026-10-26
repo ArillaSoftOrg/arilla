@@ -7,6 +7,8 @@ python -m feeds sync --feed ID [--max-records N] [--force] [--file PATH]
 python -m feeds sync-due
 python -m feeds daily --merchant SLUG
 python -m feeds freshness --merchant SLUG
+python -m feeds quarantine [--feed ID]         (salt okunur: karantinadaki dusus surumleri)
+python -m feeds approve-drop --feed ID --snapshot ID --by AD --reason METIN [--ttl-days N] --confirm
 python -m feeds hb-merge --run ID [--allow-open]
 python -m feeds collect-merge --run ID [--allow-open]  (kaynak kosudan: hepsiburada, trendyol)
 """
@@ -22,7 +24,7 @@ from pathlib import Path
 import feeds.admitad  # noqa: F401  (agi kaydeder)
 from db import job_run
 from db.connection import connect
-from feeds import daily, discovery, freshness, runner
+from feeds import approvals, daily, discovery, freshness, runner
 from feeds.logs import configure as configure_logging
 from feeds.network import build, registered
 from feeds.profiles import MERCHANT_PROFILES
@@ -249,6 +251,63 @@ def _freshness(args: argparse.Namespace) -> int:
     return 1 if report.problems else 0
 
 
+def _quarantine(args: argparse.Namespace) -> int:
+    """YALNIZCA OKUR: son tam surumden sonra kayit dususu nedeniyle reddedilen surumler."""
+    with connect() as conn:
+        feed_id = _feed_id(conn, args.feed) if args.feed else None
+        rows = approvals.quarantined(conn, feed_id)
+    if not rows:
+        print("karantinada surum yok")
+        return 0
+    for q in rows:
+        median = f"{q.median:.0f}" if q.median else "-"
+        status = f"onayli (onay {q.approval_id})" if q.approval_id else "onay BEKLIYOR"
+        print(
+            f"surum {q.snapshot_id:>5} besleme {q.feed_id:>4} kayit={q.records} "
+            f"onceki_medyan={median} sha256={q.sha256[:16]} "
+            f"{q.completed_at.isoformat(timespec='minutes')} {status}"
+        )
+    return 0
+
+
+def _approve_drop(args: argparse.Namespace) -> int:
+    """Karantinadaki BIR icerigi acikca onaylar (karar 0152). `--confirm` olmadan yazmaz."""
+    with connect() as conn:
+        feed_id = _feed_id(conn, args.feed)
+        if feed_id is None:
+            print(f"besleme yok: {args.feed}", file=sys.stderr)
+            return 2
+        pending = [
+            q for q in approvals.quarantined(conn, feed_id) if q.snapshot_id == args.snapshot
+        ]
+        if not pending:
+            print("bu surum karantinada degil (ya da daha yeni bir tam surum var)", file=sys.stderr)
+            return 2
+        q = pending[0]
+        median = f"{q.median:.0f}" if q.median else "-"
+        print(
+            f"onaylanacak: surum {q.snapshot_id}, besleme {feed_id}, {q.records} kayit "
+            f"(onceki medyan {median}), sha256={q.sha256[:16]}, gecerlilik {args.ttl_days} gun"
+        )
+        if not args.confirm:
+            print("yazilmadi: onaylamak icin --confirm ekleyin")
+            return 0
+        try:
+            approval_id = approvals.approve(
+                conn,
+                feed_id,
+                args.snapshot,
+                by=args.by,
+                reason=args.reason,
+                ttl_days=args.ttl_days,
+            )
+        except approvals.ApprovalError as error:
+            print(f"onaylanmadi: {error}", file=sys.stderr)
+            return 2
+    print(f"onay {approval_id} kaydedildi; sonraki senkronizasyonda bu icerik kabul edilir")
+    return 0
+
+
 def _hb_merge(args: argparse.Namespace) -> int:
     """Kapanmis toplama kosusunun ara depo kayitlarini offer modeline birlestirir (0117, 0118)."""
     from feeds.intake import merge_run
@@ -326,6 +385,17 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--merchant", required=True)
     p.add_argument("--max-source-age-hours", type=float, default=168.0)
     p.set_defaults(func=_freshness)
+    p = sub.add_parser("quarantine")
+    p.add_argument("--feed", help="kimlik ya da ag:kaynak_kimligi (yoksa hepsi)")
+    p.set_defaults(func=_quarantine)
+    p = sub.add_parser("approve-drop")
+    p.add_argument("--feed", required=True, help="kimlik ya da ag:kaynak_kimligi")
+    p.add_argument("--snapshot", type=int, required=True, help="karantinadaki surum kimligi")
+    p.add_argument("--by", required=True, help="onaylayan kisi")
+    p.add_argument("--reason", required=True, help="gerekce (denetim izine yazilir)")
+    p.add_argument("--ttl-days", type=int, default=approvals.DEFAULT_TTL_DAYS)
+    p.add_argument("--confirm", action="store_true")
+    p.set_defaults(func=_approve_drop)
     # `collect-merge` genel addir (karar 0118); `hb-merge` geriye uyumluluk icin kalir.
     for name in ("hb-merge", "collect-merge"):
         p = sub.add_parser(name)
