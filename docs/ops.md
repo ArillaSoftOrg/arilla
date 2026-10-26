@@ -1415,6 +1415,15 @@ isabeti sayılmaz, Redis yoksa model çağrılmaz. Ürünlerin üstündeki
 **Açmadan önce:** hukuki yeniden değerlendirme ve `/gizlilik` güncellemesi
 (`docs/legal-review/gemini-anlik-yorum-taslak.md`). **Kapatma:** bayrağı
 silip yeniden dağıtmak; saklanan yorumlar okunmaya devam eder (0059 yolu).
+Bayrak `web.env` dosyasındadır; `docker restart` env_file'ı yeniden okumaz,
+konteyner yeniden oluşturulmalıdır (`docker compose ... up -d web`).
+
+**Kapsam sınırı:** model yalnızca taksonomideki (`clarification/rules.ts`,
+`product-types.ts`) domain/nitelik kimliklerini ve metindeki bütçeyi seçer;
+renk, marka, kategori ya da ürün üretemez. Taksonomide olmayan bir tür ("şort")
+için yorum boş döner ve arama bugünkü gibi sürer. Katalogdaki eksik `color`/
+`category_id` ve boş `lexicon` renk/marka girdileri bu bayrakla GİDERİLMEZ.
+Zinciri ağsız doğrulayan test: `search/realtime-examples.test.ts`.
 **İzleme:** günlük anlık deneme sayısı
 
 ```sql
