@@ -18,6 +18,21 @@ dependencies = [
 dev = [
     "ruff>=0.14.0",
     "pytest>=8.3",
+    # Hibrit oneri motoru testleri (karar 0155): sahte gomme ile, model gerekmez.
+    "numpy>=1.26",
+]
+# Hibrit kategori onerisi toplu isi (karar 0155). Uretim imajina KONMAZ; pilot oncesi karar gerekir.
+suggest = [
+    "numpy>=1.26",
+    "onnxruntime>=1.20",
+    "tokenizers>=0.20",
+    "psutil>=5.9",
+]
+# Yalniz modeli ureten gelistirici araci (`classify suggest model build`).
+model-build = [
+    "sentence-transformers>=3",
+    "optimum[onnxruntime]>=1.23",
+    "huggingface_hub>=0.25",
 ]
 
 [build-system]
@@ -41,6 +56,7 @@ packages = [
     "resolve",
     "catalog_build",
     "classify",
+    "classify.suggest",
     "similarity",
 ]
 
@@ -54,6 +70,8 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.ruff.lint.per-file-ignores]
 # Uzun SQL dizeleri (karar 0121 testleri).
 "tests/test_catalog_build*.py" = ["E501"]
+# Entegrasyon fixture'i baska modulden ice aktarilir (pytest deseni).
+"tests/test_suggest_db.py" = ["F811"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

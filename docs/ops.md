@@ -2439,3 +2439,34 @@ python -m classify products --dynamic ...      # yalnızca etkin kapsam varsa mo
 - Etkinleştirmeden önce kapsam başına ≥300 insan etiketi ve Wilson alt sınırı ≥0,80 gerekir.
 - Geri alma: `scope set <yol> off ... --confirm`, ardından `--dynamic --owned-only` ile yeniden sınıflandır.
 - Üretimde önce `compare` ile örnek incele; toplu çalıştırma ayrı onay gerektirir.
+
+## Hibrit kategori önerisi (karar 0155) — yalnızca öneri, hiçbir şey yazmaz
+
+`services/ingest/classify/suggest/`: V5 + dinamik motor + e5-small ONNX INT8. Ürün kategorisini,
+`classifier_scope`'u ya da herhangi bir tabloyu **değiştirmez**; çıktı yerel dosyadır
+(`suggestions.jsonl`, `run.json`, `state.sqlite`, `index.npz`).
+
+```
+pip install -e ".[suggest]"                        # numpy, onnxruntime, tokenizers, psutil
+python -m classify suggest model build --out MODEL_DIR   # gelistirici: ek `.[model-build]`, ag ister
+python -m classify suggest model verify --model-dir MODEL_DIR
+python -m classify suggest run --out OUT --model-dir MODEL_DIR --merchant aliexpress \
+    --threads 2 --max-rss-mb 1500 --max-seconds 3600 [--max-products N] [--sleep-ms 50]
+python -m classify suggest run ... --tsv F.tsv --categories-csv C.csv --plan PLAN.csv   # veritabansiz
+python -m classify suggest export --out OUT --dest oneriler.csv [--format json] [--top 3]
+```
+
+- Aynı komut kaldığı yerden sürer; model/ağaç/kural sürümü değişirse devam reddedilir (`--restart`).
+- Veritabanı bağlantısı `read_only`; `DATABASE_URL` uygulama rolü yeterlidir.
+- Çıktı durumları: `guclu` (kural + anlamsal aynı dalda), `orta`, `inceleme` (kanıt yetersiz).
+
+Ölçüm (yerel geliştirme makinesi, 4 iş parçacığı; VPS'te ölçülmedi): 4.987 başlıkta 2 iş parçacığı
+79,5 ürün/sn, 4 iş parçacığı 95,4 ürün/sn; tepe RSS ~650 MB; model süresi toplamın ~%99'u.
+2,77 M ürün için: 2 iş parçacığında ~9,7 saat, 4 iş parçacığında ~8,1 saat (tekrar eden
+başlıklar atlandığı için daha az olabilir).
+
+Üretimde pilot öncesi kalanlar: (1) ingest imajına `.[suggest]` bağımlılıkları + doğrulanmış model
+dizini (imaj içine ya da salt okunur bağlama; çalışma zamanında indirme yok) ve trivy; (2) VPS'te
+pilot (50 k ürün, `--threads 2`, gece penceresi) ile süre/RAM ölçümü; (3) ürün başına öneriyi
+saklayacak tablo ve yönetim inceleme kuyruğu (migration, ayrı karar); (4) AI etiketlerinden
+bağımsız ≥300 insan etiketi ve Wilson ≥0,80 olmadan hiçbir otomatik atama yok (karar 0139 §7).

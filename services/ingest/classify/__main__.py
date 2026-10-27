@@ -229,10 +229,17 @@ def main(argv: list[str] | None = None) -> int:
     p_lex = sub.add_parser("lexicon", help="arama/sohbet kategori sozlugu")
     p_lex.add_argument("--apply", action="store_true")
 
+    from classify.suggest import cli as suggest_cli  # agir bagimliliklar komut icinde yuklenir
+
+    suggest_cli.add_parser(sub)
+
     args = parser.parse_args(argv)
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO)
     signal.signal(signal.SIGINT, _request_stop)
     signal.signal(signal.SIGTERM, _request_stop)
+
+    if args.command == "suggest":
+        return suggest_cli.main(args)
 
     if args.command == "report":
         with connect() as conn:
