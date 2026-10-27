@@ -142,6 +142,51 @@ COMPAT_MARKERS = frozenset(
     {"for", "suitable", "compatible", "fit", "fits", "replacement", "applicable"}
 )
 
+#: Bas sozcuge bitisik gelip urunun ASIL turunu belirleyen parca/aksesuar adlari: "helmet visor"
+#: kask degil vizordur, "phone case" telefon degil kiliftir. Parca/aksesuar OLMAYAN dugum bu
+#: durumda secilmez.
+HEAD_MODIFIERS = frozenset(
+    {
+        "visor",
+        "lens",
+        "strap",
+        "holder",
+        "mount",
+        "bracket",
+        "adapter",
+        "charger",
+        "cable",
+        "pad",
+        "sticker",
+        "decal",
+        "bag",
+        "pouch",
+        "sleeve",
+        "stand",
+        "rack",
+        "hook",
+        "screw",
+        "filter",
+        "nozzle",
+        "blade",
+        "brush",
+        "handle",
+        "knob",
+        "switch",
+        "button",
+        "battery",
+        "remote",
+        "key",
+        "cover",
+        "case",
+        "protector",
+        "shell",
+        "housing",
+        "cap",
+        "rubber",
+    }
+)
+
 #: Cinsiyet/yas govdeleri (Turkce ad) ve Ingilizce baslik sozcukleri.
 #: Yalniz kadin/erkek govdeleri kapsamaya girmez (cinsiyet kapisiyla olculur); bebek/cocuk
 #: urun turudur ("Bebek Bakim", "Cocuk Bisikleti") ve normal sayilir.
@@ -371,6 +416,12 @@ class DynamicIndex:
             total = sum(w for _, w in own_w)
             if total <= 0:
                 continue
+            # Dugum adinin TUM (genel olmayan) govdeleri baslikta ya da kaynak yolunda gecmeli.
+            # Ata ile paylasilan govde ("Akilli Aydinlatma"daki "akilli") ya da cevirisi olmayan
+            # govde de adin parcasidir; yalniz ayirt edici govdeye bakmak "grow light" ->
+            # "Akilli Aydinlatma" gibi hata uretir.
+            if any(s not in title_hits and s not in source_hits for s in node.stems):
+                continue
             hit_own = [s for s, _ in own_w if s in title_hits]
             # Parca/aksesuar dali, basliktaki TEK genel sozcukle ("tool") secilmez: parca dilini
             # (replacement, accessory, adapter...) ya da >= 2 govdeyi ister.
@@ -380,6 +431,9 @@ class DynamicIndex:
             head = node.own[-1]
             if head not in title_hits:
                 continue
+            nxt = title_words[title_hits[head] + 1 : title_hits[head] + 3]
+            if not node.part and HEAD_MODIFIERS & set(nxt):
+                continue  # "helmet visor": urunun asil adi parca/aksesuar sozcugu
             # Parca/uyumluluk: bas sozcuk isaretten SONRA geciyorsa urun degil uyumlu cihazdir.
             if marker is not None and title_hits[head] > marker and not node.part:
                 continue

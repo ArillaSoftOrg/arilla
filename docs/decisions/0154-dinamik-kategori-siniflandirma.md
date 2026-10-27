@@ -60,3 +60,19 @@ Toplam kapsama artışı küçüktür; asıl etki kaba atamaların inceltilmesid
 - Sınıflandırma anında LLM/embedding (değişmez kural 1; maliyet ve belirlenimsizlik).
 - Otomatik etkinleştirme (doğrulanmamış doğruluk).
 - V5 davranışını doğrudan değiştirmek (geri alma yolu kaybolur).
+
+## Güncelleme (27 Ekim): AI değerlendirmesinden çıkan sıkılaştırma
+
+400 ürünlük katmanlı örnekte (iki bağımsız AI etiketleyici + AI hakem; **insan etiketi değildir**,
+Wilson kapısı karşılanmış sayılmaz) dinamik motorun inceltmeleri V5'in kaba ama doğru atamasından
+daha çok yanlış çıktı (ör. büyüme lambası → "Akıllı Aydınlatma", çıkartma → "Oto Küllük"). Üç sıkılaştırma:
+
+1. Düğüm adının **tüm** genel olmayan gövdeleri başlıkta ya da kaynak yolunda geçmeli (ata ile paylaşılan
+   "akıllı" gibi gövdeler de adın parçasıdır).
+2. Baş sözcüğe bitişik parça/aksesuar adı (`HEAD_MODIFIERS`: "helmet visor", "phone holder") ürünün
+   asıl türüdür; parça olmayan düğüm seçilmez.
+3. `kullu` gövdesi genel sayılmaz ("Küllük" ile "Kullanım" aynı gövdeye düşüyordu).
+
+Aynı örnekte (örnek-içi; tahminlerin %50'ye yakını hakemce yanlıştı): yeni tahmin sayısı 271 → 203,
+önceki yanlışların 56/124'ü elendi, doğru bulunan 12 tahmin kayboldu. Kural düzeltmesi örnekle
+ayarlandığı için bu sayı doğruluk iddiası değildir; kapsam açmadan önce bağımsız insan etiketi gerekir.
