@@ -9,6 +9,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { visibleWithoutBestOfferSql } from "../offers/freshness.ts";
 import type { ForeignPrice } from "./result-types.ts";
 import {
   BEST_OFFER_ORIGIN_COLUMNS,
@@ -108,6 +109,7 @@ export async function searchByImageVector(
     JOIN product p ON p.id = bp.product_id
     LEFT JOIN best_offer bo ON bo.product_id = p.id
     WHERE (p.offer_count > 0 OR p.foreign_offer_count > 0) AND p.publication_state = 'published'
+      AND ${visibleWithoutBestOfferSql("p", "bo")}
     ORDER BY bp.similarity DESC
     LIMIT ${limit}
   `);

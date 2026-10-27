@@ -8,6 +8,7 @@
  */
 import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
+import { offerVerifiedSql } from "../offers/freshness.ts";
 import { MAX_RATE_AGE_DAYS } from "../pricing/fx.ts";
 import { arrayParam, balancedScoreExpr, balancedScoreFactors } from "./ranking.ts";
 import type { ForeignPrice } from "./result-types.ts";
@@ -92,6 +93,9 @@ export function bestOfferCte(
       LEFT JOIN fx ON o.currency <> 'TRY' AND fx.base = o.currency
       WHERE o.product_id IS NOT NULL
         AND o.is_active AND m.is_active
+        -- Karar 0155: beslemede uzun suredir gorulmeyen teklifin fiyati guncel gibi secilmez.
+        -- Politikasi olmayan beslemenin (ve beslemesiz) teklifi her zaman dogrulanmistir.
+        AND ${offerVerifiedSql("o")}
         AND (o.currency = 'TRY' OR o.current_price > 0)
         AND ${merchantFilter}
         -- "Stokta olanlar": stok bildirmeyen kaynak (stock_state=unknown, karar 0118) dogrulanmis

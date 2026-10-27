@@ -11,6 +11,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { visibleWithoutBestOfferSql } from "../offers/freshness.ts";
 import { withStartingFrom } from "../product/get-price-comparison.ts";
 import { arrayParam } from "./ranking.ts";
 import type { AlternativeProduct } from "./result-types.ts";
@@ -68,6 +69,7 @@ export async function findAlternatives(
     LEFT JOIN brand b ON b.id = p.brand_id
     WHERE p.id <> ${anchorProductId} AND (p.offer_count > 0 OR p.foreign_offer_count > 0)
       AND p.publication_state = 'published'
+      AND ${visibleWithoutBestOfferSql("p", "bo")}
     ORDER BY e.score DESC, p.id ASC
     LIMIT ${limit}
   `);

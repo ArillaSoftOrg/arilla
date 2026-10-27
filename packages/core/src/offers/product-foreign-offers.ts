@@ -6,10 +6,14 @@
  * gözlendiği zamanla gösterilir. TCMB kuru varsa yaklaşık TL, kur tarihiyle eklenir; yoksa
  * eklenmez (uydurulmaz). Kargo/gümrük/vergi bilinmediği için toplam fiyat doğrulanmış
  * değildir ve bu teklifler fiyat sıralamasına girmez: en yeni gözlenen önce.
+ *
+ * Karar 0155: beslemede uzun süredir görülmeyen (doğrulanamayan) teklif listeye girmez;
+ * nedenini söylemek için bkz. `getProductUnverifiedForeignOffers`.
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { type ApproxTry, approximateTry, type FxQuote, latestFxQuote } from "../pricing/fx.ts";
+import { offerVerifiedSql } from "./freshness.ts";
 
 export interface ProductForeignOffer {
   offerId: number;
@@ -53,6 +57,7 @@ export async function getProductForeignOffers(
        AND o.is_active AND o.in_stock
        AND o.currency <> 'TRY'
        AND o.current_price IS NOT NULL AND o.current_price > 0
+       AND ${offerVerifiedSql("o")}
      ORDER BY o.last_seen_at DESC, o.id DESC
      LIMIT ${FOREIGN_OFFERS_LIMIT}
   `);

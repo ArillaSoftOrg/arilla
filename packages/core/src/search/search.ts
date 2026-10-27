@@ -9,6 +9,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { visibleWithoutBestOfferSql } from "../offers/freshness.ts";
 import { withStartingFrom } from "../product/get-price-comparison.ts";
 import { arrayParam } from "./ranking.ts";
 import {
@@ -162,6 +163,7 @@ async function searchByClosestMatch(
     LEFT JOIN brand b ON b.id = p.brand_id
     LEFT JOIN category c ON c.id = p.category_id
     WHERE p.id <> ${anchorProductId} AND p.publication_state = 'published'
+      AND ${visibleWithoutBestOfferSql("p", "bo")}
       AND ${buildFilterClause(query.filters)}
     ORDER BY e.score DESC, p.id ASC
     LIMIT ${limit} OFFSET ${offset}

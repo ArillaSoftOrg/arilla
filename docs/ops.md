@@ -1628,7 +1628,64 @@ verir; systemd `arilla-alert@` alarmı gönderir. 36 saat koşu yoksa panel "zam
 **Sınırlar.** Kaynak günde bir kez güncellenmeyebilir: fiyat taze demek kaynak kadar taze demektir.
 `--max-source-age-hours` (varsayılan 168) Admitad'in gerçek güncelleme sıklığı ölçülmeden
 kesinleşmez; ilk haftanın `source_age_hours` değerleriyle ayarlanır. Eski fiyatı **gizleyen** okuma
-yolu koruması bu işin kapsamında değildir (karar 0145 "Sınırlar ve açık işler").
+yolu koruması bu işin kapsamında değildir; karar 0155 ile ayrı ve besleme başına açık bir
+politikadır (aşağıdaki bölüm).
+
+## Teklif tazeliği politikası (karar 0155)
+
+**Durum:** Kod ve testler hazır; üretimde HİÇBİR beslemede politika **tanımlı değil**, yani dağıtım
+davranışı değiştirmez. Etkinleştirme ayrı ve onaylı bir adımdır. Migration yok; teklif, ürün bağı ve
+`price_point` değişmez, kural yalnızca okuma anında değerlendirilir.
+
+Politika, beslemenin `feed_source.config` alanındaki `freshness` nesnesidir:
+
+| Alan | Anlam |
+| --- | --- |
+| `unverified_after_days` | **Zorunlu** (1-365; yoksa ya da bozuksa politika yoktur). Teklifin üyeliğinin son görülmesi bu günden eskiyse "yaşlı" |
+| `min_absent_days` | Varsayılan 2. Teklifin son görüldüğü sürümden SONRA, onu içermeyen tamamlanmış (`complete`) sürümlerin yayıldığı en az farklı UTC günü |
+| `source_stale_after_days` | İsteğe bağlı. Beslemenin bu günden uzun süredir başarılı sürümü yoksa beslemenin tüm teklifleri doğrulanamaz. Tanımsızsa kaynak kesintisi teklifleri gizlemez |
+
+Teklif doğrulanamaz sayılır: (yaş **ve** en az `min_absent_days` farklı başarılı gün) **ya da**
+kaynak sağlığı sınırı **ya da** politikalı beslemenin durumu `disabled`/`gone` (fiyat artık
+doğrulanamaz). Kaynağın başarısız olduğu günlerde sürüm oluşmaz, o günler "teklif kayboldu"
+diye sayılmaz. Birden çok beslemede üyeliği olan teklif, herhangi biri tazeyse doğrulanmıştır.
+Politikası olmayan besleme (ör. Hepsiburada toplayıcısı) ve beslemesiz mağaza hiç etkilenmez.
+
+**Önerilen ilk ayar (AliExpress, besleme 7):** `{"unverified_after_days": 10}`. Gerekçe ve eşik
+ölçümleri: karar 0155.
+
+```sql
+-- ETKİNLEŞTİR (onaylı üretim adımı; idempotent, anında etkili, veri değişmez):
+UPDATE feed_source
+   SET config = jsonb_set(config, '{freshness}', '{"unverified_after_days": 10}'::jsonb, true)
+ WHERE id = 7 AND network = 'admitad';
+-- GERİ AL:
+UPDATE feed_source SET config = config - 'freshness' WHERE id = 7;
+```
+
+**İzleme (salt okunur).** Politikalı beslemede kaç üyelik hangi grupta ve kaçı doğrulanamaz:
+
+```sql
+WITH grp AS (
+  SELECT m.feed_source_id, m.last_snapshot_id, count(*) AS n, max(m.last_seen_at) AS last_seen
+    FROM feed_source_offer m GROUP BY 1, 2)
+SELECT g.feed_source_id AS besleme, g.last_snapshot_id AS son_surum, g.n AS uyelik,
+       round(extract(epoch FROM now() - g.last_seen) / 86400, 1) AS yas_gun,
+       (SELECT count(DISTINCT (s.completed_at AT TIME ZONE 'UTC')::date) FROM source_snapshot s
+         WHERE s.feed_source_id = g.feed_source_id AND s.status = 'complete'
+           AND s.id > g.last_snapshot_id) AS teklifsiz_basarili_gun
+  FROM grp g ORDER BY 1, 2 DESC;
+```
+
+`yas_gun` politika eşiğini ve `teklifsiz_basarili_gun` en az `min_absent_days` değerini aşan gruplar
+doğrulanamaz. Arama ve ürün sayfası sonuçları kural okuma anında hesapladığı için politika değişince
+bir sonraki istekte geçerli olur.
+
+**Sınırlar.** `product.offer_count`/`foreign_offer_count` özetleri doğrulanamayan teklifi hâlâ sayar
+(arama uygunluğu bu özetlere de bakar); arama adayları tam bir aday penceresiyle sınırlıdır, bu yüzden
+doğrulanamayan ürünler pencereyi doldurabilir. TRY karşılaştırma yüzeyleri (`compareMerchants`,
+`getPriceComparison`) bu kuralı uygulamaz: politika yalnızca yurt dışı beslemeye açılmalı, bir TRY
+beslemesine eklenmeden önce aynı koşul oralara da konmalıdır (karar 0155 §7).
 
 ## Affiliate dönüşümleri (karar 0128)
 
