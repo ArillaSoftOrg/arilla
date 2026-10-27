@@ -156,6 +156,24 @@ def test_tek_genel_sozcuk_kategoriyi_kanitlamaz() -> None:
     assert guess.path != "banyo-yapi-hirdavat/elektrik-tesisat-malzemesi/guvenlik-urunleri"
 
 
+def test_dugum_adinin_tum_govdeleri_gecmeden_yaprak_secilmez() -> None:
+    """'Akilli Aydinlatma': ata ile paylasilan 'akilli' de ad'in parcasidir (grow light degil)."""
+    cats = [
+        ("banyo-yapi-hirdavat", "Banyo Yapı & Hırdavat"),
+        ("banyo-yapi-hirdavat/akilli-ev-aletleri", "Akıllı Ev Aletleri"),
+        ("banyo-yapi-hirdavat/akilli-ev-aletleri/akilli-aydinlatma", "Akıllı Aydınlatma"),
+    ]
+    idx = DynamicIndex(cats, ["banyo-yapi-hirdavat"])
+    node = "banyo-yapi-hirdavat/akilli-ev-aletleri/akilli-aydinlatma"
+    assert idx.guess("LED Grow Lighting Lamp Full Spectrum", ELECTRICAL).path != node
+
+
+def test_bas_sozcuge_bitisik_parca_adi_urunun_asil_turudur() -> None:
+    """'Phone Holder Car Mount': urun telefon degil tutucudur; cihaz dugumune girmez."""
+    idx = index()
+    assert idx.guess("Smart Mobile Phone Holder Car Mount", USED_PHONES).path is None
+
+
 def test_diger_artik_kovasi_aday_olmaz() -> None:
     assert (
         index().guess("Women Casual Other Clothing Item", WOMEN_BLOUSES).path != "giyim/diger-giyim"
