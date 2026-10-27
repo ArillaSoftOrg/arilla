@@ -1,0 +1,280 @@
+# Asama 1 (karar 0157). AliExpress kaynak yolu -> GUVENILIR ManiCepte UST kategorisi. AI ONERISIDIR
+# (Claude incelemesi + source_bridge.tsv); insan dogrulamasi DEGILDIR, `confirmed` sayilmaz.
+# durum: yuksek (kategori_yolu dolu) | inceleme (ortak ust yok; aday_yolu yalniz ipucu, kullanilmaz) |
+# eslesmedi (urun degil ya da agacta karsiligi yok). Her kaynak yolu tam bir kez; source_bridge ile ayni kume.
+# Bicim: kaynak_yolu<TAB>durum<TAB>kategori_yolu<TAB>aday_yolu<TAB>gerekce
+Apparel Accessories > Apparel Fabrics & Textiles	yuksek	hobi-eglence/hobi-malzemeleri		kopru tek bolge: hobi-eglence/hobi-malzemeleri
+Apparel Accessories > Belt Buckle	yuksek	aksesuar/kemer-pantolon-askisi		kopru tek bolge: aksesuar/kemer-pantolon-askisi
+Apparel Accessories > DIY Accessories	yuksek	hobi-eglence/hobi-malzemeleri		kopru tek bolge: hobi-eglence/hobi-malzemeleri
+Apparel Accessories > Fashionable Canes	yuksek	aksesuar/diger-aksesuar		kopru tek bolge: aksesuar/diger-aksesuar
+Apparel Accessories > Knee Sleeve & Leg Warmer	inceleme		spor-outdoor/ekipman-aksesuar	spor dizligi ve moda tozluk karisik
+Apparel Accessories > Mask（New）	inceleme			uyku maskesi ve kostum maskesi karisik; ortak ust yok
+Apparel Accessories > Neck Wear	yuksek	aksesuar		bolgeler (aksesuar/sal-fular, aksesuar/atki-bere-eldiven) ayni kokte; ortak ata
+Apparel Accessories > New Headwear	yuksek	aksesuar		bolgeler (aksesuar/sapka, aksesuar/atki-bere-eldiven) ayni kokte; ortak ata
+Apparel Accessories > Oversleeve & Arm Warmer	yuksek	aksesuar/atki-bere-eldiven		kopru tek bolge: aksesuar/atki-bere-eldiven
+Apparel Accessories > Pocket Squares	yuksek	aksesuar/kravat-kol-dugmesi		kopru tek bolge: aksesuar/kravat-kol-dugmesi
+Apparel Accessories > new Scarf &Wrap	yuksek	aksesuar		bolgeler (aksesuar/sal-fular, aksesuar/atki-bere-eldiven) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > Auto Sale	eslesmedi			arac satisi; agacta karsiligi yok
+Automobiles, Parts & Accessories > Automotive Sensors	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/otomobil-yedek-parca, otomobil-motosiklet/otomobil) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > Car Electronics	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/oto-ses-goruntu-sistemleri, otomobil-motosiklet/otomobil) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > Car Lights	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/otomobil-yedek-parca, otomobil-motosiklet/otomobil) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > Car Lock System	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/otomobil, otomobil-motosiklet/otomobil-yedek-parca) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > Car Maintenance Tools	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/otomobil, otomobil-motosiklet/otomobil-yedek-parca) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > Car Repair Tool	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/otomobil, otomobil-motosiklet/otomobil-yedek-parca) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > Car Wash & Maintenance	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/otomobil, otomobil-motosiklet/otomobil-yedek-parca) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > Chassis Parts	yuksek	otomobil-motosiklet/otomobil-yedek-parca		kopru tek bolge: otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > Electrical Equipment	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/otomobil-yedek-parca, otomobil-motosiklet/otomobil) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > Engines & Engine Parts	yuksek	otomobil-motosiklet/otomobil-yedek-parca		kopru tek bolge: otomobil-motosiklet/otomobil-yedek-parca
+Automobiles, Parts & Accessories > Exterior Accessories	yuksek	otomobil-motosiklet/otomobil		kopru tek bolge: otomobil-motosiklet/otomobil
+Automobiles, Parts & Accessories > Exterior Parts	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/otomobil, otomobil-motosiklet/otomobil-yedek-parca) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > Interior Accessories	yuksek	otomobil-motosiklet/otomobil		kopru tek bolge: otomobil-motosiklet/otomobil
+Automobiles, Parts & Accessories > Interior Parts	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/otomobil, otomobil-motosiklet/otomobil-yedek-parca) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > New Energy Vehicle Parts & Accessories	yuksek	otomobil-motosiklet/otomobil		kopru tek bolge: otomobil-motosiklet/otomobil
+Automobiles, Parts & Accessories > Other Vehicle Parts & Accessories	yuksek	otomobil-motosiklet		bolgeler (otomobil-motosiklet/otomobil, otomobil-motosiklet/otomobil-yedek-parca) ayni kokte; ortak ata
+Automobiles, Parts & Accessories > RV Parts & Accessories	yuksek	otomobil-motosiklet/karavan		kopru tek bolge: otomobil-motosiklet/karavan
+Automobiles, Parts & Accessories > Wear Parts	yuksek	otomobil-motosiklet/otomobil-yedek-parca		kopru tek bolge: otomobil-motosiklet/otomobil-yedek-parca
+Beauty & Health > Bath & Shower	yuksek	kozmetik-kisisel-bakim		kopru tek bolge: kozmetik-kisisel-bakim
+Beauty & Health > Beauty Equipment	yuksek	elektronik/kisisel-bakim-aletleri		kopru tek bolge: elektronik/kisisel-bakim-aletleri
+Beauty & Health > Dental Supplies	yuksek	kozmetik-kisisel-bakim/agiz-bakim		kopru tek bolge: kozmetik-kisisel-bakim/agiz-bakim
+Beauty & Health > Fragrances & Deodorants	yuksek	kozmetik-kisisel-bakim/parfum-ve-deodorant		kopru tek bolge: kozmetik-kisisel-bakim/parfum-ve-deodorant
+Beauty & Health > Hair Care & Styling	inceleme		kozmetik-kisisel-bakim/sac-bakim	bolgeler farkli koklerde (kozmetik-kisisel-bakim/sac-bakim, elektronik/kisisel-bakim-aletleri); guvenilir ortak ust yok
+Beauty & Health > Health Care	yuksek	supermarket/saglik		kopru tek bolge: supermarket/saglik
+Beauty & Health > Massage & Relaxation	inceleme		elektronik/kisisel-bakim-aletleri	bolgeler farkli koklerde (elektronik/kisisel-bakim-aletleri, supermarket/saglik); guvenilir ortak ust yok
+Beauty & Health > Nail Art & Tools	yuksek	kozmetik-kisisel-bakim		kopru tek dal (makyaj) dar; tirnak makasi/torpu cilt bakimi altinda -> guvenli ortak ust (400 AI etiket olcumu)
+Beauty & Health > Perfume	yuksek	kozmetik-kisisel-bakim/parfum-ve-deodorant		kopru tek bolge: kozmetik-kisisel-bakim/parfum-ve-deodorant
+Beauty & Health > Rehabilitation Supplies	yuksek	supermarket/saglik		kopru tek bolge: supermarket/saglik
+Beauty & Health > Sex Products	eslesmedi			agacta cinsel saglik dali yok; uydurulmaz
+Beauty & Health > Tattoo & Body Art	yuksek	kozmetik-kisisel-bakim/diger-kisisel-bakim-urunleri		kopru tek bolge: kozmetik-kisisel-bakim/diger-kisisel-bakim-urunleri
+Books & Cultural Merchandise > Books	yuksek	kitap		ornek basliklar kitap; kopru bolgesiz oldugundan yalniz ust (motor aday uretmez)
+Books & Cultural Merchandise > Cultural Derivatives(Office Supplies)	yuksek	kirtasiye-ofis-malzemeleri/kirtasiye		kopru tek bolge: kirtasiye-ofis-malzemeleri/kirtasiye
+Books & Cultural Merchandise > Music, CDs & Vinyl Records	inceleme		hobi-eglence/muzik-alet-ve-ekipmanlari	CD/plak muzik aleti degil; kopru bolgesi zayif
+Computer & Office > 3D Printing & Additive Manufacturing	yuksek	elektronik/bilgisayar-grubu		kopru tek bolge: elektronik/bilgisayar-grubu
+Computer & Office > Computer & Office Bundle	inceleme		elektronik/bilgisayar-grubu	paket urun; kopru bolgesiz, 6 urun
+Computer & Office > Computer Components	yuksek	elektronik/bilgisayar-grubu		kopru tek bolge: elektronik/bilgisayar-grubu
+Computer & Office > Computer Peripherals	yuksek	elektronik		bolgeler (elektronik/bilgisayar-grubu, elektronik/elektronik-aksesuarlar/bilgisayar-aksesuarlari) ayni kokte; ortak ata
+Computer & Office > Laptop Parts & Accessories	yuksek	elektronik		bolgeler (elektronik/elektronik-aksesuarlar/bilgisayar-aksesuarlari, elektronik/bilgisayar-grubu) ayni kokte; ortak ata
+Computer & Office > Networking	yuksek	elektronik/bilgisayar-grubu		kopru tek bolge: elektronik/bilgisayar-grubu
+Computer & Office > Office Electronics	inceleme		kirtasiye-ofis-malzemeleri/ofis-teknolojileri	bolgeler farkli koklerde (kirtasiye-ofis-malzemeleri/ofis-teknolojileri, elektronik/bilgisayar-grubu); guvenilir ortak ust yok
+Computer & Office > Servers & Industrial Computer	yuksek	elektronik/bilgisayar-grubu		kopru tek bolge: elektronik/bilgisayar-grubu
+Computer & Office > Storage Device	yuksek	elektronik/bilgisayar-grubu		kopru tek bolge: elektronik/bilgisayar-grubu
+Computer & Office > Tablet Accessories & Parts	yuksek	elektronik		bolgeler (elektronik/tablet-grubu, elektronik/elektronik-aksesuarlar/tablet-aksesuarlari) ayni kokte; ortak ata
+Computer & Office > Tablets	yuksek	elektronik/tablet-grubu		kopru tek bolge: elektronik/tablet-grubu
+Consumer Electronics > Accessories & Parts	yuksek	elektronik/elektronik-aksesuarlar		kopru tek bolge: elektronik/elektronik-aksesuarlar
+Consumer Electronics > Electronic Cigarettes	yuksek	hobi-eglence/tutun-tutun-aksesuarlari		kopru tek bolge: hobi-eglence/tutun-tutun-aksesuarlari
+Consumer Electronics > Portable Audio & Video	yuksek	elektronik		bolgeler (elektronik/hoparlor-projeksiyon-sistemleri, elektronik/giyilebilir) ayni kokte; ortak ata
+Consumer Electronics > Smart Electronics	yuksek	elektronik		kopru tek dal (akilli ev) dar; kaynak giyilebilir/akilli saat da icerir -> guvenli ortak ust
+Food > Coffee	yuksek	supermarket/gida-icecek		kopru tek bolge: supermarket/gida-icecek
+Food > Grocery	yuksek	supermarket/gida-icecek		kopru tek bolge: supermarket/gida-icecek
+Furniture > Café Furniture	yuksek	ev-mobilya/mobilya		kopru tek bolge: ev-mobilya/mobilya
+Furniture > Senior Furniture	yuksek	ev-mobilya/mobilya		kopru tek bolge: ev-mobilya/mobilya
+Hair Extensions & Wigs > Beauty Supply	inceleme		kozmetik-kisisel-bakim/sac-bakim	bolgeler farkli koklerde (kozmetik-kisisel-bakim/sac-bakim, aksesuar/sac-aksesuari); guvenilir ortak ust yok
+Hair Extensions & Wigs > Hair For Asian	inceleme		kozmetik-kisisel-bakim/sac-bakim	bolgeler farkli koklerde (kozmetik-kisisel-bakim/sac-bakim, aksesuar/sac-aksesuari); guvenilir ortak ust yok
+Hair Extensions & Wigs > Hair Salon Supply	inceleme		kozmetik-kisisel-bakim/sac-bakim	bolgeler farkli koklerde (kozmetik-kisisel-bakim/sac-bakim, aksesuar/sac-aksesuari); guvenilir ortak ust yok
+Hair Extensions & Wigs > Hair Tools & Accessories	inceleme		kozmetik-kisisel-bakim/sac-bakim	bolgeler farkli koklerde (kozmetik-kisisel-bakim/sac-bakim, aksesuar/sac-aksesuari); guvenilir ortak ust yok
+Hair Extensions & Wigs > Human Hair (For Black)	inceleme		kozmetik-kisisel-bakim/sac-bakim	bolgeler farkli koklerde (kozmetik-kisisel-bakim/sac-bakim, aksesuar/sac-aksesuari); guvenilir ortak ust yok
+Hair Extensions & Wigs > Human Hair (For White)	inceleme		kozmetik-kisisel-bakim/sac-bakim	bolgeler farkli koklerde (kozmetik-kisisel-bakim/sac-bakim, aksesuar/sac-aksesuari); guvenilir ortak ust yok
+Hair Extensions & Wigs > Synthetic Hair	inceleme		kozmetik-kisisel-bakim/sac-bakim	bolgeler farkli koklerde (kozmetik-kisisel-bakim/sac-bakim, aksesuar/sac-aksesuari); guvenilir ortak ust yok
+Hair Extensions & Wigs > Synthetic Hair(For White)	inceleme		kozmetik-kisisel-bakim/sac-bakim	bolgeler farkli koklerde (kozmetik-kisisel-bakim/sac-bakim, aksesuar/sac-aksesuari); guvenilir ortak ust yok
+Home & Garden > Arts,Crafts & Sewing	inceleme		hobi-eglence/hobi-malzemeleri	bolgeler farkli koklerde (hobi-eglence/hobi-malzemeleri, kirtasiye-ofis-malzemeleri/sanatsal-malzemeler, elektronik/elektrikli-ev-aletleri); guvenilir ortak ust yok
+Home & Garden > Collectibles	yuksek	hobi-eglence/hediyelik-urunler		kopru tek bolge: hobi-eglence/hediyelik-urunler
+Home & Garden > Festive & Party Supplies	yuksek	hobi-eglence/parti-malzemeleri		kopru tek bolge: hobi-eglence/parti-malzemeleri
+Home & Garden > Home Decor	yuksek	ev-mobilya/ev		kopru tek bolge: ev-mobilya/ev
+Home & Garden > Home Storage & Organization	yuksek	ev-mobilya/ev		kopru tek bolge: ev-mobilya/ev
+Home & Garden > Household Merchandises	inceleme		ev-mobilya/ev	bolgeler farkli koklerde (ev-mobilya/ev, banyo-yapi-hirdavat/hirdavat); guvenilir ortak ust yok
+Home & Garden > Kitchen,Dining & Bar	inceleme		ev-mobilya/ev	bolgeler farkli koklerde (ev-mobilya/ev, elektronik/elektrikli-ev-aletleri); guvenilir ortak ust yok
+Home & Garden > Pet Products	yuksek	supermarket/pet-shop		kopru tek bolge: supermarket/pet-shop
+Home Appliances > Commercial Appliances	yuksek	elektronik		bolgeler (elektronik/beyaz-esya-iklimlendirme, elektronik/elektrikli-ev-aletleri) ayni kokte; ortak ata
+Home Appliances > Household Appliances	yuksek	elektronik		bolgeler (elektronik/beyaz-esya-iklimlendirme, elektronik/elektrikli-ev-aletleri) ayni kokte; ortak ata
+Home Appliances > Major Appliances	yuksek	elektronik		bolgeler (elektronik/beyaz-esya-iklimlendirme, elektronik/elektrikli-ev-aletleri) ayni kokte; ortak ata
+Home Appliances > Personal Care Appliances	yuksek	elektronik/kisisel-bakim-aletleri		kopru tek bolge: elektronik/kisisel-bakim-aletleri
+Home Improvement > Bathroom Fixture	yuksek	banyo-yapi-hirdavat/banyo-yapi-malzemeleri		kopru tek bolge: banyo-yapi-hirdavat/banyo-yapi-malzemeleri
+Home Improvement > Building Supplies	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Home Improvement > Electrical Equipment & Supplies	inceleme		banyo-yapi-hirdavat/elektrik-tesisat-malzemesi	bolgeler farkli koklerde (banyo-yapi-hirdavat/elektrik-tesisat-malzemesi, bahce-elektrikli-el-aletleri/enerji-sistemleri); guvenilir ortak ust yok
+Home Improvement > Family Intelligence System	inceleme		elektronik/akilli-ev-aletleri	bolgeler farkli koklerde (elektronik/akilli-ev-aletleri, banyo-yapi-hirdavat/elektrik-tesisat-malzemesi); guvenilir ortak ust yok
+Home Improvement > Functional Material	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Home Improvement > Heating, Cooling & Vents	inceleme		banyo-yapi-hirdavat/hirdavat	bolgeler farkli koklerde (banyo-yapi-hirdavat/hirdavat, elektronik/beyaz-esya-iklimlendirme); guvenilir ortak ust yok
+Home Improvement > Kitchen Fixture	yuksek	banyo-yapi-hirdavat/banyo-yapi-malzemeleri		kopru tek bolge: banyo-yapi-hirdavat/banyo-yapi-malzemeleri
+Home Improvement > Painting Supplies & Wall Treatments	yuksek	banyo-yapi-hirdavat		kopru tek dal (boya) dar; duvar kagidi hirdavat altinda -> guvenli ortak ust (400 AI etiket olcumu)
+Home Improvement > Plumbing	yuksek	banyo-yapi-hirdavat		bolgeler (banyo-yapi-hirdavat/banyo-yapi-malzemeleri, banyo-yapi-hirdavat/hirdavat) ayni kokte; ortak ata
+Industrial & Business > Agricultural Machinery & Supplies	yuksek	bahce-elektrikli-el-aletleri/bahce		kopru tek bolge: bahce-elektrikli-el-aletleri/bahce
+Industrial & Business > Air Compressors, Pneumatics & Hydraulics	yuksek	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri		kopru tek bolge: bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Industrial & Business > Blowers, Industrial Fans & Exhaust Equipment	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Industrial & Business > Chemicals	inceleme			gres, karbon plaka, bant: hammadde karisik; ortak ust yok
+Industrial & Business > Commercial Equipment	inceleme			tabela, organizer, para kontrol cihazi karisik; ortak ust yok
+Industrial & Business > Construction Machinery & Accessories	yuksek	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri		kopru tek bolge: bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Industrial & Business > Fabric & Textile Raw Material	yuksek	hobi-eglence/hobi-malzemeleri		kopru tek bolge: hobi-eglence/hobi-malzemeleri
+Industrial & Business > Food Machine and Supporting Equipment	yuksek	elektronik/elektrikli-ev-aletleri		kopru tek bolge: elektronik/elektrikli-ev-aletleri
+Industrial & Business > Industrial Automation Control & Accessories	inceleme		bahce-elektrikli-el-aletleri/enerji-sistemleri	bolgeler farkli koklerde (bahce-elektrikli-el-aletleri/enerji-sistemleri, banyo-yapi-hirdavat/elektrik-tesisat-malzemesi); guvenilir ortak ust yok
+Industrial & Business > Industrial Spare Parts	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Industrial & Business > Industrial and Commercial Cleaning Equipment	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Industrial & Business > Industry Machinery & Equipment	yuksek	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri		kopru tek bolge: bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Industrial & Business > Metals & Alloys	inceleme		banyo-yapi-hirdavat/hirdavat	profil, elek, ev cihazi karisik; ortak ust yok
+Industrial & Business > Packaging, Printing & Supporting Equipment	inceleme		kirtasiye-ofis-malzemeleri/ofis-teknolojileri	bolgeler farkli koklerde (kirtasiye-ofis-malzemeleri/ofis-teknolojileri, banyo-yapi-hirdavat/hirdavat); guvenilir ortak ust yok
+Industrial & Business > Rubbers & Plastics	inceleme		banyo-yapi-hirdavat/hirdavat	hammadde ve oto/tesisat parcasi karisik; ortak ust yok
+Jewelry & Accessories > Customized Jewelry	yuksek	aksesuar		bolgeler (aksesuar/taki-mucevher, aksesuar/altin) ayni kokte; ortak ata
+Jewelry & Accessories > Fine Jewelry	yuksek	aksesuar		bolgeler (aksesuar/taki-mucevher, aksesuar/altin) ayni kokte; ortak ata
+Jewelry & Accessories > Jewelry Making	inceleme		hobi-eglence/hobi-malzemeleri	bolgeler farkli koklerde (hobi-eglence/hobi-malzemeleri, aksesuar/taki-mucevher); guvenilir ortak ust yok
+Jewelry & Accessories > Jewelry Packaging & Display	inceleme		hobi-eglence/hediyelik-urunler	taki kutusu/standi hediyelik urun dalina tam uymaz
+Jewelry & Accessories > Jewelry Tools & Equipments	yuksek	hobi-eglence/hobi-malzemeleri		kopru tek bolge: hobi-eglence/hobi-malzemeleri
+Jewelry & Accessories > Smart Jewelry	yuksek	elektronik/giyilebilir		kopru tek bolge: elektronik/giyilebilir
+Lights & Lighting > Commercial Lighting	inceleme		elektronik/akilli-ev-aletleri	bolgeler farkli koklerde (elektronik/akilli-ev-aletleri, banyo-yapi-hirdavat/elektrik-tesisat-malzemesi); guvenilir ortak ust yok
+Lights & Lighting > Novelty Lighting（new）	inceleme		elektronik/akilli-ev-aletleri	bolgeler farkli koklerde (elektronik/akilli-ev-aletleri, banyo-yapi-hirdavat/elektrik-tesisat-malzemesi); guvenilir ortak ust yok
+Lights & Lighting > Professional Light	inceleme		elektronik/akilli-ev-aletleri	bolgeler farkli koklerde (elektronik/akilli-ev-aletleri, banyo-yapi-hirdavat/elektrik-tesisat-malzemesi); guvenilir ortak ust yok
+Lights & Lighting > Smart Lighting	yuksek	elektronik/akilli-ev-aletleri		kopru tek bolge: elektronik/akilli-ev-aletleri
+Lights & Lighting > Special Engineering Lighting	inceleme		elektronik/akilli-ev-aletleri	bolgeler farkli koklerde (elektronik/akilli-ev-aletleri, banyo-yapi-hirdavat/elektrik-tesisat-malzemesi); guvenilir ortak ust yok
+Luggage & Bags > Backpack	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Chest Bags	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Kids' Bags	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Luggage	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Men's Bags	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Organizer Bag	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Summer Bags	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Travel Accessories	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Travel Bags	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Waist Packs	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Winter Bags	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Women's Handbags	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Men's Clothing > Basic Clothing	yuksek	giyim		bolgeler (giyim/ust-giyim, giyim/alt-giyim) ayni kokte; ortak ata
+Men's Clothing > Denim（New）	yuksek	giyim/alt-giyim		kopru tek bolge: giyim/alt-giyim
+Men's Clothing > Down Coats	yuksek	giyim/dis-giyim		kopru tek bolge: giyim/dis-giyim
+Men's Clothing > Men's Sets（new）	yuksek	giyim		bolgeler (giyim/takimlar, giyim/ust-giyim, giyim/alt-giyim) ayni kokte; ortak ata
+Men's Clothing > Men's Shirts	yuksek	giyim/ust-giyim		kopru tek bolge: giyim/ust-giyim
+Men's Clothing > Middle East Fashion	yuksek	giyim		kopru tek bolge: giyim
+Men's Clothing > Pants	yuksek	giyim/alt-giyim		kopru tek bolge: giyim/alt-giyim
+Men's Clothing > Parkas	yuksek	giyim/dis-giyim		kopru tek bolge: giyim/dis-giyim
+Men's Clothing > Shorts	yuksek	giyim/alt-giyim		kopru tek bolge: giyim/alt-giyim
+Men's Clothing > Suits & Blazer	yuksek	giyim		bolgeler (giyim/takim-elbise, giyim/dis-giyim) ayni kokte; ortak ata
+Men's Clothing > Sweaters	yuksek	giyim/ust-giyim		kopru tek bolge: giyim/ust-giyim
+Men's Clothing > Traditional Men's Clothing	yuksek	giyim		kopru tek bolge: giyim
+Mother & Kids > Activity & Gear	yuksek	anne-bebek-cocuk/cocuk-gerecleri		kopru tek bolge: anne-bebek-cocuk/cocuk-gerecleri
+Mother & Kids > Baby Care	inceleme		supermarket/anne-ve-bebek-bakim	tirnak makasi, havlu/bornoz, terazi, aspirator karisik; farkli kokler, ortak ust yok
+Mother & Kids > Baby Diaper & Wipes	yuksek	supermarket/anne-ve-bebek-bakim		kopru tek bolge: supermarket/anne-ve-bebek-bakim
+Mother & Kids > Baby Furniture	inceleme		anne-bebek-cocuk/cocuk-gerecleri	bolgeler farkli koklerde (anne-bebek-cocuk/cocuk-gerecleri, ev-mobilya/mobilya); guvenilir ortak ust yok
+Mother & Kids > Baby Souvenirs	yuksek	anne-bebek-cocuk/cocuk-gerecleri		kopru tek bolge: anne-bebek-cocuk/cocuk-gerecleri
+Mother & Kids > Baby Strollers&Accessories	yuksek	anne-bebek-cocuk/cocuk-gerecleri		kopru tek bolge: anne-bebek-cocuk/cocuk-gerecleri
+Mother & Kids > Baby Sterilization & Appliances	yuksek	anne-bebek-cocuk/cocuk-gerecleri		kopru tek bolge: anne-bebek-cocuk/cocuk-gerecleri
+Mother & Kids > Car Seats & Accessories	yuksek	anne-bebek-cocuk/cocuk-gerecleri		kopru tek bolge: anne-bebek-cocuk/cocuk-gerecleri
+Mother & Kids > Children's Clothing	yuksek	giyim/bebek-giyim		kopru tek bolge: giyim/bebek-giyim
+Mother & Kids > Diapering & Toilet Training	yuksek	supermarket/anne-ve-bebek-bakim		kopru tek bolge: supermarket/anne-ve-bebek-bakim
+Mother & Kids > Feeding	inceleme		anne-bebek-cocuk/cocuk-gerecleri	bolgeler farkli koklerde (anne-bebek-cocuk/cocuk-gerecleri, supermarket/anne-ve-bebek-bakim); guvenilir ortak ust yok
+Mother & Kids > Kids Accessories	inceleme		aksesuar	bolgeler farkli koklerde (aksesuar, giyim/bebek-giyim); guvenilir ortak ust yok
+Mother & Kids > Kids Shoes	yuksek	ayakkabi		kopru tek bolge: ayakkabi
+Mother & Kids > Pregnancy & Maternity	yuksek	giyim/hamile-giyim		kopru tek bolge: giyim/hamile-giyim
+Mother & Kids > Safety	yuksek	anne-bebek-cocuk/cocuk-gerecleri		kopru tek bolge: anne-bebek-cocuk/cocuk-gerecleri
+Motorcycle Equipments & Parts > Aircraft	yuksek	hobi-eglence/uzaktan-kumandali-araclar		kopru tek bolge: hobi-eglence/uzaktan-kumandali-araclar
+Motorcycle Equipments & Parts > Boats	inceleme		spor-outdoor/ekipman-aksesuar	tekne ekipmani spor aksesuari degil; kopru bolgesi zayif
+Motorcycle Equipments & Parts > Modification&Protection	yuksek	otomobil-motosiklet/motosiklet		kopru tek bolge: otomobil-motosiklet/motosiklet
+Motorcycle Equipments & Parts > Motorcycle & ATV	yuksek	otomobil-motosiklet/motosiklet		kopru tek bolge: otomobil-motosiklet/motosiklet
+Motorcycle Equipments & Parts > Motorcycle Accessories	yuksek	otomobil-motosiklet/motosiklet		kopru tek bolge: otomobil-motosiklet/motosiklet
+Motorcycle Equipments & Parts > Motorcycle Equipments	yuksek	otomobil-motosiklet/motosiklet		kopru tek bolge: otomobil-motosiklet/motosiklet
+Motorcycle Equipments & Parts > Motorcycle Parts	yuksek	otomobil-motosiklet/motosiklet		kopru tek bolge: otomobil-motosiklet/motosiklet
+Motorcycle Equipments & Parts > Ornamental & Cleaning	yuksek	otomobil-motosiklet/motosiklet		kopru tek bolge: otomobil-motosiklet/motosiklet
+Novelty & Special Use > Cosplay Accessories	inceleme		giyim/kostum	bolgeler farkli koklerde (giyim/kostum, hobi-eglence/parti-malzemeleri); guvenilir ortak ust yok
+Novelty & Special Use > Cosplay Costumes	inceleme		giyim/kostum	bolgeler farkli koklerde (giyim/kostum, hobi-eglence/parti-malzemeleri); guvenilir ortak ust yok
+Novelty & Special Use > Functional Apparel	yuksek	giyim		kopru tek bolge: giyim
+Office & School Supplies > Accounting Supplies	yuksek	kirtasiye-ofis-malzemeleri/ofis-teknolojileri		kopru tek bolge: kirtasiye-ofis-malzemeleri/ofis-teknolojileri
+Office & School Supplies > Filing Products	yuksek	kirtasiye-ofis-malzemeleri/dosyalama-arsivleme		kopru tek bolge: kirtasiye-ofis-malzemeleri/dosyalama-arsivleme
+Office & School Supplies > Mailing & Shipping	yuksek	kirtasiye-ofis-malzemeleri/kirtasiye		kopru tek bolge: kirtasiye-ofis-malzemeleri/kirtasiye
+Office & School Supplies > Office Binding Supplies	yuksek	kirtasiye-ofis-malzemeleri/dosyalama-arsivleme		kopru tek bolge: kirtasiye-ofis-malzemeleri/dosyalama-arsivleme
+Office & School Supplies > Pens, Pencils & Writing Supplies	yuksek	kirtasiye-ofis-malzemeleri/kalem		kopru tek bolge: kirtasiye-ofis-malzemeleri/kalem
+Office & School Supplies > Printing Products	yuksek	kirtasiye-ofis-malzemeleri		bolgeler (kirtasiye-ofis-malzemeleri/ofis-teknolojileri, kirtasiye-ofis-malzemeleri/kirtasiye-kagit-urunleri) ayni kokte; ortak ata
+Office & School Supplies > Stationery Sticker	yuksek	kirtasiye-ofis-malzemeleri/kirtasiye		kopru tek bolge: kirtasiye-ofis-malzemeleri/kirtasiye
+Phones & Telecommunications > Mobile Phone Parts	yuksek	elektronik		bolgeler (elektronik/telefon, elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari) ayni kokte; ortak ata
+Phones & Telecommunications > Used&Refurbished Phones	yuksek	elektronik/telefon		kopru tek bolge: elektronik/telefon
+Phones & Telecommunications > Walkie Talkie Accessories & Parts	yuksek	elektronik/telefon		kopru tek bolge: elektronik/telefon
+Phones & Telecommunications Accessories > Holders & Stands	yuksek	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari		kopru tek bolge: elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Mobile Phone Accessories	yuksek	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari		kopru tek bolge: elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Mobile Phone Cases & Covers	yuksek	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari		kopru tek bolge: elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Mobile Phone Decorations	yuksek	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari		kopru tek bolge: elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Mobile Phone Photography Accessories	yuksek	elektronik		bolgeler (elektronik/foto-kamera, elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari) ayni kokte; ortak ata
+Phones & Telecommunications Accessories > Mobile Phone Protective Film	yuksek	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari		kopru tek bolge: elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Phones & Telecommunications Accessories > Sim Cards & Accessories	yuksek	elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari		kopru tek bolge: elektronik/elektronik-aksesuarlar/cep-telefonu-aksesuarlari
+Security & Protection > Access Building Automation	inceleme		banyo-yapi-hirdavat/elektrik-tesisat-malzemesi	bolgeler farkli koklerde (banyo-yapi-hirdavat/elektrik-tesisat-malzemesi, elektronik/akilli-ev-aletleri); guvenilir ortak ust yok
+Security & Protection > Emergency Safety Supplies	inceleme		spor-outdoor/acil-durum-guvenlik-ekipman	bolgeler farkli koklerde (spor-outdoor/acil-durum-guvenlik-ekipman, banyo-yapi-hirdavat/hirdavat); guvenilir ortak ust yok
+Security & Protection > Smart Public Safety Systems	inceleme		banyo-yapi-hirdavat/elektrik-tesisat-malzemesi	bolgeler farkli koklerde (banyo-yapi-hirdavat/elektrik-tesisat-malzemesi, elektronik/akilli-ev-aletleri); guvenilir ortak ust yok
+Shoes > Men's Shoes	yuksek	ayakkabi		kopru tek bolge: ayakkabi
+Shoes > Women's Shoes	yuksek	ayakkabi		kopru tek bolge: ayakkabi
+Special Category > Additional Pay on Your Order	eslesmedi			urun degil: fark odeme/test/beden tablosu kaydi
+Special Category > Custom-made-Charge	eslesmedi			urun degil: fark odeme/test/beden tablosu kaydi
+Special Category > Giftcard	inceleme		elektronik/dijital-kod-urunler/dijital-kart-kupon/hediye-karti	magaza hediye karti olabilir; tek kayit, dogrulanmali
+Special Category > Giveaways	eslesmedi			urun degil: fark odeme/test/beden tablosu kaydi
+Special Category > Home Textile Size Chart Test Only	eslesmedi			urun degil: fark odeme/test/beden tablosu kaydi
+Special Category > Mobilephone & Plug Type Test Only	eslesmedi			urun degil: fark odeme/test/beden tablosu kaydi
+Special Category > Plug Type Test Only	eslesmedi			urun degil: fark odeme/test/beden tablosu kaydi
+Special Category > Test	eslesmedi			urun degil: fark odeme/test/beden tablosu kaydi
+Special Category > children shoes size chart test only	eslesmedi			urun degil: fark odeme/test/beden tablosu kaydi
+Sports & Entertainment > Basketball（New）	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Camping & Hiking	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Cycling	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Entertainment	inceleme		spor-outdoor/ekipman-aksesuar	bolgeler farkli koklerde (spor-outdoor/ekipman-aksesuar, hobi-eglence/hobi-malzemeleri); guvenilir ortak ust yok
+Sports & Entertainment > Football（New）	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Hunting	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Racquet Sports	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Roller,Skateboard	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Skiing & Snowboarding	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Team Sports	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports Shoes,Clothing&Accessories > Children's Sports	inceleme		giyim/spor-giyim	bolgeler farkli koklerde (giyim/spor-giyim, ayakkabi/spor-ayakkabi); guvenilir ortak ust yok
+Sports Shoes,Clothing&Accessories > Dance	inceleme		giyim/spor-giyim	bolgeler farkli koklerde (giyim/spor-giyim, ayakkabi/spor-ayakkabi); guvenilir ortak ust yok
+Sports Shoes,Clothing&Accessories > Sneakers	yuksek	ayakkabi/spor-ayakkabi		kopru tek bolge: ayakkabi/spor-ayakkabi
+Sports Shoes,Clothing&Accessories > Sport Bags	inceleme		aksesuar/canta	bolgeler farkli koklerde (aksesuar/canta, spor-outdoor/ekipman-aksesuar); guvenilir ortak ust yok
+Sports Shoes,Clothing&Accessories > Sports Accessories	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Tools > Abrasive Tools & Abrasives	inceleme		banyo-yapi-hirdavat/hirdavat	bolgeler farkli koklerde (banyo-yapi-hirdavat/hirdavat, bahce-elektrikli-el-aletleri/elektrikli-el-aletleri); guvenilir ortak ust yok
+Tools > Drill Bits, Saw Blades & Cutting Tools	inceleme		banyo-yapi-hirdavat/hirdavat	bolgeler farkli koklerde (banyo-yapi-hirdavat/hirdavat, bahce-elektrikli-el-aletleri/elektrikli-el-aletleri); guvenilir ortak ust yok
+Tools > Hand Tools	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Tools > Laser Engraving Machine & Accessories	inceleme		banyo-yapi-hirdavat/hirdavat	bolgeler farkli koklerde (banyo-yapi-hirdavat/hirdavat, bahce-elektrikli-el-aletleri/elektrikli-el-aletleri); guvenilir ortak ust yok
+Tools > Measurement & Analysis Instruments	inceleme		banyo-yapi-hirdavat/hirdavat	bolgeler farkli koklerde (banyo-yapi-hirdavat/hirdavat, bahce-elektrikli-el-aletleri/elektrikli-el-aletleri); guvenilir ortak ust yok
+Tools > Power Tool Parts & Accessories	inceleme		banyo-yapi-hirdavat/hirdavat	bolgeler farkli koklerde (banyo-yapi-hirdavat/hirdavat, bahce-elektrikli-el-aletleri/elektrikli-el-aletleri); guvenilir ortak ust yok
+Tools > Riveter Guns	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Tools > Tool Parts	inceleme		banyo-yapi-hirdavat/hirdavat	bolgeler farkli koklerde (banyo-yapi-hirdavat/hirdavat, bahce-elektrikli-el-aletleri/elektrikli-el-aletleri); guvenilir ortak ust yok
+Tools > Tool Sets	inceleme		banyo-yapi-hirdavat/hirdavat	bolgeler farkli koklerde (banyo-yapi-hirdavat/hirdavat, bahce-elektrikli-el-aletleri/elektrikli-el-aletleri); guvenilir ortak ust yok
+Toys & Hobbies > ACG Goods	inceleme		hobi-eglence/hediyelik-urunler	bolgeler farkli koklerde (hobi-eglence/hediyelik-urunler, anne-bebek-cocuk/oyuncak); guvenilir ortak ust yok
+Toys & Hobbies > Action & Toy Figures	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Arts & Crafts, DIY toys	inceleme		anne-bebek-cocuk/oyuncak	bolgeler farkli koklerde (anne-bebek-cocuk/oyuncak, hobi-eglence/hobi-malzemeleri); guvenilir ortak ust yok
+Toys & Hobbies > Building & Construction Toys	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Dolls & Accessories	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Electronic Toys	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Games and Puzzles	inceleme		hobi-eglence/oyun-gruplari	bolgeler farkli koklerde (hobi-eglence/oyun-gruplari, anne-bebek-cocuk/oyuncak); guvenilir ortak ust yok
+Toys & Hobbies > High Tech Toys	inceleme		anne-bebek-cocuk/oyuncak	bolgeler farkli koklerde (anne-bebek-cocuk/oyuncak, hobi-eglence/uzaktan-kumandali-araclar); guvenilir ortak ust yok
+Toys & Hobbies > Hobby & Collectibles	yuksek	hobi-eglence		bolgeler (hobi-eglence/hobi-malzemeleri, hobi-eglence/hediyelik-urunler) ayni kokte; ortak ata
+Toys & Hobbies > Kid's Party	yuksek	hobi-eglence/parti-malzemeleri		kopru tek bolge: hobi-eglence/parti-malzemeleri
+Toys & Hobbies > Novelty & Gag Toys	inceleme		anne-bebek-cocuk/oyuncak	bolgeler farkli koklerde (anne-bebek-cocuk/oyuncak, hobi-eglence/hediyelik-urunler); guvenilir ortak ust yok
+Toys & Hobbies > Play Vehicles & Models	inceleme		anne-bebek-cocuk/oyuncak	bolgeler farkli koklerde (anne-bebek-cocuk/oyuncak, hobi-eglence/uzaktan-kumandali-araclar, hobi-eglence/oyun-gruplari); guvenilir ortak ust yok
+Toys & Hobbies > Pools & Water Fun	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Remote Control Toys	yuksek	hobi-eglence		bolgeler (hobi-eglence/uzaktan-kumandali-araclar, hobi-eglence/drone) ayni kokte; ortak ata
+Toys & Hobbies > Stress Relief Toy	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Stuffed Animals & Plush	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Trendy Blind Box	inceleme		anne-bebek-cocuk/oyuncak	bolgeler farkli koklerde (anne-bebek-cocuk/oyuncak, hobi-eglence/hediyelik-urunler); guvenilir ortak ust yok
+Underwear > Men Socks	yuksek	giyim/ic-giyim		kopru tek bolge: giyim/ic-giyim
+Underwear > Men's Sleep & Lounge	yuksek	giyim		bolgeler (giyim/ev-giyim, giyim/ic-giyim) ayni kokte; ortak ata
+Underwear > Men's Underwears	yuksek	giyim/ic-giyim		kopru tek bolge: giyim/ic-giyim
+Underwear > Women's Sleep & Lounge	yuksek	giyim		bolgeler (giyim/ev-giyim, giyim/ic-giyim) ayni kokte; ortak ata
+Watches > Children's Watches	yuksek	aksesuar		bolgeler (aksesuar/saat, aksesuar/saat-seti) ayni kokte; ortak ata
+Watches > Couple Watches	yuksek	aksesuar		bolgeler (aksesuar/saat, aksesuar/saat-seti) ayni kokte; ortak ata
+Watches > Customized Watches	yuksek	aksesuar		bolgeler (aksesuar/saat, aksesuar/saat-seti) ayni kokte; ortak ata
+Watches > Men's Watches	yuksek	aksesuar		bolgeler (aksesuar/saat, aksesuar/saat-seti) ayni kokte; ortak ata
+Watches > Women's Watches	yuksek	aksesuar		bolgeler (aksesuar/saat, aksesuar/saat-seti) ayni kokte; ortak ata
+Weddings & Events > Haute Couture Dresses	yuksek	giyim		bolgeler (giyim/abiye-mezuniyet-elbisesi, giyim/gelinlik) ayni kokte; ortak ata
+Weddings & Events > Party & Vacation Wear	inceleme		giyim/abiye-mezuniyet-elbisesi	bolgeler farkli koklerde (giyim/abiye-mezuniyet-elbisesi, hobi-eglence/parti-malzemeleri); guvenilir ortak ust yok
+Women's Clothing > Basic Clothing	yuksek	giyim		bolgeler (giyim/ust-giyim, giyim/alt-giyim) ayni kokte; ortak ata
+Women's Clothing > Blazer & Suits	yuksek	giyim		bolgeler (giyim/dis-giyim, giyim/takimlar) ayni kokte; ortak ata
+Women's Clothing > Customized Blouses & Shirts	yuksek	giyim/ust-giyim		kopru tek bolge: giyim/ust-giyim
+Women's Clothing > Customized Dresses	yuksek	giyim		ozel dikim elbise cogunlukla abiye/gece elbisesi; elbise dali dar -> guvenli ortak ust
+Women's Clothing > Customized Skirts	yuksek	giyim/alt-giyim		kopru tek bolge: giyim/alt-giyim
+Women's Clothing > Down Coats	yuksek	giyim/dis-giyim		kopru tek bolge: giyim/dis-giyim
+Women's Clothing > Dresses	yuksek	giyim/elbise		kopru tek bolge: giyim/elbise
+Women's Clothing > Faux Leather	yuksek	giyim/dis-giyim		kopru tek bolge: giyim/dis-giyim
+Women's Clothing > Fur & Faux Fur	yuksek	giyim/dis-giyim		kopru tek bolge: giyim/dis-giyim
+Women's Clothing > Genuine Leather	yuksek	giyim/dis-giyim		kopru tek bolge: giyim/dis-giyim
+Women's Clothing > Jeans（New）	yuksek	giyim/alt-giyim		kopru tek bolge: giyim/alt-giyim
+Women's Clothing > Jumpsuits&Rompers	yuksek	giyim/salopet-tulum		kopru tek bolge: giyim/salopet-tulum
+Women's Clothing > Matching Sets	yuksek	giyim		bolgeler (giyim/takimlar, giyim/ust-giyim, giyim/alt-giyim) ayni kokte; ortak ata
+Women's Clothing > Muslim Fashion	yuksek	giyim/tesettur-giyim		kopru tek bolge: giyim/tesettur-giyim
+Women's Clothing > Parkas	yuksek	giyim/dis-giyim		kopru tek bolge: giyim/dis-giyim
+Women's Clothing > Plus Size Clothes	yuksek	giyim/buyuk-beden		kopru tek bolge: giyim/buyuk-beden
+Women's Clothing > Ready-to-wear Dresses	yuksek	giyim/elbise		kopru tek bolge: giyim/elbise
+Women's Clothing > Real Fur	yuksek	giyim/dis-giyim		kopru tek bolge: giyim/dis-giyim
+Women's Clothing > Shirts & Blouses	yuksek	giyim/ust-giyim		kopru tek bolge: giyim/ust-giyim
+Women's Clothing > Sweaters&Jumpers	yuksek	giyim/ust-giyim		kopru tek bolge: giyim/ust-giyim
+Women's Clothing > Swimwears	yuksek	giyim/plaj-giyim		kopru tek bolge: giyim/plaj-giyim
+Women's Clothing > Traditional Women's Clothing	yuksek	giyim		kopru tek bolge: giyim
+Women's Clothing > Women's Sets	yuksek	giyim/takimlar		kopru tek bolge: giyim/takimlar

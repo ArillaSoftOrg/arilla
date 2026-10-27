@@ -2471,3 +2471,20 @@ dizini (imaj içine ya da salt okunur bağlama; çalışma zamanında indirme yo
 pilot (50 k ürün, `--threads 2`, gece penceresi) ile süre/RAM ölçümü; (3) ürün başına öneriyi
 saklayacak tablo ve yönetim inceleme kuyruğu (migration, ayrı karar); (4) AI etiketlerinden
 bağımsız ≥300 insan etiketi ve Wilson ≥0,80 olmadan hiçbir otomatik atama yok (karar 0139 §7).
+
+### İki aşamalı kategori sonucu (karar 0157) — yalnızca dosya, hiçbir şey yazmaz
+
+Hibrit koşunun (`suggest run`) çıktısını kaynak üst eşlemesiyle (`classify/data/source_parent_map.tsv`)
+birleştirip ürün başına tek karar üretir. Model yüklemez, veritabanına bağlanmaz; hibrit koşu sürerken
+güvenle çalışır (kontrol noktasına kadar okur, aşan parçayı yazmaz). Tekrar çalıştırma biten parçaları atlar.
+
+```
+python -m classify suggest finalize --run RUN_DIR --tsv urunler.tsv --categories-csv cat.csv     --current mevcut.tsv --dest SONUC_DIR [--shard 100000]
+```
+
+- `urunler.tsv`: `id<TAB>baslik<TAB>kaynak_yolu`, kimlik sırasıyla (hibrit koşunun girdisi).
+- `mevcut.tsv`: `id<TAB>category_id` (korunur).
+- Çıktı: `parca_NNNNN.tsv` (ürün başına karar), `kaynak_eslesme.csv` (275 kaynak yolu: kimlik,
+  tam yol, gerekçe, ürün sayısı), `state.json` (sürümler, parça sayaçları, özet).
+- `seviye`: `alt` | `ust` | `belirsiz` | `korunan`. Yazmaya en yakın olan `kaynak_ust_yolu`dur.
+  Alt kategori AI ölçümünde ~%56 yanlış (insan etiketi yok).

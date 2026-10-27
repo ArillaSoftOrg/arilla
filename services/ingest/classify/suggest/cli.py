@@ -7,6 +7,8 @@ suggest run --out DIR --model-dir DIR (--tsv F --categories-csv C --plan P | ver
             [--max-products N] [--max-seconds S] [--max-rss-mb MB] [--sleep-ms MS]
             [--calib-n 8000] [--restart] [--no-guards]
 suggest export --out DIR --dest FILE [--format csv|json] [--top 3]
+suggest finalize --run DIR --tsv F --categories-csv C --dest DIR [--current F] [--shard N]
+                 # karar 0157: kaynak ust eslemesi + hibrit -> urun basina karar DOSYASI
 """
 
 from __future__ import annotations
@@ -62,6 +64,14 @@ def add_parser(sub: argparse._SubParsersAction) -> None:
     pe.add_argument("--dest", required=True)
     pe.add_argument("--format", choices=("csv", "json"), default="csv")
     pe.add_argument("--top", type=int, default=3)
+    pf = s.add_parser("finalize")
+    pf.add_argument("--run", required=True, help="`suggest run` cikti dizini (salt okunur)")
+    pf.add_argument("--tsv", required=True, help="id<TAB>baslik<TAB>kaynak_yolu, kimlik sirasiyla")
+    pf.add_argument("--categories-csv", required=True)
+    pf.add_argument("--dest", required=True)
+    pf.add_argument("--current", help="id<TAB>mevcut category_id (korunur)")
+    pf.add_argument("--shard", type=int, default=100_000)
+    pf.add_argument("--no-v5", action="store_true")
 
 
 def _scopes_from_plan(plan: str) -> list[str]:
@@ -182,5 +192,21 @@ def main(args: argparse.Namespace) -> int:
 
         n = export(args.out, args.dest, args.format, args.top)
         print(f"{n} urun disa aktarildi: {args.dest}")
+        return 0
+    if args.suggest_cmd == "finalize":
+        from classify.suggest.finalize import finalize
+
+        if args.shard < 1:
+            raise SystemExit("--shard >= 1 olmali")
+        result = finalize(
+            run_dir=args.run,
+            items_tsv=args.tsv,
+            categories_csv=args.categories_csv,
+            dest=args.dest,
+            current_tsv=args.current,
+            shard=args.shard,
+            v5=not args.no_v5,
+        )
+        print(json.dumps(result, ensure_ascii=False, indent=2))
         return 0
     return run_command(args)
