@@ -1,4 +1,4 @@
-# 0155 — Teklif tazeliği: doğrulanamayan fiyat güncel gibi gösterilmez
+# 0156 — Teklif tazeliği: doğrulanamayan fiyat güncel gibi gösterilmez
 
 **Tarih:** 27 Ekim 2026
 **Durum:** Önerildi (PR). Üretimde hiçbir beslemede politika tanımlı değil; etkinleştirme ayrı ve
@@ -80,11 +80,11 @@ Fiyatı doğrulanamayan teklif **okuma yolunda** süzülür. Teklif silinmez, pa
 Doğrulanamayan fiyat "eski fiyat" etiketiyle de gösterilmez: kullanıcı kaynakta olmayabilecek bir
 fiyata yönlendirilirdi (fiyat uydurulmaz ilkesi, 0113).
 
-### Kapsam dışı (bilerek)
+### Kapsam ve tutarlılık
 
-TRY karşılaştırma yüzeyleri (`compareMerchants`, `getPriceComparison`, beden/varyant): politika yalnızca
-yurt dışı beslemeye açılacak; bir TRY beslemesine politika eklenmeden önce aynı koşul oralara da konmalı.
-`product.offer_count`/`foreign_offer_count` özetleri ve sitemap uygunluğu değişmedi (§6).
+Aynı koşul, teklif fiyatı gösteren tüm yüzeylere uygulanır (envanter ve bilerek dışarıda bırakılanlar:
+§8). Politikanın TRY beslemesine verilmesi de aynı kuralları izler; bu karar yine de yalnızca yurt dışı
+(AliExpress) beslemesi için etkinleştirilmesini önerir.
 
 ## 3. Eşik senaryoları (ölçüm)
 
@@ -136,10 +136,9 @@ geçerli olur. Bu PR ayarı uygulamaz.
 
 ## 6. Sınırlar ve açık işler
 
-- **Aday penceresi:** metin araması en çok ~1.000 aday alır ve uygunluğu `offer_count > 0 OR
-  foreign_offer_count > 0` özetlerinden okur; doğrulanamayan ürünler pencereyi doldurup sonucu
-  azaltabilir. Çözüm özetleri tazelikle yeniden hesaplamak (`product_aggregate_values`, migration +
-  1 milyon ürün satırı yazımı, WAL) — ayrı karar.
+- **Aday penceresi** §8'de çözüldü (ürün düzeyi koşul pencereden önce). Depolanan özetler
+  (`offer_count`/`foreign_offer_count`) doğrulanamayan teklifi hâlâ sayar; özetleri tazelikle yeniden
+  hesaplamak migration ve ~1 milyon ürün satırı yazımı (WAL) gerektirir, gerekmedi.
 - **Sitemap / SEO:** doğrulanamayan ürün sayfası yine açılıyor ve sitemap'te kalabilir.
 - **Kaynak kesintisi sınırı** (`source_stale_after_days`) ölçülen güncelleme sıklığıyla belirlenmeli.
 - **Pasifleştirme ve `no_deactivate`** bu kararın konusu değildir: %10 tavan ve ~%28'lik güncelleme
@@ -157,3 +156,80 @@ geçerli olur. Bu PR ayarı uygulamaz.
 | Fiyatı "eski fiyat" notuyla göstermek | Doğrulanamayan fiyat gösterilmez; kullanıcı kaynakta olmayabilecek fiyata gider |
 | Komşu dilimleri açıp sorunu çözmek | Eski ürünlerin yalnızca %7,35'ini açıklıyor; +3,3 milyon teklif, ~31 GB ilk yükleme WAL'ı (tahmin) |
 | Yeni kolon (`stale_since`) | Migration ve milyonluk yazım gerektirir; kural okuma anında hesaplanabiliyor |
+
+## 8. Ek (#233 sonrası): aday penceresi ve yüzey tutarlılığı
+
+### 8.1 Aday penceresi
+
+Metin aramasının aday dalları `LIMIT 1000` ile indeksten kesilir (karar 0129). Koşul yalnızca
+sonradan `best_offer`'da uygulandığı için doğrulanamayan ürünler pencereden ÖNCE yer işgal ediyordu.
+Ölçüm (üretim, gerçek aday SQL'i, politika 10 gün simüle):
+
+| Sorgu | Pencere (eski) | Doğrulanamayan | Pay | Filtreli pencerede doğrulanamayan |
+| --- | --- | --- | --- | --- |
+| led | 1.003 | 280 | %27,9 | 0 (pencere 1.003) |
+| usb | 1.013 | 249 | %24,6 | 0 (1.013) |
+| case | 1.004 | 215 | %21,4 | 0 (1.004) |
+| usb cable | 1.000 | 174 | %17,4 | 0 (1.000) |
+| wireless bluetooth headphones | 704 | 112 | %15,9 | 0 (648) |
+
+**Çözüm:** `candidateBase`'e ürün düzeyi `productHasVerifiableOfferSql`: ürünün etkin teklifleri varsa
+ve hiçbiri doğrulanmış değilse ürün aday olmaz; etkin teklifi hiç olmayan ürün eskisi gibi kalır
+(özet gecikmesi). Hiçbir beslemede politika yoksa ilk kol tek seferlik (InitPlan) `TRUE` olur,
+ürün başına teklif sorgusu çalışmaz (planda alt planlar "never executed").
+
+**Performans** (`EXPLAIN ANALYZE`, ikinci koşu, tüm veri sıcak; A = eski, B = filtre var/politika yok =
+üretimin bugünkü durumu, C = politika 10 gün simüle):
+
+| Sorgu | A | B (JIT açık) | B (JIT kapalı) | C (JIT kapalı) |
+| --- | --- | --- | --- | --- |
+| led | 31 ms | 596 ms | 36 ms | 51 ms |
+| usb | 16 ms | 575 ms | 20 ms | 38 ms |
+| case | 35 ms | 625 ms | 36 ms | 54 ms |
+| usb cable | 25 ms | 589 ms | 22 ms | 54 ms |
+| wireless bluetooth headphones | 51 ms | 1.709 ms | 53 ms | 77 ms |
+
+İlk ölçümde filtre, politika olmasa bile sorguyu 16-60 ms'den 570-1.700 ms'ye çıkardı. Neden **JIT**:
+aday aşaması `enable_seqscan = off` ile çalışır (karar 0129); `feed_source` (17 satır) üzerindeki
+zorunlu sıralı tarama 1e10 ceza maliyeti alır, toplam plan maliyeti `jit_above_cost` (100.000)
+eşiğini aşar ve 103 fonksiyon JIT ile derlenir. Plan şekli ve tampon sayıları aynıydı (941 → 951).
+`withCandidatePlan` artık `jit`'i de aynı işlemde kapatır (`set_config(..., true)`, işlem bitince düşer);
+bu sorgular kısa ve indeksli, JIT'ten kazanmaz. Politika açıkken maliyet +15-25 ms.
+
+### 8.2 Yüzey envanteri
+
+| Yüzey | Durum |
+| --- | --- |
+| `best_offer` (metin, closest_match, alternatifler, görsel), aday penceresi | Uygulandı (#233 + bu PR) |
+| Ürün sayfası yurt dışı başlık/liste ve "doğrulanamadı" özeti, `/teklifler` | Uygulandı (#233) |
+| `compareMerchants`, `getPriceComparison` (varyant satırları ve toplu yükleme), `getSizeOptions`, `getVariantPriceHistory`, link araması kart fiyatı | Uygulandı (bu PR) |
+| `getPriceHistory` | Bilerek dışarıda: geçmiş gözlemlerdir, fiyat geçmişi korunur |
+| `getProductGallery` | Bilerek dışarıda: görsel, fiyat değil |
+| Sitemap uygunluğu | Bilerek dışarıda: depolanan TRY `offer_count >= 2` özetine bakar; yurt dışı teklif sayılmaz |
+| `product.offer_count`, `min_price`, `foreign_offer_count` | Bilerek dışarıda: depolanan özet (yukarı) |
+| Görsel arama ANN penceresi | Açık iş: komşu sınırı vektör aşamasında uygulanır; AliExpress teklifleri için `embedding` tablosu boş, ölçülemedi |
+| Yönetim tanısı (`search-explain` sayıları) | Bilerek dışarıda: ham sayıları göstermesi amaçtır |
+
+### 8.3 Etkinleştirmeden önceki ölçüm (27 Ekim, üretim, salt okunur, nihai SQL)
+
+Politika yalnızca ölçüm için verilerek (`unverified_after_days = 10`, tüm beslemelere) tam tabloda:
+
+| Ölçü | Değer |
+| --- | --- |
+| Etkin teklif | 3.986.410 |
+| Gizlenecek teklif / ürün | **589.232 / 583.316** (yayındaki 2.771.495 ürünün %21,0'i) |
+| Gizlenen ama son başarılı sürümde olan (güncel) teklif | **0** |
+| Gizlenen Hepsiburada teklifi | **0** / 2.017 |
+| Aday olamayan yayındaki ürün (ürün düzeyi koşul) | 583.316 |
+
+Tam tarama ~60 sn sürer; yalnızca tanıdır.
+
+### 8.4 Testler
+
+`freshness-coverage.integration.test.ts` (gerçek Postgres, 11 test): aday penceresi (sınır 5, 8 eski +
+3 güncel ürün; teklifsiz ürün aday kalır; politika yokken hiçbir ürün elenmez), JIT'in kapatıldığı,
+arama sonucu, TRY `compareMerchants`/`getPriceComparison`/`getSizeOptions`, politikasız Hepsiburada
+benzeri besleme (12 gün önceki üyelik de görünür), başarısız/reddedilen çalışmaların teklifsiz gün
+sayılmaması, geri dönen teklifin aynı satırda yeniden görünmesi, ürün/kategori/teklif/fiyat geçmişinin
+(`price_point`) yerinde kalması. Mutasyonla doğrulandı: aday filtresi, `compareMerchants` koşulu,
+`complete` şartı ve `jit` ayarı kaldırıldığında ilgili testler düşüyor.

@@ -16,6 +16,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { offerVerifiedSql } from "../offers/freshness.ts";
 import type { OfferVariantRow } from "./get-price-comparison.ts";
 import type { PriceHistoryPoint } from "./result-types.ts";
 import { variantKey } from "./variant-price.ts";
@@ -208,6 +209,7 @@ export async function getVariantPriceHistory(
       FROM offer o
       LEFT JOIN offer_variant ov ON ov.offer_id = o.id
      WHERE o.product_id = ${productId} AND o.is_active AND o.current_price IS NOT NULL
+       AND ${offerVerifiedSql("o")}
      ORDER BY o.id, ov.id
   `);
   const sources = historySources(rows.rows, selectedKey);

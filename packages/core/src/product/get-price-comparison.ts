@@ -10,6 +10,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { offerVerifiedSql } from "../offers/freshness.ts";
 import { compareMerchants } from "../search/compare-merchants.ts";
 import type { MerchantOffer } from "../search/result-types.ts";
 import { offerStockState } from "./stock-state.ts";
@@ -110,6 +111,7 @@ export async function getProductPriceComparison(
       JOIN merchant m ON m.id = o.merchant_id AND m.is_active
       LEFT JOIN offer_variant ov ON ov.offer_id = o.id
      WHERE o.product_id = ${productId} AND o.is_active AND o.current_price IS NOT NULL
+       AND ${offerVerifiedSql("o")}
      ORDER BY o.id, ov.id
   `);
   return {
@@ -144,6 +146,7 @@ async function loadBatch(db: Database, productIds: readonly number[]) {
       LEFT JOIN offer_variant ov ON ov.offer_id = o.id
      WHERE o.product_id = ANY(${sql.param([...productIds])}::bigint[])
        AND o.is_active AND o.current_price IS NOT NULL
+       AND ${offerVerifiedSql("o")}
      ORDER BY o.product_id, o.id, ov.id
   `);
   const byProduct = new Map<number, BatchRow[]>();

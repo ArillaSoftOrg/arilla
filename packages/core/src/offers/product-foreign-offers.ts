@@ -7,7 +7,7 @@
  * eklenmez (uydurulmaz). Kargo/gümrük/vergi bilinmediği için toplam fiyat doğrulanmış
  * değildir ve bu teklifler fiyat sıralamasına girmez: en yeni gözlenen önce.
  *
- * Karar 0155: beslemede uzun süredir görülmeyen (doğrulanamayan) teklif listeye girmez;
+ * Karar 0156: beslemede uzun süredir görülmeyen (doğrulanamayan) teklif listeye girmez;
  * nedenini söylemek için bkz. `getProductUnverifiedForeignOffers`.
  */
 import type { Database } from "@arilla/db";

@@ -10,6 +10,7 @@
  */
 import { type Database, embedding, offer } from "@arilla/db";
 import { and, eq, sql } from "drizzle-orm";
+import { offerVerifiedSql } from "../offers/freshness.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { arrayParam } from "../search/ranking.ts";
 import { foldedTitleExpr, foldForMatch } from "../search/text-match.ts";
@@ -216,6 +217,7 @@ const candidateBestOffer = sql`
       FROM offer o
       JOIN merchant m ON m.id = o.merchant_id AND m.is_active
       WHERE o.product_id = c.id AND o.is_active AND o.currency = 'TRY'
+        AND ${offerVerifiedSql("o")}
       ORDER BY o.current_price ASC NULLS LAST
       LIMIT 1
     ) bo ON TRUE`;

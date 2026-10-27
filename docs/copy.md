@@ -344,7 +344,7 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `offers.source_international` | Yurt dışı |
 | `offers.sort_price` | En uygun fiyat |
 
-## Doğrulanamayan fiyat (karar 0155)
+## Doğrulanamayan fiyat (karar 0156)
 
 Ürün sayfasında hiçbir teklif gösterilemiyorsa ve ürünün beslemede uzun süredir görülmeyen
 yurt dışı teklifi varsa "Şu an bu ürün için mağaza fiyatı yok." yerine çıkar. Fiyat ve çıkış

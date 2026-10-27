@@ -26,6 +26,7 @@
  */
 import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
+import { productHasVerifiableOfferSql } from "../offers/freshness.ts";
 import type { LexiconEntry } from "./lexicon.ts";
 import { foldTurkish } from "./normalize.ts";
 
@@ -377,6 +378,9 @@ function candidateBase(filters: CandidateFilters, alias: string): SQL[] {
     parts.push(sql`(${a}.brand_id IS NULL OR ${a}.brand_id NOT IN (
       SELECT id FROM brand WHERE name_norm = ANY(${sql.param(filters.brand_exclude)}::text[])))`);
   }
+  // Karar 0156 eki: tum teklifleri dogrulanamayan urun, `LIMIT`ten ONCE aday olmaz; yoksa
+  // sinirli pencereyi doldurup guncel urunleri disarida birakir. Politika yoksa maliyetsiz.
+  parts.push(productHasVerifiableOfferSql(alias));
   return parts;
 }
 
