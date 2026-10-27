@@ -344,6 +344,17 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `offers.source_international` | Yurt dışı |
 | `offers.sort_price` | En uygun fiyat |
 
+## Doğrulanamayan fiyat (karar 0155)
+
+Ürün sayfasında hiçbir teklif gösterilemiyorsa ve ürünün beslemede uzun süredir görülmeyen
+yurt dışı teklifi varsa "Şu an bu ürün için mağaza fiyatı yok." yerine çıkar. Fiyat ve çıkış
+düğmesi gösterilmez.
+
+| Anahtar | Metin |
+| --- | --- |
+| `offers.price_unverified` | Güncel fiyat doğrulanamadı. |
+| `offers.price_unverified_seen` | Yurt dışı teklifi en son {tarih} tarihinde görüldü. |
+
 ## Keşfet
 
 | Anahtar | Metin |

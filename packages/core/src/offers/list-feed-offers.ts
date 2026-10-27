@@ -10,11 +10,14 @@
  *   fiyat siralamasina GIRMEZ, her zaman en yeni gorulene gore listelenir.
  *
  * Eslestirme yapilmaz: bu liste urun birlestirmez, yalnizca teklifi gosterir.
- * Gorunurluk: etkin merchant, etkin ve satistaki teklif, `product_id IS NULL`.
+ * Gorunurluk: etkin merchant, etkin ve satistaki teklif, `product_id IS NULL`, ve
+ * fiyati dogrulanabilir (karar 0155: politikali beslemede uzun suredir gorulmeyen teklif
+ * listelenmez; politikasi olmayan beslemenin teklifi her zaman dogrulanmistir).
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { type ApproxTry, approximateTry, type FxQuote, latestFxQuote } from "../pricing/fx.ts";
+import { offerVerifiedSql } from "./freshness.ts";
 
 export type FeedOfferKind = "domestic" | "international";
 export type FeedOfferSort = "recent" | "price";
@@ -102,6 +105,7 @@ export async function listFeedOffers(
     sql`o.in_stock`,
     sql`o.product_id IS NULL`,
     sql`o.current_price IS NOT NULL AND o.current_price > 0`,
+    offerVerifiedSql("o"),
     kind === "international" ? sql`o.currency <> 'TRY'` : sql`o.currency = 'TRY'`,
   ];
   const tsQuery = q ? feedOfferTsQuery(q) : null;

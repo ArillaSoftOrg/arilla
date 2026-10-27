@@ -10,6 +10,7 @@ import {
   getProductForeignOffers,
   getProductGallery,
   getProductPriceComparison,
+  getProductUnverifiedForeignOffers,
   getSizeOptions,
   getVariantPriceHistory,
   isProductSitemapEligible,
@@ -250,6 +251,13 @@ export default async function ProductPage({
   ]);
   await tracking;
 
+  // Karar 0155: hiç teklifi gösterilemiyorsa nedeni söylenir. Beslemede uzun süredir
+  // görülmeyen teklifin fiyatı gösterilmez; "mağaza fiyatı yok" demek de yanlış olurdu.
+  const unverifiedForeign =
+    foreignOffers.length === 0 && merchantOffers.length === 0
+      ? await getProductUnverifiedForeignOffers(db, product.productId)
+      : null;
+
   // Basit modda urun gecmisi; varyant modunda YALNIZCA secili varyantin
   // gecmisi (0037). Secim yoksa gecmis yok: boyutlar karismaz.
   const variantHistory =
@@ -471,7 +479,15 @@ export default async function ProductPage({
                 </p>
               </div>
             ) : (
-              <p className={styles.noOffers}>Şu an bu ürün için mağaza fiyatı yok.</p>
+              <p className={styles.noOffers}>
+                {unverifiedForeign && unverifiedForeign.count > 0
+                  ? `Güncel fiyat doğrulanamadı.${
+                      unverifiedForeign.lastConfirmedAt
+                        ? ` Yurt dışı teklifi en son ${trDateTime(unverifiedForeign.lastConfirmedAt)} tarihinde görüldü.`
+                        : ""
+                    }`
+                  : "Şu an bu ürün için mağaza fiyatı yok."}
+              </p>
             )}
 
             {/* 4. Fiyat konumu cümlesi */}
