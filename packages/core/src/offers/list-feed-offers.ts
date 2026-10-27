@@ -11,7 +11,7 @@
  *
  * Eslestirme yapilmaz: bu liste urun birlestirmez, yalnizca teklifi gosterir.
  * Gorunurluk: etkin merchant, etkin ve satistaki teklif, `product_id IS NULL`, ve
- * fiyati dogrulanabilir (karar 0155: politikali beslemede uzun suredir gorulmeyen teklif
+ * fiyati dogrulanabilir (karar 0156: politikali beslemede uzun suredir gorulmeyen teklif
  * listelenmez; politikasi olmayan beslemenin teklifi her zaman dogrulanmistir).
  */
 import type { Database } from "@arilla/db";

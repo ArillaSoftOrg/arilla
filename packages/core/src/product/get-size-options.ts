@@ -1,5 +1,6 @@
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { offerVerifiedSql } from "../offers/freshness.ts";
 import type { SizeOption } from "./result-types.ts";
 
 type RawRow = Record<string, unknown> & {
@@ -39,6 +40,7 @@ export async function getSizeOptions(db: Database, productId: number): Promise<S
     JOIN offer o ON o.id = ov.offer_id
     JOIN merchant m ON m.id = o.merchant_id AND m.is_active
     WHERE o.product_id = ${productId} AND o.is_active AND o.current_price IS NOT NULL
+      AND ${offerVerifiedSql("o")}
       AND ov.size_norm IS NOT NULL
     GROUP BY ov.size_norm
   `);

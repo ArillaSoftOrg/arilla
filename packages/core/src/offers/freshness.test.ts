@@ -10,7 +10,7 @@ import {
 
 const dialect = new PgDialect();
 
-describe("teklif tazeliği SQL'i (karar 0155)", () => {
+describe("teklif tazeliği SQL'i (karar 0156)", () => {
   it("politika anahtarları yapılandırmadan okunur, varsayılan en az 2 gün", () => {
     expect(FRESHNESS_CONFIG_KEY).toBe("freshness");
     expect(DEFAULT_MIN_ABSENT_DAYS).toBe(2);

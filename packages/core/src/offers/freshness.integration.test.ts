@@ -1,5 +1,5 @@
 /**
- * Karar 0155: teklif tazeliği - gerçek (yalıtılmış) Postgres.
+ * Karar 0156: teklif tazeliği - gerçek (yalıtılmış) Postgres.
  *
  * Politikalı beslemede uzun süredir görülmeyen teklifin fiyatı arama kartında, benzer/görsel
  * sonuçlarda, ürün sayfasının yurt dışı listesinde ve `/teklifler`de gösterilmez. Teklif
@@ -47,7 +47,7 @@ const query = (anchor?: number): QueryObject => ({
   confidence: 1,
 });
 
-describe("teklif tazeliği (karar 0155)", () => {
+describe("teklif tazeliği (karar 0156)", () => {
   let db: Database;
   const feeds: number[] = [];
   const merchants: number[] = [];

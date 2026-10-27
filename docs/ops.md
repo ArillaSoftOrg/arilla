@@ -1628,10 +1628,10 @@ verir; systemd `arilla-alert@` alarmı gönderir. 36 saat koşu yoksa panel "zam
 **Sınırlar.** Kaynak günde bir kez güncellenmeyebilir: fiyat taze demek kaynak kadar taze demektir.
 `--max-source-age-hours` (varsayılan 168) Admitad'in gerçek güncelleme sıklığı ölçülmeden
 kesinleşmez; ilk haftanın `source_age_hours` değerleriyle ayarlanır. Eski fiyatı **gizleyen** okuma
-yolu koruması bu işin kapsamında değildir; karar 0155 ile ayrı ve besleme başına açık bir
+yolu koruması bu işin kapsamında değildir; karar 0156 ile ayrı ve besleme başına açık bir
 politikadır (aşağıdaki bölüm).
 
-## Teklif tazeliği politikası (karar 0155)
+## Teklif tazeliği politikası (karar 0156)
 
 **Durum:** Kod ve testler hazır; üretimde HİÇBİR beslemede politika **tanımlı değil**, yani dağıtım
 davranışı değiştirmez. Etkinleştirme ayrı ve onaylı bir adımdır. Migration yok; teklif, ürün bağı ve
@@ -1652,7 +1652,7 @@ diye sayılmaz. Birden çok beslemede üyeliği olan teklif, herhangi biri tazey
 Politikası olmayan besleme (ör. Hepsiburada toplayıcısı) ve beslemesiz mağaza hiç etkilenmez.
 
 **Önerilen ilk ayar (AliExpress, besleme 7):** `{"unverified_after_days": 10}`. Gerekçe ve eşik
-ölçümleri: karar 0155.
+ölçümleri: karar 0156.
 
 ```sql
 -- ETKİNLEŞTİR (onaylı üretim adımı; idempotent, anında etkili, veri değişmez):
@@ -1681,11 +1681,12 @@ SELECT g.feed_source_id AS besleme, g.last_snapshot_id AS son_surum, g.n AS uyel
 doğrulanamaz. Arama ve ürün sayfası sonuçları kural okuma anında hesapladığı için politika değişince
 bir sonraki istekte geçerli olur.
 
-**Sınırlar.** `product.offer_count`/`foreign_offer_count` özetleri doğrulanamayan teklifi hâlâ sayar
-(arama uygunluğu bu özetlere de bakar); arama adayları tam bir aday penceresiyle sınırlıdır, bu yüzden
-doğrulanamayan ürünler pencereyi doldurabilir. TRY karşılaştırma yüzeyleri (`compareMerchants`,
-`getPriceComparison`) bu kuralı uygulamaz: politika yalnızca yurt dışı beslemeye açılmalı, bir TRY
-beslemesine eklenmeden önce aynı koşul oralara da konmalıdır (karar 0155 §7).
+**Sınırlar.** `product.offer_count`/`foreign_offer_count` depolanan özetleri doğrulanamayan teklifi hâlâ
+sayar; arama uygunluğu bunlara da baktığı için aday penceresi ürün düzeyinde ayrıca süzülür (karar 0156
+§8.1). Kural teklif fiyatı gösteren tüm yüzeylere uygulanır; bilerek dışarıda bırakılanlar (geçmiş
+fiyat grafiği, galeri, sitemap, depolanan özetler, görsel arama komşu sınırı) karar 0156 §8.2'dedir.
+Etkinleştirme öncesi ve sonrası denetim: yukarıdaki izleme sorgusu; tam tablo taraması ~60 sn sürer,
+istek yolunda çalıştırılmaz.
 
 ## Affiliate dönüşümleri (karar 0128)
 

@@ -94,7 +94,7 @@ Sıra kritik. Kullanıcı ilk ekranda karar verebilmeli.
 | 5 | Sahte indirim notu | `list_price_inflated` ise, nötr dille |
 | 6 | Beden seçici + rozet | Beden profili varsa "senin bedenin" işaretli |
 | 7 | Mağaza listesi | Fiyat, kargo dahil toplam, stok, çıkış düğmesi. Yalnızca TRY teklifler |
-| 7b | Yurt dışı teklifi | TRY dışı teklif (ör. AliExpress): kendi para birimi, fiyatın kaydedildiği zaman, TCMB kuru varsa yaklaşık TL; fiyat sıralamasına girmez (karar 0121). Beslemede uzun süredir görülmeyen (doğrulanamayan) teklif listelenmez; hiçbir teklif gösterilemiyorsa "Güncel fiyat doğrulanamadı" notu çıkar, fiyat ve çıkış düğmesi yoktur (karar 0155) |
+| 7b | Yurt dışı teklifi | TRY dışı teklif (ör. AliExpress): kendi para birimi, fiyatın kaydedildiği zaman, TCMB kuru varsa yaklaşık TL; fiyat sıralamasına girmez (karar 0121). Beslemede uzun süredir görülmeyen (doğrulanamayan) teklif listelenmez; hiçbir teklif gösterilemiyorsa "Güncel fiyat doğrulanamadı" notu çıkar, fiyat ve çıkış düğmesi yoktur (karar 0156) |
 | 8 | Kaydet / alarm kur | Giriş yoksa modal açılır |
 | 9 | Diğer renkler | `model_key` eşleşmesi varsa |
 | 10 | Alternatif şeridi | `similarity_edge`, 4-6 ürün, yatay kaydırma |

@@ -93,7 +93,7 @@ export function bestOfferCte(
       LEFT JOIN fx ON o.currency <> 'TRY' AND fx.base = o.currency
       WHERE o.product_id IS NOT NULL
         AND o.is_active AND m.is_active
-        -- Karar 0155: beslemede uzun suredir gorulmeyen teklifin fiyati guncel gibi secilmez.
+        -- Karar 0156: beslemede uzun suredir gorulmeyen teklifin fiyati guncel gibi secilmez.
         -- Politikasi olmayan beslemenin (ve beslemesiz) teklifi her zaman dogrulanmistir.
         AND ${offerVerifiedSql("o")}
         AND (o.currency = 'TRY' OR o.current_price > 0)
@@ -299,6 +299,11 @@ export function textMatch(
  * bulanik adim) ayar o islemin sonuna kadar surer; oradaki sorgular da ayni indeksli
  * arama sorgularidir. Kucuk tablolarda (marka, kategori) baska yol olmadigi icin
  * sirali tarama yine kullanilir.
+ *
+ * `jit` de ayni islemde kapatilir (karar 0156 eki): `enable_seqscan = off` altinda kucuk bir
+ * tablodaki zorunlu sirali tarama (or. `feed_source`, 17 satir) 1e10 ceza maliyeti alir ve
+ * toplam plan maliyetini JIT esiginin ustune tasir; 17-60 ms'lik aday sorgusu ~600 ms
+ * JIT derlemesine donusuyordu (uretimde olculdu). Bu sorgular kisa ve indeksli, JIT kazandirmaz.
  */
 export async function withCandidatePlan<T>(
   db: Database,
@@ -309,7 +314,7 @@ export async function withCandidatePlan<T>(
     const lookups = await resolveSlotLookups(
       tx as unknown as Database,
       textSlotsOf(query),
-      sql`set_config('enable_seqscan', 'off', true)`,
+      sql`concat(set_config('enable_seqscan', 'off', true), set_config('jit', 'off', true))`,
     );
     return fn(tx as unknown as Database, lookups);
   });

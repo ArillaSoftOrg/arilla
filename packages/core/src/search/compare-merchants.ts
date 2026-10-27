@@ -6,6 +6,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { offerVerifiedSql } from "../offers/freshness.ts";
 import { offerStockState } from "../product/stock-state.ts";
 import type { MerchantOffer } from "./result-types.ts";
 
@@ -47,6 +48,7 @@ export async function compareMerchants(db: Database, productId: number): Promise
       AND o.is_active AND m.is_active
       AND o.currency = 'TRY'
       AND o.current_price IS NOT NULL
+      AND ${offerVerifiedSql("o")}
     ORDER BY effective_total ASC, m.trust_score DESC, o.id ASC
   `);
 

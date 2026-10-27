@@ -251,7 +251,7 @@ export default async function ProductPage({
   ]);
   await tracking;
 
-  // Karar 0155: hiç teklifi gösterilemiyorsa nedeni söylenir. Beslemede uzun süredir
+  // Karar 0156: hiç teklifi gösterilemiyorsa nedeni söylenir. Beslemede uzun süredir
   // görülmeyen teklifin fiyatı gösterilmez; "mağaza fiyatı yok" demek de yanlış olurdu.
   const unverifiedForeign =
     foreignOffers.length === 0 && merchantOffers.length === 0

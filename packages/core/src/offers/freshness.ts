@@ -1,5 +1,5 @@
 /**
- * Teklif tazeliği (karar 0155): beslemede uzun süredir görülmeyen teklifin fiyatı
+ * Teklif tazeliği (karar 0156): beslemede uzun süredir görülmeyen teklifin fiyatı
  * "güncel" gibi gösterilmez. Teklif silinmez, pasifleştirilmez, fiyat geçmişi
  * (`price_point`) ve `product_id` bağı değişmez; yalnızca OKUMA yolunda süzülür.
  *
@@ -110,6 +110,30 @@ export function visibleWithoutBestOfferSql(productAlias = "p", bestOfferAlias = 
   return sql`(${bo}.product_id IS NOT NULL OR NOT ${productHasUnverifiedOfferSql(productAlias)})`;
 }
 
+/**
+ * Arama ADAY penceresi için ürün koşulu: ürünün etkin teklifleri varsa ve hiçbiri doğrulanmış
+ * değilse ürün aday olmaz; etkin teklifi hiç olmayan ürün eskisi gibi kalır (özet gecikmesi).
+ * Aday dalları `LIMIT` ile kesildiği için bu koşul PENCEREDEN ÖNCE uygulanır; yoksa
+ * doğrulanamayan ürünler sınırlı pencereyi doldurup güncel ürünleri dışarıda bırakır.
+ *
+ * Hiçbir beslemede politika yoksa (bugünkü üretim) ilk kol tek seferlik (InitPlan) `TRUE`
+ * olur ve ürün başına teklif sorgusu hiç çalışmaz. Skaler alt sorgu bilerek kullanılır:
+ * `EXISTS` yarı-birleşime çevrilir ve aday dallarının elle ayarlı planını bozabilir.
+ */
+export function productHasVerifiableOfferSql(productAlias = "p"): SQL {
+  const p = alias(productAlias);
+  return sql`(
+    NOT (SELECT EXISTS (
+      SELECT 1 FROM feed_source pf
+       WHERE NULLIF(${configInt("pf", "unverified_after_days")}, 0) IS NOT NULL))
+    OR COALESCE((
+      SELECT bool_or(${offerVerifiedSql("vx")})
+        FROM offer vx
+       WHERE vx.product_id = ${p}.id AND vx.is_active
+    ), TRUE)
+  )`;
+}
+
 export interface ProductUnverifiedOffers {
   /** Fiyatı olan, etkin, stokta, doğrulanamayan yurt dışı teklif sayısı. */
   count: number;
@@ -121,7 +145,7 @@ type UnverifiedRow = { n: number | string; confirmed_at: string | null };
 
 /**
  * Ürün sayfası: doğrulanmış yurt dışı teklif yokken "mağaza fiyatı yok" yerine nedenini
- * söylemek için. Fiyat DÖNDÜRÜLMEZ: doğrulanamayan fiyat gösterilmez (karar 0155).
+ * söylemek için. Fiyat DÖNDÜRÜLMEZ: doğrulanamayan fiyat gösterilmez (karar 0156).
  */
 export async function getProductUnverifiedForeignOffers(
   db: Database,
