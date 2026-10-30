@@ -5,6 +5,7 @@ export * from "./export-user-data.ts";
 export * from "./history.ts";
 export * from "./onboarding.ts";
 export * from "./saved-items.ts";
+export * from "./saved-price-change.ts";
 export * from "./send-alert-email.ts";
 export * from "./trigger-alerts.ts";
 export * from "./types.ts";

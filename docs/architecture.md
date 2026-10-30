@@ -122,6 +122,11 @@ doğrulanır). Kural asıl olarak katalog geneli veya sıralama amaçlı
 tekrarlanan taramaları önlemek için var; tek ürünün sınırlı geçmişini sayfa
 başına bir kere okumak bu riski taşımaz. Bkz. `docs/decisions/0019`.
 
+**İkinci sınırlı okuma: kaydedilenlerde fiyat değişimi.** `/kaydettiklerim`,
+kullanıcının kendi kayıtları için kayıtlı ürün başına TEK teklifin, kayıt anından
+en fazla 48 saat önceki son `price_point` satırını birincil anahtar `(offer_id,
+observed_at)` üzerinden okur (`LIMIT 1`, tarama yok). Bkz. `docs/decisions/0159`.
+
 Buradan doğan kullanıcıya dönük özellikler: "şu an son 90 günün en düşük
 fiyatı", "son 3 ayda 12 kez daha ucuzdu", ve liste fiyatı indirimden hemen önce
 yükseltilmişse nötr bir bilgi notu.
