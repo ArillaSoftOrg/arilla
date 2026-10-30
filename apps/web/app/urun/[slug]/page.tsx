@@ -43,6 +43,8 @@ import { cardPriceProps } from "../../ara/search-results.tsx";
 import { HOME_COPY } from "../../home-copy.ts";
 import { readConsent } from "../../lib/consent.ts";
 import { requireProductAccess } from "../../lib/dal.ts";
+import { productShareMetadata } from "../../lib/share-metadata.ts";
+import { ShareButtonClient } from "../../share-button-client.tsx";
 import { ProductActionsClient } from "./product-actions-client.tsx";
 import { ProductGalleryClient } from "./product-gallery-client.tsx";
 import styles from "./product-page.module.css";
@@ -140,6 +142,11 @@ function approxTryText(offer: ProductForeignOffer): string | null {
 /** `generateMetadata` ve sayfa bileşeni ayni istekte ayni sluğu iki kez çözmesin. */
 const getResolution = cache((slug: string) => resolveProductSlug(getDatabase(), slug));
 
+/** Paylaşım görseli sayfa galerisinin ilkidir; galeri istek başına bir kez okunur. */
+const getGallery = cache((productId: number, primaryImageUrl: string | null) =>
+  getProductGallery(getDatabase(), productId, primaryImageUrl),
+);
+
 /**
  * D6: docs/sitemap.md "Hangi sayfa haritaya girer" - eşiği geçmeyen ürün
  * `noindex` alır ama sayfa yayında kalır (docs/sitemap.md: "Şartı sağlamayan
@@ -157,18 +164,20 @@ export async function generateMetadata({
   if (resolution.status !== "found") return {};
 
   const { product } = resolution;
-  const eligible = await isProductSitemapEligible(getDatabase(), product.productId);
-
-  // docs/copy.md `seo.product_title` / `seo.product_title_no_brand` / `seo.product_description`
-  const title = product.brandName
-    ? `${product.title} – ${product.brandName} fiyat karşılaştırma`
-    : `${product.title} fiyat karşılaştırma`;
-  const description = `${product.title} fiyatlarını karşılaştır, en uygun fiyatlı mağazayı bul.`;
+  const [eligible, gallery] = await Promise.all([
+    isProductSitemapEligible(getDatabase(), product.productId),
+    getGallery(product.productId, product.primaryImageUrl),
+  ]);
+  const cover = gallery.images[0];
 
   return {
-    title,
-    description,
-    alternates: { canonical: `/urun/${product.slug}` },
+    ...productShareMetadata({
+      slug: product.slug,
+      title: product.title,
+      brandName: product.brandName,
+      image: cover ? { url: cover.url, width: cover.width, height: cover.height } : null,
+      hasSiteUrl: Boolean(readAppUrl()),
+    }),
     ...(eligible ? {} : { robots: { index: false, follow: true } }),
   };
 }
@@ -242,7 +251,7 @@ export default async function ProductPage({
     getSizeOptions(db, product.productId),
     getPriceStats(db, product.productId),
     // Karar 0073: offer_image galerisi; kayit yoksa primary_image_url yedegi.
-    getProductGallery(db, product.productId, product.primaryImageUrl),
+    getGallery(product.productId, product.primaryImageUrl),
     product.modelKey
       ? getColorVariants(db, product.modelKey, product.productId)
       : Promise.resolve([]),
@@ -652,6 +661,13 @@ export default async function ProductPage({
                   ? Math.floor(cheapest.currentPrice / 100)
                   : null
             }
+          />
+
+          {/* Paylaşım: kanonik adres (seçili beden, oturum ya da takip parametresi yok). */}
+          <ShareButtonClient
+            url={`${siteUrl ?? ""}/urun/${product.slug}`}
+            title={product.title}
+            subject="product"
           />
 
           {/* 9. Diğer renkler */}
