@@ -8,11 +8,10 @@ değişiminde 2 MB'lık dosya yeniden üretilir.
 
 ```
 /sitemap.xml                        index (tek seviye)
-├── /sitemap-sayfalar.xml           statik sayfalar + kategoriler (~150 URL)
+├── /sitemap-sayfalar.xml           statik sayfalar + kategoriler (~150 URL) + trend detayları (karar 0158)
 ├── /sitemaps/urun/1.xml … N.xml    ürün parçaları (doğrudan index'te)
 ├── /sitemaps/alternatif/1.xml … N.xml
 ├── /sitemaps/magaza/…              mağaza bazlı sayfalar
-├── /sitemaps/trend/…               dönemsel trend sayfaları
 └── /sitemaps/creator/…             creator vitrinleri ve koleksiyonlar
 ```
 
@@ -116,11 +115,18 @@ merchant tablomuz zaten tekil.
 ### Trend sayfaları
 
 ```
-/trend                              tüm listeler
-/trend/<slug>                       'yaz-trend-parfumleri'
+/trendler                           tüm listeler
+/trendler/<slug>                    'yaz-trend-parfumleri'
 ```
 
 **Dönem boyunca sabit kalır.** Günlük değişen sayfa sıralanmaz.
+
+Karar 0158: trend detayları ayrı harita yerine `/sitemap-sayfalar.xml` içindedir (en fazla
+birkaç düzine adres). Haritaya `/trendler`de görünen her trend girer (yayında + en az 4
+gösterilebilir ürün, ürün açıkken). Yayın penceresi (`active_from/until`) bakılmaz: karar
+0077'ye göre editoryal tahmindir; mevsimlik sayfa yıl boyu indekslenebilir. Liste istek anında
+okunur (önbellek yok), yayından kalkan trend bir sonraki istekte çıkar. Sayfada `BreadcrumbList` + `ItemList` (yalnız ızgaradaki ürünler, sırasıyla;
+fiyat/marka yok).
 
 ### Creator sayfaları
 

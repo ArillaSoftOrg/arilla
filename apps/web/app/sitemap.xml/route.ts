@@ -5,7 +5,8 @@ import { productShardUrls } from "../sitemaps/urun/shards.ts";
 /**
  * docs/sitemap.md "Yapı": tek index, altında konuya göre bölünmüş haritalar.
  * MVP-0 kapsamı (`docs/sitemap.md` "Faz dağılımı"): yalnızca statik sayfalar
- * ve ürün parçaları - mağaza/creator/trend/alternatif sonraki fazlar.
+ * (trend detayları dahil, karar 0158) ve ürün parçaları - mağaza/creator/alternatif
+ * sonraki fazlar.
  *
  * Ürün parçaları burada DOĞRUDAN listelenir: sitemap protokolü bir index'in
  * başka bir index'i göstermesine izin vermez (`/sitemaps/urun/index.xml`
