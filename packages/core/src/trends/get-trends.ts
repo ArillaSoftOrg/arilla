@@ -15,6 +15,7 @@ import { isTrendSchemaMissing, warnTrendSchemaMissing } from "./schema-guard.ts"
 import { isTrendActiveNow } from "./sections.ts";
 import {
   MIN_PUBLIC_TREND_PRODUCTS,
+  type SitemapTrend,
   TREND_THUMBNAIL_POOL,
   type TrendDetail,
   type TrendProductItem,
@@ -67,8 +68,12 @@ function toDate(value: Date | string | null): Date | null {
   return value === null ? null : new Date(value);
 }
 
-/** Yayinlanmis ve yeterli urunu olan trendler, `sort_order` sirasinda. */
-async function loadPublicTrends(db: Database, now: Date = new Date()): Promise<TrendSummary[]> {
+/**
+ * Gorunur trend satirlari: yayinlanmis ve `MIN_PUBLIC_TREND_PRODUCTS` gosterilebilir
+ * urunu olan, `sort_order` sirasinda. `/trendler` listesi ve sitemap AYNI kosulu
+ * buradan okur.
+ */
+async function loadPublicTrendRows(db: Database): Promise<ListRow[]> {
   const listed = await db.execute(sql`
     SELECT t.id, t.slug, t.title, t.description, t.category, t.trend_type, t.featured,
            t.hero_image_url, t.active_from, t.active_until,
@@ -81,7 +86,12 @@ async function loadPublicTrends(db: Database, now: Date = new Date()): Promise<T
     HAVING count(*) >= ${MIN_PUBLIC_TREND_PRODUCTS}
      ORDER BY t.sort_order, t.id
   `);
-  const rows = listed.rows as unknown as ListRow[];
+  return listed.rows as unknown as ListRow[];
+}
+
+/** Yayinlanmis ve yeterli urunu olan trendler, `sort_order` sirasinda. */
+async function loadPublicTrends(db: Database, now: Date = new Date()): Promise<TrendSummary[]> {
+  const rows = await loadPublicTrendRows(db);
   if (rows.length === 0) return [];
 
   const ids = rows.map((row) => Number(row.id));
@@ -237,6 +247,27 @@ export async function getPublicTrends(
 ): Promise<TrendSummary[]> {
   try {
     return await loadPublicTrends(db, now);
+  } catch (error) {
+    if (!isTrendSchemaMissing(error)) throw error;
+    warnTrendSchemaMissing();
+    return [];
+  }
+}
+
+/**
+ * Sitemap'e girecek trendler (docs/sitemap.md, karar 0158): `/trendler` ile AYNI gorunurluk
+ * (`loadPublicTrendRows`: yayinda + `MIN_PUBLIC_TREND_PRODUCTS` gosterilebilir urun).
+ * Yayin penceresi (`active_from/until`) bakilmaz: karar 0077'ye gore editoryal tahmindir,
+ * erisim siniri degildir; mevsimlik sayfa yil boyu yayinda ve indekslenebilir kalir.
+ *
+ * Istek aninda okunur, onbellek yok: trend sayisi kucuktur ve yayindan kalkan ya da esik
+ * altina dusen trend bir sonraki istekte haritadan cikar (sayfanin 404 karariyla ayni an).
+ * Sema yoksa bos liste.
+ */
+export async function listSitemapTrends(db: Database): Promise<SitemapTrend[]> {
+  try {
+    const rows = await loadPublicTrendRows(db);
+    return rows.map((row) => ({ slug: row.slug }));
   } catch (error) {
     if (!isTrendSchemaMissing(error)) throw error;
     warnTrendSchemaMissing();
