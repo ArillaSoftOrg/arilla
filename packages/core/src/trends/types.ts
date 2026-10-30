@@ -69,3 +69,8 @@ export interface TrendDetail {
   trend: TrendSummary;
   products: TrendProductItem[];
 }
+
+/** Sitemap satiri: yalniz adres. `lastmod` yazilmaz (urun baglari degisince trend satiri guncellenmez). */
+export interface SitemapTrend {
+  slug: string;
+}
