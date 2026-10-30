@@ -198,6 +198,7 @@ sınırlar (ücretsiz arama sayısı vb.) yazılmaz.
 | `action.delete_account` | Hesabı sil |
 | `action.sign_out` | Çıkış yap |
 | `action.sign_out_short` | Çıkış (menü panelinin alt hesap alanındaki kısa düğme) |
+| `action.share` | Paylaş |
 
 ## Arama
 
@@ -748,6 +749,22 @@ Arama sonucunda görünen ama sayfada gösterilmeyen metinler (D6). `{ürün}` v
 | `seo.product_title` | {ürün} – {marka} fiyat karşılaştırma |
 | `seo.product_title_no_brand` | {ürün} fiyat karşılaştırma |
 | `seo.product_description` | {ürün} fiyatlarını karşılaştır, en uygun fiyatlı mağazayı bul. |
+
+Paylaşım önizlemesi (Open Graph, Twitter Card) aynı başlık ve açıklamayı kullanır; trend
+sayfasında başlık marka eki olmadan trend adıdır (marka `og:site_name`'de). Önizlemede fiyat
+yazılmaz: platformlar önizlemeyi günlerce önbellekte tutar, fiyat bayatlar.
+
+## Paylaşım
+
+Ürün ve trend sayfasındaki "Paylaş" düğmesi. Giriş istemez, analitik olayı göndermez.
+Paylaşılan adres kanonik sayfa adresidir (sorgu dizisi yok).
+
+| Anahtar | Metin |
+| --- | --- |
+| `share.copied` | Bağlantı kopyalandı |
+| `share.failed` | Bağlantı kopyalanamadı. Adresi seçip kopyalayabilirsin. |
+| `share.field_product` | Ürün bağlantısı |
+| `share.field_trend` | Koleksiyon bağlantısı |
 
 ## Link araması
 

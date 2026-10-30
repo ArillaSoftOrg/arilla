@@ -1,4 +1,4 @@
-import { getTrendBySlug } from "@arilla/core";
+import { getTrendBySlug, readAppUrl } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { FallbackImage, ProductCard, Section } from "@arilla/ui";
 import type { Metadata } from "next";
@@ -6,6 +6,8 @@ import { notFound } from "next/navigation";
 import { cache } from "react";
 import { offerCountLabel } from "../../ara/search-results.tsx";
 import { requireProductAccess } from "../../lib/dal.ts";
+import { trendShareMetadata } from "../../lib/share-metadata.ts";
+import { ShareButtonClient } from "../../share-button-client.tsx";
 import { TREND_COPY, trendProductCountLabel } from "../trend-copy.ts";
 import { isTrendSlug } from "../trend-slug.ts";
 import styles from "../trendler.module.css";
@@ -26,11 +28,14 @@ export async function generateMetadata({
   const detail = await getTrend(slug);
   if (!detail) return {};
   // Koleksiyon sayfasi: Article/BlogPosting yapisal verisi YOK (urun listesi, makale degil).
-  return {
-    title: `${detail.trend.title} – Arilla`,
+  // Yayinlanmamis/esik alti trend yukarida `null` doner: onizlemeye hicbir alani girmez.
+  return trendShareMetadata({
+    slug: detail.trend.slug,
+    title: detail.trend.title,
     description: detail.trend.description,
-    alternates: { canonical: `/trendler/${detail.trend.slug}` },
-  };
+    heroImageUrl: detail.trend.heroImageUrl,
+    hasSiteUrl: Boolean(readAppUrl()),
+  });
 }
 
 /** Ilk ekrandaki (mobilde ilk iki satir) gorseller gecikmeden yuklenir. */
@@ -73,6 +78,11 @@ export default async function TrendDetailPage({ params }: { params: Promise<{ sl
           </h1>
           <p className={styles.heroDescription}>{trend.description}</p>
           <p className={styles.heroMeta}>{trendProductCountLabel(trend.productCount)}</p>
+          <ShareButtonClient
+            url={`${readAppUrl() ?? ""}/trendler/${trend.slug}`}
+            title={trend.title}
+            subject="trend"
+          />
         </div>
         {/* biome-ignore lint/a11y/noRedundantRoles: list-style:none WebKit'te liste rolunu dusurur. */}
         <ul role="list" className={styles.products} aria-label={TREND_COPY.productsHeading}>
