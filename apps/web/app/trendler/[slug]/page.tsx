@@ -1,4 +1,4 @@
-import { getTrendBySlug, readAppUrl } from "@arilla/core";
+import { getTrendBySlug, readAppUrl, serializeJsonLd } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { FallbackImage, ProductCard, Section } from "@arilla/ui";
 import type { Metadata } from "next";
@@ -9,6 +9,7 @@ import { requireProductAccess } from "../../lib/dal.ts";
 import { trendShareMetadata } from "../../lib/share-metadata.ts";
 import { ShareButtonClient } from "../../share-button-client.tsx";
 import { TREND_COPY, trendProductCountLabel } from "../trend-copy.ts";
+import { trendJsonLd } from "../trend-json-ld.ts";
 import { isTrendSlug } from "../trend-slug.ts";
 import styles from "../trendler.module.css";
 
@@ -29,6 +30,7 @@ export async function generateMetadata({
   if (!detail) return {};
   // Koleksiyon sayfasi: Article/BlogPosting yapisal verisi YOK (urun listesi, makale degil).
   // Yayinlanmamis/esik alti trend yukarida `null` doner: onizlemeye hicbir alani girmez.
+  // Gorunur trend indekslenebilir; yayin penceresi noindex sebebi degildir (karar 0158).
   return trendShareMetadata({
     slug: detail.trend.slug,
     title: detail.trend.title,
@@ -54,8 +56,18 @@ export default async function TrendDetailPage({ params }: { params: Promise<{ sl
   if (!detail) notFound();
 
   const { trend, products } = detail;
+  // BreadcrumbList + ItemList: yalniz izgaradaki urunler, ayni sirayla; fiyat/marka yok.
+  const jsonLd = trendJsonLd({ siteUrl: readAppUrl(), trend, products });
   return (
     <Section aria-labelledby="trend-baslik">
+      {jsonLd.map((data) => (
+        <script
+          key={String(data["@type"])}
+          type="application/ld+json"
+          // biome-ignore lint/security/noDangerouslySetInnerHtml: schema.org JSON-LD; basliklar DB'den gelir, serializeJsonLd </script> kacisini engeller.
+          dangerouslySetInnerHTML={{ __html: serializeJsonLd(data) }}
+        />
+      ))}
       <div className={styles.detail}>
         <a href="/trendler" className={styles.back} aria-label={TREND_COPY.backAria}>
           <span aria-hidden="true">←</span> {TREND_COPY.back}
