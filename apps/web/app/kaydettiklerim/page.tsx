@@ -1,4 +1,4 @@
-import { listSavedItems } from "@arilla/core";
+import { getSavedPriceChanges, listSavedItems } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { EmptyState } from "@arilla/ui";
 import type { Metadata } from "next";
@@ -18,7 +18,16 @@ export const metadata: Metadata = {
  */
 export default async function KaydettiklerimPage() {
   const user = await requireProductUser();
-  const items = await listSavedItems(getDatabase(), user.id);
+  const db = getDatabase();
+  // Karar 0159: kayit anindan beri fiyat degisimi; kullanicinin kayitlari icin tek toplu okuma.
+  const [saved, priceChanges] = await Promise.all([
+    listSavedItems(db, user.id),
+    getSavedPriceChanges(db, user.id),
+  ]);
+  const items = saved.map((item) => ({
+    ...item,
+    priceChange: priceChanges.get(item.productId),
+  }));
 
   return (
     <div className={styles.page}>

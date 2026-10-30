@@ -1,5 +1,6 @@
 "use client";
 
+import type { SavedPriceChange } from "@arilla/core";
 import { HeartIcon, ProductCard } from "@arilla/ui";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -14,6 +15,8 @@ export interface SavedItemsListClientItem {
   primaryImageUrl: string | null;
   minPrice: number | null;
   offerCount: number;
+  /** Kaydedildiginden beri fiyat degisimi (karar 0159); yoksa gosterge cizilmez. */
+  priceChange?: SavedPriceChange;
 }
 
 /**
@@ -51,27 +54,34 @@ export function SavedItemsListClient({ items }: { items: SavedItemsListClientIte
           const pending = pendingId === item.productId;
           return (
             <li key={item.productId} className={styles.item}>
-              <ProductCard
-                href={`/urun/${item.slug}`}
-                title={item.title}
-                imageUrl={item.primaryImageUrl}
-                minPrice={item.minPrice}
-                offerCount={item.offerCount}
-                offerCountLabel={SAVED_COPY.offerCount}
-                action={
-                  <button
-                    type="button"
-                    className={styles.saveToggle}
-                    aria-label={SAVED_COPY.remove(item.title)}
-                    aria-pressed="true"
-                    aria-busy={pending || undefined}
-                    disabled={pending}
-                    onClick={() => handleRemove(item.productId)}
-                  >
-                    <HeartIcon filled size={20} />
-                  </button>
-                }
-              />
+              <div className={styles.cardSlot}>
+                <ProductCard
+                  href={`/urun/${item.slug}`}
+                  title={item.title}
+                  imageUrl={item.primaryImageUrl}
+                  minPrice={item.minPrice}
+                  offerCount={item.offerCount}
+                  offerCountLabel={SAVED_COPY.offerCount}
+                  action={
+                    <button
+                      type="button"
+                      className={styles.saveToggle}
+                      aria-label={SAVED_COPY.remove(item.title)}
+                      aria-pressed="true"
+                      aria-busy={pending || undefined}
+                      disabled={pending}
+                      onClick={() => handleRemove(item.productId)}
+                    >
+                      <HeartIcon filled size={20} />
+                    </button>
+                  }
+                />
+              </div>
+              {item.priceChange ? (
+                <p className={styles.priceChange} data-kind={item.priceChange.kind}>
+                  {SAVED_COPY.priceChange(item.priceChange)}
+                </p>
+              ) : null}
             </li>
           );
         })}
