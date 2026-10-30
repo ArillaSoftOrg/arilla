@@ -538,6 +538,10 @@ sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 | `saved.count` | {n} ürün (`/kaydettiklerim` başlığının yanındaki sayı) |
 | `saved.remove` | Kaydettiklerimden kaldır: {ürün} (kart üstü kalp düğmesinin erişilebilir adı) |
 | `saved.remove_error` | Ürün kaldırılamadı. Tekrar dener misin? |
+| `saved.price_change_down` | Kaydettiğinden beri {tutar} düştü (%{yüzde}) — yüzde 0'a yuvarlanırsa parantez yazılmaz (karar 0159) |
+| `saved.price_change_up` | Kaydettiğinden beri {tutar} arttı (%{yüzde}) |
+| `saved.price_change_same` | Kaydettiğinden beri fiyatı değişmedi |
+| `saved.price_change_insufficient` | Karşılaştırma için yeterli veri yok |
 | `empty.alerts` | Alarmın yok. Bir ürünün fiyatı düşünce ya da bedenin gelince haber verelim. |
 | `empty.history` | Henüz gezindiğin ürün yok. |
 | `empty.creator_visitor` | Bu vitrin hazırlanıyor. |

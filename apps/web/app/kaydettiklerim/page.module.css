@@ -67,8 +67,19 @@
   }
 }
 
+/* Kart `height: 100%` ile hucreyi doldurur; fiyat degisimi satiri (karar 0159) kartin
+   ALTINDA kendi yerini alsin diye kart esneyen bir yuvaya konur. Ayni satirdaki kartlar
+   esit boyda kalir, satir metni bir sonraki kartin altina tasmaz. */
 .item {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
   min-width: 0;
+}
+
+.cardSlot {
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* Kart ustu kalp: dolu = kayitli; tiklama kaydi kaldirir. Gorunur daire
@@ -141,4 +152,23 @@
 .emptyAction:focus-visible {
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
+}
+
+/* Karar 0159: kartin altinda tek satir fiyat degisimi. Anlam metindedir; renk yalniz
+   destekler (dusus `--save`, artis notr). */
+.priceChange {
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.priceChange[data-kind="down"] {
+  color: var(--save);
+  font-weight: var(--font-weight-medium);
+}
+
+.priceChange[data-kind="up"] {
+  color: var(--ink-secondary);
 }
