@@ -1535,8 +1535,10 @@ kazıma ya da canlı fiyat çağrısı yoktur. Günlük iş mevcut besleme motor
 1. **Kilit:** `(4302, merchant_id)` advisory kilidi. Aynı anda ikinci günlük koşu hata vermeden
    `skipped=already_running` ile çıkar. Besleme başına kilit (4301) `FeedSync`'tedir.
 2. **Uygunluk (aşama kapıları atlanmaz):** yalnız **etkin** ve en az bir kez **tam** (`complete`)
-   sürümü olan besleme. Tam sürümü olmayan besleme `initial_load_required` olarak raporlanır ve
-   indirilmez; ilk yükleme 10 bin → 100 bin → tam aşama kapılarıyla elle ve onayla yapılır (0114).
+   sürümü olan besleme. Tam sürümü olmayan besleme indirilmez; yalnız `feeds_initial_load_required`
+   olarak sayılır ve koşuyu **başarısız/kısmi yapmaz** (karar 0162). Yüklü besleme hiç yoksa koşu
+   `failed` + `initial_load_required` olur. İlk yükleme 10 bin → 100 bin → tam aşama kapılarıyla
+   elle ve onayla yapılır (0114).
 3. **Keşif:** `feeds discover` ile kaynağın `source_updated_at` imleci tazelenir. Keşifsiz
    `sync-due` yeni sürümü hiç görmez. Keşif hatası: yeniden dene, olmazsa koşu `partial`.
 4. **Senkronizasyon:** `sync-due` ile aynı döngü (`feeds/runner.py`). Kaynak değişmediyse indirme
@@ -1591,7 +1593,8 @@ yok), yalnız yaşını ölçer; kur kullanılamıyorsa koşu `partial` biter (`
 | `feeds-timers preflight` | Aynı okuma, VPS'te `feeds` servisiyle |
 
 Seçenekler (`daily`): `--retries N` (varsayılan 2), `--retry-wait-seconds` (600),
-`--parallel-downloads` (2), `--max-source-age-hours` (168), `--skip-discovery`. Örnek kip
+`--parallel-downloads` (2), `--max-source-age-hours` (168), `--skip-discovery`,
+`--budget-hours` (4; ortam `FEED_DAILY_BUDGET_HOURS`; karar 0162). Örnek kip
 (`--max-records`) ve `--force` bilerek yok.
 
 **Etkinleştirme kontrol listesi (hepsi tamamlanmadan `install --confirm` çalıştırılmaz):**
@@ -1619,8 +1622,11 @@ Durdurma: `feeds-timers disable`. Birim dosyaları kalır, veri değişmez.
 | `offers_active`, `offers_fresh`, `offers_stale` | Eski fiyat taşıyan offer = etkin − güncel bir beslemede olan |
 | `fx_ok`, `fx_date`, `fx_age_days` | Kur kullanılabilirliği (4 gün kuralı) |
 | `duration_s`, `attempts`, `discovery` | Süre, tur sayısı, keşif durumu |
+| `budget_s`, `feeds_deferred`, `feeds_deferred_ids` | Süre bütçesi; bütçe dolunca BAŞLANMAYAN besleme sayısı/kimlikleri (hata değil, sonraki koşu önce alır) |
+| `feeds_initial_load_required`, `feeds_initial_load_ids` | Etkin ama ilk yüklemesi bitmemiş besleme (günlük iş indirmez; hata değil) |
 
-`error_summary` ilk birkaç sorun kodunu taşır: `initial_load_required`, `no_active_feeds`,
+`error_summary` ilk birkaç sorun kodunu taşır: `initial_load_required` (yalnız hiç yüklü besleme
+yoksa), `no_active_feeds`,
 `feed_<id>:<neden>` (indirme/kapı hatası ya da `behind`, `source_stale`, `never_synced`),
 `discovery_failed:<ağ>`, `fx_stale`, `feeds_gone`. Başarısız ya da `partial` koşu çıkış kodu 1
 verir; systemd `arilla-alert@` alarmı gönderir. 36 saat koşu yoksa panel "zamanında çalışmadı" der.
@@ -1630,6 +1636,29 @@ verir; systemd `arilla-alert@` alarmı gönderir. 36 saat koşu yoksa panel "zam
 kesinleşmez; ilk haftanın `source_age_hours` değerleriyle ayarlanır. Eski fiyatı **gizleyen** okuma
 yolu koruması bu işin kapsamında değildir; karar 0156 ile ayrı ve besleme başına açık bir
 politikadır (aşağıdaki bölüm).
+
+### Çok bantlı AliExpress beslemeleri: ilk yükleme sırası ve günlük bütçe (karar 0162)
+
+Admitad AliExpress programı fiyat bandı başına ayrı besleme sunar (`feeds list`: 10–25$ = besleme 7;
+diğerleri `discovered`). Bir bandı eklemek:
+
+1. `feed_source.config` besleme 7'ninkiyle aynı olmalı (özellikle `no_deactivate: true`, URL çözme
+   ve `required_fields`); `freshness` anahtarı koyma.
+2. `python -m feeds bind --feed <id> --merchant aliexpress --activate`
+3. **İlk yükleme elle ve sırayla, tek besleme tek seferde:**
+   `python -m feeds sync --feed <id>` (örnek kip `--max-records` isteğe bağlı). Admitad toplam 3
+   bağlantıya izin verir; günlük iş ile elle yükleme birlikte bunu aşmamalı. Büyük yazımlar
+   (`catalog_build`, kategori, yayın) ve yedek pencereleriyle çakıştırılmaz.
+4. Yükleme bitip bir `complete` sürüm oluşunca besleme günlük işe kendiliğinden girer. Yüklenmeyi
+   beklerken günlük koşu başarısız olmaz (`feeds_initial_load_required` yalnız bilgidir).
+
+Günlük koşu, birden çok bantta bulunan ürünün sahte fiyat oynaması yaşamaması için beslemeleri
+**kaynağı en eski önce, en taze son** işler. `--budget-hours` (4) dolunca yeni besleme başlamaz;
+kalanlar `feeds_deferred_ids` olarak kaydedilir ve **sonraki koşuda ilk** işlenir. Koşu
+öldürülürse (6 saat sınırı, yeniden başlatma) parça kontrol noktaları ve 24 saatlik indirme yeniden
+kullanımı aynı komutla devam ettirir: `python -m feeds daily --merchant aliexpress`. Her gün
+`feeds_deferred` > 0 çıkıyorsa bütçe/paralellik yetmiyor demektir: `--parallel-downloads` (en fazla
+3 toplam bağlantı için 2 kalmalı) yerine önce kaynağın güncelleme saatleri ve disk/WAL ölçülür.
 
 ## Teklif tazeliği politikası (karar 0156)
 

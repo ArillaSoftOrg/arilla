@@ -1,8 +1,9 @@
 """Birden fazla beslemeyi sirayla senkronize eder (karar 0114, 0145).
 
 `feeds sync-due` ve `feeds daily` ayni dongüyu kullanir: indirmeler PARALEL
-(en fazla 4), isleme SIRAYLA; bir besleme digerini durdurmaz. Her indirme bos
-diskin payina sinirlidir (`FEED_MIN_FREE_BYTES` korunur).
+(en fazla 4, birlestirme imlecinin onunde sinirli pencere), isleme SIRAYLA ve verilen
+sirayla; bir besleme digerini durdurmaz. Gunluk is bir sure butcesi verebilir (karar 0162).
+Her indirme bos diskin payina sinirlidir (`FEED_MIN_FREE_BYTES` korunur).
 
 Burada yeni senkronizasyon mantigi YOK: yazma, kilit, tamlik kapisi, kontrol
 noktasi ve deaktivasyon `feeds.sync.FeedSync`'tedir.
@@ -13,7 +14,7 @@ from __future__ import annotations
 import shutil
 import time
 from collections.abc import Callable, Sequence
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import Future, ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
@@ -113,6 +114,11 @@ def sync_one(
     )
 
 
+#: Birlestirme imlecinin onunde en fazla bu kadar besleme indirilmis/indirilmekte olur
+#: (disk ve gereksiz indirme siniri). Havuz yine `parallel` kadar iscidir.
+PREFETCH_LOOKAHEAD_EXTRA = 1
+
+
 def sync_feeds(
     conn: psycopg.Connection,
     feeds: Sequence[FeedRow],
@@ -123,31 +129,58 @@ def sync_feeds(
     force: bool = False,
     on_outcome: Callable[[FeedOutcome], None] | None = None,
     sync_kwargs: dict[str, object] | None = None,
+    deadline: float | None = None,
+    clock: Callable[[], float] = time.monotonic,
+    deferred: list[int] | None = None,
 ) -> list[FeedOutcome]:
-    """`feeds` sirayla islenir. Kaynagi degismis olanlar once PARALEL indirilir."""
+    """`feeds` VERILEN SIRAYLA islenir (karar 0162). Kaynagi degismis olanlar, birlestirme
+    imlecinin biraz onunden baslayarak PARALEL indirilir (tum liste bastan degil).
+
+    `deadline` (`clock()` zamaninda): dolduktan sonra YENI besleme birlestirmesi ya da
+    indirmesi baslamaz; yarim kalmis bir beslemenin birlestirmesi bitirilir (parca
+    kontrol noktalari zaten devam ettirilebilir). Baslatilmayan, kaynagi degismis
+    beslemelerin kimlikleri `deferred`'a eklenir; bunlar hata degildir. Kaynagi
+    degismemis beslemeler ucuzdur (indirme yok) ve her zaman gecilir.
+    """
     parallel = max(1, min(int(parallel), MAX_PARALLEL_DOWNLOADS))
-    due = [f for f in feeds if is_due(f, force)]
+    lookahead = parallel + PREFETCH_LOOKAHEAD_EXTRA
+    ordered = list(feeds)
+    due_ids = {f.id for f in ordered if is_due(f, force)}
     outcomes: list[FeedOutcome] = []
-    if not feeds:
+    if not ordered:
         return outcomes
     free = shutil.disk_usage(staging_dir()).free
     min_free = int(env("FEED_MIN_FREE_BYTES") or 15 << 30)
-    budget = max(0, (free - min_free) // parallel)
+    budget = max(0, (free - min_free) // lookahead)
+
+    def expired() -> bool:
+        return deadline is not None and clock() >= deadline
+
     with ThreadPoolExecutor(max_workers=parallel) as pool:
-        futures = {
-            f.id: pool.submit(
-                prefetch_download,
-                f,
-                network_for(f.network),
-                max_records=max_records,
-                max_bytes=budget,
-                at=datetime.now(UTC),
-            )
-            for f in due
-        }
-        for feed in feeds:
+        futures: dict[int, Future[tuple[Path, str, int] | None]] = {}
+        submitted: set[int] = set()
+
+        def prefetch(upto: int) -> None:
+            for feed in ordered[:upto]:
+                if feed.id in due_ids and feed.id not in submitted and not expired():
+                    submitted.add(feed.id)
+                    futures[feed.id] = pool.submit(
+                        prefetch_download,
+                        feed,
+                        network_for(feed.network),
+                        max_records=max_records,
+                        max_bytes=budget,
+                        at=datetime.now(UTC),
+                    )
+
+        for index, feed in enumerate(ordered):
+            if feed.id in due_ids and expired():
+                if deferred is not None:
+                    deferred.append(feed.id)
+                continue
+            prefetch(index + lookahead)
             try:
-                prefetched = futures[feed.id].result() if feed.id in futures else None
+                prefetched = futures.pop(feed.id).result() if feed.id in futures else None
                 outcome = sync_one(
                     conn,
                     feed.id,
@@ -168,6 +201,17 @@ def sync_feeds(
             outcomes.append(outcome)
             if on_outcome is not None:
                 on_outcome(outcome)
+        # Son tarih nedeniyle kullanilmayan on indirmeler: bekleyen is iptal edilir,
+        # calisanin dosyasi silinir (bir sonraki kosu yeniden indirir; yarim dosya kalmaz).
+        for future in futures.values():
+            if future.cancel():
+                continue
+            try:
+                result = future.result()
+            except Exception:  # noqa: BLE001 - zaten kayit altina alinmis indirme hatasi
+                continue
+            if result is not None:
+                result[0].unlink(missing_ok=True)
     return outcomes
 
 
