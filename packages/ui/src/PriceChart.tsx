@@ -17,6 +17,8 @@ export interface PriceChartProps {
   chartLabel?: string;
   /** Verilirse <details> acik baslar. Varsayilan kapali (docs/pages.md). */
   defaultOpen?: boolean;
+  /** Eksen degerlerinin bicimi; varsayilan TL (kurus). Yurt disi seri kendi para birimiyle gecer. */
+  formatValue?: (minor: number) => string;
 }
 
 const VIEW_WIDTH = 600;
@@ -35,7 +37,13 @@ function formatAxisDate(isoDate: string): string {
  * Eksen etiketleri SVG disinda HTML'dir: `preserveAspectRatio="none"` ile
  * esnetilen SVG icindeki metin bozulurdu.
  */
-export function PriceChart({ points, summaryLabel, chartLabel, defaultOpen }: PriceChartProps) {
+export function PriceChart({
+  points,
+  summaryLabel,
+  chartLabel,
+  defaultOpen,
+  formatValue = formatTRY,
+}: PriceChartProps) {
   if (points.length < 2) return null;
 
   const prices = points.map((p) => p.priceKurus);
@@ -82,8 +90,8 @@ export function PriceChart({ points, summaryLabel, chartLabel, defaultOpen }: Pr
             <polyline className={styles.line} points={coords.join(" ")} />
           </svg>
           <div className={`${styles.yLabels} tabular-nums`} aria-hidden="true">
-            <span>{formatTRY(max)}</span>
-            <span>{formatTRY(min)}</span>
+            <span>{formatValue(max)}</span>
+            <span>{formatValue(min)}</span>
           </div>
         </div>
         {first && last ? (

@@ -3,8 +3,10 @@ import {
   type ComparisonRow,
   findAlternatives,
   foreignHeadlineOffer,
+  foreignOfferTimeNotes,
   formatMinorWithCurrency,
   getColorVariants,
+  getForeignPriceHistory,
   getPriceHistory,
   getPriceStats,
   getProductForeignOffers,
@@ -273,12 +275,20 @@ export default async function ProductPage({
     comparison.mode === "variants" && comparison.selectedKey
       ? await getVariantPriceHistory(db, product.productId, comparison.selectedKey)
       : null;
+  // TL teklifi yoksa geçmiş, başlıktaki yurt dışı teklifin KENDİ para biriminde çizilir
+  // (çevrilmez, para birimleri karıştırılmaz); TL teklifi varsa geçmiş TL'dir.
+  const foreignHistory =
+    comparison.mode !== "variants" && merchantOffers.length === 0 && foreignOffers[0]
+      ? await getForeignPriceHistory(db, product.productId, foreignOffers[0].currency)
+      : null;
   const priceHistory =
     comparison.mode === "variants"
       ? (variantHistory?.points ?? [])
       : merchantOffers.length > 0
         ? await getPriceHistory(db, product.productId)
-        : [];
+        : (foreignHistory?.points ?? []);
+  const formatHistoryPrice = (minor: number): string =>
+    foreignHistory ? formatMinorWithCurrency(minor, foreignHistory.currency) : formatTRY(minor);
 
   // docs/decisions/0033: teklifler farkli ticari varyantlar (60 ml / 100 ml)
   // satiyorsa fiyatlar yalnizca SECILI varyant icinde karsilastirilir. Basit
@@ -396,8 +406,8 @@ export default async function ProductPage({
     historyMin === null || historyMax === null
       ? null
       : historyMin === historyMax
-        ? `Son 90 günde fiyat ${formatTRY(historyMin)} olarak kaldı.`
-        : `Son 90 günde ${formatTRY(historyMin)} ile ${formatTRY(historyMax)} arasında değişti.`;
+        ? `Son 90 günde fiyat ${formatHistoryPrice(historyMin)} olarak kaldı.`
+        : `Son 90 günde ${formatHistoryPrice(historyMin)} ile ${formatHistoryPrice(historyMax)} arasında değişti.`;
 
   const showOffers = !singleOffer && merchantOffers.length > 0;
   // Gecmis grafigi gunluk en dusugu tum boyutlardan alir: varyant modunda
@@ -507,9 +517,11 @@ export default async function ProductPage({
 
             {/* 12. Son güncelleme - design.md: "Fiyatın yanında güncellenme zamanı yazılır". */}
             {foreignHeadline ? (
-              <UpdatedAt
-                text={`Fiyat ${trDateTime(foreignHeadline.priceObservedAt)} tarihinde kaydedildi`}
-              />
+              // Son fiyat kaydı ile kaynakta son görülme ayrı söylenir; son sürümde olmayan
+              // teklif güncel diye sunulmaz (fiyat yine de gizlenmez).
+              foreignOfferTimeNotes(foreignHeadline, trDateTime).map((note) => (
+                <UpdatedAt key={note} text={note} />
+              ))
             ) : product.priceUpdatedAt ? (
               <UpdatedAt text={`${formatSure(product.priceUpdatedAt, now)} önce güncellendi`} />
             ) : null}
@@ -795,7 +807,7 @@ export default async function ProductPage({
                   {approxTryText(offer) ? ` · ${approxTryText(offer)}` : ""}
                 </p>
                 <p className={styles.sectionMeta}>
-                  {`${offer.merchantName} · fiyat ${trDateTime(offer.priceObservedAt)} tarihinde kaydedildi`}
+                  {`${offer.merchantName} · ${foreignOfferTimeNotes(offer, trDateTime).join(" · ")}`}
                 </p>
                 <a
                   className={styles.foreignLink}
@@ -880,6 +892,7 @@ export default async function ProductPage({
               priceKurus: point.minPriceKurus,
             }))}
             // Acik/kapali her iki durumda da dogru kalan notr etiket.
+            formatValue={formatHistoryPrice}
             summaryLabel="Fiyat grafiği"
             chartLabel={historySentence ?? "Fiyat geçmişi"}
           />

@@ -356,6 +356,23 @@ düğmesi gösterilmez.
 | `offers.price_unverified` | Güncel fiyat doğrulanamadı. |
 | `offers.price_unverified_seen` | Yurt dışı teklifi en son {tarih} tarihinde görüldü. |
 
+## Yurt dışı teklif zamanları (fiyat kaydı ile kaynakta görülme ayrı)
+
+Ürün sayfasında yurt dışı teklifin yanında iki ayrı zaman yazılır; ikisi aynı şey değildir.
+"Son fiyat kaydı" fiyatın (ya da stokun) en son kaydedildiği andır; "kaynakta görüldü"
+teklifin beslemede en son bulunduğu andır. Teklif beslemenin son tamamlanmış sürümünde
+yoksa üçüncü satır eklenir. Fiyat gizlenmez; yalnızca güncel diye sunulmaz (MVP kararı,
+`config.freshness` kapalı).
+
+| Anahtar | Metin |
+| --- | --- |
+| `offers.price_recorded_at` | Son fiyat kaydı {tarih} |
+| `offers.source_seen_at` | Kaynakta en son {tarih} görüldü |
+| `offers.not_in_latest_source` | Kaynağın son sürümünde yok; güncel olarak doğrulanamadı |
+
+Fiyat geçmişi grafiği TL teklifi yoksa yurt dışı teklifin kendi para biriminde (ör. USD)
+çizilir; tutarlar TL'ye çevrilmez.
+
 ## Keşfet
 
 | Anahtar | Metin |
