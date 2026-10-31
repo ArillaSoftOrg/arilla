@@ -23,7 +23,7 @@ from pathlib import Path
 
 import feeds.admitad  # noqa: F401  (agi kaydeder)
 from db import job_run
-from db.connection import connect
+from db.connection import connect, env
 from feeds import approvals, daily, discovery, freshness, runner
 from feeds.logs import configure as configure_logging
 from feeds.network import build, registered
@@ -219,6 +219,7 @@ def _daily(args: argparse.Namespace) -> int:
         retry_wait_seconds=max(0.0, args.retry_wait_seconds),
         max_source_age=timedelta(hours=args.max_source_age_hours),
         discover=not args.skip_discovery,
+        budget=timedelta(hours=max(0.0, args.budget_hours)),
     )
     with job_run.track("feed_daily") as run, connect() as conn:
         result = daily.run_daily(conn, opts)
@@ -380,6 +381,14 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--retry-wait-seconds", type=float, default=600.0)
     p.add_argument("--max-source-age-hours", type=float, default=168.0)
     p.add_argument("--skip-discovery", action="store_true")
+    p.add_argument(
+        "--budget-hours",
+        type=float,
+        default=float(
+            env("FEED_DAILY_BUDGET_HOURS") or daily.DEFAULT_BUDGET.total_seconds() / 3600
+        ),
+        help="bu sureden sonra yeni besleme baslamaz, kalanlar ertelenir (karar 0162)",
+    )
     p.set_defaults(func=_daily)
     p = sub.add_parser("freshness")
     p.add_argument("--merchant", required=True)
