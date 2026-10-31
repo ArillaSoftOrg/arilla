@@ -2488,3 +2488,37 @@ python -m classify suggest finalize --run RUN_DIR --tsv urunler.tsv --categories
   tam yol, gerekçe, ürün sayısı), `state.json` (sürümler, parça sayaçları, özet).
 - `seviye`: `alt` | `ust` | `belirsiz` | `korunan`. Yazmaya en yakın olan `kaynak_ust_yolu`dur.
   Alt kategori AI ölçümünde ~%56 yanlış (insan etiketi yok).
+
+## Kaynak üst kategorisi yazımı (karar 0161) — açık onayla, yalnızca üst kategori
+
+`source_parent_map.tsv` içindeki `yuksek` satırlar (202 / 275 kaynak yolu) kategorisiz ürünlere
+**üst kategori** olarak yazılır. Alt kategori yazılmaz. `inceleme` (63), `eslesmedi` (10), haritada
+olmayan ve kaynak yolu olmayan ürünler kategorisiz kalır (sayılır, yazılmaz). Yalnızca
+`category_id IS NULL` olan ürüne yazılır; mevcut değer (insan, besleme, V5) ezilmez.
+
+```
+python -m classify parents-report --merchant aliexpress                  # YALNIZCA OKUR
+python -m classify parents --confirm --merchant aliexpress --batch 2000 --max-batches 20
+python -m classify parents --confirm --merchant aliexpress --sleep-ms 200 --max-seconds 5400
+python -m classify parents-undo --confirm --max-batches 20               # yalnızca bu işin yazdığı
+python -m classify status                                                # sürüm 50 / merchant:aliexpress
+```
+
+- `parents-report` salt okunur oturumda (`PGOPTIONS="-c default_transaction_read_only=on
+  -c statement_timeout=120000"`) çalıştırılır; iki gruplama sorgusu, tablo taraması yok.
+- Parti başına tek kısa işlem; WAL geri basıncı (karar 0134) `products` ile aynı bayraklarla
+  (`--wal-target-mb` ...). Çıkış kodu 3 = WAL nedeniyle durdu, 4 = güvenlik kontrolü (catalog_build
+  çalışıyor, zaten çalışıyor, kilit zaman aşımı); kontrol noktası korunur, aynı komut sürer.
+- `catalog_build` oturumu varken başlamaz. FeedSync/yedekleme penceresiyle çakıştırma.
+- Kural sürümü `50` (V5=5, dinamik=6'dan ayrı); iz: `product_classification` (`rule_version = 50`,
+  `detail = 'source_parent'`, `wrote_category = TRUE`). Kontrol noktası ürün kimliğiyle olduğundan
+  sonradan gelen ürünler **aynı komutla** kapsanır. Zamanlayıcıya eklenmedi (bilinçli, ayrı karar);
+  inceleme yolundaki ürünler imlecin gerisinde kalır, `--rescan` yeniden tarar.
+- `products` (V5) koşuları ve `--owned-only` bu işin yazdığı kategoriye dokunmaz.
+- Geri alma: `parents-undo --confirm` (yalnızca bu işin yazdığı ve üründe hâlâ aynı değeri taşıyan
+  satırlar; iz `source_parent_undone` olur). Elle: `UPDATE product p SET category_id = NULL FROM
+  product_classification pc WHERE pc.product_id = p.id AND pc.rule_version = 50 AND pc.wrote_category
+  AND p.category_id = pc.category_id`.
+- Kapsam notu: hedef düğümlerin çoğu `is_discoverable = FALSE` (karar 0153): ürünler arama
+  ve kategori süzgecinde görünür, sitemap/keşfet/trend yüzeylerine girmez. Açmak ayrı karar.
+  `lexicon --apply` bu yazımdan sonra da ayrı karardır (sözlük V5 yollarına bakar).
