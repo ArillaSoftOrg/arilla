@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<rss xmlns:g="http://base.google.com/ns/1.0" version="2.0">
+  <channel>
+    <title>Sentetik Ornek Besleme</title>
+    <item>
+      <g:id>XML001</g:id>
+      <title>Ornek Vazo</title>
+      <link>https://shop.example.invalid/xml/1</link>
+      <g:price>149,90 TRY</g:price>
+      <g:availability>in stock</g:availability>
+      <g:brand>FeedMarka</g:brand>
+      <g:product_type>Ev &gt; Dekorasyon</g:product_type>
+      <g:gtin>8690000000050</g:gtin>
+      <g:image_link>https://img.example.invalid/xml1a.jpg</g:image_link>
+      <g:additional_image_link>https://img.example.invalid/xml1b.jpg</g:additional_image_link>
+      <g:additional_image_link>https://img.example.invalid/xml1c.jpg</g:additional_image_link>
+    </item>
+    <item>
+      <g:id>XML002</g:id>
+      <title>Ornek Mum</title>
+      <link>https://shop.example.invalid/xml/2</link>
+      <g:price>59,00 TRY</g:price>
+      <g:availability>out of stock</g:availability>
+      <g:brand>FeedMarka</g:brand>
+      <g:product_type>Ev &gt; Dekorasyon</g:product_type>
+      
+      <g:image_link>https://img.example.invalid/xml2a.jpg</g:image_link>
+      <g:additional_image_link>https://img.example.invalid/xml2b.jpg</g:additional_image_link>
+      <g:additional_image_link>https://img.example.invalid/xml2c.jpg</g:additional_image_link>
+    </item>
+    <item>
+      <g:id>XML003</g:id>
+      <title>Ornek Tablo</title>
+      <link>https://shop.example.invalid/xml/3</link>
+      <g:price>1.099,00 TRY</g:price>
+      
+      <g:brand>FeedMarka</g:brand>
+      <g:product_type>Ev &gt; Dekorasyon</g:product_type>
+      <g:gtin>8690000000067</g:gtin>
+      <g:image_link>https://img.example.invalid/xml3a.jpg</g:image_link>
+      <g:additional_image_link>https://img.example.invalid/xml3b.jpg</g:additional_image_link>
+      <g:additional_image_link>https://img.example.invalid/xml3c.jpg</g:additional_image_link>
+    </item>
+    <item>
+      <g:id>XML004</g:id>
+      <title>Ornek Ayna</title>
+      <link>https://shop.example.invalid/xml/4</link>
+      <g:price>499,90 TRY</g:price>
+      <g:availability>in stock</g:availability>
+      <g:brand>FeedMarka</g:brand>
+      <g:product_type>Ev &gt; Dekorasyon</g:product_type>
+      <g:gtin>0000000000000</g:gtin>
+      <g:image_link>https://img.example.invalid/xml4a.jpg</g:image_link>
+      <g:additional_image_link>https://img.example.invalid/xml4b.jpg</g:additional_image_link>
+      <g:additional_image_link>https://img.example.invalid/xml4c.jpg</g:additional_image_link>
+    </item>
+    <item>
+      <g:id>XML005</g:id>
+      <title>Ornek Sepet</title>
+      <link>https://shop.example.invalid/xml/5</link>
+      <g:price>79,90 TRY</g:price>
+      <g:availability>in stock</g:availability>
+      <g:brand>FeedMarka</g:brand>
+      <g:product_type>Ev &gt; Dekorasyon</g:product_type>
+      
+      <g:image_link>https://img.example.invalid/xml5a.jpg</g:image_link>
+      <g:additional_image_link>https://img.example.invalid/xml5b.jpg</g:additional_image_link>
+      <g:additional_image_link>https://img.example.invalid/xml5c.jpg</g:additional_image_link>
+    </item>
+    <item>
+      <g:id>XML006</g:id>
+      <title>Bozuk Fiyatli Kayit</title>
+      <link>https://shop.example.invalid/xml/6</link>
+      <g:price>ucretsiz</g:price>
+      <g:availability>in stock</g:availability>
+      <g:brand>FeedMarka</g:brand>
+      <g:product_type>Ev &gt; Dekorasyon</g:product_type>
+      
+      <g:image_link>https://img.example.invalid/xml6a.jpg</g:image_link>
+      <g:additional_image_link>https://img.example.invalid/xml6b.jpg</g:additional_image_link>
+      <g:additional_image_link>https://img.example.invalid/xml6c.jpg</g:additional_image_link>
+    </item>
+  </channel>
+</rss>

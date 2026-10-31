@@ -1,0 +1,288 @@
+{
+  "_note": "SENTETIK ornek veri; gercek Trendyol verisi degildir.",
+  "content": [
+    {
+      "id": "700001",
+      "productName": "Ornek Mont Kadin",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700001",
+      "salePrice": "1.299,90",
+      "listPrice": "1.599,00",
+      "merchant": {
+        "id": "1001",
+        "name": "Ornek Magaza A"
+      },
+      "inStock": "true",
+      "brand": {
+        "name": "ModaCo"
+      },
+      "categoryName": "Giyim>Kadin>Mont",
+      "barcode": "8690000000081",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700001.jpg"
+        }
+      ],
+      "color": "Siyah"
+    },
+    {
+      "id": "700001",
+      "productName": "Ornek Mont Kadin",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700001",
+      "salePrice": "1.349,00",
+      "listPrice": null,
+      "merchant": {
+        "id": "1002",
+        "name": "Ornek Magaza B"
+      },
+      "inStock": "true",
+      "brand": {
+        "name": "ModaCo"
+      },
+      "categoryName": "Giyim>Kadin>Mont",
+      "barcode": "8690000000081",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700001.jpg"
+        }
+      ],
+      "color": "Siyah"
+    },
+    {
+      "id": "700001",
+      "productName": "Ornek Mont Kadin",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700001",
+      "salePrice": "1.275,50",
+      "listPrice": "1.599,00",
+      "merchant": {
+        "id": "1003",
+        "name": "Ornek Magaza C"
+      },
+      "inStock": "false",
+      "brand": {
+        "name": "ModaCo"
+      },
+      "categoryName": "Giyim>Kadin>Mont",
+      "barcode": "8690000000081",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700001.jpg"
+        }
+      ],
+      "color": "Siyah"
+    },
+    {
+      "id": "700002",
+      "productName": "Ornek Cilt Bakim Serumu",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700002",
+      "salePrice": "249,90",
+      "listPrice": "299,90",
+      "merchant": {
+        "id": "1001",
+        "name": "Ornek Magaza A"
+      },
+      "inStock": "true",
+      "brand": {
+        "name": "DermaX"
+      },
+      "categoryName": "Kozmetik>Cilt Bakimi",
+      "barcode": "8690000000098",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700002.jpg"
+        }
+      ]
+    },
+    {
+      "id": "700002",
+      "productName": "Ornek Cilt Bakim Serumu",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700002",
+      "salePrice": "239,00",
+      "listPrice": null,
+      "merchant": {
+        "id": "1004",
+        "name": "Ornek Magaza D"
+      },
+      "brand": {
+        "name": "DermaX"
+      },
+      "categoryName": "Kozmetik>Cilt Bakimi",
+      "barcode": "8690000000098",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700002.jpg"
+        }
+      ]
+    },
+    {
+      "id": "700003",
+      "productName": "Ornek Oyuncu Mouse",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700003",
+      "salePrice": "399,99",
+      "listPrice": null,
+      "merchant": {
+        "id": "1005",
+        "name": "Ornek Magaza E"
+      },
+      "inStock": "true",
+      "brand": {
+        "name": "TikTik"
+      },
+      "categoryName": "Bilgisayar>Mouse",
+      "barcode": "0000000000000",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700003.jpg"
+        }
+      ]
+    },
+    {
+      "id": "700004",
+      "productName": "Ornek Bluetooth Hoparlor",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700004",
+      "salePrice": "1.089,00",
+      "listPrice": "1.299,00",
+      "merchant": {
+        "id": "1002",
+        "name": "Ornek Magaza B"
+      },
+      "inStock": "true",
+      "brand": {
+        "name": "SesCo"
+      },
+      "categoryName": "Elektronik>Ses>Hoparlor",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700004.jpg"
+        }
+      ]
+    },
+    {
+      "id": "700005",
+      "productName": "Ornek Cocuk Tisort",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700005",
+      "salePrice": "99,90",
+      "listPrice": null,
+      "merchant": {
+        "id": "1003",
+        "name": "Ornek Magaza C"
+      },
+      "inStock": "true",
+      "brand": {
+        "name": "MiniModa"
+      },
+      "categoryName": "Giyim>Cocuk>Tisort",
+      "barcode": "8690000000104",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700005.jpg"
+        }
+      ],
+      "color": "Kirmizi"
+    },
+    {
+      "id": "700006",
+      "productName": "Ornek Su Aritma Sisesi",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700006",
+      "salePrice": "1.000,00",
+      "listPrice": null,
+      "merchant": {
+        "id": "1004",
+        "name": "Ornek Magaza D"
+      },
+      "inStock": "1",
+      "brand": {
+        "name": "SuCo"
+      },
+      "categoryName": "Ev>Mutfak",
+      "barcode": "8690000000111",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700006.jpg"
+        }
+      ]
+    },
+    {
+      "id": "700007",
+      "productName": "Ornek Koltuk Ortusu",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700007",
+      "salePrice": "0,99",
+      "listPrice": null,
+      "merchant": {
+        "id": "1005",
+        "name": "Ornek Magaza E"
+      },
+      "inStock": "yok",
+      "brand": {
+        "name": "EvTekstil"
+      },
+      "categoryName": "Ev>Tekstil",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700007.jpg"
+        }
+      ]
+    },
+    {
+      "id": "700008",
+      "productName": "Saticisiz Kayit",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700008",
+      "salePrice": "100,00",
+      "listPrice": null,
+      "merchant": {
+        "name": "S"
+      },
+      "inStock": "true",
+      "brand": {
+        "name": "B"
+      },
+      "categoryName": "A>B",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700008.jpg"
+        }
+      ]
+    },
+    {
+      "id": "700009",
+      "productName": "Negatif Fiyatli",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700009",
+      "salePrice": "-5,00",
+      "listPrice": null,
+      "merchant": {
+        "id": "1",
+        "name": "S"
+      },
+      "inStock": "true",
+      "brand": {
+        "name": "B"
+      },
+      "categoryName": "A>B",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700009.jpg"
+        }
+      ]
+    },
+    {
+      "id": "700010",
+      "productName": "Bozuk Binlik",
+      "url": "https://www.trendyol.example.invalid/marka/urun-p-700010",
+      "salePrice": "1.29,90",
+      "listPrice": null,
+      "merchant": {
+        "id": "1",
+        "name": "S"
+      },
+      "inStock": "true",
+      "brand": {
+        "name": "B"
+      },
+      "categoryName": "A>B",
+      "images": [
+        {
+          "url": "https://img.example.invalid/ty700010.jpg"
+        }
+      ]
+    }
+  ]
+}

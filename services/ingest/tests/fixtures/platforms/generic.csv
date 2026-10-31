@@ -1,0 +1,9 @@
+id;title;link;price;old_price;currency;availability;brand;category;gtin;images
+CSV001;Ornek Defter A5;https://shop.example.invalid/urun/1;45,90;59,90;TRY;in stock;KagitCo;Kirtasiye > Defter;8690000000012;https://img.example.invalid/csv1a.jpg,https://img.example.invalid/csv1b.jpg
+CSV002;Ornek Kalem Seti;https://shop.example.invalid/urun/2;1.234,56;;TRY;out of stock;YazCo;Kirtasiye > Kalem;;https://img.example.invalid/csv2a.jpg,https://img.example.invalid/csv2b.jpg
+CSV003;Ornek Sirt Cantasi;https://shop.example.invalid/urun/3;649,00;749,00;TRY;;CantaCo;Aksesuar > Canta;0000000000000;https://img.example.invalid/csv3a.jpg,https://img.example.invalid/csv3b.jpg
+CSV004;Ornek Gunes Gozlugu;https://shop.example.invalid/urun/4;299,99;;TRY;in stock;GozCo;Aksesuar > Gozluk;8690000000029;https://img.example.invalid/csv4a.jpg,https://img.example.invalid/csv4b.jpg
+CSV005;Ornek Matara;https://shop.example.invalid/urun/5;12,345;;TRY;in stock;SuCo;Outdoor > Matara;;https://img.example.invalid/csv5a.jpg,https://img.example.invalid/csv5b.jpg
+;Kimliksiz Urun;https://shop.example.invalid/urun/6;10,00;;TRY;in stock;B;A;;
+CSV007;Ornek Bardak Seti;https://shop.example.invalid/urun/7;89,50;;TRY;unavailable;EvCo;Ev > Mutfak;8690000000036;https://img.example.invalid/csv7a.jpg,https://img.example.invalid/csv7b.jpg
+CSV008;Ornek Kitap;https://shop.example.invalid/urun/8;75,00;90,00;TRY;in stock;YayinCo;Kitap > Roman;8690000000043;https://img.example.invalid/csv8a.jpg,https://img.example.invalid/csv8b.jpg
