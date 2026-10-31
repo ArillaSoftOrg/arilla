@@ -7,7 +7,7 @@ python -m catalog_build build-discovery --merchant hepsiburada --limit N [--batc
                                 [--max-seconds S] [--sleep-ms MS] [--rescan] [--dry-run]
 python -m catalog_build status  --merchant aliexpress
 python -m catalog_build gate    [--after-id N] [--batch 5000] [--max-batches N]
-                                [--stale-days 7] [--allow-foreign]
+                                [--stale-days 2] [--allow-foreign]
 python -m catalog_build publish --limit N --confirm [--merchant aliexpress] [--allow-foreign]
                                 [--batch 500]
 python -m catalog_build unpublish --product-id N [--product-id M ...] --confirm
@@ -187,6 +187,7 @@ def main(argv: list[str] | None = None) -> int:
     p_pub.add_argument("--merchant", default=None)
     p_pub.add_argument("--allow-foreign", action="store_true")
     p_pub.add_argument("--confirm", action="store_true")
+    p_pub.add_argument("--stale-days", type=int, default=gate_mod.PUBLISH_STALE_DAYS)
     p_pub.add_argument("--batch", type=int, default=publish_mod.DEFAULT_BATCH)
     _add_wal_args(p_pub)
 
@@ -334,6 +335,7 @@ def main(argv: list[str] | None = None) -> int:
                 merchant_id=merchant_id,
                 batch_size=max(1, min(args.batch, publish_mod.DEFAULT_BATCH)),
                 allow_foreign=args.allow_foreign,
+                stale_days=args.stale_days,
                 should_stop=_should_stop,
                 throttle=gov.before_batch,
             )

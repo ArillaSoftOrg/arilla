@@ -208,6 +208,21 @@ check "ikinci baslatma --after-id 100" 'sed -n 2p "$FJ/starts" | grep -q -- "--a
 check "is WAL argumanlarini aldi" 'head -1 "$FJ/starts" | grep -q -- "--wal-pause-mb 192"'
 check "geri basinc cikisi gunlukte" 'grep -q "WAL geri basinci nedeniyle durdu" "$LOG"'
 
+echo "== 7b. tazelik esigi (karar 0160): varsayilan 2 gun, gate VE publish'e aktarilir"
+check "varsayilan STALE_DAYS=2" '[ "$STALE_DAYS" = 2 ]'
+check "gate --stale-days 2 ile basladi" 'head -1 "$FJ/starts" | grep -q -- "gate --allow-foreign --stale-days 2 "'
+: >"$FJ/starts"
+NEXT_JOB=("0|parti 1: taranan 10 hazir 10 son_urun 5|bitti=True hazir=10")
+STALE_DAYS=3 run_phase gate >/dev/null 2>&1
+check "gate --stale-days (ortamdan) ile basladi" 'head -1 "$FJ/starts" | grep -q -- "--stale-days 3 "'
+check "publish --stale-days ile baslatilir (kaynak)" 'grep -q "publish --merchant \"\$MERCHANT\" --allow-foreign --stale-days" "$HERE/catalog-publish"'
+check "dryrun SQL esigi STALE_DAYS'ten alir (7 gun sabit degil)" '! grep -q "interval .7 days" "$HERE/catalog-publish" && grep -q "STALE_DAYS} \* interval" "$HERE/catalog-publish"'
+# shellcheck disable=SC2034
+out=$( (STALE_DAYS=0 CATALOG_PUBLISH_LIB=1 source "$HERE/catalog-publish") 2>&1); rc=$?
+check "STALE_DAYS=0 reddedilir" '[ $rc -ne 0 ] && echo "$out" | grep -q "STALE_DAYS"'
+out=$( (STALE_DAYS=abc CATALOG_PUBLISH_LIB=1 source "$HERE/catalog-publish") 2>&1); rc=$?
+check "STALE_DAYS=abc reddedilir" '[ $rc -ne 0 ]'
+
 echo "== 8. bekciye SIGTERM: is guvenle durur, bekci 143 ile cikar"
 rm -f "$FJ/term"
 (

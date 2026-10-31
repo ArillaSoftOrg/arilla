@@ -57,6 +57,7 @@ HOLD_DEPLOY_LOCK=${HOLD_DEPLOY_LOCK:-1}
 ALLOW_OTHER_MERCHANTS=${ALLOW_OTHER_MERCHANTS:-0}
 MIN_READY_PCT=${MIN_READY_PCT:-80}
 BACKUP_MAX_AGE_H=${BACKUP_MAX_AGE_H:-12}
+STALE_DAYS=${STALE_DAYS:-2}             # kaynakta bu kadar gundur gorulmeyen teklif yayinlanmaz (karar 0160)
 PUBLISH_BATCH=${PUBLISH_BATCH:-500}
 
 # --- Esikler (VPS: 6 GB postgres, max_connections 60) -------------------------------------
@@ -75,6 +76,7 @@ WEB_RESUME_MS=${WEB_RESUME_MS:-1200}
 CHECK_EVERY=${CHECK_EVERY:-20}
 RESUME_HEALTHY_S=${RESUME_HEALTHY_S:-60}
 MAX_CRASHES=${MAX_CRASHES:-3}
+case $STALE_DAYS in ''|*[!0-9]*|0) echo "STALE_DAYS pozitif tam sayi olmali (verilen: '$STALE_DAYS')" >&2; exit 2 ;; esac
 EXIT_WAL_BACKPRESSURE=3                 # catalog_build: WAL siniri yuzunden durdu (cokme degil)
 
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -393,7 +395,7 @@ dryrun() {
               WHEN p.title IS NULL OR btrim(p.title) = '' THEN 'title_missing'
               WHEN p.primary_image_url IS NULL OR btrim(p.primary_image_url) = '' THEN 'no_image'
               WHEN o.product_id IS NOT NULL AND o.product_id <> p.id THEN 'offer_linked_elsewhere'
-              WHEN seen.at < now() - interval '7 days' THEN 'stale_source_offer'
+              WHEN seen.at IS NULL OR seen.at < now() - (${STALE_DAYS} * interval '1 day') THEN 'stale_source_offer'
             END AS reason
        FROM product p
        LEFT JOIN offer o ON o.id = p.source_offer_id
@@ -525,10 +527,10 @@ run_phase() {
     lf=$S/job-$phase-$attempt.log
     if [ "$phase" = gate ]; then
       # shellcheck disable=SC2086 # wal_args bilerek bolunur
-      start_job "$lf" gate --allow-foreign --after-id "$after" $wal_args || return 2
+      start_job "$lf" gate --allow-foreign --stale-days "$STALE_DAYS" --after-id "$after" $wal_args || return 2
     else
       # shellcheck disable=SC2086
-      start_job "$lf" publish --merchant "$MERCHANT" --allow-foreign --limit 3000000 --batch "$PUBLISH_BATCH" --confirm $wal_args || return 2
+      start_job "$lf" publish --merchant "$MERCHANT" --allow-foreign --stale-days "$STALE_DAYS" --limit 3000000 --batch "$PUBLISH_BATCH" --confirm $wal_args || return 2
     fi
     local paused=0 tick=0
     sleep 10

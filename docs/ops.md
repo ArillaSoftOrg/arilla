@@ -1719,7 +1719,7 @@ python -m catalog_build audit  --merchant aliexpress
 python -m catalog_build build  --merchant aliexpress --batch 5000 --sleep-ms 100
 python -m catalog_build status --merchant aliexpress
 # 2. Kalite kapısı: draft/held/ready. Yurt dışı teklif karar bekler (draft kalır, satır yazılmaz).
-python -m catalog_build gate
+python -m catalog_build gate    # varsayılan --stale-days 2 (karar 0160)
 # 3. Yayın (AÇIK onay): ready -> published, offer.product_id bağlanır, özet yenilenir.
 python -m catalog_build publish --limit 500 --merchant aliexpress --confirm
 #    TRY dışı ürün için ayrıca: CATALOG_PUBLISH_FOREIGN_APPROVED=true ve --allow-foreign
@@ -1734,6 +1734,18 @@ pgBackRest arşivini izle). Feed senkronizasyonu çalışırken de çalışabili
 yine de yoğun saatte `--sleep-ms` kullan. Yönetimde: `/yonetim/katalog/urunler?durum=draft`
 (kimlik/slug/kaynak kimliğiyle ara) ve `/yonetim/katalog/kalite` "Yayın bekleyen kaynak
 ilanları".
+
+### Tazelik eşiği: eski beslemedeki teklif yayınlanmaz (karar 0160)
+
+`gate` ve `publish` aynı eşiği (`--stale-days`, varsayılan **2 gün**) uygular: kaynakta (offer ya da
+besleme üyeliği) bu süredir görülmeyen teklifin ürünü `held` + `stale_source_offer` olur, `offer.product_id`
+bağlanmaz. `publish` eşiği kapıdan sonra YENİDEN uygular (kapı ile yayın arasında kaynaktan düşen teklif
+yayına girmez). Teklif beslemeye dönerse `gate` yeniden `ready` yapar. Bekçi `STALE_DAYS` (varsayılan 2)
+ortam değişkenini gate'e, publish'e ve `dryrun` SQL'ine aktarır; pozitif tam sayı değilse başlamaz.
+Gate, son başarılı senkronizasyondan en geç 2 gün sonra çalışmalıdır; aksi hâlde güncel teklifler de
+takılır (geri alınabilir: senkronizasyondan sonra gate'i yeniden çalıştır). Bu yalnız YENİ yayını sınırlar;
+yayındaki ürünleri gizlemez (`config.freshness` ayrı ve kapalı). Yönetim panelindeki 7 günlük
+`STALE_OFFER_DAYS` bir göstergedir, yayın eşiği değildir.
 
 ### Toplu yayın ve WAL geri basıncı (karar 0134)
 
