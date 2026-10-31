@@ -2,7 +2,8 @@
 
 Yayin aninda, tek islemde parti parti:
 
-1. Kaynak teklif OKUNUR ve politika yeniden uygulanir (kapidan sonra veri degismis olabilir).
+1. Kaynak teklif OKUNUR; politika VE tazelik (`stale_days`, kapiyla ayni OFFER_SEEN_AT
+   mantigi) yeniden uygulanir (kapidan sonra veri degismis olabilir). Bayat teklif `held`.
 2. `offer.product_id` BAGLANIR (yalnizca hala bagsiz, aktif ve izinli para birimindeki
    teklif). Bag kurulamayan urun `held` olur, yayinlanmaz.
 3. Urun `published` olur; baslik/gorsel kaynaktan tazelenir (slug SABIT kalir) ve fiyat
@@ -28,6 +29,7 @@ from dataclasses import dataclass, field
 import psycopg
 from psycopg.types.json import Jsonb
 
+from catalog_build.gate import PUBLISH_STALE_DAYS
 from catalog_build.policy import POLICIES, SourceOffer, SourcePolicy, evaluate
 
 DEFAULT_BATCH = 500
@@ -35,10 +37,15 @@ FOREIGN_APPROVAL_ENV = "CATALOG_PUBLISH_FOREIGN_APPROVED"
 
 SELECT_READY = """
 SELECT p.id, o.id, o.external_id, o.url, o.title_raw, o.image_url, o.current_price, o.currency,
-       o.is_active, o.product_id, m.slug, p.source_merchant_id
+       o.is_active, o.product_id, m.slug, p.source_merchant_id,
+       (seen.at IS NULL OR seen.at < now() - (%(stale_days)s * interval '1 day')) AS stale
   FROM product p
   JOIN offer o ON o.id = p.source_offer_id
   JOIN merchant m ON m.id = o.merchant_id
+  LEFT JOIN LATERAL (
+      SELECT GREATEST(o.last_seen_at, max(fo.last_seen_at)) AS at
+        FROM feed_source_offer fo WHERE fo.offer_id = o.id
+  ) seen ON true
  WHERE p.publication_state = 'ready' AND p.id > %(after)s
    AND (%(merchant_id)s::bigint IS NULL OR p.source_merchant_id = %(merchant_id)s)
  ORDER BY p.id
@@ -147,6 +154,7 @@ def publish_ready(
     merchant_id: int | None = None,
     batch_size: int = DEFAULT_BATCH,
     allow_foreign: bool = False,
+    stale_days: int = PUBLISH_STALE_DAYS,
     should_stop: Callable[[], bool] = lambda: False,
     policies: dict[str, SourcePolicy] | None = None,
     throttle: Callable[[], bool] | None = None,
@@ -164,7 +172,15 @@ def publish_ready(
             break
         take = min(batch_size, remaining)
         with conn.cursor() as cur:
-            cur.execute(SELECT_READY, {"after": after, "limit": take, "merchant_id": merchant_id})
+            cur.execute(
+                SELECT_READY,
+                {
+                    "after": after,
+                    "limit": take,
+                    "merchant_id": merchant_id,
+                    "stale_days": stale_days,
+                },
+            )
             rows = cur.fetchall()
         if not rows:
             conn.commit()
@@ -193,6 +209,13 @@ def publish_ready(
                 hold_p.append(pid)
                 hold_reason.append("offer_linked_elsewhere")
                 totals.hold("offer_linked_elsewhere")
+                continue
+            if bool(r[12]):
+                # Kapidan sonra kaynaktan dusmus teklif: baglanmaz, yayinlanmaz (karar 0160).
+                # Kaynakta geri gelirse `gate` yeniden `ready` yapar.
+                hold_p.append(pid)
+                hold_reason.append("stale_source_offer")
+                totals.hold("stale_source_offer")
                 continue
             offer = SourceOffer(
                 offer_id=oid,

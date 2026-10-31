@@ -683,3 +683,182 @@ def test_unpublish_resets_foreign_offer_count(world, monkeypatch):
         "SELECT publication_state, foreign_offer_count FROM product WHERE id = %s", pid
     ) == [("ready", 0)]
     assert fetch("SELECT refresh_product_aggregates(ARRAY[%s]::bigint[])", pid) == [(0,)]
+
+
+# --- Tazelik (karar 0160): kapi VE yayin ayni esigi uygular --------------------------------
+
+
+def _states(m: int) -> dict[int, str]:
+    return dict(
+        fetch(
+            """SELECT source_offer_id, publication_state || ':' || COALESCE(hold_reason, '')
+                 FROM product WHERE source_merchant_id = %s""",
+            m,
+        )
+    )
+
+
+def test_stale_default_is_two_days_and_boundary_is_strict(world):
+    assert gate_mod.DEFAULT_STALE_DAYS == gate_mod.PUBLISH_STALE_DAYS == 2
+    assert publish_mod.PUBLISH_STALE_DAYS == 2
+    m = world[SLUG]
+    with _owner() as owner, owner.cursor() as cur:
+        fresh = add_offer(cur, m, 1, currency="TRY", seen_days_ago=0)
+        one_day = add_offer(cur, m, 2, currency="TRY", seen_days_ago=1)
+        exactly = add_offer(cur, m, 3, currency="TRY", seen_days_ago=2)
+        old = add_offer(cur, m, 4, currency="TRY", seen_days_ago=5)
+        owner.commit()
+    build(world)
+    with _app() as conn:
+        gate_mod.run_gate(conn)
+    states = _states(m)
+    assert states[fresh] == "ready:"
+    assert states[one_day] == "ready:"
+    # Tam N gun onceki gozlem (gate'in now()'i daha sonradir) sinirin ASAGISINDA: bayat.
+    assert states[exactly] == "held:stale_source_offer"
+    assert states[old] == "held:stale_source_offer"
+    # Eski 7 gun acikca verilirse yine secilebilir: esik tek yerden gelir.
+    with _app() as conn:
+        gate_mod.run_gate(conn, stale_days=7)
+    assert _states(m)[old] == "ready:"
+    assert _states(m)[exactly] == "ready:"
+
+
+def test_feed_membership_newer_than_offer_row_keeps_offer_fresh(world):
+    m = world[SLUG]
+    with _owner() as owner, owner.cursor() as cur:
+        member = add_offer(cur, m, 1, currency="TRY", seen_days_ago=30)
+        lone = add_offer(cur, m, 2, currency="TRY", seen_days_ago=30)
+        cur.execute(
+            "INSERT INTO feed_source (network, external_id)"
+            " VALUES ('admitad', 'test-cb-stale:1') RETURNING id"
+        )
+        row = cur.fetchone()
+        assert row is not None
+        fs = int(row[0])
+        cur.execute(
+            "INSERT INTO source_snapshot (feed_source_id, status, sha256)"
+            " VALUES (%s, 'complete', %s) RETURNING id",
+            (fs, "b" * 64),
+        )
+        row = cur.fetchone()
+        assert row is not None
+        snap = int(row[0])
+        cur.execute(
+            "INSERT INTO feed_source_offer (feed_source_id, offer_id, last_snapshot_id, last_seen_at)"
+            " VALUES (%s, %s, %s, now())",
+            (fs, member, snap),
+        )
+        owner.commit()
+    try:
+        build(world)
+        with _app() as conn:
+            gate_mod.run_gate(conn)
+        states = _states(m)
+        assert states[member] == "ready:"
+        assert states[lone] == "held:stale_source_offer"
+        # Yayin da uyelik tarihini okur: uyeli teklif yayinlanir.
+        with _app() as conn:
+            counts = publish_mod.publish_ready(conn, policies=POLICIES, limit=10)
+        assert counts.published == 1
+        assert fetch("SELECT product_id IS NOT NULL FROM offer WHERE id = %s", member) == [(True,)]
+    finally:
+        with _owner() as owner, owner.cursor() as cur:
+            cur.execute("DELETE FROM feed_source_offer WHERE feed_source_id = %s", (fs,))
+            cur.execute("DELETE FROM source_snapshot WHERE feed_source_id = %s", (fs,))
+            cur.execute("DELETE FROM feed_source WHERE id = %s", (fs,))
+            owner.commit()
+
+
+def test_publish_reapplies_freshness_after_the_gate(world):
+    """Kapidan sonra kaynaktan dusen teklif baglanmaz, yayinlanmaz, `held` olur."""
+    m = world[SLUG]
+    with _owner() as owner, owner.cursor() as cur:
+        keep = add_offer(cur, m, 1, currency="TRY")
+        aged = add_offer(cur, m, 2, currency="TRY")
+        owner.commit()
+    build(world)
+    with _app() as conn:
+        gate_mod.run_gate(conn)
+    assert set(_states(m).values()) == {"ready:"}
+    with _owner() as owner, owner.cursor() as cur:
+        cur.execute(
+            "UPDATE offer SET last_seen_at = now() - interval '3 days' WHERE id = %s", (aged,)
+        )
+        owner.commit()
+    with _app() as conn:
+        counts = publish_mod.publish_ready(conn, policies=POLICIES, limit=10)
+    assert counts.published == 1
+    assert counts.held == {"stale_source_offer": 1}
+    states = _states(m)
+    assert states[keep] == "published:"
+    assert states[aged] == "held:stale_source_offer"
+    assert fetch("SELECT product_id FROM offer WHERE id = %s", aged) == [(None,)]
+
+
+def test_stale_foreign_offer_is_not_published_even_with_approval(world, monkeypatch):
+    monkeypatch.setenv(publish_mod.FOREIGN_APPROVAL_ENV, "true")
+    m = world[SLUG]
+    with _owner() as owner, owner.cursor() as cur:
+        usd_ok = add_offer(cur, m, 1, currency="USD")
+        usd_old = add_offer(cur, m, 2, currency="USD")
+        owner.commit()
+    build(world)
+    with _app() as conn:
+        gate_mod.run_gate(conn, allow_foreign=True)
+    with _owner() as owner, owner.cursor() as cur:
+        cur.execute(
+            "UPDATE offer SET last_seen_at = now() - interval '4 days' WHERE id = %s", (usd_old,)
+        )
+        owner.commit()
+    with _app() as conn:
+        counts = publish_mod.publish_ready(conn, policies=POLICIES, limit=10, allow_foreign=True)
+    assert counts.published == 1
+    assert counts.held == {"stale_source_offer": 1}
+    states = _states(m)
+    assert states[usd_ok] == "published:"
+    assert states[usd_old] == "held:stale_source_offer"
+    assert fetch("SELECT product_id IS NULL FROM offer WHERE id = %s", usd_old) == [(True,)]
+
+
+def test_stale_foreign_draft_is_held_by_the_gate_not_left_as_pending_decision(world):
+    m = world[SLUG]
+    with _owner() as owner, owner.cursor() as cur:
+        stale_usd = add_offer(cur, m, 1, currency="USD", seen_days_ago=9)
+        fresh_usd = add_offer(cur, m, 2, currency="USD")
+        owner.commit()
+    build(world)
+    with _app() as conn:
+        counts = gate_mod.run_gate(conn)  # allow_foreign yok
+    states = _states(m)
+    assert states[stale_usd] == "held:stale_source_offer"
+    assert states[fresh_usd] == "draft:"
+    assert counts.foreign_blocked == 1
+
+
+def test_inactive_offer_after_gate_is_held_not_linked_and_price_data_untouched(world):
+    m = world[SLUG]
+    with _owner() as owner, owner.cursor() as cur:
+        gone = add_offer(cur, m, 1, currency="TRY", price=4200)
+        cur.execute(
+            "INSERT INTO price_point (offer_id, price, in_stock) VALUES (%s, 4200, true)", (gone,)
+        )
+        owner.commit()
+    build(world)
+    with _app() as conn:
+        gate_mod.run_gate(conn)
+    with _owner() as owner, owner.cursor() as cur:
+        cur.execute(
+            "UPDATE offer SET is_active = false, last_seen_at = now() - interval '9 days'"
+            " WHERE id = %s",
+            (gone,),
+        )
+        owner.commit()
+    with _app() as conn:
+        counts = publish_mod.publish_ready(conn, policies=POLICIES, limit=10)
+    assert counts.published == 0
+    assert sum(counts.held.values()) == 1
+    assert fetch("SELECT product_id, current_price FROM offer WHERE id = %s", gone) == [
+        (None, 4200)
+    ]
+    assert fetch("SELECT count(*) FROM price_point WHERE offer_id = %s", gone) == [(1,)]

@@ -27,7 +27,12 @@ from dataclasses import dataclass, field
 import psycopg
 
 DEFAULT_BATCH = 5_000
-DEFAULT_STALE_DAYS = 7  # packages/core/src/admin/catalog.ts STALE_OFFER_DAYS ile ayni
+#: Yeni yayin icin tazelik esigi (karar 0160). Besleme gunde iki kez kosar; 2 gun = en az
+#: dort kacirilmis senkronizasyon. Yonetim paneli `STALE_OFFER_DAYS` (7) yalnizca bir
+#: GOSTERGEDIR (yayin kapisi degil) ve bilerek ayri tutulur. `gate` ve `publish` ayni
+#: sabiti kullanir.
+PUBLISH_STALE_DAYS = 2
+DEFAULT_STALE_DAYS = PUBLISH_STALE_DAYS
 
 #: Parti: `id > after` anahtarli; ayni parti tek ifadede guncellenir. `seen` ilkesi
 #: `OFFER_SEEN_AT` ile aynidir: GREATEST(offer.last_seen_at, max(uyelik.last_seen_at)).
@@ -49,7 +54,8 @@ WITH batch AS (
              WHEN b.title IS NULL OR btrim(b.title) = '' THEN 'title_missing'
              WHEN b.primary_image_url IS NULL OR btrim(b.primary_image_url) = '' THEN 'no_image'
              WHEN o.product_id IS NOT NULL AND o.product_id <> b.id THEN 'offer_linked_elsewhere'
-             WHEN seen.at < now() - (%(stale_days)s * interval '1 day') THEN 'stale_source_offer'
+             WHEN seen.at IS NULL
+               OR seen.at < now() - (%(stale_days)s * interval '1 day') THEN 'stale_source_offer'
              WHEN o.currency <> 'TRY' AND NOT %(allow_foreign)s THEN 'foreign_blocked'
            END AS reason
       FROM batch b

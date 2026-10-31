@@ -899,7 +899,11 @@ export function isOfferState(value: unknown): value is OfferState {
   return typeof value === "string" && (OFFER_STATES as readonly string[]).includes(value);
 }
 
-/** Aktif ama bu kadar gündür feed'de görülmeyen teklif "bayat". */
+/**
+ * Aktif ama bu kadar gündür feed'de görülmeyen teklif "bayat". Yönetim GÖSTERGESİDİR;
+ * yeni yayın eşiği değildir: `catalog_build` kapısı/yayını `PUBLISH_STALE_DAYS` (2) kullanır
+ * (karar 0160). İki değer bilerek ayrıdır.
+ */
 export const STALE_OFFER_DAYS = 7;
 
 /**
