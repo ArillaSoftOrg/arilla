@@ -46,6 +46,10 @@ logger = logging.getLogger(__name__)
 DEFAULT_BATCH = 2_000
 MAX_BATCH = 10_000
 LOCK_KEY = 4_133_001
+#: Kaynak ust esleme isinin (`parent_apply`, karar 0161) kural surumu ve `detail` isareti. V5 ve
+#: dinamik surumlerden ayri tutulur; bu isin yazdigi kategoriyi V5 kosulari geri almaz.
+PARENT_RULE_VERSION = 50
+PARENT_DETAIL = "source_parent"
 #: Kilit zaman asiminda parti geri alinir ve bu kadar kez (artan beklemeyle) yeniden denenir;
 #: ard arda asilirsa is durur (kontrol noktasi korunur, ayni komut surer).
 LOCK_RETRIES = 3
@@ -55,7 +59,7 @@ _SELECT_ROWS = """
 SELECT p.id, p.title, p.brand_id, p.category_id,
        COALESCE(so.merchant_id, lo.merchant_id), COALESCE(so.brand_raw, lo.brand_raw),
        COALESCE(so.category_raw, lo.category_raw),
-       pc.brand_id, pc.category_id, pc.wrote_brand, pc.wrote_category
+       pc.brand_id, pc.category_id, pc.wrote_brand, pc.wrote_category, pc.rule_version
   FROM product p
   LEFT JOIN offer so ON so.id = p.source_offer_id
   LEFT JOIN LATERAL (
@@ -80,9 +84,10 @@ SELECT_BATCH = (
 #: Yalnizca bu isin yazdigi (sahip oldugu) marka/kategori: yeni kural surumuyle duzeltme.
 SELECT_OWNED = (
     _SELECT_ROWS
-    + """
+    + f"""
  WHERE p.id > %(after)s
    AND (pc.wrote_category OR pc.wrote_brand)
+   AND pc.rule_version <> {PARENT_RULE_VERSION}
    AND (%(merchant_id)s::bigint IS NULL OR p.source_merchant_id = %(merchant_id)s)
  ORDER BY p.id
  LIMIT %(limit)s
@@ -255,6 +260,17 @@ class _Row:
     prev_category: int | None
     prev_wrote_brand: bool
     prev_wrote_category: bool
+    prev_rule_version: int | None = None
+
+    @property
+    def parent_owned(self) -> bool:
+        """Kaynak ust esleme isinin yazdigi kategori (karar 0161): V5 kosulari dokunmaz."""
+        return (
+            self.prev_rule_version == PARENT_RULE_VERSION
+            and self.prev_wrote_category
+            and self.category_id is not None
+            and self.category_id == self.prev_category
+        )
 
     @property
     def owns_brand(self) -> bool:
@@ -387,6 +403,7 @@ def _rows(rows: list[tuple]) -> list[_Row]:
             prev_category=None if r[8] is None else int(r[8]),
             prev_wrote_brand=bool(r[9]),
             prev_wrote_category=bool(r[10]),
+            prev_rule_version=None if r[11] is None else int(r[11]),
         )
         for r in rows
     ]
@@ -480,7 +497,7 @@ def _process_batch(
     counts = Counts(scanned=len(rows))
     work: list[tuple[_Row, Decision]] = []
     for row in rows:
-        if (
+        if row.parent_owned or (
             row.brand_id is not None
             and row.category_id is not None
             and not (row.owns_brand or row.owns_category)

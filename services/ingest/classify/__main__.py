@@ -6,8 +6,12 @@ python -m classify products --confirm [--merchant aliexpress] [--batch 2000] [--
                             [--max-seconds S]
                             [--sleep-ms MS] [--rescan | --owned-only [--after-id N]]
                             [--wal-target-mb 1024 ...]
+python -m classify parents-report [--merchant aliexpress]  # YALNIZCA OKUR (0161)
+python -m classify parents  --confirm [--merchant aliexpress] [--batch 2000] [--max-batches N]
+                            [--max-seconds S] [--sleep-ms MS] [--rescan] [--wal-target-mb ...]
+python -m classify parents-undo --confirm [--batch 2000] [--max-batches N]
 python -m classify status
-python -m classify sample   --merchant aliexpress [--n 200] [--seed 1]   # YALNIZCA OKUR, TSV
+python -m classify sample  --merchant aliexpress [--n 200] [--seed 1]   # YALNIZCA OKUR, TSV
 python -m classify recheck  [--merchant aliexpress] [--limit N]          # YALNIZCA OKUR, TSV
 python -m classify evaluate --labels dosya.tsv [--split dev|eval|all] [--json cikti.json]
                             # dosya = `sample` TSV'si (expected_* etiketli); veritabani YOK
@@ -41,6 +45,7 @@ import psycopg
 
 from classify import compare as compare_mod
 from classify import lexicon as lexicon_mod
+from classify import parent_apply as parent_mod
 from classify import run as run_mod
 from classify import scope as scope_mod
 from classify.taxonomy import APPLY_MIN_CONFIDENCE, RULE_VERSION
@@ -93,6 +98,40 @@ def _summary(c: run_mod.Counts, *, dry_run: bool) -> None:
         print("incelemeye en cok urun dusuren kaynak yollari:")
         for path, n in c.review_sources.most_common(20):
             print(f"  {n:>8}  {path}")
+
+
+def _parent_progress(c: run_mod.Counts) -> None:
+    print(
+        f"parti {c.batches}: taranan {c.scanned} kategori+{c.category_set} "
+        f"kategorisiz {c.review} hata {c.errors} son_urun {c.last_product_id}",
+        flush=True,
+    )
+
+
+def _parents_report(rows: list[parent_mod.ReportRow], top: int) -> None:
+    total = sum(r.products for r in rows)
+    by_reason: dict[str, int] = {}
+    by_state: dict[tuple[str, str], int] = {}
+    by_target: dict[str, int] = {}
+    for r in rows:
+        by_reason[r.reason] = by_reason.get(r.reason, 0) + r.products
+        by_state[(r.state, r.reason)] = by_state.get((r.state, r.reason), 0) + r.products
+        if r.target:
+            by_target[r.target] = by_target.get(r.target, 0) + r.products
+    written = by_reason.get("parent", 0)
+    share = 100 * written / (total or 1)
+    print(f"kategorisiz urun {total}; ust kategori YAZILIRDI {written} (%{share:.1f})")
+    print("neden:", dict(sorted(by_reason.items(), key=lambda kv: -kv[1])))
+    print("yayin durumu x neden:")
+    for (state, reason), n in sorted(by_state.items(), key=lambda kv: -kv[1]):
+        print(f"  {n:>9}  {state:<10} {reason}")
+    print("hedef kategori (en cok urun):")
+    for target, n in sorted(by_target.items(), key=lambda kv: -kv[1])[:top]:
+        print(f"  {n:>9}  {target}")
+    print("kategorisiz kalacak kaynak yollari (en cok urun):")
+    left = [r for r in rows if r.target is None][:top]
+    for r in left:
+        print(f"  {r.products:>9}  {r.reason:<9} {r.state:<10} {r.source or '-'}")
 
 
 def _status(conn: psycopg.Connection) -> int:
@@ -226,6 +265,32 @@ def main(argv: list[str] | None = None) -> int:
     p_ev.add_argument("--split", choices=("dev", "eval", "all"), default="all")
     p_ev.add_argument("--json", default=None)
 
+    p_pr = sub.add_parser("parents-report", help="YALNIZCA OKUR: ust kategori yazim kapsami")
+    p_pr.add_argument("--merchant", default="aliexpress")
+    p_pr.add_argument("--top", type=int, default=25)
+
+    for name, text in (
+        ("parents", "kategorisiz urunlere kaynak ust kategorisini yazar (karar 0161)"),
+        ("parents-undo", "parents'in yazdigi kategorileri geri alir (karar 0161)"),
+    ):
+        p_par = sub.add_parser(name, help=text)
+        p_par.add_argument("--confirm", action="store_true")
+        p_par.add_argument("--batch", type=int, default=parent_mod.DEFAULT_BATCH)
+        p_par.add_argument("--max-batches", type=int, default=None)
+        p_par.add_argument("--sleep-ms", type=int, default=200)
+        if name == "parents":
+            p_par.add_argument("--merchant", default="aliexpress")
+            p_par.add_argument("--max-seconds", type=float, default=None)
+            p_par.add_argument("--rescan", action="store_true")
+            p_par.add_argument("--after-id", type=int, default=None)
+        par_wal = p_par.add_argument_group("WAL geri basinci (karar 0134; catalog_build ile ayni)")
+        par_wal.add_argument("--wal-target-mb", type=int, default=1024)
+        par_wal.add_argument("--wal-pause-mb", type=int, default=1536)
+        par_wal.add_argument("--wal-resume-mb", type=int, default=512)
+        par_wal.add_argument("--wal-max-sleep-s", type=float, default=30.0)
+        par_wal.add_argument("--wal-max-pause-s", type=float, default=3600.0)
+        par_wal.add_argument("--wal-failing-grace-s", type=float, default=900.0)
+
     p_lex = sub.add_parser("lexicon", help="arama/sohbet kategori sozlugu")
     p_lex.add_argument("--apply", action="store_true")
 
@@ -336,6 +401,91 @@ def main(argv: list[str] | None = None) -> int:
                 run.status = "partial"
                 run.error_summary = f"WAL geri basinci: {gov.stopped_reason}"
         _summary(counts, dry_run=False)
+        if gov.stopped_reason is not None:
+            print(f"WAL geri basinci nedeniyle durdu: {gov.stopped_reason}", file=sys.stderr)
+            return EXIT_WAL_BACKPRESSURE
+        return 0
+
+    if args.command == "parents-report":
+        with connect() as conn:
+            try:
+                rows = parent_mod.report(conn, merchant_slug=args.merchant)
+            except run_mod.ClassifyAborted as error:
+                print(f"durdu: {error}", file=sys.stderr)
+                return EXIT_ABORTED
+        _parents_report(rows, args.top)
+        return 0
+
+    if args.command in ("parents", "parents-undo"):
+        if not args.confirm:
+            print("yazmak icin --confirm gerekli; olcum icin `parents-report`", file=sys.stderr)
+            return 2
+        undo = args.command == "parents-undo"
+        job = "classify_parent_undo" if undo else "classify_parent"
+        with job_run.track(job) as run, connect() as conn:
+            gov = wal_pressure.WalGovernor.for_connection(
+                conn,
+                wal_pressure.policy_from_mb(
+                    target_mb=args.wal_target_mb,
+                    pause_mb=args.wal_pause_mb,
+                    resume_mb=args.wal_resume_mb,
+                    max_sleep_s=args.wal_max_sleep_s,
+                    max_pause_s=args.wal_max_pause_s,
+                    failing_grace_s=args.wal_failing_grace_s,
+                ),
+                should_stop=_should_stop,
+            )
+            try:
+                if undo:
+                    counts = parent_mod.undo_parents(
+                        conn,
+                        batch_size=args.batch,
+                        max_batches=args.max_batches,
+                        sleep_seconds=args.sleep_ms / 1000,
+                        throttle=gov.before_batch,
+                        should_stop=_should_stop,
+                    )
+                else:
+                    counts = parent_mod.apply_parents(
+                        conn,
+                        merchant_slug=args.merchant,
+                        batch_size=args.batch,
+                        max_batches=args.max_batches,
+                        max_seconds=args.max_seconds,
+                        sleep_seconds=args.sleep_ms / 1000,
+                        rescan=args.rescan,
+                        after_id=args.after_id,
+                        throttle=gov.before_batch,
+                        should_stop=_should_stop,
+                        on_batch=_parent_progress,
+                    )
+            except run_mod.ClassifyAborted as error:
+                run.status = "failed"
+                run.error_summary = error.code
+                print(f"durdu: {error}", file=sys.stderr)
+                return EXIT_ABORTED
+            run.detail.update(
+                rule_version=run_mod.PARENT_RULE_VERSION,
+                scanned=counts.scanned,
+                category_set=counts.category_set,
+                review=counts.review,
+                errors=counts.errors,
+                last_product_id=counts.last_product_id,
+                completed=counts.completed,
+            )
+            run.detail.update(gov.stats.as_detail())
+            if counts.errors:
+                run.status = "partial"
+            if gov.stopped_reason is not None:
+                run.status = "partial"
+                run.error_summary = f"WAL geri basinci: {gov.stopped_reason}"
+        verb = "geri alindi" if undo else "yazildi"
+        print(
+            f"\nkural surumu {run_mod.PARENT_RULE_VERSION}: taranan {counts.scanned}, "
+            f"kategori {verb} {counts.category_set}, kategorisiz kalan {counts.review}, "
+            f"hata {counts.errors}, bitti={counts.completed}, son_urun {counts.last_product_id}"
+        )
+        print("kaynak durumu:", dict(counts.category_basis.most_common()))
         if gov.stopped_reason is not None:
             print(f"WAL geri basinci nedeniyle durdu: {gov.stopped_reason}", file=sys.stderr)
             return EXIT_WAL_BACKPRESSURE
