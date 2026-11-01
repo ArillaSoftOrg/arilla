@@ -6,12 +6,12 @@ import {
   type SearchComposerAttachment,
   type SearchComposerRecentProduct,
 } from "@arilla/ui";
-import { useId, useRef } from "react";
+import { type ReactNode, useId, useRef } from "react";
 import { FloatingHomeComposer } from "./floating-composer-client.tsx";
 import { useHomeComposerSubmission } from "./home-composer-submission.ts";
 import { HOME_COPY } from "./home-copy.ts";
 import { IMAGE_CHAT_COPY } from "./home-image-chat.ts";
-import styles from "./home-welcome.module.css";
+import styles from "./home-search-composer.module.css";
 import { LoginGateModal } from "./login-gate-modal-client.tsx";
 
 /**
@@ -38,7 +38,15 @@ export function HomeSearchComposer({
   imageEntryAvailable = false,
   imageConsent = false,
   recentProducts,
+  beforeSearch,
+  searchClassName,
+  afterSearch,
 }: {
+  /** Ilk ekrandaki robot ve baslik; arama davranisindan bagimsiz sunum. */
+  beforeSearch?: ReactNode;
+  searchClassName?: string;
+  /** Ana kutunun altinda, gecmis urunlerinden once gosterilen yardim baglantisi. */
+  afterSearch?: ReactNode;
   /**
    * Kullanıcının gerçekten görüntülediği son ürünler (`product_view`, sunucuda
    * yüklenir). Boşsa "Alışverişe devam et" bölümü ve başlığı hiç çizilmez.
@@ -85,6 +93,33 @@ export function HomeSearchComposer({
         }
       : null;
   const onSubmitText = chatInNewTab ? startInNewTab : undefined;
+  const suggestions = (
+    <fieldset className={styles.suggestions} aria-label="Örnek aramalar">
+      <legend className={styles.suggestionsLabel}>Nereden başlamalı? Bir fikir seç.</legend>
+      <div className={styles.suggestionsRow}>
+        {["Günlük beyaz spor ayakkabı", "Küçük bir çalışma masası", "Kablosuz kulaklık"].map(
+          (example) => (
+            <button
+              className={styles.suggestion}
+              type="button"
+              key={example}
+              disabled={sending}
+              onClick={() => {
+                const input = mainRef.current?.querySelector("textarea");
+                if (!input) return;
+                input.value = example;
+                input.dispatchEvent(new Event("input", { bubbles: true }));
+                input.focus();
+              }}
+            >
+              {example}
+              <span aria-hidden="true">↗</span>
+            </button>
+          ),
+        )}
+      </div>
+    </fieldset>
+  );
 
   return (
     <>
@@ -106,10 +141,20 @@ export function HomeSearchComposer({
           routeProductLinks
           recentProducts={recentProducts}
           offerCountLabel={(count) => `${count} mağaza`}
+          recentPriceLabel={HOME_COPY.recentPriceLabel}
           chipsTitle={HOME_COPY.searchIdeasTitle}
+          beforeSearch={beforeSearch}
+          searchClassName={searchClassName}
+          afterSearch={
+            <>
+              {afterSearch}
+              {suggestions}
+            </>
+          }
           statusMessage={chatError}
           busyMessage={sending ? IMAGE_CHAT_COPY.sending : null}
           photoButtonId={photoButtonId}
+          showPhotoLabel
           photo={
             imageChat
               ? {
@@ -130,29 +175,6 @@ export function HomeSearchComposer({
           }
           attachment={attachment}
         />
-        <section className={styles.suggestions} aria-label="Örnek aramalar">
-          <span className={styles.suggestionsLabel}>Nereden başlamalı? Bir fikir seç.</span>
-          {["Günlük beyaz spor ayakkabı", "Küçük bir çalışma masası", "Kablosuz kulaklık"].map(
-            (example) => (
-              <button
-                className={styles.suggestion}
-                type="button"
-                key={example}
-                disabled={sending}
-                onClick={() => {
-                  const input = mainRef.current?.querySelector("textarea");
-                  if (!input) return;
-                  input.value = example;
-                  input.dispatchEvent(new Event("input", { bubbles: true }));
-                  input.focus();
-                }}
-              >
-                {example}
-                <span aria-hidden="true">↗</span>
-              </button>
-            ),
-          )}
-        </section>
       </div>
       <FloatingHomeComposer
         mainRef={mainRef}
@@ -161,7 +183,7 @@ export function HomeSearchComposer({
         onSubmitText={onSubmitText}
         attachment={attachment}
         statusMessage={chatError}
-        showAttach={imageChat}
+        showAttach={imageChat || imageEntryAvailable}
       />
     </>
   );

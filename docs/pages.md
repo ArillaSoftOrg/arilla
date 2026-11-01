@@ -9,26 +9,24 @@ Bileşen adları `design.md` envanteriyle aynıdır. Metinler `copy.md` içinded
 
 ## `/` Ana sayfa
 
-**Tek iş:** arama başlatmak.
+**Tek iş:** bir ürünü metin, fotoğraf veya bağlantıyla aramaya başlatmak.
+Ürün erişimi kapalıysa mevcut Coming Soon ekranı gösterilir.
 
 | Sıra | Bileşen | Not |
 | --- | --- | --- |
-| 1 | Logo + üst çubuk | Giriş yapmamışsa "Giriş yap" bağlantısı |
-| 2 | Arama girdisi | Fotoğraf yükleme aynı girdinin içinde. Otomatik odaklanmaz (Faz 1C: ilk odak `SkipLink`'te kalır, mobilde klavye kendiliğinden açılmaz). Altında sabit "Arama fikirleri" chip'leri — kişisel geçmiş değil. |
-| 3 | Kısa açıklama | Tek satır. Uzun karşılama metni yok. |
-| 4 | Trendler | Editorial koleksiyon kartları (`id="trendler"`). Karar 0077: `trend` tablosundaki ilk üç (önce `featured`) trend, `Tüm trendleri gör` ile `/trendler`e; veri yoksa geçici demo set (`apps/web/data/demo/homepage-trends.ts`, `SOURCES.md`). Header/footer "Trendler" artık `/trendler`e gider. |
-| 5 | Keşif ızgarası | `id="kesfet"`. Masonry düzeni, `DiscoveryGrid` + `DiscoveryCard` (Faz 1C: `/kesfet` de aynı ikiliyi kullanır, ikinci bir kart uygulaması yok). Veri `discovery_slot`'tan (`getDiscoverySlots`) gelir; adapter gerçek satırları `DiscoveryItem`'a çevirir. Faz 3.1: `discovery_slot` boşsa VE `HOMEPAGE_DEMO_CONTENT=true` ise (bkz. `.env.example`) `apps/web/data/demo/homepage-discovery.ts`teki demo veri setine düşer — `NODE_ENV`'e bağlı değil, açıkça etkinleştirilen bir içerik kararı (Admitad öncesi vitrin deploy'u için). Gerçek veri her zaman demo'nun önündedir. |
-| 6 | Nasıl Çalışır | `id="nasil-calisir"`, header nav'ından anchor. Üç kart: metinle ara, fotoğrafla ara (ikisi de aktif), bağlantıyla bul (Faz 4: backend'de kök catch-all link çözümleme var ama arama kutusuna bağlı değil — "Yakında" etiketiyle gösterilir, sahte CTA yok). `HowItWorksCard`, veri `home-copy.ts`. |
-| 7 | Şeffaflık | Faz 5: `HomeTrustSection`. Sosyal kanıt değil — doğrulanmamış kullanıcı/mağaza sayısı yok, yalnızca gerçek kabiliyetler (aynı/benzer ürün bulma, mağaza tekliflerini karşılaştırma, fiyat-stok bilgisinin mağaza kaynaklı ve güncellenme zamanlı olması). Faz 1C: dördüncü nokta komisyon ilkesini açıklar (komisyon fiyatı değiştirmez, sıralamada belirleyici değildir) — bu, altbilgideki affiliate bildiriminin kopyası değil, farklı bir bilgidir. |
-| 8 | Altbilgi | Faz 5: `SiteFooter`. Yalnızca gerçekten var olan route'lara link (`#trendler`, `/kesfet`, `#nasil-calisir`, `/firsatlar`, `/giris`, `/kaydettiklerim`, `/alarmlar`, `/gecmis`, Faz 6 sonrası `/gizlilik`, `/kosullar`, `/cerez`). `/hakkinda` yok, footer'da link YOK. Faz 8.1: `/iletisim` eklendi, Bilgi grubunda. Fiyat/stok uyarısı (`legal.price_disclaimer`) disclosure bandında; karar 0093 ile affiliate cümlesi (`legal.affiliate_notice`) footer'dan kalktı — bildirim ürün sayfasında, mağaza bağlantısının yanında; footer'da "Affiliate Açıklaması" bağlantısı kalır. En altta, metnin altındaki dekor alanında kırpılmış "ManiCepte" kelime işareti (ayrı zemini yok). Faz 7: header ve footer'daki "Keşfet", keşif bölümü bu sayfada render edildiyse `#kesfet`'e, edilmediyse `/kesfet`'e gider — `/kesfet` bugün için `discovery_slot` yokken yalnızca boş durum gösterir. Faz 8: aynı header/footer public alt sayfalarda da kullanılır (`apps/web/app/public-site-shell.tsx`, route başına ince `layout.tsx`: `/kesfet`, `/firsatlar`, `/ara`, `/giris`, `/urun/[slug]`, `/gizlilik`, `/kosullar`, `/cerez`, `/hesap` (ve `/hesap/gizlilik`), `/kaydettiklerim`, `/alarmlar`, `/gecmis`); orada bölüm linkleri `/#trendler`, `/kesfet`, `/#nasil-calisir`. Giriş gerektiren hesap sayfalarında oturum kapısı sayfanın kendisindedir; `/yonetim` kabuk kullanmaz. Footer "Hesap" grubu oturum açıkken Hesabım, Kaydettiklerim, Alarmlarım, Geçmişim; oturum yokken yalnızca "Giriş yap" gösterir (özel sayfalara bağlantı yok). |
+| 1 | Logo ve üst çubuk | Ortak `HomeHeader`; Trendler, Keşfet, tema ve oturuma uygun hesap bağlantıları. Mobil gezinme menüde. |
+| 2 | İlk ekran | Robot, tek başlık ve `SearchComposer`. Mobil ve masaüstünde ilk ekranı doldurur; aşağıdaki ürünler ilk açılışta görünmez. Klavye kendiliğinden açılmaz. Fotoğraf düğmesi özellik açıkken görünür, misafiri mevcut giriş akışına götürür. |
+| 3 | Kısa yardım şeridi | İlk ekranın altında. Nasıl çalışır sayfası gerçek sohbet görüntüleriyle hazırlanacak; şimdilik bağlantısız `Yakında` durumu. |
+| 4 | Örnek aramalar | Yardım şeridinden sonra, kişisel geçmişten önce. Düğme girdiyi doldurur; mobilde yatay kayar, kendiliğinden arama göndermez. |
+| 5 | Alışverişe devam et | İzinli gerçek ürün geçmişi, en çok altı ürün. Misafire ve geçmiş yokken çizilmez. TL fiyatı yoksa `Fiyatı incele` yazılır; sıfır mağaza etiketi gösterilmez. |
+| 6 | Şu sıralar öne çıkanlar | `#trendler`. İlk üç gerçek koleksiyon; veri yoksa örnek koleksiyon yerine kısa ve dar bir boş durum. |
+| 7 | Keşfet | `#kesfet` her zaman bulunur. Önce günün gerçek `discovery_slot` ürünleri; yoksa `getHomepageProducts` ile yayımlanmış, görselli, etkin ve fiyatlı TRY teklifli katalogdan en fazla 12 ürün. Aday okuması 1000 ürünle sınırlı, günlük seçim deterministik ve kategorilere dağıtılmıştır. Ana sayfada bağlantısız demo kartlar kullanılmaz. Veri yoksa kısa boş durum gösterilir. |
+| 8 | Altbilgi | Ortak `SiteFooter`; ürün, hesap, şirket, yasal bağlantılar ve sosyal hesaplar. Mobilde yeşil ManiCepte kelime işareti sığar; yüzen arama için alt boşluk korunur. |
 
-Kayıt istenmez. Kaydırma gerektiren tanıtım bölümleri yok.
-
-**Boş durum:** `discovery_slot` doluysa yok — keşif ızgarası her zaman
-doludur (curated havuz). Boşsa (`discovery_slot` henüz üretilmemişse, cron
-hiç çalışmadıysa) ve `HOMEPAGE_DEMO_CONTENT=false` (varsayılan) ise bölüm hiç
-render edilmez, sessizce atlanır. `HOMEPAGE_DEMO_CONTENT=true` ise aynı boş
-durumda demo veri seti devreye girer, sayfa görsel olarak boş kalmaz.
+Ana sayfada metin gönderimi, özellik ve oturuma göre mevcut sohbet veya arama
+akışını kullanır. Fotoğraf eki ve kullanıcı izni aynı gönderim hattında kalır.
+Ana sayfanın Keşfet bağlantıları `#kesfet` bölümüne gider. Ortak alt sayfalar
+`PublicSiteShell` kabuğunu kullanır; yönetim paneli ayrı kalır.
 
 ---
 

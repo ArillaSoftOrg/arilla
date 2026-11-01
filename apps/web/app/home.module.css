@@ -5,20 +5,125 @@
    --section-space'i birakir, aradaki bosluk oncekinin alt boslugudur. */
 .page > section + section {
   padding-block-start: 0;
+  padding-block-end: var(--space-12);
 }
 
-/* Hero: ilk ekranin odagi. Ustte tam bolum boslugu; kompakt kutudan
-   trendlere gecis kisa (trendler ilk ekranda gorunsun). */
+/* Ilk gorunumde yalnizca robot, baslik ve arama. Header'in mevcut
+   84/80/64 px boyutlari dusulur; yardim ve urunler sonraki akistadir. */
+.page {
+  --home-header-height: 84px;
+}
+
 .page > .hero {
   display: grid;
+  padding-block-end: var(--space-16);
+}
+
+.searchScreen {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-content: center;
+  gap: var(--space-6);
+  width: 100%;
+  max-width: 800px;
+  min-block-size: calc(100svh - var(--home-header-height));
+  margin-inline: auto;
+  padding-block: var(--space-12);
+}
+
+/* Gecici pozlar: yalnizca bu gorseller degistirilerek yenilenebilir. */
+.heroRobot {
+  display: block;
+  width: 88px;
+  height: 88px;
+  object-fit: contain;
+}
+
+.howRail {
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  min-height: min(760px, calc(100svh - 80px));
-  padding-block: var(--space-12) var(--space-16);
+  justify-content: center;
+  justify-self: stretch;
+  gap: var(--space-2) var(--space-6);
+  width: 100%;
+  padding-block: var(--space-3);
+  border-block: var(--border-width) solid var(--line);
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}
+
+.howPrompt {
+  margin: 0;
+}
+
+.howGuide {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  min-width: 0;
+  min-height: var(--size-touch-target);
+  color: var(--ink);
+  font-weight: var(--font-weight-medium);
+  text-decoration: none;
+}
+
+.howRobot {
+  flex: 0 0 auto;
+  width: 56px;
+  height: 56px;
+  object-fit: contain;
+}
+
+.howSoon {
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+}
+
+.page .homeEmpty {
+  align-items: flex-start;
+  min-block-size: 0;
+  max-inline-size: none;
+  margin-inline: 0;
+  padding-block: var(--space-2);
+  padding-inline: 0;
+  text-align: left;
+}
+
+@media (max-width: 1023.98px) {
+  /* Yalnizca urun ana sayfasi: kelime isareti kirpilmasin ve yüzen
+     80 px arama cubugunun ustunde tam olarak gorunsun. */
+  .homeFooter[data-variant="default"] {
+    --wordmark-size: 18vw;
+    --wordmark-area: calc(var(--wordmark-size) * 0.88);
+    padding-block-end: calc(var(--space-24) + env(safe-area-inset-bottom, 0px));
+  }
 }
 
 @media (min-width: 1024px) {
-  .page > .hero {
-    padding-block: var(--space-12) var(--space-16);
+  .searchScreen {
+    gap: var(--space-10);
+  }
+
+  .heroRobot {
+    width: 104px;
+    height: 104px;
+  }
+}
+
+@media (max-width: 899.98px) {
+  .page {
+    --home-header-height: 80px;
+  }
+}
+
+@media (max-width: 479px) {
+  .page {
+    --home-header-height: 64px;
   }
 }
 

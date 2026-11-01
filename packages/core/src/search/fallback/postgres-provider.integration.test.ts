@@ -11,6 +11,7 @@ import { afterAll, beforeAll, describe, expect, it, vi } from "vitest";
 import { getTestDb, withOwnerClient } from "../../test-db.ts";
 import { loadLexicon } from "../lexicon-repository.ts";
 import { parseQueryText } from "../parse-query.ts";
+import { candidateCtes, FUZZY_CANDIDATE_LIMIT } from "../text-match.ts";
 import { createSeedAliasSource } from "./aliases.ts";
 import { searchWithFallback } from "./pipeline.ts";
 import { createPostgresSearchProvider } from "./postgres-provider.ts";
@@ -26,6 +27,26 @@ interface Fixture {
 }
 
 const FIXTURES: Fixture[] = [
+  {
+    title: "Wireless Over Ear Headphones Noise Cancelling",
+    category: "elektronik/kulaklik",
+    price: 400_000,
+  },
+  ...Array.from({ length: 120 }, (_, i) => ({
+    title: `zxfuzzyneedle zxfuzzybundle zxfuzzyhandle ${i}`,
+    category: "test/fuzzy-bound",
+    price: 100_000,
+  })),
+  {
+    title: "Woyax Qı2 Kablosuz Şarj Standı Telefon Kulaklık Saat Wireless",
+    category: "elektronik/aksesuar",
+    price: 172_480,
+  },
+  {
+    title: "Jopus Usb-C To 3.5mm Kulaklık Dönüştürü (Dac Chip)",
+    category: "elektronik/aksesuar",
+    price: 19_990,
+  },
   {
     title: "Apple iPhone 16 Pro Max 256GB",
     brand: "Apple",
@@ -490,6 +511,26 @@ describe("non-AI fallback - gercek PostgreSQL", () => {
     expect(titles(ascii)).toEqual(titles(lower));
   });
 
+  it("butceye uygun kulaklik yoksa sarj standi ve adaptorla listeyi doldurmaz", async () => {
+    const outcome = await find("kulak üstü kablosuz kulaklık 2000 tl altı");
+    expect(fixtureTitles(outcome)).toEqual([]);
+  });
+
+  it("butceye uygun gercek kulak ustu cihaz varsa yabanci dildeki basligi da bulur", async () => {
+    const outcome = await find("kulak üstü kablosuz kulaklık 5000 tl altı");
+    expect(fixtureTitles(outcome)).toContain("Wireless Over Ear Headphones Noise Cancelling");
+    expect(fixtureTitles(outcome).some((title) => title.includes("Şarj Standı"))).toBe(false);
+  });
+
+  it("kullanici kulaklik standi veya donusturucu istediginde aksesuari bulur", async () => {
+    expect(fixtureTitles(await find("kulaklık şarj standı"))).toContain(
+      "Woyax Qı2 Kablosuz Şarj Standı Telefon Kulaklık Saat Wireless",
+    );
+    expect(fixtureTitles(await find("kulaklık dönüştürü"))).toContain(
+      "Jopus Usb-C To 3.5mm Kulaklık Dönüştürü (Dac Chip)",
+    );
+  });
+
   it("Turkce: 'kosu ayakkabisi' = 'koşu ayakkabısı', noktalama/bosluk farki", async () => {
     const a = await find("koşu ayakkabısı");
     const b = await find("kosu ayakkabisi");
@@ -513,6 +554,20 @@ describe("non-AI fallback - gercek PostgreSQL", () => {
   });
 
   // ---- maliyet / gecikme --------------------------------------------------------------
+
+  it("uzun yaklasik sorguda her kelime kendi 1000 adaylik penceresini acmaz", async () => {
+    const result = await db.transaction(async (tx) => {
+      await tx.execute(
+        sql`SELECT set_config('pg_trgm.strict_word_similarity_threshold', '0.3', true)`,
+      );
+      return tx.execute(sql`
+        WITH ${candidateCtes([["zxfuzzyneedle"], ["zxfuzzybundle"], ["zxfuzzyhandle"]], {}, { fuzzy: true })}
+        SELECT count(*)::int AS n FROM cand_raw
+      `);
+    });
+    expect(Number(result.rows[0]?.n)).toBeGreaterThan(0);
+    expect(Number(result.rows[0]?.n)).toBeLessThanOrEqual(FUZZY_CANDIDATE_LIMIT);
+  });
 
   it("DB sorgu sayisi: exact erken cikar, zero-result sinirli", async () => {
     const report: Record<string, { queries: number; ms: number; stages: number }> = {};

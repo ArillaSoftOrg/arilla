@@ -161,6 +161,17 @@ görünür (yaklaşık TL uydurulmaz, fiyat süzgecine girmez). Türkçe sorgunu
 İngilizce başlıkları (AliExpress) bulması eş anlamlı sözlükle olur
 (`docs/decisions/0131`). Sohbet (`/sohbet`) aynı aramayı kullanır.
 
+Kulaklık cihazı aramasında uyumluluk metni taşıyan adaptör, şarj standı ve
+benzeri aksesuarlar aday penceresinden önce elenir. Açıkça istenen kulak üstü
+biçimi ve kablosuz bağlantı, yakın sonuç adımlarında korunur; biçimi
+doğrulanamayan başlık kesin eşleşme sayılmaz. Kullanıcı aksesuar istiyorsa
+bu cihaz kısıtı uygulanmaz. Ürün bulunamazsa liste aksesuarla doldurulmaz.
+
+Yaklaşık yazım aramasında kelime ve kaynak bölümü başına ayrı ayrı 1000 aday
+toplanmaz: bütün yaklaşık arama dalları toplam 96 adaylık bütçeyi paylaşır.
+Tam eşleşmenin mevcut penceresi korunur. Ek arama adımlarının süre bütçesi,
+ilk tam eşleşme sorgusu bittikten sonra başlar.
+
 ## Sıralama
 
 Üç sekme. Her birinin tanımı sabittir; tanımsız sekme kullanıcıyı yanıltır.

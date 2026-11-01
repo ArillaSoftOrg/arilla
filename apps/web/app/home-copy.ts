@@ -9,11 +9,17 @@ export const HOME_COPY = {
   heroSubtitle: "Bir ürün bul, aynısını veya benzerini farklı mağazalarda karşılaştır.", // home.tagline
   // Kullanicinin gercek son aramalari; gecmis yoksa bolum hic cizilmez.
   searchIdeasTitle: "Alışverişe devam et", // home.search_ideas_title
-  trendsTitle: "Trendler", // home.trends_title
+  trendsTitle: "Şu sıralar öne çıkanlar", // home.trends_title
   trendsSubtitle: "Bakmaya devam etmek istersen, güncel ürün fikirlerine göz at.", // home.trends_subtitle
-  discoveryTitle: "ManiCepte'de keşfedilenler", // home.discovery_title
+  trendsEmptyTitle: "Güncel seçkiler hazırlanıyor.", // home.trends_empty_title
+  trendsEmptyDescription: "Bu sırada aradığın ürünü yukarıdaki arama kutusundan bulabilirsin.", // home.trends_empty_description
+  discoveryTitle: "Keşfet", // home.discovery_title
   discoverySubtitle: "Farklı kategorilerden öne çıkan ürünler, tek bakışta.", // home.discovery_subtitle
   howItWorksTitle: "ManiCepte nasıl çalışır?", // home.how_it_works_title
+  howItWorksPrompt: "ManiCepte'yi ilk kez mi kullanıyorsun?",
+  howItWorksAction: "Nasıl çalıştığını gör",
+  howItWorksStatus: "Yakında",
+  recentPriceLabel: "Fiyatı incele",
   howItWorksSubtitle:
     "Ürünü tarif et veya fotoğrafını yükle. ManiCepte aynı ve benzer seçenekleri farklı mağazalarda karşılaştırmana yardımcı olur.", // home.how_it_works_subtitle
   howItWorksTextSearchTitle: "Metinle ara", // home.how_it_works_text_search_title

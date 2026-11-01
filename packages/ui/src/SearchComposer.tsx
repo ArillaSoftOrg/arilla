@@ -11,7 +11,7 @@ import {
 import { Button } from "./Button.tsx";
 import { resolveComposerSubmit } from "./composer-submit.ts";
 import { ArrowRightIcon, CloseIcon, ImageIcon, PlusIcon } from "./icons.tsx";
-import { listRole } from "./layout.ts";
+import { joinClassNames, listRole } from "./layout.ts";
 import { PhotoUploadButton } from "./PhotoUploadButton.tsx";
 import { ProductCard } from "./ProductCard.tsx";
 import styles from "./SearchComposer.module.css";
@@ -95,14 +95,24 @@ export interface SearchComposerProps {
   /** Fotograf yukleme - verilirse kutunun icinde ikon dugmesi olarak cizilir.
    * Yukleme mantigi cagiran tarafta (apps/web). */
   photo?: SearchComposerPhoto;
+  /** Ana kutuda fotograf dugmesinin etiketini ikonun yaninda gosterir. */
+  showPhotoLabel?: boolean;
   /** Karar 0078: kutuda bekleyen, henuz gonderilmemis fotograf. */
   attachment?: SearchComposerAttachment | null;
   /** Yukleme hatasi gibi durum mesaji - role="alert", kutunun altinda. */
   statusMessage?: string | null;
   /** Devam eden islem (fotograf araniyor) - role="status", kibar duyuru. */
   busyMessage?: string | null;
+  /** Arama bolgesinin basinda istege bagli baslik/gorsel. */
+  beforeSearch?: ReactNode;
+  /** Yalnizca ana arama bolgesinin duzeni; son bakilanlari kapsamaz. */
+  searchClassName?: string;
+  /** Arama ve durum mesajlarindan sonra, son bakilanlardan once istege bagli icerik. */
+  afterSearch?: ReactNode;
   /** "Alışverişe devam et": son görüntülenen ürünler (aynı `ProductCard`, hesap sayfasıyla ortak). */
   recentProducts?: readonly SearchComposerRecentProduct[];
+  /** Son bakilan urunun TL fiyati yoksa urun sayfasina yonelten kisa etiket. */
+  recentPriceLabel?: string;
   chipsTitle?: string;
   /** Mağaza sayısı metni (docs/copy.md `search.offer_count`); çağıran sağlar. */
   offerCountLabel?: (count: number) => string;
@@ -151,10 +161,15 @@ export function SearchComposer({
   submitLabel,
   autoFocus = false,
   photo,
+  showPhotoLabel = false,
   attachment,
   statusMessage,
   busyMessage,
+  beforeSearch,
+  searchClassName,
+  afterSearch,
   recentProducts,
+  recentPriceLabel,
   chipsTitle,
   offerCountLabel,
   routeProductLinks = false,
@@ -280,7 +295,8 @@ export function SearchComposer({
 
   return (
     <div className={styles.wrapper}>
-      <search aria-label={landmarkLabel}>
+      <search aria-label={landmarkLabel} className={searchClassName}>
+        {beforeSearch}
         <form
           ref={formRef}
           action={action}
@@ -329,25 +345,33 @@ export function SearchComposer({
           <div className={styles.actions}>
             {leadingAction ? (
               <Button
+                id={photoButtonId}
                 type="button"
                 variant="ghost"
                 aria-label={leadingAction.label}
                 disabled={leadingAction.disabled}
                 onClick={leadingAction.onClick}
-                className={styles.photoButton}
+                className={joinClassNames(
+                  styles.photoButton,
+                  showPhotoLabel && styles.photoButtonLabeled,
+                )}
               >
                 {leadingAction.icon ?? <PlusIcon />}
+                {showPhotoLabel ? leadingAction.label : null}
               </Button>
             ) : photo ? (
               <PhotoUploadButton
                 id={photoButtonId}
-                iconOnly
+                iconOnly={!showPhotoLabel}
                 icon={<ImageIcon />}
                 label={photo.label}
                 onFileSelected={photo.onFileSelected}
                 disabled={photo.disabled || attachment?.pending}
                 variant="ghost"
-                className={styles.photoButton}
+                className={joinClassNames(
+                  styles.photoButton,
+                  showPhotoLabel && styles.photoButtonLabeled,
+                )}
               />
             ) : null}
             <Button
@@ -375,6 +399,8 @@ export function SearchComposer({
         </p>
       ) : null}
 
+      {afterSearch}
+
       {recentProducts && recentProducts.length > 0 ? (
         <div className={styles.chipsSection}>
           {chipsTitle ? (
@@ -395,7 +421,8 @@ export function SearchComposer({
                   title={item.title}
                   imageUrl={item.imageUrl}
                   minPrice={item.minPrice}
-                  offerCount={item.offerCount}
+                  priceLabel={recentPriceLabel}
+                  offerCount={item.offerCount > 0 ? item.offerCount : undefined}
                   offerCountLabel={offerCountLabel}
                 />
               </li>

@@ -166,6 +166,9 @@ export function useHomeComposerSubmission({
         : "fallback";
       if (via === "opened") {
         clearStaged();
+        // Ana sayfa sekmesi kalir: yeni bir arama/fotograf icin kilidi birak.
+        sendingRef.current = false;
+        setSending(false);
         return true; // ana sayfa sekmesi yerinde kalir, girdi temizlenir
       }
       if (via === "same_tab") return false; // sekme gezinti yapiyor: kilit acilmaz
