@@ -2,6 +2,7 @@ import { authProviderAvailability, isProductOpen, safeRedirectPath } from "@aril
 import { COMING_SOON_COPY } from "../coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "../early-access-copy.ts";
 import { SITE_BRAND } from "../site-config.ts";
+import { AuthBrand } from "./credential-shell.tsx";
 import { LoginFormClient } from "./login-form-client.tsx";
 import styles from "./page.module.css";
 
@@ -42,9 +43,7 @@ export default async function GirisPage({
 
   return (
     <div className={styles.page}>
-      <a className={styles.brand} href="/" aria-label={`${SITE_BRAND} ana sayfa`}>
-        {SITE_BRAND}
-      </a>
+      <AuthBrand />
       <a className={styles.close} href="/" aria-label="Giriş ekranını kapat">
         ×
       </a>

@@ -2,10 +2,9 @@ import { safeRedirectPath } from "@arilla/core";
 import { Button } from "@arilla/ui";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { SITE_BRAND } from "../../site-config.ts";
 import { confirmVerificationAction } from "../credential-actions.ts";
 import { CREDENTIAL_COPY as COPY } from "../credential-copy.ts";
-import { LegalNote } from "../credential-shell.tsx";
+import { AuthBrand, LegalNote } from "../credential-shell.tsx";
 import styles from "../page.module.css";
 
 export const metadata: Metadata = {
@@ -31,9 +30,7 @@ export default async function EpostaDogrulaPage({
 
   return (
     <div className={styles.page}>
-      <a className={styles.brand} href="/" aria-label={`${SITE_BRAND} ana sayfa`}>
-        {SITE_BRAND}
-      </a>
+      <AuthBrand />
       <section className={styles.panel} aria-labelledby="eposta-dogrula-baslik">
         <h1 id="eposta-dogrula-baslik" className={styles.title}>
           {COPY.verifyTitle}

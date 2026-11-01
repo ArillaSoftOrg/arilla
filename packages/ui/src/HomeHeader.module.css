@@ -76,15 +76,19 @@
   color: var(--ink);
 }
 
-.brandLogo {
+.brandLogo,
+.mobileBrandLogo {
   display: inline-block;
   flex: 0 0 auto;
-  width: 2.25rem;
-  height: 2.25rem;
-  border-radius: 0.7rem;
+  border-radius: var(--radius-sm);
+  color: var(--brand);
   background-position: center;
   background-size: cover;
-  box-shadow: var(--shadow-xs);
+}
+
+.brandLogo {
+  width: 2.25rem;
+  height: 2.25rem;
 }
 
 .brandText {
@@ -103,9 +107,11 @@
 
 .brandStatus {
   flex: 0 0 auto;
+  align-self: flex-start;
   padding: 0 var(--space-1);
   font-style: normal;
   line-height: var(--line-height-normal);
+  transform: translateY(-0.35em);
 }
 
 .nav {
@@ -372,14 +378,8 @@
 }
 
 .mobileBrandLogo {
-  display: inline-block;
-  flex: 0 0 auto;
   width: 2rem;
   height: 2rem;
-  border-radius: 0.65rem;
-  background-position: center;
-  background-size: cover;
-  box-shadow: var(--shadow-xs);
 }
 
 .closeButton {
@@ -716,13 +716,30 @@
 /* 390px: wordmark ile hesap dugmesi ust uste binmesin; ust cubuk daha kompakt. */
 @media (max-width: 479px) {
   .brandName {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 0;
+    gap: calc(var(--space-1) * 1.5);
+  }
+
+  .brandStatus {
+    font-size: 0.6875rem;
+    line-height: 1.3;
+  }
+
+  .menuButton {
+    justify-content: flex-end;
+    padding-inline: var(--space-2);
+  }
+
+  .menuIcon,
+  .menuIcon::before {
+    width: 24px;
+  }
+
+  .menuIcon::after {
+    width: 12px;
   }
 
   .inner {
-    gap: var(--space-2);
+    gap: 0;
     min-height: 64px;
     padding-inline: var(--space-4);
     padding-block: var(--space-2);
@@ -751,12 +768,20 @@
 /* 320px'te marka ve giris eylemi tam gorunur; menu dokunma alani korunur. */
 @media (max-width: 359.98px) {
   .inner {
-    gap: var(--space-1);
-    padding-inline: var(--space-3);
+    gap: 0;
+    padding-inline: var(--space-2);
   }
 
   .brand {
     gap: var(--space-1);
+  }
+
+  .brandName {
+    gap: var(--space-1);
+  }
+
+  .brandStatus {
+    padding-inline: calc(var(--space-1) / 2);
   }
 
   .brandLogo {
