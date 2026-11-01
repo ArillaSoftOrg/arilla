@@ -3,6 +3,17 @@ import { formatStartingPrice, formatTRY } from "./format.ts";
 import styles from "./ProductCard.module.css";
 import { ProductImage } from "./ProductImage.tsx";
 
+/**
+ * Kart gorselinin ekrandaki genisligi (`sizes`, karar 0166). Degerler `/ara`
+ * izgarasinin (`ara.module.css` .grid: 2/3/4/5 sutun, 640/1024/1440) VE kartin
+ * `.media` ic boslugunun (2 x 12px) + kenarlik (2px) gercek olcumlerinden gelir
+ * (tarayici olcumu: 360->132, 390->147, 768->203, 1024->202, 1280->266, 1440->217 px).
+ * Izgara ya da kart boslugu degisirse burasi guncellenir; yanlis (buyuk) deger
+ * yalnizca gereksiz buyuk dosya indirtir, bulaniklik uretmez.
+ */
+export const PRODUCT_GRID_IMAGE_SIZES =
+  "(min-width: 1440px) 217px, (min-width: 1344px) 282px, (min-width: 1024px) calc((100vw - 216px) / 4), (min-width: 640px) calc((100vw - 158px) / 3), calc(50vw - 48px)";
+
 export interface ProductCardProps {
   href: string;
   title: string;
@@ -44,6 +55,8 @@ export interface ProductCardProps {
   external?: boolean;
   /** Gorsel yoksa bos kare alan ayirma; kompakt (yalnizca metin) kart cizer. */
   compactWithoutImage?: boolean;
+  /** Gorselin ekrandaki genisligi (`sizes`); kartin icinde durdugu izgaraya gore. Varsayilan: `/ara` izgarasi. */
+  imageSizes?: string;
 }
 
 /**
@@ -68,6 +81,7 @@ export function ProductCard({
   sourceLabel,
   external = false,
   compactWithoutImage = false,
+  imageSizes = PRODUCT_GRID_IMAGE_SIZES,
 }: ProductCardProps) {
   const metaLabel = offerCount !== undefined && offerCountLabel ? offerCountLabel(offerCount) : "";
 
@@ -88,6 +102,7 @@ export function ProductCard({
               alt=""
               fit="contain"
               loading={imageLoading}
+              sizes={imageSizes}
               className={styles.image}
               {...(external ? { referrerPolicy: "no-referrer" as const } : {})}
             />

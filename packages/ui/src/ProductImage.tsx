@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
+import { resolveImageVariants } from "./image-variants.ts";
 import { joinClassNames } from "./layout.ts";
 import styles from "./ProductImage.module.css";
+import { VariantImage } from "./VariantImage.tsx";
 
 export interface ProductImageProps {
   src: string;
@@ -23,6 +25,12 @@ export interface ProductImageProps {
   fetchPriority?: "high" | "low" | "auto";
   /** Ucuncu taraf sunucudan hotlink icin "no-referrer" (sayfa adresi sizdirilmaz). */
   referrerPolicy?: "no-referrer";
+  /**
+   * Gorselin ekrandaki genisligi (`sizes` ozniteligi, orn. "(min-width: 768px) 240px, 46vw").
+   * Dogrulanmis bir varyant kaynagi (bkz. `image-variants.ts`) icin `srcset` ancak
+   * bununla uretilir; verilmezse tek orta boyut kullanilir. Taninmayan kaynakta etkisiz.
+   */
+  sizes?: string;
 }
 
 /**
@@ -48,9 +56,32 @@ export function ProductImage({
   fit = "cover",
   fetchPriority,
   referrerPolicy,
+  sizes,
 }: ProductImageProps) {
   const mergedStyle: CSSProperties | undefined =
     aspectRatio !== undefined ? { aspectRatio, ...style } : style;
+  const classes = joinClassNames(styles.image, fit === "contain" && styles.contain, className);
+
+  // Karar 0166: kucuk resim olarak kayitli bilinen CDN gorselleri icin dogrulanmis
+  // buyuk varyant + `srcset`; yuklenemezse orijinal URL'ye duser. Taninmayan kaynak
+  // (AliExpress, Shopify vb.) asagidaki degismemis yolu izler.
+  const variants = resolveImageVariants(src);
+  if (variants) {
+    return (
+      <VariantImage
+        variants={variants}
+        {...(sizes !== undefined ? { sizes } : {})}
+        alt={alt}
+        className={classes}
+        style={mergedStyle}
+        loading={loading}
+        width={width}
+        height={height}
+        fetchPriority={fetchPriority}
+        referrerPolicy={referrerPolicy}
+      />
+    );
+  }
 
   return (
     <img
@@ -62,7 +93,7 @@ export function ProductImage({
       referrerPolicy={referrerPolicy}
       width={width}
       height={height}
-      className={joinClassNames(styles.image, fit === "contain" && styles.contain, className)}
+      className={classes}
       style={mergedStyle}
     />
   );

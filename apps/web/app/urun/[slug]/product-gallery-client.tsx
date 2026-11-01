@@ -63,6 +63,7 @@ export function ProductGalleryClient({ title, images }: ProductGalleryClientProp
           loading="eager"
           fetchPriority={index === 0 ? "high" : "auto"}
           fit="contain"
+          sizes="(min-width: 900px) 560px, 100vw"
           className={styles.image}
           {...(current.width && current.height
             ? { width: current.width, height: current.height }
@@ -90,6 +91,7 @@ export function ProductGalleryClient({ title, images }: ProductGalleryClientProp
                   alt=""
                   loading={i === 0 ? "eager" : "lazy"}
                   fit="cover"
+                  sizes="96px"
                   className={styles.thumbImage}
                 />
               </button>
