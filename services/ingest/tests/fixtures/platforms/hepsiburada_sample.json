@@ -1,0 +1,346 @@
+{
+  "_note": "SENTETIK ornek veri; gercek Hepsiburada verisi degildir.",
+  "products": [
+    {
+      "sku": "HBSAMPLE001",
+      "name": "Ornek Akilli Telefon 128 GB",
+      "link": "https://www.hepsiburada.com/ornek-urun-1-p-HBSAMPLE001",
+      "price": {
+        "sellingPrice": 24999.9,
+        "originalPrice": 27999,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "OrnekMarka",
+      "categoryPath": "Elektronik > Telefon > Akilli Telefon",
+      "barcode": "8690000000012",
+      "modelNo": "MDL-1",
+      "images": [
+        "https://img.example.invalid/hb1a.jpg",
+        "https://img.example.invalid/hb1b.jpg"
+      ],
+      "variant": {
+        "color": "Siyah",
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE002",
+      "name": "Ornek Kablosuz Kulaklik",
+      "link": "https://www.hepsiburada.com/ornek-urun-2-p-HBSAMPLE002",
+      "price": {
+        "sellingPrice": 1299.9,
+        "originalPrice": 1499,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "SesCo",
+      "categoryPath": "Elektronik > Ses > Kulaklik",
+      "barcode": "8690000000029",
+      "modelNo": "MDL-2",
+      "images": [
+        "https://img.example.invalid/hb2a.jpg",
+        "https://img.example.invalid/hb2b.jpg"
+      ],
+      "variant": {
+        "color": "Beyaz",
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE003",
+      "name": "Ornek Spor Ayakkabi 42",
+      "link": "https://www.hepsiburada.com/ornek-urun-3-p-HBSAMPLE003",
+      "price": {
+        "sellingPrice": 899,
+        "originalPrice": null,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": false
+      },
+      "brand": "KosuX",
+      "categoryPath": "Moda > Ayakkabi > Spor",
+      "barcode": "8690000000036",
+      "modelNo": "MDL-3",
+      "images": [
+        "https://img.example.invalid/hb3a.jpg",
+        "https://img.example.invalid/hb3b.jpg"
+      ],
+      "variant": {
+        "color": "Lacivert",
+        "size": "42"
+      }
+    },
+    {
+      "sku": "HBSAMPLE004",
+      "name": "Ornek Blender Seti",
+      "link": "https://www.hepsiburada.com/ornek-urun-4-p-HBSAMPLE004",
+      "price": {
+        "sellingPrice": 1749.5,
+        "originalPrice": 1999,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "MutfakPlus",
+      "categoryPath": "Ev > Mutfak > Blender",
+      "modelNo": "MDL-4",
+      "images": [
+        "https://img.example.invalid/hb4a.jpg",
+        "https://img.example.invalid/hb4b.jpg"
+      ],
+      "variant": {
+        "color": null,
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE005",
+      "name": "Ornek Siirt Fistigi 500 g",
+      "link": "https://www.hepsiburada.com/ornek-urun-5-p-HBSAMPLE005",
+      "price": {
+        "sellingPrice": 349.99,
+        "originalPrice": null,
+        "currency": "TRY"
+      },
+      "categoryPath": "Gida > Kuruyemis",
+      "barcode": "8690000000043",
+      "modelNo": "MDL-5",
+      "images": [
+        "https://img.example.invalid/hb5a.jpg",
+        "https://img.example.invalid/hb5b.jpg"
+      ],
+      "variant": {
+        "color": null,
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE006",
+      "name": "Ornek Laptop Cantasi",
+      "link": "https://www.hepsiburada.com/ornek-urun-6-p-HBSAMPLE006",
+      "price": {
+        "sellingPrice": 459,
+        "originalPrice": 599,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "CantaCo",
+      "categoryPath": "Aksesuar > Canta",
+      "barcode": "0000000000000",
+      "modelNo": "MDL-6",
+      "images": [
+        "https://img.example.invalid/hb6a.jpg",
+        "https://img.example.invalid/hb6b.jpg"
+      ],
+      "variant": {
+        "color": null,
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE007",
+      "name": "Ornek Model Sayfasi Elektrikli Supurge",
+      "link": "https://www.hepsiburada.com/ornek-urun-7-pm-HBSAMPLE007",
+      "price": {
+        "sellingPrice": 5999,
+        "originalPrice": 6499,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "TemizX",
+      "categoryPath": "Ev > Elektrikli Aletler > Supurge",
+      "barcode": "8690000000050",
+      "modelNo": "MDL-7",
+      "images": [
+        "https://img.example.invalid/hb7a.jpg",
+        "https://img.example.invalid/hb7b.jpg"
+      ],
+      "variant": {
+        "color": null,
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE008",
+      "name": "Ornek Yoga Mati",
+      "link": "https://www.hepsiburada.com/ornek-urun-8-p-HBSAMPLE008",
+      "price": {
+        "sellingPrice": 249.9,
+        "originalPrice": 299.9,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "FitLife",
+      "categoryPath": "Spor > Yoga",
+      "barcode": "8690000000067",
+      "modelNo": "MDL-8",
+      "images": [
+        "https://img.example.invalid/hb8a.jpg",
+        "https://img.example.invalid/hb8b.jpg"
+      ],
+      "variant": {
+        "color": "Mor",
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE009",
+      "name": "Ornek Masa Lambasi",
+      "link": "https://www.hepsiburada.com/ornek-urun-9-p-HBSAMPLE009",
+      "price": {
+        "sellingPrice": 189.0,
+        "originalPrice": null,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": false
+      },
+      "brand": "IsikCo",
+      "categoryPath": "Ev > Aydinlatma",
+      "modelNo": "MDL-9",
+      "images": [
+        "https://img.example.invalid/hb9a.jpg",
+        "https://img.example.invalid/hb9b.jpg"
+      ],
+      "variant": {
+        "color": null,
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE010",
+      "name": "Ornek Mekanik Klavye",
+      "link": "https://www.hepsiburada.com/ornek-urun-10-p-HBSAMPLE010",
+      "price": {
+        "sellingPrice": 1599.0,
+        "originalPrice": 1799.0,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "TusX",
+      "categoryPath": "Bilgisayar > Klavye",
+      "barcode": "8690000000074",
+      "modelNo": "MDL-10",
+      "images": [
+        "https://img.example.invalid/hb10a.jpg",
+        "https://img.example.invalid/hb10b.jpg"
+      ],
+      "variant": {
+        "color": null,
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE011",
+      "name": "Ornek Termos 1 L",
+      "link": "https://www.hepsiburada.com/ornek-urun-11-p-HBSAMPLE011",
+      "price": {
+        "sellingPrice": 279.9,
+        "originalPrice": null,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "SicakCo",
+      "categoryPath": "Ev > Mutfak > Termos",
+      "barcode": "1234567890123",
+      "modelNo": "MDL-11",
+      "images": [
+        "https://img.example.invalid/hb11a.jpg",
+        "https://img.example.invalid/hb11b.jpg"
+      ],
+      "variant": {
+        "color": null,
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE012",
+      "name": "",
+      "link": "https://www.hepsiburada.com/ornek-urun-12-p-HBSAMPLE012",
+      "price": {
+        "sellingPrice": 100,
+        "originalPrice": null,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "B",
+      "categoryPath": "A > B",
+      "modelNo": "MDL-12",
+      "images": [
+        "https://img.example.invalid/hb12a.jpg",
+        "https://img.example.invalid/hb12b.jpg"
+      ],
+      "variant": {
+        "color": null,
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE013",
+      "name": "Bozuk Fiyatli Urun",
+      "link": "https://www.hepsiburada.com/ornek-urun-13-p-HBSAMPLE013",
+      "price": {
+        "sellingPrice": "fiyat sorunuz",
+        "originalPrice": null,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "B",
+      "categoryPath": "A > B",
+      "modelNo": "MDL-13",
+      "images": [
+        "https://img.example.invalid/hb13a.jpg",
+        "https://img.example.invalid/hb13b.jpg"
+      ],
+      "variant": {
+        "color": null,
+        "size": null
+      }
+    },
+    {
+      "sku": "HBSAMPLE014",
+      "name": "Bozuk Adresli Urun",
+      "link": "/goreli/adres",
+      "price": {
+        "sellingPrice": 100,
+        "originalPrice": null,
+        "currency": "TRY"
+      },
+      "stock": {
+        "available": true
+      },
+      "brand": "B",
+      "categoryPath": "A > B",
+      "modelNo": "MDL-14",
+      "images": [
+        "https://img.example.invalid/hb14a.jpg",
+        "https://img.example.invalid/hb14b.jpg"
+      ],
+      "variant": {
+        "color": null,
+        "size": null
+      }
+    }
+  ]
+}

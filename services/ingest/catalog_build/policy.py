@@ -20,6 +20,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from platforms import registry
 from resolve.normalize import strip_accents
 
 MIN_TITLE_CHARS = 8
@@ -71,46 +72,27 @@ class SourcePolicy:
     url_kind: Callable[[str], str | None] | None = None
 
 
-#: Hepsiburada urun adresi: `/<slug>-p-<KOD>` (varyant) ya da `/<slug>-pm-<KOD>` (model).
-#: Iki tur AYRI kimliktir; aralarindaki iliski dogrulanmadi (karar 0130), birbirine
-#: baglanmaz. Kod tek basina kimliktir; tur adresten okunur ve eslesmede ayrica denetlenir.
-HEPSIBURADA_URL = re.compile(
-    r"^https://www\.hepsiburada\.com/[^/?#\s]+-(?:p|pm)-([A-Za-z0-9]{3,60})$"
-)
-_HEPSIBURADA_KIND = re.compile(r"-(p|pm)-[A-Za-z0-9]{3,60}$")
-
-
-def hepsiburada_code_kind(url: str) -> str | None:
-    """`p` (varyant adresi) / `pm` (model adresi); urun adresi degilse None."""
-    match = _HEPSIBURADA_KIND.search(url)
-    return match.group(1) if match else None
-
+#: Kaynak kurallari `platforms.registry` icinde tanimlidir (karar 0163); burada yalnizca
+#: kapi/yayin hattinin okudugu `SourcePolicy` gorunumu TUREtilir. Yeni kaynak = yeni kayit.
+HEPSIBURADA_URL = registry.HEPSIBURADA_URL
+hepsiburada_code_kind = registry.hepsiburada_code_kind
 
 POLICIES: dict[str, SourcePolicy] = {
-    # Admitad:6115 profili (karar 0112): offer@id = 16 haneli urun kimligi,
-    # kanonik adres `https://www.aliexpress.com/item/<id>.html`.
-    "aliexpress": SourcePolicy(
-        merchant_slug="aliexpress",
-        id_pattern=re.compile(r"^[0-9]{10,20}$"),
-        url_pattern=re.compile(
-            r"^https://(?:www\.|[a-z]{2}\.)?aliexpress\.com/item/([0-9]{10,20})\.html$"
-        ),
-    ),
-    # Yonetici toplamasi (karar 0117/0130): `offer.external_id` adres sonundaki koddur
-    # (feeds/intake.py), kanonik adres sorgusuz/parcasiz `www.hepsiburada.com`.
-    "hepsiburada": SourcePolicy(
-        merchant_slug="hepsiburada",
-        id_pattern=re.compile(r"^[A-Za-z0-9]{3,60}$"),
-        url_pattern=HEPSIBURADA_URL,
-        discovery_source="hepsiburada",
-        url_kind=hepsiburada_code_kind,
-    ),
+    slug: SourcePolicy(
+        merchant_slug=slug,
+        id_pattern=definition.identity.id_pattern,
+        url_pattern=definition.identity.url_pattern,
+        discovery_source=definition.identity.discovery_source,
+        url_kind=definition.identity.url_kind,
+    )
+    for slug, definition in registry.catalog_definitions().items()
+    if definition.identity is not None
 }
 
 #: Urunu YALNIZCA kaynak ilani hattindan (taslak -> kapi -> acik yayin) acilan magazalar.
 #: Cozumleyici (`python -m resolve`) bu magazalarin tekliflerinden urun ACMAZ ve onlari
 #: baslik/gorsel benzerligiyle baska urune baglamaz (karar 0130).
-SOURCE_LISTING_MERCHANTS: frozenset[str] = frozenset(POLICIES)
+SOURCE_LISTING_MERCHANTS: frozenset[str] = registry.listing_only_slugs() & frozenset(POLICIES)
 
 
 @dataclass(frozen=True)
