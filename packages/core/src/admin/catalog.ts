@@ -3,8 +3,8 @@
  * bir tablo düzenleyici değildir; gizleme/düzeltme gibi mutasyonlar ayrı bir
  * karar gerektirir (docs/decisions/0039, "catalog.write" ileride).
  *
- * Her liste sayfalı ve zaman aşımlıdır. Başlık araması `product_title_fold_trgm`
- * indeksinin ifadesiyle (`foldedTitleExpr`) yapılır.
+ * Her liste sayfalı ve zaman aşımlıdır. Başlık araması, bölüm indekslerinin
+ * (`product_title_fold_try_trgm` / `_foreign_trgm`) ifadesiyle (`foldedTitleExpr`) yapılır.
  */
 
 import type { Database } from "@arilla/db";
@@ -281,7 +281,14 @@ function queryCondition(query: string | undefined): SQL | null {
   }
   const pattern = containsPattern(q);
   if (!pattern) return null;
-  return sql`(p.slug = ${q} OR ${foldedTitleExpr(sql`p.title`)} LIKE ${foldedTitleExpr(sql`${pattern}`)})`;
+  // Başlık kolu iki bölüm koluyla yazılır (karar 0169): `product_title_fold_try_trgm`
+  // (`offer_count > 0`) ve `product_title_fold_foreign_trgm` (`offer_count = 0`) kısmi
+  // GIN'lerinin yüklemini ifade eder; planlayıcı iki bölümü BitmapOr ile birleştirir. İki
+  // bölüm birlikte tüm yayındaki ürünleri kapsar (`offer_count` bir sayımdır, eksi olmaz;
+  // `search/text-match.ts` PARTITIONS ile aynı varsayım). Yüklemsiz tek kol, kaldırılan
+  // `product_title_fold_trgm` olmadan seq scan olurdu (lab: 260 bin satırda 584 ms).
+  const titleMatch = sql`${foldedTitleExpr(sql`p.title`)} LIKE ${foldedTitleExpr(sql`${pattern}`)}`;
+  return sql`(p.slug = ${q} OR (${titleMatch} AND p.offer_count > 0) OR (${titleMatch} AND p.offer_count = 0))`;
 }
 
 /**
