@@ -12,6 +12,7 @@ Kapi dusurme nedenleri (`hold_reason`):
   no_image / title_missing   urun satirinda gorsel/baslik yok
   stale_source_offer         kaynakta `stale_days` gundur gorulmedi (OFFER_SEEN_AT mantigi)
   offer_linked_elsewhere     teklif zaten baska bir urune bagli
+  category_missing           yalnizca `require_category` ile: kategorisiz urun (karar 0163)
 
 Yurt disi (TRY disi) teklif: yurt disi urun gosterimi acik bir urun karari bekliyor (karar
 0113/0114). Bu bir KALITE sorunu degil, bekleyen karardir: urun `draft` KALIR (satir
@@ -27,6 +28,8 @@ from dataclasses import dataclass, field
 import psycopg
 
 DEFAULT_BATCH = 5_000
+#: Kapinin bakabilecegi durumlar. `draft`: hic degerlendirilmemis; `held`/`ready`: yeniden bakis.
+ALL_STATES = ("draft", "held", "ready")
 #: Yeni yayin icin tazelik esigi (karar 0160). Besleme gunde iki kez kosar; 2 gun = en az
 #: dort kacirilmis senkronizasyon. Yonetim paneli `STALE_OFFER_DAYS` (7) yalnizca bir
 #: GOSTERGEDIR (yayin kapisi degil) ve bilerek ayri tutulur. `gate` ve `publish` ayni
@@ -39,9 +42,10 @@ DEFAULT_STALE_DAYS = PUBLISH_STALE_DAYS
 GATE_BATCH = """
 WITH batch AS (
     SELECT p.id, p.publication_state, p.hold_reason, p.title, p.primary_image_url,
-           p.source_offer_id
+           p.source_offer_id, p.category_id
       FROM product p
-     WHERE p.publication_state IN ('draft', 'held', 'ready') AND p.id > %(after)s
+     WHERE p.publication_state = ANY(%(states)s) AND p.id > %(after)s
+       AND (%(merchant_id)s::bigint IS NULL OR p.source_merchant_id = %(merchant_id)s)
      ORDER BY p.id
      LIMIT %(limit)s
 ), verdict AS (
@@ -56,6 +60,7 @@ WITH batch AS (
              WHEN o.product_id IS NOT NULL AND o.product_id <> b.id THEN 'offer_linked_elsewhere'
              WHEN seen.at IS NULL
                OR seen.at < now() - (%(stale_days)s * interval '1 day') THEN 'stale_source_offer'
+             WHEN %(require_category)s AND b.category_id IS NULL THEN 'category_missing'
              WHEN o.currency <> 'TRY' AND NOT %(allow_foreign)s THEN 'foreign_blocked'
            END AS reason
       FROM batch b
@@ -113,6 +118,9 @@ def run_gate(
     max_batches: int | None = None,
     stale_days: int = DEFAULT_STALE_DAYS,
     allow_foreign: bool = False,
+    states: tuple[str, ...] = ALL_STATES,
+    require_category: bool = False,
+    merchant_id: int | None = None,
     should_stop: Callable[[], bool] = lambda: False,
     on_batch: Callable[[GateCounts], None] | None = None,
     throttle: Callable[[], bool] | None = None,
@@ -133,6 +141,9 @@ def run_gate(
                     "limit": max(1, batch_size),
                     "stale_days": stale_days,
                     "allow_foreign": allow_foreign,
+                    "states": list(states),
+                    "require_category": require_category,
+                    "merchant_id": merchant_id,
                 },
             )
             row = cur.fetchone()

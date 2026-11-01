@@ -1924,6 +1924,88 @@ farkıyla doğrulanır (ayar öncesi ve sonrası birer `walstat` çıktısı sak
 | `process-max=2` R2'yi zorlar | Asenkron + 2 süreç; hata `pg_stat_archiver`'da görünür | `PGBACKREST_ARCHIVE_PUSH_PROCESS_MAX=1` + `pg-backup-configure` |
 | Sağlık alarmı gürültüsü | Bekçi kalp atışıyla bekleyen WAL eşiği bekçi sınırına çıkar; 10 dk bayatlarsa normale döner; "en eski dosya 15 dk" kritik kuralı aynen kalır | `bulk-window.json` silinir |
 
+## Otomatik katalog hattı (karar 0163)
+
+Her besleme senkronizasyonundan sonra, **yeni bir AliExpress teklifi kendiliğinden bir ManiCepte
+ürününe dönüşür**: `build` (taslak) → `classify parents` (güvenilir üst kategori) → `gate`
+(`--stale-days 2`, `--allow-foreign`) → `publish` (tazelik yayın anında yeniden kontrol edilir).
+Yeni mimari değildir; elle çalışan dört adımın tek kilit altında, süre bütçeli ve kaldığı yerden
+süren birleşimidir. Site herkese açılmaz: `PRODUCT_ACCESS` kapısı bu hattın dışındadır.
+
+```bash
+cd services/ingest
+# YALNIZCA OKUR. Bekleyen işler, held nedenleri, kategorili/kategorisiz, en eski bekleyen ürün:
+python -m catalog_build backlog --merchant aliexpress          # --deep: ürün satırı olmayan teklifleri de sayar (yavaş)
+# Elle tek koşu (zamanlayıcı aynı komutu çalıştırır):
+python -m catalog_build auto --merchant aliexpress --confirm --allow-foreign \
+  --publish-limit 300000 --max-seconds 8400
+```
+
+`auto` yalnızca `--confirm` ile yazar. Yurt dışı (USD) ürünün yayını `--allow-foreign` **ve**
+`CATALOG_PUBLISH_FOREIGN_APPROVED=true` ister (zamanlayıcı birimi ikisini de verir; sahibin açık
+kararı, karar 0163). `--require-category` açılırsa kategorisiz ürün `held` (`category_missing`)
+kalır; varsayılan kapalıdır (var olan yayındaki ürünlerin çoğu da kategorisizdir).
+
+**Çalışma kuralları**
+
+- Tek kilit: `pg_advisory_lock(4133201)`. Başka bir `catalog_build`/`classify` oturumu, besleme
+  senkronizasyonu (4301), günlük besleme işi (4302) ya da benzerlik kenarı kilidi varsa hat
+  **başlamaz** (`catalog_auto` kaydı: `skipped=<neden>`, çıkış 4); çalışırken de her 15 sn'de
+  bakılır ve **üretim senkronizasyonu başlarsa parti sonunda durur** (aynı komut sürer).
+- Yedek penceresi 01:20–02:05 UTC ve boş disk < 70 GB (çalışırken < 40 GB) iken çalışmaz.
+- Süre bütçesi `--max-seconds`: build %35, kategori %20, kapı %15, yayın %30; erken biten adımın
+  payı sonrakilere kayar. WAL geri basıncı (karar 0134) her adımda geçerlidir; sınır aşılırsa
+  hat durur (çıkış 3, `partial`) ve sonraki koşu sürer.
+- Bir adım hata verirse sonrakiler yine denenir (`catalog_auto.status = failed`, nedeni
+  `error_summary`); bağlantı kopması ve WAL durması hepsini durdurur.
+- Haftalık tam yeniden tarama (`--rescan-days 7`): önceden atlanmış ama sonradan geçerli olan
+  teklifler (başlığı düzelen, yeniden etkinleşen) ürün olur. İmleç sıfırlanır, ürünler tekrar
+  oluşmaz (`ON CONFLICT DO NOTHING`).
+- Kapı iki geçiştir: `draft` (hiç bakılmamış, durumsuz) ve `held`/`ready` yeniden bakış (imleç
+  önceki `catalog_auto` kaydının `gate_cursor` alanında). Kaynakta geri dönen teklifin `held` ürünü
+  kendiliğinden `ready` → `published` olur.
+
+**Kurulum ve geri alma** (root, elle; hiçbir şey kendiliğinden kurulmaz)
+
+```bash
+sudo /opt/arilla/vps/bin/catalog-auto-timers preflight           # backlog (salt okunur)
+sudo /opt/arilla/vps/bin/catalog-auto-timers install --confirm   # birimler + feeds-daily OnSuccess drop-in
+sudo /opt/arilla/vps/bin/catalog-auto-timers status
+sudo /opt/arilla/vps/bin/catalog-auto-timers disable             # timer + drop-in kalkar; birim dosyaları kalır
+sudo systemctl stop arilla-catalog-auto.service                  # çalışan koşuyu parti sonunda bitirir
+```
+
+Tetik: `arilla-feeds-daily.service` **başarıyla** bitince `OnSuccess=` (drop-in
+`/etc/systemd/system/arilla-feeds-daily.service.d/catalog-auto.conf`); güvenlik ağı olarak
+12:15 ve 21:15 UTC zamanlayıcısı (günlük iş `partial` bitip OnSuccess tetiklenmediyse, ya da hat o
+sırada meşguldü). `TimeoutStartSec=2h30min` > `--max-seconds 8400`; en geç koşu 21:15 + 2,5 sa
+ile yedek penceresinden önce biter. Beslemenin `feeds-timers` birimi **değiştirilmez**.
+
+**Başarısız ve bekleyen kayıtlar nerede?**
+
+| Soru | Nereye bak |
+| --- | --- |
+| Hat koştu mu, ne kadar iş yaptı? | `/yonetim/islemler` → "Otomatik katalog hattı"; `job_run.job = 'catalog_auto'` `detail`: `<adım>_status`, `<adım>_<sayaç>`, `rescan`, `gate_cursor`, `skipped`, `stopped` |
+| Adımın ayrıntısı | `job_run` kayıtları `catalog_build`, `classify_parent`, `catalog_gate`, `catalog_publish` (`detail.via = 'catalog_auto'`; held nedenleri `held_<neden>`) |
+| Bekleyen iş | `python -m catalog_build backlog --merchant aliexpress` |
+| Neden yayınlanmadı? | `product.hold_reason` (aşağıdaki tablo) |
+
+`held` nedenleri: `stale_source_offer` (kaynakta 2 gündür görülmedi; geri dönerse kendiliğinden
+düzelir), `source_offer_inactive` / `source_offer_missing`, `no_price`, `no_image`,
+`title_missing`, `offer_linked_elsewhere`, `offer_not_linkable` (yayın anında bağ kurulamadı),
+`category_missing` (yalnızca `--require-category`). `draft` = henüz kapıya girmedi; `ready` = kapıdan
+geçti, yayını bekliyor (ör. `foreign_not_approved`: ortam onayı yok, `held` DEĞİL).
+
+**Başarısız adımı yeniden çalıştırma:** aynı `auto` komutu kaldığı yerden sürer (build/kategori
+imleci, kapı durumu, yayın `ready`'den). Tek adım için eski komutlar geçerlidir
+(`catalog_build build|gate|publish`, `classify parents`). Hatalı yayını geri almak:
+`catalog_build unpublish --product-id N --confirm`; kategori yazımını geri almak:
+`classify parents-undo --confirm`.
+
+**Önkoşul (aramada görünürlük):** yayınlanan ürün metin aramasında yalnızca `merchant.is_active =
+true` iken bulunur (en iyi teklif seçimi etkin mağaza ister). Hattı kurmadan önce
+`SELECT slug, is_active FROM merchant WHERE slug = 'aliexpress'` doğrulanmalıdır (salt okunur).
+
 ## Bootstrap kataloğu (geçici, yalnızca yerel)
 
 `docs/decisions/0027`. Admitad öncesi test kataloğu; Shopify `/products.json`

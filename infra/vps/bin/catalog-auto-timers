@@ -1,0 +1,68 @@
+#!/usr/bin/env bash
+# Otomatik katalog hatti zamanlayicisi (karar 0163). batch-timers'tan AYRIDIR: bu hat urun
+# YAYINLAR; etkinlestirme bilincli ve onaylidir. ROOT ile, ELLE:
+#
+#   sudo /opt/arilla/vps/bin/catalog-auto-timers preflight           # YALNIZ OKUR: bekleyen isler
+#   sudo /opt/arilla/vps/bin/catalog-auto-timers install --confirm   # kopyala + etkinlestir
+#   sudo /opt/arilla/vps/bin/catalog-auto-timers status              # sonraki kosular, son kosu
+#   sudo /opt/arilla/vps/bin/catalog-auto-timers disable             # durdur (unit dosyalari kalir)
+#
+# Kurulum iki sey yapar: arilla-catalog-auto.timer'i (guvenlik agi) etkinlestirir ve
+# arilla-feeds-daily.service icin `OnSuccess=arilla-catalog-auto.service` drop-in'i koyar. Besleme
+# unit dosyasi DEGISMEZ; geri alma `disable` ile drop-in'in silinmesidir.
+set -euo pipefail
+export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+export LC_ALL=C
+
+ROOT=${ARILLA_ROOT:-/opt/arilla}
+UNIT=arilla-catalog-auto
+DROPIN_DIR=/etc/systemd/system/arilla-feeds-daily.service.d
+DROPIN=$DROPIN_DIR/catalog-auto.conf
+
+compose_run() {
+  docker compose --env-file "$ROOT/compose.env" -f "$ROOT/compose.prod.yml" --profile feeds \
+    run --rm -e JOB_RUN_TRIGGER=manual feeds "$@"
+}
+
+case "${1:-}" in
+  preflight)
+    # Okur: yazmaz, indirmez, ag istegi yapmaz (backlog oturumu SALT OKUNUR).
+    compose_run python -m catalog_build backlog --merchant aliexpress
+    ;;
+  install)
+    if [ "${2:-}" != "--confirm" ]; then
+      echo "Zamanlayici uretimde taslak urun yazar, kategori atar ve urun YAYINLAR (yurt disi dahil)." >&2
+      echo "Once: catalog-auto-timers preflight; docs/ops.md 'Otomatik katalog hatti'. Sonra: install --confirm" >&2
+      exit 64
+    fi
+    if ! systemctl is-enabled arilla-feeds-daily.timer >/dev/null 2>&1; then
+      echo "UYARI: arilla-feeds-daily.timer etkin degil (feeds-timers install); hat yalniz" >&2
+      echo "guvenlik agi zamanlayicisiyla calisir." >&2
+    fi
+    install -m 0644 "$ROOT/vps/systemd/$UNIT.service" "$ROOT/vps/systemd/$UNIT.timer" /etc/systemd/system/
+    # OnFailure hedefi; yedek kurulumu yapilmamis olsa da bulunsun.
+    install -m 0644 "$ROOT/vps/systemd/arilla-alert@.service" /etc/systemd/system/
+    install -d -m 0755 "$DROPIN_DIR"
+    printf '%s\n' '[Unit]' '# karar 0163: besleme BASARIYLA bitince katalog hatti calissin' \
+      "OnSuccess=$UNIT.service" >"$DROPIN"
+    chmod 0644 "$DROPIN"
+    systemctl daemon-reload
+    systemctl enable --now "$UNIT.timer"
+    systemctl list-timers "$UNIT.timer" --no-pager
+    ;;
+  status)
+    systemctl list-timers 'arilla-*' --no-pager
+    systemctl status "$UNIT.service" --no-pager || true
+    ;;
+  disable)
+    systemctl disable --now "$UNIT.timer" || true
+    rm -f "$DROPIN"
+    rmdir "$DROPIN_DIR" 2>/dev/null || true
+    systemctl daemon-reload
+    echo "Hat durduruldu. Calisan bir kosu varsa parti sonunda biter: systemctl stop $UNIT.service"
+    ;;
+  *)
+    echo "kullanim: catalog-auto-timers preflight|install --confirm|status|disable" >&2
+    exit 64
+    ;;
+esac

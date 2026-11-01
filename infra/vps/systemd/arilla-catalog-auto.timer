@@ -1,0 +1,16 @@
+[Unit]
+Description=Otomatik katalog hatti guvenlik agi (gunde iki kez; asil tetik besleme senkronizasyonunun ardindan)
+
+[Timer]
+# Asil tetik: `catalog-auto-timers install` arilla-feeds-daily.service icin OnSuccess= ekleyen bir
+# drop-in koyar (besleme BASARIYLA bitince hat hemen calisir). Bu zamanlayici yalniz guvenlik agi:
+# gunluk is `partial` bittiyse (OnSuccess tetiklenmez) ya da hat o sirada mesguldu.
+# 12:15 ve 21:15 UTC: gunluk beslemenin (06:30 ve 18:30, en fazla ~4,5 saat) sonrasi; 2,5 saatlik
+# sinirla bile yedek (01:30), gece hatti (02:34) ve bir sonraki besleme tetiginden once biter.
+OnCalendar=*-*-* 12:15:00 UTC
+OnCalendar=*-*-* 21:15:00 UTC
+Persistent=true
+RandomizedDelaySec=300
+
+[Install]
+WantedBy=timers.target

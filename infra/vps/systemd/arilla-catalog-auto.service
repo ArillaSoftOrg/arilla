@@ -1,0 +1,25 @@
+[Unit]
+Description=Arilla otomatik katalog hatti: build -> ust kategori -> kapi -> yayin (karar 0163)
+Requires=docker.service
+After=docker.service arilla-feeds-daily.service
+OnFailure=arilla-alert@%n.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=/opt/arilla
+# Yalniz `catalog-auto-timers install --confirm` ile kurulur (batch-timers KURMAZ): urun yayinlar.
+# Baslamadan once gunluk besleme, yedekler ve gece katalog hatti calisiyorsa SESSIZCE atlanir
+# (ExecCondition: cikis 1 = atla, hata degil); ayni kontrol Python tarafinda advisory kilitleriyle
+# ve yedek penceresiyle (01:20-02:05 UTC) tekrarlanir, calisirken de parti araliginda.
+ExecCondition=/opt/arilla/vps/bin/catalog-auto-guard
+# `CATALOG_PUBLISH_FOREIGN_APPROVED=true`: yurt disi (USD) AliExpress urununun otomatik yayini
+# sahibin acik karari (karar 0163, 0113/0114'u tamamlar). Bu birim yalniz acik onayla kurulur.
+# Site herkese ACILMAZ: PRODUCT_ACCESS kapisi bu birimin disindadir.
+ExecStart=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml --profile feeds run --rm -e JOB_RUN_TRIGGER=cron -e CATALOG_PUBLISH_FOREIGN_APPROVED=true feeds python -m catalog_build auto --merchant aliexpress --confirm --allow-foreign --publish-limit 300000 --max-seconds 8400
+# 3: WAL geri basinci, 4: baska yazar calisiyor. Ikisi de hata degil; is kaldigi yerden surer
+# ve `job_run` kaydi (catalog_auto) nedeni tutar.
+SuccessExitStatus=3 4
+# --max-seconds 8400 (2 sa 20 dk) bu sinirin altindadir; sonraki besleme tetiginden once biter.
+TimeoutStartSec=2h30min
+Nice=10
+IOSchedulingClass=idle

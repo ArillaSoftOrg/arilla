@@ -10,7 +10,8 @@ COMPOSE = HERE.parent.parent / "compose.prod.yml"
 
 # Zamanlanabilen ucretsiz moduller. enrich (Jina) ve feeds (buyuk indirme) bilerek yok.
 # Gunluk besleme tazeleme (karar 0145) AYRI bir zamanlayicidir: `feeds-timers`, onayli etkinlestirme.
-OPT_IN_UNITS = {"arilla-feeds-daily"}
+#: Otomatik katalog hatti (karar 0163) urun yayinlar: `catalog-auto-timers`, onayli etkinlestirme.
+OPT_IN_UNITS = {"arilla-feeds-daily", "arilla-catalog-auto"}
 ALLOWED_MODULES = {"resolve", "similarity", "pricing", "affiliate"}
 RUN_PREFIX = (
     "/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml "
