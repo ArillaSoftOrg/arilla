@@ -1,6 +1,7 @@
 "use client";
 
 import { type CSSProperties, type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { Badge } from "./Badge.tsx";
 import { Container } from "./Container.tsx";
 import styles from "./HomeHeader.module.css";
 import { ChevronRightIcon, CloseIcon, LogoutIcon } from "./icons.tsx";
@@ -19,6 +20,8 @@ export interface HomeHeaderNavItem {
 
 export interface HomeHeaderProps {
   brandLabel: string;
+  /** Marka yaninda gorunen surum durumu (orn. Beta). */
+  brandStatusLabel?: string;
   brandHref?: string;
   /** Marka yazisinin yaninda gosterilecek küçük logo/isaret. */
   brandLogoSrc?: string;
@@ -95,6 +98,7 @@ const COMPACT_EXIT_Y = 8;
  */
 export function HomeHeader({
   brandLabel,
+  brandStatusLabel,
   brandHref = "/",
   brandLogoSrc,
   navItems,
@@ -263,7 +267,12 @@ export function HomeHeader({
           {brandLogoSrc ? (
             <span className={styles.brandLogo} style={brandLogoStyle} aria-hidden="true" />
           ) : null}
-          <span className={styles.brandText}>{brandLabel}</span>
+          <span className={styles.brandName}>
+            <span className={styles.brandText}>{brandLabel}</span>
+            {brandStatusLabel ? (
+              <Badge className={styles.brandStatus}>{brandStatusLabel}</Badge>
+            ) : null}
+          </span>
         </a>
 
         {navItems.length > 0 ? (
@@ -343,7 +352,12 @@ export function HomeHeader({
                   aria-hidden="true"
                 />
               ) : null}
-              {brandLabel}
+              <span className={styles.brandName}>
+                <span>{brandLabel}</span>
+                {brandStatusLabel ? (
+                  <Badge className={styles.brandStatus}>{brandStatusLabel}</Badge>
+                ) : null}
+              </span>
             </a>
             <button
               ref={closeButtonRef}
