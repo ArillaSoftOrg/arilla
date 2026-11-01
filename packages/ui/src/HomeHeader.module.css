@@ -729,6 +729,32 @@
   }
 }
 
+/* 320px'te marka ve giris eylemi tam gorunur; menu dokunma alani korunur. */
+@media (max-width: 359.98px) {
+  .inner {
+    gap: var(--space-1);
+    padding-inline: var(--space-3);
+  }
+
+  .brand {
+    gap: var(--space-1);
+  }
+
+  .brandLogo {
+    width: 1.75rem;
+    height: 1.75rem;
+  }
+
+  .brandText {
+    font-size: 1.25rem;
+  }
+
+  .account {
+    flex-shrink: 0;
+    padding-inline: var(--space-2);
+  }
+}
+
 /* Sohbet calisma alani: yapiskan, yalin cubuk (menu + marka). Olcek 1 -> 0.8;
    dokunma hedefi (menu dugmesi) --size-touch-target'ta kalir. Z-endeksi
    composer'in (--z-sticky) ustunde: menu paneli (fixed) onu da ortmeli. */

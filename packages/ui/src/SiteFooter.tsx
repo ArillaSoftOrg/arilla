@@ -1,5 +1,6 @@
 import type { CSSProperties, ReactNode } from "react";
 import { Container } from "./Container.tsx";
+import { joinClassNames } from "./layout.ts";
 import styles from "./SiteFooter.module.css";
 
 export interface FooterLink {
@@ -57,6 +58,8 @@ export interface SiteFooterProps {
   decorativeWordmark?: string;
   /** Page-specific visual treatment; does not change other public footers. */
   variant?: "default" | "prelaunch";
+  /** Sayfaya ozgu kucuk duzen ayarlari; diger footer'lari etkilemez. */
+  className?: string;
 }
 
 /**
@@ -85,13 +88,14 @@ export function SiteFooter({
   copyrightLabel,
   decorativeWordmark = brandLabel,
   variant = "default",
+  className,
 }: SiteFooterProps) {
   const brandLogoStyle = brandLogoSrc
     ? ({ backgroundImage: `url(${JSON.stringify(brandLogoSrc)})` } satisfies CSSProperties)
     : undefined;
 
   return (
-    <footer className={styles.footer} data-variant={variant}>
+    <footer className={joinClassNames(styles.footer, className)} data-variant={variant}>
       <Container size="wide" className={styles.inner}>
         <div
           className={styles.top}

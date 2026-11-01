@@ -48,6 +48,19 @@ describe("loadRecentProducts", () => {
 });
 
 describe("ana sayfa 'Alışverişe devam et' bölümü", () => {
+  it("yardim CTA'si arama formunun disinda ve son bakilanlardan once kalir", () => {
+    const html = renderToStaticMarkup(
+      createElement(HomeSearchComposer, {
+        recentProducts: toRecentProducts([nike]),
+        afterSearch: createElement("a", { href: "/nasil-calisir" }, "Nasıl çalıştığını gör"),
+      }),
+    );
+    const cta = html.indexOf('href="/nasil-calisir"');
+    expect(cta).toBeGreaterThan(html.indexOf("</form>"));
+    expect(cta).toBeLessThan(html.indexOf(TITLE));
+    expect(html).toContain("Nike Air Force 1");
+  });
+
   it("ürün geçmişi yok -> bölüm, başlık ve liste çizilmez; arama chip'i yok", () => {
     for (const html of [render(undefined), render([])]) {
       expect(html).not.toContain(TITLE);
@@ -72,5 +85,30 @@ describe("ana sayfa 'Alışverişe devam et' bölümü", () => {
     for (const demo of ["Beyaz sneaker", "Çalışma koltuğu", "Popüler arama", "Trend fikir"]) {
       expect(html).not.toContain(demo);
     }
+  });
+});
+
+describe("ana sayfa fotograf aksiyonu", () => {
+  it("misafire gorunur etiket sunar, dosya secimi yerine mevcut giris kapisini korur", () => {
+    const html = renderToStaticMarkup(
+      createElement(HomeSearchComposer, { imageEntryAvailable: true }),
+    );
+    expect(html).toContain("Fotoğraf yükle</button>");
+    expect(html).not.toContain('type="file"');
+    expect(html).toContain('aria-label="Fotoğraf eklemek için ana arama kutusuna git"');
+  });
+
+  it("fotograf acikken gorunur etiket ve mevcut dosya secimi birlikte kalir", () => {
+    const html = renderToStaticMarkup(
+      createElement(HomeSearchComposer, { imageEntryAvailable: true, imageChat: true }),
+    );
+    expect(html).toContain("Fotoğraf yükle</button>");
+    expect(html).toContain('type="file"');
+  });
+
+  it("ozellik kapaliyken fotograf akisini kendiliginden acmaz", () => {
+    const html = render();
+    expect(html).not.toContain("Fotoğraf yükle</button>");
+    expect(html).not.toContain('type="file"');
   });
 });

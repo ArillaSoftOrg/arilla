@@ -11,7 +11,7 @@ import {
 import { Button } from "./Button.tsx";
 import { resolveComposerSubmit } from "./composer-submit.ts";
 import { ArrowRightIcon, CloseIcon, ImageIcon, PlusIcon } from "./icons.tsx";
-import { listRole } from "./layout.ts";
+import { joinClassNames, listRole } from "./layout.ts";
 import { PhotoUploadButton } from "./PhotoUploadButton.tsx";
 import { ProductCard } from "./ProductCard.tsx";
 import styles from "./SearchComposer.module.css";
@@ -95,12 +95,20 @@ export interface SearchComposerProps {
   /** Fotograf yukleme - verilirse kutunun icinde ikon dugmesi olarak cizilir.
    * Yukleme mantigi cagiran tarafta (apps/web). */
   photo?: SearchComposerPhoto;
+  /** Ana kutuda fotograf dugmesinin etiketini ikonun yaninda gosterir. */
+  showPhotoLabel?: boolean;
   /** Karar 0078: kutuda bekleyen, henuz gonderilmemis fotograf. */
   attachment?: SearchComposerAttachment | null;
   /** Yukleme hatasi gibi durum mesaji - role="alert", kutunun altinda. */
   statusMessage?: string | null;
   /** Devam eden islem (fotograf araniyor) - role="status", kibar duyuru. */
   busyMessage?: string | null;
+  /** Arama bolgesinin basinda istege bagli baslik/gorsel. */
+  beforeSearch?: ReactNode;
+  /** Yalnizca ana arama bolgesinin duzeni; son bakilanlari kapsamaz. */
+  searchClassName?: string;
+  /** Arama ve durum mesajlarindan sonra, son bakilanlardan once istege bagli icerik. */
+  afterSearch?: ReactNode;
   /** "Alışverişe devam et": son görüntülenen ürünler (aynı `ProductCard`, hesap sayfasıyla ortak). */
   recentProducts?: readonly SearchComposerRecentProduct[];
   chipsTitle?: string;
@@ -151,9 +159,13 @@ export function SearchComposer({
   submitLabel,
   autoFocus = false,
   photo,
+  showPhotoLabel = false,
   attachment,
   statusMessage,
   busyMessage,
+  beforeSearch,
+  searchClassName,
+  afterSearch,
   recentProducts,
   chipsTitle,
   offerCountLabel,
@@ -280,7 +292,8 @@ export function SearchComposer({
 
   return (
     <div className={styles.wrapper}>
-      <search aria-label={landmarkLabel}>
+      <search aria-label={landmarkLabel} className={searchClassName}>
+        {beforeSearch}
         <form
           ref={formRef}
           action={action}
@@ -329,25 +342,33 @@ export function SearchComposer({
           <div className={styles.actions}>
             {leadingAction ? (
               <Button
+                id={photoButtonId}
                 type="button"
                 variant="ghost"
                 aria-label={leadingAction.label}
                 disabled={leadingAction.disabled}
                 onClick={leadingAction.onClick}
-                className={styles.photoButton}
+                className={joinClassNames(
+                  styles.photoButton,
+                  showPhotoLabel && styles.photoButtonLabeled,
+                )}
               >
                 {leadingAction.icon ?? <PlusIcon />}
+                {showPhotoLabel ? leadingAction.label : null}
               </Button>
             ) : photo ? (
               <PhotoUploadButton
                 id={photoButtonId}
-                iconOnly
+                iconOnly={!showPhotoLabel}
                 icon={<ImageIcon />}
                 label={photo.label}
                 onFileSelected={photo.onFileSelected}
                 disabled={photo.disabled || attachment?.pending}
                 variant="ghost"
-                className={styles.photoButton}
+                className={joinClassNames(
+                  styles.photoButton,
+                  showPhotoLabel && styles.photoButtonLabeled,
+                )}
               />
             ) : null}
             <Button
@@ -374,6 +395,8 @@ export function SearchComposer({
           {busyMessage ?? ""}
         </p>
       ) : null}
+
+      {afterSearch}
 
       {recentProducts && recentProducts.length > 0 ? (
         <div className={styles.chipsSection}>

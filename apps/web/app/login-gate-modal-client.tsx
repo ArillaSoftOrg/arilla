@@ -1,7 +1,7 @@
 "use client";
 
 import { LoginModal } from "@arilla/ui";
-import type { RefObject } from "react";
+import { type RefObject, useEffect, useState } from "react";
 import { LoginFormClient } from "./giris/login-form-client.tsx";
 
 export interface LoginGateModalProps {
@@ -31,13 +31,15 @@ export function LoginGateModal({
   next,
   returnFocusRef,
 }: LoginGateModalProps) {
-  // Girişten sonra kullanıcı modalın açıldığı sayfaya (sorgusuyla) döner.
-  // Modal yalnızca etkileşimle açılır; yol yalnızca açıkken istemcide okunur.
-  const resolvedNext =
-    next ??
-    (open && typeof window !== "undefined"
-      ? `${window.location.pathname}${window.location.search}`
-      : undefined);
+  const [browserNext, setBrowserNext] = useState<string | undefined>(undefined);
+  // Arama limiti modali sunucuda da acik gelebilir. Ilk istemci render'i
+  // sunucuyla ayni kalir; sorgulu donus yolu hydration'dan sonra okunur.
+  useEffect(() => {
+    if (open && next === undefined) {
+      setBrowserNext(`${window.location.pathname}${window.location.search}`);
+    }
+  }, [open, next]);
+  const resolvedNext = next ?? (open ? browserNext : undefined);
   return (
     <LoginModal
       open={open}

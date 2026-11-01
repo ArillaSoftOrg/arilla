@@ -99,6 +99,14 @@
   color: var(--ink);
 }
 
+.box .photoButtonLabeled {
+  width: auto;
+  gap: var(--space-2);
+  padding-inline: var(--space-2);
+  font-size: var(--text-small);
+  white-space: nowrap;
+}
+
 /* Fotograf kapaliyken de gonder dugmesi sagda kalir. */
 .box .submit {
   width: 44px;

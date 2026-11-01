@@ -1,6 +1,6 @@
 "use client";
 
-import { CloseIcon, SearchComposer, type SearchComposerAttachment } from "@arilla/ui";
+import { CloseIcon, ImageIcon, SearchComposer, type SearchComposerAttachment } from "@arilla/ui";
 import { type FocusEvent, type RefObject, useEffect, useRef, useState } from "react";
 import { useConsentBannerVisible } from "./cookie-consent-client.tsx";
 import styles from "./floating-composer.module.css";
@@ -41,7 +41,7 @@ export function FloatingHomeComposer({
   onSubmitText?: (text: string) => boolean | Promise<boolean>;
   attachment: SearchComposerAttachment | null;
   statusMessage: string | null;
-  /** Fotograf eki acik mi ("+" yalnizca o zaman). */
+  /** Fotograf girisi acik mi (giris kapisina yonelen misafir dahil). */
   showAttach: boolean;
 }) {
   const wrapperRef = useRef<HTMLDivElement>(null);
@@ -156,7 +156,11 @@ export function FloatingHomeComposer({
             attachment={attachment}
             leadingAction={
               showAttach
-                ? { label: HOME_COPY.quickSearchAttachLabel, onClick: goToMainForPhoto }
+                ? {
+                    label: HOME_COPY.quickSearchAttachLabel,
+                    onClick: goToMainForPhoto,
+                    icon: <ImageIcon />,
+                  }
                 : undefined
             }
           />
