@@ -1,4 +1,4 @@
-"""Platformlar arasi saf urun kumeleme (karar 0163).
+"""Platformlar arasi saf urun kumeleme (karar 0164).
 
 Girdi: bircok platform/saticidan `CanonicalListing`. Cikti: urun kumeleri.
 Veritabani, ag, saat YOK; ayni girdi (sirasi ne olursa olsun) ayni kumeleri verir.

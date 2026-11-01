@@ -1,6 +1,6 @@
 """Ortak veri sozlesmesi: her kaynak (API, XML, CSV, JSON, besleme) buna donusur.
 
-Kimlik ayrimi (karar 0163):
+Kimlik ayrimi (karar 0164):
 
 - **platform**: `merchant.slug` (Trendyol, Hepsiburada, AliExpress). Pazar yeri ya da magaza.
 - **seller**: platform ICINDEKI satici (`seller` tablosu). Tek satici platformlarda yok.

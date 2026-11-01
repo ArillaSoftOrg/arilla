@@ -1,4 +1,4 @@
-"""Kaynak (platform) kayit defteri: bir platformu tanimlayan TEK yer (karar 0163).
+"""Kaynak (platform) kayit defteri: bir platformu tanimlayan TEK yer (karar 0164).
 
 Daha once kaynak bilgisi uc yere dagiliydi: kimlik kurali (`catalog_build/policy.py`),
 besleme profili (`feeds/profiles.py`) ve para birimi/yenileme ayarlari. Burada tek kayitta
@@ -91,6 +91,10 @@ class SourceDefinition:
     category_system: str | None = None
     #: Pazar yeri mi (birden cok satici) — `seller` kaydi beklenir.
     is_marketplace: bool = False
+    #: Ortak `source_parent_map.tsv` (kaynak kategori yolu -> ust kategori) bu kaynagin
+    #: `offer.category_raw` yollariyla uretildi mi. Yalniz AliExpress icin dogrulandi; olmayan
+    #: kaynakta otomatik hatta `parents` adimi ATLANIR (baska kaynagin yolu yanlis eslesmesin).
+    source_parent_map: bool = False
     notes: str = ""
 
     def __post_init__(self) -> None:
@@ -123,6 +127,14 @@ def get(slug: str) -> SourceDefinition | None:
 
 def all_definitions() -> dict[str, SourceDefinition]:
     return dict(_REGISTRY)
+
+
+def foreign_currency(slug: str) -> str | None:
+    """Kaynagin onayli TRY disi para birimi (yaklasik TRY icin kur gerekir); yoksa None."""
+    definition = _REGISTRY.get(slug)
+    if definition is None or definition.currency in (None, "TRY"):
+        return None
+    return definition.currency
 
 
 def catalog_definitions() -> dict[str, SourceDefinition]:
@@ -168,6 +180,7 @@ ALIEXPRESS = register(
         kind="feed",
         status="verified",
         listing_only=True,
+        source_parent_map=True,
         currency="USD",
         merchant=MerchantInfo(
             name="AliExpress",
@@ -283,7 +296,12 @@ TRENDYOL = register(
     )
 )
 
+#: Canli gorunum (kayit sirasinda guncellenir): `registry.ALL[slug]`.
+ALL = _REGISTRY
+
 __all__ = [
+    "ALL",
+    "foreign_currency",
     "ALIEXPRESS",
     "HEPSIBURADA",
     "TRENDYOL",

@@ -1,6 +1,6 @@
-# 0163 — Çoklu kaynak katalog çekirdeği: kaynak kayıt defteri, ortak sözleşme, kaynak kısıtları
+# 0164 — Çoklu kaynak katalog çekirdeği: kaynak kayıt defteri, ortak sözleşme, kaynak kısıtları
 
-Durum: önerildi (31 Ekim 2026). Birleştirme kararı, süren AliExpress işleri bitince birlikte verilecek.
+Durum: #248 ile birleşti; entegrasyon eki (§8) önerildi (1 Kasım 2026). Birleştirme kararı, süren AliExpress işleri bitince birlikte verilecek.
 Şema değişikliği YOKTUR; üretime hiçbir şey yazılmadı.
 
 ## Bağlam
@@ -63,3 +63,24 @@ yeni platform eklemek ortak motoru yeniden yazdırmamalı.
 - 10 milyon+ ürün kapasitesi DOĞRULANMADI. Darboğaz analizi ve yük testi planı: `docs/platform-scale.md`.
 - Yeni platform ekleme adımları: `docs/platform-onboarding.md`. AliExpress uyumluluk değerlendirmesi:
   `docs/platform-aliexpress-compat.md`.
+
+## 8. Entegrasyon eki: otomatik hat kaynak bazlı (1 Kasım 2026)
+
+`catalog_build auto` (karar 0163) zaten `--merchant` alıyordu; AliExpress'e bağlı kalan üç nokta ayrıldı:
+
+1. **İmleç ve tam tarama zamanı mağaza bazlı.** `catalog_auto` kaydının `detail.merchant` alanı yazılır;
+   gate imleci (ürün kimliği) ve son tam tarama yalnızca aynı mağazanın kayıtlarından okunur.
+   `merchant` anahtarı olmayan eski kayıtlar `aliexpress` sayılır (geriye uyumlu). Aksi halde ikinci bir
+   mağaza, AliExpress'in imlecinden başlayıp kendi ürünlerinin bir kısmını atlardı.
+2. **Kaynak planı** (`catalog_build/source_config.py`): kayıt defteri kısıtları yalnızca bugün gerçekten
+   uygulanan yerlere bağlandı ve yalnızca SIKILAŞTIRIR: `max_price_age` → `stale_days` üst sınırı;
+   `foreign_currency_display` yoksa `--allow-foreign` yok sayılır; fiyat saklama/gösterme hakkı yoksa
+   `publish` adımı `not_applicable`; `source_parent_map` yoksa `parents` adımı `not_applicable`
+   (ortak `source_parent_map.tsv` yalnızca AliExpress yollarıyla üretildi). `not_applicable` kısmi sayılmaz.
+   Kayıtsız mağaza eski davranışı korur. AliExpress üretim komutu için sonuç değişmez (testle sabitlendi).
+3. **Tek kaynak bilgisi:** `feeds/profiles.MERCHANT_PROFILES` kayıt defterinden türetilir; `feeds daily`
+   `fx_base`i kayıt defterinden alır (AliExpress: USD).
+
+Uygulanmayan (bilerek bağlanmayan) kısıtlar: `requests_per_minute`, `daily_request_budget`,
+`min_refresh_interval`, `RetentionPolicy`, `may_hotlink/mirror_images`, `attribution_required`. Bu hatlar
+(`feeds/*`, `collect/*`, görsel yazıcılar) henüz `platforms.flow` kullanmaz; bu değerler bugün bilgilendiricidir.

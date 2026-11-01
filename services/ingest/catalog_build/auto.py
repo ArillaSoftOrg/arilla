@@ -45,6 +45,7 @@ import psycopg
 from catalog_build import build as build_mod
 from catalog_build import gate as gate_mod
 from catalog_build import publish as publish_mod
+from catalog_build import source_config
 from catalog_build.gate import PUBLISH_STALE_DAYS
 from catalog_build.policy import SourcePolicy
 from db import job_run, wal_pressure
@@ -114,14 +115,21 @@ SELECT
  WHERE l.locktype = 'advisory' AND l.granted AND l.pid <> ALL(%(own)s)
 """
 
+#: Imlec ve tam tarama zamani MAGAZA BAZLIDIR (karar 0164): gate imleci urun kimligidir ve baska
+#: magazanin imleci bu magazanin urunlerini atlatir. `merchant` anahtari olmayan eski kayitlar
+#: (karar 0163 donemi, yalniz AliExpress) `aliexpress` sayilir.
+LEGACY_MERCHANT = "aliexpress"
+
 LAST_RESCAN_SQL = """
 SELECT max(started_at) FROM job_run
  WHERE job = 'catalog_auto' AND status <> 'running' AND detail->>'rescan' = 'true'
+   AND COALESCE(detail->>'merchant', %s) = %s
 """
 
 LAST_GATE_CURSOR_SQL = """
 SELECT detail->>'gate_cursor' FROM job_run
  WHERE job = 'catalog_auto' AND status <> 'running' AND detail ? 'gate_cursor'
+   AND COALESCE(detail->>'merchant', %s) = %s
  ORDER BY id DESC LIMIT 1
 """
 
@@ -261,12 +269,15 @@ class AutoResult:
     stopped: str | None = None
     rescan: bool = False
     gate_cursor: int = 0
+    merchant: str = ""
     stages: list[StageResult] = field(default_factory=list)
     wal: dict[str, float | int] = field(default_factory=dict)
 
     def detail(self) -> dict[str, Any]:
         """`job_run.detail`: yalniz duz sayi/bool/kisa metin (en fazla 40 anahtar)."""
         out: dict[str, Any] = {"rescan": self.rescan, "gate_cursor": self.gate_cursor}
+        if self.merchant:
+            out["merchant"] = self.merchant
         if self.skipped:
             out["skipped"] = self.skipped
         if self.stopped:
@@ -282,26 +293,26 @@ class AutoResult:
         return out
 
 
-def _scalar(conn: psycopg.Connection, sql: str) -> Any:
+def _scalar(conn: psycopg.Connection, sql: str, params: tuple[Any, ...] | None = None) -> Any:
     with conn.cursor() as cur:
-        cur.execute(sql)
+        cur.execute(sql, params)
         row = cur.fetchone()
     conn.commit()
     return row[0] if row else None
 
 
-def rescan_due(conn: psycopg.Connection, days: int) -> bool:
+def rescan_due(conn: psycopg.Connection, days: int, merchant: str = LEGACY_MERCHANT) -> bool:
     """Son tam taramadan `days` gun gectiyse (ya da hic yapilmadiysa) True. 0 = hic yapma."""
     if days <= 0:
         return False
-    last = _scalar(conn, LAST_RESCAN_SQL)
+    last = _scalar(conn, LAST_RESCAN_SQL, (LEGACY_MERCHANT, merchant))
     if last is None:
         return True
     return bool((datetime.now(UTC) - last).total_seconds() >= days * 86_400)
 
 
-def previous_gate_cursor(conn: psycopg.Connection) -> int:
-    value = _scalar(conn, LAST_GATE_CURSOR_SQL)
+def previous_gate_cursor(conn: psycopg.Connection, merchant: str = LEGACY_MERCHANT) -> int:
+    value = _scalar(conn, LAST_GATE_CURSOR_SQL, (LEGACY_MERCHANT, merchant))
     try:
         return max(0, int(value)) if value is not None else 0
     except (TypeError, ValueError):
@@ -330,7 +341,15 @@ def run_auto(
     track: Callable[[str], Any] = job_run.track,
 ) -> AutoResult:
     """Dort adimi sirayla calistirir. `conn` icinde baska ISLEM ACIK olmamalidir."""
-    result = AutoResult()
+    result = AutoResult(merchant=opts.merchant)
+    # Kaynak kisitlari yalniz SIKILASTIRIR (karar 0164); AliExpress icin sonuc degismez.
+    plan = source_config.plan_for(opts.merchant)
+    opts, plan = source_config.effective_options(opts, plan)
+    not_applicable = {
+        stage
+        for stage, applies in (("parents", plan.run_parents), ("publish", plan.may_publish))
+        if not applies
+    }
     started = clock()
     overall_deadline = started + opts.max_seconds
     guard.deadline = overall_deadline
@@ -351,14 +370,22 @@ def run_auto(
 
     throttle = governor.before_batch if governor is not None else None
     try:
-        result.rescan = rescan_due(conn, opts.rescan_days)
-        cursor_before = previous_gate_cursor(conn)
-        remaining = list(STAGES)
+        result.rescan = rescan_due(conn, opts.rescan_days, opts.merchant)
+        cursor_before = previous_gate_cursor(conn, opts.merchant)
+        remaining = [s for s in STAGES if s not in not_applicable]
         for stage in STAGES:
             remaining_now = [s for s in remaining]
-            remaining.remove(stage)
+            if stage in remaining:
+                remaining.remove(stage)
             stage_result = StageResult(name=stage)
             result.stages.append(stage_result)
+            if stage in not_applicable:
+                # Kaynak icin gecerli degil (kayit defteri): hata/kismi degil, atlama sayilmaz.
+                stage_result.status = "not_applicable"
+                stage_result.note = (
+                    "no_parent_map" if stage == "parents" else "publish_not_permitted"
+                )
+                continue
             if guard.should_stop():
                 stage_result.status, stage_result.note = "skipped", guard.reason or "stop"
                 continue

@@ -1,6 +1,6 @@
 # Yeni platform ekleme prosedürü
 
-Karar: `docs/decisions/0163`. Hedef: yeni platform = bir `SourceDefinition` + bir adapter eşlemesi.
+Karar: `docs/decisions/0164`. Hedef: yeni platform = bir `SourceDefinition` + bir adapter eşlemesi.
 Ortak motor (kapı, yayın, fiyat geçmişi, eşleştirme) değişmez.
 
 ## 1. Önce veri hakkı ve erişim (kodsuz)
@@ -18,8 +18,10 @@ Ortak motor (kapı, yayın, fiyat geçmişi, eşleştirme) değişmez.
 3. Başlangıç `status="sample"`. Kimlik kuralı (`IdentityRule`: `id_pattern`, `url_pattern`, ilk grup = kaynak kimliği)
    gerçek örnekle doğrulanınca `status="verified"` yapılır; ancak o zaman `POLICIES` ve kapı/yayın hattına girer.
 4. `registry.onboarding_problems(definition)` boş dönmeli.
-5. `feeds/profiles.py` içindeki `MERCHANT_PROFILES` kaydı (merchant satırı için) şimdilik ayrı tutulur;
-   `tests/test_platforms_core.py` sapmayı yakalar.
+5. `feeds/profiles.py`: `PROFILE_SOURCES`a (`ag:program` → slug) satır ekle; `MERCHANT_PROFILES` registry'den
+   türetilir. Besleme alan eşlemesi gerekiyorsa `PROFILES`a (gerçek örnekle doğrulanmış) eklenir.
+6. Kategori: kaynağın `category_raw` yolları için `source_parent_map.tsv` üretilmediyse `source_parent_map`
+   açılmaz; otomatik hatta `parents` adımı atlanır (başka kaynağın haritası yanlış eşleşmesin).
 
 ## 3. Adapter (`services/ingest/platforms/adapters/`)
 
@@ -30,6 +32,11 @@ Ortak motor (kapı, yayın, fiyat geçmişi, eşleştirme) değişmez.
    kayıpsız/tekrarsız, iki koşu aynı sonucu verir.
 
 ## 4. Akış ve hat
+
+- Otomatik hat: `python -m catalog_build auto --merchant <slug> --confirm` (build → parents → gate → publish).
+  Kayıt defteri kısıtları yalnızca sıkılaştırır (`stale_days` üst sınırı, yurt dışı yayın, fiyat hakkı yoksa
+  yayın yok, harita yoksa `parents` yok). İmleç ve tam tarama mağaza başınadır. Zamanlayıcı birimi
+  (`infra/vps/systemd`) mağaza başına AYRI eklenir; bu PR eklemez.
 
 - `run_source` / `run_sources` kısıtlardaki sınırları uygular (parti, dakika/gün istek, ardışık hata, geri basınç).
 - Yazım tarafı (sink) idempotent olmalı: `(merchant_id, external_id)` unique; `price_point` yalnızca INSERT.
