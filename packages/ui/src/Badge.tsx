@@ -3,8 +3,8 @@ import styles from "./Badge.module.css";
 import { joinClassNames } from "./layout.ts";
 
 export interface BadgeProps extends HTMLAttributes<HTMLSpanElement> {
-  /** `neutral` (varsayilan) veya `save`: tasarruf olgusu, `--save` metin. */
-  tone?: "neutral" | "save";
+  /** `brand`: dolgusuz marka etiketi; `save`: tasarruf olgusu. */
+  tone?: "neutral" | "save" | "brand";
   children: ReactNode;
 }
 
@@ -12,7 +12,12 @@ export function Badge({ tone = "neutral", className, children, ...rest }: BadgeP
   return (
     <span
       {...rest}
-      className={joinClassNames(styles.badge, tone === "save" && styles.save, className)}
+      className={joinClassNames(
+        styles.badge,
+        tone === "save" && styles.save,
+        tone === "brand" && styles.brand,
+        className,
+      )}
     >
       {children}
     </span>

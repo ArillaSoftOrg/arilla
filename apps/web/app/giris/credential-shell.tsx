@@ -1,7 +1,23 @@
+import { Badge } from "@arilla/ui";
 import type { ReactNode } from "react";
+import { HOME_COPY } from "../home-copy.ts";
 import { SITE_BRAND } from "../site-config.ts";
 import { CREDENTIAL_COPY as COPY } from "./credential-copy.ts";
 import styles from "./page.module.css";
+
+/** Giris ve kayit akislarinda ortak marka ve surum etiketi. */
+export function AuthBrand() {
+  return (
+    <a
+      className={styles.brand}
+      href="/"
+      aria-label={`${SITE_BRAND} ${HOME_COPY.betaLabel} ana sayfa`}
+    >
+      <span>{SITE_BRAND}</span>
+      <Badge tone="brand">{HOME_COPY.betaLabel}</Badge>
+    </a>
+  );
+}
 
 /**
  * E-posta + şifre ekranlarının ortak çerçevesi (`/giris/telefon` ile aynı
@@ -29,9 +45,7 @@ export function CredentialShell({
 }) {
   return (
     <div className={styles.page}>
-      <a className={styles.brand} href="/" aria-label={`${SITE_BRAND} ana sayfa`}>
-        {SITE_BRAND}
-      </a>
+      <AuthBrand />
       <a className={styles.close} href={closeHref} aria-label={`${title} ekranını kapat`}>
         ×
       </a>

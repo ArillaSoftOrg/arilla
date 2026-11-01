@@ -450,6 +450,10 @@ ağırlık. `tone="save"` yalnızca tasarruf olgusu (ör. "%20 daha uygun") içi
 metni `--save` yapar; yine dolgusuzdur. Sponsor rozeti bu bileşenle ve
 gizlenemez biçimde gösterilir.
 
+`tone="brand"`, Beta gibi sürüm etiketlerinde dolgusuzdur; yalnızca yazı ve
+çerçeve yeşildir. `--brand-label` açık temada belirgin koyu yeşil, koyu
+temada açık marka tonu sağlar. Üst menü ve giriş/kayıt ekranları aynı tonu kullanır.
+
 **Card.** `--surface-raised`, 1px `--line`, `--radius-md`, gölge yok; iç
 boşluk `--space-4`, ≥ 640px `--space-5`.
 
