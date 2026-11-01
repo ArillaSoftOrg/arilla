@@ -205,7 +205,10 @@ def env(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Iterator[Env]:
             raise net.download_errors.pop(0)
         content = net.contents.pop(0) if net.contents else net.content
         target.write_bytes(content)
-        digest = hashlib.sha256(content).hexdigest()
+        # Gercek indirme, cozulmus icerigin ozetini alir (download.py). gzip basligindaki zaman
+        # damgasi ozeti degistirmesin: onay icerik ozetine baglidir.
+        plain = gzip.decompress(content) if content[:2] == bytes([0x1F, 0x8B]) else content
+        digest = hashlib.sha256(plain).hexdigest()
         return Downloaded(target, digest, len(content), len(content))
 
     monkeypatch.setattr(sync_module, "download", fake_download)
@@ -340,11 +343,12 @@ def test_kalici_olmayan_hata_yeniden_denenmez(env: Env) -> None:
 
 def _cut(offers: list[dict]) -> bytes:
     """gzip acisindan TAMAM, XML kapanis etiketleri EKSIK (kaynakta yarim uretilmis dosya)."""
-    return gzip.compress(yml(offers, truncate=True))
+    return gzip.compress(yml(offers, truncate=True), mtime=0)
 
 
 def _full(offers: list[dict]) -> bytes:
-    return gzip.compress(yml(offers))
+    # mtime=0: ayni icerik farkli saniyelerde uretilince baytlar (ve ozet) degismesin.
+    return gzip.compress(yml(offers), mtime=0)
 
 
 def _pp_and_outbox(env: Env) -> tuple[int, int, int]:

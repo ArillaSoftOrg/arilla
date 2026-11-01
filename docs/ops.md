@@ -1924,7 +1924,7 @@ farkıyla doğrulanır (ayar öncesi ve sonrası birer `walstat` çıktısı sak
 | `process-max=2` R2'yi zorlar | Asenkron + 2 süreç; hata `pg_stat_archiver`'da görünür | `PGBACKREST_ARCHIVE_PUSH_PROCESS_MAX=1` + `pg-backup-configure` |
 | Sağlık alarmı gürültüsü | Bekçi kalp atışıyla bekleyen WAL eşiği bekçi sınırına çıkar; 10 dk bayatlarsa normale döner; "en eski dosya 15 dk" kritik kuralı aynen kalır | `bulk-window.json` silinir |
 
-## Otomatik katalog hattı (karar 0163)
+## Otomatik katalog hattı (karar 0164)
 
 Her besleme senkronizasyonundan sonra, **yeni bir AliExpress teklifi kendiliğinden bir ManiCepte
 ürününe dönüşür**: `build` (taslak) → `classify parents` (güvenilir üst kategori) → `gate`
@@ -1943,7 +1943,7 @@ python -m catalog_build auto --merchant aliexpress --confirm --allow-foreign \
 
 `auto` yalnızca `--confirm` ile yazar. Yurt dışı (USD) ürünün yayını `--allow-foreign` **ve**
 `CATALOG_PUBLISH_FOREIGN_APPROVED=true` ister (zamanlayıcı birimi ikisini de verir; sahibin açık
-kararı, karar 0163). `--require-category` açılırsa kategorisiz ürün `held` (`category_missing`)
+kararı, karar 0164). `--require-category` açılırsa kategorisiz ürün `held` (`category_missing`)
 kalır; varsayılan kapalıdır (var olan yayındaki ürünlerin çoğu da kategorisizdir).
 
 **Çalışma kuralları**

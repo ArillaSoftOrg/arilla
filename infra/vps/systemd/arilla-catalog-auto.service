@@ -1,5 +1,5 @@
 [Unit]
-Description=Arilla otomatik katalog hatti: build -> ust kategori -> kapi -> yayin (karar 0163)
+Description=Arilla otomatik katalog hatti: build -> ust kategori -> kapi -> yayin (karar 0164)
 Requires=docker.service
 After=docker.service arilla-feeds-daily.service
 OnFailure=arilla-alert@%n.service
@@ -13,7 +13,7 @@ WorkingDirectory=/opt/arilla
 # ve yedek penceresiyle (01:20-02:05 UTC) tekrarlanir, calisirken de parti araliginda.
 ExecCondition=/opt/arilla/vps/bin/catalog-auto-guard
 # `CATALOG_PUBLISH_FOREIGN_APPROVED=true`: yurt disi (USD) AliExpress urununun otomatik yayini
-# sahibin acik karari (karar 0163, 0113/0114'u tamamlar). Bu birim yalniz acik onayla kurulur.
+# sahibin acik karari (karar 0164, 0113/0114'u tamamlar). Bu birim yalniz acik onayla kurulur.
 # Site herkese ACILMAZ: PRODUCT_ACCESS kapisi bu birimin disindadir.
 ExecStart=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml --profile feeds run --rm -e JOB_RUN_TRIGGER=cron -e CATALOG_PUBLISH_FOREIGN_APPROVED=true feeds python -m catalog_build auto --merchant aliexpress --confirm --allow-foreign --publish-limit 300000 --max-seconds 8400
 # 3: WAL geri basinci, 4: baska yazar calisiyor. Ikisi de hata degil; is kaldigi yerden surer
