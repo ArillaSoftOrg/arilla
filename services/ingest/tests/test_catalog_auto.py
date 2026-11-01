@@ -1,4 +1,4 @@
-"""Otomatik katalog hatti: yeni teklif -> yayinlanmis urun (karar 0163).
+"""Otomatik katalog hatti: yeni teklif -> yayinlanmis urun (karar 0164).
 
 Birim testler veritabanisiz. Entegrasyon testleri gercek PostgreSQL ile: kurulum SAHIP rolle,
 hat UYGULAMA rolu baglantisiyla (uretimdeki gibi). Kosular test magazalariyla sinirlidir.

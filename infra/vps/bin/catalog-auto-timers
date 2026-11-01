@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Otomatik katalog hatti zamanlayicisi (karar 0163). batch-timers'tan AYRIDIR: bu hat urun
+# Otomatik katalog hatti zamanlayicisi (karar 0164). batch-timers'tan AYRIDIR: bu hat urun
 # YAYINLAR; etkinlestirme bilincli ve onaylidir. ROOT ile, ELLE:
 #
 #   sudo /opt/arilla/vps/bin/catalog-auto-timers preflight           # YALNIZ OKUR: bekleyen isler
@@ -43,7 +43,7 @@ case "${1:-}" in
     # OnFailure hedefi; yedek kurulumu yapilmamis olsa da bulunsun.
     install -m 0644 "$ROOT/vps/systemd/arilla-alert@.service" /etc/systemd/system/
     install -d -m 0755 "$DROPIN_DIR"
-    printf '%s\n' '[Unit]' '# karar 0163: besleme BASARIYLA bitince katalog hatti calissin' \
+    printf '%s\n' '[Unit]' '# karar 0164: besleme BASARIYLA bitince katalog hatti calissin' \
       "OnSuccess=$UNIT.service" >"$DROPIN"
     chmod 0644 "$DROPIN"
     systemctl daemon-reload

@@ -1,4 +1,4 @@
-# 0163 — Otomatik katalog hattı: yeni teklif → taslak → üst kategori → kapı → yayın
+# 0164 — Otomatik katalog hattı: yeni teklif → taslak → üst kategori → kapı → yayın
 
 Durum: kabul edildi (31 Ekim 2026; kod ve birimler hazır, **kurulum ayrı ve onaylı**). Üretim
 verisine bu kararla dokunulmadı; zamanlayıcı `catalog-auto-timers install --confirm` ile elle kurulur.

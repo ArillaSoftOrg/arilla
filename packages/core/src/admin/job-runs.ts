@@ -115,7 +115,7 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
-  // Karar 0163: besleme senkronizasyonundan sonra yeni teklif -> taslak -> üst kategori -> kapı ->
+  // Karar 0164: besleme senkronizasyonundan sonra yeni teklif -> taslak -> üst kategori -> kapı ->
   // yayın. Zamanlayıcı ayrı ve onaylı bir adımla etkinleşir (`catalog-auto-timers install`);
   // kurulana kadar kayıt yoktur. Adımların kendi koşuları (catalog_build, classify_parent,
   // catalog_gate, catalog_publish) `detail.via = "catalog_auto"` ile ayrıca yazılır.
@@ -128,7 +128,7 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
   // Karar 0161: kaynak üst eşlemesiyle yalnızca güvenilir üst kategori yazımı (geri alınabilir).
   classify_parent: {
     label: "Kaynak üst kategori yazımı",
-    how: "python -m classify parents --confirm · otomatik hat adımı (karar 0163)",
+    how: "python -m classify parents --confirm · otomatik hat adımı (karar 0164)",
     kind: "pipeline",
     overdueAfterMs: null,
   },

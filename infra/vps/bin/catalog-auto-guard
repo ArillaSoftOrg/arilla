@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# arilla-catalog-auto.service ExecCondition: hat BU SEFER baslayabilir mi? (karar 0163)
+# arilla-catalog-auto.service ExecCondition: hat BU SEFER baslayabilir mi? (karar 0164)
 #   cikis 0 = basla; cikis 1 = atla (systemd bunu hata saymaz, alarm uretmez).
 # Yalniz OKUR: systemctl durumu ve disk. Python tarafi ayrica advisory kilitlerine, yedek
 # penceresine ve diske bakar; bu betik gereksiz konteyner baslatmamak icin ilk elemedir.

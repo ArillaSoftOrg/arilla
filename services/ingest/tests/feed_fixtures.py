@@ -100,5 +100,5 @@ def yml(offers: Iterable[Mapping[str, object]], *, truncate: bool = False) -> by
 
 
 def write(path: Path, data: bytes, *, gz: bool = False) -> Path:
-    path.write_bytes(gzip.compress(data) if gz else data)
+    path.write_bytes(gzip.compress(data, mtime=0) if gz else data)
     return path

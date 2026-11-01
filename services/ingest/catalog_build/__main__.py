@@ -16,7 +16,7 @@ python -m catalog_build auto    --merchant aliexpress --confirm --allow-foreign
                                 [--require-category] [--rescan-days 7]
 python -m catalog_build backlog --merchant aliexpress [--deep]
 
-`auto` (karar 0163) build -> kategori -> gate -> publish adimlarini tek kilit altinda, sure
+`auto` (karar 0164) build -> kategori -> gate -> publish adimlarini tek kilit altinda, sure
 butcesiyle ve kaldigi yerden surerek calistirir; her besleme senkronizasyonundan sonra
 zamanlayici tetikler. `backlog` YALNIZCA OKUR: bekleyen isleri ve held nedenlerini sayar.
 
@@ -263,7 +263,7 @@ def main(argv: list[str] | None = None) -> int:
     p_unpub.add_argument("--product-id", type=int, action="append", required=True)
     p_unpub.add_argument("--confirm", action="store_true")
 
-    p_auto = sub.add_parser("auto", help="build -> kategori -> gate -> publish (karar 0163)")
+    p_auto = sub.add_parser("auto", help="build -> kategori -> gate -> publish (karar 0164)")
     p_auto.add_argument("--merchant", required=True)
     p_auto.add_argument("--confirm", action="store_true")
     p_auto.add_argument("--allow-foreign", action="store_true")

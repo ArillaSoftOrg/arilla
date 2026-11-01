@@ -12,7 +12,7 @@ Kapi dusurme nedenleri (`hold_reason`):
   no_image / title_missing   urun satirinda gorsel/baslik yok
   stale_source_offer         kaynakta `stale_days` gundur gorulmedi (OFFER_SEEN_AT mantigi)
   offer_linked_elsewhere     teklif zaten baska bir urune bagli
-  category_missing           yalnizca `require_category` ile: kategorisiz urun (karar 0163)
+  category_missing           yalnizca `require_category` ile: kategorisiz urun (karar 0164)
 
 Yurt disi (TRY disi) teklif: yurt disi urun gosterimi acik bir urun karari bekliyor (karar
 0113/0114). Bu bir KALITE sorunu degil, bekleyen karardir: urun `draft` KALIR (satir

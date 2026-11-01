@@ -1,4 +1,4 @@
-"""Otomatik katalog hatti (karar 0163): yeni teklif -> taslak -> kategori -> kapi -> yayin.
+"""Otomatik katalog hatti (karar 0164): yeni teklif -> taslak -> kategori -> kapi -> yayin.
 
 Yeni bir mimari DEGIL: var olan dort adimi sirayla ve tek kilit altinda baglar.
 
@@ -20,9 +20,9 @@ Guvenceler:
   Bir adim hata verirse sonrakiler yine denenir (bagimsiz yedek is); veritabani baglantisi
   kopar ya da WAL siniri asilirsa hepsi durur.
 * Yurt disi (USD) urun yalniz `allow_foreign` VE `CATALOG_PUBLISH_FOREIGN_APPROVED=true` ile
-  yayinlanir (karar 0113/0114/0163). Site herkese acilmaz: `PRODUCT_ACCESS` kapisina dokunulmaz.
+  yayinlanir (karar 0113/0114/0164). Site herkese acilmaz: `PRODUCT_ACCESS` kapisina dokunulmaz.
 * `require_category`: acik oldugunda kategorisiz urun `held` (`category_missing`) kalir.
-  Varsayilan KAPALI: var olan 2,77 M yayinli urunun cogu da kategorisizdir (karar 0163 §4).
+  Varsayilan KAPALI: var olan 2,77 M yayinli urunun cogu da kategorisizdir (karar 0164 §4).
 
 `backlog` YALNIZCA OKUR: bekleyen isleri ve nedenlerini sayar.
 """
