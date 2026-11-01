@@ -16,6 +16,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from platforms import registry
+
 PROFILES: dict[str, dict[str, Any]] = {
     "admitad:6115": {
         "parser": "yml",
@@ -38,40 +40,31 @@ def profile_for(network: str, program_external_id: str | None) -> dict[str, Any]
     return dict(PROFILES.get(f"{network}:{program_external_id}", {}))
 
 
-#: Dogrulanmis program -> merchant kaydi (karar 0114). Takip sablonu Admitad
-#: deeplink API'sinin urettigi bicimle dogrulandi (14 Ekim 2026):
-#: `rzekl.com/g/<kod>/?subid=<tiklama>&ulp=<urun>`; besleme takip baglantisi ayni
-#: host ve yolu kullanir, `subid` click kimligini tasir (kural 8).
+#: Profil anahtari (`ag:program`) -> kaynak. Merchant alanlari `platforms.registry` kaydindan
+#: TUREtilir (karar 0164): kaynak bilgisi tek yerde. Anahtarlar `feeds __main__ ensure-merchant`
+#: komutunun `--profile` degeridir. Takip sablonlari: AliExpress `rzekl.com/g/<kod>/?subid=
+#: <tiklama>&ulp=<urun>` (Admitad deeplink API, 14 Ekim 2026; subid click kimligi, kural 8);
+#: Hepsiburada (karar 0115) ve Trendyol (karar 0118) yonetici toplamasidir, affiliate yok.
+PROFILE_SOURCES: dict[str, str] = {
+    "admitad:6115": "aliexpress",
+    "hbcollect:hepsiburada": "hepsiburada",
+    "tycollect:trendyol": "trendyol",
+}
+
+
+def _merchant_profile(slug: str) -> dict[str, Any]:
+    merchant = registry.ALL[slug].merchant
+    return {
+        "slug": slug,
+        "name": merchant.name,
+        "domain": merchant.domain,
+        "source_type": merchant.source_type,
+        "affiliate_network": merchant.affiliate_network,
+        "affiliate_status": merchant.affiliate_status,
+        "deeplink_template": merchant.deeplink_template,
+    }
+
+
 MERCHANT_PROFILES: dict[str, dict[str, Any]] = {
-    "admitad:6115": {
-        "slug": "aliexpress",
-        "name": "AliExpress",
-        "domain": "aliexpress.com",
-        "source_type": "affiliate_network",
-        "affiliate_network": "admitad",
-        "affiliate_status": "active",
-        "deeplink_template": "{affiliate_url}&subid={click_id}",
-    },
-    # Yonetici tarayicisindan toplama (karar 0115): affiliate yok, takip sablonu yok;
-    # cikis yine click kaydiyla kanonik adrese gider (kural 8).
-    "hbcollect:hepsiburada": {
-        "slug": "hepsiburada",
-        "name": "Hepsiburada",
-        "domain": "hepsiburada.com",
-        "source_type": "user_discovered",
-        "affiliate_network": None,
-        "affiliate_status": "none",
-        "deeplink_template": None,
-    },
-    # Trendyol yonetici tarayicisindan toplama (karar 0118): affiliate yok; cikis click
-    # kaydiyla kanonik urun adresine gider (kural 8).
-    "tycollect:trendyol": {
-        "slug": "trendyol",
-        "name": "Trendyol",
-        "domain": "trendyol.com",
-        "source_type": "user_discovered",
-        "affiliate_network": None,
-        "affiliate_status": "none",
-        "deeplink_template": None,
-    },
+    key: _merchant_profile(slug) for key, slug in PROFILE_SOURCES.items()
 }

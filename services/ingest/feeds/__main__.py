@@ -29,6 +29,7 @@ from feeds.logs import configure as configure_logging
 from feeds.network import build, registered
 from feeds.profiles import MERCHANT_PROFILES
 from feeds.sync import FeedSync, SyncAborted, load_feed
+from platforms import registry
 
 logger = logging.getLogger("feeds")
 
@@ -220,6 +221,8 @@ def _daily(args: argparse.Namespace) -> int:
         max_source_age=timedelta(hours=args.max_source_age_hours),
         discover=not args.skip_discovery,
         budget=timedelta(hours=max(0.0, args.budget_hours)),
+        # Kaynagin onayli TRY disi para birimi kayit defterinden (AliExpress: USD).
+        fx_base=registry.foreign_currency(args.merchant) or daily.DailyOptions.fx_base,
     )
     with job_run.track("feed_daily") as run, connect() as conn:
         result = daily.run_daily(conn, opts)

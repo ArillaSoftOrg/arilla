@@ -58,6 +58,8 @@ packages = [
     "classify",
     "classify.suggest",
     "similarity",
+    "platforms",
+    "platforms.adapters",
 ]
 
 [tool.ruff]
@@ -73,6 +75,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 "tests/test_catalog_auto.py" = ["E501"]
 # Entegrasyon fixture'i baska modulden ice aktarilir (pytest deseni).
 "tests/test_suggest_db.py" = ["F811"]
+"tests/test_catalog_source_plan.py" = ["F811"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

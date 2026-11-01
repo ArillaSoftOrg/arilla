@@ -1,4 +1,4 @@
-"""Kaynak bazli lisans, veri saklama ve guncelleme kisitlari (karar 0163).
+"""Kaynak bazli lisans, veri saklama ve guncelleme kisitlari (karar 0164).
 
 Kisit kod icinde `if platform == ...` olarak degil, kaynagin kaydinda tasinir. Saf
 veri + saf fonksiyonlar: ag, veritabani ve saat yok (saat parametre).

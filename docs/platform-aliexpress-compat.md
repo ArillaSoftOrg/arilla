@@ -1,6 +1,6 @@
 # AliExpress sistemiyle uyumluluk değerlendirmesi
 
-Karar: `docs/decisions/0163`. Değerlendirme kod okuma + testlerle yapıldı; AliExpress'e karşı üretimde
+Karar: `docs/decisions/0164`. Değerlendirme kod okuma + testlerle yapıldı; AliExpress'e karşı üretimde
 hiçbir şey çalıştırılmadı.
 
 ## Davranış değişikliği
@@ -19,7 +19,7 @@ hiçbir şey çalıştırılmadı.
   `feeds-retry-truncated`, `aliexpress-source-catalog`) denendi: çakışan dosyalar `feeds/*`, `docs/ops.md`,
   `apps/web/*`; `policy.py` ve `platforms/*` yok. Ancak bu dallardan biri `policy.py`/`profiles.py`
   değiştirirse (özellikle yeni kaynak kuralı eklerse) kuralı `registry.py`ye eklemek gerekir.
-- Karar numarası 0163 (0162 main'de #245 tarafından alındı); migration kullanılmadı.
+- Karar numarası 0164 (0162 ve 0163 main'de başka kararlarca alındı); migration kullanılmadı.
 
 ## Registry'deki AliExpress değerleri (yorum gerektiren)
 
@@ -34,3 +34,11 @@ Yani registry bugün bilgilendirici; `feeds/daily.py`, `gate.py` bu değerlere b
 2. `price_point` yazım politikası tek tipe indirilsin mi (`feeds/sync.py` değişimde, `collect/writer.py` her gözlemde)?
 3. Kısıtlar DB'ye (ayrı migration) taşınsın mı, yoksa kodda mı kalsın?
 4. Kimlik vermeyen AliExpress ilanları için `matching.py` yalnızca `singleton` üretir; bu beklenen davranış.
+
+## Entegrasyon eki (1 Kasım 2026)
+
+`catalog_build auto` kaynak bazlı hale getirildi (karar 0164 §8). AliExpress üretim komutu
+(`--merchant aliexpress --allow-foreign`) için etkin seçenekler değişmez; bu `tests/test_catalog_source_plan.py`
+ile sabitlendi. Artık AliExpress'e özgü kalanlar: ortak `source_parent_map.tsv` (yalnız AliExpress yolları),
+`feeds/profiles.PROFILES["admitad:6115"]` (besleme alan eşlemesi), `parent_apply`/`classify` işlevlerinin
+`merchant_slug="aliexpress"` varsayılanı, `infra/vps` zamanlayıcıları ve Admitad deeplink şablonu.
