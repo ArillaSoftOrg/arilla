@@ -10,9 +10,9 @@ import {
   todaySlotDate,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { DiscoveryGrid, Section, TrendCollectionCard } from "@arilla/ui";
+import { DiscoveryGrid, EmptyState, HomeHero, Section } from "@arilla/ui";
 import type { Metadata } from "next";
-import { DEMO_HOMEPAGE_TRENDS } from "../data/demo/homepage-trends.ts";
+import Image from "next/image";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { ComingSoonLanding } from "./coming-soon-landing.tsx";
 import { resolveDiscoveryItems } from "./discovery-adapter.ts";
@@ -22,7 +22,6 @@ import { homeSectionLinks } from "./home-footer-groups.ts";
 import { loadRecentProducts } from "./home-recent-products.ts";
 import { HomeSearchComposer } from "./home-search-composer-client.tsx";
 import { HomeSectionHeading } from "./home-section-heading.tsx";
-import { HomeWelcome } from "./home-welcome.tsx";
 import { verifySession } from "./lib/dal.ts";
 import { loadCachedEarlyAccessProgress } from "./lib/early-access-progress.ts";
 import { PublicSiteShell } from "./public-site-shell.tsx";
@@ -59,22 +58,20 @@ export function generateMetadata(): Metadata {
 
 /**
  * docs/pages.md "/". Tek is: arama baslatmak. Akis (kabuk icinde):
- * hero (h1 + deger onerisi) -> arama kutusu -> Trendler (`#trendler`) ->
+ * ilk ekran (robot + h1 + arama) -> yardim seridi -> varsa son bakilanlar -> Trendler (`#trendler`) ->
  * kesif masonry'si (`#kesfet`).
  * Header/footer, `<main>`, genis Container
  * ve yatay gutter `PublicSiteShell`'den gelir; bu sayfa yalnizca `Section`
  * dikey ritmini ve daha dar kolonlari (`--content-width-*`) kullanir.
  *
  * Veri:
- * - Trendler: gecici demo seti (`apps/web/data/demo/homepage-trends.ts`,
- *   SOURCES.md). Trend rotasi henuz yok - kartlar baglanti degil.
- * - Kesif: `getDiscoverySlots` (dar try/catch - bolum "bos durum: yok,
- *   sessizce atlanir" davranisini zaten destekliyor; `getDiscoverySlots`in
- *   kendisi degismez). Gercek veri > `HOMEPAGE_DEMO_CONTENT=true` demo >
+ * - Trendler: gercek koleksiyonlar `/trendler/[slug]`a gider. Veri yoksa
+ *   ornek urunler yerine kisa bir bos durum gosterilir.
+ * - Kesif: `getDiscoverySlots` (dar try/catch; veri bosken baslik ve kisa
+ *   bos durum korunur). Gercek veri > `HOMEPAGE_DEMO_CONTENT=true` demo >
  *   bos; bkz. discovery-adapter.ts. Ayni `DiscoveryGrid` `/kesfet`te.
- * Performans: karşılama vitrini yerel temsili görseli next/image ile optimize eder.
- * İlk vitrin görseli eager, diğerleri lazy yüklenir. İlk trend kapağı eager +
- * yuksek oncelik); diger tum trend/kesif gorselleri lazy + async decode,
+ * Performans: kucuk, sabit hero robotu eager yuklenir. Ilk trend kapagi eager +
+ * yuksek oncelik; diger tum trend/kesif gorselleri lazy + async decode,
  * yer `aspect-ratio` ile ayrilir (duzen kaymasi yok).
  */
 async function loadDiscoveryItems(): Promise<Awaited<ReturnType<typeof getDiscoverySlots>>> {
@@ -99,7 +96,7 @@ const HOME_TREND_COUNT = 3;
 
 /**
  * Gercek `trend` kayitlari (karar 0077): once `featured`, sonra siraya gore ilk
- * uc. Hata/bos durumda bos liste: bolum gecici demo setine duser, sayfa bozulmaz.
+ * uc. Hata/bos durumda bos liste: bolum acik bir bos durum gosterir.
  */
 async function loadHomeTrends(): Promise<TrendSummary[]> {
   try {
@@ -112,7 +109,7 @@ async function loadHomeTrends(): Promise<TrendSummary[]> {
       error instanceof Error
         ? `${error.name}${"code" in error ? `:${String(error.code)}` : ""}`
         : "unknown";
-    console.warn(`[anasayfa] trend sorgusu basarisiz, demo set ile devam ediliyor (${code})`);
+    console.warn(`[anasayfa] trend sorgusu basarisiz, bos liste ile devam ediliyor (${code})`);
     return [];
   }
 }
@@ -141,75 +138,99 @@ export default async function HomePage() {
     loadHomeTrends(),
   ]);
   const discoveryItems = resolveDiscoveryItems(items);
-  // Kesif bolumu bu sayfada varsa "Keşfet" oraya gider; yoksa /kesfet'e.
-  const discoverHref = discoveryItems.length > 0 ? "#kesfet" : "/kesfet";
 
   return (
-    <PublicSiteShell links={homeSectionLinks(discoverHref)}>
+    <PublicSiteShell links={homeSectionLinks("#kesfet")} footerClassName={styles.homeFooter}>
       <div className={styles.page}>
         <Section spacing="none" aria-labelledby="anasayfa-baslik" className={styles.hero}>
-          <HomeWelcome>
-            <HomeSearchComposer
-              startChat={chatEnabled ? startConversationAction : undefined}
-              chatInNewTab={chatEnabled && user !== null}
-              imageChat={imageChat}
-              imageEntryAvailable={imageEntryAvailable}
-              imageConsent={imageConsent}
-              recentProducts={recentProducts}
-            />
-          </HomeWelcome>
+          <HomeSearchComposer
+            startChat={chatEnabled ? startConversationAction : undefined}
+            chatInNewTab={chatEnabled && user !== null}
+            imageChat={imageChat}
+            imageEntryAvailable={imageEntryAvailable}
+            imageConsent={imageConsent}
+            recentProducts={recentProducts}
+            searchClassName={styles.searchScreen}
+            beforeSearch={
+              <HomeHero
+                titleId="anasayfa-baslik"
+                titleLead={HOME_COPY.heroTitleLead}
+                titleAccent={HOME_COPY.heroTitleAccent}
+                illustration={
+                  <Image
+                    src="/mascot/guide/robot-welcome.png"
+                    alt=""
+                    width={104}
+                    height={104}
+                    sizes="(min-width: 1024px) 104px, 88px"
+                    loading="eager"
+                    className={styles.heroRobot}
+                  />
+                }
+              />
+            }
+            afterSearch={
+              <div className={styles.howRail}>
+                <p className={styles.howPrompt}>{HOME_COPY.howItWorksPrompt}</p>
+                <a href="/nasil-calisir" className={styles.howLink}>
+                  <Image
+                    src="/mascot/guide/robot-how-it-works-point-v1.png"
+                    alt=""
+                    width={56}
+                    height={56}
+                    sizes="56px"
+                    className={styles.howRobot}
+                  />
+                  <span aria-hidden="true">→</span>
+                  <span className={styles.howLinkText}>{HOME_COPY.howItWorksAction}</span>
+                </a>
+              </div>
+            }
+          />
         </Section>
 
-        {homeTrends.length > 0 ? (
-          <Section id="trendler" aria-labelledby="trendler-baslik" className={styles.anchored}>
-            <HomeSectionHeading
-              id="trendler-baslik"
-              title={HOME_COPY.trendsTitle}
-              description={HOME_COPY.trendsSubtitle}
+        <Section id="trendler" aria-labelledby="trendler-baslik" className={styles.anchored}>
+          <HomeSectionHeading
+            id="trendler-baslik"
+            title={HOME_COPY.trendsTitle}
+            description={homeTrends.length > 0 ? HOME_COPY.trendsSubtitle : undefined}
+          />
+          {homeTrends.length > 0 ? (
+            <>
+              <div className={styles.trendsViewport}>
+                <TrendCardGrid trends={homeTrends} eagerFirst labelledBy="trendler-baslik" />
+              </div>
+              <p className={styles.trendsMore}>
+                <a href="/trendler" className={styles.trendsMoreLink}>
+                  {TREND_COPY.homeAllLink}
+                </a>
+              </p>
+            </>
+          ) : (
+            <EmptyState
+              tone="compact"
+              title={HOME_COPY.trendsEmptyTitle}
+              description={HOME_COPY.trendsEmptyDescription}
             />
-            <div className={styles.trendsViewport}>
-              <TrendCardGrid trends={homeTrends} eagerFirst labelledBy="trendler-baslik" />
-            </div>
-            <p className={styles.trendsMore}>
-              <a href="/trendler" className={styles.trendsMoreLink}>
-                {TREND_COPY.homeAllLink}
-              </a>
-            </p>
-          </Section>
-        ) : DEMO_HOMEPAGE_TRENDS.length > 0 ? (
-          <Section id="trendler" aria-labelledby="trendler-baslik" className={styles.anchored}>
-            <HomeSectionHeading
-              id="trendler-baslik"
-              title={HOME_COPY.trendsTitle}
-              description={HOME_COPY.trendsSubtitle}
-            />
-            <div className={styles.trendsViewport}>
-              {/* biome-ignore lint/a11y/noRedundantRoles: list-style:none WebKit'te liste rolunu dusurur. */}
-              <ul role="list" className={styles.trendGrid}>
-                {DEMO_HOMEPAGE_TRENDS.map((collection, index) => (
-                  <li key={collection.id} className={styles.trendItem}>
-                    <TrendCollectionCard
-                      {...collection}
-                      heroImageLoading={index === 0 ? "eager" : "lazy"}
-                      heroImageFetchPriority={index === 0 ? "high" : undefined}
-                    />
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Section>
-        ) : null}
+          )}
+        </Section>
 
-        {discoveryItems.length > 0 ? (
-          <Section id="kesfet" aria-labelledby="kesfet-baslik" className={styles.anchored}>
-            <HomeSectionHeading
-              id="kesfet-baslik"
-              title={HOME_COPY.discoveryTitle}
-              description={HOME_COPY.discoverySubtitle}
-            />
+        <Section id="kesfet" aria-labelledby="kesfet-baslik" className={styles.anchored}>
+          <HomeSectionHeading
+            id="kesfet-baslik"
+            title={HOME_COPY.discoveryTitle}
+            description={HOME_COPY.discoverySubtitle}
+          />
+          {discoveryItems.length > 0 ? (
             <DiscoveryGrid items={discoveryItems} labelledBy="kesfet-baslik" />
-          </Section>
-        ) : null}
+          ) : (
+            <EmptyState
+              tone="compact"
+              title={HOME_COPY.kesfetEmptyTitle}
+              description={HOME_COPY.kesfetEmptyDescription}
+            />
+          )}
+        </Section>
       </div>
     </PublicSiteShell>
   );

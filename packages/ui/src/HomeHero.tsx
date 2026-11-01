@@ -8,6 +8,8 @@ export interface HomeHeroProps {
   titleAccent: string;
   /** h1'in id'si - cagiran bolum `aria-labelledby` ile baglar. */
   titleId?: string;
+  /** Basligin ustunde istege bagli, dekoratif gorsel. */
+  illustration?: ReactNode;
   /** Hero'nun ana eylemi (ana sayfada arama kutusu); basligin altinda. */
   children?: ReactNode;
 }
@@ -17,12 +19,19 @@ export interface HomeHeroProps {
  * Display rolu sayfada yalnizca burada kullanilir (design.md "Tip rolleri").
  * Masaustunde ortali, okuma genisliginde; mobilde tam genislik.
  */
-export function HomeHero({ titleLead, titleAccent, titleId, children }: HomeHeroProps) {
+export function HomeHero({
+  titleLead,
+  titleAccent,
+  titleId,
+  illustration,
+  children,
+}: HomeHeroProps) {
   return (
     <div className={styles.hero}>
       <div className={styles.intro}>
+        {illustration}
         <h1 id={titleId} className={styles.title}>
-          <span className={styles.titleLead}>{titleLead}</span>
+          <span className={styles.titleLead}>{titleLead}</span>{" "}
           <span className={styles.titleAccent}>{titleAccent}</span>
         </h1>
       </div>

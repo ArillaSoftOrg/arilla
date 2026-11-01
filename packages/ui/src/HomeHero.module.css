@@ -4,7 +4,7 @@
 .hero {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  gap: var(--space-10);
+  gap: var(--space-6);
   width: 100%;
   max-width: min(100%, 800px);
   margin-inline: auto;
@@ -12,9 +12,9 @@
 
 .intro {
   display: grid;
-  gap: var(--space-3);
+  justify-items: center;
+  gap: var(--space-4);
   text-align: center;
-  transform: translateY(-12px);
 }
 
 .title {
@@ -26,6 +26,7 @@
   line-height: var(--line-height-tight);
   letter-spacing: 0;
   color: var(--ink);
+  overflow-wrap: anywhere;
 }
 
 .titleLead,
@@ -34,12 +35,18 @@
 }
 
 @media (min-width: 1024px) {
+  .hero {
+    gap: var(--space-10);
+  }
+
   .title {
-    display: flex;
-    justify-content: center;
-    gap: 0.25em;
+    display: block;
     font-size: 2.5rem;
-    white-space: nowrap;
+  }
+
+  .titleLead,
+  .titleAccent {
+    display: inline;
   }
 }
 

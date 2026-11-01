@@ -66,6 +66,7 @@ export async function PublicSiteShell({
   showFooterSocial = true,
   compactFooter = false,
   footerVariant = "default",
+  footerClassName,
   children,
 }: {
   links: SiteSectionLinks;
@@ -84,6 +85,8 @@ export async function PublicSiteShell({
   /** Keeps the prelaunch landing footer concise without affecting other routes. */
   compactFooter?: boolean;
   footerVariant?: "default" | "prelaunch";
+  /** Yalnizca bu sayfanin standart footer'i icin duzen sinifi. */
+  footerClassName?: string;
   children: ReactNode;
 }) {
   const isChat = chrome === "chat";
@@ -193,6 +196,7 @@ export async function PublicSiteShell({
         />
       ) : (
         <SiteFooter
+          className={footerClassName}
           brandLabel={SITE_BRAND}
           brandLogoSrc="/icon4.png"
           brandDescription={

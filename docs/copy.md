@@ -15,8 +15,10 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `home.hero_title_accent` | ManiCepte. |
 | `home.hero_subline` | Ne aradığını anlat, görselini yükle veya linkini bırak. |
 | `home.search_ideas_title` | Arama fikirleri |
-| `home.trends_title` | Trendler |
-| `home.trends_subtitle` | Arilla'da öne çıkan stiller ve ürün fikirleri. |
+| `home.trends_title` | Şu sıralar öne çıkanlar |
+| `home.trends_subtitle` | Bakmaya devam etmek istersen, güncel ürün fikirlerine göz at. |
+| `home.trends_empty_title` | Güncel seçkiler hazırlanıyor. |
+| `home.trends_empty_description` | Bu sırada aradığın ürünü yukarıdaki arama kutusundan bulabilirsin. |
 | `home.discovery_title` | Arilla'da keşfedilenler |
 | `home.discovery_subtitle` | Farklı kategorilerden öne çıkan ürünler, tek bakışta. |
 

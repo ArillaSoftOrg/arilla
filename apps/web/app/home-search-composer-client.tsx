@@ -6,7 +6,7 @@ import {
   type SearchComposerAttachment,
   type SearchComposerRecentProduct,
 } from "@arilla/ui";
-import { useId, useRef } from "react";
+import { type ReactNode, useId, useRef } from "react";
 import { FloatingHomeComposer } from "./floating-composer-client.tsx";
 import { useHomeComposerSubmission } from "./home-composer-submission.ts";
 import { HOME_COPY } from "./home-copy.ts";
@@ -38,7 +38,15 @@ export function HomeSearchComposer({
   imageEntryAvailable = false,
   imageConsent = false,
   recentProducts,
+  beforeSearch,
+  searchClassName,
+  afterSearch,
 }: {
+  /** Ilk ekrandaki robot ve baslik; arama davranisindan bagimsiz sunum. */
+  beforeSearch?: ReactNode;
+  searchClassName?: string;
+  /** Ana kutunun altinda, gecmis urunlerinden once gosterilen yardim baglantisi. */
+  afterSearch?: ReactNode;
   /**
    * Kullanıcının gerçekten görüntülediği son ürünler (`product_view`, sunucuda
    * yüklenir). Boşsa "Alışverişe devam et" bölümü ve başlığı hiç çizilmez.
@@ -107,9 +115,13 @@ export function HomeSearchComposer({
           recentProducts={recentProducts}
           offerCountLabel={(count) => `${count} mağaza`}
           chipsTitle={HOME_COPY.searchIdeasTitle}
+          beforeSearch={beforeSearch}
+          searchClassName={searchClassName}
+          afterSearch={afterSearch}
           statusMessage={chatError}
           busyMessage={sending ? IMAGE_CHAT_COPY.sending : null}
           photoButtonId={photoButtonId}
+          showPhotoLabel
           photo={
             imageChat
               ? {
@@ -161,7 +173,7 @@ export function HomeSearchComposer({
         onSubmitText={onSubmitText}
         attachment={attachment}
         statusMessage={chatError}
-        showAttach={imageChat}
+        showAttach={imageChat || imageEntryAvailable}
       />
     </>
   );
