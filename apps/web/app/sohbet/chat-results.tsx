@@ -34,6 +34,14 @@ interface GridItem {
   merchantName?: string | null;
 }
 
+/**
+ * Sohbet kart görselinin ekrandaki genişliği (karar 0166; `sohbet.module.css`
+ * `.chat` max 68rem + `.resultGrid` 2/3 sütun @720). Ölçüm: 390->147, 720->185,
+ * 1024->281, 1280+->323 px. Izgara değişirse güncellenir.
+ */
+const CHAT_GRID_IMAGE_SIZES =
+  "(min-width: 1152px) 323px, (min-width: 1024px) calc((100vw - 182px) / 3), (min-width: 720px) calc((100vw - 166px) / 3), calc(50vw - 48px)";
+
 /** Konuşma içi ürün kartları: `/ara` ile aynı `ProductCard`, konteynere göre akan ızgara. */
 export function ChatResultGrid({
   items,
@@ -56,6 +64,7 @@ export function ChatResultGrid({
             brand={item.brandName}
             imageUrl={item.primaryImageUrl}
             imageLoading={index < 4 ? "eager" : "lazy"}
+            imageSizes={CHAT_GRID_IMAGE_SIZES}
             {...cardPriceProps(item)}
           />
         </li>

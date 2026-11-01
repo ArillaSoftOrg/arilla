@@ -30,6 +30,7 @@ export * from "./HomeTrustSection.tsx";
 export * from "./HowItWorksCard.tsx";
 export * from "./Input.tsx";
 export * from "./icons.tsx";
+export * from "./image-variants.ts";
 export * from "./LegalPageLayout.tsx";
 export * from "./ListPriceNote.tsx";
 export * from "./LoginModal.tsx";
