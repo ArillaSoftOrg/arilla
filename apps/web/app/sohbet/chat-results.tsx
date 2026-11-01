@@ -4,6 +4,7 @@ import {
   type ForeignPrice,
   IntentSearchTimeoutError,
   intentSearchText,
+  isAliExpressImageVariantsEnabled,
   logChatTimings,
   type SearchIntent,
   searchByIntent,
@@ -53,6 +54,8 @@ export function ChatResultGrid({
   /** Aynı ızgaranın sonuna eklenen `<li>`ler (karar 0106: internet kartları). */
   extra?: ReactNode;
 }) {
+  // Karar 0167: bayrak istek başına sunucuda okunur (varsayılan kapalı).
+  const aliexpressVariants = isAliExpressImageVariantsEnabled();
   return (
     // biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür.
     <ul className={styles.resultGrid} role="list" aria-labelledby={labelledBy}>
@@ -65,6 +68,7 @@ export function ChatResultGrid({
             imageUrl={item.primaryImageUrl}
             imageLoading={index < 4 ? "eager" : "lazy"}
             imageSizes={CHAT_GRID_IMAGE_SIZES}
+            aliexpressVariants={aliexpressVariants}
             {...cardPriceProps(item)}
           />
         </li>

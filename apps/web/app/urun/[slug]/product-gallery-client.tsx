@@ -5,6 +5,16 @@ import { type KeyboardEvent, useRef, useState } from "react";
 import { clampIndex, mainImageAlt, nextIndex, thumbLabel } from "./product-gallery-state.ts";
 import styles from "./product-page.module.css";
 
+/**
+ * Ana görselin ve küçük resmin ekrandaki genişliği (`sizes`, karar 0167). Değerler
+ * `product-page.module.css` düzeninin (`.hero`, `.mediaFrame` iç boşluğu, küçük resim 4,5rem)
+ * gerçek tarayıcı ölçümlerinden: ana görsel 360→278, 390→308, 639→557, 640→542, 1023→925,
+ * 1024→407, 1280→546, ≥1344→581 px; küçük resim 62 px. Düzen değişirse güncellenir.
+ */
+const GALLERY_MAIN_SIZES =
+  "(min-width: 1344px) 581px, (min-width: 1024px) calc((100vw - 279px) * 6 / 11), (min-width: 640px) calc(100vw - 98px), calc(100vw - 82px)";
+const GALLERY_THUMB_SIZES = "62px";
+
 export interface GalleryImageView {
   url: string;
   width: number | null;
@@ -15,6 +25,11 @@ export interface ProductGalleryClientProps {
   title: string;
   /** En fazla MAX_DISPLAY_IMAGES; sunucu `r2 ?? source ?? legacy` zaten secti. */
   images: readonly GalleryImageView[];
+  /**
+   * AliExpress CDN varyantları (karar 0167). Bayrak sunucuda okunur ve prop olarak gelir:
+   * istemci bileşeninde ortam değişkeni okunamaz, SSR ile hidrasyon aynı değeri görmeli.
+   */
+  aliexpressVariants?: boolean;
 }
 
 /**
@@ -27,7 +42,11 @@ export interface ProductGalleryClientProps {
  * - Klavye: kucuk resimler Tab ile girilen tek duraktir (roving tabindex);
  *   ok tuslari/Home/End secimi ve odagi tasir.
  */
-export function ProductGalleryClient({ title, images }: ProductGalleryClientProps) {
+export function ProductGalleryClient({
+  title,
+  images,
+  aliexpressVariants = false,
+}: ProductGalleryClientProps) {
   const [selected, setSelected] = useState(0);
   const thumbRefs = useRef<(HTMLButtonElement | null)[]>([]);
 
@@ -63,7 +82,8 @@ export function ProductGalleryClient({ title, images }: ProductGalleryClientProp
           loading="eager"
           fetchPriority={index === 0 ? "high" : "auto"}
           fit="contain"
-          sizes="(min-width: 900px) 560px, 100vw"
+          sizes={GALLERY_MAIN_SIZES}
+          aliexpress={aliexpressVariants}
           className={styles.image}
           {...(current.width && current.height
             ? { width: current.width, height: current.height }
@@ -91,7 +111,8 @@ export function ProductGalleryClient({ title, images }: ProductGalleryClientProp
                   alt=""
                   loading={i === 0 ? "eager" : "lazy"}
                   fit="cover"
-                  sizes="96px"
+                  sizes={GALLERY_THUMB_SIZES}
+                  aliexpress={aliexpressVariants}
                   className={styles.thumbImage}
                 />
               </button>
