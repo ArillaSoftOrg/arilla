@@ -115,6 +115,23 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0163: besleme senkronizasyonundan sonra yeni teklif -> taslak -> üst kategori -> kapı ->
+  // yayın. Zamanlayıcı ayrı ve onaylı bir adımla etkinleşir (`catalog-auto-timers install`);
+  // kurulana kadar kayıt yoktur. Adımların kendi koşuları (catalog_build, classify_parent,
+  // catalog_gate, catalog_publish) `detail.via = "catalog_auto"` ile ayrıca yazılır.
+  catalog_auto: {
+    label: "Otomatik katalog hattı (yeni teklif → yayınlanmış ürün)",
+    how: "python -m catalog_build auto · VPS zamanlayıcı (besleme ardından; 12:15 ve 21:15 UTC güvenlik ağı)",
+    kind: "cron",
+    overdueAfterMs: 36 * HOUR,
+  },
+  // Karar 0161: kaynak üst eşlemesiyle yalnızca güvenilir üst kategori yazımı (geri alınabilir).
+  classify_parent: {
+    label: "Kaynak üst kategori yazımı",
+    how: "python -m classify parents --confirm · otomatik hat adımı (karar 0163)",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
   // Karar 0133: marka + merkezi kategori; model çağrısı yok, elle başlatılır.
   classify_products: {
     label: "Ürün sınıflandırma (marka ve kategori)",

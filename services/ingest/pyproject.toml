@@ -70,6 +70,7 @@ select = ["E", "F", "I", "UP", "B", "SIM"]
 [tool.ruff.lint.per-file-ignores]
 # Uzun SQL dizeleri (karar 0121 testleri).
 "tests/test_catalog_build*.py" = ["E501"]
+"tests/test_catalog_auto.py" = ["E501"]
 # Entegrasyon fixture'i baska modulden ice aktarilir (pytest deseni).
 "tests/test_suggest_db.py" = ["F811"]
 

@@ -11,6 +11,14 @@ python -m catalog_build gate    [--after-id N] [--batch 5000] [--max-batches N]
 python -m catalog_build publish --limit N --confirm [--merchant aliexpress] [--allow-foreign]
                                 [--batch 500]
 python -m catalog_build unpublish --product-id N [--product-id M ...] --confirm
+python -m catalog_build auto    --merchant aliexpress --confirm --allow-foreign
+                                [--publish-limit N] [--max-seconds S] [--stale-days 2]
+                                [--require-category] [--rescan-days 7]
+python -m catalog_build backlog --merchant aliexpress [--deep]
+
+`auto` (karar 0163) build -> kategori -> gate -> publish adimlarini tek kilit altinda, sure
+butcesiyle ve kaldigi yerden surerek calistirir; her besleme senkronizasyonundan sonra
+zamanlayici tetikler. `backlog` YALNIZCA OKUR: bekleyen isleri ve held nedenlerini sayar.
 
 `build`, `gate` ve `publish` WAL geri basinciyla calisir (karar 0134): parti oncesi
 arsivlenmemis WAL olculur; `--wal-target-mb` ustunde parti arasi uyku, `--wal-pause-mb`
@@ -31,15 +39,17 @@ import argparse
 import logging
 import signal
 import sys
+from datetime import UTC, datetime
 
 import psycopg
 
+from catalog_build import auto as auto_mod
 from catalog_build import build as build_mod
 from catalog_build import discovery as discovery_mod
 from catalog_build import gate as gate_mod
 from catalog_build import publish as publish_mod
 from db import job_run, wal_pressure
-from db.connection import connect
+from db.connection import connect, database_url
 
 _stop = False
 
@@ -141,6 +151,64 @@ def _status(conn: psycopg.Connection, merchant: str) -> int:
     return 0
 
 
+def _auto(args: argparse.Namespace) -> int:
+    if not args.confirm:
+        print("otomatik hat icin --confirm gerekli; hicbir sey yazilmadi", file=sys.stderr)
+        return 2
+    start_free_gb, reserve_free_gb = auto_mod.disk_thresholds_from_env()
+    opts = auto_mod.AutoOptions(
+        start_free_gb=start_free_gb,
+        reserve_free_gb=reserve_free_gb,
+        merchant=args.merchant,
+        max_seconds=args.max_seconds,
+        publish_limit=args.publish_limit,
+        stale_days=args.stale_days,
+        allow_foreign=args.allow_foreign,
+        require_category=args.require_category,
+        rescan_days=args.rescan_days,
+        sleep_ms=args.sleep_ms,
+        disk_path=auto_mod.disk_path_from_env(),
+    )
+    with job_run.track("catalog_auto") as run, connect() as conn:
+        # Ortam denetimi AYRI, otomatik-onayli oturumdan yapilir: ana baglantinin islemine
+        # dokunmaz ve `catalog_build%` oturum adini tasimaz (classify'in mesgul denetimi).
+        with psycopg.connect(
+            database_url(), application_name="arilla-ingest:auto_guard", autocommit=True
+        ) as guard_conn:
+            own = [conn.info.backend_pid, guard_conn.info.backend_pid]
+            guard = auto_mod.Guard(
+                lambda starting: auto_mod.environment_reason(
+                    guard_conn, own, opts, datetime.now(UTC), starting=starting
+                ),
+                external_stop=_should_stop,
+            )
+            governor = wal_pressure.WalGovernor.for_connection(
+                conn, _wal_policy(args), should_stop=guard.should_stop
+            )
+            result = auto_mod.run_auto(conn, opts, guard, governor)
+        run.detail.update(result.detail())
+        run.status = result.status
+        if result.skipped:
+            run.error_summary = f"atlandi: {result.skipped}"
+        elif result.stopped:
+            run.error_summary = f"durdu: {result.stopped}"
+        else:
+            failed = [f"{s.name}: {s.note}" for s in result.stages if s.status == "failed"]
+            run.error_summary = "; ".join(failed)[:300] if failed else None
+    for stage in result.stages:
+        shown = ", ".join(
+            f"{k}={v}" for k, v in stage.counters.items() if not k.startswith("held_")
+        )
+        head = f"{stage.name:<8} {stage.status:<8} {stage.seconds:>7.0f} sn"
+        print(f"{head}  {shown}  {stage.note or ''}")
+    if result.skipped:
+        print(f"atlandi: {result.skipped}")
+    if result.stopped:
+        print(f"durdu: {result.stopped}", file=sys.stderr)
+    print(f"durum={result.status} cikis={result.exit_code}")
+    return result.exit_code
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="catalog_build", description="Kaynak ilani katalogu")
     parser.add_argument("--verbose", "-v", action="store_true")
@@ -195,6 +263,22 @@ def main(argv: list[str] | None = None) -> int:
     p_unpub.add_argument("--product-id", type=int, action="append", required=True)
     p_unpub.add_argument("--confirm", action="store_true")
 
+    p_auto = sub.add_parser("auto", help="build -> kategori -> gate -> publish (karar 0163)")
+    p_auto.add_argument("--merchant", required=True)
+    p_auto.add_argument("--confirm", action="store_true")
+    p_auto.add_argument("--allow-foreign", action="store_true")
+    p_auto.add_argument("--require-category", action="store_true")
+    p_auto.add_argument("--stale-days", type=int, default=gate_mod.PUBLISH_STALE_DAYS)
+    p_auto.add_argument("--publish-limit", type=int, default=300_000)
+    p_auto.add_argument("--max-seconds", type=float, default=8_400.0)
+    p_auto.add_argument("--rescan-days", type=int, default=7)
+    p_auto.add_argument("--sleep-ms", type=int, default=100)
+    _add_wal_args(p_auto)
+
+    p_backlog = sub.add_parser("backlog", help="YALNIZCA OKUR: bekleyen isler ve held nedenleri")
+    p_backlog.add_argument("--merchant", required=True)
+    p_backlog.add_argument("--deep", action="store_true", help="urun satiri olmayan teklifleri say")
+
     args = parser.parse_args(argv)
     if hasattr(args, "wal_target_mb"):
         try:
@@ -210,6 +294,15 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "status":
         with connect() as conn:
             return _status(conn, args.merchant)
+
+    if args.command == "backlog":
+        with connect() as conn:
+            report = auto_mod.backlog(conn, args.merchant, deep=args.deep)
+        print(auto_mod.format_backlog(report))
+        return 0
+
+    if args.command == "auto":
+        return _auto(args)
 
     if args.command == "audit":
         with connect() as conn:
