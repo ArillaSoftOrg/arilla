@@ -275,8 +275,9 @@ export async function searchWithFallback(
   });
 
   let lastStage: SearchStageId = "exact";
+  const fallbackStartedAt = clock();
   for (const stage of stages) {
-    if (clock() - startedAt > budget) {
+    if (clock() - fallbackStartedAt > budget) {
       truncated = true;
       break;
     }

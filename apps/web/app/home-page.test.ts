@@ -7,6 +7,7 @@ const state = vi.hoisted(() => ({
   discoveryEmpty: false,
   trends: [] as { id: number; title: string; slug: string; featured: boolean }[],
   discovery: vi.fn(async () => []),
+  catalog: vi.fn(),
   loadTrends: vi.fn(),
 }));
 
@@ -17,6 +18,7 @@ vi.mock("@arilla/core", () => ({
   isChatImageEnabled: () => false,
   hasChatImageConsent: async () => false,
   getDiscoverySlots: state.discovery,
+  getHomepageProducts: state.catalog,
   getPublicTrends: state.loadTrends,
   todaySlotDate: () => "2026-10-22",
 }));
@@ -24,12 +26,6 @@ vi.mock("@arilla/db", () => ({ getDatabase: () => ({}) }));
 vi.mock("./lib/dal.ts", () => ({ verifySession: async () => null }));
 vi.mock("./lib/early-access-progress.ts", () => ({
   loadCachedEarlyAccessProgress: async () => null,
-}));
-vi.mock("./discovery-adapter.ts", () => ({
-  resolveDiscoveryItems: () =>
-    state.discoveryEmpty
-      ? []
-      : [{ id: "1", title: "Ürün", imageUrl: "/test.png", imageAlt: "Ürün", href: "/urun/ornek" }],
 }));
 vi.mock("./home-recent-products.ts", () => ({ loadRecentProducts: async () => [] }));
 vi.mock("./home-search-composer-client.tsx", () => ({
@@ -83,6 +79,20 @@ beforeEach(() => {
   state.discoveryEmpty = false;
   state.trends = [];
   state.discovery.mockClear();
+  state.catalog.mockReset().mockImplementation(async () =>
+    state.discoveryEmpty
+      ? []
+      : [
+          {
+            productId: 1,
+            title: "Ürün",
+            primaryImageUrl: "/test.png",
+            slug: "ornek",
+            minPrice: 10000,
+            offerCount: 1,
+          },
+        ],
+  );
   state.loadTrends.mockReset().mockImplementation(async () => state.trends);
 });
 
@@ -96,16 +106,17 @@ describe("urun acik ana sayfa bilgi mimarisi", () => {
     expect(hero).toContain("robot-welcome.png");
     expect(hero).not.toContain("robot-research.png");
     expect(hero).toContain("robot-how-it-works-point-v1.png");
-    expect(hero).toContain('href="/nasil-calisir"');
+    expect(hero).not.toContain('href="/nasil-calisir"');
+    expect(hero).toContain(HOME_COPY.howItWorksStatus);
     expect(hero).toContain(HOME_COPY.howItWorksAction);
-    expect(html.indexOf('href="/nasil-calisir"')).toBeGreaterThan(html.indexOf("</search>"));
+    expect(html.indexOf(HOME_COPY.howItWorksAction)).toBeGreaterThan(html.indexOf("</search>"));
     expect(html).not.toContain('id="nasil-calisir"');
   });
 
   it("hero -> trendler -> kesfet sirasini ve gercek koleksiyon linkini korur", async () => {
     state.trends = [{ id: 1, title: "Çalışma alanı", slug: "calisma-alani", featured: true }];
     const html = renderToStaticMarkup(await HomePage());
-    expect(html.indexOf('href="/nasil-calisir"')).toBeLessThan(html.indexOf('id="trendler"'));
+    expect(html.indexOf(HOME_COPY.howItWorksAction)).toBeLessThan(html.indexOf('id="trendler"'));
     expect(html.indexOf('id="trendler"')).toBeLessThan(html.indexOf('id="kesfet"'));
     expect(html).toContain('href="/trendler/calisma-alani"');
     expect(html).toContain("Şu sıralar öne çıkanlar");
@@ -153,5 +164,6 @@ describe("urun acik ana sayfa bilgi mimarisi", () => {
     expect(html).toBe("<p>Erken erişim</p>");
     expect(state.discovery).not.toHaveBeenCalled();
     expect(state.loadTrends).not.toHaveBeenCalled();
+    expect(state.catalog).not.toHaveBeenCalled();
   });
 });

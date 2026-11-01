@@ -15,6 +15,8 @@ Kurallar `design.md` içinde: cümle düzeni, ALL CAPS yok, "satın al" yok,
 | `home.hero_title_accent` | ManiCepte. |
 | `home.hero_subline` | Ne aradığını anlat, görselini yükle veya linkini bırak. |
 | `home.search_ideas_title` | Arama fikirleri |
+| `home.how_it_works_status` | Yakında |
+| `home.recent_price_label` | Fiyatı incele |
 | `home.trends_title` | Şu sıralar öne çıkanlar |
 | `home.trends_subtitle` | Bakmaya devam etmek istersen, güncel ürün fikirlerine göz at. |
 | `home.trends_empty_title` | Güncel seçkiler hazırlanıyor. |

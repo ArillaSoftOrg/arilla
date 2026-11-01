@@ -48,6 +48,12 @@ describe("loadRecentProducts", () => {
 });
 
 describe("ana sayfa 'Alışverişe devam et' bölümü", () => {
+  it("ornek aramalar gecmisten once gelir; eksik fiyat ve sifir magaza acik gosterilir", () => {
+    const html = render(toRecentProducts([{ ...nike, minPrice: null, offerCount: 0 }]));
+    expect(html.indexOf('aria-label="Örnek aramalar"')).toBeLessThan(html.indexOf(TITLE));
+    expect(html).toContain("Fiyatı incele");
+    expect(html).not.toContain("0 mağaza");
+  });
   it("yardim CTA'si arama formunun disinda ve son bakilanlardan once kalir", () => {
     const html = renderToStaticMarkup(
       createElement(HomeSearchComposer, {
