@@ -400,7 +400,7 @@ bulundur.
 | Beden rozeti | ürün kartı ve sayfası | "Senin bedenin var" |
 | Mağaza satırı | ürün sayfası | Logo, fiyat, kargo dahil toplam, stok, çıkış |
 | Fiyat konumu cümlesi | ürün sayfası | "Son 90 günün en düşüğü" — grafikten önce |
-| Fiyat grafiği | ürün sayfası | Tek çizgi, eksen etiketi minimum |
+| Fiyat grafiği | ürün sayfası | Zaman orantılı SVG; 1-2 gözlemde nokta, 3+ gözlemde çizgi; dönem filtresi (karar 0168) |
 | Sahte indirim notu | ürün sayfası | Nötr olgu sunumu |
 | Alternatif şeridi | ürün sayfası | Yatay kaydırma, 4-6 ürün |
 | Giriş modali | `/ara`, 2-3 sorgu sonrası | Sonuçlar arkada kalır |

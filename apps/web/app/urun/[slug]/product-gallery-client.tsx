@@ -90,7 +90,7 @@ export function ProductGalleryClient({ title, images }: ProductGalleryClientProp
                   src={image.url}
                   alt=""
                   loading={i === 0 ? "eager" : "lazy"}
-                  fit="cover"
+                  fit="contain"
                   sizes="96px"
                   className={styles.thumbImage}
                 />
