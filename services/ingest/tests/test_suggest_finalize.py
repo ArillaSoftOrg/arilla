@@ -123,6 +123,37 @@ def test_esleme_dosyasi_kopruyle_ayni_kume_ve_agacta() -> None:
                 assert is_within(region, p.path), (p.source, region, p.path)
 
 
+def test_yeni_fiyat_bantlari_haritasi_karar_0165() -> None:
+    smap = load_source_map()
+    table = bridge()
+    assert len(smap) == 403  # 275 (karar 0157) + 128 yeni yol (karar 0165)
+    states = {
+        s: sum(1 for p in smap.values() if p.state == s)
+        for s in ("yuksek", "inceleme", "eslesmedi")
+    }
+    # 202/63/10 (karar 0157) + 102/20/6 (karar 0165); degisirse bilincli bir karar olmali.
+    assert states == {"yuksek": 304, "inceleme": 83, "eslesmedi": 16}
+    # Bolgesiz (kopruden `-`) yol `yuksek` olamaz: kategori uydurulmaz. Tek istisna karar 0157'de
+    # elle gerekceli yazilmis kitap koku.
+    for key, p in smap.items():
+        if not table[key] and p.source != "Books & Cultural Merchandise > Books":
+            assert p.state != "yuksek", p.source
+    # Ornekler: tek bolgeli dar yollar kendi bolgesine, bilesen/devre yollari kategorisiz kalir.
+    assert (
+        smap[path_norm("Home & Garden > Garden Supplies")].path
+        == "bahce-elektrikli-el-aletleri/bahce"
+    )
+    assert smap[path_norm("Furniture > Home Furniture")].path == "ev-mobilya/mobilya"
+    assert smap[path_norm("Luggage & Bags > Wallets & Holders")].path == "aksesuar/canta/cuzdan"
+    assert (
+        smap[path_norm("Electronic Components & Supplies > Active Components")].state == "eslesmedi"
+    )
+    assert smap[path_norm("Tools > Garden Tools")].state == "yuksek"
+    # Farkli koklere yayilan yeni yol ortak ust uydurmaz.
+    assert smap[path_norm("Lights & Lighting > Portable Lighting")].state == "inceleme"
+    assert smap[path_norm("Beauty & Health > Skin Care Tool")].state == "inceleme"
+
+
 def _setup(tmp: Path, last_id: int, n_lines: int) -> dict:
     run = tmp / "run"
     run.mkdir()
