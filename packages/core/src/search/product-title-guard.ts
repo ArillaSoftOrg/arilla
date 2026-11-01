@@ -4,6 +4,15 @@ const AUDIO_DEVICE = /\b(kulakli[kg]\w*|headphones?|headsets?|earphones?|earbuds
 const ACCESSORY_WORDS =
   "adaptor[a-z]*|adapter[a-z]*|donustur[a-z]*|converter[a-z]*|stand(s|i|in|ina|inda|inin|lar[a-z]*)?|holder[a-z]*|tutucu[a-z]*|aski[a-z]*|earpad[a-z]*|cushions?|yasti[kg](i|si|lar[a-z]*)?|socket[a-z]*|connector[a-z]*|kilif[a-z]*|case|hanger[a-z]*|bracket[a-z]*|replacement[a-z]*|cable[a-z]*|kablo|kablosu|accessor[a-z]*|aksesuar[a-z]*";
 const ACCESSORY = `(^|[^a-z0-9])(${ACCESSORY_WORDS})($|[^a-z0-9])`;
+// "40H battery life" cihaz ozelligidir; "Battery for ..." yedek parcadir.
+const BATTERY_PART =
+  "^for .*(headphones?|headsets?) batter(y|ies)($|[^a-z0-9])|^batter(y|ies) for .*(headphones?|headsets?|airpods)";
+const BATTERY_REQUEST =
+  /\b(kulakli[kg]\w*|headphones?|headsets?) (batarya\w*|pili|batter(y|ies))\b/;
+
+function wantsAccessory(query: string): boolean {
+  return new RegExp(ACCESSORY).test(query) || BATTERY_REQUEST.test(query);
+}
 
 /**
  * Kategorisiz bir ilanda "kulaklik uyumlu" yazmasi onu kulaklik yapmaz.
@@ -13,17 +22,17 @@ const ACCESSORY = `(^|[^a-z0-9])(${ACCESSORY_WORDS})($|[^a-z0-9])`;
  */
 export function productTitleExclusionPattern(text: string): string | null {
   const query = foldForMatch(text);
-  if (!AUDIO_DEVICE.test(query) || new RegExp(ACCESSORY).test(query)) return null;
+  if (!AUDIO_DEVICE.test(query) || wantsAccessory(query)) return null;
   const overEar = /\b(kulak[ -]?ustu|over[ -]?ear|on[ -]?ear)\b/.test(query);
   return overEar
-    ? `${ACCESSORY}|(^|[^a-z0-9])(earbuds?|in[ -]ear|kulak ici|open[ -]ear|clip[ -]on|bone[ -]conduction)($|[^a-z0-9])`
-    : ACCESSORY;
+    ? `${ACCESSORY}|${BATTERY_PART}|(^|[^a-z0-9])(earbuds?|in[ -]ear|kulak ici|open[ -]ear|clip[ -]on|bone[ -]conduction)($|[^a-z0-9])`
+    : `${ACCESSORY}|${BATTERY_PART}`;
 }
 
 /** Acikca istenen cihaz bicimi/baglanti turu head-only fallback'te kaybolmaz. */
 export function productTitleRequiredPatterns(text: string): string[] {
   const query = foldForMatch(text);
-  if (!AUDIO_DEVICE.test(query) || new RegExp(ACCESSORY).test(query)) return [];
+  if (!AUDIO_DEVICE.test(query) || wantsAccessory(query)) return [];
   const patterns: string[] = [];
   if (/\b(kulak[ -]?ustu|over[ -]?ear|on[ -]?ear)\b/.test(query)) {
     // Spor/uyku bandi da "headband" diye satilir; kulak ustu olduguna kanit degildir.
