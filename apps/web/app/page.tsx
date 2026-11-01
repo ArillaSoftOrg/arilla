@@ -1,6 +1,7 @@
 import {
   canAccessProduct,
   getDiscoverySlots,
+  getHomepageProducts,
   getPublicTrends,
   hasChatImageConsent,
   isChatDiscoveryEnabled,
@@ -15,7 +16,7 @@ import type { Metadata } from "next";
 import Image from "next/image";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { ComingSoonLanding } from "./coming-soon-landing.tsx";
-import { resolveDiscoveryItems } from "./discovery-adapter.ts";
+import { toDiscoveryItems } from "./discovery-adapter.ts";
 import styles from "./home.module.css";
 import { HOME_COPY } from "./home-copy.ts";
 import { homeSectionLinks } from "./home-footer-groups.ts";
@@ -74,9 +75,14 @@ export function generateMetadata(): Metadata {
  * yuksek oncelik; diger tum trend/kesif gorselleri lazy + async decode,
  * yer `aspect-ratio` ile ayrilir (duzen kaymasi yok).
  */
-async function loadDiscoveryItems(): Promise<Awaited<ReturnType<typeof getDiscoverySlots>>> {
+async function loadDiscoveryItems(): Promise<Parameters<typeof toDiscoveryItems>[0]> {
   try {
-    return await getDiscoverySlots(getDatabase(), todaySlotDate());
+    const db = getDatabase();
+    const day = todaySlotDate();
+    const slots = await getDiscoverySlots(db, day);
+    return slots.some((item) => item.primaryImageUrl !== null)
+      ? slots
+      : await getHomepageProducts(db, day);
   } catch (error) {
     // Yalnizca hata sinifi/kodu - sorgu ayrintisi veya baglanti bilgisi loga
     // dusmez (CLAUDE.md: hata kayitlarinda kisisel veri yok).
@@ -137,7 +143,7 @@ export default async function HomePage() {
     loadRecentProducts(user?.id ?? null),
     loadHomeTrends(),
   ]);
-  const discoveryItems = resolveDiscoveryItems(items);
+  const discoveryItems = toDiscoveryItems(items);
 
   return (
     <PublicSiteShell links={homeSectionLinks("#kesfet")} footerClassName={styles.homeFooter}>
@@ -172,7 +178,7 @@ export default async function HomePage() {
             afterSearch={
               <div className={styles.howRail}>
                 <p className={styles.howPrompt}>{HOME_COPY.howItWorksPrompt}</p>
-                <a href="/nasil-calisir" className={styles.howLink}>
+                <div className={styles.howGuide}>
                   <Image
                     src="/mascot/guide/robot-how-it-works-point-v1.png"
                     alt=""
@@ -182,8 +188,9 @@ export default async function HomePage() {
                     className={styles.howRobot}
                   />
                   <span aria-hidden="true">→</span>
-                  <span className={styles.howLinkText}>{HOME_COPY.howItWorksAction}</span>
-                </a>
+                  <span>{HOME_COPY.howItWorksAction}</span>
+                  <span className={styles.howSoon}>{HOME_COPY.howItWorksStatus}</span>
+                </div>
               </div>
             }
           />
@@ -211,6 +218,7 @@ export default async function HomePage() {
               tone="compact"
               title={HOME_COPY.trendsEmptyTitle}
               description={HOME_COPY.trendsEmptyDescription}
+              className={styles.homeEmpty}
             />
           )}
         </Section>
@@ -228,6 +236,7 @@ export default async function HomePage() {
               tone="compact"
               title={HOME_COPY.kesfetEmptyTitle}
               description={HOME_COPY.kesfetEmptyDescription}
+              className={styles.homeEmpty}
             />
           )}
         </Section>

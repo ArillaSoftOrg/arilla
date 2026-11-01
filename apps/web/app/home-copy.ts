@@ -18,6 +18,8 @@ export const HOME_COPY = {
   howItWorksTitle: "ManiCepte nasıl çalışır?", // home.how_it_works_title
   howItWorksPrompt: "ManiCepte'yi ilk kez mi kullanıyorsun?",
   howItWorksAction: "Nasıl çalıştığını gör",
+  howItWorksStatus: "Yakında",
+  recentPriceLabel: "Fiyatı incele",
   howItWorksSubtitle:
     "Ürünü tarif et veya fotoğrafını yükle. ManiCepte aynı ve benzer seçenekleri farklı mağazalarda karşılaştırmana yardımcı olur.", // home.how_it_works_subtitle
   howItWorksTextSearchTitle: "Metinle ara", // home.how_it_works_text_search_title

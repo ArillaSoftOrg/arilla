@@ -5,7 +5,7 @@
  */
 
 import { type Database, discoverySlot, product, publicFind } from "@arilla/db";
-import { asc, eq } from "drizzle-orm";
+import { and, asc, eq } from "drizzle-orm";
 import { withStartingFrom } from "../product/get-price-comparison.ts";
 import type { DiscoveryFeedItem } from "./types.ts";
 
@@ -27,7 +27,7 @@ export async function getDiscoverySlots(
     .from(discoverySlot)
     .innerJoin(product, eq(product.id, discoverySlot.productId))
     .leftJoin(publicFind, eq(publicFind.productId, discoverySlot.productId))
-    .where(eq(discoverySlot.slotDate, slotDate))
+    .where(and(eq(discoverySlot.slotDate, slotDate), eq(product.publicationState, "published")))
     .orderBy(asc(discoverySlot.position));
 
   // 0037: kart fiyati varyantlar arasi baslangic fiyatiysa isaretlenir.

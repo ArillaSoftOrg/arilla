@@ -10,6 +10,10 @@ import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
 import { offerVerifiedSql } from "../offers/freshness.ts";
 import { MAX_RATE_AGE_DAYS } from "../pricing/fx.ts";
+import {
+  productTitleExclusionPattern,
+  productTitleRequiredPatterns,
+} from "./product-title-guard.ts";
 import { arrayParam, balancedScoreExpr, balancedScoreFactors } from "./ranking.ts";
 import type { ForeignPrice } from "./result-types.ts";
 import {
@@ -271,6 +275,8 @@ export function textMatch(
     bestDeal,
     fuzzy,
     lookups,
+    excludedTitlePattern: productTitleExclusionPattern(query.text),
+    requiredTitlePatterns: productTitleRequiredPatterns(query.text),
   });
   const products = sql`cand ca JOIN product p ON p.id = ca.id`;
   if (slots.length === 0) {

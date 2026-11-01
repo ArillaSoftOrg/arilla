@@ -5,6 +5,7 @@
    --section-space'i birakir, aradaki bosluk oncekinin alt boslugudur. */
 .page > section + section {
   padding-block-start: 0;
+  padding-block-end: var(--space-12);
 }
 
 /* Ilk gorunumde yalnizca robot, baslik ve arama. Header'in mevcut
@@ -57,7 +58,7 @@
   margin: 0;
 }
 
-.howLink {
+.howGuide {
   display: inline-flex;
   align-items: center;
   gap: var(--space-2);
@@ -75,19 +76,22 @@
   object-fit: contain;
 }
 
-.howLinkText {
-  text-decoration: underline;
-  text-underline-offset: 3px;
+.howSoon {
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-pill);
+  color: var(--ink-muted);
+  font-size: var(--text-small);
 }
 
-.howLink:hover .howLinkText {
-  text-decoration-thickness: 2px;
-}
-
-.howLink:focus-visible {
-  border-radius: var(--radius-sm);
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+.page .homeEmpty {
+  align-items: flex-start;
+  min-block-size: 0;
+  max-inline-size: none;
+  margin-inline: 0;
+  padding-block: var(--space-2);
+  padding-inline: 0;
+  text-align: left;
 }
 
 @media (max-width: 1023.98px) {

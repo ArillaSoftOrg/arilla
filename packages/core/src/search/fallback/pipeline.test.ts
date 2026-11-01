@@ -232,9 +232,30 @@ describe("searchWithFallback", () => {
       { parsed: parsed("iphone 17 pro max"), sort: "balanced", page: 1, pageSize: 24 },
       { clock: () => now, timeBudgetMs: 1500 },
     );
-    // exact (1 sn) + bir adim (2 sn) -> butce dolu: daha fazla adim denenmez.
+    // Exact ayri; fallback'in iki turu 2 sn tutunca daha fazla adim denenmez.
     expect(outcome.trace.truncated).toBe(true);
     expect(outcome.trace.stagesTried.length).toBeLessThan(5);
     expect(provider.calls.length).toBeLessThan(5);
+  });
+
+  it("exact sorgusunun suresi fallback icin ayrilan butceyi tuketmez", async () => {
+    let now = 0;
+    let calls = 0;
+    const provider = {
+      name: "slow-exact",
+      async search() {
+        calls++;
+        now += calls === 1 ? 2_000 : 100;
+        return { items: [], total: 0 };
+      },
+    };
+    const outcome = await searchWithFallback(
+      provider,
+      { parsed: parsed("beyaz spor ayakkabı"), sort: "balanced", page: 1, pageSize: 6 },
+      { clock: () => now, timeBudgetMs: 1500 },
+    );
+    expect(calls).toBeGreaterThan(1);
+    expect(outcome.trace.stagesTried).toContain("fuzzy");
+    expect(outcome.trace.truncated).toBe(false);
   });
 });

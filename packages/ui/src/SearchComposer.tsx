@@ -111,6 +111,8 @@ export interface SearchComposerProps {
   afterSearch?: ReactNode;
   /** "Alışverişe devam et": son görüntülenen ürünler (aynı `ProductCard`, hesap sayfasıyla ortak). */
   recentProducts?: readonly SearchComposerRecentProduct[];
+  /** Son bakilan urunun TL fiyati yoksa urun sayfasina yonelten kisa etiket. */
+  recentPriceLabel?: string;
   chipsTitle?: string;
   /** Mağaza sayısı metni (docs/copy.md `search.offer_count`); çağıran sağlar. */
   offerCountLabel?: (count: number) => string;
@@ -167,6 +169,7 @@ export function SearchComposer({
   searchClassName,
   afterSearch,
   recentProducts,
+  recentPriceLabel,
   chipsTitle,
   offerCountLabel,
   routeProductLinks = false,
@@ -418,7 +421,8 @@ export function SearchComposer({
                   title={item.title}
                   imageUrl={item.imageUrl}
                   minPrice={item.minPrice}
-                  offerCount={item.offerCount}
+                  priceLabel={recentPriceLabel}
+                  offerCount={item.offerCount > 0 ? item.offerCount : undefined}
                   offerCountLabel={offerCountLabel}
                 />
               </li>

@@ -178,6 +178,9 @@ export function rootCategoryJoin(categoryPath: SQL): SQL {
  */
 export const CANDIDATE_LIMIT = 1000;
 
+/** Yaklasik arama tum kelime/bolum dallari icin bu butceyi paylasir. */
+export const FUZZY_CANDIDATE_LIMIT = 96;
+
 /** "Bir eksik" dallarinin paylasimli sinirinin tabani. */
 const MIN_BRANCH_LIMIT = 200;
 
@@ -424,6 +427,9 @@ export function fuzzyWords(slots: readonly string[][]): string[] {
 }
 
 export interface CandidateOptions {
+  /** Istek cihazken aksesuarin aday penceresini doldurmasini engeller. */
+  excludedTitlePattern?: string | null | undefined;
+  requiredTitlePatterns?: readonly string[] | undefined;
   /** `resolveSlotLookups` sonucu; verilmezse marka/kategori dali yoktur. */
   lookups?: readonly SlotLookup[] | undefined;
   limit?: number | undefined;
@@ -466,6 +472,15 @@ export function candidateCtes(
 ): SQL {
   const limit = options.limit ?? CANDIDATE_LIMIT;
   const base = candidateBase(filters, "p");
+  for (const pattern of options.requiredTitlePatterns ?? []) {
+    base.push(sql`${foldedTitleExpr(sql`p.title`)} ~ ${pattern}`);
+  }
+  if (options.excludedTitlePattern) {
+    // "Headphones with carrying case" asil cihazdir; kutu icerigi rolunu degistirmez.
+    base.push(
+      sql`split_part(${foldedTitleExpr(sql`p.title`)}, ' with ', 1) !~ ${options.excludedTitlePattern}`,
+    );
+  }
   const partitions = options.bestDeal
     ? [
         sql`${PARTITIONS[0] as SQL} AND EXISTS (
@@ -529,8 +544,14 @@ export function candidateCtes(
         FROM product p WHERE ${where}${filter} LIMIT ${cap})`;
     };
     if (typoWords.length > 0) {
+      // Once dal basina 1000 aday isteniyordu: uzun gorsel tariflerinde her
+      // kelime TRY ve yurt disi bolumunde ayri bir buyuk puanlama isi aciyordu.
+      const fuzzyCap = Math.max(
+        1,
+        Math.floor(Math.min(limit, FUZZY_CANDIDATE_LIMIT) / (partitions.length * typoWords.length)),
+      );
       for (const word of typoWords)
-        branches.push(branch(headBranch, sql`${word}::text <<% ${title}`));
+        branches.push(branch(headBranch, sql`${word}::text <<% ${title}`, fuzzyCap));
       return;
     }
     if (n === 0) {
