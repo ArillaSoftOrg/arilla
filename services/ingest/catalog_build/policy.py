@@ -72,7 +72,7 @@ class SourcePolicy:
     url_kind: Callable[[str], str | None] | None = None
 
 
-#: Kaynak kurallari `platforms.registry` icinde tanimlidir (karar 0162); burada yalnizca
+#: Kaynak kurallari `platforms.registry` icinde tanimlidir (karar 0163); burada yalnizca
 #: kapi/yayin hattinin okudugu `SourcePolicy` gorunumu TUREtilir. Yeni kaynak = yeni kayit.
 HEPSIBURADA_URL = registry.HEPSIBURADA_URL
 hepsiburada_code_kind = registry.hepsiburada_code_kind

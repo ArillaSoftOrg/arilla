@@ -1,4 +1,4 @@
-"""Kaynak akis kosucusu: SAF, bagimliligi disaridan verilen ice aktarim akisi (karar 0162).
+"""Kaynak akis kosucusu: SAF, bagimliligi disaridan verilen ice aktarim akisi (karar 0163).
 
 Veritabani, ag, gercek saat ve uyku YOK: saat, uyku, sink (yazici), kontrol noktasi deposu,
 `throttle` (WAL geri basinci, `db/wal_pressure.py`) ve `should_stop` disaridan verilir. Boylece
@@ -253,7 +253,7 @@ def _backoff(attempt: int) -> float:
 
 
 def _checkpoint_after(adapter: SourceAdapter, consumed: int) -> Checkpoint:
-    # Adapter kontrol noktasini nitelik (`BaseAdapter.checkpoint`) ya da cagrilabilir olarak verebilir.
+    # Adapter kontrol noktasini nitelik ya da cagrilabilir olarak verebilir.
     provider = getattr(adapter, "checkpoint", None)
     cp = provider() if callable(provider) else provider
     if isinstance(cp, Checkpoint):

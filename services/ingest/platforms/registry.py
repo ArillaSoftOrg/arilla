@@ -1,4 +1,4 @@
-"""Kaynak (platform) kayit defteri: bir platformu tanimlayan TEK yer (karar 0162).
+"""Kaynak (platform) kayit defteri: bir platformu tanimlayan TEK yer (karar 0163).
 
 Daha once kaynak bilgisi uc yere dagiliydi: kimlik kurali (`catalog_build/policy.py`),
 besleme profili (`feeds/profiles.py`) ve para birimi/yenileme ayarlari. Burada tek kayitta

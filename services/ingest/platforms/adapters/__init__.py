@@ -1,4 +1,4 @@
-"""Yapilandirma tabanli kaynak adapter'lari (karar 0162): API, JSON, CSV, XML."""
+"""Yapilandirma tabanli kaynak adapter'lari (karar 0163): API, JSON, CSV, XML."""
 
 from __future__ import annotations
 

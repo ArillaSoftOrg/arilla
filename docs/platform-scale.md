@@ -1,4 +1,4 @@
-# Çok kaynaklı katalog: ölçek analizi (karar 0162)
+# Çok kaynaklı katalog: ölçek analizi (karar 0163)
 
 Hedef: 10M+ benzersiz ürün, birden çok platform, binlerce satıcı, çok sayıda teklif, fiyat geçmişi.
 Bu belge **doğrulanmış bir kapasite iddiası değildir**; neyin ölçüldüğünü, neyin yalnızca hesaplandığını

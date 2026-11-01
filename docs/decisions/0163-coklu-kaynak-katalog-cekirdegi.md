@@ -1,4 +1,4 @@
-# 0162 — Çoklu kaynak katalog çekirdeği: kaynak kayıt defteri, ortak sözleşme, kaynak kısıtları
+# 0163 — Çoklu kaynak katalog çekirdeği: kaynak kayıt defteri, ortak sözleşme, kaynak kısıtları
 
 Durum: önerildi (31 Ekim 2026). Birleştirme kararı, süren AliExpress işleri bitince birlikte verilecek.
 Şema değişikliği YOKTUR; üretime hiçbir şey yazılmadı.
