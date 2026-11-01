@@ -95,6 +95,7 @@ belirleyici değildir; bugünkü sıralama kodu komisyonu hiç kullanmıyor).
 | `nav.contact` | İletişim |
 | `nav.feedback` | Geri bildirim |
 | `nav.skip_to_content` | İçeriğe geç |
+| `home.beta_label` | Beta |
 
 ## İletişim (karar 0061)
 

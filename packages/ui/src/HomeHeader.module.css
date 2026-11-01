@@ -95,6 +95,19 @@
   letter-spacing: 0;
 }
 
+.brandName {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.brandStatus {
+  flex: 0 0 auto;
+  padding: 0 var(--space-1);
+  font-style: normal;
+  line-height: var(--line-height-normal);
+}
+
 .nav {
   display: flex;
   align-items: center;
@@ -702,6 +715,12 @@
 
 /* 390px: wordmark ile hesap dugmesi ust uste binmesin; ust cubuk daha kompakt. */
 @media (max-width: 479px) {
+  .brandName {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+
   .inner {
     gap: var(--space-2);
     min-height: 64px;

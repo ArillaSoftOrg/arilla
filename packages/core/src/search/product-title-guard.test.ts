@@ -18,6 +18,8 @@ describe("kulaklik aramasinda cihaz ve aksesuar ayrimi", () => {
     "Headphone Stand Desktop Holder",
     "Replacement Ear Pads Cushions for Sony Headphones",
     "Carrying Case for Wireless Headphones",
+    "For AirPods Max Over-ear Bluetooth Headphone Battery A2096 A2165",
+    "Battery for AirPods Max Over Ear Headphones A2096",
   ])("cihaz yerine aksesuar gostermez: %s", (title) => {
     expect(excluded("kulak üstü kablosuz kulaklık", title)).toBe(true);
   });
@@ -28,6 +30,8 @@ describe("kulaklik aramasinda cihaz ve aksesuar ayrimi", () => {
     "Sony Wireless Headphones with Carrying Case",
     "Standard Bluetooth Over Ear Headphones",
     "Cushioned Wireless Over Ear Headphones",
+    "Premium Wireless Bluetooth Headphones Over Ear Long 40H Battery Life Soft Memory Foam",
+    "Battery Powered Wireless Over Ear Headphones",
   ])("gercek cihaz ve kutu icerigini korur: %s", (title) => {
     expect(excluded("kulak üstü kablosuz kulaklık", title)).toBe(false);
   });
@@ -42,9 +46,14 @@ describe("kulaklik aramasinda cihaz ve aksesuar ayrimi", () => {
     expect(excluded("kulak üstü kulaklığı arıyorum", "Kablosuz Kulaklık Şarj Standı")).toBe(true);
   });
 
-  it.each(["kulaklık standı", "headphone adapter", "kulaklık kılıfı"])(
-    "aksesuar isteginde aksesuar sonucunu korur: %s",
-    (query) => expect(productTitleExclusionPattern(query)).toBeNull(),
+  it.each([
+    "kulaklık standı",
+    "headphone adapter",
+    "kulaklık kılıfı",
+    "kulaklık bataryası",
+    "headphone battery",
+  ])("aksesuar isteginde aksesuar sonucunu korur: %s", (query) =>
+    expect(productTitleExclusionPattern(query)).toBeNull(),
   );
 
   it("baska urun ailelerine kulaklik kurali uygulamaz", () => {

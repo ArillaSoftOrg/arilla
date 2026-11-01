@@ -3,6 +3,7 @@
  * tanimli - anahtarlar yorum olarak burada tutulur.
  */
 export const HOME_COPY = {
+  betaLabel: "Beta", // home.beta_label
   heroTitleLead: "Doğru seçeneği", // home.hero_title_lead
   heroTitleAccent: "birlikte bulalım.", // home.hero_title_accent
   // Hero'da cizilmez; alt bilgi aciklamasi olarak kullanilir.
