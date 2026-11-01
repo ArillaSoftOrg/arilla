@@ -2496,6 +2496,24 @@ Maliyet: token satırı (`web_search_grounded`) ve Google arama sorgusu satırı
 
 **Gerçek API dumanı (karar 0102):** `WEB_SEARCH_SMOKE=1 GEMINI_API_KEY=<anahtar> pnpm --filter @arilla/core web-search:smoke [1-3]` en fazla 3 sabit örnek sorgu çalıştırır (veritabanı/Redis yok, anahtar yazdırılmaz); atıf/URL Context/search_suggestions alanlarını, doğrulanan sonuçları ve tahmini maliyeti özetler. Anahtarı komut satırına yazmak yerine oturumda `read -s` ile ortama alın.
 
+### AliExpress görsel varyantları (karar 0167) — varsayılan kapalı
+
+`IMAGE_VARIANTS_ALIEXPRESS_ENABLED=true` (yalnızca sunucu; `compose.env`). Kapalıyken AliExpress
+görselleri katalogdaki orijinal URL'den yüklenir (bugünkü davranış); Hepsiburada varyantları
+(karar 0166) bu bayraktan bağımsızdır. Açıkken `/ara`, `/sohbet` kartları ve ürün galerisi AliExpress
+CDN'inin küçültülmüş dosyalarını (`…_{N}x{N}.jpg`, N ∈ 220/300/350/480/640/720/960/1200) `srcset` ile kullanır.
+
+- **Açma/kapama:** `compose.env` değişir, yalnızca `web` konteyneri yeniden oluşturulur
+  (`docker compose … up -d web`); **yeni imaj derlenmez**. Değer süreç başında okunur; çalışan
+  süreçte anlık geçiş yoktur. Doğrulama: yönetim > Ayarlar'da "AliExpress görsel varyantları: Açık".
+- **Doğrulama (açtıktan sonra):** örnek bir `/ara` sonucunda `<img srcset>` `_480x480.jpg` benzeri
+  adresler içerir; tarayıcı Network sekmesinde kart başına ~10–35 KB (önceden 40–250 KB). Fallback:
+  Network'te varyant isteğini engelleyince görsel orijinal URL'den yüklenir.
+- **Sorun halinde:** bayrağı boşalt + `web`'i yeniden oluştur. Veri ve URL değişmediği için başka
+  geri alma adımı yoktur.
+- Admitad/AliExpress program şartlarının görsel kullanımı hukuken gözden geçirilmeden üretimde
+  açılmaz (karar 0167 "Riskler").
+
 ### Veritabanı bağlantısı: pooler modu (EMAXCONNSESSION)
 
 Üretimde `DATABASE_URL` Supabase **Transaction pooler**'ını (port `6543`) göstermelidir; Session pooler (`5432`, `pool_size` 15) serverless'ta `EMAXCONNSESSION` verir. Uygulama başına varsayılan havuz 3 bağlantıdır (`DATABASE_POOL_MAX`). `DATABASE_URL_OWNER` (migration/bakım) Transaction pooler'a ÇEVRİLMEZ; doğrudan ya da session bağlantısıyla kalır.

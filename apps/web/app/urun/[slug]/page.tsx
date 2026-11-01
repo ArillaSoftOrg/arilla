@@ -15,6 +15,7 @@ import {
   getProductUnverifiedForeignOffers,
   getSizeOptions,
   getVariantPriceHistory,
+  isAliExpressImageVariantsEnabled,
   isProductSitemapEligible,
   type ProductForeignOffer,
   readAppUrl,
@@ -440,6 +441,7 @@ export default async function ProductPage({
         <ProductGalleryClient
           title={product.title}
           images={gallery.images.map(({ url, width, height }) => ({ url, width, height }))}
+          aliexpressVariants={isAliExpressImageVariantsEnabled()}
         />
 
         <div className={styles.summary}>

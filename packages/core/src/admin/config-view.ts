@@ -38,6 +38,7 @@ import {
   dailySearchLimit,
 } from "../entitlement/config.ts";
 import { LLM_COST_FX_ENV, parseFxMicros } from "../llm/pricing.ts";
+import { isAliExpressImageVariantsEnabled } from "../media/image-config.ts";
 import { QUOTA_POLICY, QUOTA_WINDOWS } from "../quota/policy.ts";
 import { QUERY_INTERPRETATION_DAILY_CALL_CAP } from "../search/query-interpretation.ts";
 import {
@@ -257,6 +258,14 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
       "Ana sayfa demo içeriği",
       "product",
       raw(env, "HOMEPAGE_DEMO_CONTENT") === "true",
+    ),
+    flag(
+      env,
+      "IMAGE_VARIANTS_ALIEXPRESS_ENABLED",
+      "AliExpress görsel varyantları",
+      "product",
+      isAliExpressImageVariantsEnabled(env),
+      "Değişiklik için sunucunun yeniden başlatılması gerekir",
     ),
     {
       key: "FREE_SEARCHES_BEFORE_LOGIN",

@@ -57,6 +57,8 @@ export interface ProductCardProps {
   compactWithoutImage?: boolean;
   /** Gorselin ekrandaki genisligi (`sizes`); kartin icinde durdugu izgaraya gore. Varsayilan: `/ara` izgarasi. */
   imageSizes?: string;
+  /** AliExpress CDN varyantlari (karar 0167); sunucuda bayraktan okunup verilir, varsayilan kapali. */
+  aliexpressVariants?: boolean;
 }
 
 /**
@@ -82,6 +84,7 @@ export function ProductCard({
   external = false,
   compactWithoutImage = false,
   imageSizes = PRODUCT_GRID_IMAGE_SIZES,
+  aliexpressVariants = false,
 }: ProductCardProps) {
   const metaLabel = offerCount !== undefined && offerCountLabel ? offerCountLabel(offerCount) : "";
 
@@ -103,6 +106,7 @@ export function ProductCard({
               fit="contain"
               loading={imageLoading}
               sizes={imageSizes}
+              aliexpress={aliexpressVariants}
               className={styles.image}
               {...(external ? { referrerPolicy: "no-referrer" as const } : {})}
             />

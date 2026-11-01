@@ -31,6 +31,12 @@ export interface ProductImageProps {
    * bununla uretilir; verilmezse tek orta boyut kullanilir. Taninmayan kaynakta etkisiz.
    */
   sizes?: string;
+  /**
+   * AliExpress CDN varyantlari (karar 0167). Varsayilan kapali; cagiran SUNUCUDA
+   * `isAliExpressImageVariantsEnabled()` ile okuyup verir (istemci bilesenlerinde ortam
+   * degiskeni okunamaz, bu yuzden dogrudan prop). Hepsiburada bundan etkilenmez.
+   */
+  aliexpress?: boolean;
 }
 
 /**
@@ -57,6 +63,7 @@ export function ProductImage({
   fetchPriority,
   referrerPolicy,
   sizes,
+  aliexpress = false,
 }: ProductImageProps) {
   const mergedStyle: CSSProperties | undefined =
     aspectRatio !== undefined ? { aspectRatio, ...style } : style;
@@ -65,7 +72,7 @@ export function ProductImage({
   // Karar 0166: kucuk resim olarak kayitli bilinen CDN gorselleri icin dogrulanmis
   // buyuk varyant + `srcset`; yuklenemezse orijinal URL'ye duser. Taninmayan kaynak
   // (AliExpress, Shopify vb.) asagidaki degismemis yolu izler.
-  const variants = resolveImageVariants(src);
+  const variants = resolveImageVariants(src, { aliexpress });
   if (variants) {
     return (
       <VariantImage
