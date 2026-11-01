@@ -299,7 +299,7 @@ def test_kaynak_koprusu_butunlugu_ve_bolgeler_trendyol_planinda() -> None:
     paths = {r["manicepte_path"] for r in plan}
     created = {r["manicepte_path"] for r in plan if r["action"] == "create"}
     table = bridge()
-    assert len(table) >= 270
+    assert len(table) >= 400  # 275 (karar 0157) + yeni fiyat bantlari (karar 0165)
     raw_lines = [
         line
         for line in (ROOT / "services/ingest/classify/data/source_bridge.tsv")

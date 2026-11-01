@@ -2645,3 +2645,20 @@ python -m classify status                                                # sür�
 - Kapsam notu: hedef düğümlerin çoğu `is_discoverable = FALSE` (karar 0153): ürünler arama
   ve kategori süzgecinde görünür, sitemap/keşfet/trend yüzeylerine girmez. Açmak ayrı karar.
   `lexicon --apply` bu yazımdan sonra da ayrı karardır (sözlük V5 yollarına bakar).
+
+### Yeni fiyat bantları (karar 0165): haritayı genişlettikten sonra `--rescan`
+
+Harita 403 kaynak yoluna çıktı (304 `yuksek`, 83 `inceleme`, 16 `eslesmedi`). Dağıtımdan sonra, eski
+haritayla taranıp `unknown` sayılan ürünler imlecin gerisinde kaldığı için **bir kez** yeniden taranır:
+
+```
+python -m classify parents-report --merchant aliexpress           # YALNIZCA OKUR; `unknown` ~0'a inmeli
+python -m classify parents --confirm --merchant aliexpress --rescan --batch 2000 --max-batches 20
+python -m classify parents --confirm --merchant aliexpress --sleep-ms 200 --max-seconds 5400
+```
+
+- `--rescan` imleci sıfırlar; yazma kuralı aynıdır (yalnızca `category_id IS NULL`, mevcut değer ezilmez),
+  bu yüzden tekrar çalıştırmak güvenlidir. İlk komut 20 partilik pilottur; sonra imleç kaldığı yerden sürer.
+- Büyük bir tarama olduğu için catalog_build/FeedSync/yedek pencereleriyle ve `catalog_build auto`
+  koşusuyla (kilit 4133201) çakıştırma; WAL geri basıncı ve çıkış kodları yukarıdaki gibi.
+- `suggest finalize` koşusu varsa harita sürümü değiştiği için yeni haritayla baştan başlatılır.

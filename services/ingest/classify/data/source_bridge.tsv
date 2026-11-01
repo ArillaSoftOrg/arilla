@@ -278,3 +278,132 @@ Women's Clothing > Sweaters&Jumpers	giyim/ust-giyim
 Women's Clothing > Swimwears	giyim/plaj-giyim
 Women's Clothing > Traditional Women's Clothing	giyim
 Women's Clothing > Women's Sets	giyim/takimlar
+# Karar 0165: yeni fiyat bantlarinda (<10$, 25-40$ ...) gorulen kaynak yollari; ayni yontem (0157)
+Home & Garden > Garden Supplies	bahce-elektrikli-el-aletleri/bahce
+Home & Garden > Home Textile	ev-mobilya/ev/ev-tekstili,ev-mobilya/mobilya/perde
+Tools > Garden Tools	bahce-elektrikli-el-aletleri/bahce
+Tools > Power Tools	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Tools > Welding Equipment & Supplies	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri,banyo-yapi-hirdavat/hirdavat
+Tools > Construction Tools	banyo-yapi-hirdavat/hirdavat
+Tools > Tools Packaging	banyo-yapi-hirdavat/hirdavat
+Home Improvement > Hardware	banyo-yapi-hirdavat/hirdavat
+Home Improvement > Doors, Gates & Windows	banyo-yapi-hirdavat/banyo-yapi-malzemeleri,banyo-yapi-hirdavat/hirdavat
+Sports & Entertainment > Musical Instruments	hobi-eglence/muzik-alet-ve-ekipmanlari
+Sports & Entertainment > Fishing	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Water Sports	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Fitness & Body Building	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Golf	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Horse Riding	spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Shooting	spor-outdoor/ekipman-aksesuar
+Sports Shoes,Clothing&Accessories > Sportswear	giyim/spor-giyim
+Electronic Components & Supplies > Electronics Stocks	-
+Electronic Components & Supplies > Active Components	-
+Electronic Components & Supplies > Passive Components	-
+Electronic Components & Supplies > EL Products	-
+Electronic Components & Supplies > Electronics Production Machinery	-
+Electronic Components & Supplies > Electronic Data Systems	-
+Electronic Components & Supplies > Electronic Accessories & Supplies	-
+Electronic Components & Supplies > Optoelectronic Displays	-
+Electronic Components & Supplies > Electronic Signs	-
+Consumer Electronics > Games & Accessories	elektronik/oyun-oyun-konsollari
+Consumer Electronics > Camera & Photo	elektronik/foto-kamera
+Consumer Electronics > Home Audio & Video	elektronik/hoparlor-projeksiyon-sistemleri,elektronik/akilli-ev-aletleri/televizyon
+Home Appliances > Home Appliance Parts	elektronik/beyaz-esya-iklimlendirme,elektronik/elektrikli-ev-aletleri
+Home Appliances > Kitchen Appliances	elektronik/elektrikli-ev-aletleri
+Home Appliances > Cleaning Appliances	elektronik/elektrikli-ev-aletleri
+Phones & Telecommunications > Communication Equipment	elektronik/telefon
+Phones & Telecommunications > Walkie Talkie	elektronik/telefon
+Phones & Telecommunications > Mobile Phones	elektronik/telefon
+Computer & Office > Barebone & Mini PC	elektronik/bilgisayar-grubu
+Computer & Office > Laptops	elektronik/bilgisayar-grubu
+Computer & Office > Desktops & AIO	elektronik/bilgisayar-grubu
+Security & Protection > Video Surveillance	banyo-yapi-hirdavat/elektrik-tesisat-malzemesi/guvenlik-urunleri/guvenlik-cihazi,elektronik/foto-kamera
+Lights & Lighting > Indoor Lighting	ev-mobilya/mobilya/elektrik-aydinlatma
+Lights & Lighting > LED Lighting	ev-mobilya/mobilya/elektrik-aydinlatma
+Lights & Lighting > Lighting Bulbs & Tubes	ev-mobilya/mobilya/elektrik-aydinlatma
+Lights & Lighting > Night Lights	ev-mobilya/mobilya/elektrik-aydinlatma
+Lights & Lighting > Lighting Accessories	ev-mobilya/mobilya/elektrik-aydinlatma,banyo-yapi-hirdavat/elektrik-tesisat-malzemesi
+Lights & Lighting > Outdoor Lighting	bahce-elektrikli-el-aletleri/bahce/bahce-dekorasyonu/bahce-aydinlatmasi,banyo-yapi-hirdavat/elektrik-tesisat-malzemesi/solar-aydinlatma
+Lights & Lighting > Portable Lighting	ev-mobilya/mobilya/elektrik-aydinlatma,spor-outdoor/ekipman-aksesuar
+Lights & Lighting > Holiday Lighting	ev-mobilya/mobilya/elektrik-aydinlatma,hobi-eglence/parti-malzemeleri
+Women's Clothing > Coats & Jackets	giyim/dis-giyim
+Men's Clothing > Coats & Jackets	giyim/dis-giyim
+Women's Clothing > Skirts	giyim/alt-giyim
+Women's Clothing > Pants & Capris	giyim/alt-giyim
+Women's Clothing > Shorts	giyim/alt-giyim
+Women's Clothing > Leggings	giyim/alt-giyim
+Women's Clothing > Hoodies & Sweatshirts	giyim/ust-giyim
+Women's Clothing > Tops & Tees	giyim/ust-giyim
+Women's Clothing > Blouses & Shirts	giyim/ust-giyim
+Men's Clothing > Hoodies & Sweatshirts	giyim/ust-giyim
+Men's Clothing > Tops & Tees	giyim/ust-giyim
+Women's Clothing > Jumpsuits, Playsuits & Bodysuits	giyim/salopet-tulum
+Underwear > Women's Intimates	giyim/ic-giyim
+Underwear > Women's Socks & Hosiery	giyim/ic-giyim
+Mother & Kids > Baby Clothing	giyim/bebek-giyim
+Mother & Kids > Maternity Clothings	giyim/hamile-giyim
+Mother & Kids > Bedding	ev-mobilya/ev/ev-tekstili/bebek-cocuk-ev-tekstil
+Novelty & Special Use > Stage & Dance Wear	giyim/kostum,giyim/spor-giyim
+Novelty & Special Use > Exotic Apparel	giyim/fantezi-giyim,giyim/kostum
+Novelty & Special Use > World Apparel	giyim
+Novelty & Special Use > Work Wear & Uniforms	giyim
+Weddings & Events > Wedding Party Dress	giyim/abiye-mezuniyet-elbisesi,giyim/gelinlik
+Weddings & Events > Special Occasion Dresses	giyim/abiye-mezuniyet-elbisesi
+Weddings & Events > Wedding Dresses	giyim/gelinlik
+Weddings & Events > Wedding Accessories	hobi-eglence/parti-malzemeleri,aksesuar/sac-aksesuari
+Apparel Accessories > Eyewear & Accessories	aksesuar/gozluk
+Apparel Accessories > Hats & Caps	aksesuar/sapka
+Apparel Accessories > Headwear	aksesuar/sapka
+Apparel Accessories > Belts	aksesuar/kemer-pantolon-askisi
+Apparel Accessories > Cummerbunds	aksesuar/kemer-pantolon-askisi
+Apparel Accessories > Gloves & Mittens	aksesuar/atki-bere-eldiven
+Apparel Accessories > Earmuffs	aksesuar/atki-bere-eldiven
+Apparel Accessories > Scarf, Hat & Glove Sets	aksesuar/atki-bere-eldiven
+Apparel Accessories > Scarves & Wraps	aksesuar/sal-fular
+Apparel Accessories > Handkerchiefs	aksesuar/diger-aksesuar
+Apparel Accessories > Suspenders/Braces & Posture Correctors	aksesuar/kemer-pantolon-askisi,supermarket/saglik
+Jewelry & Accessories > Fashion Jewelry	aksesuar/taki-mucevher
+Watches > Watches Accessories	aksesuar/saat,aksesuar/diger-aksesuar
+Watches > Pocket & Fob Watches	aksesuar/saat
+Luggage & Bags > Special Purpose Bags	aksesuar/canta
+Luggage & Bags > Bag Parts & Accessories	aksesuar/canta
+Luggage & Bags > Business Commuter Laptop Bag	aksesuar/canta
+Luggage & Bags > School Bags	aksesuar/canta
+Luggage & Bags > Wallets & Holders	aksesuar/canta/cuzdan
+Shoes > Shoe Accessories	ayakkabi
+Beauty & Health > Skin Care Tool	kozmetik-kisisel-bakim/cilt-bakim,elektronik/kisisel-bakim-aletleri
+Beauty & Health > Makeup	kozmetik-kisisel-bakim/makyaj
+Beauty & Health > Skin Care	kozmetik-kisisel-bakim/cilt-bakim
+Beauty & Health > Oral Hygiene	kozmetik-kisisel-bakim/agiz-bakim
+Beauty & Health > Shaving & Hair Removal	kozmetik-kisisel-bakim/tiras-agda-ve-epilasyon,elektronik/kisisel-bakim-aletleri
+Beauty & Health > Sanitary Paper	kozmetik-kisisel-bakim/kadin-hijyen,supermarket/ev-tuketim-malzemesi
+Hair Extensions & Wigs > Human Wigs( For Black)	kozmetik-kisisel-bakim/sac-bakim,aksesuar/sac-aksesuari
+Furniture > Furniture Accessories	ev-mobilya/mobilya,banyo-yapi-hirdavat/hirdavat
+Furniture > Furniture Parts	ev-mobilya/mobilya,banyo-yapi-hirdavat/hirdavat
+Furniture > Outdoor Furniture	ev-mobilya/mobilya/bahce-mobilyalari
+Furniture > Home Furniture	ev-mobilya/mobilya
+Furniture > Office Furniture	ev-mobilya/mobilya/ofis-mobilyalari
+Furniture > Commercial Furniture	ev-mobilya/mobilya
+Furniture > Bar Furniture	ev-mobilya/mobilya
+Furniture > Children Furniture	ev-mobilya/mobilya,anne-bebek-cocuk/cocuk-gerecleri
+Office & School Supplies > Educational Equipment & Supplies	kirtasiye-ofis-malzemeleri/kirtasiye
+Office & School Supplies > School Supplies	kirtasiye-ofis-malzemeleri/kirtasiye
+Office & School Supplies > Desk Accessories & Organizer	kirtasiye-ofis-malzemeleri/masaustu-gerecleri
+Office & School Supplies > Notebooks & Writing Pads	kirtasiye-ofis-malzemeleri/kirtasiye-kagit-urunleri
+Office & School Supplies > Art Supplies	kirtasiye-ofis-malzemeleri/sanatsal-malzemeler
+Office & School Supplies > Art Tool Kits	kirtasiye-ofis-malzemeleri/sanatsal-malzemeler
+Office & School Supplies > Paper & Printable Media	kirtasiye-ofis-malzemeleri/kirtasiye-kagit-urunleri
+Office & School Supplies > Drafting Supplies	kirtasiye-ofis-malzemeleri/kirtasiye
+Office & School Supplies > Presentation Supplies	kirtasiye-ofis-malzemeleri/kirtasiye,kirtasiye-ofis-malzemeleri/ofis-teknolojileri
+Office & School Supplies > Tapes, Adhesives & Fasteners	kirtasiye-ofis-malzemeleri/kirtasiye,banyo-yapi-hirdavat/hirdavat
+Office & School Supplies > Maps & Atlases	kirtasiye-ofis-malzemeleri/kirtasiye/harita,kitap/egitim/cografya-atlasi
+Office & School Supplies > Journal, Periodical & Magazines	kitap/cizgi-roman-ve-dergi
+Industrial & Business > Metal Processing Equipment & Accessories	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Industrial & Business > Woodworking Machinery & Accessories	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Industrial & Business > Handling, Warehousing & Transportation Equipment	banyo-yapi-hirdavat/hirdavat
+Toys & Hobbies > Learning & Education	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Outdoor Fun & Sports	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Classic Toys	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Pretend Play	anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Baby & Toddler Toys	anne-bebek-cocuk/oyuncak/bebek-okul-oncesi-oyuncaklar
+Food > Tea	supermarket/gida-icecek

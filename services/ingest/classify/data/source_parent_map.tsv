@@ -278,3 +278,132 @@ Women's Clothing > Sweaters&Jumpers	yuksek	giyim/ust-giyim		kopru tek bolge: giy
 Women's Clothing > Swimwears	yuksek	giyim/plaj-giyim		kopru tek bolge: giyim/plaj-giyim
 Women's Clothing > Traditional Women's Clothing	yuksek	giyim		kopru tek bolge: giyim
 Women's Clothing > Women's Sets	yuksek	giyim/takimlar		kopru tek bolge: giyim/takimlar
+# Karar 0165: yeni fiyat bantlarinda (<10$, 25-40$ ...) gorulen kaynak yollari; ayni yontem (0157)
+Home & Garden > Garden Supplies	yuksek	bahce-elektrikli-el-aletleri/bahce		kopru tek bolge: bahce-elektrikli-el-aletleri/bahce
+Home & Garden > Home Textile	yuksek	ev-mobilya		bolgeler (ev-mobilya/ev/ev-tekstili, ev-mobilya/mobilya/perde) ayni kokte; ortak ata
+Tools > Garden Tools	yuksek	bahce-elektrikli-el-aletleri/bahce		kopru tek bolge: bahce-elektrikli-el-aletleri/bahce
+Tools > Power Tools	yuksek	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri		kopru tek bolge: bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Tools > Welding Equipment & Supplies	inceleme		bahce-elektrikli-el-aletleri/elektrikli-el-aletleri	kaynak makinesi ile mesale/elektrod karisik; farkli koklerde
+Tools > Construction Tools	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Tools > Tools Packaging	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Home Improvement > Hardware	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Home Improvement > Doors, Gates & Windows	yuksek	banyo-yapi-hirdavat		bolgeler (banyo-yapi-hirdavat/banyo-yapi-malzemeleri, banyo-yapi-hirdavat/hirdavat) ayni kokte; ortak ata
+Sports & Entertainment > Musical Instruments	yuksek	hobi-eglence/muzik-alet-ve-ekipmanlari		kopru tek bolge: hobi-eglence/muzik-alet-ve-ekipmanlari
+Sports & Entertainment > Fishing	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Water Sports	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Fitness & Body Building	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Golf	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Horse Riding	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports & Entertainment > Shooting	yuksek	spor-outdoor/ekipman-aksesuar		kopru tek bolge: spor-outdoor/ekipman-aksesuar
+Sports Shoes,Clothing&Accessories > Sportswear	yuksek	giyim/spor-giyim		kopru tek bolge: giyim/spor-giyim
+Electronic Components & Supplies > Electronics Stocks	eslesmedi			agacta elektronik komponent/uretim dali yok; uydurulmaz
+Electronic Components & Supplies > Active Components	eslesmedi			agacta elektronik komponent/uretim dali yok; uydurulmaz
+Electronic Components & Supplies > Passive Components	eslesmedi			agacta elektronik komponent/uretim dali yok; uydurulmaz
+Electronic Components & Supplies > EL Products	eslesmedi			agacta elektronik komponent/uretim dali yok; uydurulmaz
+Electronic Components & Supplies > Electronics Production Machinery	eslesmedi			agacta elektronik komponent/uretim dali yok; uydurulmaz
+Electronic Components & Supplies > Electronic Data Systems	eslesmedi			agacta elektronik komponent/uretim dali yok; uydurulmaz
+Electronic Components & Supplies > Electronic Accessories & Supplies	inceleme			kablo, konnektor, lehim malzemesi karisik; ortak ust yok
+Electronic Components & Supplies > Optoelectronic Displays	inceleme			ekran modulu/LED panel; bilgisayar monitoru degil; ortak ust yok
+Electronic Components & Supplies > Electronic Signs	inceleme			tabela/LED levha; agacta karsiligi belirsiz
+Consumer Electronics > Games & Accessories	yuksek	elektronik/oyun-oyun-konsollari		kopru tek bolge: elektronik/oyun-oyun-konsollari
+Consumer Electronics > Camera & Photo	yuksek	elektronik/foto-kamera		kopru tek bolge: elektronik/foto-kamera
+Consumer Electronics > Home Audio & Video	yuksek	elektronik		bolgeler (elektronik/hoparlor-projeksiyon-sistemleri, elektronik/akilli-ev-aletleri/televizyon) ayni kokte; ortak ata
+Home Appliances > Home Appliance Parts	yuksek	elektronik		bolgeler (elektronik/beyaz-esya-iklimlendirme, elektronik/elektrikli-ev-aletleri) ayni kokte; ortak ata
+Home Appliances > Kitchen Appliances	yuksek	elektronik/elektrikli-ev-aletleri		kopru tek bolge: elektronik/elektrikli-ev-aletleri
+Home Appliances > Cleaning Appliances	yuksek	elektronik/elektrikli-ev-aletleri		kopru tek bolge: elektronik/elektrikli-ev-aletleri
+Phones & Telecommunications > Communication Equipment	yuksek	elektronik/telefon		kopru tek bolge: elektronik/telefon
+Phones & Telecommunications > Walkie Talkie	yuksek	elektronik/telefon		kopru tek bolge: elektronik/telefon
+Phones & Telecommunications > Mobile Phones	yuksek	elektronik/telefon		kopru tek bolge: elektronik/telefon
+Computer & Office > Barebone & Mini PC	yuksek	elektronik/bilgisayar-grubu		kopru tek bolge: elektronik/bilgisayar-grubu
+Computer & Office > Laptops	yuksek	elektronik/bilgisayar-grubu		kopru tek bolge: elektronik/bilgisayar-grubu
+Computer & Office > Desktops & AIO	yuksek	elektronik/bilgisayar-grubu		kopru tek bolge: elektronik/bilgisayar-grubu
+Security & Protection > Video Surveillance	inceleme		banyo-yapi-hirdavat/elektrik-tesisat-malzemesi/guvenlik-urunleri/guvenlik-cihazi	guvenlik kamerasi: foto-kamera ile guvenlik cihazi farkli koklerde
+Lights & Lighting > Indoor Lighting	yuksek	ev-mobilya/mobilya/elektrik-aydinlatma		kopru tek bolge: ev-mobilya/mobilya/elektrik-aydinlatma
+Lights & Lighting > LED Lighting	yuksek	ev-mobilya/mobilya/elektrik-aydinlatma		kopru tek bolge: ev-mobilya/mobilya/elektrik-aydinlatma
+Lights & Lighting > Lighting Bulbs & Tubes	yuksek	ev-mobilya/mobilya/elektrik-aydinlatma		kopru tek bolge: ev-mobilya/mobilya/elektrik-aydinlatma
+Lights & Lighting > Night Lights	yuksek	ev-mobilya/mobilya/elektrik-aydinlatma		kopru tek bolge: ev-mobilya/mobilya/elektrik-aydinlatma
+Lights & Lighting > Lighting Accessories	inceleme		ev-mobilya/mobilya/elektrik-aydinlatma	abajur/duy ile priz/kablo karisik; farkli koklerde
+Lights & Lighting > Outdoor Lighting	inceleme		bahce-elektrikli-el-aletleri/bahce/bahce-dekorasyonu/bahce-aydinlatmasi	bahce aydinlatmasi ile solar aydinlatma farkli koklerde
+Lights & Lighting > Portable Lighting	inceleme		ev-mobilya/mobilya/elektrik-aydinlatma	el feneri/kafa lambasi ile masa lambasi karisik; farkli koklerde
+Lights & Lighting > Holiday Lighting	inceleme		ev-mobilya/mobilya/elektrik-aydinlatma	yilbasi/parti isiklari; farkli koklerde
+Women's Clothing > Coats & Jackets	yuksek	giyim/dis-giyim		kopru tek bolge: giyim/dis-giyim
+Men's Clothing > Coats & Jackets	yuksek	giyim/dis-giyim		kopru tek bolge: giyim/dis-giyim
+Women's Clothing > Skirts	yuksek	giyim/alt-giyim		kopru tek bolge: giyim/alt-giyim
+Women's Clothing > Pants & Capris	yuksek	giyim/alt-giyim		kopru tek bolge: giyim/alt-giyim
+Women's Clothing > Shorts	yuksek	giyim/alt-giyim		kopru tek bolge: giyim/alt-giyim
+Women's Clothing > Leggings	yuksek	giyim/alt-giyim		kopru tek bolge: giyim/alt-giyim
+Women's Clothing > Hoodies & Sweatshirts	yuksek	giyim/ust-giyim		kopru tek bolge: giyim/ust-giyim
+Women's Clothing > Tops & Tees	yuksek	giyim/ust-giyim		kopru tek bolge: giyim/ust-giyim
+Women's Clothing > Blouses & Shirts	yuksek	giyim/ust-giyim		kopru tek bolge: giyim/ust-giyim
+Men's Clothing > Hoodies & Sweatshirts	yuksek	giyim/ust-giyim		kopru tek bolge: giyim/ust-giyim
+Men's Clothing > Tops & Tees	yuksek	giyim/ust-giyim		kopru tek bolge: giyim/ust-giyim
+Women's Clothing > Jumpsuits, Playsuits & Bodysuits	yuksek	giyim/salopet-tulum		kopru tek bolge: giyim/salopet-tulum
+Underwear > Women's Intimates	yuksek	giyim/ic-giyim		kopru tek bolge: giyim/ic-giyim
+Underwear > Women's Socks & Hosiery	yuksek	giyim/ic-giyim		kopru tek bolge: giyim/ic-giyim
+Mother & Kids > Baby Clothing	yuksek	giyim/bebek-giyim		kopru tek bolge: giyim/bebek-giyim
+Mother & Kids > Maternity Clothings	yuksek	giyim/hamile-giyim		kopru tek bolge: giyim/hamile-giyim
+Mother & Kids > Bedding	yuksek	ev-mobilya/ev/ev-tekstili/bebek-cocuk-ev-tekstil		kopru tek bolge: ev-mobilya/ev/ev-tekstili/bebek-cocuk-ev-tekstil
+Novelty & Special Use > Stage & Dance Wear	yuksek	giyim		bolgeler (giyim/kostum, giyim/spor-giyim) ayni kokte; ortak ata
+Novelty & Special Use > Exotic Apparel	yuksek	giyim		bolgeler (giyim/fantezi-giyim, giyim/kostum) ayni kokte; ortak ata
+Novelty & Special Use > World Apparel	yuksek	giyim		kopru tek bolge: giyim
+Novelty & Special Use > Work Wear & Uniforms	yuksek	giyim		kopru tek bolge: giyim
+Weddings & Events > Wedding Party Dress	yuksek	giyim		bolgeler (giyim/abiye-mezuniyet-elbisesi, giyim/gelinlik) ayni kokte; ortak ata
+Weddings & Events > Special Occasion Dresses	yuksek	giyim/abiye-mezuniyet-elbisesi		kopru tek bolge: giyim/abiye-mezuniyet-elbisesi
+Weddings & Events > Wedding Dresses	yuksek	giyim/gelinlik		kopru tek bolge: giyim/gelinlik
+Weddings & Events > Wedding Accessories	inceleme		hobi-eglence/parti-malzemeleri	duvak, dekor, eldiven karisik; farkli koklerde
+Apparel Accessories > Eyewear & Accessories	yuksek	aksesuar/gozluk		kopru tek bolge: aksesuar/gozluk
+Apparel Accessories > Hats & Caps	yuksek	aksesuar/sapka		kopru tek bolge: aksesuar/sapka
+Apparel Accessories > Headwear	yuksek	aksesuar/sapka		kopru tek bolge: aksesuar/sapka
+Apparel Accessories > Belts	yuksek	aksesuar/kemer-pantolon-askisi		kopru tek bolge: aksesuar/kemer-pantolon-askisi
+Apparel Accessories > Cummerbunds	yuksek	aksesuar/kemer-pantolon-askisi		kopru tek bolge: aksesuar/kemer-pantolon-askisi
+Apparel Accessories > Gloves & Mittens	yuksek	aksesuar/atki-bere-eldiven		kopru tek bolge: aksesuar/atki-bere-eldiven
+Apparel Accessories > Earmuffs	yuksek	aksesuar/atki-bere-eldiven		kopru tek bolge: aksesuar/atki-bere-eldiven
+Apparel Accessories > Scarf, Hat & Glove Sets	yuksek	aksesuar/atki-bere-eldiven		kopru tek bolge: aksesuar/atki-bere-eldiven
+Apparel Accessories > Scarves & Wraps	yuksek	aksesuar/sal-fular		kopru tek bolge: aksesuar/sal-fular
+Apparel Accessories > Handkerchiefs	yuksek	aksesuar/diger-aksesuar		kopru tek bolge: aksesuar/diger-aksesuar
+Apparel Accessories > Suspenders/Braces & Posture Correctors	inceleme		aksesuar/kemer-pantolon-askisi	pantolon askisi ile durus duzeltici (saglik) karisik; farkli koklerde
+Jewelry & Accessories > Fashion Jewelry	yuksek	aksesuar/taki-mucevher		kopru tek bolge: aksesuar/taki-mucevher
+Watches > Watches Accessories	yuksek	aksesuar		bolgeler (aksesuar/saat, aksesuar/diger-aksesuar) ayni kokte; ortak ata
+Watches > Pocket & Fob Watches	yuksek	aksesuar/saat		kopru tek bolge: aksesuar/saat
+Luggage & Bags > Special Purpose Bags	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Bag Parts & Accessories	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Business Commuter Laptop Bag	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > School Bags	yuksek	aksesuar/canta		kopru tek bolge: aksesuar/canta
+Luggage & Bags > Wallets & Holders	yuksek	aksesuar/canta/cuzdan		kopru tek bolge: aksesuar/canta/cuzdan
+Shoes > Shoe Accessories	yuksek	ayakkabi		kopru tek bolge: ayakkabi
+Beauty & Health > Skin Care Tool	inceleme		kozmetik-kisisel-bakim/cilt-bakim	cilt bakim aleti: kozmetik ile kisisel bakim aletleri farkli koklerde
+Beauty & Health > Makeup	yuksek	kozmetik-kisisel-bakim/makyaj		kopru tek bolge: kozmetik-kisisel-bakim/makyaj
+Beauty & Health > Skin Care	yuksek	kozmetik-kisisel-bakim/cilt-bakim		kopru tek bolge: kozmetik-kisisel-bakim/cilt-bakim
+Beauty & Health > Oral Hygiene	yuksek	kozmetik-kisisel-bakim/agiz-bakim		kopru tek bolge: kozmetik-kisisel-bakim/agiz-bakim
+Beauty & Health > Shaving & Hair Removal	inceleme		kozmetik-kisisel-bakim/tiras-agda-ve-epilasyon	tiras makinesi/epilator ile jilet/agda karisik; farkli koklerde
+Beauty & Health > Sanitary Paper	inceleme		kozmetik-kisisel-bakim/kadin-hijyen	ped/tuvalet kagidi karisik; farkli koklerde
+Hair Extensions & Wigs > Human Wigs( For Black)	inceleme		kozmetik-kisisel-bakim/sac-bakim	peruk: sac bakim ile sac aksesuari farkli koklerde
+Furniture > Furniture Accessories	inceleme		ev-mobilya/mobilya	mobilya hirdavati (ayak, kulp, tekerlek) farkli koklerde
+Furniture > Furniture Parts	inceleme		ev-mobilya/mobilya	mobilya parcasi ile hirdavat karisik; farkli koklerde
+Furniture > Outdoor Furniture	yuksek	ev-mobilya/mobilya/bahce-mobilyalari		kopru tek bolge: ev-mobilya/mobilya/bahce-mobilyalari
+Furniture > Home Furniture	yuksek	ev-mobilya/mobilya		kopru tek bolge: ev-mobilya/mobilya
+Furniture > Office Furniture	yuksek	ev-mobilya/mobilya/ofis-mobilyalari		kopru tek bolge: ev-mobilya/mobilya/ofis-mobilyalari
+Furniture > Commercial Furniture	yuksek	ev-mobilya/mobilya		kopru tek bolge: ev-mobilya/mobilya
+Furniture > Bar Furniture	yuksek	ev-mobilya/mobilya		kopru tek bolge: ev-mobilya/mobilya
+Furniture > Children Furniture	inceleme		ev-mobilya/mobilya	cocuk mobilyasi: ev-mobilya ile anne-bebek farkli koklerde
+Office & School Supplies > Educational Equipment & Supplies	yuksek	kirtasiye-ofis-malzemeleri/kirtasiye		kopru tek bolge: kirtasiye-ofis-malzemeleri/kirtasiye
+Office & School Supplies > School Supplies	yuksek	kirtasiye-ofis-malzemeleri/kirtasiye		kopru tek bolge: kirtasiye-ofis-malzemeleri/kirtasiye
+Office & School Supplies > Desk Accessories & Organizer	yuksek	kirtasiye-ofis-malzemeleri/masaustu-gerecleri		kopru tek bolge: kirtasiye-ofis-malzemeleri/masaustu-gerecleri
+Office & School Supplies > Notebooks & Writing Pads	yuksek	kirtasiye-ofis-malzemeleri/kirtasiye-kagit-urunleri		kopru tek bolge: kirtasiye-ofis-malzemeleri/kirtasiye-kagit-urunleri
+Office & School Supplies > Art Supplies	yuksek	kirtasiye-ofis-malzemeleri/sanatsal-malzemeler		kopru tek bolge: kirtasiye-ofis-malzemeleri/sanatsal-malzemeler
+Office & School Supplies > Art Tool Kits	yuksek	kirtasiye-ofis-malzemeleri/sanatsal-malzemeler		kopru tek bolge: kirtasiye-ofis-malzemeleri/sanatsal-malzemeler
+Office & School Supplies > Paper & Printable Media	yuksek	kirtasiye-ofis-malzemeleri/kirtasiye-kagit-urunleri		kopru tek bolge: kirtasiye-ofis-malzemeleri/kirtasiye-kagit-urunleri
+Office & School Supplies > Drafting Supplies	yuksek	kirtasiye-ofis-malzemeleri/kirtasiye		kopru tek bolge: kirtasiye-ofis-malzemeleri/kirtasiye
+Office & School Supplies > Presentation Supplies	yuksek	kirtasiye-ofis-malzemeleri		bolgeler (kirtasiye-ofis-malzemeleri/kirtasiye, kirtasiye-ofis-malzemeleri/ofis-teknolojileri) ayni kokte; ortak ata
+Office & School Supplies > Tapes, Adhesives & Fasteners	inceleme		kirtasiye-ofis-malzemeleri/kirtasiye	bant/zimba ile yapistirici/baglanti elemani karisik; farkli koklerde
+Office & School Supplies > Maps & Atlases	inceleme		kirtasiye-ofis-malzemeleri/kirtasiye/harita	harita (kirtasiye) ile atlas (kitap) farkli koklerde
+Office & School Supplies > Journal, Periodical & Magazines	yuksek	kitap/cizgi-roman-ve-dergi		kopru tek bolge: kitap/cizgi-roman-ve-dergi
+Industrial & Business > Metal Processing Equipment & Accessories	yuksek	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri		kopru tek bolge: bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Industrial & Business > Woodworking Machinery & Accessories	yuksek	bahce-elektrikli-el-aletleri/elektrikli-el-aletleri		kopru tek bolge: bahce-elektrikli-el-aletleri/elektrikli-el-aletleri
+Industrial & Business > Handling, Warehousing & Transportation Equipment	yuksek	banyo-yapi-hirdavat/hirdavat		kopru tek bolge: banyo-yapi-hirdavat/hirdavat
+Toys & Hobbies > Learning & Education	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Outdoor Fun & Sports	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Classic Toys	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Pretend Play	yuksek	anne-bebek-cocuk/oyuncak		kopru tek bolge: anne-bebek-cocuk/oyuncak
+Toys & Hobbies > Baby & Toddler Toys	yuksek	anne-bebek-cocuk/oyuncak/bebek-okul-oncesi-oyuncaklar		kopru tek bolge: anne-bebek-cocuk/oyuncak/bebek-okul-oncesi-oyuncaklar
+Food > Tea	yuksek	supermarket/gida-icecek		kopru tek bolge: supermarket/gida-icecek
