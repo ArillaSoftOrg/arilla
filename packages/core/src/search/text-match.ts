@@ -127,8 +127,9 @@ const FOLD_TO = "iiissccggoouuaaiiuu";
 /**
  * Katlanmis metin. `translate` once, `lower` sonra: "I" -> "i" (Turkce'de
  * "ı" olurdu ama sorgu tarafi da "ı"yi "i"ye katliyor). Sabitler SQL'e
- * parametre olarak DEGIL, metin olarak gomulur: `product_title_fold_trgm`
- * indeksi (migration 0019) ayni ifadeyi bekler, parametreli ifade eslesmez.
+ * parametre olarak DEGIL, metin olarak gomulur: bolum indeksleri
+ * (`product_title_fold_try_trgm`, `_foreign_trgm`; migration 0083) ayni ifadeyi
+ * bekler, parametreli ifade eslesmez.
  */
 function foldExpr(value: SQL): SQL {
   return sql`lower(translate(${value}, ${sql.raw(`'${FOLD_FROM}'`)}, ${sql.raw(`'${FOLD_TO}'`)}))`;
@@ -142,7 +143,7 @@ export function foldedTextExpr(value: SQL): SQL {
   return foldExpr(value);
 }
 
-/** `product_title_fold_trgm` indeksinin ifadesi. */
+/** Bolum indekslerinin (`product_title_fold_try_trgm`, `_foreign_trgm`) ifadesi. */
 export function foldedTitleExpr(title: SQL): SQL {
   return foldExpr(title);
 }
