@@ -186,7 +186,7 @@ export default async function GuestChatPage({
       {decision.action === "clarify" ? (
         <GuestQuestion query={query} steps={steps} question={decision.question} />
       ) : parsed ? (
-        <Suspense fallback={<ChatPendingRow />}>
+        <Suspense fallback={<ChatPendingRow label={CHAT_COPY.resultsLoading} />}>
           <GuestResults parsed={parsed} next={guestHref(query, steps)} />
         </Suspense>
       ) : null}

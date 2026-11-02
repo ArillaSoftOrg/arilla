@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { pollChatLinkAction } from "./actions.ts";
 import { CHAT_LINK_COPY } from "./chat-copy.ts";
+import { ChatPendingRow } from "./chat-shell-parts.tsx";
 import styles from "./sohbet.module.css";
 
 const POLL_INTERVAL_MS = 2000;
@@ -61,15 +62,20 @@ export function ChatLinkWaitClient({
 
   return (
     <div className={styles.results} data-link-state="pending" aria-busy={!timedOut}>
-      <p className={styles.resultsHeading} role="status" aria-live="polite">
-        {timedOut ? CHAT_LINK_COPY.waitTimedOut : CHAT_LINK_COPY.pendingTitle}
-      </p>
       {timedOut ? (
-        <a className={styles.seeAll} href={`/sohbet/${conversationId}`}>
-          {CHAT_LINK_COPY.reloadLabel}
-        </a>
+        <>
+          <p className={styles.resultsHeading} role="status">
+            {CHAT_LINK_COPY.waitTimedOut}
+          </p>
+          <a className={styles.seeAll} href={`/sohbet/${conversationId}`}>
+            {CHAT_LINK_COPY.reloadLabel}
+          </a>
+        </>
       ) : (
-        <p className={styles.resultsNote}>{CHAT_LINK_COPY.pendingDescription}</p>
+        <>
+          <ChatPendingRow label={CHAT_LINK_COPY.pendingTitle} />
+          <p className={styles.resultsNote}>{CHAT_LINK_COPY.pendingDescription}</p>
+        </>
       )}
     </div>
   );
