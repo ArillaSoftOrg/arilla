@@ -164,10 +164,10 @@ describe("/sohbet/yeni kabugu", () => {
 });
 
 describe("ortak kabuk parcalari", () => {
-  it("bekleme gostergesi yalnizca noktalar; metin yalnizca ekran okuyucuya", () => {
+  it("bekleme gostergesi durumu bildirir, dekoratif gorseli sessiz tutar", () => {
     const html = renderToStaticMarkup(createElement(ChatPendingRow));
     expect(html).toContain('aria-hidden="true"');
-    expect(html).toContain(CHAT_COPY.thinking); // visually hidden
+    expect(html).toContain(CHAT_COPY.thinking);
     expect(html).toMatch(/role="status"/);
   });
 

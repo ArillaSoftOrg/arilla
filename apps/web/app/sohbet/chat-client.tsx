@@ -375,9 +375,7 @@ export function ChatInteractive({
           </div>
           {preview.kind === "search" ? (
             <div className={styles.results} aria-busy="true">
-              <VisuallyHidden as="p" role="status">
-                {CHAT_COPY.resultsLoading}
-              </VisuallyHidden>
+              <ChatPendingRow label={CHAT_COPY.resultsLoading} />
               <div className={styles.resultGrid} aria-hidden="true">
                 {Array.from({ length: 6 }, (_, i) => (
                   // biome-ignore lint/suspicious/noArrayIndexKey: sabit sayıda, sırasız iskelet kartı.

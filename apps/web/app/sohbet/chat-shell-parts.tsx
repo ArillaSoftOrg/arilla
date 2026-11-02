@@ -6,6 +6,7 @@ import {
   PlusIcon,
   VisuallyHidden,
 } from "@arilla/ui";
+import Image from "next/image";
 import type { FormEvent, KeyboardEvent } from "react";
 import { CHAT_COPY } from "./chat-copy.ts";
 import styles from "./sohbet.module.css";
@@ -41,18 +42,22 @@ export function ChatUserRow({ text, imageSrc }: { text: string; imageSrc?: strin
   );
 }
 
-/** Sakin bekleme gostergesi: yalnizca noktalar; metin yalnizca ekran okuyucuya. */
-export function ChatPendingRow() {
+/** Ilk acilis ve takip turlarinda ayni sakin, erisilebilir bekleme gostergesi. */
+export function ChatPendingRow({ label = CHAT_COPY.thinking }: { label?: string }) {
   return (
     <div className={`${styles.row} ${styles.rowAssistant}`}>
-      <p className={`${styles.bubble} ${styles.bubbleAssistant} ${styles.thinking}`} role="status">
-        <span className={styles.dots} aria-hidden="true">
-          <span />
-          <span />
-          <span />
+      <div className={styles.thinking} role="status" aria-atomic="true">
+        <span className={styles.thinkingMascot} aria-hidden="true">
+          <Image
+            src="/mascot/guide/robot-chat-head-v1.png"
+            alt=""
+            width={32}
+            height={32}
+            sizes="32px"
+          />
         </span>
-        <VisuallyHidden as="span">{CHAT_COPY.thinking}</VisuallyHidden>
-      </p>
+        <span className={styles.thinkingLabel}>{label}</span>
+      </div>
     </div>
   );
 }
