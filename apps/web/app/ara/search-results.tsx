@@ -1,4 +1,8 @@
-import { type ForeignPrice, formatMinorWithCurrency } from "@arilla/core";
+import {
+  type ForeignPrice,
+  formatMinorWithCurrency,
+  isAliExpressImageVariantsEnabled,
+} from "@arilla/core";
 import {
   formatTRY,
   ProductCard,
@@ -130,6 +134,8 @@ export function ResultGrid({
   /** Aynı ızgaranın sonuna eklenen `<li>`ler (karar 0106: internet kartları). */
   extra?: ReactNode;
 }) {
+  // Karar 0167: bayrak istek başına sunucuda okunur (varsayılan kapalı).
+  const aliexpressVariants = isAliExpressImageVariantsEnabled();
   return (
     // biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür.
     <ul className={styles.grid} role="list" aria-labelledby={labelledBy}>
@@ -141,6 +147,7 @@ export function ResultGrid({
             brand={item.brandName ?? null}
             imageUrl={item.primaryImageUrl}
             imageLoading={index < EAGER_IMAGE_COUNT ? "eager" : "lazy"}
+            aliexpressVariants={aliexpressVariants}
             {...cardPriceProps(item)}
           />
         </li>

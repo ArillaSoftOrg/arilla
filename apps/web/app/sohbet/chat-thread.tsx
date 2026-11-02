@@ -4,7 +4,7 @@ import { Suspense } from "react";
 import { CHAT_COPY } from "./chat-copy.ts";
 import { ChatLinkResults } from "./chat-link-results.tsx";
 import { ChatResults } from "./chat-results.tsx";
-import { ChatUserRow } from "./chat-shell-parts.tsx";
+import { ChatPendingRow, ChatUserRow } from "./chat-shell-parts.tsx";
 import { type ChatSortKey, parseSortKey } from "./chat-sort.ts";
 import { ResultTabs } from "./chat-tabs.tsx";
 import styles from "./sohbet.module.css";
@@ -15,9 +15,7 @@ export const RESULT_BLOCKS_SHOWN = 1;
 function ResultsFallback({ conversationId, sort }: { conversationId: string; sort: ChatSortKey }) {
   return (
     <div className={styles.results} aria-busy="true">
-      <VisuallyHidden as="p" role="status">
-        {CHAT_COPY.resultsLoading}
-      </VisuallyHidden>
+      <ChatPendingRow label={CHAT_COPY.resultsLoading} />
       <ResultTabs conversationId={conversationId} active={sort} countLabel={null} />
       <div className={styles.resultGrid} aria-hidden="true">
         {Array.from({ length: 6 }, (_, i) => (

@@ -20,3 +20,11 @@
 .save {
   color: var(--save);
 }
+
+/* Dolgusuz surum etiketi: yalnizca yazi ve cerceve marka yesili. */
+.brand {
+  border-color: currentColor;
+  background: transparent;
+  color: var(--brand-label);
+  font-style: normal;
+}

@@ -19,7 +19,7 @@ export const CHAT_COPY = {
   attachPreviewAlt: "Eklemek üzere seçtiğin fotoğraf",
   sendLabel: "Gönder",
   sending: "Gönderiliyor",
-  thinking: "Yanıt hazırlanıyor",
+  thinking: "Birlikte bakalım…",
   skipLabel: "Atla",
   otherLabel: "Başka bir şey…",
   otherInputLabel: "Kendi cevabını yaz",
@@ -69,7 +69,7 @@ export const CHAT_COPY = {
   tabDeals: "En iyi fırsatlar",
   tabMatches: "En iyi eşleşmeler",
   tabMatchesUnavailable: "Bu arama için kullanılamıyor",
-  resultsLoading: "Sonuçlar yükleniyor",
+  resultsLoading: "Seçenekler yükleniyor…",
   resultsRegion: "Sonuçlar",
   seeAllCount: (count: number) => `Tüm ${count.toLocaleString("tr-TR")} sonucu görüntüle`,
   searchTimedOut: "Arama beklenenden uzun sürdü. Aramanı sakladım, tekrar deneyebilirsin.",
@@ -250,7 +250,7 @@ export function errorKindForStatus(status: string): ChatErrorKind | null {
 
 /** Sohbette ürün bağlantısı sonuçları (karar 0090); docs/copy.md "Sohbette link araması". */
 export const CHAT_LINK_COPY = {
-  pendingTitle: "Bağlantıdaki ürün inceleniyor…",
+  pendingTitle: "Bağlantıdaki ürüne bakıyorum…",
   pendingDescription: "Ürün bilgilerini okuyup kataloğumuzda benzerlerini arıyorum.",
   waitTimedOut: "İnceleme beklenenden uzun sürüyor. Sayfayı yenileyerek tekrar bakabilirsin.",
   reloadLabel: "Sayfayı yenile",

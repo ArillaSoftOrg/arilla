@@ -137,7 +137,7 @@ export async function PublicSiteShell({
       <HomeHeader
         brandLabel={SITE_BRAND}
         brandStatusLabel={HOME_COPY.betaLabel}
-        brandLogoSrc="/icon4.png"
+        brandLogoSrc="/brand/manicepte-logo.png"
         navItems={navItems}
         navAriaLabel="Ana gezinme"
         variant={isChat ? "chat" : "site"}

@@ -270,7 +270,9 @@ export function HomeHeader({
           <span className={styles.brandName}>
             <span className={styles.brandText}>{brandLabel}</span>
             {brandStatusLabel ? (
-              <Badge className={styles.brandStatus}>{brandStatusLabel}</Badge>
+              <Badge tone="brand" className={styles.brandStatus}>
+                {brandStatusLabel}
+              </Badge>
             ) : null}
           </span>
         </a>
@@ -355,7 +357,9 @@ export function HomeHeader({
               <span className={styles.brandName}>
                 <span>{brandLabel}</span>
                 {brandStatusLabel ? (
-                  <Badge className={styles.brandStatus}>{brandStatusLabel}</Badge>
+                  <Badge tone="brand" className={styles.brandStatus}>
+                    {brandStatusLabel}
+                  </Badge>
                 ) : null}
               </span>
             </a>

@@ -52,6 +52,8 @@
      marka isareti olarak; metin ya da durum rengi olarak asla. */
   --brand: #b7f52f;
   --on-brand: #16181d;
+  /* Acik zeminde okunakli yesil surum etiketi. */
+  --brand-label: var(--save);
   /* Karar 0025: --ink'in ters rolu, notr birincil eylem. */
   --accent: #16181d;
   --accent-foreground: #ffffff;
@@ -222,6 +224,7 @@
     --line: #2a2e33;
     --line-strong: #737982;
     --save: #4fbf8b;
+    --brand-label: color-mix(in srgb, var(--brand) 40%, var(--ink));
     --on-save: #0e0f11;
     --warning: #e2a64a;
     --alert: #e5705c;
@@ -261,6 +264,7 @@
   --line: #2a2e33;
   --line-strong: #737982;
   --save: #4fbf8b;
+  --brand-label: color-mix(in srgb, var(--brand) 40%, var(--ink));
   --on-save: #0e0f11;
   --warning: #e2a64a;
   --alert: #e5705c;
