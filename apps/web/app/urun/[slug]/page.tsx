@@ -25,13 +25,17 @@ import {
   serializeJsonLd,
   variantLowestClaim,
 } from "@arilla/core";
+import {
+  HISTORY_FETCH_DAYS,
+  type HistoryObservation,
+  istanbulToday,
+} from "@arilla/core/price-history-view";
 import { getDatabase } from "@arilla/db";
 import {
   ColorSwatches,
   formatTRY,
   ListPriceNote,
   MerchantList,
-  PriceChart,
   PriceDiffBlock,
   PricePositionText,
   ProductCard,
@@ -48,6 +52,9 @@ import { readConsent } from "../../lib/consent.ts";
 import { requireProductAccess } from "../../lib/dal.ts";
 import { productShareMetadata } from "../../lib/share-metadata.ts";
 import { ShareButtonClient } from "../../share-button-client.tsx";
+import { ExpandableTitle } from "./expandable-title-client.tsx";
+import { PriceHistoryClient } from "./price-history-client.tsx";
+import { PriceHistorySummary } from "./price-history-summary.tsx";
 import { ProductActionsClient } from "./product-actions-client.tsx";
 import { ProductGalleryClient } from "./product-gallery-client.tsx";
 import styles from "./product-page.module.css";
@@ -280,16 +287,28 @@ export default async function ProductPage({
   // (çevrilmez, para birimleri karıştırılmaz); TL teklifi varsa geçmiş TL'dir.
   const foreignHistory =
     comparison.mode !== "variants" && merchantOffers.length === 0 && foreignOffers[0]
-      ? await getForeignPriceHistory(db, product.productId, foreignOffers[0].currency)
+      ? await getForeignPriceHistory(
+          db,
+          product.productId,
+          foreignOffers[0].currency,
+          HISTORY_FETCH_DAYS,
+        )
       : null;
   const priceHistory =
     comparison.mode === "variants"
       ? (variantHistory?.points ?? [])
       : merchantOffers.length > 0
-        ? await getPriceHistory(db, product.productId)
+        ? await getPriceHistory(db, product.productId, HISTORY_FETCH_DAYS)
         : (foreignHistory?.points ?? []);
-  const formatHistoryPrice = (minor: number): string =>
-    foreignHistory ? formatMinorWithCurrency(minor, foreignHistory.currency) : formatTRY(minor);
+  // Geçmiş seri kendi para biriminde okunur: yurt dışı seri çevrilmez (karar 0121/0168).
+  const historyCurrency = foreignHistory ? foreignHistory.currency : "TRY";
+  const historyObservations: HistoryObservation[] = priceHistory.map((point) => ({
+    date: point.date,
+    priceMinor: point.minPriceKurus,
+  }));
+  // Varyant geçmişi 90 günle sınırlıdır (variantLowestClaim ile aynı pencere); diğerleri 730.
+  const historyHorizonDays = comparison.mode === "variants" ? 90 : HISTORY_FETCH_DAYS;
+  const todayIso = istanbulToday(new Date());
 
   // docs/decisions/0033: teklifler farkli ticari varyantlar (60 ml / 100 ml)
   // satiyorsa fiyatlar yalnizca SECILI varyant icinde karsilastirilir. Basit
@@ -399,23 +418,12 @@ export default async function ProductPage({
           : {}),
   };
 
-  // Fiyat geçmişi özeti: grafikle aynı seriden (decision 0019, son 90 gün).
-  const historyPrices = priceHistory.map((point) => point.minPriceKurus);
-  const historyMin = historyPrices.length > 0 ? Math.min(...historyPrices) : null;
-  const historyMax = historyPrices.length > 0 ? Math.max(...historyPrices) : null;
-  const historySentence =
-    historyMin === null || historyMax === null
-      ? null
-      : historyMin === historyMax
-        ? `Son 90 günde fiyat ${formatHistoryPrice(historyMin)} olarak kaldı.`
-        : `Son 90 günde ${formatHistoryPrice(historyMin)} ile ${formatHistoryPrice(historyMax)} arasında değişti.`;
-
   const showOffers = !singleOffer && merchantOffers.length > 0;
   // Gecmis grafigi gunluk en dusugu tum boyutlardan alir: varyant modunda
   // yaniltici olur, gizlenir (varyant bazli gecmis henuz yok).
   // Grafik en az iki GERCEK gunle cizilir; varyant modunda yalnizca secili
   // varyantin gecmisi (0037). Nokta sentezlenmez.
-  const showHistory = priceHistory.length >= 2;
+  const showHistory = priceHistory.length >= 1;
   const historyCoverageNote =
     variantHistory && !variantHistory.complete && variantHistory.compatibleOfferCount > 0
       ? `Geçmiş, bu boyutu satan ${variantHistory.compatibleOfferCount} mağazanın ${variantHistory.contributingOfferCount} tanesinin verisini içeriyor.`
@@ -448,7 +456,7 @@ export default async function ProductPage({
           {/* 2. Marka, başlık */}
           <div className={styles.titleBlock}>
             {product.brandName ? <p className={styles.brand}>{product.brandName}</p> : null}
-            <h1 className={styles.title}>{product.title}</h1>
+            <ExpandableTitle title={product.title} />
           </div>
 
           <div className={styles.priceBlock}>
@@ -511,22 +519,44 @@ export default async function ProductPage({
               </p>
             )}
 
+            {/* 12. Kaynak + son güncelleme - design.md: "Fiyatın yanında güncellenme zamanı yazılır". */}
+            <div className={styles.priceMeta}>
+              {foreignHeadline ? (
+                <>
+                  <UpdatedAt text={`Kaynak: ${foreignHeadline.merchantName}`} />
+                  {/* Son fiyat kaydı ile kaynakta son görülme ayrı söylenir; son sürümde olmayan
+                      teklif güncel diye sunulmaz (fiyat yine de gizlenmez). */}
+                  {foreignOfferTimeNotes(foreignHeadline, trDateTime).map((note) => (
+                    <UpdatedAt key={note} text={note} />
+                  ))}
+                </>
+              ) : product.priceUpdatedAt ? (
+                <UpdatedAt
+                  text={`${primaryOffer ? `${primaryOffer.merchantName} · ` : ""}${formatSure(product.priceUpdatedAt, now)} önce güncellendi`}
+                />
+              ) : null}
+            </div>
+
+            {/* Karar 0168: fiyat geçmişi özeti fiyatın hemen altında, tek tıkla bölüme gider. */}
+            {showHistory && !variantMode ? (
+              <PriceHistorySummary
+                points={historyObservations}
+                currency={historyCurrency}
+                today={todayIso}
+                horizonDays={historyHorizonDays}
+                unverified={foreignHeadline?.sourceStatus === "not_current"}
+              />
+            ) : variantMode ? (
+              <a className={styles.compareLink} href="#fiyat-gecmisi">
+                Fiyat geçmişini gör
+              </a>
+            ) : null}
+
             {/* 4. Fiyat konumu cümlesi */}
             <PricePositionText lines={positionLines} />
 
             {/* 5. Sahte indirim notu */}
             {listPriceNoteText ? <ListPriceNote text={listPriceNoteText} /> : null}
-
-            {/* 12. Son güncelleme - design.md: "Fiyatın yanında güncellenme zamanı yazılır". */}
-            {foreignHeadline ? (
-              // Son fiyat kaydı ile kaynakta son görülme ayrı söylenir; son sürümde olmayan
-              // teklif güncel diye sunulmaz (fiyat yine de gizlenmez).
-              foreignOfferTimeNotes(foreignHeadline, trDateTime).map((note) => (
-                <UpdatedAt key={note} text={note} />
-              ))
-            ) : product.priceUpdatedAt ? (
-              <UpdatedAt text={`${formatSure(product.priceUpdatedAt, now)} önce güncellendi`} />
-            ) : null}
           </div>
 
           {/* Birincil çıkış: stokta olan en uygun teklif (tek teklifte o teklif).
@@ -675,14 +705,14 @@ export default async function ProductPage({
                   ? Math.floor(cheapest.currentPrice / 100)
                   : null
             }
-          />
-
-          {/* Paylaşım: kanonik adres (seçili beden, oturum ya da takip parametresi yok). */}
-          <ShareButtonClient
-            url={`${siteUrl ?? ""}/urun/${product.slug}`}
-            title={product.title}
-            subject="product"
-          />
+          >
+            {/* Paylaşım: kanonik adres (seçili beden, oturum ya da takip parametresi yok). */}
+            <ShareButtonClient
+              url={`${siteUrl ?? ""}/urun/${product.slug}`}
+              title={product.title}
+              subject="product"
+            />
+          </ProductActionsClient>
 
           {/* 9. Diğer renkler */}
           <ColorSwatches
@@ -827,6 +857,39 @@ export default async function ProductPage({
         </Section>
       ) : null}
 
+      {/* 11. Fiyat geçmişi (karar 0168): açık bölüm, etkileşimli grafik. Varyant modunda
+          yalnızca seçili varyantın geçmişi (0037); seçim yoksa dürüst durum. */}
+      <Section
+        spacing="compact"
+        id="fiyat-gecmisi"
+        aria-labelledby="fiyat-gecmisi-baslik"
+        className={styles.history}
+      >
+        <div className={styles.sectionHeader}>
+          <h2 id="fiyat-gecmisi-baslik" className={styles.sectionTitle}>
+            Fiyat geçmişi
+          </h2>
+        </div>
+        {showHistory ? (
+          <PriceHistoryClient
+            points={historyObservations}
+            currency={historyCurrency}
+            today={todayIso}
+            horizonDays={historyHorizonDays}
+            unverified={foreignHeadline?.sourceStatus === "not_current"}
+            coverageNote={historyCoverageNote}
+          />
+        ) : (
+          <p className={styles.historyText}>
+            {variantMode
+              ? selectedOption
+                ? `${selectedOption.label} için henüz yeterli fiyat geçmişi yok.`
+                : "Fiyat geçmişi, bir boyut seçildiğinde yalnızca o boyut için gösterilir."
+              : "Bu ürün için henüz fiyat gözlemi yok."}
+          </p>
+        )}
+      </Section>
+
       {/* 10. Alternatif şeridi */}
       {alternatives.length > 0 ? (
         <Section spacing="compact" aria-labelledby="alternatifler-baslik">
@@ -851,53 +914,6 @@ export default async function ProductPage({
               </li>
             ))}
           </ul>
-        </Section>
-      ) : null}
-
-      {/* 11. Varyant modunda geçmiş yoksa dürüst durum (0037). */}
-      {variantMode && !showHistory ? (
-        <Section
-          spacing="compact"
-          aria-labelledby="fiyat-gecmisi-baslik"
-          className={styles.history}
-        >
-          <div className={styles.sectionHeader}>
-            <h2 id="fiyat-gecmisi-baslik" className={styles.sectionTitle}>
-              Fiyat geçmişi
-            </h2>
-          </div>
-          <p className={styles.historyText}>
-            {selectedOption
-              ? `${selectedOption.label} için henüz yeterli fiyat geçmişi yok.`
-              : "Fiyat geçmişi, bir boyut seçildiğinde yalnızca o boyut için gösterilir."}
-          </p>
-        </Section>
-      ) : null}
-
-      {/* 11. Fiyat grafiği - katlanmış, tıklayınca açılır */}
-      {showHistory ? (
-        <Section
-          spacing="compact"
-          aria-labelledby="fiyat-gecmisi-baslik"
-          className={styles.history}
-        >
-          <div className={styles.sectionHeader}>
-            <h2 id="fiyat-gecmisi-baslik" className={styles.sectionTitle}>
-              Fiyat geçmişi
-            </h2>
-          </div>
-          {historySentence ? <p className={styles.historyText}>{historySentence}</p> : null}
-          {historyCoverageNote ? <p className={styles.historyText}>{historyCoverageNote}</p> : null}
-          <PriceChart
-            points={priceHistory.map((point) => ({
-              date: point.date,
-              priceKurus: point.minPriceKurus,
-            }))}
-            // Acik/kapali her iki durumda da dogru kalan notr etiket.
-            formatValue={formatHistoryPrice}
-            summaryLabel="Fiyat grafiği"
-            chartLabel={historySentence ?? "Fiyat geçmişi"}
-          />
         </Section>
       ) : null}
     </div>

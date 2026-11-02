@@ -13,6 +13,8 @@ export interface ProductActionsClientProps {
   isInStock: boolean;
   /** Girdi alanının ön dolgusu için, TL cinsinden (tam sayı). */
   currentPriceTRY: number | null;
+  /** Eylem satırının sonuna eklenen düğme (Paylaş); kaydet/alarm ile aynı satırda durur. */
+  children?: React.ReactNode;
 }
 
 type SaveState = "idle" | "pending" | "saved";
@@ -31,6 +33,7 @@ export function ProductActionsClient({
   productId,
   isInStock,
   currentPriceTRY,
+  children,
 }: ProductActionsClientProps) {
   const [saveState, setSaveState] = useState<SaveState>("idle");
   const [alertState, setAlertState] = useState<AlertState>("idle");
@@ -136,6 +139,7 @@ export function ProductActionsClient({
         >
           {alertState === "created" ? "Alarm kuruldu" : "Fiyat alarmı kur"}
         </Button>
+        {children ? <div className={styles.actionShare}>{children}</div> : null}
       </div>
 
       {/* Canli bolge once bos olarak var olmali ki sonradan gelen metin okunsun. */}

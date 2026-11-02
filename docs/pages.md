@@ -96,7 +96,7 @@ Sıra kritik. Kullanıcı ilk ekranda karar verebilmeli.
 | 8 | Kaydet / alarm kur | Giriş yoksa modal açılır |
 | 9 | Diğer renkler | `model_key` eşleşmesi varsa |
 | 10 | Alternatif şeridi | `similarity_edge`, 4-6 ürün, yatay kaydırma |
-| 11 | Fiyat grafiği | Katlanmış, tıklayınca açılır |
+| 11 | Fiyat geçmişi | Açık bölüm, etkileşimli grafik (karar 0168); fiyat altında özet + bağlantı |
 | 12 | Son güncelleme | "2 saat önce güncellendi" |
 
 **Mağaza listesi sıralaması:** kargo dahil toplam fiyat. Komisyon oranı

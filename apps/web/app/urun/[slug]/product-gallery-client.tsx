@@ -110,7 +110,7 @@ export function ProductGalleryClient({
                   src={image.url}
                   alt=""
                   loading={i === 0 ? "eager" : "lazy"}
-                  fit="cover"
+                  fit="contain"
                   sizes={GALLERY_THUMB_SIZES}
                   aliexpress={aliexpressVariants}
                   className={styles.thumbImage}

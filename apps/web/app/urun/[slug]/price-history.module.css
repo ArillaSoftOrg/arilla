@@ -1,0 +1,326 @@
+/*
+ * Fiyat geçmişi özeti ve etkileşimli grafik (karar 0168). Renkler belirteçten
+ * (açık/koyu tema ikisi de tokens.css'te); yön yalnızca renkle değil glif + sözcükle verilir.
+ */
+
+/* ---------- Fiyat altı kompakt özet ---------- */
+
+.summaryBox {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--space-1);
+  padding-block: var(--space-2);
+  border-top: var(--border-width) solid var(--line);
+}
+
+.summaryLine {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  column-gap: var(--space-3);
+  row-gap: 0;
+  margin: 0;
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}
+
+.summaryMeta {
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+}
+
+.summaryWarn {
+  margin: 0;
+  color: var(--alert);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}
+
+.historyLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-medium);
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+
+.historyLink:hover {
+  color: var(--ink-secondary);
+}
+
+.historyLink:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.change {
+  font-weight: var(--font-weight-medium);
+  color: var(--ink);
+}
+
+.up {
+  color: var(--alert);
+}
+
+.down {
+  color: var(--save);
+}
+
+.flat {
+  color: var(--ink-secondary);
+}
+
+/* ---------- Bölüm ---------- */
+
+.history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.rangeBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.rangeBtn {
+  min-height: var(--size-touch-target);
+  min-width: var(--size-touch-target);
+  padding: 0 var(--space-3);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.rangeBtn:hover {
+  background: var(--surface-hover);
+}
+
+.rangeBtn:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.rangeActive,
+.rangeActive:hover {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: var(--accent-foreground);
+}
+
+.stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--space-3) var(--space-4);
+  margin: 0;
+}
+
+.stat {
+  min-width: 0;
+}
+
+.stat dt {
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+}
+
+.stat dd {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  color: var(--ink);
+  font-size: var(--text-body);
+  font-weight: var(--font-weight-medium);
+  line-height: var(--line-height-normal);
+  overflow-wrap: anywhere;
+}
+
+.statDate {
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+  font-weight: var(--font-weight-regular);
+}
+
+@media (min-width: 640px) {
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+/* ---------- Grafik ---------- */
+
+.plot {
+  position: relative;
+  width: 100%;
+  border-radius: var(--radius-md);
+  background: var(--surface-raised);
+  border: var(--border-width) solid var(--line);
+  /* Dikey kaydırma sayfada kalır; yatay sürükleme gözlem seçer. */
+  touch-action: pan-y;
+  user-select: none;
+  cursor: crosshair;
+}
+
+.plot:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+.svg {
+  display: block;
+  max-width: 100%;
+}
+
+.grid {
+  stroke: var(--line);
+  stroke-width: 1;
+}
+
+.axisText {
+  fill: var(--ink-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.line {
+  fill: none;
+  stroke: var(--ink);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.lineGap {
+  fill: none;
+  stroke: var(--ink-muted);
+  stroke-width: 1.5;
+  stroke-dasharray: 4 4;
+}
+
+.cursor {
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+
+.dot {
+  fill: var(--ink);
+  stroke: var(--surface-raised);
+  stroke-width: 1.5;
+}
+
+.dotActive {
+  fill: var(--ink);
+  stroke: var(--surface-raised);
+  stroke-width: 2;
+}
+
+.ringMin {
+  fill: none;
+  stroke: var(--save);
+  stroke-width: 2.5;
+}
+
+.ringMax {
+  fill: none;
+  stroke: var(--alert);
+  stroke-width: 2.5;
+  stroke-dasharray: 3 2;
+}
+
+.noData {
+  fill: var(--surface);
+  opacity: 0.8;
+}
+
+.noDataText {
+  fill: var(--ink-muted);
+  font-size: 12px;
+}
+
+.tooltip {
+  position: absolute;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: var(--space-1) var(--space-2);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface-raised);
+  color: var(--ink);
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  white-space: nowrap;
+  pointer-events: none;
+  transform: translate(-50%, calc(-100% - 12px));
+}
+
+.tooltip strong {
+  font-size: var(--text-small);
+}
+
+.emptyPlot {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0;
+  color: var(--ink-muted);
+  font-size: var(--text-small);
+}
+
+.readout {
+  min-height: calc(var(--text-small) * var(--line-height-normal));
+  margin: calc(var(--space-2) * -1) 0 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+  font-variant-numeric: tabular-nums;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2) var(--space-4);
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-meta);
+}
+
+.keyMin,
+.keyMax {
+  display: inline-block;
+  width: 12px;
+  height: 12px;
+  margin-inline-end: calc(var(--space-1) * -2);
+  border-radius: 50%;
+  border: 2.5px solid var(--save);
+}
+
+.keyMax {
+  border-color: var(--alert);
+  border-style: dashed;
+}
+
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin: 0;
+  padding-inline-start: var(--space-4);
+  color: var(--ink-muted);
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+}

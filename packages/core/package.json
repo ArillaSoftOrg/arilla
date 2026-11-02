@@ -29,6 +29,7 @@
     "./catalog-collection-trendyol-relay": "./src/catalog-collection/trendyol-relay.ts",
     "./catalog-discovery-extract": "./src/catalog-collection/discovery-extract.ts",
     "./errors": "./src/errors/index.ts",
+    "./price-history-view": "./src/product/price-history-view.ts",
     "./umami-tracker": "./src/analytics-umami/config.ts"
   },
   "scripts": {
