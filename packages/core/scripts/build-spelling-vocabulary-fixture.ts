@@ -89,5 +89,5 @@ const fixture = {
   categories: trendyolCategoryNames(),
   lexicon: uniqueLexicon,
 };
-writeFileSync(out, `${JSON.stringify(fixture, null, 1)}\n`, "utf8");
+writeFileSync(out, `${JSON.stringify(fixture, null, 2)}\n`, "utf8");
 console.log(`categories=${fixture.categories.length} lexicon=${fixture.lexicon.length} -> ${out}`);

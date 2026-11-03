@@ -68,6 +68,51 @@ Başarı ölçütleri önceden sabittir. Doğrulama kümesinde:
 
 Üretim sorguları değerlendirmeye yalnız ayrı kullanıcı onayıyla katılır.
 
+## Faz 1 sonucu (yalnız geliştirme kümesi; doğrulama kümesi koşulmadı)
+
+`node packages/core/scripts/eval-normalization.ts --split dev`: 137 sorgu, dağarcık 2.937 kelime.
+Dağarcık kaynakları: Trendyol kategori adları, lexicon migration'ları, değerlendirme marka listesi
+ve tohum.
+
+| Ölçüt | Sonuç | Eşik |
+|---|---|---|
+| Doğru normalizasyon (düzeltme bekleyen 52 vaka) | %96,2 | ≥ %85 |
+| Yanlış düzeltme, genel / "düzeltilmemeli" | %0 / %0 | ≤ %2 / ≤ %1 |
+| Doğru yazılmışta değişmeme | %100 | ≥ %99 |
+| Kod / marka korunması | %100 / %100 | %100 / ≥ %98 |
+| Gecikme p50 / p95 | 0,02 / 1,05 ms | p95 ≤ 3 ms |
+
+Kalan iki ıska (yanlış düzeltme değil):
+
+- "kisa": dağarcıkta "kısa" yok;
+- "ksiaomi": güven eşiğin altında kalıyor.
+
+Sabit tohumlu sentetik regresyon testi (300 kelime, tek harf silme ya da yer değiştirme) şunları
+ölçüyor:
+
+- doğru kelimeler hiç değişmiyor;
+- düzeltme oranı ≥ %60;
+- doğru kelimenin ne hedefte ne alternatiflerde olduğu yanlış düzeltme oranı ≤ %5.
+
+Bunlar gerçek kelime belirsizlikleri ("taşama" → "taşıma"); bu durumlarda güven düşer.
+
+Dürüstlük notları:
+
+- **Ayarlama yalnız geliştirme kümesiyle yapıldı.** Kurallar ve eşikler bu kümedeki hatalara
+  bakılarak genel kurallarla düzeltildi; sorguya özel istisna yok. Kurallar: kısa token,
+  yabancı yazım, ek tabanlı bilinen kelime, karakter geri kazanımında Türkçe harfin
+  silinmemesi, fonetik indirimin yalnız yabancı kökenli hedeflere uygulanması.
+- **Tohum ve geliştirme hedefleri örtüşüyor.** `SEED_WORDS` (iphone, ipad, airpods, galaxy,
+  redmi, powerbank, usb, hdmi) geliştirme kümesindeki bazı hedefleri kapsar; bu yüzden
+  geliştirme sonucu iyimserdir. Doğrulama kümesindeki hedefler tohumda yok.
+- **Marka listesi yalnız değerlendirme içindir.** Üretimde dağarcık `brand` tablosundan gelir
+  (en az bir ürünü olan markalar, en fazla 20.000). Bu tablonun gürültüsü Faz 2'de yerel
+  DB'de ölçülmelidir.
+- **İngilizce dağarcık açığı.** Katalog başlıklarındaki İngilizce kelimelerin çoğu
+  ("phone", "stand", "holder") dağarcıkta yok. Bunlar "bilinmeyen kelime" olarak korunuyor ve
+  düzeltilmiyor (yabancı yazım ve ek kuralları). Ancak bilinmeyen İngilizce kelimeye yakın bir
+  Türkçe kelime varsa risk sürer. Faz 2 arama ölçümü bu riski göstermelidir.
+
 ## Reddedilen alternatifler
 
 - **Zemberek / ağır morfolojik çözümleyici:** JVM bağımlılığı istek yolunda olmaz. Markaları,
