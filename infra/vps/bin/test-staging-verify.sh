@@ -102,7 +102,8 @@ if run_verify ok --image "$MIGRATE_IMAGE" --expect "$LAST" --assert-sql "$ASSERT
 [ "$(j "$work/ok.json" 'd["ok"]')" = True ] && pass "rapor ok=true" || fail "rapor ok"
 [ "$(j "$work/ok.json" 'd["migrations"]["pending"]')" = "['$LAST']" ] && pass "bekleyen yalniz $LAST" || fail "bekleyen listesi"
 [ "$(j "$work/ok.json" 'd["migrations"]["applied"]')" = "['$LAST']" ] && pass "uygulanan yalniz $LAST" || fail "uygulanan listesi"
-[ "$(j "$work/ok.json" '[r["status"] for r in d["migrations"]["results"]]')" = "['tamam']" ] && pass "calistirici: tamam" || fail "calistirici satiri"
+# `kind: concurrent` migration "tamam (islem disi)" raporlar (migrate.ts); ikisi de basaridir.
+[ "$(j "$work/ok.json" 'all(r["status"].startswith("tamam") for r in d["migrations"]["results"]) and len(d["migrations"]["results"]) == 1')" = True ] && pass "calistirici: tamam" || fail "calistirici satiri"
 [ "$(j "$work/ok.json" 'd["verify"]["passed"] and d["verify"]["exit"] == 0')" = True ] && pass "verify-schema gecti" || fail "verify-schema"
 [ "$(j "$work/ok.json" 'd["assert"]')" = pass ] && pass "iddia sorgusu gecti" || fail "iddia"
 [ "$(j "$work/ok.json" 'd["isolation"]')" = "{'network': 'none', 'data_directory': '/restore/data', 'listen_addresses': '', 'archive_mode': 'off', 'in_recovery': 'false', 'hba_non_local_rules': 0}" ] \
