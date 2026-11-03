@@ -128,7 +128,11 @@ node -e '
 
 if [ "${SKIP_BUILD:-0}" != "1" ]; then
   echo "== 2. Imajlar derleniyor (web, migrate, ingest, cron)"
-  c --profile ops build >/dev/null 2>&1 && pass "imajlar derlendi" || { fail "imaj derlemesi"; exit 1; }
+  if c --profile ops build >"$work/build.log" 2>&1; then
+    pass "imajlar derlendi"
+  else
+    fail "imaj derlemesi"; echo "-- derleme ciktisinin son 60 satiri:"; tail -60 "$work/build.log"; exit 1
+  fi
 fi
   # BUILD_ONLY=1: yalniz imajlari hazirla (CI `deploy-engine` isi :smoke imajlarini buradan alir).
   if [ "${BUILD_ONLY:-0}" = "1" ]; then [ "$failures" -eq 0 ] && exit 0 || exit 1; fi
