@@ -45,6 +45,7 @@ import {
   isRealtimeInterpretationEnabled,
   REALTIME_INTERPRETATION_DAILY_CALL_CAP,
 } from "../search/realtime-interpretation.ts";
+import { queryNormalizationMode } from "../search/spelling/config.ts";
 import { isWebSearchEnabled } from "../web-search/config.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
 
@@ -236,6 +237,7 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
   const realtimeFlag = raw(env, "GEMINI_REALTIME_ENABLED")?.toLowerCase() === "true";
   const geminiKey = raw(env, "GEMINI_API_KEY") !== undefined;
   const chatOn = isChatDiscoveryEnabled(env);
+  const normalizationRaw = raw(env, "QUERY_NORMALIZATION_MODE");
   const chatImageFlag = raw(env, "CHAT_IMAGE_ENABLED") === "true";
   const testRecipients = (raw(env, "MARKETING_TEST_RECIPIENTS") ?? "")
     .split(",")
@@ -303,6 +305,20 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
       "ai",
       raw(env, "WEB_SEARCH_LEGAL_APPROVED")?.toLowerCase() === "true",
     ),
+    {
+      key: "QUERY_NORMALIZATION_MODE",
+      label: "Sorgu yazım düzeltme (karar 0172)",
+      group: "ai",
+      secret: false,
+      state:
+        normalizationRaw === undefined
+          ? "default"
+          : ["off", "shadow", "on"].includes(normalizationRaw.toLowerCase())
+            ? "set"
+            : "invalid",
+      value: queryNormalizationMode(env),
+      note: "off: kapalı · shadow: yalnız sayaç · on: düzeltmeler aramaya alternatif olarak eklenir",
+    },
     flag(env, "CHAT_DISCOVERY_ENABLED", "Konuşmalı keşif (sohbet)", "ai", chatOn),
     flag(
       env,

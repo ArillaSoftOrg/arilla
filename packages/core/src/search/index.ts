@@ -17,6 +17,7 @@ export * from "./realtime-interpretation.ts";
 export * from "./result-types.ts";
 export * from "./search.ts";
 export * from "./search-summary.ts";
+export { normalizeParsedForSearch } from "./spelling/apply.ts";
 export * from "./stored-interpretation.ts";
 export * from "./types.ts";
 export * from "./visual-search.ts";
