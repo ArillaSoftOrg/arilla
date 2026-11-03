@@ -39,7 +39,6 @@ export * from "./locative.ts";
 export * from "./MerchantList.tsx";
 export * from "./PasswordInput.tsx";
 export * from "./PhotoUploadButton.tsx";
-export * from "./PriceChart.tsx";
 export * from "./PriceDiffBlock.tsx";
 export * from "./PricePositionText.tsx";
 export * from "./ProductCard.tsx";
