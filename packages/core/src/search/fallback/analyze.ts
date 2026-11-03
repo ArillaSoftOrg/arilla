@@ -43,7 +43,7 @@ export const VARIANT_WORDS: ReadonlySet<string> = new Set([
   "xl",
 ]);
 
-const UNIT_WORDS: ReadonlySet<string> = new Set([
+export const UNIT_WORDS: ReadonlySet<string> = new Set([
   "gb",
   "tb",
   "mb",

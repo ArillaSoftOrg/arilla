@@ -6,8 +6,9 @@
 import type { Database } from "@arilla/db";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
+import { loadLexicon } from "./lexicon-repository.ts";
 import { normalizeQueryText } from "./normalize.ts";
-import { peekQuery, resolveQuery } from "./query-resolution.ts";
+import { peekQuery, resolveQuery, resolverVersion } from "./query-resolution.ts";
 
 async function row(queryNorm: string) {
   return withOwnerClient(async (client) => {
@@ -36,11 +37,13 @@ describe("peekQuery - yazmayan sorgu ayristirma (gercek Postgres)", () => {
 
   beforeAll(async () => {
     db = getTestDb();
+    // Guncel surum damgasi (0171 §6.4): damgasiz satir bayat sayilir ve okunmaz.
+    const version = resolverVersion(await loadLexicon(db));
     await withOwnerClient(async (client) => {
       await client.query(
         `INSERT INTO query_resolution (query_norm, parsed, parser_tier, hit_count, last_used_at)
-         VALUES ($1, '{"planted": true}'::jsonb, 2, 5, $2)`,
-        [plantedNorm, lastUsed],
+         VALUES ($1, jsonb_build_object('planted', true, '_resolver', $3::text), 2, 5, $2)`,
+        [plantedNorm, lastUsed, version],
       );
     });
   });

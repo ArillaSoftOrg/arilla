@@ -4,6 +4,7 @@ import {
   createSeedAliasSource,
   formatTraceForLog,
   isRedisUnavailableError,
+  normalizeParsedForSearch,
   type QueryObject,
   recordActivity,
   recordSearchAndCheckWall,
@@ -117,9 +118,17 @@ export async function TextSearchResults({
   // Yapay zekasiz asamali arama (docs/decisions/0066): once mevcut yol; sonuc yoksa
   // ya da yalnizca model kodu celiskili urunler varsa kontrollu gevsetme. Istek
   // yolunda model cagrisi yok.
+  // Yazim duzeltme (karar 0172): bayrak kapaliyken `parsed` aynen doner; acikken duzeltmeler
+  // yalnizca bu aramanin kopyasina alternatif olarak eklenir (onbellege yazilmaz).
+  const searchParsed = await normalizeParsedForSearch(db, parsed);
   const outcome = await searchWithFallback(
     createPostgresSearchProvider(db, { statementTimeoutMs: TEXT_SEARCH_TIMEOUT_MS }),
-    { parsed: { ...parsed, sort: effectiveSort }, sort: effectiveSort, page, pageSize: PAGE_SIZE },
+    {
+      parsed: { ...searchParsed, sort: effectiveSort },
+      sort: effectiveSort,
+      page,
+      pageSize: PAGE_SIZE,
+    },
     {
       aliases: createSeedAliasSource(),
       onTrace: (trace) => {
