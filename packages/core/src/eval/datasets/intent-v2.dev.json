@@ -1,0 +1,1967 @@
+{
+  "_aciklama": "IntentV2 dev seti (karar 0171 §10). Optimizasyon YALNIZCA bu setle yapilir. Etiketler Claude tarafindan TASLAK olarak yazildi (label_source=ai_drafted_pending_human_review); bagimsiz insan etiketi DEGILDIR ve kullanici incelemesi bekler. gold.brand: aranan urunun kullanicinin yazdigi markasi (kanonik, kucuk harf); uyumlu cihazin markasi buraya yazilmaz. gold.type_id: yalnizca ana urun CATALOG_PRODUCT_TYPES turuyse. gold.category: type_id'nin kategori yolu (H icin izin verilen tek kategori). gold.budget: [min_try, max_try] TL. gold.attrs: [anahtar, deger, guc]. gold.exclude_brands: istenmeyen markalar. gold.clarify: engelleyici soru dogru mu.",
+  "label_source": "ai_drafted_pending_human_review",
+  "lexicon_brands": [
+    "samsung",
+    "apple",
+    "logitech",
+    "lenovo",
+    "dyson",
+    "sony",
+    "xiaomi",
+    "philips",
+    "dell",
+    "nintendo"
+  ],
+  "cases": [
+    {
+      "id": "s01",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "airpods pro 2",
+      "gold": {
+        "type": "kulaklık",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s02",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "robot süpürge",
+      "gold": {
+        "type": "süpürge",
+        "type_id": "vacuum",
+        "category": "ev-yasam",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s03",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": true,
+      "q": "kamp cadırı",
+      "gold": {
+        "type": "çadır",
+        "type_id": "tent",
+        "category": "spor-outdoor",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s04",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "logitech mouse",
+      "gold": {
+        "type": "mouse",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": "logitech",
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s05",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "dyson v15 süpürge",
+      "gold": {
+        "type": "süpürge",
+        "type_id": "vacuum",
+        "category": "ev-yasam",
+        "role": "main",
+        "brand": "dyson",
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s06",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "playstation 5",
+      "gold": {
+        "type": "konsol",
+        "type_id": "game_console",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s07",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": true,
+      "q": "termoss",
+      "gold": {
+        "type": "termos",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s08",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "bebek arabası",
+      "gold": {
+        "type": "bebek arabası",
+        "type_id": "stroller",
+        "category": "anne-bebek",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s09",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "erkek parfüm",
+      "gold": {
+        "type": "parfüm",
+        "type_id": "perfume",
+        "category": "saglik-kozmetik/kozmetik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["audience", "erkek", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s10",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": true,
+      "q": "samsng s24",
+      "gold": {
+        "type": "telefon",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": "samsung",
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s11",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "buharlı ütü",
+      "gold": {
+        "type": "ütü",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "buharlı", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "s12",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": true,
+      "q": "kahve makinasi",
+      "gold": {
+        "type": "kahve makinesi",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+
+    {
+      "id": "m01",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": false,
+      "q": "siyah deri erkek cüzdan",
+      "gold": {
+        "type": "cüzdan",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [
+          ["color", "siyah", "required"],
+          ["material", "deri", "required"],
+          ["audience", "erkek", "required"]
+        ],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m02",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": false,
+      "q": "512 gb ssd'li 16 gb ram oyun laptopu",
+      "gold": {
+        "type": "laptop",
+        "type_id": "laptop",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [
+          ["storage", "512 gb", "required"],
+          ["memory", "16 gb", "required"],
+          ["feature", "oyun", "required"]
+        ],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m03",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": true,
+      "q": "su gecirmez 20000 mah powerbank",
+      "gold": {
+        "type": "powerbank",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [
+          ["battery_capacity", "20000 mah", "required"],
+          ["feature", "su geçirmez", "required"]
+        ],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m04",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": false,
+      "q": "4 kişilik su geçirmez kamp çadırı",
+      "gold": {
+        "type": "çadır",
+        "type_id": "tent",
+        "category": "spor-outdoor",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["size", "4 kişilik", "required"], ["feature", "su geçirmez", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m05",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": false,
+      "q": "beyaz 43 numara koşu ayakkabısı",
+      "gold": {
+        "type": "ayakkabı",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [
+          ["color", "beyaz", "required"],
+          ["size", "43", "required"],
+          ["feature", "koşu", "required"]
+        ],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m06",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": false,
+      "q": "65 inç 4k qled televizyon",
+      "gold": {
+        "type": "televizyon",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [
+          ["screen_size", "65 inç", "required"],
+          ["resolution", "4k", "required"],
+          ["panel_type", "qled", "required"]
+        ],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m07",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": false,
+      "q": "paslanmaz çelik 1.5 litre kettle",
+      "gold": {
+        "type": "kettle",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["material", "paslanmaz çelik", "required"], ["size", "1.5 litre", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m08",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": false,
+      "q": "lenovo 14 inç i5 dizüstü bilgisayar",
+      "gold": {
+        "type": "dizüstü bilgisayar",
+        "type_id": "laptop",
+        "category": "elektronik",
+        "role": "main",
+        "brand": "lenovo",
+        "compat": null,
+        "budget": null,
+        "attrs": [["screen_size", "14 inç", "required"], ["feature", "i5", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m09",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": false,
+      "q": "kadın siyah su geçirmez mont",
+      "gold": {
+        "type": "mont",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [
+          ["audience", "kadın", "required"],
+          ["color", "siyah", "required"],
+          ["feature", "su geçirmez", "required"]
+        ],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m10",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": false,
+      "q": "çift kişilik pamuk nevresim takımı",
+      "gold": {
+        "type": "nevresim takımı",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["size", "çift kişilik", "required"], ["material", "pamuk", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m11",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": true,
+      "q": "anc özellikli kulak üstü blutooth kulaklık",
+      "gold": {
+        "type": "kulaklık",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [
+          ["feature", "anc", "required"],
+          ["feature", "kulak üstü", "required"],
+          ["connectivity", "bluetooth", "required"]
+        ],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "m12",
+      "cat": "multi",
+      "lang": "tr",
+      "typo": false,
+      "q": "128 gb mavi iphone 15",
+      "gold": {
+        "type": "telefon",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["storage", "128 gb", "required"], ["color", "mavi", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+
+    {
+      "id": "a01",
+      "cat": "ambiguous",
+      "lang": "tr",
+      "typo": false,
+      "q": "samsung için hızlı şarj",
+      "gold": {
+        "type": "şarj cihazı",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "samsung",
+        "budget": null,
+        "attrs": [["feature", "hızlı şarj", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "a02",
+      "cat": "ambiguous",
+      "lang": "tr",
+      "typo": false,
+      "q": "hediye",
+      "gold": {
+        "type": null,
+        "type_id": null,
+        "category": null,
+        "role": null,
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": true
+      }
+    },
+    {
+      "id": "a03",
+      "cat": "ambiguous",
+      "lang": "tr",
+      "typo": true,
+      "q": "anem için bir şey",
+      "gold": {
+        "type": null,
+        "type_id": null,
+        "category": null,
+        "role": null,
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": true
+      }
+    },
+    {
+      "id": "a04",
+      "cat": "ambiguous",
+      "lang": "tr",
+      "typo": false,
+      "q": "apple",
+      "gold": {
+        "type": null,
+        "type_id": null,
+        "category": null,
+        "role": null,
+        "brand": "apple",
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "a05",
+      "cat": "ambiguous",
+      "lang": "tr",
+      "typo": false,
+      "q": "ekran",
+      "gold": {
+        "type": "ekran",
+        "type_id": null,
+        "category": null,
+        "role": null,
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": true
+      }
+    },
+    {
+      "id": "a06",
+      "cat": "ambiguous",
+      "lang": "tr",
+      "typo": false,
+      "q": "şarj aleti",
+      "gold": {
+        "type": "şarj aleti",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "a07",
+      "cat": "ambiguous",
+      "lang": "tr",
+      "typo": false,
+      "q": "type c kablo",
+      "gold": {
+        "type": "kablo",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["connector", "type c", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "a08",
+      "cat": "ambiguous",
+      "lang": "tr",
+      "typo": false,
+      "q": "kalem pil",
+      "gold": {
+        "type": "pil",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "a09",
+      "cat": "ambiguous",
+      "lang": "tr",
+      "typo": false,
+      "q": "telefon kılıfı",
+      "gold": {
+        "type": "kılıf",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "a10",
+      "cat": "ambiguous",
+      "lang": "tr",
+      "typo": false,
+      "q": "spor için bir şeyler",
+      "gold": {
+        "type": null,
+        "type_id": null,
+        "category": null,
+        "role": null,
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": true
+      }
+    },
+
+    {
+      "id": "b01",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": false,
+      "q": "3000 TL altında kablosuz kulaklık",
+      "gold": {
+        "type": "kulaklık",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": [null, 3000],
+        "attrs": [["connectivity", "kablosuz", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "b02",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": false,
+      "q": "5-10 bin arası telefon",
+      "gold": {
+        "type": "telefon",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": [5000, 10000],
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "b03",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": true,
+      "q": "1500 liraya kadar akilli saat",
+      "gold": {
+        "type": "akıllı saat",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": [null, 1500],
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "b04",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": false,
+      "q": "en fazla 20 bin tl laptop",
+      "gold": {
+        "type": "laptop",
+        "type_id": "laptop",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": [null, 20000],
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "b05",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": false,
+      "q": "çok pahalı olmasın kahve makinesi",
+      "gold": {
+        "type": "kahve makinesi",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "b06",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": true,
+      "q": "uygun fiyatli robot supurge",
+      "gold": {
+        "type": "süpürge",
+        "type_id": "vacuum",
+        "category": "ev-yasam",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "b07",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": false,
+      "q": "500 tl altı hediye",
+      "gold": {
+        "type": null,
+        "type_id": null,
+        "category": null,
+        "role": null,
+        "brand": null,
+        "compat": null,
+        "budget": [null, 500],
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": true
+      }
+    },
+    {
+      "id": "b08",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": false,
+      "q": "2000 ile 3000 tl arası bluetooth hoparlör",
+      "gold": {
+        "type": "hoparlör",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": [2000, 3000],
+        "attrs": [["connectivity", "bluetooth", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "b09",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": false,
+      "q": "100 tl altı telefon kılıfı",
+      "gold": {
+        "type": "kılıf",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": null,
+        "budget": [null, 100],
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "b10",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": false,
+      "q": "10 binden ucuz oyun monitörü",
+      "gold": {
+        "type": "monitör",
+        "type_id": "monitor",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": [null, 10000],
+        "attrs": [["feature", "oyun", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+
+    {
+      "id": "c01",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": false,
+      "q": "iPhone 15 Pro Max için kılıf",
+      "gold": {
+        "type": "kılıf",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "iphone 15 pro max",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "c02",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": false,
+      "q": "Samsung telefonuma şarj aleti lazım",
+      "gold": {
+        "type": "şarj aleti",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "samsung telefon",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "c03",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": false,
+      "q": "macbook air m2 uyumlu usb c hub",
+      "gold": {
+        "type": "hub",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "macbook air m2",
+        "budget": null,
+        "attrs": [["connector", "usb c", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "c04",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": false,
+      "q": "ps5 kolu",
+      "gold": {
+        "type": "kol",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "ps5",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "c05",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": true,
+      "q": "galaxy wach 6 kordon",
+      "gold": {
+        "type": "kordon",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "galaxy watch 6",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "c06",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": false,
+      "q": "xiaomi redmi note 13 ekran koruyucu",
+      "gold": {
+        "type": "ekran koruyucu",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "xiaomi redmi note 13",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "c07",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": false,
+      "q": "ipad 10. nesil kalem",
+      "gold": {
+        "type": "kalem",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "ipad 10. nesil",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "c08",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": true,
+      "q": "airpods pro 2 kilifi",
+      "gold": {
+        "type": "kılıf",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "airpods pro 2",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "c09",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": false,
+      "q": "dell xps 13 şarj adaptörü",
+      "gold": {
+        "type": "şarj adaptörü",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "dell xps 13",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "c10",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": false,
+      "q": "nintendo switch oled taşıma çantası",
+      "gold": {
+        "type": "çanta",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "nintendo switch oled",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+
+    {
+      "id": "p01",
+      "cat": "part",
+      "lang": "tr",
+      "typo": false,
+      "q": "dyson v11 yedek filtre",
+      "gold": {
+        "type": "filtre",
+        "type_id": null,
+        "category": null,
+        "role": "part",
+        "brand": null,
+        "compat": "dyson v11",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "p02",
+      "cat": "part",
+      "lang": "tr",
+      "typo": true,
+      "q": "sony wh1000xm4 kulak pedi",
+      "gold": {
+        "type": "kulak pedi",
+        "type_id": null,
+        "category": null,
+        "role": "part",
+        "brand": null,
+        "compat": "sony wh1000xm4",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "p03",
+      "cat": "part",
+      "lang": "tr",
+      "typo": false,
+      "q": "robot süpürge yan fırça",
+      "gold": {
+        "type": "yan fırça",
+        "type_id": null,
+        "category": null,
+        "role": "part",
+        "brand": null,
+        "compat": "robot süpürge",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "p04",
+      "cat": "part",
+      "lang": "tr",
+      "typo": false,
+      "q": "iphone 13 batarya",
+      "gold": {
+        "type": "batarya",
+        "type_id": null,
+        "category": null,
+        "role": "part",
+        "brand": null,
+        "compat": "iphone 13",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "p05",
+      "cat": "part",
+      "lang": "tr",
+      "typo": true,
+      "q": "phillips airfryer yedek sepet",
+      "gold": {
+        "type": "sepet",
+        "type_id": null,
+        "category": null,
+        "role": "part",
+        "brand": null,
+        "compat": "philips airfryer",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "p06",
+      "cat": "part",
+      "lang": "tr",
+      "typo": false,
+      "q": "15.6 inç laptop çantası",
+      "gold": {
+        "type": "çanta",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["size", "15.6 inç", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "p07",
+      "cat": "part",
+      "lang": "tr",
+      "typo": false,
+      "q": "kulaklık yedek parçası",
+      "gold": {
+        "type": "yedek parça",
+        "type_id": null,
+        "category": null,
+        "role": "part",
+        "brand": null,
+        "compat": "kulaklık",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "p08",
+      "cat": "part",
+      "lang": "tr",
+      "typo": false,
+      "q": "bisiklet iç lastik 26 jant",
+      "gold": {
+        "type": "iç lastik",
+        "type_id": null,
+        "category": null,
+        "role": "part",
+        "brand": null,
+        "compat": "bisiklet",
+        "budget": null,
+        "attrs": [["size", "26 jant", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "p09",
+      "cat": "part",
+      "lang": "tr",
+      "typo": false,
+      "q": "kahve makinesi su tankı",
+      "gold": {
+        "type": "su tankı",
+        "type_id": null,
+        "category": null,
+        "role": "part",
+        "brand": null,
+        "compat": "kahve makinesi",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "p10",
+      "cat": "part",
+      "lang": "tr",
+      "typo": true,
+      "q": "aple watch şarj kablosu",
+      "gold": {
+        "type": "şarj kablosu",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "apple watch",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+
+    {
+      "id": "n01",
+      "cat": "negative",
+      "lang": "tr",
+      "typo": false,
+      "q": "kablosuz olmayan oyuncu faresi",
+      "gold": {
+        "type": "fare",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["connectivity", "kablosuz", "excluded"], ["feature", "oyuncu", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "n02",
+      "cat": "negative",
+      "lang": "tr",
+      "typo": false,
+      "q": "şekersiz protein bar",
+      "gold": {
+        "type": "protein bar",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "şekersiz", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "n03",
+      "cat": "negative",
+      "lang": "tr",
+      "typo": false,
+      "q": "xiaomi hariç akıllı bileklik",
+      "gold": {
+        "type": "akıllı bileklik",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": ["xiaomi"],
+        "clarify": false
+      }
+    },
+    {
+      "id": "n04",
+      "cat": "negative",
+      "lang": "tr",
+      "typo": false,
+      "q": "glutensiz makarna",
+      "gold": {
+        "type": "makarna",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "glutensiz", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "n05",
+      "cat": "negative",
+      "lang": "tr",
+      "typo": false,
+      "q": "plastik olmayan su şişesi",
+      "gold": {
+        "type": "su şişesi",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["material", "plastik", "excluded"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "n06",
+      "cat": "negative",
+      "lang": "tr",
+      "typo": false,
+      "q": "apple olmasın tablet",
+      "gold": {
+        "type": "tablet",
+        "type_id": "tablet",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": ["apple"],
+        "clarify": false
+      }
+    },
+    {
+      "id": "n07",
+      "cat": "negative",
+      "lang": "tr",
+      "typo": true,
+      "q": "kablolu degil kulaklik",
+      "gold": {
+        "type": "kulaklık",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["connectivity", "kablolu", "excluded"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "n08",
+      "cat": "negative",
+      "lang": "tr",
+      "typo": false,
+      "q": "deri olmayan erkek cüzdan",
+      "gold": {
+        "type": "cüzdan",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["material", "deri", "excluded"], ["audience", "erkek", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+
+    {
+      "id": "t01",
+      "cat": "tech",
+      "lang": "tr",
+      "typo": false,
+      "q": "144 Hz, 27 inç, IPS oyuncu monitörü",
+      "gold": {
+        "type": "monitör",
+        "type_id": "monitor",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [
+          ["refresh_rate", "144 hz", "required"],
+          ["screen_size", "27 inç", "required"],
+          ["panel_type", "ips", "required"],
+          ["feature", "oyuncu", "required"]
+        ],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "t02",
+      "cat": "tech",
+      "lang": "tr",
+      "typo": false,
+      "q": "rtx 4060 ekran kartlı laptop",
+      "gold": {
+        "type": "laptop",
+        "type_id": "laptop",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "rtx 4060", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "t03",
+      "cat": "tech",
+      "lang": "tr",
+      "typo": false,
+      "q": "65w usb-c gan şarj aleti",
+      "gold": {
+        "type": "şarj aleti",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [
+          ["power", "65w", "required"],
+          ["connector", "usb-c", "required"],
+          ["feature", "gan", "required"]
+        ],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "t04",
+      "cat": "tech",
+      "lang": "tr",
+      "typo": false,
+      "q": "1 tb nvme ssd",
+      "gold": {
+        "type": "ssd",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["storage", "1 tb", "required"], ["feature", "nvme", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "t05",
+      "cat": "tech",
+      "lang": "tr",
+      "typo": true,
+      "q": "5000 mah 33w hizli sarjli telefon",
+      "gold": {
+        "type": "telefon",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [
+          ["battery_capacity", "5000 mah", "required"],
+          ["power", "33w", "required"],
+          ["feature", "hızlı şarj", "required"]
+        ],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "t06",
+      "cat": "tech",
+      "lang": "tr",
+      "typo": false,
+      "q": "wifi 6 destekli router",
+      "gold": {
+        "type": "router",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "wifi 6", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "t07",
+      "cat": "tech",
+      "lang": "tr",
+      "typo": true,
+      "q": "2k 165hz monitor",
+      "gold": {
+        "type": "monitör",
+        "type_id": "monitor",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["resolution", "2k", "required"], ["refresh_rate", "165hz", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "t08",
+      "cat": "tech",
+      "lang": "tr",
+      "typo": false,
+      "q": "12000 btu inverter klima",
+      "gold": {
+        "type": "klima",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["power", "12000 btu", "required"], ["feature", "inverter", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "t09",
+      "cat": "tech",
+      "lang": "tr",
+      "typo": false,
+      "q": "32 gb ddr5 ram",
+      "gold": {
+        "type": "ram",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["memory", "32 gb", "required"], ["feature", "ddr5", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "t10",
+      "cat": "tech",
+      "lang": "tr",
+      "typo": false,
+      "q": "48 mp kameralı telefon",
+      "gold": {
+        "type": "telefon",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "48 mp", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+
+    {
+      "id": "u01",
+      "cat": "use_case",
+      "lang": "tr",
+      "typo": false,
+      "q": "Üniversitede not tutmak için uygun fiyatlı tablet",
+      "gold": {
+        "type": "tablet",
+        "type_id": "tablet",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "u02",
+      "cat": "use_case",
+      "lang": "tr",
+      "typo": false,
+      "q": "yeni doğan için bebek arabası",
+      "gold": {
+        "type": "bebek arabası",
+        "type_id": "stroller",
+        "category": "anne-bebek",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "u03",
+      "cat": "use_case",
+      "lang": "tr",
+      "typo": false,
+      "q": "koşu için kulaklık",
+      "gold": {
+        "type": "kulaklık",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "u04",
+      "cat": "use_case",
+      "lang": "tr",
+      "typo": true,
+      "q": "ofis icin ergonomik sandalye",
+      "gold": {
+        "type": "sandalye",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "ergonomik", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "u05",
+      "cat": "use_case",
+      "lang": "tr",
+      "typo": false,
+      "q": "kamp için taşınabilir ocak",
+      "gold": {
+        "type": "ocak",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "taşınabilir", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "u06",
+      "cat": "use_case",
+      "lang": "tr",
+      "typo": false,
+      "q": "evden çalışırken görüntülü görüşme için kamera",
+      "gold": {
+        "type": "kamera",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "u07",
+      "cat": "use_case",
+      "lang": "tr",
+      "typo": false,
+      "q": "uzun yol için motosiklet kaskı",
+      "gold": {
+        "type": "kask",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "u08",
+      "cat": "use_case",
+      "lang": "tr",
+      "typo": false,
+      "q": "çocuğum için oyun konsolu",
+      "gold": {
+        "type": "oyun konsolu",
+        "type_id": "game_console",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+
+    {
+      "id": "e01",
+      "cat": "english",
+      "lang": "en",
+      "typo": true,
+      "q": "wireles earbuds under 2000 tl",
+      "gold": {
+        "type": "earbuds",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": [null, 2000],
+        "attrs": [["connectivity", "wireless", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "e02",
+      "cat": "english",
+      "lang": "en",
+      "typo": false,
+      "q": "iphone 15 case",
+      "gold": {
+        "type": "case",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "iphone 15",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "e03",
+      "cat": "english",
+      "lang": "en",
+      "typo": false,
+      "q": "gaming mouse not wireless",
+      "gold": {
+        "type": "mouse",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["connectivity", "wireless", "excluded"], ["feature", "gaming", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "e04",
+      "cat": "english",
+      "lang": "en",
+      "typo": false,
+      "q": "4k monitor 27 inch",
+      "gold": {
+        "type": "monitor",
+        "type_id": "monitor",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["resolution", "4k", "required"], ["screen_size", "27 inch", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "e05",
+      "cat": "english",
+      "lang": "en",
+      "typo": true,
+      "q": "replacment ear pads for sony wh-1000xm5",
+      "gold": {
+        "type": "ear pads",
+        "type_id": null,
+        "category": null,
+        "role": "part",
+        "brand": null,
+        "compat": "sony wh-1000xm5",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "e06",
+      "cat": "english",
+      "lang": "en",
+      "typo": false,
+      "q": "laptop bag 15.6 inch",
+      "gold": {
+        "type": "bag",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["size", "15.6 inch", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "e07",
+      "cat": "english",
+      "lang": "en",
+      "typo": false,
+      "q": "robot vacuum cleaner",
+      "gold": {
+        "type": "vacuum cleaner",
+        "type_id": "vacuum",
+        "category": "ev-yasam",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "e08",
+      "cat": "english",
+      "lang": "en",
+      "typo": false,
+      "q": "usb c cable for samsung",
+      "gold": {
+        "type": "cable",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "samsung",
+        "budget": null,
+        "attrs": [["connector", "usb c", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "e09",
+      "cat": "english",
+      "lang": "en",
+      "typo": false,
+      "q": "running shoes size 42",
+      "gold": {
+        "type": "shoes",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["size", "42", "required"], ["feature", "running", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "e10",
+      "cat": "english",
+      "lang": "en",
+      "typo": false,
+      "q": "cheap tablet for kids",
+      "gold": {
+        "type": "tablet",
+        "type_id": "tablet",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    }
+  ]
+}
