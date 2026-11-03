@@ -90,25 +90,56 @@ function toResult(row: QueryResolutionRow, cacheHit: boolean): ResolveQueryResul
 }
 
 /**
+ * Satirin tazeligi. Bayatsa, karsilastirma icin tazeden okunan sozluk (varsa)
+ * geri verilir; yeniden ayristirma ayni sozlugu kullanir, ikinci okuma yapilmaz.
+ */
+type Freshness = { current: true } | { current: false; lexicon: LexiconEntry[] | null };
+
+/** Damganin kod surumu kismi ("1:abcd..." -> "1"). */
+function codeVersionOf(stamp: string): string {
+  return stamp.slice(0, stamp.indexOf(":"));
+}
+
+/**
  * Satir bugunku ayristirici + sozlukle mi uretildi? Surec ici sozluk onbellegi
  * (en cok 5 dk) bayat olabilir: uyusmazlikta sozluk tazeden okunur ve tekrar
  * karsilastirilir; yalnizca gercekten bayat satir yeniden ayristirilir.
+ *
+ * Sozluk okunamazsa (DB hatasi): damgasi BUGUNKU kod surumune ait satir
+ * sunulur - #267 oncesi davranis, isabet yolu sozluge hic bagli degildi;
+ * sozluk ozeti dogrulanamaz ama arama kesilmez. Damgasiz ya da baska kod
+ * surumune ait satir sunulmaz: yeniden ayristirma sozluk ister, hata yukari
+ * iletilir (kayit-yok yolunun bugunku davranisi).
  */
-async function isCurrent(db: Database, row: QueryResolutionRow): Promise<boolean> {
+async function checkRow(db: Database, row: QueryResolutionRow): Promise<Freshness> {
   const stored = storedVersion(row);
-  if (stored === null) return false;
-  if (stored === resolverVersion(await loadLexiconCached(db))) return true;
-  if (stored === resolverVersion(await loadLexicon(db))) {
+  if (stored === null) return { current: false, lexicon: null };
+  const sameCode = codeVersionOf(stored) === RESOLVER_VERSION;
+  let fresh: LexiconEntry[];
+  try {
+    if (stored === resolverVersion(await loadLexiconCached(db))) return { current: true };
+    fresh = await loadLexicon(db);
+  } catch (error) {
+    if (sameCode) {
+      // Sorgu metni loga girmez (kisisel veri).
+      console.warn("[query_resolution] sozluk okunamadi; damgali satir sunuldu", {
+        code: (error as { code?: string } | null)?.code ?? "unknown",
+      });
+      return { current: true };
+    }
+    throw error;
+  }
+  if (stored === resolverVersion(fresh)) {
     // Bu surecin sozluk onbellegi geride kalmis: tazelet.
     invalidateLexiconCache(db);
-    return true;
+    return { current: true };
   }
-  return false;
+  return { current: false, lexicon: fresh };
 }
 
 /** Kademe 2: sozluk + deterministik ayristirma. Model cagrisi yok. */
-async function parseFresh(db: Database, rawText: string) {
-  const lexiconEntries = await loadLexicon(db);
+async function parseFresh(db: Database, rawText: string, lexicon: LexiconEntry[] | null = null) {
+  const lexiconEntries = lexicon ?? (await loadLexicon(db));
   const parsed = parseQueryText(rawText, lexiconEntries);
   // C1 kapsaminda gercek kategori agacindan aday hesaplanmaz; bos aday
   // listesi her zaman needsClarification: false uretir. C2, ayni fonksiyona
@@ -146,7 +177,11 @@ export async function peekQuery(db: Database, rawText: string): Promise<ResolveQ
       .from(queryResolution)
       .where(eq(queryResolution.queryNorm, queryNorm))
       .limit(1);
-    if (rows[0] && (await isCurrent(db, rows[0]))) return toResult(rows[0], true);
+    if (rows[0]) {
+      const freshness = await checkRow(db, rows[0]);
+      if (freshness.current) return toResult(rows[0], true);
+      return freshResult(await parseFresh(db, rawText, freshness.lexicon));
+    }
   }
   return freshResult(await parseFresh(db, rawText));
 }
@@ -166,9 +201,11 @@ export async function resolveQuery(db: Database, rawText: string): Promise<Resol
 
   const existing = updated[0];
   if (existing) {
-    if (await isCurrent(db, existing)) return toResult(existing, true);
-    // Bayat satir: yeniden ayristir ve yerinde guncelle (sayac korunur).
-    const fresh = await parseFresh(db, rawText);
+    const freshness = await checkRow(db, existing);
+    if (freshness.current) return toResult(existing, true);
+    // Bayat satir: yeniden ayristir (karsilastirmada okunan sozlukle) ve yerinde
+    // guncelle (sayac korunur).
+    const fresh = await parseFresh(db, rawText, freshness.lexicon);
     await db
       .update(queryResolution)
       .set({

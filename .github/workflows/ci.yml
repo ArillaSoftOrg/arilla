@@ -386,11 +386,14 @@ jobs:
       # diğer web sınırı testleri.
       - name: web integration (tümü)
         run: pnpm --filter @arilla/web exec vitest run -c vitest.integration.config.ts
-      # Yönetim core'u + A0'ın dokunduğu model maliyeti yazan yollar.
-      - name: core integration (yönetim, sohbet, sorgu yorumu)
+      # Yönetim core'u + A0'ın dokunduğu model maliyeti yazan yollar + /ara arama
+      # yolu (src/search: metin araması, fallback, query_resolution önbelleği ve
+      # sürüm damgası, karar 0171). `*.perf.integration` dosyaları SEARCH_PERF=1
+      # olmadan kendini atlar.
+      - name: core integration (yönetim, sohbet, arama, sorgu yorumu)
         run: >-
           pnpm --filter @arilla/core exec vitest run -c vitest.integration.config.ts
-          src/admin src/chat src/search/query-interpretation.integration.test.ts src/offers
+          src/admin src/chat src/search src/offers
           src/entitlement/charged-search.integration.test.ts src/web-search
 
   # Karar 0111: migration guvenligi + Python ingest entegrasyon testleri.
