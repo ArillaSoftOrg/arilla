@@ -113,6 +113,52 @@ Dürüstlük notları:
   düzeltilmiyor (yabancı yazım ve ek kuralları). Ancak bilinmeyen İngilizce kelimeye yakın bir
   Türkçe kelime varsa risk sürer. Faz 2 arama ölçümü bu riski göstermelidir.
 
+## Faz 2: arama entegrasyonu (bayrak arkasında, varsayılan `off`)
+
+**Bağlantı.** `/ara` metin araması tek bir çağrı yapar: `normalizeParsedForSearch(db, parsed)`
+(`search/spelling/apply.ts`). Çağrı, `resolveQuery` ya da planlanmış sohbet sorgusundan
+sonra gelir.
+
+- `off`: iş yapılmaz, aynı nesne döner.
+- `shadow`: normalizasyon hesaplanır; yalnız sayı ve sabit kod loglanır (sorgu metni yok).
+- `on`: düzeltmeler `parsed` nesnesinin kopyasındaki metin slotlarına alternatif olarak eklenir.
+
+**Uygulama kuralları.**
+
+- Özgün token slotun ilk elemanı olarak kalır. Düzeltilmiş ifade ve onun `lexicon` eş
+  anlamlıları aynı slota eklenir ("şarz aleti" → "şarj aleti", "charger"); Türkçe sorgudan
+  İngilizce başlığa köprü bu yolla kurulur.
+- `filters` ve `unparsed` değişmez.
+- Olumsuzlanan kelime ("zamzung olmasın") aramada düzeltilmez.
+- Önbellekteki `parsed` nesnesine dokunulmaz; bu birim testle doğrulandı.
+- Her hata özgün `parsed` ile devam eder.
+- Yönetim konfig ekranında `QUERY_NORMALIZATION_MODE` satırı gösterilir.
+
+**Arama etkisi.** Yerel ve tek kullanımlık veritabanında, 15 bin ürünlük pilot katalog kopyası
+üzerinde ölçüldü (`node packages/core/scripts/eval-normalization-search.ts`). Ölçüm etiketsiz ve
+karşılaştırmalıdır; aynı veritabanı ve aynı kod kullanıldı, yalnız bayrak değişti. Yalnız
+geliştirme kümesi kullanıldı.
+
+| Ölçüt | `off` | `on` |
+|---|---|---|
+| Hatalı yazılmış 52 sorguda sıfır sonuç | %69,2 | %40,4 |
+| — doğru yazılmış eşdeğeri sonuç veren 34 sorguda sıfır sonuç | %52,9 | %8,8 (göreli −%83) |
+| Doğru yazılmış eşdeğerin ilk 10'uyla örtüşme | 0,660 | 0,933 |
+| Doğru yazılmış 85 sorguda ilk 10'u değişen | — | 0 |
+| 38'lik `bootstrap-queries.json` setinde ilk 10'u değişen | — | 0 |
+
+Hatalı yazılmış 52 sorgunun 18'inde doğru yazılmış eşdeğer de sonuç vermiyor: katalogda
+karşılığı yok, düzeltme bunları kurtaramaz. Eşdeğer sorgu, veri kümesindeki beklenen düzeltmeyle
+üretilir. Bu ölçüm "doğru ürün bulundu" demez; "düzeltilmiş sorgunun sonucuna yaklaşıldı" der.
+
+**Sınırlar.**
+
+- Yerel veritabanında yalnız 32 marka var. Üretim `brand` tablosunun gürültüsü ölçülmedi;
+  üretime erişim yok, `shadow` açılışında gözlenmeli.
+- `scale.perf` (milyon ürün) bu turda koşulmadı. Slot başına en fazla 2 düzeltme alternatifi
+  eklenir ve `lexicon` eş anlamlıları zaten mevcut yoldan gelir; aday kümesi sınırı
+  (`CANDIDATE_LIMIT`) değişmedi.
+
 ## Reddedilen alternatifler
 
 - **Zemberek / ağır morfolojik çözümleyici:** JVM bağımlılığı istek yolunda olmaz. Markaları,
