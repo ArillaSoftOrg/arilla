@@ -130,11 +130,8 @@ CREATE INDEX product_category_idx ON product (category_id);
 CREATE INDEX product_gtin_idx     ON product (gtin) WHERE gtin IS NOT NULL;
 CREATE INDEX product_title_trgm   ON product USING gin (title gin_trgm_ops)
     WHERE publication_state = 'published';
--- Metin aramasinin aday kapisi (0029): katlanmis baslik. Ifade
--- packages/core/src/search/text-match.ts foldedTitleExpr ile birebir ayni.
-CREATE INDEX product_title_fold_trgm ON product
-    USING gin (lower(translate(title, 'ıİIŞşÇçĞğÖöÜüÂâÎîÛû', 'iiissccggoouuaaiiuu')) gin_trgm_ops)
-    WHERE publication_state = 'published';
+-- 0104 (karar 0169): tum-yayin `product_title_fold_trgm` (0019) kaldirildi; asagidaki iki
+-- bolum indeksi birlikte ayni satirlari kapsar ve yayin yazimini bir GIN daha az yavaslatir.
 -- 0083 (karar 0129): metin aramasinin aday bolumleri; TRY teklifli urunler yurt disi
 -- ilan yigininda filtrelenmez. Ifade/yuklem `search/text-match.ts` ile ayni.
 CREATE INDEX product_title_fold_try_trgm ON product
