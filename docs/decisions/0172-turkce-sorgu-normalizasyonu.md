@@ -56,7 +56,7 @@ taşınmaz ve `product-title-guard.ts` bu işte değişmez.
 - **Geliştirme kümesi:** kurallar ve eşikler yalnız bununla ayarlanır.
 - **Regresyon testleri:** CI'da koşar; sentetik hata üreteci ve mevcut 38 sorguluk set dahil.
 - **Bağımsız doğrulama kümesi:** kurallardan önce yazılıp dondurulur. Entegre sistemin son
-  değerlendirmesinde **bir kez** koşulur. SHA-256: _(Faz 1'de doldurulacak)_.
+  değerlendirmesinde **bir kez** koşulur. SHA-256 (`query-normalization.holdout.json`, 90 sorgu): `760537e6d436d563585907029ba23bb087f2a540fd797a77221a524aa87a183b`. Kurallardan önce ayrı commit ile eklendi.
 
 Başarı ölçütleri önceden sabittir. Doğrulama kümesinde:
 

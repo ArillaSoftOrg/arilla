@@ -1,0 +1,938 @@
+{
+  "_aciklama": "Gelistirme kumesi (karar 0172). Kurallar ve esikler YALNIZ bununla ayarlanir. expect: ham token -> kabul edilen duzeltmeler (tr kucuk harf). expect'te olmayan tokena duzeltme uretmek yanlis duzeltmedir. Elle yazildi; uretim sorgusu icermez.",
+  "split": "dev",
+  "cases": [
+    {
+      "id": "D001",
+      "category": "correct",
+      "query": "samsung şarj aleti",
+      "expect": {}
+    },
+    {
+      "id": "D002",
+      "category": "correct",
+      "query": "iphone 15 kılıf",
+      "expect": {}
+    },
+    {
+      "id": "D003",
+      "category": "correct",
+      "query": "bluetooth kulaklık",
+      "expect": {}
+    },
+    {
+      "id": "D004",
+      "category": "correct",
+      "query": "laptop şarj kablosu",
+      "expect": {}
+    },
+    {
+      "id": "D005",
+      "category": "correct",
+      "query": "erkek pantolon",
+      "expect": {}
+    },
+    {
+      "id": "D006",
+      "category": "correct",
+      "query": "kulaklık pedi",
+      "expect": {}
+    },
+    {
+      "id": "D007",
+      "category": "correct",
+      "query": "apple watch kayışı",
+      "expect": {}
+    },
+    {
+      "id": "D008",
+      "category": "correct",
+      "query": "xiaomi robot süpürge",
+      "expect": {}
+    },
+    {
+      "id": "D009",
+      "category": "correct",
+      "query": "kablosuz mouse",
+      "expect": {}
+    },
+    {
+      "id": "D010",
+      "category": "correct",
+      "query": "ekran koruyucu",
+      "expect": {}
+    },
+    {
+      "id": "D011",
+      "category": "correct",
+      "query": "kadın spor ayakkabı",
+      "expect": {}
+    },
+    {
+      "id": "D012",
+      "category": "correct",
+      "query": "araç şarj cihazı",
+      "expect": {}
+    },
+    {
+      "id": "D013",
+      "category": "correct",
+      "query": "çocuk bisikleti",
+      "expect": {}
+    },
+    {
+      "id": "D014",
+      "category": "correct",
+      "query": "philips tıraş makinesi",
+      "expect": {}
+    },
+    {
+      "id": "D015",
+      "category": "tr_chars",
+      "query": "sarj kablosu",
+      "expect": {
+        "sarj": ["şarj"]
+      }
+    },
+    {
+      "id": "D016",
+      "category": "tr_chars",
+      "query": "kulaklik",
+      "expect": {
+        "kulaklik": ["kulaklık"]
+      }
+    },
+    {
+      "id": "D017",
+      "category": "tr_chars",
+      "query": "telefon kilifi",
+      "expect": {
+        "kilifi": ["kılıfı"]
+      }
+    },
+    {
+      "id": "D018",
+      "category": "tr_chars",
+      "query": "hoparlor",
+      "expect": {
+        "hoparlor": ["hoparlör"]
+      }
+    },
+    {
+      "id": "D019",
+      "category": "tr_chars",
+      "query": "cocuk ayakkabisi",
+      "expect": {
+        "cocuk": ["çocuk"],
+        "ayakkabisi": ["ayakkabısı"]
+      }
+    },
+    {
+      "id": "D020",
+      "category": "tr_chars",
+      "query": "kadin canta",
+      "expect": {
+        "kadin": ["kadın"],
+        "canta": ["çanta"]
+      }
+    },
+    {
+      "id": "D021",
+      "category": "tr_chars",
+      "query": "akilli saat",
+      "expect": {
+        "akilli": ["akıllı"]
+      }
+    },
+    {
+      "id": "D022",
+      "category": "tr_chars",
+      "query": "supurge",
+      "expect": {
+        "supurge": ["süpürge"]
+      }
+    },
+    {
+      "id": "D023",
+      "category": "tr_chars",
+      "query": "dizustu bilgisayar",
+      "expect": {
+        "dizustu": ["dizüstü"]
+      }
+    },
+    {
+      "id": "D024",
+      "category": "tr_chars",
+      "query": "utu",
+      "expect": {
+        "utu": ["ütü"]
+      }
+    },
+    {
+      "id": "D025",
+      "category": "tr_chars",
+      "query": "gunes gozlugu",
+      "expect": {
+        "gunes": ["güneş"],
+        "gozlugu": ["gözlüğü"]
+      }
+    },
+    {
+      "id": "D026",
+      "category": "tr_chars",
+      "query": "kisa kollu tisort",
+      "expect": {
+        "kisa": ["kısa"],
+        "tisort": ["tişört"]
+      }
+    },
+    {
+      "id": "D027",
+      "category": "tr_chars",
+      "query": "bebek arabasi",
+      "expect": {
+        "arabasi": ["arabası"]
+      }
+    },
+    {
+      "id": "D028",
+      "category": "tr_chars",
+      "query": "kulaklık pedı",
+      "expect": {
+        "pedı": ["pedi"]
+      }
+    },
+    {
+      "id": "D029",
+      "category": "phonetic",
+      "query": "blutut kulaklık",
+      "expect": {
+        "blutut": ["bluetooth"]
+      }
+    },
+    {
+      "id": "D030",
+      "category": "phonetic",
+      "query": "ayfon 15 kılıf",
+      "expect": {
+        "ayfon": ["iphone"]
+      }
+    },
+    {
+      "id": "D031",
+      "category": "phonetic",
+      "query": "leptop çantası",
+      "expect": {
+        "leptop": ["laptop"]
+      }
+    },
+    {
+      "id": "D032",
+      "category": "phonetic",
+      "query": "şarz aleti",
+      "expect": {
+        "şarz": ["şarj"]
+      }
+    },
+    {
+      "id": "D033",
+      "category": "phonetic",
+      "query": "maus",
+      "expect": {
+        "maus": ["mouse"]
+      }
+    },
+    {
+      "id": "D034",
+      "category": "phonetic",
+      "query": "hedfon",
+      "expect": {
+        "hedfon": ["headphone"]
+      }
+    },
+    {
+      "id": "D035",
+      "category": "phonetic",
+      "query": "pavırbank",
+      "expect": {
+        "pavırbank": ["powerbank"]
+      }
+    },
+    {
+      "id": "D036",
+      "category": "phonetic",
+      "query": "ayped kılıfı",
+      "expect": {
+        "ayped": ["ipad"]
+      }
+    },
+    {
+      "id": "D037",
+      "category": "phonetic",
+      "query": "geyming kulaklık",
+      "expect": {
+        "geyming": ["gaming"]
+      }
+    },
+    {
+      "id": "D038",
+      "category": "phonetic",
+      "query": "erpods",
+      "expect": {
+        "erpods": ["airpods"]
+      }
+    },
+    {
+      "id": "D039",
+      "category": "phonetic",
+      "query": "hdmı kablo",
+      "expect": {
+        "hdmı": ["hdmi"]
+      }
+    },
+    {
+      "id": "D040",
+      "category": "phonetic",
+      "query": "kiybord",
+      "expect": {
+        "kiybord": ["keyboard"]
+      }
+    },
+    {
+      "id": "D041",
+      "category": "phonetic",
+      "query": "vayrlıs mouse",
+      "expect": {
+        "vayrlıs": ["wireless"]
+      }
+    },
+    {
+      "id": "D042",
+      "category": "phonetic",
+      "query": "blutuz hoparlör",
+      "expect": {
+        "blutuz": ["bluetooth"]
+      }
+    },
+    {
+      "id": "D043",
+      "category": "brand_typo",
+      "query": "zamzung şarz aleti",
+      "expect": {
+        "zamzung": ["samsung"],
+        "şarz": ["şarj"]
+      }
+    },
+    {
+      "id": "D044",
+      "category": "brand_typo",
+      "query": "samsng a55 ekran koruycu",
+      "expect": {
+        "samsng": ["samsung"],
+        "koruycu": ["koruyucu"]
+      }
+    },
+    {
+      "id": "D045",
+      "category": "brand_typo",
+      "query": "mersedes w204 far",
+      "expect": {
+        "mersedes": ["mercedes"]
+      }
+    },
+    {
+      "id": "D046",
+      "category": "brand_typo",
+      "query": "ksiaomi powerbank",
+      "expect": {
+        "ksiaomi": ["xiaomi"]
+      }
+    },
+    {
+      "id": "D047",
+      "category": "brand_typo",
+      "query": "şaomi robot süpürge",
+      "expect": {
+        "şaomi": ["xiaomi"]
+      }
+    },
+    {
+      "id": "D048",
+      "category": "brand_typo",
+      "query": "huavei kulaklık",
+      "expect": {
+        "huavei": ["huawei"]
+      }
+    },
+    {
+      "id": "D049",
+      "category": "brand_typo",
+      "query": "lenova laptop",
+      "expect": {
+        "lenova": ["lenovo"]
+      }
+    },
+    {
+      "id": "D050",
+      "category": "brand_typo",
+      "query": "filips tıraş makinesi",
+      "expect": {
+        "filips": ["philips"]
+      }
+    },
+    {
+      "id": "D051",
+      "category": "brand_typo",
+      "query": "logitek mouse",
+      "expect": {
+        "logitek": ["logitech"]
+      }
+    },
+    {
+      "id": "D052",
+      "category": "brand_typo",
+      "query": "adidaz ayakkabı",
+      "expect": {
+        "adidaz": ["adidas"]
+      }
+    },
+    {
+      "id": "D053",
+      "category": "brand_typo",
+      "query": "naik spor ayakkabı",
+      "expect": {
+        "naik": ["nike"]
+      }
+    },
+    {
+      "id": "D054",
+      "category": "brand_typo",
+      "query": "bosh matkap",
+      "expect": {
+        "bosh": ["bosch"]
+      }
+    },
+    {
+      "id": "D055",
+      "category": "brand_typo",
+      "query": "kasio saat",
+      "expect": {
+        "kasio": ["casio"]
+      }
+    },
+    {
+      "id": "D056",
+      "category": "brand_typo",
+      "query": "soni kulaklık",
+      "expect": {
+        "soni": ["sony"]
+      }
+    },
+    {
+      "id": "D057",
+      "category": "brand_typo",
+      "query": "arcelik buzdolabı",
+      "expect": {
+        "arcelik": ["arçelik"]
+      }
+    },
+    {
+      "id": "D058",
+      "category": "model",
+      "query": "iphone 15 pro max kılıf",
+      "expect": {}
+    },
+    {
+      "id": "D059",
+      "category": "model",
+      "query": "samsung galaxy s24 ultra",
+      "expect": {}
+    },
+    {
+      "id": "D060",
+      "category": "model",
+      "query": "redmi note 13 pro",
+      "expect": {}
+    },
+    {
+      "id": "D061",
+      "category": "model",
+      "query": "rtx 4060 ekran kartı",
+      "expect": {}
+    },
+    {
+      "id": "D062",
+      "category": "model",
+      "query": "a55 kılıf",
+      "expect": {}
+    },
+    {
+      "id": "D063",
+      "category": "model",
+      "query": "w204 far",
+      "expect": {}
+    },
+    {
+      "id": "D064",
+      "category": "model",
+      "query": "ps5 kol",
+      "expect": {}
+    },
+    {
+      "id": "D065",
+      "category": "model",
+      "query": "airpods pro 2",
+      "expect": {}
+    },
+    {
+      "id": "D066",
+      "category": "model",
+      "query": "128gb usb bellek",
+      "expect": {}
+    },
+    {
+      "id": "D067",
+      "category": "model",
+      "query": "iphone 13 kilif",
+      "expect": {
+        "kilif": ["kılıf"]
+      }
+    },
+    {
+      "id": "D068",
+      "category": "model",
+      "query": "galaksi s23 kılıf",
+      "expect": {
+        "galaksi": ["galaxy"]
+      }
+    },
+    {
+      "id": "D069",
+      "category": "model",
+      "query": "65w şarj adaptörü",
+      "expect": {}
+    },
+    {
+      "id": "D070",
+      "category": "model",
+      "query": "xiaomi 14t pro",
+      "expect": {}
+    },
+    {
+      "id": "D071",
+      "category": "suffix",
+      "query": "telefon kılıfları",
+      "expect": {}
+    },
+    {
+      "id": "D072",
+      "category": "suffix",
+      "query": "kulaklık pedleri",
+      "expect": {}
+    },
+    {
+      "id": "D073",
+      "category": "suffix",
+      "query": "laptop bataryası",
+      "expect": {}
+    },
+    {
+      "id": "D074",
+      "category": "suffix",
+      "query": "ekran koruyucusu",
+      "expect": {}
+    },
+    {
+      "id": "D075",
+      "category": "suffix",
+      "query": "erkek pantoln",
+      "expect": {
+        "pantoln": ["pantolon"]
+      }
+    },
+    {
+      "id": "D076",
+      "category": "suffix",
+      "query": "araba lastikleri",
+      "expect": {}
+    },
+    {
+      "id": "D077",
+      "category": "suffix",
+      "query": "koltuk örtüsü",
+      "expect": {}
+    },
+    {
+      "id": "D078",
+      "category": "suffix",
+      "query": "saat kayışları",
+      "expect": {}
+    },
+    {
+      "id": "D079",
+      "category": "suffix",
+      "query": "çantalar",
+      "expect": {}
+    },
+    {
+      "id": "D080",
+      "category": "suffix",
+      "query": "kulaklığı",
+      "expect": {}
+    },
+    {
+      "id": "D081",
+      "category": "suffix",
+      "query": "ekran koruycusu",
+      "expect": {
+        "koruycusu": ["koruyucusu"]
+      }
+    },
+    {
+      "id": "D082",
+      "category": "suffix",
+      "query": "pantalonu",
+      "expect": {
+        "pantalonu": ["pantolonu"]
+      }
+    },
+    {
+      "id": "D083",
+      "category": "suffix",
+      "query": "ayakkabıları",
+      "expect": {}
+    },
+    {
+      "id": "D084",
+      "category": "role",
+      "query": "samsung şarj kablosu",
+      "expect": {}
+    },
+    {
+      "id": "D085",
+      "category": "role",
+      "query": "laptop batarya",
+      "expect": {}
+    },
+    {
+      "id": "D086",
+      "category": "role",
+      "query": "kulaklık süngeri",
+      "expect": {}
+    },
+    {
+      "id": "D087",
+      "category": "role",
+      "query": "apple watch kordon",
+      "expect": {}
+    },
+    {
+      "id": "D088",
+      "category": "role",
+      "query": "telefon tutucu",
+      "expect": {}
+    },
+    {
+      "id": "D089",
+      "category": "role",
+      "query": "süpürge filtresi",
+      "expect": {}
+    },
+    {
+      "id": "D090",
+      "category": "role",
+      "query": "laptop adaptörü",
+      "expect": {}
+    },
+    {
+      "id": "D091",
+      "category": "role",
+      "query": "drone pervanesi",
+      "expect": {}
+    },
+    {
+      "id": "D092",
+      "category": "role",
+      "query": "yazıcı kartuşu",
+      "expect": {}
+    },
+    {
+      "id": "D093",
+      "category": "role",
+      "query": "robot süpürge fırçası",
+      "expect": {}
+    },
+    {
+      "id": "D094",
+      "category": "role",
+      "query": "kamera lensi",
+      "expect": {}
+    },
+    {
+      "id": "D095",
+      "category": "role",
+      "query": "tablet kalemi",
+      "expect": {}
+    },
+    {
+      "id": "D096",
+      "category": "role",
+      "query": "klavye tuş takımı",
+      "expect": {}
+    },
+    {
+      "id": "D097",
+      "category": "multilingual",
+      "query": "bluetooth speaker",
+      "expect": {}
+    },
+    {
+      "id": "D098",
+      "category": "multilingual",
+      "query": "wireless mouse",
+      "expect": {}
+    },
+    {
+      "id": "D099",
+      "category": "multilingual",
+      "query": "phone case",
+      "expect": {}
+    },
+    {
+      "id": "D100",
+      "category": "multilingual",
+      "query": "gaming kulaklık",
+      "expect": {}
+    },
+    {
+      "id": "D101",
+      "category": "multilingual",
+      "query": "laptop stand",
+      "expect": {}
+    },
+    {
+      "id": "D102",
+      "category": "multilingual",
+      "query": "usb kablo",
+      "expect": {}
+    },
+    {
+      "id": "D103",
+      "category": "multilingual",
+      "query": "smart watch kayış",
+      "expect": {}
+    },
+    {
+      "id": "D104",
+      "category": "multilingual",
+      "query": "earbuds kılıf",
+      "expect": {}
+    },
+    {
+      "id": "D105",
+      "category": "multilingual",
+      "query": "car charger",
+      "expect": {}
+    },
+    {
+      "id": "D106",
+      "category": "multilingual",
+      "query": "power bank",
+      "expect": {}
+    },
+    {
+      "id": "D107",
+      "category": "multilingual",
+      "query": "blutut speaker",
+      "expect": {
+        "blutut": ["bluetooth"]
+      }
+    },
+    {
+      "id": "D108",
+      "category": "multilingual",
+      "query": "wirles mouse",
+      "expect": {
+        "wirles": ["wireless"]
+      }
+    },
+    {
+      "id": "D109",
+      "category": "multilingual",
+      "query": "laptop çanta",
+      "expect": {}
+    },
+    {
+      "id": "D110",
+      "category": "complex",
+      "query": "1000 tl altı bluetooth kulaklık",
+      "expect": {}
+    },
+    {
+      "id": "D111",
+      "category": "complex",
+      "query": "samsung olmasın android telefon",
+      "expect": {}
+    },
+    {
+      "id": "D112",
+      "category": "complex",
+      "query": "5000 tl'ye kadar laptop",
+      "expect": {}
+    },
+    {
+      "id": "D113",
+      "category": "complex",
+      "query": "kırmızı kadın elbise",
+      "expect": {}
+    },
+    {
+      "id": "D114",
+      "category": "complex",
+      "query": "su geçirmez akıllı saat",
+      "expect": {}
+    },
+    {
+      "id": "D115",
+      "category": "complex",
+      "query": "xiaomi hariç robot süpürge",
+      "expect": {}
+    },
+    {
+      "id": "D116",
+      "category": "complex",
+      "query": "iphone 15 ile uyumlu şarj aleti",
+      "expect": {}
+    },
+    {
+      "id": "D117",
+      "category": "complex",
+      "query": "çocuk için tablet",
+      "expect": {}
+    },
+    {
+      "id": "D118",
+      "category": "complex",
+      "query": "kablosuz şarz aleti 500 tl altı",
+      "expect": {
+        "şarz": ["şarj"]
+      }
+    },
+    {
+      "id": "D119",
+      "category": "complex",
+      "query": "zamzung olmasın kulaklık",
+      "expect": {
+        "zamzung": ["samsung"]
+      }
+    },
+    {
+      "id": "D120",
+      "category": "complex",
+      "query": "en iyi gaming mouse",
+      "expect": {}
+    },
+    {
+      "id": "D121",
+      "category": "complex",
+      "query": "2 kişilik çadır",
+      "expect": {}
+    },
+    {
+      "id": "D122",
+      "category": "complex",
+      "query": "erkek kışlık mont 42 beden",
+      "expect": {}
+    },
+    {
+      "id": "D123",
+      "category": "no_correct",
+      "query": "kablo",
+      "expect": {}
+    },
+    {
+      "id": "D124",
+      "category": "no_correct",
+      "query": "kayış",
+      "expect": {}
+    },
+    {
+      "id": "D125",
+      "category": "no_correct",
+      "query": "pilates topu",
+      "expect": {}
+    },
+    {
+      "id": "D126",
+      "category": "no_correct",
+      "query": "ipad kılıfı",
+      "expect": {}
+    },
+    {
+      "id": "D127",
+      "category": "no_correct",
+      "query": "gamepad",
+      "expect": {}
+    },
+    {
+      "id": "D128",
+      "category": "no_correct",
+      "query": "far",
+      "expect": {}
+    },
+    {
+      "id": "D129",
+      "category": "no_correct",
+      "query": "pil",
+      "expect": {}
+    },
+    {
+      "id": "D130",
+      "category": "no_correct",
+      "query": "ped",
+      "expect": {}
+    },
+    {
+      "id": "D131",
+      "category": "no_correct",
+      "query": "nozul",
+      "expect": {}
+    },
+    {
+      "id": "D132",
+      "category": "no_correct",
+      "query": "kask",
+      "expect": {}
+    },
+    {
+      "id": "D133",
+      "category": "no_correct",
+      "query": "tava",
+      "expect": {}
+    },
+    {
+      "id": "D134",
+      "category": "no_correct",
+      "query": "jant",
+      "expect": {}
+    },
+    {
+      "id": "D135",
+      "category": "no_correct",
+      "query": "boş defter",
+      "expect": {}
+    },
+    {
+      "id": "D136",
+      "category": "no_correct",
+      "query": "termos",
+      "expect": {}
+    },
+    {
+      "id": "D137",
+      "category": "no_correct",
+      "query": "sim kart",
+      "expect": {}
+    }
+  ]
+}

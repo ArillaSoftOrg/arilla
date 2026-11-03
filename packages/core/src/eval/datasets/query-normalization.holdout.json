@@ -1,0 +1,616 @@
+{
+  "_aciklama": "BAGIMSIZ DOGRULAMA KUMESI (karar 0172). Kurallar yazilmadan once elle yazildi ve donduruldu; SHA-256 karar 0172'de. Gelistirme sirasinda KOSULMAZ; yalniz entegre son degerlendirmede (Faz 3) bir kez `--split holdout --final` ile kosulur. Degistirilmez. Uretim sorgusu icermez.",
+  "split": "holdout",
+  "cases": [
+    {
+      "id": "H001",
+      "category": "correct",
+      "query": "asus monitör",
+      "expect": {}
+    },
+    {
+      "id": "H002",
+      "category": "correct",
+      "query": "toyota paspas",
+      "expect": {}
+    },
+    {
+      "id": "H003",
+      "category": "correct",
+      "query": "garmin akıllı saat",
+      "expect": {}
+    },
+    {
+      "id": "H004",
+      "category": "correct",
+      "query": "duş başlığı",
+      "expect": {}
+    },
+    {
+      "id": "H005",
+      "category": "correct",
+      "query": "kahve makinesi",
+      "expect": {}
+    },
+    {
+      "id": "H006",
+      "category": "correct",
+      "query": "yoga matı",
+      "expect": {}
+    },
+    {
+      "id": "H007",
+      "category": "correct",
+      "query": "oyuncu koltuğu",
+      "expect": {}
+    },
+    {
+      "id": "H008",
+      "category": "correct",
+      "query": "sırt çantası",
+      "expect": {}
+    },
+    {
+      "id": "H009",
+      "category": "correct",
+      "query": "masa lambası",
+      "expect": {}
+    },
+    {
+      "id": "H010",
+      "category": "tr_chars",
+      "query": "dus basligi",
+      "expect": {
+        "dus": ["duş"],
+        "basligi": ["başlığı"]
+      }
+    },
+    {
+      "id": "H011",
+      "category": "tr_chars",
+      "query": "kahve fincani",
+      "expect": {
+        "fincani": ["fincanı"]
+      }
+    },
+    {
+      "id": "H012",
+      "category": "tr_chars",
+      "query": "yatak ortusu",
+      "expect": {
+        "ortusu": ["örtüsü"]
+      }
+    },
+    {
+      "id": "H013",
+      "category": "tr_chars",
+      "query": "cop kovasi",
+      "expect": {
+        "cop": ["çöp"],
+        "kovasi": ["kovası"]
+      }
+    },
+    {
+      "id": "H014",
+      "category": "tr_chars",
+      "query": "dugun elbisesi",
+      "expect": {
+        "dugun": ["düğün"]
+      }
+    },
+    {
+      "id": "H015",
+      "category": "tr_chars",
+      "query": "isitici",
+      "expect": {
+        "isitici": ["ısıtıcı"]
+      }
+    },
+    {
+      "id": "H016",
+      "category": "tr_chars",
+      "query": "sac kurutma makinesi",
+      "expect": {
+        "sac": ["saç"]
+      }
+    },
+    {
+      "id": "H017",
+      "category": "tr_chars",
+      "query": "ogrenci masasi",
+      "expect": {
+        "ogrenci": ["öğrenci"],
+        "masasi": ["masası"]
+      }
+    },
+    {
+      "id": "H018",
+      "category": "tr_chars",
+      "query": "kopek mamasi",
+      "expect": {
+        "kopek": ["köpek"],
+        "mamasi": ["maması"]
+      }
+    },
+    {
+      "id": "H019",
+      "category": "phonetic",
+      "query": "vebkam",
+      "expect": {
+        "vebkam": ["webcam"]
+      }
+    },
+    {
+      "id": "H020",
+      "category": "phonetic",
+      "query": "maykrofon",
+      "expect": {
+        "maykrofon": ["mikrofon"]
+      }
+    },
+    {
+      "id": "H021",
+      "category": "phonetic",
+      "query": "pırinter",
+      "expect": {
+        "pırinter": ["printer"]
+      }
+    },
+    {
+      "id": "H022",
+      "category": "phonetic",
+      "query": "ruter",
+      "expect": {
+        "ruter": ["router"]
+      }
+    },
+    {
+      "id": "H023",
+      "category": "phonetic",
+      "query": "eksboks kol",
+      "expect": {
+        "eksboks": ["xbox"]
+      }
+    },
+    {
+      "id": "H024",
+      "category": "phonetic",
+      "query": "fileş bellek",
+      "expect": {
+        "fileş": ["flash"]
+      }
+    },
+    {
+      "id": "H025",
+      "category": "phonetic",
+      "query": "kemera",
+      "expect": {
+        "kemera": ["kamera"]
+      }
+    },
+    {
+      "id": "H026",
+      "category": "phonetic",
+      "query": "skuter",
+      "expect": {
+        "skuter": ["scooter"]
+      }
+    },
+    {
+      "id": "H027",
+      "category": "phonetic",
+      "query": "tiripod",
+      "expect": {
+        "tiripod": ["tripod"]
+      }
+    },
+    {
+      "id": "H028",
+      "category": "brand_typo",
+      "query": "asüs laptop",
+      "expect": {
+        "asüs": ["asus"]
+      }
+    },
+    {
+      "id": "H029",
+      "category": "brand_typo",
+      "query": "toyata yağ filtresi",
+      "expect": {
+        "toyata": ["toyota"]
+      }
+    },
+    {
+      "id": "H030",
+      "category": "brand_typo",
+      "query": "garmın saat",
+      "expect": {
+        "garmın": ["garmin"]
+      }
+    },
+    {
+      "id": "H031",
+      "category": "brand_typo",
+      "query": "senhayzer kulaklık",
+      "expect": {
+        "senhayzer": ["sennheiser"]
+      }
+    },
+    {
+      "id": "H032",
+      "category": "brand_typo",
+      "query": "karşer basınçlı yıkama",
+      "expect": {
+        "karşer": ["karcher"]
+      }
+    },
+    {
+      "id": "H033",
+      "category": "brand_typo",
+      "query": "daysın süpürge",
+      "expect": {
+        "daysın": ["dyson"]
+      }
+    },
+    {
+      "id": "H034",
+      "category": "brand_typo",
+      "query": "ankır powerbank",
+      "expect": {
+        "ankır": ["anker"]
+      }
+    },
+    {
+      "id": "H035",
+      "category": "brand_typo",
+      "query": "reno clio paspas",
+      "expect": {
+        "reno": ["renault"]
+      }
+    },
+    {
+      "id": "H036",
+      "category": "brand_typo",
+      "query": "pumma ayakkabı",
+      "expect": {
+        "pumma": ["puma"]
+      }
+    },
+    {
+      "id": "H037",
+      "category": "model",
+      "query": "oppo a78 kilif",
+      "expect": {
+        "kilif": ["kılıf"]
+      }
+    },
+    {
+      "id": "H038",
+      "category": "model",
+      "query": "canon eos 250d",
+      "expect": {}
+    },
+    {
+      "id": "H039",
+      "category": "model",
+      "query": "volkswagen golf 7 far",
+      "expect": {}
+    },
+    {
+      "id": "H040",
+      "category": "model",
+      "query": "ps4 kol",
+      "expect": {}
+    },
+    {
+      "id": "H041",
+      "category": "model",
+      "query": "gtx 1650",
+      "expect": {}
+    },
+    {
+      "id": "H042",
+      "category": "model",
+      "query": "xbox series x",
+      "expect": {}
+    },
+    {
+      "id": "H043",
+      "category": "model",
+      "query": "ipad air 5 kılıf",
+      "expect": {}
+    },
+    {
+      "id": "H044",
+      "category": "model",
+      "query": "dji mini 3 pervane",
+      "expect": {}
+    },
+    {
+      "id": "H045",
+      "category": "model",
+      "query": "beko 9 kg çamaşır makinesi",
+      "expect": {}
+    },
+    {
+      "id": "H046",
+      "category": "suffix",
+      "query": "duvar saatleri",
+      "expect": {}
+    },
+    {
+      "id": "H047",
+      "category": "suffix",
+      "query": "mutfak dolabı",
+      "expect": {}
+    },
+    {
+      "id": "H048",
+      "category": "suffix",
+      "query": "bisiklet farları",
+      "expect": {}
+    },
+    {
+      "id": "H049",
+      "category": "suffix",
+      "query": "yastık kılıflrı",
+      "expect": {
+        "kılıflrı": ["kılıfları"]
+      }
+    },
+    {
+      "id": "H050",
+      "category": "suffix",
+      "query": "perdeler",
+      "expect": {}
+    },
+    {
+      "id": "H051",
+      "category": "suffix",
+      "query": "kahve makinası",
+      "expect": {
+        "makinası": ["makinesi"]
+      }
+    },
+    {
+      "id": "H052",
+      "category": "suffix",
+      "query": "masa örtüleri",
+      "expect": {}
+    },
+    {
+      "id": "H053",
+      "category": "suffix",
+      "query": "spor çorapları",
+      "expect": {}
+    },
+    {
+      "id": "H054",
+      "category": "suffix",
+      "query": "bebek battaniyesi",
+      "expect": {}
+    },
+    {
+      "id": "H055",
+      "category": "role",
+      "query": "kamera bataryası",
+      "expect": {}
+    },
+    {
+      "id": "H056",
+      "category": "role",
+      "query": "drone kumandası",
+      "expect": {}
+    },
+    {
+      "id": "H057",
+      "category": "role",
+      "query": "araba paspası",
+      "expect": {}
+    },
+    {
+      "id": "H058",
+      "category": "role",
+      "query": "bisiklet zinciri",
+      "expect": {}
+    },
+    {
+      "id": "H059",
+      "category": "role",
+      "query": "saat camı",
+      "expect": {}
+    },
+    {
+      "id": "H060",
+      "category": "role",
+      "query": "monitör askı aparatı",
+      "expect": {}
+    },
+    {
+      "id": "H061",
+      "category": "role",
+      "query": "kahve makinesi filtresi",
+      "expect": {}
+    },
+    {
+      "id": "H062",
+      "category": "role",
+      "query": "gözlük kılıfı",
+      "expect": {}
+    },
+    {
+      "id": "H063",
+      "category": "role",
+      "query": "klavye kılıfı",
+      "expect": {}
+    },
+    {
+      "id": "H064",
+      "category": "multilingual",
+      "query": "webcam",
+      "expect": {}
+    },
+    {
+      "id": "H065",
+      "category": "multilingual",
+      "query": "gaming chair",
+      "expect": {}
+    },
+    {
+      "id": "H066",
+      "category": "multilingual",
+      "query": "usb hub",
+      "expect": {}
+    },
+    {
+      "id": "H067",
+      "category": "multilingual",
+      "query": "car holder",
+      "expect": {}
+    },
+    {
+      "id": "H068",
+      "category": "multilingual",
+      "query": "phone holder",
+      "expect": {}
+    },
+    {
+      "id": "H069",
+      "category": "multilingual",
+      "query": "smart band",
+      "expect": {}
+    },
+    {
+      "id": "H070",
+      "category": "multilingual",
+      "query": "wireless şarj",
+      "expect": {}
+    },
+    {
+      "id": "H071",
+      "category": "multilingual",
+      "query": "printer kartuş",
+      "expect": {}
+    },
+    {
+      "id": "H072",
+      "category": "multilingual",
+      "query": "vebcam stand",
+      "expect": {
+        "vebcam": ["webcam"]
+      }
+    },
+    {
+      "id": "H073",
+      "category": "complex",
+      "query": "2000 tl altı kahve makinesi",
+      "expect": {}
+    },
+    {
+      "id": "H074",
+      "category": "complex",
+      "query": "dyson olmasın dikey süpürge",
+      "expect": {}
+    },
+    {
+      "id": "H075",
+      "category": "complex",
+      "query": "garmin hariç akıllı saat",
+      "expect": {}
+    },
+    {
+      "id": "H076",
+      "category": "complex",
+      "query": "siyah erkek mont xl",
+      "expect": {}
+    },
+    {
+      "id": "H077",
+      "category": "complex",
+      "query": "3 kapılı gardırop",
+      "expect": {}
+    },
+    {
+      "id": "H078",
+      "category": "complex",
+      "query": "iphone 14 ile uyumlu kılıf",
+      "expect": {}
+    },
+    {
+      "id": "H079",
+      "category": "complex",
+      "query": "su ısıtıcı 1500 tl'ye kadar",
+      "expect": {}
+    },
+    {
+      "id": "H080",
+      "category": "complex",
+      "query": "toyata olmasın paspas",
+      "expect": {
+        "toyata": ["toyota"]
+      }
+    },
+    {
+      "id": "H081",
+      "category": "complex",
+      "query": "vebkam 1000 tl altı",
+      "expect": {
+        "vebkam": ["webcam"]
+      }
+    },
+    {
+      "id": "H082",
+      "category": "no_correct",
+      "query": "kilim",
+      "expect": {}
+    },
+    {
+      "id": "H083",
+      "category": "no_correct",
+      "query": "zil",
+      "expect": {}
+    },
+    {
+      "id": "H084",
+      "category": "no_correct",
+      "query": "halat",
+      "expect": {}
+    },
+    {
+      "id": "H085",
+      "category": "no_correct",
+      "query": "tel",
+      "expect": {}
+    },
+    {
+      "id": "H086",
+      "category": "no_correct",
+      "query": "kova",
+      "expect": {}
+    },
+    {
+      "id": "H087",
+      "category": "no_correct",
+      "query": "kese",
+      "expect": {}
+    },
+    {
+      "id": "H088",
+      "category": "no_correct",
+      "query": "biberon",
+      "expect": {}
+    },
+    {
+      "id": "H089",
+      "category": "no_correct",
+      "query": "şnorkel",
+      "expect": {}
+    },
+    {
+      "id": "H090",
+      "category": "no_correct",
+      "query": "tespih",
+      "expect": {}
+    }
+  ]
+}
