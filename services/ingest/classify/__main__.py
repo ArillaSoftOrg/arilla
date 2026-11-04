@@ -40,6 +40,7 @@ import json
 import logging
 import signal
 import sys
+from pathlib import Path
 
 import psycopg
 
@@ -294,6 +295,14 @@ def main(argv: list[str] | None = None) -> int:
     p_lex = sub.add_parser("lexicon", help="arama/sohbet kategori sozlugu")
     p_lex.add_argument("--apply", action="store_true")
 
+    p_gl = sub.add_parser(
+        "lexicon-glossary", help="glossary TR->EN es anlam kopru satirlari (karar 0172)"
+    )
+    p_gl.add_argument("--apply", action="store_true", help="yaz (varsayilan: yalniz rapor)")
+    p_gl.add_argument("--manifest", type=Path, help="--apply ile eklenen satirlarin TSV dosyasi")
+    p_gl.add_argument("--rollback", type=Path, help="manifestteki satirlari sil (--apply ile)")
+    p_gl.add_argument("--show", type=int, default=20, help="ornek satir sayisi")
+
     from classify.suggest import cli as suggest_cli  # agir bagimliliklar komut icinde yuklenir
 
     suggest_cli.add_parser(sub)
@@ -518,7 +527,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "compare":
-        from pathlib import Path
 
         with connect() as conn:
             result = compare_mod.compare(
@@ -568,7 +576,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "evaluate":
-        from pathlib import Path
 
         from classify import evaluate as ev
 
@@ -643,6 +650,32 @@ def main(argv: list[str] | None = None) -> int:
             print(f"catisma (degistirilmedi): {line}")
         for path in report.missing_paths or []:
             print(f"kategori yok (atlandi): {path}")
+        return 0
+
+    if args.command == "lexicon-glossary":
+        from classify import glossary_lexicon
+
+        if args.rollback is not None:
+            rows = glossary_lexicon.read_manifest(args.rollback)
+            with connect() as conn:
+                matched = glossary_lexicon.rollback(conn, rows, write=args.apply)
+            verb = "silindi" if args.apply else "silinecek"
+            print(f"manifest {len(rows)} satir; {verb} {matched}")
+            return 0
+        if args.apply and args.manifest is None:
+            print("--apply icin --manifest gerekli (geri alma bu dosyayla yapilir)")
+            return 2
+        with connect() as conn:
+            gl_report = glossary_lexicon.apply(conn, write=args.apply)
+        for name, value in sorted(gl_report.stats.items()):
+            print(f"{name}: {value}")
+        for row in gl_report.rows[: args.show]:
+            print(f"  {row.surface} -> {row.normalized}")
+        if args.apply:
+            glossary_lexicon.write_manifest(args.manifest, gl_report.inserted)
+            print(f"eklendi {len(gl_report.inserted)}; manifest: {args.manifest}")
+        else:
+            print(f"eklenecek {len(gl_report.rows)} (yazilmadi; --apply --manifest ile yazilir)")
         return 0
     return 2
 
