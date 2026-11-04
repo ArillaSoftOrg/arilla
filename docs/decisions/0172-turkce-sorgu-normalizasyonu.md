@@ -159,6 +159,47 @@ karşılığı yok, düzeltme bunları kurtaramaz. Eşdeğer sorgu, veri kümesi
   eklenir ve `lexicon` eş anlamlıları zaten mevcut yoldan gelir; aday kümesi sınırı
   (`CANDIDATE_LIMIT`) değişmedi.
 
+## Faz 3: glossary köprüsü (TR→EN eş anlam satırları)
+
+`services/ingest/classify/data/glossary_tr_en.tsv` (karar 0154) kategori adlarındaki Türkçe
+kelimelerle birleştirilir ve `lexicon(kind='synonym')` satırları üretilir. Komut:
+`python -m classify lexicon-glossary`. Varsayılanı yalnız rapordur. `--apply --manifest DOSYA`
+yalnız satır ekler (`ON CONFLICT DO NOTHING`); var olan satırı değiştirmez. Eklenen satırları
+manifeste yazar. `--rollback DOSYA --apply` tam olarak bu satırları siler.
+
+**Kural seçimi** yalnız geliştirme kümesiyle yapıldı (`scripts/eval-glossary-filter.ts`, yerel
+15k katalog; 137 sorgu için başlık deseni yargısı, `query-normalization.dev.relevance.json`).
+Tüm satırlarda normalizasyon `on`.
+
+| Yapılandırma | Satır | P@10 | Başarı@10 (kurtarılabilir 76) | Glossary'siz duruma göre +/− |
+|---|---|---|---|---|
+| glossary yok | 0 | 0,418 | %78,9 | — |
+| ham 5 harf gövde | 1.706 | 0,428 | %81,6 | +2 / −2 |
+| sayı sınırları (gövde ≥4, ≤3 EN, ≤5 TR kelime) | 1.382 | 0,432 | %81,6 | +2 / −0 |
+| **yalnız çekim eki + güvenli katılım** | 1.336 | **0,447** | **%84,2** | **+4 / −0** |
+
+**Seçilen kurallar ve nedenleri:**
+
+1. **Yalnız çekim eki.** Gövde öneki zıt anlamı birleştiriyordu: `kablo` + `kablosuz` (wireless)
+   aynı gruba düştü ve "kablo" aramasında isabet 10'dan 6'ya indi. Türetilmiş kelimeler de
+   anlamı değiştiriyordu (`ayakkabılık`, `süpürgelik`). Taban kelime ve yalnız onun çoğul,
+   iyelik ve belirtme ekli biçimleri alınır.
+2. **Birden fazla gövdede geçen İngilizce karşılık yazılmaz.** Bu karşılık belirsizdir.
+3. **Mevcut gruba katılım yalnız Türkçe kelime üzerinden olur.** İngilizce kelime üzerinden
+   zincirleme katılımda `kapak` → cover → `kilif`, `torba` → bag → `canta` oluyordu.
+4. **Sayı sınırları reddedildi.** İyi gövdeleri (`ayakk`, `canta`) de engelliyorlardı.
+
+Bootstrap setinde (38 sorgu) 7 sorgunun ilk 10'u değişiyor. Altısında ilgili sonuçlar yine
+ilgili sonuçlarla yer değiştiriyor; biri şüpheli: "halı" araması boştu, şimdi araç paspası
+getiriyor.
+
+**Sınırlar.**
+
+- Katalog sentetik.
+- Yargıyı kuralı seçen oturum yazdı.
+- Asıl hüküm, Faz 3'teki tek holdout koşusunda verilir.
+- Üretimde `--apply` ayrı kullanıcı onayı gerektirir.
+
 ## Reddedilen alternatifler
 
 - **Zemberek / ağır morfolojik çözümleyici:** JVM bağımlılığı istek yolunda olmaz. Markaları,
