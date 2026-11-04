@@ -78,3 +78,11 @@ describe("karşıt tablo ve kod korunması", () => {
     expect(codeTokens("Galaxy S24 Ultra 256GB")).toEqual(["256gb", "s24"]);
   });
 });
+
+describe("ortak normalizasyon sozlesmesi (karar 0172)", () => {
+  it("niyet katmani NORM_VERSION'i ortak sozlesmeden alir (tek kaynak)", async () => {
+    const shared = await import("../search/normalized-query.ts");
+    const adapter = await import("./normalized-query-adapter.ts");
+    expect(adapter.NORM_VERSION).toBe(shared.NORM_VERSION);
+  });
+});
