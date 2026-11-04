@@ -1,0 +1,626 @@
+{
+  "_aciklama": "Gelistirme kumesi icin baslik tabanli ilgililik yargisi (karar 0172, Faz 3 glossary olcumu). Bir urun, 'all' listesindeki HER desen basligina uyuyor ve 'none' desenlerinden HICBIRI uymuyorsa ilgilidir. Desenler PostgreSQL ~* ile katlanmamis basliga uygulanir; Ingilizce ve Turkce karsiliklar birlikte yazilir, boylece yargi dilden ve glossary'den bagimsizdir. Marka kosulu konmaz (yerel katalogda marka adlari sentetiktir). Yalniz gelistirme kumesi; holdout icin yazilmaz.",
+  "cases": {
+    "D001": {
+      "all": [
+        "charger|charging (head|adapter|plug|station|brick)|wall adapter|power adapter|[şs]arj (aleti|cihaz|adapt)"
+      ]
+    },
+    "D002": {
+      "all": ["\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f", "iphone ?15"]
+    },
+    "D003": {
+      "all": [
+        "headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k",
+        "wireless|bluetooth|2\\.4 ?g|kablosuz"
+      ],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped"
+      ]
+    },
+    "D004": {
+      "all": [
+        "\\mcables?\\M|\\mcords?\\M|kablo|charger|charging (head|adapter|plug|station|brick)|wall adapter|power adapter|[şs]arj (aleti|cihaz|adapt)|adapter",
+        "laptop|notebook|macbook|diz[üu]st[üu]"
+      ]
+    },
+    "D005": {
+      "all": [
+        "pants|trousers|jeans|joggers|sweatpants|pantolon|e[şs]ofman alt",
+        "\\m(men|man|male|mens)\\M|men's|\\merkek"
+      ]
+    },
+    "D006": {
+      "all": ["ear ?pads?|earpads?|ear cushions?|cushions? for head|kulakl[ıi]k (ped|s[üu]nger)"]
+    },
+    "D007": {
+      "all": ["straps?|\\mbands?\\M|bracelet|\\mloop\\M|kay[ıi][şs]|kordon", "apple watch|iwatch"]
+    },
+    "D008": {
+      "all": ["robot (vacuum|cleaner|sweeper)|robotic vacuum|robot s[üu]p[üu]rge"],
+      "none": ["brush|filter|mop cloth|replacement|accessor|spare|f[ıi]r[çc]a|filtre"]
+    },
+    "D009": {
+      "all": ["\\m(mouse|mice)\\M|\\mfare\\M", "wireless|bluetooth|2\\.4 ?g|kablosuz"],
+      "none": ["\\mpad\\M|\\mmat\\M|mousepad|bungee|skates"]
+    },
+    "D010": {
+      "all": [
+        "screen protector|tempered glass|protective film|hydrogel|ekran koruyucu|cam koruyucu"
+      ]
+    },
+    "D011": {
+      "all": [
+        "sneakers?|running shoes|sports? shoes|trainers|athletic shoes|spor ayakkab[ıi]",
+        "women|female|ladies|woman|\\mkad[ıi]n"
+      ]
+    },
+    "D012": {
+      "all": ["car charger|car charging|cigarette lighter|ara[çc] [şs]arj|oto [şs]arj"]
+    },
+    "D013": {
+      "all": [
+        "\\mbikes?\\M|bicycle|balance bike|tricycle|bisiklet",
+        "\\mkids?\\M|child|children|\\mboys?\\M|\\mgirls?\\M|toddler|baby|[çc]ocuk"
+      ],
+      "none": ["\\mlights?\\M|\\mbell\\M|\\mlock\\M|basket"]
+    },
+    "D014": {
+      "all": ["shaver|trimmer|razor|shaving|t[ıi]ra[şs]"],
+      "none": ["replacement|\\mblades?\\M"]
+    },
+    "D015": {
+      "all": ["\\mcables?\\M|\\mcords?\\M|kablo", "charg|usb|type-?c|lightning|data|[şs]arj"]
+    },
+    "D016": {
+      "all": ["headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k"],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped"
+      ]
+    },
+    "D017": {
+      "all": [
+        "\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f",
+        "phone|iphone|samsung|xiaomi|redmi|huawei|galaxy|telefon"
+      ]
+    },
+    "D018": {
+      "all": ["speakers?|soundbar|boombox|hoparl[öo]r"],
+      "none": ["cable|stand|mount|grille"]
+    },
+    "D019": {
+      "all": [
+        "shoes|sneakers?|boots|sandals|slippers|loafers|heels|trainers|ayakkab[ıi]|\\mbot\\M|terlik",
+        "\\mkids?\\M|child|children|\\mboys?\\M|\\mgirls?\\M|toddler|baby|[çc]ocuk"
+      ]
+    },
+    "D020": {
+      "all": [
+        "\\mbags?\\M|handbag|tote|purse|backpack|shoulder bag|crossbody|[çc]anta",
+        "women|female|ladies|woman|\\mkad[ıi]n"
+      ]
+    },
+    "D021": {
+      "all": ["smart ?watch|smartwatch|ak[ıi]ll[ıi] saat"],
+      "none": ["strap|\\mband\\M|\\mcase\\M|charger|protector|cable|kay[ıi][şs]|kordon|k[ıi]l[ıi]f"]
+    },
+    "D022": {
+      "all": ["vacuum|sweeper|broom|s[üu]p[üu]rge"],
+      "none": [
+        "brush|filter|mop cloth|replacement|accessor|spare|f[ıi]r[çc]a|filtre|\\mbags?\\M|nozzle"
+      ]
+    },
+    "D023": {
+      "all": ["\\mlaptops?\\M|notebook (computer|pc)|diz[üu]st[üu]|ultrabook|macbook"],
+      "none": [
+        "\\mbag\\M|sleeve|\\mcase\\M|stand|charger|adapter|battery|keyboard|cooler|skin|sticker|protector|cable|[çc]anta|cooling"
+      ]
+    },
+    "D024": {
+      "all": ["\\mirons?\\M|steamer|steam iron|\\m[üu]t[üu]\\M"],
+      "none": ["board|curling|hair|flat iron|straightener|soldering"]
+    },
+    "D025": {
+      "all": ["sunglass|g[üu]ne[şs] g[öo]zl[üu]"]
+    },
+    "D026": {
+      "all": ["short sleeves?|short-sleeved?|k[ıi]sa kol", "t-?shirts?|\\mtees?\\M|ti[şs][öo]rt"]
+    },
+    "D027": {
+      "all": ["stroller|\\mpram\\M|pushchair|baby carriage|bebek arabas"],
+      "none": [
+        "hook|organizer|\\mcover\\M|\\mrain\\M|\\mfan\\M|cup holder|mosquito|cushion|\\mtoy\\M"
+      ]
+    },
+    "D028": {
+      "all": ["ear ?pads?|earpads?|ear cushions?|cushions? for head|kulakl[ıi]k (ped|s[üu]nger)"]
+    },
+    "D029": {
+      "all": [
+        "headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k",
+        "wireless|bluetooth|2\\.4 ?g|kablosuz"
+      ],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped"
+      ]
+    },
+    "D030": {
+      "all": ["\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f", "iphone ?15"]
+    },
+    "D031": {
+      "all": [
+        "\\mbags?\\M|handbag|tote|purse|backpack|shoulder bag|crossbody|[çc]anta|sleeve|briefcase|\\mcase\\M",
+        "laptop|notebook|macbook|diz[üu]st[üu]"
+      ]
+    },
+    "D032": {
+      "all": [
+        "charger|charging (head|adapter|plug|station|brick)|wall adapter|power adapter|[şs]arj (aleti|cihaz|adapt)"
+      ]
+    },
+    "D033": {
+      "all": ["\\m(mouse|mice)\\M|\\mfare\\M"],
+      "none": ["\\mpad\\M|\\mmat\\M|mousepad|bungee|skates"]
+    },
+    "D034": {
+      "all": ["headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k"],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped"
+      ]
+    },
+    "D035": {
+      "all": ["power ?bank|portable charger|battery pack|powerbank"]
+    },
+    "D036": {
+      "all": ["\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f|sleeve", "\\mipad"]
+    },
+    "D037": {
+      "all": [
+        "headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k",
+        "gaming|gamer|oyuncu"
+      ],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped"
+      ]
+    },
+    "D038": {
+      "all": ["airpods|air ?pods"]
+    },
+    "D039": {
+      "all": ["hdmi", "\\mcables?\\M|\\mcords?\\M|kablo"]
+    },
+    "D040": {
+      "all": ["keyboards?|klavye"],
+      "none": ["\\mcover\\M|skin|sticker|keycaps?|wrist|stand"]
+    },
+    "D041": {
+      "all": ["\\m(mouse|mice)\\M|\\mfare\\M", "wireless|bluetooth|2\\.4 ?g|kablosuz"],
+      "none": ["\\mpad\\M|\\mmat\\M|mousepad|bungee|skates"]
+    },
+    "D042": {
+      "all": ["speakers?|soundbar|boombox|hoparl[öo]r", "wireless|bluetooth|2\\.4 ?g|kablosuz"]
+    },
+    "D043": {
+      "all": [
+        "charger|charging (head|adapter|plug|station|brick)|wall adapter|power adapter|[şs]arj (aleti|cihaz|adapt)"
+      ]
+    },
+    "D044": {
+      "all": [
+        "screen protector|tempered glass|protective film|hydrogel|ekran koruyucu|cam koruyucu",
+        "\\ma55\\M"
+      ]
+    },
+    "D045": {
+      "all": [
+        "headlights?|headlamps?|head ?lights?|head lamps?|fog lights?|\\mfar\\M|farlar|\\mlamps?\\M|bulbs?",
+        "w204"
+      ]
+    },
+    "D046": {
+      "all": ["power ?bank|portable charger|battery pack|powerbank"]
+    },
+    "D047": {
+      "all": ["robot (vacuum|cleaner|sweeper)|robotic vacuum|robot s[üu]p[üu]rge"],
+      "none": ["brush|filter|mop cloth|replacement|accessor|spare|f[ıi]r[çc]a|filtre"]
+    },
+    "D048": {
+      "all": [
+        "headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k|freebuds"
+      ],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped"
+      ]
+    },
+    "D049": {
+      "all": ["\\mlaptops?\\M|notebook (computer|pc)|diz[üu]st[üu]|ultrabook|macbook"],
+      "none": [
+        "\\mbag\\M|sleeve|\\mcase\\M|stand|charger|adapter|battery|keyboard|cooler|skin|sticker|protector|cable|[çc]anta|cooling"
+      ]
+    },
+    "D050": {
+      "all": ["shaver|trimmer|razor|shaving|t[ıi]ra[şs]"],
+      "none": ["replacement|\\mblades?\\M"]
+    },
+    "D051": {
+      "all": ["\\m(mouse|mice)\\M|\\mfare\\M"],
+      "none": ["\\mpad\\M|\\mmat\\M|mousepad|bungee|skates"]
+    },
+    "D052": {
+      "all": [
+        "shoes|sneakers?|boots|sandals|slippers|loafers|heels|trainers|ayakkab[ıi]|\\mbot\\M|terlik"
+      ]
+    },
+    "D053": {
+      "all": ["sneakers?|running shoes|sports? shoes|trainers|athletic shoes|spor ayakkab[ıi]"]
+    },
+    "D054": {
+      "all": ["\\mdrills?\\M|screwdriver|matkap"]
+    },
+    "D055": {
+      "all": ["\\mwatch(es)?\\M|\\msaat"],
+      "none": ["strap|\\mband\\M|protector|battery|kay[ıi][şs]|kordon|smart ?watch|ak[ıi]ll[ıi]"]
+    },
+    "D056": {
+      "all": ["headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k"],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped"
+      ]
+    },
+    "D057": {
+      "all": ["refrigerator|fridge|freezer|buzdolab"]
+    },
+    "D058": {
+      "all": ["\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f", "iphone ?15 ?pro ?max"]
+    },
+    "D059": {
+      "all": ["s24 ?ultra"],
+      "none": [
+        "\\mcase\\M|\\mcover\\M|protector|\\mglass\\M|\\mfilm\\M|holder|\\mmount\\M|cable|charger|strap|stand|\\mlens\\M|\\mring\\M|grip|k[ıi]l[ıi]f"
+      ]
+    },
+    "D060": {
+      "all": ["redmi note ?13 ?pro"],
+      "none": [
+        "\\mcase\\M|\\mcover\\M|protector|\\mglass\\M|\\mfilm\\M|holder|\\mmount\\M|cable|charger|strap|stand|\\mlens\\M|\\mring\\M|grip|k[ıi]l[ıi]f"
+      ]
+    },
+    "D061": {
+      "all": ["rtx ?4060"]
+    },
+    "D062": {
+      "all": ["\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f", "\\ma55\\M"]
+    },
+    "D063": {
+      "all": [
+        "headlights?|headlamps?|head ?lights?|head lamps?|fog lights?|\\mfar\\M|farlar|\\mlamps?\\M|bulbs?",
+        "w204"
+      ]
+    },
+    "D064": {
+      "all": ["controllers?|gamepad|joystick|dualsense|\\mkol\\M|oyun kolu", "ps5|playstation ?5"],
+      "none": ["charg|stand|skin|grips?|thumb|dock|\\mcover\\M"]
+    },
+    "D065": {
+      "all": ["airpods ?pro"]
+    },
+    "D066": {
+      "all": [
+        "flash drive|pen ?drive|thumb drive|memory stick|u disk|usb stick|usb flash|usb drive|usb bellek|flash bellek",
+        "128 ?gb"
+      ]
+    },
+    "D067": {
+      "all": ["\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f", "iphone ?13"]
+    },
+    "D068": {
+      "all": ["\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f", "\\ms23\\M"]
+    },
+    "D069": {
+      "all": [
+        "charger|charging (head|adapter|plug|station|brick)|wall adapter|power adapter|[şs]arj (aleti|cihaz|adapt)|adapter|adapt[öo]r",
+        "65 ?w"
+      ]
+    },
+    "D070": {
+      "all": ["14t ?pro"],
+      "none": [
+        "\\mcase\\M|\\mcover\\M|protector|\\mglass\\M|\\mfilm\\M|holder|\\mmount\\M|cable|charger|strap|stand|\\mlens\\M|\\mring\\M|grip|k[ıi]l[ıi]f"
+      ]
+    },
+    "D071": {
+      "all": [
+        "\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f",
+        "phone|iphone|samsung|xiaomi|redmi|huawei|galaxy|telefon"
+      ]
+    },
+    "D072": {
+      "all": ["ear ?pads?|earpads?|ear cushions?|cushions? for head|kulakl[ıi]k (ped|s[üu]nger)"]
+    },
+    "D073": {
+      "all": ["batter(y|ies)|batarya", "laptop|notebook|macbook|diz[üu]st[üu]"],
+      "none": ["power ?bank"]
+    },
+    "D074": {
+      "all": [
+        "screen protector|tempered glass|protective film|hydrogel|ekran koruyucu|cam koruyucu"
+      ]
+    },
+    "D075": {
+      "all": [
+        "pants|trousers|jeans|joggers|sweatpants|pantolon|e[şs]ofman alt",
+        "\\m(men|man|male|mens)\\M|men's|\\merkek"
+      ]
+    },
+    "D076": {
+      "all": ["\\mtires?\\M|\\mtyres?\\M|lastik"],
+      "none": ["valve|\\mcaps?\\M|pressure|inflator|repair|gauge|\\mtoy\\M|chain"]
+    },
+    "D077": {
+      "all": [
+        "\\mcovers?\\M|slipcover|protector|[öo]rt[üu]",
+        "sofa|couch|\\mseats?\\M|chair|armchair|koltuk"
+      ]
+    },
+    "D078": {
+      "all": [
+        "straps?|\\mbands?\\M|bracelet|\\mloop\\M|kay[ıi][şs]|kordon",
+        "\\mwatch(es)?\\M|\\msaat|smart ?watch"
+      ]
+    },
+    "D079": {
+      "all": ["\\mbags?\\M|handbag|tote|purse|backpack|shoulder bag|crossbody|[çc]anta|pouch"]
+    },
+    "D080": {
+      "all": ["headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k"],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped"
+      ]
+    },
+    "D081": {
+      "all": [
+        "screen protector|tempered glass|protective film|hydrogel|ekran koruyucu|cam koruyucu"
+      ]
+    },
+    "D082": {
+      "all": ["pants|trousers|jeans|joggers|sweatpants|pantolon|e[şs]ofman alt|leggings"]
+    },
+    "D083": {
+      "all": [
+        "shoes|sneakers?|boots|sandals|slippers|loafers|heels|trainers|ayakkab[ıi]|\\mbot\\M|terlik"
+      ]
+    },
+    "D084": {
+      "all": ["\\mcables?\\M|\\mcords?\\M|kablo"]
+    },
+    "D085": {
+      "all": ["batter(y|ies)|batarya", "laptop|notebook|macbook|diz[üu]st[üu]"],
+      "none": ["power ?bank"]
+    },
+    "D086": {
+      "all": [
+        "ear ?pads?|earpads?|ear cushions?|cushions? for head|kulakl[ıi]k (ped|s[üu]nger)|foam|sponge"
+      ]
+    },
+    "D087": {
+      "all": ["straps?|\\mbands?\\M|bracelet|\\mloop\\M|kay[ıi][şs]|kordon", "apple watch|iwatch"]
+    },
+    "D088": {
+      "all": [
+        "holders?|\\mmounts?\\M|\\mstands?\\M|\\mgrip\\M|tutucu",
+        "phone|mobile|\\mcell\\M|telefon"
+      ]
+    },
+    "D089": {
+      "all": ["filters?|hepa|filtre", "vacuum|cleaner|robot|sweeper|s[üu]p[üu]rge"]
+    },
+    "D090": {
+      "all": ["adapters?|charger|power supply|adapt[öo]r", "laptop|notebook|macbook|diz[üu]st[üu]"]
+    },
+    "D091": {
+      "all": ["propellers?|\\mprops\\M|\\mblades?\\M|pervane", "drone|dji|fpv|quadcopter|mavic"]
+    },
+    "D092": {
+      "all": ["cartridges?|toner|\\minks?\\M|kartu[şs]"]
+    },
+    "D093": {
+      "all": ["brush|f[ıi]r[çc]a", "robot|vacuum|sweeper|s[üu]p[üu]rge"]
+    },
+    "D094": {
+      "all": ["\\mlens(es)?\\M|\\mlensi?\\M"],
+      "none": ["protector|\\mcap\\M|\\mfilm\\M|\\mglass\\M"]
+    },
+    "D095": {
+      "all": ["stylus|\\mpens?\\M|pencil|kalem", "tablet|ipad|touch|capacitive"]
+    },
+    "D096": {
+      "all": ["keycaps?|key caps?|tu[şs] tak[ıi]m"]
+    },
+    "D097": {
+      "all": ["speakers?|soundbar|boombox|hoparl[öo]r", "wireless|bluetooth|2\\.4 ?g|kablosuz"]
+    },
+    "D098": {
+      "all": ["\\m(mouse|mice)\\M|\\mfare\\M", "wireless|bluetooth|2\\.4 ?g|kablosuz"],
+      "none": ["\\mpad\\M|\\mmat\\M|mousepad|bungee|skates"]
+    },
+    "D099": {
+      "all": [
+        "\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f",
+        "phone|iphone|samsung|xiaomi|redmi|huawei|galaxy|telefon"
+      ]
+    },
+    "D100": {
+      "all": [
+        "headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k",
+        "gaming|gamer|oyuncu"
+      ],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped"
+      ]
+    },
+    "D101": {
+      "all": ["\\mstands?\\M|holder|riser|stand[ıi]", "laptop|notebook|macbook|diz[üu]st[üu]"]
+    },
+    "D102": {
+      "all": ["usb", "\\mcables?\\M|\\mcords?\\M|kablo"]
+    },
+    "D103": {
+      "all": [
+        "straps?|\\mbands?\\M|bracelet|\\mloop\\M|kay[ıi][şs]|kordon",
+        "\\mwatch(es)?\\M|\\msaat|smart ?watch"
+      ]
+    },
+    "D104": {
+      "all": [
+        "\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f|skin|sleeve",
+        "earbuds?|airpods|earphones?|\\mbuds\\M|headphones?|kulakl[ıi]k"
+      ]
+    },
+    "D105": {
+      "all": ["car charger|car charging|cigarette lighter|ara[çc] [şs]arj|oto [şs]arj"]
+    },
+    "D106": {
+      "all": ["power ?bank|portable charger|battery pack|powerbank"]
+    },
+    "D107": {
+      "all": ["speakers?|soundbar|boombox|hoparl[öo]r", "wireless|bluetooth|2\\.4 ?g|kablosuz"]
+    },
+    "D108": {
+      "all": ["\\m(mouse|mice)\\M|\\mfare\\M", "wireless|bluetooth|2\\.4 ?g|kablosuz"],
+      "none": ["\\mpad\\M|\\mmat\\M|mousepad|bungee|skates"]
+    },
+    "D109": {
+      "all": [
+        "\\mbags?\\M|handbag|tote|purse|backpack|shoulder bag|crossbody|[çc]anta|sleeve|briefcase|\\mcase\\M",
+        "laptop|notebook|macbook|diz[üu]st[üu]"
+      ]
+    },
+    "D110": {
+      "all": [
+        "headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k",
+        "wireless|bluetooth|2\\.4 ?g|kablosuz"
+      ],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped"
+      ]
+    },
+    "D111": {
+      "all": [
+        "smartphones?|mobile phones?|cell phones?|android phones?|\\mphones?\\M|ak[ıi]ll[ıi] telefon|\\mtelefon\\M"
+      ],
+      "none": [
+        "\\mcase\\M|\\mcover\\M|protector|\\mglass\\M|\\mfilm\\M|holder|\\mmount\\M|cable|charger|strap|stand|\\mlens\\M|\\mring\\M|grip|k[ıi]l[ıi]f|samsung|galaxy"
+      ]
+    },
+    "D112": {
+      "all": ["\\mlaptops?\\M|notebook (computer|pc)|diz[üu]st[üu]|ultrabook|macbook"],
+      "none": [
+        "\\mbag\\M|sleeve|\\mcase\\M|stand|charger|adapter|battery|keyboard|cooler|skin|sticker|protector|cable|[çc]anta|cooling"
+      ]
+    },
+    "D113": {
+      "all": ["\\mdress(es)?\\M|elbise", "\\mred\\M|k[ıi]rm[ıi]z[ıi]"]
+    },
+    "D114": {
+      "all": [
+        "smart ?watch|smartwatch|ak[ıi]ll[ıi] saat",
+        "waterproof|water ?proof|ip6[78]|water resistant|su ge[çc]irmez"
+      ],
+      "none": ["strap|\\mband\\M|\\mcase\\M|charger|protector|cable|kay[ıi][şs]|kordon|k[ıi]l[ıi]f"]
+    },
+    "D115": {
+      "all": ["robot (vacuum|cleaner|sweeper)|robotic vacuum|robot s[üu]p[üu]rge"],
+      "none": ["brush|filter|mop cloth|replacement|accessor|spare|f[ıi]r[çc]a|filtre|xiaomi|mijia"]
+    },
+    "D116": {
+      "all": [
+        "charger|charging (head|adapter|plug|station|brick)|wall adapter|power adapter|[şs]arj (aleti|cihaz|adapt)",
+        "iphone"
+      ]
+    },
+    "D117": {
+      "all": [
+        "\\mtablets?\\M",
+        "\\mkids?\\M|child|children|\\mboys?\\M|\\mgirls?\\M|toddler|baby|[çc]ocuk"
+      ],
+      "none": [
+        "\\mcase\\M|\\mcover\\M|protector|\\mglass\\M|\\mfilm\\M|holder|\\mmount\\M|cable|charger|strap|stand|\\mlens\\M|\\mring\\M|grip|k[ıi]l[ıi]f|\\mpen\\M|stylus"
+      ]
+    },
+    "D118": {
+      "all": ["wireless charg|magsafe|qi charg|kablosuz [şs]arj"]
+    },
+    "D119": {
+      "all": ["headphones?|earphones?|earbuds?|headsets?|\\mtws\\M|in-ear|over-ear|kulakl[ıi]k"],
+      "none": [
+        "ear ?pads?|earpads?|cushion|\\mcase\\M|\\mcover\\M|stand|hook|\\mtips\\M|s[üu]nger|\\mped|samsung|galaxy"
+      ]
+    },
+    "D120": {
+      "all": ["\\m(mouse|mice)\\M|\\mfare\\M", "gaming|gamer|oyuncu"],
+      "none": ["\\mpad\\M|\\mmat\\M|mousepad|bungee|skates"]
+    },
+    "D121": {
+      "all": [
+        "\\mtents?\\M|[çc]ad[ıi]r",
+        "\\m2 person|2-person|two person|2 people|1-2 person|2 man|2 ki[şs]ilik"
+      ]
+    },
+    "D122": {
+      "all": [
+        "jacket|\\mcoats?\\M|parka|puffer|\\mmont\\M|kaban",
+        "\\m(men|man|male|mens)\\M|men's|\\merkek"
+      ]
+    },
+    "D123": {
+      "all": ["\\mcables?\\M|\\mcords?\\M|kablo|\\mwires?\\M"]
+    },
+    "D124": {
+      "all": ["straps?|\\mbands?\\M|bracelet|\\mloop\\M|kay[ıi][şs]|kordon|\\mbelts?\\M|kemer"]
+    },
+    "D125": {
+      "all": ["\\mballs?\\M|\\mtopu?\\M", "pilates|yoga|exercise|fitness|\\mgym\\M|stability|swiss"]
+    },
+    "D126": {
+      "all": ["\\m(case|cover|folio)s?\\M|k[ıi]l[ıi]f|sleeve", "\\mipad"]
+    },
+    "D127": {
+      "all": ["gamepad|controllers?|joystick|oyun kolu"],
+      "none": ["charg|stand|skin|grips?|thumb|dock|button"]
+    },
+    "D128": {
+      "all": ["headlights?|headlamps?|head ?lights?|head lamps?|fog lights?|\\mfar\\M|farlar"]
+    },
+    "D129": {
+      "all": ["batter(y|ies)|\\mpil(ler)?\\M"],
+      "none": ["power ?bank|charger|tester|holder|\\mcase\\M|\\mbox\\M|laptop"]
+    },
+    "D130": {
+      "all": ["\\mpads?\\M|cushion|\\mped"]
+    },
+    "D131": {
+      "all": ["nozzles?|nozul"]
+    },
+    "D132": {
+      "all": ["helmets?|\\mkask"]
+    },
+    "D133": {
+      "all": ["\\mpans?\\M|frying pan|skillet|\\mwok\\M|\\mtava"]
+    },
+    "D134": {
+      "all": ["\\mrims?\\M|alloy wheels?|wheel hub|hubcap|\\mjant"]
+    },
+    "D135": {
+      "all": ["notebooks?|journal|sketchbook|diary|notepad|defter"],
+      "none": [
+        "\\mbag\\M|sleeve|\\mcase\\M|stand|charger|adapter|battery|keyboard|cooler|skin|sticker|protector|cable|[çc]anta|cooling|computer|\\mpc\\M|laptop"
+      ]
+    },
+    "D136": {
+      "all": ["thermos|vacuum flask|insulated|tumbler|\\mflask\\M|vacuum bottle|termos"]
+    },
+    "D137": {
+      "all": ["\\msim\\M", "cards?|tray|adapter|ejector|reader|kart"]
+    }
+  }
+}
