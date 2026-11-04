@@ -142,11 +142,18 @@ export class NormalizationStats {
   errors = 0;
   timeouts = 0;
   private durations: number[] = [];
+  private readonly window: number;
+  private readonly log: (line: string) => void;
 
+  // Parametre ozelligi (constructor(private ...)) kullanilmaz: `node scripts/*.ts` (tip ayiklama
+  // kipi) bu modulu dogrudan yukler ve o sozdizimini desteklemez.
   constructor(
-    private readonly window = NORMALIZATION_LOG_WINDOW,
-    private readonly log: (line: string) => void = (line) => console.info(line),
-  ) {}
+    window = NORMALIZATION_LOG_WINDOW,
+    log: (line: string) => void = (line) => console.info(line),
+  ) {
+    this.window = window;
+    this.log = log;
+  }
 
   record(sample: {
     corrections: number;
