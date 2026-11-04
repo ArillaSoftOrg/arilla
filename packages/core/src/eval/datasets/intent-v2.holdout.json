@@ -1,0 +1,5 @@
+{
+  "_aciklama": "IntentV2 BAGIMSIZ DOGRULAMA (holdout) seti (karar 0171 §10, §12). BILEREK BOS: sorgular ve etiketler, dev setini ve modeli gormemis bir insan tarafindan yazilir (kullanici onay noktasi 2). Claude bu dosyayi doldurmaz. Gelistirme sirasinda kosulmaz; yalnizca Faz 3'te bir kez kosulur. Bicim dev setiyle aynidir; hedef 50 vaka (dev setindeki kategori dagiliminin yarisi). label_source 'human_independent' olmalidir. Dev setiyle kesisim ve 0.9 ustu benzerlik CI'da reddedilir (intent-v2-dataset.test.ts).",
+  "label_source": "human_independent",
+  "cases": []
+}
