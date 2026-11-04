@@ -50,6 +50,7 @@ export const RESERVED_SLUGS: ReadonlySet<string> = new Set([
   "kesfet",
   "kosullar",
   "kvkk-aydinlatma",
+  "nasil-calisir",
   "ortakliklar",
   "sirket-bilgileri",
   "sitemaps",
