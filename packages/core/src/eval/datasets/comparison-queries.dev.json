@@ -1,0 +1,673 @@
+{
+  "_aciklama": "Turkce referansli karsilastirma sorgulari dev seti (Dupe arastirmasi sonrasi plan, T2; roadmap R4/R6). Kullanici bir referans urun ya da marka adlandirip ondan daha ucuz, ona benzer ya da baska markadan urun istiyor. Etiketler Claude tarafindan TASLAK olarak yazildi (label_source=ai_drafted_pending_human_review); bagimsiz insan etiketi DEGILDIR. Holdout seti bu dosyada yoktur; insan tarafindan ayri yazilir. gold.relation: cheaper | similar | similar_cheaper | same_cheaper | different_brand | null (kontrol: referans yok). gold.anchor.kind: product (model/urun adi), brand_type (marka + tur), context (onceki sonuclar/urun). gold.anchor_brand: referansin sorguda ACIKCA yazili markasi (lexicon_brands icinde); sonuc filtresi DEGILDIR. gold.brand_include: sonuc filtresi olmasi gereken marka (yalnizca kontrollerde). gold.exclude_brands: acikca dislanan markalar.",
+  "label_source": "ai_drafted_pending_human_review",
+  "lexicon_brands": [
+    "apple",
+    "converse",
+    "dyson",
+    "jbl",
+    "le creuset",
+    "lego",
+    "logitech",
+    "nespresso",
+    "nike",
+    "philips",
+    "samsung",
+    "sony",
+    "stanley",
+    "tefal",
+    "xiaomi"
+  ],
+  "cases": [
+    {
+      "id": "c01",
+      "cat": "cheaper",
+      "typo": false,
+      "q": "dyson v15'ten daha ucuz dikey süpürge",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "product", "text": "dyson v15" },
+        "anchor_brand": "dyson",
+        "product_type": "dikey süpürge",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "c02",
+      "cat": "cheaper",
+      "typo": false,
+      "q": "airpods pro'dan daha uygun kablosuz kulaklık",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "product", "text": "airpods pro" },
+        "anchor_brand": null,
+        "product_type": "kablosuz kulaklık",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "c03",
+      "cat": "cheaper",
+      "typo": false,
+      "q": "stanley termostan ucuz termos",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "brand_type", "text": "stanley termos" },
+        "anchor_brand": "stanley",
+        "product_type": "termos",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "c04",
+      "cat": "cheaper",
+      "typo": true,
+      "q": "jbl flip 6dan daha hesaplı hoparlör",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "product", "text": "jbl flip 6" },
+        "anchor_brand": "jbl",
+        "product_type": "hoparlör",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "c05",
+      "cat": "cheaper",
+      "typo": false,
+      "q": "mx master 3s'ten ucuz mouse",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "product", "text": "mx master 3s" },
+        "anchor_brand": null,
+        "product_type": "mouse",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "c06",
+      "cat": "cheaper",
+      "typo": false,
+      "q": "philips airfryer'dan daha ucuzu var mı",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "brand_type", "text": "philips airfryer" },
+        "anchor_brand": "philips",
+        "product_type": null,
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "c07",
+      "cat": "cheaper",
+      "typo": false,
+      "q": "iphone 15'ten daha ucuz telefon",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "product", "text": "iphone 15" },
+        "anchor_brand": null,
+        "product_type": "telefon",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "c08",
+      "cat": "cheaper",
+      "typo": false,
+      "q": "sony wh-1000xm5 kulaklıktan daha ucuz anc kulaklık",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "product", "text": "sony wh-1000xm5" },
+        "anchor_brand": "sony",
+        "product_type": "kulaklık",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "c09",
+      "cat": "cheaper",
+      "typo": false,
+      "q": "nike air force 1'den daha ucuz beyaz spor ayakkabı",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "product", "text": "nike air force 1" },
+        "anchor_brand": "nike",
+        "product_type": "spor ayakkabı",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "c10",
+      "cat": "cheaper",
+      "typo": false,
+      "q": "tefal ütüden daha ucuz buharlı ütü",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "brand_type", "text": "tefal ütü" },
+        "anchor_brand": "tefal",
+        "product_type": "buharlı ütü",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "c11",
+      "cat": "cheaper",
+      "typo": true,
+      "q": "samsng galaxy s24 ten daha ucuz telefon",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "product", "text": "samsng galaxy s24" },
+        "anchor_brand": null,
+        "product_type": "telefon",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+
+    {
+      "id": "s01",
+      "cat": "similar",
+      "typo": false,
+      "q": "dyson airwrap'e benzer saç şekillendirici",
+      "gold": {
+        "relation": "similar",
+        "anchor": { "kind": "product", "text": "dyson airwrap" },
+        "anchor_brand": "dyson",
+        "product_type": "saç şekillendirici",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "s02",
+      "cat": "similar",
+      "typo": false,
+      "q": "stanley quencher gibi pipetli termos bardak",
+      "gold": {
+        "relation": "similar",
+        "anchor": { "kind": "product", "text": "stanley quencher" },
+        "anchor_brand": "stanley",
+        "product_type": "termos bardak",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "s03",
+      "cat": "similar",
+      "typo": false,
+      "q": "airpods max'e benzeyen kulak üstü kulaklık",
+      "gold": {
+        "relation": "similar",
+        "anchor": { "kind": "product", "text": "airpods max" },
+        "anchor_brand": null,
+        "product_type": "kulak üstü kulaklık",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "s04",
+      "cat": "similar",
+      "typo": false,
+      "q": "jbl charge 5 benzeri bluetooth hoparlör",
+      "gold": {
+        "relation": "similar",
+        "anchor": { "kind": "product", "text": "jbl charge 5" },
+        "anchor_brand": "jbl",
+        "product_type": "bluetooth hoparlör",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "s05",
+      "cat": "similar",
+      "typo": false,
+      "q": "converse chuck taylor tarzı kanvas ayakkabı",
+      "gold": {
+        "relation": "similar",
+        "anchor": { "kind": "product", "text": "converse chuck taylor" },
+        "anchor_brand": "converse",
+        "product_type": "kanvas ayakkabı",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "s06",
+      "cat": "similar",
+      "typo": false,
+      "q": "kindle paperwhite muadili e-kitap okuyucu",
+      "gold": {
+        "relation": "similar",
+        "anchor": { "kind": "product", "text": "kindle paperwhite" },
+        "anchor_brand": null,
+        "product_type": "e-kitap okuyucu",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "s07",
+      "cat": "similar",
+      "typo": false,
+      "q": "lego technic benzeri yapı seti",
+      "gold": {
+        "relation": "similar",
+        "anchor": { "kind": "product", "text": "lego technic" },
+        "anchor_brand": "lego",
+        "product_type": "yapı seti",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "s08",
+      "cat": "similar",
+      "typo": false,
+      "q": "xiaomi mi band 8'e benzer akıllı bileklik",
+      "gold": {
+        "relation": "similar",
+        "anchor": { "kind": "product", "text": "xiaomi mi band 8" },
+        "anchor_brand": "xiaomi",
+        "product_type": "akıllı bileklik",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "s09",
+      "cat": "similar",
+      "typo": true,
+      "q": "logitech mx keys gibi klavye arıyrum",
+      "gold": {
+        "relation": "similar",
+        "anchor": { "kind": "product", "text": "logitech mx keys" },
+        "anchor_brand": "logitech",
+        "product_type": "klavye",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+
+    {
+      "id": "d01",
+      "cat": "similar_cheaper",
+      "typo": false,
+      "q": "dyson süpürgeye benzer ama daha ucuz",
+      "gold": {
+        "relation": "similar_cheaper",
+        "anchor": { "kind": "brand_type", "text": "dyson süpürge" },
+        "anchor_brand": "dyson",
+        "product_type": "süpürge",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "d02",
+      "cat": "similar_cheaper",
+      "typo": false,
+      "q": "airpods pro muadili uygun fiyatlı kulaklık",
+      "gold": {
+        "relation": "similar_cheaper",
+        "anchor": { "kind": "product", "text": "airpods pro" },
+        "anchor_brand": null,
+        "product_type": "kulaklık",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "d03",
+      "cat": "similar_cheaper",
+      "typo": false,
+      "q": "stanley termos gibi ama daha ucuz",
+      "gold": {
+        "relation": "similar_cheaper",
+        "anchor": { "kind": "brand_type", "text": "stanley termos" },
+        "anchor_brand": "stanley",
+        "product_type": "termos",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "d04",
+      "cat": "similar_cheaper",
+      "typo": false,
+      "q": "le creuset döküm tencere alternatifi daha uygun",
+      "gold": {
+        "relation": "similar_cheaper",
+        "anchor": { "kind": "brand_type", "text": "le creuset döküm tencere" },
+        "anchor_brand": "le creuset",
+        "product_type": "döküm tencere",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "d05",
+      "cat": "similar_cheaper",
+      "typo": false,
+      "q": "theragun benzeri ucuz masaj tabancası",
+      "gold": {
+        "relation": "similar_cheaper",
+        "anchor": { "kind": "product", "text": "theragun" },
+        "anchor_brand": null,
+        "product_type": "masaj tabancası",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "d06",
+      "cat": "similar_cheaper",
+      "typo": false,
+      "q": "apple watch'a benzeyen daha ucuz akıllı saat",
+      "gold": {
+        "relation": "similar_cheaper",
+        "anchor": { "kind": "product", "text": "apple watch" },
+        "anchor_brand": "apple",
+        "product_type": "akıllı saat",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "d07",
+      "cat": "similar_cheaper",
+      "typo": false,
+      "q": "nespresso makinesi gibi ama daha hesaplı kapsüllü kahve makinesi",
+      "gold": {
+        "relation": "similar_cheaper",
+        "anchor": { "kind": "brand_type", "text": "nespresso makinesi" },
+        "anchor_brand": "nespresso",
+        "product_type": "kapsüllü kahve makinesi",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "d08",
+      "cat": "similar_cheaper",
+      "typo": true,
+      "q": "jbl flip yerine daha ucuz benzr hoparlör",
+      "gold": {
+        "relation": "similar_cheaper",
+        "anchor": { "kind": "product", "text": "jbl flip" },
+        "anchor_brand": "jbl",
+        "product_type": "hoparlör",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+
+    {
+      "id": "b01",
+      "cat": "different_brand",
+      "typo": false,
+      "q": "dyson v15 gibi ama dyson olmasın süpürge",
+      "gold": {
+        "relation": "different_brand",
+        "anchor": { "kind": "product", "text": "dyson v15" },
+        "anchor_brand": "dyson",
+        "product_type": "süpürge",
+        "brand_include": [],
+        "exclude_brands": ["dyson"]
+      }
+    },
+    {
+      "id": "b02",
+      "cat": "different_brand",
+      "typo": false,
+      "q": "iphone'a benzer ama apple hariç telefon",
+      "gold": {
+        "relation": "different_brand",
+        "anchor": { "kind": "product", "text": "iphone" },
+        "anchor_brand": null,
+        "product_type": "telefon",
+        "brand_include": [],
+        "exclude_brands": ["apple"]
+      }
+    },
+    {
+      "id": "b03",
+      "cat": "different_brand",
+      "typo": false,
+      "q": "jbl yerine başka marka bluetooth hoparlör",
+      "gold": {
+        "relation": "different_brand",
+        "anchor": { "kind": "brand_type", "text": "jbl" },
+        "anchor_brand": "jbl",
+        "product_type": "bluetooth hoparlör",
+        "brand_include": [],
+        "exclude_brands": ["jbl"]
+      }
+    },
+    {
+      "id": "b04",
+      "cat": "different_brand",
+      "typo": false,
+      "q": "mx master'a benzer logitech dışında mouse",
+      "gold": {
+        "relation": "different_brand",
+        "anchor": { "kind": "product", "text": "mx master" },
+        "anchor_brand": null,
+        "product_type": "mouse",
+        "brand_include": [],
+        "exclude_brands": ["logitech"]
+      }
+    },
+    {
+      "id": "b05",
+      "cat": "different_brand",
+      "typo": false,
+      "q": "galaxy buds gibi samsung değil kulaklık",
+      "gold": {
+        "relation": "different_brand",
+        "anchor": { "kind": "product", "text": "galaxy buds" },
+        "anchor_brand": null,
+        "product_type": "kulaklık",
+        "brand_include": [],
+        "exclude_brands": ["samsung"]
+      }
+    },
+
+    {
+      "id": "a01",
+      "cat": "same_cheaper",
+      "typo": false,
+      "q": "airpods pro 2 en ucuz hangi mağazada",
+      "gold": {
+        "relation": "same_cheaper",
+        "anchor": { "kind": "product", "text": "airpods pro 2" },
+        "anchor_brand": null,
+        "product_type": null,
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "a02",
+      "cat": "same_cheaper",
+      "typo": false,
+      "q": "dyson v15 detect daha ucuza nereden bulurum",
+      "gold": {
+        "relation": "same_cheaper",
+        "anchor": { "kind": "product", "text": "dyson v15 detect" },
+        "anchor_brand": "dyson",
+        "product_type": null,
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "a03",
+      "cat": "same_cheaper",
+      "typo": false,
+      "q": "bu ürünün daha ucuz satıcısı var mı",
+      "gold": {
+        "relation": "same_cheaper",
+        "anchor": { "kind": "context", "text": null },
+        "anchor_brand": null,
+        "product_type": null,
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+
+    {
+      "id": "x01",
+      "cat": "context",
+      "typo": false,
+      "q": "bunlardan daha ucuz olanı var mı",
+      "gold": {
+        "relation": "cheaper",
+        "anchor": { "kind": "context", "text": null },
+        "anchor_brand": null,
+        "product_type": null,
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "x02",
+      "cat": "context",
+      "typo": false,
+      "q": "buna benzer başka ürün göster",
+      "gold": {
+        "relation": "similar",
+        "anchor": { "kind": "context", "text": null },
+        "anchor_brand": null,
+        "product_type": null,
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+
+    {
+      "id": "n01",
+      "cat": "control",
+      "typo": false,
+      "q": "ucuz kablosuz kulaklık",
+      "gold": {
+        "relation": null,
+        "anchor": null,
+        "anchor_brand": null,
+        "product_type": "kablosuz kulaklık",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "n02",
+      "cat": "control",
+      "typo": false,
+      "q": "en ucuz airfryer",
+      "gold": {
+        "relation": null,
+        "anchor": null,
+        "anchor_brand": null,
+        "product_type": "airfryer",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "n03",
+      "cat": "control",
+      "typo": false,
+      "q": "dyson süpürge",
+      "gold": {
+        "relation": null,
+        "anchor": null,
+        "anchor_brand": null,
+        "product_type": "süpürge",
+        "brand_include": ["dyson"],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "n04",
+      "cat": "control",
+      "typo": false,
+      "q": "samsung olmasın akıllı saat",
+      "gold": {
+        "relation": null,
+        "anchor": null,
+        "anchor_brand": null,
+        "product_type": "akıllı saat",
+        "brand_include": [],
+        "exclude_brands": ["samsung"]
+      }
+    },
+    {
+      "id": "n05",
+      "cat": "control",
+      "typo": false,
+      "q": "jbl bluetooth hoparlör",
+      "gold": {
+        "relation": null,
+        "anchor": null,
+        "anchor_brand": null,
+        "product_type": "bluetooth hoparlör",
+        "brand_include": ["jbl"],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "n06",
+      "cat": "control",
+      "typo": false,
+      "q": "uygun fiyatlı stanley termos",
+      "gold": {
+        "relation": null,
+        "anchor": null,
+        "anchor_brand": null,
+        "product_type": "termos",
+        "brand_include": ["stanley"],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "n07",
+      "cat": "control",
+      "typo": false,
+      "q": "5000 tl altı robot süpürge",
+      "gold": {
+        "relation": null,
+        "anchor": null,
+        "anchor_brand": null,
+        "product_type": "robot süpürge",
+        "brand_include": [],
+        "exclude_brands": []
+      }
+    },
+    {
+      "id": "n08",
+      "cat": "control",
+      "typo": false,
+      "q": "xiaomi akıllı bileklik",
+      "gold": {
+        "relation": null,
+        "anchor": null,
+        "anchor_brand": null,
+        "product_type": "akıllı bileklik",
+        "brand_include": ["xiaomi"],
+        "exclude_brands": []
+      }
+    }
+  ]
+}

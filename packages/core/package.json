@@ -41,6 +41,7 @@
     "media:import-blog": "node scripts/import-blog-images.ts",
     "eval:intent": "node --experimental-transform-types --no-warnings scripts/eval-intent.ts",
     "eval:intent-v2": "node --experimental-transform-types --no-warnings scripts/eval-intent-v2.ts",
+    "eval:comparison": "node --experimental-transform-types --no-warnings scripts/eval-comparison.ts",
     "eval:search": "node --experimental-transform-types --no-warnings scripts/search-eval.ts",
     "probe:search": "node --experimental-transform-types --no-warnings scripts/search-probe.ts",
     "probe:bundle": "esbuild scripts/search-probe.ts --bundle --platform=node --format=esm --target=node24 --external:pg-native --outfile=dist/search-probe.mjs --banner:js=\"import { createRequire } from 'node:module'; const require = createRequire(import.meta.url);\"",
