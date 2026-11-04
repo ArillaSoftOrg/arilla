@@ -7,9 +7,28 @@
  *
  * Yargi algoritmadan bagimsizdir (`bootstrap-queries.json`): baslik/marka
  * desenleri, veritabaninda `~*` ile uygulanir.
+ *
+ * Karar 0171 G6: her satir ilk 10 urun kimligini ve sonucun geldigi asamayi
+ * tasir; `runEvaluation` katalog parmak izli metadata uretir. Magaza kapsami
+ * (`scope`) ve arama yolu (`engine`) parametredir; varsayilanlar eski davranistir.
  */
+import { createHash } from "node:crypto";
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import {
+  catalogFingerprint,
+  SEARCH_EVAL_FORMAT,
+  type SearchEvalCatalog,
+  type SearchEvalEngine,
+  type SearchEvalMeta,
+  type SearchEvalRun,
+  type SearchEvalScope,
+} from "../../eval/search-eval.ts";
+import {
+  createPostgresSearchProvider,
+  createSeedAliasSource,
+  searchWithFallback,
+} from "../fallback/index.ts";
 import { resolveQuery } from "../query-resolution.ts";
 import { search } from "../search.ts";
 import evalSet from "./bootstrap-queries.json" with { type: "json" };
@@ -39,7 +58,24 @@ export interface EvalRow {
   relevantInCatalog: number;
   zeroResultCorrect: boolean | null;
   usedFallback: boolean;
+  /** Ilk 10 sonucun urun kimlikleri, sira korunur. */
+  topIds: number[];
+  /**
+   * Sonucun geldigi asama. `legacy`: `primary` ya da `unfiltered_fallback`;
+   * `fallback`: `searchWithFallback` izinin asamasi (`exact`, `alias`, ...) ya da `empty`.
+   */
+  stage: string;
 }
+
+export interface EvalOptions {
+  /** Varsayilan `legacy` (0029 davranisi). */
+  engine?: SearchEvalEngine;
+  /** Varsayilan bootstrap magazalari. */
+  scope?: SearchEvalScope;
+}
+
+/** `fallback` motorunda zaman butcesi: olcum, butceyle kesilen asamaya gore degismesin. */
+const EVAL_FALLBACK_TIME_BUDGET_MS = 60_000;
 
 export const EVAL_QUERIES: readonly EvalQuery[] = evalSet.queries;
 
@@ -50,6 +86,55 @@ const BOOTSTRAP_MERCHANTS = sql`
 export async function bootstrapMerchantIds(db: Database): Promise<number[]> {
   const result = await db.execute<{ id: string }>(BOOTSTRAP_MERCHANTS);
   return result.rows.map((row) => Number(row.id));
+}
+
+/** Kapsamin magaza kimlikleri, artan sirali. */
+export async function scopeMerchantIds(db: Database, scope: SearchEvalScope): Promise<number[]> {
+  let ids: number[];
+  if (scope.kind === "bootstrap") {
+    ids = await bootstrapMerchantIds(db);
+  } else if (scope.kind === "all_active") {
+    const result = await db.execute<{ id: string }>(sql`SELECT id FROM merchant WHERE is_active`);
+    ids = result.rows.map((row) => Number(row.id));
+  } else {
+    ids = [...scope.merchantIds];
+  }
+  return [...new Set(ids)].sort((a, b) => a - b);
+}
+
+/** Kapsamdaki katalogun karsilastirilabilirlik ozeti (yalnizca sayilar). */
+export async function catalogSummary(
+  db: Database,
+  merchantIds: readonly number[],
+): Promise<SearchEvalCatalog> {
+  const result = await db.execute<{
+    products: string;
+    offers: string;
+    max_product: string | null;
+    max_offer: string | null;
+  }>(sql`
+    SELECT count(DISTINCT o.product_id)
+             FILTER (WHERE p.publication_state = 'published')::text AS products,
+           count(*)::text AS offers,
+           max(o.product_id)::text AS max_product,
+           max(o.id)::text AS max_offer
+      FROM offer o
+      LEFT JOIN product p ON p.id = o.product_id
+     WHERE o.is_active AND o.merchant_id = ANY(${sql.param(merchantIds)}::bigint[])
+  `);
+  const row = result.rows[0];
+  const base = {
+    merchantIds: [...merchantIds],
+    products: Number(row?.products ?? 0),
+    activeOffers: Number(row?.offers ?? 0),
+    maxProductId: row?.max_product ? Number(row.max_product) : null,
+    maxOfferId: row?.max_offer ? Number(row.max_offer) : null,
+  };
+  return { ...base, fingerprint: catalogFingerprint(base, sha256) };
+}
+
+function sha256(text: string): string {
+  return createHash("sha256").update(text).digest("hex");
 }
 
 function judgeClause(query: EvalQuery) {
@@ -95,25 +180,64 @@ async function relevantInCatalog(
   return Number(result.rows[0]?.n ?? 0);
 }
 
+interface EngineResult {
+  items: { productId: number; title: string }[];
+  usedFallback: boolean;
+  stage: string;
+}
+
+/** 0029 yolu: `search()`; bos sonucta filtreler temizlenir (kapsam korunur), en yakin 6. */
+async function runLegacy(
+  db: Database,
+  query: EvalQuery,
+  merchantIds: number[],
+): Promise<EngineResult> {
+  const { parsed } = await resolveQuery(db, query.q);
+  const scoped = { ...parsed, filters: { ...parsed.filters, merchant_ids: merchantIds } };
+  const items = (await search(db, scoped, { limit: 24 })).items;
+  if (items.length > 0) return { items, usedFallback: false, stage: "primary" };
+  const fallback = {
+    ...parsed,
+    filters: { merchant_ids: merchantIds },
+    sort: "balanced" as const,
+  };
+  return {
+    items: (await search(db, fallback, { limit: 6 })).items,
+    usedFallback: true,
+    stage: "unfiltered_fallback",
+  };
+}
+
+/** `/ara`'nin kademeli yolu (0066); normalizasyon (0172) uygulanmaz. */
+async function runFallbackPipeline(
+  db: Database,
+  query: EvalQuery,
+  merchantIds: number[],
+): Promise<EngineResult> {
+  const { parsed } = await resolveQuery(db, query.q);
+  const scoped = { ...parsed, filters: { ...parsed.filters, merchant_ids: merchantIds } };
+  const outcome = await searchWithFallback(
+    createPostgresSearchProvider(db),
+    { parsed: scoped, sort: scoped.sort, page: 1, pageSize: 24 },
+    { aliases: createSeedAliasSource(), timeBudgetMs: EVAL_FALLBACK_TIME_BUDGET_MS },
+  );
+  return {
+    items: outcome.items,
+    usedFallback: outcome.mode === "fallback",
+    stage: outcome.mode === "empty" ? "empty" : outcome.trace.stage,
+  };
+}
+
 export async function evaluateQuery(
   db: Database,
   query: EvalQuery,
   merchantIds: number[],
+  engine: SearchEvalEngine = "legacy",
 ): Promise<EvalRow> {
-  const { parsed } = await resolveQuery(db, query.q);
-  const scoped = { ...parsed, filters: { ...parsed.filters, merchant_ids: merchantIds } };
-  let items = (await search(db, scoped, { limit: 24 })).items;
-  let usedFallback = false;
-  if (items.length === 0) {
-    // /ara ile ayni: filtreler temizlenir (kapsam korunur), en yakin 6.
-    const fallback = {
-      ...parsed,
-      filters: { merchant_ids: merchantIds },
-      sort: "balanced" as const,
-    };
-    items = (await search(db, fallback, { limit: 6 })).items;
-    usedFallback = true;
-  }
+  const { items, usedFallback, stage } =
+    engine === "fallback"
+      ? await runFallbackPipeline(db, query, merchantIds)
+      : await runLegacy(db, query, merchantIds);
 
   const ids = items.map((item) => item.productId);
   const inCatalog = await relevantInCatalog(db, query, merchantIds);
@@ -136,14 +260,40 @@ export async function evaluateQuery(
     // gore 0) dogru cevap bos sonuctur.
     zeroResultCorrect: query.absent || inCatalog === 0 ? items.length === 0 : null,
     usedFallback,
+    topIds: top10.map((item) => item.productId),
+    stage,
   };
 }
 
-export async function evaluateAll(db: Database): Promise<EvalRow[]> {
-  const merchantIds = await bootstrapMerchantIds(db);
+export async function evaluateAll(db: Database, options: EvalOptions = {}): Promise<EvalRow[]> {
+  return (await runEvaluation(db, options)).rows;
+}
+
+/** Satirlar + katalog parmak izli metadata (`--json` zarfi). */
+export async function runEvaluation(
+  db: Database,
+  options: EvalOptions & { codeRef?: string } = {},
+): Promise<SearchEvalRun<EvalRow>> {
+  const engine = options.engine ?? "legacy";
+  const scope = options.scope ?? { kind: "bootstrap" };
+  const merchantIds = await scopeMerchantIds(db, scope);
+  const catalog = await catalogSummary(db, merchantIds);
   const rows: EvalRow[] = [];
   for (const query of EVAL_QUERIES) {
-    rows.push(await evaluateQuery(db, query, merchantIds));
+    rows.push(await evaluateQuery(db, query, merchantIds, engine));
   }
-  return rows;
+  const meta: SearchEvalMeta = {
+    format: SEARCH_EVAL_FORMAT,
+    createdAt: new Date().toISOString(),
+    codeRef: options.codeRef ?? "unknown",
+    engine,
+    scope,
+    catalog,
+    dataset: {
+      name: "bootstrap-queries",
+      queries: EVAL_QUERIES.length,
+      sha256: sha256(JSON.stringify(EVAL_QUERIES)),
+    },
+  };
+  return { meta, rows };
 }
