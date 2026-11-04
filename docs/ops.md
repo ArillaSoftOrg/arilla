@@ -2496,6 +2496,30 @@ Maliyet: token satırı (`web_search_grounded`) ve Google arama sorgusu satırı
 
 **Gerçek API dumanı (karar 0102):** `WEB_SEARCH_SMOKE=1 GEMINI_API_KEY=<anahtar> pnpm --filter @arilla/core web-search:smoke [1-3]` en fazla 3 sabit örnek sorgu çalıştırır (veritabanı/Redis yok, anahtar yazdırılmaz); atıf/URL Context/search_suggestions alanlarını, doğrulanan sonuçları ve tahmini maliyeti özetler. Anahtarı komut satırına yazmak yerine oturumda `read -s` ile ortama alın.
 
+### Sorgu yazım düzeltme (karar 0172) — varsayılan `off`
+
+`QUERY_NORMALIZATION_MODE` = `off` | `shadow` | `on`. Değer **`/opt/arilla/env/web.env`**
+dosyasındadır (`compose.env` yalnız imaj etiketi ve digest taşır; web konteynerine geçmez). Model ya da dış
+çağrı yoktur; üretim veritabanına yazmaz (yalnız `category`, `brand`, `lexicon` okur, 30 dk önbellek).
+
+- **`shadow`:** arama sonucu ve gecikme değişmez; normalizasyon isteği beklemeden arka planda hesaplanır.
+  Süreç başına her 200 aramada bir satır loglanır (sorgu metni yok):
+  `[normalize] mode=shadow window=200 triggered=… corrections=… brand=… ambiguous=… applied=… errors=…
+  timeouts=… p95ms=… version=…`. Tetiklenme oranı = `triggered / window`.
+- **Açma (bakım penceresi, deploy kilidi ve katalog yayını yokken):**
+
+  ```
+  sudo cp -p /opt/arilla/env/web.env /opt/arilla/env/web.env.bak
+  sudo sh -c 'grep -q "^QUERY_NORMALIZATION_MODE=" /opt/arilla/env/web.env     && sed -i "s/^QUERY_NORMALIZATION_MODE=.*/QUERY_NORMALIZATION_MODE=shadow/" /opt/arilla/env/web.env     || echo "QUERY_NORMALIZATION_MODE=shadow" >> /opt/arilla/env/web.env'
+  sudo docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml up -d web
+  ```
+
+  Yalnız `web` yeniden oluşturulur; yeni imaj derlenmez, `worker`/`feeds`/`cron` etkilenmez.
+- **Doğrulama:** `curl -fsS https://manicepte.com/api/health`; `docker compose … exec web printenv
+  QUERY_NORMALIZATION_MODE` → `shadow`; yönetim > Ayarlar'da "Sorgu yazım düzeltme: shadow";
+  `docker compose … logs web | grep "\[normalize\]"` (200 aramadan sonra ilk satır).
+- **Geri alma:** `web.env.bak`'ı geri kopyala, `up -d web`, sağlık kontrolü. `on` ayrı onay gerektirir.
+
 ### AliExpress görsel varyantları (karar 0167) — varsayılan kapalı
 
 `IMAGE_VARIANTS_ALIEXPRESS_ENABLED=true` (yalnızca sunucu; `compose.env`). Kapalıyken AliExpress

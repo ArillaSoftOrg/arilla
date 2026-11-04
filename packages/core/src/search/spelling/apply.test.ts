@@ -5,7 +5,7 @@ import type { Database } from "@arilla/db";
 import { describe, expect, it, vi } from "vitest";
 import type { LexiconEntry } from "../lexicon.ts";
 import { parseQueryText } from "../parse-query.ts";
-import { applyCorrectionsToParsed, normalizeParsedForSearch } from "./apply.ts";
+import { applyCorrectionsToParsed, NormalizationStats, normalizeParsedForSearch } from "./apply.ts";
 import { normalizeQuery } from "./index.ts";
 import { buildVocabulary } from "./vocabulary.ts";
 
@@ -131,21 +131,80 @@ describe("normalizeParsedForSearch", () => {
     }
   });
 
-  it("shadow: computes and logs counts only, search input unchanged", async () => {
+  it("shadow: returns immediately without waiting for the load; logs counts only", async () => {
+    const parsed = parsedFor("zamzung kılıf");
+    const log = vi.fn();
+    let release: (value: typeof vocabulary) => void = () => {};
+    const slowVocabulary = () =>
+      new Promise<typeof vocabulary>((resolve) => {
+        release = resolve;
+      });
+    const result = await normalizeParsedForSearch(db, parsed, {
+      mode: "shadow",
+      loadVocabulary: slowVocabulary,
+      loadLexicon,
+      log,
+    });
+    // Yukleme henuz bitmedi; arama ozgun nesneyle hemen devam eder.
+    expect(result).toBe(parsed);
+    expect(log).not.toHaveBeenCalled();
+    release(vocabulary);
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(log).toHaveBeenCalledTimes(1);
+    const line = String(log.mock.calls[0]?.[0]);
+    expect(line).toMatch(/^\[normalize\] mode=shadow window=1 triggered=1 corrections=1 brand=1 /);
+    expect(line).not.toContain("zamzung");
+    expect(line).not.toContain("samsung");
+  });
+
+  it("shadow: a background failure is counted and never reaches the caller", async () => {
     const parsed = parsedFor("zamzung kılıf");
     const log = vi.fn();
     const result = await normalizeParsedForSearch(db, parsed, {
       mode: "shadow",
-      loadVocabulary,
+      loadVocabulary: async () => {
+        throw new TypeError("db down");
+      },
       loadLexicon,
       log,
     });
     expect(result).toBe(parsed);
-    expect(log).toHaveBeenCalledTimes(1);
-    const line = String(log.mock.calls[0]?.[0]);
-    expect(line).toMatch(/^\[normalize\] mode=shadow corrections=1 ambiguous=0 applied=1 /);
-    expect(line).not.toContain("zamzung");
-    expect(line).not.toContain("samsung");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(log).toHaveBeenCalledWith("[normalize] skipped: TypeError");
+  });
+
+  it("on: gives up after the load budget and continues with the original", async () => {
+    const parsed = parsedFor("zamzung kılıf");
+    const log = vi.fn();
+    const result = await normalizeParsedForSearch(db, parsed, {
+      mode: "on",
+      loadVocabulary: () => new Promise(() => {}),
+      loadLexicon,
+      log,
+      loadBudgetMs: 5,
+    });
+    expect(result).toBe(parsed);
+    expect(log).toHaveBeenCalledWith("[normalize] skipped: LoadTimeout");
+  });
+
+  it("aggregates a window of searches into one count-only line", () => {
+    const lines: string[] = [];
+    const stats = new NormalizationStats(3, (line) => lines.push(line));
+    const sample = {
+      brand: 0,
+      ambiguous: 0,
+      applied: false,
+      ms: 0.5,
+      version: "1+x",
+      mode: "shadow" as const,
+    };
+    stats.record({ ...sample, corrections: 0 });
+    stats.record({ ...sample, corrections: 2, brand: 1 });
+    expect(lines).toEqual([]);
+    stats.record({ ...sample, corrections: 0 });
+    expect(lines).toEqual([
+      "[normalize] mode=shadow window=3 triggered=1 corrections=2 brand=1 ambiguous=0 applied=0 errors=0 timeouts=0 p95ms=0.50 version=1+x",
+    ]);
   });
 
   it("on: returns the corrected copy", async () => {

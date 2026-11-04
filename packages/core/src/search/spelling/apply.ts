@@ -113,12 +113,138 @@ export interface NormalizeForSearchOptions {
   loadVocabulary?: (db: Database) => Promise<Vocabulary>;
   loadLexicon?: (db: Database) => Promise<LexiconEntry[]>;
   now?: () => number;
+  /** `on` kipinde dagarcik/sozluk yuklemesinin istegi bekletebilecegi en uzun sure. */
+  loadBudgetMs?: number;
+  /** Test icin pencere sayaci; verilmezse surec ici ortak sayac. */
+  stats?: NormalizationStats;
 }
 
 /**
- * `/ara` metin aramasinin tek giris noktasi. `off`: hicbir is yapilmaz, `parsed` aynen doner.
- * `shadow`: hesaplanir ve yalniz sayac loglanir, `parsed` aynen doner. `on`: duzeltmeler
- * kopyaya eklenmis `parsed` doner.
+ * `on` kipinde onbellek bosken yukleme (kategori + marka + sozluk) istegi en fazla bu kadar
+ * bekletir; asilirsa bu istek duzeltmesiz devam eder, yukleme arka planda onbellegi isitir.
+ */
+export const NORMALIZATION_LOAD_BUDGET_MS = 250;
+
+/** Bu kadar normalize edilen aramada bir ozet satiri loglanir (surec basina). */
+export const NORMALIZATION_LOG_WINDOW = 200;
+
+/**
+ * Surec ici pencere sayaclari. Sorgu metni, duzeltme metni ya da kimlik TUTULMAZ; yalniz sayi.
+ * Tetiklenme orani = triggered / searches.
+ */
+export class NormalizationStats {
+  searches = 0;
+  triggered = 0;
+  corrections = 0;
+  brand = 0;
+  ambiguous = 0;
+  applied = 0;
+  errors = 0;
+  timeouts = 0;
+  private durations: number[] = [];
+
+  constructor(
+    private readonly window = NORMALIZATION_LOG_WINDOW,
+    private readonly log: (line: string) => void = (line) => console.info(line),
+  ) {}
+
+  record(sample: {
+    corrections: number;
+    brand: number;
+    ambiguous: number;
+    applied: boolean;
+    ms: number;
+    version: string;
+    mode: QueryNormalizationMode;
+  }): void {
+    this.searches += 1;
+    if (sample.corrections > 0) this.triggered += 1;
+    this.corrections += sample.corrections;
+    this.brand += sample.brand;
+    this.ambiguous += sample.ambiguous;
+    if (sample.applied) this.applied += 1;
+    this.durations.push(sample.ms);
+    if (this.searches >= this.window) this.flush(sample.mode, sample.version);
+  }
+
+  error(kind: "error" | "timeout"): void {
+    if (kind === "timeout") this.timeouts += 1;
+    else this.errors += 1;
+  }
+
+  flush(mode: QueryNormalizationMode, version: string): void {
+    const sorted = [...this.durations].sort((a, b) => a - b);
+    const p95 = sorted.length
+      ? (sorted[Math.min(sorted.length - 1, Math.ceil(sorted.length * 0.95) - 1)] as number)
+      : 0;
+    this.log(
+      `[normalize] mode=${mode} window=${this.searches} triggered=${this.triggered}` +
+        ` corrections=${this.corrections} brand=${this.brand} ambiguous=${this.ambiguous}` +
+        ` applied=${this.applied} errors=${this.errors} timeouts=${this.timeouts}` +
+        ` p95ms=${p95.toFixed(2)} version=${version}`,
+    );
+    this.searches = 0;
+    this.triggered = 0;
+    this.corrections = 0;
+    this.brand = 0;
+    this.ambiguous = 0;
+    this.applied = 0;
+    this.errors = 0;
+    this.timeouts = 0;
+    this.durations = [];
+  }
+}
+
+const sharedStats = new NormalizationStats();
+
+class LoadTimeout extends Error {
+  override name = "LoadTimeout";
+}
+
+function withBudget<T>(promise: Promise<T>, ms: number): Promise<T> {
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const timeout = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => reject(new LoadTimeout()), ms);
+  });
+  return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+}
+
+async function compute(
+  db: Database,
+  parsed: QueryObject,
+  mode: QueryNormalizationMode,
+  options: NormalizeForSearchOptions,
+  stats: NormalizationStats,
+  budgetMs: number | null,
+): Promise<QueryObject> {
+  const now = options.now ?? (() => performance.now());
+  const loading = Promise.all([
+    (options.loadVocabulary ?? loadVocabularyCached)(db),
+    (options.loadLexicon ?? loadLexiconCached)(db),
+  ]);
+  const [vocabulary, lexicon] = await (budgetMs === null ? loading : withBudget(loading, budgetMs));
+  const started = now();
+  const normalized = normalizeQuery(parsed.unparsed, vocabulary);
+  const applied = applyCorrectionsToParsed(parsed, normalized, lexicon);
+  stats.record({
+    corrections: normalized.corrections.length,
+    brand: normalized.corrections.filter((c) => c.kind === "brand").length,
+    ambiguous: normalized.corrections.filter((c) => c.alternatives?.length).length,
+    applied: applied !== parsed,
+    ms: now() - started,
+    version: normalized.normalizerVersion,
+    mode,
+  });
+  return applied;
+}
+
+/**
+ * `/ara` metin aramasinin tek giris noktasi.
+ * - `off`: hicbir is yapilmaz, `parsed` aynen doner.
+ * - `shadow`: `parsed` HEMEN aynen doner; normalizasyon istegi beklemeden arka planda hesaplanir
+ *   ve yalniz pencere ozeti (sayi) loglanir. Kullaniciya giden sonuc ve gecikme degismez.
+ * - `on`: duzeltmeler kopyaya eklenmis `parsed` doner; yukleme `loadBudgetMs`'i asarsa ya da
+ *   hata olursa ozgun `parsed` ile devam edilir.
  */
 export async function normalizeParsedForSearch(
   db: Database,
@@ -127,28 +253,30 @@ export async function normalizeParsedForSearch(
 ): Promise<QueryObject> {
   const mode = options.mode ?? queryNormalizationMode();
   if (mode === "off" || parsed.unparsed.trim() === "") return parsed;
-  const log = options.log ?? ((line: string) => console.info(line));
-  const now = options.now ?? (() => performance.now());
+  const stats =
+    options.stats ?? (options.log ? new NormalizationStats(1, options.log) : sharedStats);
+  const fail = (error: unknown) => {
+    stats.error(error instanceof LoadTimeout ? "timeout" : "error");
+    (options.log ?? ((line: string) => console.info(line)))(
+      `[normalize] skipped: ${error instanceof Error ? error.name : "unknown"}`,
+    );
+  };
+
+  if (mode === "shadow") {
+    void compute(db, parsed, mode, options, stats, null).catch(fail);
+    return parsed;
+  }
   try {
-    const [vocabulary, lexicon] = await Promise.all([
-      (options.loadVocabulary ?? loadVocabularyCached)(db),
-      (options.loadLexicon ?? loadLexiconCached)(db),
-    ]);
-    const started = now();
-    const normalized = normalizeQuery(parsed.unparsed, vocabulary);
-    const applied = applyCorrectionsToParsed(parsed, normalized, lexicon);
-    const elapsed = now() - started;
-    if (normalized.corrections.length > 0) {
-      const ambiguousCount = normalized.corrections.filter((c) => c.alternatives?.length).length;
-      log(
-        `[normalize] mode=${mode} corrections=${normalized.corrections.length}` +
-          ` ambiguous=${ambiguousCount} applied=${applied === parsed ? 0 : 1}` +
-          ` ms=${elapsed.toFixed(2)} version=${normalized.normalizerVersion}`,
-      );
-    }
-    return mode === "on" ? applied : parsed;
+    return await compute(
+      db,
+      parsed,
+      mode,
+      options,
+      stats,
+      options.loadBudgetMs ?? NORMALIZATION_LOAD_BUDGET_MS,
+    );
   } catch (error) {
-    log(`[normalize] skipped: ${error instanceof Error ? error.name : "unknown"}`);
+    fail(error);
     return parsed;
   }
 }
