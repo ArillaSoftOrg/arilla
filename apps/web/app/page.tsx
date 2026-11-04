@@ -14,6 +14,7 @@ import { getDatabase } from "@arilla/db";
 import { DiscoveryGrid, EmptyState, HomeHero, Section } from "@arilla/ui";
 import type { Metadata } from "next";
 import Image from "next/image";
+import Link from "next/link";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { ComingSoonLanding } from "./coming-soon-landing.tsx";
 import { toDiscoveryItems } from "./discovery-adapter.ts";
@@ -178,7 +179,7 @@ export default async function HomePage() {
             afterSearch={
               <div className={styles.howRail}>
                 <p className={styles.howPrompt}>{HOME_COPY.howItWorksPrompt}</p>
-                <div className={styles.howGuide}>
+                <Link href="/nasil-calisir" className={styles.howGuide}>
                   <Image
                     src="/mascot/guide/robot-how-it-works-point-v1.png"
                     alt=""
@@ -189,8 +190,7 @@ export default async function HomePage() {
                   />
                   <span aria-hidden="true">→</span>
                   <span>{HOME_COPY.howItWorksAction}</span>
-                  <span className={styles.howSoon}>{HOME_COPY.howItWorksStatus}</span>
-                </div>
+                </Link>
               </div>
             }
           />

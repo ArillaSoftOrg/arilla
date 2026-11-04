@@ -1,3 +1,4 @@
+import { VisuallyHidden } from "@arilla/ui";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_BRAND } from "../site-config.ts";
@@ -18,7 +19,9 @@ export const metadata: Metadata = {
 export default function BlogPage() {
   return (
     <div className={styles.page}>
-      <h1 className={styles.srOnly}>{`${SITE_BRAND} Blog`}</h1>
+      <VisuallyHidden as="div">
+        <h1>{`${SITE_BRAND} Blog`}</h1>
+      </VisuallyHidden>
       <div className={styles.feed}>
         <article className={styles.hero}>
           {/* biome-ignore lint/performance/noImgElement: R2 medya alan adindan gelen onceden optimize WebP; next/image gerekmez. */}

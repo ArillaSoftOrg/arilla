@@ -1,5 +1,11 @@
 /* /iletisim: form kutusu ve alanlar `/geri-bildirim` modulunden
    (geri-bildirim/page.module.css); burada yalnizca bu sayfaya ozgu satirlar. */
+.page {
+  max-width: var(--content-width-standard);
+  margin-inline: auto;
+  padding-block: var(--section-space-compact) var(--section-space);
+}
+
 .faqPrompt,
 .emailAlternative {
   margin: 0;

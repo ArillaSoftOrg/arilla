@@ -16,6 +16,7 @@ import {
   type ReactNode,
   useEffect,
   useId,
+  useMemo,
   useRef,
   useState,
 } from "react";
@@ -30,6 +31,10 @@ import {
 import { CHAT_COPY, CHAT_ERROR_COPY, type ChatErrorKind, errorKindForStatus } from "./chat-copy.ts";
 import { useChatImageConsentGate } from "./chat-image-consent.tsx";
 import { chatMark } from "./chat-metrics.ts";
+import { chatProductBackend } from "./chat-product-backend.ts";
+import { ChatCompareTray } from "./chat-product-cards.tsx";
+import toolStyles from "./chat-product-tools.module.css";
+import { ChatProductToolsProvider } from "./chat-product-tools.tsx";
 import { CHAT_MESSAGE_MAX, ChatComposer, ChatPendingRow } from "./chat-shell-parts.tsx";
 import styles from "./sohbet.module.css";
 
@@ -123,6 +128,24 @@ export function ChatInteractive({
   const customInputRef = useRef<HTMLInputElement>(null);
   const questionId = useId();
   const consent = useChatImageConsentGate(imageConsent);
+  const toolsBackend = useMemo(() => chatProductBackend(conversationId), [conversationId]);
+  const composerInput = useRef<HTMLTextAreaElement>(null);
+
+  function prepareToolMessage(text: string): boolean {
+    if (workingRef.current || awaitingReply) return false;
+    const combined = draft.trim().endsWith(text)
+      ? draft
+      : draft.trim()
+        ? `${draft}\n${text}`
+        : text;
+    if (combined.length > MAX_LENGTH) return false;
+    setDraft(combined);
+    requestAnimationFrame(() => {
+      composerInput.current?.focus();
+      composerInput.current?.scrollIntoView({ block: "nearest" });
+    });
+    return true;
+  }
 
   // Onizleme blob'u: degisince/kalkinca/unmount'ta serbest birakilir.
   useEffect(() => {
@@ -364,110 +387,146 @@ export function ChatInteractive({
   const showQuestion = question !== null && !awaitingReply && !working;
 
   return (
-    <div className={styles.chat}>
-      {children}
+    <ChatProductToolsProvider
+      key={conversationId}
+      conversationId={conversationId}
+      backend={toolsBackend}
+      busy={composerLocked}
+      prepareMessage={prepareToolMessage}
+    >
+      <div className={styles.chat}>
+        {children}
 
-      {preview && preview.seq > lastSeq ? (
-        <>
-          <div className={`${styles.row} ${styles.rowAssistant}`}>
-            <VisuallyHidden as="span">{CHAT_COPY.assistantLabel}: </VisuallyHidden>
-            <p className={`${styles.bubble} ${styles.bubbleAssistant}`}>{preview.content}</p>
-          </div>
-          {preview.kind === "search" ? (
-            <div className={styles.results} aria-busy="true">
-              <ChatPendingRow label={CHAT_COPY.resultsLoading} />
-              <div className={styles.resultGrid} aria-hidden="true">
-                {Array.from({ length: 6 }, (_, i) => (
-                  // biome-ignore lint/suspicious/noArrayIndexKey: sabit sayıda, sırasız iskelet kartı.
-                  <ProductCardSkeleton key={i} />
-                ))}
-              </div>
+        {preview && preview.seq > lastSeq ? (
+          <>
+            <div className={`${styles.row} ${styles.rowAssistant}`}>
+              <VisuallyHidden as="span">{CHAT_COPY.assistantLabel}: </VisuallyHidden>
+              <p className={`${styles.bubble} ${styles.bubbleAssistant}`}>{preview.content}</p>
             </div>
-          ) : null}
-        </>
-      ) : showThinking ? (
-        <ChatPendingRow />
-      ) : null}
+            {preview.kind === "search" ? (
+              <div className={styles.results} aria-busy="true">
+                <ChatPendingRow label={CHAT_COPY.resultsLoading} />
+                <div className={styles.resultGrid} aria-hidden="true">
+                  {Array.from({ length: 6 }, (_, i) => (
+                    // biome-ignore lint/suspicious/noArrayIndexKey: sabit sayıda, sırasız iskelet kartı.
+                    <ProductCardSkeleton key={i} />
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </>
+        ) : showThinking ? (
+          <ChatPendingRow />
+        ) : null}
 
-      {showQuestion && question ? (
-        <section className={styles.question} aria-labelledby={questionId}>
-          <h2 id={questionId} className={styles.questionTitle}>
-            {question.title}
-          </h2>
-          <ul className={styles.options}>
-            {question.options.map((option) => (
-              <li key={option.value}>
+        {showQuestion && question ? (
+          <section className={styles.question} aria-labelledby={questionId}>
+            <h2 id={questionId} className={styles.questionTitle}>
+              {question.title}
+            </h2>
+            <ul className={styles.options}>
+              {question.options.map((option) => (
+                <li key={option.value}>
+                  <button
+                    type="button"
+                    className={styles.option}
+                    disabled={working}
+                    onClick={() =>
+                      void send({ kind: "option", questionId: question.id, value: option.value })
+                    }
+                  >
+                    <span className={styles.optionLabel}>{option.label}</span>
+                    {option.description ? (
+                      <span className={styles.optionDescription}>{option.description}</span>
+                    ) : null}
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <div className={styles.questionActions}>
+              {question.allowCustomAnswer ? (
                 <button
                   type="button"
-                  className={styles.option}
+                  className={styles.secondaryAction}
+                  aria-expanded={customOpen}
                   disabled={working}
-                  onClick={() =>
-                    void send({ kind: "option", questionId: question.id, value: option.value })
-                  }
+                  onClick={() => setCustomOpen((open) => !open)}
                 >
-                  <span className={styles.optionLabel}>{option.label}</span>
-                  {option.description ? (
-                    <span className={styles.optionDescription}>{option.description}</span>
-                  ) : null}
+                  {CHAT_COPY.otherLabel}
                 </button>
-              </li>
-            ))}
-          </ul>
-          <div className={styles.questionActions}>
-            {question.allowCustomAnswer ? (
-              <button
-                type="button"
-                className={styles.secondaryAction}
-                aria-expanded={customOpen}
-                disabled={working}
-                onClick={() => setCustomOpen((open) => !open)}
-              >
-                {CHAT_COPY.otherLabel}
-              </button>
-            ) : null}
-            {question.skippable ? (
-              <button
-                type="button"
-                className={`${styles.secondaryAction} ${styles.skip}`}
-                disabled={working}
-                onClick={() => void send({ kind: "skip", questionId: question.id })}
-              >
-                {CHAT_COPY.skipLabel}
-              </button>
-            ) : null}
-          </div>
-          {customOpen ? (
-            <form className={styles.customForm} onSubmit={submitCustom}>
-              <label className={styles.customLabel}>
-                <VisuallyHidden as="span">{CHAT_COPY.otherInputLabel}</VisuallyHidden>
-                <input
-                  ref={customInputRef}
-                  className={styles.customInput}
-                  type="text"
-                  value={custom}
-                  maxLength={MAX_LENGTH}
-                  placeholder={CHAT_COPY.otherPlaceholder}
-                  autoComplete="off"
-                  enterKeyHint="send"
+              ) : null}
+              {question.skippable ? (
+                <button
+                  type="button"
+                  className={`${styles.secondaryAction} ${styles.skip}`}
                   disabled={working}
-                  onChange={(event) => setCustom(event.target.value)}
-                />
-              </label>
-              <Button type="submit" variant="accent" disabled={working || custom.trim() === ""}>
-                {CHAT_COPY.otherSubmit}
-              </Button>
-            </form>
-          ) : null}
-        </section>
-      ) : null}
+                  onClick={() => void send({ kind: "skip", questionId: question.id })}
+                >
+                  {CHAT_COPY.skipLabel}
+                </button>
+              ) : null}
+            </div>
+            {customOpen ? (
+              <form className={styles.customForm} onSubmit={submitCustom}>
+                <label className={styles.customLabel}>
+                  <VisuallyHidden as="span">{CHAT_COPY.otherInputLabel}</VisuallyHidden>
+                  <input
+                    ref={customInputRef}
+                    className={styles.customInput}
+                    type="text"
+                    value={custom}
+                    maxLength={MAX_LENGTH}
+                    placeholder={CHAT_COPY.otherPlaceholder}
+                    autoComplete="off"
+                    enterKeyHint="send"
+                    disabled={working}
+                    onChange={(event) => setCustom(event.target.value)}
+                  />
+                </label>
+                <Button type="submit" variant="accent" disabled={working || custom.trim() === ""}>
+                  {CHAT_COPY.otherSubmit}
+                </Button>
+              </form>
+            ) : null}
+          </section>
+        ) : null}
 
-      {errorInfo && errorCopy ? (
-        <ErrorView
-          error={errorInfo}
-          disabled={working}
-          onRetry={() => void (awaitingReply ? retry() : router.refresh())}
-          extraActions={
-            <>
+        {errorInfo && errorCopy ? (
+          <ErrorView
+            error={errorInfo}
+            disabled={working}
+            onRetry={() => void (awaitingReply ? retry() : router.refresh())}
+            extraActions={
+              <>
+                {errorCopy.searchDirectly && lastUserText ? (
+                  <a
+                    className={styles.errorLink}
+                    href={`/ara?${new URLSearchParams({ q: lastUserText }).toString()}`}
+                  >
+                    {CHAT_COPY.searchDirectlyLabel}
+                  </a>
+                ) : null}
+                {errorCopy.newChat ? (
+                  <a className={styles.errorLink} href="/">
+                    {CHAT_COPY.newChatLabel}
+                  </a>
+                ) : null}
+              </>
+            }
+          />
+        ) : errorCopy ? (
+          <div className={styles.error} role="alert">
+            <p className={styles.errorMessage}>{errorCopy.message}</p>
+            <div className={styles.errorActions}>
+              {errorCopy.retry ? (
+                <Button
+                  variant="accent"
+                  disabled={working}
+                  onClick={() => void (awaitingReply ? retry() : router.refresh())}
+                >
+                  {CHAT_COPY.retryLabel}
+                </Button>
+              ) : null}
               {errorCopy.searchDirectly && lastUserText ? (
                 <a
                   className={styles.errorLink}
@@ -481,56 +540,36 @@ export function ChatInteractive({
                   {CHAT_COPY.newChatLabel}
                 </a>
               ) : null}
-            </>
-          }
-        />
-      ) : errorCopy ? (
-        <div className={styles.error} role="alert">
-          <p className={styles.errorMessage}>{errorCopy.message}</p>
-          <div className={styles.errorActions}>
-            {errorCopy.retry ? (
-              <Button
-                variant="accent"
-                disabled={working}
-                onClick={() => void (awaitingReply ? retry() : router.refresh())}
-              >
-                {CHAT_COPY.retryLabel}
-              </Button>
-            ) : null}
-            {errorCopy.searchDirectly && lastUserText ? (
-              <a
-                className={styles.errorLink}
-                href={`/ara?${new URLSearchParams({ q: lastUserText }).toString()}`}
-              >
-                {CHAT_COPY.searchDirectlyLabel}
-              </a>
-            ) : null}
-            {errorCopy.newChat ? (
-              <a className={styles.errorLink} href="/">
-                {CHAT_COPY.newChatLabel}
-              </a>
-            ) : null}
+            </div>
           </div>
+        ) : null}
+
+        <div ref={bottomRef} className={styles.bottom} aria-hidden="true" />
+
+        {consent.prompt}
+
+        <div className={toolStyles.composerDock}>
+          <ChatCompareTray />
+          <ChatComposer
+            inputRef={composerInput}
+            draft={draft}
+            onDraftChange={setDraft}
+            onSubmit={submitDraft}
+            onKeyDown={onComposerKeyDown}
+            locked={composerLocked}
+            busy={working}
+            attachment={
+              imageEnabled
+                ? {
+                    previewUrl: staged?.url ?? null,
+                    onFileSelected: stageFile,
+                    onRemove: removeStaged,
+                  }
+                : undefined
+            }
+          />
         </div>
-      ) : null}
-
-      <div ref={bottomRef} className={styles.bottom} aria-hidden="true" />
-
-      {consent.prompt}
-
-      <ChatComposer
-        draft={draft}
-        onDraftChange={setDraft}
-        onSubmit={submitDraft}
-        onKeyDown={onComposerKeyDown}
-        locked={composerLocked}
-        busy={working}
-        attachment={
-          imageEnabled
-            ? { previewUrl: staged?.url ?? null, onFileSelected: stageFile, onRemove: removeStaged }
-            : undefined
-        }
-      />
-    </div>
+      </div>
+    </ChatProductToolsProvider>
   );
 }

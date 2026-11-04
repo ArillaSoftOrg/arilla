@@ -1,9 +1,8 @@
-/* Referans (390px): 20px kenar, hero ortali, siyah hap CTA, golgeli 2x2 istatistik
-   karti, koyu teal adim bolumu, 24px yaricapli SSS kartlari, pill girdili form. */
+/* Mevcut editoryal duzen. Bilgi kutulari mobilde tek, tablette iki,
+   masaustunde dort sutun; olculer ortak tokenlardan gelir. */
 .page {
   background: var(--paper);
   color: var(--ink);
-  overflow-x: clip;
 }
 
 .inner {
@@ -30,19 +29,13 @@
   align-items: center;
   gap: var(--space-2);
   margin: 0 0 var(--space-8);
-  padding: var(--space-1) var(--space-3) var(--space-1) var(--space-1);
+  padding: var(--space-1) var(--space-3);
   border: var(--border-width) solid var(--teal-soft);
   border-radius: var(--radius-pill);
   background: var(--teal-soft);
   color: var(--teal-ink);
   font-size: var(--text-meta);
   font-weight: var(--font-weight-medium);
-}
-
-.badgeNo {
-  padding: 2px var(--space-2);
-  border-radius: var(--radius-pill);
-  background: var(--paper);
 }
 
 .heroTitle {
@@ -92,6 +85,9 @@
 }
 
 .heroLink {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
   margin-top: var(--space-6);
   color: var(--ink);
   font-size: var(--text-body-lg);
@@ -111,11 +107,11 @@
 
 .stats {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 1px;
   margin: 0;
   overflow: hidden;
-  border-radius: 28px;
+  border-radius: var(--radius-lg);
   background: var(--line);
   box-shadow: var(--shadow-md);
 }
@@ -126,10 +122,10 @@
 }
 
 .statValue {
-  font-size: 28px;
+  font-size: var(--text-h2);
   font-weight: var(--font-weight-semibold);
-  line-height: 1.1;
-  letter-spacing: -0.02em;
+  line-height: var(--line-height-heading);
+  letter-spacing: var(--letter-spacing-h2);
 }
 
 .statLabel {
@@ -139,42 +135,9 @@
   color: var(--teal-ink);
 }
 
-/* --- Marka seridi --- */
-.brands {
-  margin-top: calc(-1 * var(--space-12));
-  padding: calc(var(--space-12) + var(--space-12)) var(--gutter) var(--space-12);
-  background: var(--surface);
-  border-bottom: var(--border-width) solid var(--line);
-  text-align: center;
-}
-
-.eyebrowCenter {
-  margin: 0 0 var(--space-6);
-  font-size: var(--text-meta);
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.12em;
-  color: var(--ink-muted);
-}
-
-.brandList {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: var(--space-4) var(--space-10);
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.brand {
-  font-size: var(--text-body-lg);
-  font-weight: var(--font-weight-semibold);
-  color: var(--ink-muted);
-}
-
 /* --- Ortak bolum tipografisi --- */
 .section {
-  padding-block: 80px;
+  padding-block: var(--section-space);
 }
 
 .eyebrow {
@@ -222,6 +185,9 @@
   display: flex;
   gap: var(--space-4);
 }
+.benefit > div {
+  min-width: 0;
+}
 
 .benefitIcon {
   flex: none;
@@ -237,7 +203,7 @@
 
 /* --- Adimlar (koyu teal) --- */
 .steps {
-  padding-block: 80px;
+  padding-block: var(--section-space);
   background: var(--feature-bg);
   color: var(--feature-ink);
 }
@@ -296,7 +262,7 @@
 
 .faqItem {
   border: var(--border-width) solid var(--line);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   background: var(--surface-raised);
 }
 
@@ -305,8 +271,10 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-4);
+  min-height: var(--size-touch-target);
+  box-sizing: border-box;
   padding: var(--space-4) var(--space-5);
-  border-radius: 24px;
+  border-radius: var(--radius-lg);
   font-size: var(--text-body);
   font-weight: var(--font-weight-semibold);
   line-height: 1.35;
@@ -343,7 +311,7 @@
 
 /* --- Iletisim ve form --- */
 .contact {
-  padding-block: 64px;
+  padding-block: var(--section-space-compact);
   background: var(--surface);
   border-top: var(--border-width) solid var(--line);
 }
@@ -353,13 +321,15 @@
   margin-top: var(--space-8);
   padding: var(--space-8) var(--space-6);
   border: var(--border-width) solid var(--line);
-  border-radius: 28px;
+  border-radius: var(--radius-lg);
   background: var(--surface-raised);
 }
 
 .mailLink {
   display: inline-flex;
   gap: var(--space-3);
+  align-items: center;
+  min-height: var(--size-touch-target);
   color: var(--ink);
   font-size: var(--text-body-lg);
   font-weight: var(--font-weight-semibold);
@@ -370,6 +340,12 @@
 .formCard {
   display: grid;
   gap: var(--space-4);
+}
+.previewNote {
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-body);
 }
 
 .field {
@@ -448,7 +424,7 @@
 
 @media (min-width: 640px) {
   .stats {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .benefits {
@@ -468,6 +444,10 @@
 }
 
 @media (min-width: 1024px) {
+  .stats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
   .hero {
     padding-top: var(--space-24);
   }

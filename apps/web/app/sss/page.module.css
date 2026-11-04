@@ -1,10 +1,12 @@
-/* /sss: okuma genisligi, mobil once. Renkler yalnizca tokens.css'ten. */
+/* /sss: okuma genisligi, mobil once. Renkler yalnizca tokens.css'ten.
+   Yatay gutter kabugun Container'indan gelir (fullBleed yok); burada yalnizca
+   max-width ve dikey ritim - ikinci gutter eklenmez (docs/design.md
+   "Düzen ve kapsayıcılar"). */
 .page {
-  box-sizing: border-box;
   width: 100%;
-  max-width: calc(var(--content-width-comparison) + 2 * var(--gutter));
+  max-width: var(--content-width-comparison);
   margin-inline: auto;
-  padding: var(--section-space-compact) var(--gutter) var(--section-space);
+  padding-block: var(--section-space-compact) var(--section-space);
   color: var(--ink);
 }
 
@@ -81,7 +83,7 @@
   outline-offset: var(--focus-ring-offset);
 }
 
-@media (min-width: 760px) {
+@media (min-width: 640px) {
   .more {
     padding: var(--space-8);
   }

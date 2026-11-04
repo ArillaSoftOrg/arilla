@@ -76,12 +76,14 @@
   object-fit: contain;
 }
 
-.howSoon {
-  padding: var(--space-1) var(--space-2);
-  border: var(--border-width) solid var(--line);
-  border-radius: var(--radius-pill);
-  color: var(--ink-muted);
-  font-size: var(--text-small);
+.howGuide:hover {
+  text-decoration: underline;
+  text-underline-offset: var(--space-1);
+}
+
+.howGuide:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
 }
 
 .page .homeEmpty {

@@ -25,6 +25,7 @@ const STATIC_PAGES = [
   "/cerez",
   "/iletisim",
   "/sss",
+  "/nasil-calisir",
   "/kvkk-aydinlatma",
   "/affiliate-aciklamasi",
   "/sirket-bilgileri",

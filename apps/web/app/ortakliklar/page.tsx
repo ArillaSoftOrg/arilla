@@ -5,56 +5,47 @@ import { PartnerFormClient } from "./partner-form-client.tsx";
 
 export const metadata: Metadata = {
   title: `Ortaklıklar – ${SITE_BRAND}`,
-  description: `${SITE_BRAND} ortaklık programı: ürün akışınızı ekleyin, yalnızca performansa göre ödeme alın.`,
+  description: `${SITE_BRAND} ortaklık programı: ürün akışınızı paylaşın, ürünlerinizi arayan kullanıcılarla buluşun.`,
   alternates: { canonical: "/ortakliklar" },
 };
 
 /** Sayilar degil, urunun gercek ozellikleri: lansman oncesi uydurma istatistik yok. */
 const STATS: readonly { value: string; label: string }[] = [
-  { value: "2 giriş yolu", label: "Fotoğraf ve doğal dil; ürün linki yakında" },
+  { value: "3 arama yolu", label: "Fotoğraf, doğal dil ve ürün bağlantısı" },
   { value: "Mağazalar arası", label: "Aynı ve benzer ürün karşılaştırması" },
   { value: "Her tıklama kayıtlı", label: "Mağazanıza giden her link" },
   { value: "Açık komisyon", label: "Sıralamada belirleyici değil" },
 ];
 
-/** Notr yer tutucu isimler; gercek ortak adi degildir. */
-const DEMO_BRANDS: readonly string[] = [
-  "Örnek Mobilya",
-  "Örnek Moda",
-  "Örnek Güzellik",
-  "Örnek Ev",
-  "Örnek Elektronik",
-];
-
 const BENEFITS: readonly { title: string; text: string }[] = [
   {
-    title: "Kullanıcılarımız varsayılan olarak yüksek niyetle başlarlar.",
-    text: "Her arama gerçek bir ürünle başlar: bir fotoğraf, bir bağlantı ya da net bir tarif. Pasif gezinme değil. Ne istediklerini zaten biliyorlar.",
+    title: "Aradığını bilen kullanıcılarla buluşun.",
+    text: "Kullanıcılar aradıkları ürünü fotoğraf, bağlantı veya kendi cümleleriyle tarif eder. Ürünlerinizi bu aramalarla buluştururuz.",
   },
   {
-    title: "Kullanıcılarımız alışverişe hazır bir şekilde geliyorlar.",
-    text: "Müşteriler ürünlerinizi burada buluyor; alışveriş kararı sitenizde gerçekleşiyor. Biz müşteriyi yönlendiriyoruz, ödeme aşamasını değil.",
+    title: "Alışveriş mağazanızda devam eder.",
+    text: "Ürünleriniz burada keşfedilir; kullanıcılar mağaza bağlantısı üzerinden sitenize yönlendirilir. Ödeme mağazanızda gerçekleşir.",
   },
 ];
 
 const STEPS: readonly { no: string; tag: string; title: string; text: string }[] = [
   {
     no: "01",
-    tag: "Giriş görüşmesi",
+    tag: "Başvuru",
     title: "Uygunluğu inceliyoruz.",
-    text: "Aşağıdaki formu gönderin, size ticari şartlar ve aklınıza takılan soruların cevaplarıyla geri döneceğiz.",
+    text: "Mağazanızı ve ürün akışınızı e-posta ile paylaşın. Ticari şartları ve aklınıza takılan soruları birlikte netleştirelim.",
   },
   {
     no: "02",
-    tag: "Ağ ve besleme",
+    tag: "Ürün akışı",
     title: "Bağlantı kuruyoruz ve verileri alıyoruz.",
     text: "Bizi ortaklık ağınızda onaylayın, ürün akışınıza yönlendirin; eşleştirme ve izleme işlemlerini biz halledelim.",
   },
   {
     no: "03",
-    tag: "Canlı yayına geç",
+    tag: "Yayına geçiş",
     title: "Ürünleriniz yayına giriyor.",
-    text: "Kataloğunuz birkaç gün içinde alışveriş yapanların arama sonuçlarında görünmeye başlar ve kendi ağ raporlarınızda trafiği görürsünüz.",
+    text: "Entegrasyon tamamlandığında ürünleriniz arama sonuçlarında görünür. Yönlendirilen trafiği ortaklık ağınızın raporlarından takip edebilirsiniz.",
   },
 ];
 
@@ -68,15 +59,15 @@ const FAQ: readonly { q: string; a: string }[] = [
     a: "Ürün akışınızı bir kez işler, sonuçları saklar ve arama sırasında yeniden hesaplamaz. Fiyat ve stok bilgisi akışınızdan gelir.",
   },
   {
-    q: "İşe alım ve entegrasyon süreci ne kadar sürür?",
-    a: "Akışınız hazırsa çoğunlukla birkaç gün. Akış yoksa birlikte en uygun yöntemi belirleriz.",
+    q: "Başvuru ve entegrasyon süreci ne kadar sürer?",
+    a: "Süre, ürün akışınızın hazır olup olmamasına ve entegrasyon yöntemine bağlıdır. Başvurunuzu inceledikten sonra süreci birlikte netleştiririz.",
   },
   {
-    q: "Katılmak için en düşük fiyatımıza mı ihtiyacınız var?",
+    q: "Komisyon oranı sıralamayı belirler mi?",
     a: "Hayır. Eşit koşullarda yalnızca ayrıştırıcı bir unsur olarak komisyon oranını dikkate alırız; sıralamada belirleyici değildir.",
   },
   {
-    q: "Ne tür haberler alıyoruz?",
+    q: "Hangi konularda bilgilendirme alırız?",
     a: "Katalog durumunuz, yönlendirilen trafik ve program şartlarındaki değişiklikler hakkında bilgilendirilirsiniz.",
   },
   {
@@ -89,19 +80,16 @@ export default function OrtakliklarPage() {
   return (
     <div className={styles.page}>
       <section className={styles.hero} aria-labelledby="hero-title">
-        <p className={styles.badge}>
-          <span className={styles.badgeNo}>#1</span>
-          Ürün keşfi ve fiyat karşılaştırma için ortaklık
-        </p>
+        <p className={styles.badge}>Ürün keşfi ve fiyat karşılaştırma için ortaklık</p>
         <h1 id="hero-title" className={styles.heroTitle}>
           {SITE_BRAND} ortağı olun
         </h1>
         <p className={styles.heroText}>
-          Alışverişe hazır müşterileri aradıkları markalarla buluşturuyoruz. Kataloğunuzu
-          listeleyin, kendi ödeme sisteminizi kullanın ve yalnızca performansa göre ödeme alın.
+          Ürünlerinizi, aradığını bilen kullanıcılarla buluşturun. Kataloğunuzu paylaşın;
+          kullanıcılar ürünleri {SITE_BRAND}'de keşfetsin, alışveriş mağazanızda devam etsin.
         </p>
         <a href="#basvuru" className={styles.cta}>
-          Ortak olun <span aria-hidden="true">→</span>
+          Başvuru alanını gör <span aria-hidden="true">→</span>
         </a>
         <a href="#nasil-calisir" className={styles.heroLink}>
           Nasıl çalıştığını öğrenin <span aria-hidden="true">↘</span>
@@ -119,25 +107,11 @@ export default function OrtakliklarPage() {
         </dl>
       </section>
 
-      <section className={styles.brands} aria-labelledby="brands-title">
-        <h2 id="brands-title" className={styles.eyebrowCenter}>
-          Örnek ortak alanı
-        </h2>
-        {/* biome-ignore lint/a11y/noRedundantRoles: `list-style: none` Safari/VoiceOver'da liste rolunu dusurur. */}
-        <ul role="list" className={styles.brandList}>
-          {DEMO_BRANDS.map((name) => (
-            <li key={name} className={styles.brand}>
-              {name}
-            </li>
-          ))}
-        </ul>
-      </section>
-
       <section className={styles.section} aria-labelledby="why-title">
         <div className={styles.inner}>
           <p className={styles.eyebrow}>{`Neden ${SITE_BRAND} ile ortaklık kurmalısınız?`}</p>
           <h2 id="why-title" className={styles.h2}>
-            Müşterilerimizin dönüşüm nedenleri
+            Neden bizimle çalışmalısınız?
           </h2>
           {/* biome-ignore lint/a11y/noRedundantRoles: `list-style: none` Safari/VoiceOver'da liste rolunu dusurur. */}
           <ul role="list" className={styles.benefits}>
@@ -160,7 +134,7 @@ export default function OrtakliklarPage() {
         <div className={styles.inner}>
           <p className={`${styles.eyebrow} ${styles.eyebrowOnDark}`}>Nasıl çalışır?</p>
           <h2 id="steps-title" className={`${styles.h2} ${styles.onDark}`}>
-            Canlı yayına geçmek için üç adım
+            Ürünlerinizi yayınlamak için üç adım
           </h2>
           {/* biome-ignore lint/a11y/noRedundantRoles: `list-style: none` Safari/VoiceOver'da liste rolunu dusurur. */}
           <ol role="list" className={styles.stepList}>
@@ -204,12 +178,12 @@ export default function OrtakliklarPage() {
             Programınız hakkında bize bilgi verin.
           </h2>
           <p className={styles.bodyText}>
-            Fırsatı değerlendirmek ve şartları belirlemek için birkaç ayrıntıya ihtiyacımız var.
-            Aşağıda yer alan her şey, yayına geçmek için sizden beklediğimiz bilgilerdir.
+            Mağazanız ve ürün akışınız hakkında bize e-posta gönderin. Başvuru formu henüz kullanıma
+            açık değil; aşağıda yalnızca önizlemesini inceleyebilirsiniz.
           </p>
           {PUBLIC_CONTACT_EMAIL ? (
             <div className={styles.mailCard}>
-              <p className={styles.eyebrow}>Veya doğrudan bize e-posta gönderin.</p>
+              <p className={styles.eyebrow}>Ortaklık için bize yazın.</p>
               <a href={`mailto:${PUBLIC_CONTACT_EMAIL}`} className={styles.mailLink}>
                 <span aria-hidden="true">✉</span> {PUBLIC_CONTACT_EMAIL}
               </a>

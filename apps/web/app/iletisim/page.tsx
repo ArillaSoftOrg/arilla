@@ -26,7 +26,7 @@ export default async function IletisimPage() {
   const user = await verifySession();
 
   return (
-    <div className={formStyles.page}>
+    <div className={styles.page}>
       <section className={formStyles.panel} aria-labelledby="iletisim-baslik">
         <header className={formStyles.intro}>
           <h1 id="iletisim-baslik" className={formStyles.title}>

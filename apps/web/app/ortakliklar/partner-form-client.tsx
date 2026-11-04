@@ -18,17 +18,24 @@ export function PartnerFormClient() {
   if (submitted) {
     return (
       <div className={styles.formCard} role="status">
-        <h3 className={styles.h3}>Teşekkürler.</h3>
+        <h3 className={styles.h3}>Önizleme tamamlandı.</h3>
         <p className={styles.bodyText}>
           Başvuru formu şu an yalnızca bir önizlemedir; bilgileriniz gönderilmedi ve kaydedilmedi.
           Program açıldığında bu form üzerinden başvurabileceksiniz.
         </p>
+        <button type="button" className={styles.cta} onClick={() => setSubmitted(false)}>
+          Forma dön
+        </button>
       </div>
     );
   }
 
   return (
-    <form className={styles.formCard} onSubmit={handleSubmit}>
+    <form className={styles.formCard} onSubmit={handleSubmit} aria-describedby="pf-preview">
+      <p id="pf-preview" className={styles.previewNote}>
+        Bu form yalnızca önizlemedir. Girdiğiniz bilgiler gönderilmez veya kaydedilmez. Ortaklık
+        için yukarıdaki e-posta adresini kullanabilirsiniz.
+      </p>
       <div className={styles.field}>
         <label htmlFor="pf-brand">Marka adı *</label>
         <input
@@ -107,7 +114,7 @@ export function PartnerFormClient() {
       <hr className={styles.rule} />
 
       <button type="submit" className={styles.cta}>
-        Ortak olun <span aria-hidden="true">→</span>
+        Önizlemeyi tamamla <span aria-hidden="true">→</span>
       </button>
     </form>
   );
