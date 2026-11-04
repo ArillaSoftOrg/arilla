@@ -3,6 +3,12 @@
  *
  *   DATABASE_URL=postgresql://arilla_app:...@localhost:5432/arilla \
  *     node scripts/search-eval.ts [--json cikti.json]
+ *       [--scope bootstrap|all|merchants:1,2,3] [--engine legacy|fallback]
+ *
+ * `--scope`: magaza kapsami (varsayilan bootstrap). `--engine`: `legacy` eski
+ * 0029 yolu (varsayilan), `fallback` `/ara`'nin kademeli yolu (0066).
+ * `--json` ciktisi v2 zarfidir: `{ meta, rows }` (karar 0171 G6); `meta` katalog
+ * parmak izini, kapsami, motoru ve sorgu setinin ozetini tasir.
  *
  * Yalnizca yerel veritabani: bootstrap katalogu (0027) yalnizca orada var.
  * Sorgu cozumlemesi `query_resolution` onbellegine yazar; bu yuzden uzak bir
@@ -11,8 +17,12 @@
 import { writeFileSync } from "node:fs";
 import { createDatabase } from "@arilla/db";
 import { searchRecord } from "../src/eval/record-adapters.ts";
-import { summarizeSearch } from "../src/eval/search-eval.ts";
-import { evaluateAll } from "../src/search/eval/run-eval.ts";
+import {
+  parseSearchEvalEngine,
+  parseSearchEvalScope,
+  summarizeSearch,
+} from "../src/eval/search-eval.ts";
+import { runEvaluation } from "../src/search/eval/run-eval.ts";
 import { codeRef, guardRecordFlag, recordOrExit } from "./lib/eval-record.ts";
 
 const url = process.env.DATABASE_URL ?? "";
@@ -29,10 +39,28 @@ if (!["localhost", "127.0.0.1", "::1"].includes(host)) {
   process.exit(2);
 }
 
+const argValue = (name: string): string | undefined => {
+  const index = process.argv.indexOf(name);
+  return index === -1 ? undefined : process.argv[index + 1];
+};
+const scope = parseSearchEvalScope(argValue("--scope"));
+const engine = parseSearchEvalEngine(argValue("--engine"));
+if (scope === null || engine === null) {
+  console.error("kullanim: --scope bootstrap|all|merchants:1,2,3  --engine legacy|fallback");
+  process.exit(2);
+}
+
 const db = createDatabase(url);
 const started = performance.now();
-const rows = await evaluateAll(db);
+const run = await runEvaluation(db, { scope, engine, codeRef: codeRef() });
+const rows = run.rows;
 const elapsed = performance.now() - started;
+const catalog = run.meta?.catalog;
+if (catalog) {
+  console.log(
+    `motor ${engine} | kapsam ${scope.kind} (${catalog.merchantIds.length} mağaza) | ${catalog.products} ürün, ${catalog.activeOffers} aktif teklif | parmak izi ${catalog.fingerprint}\n`,
+  );
+}
 
 const pad = (value: unknown, width: number) => String(value).padEnd(width).slice(0, width);
 console.log(
@@ -63,7 +91,7 @@ console.log(
 
 const jsonIndex = process.argv.indexOf("--json");
 if (jsonIndex !== -1 && process.argv[jsonIndex + 1]) {
-  writeFileSync(process.argv[jsonIndex + 1] as string, JSON.stringify(rows, null, 2));
+  writeFileSync(process.argv[jsonIndex + 1] as string, JSON.stringify(run, null, 2));
 }
 if (guardRecordFlag()) {
   await recordOrExit(searchRecord(rows, `search@${codeRef()}`));
