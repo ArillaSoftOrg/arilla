@@ -41,6 +41,7 @@
     "media:import-blog": "node scripts/import-blog-images.ts",
     "eval:intent": "node --experimental-transform-types --no-warnings scripts/eval-intent.ts",
     "eval:intent-v2": "node --experimental-transform-types --no-warnings scripts/eval-intent-v2.ts",
+    "run:intent-v2": "node --experimental-transform-types --no-warnings scripts/run-intent-v2.ts",
     "eval:comparison": "node --experimental-transform-types --no-warnings scripts/eval-comparison.ts",
     "eval:search": "node --experimental-transform-types --no-warnings scripts/search-eval.ts",
     "probe:search": "node --experimental-transform-types --no-warnings scripts/search-probe.ts",
