@@ -100,10 +100,15 @@ describe("yurt dışı teklif: kaynak durumu ve fiyat geçmişi", () => {
       await offer("nomember", "USD", 700, productId);
       await offer("try", "TRY", 25000, tryProductId);
 
+      // Gunluk fiyat fixture'lari UTC oglene bagli: saat 00:00 civarinda
+      // 2 ve 2.1 gun once farkli gunlere dusmesin. Kaynak tazeligi yukarida
+      // gercek simdiye gore kurulmaya devam eder.
+      const priceDay = new Date();
+      priceDay.setUTCHours(12, 0, 0, 0);
       const point = (key: string, daysBack: number, price: number) =>
         client.query(
           "INSERT INTO price_point (offer_id, observed_at, price, in_stock) VALUES ($1, $2, $3, true)",
-          [offers[key], ago(daysBack), price],
+          [offers[key], new Date(priceDay.getTime() - daysBack * day).toISOString(), price],
         );
       await point("current", 20, 1800);
       await point("current", 10, 1600);

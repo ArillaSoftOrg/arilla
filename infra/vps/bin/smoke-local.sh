@@ -61,8 +61,17 @@ cleanup() {
     c logs --no-color --tail 40 2>&1 | sed -E 's/(PASSWORD|SECRET|requirepass)[=: ][^ ]+/=<gizli>/g'
   fi
   if [ "${KEEP:-0}" != "1" ]; then
+    local postgres_image
+    postgres_image=$(docker inspect --format '{{.Config.Image}}' "${COMPOSE_PROJECT_NAME}-postgres-1" 2>/dev/null || true)
     c --profile ops down -v --remove-orphans >/dev/null 2>&1
-    rm -rf "$work"
+    # PostgreSQL bind mount'u uid 999 / 0700 dizinler olusturur. Yalnizca bu
+    # testin gecici backup dizinini, agsiz konteynerde temizle; izinleri gevsetme.
+    if [ -d "$work/backup/pg" ] && [ -n "$postgres_image" ]; then
+      docker run --rm --pull never --network none --user 0 \
+        -v "$work/backup:/cleanup" --entrypoint sh "$postgres_image" \
+        -c 'find /cleanup -mindepth 1 -delete' >/dev/null 2>&1
+    fi
+    rm -rf -- "${work:?}"
   else
     echo "KEEP=1: yigin ayakta ($COMPOSE_PROJECT_NAME), dizin: $work"
   fi
@@ -240,7 +249,9 @@ c restart redis >/dev/null 2>&1
 for _ in $(seq 1 30); do [ "$(c ps --format '{{.Service}}={{.Health}}' | grep '^redis=' | cut -d= -f2)" = "healthy" ] && break; sleep 2; done
 [ "$(c ps --format '{{.Service}}={{.Health}}' | grep '^redis=' | cut -d= -f2)" = "healthy" ] && pass "redis yeniden baslatma sonrasi healthy (restart dongusu yok)" || fail "redis restart sonrasi healthy degil"
 [ "$(r get smoke:persist)" = "kalici-deger" ] && pass "AOF: anahtar yeniden baslatmadan sonra okundu" || fail "AOF verisi kayip"
-c exec -T redis sh -c 'ls /data/appendonlydir' 2>&1 | grep -q "appendonly.aof" && pass "appendonlydir redis kullanicisiyla okunabilir" || fail "appendonlydir okunamadi"
+# grep -q boruyu erken kapatirsa docker exec SIGPIPE alabilir (pipefail),
+# dosyalar okunabildigi halde test kirilir. Ciktiyi tam oku; exec hatasi yine hata.
+aof_files=$(c exec -T redis sh -c 'ls /data/appendonlydir' 2>&1) && grep -q "appendonly.aof" <<< "$aof_files" && pass "appendonlydir redis kullanicisiyla okunabilir" || fail "appendonlydir okunamadi: $aof_files"
 [ "$(docker inspect --format '{{.RestartCount}}' "${COMPOSE_PROJECT_NAME}-redis-1")" = "0" ] && pass "redis RestartCount=0" || fail "redis RestartCount"
 
 echo "== 9. Ag yalitimi"
