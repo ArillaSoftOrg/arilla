@@ -1,11 +1,14 @@
 "use client";
 
-import { ImageIcon, LinkIcon, SearchIcon } from "@arilla/ui";
+import { ImageIcon, LinkIcon, SearchIcon, VisuallyHidden } from "@arilla/ui";
 import { useEffect, useRef, useState } from "react";
 import styles from "./coming-soon.module.css";
 import { COMING_SOON_COPY as copy } from "./coming-soon-copy.ts";
 
 const FINAL_PHASE = 4;
+/** Son aşamada öne çıkan temsili kart (dengeli seçenek). */
+const SELECTED_PRODUCT = 1;
+const PRICE_LEVELS = [1, 2, 3] as const;
 
 function storyPhase(progress: number): number {
   if (progress < 0.14) return 0;
@@ -119,7 +122,7 @@ export function ComingSoonDemo() {
                   <figure
                     key={product.title}
                     className={styles.demoProduct}
-                    data-selected={index === 1 ? "true" : undefined}
+                    data-selected={index === SELECTED_PRODUCT ? "true" : undefined}
                   >
                     <div
                       className={styles.demoProductImage}
@@ -127,12 +130,39 @@ export function ComingSoonDemo() {
                       role="img"
                       aria-label={`${product.title} için markasız temsili ayakkabı görseli`}
                     />
-                    <figcaption>
+                    <figcaption className={styles.demoProductBody}>
                       <strong className={styles.demoProductTitle}>{product.title}</strong>
-                      <span className={styles.demoProductNote}>{product.note}</span>
+                      <span className={styles.demoProductPrice}>
+                        <span className={styles.demoPriceLevel}>
+                          {copy.demoPriceLabel}
+                          <span className={styles.demoPriceMeter} aria-hidden="true">
+                            {PRICE_LEVELS.map((level) => (
+                              <span
+                                key={level}
+                                data-filled={level <= product.priceLevel ? "true" : undefined}
+                              />
+                            ))}
+                          </span>
+                          <VisuallyHidden>
+                            {` ${copy.demoPriceLevels[product.priceLevel - 1]}`}
+                          </VisuallyHidden>
+                        </span>
+                        <span className={styles.demoProductNote}>{product.note}</span>
+                      </span>
+                      {/* biome-ignore lint/a11y/noRedundantRoles: WebKit drops list semantics with list-style:none. */}
+                      <ul role="list" className={styles.demoProductFeatures}>
+                        {product.features.map((feature) => (
+                          <li key={feature}>{feature}</li>
+                        ))}
+                      </ul>
                     </figcaption>
-                    {index === 1 ? (
-                      <span className={styles.demoWinner}>{copy.demoWinner}</span>
+                    {index === SELECTED_PRODUCT ? (
+                      <span className={styles.demoWinner}>
+                        <span className={styles.demoWinnerFull}>{copy.demoWinner}</span>
+                        <span className={styles.demoWinnerShort} aria-hidden="true">
+                          {copy.demoWinnerShort}
+                        </span>
+                      </span>
                     ) : null}
                   </figure>
                 ))}

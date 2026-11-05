@@ -58,6 +58,16 @@
   text-wrap: balance;
 }
 
+.heroDescription {
+  margin: 12px 0 0;
+  max-width: 44ch;
+  color: var(--ink-secondary);
+  font-size: 15px;
+  font-weight: 400;
+  line-height: 1.5;
+  text-wrap: pretty;
+}
+
 .welcomeStage {
   grid-area: stage;
   position: relative;
@@ -521,72 +531,148 @@
   min-height: 246px;
   align-items: end;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 10px;
+  gap: 12px;
+  padding-top: 12px;
 }
 
 .demoProduct {
   position: relative;
+  display: grid;
+  align-self: stretch;
+  align-content: start;
   min-width: 0;
   margin: 0;
   padding: 8px;
-  border: 1px solid transparent;
-  border-radius: 6px;
+  border: 1px solid var(--story-line);
+  border-radius: 8px;
+  background: var(--story-surface);
   opacity: 0;
   transform: translateY(20px);
   transition:
     opacity 360ms ease,
     transform 480ms cubic-bezier(0.2, 0.8, 0.2, 1),
     border-color 260ms ease,
-    background-color 260ms ease;
+    background-color 260ms ease,
+    box-shadow 260ms ease;
 }
 
+/* Sprite (3 kare yan yana) ayrı bir katmanda: çerçeve iç boşluk bırakır,
+   ayakkabı kenardan kırpılmaz ve komşu kare görünmez. */
 .demoProductImage {
+  position: relative;
+  overflow: hidden;
   aspect-ratio: 1.24;
-  border: 1px solid var(--story-line);
   border-radius: 6px;
-  background-color: var(--paper);
+  background-color: var(--story-surface-subtle);
+  transition: opacity 260ms ease;
+}
+
+.demoProductImage::before {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 90%;
+  aspect-ratio: 1;
   background-image: url("/coming-soon-shoes.png");
   background-repeat: no-repeat;
-  background-position: left center;
+  background-position: 0% center;
   background-size: 300% auto;
+  transform: translate(-50%, -54.5%);
+  /* Alt piksel yuvarlamasında komşu kareden ince şerit sızmasın. */
+  clip-path: inset(0 1.5%);
+  content: "";
 }
 
-.demoProductImage[data-product="2"] {
-  background-position: center center;
+.demoProductImage[data-product="2"]::before {
+  background-position: 50% center;
 }
 
-.demoProductImage[data-product="3"] {
-  background-position: right center;
+.demoProductImage[data-product="3"]::before {
+  background-position: 100% center;
 }
 
-.demoProduct figcaption {
+.demoProductBody {
   display: grid;
-  gap: 2px;
-  margin-top: 7px;
-  color: var(--ink-secondary);
-  line-height: 1.4;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px 4px 2px;
+  line-height: 1.35;
 }
 
 .demoProductTitle {
+  overflow-wrap: anywhere;
   color: var(--ink);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.demoProductPrice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 8px;
+  min-width: 0;
+}
+
+.demoPriceLevel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-muted);
   font-size: 12px;
   font-weight: 500;
 }
 
+/* Göreli fiyat seviyesi: tutar ya da para birimi değil, üç parçalı çubuk. */
+.demoPriceMeter {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.demoPriceMeter span {
+  width: 10px;
+  height: 6px;
+  border-radius: 2px;
+  background: color-mix(in srgb, var(--ink), transparent 82%);
+}
+
+.demoPriceMeter [data-filled="true"] {
+  background: var(--ink-secondary);
+}
+
 .demoProductNote {
-  color: var(--ink-muted);
-  font-size: 10px;
+  color: var(--ink-secondary);
+  font-size: 12px;
+}
+
+.demoProductFeatures {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.demoProductFeatures li {
+  padding: 2px 7px;
+  border: 1px solid var(--story-line);
+  border-radius: 999px;
+  color: var(--ink-secondary);
+  font-size: 11px;
+  line-height: 1.4;
 }
 
 .demoWinner {
   position: absolute;
   top: 14px;
   left: 14px;
-  padding: 4px 6px;
-  border-radius: 4px;
+  max-width: calc(100% - 28px);
+  padding: 4px 8px;
+  border-radius: 999px;
   background: var(--story-accent);
   color: var(--on-brand);
-  font-size: 9px;
+  font-size: 10px;
   font-weight: 700;
   line-height: 1.2;
   opacity: 0;
@@ -594,6 +680,10 @@
   transition:
     opacity 260ms ease,
     transform 320ms ease;
+}
+
+.demoWinnerShort {
+  display: none;
 }
 
 .demoComposer {
@@ -693,14 +783,19 @@
   transition-delay: 180ms;
 }
 
-.demoSticky[data-phase="4"] .demoProduct:not([data-selected="true"]) {
-  opacity: 0.58;
+/* Son aşama: diğer seçenekler okunur ve karşılaştırılabilir kalır; yalnızca
+   görsel hafifçe geri çekilir, metin rengi değişmez. */
+.demoSticky[data-phase="4"] .demoProduct:not([data-selected="true"]) .demoProductImage {
+  opacity: 0.78;
 }
 
 .demoSticky[data-phase="4"] .demoProduct[data-selected="true"] {
-  border-color: color-mix(in srgb, var(--story-accent), transparent 30%);
-  background: color-mix(in srgb, var(--story-accent), transparent 92%);
-  transform: translateY(-5px);
+  border-color: var(--story-accent);
+  background: color-mix(in srgb, var(--story-accent), var(--story-surface) 94%);
+  box-shadow:
+    0 0 0 1px var(--story-accent),
+    0 14px 30px color-mix(in srgb, var(--ink), transparent 90%);
+  transform: translateY(-6px);
 }
 
 .demoSticky[data-phase="4"] .demoWinner {
@@ -977,6 +1072,11 @@
 
   .heroHeadline {
     font-size: 28px;
+  }
+
+  .heroDescription {
+    margin-top: 14px;
+    font-size: 16px;
   }
 
   .mascotGuide {
@@ -1300,34 +1400,74 @@
 
   .demoProductGrid {
     min-height: 150px;
-    gap: 4px;
+    gap: 6px;
+    padding-top: 14px;
   }
 
   .demoProduct {
     padding: 4px;
+    border-radius: 6px;
   }
 
   .demoProductImage {
     aspect-ratio: 1.1;
+    border-radius: 4px;
   }
 
-  .demoProduct figcaption {
-    margin-top: 4px;
+  .demoProductBody {
+    gap: 3px;
+    padding: 6px 2px 2px;
   }
 
   .demoProductTitle {
-    font-size: 9px;
+    font-size: 11px;
+    line-height: 1.25;
+  }
+
+  .demoPriceLevel {
+    gap: 4px;
+    font-size: 10px;
+  }
+
+  .demoPriceMeter span {
+    width: 7px;
+    height: 5px;
   }
 
   .demoProductNote {
+    font-size: 10px;
+  }
+
+  .demoProductFeatures {
     display: none;
   }
 
+  /* Dar kartta rozet görselin üstüne değil, kartın üst kenarına oturur. */
   .demoWinner {
-    top: 7px;
-    left: 7px;
-    max-width: calc(100% - 14px);
-    font-size: 7px;
+    top: 0;
+    left: 50%;
+    max-width: calc(100% - 8px);
+    padding: 3px 7px;
+    font-size: 9px;
+    white-space: nowrap;
+    transform: translate(-50%, -40%);
+  }
+
+  .demoSticky[data-phase="4"] .demoWinner {
+    transform: translate(-50%, -50%);
+  }
+
+  .demoWinnerFull {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .demoWinnerShort {
+    display: inline;
   }
 
   .demoComposer {
@@ -1440,7 +1580,8 @@
   }
 }
 
-.journey[data-motion="false"] :is(.demoMessage, .demoProduct, .demoWinner, .demoTimeline li) {
+.journey[data-motion="false"]
+  :is(.demoMessage, .demoProduct, .demoProductImage, .demoWinner, .demoTimeline li) {
   transition: none;
 }
 

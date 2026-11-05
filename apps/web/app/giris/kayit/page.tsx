@@ -4,6 +4,7 @@ import { CREDENTIAL_COPY as COPY } from "../credential-copy.ts";
 import { RegisterForm } from "../credential-forms-client.tsx";
 import { CredentialShell, LegalNote, withNext } from "../credential-shell.tsx";
 import styles from "../page.module.css";
+import { registerTitle } from "./register-title.ts";
 
 export const metadata: Metadata = {
   title: "Hesap oluştur",
@@ -24,7 +25,7 @@ export default async function KayitPage({
   return (
     <CredentialShell
       titleId="kayit-baslik"
-      title={COPY.registerTitle}
+      title={registerTitle(safeNext)}
       backHref={chooserHref}
       notice={available ? undefined : COPY.unavailableNotice}
       footer={

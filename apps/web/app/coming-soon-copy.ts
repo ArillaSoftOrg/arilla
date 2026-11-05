@@ -6,6 +6,8 @@ import { SITE_BRAND } from "./site-config.ts";
 
 export const COMING_SOON_COPY = {
   headline: "Tarif et, fotoğrafını göster veya linkini bırak.",
+  heroDescription:
+    "Aradığın ürünü bulmanı, özelliklerini anlamanı ve alternatifleri karşılaştırmanı kolaylaştırmak için geliştiriliyor.",
   body: "ManiCepte ürünleri bulsun, benzerlerini çıkarsın ve mağaza fiyatlarını karşılaştırsın.",
   heroDetailsLabel: "ManiCepte ne yapar?",
   greeting: "Selam, hoş geldin!",
@@ -49,19 +51,42 @@ export const COMING_SOON_COPY = {
     "Seçenekleri araştırsın",
     "En iyi dengeyi gör",
   ],
+  /**
+   * Temsili kartlar: gerçek ürün, mağaza ya da fiyat tutarı yok. Fiyat yalnızca
+   * göreli seviye çubuğu olarak gösterilir; tutar, para birimi ya da sayı yok.
+   */
   demoProductInsights: [
-    { title: "Günlük rahatlık", note: "Ekonomik seçenek" },
-    { title: "Yürüyüş desteği", note: "Dengeli seçenek" },
-    { title: "Hafif kullanım", note: "Dayanıklı seçenek" },
+    {
+      title: "Günlük rahatlık",
+      note: "Ekonomik seçenek",
+      priceLevel: 1,
+      features: ["Sade tasarım", "Hafif taban"],
+    },
+    {
+      title: "Yürüyüş desteği",
+      note: "Dengeli seçenek",
+      priceLevel: 2,
+      features: ["Destekli taban", "Nefes alan yüzey"],
+    },
+    {
+      title: "Hafif kullanım",
+      note: "Dayanıklı seçenek",
+      priceLevel: 3,
+      features: ["Sağlam yapı", "Kolay temizlik"],
+    },
   ],
+  demoPriceLabel: "Fiyat",
+  /** Seviye çubuğunun ekran okuyucu metni (1, 2, 3 sırasıyla). */
+  demoPriceLevels: ["seviyesi düşük", "seviyesi orta", "seviyesi yüksek"],
   demoWinner: "En iyi fiyat-kalite dengesi",
+  demoWinnerShort: "En iyi denge",
 
   enrolledTitle: "Listedesin. İyi ki geldin.",
 
   buildEyebrow: "Geliştirme durumu",
   buildTitle: "Neler hazırlıyoruz?",
   buildBody: "Erken erişim öncesindeki çalışma başlıklarımız.",
-  buildStatusDone: "Tamamlandı",
+  buildStatusDone: "Hazır",
   buildStatusInProgress: "Geliştiriliyor",
   buildUpdated: (month: string) => `Son güncelleme: ${month}`,
   followTitle: "Gelişmeleri takip et",
@@ -101,7 +126,7 @@ export type BuildStatus = "done" | "in_progress";
 
 /** Real development status, maintained manually; no invented launch promises. */
 export const BUILD_ITEMS: readonly { id: string; title: string; status: BuildStatus }[] = [
-  { id: "erken-erisim", title: "Erken erişim kayıtları", status: "done" },
+  { id: "erken-erisim", title: "Erken erişim sistemi", status: "done" },
   {
     id: "arama",
     title: "Ürün bulma ve karşılaştırma",
