@@ -3,6 +3,11 @@
   --story-surface: var(--surface);
   --story-surface-subtle: color-mix(in srgb, var(--surface), var(--paper) 45%);
   --story-line: color-mix(in srgb, var(--ink), transparent 78%);
+  /* Vurgu zemini üzerindeki metin: açık temada koyu yeşil zemine açık yazı,
+     koyu temada parlak yeşil zemine koyu yazı (AA kontrast). */
+  --story-on-accent: var(--surface-raised);
+  /* Ürün altı zemin gölgesi: her iki temada da koyu kalır. */
+  --story-ground: color-mix(in srgb, var(--ink), transparent 86%);
   padding-block-end: 0;
   color: var(--ink);
   letter-spacing: 0;
@@ -542,10 +547,11 @@
   align-content: start;
   min-width: 0;
   margin: 0;
-  padding: 8px;
+  padding: 6px;
   border: 1px solid var(--story-line);
-  border-radius: 8px;
-  background: var(--story-surface);
+  border-radius: 10px;
+  background: var(--surface-raised);
+  box-shadow: var(--shadow-xs);
   opacity: 0;
   transform: translateY(20px);
   transition:
@@ -560,15 +566,19 @@
    ayakkabı kenardan kırpılmaz ve komşu kare görünmez. */
 .demoProductImage {
   position: relative;
+  isolation: isolate;
   overflow: hidden;
   aspect-ratio: 1.24;
   border-radius: 6px;
   background-color: var(--story-surface-subtle);
-  transition: opacity 260ms ease;
+  transition:
+    opacity 260ms ease,
+    background-color 260ms ease;
 }
 
 .demoProductImage::before {
   position: absolute;
+  z-index: 1;
   top: 50%;
   left: 50%;
   width: 90%;
@@ -583,6 +593,19 @@
   content: "";
 }
 
+/* Ürünün altında çok hafif zemin gölgesi: görsel yüzeyde "durur". */
+.demoProductImage::after {
+  position: absolute;
+  z-index: 0;
+  right: 16%;
+  bottom: 13%;
+  left: 16%;
+  height: 12%;
+  border-radius: 50%;
+  background: radial-gradient(closest-side, var(--story-ground), transparent);
+  content: "";
+}
+
 .demoProductImage[data-product="2"]::before {
   background-position: 50% center;
 }
@@ -593,9 +616,9 @@
 
 .demoProductBody {
   display: grid;
-  gap: 6px;
+  gap: 7px;
   min-width: 0;
-  padding: 10px 4px 2px;
+  padding: 8px 6px 1px;
   line-height: 1.35;
 }
 
@@ -604,14 +627,26 @@
   color: var(--ink);
   font-size: 14px;
   font-weight: 600;
+  line-height: 1.3;
 }
 
+/* Tek satır: solda seçenek türü, sağda fiyat seviyesi. DOM sırası ekran
+   okuyucu için "Fiyat seviyesi …, … seçenek" olarak kalır. */
 .demoProductPrice {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
+  align-items: center;
+  justify-content: space-between;
   gap: 4px 8px;
   min-width: 0;
+  margin-top: -4px;
+}
+
+.demoProductNote {
+  order: -1;
+  min-width: 0;
+  color: var(--ink-secondary);
+  font-size: 12px;
 }
 
 .demoPriceLevel {
@@ -619,7 +654,7 @@
   align-items: center;
   gap: 6px;
   color: var(--ink-muted);
-  font-size: 12px;
+  font-size: 11px;
   font-weight: 500;
 }
 
@@ -630,50 +665,49 @@
 }
 
 .demoPriceMeter span {
-  width: 10px;
-  height: 6px;
+  width: 12px;
+  height: 4px;
   border-radius: 2px;
-  background: color-mix(in srgb, var(--ink), transparent 82%);
+  background: color-mix(in srgb, var(--ink), transparent 84%);
+  transition: background-color 260ms ease;
 }
 
 .demoPriceMeter [data-filled="true"] {
   background: var(--ink-secondary);
 }
 
-.demoProductNote {
-  color: var(--ink-secondary);
-  font-size: 12px;
-}
-
 .demoProductFeatures {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  margin: 2px 0 0;
-  padding: 0;
+  margin: 0;
+  padding: 7px 0 0;
+  border-top: 1px solid var(--story-line);
   list-style: none;
 }
 
 .demoProductFeatures li {
-  padding: 2px 7px;
-  border: 1px solid var(--story-line);
-  border-radius: 999px;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill, 999px);
+  background: var(--story-surface-subtle);
   color: var(--ink-secondary);
   font-size: 11px;
-  line-height: 1.4;
+  line-height: 1.45;
 }
 
 .demoWinner {
   position: absolute;
-  top: 14px;
-  left: 14px;
-  max-width: calc(100% - 28px);
-  padding: 4px 8px;
-  border-radius: 999px;
+  z-index: 2;
+  top: 12px;
+  left: 12px;
+  max-width: calc(100% - 24px);
+  padding: 4px 9px;
+  border-radius: var(--radius-pill, 999px);
   background: var(--story-accent);
-  color: var(--on-brand);
+  box-shadow: var(--shadow-xs);
+  color: var(--story-on-accent);
   font-size: 10px;
-  font-weight: 700;
+  font-weight: 600;
   line-height: 1.2;
   opacity: 0;
   transform: translateY(6px);
@@ -786,16 +820,28 @@
 /* Son aşama: diğer seçenekler okunur ve karşılaştırılabilir kalır; yalnızca
    görsel hafifçe geri çekilir, metin rengi değişmez. */
 .demoSticky[data-phase="4"] .demoProduct:not([data-selected="true"]) .demoProductImage {
-  opacity: 0.78;
+  opacity: 0.82;
 }
 
+/* Seçili kart: vurgu rengi yalnızca kenarlıkta, ince halkada, görsel
+   zemininde çok hafif tonda, rozette ve fiyat çubuğunda. */
 .demoSticky[data-phase="4"] .demoProduct[data-selected="true"] {
   border-color: var(--story-accent);
-  background: color-mix(in srgb, var(--story-accent), var(--story-surface) 94%);
   box-shadow:
-    0 0 0 1px var(--story-accent),
-    0 14px 30px color-mix(in srgb, var(--ink), transparent 90%);
+    0 0 0 3px color-mix(in srgb, var(--story-accent), transparent 82%),
+    var(--shadow-sm);
   transform: translateY(-6px);
+}
+
+.demoSticky[data-phase="4"] .demoProduct[data-selected="true"] .demoProductImage {
+  background-color: color-mix(in srgb, var(--story-accent), var(--story-surface-subtle) 92%);
+}
+
+.demoSticky[data-phase="4"]
+  .demoProduct[data-selected="true"]
+  .demoPriceMeter
+  [data-filled="true"] {
+  background: var(--story-accent);
 }
 
 .demoSticky[data-phase="4"] .demoWinner {
@@ -1406,22 +1452,33 @@
 
   .demoProduct {
     padding: 4px;
-    border-radius: 6px;
+    border-radius: 8px;
   }
 
   .demoProductImage {
     aspect-ratio: 1.1;
-    border-radius: 4px;
+    border-radius: 5px;
   }
 
   .demoProductBody {
-    gap: 3px;
-    padding: 6px 2px 2px;
+    gap: 4px;
+    padding: 7px 3px 3px;
   }
 
   .demoProductTitle {
     font-size: 11px;
     line-height: 1.25;
+  }
+
+  .demoProductPrice {
+    gap: 4px;
+    margin-top: -2px;
+  }
+
+  .demoProductNote {
+    flex-basis: 100%;
+    font-size: 10px;
+    line-height: 1.3;
   }
 
   .demoPriceLevel {
@@ -1430,12 +1487,8 @@
   }
 
   .demoPriceMeter span {
-    width: 7px;
-    height: 5px;
-  }
-
-  .demoProductNote {
-    font-size: 10px;
+    width: 8px;
+    height: 4px;
   }
 
   .demoProductFeatures {
@@ -1447,8 +1500,8 @@
     top: 0;
     left: 50%;
     max-width: calc(100% - 8px);
-    padding: 3px 7px;
-    font-size: 9px;
+    padding: 3px 8px;
+    font-size: 9.5px;
     white-space: nowrap;
     transform: translate(-50%, -40%);
   }
@@ -1552,12 +1605,16 @@
 @media (prefers-color-scheme: dark) {
   .page {
     --story-accent: var(--brand);
+    --story-on-accent: var(--on-brand);
+    --story-ground: color-mix(in srgb, var(--paper), transparent 20%);
     --story-line: color-mix(in srgb, var(--ink), transparent 80%);
   }
 }
 
 :global(:root[data-theme="light"]) .page {
   --story-accent: #5d7f00;
+  --story-on-accent: var(--surface-raised);
+  --story-ground: color-mix(in srgb, var(--ink), transparent 86%);
   --story-surface: #ffffff;
   --story-surface-subtle: #f1f4ee;
   --story-line: #cdd4ca;
@@ -1565,6 +1622,8 @@
 
 :global(:root[data-theme="dark"]) .page {
   --story-accent: var(--brand);
+  --story-on-accent: var(--on-brand);
+  --story-ground: color-mix(in srgb, var(--paper), transparent 20%);
   --story-surface: var(--surface);
   --story-surface-subtle: color-mix(in srgb, var(--surface), var(--paper) 45%);
   --story-line: color-mix(in srgb, var(--ink), transparent 80%);
