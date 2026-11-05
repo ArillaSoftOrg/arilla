@@ -2,6 +2,7 @@ import { type ChatMessageView, intentChips } from "@arilla/core";
 import { ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
 import { Suspense } from "react";
 import { CHAT_COPY } from "./chat-copy.ts";
+import { ChatIntentControls } from "./chat-intent-controls.tsx";
 import { ChatLinkResults } from "./chat-link-results.tsx";
 import { ChatResults } from "./chat-results.tsx";
 import { ChatPendingRow, ChatUserRow } from "./chat-shell-parts.tsx";
@@ -83,13 +84,17 @@ export function ChatThread({
               <p className={`${styles.bubble} ${styles.bubbleAssistant}`}>{message.content}</p>
               {intent ? (
                 <>
-                  <ul className={styles.chips} aria-label={CHAT_COPY.usedInSearch}>
-                    {intentChips(intent).map((chip) => (
-                      <li key={chip.key} className={styles.chip}>
-                        {chip.label}
-                      </li>
-                    ))}
-                  </ul>
+                  {shown.has(message.seq) ? (
+                    <ChatIntentControls intent={intent} chips={intentChips(intent)} />
+                  ) : (
+                    <ul className={styles.chips} aria-label={CHAT_COPY.usedInSearch}>
+                      {intentChips(intent).map((chip) => (
+                        <li key={chip.key} className={styles.chip}>
+                          {chip.label}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
                   {shown.has(message.seq) ? (
                     <Suspense
                       key={sort}

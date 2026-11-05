@@ -17,6 +17,8 @@ import { WebGridItems, WebOnlyResults } from "../ara/web-search-section.tsx";
 import { startWebSearch } from "../ara/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
 import { ResultFeedback } from "./chat-feedback-client.tsx";
+import { ChatCardActions } from "./chat-product-cards.tsx";
+import { chatToolProduct } from "./chat-product-display.ts";
 import { araSortParam, type ChatSortKey, sortModeFor } from "./chat-sort.ts";
 import { ResultTabs } from "./chat-tabs.tsx";
 import styles from "./sohbet.module.css";
@@ -69,6 +71,7 @@ export function ChatResultGrid({
             imageLoading={index < 4 ? "eager" : "lazy"}
             imageSizes={CHAT_GRID_IMAGE_SIZES}
             aliexpressVariants={aliexpressVariants}
+            action={<ChatCardActions product={chatToolProduct(item)} />}
             {...cardPriceProps(item)}
           />
         </li>

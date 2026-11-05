@@ -106,8 +106,8 @@ describe("urun acik ana sayfa bilgi mimarisi", () => {
     expect(hero).toContain("robot-welcome.png");
     expect(hero).not.toContain("robot-research.png");
     expect(hero).toContain("robot-how-it-works-point-v1.png");
-    expect(hero).not.toContain('href="/nasil-calisir"');
-    expect(hero).toContain(HOME_COPY.howItWorksStatus);
+    expect(hero).toContain('href="/nasil-calisir"');
+    expect(hero).not.toContain("Yakında");
     expect(hero).toContain(HOME_COPY.howItWorksAction);
     expect(html.indexOf(HOME_COPY.howItWorksAction)).toBeGreaterThan(html.indexOf("</search>"));
     expect(html).not.toContain('id="nasil-calisir"');

@@ -7,7 +7,7 @@ import {
   VisuallyHidden,
 } from "@arilla/ui";
 import Image from "next/image";
-import type { FormEvent, KeyboardEvent } from "react";
+import type { FormEvent, KeyboardEvent, RefObject } from "react";
 import { CHAT_COPY } from "./chat-copy.ts";
 import styles from "./sohbet.module.css";
 
@@ -83,6 +83,7 @@ export function ChatComposer({
   locked,
   busy = false,
   attachment,
+  inputRef,
 }: {
   draft: string;
   onDraftChange?: (value: string) => void;
@@ -93,6 +94,7 @@ export function ChatComposer({
   busy?: boolean;
   /** Verilmezse (bayrak kapali, `/sohbet/yeni` kabugu) "+" hic gorunmez. */
   attachment?: ChatComposerAttachment;
+  inputRef?: RefObject<HTMLTextAreaElement | null>;
 }) {
   const hasImage = Boolean(attachment?.previewUrl);
   return (
@@ -130,6 +132,7 @@ export function ChatComposer({
       <label className={styles.composerLabel}>
         <VisuallyHidden as="span">{CHAT_COPY.composerLabel}</VisuallyHidden>
         <textarea
+          ref={inputRef}
           className={styles.composerInput}
           rows={1}
           value={draft}
