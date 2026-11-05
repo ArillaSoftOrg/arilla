@@ -413,6 +413,7 @@ Fiyat geçmişi grafiği TL teklifi yoksa yurt dışı teklifin kendi para birim
 | `auth.phone_unavailable` | Telefonla giriş şu an kullanılamıyor. Başka bir yöntemle devam edebilirsin. |
 | `auth.phone_country_unsupported` | Şu an yalnızca Türkiye (+90) numaralarıyla giriş yapılabiliyor. |
 | `auth.credential_entry` | E-posta ile devam edin |
+| `auth.register_early_access_title` | Erken erişim için hesap oluştur (`/giris/kayit?next=%2Ferken-erisim`; diğer kayıtlarda "Hesap oluştur") |
 | `auth.credential_invalid` | E-posta adresi ya da şifre hatalı. |
 | `auth.credential_check_email_title` | E-postanı kontrol et |
 | `auth.credential_check_email_body` | Hesabını doğrulaman için e-posta adresine bir bağlantı gönderdik. Bağlantı 15 dakika geçerlidir. E-posta birkaç dakika içinde ulaşmazsa spam klasörünü kontrol edebilirsin. |
@@ -493,6 +494,7 @@ sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 | Anahtar | Metin |
 | --- | --- |
 | `coming_soon.headline` | Tarif et, fotoğrafını göster veya linkini bırak. |
+| `coming_soon.hero_description` | Aradığın ürünü bulmanı, özelliklerini anlamanı ve alternatifleri karşılaştırmanı kolaylaştırmak için geliştiriliyor. |
 | `coming_soon.body` | ManiCepte ürünleri bulsun, benzerlerini çıkarsın ve mağaza fiyatlarını karşılaştırsın. |
 | `coming_soon.hero_details_label` | ManiCepte ne yapar? |
 | `coming_soon.greeting` | Selam, hoş geldin! |
@@ -520,15 +522,18 @@ sade biçimde belirir ve azaltılmış hareket tercihinde doğrudan görünür.
 | `coming_soon.demo_composer_placeholder` | Ne aradığını anlat, fotoğrafını göster veya linkini bırak... |
 | `coming_soon.demo_phase_labels` | Seni dinliyorum. · İhtiyacını alıyorum. · Neye önem verdiğini anlıyorum. · Seçenekleri araştırıyorum. · En iyi dengeyi buldum. |
 | `coming_soon.demo_scroll_steps` | İhtiyacını anlat · ManiCepte anlasın · Seçenekleri araştırsın · En iyi dengeyi gör |
-| `coming_soon.demo_product_insights` | Günlük rahatlık / Ekonomik seçenek · Yürüyüş desteği / Dengeli seçenek · Hafif kullanım / Dayanıklı seçenek |
+| `coming_soon.demo_product_insights` | Günlük rahatlık / Ekonomik seçenek / Sade tasarım, Hafif taban · Yürüyüş desteği / Dengeli seçenek / Destekli taban, Nefes alan yüzey · Hafif kullanım / Dayanıklı seçenek / Sağlam yapı, Kolay temizlik |
+| `coming_soon.demo_price_label` | Fiyat (yanında üç parçalı göreli seviye çubuğu; tutar, para birimi ya da sayı yok) |
+| `coming_soon.demo_price_levels` | seviyesi düşük · seviyesi orta · seviyesi yüksek (yalnızca ekran okuyucu) |
 | `coming_soon.demo_winner` | En iyi fiyat-kalite dengesi |
+| `coming_soon.demo_winner_short` | En iyi denge (dar ekranda görünen kısa rozet; tam metin ekran okuyucuda kalır) |
 | `coming_soon.enrolled_title` | Listedesin. İyi ki geldin. |
 | `coming_soon.build_eyebrow` | Geliştirme durumu |
 | `coming_soon.build_title` | Neler hazırlıyoruz? |
 | `coming_soon.build_body` | Erken erişim öncesindeki çalışma başlıklarımız. |
-| `coming_soon.build_status_done` | Tamamlandı |
+| `coming_soon.build_status_done` | Hazır |
 | `coming_soon.build_status_in_progress` | Geliştiriliyor |
-| `coming_soon.build_item_early_access` | Erken erişim kayıtları |
+| `coming_soon.build_item_early_access` | Erken erişim sistemi |
 | `coming_soon.build_item_search` | Ürün bulma ve karşılaştırma |
 | `coming_soon.build_item_data` | Mağaza ve ürün kaynakları |
 | `coming_soon.follow_title` | Gelişmeleri takip et |

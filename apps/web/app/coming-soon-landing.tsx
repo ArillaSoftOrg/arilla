@@ -43,6 +43,7 @@ export function ComingSoonLanding({
                 {SITE_BRAND}
               </h1>
               <p className={styles.heroHeadline}>{copy.headline}</p>
+              <p className={styles.heroDescription}>{copy.heroDescription}</p>
               <details className={styles.heroDetails}>
                 <summary className={`${styles.disclosureToggle} ${styles.heroDetailsToggle}`}>
                   {copy.heroDetailsLabel}

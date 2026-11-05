@@ -252,13 +252,20 @@ describe("landing içeriği", () => {
   it("anonim: marka, başlık ve tek eylem; ürün/arama/form yok", async () => {
     const html = await landingMarkup();
     expect(html).toContain("Tarif et, fotoğrafını göster veya linkini bırak.");
+    // Açıklama sürekli görünür (açılır alanın dışında); açılır alan da korunur.
+    expect(html).toMatch(
+      /<\/p><p[^>]*>Aradığın ürünü bulmanı, özelliklerini anlamanı ve alternatifleri karşılaştırmanı kolaylaştırmak için geliştiriliyor\.<\/p><details/,
+    );
+    expect(html).toContain("ManiCepte ne yapar?");
     expect(html).toContain(`href="${EARLY_ACCESS_SIGNUP_PATH.replaceAll("&", "&amp;")}"`);
     expect(html).toContain('href="#nasil-calisacak"');
     expect(html).toContain('id="nasil-calisacak"');
     expect(html).toContain("ManiCepte nasıl çalışır?");
     expect(html).toContain("Temsili önizleme");
     expect(html).toContain("Neler hazırlıyoruz?");
-    expect(html).toContain("Erken erişim kayıtları");
+    expect(html).toContain("Erken erişim sistemi");
+    expect(html).toContain("Hazır");
+    expect(html).not.toContain("Erken erişim kayıtları");
     expect(html).not.toMatch(PRODUCT_HREF);
     expect(html).not.toContain("<form");
     expect(html).not.toMatch(/<input[^>]+type="(?:text|search|email)"/);

@@ -9,6 +9,7 @@ export const CREDENTIAL_COPY = {
 
   loginTitle: "E-posta ile giriş yap",
   registerTitle: "Hesap oluştur",
+  registerEarlyAccessTitle: "Erken erişim için hesap oluştur", // auth.register_early_access_title
   forgotTitle: "Şifreni sıfırla",
   resetTitle: "Yeni şifreni belirle",
   verifyTitle: "E-posta adresini doğrula",
