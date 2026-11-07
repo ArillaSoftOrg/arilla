@@ -11,7 +11,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PIP_DISABLE_PIP_VERSION_CHECK=1
 
 # Taban imajdan sonra yayinlanan guvenlik yamalari derleme aninda alinir (Trivy dogrular).
-RUN apt-get update     && apt-get -y --no-install-recommends upgrade     && rm -rf /var/lib/apt/lists/*
+# DIKKAT: CI bu katmani GHA onbelleginden (scope=ingest) yeniden kullanir; yeni yama ancak
+# bu katman ya da taban imaj degisince gelir. Trivy yamasi cikmis HIGH bulursa APT_REFRESH
+# degerini degistirip katmani yeniden uret (RUN'a girdigi icin onbellegi atar). Bkz. cron
+# imajindaki APK_REFRESH. 2026-11-07: zlib1g DSA-6613-1 (CVE-2026-76844, CVE-2026-85091).
+ARG APT_REFRESH=2026-11-07
+RUN : "apt refresh ${APT_REFRESH}" \
+    && apt-get update     && apt-get -y --no-install-recommends upgrade     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app/services/ingest
 
