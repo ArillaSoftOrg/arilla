@@ -11,8 +11,13 @@ Kurallar (karar 0012, 0164):
 - Kaynakta GORULMEYEN alan uretilmez. Stok bilgisi yoksa `None` ("yok" degil).
 - Fiyat Shopify bicimindedir (nokta ondalik): `Decimal` ile kurusa, asla float.
 - `compare_at_price` yalnizca fiyattan BUYUKSE liste fiyatidir.
-- Marka: `vendor` HAM olarak tasinir; temizlik (magaza adi, "No Brand") siniflandirmada
-  (`classify.brands.clean_source_brand`). Burada marka uydurulmaz ya da duzeltilmez.
+- Marka (`brand_from_vendor`): Shopify `vendor` alani bazen markayi, bazen MAGAZANIN
+  kendi adini tasir ("Eubos Turkiye", "Termos Dunyasi"). Kural:
+  1. Magaza tanimindaki ACIK esleme (`vendor_brands`, kaniti yazili) varsa o marka.
+  2. `vendor` magaza adiyla ayni anahtarsa marka YAZILMAZ (None): magaza adi marka
+     degildir; basliktan cikarim siniflandirmaya kalir.
+  3. Aksi halde `vendor` HAM tasinir; "No Brand" gibi temizlik siniflandirmada
+     (`classify.brands.clean_source_brand`). Marka uydurulmaz.
 - GTIN: yalnizca grupta TEK varyant varsa ve barkod gecerliyse (`classify_gtin`).
   Cok varyantli grupta hangi barkodun urunu temsil ettigi belli degildir; yanlis
   birlestirmeyi (karar 0119) onlemek icin yazilmaz.
@@ -27,6 +32,7 @@ from collections.abc import Callable, Iterable, Iterator, Mapping
 from datetime import datetime
 from typing import Any
 
+from classify.brands import brand_key
 from collect.mapping import MAX_PRICE_KURUS
 from collect.records import RawRecord
 from platforms.adapters.base import Clock, offset_of, resolve_clock
@@ -58,6 +64,22 @@ def _truthy(value: str) -> bool | None:
     if lowered == "false":
         return False
     return None
+
+
+def brand_from_vendor(
+    vendor: str | None, *, store_name: str | None, vendor_brands: Mapping[str, str]
+) -> str | None:
+    """Kaynak `vendor` -> marka (bkz. modul aciklamasi). Asla magaza adini marka yapmaz."""
+    raw = _text(vendor)
+    if raw is None:
+        return None
+    key = brand_key(raw)
+    for alias, brand in vendor_brands.items():
+        if brand_key(alias) == key:
+            return brand
+    if store_name and key == brand_key(store_name):
+        return None
+    return raw
 
 
 def _in_stock(record: RawRecord) -> bool | None:
@@ -106,7 +128,13 @@ def _money(value: Any) -> int | None:
 
 
 def to_listing(
-    record: RawRecord, *, platform: str, currency: str, observed_at: datetime
+    record: RawRecord,
+    *,
+    platform: str,
+    currency: str,
+    observed_at: datetime,
+    store_name: str | None = None,
+    vendor_brands: Mapping[str, str] | None = None,
 ) -> CanonicalListing | Rejection:
     """Tek `RawRecord` -> sozlesme. Asla istisna firlatmaz."""
     fields = record.fields
@@ -146,7 +174,9 @@ def to_listing(
             price=price,
             list_price=list_price,
             in_stock=_in_stock(record),
-            brand=_text(fields.get("vendor")),
+            brand=brand_from_vendor(
+                fields.get("vendor"), store_name=store_name, vendor_brands=vendor_brands or {}
+            ),
             category_path=category,
             gtin=_gtin(record),
             options={COLOR_AXIS: color} if color else {},
@@ -174,10 +204,14 @@ class ShopifyListingAdapter:
         *,
         currency: str = "TRY",
         observed_at: datetime | Clock | None = None,
+        store_name: str | None = None,
+        vendor_brands: Mapping[str, str] | None = None,
     ) -> None:
         self.platform = platform
         self._records = records
         self.currency = currency
+        self.store_name = store_name
+        self.vendor_brands = dict(vendor_brands or {})
         self._clock = resolve_clock(observed_at)
         self.checkpoint = Checkpoint()
 
@@ -191,7 +225,12 @@ class ShopifyListingAdapter:
             item: CanonicalListing | Rejection
             if isinstance(record, RawRecord):
                 item = to_listing(
-                    record, platform=self.platform, currency=self.currency, observed_at=observed_at
+                    record,
+                    platform=self.platform,
+                    currency=self.currency,
+                    observed_at=observed_at,
+                    store_name=self.store_name,
+                    vendor_brands=self.vendor_brands,
                 )
             else:
                 item = Rejection("record_not_object", f"#{index}")

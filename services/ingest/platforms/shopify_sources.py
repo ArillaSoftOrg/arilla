@@ -15,6 +15,8 @@ programiyla belgelenince tanim guncellenir.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
+from dataclasses import dataclass, field
 from datetime import timedelta
 
 from platforms.constraints import SourceConstraints, UpdateLimits, UsageRights
@@ -80,3 +82,47 @@ def pilot_feed_config(*, color_option: str | None = None) -> dict[str, object]:
             },
         }
     }
+
+
+@dataclass(frozen=True)
+class ShopifyStore:
+    """Pilot magazasi: kanitli kanonik host ve (varsa) ACIK vendor -> marka eslemesi.
+
+    `vendor_brands` yalnizca kaniti `brand_evidence`'ta yazili ve insan onayli
+    eslemeler icindir. Magaza adi kendiliginden marka sayilmaz (`brand_from_vendor`).
+    """
+
+    slug: str
+    name: str
+    domain: str
+    vendor_brands: Mapping[str, str] = field(default_factory=dict)
+    brand_evidence: str = ""
+
+    def definition(self) -> SourceDefinition:
+        return shopify_store_definition(slug=self.slug, name=self.name, domain=self.domain)
+
+
+#: Yerel pilot magazalari (7 Kasim 2026 yoklamasi: meta.json kimligi, TRY, robots izinli).
+PILOT_STORES: tuple[ShopifyStore, ...] = (
+    ShopifyStore(
+        slug="eubos-turkiye",
+        name="Eubos Türkiye",
+        domain="eubos-turkiye.myshopify.com",
+        vendor_brands={"Eubos Türkiye": "Eubos"},
+        brand_evidence=(
+            "Tum urunlerde vendor = 'Eubos Turkiye' (41/41); urun serileri (Hyaluron, "
+            "Diyabetik Cilt Bakimi) Eubos markasina ait; magaza markanin Turkiye magazasi. "
+            "Uretime gecmeden once insan onayi gerekir."
+        ),
+    ),
+    ShopifyStore(
+        slug="termos-dunyasi",
+        name="Termos Dünyası",
+        domain="termos-dunyasi.myshopify.com",
+    ),
+    ShopifyStore(
+        slug="happy-place-home-decor",
+        name="Happy Place Home Decor",
+        domain="happy-place-home-decor-2.myshopify.com",
+    ),
+)

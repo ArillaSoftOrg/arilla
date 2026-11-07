@@ -257,3 +257,61 @@ def test_rate_limited_store_waits_full_retry_after_and_is_not_restarted() -> Non
     assert calls == ["/robots.txt", "/products.json", "/products.json"]
     # Yeniden denemeden once Retry-After (60 sn) kirpilmadan beklenir.
     assert max(slept) >= 60.0
+
+
+# --- marka: magaza adi != marka (Eubos sorunu, 7 Kasim pilotu) ----------------------
+
+
+@pytest.mark.parametrize(
+    ("vendor", "store", "mapping", "expected"),
+    [
+        # Acik, kanitli esleme: magazanin kendi adi markaya cevrilir.
+        ("Eubos Türkiye", "Eubos Türkiye", {"Eubos Türkiye": "Eubos"}, "Eubos"),
+        # Buyuk harf / Turkce I farki eslemeyi bozmaz.
+        ("EUBOS TÜRKİYE", "Eubos Türkiye", {"Eubos Türkiye": "Eubos"}, "Eubos"),
+        # Esleme yoksa magaza adi marka OLMAZ (Termos Dunyasi'nin kendi satirlari).
+        ("Termos Dünyası", "Termos Dünyası", {}, None),
+        ("North Sails Türkiye", "North Sails Türkiye", {}, None),
+        # Gercek marka saticisi: ham deger korunur.
+        ("Stanley", "Termos Dünyası", {}, "Stanley"),
+        ("TASCHEN", "Happy Place Home Decor", {}, "TASCHEN"),
+        # Esleme yalnizca kendi vendor'una uygulanir.
+        ("Thermos", "Termos Dünyası", {"Termos Dünyası": "X"}, "Thermos"),
+        # Bos vendor marka uydurmaz.
+        ("", "Eubos Türkiye", {"Eubos Türkiye": "Eubos"}, None),
+        (None, "Eubos Türkiye", {}, None),
+        # Magaza adi bilinmiyorsa ham deger tasinir (temizlik siniflandirmada).
+        ("Eubos Türkiye", None, {}, "Eubos Türkiye"),
+    ],
+)
+def test_brand_from_vendor_separates_store_name_and_brand(vendor, store, mapping, expected) -> None:
+    from platforms.adapters.shopify import brand_from_vendor
+
+    assert brand_from_vendor(vendor, store_name=store, vendor_brands=mapping) == expected
+
+
+def test_adapter_applies_store_brand_policy_end_to_end() -> None:
+    products = [
+        _product(1, [_variant(11)], vendor="Eubos Türkiye"),
+        _product(2, [_variant(21)], vendor="Stanley"),
+    ]
+    connector = ShopifyConnector(
+        base_url=STORE, config=pilot_feed_config(), client=_client(products), sleep=lambda _s: None
+    )
+    adapter = ShopifyListingAdapter(
+        "eubos-turkiye",
+        connector.fetch,
+        observed_at=NOW,
+        store_name="Eubos Türkiye",
+        vendor_brands={"Eubos Türkiye": "Eubos"},
+    )
+    assert [i.brand for i in adapter.fetch()] == ["Eubos", "Stanley"]
+
+
+def test_pilot_store_brand_mappings_carry_evidence() -> None:
+    from platforms.shopify_sources import PILOT_STORES
+
+    for store in PILOT_STORES:
+        if store.vendor_brands:
+            assert store.brand_evidence, store.slug
+        assert store.definition().status == "sample"
