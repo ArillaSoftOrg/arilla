@@ -38,15 +38,21 @@ if (scope === null) {
   process.exit(2);
 }
 
+const datasetName = argValue("--dataset") ?? "intent-v2.dev";
+if (!/^[a-z0-9.-]+$/.test(datasetName) || datasetName.includes("holdout")) {
+  console.error("--dataset: yalnizca dev/regresyon seti (holdout Faz 3'te bir kez)");
+  process.exit(2);
+}
 const dataset = JSON.parse(
-  readFileSync(new URL("../src/eval/datasets/intent-v2.dev.json", import.meta.url), "utf8"),
+  readFileSync(new URL(`../src/eval/datasets/${datasetName}.json`, import.meta.url), "utf8"),
 ) as IntentV2Dataset;
 
 const db = createDatabase(url);
 const merchantIds = await scopeMerchantIds(db, scope);
 const catalog = await catalogSummary(db, merchantIds);
 const started = performance.now();
-const rows = await evaluateIntentSearch(db, dataset.cases, merchantIds);
+const legacyCategory = process.argv.includes("--legacy-category");
+const rows = await evaluateIntentSearch(db, dataset.cases, merchantIds, { legacyCategory });
 const s = summarizeIntentSearch(rows);
 const pct = (n: number, d: number) => (d === 0 ? "n/a" : `${((100 * n) / d).toFixed(1)}%`);
 
@@ -70,6 +76,12 @@ console.log(
   `ilk 10 ayni ${s.identicalTop10}/${s.cases} (${pct(s.identicalTop10, s.cases)}) | ort. kesisim ${s.meanOverlap10.toFixed(2)}`,
 );
 console.log(`(a) dolu, (b) bos: ${s.bEmptiedA.length === 0 ? "yok" : s.bEmptiedA.join(", ")}`);
+const causes = (c: Record<string, number>) =>
+  `katalogda yok ${c.not_in_catalog}, filtre ${c.filter}, algoritma ${c.retrieval}`;
+console.log(`sifir neden (kural) a: ${causes(s.zeroCausesA)} | b: ${causes(s.zeroCausesB)}`);
+console.log(
+  `kategori politikasi: ${legacyCategory ? "ESKI (duzeltme oncesi)" : "dogrulanmis (category-map)"}`,
+);
 console.log("bulma basarisi / nDCG: urun alakalilik etiketi bekliyor (hesaplanmadi)");
 
 const out = argValue("--json");

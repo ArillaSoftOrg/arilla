@@ -1,5 +1,5 @@
 {
-  "_aciklama": "IntentV2 dev seti (karar 0171 §10). Optimizasyon YALNIZCA bu setle yapilir. Etiketler Claude tarafindan TASLAK olarak yazildi (label_source=ai_drafted_pending_human_review); bagimsiz insan etiketi DEGILDIR ve kullanici incelemesi bekler. gold.brand: aranan urunun kullanicinin yazdigi markasi (kanonik, kucuk harf); uyumlu cihazin markasi buraya yazilmaz. gold.type_id: yalnizca ana urun CATALOG_PRODUCT_TYPES turuyse. gold.category: type_id'nin kategori yolu (H icin izin verilen tek kategori). gold.budget: [min_try, max_try] TL. gold.attrs: [anahtar, deger, guc]. gold.exclude_brands: istenmeyen markalar. gold.clarify: engelleyici soru dogru mu.",
+  "_aciklama": "IntentV2 dev seti (karar 0171 §10). Optimizasyon YALNIZCA bu setle yapilir. Etiketler Claude tarafindan TASLAK olarak yazildi (label_source=ai_drafted_pending_human_review); bagimsiz insan etiketi DEGILDIR ve kullanici incelemesi bekler. gold.brand: aranan urunun kullanicinin yazdigi markasi (kanonik, kucuk harf); uyumlu cihazin markasi buraya yazilmaz. gold.type_id: yalnizca ana urun CATALOG_PRODUCT_TYPES turuyse. gold.category: H kategori filtresi uygulanirsa izin verilen URETIM katalog yolu (2026-11-07 salt okunur olcum; intent/category-map.ts). Urunleri buyuk olcude kategorisiz olan turde (supurge) null. gold.budget: [min_try, max_try] TL. gold.attrs: [anahtar, deger, guc]. gold.exclude_brands: istenmeyen markalar. gold.clarify: engelleyici soru dogru mu.",
   "label_source": "ai_drafted_pending_human_review",
   "lexicon_brands": [
     "samsung",
@@ -42,7 +42,7 @@
       "gold": {
         "type": "süpürge",
         "type_id": "vacuum",
-        "category": "ev-yasam",
+        "category": null,
         "role": "main",
         "brand": null,
         "compat": null,
@@ -99,7 +99,7 @@
       "gold": {
         "type": "süpürge",
         "type_id": "vacuum",
-        "category": "ev-yasam",
+        "category": null,
         "role": "main",
         "brand": "dyson",
         "compat": null,
@@ -156,7 +156,7 @@
       "gold": {
         "type": "bebek arabası",
         "type_id": "stroller",
-        "category": "anne-bebek",
+        "category": "anne-bebek-cocuk",
         "role": "main",
         "brand": null,
         "compat": null,
@@ -175,7 +175,7 @@
       "gold": {
         "type": "parfüm",
         "type_id": "perfume",
-        "category": "saglik-kozmetik/kozmetik",
+        "category": "kozmetik-kisisel-bakim",
         "role": "main",
         "brand": null,
         "compat": null,
@@ -794,7 +794,7 @@
       "gold": {
         "type": "süpürge",
         "type_id": "vacuum",
-        "category": "ev-yasam",
+        "category": null,
         "role": "main",
         "brand": null,
         "compat": null,
@@ -1648,7 +1648,7 @@
       "gold": {
         "type": "bebek arabası",
         "type_id": "stroller",
-        "category": "anne-bebek",
+        "category": "anne-bebek-cocuk",
         "role": "main",
         "brand": null,
         "compat": null,
@@ -1896,7 +1896,7 @@
       "gold": {
         "type": "vacuum cleaner",
         "type_id": "vacuum",
-        "category": "ev-yasam",
+        "category": null,
         "role": "main",
         "brand": null,
         "compat": null,

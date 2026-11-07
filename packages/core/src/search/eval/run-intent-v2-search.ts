@@ -7,12 +7,17 @@
  * `applyIntentPlan` ile ekler. Boylece fark yalnizca niyetten gelir.
  */
 import type { Database } from "@arilla/db";
+import { sql } from "drizzle-orm";
 import type { IntentV2Case } from "../../eval/intent-v2-eval.ts";
 import {
+  classifyZero,
+  type GoldPlanOptions,
   type IntentSearchRow,
   measureItems,
   overlap,
   planFromGold,
+  typeProbeTerms,
+  type ZeroCause,
 } from "../../eval/intent-v2-search.ts";
 import { applyIntentPlan } from "../../intent/to-search.ts";
 import {
@@ -38,21 +43,80 @@ async function runPipeline(db: Database, parsed: QueryObject, merchantIds: numbe
   };
 }
 
+/**
+ * Kapsamdaki katalogda basligi urun turunun TUM terimlerini kelime basinda
+ * iceren urun var mi; varsa en fazla 3 ornek baslik doner (kural tabanli;
+ * alakalilik kaniti degil, insan dogrulamasi icin). Yalniz etiketteki tur adi
+ * kullanilir; eslesen urun ilgili aksesuar olabilir ("laptop" -> laptop cantasi).
+ */
+async function catalogProbe(
+  db: Database,
+  testCase: IntentV2Case,
+  merchantIds: number[],
+): Promise<string[]> {
+  const candidates = [testCase.gold.type ?? ""];
+  for (const candidate of candidates) {
+    const terms = typeProbeTerms(candidate);
+    if (terms.length === 0) continue;
+    const conditions = sql.join(
+      terms.map((term) => {
+        const pattern = `\\m${term.prefix}${term.whole ? "\\M" : ""}`;
+        return sql`translate(lower(p.title), 'çğıöşüâîû', 'cgiosuaiu') ~ ${pattern}`;
+      }),
+      sql` AND `,
+    );
+    const result = await db.execute<{ title: string }>(sql`
+      SELECT p.title FROM product p
+       WHERE EXISTS (SELECT 1 FROM offer o WHERE o.product_id = p.id AND o.is_active
+                       AND o.merchant_id = ANY(${sql.param(merchantIds)}::bigint[]))
+         AND ${conditions}
+       ORDER BY p.id
+       LIMIT 3`);
+    if (result.rows.length > 0) return result.rows.map((row) => row.title);
+  }
+  return [];
+}
+
+const hasFilters = (q: QueryObject) =>
+  Object.values(q.filters).some(
+    (v) => v !== undefined && v !== null && !(Array.isArray(v) && v.length === 0),
+  );
+
 export async function evaluateIntentSearch(
   db: Database,
   cases: readonly IntentV2Case[],
   merchantIds: number[],
+  options: GoldPlanOptions = {},
 ): Promise<IntentSearchRow[]> {
   const rows: IntentSearchRow[] = [];
   for (const testCase of cases) {
     const { parsed } = await resolveQuery(db, testCase.q);
-    const plan = planFromGold(testCase.gold);
+    const plan = planFromGold(testCase.gold, options);
     const oracle = applyIntentPlan(parsed, plan);
     const a = await runPipeline(db, parsed, merchantIds);
     const planApplied = JSON.stringify(oracle.filters) !== JSON.stringify(parsed.filters);
     const b = planApplied ? await runPipeline(db, oracle, merchantIds) : a;
-    const ma = measureItems(testCase, a.items, a.stage);
-    const mb = measureItems(testCase, b.items, b.stage);
+    let probeTitles: string[] = [];
+    let causeA: ZeroCause | null = null;
+    let causeB: ZeroCause | null = null;
+    if (a.items.length === 0 || b.items.length === 0) {
+      probeTitles = await catalogProbe(db, testCase, merchantIds);
+      const has = probeTitles.length > 0;
+      const unfiltered = await runPipeline(db, { ...parsed, filters: {} }, merchantIds);
+      const n = unfiltered.items.length;
+      causeA = classifyZero({
+        catalogHasType: has,
+        hadFilters: hasFilters(parsed),
+        unfilteredReturned: n,
+      });
+      causeB = classifyZero({
+        catalogHasType: has,
+        hadFilters: hasFilters(oracle),
+        unfilteredReturned: n,
+      });
+    }
+    const ma = measureItems(testCase, a.items, a.stage, causeA, probeTitles);
+    const mb = measureItems(testCase, b.items, b.stage, causeB, probeTitles);
     rows.push({
       id: testCase.id,
       cat: testCase.cat,
