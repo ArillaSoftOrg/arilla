@@ -48,7 +48,7 @@ function baseQuery(filters: QueryObject["filters"] = {}): QueryObject {
 }
 
 describe("toSearchPlan: H -> filtre, R -> ipucu, D -> gosterim", () => {
-  it("acik marka + acik butce + ana urun turu -> filtre (kurus)", () => {
+  it("acik marka + acik butce -> filtre (kurus); dogrulanmamis tur kategorisi yalniz ipucu", () => {
     const p = plan(
       "lenovo laptop 30000 tl altı",
       raw({
@@ -61,7 +61,33 @@ describe("toSearchPlan: H -> filtre, R -> ipucu, D -> gosterim", () => {
     expect(p.filters.brand_include).toEqual(["lenovo"]);
     expect(p.filters.price_max).toBe(3_000_000);
     expect(p.filters.price_min).toBeUndefined();
-    expect(p.filters.category_path).toBeTruthy();
+    // laptop yolu uretimde dogrulanamadi (category-map): filtre yok, ipucu var.
+    expect(p.filters.category_path).toBeUndefined();
+    expect(p.hints.category).toBe("elektronik/bilgisayar-grubu");
+  });
+
+  it("uretimde dogrulanmis tur kategorisi (oyun konsolu) -> kategori filtresi", () => {
+    const p = plan(
+      "oyun konsolu",
+      raw({
+        product_type: { text: "oyun konsolu", type_id: "game_console", evidence: "oyun konsolu" },
+        role: "main",
+      }),
+    );
+    expect(p.filters.category_path).toBe("elektronik");
+    expect(p.hints.category).toBeNull();
+  });
+
+  it("aksesuar sorgusunda tur kategorisi filtre de ipucu da olmaz", () => {
+    const p = plan(
+      "oyun konsolu kılıfı",
+      raw({
+        product_type: { text: "oyun konsolu", type_id: "game_console", evidence: "oyun konsolu" },
+        role: "accessory",
+      }),
+    );
+    expect(p.filters.category_path).toBeUndefined();
+    expect(p.hints.category).toBeNull();
   });
 
   it("uyumlu cihazin markasi brand_include'a girmez; uyumluluk yalniz ipucu", () => {
@@ -143,6 +169,7 @@ describe("applyIntentPlan: deterministik alan ezilmez", () => {
       filters: { price_max: 999_999, brand_include: ["lenovo"], brand_exclude: ["xiaomi"] },
       hints: {
         role: null,
+        category: null,
         compatibleWith: null,
         required: [],
         preferred: [],
@@ -162,6 +189,7 @@ describe("applyIntentPlan: deterministik alan ezilmez", () => {
       filters: {},
       hints: {
         role: null,
+        category: null,
         compatibleWith: null,
         required: [],
         preferred: [],

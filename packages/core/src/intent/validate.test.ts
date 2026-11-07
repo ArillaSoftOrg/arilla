@@ -93,9 +93,10 @@ describe("B. teknik özellikler: '144 Hz, 27 inç, IPS oyuncu monitörü'", () =
     }),
   );
 
-  it("kategori yolu açık ve katalogda doğrulanabilir: H", () => {
-    expect(find(result.criteria, "category")?.mode).toBe("H");
-    expect(find(result.criteria, "category")?.canonical).toBe("elektronik");
+  it("monitör yolu üretimde doğrulanamadı: kategori yalnızca sıralama ipucu (R)", () => {
+    expect(find(result.criteria, "category")?.mode).toBe("R");
+    expect(find(result.criteria, "category")?.reason).toBe("category_not_verified");
+    expect(find(result.criteria, "category")?.canonical).toBe("elektronik/bilgisayar-grubu");
   });
 
   it("başlığa dayanan teknik özellikler asla H olmaz", () => {
@@ -245,7 +246,8 @@ describe("F. gündelik ifade: 'Üniversitede not tutmak için uygun fiyatlı tab
 
   it("kullanıcının yazmadığı marka filtre olmaz", () => {
     expect(find(result.criteria, "brand")?.mode).toBe("D");
-    expect(criteriaIn(result, "H").map((c) => c.field)).toEqual(["category"]);
+    // Tablet kategorisi üretimde doğrulanamadı: hiçbir kesin filtre yok.
+    expect(criteriaIn(result, "H")).toEqual([]);
   });
 });
 

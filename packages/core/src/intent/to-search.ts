@@ -25,6 +25,11 @@ import type { Criterion, ValidatedIntentV2 } from "./validate.ts";
 
 export interface RankHints {
   role: IntentRole | null;
+  /**
+   * Uretimde dogrulanamamis tur kategorisi (`category-map.ts`): yalniz siralama
+   * tercihi; kategorisiz ya da baska kategorideki urun DISLANMAZ.
+   */
+  category: string | null;
   /** Uyumlu cihaz metni (katlanmis); baslik kademesi icin (§4.3). */
   compatibleWith: string | null;
   required: string[];
@@ -51,6 +56,7 @@ export function toSearchPlan(intent: ValidatedIntentV2): IntentSearchPlan {
   const filters: QueryFilters = {};
   const hints: RankHints = {
     role: intent.downgraded ? null : intent.role,
+    category: null,
     compatibleWith: null,
     required: [],
     preferred: [],
@@ -91,6 +97,9 @@ export function toSearchPlan(intent: ValidatedIntentV2): IntentSearchPlan {
     switch (c.field) {
       case "compatible_with":
         hints.compatibleWith = fold(c.value);
+        break;
+      case "category":
+        hints.category = c.canonical;
         break;
       case "brand":
         hints.brands = uniq([...hints.brands, value]);
