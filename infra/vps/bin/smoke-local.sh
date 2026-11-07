@@ -33,6 +33,7 @@ export CADDY_BIND=127.0.0.1
 # www -> apex yonlendirmesi (Caddyfile): yerel testte http ve sahte alan adi
 export ARILLA_WWW_ADDRESS="http://www.smoke.example.test"
 export ARILLA_CANONICAL_ORIGIN="http://smoke.example.test"
+export ARILLA_ANALYTICS_ADDRESS="http://analytics.smoke.example.test"
 export CADDY_HTTP_PORT=${SMOKE_HTTP_PORT:-18080}
 export CADDY_HTTPS_PORT=${SMOKE_HTTPS_PORT:-18443}
 BASE="http://127.0.0.1:${CADDY_HTTP_PORT}"

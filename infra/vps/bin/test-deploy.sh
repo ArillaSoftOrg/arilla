@@ -151,6 +151,7 @@ CADDY_HTTP_PORT=$HTTP_PORT
 CADDY_HTTPS_PORT=18453
 ARILLA_WWW_ADDRESS=http://www.dt.example.test
 ARILLA_CANONICAL_ORIGIN=http://dt.example.test
+ARILLA_ANALYTICS_ADDRESS=http://analytics.dt.example.test
 EOF
 export ARILLA_ENV_DIR="$ROOT/env"
 export ARILLA_BACKUP_DIR="$ROOT/backup"  # karar 0110: host /opt/arilla/backup kullanilmaz
