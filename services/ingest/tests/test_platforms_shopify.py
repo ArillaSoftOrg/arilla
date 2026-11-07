@@ -204,3 +204,56 @@ def test_pilot_config_caps_products() -> None:
     connector = ShopifyConnector(base_url=STORE, config=config, client=_client([]))
     assert connector.max_products == PILOT_MAX_PRODUCTS
     assert connector.page_size == 250
+
+
+def _throttled_store(calls: list[str]) -> httpx.Client:
+    """Her katalog istegine 429 + Retry-After: 60 donen magaza."""
+
+    def route(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        if request.url.path == "/robots.txt":
+            return httpx.Response(404)
+        return httpx.Response(429, headers={"Retry-After": "60"})
+
+    return httpx.Client(transport=httpx.MockTransport(route))
+
+
+def test_rate_limited_store_waits_full_retry_after_and_is_not_restarted() -> None:
+    from platforms.flow import BatchResult, run_source
+
+    calls: list[str] = []
+    slept: list[float] = []
+    connector = ShopifyConnector(
+        base_url=STORE,
+        config=pilot_feed_config(),
+        client=_throttled_store(calls),
+        sleep=slept.append,
+        clock=lambda: 0.0,
+    )
+    adapter = ShopifyListingAdapter("shop-example", connector.fetch, observed_at=NOW)
+    definition = shopify_store_definition(slug="shop-example", name="Shop", domain="shop.example")
+
+    class Sink:
+        def write_batch(self, listings):  # pragma: no cover - hic cagrilmamali
+            return BatchResult(written=len(listings))
+
+    class Store:
+        def load(self, key):
+            return None
+
+        def save(self, key, checkpoint):  # pragma: no cover
+            raise AssertionError
+
+    result = run_source(
+        adapter,
+        Sink(),
+        definition.constraints,
+        store=Store(),
+        clock=lambda: 0.0,
+        sleep=lambda _s: None,
+    )
+    assert result.status == "failed" and result.stop_reason == "adapter_error"
+    # Tek robots + ilk istek + TEK yeniden deneme; kosucu adapter'i yeniden baslatmaz.
+    assert calls == ["/robots.txt", "/products.json", "/products.json"]
+    # Yeniden denemeden once Retry-After (60 sn) kirpilmadan beklenir.
+    assert max(slept) >= 60.0

@@ -27,8 +27,15 @@ SHOPIFY_UPDATE_LIMITS = UpdateLimits(
     requests_per_minute=30,
     max_concurrency=1,
     batch_size=250,
-    max_consecutive_errors=5,
+    # Pilot olcumu (7 Kasim): 429 sonrasi kosucunun adapter'i bastan baslatmasi robots ve
+    # 1. sayfayi tekrar tekrar istiyordu. Shopify hiz sinirinda kaynak o kosuda DURUR;
+    # yeniden deneme yalnizca baglayicinin Retry-After'a uyan kendi denemesidir.
+    max_consecutive_errors=1,
 )
+
+#: Shopify 429'da `Retry-After: 60` gonderiyor; bekleme bunun altina kirpilmamali
+#: (baglayici varsayilani 30 sn idi ve istekler 60 sn dolmadan tekrarlaniyordu).
+RETRY_AFTER_CAP_SECONDS = 90.0
 
 #: Pilot tavani: magaza basina en fazla bu kadar kanonik Shopify urunu
 #: (`feed_config.transport.shopify.max_products`; renk bolmesinden once sayilir).
@@ -66,6 +73,10 @@ def pilot_feed_config(*, color_option: str | None = None) -> dict[str, object]:
             "shopify": shopify,
             "pagination": {"size": 250},
             "rate_limit": {"requests_per_second": 0.5},
-            "retry": {"max_retries": 2},
+            "retry": {
+                "max_retries": 1,
+                "backoff_seconds": 5.0,
+                "max_backoff_seconds": RETRY_AFTER_CAP_SECONDS,
+            },
         }
     }
