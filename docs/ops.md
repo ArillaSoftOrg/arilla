@@ -2355,10 +2355,11 @@ değişiklikler ezilir. Üretim öncesi, YALNIZ OKUYARAK (VPS'e yazmadan):
    ve `diff` ile `infra/vps/Caddyfile`. `analytics.manicepte.com` bloğunun, Umami
    konteynerine ulaşmak için Caddy'nin bağlı olduğu Docker ağının ve `www`/`ARILLA_*`
    değişkenlerinin depoya taşınması gerekir (ayrı PR).
-2. Canlı `pg_hba.conf` ile depodakini karşılaştır (`/opt/arilla/vps/postgres/pg_hba.conf`).
-   Depodaki kurallar yalnız `arilla` veritabanına izin verir; Umami veritabanı/rolü için
-   kural eklenmeden dağıtım Umami'nin veritabanı bağlantısını keser.
-   `infra/vps/bin/check-pg-hba.py` ile doğrula.
+2. `pg_hba.conf`: Umami kuralı (`umami` veritabanı, yalnız `umami_app` rolü, özel adres
+   blokları) artık depodadır (`infra/vps/postgres/pg_hba.conf`). Dağıtım dosyayı kopyalar
+   ama postgres'i yeniden başlatmaz; kural değişikliğinden sonra bir kez elle yeniden yükle:
+   `docker compose ... exec postgres psql -U arilla -d arilla -c 'select pg_reload_conf()'`.
+   Doğrulama: `infra/vps/bin/check-pg-hba.py <pg_hba.conf> <data-alt-ağı> --database umami --users umami_app`.
 3. Umami veritabanı Arilla'nın PostgreSQL kümesindeyse pgBackRest/WAL (karar 0110) onu da
    kapsar; ayrı bir Postgres kapsayıcısındaysa kapsam DIŞIDIR (ayrı `pg_dump` işi gerekir).
    `infra/vps/backup` yapılandırması ve `pg-restore-test` ile doğrula.
