@@ -22,6 +22,7 @@ import { CATALOG_PRODUCT_TYPES } from "../clarification/product-types.ts";
 import type { LexiconEntry } from "../search/lexicon.ts";
 import { foldForMatch } from "../search/text-match.ts";
 import { oppositeOf, resolveAttributeValue } from "./antonyms.ts";
+import { intentCategoryFor } from "./category-map.ts";
 import {
   AMBIGUOUS_FIELDS,
   type AmbiguousField,
@@ -76,6 +77,8 @@ export type CriterionReason =
   | "brand_is_compatible_device"
   | "type_not_main_role"
   | "type_head_not_in_evidence"
+  /** Tur kategorisi uretimde dogrulanamadi (category-map esigi): yalniz siralama. */
+  | "category_not_verified"
   | "downgraded_core_rejected"
   | "unknown_value"
   | "value_conflicts_evidence"
@@ -271,18 +274,20 @@ export function validateIntentV2(raw: unknown, ctx: ValidateContext): ValidatedI
               : "inferred",
       });
 
-      // Kategori yolu (H): katalogda var olan tur, ACIK kanit, ana urun ve
-      // turun bas ismi kanitta geciyor. Aksesuar/parcada tur kategorisi
-      // aranan urunun kategorisi olmayabilir; filtre konmaz.
+      // Kategori yolu (H): katalogda var olan tur, ACIK kanit, ana urun,
+      // turun bas ismi kanitta geciyor VE yol uretimde dogrulanmis
+      // (`category-map.ts`). Dogrulanmamis yol yalnizca siralama ipucudur.
+      // Aksesuar/parcada tur kategorisi aranan urunun kategorisi olmayabilir.
       if (typeId !== null && typeId !== undefined) {
         const type = CATALOG_PRODUCT_TYPES.find((entry) => entry.id === typeId);
-        if (!type) {
+        const mapped = type ? intentCategoryFor(type.id) : null;
+        if (!type || !mapped) {
           reject("category", String(typeId), "unknown_value");
         } else if (role !== null && role !== "main") {
           criteria.push({
             field: "category",
             value: type.label,
-            canonical: type.categoryPath,
+            canonical: mapped.hintPath,
             source: match.source,
             mode: "D",
             reason: "type_not_main_role",
@@ -291,7 +296,7 @@ export function validateIntentV2(raw: unknown, ctx: ValidateContext): ValidatedI
           criteria.push({
             field: "category",
             value: type.label,
-            canonical: type.categoryPath,
+            canonical: mapped.hintPath,
             source: match.source,
             mode: "D",
             reason: match.source === "corrected" ? "corrected_rejected" : "inferred",
@@ -302,13 +307,18 @@ export function validateIntentV2(raw: unknown, ctx: ValidateContext): ValidatedI
             const headTokens = evidenceTokens(head);
             return headTokens.every((h) => evTokens.some((t) => t.startsWith(h)));
           });
+          const hard = headInEvidence && mapped.hard;
           criteria.push({
             field: "category",
             value: type.label,
-            canonical: type.categoryPath,
+            canonical: hard ? mapped.hardPath : mapped.hintPath,
             source: "explicit",
-            mode: headInEvidence ? "H" : "D",
-            reason: headInEvidence ? "explicit_catalog_column" : "type_head_not_in_evidence",
+            mode: !headInEvidence ? "D" : hard ? "H" : "R",
+            reason: !headInEvidence
+              ? "type_head_not_in_evidence"
+              : hard
+                ? "explicit_catalog_column"
+                : "category_not_verified",
           });
         }
       }

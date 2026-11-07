@@ -1,10 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { IntentV2Case, IntentV2Gold } from "./intent-v2-eval.ts";
 import {
+  classifyZero,
   type IntentSearchRow,
   measureItems,
   planFromGold,
   summarizeIntentSearch,
+  typeProbeTerms,
 } from "./intent-v2-search.ts";
 
 function gold(over: Partial<IntentV2Gold> = {}): IntentV2Gold {
@@ -65,13 +67,23 @@ describe("planFromGold", () => {
     expect(p.hints.excluded).toEqual(["kablosuz"]);
   });
 
-  it("type_id kategori filtresine yalniz ana urunde doner", () => {
-    expect(planFromGold(gold({ role: "main", type_id: "laptop" })).filters.category_path).toBe(
-      "elektronik",
-    );
+  it("dogrulanmis tur (oyun konsolu) kategori filtresi; dogrulanmamis tur yalniz ipucu", () => {
     expect(
-      planFromGold(gold({ role: "accessory", type_id: "laptop" })).filters.category_path,
+      planFromGold(gold({ role: "main", type_id: "game_console" })).filters.category_path,
+    ).toBe("elektronik");
+    const laptop = planFromGold(gold({ role: "main", type_id: "laptop", category: "elektronik" }));
+    expect(laptop.filters.category_path).toBeUndefined();
+    expect(laptop.hints.category).toBe("elektronik/bilgisayar-grubu");
+    expect(
+      planFromGold(gold({ role: "accessory", type_id: "game_console" })).filters.category_path,
     ).toBeUndefined();
+  });
+
+  it("eski politika (karsilastirma): etiket/tur yolu dogrudan filtre", () => {
+    const legacy = planFromGold(gold({ role: "main", type_id: "vacuum" }), {
+      legacyCategory: true,
+    });
+    expect(legacy.filters.category_path).toBe("ev-yasam");
   });
 
   it("oznitelikler asla filtre olmaz", () => {
@@ -114,6 +126,7 @@ describe("measureItems", () => {
 
 describe("summarizeIntentSearch", () => {
   const metrics = (ids: number[], extra = {}) => ({
+    zeroCause: null,
     returned: ids.length,
     zero: ids.length === 0,
     stage: "exact",
@@ -153,5 +166,34 @@ describe("summarizeIntentSearch", () => {
     expect(s.budgetViolatedA).toBe(1);
     expect(s.budgetViolatedB).toBe(0);
     expect(s.meanOverlap10).toBe(1);
+  });
+});
+
+describe("sifir sonuc nedeni (kural tabanli)", () => {
+  it("katalogda tur yoksa filtreye bakilmaz", () => {
+    expect(classifyZero({ catalogHasType: false, hadFilters: true, unfilteredReturned: 5 })).toBe(
+      "not_in_catalog",
+    );
+  });
+  it("tur var, filtresiz arama sonuc veriyor -> filtre", () => {
+    expect(classifyZero({ catalogHasType: true, hadFilters: true, unfilteredReturned: 3 })).toBe(
+      "filter",
+    );
+  });
+  it("tur var, filtresiz de bos ya da hic filtre yok -> algoritma", () => {
+    expect(classifyZero({ catalogHasType: true, hadFilters: true, unfilteredReturned: 0 })).toBe(
+      "retrieval",
+    );
+    expect(classifyZero({ catalogHasType: true, hadFilters: false, unfilteredReturned: 9 })).toBe(
+      "retrieval",
+    );
+  });
+  it("yoklama: katlanmis kelime basi; kisa kelime tam kelime", () => {
+    expect(typeProbeTerms("Kulaklık")).toEqual([{ prefix: "kulak", whole: false }]);
+    expect(typeProbeTerms("akıllı saat")).toEqual([
+      { prefix: "akill", whole: false },
+      { prefix: "saat", whole: true },
+    ]);
+    expect(typeProbeTerms("kol")).toEqual([{ prefix: "kol", whole: true }]);
   });
 });

@@ -15,6 +15,7 @@
  * - (a) ile (b) ilk 10 kesisimi.
  */
 import { CATALOG_PRODUCT_TYPES } from "../clarification/product-types.ts";
+import { intentCategoryFor } from "../intent/category-map.ts";
 import { compatTier, type IntentSearchPlan } from "../intent/to-search.ts";
 import type { SearchResultItem } from "../search/result-types.ts";
 import { foldForMatch } from "../search/text-match.ts";
@@ -22,8 +23,16 @@ import type { IntentV2Case, IntentV2Gold } from "./intent-v2-eval.ts";
 
 const fold = (value: string) => foldForMatch(value).trim();
 
+export interface GoldPlanOptions {
+  /**
+   * Duzeltme oncesi davranis (karsilastirma icin): `product-types.ts` tur yolu
+   * dogrudan kesin filtre olur.
+   */
+  legacyCategory?: boolean;
+}
+
 /** Altin etiket -> plan; uretim kurallariyla ayni kipler (0171 §4.2). */
-export function planFromGold(gold: IntentV2Gold): IntentSearchPlan {
+export function planFromGold(gold: IntentV2Gold, options: GoldPlanOptions = {}): IntentSearchPlan {
   const filters: IntentSearchPlan["filters"] = {};
   if (gold.budget) {
     if (gold.budget[0] !== null) filters.price_min = Math.round(gold.budget[0] * 100);
@@ -31,12 +40,20 @@ export function planFromGold(gold: IntentV2Gold): IntentSearchPlan {
   }
   if (gold.brand) filters.brand_include = [fold(gold.brand)];
   if (gold.exclude_brands.length > 0) filters.brand_exclude = gold.exclude_brands.map(fold);
-  const typePath =
-    gold.role === "main" && gold.type_id
-      ? (CATALOG_PRODUCT_TYPES.find((t) => t.id === gold.type_id)?.categoryPath ?? null)
-      : null;
-  const category = gold.category ?? typePath;
-  if (category) filters.category_path = category;
+  let hintCategory: string | null = null;
+  if (options.legacyCategory) {
+    const typePath =
+      gold.role === "main" && gold.type_id
+        ? (CATALOG_PRODUCT_TYPES.find((t) => t.id === gold.type_id)?.categoryPath ?? null)
+        : null;
+    // Eski etiketlerde gold.category her zaman bu yola esitti (eski veri seti testi).
+    if (typePath) filters.category_path = typePath;
+  } else if (gold.role === "main" && gold.type_id) {
+    // Uretimdeki dogrulayiciyla ayni kural: yalniz dogrulanmis yol filtredir.
+    const mapped = intentCategoryFor(gold.type_id);
+    if (mapped?.hard) filters.category_path = mapped.hardPath;
+    else if (mapped) hintCategory = mapped.hintPath;
+  }
 
   const by = (strength: string) =>
     gold.attrs.filter((a) => a[2] === strength).map((a) => fold(a[1]));
@@ -44,6 +61,7 @@ export function planFromGold(gold: IntentV2Gold): IntentSearchPlan {
     filters,
     hints: {
       role: gold.role,
+      category: hintCategory,
       compatibleWith: gold.compat ? fold(gold.compat) : null,
       required: by("required"),
       preferred: by("preferred"),
@@ -54,7 +72,52 @@ export function planFromGold(gold: IntentV2Gold): IntentSearchPlan {
   };
 }
 
+/**
+ * Sifir sonucun KURAL TABANLI nedeni (kesin kanit degil; insan dogrulamasi icin):
+ * - `not_in_catalog`: kapsamdaki katalogda basligi etiketteki urun turunu
+ *   (token onekleri) iceren urun yok;
+ * - `filter`: boyle urun var ve AYNI metin filtresiz aranınca sonuc donuyor;
+ * - `retrieval`: boyle urun var ama filtresiz arama da bulamiyor.
+ */
+export type ZeroCause = "not_in_catalog" | "filter" | "retrieval";
+
+export function classifyZero(input: {
+  catalogHasType: boolean;
+  hadFilters: boolean;
+  unfilteredReturned: number;
+}): ZeroCause {
+  if (!input.catalogHasType) return "not_in_catalog";
+  if (input.hadFilters && input.unfilteredReturned > 0) return "filter";
+  return "retrieval";
+}
+
+export interface ProbeTerm {
+  /** Katlanmis kelime basi. */
+  prefix: string;
+  /** Kisa kelime (5 harften az): tam kelime olarak aranir ("kol" "kolye" degil). */
+  whole: boolean;
+}
+
+/**
+ * Urun turu metninden katalog yoklama terimleri: kelime BASINDA eslesir;
+ * 5+ harfli kelimede ilk 5 harf (Turkce ek toleransi), kisa kelimede tam kelime.
+ */
+export function typeProbeTerms(text: string): ProbeTerm[] {
+  return fold(text)
+    .split(/[^\p{L}\d]+/u)
+    .filter((token) => token.length >= 2)
+    .map((token) =>
+      token.length >= 5
+        ? { prefix: token.slice(0, 5), whole: false }
+        : { prefix: token, whole: true },
+    );
+}
+
 export interface ConditionMetrics {
+  /** Sifir sonucsa kural tabanli neden; degilse null. */
+  zeroCause: ZeroCause | null;
+  /** Sifir sonucta yoklamanin buldugu en fazla 3 ornek baslik (insan dogrulamasi). */
+  probeTitles?: string[];
   returned: number;
   zero: boolean;
   stage: string;
@@ -73,6 +136,8 @@ export function measureItems(
   testCase: IntentV2Case,
   items: readonly Item[],
   stage: string,
+  zeroCause: ZeroCause | null = null,
+  probeTitles: string[] = [],
 ): ConditionMetrics {
   const gold = testCase.gold;
   const top = items.slice(0, 10);
@@ -105,6 +170,8 @@ export function measureItems(
     compatTiers = tiers;
   }
   return {
+    zeroCause: items.length === 0 ? zeroCause : null,
+    ...(items.length === 0 ? { probeTitles } : {}),
     returned: items.length,
     zero: items.length === 0,
     stage,
@@ -154,6 +221,14 @@ export interface IntentSearchSummary {
   meanOverlap10: number;
   /** (a) sonuc verirken (b) sifir donen vaka: niyet filtresi asiri daraltti. */
   bEmptiedA: string[];
+  zeroCausesA: Record<ZeroCause, number>;
+  zeroCausesB: Record<ZeroCause, number>;
+}
+
+function causeCounts(metrics: readonly ConditionMetrics[]): Record<ZeroCause, number> {
+  const out: Record<ZeroCause, number> = { not_in_catalog: 0, filter: 0, retrieval: 0 };
+  for (const m of metrics) if (m.zeroCause) out[m.zeroCause] += 1;
+  return out;
 }
 
 export function summarizeIntentSearch(rows: readonly IntentSearchRow[]): IntentSearchSummary {
@@ -178,5 +253,7 @@ export function summarizeIntentSearch(rows: readonly IntentSearchRow[]): IntentS
     ).length,
     meanOverlap10: rows.length === 0 ? 0 : rows.reduce((s, r) => s + r.overlap10, 0) / rows.length,
     bEmptiedA: rows.filter((r) => !r.a.zero && r.b.zero).map((r) => r.id),
+    zeroCausesA: causeCounts(rows.map((r) => r.a)),
+    zeroCausesB: causeCounts(rows.map((r) => r.b)),
   };
 }
