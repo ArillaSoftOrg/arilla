@@ -5,14 +5,17 @@
 import { describe, expect, it } from "vitest";
 import { priceAmountsInText } from "../clarification/price-language.ts";
 import { CATALOG_PRODUCT_TYPES } from "../clarification/product-types.ts";
+import { intentCategoryFor } from "../intent/category-map.ts";
 import { ATTRIBUTE_KEYS } from "../intent/contract.ts";
 import { findNearDuplicates, jaccard, tokens } from "./dataset-lint.ts";
 import dev from "./datasets/intent-v2.dev.json" with { type: "json" };
 import holdout from "./datasets/intent-v2.holdout.json" with { type: "json" };
+import regression from "./datasets/intent-v2.regression.json" with { type: "json" };
 import type { IntentV2Dataset } from "./intent-v2-eval.ts";
 
 const DEV = dev as unknown as IntentV2Dataset;
 const HOLDOUT = holdout as unknown as IntentV2Dataset;
+const REGRESSION = regression as unknown as IntentV2Dataset;
 
 const PLANNED: Record<string, number> = {
   simple: 12,
@@ -50,7 +53,7 @@ describe("dev seti", () => {
     expect(findNearDuplicates(DEV.cases.map((c) => c.q))).toEqual([]);
   });
 
-  it("type_id katalogda var ve kategori yolu eslesiyor", () => {
+  it("type_id katalogda var ve kategori yolu uretimde dogrulanmis yol", () => {
     for (const c of DEV.cases) {
       if (c.gold.type_id === null) {
         expect(c.gold.category, c.id).toBeNull();
@@ -58,7 +61,11 @@ describe("dev seti", () => {
       }
       const type = CATALOG_PRODUCT_TYPES.find((t) => t.id === c.gold.type_id);
       expect(type, c.id).toBeDefined();
-      expect(c.gold.category, c.id).toBe(type?.categoryPath);
+      // Etiket yolu uretimde dogrulanmis niyet eslemesinden gelir (category-map.ts);
+      // urunleri buyuk olcude kategorisiz olan turde etiket null olabilir.
+      const mapped = intentCategoryFor(c.gold.type_id);
+      expect(mapped, c.id).not.toBeNull();
+      expect([mapped?.hardPath, null], c.id).toContain(c.gold.category);
       expect(c.gold.role, c.id).toBe("main");
     }
   });
@@ -99,5 +106,32 @@ describe("holdout", () => {
 
   it("bagimsiz insan etiketi olarak isaretli; Claude doldurmaz", () => {
     expect(HOLDOUT.label_source).toBe("human_independent");
+  });
+});
+
+describe("regresyon seti (kategori duzeltmesi)", () => {
+  it("dev ile kesisim ve 0.9 ustu benzerlik yok; kimlikler tekil", () => {
+    const devTokens = DEV.cases.map((c) => tokens(c.q));
+    for (const r of REGRESSION.cases) {
+      const rt = tokens(r.q);
+      for (const [i, dt] of devTokens.entries()) {
+        expect(jaccard(rt, dt), `${r.id} ~ ${DEV.cases[i]?.id}`).toBeLessThan(0.9);
+      }
+    }
+    expect(new Set(REGRESSION.cases.map((c) => c.id)).size).toBe(REGRESSION.cases.length);
+  });
+
+  it("tur kategorisi uretimde dogrulanmis yol ya da null; AI taslagi olarak isaretli", () => {
+    expect(REGRESSION.label_source).toBe("ai_drafted_pending_human_review");
+    for (const c of REGRESSION.cases) {
+      if (c.gold.type_id === null) {
+        expect(c.gold.category, c.id).toBeNull();
+        continue;
+      }
+      const mapped = intentCategoryFor(c.gold.type_id);
+      expect(mapped, c.id).not.toBeNull();
+      expect([mapped?.hardPath, null], c.id).toContain(c.gold.category);
+      expect(c.gold.role, c.id).toBe("main");
+    }
   });
 });

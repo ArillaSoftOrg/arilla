@@ -1,0 +1,463 @@
+{
+  "_aciklama": "IntentV2 kategori duzeltmesi regresyon seti (karar 0171 §10; 2026-11-07). Dev setiyle KESISMEZ; optimizasyonda kullanilmaz, yalnizca 'niyet filtresi mevcut aramayi bozuyor mu' kontrolu icindir. Etiketler Claude tarafindan TASLAK yazildi; bagimsiz insan etiketi DEGILDIR. Alanlar dev setiyle ayni anlamdadir; gold.category uretimde dogrulanmis yol (intent/category-map.ts) ya da null.",
+  "label_source": "ai_drafted_pending_human_review",
+  "lexicon_brands": ["anker", "baseus", "awei", "adidas", "sony", "philips"],
+  "cases": [
+    {
+      "id": "r01",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "kablosuz kulaklık",
+      "gold": {
+        "type": "kulaklık",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["connectivity", "kablosuz", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r02",
+      "cat": "brand",
+      "lang": "tr",
+      "typo": false,
+      "q": "anker powerbank",
+      "gold": {
+        "type": "powerbank",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": "anker",
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r03",
+      "cat": "compat",
+      "lang": "tr",
+      "typo": false,
+      "q": "iphone 14 için şeffaf kılıf",
+      "gold": {
+        "type": "kılıf",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "iphone 14",
+        "budget": null,
+        "attrs": [["material", "şeffaf", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r04",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "akıllı saat",
+      "gold": {
+        "type": "akıllı saat",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r05",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": false,
+      "q": "1000 tl altı oyuncu mouse",
+      "gold": {
+        "type": "mouse",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": [null, 1000],
+        "attrs": [["feature", "oyuncu", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r06",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "erkek spor şort",
+      "gold": {
+        "type": "şort",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["audience", "erkek", "required"], ["feature", "spor", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r07",
+      "cat": "brand",
+      "lang": "tr",
+      "typo": false,
+      "q": "adidas koşu ayakkabısı",
+      "gold": {
+        "type": "ayakkabı",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": "adidas",
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "koşu", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r08",
+      "cat": "simple",
+      "lang": "tr",
+      "typo": false,
+      "q": "araç içi telefon tutucu",
+      "gold": {
+        "type": "telefon tutucu",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "araç içi", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r09",
+      "cat": "category_hard",
+      "lang": "tr",
+      "typo": false,
+      "q": "nintendo switch oyun konsolu",
+      "gold": {
+        "type": "oyun konsolu",
+        "type_id": "game_console",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r10",
+      "cat": "category_hint",
+      "lang": "tr",
+      "typo": false,
+      "q": "kadın parfüm 100 ml",
+      "gold": {
+        "type": "parfüm",
+        "type_id": "perfume",
+        "category": "kozmetik-kisisel-bakim",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["audience", "kadın", "required"], ["volume", "100 ml", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r11",
+      "cat": "category_hint",
+      "lang": "tr",
+      "typo": false,
+      "q": "katlanabilir bebek arabası",
+      "gold": {
+        "type": "bebek arabası",
+        "type_id": "stroller",
+        "category": "anne-bebek-cocuk",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "katlanabilir", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r12",
+      "cat": "category_hint",
+      "lang": "tr",
+      "typo": false,
+      "q": "2 kişilik kamp çadırı",
+      "gold": {
+        "type": "çadır",
+        "type_id": "tent",
+        "category": "spor-outdoor",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["capacity", "2 kişilik", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r13",
+      "cat": "category_hint",
+      "lang": "tr",
+      "typo": false,
+      "q": "çocuk masal kitabı",
+      "gold": {
+        "type": "kitap",
+        "type_id": "book",
+        "category": "kitap",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["audience", "çocuk", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r14",
+      "cat": "category_hint",
+      "lang": "tr",
+      "typo": false,
+      "q": "dikey şarjlı süpürge",
+      "gold": {
+        "type": "süpürge",
+        "type_id": "vacuum",
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["feature", "dikey", "required"], ["feature", "şarjlı", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r15",
+      "cat": "category_hint",
+      "lang": "tr",
+      "typo": false,
+      "q": "10 inç android tablet",
+      "gold": {
+        "type": "tablet",
+        "type_id": "tablet",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["screen_size", "10 inç", "required"], ["os", "android", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r16",
+      "cat": "category_hint",
+      "lang": "tr",
+      "typo": false,
+      "q": "24 inç ofis monitörü",
+      "gold": {
+        "type": "monitör",
+        "type_id": "monitor",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["screen_size", "24 inç", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r17",
+      "cat": "category_hint",
+      "lang": "tr",
+      "typo": false,
+      "q": "öğrenci için hafif laptop",
+      "gold": {
+        "type": "laptop",
+        "type_id": "laptop",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["weight", "hafif", "preferred"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r18",
+      "cat": "accessory",
+      "lang": "tr",
+      "typo": false,
+      "q": "oyun konsolu taşıma çantası",
+      "gold": {
+        "type": "çanta",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": "oyun konsolu",
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r19",
+      "cat": "negative",
+      "lang": "tr",
+      "typo": false,
+      "q": "baseus olmayan şarj kablosu",
+      "gold": {
+        "type": "şarj kablosu",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": ["baseus"],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r20",
+      "cat": "budget",
+      "lang": "tr",
+      "typo": false,
+      "q": "300 ile 600 tl arası bluetooth hoparlör",
+      "gold": {
+        "type": "hoparlör",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": [300, 600],
+        "attrs": [["connectivity", "bluetooth", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r21",
+      "cat": "english",
+      "lang": "en",
+      "typo": false,
+      "q": "fast charging wall charger 30w",
+      "gold": {
+        "type": "charger",
+        "type_id": null,
+        "category": null,
+        "role": "accessory",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["power", "30w", "required"], ["feature", "fast charging", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r22",
+      "cat": "english",
+      "lang": "en",
+      "typo": false,
+      "q": "game console for kids",
+      "gold": {
+        "type": "game console",
+        "type_id": "game_console",
+        "category": "elektronik",
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["audience", "kids", "preferred"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r23",
+      "cat": "typo",
+      "lang": "tr",
+      "typo": true,
+      "q": "kulaklik kablolu mikrofonlu",
+      "gold": {
+        "type": "kulaklık",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": null,
+        "compat": null,
+        "budget": null,
+        "attrs": [["connectivity", "kablolu", "required"], ["feature", "mikrofonlu", "required"]],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    },
+    {
+      "id": "r24",
+      "cat": "brand",
+      "lang": "tr",
+      "typo": false,
+      "q": "philips tıraş makinesi",
+      "gold": {
+        "type": "tıraş makinesi",
+        "type_id": null,
+        "category": null,
+        "role": "main",
+        "brand": "philips",
+        "compat": null,
+        "budget": null,
+        "attrs": [],
+        "exclude_brands": [],
+        "clarify": false
+      }
+    }
+  ]
+}

@@ -2346,15 +2346,15 @@ veritabanından çözülür, sayaç yine artar).
   davranışına (404) döner, tablolar kalır.
 
 **Umami** (karar 0116, ziyaretçi analitiği). `analytics.manicepte.com` üzerinde çalışan Umami
-v3.4.0 şu an depodaki `infra/` dosyalarında YOKTUR. Dağıtım `infra/vps/Caddyfile` ve
-`infra/vps/postgres/pg_hba.conf` dosyalarını VPS'e yeniden kopyalarsa VPS'te elle yapılmış
-değişiklikler ezilir. Üretim öncesi, YALNIZ OKUYARAK (VPS'e yazmadan):
+v3.4.0 konteyneri depo dışıdır (`/opt/umami/compose.yml`); ona giden Caddy bloğu ve
+`pg_hba.conf` kuralı ise depodadır. Dağıtım `infra/vps/Caddyfile` ve
+`infra/vps/postgres/pg_hba.conf` dosyalarını VPS'e kopyalar; VPS'te elle yapılan değişiklik
+ezilir, bu yüzden ikisi de yalnız depodan değiştirilir.
 
-1. Canlı Caddyfile ile depodakini karşılaştır:
-   `docker compose -f /opt/arilla/compose.prod.yml exec caddy cat /etc/caddy/Caddyfile`
-   ve `diff` ile `infra/vps/Caddyfile`. `analytics.manicepte.com` bloğunun, Umami
-   konteynerine ulaşmak için Caddy'nin bağlı olduğu Docker ağının ve `www`/`ARILLA_*`
-   değişkenlerinin depoya taşınması gerekir (ayrı PR).
+1. Caddy: `{$ARILLA_ANALYTICS_ADDRESS}` bloğu (varsayılan `analytics.<ARILLA_SITE_ADDRESS>`,
+   `compose.env`'de ezilebilir) `umami:3000`'e gider. Umami konteyneri `arilla_public`
+   ağına `umami` adıyla bağlı olmalıdır (Caddy de o ağdadır). Konteyner yoksa yalnız bu alan
+   502 verir. Caddyfile değişince dağıtım caddy'yi kendisi yeniden oluşturur.
 2. `pg_hba.conf`: Umami kuralı (`umami` veritabanı, yalnız `umami_app` rolü, özel adres
    blokları) artık depodadır (`infra/vps/postgres/pg_hba.conf`). Dağıtım dosyayı kopyalar
    ama postgres'i yeniden başlatmaz; kural değişikliğinden sonra bir kez elle yeniden yükle:

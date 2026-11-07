@@ -110,6 +110,58 @@ yalnızca uyumluluk; uyumluluk işaretleri genişledi ("applicable to", "apply t
 "matching", "adapter", "to"). Yapılandırılmış kaynak marka başlıktan çıkarılan tahmini **ezmeye
 devam eder** (`clean_source_brand` önce).
 
+### 4.1 Üretim ölçümü (7 Kasım 2026, salt okunur)
+
+Yöntem:
+- Komutlar: `classify sample` (birincil anahtardan rastgele örnek) ve `classify report`
+  (`dry_run`, kilit almaz).
+- Üretimde tek seferlik konteynerde çalıştı; bağlantı salt okunur kipteydi
+  (`PGOPTIONS=-c default_transaction_read_only=on`).
+- Kural sürümü 5.
+- Üretim verisi değişmedi: `brand` öncesi ve sonrası 4 satır.
+
+Başlangıç durumu:
+- `brand` tablosunda 4 satır (Mean Well, Schneider, Omron, Sonoff). Bunlar 22 Ekim pilotundan
+  kalma: `classify_products`, yaklaşık 5 bin ürün, `brand_set` 7.
+- `lexicon` tablosunda `kind='brand'` satırı 0. Lexicon'a marka yazan bir toplu iş yok; yalnızca
+  yönetim paneli ya da geliştirme tohumu yazıyor.
+- Ürünlerin neredeyse tamamı `catalog_build` (0121) ile AliExpress ilanlarından açılmış ve bu yol
+  marka yazmıyor.
+- AliExpress tekliflerinde `brand_raw` yok (örneklemde 10.473 tekliften 0).
+
+| Ölçüm | Sonuç |
+| --- | --- |
+| AliExpress, rastgele 3.000 ürün: marka yazılırdı | 9 (%0,30 ± 0,20) → 10 M üründe ≈ 30 bin (≈ 10–50 bin) |
+| — kanıt dağılımı | `none` 2.988 · `title` 9 · `ambiguous` 3 |
+| — yalnızca uyumluluk ("for Honda/BMW/Apple…", marka yazılmaz) | %12,8 |
+| — bulunan markaların elle kontrolü | 9/9 makul (Ugreen, Aneng, Vention, Nillkin, Hoco, Festo; Roborock yedek parça satırı sınırda) |
+| `report`, kimlik 11.000.000 sonrası 4.000 ürün: marka | 6 (%0,15) |
+| — aynı koşuda **kategori yazılırdı** | 2.615 (%65); inceleme 1.367 |
+| Hepsiburada, rastgele örneklem | 14 ürün (rastgele kimlikler 2.017 HB ürününe seyrek denk geliyor); 14/14'ünde marka kaynaktan (`source`) |
+| HB tekliflerinde `brand_raw` | 2.017 tekliften 1.987'si dolu |
+
+Sonuçlar:
+- AliExpress beslemesinde güvenli kurallarla erişilebilecek marka kapsamı katalogun yaklaşık
+  %0,3'ü. Bu, §4'teki tahmini (%0,25) doğruluyor.
+- `classify products` için **yalnızca marka yazan bir kip yok**. Tam koşu, sınırlı marka
+  kazancı karşılığında ürünlerin yaklaşık %65'inin kategorisini de yeniden yazar. Bu durum 0157
+  iki aşamalı kategori hattıyla çakışır.
+
+Karar (7 Kasım 2026):
+- Tam `classify products` koşusu yapılmaz. Mevcut marka sınıflandırıcısı milyonlarca üründe
+  çalıştırılmaz ve kategori verisi değiştirilmez.
+- Yalnızca Hepsiburada markasını yazan bir kip (yapılandırılmış `brand_raw`) **bekleme
+  listesindedir**.
+
+**Öncelikli tasarım riski:** marka verisi bu kadar seyrekken bir marka adı **sert filtre** olursa,
+uygun ürünler yalnızca markaları yazılmamış olduğu için sonuçlardan düşer:
+- `/ara` ayrıştırıcısının ürettiği `brand_include`;
+- IntentV2 H kipindeki marka.
+
+Marka sözlüğü doldurulurken ve marka filtreleri istek yolunda açılırken bu risk önce
+değerlendirilmelidir. Seçenekler: markası bilinmeyen ürünü dışlamamak ya da markayı sıralama
+ipucu olarak kullanmak.
+
 ## 5. Ölçüm (Faz 5)
 
 **Araçlar:** `classify sample --per-source K --split dev|eval` (kaynak kategoriye göre tabakalı, salt
