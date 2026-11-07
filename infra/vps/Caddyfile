@@ -81,3 +81,23 @@
 	redir {$ARILLA_CANONICAL_ORIGIN}{uri} permanent
 	import privacy_log
 }
+
+# Umami (karar 0116): kendi isletilen analitik ornegi, ayri alt alan adi (varsayilan
+# analytics.<ARILLA_SITE_ADDRESS>). Umami konteyneri depo disi bir compose projesidir
+# (/opt/umami) ve `public` agina (arilla_public) `umami` adiyla baglanir. Konteyner yoksa
+# yalniz bu alan 502 verir; ana site etkilenmez. VPS'e elle eklenen blok her dagitimda
+# eziliyordu, bu yuzden depoda.
+{$ARILLA_ANALYTICS_ADDRESS} {
+	encode zstd gzip
+	reverse_proxy umami:3000 {
+		header_up -X-Real-IP
+		transport http {
+			dial_timeout 5s
+			response_header_timeout 30s
+		}
+	}
+	header {
+		-Server
+	}
+	import privacy_log
+}
