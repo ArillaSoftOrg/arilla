@@ -187,10 +187,16 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   {
     id: "similarity_enrichment",
     label: "Vektör, benzerlik ve AI içerik",
-    tables: ["embedding", "similarity_edge", "generated_content"],
+    tables: ["embedding", "product_text_embedding", "similarity_edge", "generated_content"],
     status: "visible",
     adminPaths: ["/yonetim/islemler"],
-    gaps: [{ signal: "AI özet (generated_content) kapsamı", status: "data_no_ui" }],
+    gaps: [
+      { signal: "AI özet (generated_content) kapsamı", status: "data_no_ui" },
+      {
+        signal: "Ürün metin vektörü kapsamı (0177; koşu job_run'da, kapsam oranı panelde yok)",
+        status: "data_no_ui",
+      },
+    ],
   },
   {
     id: "search_text",
