@@ -100,10 +100,12 @@ describe("yurt dışı teklif: kaynak durumu ve fiyat geçmişi", () => {
       await offer("nomember", "USD", 700, productId);
       await offer("try", "TRY", 25000, tryProductId);
 
-      // Gunluk fiyat fixture'lari UTC oglene bagli: saat 00:00 civarinda
-      // 2 ve 2.1 gun once farkli gunlere dusmesin. Kaynak tazeligi yukarida
-      // gercek simdiye gore kurulmaya devam eder.
-      const priceDay = new Date();
+      // Gunluk fiyat fixture'lari DUNUN UTC oglene bagli: 2 ve 2.1 gun once ayni
+      // gune duser (saat 00:00 civarinda bolunmez) ve capa her saatte gecmistedir
+      // (12-36 saat once). Bugunun oglesi 12:00 UTC'den once gelecekte kalir ve
+      // "simdiden en az 1.9 gun once" beklentisini 09:36 UTC'ye kadar bozardi.
+      // Kaynak tazeligi yukarida gercek simdiye gore kurulmaya devam eder.
+      const priceDay = new Date(Date.now() - day);
       priceDay.setUTCHours(12, 0, 0, 0);
       const point = (key: string, daysBack: number, price: number) =>
         client.query(
