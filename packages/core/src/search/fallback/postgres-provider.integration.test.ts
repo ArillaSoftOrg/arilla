@@ -12,7 +12,7 @@ import { getTestDb, withOwnerClient } from "../../test-db.ts";
 import { loadLexicon } from "../lexicon-repository.ts";
 import { parseQueryText } from "../parse-query.ts";
 import { candidateCtes, FUZZY_CANDIDATE_LIMIT } from "../text-match.ts";
-import { createSeedAliasSource } from "./aliases.ts";
+import { createGroupAliasSource, createSeedAliasSource } from "./aliases.ts";
 import { searchWithFallback } from "./pipeline.ts";
 import { createPostgresSearchProvider } from "./postgres-provider.ts";
 import type { FallbackSearchOutcome } from "./types.ts";
@@ -413,8 +413,19 @@ describe("non-AI fallback - gercek PostgreSQL", () => {
     expect(outcome.items.filter((i) => i.title === "Apple iPhone 17 Pro 256GB")).toHaveLength(1);
   });
 
-  it("alias: tohum takma adi ('supurge' -> 'vacuum')", async () => {
+  it("sozluk esanlami (0107): 'süpürge' ilk asamada 'vacuum' basligini bulur", async () => {
     const outcome = await find("süpürge");
+    expect(outcome.mode).toBe("results");
+    expect(titles(outcome)).toEqual(["Dyson V15 Vacuum Cleaner"]);
+  });
+
+  it("alias: sozlukte olmayan takma ad alias asamasinda cozulur", async () => {
+    const lexicon = await loadLexicon(db);
+    const outcome = await searchWithFallback(
+      createPostgresSearchProvider(meter.db),
+      { parsed: parseQueryText("zxtakmaad", lexicon), sort: "balanced", page: 1, pageSize: 24 },
+      { aliases: createGroupAliasSource([["zxtakmaad", "vacuum"]]) },
+    );
     expect(outcome.mode).toBe("results");
     expect(outcome.trace.stage).toBe("alias");
     expect(titles(outcome)).toEqual(["Dyson V15 Vacuum Cleaner"]);

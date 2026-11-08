@@ -929,7 +929,12 @@ describe("Faz 5: model yalnızca tanınmayan tercih için", () => {
     vi.stubEnv("CHAT_LINK_INTERPRET_ENABLED", "false");
     const user = await newUser();
     const interpreter = model();
-    const { last } = await say(user, null, `${freshUrl()} ${WHITE} ofiste`, interpreter);
+    const { last } = await say(
+      user,
+      null,
+      `${freshUrl()} ${WHITE} ofiste giyebileceğim`,
+      interpreter,
+    );
     expect(interpreter.calls).toBe(0);
     expect(linkOf(last).preferences).toEqual({ colors: [`white${run}`] });
     expect(linkOf(last).note).toBe("preference_not_understood");
