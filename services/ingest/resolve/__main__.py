@@ -69,6 +69,7 @@ def main(argv: list[str] | None = None) -> int:
                 queued=counts.queued,
                 products_created=counts.products_created,
                 aggregates_updated=counts.aggregates_updated,
+                link_conflicts=counts.link_conflicts,
                 errors=len(counts.errors),
             )
             if counts.errors:
@@ -80,6 +81,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"insan kuyrugu     {counts.queued}")
     print(f"yeni urun         {counts.products_created}")
     print(f"ozet guncellenen  {counts.aggregates_updated}")
+    print(f"baglama cakismasi {counts.link_conflicts}")
     for error in counts.errors:
         print(f"  ! {error}")
 
