@@ -7,6 +7,7 @@ import {
   decodeInputs,
   encodeInput,
   findDomain,
+  isChatDiscoveryEnabled,
   loadLexicon,
   replayConversation,
   resolveQuery,
@@ -14,10 +15,10 @@ import {
   stripConversationalSearchFillers,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
 import { SearchWallGateClient } from "../../ara/search-wall-gate-client.tsx";
-import { verifySession } from "../../lib/dal.ts";
+import { requireProductAccess } from "../../lib/dal.ts";
 import { startConversationAction } from "../actions.ts";
 import { CHAT_COPY } from "../chat-copy.ts";
 import { ChatResultGrid } from "../chat-results.tsx";
@@ -133,6 +134,10 @@ export default async function GuestChatPage({
 }: {
   searchParams: Promise<{ q?: string; n?: string | string[] }>;
 }) {
+  // Diger /sohbet sayfalariyla ayni kapilar: bayrak kapaliysa 404, urun kapisi
+  // kapaliysa (lansman oncesi) yetkisiz ziyaretci yonlendirilir.
+  if (!isChatDiscoveryEnabled()) notFound();
+  const user = await requireProductAccess();
   const params = await searchParams;
   const query = params.q?.trim().slice(0, 500) ?? "";
   if (!query) redirect("/");
@@ -146,7 +151,6 @@ export default async function GuestChatPage({
     lexicon,
   });
 
-  const user = await verifySession();
   if (user) {
     const data = new FormData();
     const compiled = compileQuery(decision.state, DEFAULT_CLARIFICATION_REGISTRY);
