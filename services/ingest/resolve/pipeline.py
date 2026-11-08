@@ -86,7 +86,14 @@ SELECT DISTINCT product_id FROM offer
    AND id <> %(offer_id)s
 """
 
-LINK_OFFER = "UPDATE offer SET product_id = %(product_id)s WHERE id = %(offer_id)s"
+#: Kosullu (korumali) baglama. Teklif secimi ile bu UPDATE arasinda bir yonetici teklifi
+#: elle baglamis (`approveMatch`) ya da besleme pasiflestirmis olabilir. READ COMMITTED'da
+#: UPDATE satir kilidini bekler ve kosulu satirin SON surumunda yeniden degerlendirir;
+#: boylece yoneticinin bagi ezilmez, guncellenen satir sayisi 0 olur (`LinkConflict`).
+LINK_OFFER = """
+UPDATE offer SET product_id = %(product_id)s
+ WHERE id = %(offer_id)s AND product_id IS NULL AND is_active
+"""
 
 #: Insanin bu offer icin REDDETTIGI urunler (docs/decisions/0040). Hicbir
 #: katmanda (varyant barkodu, kesin kimlik, metin/gorsel havuzu) yeniden
@@ -103,6 +110,25 @@ SELECT product_id FROM match_candidate
 RESOLVE_LOCK_KEY = 0x41524C52  # "ARLR"
 
 
+class LinkConflict(Exception):
+    """Teklif secildikten sonra baska biri (yonetici, besleme) onu bagladi ya da pasiflestirdi.
+
+    Hata degildir: teklif basina SAVEPOINT geri alinir (yazilan `auto_accepted` aday ya da
+    yeni acilan urun kalmaz), kosu sonraki teklifle devam eder.
+    """
+
+    def __init__(self, offer_id: int) -> None:
+        super().__init__(f"offer {offer_id}: baglama sirasinda teklif artik bagsiz/aktif degil")
+        self.offer_id = offer_id
+
+
+def _link_offer(conn: psycopg.Connection, *, offer_id: int, product_id: int) -> None:
+    with conn.cursor() as cur:
+        cur.execute(LINK_OFFER, {"product_id": product_id, "offer_id": offer_id})
+        if cur.rowcount != 1:
+            raise LinkConflict(offer_id)
+
+
 @dataclass
 class ResolveCounts:
     considered: int = 0
@@ -110,6 +136,8 @@ class ResolveCounts:
     queued: int = 0
     products_created: int = 0
     aggregates_updated: int = 0
+    #: Baglama aninda teklif zaten bagli/pasif bulundu; o teklifin yazdiklari geri alindi.
+    link_conflicts: int = 0
     errors: list[str] = field(default_factory=list)
 
 
@@ -282,8 +310,7 @@ def _resolve_one(
             stored = cur.fetchone()
         # Saklanan durum insan karariysa (accepted/rejected) makine baglamaz.
         if status == "auto_accepted" and stored is not None and stored[1] == "auto_accepted":
-            with conn.cursor() as cur:
-                cur.execute(LINK_OFFER, {"product_id": candidate.product_id, "offer_id": offer_id})
+            _link_offer(conn, offer_id=offer_id, product_id=int(candidate.product_id))
             linked.add(int(candidate.product_id))
             counts.auto_accepted += 1
         else:
@@ -305,8 +332,7 @@ def _resolve_one(
         gtin=key.gtin,
         mpn=key.mpn,
     )
-    with conn.cursor() as cur:
-        cur.execute(LINK_OFFER, {"product_id": product_id, "offer_id": offer_id})
+    _link_offer(conn, offer_id=offer_id, product_id=int(product_id))
     linked.add(int(product_id))
     counts.products_created += 1
 
@@ -364,6 +390,7 @@ def resolve_offers(
 
         # Teklif basina SAVEPOINT: tek bir veritabani hatasi (kisit ihlali, slug yarisi...)
         # islemi "aborted" birakip sonraki tum teklifleri ve son commit'i bozmasin.
+        # `LinkConflict` blogun icinden yukselir: savepoint geri alinir, hata sayilmaz.
         try:
             with conn.transaction():
                 _resolve_one(
@@ -381,6 +408,9 @@ def resolve_offers(
                     merchant_id=int(offer_merchant_id),
                     key=key,
                 )
+        except LinkConflict as conflict:
+            counts.link_conflicts += 1
+            logger.info("teklif baglanmadi, baska biri once davrandi: %s", conflict)
         except psycopg.Error as error:
             counts.errors.append(f"offer {offer_id}: {error}")
             logger.warning("teklif cozulemedi %s: %s", offer_id, error)
