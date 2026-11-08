@@ -132,64 +132,79 @@ async function collect(): Promise<number> {
     .filter((q) => q !== "");
   const lexicon = await loadLexiconCached(db);
   const rows: EvalCsvRow[] = [];
+  let failed = 0;
   for (const query of queries) {
-    const intent = emptyIntent(query);
-    const parsed = intentToQueryObject(intent, lexicon);
-    const text = await searchByIntent(db, intent, { pageSize: TOP, lexicon });
-    const textItems = text.outcome.items
-      .slice(0, TOP)
-      .map((i) => ({ productId: i.productId, title: i.title }));
-    const remainder = parsed.unparsed.trim();
-    const embedded = await embedder.embedQuery(remainder === "" ? parsed.text : remainder);
-    if (!embedded) {
-      console.error(`sorgu vektoru alinamadi: ${query}`);
-      continue;
-    }
-    const candidates = await findSemanticCandidates(db, {
-      vector: embedded.vector,
-      modelVersion: model,
-      text: parsed.text,
-      filters: parsed.filters,
-      statementTimeoutMs: 10_000,
-    });
-    const textSimilarity = await similaritiesFor(db, {
-      vector: embedded.vector,
-      modelVersion: model,
-      productIds: textItems.map((i) => i.productId),
-    });
-    const { fused } = fuseForQuery(textItems, candidates, parsed.text, textSimilarity);
+    try {
+      const intent = emptyIntent(query);
+      const parsed = intentToQueryObject(intent, lexicon);
+      const text = await searchByIntent(db, intent, {
+        pageSize: TOP,
+        lexicon,
+        // Olcum: bugunku sonucu tam gormek icin sohbetin 4 sn sinirindan uzun.
+        timeoutMs: 15_000,
+      });
+      const textItems = text.outcome.items
+        .slice(0, TOP)
+        .map((i) => ({ productId: i.productId, title: i.title }));
+      const remainder = parsed.unparsed.trim();
+      const embedded = await embedder.embedQuery(remainder === "" ? parsed.text : remainder);
+      if (!embedded) {
+        failed += 1;
+        console.error(`sorgu vektoru alinamadi (saglayici bakiyesi/anahtar?): ${query}`);
+        continue;
+      }
+      const candidates = await findSemanticCandidates(db, {
+        vector: embedded.vector,
+        modelVersion: model,
+        text: parsed.text,
+        filters: parsed.filters,
+        statementTimeoutMs: 10_000,
+      });
+      const textSimilarity = await similaritiesFor(db, {
+        vector: embedded.vector,
+        modelVersion: model,
+        productIds: textItems.map((i) => i.productId),
+      });
+      const { fused } = fuseForQuery(textItems, candidates, parsed.text, textSimilarity);
 
-    const pool = new Map<number, EvalCsvRow>();
-    const mark = (method: EvalMethod, id: number, title: string, rank: number) => {
-      const row = pool.get(id) ?? {
-        query,
-        productId: id,
-        title,
-        ranks: { text: null, semantic: null, hybrid: null },
-        similarity: null,
+      const pool = new Map<number, EvalCsvRow>();
+      const mark = (method: EvalMethod, id: number, title: string, rank: number) => {
+        const row = pool.get(id) ?? {
+          query,
+          productId: id,
+          title,
+          ranks: { text: null, semantic: null, hybrid: null },
+          similarity: null,
+        };
+        row.ranks[method] = rank;
+        pool.set(id, row);
       };
-      row.ranks[method] = rank;
-      pool.set(id, row);
-    };
-    for (const [n, i] of textItems.entries()) mark("text", i.productId, i.title, n + 1);
-    for (const [n, c] of candidates.slice(0, TOP).entries()) {
-      mark("semantic", c.productId, c.title, n + 1);
-    }
-    for (const [n, e] of fused.slice(0, TOP).entries()) {
-      mark("hybrid", e.item.productId, e.item.title, n + 1);
-    }
-    for (const row of pool.values()) {
-      row.similarity =
-        candidates.find((c) => c.productId === row.productId)?.similarity ??
-        textSimilarity.get(row.productId) ??
-        null;
-      rows.push(row);
+      for (const [n, i] of textItems.entries()) mark("text", i.productId, i.title, n + 1);
+      for (const [n, c] of candidates.slice(0, TOP).entries()) {
+        mark("semantic", c.productId, c.title, n + 1);
+      }
+      for (const [n, e] of fused.slice(0, TOP).entries()) {
+        mark("hybrid", e.item.productId, e.item.title, n + 1);
+      }
+      for (const row of pool.values()) {
+        row.similarity =
+          candidates.find((c) => c.productId === row.productId)?.similarity ??
+          textSimilarity.get(row.productId) ??
+          null;
+        rows.push(row);
+      }
+    } catch (error) {
+      // Tek sorgunun hatasi (or. metin aramasi zaman asimi) tum listeyi durdurmaz.
+      failed += 1;
+      console.error(`sorgu atlandi (${error instanceof Error ? error.name : "hata"}): ${query}`);
     }
     await sleep(300);
   }
   process.stdout.write(toEvalCsv(rows));
-  console.error(`sorgu ${queries.length}, satir ${rows.length}, token ${tokens}`);
-  return 0;
+  console.error(
+    `sorgu ${queries.length}, atlanan ${failed}, satir ${rows.length}, token ${tokens}`,
+  );
+  return failed === queries.length ? 1 : 0;
 }
 
 function score(path: string): number {
