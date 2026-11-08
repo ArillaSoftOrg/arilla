@@ -65,6 +65,34 @@ def test_text_input_shape() -> None:
 
     JinaEmbeddingClient(client=_client(handler)).embed_texts(["siyah bot", "bej canta"])
     assert seen["input"] == [{"text": "siyah bot"}, {"text": "bej canta"}]
+    assert "task" not in seen
+
+
+def test_task_model_sends_plain_strings_and_task() -> None:
+    """jina-embeddings-v3 (karar 0177): duz metin dizisi + `task`; clip-v2 govdesi degismez."""
+    seen: dict = {}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        import json
+
+        seen.update(json.loads(request.content))
+        return httpx.Response(200, json=_ok(2))
+
+    client = JinaEmbeddingClient(
+        client=_client(handler),
+        model="jina-embeddings-v3",
+        task="retrieval.passage",
+        text_batch=128,
+    )
+    batch = client.embed_texts(["Wireless Mouse", "Kablosuz Fare"])
+
+    assert seen["model"] == "jina-embeddings-v3"
+    assert seen["task"] == "retrieval.passage"
+    assert seen["input"] == ["Wireless Mouse", "Kablosuz Fare"]
+    assert seen["dimensions"] == 768
+    assert seen["normalized"] is True
+    assert client.text_batch_size == 128
+    assert batch.model_version == "jina-embeddings-v3"
 
 
 def test_missing_api_key_fails_before_any_request(monkeypatch: pytest.MonkeyPatch) -> None:

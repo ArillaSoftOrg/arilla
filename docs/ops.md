@@ -2769,3 +2769,39 @@ python -m classify parents --confirm --merchant aliexpress --sleep-ms 200 --max-
 - Büyük bir tarama olduğu için catalog_build/FeedSync/yedek pencereleriyle ve `catalog_build auto`
   koşusuyla (kilit 4133201) çakıştırma; WAL geri basıncı ve çıkış kodları yukarıdaki gibi.
 - `suggest finalize` koşusu varsa harita sürümü değiştiği için yeni haritayla baştan başlatılır.
+
+## Ürün metin embedding'i (karar 0177) — zamanlayıcısız, elle ve onayla
+
+`python -m enrich.products` ürün başına tek `jina-embeddings-v3` vektörü yazar
+(`product_text_embedding`, migration 0105, `halfvec(768)`). Arama henüz okumaz; bu adım yalnızca
+veriyi hazırlar. systemd zamanlayıcısı **yoktur**; P1 pilotu ve sonraki kademeler elle açılır.
+
+```bash
+# 1) Kuru çalışma: API yok, yazım yok, iş kaydı yok. Token tahmini ve kopyalanacak metin sayısı.
+python -m enrich.products --ids-file /tmp/p1_ids.txt
+# 2) Gerçek koşu: --max-tokens ZORUNLU (sınırsız ücretli çağrı yok).
+python -m enrich.products --ids-file /tmp/p1_ids.txt --execute --max-tokens 1000000
+# Tüm katalog kademesi (kimlik aralığı + tavan); yarıda kalırsa aynı komut kaldığı yerden sürer.
+python -m enrich.products --after-id 0 --until-id 2000000 --execute --max-tokens 50000000
+```
+
+- **Ön koşullar:** migration 0105 uygulanmış; `JINA_API_KEY` ve
+  `EMBEDDING_COST_MICROS_PER_1K_TOKENS` (TRY mikro / 1 bin token; $0,050 / 1 M token için kur × 50)
+  tanımlı. `JINA_TOKENS_PER_MINUTE` varsayılanı 80.000; ücretli katman 2 M TPM'ye izin verir.
+- **Ne işlenir:** yayındaki (`published`) ve teklifi olan (`offer_count + foreign_offer_count > 0`)
+  ürünlerden vektörü olmayan, başlığı/markası değişen ya da eski `text_version`'lı olanlar.
+  `--include-offerless` teklifsizleri de alır. Değişmeyen ürün okunmaz ve yazılmaz.
+- **Maliyeti azaltanlar:** kanonik metin aynı kalan kaynak değişikliği yalnız `source_hash`'i
+  günceller; aynı metin başka üründe varsa vektör veritabanında kopyalanır (API yok).
+- **Sonuç (karar 0174):** `job_run.job = enrich_products`, `detail.outcome`:
+  `completed` (gerekçe `token_budget_reached` / `limit_reached` olabilir), `no_input`/`up_to_date`,
+  `partial` (`item_errors`, `wal_backpressure`, `interrupted`, `provider_errors`),
+  `failed`/`provider_errors` (hiçbir şey yazılmadan ardışık 3 sağlayıcı hatası), `skipped_locked`
+  (danışma kilidi 177000001, çıkış 75). Devam noktası `detail.resume_after` ve çıktıda
+  `--after-id` olarak yazılır.
+- **WAL:** her yazım öncesi `WalGovernor` (karar 0134). Tüm katalog yüklemesini catalog_build,
+  FeedSync ve yedek pencereleriyle çakıştırma.
+- **Disk:** yerelde ölçülen satır başına ~2,2 KB (yığın + özet indeksi; HNSW hariç). 12,3 M ürün
+  ≈ 27 GB + HNSW. HNSW indeksi yükleme bittikten sonra ayrı `kind: concurrent` migration ile kurulur.
+- **P1 alt kümesi:** kimlik listesi salt okunur SQL ile hazırlanır (ör. bir kategoride başlık
+  anahtar sözcüğü + katmanlı örnek); dosya satır başına bir kimliktir, `#` yorumdur.

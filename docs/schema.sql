@@ -419,6 +419,25 @@ CREATE INDEX embedding_ann_idx ON embedding
     WHERE target_type = 'offer';
 -- 0077: embedding_target_idx kaldirildi (embedding_uniq on eki).
 
+-- 0105 (karar 0177): urun duzeyinde metin vektoru, `embedding`ten AYRI tablo. halfvec (yarim
+-- duyarlik): 12 M urunde float32 diske sigmaz. Gercek FK, urun silinince vektor de gider.
+-- content_hash = sha256(model, text_version, kanonik metin)[:16]: ayni metin ayni vektor (API'siz kopya).
+-- source_hash  = md5(title || U+001F || brand.name): degisen urun SQL'de bulunur.
+-- HNSW yukleme bittikten sonra ayri `kind: concurrent` migration ile kurulur.
+-- Benzerlik urun kimligi kaniti DEGILDIR; eslestirme resolve + vetolardadir.
+CREATE TABLE product_text_embedding (
+    product_id    BIGINT       NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    model_version TEXT         NOT NULL CHECK (model_version ~ '^[a-z0-9][a-z0-9._-]{0,63}$'),
+    text_version  SMALLINT     NOT NULL CHECK (text_version > 0),
+    content_hash  BYTEA        NOT NULL CHECK (octet_length(content_hash) = 16),
+    source_hash   BYTEA        NOT NULL CHECK (octet_length(source_hash) = 16),
+    embedding     halfvec(768) NOT NULL,
+    embedded_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    PRIMARY KEY (product_id, model_version)
+);
+CREATE INDEX product_text_embedding_hash_idx
+    ON product_text_embedding (model_version, content_hash);
+
 -- Eşleştirme kuyruğu. Eşiğin üstü otomatik kabul, altı insan onayına düşer.
 CREATE TABLE match_candidate (
     id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
