@@ -60,13 +60,19 @@ from enrich.client import (
     JinaEmbeddingClient,
 )
 from enrich.product_text import TEXT_VERSION, build_product_text, content_hash
+from enrich.providers import build_text_provider, validate_for
 from enrich.ratelimit import TokenBudget, tokens_per_minute_from_env
+from enrich.registry import ModelSpec, RegistryError, registry, require_writable, select_model
 
 logger = logging.getLogger(__name__)
 
-MODEL = "jina-embeddings-v3"
-PASSAGE_TASK = "retrieval.passage"
-DIMENSIONS = 768
+#: Hedef tablonun indeks ailesi (karar 0180). Yalnizca bu aileye ait modeller buraya yazar.
+INDEX_FAMILY = "product_text_halfvec768"
+#: Varsayilan model ve degerleri kayit defterinden gelir (`enrich/model_registry.json`).
+DEFAULT_SPEC = registry().default("product_text")
+MODEL = DEFAULT_SPEC.id
+PASSAGE_TASK = DEFAULT_SPEC.task("passage")
+DIMENSIONS = DEFAULT_SPEC.dimensions
 OPERATION = "product_text_embedding"
 JOB = "enrich_products"
 
@@ -79,7 +85,7 @@ DEFAULT_SCAN_STEP = 20_000
 DEFAULT_API_BATCH = 128
 MAX_CONSECUTIVE_FAILURES = 3
 #: Kuru calisma/tavan tahmini: uretimde 15.000 urunde ~47,5 token / ~130 karakter olculdu (0170).
-CHARS_PER_TOKEN = 2.75
+CHARS_PER_TOKEN = DEFAULT_SPEC.chars_per_token
 
 _COLUMNS = "p.id, p.title, b.name, s.source_hash, e.content_hash, e.text_version"
 _SCAN = f"""
@@ -202,6 +208,8 @@ class Options:
 
 @dataclass
 class ProductCounts:
+    model: str = MODEL
+    provider: str = DEFAULT_SPEC.provider
     windows: int = 0
     candidates: int = 0
     new: int = 0
@@ -225,6 +233,10 @@ class ProductCounts:
     interrupted: bool = False
     wal_stopped: str | None = None
     locked: bool = False
+    #: Secilen model bu tabloya yazilamaz (boyut/uzay uyusmazligi); hicbir sey yapilmadi.
+    incompatible: bool = False
+    #: Gozlem: API/model cagrisi basina sure (ms); detayda yalniz p50/p95 tutulur.
+    latencies_ms: list[float] = field(default_factory=list)
     #: Bir sonraki kosunun `--after-id` degeri (bu kimlige kadar tum urunler islendi).
     resume_after: int = 0
     errors: list[str] = field(default_factory=list)
@@ -235,7 +247,8 @@ class ProductCounts:
 
     def detail(self) -> dict[str, Any]:
         return {
-            "model": MODEL,
+            "model": self.model,
+            "provider": self.provider,
             "text_version": TEXT_VERSION,
             "windows": self.windows,
             "candidates": self.candidates,
@@ -255,11 +268,32 @@ class ProductCounts:
             "budget_stopped": self.budget_stopped,
             "limit_reached": self.limit_reached,
             "resume_after": self.resume_after,
+            **latency_detail(self.latencies_ms, self.api_texts),
         }
+
+
+def _percentile(values: Sequence[float], q: float) -> float:
+    ordered = sorted(values)
+    index = min(len(ordered) - 1, max(0, math.ceil(q * len(ordered)) - 1))
+    return ordered[index]
+
+
+def latency_detail(latencies_ms: Sequence[float], items: int) -> dict[str, Any]:
+    """Saglayici gecikmesi ve verim: yalniz sayilar (metin, anahtar yok). Cagri yoksa bos."""
+    if not latencies_ms:
+        return {}
+    total_s = sum(latencies_ms) / 1000
+    return {
+        "embed_ms_p50": round(_percentile(latencies_ms, 0.50)),
+        "embed_ms_p95": round(_percentile(latencies_ms, 0.95)),
+        "items_per_s": round(items / total_s, 1) if total_s > 0 else None,
+    }
 
 
 def decide_outcome(counts: ProductCounts) -> tuple[str, str | None]:
     """Karar 0174 sozlesmesi: sonuc yalnizca tipli sayaclardan, oncelik sirasiyla."""
+    if counts.incompatible:
+        return "failed", "incompatible_index"
     if counts.locked:
         return "skipped_locked", "lock_busy"
     if counts.aborted:
@@ -339,13 +373,27 @@ class ProductEmbedder:
         self.governor = governor
         self.should_stop = should_stop
         self.model = client.model_version
-        self.counts = ProductCounts(resume_after=options.after_id)
+        self.spec: ModelSpec | None = registry().spec_for_version(self.model)
+        self.counts = ProductCounts(
+            model=self.model,
+            provider=self.spec.provider if self.spec else "unknown",
+            resume_after=options.after_id,
+        )
         self._consecutive_failures = 0
         #: Kuru calismada bu kosuda "uretilmis sayilan" ozetler: sonraki pencerelerde kopya sayilir.
         self._planned: set[bytes] = set()
 
     # --- giris ---------------------------------------------------------------------------
     def run(self) -> ProductCounts:
+        # Kayit defterinde olmayan ya da baska boyut/uzaydaki model bu tabloya yazamaz (karar 0180).
+        try:
+            if self.spec is None:
+                raise RegistryError(f"kayit defterinde yok: {self.model!r}")
+            require_writable(self.spec, INDEX_FAMILY)
+        except RegistryError as error:
+            self.counts.incompatible = True
+            self.counts.note(str(error))
+            return self.counts
         if not self._lock():
             self.counts.locked = True
             return self.counts
@@ -607,7 +655,7 @@ class ProductEmbedder:
                 {
                     "model": self.model,
                     "text_version": TEXT_VERSION,
-                    "task": PASSAGE_TASK,
+                    "task": self.spec.task("passage") if self.spec else PASSAGE_TASK,
                     "content": [a[0] for a in archive],
                     "texts": [a[1] for a in archive],
                     "vectors": [a[2] for a in archive],
@@ -624,6 +672,7 @@ class ProductEmbedder:
         Reddedilen girdi None doner (o urun yazilmaz, sonraki kosuda yeniden denenir).
         Gecici hata (`EmbeddingError`) yukari firlatilir.
         """
+        started = time.perf_counter()
         try:
             batch = self.client.embed_texts(texts)
         except EmbeddingRejected:
@@ -631,11 +680,13 @@ class ProductEmbedder:
                 return [None]
             middle = len(texts) // 2
             return self._embed_resilient(texts[:middle]) + self._embed_resilient(texts[middle:])
+        self.counts.latencies_ms.append((time.perf_counter() - started) * 1000)
         self._record(batch)
-        for vector in batch.vectors:
-            if len(vector) != DIMENSIONS:
-                raise EmbeddingError(f"vektor boyutu {DIMENSIONS} bekleniyordu, {len(vector)}")
-        return list(batch.vectors)
+        # Kapi: sayi, boyut, sonlu deger, birim norm. Gecemezse `EmbeddingInvalid`
+        # (`EmbeddingError`): parti yazilmaz, ardisik hata sayacina girer.
+        if self.spec is None:  # run() zaten reddeder; dogrudan cagriya karsi
+            raise EmbeddingError(f"kayit defterinde yok: {self.model!r}")
+        return list(validate_for(self.spec, batch, len(texts)).vectors)
 
     def _record(self, batch: EmbeddingBatch) -> None:
         """Kural 9: cagri vektor yazimindan ONCE, ayri islemde kaydedilir (yazim dusse de kalir)."""
@@ -700,7 +751,10 @@ def _report(counts: ProductCounts, seconds: float, dry_run: bool) -> None:
     rate = usage.cost_micros_per_1k_tokens()
     tokens = counts.estimated_tokens if dry_run else counts.tokens
     suffix = " (KURU CALISMA: API yok, yazim yok)" if dry_run else ""
-    print(f"--- urun metin embedding ({MODEL}, metin t{TEXT_VERSION}){suffix} ---")
+    print(f"--- urun metin embedding ({counts.model}, metin t{TEXT_VERSION}){suffix} ---")
+    if counts.incompatible:
+        print(f"  model bu tabloya yazilamaz; hicbir sey yapilmadi: {'; '.join(counts.errors)}")
+        return
     if counts.locked:
         print("  baska bir kosu calisiyor (danisma kilidi); hicbir sey yapilmadi")
         return
@@ -730,6 +784,8 @@ def _report(counts: ProductCounts, seconds: float, dry_run: bool) -> None:
         print("  UYARI: durdurma istendi")
     print(f"  devam noktasi         --after-id {counts.resume_after}")
     print(f"  sure                  {seconds:.1f} sn")
+    for key, value in latency_detail(counts.latencies_ms, counts.api_texts).items():
+        print(f"  {key:<21} {value}")
     for error in counts.errors:
         print(f"  ! {error}")
 
@@ -760,6 +816,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument(
         "--fake-client", action="store_true", help="deterministik sahte vektor; yalniz YEREL DB"
     )
+    parser.add_argument(
+        "--model",
+        default=None,
+        help="kayit defteri kimligi (varsayilan: ENRICH_PRODUCT_TEXT_MODEL, yoksa kayit)",
+    )
     parser.add_argument("--verbose", "-v", action="store_true")
     return parser
 
@@ -779,6 +840,13 @@ def _validate(args: argparse.Namespace) -> str | None:
         return "gercek API icin --max-tokens zorunlu; sinirsiz ucretli cagri yok"
     if args.fake_client and args.execute and not _is_local(database_url("DATABASE_URL")):
         return "sahte vektor yalnizca yerel veritabanina yazilabilir"
+    try:
+        spec = select_model("product_text", requested=args.model)
+        require_writable(spec, INDEX_FAMILY)
+    except RegistryError as error:
+        return f"model secilemez: {error}"
+    if spec.provider != "jina":
+        return f"{spec.id}: yalniz uzak API saglayicisi (yerel pilot: enrich.pilot)"
     if args.execute and not args.fake_client and not os.environ.get("JINA_API_KEY"):
         return "JINA_API_KEY tanimli degil"
     return None
@@ -810,17 +878,20 @@ def main(argv: list[str] | None = None) -> int:
         scan_step=args.scan_step,
         api_batch=args.batch_size,
     )
+    spec = select_model("product_text", requested=args.model)  # _validate dogruladi
     budget: TokenBudget | None = None
     client: EmbeddingClient
     if args.fake_client:
-        client = FakeEmbeddingClient(model=f"{MODEL}-fake")
+        client = FakeEmbeddingClient(model=f"{spec.id}-fake", dimensions=spec.dimensions)
         print("UYARI: sahte istemci; vektorler anlamsal DEGIL.\n")
     else:
         if args.execute:
             budget = TokenBudget(tokens_per_minute=tokens_per_minute_from_env())
             print(f"butce {budget.tokens_per_minute} token/dk, tavan {args.max_tokens} token\n")
-        client = JinaEmbeddingClient(
-            model=MODEL, task=PASSAGE_TASK, budget=budget, text_batch=args.batch_size
+        # Kayit defterinden: model, gorev (`retrieval.passage`) ve boyut. Jina saglayicisi
+        # `_validate`'te denetlendi; donen nesne JinaEmbeddingClient'tir.
+        client = build_text_provider(  # type: ignore[assignment]
+            spec, purpose="passage", budget=budget, batch_size=args.batch_size
         )
 
     signal.signal(signal.SIGINT, _request_stop)
