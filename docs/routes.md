@@ -29,7 +29,7 @@ Duvar rotaya göre değişir. Genel bir kural değil, rota bazlı bir politikad�
 | --- | --- |
 | `/urun/`, `/kategori/`, `/alternatif/`, `/trend/`, `/trendler`, `/firsatlar` | **Yok.** Arama motorundan gelinen sayfalar |
 | `/@handle` ve creator koleksiyonları | **Yok.** Büyüme döngüsünün ilk halkası |
-| `/ara` — metin, sohbet ve görsel arama | **Var.** İlk 2-3 sorgu serbest, sonrasında modal |
+| `/sohbet` — arama turu, sohbet ve görsel (karar 0176; `/ara` 308 ile buraya) | **Var.** İlk 2-3 sorgu serbest, sonrasında modal |
 | Kaydetme, alarm, geçmiş, beden profili | **Var.** Zaten hesap gerektiren şeyler |
 
 Modal sonuçların üstüne gelir, sonuçlar arkada durur. İçerik HTML'de kaldığı
@@ -47,7 +47,7 @@ Modal metni kaydolmayı engel değil kazanç olarak sunar: "Hesabın yok mu?
 
 ```
 /                          Ana sayfa. Arama kutusu + görsel yükleme.
-/ara?q=...                 Metin araması. Netleştirme çubuğu burada.
+/sohbet?q=...              Arama turu (karar 0176; eski /ara?q= 308). Netleştirme çubuğu burada.
 /ara/gorsel                Eski görsel arama sonucu; karar 0091: kalıcı olarak `/`ye yönlendirilir (görsel artık sohbet mesajının ekidir)
 /sohbet/[id]              Konuşmalı keşif (karar 0074). Giriş gerekli, noindex; CHAT_DISCOVERY_ENABLED kapalıyken 404; CHAT_LINK_ENABLED ile mesajdaki ürün linki sohbette çözülür (karar 0090)
 /urun/<slug>               Ürün sayfası: karşılaştırma, fiyat geçmişi, alternatifler
@@ -253,11 +253,11 @@ iyileştirir, sürüm çıkmaya gerek kalmaz.
 
 Önek yalnızca bir **kısayoldur** (docs/decisions/0035): dış adres geri
 kurulur ve kanonik link araması adresine yönlendirilir. Arama kutusuna
-yapıştırılan link (`/ara?q=https://...` ya da ana sayfa kutusunun kodlu
+yapıştırılan link (`/sohbet?q=https://...` (eski `/ara?q=`) ya da ana sayfa kutusunun kodlu
 `/https%3A%2F%2F...` biçimi) de aynı adrese gelir:
 
 ```
-/ara/link?url=<kodlanmış kanonik adres>    izleme parametresiz, fragment'sız
+/sohbet/link?url=<kodlanmış kanonik adres>    izleme parametresiz, fragment'sız
 ```
 
 Akış: adres doğrula (SSRF yazım denetimi) → kanonik değilse kanonik adrese

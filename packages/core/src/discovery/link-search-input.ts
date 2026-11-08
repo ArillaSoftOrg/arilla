@@ -16,7 +16,7 @@
  */
 import { InvalidUrlError, type NormalizedUrl, normalizeUrl } from "./normalize-url.ts";
 
-export const LINK_SEARCH_PATH = "/ara/link";
+export const LINK_SEARCH_PATH = "/sohbet/link";
 
 /** Adres çubuğu / paylaşım için makul üst sınır; Python tarafıyla aynı. */
 export const MAX_LINK_URL_LENGTH = 2048;

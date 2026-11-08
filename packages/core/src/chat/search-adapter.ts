@@ -25,7 +25,7 @@ import { parseQueryText } from "../search/parse-query.ts";
 import type { QueryObject, SortMode } from "../search/types.ts";
 import type { SearchIntent } from "./contract.ts";
 
-/** Sohbet sonuc blogundaki urun sayisi; tam liste `/ara` baglantisindadir. */
+/** Sohbet sonuc blogundaki urun sayisi; tam liste arama turu (`/sohbet?q=`) baglantisindadir. */
 export const CHAT_RESULT_LIMIT = 6;
 
 function containsWord(haystack: string, needle: string): boolean {

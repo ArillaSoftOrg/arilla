@@ -18,14 +18,14 @@ import {
 import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { Suspense } from "react";
-import { clientIp } from "../lib/client-ip.ts";
-import { requireProductAccess, verifySession } from "../lib/dal.ts";
-import { ConversationFocusClient } from "../lib/search/conversation-focus-client.tsx";
-import styles from "../lib/search/search.module.css";
-import { ResultsRegionSkeleton } from "../lib/search/search-results.tsx";
-import { SearchRightsBadge } from "../lib/search/search-rights-badge.tsx";
-import { TextSearchResults } from "../lib/search/text-search-results.tsx";
-import { startWebSearch } from "../lib/search/web-search-start.ts";
+import { clientIp } from "../client-ip.ts";
+import { requireProductAccess, verifySession } from "../dal.ts";
+import { ConversationFocusClient } from "./conversation-focus-client.tsx";
+import styles from "./search.module.css";
+import { ResultsRegionSkeleton } from "./search-results.tsx";
+import { SearchRightsBadge } from "./search-rights-badge.tsx";
+import { TextSearchResults } from "./text-search-results.tsx";
+import { startWebSearch } from "./web-search-start.ts";
 
 const SORT_MODES: readonly SortMode[] = ["balanced", "best_deal", "closest_match"];
 
@@ -62,7 +62,7 @@ function SearchToolbar({ query }: { query?: string }) {
   );
 }
 
-interface AramaSearchParams {
+export interface AramaSearchParams {
   q?: string;
   sort?: string;
   sayfa?: string;
@@ -103,7 +103,7 @@ function aramaHref({
   if (sort && sort !== "balanced") params.set("sort", sort);
   if (page && page > 1) params.set("sayfa", String(page));
   if (notice) params.set("uyari", notice);
-  return `/ara?${params.toString()}${focus ? FOCUS_FRAGMENT : ""}`;
+  return `/sohbet?${params.toString()}${focus ? FOCUS_FRAGMENT : ""}`;
 }
 
 /**
@@ -167,7 +167,7 @@ function replyNotice(
       actions: [
         {
           label: "Yeni arama olarak kullan",
-          href: `/ara?${new URLSearchParams({ q: reply.text }).toString()}`,
+          href: `/sohbet?${new URLSearchParams({ q: reply.text }).toString()}`,
         },
         { label: "Değiştir", href: `#${inputId}` },
       ],
@@ -187,7 +187,7 @@ function replyNotice(
 }
 
 /**
- * docs/pages.md "/ara": arama girdisi -> netleştirme (varsa) -> sonuç sayısı
+ * docs/pages.md "/sohbet" (karar 0176; eskiden /ara): arama girdisi -> netleştirme (varsa) -> sonuç sayısı
  * -> sekmeler -> sonuç ızgarası -> sayfalama. Giriş modali (decision 0002,
  * E2) sonuç bölgesinde; görsel arama sonucu ayrı bir rotada (`/ara/gorsel`),
  * yükleme girdisi burada (D4).
@@ -196,11 +196,7 @@ function replyNotice(
  * döner. Arama kutusu, soru ve anlaşılan çipler yerinde kalır; bu yüzden
  * bu segmentte sayfa düzeyinde `loading.tsx` yok.
  */
-export default async function AramaPage({
-  searchParams,
-}: {
-  searchParams: Promise<AramaSearchParams>;
-}) {
+export async function SearchPage({ searchParams }: { searchParams: Promise<AramaSearchParams> }) {
   await requireProductAccess();
   const { q, sort: sortParam, sayfa, n, yanit, uyari } = await searchParams;
   const requestedQuery = q?.trim() ?? "";
@@ -334,7 +330,7 @@ export default async function AramaPage({
                 freeText={{
                   label: "Ya da kendi cümlenle yaz",
                   placeholder: "Kısaca yaz",
-                  action: `/ara${FOCUS_FRAGMENT}`,
+                  action: `/sohbet${FOCUS_FRAGMENT}`,
                   inputName: "yanit",
                   submitLabel: "Gönder",
                   hiddenFields: conversationFields,
@@ -376,7 +372,7 @@ export default async function AramaPage({
                 label="Aramayı daralt"
                 placeholder="Ek tercih yaz"
                 submitLabel="Uygula"
-                action={`/ara${FOCUS_FRAGMENT}`}
+                action={`/sohbet${FOCUS_FRAGMENT}`}
                 inputName="yanit"
                 hiddenFields={conversationFields}
                 defaultValue={unrecognizedText}

@@ -132,7 +132,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  if (pathname === "/ara") {
+  if (pathname === "/sohbet") {
     const q = searchParams.get("q");
     if (q && isLinkSearchInput(q)) {
       return NextResponse.redirect(new URL(canonicalLinkSearchHref(q), request.url));
@@ -161,7 +161,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   // Eksik ya da kanonik UUID olmayan değer yenisiyle değiştirilir.
   if (
-    pathname.startsWith("/ara") &&
+    pathname.startsWith("/sohbet") &&
     !validAnonymousSessionId(request.cookies.get(ANONYMOUS_SESSION_COOKIE)?.value)
   ) {
     const response = NextResponse.next();

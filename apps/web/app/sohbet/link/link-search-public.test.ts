@@ -1,6 +1,6 @@
 /**
  * Link araması herkese açık (`LINK_SEARCH_PUBLIC = true`, karar 0107/0108):
- * `/ara/link` "Yakında" yerine gerçek akışı çalıştırır. Hesap/ürün kapısı hâlâ ilk
+ * `/sohbet/link` "Yakında" yerine gerçek akışı çalıştırır. Hesap/ürün kapısı hâlâ ilk
  * adımdır; geçersiz ve iç ağa giden adresler kuyruğa ve veritabanına hiç gitmez.
  * Veritabanı ve Redis gerekmez: arka uç çağrıları sahte.
  */
@@ -59,9 +59,9 @@ describe("link araması açık", () => {
     expect(loading.type).not.toBe(LinkSearchComingSoon);
   });
 
-  it("adres yoksa /ara'ya yönlenir; arka uca gidilmez", async () => {
+  it("adres yoksa arama turuna (/sohbet) yönlenir; arka uca gidilmez", async () => {
     const page = (await import("./page.tsx")).default;
-    await expect(page({ searchParams: Promise.resolve({}) })).rejects.toThrow("redirect:/ara");
+    await expect(page({ searchParams: Promise.resolve({}) })).rejects.toThrow("redirect:/sohbet");
     expect(access.calls).toBe(1);
     expect(backend.getLinkSearchState).not.toHaveBeenCalled();
   });

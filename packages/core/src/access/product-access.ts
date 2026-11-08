@@ -57,7 +57,7 @@ export const PUBLIC_PRODUCT_PATH_PREFIXES = [
   "/kesfet",
   "/firsatlar",
   "/trendler",
-  "/ara",
+  "/sohbet",
   "/git",
 ];
 

@@ -1,6 +1,6 @@
 # 0176 — Tek arama yüzeyi: `/sohbet` (`/ara` emekliye ayrılır)
 
-Durum: Kabul edildi (8 Kasım 2026). Aşamalı uygulanır; Faz 0 kullanıcıya etkisiz. İlgili: 0002
+Durum: Kabul edildi ve uygulandı (8 Kasım 2026). Faz 0 ayrı PR'larda; Faz 1–4 kullanıcı kararıyla tek PR'da. `/ara` adresleri 308 ile `/sohbet`'e yönlenir; `SEARCH_SURFACE` geçiş bayrağı bu yüzden hiç eklenmedi (geri alma: PR'ın geri alınması). İlgili: 0002
 (arama duvarı), 0030 (konuşmalı netleştirme), 0062/0063 (anlık yorum), 0066 (kademeli arama),
 0074/0078/0090/0091 (konuşmalı keşif, görsel ve link), 0102 (internet araması), 0171 (IntentV2),
 0172 (normalizasyon).

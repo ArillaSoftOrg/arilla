@@ -160,14 +160,15 @@ const PRODUCT_PAGES: { name: string; call: () => Promise<unknown> }[] = [
   { name: "/kesfet", call: async () => (await import("./kesfet/page.tsx")).default() },
   { name: "/firsatlar", call: async () => (await import("./firsatlar/page.tsx")).default() },
   {
-    name: "/ara",
+    // Karar 0176: tek arama yuzeyi (eski /ara).
+    name: "/sohbet",
     call: async () =>
-      (await import("./ara/page.tsx")).default({ searchParams: Promise.resolve({}) }),
+      (await import("./sohbet/page.tsx")).default({ searchParams: Promise.resolve({}) }),
   },
   {
-    name: "/ara/link",
+    name: "/sohbet/link",
     call: async () =>
-      (await import("./ara/link/page.tsx")).default({ searchParams: Promise.resolve({}) }),
+      (await import("./sohbet/link/page.tsx")).default({ searchParams: Promise.resolve({}) }),
   },
   {
     // Misafir sohbet (bayrak acik): urun kapisi diger /sohbet sayfalari gibi uygulanir.
@@ -293,20 +294,16 @@ describe("server action ve route handler'lar (arayüz atlanarak)", () => {
     as("user");
     const calls: [string, () => Promise<unknown>][] = [
       [
-        "uploadImageForSearch",
-        async () => (await import("./ara/gorsel/actions.ts")).uploadImageForSearch(new FormData()),
-      ],
-      [
         "startLinkSearchAction",
         async () =>
-          (await import("./ara/link/actions.ts")).startLinkSearchAction(
+          (await import("./sohbet/link/actions.ts")).startLinkSearchAction(
             "https://magaza.example/u",
             "gate-test-request-key",
           ),
       ],
       [
         "pollLinkSearchAction",
-        async () => (await import("./ara/link/actions.ts")).pollLinkSearchAction("x"),
+        async () => (await import("./sohbet/link/actions.ts")).pollLinkSearchAction("x"),
       ],
       [
         "removeSavedItemAction",

@@ -76,6 +76,12 @@ const BRAND_EXCLUDE_MARKERS = [
   "dışında",
   "disinda",
 ];
+/** Nitelik olumsuzlugu: onceki kelime zorunlu metinden cikar ("-siz" eki olumsuzluk degildir). */
+const NEGATION_MARKERS: ReadonlySet<string> = new Set([
+  ...BRAND_EXCLUDE_MARKERS,
+  "olmayan",
+  "olmadan",
+]);
 const BRAND_SKIP_MARKERS = ["tarzı", "tarzi", "gibi"];
 const BRAND_CONTEXT_WINDOW = 16;
 
@@ -217,6 +223,17 @@ export function parseQueryText(
     if (consumed[index]) return;
     const word = conversationalWord(token.value);
     if (CONVERSATIONAL_FILLER_WORDS.has(word)) consumed[index] = true;
+  });
+
+  // Olumsuz nitelik ("kablosuz olmayan", "plastik değil"): nitelik ve olumsuzluk sözcüğü
+  // ZORUNLU metin kapısına girmez. Aksi halde "olmayan" hiçbir başlıkta geçmediği için
+  // sonuç sıfırlanır ve istenmeyen nitelik zorunlu olurdu (karar 0171 §4.4, 0176 Faz 2).
+  // Ürün dışlanmaz; marka olumsuzluğu yukarıda brand_exclude ile ayrıca işlenir.
+  tokens.forEach((token, index) => {
+    if (consumed[index] || !NEGATION_MARKERS.has(conversationalWord(token.value))) return;
+    consumed[index] = true;
+    const previous = index - 1;
+    if (previous >= 0 && !consumed[previous]) consumed[previous] = true;
   });
 
   const consumedCount = consumed.filter(Boolean).length;

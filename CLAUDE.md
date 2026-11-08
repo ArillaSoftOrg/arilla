@@ -38,14 +38,14 @@ tamamı anlamını yitirir.
 1. **İstek yolunda model çağrısı yok.** Altı istisna var:
    - Kullanıcının yüklediği görselin embedding'i. `EmbeddingService`
      arkasından geçer ve görsel hash'i ile cache'lenir.
-   - `/ara` anlık sorgu yorumu (karar 0062): yalnızca `GEMINI_REALTIME_ENABLED`
+   - Arama turu anlık sorgu yorumu (`/sohbet?q=`, eski `/ara`; karar 0062, 0171, 0176): yalnızca `GEMINI_REALTIME_ENABLED`
      açıkken, metin süzgecinden geçen sorgu için, kısa zaman aşımıyla, günlük
      tavanla; sonuç `query_interpretation`'a yazılır ve yeniden kullanılır,
      hata deterministik aramaya düşer, model ürün/fiyat üretmez.
    - Konuşmalı keşif (`/sohbet`, karar 0074): oturumlu kullanıcının kendi mesajı
      başına tek Gemini çağrısı; `ChatInterpreter` arkasında, katı şemalı,
      `CHAT_DISCOVERY_ENABLED=true` bayrağıyla (varsayılan kapalı), her çağrı
-     `api_usage`'a yazılır, kullanıcı başına saatlik tavanı vardır ve `/ara`
+     `api_usage`'a yazılır, kullanıcı başına saatlik tavanı vardır ve arama turu
      bütçesinden ayrıdır; model yalnızca niyet çıkarır — ürün, fiyat, SQL üretmez.
    - Sohbet görsel eki (karar 0078, 0091): `/sohbet` mesajına (ilk mesaj ya da
      sohbet içi sonraki mesaj) eklenen, önceden işlenmiş (≤512 px, EXIF'siz)
@@ -62,7 +62,7 @@ tamamı anlamını yitirir.
      kullanıcı metniyle, 0074'ün aynı tek çağrı/`api_usage`/tavan hattından. Üçüncü
      taraf sayfa metni, başlığı ya da görseli modele gitmez; model yalnızca
      lexicon'la doğrulanan tercih alanları üretir — ürün, fiyat, stok, satıcı değil.
-   - İnternet ürün araması (karar 0102): `/ara`, `/ara/gorsel`, `/ara/link`
+   - İnternet ürün araması (karar 0102): arama turu (`/sohbet?q=`), sohbet ve link araması (`/sohbet/link`; eski `/ara*`, karar 0176)
      sonuç sayfası başına en fazla bir Gemini çağrısı (Google Search grounding
      + URL Context); `WEB_SEARCH_ENABLED=true` bayrağıyla (varsayılan kapalı;
      üretimde ayrıca `WEB_SEARCH_LEGAL_APPROVED=true` gerekir), `GeminiWebGrounding`

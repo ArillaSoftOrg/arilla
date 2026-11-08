@@ -3,7 +3,7 @@ import styles from "../../lib/search/search.module.css";
 import { LINK_SEARCH_COPY } from "./link-search-copy.ts";
 
 /**
- * Link araması geçici olarak kapalıyken (`LINK_SEARCH_PUBLIC`) `/ara/link`
+ * Link araması geçici olarak kapalıyken (`LINK_SEARCH_PUBLIC`) `/sohbet/link`
  * ve onun yükleme durumu bunu gösterir: form, bekleme ya da sonuç yok; eski
  * bağlantılar 404 vermez. Metin araması buradan sürer.
  */

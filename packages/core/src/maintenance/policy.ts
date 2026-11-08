@@ -77,9 +77,10 @@ export function parseStatus(value: unknown): SystemStatus {
 }
 
 const PREFIXES: Record<Service, readonly string[]> = {
-  search: ["/ara"],
+  // Karar 0176: arama turu /sohbet?q=; /ara adresleri 308 ile yonlenir (eski yer imleri).
+  search: ["/ara", "/sohbet"],
   image: ["/ara/gorsel"],
-  link: ["/ara/link"],
+  link: ["/ara/link", "/sohbet/link"],
   chat: ["/sohbet"],
   account: ["/hesap", "/giris", "/kayit"],
   alerts: ["/alarmlar"],

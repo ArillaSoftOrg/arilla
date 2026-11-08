@@ -121,7 +121,7 @@ export default async function LinkAramaPage({
   if (!LINK_SEARCH_PUBLIC) return <LinkSearchComingSoon />;
   const { url: urlParam } = await searchParams;
   const raw = Array.isArray(urlParam) ? urlParam[0] : urlParam;
-  if (!raw?.trim()) redirect("/ara");
+  if (!raw?.trim()) redirect("/sohbet");
 
   const checked = checkLinkSearchUrl(raw);
   if (!checked.ok) {

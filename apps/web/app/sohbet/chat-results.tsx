@@ -45,7 +45,7 @@ interface GridItem {
 const CHAT_GRID_IMAGE_SIZES =
   "(min-width: 1152px) 323px, (min-width: 1024px) calc((100vw - 182px) / 3), (min-width: 720px) calc((100vw - 166px) / 3), calc(50vw - 48px)";
 
-/** Konuşma içi ürün kartları: `/ara` ile aynı `ProductCard`, konteynere göre akan ızgara. */
+/** Konuşma içi ürün kartları: arama turuyla aynı `ProductCard`, konteynere göre akan ızgara. */
 export function ChatResultGrid({
   items,
   labelledBy,
@@ -81,7 +81,7 @@ export function ChatResultGrid({
   );
 }
 
-/** Tüm sonuçlar `/ara`da: niyetin metinsel hâli + fiyat kalıbı + sıralama (mevcut ayrıştırıcının anladığı biçim). */
+/** Tüm sonuçlar arama turunda (`/sohbet?q=`, karar 0176): niyetin metinsel hâli + fiyat kalıbı + sıralama (mevcut ayrıştırıcının anladığı biçim). */
 export function fullResultsHref(intent: SearchIntent, sort: ChatSortKey = "secilen"): string {
   let text = intentSearchText(intent);
   if (intent.priceMin !== null && intent.priceMax !== null) {
@@ -92,7 +92,7 @@ export function fullResultsHref(intent: SearchIntent, sort: ChatSortKey = "secil
   const params = new URLSearchParams({ q: text });
   const araSort = araSortParam(sort);
   if (araSort) params.set("sort", araSort);
-  return `/ara?${params.toString()}`;
+  return `/sohbet?${params.toString()}`;
 }
 
 /**

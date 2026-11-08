@@ -3,7 +3,7 @@ import { ResultsSkeleton } from "../../lib/search/search-results.tsx";
 import { LinkSearchComingSoon } from "./link-search-coming-soon.tsx";
 
 /**
- * /ara/link icin, /ara segmentinden devralinan davranisin aynisi. /ara metin
+ * /sohbet/link icin, eski /ara segmentinden devralinan davranisin aynisi. /ara metin
  * aramasi artik sayfa duzeyinde `loading.tsx` kullanmiyor (sonuc bolgesi kendi
  * `<Suspense>` sinirinda); bu rota etkilenmesin diye burada acikca tanimli.
  */

@@ -105,8 +105,8 @@ describe("puanlayıcı: bugünkü yerel yolun bilinen hataları görünür", () 
     expect(row.reversed).toContain("compat_brand_as_product_brand");
   });
 
-  it("n01 'kablosuz olmayan' zorunlu 'kablosuz' tokenına döner", () => {
+  it("n01 'kablosuz olmayan' artık zorunlu 'kablosuz' tokenına DÖNMEZ (karar 0176 Faz 2)", () => {
     const row = scoreCase(byId("n01"), predictFromLocal(byId("n01").q, LEXICON));
-    expect(row.reversed).toContain("attr:kablosuz");
+    expect(row.reversed).not.toContain("attr:kablosuz");
   });
 });

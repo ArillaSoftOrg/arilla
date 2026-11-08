@@ -1,5 +1,5 @@
 /**
- * `/ara/link` metinleri — docs/copy.md "Link araması" bölümü. Kod içinde
+ * `/sohbet/link` metinleri — docs/copy.md "Link araması" bölümü. Kod içinde
  * dağınık kalmasın diye tek yerde. Arayüz dili Türkçe, büyük harf yok,
  * "satın al" / "ucuz" yok (CLAUDE.md).
  */

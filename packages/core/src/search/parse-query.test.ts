@@ -100,3 +100,27 @@ describe("parseQueryText", () => {
     expect(result.confidence).toBeLessThan(0.35);
   });
 });
+
+describe("olumsuz nitelik zorunlu metne girmez (karar 0176 Faz 2)", () => {
+  it.each([
+    ["kablosuz olmayan oyuncu faresi", "oyuncu faresi"],
+    ["plastik olmayan su şişesi", "su şişesi"],
+    ["kablolu degil kulaklik", "kulaklik"],
+    ["deri olmasın cüzdan", "cüzdan"],
+  ])("%s -> %s", (query, unparsed) => {
+    expect(parseQueryText(query, []).unparsed).toBe(unparsed);
+  });
+
+  it("-sız eki olumsuzluk değildir: 'kablosuz kulaklık' aynen kalır", () => {
+    expect(parseQueryText("kablosuz kulaklık", []).unparsed).toBe("kablosuz kulaklık");
+  });
+
+  it("marka olumsuzluğu bugünkü gibi brand_exclude olur", () => {
+    const lexicon = [
+      { kind: "brand" as const, surface: "xiaomi", normalized: "xiaomi", weight: 1 },
+    ];
+    const parsed = parseQueryText("xiaomi olmasın akıllı saat", lexicon);
+    expect(parsed.filters.brand_exclude).toEqual(["xiaomi"]);
+    expect(parsed.unparsed).toBe("akıllı saat");
+  });
+});

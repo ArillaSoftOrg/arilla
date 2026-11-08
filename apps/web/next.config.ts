@@ -71,6 +71,11 @@ const nextConfig: NextConfig = {
     return [
       { source: "/kullanim-kosullari", destination: "/kosullar", permanent: true },
       { source: "/cerez-politikasi", destination: "/cerez", permanent: true },
+      // Karar 0176: tek arama yuzeyi /sohbet. Sorgu parametreleri (q, sort, sayfa, n,
+      // yanit, uyari, url) Next yonlendirmesinde aynen tasinir.
+      { source: "/ara/gorsel", destination: "/", permanent: true },
+      { source: "/ara/link", destination: "/sohbet/link", permanent: true },
+      { source: "/ara", destination: "/sohbet", permanent: true },
     ];
   },
   // Karar 0050: CSP, çerçeveleme yasağı ve diğer güvenlik başlıkları tek merkezde.
@@ -94,7 +99,7 @@ const nextConfig: NextConfig = {
   poweredByHeader: false,
   experimental: {
     serverActions: {
-      // Gorsel arama yuklemesi 4 MB ile sinirli (ara/gorsel/actions.ts).
+      // Sohbet gorsel eki yuklemesi 4 MB ile sinirli (karar 0078/0091).
       // Limit ham multipart govdeye uygulanir (sinir + parca basliklari
       // ~10-20 KB ekler), bu yuzden 4 MB dosya icin 4mb yetmez. 4.5mb
       // Vercel Function istek govdesi ust siniriyla da ayni.

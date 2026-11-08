@@ -53,9 +53,9 @@ export function HomeSearchComposer({
    */
   recentProducts?: readonly SearchComposerRecentProduct[];
   /**
-   * Konuşmalı keşif açıkken (karar 0074) ve kullanıcı girişliyken: kutu `/ara`
+   * Konuşmalı keşif açıkken (karar 0074) ve kullanıcı girişliyken: kutu arama turu
    * yerine bu sunucu eylemini çalıştırır (sohbet oluşturur, `/sohbet/[id]`ye
-   * yönlendirir). Verilmezse eski davranış: native GET `/ara?q=`.
+   * yönlendirir). Verilmezse: native GET `/sohbet?q=` (arama turu, karar 0176).
    */
   startChat?: (formData: FormData) => void | Promise<void>;
   /**

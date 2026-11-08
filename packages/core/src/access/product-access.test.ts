@@ -123,8 +123,8 @@ describe("isPublicProductPath", () => {
     "/firsatlar",
     "/trendler",
     "/trendler/kuru-ciltlere-son",
-    "/ara",
-    "/ara/link",
+    "/sohbet",
+    "/sohbet/link",
     "/git/12",
   ])("%s is a product path", (path) => {
     expect(isPublicProductPath(path)).toBe(true);
