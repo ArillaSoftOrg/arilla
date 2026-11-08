@@ -1,4 +1,5 @@
 import {
+  applyIntentV2,
   buildSearchSummary,
   createPostgresSearchProvider,
   createSeedAliasSource,
@@ -18,8 +19,9 @@ import {
 import { ANONYMOUS_SESSION_COOKIE, validAnonymousSessionId } from "@arilla/core/anonymous-session";
 import { getDatabase } from "@arilla/db";
 import { ClarificationBar, SortTabs } from "@arilla/ui";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { after } from "next/server";
+import { clientIp } from "../lib/client-ip.ts";
 import { readConsent } from "../lib/consent.ts";
 import { verifySession } from "../lib/dal.ts";
 import styles from "./ara.module.css";
@@ -120,7 +122,12 @@ export async function TextSearchResults({
   // yolunda model cagrisi yok.
   // Yazim duzeltme (karar 0172): bayrak kapaliyken `parsed` aynen doner; acikken duzeltmeler
   // yalnizca bu aramanin kopyasina alternatif olarak eklenir (onbellege yazilmaz).
-  const searchParsed = await normalizeParsedForSearch(db, parsed);
+  // IntentV2 (karar 0171): `QUERY_INTENT_V2=on` ve `GEMINI_REALTIME_ENABLED=true` iken
+  // yalnizca dogrulanmis kesin filtreler bos alanlara eklenir; kapali/hata -> `parsed` aynen.
+  const intent = await applyIntentV2(db, query, parsed, {
+    actor: { userId: user?.id ?? null, ip: clientIp(await headers()) },
+  });
+  const searchParsed = await normalizeParsedForSearch(db, intent.parsed);
   const outcome = await searchWithFallback(
     createPostgresSearchProvider(db, { statementTimeoutMs: TEXT_SEARCH_TIMEOUT_MS }),
     {
