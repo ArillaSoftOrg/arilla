@@ -932,7 +932,8 @@ class FeedSync:
         Karar 0152: son tam surumlerin medyaninin `min_ratio_vs_median` altindaki dosya
         reddedilir. Ayni icerigin tekrar gelmesi ya da sure gecmesi onay SAYILMAZ. Yalnizca
         `feeds approve-drop` ile bu beslemenin BU icerigi (sha256) icin verilmis, sureli ve
-        kullanilmamis bir onay varsa gecer (`feeds.approvals`). Kapatma ayari yoktur.
+        kullanilmamis bir onay ya da `--level` ile verilmis sureli seviye onayi (karar 0175)
+        varsa gecer (`feeds.approvals`). Kapatma ayari yoktur.
         """
         previous = [
             int(row[0])
@@ -949,6 +950,12 @@ class FeedSync:
         if records >= settings.min_ratio_vs_median * median:
             return False, median
         approval = approvals.find_valid(self.conn, feed.id, sha, snapshot_id=snapshot_id)
+        if approval is None:
+            # Karar 0175: icerigi her disa aktarimda degisen kaynak icin insanin onayladigi
+            # boyut seviyesi (onaylanan kaydin %85'inden az olmayan dosya).
+            approval = approvals.find_valid_level(
+                self.conn, feed.id, records, min_ratio=settings.min_ratio_vs_median
+            )
         if approval is None:
             return True, median
         approvals.record_accepted(

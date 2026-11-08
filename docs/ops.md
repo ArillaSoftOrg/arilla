@@ -1577,6 +1577,18 @@ tek kullanımlıktır; kesik/boş dosya onaylanamaz. Denetim izi: `job_run` `fee
 `feed_drop_accepted` satırları (kim, neden, sürüm, kayıt, medyan; 180 gün). Sonraki günlük koşu aynı
 içeriği kabul eder; `no_deactivate`, hata oranı ve deaktivasyon tavanı aynen geçerlidir.
 
+**İçeriği her dışa aktarımda değişen kaynak (seviye onayı, karar 0175).** Admitad AliExpress
+beslemeleri her indirmede farklı içerik verir (aynı kayıt ve bayt sayısında farklı sha256); içerik
+onayı bir daha hiç eşleşmez. Küçülmenin meşru olduğu doğrulandıysa boyut SEVİYESİ onaylanır:
+
+```
+python -m feeds approve-drop --feed 14 --snapshot <surum> --by <ad> --reason "<gerekce>"   --level --ttl-days 3 --confirm
+```
+
+Süre boyunca bu beslemenin, onaylanan kayıt sayısının %85'inden az olmayan her dosyası kayıt
+sayısı kapısını geçer (her kabul ayrı `feed_drop_accepted`). Daha da düşen dosya yine karantinaya
+girer. Son 3 tam sürüm yeni seviyeye gelince medyan kendiliğinden güncellenir; onaya gerek kalmaz.
+
 **Fiyat sıfırlanmaz, offer silinmez.** Kaynakta olmayan offer yalnız 48 saatlik bekleme ve %10
 tavan koşuluyla pasifleşir (0112). Bozuk fiyat (boş, sayı değil, ≤ 0, aralık dışı) kayıt bazında
 reddedilir; red oranı %2'yi aşarsa sürüm reddedilir (`error_rate`) ve hiçbir offer pasifleşmez.

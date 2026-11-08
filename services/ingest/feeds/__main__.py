@@ -8,7 +8,8 @@ python -m feeds sync-due
 python -m feeds daily --merchant SLUG
 python -m feeds freshness --merchant SLUG
 python -m feeds quarantine [--feed ID]         (salt okunur: karantinadaki dusus surumleri)
-python -m feeds approve-drop --feed ID --snapshot ID --by AD --reason METIN [--ttl-days N] --confirm
+python -m feeds approve-drop --feed ID --snapshot ID --by AD --reason METIN [--ttl-days N]
+                             [--level] --confirm
 python -m feeds hb-merge --run ID [--allow-open]
 python -m feeds collect-merge --run ID [--allow-open]  (kaynak kosudan: hepsiburada, trendyol)
 """
@@ -293,6 +294,12 @@ def _approve_drop(args: argparse.Namespace) -> int:
             f"onaylanacak: surum {q.snapshot_id}, besleme {feed_id}, {q.records} kayit "
             f"(onceki medyan {median}), sha256={q.sha256[:16]}, gecerlilik {args.ttl_days} gun"
         )
+        if args.level:
+            floor = int(q.records * approvals.LEVEL_MIN_RATIO)
+            print(
+                f"kapsam: SEVIYE (karar 0175) - {args.ttl_days} gun boyunca bu beslemenin "
+                f"{floor} kayittan az olmayan her dosyasi kayit sayisi kapisini gecer"
+            )
         if not args.confirm:
             print("yazilmadi: onaylamak icin --confirm ekleyin")
             return 0
@@ -304,6 +311,7 @@ def _approve_drop(args: argparse.Namespace) -> int:
                 by=args.by,
                 reason=args.reason,
                 ttl_days=args.ttl_days,
+                level=args.level,
             )
         except approvals.ApprovalError as error:
             print(f"onaylanmadi: {error}", file=sys.stderr)
@@ -406,6 +414,11 @@ def main(argv: list[str] | None = None) -> int:
     p.add_argument("--by", required=True, help="onaylayan kisi")
     p.add_argument("--reason", required=True, help="gerekce (denetim izine yazilir)")
     p.add_argument("--ttl-days", type=int, default=approvals.DEFAULT_TTL_DAYS)
+    p.add_argument(
+        "--level",
+        action="store_true",
+        help="icerik yerine boyut seviyesini onayla (icerigi her disa aktarimda degisen kaynak)",
+    )
     p.add_argument("--confirm", action="store_true")
     p.set_defaults(func=_approve_drop)
     # `collect-merge` genel addir (karar 0118); `hb-merge` geriye uyumluluk icin kalir.
