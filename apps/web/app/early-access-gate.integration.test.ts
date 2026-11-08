@@ -170,6 +170,20 @@ const PRODUCT_PAGES: { name: string; call: () => Promise<unknown> }[] = [
       (await import("./ara/link/page.tsx")).default({ searchParams: Promise.resolve({}) }),
   },
   {
+    // Misafir sohbet (bayrak acik): urun kapisi diger /sohbet sayfalari gibi uygulanir.
+    name: "/sohbet/misafir",
+    call: async () => {
+      vi.stubEnv("CHAT_DISCOVERY_ENABLED", "true");
+      try {
+        return await (await import("./sohbet/misafir/page.tsx")).default({
+          searchParams: Promise.resolve({ q: "kulaklik" }),
+        });
+      } finally {
+        vi.unstubAllEnvs();
+      }
+    },
+  },
+  {
     name: "/urun/[slug] meta",
     call: async () =>
       (await import("./urun/[slug]/page.tsx")).generateMetadata({
