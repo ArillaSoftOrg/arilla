@@ -23,6 +23,7 @@ export {
 } from "./semantic-candidates.ts";
 export {
   compareTopN,
+  fuseForQuery,
   measureSemanticShadow,
   SEMANTIC_QUERY_OPERATION,
   SHADOW_TOP_N,

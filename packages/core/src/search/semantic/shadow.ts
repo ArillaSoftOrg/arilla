@@ -170,13 +170,16 @@ async function defaultRecord(db: Database, m: ShadowMetrics): Promise<void> {
  * "Anlamsal acik olsaydi" karsilastirmasi (saf): pilotun aksesuar/tur korumasi, kapi ve RRF.
  * Metin sonucu hic dusmez; fark yalnizca ilk N'e giren anlamsal-yalniz urunlerdir.
  */
-export function compareTopN(
-  textItems: readonly ShadowTextItem[],
+/**
+ * "Anlamsal acik olsaydi" sirasi (saf): pilotun aksesuar/tur korumasi, kapi ve RRF. Gölge olcum
+ * ve cevrimdisi degerlendirme (`scripts/semantic-eval.ts`) AYNI fonksiyonu kullanir.
+ */
+export function fuseForQuery<T extends ShadowTextItem>(
+  textItems: readonly T[],
   candidates: readonly SemanticCandidate[],
   queryText: string,
   textSimilarity: ReadonlyMap<number, number>,
-  topN = SHADOW_TOP_N,
-): Pick<ShadowMetrics, "gatePassed" | "semanticOnly" | "overlapTopN" | "newInTopN"> {
+) {
   const guard = !queryWantsAccessory(queryText);
   const usable = guard ? candidates.filter((c) => !looksLikeAccessory(c.title)) : [...candidates];
   const textIds = new Set(textItems.map((item) => item.productId));
@@ -191,6 +194,17 @@ export function compareTopN(
       ? { isTypeMismatch: (item: ShadowTextItem) => !typeRegex.test(foldForMatch(item.title)) }
       : {}),
   });
+  return { fused, passed, textIds };
+}
+
+export function compareTopN(
+  textItems: readonly ShadowTextItem[],
+  candidates: readonly SemanticCandidate[],
+  queryText: string,
+  textSimilarity: ReadonlyMap<number, number>,
+  topN = SHADOW_TOP_N,
+): Pick<ShadowMetrics, "gatePassed" | "semanticOnly" | "overlapTopN" | "newInTopN"> {
+  const { fused, passed, textIds } = fuseForQuery(textItems, candidates, queryText, textSimilarity);
   const textTop = new Set(textItems.slice(0, topN).map((item) => item.productId));
   const fusedTop = fused.slice(0, topN);
   return {
