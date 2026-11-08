@@ -8,6 +8,8 @@ import type {
   AttentionState,
   PipelineStage,
   PipelineStageState,
+  RunOutcome,
+  RunOutcomeKind,
   Severity,
 } from "@arilla/core";
 import { type CostSummary, costState } from "@arilla/core/cost-truth";
@@ -714,7 +716,77 @@ export function formatScore(score: number): string {
 const PIPELINE_REASON_LABELS_0055: Record<string, string> = {
   job_failed: "son iş koşusu başarısız",
   job_stuck: '2 saattir "sürüyor" kalan iş koşusu var',
+  // Karar 0174
+  job_blocked_upstream: "son koşu engellendi: önceki aşamanın çıktısı eksik",
+  job_invalid_outcome: "son koşu geçersiz sonuç kaydetti",
 };
+
+// --- Karar 0174: iş sonucu (PR1b) ---
+
+/** Sözleşmedeki altı sonuç (gösterimde durum sütununda yer alır). */
+const JOB_OUTCOME_KINDS: ReadonlySet<RunOutcomeKind> = new Set([
+  "completed",
+  "no_input",
+  "skipped_locked",
+  "partial",
+  "failed",
+  "blocked_upstream",
+]);
+
+const JOB_OUTCOME_LABELS: Record<Exclude<RunOutcomeKind, "legacy">, string> = {
+  completed: "tamamlandı",
+  no_input: "çalıştı — uygun girdi bulunamadı",
+  skipped_locked: "atlandı — başka koşu sürüyordu",
+  partial: "kısmi — öğe hataları var",
+  failed: "başarısız",
+  blocked_upstream: "engellendi — önceki aşamanın çıktısı eksik",
+  invalid: "geçersiz sonuç kaydı",
+  running: "sürüyor",
+};
+
+/** Eski biçim kaydın (outcome yok) notu: arıza değildir. */
+export const LEGACY_OUTCOME_NOTE = "Sonuç kaydı yok";
+
+/**
+ * Koşunun sonuç etiketi. Eski biçimde `status` etiketi (karar 0055 davranışı);
+ * not ayrıca `LEGACY_OUTCOME_NOTE` ile gösterilir.
+ */
+export function jobOutcomeLabel(outcome: RunOutcome, status: string): string {
+  return outcome.kind === "legacy" ? statusLabel(status) : JOB_OUTCOME_LABELS[outcome.kind];
+}
+
+const JOB_OUTCOME_REASON_LABELS: Record<string, string> = {
+  no_eligible_offers: "işlenecek uygun teklif yok",
+  no_eligible_products: "bağlı aktif teklifi olan ürün yok",
+  lock_busy: "eşleştirme kilidi başka koşuda",
+  offer_errors: "teklif bazlı hatalar",
+  exception: "işlenmeyen hata",
+  invalid_outcome: "iş geçersiz sonuç adı verdi",
+  no_embeddings: "vektör (embedding) yok",
+};
+
+/** Doğrulanmış çıktı sayacı olan aşamalar (core `OUTPUT_COUNTERS`). */
+const STAGES_WITH_OUTPUT: ReadonlySet<PipelineStage> = new Set(["resolve", "prices", "edges"]);
+
+/**
+ * Boru hattı aşamasının son koşu sonucu ve son çıktısı: "son koşu: tamamlandı ·
+ * son çıktı: 08.11.2026 02:31". Çıktı sayacı olmayan aşamada son çıktı yazılmaz.
+ */
+export function pipelineOutcomeText(
+  stage: PipelineStage,
+  kind: RunOutcomeKind,
+  lastProducedAt: Date | null,
+): string {
+  const run = kind === "legacy" ? LEGACY_OUTCOME_NOTE : JOB_OUTCOME_LABELS[kind];
+  const head = `son koşu: ${run}`;
+  if (!STAGES_WITH_OUTPUT.has(stage)) return head;
+  return `${head} · son çıktı: ${lastProducedAt ? formatDateTime(lastProducedAt) : "kanıt yok"}`;
+}
+
+/** Sonuç gerekçesi; bilinmeyen kod olduğu gibi (biçimi core'da doğrulandı). */
+export function jobOutcomeReasonLabel(reason: string | null): string | null {
+  return reason ? (JOB_OUTCOME_REASON_LABELS[reason] ?? reason) : null;
+}
 
 /** Boru hattı nedeni; 0055 nedenleri dahil (`pipelineReasonLabel`'a düşer). */
 export function pipelineReasonText(reason: string): string {
@@ -736,9 +808,15 @@ export function jobTriggerLabel(trigger: string): string {
   return JOB_TRIGGER_LABELS[trigger] ?? trigger;
 }
 
-/** `job_run.detail` (düz sayılar) → "anahtar 12 · diğer 3"; boşsa "—". */
-export function formatJobDetail(detail: Record<string, unknown>): string {
+/**
+ * `job_run.detail` (düz sayılar) → "anahtar 12 · diğer 3"; boşsa "—". Sonuç
+ * geçerliyse `outcome`/`reason` durum sütununda gösterildiği için burada
+ * tekrarlanmaz; bozuk sonuçta ham değer teşhis için kalır.
+ */
+export function formatJobDetail(detail: Record<string, unknown>, outcome?: RunOutcome): string {
+  const shown = outcome && JOB_OUTCOME_KINDS.has(outcome.kind);
   const parts = Object.entries(detail)
+    .filter(([key]) => !(shown && (key === "outcome" || key === "reason")))
     .filter(([, value]) => ["number", "boolean", "string"].includes(typeof value))
     .slice(0, 12)
     .map(

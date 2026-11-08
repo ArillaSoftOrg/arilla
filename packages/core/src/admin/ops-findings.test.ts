@@ -1,6 +1,7 @@
 /** Karar 0055: işletim bulgularının önem kuralları (saf). */
 import { describe, expect, it } from "vitest";
-import type { JobLastRun, JobRunSummary } from "./job-runs.ts";
+import { runOutcome } from "./job-outcome.ts";
+import type { JobLastRun, JobRunRow, JobRunSummary } from "./job-runs.ts";
 import type { MerchantAttentionItem } from "./merchant-attention.ts";
 import type { CostWindow, PartitionHealth } from "./operations.ts";
 import {
@@ -96,24 +97,33 @@ describe("merchantFindings", () => {
   });
 });
 
-function job(name: string, lastRun: Partial<JobLastRun["lastRun"]> | null, extra = {}): JobLastRun {
+type RunInput = Partial<Omit<JobRunRow, "outcome">>;
+
+function job(name: string, lastRun: RunInput | null, extra: Partial<JobLastRun> = {}): JobLastRun {
+  const run = lastRun
+    ? {
+        id: Math.floor(Math.random() * 1e9),
+        job: name,
+        trigger: "cron" as const,
+        status: "success" as const,
+        startedAt: ago(HOUR),
+        finishedAt: ago(HOUR - 1000),
+        durationMs: 1000,
+        detail: {},
+        errorSummary: null,
+        ...lastRun,
+      }
+    : null;
+  const lastGoodAt = extra.lastGoodAt === undefined ? ago(HOUR) : extra.lastGoodAt;
   return {
     job: name,
-    lastRun: lastRun
-      ? {
-          id: Math.floor(Math.random() * 1e9),
-          job: name,
-          trigger: "cron",
-          status: "success",
-          startedAt: ago(HOUR),
-          finishedAt: ago(HOUR - 1000),
-          durationMs: 1000,
-          detail: {},
-          errorSummary: null,
-          ...lastRun,
-        }
-      : null,
-    lastGoodAt: ago(HOUR),
+    // Sonuç gerçek okuyucudaki gibi status + detail'den türetilir.
+    lastRun: run ? { ...run, outcome: runOutcome(run.status, run.detail) } : null,
+    lastGoodAt,
+    lastRanAt: lastGoodAt,
+    lastAttemptAt: null,
+    lastProducedAt: null,
+    producedAt: {},
     failuresSinceGood: 0,
     ...extra,
   };
@@ -196,6 +206,44 @@ describe("jobRunFindings", () => {
   it("okunamazsa bilinmiyor", () => {
     expect(jobRunFindings(fail, NOW)[0]?.severity).toBe("unknown");
   });
+
+  it("skipped_locked gecikmeyi sıfırlamaz: son koşu yeni ama atlandı, son gerçek deneme 31 saat önce", () => {
+    const skipped = { outcome: "skipped_locked", reason: "lock_busy" };
+    const late = jobRunFindings(
+      ok({
+        jobs: [
+          job(
+            "resolve",
+            { status: "partial", startedAt: ago(HOUR), detail: skipped },
+            { lastAttemptAt: ago(31 * HOUR), lastGoodAt: ago(31 * HOUR) },
+          ),
+        ],
+        stuck: [],
+      }),
+      NOW,
+    );
+    const overdue = late.find((f) => f.key === "jobs.resolve.overdue");
+    expect(overdue?.severity).toBe("warning");
+    expect(overdue?.evidence).toContain("kilit");
+    expect(overdue?.evidenceAt).toEqual(ago(31 * HOUR));
+    // Eski biçim (outcome yok) ve gerçek deneme yeni: gecikme yok (legacy davranışı korunur).
+    const fine = jobRunFindings(
+      ok({ jobs: [job("resolve", { startedAt: ago(HOUR) })], stuck: [] }),
+      NOW,
+    );
+    expect(severities(fine)).toEqual({ jobs: "healthy" });
+  });
+
+  it("bozuk sonuçlu koşu aşama dışı işte başarısızlık gibi uyarı verir", () => {
+    const out = jobRunFindings(
+      ok({
+        jobs: [job("cleanup_auth", { status: "success", detail: { outcome: "bogus" } })],
+        stuck: [],
+      }),
+      NOW,
+    );
+    expect(severities(out)).toEqual({ "jobs.cleanup_auth.failed": "warning" });
+  });
 });
 
 function raw(overrides: Partial<PipelineRawEvidence> = {}): PipelineRawEvidence {
@@ -246,6 +294,154 @@ describe("boru hattı: job_run önceliği", () => {
     );
     expect(stuck.find((v) => v.stage === "edges")?.reasons).toEqual(["job_stuck"]);
     expect(stuck.find((v) => v.stage === "prices")?.reasons).toEqual(["job_stuck"]);
+  });
+});
+
+describe("boru hattı: iş sonucu (karar 0174)", () => {
+  const stage = (views: ReturnType<typeof evaluatePipeline>, name: string) =>
+    views.find((v) => v.stage === name);
+
+  it("blocked_upstream: kenar aşaması güncel görünmez; tazelik ve son çıktı eski kalır", () => {
+    // Vektör (enrich) 30 dk önce, kenar işi 15 dk önce koştu ama embedding yoktu.
+    const runs = stageRunEvidence([
+      job(
+        "similarity_edges",
+        {
+          status: "partial",
+          startedAt: ago(HOUR / 4),
+          detail: { outcome: "blocked_upstream", reason: "no_embeddings", visual_edges: 0 },
+        },
+        // Son geçerli tamamlanma ve son çıktı 2 gün önce.
+        { lastGoodAt: ago(48 * HOUR), producedAt: { edges: ago(48 * HOUR) } },
+      ),
+    ]);
+    const views = evaluatePipeline(raw({ runs }), NOW);
+    const edges = stage(views, "edges");
+    expect(edges).toMatchObject({
+      state: "warning",
+      reasons: ["job_blocked_upstream"],
+      lastOutcome: "blocked_upstream",
+      lastAt: ago(48 * HOUR),
+      lastProducedAt: ago(48 * HOUR),
+    });
+    const found = pipelineFindings(edges ? [edges] : [], NOW)[0];
+    expect(found?.severity).toBe("warning");
+    expect(found?.meaning).toContain("önceki aşamanın çıktısı eksik");
+  });
+
+  it("birleşik similarity blocked_upstream: fiyat aşaması bayat sayılmaz, kenar aşaması uyarı", () => {
+    const runs = stageRunEvidence([
+      job(
+        "similarity",
+        {
+          status: "partial",
+          startedAt: ago(HOUR / 4),
+          finishedAt: ago(HOUR / 5),
+          detail: { outcome: "blocked_upstream", price_products: 12 },
+        },
+        {
+          lastGoodAt: null,
+          lastRanAt: ago(HOUR / 5),
+          producedAt: { edges: null, prices: ago(HOUR / 5) },
+        },
+      ),
+    ]);
+    // Eşleştirme 2 saat önce; fiyat aşaması onun ardından koştu.
+    const views = evaluatePipeline(raw({ runs }), NOW);
+    expect(stage(views, "prices")).toMatchObject({
+      state: "ok",
+      source: "job_run",
+      lastAt: ago(HOUR / 5),
+      lastOutcome: "completed",
+      lastProducedAt: ago(HOUR / 5),
+    });
+    expect(stage(views, "edges")).toMatchObject({
+      state: "warning",
+      reasons: ["job_blocked_upstream"],
+      // Geçerli kenar koşusu yok: veri zamanına düşer.
+      source: "data",
+      lastProducedAt: null,
+    });
+  });
+
+  it("skipped_locked: son geçerli tamamlanma korunur, bulgu bilgi düzeyi", () => {
+    const runs = stageRunEvidence([
+      job(
+        "resolve",
+        {
+          status: "partial",
+          startedAt: ago(HOUR / 10),
+          detail: { outcome: "skipped_locked", reason: "lock_busy" },
+        },
+        { lastGoodAt: ago(HOUR / 3) },
+      ),
+    ]);
+    const resolve = stage(evaluatePipeline(raw({ runs }), NOW), "resolve");
+    expect(resolve).toMatchObject({
+      state: "ok",
+      lastAt: ago(HOUR / 3),
+      lastOutcome: "skipped_locked",
+    });
+    const found = pipelineFindings(resolve ? [resolve] : [], NOW)[0];
+    expect(found).toMatchObject({ severity: "info", title: "Eşleştirme: son koşu atlandı" });
+  });
+
+  it("skipped_locked tazelik sayılmaz: tek geçerli koşu toplamadan eskiyse aşama geride", () => {
+    const runs = stageRunEvidence([
+      job(
+        "resolve",
+        { status: "partial", startedAt: ago(HOUR / 10), detail: { outcome: "skipped_locked" } },
+        { lastGoodAt: ago(3 * HOUR) },
+      ),
+    ]);
+    expect(stage(evaluatePipeline(raw({ runs }), NOW), "resolve")?.state).toBe("behind");
+  });
+
+  it("no_input: aşama güncel, çıktı üretimi sayılmaz, bulgu bilgi verir", () => {
+    const runs = stageRunEvidence([
+      job(
+        "resolve",
+        {
+          status: "success",
+          startedAt: ago(HOUR / 4),
+          detail: { outcome: "no_input", reason: "no_eligible_offers", considered: 0 },
+        },
+        { lastGoodAt: ago(HOUR / 5), producedAt: { resolve: ago(72 * HOUR) } },
+      ),
+    ]);
+    const resolve = stage(evaluatePipeline(raw({ runs }), NOW), "resolve");
+    expect(resolve).toMatchObject({
+      state: "ok",
+      lastOutcome: "no_input",
+      lastProducedAt: ago(72 * HOUR),
+    });
+    const found = pipelineFindings(resolve ? [resolve] : [], NOW)[0];
+    expect(found?.severity).toBe("healthy");
+    expect(found?.meaning).toContain("uygun girdi bulunamadı");
+  });
+
+  it("bozuk sonuç başarısızlık gibi uyarıdır", () => {
+    const runs = stageRunEvidence([
+      job("resolve", { status: "success", detail: { outcome: 42 } }, { lastGoodAt: ago(HOUR) }),
+    ]);
+    expect(stage(evaluatePipeline(raw({ runs }), NOW), "resolve")).toMatchObject({
+      state: "warning",
+      reasons: ["job_invalid_outcome"],
+      lastOutcome: "invalid",
+    });
+  });
+
+  it("eski biçim (outcome yok) ve zenginleştirme: davranış değişmez, çıktı kanıtı yok", () => {
+    const runs = stageRunEvidence([
+      job("enrich", { status: "success" }, { lastGoodAt: ago(HOUR / 10) }),
+    ]);
+    const enrich = stage(evaluatePipeline(raw({ runs }), NOW), "enrich");
+    expect(enrich).toMatchObject({
+      state: "ok",
+      source: "job_run",
+      lastOutcome: "legacy",
+      lastProducedAt: null,
+    });
   });
 
   it("okunamayan aşama bilinmiyor; hiç isteği olmayan link işçisi sağlıklı", () => {

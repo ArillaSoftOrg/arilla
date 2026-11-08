@@ -18,9 +18,9 @@ import {
   ErrorNotice,
   FindingList,
   KeyValues,
+  OutcomeText,
   PageHeader,
   Section,
-  StatusText,
   Tile,
 } from "../admin-ui.tsx";
 import {
@@ -31,6 +31,7 @@ import {
   formatUsage,
   hrefWith,
   PIPELINE_STAGE_INFO,
+  pipelineOutcomeText,
   pipelineReasonText,
   pipelineSourceLabel,
   pipelineStateLabel,
@@ -102,7 +103,10 @@ export default async function OperationsPage({
       <Section id="is-kosulari" title="İş koşuları">
         <p className={styles.muted}>
           Python boru hattı işleri ve zamanlanmış uçlar her koşuyu kaydeder (180 gün). Kaydı olmayan
-          iş henüz kayıt tutan sürümle çalışmamıştır.{" "}
+          iş henüz kayıt tutan sürümle çalışmamıştır. &quot;Son başarılı&quot; geçerli
+          tamamlanmadır; kilit nedeniyle atlanan ya da önceki aşama eksik olduğu için engellenen
+          koşu sayılmaz. &quot;Son çıktı&quot; yalnızca işin doğrulanmış sayaçlarından (ör. bağlanan
+          teklif, yazılan kenar) gelir; sayacı olmayan işte boştur.{" "}
           <Link href="/yonetim/islemler/isler">Tüm koşular</Link>
         </p>
         {ops.jobRuns.ok ? (
@@ -115,6 +119,7 @@ export default async function OperationsPage({
                   <th scope="col">Durum</th>
                   <th scope="col">Süre</th>
                   <th scope="col">Son başarılı</th>
+                  <th scope="col">Son çıktı</th>
                   <th scope="col">Nasıl çalışır</th>
                 </tr>
               </thead>
@@ -128,7 +133,11 @@ export default async function OperationsPage({
                     </td>
                     <td>{job.lastRun ? formatDateOrDash(job.lastRun.startedAt) : "Kayıt yok"}</td>
                     <td>
-                      {job.lastRun ? <StatusText status={job.lastRun.status} /> : "—"}
+                      {job.lastRun ? (
+                        <OutcomeText status={job.lastRun.status} outcome={job.lastRun.outcome} />
+                      ) : (
+                        "—"
+                      )}
                       {job.failuresSinceGood > 1 ? (
                         <span className={styles.meta} style={{ display: "block" }}>
                           {`${formatCount(job.failuresSinceGood)} başarısız (son başarılıdan beri)`}
@@ -137,6 +146,7 @@ export default async function OperationsPage({
                     </td>
                     <td>{formatDuration(job.lastRun?.durationMs ?? null)}</td>
                     <td>{formatDateOrDash(job.lastGoodAt)}</td>
+                    <td>{formatDateOrDash(job.lastProducedAt)}</td>
                     <td className={styles.mono}>{KNOWN_JOBS[job.job]?.how ?? "—"}</td>
                   </tr>
                 ))}
@@ -153,7 +163,8 @@ export default async function OperationsPage({
           Aşamalar elle (komut satırından) çalışır. İş koşusu kaydı varsa durum oradan okunur
           (&quot;son çalıştı&quot;); yoksa aşamanın ürettiği verinin en yeni zamanından (&quot;son
           kanıt&quot;). &quot;Geride olabilir&quot;: beslendiği aşama daha yeni çalıştı; kesin
-          değildir.
+          değildir. Kilit nedeniyle atlanan ya da engellenen koşu &quot;son çalıştı&quot; sayılmaz;
+          &quot;son çıktı&quot; işin doğrulanmış sayaçlarından gelir.
         </p>
         <div className={styles.tableWrap}>
           <table className={styles.table}>
@@ -191,6 +202,15 @@ export default async function OperationsPage({
                       {stage.lastAt ? (
                         <span className={styles.meta} style={{ display: "block" }}>
                           {pipelineSourceLabel(stage.source)}
+                        </span>
+                      ) : null}
+                      {stage.lastOutcome ? (
+                        <span className={styles.meta} style={{ display: "block" }}>
+                          {pipelineOutcomeText(
+                            stage.stage,
+                            stage.lastOutcome,
+                            stage.lastProducedAt,
+                          )}
                         </span>
                       ) : null}
                     </td>

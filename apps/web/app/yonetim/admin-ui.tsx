@@ -1,9 +1,16 @@
-import type { AdminFinding, Capability, Severity } from "@arilla/core";
+import type { AdminFinding, Capability, RunOutcome, RunOutcomeTone, Severity } from "@arilla/core";
 import { ArrowRightIcon, EmptyState } from "@arilla/ui";
 import Link from "next/link";
 import type { ReactNode } from "react";
 import styles from "./admin.module.css";
-import { formatDateOrDash, severityLabel, statusLabel } from "./format.ts";
+import {
+  formatDateOrDash,
+  jobOutcomeLabel,
+  jobOutcomeReasonLabel,
+  LEGACY_OUTCOME_NOTE,
+  severityLabel,
+  statusLabel,
+} from "./format.ts";
 
 /**
  * /yonetim ortak sunucu bileşenleri (docs/decisions/0083). Tümü düz metin
@@ -476,6 +483,41 @@ export function StatusText({ status }: { status: string }) {
       ? styles.statusWarn
       : styles.statusGood;
   return <span className={className}>{statusLabel(status)}</span>;
+}
+
+const OUTCOME_TONE_CLASS: Record<RunOutcomeTone, string | undefined> = {
+  good: styles.statusGood,
+  info: styles.statusGood,
+  warn: styles.statusWarn,
+  bad: styles.statusBad,
+};
+
+/**
+ * İş koşusunun sonucu (karar 0174) satır içi: sonuç etiketi, gerekçe ve eski
+ * biçimde "Sonuç kaydı yok" notu. Eski biçimin rengi `StatusText` ile aynıdır.
+ */
+export function OutcomeText({ status, outcome }: { status: string; outcome: RunOutcome }) {
+  if (outcome.kind === "legacy") {
+    return (
+      <>
+        <StatusText status={status} />
+        <span className={styles.meta} style={{ display: "block" }}>
+          {LEGACY_OUTCOME_NOTE}
+        </span>
+      </>
+    );
+  }
+  const reason = jobOutcomeReasonLabel(outcome.reason);
+  return (
+    <>
+      <span className={OUTCOME_TONE_CLASS[outcome.tone]}>{jobOutcomeLabel(outcome, status)}</span>
+      {reason ? (
+        <span className={styles.meta} style={{ display: "block" }}>
+          {reason}
+        </span>
+      ) : null}
+    </>
+  );
 }
 
 /* ----------------------------------------------------------------------- */
