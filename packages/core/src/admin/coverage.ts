@@ -191,6 +191,7 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
       "embedding",
       "product_text_embedding",
       "semantic_shadow_event",
+      "embedding_dataset",
       "similarity_edge",
       "generated_content",
     ],

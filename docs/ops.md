@@ -2842,3 +2842,14 @@ SELECT date_trunc('day', created_at) AS gun, outcome, count(*) AS n,
  WHERE created_at > now() - interval '7 days'
  GROUP BY 1, 2 ORDER BY 1 DESC, 2;
 ```
+
+## Kalıcı embedding veri seti (karar 0179)
+
+`embedding_dataset` sağlayıcıdan alınan her (kanonik metin, vektör) çiftinin yalnız-ekleme
+arşividir; ürün silinse de değişse de kalır. `enrich.products` her API sonucunu otomatik ekler.
+0179'dan önce üretilmiş vektörler için bir kez (tekrar çalıştırmak güvenli, API yok):
+
+```bash
+python -m enrich.dataset             # kuru çalışma: kaç satır eklenecek
+python -m enrich.dataset --execute   # metni hâlâ eşleşenleri arşive kopyalar
+```

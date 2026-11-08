@@ -131,3 +131,23 @@ export const semanticShadowEvent = pgTable(
   },
   (table) => [index("semantic_shadow_event_created_idx").on(table.createdAt)],
 );
+
+/**
+ * 0109 (karar 0179): kalici (kanonik metin, vektor) arsivi; urune FK yok, yalniz ekleme.
+ * Yazan Python `enrich.products` (her API sonucu) ve `enrich.dataset` (geriye donuk doldurma).
+ */
+export const embeddingDataset = pgTable(
+  "embedding_dataset",
+  {
+    modelVersion: text("model_version").notNull(),
+    contentHash: bytea("content_hash").notNull(),
+    textVersion: smallint("text_version").notNull(),
+    task: text("task").notNull(),
+    inputText: text("input_text").notNull(),
+    embedding: halfvec("embedding", { dimensions: 768 }).notNull(),
+    source: text("source").$type<"api" | "backfill">().notNull(),
+    firstProductId: bigint("first_product_id", { mode: "number" }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.modelVersion, table.contentHash] })],
+);
