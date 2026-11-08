@@ -1,9 +1,11 @@
 /** 0004_semantic.sql karsiligi (+ 0105 urun metin vektoru). */
 import {
   bigint,
+  boolean,
   customType,
   halfvec,
   index,
+  integer,
   jsonb,
   pgTable,
   primaryKey,
@@ -98,4 +100,34 @@ export const productTextEmbedding = pgTable(
     primaryKey({ columns: [table.productId, table.modelVersion] }),
     index("product_text_embedding_hash_idx").on(table.modelVersion, table.contentHash),
   ],
+);
+
+/**
+ * 0108 (karar 0178): anlamsal arama golge olcumu. Yalniz sayisal olculer; sorgu metni, ozeti,
+ * kullanici/oturum ve urun kimligi yok. Yazan `packages/core` `search/semantic/shadow.ts`.
+ */
+export const semanticShadowEvent = pgTable(
+  "semantic_shadow_event",
+  {
+    id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    outcome: text("outcome")
+      .$type<"measured" | "no_vector" | "ineligible" | "capped" | "error">()
+      .notNull(),
+    reason: text("reason"),
+    modelVersion: text("model_version").notNull(),
+    textCount: integer("text_count").notNull(),
+    textWithVector: integer("text_with_vector").notNull().default(0),
+    candidateCount: integer("candidate_count").notNull().default(0),
+    bestSimilarity: real("best_similarity"),
+    gatePassed: integer("gate_passed").notNull().default(0),
+    semanticOnly: integer("semantic_only").notNull().default(0),
+    topN: smallint("top_n").notNull(),
+    overlapTopN: smallint("overlap_top_n").notNull().default(0),
+    newInTopN: smallint("new_in_top_n").notNull().default(0),
+    embedMs: integer("embed_ms"),
+    knnMs: integer("knn_ms"),
+    cacheHit: boolean("cache_hit"),
+  },
+  (table) => [index("semantic_shadow_event_created_idx").on(table.createdAt)],
 );

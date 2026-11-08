@@ -187,13 +187,23 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   {
     id: "similarity_enrichment",
     label: "Vektör, benzerlik ve AI içerik",
-    tables: ["embedding", "product_text_embedding", "similarity_edge", "generated_content"],
+    tables: [
+      "embedding",
+      "product_text_embedding",
+      "semantic_shadow_event",
+      "similarity_edge",
+      "generated_content",
+    ],
     status: "visible",
     adminPaths: ["/yonetim/islemler"],
     gaps: [
       { signal: "AI özet (generated_content) kapsamı", status: "data_no_ui" },
       {
         signal: "Ürün metin vektörü kapsamı (0177; koşu job_run'da, kapsam oranı panelde yok)",
+        status: "data_no_ui",
+      },
+      {
+        signal: "Anlamsal arama gölge ölçümü (0178; semantic_shadow_event, panelde özet yok)",
         status: "data_no_ui",
       },
     ],
@@ -576,6 +586,18 @@ export const AI_OPERATIONS: Readonly<Record<string, AiOperationCoverage>> = {
     pricing: "embedding_env",
   },
   text_embedding: { label: "Katalog metin embedding", writer: "python", pricing: "embedding_env" },
+  // Karar 0177: urun duzeyinde metin vektoru (jina-embeddings-v3, `enrich.products`).
+  product_text_embedding: {
+    label: "Ürün metin embedding",
+    writer: "python",
+    pricing: "embedding_env",
+  },
+  // Karar 0178: anlamsal arama sorgu vektoru (gölge mod).
+  semantic_query_embedding: {
+    label: "Anlamsal arama sorgu embedding",
+    writer: "core",
+    pricing: "embedding_env",
+  },
   chat_turn: { label: "Sohbet turu (Gemini)", writer: "core", pricing: "llm_rule" },
   query_interpretation: {
     label: "Sorgu yorumu, toplu (Gemini)",

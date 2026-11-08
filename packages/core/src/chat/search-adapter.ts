@@ -7,7 +7,8 @@
  *
  * Model kategori/marka/renk icin serbest metin verir; bunlari katalog kimligine
  * ceviren, katalogda olmayani eleyen mevcut sozluktur. Fiyat dogrudan kurusa
- * cevrilir (CLAUDE.md: tamsayi kurus). Istek yolunda model cagrisi YOK.
+ * cevrilir (CLAUDE.md: tamsayi kurus). Arama yolunda model cagrisi YOK; `semanticShadow` acik ve
+ * `SEMANTIC_SEARCH_MODE=shadow` ise sonuc dondukten SONRA arka planda gölge olcum (karar 0178).
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
@@ -22,6 +23,7 @@ import type { LexiconEntry } from "../search/lexicon.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { foldTurkish } from "../search/normalize.ts";
 import { parseQueryText } from "../search/parse-query.ts";
+import { scheduleSemanticShadow } from "../search/semantic/shadow.ts";
 import type { QueryObject, SortMode } from "../search/types.ts";
 import type { SearchIntent } from "./contract.ts";
 
@@ -100,6 +102,11 @@ export interface IntentSearchOptions {
   sort?: SortMode;
   /** Arama sorgusunun ust siniri (SET LOCAL statement_timeout); asilinca `IntentSearchTimeoutError`. */
   timeoutMs?: number;
+  /**
+   * Karar 0178: gölge anlamsal olcum (yalnizca `SEMANTIC_SEARCH_MODE=shadow` iken). Sonucu
+   * DEGISTIRMEZ ve beklenmez. Varsayilan kapali: olcum betikleri ve sekme degisimi tetiklemez.
+   */
+  semanticShadow?: boolean;
 }
 
 export const INTENT_SEARCH_TIMEOUT_MS = 4_000;
@@ -169,6 +176,18 @@ export async function searchByIntent(
   } catch (error) {
     if (isTimeout(error)) throw new IntentSearchTimeoutError();
     throw error;
+  }
+
+  if (options.semanticShadow) {
+    // Islem disinda, beklenmeden: dis API beklemesi arama isleminin icinde gecmez.
+    const remainder = parsed.unparsed.trim();
+    scheduleSemanticShadow(db, {
+      semanticText: remainder === "" ? parsed.text : remainder,
+      queryText: parsed.text,
+      filters: parsed.filters,
+      textItems: outcome.items.map((item) => ({ productId: item.productId, title: item.title })),
+      topN: options.pageSize ?? CHAT_RESULT_LIMIT,
+    });
   }
 
   const kept = outcome.items.filter((item) => withinPrice(item.minPrice, intent));

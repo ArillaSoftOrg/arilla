@@ -613,7 +613,10 @@ class ProductEmbedder:
         usage.record(
             self.conn,
             usage.ModelCall(
-                operation=OPERATION, model_version=batch.model_version, units=batch.total_tokens
+                # Duz metin: `admin/coverage.test.ts` islemi bu kaliptan bulur.
+                operation="product_text_embedding",
+                model_version=batch.model_version,
+                units=batch.total_tokens,
             ),
         )
         self.conn.commit()

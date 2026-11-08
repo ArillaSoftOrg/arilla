@@ -35,7 +35,7 @@ tamamı anlamını yitirir.
 
 ## Değişmez kurallar
 
-1. **İstek yolunda model çağrısı yok.** Altı istisna var:
+1. **İstek yolunda model çağrısı yok.** Yedi istisna var:
    - Kullanıcının yüklediği görselin embedding'i. `EmbeddingService`
      arkasından geçer ve görsel hash'i ile cache'lenir.
    - Arama turu anlık sorgu yorumu (`/sohbet?q=`, eski `/ara`; karar 0062, 0171, 0176): yalnızca `GEMINI_REALTIME_ENABLED`
@@ -76,6 +76,14 @@ tamamı anlamını yitirir.
      "bulur" ama gösterilen her bağlantı ve fiyat doğrulama süzgecinden geçer;
      doğrulanamayan fiyat gösterilmez. Hata/kapalı bayrak: veritabanı sonuçları
      aynen kalır.
+   - Anlamsal arama sorgu vektörü (karar 0178): yalnızca `SEMANTIC_SEARCH_MODE=shadow` iken
+     (varsayılan `off`), `/sohbet` arama sonucu kullanıcıya döndükten SONRA arka planda,
+     beklenmeden; sorgu başına en fazla bir Jina (`jina-embeddings-v3`, `retrieval.query`) çağrısı,
+     kısa zaman aşımı, tek deneme, süreç önbelleği, günlük tavan, aynı anda en fazla iki ölçüm.
+     Metin süzgecinden (`queryContentIneligibility`) geçmeyen sorgu sağlayıcıya gitmez. Her çağrı
+     `api_usage`'a yazılır. Gölge modda sonuç DEĞİŞMEZ; yalnızca sayısal ölçüler
+     (`semantic_shadow_event`) saklanır, sorgu metni ve özeti saklanmaz. Model ürün/fiyat üretmez;
+     benzerlik ürün kimliği kanıtı değildir.
    Başka hiçbir yerde istek anında LLM veya model çağrısı yapılmaz.
 2. **Benzerlik sorgu anında hesaplanmaz.** `similarity_edge` tablosu toplu işle
    doldurulur, istek yolu sadece okur.
