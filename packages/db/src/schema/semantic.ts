@@ -1,14 +1,22 @@
-/** 0004_semantic.sql karsiligi. */
+/** 0004_semantic.sql karsiligi (+ 0105 urun metin vektoru). */
 import {
   bigint,
+  customType,
+  halfvec,
+  index,
   jsonb,
   pgTable,
   primaryKey,
   real,
+  smallint,
   text,
   timestamp,
   vector,
 } from "drizzle-orm/pg-core";
+import { product } from "./catalog.ts";
+
+/** Drizzle'in yerlesik bytea'si yok; yalnizca 16 baytlik ozetler icin. */
+const bytea = customType<{ data: Buffer }>({ dataType: () => "bytea" });
 
 export const embedding = pgTable("embedding", {
   id: bigint("id", { mode: "number" }).generatedAlwaysAsIdentity().primaryKey(),
@@ -67,3 +75,27 @@ export const generatedContent = pgTable("generated_content", {
   inputHash: text("input_hash").notNull(),
   createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
 });
+
+/**
+ * 0105 (karar 0177): urun duzeyinde metin vektoru, `embedding`ten ayri. Yazan yalnizca Python
+ * `enrich.products`; TypeScript okur. Benzerlik urun kimligi kaniti DEGILDIR.
+ */
+export const productTextEmbedding = pgTable(
+  "product_text_embedding",
+  {
+    productId: bigint("product_id", { mode: "number" })
+      .notNull()
+      .references(() => product.id, { onDelete: "cascade" }),
+    /** Sorgu vektoru AYNI modelle (`retrieval.query`) uretilmelidir. */
+    modelVersion: text("model_version").notNull(),
+    textVersion: smallint("text_version").notNull(),
+    contentHash: bytea("content_hash").notNull(),
+    sourceHash: bytea("source_hash").notNull(),
+    embedding: halfvec("embedding", { dimensions: 768 }).notNull(),
+    embeddedAt: timestamp("embedded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.productId, table.modelVersion] }),
+    index("product_text_embedding_hash_idx").on(table.modelVersion, table.contentHash),
+  ],
+);
