@@ -12,9 +12,9 @@ import {
 import { getDatabase } from "@arilla/db";
 import { ProductCard, VisuallyHidden } from "@arilla/ui";
 import type { ReactNode } from "react";
-import { cardPriceProps, resultCountLabel } from "../ara/search-results.tsx";
-import { WebGridItems, WebOnlyResults } from "../ara/web-search-section.tsx";
-import { startWebSearch } from "../ara/web-search-start.ts";
+import { cardPriceProps, resultCountLabel } from "../lib/search/search-results.tsx";
+import { WebGridItems, WebOnlyResults } from "../lib/search/web-search-section.tsx";
+import { startWebSearch } from "../lib/search/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
 import { ResultFeedback } from "./chat-feedback-client.tsx";
 import { ChatCardActions } from "./chat-product-cards.tsx";

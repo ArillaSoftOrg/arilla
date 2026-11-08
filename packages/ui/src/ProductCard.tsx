@@ -5,7 +5,7 @@ import { ProductImage } from "./ProductImage.tsx";
 
 /**
  * Kart gorselinin ekrandaki genisligi (`sizes`, karar 0166). Degerler `/ara`
- * izgarasinin (`ara.module.css` .grid: 2/3/4/5 sutun, 640/1024/1440) VE kartin
+ * izgarasinin (`apps/web/app/lib/search/search.module.css` .grid: 2/3/4/5 sutun, 640/1024/1440) VE kartin
  * `.media` ic boslugunun (2 x 12px) + kenarlik (2px) gercek olcumlerinden gelir
  * (tarayici olcumu: 360->132, 390->147, 768->203, 1024->202, 1280->266, 1440->217 px).
  * Izgara ya da kart boslugu degisirse burasi guncellenir; yanlis (buyuk) deger

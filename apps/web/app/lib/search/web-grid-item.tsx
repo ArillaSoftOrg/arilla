@@ -2,7 +2,7 @@
 
 import { ProductCard } from "@arilla/ui";
 import { type ReactNode, useEffect, useState } from "react";
-import styles from "./ara.module.css";
+import styles from "./search.module.css";
 import { WEB_SEARCH_COPY as COPY } from "./web-search-copy.ts";
 
 /**

@@ -2,7 +2,7 @@
 
 import { useEffect } from "react";
 import { publicErrorFromBoundary } from "../../error-view.tsx";
-import { SearchErrorState } from "../search-error.tsx";
+import { SearchErrorState } from "../../lib/search/search-error.tsx";
 
 /** docs/pages.md "/ara" Hata satırının görsel arama karşılığı. */
 export default function GorselAramaError({

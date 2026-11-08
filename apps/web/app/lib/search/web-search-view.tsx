@@ -1,7 +1,7 @@
 import type { WebProductGroup } from "@arilla/core";
 import { formatTRY, ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
-import chatStyles from "../sohbet/sohbet.module.css";
-import styles from "./ara.module.css";
+import chatStyles from "../../sohbet/sohbet.module.css";
+import styles from "./search.module.css";
 import { WebGridItem } from "./web-grid-item.tsx";
 import { WEB_SEARCH_COPY as COPY } from "./web-search-copy.ts";
 

@@ -187,7 +187,7 @@ async function runAfter(): Promise<void> {
 
 describe("/ara metin araması — arama kalitesi sayacı", () => {
   async function publicSearch(query: string, options: { page?: number; sort?: string } = {}) {
-    const { TextSearchResults } = await import("../../ara/text-search-results.tsx");
+    const { TextSearchResults } = await import("../../lib/search/text-search-results.tsx");
     const html = renderToStaticMarkup(
       await TextSearchResults({
         query,

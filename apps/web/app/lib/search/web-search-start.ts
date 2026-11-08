@@ -8,8 +8,8 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { headers } from "next/headers";
-import { clientIp } from "../lib/client-ip.ts";
-import { verifySession } from "../lib/dal.ts";
+import { clientIp } from "../client-ip.ts";
+import { verifySession } from "../dal.ts";
 
 export interface WebSearchBundle {
   outcome: WebSearchOutcome;

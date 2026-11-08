@@ -9,8 +9,8 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ProductImage, VisuallyHidden } from "@arilla/ui";
-import { WebGridItems, WebOnlyResults } from "../ara/web-search-section.tsx";
-import { startWebSearch } from "../ara/web-search-start.ts";
+import { WebGridItems, WebOnlyResults } from "../lib/search/web-search-section.tsx";
+import { startWebSearch } from "../lib/search/web-search-start.ts";
 import { CHAT_LINK_COPY } from "./chat-copy.ts";
 import {
   droppedNote,

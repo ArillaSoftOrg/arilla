@@ -7,7 +7,7 @@ import {
   linkFailureCopy,
   linkNoRightsCode,
   linkNoRightsEarnable,
-} from "./link/link-search-copy.ts";
+} from "../../ara/link/link-search-copy.ts";
 import {
   bonusCanHelp,
   SEARCH_RIGHTS_NO_RIGHTS,

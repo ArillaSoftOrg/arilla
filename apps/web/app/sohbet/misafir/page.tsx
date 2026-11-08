@@ -17,8 +17,8 @@ import {
 import { getDatabase } from "@arilla/db";
 import { notFound, redirect } from "next/navigation";
 import { Suspense } from "react";
-import { SearchWallGateClient } from "../../ara/search-wall-gate-client.tsx";
 import { requireProductAccess } from "../../lib/dal.ts";
+import { SearchWallGateClient } from "../../lib/search/search-wall-gate-client.tsx";
 import { startConversationAction } from "../actions.ts";
 import { CHAT_COPY } from "../chat-copy.ts";
 import { ChatResultGrid } from "../chat-results.tsx";

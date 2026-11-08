@@ -1,7 +1,7 @@
 import type { PublicError } from "@arilla/core/errors";
 import { Button } from "@arilla/ui";
-import { ErrorView } from "../error-view.tsx";
-import styles from "./ara.module.css";
+import { ErrorView } from "../../error-view.tsx";
+import styles from "./search.module.css";
 
 /**
  * docs/pages.md "/ara" Hata satırı: "Arama şu an çalışmıyor" + tekrar dene.

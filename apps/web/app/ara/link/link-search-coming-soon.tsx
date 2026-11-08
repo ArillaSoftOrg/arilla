@@ -1,5 +1,5 @@
 import { EmptyState, SearchForm } from "@arilla/ui";
-import styles from "../ara.module.css";
+import styles from "../../lib/search/search.module.css";
 import { LINK_SEARCH_COPY } from "./link-search-copy.ts";
 
 /**
