@@ -21,6 +21,7 @@ from resolve import __main__ as resolve_cli
 from resolve import pipeline
 from resolve.pipeline import ResolveCounts
 from similarity import __main__ as similarity_cli
+from similarity import edges as edges_module
 from similarity.edges import EdgeCounts
 from similarity.pipeline import SimilarityCounts, run
 
@@ -198,6 +199,43 @@ def test_similarity_classify_asks_the_database_only_when_nothing_had_vectors() -
     conn: Any = NoQuery()
     assert similarity_cli.classify(conn, _sim(0, 0), do_edges=False) == ("completed", None)
     assert similarity_cli.classify(conn, _sim(1, 0), do_edges=True) == ("completed", None)
+
+
+def test_similarity_classify_lock_busy_wins_and_asks_nothing() -> None:
+    """Kilit mesgulken sayaclar bos: `blocked_upstream`/`no_input` uydurulmaz, sorgu yok."""
+
+    class NoQuery:
+        def cursor(self) -> None:
+            raise AssertionError("gereksiz sorgu")
+
+    conn: Any = NoQuery()
+    counts = _sim(0, 0)
+    counts.skipped_locked = True
+    for do_edges in (True, False):
+        assert similarity_cli.classify(conn, counts, do_edges=do_edges) == (
+            "skipped_locked",
+            "lock_busy",
+        )
+    assert job_run.exit_code("skipped_locked") == 75
+
+
+@pytest.mark.parametrize("value", ["0", "-1", "abc", "1.5"])
+def test_similarity_limit_must_be_positive_and_leaves_no_run_record(
+    value: str, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """`--limit 0` eskiden gruba hic girmeden biter, `blocked_upstream` yazardi."""
+
+    def no_run(*_args: object, **_kwargs: object) -> None:
+        raise AssertionError("gecersiz argumanla kosu acilmamali / veritabanina gidilmemeli")
+
+    monkeypatch.setattr(job_run, "start", no_run)
+    monkeypatch.setattr(similarity_cli, "connect", no_run)
+    for flags in (["--edges"], ["--prices"], [], ["--edges", "--dry-run"]):
+        with pytest.raises(SystemExit) as exc:
+            similarity_cli.main([*flags, "--limit", value])
+        assert exc.value.code == 2
+    assert "--limit" in capsys.readouterr().err
+    assert similarity_cli.positive_int("1") == 1
 
 
 # --- entegrasyon: yerel PostgreSQL --------------------------------------------
@@ -604,3 +642,107 @@ def test_similarity_cli_records_outcome_with_exit_zero(
     assert (detail["outcome"], detail["reason"]) == (outcome_name, reason)
     assert set(detail) >= EDGE_DETAIL_KEYS  # mevcut alanlar korunur
     assert detail["visual_products"] == detail["semantic_products"] == 0
+
+
+def _edge_lock_free() -> bool:
+    """Kilit baska bir oturumdan alinabiliyor mu (alinirsa hemen birakilir)."""
+    with _owner() as probe, probe.cursor() as cur:
+        cur.execute("SELECT pg_try_advisory_lock(%s)", (edges_module.EDGE_LOCK_KEY,))
+        row = cur.fetchone()
+        free = bool(row and row[0])
+        if free:
+            cur.execute("SELECT pg_advisory_unlock(%s)", (edges_module.EDGE_LOCK_KEY,))
+        return free
+
+
+@pytest.mark.integration
+def test_similarity_lock_held_by_another_connection_is_skipped_locked(
+    recorded_runs: list[int],
+) -> None:
+    """Gercek eszamanlilik: ikinci, bagimsiz oturum kenar kilidini kosudan ONCE alir.
+
+    Eskiden `build_edges` RuntimeError firlatir, kosu `failed`/exception ve cikis 1 olurdu.
+    """
+    with _owner() as holder, holder.cursor() as cur:
+        cur.execute("SELECT pg_advisory_lock(%s)", (edges_module.EDGE_LOCK_KEY,))
+        try:
+            assert similarity_cli.main(["--edges"]) == 75
+            assert similarity_cli.main(["--edges", "--dry-run"]) == 75  # kayit yok
+            # Birlesik kosu: fiyat adimi da atlanir ("hicbir seye dokunmadi").
+            assert similarity_cli.main([]) == 75
+            # Yalnizca fiyat kosusu kenar kilidine bagli degildir.
+            assert similarity_cli.main(["--prices", "--dry-run"]) == 0
+        finally:
+            cur.execute("SELECT pg_advisory_unlock(%s)", (edges_module.EDGE_LOCK_KEY,))
+            holder.commit()
+
+    runs = _runs(recorded_runs)
+    assert [(job, status) for job, status, _detail, _summary in runs] == [
+        ("similarity_edges", "partial"),
+        ("similarity", "partial"),
+    ]
+    for _job, _status, detail, summary in runs:
+        assert (detail["outcome"], detail["reason"]) == ("skipped_locked", "lock_busy")
+        assert summary is None  # istisna degil
+        assert detail["visual_edges"] == detail["semantic_edges"] == 0
+    assert runs[1][2]["price_products"] == 0
+    # Kosular kilidi sizdirmadi: baska oturum yeniden alabilir.
+    assert _edge_lock_free()
+
+
+@pytest.mark.integration
+def test_similarity_run_takes_the_edge_lock_once_and_releases_it(
+    owner_tx: psycopg.Connection,
+) -> None:
+    """Kilit iki tur icin bir kez alinir (yeniden girilir) ve sayaci dengeli birakilir."""
+    run(owner_tx, do_edges=True, do_prices=False)
+    assert _edge_lock_free()
+    # Kilit mesgulken `run` istisna firlatmaz, hicbir sey hesaplamaz.
+    with _owner() as holder, holder.cursor() as cur:
+        cur.execute("SELECT pg_advisory_lock(%s)", (edges_module.EDGE_LOCK_KEY,))
+        counts = run(owner_tx, do_edges=True, do_prices=True)
+        cur.execute("SELECT pg_advisory_unlock(%s)", (edges_module.EDGE_LOCK_KEY,))
+        holder.commit()
+    assert counts.skipped_locked
+    assert counts.visual.products_with_vector == counts.semantic.products_with_vector == 0
+    assert counts.prices.products == counts.prices.aggregates_updated == 0
+    assert _edge_lock_free()
+
+
+PRICE_DETAIL_KEYS = {"price_products", "price_aggregates", "price_stats_removed"}
+
+
+@pytest.mark.integration
+def test_combined_similarity_with_blocked_edges_is_partial_and_keeps_price_counters(
+    owner_tx: psycopg.Connection,
+    recorded_runs: list[int],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """Birlesik kosu tek sonuc yazar; sonuc kenar adimindandir (bilincli, karar 0174).
+
+    Kenar engellendi -> `partial`/`blocked_upstream`, cikis 0; fiyat adimi kostu ve
+    sayaclari yazildi (panel fiyat asamasini bu kosudan bayat saymaz, PR1b).
+    """
+    _without_offer_embeddings(owner_tx)
+    monkeypatch.setattr(similarity_cli, "connect", lambda: _InTestTransaction(owner_tx))
+
+    assert similarity_cli.main([]) == 0
+    [(job, status, detail, summary)] = _runs(recorded_runs)
+    assert (job, status, summary) == ("similarity", "partial", None)
+    assert (detail["outcome"], detail["reason"]) == ("blocked_upstream", "no_embeddings")
+    assert set(detail) >= EDGE_DETAIL_KEYS | PRICE_DETAIL_KEYS
+    # Fiyat adimi en az bu testin bagli urununu isledi.
+    assert detail["price_products"] >= 1
+
+
+@pytest.mark.integration
+def test_similarity_positive_limit_still_classifies_from_the_catalogue(
+    owner_tx: psycopg.Connection,
+) -> None:
+    """`--limit 1` (gecerli en kucuk deger) embedding'siz katalogda yine `blocked_upstream`."""
+    _without_offer_embeddings(owner_tx)
+    counts = run(owner_tx, do_edges=True, do_prices=False, limit=1)
+    assert similarity_cli.classify(owner_tx, counts, do_edges=True) == (
+        "blocked_upstream",
+        "no_embeddings",
+    )

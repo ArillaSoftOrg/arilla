@@ -52,6 +52,18 @@ nasıl bittiğini söyler. "Ne üretti?" sorusunu cevaplamaz:
    - `similarity --edges`: iki türde de vektörlü ürün 0 ise tek bir `EXISTS` (bağlı aktif
      teklif var mı) sorulur; normal koşuda ek sorgu yoktur. Var → `blocked_upstream`;
      yok → `no_input`. Bir türde vektör varsa `completed` (madde 3).
+   - `similarity` kilidi (PR1a.1): `SimilarityCounts.skipped_locked` her şeyin önündedir.
+     Kenar kilidi (`EDGE_LOCK_KEY`) iki tür için koşunun başında bir kez alınır; meşgulse
+     hiçbir şey yazılmaz ve `skipped_locked`/`lock_busy`, çıkış 75 (önceden `RuntimeError` →
+     `failed`/1). Birleşik koşuda fiyat adımı da atlanır.
+   - **Birleşik `similarity` (kenar + fiyat) tek sonuç yazar; sonuç kenar adımındandır.** Fiyat
+     adımının kendine özgü "girdi yok/engellendi" durumu yoktur. Kenar engellenince koşunun
+     `partial`/`blocked_upstream` olması doğrudur: tanımlı çıktının bir kısmı üretilemedi.
+     Fiyat adımının koştuğu `price_*` sayaçlarından okunur; panel fiyat aşamasını bu koşudan
+     bayat saymaz (PR1b). Ayrı sonuç alanı ya da yeni sonuç adı eklenmedi (sözleşme değişmez).
+   - `similarity --limit N` için N ≥ 1 (PR1a.1). `--limit 0` hiçbir ürünü işlemeden vektörlü
+     ürünü 0 gösterip yanlış `blocked_upstream` yazıyordu; artık argüman hatasıdır (çıkış 2,
+     koşu kaydı yok).
 8. Dry-run iş kaydı bırakmaz (karar 0055); çıkış kodu aynı sözleşmeden gelir.
 
 ## Mimari notlar
@@ -70,12 +82,11 @@ nasıl bittiğini söyler. "Ne üretti?" sorusunu cevaplamaz:
 
 ## Geçiş sürecindeki sınırlamalar
 
-- **Panel.** "Son iyi koşu" sorgusu `status IN ('success','partial')` kullanır
-  (`packages/core/src/admin/job-runs.ts`). Bu yüzden PR1b gelene kadar `skipped_locked` ve
-  `blocked_upstream` (ikisi de `partial`) panelde "son iyi koşu" olarak görünür. Bu yeni bir
-  gerileme değildir: kilit meşgulken koşu zaten `partial` yazıyordu, embedding'siz similarity
-  koşusu ise `success` yazıyordu. Fark yalnızca `outcome`'un artık bunu ayırt edilebilir kılması.
-  `detail` panelde ilk 12 anahtarla düz metin olarak görünür; `outcome` başta olduğu için okunur.
+- **Panel — kapandı (PR1b, #296).** Panel `outcome`'u okur: "son başarılı" yalnızca
+  `completed`/`no_input`/`partial` (eski kayıtta `success`/`partial`), `skipped_locked` ve
+  `blocked_upstream` tazelik sayılmaz, "son çıktı" yalnızca doğrulanmış sayaçlardan gelir,
+  atlanan koşu gecikme hesabını sıfırlamaz. PR1b'den önce bu iki sonuç (`partial`) "son iyi
+  koşu" görünüyordu. Ayrıntı: `docs/ops.md` "İş sonucu — geçiş notları".
 - **Alarm.** Alarm (`arilla-alert@`) bugün yalnızca birim başarısızlığına, yani çıkış koduna
   bakar; `outcome`'u bilmez.
 
@@ -91,6 +102,7 @@ nasıl bittiğini söyler. "Ne üretti?" sorusunu cevaplamaz:
 | durum | bugün | PR1a ile |
 |---|---|---|
 | kilit meşgul | çıkış 1, alarm, similarity çalışmaz | çıkış 75, alarm, similarity çalışmaz |
+| kenar kilidi meşgul (similarity, PR1a.1) | çıkış 1 (`failed`), alarm | çıkış 75 (`skipped_locked`), alarm |
 | teklif hatası | çıkış 1, alarm | aynı |
 | girdi yok | çıkış 0 | aynı |
 | embedding yok (similarity) | çıkış 0, `success` | çıkış 0, `partial`/`blocked_upstream` |
@@ -128,8 +140,9 @@ birime `After=`/`Requires=` ile bağlı başka birim yoktur (`catalog-auto-guard
 - Birleştirmeden önce geçici operasyonel davranış değişiklikleri (yukarıdaki tablo: kilitte
   çıkış 75, similarity'de `partial`/`blocked_upstream`, panelde bu satırların "son iyi koşu"
   sayılması) PR açıklamasında ve `docs/ops.md`'de açıkça belgelenmeden birleştirme yapılmaz.
-- Merge öncesi açık takip: `HAS_ELIGIBLE_PRODUCTS` (`EXISTS` üzerinde
-  `offer_product_idx`) sorgusunun üretimdeki planı doğrulanmadı; yalnızca yerel `EXPLAIN` var.
+- `HAS_ELIGIBLE_PRODUCTS` (`EXISTS` üzerinde `offer_product_idx`): üretimde, yaklaşık 12,4 milyon
+  satırlık tabloda tek koşuda yaklaşık 0,6 ms ölçüldü. Bu tek koşu gözlemidir, tekrarlı ölçüm
+  değildir; sorgu yalnızca iki türde de vektörlü ürün 0 iken çalışır.
 
 ## Reddedilen alternatifler
 
