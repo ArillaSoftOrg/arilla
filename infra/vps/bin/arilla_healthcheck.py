@@ -4,11 +4,19 @@
     arilla_healthcheck.py                 # kontrol et, sonucu yaz; cikis 0 ok / 1 uyari / 2 kritik
     arilla_healthcheck.py --notify        # + alarm/olu-adam bildirimi (systemd zamanlayicisi)
     arilla_healthcheck.py --unit-failed X # systemd OnFailure kancasi: X birimi basarisiz
+    arilla_healthcheck.py --unit-failed X --no-send  # yalniz siniflandirmayi yaz (teshis)
     arilla_healthcheck.py --json          # makine-okunur cikti
 
 Kontroller: disk doluluk, konteyner sagligi, PostgreSQL erisimi ve baglanti kullanimi, WAL
 arsiv kuyrugu (pg_ls_archive_statusdir), yedek yasi (pgbackrest info), geri yukleme provasi
-yasi/sonucu, basarisiz arilla-* systemd birimleri.
+yasi/sonucu, basarisiz arilla-* systemd birimleri, gece katalog hatti tazeligi.
+
+Gece katalog hatti (karar 0174, PR1c): `arilla-catalog-pipeline` basarisiz oldugunda birimin
+cikis kodu (`ExecMainStatus`) VE o kosunun `job_run.detail.outcome`'u birlikte okunur. Tek
+seferlik kilit beklemesi (75 + `skipped_locked`) BILGI'dir: bir kez bildirilir, kritik sayilmaz,
+hatirlatma uretmez. Art arda ikinci atlama, kayitsiz/uyumsuz sonuc ya da okunamayan durum
+KRITIK'tir (kapali tarafta kalir). Ayrica her is icin son "calisti" kosusu 50 saati gecerse
+KRITIK (takili kilit, calismayan zamanlayici). `blocked_upstream` calisti sayilir, alarm yok.
 
 Bildirim (/opt/arilla/env/alert.env, ikisi de istege bagli):
   HEALTHCHECK_PING_URL  her calismada ping (kritikse <url>/fail). VPS duserse ping kesilir ->
@@ -32,8 +40,10 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable
 
-OK, WARN, CRIT = "ok", "warn", "crit"
-LEVEL_RANK = {OK: 0, WARN: 1, CRIT: 2}
+OK, INFO, WARN, CRIT = "ok", "info", "warn", "crit"
+#: INFO kritiklik siralamasinda OK ile esittir: genel durumu, parmak izini ve hatirlatmayi etkilemez.
+LEVEL_RANK = {OK: 0, INFO: 0, WARN: 1, CRIT: 2}
+ALERTING = (WARN, CRIT)
 CORE_SERVICES = ("postgres", "redis", "web", "worker", "cron", "caddy")
 SELF_UNITS = ("arilla-healthcheck.service",)
 REMIND_SECONDS = 6 * 3600
@@ -49,7 +59,17 @@ THRESHOLDS = {
     "last_backup_crit_s": 30 * 3600,  # gunluk fark yedegi + tolerans
     "last_full_crit_s": 8 * 24 * 3600,  # haftalik tam yedek + tolerans
     "restore_test_warn_s": 35 * 24 * 3600,
+    "pipeline_stale_crit_s": 50 * 3600,  # gunluk 02:30 kosusu + bir kacan gece + tolerans
 }
+
+#: Sonucu `job_run`'dan siniflandirilan birimler -> o birimin yazdigi isler (karar 0174).
+PIPELINE_JOBS = {"arilla-catalog-pipeline.service": ("resolve", "similarity_edges")}
+EXIT_TEMPFAIL = 75
+#: Tazelik icin "calisti" sayilan sonuclar; `outcome` yoksa eski kayit `status`'u.
+RAN_OUTCOMES = ("completed", "no_input", "partial", "blocked_upstream")
+LEGACY_RAN_STATUS = ("success", "partial")
+#: systemd baslangic zamani ile job_run.started_at arasindaki saat payi (ayni makine).
+INVOCATION_SKEW_S = 5
 
 
 @dataclass
@@ -108,6 +128,44 @@ class Collector:
         return self.run(self.compose("exec", "-T", "postgres", "psql", "-U", self.pg_user, "-d", self.pg_db,
                                      "-AtqX", "-F", "|", "-c", sql), 30)
 
+    def unit_invocation(self, unit: str) -> tuple[int | None, datetime | None]:
+        """(son kosunun ana cikis kodu, birimin son baslangic zamani); okunamazsa None."""
+        rc, out = self.run(["systemctl", "show", unit, "-p", "ExecMainStatus", "-p", "InactiveExitTimestamp",
+                            "--timestamp=utc"], 15)
+        return parse_unit_show(out) if rc == 0 else (None, None)
+
+    def pipeline_recent(self, jobs: tuple[str, ...]) -> list[dict] | None:
+        """Islerin son iki cron kosusu, yeniden eskiye; sorgu basarisizsa None."""
+        rc, out = self.psql(PIPELINE_RECENT_SQL.format(jobs=sql_jobs(jobs)))
+        if rc != 0:
+            return None
+        rows = []
+        for line in out.splitlines():
+            f = line.split("|")
+            if len(f) != 5 or not f[4].isdigit():
+                return None
+            rows.append({"job": f[0], "status": f[1], "outcome": f[2] or None, "reason": f[3] or None,
+                         "started": datetime.fromtimestamp(int(f[4]), tz=timezone.utc)})
+        return rows
+
+    def pipeline_last_ran(self, jobs: tuple[str, ...]) -> dict[str, datetime | None] | None:
+        """Her isin son "calisti" kosusunun bitisi; kayit yoksa None deger, sorgu basarisizsa None."""
+        rc, out = self.psql(PIPELINE_LAST_RAN_SQL.format(jobs=sql_jobs(jobs)))
+        if rc != 0:
+            return None
+        last: dict[str, datetime | None] = {}
+        for line in out.splitlines():
+            f = line.split("|")
+            if len(f) != 2 or f[0] not in jobs or not f[1].isdigit():
+                return None
+            last[f[0]] = datetime.fromtimestamp(int(f[1]), tz=timezone.utc) if int(f[1]) else None
+        return last if set(last) == set(jobs) else None
+
+    def classify_unit(self, unit: str) -> tuple[str, str]:
+        exec_status, since = self.unit_invocation(unit)
+        rows = self.pipeline_recent(PIPELINE_JOBS[unit])
+        return classify_pipeline_failure(exec_status, since, rows)
+
     def collect(self) -> dict:
         facts: dict = {}
         facts["disk"] = {}
@@ -156,7 +214,89 @@ class Collector:
         rc, out = self.run(["systemctl", "list-units", "--state=failed", "--plain", "--no-legend", "arilla-*"], 15)
         units = [line.split()[0] for line in out.splitlines() if line.strip()] if rc == 0 else []
         facts["failed_units"] = [u for u in units if u not in SELF_UNITS and not u.startswith("arilla-alert@")]
+        facts["pipeline_failures"] = {u: self.classify_unit(u) for u in facts["failed_units"] if u in PIPELINE_JOBS}
+        jobs = tuple(j for unit_jobs in PIPELINE_JOBS.values() for j in unit_jobs)
+        facts["pipeline_last_ran"] = self.pipeline_last_ran(jobs)
         return facts
+
+
+# --------------------------------------------------------------------------- katalog hatti
+#: Her isin son iki cron kosusu (job_run_job_idx: job, started_at DESC).
+PIPELINE_RECENT_SQL = """
+select j.job, r.status, coalesce(r.detail->>'outcome', ''), coalesce(r.detail->>'reason', ''),
+       extract(epoch from r.started_at)::bigint
+  from unnest(array[{jobs}]::text[]) as j(job)
+  cross join lateral (
+        select status, detail, started_at from job_run
+         where job = j.job and trigger = 'cron'
+         order by started_at desc limit 2) r
+ order by r.started_at desc
+"""
+
+#: Her isin son "calisti" kosusunun bitisi (epoch, yoksa 0); tetikleyici fark etmez.
+PIPELINE_LAST_RAN_SQL = """
+select j.job, coalesce((
+        select extract(epoch from finished_at)::bigint from job_run
+         where job = j.job and status <> 'running'
+           and (detail->>'outcome' in ({ran})
+                or (not (detail ? 'outcome') and status in ({legacy})))
+         order by started_at desc limit 1), 0)
+  from unnest(array[{{jobs}}]::text[]) as j(job)
+""".format(ran=", ".join(f"'{o}'" for o in RAN_OUTCOMES), legacy=", ".join(f"'{s}'" for s in LEGACY_RAN_STATUS))
+
+
+def sql_jobs(jobs: tuple[str, ...]) -> str:
+    """Sabit is adlari (job_run.job CHECK ile ayni bicim); disaridan gelen metin degil."""
+    for job in jobs:
+        if not (job[:1].isalpha() and all(ch.islower() or ch.isdigit() or ch == "_" for ch in job)):
+            raise ValueError(f"gecersiz is adi: {job!r}")
+    return ", ".join(f"'{job}'" for job in jobs)
+
+
+def parse_unit_show(out: str) -> tuple[int | None, datetime | None]:
+    """`systemctl show -p ExecMainStatus -p InactiveExitTimestamp --timestamp=utc` ciktisi."""
+    values = dict(line.split("=", 1) for line in out.splitlines() if "=" in line)
+    status = values.get("ExecMainStatus", "").strip()
+    stamp = values.get("InactiveExitTimestamp", "").strip()
+    since = None
+    if stamp.endswith(" UTC"):
+        parts = stamp[:-4].split()
+        try:
+            since = datetime.strptime(" ".join(parts[-2:]), "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+        except ValueError:
+            since = None
+    return (int(status) if status.isdigit() else None), since
+
+
+def describe(row: dict) -> str:
+    result = row.get("outcome") or f"status={row.get('status')}"
+    return f"{row['job']}={result}" + (f" ({row['reason']})" if row.get("reason") else "")
+
+
+def classify_pipeline_failure(exec_status: int | None, since: datetime | None,
+                              rows: list[dict] | None) -> tuple[str, str]:
+    """Basarisiz katalog hatti biriminin seviyesi ve mesaji (karar 0174, PR1c).
+
+    Tek seferlik kilit beklemesi (cikis 75 VE bu kosunun son kaydi `skipped_locked`) INFO;
+    geri kalan her durum, okunamayan durum dahil, CRIT.
+    """
+    if exec_status is None or since is None:
+        return CRIT, "birim durumu okunamadi (systemctl show)"
+    if rows is None:
+        return CRIT, f"job_run okunamadi (cikis {exec_status})"
+    cutoff = since.timestamp() - INVOCATION_SKEW_S
+    current = [r for r in rows if r["started"].timestamp() >= cutoff]
+    if not current:
+        return CRIT, f"bu kosuya ait job_run kaydi yok (cikis {exec_status})"
+    last = current[0]
+    if exec_status == EXIT_TEMPFAIL and last.get("outcome") == "skipped_locked":
+        prev = next((r for r in rows if r["job"] == last["job"] and r["started"].timestamp() < cutoff), None)
+        if prev and prev.get("outcome") == "skipped_locked":
+            return CRIT, f"{describe(last)}: art arda ikinci kez kilit mesgul (cikis 75)"
+        return INFO, f"{describe(last)}: kilit mesgul, kosu atlandi; sonraki zamanlanmis kosu tekrar dener"
+    if last.get("outcome") in ("completed", "no_input", "blocked_upstream") and exec_status != 0:
+        return CRIT, f"son kayit {describe(last)}; sonraki adim kayit acmadan basarisiz (cikis {exec_status})"
+    return CRIT, f"{describe(last)} (cikis {exec_status})"
 
 
 def read_env(path: Path) -> dict[str, str]:
@@ -311,13 +451,38 @@ def evaluate(facts: dict, now: datetime, t: dict = THRESHOLDS) -> list[Check]:
                 rto = (rt.get("result") or {}).get("rto_s")
                 out.append(Check("restore-test", OK, f"son prova {human(age)} once, RTO {rto} sn"))
 
-    failed = facts.get("failed_units") or []
+    classified = facts.get("pipeline_failures") or {}
+    failed = [u for u in facts.get("failed_units") or [] if u not in classified]
     out.append(Check("systemd", CRIT if failed else OK, "basarisiz: " + ", ".join(failed) if failed else "basarisiz birim yok"))
+    for unit, (lvl, msg) in sorted(classified.items()):
+        out.append(Check(f"systemd:{unit}", lvl, msg))
+
+    if "pipeline_last_ran" in facts:
+        last_ran = facts["pipeline_last_ran"]
+        if last_ran is None:
+            out.append(Check("pipeline:freshness", CRIT, "katalog hatti kayitlari okunamadi"))
+        else:
+            stale, missing, ages = [], [], []
+            for job, at in sorted(last_ran.items()):
+                if at is None:
+                    missing.append(job)
+                    continue
+                age = (now - at).total_seconds()
+                ages.append(f"{job} {human(age)} once")
+                if age > t["pipeline_stale_crit_s"]:
+                    stale.append(f"{job} {human(age)}dir calismadi")
+            if stale:
+                out.append(Check("pipeline:freshness", CRIT, "katalog hatti: " + ", ".join(stale)))
+            elif missing:
+                out.append(Check("pipeline:freshness", WARN, "calisti kaydi yok: " + ", ".join(missing)))
+            else:
+                out.append(Check("pipeline:freshness", OK, "son calisma: " + ", ".join(ages)))
     return out
 
 
 def overall(checks: list[Check]) -> str:
-    return max((c.level for c in checks), key=LEVEL_RANK.__getitem__, default=OK)
+    level = max((c.level for c in checks), key=LEVEL_RANK.__getitem__, default=OK)
+    return OK if level == INFO else level
 
 
 # ---------------------------------------------------------------------------------- bildirim
@@ -340,7 +505,7 @@ def ping(url: str, fail: bool, timeout: int = 10) -> bool:
 
 
 def fingerprint(checks: list[Check]) -> str:
-    return ";".join(sorted(f"{c.name}:{c.level}" for c in checks if c.level != OK))
+    return ";".join(sorted(f"{c.name}:{c.level}" for c in checks if c.level in ALERTING))
 
 
 def decide_webhook(prev: dict | None, checks: list[Check], now: datetime) -> str | None:
@@ -363,9 +528,22 @@ def format_message(kind: str, checks: list[Check], host: str) -> str:
     head = {"problem": "SORUN", "reminder": "SORUN SURUYOR", "recovered": "DUZELDI"}[kind]
     lines = [f"[ManiCepte {host}] {head}"]
     for c in checks:
-        if c.level != OK:
+        if c.level in ALERTING:
             lines.append(f"- {c.level.upper()} {c.name}: {c.message}")
     return "\n".join(lines)
+
+
+def unit_failed_message(unit: str, host: str, collector: Collector | None) -> tuple[str, str]:
+    """OnFailure seviyesi ve mesaji; katalog hatti birimi `job_run` sonucuyla siniflandirilir."""
+    hint = f"(journalctl -u {unit})"
+    if collector is None:
+        return CRIT, f"[ManiCepte {host}] SORUN\n- CRIT systemd: {unit} basarisiz {hint}"
+    try:
+        level, msg = collector.classify_unit(unit)
+    except Exception as error:  # noqa: BLE001 - alarm yolu asla susmaz
+        level, msg = CRIT, f"siniflandirma hatasi: {type(error).__name__}"
+    head = "BILGI" if level == INFO else "SORUN"
+    return level, f"[ManiCepte {host}] {head}\n- {level.upper()} systemd: {unit} {msg} {hint}"
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -374,6 +552,7 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--notify", action="store_true")
     ap.add_argument("--json", action="store_true")
     ap.add_argument("--unit-failed")
+    ap.add_argument("--no-send", action="store_true", help="--unit-failed: yalniz yaz, bildirim gonderme")
     args = ap.parse_args(argv)
     root = Path(args.root)
     alert = read_env(root / "env" / "alert.env")
@@ -382,11 +561,13 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.unit_failed:
         unit = "".join(ch for ch in args.unit_failed if ch.isalnum() or ch in "-_.@")[:120]
-        text = f"[ManiCepte {host}] SORUN\n- CRIT systemd: {unit} basarisiz (journalctl -u {unit})"
-        if alert.get("ALERT_WEBHOOK_URL"):
-            post_json(alert["ALERT_WEBHOOK_URL"], {"text": text, "content": text})
-        if alert.get("HEALTHCHECK_PING_URL"):
-            ping(alert["HEALTHCHECK_PING_URL"], fail=True)
+        level, text = unit_failed_message(unit, host, Collector(root) if unit in PIPELINE_JOBS else None)
+        if not args.no_send:
+            if alert.get("ALERT_WEBHOOK_URL"):
+                post_json(alert["ALERT_WEBHOOK_URL"], {"text": text, "content": text})
+            # Olu adam anahtari yalniz gercek sorunda "fail" alir; tek seferlik atlama degil.
+            if alert.get("HEALTHCHECK_PING_URL") and level != INFO:
+                ping(alert["HEALTHCHECK_PING_URL"], fail=True)
         print(text)
         return 0
 
