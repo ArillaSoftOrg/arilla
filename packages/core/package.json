@@ -30,7 +30,8 @@
     "./catalog-discovery-extract": "./src/catalog-collection/discovery-extract.ts",
     "./errors": "./src/errors/index.ts",
     "./price-history-view": "./src/product/price-history-view.ts",
-    "./umami-tracker": "./src/analytics-umami/config.ts"
+    "./umami-tracker": "./src/analytics-umami/config.ts",
+    "./umami-events": "./src/analytics-umami/events.ts"
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",

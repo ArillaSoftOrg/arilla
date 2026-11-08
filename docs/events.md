@@ -87,6 +87,14 @@ vermişse gönderilir; `user_activity_event` sınıfından ve GA4'ten ayrıdır.
 | sayfa görüntüleme | `url` (arındırılmış yol + yalnızca güvenli `utm_*`), `title` (= arındırılmış yol), `referrer` (dış: yalnızca köken) | Otomatik izleme kapalı; rota değişiminde elle, GA4 ile aynı süzgeç (`sanitizePage`). `/yonetim`, `/api`, `/giris/*`, `/abonelik-iptali` gönderilmez |
 | `early_access_joined` | `campaign`, `source` (iniş sayfasındaki güvenli `utm_campaign` / `utm_source`; yoksa boş) | Erken erişim kaydı "az önce katıldı" durumundayken tek sefer (`sessionStorage` bayrağı). Kullanıcı kimliği, e-posta, hesap numarası YOK; `identify` çağrılmaz |
 
+| `page_engaged` | `area` (sabit sözlük: `home`, `search`, `product`, `chat`, `trends`, `deals`, `discover`, `saved`, `history`, `alerts`, `blog`, `other`), `duration` (`0-10s`, `10-30s`, `30-120s`, `2-10m`, `10m+`) | Karar 0173. Sayfada GÖRÜNÜR kalınan süre, sayfa görüntüleme başına en fazla bir kez: rota değişiminde, sekme gizlenince ya da sayfa kapanırken (hangisi önce). Kesin süre gönderilmez. Umami ziyaret süresini son olaydan hesapladığı için tek sayfalık ziyaretler artık 0 sn görünmez |
+| `product_opened` | `area` (tıklamanın yapıldığı sayfanın alanı) | Karar 0173. Aynı kökenli `/urun/:slug` bağlantısına tıklama (orta tık dahil). Ürün kimliği/slug'ı GÖNDERİLMEZ; hangi ürünün açıldığı zaten sayfa görüntülemesinde arındırılmış yol olarak vardır |
+| `merchant_exit_clicked` | `area`, `surface` (`/git/:offerId?surface=` değeri; yalnızca `CLICK_SURFACES` listesinden, değilse `other`) | Karar 0173. Mağaza çıkış bağlantısına tıklama. Teklif/mağaza/fiyat GÖNDERİLMEZ. Attribution kaynağı `click` tablosudur (kural 8); bu olay onun yerine geçmez, `click` de davranışsal analitiğe kaynak olmaz (0049 §5) |
+
+Tüm Umami olaylarında adres, sayfa görüntülemesiyle AYNI arındırılmış yoldur (Umami'nin
+kendi `location.href`'i kullanılmaz; betikte ayrıca `data-exclude-search`). Olay verisi
+yalnızca bu tablodaki sabit sözlüklerden gelir; serbest metin, kimlik, IP gönderilmez.
+
 Başka Umami olayı eklemek için önce bu tablo güncellenir.
 
 ## Arama

@@ -128,9 +128,14 @@ export function umamiApiFromEnv(env: Env = process.env): UmamiApiConfigResult {
   return { status: "ok", config: { baseUrl, websiteId, apiKey: rawKey } };
 }
 
-/** Gönderilen olaylar (docs/events.md, "Umami"). Başka olay gönderilmez. */
-export const UMAMI_EVENTS = ["early_access_joined"] as const;
+/** Gönderilen olaylar (docs/events.md, "Umami"; karar 0116, 0173). Başka olay gönderilmez. */
+export const UMAMI_EVENTS = [
+  "early_access_joined",
+  "page_engaged",
+  "product_opened",
+  "merchant_exit_clicked",
+] as const;
 export type UmamiEventName = (typeof UMAMI_EVENTS)[number];
 
 /** Umami'ye gidebilecek olay verisi alanları ve değer süzgeci. */
-export const UMAMI_EVENT_DATA_KEYS = ["campaign", "source"] as const;
+export const UMAMI_EVENT_DATA_KEYS = ["campaign", "source", "area", "surface", "duration"] as const;

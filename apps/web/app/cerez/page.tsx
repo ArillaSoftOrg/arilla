@@ -148,8 +148,9 @@ export default async function CerezPage() {
           </p>
         ) : umami ? (
           <p>
-            Sitenin kullanımını toplu olarak ölçer (ziyaretçi, görüntülenen sayfa, trafik kaynağı,
-            cihaz türü, tarayıcı ve yaklaşık ülke). Bu kategoride kendi sunucumuzda çalışan Umami
+            Sitenin kullanımını toplu olarak ölçer (ziyaretçi, görüntülenen sayfa, sayfada kalma
+            süresi aralığı, ürün sayfası ve mağaza bağlantısı tıklamaları, trafik kaynağı, cihaz
+            türü, tarayıcı ve yaklaşık konum). Bu kategoride kendi sunucumuzda çalışan Umami
             kullanıyoruz; izin vermezseniz hiç yüklenmez, izni geri çekerseniz ölçüm hemen durur.
             Arama ifadeleri, adres satırındaki parametreler, hesap ve sohbet bilgileri gönderilmez.
           </p>
