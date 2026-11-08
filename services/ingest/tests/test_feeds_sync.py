@@ -992,6 +992,120 @@ def test_cli_karantina_ve_onay(env: Env, capsys: pytest.CaptureFixture[str]) -> 
     capsys.readouterr()
 
 
+def test_seviye_onayi_icerigi_her_seferinde_degisen_kaynagi_acar(env: Env) -> None:
+    """Karar 0175: Admitad her disa aktarimda icerigi degistirir; icerik onayi hic eslesmez.
+
+    Seviye onayi sure boyunca onaylanan sayinin %85'inden az olmayan, FARKLI icerikli dosyalari
+    kabul ettirir; daha da dusen dosya yine karantinaya girer; medyan yeni seviyeye gelince onaya
+    gerek kalmaz.
+    """
+    fid = env.feed(config=NO_DEACTIVATE)
+    for i, days in enumerate((0, 1, 2)):  # medyan 100
+        env.run(
+            fid,
+            [offer(x, price=f"{10 + i}.00") for x in ids(100)],
+            at=T0 + timedelta(days=days),
+            name=f"full{i}.xml",
+        )
+    first = env.run(fid, SMALL, at=T0 + timedelta(days=3), name="small.xml")
+    assert first.gate == "too_few_records"
+
+    # Icerik onayi: ayni sayida ama FARKLI icerik (tarih/fiyat) gelince eslesmez (bugunku sorun).
+    content = approve_drop(env, fid, first.snapshot_id)
+    changed = env.run(
+        fid, [offer(x, price="5.10") for x in ids(40)], at=T0 + timedelta(days=4), name="c1.xml"
+    )
+    assert (changed.gate, changed.drop_approved) == ("too_few_records", False)
+
+    # Seviye onayi (icerik onayi zaten var; seviye ayri kapsamdir).
+    with env.owner.cursor() as cur:  # icerik onayini eskit: ayni surume ikinci onay
+        cur.execute(
+            "UPDATE job_run SET started_at = now() - interval '30 days' WHERE id = %s", (content,)
+        )
+    level = approve_drop(env, fid, changed.snapshot_id, level=True, ttl_days=3)
+    assert env.one("SELECT detail ->> 'scope' FROM job_run WHERE id = %s", (level,)) == ("level",)
+    a = env.run(
+        fid, [offer(x, price="5.20") for x in ids(40)], at=T0 + timedelta(days=5), name="l1.xml"
+    )
+    assert (a.status, a.gate, a.drop_approved, a.records) == ("success", None, True, 40)
+    # Ikinci, yine farkli ve biraz daha kucuk (35 >= 40*0.85=34) dosya: ayni onayla kabul.
+    b = env.run(
+        fid, [offer(x, price="5.30") for x in ids(35)], at=T0 + timedelta(days=6), name="l2.xml"
+    )
+    assert (b.status, b.drop_approved) == ("success", True)
+    assert active_of(env) == 100  # no_deactivate korunur
+    used = env.one(
+        "SELECT count(*) FROM job_run WHERE job = 'feed_drop_accepted' "
+        "AND detail ->> 'approval_id' = %s",
+        (str(level),),
+    )[0]
+    assert used == 2
+    # Medyan artik [100, 40, 35] -> 40: 36 kayit onaysiz gecer (karantina kendiliginden degil,
+    # tam surumlerin yeni seviyesiyle).
+    c = env.run(
+        fid, [offer(x, price="5.40") for x in ids(36)], at=T0 + timedelta(days=7), name="l3.xml"
+    )
+    assert (c.status, c.gate, c.drop_approved) == ("success", None, False)
+
+
+def test_seviye_onayi_daha_buyuk_dususu_ve_sureyi_kapsamaz(env: Env) -> None:
+    fid = env.feed(config=NO_DEACTIVATE)
+    first = quarantine_once(env, fid)  # 100 -> 40
+    level = approve_drop(env, fid, first.snapshot_id, level=True)
+    before = writes_of(env)
+    # 33 < 40*0.85: yeni insan karari gerekir.
+    lower = env.run(
+        fid, [offer(x, price="4.00") for x in ids(33)], at=T0 + timedelta(days=2), name="lower.xml"
+    )
+    assert (lower.gate, lower.drop_approved) == ("too_few_records", False)
+    assert writes_of(env) == before
+    # Sure dolunca seviye onayi gecmez.
+    with env.owner.cursor() as cur:
+        cur.execute(
+            "UPDATE job_run SET started_at = now() - interval '8 days' WHERE id = %s", (level,)
+        )
+    late = env.run(
+        fid, [offer(x, price="4.10") for x in ids(40)], at=T0 + timedelta(days=3), name="late.xml"
+    )
+    assert (late.gate, late.drop_approved) == ("too_few_records", False)
+    # Diger kapilar atlanmaz: gecerli seviye onayiyla kesik dosya yine reddedilir.
+    approve_drop(env, fid, late.snapshot_id, level=True)
+    cut = env.run(fid, SMALL, at=T0 + timedelta(days=4), truncate=True, name="cut.xml")
+    assert (cut.gate, cut.drop_approved) == ("truncated", False)
+
+
+def test_seviye_onayi_cli_ve_cift_onay(env: Env, capsys: pytest.CaptureFixture[str]) -> None:
+    from feeds.__main__ import main
+
+    fid = env.feed(config=NO_DEACTIVATE)
+    first = quarantine_once(env, fid)
+    base = [
+        "approve-drop",
+        "--feed",
+        str(fid),
+        "--snapshot",
+        str(first.snapshot_id),
+        "--by",
+        "yusuf",
+        "--reason",
+        "kaynak kuculdu, seviye onayi (test)",
+        "--level",
+    ]
+    assert main(base) == 0
+    out = capsys.readouterr().out
+    assert "kapsam: SEVIYE" in out and "34 kayittan" in out and "yazilmadi" in out
+    assert main([*base, "--confirm"]) == 0
+    capsys.readouterr()
+    assert env.one("SELECT detail ->> 'scope' FROM job_run WHERE job = 'feed_drop_approval'") == (
+        "level",
+    )
+    assert main(["quarantine", "--feed", str(fid)]) == 0
+    assert "onayli" in capsys.readouterr().out
+    # Ayni besleme icin ikinci gecerli seviye onayi verilmez (icerik onayi zaten var sayilir).
+    assert main([*base, "--confirm"]) == 2
+    assert "zaten var" in capsys.readouterr().err
+
+
 BAD_FILES = {
     # ad: (baytlar, gz, beklenen kapi)
     "kesik_yml_kayit_ortasinda": (lambda ok: ok[: int(len(ok) * 0.34)], False, "truncated"),

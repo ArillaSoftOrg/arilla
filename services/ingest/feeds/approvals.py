@@ -19,6 +19,13 @@ Ilkeler:
 - **Denetlenebilir.** Onay ve kabul `job_run` satirlaridir (ekleme; `feed_drop_approval`,
   `feed_drop_accepted`): kim (`by`), neden (`reason`), hangi surum/sha256/kayit/medyan, ne zaman.
   Kisitli saklama: `job_run` 180 gun tutulur (migration 0041).
+- **Seviye onayi (`--level`, karar 0175).** Bazi kaynaklar (Admitad AliExpress) her disa
+  aktarimda icerigi degistirir (tarih alani, fiyatlar): ayni icerik bir daha hic gelmez ve icerik
+  onayi hicbir zaman eslesmez. Insan bu durumda yeni boyut SEVIYESINI onaylayabilir: onay suresi
+  boyunca bu beslemenin, onaylanan surumun kayit sayisinin `min_ratio_vs_median` (%85) katindan
+  az OLMAYAN dosyalari kayit sayisi kapisini gecer (her kabul ayrica `feed_drop_accepted`).
+  Daha da dusen dosya yine karantinaya girer. Son 3 tam surum yeni seviyeye gelince medyan
+  kendiliginden guncellenir ve onaya artik gerek kalmaz.
 - **Diger kapilar atlanmaz.** Onay yalniz kayit sayisi kapisini gecirir. Butunluk taramasi
   (kesik/bos dosya), hata orani kapisi, `no_deactivate`, deaktivasyon tavani ve 48 saat bekleme
   aynen calisir.
@@ -34,6 +41,10 @@ from typing import Any
 import psycopg
 
 APPROVAL_JOB = "feed_drop_approval"
+SCOPE_CONTENT = "content"
+SCOPE_LEVEL = "level"
+#: Seviye onayinin alt siniri: onaylanan kayit sayisinin bu orani (sync `min_ratio_vs_median`).
+LEVEL_MIN_RATIO = 0.85
 ACCEPTED_JOB = "feed_drop_accepted"
 #: Onay bu kadar gun gecerlidir; sonra yeniden onay gerekir.
 DEFAULT_TTL_DAYS = 7
@@ -68,8 +79,10 @@ def approve(
     by: str,
     reason: str,
     ttl_days: int = DEFAULT_TTL_DAYS,
+    level: bool = False,
 ) -> int:
-    """Karantinadaki bir surumun ICERIGINI onaylar; `feed_drop_approval` satiri kimligini doner."""
+    """Karantinadaki bir surumun ICERIGINI (ya da `level=True` ile boyut SEVIYESINI) onaylar;
+    `feed_drop_approval` satiri kimligini doner."""
     by = (by or "").strip()
     reason = (reason or "").strip()
     if not 2 <= len(by) <= 60:
@@ -105,6 +118,8 @@ def approve(
             raise ApprovalError("daha yeni bir tam surum var; bu karantina eskimis")
         if find_valid(conn, feed_id, str(sha), ttl_days=ttl_days) is not None:
             raise ApprovalError("bu icerik icin gecerli bir onay zaten var")
+        if level and find_valid_level(conn, feed_id, int(records), ttl_days=ttl_days) is not None:
+            raise ApprovalError("bu besleme icin gecerli bir seviye onayi zaten var")
         cur.execute(
             """INSERT INTO job_run (job, trigger, status, finished_at, detail)
                VALUES (%s, 'manual', 'success', now(), %s::jsonb) RETURNING id""",
@@ -116,6 +131,7 @@ def approve(
                     sha256=str(sha),
                     records=int(records),
                     ttl_days=ttl_days,
+                    scope=SCOPE_LEVEL if level else SCOPE_CONTENT,
                     approved_by=by,
                     reason=reason,
                 ),
@@ -161,6 +177,37 @@ def find_valid(
                 ACCEPTED_JOB,
                 str(snapshot_id) if snapshot_id is not None else None,
             ),
+        )
+        row = cur.fetchone()
+    conn.commit()
+    return int(row[0]) if row else None
+
+
+def find_valid_level(
+    conn: psycopg.Connection,
+    feed_id: int,
+    records: int,
+    *,
+    min_ratio: float = LEVEL_MIN_RATIO,
+    ttl_days: int = DEFAULT_TTL_DAYS,
+) -> int | None:
+    """Bu beslemenin suresi dolmamis SEVIYE onayi; `records`, onaylanan kayit sayisinin
+    `min_ratio` katindan azsa `None` (daha da kuculen dosya yeniden insan karari ister).
+
+    Seviye onayi sure boyunca birden cok surumu kabul ettirebilir: icerigi her disa aktarimda
+    degisen kaynakta medyan ancak yeni seviyede birkac tam surumle guncellenir. Her kabul
+    `feed_drop_accepted` olarak ayrica yazilir.
+    """
+    with conn.cursor() as cur:
+        cur.execute(
+            """SELECT a.id FROM job_run a
+                WHERE a.job = %s AND a.status = 'success'
+                  AND a.detail ->> 'feed_id' = %s AND a.detail ->> 'scope' = %s
+                  AND a.started_at > now() - make_interval(
+                        days => coalesce((a.detail ->> 'ttl_days')::int, %s))
+                  AND (a.detail ->> 'records')::bigint * %s <= %s
+                ORDER BY a.id DESC LIMIT 1""",
+            (APPROVAL_JOB, str(feed_id), SCOPE_LEVEL, ttl_days, min_ratio, records),
         )
         row = cur.fetchone()
     conn.commit()
@@ -227,6 +274,8 @@ def quarantined(conn: psycopg.Connection, feed_id: int | None = None) -> list[Qu
     out = []
     for sid, fid, sha, records, at, median in rows:
         approval = find_valid(conn, int(fid), str(sha)) if sha else None
+        if approval is None:
+            approval = find_valid_level(conn, int(fid), int(records))
         out.append(
             Quarantined(int(sid), int(fid), str(sha or ""), int(records), median, at, approval)
         )
