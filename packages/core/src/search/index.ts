@@ -2,6 +2,7 @@ export * from "./clarification.ts";
 export * from "./compare-merchants.ts";
 export * from "./fallback/index.ts";
 export * from "./find-alternatives.ts";
+export { applyIntentV2, type IntentV2Applied, intentV2Mode } from "./intent-v2-realtime.ts";
 export * from "./interpretation-eligibility.ts";
 export * from "./interpretation-identity.ts";
 export * from "./lexicon.ts";

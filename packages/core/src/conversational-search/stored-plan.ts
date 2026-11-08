@@ -15,6 +15,7 @@
  */
 import type { Database } from "@arilla/db";
 import type { CompileOptions, ExtractContext } from "../clarification/index.ts";
+import { intentV2Mode } from "../search/intent-v2-realtime.ts";
 import { normalizeQueryText } from "../search/normalize.ts";
 import {
   isRealtimeInterpretationEnabled,
@@ -100,8 +101,12 @@ export async function planConversationWithRealtimeInterpretation(
 }> {
   const compileOptions = options.compileOptions ?? {};
   const realtime = options.realtime ?? {};
+  const env = realtime.env ?? process.env;
+  // IntentV2 (karar 0171) aciksa ayni 0062 cagrisini o yapar: v1 anlik cagri
+  // yapilmaz (sorgu basina tek cagri), plan saklanan v1 yorumuyla bugunku gibi kurulur.
   const enabled =
-    realtime.client !== undefined || isRealtimeInterpretationEnabled(realtime.env ?? process.env);
+    realtime.client !== undefined ||
+    (isRealtimeInterpretationEnabled(env) && intentV2Mode(env) === "off");
   if (!enabled || !request.query.trim()) {
     const legacy = await planConversationWithInterpretationSource(
       db,

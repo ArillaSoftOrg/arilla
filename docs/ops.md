@@ -2521,6 +2521,20 @@ dosyasındadır (`compose.env` yalnız imaj etiketi ve digest taşır; web konte
   `docker compose … logs web | grep "\[normalize\]"` (200 aramadan sonra ilk satır).
 - **Geri alma:** `web.env.bak`'ı geri kopyala, `up -d web`, sağlık kontrolü. `on` ayrı onay gerektirir.
 
+### Anlık IntentV2 niyeti (karar 0171 Faz 2) — varsayılan `off`
+
+`QUERY_INTENT_V2` = `off` | `shadow` | `on`, **`/opt/arilla/env/web.env`**. Yalnızca `GEMINI_REALTIME_ENABLED=true`
+(karar 0062; hukuki koşulları orada) ve `GEMINI_API_KEY` varken etkindir; etkinken v1 anlık yorum çağrısı
+yapılmaz. Aynı günlük tavan (2.000), kişi başı kota, tek-uçuş kilidi ve `api_usage` operasyonu
+(`query_interpretation_realtime`). Migration yok.
+
+- **Açma:** `web.env` yedeği; iki satırı yaz (`GEMINI_REALTIME_ENABLED=true`, `QUERY_INTENT_V2=on`);
+  `sudo docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml up -d web`.
+- **Doğrulama:** `/api/health`; `exec web printenv QUERY_INTENT_V2`; `logs web | grep "\[intent-v2\]"` (yalnız hata kodları);
+  `api_usage` içinde `operation = query_interpretation_realtime` günlük sayısı.
+- **Geri alma:** `QUERY_INTENT_V2=off` (ya da yedeği geri kopyala) + `up -d web`. Arama bugünkü
+  deterministik yola döner; saklanan yorumlar zararsızdır (farklı `taxonomy_hash`).
+
 ### AliExpress görsel varyantları (karar 0167) — varsayılan kapalı
 
 `IMAGE_VARIANTS_ALIEXPRESS_ENABLED=true` (yalnızca sunucu; `compose.env`). Kapalıyken AliExpress
