@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import type { ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { LoginGateModal } from "../../login-gate-modal-client.tsx";
-import { SEARCH_RIGHTS_COPY, SEARCH_RIGHTS_HREF } from "../search-rights-copy.ts";
+import { SEARCH_RIGHTS_COPY, SEARCH_RIGHTS_HREF } from "../../lib/search/search-rights-copy.ts";
 import { pollLinkSearchAction, startLinkSearchAction } from "./actions.ts";
 import linkStyles from "./link-search.module.css";
 import { LINK_SEARCH_COPY, linkFailureCopy, linkNoRightsEarnable } from "./link-search-copy.ts";

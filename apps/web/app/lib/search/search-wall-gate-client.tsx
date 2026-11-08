@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LoginGateModal } from "../login-gate-modal-client.tsx";
+import { LoginGateModal } from "../../login-gate-modal-client.tsx";
 
 /**
  * decision 0002: modal kapatılabilir (sonuçlar zaten arkada okunur halde) -

@@ -11,7 +11,7 @@ import {
   VisuallyHidden,
 } from "@arilla/ui";
 import type { ReactNode } from "react";
-import styles from "./ara.module.css";
+import styles from "./search.module.css";
 
 /** docs/copy.md `search.offer_count`. */
 export function offerCountLabel(count: number): string {

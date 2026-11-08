@@ -20,12 +20,12 @@ import { redirect } from "next/navigation";
 import { Suspense } from "react";
 import { clientIp } from "../lib/client-ip.ts";
 import { requireProductAccess, verifySession } from "../lib/dal.ts";
-import styles from "./ara.module.css";
-import { ConversationFocusClient } from "./conversation-focus-client.tsx";
-import { ResultsRegionSkeleton } from "./search-results.tsx";
-import { SearchRightsBadge } from "./search-rights-badge.tsx";
-import { TextSearchResults } from "./text-search-results.tsx";
-import { startWebSearch } from "./web-search-start.ts";
+import styles from "../lib/search/search.module.css";
+import { ConversationFocusClient } from "../lib/search/conversation-focus-client.tsx";
+import { ResultsRegionSkeleton } from "../lib/search/search-results.tsx";
+import { SearchRightsBadge } from "../lib/search/search-rights-badge.tsx";
+import { TextSearchResults } from "../lib/search/text-search-results.tsx";
+import { startWebSearch } from "../lib/search/web-search-start.ts";
 
 const SORT_MODES: readonly SortMode[] = ["balanced", "best_deal", "closest_match"];
 

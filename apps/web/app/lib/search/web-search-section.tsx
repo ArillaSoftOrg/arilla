@@ -10,9 +10,9 @@ import {
 import { getDatabase } from "@arilla/db";
 import type { ReactNode } from "react";
 import { Suspense } from "react";
-import { ErrorView } from "../error-view.tsx";
-import chatStyles from "../sohbet/sohbet.module.css";
-import styles from "./ara.module.css";
+import { ErrorView } from "../../error-view.tsx";
+import chatStyles from "../../sohbet/sohbet.module.css";
+import styles from "./search.module.css";
 import { WEB_SEARCH_COPY as COPY } from "./web-search-copy.ts";
 import type { WebSearchBundle } from "./web-search-start.ts";
 import { WebPendingItems, WebResultItems, type WebViewVariant } from "./web-search-view.tsx";

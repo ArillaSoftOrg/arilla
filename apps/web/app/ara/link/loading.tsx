@@ -1,5 +1,5 @@
 import { LINK_SEARCH_PUBLIC } from "@arilla/core/link-input";
-import { ResultsSkeleton } from "../search-results.tsx";
+import { ResultsSkeleton } from "../../lib/search/search-results.tsx";
 import { LinkSearchComingSoon } from "./link-search-coming-soon.tsx";
 
 /**

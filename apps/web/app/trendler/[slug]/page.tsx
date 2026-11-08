@@ -4,7 +4,7 @@ import { FallbackImage, ProductCard, Section } from "@arilla/ui";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { cache } from "react";
-import { offerCountLabel } from "../../ara/search-results.tsx";
+import { offerCountLabel } from "../../lib/search/search-results.tsx";
 import { requireProductAccess } from "../../lib/dal.ts";
 import { trendShareMetadata } from "../../lib/share-metadata.ts";
 import { ShareButtonClient } from "../../share-button-client.tsx";

@@ -1,6 +1,6 @@
 import type { ForeignPrice } from "@arilla/core";
 import { formatStartingPrice, formatTRY } from "@arilla/ui";
-import { cardPriceProps } from "../ara/search-results.tsx";
+import { cardPriceProps } from "../lib/search/search-results.tsx";
 import type { ChatToolProduct } from "./chat-product-model.ts";
 
 /** Mevcut kartın fiyat/kaynak kurallarını seri hale getirir; istemciye işlev gitmez. */

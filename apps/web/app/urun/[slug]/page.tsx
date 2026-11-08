@@ -46,7 +46,7 @@ import {
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 import { cache } from "react";
-import { cardPriceProps } from "../../ara/search-results.tsx";
+import { cardPriceProps } from "../../lib/search/search-results.tsx";
 import { HOME_COPY } from "../../home-copy.ts";
 import { readConsent } from "../../lib/consent.ts";
 import { requireProductAccess } from "../../lib/dal.ts";

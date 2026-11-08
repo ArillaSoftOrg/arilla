@@ -1,8 +1,8 @@
 import { getEntitlementStatus } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import Link from "next/link";
-import { verifySession } from "../lib/dal.ts";
-import styles from "./ara.module.css";
+import { verifySession } from "../dal.ts";
+import styles from "./search.module.css";
 import {
   bonusCanHelp,
   SEARCH_RIGHTS_BADGE_LABEL,
