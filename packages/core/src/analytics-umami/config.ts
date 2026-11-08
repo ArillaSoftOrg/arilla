@@ -81,6 +81,21 @@ export function umamiTrackerFromEnv(env: Env = process.env): UmamiTrackerConfig 
   };
 }
 
+/**
+ * CSP derlemede üretilir (`next.config.ts` `headers()`), izleyici ise çalışma anındaki
+ * ortamdan okunur. İkisi ayrışırsa (ör. imaj Umami değişkenleri olmadan derlendi, sonra
+ * `web.env`'e eklendi) tarayıcı betiği CSP ile engeller ve hiçbir ziyaret sayılmaz.
+ * İzleyici YALNIZCA derlemedeki CSP aynı kökene izin veriyorsa döner; aksi halde `null`
+ * (betik hiç basılmaz, yönetim ekranı "etkin değil" gösterir, yeniden derleme gerekir).
+ */
+export function umamiTrackerAllowedByCsp(
+  tracker: UmamiTrackerConfig | null,
+  cspOrigin: string | undefined | null,
+): UmamiTrackerConfig | null {
+  if (!tracker) return null;
+  return parseBaseUrl(cspOrigin) === tracker.baseUrl ? tracker : null;
+}
+
 export interface UmamiApiConfig {
   baseUrl: string;
   websiteId: string;

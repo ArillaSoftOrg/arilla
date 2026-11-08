@@ -206,6 +206,38 @@ jobs:
           cache-to: ${{ github.event_name != 'pull_request' && format('type=gha,mode=max,scope={0},ignore-error=true', matrix.name) || '' }}
       - name: imaj icinde sir / kimlik dosyasi / root kontrolu
         run: bash infra/vps/bin/verify-image.sh local/arilla-${{ matrix.name }}:scan
+      # Karar 0116: CSP derlemede uretilir. Umami degiskenleri yarim ya da derlemeye
+      # ulasmamissa betik CSP ile engellenir ve hicbir ziyaret sayilmaz; sessiz kalmasin.
+      - name: Umami kokeni derlenen CSP'de mi
+        if: matrix.name == 'web'
+        env:
+          UMAMI_BASE_URL: ${{ vars.UMAMI_BASE_URL }}
+          UMAMI_WEBSITE_ID: ${{ vars.UMAMI_WEBSITE_ID }}
+        run: |
+          set -euo pipefail
+          if [ -z "$UMAMI_BASE_URL" ] && [ -z "$UMAMI_WEBSITE_ID" ]; then
+            echo "Umami kapali: iki depo degiskeni de bos."
+            exit 0
+          fi
+          if [ -z "$UMAMI_BASE_URL" ] || [ -z "$UMAMI_WEBSITE_ID" ]; then
+            echo "::error title=Umami yarim yapilandirma::UMAMI_BASE_URL ve UMAMI_WEBSITE_ID depo degiskenleri birlikte tanimlanmali; biri eksikken CSP Umami'siz derlenir ve ziyaret sayilmaz."
+            exit 1
+          fi
+          origin="${UMAMI_BASE_URL%/}"
+          cid=$(docker create local/arilla-web:scan)
+          docker cp "$cid:/app/apps/web/.next/routes-manifest.json" routes-manifest.json
+          docker rm "$cid" >/dev/null
+          csp=$(jq -r '[.headers[] | select(.source == "/:path*") | .headers[] | select(.key == "Content-Security-Policy") | .value][0] // ""' routes-manifest.json)
+          for directive in script-src connect-src; do
+            values=$(printf '%s' "$csp" | tr ';' '\n' | sed -n "s/^ *$directive //p")
+            case " $values " in
+              *" $origin "*) echo "$directive: $origin var" ;;
+              *)
+                echo "::error title=Umami CSP'de yok::$directive derlenen CSP'de $origin icermiyor (UMAMI_BASE_URL gecersiz ya da derlemeye ulasmadi)."
+                exit 1
+                ;;
+            esac
+          done
       - name: Trivy (zafiyet + sir) - HIGH/CRITICAL, duzeltilmis olanlar
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # v0.36.0
         with:
