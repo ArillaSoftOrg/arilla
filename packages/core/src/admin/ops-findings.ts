@@ -185,6 +185,17 @@ const REASON_TEXT: Record<string, { cause: string; action: string }> = {
     cause: 'Aşamanın son iş koşusu 2 saattir "sürüyor"; süreç ölmüş olabilir.',
     action: "Süreci kontrol edin; ölmüşse işi yeniden çalıştırın (koşu kaydı kapanmamış kalır).",
   },
+  // Karar 0174: uygun girdi var ama önceki aşamanın çıktısı (ör. embedding) eksik.
+  job_blocked_upstream: {
+    cause:
+      "Aşamanın son koşusu önceki aşamanın çıktısı eksik olduğu için iş üretemedi (ör. vektör yok).",
+    action:
+      "Önceki aşamayı (ör. zenginleştirme) çalıştırın ve çıktısını doğrulayın; ardından bu aşama yeniden üretir.",
+  },
+  job_invalid_outcome: {
+    cause: "Aşamanın son koşusu tanımsız ya da bozuk bir sonuç kaydetti; başarılı sayılmaz.",
+    action: "İş koşuları listesinde ayrıntıya bakın; işin sonuç yazımını (karar 0174) düzeltin.",
+  },
 };
 
 export function pipelineFindings(views: readonly PipelineStageView[], now: Date): AdminFinding[] {
@@ -244,11 +255,25 @@ export function pipelineFindings(views: readonly PipelineStageView[], now: Date)
           evidenceAt: now,
         });
       default:
+        // Kilit nedeniyle atlanan koşu tazelik sayılmaz; son geçerli tamamlanma güncel olsa da bilgi verilir.
+        if (view.lastOutcome === "skipped_locked") {
+          return finding({
+            ...base,
+            severity: "info",
+            title: `${info.label}: son koşu atlandı`,
+            meaning: `Başka bir koşu kilidi tuttuğu için son koşu hiçbir şeye dokunmadı. Aşamanın ${when} (son geçerli tamamlanma) beslendiği aşamadan eski değil.`,
+            action:
+              "Tekrarlıyorsa aynı işin elle ya da takılı bir koşusu olup olmadığını kontrol edin.",
+          });
+        }
         return finding({
           ...base,
           severity: "healthy",
           title: `${info.label}: güncel`,
-          meaning: `Aşamanın ${when} beslendiği aşamadan eski değil.`,
+          meaning:
+            view.lastOutcome === "no_input"
+              ? `Son koşu çalıştı; işlenecek uygun girdi bulunamadı (çıktı üretmedi). Aşamanın ${when} beslendiği aşamadan eski değil.`
+              : `Aşamanın ${when} beslendiği aşamadan eski değil.`,
           action: "Bir şey gerekmiyor.",
         });
     }
@@ -464,7 +489,8 @@ export function jobRunFindings(check: Check<JobRunSummary>, now: Date): AdminFin
       if (meta?.kind === "cron") quiet.push(meta.label);
       continue;
     }
-    if (run.status === "failed" && !STAGE_JOB_NAMES.has(job.job)) {
+    const failed = run.status === "failed" || run.outcome.kind === "invalid";
+    if (failed && !STAGE_JOB_NAMES.has(job.job)) {
       out.push(
         finding({
           key: `jobs.${job.job}.failed`,
@@ -482,10 +508,12 @@ export function jobRunFindings(check: Check<JobRunSummary>, now: Date): AdminFin
         }),
       );
     }
+    // Karar 0174: kilit nedeniyle atlanan koşu (`skipped_locked`) gecikmeyi sıfırlamaz.
+    const attemptedAt = job.lastAttemptAt ?? run.startedAt;
     if (
       meta?.overdueAfterMs &&
       run.status !== "running" &&
-      now.getTime() - run.startedAt.getTime() > meta.overdueAfterMs
+      now.getTime() - attemptedAt.getTime() > meta.overdueAfterMs
     ) {
       out.push(
         finding({
@@ -493,11 +521,14 @@ export function jobRunFindings(check: Check<JobRunSummary>, now: Date): AdminFin
           severity: "warning",
           title: `${meta.label}: zamanında çalışmadı`,
           meaning: `Zamanlanmış iş (${meta.how}) beklenen aralıkta koşu bırakmadı.`,
-          evidence: null,
+          evidence:
+            run.outcome.kind === "skipped_locked"
+              ? "Son koşu kilit meşgul olduğu için atlandı; atlanan koşu gecikme hesabına katılmaz."
+              : null,
           action: overdueAction(job.job, meta.how),
           href: jobHref,
           capability: OPS,
-          evidenceAt: run.startedAt,
+          evidenceAt: attemptedAt,
         }),
       );
     }

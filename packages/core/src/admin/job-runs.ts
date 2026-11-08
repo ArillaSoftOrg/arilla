@@ -8,6 +8,17 @@ import type { Database, JobRunStatus, JobRunTrigger } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { clampPageSize, isPositiveId, readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import {
+  GOOD_OUTCOMES,
+  JOB_OUTCOMES,
+  type JobOutcomeName,
+  OUTCOME_STATUS,
+  OUTPUT_COUNTERS,
+  type OutputStage,
+  RAN_OUTCOMES,
+  type RunOutcome,
+  runOutcome,
+} from "./job-outcome.ts";
 import { redactText } from "./redact.ts";
 
 /** Bu süreden uzun `running` kalan koşu takılı sayılır (süreç ölmüş, kapanmamış). */
@@ -232,14 +243,38 @@ export interface JobRunRow {
   durationMs: number | null;
   detail: Record<string, unknown>;
   errorSummary: string | null;
+  /** Karar 0174 sonucu (`runOutcome`); eski kayıtta `kind: "legacy"`. */
+  outcome: RunOutcome;
 }
 
 export interface JobLastRun {
   job: string;
   lastRun: JobRunRow | null;
-  /** Son `success`/`partial` koşunun bitişi. */
+  /**
+   * Son GEÇERLİ tamamlanmanın bitişi: eski kayıtta `success`/`partial`; sonuçlu
+   * kayıtta `completed`/`no_input`/`partial`. `skipped_locked`,
+   * `blocked_upstream`, `failed` ve bozuk sonuç hariç (karar 0174).
+   */
   lastGoodAt: Date | null;
-  /** Son iyi koşudan sonraki başarısız koşu sayısı (en fazla 50 sayılır). */
+  /**
+   * Akışı sonuna kadar yürüyen son koşunun bitişi (`blocked_upstream` dahil).
+   * Birleşik `similarity` işinin fiyat adımı için tazelik kanıtıdır.
+   */
+  lastRanAt: Date | null;
+  /**
+   * Gecikme hesabının referansı: `skipped_locked` OLMAYAN son koşunun başlangıcı.
+   * İşin hiç böyle koşusu yoksa ilk koşusunun başlangıcı (atlanan koşu gecikmeyi
+   * sıfırlamaz).
+   */
+  lastAttemptAt: Date | null;
+  /**
+   * Doğrulanmış çıktı sayacı > 0 olan son koşunun bitişi (`OUTPUT_COUNTERS`).
+   * Çıktı sayacı tanımsız işte `null`.
+   */
+  lastProducedAt: Date | null;
+  /** Aşama bazında son çıktı (birleşik `similarity`: kenar ve fiyat ayrı). */
+  producedAt: Partial<Record<OutputStage, Date | null>>;
+  /** Son iyi koşudan sonraki başarısız (ya da bozuk sonuçlu) koşu sayısı (en fazla 50). */
   failuresSinceGood: number;
 }
 
@@ -271,10 +306,111 @@ function toRun(row: RunSqlRow): JobRunRow {
     startedAt,
     finishedAt,
     durationMs: finishedAt ? finishedAt.getTime() - startedAt.getTime() : null,
-    detail: row.detail && typeof row.detail === "object" ? row.detail : {},
+    detail:
+      row.detail && typeof row.detail === "object" && !Array.isArray(row.detail) ? row.detail : {},
     // Yazarken kırpıldı; gösterimde ikinci kez (eski/elle yazılmış satır için).
     errorSummary: redactText(row.error_summary, 500),
+    outcome: runOutcome(row.status, row.detail),
   };
+}
+
+function dateOrNull(value: string | null | undefined): Date | null {
+  return value ? new Date(value) : null;
+}
+
+/*
+ * `runOutcome`'un SQL karşılığı (aynı listelerden türetilir). `detail` CHECK ile
+ * her zaman nesnedir; `detail->'outcome' IS NULL` yalnızca anahtar YOKKEN doğrudur
+ * (JSON `null` değeri SQL NULL değildir → bozuk sayılır). Tür önce denetlenir:
+ * metin olmayan değer karşılaştırmaya girmez, dönüşüm hatası sorguyu düşürmez.
+ * `alias` yalnızca bu dosyadaki sabit tablo takma adlarıdır (kullanıcı girdisi değil).
+ */
+function legacySql(alias: string) {
+  return sql.raw(`(${alias}.detail->'outcome' IS NULL)`);
+}
+
+function outcomeSql(alias: string, outcomes: readonly JobOutcomeName[]) {
+  const a = sql.raw(alias);
+  const pairs = outcomes.map((o) => sql`(${o}::text, ${OUTCOME_STATUS[o]}::text)`);
+  return sql`(jsonb_typeof(${a}.detail->'outcome') = 'string'
+    AND (${a}.detail->>'outcome', ${a}.status) IN (${sql.join(pairs, sql`, `)}))`;
+}
+
+/** Geçerli tamamlanma: eski kayıtta success/partial, sonuçlu kayıtta `GOOD_OUTCOMES`. */
+function goodRunSql(alias: string) {
+  return sql`((${legacySql(alias)} AND ${sql.raw(alias)}.status IN ('success','partial'))
+    OR ${outcomeSql(alias, GOOD_OUTCOMES)})`;
+}
+
+/** Akış sonuna kadar yürüdü: `goodRunSql` + `blocked_upstream`. */
+function ranRunSql(alias: string) {
+  return sql`((${legacySql(alias)} AND ${sql.raw(alias)}.status IN ('success','partial'))
+    OR ${outcomeSql(alias, RAN_OUTCOMES)})`;
+}
+
+/** Başarısız ya da bozuk sonuçlu (sözleşmeye uymayan) bitmiş koşu. */
+function failedRunSql(alias: string) {
+  const a = sql.raw(alias);
+  return sql`(${a}.status = 'failed'
+    OR (${a}.status <> 'running' AND NOT ${legacySql(alias)}
+        AND NOT ${outcomeSql(alias, JOB_OUTCOMES)}))`;
+}
+
+/**
+ * Sayaçlardan biri pozitif JSON sayısı. Tür önce denetlenir (CASE ile sıralı):
+ * metin, null, nesne ya da dizi `numeric`'e dönüştürülmez.
+ */
+function outputSql(alias: string, counters: readonly string[]) {
+  const a = sql.raw(alias);
+  const parts = counters.map(
+    (key) => sql`CASE WHEN jsonb_typeof(${a}.detail->(${key}::text)) = 'number'
+      THEN (${a}.detail->>(${key}::text))::numeric > 0 ELSE false END`,
+  );
+  return sql`(${sql.join(parts, sql` OR `)})`;
+}
+
+type Tx = Parameters<Parameters<Database["transaction"]>[0]>[0];
+
+/**
+ * `OUTPUT_COUNTERS`'taki her (iş, aşama) için çıktı sayacı > 0 olan son geçerli
+ * koşu. Her alt sorgu `job_run_job_idx` üzerinde tek iş, yeniden eskiye ilk
+ * eşleşmede durur.
+ */
+async function readProducedAt(tx: Tx): Promise<Map<string, Date | null>> {
+  const entries = Object.entries(OUTPUT_COUNTERS).flatMap(([job, stages]) =>
+    Object.entries(stages).map(([stage, counters]) => ({ job, stage, counters: counters ?? [] })),
+  );
+  const out = new Map<string, Date | null>();
+  if (entries.length === 0) return out;
+  const result = await tx.execute<{ job: string; stage: string; at: string | null }>(
+    sql.join(
+      entries.map(
+        (e) => sql`SELECT ${e.job}::text AS job, ${e.stage}::text AS stage,
+          (SELECT r.finished_at FROM job_run r
+            WHERE r.job = ${e.job} AND ${ranRunSql("r")} AND ${outputSql("r", e.counters)}
+            ORDER BY r.started_at DESC LIMIT 1) AS at`,
+      ),
+      sql` UNION ALL `,
+    ),
+  );
+  for (const row of result.rows) out.set(`${row.job}:${row.stage}`, dateOrNull(row.at));
+  return out;
+}
+
+function producedFor(
+  job: string,
+  produced: Map<string, Date | null>,
+): Pick<JobLastRun, "lastProducedAt" | "producedAt"> {
+  const stages = OUTPUT_COUNTERS[job];
+  if (!stages) return { lastProducedAt: null, producedAt: {} };
+  const producedAt: Partial<Record<OutputStage, Date | null>> = {};
+  let latest: Date | null = null;
+  for (const stage of Object.keys(stages) as OutputStage[]) {
+    const at = produced.get(`${job}:${stage}`) ?? null;
+    producedAt[stage] = at;
+    if (at && (!latest || at > latest)) latest = at;
+  }
+  return { lastProducedAt: latest, producedAt };
 }
 
 /**
@@ -287,14 +423,29 @@ export async function readJobRunSummary(db: Database): Promise<JobRunSummary> {
   const known = Object.keys(KNOWN_JOBS);
   return readOnly(db, 5_000, async (tx) => {
     const result = await tx.execute<
-      RunSqlRow & { name: string; last_good_at: string | null; failures: string }
+      RunSqlRow & {
+        name: string;
+        last_good_at: string | null;
+        last_ran_at: string | null;
+        last_attempt_at: string | null;
+        failures: string;
+      }
     >(sql`
       SELECT j.name, lr.id, lr.job, lr.trigger, lr.status, lr.started_at, lr.finished_at,
              lr.detail, left(lr.error_summary, 500) AS error_summary,
              lg.finished_at AS last_good_at,
+             (SELECT r.finished_at FROM job_run r
+               WHERE r.job = j.name AND ${ranRunSql("r")}
+               ORDER BY r.started_at DESC LIMIT 1) AS last_ran_at,
+             coalesce(
+               (SELECT r.started_at FROM job_run r
+                 WHERE r.job = j.name AND NOT ${outcomeSql("r", ["skipped_locked"])}
+                 ORDER BY r.started_at DESC LIMIT 1),
+               (SELECT min(r.started_at) FROM job_run r WHERE r.job = j.name)
+             ) AS last_attempt_at,
              (SELECT count(*) FROM (
                 SELECT 1 FROM job_run f
-                 WHERE f.job = j.name AND f.status = 'failed'
+                 WHERE f.job = j.name AND ${failedRunSql("f")}
                    AND f.started_at > coalesce(lg.started_at, '-infinity'::timestamptz)
                  LIMIT 50) x) AS failures
         FROM (
@@ -310,7 +461,7 @@ export async function readJobRunSummary(db: Database): Promise<JobRunSummary> {
         ) lr ON true
         LEFT JOIN LATERAL (
           SELECT r.started_at, r.finished_at FROM job_run r
-           WHERE r.job = j.name AND r.status IN ('success','partial')
+           WHERE r.job = j.name AND ${goodRunSql("r")}
            ORDER BY r.started_at DESC LIMIT 1
         ) lg ON true
        ORDER BY j.name
@@ -322,6 +473,7 @@ export async function readJobRunSummary(db: Database): Promise<JobRunSummary> {
        ORDER BY started_at DESC
        LIMIT 20
     `);
+    const produced = await readProducedAt(tx);
     const order = (job: string) => {
       const i = known.indexOf(job);
       return i === -1 ? known.length : i;
@@ -331,7 +483,10 @@ export async function readJobRunSummary(db: Database): Promise<JobRunSummary> {
         .map((row) => ({
           job: row.name,
           lastRun: row.id ? toRun(row) : null,
-          lastGoodAt: row.last_good_at ? new Date(row.last_good_at) : null,
+          lastGoodAt: dateOrNull(row.last_good_at),
+          lastRanAt: dateOrNull(row.last_ran_at),
+          lastAttemptAt: dateOrNull(row.last_attempt_at),
+          ...producedFor(row.name, produced),
           failuresSinceGood: Number(row.failures ?? 0),
         }))
         .sort((a, b) => order(a.job) - order(b.job) || a.job.localeCompare(b.job)),

@@ -4,7 +4,7 @@ import { EmptyState } from "@arilla/ui";
 import Link from "next/link";
 import { requireCapability } from "../../../lib/dal.ts";
 import styles from "../../admin.module.css";
-import { PageHeader, Pager, StatusText } from "../../admin-ui.tsx";
+import { OutcomeText, PageHeader, Pager } from "../../admin-ui.tsx";
 import {
   formatDateTime,
   formatDuration,
@@ -98,11 +98,11 @@ export default async function JobRunsPage({
                   </td>
                   <td>{formatDateTime(run.startedAt)}</td>
                   <td>
-                    <StatusText status={run.status} />
+                    <OutcomeText status={run.status} outcome={run.outcome} />
                   </td>
                   <td>{formatDuration(run.durationMs)}</td>
                   <td>
-                    <span className={styles.meta}>{formatJobDetail(run.detail)}</span>
+                    <span className={styles.meta}>{formatJobDetail(run.detail, run.outcome)}</span>
                     {run.errorSummary ? (
                       <span className={styles.mono} style={{ display: "block" }}>
                         {run.errorSummary}

@@ -18,11 +18,19 @@
  * "Geride olabilir": aşamanın son kanıtı, beslendiği aşamanınkinden eski.
  * Kesin değildir (yeni veri yoksa aşama iz bırakmaz), o yüzden uyarı değil
  * bilgi düzeyindedir.
+ *
+ * Karar 0174 (PR1b): "son çalıştı" yalnızca GEÇERLİ tamamlanmadır
+ * (`JobLastRun.lastGoodAt`); `skipped_locked` ve `blocked_upstream` tazelik
+ * kanıtı değildir. Son koşu `blocked_upstream` ise aşama uyarıdır; bozuk sonuç
+ * başarısızlık gibi ele alınır. "Son çıktı" (`lastProducedAt`) yalnızca işin
+ * doğrulanmış çıktı sayaçlarından gelir. Birleşik `similarity` işinde sonuç kenar
+ * adımına aittir: kenar engellense de (`blocked_upstream`) fiyat adımı koşmuştur.
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
 import { readOnly } from "./bounds.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
+import type { OutputStage, RunOutcomeKind } from "./job-outcome.ts";
 import { type JobLastRun, readJobRunSummary, STUCK_JOB_AFTER_MS } from "./job-runs.ts";
 import { STALE_FEED_AFTER_MS, STUCK_RUN_AFTER_MS } from "./merchant-attention.ts";
 
@@ -55,12 +63,32 @@ export const STAGE_JOBS: Partial<Record<PipelineStage, readonly string[]>> = {
 
 /** Aşamanın iş koşusu kanıtı (`job_run`). */
 export interface StageRunEvidence {
-  /** Son başarılı/kısmi koşunun bitişi. */
+  /** Aşama için son geçerli tamamlanmanın bitişi (karar 0174). */
   lastGoodAt: Date | null;
   /** En yeni koşu. */
   lastStatus: "running" | "success" | "partial" | "failed";
   lastStartedAt: Date;
+  /**
+   * En yeni koşunun bu aşamaya göre sonucu. Birleşik `similarity`'nin
+   * `blocked_upstream`'i kenar adımına aittir; fiyat aşamasında `completed` sayılır.
+   */
+  lastOutcome: RunOutcomeKind;
+  /**
+   * Aşamanın doğrulanmış son çıktısı. Aşamanın işlerinde çıktı sayacı yoksa `null`
+   * (ör. zenginleştirme).
+   */
+  lastProducedAt: Date | null;
 }
+
+/** Aşama → çıktı sayacı grubu (`OUTPUT_COUNTERS`). */
+const STAGE_OUTPUT: Partial<Record<PipelineStage, OutputStage>> = {
+  resolve: "resolve",
+  prices: "prices",
+  edges: "edges",
+};
+
+/** Birleşik iş: sonucu kenar adımından gelir (karar 0174 madde 7). */
+const COMBINED_SIMILARITY = "similarity";
 
 export interface PipelineRawEvidence {
   collect: { lastStartedAt: Date | null; lastGoodAt: Date | null; stuckRuns: number } | null;
@@ -85,21 +113,34 @@ export function stageRunEvidence(
   jobs: readonly JobLastRun[],
 ): Partial<Record<PipelineStage, StageRunEvidence | null>> {
   const out: Partial<Record<PipelineStage, StageRunEvidence | null>> = {};
+  const later = (a: Date | null, b: Date | null) => (a && (!b || a > b) ? a : b);
   for (const [stage, names] of Object.entries(STAGE_JOBS) as [PipelineStage, string[]][]) {
     let latest: JobLastRun["lastRun"] = null;
     let lastGoodAt: Date | null = null;
+    let lastProducedAt: Date | null = null;
+    // Fiyat aşamasında birleşik işin kenar sonucu (blocked_upstream) fiyat adımını bayatlatmaz.
+    const pricesOfCombined = (job: string) => stage === "prices" && job === COMBINED_SIMILARITY;
+    const output = STAGE_OUTPUT[stage];
     for (const job of jobs) {
       if (!names.includes(job.job)) continue;
       if (job.lastRun && (!latest || job.lastRun.startedAt > latest.startedAt)) {
         latest = job.lastRun;
       }
-      if (job.lastGoodAt && (!lastGoodAt || job.lastGoodAt > lastGoodAt)) {
-        lastGoodAt = job.lastGoodAt;
-      }
+      lastGoodAt = later(pricesOfCombined(job.job) ? job.lastRanAt : job.lastGoodAt, lastGoodAt);
+      if (output) lastProducedAt = later(job.producedAt[output] ?? null, lastProducedAt);
     }
-    out[stage] = latest
-      ? { lastGoodAt, lastStatus: latest.status, lastStartedAt: latest.startedAt }
-      : null;
+    if (!latest) {
+      out[stage] = null;
+      continue;
+    }
+    const kind = latest.outcome.kind;
+    out[stage] = {
+      lastGoodAt,
+      lastStatus: latest.status,
+      lastStartedAt: latest.startedAt,
+      lastOutcome: pricesOfCombined(latest.job) && kind === "blocked_upstream" ? "completed" : kind,
+      lastProducedAt,
+    };
   }
   return out;
 }
@@ -122,11 +163,16 @@ export interface PipelineStageView {
   lastAt: Date | null;
   /**
    * Kısa, sabit açıklama kodu: `stuck_runs`, `stale_feed`, `link_stuck`,
-   * `link_queue_old`, `job_failed`, `job_stuck`.
+   * `link_queue_old`, `job_failed`, `job_stuck`, `job_blocked_upstream`,
+   * `job_invalid_outcome`.
    */
   reasons: string[];
   /** `lastAt` nereden: iş koşusu (`job_run`) ya da üretilen verinin zamanı. */
   source: "job_run" | "data";
+  /** Aşamanın en yeni iş koşusunun sonucu; iş kaydı yoksa `null` (karar 0174). */
+  lastOutcome: RunOutcomeKind | null;
+  /** Doğrulanmış son çıktı (iş sayaçları); kanıt yoksa `null`. */
+  lastProducedAt: Date | null;
 }
 
 function stageTime(raw: PipelineRawEvidence, stage: PipelineStage): Date | null {
@@ -150,12 +196,19 @@ export function evaluatePipeline(
   return PIPELINE_STAGES.map((stage) => {
     const run = raw.runs?.[stage] ?? null;
     const source = run?.lastGoodAt ? "job_run" : "data";
+    const extra = {
+      lastOutcome: run?.lastOutcome ?? null,
+      lastProducedAt: run?.lastProducedAt ?? null,
+    };
     if (raw[stage] === null && !run?.lastGoodAt) {
-      return { stage, state: "unknown", lastAt: null, reasons: [], source };
+      return { stage, state: "unknown", lastAt: null, reasons: [], source, ...extra };
     }
     const lastAt = stageTime(raw, stage);
     const reasons: string[] = [];
     if (run?.lastStatus === "failed") reasons.push("job_failed");
+    else if (run?.lastOutcome === "invalid") reasons.push("job_invalid_outcome");
+    // Önceki aşamanın çıktısı eksik: aşama güncel/sağlıklı görünmez (karar 0174).
+    if (run?.lastOutcome === "blocked_upstream") reasons.push("job_blocked_upstream");
     if (
       run?.lastStatus === "running" &&
       now.getTime() - run.lastStartedAt.getTime() > STUCK_JOB_AFTER_MS
@@ -178,16 +231,16 @@ export function evaluatePipeline(
         reasons.push("link_queue_old");
       }
     }
-    if (reasons.length > 0) return { stage, state: "warning", lastAt, reasons, source };
+    if (reasons.length > 0) return { stage, state: "warning", lastAt, reasons, source, ...extra };
     if (!lastAt) {
       // Link işçisi hiç istek almadıysa kanıt yoktur ama sorun da yoktur.
-      return { stage, state: "none", lastAt, reasons, source };
+      return { stage, state: "none", lastAt, reasons, source, ...extra };
     }
     const upstreamNewer = UPSTREAM[stage].some((up) => {
       const upAt = stageTime(raw, up);
       return upAt !== null && upAt.getTime() > lastAt.getTime();
     });
-    return { stage, state: upstreamNewer ? "behind" : "ok", lastAt, reasons, source };
+    return { stage, state: upstreamNewer ? "behind" : "ok", lastAt, reasons, source, ...extra };
   });
 }
 
