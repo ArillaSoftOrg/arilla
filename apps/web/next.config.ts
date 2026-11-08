@@ -32,6 +32,14 @@ function loadDotEnv(): void {
 loadDotEnv();
 
 /**
+ * Guvenlik basliklari (CSP dahil) DERLEMEDE bir kez uretilir. Ayni secenekler `env` ile
+ * koda gomulur: Umami izleyicisi yalnizca bu CSP'nin izin verdigi kokene basilir
+ * (apps/web/app/lib/umami.ts); calisma ortamina sonradan eklenen degisken CSP'yi
+ * degistirmez, betigi de bastirmaz.
+ */
+const securityOptions = securityHeaderOptionsFromEnv();
+
+/**
  * Kendi sunucumuzda (Docker, karar 0109) kendi kendine yeten `standalone` cikti.
  * Yalnizca imaj derlemesinde `NEXT_OUTPUT=standalone` ile acilir; Vercel
  * derlemesi bu degiskeni gormez ve cikti bicimi DEGISMEZ.
@@ -54,6 +62,9 @@ const nextConfig: NextConfig = {
   // @arilla/db de ham .ts disa aktarir - listede olmazsa derleme yalnizca
   // pnpm'in paketi node_modules disina baglamasi sayesinde calisir.
   transpilePackages: ["@arilla/core", "@arilla/db", "@arilla/ui"],
+  env: {
+    ARILLA_CSP_UMAMI_ORIGIN: securityOptions.umamiOrigin ?? "",
+  },
   // Karar 0038: hukuk paketinin onerdigi adlar, canli /kosullar ve /cerez'e
   // kalici yonlendirilir (URL'ler geri alinamaz, docs/routes.md).
   async redirects() {
@@ -65,7 +76,7 @@ const nextConfig: NextConfig = {
   // Karar 0050: CSP, çerçeveleme yasağı ve diğer güvenlik başlıkları tek merkezde.
   async headers() {
     return [
-      ...securityHeaderRoutes(securityHeaderOptionsFromEnv()),
+      ...securityHeaderRoutes(securityOptions),
       // Degismeyen statik varliklar: varsayilan `max-age=0` her ziyarette
       // yeniden dogrulama yaptirir. Dosya adlari hash'siz oldugundan bir
       // hafta + arka planda yenileme; kullaniciya ozel icerik degildir.

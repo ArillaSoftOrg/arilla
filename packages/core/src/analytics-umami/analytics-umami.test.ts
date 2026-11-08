@@ -8,6 +8,7 @@ import {
   UMAMI_DEFAULT_SCRIPT,
   type UmamiApiConfig,
   umamiApiFromEnv,
+  umamiTrackerAllowedByCsp,
   umamiTrackerFromEnv,
 } from "./config.ts";
 import {
@@ -100,6 +101,17 @@ describe("yapılandırma", () => {
     );
     expect(umamiTrackerFromEnv({ UMAMI_BASE_URL: config.baseUrl })).toBeNull();
     expect(umamiTrackerFromEnv({})).toBeNull();
+  });
+
+  it("izleyici yalnızca derlemedeki CSP aynı kökene izin veriyorsa döner", () => {
+    const tracker = umamiTrackerFromEnv({ UMAMI_BASE_URL: config.baseUrl, UMAMI_WEBSITE_ID: SITE });
+    expect(umamiTrackerAllowedByCsp(tracker, config.baseUrl)).toEqual(tracker);
+    expect(umamiTrackerAllowedByCsp(tracker, `${config.baseUrl}/`)).toEqual(tracker);
+    // Imaj Umami'siz derlendi (CSP kökeni boş) ama çalışma ortamında değişkenler var.
+    for (const csp of ["", undefined, null, "https://baska.example.com", "http://evil", "*"]) {
+      expect(umamiTrackerAllowedByCsp(tracker, csp)).toBeNull();
+    }
+    expect(umamiTrackerAllowedByCsp(null, config.baseUrl)).toBeNull();
   });
 
   it("API ayarı: tanımsız / geçersiz (yalnız değişken ADI) / tamam", () => {
