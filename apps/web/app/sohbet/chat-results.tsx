@@ -132,6 +132,8 @@ export async function ChatResults({
       searchByIntent(getDatabase(), intent, {
         pageSize: CHAT_RESULT_LIMIT,
         sort: sortModeFor(sort),
+        // Karar 0178: gölge olcum yalniz varsayilan sekmede (sekme degisimi ikinci kez olcmez).
+        semanticShadow: sort === "secilen",
       }),
     );
     // Yalnizca sure (metin/sorgu yok); `CHAT_TIMING_LOG=true` ile yazilir.

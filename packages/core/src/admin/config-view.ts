@@ -45,6 +45,7 @@ import {
   isRealtimeInterpretationEnabled,
   REALTIME_INTERPRETATION_DAILY_CALL_CAP,
 } from "../search/realtime-interpretation.ts";
+import { semanticSearchMode } from "../search/semantic/config.ts";
 import { queryNormalizationMode } from "../search/spelling/config.ts";
 import { isWebSearchEnabled } from "../web-search/config.ts";
 import { type AdminActor, assertCapability } from "./capabilities.ts";
@@ -318,6 +319,23 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
             : "invalid",
       value: queryNormalizationMode(env),
       note: "off: kapalı · shadow: yalnız sayaç · on: düzeltmeler aramaya alternatif olarak eklenir",
+    },
+    {
+      key: "SEMANTIC_SEARCH_MODE",
+      label: "Anlamsal arama (karar 0178)",
+      group: "ai",
+      secret: false,
+      state:
+        raw(env, "SEMANTIC_SEARCH_MODE") === undefined
+          ? "default"
+          : ["off", "shadow"].includes(raw(env, "SEMANTIC_SEARCH_MODE")?.toLowerCase() ?? "")
+            ? "set"
+            : "invalid",
+      value: semanticSearchMode(env),
+      note:
+        semanticSearchMode(env) === "shadow" && !raw(env, "JINA_API_KEY")
+          ? "Gölge açık ama JINA_API_KEY yok: ölçüm no_vector yazar"
+          : "off: kapalı · shadow: sonuç değişmez, arka planda yalnız sayısal ölçü",
     },
     flag(env, "CHAT_DISCOVERY_ENABLED", "Konuşmalı keşif (sohbet)", "ai", chatOn),
     flag(

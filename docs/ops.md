@@ -2805,3 +2805,27 @@ python -m enrich.products --after-id 0 --until-id 2000000 --execute --max-tokens
   ≈ 27 GB + HNSW. HNSW indeksi yükleme bittikten sonra ayrı `kind: concurrent` migration ile kurulur.
 - **P1 alt kümesi:** kimlik listesi salt okunur SQL ile hazırlanır (ör. bir kategoride başlık
   anahtar sözcüğü + katmanlı örnek); dosya satır başına bir kimliktir, `#` yorumdur.
+
+## Anlamsal arama gölge ölçümü (karar 0178) — varsayılan kapalı
+
+`SEMANTIC_SEARCH_MODE=shadow` (web.env) `/sohbet` sonucunu **değiştirmez**; arama döndükten sonra
+arka planda sorgu vektörü üretip ölçüyü `semantic_shadow_event`'e yazar. Kapatma: değeri `off`
+yapıp `web`'i yeniden oluştur. Ön koşul: `JINA_API_KEY`, `EMBEDDING_COST_MICROS_PER_1K_TOKENS`,
+`product_text_embedding` dolu (0177).
+
+- Tavan: `SEMANTIC_SHADOW_DAILY_CAP` (varsayılan 2000 gerçek çağrı/gün), örneklem
+  `SEMANTIC_SHADOW_SAMPLE_PERCENT` (0–100). Maliyet `api_usage.operation = semantic_query_embedding`.
+- Saklama: 90 gün (`DELETE FROM semantic_shadow_event WHERE created_at < now() - interval '90 days'`).
+- Günlük özet (salt okunur):
+
+```sql
+SELECT date_trunc('day', created_at) AS gun, outcome, count(*) AS n,
+       round(avg((new_in_top_n > 0)::int) FILTER (WHERE outcome = 'measured'), 3) AS sonuc_degisirdi,
+       round(avg((semantic_only > 0)::int) FILTER (WHERE outcome = 'measured' AND text_count = 0), 3) AS sifir_kurtarma,
+       round(avg(text_with_vector::numeric / nullif(text_count, 0)) FILTER (WHERE outcome = 'measured'), 3) AS vektor_kapsami,
+       percentile_cont(0.95) WITHIN GROUP (ORDER BY embed_ms) AS embed_p95,
+       percentile_cont(0.95) WITHIN GROUP (ORDER BY knn_ms) AS knn_p95
+  FROM semantic_shadow_event
+ WHERE created_at > now() - interval '7 days'
+ GROUP BY 1, 2 ORDER BY 1 DESC, 2;
+```
