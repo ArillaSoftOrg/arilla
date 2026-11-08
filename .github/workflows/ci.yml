@@ -248,7 +248,7 @@ jobs:
           infra/vps/bin/pg-restore-test infra/vps/bin/test-backup.sh infra/vps/backup/restore-inner.sh
           infra/vps/bin/pg-staging-verify infra/vps/bin/test-staging-verify.sh
           infra/vps/bin/batch-timers infra/vps/bin/feeds-timers infra/vps/bin/catalog-publish infra/vps/bin/test-wal-backpressure.sh
-          infra/vps/bin/catalog-auto-timers infra/vps/bin/catalog-auto-guard
+          infra/vps/bin/catalog-auto-timers infra/vps/bin/catalog-auto-guard infra/vps/bin/test-pipeline-units.sh
       - name: duman testi
         run: bash infra/vps/bin/smoke-local.sh
 
@@ -329,6 +329,23 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: bash infra/vps/bin/test-ssh-gate.sh
+
+  # VPS betiklerinin Python birim testleri (saglik kontrolu, zamanlayicilar, surum) ve karar 0174
+  # (PR1c): gece katalog hattinin GERCEK systemd davranisi (75'te zincir durur, OnFailure, alarm
+  # siniflandirmasi). Gecici birimler /run/systemd/system altinda; root gerekir.
+  vps-scripts:
+    name: vps scripts (unittest + systemd units)
+    needs: changes
+    if: needs.changes.outputs.docs_only != 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: VPS Python birim testleri
+        working-directory: infra/vps/bin
+        run: python3 -m unittest discover -p "test_*.py" -v
+      - name: katalog hatti systemd davranisi (gercek systemd)
+        run: sudo bash infra/vps/bin/test-pipeline-units.sh
 
   integration:
     name: admin authz + integration (isolated services)
@@ -513,6 +530,7 @@ jobs:
       - staging-verify
       - wal-backpressure
       - deploy-gate
+      - vps-scripts
       - integration
       - migrations-ingest
     runs-on: ubuntu-latest

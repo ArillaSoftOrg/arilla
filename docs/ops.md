@@ -1007,9 +1007,22 @@ servisiyle elle çalıştırılır (`docker compose ... run --rm batch ...`);
 - **`--limit`.** `similarity --limit N`'de N ≥ 1 olmalıdır; 0/negatif değer argüman hatasıdır
   (çıkış 2, koşu kaydı yok). Önceden `--limit 0` hiçbir ürünü işlemeden
   `blocked_upstream` yazıyordu.
-- **Henüz yok (PR1c).** Alarm `outcome`'u bilmez, yalnızca çıkış koduna bakar: tek seferlik
-  `skipped_locked` da alarm üretir; art arda atlanan koşular ayrı sınıflandırılmaz.
-  `SuccessExitStatus=75` tek başına eklenmemelidir (karar 0174, PR1c kısıtları).
+- **Alarm (PR1c).** `arilla-catalog-pipeline` başarısız olunca alarm, çıkış kodunu ve o
+  koşunun `outcome`'unu birlikte okur:
+  - **"BILGI" mesajı** = tek seferlik kilit beklemesi (75 + `skipped_locked`). Başka bir koşu
+    (genellikle elle başlatılmış `resolve`/`similarity`) kilidi tutuyordu; bu koşu hiçbir şeye
+    dokunmadı, sonraki gece tekrar dener. Müdahale gerekmez; elle koşu hâlâ sürüyorsa
+    `docker ps` ile bakın. Birim ertesi geceye kadar `failed` görünür, sağlık kontrolü bunu
+    kritik saymaz.
+  - **"SORUN"** = art arda ikinci atlama, `partial`/`failed`, kayıt yok ya da durum okunamadı:
+    `journalctl -u arilla-catalog-pipeline` ve paneldeki son koşu.
+  - **`pipeline:freshness` kritik** = `resolve` ya da `similarity_edges` 50 saattir
+    "çalıştı" sonucu üretmedi (takılı kilit, kapalı zamanlayıcı, tekrarlayan hata).
+  - `blocked_upstream` (embedding yok) alarm üretmez; panelde görünür.
+  - Salt okunur teşhis (bildirim göndermez):
+    `sudo python3 /opt/arilla/vps/bin/arilla_healthcheck.py --unit-failed arilla-catalog-pipeline.service --no-send`.
+  - `SuccessExitStatus=75` birime eklenmez: kilitte similarity başlar ve atlama görünmez olur
+    (karar 0174). Davranış CI'da gerçek systemd ile sınanır (`test-pipeline-units.sh`).
 
 Başarısız toplama koşusu (`ingest_run.status = 'failed'`) işlemi geri alır;
 0055'ten beri kayıt da oluşturulan/güncellenen/fiyat noktası sayılarını 0

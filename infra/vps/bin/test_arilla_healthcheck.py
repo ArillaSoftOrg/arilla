@@ -164,6 +164,8 @@ class CollectorTest(unittest.TestCase):
             def run(cmd, timeout):
                 if "ps" in cmd:
                     return 0, "\n".join(f"{s}=healthy" for s in [*hc.CORE_SERVICES, "backup"])
+                if "psql" in cmd and "from job_run" in cmd[-1]:
+                    return 0, "resolve|1760400000\nsimilarity_edges|1760400100\n"
                 if "psql" in cmd:
                     return 0, "on|12|60|0|0|67108864|0||2026-10-14 11:58:00+00\n"
                 if "info" in cmd:
@@ -177,6 +179,183 @@ class CollectorTest(unittest.TestCase):
             self.assertEqual(f["pg"]["max_connections"], 60)
             self.assertEqual(f["failed_units"], ["arilla-backup-full.service"])  # kendi birimi haric
             self.assertIsNotNone(f["backup_info"])
+            self.assertEqual(f["pipeline_failures"], {})
+            self.assertEqual(set(f["pipeline_last_ran"]), {"resolve", "similarity_edges"})
+
+
+# ------------------------------------------------------------- katalog hatti (karar 0174, PR1c)
+UNIT = "arilla-catalog-pipeline.service"
+SINCE = datetime(2026, 11, 9, 2, 33, 1, tzinfo=timezone.utc)
+
+
+def row(job, outcome, started, status="partial", reason=None):
+    return {"job": job, "status": status, "outcome": outcome, "reason": reason, "started": started}
+
+
+TONIGHT = SINCE + timedelta(seconds=20)
+LAST_NIGHT = SINCE - timedelta(days=1)
+
+
+class PipelineClassifyTest(unittest.TestCase):
+    def classify(self, exec_status, rows, since=SINCE):
+        return hc.classify_pipeline_failure(exec_status, since, rows)
+
+    def test_single_lock_skip_is_info(self):
+        rows = [row("resolve", "skipped_locked", TONIGHT, reason="lock_busy"),
+                row("resolve", "no_input", LAST_NIGHT, status="success")]
+        level, msg = self.classify(75, rows)
+        self.assertEqual(level, hc.INFO)
+        self.assertIn("resolve=skipped_locked (lock_busy)", msg)
+
+    def test_similarity_lock_skip_after_resolve_ran_is_info(self):
+        rows = [row("similarity_edges", "skipped_locked", TONIGHT + timedelta(minutes=3), reason="lock_busy"),
+                row("resolve", "completed", TONIGHT, status="success"),
+                row("similarity_edges", "blocked_upstream", LAST_NIGHT)]
+        self.assertEqual(self.classify(75, rows)[0], hc.INFO)
+
+    def test_second_consecutive_lock_skip_is_crit(self):
+        rows = [row("resolve", "skipped_locked", TONIGHT), row("resolve", "skipped_locked", LAST_NIGHT)]
+        level, msg = self.classify(75, rows)
+        self.assertEqual(level, hc.CRIT)
+        self.assertIn("art arda", msg)
+
+    def test_exit_75_without_matching_outcome_is_crit(self):
+        self.assertEqual(self.classify(75, [row("resolve", "failed", TONIGHT, status="failed")])[0], hc.CRIT)
+        # skipped_locked ama cikis 1: kod/sozlesme uyusmazligi, susturulmaz
+        self.assertEqual(self.classify(1, [row("resolve", "skipped_locked", TONIGHT)])[0], hc.CRIT)
+
+    def test_errors_and_failures_are_crit(self):
+        for outcome in ("partial", "failed", "invalid_outcome"):
+            with self.subTest(outcome=outcome):
+                level, msg = self.classify(1, [row("resolve", outcome, TONIGHT)])
+                self.assertEqual(level, hc.CRIT)
+                self.assertIn(f"resolve={outcome}", msg)
+
+    def test_no_row_for_this_invocation_is_crit(self):
+        level, msg = self.classify(75, [row("resolve", "skipped_locked", LAST_NIGHT)])
+        self.assertEqual(level, hc.CRIT)
+        self.assertIn("kaydi yok", msg)
+        self.assertEqual(self.classify(1, [])[0], hc.CRIT)
+
+    def test_legacy_row_without_outcome_is_crit(self):
+        level, msg = self.classify(1, [row("resolve", None, TONIGHT, status="partial")])
+        self.assertEqual(level, hc.CRIT)
+        self.assertIn("status=partial", msg)
+
+    def test_step_failed_before_writing_a_row(self):
+        level, msg = self.classify(1, [row("resolve", "completed", TONIGHT, status="success")])
+        self.assertEqual(level, hc.CRIT)
+        self.assertIn("kayit acmadan", msg)
+
+    def test_unreadable_state_fails_closed(self):
+        self.assertEqual(self.classify(None, [])[0], hc.CRIT)
+        self.assertEqual(self.classify(75, [], since=None)[0], hc.CRIT)
+        self.assertEqual(self.classify(75, None)[0], hc.CRIT)
+
+    def test_info_does_not_raise_overall_level_or_fingerprint(self):
+        checks = hc.evaluate(facts(failed_units=[UNIT], pipeline_failures={UNIT: (hc.INFO, "atlandi")}), NOW)
+        lv = levels(checks)
+        self.assertEqual(lv["systemd"], hc.OK)
+        self.assertEqual(lv[f"systemd:{UNIT}"], hc.INFO)
+        self.assertEqual(hc.overall(checks), hc.OK)
+        self.assertEqual(hc.fingerprint(checks), "")
+        self.assertIsNone(hc.decide_webhook(None, checks, NOW))  # hatirlatma yok
+
+    def test_crit_classification_alerts(self):
+        checks = hc.evaluate(facts(failed_units=[UNIT, "arilla-backup-diff.service"],
+                                   pipeline_failures={UNIT: (hc.CRIT, "resolve=failed")}), NOW)
+        lv = levels(checks)
+        self.assertEqual(lv["systemd"], hc.CRIT)  # siniflandirilmayan birim aynen kritik
+        self.assertEqual(lv[f"systemd:{UNIT}"], hc.CRIT)
+        self.assertIn(f"systemd:{UNIT}:crit", hc.fingerprint(checks))
+
+
+class PipelineFreshnessTest(unittest.TestCase):
+    def level(self, last_ran):
+        return levels(hc.evaluate(facts(pipeline_last_ran=last_ran), NOW))["pipeline:freshness"]
+
+    def test_thresholds(self):
+        fresh = {"resolve": NOW - timedelta(hours=49), "similarity_edges": NOW - timedelta(hours=2)}
+        self.assertEqual(self.level(fresh), hc.OK)
+        stale = dict(fresh, resolve=NOW - timedelta(hours=51))
+        self.assertEqual(self.level(stale), hc.CRIT)
+
+    def test_missing_and_unreadable(self):
+        self.assertEqual(self.level({"resolve": None, "similarity_edges": NOW}), hc.WARN)
+        self.assertEqual(self.level(None), hc.CRIT)
+
+    def test_sql_counts_blocked_upstream_as_ran(self):
+        self.assertIn("'blocked_upstream'", hc.PIPELINE_LAST_RAN_SQL)
+        self.assertNotIn("'skipped_locked'", hc.PIPELINE_LAST_RAN_SQL)
+        self.assertNotIn("'failed'", hc.PIPELINE_LAST_RAN_SQL)
+
+    def test_sql_jobs_rejects_non_constant_names(self):
+        self.assertEqual(hc.sql_jobs(("resolve", "similarity_edges")), "'resolve', 'similarity_edges'")
+        with self.assertRaises(ValueError):
+            hc.sql_jobs(("resolve'; drop table x; --",))
+
+
+class UnitShowTest(unittest.TestCase):
+    def test_parse(self):
+        out = "ExecMainStatus=75\nInactiveExitTimestamp=Mon 2026-11-09 02:33:01 UTC\n"
+        self.assertEqual(hc.parse_unit_show(out), (75, SINCE))
+
+    def test_parse_missing_or_local_time(self):
+        self.assertEqual(hc.parse_unit_show("ExecMainStatus=0\nInactiveExitTimestamp=\n"), (0, None))
+        self.assertEqual(hc.parse_unit_show("ExecMainStatus=1\nInactiveExitTimestamp=Mon 2026-11-09 05:33:01 +03\n"),
+                         (1, None))
+        self.assertEqual(hc.parse_unit_show(""), (None, None))
+
+
+class UnitFailedMessageTest(unittest.TestCase):
+    def collector(self, show, psql_out, psql_rc=0):
+        with tempfile.TemporaryDirectory() as d:
+            root = Path(d)
+
+        def run(cmd, timeout):
+            if cmd[:2] == ["systemctl", "show"]:
+                return 0, show
+            if "psql" in cmd:
+                return psql_rc, psql_out
+            return 1, ""
+
+        return hc.Collector(root, run=run)
+
+    def test_info_message(self):
+        c = self.collector("ExecMainStatus=75\nInactiveExitTimestamp=Mon 2026-11-09 02:33:01 UTC\n",
+                           f"resolve|partial|skipped_locked|lock_busy|{int(TONIGHT.timestamp())}\n")
+        level, text = hc.unit_failed_message(UNIT, "h", c)
+        self.assertEqual(level, hc.INFO)
+        self.assertTrue(text.startswith("[ManiCepte h] BILGI"))
+
+    def test_query_failure_is_crit(self):
+        c = self.collector("ExecMainStatus=75\nInactiveExitTimestamp=Mon 2026-11-09 02:33:01 UTC\n", "", psql_rc=1)
+        level, text = hc.unit_failed_message(UNIT, "h", c)
+        self.assertEqual(level, hc.CRIT)
+        self.assertTrue(text.startswith("[ManiCepte h] SORUN"))
+
+    def test_other_units_unchanged(self):
+        level, text = hc.unit_failed_message("arilla-backup-diff.service", "h", None)
+        self.assertEqual(level, hc.CRIT)
+        self.assertIn("CRIT systemd: arilla-backup-diff.service basarisiz", text)
+
+    def test_no_send_sends_nothing(self):
+        sent = []
+        orig_post, orig_ping, orig_msg = hc.post_json, hc.ping, hc.unit_failed_message
+        hc.post_json = lambda *a, **k: sent.append("post") or True
+        hc.ping = lambda *a, **k: sent.append("ping") or True
+        hc.unit_failed_message = lambda unit, host, collector: (hc.CRIT, "x")
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                (Path(d) / "env").mkdir()
+                (Path(d) / "env" / "alert.env").write_text("ALERT_WEBHOOK_URL=https://x\nHEALTHCHECK_PING_URL=https://y\n")
+                self.assertEqual(hc.main(["--root", d, "--unit-failed", UNIT, "--no-send"]), 0)
+                self.assertEqual(sent, [])
+                hc.unit_failed_message = lambda unit, host, collector: (hc.INFO, "x")
+                hc.main(["--root", d, "--unit-failed", UNIT])
+                self.assertEqual(sent, ["post"])  # BILGI: webhook evet, olu adam /fail hayir
+        finally:
+            hc.post_json, hc.ping, hc.unit_failed_message = orig_post, orig_ping, orig_msg
 
 
 if __name__ == "__main__":

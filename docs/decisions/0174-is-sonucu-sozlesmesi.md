@@ -87,8 +87,9 @@ nasıl bittiğini söyler. "Ne üretti?" sorusunu cevaplamaz:
   `blocked_upstream` tazelik sayılmaz, "son çıktı" yalnızca doğrulanmış sayaçlardan gelir,
   atlanan koşu gecikme hesabını sıfırlamaz. PR1b'den önce bu iki sonuç (`partial`) "son iyi
   koşu" görünüyordu. Ayrıntı: `docs/ops.md` "İş sonucu — geçiş notları".
-- **Alarm.** Alarm (`arilla-alert@`) bugün yalnızca birim başarısızlığına, yani çıkış koduna
-  bakar; `outcome`'u bilmez.
+- **Alarm — kapandı (PR1c).** `arilla-alert@` ve 5 dakikalık sağlık kontrolü gece katalog
+  hattının başarısızlığını çıkış kodu **ve** o koşunun `outcome`'uyla sınıflandırır; ayrıntı
+  aşağıda "PR1c — uygulama".
 
 ## systemd
 
@@ -129,6 +130,32 @@ birime `After=`/`Requires=` ile bağlı başka birim yoktur (`catalog-auto-guard
    bir elle koşu eşleştirmeyi günlerce durdurur ve kimse görmez.
 4. PR1c'nin çözümü systemd davranışını **gerçek testlerle** doğrular (birim zinciri 75'te durur
    mu, alarm hangi `outcome`'ta tetiklenir); yalnızca birim dosyası incelemesi yetmez.
+
+**PR1c — uygulama** (`infra/vps/bin/arilla_healthcheck.py`):
+
+1. **Birim değişmedi.** `SuccessExitStatus` eklenmedi: 75 birimi yine başarısız sayar, kilitte
+   similarity başlamaz, `OnFailure` tetiklenir. Sınıflandırma yalnızca alarm betiğindedir.
+2. **Sınıflandırma.** `arilla-catalog-pipeline` başarısızsa `systemctl show` ile birimin son
+   başlangıcı ve `ExecMainStatus`, ardından bu koşuya ait (o başlangıçtan sonraki) son cron
+   `job_run` satırı okunur:
+   - çıkış 75 **ve** `skipped_locked`, aynı işin bir önceki cron koşusu `skipped_locked` değil →
+     **BİLGİ**: webhook'a tek mesaj, ölü adam anahtarına `/fail` yok; 5 dakikalık kontrolde
+     kritik sayılmaz, parmak izine girmez, hatırlatma üretmez;
+   - art arda ikinci `skipped_locked` → **kritik**;
+   - diğer her durum (`partial`, `failed`, `invalid_outcome`, eski biçimli satır, çıkış kodu ile
+     sonuç uyuşmazlığı, bu koşuya ait kayıt yok, systemd ya da veritabanı okunamadı) →
+     **kritik** (kapalı tarafta kalır). Mesaj `outcome`/`reason` içerir.
+   - Diğer birimlerin alarmı değişmedi.
+3. **Tazelik.** Her iş (`resolve`, `similarity_edges`) için son "çalıştı" koşusu (`completed`,
+   `no_input`, `partial`, `blocked_upstream`; `outcome` yoksa `success`/`partial`) **50 saatten**
+   eskiyse kritik (`pipeline:freshness`). Takılı kilit, çalışmayan zamanlayıcı ve art arda atlama
+   bu kuralla da yakalanır. Hiç kayıt yoksa uyarı.
+4. **`blocked_upstream` alarm üretmez** (kullanıcı kararı, 8 Kasım): panel kenar aşamasında
+   gösterir; alarm yorgunluğu yaratmaz.
+5. **Gerçek test.** `infra/vps/bin/test-pipeline-units.sh` depodaki birimden test birimi üretip
+   gerçek systemd'de (CI `vps-scripts`) sınar: 1. adım 75 → 2. adım başlamaz, `ExecMainStatus=75`,
+   `OnFailure`; 2. adım 75 → `ExecMainStatus=75`; 1 → alarm; iki adım 0 → alarm yok; betik gerçek
+   `systemctl show` çıktısını ayrıştırıp tek atlamayı BİLGİ, ikinciyi kritik sayar.
 
 ## Dağıtım politikası
 
