@@ -53,7 +53,7 @@ eklendi; telefon/adres hâlâ yok, uydurulmadı.
 
 ---
 
-## `/ara` Arama sonucu
+## `/sohbet?q=` Arama sonucu (karar 0176; eski `/ara`)
 
 | Sıra | Bileşen | Koşul |
 | --- | --- | --- |
@@ -221,7 +221,7 @@ Karar 0060: sade profil sayfası. Tema, İzinler ve Verilerim bölümleri yoktur
 
 | Bölüm | İçerik |
 | --- | --- |
-| Profil kartı | Avatar, ad, e-posta, "Yeni arama" (`/ara`), "Yönet" menüsü (Hesabı sil, Çıkış yap) |
+| Profil kartı | Avatar, ad, e-posta, "Yeni arama" (`/sohbet`), "Yönet" menüsü (Hesabı sil, Çıkış yap) |
 | Arkadaşlarınıza tavsiye edin | "Yönlendirme bağlantınız" kartı: okunabilir davet linki (`manicepte.com/davet/YS-49577`), "Panoya kopyala" (sonra onay işareti). Ödül metni ve sayaç yok (0067) |
 | Son baktıkların | `product_view` (`browsing_history` rızasıyla ürün sayfasında yazılır, ürün başına tek satır, en yeni başta); boşsa boş durum |
 

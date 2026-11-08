@@ -462,7 +462,7 @@ export default async function SearchDiagnosticsPage({
       <Section
         id="ozet"
         title="Son 7 gün"
-        description="Kimliksiz günlük özet (/ara metin araması) ve Gemini sorgu yorumunun saklanan sonuçları."
+        description="Kimliksiz günlük özet (/sohbet arama turu, eski /ara) ve Gemini sorgu yorumunun saklanan sonuçları."
         actions={<Link href="/yonetim/sozluk?gun=7&sorun=zero">Sorunlu sorgular</Link>}
       >
         <div className={styles.kpiGrid}>

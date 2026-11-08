@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { publicErrorFromBoundary } from "../error-view.tsx";
 import { SearchErrorState } from "../lib/search/search-error.tsx";
 
-/** docs/pages.md "/ara" Hata satırı: "Arama şu an çalışmıyor" + tekrar dene. */
+/** docs/pages.md "/sohbet" (eski /ara) Hata satırı: "Arama şu an çalışmıyor" + tekrar dene. */
 export default function AramaError({
   error,
   retry,

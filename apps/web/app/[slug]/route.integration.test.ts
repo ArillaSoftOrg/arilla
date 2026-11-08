@@ -204,7 +204,7 @@ describe("/[slug] takip bağlantısı", () => {
     });
     expect(result.kind).toBe("redirect");
     if (result.kind !== "redirect") return;
-    expect(result.to.startsWith("/ara/link?url=")).toBe(true);
+    expect(result.to.startsWith("/sohbet/link?url=")).toBe(true);
     expect(decodeURIComponent(result.to.split("url=")[1] ?? "")).toBe(
       "https://www.example.com/urun/1?a=b",
     );

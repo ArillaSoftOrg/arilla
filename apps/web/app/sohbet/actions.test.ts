@@ -103,11 +103,11 @@ describe("startChatBootstrapAction", () => {
     expect(mocks.after).not.toHaveBeenCalled();
   });
 
-  it("saatlik tavan, ozellik kapali ya da oturumsuz: yapay zekasiz /ara yolu, sohbet yok", async () => {
+  it("saatlik tavan, ozellik kapali ya da oturumsuz: yapay zekasiz arama turu (/sohbet?q=, karar 0176), sohbet yok", async () => {
     mocks.createConversation.mockResolvedValue({ status: "rate_limited" });
     expect(await startChatBootstrapAction("masa lambası")).toEqual({
       status: "fallback",
-      href: "/ara?q=masa+lambas%C4%B1",
+      href: "/sohbet?q=masa+lambas%C4%B1",
     });
     mocks.enabled.mockReturnValue(false);
     expect((await startChatBootstrapAction("x")).status).toBe("fallback");

@@ -38,7 +38,8 @@ import type { QueryObject } from "./types.ts";
  * Ayristirma kodunun surumu. `parse-query.ts`, fiyat dili ya da netlestirme
  * karari degisip AYNI sorgu farkli ayristirilacaksa ARTIRILIR.
  */
-export const RESOLVER_VERSION = "1";
+// 2: olumsuz nitelik zorunlu metinden cikar (karar 0176 Faz 2).
+export const RESOLVER_VERSION = "2";
 
 /** `parsed` icinde saklanan surum damgasi; okurken disari verilmez. */
 const VERSION_KEY = "_resolver";

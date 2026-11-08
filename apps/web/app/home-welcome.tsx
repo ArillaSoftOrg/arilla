@@ -53,7 +53,7 @@ export function HomeWelcome({ children }: { children: ReactNode }) {
             <a
               key={idea.position}
               className={`${styles.idea} ${styles[idea.position]}`}
-              href={`/ara?q=${encodeURIComponent(idea.query)}`}
+              href={`/sohbet?q=${encodeURIComponent(idea.query)}`}
             >
               <div className={styles.imageWindow} aria-hidden="true">
                 <Image

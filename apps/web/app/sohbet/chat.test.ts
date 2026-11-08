@@ -77,10 +77,10 @@ describe("errorKindForStatus", () => {
 });
 
 describe("fullResultsHref", () => {
-  it("hands the intent back to /ara in a form the existing parser understands", () => {
+  it("hands the intent to the search turn (/sohbet?q=) in a form the existing parser understands", () => {
     const href = fullResultsHref(INTENT);
     const q = new URL(href, "https://x.test").searchParams.get("q");
-    expect(href.startsWith("/ara?q=")).toBe(true);
+    expect(href.startsWith("/sohbet?q=")).toBe(true);
     expect(q).toBe("günlük spor ayakkabı Nike siyah 2500 tl altı");
   });
 

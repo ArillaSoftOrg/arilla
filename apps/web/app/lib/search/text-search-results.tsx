@@ -256,11 +256,11 @@ export async function TextSearchResults({
             intro="Hangisini arıyorsun?"
             candidates={candidateCategories.map((id) => ({
               label: `Kategori ${id}`,
-              href: `/ara?q=${encodeURIComponent(query)}&kategori=${id}`,
+              href: `/sohbet?q=${encodeURIComponent(query)}&kategori=${id}`,
             }))}
             otherLabel="Başka bir şey"
             otherPlaceholder="Ne arıyorsun?"
-            searchAction="/ara"
+            searchAction="/sohbet"
             queryParamName="q"
           />
         ) : null}

@@ -341,15 +341,13 @@ describe("eski görsel arama akışına bağımlılık yok (karar 0091)", () => 
   });
 });
 
-describe("/ara/gorsel eski sayfa: kalıcı yönlendirme", () => {
-  it("görsel verisi okumadan ana sayfaya taşır", async () => {
-    vi.doMock("next/navigation", () => ({
-      permanentRedirect: (href: string) => {
-        throw new Error(`REDIRECT:${href}`);
-      },
-    }));
-    const { default: Page } = await import("../ara/gorsel/page.tsx");
-    expect(() => Page()).toThrow("REDIRECT:/");
-    vi.doUnmock("next/navigation");
+describe("/ara/gorsel eski adres: kalıcı yönlendirme (karar 0091, 0176)", () => {
+  it("next.config ana sayfaya 308 ile taşır; /ara ve /ara/link /sohbet'e", async () => {
+    const config = (await import("../../next.config.ts")).default;
+    const redirects = await config.redirects?.();
+    const map = new Map((redirects ?? []).map((r) => [r.source, [r.destination, r.permanent]]));
+    expect(map.get("/ara/gorsel")).toEqual(["/", true]);
+    expect(map.get("/ara/link")).toEqual(["/sohbet/link", true]);
+    expect(map.get("/ara")).toEqual(["/sohbet", true]);
   });
 });

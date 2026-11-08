@@ -44,9 +44,9 @@ import { verifySession } from "../lib/dal.ts";
  * tasir: mesaj metni, model yaniti ya da hata ayrintisi istemciye donmez.
  */
 
-/** Kutudaki metni `/ara`ya cevirir: sohbet kapaliysa/yapilamiyorsa eski davranis. */
+/** Kutudaki metni arama turuna (`/sohbet?q=`, karar 0176) cevirir: sohbet kapaliysa/yapilamiyorsa. */
 function plainSearchHref(text: string): string {
-  return text ? `/ara?${new URLSearchParams({ q: text }).toString()}` : "/ara";
+  return text ? `/sohbet?${new URLSearchParams({ q: text }).toString()}` : "/";
 }
 
 /** Anonim ana sayfa aramasi: sorguyu misafir sohbet kabugunda sonuc anina tasir. */
@@ -90,7 +90,7 @@ function implicitRequestKey(userId: number, text: string, now: number = Date.now
 export async function startConversationAction(formData: FormData): Promise<void> {
   const raw = formData.get("q");
   const text = typeof raw === "string" ? raw.trim().slice(0, 500) : "";
-  if (!text) redirect("/ara");
+  if (!text) redirect("/");
 
   const user = await verifySession();
   if (isChatDiscoveryEnabled() && !user && canAccessProduct(user)) {
@@ -281,7 +281,7 @@ export async function getTurnStatusAction(
 export type NewTabChatResult =
   /** Sohbet olustu; yeni sekme `/sohbet/[id]`ye gider. */
   | { status: "created"; href: string }
-  /** Sohbet kullanilamiyor ya da tavan: yeni sekme `/ara` (yapay zekasiz) yoluna gider. */
+  /** Sohbet kullanilamiyor ya da tavan: yeni sekme arama turuna (`/sohbet?q=`, yapay zekasiz) gider. */
   | { status: "fallback"; href: string }
   | { status: "error" }
   /**

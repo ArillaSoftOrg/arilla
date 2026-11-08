@@ -48,6 +48,7 @@ const EXACT_PATHS = new Set([
   "/ara",
   "/ara/gorsel",
   "/ara/link",
+  "/sohbet/link",
   "/blog",
   "/cerez",
   "/erken-erisim",

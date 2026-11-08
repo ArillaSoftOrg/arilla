@@ -501,7 +501,7 @@ export function ChatInteractive({
                 {errorCopy.searchDirectly && lastUserText ? (
                   <a
                     className={styles.errorLink}
-                    href={`/ara?${new URLSearchParams({ q: lastUserText }).toString()}`}
+                    href={`/sohbet?${new URLSearchParams({ q: lastUserText }).toString()}`}
                   >
                     {CHAT_COPY.searchDirectlyLabel}
                   </a>
@@ -530,7 +530,7 @@ export function ChatInteractive({
               {errorCopy.searchDirectly && lastUserText ? (
                 <a
                   className={styles.errorLink}
-                  href={`/ara?${new URLSearchParams({ q: lastUserText }).toString()}`}
+                  href={`/sohbet?${new URLSearchParams({ q: lastUserText }).toString()}`}
                 >
                   {CHAT_COPY.searchDirectlyLabel}
                 </a>

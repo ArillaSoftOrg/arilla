@@ -32,7 +32,7 @@ export function sortModeFor(key: ChatSortKey): SortMode {
   return "balanced";
 }
 
-/** `/ara` bağlantısındaki `sort` değeri (varsayılan yazılmaz). */
+/** Arama turu (`/sohbet?q=`) bağlantısındaki `sort` değeri (varsayılan yazılmaz). */
 export function araSortParam(key: ChatSortKey): "best_deal" | null {
   return key === "firsat" ? "best_deal" : null;
 }
