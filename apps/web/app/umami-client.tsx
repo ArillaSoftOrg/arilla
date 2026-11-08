@@ -1,6 +1,13 @@
 "use client";
 
-import { sanitizePage, sanitizeReferrer, sanitizeUtmValue } from "@arilla/core/ga4-measurement";
+import {
+  type SanitizedPage,
+  sanitizePage,
+  sanitizeReferrer,
+  sanitizeUtmValue,
+} from "@arilla/core/ga4-measurement";
+import { classifyLinkClick, engagementBucket, pageArea } from "@arilla/core/umami-events";
+import type { UmamiEventName } from "@arilla/core/umami-tracker";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef } from "react";
 
@@ -14,6 +21,11 @@ import { useEffect, useRef } from "react";
  * ile AYNI süzgeçten geçer (arındırılmış yol + yalnızca güvenli `utm_*`, başlık
  * yerine yol, dış yönlendiren yalnızca köken). Ölçülmeyen yollarda (`/yonetim`,
  * `/api`, `/giris/*`...) hiçbir şey gönderilmez. `identify` ÇAĞRILMAZ.
+ *
+ * Etkileşim olayları (karar 0173): sayfada görünür kalma süresi aralığı (`page_engaged`)
+ * ve aynı kökenli ürün sayfası / mağaza çıkışı bağlantı tıklamaları. Olay verisi yalnızca
+ * sabit sözlüklerdendir (`@arilla/core/umami-events`); her olay da arındırılmış adresle
+ * gider (Umami'nin kendi `location.href`'i — arama sorgusu dahil — kullanılmaz).
  */
 
 type Props = Record<string, unknown>;
@@ -88,6 +100,15 @@ function rememberLandingCampaign(search: URLSearchParams): void {
   }
 }
 
+/** Özel olay: adres/başlık arındırılmış sayfadan; Umami'nin varsayılan adresi kullanılmaz. */
+function sendEvent(name: UmamiEventName, data: Record<string, string>, page: SanitizedPage): void {
+  const location = new URL(page.location);
+  const url = `${location.pathname}${location.search}`;
+  whenReady((umami) => {
+    umami.track((props) => ({ ...props, url, title: page.title, referrer: "", name, data }));
+  });
+}
+
 export function UmamiClient({ scriptUrl, websiteId }: { scriptUrl: string; websiteId: string }) {
   const pathname = usePathname();
   const lastSent = useRef<string | null>(null);
@@ -104,6 +125,8 @@ export function UmamiClient({ scriptUrl, websiteId }: { scriptUrl: string; websi
       script.setAttribute("data-website-id", websiteId);
       script.setAttribute("data-auto-track", "false");
       script.setAttribute("data-do-not-track", "true");
+      // Ek güvence: Umami'nin varsayılan adresi sorgu metnini (q=...) hiç taşımasın.
+      script.setAttribute("data-exclude-search", "true");
       script.setAttribute("data-before-send", "__arillaUmamiBeforeSend");
       document.head.appendChild(script);
     }
@@ -127,6 +150,58 @@ export function UmamiClient({ scriptUrl, websiteId }: { scriptUrl: string; websi
       umami.track((props) => ({ ...props, url, title: page.title, referrer }));
     });
   }, [pathname]);
+
+  // Karar 0173: sayfada GÖRÜNÜR kalınan süre, sayfa başına en fazla bir kez; sayfadan
+  // çıkarken (rota değişimi), sekme gizlenince ya da sayfa kapanırken. Kesin süre değil
+  // aralık gider. Rıza geri alınınca önce etkin bayrağı düşer, bu temizlik gönderemez.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rota değişimi tetikleyicidir.
+  useEffect(() => {
+    const page = sanitizePage(window.location.href, window.location.origin);
+    if (page === null) return;
+    let visibleMs = 0;
+    let since: number | null = document.visibilityState === "visible" ? performance.now() : null;
+    let sent = false;
+    const flush = () => {
+      if (sent) return;
+      sent = true;
+      if (since !== null) visibleMs += performance.now() - since;
+      since = null;
+      const duration = engagementBucket(visibleMs);
+      if (duration) sendEvent("page_engaged", { area: pageArea(page.location), duration }, page);
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    window.addEventListener("pagehide", flush);
+    return () => {
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("pagehide", flush);
+      flush();
+    };
+  }, [pathname]);
+
+  // Karar 0173: ürün sayfası ve mağaza çıkışı bağlantı tıklamaları (orta tık dahil).
+  // Gezinmeyi engellemez; olay `keepalive` ile gider.
+  useEffect(() => {
+    const onClick = (event: MouseEvent) => {
+      if (event.button > 1) return;
+      const target = event.target instanceof Element ? event.target : null;
+      const anchor = target?.closest("a[href]");
+      const href = anchor?.getAttribute("href");
+      if (!href) return;
+      const origin = window.location.origin;
+      const action = classifyLinkClick(href, window.location.href, origin);
+      const page = action ? sanitizePage(window.location.href, origin) : null;
+      if (action && page) sendEvent(action.name, action.data, page);
+    };
+    document.addEventListener("click", onClick, true);
+    document.addEventListener("auxclick", onClick, true);
+    return () => {
+      document.removeEventListener("click", onClick, true);
+      document.removeEventListener("auxclick", onClick, true);
+    };
+  }, []);
 
   return null;
 }

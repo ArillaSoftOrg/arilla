@@ -326,7 +326,7 @@ export default async function AnalyticsPage({
       <Panel
         id="olaylar"
         title="Olaylar"
-        description="Gönderilen tek özel olay early_access_joined (erken erişim kaydı, yalnızca rızayla). Kampanya kırılımı için Umami arayüzündeki olay verisi kullanılır; bu ekran yalnızca sayıyı gösterir."
+        description="Özel olaylar (yalnızca rızayla): early_access_joined (erken erişim kaydı), page_engaged (sayfada görünür kalma süresi aralığı), product_opened (ürün sayfası tıklaması), merchant_exit_clicked (mağaza bağlantısı tıklaması). Alan, yüzey ve süre kırılımı için Umami arayüzündeki olay verisi kullanılır; bu ekran yalnızca sayıyı gösterir."
         actions={<DataBasis kind="consent_sample" />}
         flush
       >
