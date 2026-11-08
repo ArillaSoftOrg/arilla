@@ -973,6 +973,44 @@ servisiyle elle çalıştırılır (`docker compose ... run --rm batch ...`);
 `up -d` bu servisi başlatmaz, ücretli Jina ve model çağrıları kapalıdır,
 üretim veritabanı bilgisi GitHub'a taşınmaz.
 
+#### İş sonucu (`job_run.detail.outcome`, karar 0174) — geçiş notları
+
+`resolve` ve `similarity*` koşuları `status`'un yanında `detail.outcome`/`reason` yazar
+(PR1a); panel bunu okur (PR1b). Diğer işler ve cron uçları sonuç yazmaz; panelde
+"Sonuç kaydı yok" görünür ve eski `status` mantığıyla yorumlanır — arıza değildir.
+
+| outcome | status | çıkış | anlamı |
+| --- | --- | --- | --- |
+| `completed` | success | 0 | akış bitti; çıktı garantisi yok (sayaçlara bakın) |
+| `no_input` | success | 0 | işlenecek uygun girdi yok; arıza değil |
+| `skipped_locked` | partial | 75 | aynı işin başka koşusu kilidi tutuyordu; hiçbir şeye dokunmadı |
+| `partial` | partial | 1 | öğe bazlı hatalar (resolve) |
+| `failed` | failed | 1 | istisna ya da geçersiz sonuç adı |
+| `blocked_upstream` | partial | 0 | girdi var, önceki aşamanın çıktısı (embedding) yok |
+
+- **Kilit meşgul (75).** `resolve` (PR1a) ve `similarity --edges` (PR1a.1; önceden
+  `failed`/1 yazıyordu) kilit meşgulken `skipped_locked` yazar ve 75 ile çıkar.
+  `arilla-catalog-pipeline` için davranış değişmez: sıfırdan farklı çıkış birimi başarısız
+  sayar, sonraki `ExecStart` çalışmaz, `arilla-alert@` tetiklenir. Kenar kilidi iki tür
+  (görsel + metin) için koşunun başında bir kez alınır; birleşik `python -m similarity`
+  kilit meşgulken fiyat adımını da atlar. `--prices` tek başına kenar kilidine bağlı değildir.
+- **Embedding yok.** Üretimde offer embedding'i olmadığı sürece `similarity --edges` her gece
+  `partial`/`blocked_upstream` yazar, çıkış 0 (alarm yok). Panel bu koşuyu "son başarılı"
+  saymaz ve kenar aşamasında uyarı gösterir; bu beklenen, doğru sinyaldir.
+- **Panel (PR1b).** "Son başarılı" yalnızca `completed`/`no_input`/`partial` (eski kayıtta
+  success/partial); "Son çıktı" yalnızca doğrulanmış sayaçlardan (`auto_accepted`,
+  `products_created`, `visual_edges`, `semantic_edges`, `price_products`). Gecikme
+  (`zamanında çalışmadı`) atlanan koşuyla sıfırlanmaz.
+- **Birleşik koşu.** `python -m similarity` tek sonuç yazar ve sonuç kenar adımındandır;
+  kenar engellenirse koşu `partial` olur, fiyat adımının çalıştığı `price_*` sayaçlarından
+  okunur. Panel fiyat aşamasını bu koşudan bayat saymaz.
+- **`--limit`.** `similarity --limit N`'de N ≥ 1 olmalıdır; 0/negatif değer argüman hatasıdır
+  (çıkış 2, koşu kaydı yok). Önceden `--limit 0` hiçbir ürünü işlemeden
+  `blocked_upstream` yazıyordu.
+- **Henüz yok (PR1c).** Alarm `outcome`'u bilmez, yalnızca çıkış koduna bakar: tek seferlik
+  `skipped_locked` da alarm üretir; art arda atlanan koşular ayrı sınıflandırılmaz.
+  `SuccessExitStatus=75` tek başına eklenmemelidir (karar 0174, PR1c kısıtları).
+
 Başarısız toplama koşusu (`ingest_run.status = 'failed'`) işlemi geri alır;
 0055'ten beri kayıt da oluşturulan/güncellenen/fiyat noktası sayılarını 0
 yazar, geri alınan miktar `error_text`'te not olarak durur.

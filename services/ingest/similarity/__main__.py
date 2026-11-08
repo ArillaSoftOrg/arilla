@@ -14,8 +14,23 @@ Is sonucu (karar 0174, `db.job_run.OUTCOMES`), kenar kosusunda:
                       diger turun eksiksiz oldugunu GARANTI ETMEZ (detail sayaclari)
     no_input          bagli aktif teklifi olan urun yok (no_eligible_products), cikis 0
     blocked_upstream  urun var ama hicbir turde embedding yok (no_embeddings), cikis 0
+    skipped_locked    baska bir kenar kosusu `EDGE_LOCK_KEY`'i tutuyordu (lock_busy),
+                      cikis 75; bu kosu hicbir seye dokunmadi (birlesik kosuda fiyat da)
 Cikis 0 yalnizca bu adim `arilla-catalog-pipeline` zincirinin SON adimi oldugu icin
 guvenlidir; zincire bu adimdan sonra bir adim eklenirse yeniden degerlendirilmelidir.
+
+Birlesik kosu (`python -m similarity`, `job_run.job = "similarity"`) TEK sonuc yazar ve
+sonuc kenar adimindan gelir: fiyat adiminin kendine ozgu bir "girdi yok/engellendi"
+durumu yoktur (her zaman `completed`). Kenar engellendiyse (`blocked_upstream`) kosu
+`partial` yazar ve bu dogrudur: is tanimli ciktisinin bir kismini (kenarlar) uretemedi.
+Fiyat adiminin kostugu `price_*` sayaclarindan okunur; yonetim paneli birlesik isin
+`blocked_upstream`'ini fiyat asamasi icin bayatlik saymaz (PR1b, `lastRanAt`). Bu yuzden
+iki ayri sonuc alani ya da yeni bir sonuc adi eklenmedi (sozlesme degismez).
+
+`--limit N` yalnizca kenar adimini sinirlar (urun sayisi) ve N >= 1 olmalidir. 0 ya da
+negatif deger "hicbir urun isleme" demek olurdu; kenar adimi gruba hic girmeden biter,
+vektorlu urun 0 gorunur ve kosu yanlislikla `blocked_upstream` yazardi. Bu yuzden
+arguman ayristirmada reddedilir (cikis 2, kosu kaydi yok).
 """
 
 from __future__ import annotations
@@ -63,7 +78,13 @@ def edges_outcome(
 def classify(
     conn: psycopg.Connection, counts: SimilarityCounts, *, do_edges: bool
 ) -> tuple[str, str | None]:
-    """Kosu sonucu; ek sorgu yalnizca kenar kosusunda hic vektorlu urun yoksa atilir."""
+    """Kosu sonucu; ek sorgu yalnizca kenar kosusunda hic vektorlu urun yoksa atilir.
+
+    Kilit mesgulse sayaclar bos oldugundan once ona bakilir (aksi halde vektorlu urun
+    0 gorunur ve `blocked_upstream`/`no_input` uydurulurdu).
+    """
+    if counts.skipped_locked:
+        return "skipped_locked", "lock_busy"
     if not do_edges:
         return "completed", None
     if counts.visual.products_with_vector or counts.semantic.products_with_vector:
@@ -74,11 +95,27 @@ def classify(
     return edges_outcome(counts, bool(row and row[0]))
 
 
+def positive_int(value: str) -> int:
+    """`--limit` icin: 0 ve negatif reddedilir (bkz. modul belgesi)."""
+    try:
+        number = int(value)
+    except ValueError:
+        raise argparse.ArgumentTypeError(f"tamsayi degil: {value!r}") from None
+    if number < 1:
+        raise argparse.ArgumentTypeError(f"en az 1 olmali: {number}")
+    return number
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="similarity", description="Benzerlik ve fiyat (B5)")
     parser.add_argument("--edges", action="store_true", help="yalnizca kenarlar")
     parser.add_argument("--prices", action="store_true", help="yalnizca fiyat istatistikleri")
-    parser.add_argument("--limit", type=int, default=None, help="urun sayisi siniri")
+    parser.add_argument(
+        "--limit",
+        type=positive_int,
+        default=None,
+        help="kenar adiminda islenecek urun sayisi siniri (>= 1)",
+    )
     parser.add_argument("--dry-run", action="store_true")
     parser.add_argument(
         "--prune",

@@ -12,7 +12,7 @@ from dataclasses import dataclass, field
 import psycopg
 
 from db import product_aggregates
-from similarity.edges import EdgeCounts, build_edges
+from similarity.edges import EdgeCounts, build_edges, release_lock, try_acquire_lock
 from similarity.prices import Observation, PriceStats, compute
 
 logger = logging.getLogger(__name__)
@@ -110,6 +110,9 @@ class SimilarityCounts:
     visual: EdgeCounts = field(default_factory=EdgeCounts)
     semantic: EdgeCounts = field(default_factory=EdgeCounts)
     prices: PriceCounts = field(default_factory=PriceCounts)
+    #: Baska bir kosu `EDGE_LOCK_KEY`'i tutuyordu; bu kosu hicbir seye dokunmadi
+    #: (karar 0174: `skipped_locked`). Hata degildir; istisna firlatilmaz.
+    skipped_locked: bool = False
 
 
 def refresh_product_aggregates(conn: psycopg.Connection, *, commit: bool = False) -> int:
@@ -208,12 +211,26 @@ def run(
     commit: bool = False,
     prune: bool = False,
 ) -> SimilarityCounts:
-    """`commit=True`: her parti ayri islemde (gece kosusu). Varsayilan tek islem."""
+    """`commit=True`: her parti ayri islemde (gece kosusu). Varsayilan tek islem.
+
+    Kenar kosusunda kilit ISIN BASINDA, iki tur icin bir kez alinir (karar 0174):
+    kilit mesgulse hicbir sey yazilmadan `skipped_locked` doner. Birlesik kosuda
+    (`do_prices` da) fiyat adimi da atlanir: `skipped_locked` "hicbir seye
+    dokunmadi" demektir. Turler arasinda kilit birakilmaz; aksi halde gorsel
+    kenarlar yazildiktan sonra baska kosu araya girip metin turunu atlatabilirdi.
+    """
     counts = SimilarityCounts()
 
     if do_edges:
-        counts.visual = build_edges(conn, "visual", limit=limit, commit=commit, prune=prune)
-        counts.semantic = build_edges(conn, "semantic", limit=limit, commit=commit, prune=prune)
+        if not try_acquire_lock(conn):
+            counts.skipped_locked = True
+            return counts
+        try:
+            counts.visual = build_edges(conn, "visual", limit=limit, commit=commit, prune=prune)
+            counts.semantic = build_edges(conn, "semantic", limit=limit, commit=commit, prune=prune)
+        finally:
+            # Fiyat adimi bu kilidin korumasinda degildir; tutulmaya devam etmez.
+            release_lock(conn)
 
     if do_prices:
         counts.prices = refresh_price_stats(conn, commit=commit)

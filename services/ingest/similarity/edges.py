@@ -175,12 +175,24 @@ class EdgeCounts:
     edges_pruned: int = 0
 
 
-def _acquire_lock(conn: psycopg.Connection) -> None:
+def try_acquire_lock(conn: psycopg.Connection) -> bool:
+    """Oturum duzeyinde kenar kilidi; beklemez. Ayni oturumda yeniden girilebilir
+    (PostgreSQL advisory kilitleri sayaclidir): `run` kilidi tum kenar asamasi icin
+    bir kez alir, `build_edges` icindeki ikinci alim ayni oturumda basarilidir."""
     with conn.cursor() as cur:
         cur.execute("SELECT pg_try_advisory_lock(%s)", (EDGE_LOCK_KEY,))
         row = cur.fetchone()
-    if not (row and row[0]):
+    return bool(row and row[0])
+
+
+def _acquire_lock(conn: psycopg.Connection) -> None:
+    if not try_acquire_lock(conn):
         raise RuntimeError("baska bir similarity kenar kosusu aktif; ayni anda tek kosu")
+
+
+def release_lock(conn: psycopg.Connection) -> None:
+    """`try_acquire_lock`/`_acquire_lock` ile alinan kilidin bir sayacini birakir."""
+    _release_lock(conn)
 
 
 def _release_lock(conn: psycopg.Connection) -> None:
