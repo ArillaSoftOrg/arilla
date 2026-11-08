@@ -43,6 +43,7 @@ def _cleanup(cur: psycopg.Cursor) -> None:
         "DELETE FROM api_usage WHERE operation = %s AND model_version LIKE %s",
         (products.OPERATION, "%-fake"),
     )
+    cur.execute("DELETE FROM embedding_dataset WHERE model_version = %s", (MODEL,))
 
 
 @dataclass
@@ -397,3 +398,93 @@ def test_cli_fake_client_run_against_local_database(world: World, tmp_path: Path
     assert products.main(["--fake-client", "--execute", "--ids-file", str(ids_file)]) == 0
     assert set(world.rows()) == set(ids)
     assert build_product_text("Cli Product One") == "Cli Product One"
+
+
+# --- kalici veri seti (karar 0179) -------------------------------------------------------------
+
+
+def _dataset(world: World) -> dict[bytes, tuple]:
+    with world.owner.cursor() as cur:
+        cur.execute(
+            """SELECT content_hash, input_text, task, text_version, source, first_product_id,
+                      embedding::text
+                 FROM embedding_dataset WHERE model_version = %s""",
+            (MODEL,),
+        )
+        found = {bytes(r[0]): r[1:] for r in cur.fetchall()}
+    world.owner.commit()
+    return found
+
+
+def test_every_api_result_is_archived_once_with_its_text(world: World) -> None:
+    ids = [world.product("Phone Case Black"), world.product("Phone Case Black")]
+    other = world.product("USB Hub 4 Port")
+    counts, _ = _run(world, [*ids, other])
+
+    assert counts.archived == 2
+    data = _dataset(world)
+    digest = content_hash(MODEL, "Phone Case Black")
+    text, task, version, source, first, vector = data[digest]
+    assert (text, task, version, source) == (
+        "Phone Case Black",
+        products.PASSAGE_TASK,
+        TEXT_VERSION,
+        "api",
+    )
+    assert first in ids
+    assert vector == world.rows()[ids[0]][3]
+
+    later = world.product("Phone Case Black")
+    counts2, client2 = _run(world, [later])
+    assert client2.calls == 0 and counts2.archived == 0
+    assert len(_dataset(world)) == 2
+
+
+def test_archive_survives_product_deletion_and_title_change(world: World) -> None:
+    pid = world.product("Desk Lamp LED")
+    _run(world, [pid])
+    world.set_title(pid, "Desk Lamp LED Dimmable")
+    _run(world, [pid])
+    with world.owner.cursor() as cur:
+        cur.execute("DELETE FROM product WHERE id = %s", (pid,))
+    world.owner.commit()
+
+    assert world.rows() == {}
+    texts = {row[0] for row in _dataset(world).values()}
+    assert texts == {"Desk Lamp LED", "Desk Lamp LED Dimmable"}
+
+
+def test_app_role_cannot_rewrite_the_archive(world: World) -> None:
+    pid = world.product("Archive Guard Item")
+    _run(world, [pid])
+    for statement in (
+        "UPDATE embedding_dataset SET input_text = 'x' WHERE model_version = %s",
+        "DELETE FROM embedding_dataset WHERE model_version = %s",
+    ):
+        with pytest.raises(psycopg.errors.InsufficientPrivilege), world.app.cursor() as cur:
+            cur.execute(statement, (MODEL,))
+        world.app.rollback()
+
+
+def test_backfill_restores_only_rows_whose_text_still_matches(world: World) -> None:
+    from enrich.dataset import backfill_dataset
+
+    keep = world.product("Backfill Keep Item")
+    changed = world.product("Backfill Changed Item")
+    _run(world, [keep, changed])
+    with world.owner.cursor() as cur:
+        cur.execute("DELETE FROM embedding_dataset WHERE model_version = %s", (MODEL,))
+        # Vektor uretildikten sonra baslik degisti ama henuz yeniden embed edilmedi.
+        cur.execute("UPDATE product SET title = 'Backfill Changed Later' WHERE id = %s", (changed,))
+    world.owner.commit()
+
+    dry = backfill_dataset(world.app, model=MODEL, dry_run=True, step=1)
+    assert _dataset(world) == {}
+    assert dry.matched >= 1 and dry.stale >= 1
+
+    done = backfill_dataset(world.app, model=MODEL, dry_run=False, step=1)
+    data = _dataset(world)
+    assert {row[0] for row in data.values()} == {"Backfill Keep Item"}
+    assert next(iter(data.values()))[3] == "backfill"
+    assert done.inserted == 1
+    assert backfill_dataset(world.app, model=MODEL, dry_run=False).inserted == 0

@@ -151,6 +151,19 @@ SELECT u.product_id, %(model)s, %(text_version)s, u.content_hash, u.source_hash,
 
 # Kanonik metin ayni: yalniz kaynak ozeti yenilenir. Vektor kolonu yazilmaz (HNSW kuruluyken
 # indeks bakimi ve WAL olusmasin).
+# Karar 0179: saglayicidan gelen her (kanonik metin, vektor) urunden bagimsiz arsive; ayni metin tek
+# satir. Vektor yazimiyla AYNI islemde: arsivde olmayan vektor urun tablosunda da olmaz.
+ARCHIVE_SQL = """
+INSERT INTO embedding_dataset
+       (model_version, content_hash, text_version, task, input_text, embedding, source,
+        first_product_id)
+SELECT %(model)s, u.content_hash, %(text_version)s, %(task)s, u.input_text,
+       u.embedding::halfvec(768), 'api', u.product_id
+  FROM unnest(%(content)s::bytea[], %(texts)s::text[], %(vectors)s::text[], %(ids)s::bigint[])
+       AS u(content_hash, input_text, embedding, product_id)
+ON CONFLICT (model_version, content_hash) DO NOTHING
+"""
+
 TOUCH_SQL = """
 UPDATE product_text_embedding t
    SET source_hash = u.source_hash
@@ -202,6 +215,8 @@ class ProductCounts:
     tokens: int = 0
     estimated_tokens: int = 0
     written: int = 0
+    #: Karar 0179: kalici veri setine eklenen yeni (metin, vektor) satiri.
+    archived: int = 0
     rejected: int = 0
     failed: int = 0
     aborted: bool = False
@@ -234,6 +249,7 @@ class ProductCounts:
             "api_calls": self.api_calls,
             "tokens": self.tokens,
             "written": self.written,
+            "archived": self.archived,
             "rejected": self.rejected,
             "failed": self.failed,
             "budget_stopped": self.budget_stopped,
@@ -561,6 +577,7 @@ class ProductEmbedder:
         c.api_texts += len(batch)
 
         rows: list[tuple[int, bytes, bytes, str]] = []
+        archive: list[tuple[bytes, str, str, int]] = []
         for digest, vector in zip(batch, vectors, strict=True):
             members = work.members[digest]
             if vector is None:
@@ -569,6 +586,7 @@ class ProductEmbedder:
                 continue
             literal = vector_literal(vector)
             rows.extend((m.product_id, digest, m.source_hash, literal) for m in members)
+            archive.append((digest, work.text_by_hash[digest], literal, members[0].product_id))
         if not rows:
             return True
         if not self._may_write():
@@ -584,6 +602,19 @@ class ProductEmbedder:
         with self.conn.cursor() as cur:
             cur.execute(UPSERT_SQL, params)
             c.written += max(cur.rowcount, 0)
+            cur.execute(
+                ARCHIVE_SQL,
+                {
+                    "model": self.model,
+                    "text_version": TEXT_VERSION,
+                    "task": PASSAGE_TASK,
+                    "content": [a[0] for a in archive],
+                    "texts": [a[1] for a in archive],
+                    "vectors": [a[2] for a in archive],
+                    "ids": [a[3] for a in archive],
+                },
+            )
+            c.archived += max(cur.rowcount, 0)
         self.conn.commit()
         return True
 
@@ -686,6 +717,7 @@ def _report(counts: ProductCounts, seconds: float, dry_run: bool) -> None:
     print(f"  token                 {tokens}{' (tahmin)' if dry_run else ''}")
     print(f"  maliyet (mikro TL)    {round(tokens * rate / 1000)}  (0 = oran tanimsiz)")
     print(f"  yazilan vektor satiri {counts.written}")
+    print(f"  veri setine eklenen   {counts.archived}")
     print(f"  reddedilen            {counts.rejected}")
     print(f"  basarisiz             {counts.failed}{' (kosu durdu)' if counts.aborted else ''}")
     if counts.budget_stopped:

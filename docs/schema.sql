@@ -462,6 +462,22 @@ CREATE TABLE semantic_shadow_event (
 );
 CREATE INDEX semantic_shadow_event_created_idx ON semantic_shadow_event (created_at);
 
+-- 0109 (karar 0179): kalici (kanonik metin, vektor) arsivi. Urune FK YOK: urun silinse/degisse de
+-- kalir. Yalniz ekleme (arilla_app UPDATE/DELETE/TRUNCATE yapamaz). Ayni metin tek satir.
+-- Kullanici sorgu metni yazilmaz (KVKK). Ileride kendi modelimizi egitmek/damitmak icin.
+CREATE TABLE embedding_dataset (
+    model_version    TEXT         NOT NULL CHECK (model_version ~ '^[a-z0-9][a-z0-9._-]{0,63}$'),
+    content_hash     BYTEA        NOT NULL CHECK (octet_length(content_hash) = 16),
+    text_version     SMALLINT     NOT NULL CHECK (text_version > 0),
+    task             TEXT         NOT NULL CHECK (task ~ '^[a-z][a-z._]{1,39}$'),
+    input_text       TEXT         NOT NULL CHECK (char_length(input_text) BETWEEN 1 AND 2000),
+    embedding        halfvec(768) NOT NULL,
+    source           TEXT         NOT NULL CHECK (source IN ('api', 'backfill')),
+    first_product_id BIGINT,
+    created_at       TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    PRIMARY KEY (model_version, content_hash)
+);
+
 -- Eşleştirme kuyruğu. Eşiğin üstü otomatik kabul, altı insan onayına düşer.
 CREATE TABLE match_candidate (
     id           BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
