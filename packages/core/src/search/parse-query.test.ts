@@ -124,3 +124,24 @@ describe("olumsuz nitelik zorunlu metne girmez (karar 0176 Faz 2)", () => {
     expect(parsed.unparsed).toBe("akıllı saat");
   });
 });
+
+describe("bağlaç kelimeleri zorunlu metne girmez, güveni değiştirmez (sözlük denetimi)", () => {
+  it.each([
+    ["ev için halı", "ev halı"],
+    ["iphone 16 uyumlu kılıf", "iphone 16 kılıf"],
+    ["uygun fiyatlı tablet", "tablet"],
+    ["wifi 6 destekli router", "wifi 6 router"],
+  ])("%s -> %s", (query, unparsed) => {
+    expect(parseQueryText(query, []).unparsed).toBe(unparsed);
+  });
+
+  it("bağlaç kategori güven oranına sayılmaz", () => {
+    const lexicon: LexiconEntry[] = [
+      { kind: "category", surface: "kılıf", normalized: "elektronik/kilif", weight: 1 },
+    ];
+    // 4 anlamli kelimeden 1'i kategori (0,25 < 0,35): "için" eklenince de filtre kurulmaz.
+    expect(
+      parseQueryText("apple iphone 16 için kılıf", lexicon).filters.category_path,
+    ).toBeUndefined();
+  });
+});
