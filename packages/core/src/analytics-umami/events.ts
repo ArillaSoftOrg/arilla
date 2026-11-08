@@ -56,9 +56,20 @@ const AREA_BY_ROOT: Readonly<Record<string, PageArea>> = {
   blog: "blog",
 };
 
-/** `sanitizePage(...).location` ya da arındırılmış yol alır (sorgu kısmı yok sayılır). */
-export function pageArea(sanitizedPath: string): PageArea {
-  const path = sanitizedPath.split(/[?#]/)[0] ?? "";
+/**
+ * Arındırılmış yol ya da `sanitizePage(...).location` (TAM adres) alır; köken ve sorgu
+ * kısmı yok sayılır. Tam adreste ilk parça köken değil yolun ilk parçasıdır.
+ */
+export function pageArea(sanitizedPathOrUrl: string): PageArea {
+  let path = sanitizedPathOrUrl;
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(path)) {
+    try {
+      path = new URL(path).pathname;
+    } catch {
+      return "other";
+    }
+  }
+  path = path.split(/[?#]/)[0] ?? "";
   if (path === "/" || path === "") return "home";
   const root = path.split("/")[1] ?? "";
   return AREA_BY_ROOT[root] ?? "other";

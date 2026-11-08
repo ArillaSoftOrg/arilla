@@ -41,7 +41,11 @@ describe("page_engaged süre aralığı", () => {
 describe("sayfa alanı", () => {
   it("arındırılmış yoldan sabit sözlüğe", () => {
     expect(pageArea("/")).toBe("home");
-    expect(pageArea(at("/"))).toBe("other"); // tam adres değil, yol beklenir
+    // `sanitizePage().location` tam adrestir (page_engaged bunu verir): köken atlanır.
+    expect(pageArea(at("/"))).toBe("home");
+    expect(pageArea(at("/ara?utm_source=x"))).toBe("search");
+    expect(pageArea(at("/urun/a"))).toBe("product");
+    expect(pageArea(at("/kosullar"))).toBe("other");
     expect(pageArea("/ara/gorsel")).toBe("search");
     expect(pageArea("/urun/kirmizi-elbise")).toBe("product");
     expect(pageArea("/sohbet/[id]")).toBe("chat");
