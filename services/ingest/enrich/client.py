@@ -128,11 +128,15 @@ class JinaEmbeddingClient(EmbeddingClient):
     client: httpx.Client | None = None
     dimensions: int = DIMENSIONS
     model: str = MODEL
+    #: Gorev ayrimli yalnizca-metin modelleri icin (jina-embeddings-v3: `retrieval.passage`
+    #: katalog, `retrieval.query` sorgu). None: jina-clip-v2 (gorevsiz, `{"text": ...}` girdisi).
+    task: str | None = None
     #: None -> butce yok (birim testleri). CLI her zaman bir butce verir.
     budget: TokenBudget | None = None
     sleep: Callable[[float], None] = time.sleep
     max_attempts: int = MAX_ATTEMPTS
     image_batch: int = IMAGE_BATCH
+    text_batch: int = TEXT_BATCH
     #: Gozlem sayaclari — kosu raporu buradan okur.
     rate_limited: int = 0
     retries: int = 0
@@ -147,7 +151,7 @@ class JinaEmbeddingClient(EmbeddingClient):
 
     @property
     def text_batch_size(self) -> int:
-        return TEXT_BATCH
+        return self.text_batch
 
     def _client(self) -> httpx.Client:
         if self.client is None:
@@ -166,13 +170,15 @@ class JinaEmbeddingClient(EmbeddingClient):
 
     def embed_texts(self, texts: Sequence[str]) -> EmbeddingBatch:
         estimate = sum(max(1, len(text) // TEXT_CHARS_PER_TOKEN) for text in texts)
-        return self._post([{"text": text} for text in texts], estimate)
+        # jina-embeddings-v3: duz metin dizisi + `task`; clip-v2: cok kipli `{"text": ...}` nesnesi.
+        inputs: list[Any] = list(texts) if self.task else [{"text": text} for text in texts]
+        return self._post(inputs, estimate)
 
-    def _post(self, inputs: list[dict[str, str]], estimate: int) -> EmbeddingBatch:
+    def _post(self, inputs: list[Any], estimate: int) -> EmbeddingBatch:
         if not inputs:
             return EmbeddingBatch(vectors=[], model_version=self.model, total_tokens=0)
 
-        body = {
+        body: dict[str, Any] = {
             "model": self.model,
             "dimensions": self.dimensions,
             # Kosinus mesafesi normalize vektorlerde dogru calisir;
@@ -181,6 +187,8 @@ class JinaEmbeddingClient(EmbeddingClient):
             "embedding_type": "float",
             "input": inputs,
         }
+        if self.task:
+            body["task"] = self.task
         headers = {
             "Authorization": f"Bearer {api_key()}",
             "Content-Type": "application/json",

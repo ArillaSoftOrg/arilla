@@ -39,7 +39,8 @@ import type { QueryObject } from "./types.ts";
  * karari degisip AYNI sorgu farkli ayristirilacaksa ARTIRILIR.
  */
 // 2: olumsuz nitelik zorunlu metinden cikar (karar 0176 Faz 2).
-export const RESOLVER_VERSION = "2";
+// 3: baglac/ifade kelimeleri (için, uyumlu, ucuz ...) zorunlu metinden cikar (sozluk denetimi).
+export const RESOLVER_VERSION = "3";
 
 /** `parsed` icinde saklanan surum damgasi; okurken disari verilmez. */
 const VERSION_KEY = "_resolver";

@@ -51,6 +51,26 @@ const CONVERSATIONAL_FILLER_WORDS: ReadonlySet<string> = new Set([
   "lütfen",
 ]);
 
+/**
+ * Baglac/ifade kelimeleri (sozluk denetimi, karar 0176): basliklarda gecmez; zorunlu metin
+ * olarak kalinca sonucu sifirliyordu ("ev için", "iphone uyumlu", "uygun fiyatlı"). Metinden
+ * cikar ama guven oranina SAYILMAZ: kategori filtresi karari bugunku gibi kalir.
+ */
+const CONNECTOR_WORDS: ReadonlySet<string> = new Set([
+  "için",
+  "icin",
+  "uyumlu",
+  "ucuz",
+  "uygun",
+  "fiyatlı",
+  "fiyatli",
+  "çok",
+  "cok",
+  "şey",
+  "şeyler",
+  "destekli",
+]);
+
 function conversationalWord(token: string): string {
   return token.replace(/[^\p{L}\p{N}]+/gu, "");
 }
@@ -236,8 +256,15 @@ export function parseQueryText(
     if (previous >= 0 && !consumed[previous]) consumed[previous] = true;
   });
 
-  const consumedCount = consumed.filter(Boolean).length;
-  const confidence = tokens.length === 0 ? 0 : consumedCount / tokens.length;
+  const ignored = tokens.map(
+    (token, index) => !consumed[index] && CONNECTOR_WORDS.has(conversationalWord(token.value)),
+  );
+  ignored.forEach((isIgnored, index) => {
+    if (isIgnored) consumed[index] = true;
+  });
+  const counted = tokens.length - ignored.filter(Boolean).length;
+  const consumedCount = consumed.filter((c, i) => c && !ignored[i]).length;
+  const confidence = counted === 0 ? 0 : consumedCount / counted;
 
   if (colors.size > 0) filters.color = [...colors];
   if (bestCategory !== undefined && confidence >= minConfidence) {
