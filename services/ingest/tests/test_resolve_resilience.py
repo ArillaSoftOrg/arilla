@@ -109,7 +109,9 @@ def test_an_overlapping_run_does_nothing_while_another_holds_the_lock(merchant_i
 
         assert counts.considered == 0
         assert counts.products_created == 0
-        assert counts.errors and "kosu" in counts.errors[0]
+        # Karar 0174: kilit beklemesi tipli sayactir, oge hatasi degil.
+        assert counts.skipped_locked is True
+        assert counts.errors == []
         holder.rollback()
 
     assert all(product_id is None for product_id in _linked(merchant_id).values())

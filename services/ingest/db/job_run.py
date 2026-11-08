@@ -49,6 +49,7 @@ def default_trigger() -> str:
     value = os.environ.get(TRIGGER_ENV, "").strip().lower()
     return value if value in TRIGGERS else "manual"
 
+
 MAX_ERROR_SUMMARY = 500
 #: Kisit `pg_column_size(detail) <= 4096`; JSON metni bunun epey altinda tutulur.
 MAX_DETAIL_JSON = 3000
@@ -107,6 +108,78 @@ def bounded_detail(detail: Mapping[str, Any] | None) -> dict[str, Any]:
     while out and len(json.dumps(out, ensure_ascii=False)) > MAX_DETAIL_JSON:
         out.pop(next(reversed(out)))
     return out
+
+
+#: Is sonucu sozlesmesi (karar 0174): `detail.outcome` -> (`job_run.status`, surec cikis kodu).
+#: `status` enum'u DEGISMEZ; sonuc onun ustunde, "teknik olarak bitti" ile "ne uretti"yi
+#: ayirir. 75 = EX_TEMPFAIL (sysexits.h): bu kosu bir sey yapmadi, sonraki kosu yapacak.
+EXIT_TEMPFAIL = 75
+OUTCOMES: Mapping[str, tuple[str, int]] = {
+    # Is tanimli akisini sonuna kadar kosturdu. Yeni kayit uretildigini GARANTI ETMEZ
+    # (or. tum adaylar insan kuyruguna dustu, kenarlar taban altinda kaldi); similarity'de
+    # tek turde embedding bulunmasi diger turun eksiksiz oldugu anlamina gelmez. Uretilen
+    # miktar ve tur bazli eksiklik isin kendi `detail` sayaclarindan okunur.
+    "completed": ("success", 0),
+    # Islenecek uygun girdi yoktu; ariza degildir.
+    "no_input": ("success", 0),
+    # Baska bir kosu ayni kilidi tutuyordu; bu kosu hicbir seye dokunmadi.
+    "skipped_locked": ("partial", EXIT_TEMPFAIL),
+    # Kosu bitti ama oge bazli hatalar var.
+    "partial": ("partial", 1),
+    # Teknik hata.
+    "failed": ("failed", 1),
+    # Uygun girdi var ama onceki asamanin ciktisi (or. embedding) eksik; cikis 0 yalnizca
+    # zincirin son adiminda guvenlidir (karar 0174, systemd analizi).
+    "blocked_upstream": ("partial", 0),
+}
+#: `status`'tan sonuc: sozlesmeye katilan is sonucu acikca vermediyse.
+_STATUS_OUTCOME = {"success": "completed", "partial": "partial", "failed": "failed"}
+REASON = re.compile(r"^[a-z][a-z0-9_]{1,39}$")
+INVALID_OUTCOME_REASON = "invalid_outcome"
+EXCEPTION_REASON = "exception"
+
+
+@dataclass(frozen=True)
+class Outcome:
+    """Dogrulanmis is sonucu: ad, gerekce, `job_run.status` ve cikis kodu."""
+
+    name: str
+    reason: str | None
+    status: str
+    exit_code: int
+
+
+def outcome(name: str, reason: str | None = None) -> Outcome:
+    """Sonucu dogrular. Gecersiz ad ARIZA sayilir (fail-closed): `failed`/1, alarm susmasin.
+
+    Gecersiz gerekce (bicim disi metin) yazilmaz; sonuc gecerliyse korunur.
+    """
+    if name not in OUTCOMES:
+        logger.warning("job_run: gecersiz sonuc %r, 'failed' yazilir", str(name)[:40])
+        status, code = OUTCOMES["failed"]
+        return Outcome("failed", INVALID_OUTCOME_REASON, status, code)
+    if reason is not None and not (isinstance(reason, str) and REASON.match(reason)):
+        logger.warning("job_run: gecersiz sonuc gerekcesi %r, yazilmaz", str(reason)[:40])
+        reason = None
+    status, code = OUTCOMES[name]
+    return Outcome(name, reason, status, code)
+
+
+def exit_code(name: str) -> int:
+    """Sonucun surec cikis kodu; gecersiz ad 1 (fail-closed)."""
+    return outcome(name).exit_code
+
+
+def with_outcome(detail: Mapping[str, Any] | None, result: Outcome) -> dict[str, Any]:
+    """`outcome`/`reason` BASA konur: `bounded_detail` sinira gelince sondan atar, sonuc kalir.
+
+    Isin kendi alanlari silinmez; yalnizca ayni adli `outcome`/`reason` ezilir.
+    """
+    head: dict[str, Any] = {"outcome": result.name}
+    if result.reason is not None:
+        head["reason"] = result.reason
+    rest = {k: v for k, v in (detail or {}).items() if k not in ("outcome", "reason")}
+    return {**head, **rest}
 
 
 def _execute(sql: str, params: tuple[Any, ...]) -> Any:
@@ -171,26 +244,49 @@ class JobRun:
     status: str = "success"
     detail: dict[str, Any] = field(default_factory=dict)
     error_summary: str | None = None
+    #: Karar 0174: `track(..., outcomes=True)` ile acilan kosu `detail.outcome` yazar.
+    outcomes: bool = False
+    result: Outcome | None = None
+
+    def set_outcome(self, name: str, reason: str | None = None) -> int:
+        """Sonucu kaydeder, `status`'u sozlesmeden alir; surec cikis kodunu doner."""
+        self.result = outcome(name, reason)
+        self.status = self.result.status
+        return self.result.exit_code
+
+    def final_outcome(self) -> Outcome:
+        """Blok normal bittiginde yazilacak sonuc: acik sonuc, yoksa `status`'tan."""
+        if self.result is not None:
+            return self.result
+        return outcome(_STATUS_OUTCOME.get(self.status, "failed"))
 
 
 @contextmanager
-def track(job: str, trigger: str | None = None) -> Iterator[JobRun]:
+def track(job: str, trigger: str | None = None, *, outcomes: bool = False) -> Iterator[JobRun]:
     """Is kosusunu kaydeder.
 
-        with job_run.track("resolve") as run:
+        with job_run.track("resolve", outcomes=True) as run:
             counts = resolve_offers(...)
             run.detail.update(considered=counts.considered)
-            if counts.errors:
-                run.status = "partial"
+            code = run.set_outcome("no_input", "no_eligible_offers")
 
     Blok istisnayla (KeyboardInterrupt dahil) biterse `failed` + kirpilmis
-    hata ozeti yazilir ve istisna aynen yeniden firlatilir.
+    hata ozeti yazilir ve istisna aynen yeniden firlatilir. `outcomes=True` ise
+    `detail.outcome` da yazilir: istisnada daima `failed`/`exception` (onceden
+    secilmis sonucu ezer); `outcomes=False` (varsayilan) eski kayit bicimini aynen korur.
     """
-    run = JobRun(job=job, id=start(job, trigger or default_trigger()))
+    run = JobRun(job=job, id=start(job, trigger or default_trigger()), outcomes=outcomes)
     try:
         yield run
     except BaseException as error:
         summary = run.error_summary or f"{type(error).__name__}: {error}"
-        finish(run.id, "failed", run.detail, summary)
+        detail: Mapping[str, Any] = run.detail
+        if run.outcomes:
+            detail = with_outcome(run.detail, outcome("failed", EXCEPTION_REASON))
+        finish(run.id, "failed", detail, summary)
         raise
-    finish(run.id, run.status, run.detail, run.error_summary)
+    if run.outcomes:
+        result = run.final_outcome()
+        finish(run.id, result.status, with_outcome(run.detail, result), run.error_summary)
+    else:
+        finish(run.id, run.status, run.detail, run.error_summary)

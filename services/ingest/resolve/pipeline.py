@@ -139,6 +139,9 @@ class ResolveCounts:
     #: Baglama aninda teklif zaten bagli/pasif bulundu; o teklifin yazdiklari geri alindi.
     link_conflicts: int = 0
     errors: list[str] = field(default_factory=list)
+    #: Baska bir kosu `RESOLVE_LOCK_KEY`'i tutuyordu; bu kosu hicbir teklife dokunmadi.
+    #: Hata degildir (karar 0174: `skipped_locked`), `errors`'a yazilmaz.
+    skipped_locked: bool = False
 
 
 def _offer_key(title: str, brand: str | None, attributes: dict | None) -> ProductKey:
@@ -350,7 +353,8 @@ def resolve_offers(
         cur.execute("SELECT pg_try_advisory_xact_lock(%s)", (RESOLVE_LOCK_KEY,))
         locked = cur.fetchone()
     if not locked or not locked[0]:
-        counts.errors.append("baska bir eslestirme kosusu suruyor, bu kosu bir sey yapmadi")
+        counts.skipped_locked = True
+        logger.warning("baska bir eslestirme kosusu suruyor, bu kosu bir sey yapmadi")
         return counts
     # Gorsel aday kanali HNSW kullanir; suzgec sonrasi yeterli komsu icin ayar.
     tune_ann_search(conn)
