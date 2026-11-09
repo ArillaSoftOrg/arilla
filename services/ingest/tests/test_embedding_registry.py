@@ -105,9 +105,15 @@ def test_other_spaces_cannot_write_product_text_table(model_id: str) -> None:
 
 
 def test_family_without_table_is_not_writable() -> None:
-    spec = registry().get("e5-small-int8-0bcc8ca76950")
+    spec = registry().get("bge-m3")
     with pytest.raises(RegistryError, match="migration gerekli"):
         require_writable(spec, spec.index_family)
+
+
+def test_384_family_writes_its_own_table() -> None:
+    spec = registry().get("e5-small-int8-0bcc8ca76950")
+    require_writable(spec, spec.index_family)
+    assert registry().family(spec).table == "product_text_embedding_d384"
 
 
 def test_production_model_writable() -> None:

@@ -14,6 +14,7 @@ import { normalizeQueryText } from "../normalize.ts";
 import { foldForMatch } from "../text-match.ts";
 import type { QueryFilters } from "../types.ts";
 import { looksLikeAccessory, queryWantsAccessory } from "./accessory-guard.ts";
+import { type IndexResolution, resolveSemanticIndex, type SemanticIndex } from "./active-index.ts";
 import {
   DEFAULT_SEMANTIC_GATE,
   SHADOW_MAX_IN_FLIGHT,
@@ -78,6 +79,8 @@ export interface ShadowDeps {
   env?: Readonly<Record<string, string | undefined>>;
   embedder?: QueryEmbedder | null;
   findCandidates?: typeof findSemanticCandidates;
+  /** Aktif indeks cozumleyici (karar 0181); testler sabit indeks verir. */
+  resolveIndex?: (db: Database) => Promise<IndexResolution>;
   findSimilarities?: typeof similaritiesFor;
   /** Bugunku gercek (onbellek disi) cagri sayisi. */
   usedToday?: (db: Database) => Promise<number>;
@@ -114,10 +117,12 @@ function emptyMetrics(
   };
 }
 
-function defaultEmbedder(db: Database, env: Env): QueryEmbedder | null {
+function defaultEmbedder(db: Database, env: Env, index: SemanticIndex): QueryEmbedder | null {
   const apiKey = env.JINA_API_KEY?.trim();
   if (!apiKey) return null;
-  return createJinaQueryEmbedder(apiKey, semanticModelVersion(env), {
+  return createJinaQueryEmbedder(apiKey, index.modelVersion, {
+    dimensions: index.dimensions,
+    task: index.queryTask,
     onUsage: async (usage) => {
       await db.insert(apiUsage).values({
         sessionId: null,
@@ -225,7 +230,7 @@ export async function measureSemanticShadow(
   const clock = deps.clock ?? (() => performance.now());
   const random = deps.random ?? Math.random;
   const record = deps.record ?? defaultRecord;
-  const model = semanticModelVersion(env);
+  let model = semanticModelVersion(env);
   const textCount = input.textItems.length;
   const topN = Math.min(SHADOW_TOP_N, Math.max(1, Math.floor(input.topN ?? SHADOW_TOP_N)));
 
@@ -246,7 +251,16 @@ export async function measureSemanticShadow(
     if (ineligible !== null)
       return save(emptyMetrics("ineligible", model, textCount, topN, ineligible));
 
-    const embedder = deps.embedder === undefined ? defaultEmbedder(db, env) : deps.embedder;
+    // Aktif indeks (karar 0181): TS'nin sorgu vektoru uretemedigi modelse olcum yapilmaz.
+    const resolved = await (deps.resolveIndex ?? ((d) => resolveSemanticIndex(d, { env })))(db);
+    if (resolved.index === null) {
+      model = resolved.modelVersion;
+      return save(emptyMetrics("no_vector", model, textCount, topN, resolved.reason));
+    }
+    const index = resolved.index;
+    model = index.modelVersion;
+
+    const embedder = deps.embedder === undefined ? defaultEmbedder(db, env, index) : deps.embedder;
     if (!embedder) return save(emptyMetrics("no_vector", model, textCount, topN, "no_api_key"));
 
     const usedToday = await (deps.usedToday ?? defaultUsedToday)(db);
@@ -264,6 +278,7 @@ export async function measureSemanticShadow(
     const candidates = await (deps.findCandidates ?? findSemanticCandidates)(db, {
       vector: embedded.vector,
       modelVersion: embedder.modelVersion,
+      index,
       text: input.queryText,
       filters: input.filters,
     });
@@ -271,6 +286,7 @@ export async function measureSemanticShadow(
     const textSimilarity = await (deps.findSimilarities ?? similaritiesFor)(db, {
       vector: embedded.vector,
       modelVersion: embedder.modelVersion,
+      index,
       productIds: input.textItems.map((item) => item.productId),
     });
 

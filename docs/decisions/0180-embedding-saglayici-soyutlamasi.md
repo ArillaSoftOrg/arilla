@@ -66,7 +66,7 @@ Durum: **kabul (PR-A)**. Migration yok. İlgili: 0015 (sağlayıcı), 0155 (yere
 | --- | --- | --- | --- | --- |
 | `jina-clip-v2` | jina | 768 | active | teklif görsel+metin (0015) |
 | `jina-embeddings-v3` | jina | 768 | active | ürün metni varsayılanı (0177) |
-| `e5-small-int8-0bcc8ca76950` | local_onnx | 384 | pilot | MIT; lisans incelemesi kayda geçmedi, tablo yok |
+| `e5-small-int8-0bcc8ca76950` | local_onnx | 384 | pilot | MIT; lisans incelemesi kayda geçmedi; tablo `product_text_embedding_d384` (0181) |
 | `bge-m3` | local_onnx | 1024 | disabled | ONNX yapısı yok, lisans doğrulanmadı |
 
 ## Reddedilen / ertelenen
@@ -80,6 +80,9 @@ Durum: **kabul (PR-A)**. Migration yok. İlgili: 0015 (sağlayıcı), 0155 (yere
   karışma riski yaratır.
 
 ## Sonraki adımlar
+
+Aşağıdakiler karar 0181 ile aynı PR'da uygulandı (migration 0110, `enrich.index`,
+`search/semantic/active-index.ts`).
 
 - **PR-B (`packages/db`, migration 0110):**
   - `embedding_index` tablosu: `model_version`, `index_family`, `dims`, `target`, durum

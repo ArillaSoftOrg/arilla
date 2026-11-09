@@ -12,7 +12,7 @@
       "vector_type": "halfvec"
     },
     "product_text_halfvec384": {
-      "table": null,
+      "table": "product_text_embedding_d384",
       "dimensions": 384,
       "vector_type": "halfvec"
     },

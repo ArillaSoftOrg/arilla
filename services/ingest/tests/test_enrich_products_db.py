@@ -493,17 +493,52 @@ def test_backfill_restores_only_rows_whose_text_still_matches(world: World) -> N
 # --- karar 0180: model/boyut izolasyonu ve vektor kapisi ------------------------------------
 
 
-def test_other_dimension_model_writes_nothing(world: World) -> None:
+def _count(world: World, sql: str, *params: object) -> int:
+    with world.owner.cursor() as cur:
+        cur.execute(sql, params)
+        (value,) = cur.fetchone()
+    world.owner.commit()
+    return int(value)
+
+
+def test_model_without_storage_writes_nothing(world: World) -> None:
     pid = world.product("Isolation Mouse")
-    client = FakeEmbeddingClient(model="e5-small-int8-0bcc8ca76950-fake", dimensions=384)
+    client = FakeEmbeddingClient(model="bge-m3-fake", dimensions=1024)
     options = products.Options(dry_run=False, ids=[pid])
     counts = products.embed_products(world.app, client, options)
     assert counts.incompatible and client.calls == 0
     assert products.decide_outcome(counts) == ("failed", "incompatible_index")
-    with world.owner.cursor() as cur:
-        cur.execute("SELECT count(*) FROM product_text_embedding WHERE product_id = %s", (pid,))
-        assert cur.fetchone()[0] == 0
-    world.owner.commit()
+    d768 = "SELECT count(*) FROM product_text_embedding WHERE product_id = %s"
+    assert _count(world, d768, pid) == 0
+
+
+def test_384_model_writes_only_its_own_table(world: World) -> None:
+    pid = world.product("Shadow Index Mouse")
+    e5 = "e5-small-int8-0bcc8ca76950-fake"
+    client = FakeEmbeddingClient(model=e5, dimensions=384)
+    counts = products.embed_products(world.app, client, products.Options(dry_run=False, ids=[pid]))
+    assert counts.written == 1 and not counts.incompatible
+    assert counts.detail()["provider"] == "local_onnx"
+    d384 = "SELECT count(*) FROM product_text_embedding_d384 WHERE product_id = %s"
+    d768 = "SELECT count(*) FROM product_text_embedding WHERE product_id = %s"
+    assert _count(world, d384, pid) == 1
+    assert _count(world, d768, pid) == 0
+    # Yerel model ciktisi 0179 veri setine girmez; cagri ucretsiz ama kayitli (kural 9).
+    assert _count(world, "SELECT count(*) FROM embedding_dataset WHERE model_version = %s", e5) == 0
+    cost = "SELECT coalesce(sum(cost_micros), -1) FROM api_usage WHERE model_version = %s"
+    assert _count(world, cost, e5) == 0
+    # Ikinci kosu: degisen yok, yazim yok (idempotent).
+    again = products.embed_products(world.app, client, products.Options(dry_run=False, ids=[pid]))
+    assert again.candidates == 0 and again.written == 0
+
+
+def test_384_model_with_wrong_vector_size_writes_nothing(world: World) -> None:
+    pid = world.product("Wrong Size Mouse")
+    client = FakeEmbeddingClient(model="e5-small-int8-0bcc8ca76950-fake", dimensions=768)
+    counts = products.embed_products(world.app, client, products.Options(dry_run=False, ids=[pid]))
+    assert counts.failed == 1 and counts.written == 0
+    d384 = "SELECT count(*) FROM product_text_embedding_d384 WHERE product_id = %s"
+    assert _count(world, d384, pid) == 0
 
 
 @dataclass

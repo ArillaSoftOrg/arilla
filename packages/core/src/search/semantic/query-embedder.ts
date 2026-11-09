@@ -44,6 +44,9 @@ export interface JinaQueryEmbedderOptions {
   now?: () => number;
   /** Testler kendi onbellegini verir; varsayilan surec geneli. */
   cache?: Map<string, number[]>;
+  /** Aktif indeksin boyutu ve sorgu gorevi (karar 0181); varsayilan 768 / `retrieval.query`. */
+  dimensions?: number;
+  task?: string;
 }
 
 /** Onbellek anahtari: model + kucuk harf, tek bosluk. Metnin kendisi saklanmaz. */
@@ -62,6 +65,8 @@ export function createJinaQueryEmbedder(
   const timeoutMs = options.timeoutMs ?? SEMANTIC_QUERY_TIMEOUT_MS;
   const now = options.now ?? Date.now;
   const cache = options.cache ?? sharedCache;
+  const dimensions = options.dimensions ?? QUERY_EMBEDDING_DIMENSIONS;
+  const task = options.task ?? "retrieval.query";
 
   const report = async (usage: QueryEmbedUsage): Promise<void> => {
     try {
@@ -91,8 +96,8 @@ export function createJinaQueryEmbedder(
           headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
           body: JSON.stringify({
             model: modelVersion,
-            task: "retrieval.query",
-            dimensions: QUERY_EMBEDDING_DIMENSIONS,
+            task,
+            dimensions,
             normalized: true,
             embedding_type: "float",
             input: [text.trim().replace(/\s+/g, " ")],
@@ -108,7 +113,7 @@ export function createJinaQueryEmbedder(
           usage?: { total_tokens?: number };
         };
         const raw = payload.data?.[0]?.embedding;
-        if (!Array.isArray(raw) || raw.length !== QUERY_EMBEDDING_DIMENSIONS) return null;
+        if (!Array.isArray(raw) || raw.length !== dimensions) return null;
         const vector = raw.map(Number);
         if (!vector.every(Number.isFinite)) return null;
         if (cache.size >= CACHE_LIMIT) {

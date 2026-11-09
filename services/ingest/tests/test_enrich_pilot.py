@@ -22,7 +22,9 @@ class _NoDb:
         raise AssertionError(f"veritabani kullanildi: {name}")
 
 
-@pytest.mark.parametrize(("model", "dimensions"), [(E5, 384), ("bge-m3", 1024), ("x-model", 768)])
+@pytest.mark.parametrize(
+    ("model", "dimensions"), [("bge-m3", 1024), ("x-model", 768), ("jina-clip-v2", 768)]
+)
 def test_incompatible_model_never_touches_product_table(model: str, dimensions: int) -> None:
     client = FakeEmbeddingClient(model=model, dimensions=dimensions)
     counts = ProductEmbedder(_NoDb(), client, Options(dry_run=False)).run()
@@ -31,10 +33,21 @@ def test_incompatible_model_never_touches_product_table(model: str, dimensions: 
     assert counts.written == 0 and client.calls == 0
 
 
-def test_cli_rejects_pilot_and_disabled_models(capsys: pytest.CaptureFixture[str]) -> None:
-    for model in (E5, "bge-m3", "jina-clip-v2"):
+def test_cli_rejects_disabled_and_wrong_role(capsys: pytest.CaptureFixture[str]) -> None:
+    for model in ("bge-m3", "jina-clip-v2"):
         assert products.main(["--model", model]) == 2
         assert "model secilemez" in capsys.readouterr().err
+
+
+def test_cli_pilot_model_only_on_local_db(
+    capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@db.example.com:5432/x")
+    assert products.main(["--model", E5]) == 2
+    assert "uretimde secilemez" in capsys.readouterr().err
+    monkeypatch.setenv("DATABASE_URL", "postgresql://u:p@127.0.0.1:5432/x")
+    assert products.main(["--model", E5]) == 2
+    assert "--model-dir gerekli" in capsys.readouterr().err
 
 
 def test_latency_detail_numbers_only() -> None:

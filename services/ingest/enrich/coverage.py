@@ -15,6 +15,7 @@ from typing import Any
 import psycopg
 
 from enrich.product_text import TEXT_VERSION
+from enrich.registry import registry
 
 ELIGIBLE_SQL = """
 SELECT count(*)
@@ -22,6 +23,7 @@ SELECT count(*)
  WHERE p.publication_state = 'published' AND p.offer_count + p.foreign_offer_count > 0
 """
 
+#: Tablo adi kayit defterinin ailelerinden gelir (beyaz liste), kullanici girdisi degildir.
 PER_MODEL_SQL = """
 SELECT e.model_version,
        count(*)                                          AS vectors,
@@ -29,23 +31,37 @@ SELECT e.model_version,
        count(*) FILTER (WHERE p.publication_state = 'published'
                           AND p.offer_count + p.foreign_offer_count > 0) AS eligible_covered,
        max(e.embedded_at)                                AS last_embedded_at
-  FROM product_text_embedding e
+  FROM {table} e
   JOIN product p ON p.id = e.product_id
  GROUP BY e.model_version
  ORDER BY e.model_version
 """
 
 
+def product_text_tables() -> list[str]:
+    """Kayit defterinde urun metni ailelerinin yazilabilir tablolari (sirali, tekil)."""
+    reg = registry()
+    tables = {
+        reg.family(spec).table
+        for spec in reg.models.values()
+        if "product_text" in spec.roles and reg.family(spec).table
+    }
+    return sorted(t for t in tables if t)
+
+
 def coverage(conn: psycopg.Connection) -> dict[str, Any]:
+    rows: list[tuple[str, tuple]] = []
     with conn.cursor() as cur:
         cur.execute("SET TRANSACTION READ ONLY")
         cur.execute(ELIGIBLE_SQL)
         eligible = int(cur.fetchone()[0])
-        cur.execute(PER_MODEL_SQL, {"tv": TEXT_VERSION})
-        rows = cur.fetchall()
+        for table in product_text_tables():
+            cur.execute(PER_MODEL_SQL.format(table=table), {"tv": TEXT_VERSION})
+            rows.extend((table, row) for row in cur.fetchall())
     conn.rollback()
     models = [
         {
+            "table": table,
             "model_version": model,
             "vectors": int(vectors),
             "current_text_version": int(current),
@@ -53,9 +69,9 @@ def coverage(conn: psycopg.Connection) -> dict[str, Any]:
             "coverage_ratio": round(int(covered) / eligible, 4) if eligible else None,
             "last_embedded_at": last.isoformat() if last else None,
         }
-        for model, vectors, current, covered, last in rows
+        for table, (model, vectors, current, covered, last) in rows
     ]
-    return {"table": "product_text_embedding", "eligible_products": eligible, "models": models}
+    return {"eligible_products": eligible, "models": models}
 
 
 def main() -> int:

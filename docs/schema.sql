@@ -438,6 +438,48 @@ CREATE TABLE product_text_embedding (
 CREATE INDEX product_text_embedding_hash_idx
     ON product_text_embedding (model_version, content_hash);
 
+-- 0110 (karar 0181): embedding indeks yasam dongusu. Model/boyut/aile Python kayit defterinde
+-- (services/ingest/enrich/model_registry.json); burada yalniz durum. Hedef basina tek `active`
+-- (kismi unique). Gecis/rollback tek islemde: `python -m enrich.index`. Satir silinmez.
+CREATE TABLE embedding_index (
+    id            BIGINT GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
+    target        TEXT        NOT NULL CHECK (target IN ('product_text')),
+    model_version TEXT        NOT NULL CHECK (model_version ~ '^[a-z0-9][a-z0-9._-]{0,63}$'),
+    index_family  TEXT        NOT NULL CHECK (index_family ~ '^[a-z][a-z0-9_]{1,63}$'),
+    dimensions    INTEGER     NOT NULL CHECK (dimensions BETWEEN 1 AND 4000),
+    storage_table TEXT        NOT NULL
+                  CHECK (storage_table IN ('product_text_embedding', 'product_text_embedding_d384')),
+    state         TEXT        NOT NULL DEFAULT 'building'
+                  CHECK (state IN ('building', 'shadow', 'active', 'retired')),
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+    activated_at  TIMESTAMPTZ,
+    retired_at    TIMESTAMPTZ,
+    CONSTRAINT embedding_index_target_model UNIQUE (target, model_version),
+    CONSTRAINT embedding_index_table_dims CHECK (
+        (storage_table = 'product_text_embedding' AND dimensions = 768)
+        OR (storage_table = 'product_text_embedding_d384' AND dimensions = 384)
+    ),
+    CONSTRAINT embedding_index_active_stamped CHECK (state <> 'active' OR activated_at IS NOT NULL),
+    CONSTRAINT embedding_index_retired_stamped CHECK (state <> 'retired' OR retired_at IS NOT NULL)
+);
+CREATE UNIQUE INDEX embedding_index_one_active ON embedding_index (target) WHERE state = 'active';
+-- arilla_app: DELETE/TRUNCATE yok. Tohum: ('product_text', 'jina-embeddings-v3', active).
+
+-- 0110 (karar 0181): 384 boyutlu modellerin urun metin vektoru; sozlesme product_text_embedding ile ayni.
+CREATE TABLE product_text_embedding_d384 (
+    product_id    BIGINT       NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    model_version TEXT         NOT NULL CHECK (model_version ~ '^[a-z0-9][a-z0-9._-]{0,63}$'),
+    text_version  SMALLINT     NOT NULL CHECK (text_version > 0),
+    content_hash  BYTEA        NOT NULL CHECK (octet_length(content_hash) = 16),
+    source_hash   BYTEA        NOT NULL CHECK (octet_length(source_hash) = 16),
+    embedding     halfvec(384) NOT NULL,
+    embedded_at   TIMESTAMPTZ  NOT NULL DEFAULT now(),
+    PRIMARY KEY (product_id, model_version)
+);
+CREATE INDEX product_text_embedding_d384_hash_idx
+    ON product_text_embedding_d384 (model_version, content_hash);
+
 -- 0108 (karar 0178): anlamsal arama golge olcumu. Kullaniciya donen sonuc degismez; yalniz
 -- sayisal olculer (sorgu metni/ozeti, kullanici/oturum, urun kimligi YOK). Saklama 90 gun.
 CREATE TABLE semantic_shadow_event (

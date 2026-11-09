@@ -1,3 +1,4 @@
+export * from "./active-index.ts";
 export * from "./config.ts";
 export {
   type FusedEntry,

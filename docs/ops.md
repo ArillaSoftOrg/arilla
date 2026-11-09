@@ -2835,6 +2835,29 @@ python -m enrich.pilot --model e5-small-int8-0bcc8ca76950 --model-dir DIR \
 ```
 
 Model dizini `classify suggest model build` ile üretilir ve SHA-256 ile doğrulanır (karar 0155).
+Yerel model `enrich.products --model <id> --model-dir DIR --execute` ile kendi tablosuna
+(`product_text_embedding_d384`) yazar; `pilot` durumundaki model yalnız yerel veritabanında çalışır.
+
+### Embedding indeks geçişi (karar 0181) — kuru varsayılan, `--execute` ile
+
+```bash
+python -m enrich.index list                                    # durumlar (JSON)
+python -m enrich.index register --model M --execute            # building
+python -m enrich.products --model M --execute [...]            # gölge doldurma; aktif indekse dokunmaz
+python -m enrich.index shadow   --model M --execute
+python -m enrich.index compare  --model M --sample 50          # komşu örtüşmesi (salt okunur)
+python -m enrich.index activate --model M --min-coverage 0.95  # önce kuru: planı ve kapsamı gör
+python -m enrich.index activate --model M --min-coverage 0.95 --execute
+python -m enrich.index rollback --execute                      # en son emekli indeks yeniden active
+```
+
+- Geçiş tek işlemdedir (danışma kilidi 181000001 + `FOR UPDATE`); `job_run.job = embedding_index`.
+- `activate` yalnız `shadow` satırı, kayıt defterinde üretime hazır model (active/shadow + doğrulanmış
+  lisans) ve kapsam eşiği sağlanınca kabul edilir. Vektörler hiçbir adımda silinmez.
+- TS anlamsal gölge ölçümü aktif satırı 60 sn önbellekle okur: geçiş en geç 60 sn'de görünür.
+  Aktif model TS'nin sorgulayamadığı bir modelse ölçüm `no_vector/unsupported_model` yazar.
+- `compare` HNSW yokken örnek başına tam tarama yapar; üretimde küçük örneklem kullanın.
+- **Bu adımlar üretimde ayrı onay ister** (aktif indeks değişimi arama ölçümünü etkiler).
 Pilot çıktısı: parti gecikmesi p50/p95, metin/sn, tepe RSS, modelin token sınırını aşan metin oranı.
 Üretim VPS'inde pilot çalıştırmak ayrı onay ister.
 

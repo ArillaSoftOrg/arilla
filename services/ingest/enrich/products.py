@@ -87,14 +87,37 @@ MAX_CONSECUTIVE_FAILURES = 3
 #: Kuru calisma/tavan tahmini: uretimde 15.000 urunde ~47,5 token / ~130 karakter olculdu (0170).
 CHARS_PER_TOKEN = DEFAULT_SPEC.chars_per_token
 
-_COLUMNS = "p.id, p.title, b.name, s.source_hash, e.content_hash, e.text_version"
-_SCAN = f"""
-SELECT {_COLUMNS}
+#: Vektor tablosu ve boyutu kayit defterindeki aileden gelir (karar 0180/0181). Tablo adi SQL'e
+#: yalnizca bu kumeden girer (kullanici girdisi degil).
+TABLES = frozenset({"product_text_embedding", "product_text_embedding_d384"})
+#: Karar 0179 veri seti yalniz saglayici (API) vektorlerini ve `halfvec(768)`i tasir.
+ARCHIVE_TABLE = "product_text_embedding"
+
+
+@dataclass(frozen=True)
+class TableSql:
+    """Bir vektor tablosu icin tum ifadeler. Hepsi ayni sozlesmeyi (0105) paylasir."""
+
+    table: str
+    dimensions: int
+    scan_range: str
+    scan_ids: str
+    donors: str
+    copy: str
+    upsert: str
+    touch: str
+
+
+def table_sql(table: str, dimensions: int) -> TableSql:
+    if table not in TABLES or not 1 <= dimensions <= 4000:
+        raise ValueError(f"bilinmeyen vektor tablosu: {table!r}")
+    scan = f"""
+SELECT p.id, p.title, b.name, s.source_hash, e.content_hash, e.text_version
   FROM product p
   LEFT JOIN brand b ON b.id = p.brand_id
  CROSS JOIN LATERAL (
        SELECT decode(md5(p.title || chr(31) || coalesce(b.name, '')), 'hex') AS source_hash) s
-  LEFT JOIN product_text_embedding e
+  LEFT JOIN {table} e
          ON e.product_id = p.id AND e.model_version = %(model)s
  WHERE {{where}}
    AND p.publication_state = 'published'
@@ -104,18 +127,7 @@ SELECT {_COLUMNS}
         OR e.source_hash <> s.source_hash)
  ORDER BY p.id
 """
-SCAN_RANGE_SQL = _SCAN.format(where="p.id > %(lo)s AND p.id <= %(hi)s")
-SCAN_IDS_SQL = _SCAN.format(where="p.id = ANY(%(ids)s::bigint[])")
-
-MAX_ID_SQL = "SELECT coalesce(max(id), 0) FROM product"
-
-DONORS_SQL = """
-SELECT DISTINCT content_hash
-  FROM product_text_embedding
- WHERE model_version = %(model)s AND content_hash = ANY(%(hashes)s::bytea[])
-"""
-
-_ON_CONFLICT = """
+    on_conflict = """
 ON CONFLICT (product_id, model_version) DO UPDATE
    SET text_version = EXCLUDED.text_version,
        content_hash = EXCLUDED.content_hash,
@@ -123,40 +135,65 @@ ON CONFLICT (product_id, model_version) DO UPDATE
        embedding    = EXCLUDED.embedding,
        embedded_at  = now()
 """
-
-# Vektor sunucu tarafinda kopyalanir (istemciye 768 sayi tasinmaz). Arada silinen urun JOIN ile
-# elenir (FK hatasi yerine sessizce atlanir).
-COPY_SQL = (
-    """
-INSERT INTO product_text_embedding AS t
+    # Vektor sunucu tarafinda kopyalanir (istemciye vektor tasinmaz). Arada silinen urun JOIN ile
+    # elenir (FK hatasi yerine sessizce atlanir).
+    copy = f"""
+INSERT INTO {table} AS t
        (product_id, model_version, text_version, content_hash, source_hash, embedding)
 SELECT u.product_id, %(model)s, %(text_version)s, u.content_hash, u.source_hash, d.embedding
   FROM unnest(%(ids)s::bigint[], %(content)s::bytea[], %(source)s::bytea[])
        AS u(product_id, content_hash, source_hash)
   JOIN product p ON p.id = u.product_id
   JOIN LATERAL (
-       SELECT e.embedding FROM product_text_embedding e
+       SELECT e.embedding FROM {table} e
         WHERE e.model_version = %(model)s AND e.content_hash = u.content_hash
         LIMIT 1) d ON true
 """
-    + _ON_CONFLICT
-)
-
-UPSERT_SQL = (
-    """
-INSERT INTO product_text_embedding AS t
+    upsert = f"""
+INSERT INTO {table} AS t
        (product_id, model_version, text_version, content_hash, source_hash, embedding)
 SELECT u.product_id, %(model)s, %(text_version)s, u.content_hash, u.source_hash,
-       u.embedding::halfvec(768)
+       u.embedding::halfvec({dimensions})
   FROM unnest(%(ids)s::bigint[], %(content)s::bytea[], %(source)s::bytea[], %(vectors)s::text[])
        AS u(product_id, content_hash, source_hash, embedding)
   JOIN product p ON p.id = u.product_id
 """
-    + _ON_CONFLICT
-)
+    # Kanonik metin ayni: yalniz kaynak ozeti yenilenir. Vektor kolonu yazilmaz (HNSW kuruluyken
+    # indeks bakimi ve WAL olusmasin).
+    touch = f"""
+UPDATE {table} t
+   SET source_hash = u.source_hash
+  FROM unnest(%(ids)s::bigint[], %(source)s::bytea[]) AS u(product_id, source_hash)
+ WHERE t.product_id = u.product_id AND t.model_version = %(model)s
+"""
+    donors = f"""
+SELECT DISTINCT content_hash
+  FROM {table}
+ WHERE model_version = %(model)s AND content_hash = ANY(%(hashes)s::bytea[])
+"""
+    return TableSql(
+        table=table,
+        dimensions=dimensions,
+        scan_range=scan.format(where="p.id > %(lo)s AND p.id <= %(hi)s"),
+        scan_ids=scan.format(where="p.id = ANY(%(ids)s::bigint[])"),
+        donors=donors,
+        copy=copy + on_conflict,
+        upsert=upsert + on_conflict,
+        touch=touch,
+    )
 
-# Kanonik metin ayni: yalniz kaynak ozeti yenilenir. Vektor kolonu yazilmaz (HNSW kuruluyken
-# indeks bakimi ve WAL olusmasin).
+
+#: Varsayilan (uretim) tablo ifadeleri; eski adlarla da erisilebilir.
+DEFAULT_SQL = table_sql("product_text_embedding", 768)
+SCAN_RANGE_SQL = DEFAULT_SQL.scan_range
+SCAN_IDS_SQL = DEFAULT_SQL.scan_ids
+DONORS_SQL = DEFAULT_SQL.donors
+COPY_SQL = DEFAULT_SQL.copy
+UPSERT_SQL = DEFAULT_SQL.upsert
+TOUCH_SQL = DEFAULT_SQL.touch
+
+MAX_ID_SQL = "SELECT coalesce(max(id), 0) FROM product"
+
 # Karar 0179: saglayicidan gelen her (kanonik metin, vektor) urunden bagimsiz arsive; ayni metin tek
 # satir. Vektor yazimiyla AYNI islemde: arsivde olmayan vektor urun tablosunda da olmaz.
 ARCHIVE_SQL = """
@@ -168,13 +205,6 @@ SELECT %(model)s, u.content_hash, %(text_version)s, %(task)s, u.input_text,
   FROM unnest(%(content)s::bytea[], %(texts)s::text[], %(vectors)s::text[], %(ids)s::bigint[])
        AS u(content_hash, input_text, embedding, product_id)
 ON CONFLICT (model_version, content_hash) DO NOTHING
-"""
-
-TOUCH_SQL = """
-UPDATE product_text_embedding t
-   SET source_hash = u.source_hash
-  FROM unnest(%(ids)s::bigint[], %(source)s::bytea[]) AS u(product_id, source_hash)
- WHERE t.product_id = u.product_id AND t.model_version = %(model)s
 """
 
 
@@ -322,12 +352,14 @@ def vector_literal(vector: Sequence[float]) -> str:
     return "[" + ",".join(f"{value:.5g}" for value in vector) + "]"
 
 
-def _windows(conn: psycopg.Connection, options: Options) -> Iterator[tuple[str, dict[str, Any]]]:
+def _windows(
+    conn: psycopg.Connection, options: Options, queries: TableSql = DEFAULT_SQL
+) -> Iterator[tuple[str, dict[str, Any]]]:
     """(sql, parametre) pencereleri: kimlik listesi dilimleri ya da birincil anahtar araliklari."""
     if options.ids is not None:
         ids = sorted({int(i) for i in options.ids if int(i) > options.after_id})
         for start in range(0, len(ids), options.scan_step):
-            yield SCAN_IDS_SQL, {"ids": ids[start : start + options.scan_step]}
+            yield queries.scan_ids, {"ids": ids[start : start + options.scan_step]}
         return
     with conn.cursor() as cur:
         cur.execute(MAX_ID_SQL)
@@ -339,7 +371,7 @@ def _windows(conn: psycopg.Connection, options: Options) -> Iterator[tuple[str, 
     lo = options.after_id
     while lo < top:
         hi = min(lo + options.scan_step, top)
-        yield SCAN_RANGE_SQL, {"lo": lo, "hi": hi}
+        yield queries.scan_range, {"lo": lo, "hi": hi}
         lo = hi
 
 
@@ -374,6 +406,9 @@ class ProductEmbedder:
         self.should_stop = should_stop
         self.model = client.model_version
         self.spec: ModelSpec | None = registry().spec_for_version(self.model)
+        self.sql = DEFAULT_SQL
+        #: Yalniz saglayici vektorleri 0179 veri setine yazilir (yerel cikti yeniden uretilebilir).
+        self.archive = False
         self.counts = ProductCounts(
             model=self.model,
             provider=self.spec.provider if self.spec else "unknown",
@@ -389,8 +424,13 @@ class ProductEmbedder:
         try:
             if self.spec is None:
                 raise RegistryError(f"kayit defterinde yok: {self.model!r}")
-            require_writable(self.spec, INDEX_FAMILY)
-        except RegistryError as error:
+            if "product_text" not in self.spec.roles or self.spec.state == "disabled":
+                raise RegistryError(f"{self.spec.id}: urun metni icin kullanilamaz")
+            require_writable(self.spec, self.spec.index_family)
+            family = registry().family(self.spec)
+            self.sql = table_sql(family.table or "", family.dimensions)
+            self.archive = family.table == ARCHIVE_TABLE and self.spec.provider == "jina"
+        except (RegistryError, ValueError) as error:
             self.counts.incompatible = True
             self.counts.note(str(error))
             return self.counts
@@ -398,7 +438,7 @@ class ProductEmbedder:
             self.counts.locked = True
             return self.counts
         try:
-            for sql, params in _windows(self.conn, self.options):
+            for sql, params in _windows(self.conn, self.options, self.sql):
                 if self._halted():
                     break
                 rows = self._scan(sql, params)
@@ -551,7 +591,7 @@ class ProductEmbedder:
         self.counts.touched += len(touch)
         with self.conn.cursor() as cur:
             cur.execute(
-                TOUCH_SQL,
+                self.sql.touch,
                 {
                     "model": self.model,
                     "ids": [t.product_id for t in touch],
@@ -563,7 +603,7 @@ class ProductEmbedder:
 
     def _donors(self, hashes: list[bytes]) -> set[bytes]:
         with self.conn.cursor() as cur:
-            cur.execute(DONORS_SQL, {"model": self.model, "hashes": hashes})
+            cur.execute(self.sql.donors, {"model": self.model, "hashes": hashes})
             found = {bytes(row[0]) for row in cur.fetchall()}
         self.conn.commit()
         if self.options.dry_run:
@@ -585,7 +625,7 @@ class ProductEmbedder:
             "source": [m.source_hash for m in members],
         }
         with self.conn.cursor() as cur:
-            cur.execute(COPY_SQL, params)
+            cur.execute(self.sql.copy, params)
             written = max(cur.rowcount, 0)
         self.conn.commit()
         self.counts.reused += written
@@ -648,8 +688,11 @@ class ProductEmbedder:
             "vectors": [r[3] for r in rows],
         }
         with self.conn.cursor() as cur:
-            cur.execute(UPSERT_SQL, params)
+            cur.execute(self.sql.upsert, params)
             c.written += max(cur.rowcount, 0)
+            if not self.archive:
+                self.conn.commit()
+                return True
             cur.execute(
                 ARCHIVE_SQL,
                 {
@@ -699,6 +742,8 @@ class ProductEmbedder:
                 operation="product_text_embedding",
                 model_version=batch.model_version,
                 units=batch.total_tokens,
+                # Yerel CPU modeli cagri basina ucretsizdir; cagri yine kaydedilir (kural 9).
+                cost_micros=0 if self.spec and self.spec.provider == "local_onnx" else None,
             ),
         )
         self.conn.commit()
@@ -821,6 +866,10 @@ def build_parser() -> argparse.ArgumentParser:
         default=None,
         help="kayit defteri kimligi (varsayilan: ENRICH_PRODUCT_TEXT_MODEL, yoksa kayit)",
     )
+    parser.add_argument(
+        "--model-dir", type=Path, default=None, help="yerel (local_onnx) model dizini"
+    )
+    parser.add_argument("--threads", type=int, default=2, help="yerel model is parcacigi")
     parser.add_argument("--verbose", "-v", action="store_true")
     return parser
 
@@ -836,20 +885,29 @@ def _validate(args: argparse.Namespace) -> str | None:
         return "--ids-file ile --until-id birlikte kullanilmaz"
     if args.max_tokens is not None and args.max_tokens < 1:
         return "--max-tokens pozitif olmali"
-    if args.execute and not args.fake_client and args.max_tokens is None:
-        return "gercek API icin --max-tokens zorunlu; sinirsiz ucretli cagri yok"
-    if args.fake_client and args.execute and not _is_local(database_url("DATABASE_URL")):
+    local_db = _is_local(database_url("DATABASE_URL"))
+    if args.fake_client and args.execute and not local_db:
         return "sahte vektor yalnizca yerel veritabanina yazilabilir"
+    if args.threads < 1:
+        return "--threads pozitif olmali"
     try:
-        spec = select_model("product_text", requested=args.model)
-        require_writable(spec, INDEX_FAMILY)
+        spec = _select(args, local_db)
+        require_writable(spec, spec.index_family)
     except RegistryError as error:
         return f"model secilemez: {error}"
-    if spec.provider != "jina":
-        return f"{spec.id}: yalniz uzak API saglayicisi (yerel pilot: enrich.pilot)"
-    if args.execute and not args.fake_client and not os.environ.get("JINA_API_KEY"):
-        return "JINA_API_KEY tanimli degil"
+    if spec.provider == "jina":
+        if args.execute and not args.fake_client and args.max_tokens is None:
+            return "gercek API icin --max-tokens zorunlu; sinirsiz ucretli cagri yok"
+        if args.execute and not args.fake_client and not os.environ.get("JINA_API_KEY"):
+            return "JINA_API_KEY tanimli degil"
+    elif not args.fake_client and args.model_dir is None:
+        return f"{spec.id}: yerel model icin --model-dir gerekli"
     return None
+
+
+def _select(args: argparse.Namespace, local_db: bool) -> ModelSpec:
+    """Uretimde yalniz active/shadow + dogrulanmis lisans; pilot modeller yalniz YEREL DB."""
+    return select_model("product_text", requested=args.model, allow_pilot=local_db)
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -878,21 +936,29 @@ def main(argv: list[str] | None = None) -> int:
         scan_step=args.scan_step,
         api_batch=args.batch_size,
     )
-    spec = select_model("product_text", requested=args.model)  # _validate dogruladi
+    spec = _select(args, _is_local(database_url("DATABASE_URL")))  # _validate dogruladi
     budget: TokenBudget | None = None
     client: EmbeddingClient
     if args.fake_client:
         client = FakeEmbeddingClient(model=f"{spec.id}-fake", dimensions=spec.dimensions)
         print("UYARI: sahte istemci; vektorler anlamsal DEGIL.\n")
     else:
-        if args.execute:
+        if args.execute and spec.provider == "jina":
             budget = TokenBudget(tokens_per_minute=tokens_per_minute_from_env())
             print(f"butce {budget.tokens_per_minute} token/dk, tavan {args.max_tokens} token\n")
-        # Kayit defterinden: model, gorev (`retrieval.passage`) ve boyut. Jina saglayicisi
-        # `_validate`'te denetlendi; donen nesne JinaEmbeddingClient'tir.
-        client = build_text_provider(  # type: ignore[assignment]
-            spec, purpose="passage", budget=budget, batch_size=args.batch_size
-        )
+        # Kayit defterinden: model, gorev/onek ve boyut (uzak API ya da yerel CPU).
+        try:
+            client = build_text_provider(  # type: ignore[assignment]
+                spec,
+                purpose="passage",
+                budget=budget,
+                batch_size=args.batch_size,
+                model_dir=args.model_dir,
+                threads=args.threads,
+            )
+        except (RegistryError, RuntimeError, ImportError) as error:
+            print(f"HATA: model yuklenemedi: {error}", file=sys.stderr)
+            return 2
 
     signal.signal(signal.SIGINT, _request_stop)
     signal.signal(signal.SIGTERM, _request_stop)

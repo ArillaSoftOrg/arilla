@@ -1,4 +1,4 @@
-/** 0004_semantic.sql karsiligi (+ 0105 urun metin vektoru). */
+/** 0004_semantic.sql karsiligi (+ 0105 urun metin vektoru, 0110 indeks durumu). */
 import {
   bigint,
   boolean,
@@ -13,6 +13,7 @@ import {
   smallint,
   text,
   timestamp,
+  uniqueIndex,
   vector,
 } from "drizzle-orm/pg-core";
 import { product } from "./catalog.ts";
@@ -99,6 +100,48 @@ export const productTextEmbedding = pgTable(
   (table) => [
     primaryKey({ columns: [table.productId, table.modelVersion] }),
     index("product_text_embedding_hash_idx").on(table.modelVersion, table.contentHash),
+  ],
+);
+
+/**
+ * 0110 (karar 0181): embedding indeks durumu. Hedef basina tek `active` (kismi unique). Yazan
+ * Python `enrich.index` (gecis/rollback tek islemde); TypeScript yalniz `active` satiri okur.
+ */
+export const embeddingIndex = pgTable(
+  "embedding_index",
+  {
+    id: bigint("id", { mode: "number" }).primaryKey().generatedAlwaysAsIdentity(),
+    target: text("target").notNull(),
+    modelVersion: text("model_version").notNull(),
+    indexFamily: text("index_family").notNull(),
+    dimensions: integer("dimensions").notNull(),
+    storageTable: text("storage_table").notNull(),
+    state: text("state").notNull().default("building"),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+    activatedAt: timestamp("activated_at", { withTimezone: true }),
+    retiredAt: timestamp("retired_at", { withTimezone: true }),
+  },
+  (table) => [uniqueIndex("embedding_index_target_model").on(table.target, table.modelVersion)],
+);
+
+/** 0110 (karar 0181): 384 boyutlu modellerin urun metin vektoru; sozlesme 0105 ile ayni. */
+export const productTextEmbeddingD384 = pgTable(
+  "product_text_embedding_d384",
+  {
+    productId: bigint("product_id", { mode: "number" })
+      .notNull()
+      .references(() => product.id, { onDelete: "cascade" }),
+    modelVersion: text("model_version").notNull(),
+    textVersion: smallint("text_version").notNull(),
+    contentHash: bytea("content_hash").notNull(),
+    sourceHash: bytea("source_hash").notNull(),
+    embedding: halfvec("embedding", { dimensions: 384 }).notNull(),
+    embeddedAt: timestamp("embedded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.productId, table.modelVersion] }),
+    index("product_text_embedding_d384_hash_idx").on(table.modelVersion, table.contentHash),
   ],
 );
 

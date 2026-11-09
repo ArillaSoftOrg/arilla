@@ -88,6 +88,11 @@ da farklı uzaydaki bir model, kendi indeks ailesinin tablosu dışında hiçbir
 yazamaz. Yerel CPU modelleri (0155 ONNX) ve uzak API'ler aynı sağlayıcı
 sözleşmesine bağlanır.
 
+**Aktif indeks (karar 0181).** Aramanın hangi model/tabloyu okuyacağı
+`embedding_index` tablosundadır (hedef başına tek `active`). Yeni model önce kendi
+tablosuna gölgede doldurulur, sonra `python -m enrich.index activate` ile tek işlemde
+etkinleştirilir; geri dönüş `rollback`. TypeScript aktif satırı yalnızca okur.
+
 **Bu, mimari sınırı bozmaz.** Python ile TypeScript birbirini çağırmıyor;
 ikisi de aynı dış API'yi bağımsız olarak çağırıyor. Aralarındaki tek kanal
 hâlâ PostgreSQL ve kuyruk (Redis; link çözümlemede isteğe bağlı olarak Vercel
