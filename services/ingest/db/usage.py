@@ -74,10 +74,16 @@ class ModelCall:
     session_id: str | None = None
     user_id: int | None = None
     cache_hit: bool = False
+    #: Acik maliyet (TRY mikro). None: token orani (`EMBEDDING_COST_MICROS_PER_1K_TOKENS`).
+    #: Yerel CPU modeli (karar 0180) cagri basina ucret odemez: 0 verilir, cagri yine kaydedilir.
+    cost_micros: int | None = None
 
 
 def record(conn: psycopg.Connection, call: ModelCall) -> None:
-    cost = round(call.units * cost_micros_per_1k_tokens() / 1000)
+    if call.cost_micros is not None:
+        cost = max(0, call.cost_micros)
+    else:
+        cost = round(call.units * cost_micros_per_1k_tokens() / 1000)
     with conn.cursor() as cur:
         cur.execute(
             INSERT_USAGE,

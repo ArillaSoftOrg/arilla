@@ -1,0 +1,109 @@
+{
+  "format": 1,
+  "index_families": {
+    "offer_vector768": {
+      "table": "embedding",
+      "dimensions": 768,
+      "vector_type": "vector"
+    },
+    "product_text_halfvec768": {
+      "table": "product_text_embedding",
+      "dimensions": 768,
+      "vector_type": "halfvec"
+    },
+    "product_text_halfvec384": {
+      "table": "product_text_embedding_d384",
+      "dimensions": 384,
+      "vector_type": "halfvec"
+    },
+    "product_text_halfvec1024": {
+      "table": null,
+      "dimensions": 1024,
+      "vector_type": "halfvec"
+    }
+  },
+  "defaults": {
+    "product_text": "jina-embeddings-v3"
+  },
+  "models": [
+    {
+      "id": "jina-clip-v2",
+      "provider": "jina",
+      "roles": ["offer_multimodal"],
+      "modalities": ["image", "text"],
+      "dimensions": 768,
+      "normalization": "provider_l2",
+      "max_input_tokens": 8192,
+      "chars_per_token": 3.0,
+      "preprocessing_version": "img512-v1",
+      "tasks": {},
+      "prefixes": {},
+      "index_family": "offer_vector768",
+      "state": "active",
+      "license": "commercial-api",
+      "license_verified": true,
+      "source": { "repo": "api.jina.ai", "revision": null },
+      "decision": "0015"
+    },
+    {
+      "id": "jina-embeddings-v3",
+      "provider": "jina",
+      "roles": ["product_text"],
+      "modalities": ["text"],
+      "dimensions": 768,
+      "normalization": "provider_l2",
+      "max_input_tokens": 8192,
+      "chars_per_token": 2.75,
+      "preprocessing_version": "product-text-v1",
+      "tasks": { "passage": "retrieval.passage", "query": "retrieval.query" },
+      "prefixes": {},
+      "index_family": "product_text_halfvec768",
+      "state": "active",
+      "license": "commercial-api",
+      "license_verified": true,
+      "source": { "repo": "api.jina.ai", "revision": null },
+      "decision": "0177"
+    },
+    {
+      "id": "e5-small-int8-0bcc8ca76950",
+      "provider": "local_onnx",
+      "roles": ["product_text"],
+      "modalities": ["text"],
+      "dimensions": 384,
+      "normalization": "l2",
+      "max_input_tokens": 64,
+      "chars_per_token": 2.75,
+      "preprocessing_version": "product-text-v1",
+      "tasks": {},
+      "prefixes": { "passage": "passage: ", "query": "query: " },
+      "index_family": "product_text_halfvec384",
+      "state": "pilot",
+      "license": "MIT",
+      "license_verified": false,
+      "source": {
+        "repo": "intfloat/multilingual-e5-small",
+        "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3"
+      },
+      "decision": "0180"
+    },
+    {
+      "id": "bge-m3",
+      "provider": "local_onnx",
+      "roles": ["product_text"],
+      "modalities": ["text"],
+      "dimensions": 1024,
+      "normalization": "l2",
+      "max_input_tokens": 8192,
+      "chars_per_token": 2.75,
+      "preprocessing_version": "product-text-v1",
+      "tasks": {},
+      "prefixes": {},
+      "index_family": "product_text_halfvec1024",
+      "state": "disabled",
+      "license": "MIT",
+      "license_verified": false,
+      "source": { "repo": "BAAI/bge-m3", "revision": null },
+      "decision": "0180"
+    }
+  ]
+}

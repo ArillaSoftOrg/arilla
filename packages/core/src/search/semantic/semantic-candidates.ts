@@ -19,6 +19,7 @@ import { bestOfferCte, buildFilterClause, merchantIdsOf } from "../search-sql.ts
 import { foldedTitleExpr } from "../text-match.ts";
 import type { QueryFilters } from "../types.ts";
 import { requiredColorPattern } from "./accessory-guard.ts";
+import { DEFAULT_SEMANTIC_INDEX, type SemanticIndex } from "./active-index.ts";
 import {
   isValidModelVersion,
   SEMANTIC_CANDIDATE_TIMEOUT_MS,
@@ -26,7 +27,6 @@ import {
   SEMANTIC_MAX_CANDIDATES,
 } from "./config.ts";
 import { requiredTypePattern } from "./product-type.ts";
-import { QUERY_EMBEDDING_DIMENSIONS } from "./query-embedder.ts";
 
 export interface SemanticCandidate {
   productId: number;
@@ -37,6 +37,8 @@ export interface SemanticCandidate {
 export interface SemanticCandidateRequest {
   vector: readonly number[];
   modelVersion: string;
+  /** Okunacak tablo ve boyut (karar 0181); verilmezse varsayilan uretim indeksi. */
+  index?: SemanticIndex;
   /** Baslik korumalari icin kullanici sorgusu. */
   text: string;
   filters: QueryFilters;
@@ -45,8 +47,11 @@ export interface SemanticCandidateRequest {
   statementTimeoutMs?: number;
 }
 
-export function vectorLiteral(vector: readonly number[]): string {
-  if (vector.length !== QUERY_EMBEDDING_DIMENSIONS || !vector.every(Number.isFinite)) {
+export function vectorLiteral(
+  vector: readonly number[],
+  dimensions: number = DEFAULT_SEMANTIC_INDEX.dimensions,
+): string {
+  if (vector.length !== dimensions || !vector.every(Number.isFinite)) {
     throw new Error("gecersiz sorgu vektoru");
   }
   return `[${vector.join(",")}]`;
@@ -59,6 +64,20 @@ export function vectorLiteral(vector: readonly number[]): string {
 function modelLiteral(modelVersion: string) {
   if (!isValidModelVersion(modelVersion)) throw new Error("gecersiz embedding model_version");
   return sql.raw(`'${modelVersion}'`);
+}
+
+/**
+ * Tablo ve `halfvec(n)` tipi yalniz beyaz listedeki indeksten gelir. Baska modelin vektoru hicbir
+ * zaman karsilastirilmaz: sorgu `model_version` ile suzulur, boyut `vectorLiteral`'da denetlenir.
+ */
+function indexSql(index: SemanticIndex) {
+  if (!["product_text_embedding", "product_text_embedding_d384"].includes(index.table)) {
+    throw new Error("gecersiz embedding tablosu");
+  }
+  if (!Number.isInteger(index.dimensions) || index.dimensions < 1 || index.dimensions > 4000) {
+    throw new Error("gecersiz embedding boyutu");
+  }
+  return { table: sql.raw(index.table), type: sql.raw(`halfvec(${index.dimensions})`) };
 }
 
 /** Baslik korumalari: zorunlu desenler (sorgudaki tur/renk) ve aksesuar dislama. */
@@ -85,7 +104,9 @@ export async function findSemanticCandidates(
 ): Promise<SemanticCandidate[]> {
   const knnLimit = request.knnLimit ?? SEMANTIC_KNN_LIMIT;
   const limit = request.limit ?? SEMANTIC_MAX_CANDIDATES;
-  const literal = vectorLiteral(request.vector);
+  const index = request.index ?? DEFAULT_SEMANTIC_INDEX;
+  const { table, type } = indexSql(index);
+  const literal = vectorLiteral(request.vector, index.dimensions);
   const model = modelLiteral(request.modelVersion);
   const inStockOnly = request.filters.in_stock_only ?? false;
   const timeout = request.statementTimeoutMs ?? SEMANTIC_CANDIDATE_TIMEOUT_MS;
@@ -99,10 +120,10 @@ export async function findSemanticCandidates(
     return tx.execute<{ id: string; title: string; similarity: number }>(sql`
       WITH knn AS MATERIALIZED (
         SELECT e.product_id,
-               (1 - (e.embedding <=> ${literal}::halfvec(768)))::double precision AS similarity
-        FROM product_text_embedding e
+               (1 - (e.embedding <=> ${literal}::${type}))::double precision AS similarity
+        FROM ${table} e
         WHERE e.model_version = ${model}
-        ORDER BY e.embedding <=> ${literal}::halfvec(768)
+        ORDER BY e.embedding <=> ${literal}::${type}
         LIMIT ${knnLimit}
       ),
       ${bestOfferCte(inStockOnly, merchantIdsOf(request.filters), null, sql`o.product_id IN (SELECT product_id FROM knn)`)}
@@ -131,14 +152,21 @@ export async function findSemanticCandidates(
 /** Verilen urunlerin sorgu vektorune kosinus benzerligi (yalniz vektoru olanlar doner). */
 export async function similaritiesFor(
   db: Database,
-  request: { vector: readonly number[]; modelVersion: string; productIds: readonly number[] },
+  request: {
+    vector: readonly number[];
+    modelVersion: string;
+    productIds: readonly number[];
+    index?: SemanticIndex;
+  },
 ): Promise<Map<number, number>> {
   if (request.productIds.length === 0) return new Map();
-  const literal = vectorLiteral(request.vector);
+  const index = request.index ?? DEFAULT_SEMANTIC_INDEX;
+  const { table, type } = indexSql(index);
+  const literal = vectorLiteral(request.vector, index.dimensions);
   const rows = await db.execute<{ id: string; similarity: number }>(sql`
     SELECT e.product_id::text AS id,
-           (1 - (e.embedding <=> ${literal}::halfvec(768)))::double precision AS similarity
-    FROM product_text_embedding e
+           (1 - (e.embedding <=> ${literal}::${type}))::double precision AS similarity
+    FROM ${table} e
     WHERE e.model_version = ${modelLiteral(request.modelVersion)}
       AND e.product_id = ANY(${sql.param([...request.productIds])}::bigint[])
   `);

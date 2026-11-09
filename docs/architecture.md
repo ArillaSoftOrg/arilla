@@ -72,9 +72,26 @@ alternatifler: `docs/decisions/0015-embedding-saglayici.md`.
 Katalog tarafı toplu iş olarak kalır çünkü maliyet katalog büyüklüğüyle
 ölçeklenir, kullanıcı sayısıyla değil — bir kez üretilir, bin kez okunur.
 
-İkinci satır `CLAUDE.md` 1. kuralın **tek istisnasıdır**: istek yolundaki tek
-model çağrısı budur ve kuralın kendisi onu `EmbeddingService` arkasına ve
-hash cache'ine bağlar.
+İkinci satır `CLAUDE.md` 1. kuralın istisnalarından biridir: kural onu
+`EmbeddingService` arkasına ve hash cache'ine bağlar.
+
+**Ürün metni (karar 0177–0179).** Ürün başına ayrı bir metin vektörü
+`jina-embeddings-v3` ile `product_text_embedding` (`halfvec(768)`) tablosuna
+yazılır (`python -m enrich.products`, elle ve token tavanıyla). Sorgu tarafı aynı
+modeli yalnızca gölge ölçümde kullanır (0178); kullanıcı sonuçlarını değiştirmez.
+Sağlayıcının döndürdüğü her (metin, vektör) çifti `embedding_dataset`'te kalıcı
+olarak saklanır (0179).
+
+**Model kayıt defteri (karar 0180).** Model kimliği, boyutu, görevi ve yazabileceği
+tablo `services/ingest/enrich/model_registry.json` dosyasındadır. Farklı boyuttaki ya
+da farklı uzaydaki bir model, kendi indeks ailesinin tablosu dışında hiçbir yere
+yazamaz. Yerel CPU modelleri (0155 ONNX) ve uzak API'ler aynı sağlayıcı
+sözleşmesine bağlanır.
+
+**Aktif indeks (karar 0181).** Aramanın hangi model/tabloyu okuyacağı
+`embedding_index` tablosundadır (hedef başına tek `active`). Yeni model önce kendi
+tablosuna gölgede doldurulur, sonra `python -m enrich.index activate` ile tek işlemde
+etkinleştirilir; geri dönüş `rollback`. TypeScript aktif satırı yalnızca okur.
 
 **Bu, mimari sınırı bozmaz.** Python ile TypeScript birbirini çağırmıyor;
 ikisi de aynı dış API'yi bağımsız olarak çağırıyor. Aralarındaki tek kanal

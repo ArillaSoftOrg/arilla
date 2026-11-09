@@ -4,6 +4,7 @@
  */
 import type { Database } from "@arilla/db";
 import { describe, expect, it, vi } from "vitest";
+import { DEFAULT_SEMANTIC_INDEX } from "./active-index.ts";
 import {
   DEFAULT_SEMANTIC_MODEL,
   semanticModelVersion,
@@ -13,7 +14,7 @@ import {
 } from "./config.ts";
 import { fuseResults, gateSemantic } from "./fusion.ts";
 import { createJinaQueryEmbedder, type QueryEmbedder } from "./query-embedder.ts";
-import type { SemanticCandidate } from "./semantic-candidates.ts";
+import type { SemanticCandidate, SemanticCandidateRequest } from "./semantic-candidates.ts";
 import {
   compareTopN,
   measureSemanticShadow,
@@ -186,6 +187,7 @@ describe("olcum akisi", () => {
       env,
       embedder,
       usedToday: async () => 0,
+      resolveIndex: async () => ({ index: DEFAULT_SEMANTIC_INDEX, source: "db" }),
       findCandidates: async () => [sem(9, 0.8), sem(1, 0.78)],
       findSimilarities: async () => new Map([[1, 0.78]]),
       record: async (_db, metrics) => {
@@ -228,6 +230,32 @@ describe("olcum akisi", () => {
     expect(embedQuery).not.toHaveBeenCalled();
     expect(metrics?.outcome).toBe("ineligible");
     expect(recorded[0]?.reason).toMatch(/^[a-z_]+$/);
+  });
+
+  it("aktif indeks TS'nin sorgulayamadigi bir modelse saglayici cagrilmaz (karar 0181)", async () => {
+    const { recorded, embedQuery, deps } = harness({
+      resolveIndex: async () => ({
+        index: null,
+        reason: "unsupported_model",
+        modelVersion: "e5-small-int8-0bcc8ca76950",
+      }),
+    });
+    expect(await measureSemanticShadow(db, input, deps)).toMatchObject({
+      outcome: "no_vector",
+      reason: "unsupported_model",
+      modelVersion: "e5-small-int8-0bcc8ca76950",
+    });
+    expect(embedQuery).not.toHaveBeenCalled();
+    expect(recorded).toHaveLength(1);
+  });
+
+  it("aday sorgusu aktif indeksi alir", async () => {
+    const findCandidates = vi.fn(async (_db: Database, _request: SemanticCandidateRequest) => [
+      sem(9, 0.8),
+    ]);
+    const { deps } = harness({ findCandidates });
+    await measureSemanticShadow(db, input, deps);
+    expect(findCandidates.mock.calls[0]?.[1]).toMatchObject({ index: DEFAULT_SEMANTIC_INDEX });
   });
 
   it("gunluk tavan doluysa cagri yapilmaz", async () => {

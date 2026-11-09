@@ -2820,6 +2820,48 @@ python -m enrich.products --after-id 0 --until-id 2000000 --execute --max-tokens
   ≈ 27 GB + HNSW. HNSW indeksi yükleme bittikten sonra ayrı `kind: concurrent` migration ile kurulur.
 - **P1 alt kümesi:** kimlik listesi salt okunur SQL ile hazırlanır (ör. bir kategoride başlık
   anahtar sözcüğü + katmanlı örnek); dosya satır başına bir kimliktir, `#` yorumdur.
+- **Model seçimi (karar 0180):** `--model` ya da `ENRICH_PRODUCT_TEXT_MODEL`; boşsa kayıt
+  defterinin varsayılanı (`jina-embeddings-v3`). Farklı boyutlu/`pilot`/`disabled` model çıkış 2
+  ile reddedilir; programatik çağrıda `failed/incompatible_index`, hiçbir satır yazılmaz.
+  `detail` artık `provider`, `embed_ms_p50/p95`, `items_per_s` taşır.
+
+### Embedding kapsamı ve yerel model pilotu (karar 0180)
+
+```bash
+# Salt okunur: model başına kapsanan / uygun ürün (JSON, yalnız sayı).
+python -m enrich.coverage
+# Yerel CPU pilotu: hiçbir şey yazmaz, ağ çağrısı yok; --from-db yalnız YEREL veritabanı.
+pip install -e ".[suggest]"
+python -m enrich.pilot --model e5-small-int8-0bcc8ca76950 --model-dir DIR \
+    --texts-file ornek.txt --threads 2 --batch-size 64
+```
+
+Model dizini `classify suggest model build` ile üretilir ve SHA-256 ile doğrulanır (karar 0155).
+Yerel model `enrich.products --model <id> --model-dir DIR --execute` ile kendi tablosuna
+(`product_text_embedding_d384`) yazar; `pilot` durumundaki model yalnız yerel veritabanında çalışır.
+
+### Embedding indeks geçişi (karar 0181) — kuru varsayılan, `--execute` ile
+
+```bash
+python -m enrich.index list                                    # durumlar (JSON)
+python -m enrich.index register --model M --execute            # building
+python -m enrich.products --model M --execute [...]            # gölge doldurma; aktif indekse dokunmaz
+python -m enrich.index shadow   --model M --execute
+python -m enrich.index compare  --model M --sample 50          # komşu örtüşmesi (salt okunur)
+python -m enrich.index activate --model M --min-coverage 0.95  # önce kuru: planı ve kapsamı gör
+python -m enrich.index activate --model M --min-coverage 0.95 --execute
+python -m enrich.index rollback --execute                      # en son emekli indeks yeniden active
+```
+
+- Geçiş tek işlemdedir (danışma kilidi 181000001 + `FOR UPDATE`); `job_run.job = embedding_index`.
+- `activate` yalnız `shadow` satırı, kayıt defterinde üretime hazır model (active/shadow + doğrulanmış
+  lisans) ve kapsam eşiği sağlanınca kabul edilir. Vektörler hiçbir adımda silinmez.
+- TS anlamsal gölge ölçümü aktif satırı 60 sn önbellekle okur: geçiş en geç 60 sn'de görünür.
+  Aktif model TS'nin sorgulayamadığı bir modelse ölçüm `no_vector/unsupported_model` yazar.
+- `compare` HNSW yokken örnek başına tam tarama yapar; üretimde küçük örneklem kullanın.
+- **Bu adımlar üretimde ayrı onay ister** (aktif indeks değişimi arama ölçümünü etkiler).
+Pilot çıktısı: parti gecikmesi p50/p95, metin/sn, tepe RSS, modelin token sınırını aşan metin oranı.
+Üretim VPS'inde pilot çalıştırmak ayrı onay ister.
 
 ## Anlamsal arama gölge ölçümü (karar 0178) — varsayılan kapalı
 

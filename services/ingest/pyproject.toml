@@ -41,6 +41,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-data]
 classify = ["data/*.tsv"]
+enrich = ["model_registry.json"]
 
 [tool.setuptools]
 packages = [
