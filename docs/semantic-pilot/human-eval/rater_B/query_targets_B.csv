@@ -1,0 +1,39 @@
+﻿query_id,query_text,query_target_type(main/accessory/part/unclear),note,labeler
+Q038,kameralı drone,,,B
+Q037,drone with camera,,,B
+Q036,yoga matı,,,B
+Q035,yoga mat,,,B
+Q034,akıllı saat,,,B
+Q033,smart watch,,,B
+Q032,kedi maması,,,B
+Q031,cat food,,,B
+Q030,bebek bezi,,,B
+Q029,baby diaper,,,B
+Q028,3d yazıcı nozul,,,B
+Q027,3d printer nozzle,,,B
+Q026,gider hortumu,,,B
+Q025,drain hose,,,B
+Q024,robot süpürge,,,B
+Q023,robot vacuum,,,B
+Q022,oyuncak araba,,,B
+Q021,toy car,,,B
+Q020,araç led ışık,,,B
+Q019,car led light,,,B
+Q018,kadın elbise,,,B
+Q017,women dress,,,B
+Q016,spor ayakkabı,,,B
+Q015,sneakers,,,B
+Q014,erkek pantolon,,,B
+Q013,men pants,,,B
+Q012,dizüstü bilgisayar pili,,,B
+Q011,laptop battery,,,B
+Q010,dizüstü klavye,,,B
+Q009,laptop keyboard,,,B
+Q008,bluetooth hoparlör,,,B
+Q007,bluetooth speaker,,,B
+Q006,kulaklık pedi,,,B
+Q005,earpads replacement,,,B
+Q004,kablosuz kulaklık,,,B
+Q003,wireless earbuds,,,B
+Q002,telefon kılıfı,,,B
+Q001,phone case,,,B

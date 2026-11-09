@@ -1,0 +1,39 @@
+﻿query_id,query_text,query_target_type(main/accessory/part/unclear),note,labeler
+Q001,phone case,accessory,,A
+Q002,telefon kılıfı,accessory,,A
+Q003,wireless earbuds,main,,A
+Q004,kablosuz kulaklık,main,,A
+Q005,earpads replacement,part,,A
+Q006,kulaklık pedi,part,,A
+Q007,bluetooth speaker,main,,A
+Q008,bluetooth hoparlör,main,,A
+Q009,laptop keyboard,unclear,"KARARSIZ: dahili yedek klavye mi, harici laptop klavyesi mi belirsiz.",A
+Q010,dizüstü klavye,unclear,"KARARSIZ: dahili yedek klavye mi, harici laptop klavyesi mi belirsiz.",A
+Q011,laptop battery,part,,A
+Q012,dizüstü bilgisayar pili,part,,A
+Q013,men pants,main,,A
+Q014,erkek pantolon,main,,A
+Q015,sneakers,main,,A
+Q016,spor ayakkabı,main,,A
+Q017,women dress,main,,A
+Q018,kadın elbise,main,,A
+Q019,car led light,main,,A
+Q020,araç led ışık,main,,A
+Q021,toy car,main,,A
+Q022,oyuncak araba,main,,A
+Q023,robot vacuum,main,,A
+Q024,robot süpürge,main,,A
+Q025,drain hose,part,,A
+Q026,gider hortumu,part,,A
+Q027,3d printer nozzle,part,,A
+Q028,3d yazıcı nozul,part,,A
+Q029,baby diaper,main,,A
+Q030,bebek bezi,main,,A
+Q031,cat food,main,,A
+Q032,kedi maması,main,,A
+Q033,smart watch,main,,A
+Q034,akıllı saat,main,,A
+Q035,yoga mat,main,KATALOGDA YOK,A
+Q036,yoga matı,main,KATALOGDA YOK,A
+Q037,drone with camera,main,,A
+Q038,kameralı drone,main,,A

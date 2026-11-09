@@ -1,0 +1,29 @@
+
+TUM: 38 sorgu; durum: {'ok': 34, 'incomplete': 1, 'no_relevant': 1, 'verified_absent': 2}
+  yontem     P@10(>=1) P@10(=2) P@ret  ilgisiz  nDCG   MRR    R@10   tur-karisma  sifir-sonuc  sonuc/sorgu
+  text       0.11     0.05    0.84   0.16    0.61   0.74   0.40   0.40       0.29        1.5
+            n (metrik basina sorgu): p_fixed=34, p_returned=27, irrelevant=27, ndcg=34, mrr=34, recall=13, type_mix=22
+  semantic   0.24     0.09    0.54   0.46    0.90   0.94   0.85   0.52       0.05        15.4
+            n (metrik basina sorgu): p_fixed=34, p_returned=34, irrelevant=34, ndcg=34, mrr=34, recall=13, type_mix=18
+  hybrid     0.16     0.08    0.81   0.19    0.80   0.91   0.54   0.34       0.08        1.9
+            n (metrik basina sorgu): p_fixed=34, p_returned=34, irrelevant=34, ndcg=34, mrr=34, recall=13, type_mix=27
+
+EN: 19 sorgu; durum: {'ok': 18, 'verified_absent': 1}
+  yontem     P@10(>=1) P@10(=2) P@ret  ilgisiz  nDCG   MRR    R@10   tur-karisma  sifir-sonuc  sonuc/sorgu
+  text       0.12     0.07    0.84   0.16    0.65   0.81   0.43   0.41       0.16        1.5
+            n (metrik basina sorgu): p_fixed=18, p_returned=16, irrelevant=16, ndcg=18, mrr=18, recall=7, type_mix=14
+  semantic   0.24     0.09    0.50   0.50    0.89   0.91   0.86   0.54       0.05        16.2
+            n (metrik basina sorgu): p_fixed=18, p_returned=18, irrelevant=18, ndcg=18, mrr=18, recall=7, type_mix=9
+  hybrid     0.15     0.08    0.77   0.23    0.77   0.89   0.51   0.35       0.05        2.0
+            n (metrik basina sorgu): p_fixed=18, p_returned=18, irrelevant=18, ndcg=18, mrr=18, recall=7, type_mix=15
+
+TR: 19 sorgu; durum: {'ok': 16, 'incomplete': 1, 'no_relevant': 1, 'verified_absent': 1}
+  yontem     P@10(>=1) P@10(=2) P@ret  ilgisiz  nDCG   MRR    R@10   tur-karisma  sifir-sonuc  sonuc/sorgu
+  text       0.09     0.03    0.85   0.15    0.55   0.66   0.37   0.38       0.42        1.5
+            n (metrik basina sorgu): p_fixed=16, p_returned=11, irrelevant=11, ndcg=16, mrr=16, recall=6, type_mix=8
+  semantic   0.23     0.08    0.58   0.42    0.92   0.97   0.83   0.49       0.05        14.7
+            n (metrik basina sorgu): p_fixed=16, p_returned=16, irrelevant=16, ndcg=16, mrr=16, recall=6, type_mix=9
+  hybrid     0.17     0.08    0.84   0.16    0.82   0.94   0.58   0.33       0.11        1.8
+            n (metrik basina sorgu): p_fixed=16, p_returned=16, irrelevant=16, ndcg=16, mrr=16, recall=6, type_mix=12
+
+olcume GIRMEYEN sorgular (4): {'kulaklık pedi': 'incomplete', 'gider hortumu': 'no_relevant', 'yoga mat': 'verified_absent', 'yoga matı': 'verified_absent'}
