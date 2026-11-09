@@ -1,0 +1,111 @@
+﻿plan_id,family,query,lang,intent,shape,ambiguity,split,seen_in_pilot200,note
+P001,laptop,laptop,en,main,short,none,calibration,False,pil/klavye/canta aksesuari ile karismamali
+P002,laptop,dizüstü bilgisayar,tr,main,short,none,calibration,False,pil/klavye/canta aksesuari ile karismamali
+P003,smartphone,smartphone,en,main,short,category_confusion,calibration,False,kilif/oyuncak telefon ana urun degil
+P004,smartphone,akıllı telefon,tr,main,short,category_confusion,calibration,False,kilif/oyuncak telefon ana urun degil
+P005,gaming_mouse,gaming mouse,en,main,medium,none,validation,False,
+P006,gaming_mouse,oyuncu faresi,tr,main,medium,none,validation,False,
+P007,mech_keyboard,mechanical keyboard,en,main,medium,category_confusion,validation,False,piyano/synthesizer klavyesi ve tus takimi ayri
+P008,mech_keyboard,mekanik klavye,tr,main,medium,category_confusion,validation,False,piyano/synthesizer klavyesi ve tus takimi ayri
+P009,bt_speaker,bluetooth speaker,en,main,medium,none,calibration,True,
+P010,bt_speaker,bluetooth hoparlör,tr,main,medium,none,calibration,True,
+P011,robot_vacuum,robot vacuum,en,main,medium,none,calibration,True,
+P012,robot_vacuum,robot süpürge,tr,main,medium,none,calibration,True,
+P013,air_fryer,air fryer,en,main,medium,none,calibration,False,
+P014,air_fryer,yağsız fritöz,tr,main,medium,none,calibration,False,
+P015,coffee_machine,coffee machine,en,main,medium,none,validation,False,
+P016,coffee_machine,kahve makinesi,tr,main,medium,none,validation,False,
+P017,mens_sneakers,men's sneakers,en,main,medium,none,calibration,True,
+P018,mens_sneakers,erkek spor ayakkabı,tr,main,medium,none,calibration,True,
+P019,winter_coat,women's winter coat,en,main,medium,none,calibration,False,
+P020,winter_coat,kadın kışlık mont,tr,main,medium,none,calibration,False,
+P021,dash_cam,dash cam,en,main,medium,none,validation,False,guvenlik/ev kamerasi ana urun degil
+P022,dash_cam,araç içi kamera,tr,main,medium,none,validation,False,guvenlik/ev kamerasi ana urun degil
+P023,kettle,electric kettle,en,main,medium,none,calibration,False,
+P024,kettle,su ısıtıcı,tr,main,medium,none,calibration,False,
+P025,stroller,baby stroller,en,main,medium,polysemy,calibration,False,'araba' oyuncak/arac degil
+P026,stroller,bebek arabası,tr,main,medium,polysemy,calibration,False,'araba' oyuncak/arac degil
+P027,cat_food,cat food,en,main,medium,none,calibration,True,
+P028,cat_food,kedi maması,tr,main,medium,none,calibration,True,
+P029,diaper,baby diaper,en,main,medium,none,calibration,True,
+P030,diaper,bebek bezi,tr,main,medium,none,calibration,True,
+P031,smartwatch,smart watch,en,main,medium,none,calibration,True,
+P032,smartwatch,akıllı saat,tr,main,medium,none,calibration,True,
+P033,phone_case,phone case,en,accessory,medium,none,calibration,True,
+P034,phone_case,telefon kılıfı,tr,accessory,medium,none,calibration,True,
+P035,laptop_bag,laptop bag,en,accessory,medium,none,calibration,False,
+P036,laptop_bag,laptop çantası,tr,accessory,medium,none,calibration,False,
+P037,screen_protector,phone screen protector,en,accessory,medium,none,validation,False,
+P038,screen_protector,ekran koruyucu,tr,accessory,medium,none,validation,False,
+P039,car_phone_holder,car phone holder,en,accessory,medium,none,calibration,False,
+P040,car_phone_holder,araç telefon tutucu,tr,accessory,medium,none,calibration,False,
+P041,usbc_cable,usb c cable,en,accessory,medium,none,validation,False,
+P042,usbc_cable,usb c kablo,tr,accessory,medium,none,validation,False,
+P043,headphone_stand,headphone stand,en,accessory,medium,none,calibration,False,
+P044,headphone_stand,kulaklık standı,tr,accessory,medium,none,calibration,False,
+P045,watch_strap,smartwatch strap,en,accessory,medium,none,validation,False,
+P046,watch_strap,akıllı saat kordonu,tr,accessory,medium,none,validation,False,
+P047,laptop_stand,laptop stand,en,accessory,medium,none,calibration,False,
+P048,laptop_stand,laptop standı,tr,accessory,medium,none,calibration,False,
+P049,power_bank,power bank,en,accessory,short,category_confusion,calibration,False,pil/sarj aleti ile telefon aksesuari siniri
+P050,power_bank,powerbank,tr,accessory,short,category_confusion,calibration,False,pil/sarj aleti ile telefon aksesuari siniri
+P051,mouse_pad,mouse pad,en,accessory,short,polysemy,calibration,False,
+P052,mouse_pad,mouse pad,tr,accessory,short,polysemy,calibration,False,
+P053,earpads,earpads replacement,en,part,medium,none,calibration,True,
+P054,earpads,kulaklık pedi,tr,part,medium,none,calibration,True,
+P055,laptop_battery,laptop battery,en,part,medium,none,calibration,True,
+P056,laptop_battery,dizüstü bilgisayar pili,tr,part,medium,none,calibration,True,
+P057,vacuum_filter,vacuum cleaner filter,en,part,medium,none,validation,False,
+P058,vacuum_filter,süpürge filtresi,tr,part,medium,none,validation,False,
+P059,brake_pads,brake pads,en,part,medium,none,calibration,False,
+P060,brake_pads,fren balatası,tr,part,medium,none,calibration,False,
+P061,printer_nozzle,3d printer nozzle,en,part,medium,none,calibration,True,
+P062,printer_nozzle,3d yazıcı nozul,tr,part,medium,none,calibration,True,
+P063,oil_filter,oil filter,en,part,medium,none,validation,False,
+P064,oil_filter,yağ filtresi,tr,part,medium,none,validation,False,
+P065,razor_blades,razor blades,en,part,medium,none,calibration,False,
+P066,razor_blades,tıraş bıçağı,tr,part,medium,none,calibration,False,
+P067,drain_hose,drain hose,en,part,medium,none,calibration,True,
+P068,drain_hose,gider hortumu,tr,part,medium,none,calibration,True,
+P069,bike_chain,bicycle chain,en,part,medium,none,validation,False,
+P070,bike_chain,bisiklet zinciri,tr,part,medium,none,validation,False,
+P071,laptop_keyboard_part,laptop keyboard,en,part,medium,category_confusion,calibration,True,"yedek klavye mi, dizustu mu; muzik klavyesi ilgisiz"
+P072,laptop_keyboard_part,dizüstü klavye,tr,part,medium,category_confusion,calibration,True,"yedek klavye mi, dizustu mu; muzik klavyesi ilgisiz"
+P073,mouse_poly,mouse,en,main,short,polysemy,validation,False,bilgisayar faresi vs kemirgen/tuzak
+P074,mouse_poly,fare,tr,main,short,polysemy,validation,False,bilgisayar faresi vs kemirgen/tuzak
+P075,case_poly,case,en,accessory,short,polysemy,validation,False,"telefon/pc/saat kasasi, kasa=safe"
+P076,case_poly,kasa,tr,accessory,short,polysemy,validation,False,"telefon/pc/saat kasasi, kasa=safe"
+P077,toy_car,toy car,en,main,medium,category_confusion,calibration,True,
+P078,toy_car,oyuncak araba,tr,main,medium,category_confusion,calibration,True,
+P079,car_light,car led light,en,accessory,medium,category_confusion,calibration,True,
+P080,car_light,araç led ışık,tr,accessory,medium,category_confusion,calibration,True,
+P081,piano_keyboard,piano keyboard 61 keys,en,main,medium,category_confusion,calibration,False,
+P082,piano_keyboard,61 tuşlu piyano klavyesi,tr,main,medium,category_confusion,calibration,False,
+P083,watch_generic,watch,en,main,short,polysemy,calibration,False,akilli saat/kol saati/duvar saati
+P084,watch_generic,saat,tr,main,short,polysemy,calibration,False,akilli saat/kol saati/duvar saati
+P085,apple_poly,apple,en,main,short,polysemy,validation,False,marka vs meyve; iki dilde ayni
+P086,apple_poly,apple,tr,main,short,polysemy,validation,False,marka vs meyve; iki dilde ayni
+P087,long_speaker,waterproof bluetooth speaker with strap for shower,en,main,long,none,calibration,False,
+P088,long_speaker,duşta kullanılabilir su geçirmez bluetooth hoparlör,tr,main,long,none,calibration,False,
+P089,long_case,black leather case for iphone 15 pro magsafe,en,accessory,long,none,calibration,False,
+P090,long_case,iphone 15 pro için siyah deri magsafe kılıf,tr,accessory,long,none,calibration,False,
+P091,long_filter,replacement filter for xiaomi robot vacuum s10,en,part,long,none,validation,False,
+P092,long_filter,xiaomi robot süpürge s10 yedek filtre,tr,part,long,none,validation,False,
+P093,long_shoes,men's breathable running shoes size 44,en,main,long,none,validation,False,
+P094,long_shoes,erkek nefes alan koşu ayakkabısı 44 numara,tr,main,long,none,validation,False,
+P095,long_hub,usb c hub with hdmi and ethernet,en,accessory,long,none,validation,False,
+P096,long_hub,hdmi ve ethernet çıkışlı usb c hub,tr,accessory,long,none,validation,False,
+P097,long_carvac,cordless car vacuum cleaner,en,main,long,none,calibration,False,
+P098,long_carvac,kablosuz araç süpürgesi,tr,main,long,none,calibration,False,
+P099,tr_only_1,bebek maması,tr,main,medium,none,validation,False,
+P100,tr_only_2,çay bardağı seti,tr,main,medium,none,calibration,False,
+P101,tr_only_3,saç düzleştirici,tr,main,medium,none,validation,False,
+P102,en_only_1,usb flash drive,en,main,medium,none,calibration,False,
+P103,en_only_2,yoga pants,en,main,medium,none,validation,False,
+P104,en_only_3,led strip lights,en,main,medium,none,calibration,False,
+P105,absent_yoga,yoga mat,en,main,medium,may_be_absent,calibration,True,
+P106,absent_yoga,yoga matı,tr,main,medium,may_be_absent,calibration,True,
+P107,absent_telescope,telescope,en,main,short,may_be_absent,calibration,False,
+P108,absent_telescope,teleskop,tr,main,short,may_be_absent,calibration,False,
+P109,absent_guitar,acoustic guitar,en,main,medium,may_be_absent,validation,False,
+P110,absent_guitar,akustik gitar,tr,main,medium,may_be_absent,validation,False,

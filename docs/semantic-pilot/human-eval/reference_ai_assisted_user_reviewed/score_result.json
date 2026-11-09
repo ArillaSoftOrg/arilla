@@ -1,0 +1,2111 @@
+{
+  "phone case": {
+    "q": "phone case",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 1,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 1.0
+      },
+      "semantic": {
+        "n": 18,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.1,
+        "irrelevant": 0.9,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.3
+      },
+      "hybrid": {
+        "n": 3,
+        "zero": false,
+        "returned_top": 3,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.3333333333333333,
+        "irrelevant": 0.6666666666666666,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.3333333333333333
+      }
+    }
+  },
+  "telefon kılıfı": {
+    "q": "telefon kılıfı",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 12,
+      "pooled": 12,
+      "n_rel": 1,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 12,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.1,
+        "irrelevant": 0.9,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 18,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.1,
+        "irrelevant": 0.9,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.4
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.5
+      }
+    }
+  },
+  "wireless earbuds": {
+    "q": "wireless earbuds",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 3,
+      "pooled": 3,
+      "n_rel": 3,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.878961873034099,
+        "mrr": 1.0,
+        "recall": 0.6666666666666666,
+        "type_mix": 0.5
+      },
+      "semantic": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.878961873034099,
+        "mrr": 1.0,
+        "recall": 0.6666666666666666,
+        "type_mix": 0.5
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.878961873034099,
+        "mrr": 1.0,
+        "recall": 0.6666666666666666,
+        "type_mix": 0.5
+      }
+    }
+  },
+  "kablosuz kulaklık": {
+    "q": "kablosuz kulaklık",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 3,
+      "pooled": 3,
+      "n_rel": 3,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.878961873034099,
+        "mrr": 1.0,
+        "recall": 0.6666666666666666,
+        "type_mix": 0.5
+      },
+      "semantic": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.878961873034099,
+        "mrr": 1.0,
+        "recall": 0.6666666666666666,
+        "type_mix": 0.5
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.878961873034099,
+        "mrr": 1.0,
+        "recall": 0.6666666666666666,
+        "type_mix": 0.5
+      }
+    }
+  },
+  "earpads replacement": {
+    "q": "earpads replacement",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 6,
+      "n_strict": 2,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.4568625914789284,
+        "mrr": 1.0,
+        "recall": 0.16666666666666666,
+        "type_mix": 0.0
+      },
+      "semantic": {
+        "n": 50,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.6,
+        "p_strict": 0.2,
+        "p_returned": 0.6,
+        "irrelevant": 0.4,
+        "ndcg": 0.9634948035719303,
+        "mrr": 1.0,
+        "recall": 1.0,
+        "type_mix": 0.5
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.2,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.7451107937367462,
+        "mrr": 1.0,
+        "recall": 0.3333333333333333,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "kulaklık pedi": {
+    "q": "kulaklık pedi",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 7,
+      "pooled": 7,
+      "n_rel": 6,
+      "n_strict": 2,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true,
+        "returned_top": 0,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": null,
+        "irrelevant": null,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": 0.0,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 5,
+        "zero": false,
+        "returned_top": 5,
+        "p_fixed": 0.4,
+        "p_strict": 0.0,
+        "p_returned": 0.8,
+        "irrelevant": 0.2,
+        "ndcg": 0.3529308238876997,
+        "mrr": 1.0,
+        "recall": 0.6666666666666666,
+        "type_mix": 1.0
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.15228753049297614,
+        "mrr": 1.0,
+        "recall": 0.16666666666666666,
+        "type_mix": 1.0
+      }
+    }
+  },
+  "bluetooth speaker": {
+    "q": "bluetooth speaker",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 11,
+      "pooled": 11,
+      "n_rel": 5,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.7337495705923308,
+        "mrr": 1.0,
+        "recall": 0.4,
+        "type_mix": 0.5
+      },
+      "semantic": {
+        "n": 13,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.5,
+        "p_strict": 0.1,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 0.9042747329179259,
+        "mrr": 1.0,
+        "recall": 1.0,
+        "type_mix": 0.9
+      },
+      "hybrid": {
+        "n": 3,
+        "zero": false,
+        "returned_top": 3,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 0.6666666666666666,
+        "irrelevant": 0.3333333333333333,
+        "ndcg": 0.7072908790226796,
+        "mrr": 1.0,
+        "recall": 0.4,
+        "type_mix": 0.6666666666666666
+      }
+    }
+  },
+  "bluetooth hoparlör": {
+    "q": "bluetooth hoparlör",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 11,
+      "pooled": 11,
+      "n_rel": 6,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.6844784467353209,
+        "mrr": 1.0,
+        "recall": 0.3333333333333333,
+        "type_mix": 0.5
+      },
+      "semantic": {
+        "n": 13,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.6,
+        "p_strict": 0.1,
+        "p_returned": 0.6,
+        "irrelevant": 0.4,
+        "ndcg": 0.9490339412151757,
+        "mrr": 1.0,
+        "recall": 1.0,
+        "type_mix": 0.9
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.6844784467353209,
+        "mrr": 1.0,
+        "recall": 0.3333333333333333,
+        "type_mix": 0.5
+      }
+    }
+  },
+  "laptop keyboard": {
+    "q": "laptop keyboard",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 2,
+      "pooled": 2,
+      "n_rel": 1,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 0.6309297535714575,
+        "mrr": 0.5,
+        "recall": null,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 0.6309297535714575,
+        "mrr": 0.5,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 0.6309297535714575,
+        "mrr": 0.5,
+        "recall": null,
+        "type_mix": null
+      }
+    }
+  },
+  "dizüstü klavye": {
+    "q": "dizüstü klavye",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 2,
+      "pooled": 2,
+      "n_rel": 1,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 0.6309297535714575,
+        "mrr": 0.5,
+        "recall": null,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 0.6309297535714575,
+        "mrr": 0.5,
+        "recall": null,
+        "type_mix": null
+      }
+    }
+  },
+  "laptop battery": {
+    "q": "laptop battery",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 2,
+      "n_strict": 2,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.2,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "semantic": {
+        "n": 11,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.2,
+        "p_strict": 0.2,
+        "p_returned": 0.2,
+        "irrelevant": 0.8,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.7
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.2,
+        "p_strict": 0.2,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "dizüstü bilgisayar pili": {
+    "q": "dizüstü bilgisayar pili",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 2,
+      "n_strict": 2,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true,
+        "returned_top": 0,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": null,
+        "irrelevant": null,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 11,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.2,
+        "p_strict": 0.2,
+        "p_returned": 0.2,
+        "irrelevant": 0.8,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.7
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 0.6131471927654584,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.5
+      }
+    }
+  },
+  "men pants": {
+    "q": "men pants",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 9,
+      "pooled": 9,
+      "n_rel": 7,
+      "n_strict": 3,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 4,
+        "zero": false,
+        "returned_top": 4,
+        "p_fixed": 0.4,
+        "p_strict": 0.3,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.8130473352384829,
+        "mrr": 1.0,
+        "recall": 0.5714285714285714,
+        "type_mix": 0.25
+      },
+      "semantic": {
+        "n": 9,
+        "zero": false,
+        "returned_top": 9,
+        "p_fixed": 0.7,
+        "p_strict": 0.3,
+        "p_returned": 0.7777777777777778,
+        "irrelevant": 0.2222222222222222,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": 1.0,
+        "type_mix": 0.4444444444444444
+      },
+      "hybrid": {
+        "n": 4,
+        "zero": false,
+        "returned_top": 4,
+        "p_fixed": 0.4,
+        "p_strict": 0.3,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.8461946992975162,
+        "mrr": 1.0,
+        "recall": 0.5714285714285714,
+        "type_mix": 0.25
+      }
+    }
+  },
+  "erkek pantolon": {
+    "q": "erkek pantolon",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 9,
+      "pooled": 9,
+      "n_rel": 7,
+      "n_strict": 3,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true,
+        "returned_top": 0,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": null,
+        "irrelevant": null,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": 0.0,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 9,
+        "zero": false,
+        "returned_top": 9,
+        "p_fixed": 0.7,
+        "p_strict": 0.3,
+        "p_returned": 0.7777777777777778,
+        "irrelevant": 0.2222222222222222,
+        "ndcg": 0.8558649131911517,
+        "mrr": 1.0,
+        "recall": 1.0,
+        "type_mix": 0.4444444444444444
+      },
+      "hybrid": {
+        "n": 6,
+        "zero": false,
+        "returned_top": 6,
+        "p_fixed": 0.6,
+        "p_strict": 0.3,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.8136700680485585,
+        "mrr": 1.0,
+        "recall": 0.8571428571428571,
+        "type_mix": 0.5
+      }
+    }
+  },
+  "sneakers": {
+    "q": "sneakers",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 2,
+      "pooled": 2,
+      "n_rel": 1,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "semantic": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "spor ayakkabı": {
+    "q": "spor ayakkabı",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 2,
+      "pooled": 2,
+      "n_rel": 1,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "semantic": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      }
+    }
+  },
+  "women dress": {
+    "q": "women dress",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 4,
+      "pooled": 4,
+      "n_rel": 3,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.46927872602275644,
+        "mrr": 1.0,
+        "recall": 0.3333333333333333,
+        "type_mix": 1.0
+      },
+      "semantic": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 0.2960819109658652,
+        "mrr": 0.5,
+        "recall": 0.3333333333333333,
+        "type_mix": 0.5
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.46927872602275644,
+        "mrr": 1.0,
+        "recall": 0.3333333333333333,
+        "type_mix": 1.0
+      }
+    }
+  },
+  "kadın elbise": {
+    "q": "kadın elbise",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 4,
+      "pooled": 4,
+      "n_rel": 3,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 4,
+        "zero": false,
+        "returned_top": 4,
+        "p_fixed": 0.3,
+        "p_strict": 0.0,
+        "p_returned": 0.75,
+        "irrelevant": 0.25,
+        "ndcg": 0.9060254355346823,
+        "mrr": 1.0,
+        "recall": 1.0,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 0.46927872602275644,
+        "mrr": 1.0,
+        "recall": 0.3333333333333333,
+        "type_mix": 0.5
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.46927872602275644,
+        "mrr": 1.0,
+        "recall": 0.3333333333333333,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "car led light": {
+    "q": "car led light",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 3,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 5,
+        "zero": false,
+        "returned_top": 5,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 0.4,
+        "irrelevant": 0.6,
+        "ndcg": 0.8304853296300547,
+        "mrr": 1.0,
+        "recall": 0.6666666666666666,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 11,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.3,
+        "p_strict": 0.1,
+        "p_returned": 0.3,
+        "irrelevant": 0.7,
+        "ndcg": 0.9334961902400011,
+        "mrr": 1.0,
+        "recall": 1.0,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 5,
+        "zero": false,
+        "returned_top": 5,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 0.4,
+        "irrelevant": 0.6,
+        "ndcg": 0.8472668887613066,
+        "mrr": 1.0,
+        "recall": 0.6666666666666666,
+        "type_mix": null
+      }
+    }
+  },
+  "araç led ışık": {
+    "q": "araç led ışık",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 12,
+      "pooled": 12,
+      "n_rel": 3,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true,
+        "returned_top": 0,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": null,
+        "irrelevant": null,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": 0.0,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 50,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.3,
+        "p_strict": 0.1,
+        "p_returned": 0.3,
+        "irrelevant": 0.7,
+        "ndcg": 0.9515234565959557,
+        "mrr": 1.0,
+        "recall": 1.0,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 3,
+        "zero": false,
+        "returned_top": 3,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 0.6666666666666666,
+        "irrelevant": 0.3333333333333333,
+        "ndcg": 0.8472668887613066,
+        "mrr": 1.0,
+        "recall": 0.6666666666666666,
+        "type_mix": null
+      }
+    }
+  },
+  "toy car": {
+    "q": "toy car",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 1,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.5
+      },
+      "semantic": {
+        "n": 27,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.1,
+        "irrelevant": 0.9,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.5
+      }
+    }
+  },
+  "oyuncak araba": {
+    "q": "oyuncak araba",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 2,
+      "pooled": 2,
+      "n_rel": 1,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true,
+        "returned_top": 0,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": null,
+        "irrelevant": null,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "robot vacuum": {
+    "q": "robot vacuum",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 6,
+      "pooled": 6,
+      "n_rel": 5,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.3391602052736161,
+        "mrr": 1.0,
+        "recall": 0.2,
+        "type_mix": 1.0
+      },
+      "semantic": {
+        "n": 6,
+        "zero": false,
+        "returned_top": 6,
+        "p_fixed": 0.5,
+        "p_strict": 0.0,
+        "p_returned": 0.8333333333333334,
+        "irrelevant": 0.16666666666666666,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": 1.0,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 3,
+        "zero": false,
+        "returned_top": 3,
+        "p_fixed": 0.3,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.7227265726449519,
+        "mrr": 1.0,
+        "recall": 0.6,
+        "type_mix": 1.0
+      }
+    }
+  },
+  "robot süpürge": {
+    "q": "robot süpürge",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 6,
+      "pooled": 6,
+      "n_rel": 5,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.3391602052736161,
+        "mrr": 1.0,
+        "recall": 0.2,
+        "type_mix": 1.0
+      },
+      "semantic": {
+        "n": 6,
+        "zero": false,
+        "returned_top": 6,
+        "p_fixed": 0.5,
+        "p_strict": 0.0,
+        "p_returned": 0.8333333333333334,
+        "irrelevant": 0.16666666666666666,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": 1.0,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 3,
+        "zero": false,
+        "returned_top": 3,
+        "p_fixed": 0.3,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.7227265726449519,
+        "mrr": 1.0,
+        "recall": 0.6,
+        "type_mix": 1.0
+      }
+    }
+  },
+  "drain hose": {
+    "q": "drain hose",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 1,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "semantic": {
+        "n": 50,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.1,
+        "irrelevant": 0.9,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.5,
+        "irrelevant": 0.5,
+        "ndcg": 0.6309297535714574,
+        "mrr": 0.5,
+        "recall": null,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "gider hortumu": {
+    "q": "gider hortumu",
+    "lang": "tr",
+    "status": "no_relevant",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 0,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "no_relevant"
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true
+      },
+      "semantic": {
+        "n": 50,
+        "zero": false
+      },
+      "hybrid": {
+        "n": 0,
+        "zero": true
+      }
+    }
+  },
+  "3d printer nozzle": {
+    "q": "3d printer nozzle",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 3,
+      "pooled": 3,
+      "n_rel": 2,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.6131471927654584,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "semantic": {
+        "n": 3,
+        "zero": false,
+        "returned_top": 3,
+        "p_fixed": 0.2,
+        "p_strict": 0.0,
+        "p_returned": 0.6666666666666666,
+        "irrelevant": 0.3333333333333333,
+        "ndcg": 0.9197207891481876,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.6131471927654584,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "3d yazıcı nozul": {
+    "q": "3d yazıcı nozul",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 3,
+      "pooled": 3,
+      "n_rel": 2,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.6131471927654584,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "semantic": {
+        "n": 3,
+        "zero": false,
+        "returned_top": 3,
+        "p_fixed": 0.2,
+        "p_strict": 0.0,
+        "p_returned": 0.6666666666666666,
+        "irrelevant": 0.3333333333333333,
+        "ndcg": 0.9197207891481876,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.6131471927654584,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      }
+    }
+  },
+  "baby diaper": {
+    "q": "baby diaper",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 2,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true,
+        "returned_top": 0,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": null,
+        "irrelevant": null,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 50,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 0.2,
+        "irrelevant": 0.8,
+        "ndcg": 0.9639404333166532,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.8262346571285599,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "bebek bezi": {
+    "q": "bebek bezi",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 2,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.8262346571285599,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "semantic": {
+        "n": 50,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.2,
+        "p_strict": 0.1,
+        "p_returned": 0.2,
+        "irrelevant": 0.8,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 0.8262346571285599,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "cat food": {
+    "q": "cat food",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 1,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true,
+        "returned_top": 0,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": null,
+        "irrelevant": null,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 50,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.1,
+        "irrelevant": 0.9,
+        "ndcg": 0.5,
+        "mrr": 0.3333333333333333,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": 0.0,
+        "irrelevant": 1.0,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": null,
+        "type_mix": null
+      }
+    }
+  },
+  "kedi maması": {
+    "q": "kedi maması",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 10,
+      "pooled": 10,
+      "n_rel": 1,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true,
+        "returned_top": 0,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": null,
+        "irrelevant": null,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": null,
+        "type_mix": null
+      },
+      "semantic": {
+        "n": 50,
+        "zero": false,
+        "returned_top": 10,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.1,
+        "irrelevant": 0.9,
+        "ndcg": 0.6309297535714574,
+        "mrr": 0.5,
+        "recall": null,
+        "type_mix": null
+      },
+      "hybrid": {
+        "n": 3,
+        "zero": false,
+        "returned_top": 3,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 0.3333333333333333,
+        "irrelevant": 0.6666666666666666,
+        "ndcg": 0.6309297535714574,
+        "mrr": 0.5,
+        "recall": null,
+        "type_mix": null
+      }
+    }
+  },
+  "smart watch": {
+    "q": "smart watch",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 1,
+      "pooled": 1,
+      "n_rel": 1,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "semantic": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "akıllı saat": {
+    "q": "akıllı saat",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 1,
+      "pooled": 1,
+      "n_rel": 1,
+      "n_strict": 1,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "semantic": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.1,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 0.0
+      }
+    }
+  },
+  "yoga mat": {
+    "q": "yoga mat",
+    "lang": "en",
+    "status": "verified_absent",
+    "info": {
+      "status": "verified_absent",
+      "judged": 0,
+      "pooled": 0
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true
+      },
+      "semantic": {
+        "n": 0,
+        "zero": true
+      },
+      "hybrid": {
+        "n": 0,
+        "zero": true
+      }
+    }
+  },
+  "yoga matı": {
+    "q": "yoga matı",
+    "lang": "tr",
+    "status": "verified_absent",
+    "info": {
+      "status": "verified_absent",
+      "judged": 0,
+      "pooled": 0
+    },
+    "methods": {
+      "text": {
+        "n": 0,
+        "zero": true
+      },
+      "semantic": {
+        "n": 0,
+        "zero": true
+      },
+      "hybrid": {
+        "n": 0,
+        "zero": true
+      }
+    }
+  },
+  "drone with camera": {
+    "q": "drone with camera",
+    "lang": "en",
+    "status": "ok",
+    "info": {
+      "judged": 4,
+      "pooled": 4,
+      "n_rel": 1,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": 0.0,
+        "irrelevant": 1.0,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": null,
+        "type_mix": 1.0
+      },
+      "semantic": {
+        "n": 3,
+        "zero": false,
+        "returned_top": 3,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": 0.0,
+        "irrelevant": 1.0,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": null,
+        "type_mix": 0.3333333333333333
+      },
+      "hybrid": {
+        "n": 2,
+        "zero": false,
+        "returned_top": 2,
+        "p_fixed": 0.0,
+        "p_strict": 0.0,
+        "p_returned": 0.0,
+        "irrelevant": 1.0,
+        "ndcg": 0.0,
+        "mrr": 0.0,
+        "recall": null,
+        "type_mix": 0.5
+      }
+    }
+  },
+  "kameralı drone": {
+    "q": "kameralı drone",
+    "lang": "tr",
+    "status": "ok",
+    "info": {
+      "judged": 1,
+      "pooled": 1,
+      "n_rel": 1,
+      "n_strict": 0,
+      "unjudged_in_top": {
+        "text": 0,
+        "semantic": 0,
+        "hybrid": 0
+      },
+      "status": "ok"
+    },
+    "methods": {
+      "text": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 1.0
+      },
+      "semantic": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 1.0
+      },
+      "hybrid": {
+        "n": 1,
+        "zero": false,
+        "returned_top": 1,
+        "p_fixed": 0.1,
+        "p_strict": 0.0,
+        "p_returned": 1.0,
+        "irrelevant": 0.0,
+        "ndcg": 1.0,
+        "mrr": 1.0,
+        "recall": null,
+        "type_mix": 1.0
+      }
+    }
+  }
+}

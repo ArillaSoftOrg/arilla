@@ -1,0 +1,39 @@
+﻿query_id,query_text,query_target_type(main/accessory/part/unclear),note,labeler
+Q038,kameralı drone,main,,B
+Q037,drone with camera,main,,B
+Q036,yoga matı,main,KATALOGDA YOK,B
+Q035,yoga mat,main,KATALOGDA YOK,B
+Q034,akıllı saat,main,,B
+Q033,smart watch,main,,B
+Q032,kedi maması,main,,B
+Q031,cat food,main,,B
+Q030,bebek bezi,main,,B
+Q029,baby diaper,main,,B
+Q028,3d yazıcı nozul,part,,B
+Q027,3d printer nozzle,part,,B
+Q026,gider hortumu,part,,B
+Q025,drain hose,part,,B
+Q024,robot süpürge,main,,B
+Q023,robot vacuum,main,,B
+Q022,oyuncak araba,main,,B
+Q021,toy car,main,,B
+Q020,araç led ışık,accessory,"KARARSIZ: Arac LED isigi, sonradan eklenen aksesuar veya fabrika cikisi far parcasi olabilir.",B
+Q019,car led light,accessory,"KARARSIZ: Arac LED isigi, sonradan eklenen aksesuar veya fabrika cikisi far parcasi olabilir.",B
+Q018,kadın elbise,main,,B
+Q017,women dress,main,,B
+Q016,spor ayakkabı,main,,B
+Q015,sneakers,main,,B
+Q014,erkek pantolon,main,,B
+Q013,men pants,main,,B
+Q012,dizüstü bilgisayar pili,part,,B
+Q011,laptop battery,part,,B
+Q010,dizüstü klavye,main,,B
+Q009,laptop keyboard,main,,B
+Q008,bluetooth hoparlör,main,,B
+Q007,bluetooth speaker,main,,B
+Q006,kulaklık pedi,part,,B
+Q005,earpads replacement,part,,B
+Q004,kablosuz kulaklık,main,,B
+Q003,wireless earbuds,main,,B
+Q002,telefon kılıfı,accessory,,B
+Q001,phone case,accessory,,B

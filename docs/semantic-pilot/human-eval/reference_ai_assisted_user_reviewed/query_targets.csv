@@ -1,0 +1,39 @@
+﻿query_id,query_text,query_target_type(main/accessory/part/unclear),note,labeler
+Q001,phone case,accessory,,consensus
+Q002,telefon kılıfı,accessory,,consensus
+Q003,wireless earbuds,main,,consensus
+Q004,kablosuz kulaklık,main,,consensus
+Q005,earpads replacement,part,,consensus
+Q006,kulaklık pedi,part,,consensus
+Q007,bluetooth speaker,main,,consensus
+Q008,bluetooth hoparlör,main,,consensus
+Q009,laptop keyboard,,,consensus
+Q010,dizüstü klavye,,,consensus
+Q011,laptop battery,part,,consensus
+Q012,dizüstü bilgisayar pili,part,,consensus
+Q013,men pants,main,,consensus
+Q014,erkek pantolon,main,,consensus
+Q015,sneakers,main,,consensus
+Q016,spor ayakkabı,main,,consensus
+Q017,women dress,main,,consensus
+Q018,kadın elbise,main,,consensus
+Q019,car led light,,,consensus
+Q020,araç led ışık,,,consensus
+Q021,toy car,main,,consensus
+Q022,oyuncak araba,main,,consensus
+Q023,robot vacuum,main,,consensus
+Q024,robot süpürge,main,,consensus
+Q025,drain hose,part,,consensus
+Q026,gider hortumu,part,,consensus
+Q027,3d printer nozzle,part,,consensus
+Q028,3d yazıcı nozul,part,,consensus
+Q029,baby diaper,main,,consensus
+Q030,bebek bezi,main,,consensus
+Q031,cat food,main,,consensus
+Q032,kedi maması,main,,consensus
+Q033,smart watch,main,,consensus
+Q034,akıllı saat,main,,consensus
+Q035,yoga mat,main,KATALOGDA YOK,consensus
+Q036,yoga matı,main,KATALOGDA YOK,consensus
+Q037,drone with camera,main,,consensus
+Q038,kameralı drone,main,,consensus
