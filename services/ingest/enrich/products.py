@@ -50,7 +50,7 @@ from urllib.parse import urlparse
 import psycopg
 
 from db import job_run, usage, wal_pressure
-from db.connection import connect, database_url
+from db.connection import connect, env
 from enrich.client import (
     EmbeddingBatch,
     EmbeddingClient,
@@ -779,6 +779,12 @@ def _is_local(url: str) -> bool:
     return (urlparse(url).hostname or "").lower() in {"localhost", "127.0.0.1", "::1"}
 
 
+def _local_db() -> bool:
+    """DATABASE_URL tanimsizsa YEREL DEGIL sayilir (temkinli): arguman dogrulamasi baglantisiz
+    calisir; eksik URL hatasi ancak gercek baglantida (`connect`) verilir."""
+    return _is_local(env("DATABASE_URL") or "")
+
+
 def read_ids(path: Path) -> list[int]:
     """Satir basina bir urun kimligi; bos satir ve `#` yorumu atlanir. Gecersiz satir hatadir."""
     ids: list[int] = []
@@ -885,7 +891,7 @@ def _validate(args: argparse.Namespace) -> str | None:
         return "--ids-file ile --until-id birlikte kullanilmaz"
     if args.max_tokens is not None and args.max_tokens < 1:
         return "--max-tokens pozitif olmali"
-    local_db = _is_local(database_url("DATABASE_URL"))
+    local_db = _local_db()
     if args.fake_client and args.execute and not local_db:
         return "sahte vektor yalnizca yerel veritabanina yazilabilir"
     if args.threads < 1:
@@ -936,7 +942,7 @@ def main(argv: list[str] | None = None) -> int:
         scan_step=args.scan_step,
         api_batch=args.batch_size,
     )
-    spec = _select(args, _is_local(database_url("DATABASE_URL")))  # _validate dogruladi
+    spec = _select(args, _local_db())  # _validate dogruladi
     budget: TokenBudget | None = None
     client: EmbeddingClient
     if args.fake_client:
