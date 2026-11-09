@@ -11,6 +11,13 @@ Degismez kurallar:
   olmak zorundadir. Tablosu olmayan aile (`table: null`) yazilabilir degildir (henuz migration yok).
 - `pilot`/`disabled` modeller uretim islerinde secilemez; `license_verified=false` olan model
   uretimde etkinlestirilemez.
+- Saglayici yalniz destekledigi kipleri bildirebilir (`PROVIDER_MODALITIES`); ornegin yerel ONNX
+  ve uzak HTTP saglayici bugun yalniz metin gomer (karar 0182).
+- `online_query`: canli istek yolunun (TS) bu modelle sorgu vektoru uretebildigini bildirir.
+  `false` olan model `enrich.index activate` ile etkinlestirilemez; aksi halde anlamsal arama
+  sessizce kapanirdi (karar 0182). TS beyaz listesiyle parite testi `active-index.test.ts`'tedir.
+- `remote_http` saglayicisinin `endpoint` alani zorunludur: adresin okunacagi ortam degiskeni ve
+  sunucunun bildirmesi gereken model adi. Adres ve anahtar kayit defterine yazilmaz.
 
 Yukleyici katidir: bilinmeyen ya da eksik alan, tanimsiz aile, cift kimlik -> `RegistryError`.
 """
@@ -19,6 +26,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from collections.abc import Mapping
 from dataclasses import dataclass
 from functools import lru_cache
@@ -28,7 +36,7 @@ from typing import Any
 REGISTRY_PATH = Path(__file__).with_name("model_registry.json")
 REGISTRY_FORMAT = 1
 
-PROVIDERS = frozenset({"jina", "local_onnx"})
+PROVIDERS = frozenset({"jina", "local_onnx", "remote_http"})
 STATES = frozenset({"active", "shadow", "pilot", "disabled"})
 #: Uretim islerinde secilebilen durumlar.
 PRODUCTION_STATES = frozenset({"active", "shadow"})
@@ -37,6 +45,15 @@ MODALITIES = frozenset({"text", "image"})
 ROLES = frozenset({"product_text", "offer_multimodal"})
 PURPOSES = frozenset({"passage", "query"})
 VECTOR_TYPES = frozenset({"vector", "halfvec"})
+#: Saglayici -> gomebildigi kipler. Gorsel bugun yalniz Jina CLIP API'siyle (karar 0015, 0182).
+PROVIDER_MODALITIES: Mapping[str, frozenset[str]] = {
+    "jina": frozenset({"text", "image"}),
+    "local_onnx": frozenset({"text"}),
+    "remote_http": frozenset({"text"}),
+}
+#: Uzak saglayici adresinin okunacagi ortam degiskeni bicimi (ornek `EMBED_QWEN3_06B_URL`).
+ENDPOINT_ENV_PATTERN = re.compile(r"^EMBED_[A-Z0-9_]{1,48}_URL$")
+_ENDPOINT_FIELDS = frozenset({"url_env", "served_model"})
 
 #: Urun metin isinin secimi icin ortam degiskeni (bos: kayit defterindeki varsayilan).
 PRODUCT_TEXT_MODEL_ENV = "ENRICH_PRODUCT_TEXT_MODEL"
@@ -60,8 +77,11 @@ _MODEL_FIELDS = frozenset(
         "license_verified",
         "source",
         "decision",
+        "online_query",
     }
 )
+#: Yalniz bazi saglayicilarda bulunan alanlar (varligi saglayiciyla birlikte denetlenir).
+_OPTIONAL_MODEL_FIELDS = frozenset({"endpoint"})
 _FAMILY_FIELDS = frozenset({"table", "dimensions", "vector_type"})
 _TOP_FIELDS = frozenset({"format", "index_families", "defaults", "models"})
 
@@ -102,6 +122,22 @@ class ModelSpec:
     license_verified: bool
     source: Mapping[str, str | None]
     decision: str
+    online_query: bool = False
+    #: Yalniz `remote_http`: {"url_env": ..., "served_model": ...}.
+    endpoint: Mapping[str, str] | None = None
+
+    @property
+    def capabilities(self) -> frozenset[str]:
+        """Bu kayitla gercekten gomulebilen kipler (bildirilen ∩ saglayicinin destekledigi)."""
+        return frozenset(self.modalities) & PROVIDER_MODALITIES[self.provider]
+
+    def same_space(self, other: ModelSpec | str) -> bool:
+        """Iki vektor yalniz AYNI model kimligiyle uretildiyse karsilastirilabilir.
+
+        Ayni boyut (ornegin BGE-M3 ile Qwen3-0.6B, ikisi de 1024) ayni uzay demek degildir.
+        """
+        other_id = other if isinstance(other, str) else other.id
+        return self.id == other_id.removesuffix("-fake")
 
     def task(self, purpose: str) -> str | None:
         _check_purpose(purpose)
@@ -148,9 +184,14 @@ def _check_purpose(purpose: str) -> None:
         raise RegistryError(f"bilinmeyen amac: {purpose!r}")
 
 
-def _require_keys(where: str, raw: Mapping[str, Any], allowed: frozenset[str]) -> None:
+def _require_keys(
+    where: str,
+    raw: Mapping[str, Any],
+    allowed: frozenset[str],
+    optional: frozenset[str] = frozenset(),
+) -> None:
     keys = set(raw)
-    unknown = keys - allowed
+    unknown = keys - allowed - optional
     missing = allowed - keys
     if unknown:
         raise RegistryError(f"{where}: bilinmeyen alan {sorted(unknown)}")
@@ -193,7 +234,7 @@ def _parse_model(raw: Any, families: Mapping[str, IndexFamily]) -> ModelSpec:
     if not isinstance(raw, dict):
         raise RegistryError("models: her girdi nesne olmali")
     where = f"models.{raw.get('id', '?')}"
-    _require_keys(where, raw, _MODEL_FIELDS)
+    _require_keys(where, raw, _MODEL_FIELDS, _OPTIONAL_MODEL_FIELDS)
     model_id = raw["id"]
     if not isinstance(model_id, str) or not model_id or model_id.endswith("-fake"):
         raise RegistryError(f"{where}: gecersiz kimlik")
@@ -209,6 +250,7 @@ def _parse_model(raw: Any, families: Mapping[str, IndexFamily]) -> ModelSpec:
             "modalities",
         ),
         (isinstance(raw["license_verified"], bool), "license_verified"),
+        (isinstance(raw["online_query"], bool), "online_query"),
         (isinstance(raw["preprocessing_version"], str), "preprocessing_version"),
         (isinstance(raw["license"], str), "license"),
         (isinstance(raw["decision"], str), "decision"),
@@ -221,6 +263,12 @@ def _parse_model(raw: Any, families: Mapping[str, IndexFamily]) -> ModelSpec:
     for ok, name in checks:
         if not ok:
             raise RegistryError(f"{where}: {name} gecersiz")
+    unsupported = set(raw["modalities"]) - PROVIDER_MODALITIES[raw["provider"]]
+    if unsupported:
+        raise RegistryError(
+            f"{where}: {raw['provider']} saglayicisi {sorted(unsupported)} kipini desteklemiyor"
+        )
+    endpoint = _parse_endpoint(where, raw["provider"], raw.get("endpoint"))
     family = families.get(raw["index_family"])
     if family is None:
         raise RegistryError(f"{where}: tanimsiz indeks ailesi {raw['index_family']!r}")
@@ -247,7 +295,26 @@ def _parse_model(raw: Any, families: Mapping[str, IndexFamily]) -> ModelSpec:
         license_verified=raw["license_verified"],
         source=dict(raw["source"]),
         decision=raw["decision"],
+        online_query=raw["online_query"],
+        endpoint=endpoint,
     )
+
+
+def _parse_endpoint(where: str, provider: str, raw: Any) -> dict[str, str] | None:
+    """`remote_http` icin zorunlu, digerlerinde yasak. Adres degil, adresin ENV adi tutulur."""
+    if provider != "remote_http":
+        if raw is not None:
+            raise RegistryError(f"{where}: endpoint yalniz remote_http saglayicisinda olur")
+        return None
+    if not isinstance(raw, dict):
+        raise RegistryError(f"{where}: remote_http icin endpoint zorunlu")
+    _require_keys(f"{where}.endpoint", raw, _ENDPOINT_FIELDS)
+    url_env, served = raw["url_env"], raw["served_model"]
+    if not isinstance(url_env, str) or not ENDPOINT_ENV_PATTERN.match(url_env):
+        raise RegistryError(f"{where}.endpoint.url_env: EMBED_<AD>_URL biciminde olmali")
+    if not isinstance(served, str) or not served.strip():
+        raise RegistryError(f"{where}.endpoint.served_model: bos olamaz")
+    return {"url_env": url_env, "served_model": served}
 
 
 def parse_registry(raw: Any) -> Registry:

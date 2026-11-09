@@ -208,6 +208,13 @@ def plan_activate(conn: psycopg.Connection, model: str, reg: Registry, min_cover
             f"{model}: kayit defterinde uretime hazir degil (durum {spec.state}, "
             f"lisans {'dogrulandi' if spec.license_verified else 'dogrulanmadi'})"
         )
+    if not spec.online_query:
+        # Canli istek yolu bu modelle sorgu vektoru uretemiyorsa etkinlestirme anlamsal aramayi
+        # sessizce kapatir (TS `no_vector`). Once sorgu tarafi eklenir, kayitta `online_query`
+        # acilir, parite testi gecer; ancak sonra etkinlestirilir (karar 0182).
+        raise IndexTransitionError(
+            f"{model}: canli sorgu tarafi bu modeli desteklemiyor (online_query=false)"
+        )
     found = rows(conn, lock=True)
     row = _find(found, model)
     if row.state != "shadow":
