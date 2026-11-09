@@ -1,5 +1,7 @@
 """arilla_healthcheck.py testleri (ag yok, docker yok): python3 infra/vps/bin/test_arilla_healthcheck.py"""
 
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -342,9 +344,11 @@ class UnitFailedMessageTest(unittest.TestCase):
     def test_no_send_sends_nothing(self):
         sent = []
         orig_post, orig_ping, orig_msg = hc.post_json, hc.ping, hc.unit_failed_message
+        orig_state = hc.Collector.unit_active_state
         hc.post_json = lambda *a, **k: sent.append("post") or True
         hc.ping = lambda *a, **k: sent.append("ping") or True
         hc.unit_failed_message = lambda unit, host, collector: (hc.CRIT, "x")
+        hc.Collector.unit_active_state = lambda self, unit: "failed"
         try:
             with tempfile.TemporaryDirectory() as d:
                 (Path(d) / "env").mkdir()
@@ -356,6 +360,41 @@ class UnitFailedMessageTest(unittest.TestCase):
                 self.assertEqual(sent, ["post"])  # BILGI: webhook evet, olu adam /fail hayir
         finally:
             hc.post_json, hc.ping, hc.unit_failed_message = orig_post, orig_ping, orig_msg
+            hc.Collector.unit_active_state = orig_state
+
+    def run_no_send(self, state):
+        """--no-send teshisi; (cikis kodu, cikti, siniflandirma cagrildi mi)."""
+        called = []
+        orig_msg, orig_state = hc.unit_failed_message, hc.Collector.unit_active_state
+        hc.unit_failed_message = lambda unit, host, collector: called.append(unit) or (hc.CRIT, "SINIF")
+        hc.Collector.unit_active_state = lambda self, unit: state
+        out = io.StringIO()
+        try:
+            with tempfile.TemporaryDirectory() as d, contextlib.redirect_stdout(out):
+                rc = hc.main(["--root", d, "--unit-failed", UNIT, "--no-send"])
+        finally:
+            hc.unit_failed_message, hc.Collector.unit_active_state = orig_msg, orig_state
+        return rc, out.getvalue(), bool(called)
+
+    def test_no_send_healthy_unit_is_not_a_problem(self):
+        rc, out, classified = self.run_no_send("inactive")
+        self.assertEqual(rc, 0)
+        self.assertFalse(classified)
+        self.assertIn("TESHIS", out)
+        self.assertIn("basarisiz degil (ActiveState=inactive)", out)
+        self.assertNotIn("SORUN", out)
+
+    def test_no_send_failed_or_unknown_state_classifies(self):
+        for state in ("failed", None):
+            rc, out, classified = self.run_no_send(state)
+            self.assertTrue(classified, state)
+            self.assertIn("SINIF", out)
+
+    def test_unit_active_state_parsing(self):
+        c = hc.Collector(Path("."), run=lambda cmd, t: (0, "failed\n"))
+        self.assertEqual(c.unit_active_state(UNIT), "failed")
+        self.assertIsNone(hc.Collector(Path("."), run=lambda cmd, t: (1, "")).unit_active_state(UNIT))
+        self.assertIsNone(hc.Collector(Path("."), run=lambda cmd, t: (0, "\n")).unit_active_state(UNIT))
 
 
 if __name__ == "__main__":

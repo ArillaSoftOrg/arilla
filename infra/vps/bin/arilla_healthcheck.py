@@ -134,6 +134,11 @@ class Collector:
                             "--timestamp=utc"], 15)
         return parse_unit_show(out) if rc == 0 else (None, None)
 
+    def unit_active_state(self, unit: str) -> str | None:
+        """systemd ActiveState (failed, inactive, active...); okunamazsa None."""
+        rc, out = self.run(["systemctl", "show", unit, "-p", "ActiveState", "--value"], 15)
+        return (out.strip() or None) if rc == 0 else None
+
     def pipeline_recent(self, jobs: tuple[str, ...]) -> list[dict] | None:
         """Islerin son iki cron kosusu, yeniden eskiye; sorgu basarisizsa None."""
         rc, out = self.psql(PIPELINE_RECENT_SQL.format(jobs=sql_jobs(jobs)))
@@ -561,7 +566,15 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.unit_failed:
         unit = "".join(ch for ch in args.unit_failed if ch.isalnum() or ch in "-_.@")[:120]
-        level, text = unit_failed_message(unit, host, Collector(root) if unit in PIPELINE_JOBS else None)
+        collector = Collector(root) if unit in PIPELINE_JOBS else None
+        if args.no_send and collector is not None:
+            # Teshis: birim basarisiz degilse siniflandirma anlamsiz (OnFailure zaten calismazdi).
+            state = collector.unit_active_state(unit)
+            if state is not None and state != "failed":
+                print(f"[ManiCepte {host}] TESHIS\n- OK systemd: {unit} basarisiz degil (ActiveState={state}); "
+                      "alarm gitmezdi")
+                return 0
+        level, text = unit_failed_message(unit, host, collector)
         if not args.no_send:
             if alert.get("ALERT_WEBHOOK_URL"):
                 post_json(alert["ALERT_WEBHOOK_URL"], {"text": text, "content": text})
