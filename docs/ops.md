@@ -1021,6 +1021,8 @@ servisiyle elle çalıştırılır (`docker compose ... run --rm batch ...`);
   - `blocked_upstream` (embedding yok) alarm üretmez; panelde görünür.
   - Salt okunur teşhis (bildirim göndermez):
     `sudo python3 /opt/arilla/vps/bin/arilla_healthcheck.py --unit-failed arilla-catalog-pipeline.service --no-send`.
+    Birim `failed` değilse yalnız "TESHIS … basarisiz degil" yazar (alarm gitmezdi); `failed`
+    ise OnFailure'ın göndereceği BILGI/SORUN mesajını gösterir.
   - `SuccessExitStatus=75` birime eklenmez: kilitte similarity başlar ve atlama görünmez olur
     (karar 0174). Davranış CI'da gerçek systemd ile sınanır (`test-pipeline-units.sh`).
 
