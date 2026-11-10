@@ -43,7 +43,8 @@
       "license": "commercial-api",
       "license_verified": true,
       "source": { "repo": "api.jina.ai", "revision": null },
-      "decision": "0015"
+      "decision": "0015",
+      "online_query": true
     },
     {
       "id": "jina-embeddings-v3",
@@ -62,7 +63,8 @@
       "license": "commercial-api",
       "license_verified": true,
       "source": { "repo": "api.jina.ai", "revision": null },
-      "decision": "0177"
+      "decision": "0177",
+      "online_query": true
     },
     {
       "id": "e5-small-int8-0bcc8ca76950",
@@ -84,7 +86,8 @@
         "repo": "intfloat/multilingual-e5-small",
         "revision": "614241f622f53c4eeff9890bdc4f31cfecc418b3"
       },
-      "decision": "0180"
+      "decision": "0180",
+      "online_query": false
     },
     {
       "id": "bge-m3",
@@ -102,8 +105,35 @@
       "state": "disabled",
       "license": "MIT",
       "license_verified": false,
-      "source": { "repo": "BAAI/bge-m3", "revision": null },
-      "decision": "0180"
+      "source": { "repo": "BAAI/bge-m3", "revision": "5617a9f61b028005a4858fdac845db406aefb181" },
+      "decision": "0180",
+      "online_query": false
+    },
+    {
+      "id": "qwen3-embedding-0.6b-97b0c614",
+      "provider": "remote_http",
+      "roles": ["product_text"],
+      "modalities": ["text"],
+      "dimensions": 1024,
+      "normalization": "l2",
+      "max_input_tokens": 512,
+      "chars_per_token": 2.75,
+      "preprocessing_version": "product-text-v1",
+      "tasks": {},
+      "prefixes": {
+        "query": "Instruct: Given a Turkish shopping search query, retrieve matching products\nQuery:"
+      },
+      "index_family": "product_text_halfvec1024",
+      "state": "disabled",
+      "license": "Apache-2.0",
+      "license_verified": false,
+      "source": {
+        "repo": "Qwen/Qwen3-Embedding-0.6B",
+        "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3"
+      },
+      "decision": "0182",
+      "online_query": false,
+      "endpoint": { "url_env": "EMBED_QWEN3_06B_URL", "served_model": "Qwen/Qwen3-Embedding-0.6B" }
     }
   ]
 }

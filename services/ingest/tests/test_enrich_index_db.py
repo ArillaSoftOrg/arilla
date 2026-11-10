@@ -24,13 +24,14 @@ V3 = "jina-embeddings-v3"
 PREFIX = "test-eidx-"
 
 
-def _ready_registry():
+def _ready_registry(*, online_query: bool = True):
     """e5 kayit defterinde uretime hazirmis gibi (yalniz test): etkinlestirme yolu sinanir."""
     raw = json.loads(REGISTRY_PATH.read_text(encoding="utf-8"))
     for model in raw["models"]:
         if model["id"] == E5:
             model["state"] = "shadow"
             model["license_verified"] = True
+            model["online_query"] = online_query
     return parse_registry(raw)
 
 
@@ -146,6 +147,19 @@ def test_pilot_model_cannot_be_activated_with_shipped_registry(conns) -> None:
     with pytest.raises(index.IndexTransitionError, match="uretime hazir degil"):
         index.run(app, "activate", model=E5, execute=True, min_coverage=0.0)
     assert _states(app)[V3] == "active"
+
+
+def test_model_without_online_query_path_cannot_be_activated(conns) -> None:
+    """Karar 0182: TS sorgu vektoru uretemiyorsa etkinlestirme aramayi sessizce kapatirdi."""
+    _, app = conns
+    reg = _ready_registry(online_query=False)
+    index.run(app, "register", model=E5, execute=True, reg=reg)
+    index.run(app, "shadow", model=E5, execute=True, reg=reg)
+    with pytest.raises(index.IndexTransitionError, match="online_query=false"):
+        index.run(app, "activate", model=E5, execute=True, min_coverage=0.0, reg=reg)
+    states = _states(app)
+    assert states[V3] == "active"
+    assert states[E5] == "shadow"
 
 
 def test_database_allows_only_one_active_per_target(conns) -> None:

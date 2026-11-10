@@ -26,6 +26,7 @@ interface RegistryModel {
   tasks: Record<string, string>;
   index_family: string;
   state: string;
+  online_query: boolean;
 }
 
 interface RegistryFile {
@@ -56,6 +57,19 @@ describe("kayit defteri paritesi (Python model_registry.json)", () => {
       expect(registry.index_families[model.index_family]?.table).toBe(index.table);
       expect(registry.index_families[model.index_family]?.dimensions).toBe(index.dimensions);
     }
+  });
+
+  it("online_query=true urun metni modelleri tam olarak TS'nin sorgulayabildikleri (karar 0182)", () => {
+    // Python `enrich.index activate` online_query=false modeli reddeder; bu test bayragin TS
+    // beyaz listesiyle ayni kalmasini saglar. Aksi halde etkinlestirilen indeks sessizce
+    // `unsupported_model` olup anlamsal aramayi kapatirdi.
+    const online = registry.models
+      .filter((m) => m.roles.includes("product_text") && m.online_query === true)
+      .map((m) => m.id)
+      .sort();
+    expect(online).toEqual(Object.keys(QUERYABLE_INDEXES).sort());
+    for (const model of registry.models)
+      expect(typeof model.online_query, model.id).toBe("boolean");
   });
 
   it("varsayilan model iki tarafta ayni", () => {

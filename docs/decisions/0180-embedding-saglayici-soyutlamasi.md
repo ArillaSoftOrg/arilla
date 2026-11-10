@@ -67,7 +67,8 @@ Durum: **kabul (PR-A)**. Migration yok. İlgili: 0015 (sağlayıcı), 0155 (yere
 | `jina-clip-v2` | jina | 768 | active | teklif görsel+metin (0015) |
 | `jina-embeddings-v3` | jina | 768 | active | ürün metni varsayılanı (0177) |
 | `e5-small-int8-0bcc8ca76950` | local_onnx | 384 | pilot | MIT; lisans incelemesi kayda geçmedi; tablo `product_text_embedding_d384` (0181) |
-| `bge-m3` | local_onnx | 1024 | disabled | ONNX yapısı yok, lisans doğrulanmadı |
+| `bge-m3` | local_onnx | 1024 | disabled | revizyon sabit (0182); resmî ONNX var ama CLS havuzlama ister, `OnnxEmbedder` ortalama yapar; lisans onayı yok |
+| `qwen3-embedding-0.6b-97b0c614` | remote_http | 1024 | disabled | 0182; Apache-2.0, kendi çıkarım servisi |
 
 ## Reddedilen / ertelenen
 

@@ -2836,6 +2836,18 @@ python -m enrich.pilot --model e5-small-int8-0bcc8ca76950 --model-dir DIR \
     --texts-file ornek.txt --threads 2 --batch-size 64
 ```
 
+### Kendi çıkarım servisi ve etkinleştirme kapısı (karar 0182)
+
+- `provider: remote_http` modeller OpenAI uyumlu `POST {EMBED_<AD>_URL}/v1/embeddings` çağırır
+  (TEI/Infinity/vLLM). Adres ortam değişkeninden, isteğe bağlı anahtar `EMBED_<AD>_TOKEN`'dan.
+  Düz HTTP yalnız Docker servis adı/loopback/özel IP'ye; diğerleri HTTPS. Bağlantı 5 sn, okuma
+  60 sn, en fazla 4 deneme (429/5xx/ağ), bekleme ≤30 sn; diğer 4xx kalıcı.
+- Sunucu farklı `model` bildirirse ya da boyut/norm tutmazsa parti yazılmaz.
+- Bugün hiçbir `remote_http` model etkin değil (`qwen3-embedding-0.6b-97b0c614` `disabled`);
+  üretimde servis yok, ortam değişkeni tanımlanmaz.
+- `enrich.index activate`, kayıtta `online_query=false` olan modeli reddeder (TS o modelle sorgu
+  vektörü üretemez; etkinleştirme anlamsal aramayı sessizce kapatırdı).
+
 Model dizini `classify suggest model build` ile üretilir ve SHA-256 ile doğrulanır (karar 0155).
 Yerel model `enrich.products --model <id> --model-dir DIR --execute` ile kendi tablosuna
 (`product_text_embedding_d384`) yazar; `pilot` durumundaki model yalnız yerel veritabanında çalışır.
