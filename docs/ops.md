@@ -1694,7 +1694,22 @@ Durdurma: `feeds-timers disable`. Birim dosyaları kalır, veri değişmez.
 yoksa), `no_active_feeds`,
 `feed_<id>:<neden>` (indirme/kapı hatası ya da `behind`, `source_stale`, `never_synced`),
 `discovery_failed:<ağ>`, `fx_stale`, `feeds_gone`. Başarısız ya da `partial` koşu çıkış kodu 1
-verir; systemd `arilla-alert@` alarmı gönderir. 36 saat koşu yoksa panel "zamanında çalışmadı" der.
+verir (OnSuccess → katalog hattı tetiklenmez, 12:15/21:15 güvenlik ağı alır); systemd
+`arilla-alert@` çalışır ve seviyeyi `job_run` kaydından belirler (karar 0182):
+
+- **"BILGI"** = `partial`, sorunların hepsi besleme düzeyinde (`feed_<id>:…`: kesik dosya, boyut
+  kapısı, `behind`), en yeni besleme yazımı 36 saatten yeni ve taze teklif oranı
+  (`offers_fresh / offers_active`) en az %25. Kaynak tarafı geçici red; müdahale gerekmez, sonraki
+  koşu yeni sürümü dener. Aynı sorun listesi art arda gelirse BILGI tekrar gönderilmez; liste
+  değişince yine gönderilir. Birim bir sonraki koşuya kadar `failed` görünür, sağlık kontrolü
+  bunu kritik saymaz (`systemd:arilla-feeds-daily.service` INFO).
+- **"SORUN"** = `failed`, `fx_stale`, keşif hatası, `feeds_gone`, bayat fiyat (oran < %25 ya da
+  son yazım > 36 sa), kayıt yok ya da durum okunamadı. `journalctl -u arilla-feeds-daily` ve
+  `/yonetim/islemler/isler?is=feed_daily`.
+- **`feeds:freshness` kritik** = son günlük koşu kaydı 30 saatten eski (zamanlayıcı durdu).
+- Salt okunur teşhis:
+  `sudo python3 /opt/arilla/vps/bin/arilla_healthcheck.py --unit-failed arilla-feeds-daily.service --no-send`.
+- Eşikler `infra/vps/bin/arilla_healthcheck.py` `THRESHOLDS` içinde (`feeds_*`).
 
 **Sınırlar.** Kaynak günde bir kez güncellenmeyebilir: fiyat taze demek kaynak kadar taze demektir.
 `--max-source-age-hours` (varsayılan 168) Admitad'in gerçek güncelleme sıklığı ölçülmeden

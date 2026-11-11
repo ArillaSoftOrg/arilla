@@ -166,6 +166,8 @@ class CollectorTest(unittest.TestCase):
             def run(cmd, timeout):
                 if "ps" in cmd:
                     return 0, "\n".join(f"{s}=healthy" for s in [*hc.CORE_SERVICES, "backup"])
+                if "psql" in cmd and "'feed_daily'" in cmd[-1]:
+                    return 0, "partial|feed_7:truncated|100|40|1760400000|false|ok|1760400100\n"
                 if "psql" in cmd and "from job_run" in cmd[-1]:
                     return 0, "resolve|1760400000\nsimilarity_edges|1760400100\n"
                 if "psql" in cmd:
@@ -183,6 +185,8 @@ class CollectorTest(unittest.TestCase):
             self.assertIsNotNone(f["backup_info"])
             self.assertEqual(f["pipeline_failures"], {})
             self.assertEqual(set(f["pipeline_last_ran"]), {"resolve", "similarity_edges"})
+            self.assertEqual(f["feeds_recent"][0]["status"], "partial")
+            self.assertEqual(f["feeds_recent"][0]["offers_fresh"], 40)
 
 
 # ------------------------------------------------------------- katalog hatti (karar 0174, PR1c)
@@ -326,18 +330,18 @@ class UnitFailedMessageTest(unittest.TestCase):
     def test_info_message(self):
         c = self.collector("ExecMainStatus=75\nInactiveExitTimestamp=Mon 2026-11-09 02:33:01 UTC\n",
                            f"resolve|partial|skipped_locked|lock_busy|{int(TONIGHT.timestamp())}\n")
-        level, text = hc.unit_failed_message(UNIT, "h", c)
+        level, text, _send = hc.unit_failed_message(UNIT, "h", c)
         self.assertEqual(level, hc.INFO)
         self.assertTrue(text.startswith("[ManiCepte h] BILGI"))
 
     def test_query_failure_is_crit(self):
         c = self.collector("ExecMainStatus=75\nInactiveExitTimestamp=Mon 2026-11-09 02:33:01 UTC\n", "", psql_rc=1)
-        level, text = hc.unit_failed_message(UNIT, "h", c)
+        level, text, _send = hc.unit_failed_message(UNIT, "h", c)
         self.assertEqual(level, hc.CRIT)
         self.assertTrue(text.startswith("[ManiCepte h] SORUN"))
 
     def test_other_units_unchanged(self):
-        level, text = hc.unit_failed_message("arilla-backup-diff.service", "h", None)
+        level, text, _send = hc.unit_failed_message("arilla-backup-diff.service", "h", None)
         self.assertEqual(level, hc.CRIT)
         self.assertIn("CRIT systemd: arilla-backup-diff.service basarisiz", text)
 
@@ -347,7 +351,7 @@ class UnitFailedMessageTest(unittest.TestCase):
         orig_state = hc.Collector.unit_active_state
         hc.post_json = lambda *a, **k: sent.append("post") or True
         hc.ping = lambda *a, **k: sent.append("ping") or True
-        hc.unit_failed_message = lambda unit, host, collector: (hc.CRIT, "x")
+        hc.unit_failed_message = lambda unit, host, collector: (hc.CRIT, "x", True)
         hc.Collector.unit_active_state = lambda self, unit: "failed"
         try:
             with tempfile.TemporaryDirectory() as d:
@@ -355,7 +359,7 @@ class UnitFailedMessageTest(unittest.TestCase):
                 (Path(d) / "env" / "alert.env").write_text("ALERT_WEBHOOK_URL=https://x\nHEALTHCHECK_PING_URL=https://y\n")
                 self.assertEqual(hc.main(["--root", d, "--unit-failed", UNIT, "--no-send"]), 0)
                 self.assertEqual(sent, [])
-                hc.unit_failed_message = lambda unit, host, collector: (hc.INFO, "x")
+                hc.unit_failed_message = lambda unit, host, collector: (hc.INFO, "x", True)
                 hc.main(["--root", d, "--unit-failed", UNIT])
                 self.assertEqual(sent, ["post"])  # BILGI: webhook evet, olu adam /fail hayir
         finally:
@@ -366,7 +370,7 @@ class UnitFailedMessageTest(unittest.TestCase):
         """--no-send teshisi; (cikis kodu, cikti, siniflandirma cagrildi mi)."""
         called = []
         orig_msg, orig_state = hc.unit_failed_message, hc.Collector.unit_active_state
-        hc.unit_failed_message = lambda unit, host, collector: called.append(unit) or (hc.CRIT, "SINIF")
+        hc.unit_failed_message = lambda unit, host, collector: called.append(unit) or (hc.CRIT, "SINIF", True)
         hc.Collector.unit_active_state = lambda self, unit: state
         out = io.StringIO()
         try:
@@ -395,6 +399,189 @@ class UnitFailedMessageTest(unittest.TestCase):
         self.assertEqual(c.unit_active_state(UNIT), "failed")
         self.assertIsNone(hc.Collector(Path("."), run=lambda cmd, t: (1, "")).unit_active_state(UNIT))
         self.assertIsNone(hc.Collector(Path("."), run=lambda cmd, t: (0, "\n")).unit_active_state(UNIT))
+
+
+# ------------------------------------------------------------- gunluk besleme (karar 0182)
+FEEDS_UNIT = "arilla-feeds-daily.service"
+FSINCE = datetime(2026, 11, 10, 18, 31, 47, tzinfo=timezone.utc)
+FNOW = FSINCE + timedelta(hours=2, minutes=35)
+
+
+def frow(started, status="partial", problems="feed_7:truncated; feed_7:behind", active=12_935_843,
+         fresh=5_237_074, last_success=None, fx_stale=False, discovery="ok"):
+    return {"status": status, "problems": problems, "offers_active": active, "offers_fresh": fresh,
+            "last_success": last_success if last_success is not None else started + timedelta(hours=1),
+            "fx_stale": fx_stale, "discovery": discovery, "started": started}
+
+
+CUR = FSINCE + timedelta(seconds=2)
+PREV = FSINCE - timedelta(hours=12)
+
+
+class FeedsClassifyTest(unittest.TestCase):
+    def lvl(self, rows, exec_status=1, since=FSINCE, now=FNOW):
+        return hc.classify_feeds_failure(exec_status, since, rows, now)
+
+    def test_source_side_partial_with_fresh_prices_is_info(self):
+        level, msg = self.lvl([frow(CUR), frow(PREV)])
+        self.assertEqual(level, hc.INFO, msg)
+        self.assertIn("feed_7:truncated", msg)
+
+    def test_production_nov_8_zero_fresh_is_crit(self):
+        level, msg = self.lvl([frow(CUR, fresh=0, problems="feed_14:too_few_records; feed_7:behind")])
+        self.assertEqual(level, hc.CRIT)
+        self.assertIn("taze teklif %0", msg)
+
+    def test_ratio_threshold(self):
+        self.assertEqual(self.lvl([frow(CUR, active=100, fresh=25)])[0], hc.INFO)
+        self.assertEqual(self.lvl([frow(CUR, active=100, fresh=24)])[0], hc.CRIT)
+
+    def test_old_last_success_is_crit(self):
+        old = FNOW - timedelta(hours=37)
+        self.assertEqual(self.lvl([frow(CUR, last_success=old)])[0], hc.CRIT)
+        ok = FNOW - timedelta(hours=35)
+        self.assertEqual(self.lvl([frow(CUR, last_success=ok)])[0], hc.INFO)
+
+    def test_crit_cases(self):
+        cases = {
+            "failed": frow(CUR, status="failed"),
+            "fx": frow(CUR, fx_stale=True, problems="feed_7:behind; fx_stale"),
+            "fx_flag_only": frow(CUR, fx_stale=True),
+            "discovery": frow(CUR, discovery="failed", problems="discovery_failed:admitad"),
+            "gone": frow(CUR, problems="feed_7:behind; feeds_gone"),
+            "no_problems": frow(CUR, problems=None),
+            "no_ratio": frow(CUR, active=None),
+            "zero_active": frow(CUR, active=0),
+            "running": frow(CUR, status="running"),
+        }
+        for name, r in cases.items():
+            self.assertEqual(self.lvl([r])[0], hc.CRIT, name)
+
+    def test_unreadable_is_crit(self):
+        self.assertEqual(self.lvl(None)[0], hc.CRIT)
+        self.assertEqual(self.lvl([frow(CUR)], exec_status=None)[0], hc.CRIT)
+        self.assertEqual(self.lvl([frow(CUR)], since=None)[0], hc.CRIT)
+
+    def test_no_row_for_this_invocation_is_crit(self):
+        level, msg = self.lvl([frow(PREV)])
+        self.assertEqual(level, hc.CRIT)
+        self.assertIn("bu kosuya ait", msg)
+
+    def test_unexpected_exit_code_is_crit(self):
+        self.assertEqual(self.lvl([frow(CUR)], exec_status=2)[0], hc.CRIT)
+
+    def test_feed_level_only(self):
+        self.assertTrue(hc.feed_level_only("feed_14:too_few_records; feed_7:behind"))
+        for bad in ("", None, "fx_stale", "feed_7", "feed_x:behind", "feeds_gone", "feed_7:behind; fx_stale"):
+            self.assertFalse(hc.feed_level_only(bad), bad)
+
+    def test_repeat(self):
+        self.assertTrue(hc.feeds_info_repeats(FSINCE, [frow(CUR), frow(PREV)], FNOW))
+        changed = frow(PREV, problems="feed_14:too_few_records")
+        self.assertFalse(hc.feeds_info_repeats(FSINCE, [frow(CUR), changed], FNOW))
+        crit_prev = frow(PREV, fresh=0)
+        self.assertFalse(hc.feeds_info_repeats(FSINCE, [frow(CUR), crit_prev], FNOW))
+        self.assertFalse(hc.feeds_info_repeats(FSINCE, [frow(CUR)], FNOW))
+        self.assertFalse(hc.feeds_info_repeats(FSINCE, None, FNOW))
+
+
+class FeedsFreshnessTest(unittest.TestCase):
+    def check(self, feeds, now=FNOW):
+        f = facts()
+        f["feeds_recent"] = feeds
+        return {c.name: c for c in hc.evaluate(f, now)}.get("feeds:freshness")
+
+    def test_recent_run_ok(self):
+        self.assertEqual(self.check([frow(CUR)]).level, hc.OK)
+
+    def test_stale_run_crit(self):
+        self.assertEqual(self.check([frow(CUR)], now=CUR + timedelta(hours=31)).level, hc.CRIT)
+
+    def test_unreadable_crit_and_absent_skipped(self):
+        self.assertEqual(self.check(None).level, hc.CRIT)
+        self.assertIsNone(self.check([]))
+
+    def test_info_unit_not_in_generic_systemd(self):
+        f = facts()
+        f["failed_units"] = [FEEDS_UNIT]
+        f["pipeline_failures"] = {FEEDS_UNIT: (hc.INFO, "x")}
+        checks = {c.name: c for c in hc.evaluate(f, FNOW)}
+        self.assertEqual(checks["systemd"].level, hc.OK)
+        self.assertEqual(checks[f"systemd:{FEEDS_UNIT}"].level, hc.INFO)
+        self.assertEqual(hc.overall(list(checks.values())), hc.overall(
+            [c for n, c in checks.items() if n != f"systemd:{FEEDS_UNIT}"]))
+
+
+class FeedsUnitFailedTest(unittest.TestCase):
+    def collector(self, psql_out, psql_rc=0):
+        show = "ExecMainStatus=1\nInactiveExitTimestamp=Tue 2026-11-10 18:31:47 UTC\n"
+
+        def run(cmd, timeout):
+            if cmd[:2] == ["systemctl", "show"]:
+                return 0, show
+            if "psql" in cmd:
+                return psql_rc, psql_out
+            return 1, ""
+
+        return hc.Collector(Path("."), run=run)
+
+    @staticmethod
+    def line(started, problems="feed_7:truncated; feed_7:behind", fresh=5237074):
+        last = int((started + timedelta(hours=1)).timestamp())
+        return f"partial|{problems}|12935843|{fresh}|{last}|false|ok|{int(started.timestamp())}"
+
+    def at_fnow(self, c):
+        """Sabit saat: siniflandirma `FNOW`'a gore yapilir."""
+        c.classify_unit = lambda unit, now=None: hc.Collector.classify_unit(c, unit, FNOW)
+        c.feeds_repeat = lambda unit, now=None: hc.Collector.feeds_repeat(c, unit, FNOW)
+        return c
+
+    def test_first_info_is_sent(self):
+        c = self.at_fnow(self.collector(self.line(CUR) + "\n"))
+        level, text, send = hc.unit_failed_message(FEEDS_UNIT, "h", c)
+        self.assertEqual(level, hc.INFO, text)
+        self.assertTrue(send)
+
+    def test_repeat_info_not_sent(self):
+        c = self.at_fnow(self.collector(self.line(CUR) + "\n" + self.line(PREV) + "\n"))
+        level, text, send = hc.unit_failed_message(FEEDS_UNIT, "h", c)
+        self.assertEqual(level, hc.INFO)
+        self.assertFalse(send)
+        self.assertTrue(text.startswith("[ManiCepte h] BILGI"))
+        self.assertIn("tekrar gonderilmedi", text)
+
+    def test_changed_problems_sent(self):
+        c = self.at_fnow(self.collector(self.line(CUR) + "\n" + self.line(PREV, problems="feed_14:behind") + "\n"))
+        level, _text, send = hc.unit_failed_message(FEEDS_UNIT, "h", c)
+        self.assertEqual(level, hc.INFO)
+        self.assertTrue(send)
+
+    def test_query_failure_crit_and_sent(self):
+        level, text, send = hc.unit_failed_message(FEEDS_UNIT, "h", self.collector("", psql_rc=1))
+        self.assertEqual(level, hc.CRIT)
+        self.assertTrue(send)
+        self.assertTrue(text.startswith("[ManiCepte h] SORUN"))
+
+    def test_bad_row_is_unreadable(self):
+        c = self.collector("partial|x|abc|1|2|false|ok|123\n")
+        self.assertIsNone(c.feeds_recent())
+        self.assertIsNone(self.collector("partial|x\n").feeds_recent())
+
+    def test_main_suppresses_repeat_webhook_but_no_fail_ping(self):
+        sent = []
+        orig_post, orig_ping, orig_msg = hc.post_json, hc.ping, hc.unit_failed_message
+        hc.post_json = lambda *a, **k: sent.append("post") or True
+        hc.ping = lambda *a, **k: sent.append("ping") or True
+        hc.unit_failed_message = lambda unit, host, collector: (hc.INFO, "x", False)
+        try:
+            with tempfile.TemporaryDirectory() as d:
+                (Path(d) / "env").mkdir()
+                (Path(d) / "env" / "alert.env").write_text("ALERT_WEBHOOK_URL=https://x\nHEALTHCHECK_PING_URL=https://y\n")
+                with contextlib.redirect_stdout(io.StringIO()):
+                    hc.main(["--root", d, "--unit-failed", FEEDS_UNIT])
+                self.assertEqual(sent, [])
+        finally:
+            hc.post_json, hc.ping, hc.unit_failed_message = orig_post, orig_ping, orig_msg
 
 
 if __name__ == "__main__":

@@ -9,7 +9,13 @@
 
 Kontroller: disk doluluk, konteyner sagligi, PostgreSQL erisimi ve baglanti kullanimi, WAL
 arsiv kuyrugu (pg_ls_archive_statusdir), yedek yasi (pgbackrest info), geri yukleme provasi
-yasi/sonucu, basarisiz arilla-* systemd birimleri, gece katalog hatti tazeligi.
+yasi/sonucu, basarisiz arilla-* systemd birimleri, gece katalog hatti ve gunluk besleme tazeligi.
+
+Gunluk besleme (karar 0182): `arilla-feeds-daily` `partial` ile (cikis 1) bittiginde, sorunlar
+yalniz besleme duzeyindeyse (kesik dosya, boyut kapisi, geride), son basarili yazim 36 saatten
+yeni ve taze teklif orani %25'in ustundeyse BILGI'dir; ayni sorunlar art arda gelirse tekrar
+gonderilmez. `failed`, kur bayatligi, kesif hatasi, bayat fiyatlar ya da okunamayan durum KRITIK.
+Son gunluk kosu kaydi 30 saati gecerse KRITIK.
 
 Gece katalog hatti (karar 0174, PR1c): `arilla-catalog-pipeline` basarisiz oldugunda birimin
 cikis kodu (`ExecMainStatus`) VE o kosunun `job_run.detail.outcome`'u birlikte okunur. Tek
@@ -60,6 +66,10 @@ THRESHOLDS = {
     "last_full_crit_s": 8 * 24 * 3600,  # haftalik tam yedek + tolerans
     "restore_test_warn_s": 35 * 24 * 3600,
     "pipeline_stale_crit_s": 50 * 3600,  # gunluk 02:30 kosusu + bir kacan gece + tolerans
+    # Gunluk besleme (karar 0182): gunde iki kosu (06:30, 18:30 + rastgele gecikme).
+    "feeds_success_crit_s": 36 * 3600,  # en yeni besleme yazimi; ~3 kacan kosu
+    "feeds_fresh_min_ratio": 0.25,  # taze / etkin teklif; 3 bantta 1 guncel besleme ~%40
+    "feeds_run_stale_crit_s": 30 * 3600,  # son gunluk kosu kaydi; 2 kacan kosu + tolerans
 }
 
 #: Sonucu `job_run`'dan siniflandirilan birimler -> o birimin yazdigi isler (karar 0174).
@@ -70,6 +80,12 @@ RAN_OUTCOMES = ("completed", "no_input", "partial", "blocked_upstream")
 LEGACY_RAN_STATUS = ("success", "partial")
 #: systemd baslangic zamani ile job_run.started_at arasindaki saat payi (ayni makine).
 INVOCATION_SKEW_S = 5
+#: Gunluk besleme birimi -> `job_run.job` (karar 0182). `partial` cikis 1 verir (OnSuccess zinciri
+#: bu yuzden tetiklenmez); seviye `job_run` kaydindan belirlenir.
+FEEDS_UNIT = "arilla-feeds-daily.service"
+FEEDS_JOB = "feed_daily"
+#: Sonucu `job_run`'dan siniflandirilan tum birimler.
+CLASSIFIED_UNITS = (*PIPELINE_JOBS, FEEDS_UNIT)
 
 
 @dataclass
@@ -166,10 +182,40 @@ class Collector:
             last[f[0]] = datetime.fromtimestamp(int(f[1]), tz=timezone.utc) if int(f[1]) else None
         return last if set(last) == set(jobs) else None
 
-    def classify_unit(self, unit: str) -> tuple[str, str]:
+    def feeds_recent(self) -> list[dict] | None:
+        """Gunluk beslemenin son iki cron kosusu, yeniden eskiye; sorgu basarisizsa None."""
+        rc, out = self.psql(FEEDS_RECENT_SQL)
+        if rc != 0:
+            return None
+        rows = []
+        for line in out.splitlines():
+            f = line.split("|")
+            if len(f) != 8 or not f[7].isdigit():
+                return None
+            try:
+                rows.append({
+                    "status": f[0], "problems": f[1] or None,
+                    "offers_active": int(f[2]) if f[2] else None, "offers_fresh": int(f[3]) if f[3] else None,
+                    "last_success": datetime.fromtimestamp(int(f[4]), tz=timezone.utc) if f[4] else None,
+                    "fx_stale": f[5] == "true", "discovery": f[6] or None,
+                    "started": datetime.fromtimestamp(int(f[7]), tz=timezone.utc),
+                })
+            except ValueError:
+                return None
+        return rows
+
+    def classify_unit(self, unit: str, now: datetime | None = None) -> tuple[str, str]:
         exec_status, since = self.unit_invocation(unit)
+        if unit == FEEDS_UNIT:
+            return classify_feeds_failure(exec_status, since, self.feeds_recent(),
+                                          now or datetime.now(timezone.utc))
         rows = self.pipeline_recent(PIPELINE_JOBS[unit])
         return classify_pipeline_failure(exec_status, since, rows)
+
+    def feeds_repeat(self, unit: str, now: datetime | None = None) -> bool:
+        """Ayni BILGI bir onceki kosuda da uretildi mi (OnFailure tekrar gondermez)."""
+        _status, since = self.unit_invocation(unit)
+        return feeds_info_repeats(since, self.feeds_recent(), now or datetime.now(timezone.utc))
 
     def collect(self) -> dict:
         facts: dict = {}
@@ -219,9 +265,10 @@ class Collector:
         rc, out = self.run(["systemctl", "list-units", "--state=failed", "--plain", "--no-legend", "arilla-*"], 15)
         units = [line.split()[0] for line in out.splitlines() if line.strip()] if rc == 0 else []
         facts["failed_units"] = [u for u in units if u not in SELF_UNITS and not u.startswith("arilla-alert@")]
-        facts["pipeline_failures"] = {u: self.classify_unit(u) for u in facts["failed_units"] if u in PIPELINE_JOBS}
+        facts["pipeline_failures"] = {u: self.classify_unit(u) for u in facts["failed_units"] if u in CLASSIFIED_UNITS}
         jobs = tuple(j for unit_jobs in PIPELINE_JOBS.values() for j in unit_jobs)
         facts["pipeline_last_ran"] = self.pipeline_last_ran(jobs)
+        facts["feeds_recent"] = self.feeds_recent()
         return facts
 
 
@@ -302,6 +349,93 @@ def classify_pipeline_failure(exec_status: int | None, since: datetime | None,
     if last.get("outcome") in ("completed", "no_input", "blocked_upstream") and exec_status != 0:
         return CRIT, f"son kayit {describe(last)}; sonraki adim kayit acmadan basarisiz (cikis {exec_status})"
     return CRIT, f"{describe(last)} (cikis {exec_status})"
+
+
+# --------------------------------------------------------------------------- gunluk besleme
+#: Son iki cron kosusu (job_run_job_idx). `|` ayiraci sorun metninde gecmesin diye degistirilir.
+FEEDS_RECENT_SQL = f"""
+select status, replace(coalesce(error_summary, ''), '|', '/'),
+       coalesce(detail->>'offers_active', ''), coalesce(detail->>'offers_fresh', ''),
+       coalesce(extract(epoch from (detail->>'last_success_at')::timestamptz)::bigint::text, ''),
+       coalesce(detail->>'fx_stale', ''), coalesce(detail->>'discovery', ''),
+       extract(epoch from started_at)::bigint
+  from job_run
+ where job = '{FEEDS_JOB}' and trigger = 'cron'
+ order by started_at desc limit 2
+"""
+
+
+def feed_level_only(problems: str | None) -> bool:
+    """Sorunlarin hepsi tek bir beslemeye mi ait (`feed_<id>:<kod>`): kaynak tarafi kapi/geride."""
+    items = [p.strip() for p in (problems or "").split(";") if p.strip()]
+    return bool(items) and all(p.startswith("feed_") and p[5:].split(":", 1)[0].isdigit() and ":" in p
+                               for p in items)
+
+
+def feeds_partial_tolerable(row: dict, now: datetime, t: dict = THRESHOLDS) -> tuple[bool, str]:
+    """`partial` kosu bilgi duzeyinde mi: yalniz besleme duzeyi sorun VE fiyatlar yeterince taze."""
+    if row.get("status") != "partial":
+        return False, f"durum {row.get('status')}"
+    if row.get("fx_stale"):
+        return False, "kur bayat (TL karsiligi gosterilemez)"
+    if row.get("discovery") == "failed":
+        return False, "kesif basarisiz"
+    if not feed_level_only(row.get("problems")):
+        return False, "besleme disi sorun"
+    last = row.get("last_success")
+    if last is None:
+        return False, "hic basarili besleme yazimi yok"
+    age = (now - last).total_seconds()
+    if age > t["feeds_success_crit_s"]:
+        return False, f"son basarili besleme yazimi {human(age)} once"
+    active, fresh = row.get("offers_active"), row.get("offers_fresh")
+    if not active or fresh is None:
+        return False, "taze teklif orani okunamadi"
+    if fresh / active < t["feeds_fresh_min_ratio"]:
+        return False, f"taze teklif %{100 * fresh // active} (esik %{int(100 * t['feeds_fresh_min_ratio'])})"
+    return True, f"taze teklif %{100 * fresh // active}, son yazim {human(age)} once"
+
+
+def feeds_current(since: datetime | None, rows: list[dict] | None) -> tuple[dict | None, dict | None]:
+    """(bu kosunun kaydi, bir onceki kosunun kaydi)."""
+    if since is None or not rows:
+        return None, None
+    cutoff = since.timestamp() - INVOCATION_SKEW_S
+    current = next((r for r in rows if r["started"].timestamp() >= cutoff), None)
+    prev = next((r for r in rows if r["started"].timestamp() < cutoff), None)
+    return current, prev
+
+
+def classify_feeds_failure(exec_status: int | None, since: datetime | None, rows: list[dict] | None,
+                           now: datetime, t: dict = THRESHOLDS) -> tuple[str, str]:
+    """Basarisiz gunluk besleme biriminin seviyesi ve mesaji (karar 0182).
+
+    `partial` + yalniz besleme duzeyi sorun (kesik dosya, boyut kapisi, geride) + son basarili yazim
+    36 saatten yeni + taze teklif orani esigin ustunde -> INFO. Geri kalan her sey, okunamayan
+    durum dahil, CRIT (kapali tarafta kalir).
+    """
+    if exec_status is None or since is None:
+        return CRIT, "birim durumu okunamadi (systemctl show)"
+    if rows is None:
+        return CRIT, f"job_run okunamadi (cikis {exec_status})"
+    current, _prev = feeds_current(since, rows)
+    if current is None:
+        return CRIT, f"bu kosuya ait {FEEDS_JOB} kaydi yok (cikis {exec_status})"
+    problems = current.get("problems") or "-"
+    ok, why = feeds_partial_tolerable(current, now, t)
+    if ok and exec_status == 1:
+        return INFO, f"{FEEDS_JOB}=partial: {problems}; {why}"
+    return CRIT, f"{FEEDS_JOB}={current.get('status')}: {problems}; {why} (cikis {exec_status})"
+
+
+def feeds_info_repeats(since: datetime | None, rows: list[dict] | None, now: datetime,
+                       t: dict = THRESHOLDS) -> bool:
+    """Onceki kosu da ayni sorunlarla bilgi duzeyindeydi: BILGI bir kez gider (durum degisince yine)."""
+    current, prev = feeds_current(since, rows)
+    if current is None or prev is None or prev.get("problems") != current.get("problems"):
+        return False
+    # Onceki kosu kendi zamanindaki tazelikle degerlendirilir.
+    return feeds_partial_tolerable(prev, prev["started"], t)[0]
 
 
 def read_env(path: Path) -> dict[str, str]:
@@ -482,6 +616,18 @@ def evaluate(facts: dict, now: datetime, t: dict = THRESHOLDS) -> list[Check]:
                 out.append(Check("pipeline:freshness", WARN, "calisti kaydi yok: " + ", ".join(missing)))
             else:
                 out.append(Check("pipeline:freshness", OK, "son calisma: " + ", ".join(ages)))
+
+    if "feeds_recent" in facts:
+        feeds = facts["feeds_recent"]
+        if feeds is None:
+            out.append(Check("feeds:freshness", CRIT, f"{FEEDS_JOB} kayitlari okunamadi"))
+        elif feeds:  # hic kayit yoksa gunluk besleme bu makinede kurulu degil
+            age = (now - feeds[0]["started"]).total_seconds()
+            if age > t["feeds_run_stale_crit_s"]:
+                # Bilgi duzeyindeki partial artik sessiz; zamanlayici durursa bunu bu kural yakalar.
+                out.append(Check("feeds:freshness", CRIT, f"gunluk besleme {human(age)}dir calismadi"))
+            else:
+                out.append(Check("feeds:freshness", OK, f"son gunluk besleme {human(age)} once ({feeds[0]['status']})"))
     return out
 
 
@@ -538,17 +684,24 @@ def format_message(kind: str, checks: list[Check], host: str) -> str:
     return "\n".join(lines)
 
 
-def unit_failed_message(unit: str, host: str, collector: Collector | None) -> tuple[str, str]:
-    """OnFailure seviyesi ve mesaji; katalog hatti birimi `job_run` sonucuyla siniflandirilir."""
+def unit_failed_message(unit: str, host: str, collector: Collector | None) -> tuple[str, str, bool]:
+    """OnFailure (seviye, mesaj, webhook gonderilsin mi); siniflandirilan birimler `job_run`'dan okunur.
+
+    Gunluk beslemede ayni sorunlarla art arda gelen BILGI yalniz bir kez gonderilir (karar 0182).
+    """
     hint = f"(journalctl -u {unit})"
     if collector is None:
-        return CRIT, f"[ManiCepte {host}] SORUN\n- CRIT systemd: {unit} basarisiz {hint}"
+        return CRIT, f"[ManiCepte {host}] SORUN\n- CRIT systemd: {unit} basarisiz {hint}", True
+    send = True
     try:
         level, msg = collector.classify_unit(unit)
+        if level == INFO and unit == FEEDS_UNIT and collector.feeds_repeat(unit):
+            send = False
+            msg += " (onceki kosuda bildirildi, tekrar gonderilmedi)"
     except Exception as error:  # noqa: BLE001 - alarm yolu asla susmaz
-        level, msg = CRIT, f"siniflandirma hatasi: {type(error).__name__}"
+        level, msg, send = CRIT, f"siniflandirma hatasi: {type(error).__name__}", True
     head = "BILGI" if level == INFO else "SORUN"
-    return level, f"[ManiCepte {host}] {head}\n- {level.upper()} systemd: {unit} {msg} {hint}"
+    return level, f"[ManiCepte {host}] {head}\n- {level.upper()} systemd: {unit} {msg} {hint}", send
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -566,7 +719,7 @@ def main(argv: list[str] | None = None) -> int:
 
     if args.unit_failed:
         unit = "".join(ch for ch in args.unit_failed if ch.isalnum() or ch in "-_.@")[:120]
-        collector = Collector(root) if unit in PIPELINE_JOBS else None
+        collector = Collector(root) if unit in CLASSIFIED_UNITS else None
         if args.no_send and collector is not None:
             # Teshis: birim basarisiz degilse siniflandirma anlamsiz (OnFailure zaten calismazdi).
             state = collector.unit_active_state(unit)
@@ -574,9 +727,9 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"[ManiCepte {host}] TESHIS\n- OK systemd: {unit} basarisiz degil (ActiveState={state}); "
                       "alarm gitmezdi")
                 return 0
-        level, text = unit_failed_message(unit, host, collector)
+        level, text, send = unit_failed_message(unit, host, collector)
         if not args.no_send:
-            if alert.get("ALERT_WEBHOOK_URL"):
+            if alert.get("ALERT_WEBHOOK_URL") and send:
                 post_json(alert["ALERT_WEBHOOK_URL"], {"text": text, "content": text})
             # Olu adam anahtari yalniz gercek sorunda "fail" alir; tek seferlik atlama degil.
             if alert.get("HEALTHCHECK_PING_URL") and level != INFO:
