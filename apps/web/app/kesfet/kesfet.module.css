@@ -9,3 +9,25 @@
   border-radius: var(--radius-lg);
   background: var(--surface);
 }
+
+.page {
+  min-width: 0;
+  color: var(--ink);
+}
+.page h1 {
+  max-width: 22ch;
+  font-size: var(--text-display);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-display);
+  text-wrap: balance;
+}
+.page > section:first-child {
+  border-bottom: var(--border-width) solid var(--line);
+  margin-bottom: var(--space-8);
+}
+.empty {
+  margin-top: var(--space-8);
+  padding-block: var(--space-12);
+  border: var(--border-width) solid var(--line);
+}

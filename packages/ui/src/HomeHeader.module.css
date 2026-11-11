@@ -873,3 +873,17 @@
       font-size var(--duration-base) var(--ease-standard);
   }
 }
+
+/* Keep the complete brand and account action readable on narrow public pages. */
+@media (max-width: 639px) {
+  .header[data-variant="site"] .inner {
+    flex-wrap: wrap;
+    row-gap: var(--space-2);
+  }
+  .header[data-variant="site"] .brand {
+    flex-shrink: 0;
+  }
+  .header[data-variant="site"] .account {
+    flex-shrink: 0;
+  }
+}

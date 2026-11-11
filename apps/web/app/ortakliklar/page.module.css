@@ -20,8 +20,7 @@
   align-items: center;
   padding: var(--space-16) var(--gutter) var(--space-12);
   text-align: center;
-  background-image: radial-gradient(var(--line) 1.5px, transparent 1.5px);
-  background-size: 24px 24px;
+  background: var(--surface);
 }
 
 .badge {
@@ -113,7 +112,7 @@
   overflow: hidden;
   border-radius: var(--radius-lg);
   background: var(--line);
-  box-shadow: var(--shadow-md);
+  border: var(--border-width) solid var(--line);
 }
 
 .stat {
@@ -458,6 +457,63 @@
 
   .formCard,
   .mailCard {
-    max-width: 640px;
+    max-width: var(--content-width-reading);
   }
+}
+
+.page {
+  overflow-wrap: anywhere;
+}
+.heroTitle,
+.heroText {
+  max-width: var(--content-width-reading);
+}
+.statValue {
+  font-size: var(--text-h3);
+  line-height: var(--line-height-heading);
+}
+.faqQuestion,
+.heroLink,
+.mailLink {
+  min-height: var(--size-touch-target);
+}
+.field {
+  min-width: 0;
+}
+.field input,
+.field select {
+  min-width: 0;
+  padding-inline: var(--space-4);
+  border-radius: var(--radius-md);
+}
+.mailLink {
+  align-items: center;
+}
+.formCard,
+.mailCard {
+  box-sizing: border-box;
+  width: 100%;
+}
+.contact,
+.steps {
+  scroll-margin-block-start: var(--space-8);
+}
+@media (min-width: 640px) {
+  .formCard {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .formCard > fieldset,
+  .formCard > hr,
+  .formCard > button {
+    grid-column: 1 / -1;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chevron {
+    transition: none;
+  }
+}
+
+.formCard > .previewNote {
+  grid-column: 1 / -1;
 }

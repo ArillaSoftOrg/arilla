@@ -13,12 +13,12 @@
 .intro {
   display: grid;
   gap: var(--space-3);
-  margin-bottom: var(--space-8);
+  margin-bottom: var(--space-10);
 }
 
 .title {
   margin: 0;
-  font-size: var(--text-h1);
+  font-size: var(--text-display);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-snug);
   letter-spacing: var(--letter-spacing-h1);
@@ -87,4 +87,16 @@
   .more {
     padding: var(--space-8);
   }
+}
+
+.page {
+  overflow-wrap: anywhere;
+}
+.intro {
+  padding-bottom: var(--space-8);
+  border-bottom: var(--border-width) solid var(--line);
+}
+.more {
+  background: var(--surface);
+  border-radius: var(--radius-lg);
 }

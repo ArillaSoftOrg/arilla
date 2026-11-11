@@ -1,31 +1,44 @@
-/* Okuma genisligi + tek gutter uygulamasi (docs/design.md "Düzen ve
-   kapsayıcılar"); fullBleed kabukta Container gelmedigi icin gutter burada
-   tek sefer uygulanir. Dikey ritim akiskan bolum araligi token'larindan. */
 .page {
   box-sizing: border-box;
   width: 100%;
-  max-width: calc(var(--content-width-reading) + 2 * var(--gutter));
+  max-width: calc(var(--content-width-standard) + 2 * var(--gutter));
   margin-inline: auto;
-  padding: var(--section-space-compact) var(--gutter) var(--section-space);
+  padding: var(--section-space) var(--gutter);
   color: var(--ink);
 }
-
 .title {
-  margin: 0 0 var(--space-6);
-  font-size: var(--text-h1);
+  max-width: 14ch;
+  margin: 0 0 var(--space-10);
+  font-size: var(--text-display);
   font-weight: var(--font-weight-semibold);
-  line-height: var(--line-height-snug);
-  letter-spacing: var(--letter-spacing-h1);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-display);
   text-wrap: balance;
 }
-
 .paragraph {
-  margin: 0 0 var(--space-5);
+  max-width: var(--content-width-reading);
+  margin: 0 0 var(--space-6);
+  color: var(--ink-secondary);
   font-size: var(--text-body-lg);
   line-height: var(--line-height-body);
   text-wrap: pretty;
 }
-
+.paragraph:first-of-type {
+  color: var(--ink);
+  padding-top: var(--space-8);
+  border-top: var(--border-width) solid var(--line);
+}
 .paragraph:last-child {
+  margin-top: var(--space-10);
   margin-bottom: 0;
+  padding: var(--space-6);
+  background: var(--surface);
+  border-radius: var(--radius-lg);
+  color: var(--ink);
+  font-weight: var(--font-weight-medium);
+}
+@media (min-width: 1024px) {
+  .paragraph {
+    margin-inline-start: auto;
+  }
 }

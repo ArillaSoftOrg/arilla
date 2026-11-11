@@ -1,4 +1,3 @@
-import { VisuallyHidden } from "@arilla/ui";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { SITE_BRAND } from "../site-config.ts";
@@ -19,9 +18,13 @@ export const metadata: Metadata = {
 export default function BlogPage() {
   return (
     <div className={styles.page}>
-      <VisuallyHidden as="div">
-        <h1>{`${SITE_BRAND} Blog`}</h1>
-      </VisuallyHidden>
+      <header className={styles.intro}>
+        <h1 className={styles.title}>{SITE_BRAND} Blog</h1>
+        <p className={styles.description}>
+          Ürünleri tanıyın, seçenekleri karşılaştırın. Bir sonraki kararınız için rehberler ve
+          fikirler.
+        </p>
+      </header>
       <div className={styles.feed}>
         <article className={styles.hero}>
           {/* biome-ignore lint/performance/noImgElement: R2 medya alan adindan gelen onceden optimize WebP; next/image gerekmez. */}
