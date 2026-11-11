@@ -111,7 +111,15 @@ class OnnxEmbedder:
         batch_size: int = 64,
         prefix: str = "",
         verify: bool = True,
+        pooling: str = "mean",
     ) -> None:
+        # Karar 0184: havuzlama kayit defterinden gelir; e5'in resmi degeri `mean` (varsayilan,
+        # karar 0155 davranisi degismez). Bilinmeyen yontem model yuklenmeden reddedilir.
+        from enrich.pooling import POOLING_METHODS
+
+        if pooling not in POOLING_METHODS:
+            raise ModelError(f"bilinmeyen havuzlama: {pooling!r}")
+        self.pooling = pooling
         import numpy as np
         import onnxruntime as ort
         from tokenizers import Tokenizer
@@ -143,6 +151,8 @@ class OnnxEmbedder:
         return clone
 
     def encode(self, texts: Sequence[str]):  # noqa: ANN201 - numpy dizisi
+        from enrich.pooling import normalize_l2, pool
+
         np = self._np
         out = np.zeros((len(texts), DIM), dtype=np.float32)
         # Uzunluga gore sirala: dolgu (padding) israfini azaltir; sonra eski sirayi geri koy.
@@ -156,10 +166,7 @@ class OnnxEmbedder:
             if "token_type_ids" in self._input_names:
                 feed["token_type_ids"] = np.zeros_like(ids)
             hidden = self._session.run(None, feed)[0]
-            weights = mask[:, :, None].astype(np.float32)
-            pooled = (hidden * weights).sum(axis=1) / np.maximum(weights.sum(axis=1), 1e-9)
-            pooled /= np.maximum(np.linalg.norm(pooled, axis=1, keepdims=True), 1e-12)
-            out[idx] = pooled
+            out[idx] = normalize_l2(pool(hidden, mask, self.pooling))
         return out
 
 

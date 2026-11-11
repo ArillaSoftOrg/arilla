@@ -149,6 +149,14 @@ class LocalOnnxTextProvider:
             raise RegistryError(
                 f"model dizini {embedder_version!r}, kayit defteri {self.spec.id!r} bekliyor"
             )
+        embedder_pooling = getattr(self.embedder, "pooling", None)
+        if embedder_pooling != self.spec.pooling:
+            # Karar 0184: yanlis havuzlama boyut/norm kapisindan gecer; bu yuzden gommecinin
+            # GERCEKTEN kullandigi yontem kayit defteriyle ayni olmak zorunda.
+            raise RegistryError(
+                f"{self.spec.id}: gommeci havuzlamasi {embedder_pooling!r}, "
+                f"kayit defteri {self.spec.pooling!r} bekliyor"
+            )
         self.batch_size = max(1, min(self.batch_size, LOCAL_MAX_BATCH))
         prefix = self.spec.prefix(self.purpose)
         if prefix and hasattr(self.embedder, "with_prefix"):
@@ -257,7 +265,18 @@ class RemoteHttpTextProvider:
             return EmbeddingBatch(vectors=[], model_version=self.spec.id, total_tokens=0)
         if len(texts) > self.batch_size:
             raise EmbeddingError(f"parti {len(texts)} > sinir {self.batch_size}")
-        body = {"model": self.served_model, "input": [self._prefix + t for t in texts]}
+        inputs = [self._prefix + t for t in texts]
+        # Karar 0184: girdi siniri istemcide. Sunucu (TEI) yalniz model sinirini asani kirpar;
+        # kayit defteri sinirini asan girdi sessizce kirpilmaz, parti reddedilir (cagiran
+        # metni `text_prep` ile parcalar). Tahmin `chars_per_token` ile, onek dahil.
+        limit_chars = int(self.spec.max_input_tokens * self.spec.chars_per_token)
+        too_long = [i for i, text in enumerate(inputs) if len(text) > limit_chars]
+        if too_long:
+            raise EmbeddingInvalid(
+                f"{len(too_long)} girdi ~{self.spec.max_input_tokens} token sinirini asiyor "
+                f"(> {limit_chars} karakter); kirpilmadi"
+            )
+        body = {"model": self.served_model, "input": inputs}
         headers = {"Authorization": f"Bearer {self.token}"} if self.token else {}
         started = time.perf_counter()
         payload = self._post_with_retry(body, headers)
@@ -356,7 +375,10 @@ def build_text_provider(
             raise RegistryError(f"{spec.id}: --model-dir gerekli")
         from classify.suggest.model import OnnxEmbedder  # tembel: onnxruntime yalniz burada
 
-        embedder = OnnxEmbedder(model_dir, threads=threads, batch_size=batch_size or 64)
+        assert spec.pooling is not None  # kayit defteri yukleyicisi zorunlu kilar (karar 0184)
+        embedder = OnnxEmbedder(
+            model_dir, threads=threads, batch_size=batch_size or 64, pooling=spec.pooling
+        )
         return LocalOnnxTextProvider(
             spec=spec, embedder=embedder, purpose=purpose, batch_size=batch_size or 64
         )

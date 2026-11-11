@@ -41,7 +41,7 @@ build-backend = "setuptools.build_meta"
 
 [tool.setuptools.package-data]
 classify = ["data/*.tsv"]
-enrich = ["model_registry.json"]
+enrich = ["model_registry.json", "golden/*.json"]
 
 [tool.setuptools]
 packages = [
@@ -84,6 +84,7 @@ testpaths = ["tests"]
 # veritabani olmadan `-m "not integration"` ile atlanabilsinler.
 markers = [
     "integration: yerel PostgreSQL gerektirir",
+    "model: canli model sunucusu gerektirir (EMBED_CANARY_LIVE=1); normal CI'da atlanir",
 ]
 
 # Vercel Queues abonesi (karar 0107). Vercel derleme aninda bu modulu ice alip

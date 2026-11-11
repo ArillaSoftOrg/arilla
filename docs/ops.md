@@ -2944,6 +2944,48 @@ Model dizini `classify suggest model build` ile üretilir ve SHA-256 ile doğrul
 Yerel model `enrich.products --model <id> --model-dir DIR --execute` ile kendi tablosuna
 (`product_text_embedding_d384`) yazar; `pilot` durumundaki model yalnız yerel veritabanında çalışır.
 
+### Embedding CPU servisi, havuzlama ve kanarya (karar 0184) — varsayılan KAPALI
+
+Üretimde KURULU DEĞİL. KVM 4'te çalıştırılmaz (bellek bütçesi yok); hedef tek KVM 8 (embed.md
+6.5). Kurmak hiçbir modeli etkinleştirmez.
+
+1. **Model dizini (elle, bir kez, sabit revizyon):**
+   `hf download <source.repo> --revision <source.revision> --local-dir /opt/arilla/models/<dizin>`
+   (dizin adı `infra/embed/<model_id>.env` içindeki `EMBED_CPU_MODEL_DIR`). Sonra
+   `python -m enrich.model_files --model <id> --dir /opt/arilla/models/<dizin>`: her dosyanın
+   revizyonu ve ağırlıkların SHA-256'sı doğrulanır; hata varsa servisi başlatma.
+   BGE-M3'ün sabit revizyonunda yalnız `pytorch_model.bin` (pickle) vardır; TEI bunu yükler, ama
+   güvenilmeyen pickle'ı üretimde açmamak için önce yalıtılmış ortamda safetensors'a çevirip
+   SHA-256'sını kayda geçirmek E3 işidir.
+2. **Başlatma:** `docker compose --env-file infra/embed/<model_id>.env -f infra/compose.embed.yml
+   --profile embed-cpu up -d embed-cpu`. `ports:` yok; `embed` ağı internal. İstemci (ingest
+   toplu işi) aynı ağa katılıp `EMBED_<AD>_URL=http://embed-cpu:8080` kullanır.
+   TEI dizini bulamazsa indirmeyi DENER; internal ağ ve `HF_ENDPOINT=http://127.0.0.1:9` bunu
+   keser (cpu-1.9.4'te denendi).
+3. **Kanarya (yazmadan önce zorunlu):** `python -m enrich.canary --model <id>`. Altın vektörler
+   (`services/ingest/enrich/golden/<id>.json`) resmî sentence-transformers referansından,
+   sabit revizyonla üretildi (`python -m enrich.golden_build --source-dir DIR`); eşik ölçümle
+   konur (`--measure --record-tolerance "<sunucu/imaj>"`). `enrich.products --execute` kendi
+   çalıştırılan modelde kanaryayı ÖNCE çalıştırır; geçmezse yazmaz (fail-closed).
+   Sunucu, imaj, havuzlama ya da revizyon değişirse eşik yeniden ölçülür.
+4. **Ölçüm (yazmaz):** `python -m enrich.pilot --model <id> --texts-file F --batch-size 32`;
+   sonuç `canary_min_cosine` içerir. Sunucu belleği `docker stats` ile.
+
+Yerelde ölçülen (2 vCPU, Docker; işlemci üretimle aynı DEĞİL, yalnız yön gösterir):
+
+| Model | Hazır olma | Bellek tepesi | Metin/sn (32'lik parti) | Kanarya (resmî referans) | Yanlış havuzlama |
+|---|---|---|---|---|---|
+| Qwen3-0.6B (last-token) | ~140 sn | ~3,2 GiB yükleme; 3 GiB limitte OOM | 2,9 | 1,000000 | mean: 0,46–0,78 → reddedildi |
+| BGE-M3 (cls) | ~130 sn | ~2,7 GiB | 6,5 | ≥ 0,99998 (TEI tanh-GeLU farkı) | mean: 0,77–0,84 → reddedildi |
+
+TEI ayarı notları: `--max-concurrent-requests` GİRDİ sayar (istemci partisinden küçükse her
+istek 429); `--auto-truncate=false` ancak `--max-batch-tokens` ≥ modelin azami girdisiyken
+başlar; girdi sınırı bu yüzden istemcide (`max_input_tokens`, aşan parti reddedilir).
+
+Veri kalitesi (salt okunur, örneklemeli): `python -m enrich.quality --out rapor.md` ya da
+üretimde `--emit-sql` → `psql` (READ ONLY) → `--render`. Planı ornekleme dışı büyük Seq Scan
+olan sorgu çalıştırılmaz.
+
 ### Embedding indeks geçişi (karar 0181) — kuru varsayılan, `--execute` ile
 
 ```bash

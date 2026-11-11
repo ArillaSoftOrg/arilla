@@ -1,0 +1,101 @@
+# Kendi CPU embedding cikarim servisi (karar 0184) - VARSAYILAN KAPALI.
+#
+# Bu dosya uretim yiginina (compose.prod.yml) EKLENMEZ ve dagitim hatti onu calistirmaz. Servis
+# yalniz `embed-cpu` profiliyle ve acikca baslatilir; profil olmadan `up` hicbir sey baslatmaz:
+#
+#   docker compose --env-file infra/embed/<model_id>.env -f infra/compose.embed.yml \
+#     --profile embed-cpu up -d embed-cpu
+#
+# Kurallar (karar 0184, CLAUDE.md "istek yolunda model cagrisi yok"):
+# - Model OTOMATIK INDIRILMEZ. Uc katman (cpu-1.9.4'te denendi): TEI dizin bulamayinca
+#   HF_HUB_OFFLINE=1'e ragmen huggingface.co'dan indirmeyi DENER; bunu (1) `embed` aginin
+#   internal olmasi (disari cikis yok) ve (2) HF_ENDPOINT'in kapali yerel porta yonlenmesi
+#   engeller; (3) `--model-id` her zaman salt-okunur `/models/<dizin>` altindadir. Dizin
+#   sabit revizyonla elle indirilir ve `python -m enrich.model_files` ile dogrulanir
+#   (docs/ops.md "Embedding CPU servisi"). Dizin yoksa servis baslamaz.
+# - Modeli kurmak hicbir modeli ETKINLESTIRMEZ: yazma `enrich.products --model ... --execute` +
+#   altin vektor kanaryasi (enrich.canary), arama ise `enrich.index activate` ister.
+# - Ag: `embed` agi internal; `ports:` YOK, host'a/internete acilmaz, servis disari cikamaz.
+#   Istemci (ingest toplu isi) bu aga katilarak `http://embed-cpu:8080` adresini kullanir
+#   (registry `endpoint.url_env`, or. EMBED_QWEN3_06B_URL). Ayni sozlesme (OpenAI
+#   /v1/embeddings) ayri Processing VPS ya da GPU'da da gecerlidir; yalniz adres degisir.
+# - Kaynak: baslangic tavani 2 vCPU / 6 GB (KVM 8 butcesi, embed.md 6.5). Kesin deger pilot
+#   olcumuyle (`enrich.pilot --provider remote`) belirlenir; KVM 4'te calistirilmaz.
+# - Es zamanlilik sinirli. DIKKAT (cpu-1.9.4'te olculdu): `--max-concurrent-requests` HTTP
+#   istegini degil GIRDI sayisini sayar; deger istemci partisinden (32) kucukse tek bir parti
+#   bile hep 429 alir ("no permits available"). Varsayilan 64 = iki tam parti (canli sorgu +
+#   toplu is). Fazlasi 429 doner; istemci (RemoteHttpTextProvider) sinirli tekrarla ele alir.
+#   Bellek tavani `--max-batch-tokens` ile: Qwen3-0.6B yuklemede ~3.2 GiB tepe olculdu
+#   (3 GiB limitte OOM), varsayilan 2048 token/parti.
+# - Girdi siniri ISTEMCIDEDIR: kayit defteri `max_input_tokens` (Qwen3/BGE-M3: 512). TEI'de
+#   `--auto-truncate=false` ancak `--max-batch-tokens` >= modelin azami girdisi (Qwen3 32768,
+#   BGE-M3 8192) iken baslar (cpu-1.9.4'te olculdu); bu da CPU bellek tavanini anlamsizlastirir.
+#   Bu yuzden sunucu kirpmasi acik: yalniz model sinirini asan girdi kirpilir, 512'lik siniri
+#   istemci uygular. Kirpma kanaryayi etkilemez (kanarya metinleri kisadir).
+name: arilla
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "10m"
+    max-file: "3"
+
+services:
+  embed-cpu:
+    profiles: ["embed-cpu"]
+    # cpu-1.9.4 (2026-09-15), digest'e sabit: etiket sonradan degisse de ayni imaj.
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9.4@sha256:2538ea1c9640d3763b15af668039d24172d063b42337b0c27796fc2be180c78d
+    command:
+      - --model-id=/models/${EMBED_CPU_MODEL_DIR:?EMBED_CPU_MODEL_DIR gerekli (infra/embed/*.env)}
+      - --served-model-name=${EMBED_CPU_SERVED_MODEL:?EMBED_CPU_SERVED_MODEL gerekli}
+      - --pooling=${EMBED_CPU_POOLING:?EMBED_CPU_POOLING gerekli (cls|mean|last-token)}
+      - --hostname=0.0.0.0
+      - --port=8080
+      - --max-concurrent-requests=${EMBED_CPU_MAX_CONCURRENT:-64}
+      - --max-batch-tokens=${EMBED_CPU_MAX_BATCH_TOKENS:-2048}
+      - --max-client-batch-size=32
+      - --tokenization-workers=1
+      - --auto-truncate=true
+      - --payload-limit=2000000
+      - --json-output
+      - --disable-spans
+    environment:
+      HF_HUB_OFFLINE: "1"
+      # Indirme denemesi kapali yerel porta gider (internal ag bozulsa bile disari cikmaz).
+      HF_ENDPOINT: "http://127.0.0.1:9"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      HUGGINGFACE_HUB_CACHE: /tmp/hf
+      # CPU cekirdek sayisi `cpus` ile ayni tutulur; aksi halde thread'ler limit icinde cekisir.
+      OMP_NUM_THREADS: "${EMBED_CPU_THREADS:-2}"
+      MKL_NUM_THREADS: "${EMBED_CPU_THREADS:-2}"
+      RAYON_NUM_THREADS: "${EMBED_CPU_THREADS:-2}"
+    volumes:
+      - type: bind
+        source: ${EMBED_MODELS_DIR:-/opt/arilla/models}
+        target: /models
+        read_only: true
+    networks: [embed]
+    restart: unless-stopped
+    logging: *logging
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "5", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 180s
+    cpus: ${EMBED_CPU_CPUS:-2.0}
+    mem_limit: ${EMBED_CPU_MEMORY:-6g}
+    memswap_limit: ${EMBED_CPU_MEMORY:-6g}
+    pids_limit: 256
+    stop_grace_period: 30s
+
+networks:
+  embed:
+    internal: true
