@@ -266,6 +266,7 @@ def emit_sql(params: Mapping[str, Any]) -> str:
     EXPLAIN ciktilarini da ayni dosyaya yazar ki `--render` ayni kontrolu sonradan yapsin.
     """
     lines = [
+        "\\set QUIET on",
         "\\set ON_ERROR_STOP on",
         "\\pset format unaligned",
         "\\pset tuples_only on",
@@ -292,6 +293,10 @@ def parse_psql_output(text: str) -> dict[str, Any]:
     buffer = ""
     for line in text.splitlines():
         if not line.strip():
+            continue
+        # psql komut etiketleri (BEGIN, SET, COMMIT) ve bilgi satirlari JSON degildir; yalniz
+        # `{` ya da `[` ile baslayan satir yeni bir deger baslatir.
+        if not buffer and not line.lstrip().startswith(("{", "[")):
             continue
         buffer += line
         try:

@@ -90,6 +90,9 @@ def test_psql_output_roundtrip_and_plan_gate() -> None:
     plan_bad = json.dumps(_plan("Seq Scan", "offer", 9e6), indent=2)
     out = "\n".join(
         [
+            "Output format is unaligned.",  # uretim psql ciktisinda gorulen etiketler
+            "BEGIN",
+            "SET",
             json.dumps({"params": PARAMS, "measured_at": "t"}),
             json.dumps({"name": "estimates", "value": {"product": {"reltuples": 1}}}),
             plan_ok,
