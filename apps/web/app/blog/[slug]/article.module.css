@@ -1,13 +1,13 @@
 .page {
-  background: var(--warm-page);
-  padding: var(--space-6) 0 var(--space-16);
+  background: var(--paper);
+  padding: var(--section-space-compact) 0 var(--section-space);
   color: var(--ink);
 }
 
 .column {
   box-sizing: border-box;
   width: 100%;
-  max-width: 44rem;
+  max-width: calc(var(--content-width-reading) + 2 * var(--gutter));
   margin-inline: auto;
   padding-inline: var(--gutter);
 }
@@ -26,7 +26,7 @@
 
 .title {
   margin: var(--space-4) 0 var(--space-2);
-  font-size: var(--text-h1);
+  font-size: var(--text-display);
   line-height: var(--line-height-heading);
 }
 
@@ -75,11 +75,37 @@
 .callout {
   margin: var(--space-6) 0;
   padding: var(--space-4) var(--space-5);
-  border: var(--border-width) solid currentColor;
+  border: var(--border-width) solid var(--line);
   border-radius: var(--radius-md);
 }
 
 .callout p {
   margin: var(--space-2) 0 0;
   line-height: var(--line-height-body);
+}
+
+.page {
+  overflow-wrap: anywhere;
+}
+.title {
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: var(--letter-spacing-display);
+  text-wrap: balance;
+}
+.back {
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  text-underline-offset: 0.3em;
+}
+.back:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+.cover {
+  margin-block: var(--space-8);
+  background: var(--surface);
+}
+.callout {
+  background: var(--surface);
 }

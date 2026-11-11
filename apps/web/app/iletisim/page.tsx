@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import formStyles from "../geri-bildirim/page.module.css";
 import { verifySession } from "../lib/dal.ts";
 import { PUBLIC_CONTACT_EMAIL, SITE_BRAND } from "../site-config.ts";
 import { CONTACT_COPY as COPY } from "./contact-copy.ts";
@@ -27,12 +26,12 @@ export default async function IletisimPage() {
 
   return (
     <div className={styles.page}>
-      <section className={formStyles.panel} aria-labelledby="iletisim-baslik">
-        <header className={formStyles.intro}>
-          <h1 id="iletisim-baslik" className={formStyles.title}>
+      <section className={styles.panel} aria-labelledby="iletisim-baslik">
+        <header className={styles.intro}>
+          <h1 id="iletisim-baslik" className={styles.title}>
             {COPY.title}
           </h1>
-          <p className={formStyles.description}>{COPY.description}</p>
+          <p className={styles.description}>{COPY.description}</p>
           <p className={styles.faqPrompt}>
             {COPY.faqPrompt} <Link href="/sss">{COPY.faqLink}</Link> {COPY.faqPromptEnd}
           </p>

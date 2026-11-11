@@ -3,7 +3,7 @@
 .page {
   display: grid;
   gap: var(--space-10);
-  max-width: var(--content-width-reading);
+  max-width: var(--content-width-standard);
   margin-inline: auto;
   padding-block: var(--section-space-compact) var(--section-space);
 }
@@ -17,7 +17,7 @@
 
 .title {
   margin: 0;
-  font-size: var(--text-h1);
+  font-size: var(--text-display);
   font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-snug);
   letter-spacing: var(--letter-spacing-h1);
@@ -104,4 +104,54 @@
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
   border-radius: var(--radius-sm);
+}
+
+.page {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.header {
+  padding: var(--space-6);
+  border: var(--border-width) solid var(--line);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+}
+.title {
+  max-width: 22ch;
+}
+.content {
+  width: 100%;
+  max-width: var(--content-width-reading);
+  margin-inline: auto;
+}
+.content > section + section {
+  padding-top: var(--space-8);
+  border-top: var(--border-width) solid var(--line);
+}
+.content :global(ol) {
+  margin: 0;
+  padding-inline-start: var(--space-6);
+}
+.content :global(table) {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: var(--text-small);
+}
+.content :global(th),
+.content :global(td) {
+  padding: var(--space-3);
+  border: var(--border-width) solid var(--line);
+  text-align: start;
+  vertical-align: top;
+}
+.content :global(th) {
+  background: var(--surface);
+  color: var(--ink);
+}
+@media (min-width: 640px) {
+  .header {
+    padding: var(--space-10);
+  }
 }
