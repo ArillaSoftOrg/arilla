@@ -111,15 +111,22 @@ print("\n".join(dict.fromkeys(labels)))')
       --root "$ROOT" --free-path "$ROOT" --abort-ready "$abort_ready" --abort-oldest-s "$abort_oldest" \
       --deadline-s "$remaining"
     mrc=$?
+    if [ "$mrc" -ne 0 ]; then
+      # Fail-closed: bekci durdurdu ya da kendisi coktu -> dogrulama korumasiz devam etmez.
+      docker kill "$name" >/dev/null 2>&1 || true
+      kill "$vpid" 2>/dev/null || true
+    fi
     wait "$vpid"
     vrc=$?
     set -e
     tail -n 20 "$log" || true
     if [ "$mrc" -eq 3 ]; then
-      status=incomplete
       reason=$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["aborted"])' "$mfile" 2>/dev/null || echo bekci)
+      # Konteyner hic baslamadiysa dogrulama YAPILMADI: koruyucu sinir degil, hata (alarm).
+      if [ "$reason" = not_started ]; then status=failed; else status=incomplete; fi
       break
     fi
+    if [ "$mrc" -ne 0 ]; then status=failed; reason="bekci hatasi (rc $mrc)"; break; fi
     if [ "$vrc" -ne 0 ]; then status=failed; reason="pgbackrest exit $vrc"; break; fi
   done
   write_verify "$scope" "$status" "$reason" "$start" "$work"

@@ -156,6 +156,11 @@ set +e
   --root "$ROOT" --free-path "$ROOT" --min-free-bytes "$MIN_FREE" --dir "$RUN" --max-dir-bytes "$budget" \
   --abort-ready "$ABORT_READY" --abort-oldest-s "$ABORT_OLDEST"
 mrc=$?
+if [ "$mrc" -ne 0 ]; then
+  # Fail-closed: bekci durdurdu ya da coktu -> prova korumasiz devam etmez.
+  docker kill "$name" >/dev/null 2>&1 || true
+  kill "$rpid" 2>/dev/null || true
+fi
 wait "$rpid"
 rc=$?
 set -e
@@ -166,6 +171,11 @@ if [ "$mrc" -eq 3 ]; then
   reason=$(printf '%s' "$monitor" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["aborted"])' 2>/dev/null || echo bekci)
   finish false "{\"error\":\"koruyucu sinir: $reason\",\"mode\":\"$MODE\",\"monitor\":$monitor}"
   echo "$(ts) [restore-test] DURDURULDU: koruyucu sinir ($reason)" >&2
+  exit 1
+fi
+if [ "$mrc" -ne 0 ]; then
+  finish false "{\"error\":\"bekci hatasi (rc $mrc)\",\"mode\":\"$MODE\"}"
+  echo "$(ts) [restore-test] DURDURULDU: bekci hatasi (rc $mrc)" >&2
   exit 1
 fi
 result=$(printf '%s\n' "$out" | grep '^RESULT ' | tail -1 | cut -d' ' -f2- || true)
