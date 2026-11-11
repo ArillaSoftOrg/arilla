@@ -1,0 +1,10 @@
+[Unit]
+Description=Aylik tum depo dogrulamasi (ayin ikinci Carsambasi 09:30 UTC)
+
+[Timer]
+OnCalendar=Wed *-*-08..14 09:30:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

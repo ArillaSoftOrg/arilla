@@ -1,13 +1,29 @@
 #!/usr/bin/env bash
-# Izole geri yukleme provasi (karar 0110) - ROOT ile (systemd aylik ya da elle).
+# Izole geri yukleme provasi (karar 0110, 0183) - ROOT ile (systemd aylik ya da elle).
 #
-#   pg-restore-test                          # en son duruma (WAL sonuna) kadar
-#   pg-restore-test --time "2026-10-14 03:00:00+00"   # PITR provasi
+#   pg-restore-test                          # TAM prova: en son duruma (WAL sonuna) kadar
+#   pg-restore-test --time "2026-10-14 03:00:00+00"   # TAM PITR provasi
+#   pg-restore-test --partial                # KISMI prova (tam kanit DEGILDIR, asagiya bakin)
+#   pg-restore-test --auto                   # kapasite yetiyorsa TAM, yetmiyorsa KISMI (zamanlayici)
 #
 # Uretim veritabanina YAZMAZ, onu durdurmaz: `restore` konteyneri yalniz egress agindadir,
 # bos bir gecici dizine geri yukler, ayri bir PostgreSQL'i yalniz soketle acar, dogrular,
-# siler. Uretimden yalniz SALT-OKUNUR sema ozeti ve migration defteri okunur (karsilastirma).
-# Sonuc: /opt/arilla/state/restore-test.json. Basarisizlik -> cikis kodu != 0 (alarm).
+# siler. Uretimden yalniz SALT-OKUNUR sema ozeti, migration defteri ve veritabani boyutlari okunur.
+#
+# Kapasite (karar 0183): TAM prova ancak
+#   bos disk >= kume boyutu + ARILLA_RESTORE_WAL_BUDGET_BYTES (16 GiB) + ARILLA_RESTORE_MIN_FREE_BYTES (30 GiB)
+# ise yapilir. Taban (min free) uretimin calismaya devam etmesi icindir (gunluk besleme indirmesi
+# 20 GiB ister). Yetmiyorsa TAM prova YAPILMAZ; state/restore-capacity.json yazilir, saglik kontrolu
+# bunu acikca gosterir. restore-test.json yalniz TAM provalarin sonucudur.
+#
+# KISMI prova: ana veritabani (ve 1 GiB'tan buyuk her veritabani) `--db-exclude` ile seyrek,
+# sifir dosyalar olarak geri yuklenir; `--type=immediate` ile yalniz yedek suresince uretilen WAL
+# yeniden oynatilir. Kanitladigi: depo okunur/sifre cozulur, manifest, global katalog, kucuk
+# veritabanlari (amcheck), WAL arsivinden kurtarma ve PostgreSQL acilisi. KANITLAMADIGI: ana
+# veritabaninin verisi. Sonuc state/restore-test-partial.json ("proof":"partial").
+#
+# Bekci (backup_monitor.py): bos disk tabanin altina inerse ya da prova dizini butcesini asarsa
+# (gercek ayrilmis bloklar) ya da WAL arsiv kuyrugu buyurse restore konteyneri DURDURULUR.
 set -euo pipefail
 # PATH sabit; ARILLA_EXTRA_PATH yalniz yerel testler icindir (sudo/systemd altinda tanimsiz).
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${ARILLA_EXTRA_PATH:+:$ARILLA_EXTRA_PATH}"
@@ -15,11 +31,28 @@ export LC_ALL=C
 
 ROOT=${ARILLA_ROOT:-/opt/arilla}
 STATE="$ROOT/state"
+HERE=$(cd "$(dirname "$0")" && pwd)
+PY=python3
+GiB=1073741824
+MIN_FREE=${ARILLA_RESTORE_MIN_FREE_BYTES:-$((30 * GiB))}
+WAL_BUDGET=${ARILLA_RESTORE_WAL_BUDGET_BYTES:-$((16 * GiB))}
+PARTIAL_MAX=${ARILLA_RESTORE_PARTIAL_MAX_BYTES:-$((8 * GiB))}
+PARTIAL_DB_MAX=${ARILLA_RESTORE_PARTIAL_DB_MAX_BYTES:-$GiB}
+ABORT_READY=${ARILLA_VERIFY_ABORT_READY:-64}
+ABORT_OLDEST=${ARILLA_VERIFY_ABORT_OLDEST_S:-600}
+INTERVAL=${ARILLA_MONITOR_INTERVAL_S:-15}
+for n in "$MIN_FREE" "$WAL_BUDGET" "$PARTIAL_MAX" "$PARTIAL_DB_MAX"; do
+  [[ "$n" =~ ^[0-9]+$ ]] || { echo "sinir degerleri tamsayi (bayt) olmali" >&2; exit 64; }
+done
+
 MODE=latest
 TARGET=
+AUTO=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --time) MODE="time"; TARGET=$2; shift 2 ;;
+    --partial) MODE="partial"; shift ;;
+    --auto) AUTO=1; shift ;;
     *) echo "bilinmeyen arguman: $1" >&2; exit 64 ;;
   esac
 done
@@ -33,60 +66,133 @@ envv() { grep -E "^$2=" "$1" 2>/dev/null | tail -1 | cut -d= -f2- || true; }
 ts() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 PGU=$(envv "$ROOT/env/postgres.env" POSTGRES_USER); PGU=${PGU:-arilla}
 PGD=$(envv "$ROOT/env/postgres.env" POSTGRES_DB); PGD=${PGD:-arilla}
+prodq() { compose exec -T postgres psql -U "$PGU" -d "$PGD" -AtqXc "$1"; }
 
 STAMP=$(date -u +%Y%m%d-%H%M%S)
 RUN="$ROOT/restore-test/run-$STAMP"
 started=$(date -u +%s)
 
-finish() { # finish <ok> <json-veya-hata>
+write_json() { # write_json <dosya-adi> <json>
   mkdir -p "$STATE"
-  printf '{"ok":%s,"finished_at":"%s","duration_s":%d,"result":%s}\n' "$1" "$(ts)" "$(( $(date -u +%s) - started ))" "$2" >"$STATE/restore-test.json.tmp"
-  mv -f "$STATE/restore-test.json.tmp" "$STATE/restore-test.json"
+  printf '%s\n' "$2" >"$STATE/$1.tmp"
+  mv -f "$STATE/$1.tmp" "$STATE/$1"
 }
-cleanup() { [ -n "${RUN:-}" ] && [ -d "$RUN" ] && rm -rf -- "$RUN"; }
+finish() { # finish <ok> <json-veya-hata>   (tam ya da kismi; dosya kipe gore)
+  local file=restore-test.json
+  [ "$MODE" = partial ] && file=restore-test-partial.json
+  write_json "$file" "$(printf '{"ok":%s,"finished_at":"%s","duration_s":%d,"result":%s}' "$1" "$(ts)" "$(( $(date -u +%s) - started ))" "$2")"
+}
+cleanup() { [ -n "${RUN:-}" ] && [[ "$RUN" == "$ROOT/restore-test/run-"* ]] && [ -d "$RUN" ] && rm -rf -- "$RUN"; rm -f "${RUN:-}.stderr" "${RUN:-}.monitor.json" "${RUN:-}.out"; }
 trap cleanup EXIT
 
-# --- disk on kontrolu: geri yuklenen kopya ~ veritabani boyutu kadar yer tutar ----------
-dbsize=$(compose exec -T postgres psql -U "$PGU" -d "$PGD" -Atqc 'select pg_database_size(current_database())')
+# --- kapasite (uretimden SALT-OKUNUR boyutlar) -------------------------------------------
+sizes=$(prodq "select datname, pg_database_size(oid) from pg_database where datname not in ('template0','template1') order by 2 desc") \
+  || { echo "HATA: uretim veritabani boyutlari okunamadi" >&2; exit 1; }
+cluster=0
+exclude=()
+while IFS='|' read -r db bytes; do
+  [ -n "$db" ] || continue
+  cluster=$((cluster + bytes))
+  if [ "$db" = "$PGD" ] || [ "$bytes" -gt "$PARTIAL_DB_MAX" ]; then exclude+=("$db"); fi
+done <<<"$(printf '%s\n' "$sizes" | tr -d '\r')"
 free=$(df --output=avail -B1 "$ROOT" | tail -1 | tr -d ' ')
-need=$(( dbsize * 2 + 2147483648 ))
-if [ "$free" -lt "$need" ]; then
-  finish false "{\"error\":\"yetersiz disk: bos=$free gerekli=$need\"}"
-  echo "HATA: yetersiz disk (bos $free, gerekli $need bayt); prova BASKA bir makinede yapilmali" >&2
-  exit 1
+need_full=$((cluster + WAL_BUDGET + MIN_FREE))
+need_partial=$((PARTIAL_MAX + MIN_FREE))
+full_possible=false
+[ "$free" -ge "$need_full" ] && full_possible=true
+write_json restore-capacity.json "$(printf '{"checked_at":"%s","free_bytes":%d,"cluster_bytes":%d,"need_full_bytes":%d,"need_partial_bytes":%d,"min_free_bytes":%d,"full_possible":%s}' \
+  "$(ts)" "$free" "$cluster" "$need_full" "$need_partial" "$MIN_FREE" "$full_possible")"
+
+if [ "$AUTO" = 1 ]; then
+  if [ "$full_possible" = true ]; then MODE=latest; else MODE=partial; fi
+  echo "$(ts) [restore-test] --auto: kip $MODE (bos $free, tam prova icin gerekli $need_full bayt)"
+fi
+if [ "$MODE" = partial ]; then
+  if [ "$free" -lt "$need_partial" ]; then
+    echo "TAMAMLANAMADI: kismi prova icin de yer yok (bos $free, gerekli $need_partial bayt); prova YAPILMADI" >&2
+    # Zamanlayici (--auto): durum restore-capacity.json'da, saglik kontrolu gosterir (alarm tekrari yok).
+    # Elle --partial: istenen is yapilamadi -> 75.
+    [ "$AUTO" = 1 ] && exit 0
+    exit 75
+  fi
+  budget=$PARTIAL_MAX
+else
+  if [ "$full_possible" != true ]; then
+    echo "HATA: TAM prova bu makinede guvenli degil (bos $free, gerekli $need_full bayt = kume $cluster + WAL $WAL_BUDGET + taban $MIN_FREE); YAPILMADI. Kismi prova: --partial" >&2
+    exit 75
+  fi
+  budget=$((cluster + WAL_BUDGET))
 fi
 
+# --- yalitim: prova dizini canli veri dizinine / baska bir yola tasamaz --------------------
+mkdir -p "$ROOT/restore-test"
+[ ! -L "$ROOT/restore-test" ] || { echo "HATA: $ROOT/restore-test sembolik baglanti olamaz" >&2; exit 1; }
+base=$(cd "$ROOT/restore-test" && pwd -P)
+live=$(docker inspect -f '{{range .Mounts}}{{if eq .Destination "/var/lib/postgresql/data"}}{{.Source}}{{end}}{{end}}' \
+  "$(compose ps -q postgres)" 2>/dev/null || true)
+if [ -n "$live" ]; then
+  case "$base/" in "$live"/*) echo "HATA: prova dizini canli veri dizininin icinde" >&2; exit 1 ;; esac
+  case "$live/" in "$base"/*) echo "HATA: canli veri dizini prova dizininin icinde" >&2; exit 1 ;; esac
+fi
 if [ "$(id -u)" -eq 0 ]; then
   mkdir -p "$RUN" && chown 999:999 "$RUN" && chmod 0700 "$RUN"  # sayisal: host'ta 999 kullanicisi olmayabilir
 else # yalniz yerel/CI testi: konteyner uid 999 yazabilsin
   mkdir -p "$RUN" && chmod 0777 "$RUN"
 fi
+[ "$(cd "$RUN" && pwd -P)" = "$base/run-$STAMP" ] || { echo "HATA: prova dizini beklenen yerde degil" >&2; exit 1; }
+
 extra=()
 [ -n "${ARILLA_RESTORE_ASSERT_SQL:-}" ] && extra+=(-e "RESTORE_ASSERT_SQL=$ARILLA_RESTORE_ASSERT_SQL")
-echo "$(ts) [restore-test] basliyor: $MODE ${TARGET:-} -> $RUN"
+[ -n "${ARILLA_RESTORE_ASSERT_DB:-}" ] && extra+=(-e "RESTORE_ASSERT_DB=$ARILLA_RESTORE_ASSERT_DB")
+[ "$MODE" = partial ] && extra+=(-e "RESTORE_DB_EXCLUDE=${exclude[*]}")
+name="arilla-restore-$STAMP"
+echo "$(ts) [restore-test] basliyor: $MODE ${TARGET:-} -> $RUN (butce $budget bayt, taban $MIN_FREE bayt${exclude:+, kismi: haric ${exclude[*]}})"
+ARILLA_RESTORE_DIR="$RUN" compose --profile restore run --rm --no-deps -T --name "$name" \
+  -e RESTORE_DB_USER="$PGU" -e RESTORE_DB_NAME="$PGD" "${extra[@]}" restore "$MODE" "$TARGET" \
+  >"$RUN.out" 2>"$RUN.stderr" &
+rpid=$!
 set +e
-out=$(ARILLA_RESTORE_DIR="$RUN" compose --profile restore run --rm --no-deps -T \
-  -e RESTORE_DB_USER="$PGU" -e RESTORE_DB_NAME="$PGD" "${extra[@]}" restore "$MODE" "$TARGET" 2>"$RUN.stderr")
+"$PY" "$HERE/backup_monitor.py" watch --container "$name" --out "$RUN.monitor.json" --interval "$INTERVAL" \
+  --root "$ROOT" --free-path "$ROOT" --min-free-bytes "$MIN_FREE" --dir "$RUN" --max-dir-bytes "$budget" \
+  --abort-ready "$ABORT_READY" --abort-oldest-s "$ABORT_OLDEST"
+mrc=$?
+wait "$rpid"
 rc=$?
 set -e
+out=$(cat "$RUN.out" 2>/dev/null || true)
+rm -f "$RUN.out"
+monitor=$(cat "$RUN.monitor.json" 2>/dev/null || echo null)
+if [ "$mrc" -eq 3 ]; then
+  reason=$(printf '%s' "$monitor" | "$PY" -c 'import json,sys; print(json.load(sys.stdin)["aborted"])' 2>/dev/null || echo bekci)
+  finish false "{\"error\":\"koruyucu sinir: $reason\",\"mode\":\"$MODE\",\"monitor\":$monitor}"
+  echo "$(ts) [restore-test] DURDURULDU: koruyucu sinir ($reason)" >&2
+  exit 1
+fi
 result=$(printf '%s\n' "$out" | grep '^RESULT ' | tail -1 | cut -d' ' -f2- || true)
 if [ -z "$result" ]; then
   tail -20 "$RUN.stderr" >&2 || true
-  rm -f "$RUN.stderr"
-  finish false "{\"error\":\"restore konteyneri sonuc uretmedi (rc=$rc)\"}"
+  finish false "{\"error\":\"restore konteyneri sonuc uretmedi (rc=$rc)\",\"mode\":\"$MODE\"}"
   exit 1
 fi
 [[ "$result" == *'"ok":false'* ]] && { echo "--- restore konteyneri (son satirlar)" >&2; tail -30 "$RUN.stderr" >&2 || true; }
-rm -f "$RUN.stderr"
+inner_ok=$(printf '%s' "$result" | sed -E 's/.*"ok":(true|false).*/\1/')
+
+if [ "$MODE" = partial ]; then
+  ok=true
+  [ "$inner_ok" = true ] && [ "$rc" -eq 0 ] || ok=false
+  final="${result%\}},\"monitor\":$monitor}"
+  finish "$ok" "$final"
+  echo "$(ts) [restore-test] KISMI sonuc (tam kanit DEGIL): $final"
+  if [ "$ok" = true ]; then echo "$(ts) [restore-test] KISMI TAMAM"; else echo "$(ts) [restore-test] KISMI BASARISIZ" >&2; exit 1; fi
+  exit 0
+fi
 
 # --- uretimle karsilastirma (salt-okunur) ----------------------------------------------
-prod_ledger=$(compose exec -T postgres psql -U "$PGU" -d "$PGD" -Atqc \
-  "select count(*)||'|'||coalesce(max(filename),'') from schema_migration" 2>/dev/null || echo "?|")
+prod_ledger=$(prodq "select count(*)||'|'||coalesce(max(filename),'') from schema_migration" 2>/dev/null || echo "?|")
 prod_schema=$(compose exec -T postgres pg_dump -U "$PGU" -d "$PGD" --schema-only --no-owner --no-privileges \
   | grep -vE '^(--|\\restrict|\\unrestrict)' | grep -v '^$' | sha256sum | cut -d' ' -f1)
 rest_ledger=$(printf '%s' "$result" | sed -E 's/.*"ledger":"([^"]*)".*/\1/')
 rest_schema=$(printf '%s' "$result" | sed -E 's/.*"schema_sha256":"([^"]*)".*/\1/')
-inner_ok=$(printf '%s' "$result" | sed -E 's/.*"ok":(true|false).*/\1/')
 schema_match=skip
 if [ "$MODE" = latest ] || [ "$rest_ledger" = "$prod_ledger" ]; then
   # Ayni migration durumunda sema birebir ayni olmali.
@@ -99,7 +205,7 @@ fi
 ok=true
 [ "$inner_ok" = true ] && [ "$rc" -eq 0 ] || ok=false
 [ "$schema_match" = false ] && ok=false
-final="${result%\}},\"prod_ledger\":\"$prod_ledger\",\"schema_match\":\"$schema_match\"}"
+final="${result%\}},\"prod_ledger\":\"$prod_ledger\",\"schema_match\":\"$schema_match\",\"monitor\":$monitor}"
 finish "$ok" "$final"
 echo "$(ts) [restore-test] sonuc: $final"
 if [ "$ok" = true ]; then echo "$(ts) [restore-test] TAMAM"; else echo "$(ts) [restore-test] BASARISIZ" >&2; exit 1; fi

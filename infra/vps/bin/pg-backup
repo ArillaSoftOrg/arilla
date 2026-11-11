@@ -3,12 +3,20 @@
 #
 #   pg-backup full|diff|incr     yedek al (sonrasinda saklama politikasi: expire)
 #   pg-backup check              arsiv + yedek zincirinin uctan uca kontrolu (pg_switch_wal)
-#   pg-backup verify             depodaki dosyalarin sagtoplam dogrulamasi
+#   pg-backup verify             SON yedek setleri (son tam + son yedek) ve onlara bagli WAL
+#   pg-backup verify --all       TUM depo (her set + tum WAL arsivi; aylik, uzun surer)
 #   pg-backup info               ozet (json: pg-backup info --json)
 #   pg-backup repo-ls            depo erisim testi (sir yazdirmaz)
 #
 # Sonuc /opt/arilla/state/backup-<islem>.json'a yazilir (saglik kontrolu okur). Basarisizlikta
 # cikis kodu != 0 -> systemd OnFailure alarmi. Sirlar yazdirilmaz (pgBackRest de yazdirmaz).
+#
+# Dogrulama (karar 0183) AYRI `verify` konteynerinde (yalniz egress, 1 CPU / 512 MB) calisir;
+# WAL'i R2'ye iten `backup` sunucusuyla CPU paylasmaz. backup_monitor.py CPU, bellek, R2 okuma,
+# bos disk ve WAL arsiv kuyrugunu olcer; kuyruk buyurse (ARILLA_VERIFY_ABORT_READY bekleyen
+# dosya ya da ARILLA_VERIFY_ABORT_OLDEST_S) ya da sure dolarsa (ARILLA_VERIFY_DEADLINE_S)
+# dogrulamayi DURDURUR: sonuc "tamamlanamadi" (bozulma degil; cikis 0, saglik kontrolu UYARI).
+# Gercek dogrulama hatasi cikis 1 (alarm). Sonuc: state/verify-latest.json, verify-all.json.
 set -euo pipefail
 # PATH sabit; ARILLA_EXTRA_PATH yalniz yerel testler icindir (sudo/systemd altinda tanimsiz).
 export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin${ARILLA_EXTRA_PATH:+:$ARILLA_EXTRA_PATH}"
@@ -59,6 +67,106 @@ run_op() { # run_op <durum-adi> <pgbackrest argumanlari...>
   return "$rc"
 }
 
+HERE=$(cd "$(dirname "$0")" && pwd)
+PY=python3
+
+# --- dogrulama (karar 0183) ------------------------------------------------------------
+verify_scope() { # verify_scope <latest|all>
+  local scope=$1 start deadline sets=() i=0 name log mfile vpid vrc mrc bset remaining reason="" status=ok
+  start=$(date -u +%s)
+  if [ "$scope" = all ]; then deadline=${ARILLA_VERIFY_DEADLINE_S:-34200}; else deadline=${ARILLA_VERIFY_DEADLINE_S:-7200}; fi
+  local abort_ready=${ARILLA_VERIFY_ABORT_READY:-64} abort_oldest=${ARILLA_VERIFY_ABORT_OLDEST_S:-600}
+  local interval=${ARILLA_MONITOR_INTERVAL_S:-15}
+  local work
+  work=$(mktemp -d "$STATE/.verify.XXXXXX" 2>/dev/null || { mkdir -p "$STATE" && mktemp -d "$STATE/.verify.XXXXXX"; })
+  if [ "$scope" = latest ]; then
+    # Son TAM yedek ve en son yedek (farkli ise): ikisi ve onlara bagli WAL dogrulanir.
+    mapfile -t sets < <(pgbr --output=json info | "$PY" -c '
+import json, sys
+backups = json.load(sys.stdin)[0].get("backup") or []
+fulls = [b["label"] for b in backups if b.get("type") == "full"]
+labels = ([fulls[-1]] if fulls else []) + ([backups[-1]["label"]] if backups else [])
+print("\n".join(dict.fromkeys(labels)))')
+    if [ "${#sets[@]}" -eq 0 ]; then
+      echo "HATA: depoda yedek seti yok" >&2
+      write_verify "$scope" failed "no_backup" "$start" "$work"
+      return 1
+    fi
+  else
+    sets=("")
+  fi
+  echo "$(ts) [pg-backup] dogrulama basliyor: $scope ${sets[*]:-tum depo}"
+  for bset in "${sets[@]}"; do
+    i=$((i + 1))
+    remaining=$(( deadline - ($(date -u +%s) - start) ))
+    if [ "$remaining" -le 0 ]; then status=incomplete; reason=deadline; break; fi
+    name="arilla-verify-$(date -u +%Y%m%d%H%M%S)-$i"
+    log="$work/run-$i.log"; mfile="$work/metrics-$i.json"
+    [ -n "$bset" ] && printf '%s\n' "$bset" >"$work/set-$i"
+    compose --profile verify run --rm --no-deps -T --name "$name" verify \
+      --stanza="$STANZA" verify ${bset:+--set="$bset"} >"$log" 2>&1 &
+    vpid=$!
+    set +e
+    "$PY" "$HERE/backup_monitor.py" watch --container "$name" --out "$mfile" --interval "$interval" \
+      --root "$ROOT" --free-path "$ROOT" --abort-ready "$abort_ready" --abort-oldest-s "$abort_oldest" \
+      --deadline-s "$remaining"
+    mrc=$?
+    wait "$vpid"
+    vrc=$?
+    set -e
+    tail -n 20 "$log" || true
+    if [ "$mrc" -eq 3 ]; then
+      status=incomplete
+      reason=$("$PY" -c 'import json,sys; print(json.load(open(sys.argv[1]))["aborted"])' "$mfile" 2>/dev/null || echo bekci)
+      break
+    fi
+    if [ "$vrc" -ne 0 ]; then status=failed; reason="pgbackrest exit $vrc"; break; fi
+  done
+  write_verify "$scope" "$status" "$reason" "$start" "$work"
+  case "$status" in
+    ok) echo "$(ts) [pg-backup] TAMAM: dogrulama $scope" ;;
+    incomplete) echo "$(ts) [pg-backup] TAMAMLANAMADI: dogrulama $scope ($reason) - bozulma degil, koruyucu sinir" >&2 ;;
+    *) echo "$(ts) [pg-backup] BASARISIZ: dogrulama $scope ($reason)" >&2; return 1 ;;
+  esac
+}
+
+write_verify() { # write_verify <scope> <ok|incomplete|failed> <neden> <baslangic> <is-dizini>
+  "$PY" - "$@" "$STATE/verify-$1.json" <<'PY'
+import json, sys, time
+from datetime import datetime, timezone
+from pathlib import Path
+scope, status, reason, start, work, out = sys.argv[1:7]
+work = Path(work)
+runs = []
+for m in sorted(work.glob("metrics-*.json")):
+    i = m.stem.split("-")[1]
+    s = work / f"set-{i}"
+    try:
+        metrics = json.loads(m.read_text())
+    except (OSError, ValueError):
+        metrics = None
+    runs.append({"set": s.read_text().strip() if s.exists() else None, "metrics": metrics})
+def agg(key, fn):
+    vals = [r["metrics"][key] for r in runs if r["metrics"] and r["metrics"].get(key) is not None]
+    return fn(vals) if vals else None
+state = {
+    "scope": scope, "status": status, "ok": status == "ok", "reason": reason or None,
+    "finished_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ"),
+    "duration_s": int(time.time()) - int(start),
+    "sets": [r["set"] for r in runs if r["set"]],
+    "cpu_max_pct": agg("cpu_max_pct", max), "mem_max_bytes": agg("mem_max_bytes", max),
+    "read_bytes_min": agg("read_bytes_min", sum), "free_min_bytes": agg("free_min_bytes", min),
+    "archive_ready_baseline": agg("archive_ready_baseline", max),
+    "archive_ready_max": agg("archive_ready_max", max), "archive_oldest_max_s": agg("archive_oldest_max_s", max),
+    "runs": runs,
+}
+tmp = Path(out + ".tmp")
+tmp.write_text(json.dumps(state))
+tmp.replace(out)
+PY
+  rm -rf -- "$5"
+}
+
 exec 9>"$ROOT/.backup.lock"
 lock() { if command -v flock >/dev/null 2>&1; then flock -n 9; else true; fi; } # flock yok: yalniz yerel test
 case "$CMD" in
@@ -72,9 +180,15 @@ case "$CMD" in
     run_op check check
     ;;
   verify)
+    scope=latest
+    case "${1:-}" in
+      "") ;;
+      --all) scope=all ;;
+      *) echo "kullanim: pg-backup verify [--all]" >&2; exit 64 ;;
+    esac
     require_running
     lock || { echo "baska bir yedek islemi suruyor" >&2; exit 75; }
-    run_op verify verify
+    verify_scope "$scope"
     ;;
   info)
     require_running

@@ -6,9 +6,12 @@
 #
 #   restore-inner.sh latest
 #   restore-inner.sh time "2026-10-14 03:00:00+00"
+#   restore-inner.sh partial      # KISMI (karar 0183): RESTORE_DB_EXCLUDE seyrek/sifir geri yuklenir,
+#                                 # --type=immediate (yalniz yedek suresinin WAL'i). TAM KANIT DEGIL.
 #
 # Ortam: RESTORE_DB_USER / RESTORE_DB_NAME (varsayilan arilla),
-#        RESTORE_ASSERT_SQL (istege bagli; '1' donmesi gereken tek sorgu - yalniz testler)
+#        RESTORE_DB_EXCLUDE (partial: bosluklu veritabani adlari),
+#        RESTORE_ASSERT_SQL / RESTORE_ASSERT_DB (istege bagli; '1' donmesi gereken tek sorgu - yalniz testler)
 set -euo pipefail
 
 MODE=${1:-latest}
@@ -35,7 +38,16 @@ case "$MODE" in
   time)
     [ -n "$TARGET" ] || { echo 'RESULT {"ok":false,"error":"hedef zaman yok"}'; exit 1; }
     args+=(--type=time "--target=$TARGET" --target-action=promote) ;;
-  *) echo 'RESULT {"ok":false,"error":"kip latest|time"}'; exit 1 ;;
+  partial)
+    # Yalniz tutarlilik noktasina kadar: haric tutulan (seyrek) dosyalara yalniz yedek suresince
+    # degisen sayfalar yazilir; WAL sonuna kadar oynatmak onlari doldururdu (disk).
+    [ -n "${RESTORE_DB_EXCLUDE:-}" ] || { echo 'RESULT {"ok":false,"error":"partial: RESTORE_DB_EXCLUDE bos"}'; exit 1; }
+    args+=(--type=immediate --target-action=promote)
+    for db in $RESTORE_DB_EXCLUDE; do
+      [[ "$db" =~ ^[A-Za-z_][A-Za-z0-9_]{0,62}$ ]] || { echo 'RESULT {"ok":false,"error":"gecersiz veritabani adi"}'; exit 1; }
+      args+=("--db-exclude=$db")
+    done ;;
+  *) echo 'RESULT {"ok":false,"error":"kip latest|time|partial"}'; exit 1 ;;
 esac
 log "pgbackrest restore ($MODE ${TARGET:-})"
 pgbackrest "${args[@]}" restore
@@ -52,13 +64,58 @@ if ! pg_ctl -D "$DATA" -w -t 3600 -l /restore/postgres.log start \
 fi
 
 psqlq() { psql -h "$SOCK" -U "$DBU" -d "$DBN" -v ON_ERROR_STOP=1 -Atqc "$1"; }
+# Kismi provada ana veritabani erisilemez: hazirlik `postgres` veritabanindan sorulur.
+READYDB=$DBN
+[ "$MODE" = partial ] && READYDB=postgres
+readyq() { psql -h "$SOCK" -U "$DBU" -d "$READYDB" -v ON_ERROR_STOP=1 -Atqc "$1"; }
 for _ in $(seq 1 1800); do
-  if [ "$(psqlq 'select pg_is_in_recovery()' 2>/dev/null || true)" = "f" ]; then break; fi
+  if [ "$(readyq 'select pg_is_in_recovery()' 2>/dev/null || true)" = "f" ]; then break; fi
   sleep 1
 done
-[ "$(psqlq 'select pg_is_in_recovery()')" = "f" ] || { echo 'RESULT {"ok":false,"error":"kurtarma tamamlanmadi"}'; exit 1; }
+[ "$(readyq 'select pg_is_in_recovery()')" = "f" ] || { echo 'RESULT {"ok":false,"error":"kurtarma tamamlanmadi"}'; exit 1; }
 t_ready=$(date -u +%s)
 log "kurtarma tamamlandi"
+
+if [ "$MODE" = partial ]; then
+  ok=true
+  errors=()
+  # Haric tutulmayan, baglanilabilir veritabanlari: sayfa/indeks butunlugu (amcheck) + tablo sayisi.
+  excl_sql=$(for db in $RESTORE_DB_EXCLUDE; do printf "'%s'," "$db"; done)
+  mapfile -t dbs < <(readyq "select datname from pg_database where datallowconn and datname not in (${excl_sql%,}) order by 1")
+  checked=0
+  for db in "${dbs[@]}"; do
+    if pg_amcheck -h "$SOCK" -U "$DBU" -d "$db" --install-missing --no-dependent-indexes >>/restore/amcheck.log 2>&1; then
+      checked=$((checked + 1))
+    else
+      ok=false; errors+=("amcheck:$db")
+    fi
+  done
+  amcheck=pass
+  [ "$ok" = true ] || amcheck=fail
+  # Haric tutulan veritabani beklenen sekilde KULLANILAMAZ olmali (sifir dosyalar veri sanilmasin).
+  excluded_accessible=false
+  for db in $RESTORE_DB_EXCLUDE; do
+    if psql -h "$SOCK" -U "$DBU" -d "$db" -Atqc "select count(*) from pg_class" >/dev/null 2>&1; then excluded_accessible=true; fi
+  done
+  assert=skip
+  if [ -n "${RESTORE_ASSERT_SQL:-}" ]; then
+    adb=${RESTORE_ASSERT_DB:-postgres}
+    if [ "$(psql -h "$SOCK" -U "$DBU" -d "$adb" -v ON_ERROR_STOP=1 -Atqc "$RESTORE_ASSERT_SQL" 2>/dev/null || true)" = "1" ]; then
+      assert=pass
+    else
+      assert=fail; ok=false; errors+=("assert")
+    fi
+  fi
+  allocated=$(du -sB1 /restore/data 2>/dev/null | cut -f1)
+  apparent=$(du -sB1 --apparent-size /restore/data 2>/dev/null | cut -f1)
+  pg_ctl -D "$DATA" -w -t 120 stop -m fast >/dev/null || true
+  err=$(IFS=,; echo "${errors[*]:-}")
+  printf 'RESULT {"ok":%s,"mode":"partial","proof":"partial","restore_s":%d,"recovery_s":%d,"rto_s":%d,"amcheck":"%s","dbs_checked":%d,"included":"%s","excluded":"%s","excluded_accessible":%s,"allocated_bytes":%s,"apparent_bytes":%s,"assert":"%s","errors":"%s"}\n' \
+    "$ok" "$((t_restore - t0))" "$((t_ready - t_restore))" "$((t_ready - t0))" "$amcheck" "$checked" \
+    "${dbs[*]:-}" "$RESTORE_DB_EXCLUDE" "$excluded_accessible" "${allocated:-0}" "${apparent:-0}" "$assert" "$err"
+  [ "$ok" = true ]
+  exit $?
+fi
 
 # --- dogrulama ---------------------------------------------------------------------------
 ok=true
