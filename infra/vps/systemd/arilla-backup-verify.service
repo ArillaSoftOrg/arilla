@@ -1,12 +1,14 @@
 [Unit]
-Description=Arilla yedek deposu dogrulamasi (pgbackrest verify, karar 0110)
+Description=Arilla yedek dogrulamasi: son tam + son yedek seti ve WAL'i (pgbackrest verify --set, karar 0110/0183)
 Requires=docker.service
 After=docker.service
 OnFailure=arilla-alert@%n.service
 
 [Service]
 Type=oneshot
+# Ayri `verify` konteyneri (1 CPU / 512 MB, yalniz egress); WAL gonderen `backup` sunucusuyla CPU
+# paylasmaz. Ic sure siniri 2 sa (ARILLA_VERIFY_DEADLINE_S); WAL kuyrugu buyurse durur (bozulma degil).
 ExecStart=/opt/arilla/vps/bin/pg-backup verify
-TimeoutStartSec=4h
+TimeoutStartSec=3h
 Nice=10
 IOSchedulingClass=idle

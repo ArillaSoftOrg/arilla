@@ -781,9 +781,10 @@ tamamı kaybedilir. Bu yüzden yedekleme isteğe bağlı bir konu değildir.
 | Tam yedek | Haftalık, Pazar 01:30 UTC (`arilla-backup-full.timer`) |
 | Fark yedeği | Pazartesi–Cumartesi 01:30 UTC (`arilla-backup-diff.timer`) |
 | WAL arşivi | Sürekli; `archive_timeout=300` sn (düşük trafikte RPO ≤ ~5 dk) |
-| Saklama | 4 tam yedek (~4 hafta PITR penceresi) + aradaki fark yedekleri ve WAL |
-| Depo doğrulaması | Haftalık `pgbackrest verify` (Çarşamba 02:30 UTC) |
-| Geri yükleme provası | Aylık, ayın ilk Pazar'ı 03:30 UTC (`pg-restore-test`, izole) |
+| Saklama | 4 tam yedek (~4 hafta PITR penceresi) + aradaki fark yedekleri ve WAL (karar 0183: değişmez) |
+| Blok tabanlı yedek | `PGBACKREST_REPO_BLOCK=y` ile (varsayılan kapalı; karar 0183) |
+| Depo doğrulaması | Haftalık son setler (Salı 10:30 UTC, `pg-backup verify`) + aylık tüm depo (ayın 2. Çarşambası 09:30 UTC, `pg-backup verify --all`); ayrı `verify` konteyneri |
+| Geri yükleme provası | Aylık, ayın ilk Pazar'ı 03:30 UTC (`pg-restore-test --auto`: kapasite yetiyorsa TAM, yetmiyorsa KISMİ) |
 | Alarm | `arilla-healthcheck.timer` (5 dk) + yedek/prova birimlerinde `OnFailure` |
 | Ürün görselleri | R2 medya bucket'ı; ayrı yedek kapsamı (bu bölüm değil) |
 
@@ -794,6 +795,8 @@ tamamı kaybedilir. Bu yüzden yedekleme isteğe bağlı bir konu değildir.
 - postgres konteyneri internete çıkmaz ve R2 anahtarlarını görmez.
 - `backup` konteyneri veri dizinini salt-okunur bağlar ve unix soketini paylaşır.
 - `restore` konteyneri yalnız `egress` ağındadır: üretim veritabanına erişemez.
+- `verify` konteyneri (karar 0183) yalnız `egress` ağındadır, yalnız depo yapılandırmasını salt
+  okunur bağlar (veri dizini yok), 1 CPU / 512 MB. WAL'i R2'ye iten `backup` sunucusuyla CPU paylaşmaz.
 
 Yapılandırma `/opt/arilla/backup/{pg,repo}` altındadır. Dağıtım bu dizine dokunmaz.
 
@@ -874,10 +877,80 @@ Yapılandırma `/opt/arilla/backup/{pg,repo}` altındadır. Dağıtım bu dizine
 | Durum | `sudo /opt/arilla/vps/bin/pg-backup info` |
 | Elle yedek | `sudo /opt/arilla/vps/bin/pg-backup full` (ya da `diff`) |
 | Arşiv zinciri testi | `sudo /opt/arilla/vps/bin/pg-backup check` |
+| Son setleri doğrula | `sudo /opt/arilla/vps/bin/pg-backup verify` → `state/verify-latest.json` |
+| Tüm depoyu doğrula | `sudo /opt/arilla/vps/bin/pg-backup verify --all` → `state/verify-all.json` (saatler sürer) |
+| Geri yükleme provası | `sudo /opt/arilla/vps/bin/pg-restore-test --auto` (ya da `--partial`) |
 | Sağlık | `sudo python3 /opt/arilla/vps/bin/arilla_healthcheck.py` |
-| Günlükler | `journalctl -u arilla-backup-full -u arilla-backup-diff -u arilla-restore-test` |
+| Günlükler | `journalctl -u arilla-backup-full -u arilla-backup-diff -u arilla-backup-verify -u arilla-backup-verify-all -u arilla-restore-test` |
 
 Durum dosyaları `/opt/arilla/state/*.json`'dadır; sağlık kontrolü bunları okur.
+
+### Doğrulama ve geri yükleme provası (karar 0183)
+
+**İki doğrulama kapsamı.** `pgbackrest verify --set` yalnız o setin dosyalarını ve setin
+tutarlılığı için gereken WAL'i doğrular. Setler arasındaki PITR WAL'ini kapsamaz.
+- **Haftalık:** son tam yedek + en son yedek, `verify --set` ile. Birkaç on GB okur.
+- **Aylık:** tüm depo, yani her set ve 4 haftalık WAL arşivinin tamamı. 11 Kasım ölçümüyle
+  depo ~597 GB; ~41 MB/sn hızla ~4 saat sürer.
+
+**Ölçüm ve koruma.** `backup_monitor.py` her 15 saniyede şunları ölçer:
+- `verify` konteynerinin CPU ve bellek kullanımı;
+- ağdan okunan bayt (R2 okuması; alt sınır);
+- `/opt/arilla` boş disk;
+- WAL arşiv kuyruğu (bekleyen `.ready` sayısı ve en eskinin yaşı).
+
+Doğrulama şu durumlarda **durdurulur**:
+- bekleyen WAL ≥ `ARILLA_VERIFY_ABORT_READY` (64 dosya ≈ 1 GB);
+- en eski bekleyen ≥ `ARILLA_VERIFY_ABORT_OLDEST_S` (600 sn);
+- süre `ARILLA_VERIFY_DEADLINE_S` aşıldı (haftalık 2 sa, aylık 9,5 sa).
+
+Durdurulan doğrulama "tamamlanamadı" olarak kaydedilir. Bozulma değildir; sağlık kontrolü UYARI
+verir, çıkış kodu 0'dır. Gerçek doğrulama hatası çıkış 1'dir ve `OnFailure` alarmı gönderir.
+
+**Geri yükleme kapasitesi.** TAM prova yalnızca şu koşulda yapılır:
+`boş disk ≥ küme boyutu + 16 GiB WAL payı + 30 GiB taban`.
+
+Taban, üretimin çalışmaya devam etmesi içindir; günlük besleme indirmesi 20 GiB ister. Koşul
+sağlanmıyorsa TAM prova **yapılmaz** ve `state/restore-capacity.json` yazılır. Sağlık kontrolü
+bunu `restore-capacity` UYARISI olarak açıkça gösterir. 11 Kasım: boş 59 GB, gerekli ~121 GB, yani
+TAM prova bu makinede yapılamaz.
+
+**KISMİ prova** (`--partial`; `--auto` kapasite yetmezse bunu seçer):
+- **Yöntem:** Ana veritabanı (`arilla`) ve 1 GiB'tan büyük her veritabanı `--db-exclude` ile
+  seyrek, sıfır dosyalar olarak geri yüklenir. `--type=immediate` ile yalnızca yedek süresince
+  üretilen WAL oynatılır; WAL sonuna kadar oynatmak seyrek dosyaları doldururdu.
+- **Kanıtladıkları:** depo okunuyor ve şifre çözülüyor; manifest, global katalog ve küçük
+  veritabanları sağlam (`pg_amcheck`); WAL arşivinden kurtarma çalışıyor; PostgreSQL açılıyor;
+  hariç veritabanı beklendiği gibi kullanılamıyor.
+- **KANITLAMADIĞI: `arilla` verisinin geri yüklenebildiği.** Bu yüzden sonuç ayrı bir dosyaya
+  yazılır (`restore-test-partial.json`, `"proof":"partial"`). `restore-test.json` yalnızca TAM
+  provanın sonucudur; kısmi prova onun yerine geçmez. `arilla` dosyalarının sağlama toplamı
+  aylık tüm depo doğrulamasıyla denetlenir; bu da geri yükleme kanıtı değildir.
+
+**Bekçi (her iki kip).** Restore konteyneri şu durumlarda `docker kill` ile durdurulur:
+- boş disk tabanın altına iner;
+- prova dizini bütçesini aşar (gerçek ayrılmış bloklar; kısmi: 8 GiB);
+- WAL kuyruğu büyür.
+
+**Yalıtım.** Prova dizini `/opt/arilla/restore-test/run-*` olmalıdır: sembolik bağlantı olamaz,
+canlı veri dizinini içeremez ve onun içinde olamaz. PostgreSQL yalnızca sokette açılır (TCP yok)
+ve arşivleme kapalıdır. Konteyner sınırları 1 CPU / 2 GB.
+
+**Kapasite ileride nasıl sağlanır (ek sunucu olmadan).**
+- **Ek disk:** mevcut Hostinger planının disk yükseltmesi ya da ek blok depolama; plan
+  seçeneklerine bakılmalı.
+- **Aşama B:** veritabanını ve WAL'ı küçültmek; gereksiz yazmalar, `offer`/`product` dizinleri,
+  `search_outbox` yaşam döngüsü.
+- Hiçbiri tek başına ~62 GB açığı kapatmayabilir. Ölçüm sonrası yeniden değerlendirilir (Aşama C).
+- Disk kazanmak için silme, `VACUUM FULL` ya da veriyi yeniden oluşturan işlem yapılmaz.
+
+**Blok tabanlı yedek** (`PGBACKREST_REPO_BLOCK=y` → `pg-backup-configure`):
+- Değişen dosyanın yalnızca değişen blokları saklanır.
+- Haritalar tam yedekte oluşur; etkisi, açıldıktan sonraki ilk **tam** yedekten sonra görünür.
+  Ek elle tam yedek gerekmez.
+- Konteyner yeniden başlatılmaz; pgBackRest yapılandırmayı her komutta okur.
+- **Geri alma:** `PGBACKREST_REPO_BLOCK=n` → `pg-backup-configure`. Var olan blok yedekleri
+  saklama süresince geri yüklenebilir kalır. Hiçbir şey silinmez; saklama değişmez.
 
 ### Geri yükleme runbook'u
 
@@ -932,7 +1005,11 @@ Varsayılan yol **yan instance**'tır: veri oradan çıkarılır, üretime ileri
 | Bekleyen WAL (`pg_ls_archive_statusdir`) | ≥ 4 dosya | ≥ 16 dosya ya da 15 dk bekleyen (toplu yayın penceresinde kritik = bekçi sınırı, karar 0134) |
 | Son yedek | — | > 30 sa |
 | Son tam yedek | — | > 8 gün |
-| Geri yükleme provası | yok ya da > 35 gün | son prova başarısız |
+| Geri yükleme provası (TAM) | yok ya da > 35 gün | son prova başarısız |
+| Geri yükleme kapasitesi (`restore-capacity`) | TAM prova bu makinede güvenli değil | — |
+| Kısmi prova (`restore-test:partial`, tam kanıt değil) | > 35 gün; kapasite yetmezken hiç yok | son kısmi prova başarısız / bekçi durdurdu |
+| Son-set doğrulaması (`backup:verify`) | yok, > 8 gün ya da tamamlanamadı | doğrulama hatası |
+| Tüm depo doğrulaması (`backup:verify-all`) | yok, > 35 gün ya da tamamlanamadı | doğrulama hatası |
 | PG bağlantı | ≥ %80 | ≥ %90 |
 | Konteyner / systemd | — | sağlıksız konteyner, başarısız `arilla-*` birimi |
 

@@ -1,0 +1,14 @@
+[Unit]
+Description=Arilla TUM depo dogrulamasi: her yedek seti + tum WAL arsivi (pgbackrest verify, karar 0183)
+Requires=docker.service
+After=docker.service
+OnFailure=arilla-alert@%n.service
+
+[Service]
+Type=oneshot
+# 4 haftalik PITR penceresinin tum WAL'i burada dogrulanir (son-set dogrulamasi onu kapsamaz).
+# Ic sure siniri 9,5 sa (ARILLA_VERIFY_DEADLINE_S); asilirsa "tamamlanamadi" (UYARI), bozulma degil.
+ExecStart=/opt/arilla/vps/bin/pg-backup verify --all
+TimeoutStartSec=10h30min
+Nice=10
+IOSchedulingClass=idle

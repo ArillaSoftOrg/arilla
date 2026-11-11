@@ -33,6 +33,10 @@ ARILLA_EXTRA_PATH="$(dirname "$(command -v docker)"):$(dirname "$(command -v ope
 command -v python3 >/dev/null 2>&1 && ARILLA_EXTRA_PATH="$ARILLA_EXTRA_PATH:$(dirname "$(command -v python3)")"
 export ARILLA_EXTRA_PATH
 export ARILLA_MIN_FREE_BYTES=1073741824  # test: 1 GiB (uretim varsayilani 10 GiB)
+# Karar 0183: geri yukleme provasi tabani/WAL payi ve bekci araligi (uretim: 30 GiB / 16 GiB / 15 sn)
+export ARILLA_RESTORE_MIN_FREE_BYTES=1073741824
+export ARILLA_RESTORE_WAL_BUDGET_BYTES=1073741824
+export ARILLA_MONITOR_INTERVAL_S=1
 # MinIO imajlari artik Docker Hub/Quay'den cekilemiyor; VersityGW (Apache-2.0, S3 ag gecidi) kullanilir.
 S3_IMAGE=${S3_IMAGE:-versity/versitygw:v1.0.16@sha256:605de57c0cdc297fc5bc905ece592965d542d8df70d6eedf755734c80f2eb797}
 S3_HOST_PORT=${S3_HOST_PORT:-19000}
@@ -51,7 +55,7 @@ cleanup() {
     c --profile backup logs --no-color --tail 30 2>&1 | sed -E 's/(key-secret|cipher-pass|SECRET|PASSWORD)[=: ][^ ]+/\1=<gizli>/g'
   fi
   if [ "${KEEP:-0}" != 1 ]; then
-    c --profile backup --profile restore down -v --remove-orphans >/dev/null 2>&1
+    c --profile backup --profile restore --profile verify down -v --remove-orphans >/dev/null 2>&1
     rm -rf "$work"
   else
     echo "KEEP=1: $work"
@@ -109,6 +113,7 @@ PGBACKREST_S3_PORT=9000
 PGBACKREST_S3_REGION=us-east-1
 PGBACKREST_S3_CA_FILE=/etc/arilla-backup/s3-ca.crt
 PGBACKREST_ARCHIVE_TIMEOUT=60
+PGBACKREST_REPO_BLOCK=y
 ENV
 
 echo "== 2. Yapilandirma uretimi (pg-backup-configure)"
@@ -122,6 +127,14 @@ grep -q "$MINIO_PASS" "$work/configure.log" && fail "configure ciktisinda sir" |
 cmp -s "$work/backup/repo/tls/ca.crt" "$work/backup/pg/tls/ca.crt" && pass "ikinci calistirma: TLS anahtarlari korunur (idempotent)" || fail "TLS idempotent degil"
 printf 'R2_BACKUP_BUCKET=X_bad\n' >"$work/bad.env"
 "$B/pg-backup-configure" --env-file "$work/bad.env" --dir "$work/badout" >/dev/null 2>&1 && fail "gecersiz backup.env kabul edildi" || pass "gecersiz backup.env reddedilir"
+# Karar 0183: blok yedek yalniz acikca istenirse; varsayilan KAPALI, gecersiz deger reddedilir.
+grep -qx 'repo1-block=y' "$work/backup/repo/pgbackrest.conf" && pass "PGBACKREST_REPO_BLOCK=y -> repo1-block=y" || fail "repo1-block=y yazilmadi"
+grep -v '^PGBACKREST_REPO_BLOCK=' "$work/env/backup.env" >"$work/noblock.env"
+"$B/pg-backup-configure" --env-file "$work/noblock.env" --dir "$work/noblock" >/dev/null 2>&1 \
+  && grep -qx 'repo1-block=n' "$work/noblock/repo/pgbackrest.conf" && pass "varsayilan: repo1-block=n (uretimi kendiliginden degistirmez)" || fail "varsayilan blok degeri"
+{ cat "$work/noblock.env"; echo "PGBACKREST_REPO_BLOCK=yes"; } >"$work/badblock.env"
+"$B/pg-backup-configure" --env-file "$work/badblock.env" --dir "$work/badblock" >/dev/null 2>&1 && fail "PGBACKREST_REPO_BLOCK=yes kabul edildi" || pass "gecersiz PGBACKREST_REPO_BLOCK reddedilir"
+rm -rf "$work/noblock" "$work/badblock" "$work/noblock.env" "$work/badblock.env"
 
 echo "== 3. Etkinlestirme oncesi: postgres (yeni imaj, arsiv KAPALI) + S3"
 c up -d s3 postgres >"$work/up.log" 2>&1 || { fail "compose up"; tail -15 "$work/up.log"; exit 1; }
@@ -138,7 +151,18 @@ q "create table schema_migration(filename text primary key); insert into schema_
    create table bkp_part(id int, at date) partition by range (at);
    create table bkp_part_2026 partition of bkp_part for values from ('2026-01-01') to ('2027-01-01');
    insert into bkp_part select g, date '2026-06-01' from generate_series(1,25) g;" >/dev/null
-[ "$(q 'select count(*) from bkp_part')" = 25 ] && pass "test semasi hazir" || fail "test semasi"
+# Blok yedek olcumu icin ~64 MB sikistirilamaz tablo; kismi prova icin kucuk ikinci veritabani.
+q "create table bkp_big(id int primary key, pad text);
+   insert into bkp_big select g, (select string_agg(md5(random()::text || g || i), '') from generate_series(1,15) i)
+     from generate_series(1,130000) g;" >/dev/null
+# Tam yedekten ONCE: sonradan otomatik vacuum'un ipucu bitleri/dondurma tum sayfalari degistirip
+# farki sisirmesin (olcum yalniz guncellemenin etkisini gostersin).
+q "vacuum (freeze, analyze) bkp_big" >/dev/null
+q "create database bkp_small" >/dev/null
+c exec -T postgres psql -U arilla -d bkp_small -AtqXc "create table s(id int); insert into s select generate_series(1,42)" >/dev/null 2>&1
+[ "$(q 'select count(*) from bkp_part')" = 25 ] && [ "$(q 'select count(*) from bkp_big')" = 130000 ] \
+  && [ "$(c exec -T postgres psql -U arilla -d bkp_small -AtqXc 'select count(*) from s' | tr -d '\r')" = 42 ] \
+  && pass "test semasi hazir (bkp_big $(q "select pg_size_pretty(pg_relation_size('bkp_big'))"), bkp_small)" || fail "test semasi"
 
 echo "== 4. Etkinlestirme (preflight + activate: yeniden baslatma, stanza, check, TAM yedek)"
 ARILLA_ACTIVATE_ALLOW_TAG=1 ARILLA_PULL=0 "$B/pg-backup-activate" activate --image "$ARILLA_POSTGRES_IMAGE" >"$work/act0.log" 2>&1
@@ -158,12 +182,42 @@ sleep 2
 T1=$(q "select to_char(clock_timestamp() at time zone 'UTC', 'YYYY-MM-DD HH24:MI:SS.US')||'+00'")
 sleep 2
 q "insert into bkp_test(id, phase) select g, 'B' from generate_series(1,50) g" >/dev/null
+# Buyuk tablonun ~%1'i (bitisik aralik) degisir: blok yedekte fark, tablonun tamami DEGIL.
+q "update bkp_big set pad = md5(pad) || pad where id <= 1300" >/dev/null
 "$B/pg-backup" check >"$work/check.log" 2>&1 && pass "pg-backup check (arsiv zinciri)" || { fail "pg-backup check"; tail -10 "$work/check.log"; }
 "$B/pg-backup" diff >"$work/diff.log" 2>&1 && pass "fark yedegi" || { fail "fark yedegi"; tail -10 "$work/diff.log"; }
-"$B/pg-backup" verify >"$work/verify-repo.log" 2>&1 && pass "pgbackrest verify" || { fail "verify"; tail -10 "$work/verify-repo.log"; }
 inf=$("$B/pg-backup" info --json 2>/dev/null)
 n=$(printf '%s' "$inf" | "$PY" -c 'import json,sys;d=json.load(sys.stdin);print(len(d[0]["backup"]),d[0]["status"]["code"])' 2>/dev/null)
 [ "$n" = "2 0" ] && pass "info: 1 tam + 1 fark, stanza saglikli" || fail "info: $n"
+
+echo "== 5b. Blok tabanli yedek (karar 0183)"
+sizes=$(printf '%s' "$inf" | "$PY" -c '
+import json,sys
+b=json.load(sys.stdin)[0]["backup"]
+print(b[0]["info"]["repository"]["delta"], b[-1]["info"]["repository"]["delta"], b[0]["label"], b[-1]["label"])' 2>/dev/null)
+read -r full_d diff_d full_label diff_label <<<"$sizes"
+echo "  depo: tam $full_d bayt, fark $diff_d bayt"
+[ -n "$diff_d" ] && [ "$((diff_d * 4))" -lt "$full_d" ] && pass "fark yedegi tamin %25'inden kucuk (yalniz degisen bloklar): $diff_d / $full_d" \
+  || fail "fark yedegi buyuk: $diff_d / $full_d (blok yedek calismiyor?)"
+manifest() { c --profile backup exec -T backup pgbackrest --stanza=arilla repo-get "backup/arilla/$1/backup.manifest" 2>"$work/manifest.err"; }
+# Not: pipefail acik; `printf | grep -q` erken cikista SIGPIPE ile basarisiz sayilir -> here-string.
+man=$(manifest "$diff_label")
+grep -q '"bi":' <<<"$man" && pass "fark manifestinde blok haritasi (bi/bim) var: $(grep -c '"bi":' <<<"$man") dosya" \
+  || { fail "manifestte blok bilgisi yok"; head -c 600 "$work/manifest.err"; grep -m3 'pg_data/base/' <<<"$man"; }
+man=$(manifest "$full_label")
+grep -q '"bi":' <<<"$man" && pass "tam yedek manifestinde blok haritasi var" || fail "tam yedekte blok haritasi yok"
+
+echo "== 5c. Dogrulama: son setler + tum depo, ayri konteyner ve olcum (karar 0183)"
+"$B/pg-backup" verify >"$work/verify-repo.log" 2>&1 && pass "pg-backup verify (son setler)" || { fail "verify"; tail -20 "$work/verify-repo.log"; }
+vj() { "$PY" -c "import json,sys;d=json.load(open('$work/state/verify-$1.json'));print($2)" 2>/dev/null; }
+[ "$(vj latest 'd["status"]')" = ok ] && pass "verify-latest.json: ok" || fail "verify-latest durumu: $(cat "$work/state/verify-latest.json" 2>/dev/null)"
+[ "$(vj latest '" ".join(d["sets"])')" = "$full_label $diff_label" ] && pass "son-set kapsami: $full_label + $diff_label" || fail "setler: $(vj latest 'd["sets"]')"
+[ "$(vj latest 'len(d["runs"])')" = 2 ] && pass "her set icin olcum kaydi" || fail "olcum kayitlari"
+echo "  olcum (son setler): $(vj latest '{k: d[k] for k in ("duration_s","cpu_max_pct","mem_max_bytes","read_bytes_min","free_min_bytes","archive_ready_max")}')"
+"$B/pg-backup" verify --all >"$work/verify-all.log" 2>&1 && pass "pg-backup verify --all (tum depo + WAL)" || { fail "verify --all"; tail -20 "$work/verify-all.log"; }
+[ "$(vj all 'd["status"]')" = ok ] && [ "$(vj all 'd["sets"]')" = "[]" ] && pass "verify-all.json: ok, tum depo" || fail "verify-all durumu"
+docker ps -a --format '{{.Names}}' | grep -q '^arilla-verify-' && fail "dogrulama konteyneri kaldi" || pass "dogrulama konteynerleri silindi (--rm)"
+"$B/pg-backup" verify --bad >/dev/null 2>&1; [ $? -eq 64 ] && pass "gecersiz verify argumani reddedilir" || fail "verify argumani"
 grep -q '"ok":true' "$work/state/backup-full.json" 2>/dev/null && grep -q '"ok":true' "$work/state/backup-diff.json" && pass "durum dosyalari yazildi" || fail "durum dosyalari"
 hdr=$(s3curl "$S3URL/$BUCKET/pgbackrest/backup/arilla/backup.info" 2>/dev/null | head -c 8)
 [ "$hdr" = "Salted__" ] && pass "depoda dosyalar istemci tarafinda sifreli (Salted__)" || fail "depo sifreli degil: $hdr"
@@ -180,12 +234,59 @@ ARILLA_RESTORE_ASSERT_SQL="select (count(*) filter (where phase='A')=100 and cou
 [ -z "$(ls -A "$work/restore-test" 2>/dev/null)" ] && pass "prova dizini temizlendi" || fail "prova dizini kaldi"
 [ "$(q "select count(*) from bkp_test")" = 150 ] && pass "uretim veritabani provalardan etkilenmedi (150 satir)" || fail "uretim degisti"
 
+echo "== 7b. Kapasite: tam prova guvenli degilse YAPILMAZ (karar 0183)"
+full_before=$(sha256sum "$work/state/restore-test.json" | cut -d' ' -f1)
+ARILLA_RESTORE_MIN_FREE_BYTES=$((1 << 60)) "$B/pg-restore-test" >"$work/rt-cap.log" 2>&1
+[ $? -eq 75 ] && grep -q "guvenli degil" "$work/rt-cap.log" && pass "yetersiz kapasitede tam prova reddedildi (cikis 75)" || { fail "kapasite reddi"; tail -5 "$work/rt-cap.log"; }
+grep -q '"full_possible":false' "$work/state/restore-capacity.json" && pass "restore-capacity.json: full_possible=false" || fail "kapasite durumu yazilmadi"
+[ "$(sha256sum "$work/state/restore-test.json" | cut -d' ' -f1)" = "$full_before" ] && pass "restore-test.json (tam kanit) degismedi" || fail "kapasite reddi tam prova sonucunu degistirdi"
+[ -z "$(ls -A "$work/restore-test" 2>/dev/null)" ] && pass "reddedilen provada dizin acilmadi" || fail "reddedilen prova dizin birakti"
+ARILLA_RESTORE_MIN_FREE_BYTES=$((1 << 60)) "$B/pg-restore-test" --auto >"$work/rt-cap2.log" 2>&1
+[ $? -eq 0 ] && grep -q "kismi prova icin de yer yok" "$work/rt-cap2.log" && [ ! -e "$work/state/restore-test-partial.json" ] \
+  && pass "--auto: kismi prova icin de yer yoksa hicbir sey yapilmaz (cikis 0, durum dosyasinda)" || fail "--auto kapasite"
+
+echo "== 7c. Bekci: kismi prova butcesini asinca restore konteyneri DURDURULUR"
+ARILLA_RESTORE_PARTIAL_MAX_BYTES=4096 "$B/pg-restore-test" --partial >"$work/rt-guard.log" 2>&1
+rc=$?
+[ "$rc" -eq 1 ] && grep -q 'koruyucu sinir: max_dir' "$work/state/restore-test-partial.json" && pass "dizin butcesi asildi -> durduruldu (max_dir)" || { fail "bekci durdurmadi (rc=$rc)"; tail -10 "$work/rt-guard.log"; cat "$work/state/restore-test-partial.json" 2>/dev/null; }
+docker ps -a --format '{{.Names}}' | grep -q '^arilla-restore-' && fail "durdurulan restore konteyneri kaldi" || pass "restore konteyneri kaldirildi"
+[ -z "$(ls -A "$work/restore-test" 2>/dev/null)" ] && pass "durdurulan provanin dizini temizlendi" || fail "durdurulan prova dizin birakti"
+[ "$(q "select count(*) from bkp_test")" = 150 ] && [ "$(q 'show archive_mode')" = on ] && pass "uretim etkilenmedi (veri + arsiv acik)" || fail "uretim degisti"
+
+echo "== 7d. KISMI prova (--db-exclude): tam kanit DEGIL, mekanizma kaniti"
+ARILLA_RESTORE_ASSERT_DB=bkp_small ARILLA_RESTORE_ASSERT_SQL="select (count(*)=42)::int from s" \
+  "$B/pg-restore-test" --partial >"$work/rt-part.log" 2>&1 && pass "pg-restore-test --partial" || { fail "kismi prova"; tail -20 "$work/rt-part.log"; }
+pj() { "$PY" -c "import json;d=json.load(open('$work/state/restore-test-partial.json'));r=d['result'];print($1)" 2>/dev/null; }
+[ "$(pj 'd["ok"]')" = True ] && [ "$(pj 'r["proof"]')" = partial ] && pass "restore-test-partial.json: ok, proof=partial" || fail "kismi durum: $(cat "$work/state/restore-test-partial.json" 2>/dev/null)"
+[ "$(pj 'r["assert"]')" = pass ] && pass "dahil edilen veritabani (bkp_small) verisi geri geldi (42 satir)" || fail "bkp_small verisi"
+[ "$(pj 'r["excluded"]')" = arilla ] && pass "ana veritabani (arilla) haric tutuldu" || fail "haric: $(pj 'r["excluded"]')"
+[ "$(pj 'r["excluded_accessible"]')" = False ] && pass "haric veritabani kullanilamaz (sifir dosyalar veri sanilmaz)" || fail "haric veritabani erisilebilir gorunuyor"
+[ "$(pj 'r["allocated_bytes"] < r["apparent_bytes"]')" = True ] && pass "seyrek geri yukleme: ayrilan $(pj 'r["allocated_bytes"]') < gorunen $(pj 'r["apparent_bytes"]') bayt" || fail "seyrek degil: $(pj 'r["allocated_bytes"], r["apparent_bytes"]')"
+[ "$(pj 'r["amcheck"]')" = pass ] && pass "dahil veritabanlarinda amcheck temiz ($(pj 'r["dbs_checked"]') veritabani)" || fail "kismi amcheck"
+echo "  kismi prova: $(pj '{k: r.get(k) for k in ("included","excluded","rto_s","allocated_bytes","apparent_bytes")}')"
+[ "$(sha256sum "$work/state/restore-test.json" | cut -d' ' -f1)" = "$full_before" ] && pass "kismi prova TAM prova sonucunu degistirmedi" || fail "kismi prova restore-test.json'a yazdi"
+[ -z "$(ls -A "$work/restore-test" 2>/dev/null)" ] && pass "kismi prova dizini temizlendi" || fail "kismi prova dizini kaldi"
+
+echo "== 7e. --auto: tam prova icin yer yoksa kismi"
+ARILLA_RESTORE_WAL_BUDGET_BYTES=$((1 << 60)) "$B/pg-restore-test" --auto >"$work/rt-auto.log" 2>&1 \
+  && grep -q -- "--auto: kip partial" "$work/rt-auto.log" && pass "--auto kismi kipi secti ve tamamladi" || { fail "--auto"; tail -10 "$work/rt-auto.log"; }
+[ "$(q "select count(*) from bkp_test")" = 150 ] && pass "uretim veritabani tum provalardan etkilenmedi" || fail "uretim degisti"
+
 echo "== 8. Ag yalitimi ve sir sizintisi"
 cfg=$(c --profile backup --profile restore config --format json 2>/dev/null)
 nets() { printf '%s' "$cfg" | "$PY" -c "import json,sys;print('+'.join(sorted(json.load(sys.stdin)['services']['$1']['networks'])))"; }
 [ "$(nets postgres)" = data ] && pass "postgres yalniz data aginda (internete cikmaz)" || fail "postgres aglari: $(nets postgres)"
 [ "$(nets backup)" = "data+egress" ] && pass "backup: data + egress" || fail "backup aglari: $(nets backup)"
 [ "$(nets restore)" = egress ] && pass "restore: yalniz egress (uretim DB'ye erisemez)" || fail "restore aglari: $(nets restore)"
+cfgv=$(c --profile verify config --format json 2>/dev/null)
+printf '%s' "$cfgv" | "$PY" -c "
+import json,sys
+s=json.load(sys.stdin)['services']['verify']
+vols=[v.get('target') for v in s.get('volumes',[])]
+assert sorted(s['networks'])==['egress'], s['networks']
+assert vols==['/etc/arilla-backup'], vols
+assert s.get('read_only') is True and s.get('cpus') in (1, 1.0, '1', '1.0'), (s.get('read_only'), s.get('cpus'))
+" 2>"$work/verify-cfg.err" && pass "verify: yalniz egress, yalniz depo yapilandirmasi (salt-okunur), 1 CPU" || { fail "verify servisi yalitimi"; cat "$work/verify-cfg.err"; }
 docker exec "${COMPOSE_PROJECT_NAME}-postgres-1" bash -c 'exec 3<>/dev/tcp/1.1.1.1/53' >/dev/null 2>&1 && fail "postgres internete cikabiliyor" || pass "postgres internete cikamaz"
 docker exec "${COMPOSE_PROJECT_NAME}-postgres-1" sh -c "grep -rq '$MINIO_PASS' /etc/arilla-backup" 2>/dev/null && fail "postgres konteynerinde depo sirri" || pass "postgres konteynerinde depo sirri yok"
 leak=0
@@ -199,7 +300,7 @@ c --profile backup logs --no-color postgres backup 2>&1 | grep -qF -e "$CIPHER" 
 echo "== 9. Saglik kontrolu"
 hc=$("$PY" "$work/vps/bin/arilla_healthcheck.py" --root "$work" --json 2>/dev/null)
 lvl() { printf '%s' "$hc" | "$PY" -c "import json,sys;print({c['name']:c['level'] for c in json.load(sys.stdin)['checks']}.get('$1','yok'))"; }
-for k in wal-archive backup:container backup:last backup:full restore-test; do
+for k in wal-archive backup:container backup:last backup:full restore-test backup:verify backup:verify-all restore-test:partial; do
   [ "$(lvl "$k")" = ok ] && pass "saglik: $k ok" || fail "saglik: $k = $(lvl "$k")"
 done
 

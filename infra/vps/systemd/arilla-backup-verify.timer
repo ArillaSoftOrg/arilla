@@ -1,8 +1,8 @@
 [Unit]
-Description=Haftalik depo dogrulamasi (Carsamba 02:30 UTC)
+Description=Haftalik son-set dogrulamasi (Sali 10:30 UTC; yedek 01:36, katalog 02:30 ve besleme 06:30/18:30 pencereleri disinda)
 
 [Timer]
-OnCalendar=Wed *-*-* 02:30:00 UTC
+OnCalendar=Tue *-*-* 10:30:00 UTC
 Persistent=true
 RandomizedDelaySec=600
 

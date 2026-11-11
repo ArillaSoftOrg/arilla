@@ -11,7 +11,7 @@ ROOT=${ARILLA_ROOT:-/opt/arilla}
 START_FREE_GB=${START_FREE_GB:-70}
 
 for unit in arilla-feeds-daily arilla-catalog-pipeline arilla-backup-full arilla-backup-diff \
-  arilla-backup-verify arilla-restore-test; do
+  arilla-backup-verify arilla-backup-verify-all arilla-restore-test; do
   if systemctl is-active --quiet "$unit.service"; then
     echo "atlandi: $unit.service calisiyor" >&2
     exit 1

@@ -379,6 +379,34 @@ services:
     cpus: 1.0
     pids_limit: 256
 
+  # --- Depo dogrulamasi (karar 0183) ------------------------------------------------------
+  # `pgbackrest verify` AYRI tek seferlik konteynerde: WAL'i R2'ye iten `backup` sunucusunun
+  # CPU'sunu paylasmaz. Yalniz egress (R2); veri dizini, postgres ve `data` agi YOK.
+  # infra/vps/bin/pg-backup verify [--all]; bekci: infra/vps/bin/backup_monitor.py.
+  verify:
+    profiles: ["verify"]
+    image: ${ARILLA_POSTGRES_IMAGE:-arilla-postgres:local}
+    build:
+      context: ./vps/postgres
+    user: "999:999"
+    entrypoint: ["pgbackrest"]
+    environment:
+      PGBACKREST_CONFIG: /etc/arilla-backup/pgbackrest.conf
+    volumes:
+      - ${ARILLA_BACKUP_DIR:-/opt/arilla/backup}/repo:/etc/arilla-backup:ro
+    tmpfs: [/tmp]
+    networks: [egress]
+    restart: "no"
+    logging: *logging
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop: [ALL]
+    mem_limit: 512m
+    memswap_limit: 512m
+    cpus: 1.0
+    pids_limit: 128
+
   # --- Migration / rol / bolum isleri (elle ya da dagitimda; `up -d` BASLATMAZ) ----------
   # docker compose run --rm migrate [node scripts/<betik>.ts]
   # Sahip kimligi (DATABASE_URL_OWNER) yalnizca bu servise verilir.

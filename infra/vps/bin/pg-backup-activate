@@ -125,7 +125,7 @@ case "$CMD" in
       install -m 0644 "$u" /etc/systemd/system/
     done
     systemctl daemon-reload
-    systemctl enable --now arilla-backup-full.timer arilla-backup-diff.timer arilla-backup-verify.timer \
+    systemctl enable --now arilla-backup-full.timer arilla-backup-diff.timer arilla-backup-verify.timer arilla-backup-verify-all.timer \
       arilla-restore-test.timer arilla-healthcheck.timer
     systemctl list-timers 'arilla-*' --no-pager
     ;;

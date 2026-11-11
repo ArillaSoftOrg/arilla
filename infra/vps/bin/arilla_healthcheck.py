@@ -65,6 +65,8 @@ THRESHOLDS = {
     "last_backup_crit_s": 30 * 3600,  # gunluk fark yedegi + tolerans
     "last_full_crit_s": 8 * 24 * 3600,  # haftalik tam yedek + tolerans
     "restore_test_warn_s": 35 * 24 * 3600,
+    "verify_latest_warn_s": 8 * 24 * 3600,  # haftalik son-set dogrulamasi + tolerans (karar 0183)
+    "verify_all_warn_s": 35 * 24 * 3600,  # aylik tum depo dogrulamasi + tolerans
     "pipeline_stale_crit_s": 50 * 3600,  # gunluk 02:30 kosusu + bir kacan gece + tolerans
     # Gunluk besleme (karar 0182): gunde iki kosu (06:30, 18:30 + rastgele gecikme).
     "feeds_success_crit_s": 36 * 3600,  # en yeni besleme yazimi; ~3 kacan kosu
@@ -237,7 +239,8 @@ class Collector:
             "(select coalesce(extract(epoch from now() - min(modification))::bigint, 0) "
             "   from pg_ls_archive_statusdir() where name like '%.ready'), "
             "(select coalesce(sum(size),0) from pg_ls_waldir()), "
-            "a.failed_count, a.last_failed_time, a.last_archived_time "
+            "a.failed_count, a.last_failed_time, a.last_archived_time, "
+            "(select sum(pg_database_size(oid)) from pg_database where datname not in ('template0','template1')) "
             "from pg_stat_archiver a")
         if rc == 0 and out.strip():
             f = out.strip().splitlines()[0].split("|")
@@ -245,9 +248,14 @@ class Collector:
                 "archive_mode": f[0], "connections": int(f[1]), "max_connections": int(f[2]),
                 "ready_count": int(f[3]), "oldest_ready_s": int(f[4]), "wal_bytes": int(f[5]),
                 "failed_count": int(f[6] or 0), "last_failed": f[7] or None, "last_archived": f[8] or None,
+                "cluster_bytes": int(f[9]) if len(f) > 9 and f[9].isdigit() else None,
             }
         else:
             facts["pg"] = None
+        try:
+            facts["root_free_bytes"] = self.disk_usage(str(self.root)).free
+        except OSError:
+            facts["root_free_bytes"] = None
 
         facts["backup_info"] = None
         if facts["containers"] and facts["containers"].get("backup"):
@@ -260,6 +268,10 @@ class Collector:
                     facts["backup_info"] = None
 
         facts["restore_test"] = read_json(self.root / "state" / "restore-test.json")
+        # Karar 0183: kismi prova (tam kanit DEGIL) ve depo dogrulamalari ayri dosyalardadir.
+        facts["restore_partial"] = read_json(self.root / "state" / "restore-test-partial.json")
+        facts["verify_latest"] = read_json(self.root / "state" / "verify-latest.json")
+        facts["verify_all"] = read_json(self.root / "state" / "verify-all.json")
         # Toplu katalog yayini bekcisinin kalp atisi (karar 0134; infra/vps/bin/catalog-publish).
         facts["bulk_window"] = read_json(self.root / "state" / "ali-publish" / "bulk-window.json")
         rc, out = self.run(["systemctl", "list-units", "--state=failed", "--plain", "--no-legend", "arilla-*"], 15)
@@ -507,6 +519,64 @@ def bulk_window_ready_crit(window, now: datetime) -> int:
     return min(crit, BULK_WINDOW_MAX_READY)
 
 
+def gib(n: float | None) -> str:
+    return "?" if n is None else f"{n / 1073741824:.0f} GB"
+
+
+def verify_check(name: str, label: str, st, now: datetime, max_age_s: int) -> Check:
+    """pg-backup verify durum dosyasi (karar 0183). Tamamlanamayan dogrulama bozulma degildir: UYARI."""
+    if not isinstance(st, dict) or not st.get("status"):
+        return Check(name, WARN, f"{label} henuz yapilmadi")
+    fin = parse_ts(st.get("finished_at"))
+    age = (now - fin).total_seconds() if fin else 1e12
+    reason = st.get("reason") or "-"
+    if st["status"] == "failed":
+        return Check(name, CRIT, f"{label} BASARISIZ ({reason}), {human(age)} once")
+    if st["status"] != "ok":
+        return Check(name, WARN, f"{label} tamamlanamadi ({reason}; bozulma degil, koruyucu sinir), {human(age)} once")
+    if age > max_age_s:
+        return Check(name, WARN, f"son basarili {label} {human(age)} once")
+    read = st.get("read_bytes_min")
+    return Check(name, OK, f"{label} {human(age)} once: {human(st.get('duration_s') or 0)}, R2 okuma >= {gib(read)}, "
+                           f"CPU en cok %{st.get('cpu_max_pct')}, WAL kuyrugu en cok {st.get('archive_ready_max')}")
+
+
+#: pg-restore-test varsayilanlariyla AYNI olmali (test_arilla_healthcheck sabitler).
+RESTORE_WAL_BUDGET_BYTES = 16 * 1073741824
+RESTORE_MIN_FREE_BYTES = 30 * 1073741824
+
+
+def restore_capacity_checks(facts: dict, now: datetime, t: dict = THRESHOLDS) -> list[Check]:
+    """Tam geri yukleme provasinin bu makinede guvenli olup olmadigi + kismi prova (karar 0183)."""
+    out: list[Check] = []
+    free, cluster = facts.get("root_free_bytes"), (facts.get("pg") or {}).get("cluster_bytes")
+    full_possible = None
+    if free is not None and cluster is not None:
+        need = cluster + RESTORE_WAL_BUDGET_BYTES + RESTORE_MIN_FREE_BYTES
+        full_possible = free >= need
+        if full_possible:
+            out.append(Check("restore-capacity", OK, f"tam prova icin yer var (bos {gib(free)}, gerekli {gib(need)})"))
+        else:
+            out.append(Check("restore-capacity", WARN,
+                             f"TAM geri yukleme provasi bu makinede guvenli DEGIL: bos {gib(free)} < gerekli {gib(need)} "
+                             f"(kume {gib(cluster)} + WAL {gib(RESTORE_WAL_BUDGET_BYTES)} + taban "
+                             f"{gib(RESTORE_MIN_FREE_BYTES)}); yalniz kismi prova yapilir (tam kanit degil)"))
+    rp = facts.get("restore_partial")
+    if isinstance(rp, dict):
+        fin = parse_ts(rp.get("finished_at"))
+        age = (now - fin).total_seconds() if fin else 1e12
+        if not rp.get("ok"):
+            err = (rp.get("result") or {}).get("error") or (rp.get("result") or {}).get("errors") or "-"
+            out.append(Check("restore-test:partial", CRIT, f"son KISMI prova BASARISIZ ({err})"))
+        elif age > t["restore_test_warn_s"]:
+            out.append(Check("restore-test:partial", WARN, f"son kismi prova {human(age)} once"))
+        else:
+            out.append(Check("restore-test:partial", OK, f"kismi prova (tam kanit DEGIL) {human(age)} once"))
+    elif full_possible is False:
+        out.append(Check("restore-test:partial", WARN, "kismi geri yukleme provasi henuz yapilmadi"))
+    return out
+
+
 def evaluate(facts: dict, now: datetime, t: dict = THRESHOLDS) -> list[Check]:
     out: list[Check] = []
 
@@ -589,6 +659,12 @@ def evaluate(facts: dict, now: datetime, t: dict = THRESHOLDS) -> list[Check]:
             else:
                 rto = (rt.get("result") or {}).get("rto_s")
                 out.append(Check("restore-test", OK, f"son prova {human(age)} once, RTO {rto} sn"))
+
+        out.extend(restore_capacity_checks(facts, now, t))
+        out.append(verify_check("backup:verify", "son-set dogrulamasi", facts.get("verify_latest"), now,
+                                t["verify_latest_warn_s"]))
+        out.append(verify_check("backup:verify-all", "tum depo dogrulamasi", facts.get("verify_all"), now,
+                                t["verify_all_warn_s"]))
 
     classified = facts.get("pipeline_failures") or {}
     failed = [u for u in facts.get("failed_units") or [] if u not in classified]

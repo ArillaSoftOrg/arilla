@@ -29,11 +29,18 @@ def info(*backups, code=0):
              "backup": [{"type": t, "timestamp": {"stop": int((NOW - age).timestamp())}} for t, age in backups]}]
 
 
+def verify_state(days=1, status="ok", scope="latest", reason=None):
+    return {"scope": scope, "status": status, "ok": status == "ok", "reason": reason,
+            "finished_at": (NOW - timedelta(days=days)).isoformat(), "duration_s": 900,
+            "read_bytes_min": 35 << 30, "cpu_max_pct": 88.0, "archive_ready_max": 2}
+
+
 def facts(**over):
     base = {"disk": {"/opt/arilla": 40.0}, "containers": dict(HEALTHY, backup="healthy"),
             "backup_configured": True, "pg": pg(),
             "backup_info": info(("full", timedelta(days=2)), ("diff", timedelta(hours=10))),
             "restore_test": {"ok": True, "finished_at": (NOW - timedelta(days=3)).isoformat(), "result": {"rto_s": 42}},
+            "verify_latest": verify_state(days=2), "verify_all": verify_state(days=10, scope="all"),
             "failed_units": []}
     base.update(over)
     return base
@@ -121,6 +128,63 @@ class EvaluateTest(unittest.TestCase):
         self.assertEqual(levels(hc.evaluate(facts(restore_test=stale), NOW))["restore-test"], hc.WARN)
         bad = {"ok": False, "finished_at": NOW.isoformat()}
         self.assertEqual(levels(hc.evaluate(facts(restore_test=bad), NOW))["restore-test"], hc.CRIT)
+
+    def test_verify_states(self):
+        lv = lambda **o: levels(hc.evaluate(facts(**o), NOW))  # noqa: E731
+        self.assertEqual(lv()["backup:verify"], hc.OK)
+        self.assertEqual(lv(verify_latest=None)["backup:verify"], hc.WARN)
+        self.assertEqual(lv(verify_latest=verify_state(days=9))["backup:verify"], hc.WARN)
+        self.assertEqual(lv(verify_latest=verify_state(status="failed", reason="pgbackrest exit 1"))["backup:verify"], hc.CRIT)
+        # Koruyucu sinirla durdurulan dogrulama bozulma DEGILDIR: uyari
+        inc = verify_state(status="incomplete", reason="wal_backlog")
+        self.assertEqual(lv(verify_latest=inc)["backup:verify"], hc.WARN)
+        self.assertEqual(lv(verify_all=None)["backup:verify-all"], hc.WARN)
+        self.assertEqual(lv(verify_all=verify_state(days=36, scope="all"))["backup:verify-all"], hc.WARN)
+        self.assertEqual(lv(verify_all=verify_state(status="failed", scope="all"))["backup:verify-all"], hc.CRIT)
+        # Eski bicim (op/ok) dosyasi okunmaz: "henuz yapilmadi"
+        self.assertEqual(lv(verify_latest={"op": "verify", "ok": True})["backup:verify"], hc.WARN)
+
+    def test_restore_capacity(self):
+        G = 1 << 30
+        ok = facts(root_free_bytes=200 * G, pg=pg(cluster_bytes=75 * G))
+        lv = levels(hc.evaluate(ok, NOW))
+        self.assertEqual(lv["restore-capacity"], hc.OK)
+        self.assertNotIn("restore-test:partial", lv)
+        # Uretim 11 Kas: 59 GB bos, 75 GB kume -> tam prova guvenli degil, acikca UYARI
+        low = facts(root_free_bytes=59 * G, pg=pg(cluster_bytes=75 * G))
+        checks = {c.name: c for c in hc.evaluate(low, NOW)}
+        self.assertEqual(checks["restore-capacity"].level, hc.WARN)
+        self.assertIn("guvenli DEGIL", checks["restore-capacity"].message)
+        self.assertIn("gerekli 121 GB", checks["restore-capacity"].message)
+        self.assertEqual(checks["restore-test:partial"].level, hc.WARN)  # kismi prova da yok
+        # Sinir tam esik
+        edge = facts(root_free_bytes=75 * G + hc.RESTORE_WAL_BUDGET_BYTES + hc.RESTORE_MIN_FREE_BYTES,
+                     pg=pg(cluster_bytes=75 * G))
+        self.assertEqual(levels(hc.evaluate(edge, NOW))["restore-capacity"], hc.OK)
+        # Olculemiyorsa kontrol yok (yanlis guven de yanlis alarm da uretmez)
+        self.assertNotIn("restore-capacity", levels(hc.evaluate(facts(), NOW)))
+
+    def test_partial_restore_is_reported_as_partial(self):
+        G = 1 << 30
+        part = {"ok": True, "finished_at": (NOW - timedelta(days=3)).isoformat(), "result": {"proof": "partial"}}
+        checks = {c.name: c for c in hc.evaluate(
+            facts(root_free_bytes=59 * G, pg=pg(cluster_bytes=75 * G), restore_partial=part), NOW)}
+        self.assertEqual(checks["restore-test:partial"].level, hc.OK)
+        self.assertIn("tam kanit DEGIL", checks["restore-test:partial"].message)
+        self.assertEqual(checks["restore-capacity"].level, hc.WARN)  # kismi prova bunu ORTADAN KALDIRMAZ
+        bad = dict(part, ok=False, result={"error": "koruyucu sinir: max_dir"})
+        lv = levels(hc.evaluate(facts(restore_partial=bad), NOW))
+        self.assertEqual(lv["restore-test:partial"], hc.CRIT)
+        # Kismi prova TAM provanin yerine gecmez
+        lv = levels(hc.evaluate(facts(restore_test=None, restore_partial=part), NOW))
+        self.assertEqual(lv["restore-test"], hc.WARN)
+
+    def test_restore_constants_match_script(self):
+        text = (Path(__file__).resolve().parent / "pg-restore-test").read_text(encoding="utf-8")
+        self.assertIn("MIN_FREE=${ARILLA_RESTORE_MIN_FREE_BYTES:-$((30 * GiB))}", text)
+        self.assertIn("WAL_BUDGET=${ARILLA_RESTORE_WAL_BUDGET_BYTES:-$((16 * GiB))}", text)
+        self.assertEqual(hc.RESTORE_MIN_FREE_BYTES, 30 << 30)
+        self.assertEqual(hc.RESTORE_WAL_BUDGET_BYTES, 16 << 30)
 
     def test_failed_units(self):
         self.assertEqual(levels(hc.evaluate(facts(failed_units=["arilla-backup-diff.service"]), NOW))["systemd"], hc.CRIT)

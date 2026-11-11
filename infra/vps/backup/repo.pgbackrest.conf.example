@@ -26,6 +26,10 @@ repo1-retention-full-type=count
 repo1-retention-full=@@RETENTION_FULL@@
 # Nesne depolari icin onerilen: kucuk dosyalari paketle (istek sayisi ve maliyet azalir).
 repo1-bundle=y
+# Blok tabanli artimli yedek (karar 0183; bundle=y on kosulu). Degisen dosyanin yalniz degisen
+# bloklari saklanir. Haritalar tam yedekte olusur: etkisi bir SONRAKI tam yedekten sonra gorulur.
+# Geri alma: n (var olan blok yedekleri saklama suresince geri yuklenebilir kalir).
+repo1-block=@@REPO_BLOCK@@
 
 # --- Genel ------------------------------------------------------------------------------
 compress-type=zst
