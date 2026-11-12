@@ -122,13 +122,14 @@ case "$CMD" in
       "$ROOT"/vps/systemd/arilla-restore-test.service "$ROOT"/vps/systemd/arilla-restore-test.timer \
       "$ROOT"/vps/systemd/arilla-healthcheck.service "$ROOT"/vps/systemd/arilla-healthcheck.timer \
       "$ROOT"/vps/systemd/arilla-wal-report.service "$ROOT"/vps/systemd/arilla-wal-report.timer \
+      "$ROOT"/vps/systemd/arilla-dump-verify.service "$ROOT"/vps/systemd/arilla-dump-verify.timer \
       "$ROOT"/vps/systemd/arilla-alert@.service; do
       install -m 0644 "$u" /etc/systemd/system/
     done
     systemctl daemon-reload
     # arilla-wal-report: salt okunur WAL olcumu (karar 0185); yedek ve depo boyutu izlemesinin parcasi.
     systemctl enable --now arilla-backup-full.timer arilla-backup-diff.timer arilla-backup-verify.timer arilla-backup-verify-all.timer \
-      arilla-restore-test.timer arilla-healthcheck.timer arilla-wal-report.timer
+      arilla-restore-test.timer arilla-healthcheck.timer arilla-wal-report.timer arilla-dump-verify.timer
     systemctl list-timers 'arilla-*' --no-pager
     ;;
   *)

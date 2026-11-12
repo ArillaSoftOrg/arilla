@@ -1,0 +1,14 @@
+[Unit]
+Description=Arilla migration oncesi en yeni dokumun SHA-256 + tam veri okumasi (karar 0187; gercek geri yukleme kaniti DEGIL)
+Requires=docker.service
+After=docker.service
+OnFailure=arilla-alert@%n.service
+
+[Service]
+Type=oneshot
+# Dokum root olarak okunur, yalitilmis tek seferlik konteynere (ag yok, 1 CPU, 512 MB) STDIN'den verilir;
+# pg_restore -f /dev/null tum veri bloklarini acar. Sonuc state/pre-migrate-verify.json + metadata.
+ExecStart=/usr/bin/python3 /opt/arilla/vps/bin/pre_migrate_dumps.py verify --newest --full --state
+TimeoutStartSec=1h
+Nice=15
+IOSchedulingClass=idle
