@@ -34,10 +34,11 @@ REPO_URL=${ARILLA_REPO_URL:-https://github.com/ArillaSoftOrg/arilla.git}
 MAIN_REF=${ARILLA_MAIN_REF:-refs/heads/main}
 IMAGE_PREFIX=${ARILLA_IMAGE_PREFIX:-ghcr.io/arillasoftorg/}
 PULL=${ARILLA_PULL:-1}
+# KEEP: yapilandirma yedekleri (backups/deploy-*) ve altyapi paketleri. Migration oncesi dokumler
+# ARTIK BURADA BUDANMAZ (karar 0187): pre_migrate_dumps.py raporlar, silme yalniz `prune --confirm`.
 KEEP=${ARILLA_KEEP:-5}
 HEALTH_TIMEOUT_WEB=${ARILLA_HEALTH_TIMEOUT_WEB:-240}
 HEALTH_TIMEOUT=${ARILLA_HEALTH_TIMEOUT:-120}
-MIN_FREE_BYTES=${ARILLA_MIN_FREE_BYTES:-3221225472}
 # Otomatik guncellenen servisler (sirali). postgres/redis BILEREK dahil degil.
 AUTO_SERVICES=(web worker cron caddy)
 IMAGE_SERVICES=(web:web worker:ingest cron:cron migrate:migrate)
@@ -48,6 +49,7 @@ python3 -c '' >/dev/null 2>&1 || PY=python
 BK=""
 SHA=""
 MIGRATE_REF=""
+CURRENT_DUMP=""
 ROLLBACK_ARMED=0
 IN_ROLLBACK=0
 TOUCHED=()
@@ -210,9 +212,17 @@ rollback_now() {
   return 3
 }
 
+mark_dump_failed() { # karar 0187: basarisiz deploy'un dokumu korunur ("failed"; silme adayi olmaz)
+  if [ -n "$CURRENT_DUMP" ] && [ -f "$CURRENT_DUMP.meta.json" ]; then
+    "$PY" "$ROOT/vps/bin/pre_migrate_dumps.py" --root "$ROOT" set-status --dump "$CURRENT_DUMP" --status failed \
+      >/dev/null 2>&1 || warn "dokum durumu yazilamadi: $CURRENT_DUMP (dosya korunur)"
+  fi
+}
+
 fail_and_rollback() {
   local rc=0
   trap - ERR
+  mark_dump_failed
   rollback_now || rc=$?
   echo "DEPLOY_RESULT=failed rollback=$([ "$rc" = 1 ] && echo ok || echo FAILED) sha=${SHA:-?}"
   exit "$rc"
@@ -223,6 +233,7 @@ on_error() {
   trap - ERR
   warn "hata (satir $line)"
   if [ "$ROLLBACK_ARMED" = 1 ]; then fail_and_rollback; fi
+  mark_dump_failed
   echo "DEPLOY_RESULT=failed rollback=not-needed sha=${SHA:-?}"
   exit 1
 }
@@ -292,6 +303,22 @@ deploy_flow() { # deploy_flow <manifest> <kaynak-modu: git|tar> <tar-yolu-veya-b
     if [ "$key" = migrate ]; then MIGRATE_REF=$ref; fi
   done
 
+  # --- migration on kontrolu (karar 0187): HICBIR DOSYA DEGISMEDEN once bekleyen migration ve disk.
+  # Yetersiz kapasitede dagitim burada durur: dosyalar kurulmaz, dokum alinmaz, migration baslamaz.
+  local pguser pgdb applied available pending dbbytes
+  pguser=$(env_value "$ROOT/env/postgres.env" POSTGRES_USER arilla)
+  pgdb=$(env_value "$ROOT/env/postgres.env" POSTGRES_DB arilla)
+  applied=$(compose exec -T postgres psql -U "$pguser" -d "$pgdb" -Atc 'select filename from schema_migration order by 1') || die "schema_migration okunamadi (veritabani erisilemez)"
+  available=$(docker run --rm --pull=never --network none --entrypoint ls "$MIGRATE_REF" /app/packages/db/migrations | grep -E '^[0-9]{4}_.*[.]sql$' | sort)
+  pending=$(comm -13 <(sort <<<"$applied") <(sort <<<"$available") || true)
+  if [ -n "$pending" ]; then
+    log "bekleyen migration: $(wc -l <<<"$pending" | tr -d ' ') dosya ($(head -3 <<<"$pending" | tr '\n' ' ')...)"
+    dbbytes=$(compose exec -T postgres psql -U "$pguser" -d "$pgdb" -Atc 'select pg_database_size(current_database())' | tr -d '\r') \
+      || die "veritabani boyutu okunamadi"
+    "$PY" "$S/vps/bin/pre_migrate_dumps.py" --root "$ROOT" capacity --db-bytes "$dbbytes" \
+      || die "migration oncesi disk denetimi gecmedi; dagitim BASLAMADAN durdu (hicbir sey degismedi)"
+  fi
+
   # --- yedek (geri alma noktasi)
   BK="$ROOT/backups/deploy-$STAMP-${SHA:0:12}"
   mkdir -p "$BK"
@@ -316,24 +343,21 @@ deploy_flow() { # deploy_flow <manifest> <kaynak-modu: git|tar> <tar-yolu-veya-b
   "$PY" "$ROOT/vps/bin/release.py" apply "$manifest" --dir "$ROOT" --image-prefix "$IMAGE_PREFIX"
   cmp -s "$S/vps/bin/arilla-deploy" "$ROOT/bin/arilla-deploy" 2>/dev/null || warn "kurulu arilla-deploy/deploy-gate main'dekinden farkli olabilir; guncellemek icin: sudo infra/vps/bin/install-deploy.sh"
 
-  # --- migration (kontrollu): bekleyenler varsa once pg_dump
-  local pguser pgdb applied available pending free dump
-  pguser=$(env_value "$ROOT/env/postgres.env" POSTGRES_USER arilla)
-  pgdb=$(env_value "$ROOT/env/postgres.env" POSTGRES_DB arilla)
-  applied=$(compose exec -T postgres psql -U "$pguser" -d "$pgdb" -Atc 'select filename from schema_migration order by 1') || die "schema_migration okunamadi (veritabani erisilemez)"
-  available=$(docker run --rm --pull=never --network none --entrypoint ls "$MIGRATE_REF" /app/packages/db/migrations | grep -E '^[0-9]{4}_.*[.]sql$' | sort)
-  pending=$(comm -13 <(sort <<<"$applied") <(sort <<<"$available") || true)
+  # --- migration (kontrollu, karar 0187): once dokum + metadata + dogrulama; biri bile basarisizsa
+  # migration BASLAMAZ (otomatik geri alma), dokum ve metadatasi korunur (silme adayi olmaz).
+  local dump pmd="$ROOT/vps/bin/pre_migrate_dumps.py"
   if [ -n "$pending" ]; then
-    log "bekleyen migration: $(wc -l <<<"$pending" | tr -d ' ') dosya ($(head -3 <<<"$pending" | tr '\n' ' ')...)"
-    free=$(df --output=avail -B1 "$ROOT" | tail -1 | tr -d ' ')
-    [ "$free" -ge "$MIN_FREE_BYTES" ] || die "yetersiz bos disk ($free bayt); migration oncesi yedek alinamaz"
     dump="$ROOT/backups/pre-migrate-$STAMP-${SHA:0:12}.dump"
-    compose exec -T postgres pg_dump -U "$pguser" -Fc "$pgdb" >"$dump"
-    [ -s "$dump" ] || die "pg_dump bos"
-    compose exec -T postgres pg_restore -l <"$dump" >/dev/null || die "pg_dump dogrulanamadi"
-    log "migration oncesi yedek: $dump ($(wc -c <"$dump" | tr -d ' ') bayt)"
+    printf '%s\n' "$pending" >"$WORK/pending-migrations.txt"
+    CURRENT_DUMP=$dump
+    "$PY" "$pmd" --root "$ROOT" begin --dump "$dump" --deploy-id "$STAMP" --sha "$SHA" \
+      --migrations-file "$WORK/pending-migrations.txt" || die "dokum metadatasi yazilamadi; migration BASLATILMADI"
+    compose exec -T postgres pg_dump -U "$pguser" -Fc "$pgdb" >"$dump" || die "pg_dump basarisiz; migration BASLATILMADI"
+    "$PY" "$pmd" --root "$ROOT" finish --dump "$dump" || die "dokum dogrulanamadi (TOC/SHA-256); migration BASLATILMADI"
+    log "migration oncesi yedek: $dump ($(wc -c <"$dump" | tr -d ' ') bayt; SHA-256 ve icindekiler metadatada)"
     compose run -T --rm --no-deps migrate
     compose run -T --rm --no-deps migrate node scripts/verify-schema.ts >/dev/null
+    "$PY" "$pmd" --root "$ROOT" set-status --dump "$dump" --status migrated || warn "dokum durumu yazilamadi"
     log "migration + schema dogrulamasi tamam"
   else
     log "bekleyen migration yok"
@@ -383,8 +407,14 @@ deploy_flow() { # deploy_flow <manifest> <kaynak-modu: git|tar> <tar-yolu-veya-b
   [ "$tarball" -ef "$ROOT/releases/$SHA.infra.tar" ] || cp -a "$tarball" "$ROOT/releases/$SHA.infra.tar"
   { ls -1t "$ROOT"/releases/*.infra.tar 2>/dev/null | tail -n +$((KEEP * 2 + 1)) | xargs -r rm -f --; } || true
   { ls -1dt "$ROOT"/backups/deploy-* 2>/dev/null | tail -n +$((KEEP + 1)) | xargs -r rm -rf --; } || true
-  { ls -1t "$ROOT"/backups/pre-migrate-*.dump 2>/dev/null | tail -n +$((KEEP + 1)) | xargs -r rm -f --; } || true
   ROLLBACK_ARMED=0
+  # Karar 0187: migration oncesi dokumler OTOMATIK SILINMEZ; durum yazilir, adaylar yalniz raporlanir.
+  if [ -n "$CURRENT_DUMP" ]; then
+    "$PY" "$ROOT/vps/bin/pre_migrate_dumps.py" --root "$ROOT" set-status --dump "$CURRENT_DUMP" --status success \
+      || warn "dokum durumu success yazilamadi: $CURRENT_DUMP"
+    CURRENT_DUMP=""
+  fi
+  "$PY" "$ROOT/vps/bin/pre_migrate_dumps.py" --root "$ROOT" report 2>/dev/null | sed 's/^/  dokum: /' || true
   log "TAMAM: sha-$SHA"
   echo "DEPLOY_RESULT=success sha=$SHA changed=${changed[*]:-none}"
 }

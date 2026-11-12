@@ -79,12 +79,15 @@ shaB=$(git_s rev-parse HEAD)
 printf '\n# deploytest-marker\n' >>"$SRC/infra/vps/Caddyfile"
 git_s add -A >/dev/null && git_s commit -q -m C
 shaC=$(git_s rev-parse HEAD)
+echo "E" >"$SRC/infra/notes-e.txt"   # karar 0187: hatali migration iceren surum
+git_s add -A >/dev/null && git_s commit -q -m E
+shaE=$(git_s rev-parse HEAD)
 git_s checkout -q -b side "$shaA"
 echo "D" >"$SRC/infra/notes-d.txt"
 git_s add -A >/dev/null && git_s commit -q -m D
 shaD=$(git_s rev-parse HEAD)
 git_s checkout -q main
-[ "$(git_s rev-parse main)" = "$shaC" ] && pass "depo: A<B<C main'de, D yan dalda" || fail "depo kurulumu"
+[ "$(git_s rev-parse main)" = "$shaE" ] && pass "depo: A<B<C<E main'de, D yan dalda" || fail "depo kurulumu"
 
 docker rm -f arilla-dt-registry >/dev/null 2>&1
 docker run -d --name arilla-dt-registry -p 127.0.0.1:$REG_PORT:5000 registry:2 >/dev/null || fail "registry baslamadi"
@@ -103,6 +106,9 @@ mk_image() { # mk_image <ad> <sha> <mod: normal|bad|migration>
     migration)
       printf -- '-- 9999: deploytest noop\nSELECT 1;\n' >"$dir/9999_deploytest_noop.sql"
       printf 'FROM ghcr.io/arillasoftorg/arilla-%s:smoke\nLABEL org.opencontainers.image.revision=%s\nCOPY --chown=node:node 9999_deploytest_noop.sql /app/packages/db/migrations/\n' "$name" "$sha" >"$dir/Dockerfile" ;;
+    badmigration)  # karar 0187: migration BASARISIZ olur (sifira bolme)
+      printf -- '-- 9998: deploytest fail\nSELECT 1/0;\n' >"$dir/9998_deploytest_fail.sql"
+      printf 'FROM ghcr.io/arillasoftorg/arilla-%s:smoke\nLABEL org.opencontainers.image.revision=%s\nCOPY --chown=node:node 9998_deploytest_fail.sql /app/packages/db/migrations/\n' "$name" "$sha" >"$dir/Dockerfile" ;;
     *)
       printf 'FROM ghcr.io/arillasoftorg/arilla-%s:smoke\nLABEL org.opencontainers.image.revision=%s\n' "$name" "$sha" >"$dir/Dockerfile" ;;
   esac
@@ -118,6 +124,8 @@ for sha in $shaA $shaC; do
   done
 done
 for n in migrate ingest cron; do mk_image "$n" "$shaB" normal || fail "imaj $n B"; done
+for n in web ingest cron; do mk_image "$n" "$shaE" normal || fail "imaj $n E"; done
+mk_image migrate "$shaE" badmigration || fail "imaj migrate E (hatali migration)"
 mk_image web "$shaB" bad || fail "imaj web B (kotu)"
 
 cat >"$IMG/mkmanifest.py" <<'EOF'
@@ -135,6 +143,7 @@ mm() { "$PY" "$IMG/mkmanifest.py" "$@"; }
 mm "$shaA" "$work/mA.json" "$IMG" "$REG/"
 mm "$shaB" "$work/mB.json" "$IMG" "$REG/"
 mm "$shaC" "$work/mC.json" "$IMG" "$REG/"
+mm "$shaE" "$work/mE.json" "$IMG" "$REG/"
 cp "$work/mA.json" "$work/mD.json"   # D main'de degil: soy agaci kontrolu manifestten ONCE reddeder
 mm "$shaA" "$work/mMismatch.json" "$IMG" "$REG/" web=$shaB          # web digest'i B'den, sha A -> etiket uyusmazligi
 mm "$shaA" "$work/mForeign.json" "$IMG" "docker.io/yabanci/"
@@ -169,7 +178,9 @@ sum_of() { sha256sum "$1" | cut -d' ' -f1; }
 pg_started=$(started postgres); redis_started=$(started redis)
 
 run_deploy() { # run_deploy <sha> <manifest> -> cikis kodu; cikti $work/out.log
+  # Karar 0187: dokum oncesi disk tabani testte 1 GiB (uretim 30 GiB); DT_RESERVE ile ezilebilir.
   env ARILLA_EXTRA_PATH="$PATH" ARILLA_ROOT="$ROOT" ARILLA_REPO_URL="$SRC" ARILLA_IMAGE_PREFIX="$REG/" \
+    ARILLA_DUMP_RESERVE_BYTES="${DT_RESERVE:-1073741824}" \
     ARILLA_VERIFY_URL="http://127.0.0.1:$HTTP_PORT" ARILLA_HEALTH_TIMEOUT_WEB=${DT_WEB_TIMEOUT:-150} ARILLA_HEALTH_TIMEOUT=90 \
     bash "$here/arilla-deploy" deploy "$1" <"$2" >"$work/out.log" 2>&1
 }
@@ -214,6 +225,15 @@ gq "^DEPLOY_RESULT=failed rollback=ok sha=$shaB" "$work/out.log" && pass "sonuc:
 [ "$(started postgres)" = "$pg_started" ] && [ "$(started redis)" = "$redis_started" ] && pass "postgres/redis geri alma sirasinda da dokunulmadi" || fail "postgres/redis yeniden basladi"
 curl -fsS -o /dev/null "http://127.0.0.1:$HTTP_PORT/api/health" && pass "uygulama dis erisimde yanit veriyor" || fail "/api/health"
 
+section "6a. Yetersiz disk: migration BASLAMADAN durur (karar 0187)"
+env_a=$(sum_of "$ROOT/compose.env"); web_a=$(started web)
+DT_RESERVE=$((1 << 60)) run_deploy "$shaC" "$work/mC.json"; rc=$?
+[ $rc -eq 2 ] && gq "disk denetimi gecmedi" "$work/out.log" && gq "YETERSIZ DISK" "$work/out.log" && pass "yetersiz kapasitede cikis 2" || { fail "kapasite reddi rc=$rc"; tail -6 "$work/out.log"; }
+ls "$ROOT"/backups/pre-migrate-*.dump >/dev/null 2>&1 && fail "kapasite reddinde dokum alindi" || pass "dokum alinmadi"
+[ "$(c exec -T postgres psql -U arilla -d arilla -Atc "select count(*) from schema_migration where filename='9999_deploytest_noop.sql'" | tr -d '\r')" = 0 ] && pass "migration uygulanmadi" || fail "kapasite reddinde migration calisti"
+[ "$(sum_of "$ROOT/compose.env")" = "$env_a" ] && [ "$(started web)" = "$web_a" ] && "$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | gq "current=$shaA" \
+  && pass "dosyalar, servisler ve surum isaretcisi degismedi" || fail "kapasite reddi bir sey degistirdi"
+
 section "6. Migration + Caddyfile degisimi: C"
 run_deploy "$shaC" "$work/mC.json"; rc=$?
 if [ $rc -eq 0 ] && gq "^DEPLOY_RESULT=success sha=$shaC" "$work/out.log"; then pass "deploy C basarili"; else fail "deploy C rc=$rc"; tail -15 "$work/out.log"; fi
@@ -224,6 +244,53 @@ gq "changed=.*caddy" "$work/out.log" && pass "Caddy yeniden olusturuldu" || fail
 [ "$(c exec -T caddy cat /etc/caddy/Caddyfile | grep -c deploytest-marker)" = 1 ] && pass "Caddy yeni Caddyfile'i goruyor" || fail "Caddyfile eski"
 "$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | tr -d '\r' | tr '\n' ' ' | gq "current=$shaC previous=$shaA"
 [ "$(started postgres)" = "$pg_started" ] && [ "$(started redis)" = "$redis_started" ] && pass "postgres/redis hala dokunulmadi" || fail "postgres/redis yeniden basladi"
+
+section "6b. Dokum metadatasi (karar 0187)"
+dumpC=$(ls -1 "$ROOT"/backups/pre-migrate-*-"${shaC:0:12}".dump 2>/dev/null | head -1)
+mj() { "$PY" -c "import json,sys;m=json.load(open(sys.argv[1]));print($2)" "$1.meta.json" 2>/dev/null; }
+[ -n "$dumpC" ] && [ "$(mj "$dumpC" 'm["status"]')" = success ] && pass "metadata: durum success" || fail "metadata durumu: $(mj "$dumpC" 'm.get("status")')"
+[ "$(mj "$dumpC" 'm["sha256"]')" = "$(sum_of "$dumpC")" ] && [ "$(mj "$dumpC" 'm["size"]')" = "$(wc -c <"$dumpC" | tr -d ' ')" ] && pass "metadata: SHA-256 ve boyut dosyayla ayni" || fail "metadata sha/boyut"
+[ "$(mj "$dumpC" 'm["sha"]')" = "$shaC" ] && mj "$dumpC" '" ".join(m["migrations"])' | gq 9999_deploytest_noop.sql && mj "$dumpC" 'm["deploy_id"]' | gq -E '^[0-9]{8}-[0-9]{6}$' \
+  && pass "metadata: deploy kimligi, sha, migration listesi" || fail "metadata kimlikleri"
+[ "$(mj "$dumpC" 'm["toc"]["has_schema_migration"] and m["toc"]["table_data"] > 0')" = True ] && pass "metadata: icindekiler dogrulamasi (veri + schema_migration)" || fail "metadata toc"
+gq "dokum: .*silme adayi" "$work/out.log" && pass "deploy adaylari yalniz RAPORLADI (otomatik silme yok)" || fail "deploy dokum raporu"
+
+section "6c. Basarisiz migration (E): geri alma, dokum KORUNUR"
+run_deploy "$shaE" "$work/mE.json"; rc=$?
+[ $rc -eq 1 ] && gq "^DEPLOY_RESULT=failed rollback=ok sha=$shaE" "$work/out.log" && pass "migration basarisiz -> geri alindi (cikis 1)" || { fail "deploy E rc=$rc"; tail -10 "$work/out.log"; }
+dumpE=$(ls -1 "$ROOT"/backups/pre-migrate-*-"${shaE:0:12}".dump 2>/dev/null | head -1)
+[ -n "$dumpE" ] && [ -s "$dumpE" ] && pass "basarisiz deploy dokumu duruyor" || fail "basarisiz deploy dokumu yok"
+[ "$(mj "$dumpE" 'm["status"]')" = failed ] && pass "metadata: durum failed" || fail "E durumu: $(mj "$dumpE" 'm.get("status")')"
+"$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | gq "current=$shaC" && pass "releases/current hala C" || fail "E sonrasi current"
+pmd() { env ARILLA_ROOT="$ROOT" "$PY" "$ROOT/vps/bin/pre_migrate_dumps.py" --root "$ROOT" "$@"; }
+pmd report >"$work/report.txt" 2>&1
+gq -E "^KORU .*${shaE:0:12}.*insan karari" "$work/report.txt" && pass "basarisiz dokum silme adayi DEGIL (insan karari)" || { fail "E raporu"; cat "$work/report.txt"; }
+gq "silme adayi: 0 dosya" "$work/report.txt" && pass "2 dogrulanmis basarili dokum yokken aday yok" || fail "aday sayisi"
+
+section "6d. Dogrulama, bozuk dokum, onaysiz silme, kilit, yanlis yol (gercek pg_restore)"
+pmd verify --file "$(basename "$dumpC")" --full >"$work/v.json" 2>&1 && gq '"ok": true' "$work/v.json" && pass "tam veri okumasi (yalitilmis konteyner, pg_restore) TAMAM" || { fail "tam okuma"; cat "$work/v.json"; }
+bad="$ROOT/backups/pre-migrate-20200101-000000-0000000000ff.dump"
+head -c $(( $(wc -c <"$dumpC") / 2 )) "$dumpC" >"$bad"
+"$PY" - "$dumpC.meta.json" "$bad" <<'PY'
+import hashlib, json, sys
+m = json.load(open(sys.argv[1])); data = open(sys.argv[2], "rb").read()
+m.update(file=sys.argv[2].rsplit("/", 1)[-1], size=len(data), sha256=hashlib.sha256(data).hexdigest())
+json.dump(m, open(sys.argv[2] + ".meta.json", "w"))
+PY
+pmd verify --file "$(basename "$bad")" --full >"$work/vb.json" 2>&1; rc=$?
+[ $rc -eq 1 ] && gq '"ok": false' "$work/vb.json" && pass "yarida kesilmis (bozuk) dokum tam okumada YAKALANDI" || { fail "bozuk dokum rc=$rc"; cat "$work/vb.json"; }
+rm -f "$bad" "$bad.meta.json"
+before=$(ls -1 "$ROOT"/backups/ | sort | sha256sum)
+pmd prune >"$work/p.txt" 2>&1; rc=$?
+[ $rc -eq 0 ] && gq "onizleme" "$work/p.txt" && [ "$(ls -1 "$ROOT"/backups/ | sort | sha256sum)" = "$before" ] && pass "onaysiz prune hicbir sey silmedi" || { fail "onaysiz prune rc=$rc"; cat "$work/p.txt"; }
+pmd prune --confirm >"$work/p2.txt" 2>&1; rc=$?
+[ $rc -eq 0 ] && gq '"deleted": \[\]' "$work/p2.txt" && [ "$(ls -1 "$ROOT"/backups/ | sort | sha256sum)" = "$before" ] && pass "aday yokken prune --confirm hicbir sey silmez" || { fail "prune aday yok rc=$rc"; cat "$work/p2.txt"; }
+pmd set-status --dump /tmp/"$(basename "$dumpC")" --status failed >"$work/sp.txt" 2>&1; rc=$?
+[ $rc -eq 1 ] && gq "backups disinda" "$work/sp.txt" && pass "backups disi dosya yolu reddedildi" || { fail "yanlis yol rc=$rc"; cat "$work/sp.txt"; }
+ln -s "$dumpC" "$ROOT/backups/pre-migrate-20200101-000000-0000000000aa.dump"
+pmd verify --file pre-migrate-20200101-000000-0000000000aa.dump >"$work/sl.txt" 2>&1; rc=$?
+[ $rc -eq 1 ] && gq "sembolik" "$work/sl.txt" && pass "sembolik baglanti reddedildi" || { fail "sembolik baglanti rc=$rc"; cat "$work/sl.txt"; }
+rm -f "$ROOT/backups/pre-migrate-20200101-000000-0000000000aa.dump"
 
 section "7. Tekrar dagitim, kilit, elle geri alma"
 run_deploy "$shaC" "$work/mC.json"; rc=$?
@@ -238,6 +305,13 @@ else
   rmdir "$ROOT/.deploy.lock.d"
 fi
 [ $rc -eq 2 ] && gq "baska bir dagitim calisiyor" "$work/out.log" && pass "es zamanli dagitim engellendi" || fail "kilit: rc=$rc"
+if command -v flock >/dev/null 2>&1; then  # karar 0187: silme de ayni kilidi kullanir
+  exec 8>"$ROOT/.deploy.lock"; flock -n 8
+  env ARILLA_ROOT="$ROOT" "$PY" "$ROOT/vps/bin/pre_migrate_dumps.py" --root "$ROOT" prune --confirm >"$work/pl.txt" 2>&1; rc=$?
+  exec 8>&-
+  # Aday yoksa kilide gerek kalmadan doner (0); aday olsaydi kilit 75 ile durdururdu (birim testi).
+  [ $rc -eq 0 ] || [ $rc -eq 75 ] && pass "dagitim kilidi altinda prune guvenli doner (rc=$rc)" || fail "prune kilit rc=$rc"
+fi
 run_cmd rollback; rc=$?
 { [ $rc -eq 0 ] && gq "^DEPLOY_RESULT=success sha=$shaA" "$work/out.log"; } && pass "elle geri alma (A) basarili" || { fail "rollback rc=$rc"; tail -10 "$work/out.log"; }
 [ "$(img_of web)" = "$REG/arilla-web:sha-$shaA@$(cat "$IMG/web-$shaA.digest")" ] && pass "web yeniden A digest'inde" || fail "rollback sonrasi web imaji"

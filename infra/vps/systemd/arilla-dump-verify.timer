@@ -1,0 +1,10 @@
+[Unit]
+Description=Haftalik migration dokumu tam veri okumasi (Pazartesi 11:30 UTC; yedek, katalog ve besleme pencereleri disinda)
+
+[Timer]
+OnCalendar=Mon *-*-* 11:30:00 UTC
+Persistent=true
+RandomizedDelaySec=600
+
+[Install]
+WantedBy=timers.target

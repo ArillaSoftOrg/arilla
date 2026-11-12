@@ -67,6 +67,7 @@ THRESHOLDS = {
     "restore_test_warn_s": 35 * 24 * 3600,
     "verify_latest_warn_s": 8 * 24 * 3600,  # haftalik son-set dogrulamasi + tolerans (karar 0183)
     "verify_all_warn_s": 35 * 24 * 3600,  # aylik tum depo dogrulamasi + tolerans
+    "pre_migrate_verify_warn_s": 8 * 24 * 3600,  # haftalik dokum tam okumasi + tolerans (karar 0187)
     "pipeline_stale_crit_s": 50 * 3600,  # gunluk 02:30 kosusu + bir kacan gece + tolerans
     # Gunluk besleme (karar 0184): gunde iki kosu (06:30, 18:30 + rastgele gecikme).
     "feeds_success_crit_s": 36 * 3600,  # en yeni besleme yazimi; ~3 kacan kosu
@@ -272,6 +273,14 @@ class Collector:
         facts["restore_partial"] = read_json(self.root / "state" / "restore-test-partial.json")
         facts["verify_latest"] = read_json(self.root / "state" / "verify-latest.json")
         facts["verify_all"] = read_json(self.root / "state" / "verify-all.json")
+        # Karar 0187: migration oncesi dokumler (yalniz metadata okunur; hash/okuma yapilmaz).
+        try:
+            sys.path.insert(0, str(Path(__file__).resolve().parent))
+            import pre_migrate_dumps  # noqa: PLC0415 - ayni dizin
+
+            facts["pre_migrate"] = pre_migrate_dumps.Dumps(self.root).classify()
+        except Exception:  # noqa: BLE001 - saglik kontrolu bu yuzden dusmez
+            facts["pre_migrate"] = None
         # Toplu katalog yayini bekcisinin kalp atisi (karar 0134; infra/vps/bin/catalog-publish).
         facts["bulk_window"] = read_json(self.root / "state" / "ali-publish" / "bulk-window.json")
         rc, out = self.run(["systemctl", "list-units", "--state=failed", "--plain", "--no-legend", "arilla-*"], 15)
@@ -523,6 +532,36 @@ def gib(n: float | None) -> str:
     return "?" if n is None else f"{n / 1073741824:.0f} GB"
 
 
+def pre_migrate_check(rows, now: datetime, t: dict = THRESHOLDS) -> Check | None:
+    """Migration oncesi dokumler (karar 0187). Tam veri okumasi gercek geri yukleme kaniti DEGILDIR.
+
+    - en yeni dokumun tam okumasi basarisiz -> KRITIK
+    - en yeni dokum `pre_migrate_verify_warn_s`'den eski ve hala tam okunmamis -> UYARI
+    - insan karari bekleyen (basarisiz/yarim) ya da metadatasiz dokum -> UYARI
+    Silme adaylari yalniz bilgi olarak yazilir; otomatik silme yoktur.
+    """
+    if not rows:
+        return None
+    def gbs(n: float) -> str:
+        return f"{n / 1e9:.1f} GB"
+    newest = rows[-1]
+    pending = [r for r in rows if r.get("meta") and r.get("status") != "success"]
+    no_meta = [r for r in rows if not r.get("meta")]
+    cand = [r for r in rows if r.get("candidate")]
+    summary = (f"{len(rows)} dokum {gbs(sum(r['size'] for r in rows))}; silme adayi {len(cand)} "
+               f"({gbs(sum(r['size'] for r in cand))}, yalniz prune --confirm)")
+    if newest.get("full_read_ok") is False:
+        return Check("backup:pre-migrate", CRIT, f"en yeni dokumun tam veri okumasi BASARISIZ ({newest['file']}); {summary}")
+    created = parse_ts(newest.get("created_at"))
+    age = (now - created).total_seconds() if created else 0
+    if not newest.get("full_read_ok") and age > t["pre_migrate_verify_warn_s"]:
+        return Check("backup:pre-migrate", WARN, f"en yeni dokum {human(age)}dir tam okunmadi ({newest['file']}); {summary}")
+    if pending or no_meta:
+        return Check("backup:pre-migrate", WARN,
+                     f"insan karari bekleyen dokum {len(pending)}, metadatasiz {len(no_meta)} (adopt); {summary}")
+    return Check("backup:pre-migrate", OK, summary)
+
+
 def verify_check(name: str, label: str, st, now: datetime, max_age_s: int) -> Check:
     """pg-backup verify durum dosyasi (karar 0183). Tamamlanamayan dogrulama bozulma degildir: UYARI."""
     if not isinstance(st, dict) or not st.get("status"):
@@ -665,6 +704,10 @@ def evaluate(facts: dict, now: datetime, t: dict = THRESHOLDS) -> list[Check]:
                                 t["verify_latest_warn_s"]))
         out.append(verify_check("backup:verify-all", "tum depo dogrulamasi", facts.get("verify_all"), now,
                                 t["verify_all_warn_s"]))
+
+    pm = pre_migrate_check(facts.get("pre_migrate"), now, t)
+    if pm:
+        out.append(pm)
 
     classified = facts.get("pipeline_failures") or {}
     failed = [u for u in facts.get("failed_units") or [] if u not in classified]

@@ -489,8 +489,10 @@ push main → ci ✔ → build-push ✔ (imajlar + release-manifest) → deploy.
 **Ne yapar (sırayla).** Kilit (aynı anda tek dağıtım) → manifest doğrulama (`release.py validate`: `complete`,
 sha, `ghcr.io/arillasoftorg/` öneki) → kaynak getir (sha main'de mi) → **ön kontroller** (yeni compose
 geçerli mi, yeni Caddyfile `caddy validate` ile, `pg_hba.conf` Docker ağını kapsıyor mu) → imajları digest ile
-çek + sha etiketini doğrula → **yedek** (`backups/deploy-*`) → dosyaları kur + `release.py apply` →
-**bekleyen migration varsa** önce `pg_dump` (`backups/pre-migrate-*.dump`, ≥3 GB boş disk şartı), sonra
+çek + sha etiketini doğrula → **bekleyen migration varsa disk denetimi** (karar 0187; yetmezse burada,
+hiçbir şey değişmeden çıkış 2) → **yedek** (`backups/deploy-*`) → dosyaları kur + `release.py apply` →
+**bekleyen migration varsa** önce `pg_dump` (`backups/pre-migrate-*.dump` + `.meta.json`; SHA-256 ve
+içindekiler doğrulanır, başarısızsa migration BAŞLAMAZ), sonra
 `migrate` + `verify-schema` → değişen servisleri sırayla yeniden oluştur (`web` → `worker` → `cron` →
 `caddy`; her biri `healthy`, web ayrıca `/api/health/ready` 200) → tüm servisler healthy + internetten
 `/api/health` 200 ve `/api/health/ready` 404.
@@ -502,6 +504,37 @@ tekrar başlatılır ve doğrulanır (çıkış kodu 1, `DEPLOY_RESULT=failed ro
 alınmaz** (CLAUDE.md #14 gereği geriye uyumludur; eski kod yeni şemayla çalışır); gerekirse `pre-migrate-*.dump`
 ile elle dönülür. Elle geri alma: `ssh ... rollback` (bir önceki sürüm; manifest + altyapı paketi `releases/`
 altında saklanır) ya da `workflow_dispatch` (`build_run_id` + `allow_older`).
+
+**Migration öncesi dökümler (karar 0187).** Araç: `sudo python3 /opt/arilla/vps/bin/pre_migrate_dumps.py`.
+Kuralların özeti:
+- **Saklama:** Başarılı deploy'ların doğrulanmış en yeni **2** dökümü korunur.
+- **Korunanlar:** Başarısız, yarım kalmış ya da metadatası olmayan döküm asla aday olmaz; insan kararı gerekir.
+- **Otomatik silme yoktur:** Deploy yalnızca rapor yazar (`dokum:` satırları).
+- **Disk denetimi:** Bekleyen migration varsa, dosyalar kurulmadan önce boş disk denetlenir:
+  `son döküm × 1,15 + 30 GiB taban` (`ARILLA_DUMP_RESERVE_BYTES`). Yetmezse deploy çıkış 2 ile durur ve
+  hiçbir şey değişmez.
+- **Doğrulama sınırı:** "Tam veri okuması" (`pg_restore -f /dev/null`) arşivin her veri bloğunu açar. Gerçek bir
+  PostgreSQL'e geri yükleme **kanıtı değildir**.
+
+| İş | Komut |
+| --- | --- |
+| Rapor (koru / aday, neden) | `pre_migrate_dumps.py report` |
+| Eski dökümlere metadata (deploy günlüğünden) | `pre_migrate_dumps.py adopt` (önizleme) → `adopt --confirm` |
+| Doğrulama | `pre_migrate_dumps.py verify --file <ad> --full` (SHA-256 + tam veri okuması) |
+| Silme | `pre_migrate_dumps.py prune` (önizleme) → `prune --confirm [--only <ad> ...]` |
+
+`prune --confirm` adımları:
+1. Deploy kilidini (`.deploy.lock`) alır.
+2. Korunan iki dökümün ve her adayın SHA-256'sını ve tam veri okumasını yeniden yapar; biri bile tutmazsa hiçbir
+   şey silmeden durur.
+3. Yalnızca `backups/` altındaki, sembolik bağlantı olmayan düzenli dosyaları siler.
+4. Her silmeyi `state/pre-migrate-prune.log`'a yazar (kim, ne zaman, SHA-256, korunanlar).
+
+Haftalık doğrulama: `arilla-dump-verify.timer` (Pazartesi 11:30 UTC). Sağlık kontrolündeki `backup:pre-migrate`
+satırının anlamı:
+- en yeni dökümün tam okuması başarısız → **kritik**;
+- 8 günden eski ve hâlâ tam okunmamış → **uyarı**;
+- bekleyen ya da metadatasız döküm var → **uyarı**.
 
 **Dokunulmayanlar.** `postgres` ve `redis` otomatik yeniden başlatılmaz ve volume'ları asla silinmez; yapılandırmaları
 değişirse uyarı verilir ("uygun bir anda elle `up -d --no-deps postgres`"). Env dosyaları (`/opt/arilla/env`) ve
