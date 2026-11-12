@@ -1,4 +1,4 @@
-"""CPU embedding pilotu: kaynak tuketimini OLCER, hicbir sey YAZMAZ (karar 0180, 0184).
+"""CPU embedding pilotu: kaynak tuketimini OLCER, hicbir sey YAZMAZ (karar 0180, 0186).
 
     python -m enrich.pilot --model e5-small-int8-0bcc8ca76950 --model-dir DIR --texts-file F
     python -m enrich.pilot --model e5-small-int8-0bcc8ca76950 --model-dir DIR --from-db --limit 500
@@ -12,7 +12,7 @@ Sinirlar:
 - Veritabanina YAZMAZ, `api_usage`/`job_run` birakmaz; Jina ya da baska ag cagrisi yapmaz.
 - `--from-db` yalnizca yerel veritabaniyla (localhost/127.0.0.1) calisir; uretim reddedilir.
 - Yalniz kendi calistirdigimiz modeller (`local_onnx`, `remote_http`); Jina (ucretli API) olculmez.
-  `disabled` modeller de olculebilir: pilot yazmaz (E3 karsilastirmasi icin, karar 0184).
+  `disabled` modeller de olculebilir: pilot yazmaz (E3 karsilastirmasi icin, karar 0186).
 - `remote_http`: `peak_rss_mb` ISTEMCI surecidir; sunucu bellegi `docker stats` ile olculur.
   Sonuca altin vektor kanaryasinin olcumu (`canary_min_cosine`) eklenir; kanaryasi gecmeyen
   modelin hiz sayisi anlamsizdir (yanlis vektor uretiyor olabilir).

@@ -1,4 +1,6 @@
-# 0184 — CPU embedding servisi, havuzlama kaydı ve altın vektör kanaryası
+# 0186 — CPU embedding servisi, havuzlama kaydı ve altın vektör kanaryası
+
+> Numara notu: #318 ile 0184 olarak birleşti; aynı numara #319'da besleme alarmı kararına verildiği için 0186'ya taşındı (0185 #320'de). İçerik değişmedi.
 
 Durum: **kabul**. Migration yok. Aktif model değişmez (`jina-embeddings-v3`). İlgili: 0155, 0177,
 0180, 0181, 0182 (embedding çıkarım servisi sözleşmesi).

@@ -1,4 +1,4 @@
-"""Karar 0184: havuzlama, altin vektor kanaryasi ve CPU servis profili.
+"""Karar 0186: havuzlama, altin vektor kanaryasi ve CPU servis profili.
 
 Model gerektirmez (normal CI). Gercek model/TEI ile olcum ayri isaretlidir: `@pytest.mark.model`
 (bkz. test_embedding_golden_model.py) ve normal CI'da calismaz.
@@ -33,7 +33,7 @@ BGE = "bge-m3"
 E5 = "e5-small-int8-0bcc8ca76950"
 REPO = Path(__file__).resolve().parents[3]
 INFRA = REPO / "infra"
-#: Resmi `1_Pooling/config.json` (sabit revizyonlarda, 2026-11-11 okundu; karar 0184).
+#: Resmi `1_Pooling/config.json` (sabit revizyonlarda, 2026-11-11 okundu; karar 0186).
 OFFICIAL_POOLING = {QWEN: "last_token", BGE: "cls", E5: "mean"}
 
 
@@ -371,7 +371,7 @@ def _compose_text() -> str:
 def test_embed_compose_is_opt_in_isolated_and_bounded() -> None:
     text = _compose_text()
     assert re.search(r'profiles:\s*\["embed-cpu"\]', text)
-    assert not re.search(r"^\s*ports:", text, re.M), "ports: yasak (karar 0184)"
+    assert not re.search(r"^\s*ports:", text, re.M), "ports: yasak (karar 0186)"
     assert re.search(r"embed:\s*\n\s*internal: true", text)
     assert re.search(r"image: \S+:cpu-[\d.]+@sha256:[0-9a-f]{64}", text), "imaj digest'e sabit"
     for needle in (

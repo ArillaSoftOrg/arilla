@@ -1,4 +1,4 @@
-"""Altin vektor kanaryasi: kendi calistirdigimiz modelin GERCEK ciktisini dogrular (karar 0184).
+"""Altin vektor kanaryasi: kendi calistirdigimiz modelin GERCEK ciktisini dogrular (karar 0186).
 
 Sorun: yanlis havuzlama, yanlis revizyon, eksik onek ya da yanlis TEI ayari yine dogru boyutta
 birim vektor uretir; `validate_batch` (sayi/boyut/sonluluk/norm) bunu yakalayamaz. Vektor uzayi
@@ -270,7 +270,7 @@ def require_canary(
 ) -> CanaryResult:
     """Yazma oncesi kapi. Kendi calistirdigimiz modelde basarisizsa `CanaryFailed` firlatir."""
     if not spec.self_hosted:
-        return CanaryResult(model_id=spec.id, threshold=None)  # Jina: kapsam disi (karar 0184)
+        return CanaryResult(model_id=spec.id, threshold=None)  # Jina: kapsam disi (karar 0186)
     golden = load_golden(spec.id, directory)
     problems = metadata_problems(spec, golden)
     if problems:
@@ -307,7 +307,7 @@ def measured_tolerance(result: CanaryResult, *, margin: float, served_by: str) -
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(
         prog="python -m enrich.canary",
-        description="Kendi calistirilan modeli altin vektorlerle dogrular (karar 0184). Yazmaz.",
+        description="Kendi calistirilan modeli altin vektorlerle dogrular (karar 0186). Yazmaz.",
     )
     parser.add_argument("--model", required=True)
     parser.add_argument("--model-dir", type=Path, help="local_onnx icin model dizini")
@@ -329,7 +329,7 @@ def main(argv: list[str] | None = None) -> int:
         print(f"HATA: {error}", file=sys.stderr)
         return 2
     if not spec.self_hosted:
-        print(f"{spec.id}: API modeli; kanarya kapsam disi (karar 0184).")
+        print(f"{spec.id}: API modeli; kanarya kapsam disi (karar 0186).")
         return 0
 
     def factory(purpose: str) -> Any:

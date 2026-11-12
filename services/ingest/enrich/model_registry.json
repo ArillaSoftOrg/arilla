@@ -107,7 +107,7 @@
       "license": "MIT",
       "license_verified": false,
       "source": { "repo": "BAAI/bge-m3", "revision": "5617a9f61b028005a4858fdac845db406aefb181" },
-      "decision": "0184",
+      "decision": "0186",
       "online_query": false,
       "pooling": "cls",
       "endpoint": { "url_env": "EMBED_BGE_M3_URL", "served_model": "BAAI/bge-m3" }

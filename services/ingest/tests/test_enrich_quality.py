@@ -1,4 +1,4 @@
-"""Karar 0184 (E2-C): salt okunur, ornekleme ile veri kalitesi araci."""
+"""Karar 0186 (E2-C): salt okunur, ornekleme ile veri kalitesi araci."""
 
 from __future__ import annotations
 

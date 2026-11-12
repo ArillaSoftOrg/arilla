@@ -2967,7 +2967,7 @@ Model dizini `classify suggest model build` ile üretilir ve SHA-256 ile doğrul
 Yerel model `enrich.products --model <id> --model-dir DIR --execute` ile kendi tablosuna
 (`product_text_embedding_d384`) yazar; `pilot` durumundaki model yalnız yerel veritabanında çalışır.
 
-### Embedding CPU servisi, havuzlama ve kanarya (karar 0184) — varsayılan KAPALI
+### Embedding CPU servisi, havuzlama ve kanarya (karar 0186) — varsayılan KAPALI
 
 Üretimde KURULU DEĞİL. KVM 4'te çalıştırılmaz (bellek bütçesi yok); hedef tek KVM 8 (embed.md
 6.5). Kurmak hiçbir modeli etkinleştirmez.

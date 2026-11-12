@@ -967,7 +967,7 @@ def main(argv: list[str] | None = None) -> int:
             print(f"HATA: model yuklenemedi: {error}", file=sys.stderr)
             return 2
         if args.execute and spec.self_hosted:
-            # Karar 0184: kendi calistirdigimiz model, ciktisi resmi referansin altin
+            # Karar 0186: kendi calistirdigimiz model, ciktisi resmi referansin altin
             # vektorleriyle (olculmus esikle) eslesmeden GERCEK embedding yazamaz. Fail-closed.
             passage_client = client
 
