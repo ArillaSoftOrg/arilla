@@ -171,7 +171,10 @@ def container_running(name: str, run: Runner) -> bool | None:
 def watch(name: str, limits: Limits, *, interval: float = 15.0, free_path: Path | None = None,
           dir_path: Path | None = None, root: Path | None = None, run: Runner = default_runner,
           sleep: Callable[[float], None] = time.sleep, clock: Callable[[], float] = time.monotonic,
-          start_wait_s: float = 120.0) -> dict:
+          start_wait_s: float = 120.0, max_unknown_wal: int = 3) -> dict:
+    """Fail-closed: konteyner `start_wait_s` icinde gorunmezse (`not_started`) ya da `root`
+    verilmisken WAL kuyrugu art arda `max_unknown_wal` ornekte okunamazsa (`wal_status_unknown`)
+    da durdurulur; bekci olcemedigi bir isi korumasiz birakmaz."""
     started = clock()
     # Konteyner `docker compose run` ile ayrica baslatilir: once ortaya cikmasini bekle.
     seen = False
@@ -184,6 +187,11 @@ def watch(name: str, limits: Limits, *, interval: float = 15.0, free_path: Path 
     baseline = archive_status(root, run)
     samples: list[dict] = []
     aborted = None
+    unknown_wal = 0
+    if not seen:
+        # Sonradan baslarsa korumasiz kalmasin: adla durdurmayi dene; cagiran compose surecini de keser.
+        aborted = "not_started"
+        run(["docker", "kill", name], 30)
     while seen:
         state = container_running(name, run)
         if not state:
@@ -203,8 +211,13 @@ def watch(name: str, limits: Limits, *, interval: float = 15.0, free_path: Path 
         st = archive_status(root, run)
         if st is not None:
             sample["archive_ready"], sample["archive_oldest_s"] = st
+            unknown_wal = 0
+        elif root is not None:
+            unknown_wal += 1
         samples.append(sample)
         aborted = breach(sample, limits, clock() - started)
+        if not aborted and root is not None and unknown_wal >= max_unknown_wal:
+            aborted = "wal_status_unknown"
         if aborted:
             run(["docker", "kill", name], 30)
             break

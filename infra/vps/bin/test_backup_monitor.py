@@ -137,7 +137,39 @@ class WatchTest(unittest.TestCase):
         r = bm.watch("c1", bm.Limits(), interval=15, run=fake, sleep=clock.sleep, clock=clock, start_wait_s=5)
         self.assertFalse(r["container_seen"])
         self.assertEqual(r["samples"], 0)
+        # fail-closed: hic gorunmeyen konteyner "tamam" sayilmaz; sonradan baslarsa diye durdurulur
+        self.assertEqual(r["aborted"], "not_started")
+        self.assertIn(["docker", "kill", "c1"], fake.calls)
+
+    def test_unreadable_wal_status_stops_after_three_samples(self):
+        class NoPsql(FakeDocker):
+            def __call__(self, cmd, timeout):
+                if "psql" in cmd:
+                    return 2, ""
+                return super().__call__(cmd, timeout)
+
+        fake, clock = NoPsql(run_for=100), Clock()
+        r = bm.watch("c1", bm.Limits(abort_ready=64), interval=15, root=self.root(), run=fake,
+                     sleep=clock.sleep, clock=clock)
+        self.assertEqual(r["aborted"], "wal_status_unknown")
+        self.assertEqual(r["samples"], 3)
+        self.assertTrue(fake.killed)
+
+    def test_transient_wal_read_error_resets(self):
+        class Flaky(FakeDocker):
+            n = 0
+
+            def __call__(self, cmd, timeout):
+                if "psql" in cmd:
+                    Flaky.n += 1
+                    return (2, "") if Flaky.n % 2 == 0 else (0, "0|0\n")
+                return super().__call__(cmd, timeout)
+
+        fake, clock = Flaky(run_for=8), Clock()
+        r = bm.watch("c1", bm.Limits(abort_ready=64), interval=15, root=self.root(), run=fake,
+                     sleep=clock.sleep, clock=clock)
         self.assertIsNone(r["aborted"])
+        self.assertFalse(fake.killed)
 
     def test_main_rejects_bad_name_and_writes_json(self):
         self.assertEqual(bm.main(["watch", "--container", "bad name;rm", "--out", os.devnull]), 64)
