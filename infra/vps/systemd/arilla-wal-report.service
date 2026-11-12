@@ -1,0 +1,13 @@
+[Unit]
+Description=Arilla WAL kaynagi gunluk anlik goruntusu (salt okunur; karar 0185)
+Requires=docker.service
+After=docker.service
+
+[Service]
+Type=oneshot
+# Yalniz okur: pg_stat_wal, pg_stat_statements, tablo sayaclari -> /opt/arilla/state/wal/*.json.
+# Sayac sifirlamaz. Olcum aracidir: basarisizligi alarm uretmez (gunluk tekrar dener).
+ExecStart=/usr/bin/python3 /opt/arilla/vps/bin/wal_report.py snapshot --label daily
+TimeoutStartSec=5min
+Nice=15
+IOSchedulingClass=idle
