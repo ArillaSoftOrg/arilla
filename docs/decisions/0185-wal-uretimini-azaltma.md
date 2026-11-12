@@ -69,6 +69,13 @@ Güncelleme bu yüzden HOT olamıyor; yeni satır sürümü ve 13 dizine kayıt 
   - Daha az FPI; `max_wal_size` 16 GB kalır.
   - Bedeli: daha uzun çökme kurtarması.
   - Yalnızca yeniden yükleme gerekir (açık onayla).
+  - Üretimde checkpoint'lerin %96'sı zamanlı (2815 zamanlı / 128 istenen). Aralığı uzatmak,
+    WAL ile tetiklenen checkpoint'i değiştirmez; yalnızca zamanlı olanları seyreltir.
+  - `catalog-publish` eşikleri `max_wal_size`'tan hesaplanıyor (tutulan ≈ 2× `max_wal_size` +
+    arşivlenmemiş); değişmez.
+  - **Etkisi yerelde ölçülemez:** bench her koşudan önce CHECKPOINT alır ve koşu 30 sn sürer.
+    Üretimde `wal_report.py diff` ile FPI/gün ve WAL/gün değişikliğin önce ve sonrasında
+    karşılaştırılır. Kazanç tahmini verilmez.
 - **B3 — Üyelik "görüldü" yazımı (koşullu).**
   - Satır yalnızca 20 saatten eskiyse yazılır; düşürme ölçütü buna göre değişir.
   - B1 sonrası bench'te besleme WAL'ında ≥%10 tasarruf yoksa yapılmaz.
