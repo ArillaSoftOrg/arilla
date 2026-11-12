@@ -885,6 +885,29 @@ Yapılandırma `/opt/arilla/backup/{pg,repo}` altındadır. Dağıtım bu dizine
 
 Durum dosyaları `/opt/arilla/state/*.json`'dadır; sağlık kontrolü bunları okur.
 
+### WAL kaynağı ölçümü (karar 0185)
+
+WAL, R2 deposunun en büyük kalemidir. `wal_report.py` salt okunurdur ve hiçbir sayacı sıfırlamaz.
+
+| İş | Komut |
+| --- | --- |
+| Anlık görüntü | `sudo python3 /opt/arilla/vps/bin/wal_report.py snapshot --label once-b1` |
+| Son iki görüntünün farkı | `sudo python3 /opt/arilla/vps/bin/wal_report.py diff` |
+| Belirli iki görüntü | `sudo python3 /opt/arilla/vps/bin/wal_report.py diff <A.json> <B.json>` |
+| Liste | `sudo python3 /opt/arilla/vps/bin/wal_report.py list` |
+
+Her gün 00:05 UTC'de `arilla-wal-report.timer` bir görüntü alır (`pg-backup-activate
+install-timers` ile kurulur). Görüntüler `/opt/arilla/state/wal/` altındadır; son 400 tanesi tutulur.
+
+Farkta şunlar görünür:
+- gün başına WAL ve tam sayfa görüntüsü (FPI) payı;
+- checkpoint sayıları;
+- tablo başına güncelleme ve HOT oranı;
+- en çok WAL üreten ifadeler: `pg_stat_statements`'tan, parametreleri ayıklanmış biçimde, 200 karaktere kırpılmış.
+
+Bir değişikliğin etkisi değişiklikten önce ve sonra alınan iki görüntüyle ölçülür. Yerel karşılık:
+`services/ingest/scripts/bench_feed_wal.py` (izole veritabanı, gerçek besleme yolu).
+
 ### Doğrulama ve geri yükleme provası (karar 0183)
 
 **İki doğrulama kapsamı.** `pgbackrest verify --set` yalnız o setin dosyalarını ve setin

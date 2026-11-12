@@ -1,0 +1,9 @@
+[Unit]
+Description=Gunluk WAL anlik goruntusu (00:05 UTC; gun basina WAL/FPI/HOT farki icin)
+
+[Timer]
+OnCalendar=*-*-* 00:05:00 UTC
+Persistent=true
+
+[Install]
+WantedBy=timers.target
