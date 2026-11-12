@@ -51,6 +51,7 @@ import psycopg
 
 from db import job_run, usage, wal_pressure
 from db.connection import connect, env
+from enrich.canary import CanaryFailed, require_canary
 from enrich.client import (
     EmbeddingBatch,
     EmbeddingClient,
@@ -965,6 +966,23 @@ def main(argv: list[str] | None = None) -> int:
         except (RegistryError, RuntimeError, ImportError) as error:
             print(f"HATA: model yuklenemedi: {error}", file=sys.stderr)
             return 2
+        if args.execute and spec.self_hosted:
+            # Karar 0184: kendi calistirdigimiz model, ciktisi resmi referansin altin
+            # vektorleriyle (olculmus esikle) eslesmeden GERCEK embedding yazamaz. Fail-closed.
+            passage_client = client
+
+            def factory(purpose: str) -> Any:
+                if purpose == "passage":
+                    return passage_client
+                return build_text_provider(
+                    spec, purpose=purpose, model_dir=args.model_dir, threads=args.threads
+                )
+
+            try:
+                print(require_canary(spec, factory).summary() + "\n")
+            except (CanaryFailed, RegistryError) as error:
+                print(f"HATA: kanarya: {error}", file=sys.stderr)
+                return 2
 
     signal.signal(signal.SIGINT, _request_stop)
     signal.signal(signal.SIGTERM, _request_stop)

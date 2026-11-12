@@ -18,6 +18,11 @@ Degismez kurallar:
   sessizce kapanirdi (karar 0182). TS beyaz listesiyle parite testi `active-index.test.ts`'tedir.
 - `remote_http` saglayicisinin `endpoint` alani zorunludur: adresin okunacagi ortam degiskeni ve
   sunucunun bildirmesi gereken model adi. Adres ve anahtar kayit defterine yazilmaz.
+- `pooling` (karar 0184): token vektorlerinden tek vektore inis yontemi. Modeli BIZ calistiriyorsak
+  (`local_onnx`, `remote_http`) zorunludur ve modelin resmi `1_Pooling/config.json`'u ile ayni
+  olmalidir; yanlis havuzlama boyut ve norm kapisindan GECER ama vektor uzayi yanlistir. Jina API'de
+  havuzlama saglayicidadir, alan yazilmaz (mevcut davranis degismez). Bildirimin gercek cikarima
+  yansidigi altin vektor kanaryasiyla (`enrich.canary`) dogrulanir.
 
 Yukleyici katidir: bilinmeyen ya da eksik alan, tanimsiz aile, cift kimlik -> `RegistryError`.
 """
@@ -45,6 +50,10 @@ MODALITIES = frozenset({"text", "image"})
 ROLES = frozenset({"product_text", "offer_multimodal"})
 PURPOSES = frozenset({"passage", "query"})
 VECTOR_TYPES = frozenset({"vector", "halfvec"})
+#: Desteklenen havuzlama yontemleri (karar 0184). Uygulamasi: `enrich.pooling`.
+POOLINGS = frozenset({"cls", "mean", "last_token"})
+#: Havuzlamayi BIZIM yaptigimiz (modeli calistirdigimiz) saglayicilar; `pooling` burada zorunlu.
+SELF_HOSTED_PROVIDERS = frozenset({"local_onnx", "remote_http"})
 #: Saglayici -> gomebildigi kipler. Gorsel bugun yalniz Jina CLIP API'siyle (karar 0015, 0182).
 PROVIDER_MODALITIES: Mapping[str, frozenset[str]] = {
     "jina": frozenset({"text", "image"}),
@@ -81,7 +90,7 @@ _MODEL_FIELDS = frozenset(
     }
 )
 #: Yalniz bazi saglayicilarda bulunan alanlar (varligi saglayiciyla birlikte denetlenir).
-_OPTIONAL_MODEL_FIELDS = frozenset({"endpoint"})
+_OPTIONAL_MODEL_FIELDS = frozenset({"endpoint", "pooling"})
 _FAMILY_FIELDS = frozenset({"table", "dimensions", "vector_type"})
 _TOP_FIELDS = frozenset({"format", "index_families", "defaults", "models"})
 
@@ -125,6 +134,13 @@ class ModelSpec:
     online_query: bool = False
     #: Yalniz `remote_http`: {"url_env": ..., "served_model": ...}.
     endpoint: Mapping[str, str] | None = None
+    #: Yalniz kendi calistirdigimiz saglayicilar: `cls|mean|last_token` (karar 0184).
+    pooling: str | None = None
+
+    @property
+    def self_hosted(self) -> bool:
+        """Modeli biz calistiriyoruz: yazmadan once altin vektor kanaryasi zorunludur."""
+        return self.provider in SELF_HOSTED_PROVIDERS
 
     @property
     def capabilities(self) -> frozenset[str]:
@@ -269,6 +285,7 @@ def _parse_model(raw: Any, families: Mapping[str, IndexFamily]) -> ModelSpec:
             f"{where}: {raw['provider']} saglayicisi {sorted(unsupported)} kipini desteklemiyor"
         )
     endpoint = _parse_endpoint(where, raw["provider"], raw.get("endpoint"))
+    pooling = _parse_pooling(where, raw["provider"], raw.get("pooling"))
     family = families.get(raw["index_family"])
     if family is None:
         raise RegistryError(f"{where}: tanimsiz indeks ailesi {raw['index_family']!r}")
@@ -297,7 +314,19 @@ def _parse_model(raw: Any, families: Mapping[str, IndexFamily]) -> ModelSpec:
         decision=raw["decision"],
         online_query=raw["online_query"],
         endpoint=endpoint,
+        pooling=pooling,
     )
+
+
+def _parse_pooling(where: str, provider: str, raw: Any) -> str | None:
+    """Kendi calistirdigimiz saglayicida zorunlu, API saglayicisinda yasak (karar 0184)."""
+    if provider not in SELF_HOSTED_PROVIDERS:
+        if raw is not None:
+            raise RegistryError(f"{where}: pooling yalniz kendi calistirilan modelde yazilir")
+        return None
+    if raw not in POOLINGS:
+        raise RegistryError(f"{where}: pooling zorunlu, {sorted(POOLINGS)} biri olmali")
+    return str(raw)
 
 
 def _parse_endpoint(where: str, provider: str, raw: Any) -> dict[str, str] | None:

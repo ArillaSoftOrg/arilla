@@ -36,15 +36,18 @@ def _unit(dim: int, seed: int = 1) -> list[float]:
 class _StubEmbedder:
     """`classify.suggest.model.Embedder` sozlesmesi: ONNX'siz, deterministik, normalize ETMEZ."""
 
-    def __init__(self, model_version: str = E5, dim: int = 384, prefix: str = "") -> None:
+    def __init__(
+        self, model_version: str = E5, dim: int = 384, prefix: str = "", pooling: str = "mean"
+    ) -> None:
         self.model_version = model_version
+        self.pooling = pooling
         self.dim = dim
         self.prefix = prefix
         self.seen: list[str] = []
         self.fail = False
 
     def with_prefix(self, prefix: str) -> _StubEmbedder:
-        clone = _StubEmbedder(self.model_version, self.dim, prefix)
+        clone = _StubEmbedder(self.model_version, self.dim, prefix, self.pooling)
         clone.seen = self.seen
         clone.fail = self.fail
         return clone

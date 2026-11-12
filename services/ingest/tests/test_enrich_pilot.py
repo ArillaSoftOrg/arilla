@@ -71,7 +71,25 @@ def test_pilot_rejects_api_models(capsys: pytest.CaptureFixture[str], tmp_path) 
     code = pilot.main(
         ["--model", "jina-embeddings-v3", "--model-dir", str(tmp_path), "--texts-file", str(texts)]
     )
-    assert code == 2 and "local_onnx" in capsys.readouterr().err
+    assert code == 2 and "API yok" in capsys.readouterr().err
+
+
+def test_pilot_measures_remote_model_over_http_and_reports_canary(
+    capsys, tmp_path, monkeypatch
+) -> None:
+    """Karar 0184: pilot `remote_http` modelini de olcer (yazmaz); devre disi model olculebilir."""
+    from tests.fake_embed_server import FakeEmbedServer
+
+    texts = tmp_path / "t.txt"
+    texts.write_text("Logitech G305 Kablosuz Mouse\nApple iPhone 15\n", encoding="utf-8")
+    with FakeEmbedServer(model="Qwen/Qwen3-Embedding-0.6B", dimensions=1024) as server:
+        monkeypatch.setenv("EMBED_QWEN3_06B_URL", server.url)
+        code = pilot.main(["--model", "qwen3-embedding-0.6b-97b0c614", "--texts-file", str(texts)])
+    out = capsys.readouterr().out
+    result = json.loads(out)
+    assert code == 0 and result["texts"] == 2 and result["provider"] == "remote_http"
+    # Sahte sunucu altin vektoru uretmez -> kanarya olcumu esige yaklasamaz (anlamsiz vektor).
+    assert result["canary_min_cosine"] is None or result["canary_min_cosine"] < 0.99
 
 
 def test_pilot_rejects_missing_model_dir(capsys: pytest.CaptureFixture[str], tmp_path) -> None:
@@ -90,6 +108,7 @@ def test_pilot_from_db_refuses_remote(monkeypatch: pytest.MonkeyPatch) -> None:
 def test_pilot_measure_reports_numbers_only() -> None:
     class _Embedder:
         model_version = E5
+        pooling = "mean"
 
         def with_prefix(self, prefix):
             return self
