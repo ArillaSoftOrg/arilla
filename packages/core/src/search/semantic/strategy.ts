@@ -1,5 +1,5 @@
 /**
- * Anlamsal aday arama STRATEJI SECICI (karar 0188). Saf fonksiyon: veritabani, ag, model ya da
+ * Anlamsal aday arama STRATEJI SECICI (karar 0189). Saf fonksiyon: veritabani, ag, model ya da
  * saat okumaz (zaman `now` ile verilir). Canli aramaya BAGLI DEGILDIR; `semantic-candidates.ts`
  * bugunku yolu (global KNN + sonradan filtre) kullanmaya devam eder.
  *
