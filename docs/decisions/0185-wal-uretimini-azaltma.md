@@ -46,8 +46,25 @@ Güncelleme bu yüzden HOT olamıyor; yeni satır sürümü ve 13 dizine kayıt 
     yerler `OFFER_SEEN_AT` kuralına geçer.
   - Ardından ayrı migration'lar:
     - `DROP INDEX CONCURRENTLY offer_active_price_idx` (0 tarama);
-    - `ALTER TABLE offer SET (fillfactor = 90)`.
+    - `ALTER TABLE offer SET (fillfactor = 80)`.
   - `price_point` ve `current_price` kuralları değişmez.
+  - **Neden 80:** Üretimde besleme teklifi ortalama 1.064 bayt (takip bağlantısı 488 bayt). %90
+    doluluk ~820 bayt boşluk bırakır ve yeni sürüme yetmez.
+  - **Yerel ölçüm** (100 bin teklif, üretim genişliğinde satır, veri sağlama toplamları açık, ilk
+    sayfalar üretimdeki gibi dolu; her senaryo şablon veritabanının temiz kopyasında; 4. gün):
+
+    | Ayar | WAL | `offer` HOT | yığın + dizin |
+    | --- | --- | --- | --- |
+    | main (dizin var, ff 100) | 189,9 MB | %0 | 207 + 70 MB |
+    | B1, ff 90 | 169,2 MB (−%11) | %25 | 203 + 57 MB |
+    | B1, ff 85 | 161,5 MB (−%15) | %25 | 215 + 58 MB |
+    | **B1, ff 80** | **122,5 MB (−%36)** | **%52** | **221 + 57 MB (≈ aynı)** |
+    | B1, ff 70 | 97,5 MB (−%49) | %78 | 244 + 57 MB (+%8) |
+
+  - HOT oranı günden güne artar: budama ölü sürümlerin yerini açar. 80, toplam boyutu
+    değiştirmeden en büyük kazancı veriyor. 70 tabloyu büyütür; disk zaten sıkışık (0183).
+  - **Üretimde geçiş kademelidir:** var olan dolu sayfalar yeniden yazılmaz; yer, budama ve vacuum ile
+    açılır. Etki `wal_report.py diff` ile günlük ölçülür.
 - **B2 — Checkpoint aralığı.** `checkpoint_timeout` 15 dk'dan 30 dk'ya.
   - Daha az FPI; `max_wal_size` 16 GB kalır.
   - Bedeli: daha uzun çökme kurtarması.

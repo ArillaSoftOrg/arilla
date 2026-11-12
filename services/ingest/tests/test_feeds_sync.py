@@ -477,6 +477,55 @@ def test_degismeyen_satir_yeniden_yazilmaz_degisen_yazilir(env: Env) -> None:
     assert seen == (20,)
 
 
+def test_fiyat_degisimi_offer_last_seen_yazmaz_uyelik_ve_fiyat_dogru(env: Env) -> None:
+    """Karar 0185: etkin besleme teklifinde fiyat/stok degisimi `offer.last_seen_at`'e (iki
+    dizinde) dokunmaz ki guncelleme HOT olabilsin; "goruldu" uyelikte, fiyat ve `price_point`
+    eskisi gibi dogru. Yeni ve yeniden etkinlesen teklif `last_seen_at` yazar."""
+    fid = env.feed()
+    items = [offer(i) for i in ids(10)]
+    env.run(fid, items, at=T0)
+    t1 = T0 + timedelta(hours=6)
+    changed = [offer(i, price="19.99") if n < 3 else offer(i) for n, i in enumerate(ids(10))]
+    report = env.run(fid, [*changed, offer(ids(1, 10)[0])], at=t1, name="fiyat.xml")
+    assert (report.changed, report.price_points) == (3, 4)  # 3 fiyat + 1 yeni
+
+    rows = env.owner.execute(
+        """SELECT o.external_id, o.current_price, o.last_seen_at, o.last_changed_at,
+                  (SELECT count(*) FROM price_point p WHERE p.offer_id = o.id),
+                  GREATEST(o.last_seen_at, (SELECT max(fo.last_seen_at) FROM feed_source_offer fo
+                                             WHERE fo.offer_id = o.id))
+             FROM offer o WHERE o.merchant_id = %s ORDER BY o.external_id""",
+        (env.merchant_id,),
+    ).fetchall()
+    by_ext = {r[0]: r[1:] for r in rows}
+    for ext in ids(3):
+        price, last_seen, last_changed, points, seen_at = by_ext[ext]
+        assert price == 1999  # fiyat dogru (kurus/sent)
+        assert points == 2  # ilk gozlem + degisim
+        assert last_changed == t1
+        assert last_seen == T0  # offer satirinda "goruldu" yazilmadi (HOT icin)
+        assert seen_at == t1  # birlesik deger (OFFER_SEEN_AT) guncel
+    new_ext = ids(1, 10)[0]
+    assert by_ext[new_ext][1] == t1  # yeni teklif yazar
+    assert all(r[5] == t1 for r in rows)
+
+    # Yeniden etkinlesen teklif `last_seen_at` yazar.
+    env.owner.execute(
+        "UPDATE offer SET is_active = FALSE, deactivated_at = %s WHERE merchant_id = %s"
+        " AND external_id = %s",
+        (t1, env.merchant_id, ids(10)[9]),
+    )
+    t2 = T0 + timedelta(hours=12)
+    # Ek teklif dosyayi farklilastirir (ayni bayt "duplicate" olarak atlanir).
+    env.run(fid, [*changed, offer(ids(1, 10)[0]), offer(ids(1, 11)[0])], at=t2, name="geri.xml")
+    active, seen = env.one(
+        "SELECT is_active, last_seen_at FROM offer WHERE merchant_id = %s AND external_id = %s",
+        (env.merchant_id, ids(10)[9]),
+    )
+    assert active is True
+    assert seen == t2
+
+
 def test_cokme_sonrasi_indirilmis_dosya_yeniden_kullanilir(
     env: Env, monkeypatch: pytest.MonkeyPatch
 ) -> None:

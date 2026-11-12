@@ -34,7 +34,7 @@ import psycopg  # noqa: E402
 
 from db.connection import database_url  # noqa: E402
 from feeds.sync import FeedSync, SyncSettings  # noqa: E402
-from tests.feed_fixtures import AE_PROFILE, offer, write, yml  # noqa: E402
+from tests.feed_fixtures import AE_PROFILE, offer, tracking_url, write, yml  # noqa: E402
 
 DOMAIN = "bench0185.test.invalid"
 NETWORK = "bench0185"
@@ -96,15 +96,23 @@ def counters(cur: psycopg.Cursor) -> tuple:
     return cur.fetchone()
 
 
-def feed_offers(n: int, *, run: int, change: float, new: float, gone: float) -> list[dict]:
+def feed_offers(
+    n: int, *, day: int, change: float, new: float, gone: float, url_pad: int = 0
+) -> list[dict]:
+    """`day` 0 = ilk yukleme; d >= 1: her gun FARKLI bir `change` diliminin fiyati degisir
+    (gercek beslemede oldugu gibi), ilk %gone kaybolur, %new yeni teklif eklenir."""
     base = 1005000000000000
-    keep = [i for i in range(n) if run < 2 or (i / n) >= gone]  # ilk %gone kaybolur
-    extra = [n + i for i in range(int(n * new))] if run >= 2 else []
+    keep = [i for i in range(n) if day < 1 or (i / n) >= gone]
+    extra = [n + i for i in range(int(n * new))] if day >= 1 else []
     out = []
     for i in keep + extra:
-        changed = run == 2 and (i % 1000) < change * 1000
-        price = f"{10 + (i % 500) / 10 + (1.17 if changed else 0):.2f}"
-        out.append(offer(str(base + i), price=price))
+        bumps = sum(1 for d in range(1, day + 1) if ((i + d * 379) % 1000) < change * 1000)
+        price = f"{10 + (i % 500) / 10 + 0.13 * bumps:.2f}"
+        pid = str(base + i)
+        # Uretimdeki takip baglantisi ~490 bayt (12 Kas olcumu); fikstur ~210. Dolgu, satir
+        # genisligini (HOT icin sayfadaki yer) uretime yaklastirir.
+        url = tracking_url(pid) + ("&sub=" + "x" * url_pad if url_pad else "")
+        out.append(offer(pid, price=price, url=url))
     return out
 
 
@@ -117,6 +125,19 @@ def main(argv: list[str] | None = None) -> int:
     ap.add_argument("--chunk", type=int, default=5000)
     ap.add_argument("--label", default="")
     ap.add_argument("--json")
+    ap.add_argument("--url-pad", type=int, default=0, help="takip baglantisina dolgu (bayt)")
+    ap.add_argument(
+        "--days",
+        type=int,
+        default=1,
+        help="ilk yuklemeden sonra kac gunluk degisim kosusu (kalici durum icin > 1)",
+    )
+    ap.add_argument(
+        "--initial-fillfactor",
+        type=int,
+        help="ilk yuklemede offer fillfactor'u (or. 100: uretimdeki gibi dolu sayfalar); "
+        "sonra tablonun kendi ayarina donulur",
+    )
     args = ap.parse_args(argv)
     owner_url, app_url = database_url("DATABASE_URL_OWNER"), database_url("DATABASE_URL")
     local_only(owner_url)
@@ -145,20 +166,46 @@ def main(argv: list[str] | None = None) -> int:
             )
             feed_id = cur.fetchone()[0]
         with tempfile.TemporaryDirectory() as tmp:
-            for run, name in ((1, "ilk_yukleme"), (2, "gunluk_degisim"), (3, "degisimsiz")):
-                # 3. kosu, 2. kosunun AYNISI (ayni fiyatlar): yalniz "goruldu" maliyeti kalir.
+            days = max(1, args.days)
+            plan = [(1, "ilk_yukleme", 0)]
+            plan += [
+                (1 + d, f"gunluk_degisim_{d}" if days > 1 else "gunluk_degisim", d)
+                for d in range(1, days + 1)
+            ]
+            # Son kosu, son gunun AYNISI (ayni fiyatlar): yalniz "goruldu" maliyeti kalir.
+            plan.append((days + 2, "degisimsiz", days))
+            for run, name, day in plan:
                 offers = feed_offers(
                     args.offers,
-                    run=min(run, 2),
-                    change=args.change if run >= 2 else 0.0,
+                    day=day,
+                    change=args.change,
                     new=args.new,
                     gone=args.gone,
+                    url_pad=args.url_pad,
                 )
                 # Uretimde kaynak dosya her gun degisir: baslik tarihi kosuya ozgu (ayni bayt =
-                # "duplicate" atlanirdi); teklif icerigi 3. kosuda 2.'nin aynisidir.
-                data = yml(offers).replace(b"2026-10-14 08:28", f"2026-11-0{run} 06:00".encode())
+                # "duplicate" atlanirdi).
+                stamp = (datetime(2026, 11, 1) + timedelta(days=run)).strftime("%Y-%m-%d 06:00")
+                data = yml(offers).replace(b"2026-10-14 08:28", stamp.encode())
                 path = write(Path(tmp) / f"run{run}.xml", data)
                 with owner.cursor() as cur:
+                    if args.initial_fillfactor and run in (1, 2):
+                        # 1. kosudan once gecici deger, 2.'den once tablonun kendi ayari.
+                        if run == 1:
+                            cur.execute(
+                                "SELECT coalesce(array_to_string(reloptions, ','), '') "
+                                "FROM pg_class WHERE relname = 'offer'"
+                            )
+                            saved = cur.fetchone()[0]
+                            ff = max(10, min(100, args.initial_fillfactor))
+                            cur.execute(f"ALTER TABLE offer SET (fillfactor = {ff})")
+                        else:
+                            m = [o for o in saved.split(",") if o.startswith("fillfactor=")]
+                            cur.execute(
+                                f"ALTER TABLE offer SET (fillfactor = {int(m[0].split('=')[1])})"
+                                if m
+                                else "ALTER TABLE offer RESET (fillfactor)"
+                            )
                     cur.execute("CHECKPOINT")
                     c0 = counters(cur)
                 started = time.monotonic()
@@ -175,6 +222,12 @@ def main(argv: list[str] | None = None) -> int:
                     c1 = counters(cur)
                     cur.execute("SELECT pg_wal_lsn_diff(%s, %s)", (c1[7], c0[7]))
                     wal = int(cur.fetchone()[0])
+                    # Boyut bedeli (fillfactor ve sisme): yigin ve dizinler ayri.
+                    cur.execute(
+                        "SELECT pg_relation_size('offer'), pg_indexes_size('offer'), "
+                        "pg_total_relation_size('feed_source_offer')"
+                    )
+                    heap_b, idx_b, fso_b = cur.fetchone()
                 offer_upd, offer_hot = c1[2] - c0[2], c1[3] - c0[3]
                 fso_upd, fso_hot = c1[4] - c0[4], c1[5] - c0[5]
                 results.append(
@@ -196,6 +249,9 @@ def main(argv: list[str] | None = None) -> int:
                         "membership_hot": fso_hot,
                         "price_points": c1[6] - c0[6],
                         "wal_bytes_per_record": round(wal / max(len(offers), 1)),
+                        "offer_heap_mb": round(heap_b / 1e6, 1),
+                        "offer_index_mb": round(idx_b / 1e6, 1),
+                        "membership_mb": round(fso_b / 1e6, 1),
                     }
                 )
                 print(json.dumps(results[-1], ensure_ascii=False), flush=True)

@@ -81,7 +81,9 @@ export async function getProductForeignOffers(
        AND o.currency <> 'TRY'
        AND o.current_price IS NOT NULL AND o.current_price > 0
        AND ${offerVerifiedSql("o")}
-     ORDER BY o.last_seen_at DESC, o.id DESC
+     -- Karar 0185: besleme teklifinde "goruldu" uyeliktedir (offer.last_seen_at fiyat
+     -- degisiminde yazilmaz); siralama birlesik degerle (seen_at) yapilir.
+     ORDER BY seen_at DESC, o.id DESC
      LIMIT ${FOREIGN_OFFERS_LIMIT}
   `);
   const quotes = new Map<string, FxQuote | null>();
