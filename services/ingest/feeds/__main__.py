@@ -222,6 +222,11 @@ def _daily(args: argparse.Namespace) -> int:
         max_source_age=timedelta(hours=args.max_source_age_hours),
         discover=not args.skip_discovery,
         budget=timedelta(hours=max(0.0, args.budget_hours)),
+        # Karar 0188: yedek penceresinden 90 dk once yeni besleme baslamaz
+        # (gece kosusu yedege tasmaz).
+        backup_margin=None
+        if args.ignore_backup_window
+        else timedelta(minutes=max(0.0, args.backup_margin_minutes)),
         # Kaynagin onayli TRY disi para birimi kayit defterinden (AliExpress: USD).
         fx_base=registry.foreign_currency(args.merchant) or daily.DailyOptions.fx_base,
     )
@@ -399,6 +404,20 @@ def main(argv: list[str] | None = None) -> int:
             env("FEED_DAILY_BUDGET_HOURS") or daily.DEFAULT_BUDGET.total_seconds() / 3600
         ),
         help="bu sureden sonra yeni besleme baslamaz, kalanlar ertelenir (karar 0162)",
+    )
+    p.add_argument(
+        "--backup-margin-minutes",
+        type=float,
+        default=float(
+            env("FEED_DAILY_BACKUP_MARGIN_MINUTES")
+            or daily.DEFAULT_BACKUP_MARGIN.total_seconds() / 60
+        ),
+        help="yedek penceresinden (01:20 UTC) bu kadar once yeni besleme baslamaz (karar 0188)",
+    )
+    p.add_argument(
+        "--ignore-backup-window",
+        action="store_true",
+        help="yedek penceresi kesmesini kapat (yalniz bilincli elle kosu)",
     )
     p.set_defaults(func=_daily)
     p = sub.add_parser("freshness")
