@@ -1,4 +1,4 @@
-"""Urun metni veri kalitesi analizi: SALT OKUNUR, ornekleme ile (karar 0184, E2-C).
+"""Urun metni veri kalitesi analizi: SALT OKUNUR, ornekleme ile (karar 0186, E2-C).
 
 Soru: marka + baslik disinda embedding'e girebilecek veri (aciklama, teknik ozellik, kategori,
 tanimlayici) katalogda ne kadar dolu ve ne kadar kullanilabilir?

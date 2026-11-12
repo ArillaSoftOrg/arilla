@@ -1,4 +1,4 @@
-# Kendi CPU embedding cikarim servisi (karar 0184) - VARSAYILAN KAPALI.
+# Kendi CPU embedding cikarim servisi (karar 0186) - VARSAYILAN KAPALI.
 #
 # Bu dosya uretim yiginina (compose.prod.yml) EKLENMEZ ve dagitim hatti onu calistirmaz. Servis
 # yalniz `embed-cpu` profiliyle ve acikca baslatilir; profil olmadan `up` hicbir sey baslatmaz:
@@ -6,7 +6,7 @@
 #   docker compose --env-file infra/embed/<model_id>.env -f infra/compose.embed.yml \
 #     --profile embed-cpu up -d embed-cpu
 #
-# Kurallar (karar 0184, CLAUDE.md "istek yolunda model cagrisi yok"):
+# Kurallar (karar 0186, CLAUDE.md "istek yolunda model cagrisi yok"):
 # - Model OTOMATIK INDIRILMEZ. Uc katman (cpu-1.9.4'te denendi): TEI dizin bulamayinca
 #   HF_HUB_OFFLINE=1'e ragmen huggingface.co'dan indirmeyi DENER; bunu (1) `embed` aginin
 #   internal olmasi (disari cikis yok) ve (2) HF_ENDPOINT'in kapali yerel porta yonlenmesi

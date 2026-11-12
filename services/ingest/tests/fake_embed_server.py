@@ -1,4 +1,4 @@
-"""Gelistirme/test icin sahte OpenAI uyumlu /v1/embeddings sunucusu (karar 0184).
+"""Gelistirme/test icin sahte OpenAI uyumlu /v1/embeddings sunucusu (karar 0186).
 
 Uretim imajina girmez (`tests/` .dockerignore'da). YALNIZ 127.0.0.1'e baglanir; baska adres
 reddedilir (CLAUDE.md: Python herkese acik HTTP sunmaz). Gercek model yoktur:

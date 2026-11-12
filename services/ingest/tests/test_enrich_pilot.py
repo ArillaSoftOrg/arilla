@@ -77,7 +77,7 @@ def test_pilot_rejects_api_models(capsys: pytest.CaptureFixture[str], tmp_path) 
 def test_pilot_measures_remote_model_over_http_and_reports_canary(
     capsys, tmp_path, monkeypatch
 ) -> None:
-    """Karar 0184: pilot `remote_http` modelini de olcer (yazmaz); devre disi model olculebilir."""
+    """Karar 0186: pilot `remote_http` modelini de olcer (yazmaz); devre disi model olculebilir."""
     from tests.fake_embed_server import FakeEmbedServer
 
     texts = tmp_path / "t.txt"

@@ -151,7 +151,7 @@ class LocalOnnxTextProvider:
             )
         embedder_pooling = getattr(self.embedder, "pooling", None)
         if embedder_pooling != self.spec.pooling:
-            # Karar 0184: yanlis havuzlama boyut/norm kapisindan gecer; bu yuzden gommecinin
+            # Karar 0186: yanlis havuzlama boyut/norm kapisindan gecer; bu yuzden gommecinin
             # GERCEKTEN kullandigi yontem kayit defteriyle ayni olmak zorunda.
             raise RegistryError(
                 f"{self.spec.id}: gommeci havuzlamasi {embedder_pooling!r}, "
@@ -266,7 +266,7 @@ class RemoteHttpTextProvider:
         if len(texts) > self.batch_size:
             raise EmbeddingError(f"parti {len(texts)} > sinir {self.batch_size}")
         inputs = [self._prefix + t for t in texts]
-        # Karar 0184: girdi siniri istemcide. Sunucu (TEI) yalniz model sinirini asani kirpar;
+        # Karar 0186: girdi siniri istemcide. Sunucu (TEI) yalniz model sinirini asani kirpar;
         # kayit defteri sinirini asan girdi sessizce kirpilmaz, parti reddedilir (cagiran
         # metni `text_prep` ile parcalar). Tahmin `chars_per_token` ile, onek dahil.
         limit_chars = int(self.spec.max_input_tokens * self.spec.chars_per_token)
@@ -375,7 +375,7 @@ def build_text_provider(
             raise RegistryError(f"{spec.id}: --model-dir gerekli")
         from classify.suggest.model import OnnxEmbedder  # tembel: onnxruntime yalniz burada
 
-        assert spec.pooling is not None  # kayit defteri yukleyicisi zorunlu kilar (karar 0184)
+        assert spec.pooling is not None  # kayit defteri yukleyicisi zorunlu kilar (karar 0186)
         embedder = OnnxEmbedder(
             model_dir, threads=threads, batch_size=batch_size or 64, pooling=spec.pooling
         )

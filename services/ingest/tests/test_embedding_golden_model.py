@@ -1,4 +1,4 @@
-"""Karar 0184: altin vektor kanaryasi CANLI model sunucusuna karsi (normal CI'da calismaz).
+"""Karar 0186: altin vektor kanaryasi CANLI model sunucusuna karsi (normal CI'da calismaz).
 
 Gercek model/TEI ister; sahte basari gostermemek icin ortam yoksa ATLANIR (gecti sayilmaz):
 

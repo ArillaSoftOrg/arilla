@@ -1,4 +1,4 @@
-"""Token vektorlerinden tek metin vektorune inis (havuzlama), karar 0184.
+"""Token vektorlerinden tek metin vektorune inis (havuzlama), karar 0186.
 
 Kayit defterindeki `pooling` alaninin GERCEK cikarimdaki karsiligi budur; yerel ONNX gommesi
 (`classify.suggest.model.OnnxEmbedder`) bu fonksiyonu cagirir. Uzak sunucuda (TEI) havuzlama

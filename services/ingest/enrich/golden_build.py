@@ -1,4 +1,4 @@
-"""GELISTIRICI ARACI: altin vektorleri RESMI referans uygulamadan uretir (karar 0184).
+"""GELISTIRICI ARACI: altin vektorleri RESMI referans uygulamadan uretir (karar 0186).
 
 Uretim imajinda kosmaz; agir bagimliliklar (`.[model-build]`: sentence-transformers, torch) ve
 model indirmesi ister. Yalniz yerel gelistirme makinesinde, sabit revizyonla calistirilir:

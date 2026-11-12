@@ -113,7 +113,7 @@ class OnnxEmbedder:
         verify: bool = True,
         pooling: str = "mean",
     ) -> None:
-        # Karar 0184: havuzlama kayit defterinden gelir; e5'in resmi degeri `mean` (varsayilan,
+        # Karar 0186: havuzlama kayit defterinden gelir; e5'in resmi degeri `mean` (varsayilan,
         # karar 0155 davranisi degismez). Bilinmeyen yontem model yuklenmeden reddedilir.
         from enrich.pooling import POOLING_METHODS
 

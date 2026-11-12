@@ -1,4 +1,4 @@
-"""Elle indirilen model dizininin sabit revizyonla ayni oldugunu dogrular (karar 0184).
+"""Elle indirilen model dizininin sabit revizyonla ayni oldugunu dogrular (karar 0186).
 
 CPU cikarim servisi (TEI) modeli INDIRMEZ; operator dizini bir kez, sabit revizyonla indirir:
 
