@@ -1,13 +1,19 @@
 [Unit]
-Description=Gunluk AliExpress fiyat tazeleme (her gun 06:30 ve 18:30 UTC)
+Description=Gunluk AliExpress fiyat tazeleme (her gun 06:30 ve 21:30 UTC = 09:30 ve 00:30 TR)
 
 [Timer]
-# Gece hatlarindan sonra: yedekler 01:30, katalog hatti 02:30 (en fazla 3 saat), donusumler 05:00.
-# Ikinci tetik 18:30: TCMB kuru 13:30'da gelir; gecici hatayla kacan ya da kaynagin gun icinde
-# yayinladigi yeni surum yakalanir. Kaynak degismediyse kosu indirmeden biter (idempotent).
+# Sabah tetigi 06:30 UTC (09:30 TR): gece hatlarindan sonra (yedek 01:30, katalog hatti 02:30,
+# donusumler 05:00); geceki kosuyu kacirmis ya da kesik inmis surumu yakalar.
+# Gece tetigi 21:30 UTC (00:30 TR; karar 0188, eskiden 18:30 = 21:30 TR): kaynak gun icinde
+# 09:30-17:40 UTC arasi yayinlar; yogun kullanici saatinin disinda, `refresh-product-aggregates`
+# (23:45) oncesi biter. `feeds daily` 23:50 UTC'den sonra YENI besleme baslatmaz (yedek penceresi
+# 01:20 - 90 dk); gecikmis/yakalama kosusu yedekle cakismaz. Kaynak degismediyse kosu indirmeden
+# biter (idempotent).
 OnCalendar=*-*-* 06:30:00 UTC
-OnCalendar=*-*-* 18:30:00 UTC
+OnCalendar=*-*-* 21:30:00 UTC
 # Sunucu kapaliyken kacan kosu acilista calisir; tekrarlanan kosu veriyi bozmaz.
+# Takvim degisikligini 06:35-18:25 UTC arasinda kurun: yeni takvimin son tetigi kayitli son
+# kosudan eski kalir, kurulumda yakalama kosusu baslamaz (karar 0188).
 Persistent=true
 RandomizedDelaySec=300
 

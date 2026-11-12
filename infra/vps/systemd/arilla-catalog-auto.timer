@@ -1,14 +1,18 @@
 [Unit]
-Description=Otomatik katalog hatti guvenlik agi (gunde iki kez; asil tetik besleme senkronizasyonunun ardindan)
+Description=Otomatik katalog hatti guvenlik agi (12:15 ve 03:00 UTC; asil tetik besleme senkronizasyonunun ardindan)
 
 [Timer]
 # Asil tetik: `catalog-auto-timers install` arilla-feeds-daily.service icin OnSuccess= ekleyen bir
 # drop-in koyar (besleme BASARIYLA bitince hat hemen calisir). Bu zamanlayici yalniz guvenlik agi:
 # gunluk is `partial` bittiyse (OnSuccess tetiklenmez) ya da hat o sirada mesguldu.
-# 12:15 ve 21:15 UTC: gunluk beslemenin (06:30 ve 18:30, en fazla ~4,5 saat) sonrasi; 2,5 saatlik
-# sinirla bile yedek (01:30), gece hatti (02:34) ve bir sonraki besleme tetiginden once biter.
+# 12:15 UTC (15:15 TR): sabah beslemesi (06:30) sonrasi.
+# 03:00 UTC (06:00 TR; karar 0188, eskiden 21:15): gece beslemesi (21:30, yeni besleme en gec
+# 23:50), yedek penceresi (01:20-02:05) ve gece hatti (02:30) sonrasi; 2,5 saatlik sinirla bile
+# sabah beslemesinden (06:30) once biter. 21:15 yeni gece beslemesinin 15 dk onune duserdi.
 OnCalendar=*-*-* 12:15:00 UTC
-OnCalendar=*-*-* 21:15:00 UTC
+OnCalendar=*-*-* 03:00:00 UTC
+# Takvim degisikligini 12:20 UTC'den sonra kurun: 03:00 tetigi kayitli son tetikten (12:15) eski
+# kalir, kurulumda yakalama kosusu baslamaz (karar 0188).
 Persistent=true
 RandomizedDelaySec=300
 

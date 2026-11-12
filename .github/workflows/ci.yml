@@ -248,7 +248,7 @@ jobs:
           infra/vps/bin/pg-restore-test infra/vps/bin/test-backup.sh infra/vps/backup/restore-inner.sh
           infra/vps/bin/pg-staging-verify infra/vps/bin/test-staging-verify.sh
           infra/vps/bin/batch-timers infra/vps/bin/feeds-timers infra/vps/bin/catalog-publish infra/vps/bin/test-wal-backpressure.sh
-          infra/vps/bin/catalog-auto-timers infra/vps/bin/catalog-auto-guard infra/vps/bin/test-pipeline-units.sh
+          infra/vps/bin/catalog-auto-timers infra/vps/bin/catalog-auto-guard infra/vps/bin/test-pipeline-units.sh infra/vps/bin/test-night-schedule-units.sh
       - name: duman testi
         run: bash infra/vps/bin/smoke-local.sh
 
@@ -346,6 +346,8 @@ jobs:
         run: python3 -m unittest discover -p "test_*.py" -v
       - name: katalog hatti systemd davranisi (gercek systemd)
         run: sudo bash infra/vps/bin/test-pipeline-units.sh
+      - name: gece zamanlama plani systemd davranisi (gercek systemd, karar 0188)
+        run: sudo bash infra/vps/bin/test-night-schedule-units.sh
 
   integration:
     name: admin authz + integration (isolated services)

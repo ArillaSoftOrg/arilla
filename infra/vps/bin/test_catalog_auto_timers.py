@@ -66,7 +66,7 @@ class CatalogAutoUnitsTest(unittest.TestCase):
         timeout = seconds(self.keys["TimeoutStartSec"])
         self.assertLess(budget, timeout)
         self.assertGreaterEqual(timeout - budget, 5 * 60)  # kapanis payi
-        # Zamanlayici gecikmesiyle bile sonraki besleme tetigine (06:30/18:30) ve yedege
+        # Zamanlayici gecikmesiyle bile sonraki besleme tetigine (06:30/21:30) ve yedege
         # (01:30) dayanmayacak kadar kisa.
         self.assertLessEqual(timeout, 3 * 3600)
 
@@ -75,12 +75,16 @@ class CatalogAutoUnitsTest(unittest.TestCase):
         self.assertEqual(len(calendars), 2)
         self.assertEqual(dict(self.timer).get("Persistent"), "true")
         hours = sorted(int(re.search(r" (\d\d):(\d\d)", c).group(1)) for c in calendars)
-        # Besleme 06:30/18:30 + en fazla 4,5 sa => 11:00/23:00; yedek 01:30; gece hatti 02:34.
-        self.assertEqual(hours, [12, 21])
+        # Karar 0188: sabah beslemesi 06:30 (+ en fazla 4,5 sa => 11:00) sonrasi 12:15; gece
+        # beslemesi 21:30 (yeni besleme en gec 23:50), yedek 01:20-02:05 ve gece hatti 02:30
+        # sonrasi 03:00.
+        self.assertEqual(hours, [3, 12])
         timeout_min = seconds(self.keys["TimeoutStartSec"]) // 60
-        # 12:15 + sinir (+ 5 dk gecikme) < 18:25; 21:15 + sinir < 01:20 (yedek penceresi).
-        self.assertLess(12 * 60 + 15 + 5 + timeout_min, 18 * 60 + 25)
-        self.assertLess(21 * 60 + 15 + 5 + timeout_min, 24 * 60 + 80)
+        # 12:15 + sinir (+ 5 dk gecikme) < 21:25 (gece beslemesi);
+        # 03:00 + sinir (+ 5 dk) < 06:25 (sabah beslemesi); 03:00 > 02:05 + gece hatti 02:35.
+        self.assertLess(12 * 60 + 15 + 5 + timeout_min, 21 * 60 + 25)
+        self.assertLess(3 * 60 + 5 + timeout_min, 6 * 60 + 25)
+        self.assertGreater(3 * 60, 2 * 60 + 35)
 
     def test_guard_script_skips_with_exit_one_not_failure(self):
         text = (HERE / "catalog-auto-guard").read_text(encoding="utf-8")
