@@ -2526,7 +2526,8 @@ CREATE TABLE search_outbox (
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
     processed_at  TIMESTAMPTZ
 );
-CREATE INDEX search_outbox_pending_idx ON search_outbox (id) WHERE processed_at IS NULL;
+-- 0113 (karar 0185, B4): search_outbox_pending_idx kaldirildi (tuketici yok; tum satirlari tasiyordu).
+-- Tuketici gelince: CREATE INDEX CONCURRENTLY search_outbox_pending_idx ON search_outbox (id) WHERE processed_at IS NULL;
 
 -- Besleme x offer uyeligi (0066, karar 0112): ayni urun birden fazla beslemede
 -- olabilir; offer ancak hicbir etkin/duraklatilmis beslemede kalmayinca ve
