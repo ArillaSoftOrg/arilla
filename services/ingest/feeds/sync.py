@@ -263,7 +263,12 @@ WITH prev AS (
         list_price       = EXCLUDED.list_price,
         currency         = EXCLUDED.currency,
         in_stock         = EXCLUDED.in_stock,
-        last_seen_at     = EXCLUDED.last_seen_at,
+        -- Karar 0185: etkin besleme teklifinde "goruldu" uyelik satirindadir (0114); fiyat/stok
+        -- degisimi `last_seen_at`'i (iki dizinde) degistirmez ki guncelleme HOT olabilsin.
+        -- Yeni, yeniden etkinlesen ya da beslemeye yeni gecen satir yazar. Okuyan taraf
+        -- GREATEST(offer, uyelik) kuralini kullanir (`OFFER_SEEN_AT`).
+        last_seen_at     = CASE WHEN offer.is_active AND offer.feed_source_id IS NOT NULL
+                                THEN offer.last_seen_at ELSE EXCLUDED.last_seen_at END,
         is_active        = TRUE,
         deactivated_at   = NULL,
         deactivation_reason = NULL,

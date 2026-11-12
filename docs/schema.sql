@@ -263,7 +263,9 @@ CREATE INDEX offer_merchant_state_idx ON offer (merchant_id, is_active, product_
 CREATE INDEX offer_unmatched_first_seen_idx ON offer (first_seen_at, id) WHERE product_id IS NULL AND is_active;
 CREATE INDEX offer_active_seen_idx ON offer (id) INCLUDE (merchant_id, last_seen_at) WHERE is_active;
 CREATE INDEX offer_image_hash_idx ON offer (image_hash) WHERE image_hash IS NOT NULL;
-CREATE INDEX offer_active_price_idx ON offer (current_price) WHERE is_active AND in_stock;
+-- 0111 (karar 0185): offer_active_price_idx kaldirildi (0 tarama; fiyat degisimini HOT'tan aliyordu).
+-- 0112 (karar 0185): fiyat/stok guncellemesi HOT olabilsin diye sayfada bos yer.
+ALTER TABLE offer SET (fillfactor = 80);
 CREATE INDEX offer_seller_idx ON offer (seller_id) WHERE seller_id IS NOT NULL;
 CREATE INDEX offer_feed_source_idx ON offer (feed_source_id) WHERE feed_source_id IS NOT NULL;
 -- 0067/0069: eslesmemis teklif sayfasi (/teklifler); 0069 trigram yerine tam metin.
