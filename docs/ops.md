@@ -344,9 +344,40 @@ doğru çalışır); `X-Real-IP` yukarı akışa iletilmez. Güvenlik başlıkla
 `price_point` bölüm üretimi ve `price_point_default` kontrolü **systemd zamanlayıcıları**ndadır
 (`vps/systemd/arilla-partitions{,-check}.{service,timer}`): sahip kimliği gerektiren tek iş
 bu olduğu için uzun ömürlü `cron` konteynerine DB sahibi parolası VERİLMEZ; işler gecici
-`migrate` konteynerini çalıştırır. Kurulum: unit'leri `/etc/systemd/system/` altına kopyala,
-`systemctl enable --now arilla-partitions.timer arilla-partitions-check.timer`. Kontrol dolu
-çıkarsa unit `failed` olur (`systemctl --failed`); bildirim bağı faz 5'te (izleme).
+`migrate` konteynerini çalıştırır.
+
+**Durum (12 Kasım 2026):** İki zamanlayıcı da üretimde **kurulu değildir**. Mevcut bölümler
+2026_09–2027_01; politika (bu ay + 3) 2027_02'yi de ister. 2027_02 bölümü 1 Şubat 2027'den
+önce açılmazsa satırlar `price_point_default`'a düşer. O andan sonra Şubat bölümü,
+aşağıdaki runbook uygulanmadan açılamaz.
+
+**Kontrol ile şema değişikliği ayrıdır (karar 0188):**
+
+| Birim | Ne yapar | Yetki ve etki |
+| --- | --- | --- |
+| `arilla-partitions-check` (her gün 06:00 UTC) | `partitions.ts --check`. Oturum `READ ONLY`, sahip kimliğiyle bile yazamaz. | Çıkış 1 (KRİTİK): default dolu, ya da bu ayın veya gelecek ayın bölümü yok. Bu durumda birim `failed` olur ve alarm üretilir. Ufuk politikanın gerisinde ama en az bir aylık pay varsa yalnızca UYARI verir (çıkış 0). |
+| `arilla-partitions` (ayın 1'i 02:10 UTC) | Bölüm üretir (DDL), ardından `--check` çalıştırır. | Sahip kimliği yalnızca geçici `migrate` konteynerinde bulunur. Uzak yazma onayı `migrate.env` içindeki `ARILLA_CONFIRM_REMOTE_DB` ile verilir. Üretim idempotenttir: var olan ay atlanır. Ayrıca `OnFailure` alarmı vardır. |
+
+**Güvenli kurulum sırası.** Her adım insan onaylıdır.
+1. Yalnızca kontrolü kurun: unit'leri kopyalayın ve
+   `systemctl enable --now arilla-partitions-check.timer` komutunu çalıştırın. İlk koşuda beklenen
+   sonuç UYARI'dır (eksik: 2027-02), KRİTİK değil.
+2. Elle tek seferlik üretim. Besleme, yedek ve gece hattı dışında, `price_point` yazarı yokken
+   yapılır; örneğin 09:00–12:00 UTC:
+   `systemctl start arilla-partitions.service`.
+   - Beklenen çıktı: `Olusturulan: price_point_2027_02`.
+   - `--check` sonucu "ufku tamam" olmalı.
+   - İkinci bir çalıştırma "Yeni partition gerekmedi" demeli.
+3. Ardından `systemctl enable --now arilla-partitions.timer`. Ayın 1'inde `Persistent=true`
+   kaçan koşuyu yakalar. Bu takvim değişikliği yakalama koşusu başlatmaz; başlatsa bile üretim
+   idempotenttir.
+
+**Başarısızlık senaryoları.**
+- Default dolu: o ayın bölümü açılamaz. Aşağıdaki runbook uygulanır.
+- Bağlantı kopması: tek bir `CREATE TABLE` atomiktir. Önceki aylar oluşmuş olarak kalır, sonraki
+  koşu kaldığı yerden sürer.
+- Uzak yazma onayı yok: betik yazmadan durur ve birim `failed` olur.
+- Kontrol başarısız olursa yalnızca alarm üretilir; hiçbir şey yazılmaz.
 
 **Toplu Python işleri** de systemd zamanlayıcılarındadır (`vps/systemd/arilla-catalog-pipeline`,
 `arilla-pricing-{fx,enqueue,verify}`). Her biri `feeds` servisini geçici çalıştırır

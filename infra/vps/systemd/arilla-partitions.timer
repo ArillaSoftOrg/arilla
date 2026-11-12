@@ -4,7 +4,10 @@ Description=Arilla price_point bolumlerini her ayin ilk gunu uret
 [Timer]
 # 3 ay ileri uretildigi icin tek bir kacirilmis kosu veri kaybina donusmez;
 # Persistent=true sunucu kapaliyken kacan kosuyu acilista yakalar.
-OnCalendar=*-*-01 02:00:00 UTC
+# 02:10 UTC (05:10 TR; karar 0188, eskiden 02:00): yedek penceresi (01:20-02:05) BITTIKTEN sonra,
+# gece hattindan (02:30) once. Bolum DDL'i price_point uzerinde kisa kilit alir; gece beslemesi
+# 23:50'den sonra yeni besleme acmaz, bu saatte price_point yazari yoktur.
+OnCalendar=*-*-01 02:10:00 UTC
 Persistent=true
 RandomizedDelaySec=300
 

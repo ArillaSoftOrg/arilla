@@ -6,20 +6,23 @@
  * Uc ay ileri uretmek, tek bir kacirilmis cron kosusunun veri kaybina
  * donusmesini engeller.
  *
- * `--check`: `price_point_default` bos mu diye bakar. Dolu ise KRITIK durumdur
- * — cron calismamis demektir — ve betik sifirdan farkli kodla cikar. Izleme
- * bu cikis kodunu kullanir. Bkz. docs/ops.md.
+ * `--check` (SALT OKUNUR; oturum `READ ONLY`, sahip kimligiyle bile yazamaz):
+ * - `price_point_default` doluysa KRITIK (cikis 1): uretim calismamis, satirlar default'ta.
+ * - Ufuk (karar 0188): bu ayin ya da gelecek ayin partition'i yoksa KRITIK (cikis 1) — veri
+ *   default'a dusmeden en az bir ay once; politika ufkunun (bu ay + 3) gerisindeyse UYARI
+ *   (cikis 0, stderr). Izleme cikis kodunu kullanir. Bkz. docs/ops.md.
  */
 import { ensureMonthlyPartitions } from "./ensure-partitions.ts";
 import { assertRemoteWriteConfirmed, ownerUrl, withClient } from "./lib.ts";
-
-const MONTHS_AHEAD = 3;
+import { horizonStatus, MONTHS_AHEAD, partitionMonth } from "./partitions-lib.ts";
 
 // `--check` salt okunur (izleme uzak veritabaninda da calisir); uretim yazar.
 if (!process.argv.includes("--check")) assertRemoteWriteConfirmed("db:partitions");
 
 await withClient(ownerUrl(), async (client) => {
   if (process.argv.includes("--check")) {
+    // Kontrol ile sema degistiren uretim ayri: bu oturum hicbir sey yazamaz (DDL dahil).
+    await client.query("SET SESSION CHARACTERISTICS AS TRANSACTION READ ONLY");
     const { rows } = await client.query<{ count: string }>(
       "SELECT count(*)::text AS count FROM price_point_default",
     );
@@ -33,6 +36,22 @@ await withClient(ownerUrl(), async (client) => {
       return;
     }
     console.log("price_point_default bos — beklenen durum.");
+
+    const bounds = await client.query<{ bound: string }>(
+      `SELECT pg_get_expr(c.relpartbound, c.oid) AS bound
+         FROM pg_inherits i JOIN pg_class c ON c.oid = i.inhrelid
+        WHERE i.inhparent = 'price_point'::regclass`,
+    );
+    const months = bounds.rows.map((row) => partitionMonth(row.bound)).filter((m) => m !== null);
+    const horizon = horizonStatus(months, new Date());
+    if (horizon.level === "crit") {
+      console.error(horizon.message);
+      process.exitCode = 1;
+    } else if (horizon.level === "warn") {
+      console.error(horizon.message);
+    } else {
+      console.log(horizon.message);
+    }
     return;
   }
 
