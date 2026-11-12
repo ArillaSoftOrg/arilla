@@ -230,6 +230,10 @@ class CollectorTest(unittest.TestCase):
             def run(cmd, timeout):
                 if "ps" in cmd:
                     return 0, "\n".join(f"{s}=healthy" for s in [*hc.CORE_SERVICES, "backup"])
+                if "is-enabled" in cmd:
+                    return 0, "enabled\n"
+                if "psql" in cmd and "'catalog_auto'" in cmd[-1]:
+                    return 0, "1760400200|disk_low_55gb\n"
                 if "psql" in cmd and "'feed_daily'" in cmd[-1]:
                     return 0, "partial|feed_7:truncated|100|40|1760400000|false|ok|1760400100\n"
                 if "psql" in cmd and "from job_run" in cmd[-1]:
@@ -251,6 +255,76 @@ class CollectorTest(unittest.TestCase):
             self.assertEqual(set(f["pipeline_last_ran"]), {"resolve", "similarity_edges"})
             self.assertEqual(f["feeds_recent"][0]["status"], "partial")
             self.assertEqual(f["feeds_recent"][0]["offers_fresh"], 40)
+            self.assertEqual(f["catalog_auto"]["enabled"], True)
+            self.assertEqual(f["catalog_auto"]["last_worked"], datetime.fromtimestamp(1760400200, tz=timezone.utc))
+            self.assertEqual(f["catalog_auto"]["last_skip"], "disk_low_55gb")
+
+
+# -------------------------------------------- otomatik katalog hatti durdu mu (karar 0164)
+GIB = 1 << 30
+CA_NOW = datetime(2026, 11, 12, 20, 30, tzinfo=timezone.utc)
+
+
+def ca_state(hours_ago=None, skip=None, enabled=True):
+    last = None if hours_ago is None else CA_NOW - timedelta(hours=hours_ago)
+    return {"enabled": enabled, "last_worked": last, "last_skip": skip}
+
+
+class CatalogAutoFreshnessTest(unittest.TestCase):
+    def check(self, state, free_gib=100.0):
+        f = facts(catalog_auto=state, root_free_bytes=int(free_gib * GIB))
+        return {c.name: c for c in hc.evaluate(f, CA_NOW)}.get("catalog-auto:freshness")
+
+    def test_not_installed_no_check(self):
+        self.assertIsNone(self.check({"enabled": False}))
+
+    def test_absent_key_no_check(self):
+        self.assertNotIn("catalog-auto:freshness", levels(hc.evaluate(facts(), CA_NOW)))
+
+    def test_recent_ok(self):
+        self.assertEqual(self.check(ca_state(5)).level, hc.OK)
+
+    def test_unreadable_crit(self):
+        self.assertEqual(self.check(None).level, hc.CRIT)
+
+    def test_low_disk_warns_early(self):
+        c = self.check(ca_state(5), free_gib=55)
+        self.assertEqual(c.level, hc.WARN)
+        self.assertIn("55 GiB < 70 GiB", c.message)
+        self.assertIn("DUSURULMEZ", c.message)
+
+    def test_boundary_exactly_threshold_is_ok(self):
+        self.assertEqual(self.check(ca_state(5), free_gib=70).level, hc.OK)
+
+    def test_stale_crit_names_disk_cause(self):
+        # 12 Kasim olayi: son gercek calisma 10 Kasim 12:19 UTC, bos disk 55 GiB.
+        c = self.check(ca_state(56), free_gib=55)
+        self.assertEqual(c.level, hc.CRIT)
+        self.assertIn("2 gun", c.message)
+        self.assertIn("bos disk 55 GiB", c.message)
+
+    def test_stale_crit_names_python_skip_reason(self):
+        c = self.check(ca_state(40, skip="backup_window"))
+        self.assertEqual(c.level, hc.CRIT)
+        self.assertIn("backup_window", c.message)
+
+    def test_never_ran_warn(self):
+        self.assertEqual(self.check(ca_state(None)).level, hc.WARN)
+
+    def test_free_unknown_does_not_crash(self):
+        f = facts(catalog_auto=ca_state(5), root_free_bytes=None)
+        self.assertEqual(levels(hc.evaluate(f, CA_NOW))["catalog-auto:freshness"], hc.OK)
+
+    def test_threshold_matches_guard_and_python(self):
+        here = Path(__file__).resolve().parent
+        guard = (here / "catalog-auto-guard").read_text(encoding="utf-8")
+        self.assertIn(f"START_FREE_GB=${{START_FREE_GB:-{hc.CATALOG_AUTO_START_FREE_GIB}}}", guard)
+        auto = (here.parents[2] / "services" / "ingest" / "catalog_build" / "auto.py").read_text(encoding="utf-8")
+        self.assertIn(f"START_FREE_GB = {hc.CATALOG_AUTO_START_FREE_GIB}\n", auto)
+
+    def test_sql_excludes_python_skips(self):
+        self.assertIn("not (detail ? 'skipped')", hc.CATALOG_AUTO_SQL)
+        self.assertIn("'catalog_auto'", hc.CATALOG_AUTO_SQL)
 
 
 # ------------------------------------------------------------- katalog hatti (karar 0174, PR1c)
