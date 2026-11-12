@@ -2051,7 +2051,7 @@ yalnız "sunucu yanıt veriyor" sinyali olarak sayar; ürün sayfası performans
 | `max_wal_size` | 4GB | 16GB | Yoğun yazımda checkpoint WAL ile tetikleniyor; her checkpoint sonrası FPI. Laboratuvarda 8× pay WAL'i −%34 düşürdü. Bedeli ≤ 16 GB yeniden kullanılacak segment + daha uzun çökme kurtarması. |
 | `min_wal_size` | 1GB | 2GB | Boşta da ön ayrılmış segment kalır (yeniden oluşturma maliyeti yok). |
 | `wal_compression` | `on` (pglz) | `zstd` | Aynı yükte WAL −%35 (pglz'ye göre); yazma süresi ~%10 daha uzun (CPU). |
-| `checkpoint_timeout` / `_completion_target` | 15min / 0.9 | aynı | 16GB ile checkpoint'ler zamanlı ve yayılmış olur. |
+| `checkpoint_timeout` / `_completion_target` | 15min / 0.9 | **30min** / 0.9 (karar 0185, B2) | 16GB ile checkpoint'ler zamanlı ve yayılmış olur; 30 dk zamanlı checkpoint'leri seyreltir (daha az FPI). Etki üretimde `wal_report.py diff` ile ölçülür. |
 | `archive_timeout` | 300 | aynı | RPO; yayınla ilgisi yok. |
 | pgBackRest `archive-push` `process-max` | 1 | 2 (`PGBACKREST_ARCHIVE_PUSH_PROCESS_MAX`) | Asenkron arşivde segmentler paralel gönderilir; R2 gidiş-dönüşü baskın. Her `archive-push` çağrısında okunur. |
 | pgBackRest `archive-push-queue-max` | 4GiB | aynı (isteğe bağlı 8GiB) | Tüm WAL eşikleri bundan türer. Büyütmek bekleme payını büyütür, diski kullanır. |
