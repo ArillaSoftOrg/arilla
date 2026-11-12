@@ -1772,7 +1772,7 @@ yoksa), `no_active_feeds`,
 `feed_<id>:<neden>` (indirme/kapı hatası ya da `behind`, `source_stale`, `never_synced`),
 `discovery_failed:<ağ>`, `fx_stale`, `feeds_gone`. Başarısız ya da `partial` koşu çıkış kodu 1
 verir (OnSuccess → katalog hattı tetiklenmez, 12:15/21:15 güvenlik ağı alır); systemd
-`arilla-alert@` çalışır ve seviyeyi `job_run` kaydından belirler (karar 0182):
+`arilla-alert@` çalışır ve seviyeyi `job_run` kaydından belirler (karar 0184):
 
 - **"BILGI"** = `partial`, sorunların hepsi besleme düzeyinde (`feed_<id>:…`: kesik dosya, boyut
   kapısı, `behind`), en yeni besleme yazımı 36 saatten yeni ve taze teklif oranı

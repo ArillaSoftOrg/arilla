@@ -11,7 +11,7 @@ Kontroller: disk doluluk, konteyner sagligi, PostgreSQL erisimi ve baglanti kull
 arsiv kuyrugu (pg_ls_archive_statusdir), yedek yasi (pgbackrest info), geri yukleme provasi
 yasi/sonucu, basarisiz arilla-* systemd birimleri, gece katalog hatti ve gunluk besleme tazeligi.
 
-Gunluk besleme (karar 0182): `arilla-feeds-daily` `partial` ile (cikis 1) bittiginde, sorunlar
+Gunluk besleme (karar 0184): `arilla-feeds-daily` `partial` ile (cikis 1) bittiginde, sorunlar
 yalniz besleme duzeyindeyse (kesik dosya, boyut kapisi, geride), son basarili yazim 36 saatten
 yeni ve taze teklif orani %25'in ustundeyse BILGI'dir; ayni sorunlar art arda gelirse tekrar
 gonderilmez. `failed`, kur bayatligi, kesif hatasi, bayat fiyatlar ya da okunamayan durum KRITIK.
@@ -68,7 +68,7 @@ THRESHOLDS = {
     "verify_latest_warn_s": 8 * 24 * 3600,  # haftalik son-set dogrulamasi + tolerans (karar 0183)
     "verify_all_warn_s": 35 * 24 * 3600,  # aylik tum depo dogrulamasi + tolerans
     "pipeline_stale_crit_s": 50 * 3600,  # gunluk 02:30 kosusu + bir kacan gece + tolerans
-    # Gunluk besleme (karar 0182): gunde iki kosu (06:30, 18:30 + rastgele gecikme).
+    # Gunluk besleme (karar 0184): gunde iki kosu (06:30, 18:30 + rastgele gecikme).
     "feeds_success_crit_s": 36 * 3600,  # en yeni besleme yazimi; ~3 kacan kosu
     "feeds_fresh_min_ratio": 0.25,  # taze / etkin teklif; 3 bantta 1 guncel besleme ~%40
     "feeds_run_stale_crit_s": 30 * 3600,  # son gunluk kosu kaydi; 2 kacan kosu + tolerans
@@ -82,7 +82,7 @@ RAN_OUTCOMES = ("completed", "no_input", "partial", "blocked_upstream")
 LEGACY_RAN_STATUS = ("success", "partial")
 #: systemd baslangic zamani ile job_run.started_at arasindaki saat payi (ayni makine).
 INVOCATION_SKEW_S = 5
-#: Gunluk besleme birimi -> `job_run.job` (karar 0182). `partial` cikis 1 verir (OnSuccess zinciri
+#: Gunluk besleme birimi -> `job_run.job` (karar 0184). `partial` cikis 1 verir (OnSuccess zinciri
 #: bu yuzden tetiklenmez); seviye `job_run` kaydindan belirlenir.
 FEEDS_UNIT = "arilla-feeds-daily.service"
 FEEDS_JOB = "feed_daily"
@@ -420,7 +420,7 @@ def feeds_current(since: datetime | None, rows: list[dict] | None) -> tuple[dict
 
 def classify_feeds_failure(exec_status: int | None, since: datetime | None, rows: list[dict] | None,
                            now: datetime, t: dict = THRESHOLDS) -> tuple[str, str]:
-    """Basarisiz gunluk besleme biriminin seviyesi ve mesaji (karar 0182).
+    """Basarisiz gunluk besleme biriminin seviyesi ve mesaji (karar 0184).
 
     `partial` + yalniz besleme duzeyi sorun (kesik dosya, boyut kapisi, geride) + son basarili yazim
     36 saatten yeni + taze teklif orani esigin ustunde -> INFO. Geri kalan her sey, okunamayan
@@ -763,7 +763,7 @@ def format_message(kind: str, checks: list[Check], host: str) -> str:
 def unit_failed_message(unit: str, host: str, collector: Collector | None) -> tuple[str, str, bool]:
     """OnFailure (seviye, mesaj, webhook gonderilsin mi); siniflandirilan birimler `job_run`'dan okunur.
 
-    Gunluk beslemede ayni sorunlarla art arda gelen BILGI yalniz bir kez gonderilir (karar 0182).
+    Gunluk beslemede ayni sorunlarla art arda gelen BILGI yalniz bir kez gonderilir (karar 0184).
     """
     hint = f"(journalctl -u {unit})"
     if collector is None:

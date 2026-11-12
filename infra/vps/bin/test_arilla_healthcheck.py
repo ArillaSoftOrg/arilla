@@ -465,7 +465,7 @@ class UnitFailedMessageTest(unittest.TestCase):
         self.assertIsNone(hc.Collector(Path("."), run=lambda cmd, t: (0, "\n")).unit_active_state(UNIT))
 
 
-# ------------------------------------------------------------- gunluk besleme (karar 0182)
+# ------------------------------------------------------------- gunluk besleme (karar 0184)
 FEEDS_UNIT = "arilla-feeds-daily.service"
 FSINCE = datetime(2026, 11, 10, 18, 31, 47, tzinfo=timezone.utc)
 FNOW = FSINCE + timedelta(hours=2, minutes=35)
