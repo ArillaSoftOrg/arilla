@@ -1,4 +1,6 @@
-# 0182 — Günlük besleme alarmı `job_run` sonucuna göre sınıflandırılır
+# 0184 — Günlük besleme alarmı `job_run` sonucuna göre sınıflandırılır
+
+> Numara notu: ilk olarak 0182 numarasıyla (#314) birleşti; aynı numara #313'teki embedding kararıyla çakıştığı için 0184'e taşındı. İçerik değişmedi.
 
 Tarih: 2026-11-11. Bağlam: karar 0145 (günlük besleme), 0152 (sürüm reddi), 0174 (PR1c alarm
 sınıflandırması).
