@@ -48,6 +48,11 @@ en düşük trafik 02:00–07:00 TR, en yüksek 20:00–23:30 TR.
    - Kesme ile pencere sonu arasında başlayan koşu hiçbir besleme açmaz. Bu, gecikmiş ve yakalama
      koşularını kapsar.
    - En kötü durum: 23:50 + 75 dk = 01:05 UTC. Bu, 01:20'den önce biter.
+   - **Sert durak:** Kesmeden önce başlamış bir birleştirme (WAL geri basıncı, yavaş disk) yine de uzarsa,
+     01:15 UTC'de (pencereden 5 dk önce) parça sınırında durur (`SyncPaused`). Bu hata değildir: snapshot
+     `processing` kalır, besleme hata kaydı yazılmaz, besleme ertelenmiş sayılır (`feeds_paused_ids`) ve
+     sonraki koşu aynı sürümü kaldığı parçadan sürdürür. Böylece yedek penceresine taşma, koşu süresinden
+     bağımsız olarak önlenir.
    - Kapatma: `--ignore-backup-window`. Pay ayarı: `FEED_DAILY_BACKUP_MARGIN_MINUTES`.
 3. **Katalog güvenlik ağı 21:15 → 03:00 UTC (06:00 TR).** 12:15 UTC tetiği aynen kalır.
    - Asıl tetik tamamlanmaya bağlıdır: besleme başarıyla bitince `OnSuccess` (0164).

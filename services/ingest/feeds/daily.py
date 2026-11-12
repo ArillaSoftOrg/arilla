@@ -74,6 +74,25 @@ BACKUP_WINDOW_UTC = (dt_time(1, 20), dt_time(2, 5))
 #: Yedek penceresinden en az bu kadar once YENI besleme baslamaz (karar 0188). En buyuk besleme
 #: (feed 7, ~1,5 GB) 14 gunde en fazla 75 dk surdu; baslamis birlestirme bitirilir.
 DEFAULT_BACKUP_MARGIN = timedelta(minutes=90)
+#: Kesmeden ONCE baslamis bir birlestirme (WAL geri basinci, yavas disk) uzarsa yedek penceresinin
+#: bu kadar oncesinde parca sinirinda durur (`SyncPaused`); ayni surum sonraki kosuda kaldigi
+#: parcadan surer. Bir parca (5000 kayit) saniyeler surer.
+BACKUP_HARD_STOP = timedelta(minutes=5)
+#: Planli durakta beslemenin `error_code`u (feeds.sync.SyncPaused).
+PAUSED_CODE = "backup_window"
+
+
+def next_backup_window_start(now: datetime) -> datetime:
+    """`now`'dan sonraki (ya da icinde bulunulan) yedek penceresinin baslangici (UTC)."""
+    now = now.astimezone(UTC)
+    start_t, end_t = BACKUP_WINDOW_UTC
+    for day in (-1, 0, 1):
+        base = datetime.combine(now.date() + timedelta(days=day), dt_time(0), tzinfo=UTC)
+        start = base.replace(hour=start_t.hour, minute=start_t.minute)
+        end = base.replace(hour=end_t.hour, minute=end_t.minute)
+        if now < end:
+            return start
+    raise AssertionError("ulasilamaz")  # pragma: no cover
 
 
 def seconds_until_backup_cutoff(now: datetime, margin: timedelta) -> float:
@@ -311,6 +330,10 @@ def _run_locked(
             result.detail["backup_cutoff"] = True
     deadline = started + budget_s
     result.detail["budget_s"] = int(budget_s)
+    if opts.backup_margin is not None:
+        # Baslamis birlestirmenin sert duragi: yedek penceresinden 5 dk once parca sinirinda.
+        stop_at = next_backup_window_start(clock()) - BACKUP_HARD_STOP
+        sync_kwargs = {**(sync_kwargs or {}), "stop_at": stop_at}
 
     final: dict[int, runner.FeedOutcome] = {}
     deferred: list[int] = []
@@ -332,6 +355,11 @@ def _run_locked(
         )
         for outcome in outcomes:
             final[outcome.feed_id] = outcome
+        paused = pop_paused(final)
+        if paused:
+            # Planli durak hata degil: ertelenen gibi sayilir, sonraki kosu once alir (karar 0188).
+            result.detail["feeds_paused_ids"] = paused
+            deferred.extend(f for f in paused if f not in deferred)
         retry_ids = {o.feed_id for o in outcomes if not o.ok and o.retryable}
         if not retry_ids or attempt == opts.retries or monotonic() >= deadline:
             break
@@ -359,6 +387,14 @@ def _run_locked(
     quiet = set(not_loaded) | set(deferred)
     quiet |= {f.feed_id for f in report.feeds if f.status != "active"}
     _freshness(result, report, quiet)
+
+
+def pop_paused(final: dict[int, runner.FeedOutcome]) -> list[int]:
+    """Yedek penceresi duragiyla birakilan beslemeleri sonuclardan cikarir (saf; testli)."""
+    paused = sorted(fid for fid, o in final.items() if o.error_code == PAUSED_CODE)
+    for fid in paused:
+        del final[fid]
+    return paused
 
 
 def _summarize(result: DailyResult, outcomes: list[runner.FeedOutcome]) -> None:

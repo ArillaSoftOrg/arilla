@@ -72,3 +72,39 @@ def test_en_kotu_durum_gece_kosusu_yedege_tasmaz() -> None:
     cutoff = latest_start + timedelta(seconds=seconds_until_backup_cutoff(latest_start, MARGIN))
     worst_end = cutoff + timedelta(minutes=75)
     assert worst_end < at(1, 20, 13), worst_end
+
+
+@pytest.mark.parametrize(
+    ("now", "expected"),
+    [
+        (at(21, 30), at(1, 20, 13)),  # gece kosusu: ertesi 01:20
+        (at(1, 0, 13), at(1, 20, 13)),  # pencereden once
+        (at(1, 30, 13), at(1, 20, 13)),  # pencere icinde: icinde bulunulan pencere
+        (at(2, 5, 13), at(1, 20, 14)),  # pencere bitti: ertesi gun
+        (at(6, 30, 13), at(1, 20, 14)),  # sabah kosusu
+    ],
+)
+def test_sonraki_yedek_penceresi(now: datetime, expected: datetime) -> None:
+    assert daily.next_backup_window_start(now) == expected
+
+
+def test_sert_durak_kesmeden_sonra_pencereden_once() -> None:
+    # Kesme (23:50) yeni besleme acmayi durdurur; sert durak (01:15) baslamis birlestirmeyi
+    # parca sinirinda birakir; yedek 01:20'de pencereyi bos bulur.
+    window = daily.next_backup_window_start(at(21, 30))
+    stop = window - daily.BACKUP_HARD_STOP
+    cutoff = at(21, 30) + timedelta(seconds=seconds_until_backup_cutoff(at(21, 30), MARGIN))
+    assert cutoff < stop < window
+    assert stop == at(1, 15, 13)
+
+
+def test_duraklatilan_besleme_hata_sayilmaz_ertelenir() -> None:
+    from feeds.runner import FeedOutcome
+
+    final = {
+        7: FeedOutcome(7, "failed", error_code=daily.PAUSED_CODE),
+        14: FeedOutcome(14, "success"),
+        17: FeedOutcome(17, "failed", error_code="download_failed"),
+    }
+    assert daily.pop_paused(final) == [7]
+    assert sorted(final) == [14, 17]  # gercek hata (17) sonuclarda kalir
