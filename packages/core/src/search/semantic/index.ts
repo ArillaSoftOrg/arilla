@@ -34,3 +34,20 @@ export {
   type ShadowOutcome,
   scheduleSemanticShadow,
 } from "./shadow.ts";
+export {
+  type CategorySource,
+  type CategoryStat,
+  DEFAULT_STRATEGY_CONFIG,
+  type IndexDescriptor,
+  type IndexKind,
+  type IndexScope,
+  type IndexState,
+  isSafeCategoryLiteral,
+  resolveStrategyConfig,
+  type StrategyConfig,
+  type StrategyDecision,
+  type StrategyInput,
+  type StrategyKind,
+  selectSemanticStrategy,
+  type UncategorizedPolicy,
+} from "./strategy.ts";
