@@ -283,9 +283,12 @@ def test_surekli_dolan_butcede_ertelenen_besleme_sonunda_calisir(
 
 
 def today_at(hour: int, minute: int, second: int = 0) -> datetime:
-    """Bugunun (UTC) saati: tazelik olcumu de bu saati kullanir; kaynak tarihleri gercek saate
-    goredir (`hours_ago`). Fark 24 saatten az kalir, tazelik esiklerini degistirmez."""
-    return datetime.now(UTC).replace(hour=hour, minute=minute, second=second, microsecond=0)
+    """Simdiden SONRAKI ilk HH:MM:SS (UTC). Tazelik olcumu de bu saati kullanir; kaynak tarihleri
+    gercek saate goredir (`hours_ago`). Saat hep ileride ve en fazla 24 sa uzakta: kaynak tarihi
+    "gelecekte" kalmaz (`source_date_invalid`), tazelik esikleri (168 sa) degismez."""
+    now = datetime.now(UTC)
+    at = now.replace(hour=hour, minute=minute, second=second, microsecond=0)
+    return at if at >= now else at + timedelta(days=1)
 
 
 def test_yedek_penceresine_yakin_baslayan_kosu_yeni_besleme_baslatmaz(
