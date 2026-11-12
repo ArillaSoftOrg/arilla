@@ -101,6 +101,21 @@ test("arama olay kuyrugu: tuketicisiz birikim ariza diye raporlanmaz (karar 0136
   assert.match(lines[2] ?? "", /tuketici yok \(karar 0136\)/);
 });
 
+test("arama olay kuyrugu: bekleyen dizini yokken tam sayim yok, hepsi islenmemis (karar 0185)", () => {
+  const lines = describeSearchOutbox(
+    {
+      estimatedRows: 29_517_534,
+      pending: null,
+      totalBytes: 4010 * 1024 * 1024,
+      oldestPendingAt: new Date("2026-10-14T00:00:00Z"),
+    },
+    new Date("2026-11-12T00:00:00Z"),
+  );
+  assert.match(lines[0] ?? "", /~29517534 olay .* islenmemis: hepsi .*karar 0185/);
+  assert.match(lines[1] ?? "", /^en eski olay: 2026-10-14.*\(29 gun\)/);
+  assert.match(lines[2] ?? "", /tuketici yok \(karar 0136\)/);
+});
+
 test("arama olay kuyrugu: bos tablo", () => {
   const lines = describeSearchOutbox({
     estimatedRows: 0,

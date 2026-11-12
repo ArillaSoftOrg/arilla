@@ -82,6 +82,15 @@ görseli değişince yazılır (fiyat, stok, indirim, komisyon yazmaz).
 ucuz, kayıpsız), gerekirse B. D/E harici arama motoru kararıyla birlikte. Hiçbiri bu karar kapsamında
 uygulanmaz; 5.572.716 kayıt silinmez ve işlenmiş işaretlenmez.
 
+**Güncelleme (karar 0185, 12 Kasım 2026):**
+- **Ölçüm:** 30,2 M satır, 3,8 GB; %99,3'ü benzersiz varlık. Bu yüzden B (sıkıştırma) yaklaşık %1
+  kazandırır. Büyüme ~0,5 M satır/gün (~70 MB/gün); 100 MB/gün eşiğinin altında, seçenek A sürüyor.
+  1 Kasım'daki ~10 M satır tek seferlik toplu yayın ve sınıflandırmadan geldi.
+- **Dizin kaldırıldı:** Kullanıcı kararıyla satırlar SİLİNMEZ. Yalnızca türetilmiş
+  `search_outbox_pending_idx` kaldırıldı (migration 0113, 647 MB): tüketici yokken tüm satırları
+  taşıyordu.
+- **Tüketici gelince:** dizin `CREATE INDEX CONCURRENTLY` ile yeniden kurulur; veri kaybı yoktur.
+
 ## Ek B — Yalnız USD teklifli AliExpress ürünleri ve arama politikası
 
 Fiyat özeti TRY-only'dir (`offer_count`, `min_price`; karar 0127): yalnız USD teklifli ürün

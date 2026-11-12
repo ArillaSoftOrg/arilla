@@ -82,6 +82,12 @@ Güncelleme bu yüzden HOT olamıyor; yeni satır sürümü ve 13 dizine kayıt 
 - **B4 — `search_outbox`.**
   - **Satır silinmez** (kullanıcı kararı; 0136 korunur).
   - Yalnızca türetilmiş `search_outbox_pending_idx` kaldırılır; tüketici gelince yeniden kurulur.
+  - Migration 0113 (`kind: concurrent`). Üretimde 647 MB disk geri gelir ve her olay eklemesinde bir
+    dizin yazımı azalır.
+  - Okuyan tek yer `pnpm db:health` idi. Dizin yoksa tam sayım yapmaz (30 M satırlık tam tarama
+    olurdu); tahmin ve en eski olayı birincil anahtardan raporlar. Dizin yeniden kurulursa tam sayım
+    yolu kendiliğinden döner.
+  - `catalog-publish` raporundaki toplam sayım zaten tablo taramasıydı; değişmez.
 - **`product`: değişiklik yok.**
   - Yazımlar zaten yalnızca değişen satırı yazıyor (0086, 0135).
   - `product_title_trgm` kalır: `resolve/candidates.py` kullanıyor.
