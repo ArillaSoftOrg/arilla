@@ -61,7 +61,7 @@ Paylaşılan UI dışa aktarımları: [packages/ui/src/index.ts](../../packages/
 | --- | --- |
 | [PublicSiteShell / SubpageShell](../../apps/web/app/public-site-shell.tsx) | SkipLink, tek `main#icerik`, navbar, oturuma uygun bağlantılar, tema ve footer'ın sahibi. Route layout zaten sarıyorsa sayfayı tekrar sarma. |
 | [HomeHeader](../../packages/ui/src/HomeHeader.tsx) | Marka, Beta, menü, hesap ve duyarlı gezinme. Sayfaya özel alternatif header oluşturma. |
-| [SiteFooter](../../packages/ui/src/SiteFooter.tsx), [EditorialFooter](../../apps/web/app/editorial-footer.tsx) | Varyantı kabuk seçer. Bağlantıları/sosyal hesapları sayfa içinde kopyalama; mobil büyük marka yazısını kesme. |
+| [SiteFooter](../../packages/ui/src/SiteFooter.tsx) | Her public sayfada aynı standart footer (karar 0193); sohbet yüzeyinde footer yok. Bağlantıları/sosyal hesapları sayfa içinde kopyalama; mobil büyük marka yazısını kesme. |
 | [Container](../../packages/ui/src/Container.tsx) | Genişlik ve yatay gutter. Standart kabuk zaten wide Container sağlar; içeride daraltmak için max-width uygula, ikinci gutter ekleme. |
 | [Section](../../packages/ui/src/Section.tsx), [Stack](../../packages/ui/src/Stack.tsx), [Cluster](../../packages/ui/src/Cluster.tsx) | Bölüm aralığı, dikey akış, yatay/sarılabilir gruplar. Sadece bu düzen ihtiyacı için yeni bileşen yazma. |
 | [LegalPageLayout](../../packages/ui/src/LegalPageLayout.tsx) | Okuma genişliği, başlık, gerçekse güncelleme tarihi ve metin hiyerarşisi. `article` üretir; ikinci `main` veya gutter üretmez. |
@@ -71,7 +71,7 @@ Paylaşılan UI dışa aktarımları: [packages/ui/src/index.ts](../../packages/
 | [Badge](../../packages/ui/src/Badge.tsx), [Card](../../packages/ui/src/Card.tsx) | Mevcut tonlar ve yüzeyler; her metni rozet/kart yapma. Sponsor/durum anlamlarını gizleme. |
 | [EmptyState](../../packages/ui/src/EmptyState.tsx), [ErrorNotice](../../packages/ui/src/ErrorNotice.tsx) | Gerçek boş/hata durumları. İçerik yokken sahte başarı, ürün veya sayı gösterme. |
 
-**Kabuk istisnası:** `fullBleed`, standart dış Container'ı kaldırır ve mevcut uygulamada footer'ı `EditorialFooter` olarak değiştirir. Sadece boşluk düzeltmek için açma. Kullanılıyorsa bölüm içeriğinin yatay hizasını tek bir Container/gutter katmanı üstlenir. `chrome="chat"` yalnızca sohbet çalışma alanına aittir; kurumsal sayfa seçeneği değildir.
+**Kabuk istisnası:** `fullBleed`, standart dış Container'ı kaldırır; footer'ı değiştirmez (karar 0193). Sadece boşluk düzeltmek için açma. Kullanılıyorsa bölüm içeriğinin yatay hizasını tek bir Container/gutter katmanı üstlenir. `chrome="chat"` yalnızca sohbet çalışma alanına aittir; kurumsal sayfa seçeneği değildir.
 
 ## 5. Sayfa türüne uygun düzeni seçme
 
