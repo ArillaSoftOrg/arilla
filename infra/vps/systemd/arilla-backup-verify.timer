@@ -1,5 +1,5 @@
 [Unit]
-Description=Haftalik son-set dogrulamasi (Sali 10:30 UTC; yedek 01:36, katalog 02:30 ve besleme 06:30/18:30 pencereleri disinda)
+Description=Haftalik son-set dogrulamasi (Sali 10:30 UTC; yedek 01:36, katalog 02:30 ve besleme 06:30/21:30 pencereleri disinda)
 
 [Timer]
 OnCalendar=Tue *-*-* 10:30:00 UTC

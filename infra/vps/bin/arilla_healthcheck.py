@@ -69,7 +69,7 @@ THRESHOLDS = {
     "verify_all_warn_s": 35 * 24 * 3600,  # aylik tum depo dogrulamasi + tolerans
     "pre_migrate_verify_warn_s": 8 * 24 * 3600,  # haftalik dokum tam okumasi + tolerans (karar 0187)
     "pipeline_stale_crit_s": 50 * 3600,  # gunluk 02:30 kosusu + bir kacan gece + tolerans
-    # Gunluk besleme (karar 0184): gunde iki kosu (06:30, 18:30 + rastgele gecikme).
+    # Gunluk besleme (karar 0184, 0188): gunde iki kosu (06:30, 21:30 + rastgele gecikme).
     "feeds_success_crit_s": 36 * 3600,  # en yeni besleme yazimi; ~3 kacan kosu
     "feeds_fresh_min_ratio": 0.25,  # taze / etkin teklif; 3 bantta 1 guncel besleme ~%40
     "feeds_run_stale_crit_s": 30 * 3600,  # son gunluk kosu kaydi; 2 kacan kosu + tolerans
