@@ -265,3 +265,40 @@ def test_batches_are_sorted_by_length(tmp_path: Path) -> None:
     runner(tmp_path, FakeFetcher(rows), provider, target=4).run()
     sent = [t for call in provider.calls for t in call]
     assert [len(t) for t in sent] == sorted(len(t) for t in sent)
+
+
+def _titles(rows):
+    table = {pid: (title, brand) for pid, title, brand in rows}
+    return lambda ids: {i: table[i] for i in ids if i in table}
+
+
+def test_audit_passes_on_correct_mapping(tmp_path: Path) -> None:
+    rows = catalog(40)
+    runner(tmp_path, FakeFetcher(rows), FakeProvider(), target=40, concurrency=3).run()
+    store = oe.CheckpointStore(tmp_path)
+    report = oe.audit(SPEC, store, _titles(rows), FakeProvider(), sample=25)
+    assert report["passed"] and report["checked"] == 25 and report["misaligned"] == 0
+
+
+def test_audit_detects_swapped_vectors(tmp_path: Path) -> None:
+    rows = catalog(20)
+    runner(tmp_path, FakeFetcher(rows), FakeProvider(), target=20, part_size=20).run()
+    store = oe.CheckpointStore(tmp_path)
+    data = bytearray(store.path(1, "f16").read_bytes())
+    row = DIM * 2
+    data[0:row], data[row : 2 * row] = data[row : 2 * row], data[0:row]
+    store.path(1, "f16").write_bytes(bytes(data))
+    report = oe.audit(SPEC, store, _titles(rows), FakeProvider(), sample=20)
+    assert not report["passed"] and report["misaligned"] == 2
+
+
+def test_audit_reports_changed_and_missing_products(tmp_path: Path) -> None:
+    rows = catalog(10)
+    runner(tmp_path, FakeFetcher(rows), FakeProvider(), target=10).run()
+    now = {pid: (title, brand) for pid, title, brand in rows}
+    now[rows[0][0]] = ("Yeni baslik", None)
+    del now[rows[1][0]]
+    store = oe.CheckpointStore(tmp_path)
+    fetch = lambda ids: {i: now[i] for i in ids if i in now}  # noqa: E731
+    report = oe.audit(SPEC, store, fetch, FakeProvider(), sample=10)
+    assert report["text_changed"] == 1 and report["missing_product"] == 1 and report["passed"]

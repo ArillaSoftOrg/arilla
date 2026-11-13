@@ -367,8 +367,116 @@ class PgFetcher:
             cur.execute(FETCH_SQL, {"after": after_id, "limit": limit})
             return [(int(r[0]), r[1], r[2]) for r in cur.fetchall()]
 
+    def fetch_ids(self, ids: Sequence[int]) -> dict[int, tuple[str | None, str | None]]:
+        with self.conn.cursor() as cur:
+            cur.execute(
+                "SELECT p.id, p.title, b.name FROM product p"
+                " LEFT JOIN brand b ON b.id = p.brand_id WHERE p.id = ANY(%(ids)s)",
+                {"ids": list(ids)},
+            )
+            return {int(r[0]): (r[1], r[2]) for r in cur.fetchall()}
+
     def close(self) -> None:
         self.conn.close()
+
+
+# --- denetim: urun <-> vektor eslemesi gercek veriyle ---------------------------------------
+
+
+def _cos(a: Sequence[float], b: Sequence[float]) -> float:
+    dot = sum(x * y for x, y in zip(a, b, strict=True))
+    na = math.sqrt(sum(x * x for x in a))
+    nb = math.sqrt(sum(y * y for y in b))
+    return dot / (na * nb) if na and nb else 0.0
+
+
+def audit(
+    spec: ModelSpec,
+    store: CheckpointStore,
+    fetch_ids: Callable[[Sequence[int]], dict[int, tuple[str | None, str | None]]],
+    provider: Provider,
+    *,
+    sample: int,
+    seed: int = 191,
+    min_cosine: float = 0.999,
+    split_seq: int | None = None,
+) -> dict[str, Any]:
+    """Orneklenmis satirlarda: (1) saklanan content_hash = urunun SIMDIKI metninin ozeti,
+    (2) metin TEK BASINA yeniden gomulunce saklanan vektorle kosinus >= esik, (3) her saklanan
+    vektorun en yakin taze vektoru KENDI urununun (kayma/karisma yok). Hicbir sey yazmaz."""
+    import random
+
+    parts = store.parts()
+    population = [(p.seq, i) for p in parts for i in range(p.rows)]
+    rng = random.Random(seed)
+    picked = sorted(rng.sample(population, min(sample, len(population))))
+    rows: list[dict[str, Any]] = []
+    dims = spec.dimensions
+    for seq in sorted({s for s, _ in picked}):
+        ids = store.path(seq, "ids").read_bytes()
+        hashes = store.path(seq, "hash").read_bytes()
+        f16 = store.path(seq, "f16").read_bytes()
+        for s, i in picked:
+            if s != seq:
+                continue
+            rows.append(
+                {
+                    "seq": seq,
+                    "id": struct.unpack_from("<q", ids, i * 8)[0],
+                    "hash": hashes[i * 32 : i * 32 + 16],
+                    "vector": struct.unpack_from(f"<{dims}e", f16, i * dims * 2),
+                }
+            )
+    current = fetch_ids([r["id"] for r in rows])
+    missing = changed = 0
+    checked: list[dict[str, Any]] = []
+    for row in rows:
+        found = current.get(row["id"])
+        if found is None:
+            missing += 1
+            continue
+        text = build_product_text(*found)
+        if content_hash(spec.id, text) != row["hash"]:
+            changed += 1  # metin sonradan degismis: yeniden gomulmeli, hata degil
+            continue
+        row["text"] = text
+        checked.append(row)
+    fresh: list[list[float]] = []
+    for row in checked:  # TEK TEK: parti/siralama/es zamanlilik etkisi disarida
+        batch = provider.embed_texts([row["text"]])
+        fresh.append(list(validate_for(spec, batch, 1).vectors[0]))
+    cosines = [_cos(r["vector"], f) for r, f in zip(checked, fresh, strict=True)]
+    misaligned = 0
+    for i, row in enumerate(checked):
+        best = max(range(len(fresh)), key=lambda j: _cos(row["vector"], fresh[j]))
+        if best != i and _cos(row["vector"], fresh[best]) > cosines[i] + 1e-6:
+            misaligned += 1
+    below = sum(1 for c in cosines if c < min_cosine)
+
+    def summary(selector: Callable[[dict[str, Any]], bool]) -> dict[str, Any]:
+        values = sorted(c for r, c in zip(checked, cosines, strict=True) if selector(r))
+        return {
+            "n": len(values),
+            "min_cosine": round(values[0], 6) if values else None,
+            "median_cosine": round(values[len(values) // 2], 6) if values else None,
+        }
+
+    report: dict[str, Any] = {
+        "model": spec.id,
+        "sampled": len(rows),
+        "missing_product": missing,
+        "text_changed": changed,
+        "checked": len(checked),
+        "below_threshold": below,
+        "threshold": min_cosine,
+        "misaligned": misaligned,
+        "all": summary(lambda r: True),
+        "passed": bool(checked) and below == 0 and misaligned == 0,
+    }
+    if split_seq is not None:
+        report["before_split"] = summary(lambda r: r["seq"] < split_seq)
+        report["from_split"] = summary(lambda r: r["seq"] >= split_seq)
+    return report
 
 
 # --- calistirici ---------------------------------------------------------------------------
@@ -704,6 +812,12 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--max-load", type=float, default=6.0)
     run.add_argument("--quiet-windows", default="", help="UTC, or. 01:20-02:15,02:25-03:00")
     run.add_argument("--canary-every", type=int, default=20)
+    aud = sub.add_parser("audit")
+    aud.add_argument("--model", required=True)
+    aud.add_argument("--out", type=Path, required=True)
+    aud.add_argument("--sample", type=int, default=300)
+    aud.add_argument("--seed", type=int, default=191)
+    aud.add_argument("--split-seq", type=int, default=None)
     for name in ("status", "verify"):
         cmd = sub.add_parser(name)
         cmd.add_argument("--out", type=Path, required=True)
@@ -713,6 +827,25 @@ def build_parser() -> argparse.ArgumentParser:
 
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
+    if args.command == "audit":
+        spec = registry().get(args.model)
+        assert spec.endpoint is not None
+        url = os.environ.get(spec.endpoint["url_env"], "").strip()
+        fetcher = PgFetcher(os.environ.get("DATABASE_URL", "").strip())
+        try:
+            report = audit(
+                spec,
+                CheckpointStore(args.out),
+                fetcher.fetch_ids,
+                RemoteHttpTextProvider(spec=spec, base_url=url, purpose="passage", batch_size=1),
+                sample=args.sample,
+                seed=args.seed,
+                split_seq=args.split_seq,
+            )
+        finally:
+            fetcher.close()
+        print(json.dumps(report, indent=1, sort_keys=True))
+        return 0 if report["passed"] else 1
     if args.command in {"status", "verify"}:
         report = CheckpointStore(args.out).verify(deep=args.command == "verify" and args.deep)
         last = None
