@@ -23,7 +23,7 @@ Karar 0060'ın 2. maddesini ("tema yalnızca sistem tercihidir") değiştirir;
    `:root[data-theme="dark"]`); eşitliklerini `theme-tokens.test.ts` denetler.
    Sayfaya özgü tema kuralı yoktur; `/yonetim`'in kendi koyu ayarları da aynı
    iki seçiciyle korunur (değerleri değişmedi).
-5. **Açık tema sıcak kırık beyazdır**, saf beyaz değil: `--paper #FAF8F5`,
+5. *(Karar 0191 ile değişti: açık tema artık nötr `#FCFCFC` / `#0D0D0D`.)* **Açık tema sıcak kırık beyazdır**, saf beyaz değil: `--paper #FAF8F5`,
    `--surface #F3F0EB`, `--surface-hover #EBE7E0`, `--line #E6E1D9`,
    `--line-strong #86817A`, `--ink-secondary #44423E`, `--ink-muted #67635D`.
    Kart ve kutular `--surface-raised #FFFFFF` ile yükselir (0007: beyaz
