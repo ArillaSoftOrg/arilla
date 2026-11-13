@@ -27,15 +27,15 @@ export interface EmailPalette {
 }
 
 export const EMAIL_LIGHT: EmailPalette = {
-  page: "#FAF8F5",
+  page: "#FCFCFC",
   card: "#FFFFFF",
-  ink: "#16181D",
-  inkSecondary: "#44423E",
-  inkMuted: "#67635D",
-  line: "#E6E1D9",
-  accent: "#16181D",
+  ink: "#0D0D0D",
+  inkSecondary: "#404040",
+  inkMuted: "#636363",
+  line: "#E5E5E5",
+  accent: "#0D0D0D",
   accentForeground: "#FFFFFF",
-  surface: "#F3F0EB",
+  surface: "#F4F4F4",
 };
 
 export const EMAIL_DARK: EmailPalette = {

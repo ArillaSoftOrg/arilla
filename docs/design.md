@@ -57,19 +57,19 @@ Mevcut adlar korunur; yeni roller için yeni ad eklenir. Tek kaynak
 
 | Rol | Belirteç | Açık | Koyu |
 | --- | --- | --- | --- |
-| Sayfa zemini | `--paper` | `#FAF8F5` | `#0E0F11` |
-| İnce/ikincil yüzey | `--surface` | `#F3F0EB` | `#17191C` |
+| Sayfa zemini | `--paper` | `#FCFCFC` | `#0E0F11` |
+| İnce/ikincil yüzey | `--surface` | `#F4F4F4` | `#17191C` |
 | Yükseltilmiş yüzey | `--surface-raised` | `#FFFFFF` | `#1E2125` |
-| Yüzey hover | `--surface-hover` | `#EBE7E0` | `#262A2F` |
-| Birincil metin | `--ink` | `#16181D` | `#F2F3F4` |
-| İkincil metin | `--ink-secondary` | `#44423E` | `#C9CDD1` |
-| Soluk metin (meta) | `--ink-muted` | `#67635D` | `#9BA0A6` |
-| Kenarlık (ayırıcı) | `--line` | `#E6E1D9` | `#2A2E33` |
-| Güçlü kenarlık (kontrol sınırı) | `--line-strong` | `#86817A` | `#737982` |
-| Birincil eylem zemini | `--accent` | `#16181D` | `#F2F3F4` |
+| Yüzey hover | `--surface-hover` | `#EBEBEB` | `#262A2F` |
+| Birincil metin | `--ink` | `#0D0D0D` | `#F2F3F4` |
+| İkincil metin | `--ink-secondary` | `#404040` | `#C9CDD1` |
+| Soluk metin (meta) | `--ink-muted` | `#636363` | `#9BA0A6` |
+| Kenarlık (ayırıcı) | `--line` | `#E5E5E5` | `#2A2E33` |
+| Güçlü kenarlık (kontrol sınırı) | `--line-strong` | `#858585` | `#737982` |
+| Birincil eylem zemini | `--accent` | `#0D0D0D` | `#F2F3F4` |
 | Birincil eylem metni | `--accent-foreground` | `#FFFFFF` | `#16181D` |
-| Birincil eylem hover | `--accent-hover` | `#2E3138` | `#D6D9DC` |
-| Odak halkası | `--focus-ring-color` | `#16181D` | `#F2F3F4` |
+| Birincil eylem hover | `--accent-hover` | `#2B2B2B` | `#D6D9DC` |
+| Odak halkası | `--focus-ring-color` | `#0D0D0D` | `#F2F3F4` |
 | Tasarruf / başarı | `--save` | `#1F6F4A` | `#4FBF8B` |
 | `--save` üstü metin | `--on-save` | `#FFFFFF` | `#0E0F11` |
 | Uyarı | `--warning` | `#8A5300` | `#E2A64A` |
@@ -115,10 +115,10 @@ karar 0025).
 - Metin rolleri (`--ink`, `--ink-secondary`, `--ink-muted`, `--save`,
   `--warning`, `--alert`) `--paper`, `--surface` ve `--surface-raised`
   üzerinde en az **4.5:1** sağlar. En düşük değer: açık temada `--ink-muted`
-  / `--surface` = 5.25:1 (karar 0092 sıcak paleti; `--surface-hover` üzerinde
-  4.84:1). Kullanım kartı zeminlerinde (`--tint-*`) metin ≥ 5.9:1.
+  / `--surface` = 5.46:1 (karar 0191 nötr palet; `--surface-hover` üzerinde
+  5.04:1). Kullanım kartı zeminlerinde (`--tint-*`) metin ≥ 5.9:1.
 - `--line-strong` bu üç zeminde ve `--surface-hover` üzerinde en az **3:1**
-  sağlar (en düşük: açık tema `--surface-hover` üzerinde 3.14:1, koyu tema
+  sağlar (en düşük: açık tema `--surface-hover` üzerinde 3.10:1, koyu tema
   `--surface-hover` üzerinde 3.29:1). Etkileşimli kontrolün sınırını tek
   başına belirten her kenarlık (`input`, ikincil buton, chip) bunu kullanır
   (WCAG 1.4.11) — kontrol hover'da `--surface-hover` dolgusu alsa da.

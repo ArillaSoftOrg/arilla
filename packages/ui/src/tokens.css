@@ -16,20 +16,20 @@
   color-scheme: light dark;
 
   /* --- Renk rolleri (design.md "Renk belirteçleri", kontrast orada) --- */
-  /* Karar 0092: acik tema sicak kirik beyaz zemin; kartlar/kutular saf beyaz
-     yukselir (beyaz zeminli urun fotografi kartla bir olur, 0007). */
-  --paper: #faf8f5;
-  --surface: #f3f0eb;
+  /* Karar 0191 (0092 yerine): acik tema notr, neredeyse beyaz zemin + notr griler;
+     kartlar/kutular saf beyaz yukselir (beyaz zeminli urun fotografi kartla bir olur, 0007). */
+  --paper: #fcfcfc;
+  --surface: #f4f4f4;
   --surface-raised: #ffffff;
-  --surface-hover: #ebe7e0;
-  --ink: #16181d;
-  --ink-secondary: #44423e;
-  /* --surface uzerinde 5.25:1, --surface-hover uzerinde 4.84:1 (AA). */
-  --ink-muted: #67635d;
+  --surface-hover: #ebebeb;
+  --ink: #0d0d0d;
+  --ink-secondary: #404040;
+  /* --surface uzerinde 5.46:1, --surface-hover uzerinde 5.04:1 (AA). */
+  --ink-muted: #636363;
   /* Dekoratif ayirici; kontrol siniri icin --line-strong. */
-  --line: #e6e1d9;
-  /* Kontrol siniri, WCAG 1.4.11 icin >= 3:1 (--surface-hover uzerinde 3.14:1). */
-  --line-strong: #86817a;
+  --line: #e5e5e5;
+  /* Kontrol siniri, WCAG 1.4.11 icin >= 3:1 (--surface-hover uzerinde 3.10:1). */
+  --line-strong: #858585;
   --save: #1f6f4a;
   --on-save: #ffffff;
   --warning: #8a5300;
@@ -51,13 +51,13 @@
      /yonetim (etkin gezinme, secim, odak) ve public sayfalarda dekoratif
      marka isareti olarak; metin ya da durum rengi olarak asla. */
   --brand: #b7f52f;
-  --on-brand: #16181d;
+  --on-brand: #0d0d0d;
   /* Acik zeminde okunakli yesil surum etiketi. */
   --brand-label: var(--save);
   /* Karar 0025: --ink'in ters rolu, notr birincil eylem. */
-  --accent: #16181d;
+  --accent: #0d0d0d;
   --accent-foreground: #ffffff;
-  --accent-hover: #2e3138;
+  --accent-hover: #2b2b2b;
   --focus-ring-color: var(--ink);
 
   /* Kullanim kartlarinin (ana sayfa "Arama yollari") yumusak zemin tonlari. */
