@@ -10,7 +10,6 @@ import type { ReactNode } from "react";
 import { logoutAction } from "./cikis-actions.ts";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "./early-access-copy.ts";
-import { EditorialFooter } from "./editorial-footer.tsx";
 import { HOME_COPY } from "./home-copy.ts";
 import {
   compactEarlyAccessFooterGroups,
@@ -84,6 +83,8 @@ export async function PublicSiteShell({
   showFooterSocial?: boolean;
   /** Keeps the prelaunch landing footer concise without affecting other routes. */
   compactFooter?: boolean;
+  /** Yalnizca header davranisi (prelaunch: hesap/admin baglantisi menude). Footer her
+   *  sayfada ayni standart SiteFooter'dir (karar 0193). */
   footerVariant?: "default" | "prelaunch";
   /** Yalnizca bu sayfanin standart footer'i icin duzen sinifi. */
   footerClassName?: string;
@@ -182,20 +183,8 @@ export async function PublicSiteShell({
           </Container>
         )}
       </main>
-      {isChat ? null : fullBleed ? (
-        <EditorialFooter
-          brandLabel={SITE_BRAND}
-          groups={footerGroups}
-          affiliateNotice={HOME_COPY.affiliateNotice}
-          affiliateLink={{ label: HOME_COPY.affiliateNoticeLink, href: "/affiliate-aciklamasi" }}
-          priceDisclaimer={HOME_COPY.priceDisclaimer}
-          copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
-          legalLinks={[
-            { label: HOME_COPY.navPrivacy, href: "/gizlilik" },
-            { label: HOME_COPY.navTerms, href: "/kosullar" },
-          ]}
-        />
-      ) : (
+      {/* Tek footer (karar 0193): her public sayfa ayni SiteFooter'i kullanir. */}
+      {isChat ? null : (
         <SiteFooter
           className={footerClassName}
           brandLabel={SITE_BRAND}
@@ -211,7 +200,6 @@ export async function PublicSiteShell({
           }
           priceDisclaimer={HOME_COPY.priceDisclaimer}
           copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
-          variant={footerVariant}
         />
       )}
     </div>
