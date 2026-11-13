@@ -84,6 +84,11 @@ tamamı anlamını yitirir.
      `api_usage`'a yazılır. Gölge modda sonuç DEĞİŞMEZ; yalnızca sayısal ölçüler
      (`semantic_shadow_event`) saklanır, sorgu metni ve özeti saklanmaz. Model ürün/fiyat üretmez;
      benzerlik ürün kimliği kanıtı değildir.
+   - Anlamsal metin araması (karar 0178, 0190): sorgu metninin embedding'i, yalnızca
+     `SEMANTIC_SEARCH_MODE` `shadow` (sonuç değişmez, arka planda ölçü) ya da `on` iken
+     (varsayılan kapalı), KVKK süzgecinden geçen sorgu için, kısa zaman aşımıyla, günlük tavanla,
+     sağlayıcı sağlık devresiyle; her çağrı `api_usage`'a yazılır. `on` yalnızca hazır ve model
+     uyumlu indeks varken sonuca karışır; metin sonucu düşmez, her hata metin aramasına düşer.
    Başka hiçbir yerde istek anında LLM veya model çağrısı yapılmaz.
 2. **Benzerlik sorgu anında hesaplanmaz.** `similarity_edge` tablosu toplu işle
    doldurulur, istek yolu sadece okur.

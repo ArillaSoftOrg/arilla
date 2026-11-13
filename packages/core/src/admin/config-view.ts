@@ -328,14 +328,16 @@ export function getConfigView(actor: AdminActor, env: Env = process.env): Config
       state:
         raw(env, "SEMANTIC_SEARCH_MODE") === undefined
           ? "default"
-          : ["off", "shadow"].includes(raw(env, "SEMANTIC_SEARCH_MODE")?.toLowerCase() ?? "")
+          : ["off", "shadow", "on"].includes(
+                raw(env, "SEMANTIC_SEARCH_MODE")?.trim().toLowerCase() ?? "",
+              )
             ? "set"
             : "invalid",
       value: semanticSearchMode(env),
       note:
-        semanticSearchMode(env) === "shadow" && !raw(env, "JINA_API_KEY")
-          ? "Gölge açık ama JINA_API_KEY yok: ölçüm no_vector yazar"
-          : "off: kapalı · shadow: sonuç değişmez, arka planda yalnız sayısal ölçü",
+        semanticSearchMode(env) !== "off" && !raw(env, "JINA_API_KEY")
+          ? "Anlamsal mod açık ama JINA_API_KEY yok: sonuç metin aramasıyla aynı kalır"
+          : "off: kapalı · shadow: sonuç değişmez, arka planda yalnız sayısal ölçü · on: hazır indeks ve sağlıklı sağlayıcıyla sıralamaya karışır, her hatada metin araması",
     },
     flag(env, "CHAT_DISCOVERY_ENABLED", "Konuşmalı keşif (sohbet)", "ai", chatOn),
     flag(

@@ -6,6 +6,7 @@ import {
   formatTraceForLog,
   isRedisUnavailableError,
   normalizeParsedForSearch,
+  prepareSearchFilters,
   type QueryObject,
   recordActivity,
   recordSearchAndCheckWall,
@@ -14,7 +15,9 @@ import {
   type SearchSummaryIntent,
   type SortMode,
   searchWithFallback,
+  serveSemantic,
   TEXT_SEARCH_TIMEOUT_MS,
+  withExplicitUiCategory,
 } from "@arilla/core";
 import { ANONYMOUS_SESSION_COOKIE, validAnonymousSessionId } from "@arilla/core/anonymous-session";
 import { getDatabase } from "@arilla/db";
@@ -51,6 +54,7 @@ export async function TextSearchResults({
   clarificationAsked = false,
   summaryIntent = null,
   webSearch = null,
+  uiCategory = null,
 }: {
   query: string;
   /** Konusma yolundan derlenmis sorgu; yoksa mevcut `resolveQuery` yolu. */
@@ -72,6 +76,8 @@ export async function TextSearchResults({
    * (bayrak kapalıysa `null`). Veritabanı sonuçları bunu BEKLEMEZ.
    */
   webSearch?: Promise<WebSearchBundle> | null;
+  /** Karar 0190: arayuzden secilen, katalogda dogrulanmis kategori (`explicit_ui`). */
+  uiCategory?: string | null;
 }) {
   const db = getDatabase();
 
@@ -127,8 +133,16 @@ export async function TextSearchResults({
   const intent = await applyIntentV2(db, query, parsed, {
     actor: { userId: user?.id ?? null, ip: clientIp(await headers()) },
   });
-  const searchParsed = await normalizeParsedForSearch(db, intent.parsed);
-  const outcome = await searchWithFallback(
+  const normalized = await normalizeParsedForSearch(db, intent.parsed);
+  // Karar 0190: arayuz kategorisi metin/IntentV2 kategorisini ezer ve gevsetilmez; metin
+  // kaynakli kesin kategori katalogda yoksa yalniz siralama ipucuna duser.
+  const searchParsed = await prepareSearchFilters(
+    db,
+    uiCategory
+      ? { ...normalized, filters: withExplicitUiCategory(normalized.filters, uiCategory) }
+      : normalized,
+  );
+  const lexicalOutcome = await searchWithFallback(
     createPostgresSearchProvider(db, { statementTimeoutMs: TEXT_SEARCH_TIMEOUT_MS }),
     {
       parsed: { ...searchParsed, sort: effectiveSort },
@@ -146,6 +160,12 @@ export async function TextSearchResults({
       },
     },
   );
+  // Anlamsal sunum (karar 0190): `SEMANTIC_SEARCH_MODE=on` degilse I/O yok, sonuc aynen; her
+  // hatada metin sonucu aynen.
+  const { outcome } = await serveSemantic(db, searchParsed, lexicalOutcome, {
+    page,
+    sort: effectiveSort,
+  });
   const isFallback = outcome.mode === "fallback";
   const items = outcome.items;
   // Yakin sonuclar "sonuc" sayilmaz: sayac ve analitik gercek eslesmeyi olcer.

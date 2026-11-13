@@ -108,6 +108,7 @@ describe("hediye akisi", () => {
     });
     expect(query.filters).toEqual({
       category_path: "elektronik",
+      category_source: "explicit_text_verified",
       price_min: 50000,
       price_max: 100000,
     });

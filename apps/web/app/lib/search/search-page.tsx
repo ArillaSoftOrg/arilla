@@ -1,6 +1,8 @@
 import {
   type ConversationPlan,
+  categoryPathExists,
   loadLexiconCached,
+  parseUiCategoryParam,
   planConversationWithRealtimeInterpretation,
   type ReplyResult,
   type SearchSummaryIntent,
@@ -75,6 +77,11 @@ export interface AramaSearchParams {
   yanit?: string;
   /** Uygulanan yanitin yaninda karsiligi olmayan bir fiyat tercihi vardi. */
   uyari?: string;
+  /**
+   * Karar 0190: arayuzden ACIKCA secilen kategori yolu (`explicit_ui`): kesin filtre, gevsetilmez.
+   * Bicimi guvensiz ya da katalogda olmayan deger yok sayilir.
+   */
+  kategori?: string | string[];
 }
 
 function toList(value: string | string[] | undefined): string[] {
@@ -90,6 +97,7 @@ function aramaHref({
   page,
   notice,
   focus,
+  category,
 }: {
   query: string;
   steps: readonly string[];
@@ -97,9 +105,11 @@ function aramaHref({
   page?: number;
   notice?: "fiyat";
   focus?: boolean;
+  category?: string | null;
 }): string {
   const params = new URLSearchParams({ q: query });
   for (const step of steps) params.append("n", step);
+  if (category) params.set("kategori", category);
   if (sort && sort !== "balanced") params.set("sort", sort);
   if (page && page > 1) params.set("sayfa", String(page));
   if (notice) params.set("uyari", notice);
@@ -198,7 +208,7 @@ function replyNotice(
  */
 export async function SearchPage({ searchParams }: { searchParams: Promise<AramaSearchParams> }) {
   await requireProductAccess();
-  const { q, sort: sortParam, sayfa, n, yanit, uyari } = await searchParams;
+  const { q, sort: sortParam, sayfa, n, yanit, uyari, kategori } = await searchParams;
   const requestedQuery = q?.trim() ?? "";
   const requestedSteps = toList(n);
   const replyText = yanit?.trim() || null;
@@ -216,6 +226,12 @@ export async function SearchPage({ searchParams }: { searchParams: Promise<Arama
   }
 
   const db = getDatabase();
+  // Karar 0190: yalniz guvenli bicimde ve katalogda VAR olan yol; agac okunamazsa uygulanmaz.
+  const parsedCategory = parseUiCategoryParam(kategori);
+  const uiCategory =
+    parsedCategory !== null && (await categoryPathExists(db, parsedCategory)) === true
+      ? parsedCategory
+      : null;
   const { plan, summaryIntent } = await planSafely(db, {
     query: requestedQuery,
     steps: requestedSteps,
@@ -245,6 +261,7 @@ export async function SearchPage({ searchParams }: { searchParams: Promise<Arama
         sort: conversationSort,
         notice: replyStored && plan.reply?.ignoredPricePreference ? "fiyat" : undefined,
         focus: replyText !== null,
+        category: uiCategory,
       }),
     );
   }
@@ -261,13 +278,20 @@ export async function SearchPage({ searchParams }: { searchParams: Promise<Arama
       : null;
 
   function stepsHref(nextSteps: readonly string[]): string {
-    return aramaHref({ query, steps: nextSteps, sort: conversationSort, focus: true });
+    return aramaHref({
+      query,
+      steps: nextSteps,
+      sort: conversationSort,
+      focus: true,
+      category: uiCategory,
+    });
   }
 
   const conversationFields = [
     { name: "q", value: query },
     ...steps.map((value) => ({ name: "n", value })),
     ...(conversationSort !== "balanced" ? [{ name: "sort", value: conversationSort }] : []),
+    ...(uiCategory ? [{ name: "kategori", value: uiCategory }] : []),
   ];
 
   const question = plan.mode === "conversation" ? plan.question : null;
@@ -390,7 +414,10 @@ export async function SearchPage({ searchParams }: { searchParams: Promise<Arama
           isNewSearch={steps.length === 0 && replyText === null}
           requestedSort={requestedSort}
           page={page}
-          hrefFor={({ sort, page: target }) => aramaHref({ query, steps, sort, page: target })}
+          hrefFor={({ sort, page: target }) =>
+            aramaHref({ query, steps, sort, page: target, category: uiCategory })
+          }
+          uiCategory={uiCategory}
           clarificationAsked={question !== null}
           summaryIntent={summaryIntent}
           webSearch={webSearch}

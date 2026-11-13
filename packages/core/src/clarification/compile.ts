@@ -102,7 +102,11 @@ export function compileQuery(
       ? domain.categoryPath
       : undefined) ??
     state.lexical.category_path;
-  if (categoryPath !== undefined) filters.category_path = categoryPath;
+  if (categoryPath !== undefined) {
+    filters.category_path = categoryPath;
+    // Netlestirme adaylari, alan kaydi ve sozluk: hepsi katalogla/sozlukle eslesen yol (karar 0190).
+    filters.category_source = "explicit_text_verified";
+  }
   if (state.lexical.color) filters.color = [...state.lexical.color];
   if (state.lexical.size_norm !== undefined) filters.size_norm = state.lexical.size_norm;
   if (state.lexical.brand_include) filters.brand_include = [...state.lexical.brand_include];

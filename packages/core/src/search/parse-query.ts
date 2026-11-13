@@ -269,6 +269,9 @@ export function parseQueryText(
   if (colors.size > 0) filters.color = [...colors];
   if (bestCategory !== undefined && confidence >= minConfidence) {
     filters.category_path = bestCategory.normalized;
+    // Kullanicinin kendi metni + sozluk eslesmesi (karar 0190); katalog varligi arama aninda
+    // `verifyTextCategory` ile ayrica denetlenir.
+    filters.category_source = "explicit_text_verified";
   }
   if (brandInclude.size > 0) filters.brand_include = [...brandInclude];
   if (brandExclude.size > 0) filters.brand_exclude = [...brandExclude];

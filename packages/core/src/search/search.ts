@@ -171,6 +171,45 @@ async function searchByClosestMatch(
   return toResult(result.rows, "closest_match");
 }
 
+/**
+ * Verilen urunlerin kartlari, metin aramasiyla AYNI kesin suzgec, gorunurluk ve en iyi teklif
+ * kurallariyla (karar 0190: yalniz-anlamsal adaylarin kartlari). Suzgeci gecmeyen urun DONMEZ.
+ * Sira, verilen kimlik sirasidir.
+ */
+export async function cardsForProducts(
+  db: Database,
+  productIds: readonly number[],
+  filters: QueryObject["filters"],
+): Promise<SearchResultItem[]> {
+  const ids = [...new Set(productIds)].filter((id) => Number.isSafeInteger(id) && id > 0);
+  if (ids.length === 0) return [];
+  const inStockOnly = filters.in_stock_only ?? false;
+  const result = await db.execute<RawRow>(sql`
+    WITH wanted AS (
+      SELECT id, ord FROM unnest(${sql.param(ids)}::bigint[]) WITH ORDINALITY AS w(id, ord)
+    ),
+    ${bestOfferCte(inStockOnly, merchantIdsOf(filters), null, sql`o.product_id IN (SELECT id FROM wanted)`)}
+    SELECT p.id, p.public_id, p.slug, p.title, p.primary_image_url,
+           b.name AS brand_name, c.path AS category_path,
+           bo.current_price, bo.in_stock, bo.trust_score,
+           pps.current_percentile, pps.list_price_inflated, p.offer_count,
+           ${BEST_OFFER_ORIGIN_COLUMNS},
+           '0'::text AS total_count,
+           0::double precision AS score
+    FROM wanted w
+    JOIN product p ON p.id = w.id
+    JOIN best_offer bo ON bo.product_id = p.id
+    LEFT JOIN product_price_stats pps ON pps.product_id = p.id
+    LEFT JOIN brand b ON b.id = p.brand_id
+    LEFT JOIN category c ON c.id = p.category_id
+    WHERE p.publication_state = 'published'
+      AND ${visibleWithoutBestOfferSql("p", "bo")}
+      AND ${buildFilterClause(filters)}
+    ORDER BY w.ord
+  `);
+  return withStartingFrom(db, result.rows.map(toResultItem));
+}
+
 export async function search(
   db: Database,
   query: QueryObject,

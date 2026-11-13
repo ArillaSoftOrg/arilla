@@ -76,3 +76,15 @@ export function balancedScoreExpr(
     )::double precision
   )`;
 }
+
+/**
+ * Tahmin edilen kategori (karar 0190) yalniz SIRALAMA sinyalidir: o kategorideki (ya da alt
+ * kategorisindeki) urunun dengeli skoru bu carpanla artar; baska kategorideki ve kategorisiz urun
+ * DISLANMAZ, puani degismez. Kucuk tutulur: metin alakasini ezmemeli.
+ */
+export const CATEGORY_HINT_BOOST = 1.15;
+
+/** `c.path` uzerinden ipucu carpani; ipucu yoksa (`null`) 1.0. Deger parametre olarak gider. */
+export function categoryHintFactor(hint: string | null): SQL {
+  return sql`(CASE WHEN ${hint}::text IS NOT NULL AND (c.path = ${hint} OR c.path LIKE ${hint} || '/%') THEN ${CATEGORY_HINT_BOOST}::double precision ELSE 1.0::double precision END)`;
+}

@@ -7,8 +7,8 @@
  * - H kipi -> mevcut `QueryFilters` (`price_min/max` kurus, `brand_include`,
  *   `brand_exclude`, `category_path`). H'ye giren her deger dogrulayicida
  *   katalog kolonuyla eslesmistir; burada yeniden H uretilmez.
- * - R kipi -> `RankHints`: siralama ipucu VERISI. Hicbir sonuc dislamaz;
- *   siralamaya baglanmasi Faz 2'nin isidir.
+ * - R kipi -> `RankHints`: siralama ipucu VERISI. Hicbir sonuc dislamaz.
+ *   Kategori ipucu `applyIntentPlan`da `category_hint` olur (karar 0190: yumusak sinyal).
  * - D kipi -> `display`: yalnizca cip gosterimi.
  * - X -> atilir.
  *
@@ -81,7 +81,11 @@ export function toSearchPlan(intent: ValidatedIntentV2): IntentSearchPlan {
           filters.brand_exclude = uniq([...(filters.brand_exclude ?? []), value]);
           break;
         case "category":
-          if (c.canonical) filters.category_path = c.canonical;
+          if (c.canonical) {
+            filters.category_path = c.canonical;
+            // H kipi: dogrulayici katalog kolonuyla eslestirdi (karar 0171 §7.1, 0190).
+            filters.category_source = "explicit_text_verified";
+          }
           break;
         case "budget":
           // Deger `intent.budget`tan (kurus) okunur; asagida.
@@ -137,7 +141,16 @@ export function applyIntentPlan(base: QueryObject, plan: IntentSearchPlan): Quer
   for (const key of keys) {
     if (!isSet(merged[key]) && isSet(plan.filters[key])) {
       (merged as Record<string, unknown>)[key] = plan.filters[key];
+      // Kategori kaynagi yoluyla birlikte gelir (karar 0190).
+      if (key === "category_path" && plan.filters.category_source) {
+        merged.category_source = plan.filters.category_source;
+      }
     }
+  }
+  // R kipi kategori: yalniz siralama ipucu; kesin yol varsa eklenmez (karar 0190).
+  if (isSet(merged.category_path) && isSet(merged.category_hint)) delete merged.category_hint;
+  if (!isSet(merged.category_path) && !isSet(merged.category_hint) && plan.hints.category) {
+    merged.category_hint = plan.hints.category;
   }
   if (isSet(plan.filters.brand_exclude)) {
     merged.brand_exclude = uniq([
