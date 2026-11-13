@@ -478,6 +478,20 @@ jobs:
           grep -q "Uygulanacak migration yok" "$RUNNER_TEMP/second.txt"
       - name: sema dogrulama (Drizzle + append-only yetkileri)
         run: pnpm db:verify
+      # Karar 0188 / partition guvenligi: uretim idempotent, kontrol salt okunur ve ufku denetler.
+      # Gelecek ayin partition'i yalniz AYRILIR (DETACH, veri silinmez) ve geri baglanir (ATTACH).
+      - name: partition uretimi idempotent + ufuk kontrolu
+        run: |
+          set -euo pipefail
+          pnpm db:partitions | tee "$RUNNER_TEMP/part2.txt"
+          grep -q "Yeni partition gerekmedi" "$RUNNER_TEMP/part2.txt"
+          pnpm db:partitions --check
+          next=$(psql "$DATABASE_URL_OWNER" -Atc "SELECT to_char(date_trunc('month', now()) + interval '1 month', '\"price_point_\"YYYY_MM')")
+          bound=$(psql "$DATABASE_URL_OWNER" -Atc "SELECT pg_get_expr(relpartbound, oid) FROM pg_class WHERE relname = '$next'")
+          psql "$DATABASE_URL_OWNER" -v ON_ERROR_STOP=1 -c "ALTER TABLE price_point DETACH PARTITION $next"
+          if pnpm db:partitions --check; then echo "gelecek ay eksikken kontrol KRITIK vermedi" >&2; exit 1; fi
+          psql "$DATABASE_URL_OWNER" -v ON_ERROR_STOP=1 -c "ALTER TABLE price_point ATTACH PARTITION $next $bound"
+          pnpm db:partitions --check
       # Karar 0134: WAL geri basinci testleri GERCEK arsiv ister. Yalniz bu atilabilir servis
       # konteynerinde arsiv acilir (kopyalamayan, gecikmesi/hatasi denetlenen komut).
       - name: WAL arsivini ac (yalniz CI servisi)

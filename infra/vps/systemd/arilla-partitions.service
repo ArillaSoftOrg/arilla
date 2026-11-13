@@ -2,12 +2,15 @@
 Description=Arilla price_point aylik bolum uretimi (bu ay + 3 ay)
 Requires=docker.service
 After=docker.service
+OnFailure=arilla-alert@%n.service
 
 [Service]
 Type=oneshot
 WorkingDirectory=/opt/arilla
 # Sahip kimligi yalniz gecici `migrate` konteynerinde (migrate.env); uzun omurlu
-# hicbir konteynerde yok. Sirasiyla: bolum uret, sonra price_point_default kontrolu.
+# hicbir konteynerde yok. Sirasiyla: bolum uret (idempotent: var olan ay atlanir), sonra SALT
+# OKUNUR kontrol (default bos mu + ufuk; karar 0188). Uzak hedef onayi migrate.env'de
+# (ARILLA_CONFIRM_REMOTE_DB). Dolu default varken o ayin bolumu ACILAMAZ: runbook docs/ops.md.
 ExecStart=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml run --rm migrate node scripts/partitions.ts
 ExecStartPost=/usr/bin/docker compose --env-file /opt/arilla/compose.env -f /opt/arilla/compose.prod.yml run --rm migrate node scripts/partitions.ts --check
 TimeoutStartSec=300
