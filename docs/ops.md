@@ -2219,6 +2219,62 @@ imleci, kapı durumu, yayın `ready`'den). Tek adım için eski komutlar geçerl
 true` iken bulunur (en iyi teklif seçimi etkin mağaza ister). Hattı kurmadan önce
 `SELECT slug, is_active FROM merchant WHERE slug = 'aliexpress'` doğrulanmalıdır (salt okunur).
 
+### Runbook — Otomatik yayın disk eşiğinde durdu
+
+**Belirti.** Sağlık kontrolünde `catalog-auto:freshness` önce UYARI verir ("bos disk N GiB < 70 GiB"),
+36 saat sonra KRİTİK olur. `journalctl -u arilla-catalog-auto` her tetikte
+`Skipped due to 'exec-condition'` ve `catalog-auto-guard: atlandi: bos disk N GB < 70 GB` gösterir.
+ExecCondition atlaması hata sayılmaz, `job_run` yazmaz ve `OnFailure` alarmı üretmez. Bu yüzden
+hattın durduğunu yalnızca bu kural gösterir.
+
+**70 GiB eşiği düşürülmez.** Başlangıç eşiği 70 GiB, çalışma rezervi 40 GiB'tir (karar 0164;
+`catalog-publish` ile aynı). Yayın WAL ve disk üretir (yaklaşık 8,5 KB/ürün). Eşik, besleme indirmesi
+(20 GiB) ve yedek payıyla birlikte hesaplanmıştır. Çözüm diski boşaltmaktır.
+
+**12 Kasım 2026 olayı.**
+- Hat 10 Kasım 21:18 UTC'den sonra hiç çalışmadı. Boş disk 55–64 GiB arasındaydı.
+- Nedeni: `backups/` altında 5 migration öncesi döküm vardı (45,5 GB). Hiçbirinin metadatası
+  yoktu, bu yüzden 0187 politikası hiçbirini aday görmüyordu.
+- Sabah beslemesi başarılı olsa bile (`OnSuccess`) guard atlıyordu. Akşam beslemesi `partial`
+  bittiği için zaten tetiklemiyordu (karar 0184).
+
+**Düzeltme.** Sıra önemlidir; her adım insan onaylıdır.
+- Zamanlama: Besleme (06:30/18:30 UTC), yedek (01:20–02:05 UTC), gece hattı (02:30 UTC) ve
+  doğrulama pencerelerinin dışında çalıştırın. Örneğin Pazartesi ve Salı dışındaki bir gün,
+  09:30–12:00 UTC.
+- Yük: Adımlar toplam yaklaşık 90 GB okur. SHA-256 hesapları ve tam veri okumaları 1 CPU'luk,
+  ağsız konteynerde çalışır.
+
+1. `pre_migrate_dumps.py report` ve `adopt` (önizleme; yazmaz). Her döküm için deploy günlüğü
+   bulunmalı ve sonuç `success` olmalı.
+2. `adopt --confirm`: metadata yazar (SHA-256 ve içindekiler). Dosya silmez.
+3. Her döküm için `verify --file <ad> --full`. Silinecek her aday ve korunacak iki döküm tam
+   okumadan geçmelidir.
+4. `report`: beklenen sonuç, 3 ADAY ve 2 KORU.
+5. `prune` (önizleme), ardından `prune --confirm`. Kilit alınır, her şey yeniden doğrulanır, silme
+   kaydı `state/pre-migrate-prune.log`'a yazılır.
+
+**Kanıt.** Hiçbir işi elle başlatmayın; hattın kendi tetiğini bekleyin.
+1. `pre_migrate_dumps.py report`: 2 KORU, 0 ADAY. `state/pre-migrate-prune.log` dosyasında 3 silme
+   satırı bulunmalı.
+2. `df -BG --output=avail /opt/arilla`: değer 70G'den büyük olmalı. Guard ile aynı birimdir (GiB).
+3. `sudo /opt/arilla/vps/bin/catalog-auto-guard; echo $?` komutu `0` döndürmeli. Bu betik yalnızca
+   okur.
+4. Bir sonraki tetikte `journalctl -u arilla-catalog-auto -n 20` çıktısında
+   `Skipped due to 'exec-condition'` görünmemeli. Tetik, sabah beslemesi başarılıysa `OnSuccess`,
+   değilse 12:15 UTC güvenlik ağıdır.
+5. `job_run` tablosunda `job='catalog_auto'` için yeni bir kayıt oluşmalı ve `detail ? 'skipped'`
+   false olmalı. `catalog_publish` sayaçları artmalı.
+6. Sağlık kontrolünde `catalog-auto:freshness` OK olmalı. `catalog_build backlog` sonucunda `ready`
+   ve `draft` sayıları azalmalı.
+
+**Kalıcı risk.**
+- 12 Kasım hesabı: üç eski döküm silinirse (26,1 GB = 24,4 GiB) boş alan yaklaşık 79 GiB olur.
+  Bir sonraki migration'lı deploy ise yaklaşık 10 GB'lık yeni bir döküm bırakır ve boş alanı
+  yeniden 70 GiB'in altına indirir.
+- Sonuç: Her migration'lı deploy'dan sonra `report` → doğrulama → `prune --confirm` turu aynı gün
+  yapılmalıdır. Aksi halde otomatik yayın yeniden durur ve bu kural UYARI verir.
+
 ## Bootstrap kataloğu (geçici, yalnızca yerel)
 
 `docs/decisions/0027`. Admitad öncesi test kataloğu; Shopify `/products.json`

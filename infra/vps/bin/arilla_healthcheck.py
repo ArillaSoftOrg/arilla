@@ -73,7 +73,16 @@ THRESHOLDS = {
     "feeds_success_crit_s": 36 * 3600,  # en yeni besleme yazimi; ~3 kacan kosu
     "feeds_fresh_min_ratio": 0.25,  # taze / etkin teklif; 3 bantta 1 guncel besleme ~%40
     "feeds_run_stale_crit_s": 30 * 3600,  # son gunluk kosu kaydi; 2 kacan kosu + tolerans
+    # Otomatik katalog hatti (karar 0164): yonetim panelinin gecikme esigiyle ayni. ExecCondition
+    # atlamasi `job_run` yazmaz ve alarm uretmez; durmus hatti yalniz bu kural yakalar.
+    "catalog_auto_stale_crit_s": 36 * 3600,
 }
+
+#: Otomatik katalog hatti (karar 0164). Esik `catalog-auto-guard` (START_FREE_GB) ve
+#: `catalog_build.auto.START_FREE_GB` ile AYNIDIR (GiB); test_arilla_healthcheck esitligi denetler.
+CATALOG_AUTO_TIMER = "arilla-catalog-auto.timer"
+CATALOG_AUTO_JOB = "catalog_auto"
+CATALOG_AUTO_START_FREE_GIB = 70
 
 #: Sonucu `job_run`'dan siniflandirilan birimler -> o birimin yazdigi isler (karar 0174).
 PIPELINE_JOBS = {"arilla-catalog-pipeline.service": ("resolve", "similarity_edges")}
@@ -290,7 +299,28 @@ class Collector:
         jobs = tuple(j for unit_jobs in PIPELINE_JOBS.values() for j in unit_jobs)
         facts["pipeline_last_ran"] = self.pipeline_last_ran(jobs)
         facts["feeds_recent"] = self.feeds_recent()
+        facts["catalog_auto"] = self.catalog_auto_state()
         return facts
+
+    def catalog_auto_state(self) -> dict | None:
+        """Otomatik katalog hatti: zamanlayici etkin mi, son GERCEK calisma, son atlama nedeni.
+
+        Hat kurulu degilse {"enabled": False}; kayitlar okunamazsa None (fail-closed).
+        """
+        rc, out = self.run(["systemctl", "is-enabled", CATALOG_AUTO_TIMER], 15)
+        if out.strip() != "enabled":
+            return {"enabled": False}
+        rc, out = self.psql(CATALOG_AUTO_SQL)
+        if rc != 0:
+            return None
+        f = out.strip().split("|")
+        if len(f) != 2 or (f[0] and not f[0].isdigit()):
+            return None
+        return {
+            "enabled": True,
+            "last_worked": datetime.fromtimestamp(int(f[0]), tz=timezone.utc) if f[0] else None,
+            "last_skip": f[1] or None,
+        }
 
 
 # --------------------------------------------------------------------------- katalog hatti
@@ -384,6 +414,52 @@ select status, replace(coalesce(error_summary, ''), '|', '/'),
  where job = '{FEEDS_JOB}' and trigger = 'cron'
  order by started_at desc limit 2
 """
+
+
+#: (son gercek calismanin bitisi epoch | en yeni kaydin Python tarafi atlama nedeni).
+#: Python tarafi atlama (`disk_low_*`, `backup_window`, `auto_running` ...) `success` + `detail.skipped`
+#: yazar: calisma SAYILMAZ. ExecCondition (catalog-auto-guard) atlamasi hic kayit yazmaz.
+CATALOG_AUTO_SQL = f"""
+select coalesce((
+        select extract(epoch from finished_at)::bigint::text from job_run
+         where job = '{CATALOG_AUTO_JOB}' and status in ('success', 'partial')
+           and finished_at is not null and not (detail ? 'skipped')
+         order by started_at desc limit 1), ''),
+       coalesce((
+        select replace(detail->>'skipped', '|', '/') from job_run
+         where job = '{CATALOG_AUTO_JOB}' order by started_at desc limit 1), '')
+"""
+
+
+def catalog_auto_check(state: dict | None, free_bytes: int | None, now: datetime, t: dict) -> Check | None:
+    """Otomatik katalog hatti durdu mu (karar 0164). Kurulu degilse kontrol yok.
+
+    - Son gercek calisma esikten eski -> CRIT (nedeni disk ise mesaj cozum yolunu soyler).
+    - Bos disk baslangic esiginin altinda -> WARN: hat her tetikte SESSIZCE atlanir; 36 saat dolmadan
+      erken uyari (12 Kasim: 2 gun boyunca alarmsiz durdu).
+    """
+    if state is not None and not state.get("enabled"):
+        return None
+    if state is None:
+        return Check("catalog-auto:freshness", CRIT, f"{CATALOG_AUTO_JOB} kayitlari okunamadi")
+    gib = 1 << 30
+    low_disk = free_bytes is not None and free_bytes < CATALOG_AUTO_START_FREE_GIB * gib
+    disk_note = (
+        f"bos disk {free_bytes // gib} GiB < {CATALOG_AUTO_START_FREE_GIB} GiB baslangic esigi; hat her tetikte "
+        "atlaniyor (esik DUSURULMEZ; docs/ops.md 'Otomatik yayin disk esiginde durdu')"
+        if low_disk else ""
+    )
+    last = state.get("last_worked")
+    if last is None:
+        return Check("catalog-auto:freshness", WARN, "calisti kaydi yok" + (f"; {disk_note}" if disk_note else ""))
+    age = (now - last).total_seconds()
+    if age > t["catalog_auto_stale_crit_s"]:
+        why = disk_note or (f"son atlama nedeni: {state['last_skip']}" if state.get("last_skip") else "")
+        return Check("catalog-auto:freshness", CRIT,
+                     f"otomatik katalog hatti {human(age)}dir calismadi" + (f"; {why}" if why else ""))
+    if low_disk:
+        return Check("catalog-auto:freshness", WARN, f"son calisma {human(age)} once; {disk_note}")
+    return Check("catalog-auto:freshness", OK, f"son calisma {human(age)} once")
 
 
 def feed_level_only(problems: str | None) -> bool:
@@ -747,6 +823,11 @@ def evaluate(facts: dict, now: datetime, t: dict = THRESHOLDS) -> list[Check]:
                 out.append(Check("feeds:freshness", CRIT, f"gunluk besleme {human(age)}dir calismadi"))
             else:
                 out.append(Check("feeds:freshness", OK, f"son gunluk besleme {human(age)} once ({feeds[0]['status']})"))
+
+    if "catalog_auto" in facts:
+        ca = catalog_auto_check(facts["catalog_auto"], facts.get("root_free_bytes"), now, t)
+        if ca:
+            out.append(ca)
     return out
 
 
