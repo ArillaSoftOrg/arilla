@@ -112,6 +112,61 @@ class CapacityTest(Base):
         self.assertIn("Migration BASLATILMADI", err.getvalue())
 
 
+class CatalogGateTest(Base):
+    """Karar 0188: dokumden sonra bos alan katalog esiginin (70 GiB) altina dusecekse deploy durur."""
+
+    def setUp(self):
+        super().setUp()
+        self.make(1, b"x" * 1000, status=None)  # tahmin = 1150 bayt
+
+    def test_gate_blocks_when_dump_would_cross_catalog_threshold(self):
+        self.free = 73 * pmd.GiB  # 13 Kasim: 73 GiB bos, yeni dokum ~11 GB
+        res = self.d.capacity(db_bytes=1, reserve=0, catalog_gate=73 * pmd.GiB)
+        self.assertFalse(res["catalog_gate_ok"])
+        self.assertFalse(res["ok"])
+
+    def test_gate_ok_with_room(self):
+        self.free = 90 * pmd.GiB
+        res = self.d.capacity(db_bytes=1, reserve=0)
+        self.assertTrue(res["catalog_gate_ok"])
+        self.assertTrue(res["ok"])
+
+    def test_explicit_override_allows_but_reports(self):
+        self.free = 70 * pmd.GiB
+        res = self.d.capacity(db_bytes=1, reserve=0, allow_below_gate=True)
+        self.assertFalse(res["catalog_gate_ok"])
+        self.assertTrue(res["ok"])
+
+    def _cli(self, allow: bool):
+        self.free = 70 * pmd.GiB
+        err = io.StringIO()
+        os.environ["ARILLA_DUMP_RESERVE_BYTES"] = "0"
+        if allow:
+            os.environ["ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE"] = "1"
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                rc = pmd.main(["--root", str(self.root), "capacity", "--db-bytes", "1000"])
+        finally:
+            os.environ.pop("ARILLA_DUMP_RESERVE_BYTES", None)
+            os.environ.pop("ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE", None)
+        return rc, err.getvalue()
+
+    def test_cli_gate_exit_2_with_message(self):
+        rc, err = self._cli(allow=False)
+        self.assertEqual(rc, 2)
+        self.assertIn("KATALOG ESIGI", err)
+        self.assertIn("Migration BASLATILMADI", err)
+
+    def test_cli_gate_override_exit_0_and_warns(self):
+        rc, err = self._cli(allow=True)
+        self.assertEqual(rc, 0)
+        self.assertIn("bilincli devam", err)
+
+    def test_gate_matches_catalog_guard(self):
+        guard = (Path(__file__).resolve().parent / "catalog-auto-guard").read_text(encoding="utf-8")
+        self.assertIn(f"START_FREE_GB=${{START_FREE_GB:-{pmd.CATALOG_GATE_GIB}}}", guard)
+
+
 class LifecycleTest(Base):
     def test_good_dump_metadata(self):
         path = self.make(3, status="created", full=None)

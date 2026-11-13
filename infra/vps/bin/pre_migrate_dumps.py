@@ -45,6 +45,10 @@ DEFAULT_RESERVE = 30 * GiB
 #: Tahmin payi: son dokumun boyutu x 1,15 (veritabani buyur); hic dokum yoksa veritabaninin %20'si.
 GROWTH = 1.15
 FIRST_RATIO = 0.20
+#: Otomatik katalog hattinin baslangic esigi (GiB; catalog-auto-guard START_FREE_GB, karar 0164).
+#: Dokumden sonra bos alan bunun altina dusecekse migration deploy'u DURUR (karar 0188): yayin sessizce
+#: durmasin, karar deploy aninda verilsin. Bilincli istisna: ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE=1.
+CATALOG_GATE_GIB = 70
 STATUSES = ("dumping", "created", "migrated", "success", "failed", "dump_failed")
 
 Runner = Callable[..., tuple[int, str]]
@@ -164,12 +168,17 @@ class Dumps:
         sizes = [p.stat().st_size for p in self.files()[-KEEP:]]
         return int(max(sizes) * GROWTH) if sizes else int(db_bytes * FIRST_RATIO)
 
-    def capacity(self, db_bytes: int, reserve: int = DEFAULT_RESERVE) -> dict:
+    def capacity(self, db_bytes: int, reserve: int = DEFAULT_RESERVE, catalog_gate: int | None = None,
+                 allow_below_gate: bool = False) -> dict:
         self.dir.mkdir(parents=True, exist_ok=True)
         free = self.disk_usage(str(self.dir)).free
         est = self.estimate(db_bytes)
         need = est + reserve
-        return {"free": free, "estimate": est, "reserve": reserve, "need": need, "ok": free >= need}
+        gate = CATALOG_GATE_GIB * GiB if catalog_gate is None else catalog_gate
+        gate_ok = free - est >= gate
+        return {"free": free, "estimate": est, "reserve": reserve, "need": need,
+                "catalog_gate": gate, "catalog_gate_ok": gate_ok, "allow_below_gate": allow_below_gate,
+                "ok": free >= need and (gate_ok or allow_below_gate)}
 
     # ------------------------------------------------------------------ yasam dongusu
     def begin(self, path: Path, deploy_id: str, sha: str, migrations: list[str]) -> dict:
@@ -399,8 +408,20 @@ def main(argv: list[str] | None = None) -> int:
     try:
         if args.cmd == "capacity":
             reserve = int(os.environ.get("ARILLA_DUMP_RESERVE_BYTES", DEFAULT_RESERVE))
-            res = d.capacity(args.db_bytes, reserve)
+            allow = os.environ.get("ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE") == "1"
+            gate = int(os.environ.get("ARILLA_CATALOG_GATE_BYTES", CATALOG_GATE_GIB * GiB))  # test ayari
+            res = d.capacity(args.db_bytes, reserve, catalog_gate=gate, allow_below_gate=allow)
             print(json.dumps(res))
+            if res["free"] >= res["need"] and not res["catalog_gate_ok"]:
+                left = res["free"] - res["estimate"]
+                msg = (f"KATALOG ESIGI: dokumden sonra bos ~{gb(left)} < {gb(res['catalog_gate'])}; otomatik "
+                       "yayin (catalog-auto) durur. Once yer acin: pre_migrate_dumps.py report / prune.")
+                if allow:
+                    print(msg + " ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE=1: bilincli devam.", file=sys.stderr)
+                else:
+                    print(msg + " Migration BASLATILMADI (bilincli istisna: "
+                          "ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE=1).", file=sys.stderr)
+                    return 2
             if not res["ok"]:
                 print(f"YETERSIZ DISK: bos {gb(res['free'])} < gerekli {gb(res['need'])} "
                       f"(tahmini dokum {gb(res['estimate'])} + taban {gb(res['reserve'])}). Migration BASLATILMADI. "
