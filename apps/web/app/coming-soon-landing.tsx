@@ -29,12 +29,7 @@ export function ComingSoonLanding({
   const socialLinks = configuredSocialLinks();
 
   return (
-    <PublicSiteShell
-      links={SUBPAGE_SECTION_LINKS}
-      showFooterSocial={false}
-      compactFooter
-      footerVariant="prelaunch"
-    >
+    <PublicSiteShell links={SUBPAGE_SECTION_LINKS} footerVariant="prelaunch">
       <div className={styles.page}>
         <MascotJourney>
           <section className={styles.hero} aria-labelledby="yakinda-baslik">
