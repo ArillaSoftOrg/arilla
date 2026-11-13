@@ -238,3 +238,30 @@ def test_run_log_and_status(tmp_path: Path, capsys) -> None:
     assert oe.main(["status", "--out", str(tmp_path)]) == 0
     out = json.loads(capsys.readouterr().out)
     assert out["last_run"] == {"outcome": "completed"} and out["parts"] == 0
+
+
+def test_concurrency_and_length_order_do_not_change_output(tmp_path: Path) -> None:
+    rows = [
+        (i, "kisa" if i % 3 else f"cok daha uzun bir urun basligi {i}", None) for i in range(1, 60)
+    ]
+    rows = [(i, f"{t} {i}", b) for i, t, b in rows]
+    serial = tmp_path / "serial"
+    parallel = tmp_path / "parallel"
+    runner(serial, FakeFetcher(rows), FakeProvider(), target=59, part_size=30).run()
+    stats = runner(
+        parallel, FakeFetcher(rows), FakeProvider(), target=59, part_size=30, concurrency=3
+    ).run()
+    assert stats.outcome == "completed" and stats.embedded == 59
+    for seq in (1, 2):
+        for suffix in ("ids", "hash", "f16"):
+            a = oe.CheckpointStore(serial).path(seq, suffix).read_bytes()
+            b = oe.CheckpointStore(parallel).path(seq, suffix).read_bytes()
+            assert a == b
+
+
+def test_batches_are_sorted_by_length(tmp_path: Path) -> None:
+    rows = [(1, "x" * 50, None), (2, "y", None), (3, "z" * 20, None), (4, "w" * 5, None)]
+    provider = FakeProvider()
+    runner(tmp_path, FakeFetcher(rows), provider, target=4).run()
+    sent = [t for call in provider.calls for t in call]
+    assert [len(t) for t in sent] == sorted(len(t) for t in sent)

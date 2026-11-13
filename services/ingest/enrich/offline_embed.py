@@ -39,8 +39,10 @@ import os
 import signal
 import struct
 import sys
+import threading
 import time
 from collections.abc import Callable, Sequence
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -387,6 +389,7 @@ class Runner:
         guards: Guards,
         canary_every: int,
         max_consecutive_failures: int = 3,
+        concurrency: int = 1,
         should_stop: Callable[[], bool] = lambda: False,
         now: Callable[[], datetime] = lambda: datetime.now(UTC),
         sleep: Callable[[float], None] = time.sleep,
@@ -398,6 +401,8 @@ class Runner:
         self.fetcher = fetcher
         self.factory = provider_factory
         self.provider = provider_factory("passage")
+        self.concurrency = max(1, concurrency)
+        self._local = threading.local()
         self.target = target
         self.part_size = part_size
         self.batch_size = batch_size
@@ -457,19 +462,30 @@ class Runner:
             self.stats.canary_min_cosine = low if prev is None else min(prev, low)
         return True
 
-    def _embed(self, texts: list[str]) -> list[list[float] | None]:
-        """Parti; kalici red (4xx) ikiye bolunerek tek bozuk girdiye indirgenir."""
+    def _embed(
+        self, texts: list[str], provider: Provider | None = None
+    ) -> tuple[list[list[float] | None], int, list[float]]:
+        """Parti -> (vektorler, reddedilen, gecikmeler). Kalici red (4xx) ikiye bolunerek tek
+        bozuk girdiye indirgenir. Paylasilan sayaca YAZMAZ (es zamanli cagrilir)."""
+        provider = provider or self.provider
+        started = time.perf_counter()
         try:
-            batch = self.provider.embed_texts(texts)
+            batch = provider.embed_texts(texts)
             vectors = validate_for(self.spec, batch, len(texts)).vectors
-            self.stats.latencies_ms.append(getattr(self.provider, "latencies_ms", [0.0])[-1])
-            return [list(v) for v in vectors]
+            return [list(v) for v in vectors], 0, [(time.perf_counter() - started) * 1000]
         except EmbeddingRejected:
             if len(texts) == 1:
-                self.stats.rejected += 1
-                return [None]
+                return [None], 1, []
             mid = len(texts) // 2
-            return self._embed(texts[:mid]) + self._embed(texts[mid:])
+            left, lr, ll = self._embed(texts[:mid], provider)
+            right, rr, rl = self._embed(texts[mid:], provider)
+            return left + right, lr + rr, ll + rl
+
+    def _provider_for_thread(self) -> Provider:
+        local = self._local
+        if not hasattr(local, "provider"):
+            local.provider = self.factory("passage")
+        return local.provider
 
     def run(self) -> RunStats:
         self.store.ensure()
@@ -546,11 +562,24 @@ class Runner:
         self.stats.duplicates_in_part += len(kept) - len(unique)
         retries_before = self.retry_counter()
         started = time.perf_counter()
-        order = list(unique)
+        # Uzunluga gore sira: partideki dolgu (padding) azalir; vektorler siradan bagimsizdir.
+        order = sorted(unique, key=lambda d: (len(unique[d]), d))
+        chunks = [order[i : i + self.batch_size] for i in range(0, len(order), self.batch_size)]
         vectors: dict[bytes, list[float] | None] = {}
-        for start in range(0, len(order), self.batch_size):
-            chunk = order[start : start + self.batch_size]
-            for digest, vector in zip(chunk, self._embed([unique[d] for d in chunk]), strict=True):
+
+        def work(chunk: list[bytes]) -> tuple[list[bytes], tuple[Any, int, list[float]]]:
+            provider = self._provider_for_thread() if self.concurrency > 1 else self.provider
+            return chunk, self._embed([unique[d] for d in chunk], provider)
+
+        if self.concurrency > 1 and len(chunks) > 1:
+            with ThreadPoolExecutor(max_workers=self.concurrency) as pool:
+                results = list(pool.map(work, chunks))
+        else:
+            results = [work(chunk) for chunk in chunks]
+        for chunk, (embedded, rejected, latencies) in results:
+            self.stats.rejected += rejected
+            self.stats.latencies_ms.extend(latencies)
+            for digest, vector in zip(chunk, embedded, strict=True):
                 vectors[digest] = vector
         embed_s = time.perf_counter() - started
         final = [(pid, d, s) for pid, d, s, _ in kept if vectors.get(d) is not None]
@@ -635,6 +664,8 @@ def stats_record(stats: RunStats, args: argparse.Namespace, started: datetime) -
         "finished_at": datetime.now(UTC).isoformat(timespec="seconds"),
         "model": args.model,
         "target": args.target,
+        "batch_size": args.batch_size,
+        "concurrency": args.concurrency,
         "outcome": stats.outcome,
         "reason": stats.stop_reason,
         "parts": stats.parts,
@@ -666,6 +697,7 @@ def build_parser() -> argparse.ArgumentParser:
     run.add_argument("--target", type=int, required=True, help="kontrol noktasindaki toplam urun")
     run.add_argument("--part-size", type=int, default=1000)
     run.add_argument("--batch-size", type=int, default=32)
+    run.add_argument("--concurrency", type=int, default=1, help="ayni anda istek (1-4)")
     run.add_argument("--start-after", type=int, default=0)
     run.add_argument("--min-free-gib", type=float, required=True)
     run.add_argument("--min-mem-gib", type=float, default=1.5)
@@ -691,8 +723,15 @@ def main(argv: list[str] | None = None) -> int:
         print(json.dumps({**report, "last_run": last}, indent=1, sort_keys=True))
         return 1 if report["problems"] else 0
 
-    if args.target < 1 or args.part_size < 1 or not 1 <= args.batch_size <= 32:
-        print("HATA: --target/--part-size >= 1, 1 <= --batch-size <= 32", file=sys.stderr)
+    if (
+        args.target < 1
+        or args.part_size < 1
+        or not 1 <= args.batch_size <= 32
+        or not 1 <= args.concurrency <= 4
+    ):
+        print(
+            "HATA: --target/--part-size >= 1, --batch-size 1-32, --concurrency 1-4", file=sys.stderr
+        )
         return 2
     try:
         spec = registry().get(args.model)
@@ -754,6 +793,7 @@ def main(argv: list[str] | None = None) -> int:
                 quiet_windows=parse_windows(args.quiet_windows),
             ),
             canary_every=args.canary_every,
+            concurrency=args.concurrency,
             should_stop=lambda: _STOP,
             retry_counter=lambda: retries[0],
         )
