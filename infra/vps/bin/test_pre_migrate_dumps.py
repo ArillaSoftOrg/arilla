@@ -141,6 +141,8 @@ class CatalogGateTest(Base):
         self.free = 70 * pmd.GiB
         err = io.StringIO()
         os.environ["ARILLA_DUMP_RESERVE_BYTES"] = "0"
+        # CLI gercek diski okur: esik her makinede asilsin diye cok buyuk (yalniz test ayari).
+        os.environ["ARILLA_CATALOG_GATE_BYTES"] = str(1 << 60)
         if allow:
             os.environ["ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE"] = "1"
         try:
@@ -149,6 +151,7 @@ class CatalogGateTest(Base):
         finally:
             os.environ.pop("ARILLA_DUMP_RESERVE_BYTES", None)
             os.environ.pop("ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE", None)
+            os.environ.pop("ARILLA_CATALOG_GATE_BYTES", None)
         return rc, err.getvalue()
 
     def test_cli_gate_exit_2_with_message(self):
