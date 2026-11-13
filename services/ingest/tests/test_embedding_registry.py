@@ -85,7 +85,7 @@ def test_pilot_and_unverified_models_rejected_in_production() -> None:
 
 def test_disabled_model_never_selectable() -> None:
     with pytest.raises(RegistryError, match="devre disi"):
-        select_model("product_text", requested="bge-m3", env={}, allow_pilot=True)
+        select_model("product_text", requested="bge-m3-5617a9f6", env={}, allow_pilot=True)
 
 
 def test_unknown_model_and_wrong_role_rejected() -> None:
@@ -98,14 +98,14 @@ def test_unknown_model_and_wrong_role_rejected() -> None:
 # --- Boyut/uzay izolasyonu -----------------------------------------------------------------
 
 
-@pytest.mark.parametrize("model_id", ["e5-small-int8-0bcc8ca76950", "bge-m3", "jina-clip-v2"])
+@pytest.mark.parametrize("model_id", ["e5-small-int8-0bcc8ca76950", "bge-m3-5617a9f6", "jina-clip-v2"])
 def test_other_spaces_cannot_write_product_text_table(model_id: str) -> None:
     with pytest.raises(RegistryError):
         require_writable(registry().get(model_id), products.INDEX_FAMILY)
 
 
 def test_family_without_table_is_not_writable() -> None:
-    spec = registry().get("bge-m3")
+    spec = registry().get("bge-m3-5617a9f6")
     with pytest.raises(RegistryError, match="migration gerekli"):
         require_writable(spec, spec.index_family)
 
@@ -130,28 +130,28 @@ def test_fake_suffix_maps_to_base_spec() -> None:
 
 def test_unknown_field_rejected() -> None:
     raw = _raw()
-    _model(raw, "bge-m3")["gpu"] = True
+    _model(raw, "bge-m3-5617a9f6")["gpu"] = True
     with pytest.raises(RegistryError, match="bilinmeyen alan"):
         parse_registry(raw)
 
 
 def test_missing_field_rejected() -> None:
     raw = _raw()
-    del _model(raw, "bge-m3")["normalization"]
+    del _model(raw, "bge-m3-5617a9f6")["normalization"]
     with pytest.raises(RegistryError, match="eksik alan"):
         parse_registry(raw)
 
 
 def test_dimension_must_match_family() -> None:
     raw = _raw()
-    _model(raw, "bge-m3")["dimensions"] = 768
+    _model(raw, "bge-m3-5617a9f6")["dimensions"] = 768
     with pytest.raises(RegistryError, match="boyut"):
         parse_registry(raw)
 
 
 def test_duplicate_id_rejected() -> None:
     raw = _raw()
-    raw["models"].append(copy.deepcopy(_model(raw, "bge-m3")))
+    raw["models"].append(copy.deepcopy(_model(raw, "bge-m3-5617a9f6")))
     with pytest.raises(RegistryError, match="cift kimlik"):
         parse_registry(raw)
 
@@ -172,7 +172,7 @@ def test_two_families_cannot_share_a_table() -> None:
 
 def test_fake_suffix_reserved() -> None:
     raw = _raw()
-    _model(raw, "bge-m3")["id"] = "bge-m3-fake"
+    _model(raw, "bge-m3-5617a9f6")["id"] = "bge-m3-fake"
     with pytest.raises(RegistryError, match="gecersiz kimlik"):
         parse_registry(raw)
 

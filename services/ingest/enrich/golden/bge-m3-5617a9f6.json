@@ -1,6 +1,6 @@
 {
  "format": 1,
- "model_id": "bge-m3",
+ "model_id": "bge-m3-5617a9f6",
  "source": {
   "repo": "BAAI/bge-m3",
   "revision": "5617a9f61b028005a4858fdac845db406aefb181"

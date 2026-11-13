@@ -143,7 +143,7 @@ def test_only_models_with_a_live_query_path_are_marked_online() -> None:
 
 def test_candidates_are_pinned_and_not_selectable_in_production() -> None:
     reg = registry()
-    qwen, bge = reg.get(QWEN), reg.get("bge-m3")
+    qwen, bge = reg.get(QWEN), reg.get("bge-m3-5617a9f6")
     assert qwen.source == {"repo": SERVED, "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3"}
     assert QWEN.endswith(qwen.source["revision"][:8])
     assert bge.source["revision"] == "5617a9f61b028005a4858fdac845db406aefb181"
@@ -155,7 +155,7 @@ def test_candidates_are_pinned_and_not_selectable_in_production() -> None:
 
 def test_same_dimension_is_not_same_space() -> None:
     reg = registry()
-    qwen, bge = reg.get(QWEN), reg.get("bge-m3")
+    qwen, bge = reg.get(QWEN), reg.get("bge-m3-5617a9f6")
     assert qwen.dimensions == bge.dimensions == 1024
     assert qwen.index_family == bge.index_family
     assert not qwen.same_space(bge)
