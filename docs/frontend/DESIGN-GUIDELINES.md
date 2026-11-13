@@ -41,7 +41,7 @@ Değer listeleri için [tasarım dokümanını](../design.md) ve [token kaynağ�
 | Çizgi ve kontrol sınırı | `--line`, `--line-strong`, `--border-width` | İnce ayırıcı ile etkileşimli kontrol sınırını karıştırma. |
 | Eylem ve durum | `--accent*`, `--save`, `--on-save`, `--warning`, `--alert` | Nötr ana eylem ile olumlu işlem/durum rengini kendi anlamında kullan. |
 | Marka | `--brand`, `--on-brand`, `--brand-label` | Ham limon yeşilini açık zeminde küçük metin veya tek başına kontrol çizgisi yapma. Beta için mevcut `Badge` marka tonunu kullan. |
-| Editoryal alan | `--warm-page`, `--warm-card`, `--feature-*`, `--teal-*` | Yalnızca mevcut editoryal sayfa düzeni gerektiriyorsa; her kurumsal sayfayı renkli yapma. |
+| Koyu vurgu bölümü | `--feature-*` | Antrasit zemin + limon vurgu; yalnızca mevcut `/ortakliklar` düzeni gibi tek bir vurgu bölümü için. Editoryal sayfalar ana yüzey belirteçlerini kullanır (karar 0192). |
 | Tipografi | `--text-*`, `--font-weight-*`, `--line-height-*`, `--letter-spacing-*` | Anlamsal başlık sırasını koru; görsel boyutu rolüne göre seç. Bütün sayfalara display başlık uygulama. |
 | Boşluk ve genişlik | `--space-*`, `--section-space*`, `--content-width-*`, `--gutter` | Önce mevcut düzen bileşenlerini kullan. Okuma metnini wide alana yayma; yatay boşluğu iki kez uygulama. |
 | Köşe, gölge, odak, hareket | `--radius-*`, `--shadow-*`, `--focus-*`, `--duration-*`, `--ease-*`, `--z-*` | Bileşenin mevcut stilini tercih et; özel efekt veya keyfi katman sayısı ekleme. |
