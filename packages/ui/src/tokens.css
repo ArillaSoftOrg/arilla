@@ -34,16 +34,13 @@
   --on-save: #ffffff;
   --warning: #8a5300;
   --alert: #a8321f;
-  /* Editoryal sayfalar (/blog, /ortakliklar): sicak zemin + teal vurgu. */
-  --warm-page: #efebe0;
-  --warm-card: #fffbf2;
-  --feature-bg: #134e66;
+  /* Koyu vurgu bolumu (/ortakliklar "uc adim", karar 0192): iki temada da antrasit
+     zemin + marka limonu vurgu; metin degerleri iki temada aynidir. */
+  --feature-bg: #17191c;
   --feature-ink: #ffffff;
-  --feature-ink-muted: #cfe9ef;
-  --feature-accent: #2bd3ee;
-  --feature-line: #3b7185;
-  --teal-ink: #0a7185;
-  --teal-soft: #dff6fa;
+  --feature-ink-muted: #c9cdd1;
+  --feature-accent: #b7f52f;
+  --feature-line: #3a3f45;
   /* Karar 0084: marka limonu, uygulama ikonundaki "M" isaretinden olculdu
      (apps/web/app/apple-icon.png, baskin piksel #b7f52f). Beyaz uzerinde
      kontrasti ~1.3:1: metin ya da tek basina cizgi olarak acik temada
@@ -60,16 +57,17 @@
   --accent-hover: #2b2b2b;
   --focus-ring-color: var(--ink);
 
-  /* Kullanim kartlarinin (ana sayfa "Arama yollari") yumusak zemin tonlari. */
-  --tint-aqua: #dff7f8;
-  --tint-mist: #eef6fb;
-  --tint-warm: #f3eee8;
+  /* Kullanim kartlarinin (ana sayfa "Arama yollari") gorsel zemini: notr gri
+     basamaklari (karar 0192); adlar kartin ton anahtaridir, renk degil. */
+  --tint-aqua: #f6f6f6;
+  --tint-mist: #f2f2f2;
+  --tint-warm: #efefef;
   /* Fotograf/video ustundeki isaret (oynat rozeti): iki temada da koyu
      ortu + beyaz isaret; gorselin kendisi temaya gore degismez. */
   --media-scrim: rgba(14, 15, 17, 0.38);
   --on-media: #ffffff;
   /* Public footer, sayfa yuzeyinden hafif ayrilan notr marka zemini. */
-  --footer-canvas: #edf0ec;
+  --footer-canvas: #f4f4f4;
   --footer-wordmark-top: rgba(134, 204, 92, 0.5);
   --footer-wordmark-bottom: #8fd13a;
   --footer-wordmark-glow: rgba(183, 245, 47, 0.22);
@@ -228,15 +226,11 @@
     --on-save: #0e0f11;
     --warning: #e2a64a;
     --alert: #e5705c;
-    --warm-page: #121110;
-    --warm-card: #1d1b18;
-    --feature-bg: #0f3a49;
-    --teal-ink: #5fd6ea;
-    --teal-soft: #12323b;
-    --tint-aqua: #132c30;
-    --tint-mist: #172530;
-    --tint-warm: #26221d;
-    --footer-canvas: #111513;
+    --feature-bg: #1e2125;
+    --tint-aqua: #1b1e21;
+    --tint-mist: #212428;
+    --tint-warm: #262a2f;
+    --footer-canvas: #17191c;
     --footer-wordmark-top: rgba(183, 245, 47, 0.45);
     --footer-wordmark-bottom: #b7f52f;
     --footer-wordmark-glow: rgba(183, 245, 47, 0.12);
@@ -268,15 +262,11 @@
   --on-save: #0e0f11;
   --warning: #e2a64a;
   --alert: #e5705c;
-  --warm-page: #121110;
-  --warm-card: #1d1b18;
-  --feature-bg: #0f3a49;
-  --teal-ink: #5fd6ea;
-  --teal-soft: #12323b;
-  --tint-aqua: #132c30;
-  --tint-mist: #172530;
-  --tint-warm: #26221d;
-  --footer-canvas: #111513;
+  --feature-bg: #1e2125;
+  --tint-aqua: #1b1e21;
+  --tint-mist: #212428;
+  --tint-warm: #262a2f;
+  --footer-canvas: #17191c;
   --footer-wordmark-top: rgba(183, 245, 47, 0.45);
   --footer-wordmark-bottom: #b7f52f;
   --footer-wordmark-glow: rgba(183, 245, 47, 0.12);
