@@ -74,7 +74,12 @@ function modelLiteral(modelVersion: string) {
  * zaman karsilastirilmaz: sorgu `model_version` ile suzulur, boyut `vectorLiteral`'da denetlenir.
  */
 function indexSql(index: SemanticIndex) {
-  if (!["product_text_embedding", "product_text_embedding_d384"].includes(index.table)) {
+  const tables = [
+    "product_text_embedding",
+    "product_text_embedding_d384",
+    "product_text_embedding_d1024",
+  ];
+  if (!tables.includes(index.table)) {
     throw new Error("gecersiz embedding tablosu");
   }
   if (!Number.isInteger(index.dimensions) || index.dimensions < 1 || index.dimensions > 4000) {

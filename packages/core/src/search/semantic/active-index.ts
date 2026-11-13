@@ -16,7 +16,10 @@ import { DEFAULT_SEMANTIC_MODEL, isValidModelVersion } from "./config.ts";
 
 type Env = Readonly<Record<string, string | undefined>>;
 
-export type SemanticTable = "product_text_embedding" | "product_text_embedding_d384";
+export type SemanticTable =
+  | "product_text_embedding"
+  | "product_text_embedding_d384"
+  | "product_text_embedding_d1024";
 
 export interface SemanticIndex {
   modelVersion: string;
