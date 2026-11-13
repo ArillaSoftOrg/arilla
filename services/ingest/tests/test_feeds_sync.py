@@ -19,7 +19,7 @@ import pytest
 from db.connection import database_url
 from feeds import approvals, discovery
 from feeds.network import DiscoveredFeed
-from feeds.sync import FeedSync, SyncAborted, SyncSettings, _Crash
+from feeds.sync import FeedSync, SyncAborted, SyncPaused, SyncSettings, _Crash
 from resolve.pipeline import PENDING_OFFERS
 from tests.feed_fixtures import AE_PROFILE, offer, write, yml
 
@@ -643,6 +643,43 @@ def test_wal_arsivi_geride_kalirsa_bekler_cok_uzarsa_guvenle_durur(
         )
     assert error.value.code == "archive_lag"
     assert active_of(env) == 25 + 10  # ilk parca yazildi, hicbir sey pasiflesmedi
+
+
+def test_yedek_penceresi_duragi_parca_sinirinda_durur_kaldigi_yerden_surer(env: Env) -> None:
+    """Karar 0188: sert durak hata degildir; snapshot `processing` kalir, hata kaydi yazilmaz ve
+    ayni surum sonraki kosuda birlesmis parcalari atlayarak tamamlanir."""
+    fid = env.feed()
+    items = [offer(i) for i in ids(35)]
+    calls = iter([T0, T0 + timedelta(minutes=10)])  # 1. parcadan sonra durak gecildi
+    with pytest.raises(SyncPaused) as paused:
+        env.run(
+            fid,
+            items,
+            name="night.xml",
+            stop_at=T0 + timedelta(minutes=5),
+            now=lambda: next(calls, T0 + timedelta(hours=1)),
+        )
+    assert paused.value.code == "backup_window"
+    snap = env.one("SELECT id, status FROM source_snapshot WHERE feed_source_id = %s", (fid,))
+    assert snap[1] == "processing"
+    merged = env.one(
+        "SELECT count(*) FROM ingest_chunk WHERE snapshot_id = %s AND status = 'merged'",
+        (snap[0],),
+    )[0]
+    assert merged == 2
+    assert env.one("SELECT last_error_code FROM feed_source WHERE id = %s", (fid,))[0] is None
+    assert env.one(
+        "SELECT status, error_text FROM ingest_run WHERE feed_source_id = %s ORDER BY id DESC",
+        (fid,),
+    ) == ("failed", "paused_backup_window")
+
+    resumed = env.run(fid, items, name="night.xml")
+    assert (resumed.status, resumed.snapshot_id, resumed.chunks_skipped) == (
+        "success",
+        snap[0],
+        merged,
+    )
+    assert offers_of(env) == 35
 
 
 def test_kesik_beslemede_neden_kayda_gecer(env: Env) -> None:

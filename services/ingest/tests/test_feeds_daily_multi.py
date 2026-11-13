@@ -106,6 +106,7 @@ def first_load(env: Env, feed_id: int, offers: list[dict], name: str) -> None:  
 
 def daily(env: Env, net: MultiNet, **opts: object):  # noqa: F811
     monotonic = opts.pop("monotonic", None)
+    clock = opts.pop("clock", None)
     options = DailyOptions(
         merchant=SLUG,
         retries=0,
@@ -113,7 +114,9 @@ def daily(env: Env, net: MultiNet, **opts: object):  # noqa: F811
         parallel_downloads=1,
         **opts,  # type: ignore[arg-type]
     )
-    kwargs = {"monotonic": monotonic} if monotonic is not None else {}
+    kwargs: dict[str, object] = {"monotonic": monotonic} if monotonic is not None else {}
+    if clock is not None:
+        kwargs["clock"] = clock
     return run_daily(
         env.app,
         options,
@@ -277,6 +280,78 @@ def test_surekli_dolan_butcede_ertelenen_besleme_sonunda_calisir(
         served += [feed_ids[e] for e in feed_ids if after[e] > before[e]]
     # Her tur tek besleme: ayni (en eski kaynakli) beslemeye sonsuza dek donmez.
     assert sorted(served) == sorted(feed_ids.values())
+
+
+def today_at(hour: int, minute: int, second: int = 0) -> datetime:
+    """Simdiden SONRAKI ilk HH:MM:SS (UTC). Tazelik olcumu de bu saati kullanir; kaynak tarihleri
+    gercek saate goredir (`hours_ago`). Saat hep ileride ve en fazla 24 sa uzakta: kaynak tarihi
+    "gelecekte" kalmaz (`source_date_invalid`), tazelik esikleri (168 sa) degismez."""
+    now = datetime.now(UTC)
+    at = now.replace(hour=hour, minute=minute, second=second, microsecond=0)
+    return at if at >= now else at + timedelta(days=1)
+
+
+def test_yedek_penceresine_yakin_baslayan_kosu_yeni_besleme_baslatmaz(
+    env: Env,  # noqa: F811
+    net: MultiNet,
+) -> None:
+    """Karar 0188: kesme (01:20 UTC - 90 dk = 23:50) ile pencere sonu arasinda baslayan
+    gecikmeli/yakalama kosusu hicbir besleme baslatmaz; ertelemek hata degildir."""
+    three_loaded_feeds(env, net)
+    republish_all(net, 1)
+    before = complete_snapshots(env)
+
+    result = daily(
+        env,
+        net,
+        backup_margin=timedelta(minutes=90),
+        clock=lambda: today_at(0, 10),
+    )
+
+    assert result.status == "success", result.problems
+    assert result.detail["backup_cutoff"] is True
+    assert result.detail["budget_s"] == 0
+    assert result.detail["feeds_deferred"] == 3
+    assert complete_snapshots(env) == before
+
+
+def test_kesmeden_once_baslayan_kosu_kesmeye_kadar_besleme_baslatir(
+    env: Env,  # noqa: F811
+    net: MultiNet,
+) -> None:
+    """Kesmeye 150 sn kala baslayan kosu: her besleme 100 sn (budget_clock) -> 2 besleme,
+    1 erteleme. Butce (4 sa) degil kesme belirleyicidir."""
+    feed_ids = three_loaded_feeds(env, net)
+    republish_all(net, 1)
+
+    result = daily(
+        env,
+        net,
+        backup_margin=timedelta(minutes=90),
+        clock=lambda: today_at(23, 47, 30),
+        monotonic=budget_clock(env),
+    )
+
+    assert result.status == "success", result.problems
+    assert result.detail["backup_cutoff"] is True
+    assert result.detail["budget_s"] == 150
+    assert result.detail["feeds_synced"] == 2
+    assert result.detail["feeds_deferred_ids"] == [feed_ids["6115:3"]]
+
+
+def test_kesme_kapaliyken_kutuphane_davranisi_degismez(
+    env: Env,  # noqa: F811
+    net: MultiNet,
+) -> None:
+    """Kutuphane varsayilani kapali: duvar saati ne olursa olsun eski butce davranisi."""
+    three_loaded_feeds(env, net)
+    republish_all(net, 1)
+
+    result = daily(env, net, clock=lambda: today_at(0, 10))
+
+    assert result.status == "success", result.problems
+    assert "backup_cutoff" not in result.detail
+    assert result.detail["feeds_synced"] == 3
 
 
 def test_siralama_kaynagi_en_eski_olan_once_en_taze_son(env: Env, net: MultiNet) -> None:  # noqa: F811

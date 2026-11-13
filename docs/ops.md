@@ -1904,6 +1904,17 @@ kullanımı aynı komutla devam ettirir: `python -m feeds daily --merchant aliex
 `feeds_deferred` > 0 çıkıyorsa bütçe/paralellik yetmiyor demektir: `--parallel-downloads` (en fazla
 3 toplam bağlantı için 2 kalmalı) yerine önce kaynağın güncelleme saatleri ve disk/WAL ölçülür.
 
+**Yedek penceresi kesmesi (karar 0188).** Zamanlayıcının çağırdığı `feeds daily`, yedek penceresinin
+başlangıcından (01:20 UTC) 90 dk önce, yani 23:50 UTC'de, yeni besleme başlatmaz.
+- Bütçe yalnızca kısalır. Başlamış birleştirme bitirilir.
+- Kesme ile 02:05 UTC arasında başlayan gecikmiş ya da yakalama koşusu hiçbir besleme açmaz
+  (`budget_s = 0`, `backup_cutoff = true`). Bu bir hata değildir; ertelenen besleme sonraki koşuda
+  önce alınır.
+- Kesmeden önce başlamış bir birleştirme uzarsa 01:15 UTC'de parça sınırında durur (`SyncPaused`,
+  `feeds_paused_ids`). Hata ve alarm değildir; sonraki koşu aynı sürümü kaldığı parçadan sürdürür.
+- Ayar: `--backup-margin-minutes` (ortam değişkeni: `FEED_DAILY_BACKUP_MARGIN_MINUTES`).
+- Bilinçli elle koşu için kapatma: `--ignore-backup-window`.
+
 ## Teklif tazeliği politikası (karar 0156)
 
 **Durum:** Kod ve testler hazır; üretimde HİÇBİR beslemede politika **tanımlı değil**, yani dağıtım

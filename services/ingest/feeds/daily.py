@@ -17,6 +17,9 @@ cagirir:
    Beslemeler kaynagi en eski olandan en yeniye dogru islenir (en taze kaynak SON yazar);
    onceki kosuda ertelenenler once gelir. `budget` dolunca yeni besleme baslamaz,
    kalanlar `feeds_deferred` olarak raporlanir (hata degil).
+2c. Yedek penceresi (karar 0188): CLI kosusunda (zamanlayici) yedek penceresinden 90 dk once
+   yeni besleme baslamaz; butce yalniz KISALIR. Gece kosusu ya da gecikmis/yakalama kosusu
+   yedekle cakismaz; ertelenen besleme sonraki kosuda once alinir.
 3. Kesif: `feed_source.source_updated_at` (kaynagin guncelleme imleci) yalniz
    kesifle tazelenir; kesifsiz `sync-due` yeni surumu hic gormez.
 4. Senkronizasyon: `feeds.runner.sync_feeds` (= `sync-due` ile ayni dongu).
@@ -37,6 +40,7 @@ import time
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
+from datetime import time as dt_time
 from typing import Any
 
 import psycopg
@@ -64,6 +68,55 @@ SELECT f.id, f.network,
 #: Servis `TimeoutStartSec=6h`; butce, son birlestirmeye ve olasi bir indirmeye pay birakir.
 DEFAULT_BUDGET = timedelta(hours=4)
 
+#: Gunluk yedek penceresi (UTC; karar 0110/0183, `catalog_build.auto.BACKUP_WINDOW_UTC` ile AYNI).
+#: Fark/tam yedek 01:30 UTC (+0-10 dk) baslar, 7-13 dk surer.
+BACKUP_WINDOW_UTC = (dt_time(1, 20), dt_time(2, 5))
+#: Yedek penceresinden en az bu kadar once YENI besleme baslamaz (karar 0188). En buyuk besleme
+#: (feed 7, ~1,5 GB) 14 gunde en fazla 75 dk surdu; baslamis birlestirme bitirilir.
+DEFAULT_BACKUP_MARGIN = timedelta(minutes=90)
+#: Kesmeden ONCE baslamis bir birlestirme (WAL geri basinci, yavas disk) uzarsa yedek penceresinin
+#: bu kadar oncesinde parca sinirinda durur (`SyncPaused`); ayni surum sonraki kosuda kaldigi
+#: parcadan surer. Bir parca (5000 kayit) saniyeler surer.
+BACKUP_HARD_STOP = timedelta(minutes=5)
+#: Planli durakta beslemenin `error_code`u (feeds.sync.SyncPaused).
+PAUSED_CODE = "backup_window"
+
+
+def next_backup_window_start(now: datetime) -> datetime:
+    """`now`'dan sonraki (ya da icinde bulunulan) yedek penceresinin baslangici (UTC)."""
+    now = now.astimezone(UTC)
+    start_t, end_t = BACKUP_WINDOW_UTC
+    for day in (-1, 0, 1):
+        base = datetime.combine(now.date() + timedelta(days=day), dt_time(0), tzinfo=UTC)
+        start = base.replace(hour=start_t.hour, minute=start_t.minute)
+        end = base.replace(hour=end_t.hour, minute=end_t.minute)
+        if now < end:
+            return start
+    raise AssertionError("ulasilamaz")  # pragma: no cover
+
+
+def seconds_until_backup_cutoff(now: datetime, margin: timedelta) -> float:
+    """`now`'dan sonra YENI besleme baslatmanin son anina kalan saniye (karar 0188).
+
+    Kesme ani = yedek penceresinin baslangici - `margin`. `now` kesme ile pencere sonu arasindaysa
+    0 doner (hicbir yeni besleme baslamaz; gecikmeli/yakalama kosusu yedekle cakismaz). Kesme
+    her zaman 24 saat icindedir; sabah kosusunda (06:30 UTC) kalan sure butceden uzun oldugu
+    icin etkisizdir.
+    """
+    now = now.astimezone(UTC)
+    start_t, end_t = BACKUP_WINDOW_UTC
+    soonest = float("inf")
+    for day in (-1, 0, 1):
+        base = datetime.combine(now.date() + timedelta(days=day), dt_time(0), tzinfo=UTC)
+        window_start = base.replace(hour=start_t.hour, minute=start_t.minute)
+        window_end = base.replace(hour=end_t.hour, minute=end_t.minute)
+        cutoff = window_start - margin
+        if cutoff <= now < window_end:
+            return 0.0
+        if now < cutoff:
+            soonest = min(soonest, (cutoff - now).total_seconds())
+    return soonest
+
 
 @dataclass(frozen=True)
 class DailyOptions:
@@ -71,6 +124,9 @@ class DailyOptions:
     parallel_downloads: int = 2
     #: Yeni besleme baslatmanin son anidir (gecen sure); dolunca kalanlar ertelenir.
     budget: timedelta = DEFAULT_BUDGET
+    #: Yedek penceresinden bu kadar once yeni besleme baslamaz (karar 0188). None = kapali.
+    #: Kutuphane varsayilani KAPALI (testler duvar saatine bagli kalmasin); CLI varsayilan acar.
+    backup_margin: timedelta | None = None
     #: Gecici hatada ek tur sayisi (ilk tur haric) ve turlar arasi bekleme (tur ile artar).
     retries: int = 2
     retry_wait_seconds: float = 600.0
@@ -264,8 +320,20 @@ def _run_locked(
     # Kesif bir beslemeyi 'gone'/'discovered' yaptiysa artik etkin degildir: atla.
     feeds = [f for f in feeds if f.status == "active"]
     feeds = order_feeds(feeds, previous_deferred(conn, opts.merchant))
-    deadline = started + opts.budget.total_seconds()
-    result.detail["budget_s"] = int(opts.budget.total_seconds())
+    budget_s = opts.budget.total_seconds()
+    if opts.backup_margin is not None:
+        # Kesme ani kosu basinda bir kez hesaplanir; butceyi yalniz KISALTIR (karar 0188).
+        left = seconds_until_backup_cutoff(clock(), opts.backup_margin)
+        elapsed = monotonic() - started
+        if elapsed + left < budget_s:
+            budget_s = elapsed + left
+            result.detail["backup_cutoff"] = True
+    deadline = started + budget_s
+    result.detail["budget_s"] = int(budget_s)
+    if opts.backup_margin is not None:
+        # Baslamis birlestirmenin sert duragi: yedek penceresinden 5 dk once parca sinirinda.
+        stop_at = next_backup_window_start(clock()) - BACKUP_HARD_STOP
+        sync_kwargs = {**(sync_kwargs or {}), "stop_at": stop_at}
 
     final: dict[int, runner.FeedOutcome] = {}
     deferred: list[int] = []
@@ -287,6 +355,11 @@ def _run_locked(
         )
         for outcome in outcomes:
             final[outcome.feed_id] = outcome
+        paused = pop_paused(final)
+        if paused:
+            # Planli durak hata degil: ertelenen gibi sayilir, sonraki kosu once alir (karar 0188).
+            result.detail["feeds_paused_ids"] = paused
+            deferred.extend(f for f in paused if f not in deferred)
         retry_ids = {o.feed_id for o in outcomes if not o.ok and o.retryable}
         if not retry_ids or attempt == opts.retries or monotonic() >= deadline:
             break
@@ -314,6 +387,14 @@ def _run_locked(
     quiet = set(not_loaded) | set(deferred)
     quiet |= {f.feed_id for f in report.feeds if f.status != "active"}
     _freshness(result, report, quiet)
+
+
+def pop_paused(final: dict[int, runner.FeedOutcome]) -> list[int]:
+    """Yedek penceresi duragiyla birakilan beslemeleri sonuclardan cikarir (saf; testli)."""
+    paused = sorted(fid for fid, o in final.items() if o.error_code == PAUSED_CODE)
+    for fid in paused:
+        del final[fid]
+    return paused
 
 
 def _summarize(result: DailyResult, outcomes: list[runner.FeedOutcome]) -> None:

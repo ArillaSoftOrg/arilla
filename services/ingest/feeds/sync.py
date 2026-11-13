@@ -164,6 +164,14 @@ class SyncAborted(Exception):
         self.detail = detail[:300]
 
 
+class SyncPaused(SyncAborted):
+    """Planli durak (karar 0188, yedek penceresi): parca SINIRINDA durulur.
+
+    Hata degildir: snapshot `processing` kalir (birlesmis parcalar korunur), besleme hata kaydi
+    yazilmaz; ayni surum sonraki kosuda kaldigi parcadan surer (`_Crash` ile ayni devam yolu).
+    """
+
+
 # ---------------------------------------------------------------------------
 # SQL
 # ---------------------------------------------------------------------------
@@ -530,6 +538,8 @@ class FeedSync:
         sleep: Callable[[float], None] = time.sleep,
         fail_after_chunks: int | None = None,
         prefetched: tuple[Path, str, int] | None = None,
+        stop_at: datetime | None = None,
+        now: Callable[[], datetime] = lambda: datetime.now(UTC),
     ) -> None:
         self.conn = conn
         self.feed_source_id = feed_source_id
@@ -547,6 +557,10 @@ class FeedSync:
         self._diagnostics: dict[str, object] = {}
         # Yalnizca testler: cokme benzetimi (kaldigi yerden devam kaniti).
         self._fail_after_chunks = fail_after_chunks
+        #: Bu andan sonra YENI parca birlestirilmez (karar 0188): gunluk is yedek penceresinden
+        #: once verir; baslamis parca bitirilir.
+        self._stop_at = stop_at
+        self._now = now
 
     # -- kayitlar --------------------------------------------------------------
     def _exec(self, sql: str, params: Any = None) -> Any:
@@ -630,6 +644,13 @@ class FeedSync:
             self.report.run_id = self._start_run(feed)
             try:
                 self._sync(feed, settings)
+            except SyncPaused:
+                # Planli durak: hata kaydi yok, snapshot `processing` kalir (devam edilebilir).
+                self.conn.rollback()
+                self.report.status = "paused"
+                self.report.error_code = "backup_window"
+                self._finish_run("failed", "paused_backup_window", None)
+                raise
             except Exception as error:
                 self.conn.rollback()
                 code = getattr(error, "code", None) or type(error).__name__
@@ -824,6 +845,9 @@ class FeedSync:
             self.report.chunks_merged += 1
             if self._fail_after_chunks is not None and processed_chunks >= self._fail_after_chunks:
                 raise _Crash("benzetilmis cokme")
+            if self._stop_at is not None and self._now() >= self._stop_at:
+                self.conn.commit()
+                raise SyncPaused("backup_window", f"{processed_chunks} parca sonra durdu")
             self._backpressure(settings)
 
         writer = _PipelinedWriter(merge)
