@@ -37,7 +37,7 @@ describe("ayarlar", () => {
   it("mod yalniz tam olarak shadow iken acilir", () => {
     expect(semanticSearchMode({})).toBe("off");
     expect(semanticSearchMode({ SEMANTIC_SEARCH_MODE: " Shadow " })).toBe("shadow");
-    expect(semanticSearchMode({ SEMANTIC_SEARCH_MODE: "on" })).toBe("off");
+    expect(semanticSearchMode({ SEMANTIC_SEARCH_MODE: " ON " })).toBe("on");
     expect(semanticSearchMode({ SEMANTIC_SEARCH_MODE: "true" })).toBe("off");
   });
 

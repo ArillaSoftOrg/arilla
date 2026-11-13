@@ -12,6 +12,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
+import { withCategoryHint } from "../search/category-source.ts";
 import {
   createPostgresSearchProvider,
   createSeedAliasSource,
@@ -23,8 +24,9 @@ import type { LexiconEntry } from "../search/lexicon.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { foldTurkish } from "../search/normalize.ts";
 import { parseQueryText } from "../search/parse-query.ts";
+import { prepareSearchFilters, serveSemantic } from "../search/search-domain.ts";
 import { scheduleSemanticShadow } from "../search/semantic/shadow.ts";
-import type { QueryObject, SortMode } from "../search/types.ts";
+import type { QueryFilters, QueryObject, SortMode } from "../search/types.ts";
 import type { SearchIntent } from "./contract.ts";
 
 /** Sohbet sonuc blogundaki urun sayisi; tam liste arama turu (`/sohbet?q=`) baglantisindadir. */
@@ -72,19 +74,23 @@ export function intentSortMode(intent: SearchIntent): SortMode {
 }
 
 /**
- * Saf: sozluk disaridan gelir. Kategori yalnizca metinden cikmadiysa ve sozlukte
- * karsiligi varsa eklenir; karsiligi yoksa gurultu filtreye cevrilmez.
+ * Saf: sozluk disaridan gelir. Arama metninden sozlukle cikan kategori kesin filtredir
+ * (`explicit_text_verified`). Modelin ayrica tahmin ettigi `intent.category` ise yalniz
+ * siralama ipucudur (`category_hint`, karar 0190): urun dislamaz, kategorisiz urun aday kalir.
+ * Sozlukte karsiligi yoksa hic eklenmez.
  */
 export function intentToQueryObject(
   intent: SearchIntent,
   lexicon: readonly LexiconEntry[],
 ): QueryObject {
   const parsed = parseQueryText(intentSearchText(intent, lexicon), lexicon);
-  const filters = { ...parsed.filters };
+  let filters: QueryFilters = { ...parsed.filters };
 
   if (filters.category_path === undefined && intent.category) {
-    const categoryPath = parseQueryText(intent.category, lexicon).filters.category_path;
-    if (categoryPath !== undefined) filters.category_path = categoryPath;
+    filters = withCategoryHint(
+      filters,
+      parseQueryText(intent.category, lexicon).filters.category_path,
+    );
   }
   if (intent.priceMin !== null) filters.price_min = intent.priceMin * 100;
   if (intent.priceMax !== null) filters.price_max = intent.priceMax * 100;
@@ -153,10 +159,11 @@ export async function searchByIntent(
   options: IntentSearchOptions = {},
 ): Promise<IntentSearchResult> {
   const lexicon = options.lexicon ?? (await loadLexiconCached(db));
-  const parsed = {
+  // Karar 0190: metin kaynakli kesin kategori katalogda dogrulanir (yoksa ipucu); /ara ile ayni adim.
+  const parsed = await prepareSearchFilters(db, {
     ...intentToQueryObject(intent, lexicon),
     ...(options.sort ? { sort: options.sort } : {}),
-  };
+  });
   const timeoutMs = Math.max(1, Math.floor(options.timeoutMs ?? INTENT_SEARCH_TIMEOUT_MS));
   let outcome: FallbackSearchOutcome;
   try {
@@ -177,6 +184,14 @@ export async function searchByIntent(
     if (isTimeout(error)) throw new IntentSearchTimeoutError();
     throw error;
   }
+
+  // Anlamsal sunum (karar 0190), islem DISINDA: kapaliyken I/O yok; her hatada metin sonucu aynen.
+  outcome = (
+    await serveSemantic(db, parsed, outcome, {
+      page: options.page ?? 1,
+      sort: parsed.sort,
+    })
+  ).outcome;
 
   if (options.semanticShadow) {
     // Islem disinda, beklenmeden: dis API beklemesi arama isleminin icinde gecmez.

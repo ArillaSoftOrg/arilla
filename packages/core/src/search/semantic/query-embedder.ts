@@ -37,8 +37,35 @@ export interface QueryEmbedder {
   embedQuery(text: string): Promise<QueryEmbedResult | null>;
 }
 
+/**
+ * Basarisizligin sinifi (karar 0190; saglayici sagligi icin). Yanit govdesi, anahtar ve sorgu
+ * metni TASINMAZ.
+ */
+export type QueryEmbedFailure =
+  | "auth"
+  | "quota"
+  | "rate_limited"
+  | "server"
+  | "client"
+  | "timeout"
+  | "network"
+  | "bad_payload";
+
+export function classifyHttpFailure(status: number): QueryEmbedFailure {
+  if (status === 401) return "auth";
+  // Jina bakiye bitince 402/403 doner ("Insufficient balance"); ikisi de odeme/kota.
+  if (status === 402 || status === 403) return "quota";
+  if (status === 429) return "rate_limited";
+  if (status >= 500) return "server";
+  return "client";
+}
+
 export interface JinaQueryEmbedderOptions {
   fetch?: typeof fetch;
+  /** Basarisiz cagri sinifi (onbellek isabeti ve bos sorgu cagrilmaz). Firlatirsa yutulur. */
+  onFailure?: (failure: QueryEmbedFailure) => void;
+  /** Basarili gercek cagri (saglayici sagligini sifirlar). */
+  onSuccess?: () => void;
   timeoutMs?: number;
   onUsage?: (usage: QueryEmbedUsage) => void | Promise<void>;
   now?: () => number;
@@ -67,6 +94,15 @@ export function createJinaQueryEmbedder(
   const cache = options.cache ?? sharedCache;
   const dimensions = options.dimensions ?? QUERY_EMBEDDING_DIMENSIONS;
   const task = options.task ?? "retrieval.query";
+
+  const fail = (failure: QueryEmbedFailure): null => {
+    try {
+      options.onFailure?.(failure);
+    } catch {
+      // Saglik kaydi aramayi bozmaz.
+    }
+    return null;
+  };
 
   const report = async (usage: QueryEmbedUsage): Promise<void> => {
     try {
@@ -106,16 +142,21 @@ export function createJinaQueryEmbedder(
         });
         if (!response.ok) {
           await response.body?.cancel().catch(() => undefined);
-          return null;
+          return fail(classifyHttpFailure(response.status));
         }
         const payload = (await response.json()) as {
           data?: { embedding?: unknown }[];
           usage?: { total_tokens?: number };
         };
         const raw = payload.data?.[0]?.embedding;
-        if (!Array.isArray(raw) || raw.length !== dimensions) return null;
+        if (!Array.isArray(raw) || raw.length !== dimensions) return fail("bad_payload");
         const vector = raw.map(Number);
-        if (!vector.every(Number.isFinite)) return null;
+        if (!vector.every(Number.isFinite)) return fail("bad_payload");
+        try {
+          options.onSuccess?.();
+        } catch {
+          // Saglik kaydi aramayi bozmaz.
+        }
         if (cache.size >= CACHE_LIMIT) {
           const oldest = cache.keys().next().value;
           if (oldest !== undefined) cache.delete(oldest);
@@ -129,8 +170,10 @@ export function createJinaQueryEmbedder(
           latencyMs,
         });
         return { vector, cacheHit: false, latencyMs };
-      } catch {
-        return null;
+      } catch (error) {
+        const name = (error as { name?: string } | null)?.name;
+        if (name === "TimeoutError" || name === "AbortError") return fail("timeout");
+        return fail(name === "SyntaxError" ? "bad_payload" : "network");
       }
     },
   };

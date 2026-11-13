@@ -18,6 +18,7 @@ describe("parseQueryText", () => {
 
     expect(result.filters).toEqual({
       category_path: "ayakkabi/sneaker",
+      category_source: "explicit_text_verified",
       color: ["black"],
       price_max: 300000,
       size_norm: "42",
@@ -40,7 +41,11 @@ describe("parseQueryText", () => {
   it("Turkce harfsiz yazim ayni sozluk yuzeyini bulur (metin kapisiyla ayni katlama)", () => {
     const turkish = parseQueryText("siyah spor ayakkabı", lexicon);
     const ascii = parseQueryText("siyah spor ayakkabi", lexicon);
-    expect(turkish.filters).toEqual({ category_path: "ayakkabi/sneaker", color: ["black"] });
+    expect(turkish.filters).toEqual({
+      category_path: "ayakkabi/sneaker",
+      category_source: "explicit_text_verified",
+      color: ["black"],
+    });
     expect(ascii.filters).toEqual(turkish.filters);
     expect(ascii.unparsed).toBe(turkish.unparsed);
     // Turkce harfli yuzey, Turkce harfsiz sorguda da tuketilir: kalan metne sizmaz.

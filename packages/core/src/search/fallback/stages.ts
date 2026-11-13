@@ -117,7 +117,11 @@ export function constraintLadder(
     relaxed.push("size");
     push();
   }
-  let parent = current.category_path ? parentCategory(current.category_path) : null;
+  // Arayuzden acikca secilen kategori gevsetilmez (karar 0190): kullanici "yalniz bunu" dedi.
+  let parent =
+    current.category_path && current.category_source !== "explicit_ui"
+      ? parentCategory(current.category_path)
+      : null;
   while (parent !== null) {
     current.category_path = parent;
     if (!relaxed.includes("category")) relaxed.push("category");

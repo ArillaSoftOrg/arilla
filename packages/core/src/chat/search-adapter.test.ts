@@ -24,9 +24,22 @@ describe("intentToQueryObject (thin adapter over the existing parser)", () => {
     expect(q.filters.brand_include).toEqual(["nike"]);
   });
 
-  it("uses the structured category when the query text did not resolve one", () => {
+  it("uses the structured category as a soft hint when the query text did not resolve one", () => {
+    // Karar 0190: model tahmini kesin filtre olmaz; kategorisiz/baska kategorideki urun dislanmaz.
     const q = intentToQueryObject(intent({ query: "günlük", category: "ayakkabı" }), lexicon);
-    expect(q.filters.category_path).toBe("ayakkabi");
+    expect(q.filters.category_path).toBeUndefined();
+    expect(q.filters.category_source).toBeUndefined();
+    expect(q.filters.category_hint).toBe("ayakkabi");
+  });
+
+  it("keeps the text category as a verified hard filter and ignores the model category", () => {
+    const q = intentToQueryObject(
+      intent({ query: "siyah spor ayakkabı", category: "ayakkabı" }),
+      lexicon,
+    );
+    expect(q.filters.category_path).toBe("ayakkabi/sneaker");
+    expect(q.filters.category_source).toBe("explicit_text_verified");
+    expect(q.filters.category_hint).toBeUndefined();
   });
 
   it("does not turn an unknown category into a filter", () => {

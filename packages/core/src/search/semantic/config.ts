@@ -6,15 +6,18 @@
  * - `shadow`: kullaniciya donen sonuc DEGISMEZ; arama bittikten sonra arka planda sorgu vektoru
  *   uretilir, anlamsal adaylar metin sonucuyla karsilastirilir ve yalnizca sayisal olculer
  *   `semantic_shadow_event`'e yazilir.
- * Sonuca karisan `on` modu bu kararin kapsaminda degildir (ayri karar).
+ * - `on` (karar 0190): anlamsal adaylar metin sonucuyla siralamaya karisir. Yalniz saglayici
+ *   saglikli, model uyumlu ve HAZIR bir indeks varken; aksi her durumda ve her hatada sonuc metin
+ *   aramasinin birebir aynisidir. Geri alma: bu degiskeni `shadow`/`off` yapmak (tek bayrak).
  */
 
-export type SemanticSearchMode = "off" | "shadow";
+export type SemanticSearchMode = "off" | "shadow" | "on";
 
 type Env = Readonly<Record<string, string | undefined>>;
 
 export function semanticSearchMode(env: Env = process.env): SemanticSearchMode {
-  return env.SEMANTIC_SEARCH_MODE?.trim().toLowerCase() === "shadow" ? "shadow" : "off";
+  const value = env.SEMANTIC_SEARCH_MODE?.trim().toLowerCase();
+  return value === "shadow" ? "shadow" : value === "on" ? "on" : "off";
 }
 
 /** `product_text_embedding.model_version`; sorgu ve urun vektoru AYNI modelden olmak zorundadir. */
@@ -85,3 +88,33 @@ export const DEFAULT_SEMANTIC_GATE: SemanticGate = {
 
 /** Reciprocal Rank Fusion sabiti (standart 60). */
 export const RRF_K = 60;
+
+/**
+ * Sunumda (karar 0190) beklenen HNSW indeks surumu. Indeks adinin `_v<N>` sonekinden okunur;
+ * surumsuz ya da farkli surumdeki indeks kullanilmaz (m/ef_construction/opclass degisince artar).
+ */
+export const SEMANTIC_HNSW_INDEX_VERSION = "1";
+
+export function semanticIndexVersion(env: Env = process.env): string {
+  const value = env.SEMANTIC_INDEX_VERSION?.trim() ?? "";
+  return /^[0-9]{1,4}$/.test(value) ? value : SEMANTIC_HNSW_INDEX_VERSION;
+}
+
+/** Sunumda aday sorgusunun ust siniri (istek yolunda; golgeden kisa). */
+export const SEMANTIC_SERVING_SQL_TIMEOUT_MS = 400;
+
+/** Sunumda varsayilan KNN penceresi (secici ef_search vermezse). */
+export const SEMANTIC_SERVING_KNN_LIMIT = 150;
+
+/** Kategori istatistigi (sinirli sayim) sorgusunun ust siniri. */
+export const SEMANTIC_STATS_TIMEOUT_MS = 250;
+
+/** Bir sayfaya en fazla bu kadar yalniz-anlamsal urun eklenir (metin sonucu hic dusmez). */
+export const SEMANTIC_SERVING_MAX_ADDED = 8;
+
+/** Sunumun gunluk gercek sorgu embedding cagrisi tavani (golgeyle ayni sayac, ayri tavan). */
+export const DEFAULT_SERVING_DAILY_CAP = 5_000;
+
+export function servingDailyCap(env: Env = process.env): number {
+  return boundedInt(env.SEMANTIC_SERVING_DAILY_CAP, DEFAULT_SERVING_DAILY_CAP, 1_000_000);
+}

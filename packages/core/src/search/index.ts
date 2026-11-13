@@ -1,3 +1,4 @@
+export * from "./category-source.ts";
 export * from "./clarification.ts";
 export * from "./compare-merchants.ts";
 export * from "./fallback/index.ts";
@@ -17,6 +18,7 @@ export * from "./query-resolution.ts";
 export * from "./realtime-interpretation.ts";
 export * from "./result-types.ts";
 export * from "./search.ts";
+export * from "./search-domain.ts";
 export * from "./search-summary.ts";
 export { normalizeParsedForSearch } from "./spelling/apply.ts";
 export * from "./stored-interpretation.ts";

@@ -10,12 +10,19 @@ import type { Database } from "@arilla/db";
 import { type SQL, sql } from "drizzle-orm";
 import { offerVerifiedSql } from "../offers/freshness.ts";
 import { MAX_RATE_AGE_DAYS } from "../pricing/fx.ts";
+import { categoryConstraint } from "./category-source.ts";
 import {
   productTitleExclusionPattern,
   productTitleRequiredPatterns,
 } from "./product-title-guard.ts";
-import { arrayParam, balancedScoreExpr, balancedScoreFactors } from "./ranking.ts";
+import {
+  arrayParam,
+  balancedScoreExpr,
+  balancedScoreFactors,
+  categoryHintFactor,
+} from "./ranking.ts";
 import type { ForeignPrice } from "./result-types.ts";
+import { isSafeCategoryLiteral } from "./semantic/strategy.ts";
 import {
   candidateCtes,
   foldedDocumentExpr,
@@ -380,7 +387,11 @@ export function scoredCtes(
     sql`bo.in_stock`,
     sql`pps.current_percentile`,
   ] as const;
-  const score = balancedScoreExpr(...inputs);
+  // Karar 0190: tahmin edilen kategori yalniz carpan; yol guvenli bicimde degilse uygulanmaz.
+  const hint = categoryConstraint(query.filters).softPath;
+  const score = sql`(${balancedScoreExpr(...inputs)} * ${categoryHintFactor(
+    hint !== null && isSafeCategoryLiteral(hint) ? hint : null,
+  )})`;
   let extra = sql``;
   if (explain) {
     const f = balancedScoreFactors(...inputs);

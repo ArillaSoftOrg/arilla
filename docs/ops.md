@@ -3187,6 +3187,29 @@ SELECT date_trunc('day', created_at) AS gun, outcome, count(*) AS n,
  GROUP BY 1, 2 ORDER BY 1 DESC, 2;
 ```
 
+## Anlamsal sunum (karar 0190) — varsayılan kapalı
+
+`SEMANTIC_SEARCH_MODE=on` (web.env) anlamsal adayları `/sohbet` sonuçlarına karıştırır. Yalnız şu
+koşullar birlikte tutarsa çalışır; tutmayan her durumda sonuç metin aramasıyla **aynıdır**:
+
+- Ön koşul ayrı onayla yapılır: üretimde kısmi HNSW kurulur.
+  - Kurulum migration sürecinden geçer. Deploy/yedek kilidi boş olmalıdır.
+  - Komut: `CREATE INDEX CONCURRENTLY pte_hnsw_<model>_v1 ON product_text_embedding USING hnsw
+    (embedding halfvec_cosine_ops) WHERE model_version = '<model>'`.
+  - İndeks adı `_v<N>` ile biter ve `SEMANTIC_INDEX_VERSION` ile eşleşmelidir.
+- Sağlayıcı sağlıklı olmalıdır. 401/402/403 (örneğin Jina bakiyesi bitti) devreyi 15 dakika açar;
+  bu sürede ücretli çağrı denenmez.
+- Günlük tavan: `SEMANTIC_SERVING_DAILY_CAP` (varsayılan 5000). Gölgeyle aynı `api_usage` sayacı
+  kullanılır.
+- HNSW yoksa filtresiz sorguda anlamsal aday hiç çalışmaz (tam tarama istek yolunda yasak).
+  Açık ve küçük kategoride (≤ 2.000 vektör) kategori içi kesin sıralama çalışabilir.
+
+**İzleme.** Günlük satırları `{"event":"semantic_serving",...}` biçimindedir (`outcome`,
+`reason`, `strategy`, `categoryMode`, sayılar). Sorgu metni yoktur. Gölge hataları
+`{"event":"semantic_shadow_error",...}` satırına yazılır.
+
+**Geri alma.** Değeri `shadow` ya da `off` yapıp `web`'i yeniden oluşturun.
+
 ## Kalıcı embedding veri seti (karar 0179)
 
 `embedding_dataset` sağlayıcıdan alınan her (kanonik metin, vektör) çiftinin yalnız-ekleme

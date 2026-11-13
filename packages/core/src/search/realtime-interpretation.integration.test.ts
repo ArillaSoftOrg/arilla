@@ -188,6 +188,7 @@ describe("laptop: '10 bin liraya kadar oyun için hafif laptop'", () => {
     // "10 bin" -> 10000 TL; kategori + baslik niteleyicisi; "hafif" suzgec degil.
     expect(result.plan.queryObject.filters).toEqual({
       category_path: "elektronik",
+      category_source: "explicit_text_verified",
       price_max: 1_000_000,
     });
     expect(textSlotsOf(result.plan.queryObject)).toEqual([

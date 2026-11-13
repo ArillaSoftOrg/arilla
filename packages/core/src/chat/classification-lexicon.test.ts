@@ -39,8 +39,10 @@ describe("sohbet: merkezi kategori sozlugu", () => {
 
   it("Apple iPhone 16 için kılıf -> telefon kılıfı (uyumluluk metinde kalır)", () => {
     // Model niyetinde kategori verir; uyumlu cihaz ("iPhone 16") metin koşulu olarak kalır.
+    // Karar 0190: modelin kategorisi tahmindir -> kesin filtre degil, siralama ipucu.
     const q = ask("Apple iPhone 16 kılıf", { category: "telefon kılıfı" });
-    expect(q.filters.category_path).toBe("elektronik/telefon/aksesuar/kilif");
+    expect(q.filters.category_path).toBeUndefined();
+    expect(q.filters.category_hint).toBe("elektronik/telefon/aksesuar/kilif");
     expect(q.filters.brand_include).toBeUndefined();
     // Yalnız metinde, kelimelerin çoğu kategori değilse ayrıştırıcı katı filtre kurmaz.
     expect(ask("Apple iPhone 16 için kılıf").filters.category_path).toBeUndefined();
@@ -48,10 +50,13 @@ describe("sohbet: merkezi kategori sozlugu", () => {
 
   it("modelin serbest kategori metni de aynı sözlükten geçer", () => {
     const q = ask("rahat bir şey", { category: "spor ayakkabı" });
-    expect(q.filters.category_path).toBe("moda/ayakkabi/spor-ayakkabi");
+    expect(q.filters.category_path).toBeUndefined();
+    expect(q.filters.category_hint).toBe("moda/ayakkabi/spor-ayakkabi");
   });
 
   it("sözlükte olmayan kategori filtreye dönüşmez", () => {
-    expect(ask("hediye", { category: "uzay gemisi" }).filters.category_path).toBeUndefined();
+    const q = ask("hediye", { category: "uzay gemisi" });
+    expect(q.filters.category_path).toBeUndefined();
+    expect(q.filters.category_hint).toBeUndefined();
   });
 });

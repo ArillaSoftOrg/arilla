@@ -154,7 +154,11 @@ describe("laptop yorumu gerçek aramayı değiştirir; desteksiz niyet sahte sü
     );
     if (plan.mode !== "conversation") throw new Error("plan");
     expect(plan.action).toBe("search");
-    expect(plan.queryObject.filters).toEqual({ category_path: "elektronik", price_max: 1_000_000 });
+    expect(plan.queryObject.filters).toEqual({
+      category_path: "elektronik",
+      category_source: "explicit_text_verified",
+      price_max: 1_000_000,
+    });
     expect(textSlotsOf(plan.queryObject)).toEqual([["gaming"], ["laptop", "notebook", "dizustu"]]);
     // `text` ham sorgudur (suzgec degil); suzgec, kapi ve unparsed'ta yok.
     const applied = JSON.stringify({

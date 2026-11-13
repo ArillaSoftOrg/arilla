@@ -4,7 +4,9 @@
  * Arama bittikten sonra arka planda: kisisel veri suzgeci -> gunluk tavan -> sorgu vektoru ->
  * bagimsiz anlamsal adaylar (metinle ayni suzgecler) -> pilotun kapisi ve RRF fuzyonu "acik olsaydi"
  * ilk 10'u nasil degistirirdi -> yalnizca SAYISAL olculer `semantic_shadow_event`'e. Sorgu metni,
- * ozeti ve urun kimlikleri saklanmaz. Her hata yutulur: olcum aramayi asla bozmaz.
+ * ozeti ve urun kimlikleri saklanmaz. Hata aramayi asla bozmaz; ama SESSIZCE de yutulmaz (karar
+ * 0190): olcu satiri yazilamazsa ya da beklenmeyen bir hata olursa yapisal gunluk satiri
+ * (`semantic_shadow_error`, yalniz hata sinifi) yazilir ve surec ici sayac artar.
  */
 import { apiUsage, type Database, semanticShadowEvent } from "@arilla/db";
 import { and, count, eq, gte, sql } from "drizzle-orm";
@@ -87,6 +89,53 @@ export interface ShadowDeps {
   record?: (db: Database, metrics: ShadowMetrics) => Promise<void>;
   clock?: () => number;
   random?: () => number;
+  /** Yapisal hata gunlugu (testler yakalar); varsayilan `console.warn` JSON satiri. */
+  logError?: (line: ShadowErrorLine) => void;
+}
+
+export interface ShadowErrorLine {
+  event: "semantic_shadow_error";
+  stage: "record_failed" | "measure_failed" | "unexpected";
+  /** Hata sinifi ya da olcu nedeni (sabit kucuk sozluk; mesaj/sorgu metni YOK). */
+  reason: string;
+}
+
+const shadowErrors = new Map<string, number>();
+
+/** Surec ici golge hata sayaclari (`stage:reason` -> adet). */
+export function semanticShadowErrorCounters(): Record<string, number> {
+  return Object.fromEntries(shadowErrors);
+}
+
+function errorClass(error: unknown): string {
+  if (typeof error === "string") return error.slice(0, 40);
+  const code =
+    (error as { cause?: { code?: string } } | null)?.cause?.code ??
+    (error as { code?: string } | null)?.code;
+  if (typeof code === "string" && /^[0-9A-Z]{5}$/.test(code)) return `pg_${code}`;
+  return (error instanceof Error ? error.name : "unknown")
+    .toLowerCase()
+    .replace(/[^a-z0-9_]/g, "_")
+    .slice(0, 40);
+}
+
+function reportShadowError(
+  stage: ShadowErrorLine["stage"],
+  error: unknown,
+  logError?: (line: ShadowErrorLine) => void,
+): void {
+  const line: ShadowErrorLine = {
+    event: "semantic_shadow_error",
+    stage,
+    reason: error === null || error === undefined ? "unknown" : errorClass(error),
+  };
+  const key = `${line.stage}:${line.reason}`;
+  shadowErrors.set(key, (shadowErrors.get(key) ?? 0) + 1);
+  try {
+    (logError ?? ((l) => console.warn(JSON.stringify(l))))(line);
+  } catch {
+    // Gunluk yazilamazsa da arama etkilenmez.
+  }
 }
 
 type Env = Readonly<Record<string, string | undefined>>;
@@ -237,9 +286,12 @@ export async function measureSemanticShadow(
   const save = async (metrics: ShadowMetrics): Promise<ShadowMetrics> => {
     try {
       await record(db, metrics);
-    } catch {
-      // Olcum tablosu yazilamazsa da arama etkilenmez.
+    } catch (error) {
+      // Olcum tablosu yazilamazsa da arama etkilenmez; ama gorunur olur.
+      reportShadowError("record_failed", error, deps.logError);
     }
+    if (metrics.outcome === "error")
+      reportShadowError("measure_failed", metrics.reason, deps.logError);
     return metrics;
   };
 
@@ -332,7 +384,11 @@ export function scheduleSemanticShadow(
   if (inFlight >= SHADOW_MAX_IN_FLIGHT) return null;
   inFlight += 1;
   const task = measureSemanticShadow(db, input, deps)
-    .catch(() => null)
+    .catch((error: unknown) => {
+      // `measureSemanticShadow` firlatmaz; firlatirsa (programlama hatasi) gorunur olsun.
+      reportShadowError("unexpected", error, deps.logError);
+      return null;
+    })
     .finally(() => {
       inFlight -= 1;
     });
