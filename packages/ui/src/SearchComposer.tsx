@@ -21,6 +21,8 @@ export interface SearchComposerPhoto {
   label: string;
   onFileSelected: (file: File) => void;
   disabled?: boolean;
+  /** Istege bagli sunum ikonu; verilmezse mevcut resim ikonu kullanilir. */
+  icon?: ReactNode;
 }
 
 /**
@@ -360,13 +362,13 @@ export function SearchComposer({
                 )}
               >
                 {leadingAction.icon ?? <PlusIcon />}
-                {showPhotoLabel ? leadingAction.label : null}
+                {showPhotoLabel ? <span data-photo-label="">{leadingAction.label}</span> : null}
               </Button>
             ) : photo ? (
               <PhotoUploadButton
                 id={photoButtonId}
                 iconOnly={!showPhotoLabel}
-                icon={<ImageIcon />}
+                icon={photo.icon ?? <ImageIcon />}
                 label={photo.label}
                 onFileSelected={photo.onFileSelected}
                 disabled={photo.disabled || attachment?.pending}

@@ -1,6 +1,6 @@
 "use client";
 
-import { CloseIcon, ImageIcon, SearchComposer, type SearchComposerAttachment } from "@arilla/ui";
+import { CloseIcon, PlusIcon, SearchComposer, type SearchComposerAttachment } from "@arilla/ui";
 import { type FocusEvent, type RefObject, useEffect, useRef, useState } from "react";
 import { useConsentBannerVisible } from "./cookie-consent-client.tsx";
 import styles from "./floating-composer.module.css";
@@ -159,7 +159,7 @@ export function FloatingHomeComposer({
                 ? {
                     label: HOME_COPY.quickSearchAttachLabel,
                     onClick: goToMainForPhoto,
-                    icon: <ImageIcon />,
+                    icon: <PlusIcon />,
                   }
                 : undefined
             }

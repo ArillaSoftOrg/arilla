@@ -4,7 +4,7 @@ import {
   EARLY_ACCESS_PATH,
   EARLY_ACCESS_SIGNUP_PATH,
 } from "@arilla/core";
-import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
+import type { FooterGroup, HomeHeaderAppearance, HomeHeaderNavItem } from "@arilla/ui";
 import { Container, HomeHeader, SiteFooter, SkipLink } from "@arilla/ui";
 import type { ReactNode } from "react";
 import { logoutAction } from "./cikis-actions.ts";
@@ -67,6 +67,7 @@ export async function PublicSiteShell({
   compactFooter = false,
   footerVariant = "default",
   footerClassName,
+  headerAppearance = "default",
   children,
 }: {
   links: SiteSectionLinks;
@@ -89,6 +90,8 @@ export async function PublicSiteShell({
   footerVariant?: "default" | "prelaunch";
   /** Yalnizca bu sayfanin standart footer'i icin duzen sinifi. */
   footerClassName?: string;
+  /** Ana sayfanin mobil fotograf hero'su icin ust cubuk sunumu. */
+  headerAppearance?: HomeHeaderAppearance;
   children: ReactNode;
 }) {
   const isChat = chrome === "chat";
@@ -147,6 +150,7 @@ export async function PublicSiteShell({
         navItems={navItems}
         navAriaLabel="Ana gezinme"
         variant={isChat ? "chat" : "site"}
+        appearance={headerAppearance}
         accountHref={accountHref}
         accountLabel={accountLabel}
         loginHref={loginHref}

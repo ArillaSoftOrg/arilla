@@ -123,11 +123,11 @@ describe("urun acik ana sayfa bilgi mimarisi", () => {
     expect(html.match(/<section\b/g)).toHaveLength(3);
   });
 
-  it("trend verisi bosken ornek kart yerine acik bir bos durum gosterir", async () => {
+  it("trend verisi bosken bolumu kullanicidan gizler", async () => {
     const html = renderToStaticMarkup(await HomePage());
-    expect(html).toContain('id="trendler"');
-    expect(html).toContain(HOME_COPY.trendsEmptyTitle);
-    expect(html).toContain(HOME_COPY.trendsEmptyDescription);
+    expect(html).not.toContain('id="trendler"');
+    expect(html).not.toContain(HOME_COPY.trendsEmptyTitle);
+    expect(html).not.toContain(HOME_COPY.trendsEmptyDescription);
     expect(html).not.toContain(DEMO_HOMEPAGE_TRENDS[0]?.title);
     expect(html).not.toContain(HOME_COPY.trendsSubtitle);
     expect(html).not.toContain('href="/trendler"');
@@ -138,7 +138,8 @@ describe("urun acik ana sayfa bilgi mimarisi", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const html = renderToStaticMarkup(await HomePage());
-      expect(html).toContain(HOME_COPY.trendsEmptyTitle);
+      expect(html).not.toContain('id="trendler"');
+      expect(html).not.toContain(HOME_COPY.trendsEmptyTitle);
       expect(html).toContain('aria-label="Ürün ara"');
       expect(html).toContain('id="kesfet"');
       expect(html).not.toContain(DEMO_HOMEPAGE_TRENDS[0]?.title);

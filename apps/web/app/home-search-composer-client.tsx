@@ -2,12 +2,19 @@
 
 import {
   ImageIcon,
+  PlusIcon,
   SearchComposer,
   type SearchComposerAttachment,
   type SearchComposerRecentProduct,
 } from "@arilla/ui";
-import { type ReactNode, useId, useRef } from "react";
+import { type ReactNode, useId, useRef, useState } from "react";
 import { FloatingHomeComposer } from "./floating-composer-client.tsx";
+import {
+  DEFAULT_HOME_CATEGORY,
+  HOME_CATEGORY_OPTIONS,
+  type HomeCategoryId,
+  HomeCategoryPicker,
+} from "./home-category-picker-client.tsx";
 import { useHomeComposerSubmission } from "./home-composer-submission.ts";
 import { HOME_COPY } from "./home-copy.ts";
 import { IMAGE_CHAT_COPY } from "./home-image-chat.ts";
@@ -20,6 +27,8 @@ const SUGGESTIONS = [
   { label: "Çalışma masası", query: "Küçük bir çalışma masası" },
   { label: "Kablosuz kulaklık", query: "Kablosuz kulaklık" },
 ] as const;
+
+const TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 
 /**
  * Ince istemci (CLAUDE.md kural 6): @arilla/ui'nin generic SearchComposer'ini
@@ -87,6 +96,10 @@ export function HomeSearchComposer({
     submission;
   const mainRef = useRef<HTMLDivElement>(null);
   const photoButtonId = useId();
+  const [categoryId, setCategoryId] = useState<HomeCategoryId>(DEFAULT_HOME_CATEGORY);
+  const [imageFailed, setImageFailed] = useState(false);
+  const category =
+    HOME_CATEGORY_OPTIONS.find((option) => option.id === categoryId) ?? HOME_CATEGORY_OPTIONS[0];
 
   const attachment: SearchComposerAttachment | null =
     imageChat && staged
@@ -100,8 +113,19 @@ export function HomeSearchComposer({
         }
       : null;
   const onSubmitText = chatInNewTab ? startInNewTab : undefined;
-  const suggestions = (
-    <fieldset className={styles.suggestions} aria-label="Örnek aramalar">
+  function fillSuggestion(query: string) {
+    const input = mainRef.current?.querySelector("textarea");
+    if (!input) return;
+    input.value = query;
+    input.dispatchEvent(new Event("input", { bubbles: true }));
+    input.focus();
+  }
+
+  const desktopSuggestions = (
+    <fieldset
+      className={`${styles.suggestions} ${styles.desktopSuggestions}`}
+      aria-label="Örnek aramalar"
+    >
       <legend className={styles.suggestionsLabel}>Örnek aramalar</legend>
       <div className={styles.suggestionsRow}>
         {SUGGESTIONS.map(({ label, query }) => (
@@ -110,19 +134,44 @@ export function HomeSearchComposer({
             type="button"
             key={query}
             disabled={sending}
-            onClick={() => {
-              const input = mainRef.current?.querySelector("textarea");
-              if (!input) return;
-              input.value = query;
-              input.dispatchEvent(new Event("input", { bubbles: true }));
-              input.focus();
-            }}
+            onClick={() => fillSuggestion(query)}
           >
             {label}
           </button>
         ))}
       </div>
     </fieldset>
+  );
+  const mobileSuggestions = (
+    <fieldset
+      className={`${styles.suggestions} ${styles.mobileSuggestions}`}
+      aria-label={`${category.label} için örnek aramalar`}
+    >
+      <legend className={styles.suggestionsLabel}>{category.label} için örnek aramalar</legend>
+      <div className={styles.suggestionsRow}>
+        {category.suggestions.map(({ label, query }) => (
+          <button
+            className={styles.suggestion}
+            type="button"
+            key={query}
+            disabled={sending}
+            onClick={() => fillSuggestion(query)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+    </fieldset>
+  );
+  const responsivePhotoIcon = (
+    <>
+      <span className={styles.desktopPhotoIcon} aria-hidden="true">
+        <ImageIcon />
+      </span>
+      <span className={styles.mobilePhotoIcon} aria-hidden="true">
+        <PlusIcon />
+      </span>
+    </>
   );
 
   return (
@@ -135,7 +184,12 @@ export function HomeSearchComposer({
         compact
       />
       {submission.consentDialog}
-      <div ref={mainRef}>
+      <div
+        ref={mainRef}
+        className={styles.categoryScene}
+        data-home-category={category.id}
+        data-image-failed={imageFailed ? "true" : undefined}
+      >
         <SearchComposer
           action={startChat}
           onSubmitText={onSubmitText}
@@ -147,9 +201,44 @@ export function HomeSearchComposer({
           offerCountLabel={(count) => `${count} mağaza`}
           recentPriceLabel={HOME_COPY.recentPriceLabel}
           chipsTitle={HOME_COPY.searchIdeasTitle}
-          beforeSearch={beforeSearch}
-          composerFooter={suggestions}
-          searchClassName={searchClassName}
+          beforeSearch={
+            <div className={styles.mobileIntro}>
+              <picture className={styles.heroPicture}>
+                <source
+                  media="(max-width: 639.98px)"
+                  srcSet={imageFailed ? undefined : category.imageSrc}
+                />
+                <img
+                  className={styles.heroImage}
+                  src={TRANSPARENT_PIXEL}
+                  alt=""
+                  width="900"
+                  height="1599"
+                  loading="eager"
+                  fetchPriority="high"
+                  onError={() => setImageFailed(true)}
+                />
+              </picture>
+              <span className={styles.heroOverlay} aria-hidden="true" />
+              <div className={styles.heroHeading}>
+                {beforeSearch}
+                <HomeCategoryPicker
+                  value={categoryId}
+                  onChange={(nextCategory) => {
+                    setImageFailed(false);
+                    setCategoryId(nextCategory);
+                  }}
+                />
+              </div>
+            </div>
+          }
+          composerFooter={
+            <>
+              {desktopSuggestions}
+              {mobileSuggestions}
+            </>
+          }
+          searchClassName={[searchClassName, styles.categorySearch].filter(Boolean).join(" ")}
           afterSearch={afterSearch}
           statusMessage={chatError}
           busyMessage={sending ? IMAGE_CHAT_COPY.sending : null}
@@ -161,6 +250,7 @@ export function HomeSearchComposer({
                   label: staged ? IMAGE_CHAT_COPY.replaceLabel : IMAGE_CHAT_COPY.uploadLabel,
                   onFileSelected: stageFile,
                   disabled: sending,
+                  icon: responsivePhotoIcon,
                 }
               : undefined
           }
@@ -169,7 +259,7 @@ export function HomeSearchComposer({
               ? {
                   label: IMAGE_CHAT_COPY.uploadLabel,
                   onClick: submission.openLogin,
-                  icon: <ImageIcon />,
+                  icon: responsivePhotoIcon,
                 }
               : undefined
           }

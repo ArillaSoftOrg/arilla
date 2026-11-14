@@ -48,6 +48,15 @@ describe("loadRecentProducts", () => {
 });
 
 describe("ana sayfa 'Alışverişe devam et' bölümü", () => {
+  it("mobil sahne Parfum ile baslar ve kategoriye ait onerileri sunar", () => {
+    const html = render();
+    expect(html).toContain('data-home-category="parfum"');
+    expect(html).toContain("/görsel/optimized/parfum-lacivert-sis.webp");
+    for (const label of ["Kalıcı odunsu parfüm", "Günlük ferah koku", "Sonbahar parfümü"]) {
+      expect(html).toContain(label);
+    }
+  });
+
   it("ornek aramalar gecmisten once gelir; eksik fiyat ve sifir magaza acik gosterilir", () => {
     const html = render(toRecentProducts([{ ...nike, minPrice: null, offerCount: 0 }]));
     expect(html.indexOf('aria-label="Örnek aramalar"')).toBeLessThan(html.indexOf(TITLE));
@@ -108,7 +117,7 @@ describe("ana sayfa fotograf aksiyonu", () => {
     const html = renderToStaticMarkup(
       createElement(HomeSearchComposer, { imageEntryAvailable: true }),
     );
-    expect(html).toContain("Fotoğraf yükle</button>");
+    expect(html).toContain('data-photo-label="">Fotoğraf yükle</span>');
     expect(html).not.toContain('type="file"');
     expect(html).toContain('aria-label="Fotoğraf eklemek için ana arama kutusuna git"');
   });
@@ -117,13 +126,13 @@ describe("ana sayfa fotograf aksiyonu", () => {
     const html = renderToStaticMarkup(
       createElement(HomeSearchComposer, { imageEntryAvailable: true, imageChat: true }),
     );
-    expect(html).toContain("Fotoğraf yükle</button>");
+    expect(html).toContain('data-photo-label="">Fotoğraf yükle</span>');
     expect(html).toContain('type="file"');
   });
 
   it("ozellik kapaliyken fotograf akisini kendiliginden acmaz", () => {
     const html = render();
-    expect(html).not.toContain("Fotoğraf yükle</button>");
+    expect(html).not.toContain('data-photo-label="">Fotoğraf yükle</span>');
     expect(html).not.toContain('type="file"');
   });
 });

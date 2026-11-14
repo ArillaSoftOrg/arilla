@@ -18,6 +18,8 @@ export interface HomeHeaderNavItem {
   current?: boolean;
 }
 
+export type HomeHeaderAppearance = "default" | "mobileHeroOverlay";
+
 export interface HomeHeaderProps {
   brandLabel: string;
   /** Marka yaninda gorunen surum durumu (orn. Beta). */
@@ -64,6 +66,8 @@ export interface HomeHeaderProps {
    * kaydirilinca ~%20 kuculur. Varsayilan `site` davranisi degismez.
    */
   variant?: "site" | "chat";
+  /** Ana sayfanin mobil fotograf hero'sunda seffaf, yuksek kontrastli ust cubuk. */
+  appearance?: HomeHeaderAppearance;
   /**
    * Menu panelinin kisisel bolumu (orn. Kaydettiklerim, Alarmlarım,
    * Geçmişim). Yalnizca oturumu acik ve urune erisebilen kullanici icin
@@ -116,6 +120,7 @@ export function HomeHeader({
   utilityLink,
   utilityInMenuOnly = false,
   variant = "site",
+  appearance = "default",
   personalNavItems = [],
   personalNavLabel,
   accountName,
@@ -248,6 +253,7 @@ export function HomeHeader({
     <header
       className={styles.header}
       data-variant={variant}
+      data-appearance={appearance}
       data-compact={variant === "chat" && compact ? "true" : undefined}
     >
       <Container size="wide" className={styles.inner}>
