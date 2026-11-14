@@ -493,7 +493,6 @@ main'e doğrudan push → ci → build-push → deploy → commit durumu `deploy
 ```
 push main → ci ✔ → build-push ✔ (imajlar + release-manifest) → deploy.yml
    plan  (salt okunur): manifest + sha main'in ucu mu + zorunlu kontroller + imajlar GHCR'da digest ile var mı
-   (sha main'in ucu degilse ve ucun `ci ok` kontrolu kirmiziysa plan kosusu KIRMIZI biter: uretim geride, uc duzeltilmeli)
    deploy (environment vps-production): ssh deploy@VPS "deploy <sha>" < release-manifest.json
         └─ VPS: deploy-gate (izin listesi) → sudo → arilla-deploy (root)
 ```

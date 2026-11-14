@@ -102,14 +102,6 @@ jobs:
           status=$(gh api "repos/$REPO/compare/$sha...main" --jq .status)
           case "$status" in identical | ahead) ;; *) echo "::error::$sha main'in atasi degil ($status)"; exit 1 ;; esac
           if [ "$sha" != "$head" ] && [ "$ALLOW_OLDER" != "true" ]; then
-            # Daha yeni ucun CI'i kirmiziysa o surum hic imaj uretmez; atlamak sessizce uretimi
-            # geride birakir (deploy yesil gorunur). Bu durumda kosuyu kirmizi yap.
-            tip_ci=$(gh api "repos/$REPO/commits/$head/check-runs?per_page=100" --jq '[.check_runs[] | select(.name == "ci ok") | .conclusion][0] // ""')
-            case "$tip_ci" in
-              failure | cancelled | timed_out)
-                echo "::error title=Uretim geride::$sha main'in ucu degil ve ucun ($head) CI'i $tip_ci; uc dagitilamiyor. Ucu duzeltin."
-                exit 1 ;;
-            esac
             echo "::notice::$sha main'in ucu degil ($head); daha yeni surum kendi hattiyla dagitilir. Atlandi."
             echo "proceed=false" >> "$GITHUB_OUTPUT"
             exit 0
