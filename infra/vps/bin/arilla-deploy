@@ -35,7 +35,7 @@ MAIN_REF=${ARILLA_MAIN_REF:-refs/heads/main}
 IMAGE_PREFIX=${ARILLA_IMAGE_PREFIX:-ghcr.io/arillasoftorg/}
 PULL=${ARILLA_PULL:-1}
 # KEEP: yapilandirma yedekleri (backups/deploy-*) ve altyapi paketleri. Migration oncesi dokumler
-# ARTIK BURADA BUDANMAZ (karar 0187): pre_migrate_dumps.py raporlar, silme yalniz `prune --confirm`.
+# KEEP ile BUDANMAZ: basarili migration deploy'unun sonunda `pre_migrate_dumps.py auto-prune` (karar 0194).
 KEEP=${ARILLA_KEEP:-5}
 HEALTH_TIMEOUT_WEB=${ARILLA_HEALTH_TIMEOUT_WEB:-240}
 HEALTH_TIMEOUT=${ARILLA_HEALTH_TIMEOUT:-120}
@@ -408,10 +408,15 @@ deploy_flow() { # deploy_flow <manifest> <kaynak-modu: git|tar> <tar-yolu-veya-b
   { ls -1t "$ROOT"/releases/*.infra.tar 2>/dev/null | tail -n +$((KEEP * 2 + 1)) | xargs -r rm -f --; } || true
   { ls -1dt "$ROOT"/backups/deploy-* 2>/dev/null | tail -n +$((KEEP + 1)) | xargs -r rm -rf --; } || true
   ROLLBACK_ARMED=0
-  # Karar 0187: migration oncesi dokumler OTOMATIK SILINMEZ; durum yazilir, adaylar yalniz raporlanir.
+  # Karar 0187 + 0194: durum yazilir; yalniz BASARILI migration deploy'unda, kilit altindayken en yeni 2
+  # dogrulanmis dokum disindakiler silinir (once yeni dokum tam okunur). Hata deploy'u BOZMAZ, yalniz uyarir.
   if [ -n "$CURRENT_DUMP" ]; then
-    "$PY" "$ROOT/vps/bin/pre_migrate_dumps.py" --root "$ROOT" set-status --dump "$CURRENT_DUMP" --status success \
-      || warn "dokum durumu success yazilamadi: $CURRENT_DUMP"
+    if "$PY" "$ROOT/vps/bin/pre_migrate_dumps.py" --root "$ROOT" set-status --dump "$CURRENT_DUMP" --status success; then
+      "$PY" "$ROOT/vps/bin/pre_migrate_dumps.py" --root "$ROOT" auto-prune --dump "$CURRENT_DUMP" 2>&1 | sed 's/^/  dokum: /' \
+        || warn "otomatik dokum temizligi yapilamadi (silme yapilmadi ya da kismen); elle: pre_migrate_dumps.py report"
+    else
+      warn "dokum durumu success yazilamadi: $CURRENT_DUMP (otomatik temizlik atlandi)"
+    fi
     CURRENT_DUMP=""
   fi
   "$PY" "$ROOT/vps/bin/pre_migrate_dumps.py" --root "$ROOT" report 2>/dev/null | sed 's/^/  dokum: /' || true

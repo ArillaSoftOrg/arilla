@@ -181,6 +181,7 @@ run_deploy() { # run_deploy <sha> <manifest> -> cikis kodu; cikti $work/out.log
   # Karar 0187: dokum oncesi disk tabani testte 1 GiB (uretim 30 GiB); DT_RESERVE ile ezilebilir.
   env ARILLA_EXTRA_PATH="$PATH" ARILLA_ROOT="$ROOT" ARILLA_REPO_URL="$SRC" ARILLA_IMAGE_PREFIX="$REG/" \
     ARILLA_DUMP_RESERVE_BYTES="${DT_RESERVE:-1073741824}" \
+    ARILLA_CATALOG_GATE_BYTES="${DT_GATE:-0}" \
     ARILLA_VERIFY_URL="http://127.0.0.1:$HTTP_PORT" ARILLA_HEALTH_TIMEOUT_WEB=${DT_WEB_TIMEOUT:-150} ARILLA_HEALTH_TIMEOUT=90 \
     bash "$here/arilla-deploy" deploy "$1" <"$2" >"$work/out.log" 2>&1
 }
@@ -234,6 +235,14 @@ ls "$ROOT"/backups/pre-migrate-*.dump >/dev/null 2>&1 && fail "kapasite reddinde
 [ "$(sum_of "$ROOT/compose.env")" = "$env_a" ] && [ "$(started web)" = "$web_a" ] && "$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | gq "current=$shaA" \
   && pass "dosyalar, servisler ve surum isaretcisi degismedi" || fail "kapasite reddi bir sey degistirdi"
 
+section "6b. Katalog esigi: dokumden sonra bos alan esigin altina dusecekse migration BASLAMADAN durur (karar 0188)"
+env_a=$(sum_of "$ROOT/compose.env"); web_a=$(started web)
+DT_GATE=$((1 << 60)) run_deploy "$shaC" "$work/mC.json"; rc=$?
+[ $rc -eq 2 ] && gq "KATALOG ESIGI" "$work/out.log" && gq "disk denetimi gecmedi" "$work/out.log" && pass "katalog esiginde cikis 2" || { fail "katalog esigi reddi rc=$rc"; tail -6 "$work/out.log"; }
+ls "$ROOT"/backups/pre-migrate-*.dump >/dev/null 2>&1 && fail "katalog esigi reddinde dokum alindi" || pass "dokum alinmadi"
+[ "$(sum_of "$ROOT/compose.env")" = "$env_a" ] && [ "$(started web)" = "$web_a" ] \
+  && pass "katalog esigi reddi hicbir seyi degistirmedi" || fail "katalog esigi reddi bir sey degistirdi"
+
 section "6. Migration + Caddyfile degisimi: C"
 run_deploy "$shaC" "$work/mC.json"; rc=$?
 if [ $rc -eq 0 ] && gq "^DEPLOY_RESULT=success sha=$shaC" "$work/out.log"; then pass "deploy C basarili"; else fail "deploy C rc=$rc"; tail -15 "$work/out.log"; fi
@@ -253,7 +262,9 @@ mj() { "$PY" -c "import json,sys;m=json.load(open(sys.argv[1]));print($2)" "$1.m
 [ "$(mj "$dumpC" 'm["sha"]')" = "$shaC" ] && mj "$dumpC" '" ".join(m["migrations"])' | gq 9999_deploytest_noop.sql && mj "$dumpC" 'm["deploy_id"]' | gq -E '^[0-9]{8}-[0-9]{6}$' \
   && pass "metadata: deploy kimligi, sha, migration listesi" || fail "metadata kimlikleri"
 [ "$(mj "$dumpC" 'm["toc"]["has_schema_migration"] and m["toc"]["table_data"] > 0')" = True ] && pass "metadata: icindekiler dogrulamasi (veri + schema_migration)" || fail "metadata toc"
-gq "dokum: .*silme adayi" "$work/out.log" && pass "deploy adaylari yalniz RAPORLADI (otomatik silme yok)" || fail "deploy dokum raporu"
+gq "dokum: .*silme adayi" "$work/out.log" && pass "deploy dokum raporunu yazdi" || fail "deploy dokum raporu"
+# Karar 0194: basarili migration deploy'u yeni dokumu tam okur, kilit altinda temizler (tek dokum: silinecek yok).
+gq "dokum: otomatik temizlik: 0 dokum silindi" "$work/out.log" && [ "$(mj "$dumpC" 'm["verify"]["full_read"]["ok"]')" = True ]   && pass "otomatik temizlik: yeni dokum tam okundu, en yeni 2 korunuyor, silinecek yok" || { fail "otomatik temizlik"; grep "dokum:" "$work/out.log"; }
 
 section "6c. Basarisiz migration (E): geri alma, dokum KORUNUR"
 run_deploy "$shaE" "$work/mE.json"; rc=$?

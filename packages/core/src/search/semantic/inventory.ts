@@ -19,7 +19,7 @@
  */
 import type { Database } from "@arilla/db";
 import { sql } from "drizzle-orm";
-import type { SemanticIndex } from "./active-index.ts";
+import { SEMANTIC_TABLES, type SemanticIndex } from "./active-index.ts";
 import { isValidModelVersion } from "./config.ts";
 import {
   type CategoryStat,
@@ -191,7 +191,7 @@ export interface CategoryStatRequest {
  * Tablo adi yalniz beyaz listeden (`SemanticIndex.table`); yol ve model PARAMETRE.
  */
 async function countCategory(db: Database, r: CategoryStatRequest): Promise<number> {
-  if (!["product_text_embedding", "product_text_embedding_d384"].includes(r.index.table)) {
+  if (!SEMANTIC_TABLES.includes(r.index.table)) {
     throw new Error("gecersiz embedding tablosu");
   }
   // `LIKE` joker tasimasin: yalniz guvenli yol bicimi (karar 0190).

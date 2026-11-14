@@ -10,7 +10,7 @@ import {
 } from "./strategy.ts";
 
 const NOW = new Date("2026-11-13T12:00:00Z");
-const BGE = "bge-m3";
+const BGE = "bge-m3-5617a9f6";
 const V = "hnsw-m16-efc64-v1";
 
 const global: IndexDescriptor = {

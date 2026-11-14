@@ -427,7 +427,34 @@ export function fuzzyWords(slots: readonly string[][]): string[] {
   return [...words].sort((a, b) => b.length - a.length).slice(0, FUZZY_MAX_WORDS);
 }
 
+/** Aksesuar kademesine ayrilan dal sinirlari: ana urun dali tam sinirda, aksesuar dali kucuk (karar 0197). */
+export const ACCESSORY_BRANCH_LIMIT = 100;
+
+/**
+ * Basligin ASIL adi (katlanmis): "+" ve " with " sonrasi (kutu icerigi) ile hediye/kilifli ifadeleri
+ * atilir. "iPhone 15 + Kilif Hediyeli", "iPhone 15 Kilifli" ana cihazdir; "iPhone 15 Uyumlu Kilif"
+ * degil. Yalnizca aksesuar deseni bu ifadeye uygulanir.
+ */
+export function accessoryHeadExpr(): SQL {
+  const folded = foldedTitleExpr(sql`p.title`);
+  return sql`regexp_replace(
+    split_part(regexp_replace(${folded}, '[[:space:]]*[+][[:space:]]*', ' with ', 'g'), ' with ', 1),
+    '([a-z0-9]+ ){0,2}(hediyeli|hediye|hediyesi)( [a-z0-9]+){0,2}|(kilif|kablo|adaptor|sarj|aksesuar|koruyucu|tutucu|aski)(li|lu|siz|suz)($|[^a-z0-9])',
+    ' ', 'g')`;
+}
+
+/** Asil ad aksesuar desenine uyuyor mu (karar 0197). */
+export function accessoryHeadMatch(pattern: string): SQL {
+  return sql`${accessoryHeadExpr()} ~ ${pattern}`;
+}
+
 export interface CandidateOptions {
+  /**
+   * Ana urun sorgusu: aksesuar basligi ana urun dalindan cikarilir ve kucuk ayri bir dalda
+   * (`ACCESSORY_BRANCH_LIMIT`) toplanir. Sirasiz `LIMIT` yuzunden bol aksesuar ana urunu aday
+   * havuzundan itmesin (karar 0197); aksesuar elenmez.
+   */
+  demotedTitlePattern?: string | null | undefined;
   /** Istek cihazken aksesuarin aday penceresini doldurmasini engeller. */
   excludedTitlePattern?: string | null | undefined;
   requiredTitlePatterns?: readonly string[] | undefined;
@@ -541,8 +568,18 @@ export function candidateCtes(
     const branch = (kind: number, condition: SQL | null, cap: number = limit) => {
       sequence += 1;
       const filter = condition ? sql` AND ${condition}` : sql``;
-      return sql`(SELECT p.id, ${kind}::int AS branch, ${sequence}::int AS seq, ${cap}::int AS cap
+      if (!options.demotedTitlePattern) {
+        return sql`(SELECT p.id, ${kind}::int AS branch, ${sequence}::int AS seq, ${cap}::int AS cap
         FROM product p WHERE ${where}${filter} LIMIT ${cap})`;
+      }
+      // Aksesuar ikizi: kind 3 (completeKinds disinda; `capped` yalniz ana urun dalina bakar).
+      sequence += 1;
+      branches.push(
+        sql`(SELECT p.id, ${10 * index + 3}::int AS branch, ${sequence}::int AS seq, ${ACCESSORY_BRANCH_LIMIT}::int AS cap
+        FROM product p WHERE ${where}${filter} AND ${accessoryHeadMatch(options.demotedTitlePattern)} LIMIT ${ACCESSORY_BRANCH_LIMIT})`,
+      );
+      return sql`(SELECT p.id, ${kind}::int AS branch, ${sequence - 1}::int AS seq, ${cap}::int AS cap
+        FROM product p WHERE ${where}${filter} AND NOT ${accessoryHeadMatch(options.demotedTitlePattern)} LIMIT ${cap})`;
     };
     if (typoWords.length > 0) {
       // Once dal basina 1000 aday isteniyordu: uzun gorsel tariflerinde her

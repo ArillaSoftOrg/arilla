@@ -29,7 +29,7 @@ from enrich.registry import (
 from tests.fake_embed_server import FakeEmbedServer, deterministic_vector
 
 QWEN = "qwen3-embedding-0.6b-97b0c614"
-BGE = "bge-m3"
+BGE = "bge-m3-5617a9f6"
 E5 = "e5-small-int8-0bcc8ca76950"
 REPO = Path(__file__).resolve().parents[3]
 INFRA = REPO / "infra"

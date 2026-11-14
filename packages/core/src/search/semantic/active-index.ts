@@ -16,14 +16,48 @@ import { DEFAULT_SEMANTIC_MODEL, isValidModelVersion } from "./config.ts";
 
 type Env = Readonly<Record<string, string | undefined>>;
 
-export type SemanticTable = "product_text_embedding" | "product_text_embedding_d384";
+export type SemanticTable =
+  | "product_text_embedding"
+  | "product_text_embedding_d384"
+  | "product_text_embedding_d1024";
+
+/** SQL'e girebilen tablolar (tek beyaz liste; semantic-candidates ve inventory buradan okur). */
+export const SEMANTIC_TABLES: readonly SemanticTable[] = [
+  "product_text_embedding",
+  "product_text_embedding_d384",
+  "product_text_embedding_d1024",
+];
+
+/** Sorgu vektorunu kim uretir: Jina API ya da kendi servisimiz (`remote_http`, karar 0182/0196). */
+export type QueryProvider = "jina" | "remote_http";
+
+/**
+ * Sonuc birlestirme: `rrf_gate` Jina icin kalibre (mutlak kosinus kapisi + RRF, karar 0170/0178);
+ * `conditional_hybrid` BGE-M3 icin (karar 0196): BGE'de alakasiz urunler de 0,45-0,61 kosinus alir,
+ * mutlak esik calismaz; lexical sonuclar korunur, anlamsal eklemeler sorgu-ici goreli esikle girer.
+ */
+export type FusionKind = "rrf_gate" | "conditional_hybrid";
+
+/** `remote_http` sorgu servisi: adres ve anahtar ORTAM DEGISKENI adlari (degerler kodda yok). */
+export interface QueryEndpointSpec {
+  urlEnv: string;
+  tokenEnv: string;
+  /** Servisin bildirdigi model adi; yanitta ayni olmali (kayit defteri `endpoint.served_model`). */
+  servedModel: string;
+}
 
 export interface SemanticIndex {
   modelVersion: string;
   table: SemanticTable;
   dimensions: number;
-  /** Jina `task` (sorgu tarafi). */
+  /** Jina `task` (sorgu tarafi); `remote_http`te yalniz kayit icin ("query"). */
   queryTask: string;
+  /** Varsayilan `jina`. */
+  provider?: QueryProvider;
+  /** `provider = remote_http` icin zorunlu. */
+  endpoint?: QueryEndpointSpec;
+  /** Varsayilan `rrf_gate`. */
+  fusion?: FusionKind;
 }
 
 /** TS'nin sorgu vektoru uretebildigi modeller (uzak API). Yerel CPU modelleri burada YOK. */
@@ -33,6 +67,26 @@ export const QUERYABLE_INDEXES: Readonly<Record<string, SemanticIndex>> = {
     table: "product_text_embedding",
     dimensions: 768,
     queryTask: "retrieval.query",
+    provider: "jina",
+    fusion: "rrf_gate",
+  },
+  /**
+   * BGE-M3 (karar 0196): sorgu AYRI TEI servisinden (`EMBED_BGE_M3_QUERY_URL`), onek yok, CLS havuzlama.
+   * Bu satir sorgulanabilirligi tanimlar; sunum yine hazir HNSW indeksi, saglikli servis ve gecen
+   * kanarya ister (kayit defterinde model `disabled` kaldikca hicbir sey kendiliginden acilmaz).
+   */
+  "bge-m3-5617a9f6": {
+    modelVersion: "bge-m3-5617a9f6",
+    table: "product_text_embedding_d1024",
+    dimensions: 1024,
+    queryTask: "query",
+    provider: "remote_http",
+    endpoint: {
+      urlEnv: "EMBED_BGE_M3_QUERY_URL",
+      tokenEnv: "EMBED_BGE_M3_QUERY_TOKEN",
+      servedModel: "BAAI/bge-m3",
+    },
+    fusion: "conditional_hybrid",
   },
 };
 
