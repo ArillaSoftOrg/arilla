@@ -35,6 +35,12 @@ import { chatProductBackend } from "./chat-product-backend.ts";
 import { ChatCompareTray } from "./chat-product-cards.tsx";
 import toolStyles from "./chat-product-tools.module.css";
 import { ChatProductToolsProvider } from "./chat-product-tools.tsx";
+import {
+  distanceFromBottom,
+  keyboardInsetPx,
+  NEAR_BOTTOM_PX,
+  shouldAutoScroll,
+} from "./chat-scroll.ts";
 import { CHAT_MESSAGE_MAX, ChatComposer, ChatPendingRow } from "./chat-shell-parts.tsx";
 import styles from "./sohbet.module.css";
 
@@ -125,6 +131,12 @@ export function ChatInteractive({
   const keyRef = useRef<{ signature: string; key: string } | null>(null);
   const autoStartedRef = useRef(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  // Karar 0201: akıllı kaydırma durumu.
+  const [newReply, setNewReply] = useState(false);
+  const scrolledOnceRef = useRef(false);
+  // Sayfa açılışında "sondadır" kabul edilir; yalnızca kullanıcı yukarı kaydırınca false olur.
+  const nearBottomRef = useRef(true);
+  const prevWorkingRef = useRef(false);
   const customInputRef = useRef<HTMLInputElement>(null);
   const questionId = useId();
   const consent = useChatImageConsentGate(imageConsent);
@@ -330,12 +342,62 @@ export function ChatInteractive({
     void run(waitForTurn);
   }, []);
 
-  // Yeni mesaj ya da durum gelince son içeriğe kaydır (hareket tercihine saygı).
+  // Yeni mesaj ya da durum gelince son içeriğe kaydır (hareket tercihine saygı). Karar 0201:
+  // kullanıcı bu turu kendisi gönderdiyse ya da sayfa yeni açıldıysa ya da zaten alta yakınsa
+  // kaydırılır; eski mesajları okuyorsa zorla kaydırılmaz, "Yeni yanıt" düğmesi çıkar.
   // biome-ignore lint/correctness/useExhaustiveDependencies: kaydırma tetikleyicileri bilinçli.
   useEffect(() => {
-    const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
-    bottomRef.current?.scrollIntoView({ block: "end", behavior: reduce ? "auto" : "smooth" });
+    const initial = !scrolledOnceRef.current;
+    scrolledOnceRef.current = true;
+    const userJustSent = working && !prevWorkingRef.current;
+    prevWorkingRef.current = working;
+    // Yeni içerik geldiği AN sayfa zaten uzamıştır; "alta yakın mıydı" sorusu içerik eklenmeden
+    // önceki son kaydırma durumuna bakar (`nearBottomRef`, yalnız kaydırma olaylarında güncellenir).
+    const distance = nearBottomRef.current ? 0 : Number.POSITIVE_INFINITY;
+    if (shouldAutoScroll({ userJustSent, initial, distanceFromBottom: distance })) {
+      const reduce = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+      bottomRef.current?.scrollIntoView({ block: "end", behavior: reduce ? "auto" : "smooth" });
+      setNewReply(false);
+    } else if (!working) {
+      setNewReply(true);
+    }
   }, [lastSeq, working, error, preview]);
+
+  // Kullanıcı kaydırdıkça "alta yakın mı" durumu güncellenir; alta inince "Yeni yanıt" düğmesi kalkar.
+  useEffect(() => {
+    function onScroll() {
+      const distance = distanceFromBottom(
+        document.documentElement.scrollHeight,
+        window.scrollY,
+        window.innerHeight,
+      );
+      nearBottomRef.current = distance <= NEAR_BOTTOM_PX;
+      if (nearBottomRef.current) setNewReply(false);
+    }
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  // Mobil klavye (özellikle iOS Safari): görsel görünüm küçülünce yapışkan mesaj kutusu klavyenin
+  // üstüne alınır (`--kb-inset`). visualViewport yoksa hiçbir şey yapılmaz.
+  useEffect(() => {
+    const viewport = window.visualViewport;
+    if (!viewport) return;
+    const root = document.documentElement;
+    function update() {
+      if (!viewport) return;
+      const inset = keyboardInsetPx(window.innerHeight, viewport);
+      root.style.setProperty("--kb-inset", `${inset}px`);
+    }
+    update();
+    viewport.addEventListener("resize", update);
+    viewport.addEventListener("scroll", update);
+    return () => {
+      viewport.removeEventListener("resize", update);
+      viewport.removeEventListener("scroll", update);
+      root.style.removeProperty("--kb-inset");
+    };
+  }, []);
 
   // Sunucu yenilemesi geldi (kalici cevap + urunler): olcum isareti.
   useEffect(() => {
@@ -545,6 +607,24 @@ export function ChatInteractive({
         ) : null}
 
         <div ref={bottomRef} className={styles.bottom} aria-hidden="true" />
+
+        {newReply ? (
+          <button
+            type="button"
+            className={styles.newReply}
+            onClick={() => {
+              const reduce =
+                window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
+              bottomRef.current?.scrollIntoView({
+                block: "end",
+                behavior: reduce ? "auto" : "smooth",
+              });
+              setNewReply(false);
+            }}
+          >
+            {CHAT_COPY.newReply}
+          </button>
+        ) : null}
 
         {consent.prompt}
 

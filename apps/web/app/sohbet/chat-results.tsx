@@ -1,4 +1,5 @@
 import {
+  buildResultCommentary,
   CHAT_RESULT_LIMIT,
   createChatTimer,
   type ForeignPrice,
@@ -8,6 +9,7 @@ import {
   logChatTimings,
   type SearchIntent,
   searchByIntent,
+  summarizeResults,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ProductCard, VisuallyHidden } from "@arilla/ui";
@@ -17,8 +19,15 @@ import { WebGridItems, WebOnlyResults } from "../lib/search/web-search-section.t
 import { startWebSearch } from "../lib/search/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
 import { ResultFeedback } from "./chat-feedback-client.tsx";
+import {
+  COMMENTARY_HEAD_COUNT,
+  OLDER_BLOCK_RESULT_LIMIT,
+  REVEAL_INITIAL_COUNT,
+  webCardLimit,
+} from "./chat-open.ts";
 import { ChatCardActions } from "./chat-product-cards.tsx";
 import { chatToolProduct } from "./chat-product-display.ts";
+import { ChatResultReveal } from "./chat-reveal.tsx";
 import { araSortParam, type ChatSortKey, sortModeFor } from "./chat-sort.ts";
 import { ResultTabs } from "./chat-tabs.tsx";
 import styles from "./sohbet.module.css";
@@ -50,34 +59,99 @@ export function ChatResultGrid({
   items,
   labelledBy,
   extra,
+  reveal = false,
+  commentary = null,
 }: {
   items: readonly GridItem[];
   labelledBy: string;
+  /** Karar 0201: ilk kartlardan sonra gösterilen değerlendirme bölümü (yalnız `reveal` iken). */
+  commentary?: ReactNode;
   /** Aynı ızgaranın sonuna eklenen `<li>`ler (karar 0106: internet kartları). */
   extra?: ReactNode;
+  /** Karar 0200 (`CHAT_UX_V2`): ilk kartlar görünür, devamı "Tüm N sonucu gör" ile açılır. */
+  reveal?: boolean;
 }) {
   // Karar 0167: bayrak istek başına sunucuda okunur (varsayılan kapalı).
   const aliexpressVariants = isAliExpressImageVariantsEnabled();
+  const cards = items.map((item, index) => (
+    <li key={item.productId} className={styles.resultItem}>
+      <ProductCard
+        href={`/urun/${item.slug}`}
+        title={item.title}
+        brand={item.brandName}
+        imageUrl={item.primaryImageUrl}
+        imageLoading={index < 4 ? "eager" : "lazy"}
+        imageSizes={CHAT_GRID_IMAGE_SIZES}
+        aliexpressVariants={aliexpressVariants}
+        action={<ChatCardActions product={chatToolProduct(item)} />}
+        {...cardPriceProps(item)}
+      />
+    </li>
+  ));
+  if (reveal) {
+    // Karar 0200/0201: ilk 4 kart, hemen altında olgusal değerlendirme, devamı kademeli.
+    const head = cards.slice(0, COMMENTARY_HEAD_COUNT);
+    const rest = cards.slice(COMMENTARY_HEAD_COUNT);
+    return (
+      <>
+        {/* biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür. */}
+        <ul className={styles.resultGrid} role="list" aria-labelledby={labelledBy}>
+          {head}
+          {rest.length === 0 ? extra : null}
+        </ul>
+        {commentary}
+        {rest.length > 0 ? (
+          <ChatResultReveal
+            labelledBy={labelledBy}
+            extra={extra}
+            initialCount={REVEAL_INITIAL_COUNT - COMMENTARY_HEAD_COUNT}
+            totalCount={items.length}
+          >
+            {rest}
+          </ChatResultReveal>
+        ) : null}
+      </>
+    );
+  }
   return (
     // biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür.
     <ul className={styles.resultGrid} role="list" aria-labelledby={labelledBy}>
-      {items.map((item, index) => (
-        <li key={item.productId} className={styles.resultItem}>
-          <ProductCard
-            href={`/urun/${item.slug}`}
-            title={item.title}
-            brand={item.brandName}
-            imageUrl={item.primaryImageUrl}
-            imageLoading={index < 4 ? "eager" : "lazy"}
-            imageSizes={CHAT_GRID_IMAGE_SIZES}
-            aliexpressVariants={aliexpressVariants}
-            action={<ChatCardActions product={chatToolProduct(item)} />}
-            {...cardPriceProps(item)}
-          />
-        </li>
-      ))}
+      {cards}
       {extra}
     </ul>
+  );
+}
+
+/** Karar 0201: modelsiz, doğrulanmış verilerden hesaplanan kısa değerlendirme; yoksa hiçbir şey. */
+function CommentarySection({ items, seed }: { items: readonly GridItem[]; seed: string }) {
+  const commentary = buildResultCommentary(items, { seed });
+  if (!commentary) return null;
+  return (
+    <section className={styles.commentary} aria-label={CHAT_COPY.commentaryLabel}>
+      <p>{commentary.sentences.join(" ")}</p>
+    </section>
+  );
+}
+
+/** Sonuç özeti (karar 0200): "12 mağazadan 20 ürün"; sayılar gösterilen katalog kartlarından. */
+function SummaryLine({ items }: { items: readonly GridItem[] }) {
+  const { storeCount, productCount } = summarizeResults(items);
+  return (
+    <p className={styles.summary} role="status" aria-label={CHAT_COPY.summaryLabel}>
+      <svg
+        className={styles.summaryIcon}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+      </svg>
+      <span>{CHAT_COPY.summary(storeCount, productCount)}</span>
+    </p>
   );
 }
 
@@ -110,6 +184,8 @@ export async function ChatResults({
   messageSeq,
   sort,
   helpful,
+  uxV2 = false,
+  compact = false,
 }: {
   intent: SearchIntent;
   headingId: string;
@@ -119,18 +195,25 @@ export async function ChatResults({
   messageSeq: number;
   sort: ChatSortKey;
   helpful: boolean | null;
+  /** Karar 0200 (`CHAT_UX_V2`): özet satırı + kademeli gösterim; kapalıyken bugünkü düzen. */
+  uxV2?: boolean;
+  /** Karar 0200: kullanıcının açtığı ESKİ blok: az kart, sekme/internet/oy yok. */
+  compact?: boolean;
 }) {
   // Karar 0102: internet araması katalog aramasıyla paralel başlar. Sorgu, modelin
   // çıkardığı niyetin metinsel hâlidir (görsel eki de buna iner; görselin kendisi
-  // gitmez). Yalnızca varsayılan sekmede; sekme değişimi yeniden aramaz.
+  // gitmez). Yalnızca varsayılan sekmede; sekme değişimi yeniden aramaz. Açılan eski blokta
+  // internet araması yoktur (ek model çağrısı/maliyet).
   const webSearch =
-    sort === "secilen" ? startWebSearch({ kind: "text", text: intentSearchText(intent) }) : null;
+    sort === "secilen" && !compact
+      ? startWebSearch({ kind: "text", text: intentSearchText(intent) })
+      : null;
   let result: Awaited<ReturnType<typeof searchByIntent>>;
   const timer = createChatTimer();
   try {
     result = await timer.time("search", () =>
       searchByIntent(getDatabase(), intent, {
-        pageSize: CHAT_RESULT_LIMIT,
+        pageSize: compact ? OLDER_BLOCK_RESULT_LIMIT : CHAT_RESULT_LIMIT,
         sort: sortModeFor(sort),
         // Karar 0178: gölge olcum yalniz varsayilan sekmede (sekme degisimi ikinci kez olcmez).
         semanticShadow: sort === "secilen",
@@ -218,21 +301,34 @@ export async function ChatResults({
       {isFallback ? (
         <p className={styles.resultsHeading}>{CHAT_COPY.closeMatchesHeading}</p>
       ) : (
-        <ResultTabs
-          conversationId={conversationId}
-          active={sort}
-          countLabel={countKnown ? resultCountLabel(outcome.items.length) : null}
-        />
+        <>
+          {uxV2 ? <SummaryLine items={outcome.items} /> : null}
+          {compact ? null : (
+            <ResultTabs
+              conversationId={conversationId}
+              active={sort}
+              countLabel={!uxV2 && countKnown ? resultCountLabel(outcome.items.length) : null}
+            />
+          )}
+        </>
       )}
       {noteBlock}
       <ChatResultGrid
         items={outcome.items}
         labelledBy={headingId}
+        reveal={uxV2 && !compact && !isFallback}
+        commentary={
+          uxV2 && !compact && !isFallback ? (
+            <CommentarySection items={outcome.items} seed={intent.query} />
+          ) : null
+        }
         extra={
           webSearch && !isFallback ? (
             <WebGridItems
               promise={webSearch}
               variant="chat"
+              // Karar 0200: katalog + internet kartları sekme başına en fazla 30.
+              limit={uxV2 ? webCardLimit(outcome.items.length) : undefined}
               catalog={outcome.items.map((item) => ({
                 title: item.title,
                 imageUrl: item.primaryImageUrl,
@@ -241,7 +337,9 @@ export async function ChatResults({
           ) : null
         }
       />
-      <ResultFeedback conversationId={conversationId} messageSeq={messageSeq} initial={helpful} />
+      {compact ? null : (
+        <ResultFeedback conversationId={conversationId} messageSeq={messageSeq} initial={helpful} />
+      )}
     </section>
   );
 }

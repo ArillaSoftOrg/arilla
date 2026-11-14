@@ -77,6 +77,18 @@ export const CHAT_COPY = {
   tabMatchesUnavailable: "Bu arama için kullanılamıyor",
   resultsLoading: "Seçenekler yükleniyor…",
   resultsRegion: "Sonuçlar",
+  summary: (stores: number | null, products: number) =>
+    stores === null
+      ? `${products.toLocaleString("tr-TR")} ürün`
+      : `${stores.toLocaleString("tr-TR")} mağazadan ${products.toLocaleString("tr-TR")} ürün`,
+  newReply: "Yeni yanıt ↓",
+  commentaryLabel: "Değerlendirme",
+  summaryLabel: "Sonuç özeti",
+  revealMore: (count: number) => `Tüm ${count.toLocaleString("tr-TR")} sonucu gör`,
+  revealLess: "Daha az göster",
+  olderShow: "Sonuçları göster",
+  olderHide: "Sonuçları gizle",
+  olderLabel: (query: string) => `${query} aramasının sonuçları`,
   seeAllCount: (count: number) => `Tüm ${count.toLocaleString("tr-TR")} sonucu görüntüle`,
   searchTimedOut: "Arama beklenenden uzun sürdü. Aramanı sakladım, tekrar deneyebilirsin.",
   relaxedLabel: "Aramada yaptığım değişiklikler",

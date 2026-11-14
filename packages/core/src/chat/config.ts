@@ -24,6 +24,14 @@ export function isChatDiscoveryEnabled(env: Env = process.env): boolean {
 }
 
 /**
+ * Sohbet sonuc blogu v2 (karar 0200): ozet satiri, kademeli gosterim, eski bloklari daraltma.
+ * `CHAT_UX_V2=true` verilmedikce kapali (varsayilan): bugunku blok duzeni aynen kalir.
+ */
+export function isChatUxV2Enabled(env: Env = process.env): boolean {
+  return isChatDiscoveryEnabled(env) && env.CHAT_UX_V2?.trim() === "true";
+}
+
+/**
  * Sohbet gorsel eki (karar 0078). `CHAT_IMAGE_ENABLED=true` verilmedikce kapali;
  * hukuk onayi gelmeden acilmaz. Sohbetin kendisi de acik olmalidir.
  */

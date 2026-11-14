@@ -1,9 +1,11 @@
 import { type ChatMessageView, intentChips } from "@arilla/core";
 import { ProductCardSkeleton, VisuallyHidden } from "@arilla/ui";
+import Link from "next/link";
 import { Suspense } from "react";
 import { CHAT_COPY } from "./chat-copy.ts";
 import { ChatIntentControls } from "./chat-intent-controls.tsx";
 import { ChatLinkResults } from "./chat-link-results.tsx";
+import { openBlocksHref, parseOpenSeqs, toggleOpenSeqs } from "./chat-open.ts";
 import { RestoreSearchButton } from "./chat-restore-client.tsx";
 import { ChatResults } from "./chat-results.tsx";
 import { ChatPendingRow, ChatUserRow } from "./chat-shell-parts.tsx";
@@ -38,16 +40,24 @@ export function ChatThread({
   messages,
   conversationId,
   sortParam,
+  uxV2 = false,
+  openParam,
 }: {
   messages: readonly ChatMessageView[];
   conversationId: string;
   /** `?sirala=` ham değeri; geçersizse niyetin tercihi/varsayılan. */
   sortParam?: string;
+  /** Karar 0200 (`CHAT_UX_V2`): eski bloklar açılıp kapanabilir, yeni blok özet + kademeli gösterim. */
+  uxV2?: boolean;
+  /** `?ac=` ham değeri: açılan eski arama mesajı sıraları (en çok 2). */
+  openParam?: string;
 }) {
   const searchSeqs = messages
     .filter((m) => m.role === "assistant" && m.kind === "search")
     .map((m) => m.seq);
   const shown = new Set(searchSeqs.slice(-RESULT_BLOCKS_SHOWN));
+  const olderSeqs = new Set(searchSeqs.filter((seq) => !shown.has(seq)));
+  const open = uxV2 ? parseOpenSeqs(openParam, olderSeqs) : [];
   // "Bu aramaya dön" yalnızca eski bloklarda ve niyeti şu anki aramadan farklıysa (karar 0199).
   const latestSearch = messages.filter((m) => m.role === "assistant" && m.kind === "search").at(-1);
   const latestIntentJson =
@@ -111,6 +121,43 @@ export function ChatThread({
                       query={intent.query}
                     />
                   ) : null}
+                  {uxV2 && message.kind === "search" && !shown.has(message.seq) ? (
+                    <>
+                      <Link
+                        className={styles.olderToggle}
+                        href={openBlocksHref(
+                          conversationId,
+                          toggleOpenSeqs(open, message.seq),
+                          sortParam,
+                        )}
+                        scroll={false}
+                        prefetch={false}
+                        aria-expanded={open.includes(message.seq)}
+                        aria-label={CHAT_COPY.olderLabel(intent.query)}
+                      >
+                        {open.includes(message.seq) ? CHAT_COPY.olderHide : CHAT_COPY.olderShow}
+                      </Link>
+                      {open.includes(message.seq) ? (
+                        <Suspense
+                          fallback={
+                            <ResultsFallback conversationId={conversationId} sort="secilen" />
+                          }
+                        >
+                          <ChatResults
+                            intent={intent}
+                            headingId={resultsId}
+                            retryHref={openBlocksHref(conversationId, open, sortParam)}
+                            conversationId={conversationId}
+                            messageSeq={message.seq}
+                            sort="secilen"
+                            helpful={null}
+                            uxV2
+                            compact
+                          />
+                        </Suspense>
+                      ) : null}
+                    </>
+                  ) : null}
                   {shown.has(message.seq) ? (
                     <Suspense
                       key={sort}
@@ -124,6 +171,7 @@ export function ChatThread({
                         messageSeq={message.seq}
                         sort={sort}
                         helpful={message.kind === "search" ? message.helpful : null}
+                        uxV2={uxV2}
                       />
                     </Suspense>
                   ) : null}
