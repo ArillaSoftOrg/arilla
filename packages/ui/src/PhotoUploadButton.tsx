@@ -62,7 +62,7 @@ export function PhotoUploadButton({
         onClick={() => inputRef.current?.click()}
       >
         {icon ? icon : null}
-        {iconOnly ? null : label}
+        {iconOnly ? null : <span data-photo-label="">{label}</span>}
       </Button>
     </>
   );

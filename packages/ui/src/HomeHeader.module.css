@@ -886,4 +886,55 @@
   .header[data-variant="site"] .account {
     flex-shrink: 0;
   }
+
+  /* Ana sayfanin mobil fotograf hero'su: cubuk sahnenin ustunde tek satir.
+     Menu cekmecesi kendi tema yuzeylerini kullanmaya devam eder. */
+  .header[data-variant="site"][data-appearance="mobileHeroOverlay"] {
+    position: absolute;
+    inset-block-start: 0;
+    inset-inline: 0;
+    z-index: var(--z-dropdown);
+    width: 100%;
+    padding-block-start: env(safe-area-inset-top, 0px);
+    background: transparent;
+  }
+
+  .header[data-variant="site"][data-appearance="mobileHeroOverlay"] .inner {
+    flex-wrap: nowrap;
+    row-gap: 0;
+  }
+
+  .header[data-appearance="mobileHeroOverlay"] .menuButton,
+  .header[data-appearance="mobileHeroOverlay"] .brand {
+    color: var(--on-media);
+    text-shadow: 0 1px 14px var(--media-scrim);
+  }
+
+  .header[data-appearance="mobileHeroOverlay"] .menuButton:hover {
+    background: color-mix(in srgb, var(--on-media) 14%, transparent);
+  }
+
+  .header[data-appearance="mobileHeroOverlay"] .brandStatus {
+    border-color: color-mix(in srgb, var(--on-media) 70%, transparent);
+    background: color-mix(in srgb, var(--on-media) 92%, transparent);
+    color: var(--save);
+    text-shadow: none;
+  }
+
+  .header[data-appearance="mobileHeroOverlay"] .account {
+    border-color: color-mix(in srgb, var(--on-media) 42%, transparent);
+    background: color-mix(in srgb, var(--on-media) 16%, transparent);
+    color: var(--on-media);
+    backdrop-filter: blur(12px);
+  }
+
+  .header[data-appearance="mobileHeroOverlay"] .account:hover {
+    background: color-mix(in srgb, var(--on-media) 24%, transparent);
+  }
+
+  .header[data-appearance="mobileHeroOverlay"] .accountAvatar {
+    border-color: color-mix(in srgb, var(--on-media) 65%, transparent);
+    background: color-mix(in srgb, var(--on-media) 12%, transparent);
+    box-shadow: 0 4px 18px color-mix(in srgb, var(--media-scrim) 52%, transparent);
+  }
 }

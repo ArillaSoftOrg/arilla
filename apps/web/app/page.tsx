@@ -100,7 +100,7 @@ const HOME_TREND_COUNT = 3;
 
 /**
  * Gercek `trend` kayitlari (karar 0077): once `featured`, sonra siraya gore ilk
- * uc. Hata/bos durumda bos liste: bolum acik bir bos durum gosterir.
+ * uc. Hata/bos durumda bos liste: içerik hazır olana kadar bölüm çizilmez.
  */
 async function loadHomeTrends(): Promise<TrendSummary[]> {
   try {
@@ -132,8 +132,12 @@ export default async function HomePage() {
   }
 
   const chatEnabled = isChatDiscoveryEnabled();
-  const imageEntryAvailable = chatEnabled && isChatImageEnabled();
-  const imageChat = imageEntryAvailable && user !== null;
+  const imageFeatureEnabled = chatEnabled && isChatImageEnabled();
+  // Misafir ilk ekranda fotoğraf girişini görebilmeli; tıklama mevcut giriş
+  // kapısına gider. Oturumlu kullanıcıda dosya seçici yalnızca sunucu özelliği
+  // gerçekten açıksa etkinleşir.
+  const imageEntryAvailable = user === null || imageFeatureEnabled;
+  const imageChat = imageFeatureEnabled && user !== null;
   const imageConsent =
     imageChat && user !== null && (await hasChatImageConsent(getDatabase(), user.id));
   const [items, recentProducts, homeTrends] = await Promise.all([
@@ -144,7 +148,18 @@ export default async function HomePage() {
   const discoveryItems = toDiscoveryItems(items);
 
   return (
-    <PublicSiteShell links={homeSectionLinks("#kesfet")} footerClassName={styles.homeFooter}>
+    <PublicSiteShell
+      links={homeSectionLinks("#kesfet")}
+      footerClassName={styles.homeFooter}
+      headerAppearance="mobileHeroOverlay"
+    >
+      <link
+        rel="preload"
+        as="image"
+        href="/görsel/optimized/parfum-lacivert-sis.webp"
+        media="(max-width: 639.98px)"
+        fetchPriority="high"
+      />
       <div className={styles.page}>
         <Section spacing="none" aria-labelledby="anasayfa-baslik" className={styles.hero}>
           <HomeSearchComposer
@@ -165,32 +180,23 @@ export default async function HomePage() {
           />
         </Section>
 
-        <Section id="trendler" aria-labelledby="trendler-baslik" className={styles.anchored}>
-          <HomeSectionHeading
-            id="trendler-baslik"
-            title={HOME_COPY.trendsTitle}
-            description={homeTrends.length > 0 ? HOME_COPY.trendsSubtitle : undefined}
-          />
-          {homeTrends.length > 0 ? (
-            <>
-              <div className={styles.trendsViewport}>
-                <TrendCardGrid trends={homeTrends} eagerFirst labelledBy="trendler-baslik" />
-              </div>
-              <p className={styles.trendsMore}>
-                <a href="/trendler" className={styles.trendsMoreLink}>
-                  {TREND_COPY.homeAllLink}
-                </a>
-              </p>
-            </>
-          ) : (
-            <EmptyState
-              tone="compact"
-              title={HOME_COPY.trendsEmptyTitle}
-              description={HOME_COPY.trendsEmptyDescription}
-              className={styles.homeEmpty}
+        {homeTrends.length > 0 ? (
+          <Section id="trendler" aria-labelledby="trendler-baslik" className={styles.anchored}>
+            <HomeSectionHeading
+              id="trendler-baslik"
+              title={HOME_COPY.trendsTitle}
+              description={HOME_COPY.trendsSubtitle}
             />
-          )}
-        </Section>
+            <div className={styles.trendsViewport}>
+              <TrendCardGrid trends={homeTrends} eagerFirst labelledBy="trendler-baslik" />
+            </div>
+            <p className={styles.trendsMore}>
+              <a href="/trendler" className={styles.trendsMoreLink}>
+                {TREND_COPY.homeAllLink}
+              </a>
+            </p>
+          </Section>
+        ) : null}
 
         <Section id="kesfet" aria-labelledby="kesfet-baslik" className={styles.anchored}>
           <HomeSectionHeading

@@ -64,6 +64,12 @@
   }
 }
 
+@media (max-width: 639.98px) {
+  .page > .hero {
+    padding-block-end: 0;
+  }
+}
+
 /* Header'daki anchor'lar (#trendler, #kesfet, #nasil-calisir) basligi
    ekran kenarina yapistirmasin. */
 .anchored {
