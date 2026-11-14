@@ -206,10 +206,9 @@ export default async function CerezPage() {
       <section id="tercihler">
         <h2>4. Çerez tercihleriniz</h2>
         <p>
-          Zorunlu olmayan kategoriler siz açmadıkça kapalıdır. Tercihinizi burada veya her sayfanın
-          altındaki <strong>Çerez Tercihleri</strong> bağlantısından istediğiniz zaman
-          değiştirebilir, verdiğiniz izni geri çekebilirsiniz. İzni geri çekmek vermek kadar
-          kolaydır; geri çektiğiniz kategoriler sonraki işlemlerde çalıştırılmaz.
+          Zorunlu olmayan kategoriler siz açmadıkça kapalıdır. Tercihinizi bu sayfadaki formdan
+          istediğiniz zaman değiştirebilir, verdiğiniz izni geri çekebilirsiniz. İzni geri çekmek
+          vermek kadar kolaydır; geri çektiğiniz kategoriler sonraki işlemlerde çalıştırılmaz.
         </p>
         <CookiePreferencesPageForm consent={consent} />
       </section>

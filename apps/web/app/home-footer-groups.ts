@@ -1,7 +1,4 @@
 import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
-import { createElement } from "react";
-import { COOKIE_PREFERENCES_HREF } from "./consent-copy.ts";
-import { CookiePreferencesLink } from "./cookie-consent-client.tsx";
 import { FEEDBACK_COPY } from "./geri-bildirim/feedback-copy.ts";
 import { HOME_COPY } from "./home-copy.ts";
 
@@ -65,8 +62,8 @@ export function personalNavLinks(): readonly HomeHeaderNavItem[] {
  * degil, footer'in altindaki kucuk yasal listede acik adlariyla gosterilir.
  * Karar 0045: /geri-bildirim urun kapali da acik ve Yardim grubundadir.
  * /kvkk-aydinlatma, /affiliate-aciklamasi, /sirket-bilgileri gercek
- * route'lar. "Cerez Tercihleri" bir sayfa degil, paneli acan istemci
- * linkidir (JS'siz /cerez#tercihler'e duser).
+ * route'lar. Cerez tercihleri ayrica listelenmez; /cerez sayfasindan
+ * yonetilir.
  *
  * Faz 7-8: bolum linkleri cagirandan gelir (`homeSectionLinks` veya
  * `SUBPAGE_SECTION_LINKS`) - header ile ayni hedefler.
@@ -133,12 +130,6 @@ export function legalFooterGroup(): FooterGroup {
       { label: HOME_COPY.navTerms, href: "/kosullar" },
       { label: HOME_COPY.navAffiliate, href: "/affiliate-aciklamasi" },
       { label: HOME_COPY.navCompany, href: "/sirket-bilgileri" },
-      {
-        label: HOME_COPY.navCookiePreferences,
-        href: COOKIE_PREFERENCES_HREF,
-        render: ({ className, children }) =>
-          createElement(CookiePreferencesLink, { className, children }),
-      },
     ],
   };
 }
