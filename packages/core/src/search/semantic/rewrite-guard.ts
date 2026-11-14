@@ -18,6 +18,15 @@ import { foldForMatch } from "../text-match.ts";
 import { negatedTerms, specTokens } from "./hybrid-policy.ts";
 
 export type RewriteRejection =
+  | "language_unsupported"
+  | "language_uncertain"
+  | "no_rewrite"
+  | "price_added"
+  | "negation_unresolved"
+  | "required_entity_lost"
+  | "intent_drift"
+  /** Hedef dil sorgu dilinden farkli ama yazim ham sorguyla ayni: ceviri yapilmamis. */
+  | "not_translated"
   | "empty"
   | "too_long"
   | "unsafe_content"
@@ -33,7 +42,9 @@ export interface RewriteVerdict {
 
 const MAX_REWRITE = 120;
 const compact = (s: string) => foldForMatch(s).replace(/[\s\-_./]+/g, "");
-const numbers = (s: string) => new Set(foldForMatch(s).match(/\d+(?:[.,]\d+)?/g) ?? []);
+/** Sayilar; ondalik ayirici dilden bagimsiz ("15,6" == "15.6"). */
+const numbers = (s: string) =>
+  new Set((foldForMatch(s).match(/\d+(?:[.,]\d+)?/g) ?? []).map((n) => n.replace(",", ".")));
 
 function containsPhrase(folded: string, phrase: string): boolean {
   const escaped = phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -41,14 +52,34 @@ function containsPhrase(folded: string, phrase: string): boolean {
 }
 
 /**
- * Olumsuzlanan terimin yeniden yazimda "olmayan/without/non/no" gibi bir olumsuzlukla gecmesi kabul
- * edilir ("wireless olmayan" -> "non-wireless"/"without wireless"); duz olumlu gecis reddedilir.
+ * Olumsuzluk ipuclari VERI tablosu (dil -> katlanmis kelimeler). Yeni dil = tabloya kayit; kod
+ * degismez. Tabloda olmayan dilde olumsuzluk yalniz modelin KANITLI dislamalariyla denetlenir.
+ */
+export const NEGATION_CUE_REGISTRY: Readonly<Record<string, readonly string[]>> = {
+  tr: ["olmayan", "olmasin", "olmayanlar", "degil", "haric", "disinda"],
+  en: ["without", "no", "not", "non"],
+  de: ["ohne", "kein", "keine", "keinen", "keiner", "nicht"],
+};
+
+/**
+ * Olumsuzlanan terim yazimda gecebilir; ancak cevresinde (en fazla 3 kelime once/sonra) HERHANGI
+ * bir dilin olumsuzluk ipucu ya da "-free" eki varsa olumlu sayilmaz ("deri olmayan", "without
+ * leather", "ohne Leder", "leather-free"). Ipuclari `NEGATION_CUE_REGISTRY` veri tablosundan gelir.
  */
 function negatedPositively(rewriteFolded: string, term: string): boolean {
   if (!containsPhrase(rewriteFolded, term)) return false;
-  const escaped = term.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const guarded = new RegExp(`(non|no|not|without|free)[\\s-]+${escaped}|${escaped}[\\s-]*free`);
-  return !guarded.test(rewriteFolded);
+  const tokens = rewriteFolded.split(/[^a-z0-9]+/).filter(Boolean);
+  const termTokens = term.split(/[^a-z0-9]+/).filter(Boolean);
+  const cues = new Set([...Object.values(NEGATION_CUE_REGISTRY).flat(), "free"]);
+  for (let i = 0; i + termTokens.length <= tokens.length; i++) {
+    if (termTokens.some((t, j) => tokens[i + j] !== t)) continue;
+    const window = [
+      ...tokens.slice(Math.max(0, i - 3), i),
+      ...tokens.slice(i + termTokens.length, i + termTokens.length + 3),
+    ];
+    if (!window.some((w) => cues.has(w))) return true;
+  }
+  return false;
 }
 
 export function verifyRewrite(
@@ -77,4 +108,109 @@ export function verifyRewrite(
   const allowed = numbers(rawQuery);
   for (const n of numbers(text)) if (!allowed.has(n)) return reject("number_invented");
   return { accepted: true, reason: null };
+}
+
+// --- dil bagimsiz sozlesme (E4b C+) ---------------------------------------------------------
+
+/** Para birimi ve fiyat ifadeleri: yazim fiyat EKLEYEMEZ (butce IntentV2 alanidir). Veri tablosu. */
+export const PRICE_TERM_REGISTRY: Readonly<Record<string, readonly string[]>> = {
+  any: ["tl", "try", "usd", "eur", "euro", "lira", "dollar", "dollars"],
+  tr: ["ucuz", "alti", "kadar", "butce"],
+  en: ["under", "below", "cheap", "cheaper", "budget"],
+  de: ["unter", "billig", "gunstig", "guenstig"],
+};
+
+const words = (folded: string) => new Set(folded.split(/[^a-z0-9]+/).filter(Boolean));
+const anyWord = (set: Set<string>, list: readonly string[]) => list.some((w) => set.has(w));
+const allCues = () => Object.values(NEGATION_CUE_REGISTRY).flat();
+const allPriceTerms = () => Object.values(PRICE_TERM_REGISTRY).flat();
+
+/**
+ * Capraz dil kosinusu ZAYIF bir sinyaldir: kisa/nadir sozcuklerde dogru ceviriler de dusuk kalir
+ * (E4b olcumu: "sourdough jar" 0,397, "dumpling mold" 0,411). Yalniz bariz kaymayi eler.
+ * 0,35 E4b C+ kosusunun verisine bakilarak secildi (sonradan ayar); bagimsiz veride dogrulanmali.
+ */
+export const DEFAULT_MIN_CROSS_LINGUAL_COSINE = 0.35;
+
+export interface CanonicalContext {
+  lexicon: readonly LexiconEntry[];
+  /** "any" (varsayilan): her dil; yalniz `und`/dusuk guven geri duser. */
+  acceptedQueryLanguages?: readonly string[] | "any";
+  /**
+   * Dilden bagimsiz OZEL ADLAR (marka); ham metinde geciyorsa yazimda birebir korunmali.
+   * Cevrilebilen siradan sozcukler (uyumlu cihaz turu: "puset", "Kinderwagen") buraya KONMAZ;
+   * model kodlari ve kapasiteler zaten teknik kod kuraliyla korunur.
+   */
+  requiredEntities: readonly string[];
+  /** Ham sorgu ile yazimin capraz dil kosinusu (BGE-M3); verilmezse kayma denetlenmez. */
+  crossLingualCosine?: number | null;
+  minCrossLingualCosine?: number;
+}
+
+export interface CanonicalVerdict extends RewriteVerdict {
+  /** Kaniti ham metinde dogrulanan dislanmis ozellikler (katlanmis). */
+  verifiedExcluded: string[];
+  /** Olumsuzluk denetimi: ipucu tablosuyla mi, yalniz model dislamasiyla mi yapildi. */
+  negationCheck: "cue_table" | "model_evidence_only";
+}
+
+export function verifyCanonicalQuery(
+  rawQuery: string,
+  detected: { tag: string; confidence: string },
+  rewrite: { language: string; text: string } | null,
+  excluded: readonly { text: string; evidence: string | null }[],
+  ctx: CanonicalContext,
+): CanonicalVerdict {
+  const rawFolded = foldForMatch(rawQuery);
+  const primary = (detected.tag.toLowerCase().split("-")[0] ?? "").trim();
+  const negationCheck: CanonicalVerdict["negationCheck"] =
+    primary in NEGATION_CUE_REGISTRY ? "cue_table" : "model_evidence_only";
+  const verifiedExcluded = excluded
+    .filter((f) => f.evidence && rawFolded.includes(foldForMatch(f.evidence)))
+    .map((f) => foldForMatch(f.text))
+    .filter((t) => t.length > 1);
+  const out = (reason: RewriteRejection | null): CanonicalVerdict => ({
+    accepted: reason === null,
+    reason,
+    verifiedExcluded,
+    negationCheck,
+  });
+  const accepted = ctx.acceptedQueryLanguages ?? "any";
+  if (!primary || primary === "und") return out("language_uncertain");
+  if (accepted !== "any" && !accepted.includes(primary)) return out("language_unsupported");
+  if (detected.confidence === "low") return out("language_uncertain");
+  const text = rewrite?.text?.trim() ?? "";
+  if (!text) return out("no_rewrite");
+  const target = (rewrite?.language.toLowerCase().split("-")[0] ?? "").trim();
+  if (target && target !== primary && foldForMatch(text) === rawFolded)
+    return out("not_translated");
+  const base = verifyRewrite(rawQuery, text, ctx.lexicon, []);
+  if (!base.accepted) return out(base.reason);
+  const folded = foldForMatch(text);
+  const rawWords = words(rawFolded);
+  const outWords = words(folded);
+  if (anyWord(outWords, allPriceTerms()) && !anyWord(rawWords, allPriceTerms())) {
+    return out("price_added");
+  }
+  for (const term of verifiedExcluded) {
+    if (negatedPositively(folded, term)) return out("negation_flipped");
+  }
+  // Ham metinde (ipucu tablosundaki herhangi bir dilde) olumsuzluk var; ne kanitli dislama ne de
+  // yazimda olumsuzluk ifadesi yok: anlam kaybolmus olabilir -> ham sorgu korunur.
+  if (
+    anyWord(rawWords, allCues()) &&
+    verifiedExcluded.length === 0 &&
+    !anyWord(outWords, allCues())
+  ) {
+    return out("negation_unresolved");
+  }
+  for (const entity of ctx.requiredEntities) {
+    const e = foldForMatch(entity);
+    if (e && containsPhrase(rawFolded, e) && !containsPhrase(folded, e)) {
+      return out("required_entity_lost");
+    }
+  }
+  const min = ctx.minCrossLingualCosine ?? DEFAULT_MIN_CROSS_LINGUAL_COSINE;
+  if (ctx.crossLingualCosine != null && ctx.crossLingualCosine < min) return out("intent_drift");
+  return out(null);
 }

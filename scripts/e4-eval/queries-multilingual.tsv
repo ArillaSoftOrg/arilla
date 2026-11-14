@@ -1,0 +1,121 @@
+id	query	group	presence_regex	note
+Q21	kabin boy valiz	tr/gorulen	-	kritik
+Q15	puset minderi	tr/gorulen	-	kritik
+Q55	mantı kalıbı	tr/gorulen	-	kritik
+Q05	kadın dolgu topuk terlik	tr/gorulen	-	kritik
+Q74	kablosuz olmayan oyun klavyesi	tr/gorulen	-	kritik-olumsuzluk
+Q43	DeWalt 20V batarya tutucu	tr/gorulen	-	kritik-model
+Q24	DDR5 32GB bellek	tr/gorulen	-	kritik-teknik
+Q31	kablolu klavye	tr/gorulen	-	kablolu
+Q30	kablosuz mouse	tr/gorulen	-	kablosuz
+Q06	ev terliği peluş	tr/gorulen	-	regresyon
+Q14	peluş kedi oyuncak	tr/gorulen	-	regresyon
+Q64	kışın çocuğumun ayağını sıcak tutacak bot	tr/gorulen	-	dogal-dil
+Q69	bilgisayarımın belleğini artırmak istiyorum	tr/gorulen	-	dogal-dil
+Q12	gundam maket kiti	tr/gorulen	-	lexical-bos
+Q41	HT170EX1 kontrol kartı	tr/gorulen	-	model
+Q44	DCD771 matkap mandreni	tr/gorulen	-	parca-model
+Q46	matkap için kablo sıyırıcı	tr/gorulen	-	aksesuar-parca
+Q53	baharat kavanozu seti	tr/gorulen	-	var-bulunamadi
+Q56	ekşi maya kavanozu	tr/gorulen	-	var-bulunamadi
+Q70	matkabımın pili bitti yedek batarya	tr/gorulen	-	dogal-dil-parca
+Q36	laptop	tr/gorulen	-	ana-urun-yok
+Q38	laptop soğutucu stand	tr/gorulen	-	aksesuar
+Q10	oyuncak araba	tr/gorulen	-	yanlis-guclu
+Q66	anime seven arkadaşıma hediye	tr/gorulen	-	dogal-dil
+Q01	spor ayakkabı	tr/gorulen	-	kategori
+Q18	seyahat çantası	tr/gorulen	-	kategori
+Q26	1TB harici hard disk	tr/gorulen	-	teknik
+Q35	dizüstü klavye	tr/gorulen	-	parca
+Q62	forklift fren ana merkezi	tr/gorulen	-	parca
+Q73	deri olmayan çocuk botu	tr/gorulen	-	olumsuzluk
+U01	çocuk yağmur botu	tr/yeni	-
+U02	erkek spor terlik	tr/yeni	-
+T01	yenidoğan bebek bezi	tr/yeni	-	urun-dili-tr
+U05	kışlık kadın bot	tr/yeni	-
+T06	akneye eğilimli cilt bakım seti	tr/yeni	-	urun-dili-tr
+U08	naruto aksiyon figürü	tr/yeni	-
+T02	kısırlaştırılmış kedi maması	tr/yeni	-	urun-dili-tr
+U10	peluş oyuncak ayı	tr/yeni	-
+U11	uzaktan kumandalı araba	tr/yeni	-
+U12	emzik klipsi	tr/yeni	-
+T03	cam fırın tepsisi seti	tr/yeni	-	urun-dili-tr
+U14	15.6 inç laptop sırt çantası	tr/yeni	-	teknik
+U16	kadın omuz çantası	tr/yeni	-
+U17	tekerlekli okul çantası	tr/yeni	-
+U18	DDR4 8GB laptop ram	tr/yeni	-	teknik
+U19	2TB harici disk	tr/yeni	-	teknik
+T07	iPhone 15 128 GB siyah	tr/yeni	-	urun-dili-tr model
+U21	mikrofonlu bluetooth kulaklık	tr/yeni	-
+U22	mekanik klavye	tr/yeni	-
+U24	SSD 256GB SATA	tr/yeni	-	teknik
+U25	Makita 18V şarj aleti	tr/yeni	-	model
+T04	biberon emziği 0 ay	tr/yeni	-	urun-dili-tr
+U28	lehim makinesi	tr/yeni	-
+T05	ıslak bebek havlusu	tr/yeni	-	urun-dili-tr
+U33	manuel kahve öğütücü	tr/yeni	-
+U34	akülü matkap için 18V yedek batarya	tr/yeni	-	dogal-dil-parca
+U35	bilgisayarım çok ısınıyor soğutmak için bir şey lazım	tr/yeni	-	dogal-dil
+U36	yürümeye yeni başlayan bebeğim için kaymayan ayakkabı	tr/yeni	-	dogal-dil
+U37	metal olmayan saklama kabı	tr/yeni	-	olumsuzluk
+U38	kablosuz olmayan mouse	tr/yeni	-	olumsuzluk
+D01	Handgepäck Koffer Kabinengröße	de	-	~Q21
+D02	Sitzauflage für Kinderwagen	de	-	~Q15
+D03	Teigtaschen Form	de	-	~Q55
+D04	Damen Hausschuhe mit Keilabsatz	de	-	~Q05
+D05	Gaming Tastatur ohne Bluetooth	de	-	~Q74 olumsuzluk
+D06	DeWalt 20V Akku Halterung	de	-	~Q43 model
+D07	DDR5 32GB Arbeitsspeicher	de	-	~Q24 teknik
+D08	kabelgebundene Tastatur	de	-	~Q31
+D09	kabellose Maus	de	-	~Q30
+D10	Plüsch Hausschuhe	de	-	~Q06
+D11	Kinder Schneestiefel	de	-
+D12	Gundam Modellbausatz	de	-	~Q12
+D13	Bohrfutter für DCD771	de	-	~Q44 parca-model
+D14	Gewürzgläser Set	de	-	~Q53
+D15	Sauerteig Glas	de	-	~Q56
+D16	Ersatzakku für Akkuschrauber 18V	de	-	~Q70
+D17	Laptop Kühler Ständer	de	-	~Q38
+D31	Windeln Größe 2 für Neugeborene	de	-	urun-dili-tr ~T01
+D19	Anime Actionfigur Naruto	de	-	~U08
+D20	externe Festplatte 1TB	de	-	~Q26
+D32	Katzenfutter für sterilisierte Katzen	de	-	urun-dili-tr ~T02
+D22	Lötkolben	de	-	~U28
+D33	Babyflasche 125 ml	de	-	urun-dili-tr ~T04
+D34	Feuchttücher für Babys	de	-	urun-dili-tr ~T05
+D25	Mein Laptop wird zu heiß, ich brauche etwas zum Kühlen	de	-	dogal-dil ~U35
+D26	rutschfeste Schuhe für Kleinkinder	de	-	dogal-dil ~U36
+D27	Aufbewahrungsbox nicht aus Metall	de	-	olumsuzluk ~U37
+D28	USB C Hub mit HDMI	de	-	teknik
+D29	Rucksack für 15,6 Zoll Laptop	de	-	teknik ~U14
+D30	Waschmaschine	de	-	katalogda-yok
+E01	cabin size carry-on suitcase	en	-	~Q21
+E02	stroller seat cushion	en	-	~Q15
+E03	dumpling mold	en	-	~Q55
+E04	wired keyboard	en	-	~Q31
+E05	wireless mouse	en	-	~Q30
+E06	gaming keyboard without bluetooth	en	-	olumsuzluk ~Q74
+E07	DDR4 16GB laptop RAM	en	-	teknik
+E08	battery holder for DeWalt 20V	en	-	model ~Q43
+E09	drill chuck for DCD771	en	-	parca-model ~Q44
+E10	plush cat toy	en	-	~Q14
+E11	kids snow boots	en	-
+E12	spice jar set	en	-	~Q53
+E21	newborn diapers size 2	en	-	urun-dili-tr ~T01
+E14	anime action figure	en	-
+E15	travel duffel bag	en	-	~Q18
+E22	sterilised cat food	en	-	urun-dili-tr ~T02
+E23	glass baking dish with lid	en	-	urun-dili-tr ~T03
+E18	my toddler keeps slipping, need shoes with good grip	en	-	dogal-dil
+E19	storage container that is not plastic	en	-	olumsuzluk
+E20	dishwasher	en	-	katalogda-yok
+X01	kablosuz gaming mouse	mul/tr-en	-
+X02	çocuk snow boot	mul/tr-en	-
+X03	15.6 inch laptop çantası	mul/tr-en	-	teknik
+X04	DeWalt 20V battery tutucu	mul/tr-en	-	model
+X05	wireless kulaklık mikrofonlu	mul/tr-en	-
+X06	carry on valiz	mul/tr-en	-	~Q21
+X07	DDR5 RAM bellek 32GB	mul/tr-en	-	teknik
+X08	Kinder spor ayakkabı	mul/de-tr	-
+X09	Bluetooth olmayan Tastatur	mul/tr-de	-	olumsuzluk
+X11	kedi food sterilised	mul/tr-en	-	urun-dili-tr ~T02

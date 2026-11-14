@@ -27,6 +27,15 @@ import type { IntentV2Case } from "./intent-v2-eval.ts";
 
 export const RUN_MAX_OUTPUT_TOKENS = 512;
 
+/** Deneysel sozlesme (ornek E4b C+): verilmezse uretimdeki IntentV2 sozlesmesi kullanilir. */
+export interface RunContract {
+  instructions: string;
+  schema: Record<string, unknown>;
+  buildInput: (query: string) => string;
+  contractHash: string;
+  maxOutputTokens?: number;
+}
+
 export interface RunLimits {
   maxCalls: number;
   maxUsdMicros: number;
@@ -74,8 +83,15 @@ export async function runIntentV2Predictions(
   cases: readonly IntentV2Case[],
   client: LlmClient,
   limits: RunLimits,
-  options: { now?: () => number; at?: Date } = {},
+  options: { now?: () => number; at?: Date; contract?: RunContract } = {},
 ): Promise<{ predictions: Record<string, unknown>; report: RunReport }> {
+  const contract: RunContract = options.contract ?? {
+    instructions: INTENT_V2_INSTRUCTIONS,
+    schema: buildIntentV2JsonSchema() as unknown as Record<string, unknown>,
+    buildInput: buildIntentV2Input,
+    contractHash: intentV2ContractHash(),
+  };
+  const maxOutput = contract.maxOutputTokens ?? RUN_MAX_OUTPUT_TOKENS;
   if (!(limits.maxCalls > 0) || !(limits.maxUsdMicros > 0) || !(limits.attemptsPerCase >= 1)) {
     throw new Error("intent-v2-run: tavanlar pozitif olmali");
   }
@@ -89,7 +105,7 @@ export async function runIntentV2Predictions(
     );
 
   const now = options.now ?? (() => performance.now());
-  const schema = buildIntentV2JsonSchema();
+  const schema = contract.schema;
   const predictions: Record<string, unknown> = {};
   const records: CaseRecord[] = [];
   let attempts = 0;
@@ -99,9 +115,9 @@ export async function runIntentV2Predictions(
   let worstInput = 0;
 
   for (const testCase of cases) {
-    const input = buildIntentV2Input(testCase.q);
-    const inputBound = Math.max(worstInput, INTENT_V2_INSTRUCTIONS.length + input.length);
-    const worstAttempt = usd(inputBound, RUN_MAX_OUTPUT_TOKENS);
+    const input = contract.buildInput(testCase.q);
+    const inputBound = Math.max(worstInput, contract.instructions.length + input.length);
+    const worstAttempt = usd(inputBound, maxOutput);
     const worstCase = limits.attemptsPerCase * worstAttempt;
     if (
       attempts + limits.attemptsPerCase > limits.maxCalls ||
@@ -146,10 +162,10 @@ export async function runIntentV2Predictions(
     try {
       const result = await client.generateJson(
         {
-          systemInstruction: INTENT_V2_INSTRUCTIONS,
+          systemInstruction: contract.instructions,
           input,
           schema,
-          maxOutputTokens: RUN_MAX_OUTPUT_TOKENS,
+          maxOutputTokens: maxOutput,
         },
         { onCall },
       );
@@ -174,7 +190,7 @@ export async function runIntentV2Predictions(
   const ok = records.filter((r) => r.status === "ok").length;
   const report: RunReport = {
     model: client.modelVersion,
-    contractHash: intentV2ContractHash(),
+    contractHash: contract.contractHash,
     priceRuleId: rule.id,
     limits,
     cases: cases.length,
