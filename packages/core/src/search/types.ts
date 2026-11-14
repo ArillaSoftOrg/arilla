@@ -59,4 +59,9 @@ export interface QueryObject {
    * yoktur — o zaman `unparsed` tokenlarindan uretilir.
    */
   text_slots?: string[][];
+  /**
+   * Dogrulanmis IntentV2 rolu (karar 0197): yalniz siralama; onbellege yazilmaz, `applyIntentPlan` ekler.
+   * `accessory`/`part` ise ana urun aksesuar kademesi uygulanmaz.
+   */
+  product_role?: "main" | "accessory" | "part";
 }
