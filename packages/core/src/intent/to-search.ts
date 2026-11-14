@@ -158,7 +158,10 @@ export function applyIntentPlan(base: QueryObject, plan: IntentSearchPlan): Quer
       ...(plan.filters.brand_exclude ?? []),
     ]);
   }
-  return { ...base, filters: merged };
+  const role = plan.hints.role;
+  return role === null
+    ? { ...base, filters: merged }
+    : { ...base, filters: merged, product_role: role };
 }
 
 /** Uyumluluk kademesi (§4.3): 1 ust, 2 genel, 3 baska model. Dislama yok. */

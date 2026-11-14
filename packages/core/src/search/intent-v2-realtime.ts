@@ -399,10 +399,13 @@ export async function applyIntentV2(
     return { parsed, mode, applied: false, source: "none", hardFilters: 0 };
   }
   const hardFilters = Object.keys(resolution.plan.filters).length;
-  if (mode === "shadow" || hardFilters === 0) {
+  // Rol ipucu da (karar 0197) uygulanir: H filtresi olmasa bile siralamayi etkiler.
+  if (mode === "shadow" || (hardFilters === 0 && resolution.plan.hints.role === null)) {
     return { parsed, mode, applied: false, source: resolution.source, hardFilters };
   }
   const merged = applyIntentPlan(parsed, resolution.plan);
-  const applied = JSON.stringify(merged.filters) !== JSON.stringify(parsed.filters);
+  const applied =
+    JSON.stringify(merged.filters) !== JSON.stringify(parsed.filters) ||
+    merged.product_role !== parsed.product_role;
   return { parsed: merged, mode, applied, source: resolution.source, hardFilters };
 }

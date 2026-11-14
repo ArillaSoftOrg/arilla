@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
+import { foldForMatch } from "../text-match.ts";
 import {
+  accessoryTitleDemotionPattern,
   looksLikeAccessory,
   queryWantsAccessory,
   requiredColorPattern,
@@ -93,5 +95,47 @@ describe("ürün türüne uymayan ve anlamsal olarak da benzemeyen metin sonucu"
       textSimilarity: new Map([[1, 0.6]]),
     });
     expect(fused.map((entry) => entry.item.productId)).toEqual([1]);
+  });
+});
+
+describe("accessoryTitleDemotionPattern (karar 0197)", () => {
+  const demoted = (query: string, title: string): boolean => {
+    const pattern = accessoryTitleDemotionPattern(query);
+    return pattern !== null && new RegExp(pattern).test(foldForMatch(title));
+  };
+
+  it("ana cihaz sorgusunda aksesuar basligini isaretler, cihazi degil", () => {
+    expect(demoted("iphone 15", "iPhone 15 Uyumlu Silikon Kılıf")).toBe(true);
+    expect(demoted("iphone 15", "iPhone 15 Ekran Koruyucu Temperli Cam")).toBe(true);
+    expect(demoted("iphone 15", "Apple iPhone 15 128 GB Siyah")).toBe(false);
+    expect(demoted("robot süpürge", "Robot Süpürge Yedek Parça Fırça Seti")).toBe(true);
+    expect(demoted("robot süpürge", "Xiaomi Robot Süpürge X10 5000 Pa")).toBe(false);
+  });
+
+  it("kullanici aksesuar istiyorsa hicbir sey uygulanmaz", () => {
+    expect(accessoryTitleDemotionPattern("iphone 15 kılıf")).toBeNull();
+    expect(accessoryTitleDemotionPattern("telefon şarj kablosu")).toBeNull();
+    expect(accessoryTitleDemotionPattern("")).toBeNull();
+  });
+
+  it("dogrulanmis model rolu accessory/part kademeyi kapatir; main ve rolsuz acik sozu degistirmez", () => {
+    expect(accessoryTitleDemotionPattern("iphone 15", "accessory")).toBeNull();
+    expect(accessoryTitleDemotionPattern("iphone 15", "part")).toBeNull();
+    expect(accessoryTitleDemotionPattern("iphone 15", "main")).not.toBeNull();
+    expect(accessoryTitleDemotionPattern("iphone 15", null)).not.toBeNull();
+    // Acik soz modelden once gelir: model "main" dese de "kilif" istenmistir.
+    expect(accessoryTitleDemotionPattern("iphone 15 kılıf", "main")).toBeNull();
+  });
+
+  it("baska urun turlerinde ana urun olan basliklar demote edilmez (guneş kremi, kemer, canta...)", () => {
+    expect(demoted("güneş kremi", "Nivea Güneş Koruyucu Krem SPF50")).toBe(false);
+    expect(demoted("yüz kremi", "Skin Care Nemlendirici Krem")).toBe(false);
+    expect(demoted("kemer", "Hakiki Deri Erkek Kemer Kayış")).toBe(false);
+    expect(demoted("kalemlik", "Pencil Case Kalem Kutusu")).toBe(false);
+    expect(demoted("kartlık", "Deri Card Holder Kartlık")).toBe(false);
+    expect(demoted("çanta", "Kadın Omuz Çantası Strap Detaylı")).toBe(false);
+    expect(demoted("saat", "Erkek Kol Saati Deri Kayış")).toBe(false);
+    expect(demoted("iphone 15", "iPhone 15 Ekran Koruyucu Temperli Cam Ekran")).toBe(true);
+    expect(demoted("iphone 15", "Apple iPhone 15 Silicone Case Clear")).toBe(true);
   });
 });

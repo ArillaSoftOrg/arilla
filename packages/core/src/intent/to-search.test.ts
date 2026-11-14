@@ -213,3 +213,23 @@ describe("compatTier: kademe, dislama yok (§4.3)", () => {
     expect(compatTier(title, compat)).toBe(tier);
   });
 });
+
+describe("applyIntentPlan: dogrulanmis rol siralamaya tasinir (karar 0197)", () => {
+  const plan = (role: "main" | "accessory" | "part" | null) => ({
+    filters: {},
+    hints: {
+      role,
+      category: null,
+      compatibleWith: null,
+      required: [],
+      preferred: [],
+      excluded: [],
+      brands: [],
+    },
+    display: [],
+  });
+  it("rol varsa product_role olur, yoksa alan eklenmez", () => {
+    expect(applyIntentPlan(baseQuery({}), plan("accessory")).product_role).toBe("accessory");
+    expect("product_role" in applyIntentPlan(baseQuery({}), plan(null))).toBe(false);
+  });
+});

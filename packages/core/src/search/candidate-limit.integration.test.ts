@@ -150,13 +150,23 @@ describe("sinirli aday kumesi (karar 0129)", () => {
   });
 
   it("yurt disi sel TRY teklifli urunleri adaydan itmez; toplam alt sinirdir", async () => {
-    const result = await search(db, textQuery([[HEAD]]), { limit: 24 });
+    // Sel baslıkları "Cover" (aksesuar); karar 0197 kademesi kapali (rol accessory) ki 0129'un
+    // tam-sinir davranisi olculsun. Kademe acikken aksesuar dali ayri/kucuktur.
+    const result = await search(db, textQuery([[HEAD]], { product_role: "accessory" }), {
+      limit: 24,
+    });
     const ids = result.items.map((item) => item.productId);
     for (const id of tryIds) expect(ids).toContain(id);
     // Esit alakada TRY once (yurt disi guven carpani).
     expect(ids.slice(0, tryIds.length + 1)).toEqual(expect.arrayContaining(tryIds));
     expect(result.totalCapped).toBe(true);
     expect(result.total).toBeGreaterThanOrEqual(CANDIDATE_LIMIT);
+  });
+
+  it("kademe acikken de yurt disi aksesuar seli TRY urunleri adaydan itmez (karar 0197)", async () => {
+    const result = await search(db, textQuery([[HEAD]]), { limit: 24 });
+    const ids = result.items.map((item) => item.productId);
+    for (const id of tryIds) expect(ids).toContain(id);
   });
 
   it("tum niteleyicileri tasiyan urun bas isim dali doldugunda da bulunur", async () => {
