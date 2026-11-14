@@ -544,6 +544,10 @@ Kuralların özeti:
 - **Disk denetimi:** Bekleyen migration varsa, dosyalar kurulmadan önce boş disk denetlenir:
   `son döküm × 1,15 + 30 GiB taban` (`ARILLA_DUMP_RESERVE_BYTES`). Yetmezse deploy çıkış 2 ile durur ve
   hiçbir şey değişmez.
+- **Katalog eşiği (karar 0188):** Dökümden sonra boş alan otomatik katalog hattının başlangıç eşiğinin
+  (70 GiB) altına düşecekse deploy yine çıkış 2 ile durur (`KATALOG ESIGI`). Aksi halde yayın sessizce
+  dururdu. Önce yer açılır (`report` → `verify --full` → `prune --confirm`). Yayının duracağını bilerek
+  devam etmek için deploy'a `ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE=1` verilir.
 - **Doğrulama sınırı:** "Tam veri okuması" (`pg_restore -f /dev/null`) arşivin her veri bloğunu açar. Gerçek bir
   PostgreSQL'e geri yükleme **kanıtı değildir**.
 

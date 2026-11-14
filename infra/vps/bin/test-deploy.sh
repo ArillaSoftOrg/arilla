@@ -181,6 +181,7 @@ run_deploy() { # run_deploy <sha> <manifest> -> cikis kodu; cikti $work/out.log
   # Karar 0187: dokum oncesi disk tabani testte 1 GiB (uretim 30 GiB); DT_RESERVE ile ezilebilir.
   env ARILLA_EXTRA_PATH="$PATH" ARILLA_ROOT="$ROOT" ARILLA_REPO_URL="$SRC" ARILLA_IMAGE_PREFIX="$REG/" \
     ARILLA_DUMP_RESERVE_BYTES="${DT_RESERVE:-1073741824}" \
+    ARILLA_CATALOG_GATE_BYTES="${DT_GATE:-0}" \
     ARILLA_VERIFY_URL="http://127.0.0.1:$HTTP_PORT" ARILLA_HEALTH_TIMEOUT_WEB=${DT_WEB_TIMEOUT:-150} ARILLA_HEALTH_TIMEOUT=90 \
     bash "$here/arilla-deploy" deploy "$1" <"$2" >"$work/out.log" 2>&1
 }
@@ -233,6 +234,14 @@ ls "$ROOT"/backups/pre-migrate-*.dump >/dev/null 2>&1 && fail "kapasite reddinde
 [ "$(c exec -T postgres psql -U arilla -d arilla -Atc "select count(*) from schema_migration where filename='9999_deploytest_noop.sql'" | tr -d '\r')" = 0 ] && pass "migration uygulanmadi" || fail "kapasite reddinde migration calisti"
 [ "$(sum_of "$ROOT/compose.env")" = "$env_a" ] && [ "$(started web)" = "$web_a" ] && "$PY" "$ROOT/vps/bin/release.py" current --dir "$ROOT" | gq "current=$shaA" \
   && pass "dosyalar, servisler ve surum isaretcisi degismedi" || fail "kapasite reddi bir sey degistirdi"
+
+section "6b. Katalog esigi: dokumden sonra bos alan esigin altina dusecekse migration BASLAMADAN durur (karar 0188)"
+env_a=$(sum_of "$ROOT/compose.env"); web_a=$(started web)
+DT_GATE=$((1 << 60)) run_deploy "$shaC" "$work/mC.json"; rc=$?
+[ $rc -eq 2 ] && gq "KATALOG ESIGI" "$work/out.log" && gq "disk denetimi gecmedi" "$work/out.log" && pass "katalog esiginde cikis 2" || { fail "katalog esigi reddi rc=$rc"; tail -6 "$work/out.log"; }
+ls "$ROOT"/backups/pre-migrate-*.dump >/dev/null 2>&1 && fail "katalog esigi reddinde dokum alindi" || pass "dokum alinmadi"
+[ "$(sum_of "$ROOT/compose.env")" = "$env_a" ] && [ "$(started web)" = "$web_a" ] \
+  && pass "katalog esigi reddi hicbir seyi degistirmedi" || fail "katalog esigi reddi bir sey degistirdi"
 
 section "6. Migration + Caddyfile degisimi: C"
 run_deploy "$shaC" "$work/mC.json"; rc=$?
