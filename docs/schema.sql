@@ -450,7 +450,8 @@ CREATE TABLE embedding_index (
     index_family  TEXT        NOT NULL CHECK (index_family ~ '^[a-z][a-z0-9_]{1,63}$'),
     dimensions    INTEGER     NOT NULL CHECK (dimensions BETWEEN 1 AND 4000),
     storage_table TEXT        NOT NULL
-                  CHECK (storage_table IN ('product_text_embedding', 'product_text_embedding_d384')),
+                  CHECK (storage_table IN ('product_text_embedding', 'product_text_embedding_d384',
+                                           'product_text_embedding_d1024')),
     state         TEXT        NOT NULL DEFAULT 'building'
                   CHECK (state IN ('building', 'shadow', 'active', 'retired')),
     created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -461,6 +462,7 @@ CREATE TABLE embedding_index (
     CONSTRAINT embedding_index_table_dims CHECK (
         (storage_table = 'product_text_embedding' AND dimensions = 768)
         OR (storage_table = 'product_text_embedding_d384' AND dimensions = 384)
+        OR (storage_table = 'product_text_embedding_d1024' AND dimensions = 1024)
     ),
     CONSTRAINT embedding_index_active_stamped CHECK (state <> 'active' OR activated_at IS NOT NULL),
     CONSTRAINT embedding_index_retired_stamped CHECK (state <> 'retired' OR retired_at IS NOT NULL)
@@ -481,6 +483,22 @@ CREATE TABLE product_text_embedding_d384 (
 );
 CREATE INDEX product_text_embedding_d384_hash_idx
     ON product_text_embedding_d384 (model_version, content_hash);
+
+-- 0114 (karar 0195): 1024 boyutlu modellerin (BGE-M3) urun metin vektoru; sozlesme ayni, embedding
+-- STORAGE PLAIN (satir icinde). HNSW yukleme sonrasi ayri `concurrent` migration'da.
+CREATE TABLE product_text_embedding_d1024 (
+    product_id    BIGINT        NOT NULL REFERENCES product(id) ON DELETE CASCADE,
+    model_version TEXT          NOT NULL CHECK (model_version ~ '^[a-z0-9][a-z0-9._-]{0,63}$'),
+    text_version  SMALLINT      NOT NULL CHECK (text_version > 0),
+    content_hash  BYTEA         NOT NULL CHECK (octet_length(content_hash) = 16),
+    source_hash   BYTEA         NOT NULL CHECK (octet_length(source_hash) = 16),
+    embedding     halfvec(1024) NOT NULL,
+    embedded_at   TIMESTAMPTZ   NOT NULL DEFAULT now(),
+    PRIMARY KEY (product_id, model_version)
+);
+ALTER TABLE product_text_embedding_d1024 ALTER COLUMN embedding SET STORAGE PLAIN;
+CREATE INDEX product_text_embedding_d1024_hash_idx
+    ON product_text_embedding_d1024 (model_version, content_hash);
 
 -- 0108 (karar 0178): anlamsal arama golge olcumu. Kullaniciya donen sonuc degismez; yalniz
 -- sayisal olculer (sorgu metni/ozeti, kullanici/oturum, urun kimligi YOK). Saklama 90 gun.

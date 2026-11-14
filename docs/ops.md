@@ -3107,6 +3107,56 @@ Model dizini `classify suggest model build` ile üretilir ve SHA-256 ile doğrul
 Yerel model `enrich.products --model <id> --model-dir DIR --execute` ile kendi tablosuna
 (`product_text_embedding_d384`) yazar; `pilot` durumundaki model yalnız yerel veritabanında çalışır.
 
+### BGE-M3 vektörlerini kalıcı tabloya alma (karar 0195) — insan onayı gerekir
+
+Kapsam: `enrich.offline_embed` kontrol noktalarını `product_text_embedding_d1024` tablosuna alır.
+Embedding üretmez, model çağırmaz, `embedding_index` satırı ya da HNSW kurmaz, anlamsal aramayı AÇMAZ.
+Ön koşul: migration 0114 uygulanmış (deploy hattı). Üretimde ilk çalıştırma ayrı, insan onaylı bir
+operasyondur; **onay olmadan `--allow-remote` kullanılmaz.**
+
+1. **Kontrol (salt okunur, her yerde güvenli):**
+   `python -m enrich.vector_import plan --ckpt <dizin> --model bge-m3-5617a9f6`
+   Beklenen: `incompatible` yok; `stale`/`missing` sıfır ya da açıklanabilir. Veritabanına yazmaz.
+2. **Ön denetim (elle):** KVM 4 disk tabanı (`df`, yedek/WAL arşiv gecikmesi; tahmini ek alan
+   ≈2,7 KB/satır + WAL ≈3,1 KB/satır), sessiz pencere (yedek/gece besleme dışı), `STOP` dosyası yok.
+3. **Çalıştırma (onaydan sonra):**
+   `python -m enrich.vector_import run --ckpt <dizin> --model bge-m3-5617a9f6 --execute
+   --allow-remote --batch 250 --sleep-ms 20` (gerekirse `--max-rows` ile önce küçük bir dilim).
+   WAL geri basıncı koşuyu kendisi durdurur (`partial / wal_backpressure`); tekrar çalıştırmak
+   kaldığı yerden devam eder. Durdurma: `<dizin>/STOP` dosyası ya da SIGTERM (dilim biter, çıkar).
+4. **Sonuç:** `job_run.job = enrich_vector_import`, `detail.outcome`: `completed` / `no_input`
+   (`up_to_date`) / `partial` (`wal_backpressure`, `interrupted`, `item_errors`,
+   `consecutive_errors`) / `failed` (`incompatible_checkpoint`) / `skipped_locked`. Çıkış kodu 0174'e göre.
+5. **Doğrulama (salt okunur):** `python -m enrich.vector_import verify --ckpt <dizin> --model
+   bge-m3-5617a9f6 --sample 3000` — tablo ve kontrol noktası vektörleri eşit olmalı.
+6. **Geri dönüş:** `DELETE FROM product_text_embedding_d1024 WHERE model_version =
+   'bge-m3-5617a9f6'` (başka tablo buna bağlı değil); Jina verisi etkilenmez.
+
+Yerel ölçüm (158.000 gerçek vektör): 120 sn, WAL 488 MB, tablo 429 MB, PostgreSQL CPU tepe %23, bellek
+tepe 490 MiB; ikinci koşu 32 sn ve sıfır yazım. HNSW ayrı ve sonradan kurulur (karar 0195 §3).
+
+### BGE-M3 sorgu servisi ve anlamsal sunum (karar 0196) — varsayılan KAPALI
+
+Kod hazır, hiçbir şey kendiliğine açılmaz. Açılış sırası (her adım insan onaylı):
+
+1. **Veri:** migration 0114 + `enrich.vector_import` (yukarıdaki bölüm); `verify` temiz.
+2. **Sorgu servisi:** toplu iş servisinden AYRI bir TEI (`embed-query`, `infra/embed/bge-m3-5617a9f6.env`
+   ile aynı model dizini ve `--pooling=cls`), web ile aynı Docker ağında. Web'e
+   `EMBED_BGE_M3_QUERY_URL=http://embed-query:8080` (yerel/özel ağ ya da HTTPS). Servis, resmî
+   referansın altın vektörleriyle kanaryadan geçmeden gerçek sorgu vektörü üretilmez: ilk istekler
+   metin aramasıyla döner, kanarya arka planda geçince devreye girer. Durum: süreç içi `canaryStatus()`.
+3. **HNSW:** ayrı `concurrent` migration PR'ı, `ef_construction = 200` (karar 0195/0196 ölçümü).
+   Kurulumda `maintenance_work_mem` yüksek ve gerekirse `max_parallel_maintenance_workers=0`
+   (paylaşımlı bellek /dev/shm küçükse paralel kurulum başarısız olur). Kurulumdan sonra ısıt:
+   `SELECT pg_prewarm('<indeks adı>')` (soğuk indekste ilk sorgular 400 ms SQL süresini aşıp metin
+   aramasına düşer; ölçüldü).
+4. **Kayıt defteri ve etkinleştirme:** model durumu/`license_verified` insan-hukuk onayı; `enrich.index
+   register/shadow/activate`.
+5. **Mod:** `SEMANTIC_SEARCH_MODE=shadow` ile gözlem, sonra `on`. Geri alma: tek bayrak.
+
+Sağlık: `GET {url}/health` (TEI). Devre kesici art arda hatada otomatik bekler; servis düşerse arama
+metin sonucuyla (birebir aynı) devam eder (80/80 ölçüldü). Anahtar/adres/sorgu günlüğe yazılmaz.
+
 ### Embedding CPU servisi, havuzlama ve kanarya (karar 0186) — varsayılan KAPALI
 
 Üretimde KURULU DEĞİL. KVM 4'te çalıştırılmaz (bellek bütçesi yok); hedef tek KVM 8 (embed.md

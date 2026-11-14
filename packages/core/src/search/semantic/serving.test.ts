@@ -171,7 +171,7 @@ describe("acik mod: kapilar", () => {
   it.each([
     ["building", { ...HNSW, state: "building" as const }],
     ["invalid", { ...HNSW, state: "invalid" as const }],
-    ["baska model", { ...HNSW, modelVersion: "bge-m3" }],
+    ["baska model", { ...HNSW, modelVersion: "bge-m3-5617a9f6" }],
     ["baska surum", { ...HNSW, indexVersion: "2" }],
     ["surumsuz", { ...HNSW, indexVersion: null }],
   ])("hazir olmayan/uyumsuz indeks (%s) -> metin aramasi", async (_name, index) => {
@@ -197,7 +197,9 @@ describe("acik mod: kapilar", () => {
       const r = await applySemanticServing(
         db,
         input(),
-        deps({ resolveIndex: async () => ({ index: null, reason, modelVersion: "bge-m3" }) }),
+        deps({
+          resolveIndex: async () => ({ index: null, reason, modelVersion: "bge-m3-5617a9f6" }),
+        }),
       );
       expect(r.items).toBe(TEXT);
       expect(r.telemetry.reason).toBe(reason);
