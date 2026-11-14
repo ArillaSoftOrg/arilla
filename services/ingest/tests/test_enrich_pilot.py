@@ -23,7 +23,7 @@ class _NoDb:
 
 
 @pytest.mark.parametrize(
-    ("model", "dimensions"), [("bge-m3", 1024), ("x-model", 768), ("jina-clip-v2", 768)]
+    ("model", "dimensions"), [("bge-m3-5617a9f6", 1024), ("x-model", 768), ("jina-clip-v2", 768)]
 )
 def test_incompatible_model_never_touches_product_table(model: str, dimensions: int) -> None:
     client = FakeEmbeddingClient(model=model, dimensions=dimensions)
@@ -34,7 +34,7 @@ def test_incompatible_model_never_touches_product_table(model: str, dimensions: 
 
 
 def test_cli_rejects_disabled_and_wrong_role(capsys: pytest.CaptureFixture[str]) -> None:
-    for model in ("bge-m3", "jina-clip-v2"):
+    for model in ("bge-m3-5617a9f6", "jina-clip-v2"):
         assert products.main(["--model", model]) == 2
         assert "model secilemez" in capsys.readouterr().err
 

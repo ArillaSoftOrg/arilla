@@ -17,7 +17,7 @@
       "vector_type": "halfvec"
     },
     "product_text_halfvec1024": {
-      "table": null,
+      "table": "product_text_embedding_d1024",
       "dimensions": 1024,
       "vector_type": "halfvec"
     }
@@ -91,7 +91,7 @@
       "pooling": "mean"
     },
     {
-      "id": "bge-m3",
+      "id": "bge-m3-5617a9f6",
       "provider": "remote_http",
       "roles": ["product_text"],
       "modalities": ["text"],
@@ -106,7 +106,12 @@
       "state": "disabled",
       "license": "MIT",
       "license_verified": false,
-      "source": { "repo": "BAAI/bge-m3", "revision": "5617a9f61b028005a4858fdac845db406aefb181" },
+      "source": {
+        "repo": "BAAI/bge-m3",
+        "revision": "5617a9f61b028005a4858fdac845db406aefb181",
+        "weights_file": "pytorch_model.bin",
+        "weights_sha256": "b5e0ce3470abf5ef3831aa1bd5553b486803e83251590ab7ff35a117cf6aad38"
+      },
       "decision": "0186",
       "online_query": false,
       "pooling": "cls",

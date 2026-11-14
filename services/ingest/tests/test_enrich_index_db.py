@@ -101,7 +101,7 @@ def test_dry_run_changes_nothing(conns) -> None:
 def test_register_rejects_models_without_storage_or_disabled(conns) -> None:
     _, app = conns
     with pytest.raises(index.IndexTransitionError):
-        index.run(app, "register", model="bge-m3", execute=True)
+        index.run(app, "register", model="bge-m3-5617a9f6", execute=True)
     with pytest.raises(index.IndexTransitionError):
         index.run(app, "register", model="jina-clip-v2", execute=True)
     assert _states(app) == {V3: "active"}
