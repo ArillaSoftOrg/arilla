@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from "react";
+import type { ReactNode } from "react";
 import { Container } from "./Container.tsx";
 import { joinClassNames } from "./layout.ts";
 import styles from "./SiteFooter.module.css";
@@ -36,12 +36,10 @@ export interface FooterSocialGroup {
 
 export interface SiteFooterProps {
   brandLabel: string;
-  brandDescription: string;
-  /** Wordmark'in linki; varsayilan `/`. */
-  brandHref?: string;
-  /** Header ile ayni uygulama isareti. */
-  brandLogoSrc?: string;
+  /** Ana gezinme gruplari; yasal baglantilar bu listenin disinda kalir. */
   groups: readonly FooterGroup[];
+  /** Footer'in altinda kucuk ve acik adlariyla listelenen yasal hedefler. */
+  legalGroup: FooterGroup;
   /** Dogrulanmis sosyal hesaplar; metin listesi yerine ikon baglantilari olarak gosterilir. */
   socialGroup?: FooterSocialGroup;
   /**
@@ -52,7 +50,6 @@ export interface SiteFooterProps {
   affiliateNotice?: string;
   /** Verilirse affiliate notunun ardindan ayrintili aciklamaya link. */
   affiliateLink?: { label: string; href: string };
-  priceDisclaimer: string;
   copyrightLabel: string;
   /** Zemindeki buyuk dekoratif kelime isareti; varsayilan `brandLabel`. */
   decorativeWordmark?: string;
@@ -65,35 +62,23 @@ export interface SiteFooterProps {
 /**
  * docs/pages.md "/" Faz 5: gercek, tamamlanmis footer. `groups` yalnizca
  * gercekten var olan route'lari icerir - cagiran taraf (page.tsx) bunu
- * saglar, bilesen kendisi route uydurmaz. Affiliate/fiyat-stok metinleri
- * `legal.*` (docs/copy.md) ile AYNI - homepage'te baska yerde tekrarlanmaz.
+ * saglar, bilesen kendisi route uydurmaz.
  *
- * Hiyerarsi: marka blogu -> link gruplari (Urun, Hesap, Yasal) ->
- * disclosure bandi (affiliate + fiyat/stok) -> telif satiri.
- *
- * Footer header'daki marka kilidini tekrarlar: uygulama isareti, marka adi,
- * kisa aciklama ve gercek sayfa baglantilari. Alt bant yalnizca yasal bilgi
- * ve telif satirini tasir.
+ * Hiyerarsi: ana link gruplari -> sosyal hesaplar -> telif/sirket bilgisi +
+ * tum yasal baglantilar -> dekoratif wordmark.
  */
 export function SiteFooter({
   brandLabel,
-  brandDescription,
-  brandHref = "/",
-  brandLogoSrc,
   groups,
+  legalGroup,
   socialGroup,
   affiliateNotice,
   affiliateLink,
-  priceDisclaimer,
   copyrightLabel,
   decorativeWordmark = brandLabel,
   variant = "default",
   className,
 }: SiteFooterProps) {
-  const brandLogoStyle = brandLogoSrc
-    ? ({ backgroundImage: `url(${JSON.stringify(brandLogoSrc)})` } satisfies CSSProperties)
-    : undefined;
-
   return (
     <footer className={joinClassNames(styles.footer, className)} data-variant={variant}>
       <Container size="wide" className={styles.inner}>
@@ -101,15 +86,6 @@ export function SiteFooter({
           className={styles.top}
           data-has-social={socialGroup?.links.length ? "true" : undefined}
         >
-          <div className={styles.brand}>
-            <a href={brandHref} className={styles.brandLabel}>
-              {brandLogoSrc ? (
-                <span className={styles.brandLogo} style={brandLogoStyle} aria-hidden="true" />
-              ) : null}
-              <span>{brandLabel}</span>
-            </a>
-            <p className={styles.brandDescription}>{brandDescription}</p>
-          </div>
           <div className={styles.groups}>
             {groups.map((group) => (
               <nav key={group.title} aria-label={group.title} className={styles.group}>
@@ -162,24 +138,47 @@ export function SiteFooter({
           ) : null}
         </div>
 
-        <div className={styles.disclosure}>
+        <div className={styles.legalArea}>
           {affiliateNotice ? (
-            <p className={styles.disclosureText}>
-              {affiliateNotice}
-              {affiliateLink ? (
-                <>
-                  {" "}
-                  <a href={affiliateLink.href} className={styles.disclosureLink}>
-                    {affiliateLink.label}
-                  </a>
-                </>
-              ) : null}
-            </p>
+            <div className={styles.disclosure}>
+              <p className={styles.disclosureText}>
+                {affiliateNotice}
+                {affiliateLink ? (
+                  <>
+                    {" "}
+                    <a href={affiliateLink.href} className={styles.disclosureLink}>
+                      {affiliateLink.label}
+                    </a>
+                  </>
+                ) : null}
+              </p>
+            </div>
           ) : null}
-          <p className={styles.disclosureText}>{priceDisclaimer}</p>
-        </div>
 
-        <p className={styles.copyright}>{copyrightLabel}</p>
+          <div className={styles.legalMeta}>
+            <p className={styles.copyright}>{copyrightLabel}</p>
+            <nav aria-label={legalGroup.title}>
+              {/* biome-ignore lint/a11y/noRedundantRoles: `list-style: none` Safari/VoiceOver'da liste rolunu dusurur. */}
+              <ul role="list" className={styles.legalList}>
+                {legalGroup.links.map((link) => (
+                  <li key={link.href}>
+                    {link.render ? (
+                      link.render({ className: styles.legalLink ?? "", children: link.label })
+                    ) : (
+                      <a
+                        href={link.href}
+                        className={styles.legalLink}
+                        aria-current={link.current ? "page" : undefined}
+                      >
+                        {link.label}
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </nav>
+          </div>
+        </div>
       </Container>
       <div className={styles.wordmarkArea} aria-hidden="true">
         <span className={styles.wordmark}>{decorativeWordmark}</span>

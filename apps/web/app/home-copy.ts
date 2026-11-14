@@ -17,8 +17,6 @@ export const HOME_COPY = {
   discoveryTitle: "Keşfet", // home.discovery_title
   discoverySubtitle: "Farklı kategorilerden öne çıkan ürünler, tek bakışta.", // home.discovery_subtitle
   howItWorksTitle: "ManiCepte nasıl çalışır?", // home.how_it_works_title
-  howItWorksPrompt: "ManiCepte'yi ilk kez mi kullanıyorsun?",
-  howItWorksAction: "Nasıl çalıştığını gör",
   recentPriceLabel: "Fiyatı incele",
   howItWorksSubtitle:
     "Ürünü tarif et veya fotoğrafını yükle. ManiCepte aynı ve benzer seçenekleri farklı mağazalarda karşılaştırmana yardımcı olur.", // home.how_it_works_subtitle
@@ -56,12 +54,16 @@ export const HOME_COPY = {
   offerCountLabel: "mağaza", // product.offer_count_suffix
   footerProductGroupTitle: "Ürün", // footer.product_group_title
   footerAccountGroupTitle: "Hesap", // footer.account_group_title
+  footerHelpGroupTitle: "Yardım", // footer.help_group_title
+  footerPartnershipGroupTitle: "İş Ortaklıkları", // footer.partnership_group_title
   footerLegalGroupTitle: "Yasal", // footer.legal_group_title
   footerCompanyGroupTitle: "Şirket", // footer.company_group_title
   footerSocialGroupTitle: "Takipte kal", // footer.social_group_title
   navAbout: "Hakkında", // nav.about
   navBlog: "Blog", // nav.blog
-  navPartners: "Ortaklıklar", // nav.partners
+  navBrands: "Markalar İçin", // nav.brands
+  navStores: "Mağazalar İçin", // nav.stores
+  navCreators: "İçerik Üreticileri", // nav.creators
   navPrivacy: "Gizlilik", // nav.privacy
   navTerms: "Kullanım Koşulları", // nav.terms
   navCookies: "Çerez Politikası", // nav.cookies

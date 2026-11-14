@@ -105,6 +105,8 @@ export interface SearchComposerProps {
   busyMessage?: string | null;
   /** Arama bolgesinin basinda istege bagli baslik/gorsel. */
   beforeSearch?: ReactNode;
+  /** Formun icinde, eylemlerin altinda istege bagli ikincil kontroller. */
+  composerFooter?: ReactNode;
   /** Yalnizca ana arama bolgesinin duzeni; son bakilanlari kapsamaz. */
   searchClassName?: string;
   /** Arama ve durum mesajlarindan sonra, son bakilanlardan once istege bagli icerik. */
@@ -166,6 +168,7 @@ export function SearchComposer({
   statusMessage,
   busyMessage,
   beforeSearch,
+  composerFooter,
   searchClassName,
   afterSearch,
   recentProducts,
@@ -385,6 +388,7 @@ export function SearchComposer({
               <ArrowRightIcon />
             </Button>
           </div>
+          {composerFooter}
         </form>
       </search>
 

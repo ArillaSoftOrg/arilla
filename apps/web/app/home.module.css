@@ -8,7 +8,7 @@
   padding-block-end: var(--space-12);
 }
 
-/* Ilk gorunumde yalnizca robot, baslik ve arama. Header'in mevcut
+/* Ilk gorunumde yalnizca baslik, arama ve forma bagli ornekler. Header'in mevcut
    84/80/64 px boyutlari dusulur; yardim ve urunler sonraki akistadir. */
 .page {
   --home-header-height: 84px;
@@ -22,68 +22,14 @@
 .searchScreen {
   display: grid;
   grid-template-columns: minmax(0, 1fr);
-  align-content: center;
+  align-content: start;
   gap: var(--space-6);
   width: 100%;
   max-width: 800px;
   min-block-size: calc(100svh - var(--home-header-height));
   margin-inline: auto;
-  padding-block: var(--space-12);
-}
-
-/* Gecici pozlar: yalnizca bu gorseller degistirilerek yenilenebilir. */
-.heroRobot {
-  display: block;
-  width: 88px;
-  height: 88px;
-  object-fit: contain;
-}
-
-.howRail {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  justify-self: stretch;
-  gap: var(--space-2) var(--space-6);
-  width: 100%;
-  padding-block: var(--space-3);
-  border-block: var(--border-width) solid var(--line);
-  color: var(--ink-secondary);
-  font-size: var(--text-small);
-  line-height: var(--line-height-normal);
-}
-
-.howPrompt {
-  margin: 0;
-}
-
-.howGuide {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-2);
-  min-width: 0;
-  min-height: var(--size-touch-target);
-  color: var(--ink);
-  font-weight: var(--font-weight-medium);
-  text-decoration: none;
-}
-
-.howRobot {
-  flex: 0 0 auto;
-  width: 56px;
-  height: 56px;
-  object-fit: contain;
-}
-
-.howGuide:hover {
-  text-decoration: underline;
-  text-underline-offset: var(--space-1);
-}
-
-.howGuide:focus-visible {
-  outline: var(--focus-ring);
-  outline-offset: var(--focus-ring-offset);
+  padding-block-start: clamp(var(--space-16), 17svh, var(--space-32));
+  padding-block-end: var(--space-12);
 }
 
 .page .homeEmpty {
@@ -103,17 +49,6 @@
     --wordmark-size: 18vw;
     --wordmark-area: calc(var(--wordmark-size) * 0.88);
     padding-block-end: calc(var(--space-24) + env(safe-area-inset-bottom, 0px));
-  }
-}
-
-@media (min-width: 1024px) {
-  .searchScreen {
-    gap: var(--space-10);
-  }
-
-  .heroRobot {
-    width: 104px;
-    height: 104px;
   }
 }
 

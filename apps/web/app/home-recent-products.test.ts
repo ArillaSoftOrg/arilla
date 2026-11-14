@@ -54,6 +54,15 @@ describe("ana sayfa 'Alışverişe devam et' bölümü", () => {
     expect(html).toContain("Fiyatı incele");
     expect(html).not.toContain("0 mağaza");
   });
+  it("ornek aramalar basliksiz, kisa etiketlerle arama formuna baglanir", () => {
+    const html = render(undefined);
+    expect(html).not.toContain("Bir fikirle başla");
+    expect(html).not.toContain("Nereden başlamalı");
+    expect(html.indexOf('aria-label="Örnek aramalar"')).toBeLessThan(html.indexOf("</form>"));
+    for (const label of ["Beyaz spor ayakkabı", "Çalışma masası", "Kablosuz kulaklık"]) {
+      expect(html).toContain(label);
+    }
+  });
   it("yardim CTA'si arama formunun disinda ve son bakilanlardan once kalir", () => {
     const html = renderToStaticMarkup(
       createElement(HomeSearchComposer, {

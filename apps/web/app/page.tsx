@@ -13,8 +13,6 @@ import {
 import { getDatabase } from "@arilla/db";
 import { DiscoveryGrid, EmptyState, HomeHero, Section } from "@arilla/ui";
 import type { Metadata } from "next";
-import Image from "next/image";
-import Link from "next/link";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { ComingSoonLanding } from "./coming-soon-landing.tsx";
 import { toDiscoveryItems } from "./discovery-adapter.ts";
@@ -60,7 +58,7 @@ export function generateMetadata(): Metadata {
 
 /**
  * docs/pages.md "/". Tek is: arama baslatmak. Akis (kabuk icinde):
- * ilk ekran (robot + h1 + arama) -> yardim seridi -> varsa son bakilanlar -> Trendler (`#trendler`) ->
+ * ilk ekran (h1 + arama + forma bagli ornekler) -> varsa son bakilanlar -> Trendler (`#trendler`) ->
  * kesif masonry'si (`#kesfet`).
  * Header/footer, `<main>`, genis Container
  * ve yatay gutter `PublicSiteShell`'den gelir; bu sayfa yalnizca `Section`
@@ -72,8 +70,7 @@ export function generateMetadata(): Metadata {
  * - Kesif: `getDiscoverySlots` (dar try/catch; veri bosken baslik ve kisa
  *   bos durum korunur). Gercek veri > `HOMEPAGE_DEMO_CONTENT=true` demo >
  *   bos; bkz. discovery-adapter.ts. Ayni `DiscoveryGrid` `/kesfet`te.
- * Performans: kucuk, sabit hero robotu eager yuklenir. Ilk trend kapagi eager +
- * yuksek oncelik; diger tum trend/kesif gorselleri lazy + async decode,
+ * Performans: ilk trend kapagi eager + yuksek oncelik; diger tum trend/kesif gorselleri lazy + async decode,
  * yer `aspect-ratio` ile ayrilir (duzen kaymasi yok).
  */
 async function loadDiscoveryItems(): Promise<Parameters<typeof toDiscoveryItems>[0]> {
@@ -163,35 +160,7 @@ export default async function HomePage() {
                 titleId="anasayfa-baslik"
                 titleLead={HOME_COPY.heroTitleLead}
                 titleAccent={HOME_COPY.heroTitleAccent}
-                illustration={
-                  <Image
-                    src="/mascot/guide/robot-welcome.png"
-                    alt=""
-                    width={104}
-                    height={104}
-                    sizes="(min-width: 1024px) 104px, 88px"
-                    loading="eager"
-                    className={styles.heroRobot}
-                  />
-                }
               />
-            }
-            afterSearch={
-              <div className={styles.howRail}>
-                <p className={styles.howPrompt}>{HOME_COPY.howItWorksPrompt}</p>
-                <Link href="/nasil-calisir" className={styles.howGuide}>
-                  <Image
-                    src="/mascot/guide/robot-how-it-works-point-v1.png"
-                    alt=""
-                    width={56}
-                    height={56}
-                    sizes="56px"
-                    className={styles.howRobot}
-                  />
-                  <span aria-hidden="true">→</span>
-                  <span>{HOME_COPY.howItWorksAction}</span>
-                </Link>
-              </div>
             }
           />
         </Section>

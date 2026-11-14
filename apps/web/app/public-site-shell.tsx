@@ -15,6 +15,7 @@ import {
   compactEarlyAccessFooterGroups,
   earlyAccessFooterGroups,
   homeFooterGroups,
+  legalFooterGroup,
   personalNavLinks,
   type SiteSectionLinks,
   SUBPAGE_SECTION_LINKS,
@@ -111,7 +112,7 @@ export async function PublicSiteShell({
   // sade bir footer bağlantısı. Aynı giriş akışı; yetki girişten sonra
   // sunucuda rolden okunur. Girişli normal kullanıcı zaten yetkisizdir.
   const footerSource = productAccess
-    ? homeFooterGroups(links, user !== null)
+    ? homeFooterGroups(links)
     : (compactFooter ? compactEarlyAccessFooterGroups : earlyAccessFooterGroups)(
         user
           ? [{ label: EARLY_ACCESS_COPY.navStatus, href: EARLY_ACCESS_PATH }]
@@ -124,6 +125,11 @@ export async function PublicSiteShell({
     ...group,
     links: markCurrent(group.links, currentPath),
   }));
+  const legalGroup = legalFooterGroup();
+  const footerLegalGroup: FooterGroup = {
+    ...legalGroup,
+    links: markCurrent(legalGroup.links, currentPath),
+  };
   const socialLinks = configuredSocialLinks().map((social) => ({
     label: social.label,
     href: social.href,
@@ -138,7 +144,6 @@ export async function PublicSiteShell({
       <HomeHeader
         brandLabel={SITE_BRAND}
         brandStatusLabel={HOME_COPY.betaLabel}
-        brandLogoSrc="/brand/manicepte-logo.png"
         navItems={navItems}
         navAriaLabel="Ana gezinme"
         variant={isChat ? "chat" : "site"}
@@ -188,17 +193,13 @@ export async function PublicSiteShell({
         <SiteFooter
           className={footerClassName}
           brandLabel={SITE_BRAND}
-          brandLogoSrc="/icon4.png"
-          brandDescription={
-            productAccess ? HOME_COPY.heroSubtitle : COMING_SOON_COPY.footerDescription
-          }
           groups={footerGroups}
+          legalGroup={footerLegalGroup}
           socialGroup={
             showFooterSocial
               ? { title: HOME_COPY.footerSocialGroupTitle, links: socialLinks }
               : undefined
           }
-          priceDisclaimer={HOME_COPY.priceDisclaimer}
           copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
         />
       )}
