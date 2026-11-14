@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 import type { LexiconEntry } from "../lexicon.ts";
-import { verifyCanonicalQuery, verifyRewrite } from "./rewrite-guard.ts";
+import {
+  type CanonicalContext,
+  type InterpretationEvidence,
+  verifyCanonicalQuery,
+  verifyRewrite,
+  verifyRewriteSet,
+} from "./rewrite-guard.ts";
 
 const LEXICON: LexiconEntry[] = [
   { kind: "synonym", surface: "kablosuz", normalized: "kablosuz", weight: 1 },
@@ -199,5 +205,196 @@ describe("dil bagimsiz kanonik yazim sozlesmesi (E4b C+)", () => {
       ctx({ crossLingualCosine: 0.3 }),
     );
     expect(r.reason).toBe("intent_drift");
+  });
+});
+
+describe("yorum kanitli dogrulayici v3 (E4b C+ v3)", () => {
+  const lang = (tag: string, confidence = "high") => ({ tag, confidence });
+  const interp = (
+    productType: { value: string; source: string } | null,
+    extra: Partial<InterpretationEvidence> = {},
+  ): InterpretationEvidence => ({
+    productType,
+    role: "main",
+    confidence: "high",
+    downgraded: false,
+    explicitAttributeIds: [],
+    ...extra,
+  });
+  const ctx = (interpretation?: InterpretationEvidence): CanonicalContext => ({
+    lexicon: LEXICON,
+    requiredEntities: [],
+    interpretation,
+    knownBrands: BRANDS,
+  });
+  const check = (
+    raw: string,
+    detected: string,
+    text: string,
+    language: string,
+    it?: InterpretationEvidence,
+  ) => verifyCanonicalQuery(raw, lang(detected), { language, text }, [], ctx(it)).reason;
+
+  it("urun turu ham metinde kanitli degilse (Q66) yazimlarin TAMAMI reddedilir", () => {
+    const res = verifyRewriteSet(
+      "anime seven arkadaşıma hediye",
+      lang("tr"),
+      [
+        { language: "en", text: "anime book" },
+        { language: "tr", text: "anime kitap" },
+      ],
+      [],
+      () => ctx(interp({ value: "kitap", source: "inferred" })),
+    );
+    expect(res.map((r) => r.verdict.reason)).toEqual([
+      "product_type_unverified",
+      "product_type_unverified",
+    ]);
+    expect(res.every((r) => !r.verdict.accepted)).toBe(true);
+  });
+
+  it("rol degisimi ayni cagrinin diger yazimlarini da gecersiz kilar", () => {
+    const res = verifyRewriteSet(
+      "akıllı saat",
+      lang("tr"),
+      [
+        { language: "tr", text: "akıllı saat" },
+        { language: "en", text: "smart watch replacement strap" },
+      ],
+      [],
+      () => ctx(interp({ value: "akıllı saat", source: "explicit" })),
+    );
+    expect(res.map((r) => r.verdict.reason)).toEqual(["set_inconsistent", "role_changed"]);
+  });
+
+  it("dogru ceviriler kabul edilir (TR/DE/EN; hedef dil zorunlu degil)", () => {
+    expect(
+      check(
+        "kabin boy valiz",
+        "tr",
+        "cabin luggage",
+        "en",
+        interp({ value: "kabin boy valiz", source: "explicit" }),
+      ),
+    ).toBeNull();
+    expect(
+      check(
+        "Babyflasche 125 ml",
+        "de",
+        "biberon 125 ml",
+        "tr",
+        interp({ value: "Babyflasche", source: "explicit" }),
+      ),
+    ).toBeNull();
+    expect(
+      check(
+        "newborn diapers size 2",
+        "en",
+        "yeni doğan bebek bezi numara 2",
+        "tr",
+        interp({ value: "newborn diapers", source: "explicit" }),
+      ),
+    ).toBeNull();
+    expect(
+      check(
+        "Rucksack für 15,6 Zoll Laptop",
+        "de",
+        "backpack for 15.6 inch laptop",
+        "en",
+        interp({ value: "Rucksack", source: "explicit" }),
+      ),
+    ).toBeNull();
+  });
+
+  it("sayi+birim ailesi korunmali", () => {
+    const it = interp({ value: "Babyflasche", source: "explicit" });
+    expect(check("Babyflasche 125 ml", "de", "baby bottle 125 oz", "en", it)).toBe("unit_changed");
+    expect(
+      check(
+        "1TB harici disk",
+        "tr",
+        "1GB external disk",
+        "en",
+        interp({ value: "harici disk", source: "explicit" }),
+      ),
+    ).toBe("spec_lost");
+    expect(
+      check(
+        "biberon emziği 0 ay",
+        "tr",
+        "baby bottle teat 0",
+        "en",
+        interp({ value: "biberon emziği", source: "explicit" }),
+      ),
+    ).toBe("unit_changed");
+  });
+
+  it("ham metinde olmayan marka ya da kapali ozellik uydurulamaz", () => {
+    const it = interp({ value: "klavye", source: "explicit" });
+    expect(check("mekanik klavye", "tr", "Samsung mechanical keyboard", "en", it)).toBe(
+      "brand_invented",
+    );
+    expect(check("mekanik klavye", "tr", "wireless mechanical keyboard", "en", it)).toBe(
+      "attribute_invented",
+    );
+    // olumsuzlanan ozelligin karsiti uydurma sayilmaz
+    expect(
+      verifyCanonicalQuery(
+        "kablosuz olmayan klavye",
+        lang("tr"),
+        { language: "en", text: "wired keyboard" },
+        [{ text: "kablosuz", evidence: "kablosuz olmayan" }],
+        ctx(it),
+      ).reason,
+    ).toBeNull();
+    // ham metindeki dil tablosu disinda kalan ozellik, kanitli yorumla kabul edilir
+    expect(
+      check(
+        "kabellose Maus",
+        "de",
+        "wireless mouse",
+        "en",
+        interp({ value: "Maus", source: "explicit" }, { explicitAttributeIds: ["wireless"] }),
+      ),
+    ).toBeNull();
+  });
+
+  it("ayni dildeki yazim bas ismi kaybedemez; cekim eki ve sozluk esanlamlisi tolere edilir", () => {
+    const it = interp({ value: "klavye", source: "explicit" });
+    expect(check("dizüstü klavye", "tr", "dizüstü bilgisayar klavyesi", "tr", it)).toBeNull();
+    expect(check("dizüstü klavye", "tr", "dizüstü bilgisayar", "tr", it)).toBe("type_anchor_lost");
+  });
+
+  it("dusuk guvenli ya da dusurulmus yorum genisletme yapmaz", () => {
+    const it = interp({ value: "klavye", source: "explicit" }, { confidence: "low" });
+    expect(check("klavye", "tr", "keyboard", "en", it)).toBe("interpretation_uncertain");
+  });
+
+  // Sentetik sozlesme testleri: bu diller katalogda/etikette YOK; gercek arama kalitesi kaniti degildir.
+  it("tablolarda olmayan diller sabit kod gerektirmez (sentetik: pt, fr, ja)", () => {
+    const pt = verifyCanonicalQuery(
+      "mochila para notebook 15,6 polegadas",
+      lang("pt-BR"),
+      { language: "en", text: "backpack for 15.6 inch laptop" },
+      [],
+      ctx(interp({ value: "mochila", source: "explicit" })),
+    );
+    expect(pt).toMatchObject({ accepted: true, negationCheck: "model_evidence_only" });
+    const fr = verifyCanonicalQuery(
+      "clavier sans bluetooth",
+      lang("fr"),
+      { language: "tr", text: "bluetooth klavye" },
+      [{ text: "bluetooth", evidence: "sans bluetooth" }],
+      ctx(interp({ value: "clavier", source: "explicit" })),
+    );
+    expect(fr.reason).toBe("negation_flipped");
+    const ja = verifyCanonicalQuery(
+      "ワイヤレスマウス",
+      lang("ja"),
+      { language: "en", text: "wireless mouse" },
+      [],
+      ctx(interp({ value: "マウス", source: "explicit" }, { explicitAttributeIds: ["wireless"] })),
+    );
+    expect(ja.accepted).toBe(true);
   });
 });

@@ -13,11 +13,29 @@
  * - ham sorguda olmayan sayi (fiyat, adet, boyut) eklenmemeli;
  * - bos, cok uzun ya da URL/kod iceren cikti kabul edilmez.
  */
+import { ATTRIBUTE_VALUES, oppositeOf } from "../../intent/antonyms.ts";
 import type { LexiconEntry } from "../lexicon.ts";
 import { foldForMatch } from "../text-match.ts";
+import { looksLikeAccessory, queryWantsAccessory } from "./accessory-guard.ts";
 import { negatedTerms, specTokens } from "./hybrid-policy.ts";
 
 export type RewriteRejection =
+  /** Dogrulanmis yorum dusuk guvenli ya da dusurulmus: genisletme yapilmaz. */
+  | "interpretation_uncertain"
+  /** Ham metinde kaniti olan (explicit) urun turu yok: yazim bir urun turu UYDURABILIR (E4b Q66). */
+  | "product_type_unverified"
+  /** Sorguyla AYNI dildeki yazim, dogrulanmis urun turunun bas ismini tasimiyor. */
+  | "type_anchor_lost"
+  /** Kullanici ana urun istiyor; yazim aksesuar/yedek parca gibi. */
+  | "role_changed"
+  /** Ham sorgudaki sayi+birim yazimda ayni sayi ve ayni birim ailesiyle yok. */
+  | "unit_changed"
+  /** Yazimda ham sorguda olmayan bilinen marka var. */
+  | "brand_invented"
+  /** Yazimda ham sorguda (ya da kanitli yorumda) olmayan kapali ozellik var. */
+  | "attribute_invented"
+  /** Ayni cagrinin baska bir yazimi yorum duzeyinde reddedildi: hicbiri kullanilmaz. */
+  | "set_inconsistent"
   | "language_unsupported"
   | "language_uncertain"
   | "no_rewrite"
@@ -132,8 +150,81 @@ const allPriceTerms = () => Object.values(PRICE_TERM_REGISTRY).flat();
  */
 export const DEFAULT_MIN_CROSS_LINGUAL_COSINE = 0.35;
 
+/**
+ * Sayi+birim aileleri VERI tablosu (katlanmis yuzeyler). Ham sorguda "125 ml", "1TB", "15,6 inc",
+ * "Grosse 2" gibi bir sayi+birim varsa yazimda AYNI sayi ve AYNI ailedeki bir birim bulunmali.
+ * Yeni dil/birim = tabloya kayit. Tabloda olmayan birim denetlenmez (sayi kurali yine gecerli).
+ */
+export const UNIT_REGISTRY: readonly (readonly string[])[] = [
+  ["ml", "mililitre", "milliliter", "millilitre"],
+  ["l", "lt", "litre", "liter", "liters", "litres"],
+  ["mb", "megabyte"],
+  ["gb", "gigabyte", "gigabayt"],
+  ["tb", "terabyte", "terabayt"],
+  ["inc", "inch", "inches", "zoll"],
+  ["mm", "milimetre", "millimeter"],
+  ["cm", "santim", "santimetre", "centimeter", "zentimeter"],
+  ["kg", "kilo", "kilogram"],
+  ["g", "gr", "gram"],
+  ["v", "volt"],
+  ["w", "watt"],
+  ["mah"],
+  ["hz"],
+  ["ay", "aylik", "month", "months", "monat", "monate"],
+  ["numara", "size", "beden", "grosse", "groesse"],
+];
+
+const UNIT_INDEX = new Map<string, number>();
+UNIT_REGISTRY.forEach((group, i) => {
+  for (const u of group) if (!UNIT_INDEX.has(u)) UNIT_INDEX.set(u, i);
+});
+
+/** Katlanmis metindeki (sayi, birim ailesi) ciftleri: "125 ml", "1tb", "size 2" (birim once). */
+function numberUnits(folded: string): { n: string; family: number }[] {
+  const out: { n: string; family: number }[] = [];
+  for (const m of folded.matchAll(/(\d+(?:[.,]\d+)?)\s*([a-z]+)/g)) {
+    const family = UNIT_INDEX.get(m[2] ?? "");
+    if (family !== undefined) out.push({ n: (m[1] ?? "").replace(",", "."), family });
+  }
+  for (const m of folded.matchAll(/\b([a-z]+)\s+(\d+(?:[.,]\d+)?)\b/g)) {
+    const family = UNIT_INDEX.get(m[1] ?? "");
+    // Yalniz birimi sayidan ONCE yazilan aileler (beden/numara/size).
+    if (family !== undefined && UNIT_REGISTRY[family]?.includes("size")) {
+      out.push({ n: (m[2] ?? "").replace(",", "."), family });
+    }
+  }
+  return out;
+}
+
+/**
+ * Dogrulanmis IntentV2 yorumundan (validate.ts) gelen KANIT durumu. Model ciktisi degil, dogrulayicinin
+ * ham metne karsi denetledigi sonuctur: `source: "explicit"` = degerin kaniti ham metinde var.
+ */
+export interface InterpretationEvidence {
+  productType: { value: string; source: string } | null;
+  role: string | null;
+  confidence: string;
+  downgraded: boolean;
+  /** Kaniti ham metinde olan kapali ozellik kimlikleri (antonyms.ts `id`). */
+  explicitAttributeIds: readonly string[];
+}
+
+/** Yorum duzeyindeki retler: ayni cagrinin TUM yazimlarini gecersiz kilar. */
+const INTERPRETATION_LEVEL: ReadonlySet<RewriteRejection> = new Set([
+  "interpretation_uncertain",
+  "product_type_unverified",
+  "role_changed",
+]);
+
 export interface CanonicalContext {
   lexicon: readonly LexiconEntry[];
+  /**
+   * Dogrulanmis yorum kaniti. Verilirse urun turu/rol/ozellik denetimleri uygulanir (onerilen).
+   * Verilmezse yalniz metin kurallari calisir (E4b C+ v2 davranisi).
+   */
+  interpretation?: InterpretationEvidence;
+  /** Bilinen markalar (sozluk `brand`); yazimda ham metinde olmayan marka uydurma sayilir. */
+  knownBrands?: readonly string[];
   /** "any" (varsayilan): her dil; yalniz `und`/dusuk guven geri duser. */
   acceptedQueryLanguages?: readonly string[] | "any";
   /**
@@ -210,7 +301,110 @@ export function verifyCanonicalQuery(
       return out("required_entity_lost");
     }
   }
+  const outUnits = numberUnits(folded);
+  for (const u of numberUnits(rawFolded)) {
+    if (!outUnits.some((o) => o.n === u.n && o.family === u.family)) return out("unit_changed");
+  }
+  for (const brand of ctx.knownBrands ?? []) {
+    const b = foldForMatch(brand);
+    if (b.length > 2 && containsPhrase(folded, b) && !containsPhrase(rawFolded, b)) {
+      return out("brand_invented");
+    }
+  }
+  const it = ctx.interpretation;
+  if (it) {
+    const reason = interpretationReason(rawFolded, folded, primary, target, it, ctx.lexicon);
+    if (reason) return out(reason);
+  }
   const min = ctx.minCrossLingualCosine ?? DEFAULT_MIN_CROSS_LINGUAL_COSINE;
   if (ctx.crossLingualCosine != null && ctx.crossLingualCosine < min) return out("intent_drift");
   return out(null);
+}
+
+/** Bas isim kokunun yazimda varligi; cekim ekine dayanikli onek (en az 4 harf). */
+function hasHeadStem(folded: string, head: string): boolean {
+  const stem = head.length <= 4 ? head : head.slice(0, Math.max(4, head.length - 3));
+  return folded.split(/[^a-z0-9]+/).some((w) => w.startsWith(stem));
+}
+
+function synonymsOf(term: string, lexicon: readonly LexiconEntry[]): string[] {
+  const keys = new Set(
+    lexicon.filter((e) => foldForMatch(e.surface) === term).map((e) => e.normalized),
+  );
+  return lexicon.filter((e) => keys.has(e.normalized)).map((e) => foldForMatch(e.surface));
+}
+
+function interpretationReason(
+  rawFolded: string,
+  folded: string,
+  primary: string,
+  target: string,
+  it: InterpretationEvidence,
+  lexicon: readonly LexiconEntry[],
+): RewriteRejection | null {
+  if (it.downgraded || it.confidence === "low") return "interpretation_uncertain";
+  // Urun turu ham metinde kanitli degilse yazim bir tur ileri surer ("anime seven arkadasima hediye"
+  // -> "anime kitap"): dil bagimsiz olarak reddedilir; arama ham sorguyla devam eder.
+  if (it.productType?.source !== "explicit") return "product_type_unverified";
+  if (target === primary && it.productType) {
+    const head = foldForMatch(it.productType.value)
+      .split(/[^a-z0-9]+/)
+      .filter(Boolean)
+      .at(-1);
+    if (
+      head &&
+      !hasHeadStem(folded, head) &&
+      !synonymsOf(head, lexicon).some((s) => containsPhrase(folded, s))
+    ) {
+      return "type_anchor_lost";
+    }
+  }
+  if (it.role === "main" && !queryWantsAccessory(rawFolded) && looksLikeAccessory(folded)) {
+    return "role_changed";
+  }
+  const allowed = new Set<string>(it.explicitAttributeIds);
+  for (const def of ATTRIBUTE_VALUES) {
+    if (def.terms.some((t) => containsPhrase(rawFolded, foldForMatch(t)))) {
+      allowed.add(def.id);
+      const other = oppositeOf(def);
+      if (other) allowed.add(other.id); // "kablosuz olmayan" -> "wired"
+    }
+  }
+  for (const id of it.explicitAttributeIds) {
+    const def = ATTRIBUTE_VALUES.find((d) => d.id === id);
+    const other = def ? oppositeOf(def) : null;
+    if (other) allowed.add(other.id);
+  }
+  for (const def of ATTRIBUTE_VALUES) {
+    if (allowed.has(def.id)) continue;
+    if (def.terms.some((t) => containsPhrase(folded, foldForMatch(t)))) return "attribute_invented";
+  }
+  return null;
+}
+
+/**
+ * Ayni model cagrisinin yazim KUMESI: her yazim tek tek denetlenir; biri yorum duzeyinde (urun turu
+ * kanitsiz, rol degisti, yorum belirsiz) reddedilirse ayni yorumdan gelen diger yazimlar da
+ * kullanilmaz (`set_inconsistent`). Reddedilen her durumda arama HAM sorguyla devam eder.
+ */
+export function verifyRewriteSet(
+  rawQuery: string,
+  detected: { tag: string; confidence: string },
+  rewrites: readonly { language: string; text: string }[],
+  excluded: readonly { text: string; evidence: string | null }[],
+  ctxFor: (rewrite: { language: string; text: string }) => CanonicalContext,
+): { rewrite: { language: string; text: string }; verdict: CanonicalVerdict }[] {
+  const results = rewrites.map((rewrite) => ({
+    rewrite,
+    verdict: verifyCanonicalQuery(rawQuery, detected, rewrite, excluded, ctxFor(rewrite)),
+  }));
+  const setLevel = results.some(
+    (r) => r.verdict.reason && INTERPRETATION_LEVEL.has(r.verdict.reason),
+  );
+  if (!setLevel) return results;
+  return results.map((r) =>
+    r.verdict.accepted
+      ? { ...r, verdict: { ...r.verdict, accepted: false, reason: "set_inconsistent" } }
+      : r,
+  );
 }

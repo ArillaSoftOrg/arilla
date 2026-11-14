@@ -243,3 +243,57 @@ describe("lexical guveni (tur, teknik kod, uyum) ve IntentV2 sinyalleri", () => 
     expect(rejectReason("Wireless Gaming Keyboard RGB", merged)).toBe("negated");
   });
 });
+
+describe("yardimci (dogrulanmis yazim) lexical sonuclari — E4b C+ v3", () => {
+  const check = buildCandidateCheck("kablolu klavye", LEXICON);
+  const raw = [
+    text(1, "Wired USB Keyboard Office"),
+    text(2, "Wired Gaming Keyboard RGB"),
+    text(3, "Kablolu Klavye Türkçe Q"),
+    text(4, "Wired Keyboard Slim", "close"),
+  ];
+  const cands = [
+    cand(10, "USB Wired Mechanical Keyboard", 0.62),
+    cand(11, "Wired Keyboard Mouse Set", 0.6),
+  ];
+
+  it("verilmezse sonuc birebir aynidir", () => {
+    expect(conditionalHybrid(raw, cands, check, BGE_M3_HYBRID_POLICY, [])).toEqual(
+      conditionalHybrid(raw, cands, check),
+    );
+  });
+
+  it("hicbir ham lexical sonucun onune gecmez; ham sira ve guclu lexical karari degismez", () => {
+    const aux = [
+      text(20, "Kablolu Oyuncu Klavyesi", "exact", 0.9),
+      text(21, "Kablolu Klavye Mouse Seti", "exact", 0.9),
+    ];
+    const base = conditionalHybrid(raw, cands, check);
+    const res = conditionalHybrid(raw, cands, check, BGE_M3_HYBRID_POLICY, aux);
+    expect(res.mode).toBe(base.mode);
+    const ids = res.ranked.map((e) => e.productId);
+    const lastRaw = Math.max(...raw.map((r) => ids.indexOf(r.productId)));
+    expect(ids.indexOf(20)).toBeGreaterThan(lastRaw);
+    expect(ids.indexOf(21)).toBeGreaterThan(lastRaw);
+    expect(res.ranked.find((e) => e.productId === 20)?.source).toBe("auxiliary");
+    expect(ids.filter((id) => id <= 4)).toEqual(
+      base.ranked.map((e) => e.productId).filter((id) => id <= 4),
+    );
+  });
+
+  it("aday temizliginden gecmeyen yardimci urun alinmaz (karsit ozellik, gurultu)", () => {
+    const aux = [text(30, "Wireless Bluetooth Keyboard"), text(31, "price difference link")];
+    const res = conditionalHybrid(raw, cands, check, BGE_M3_HYBRID_POLICY, aux);
+    expect(res.ranked.map((e) => e.productId)).not.toContain(30);
+    expect(res.ranked.map((e) => e.productId)).not.toContain(31);
+  });
+
+  it("ham lexical bosken ana liste bos kalir; yardimcilar onerilerin arkasina eklenir", () => {
+    const res = conditionalHybrid([], cands, check, BGE_M3_HYBRID_POLICY, [
+      text(40, "Kablolu Klavye Türkçe Q Layout"),
+    ]);
+    expect(res.mode).toBe("suggestions_only");
+    expect(res.ranked).toEqual([]);
+    expect(res.suggestions.at(-1)?.productId).toBe(40);
+  });
+});

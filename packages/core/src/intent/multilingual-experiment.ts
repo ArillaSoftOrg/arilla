@@ -23,13 +23,27 @@ import {
 export type LanguageTag = string;
 
 export interface MultilingualConfig {
-  /** Katalogdaki baslik dilleri; her biri icin dogrulanmis bir arama ifadesi istenir. */
+  /** Katalogdaki baslik dilleri (yapilandirma; sabit kod degil). Yazim hedefi yalniz bunlardan olabilir. */
   catalogLanguages: readonly LanguageTag[];
   /** Kabul edilen sorgu dilleri; "any" = her dil (yalniz `und`/dusuk guven geri duser). */
   acceptedQueryLanguages: readonly LanguageTag[] | "any";
+  /**
+   * `optional` (varsayilan, v3): yazim ISTEGE BAGLIDIR; hicbir katalog dili zorunlu degildir, model
+   * anlami birebir koruyamiyorsa ya da urun turu metinde yoksa yazmaz.
+   * `per_catalog_language` (alan yoksa): E4b C+ kosusunda (14 Kasim, 120 cagri) kullanilan sozlesme;
+   * her katalog dili icin yazim ister. Yalniz o kosunun yeniden uretilebilirligi icin tutulur.
+   */
+  alternativesPolicy?: "optional" | "per_catalog_language";
 }
 
 export const DEFAULT_MULTILINGUAL_CONFIG: MultilingualConfig = {
+  catalogLanguages: ["en", "tr"],
+  acceptedQueryLanguages: "any",
+  alternativesPolicy: "optional",
+};
+
+/** 14 Kasim 2026 E4b C+ kosusunun sozlesmesi (kayitlardaki `contractHash` bununla uretildi). */
+export const E4B_CPLUS_RUN_CONFIG: MultilingualConfig = {
   catalogLanguages: ["en", "tr"],
   acceptedQueryLanguages: "any",
 };
@@ -76,7 +90,9 @@ export function buildMultilingualInstructions(config: MultilingualConfig): strin
       "Herhangi bir dildeki (karışık diller dahil) alışveriş sorgusunu",
     ),
     "detected_language: sorgunun dilini BCP 47 etiketiyle yaz; karışıksa baskın dili yaz; emin değilsen 'und'. confidence high/medium/low.",
-    `search_queries: catalog_languages listesindeki (${config.catalogLanguages.join(", ")}) HER dil için, aynı ürün isteğini o dilde kısa bir ürün arama ifadesi olarak yaz (language alanı o dilin etiketi). Marka, model numarası, sayı ve birimleri AYNEN koru. Olumsuzlanan özelliği olumlu yazma (gerekirse karşıtını ya da o dildeki 'olmadan' ifadesini kullan). Fiyat, bütçe ya da kullanıcının yazmadığı özellik ekleme. Anlam belirsizse o dil için yazma.`,
+    (config.alternativesPolicy ?? "per_catalog_language") === "per_catalog_language"
+      ? `search_queries: catalog_languages listesindeki (${config.catalogLanguages.join(", ")}) HER dil için, aynı ürün isteğini o dilde kısa bir ürün arama ifadesi olarak yaz (language alanı o dilin etiketi). Marka, model numarası, sayı ve birimleri AYNEN koru. Olumsuzlanan özelliği olumlu yazma (gerekirse karşıtını ya da o dildeki 'olmadan' ifadesini kullan). Fiyat, bütçe ya da kullanıcının yazmadığı özellik ekleme. Anlam belirsizse o dil için yazma.`
+      : `search_queries: İSTEĞE BAĞLI; hiçbir dil zorunlu değildir. Yalnızca aynı ürün isteğini birebir koruyabiliyorsan, catalog_languages listesindeki (${config.catalogLanguages.join(", ")}) dillerden aramaya katkı sağlayacak olanlar için kısa bir ürün arama ifadesi yaz (dil başına en fazla bir; language alanı o dilin etiketi). Kullanıcı ürün türünü açıkça yazmadıysa (ör. yalnızca 'hediye') ürün türü uydurma; boş bırak. Marka, model numarası, sayı ve birimleri AYNEN koru. Olumsuzlanan özelliği olumlu yazma. Fiyat, bütçe, marka ya da kullanıcının yazmadığı özellik ekleme. Emin değilsen boş bırak.`,
     `alternative_search_terms: ürünün katalogda geçebilecek en fazla ${MAX_ALTERNATIVES} kısa adı (yalnızca ürün türü adları, catalog_languages dillerinde; özellik ekleme).`,
     `excluded_features: kullanıcının açıkça istemediği en fazla ${MAX_EXCLUDED_FEATURES} özellik; text herhangi bir catalog_languages dilinde terim, language onun etiketi, evidence kullanıcının metninden birebir parça.`,
   ].join("\n");
@@ -244,4 +260,95 @@ export function guessTitleLanguage(title: string): {
     }
   }
   return bestScore >= 2 ? { tag: best, confidence: "high" } : { tag: best, confidence: "low" };
+}
+
+// --- dil bagimsiz sorgu anlama sozlesmesi (E4b C+ v3) ------------------------------------------
+
+/** Bir cikarimin kanit durumu: ham metne karsi dogrulandi mi, yalniz model mi soyledi, reddedildi mi. */
+export type EvidenceStatus = "verified" | "model_only" | "rejected";
+
+export interface Evidenced<T> {
+  value: T;
+  /** Kullanicinin metninden birebir parca (varsa). */
+  evidence: string | null;
+  status: EvidenceStatus;
+}
+
+/**
+ * Istek yolundan BAGIMSIZ, dil bagimsiz sorgu anlama sozlesmesi (`qu-1`). Hicbir alan belirli bir dili
+ * zorunlu kilmaz; ham sorgu her zaman korunur ve aranir. Alternatifler YARDIMCI aday kaynagidir, kesin
+ * filtre ya da kategori kaniti degildir (karar 0190). Bos alternatif listesi gecerli ve guvenli durumdur.
+ */
+export interface QueryUnderstanding {
+  contractVersion: "qu-1";
+  /** Kullanicinin degistirilmemis sorgusu. */
+  original: string;
+  /** Algilanan dil (BCP 47); belirlenemezse null. */
+  detectedLanguage: { tag: LanguageTag; confidence: "high" | "medium" | "low" } | null;
+  /** Kullanicinin istedigi ana urun turu; kaniti ham metinde yoksa `model_only`. */
+  productType: Evidenced<string> | null;
+  /** Ana urun / aksesuar / parca ayrimi (dogrulanmis yorumdan). */
+  role: string | null;
+  /** Ham metinden cikarilan kesin teknik ozellikler (model kodu, kapasite); dilden bagimsiz. */
+  exactSpecs: readonly string[];
+  /** Olumsuzluk ve dislamalar; yalniz kaniti ham metinde olanlar `verified`. */
+  exclusions: readonly Evidenced<string>[];
+  /** Dogrulayicidan gecen ya da reddedilen yardimci sorgular; hedef dili her biri icin ayri. */
+  alternatives: readonly {
+    language: LanguageTag;
+    text: string;
+    accepted: boolean;
+    reason: string | null;
+  }[];
+  /** Model cagrisi yoksa/basarisizsa ya da hicbir alternatif kabul edilmediyse `raw_only`. */
+  plan: "raw_only" | "raw_plus_alternatives";
+}
+
+export function buildQueryUnderstanding(input: {
+  original: string;
+  fields: MultilingualFields | null;
+  productType: { value: string; source: string; evidence?: string | null } | null;
+  role: string | null;
+  exactSpecs: readonly string[];
+  /** Dogrulayicinin ham metinde kanitini buldugu dislamalar (katlanmis). */
+  verifiedExcluded: readonly string[];
+  /** Katlama fonksiyonu (dogrulayiciyla ayni; `foldForMatch`). */
+  fold: (s: string) => string;
+  verdicts: readonly { rewrite: LanguageText; accepted: boolean; reason: string | null }[];
+}): QueryUnderstanding {
+  const fields = input.fields;
+  const verified = new Set(input.verifiedExcluded);
+  const alternatives = input.verdicts.map((v) => ({
+    language: v.rewrite.language,
+    text: v.rewrite.text,
+    accepted: v.accepted,
+    reason: v.reason,
+  }));
+  const tag = fields?.detected_language.tag ?? "und";
+  return {
+    contractVersion: "qu-1",
+    original: input.original,
+    detectedLanguage:
+      !fields || tag.toLowerCase() === "und" ? null : { ...fields.detected_language },
+    productType: input.productType
+      ? {
+          value: input.productType.value,
+          evidence: input.productType.evidence ?? null,
+          status: input.productType.source === "explicit" ? "verified" : "model_only",
+        }
+      : null,
+    role: input.role,
+    exactSpecs: [...input.exactSpecs],
+    exclusions: (fields?.excluded_features ?? []).map((f) => ({
+      value: f.text,
+      evidence: f.evidence,
+      status: verified.has(input.fold(f.text))
+        ? "verified"
+        : f.evidence
+          ? "rejected"
+          : "model_only",
+    })),
+    alternatives,
+    plan: alternatives.some((a) => a.accepted) ? "raw_plus_alternatives" : "raw_only",
+  };
 }

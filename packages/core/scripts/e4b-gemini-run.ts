@@ -13,13 +13,13 @@
  *   maliyet bu JSONL'de satir satir tutulur.
  */
 import { appendFileSync, existsSync, readFileSync } from "node:fs";
-import { type RunContract, runIntentV2Predictions } from "../src/eval/intent-v2-run.ts";
 import type { IntentV2Case } from "../src/eval/intent-v2-eval.ts";
+import { type RunContract, runIntentV2Predictions } from "../src/eval/intent-v2-run.ts";
 import {
   buildMultilingualInput,
   buildMultilingualInstructions,
   buildMultilingualSchema,
-  DEFAULT_MULTILINGUAL_CONFIG,
+  E4B_CPLUS_RUN_CONFIG,
   multilingualContractHash,
 } from "../src/intent/multilingual-experiment.ts";
 import { GeminiClient } from "../src/llm/gemini.ts";
@@ -32,10 +32,12 @@ const arg = (name: string, fallback: number) => {
 async function main() {
   const [queriesPath, outPath] = process.argv.slice(2);
   const key = process.env.GEMINI_API_KEY?.trim();
-  if (!queriesPath || !outPath || !key) throw new Error("kullanim: <queries.tsv> <cikti.jsonl> + GEMINI_API_KEY");
+  if (!queriesPath || !outPath || !key)
+    throw new Error("kullanim: <queries.tsv> <cikti.jsonl> + GEMINI_API_KEY");
   const maxCalls = arg("--max-calls", 120);
   const maxUsd = arg("--max-usd-micros", 100_000);
-  const config = DEFAULT_MULTILINGUAL_CONFIG;
+  // Kayitli 120 cagrinin sozlesmesi; yeni sozlesme (`optional`) ucretli cagri onayi olmadan kosulmaz.
+  const config = E4B_CPLUS_RUN_CONFIG;
   const contract: RunContract = {
     instructions: buildMultilingualInstructions(config),
     schema: buildMultilingualSchema(config),
@@ -68,7 +70,14 @@ async function main() {
       console.error(`tavan: cagri ${calls}/${maxCalls}, mikro USD ${spent}/${maxUsd}; durduruldu`);
       break;
     }
-    const testCase = { id, q, cat: group, lang: "mixed", typo: false, gold: {} } as unknown as IntentV2Case;
+    const testCase = {
+      id,
+      q,
+      cat: group,
+      lang: "mixed",
+      typo: false,
+      gold: {},
+    } as unknown as IntentV2Case;
     const { predictions, report } = await runIntentV2Predictions(
       [testCase],
       client,

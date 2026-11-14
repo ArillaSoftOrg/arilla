@@ -132,7 +132,8 @@ export type RejectReason =
 export interface HybridEntry {
   productId: number;
   title: string;
-  source: "text" | "semantic" | "both";
+  /** `auxiliary`: dogrulanmis yardimci sorgunun lexical sonucu (ham metnin degil). */
+  source: "text" | "semantic" | "both" | "auxiliary";
   score: number;
   similarity: number | null;
 }
@@ -317,11 +318,65 @@ function median(values: number[]): number | null {
   return s.length % 2 ? (s[mid] ?? null) : ((s[mid - 1] ?? 0) + (s[mid] ?? 0)) / 2;
 }
 
+/**
+ * `auxiliaryText` (E4b C+): dogrulanmis yardimci sorgularin (baska dilde yazim) lexical sonuclari.
+ * Kullanicinin kendi metni DEGILDIR; bu yuzden:
+ * - guclu lexical karari, kosinus ortancasi, tur/teknik denetimleri YALNIZ ham `text` uzerinden yapilir;
+ * - her yardimci urun ham lexical sonuclarin hepsinin ARKASINA eklenir (hicbirinin onune gecemez);
+ * - aday temizliginden (`rejectReason`) gecmeyen yardimci urun alinmaz;
+ * - kesin filtreye donusmez; verilmezse sonuc onceki davranisla birebir aynidir.
+ */
 export function conditionalHybrid(
   text: readonly PolicyTextItem[],
   candidates: readonly PolicyCandidate[],
   check: CandidateCheck,
   policy: HybridPolicy = BGE_M3_HYBRID_POLICY,
+  auxiliaryText: readonly PolicyTextItem[] = [],
+): HybridResult {
+  const res = rawHybrid(text, candidates, check, policy);
+  if (auxiliaryText.length === 0) return res;
+  const present = new Set([
+    ...text.map((t) => t.productId),
+    ...res.ranked.map((e) => e.productId),
+    ...res.suggestions.map((c) => c.productId),
+  ]);
+  const auxiliary = dedupe(auxiliaryText).filter(
+    (t) => !present.has(t.productId) && rejectReason(t.title, check) === null,
+  );
+  if (auxiliary.length === 0) return res;
+  if (res.ranked.length === 0) {
+    // Ham lexical bos: ana liste bos kalir (mevcut kural); yardimcilar onerilerin ARKASINA.
+    const extra = auxiliary.map((t) => ({
+      productId: t.productId,
+      title: t.title,
+      similarity: t.similarity ?? 0,
+    }));
+    return { ...res, suggestions: [...res.suggestions, ...extra] };
+  }
+  // Son ham lexical sonucun hemen arkasina: hicbir ham lexical sonucun onune gecmez; ondan sonra
+  // gelen anlamsal-yalniz urunler bir asagi kayar.
+  let lastText = -1;
+  res.ranked.forEach((e, i) => {
+    if (e.source !== "semantic") lastText = i;
+  });
+  const head = res.ranked.slice(0, lastText + 1);
+  const tail = res.ranked.slice(lastText + 1);
+  const floor = head.at(-1)?.score ?? 0;
+  const inserted: HybridEntry[] = auxiliary.map((t, i) => ({
+    productId: t.productId,
+    title: t.title,
+    source: "auxiliary",
+    score: floor * (1 - (i + 1) * 1e-6),
+    similarity: t.similarity,
+  }));
+  return { ...res, ranked: [...head, ...inserted, ...tail] };
+}
+
+function rawHybrid(
+  text: readonly PolicyTextItem[],
+  candidates: readonly PolicyCandidate[],
+  check: CandidateCheck,
+  policy: HybridPolicy,
 ): HybridResult {
   const textIds = new Set(text.map((t) => t.productId));
   const rejected: Partial<Record<RejectReason, number>> = {};
@@ -396,7 +451,8 @@ export function conditionalHybrid(
     policy.strongMaxGapToDense === null ||
     best === undefined ||
     (lexMedianAll !== null && lexMedianAll >= best - policy.strongMaxGapToDense);
-  const typeShare = typeRe === null ? null : text.filter(typeOk).length / text.length;
+  const typeShare =
+    typeRe === null || text.length === 0 ? null : text.filter(typeOk).length / text.length;
   const typeConsistent =
     policy.minLexTypeShare === null || typeShare === null || typeShare >= policy.minLexTypeShare;
   const agreement = text.filter((t) => confirmations.has(t.productId)).length;
@@ -428,6 +484,11 @@ export function conditionalHybrid(
     suggestions: [],
     rejected,
   };
+}
+
+function dedupe(items: readonly PolicyTextItem[]): PolicyTextItem[] {
+  const seen = new Set<number>();
+  return items.filter((t) => !seen.has(t.productId) && Boolean(seen.add(t.productId)));
 }
 
 function rrf(
