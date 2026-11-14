@@ -262,7 +262,9 @@ mj() { "$PY" -c "import json,sys;m=json.load(open(sys.argv[1]));print($2)" "$1.m
 [ "$(mj "$dumpC" 'm["sha"]')" = "$shaC" ] && mj "$dumpC" '" ".join(m["migrations"])' | gq 9999_deploytest_noop.sql && mj "$dumpC" 'm["deploy_id"]' | gq -E '^[0-9]{8}-[0-9]{6}$' \
   && pass "metadata: deploy kimligi, sha, migration listesi" || fail "metadata kimlikleri"
 [ "$(mj "$dumpC" 'm["toc"]["has_schema_migration"] and m["toc"]["table_data"] > 0')" = True ] && pass "metadata: icindekiler dogrulamasi (veri + schema_migration)" || fail "metadata toc"
-gq "dokum: .*silme adayi" "$work/out.log" && pass "deploy adaylari yalniz RAPORLADI (otomatik silme yok)" || fail "deploy dokum raporu"
+gq "dokum: .*silme adayi" "$work/out.log" && pass "deploy dokum raporunu yazdi" || fail "deploy dokum raporu"
+# Karar 0194: basarili migration deploy'u yeni dokumu tam okur, kilit altinda temizler (tek dokum: silinecek yok).
+gq "dokum: otomatik temizlik: 0 dokum silindi" "$work/out.log" && [ "$(mj "$dumpC" 'm["verify"]["full_read"]["ok"]')" = True ]   && pass "otomatik temizlik: yeni dokum tam okundu, en yeni 2 korunuyor, silinecek yok" || { fail "otomatik temizlik"; grep "dokum:" "$work/out.log"; }
 
 section "6c. Basarisiz migration (E): geri alma, dokum KORUNUR"
 run_deploy "$shaE" "$work/mE.json"; rc=$?

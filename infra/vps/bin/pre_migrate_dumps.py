@@ -9,12 +9,16 @@
     pre_migrate_dumps.py report [--json]                  # koruma / silme adayi raporu (SILMEZ)
     pre_migrate_dumps.py adopt [--confirm]                # metadatasi olmayan eski dokumlere metadata (gunlukten)
     pre_migrate_dumps.py prune [--confirm] [--only AD ...]
+    pre_migrate_dumps.py auto-prune --dump P              # yalniz arilla-deploy, basarili migration'dan sonra
 
-Kurallar (kullanici karari, 12 Kasim 2026):
+Kurallar (kullanici karari, 12 Kasim 2026; otomatik silme 14 Kasim 2026, karar 0194):
 - Basarili deploy'un dogrulanmis (SHA-256 + tam veri okumasi) en yeni 2 dokumu KORUNUR.
 - Basarisiz, yarim kalmis ya da metadatasi olmayan dokum ASLA silme adayi olmaz.
-- OTOMATIK SILME YOK: `prune` yalniz `--confirm` ile siler; once her adayin ve korunan iki dokumun
-  SHA-256'sini yeniden hesaplar ve tam veri okumasi yapar, dosya degismisse durur.
+- Elle silme: `prune --confirm`; once her adayin ve korunan iki dokumun SHA-256'sini yeniden hesaplar ve
+  tam veri okumasi yapar, dosya degismisse durur.
+- Otomatik silme (karar 0194): YALNIZ basarili migration deploy'unun sonunda, deploy kilidi altinda
+  `auto-prune`. Once yeni dokum tam okunur; okunamazsa hicbir sey silinmez. Korunanlar tam okunur, adaylarin
+  boyutu ve SHA-256'si denetlenir. Kapatmak icin: `state/dump-auto-prune.off` dosyasi.
 - Tablo sayisinin azalmasi bozulma sayilmaz (mesru sema degisikligi); TOC'ta veri olmasi ve
   `schema_migration` verisinin bulunmasi aranir.
 - "Tam veri okumasi" (`pg_restore -f /dev/null`) arsivin her veri blogunu acar; GERCEK bir
@@ -304,7 +308,38 @@ class Dumps:
         return out
 
     # ------------------------------------------------------------------ silme
-    def prune(self, confirm: bool, only: list[str] | None = None) -> dict:
+    def _deploy_lock_held(self) -> bool:
+        """Deploy kilidi su an BASKA bir surecte (cagiran arilla-deploy) tutuluyor mu? flock ya da mkdir kilidi."""
+        if (self.root / ".deploy.lock.d").is_dir():
+            return True
+        import fcntl  # noqa: PLC0415 - yalniz Linux
+
+        with open(self.root / ".deploy.lock", "a") as probe:
+            try:
+                fcntl.flock(probe, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except OSError:
+                return True
+            fcntl.flock(probe, fcntl.LOCK_UN)
+        return False
+
+    def auto_prune(self, path: Path) -> dict:
+        """Karar 0194: basarili migration deploy'unun sonunda, deploy kilidi altinda. Silmezse sebebini doner."""
+        if (self.state / "dump-auto-prune.off").exists():
+            return {"skipped": "kapali (state/dump-auto-prune.off)", "deleted": []}
+        if not self._deploy_lock_held():
+            raise RuntimeError("auto-prune yalniz arilla-deploy kilidi altinda calisir; silme yapilmadi")
+        meta = self.read_meta(path)
+        if not meta or meta.get("status") != "success":
+            return {"skipped": f"yeni dokum basarili degil (durum {(meta or {}).get('status')})", "deleted": []}
+        v = self.verify(path, full=True)
+        if not v["ok"]:
+            raise RuntimeError(f"yeni dokum dogrulanamadi, silme yapilmadi: {v}")
+        return self.prune(confirm=True, lock_held=True, fresh={path.name})
+
+    def prune(self, confirm: bool, only: list[str] | None = None, lock_held: bool = False,
+              fresh: set[str] | frozenset[str] = frozenset()) -> dict:
+        """`lock_held`: cagiran deploy kilidini tutuyor (auto-prune). `fresh`: bu calismada tam okunmus dosyalar;
+        bunlar ve adaylar (zaten silinecek) yalniz boyut + SHA-256 ile yeniden denetlenir."""
         rows = self.classify()
         candidates = [r for r in rows if r["candidate"] and (not only or r["file"] in only)]
         if only:
@@ -317,22 +352,26 @@ class Dumps:
             return report
         import fcntl  # noqa: PLC0415 - yalniz Linux (VPS); saglik kontrolu Windows testlerinde de yuklenir
 
-        lock = open(self.root / ".deploy.lock", "a")  # arilla-deploy ile AYNI kilit: es zamanli deploy yok
+        lock = None if lock_held else open(self.root / ".deploy.lock", "a")  # arilla-deploy ile AYNI kilit
         try:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except OSError:
-                raise RuntimeError("bir dagitim calisiyor (kilit .deploy.lock); silme yapilmadi") from None
-            # Once korunan en yeni iki dokum ve her aday: degismemis + tum veri okunabilir.
+            if lock is not None:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                except OSError:
+                    raise RuntimeError("bir dagitim calisiyor (kilit .deploy.lock); silme yapilmadi") from None
+            # Once korunan en yeni iki dokum ve her aday: degismemis + (korunanlar) tum veri okunabilir.
             keep_valid = [r for r in rows if r["valid"] and not r["candidate"]]
             for r in keep_valid + candidates:
                 path = self.safe_path(r["file"])
-                v = self.verify(path, full=True)
+                full = not lock_held or (not r["candidate"] and r["file"] not in fresh)
+                v = self.verify(path, full=full)
                 if not v["ok"]:
                     raise RuntimeError(f"dogrulama basarisiz, silme durdu: {r['file']} ({v})")
             self.state.mkdir(parents=True, exist_ok=True)
             audit = self.state / "pre-migrate-prune.log"
             actor = os.environ.get("SUDO_USER") or os.environ.get("USER") or str(os.getuid())
+            if lock_held:
+                actor = f"auto-prune ({actor})"
             for r in candidates:
                 path = self.safe_path(r["file"])
                 meta = self.read_meta(path) or {}
@@ -350,7 +389,8 @@ class Dumps:
                 self.meta_path(path).unlink(missing_ok=True)
                 report["deleted"].append(r["file"])
         finally:
-            lock.close()
+            if lock is not None:
+                lock.close()
         return report
 
 
@@ -395,6 +435,8 @@ def main(argv: list[str] | None = None) -> int:
     p = sub.add_parser("prune")
     p.add_argument("--confirm", action="store_true")
     p.add_argument("--only", nargs="*")
+    ap_auto = sub.add_parser("auto-prune")
+    ap_auto.add_argument("--dump", required=True)
     args = ap.parse_args(argv)
     d = Dumps(Path(args.root))
 
@@ -467,7 +509,7 @@ def main(argv: list[str] | None = None) -> int:
                     print(f"{'ADAY ' if x['candidate'] else 'KORU '} {x['file']} {gb(x['size'])} durum={x['status']} "
                           f"dogrulandi={x['verified']} - {x['reason']}")
                 print(f"silme adayi: {len(cand)} dosya, {gb(sum(x['size'] for x in cand))} "
-                      "(silmek icin: prune --confirm; otomatik silme yok)")
+                      "(silmek icin: prune --confirm; otomatik: yalniz basarili migration deploy'u sonunda)")
             return 0
         if args.cmd == "adopt":
             for row in d.adopt(args.confirm):
@@ -480,6 +522,14 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(rep, ensure_ascii=False))
             if not args.confirm:
                 print("onizleme: hicbir dosya SILINMEDI (prune --confirm)")
+            return 0
+        if args.cmd == "auto-prune":
+            rep = d.auto_prune(dump_arg(args.dump))
+            if rep.get("skipped"):
+                print(f"otomatik temizlik atlandi: {rep['skipped']}")
+            else:
+                print(f"otomatik temizlik: {len(rep['deleted'])} dokum silindi ({gb(rep['bytes'])}); "
+                      f"korunan: {', '.join(rep['kept']) or '-'}")
             return 0
     except (ValueError, RuntimeError) as error:
         print(f"HATA: {error}", file=sys.stderr)

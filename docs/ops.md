@@ -540,7 +540,10 @@ altında saklanır) ya da `workflow_dispatch` (`build_run_id` + `allow_older`).
 Kuralların özeti:
 - **Saklama:** Başarılı deploy'ların doğrulanmış en yeni **2** dökümü korunur.
 - **Korunanlar:** Başarısız, yarım kalmış ya da metadatası olmayan döküm asla aday olmaz; insan kararı gerekir.
-- **Otomatik silme yoktur:** Deploy yalnızca rapor yazar (`dokum:` satırları).
+- **Otomatik temizlik (karar 0194):** Yalnızca başarılı migration deploy'unun sonunda, deploy kilidi altında
+  `auto-prune` çalışır. Önce yeni döküm tam okunur; okunamazsa hiçbir şey silinmez. Ardından en yeni 2 doğrulanmış
+  döküm dışındaki başarılı dökümler silinir. Sonuç deploy günlüğünde `dokum: otomatik temizlik: ...` satırıdır.
+  Hata deploy'u bozmaz, `UYARI` yazar. Kapatmak için: `sudo touch /opt/arilla/state/dump-auto-prune.off`.
 - **Disk denetimi:** Bekleyen migration varsa, dosyalar kurulmadan önce boş disk denetlenir:
   `son döküm × 1,15 + 30 GiB taban` (`ARILLA_DUMP_RESERVE_BYTES`). Yetmezse deploy çıkış 2 ile durur ve
   hiçbir şey değişmez.
@@ -2320,6 +2323,8 @@ hattın durduğunu yalnızca bu kural gösterir.
   yeniden 70 GiB'in altına indirir.
 - Sonuç: Her migration'lı deploy'dan sonra `report` → doğrulama → `prune --confirm` turu aynı gün
   yapılmalıdır. Aksi halde otomatik yayın yeniden durur ve bu kural UYARI verir.
+- 14 Kasım güncellemesi (karar 0194): Bu tur artık başarılı migration deploy'unun sonunda otomatik
+  yapılıyor. Elle tur yalnızca otomatik temizlik `UYARI` verdiğinde gerekir.
 
 ## Bootstrap kataloğu (geçici, yalnızca yerel)
 
