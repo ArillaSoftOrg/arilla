@@ -128,7 +128,6 @@ describe("footer bilgi mimarisi", () => {
       "Kullanım Koşulları",
       "Affiliate Açıklaması",
       "Şirket Bilgileri",
-      "Çerez Tercihleri",
     ]);
   });
 });

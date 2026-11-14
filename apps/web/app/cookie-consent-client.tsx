@@ -16,7 +16,6 @@ import {
 } from "@arilla/ui";
 import {
   createContext,
-  type MouseEvent,
   type ReactNode,
   useCallback,
   useContext,
@@ -105,29 +104,6 @@ export function ConsentGate({
 /** Karar 0093: cerez bandi gorunurken alta yapisan hizli arama gizlenir (ust uste binmez). */
 export function useConsentBannerVisible(): boolean {
   return useContext(ConsentContext).bannerVisible;
-}
-
-/** Footer'daki "Cerez Tercihleri": JS'le paneli acar, JS'siz /cerez#tercihler'e gider. */
-export function CookiePreferencesLink({
-  className,
-  children,
-}: {
-  className: string;
-  children: ReactNode;
-}) {
-  const { openPreferences } = useContext(ConsentContext);
-  return (
-    <a
-      href={COOKIE_PREFERENCES_HREF}
-      className={className}
-      onClick={(event: MouseEvent<HTMLAnchorElement>) => {
-        event.preventDefault();
-        openPreferences();
-      }}
-    >
-      {children}
-    </a>
-  );
 }
 
 function ConsentBannerClient({ onManage }: { onManage: () => void }) {

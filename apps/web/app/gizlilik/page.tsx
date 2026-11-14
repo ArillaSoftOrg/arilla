@@ -345,9 +345,8 @@ export default function GizlilikPage() {
         <p>
           Yalnızca sitenin çalışması için gerekli, birinci taraf çerezler kullanıyoruz. Zorunlu
           olmayan çerez ve benzeri teknolojiler yalnızca izin verdiğiniz kategoriler için
-          çalıştırılır. Tercihlerinizi footer&apos;daki <strong>Çerez Tercihleri</strong>{" "}
-          bağlantısından istediğiniz zaman değiştirebilirsiniz. Tam liste için{" "}
-          <a href="/cerez">Çerez Politikası</a>&apos;na bakınız.
+          çalıştırılır. Tercihlerinizi <a href="/cerez#tercihler">Çerez Politikası</a> içindeki
+          tercih alanından istediğiniz zaman değiştirebilirsiniz.
         </p>
       </section>
 

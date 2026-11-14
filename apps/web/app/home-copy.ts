@@ -70,7 +70,6 @@ export const HOME_COPY = {
   navKvkk: "KVKK Aydınlatma", // nav.kvkk
   navAffiliate: "Affiliate Açıklaması", // nav.affiliate
   navCompany: "Şirket Bilgileri", // nav.company
-  navCookiePreferences: "Çerez Tercihleri", // nav.cookie_preferences
   navContact: "İletişim", // nav.contact
   navFaq: "Sıkça sorulan sorular", // nav.faq
   affiliateNoticeLink: "Affiliate açıklaması", // legal.affiliate_notice_link
