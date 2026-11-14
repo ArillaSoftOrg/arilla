@@ -19,7 +19,7 @@ import { bestOfferCte, buildFilterClause, merchantIdsOf } from "../search-sql.ts
 import { foldedTitleExpr } from "../text-match.ts";
 import type { QueryFilters } from "../types.ts";
 import { requiredColorPattern } from "./accessory-guard.ts";
-import { DEFAULT_SEMANTIC_INDEX, type SemanticIndex } from "./active-index.ts";
+import { DEFAULT_SEMANTIC_INDEX, SEMANTIC_TABLES, type SemanticIndex } from "./active-index.ts";
 import {
   isValidModelVersion,
   SEMANTIC_CANDIDATE_TIMEOUT_MS,
@@ -74,7 +74,7 @@ function modelLiteral(modelVersion: string) {
  * zaman karsilastirilmaz: sorgu `model_version` ile suzulur, boyut `vectorLiteral`'da denetlenir.
  */
 function indexSql(index: SemanticIndex) {
-  if (!["product_text_embedding", "product_text_embedding_d384"].includes(index.table)) {
+  if (!SEMANTIC_TABLES.includes(index.table)) {
     throw new Error("gecersiz embedding tablosu");
   }
   if (!Number.isInteger(index.dimensions) || index.dimensions < 1 || index.dimensions > 4000) {

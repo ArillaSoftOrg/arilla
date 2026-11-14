@@ -18,15 +18,17 @@
  */
 import { apiUsage, type Database } from "@arilla/db";
 import { and, count, eq, gte, sql } from "drizzle-orm";
-import { costMicrosPerThousandTokens } from "../../embedding/embed-uploaded-image.ts";
 import { selectorCategory } from "../category-source.ts";
 import type { RankedSearchItem, SearchOutcomeMode } from "../fallback/types.ts";
 import { queryContentIneligibility } from "../interpretation-eligibility.ts";
+import type { LexiconEntry } from "../lexicon.ts";
+import { loadLexiconCached } from "../lexicon-cache.ts";
 import { normalizeQueryText } from "../normalize.ts";
 import { cardsForProducts } from "../search.ts";
 import type { QueryFilters, SortMode } from "../types.ts";
 import { type IndexResolution, resolveSemanticIndex, type SemanticIndex } from "./active-index.ts";
 import {
+  SEMANTIC_QUERY_OPERATION,
   SEMANTIC_SERVING_KNN_LIMIT,
   SEMANTIC_SERVING_MAX_ADDED,
   SEMANTIC_SERVING_SQL_TIMEOUT_MS,
@@ -35,16 +37,18 @@ import {
   semanticSearchMode,
   servingDailyCap,
 } from "./config.ts";
+import { fuseForIndex } from "./fuse-model.ts";
 import { loadCategoryStat, loadSemanticInventory } from "./inventory.ts";
 import { type ProviderHealth, providerHealthFor } from "./provider-health.ts";
-import { createJinaQueryEmbedder, type QueryEmbedder } from "./query-embedder.ts";
+import type { QueryEmbedder } from "./query-embedder.ts";
+import { createQueryEmbedderForIndex } from "./query-embedder-factory.ts";
 import {
   findCategoryExactCandidates,
   findSemanticCandidates,
   type SemanticCandidate,
   similaritiesFor,
 } from "./semantic-candidates.ts";
-import { fuseForQuery, SEMANTIC_QUERY_OPERATION } from "./shadow.ts";
+
 import {
   type CategoryStat,
   DEFAULT_STRATEGY_CONFIG,
@@ -103,6 +107,7 @@ export interface ServingDeps {
     filters: QueryFilters,
   ) => Promise<RankedSearchItem[]>;
   usedToday?: (db: Database) => Promise<number>;
+  loadLexicon?: (db: Database) => Promise<LexiconEntry[]>;
   log?: (event: ServingTelemetry) => void;
   clock?: () => number;
   now?: () => Date;
@@ -155,33 +160,6 @@ function errorReason(error: unknown): string {
     .toLowerCase()
     .replace(/[^a-z0-9_]/g, "_")
     .slice(0, 40);
-}
-
-function defaultEmbedder(
-  db: Database,
-  env: Env,
-  index: SemanticIndex,
-  health: ProviderHealth,
-): QueryEmbedder | null {
-  const apiKey = env.JINA_API_KEY?.trim();
-  if (!apiKey) return null;
-  return createJinaQueryEmbedder(apiKey, index.modelVersion, {
-    dimensions: index.dimensions,
-    task: index.queryTask,
-    onFailure: (failure) => health.failure(failure),
-    onSuccess: () => health.success(),
-    onUsage: async (usage) => {
-      await db.insert(apiUsage).values({
-        sessionId: null,
-        userId: null,
-        operation: SEMANTIC_QUERY_OPERATION,
-        modelVersion: usage.modelVersion,
-        units: usage.tokens,
-        costMicros: Math.round((usage.tokens * costMicrosPerThousandTokens(env)) / 1000),
-        cacheHit: usage.cacheHit,
-      });
-    },
-  });
 }
 
 async function defaultUsedToday(db: Database): Promise<number> {
@@ -284,9 +262,12 @@ export async function applySemanticServing<T extends RankedSearchItem>(
     }
 
     if (!health.allow()) return done(telemetry("skipped", "provider_unhealthy", base));
-    const embedder =
-      deps.embedder === undefined ? defaultEmbedder(db, env, index, health) : deps.embedder;
-    if (!embedder) return done(telemetry("skipped", "no_api_key", base));
+    const choice =
+      deps.embedder === undefined
+        ? createQueryEmbedderForIndex(db, env, index, health)
+        : { embedder: deps.embedder, reason: null };
+    const embedder = choice.embedder;
+    if (!embedder) return done(telemetry("skipped", choice.reason ?? "no_api_key", base));
     if ((await (deps.usedToday ?? defaultUsedToday)(db)) >= servingDailyCap(env)) {
       return done(telemetry("skipped", "capped", base));
     }
@@ -330,22 +311,32 @@ export async function applySemanticServing<T extends RankedSearchItem>(
     });
     const knnMs = clock() - knnStarted;
 
-    const { fused } = fuseForQuery(input.items, candidates, input.queryText, textSimilarity);
+    // Lexicon yalniz BGE birlestirmesinin aday temizligi icindir; okunamazsa bos sozluk (kural gevsemez:
+    // teknik kod/olumsuzluk denetimi sozluksuz de calisir).
+    const lexicon = await (deps.loadLexicon ?? ((d) => loadLexiconCached(d)))(db).catch(() => []);
+    const { entries: fused } = fuseForIndex(
+      index.fusion,
+      input.items,
+      candidates,
+      input.queryText,
+      textSimilarity,
+      lexicon,
+    );
     const semanticOnly = fused
       .filter((entry) => entry.source === "semantic")
       .slice(0, SEMANTIC_SERVING_MAX_ADDED)
-      .map((entry) => entry.item.productId);
+      .map((entry) => entry.productId);
     const cards = await (deps.hydrate ?? defaultHydrate)(db, semanticOnly, input.filters);
     const cardById = new Map(cards.map((card) => [card.productId, card]));
     const textById = new Map(input.items.map((item) => [item.productId, item]));
     const out: (T | RankedSearchItem)[] = [];
     for (const entry of fused) {
-      const text = textById.get(entry.item.productId);
+      const text = textById.get(entry.productId);
       if (text) {
         out.push(text);
         continue;
       }
-      const card = cardById.get(entry.item.productId);
+      const card = cardById.get(entry.productId);
       if (card) out.push({ ...card, match: { ...card.match, score: entry.similarity ?? 0 } });
     }
     // Savunma: metin sonucu dusmus olamaz (fuzyon tur uyumsuzlugunu cikarabilir; o zaman ekle).
