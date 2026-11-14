@@ -210,7 +210,6 @@ export async function ChatResults({
   const isFallback = outcome.mode === "fallback";
   // Kart fiyatı filtre fiyatından ayrıştıysa elenen kartlar sayıyı bozar: sayı gizlenir.
   const countKnown = !isFallback && droppedForPrice === 0;
-  const total = countKnown ? outcome.total : outcome.items.length;
   return (
     <section className={styles.results} data-search-mode={outcome.mode} aria-labelledby={headingId}>
       <VisuallyHidden as="h3" id={headingId}>
@@ -222,7 +221,7 @@ export async function ChatResults({
         <ResultTabs
           conversationId={conversationId}
           active={sort}
-          countLabel={countKnown ? resultCountLabel(total, outcome.totalCapped === true) : null}
+          countLabel={countKnown ? resultCountLabel(outcome.items.length) : null}
         />
       )}
       {noteBlock}
@@ -243,11 +242,6 @@ export async function ChatResults({
         }
       />
       <ResultFeedback conversationId={conversationId} messageSeq={messageSeq} initial={helpful} />
-      {isFallback ? null : (
-        <a className={styles.seeAll} href={fullResultsHref(intent, sort)}>
-          {countKnown ? CHAT_COPY.seeAllCount(total) : CHAT_COPY.seeAll}
-        </a>
-      )}
     </section>
   );
 }

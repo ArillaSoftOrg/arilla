@@ -29,8 +29,8 @@ import { scheduleSemanticShadow } from "../search/semantic/shadow.ts";
 import type { QueryFilters, QueryObject, SortMode } from "../search/types.ts";
 import type { SearchIntent } from "./contract.ts";
 
-/** Sohbet sonuc blogundaki urun sayisi; tam liste arama turu (`/sohbet?q=`) baglantisindadir. */
-export const CHAT_RESULT_LIMIT = 6;
+/** Sohbet sonuc blogunda her sekmede gosterilen en fazla urun sayisi; hepsi ayni sayfada asagiya dizilir. */
+export const CHAT_RESULT_LIMIT = 30;
 
 function containsWord(haystack: string, needle: string): boolean {
   return foldTurkish(haystack).includes(foldTurkish(needle));
