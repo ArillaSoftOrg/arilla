@@ -31,11 +31,17 @@ describe("footer iş ortaklıkları", () => {
 describe("iş ortaklığı geçici sayfaları", () => {
   it.each([
     ["Markalar İçin", MarkalarIcinPage],
-    ["Mağazalar İçin", OrtakliklarPage],
     ["İçerik Üreticileri", IcerikUreticileriPage],
   ] as const)("%s başlığını ve geliştirme durumunu gösterir", (title, Page) => {
     const html = renderToStaticMarkup(createElement(Page));
     expect(html).toContain(title);
     expect(html).toContain("Bu sayfa geliştirilme aşamasında.");
+  });
+
+  it("Mağazalar İçin hedefinde dolu ortaklık içeriğini gösterir", () => {
+    const html = renderToStaticMarkup(createElement(OrtakliklarPage));
+    expect(html).toContain("ManiCepte ortağı olun");
+    expect(html).toContain("Ürünlerinizi yayınlamak için üç adım");
+    expect(html).not.toContain("Bu sayfa geliştirilme aşamasında.");
   });
 });
