@@ -499,6 +499,11 @@ CREATE TABLE product_text_embedding_d1024 (
 ALTER TABLE product_text_embedding_d1024 ALTER COLUMN embedding SET STORAGE PLAIN;
 CREATE INDEX product_text_embedding_d1024_hash_idx
     ON product_text_embedding_d1024 (model_version, content_hash);
+-- 0115 (karar 0195/0196): BGE-M3 kismi HNSW; vektorler yuklendikten SONRA, `kind: concurrent`.
+CREATE INDEX product_text_embedding_d1024_hnsw_bge_m3_5617a9f6_v1
+    ON product_text_embedding_d1024 USING hnsw (embedding halfvec_cosine_ops)
+    WITH (m = 16, ef_construction = 200)
+    WHERE model_version = 'bge-m3-5617a9f6';
 
 -- 0108 (karar 0178): anlamsal arama golge olcumu. Kullaniciya donen sonuc degismez; yalniz
 -- sayisal olculer (sorgu metni/ozeti, kullanici/oturum, urun kimligi YOK). Saklama 90 gun.
