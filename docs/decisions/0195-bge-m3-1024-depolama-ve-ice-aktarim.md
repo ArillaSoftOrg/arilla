@@ -29,8 +29,10 @@ yeniden numaralandı.
    bakımı WAL ve süreyi katlar; bu yüzden aynı migration'da değildir. Ayrı PR, ayrı insan onayı.
    Taslak SQL: `CREATE INDEX CONCURRENTLY IF NOT EXISTS
    product_text_embedding_d1024_hnsw_bge_m3_5617a9f6_v1 ON product_text_embedding_d1024 USING hnsw
-   (embedding halfvec_cosine_ops) WITH (m = 16, ef_construction = 64) WHERE model_version =
-   'bge-m3-5617a9f6'`. Sürüm soneki (`_v1`) sunumun beklediği indeks sürümüyle eşleşmelidir (0190).
+   (embedding halfvec_cosine_ops) WITH (m = 16, ef_construction = 200) WHERE model_version =
+   'bge-m3-5617a9f6'`. **`ef_construction = 200`** (E4 taslağındaki 64 değil): 160.017 gerçek vektörde
+   ölçüldü (karar 0196 §Ölçüm): recall@10 ef_search=150'de 0,88 → 0,92, ef=400'de 0,93 → 0,96; boyut
+   (394 MB) ve sorgu gecikmesi aynı, yalnız kurulum süresi artar. Sürüm soneki (`_v1`) sunumun beklediği indeks sürümüyle eşleşmelidir (0190).
 4. **İçe aktarım:** `python -m enrich.vector_import {plan|run|verify}` (Python; yalnız okur/yazar,
    migration üretmez — kural 5). Embedding ÜRETMEZ, model çağırmaz.
    - **Sözleşme kapısı (veritabanına dokunmadan önce):** bicim, model, revizyon, boyut,

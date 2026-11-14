@@ -3135,6 +3135,28 @@ operasyondur; **onay olmadan `--allow-remote` kullanılmaz.**
 Yerel ölçüm (158.000 gerçek vektör): 120 sn, WAL 488 MB, tablo 429 MB, PostgreSQL CPU tepe %23, bellek
 tepe 490 MiB; ikinci koşu 32 sn ve sıfır yazım. HNSW ayrı ve sonradan kurulur (karar 0195 §3).
 
+### BGE-M3 sorgu servisi ve anlamsal sunum (karar 0196) — varsayılan KAPALI
+
+Kod hazır, hiçbir şey kendiliğine açılmaz. Açılış sırası (her adım insan onaylı):
+
+1. **Veri:** migration 0114 + `enrich.vector_import` (yukarıdaki bölüm); `verify` temiz.
+2. **Sorgu servisi:** toplu iş servisinden AYRI bir TEI (`embed-query`, `infra/embed/bge-m3-5617a9f6.env`
+   ile aynı model dizini ve `--pooling=cls`), web ile aynı Docker ağında. Web'e
+   `EMBED_BGE_M3_QUERY_URL=http://embed-query:8080` (yerel/özel ağ ya da HTTPS). Servis, resmî
+   referansın altın vektörleriyle kanaryadan geçmeden gerçek sorgu vektörü üretilmez: ilk istekler
+   metin aramasıyla döner, kanarya arka planda geçince devreye girer. Durum: süreç içi `canaryStatus()`.
+3. **HNSW:** ayrı `concurrent` migration PR'ı, `ef_construction = 200` (karar 0195/0196 ölçümü).
+   Kurulumda `maintenance_work_mem` yüksek ve gerekirse `max_parallel_maintenance_workers=0`
+   (paylaşımlı bellek /dev/shm küçükse paralel kurulum başarısız olur). Kurulumdan sonra ısıt:
+   `SELECT pg_prewarm('<indeks adı>')` (soğuk indekste ilk sorgular 400 ms SQL süresini aşıp metin
+   aramasına düşer; ölçüldü).
+4. **Kayıt defteri ve etkinleştirme:** model durumu/`license_verified` insan-hukuk onayı; `enrich.index
+   register/shadow/activate`.
+5. **Mod:** `SEMANTIC_SEARCH_MODE=shadow` ile gözlem, sonra `on`. Geri alma: tek bayrak.
+
+Sağlık: `GET {url}/health` (TEI). Devre kesici art arda hatada otomatik bekler; servis düşerse arama
+metin sonucuyla (birebir aynı) devam eder (80/80 ölçüldü). Anahtar/adres/sorgu günlüğe yazılmaz.
+
 ### Embedding CPU servisi, havuzlama ve kanarya (karar 0186) — varsayılan KAPALI
 
 Üretimde KURULU DEĞİL. KVM 4'te çalıştırılmaz (bellek bütçesi yok); hedef tek KVM 8 (embed.md
