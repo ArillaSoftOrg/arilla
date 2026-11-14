@@ -43,6 +43,7 @@ import {
 } from "../quota/redis-windows.ts";
 import { isRedisUnavailableError } from "../redis/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
+import { parseQueryText } from "../search/parse-query.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
 import {
   CHAT_CLIENT_OPTIONS,
@@ -70,12 +71,12 @@ import {
   decideContextImage,
   type ImageContextDecision,
 } from "./image-context.ts";
-import { mergeSearchIntent, parseStoredIntent } from "./intent.ts";
+import { mergeSearchIntent, parseStoredIntent, previousTopicIntents } from "./intent.ts";
 import {
   CHAT_CONTEXT_MESSAGES,
   type ChatImageInput,
   type ChatInterpreter,
-  fallbackTurn,
+  fallbackTurnAfterNewTopic,
   type InterpretRequest,
   interpretTurn,
   type TranscriptMessage,
@@ -688,6 +689,136 @@ async function submitInTx(
   return { status: "queued", seq };
 }
 
+export type RestoreSearchResult =
+  | { status: "restored"; seq: number }
+  /** Secilen arama zaten konusmanin gecerli aramasi: yeni tur acilmaz (tekrar tiklama). */
+  | { status: "already_current" }
+  | { status: "duplicate" }
+  | { status: "busy" }
+  | { status: "rate_limited" }
+  | { status: "conversation_full" }
+  | { status: "invalid_input" }
+  | { status: "not_found" };
+
+/** Geri donus turunun asistan metni; model cagrilmaz (sabit, kullaniciya Turkce). */
+export const RESTORE_ASSISTANT_TEXT =
+  "Önceki aramana döndüm; aşağıda aynı ayrıntılarla yeniden arıyorum.";
+
+/**
+ * "Bu aramaya don" (karar 0199): konusmanin ESKI bir arama mesajinin SAKLI niyeti yeni bir tur
+ * olarak yeniden aranir. Eski mesajlar degismez (yalnizca ekleme): yeni kullanici mesaji +
+ * yeni asistan arama mesaji yazilir, `current_search_intent` o niyete doner. Model cagrilmaz;
+ * niyet istemciden gelmez, yalnizca sahibin kendi konusmasindan okunur.
+ *
+ * Sahiplik `user_id` ile satir kilidi altinda; sira (`seq`) ayni kilit altinda ardisik yazilir.
+ * Kota bir kullanici mesaji kadardir (normal mesajla ayni havuz).
+ */
+export async function restoreSearch(
+  db: Database,
+  input: { userId: number; conversationId: string; messageSeq: number; requestKey?: string },
+  quotaOptions: ChatQuotaOptions = {},
+): Promise<RestoreSearchResult> {
+  if (!isUuid(input.conversationId)) return { status: "not_found" };
+  if (!Number.isInteger(input.messageSeq) || input.messageSeq < 1) {
+    return { status: "invalid_input" };
+  }
+  const requestKey = requestKeyOrNull(input.requestKey);
+  let consumed = false;
+  try {
+    return await db.transaction(async (tx): Promise<RestoreSearchResult> => {
+      const [row] = await tx
+        .select()
+        .from(conversation)
+        .where(
+          and(eq(conversation.id, input.conversationId), eq(conversation.userId, input.userId)),
+        )
+        .for("update");
+      if (!row) return { status: "not_found" };
+
+      if (requestKey !== null && (await requestKeyExists(tx, row.id, requestKey))) {
+        return { status: "duplicate" };
+      }
+      const [last] = await tx
+        .select({ role: chatMessage.role })
+        .from(chatMessage)
+        .where(and(eq(chatMessage.conversationId, row.id), eq(chatMessage.seq, row.messageCount)));
+      const leaseActive = row.processingUntil !== null && row.processingUntil > new Date();
+      if (last?.role === "user" || leaseActive) return { status: "busy" };
+
+      const [target] = await tx
+        .select({ payload: chatMessage.payload })
+        .from(chatMessage)
+        .where(
+          and(
+            eq(chatMessage.conversationId, row.id),
+            eq(chatMessage.seq, input.messageSeq),
+            eq(chatMessage.role, "assistant"),
+            eq(chatMessage.kind, "search"),
+          ),
+        );
+      const intent = parseStoredIntent(
+        (target?.payload as Record<string, unknown> | null | undefined)?.intent,
+      );
+      if (!target || !intent) return { status: "not_found" };
+
+      const current = parseStoredIntent(row.currentSearchIntent);
+      if (current && JSON.stringify(current) === JSON.stringify(intent)) {
+        return { status: "already_current" };
+      }
+
+      const userMessages = await tx.execute(sql`
+        SELECT count(*)::int AS n FROM chat_message
+         WHERE conversation_id = ${row.id} AND role = 'user'
+      `);
+      if (
+        ((userMessages.rows[0] as { n?: number } | undefined)?.n ?? 0) >=
+        MAX_USER_MESSAGES_PER_CONVERSATION
+      ) {
+        return { status: "conversation_full" };
+      }
+
+      const quota = await consumeChatMessageQuota(tx, input.userId, quotaOptions);
+      if (!quota.allowed) return { status: "rate_limited" };
+      if (quota.consumed) consumed = true;
+
+      const userSeq = row.messageCount + 1;
+      const assistantSeq = userSeq + 1;
+      await tx.insert(chatMessage).values({
+        conversationId: row.id,
+        seq: userSeq,
+        role: "user",
+        kind: "text",
+        content: `Önceki aramaya dön: ${intent.query}`.slice(0, USER_MESSAGE_MAX),
+        payload: { restoredFromSeq: input.messageSeq },
+        clientRequestId: requestKey,
+      });
+      await tx.insert(chatMessage).values({
+        conversationId: row.id,
+        seq: assistantSeq,
+        role: "assistant",
+        kind: "search",
+        content: RESTORE_ASSISTANT_TEXT,
+        payload: { intent, source: null, restoredFromSeq: input.messageSeq },
+      });
+      await tx
+        .update(conversation)
+        .set({
+          currentSearchIntent: intent as unknown as Record<string, unknown>,
+          pendingQuestion: null,
+          messageCount: assistantSeq,
+          processingUntil: null,
+          lastMessageAt: sql`now()`,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(conversation.id, row.id));
+      return { status: "restored", seq: assistantSeq };
+    });
+  } catch (error) {
+    if (consumed) await releaseChatMessageQuota(input.userId, quotaOptions);
+    throw error;
+  }
+}
+
 async function requestKeyExists(
   db: Executor,
   conversationId: string,
@@ -778,9 +909,16 @@ function toInterpretRequest(
     const summary = summaries.get(message.attachmentId);
     return summary ? { ...base, imageSummary: summary } : base;
   });
+  const previousIntents = previousTopicIntents(
+    view.messages.map((message) =>
+      message.role === "assistant" && message.kind === "search" ? message.intent : null,
+    ),
+    view.currentIntent,
+  );
   return {
     messages,
     currentIntent: view.currentIntent,
+    ...(previousIntents.length > 0 ? { previousIntents } : {}),
     pendingQuestion: pending ? { id: pending.id, title: pending.title } : null,
     clarifyCount: countTrailingClarifications(view.messages),
     input,
@@ -1011,7 +1149,7 @@ async function runPendingTurn(
 
   try {
     // Birbirine bagimli degil, tek tur: mesajlar, gunluk tavan, sozluk isitma (aramadan once).
-    const [rows, providerBudget] = await Promise.all([
+    const [rows, providerBudget, lexicon] = await Promise.all([
       timer.time("load_context", () => loadMessageRows(db, claimed.id)),
       timer.time("provider_limit", () => chatProviderBudget(db, input.budget)),
       timer.time("lexicon", () => loadLexiconCached(db)).catch(() => undefined),
@@ -1059,7 +1197,16 @@ async function runPendingTurn(
       await releaseLease(db, input.conversationId);
       return { status: "idle" };
     }
-    const request: InterpretRequest = maybeRequest;
+    // Yedek yol icin "baska ana alan" sinyali: mevcut merkezi sozluk (karar 0133), yeni sozluk yok.
+    const request: InterpretRequest = lexicon
+      ? {
+          ...maybeRequest,
+          categoryOf: (text) => {
+            const path = parseQueryText(text, lexicon).filters.category_path;
+            return typeof path === "string" && path !== "" ? path : null;
+          },
+        }
+      : maybeRequest;
     const lastSeq = view.messages.at(-1)?.seq ?? 0;
     // Kilit/islem YOK: kira yalnizca bir satir isaretidir; model cagrisi DB'yi tutmaz.
     let modelAllowed = providerBudget.modelAllowed;
@@ -1179,7 +1326,7 @@ async function runPendingTurn(
             merged = mergeSearchIntent(view.currentIntent, turn.intent);
             if (merged === null) {
               // Dogrulayici bunu zaten yakalar; son savunma.
-              turn = fallbackTurn(request);
+              turn = fallbackTurnAfterNewTopic(request, turn.intent);
               source = "fallback";
               merged =
                 turn.action === "search"

@@ -26,6 +26,7 @@ import {
   processPendingTurn,
   processPendingTurnDetailed,
   recordChatImageConsent,
+  restoreSearch,
   setResultFeedback,
   submitUserMessage,
 } from "@arilla/core";
@@ -437,6 +438,66 @@ export async function submitResultFeedbackAction(
       comment: details?.comment,
     }),
   };
+}
+
+export type RestoreSearchStatus =
+  | "restored"
+  | "already_current"
+  | "busy"
+  | "rate_limited"
+  | "conversation_full"
+  | "not_found"
+  | "unavailable";
+
+/**
+ * "Bu aramaya dön" (karar 0199): konusmanin eski bir arama mesajinin SAKLI niyetini yeni tur
+ * olarak yeniden arar. Istemci yalnizca sohbet kimligi, mesaj sirasi ve tekillestirme anahtari
+ * gonderir; niyet sunucuda sahibin kendi konusmasindan okunur. Model cagrilmaz.
+ */
+export async function restoreSearchAction(
+  conversationId: string,
+  messageSeq: number,
+  requestKey: string,
+): Promise<{ status: RestoreSearchStatus }> {
+  const user = await verifySession();
+  if (!isChatDiscoveryEnabled() || !user || !canAccessProduct(user)) {
+    return { status: "unavailable" };
+  }
+  if (
+    typeof conversationId !== "string" ||
+    !isUuid(conversationId) ||
+    !Number.isInteger(messageSeq) ||
+    messageSeq < 1 ||
+    typeof requestKey !== "string" ||
+    !isValidRequestKey(requestKey)
+  ) {
+    return { status: "not_found" };
+  }
+  try {
+    const result = await restoreSearch(getDatabase(), {
+      userId: user.id,
+      conversationId,
+      messageSeq,
+      requestKey,
+    });
+    switch (result.status) {
+      case "restored":
+      case "already_current":
+      case "busy":
+      case "rate_limited":
+      case "conversation_full":
+        return { status: result.status };
+      case "duplicate":
+        // Ayni tiklama zaten islendi (cift tiklama): kullaniciya basari gibi gorunur.
+        return { status: "restored" };
+      default:
+        return { status: "not_found" };
+    }
+  } catch (error) {
+    if (isRedisUnavailableError(error)) return { status: "unavailable" };
+    console.error("[sohbet] restore failed", error instanceof Error ? error.name : "unknown");
+    return { status: "unavailable" };
+  }
 }
 
 export type ChatLinkPollState = "pending" | "done" | "unavailable";

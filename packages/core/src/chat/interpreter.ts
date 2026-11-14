@@ -26,14 +26,19 @@ import { normalizeQueryText } from "../search/normalize.ts";
 import { extractPricePatterns } from "../search/price-patterns.ts";
 import {
   buildModelTurnSchema,
+  CARRY_FILTERS_VALUE,
+  CARRYABLE_FIELDS,
+  type CarryableField,
   CHAT_LIMITS,
+  FRESH_SEARCH_VALUE,
   type ModelTurn,
   type ModelTurnRejection,
   parseModelTurn,
+  RELATION_QUESTION_ID,
   type SearchIntent,
   type SearchIntentPatch,
 } from "./contract.ts";
-import { mergeSearchIntent } from "./intent.ts";
+import { hasIntentField, mergeSearchIntent } from "./intent.ts";
 
 /** Modele giden son mesaj sayisi; maliyet ve baglam siniri. */
 export const CHAT_CONTEXT_MESSAGES = 12;
@@ -70,6 +75,16 @@ export interface InterpretRequest {
   /** Kronolojik; SON mesaj, bu turun kullanici girdisidir. */
   messages: readonly TranscriptMessage[];
   currentIntent: SearchIntent | null;
+  /**
+   * Konusmanin ONCEKI konularindaki son niyetler (en yeni ilk; karar 0199): "onceki telefonlara
+   * don". Yalniz baglamdir; hicbir filtre otomatik uygulanmaz, model acik yamayla doner.
+   */
+  previousIntents?: readonly SearchIntent[];
+  /**
+   * Merkezi kategori sozlugunden (karar 0133) metin -> kesin kategori yolu (yoksa `null`).
+   * Yalniz yedek yolun "baska ana alan" sinyali icin; model istege gitmez.
+   */
+  categoryOf?: (text: string) => string | null;
   pendingQuestion: { id: string; title: string } | null;
   /** Bu turdan once art arda sorulan soru sayisi. */
   clarifyCount: number;
@@ -97,6 +112,10 @@ export const CHAT_INSTRUCTIONS = [
   "Seçenek value alanı kısa ve küçük harfli bir kimlik olsun (örneğin casual_sneaker). label kullanıcıya gösterilir, Türkçe ve kısa olsun.",
   "intent bir YAMADIR: yalnızca bu mesajla değişen alanları doldur, geri kalanı null/boş bırak; önceki niyet (current_intent) sunucuda korunur ve birleştirilir.",
   'Yeni bir ürün konusuna geçildiyse reset=true ve query ver. Tüm kısıtları sıfırlayıp sorguyu korumak için clear=true. Aynı aramanın inceltilmesinde ("siyah olsun", "Nike olsun", "2500 TL altı", "daha uygun fiyatlı") reset=false.',
+  'Her search yamasında relation ver: "refine" (aynı aramanın daraltılması), "new_independent" (başka bir ürün konusu, eski kısıtlar taşınmaz; örnek: Samsung telefon 15.000 TL sonrası "masa lambası"), "new_related" (başka ürün ama konuşma sürüyor, örnek: "aynı bütçeyle mont", "buna uygun şarj cihazı"). new_related ise carry alanına YALNIZCA kullanıcının mesajında açıkça sürdürdüğü ve current_intent\'te dolu olan alanları yaz (örnek: "aynı bütçeyle" -> priceMax). Eski değer yerine kullanıcı yeni değer söylediyse (ör. "Adidas olsun") onu ilgili alana yaz, carry\'ye değil. Telefon gibi bir ürünün filtrelerini (marka, beden, kapasite) aksesuarına taşıma.',
+  `İlişki belirsizse ve current_intent'te marka, bütçe ya da renk varsa, yanlış taşımanın sonuçları anlamlı biçimde değiştireceği durumda TEK netleştirme sorusu sor (action="clarify", question.id="${RELATION_QUESTION_ID}", seçenek value'ları "${CARRY_FILTERS_VALUE}" ve "${FRESH_SEARCH_VALUE}"). Her kategori değişiminde sorma; kullanıcı metni açıksa ya da kısıtlar zaten yeni ürüne anlamlıysa sorma. Kullanıcı "${CARRY_FILTERS_VALUE}" seçtiyse relation="new_related" ve carry'ye current_intent'in dolu alanlarını, "${FRESH_SEARCH_VALUE}" seçtiyse relation="new_independent" ver; sorguyu bir önceki kullanıcı mesajından kur.`,
+  'previous_intents konuşmanın önceki konularındaki son aramalardır. Kullanıcı bir önceki konuya dönmek isterse (ör. "önceki telefonlara dön") relation="new_independent" ver ve o aramanın query/category/brand/fiyat gibi alanlarını yamaya açıkça yaz; yalnızca previous_intents\'te bulunanları kullan, uydurma.',
+  'Ürün uyumluluğu bilgisi sende yok: "uyumlu", "bu ürüne tam uyar" gibi kesin iddialar kurma; başka bir ürüne referans gerekiyorsa ürün adını query\'ye yaz (örnek: "iphone 15 şarj cihazı") ve message\'ta yalnızca o ürün için arama yaptığını söyle.',
   "query: arama metni (ürün türü + belirleyici sıfatlar), en çok birkaç kelime. category: genel kategori adı. Fiyatları TL cinsinden tam sayı ver; yalnızca kullanıcı metninde yazan rakamlardan çıkar.",
   '"Daha uygun fiyatlı" isteğinde sort="cheapest". Bir alanı kullanıcı vazgeçtiyse remove listesine yaz.',
   'message: bir alışveriş danışmanı gibi, doğal ve sıcak Türkçe, 1-3 KISA cümle. Kullanıcının sözünü aynen tekrar etme; "Harika", "Mükemmel", "Tabii ki" gibi dolgu açılışlar kullanma. search iken aramayı aşağıda başlattığını söyle; sonuç bulunduğunu, listelediğini ya da açtığını İDDİA ETME (sonucu sen bilmezsin, arama sonradan gelir) ve işe yarayacaksa bir sonraki daraltmayı doğal biçimde öner (kullanım amacı, bütçe, renk, marka gibi); yeterli bilgi varsa önce sonucu göster, soru sormak zorunda değilsin. clarify iken soruyu doğal sor, seçenekleri cümlede anabilirsin. Örnek search: "Tamam, beyaz spor ayakkabı için aşağıda arıyorum. Fiyat ve kullanım amacı burada epey fark yaratıyor; istersen koşu, günlük ya da salon odağıyla daraltabilirim." Örnek clarify: "Nasıl bir spor ayakkabı düşünüyorsun? Günlük kullanım, koşu ya da spor salonu için ayırabilirim." Ürün adı, fiyat, stok ya da mağaza söyleme (bunlar katalogdan gelir). Arayüz kuralı: "satın al", "dupe", "ucuz" kelimelerini kullanma ("daha uygun fiyatlı" de); TÜMÜ BÜYÜK HARF yazma.',
@@ -117,6 +136,9 @@ export function buildChatInput(request: InterpretRequest): string {
   const recent = request.messages.slice(-CHAT_CONTEXT_MESSAGES);
   return JSON.stringify({
     current_intent: request.currentIntent,
+    ...(request.previousIntents && request.previousIntents.length > 0
+      ? { previous_intents: request.previousIntents }
+      : {}),
     open_question: request.pendingQuestion,
     clarify_count: request.clarifyCount,
     messages: recent.map((message) => ({
@@ -194,7 +216,7 @@ export function isBlockedFromModel(text: string): boolean {
 // Deterministik yedek: bozuk cikti ya da model onu suzgeci
 // ---------------------------------------------------------------------------
 
-export const CHEAPER_RE = /daha\s+(?:ucuz|uygun|ekonomik)|ucuz\s+olsun/u;
+export const CHEAPER_RE = /daha\s+(?:ucuz|uygun|ekonomik)\p{L}*|ucuz\s+olsun/u;
 export const REMOVE_PRICE_RE =
   /(?:fiyat|b[uü]t[cç]e)\p{L}*\s+(?:s[ıi]n[ıi]r\p{L}*\s+)?(?:kald[ıi]r|sil|iptal)/u;
 const URL_IN_INPUT_RE = /https?:\/\/|\bwww\./i;
@@ -257,6 +279,203 @@ function groundedPriceNumbers(request: InterpretRequest): Set<number> {
   return out;
 }
 
+const SAME = "ayn[ıi]";
+const GENERIC_CARRY_RE = new RegExp(
+  `${SAME}\\s+(?:filtre|kriter|tercih|[öo]zellik|[sş]ekilde)|ayn[ıi]lar[ıi]yla`,
+  "u",
+);
+const CARRY_CUES: Record<CarryableField, RegExp | null> = {
+  priceMin: new RegExp(
+    `${SAME}\\s+(?:b[uü]t[cç]e|fiyat)|(?:b[uü]t[cç]e|fiyat)\\p{L}*\\s+(?:${SAME}|de[gğ]i[sş]meden)|(?:bu|[oö]nceki)\\s+(?:b[uü]t[cç]e|fiyat)`,
+    "u",
+  ),
+  priceMax: null, // priceMin ile ayni ipucu (asagida)
+  brand: new RegExp(`${SAME}\\s+marka`, "u"),
+  excludeBrands: new RegExp(`${SAME}\\s+(?:marka\\p{L}*\\s+)?hari[cç]`, "u"),
+  colors: new RegExp(`${SAME}\\s+renk`, "u"),
+  size: new RegExp(`${SAME}\\s+beden`, "u"),
+  attributes: null,
+  sort: null,
+};
+
+/**
+ * `needle` metinde sozcuk olarak mi geciyor? Alt dize degil: "M" bedeni, "Mi" markasi "mont"/"mini"
+ * icinde sayilmaz. 3+ harfli degerlerde Turkce ek kabul edilir ("nike'in", "siyahi").
+ */
+function mentions(text: string, needle: string): boolean {
+  const value = normalizeQueryText(needle);
+  if (value === "") return false;
+  // "256 GB" ile "256gb" ayni sey: rakam iceren degerlerde bosluk/noktalama yok sayilir.
+  if (/\d/.test(value) && value.length >= 3) {
+    const compact = (s: string) => s.replace(/[^\p{L}\d]/gu, "");
+    return compact(text).includes(compact(value));
+  }
+  const escaped = value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const suffix = value.length >= 3 ? "\\p{L}*" : "";
+  return new RegExp(`(?<![\\p{L}\\d])${escaped}${suffix}(?![\\p{L}\\d])`, "u").test(text);
+}
+
+/** Alanin kullanici ifadesiyle ACIKCA surduruldugu mu? Model `carry` dese de bu aranir. */
+function carrySupported(field: CarryableField, current: SearchIntent, request: InterpretRequest) {
+  const { input } = request;
+  // "Onceki tercihlerimi koru" secenegi (karar 0199): kullanici tum dolu alanlari surdurdu.
+  if (input.kind === "option") return input.value === CARRY_FILTERS_VALUE;
+  if (input.kind !== "text") return false;
+  const text = normalizeQueryText(input.text);
+  if (GENERIC_CARRY_RE.test(text)) return true;
+  const has = (needle: string): boolean => mentions(text, needle);
+  switch (field) {
+    case "priceMin":
+    case "priceMax":
+      return CARRY_CUES.priceMin?.test(text) === true;
+    case "brand":
+      return has(current.brand ?? "") || CARRY_CUES.brand?.test(text) === true;
+    case "excludeBrands":
+      return current.excludeBrands.some(has) || CARRY_CUES.excludeBrands?.test(text) === true;
+    case "colors":
+      return current.colors.some(has) || CARRY_CUES.colors?.test(text) === true;
+    case "size":
+      return has(current.size ?? "") || CARRY_CUES.size?.test(text) === true;
+    case "attributes":
+      return Object.values(current.attributes).some(has);
+    case "sort":
+      return CHEAPER_RE.test(text);
+  }
+}
+
+/**
+ * Gercek model olcumu (karar 0199): model eski degeri `carry` yerine yamaya "acik yeni deger"
+ * olarak yeniden yazarak (ornegin onceki butceyi `priceMax`a) dogrulamayi atlatabiliyor. Yeni
+ * konuda (`new_*`) yamadaki deger onceki niyetteki degerin AYNISI ise ve kullanici metni onu
+ * sozcuk olarak anmiyor / "ayni ..." demiyorsa atilir. Gercekten yeni (farkli) degerler ve
+ * kullanicinin yazdigi degerler (marka, renk anmasi; fiyat kalibi `groundPatch`ta) etkilenmez.
+ */
+function dropRestatedValues(
+  patch: SearchIntentPatch,
+  current: SearchIntent,
+  request: InterpretRequest,
+): void {
+  const same = (a: unknown, b: unknown) => JSON.stringify(a) === JSON.stringify(b);
+  // Fiyat: eski fiyatin yeniden yazimi burada; FARKLI/yeni fiyat `groundPatch`ta metin temelli.
+  for (const field of ["priceMin", "priceMax"] as const) {
+    const value = patch[field];
+    if (value === undefined || !hasIntentField(current, field)) continue;
+    if (same(value, current[field]) && !carrySupported(field, current, request)) {
+      delete patch[field];
+    }
+  }
+}
+
+/** Kullanicinin BU turdaki ifadesi (secenek cevabinda secenek + onu doguran onceki kullanici metni). */
+function statedText(request: InterpretRequest): string {
+  const { input, messages } = request;
+  if (input.kind === "text") return normalizeQueryText(input.text);
+  if (input.kind !== "option") return "";
+  const asked = [...messages]
+    .slice(0, -1)
+    .reverse()
+    .find((message) => message.role === "user" && message.kind === "text");
+  return normalizeQueryText(`${input.label} ${input.value} ${asked?.text ?? ""}`);
+}
+
+/**
+ * Yeni konuda (`new_*`) modelin urettigi HER kesin filtre kullanici ifadesine dayanmali
+ * (karar 0199, gercek model riski: yeni aramada kullanicinin soylemedigi marka/renk/beden/
+ * nitelik uydurmak). Desteklenmeyen deger atilir; gercek bir kullanici ifadesi her zaman kazanir.
+ * Fiyat `groundPatch`in metin kalibiyla, siralama "daha uygun" ipucuyla dogrulanir. `refine`
+ * ve `relation` yoksa (karar 0074) bu denetim UYGULANMAZ.
+ */
+/** Kullanici acikca ONCEKI bir konuya donmek istiyor ("onceki telefonlara don"). */
+const RETURN_CUE_RE =
+  /(?<![\p{L}\d])(?:[öo]nceki\p{L}*|eski\p{L}*|geri|d[öo]n\p{L}*|tekrar)(?![\p{L}\d])/u;
+
+function dropUnstatedFilters(patch: SearchIntentPatch, request: InterpretRequest): void {
+  const text = statedText(request);
+  // Donus istegi: deger, konusmanin ONCEKI aramalarinda (kullanicinin kendi sozunden) bulunuyorsa
+  // kullanici sozu sayilir. Donus ipucu yoksa onceki niyetlerden hicbir sey kabul edilmez.
+  const returning = RETURN_CUE_RE.test(text) && (request.previousIntents?.length ?? 0) > 0;
+  const lower = (value: string) => normalizeQueryText(value);
+  const known = (value: string, pick: (intent: SearchIntent) => readonly string[]) =>
+    mentions(text, value) ||
+    (returning &&
+      (request.previousIntents ?? []).some((intent) =>
+        pick(intent).some((candidate) => lower(candidate) === lower(value)),
+      ));
+  const brandOf = (i: SearchIntent) => (i.brand ? [i.brand] : []);
+  if (patch.brand !== undefined && !known(patch.brand, brandOf)) delete patch.brand;
+  if (patch.size !== undefined && !known(patch.size, (i) => (i.size ? [i.size] : []))) {
+    delete patch.size;
+  }
+  if (patch.excludeBrands) {
+    const kept = patch.excludeBrands.filter((value) => known(value, (i) => i.excludeBrands));
+    if (kept.length > 0) patch.excludeBrands = kept;
+    else delete patch.excludeBrands;
+  }
+  if (patch.colors) {
+    const kept = patch.colors.filter((value) => known(value, (i) => i.colors));
+    if (kept.length > 0) patch.colors = kept;
+    else delete patch.colors;
+  }
+  if (patch.attributes) {
+    const kept = Object.fromEntries(
+      Object.entries(patch.attributes).filter(([, value]) =>
+        known(value, (i) => Object.values(i.attributes)),
+      ),
+    );
+    if (Object.keys(kept).length > 0) patch.attributes = kept;
+    else delete patch.attributes;
+  }
+  if (patch.sort === "cheapest" && !CHEAPER_RE.test(text)) delete patch.sort;
+}
+
+/**
+ * Karar 0199: `carry` modelin onerisidir; yalnizca (a) mevcut niyette DOLU olan ve (b) kullanici
+ * metni ya da "koru" secenegiyle desteklenen alanlar tasinir. `relation` yoksa ya da `carry`
+ * `new_related` disinda geldiyse yok sayilir (eski davranis).
+ */
+function groundRelation(patch: SearchIntentPatch, request: InterpretRequest): void {
+  const { currentIntent: current } = request;
+  // Gercek model olcumu: "Nike ayakkabi -> adidas ayakkabi" icin model bazen `new_related` dondurup
+  // onceki renk/butceyi dusuruyor. Yeni konu dedigi halde KATEGORI AYNIysa (buyuk/kucuk harf
+  // fark etmez) ayni urun turudur: daraltmadir (karar 0074), filtreler korunur.
+  if (
+    (patch.relation === "new_related" || patch.relation === "new_independent") &&
+    current?.category &&
+    patch.category &&
+    current.category.toLocaleLowerCase("tr-TR") === patch.category.toLocaleLowerCase("tr-TR") &&
+    !patch.reset &&
+    !patch.clear
+  ) {
+    patch.relation = "refine";
+  }
+  if (patch.relation !== "new_related" || current === null) {
+    delete patch.carry;
+    // Onceki niyet yoksa iliski anlamsiz: bagimsiz arama gibi islenir.
+    if (patch.relation === "new_related") delete patch.relation;
+    if (patch.relation === "new_independent" && current !== null) {
+      dropRestatedValues(patch, current, request);
+      dropUnstatedFilters(patch, request);
+    }
+    return;
+  }
+  dropRestatedValues(patch, current, request);
+  dropUnstatedFilters(patch, request);
+  const supported = (patch.carry ?? []).filter(
+    (field) => hasIntentField(current, field) && carrySupported(field, current, request),
+  );
+  // Butce bir ARALIKTIR: alt ya da ust sinir destekleniyorsa dolu olan diger sinir da gelir.
+  for (const [a, b] of [
+    ["priceMax", "priceMin"],
+    ["priceMin", "priceMax"],
+  ] as const) {
+    if (supported.includes(a) && !supported.includes(b) && hasIntentField(current, b)) {
+      supported.push(b);
+    }
+  }
+  if (supported.length > 0) patch.carry = supported;
+  else delete patch.carry;
+}
+
 /**
  * Modelin dondurdugu yamayi kullanici metniyle sinar (oncelik: kullanicinin acik
  * girdisi > deterministik kural > model). Metinde olmayan fiyat modelin uydurmasidir
@@ -268,6 +487,7 @@ export function groundPatch(
   request: InterpretRequest,
 ): SearchIntentPatch {
   const out: SearchIntentPatch = { ...patch, remove: [...patch.remove] };
+  groundRelation(out, request);
   const numbers = groundedPriceNumbers(request);
   const known = (value: number | undefined): boolean =>
     value === undefined ||
@@ -315,12 +535,131 @@ export const IMAGE_CLARIFY_TURN: ModelTurn = {
   },
 };
 
+/** "uyumlu", "uyar", "destekler": katalogda uyumluluk verisi yok, kesin iddia kurulamaz. */
+const COMPAT_CLAIM_RE =
+  /(?<![\p{L}\d])(?:uyumlu\p{L}*|uyar|uyan|uyduğu|destekle\p{L}*)(?![\p{L}\d])/iu;
+
+/**
+ * Karar 0199: model istemdeki yasaga ragmen "iPhone 15 ile uyumlu sarj cihazlari" diyebiliyor
+ * (gercek model olcumu). Uyumluluk kanitlayan veri olmadigindan bu cumle yerine yalniz aramanin
+ * ne yaptigini soyleyen sabit, durust metin kullanilir.
+ */
+export function neutralizeCompatibilityClaim(message: string, query: string | undefined): string {
+  if (!COMPAT_CLAIM_RE.test(message)) return message;
+  const subject = query ? `"${query}"` : "bu ürün";
+  return `${subject} için aşağıda arıyorum. Uyumluluğu ürün sayfasından kontrol etmeni öneririm.`;
+}
+
+/** Sorguya eklenmesi anlamsiz dolgu sozcukleri ("256 gb olanlar" -> "256 gb"). */
+const FILLER_WORD_RE =
+  /(?<![\p{L}\d])(?:olsun|olan\p{L}*|olabilir|g[öo]ster\p{L}*|istiyorum|istiyoruz|l[üu]tfen|bana)(?![\p{L}\d])/gu;
+const BOUND_PRICE_RE =
+  /(?:b[uü]t[cç]e\p{L}*\s+)?(?<![\p{L}\d])(en\s+az|en\s+fazla|maksimum|minimum|max|min)\s*:?\s*(\d[\d.]*)\s*(?:tl|₺|lira|try)?(?![\p{L}\d])/gu;
+/** Fiyat kalibi ayiklandiktan sonra kalan "butcem en az ... en fazla" iskeletleri. */
+const BUDGET_SKELETON_RE =
+  /(?<![\p{L}\d])(?:b[uü]t[cç]e\p{L}*|fiyat\p{L}*|en\s+az|en\s+fazla|maksimum|minimum|alt[ıi]nda|[uü]st[uü]nde)(?![\p{L}\d])/gu;
+
+/**
+ * Inceleme/cevap metninden yapisal parcalari ayiklar (fiyat -> yama, "daha ucuz" -> sira)
+ * ve sorguya eklenecek kalani dondurur. Dolgu ve butce iskeleti sorguya karismaz.
+ */
+export function refinementRest(text: string, patch: SearchIntentPatch): string {
+  const norm = normalizeQueryText(text);
+  let rest = norm;
+  let structured = false;
+  // "bütçem en az 20000 tl", "en fazla 60000": sinir sozcugu + tutar.
+  rest = rest.replace(BOUND_PRICE_RE, (all: string, bound: string, amount: string) => {
+    // "en az 8 gb ram": tutar isareti (TL/butce/fiyat) yoksa fiyat degildir, metin aynen kalir.
+    if (!/b[uü]t[cç]e|fiyat|\btl\b|₺|lira|\btry\b/u.test(all)) return all;
+    const value = parsePlainNumber(amount);
+    if (value === null || value <= 0) return " ";
+    structured = true;
+    if (/^(?:en\s+az|minimum|min)$/u.test(bound)) patch.priceMin = value;
+    else patch.priceMax = value;
+    return " ";
+  });
+  for (const match of [...extractPricePatterns(rest)].reverse()) {
+    structured = true;
+    if (match.priceMin !== undefined) patch.priceMin = Math.round(match.priceMin / 100);
+    if (match.priceMax !== undefined) patch.priceMax = Math.round(match.priceMax / 100);
+    rest = `${rest.slice(0, match.start)} ${rest.slice(match.end)}`;
+  }
+  if (CHEAPER_RE.test(rest)) {
+    structured = true;
+    patch.sort = "cheapest";
+    rest = rest.replace(CHEAPER_RE, " ");
+  }
+  if (structured) rest = rest.replace(BUDGET_SKELETON_RE, " ");
+  rest = rest.replace(FILLER_WORD_RE, " ").replace(/[.,;:!?]+/g, " ");
+  return rest.replace(/\s+/g, " ").trim();
+}
+
+/**
+ * Yedek yol icin guvenli konu degisimi sinyali (karar 0199). Yalniz iki taraf da merkezi sozlukte
+ * KESIN bir kategori yoluna cozuluyorsa ve ANA alan (ilk yol parcasi) farkliysa dogrudur.
+ * Cozulemeyen ("256 gb", "sarjli"), ayni alan ("ayakkabi" -> "mont") ya da sozluk yoksa
+ * `false`: belirsizlikte tahminle filtre temizlenmez, eski (0074) daraltma davranisi surer.
+ */
+function namesDifferentDomain(
+  request: InterpretRequest,
+  current: SearchIntent,
+  rest: string,
+): boolean {
+  const { categoryOf } = request;
+  if (!categoryOf || rest === "") return false;
+  const next = categoryOf(rest);
+  const previous =
+    categoryOf(current.query) ?? (current.category ? categoryOf(current.category) : null);
+  if (!next || !previous) return false;
+  const root = (path: string) => path.split("/")[0];
+  return root(next) !== root(previous);
+}
+
+/** `rest` sozcukleri sorguda zaten varsa tekrar eklenmez (birikim onlenir). */
+export function appendRefinement(baseQuery: string, rest: string): string {
+  const have = new Set(normalizeQueryText(baseQuery).split(" "));
+  const fresh = rest.split(" ").filter((word) => word !== "" && !have.has(word));
+  return `${baseQuery} ${fresh.join(" ")}`;
+}
+
 /**
  * Model kullanilamadiginda kullanicinin metninden bir `search` yamasi kurar.
  * Amac dogru yorum degil, ASLA yol kesmemek: ilk mesaj aynen aranir; secenek
  * degeri yerine etiketi sorguya eklenir; incelemede fiyat kalibi ve "daha
  * uygun fiyatli" tanninir, kalan metin sorguya eklenir.
  */
+/**
+ * Karar 0199: model YENI konu bildirdi (`relation` new_* ya da `reset`) ama gecerli `query`
+ * vermedi. Eski niyetin filtreleriyle sessizce arama YAPILMAZ: kullanicinin kendi metni, eski
+ * niyet olmadan, temiz bir arama olur (ilk mesajin yedek davranisiyla ayni). Metin yoksa
+ * (secenek/atla) mevcut yedek davranis.
+ */
+export function fallbackTurnAfterNewTopic(
+  request: InterpretRequest,
+  failed: SearchIntentPatch,
+): ModelTurn {
+  const isNewTopic =
+    failed.relation === "new_independent" || failed.relation === "new_related" || failed.reset;
+  const { input } = request;
+  if (!isNewTopic || input.kind !== "text") return fallbackTurn(request);
+  const patch: SearchIntentPatch = {
+    reset: false,
+    clear: false,
+    remove: [],
+    relation: "new_independent",
+  };
+  const rest = refinementRest(input.text, patch);
+  const query = (rest || normalizeQueryText(input.text)).slice(0, CHAT_LIMITS.queryChars).trim();
+  if (query === "") return fallbackTurn(request);
+  patch.query = query;
+  return {
+    action: "search",
+    message:
+      "Mesajını tam anlayamadım, yazdıklarınla doğrudan aradım. Birkaç ayrıntı eklersen daha isabetli daraltabilirim.",
+    intent: patch,
+  };
+}
+
 export function fallbackTurn(request: InterpretRequest): ModelTurn {
   const { input, currentIntent } = request;
   // Bu turdan ONCEKI ilk kullanici metni: soruya verilen cevap onunla birlesir.
@@ -336,25 +675,40 @@ export function fallbackTurn(request: InterpretRequest): ModelTurn {
   const baseQuery = currentIntent?.query ?? priorUserText ?? "";
 
   let query: string;
-  if (input.kind === "skip") {
+  if (
+    input.kind === "option" &&
+    (input.value === CARRY_FILTERS_VALUE || input.value === FRESH_SEARCH_VALUE)
+  ) {
+    // Iliski sorusunun cevabi (karar 0199): secenek etiketi sorguya EKLENMEZ; sorgu, sorunun
+    // sorulmasina yol acan bir onceki kullanici metnidir.
+    const asked = [...request.messages]
+      .slice(0, -1)
+      .reverse()
+      .find((message) => message.role === "user" && message.kind === "text" && message.text !== "");
+    query = asked?.text ?? baseQuery;
+    if (input.value === FRESH_SEARCH_VALUE) {
+      patch.relation = "new_independent";
+    } else if (currentIntent !== null) {
+      patch.relation = "new_related";
+      patch.carry = CARRYABLE_FIELDS.filter((field) => hasIntentField(currentIntent, field));
+    }
+  } else if (input.kind === "skip") {
     query = baseQuery;
   } else if (input.kind === "option") {
     query = `${baseQuery} ${input.label}`;
-  } else if (currentIntent === null) {
-    query = `${baseQuery} ${input.text}`;
   } else {
-    const norm = normalizeQueryText(input.text);
-    let rest = norm;
-    for (const match of [...extractPricePatterns(norm)].reverse()) {
-      if (match.priceMin !== undefined) patch.priceMin = Math.round(match.priceMin / 100);
-      if (match.priceMax !== undefined) patch.priceMax = Math.round(match.priceMax / 100);
-      rest = `${rest.slice(0, match.start)} ${rest.slice(match.end)}`;
+    // Cevap (ornegin butce sorusuna) ya da inceleme: tutar/sira yapisal alana gider,
+    // dolgu ve butce iskeleti sorguya, tekrar eden sozcuk de sorguya birikmez.
+    const rest = refinementRest(input.text, patch);
+    if (currentIntent !== null && namesDifferentDomain(request, currentIntent, rest)) {
+      // Merkezi kategori sozlugu (karar 0133) yeni mesajin baska bir ANA alandan urun
+      // adlandirdigini KESIN gosteriyor: bagimsiz yeni arama; eski kisitlar tasinmaz.
+      // Yalniz mesajdaki acik degerler (fiyat, "daha uygun") yamada kalir.
+      patch.relation = "new_independent";
+      query = rest;
+    } else {
+      query = appendRefinement(baseQuery, rest);
     }
-    if (CHEAPER_RE.test(rest)) {
-      patch.sort = "cheapest";
-      rest = rest.replace(CHEAPER_RE, " ");
-    }
-    query = `${baseQuery} ${rest}`;
   }
   patch.query = query.replace(/\s+/g, " ").trim().slice(0, CHAT_LIMITS.queryChars).trim();
   if (patch.query.length === 0) patch.query = baseQuery.slice(0, CHAT_LIMITS.queryChars);
@@ -433,6 +787,20 @@ export async function interpretTurn(
         ? { ...message, text: "[gösterilmedi]" }
         : message,
     ),
+    // Onceki konu niyetleri yedek yolda kullanici metninden kurulmus olabilir: suzgecten
+    // gecmeyenler modele GITMEZ (current_intent ile ayni ilke).
+    ...(request.previousIntents
+      ? {
+          previousIntents: request.previousIntents.filter(
+            (intent) =>
+              !isBlockedFromModel(
+                [intent.query, intent.category, intent.brand, ...Object.values(intent.attributes)]
+                  .filter(Boolean)
+                  .join(" "),
+              ),
+          ),
+        }
+      : {}),
   };
   // Gorsel, kendi mesajinin metni suzgecten gecmediyse modele GITMEZ.
   const imageOwner = request.messages.find((message) => message.hasImage);
@@ -464,7 +832,10 @@ export async function interpretTurn(
   if (!parsed.ok) return fallback(parsed.reason);
 
   let turn = parsed.turn;
-  if (turn.action === "search") turn = { ...turn, intent: groundPatch(turn.intent, request) };
+  if (turn.action === "search") {
+    const intent = groundPatch(turn.intent, request);
+    turn = { ...turn, intent, message: neutralizeCompatibilityClaim(turn.message, intent.query) };
+  }
   if (turn.action === "clarify") {
     // Soru tavani: sunucu zorlar, model kapatamaz. Atlanan/cevaplanan soruda tekrar sorulmaz.
     if (request.clarifyCount >= MAX_CONSECUTIVE_CLARIFICATIONS || request.input.kind === "skip") {
@@ -472,7 +843,17 @@ export async function interpretTurn(
     }
   } else {
     // Yama tek basina bir sorgu kuramiyorsa (ilk arama ve `query` yok) birlestirilemez.
-    if (mergeSearchIntent(request.currentIntent, turn.intent) === null) return fallback("no_query");
+    if (mergeSearchIntent(request.currentIntent, turn.intent) === null) {
+      // Yeni konu bildirilip sorgu verilmediyse eski filtreler sizmasin (karar 0199).
+      return {
+        kind: "turn",
+        turn: fallbackTurnAfterNewTopic(request, turn.intent),
+        source: "fallback",
+        fallbackReason: "no_query",
+        calls,
+        modelVersion,
+      };
+    }
   }
   return {
     kind: "turn",

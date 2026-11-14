@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { CHAT_COPY } from "./chat-copy.ts";
 import { ChatIntentControls } from "./chat-intent-controls.tsx";
 import { ChatLinkResults } from "./chat-link-results.tsx";
+import { RestoreSearchButton } from "./chat-restore-client.tsx";
 import { ChatResults } from "./chat-results.tsx";
 import { ChatPendingRow, ChatUserRow } from "./chat-shell-parts.tsx";
 import { type ChatSortKey, parseSortKey } from "./chat-sort.ts";
@@ -47,6 +48,12 @@ export function ChatThread({
     .filter((m) => m.role === "assistant" && m.kind === "search")
     .map((m) => m.seq);
   const shown = new Set(searchSeqs.slice(-RESULT_BLOCKS_SHOWN));
+  // "Bu aramaya dön" yalnızca eski bloklarda ve niyeti şu anki aramadan farklıysa (karar 0199).
+  const latestSearch = messages.filter((m) => m.role === "assistant" && m.kind === "search").at(-1);
+  const latestIntentJson =
+    latestSearch?.role === "assistant" && latestSearch.kind === "search" && latestSearch.intent
+      ? JSON.stringify(latestSearch.intent)
+      : null;
   // Link sonuçları da yalnızca en son link mesajında çizilir (karar 0090); öncekiler özet.
   const linkSeqs = messages
     .filter((m) => m.role === "assistant" && m.kind === "notice" && m.link)
@@ -95,6 +102,15 @@ export function ChatThread({
                       ))}
                     </ul>
                   )}
+                  {message.kind === "search" &&
+                  !shown.has(message.seq) &&
+                  JSON.stringify(intent) !== latestIntentJson ? (
+                    <RestoreSearchButton
+                      conversationId={conversationId}
+                      messageSeq={message.seq}
+                      query={intent.query}
+                    />
+                  ) : null}
                   {shown.has(message.seq) ? (
                     <Suspense
                       key={sort}

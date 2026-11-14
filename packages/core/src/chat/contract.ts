@@ -47,6 +47,29 @@ export const REMOVABLE_FIELDS = [
 ] as const;
 export type RemovableField = (typeof REMOVABLE_FIELDS)[number];
 
+/**
+ * Yeni mesajin onceki aramayla iliskisi (karar 0199). Yok ise eski sozlesme gecerlidir
+ * (`reset` = bagimsiz yeni arama, aksi halde daraltma; karar 0074).
+ * - `refine`: ayni aramanin daraltilmasi.
+ * - `new_independent`: baska bir urun konusu; onceki kisitlarin hicbiri tasinmaz.
+ * - `new_related`: baska urun ama konusma suruyor ("ayni butceyle mont", "buna uygun sarj
+ *   cihazi"); yalnizca `carry` ile ACIKCA surdurulen kisitlar tasinir.
+ */
+export const INTENT_RELATIONS = ["refine", "new_independent", "new_related"] as const;
+export type IntentRelation = (typeof INTENT_RELATIONS)[number];
+
+/** `carry` ile tasinabilen alanlar (kategori ve sorgu hicbir zaman tasinmaz). */
+export const CARRYABLE_FIELDS = REMOVABLE_FIELDS.filter(
+  (field): field is Exclude<RemovableField, "category"> => field !== "category",
+);
+export type CarryableField = (typeof CARRYABLE_FIELDS)[number];
+
+/** Gecerli bir secenek `value`su: kullanici "onceki tercihleri koru" ya da "sifirdan ara" dedi. */
+export const CARRY_FILTERS_VALUE = "carry_filters";
+export const FRESH_SEARCH_VALUE = "fresh_search";
+/** Iliski sorusunun kimligi (`ClarifyQuestion.id`). */
+export const RELATION_QUESTION_ID = "carry_filters";
+
 export type SortPreference = "cheapest" | "balanced";
 
 /** Normalize edilmis, birlestirilmis arama niyeti. Fiyatlar TL (tam sayi); adapter kurusa cevirir. */
@@ -80,6 +103,10 @@ export interface SearchIntentPatch {
   attributes?: Record<string, string>;
   sort?: SortPreference;
   remove: RemovableField[];
+  /** Karar 0199. Yoksa eski davranis (geriye uyumluluk). */
+  relation?: IntentRelation;
+  /** Yalniz `new_related`: onceki niyetten tasinacak alanlar (sunucu kullanici metniyle dogrular). */
+  carry?: CarryableField[];
 }
 
 export interface ClarifyOption {
@@ -229,6 +256,19 @@ function parseIntentPatch(raw: unknown): SearchIntentPatch | null {
       }
     }
   }
+  // Karar 0199: gecersiz `relation`/`carry` yamayi REDDETMEZ; alan yok sayilir (eski davranis).
+  if (INTENT_RELATIONS.includes(raw.relation as IntentRelation)) {
+    patch.relation = raw.relation as IntentRelation;
+  }
+  if (Array.isArray(raw.carry)) {
+    const carry: CarryableField[] = [];
+    for (const item of raw.carry) {
+      if (CARRYABLE_FIELDS.includes(item as CarryableField) && !carry.includes(item)) {
+        carry.push(item as CarryableField);
+      }
+    }
+    if (carry.length > 0) patch.carry = carry;
+  }
   return patch;
 }
 
@@ -347,6 +387,8 @@ export function buildModelTurnSchema(
           "attributes",
           "sort",
           "remove",
+          "relation",
+          "carry",
         ],
         properties: {
           reset: { type: "boolean" },
@@ -378,6 +420,8 @@ export function buildModelTurnSchema(
           },
           sort: { type: ["string", "null"], enum: ["cheapest", "balanced", null] },
           remove: { type: "array", items: { type: "string", enum: [...REMOVABLE_FIELDS] } },
+          relation: { type: ["string", "null"], enum: [...INTENT_RELATIONS, null] },
+          carry: { type: "array", items: { type: "string", enum: [...CARRYABLE_FIELDS] } },
         },
       },
       ...(options.imageSummary ? { image_summary: nullableString(IMAGE_SUMMARY_MAX) } : {}),
