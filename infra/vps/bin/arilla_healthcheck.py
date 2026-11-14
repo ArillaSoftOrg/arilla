@@ -614,7 +614,7 @@ def pre_migrate_check(rows, now: datetime, t: dict = THRESHOLDS) -> Check | None
     - en yeni dokumun tam okumasi basarisiz -> KRITIK
     - en yeni dokum `pre_migrate_verify_warn_s`'den eski ve hala tam okunmamis -> UYARI
     - insan karari bekleyen (basarisiz/yarim) ya da metadatasiz dokum -> UYARI
-    Silme adaylari yalniz bilgi olarak yazilir; otomatik silme yoktur.
+    Silme adaylari bilgi olarak yazilir; otomatik silme yalniz basarili migration deploy'unda (karar 0194).
     """
     if not rows:
         return None
@@ -625,7 +625,7 @@ def pre_migrate_check(rows, now: datetime, t: dict = THRESHOLDS) -> Check | None
     no_meta = [r for r in rows if not r.get("meta")]
     cand = [r for r in rows if r.get("candidate")]
     summary = (f"{len(rows)} dokum {gbs(sum(r['size'] for r in rows))}; silme adayi {len(cand)} "
-               f"({gbs(sum(r['size'] for r in cand))}, yalniz prune --confirm)")
+               f"({gbs(sum(r['size'] for r in cand))}, prune --confirm ya da sonraki migration deploy'u)")
     if newest.get("full_read_ok") is False:
         return Check("backup:pre-migrate", CRIT, f"en yeni dokumun tam veri okumasi BASARISIZ ({newest['file']}); {summary}")
     created = parse_ts(newest.get("created_at"))
