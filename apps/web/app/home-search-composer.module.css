@@ -1,20 +1,22 @@
 .suggestions {
   display: grid;
   min-width: 0;
-  gap: var(--space-2);
-  margin-block: var(--space-5);
+  margin-block: var(--space-1) 0;
   margin-inline: 0;
-  padding: 0;
+  padding: var(--space-3) 0 0;
   border: 0;
+  border-block-start: var(--border-width) solid var(--line);
 }
 
 .suggestionsLabel {
-  width: 100%;
+  position: absolute;
+  width: 1px;
+  height: 1px;
   padding: 0;
-  margin: 0;
-  text-align: center;
-  color: var(--ink-muted);
-  font-size: var(--text-small);
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .suggestionsRow {
@@ -63,10 +65,6 @@
 }
 
 @media (max-width: 639.98px) {
-  .suggestionsLabel {
-    text-align: left;
-  }
-
   .suggestionsRow {
     justify-content: flex-start;
   }

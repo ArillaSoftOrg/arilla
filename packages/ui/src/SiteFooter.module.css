@@ -10,17 +10,6 @@
   color: var(--ink);
 }
 
-.footer::before {
-  position: absolute;
-  z-index: 3;
-  inset-block-start: 0;
-  inset-inline-start: var(--gutter);
-  width: 88px;
-  height: 3px;
-  background: var(--brand);
-  content: "";
-}
-
 .footer::after {
   position: absolute;
   z-index: 0;
@@ -54,53 +43,9 @@
   gap: var(--space-8);
 }
 
-.brand {
-  display: grid;
-  align-content: start;
-  gap: var(--space-2);
-  max-width: var(--content-width-compact);
-}
-
-.brandLabel {
-  justify-self: start;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-3);
-  min-height: var(--size-touch-target);
-  color: var(--ink);
-  font-size: var(--text-h2);
-  font-style: italic;
-  font-weight: 700;
-  line-height: var(--line-height-heading);
-  letter-spacing: 0;
-  text-decoration: none;
-}
-
-.brandLogo {
-  display: inline-block;
-  flex: 0 0 auto;
-  width: 44px;
-  height: 44px;
-  border-radius: 12px;
-  background-position: center;
-  background-size: cover;
-  box-shadow: var(--shadow-xs);
-}
-
-.brandDescription {
-  margin: 0;
-  color: var(--ink-muted);
-  font-size: var(--text-small);
-  line-height: var(--line-height-body);
-}
-
 .footer[data-variant="prelaunch"] .inner {
   gap: var(--space-5);
   padding-block-start: var(--space-10);
-}
-
-.footer[data-variant="prelaunch"] .brandDescription {
-  max-width: 42ch;
 }
 
 .groups {
@@ -121,14 +66,6 @@
   margin: 0;
   padding: 0;
   list-style: none;
-}
-
-.group:last-child {
-  grid-column: 1 / -1;
-}
-
-.group:last-child .linkList {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
 .groupTitle {
@@ -196,20 +133,25 @@ button.link {
   cursor: pointer;
 }
 
-.brandLabel:focus-visible,
 .link:focus-visible,
 .socialLink:focus-visible,
-.disclosureLink:focus-visible {
+.disclosureLink:focus-visible,
+.legalLink:focus-visible {
   border-radius: var(--radius-sm);
   outline: var(--focus-ring);
   outline-offset: var(--focus-ring-offset);
 }
 
+.legalArea {
+  display: grid;
+  gap: var(--space-5);
+  padding-top: var(--space-6);
+  border-top: var(--border-width) solid color-mix(in srgb, var(--ink), transparent 78%);
+}
+
 .disclosure {
   display: grid;
   gap: var(--space-2);
-  padding-top: var(--space-6);
-  border-top: var(--border-width) solid color-mix(in srgb, var(--ink), transparent 78%);
 }
 
 .disclosureText {
@@ -236,6 +178,41 @@ button.link {
   color: var(--ink-secondary);
   font-size: var(--text-meta);
   line-height: var(--line-height-normal);
+}
+
+.legalMeta {
+  display: grid;
+  gap: var(--space-3);
+}
+
+.legalList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-4);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.legalLink {
+  display: inline-flex;
+  padding-block: var(--space-1);
+  border: 0;
+  background: none;
+  color: var(--ink-muted);
+  font-family: inherit;
+  font-size: var(--text-meta);
+  line-height: var(--line-height-normal);
+  text-align: start;
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.legalLink:hover,
+.legalLink[aria-current="page"] {
+  color: var(--ink);
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
 }
 
 .wordmarkArea {
@@ -287,33 +264,29 @@ button.link {
     grid-auto-columns: minmax(0, 1fr);
   }
 
-  .group:last-child {
-    grid-column: auto;
+  .legalMeta {
+    grid-template-columns: auto minmax(0, 1fr);
+    align-items: start;
+    gap: var(--space-8);
   }
 
-  .group:last-child .linkList {
-    grid-template-columns: none;
+  .legalList {
+    justify-content: flex-end;
   }
 }
 
 @media (min-width: 1024px) {
   .top {
-    grid-template-columns: minmax(280px, 1fr) minmax(0, 2fr);
-    gap: var(--space-16);
+    grid-template-columns: minmax(0, 1fr);
   }
 
   .top[data-has-social="true"] {
-    grid-template-columns: minmax(240px, 0.9fr) minmax(0, 2fr) minmax(112px, 0.35fr);
+    grid-template-columns: minmax(0, 1fr) minmax(112px, 0.25fr);
     gap: var(--space-12);
   }
 
   .inner {
     padding-block: var(--space-16) var(--space-2);
-  }
-
-  .footer[data-variant="prelaunch"] .top {
-    grid-template-columns: minmax(260px, 1.15fr) minmax(0, 1.85fr);
-    gap: var(--space-12);
   }
 }
 
@@ -327,7 +300,6 @@ button.link {
 }
 
 @media (forced-colors: active) {
-  .footer::before,
   .footer::after,
   .wordmarkArea {
     display: none;
@@ -335,7 +307,6 @@ button.link {
 }
 
 @media print {
-  .footer::before,
   .footer::after,
   .wordmarkArea {
     display: none;

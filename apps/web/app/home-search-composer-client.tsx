@@ -14,6 +14,13 @@ import { IMAGE_CHAT_COPY } from "./home-image-chat.ts";
 import styles from "./home-search-composer.module.css";
 import { LoginGateModal } from "./login-gate-modal-client.tsx";
 
+/** Kisa etiket gorunur; tiklaninca kutuya tam sorgu yazilir. */
+const SUGGESTIONS = [
+  { label: "Beyaz spor ayakkabı", query: "Günlük beyaz spor ayakkabı" },
+  { label: "Çalışma masası", query: "Küçük bir çalışma masası" },
+  { label: "Kablosuz kulaklık", query: "Kablosuz kulaklık" },
+] as const;
+
 /**
  * Ince istemci (CLAUDE.md kural 6): @arilla/ui'nin generic SearchComposer'ini
  * apps/web'e ozgu sohbet baslatma akisina ve ornek sorgu verisine baglar. Is mantigi tasimaz.
@@ -42,7 +49,7 @@ export function HomeSearchComposer({
   searchClassName,
   afterSearch,
 }: {
-  /** Ilk ekrandaki robot ve baslik; arama davranisindan bagimsiz sunum. */
+  /** Ilk ekrandaki baslik; arama davranisindan bagimsiz sunum. */
   beforeSearch?: ReactNode;
   searchClassName?: string;
   /** Ana kutunun altinda, gecmis urunlerinden once gosterilen yardim baglantisi. */
@@ -95,28 +102,25 @@ export function HomeSearchComposer({
   const onSubmitText = chatInNewTab ? startInNewTab : undefined;
   const suggestions = (
     <fieldset className={styles.suggestions} aria-label="Örnek aramalar">
-      <legend className={styles.suggestionsLabel}>Nereden başlamalı? Bir fikir seç.</legend>
+      <legend className={styles.suggestionsLabel}>Örnek aramalar</legend>
       <div className={styles.suggestionsRow}>
-        {["Günlük beyaz spor ayakkabı", "Küçük bir çalışma masası", "Kablosuz kulaklık"].map(
-          (example) => (
-            <button
-              className={styles.suggestion}
-              type="button"
-              key={example}
-              disabled={sending}
-              onClick={() => {
-                const input = mainRef.current?.querySelector("textarea");
-                if (!input) return;
-                input.value = example;
-                input.dispatchEvent(new Event("input", { bubbles: true }));
-                input.focus();
-              }}
-            >
-              {example}
-              <span aria-hidden="true">↗</span>
-            </button>
-          ),
-        )}
+        {SUGGESTIONS.map(({ label, query }) => (
+          <button
+            className={styles.suggestion}
+            type="button"
+            key={query}
+            disabled={sending}
+            onClick={() => {
+              const input = mainRef.current?.querySelector("textarea");
+              if (!input) return;
+              input.value = query;
+              input.dispatchEvent(new Event("input", { bubbles: true }));
+              input.focus();
+            }}
+          >
+            {label}
+          </button>
+        ))}
       </div>
     </fieldset>
   );
@@ -144,13 +148,9 @@ export function HomeSearchComposer({
           recentPriceLabel={HOME_COPY.recentPriceLabel}
           chipsTitle={HOME_COPY.searchIdeasTitle}
           beforeSearch={beforeSearch}
+          composerFooter={suggestions}
           searchClassName={searchClassName}
-          afterSearch={
-            <>
-              {afterSearch}
-              {suggestions}
-            </>
-          }
+          afterSearch={afterSearch}
           statusMessage={chatError}
           busyMessage={sending ? IMAGE_CHAT_COPY.sending : null}
           photoButtonId={photoButtonId}
