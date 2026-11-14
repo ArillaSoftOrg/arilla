@@ -25,20 +25,20 @@ import { fuseForQuery } from "../src/search/semantic/shadow.ts";
 import { foldForMatch } from "../src/search/text-match.ts";
 import { loadLabels } from "./e4-labels.ts";
 
-interface CachedItem {
+export interface CachedItem {
   productId: number;
   title: string;
   tier: "exact" | "close" | "related" | null;
   similarity: number | null;
   category: string | null;
 }
-interface CachedCandidate {
+export interface CachedCandidate {
   productId: number;
   title: string;
   similarity: number;
   category: string | null;
 }
-interface CachedQuery {
+export interface CachedQuery {
   id: string;
   query: string;
   group: string;
@@ -47,7 +47,7 @@ interface CachedQuery {
   candidates: CachedCandidate[];
 }
 
-const read = (p: string) =>
+export const read = (p: string) =>
   JSON.parse(readFileSync(p, "utf8")) as { ef: number | null; queries: CachedQuery[] };
 
 /** Tabakali, deterministik ayrim: grup koku x lexical-bos; tabaka icinde sha1 sirasi; ~%40 dogrulama. */
@@ -123,13 +123,13 @@ function measure(
   };
 }
 
-interface MethodOutput {
+export interface MethodOutput {
   main: number[];
   suggestions: number[];
 }
-type Method = (q: CachedQuery) => MethodOutput;
+export type Method = (q: CachedQuery) => MethodOutput;
 
-function evaluate(
+export function evaluate(
   queries: readonly CachedQuery[],
   method: Method,
   labels: Map<string, number>,
@@ -330,9 +330,10 @@ async function main() {
   );
 }
 
-main()
-  .then(() => process.exit(0))
-  .catch((e) => {
-    console.error(e);
-    process.exit(1);
-  });
+if (process.argv[1]?.endsWith("bge-tune.ts"))
+  main()
+    .then(() => process.exit(0))
+    .catch((e) => {
+      console.error(e);
+      process.exit(1);
+    });

@@ -19,9 +19,11 @@
  *   lexical sonucu asagi tasir; lexical sonuc kumesini daraltmaz.
  */
 import { ATTRIBUTE_VALUES, oppositeOf } from "../../intent/antonyms.ts";
+import type { ValidatedIntentV2 } from "../../intent/validate.ts";
 import type { LexiconEntry } from "../lexicon.ts";
 import { foldForMatch } from "../text-match.ts";
 import { looksLikeAccessory, queryWantsAccessory } from "./accessory-guard.ts";
+import { requiredTypePattern } from "./product-type.ts";
 
 export type LexicalTier = "exact" | "close" | "related" | null;
 
@@ -73,6 +75,21 @@ export interface HybridPolicy {
    * `fuseForQuery` ile ayni deger, 0,3; silinmez, asagi tasinir).
    */
   accessoryTextFactor: number;
+  /**
+   * Lexical guveni (E4-b): sorgunun bas isim turu biliniyorsa (`product-type.ts`, mevcut kapali
+   * tablo) lexical sonuclarin en az bu orani o ture uymali; yoksa lexical "guclu" sayilmaz.
+   * null: kullanilmaz.
+   */
+  minLexTypeShare: number | null;
+  /** Ture uymayan LEXICAL sonucun carpani (silinmez; 1 = kapali). */
+  lexTypeMismatchFactor: number;
+  /** Sorgudaki model/teknik kodu tasimayan LEXICAL sonucun carpani (1 = kapali). */
+  lexSpecMissingFactor: number;
+  /**
+   * Lexical ve anlamsal listede ortak urun sayisi bu degere ulasirsa lexical, eslesme duzeyinden
+   * bagimsiz "guclu" sayilir (iki bagimsiz yontemin uyumu). null: kullanilmaz.
+   */
+  strongMinAgreement: number | null;
   rrfK: number;
 }
 
@@ -91,6 +108,10 @@ export const BGE_M3_HYBRID_POLICY: HybridPolicy = {
   emptyMinTop: null,
   negatedTextFactor: 0.2,
   accessoryTextFactor: 0.3,
+  minLexTypeShare: null,
+  lexTypeMismatchFactor: 1,
+  lexSpecMissingFactor: 1,
+  strongMinAgreement: null,
   rrfK: 60,
 };
 
@@ -213,6 +234,8 @@ export interface CandidateCheck {
   opposite: ReadonlySet<string>;
   /** Sorgu aksesuar istemiyor: aksesuar gorunumlu anlamsal aday eklenmez (mevcut koruma). */
   accessoryGuard: boolean;
+  /** Sorgunun bas isim turu (mevcut kapali tablo); basliga uygulanan regex govdesi ya da null. */
+  typePattern: string | null;
 }
 
 export function buildCandidateCheck(
@@ -225,6 +248,42 @@ export function buildCandidateCheck(
     negated,
     opposite: oppositeTerms(queryText, negated),
     accessoryGuard: !queryWantsAccessory(queryText),
+    typePattern: requiredTypePattern(queryText),
+  };
+}
+
+/**
+ * Dogrulanmis IntentV2 yorumundan (validate.ts) YALNIZ ham sorguda kaniti olan (`source:
+ * "explicit"`) sinyalleri ekler; modelin beyani ya da cikarimi kural olmaz:
+ * - `excluded` kapali oznitelik -> olumsuzlanan terimler (ornek kablosuz -> wireless, bluetooth);
+ * - `required`/`preferred` kapali oznitelik -> karsitinin terimleri reddedilir;
+ * - rol `accessory`/`part` -> aksesuar korumasi kapanir (kullanici parca/aksesuar istiyor).
+ * Kategori ve bas isim burada KULLANILMAZ: kategori kaynagi sozlesmesi (karar 0190) degismez.
+ */
+export function withIntentSignals(
+  check: CandidateCheck,
+  intent: ValidatedIntentV2,
+): CandidateCheck {
+  const negated = new Set(check.negated);
+  const opposite = new Set(check.opposite);
+  for (const c of intent.criteria) {
+    if (c.field !== "attribute" || c.source !== "explicit" || !c.canonical) continue;
+    const def = ATTRIBUTE_VALUES.find((d) => d.id === c.canonical && (!c.key || d.key === c.key));
+    if (!def) continue;
+    if (c.strength === "excluded") {
+      for (const t of def.terms) negated.add(foldForMatch(t));
+    } else if (c.strength === "required" || c.strength === "preferred") {
+      const other = oppositeOf(def);
+      if (other) for (const t of other.terms) opposite.add(foldForMatch(t));
+    }
+  }
+  for (const t of negated) opposite.delete(t);
+  const roleIsPart = intent.role === "accessory" || intent.role === "part";
+  return {
+    ...check,
+    negated,
+    opposite,
+    accessoryGuard: check.accessoryGuard && !roleIsPart,
   };
 }
 
@@ -242,6 +301,14 @@ export function rejectReason(title: string, check: CandidateCheck): RejectReason
 }
 
 // --- siralama -----------------------------------------------------------------------------
+
+function safeRegex(body: string): RegExp | null {
+  try {
+    return new RegExp(body);
+  } catch {
+    return null;
+  }
+}
 
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
@@ -304,9 +371,18 @@ export function conditionalHybrid(
   const negatedText = (t: PolicyTextItem) =>
     [...check.negated].some((n) => containsPhrase(foldForMatch(t.title), n));
   const accessoryText = (t: PolicyTextItem) => check.accessoryGuard && looksLikeAccessory(t.title);
+  const typeRe = check.typePattern ? safeRegex(check.typePattern) : null;
+  const typeOk = (t: PolicyTextItem) => typeRe === null || typeRe.test(foldForMatch(t.title));
+  const specOk = (t: PolicyTextItem) => {
+    if (check.specs.length === 0) return true;
+    const flat = compact(t.title);
+    return check.specs.every((s) => flat.includes(s));
+  };
   const textFactor = (t: PolicyTextItem) =>
     (negatedText(t) ? policy.negatedTextFactor : 1) *
-    (accessoryText(t) ? policy.accessoryTextFactor : 1);
+    (accessoryText(t) ? policy.accessoryTextFactor : 1) *
+    (typeOk(t) ? 1 : policy.lexTypeMismatchFactor) *
+    (specOk(t) ? 1 : policy.lexSpecMissingFactor);
   // Olumsuzlanan ozelligi ya da aksesuar gorunumu olan lexical sonuc silinmez, asagi tasinir.
   const orderedText = [
     ...text.filter((t) => textFactor(t) === 1),
@@ -320,7 +396,13 @@ export function conditionalHybrid(
     policy.strongMaxGapToDense === null ||
     best === undefined ||
     (lexMedianAll !== null && lexMedianAll >= best - policy.strongMaxGapToDense);
-  const strong = exactCount >= policy.strongMinExact && nearDense;
+  const typeShare = typeRe === null ? null : text.filter(typeOk).length / text.length;
+  const typeConsistent =
+    policy.minLexTypeShare === null || typeShare === null || typeShare >= policy.minLexTypeShare;
+  const agreement = text.filter((t) => confirmations.has(t.productId)).length;
+  const strong =
+    (exactCount >= policy.strongMinExact && nearDense && typeConsistent) ||
+    (policy.strongMinAgreement !== null && agreement >= policy.strongMinAgreement);
 
   if (strong) {
     const keep = orderedText.slice(0, policy.strongKeep);
