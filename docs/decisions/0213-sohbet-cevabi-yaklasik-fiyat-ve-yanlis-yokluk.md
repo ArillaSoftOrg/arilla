@@ -61,3 +61,29 @@ ingestion/marka/embedding işine dokunulmadı.
 - İngilizce başlıklarda malzeme dışı bilgiler (watt, "dimming") için yanlış yokluk hâlâ geçebilir.
 - Canlı veri ile kayıtlı fiyat dağılımı bu karar için ayrıca ölçülmedi; sentetik vakalar yurt dışı fiyatı
   `price_try = null` ile temsil ediyordu, yeni biçim bir sonraki ölçümde ilk kez gerçekleşecek.
+
+## Güncelleme: yaklaşık fiyatlı gerçek model ölçümü (15 Kasım 2026)
+
+82 gerçek çağrı, ~$0,110, sentetik yaklaşık fiyatlarla (`eval:chat-answer --approx-prices`; kayıt:
+`docs/eval-data/chat-answer-pilot/2026-11-15-approx-remeasure/`). Koşu anındaki doğrulayıcıyla %87,8 (72/82)
+cevap doğrulandı; 10 cevap modelsiz özete düştü. İnsan denetimi YOK (yapay zekâ okuması).
+
+Bulgular ve yapılan düzeltmeler:
+1. **Yanlış "en uygun/en ucuz" iddiası (3 cevap):** model, yaklaşık fiyatlı ürünleri karşılaştırmaya
+   katmadı. Doğrulayıcıya `wrong_superlative` eklendi: "en uygun/en düşük/en yüksek" cümlesindeki fiyatlar
+   gerçeklerdeki gerçek en düşük/en yüksek fiyatı içermiyorsa ret. Mağaza adı ya da "mağaza" geçen kapsamlı
+   cümle ve fiyatsız cümle denetlenmez. İstem de "tüm fiyatları karşılaştır" der.
+2. **"Fiyatlar güncel" iddiası (TRY fiyatlar için kanıtsız):** `güncel…` konu sözcüğü oldu; "bilmiyorum /
+   olmayabilir / bilinmiyor" cümlesinde serbest.
+3. **Büyük harfli çerçeve kaçağı:** `İhtiyacınız varsa` regex'ten kaçıyordu (İ harfi); eşleme artık Türkçe
+   küçük harfle yapılır. "…istiyorsanız" kalıbı eklendi.
+4. **Tetikleyici:** "bu fiyatlar…", "fiyatlara göre sırala…", "hangi mağaza", "kargo" soruları da sonuç sorusu
+   sayılır (önceden cevap yoluna hiç girmiyordu).
+5. **İstem:** kargo/vergi sorulursa bilinmediğini söyle; fiyat tarihi sorulursa yalnız `price_date` olanlar için.
+
+Kayıtlı ham çıktıların güncellenmiş kurallarla yeniden doğrulaması: 72 → 68 doğrulanan; etiketli insan
+kümesinde (134) sonuç değişmedi (kritik 20: 12 tam ret, 6 kırpma, 2 geçer; doğru 95/96 korunur).
+
+Kalan: başlıkta bilgi varken "yok" diyen cevaplar (`Eye Protection`, `Cotton` gibi) hâlâ sürebilir; kargo/vergi
+sorusunda "bilgi yok" demenin etkisi, ve niyet dışı cevapların gerçek oranı insan denetimi olmadan
+bilinmiyor.

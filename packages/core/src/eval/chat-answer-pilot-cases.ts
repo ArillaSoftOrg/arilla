@@ -1466,6 +1466,90 @@ const EXTRA_ROWS: readonly (readonly [setId: string, ...Row])[] = [
   ["watch", "not_routed", "daha ucuz bir şey var mı", NOT_ROUTED],
   ["backpack", "not_routed", "Nike marka olsun", NOT_ROUTED],
   ["kitchen", "not_routed", "merhaba", NOT_ROUTED],
+  // Karar 0213: fiyat odakli vakalar (yaklasik TL fiyat, tarih, kargo/vergi). Yalniz `--approx-prices`
+  // ile anlamlidir: yurt disi urunlerin sentetik yaklasik fiyati vardir.
+  [
+    "powerbank",
+    "cheapest",
+    "Fiyatı en düşük olan hangisi, kesin fiyat mı bu?",
+    ANSWER,
+    ["yaklaşık fiyatı kesin ya da güncel diye sunmak"],
+  ],
+  [
+    "car_acc",
+    "missing_data",
+    "Bunların kargo ücreti ne kadar, vergiyle birlikte toplam kaç TL tutar?",
+    DECLINE,
+    ["kargo ücreti", "vergi", "toplam maliyet"],
+    ["ücretsiz", "kdv", "toplam .*TL"],
+  ],
+  ["earbuds", "cheapest", "En ucuz olan hangisi, kaç TL?", ANSWER, ["fiyat uydurmak"]],
+  [
+    "kitchen",
+    "missing_data",
+    "Bu fiyatlar bugünün fiyatı mı, ne zaman kaydedildi?",
+    DECLINE,
+    ["bilinmeyen fiyat tarihini söylemek", "güncel fiyat iddiası"],
+    ["bugünün fiyatı", "dün", "geçen hafta"],
+  ],
+  [
+    "phone_case",
+    "which_better",
+    "Bütçem 1000 TL, hangisi daha uygun?",
+    ANSWER,
+    ["bütçe dışı ürünü önermek"],
+  ],
+  [
+    "gaming",
+    "compare",
+    "Sony oyun kolu ile klavyeyi mağaza ve fiyat açısından karşılaştırır mısın?",
+    ANSWER,
+    ["ürün amacı çıkarımı"],
+  ],
+  [
+    "desk_lamp",
+    "explain_diff",
+    "Bu lambaların farklarını anlat, sadece fiyatı söyleme.",
+    ANSWER,
+    ["başlıkta olmayan teknik özellik"],
+  ],
+  [
+    "tools",
+    "recommend",
+    "Fiyat performans açısından hangisini önerirsin?",
+    DECLINE,
+    ["fiyat/performans değerlendirmesi", "kalite iddiası"],
+    ["fiyat performans", "performans"],
+  ],
+  [
+    "powerbank",
+    "which_better",
+    "Hangisi kaç TL civarı, fiyatlar aynı mağazadan mı?",
+    ANSWER,
+    ["yaklaşık fiyatı kesin sunmak"],
+  ],
+  [
+    "car_acc",
+    "compare",
+    "Hava pompası ile lastik tamir kitini karşılaştırır mısın?",
+    ANSWER,
+    ["başlıkta olmayan kullanım amacı"],
+  ],
+  [
+    "earbuds",
+    "missing_data",
+    "Bunların fiyatı bir ay önceki fiyat mı?",
+    DECLINE,
+    ["fiyat tarihini uydurmak"],
+    ["geçen ay", "bir ay önce"],
+  ],
+  [
+    "kitchen",
+    "cheapest",
+    "Fiyatlara göre sıralayıp hangi mağazada olduğunu söyler misin?",
+    ANSWER,
+    ["fiyat uydurmak"],
+  ],
 ];
 
 function build(): PilotCase[] {
@@ -1499,8 +1583,38 @@ function build(): PilotCase[] {
 
 export const PILOT_CASES: readonly PilotCase[] = build();
 
-export function factsForCase(testCase: PilotCase): ResultFact[] {
+/** Sentetik kur tarihi (gercek kosuda `fx_date` kart verisinden gelir). */
+export const APPROX_PRICE_DATE = "2026-11-13";
+
+function approxHash(text: string): number {
+  let h = 2166136261;
+  for (const ch of text) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
+  return h;
+}
+
+/**
+ * Karar 0213 bicimi: fiyati olmayan yurt disi (AliExpress) urune DETERMINISTIK sentetik yaklasik TL fiyat
+ * (90-1800) ve kur tarihi verir; uretimde kartin kurla cevrilmis fiyati boyle gelir. Sentetiktir.
+ */
+export function withApproxPrices(facts: readonly ResultFact[]): ResultFact[] {
+  return facts.map((fact) => {
+    if (fact.store !== "AliExpress" || fact.price_try !== null) return { ...fact };
+    return {
+      ...fact,
+      price_try: 90 + (approxHash(fact.title) % 1711),
+      price_approx: true as const,
+      price_date: APPROX_PRICE_DATE,
+    };
+  });
+}
+
+export function factsForCase(
+  testCase: PilotCase,
+  options: { approxPrices?: boolean } = {},
+): ResultFact[] {
   const set = PILOT_FACT_SETS.find((s) => s.id === testCase.setId);
   if (!set) throw new Error(`unknown fact set ${testCase.setId}`);
-  return set.facts.map((fact) => ({ ...fact }));
+  return options.approxPrices
+    ? withApproxPrices(set.facts)
+    : set.facts.map((fact) => ({ ...fact }));
 }

@@ -197,6 +197,9 @@ describe("looksLikeResultQuestion", () => {
       "Bunları karşılaştır",
       "hangisini önerirsin",
       "aralarında ne fark var?",
+      "Bu fiyatlar bugünün fiyatı mı?",
+      "Fiyatlara göre sıralayıp hangi mağazada olduğunu söyler misin?",
+      "Kargo dahil mi bunlar?",
     ]) {
       expect(looksLikeResultQuestion(text), text).toBe(true);
     }
@@ -685,6 +688,105 @@ describe("false absence claims (decision 0213)", () => {
           ],
         },
         facts,
+      ).rejected,
+    ).toEqual([]);
+  });
+});
+
+describe("superlative prices must match the facts (decision 0213)", () => {
+  const priced: ResultFact[] = [
+    {
+      id: "p1",
+      title: "Tefal Çelik Termos 1 L",
+      brand: null,
+      store: "Hepsiburada",
+      price_try: 1099,
+      offer_count: 1,
+    },
+    {
+      id: "p2",
+      title: "CLS Outdoor Bardak Seti",
+      brand: null,
+      store: "AliExpress",
+      price_try: 149,
+      offer_count: 1,
+      price_approx: true,
+      price_date: "2026-11-13",
+    },
+    {
+      id: "p3",
+      title: "Stanley Klasik Termos",
+      brand: null,
+      store: "Termos Dünyası",
+      price_try: 2899,
+      offer_count: 1,
+    },
+  ];
+  const run = (text: string, item = "p1", field: "price" = "price", quote = "1099") =>
+    validateAnswer({ paragraphs: [{ text, evidence: [{ item, field, quote }] }] }, priced);
+
+  it("rejects calling a product the cheapest when a lower approximate price exists", () => {
+    expect(
+      run("Tefal Çelik Termos, 1099 TL fiyatıyla en uygun fiyatlı seçenektir burada.").rejected,
+    ).toEqual(["wrong_superlative"]);
+  });
+
+  it("accepts the true cheapest and the true most expensive, scoped claims and sentences without prices", () => {
+    expect(
+      run(
+        "En uygun fiyatlı seçenek yaklaşık 149 TL ile CLS Outdoor Bardak Seti'dir.",
+        "p2",
+        "price",
+        "149",
+      ).rejected,
+    ).toEqual([]);
+    expect(
+      run(
+        "En yüksek fiyat 2899 TL ile Stanley Klasik Termos'a ait görünüyor burada.",
+        "p3",
+        "price",
+        "2899",
+      ).rejected,
+    ).toEqual([]);
+    // mağaza kapsamlı iddia: yalnız o mağazadaki ürünler arasında
+    expect(
+      run("Hepsiburada mağazasında en düşük fiyat 1099 TL ile Tefal Çelik Termos'tur burada.")
+        .rejected,
+    ).toEqual([]);
+  });
+});
+
+describe("freshness claims and capitalised framing (decision 0213)", () => {
+  const f: ResultFact[] = [
+    {
+      id: "p1",
+      title: "Philips Hue",
+      brand: "Philips",
+      store: "Trendyol",
+      price_try: 100,
+      offer_count: 1,
+    },
+  ];
+  const run = (text: string) =>
+    validateAnswer(
+      { paragraphs: [{ text, evidence: [{ item: "p1", field: "brand", quote: "Philips" }] }] },
+      f,
+    );
+
+  it("rejects 'güncel' price claims and need-assuming framing in any capitalisation", () => {
+    for (const text of [
+      "Philips ürününün Trendyol'daki fiyatı günceldir ve listede yer alıyor burada.",
+      "İhtiyacınız varsa Philips ürünü Trendyol listesinde yer alıyor burada.",
+      "Kontrolcünüzü şarj etmek istiyorsanız Philips ürünü Trendyol listesinde yer alıyor.",
+    ]) {
+      expect(run(text).rejected[0], text).toBe("forbidden_claim");
+    }
+  });
+
+  it("accepts an honest 'we do not know if it is current'", () => {
+    expect(
+      run(
+        "Fiyatların güncel olup olmadığını bilmiyorum; Philips ürünü Trendyol listesinde yer alıyor.",
       ).rejected,
     ).toEqual([]);
   });
