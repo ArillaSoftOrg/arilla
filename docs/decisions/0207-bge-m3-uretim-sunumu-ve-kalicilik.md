@@ -1,6 +1,6 @@
-# 0203 — BGE-M3 üretim sunumu: servis, kalıcılık ve kayıt defteri tutarsızlığı
+# 0207 — BGE-M3 üretim sunumu: servis, kalıcılık ve kayıt defteri tutarsızlığı
 
-Tarih: 15 Kasım 2026. Bağlı: 0195 (depolama/aktarım), 0196 (sorgu servisi ve sunum), 0190 (sunum kapıları).
+Tarih: 15 Kasım 2026. (Önceki numara 0203 `main`deki başka karardı; 0207'ye taşındı.) Bağlı: 0195 (depolama/aktarım), 0196 (sorgu servisi ve sunum), 0190 (sunum kapıları).
 
 ## Karar
 

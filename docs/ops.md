@@ -3151,7 +3151,7 @@ Kod hazır, hiçbir şey kendiliğine açılmaz. Açılış sırası (her adım 
 Sağlık: `GET {url}/health` (TEI). Devre kesici art arda hatada otomatik bekler; servis düşerse arama
 metin sonucuyla (birebir aynı) devam eder (80/80 ölçüldü). Anahtar/adres/sorgu günlüğe yazılmaz.
 
-#### BGE-M3 sorgu servisi — üretim kurulumu ve kalıcılık (karar 0203)
+#### BGE-M3 sorgu servisi — üretim kurulumu ve kalıcılık (karar 0207)
 
 15 Kasım 2026'dan beri üretimde kurulu ve `SEMANTIC_SEARCH_MODE=on`. Deploy hattının DIŞINDADIR:
 
@@ -3160,8 +3160,17 @@ metin sonucuyla (birebir aynı) devam eder (80/80 ölçüldü). Anahtar/adres/so
   temizliği) ona dokunmaz. `restart: unless-stopped` → sunucu/Docker yeniden başlayınca kendiliğinden kalkar.
   Ağ: `arilla_data` (internal); `ports:` yok. Web `http://embed-query:8080` ile erişir.
 - **Model:** `/opt/arilla/models/bge-m3-5617a9f6` (kalıcı disk, sahip 10001, salt okunur; ~2,2 GB). RAM diski
-  (`/dev/shm`) KALICI DEĞİLDİR. Yeniden kurulumda: dosyaları sabit revizyondan al, `derived-manifest.json`
-  SHA-256'larıyla doğrula (`model.safetensors` = `dfb18973…8602`).
+  (`/dev/shm`) KALICI DEĞİLDİR. Dizin, kaynak `pytorch_model.bin`den (pickle) TÜRETİLMİŞ `model.safetensors` içerir;
+  türetme kaydı depoda: `infra/embed/bge-m3-5617a9f6.derived-manifest.json` (kaynak `BAAI/bge-m3` @
+  `5617a9f61b028005a4858fdac845db406aefb181`, dönüştürücü `torch 2.8.0+cpu` `torch.load(weights_only=True)` +
+  `safetensors 0.6.2`, eşitlik denetimi bit düzeyinde, her dosyanın SHA-256'sı).
+  **Yeniden kurulum:** (1) tercih edilen: mevcut dizinin kopyası (`/opt/arilla/models/bge-m3-5617a9f6`; sunucu dışı
+  yedek YOKTUR, bkz. aşağı); (2) yoksa: sabit revizyonu `hf download BAAI/bge-m3 --revision 5617a9f6…` ile yalıtılmış
+  bir ortama indir, yukarıdaki sürümlerle `torch.load(weights_only=True)` → `safetensors.torch.save_file` ile
+  `model.safetensors` üret, tüm dosyaları manifestteki SHA-256'larla karşılaştır (`model.safetensors` =
+  `dfb18973…8602`); hash tutmazsa dizini KULLANMA. Bu dönüştürme betiği depoda DEĞİLDİR ve elle yeniden üretimi
+  doğrulanmadı (yalnız manifest vardır); sahip 10001, salt okunur, ardından `compose.embed-query.yml` ile
+  başlat. **Açık risk:** modelin sunucu dışı yedeği yoktur; disk kaybında yukarıdaki yol tek seçenektir.
 - **Web ortamı** (`/opt/arilla/env/web.env`, depoda YOK; gizli değer içermez): `EMBED_BGE_M3_QUERY_URL=http://embed-query:8080`,
   `SEMANTIC_EMBEDDING_MODEL=bge-m3-5617a9f6`, `SEMANTIC_INDEX_VERSION=1`, `SEMANTIC_SEARCH_MODE=on`.
   `web.env` deploy'larda değişmez; web yeniden oluşturulunca (`up -d --no-deps web`) aynen okunur.
@@ -3172,7 +3181,7 @@ metin sonucuyla (birebir aynı) devam eder (80/80 ölçüldü). Anahtar/adres/so
   birebir düşer. Bellek: ~2,8 GiB (tavan 4 GiB); Postgres ile birlikte host 16 GB içinde ~5 GB pay kalır.
 - **Kayıt defteri ile ilişki:** `model_registry.json` `state`/`license_verified` alanlarını YALNIZ Python tarafı
   denetler (`registry.py`, `enrich.index`); TS sunumu `QUERYABLE_INDEXES` + ortam değişkenlerine bakar. Bu yüzden
-  env ile açmak o kapıyı atlar (karar 0203 §Tutarsızlık). `enrich.index activate` yapılmadı; `embedding_index`
+  env ile açmak o kapıyı atlar (karar 0207 §Tutarsızlık). `enrich.index activate` yapılmadı; `embedding_index`
   aktif satırı hâlâ Jina'dır (env önceliklidir). Kayıt defterini değiştirmek insan/hukuk onayıdır.
 - **Eski toplu iş servisi** (`e4-bge-tei`, E4 üretimi): iş bitti, durduruldu (silinmedi); checkpoint ve model
   dosyaları korunur.

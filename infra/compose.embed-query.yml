@@ -1,4 +1,4 @@
-# BGE-M3 SORGU servisi (karar 0196, 0203). Toplu is servisi (compose.embed.yml) DEGILDIR.
+# BGE-M3 SORGU servisi (karar 0196, 0207). Toplu is servisi (compose.embed.yml) DEGILDIR.
 #
 # Uretimde AYRI bir compose projesi olarak calisir; compose.prod.yml'ye ve deploy hattina GIRMEZ:
 #   - proje adi `arilla-embed-query` oldugu icin `arilla` projesinin deploy'u (`up -d`, orphan temizligi)
@@ -19,7 +19,7 @@
 #   - Web ortami (/opt/arilla/env/web.env, depoda YOK): EMBED_BGE_M3_QUERY_URL, SEMANTIC_EMBEDDING_MODEL,
 #     SEMANTIC_INDEX_VERSION, SEMANTIC_SEARCH_MODE. Gizli deger yok; yetkilendirme agdan.
 #
-# Kurmak modeli kayit defterinde ETKINLESTIRMEZ; sunum ortam degiskenleriyle acilir (0203).
+# Kurmak modeli kayit defterinde ETKINLESTIRMEZ; sunum ortam degiskenleriyle acilir (0207).
 name: arilla-embed-query
 
 services:
