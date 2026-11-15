@@ -489,7 +489,7 @@ describe("raw paragraph capture (rejected paragraphs stay auditable)", () => {
     };
     const inspected = inspectAnswer(raw, facts);
     expect(inspected?.[0]?.problem).toBe("unevidenced_number");
-    expect(inspected?.[0]?.unevidencedNumbers).toEqual(["225", "3"]);
+    expect(inspected?.[0]?.unevidencedNumbers).toEqual(["3"]);
     expect(validateAnswer(raw, facts).answer).toBeNull();
     expect(inspectAnswer("x", facts)).toBeNull();
   });

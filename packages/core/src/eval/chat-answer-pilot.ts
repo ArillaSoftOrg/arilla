@@ -536,7 +536,9 @@ export async function runPilot(cases: readonly PilotCase[], deps: RunDeps): Prom
           record.validated = answer.validated === true;
           record.rejected = answer.rejected ?? [];
           record.paragraphs = answer.paragraphs ?? [];
-          const inspected: ParagraphInspection[] | null = inspectAnswer(rawAnswer, facts);
+          const inspected: ParagraphInspection[] | null = inspectAnswer(rawAnswer, facts, {
+            question: testCase.question,
+          });
           record.rawParagraphs = (inspected ?? []).map((item) => ({
             text: item.paragraph.text,
             evidence: item.paragraph.evidence,

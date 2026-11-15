@@ -286,15 +286,20 @@ export interface ParagraphInspection {
 export function inspectAnswer(
   raw: unknown,
   facts: readonly ResultFact[],
+  context: { question?: string } = {},
 ): ParagraphInspection[] | null {
   const parsed = parseAnswer(raw);
   if (parsed === null) return null;
   const byId = new Map(facts.map((fact) => [fact.id, fact]));
+  const userNumbers = new Set(numericTokens(context.question ?? ""));
   return parsed.paragraphs.map((paragraph) => {
-    const problem = paragraphProblem(paragraph, byId);
-    const allowed = new Set(
-      paragraph.evidence.slice(0, ANSWER_MAX_EVIDENCE).flatMap((e) => numericTokens(e.quote)),
-    );
+    const problem = paragraphProblem(paragraph, byId, userNumbers);
+    const cited = paragraph.evidence.slice(0, ANSWER_MAX_EVIDENCE);
+    const allowed = new Set([
+      ...userNumbers,
+      ...cited.flatMap((e) => numericTokens(e.quote)),
+      ...cited.flatMap((e) => numericTokens(byId.get(e.item)?.title ?? "")),
+    ]);
     const unevidencedNumbers =
       problem === "unevidenced_number"
         ? paragraph.text
