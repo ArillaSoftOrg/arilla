@@ -534,9 +534,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": false,
       "shownText": "Smart Anti Theft çantası ise dizüstü bilgisayar taşıma ihtiyacı için geniş kapasiteli, su geçirmez ve USB şarj özellikli bir seçenek olarak listelenmektedir.",
       "paragraphs": [
@@ -740,9 +738,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": false,
       "shownText": "Apple Watch SE 2. Nesil, 9499 TL fiyatı ve 3 farklı teklif seçeneğiyle daha kapsamlı özellikler sunan bir modeldir.",
       "paragraphs": [
@@ -986,9 +982,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": false,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": true,
       "shownText": "Ürünleri karşılaştırmalı yorumlayamadım; doğrulanmış verilere göre özet: En düşük fiyat 229 TL, en yüksek 1.849 TL; ortanca 1.039 TL. Ürünler 3 farklı mağazadan; en çok AliExpress (4 ürün). 4 üründe fiyat bilgisi yok; fiyat hesabına katılmadı.",
       "paragraphs": [],
@@ -1012,9 +1006,7 @@
       "outputTokens": 167,
       "thoughtTokens": 0,
       "costUsdMicros": 873,
-      "autoFlags": [
-        "should_answer_not_validated"
-      ],
+      "autoFlags": ["should_answer_not_validated"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -1038,9 +1030,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": false,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": true,
       "shownText": "Ürünleri karşılaştırmalı yorumlayamadım; doğrulanmış verilere göre özet: En düşük fiyat 1.099 TL, en yüksek 3.877 TL; ortanca 2.899 TL. 3 mağazanın ürünleri var, AliExpress 3 ürünle başta. 3 üründe fiyat bilgisi yok; fiyat hesabına katılmadı.",
       "paragraphs": [],
@@ -1079,9 +1069,7 @@
       "outputTokens": 249,
       "thoughtTokens": 0,
       "costUsdMicros": 995,
-      "autoFlags": [
-        "should_answer_not_validated"
-      ],
+      "autoFlags": ["should_answer_not_validated"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -1835,9 +1823,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": false,
       "shownText": "Listelenen ürünler arasında kapasite çeşitliliği dikkat çekmektedir; 5000mAh ve 10000mAh seçeneklerinin yanı sıra 20000mAh kapasiteli modeller de mevcuttur.\n\nFiyatlandırma tarafında Hepsiburada üzerinde sunulan 5000mAh model 624 TL, Xiaomi 10000mAh modeli 849 TL, Anker 10000mAh model 1099 TL ve Baseus 20000mAh model 2799 TL olarak listelenmiştir.",
       "paragraphs": [
@@ -2232,9 +2218,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "unevidenced_number"
-      ],
+      "rejected": ["unevidenced_number"],
       "fallbackUsed": false,
       "shownText": "Ayrıca çocuk kategorisindeki Adidas Originals IE3680 Samba OG Shoes Kids modeli ise Trendyol mağazasında 3399 TL fiyatla ve tek bir teklif seçeneğiyle satışta.",
       "paragraphs": [
@@ -2285,10 +2269,7 @@
             }
           ],
           "problem": "unevidenced_number",
-          "unevidencedNumbers": [
-            "2",
-            "2"
-          ]
+          "unevidencedNumbers": ["2", "2"]
         },
         {
           "text": "Ayrıca çocuk kategorisindeki Adidas Originals IE3680 Samba OG Shoes Kids modeli ise Trendyol mağazasında 3399 TL fiyatla ve tek bir teklif seçeneğiyle satışta.",
@@ -3802,10 +3783,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "forbidden_claim",
-        "unevidenced_number"
-      ],
+      "rejected": ["forbidden_claim", "unevidenced_number"],
       "fallbackUsed": false,
       "shownText": "Taşıma ve depolama için özel üretilmiş taşıma çantaları mevcutken, oyun deneyiminizi kişiselleştirmek veya kontrolcünüzü yenilemek isterseniz Analog Stick Covers veya yeni bir DualSense kablosuz oyun kolu tercih edebilirsiniz.",
       "paragraphs": [
@@ -3880,9 +3858,7 @@
             }
           ],
           "problem": "unevidenced_number",
-          "unevidencedNumbers": [
-            "5"
-          ]
+          "unevidencedNumbers": ["5"]
         }
       ],
       "latencyMs": 2710,
@@ -4048,9 +4024,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": false,
       "shownText": "Fiyatlandırma açısından Xiaomi 849 TL, Anker ise 1099 TL olarak listelenmiştir.\n\nXiaomi ürününün 4 farklı teklifi bulunurken, Anker ürününün 2 farklı teklifi mevcuttur.",
       "paragraphs": [
@@ -4429,9 +4403,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": false,
       "shownText": "The North Face Borealis Sırt Çantası ise 28 litre kapasitesiyle okul veya iş için geniş depolama alanı sunan bir modeldir.",
       "paragraphs": [
@@ -4771,9 +4743,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": false,
       "shownText": "Duffa Interaktif Kedi Oyuncağı eğlence odaklı bir ürün olup 1150 TL fiyatla Trendyol'da satılmaktadır. Kameralı Akıllı Otomatik Evcil Hayvan Besleyici ise beslenme takibi yapmanıza yardımcı olabilir ve 2999 TL fiyatla Trendyol'da mevcuttur.\n\nRoyal Canin Kitten Yavru Kedi Maması, yavru kedilerin beslenmesi için üretilmiş olup 689 TL'den başlayan fiyatlarla dört farklı mağaza teklifiyle Hepsiburada'da bulunuyor.",
       "paragraphs": [
@@ -4897,9 +4867,7 @@
       "outputTokens": 193,
       "thoughtTokens": 0,
       "costUsdMicros": 911,
-      "autoFlags": [
-        "should_answer_not_validated"
-      ],
+      "autoFlags": ["should_answer_not_validated"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -5293,9 +5261,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": false,
-      "rejected": [
-        "unevidenced_number"
-      ],
+      "rejected": ["unevidenced_number"],
       "fallbackUsed": true,
       "shownText": "Ürünleri karşılaştırmalı yorumlayamadım; doğrulanmış verilere göre özet: 5 üründe fiyat aralığı 749 TL - 2.180 TL (ortanca 1.749 TL). 3 mağazanın ürünleri var, Hepsiburada 2 ürünle başta.",
       "paragraphs": [],
@@ -5325,12 +5291,7 @@
             }
           ],
           "problem": "unevidenced_number",
-          "unevidencedNumbers": [
-            "1427",
-            "1457",
-            "1758",
-            "2018"
-          ]
+          "unevidencedNumbers": ["1427", "1457", "1758", "2018"]
         }
       ],
       "latencyMs": 3410,
@@ -5339,9 +5300,7 @@
       "outputTokens": 373,
       "thoughtTokens": 0,
       "costUsdMicros": 1172,
-      "autoFlags": [
-        "should_answer_not_validated"
-      ],
+      "autoFlags": ["should_answer_not_validated"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -5793,9 +5752,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": false,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": true,
       "shownText": "Ürünleri karşılaştırmalı yorumlayamadım; doğrulanmış verilere göre özet: 4 üründe fiyat aralığı 199 TL - 1.499 TL (ortanca 516 TL). 3 mağazanın ürünleri var, AliExpress 2 ürünle başta. 2 üründe fiyat bilgisi yok; fiyat hesabına katılmadı.",
       "paragraphs": [],
@@ -5898,9 +5855,7 @@
       "outputTokens": 205,
       "thoughtTokens": 0,
       "costUsdMicros": 936,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -6011,10 +5966,7 @@
       "outputTokens": 335,
       "thoughtTokens": 0,
       "costUsdMicros": 1119,
-      "autoFlags": [
-        "forbidden_pattern:litre",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:litre", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -6128,9 +6080,7 @@
       "outputTokens": 282,
       "thoughtTokens": 0,
       "costUsdMicros": 1040,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -6199,9 +6149,7 @@
       "outputTokens": 217,
       "thoughtTokens": 0,
       "costUsdMicros": 942,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -6343,9 +6291,7 @@
       "outputTokens": 211,
       "thoughtTokens": 0,
       "costUsdMicros": 938,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -6424,9 +6370,7 @@
       "outputTokens": 278,
       "thoughtTokens": 0,
       "costUsdMicros": 1039,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -6515,10 +6459,7 @@
       "outputTokens": 326,
       "thoughtTokens": 0,
       "costUsdMicros": 1095,
-      "autoFlags": [
-        "forbidden_pattern:güvenli",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:güvenli", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -6690,10 +6631,7 @@
       "outputTokens": 307,
       "thoughtTokens": 0,
       "costUsdMicros": 1078,
-      "autoFlags": [
-        "forbidden_pattern:pamuklu kumaş",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:pamuklu kumaş", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -6845,10 +6783,7 @@
       "outputTokens": 186,
       "thoughtTokens": 0,
       "costUsdMicros": 893,
-      "autoFlags": [
-        "forbidden_pattern:kırışıklık",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:kırışıklık", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -6917,9 +6852,7 @@
       "outputTokens": 238,
       "thoughtTokens": 0,
       "costUsdMicros": 983,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -7081,10 +7014,7 @@
       "outputTokens": 209,
       "thoughtTokens": 0,
       "costUsdMicros": 920,
-      "autoFlags": [
-        "forbidden_pattern:kararmaz",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:kararmaz", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -7163,9 +7093,7 @@
       "outputTokens": 278,
       "thoughtTokens": 0,
       "costUsdMicros": 1062,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -7244,9 +7172,7 @@
       "outputTokens": 293,
       "thoughtTokens": 0,
       "costUsdMicros": 1059,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -7270,9 +7196,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": false,
-      "rejected": [
-        "internal_id"
-      ],
+      "rejected": ["internal_id"],
       "fallbackUsed": true,
       "shownText": "Ürünleri karşılaştırmalı yorumlayamadım; doğrulanmış verilere göre özet: En düşük fiyat 199 TL, en yüksek 1.499 TL; ortanca 516 TL. Ürünler 3 farklı mağazadan; en çok AliExpress (2 ürün). 2 üründe fiyat bilgisi yok; fiyat hesabına katılmadı.",
       "paragraphs": [],
@@ -7370,9 +7294,7 @@
       "outputTokens": 182,
       "thoughtTokens": 0,
       "costUsdMicros": 901,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -7396,10 +7318,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": false,
-      "rejected": [
-        "forbidden_claim",
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim", "forbidden_claim"],
       "fallbackUsed": true,
       "shownText": "Ürünleri karşılaştırmalı yorumlayamadım; doğrulanmış verilere göre özet: Bu sonuçlarda fiyatlar 879 TL ile 4.299 TL arasında; ortanca fiyat 2.589 TL. 3 mağazanın ürünleri var, AliExpress 4 ürünle başta. 4 üründe fiyat bilgisi yok; fiyat hesabına katılmadı.",
       "paragraphs": [],
@@ -7567,10 +7486,7 @@
       "outputTokens": 186,
       "thoughtTokens": 0,
       "costUsdMicros": 896,
-      "autoFlags": [
-        "forbidden_pattern:bildirim",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:bildirim", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -7651,10 +7567,7 @@
       "outputTokens": 270,
       "thoughtTokens": 0,
       "costUsdMicros": 1021,
-      "autoFlags": [
-        "forbidden_pattern:google home",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:google home", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -7723,9 +7636,7 @@
       "outputTokens": 198,
       "thoughtTokens": 0,
       "costUsdMicros": 922,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -7784,9 +7695,7 @@
       "outputTokens": 200,
       "thoughtTokens": 0,
       "costUsdMicros": 924,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -7958,10 +7867,7 @@
       "outputTokens": 306,
       "thoughtTokens": 0,
       "costUsdMicros": 1065,
-      "autoFlags": [
-        "forbidden_pattern:yaş",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:yaş", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -7985,9 +7891,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": false,
-      "rejected": [
-        "no_evidence"
-      ],
+      "rejected": ["no_evidence"],
       "fallbackUsed": true,
       "shownText": "Ürünleri karşılaştırmalı yorumlayamadım; doğrulanmış verilere göre özet: En düşük fiyat 549 TL, en yüksek 1.899 TL; ortanca 1.224 TL. 3 mağazanın ürünleri var, AliExpress 4 ürünle başta. 4 üründe fiyat bilgisi yok; fiyat hesabına katılmadı.",
       "paragraphs": [],
@@ -8084,9 +7988,7 @@
       "outputTokens": 286,
       "thoughtTokens": 0,
       "costUsdMicros": 1046,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -8175,10 +8077,7 @@
       "outputTokens": 333,
       "thoughtTokens": 0,
       "costUsdMicros": 1113,
-      "autoFlags": [
-        "forbidden_pattern:sızdırmaz",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:sızdırmaz", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -8267,9 +8166,7 @@
       "outputTokens": 303,
       "thoughtTokens": 0,
       "costUsdMicros": 1067,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -8328,9 +8225,7 @@
       "outputTokens": 191,
       "thoughtTokens": 0,
       "costUsdMicros": 910,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -8399,10 +8294,7 @@
       "outputTokens": 215,
       "thoughtTokens": 0,
       "costUsdMicros": 937,
-      "autoFlags": [
-        "forbidden_pattern:gecikme",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:gecikme", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -8544,10 +8436,7 @@
       "outputTokens": 205,
       "thoughtTokens": 0,
       "costUsdMicros": 953,
-      "autoFlags": [
-        "forbidden_pattern:kesin",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:kesin", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -10345,9 +10234,7 @@
       "outputTokens": 306,
       "thoughtTokens": 0,
       "costUsdMicros": 1078,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -10561,9 +10448,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": false,
       "shownText": "Fiyat açısından The North Face modeli 4299 TL iken, Prima modeli 879 TL olarak listelenmiştir.\n\nPrima sırt çantası 2 farklı teklif ile sunulurken, The North Face Borealis modeline ilişkin 3 farklı teklif mevcuttur.",
       "paragraphs": [
@@ -10736,9 +10621,7 @@
       "outputTokens": 258,
       "thoughtTokens": 0,
       "costUsdMicros": 1010,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -10797,9 +10680,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "quote_mismatch"
-      ],
+      "rejected": ["quote_mismatch"],
       "fallbackUsed": false,
       "shownText": "Philips Hue masa lambası 3 farklı teklif ile sunulurken, katlanabilir LED lamba 1 teklif seçeneğine sahip.",
       "paragraphs": [
@@ -11307,9 +11188,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": false,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": true,
       "shownText": "Ürünleri karşılaştırmalı yorumlayamadım; doğrulanmış verilere göre özet: En düşük fiyat 549 TL, en yüksek 1.899 TL; ortanca 1.224 TL. Ürünler 3 farklı mağazadan; en çok AliExpress (4 ürün). 4 üründe fiyat bilgisi yok; fiyat hesabına katılmadı.",
       "paragraphs": [],
@@ -11333,9 +11212,7 @@
       "outputTokens": 191,
       "thoughtTokens": 0,
       "costUsdMicros": 905,
-      "autoFlags": [
-        "should_answer_not_validated"
-      ],
+      "autoFlags": ["should_answer_not_validated"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -11987,9 +11864,7 @@
       "outputTokens": 393,
       "thoughtTokens": 0,
       "costUsdMicros": 1210,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -12013,9 +11888,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim"],
       "fallbackUsed": false,
       "shownText": "Spigen Ultra Hybrid iPhone 15 Kılıf 699 TL fiyatıyla orta segmentte yer alırken, Fibaks Apple iPhone 15 Kılıf ise 333 TL olarak belirtilmiş.",
       "paragraphs": [
@@ -12077,9 +11950,7 @@
       "outputTokens": 353,
       "thoughtTokens": 0,
       "costUsdMicros": 1160,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -12103,9 +11974,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": false,
-      "rejected": [
-        "no_evidence"
-      ],
+      "rejected": ["no_evidence"],
       "fallbackUsed": true,
       "shownText": "Ürünleri karşılaştırmalı yorumlayamadım; doğrulanmış verilere göre özet: 4 üründe fiyat aralığı 2.169 TL - 6.499 TL (ortanca 2.999 TL). Ürünler 3 farklı mağazadan; en çok AliExpress (3 ürün). 3 üründe fiyat bilgisi yok; fiyat hesabına katılmadı.",
       "paragraphs": [],
@@ -12147,10 +12016,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": true,
-      "rejected": [
-        "forbidden_claim",
-        "forbidden_claim"
-      ],
+      "rejected": ["forbidden_claim", "forbidden_claim"],
       "fallbackUsed": false,
       "shownText": "Fiyat verisi yalnızca Hepsiburada üzerinde bulunan Prima modelinde 879 TL, Trendyol'daki The North Face modelinde ise 4299 TL olarak belirtilmiştir.",
       "paragraphs": [
@@ -12229,9 +12095,7 @@
       "outputTokens": 545,
       "thoughtTokens": 0,
       "costUsdMicros": 1436,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -12255,9 +12119,7 @@
       "source": "model",
       "fallbackReason": null,
       "validated": false,
-      "rejected": [
-        "no_evidence"
-      ],
+      "rejected": ["no_evidence"],
       "fallbackUsed": true,
       "shownText": "Ürünleri karşılaştırmalı yorumlayamadım; doğrulanmış verilere göre özet: En düşük fiyat 249 TL, en yüksek 899 TL; ortanca 549 TL. 4 mağazanın ürünleri var, AliExpress 3 ürünle başta. 3 üründe fiyat bilgisi yok; fiyat hesabına katılmadı.",
       "paragraphs": [],
@@ -12389,10 +12251,7 @@
       "outputTokens": 248,
       "thoughtTokens": 0,
       "costUsdMicros": 988,
-      "autoFlags": [
-        "forbidden_pattern:indirim",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:indirim", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -12687,9 +12546,7 @@
       "outputTokens": 356,
       "thoughtTokens": 0,
       "costUsdMicros": 1159,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -12879,10 +12736,7 @@
       "outputTokens": 258,
       "thoughtTokens": 0,
       "costUsdMicros": 1034,
-      "autoFlags": [
-        "forbidden_pattern:garanti",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:garanti", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -12961,10 +12815,7 @@
       "outputTokens": 261,
       "thoughtTokens": 0,
       "costUsdMicros": 1012,
-      "autoFlags": [
-        "forbidden_pattern:iade",
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["forbidden_pattern:iade", "decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
@@ -13222,9 +13073,7 @@
       "outputTokens": 274,
       "thoughtTokens": 0,
       "costUsdMicros": 1039,
-      "autoFlags": [
-        "decline_case_answered_review"
-      ],
+      "autoFlags": ["decline_case_answered_review"],
       "review": {
         "verdict": null,
         "notes": ""
