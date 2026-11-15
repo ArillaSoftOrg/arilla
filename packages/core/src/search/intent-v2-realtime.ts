@@ -77,11 +77,11 @@ export function intentV2Mode(env: Env = process.env): IntentV2Mode {
 }
 
 export const INTENT_V2_MAX_OUTPUT_TOKENS = 512;
-/** Alternatif terim alani acikken ek cikti payi (karar 0208). */
+/** Alternatif terim alani acikken ek cikti payi (karar 0210). */
 export const INTENT_V2_ALT_TERMS_EXTRA_TOKENS = 128;
 
 /**
- * Karar 0208: `QUERY_INTENT_V2_ALT_TERMS=true` (varsayilan kapali). Yalniz IntentV2 etkinken anlamli;
+ * karar 0210: `QUERY_INTENT_V2_ALT_TERMS=true` (varsayilan kapali). Yalniz IntentV2 etkinken anlamli;
  * ayni tek Gemini cagrisinin semasina alan ekler, ek cagri yapmaz.
  */
 export function intentV2AltTermsEnabled(env: Env = process.env): boolean {
@@ -117,7 +117,7 @@ export interface IntentV2Options {
   consume?: QuotaConsumer;
   budget?: ProviderBudgetHooks;
   singleFlight?: SingleFlight;
-  /** Testler icin; varsayilan `QUERY_INTENT_V2_ALT_TERMS` bayragi (karar 0208). */
+  /** Testler icin; varsayilan `QUERY_INTENT_V2_ALT_TERMS` bayragi (karar 0210). */
   altTerms?: boolean;
   /** Testler icin; varsayilan surec ici sozluk onbellegi. */
   lexicon?: readonly LexiconEntry[];
@@ -434,7 +434,7 @@ export async function applyIntentV2(
     return { parsed, mode, applied: false, source: "none", hardFilters: 0 };
   }
   const hardFilters = Object.keys(resolution.plan.filters).length;
-  // Rol ipucu (karar 0197) ve alternatif terimler (karar 0208) H filtresi olmasa bile uygulanir.
+  // Rol ipucu (karar 0197) ve alternatif terimler (karar 0210) H filtresi olmasa bile uygulanir.
   if (
     mode === "shadow" ||
     (hardFilters === 0 &&

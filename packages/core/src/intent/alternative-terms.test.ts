@@ -1,5 +1,5 @@
 /**
- * Karar 0208: dogrulanmis alternatif arama terimleri. Dogrulama suzgeci, slot genisletme ve
+ * karar 0210: dogrulanmis alternatif arama terimleri. Dogrulama suzgeci, slot genisletme ve
  * bayrak kapaliyken eski davranisin birebir korunmasi.
  */
 import { describe, expect, it } from "vitest";

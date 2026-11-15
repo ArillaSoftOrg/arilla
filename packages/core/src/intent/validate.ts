@@ -112,7 +112,7 @@ export interface ValidatedIntentV2 {
   confidence: "high" | "medium" | "low";
   rejectedCount: number;
   /**
-   * Karar 0208: dogrulanmis alternatif arama terimleri (en fazla 3). Yalniz metin kapisinin aday
+   * karar 0210: dogrulanmis alternatif arama terimleri (en fazla 3). Yalniz metin kapisinin aday
    * bulmasinda kullanilir; eski kayitlarda ve cekirdek reddedilince bos.
    */
   alternativeTerms: AlternativeTerm[];
