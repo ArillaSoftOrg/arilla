@@ -216,19 +216,34 @@ describe("looksLikeResultQuestion", () => {
 });
 
 describe("toResultFacts / fallbackAnswerText", () => {
-  it("caps at 8, converts kuruş to whole TL and nulls foreign prices", () => {
+  it("caps at 8, converts kuruş to whole TL; foreign prices become approximate TL with a date only when known", () => {
     const items = Array.from({ length: 12 }, (_, i) => ({
       title: `Ürün ${i}`,
       brandName: i % 2 ? "Marka" : null,
       merchantName: "Mağaza",
       minPrice: 129_900,
       offerCount: 2,
-      ...(i === 1 ? { foreignPrice: { currency: "USD" } } : {}),
+      ...(i === 1 ? { foreignPrice: { fxDate: "2026-11-13" } } : {}),
+      ...(i === 2 ? { foreignPrice: { fxDate: null } } : {}),
+      ...(i === 3 ? { minPrice: null as number | null } : {}),
     }));
     const facts = toResultFacts(items);
     expect(facts).toHaveLength(8);
     expect(facts[0]).toMatchObject({ id: "p1", price_try: 1299, brand: null });
-    expect(facts[1]).toMatchObject({ id: "p2", price_try: null });
+    expect(facts[0]).not.toHaveProperty("price_approx");
+    expect(facts[0]).not.toHaveProperty("price_date");
+    expect(facts[1]).toMatchObject({
+      id: "p2",
+      price_try: 1299,
+      price_approx: true,
+      price_date: "2026-11-13",
+    });
+    // tarih bilinmiyorsa alan hiç eklenmez (uydurma tarih yok)
+    expect(facts[2]).toMatchObject({ price_try: 1299, price_approx: true });
+    expect(facts[2]).not.toHaveProperty("price_date");
+    // fiyatı olmayan ürün çıkarılmaz; fiyat null kalır
+    expect(facts[3]).toMatchObject({ id: "p4", price_try: null });
+    expect(facts).toHaveLength(8);
   });
 
   it("falls back to a model-free summary, or an honest sentence without data", () => {
@@ -492,5 +507,185 @@ describe("full-pilot findings: more soft characterizations, more absence verbs",
       ),
     ]);
     expect(absent.rejected).toEqual([]);
+  });
+});
+
+describe("approximate prices (decision 0213)", () => {
+  const approxFacts: ResultFact[] = [
+    {
+      id: "p1",
+      title: "Mini Magnetic Power Bank 10000mAh",
+      brand: null,
+      store: "AliExpress",
+      price_try: 312,
+      offer_count: 1,
+      price_approx: true,
+      price_date: "2026-11-13",
+    },
+    {
+      id: "p2",
+      title: "Anker 313 Power Bank",
+      brand: "Anker",
+      store: "n11",
+      price_try: 1099,
+      offer_count: 2,
+    },
+  ];
+  const run = (text: string) =>
+    validateAnswer(
+      {
+        paragraphs: [
+          {
+            text,
+            evidence: [
+              { item: "p1", field: "price", quote: "312" },
+              { item: "p1", field: "title", quote: "Power Bank" },
+            ],
+          },
+        ],
+      },
+      approxFacts,
+    );
+
+  it("an approximate price must be labelled approximate", () => {
+    expect(
+      run("Mini Magnetic Power Bank AliExpress'te 312 TL fiyatla listeleniyor burada.").rejected,
+    ).toEqual(["approx_price_unlabelled"]);
+    expect(
+      run("Mini Magnetic Power Bank AliExpress'te yaklaşık 312 TL fiyatla listeleniyor.").rejected,
+    ).toEqual([]);
+    expect(
+      run("Mini Magnetic Power Bank AliExpress'te 312 TL civarında bir fiyatla listeleniyor.")
+        .rejected,
+    ).toEqual([]);
+  });
+
+  it("an exact TRY price needs no label", () => {
+    const verdict = validateAnswer(
+      {
+        paragraphs: [
+          {
+            text: "Anker 313 Power Bank n11'de 1099 TL fiyatla listeleniyor burada.",
+            evidence: [
+              { item: "p2", field: "price", quote: "1099" },
+              { item: "p2", field: "store", quote: "n11" },
+            ],
+          },
+        ],
+      },
+      approxFacts,
+    );
+    expect(verdict.rejected).toEqual([]);
+  });
+
+  it("the price date can be stated only when the fact carries it", () => {
+    expect(
+      run("Mini Magnetic Power Bank yaklaşık 312 TL, fiyat 2026-11-13 kuruyla hesaplanmış durumda.")
+        .rejected,
+    ).toEqual([]);
+    expect(
+      run("Mini Magnetic Power Bank yaklaşık 312 TL, fiyat 2026-10-02 tarihli olarak listeleniyor.")
+        .rejected,
+    ).toEqual(["unevidenced_number"]);
+  });
+
+  it("never assumes shipping, tax or total cost; saying the data is absent is fine", () => {
+    for (const text of [
+      "Mini Magnetic Power Bank yaklaşık 312 TL ve kargo dahil bir fiyatla listeleniyor burada.",
+      "Mini Magnetic Power Bank yaklaşık 312 TL; vergiler eklenince toplam maliyet artar diye düşünülebilir.",
+      "Mini Magnetic Power Bank yaklaşık 312 TL ve kargosu ücretsiz olarak listelenmiş görünüyor.",
+    ]) {
+      expect(run(text).rejected[0], text).toBe("forbidden_claim");
+    }
+    expect(
+      run("Mini Magnetic Power Bank yaklaşık 312 TL; kargo ve vergi bilgisi belirtilmemiş durumda.")
+        .rejected,
+    ).toEqual([]);
+  });
+
+  it("fallback summary says foreign prices are approximate", () => {
+    const text = fallbackAnswerText(
+      [
+        ...approxFacts,
+        {
+          id: "p3",
+          title: "Üçüncü ürün",
+          brand: null,
+          store: "Trendyol",
+          price_try: 500,
+          offer_count: 1,
+        },
+      ],
+      "x",
+    );
+    expect(text).toContain("yaklaşık TL");
+  });
+});
+
+describe("false absence claims (decision 0213)", () => {
+  const facts: ResultFact[] = [
+    {
+      id: "p1",
+      title: "Woman Ballet Dance Shorts Cotton High Waist",
+      brand: null,
+      store: null,
+      price_try: 200,
+      offer_count: 1,
+    },
+    {
+      id: "p2",
+      title: "Case for iPhone 11 12 13 14 15 16 17 Pro Max",
+      brand: null,
+      store: null,
+      price_try: 100,
+      offer_count: 1,
+    },
+    {
+      id: "p3",
+      title: "Xiaomi Redmi Buds 5 LP40 Pro",
+      brand: null,
+      store: null,
+      price_try: 300,
+      offer_count: 1,
+    },
+  ];
+  const run = (text: string) =>
+    validateAnswer(
+      { paragraphs: [{ text, evidence: [{ item: "p1", field: "title", quote: "Cotton" }] }] },
+      facts,
+    );
+
+  it("rejects 'none of the titles mentions X' when a title does", () => {
+    expect(
+      run("Hiçbir ürünün başlığında pamuklu kumaş bilgisi yer almamaktadır, kalıp da yok.")
+        .rejected,
+    ).toEqual(["false_absence"]);
+    expect(
+      run("Listelenen ürünlerin başlıklarında iPhone 16 ile uyumluluk bilgisi bulunmuyor burada.")
+        .rejected,
+    ).toEqual(["false_absence"]);
+  });
+
+  it("accepts a scoped absence, a true absence and product names that merely contain digits", () => {
+    expect(
+      run("Diğer ürünlerin başlığında pamuklu kumaş bilgisi yer almamaktadır burada.").rejected,
+    ).toEqual([]);
+    expect(
+      run("Hiçbir ürünün başlığında deri malzeme bilgisi yer almamaktadır, yalnızca fiyat var.")
+        .rejected,
+    ).toEqual([]);
+    expect(
+      validateAnswer(
+        {
+          paragraphs: [
+            {
+              text: "Redmi Buds 5 ve LP40 Pro ürünlerinin başlıklarında pil süresi bilgisi bulunmamaktadır.",
+              evidence: [{ item: "p3", field: "title", quote: "Redmi Buds" }],
+            },
+          ],
+        },
+        facts,
+      ).rejected,
+    ).toEqual([]);
   });
 });
