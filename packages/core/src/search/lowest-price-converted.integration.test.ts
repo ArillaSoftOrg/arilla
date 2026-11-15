@@ -31,6 +31,8 @@ function query(sort: QueryObject["sort"]): QueryObject {
   };
 }
 
+const KNOWN = ["kurBir", "kurIki", "tryUc", "kurEs", "kur430", "try500"];
+
 interface Fixture {
   name: string;
   price: number; // teklif para biriminin alt birimi
@@ -65,6 +67,9 @@ describe("lowest_price: converted foreign prices", () => {
         { name: "tryUc", price: 30_000, currency: "TRY" }, // 300 TL
         { name: "kurIki", price: 250, currency: RATE_CCY }, // 2,50 KWD -> 250 TL (yaklaşık)
         { name: "kurBir", price: 100, currency: RATE_CCY }, // 1,00 KWD -> 100 TL (yaklaşık)
+        { name: "kurEs", price: 300, currency: RATE_CCY }, // 3,00 KWD -> 300 TL: tryUc ile AYNI tutar
+        { name: "kur430", price: 430, currency: RATE_CCY }, // 4,30 KWD -> 430 TL (yaklaşık)
+        { name: "try500", price: 50_000, currency: "TRY" }, // 500 TL, kesin
         { name: "kursuz", price: 50, currency: NO_RATE_CCY }, // kur yok: fiyat BELİRSİZ
         { name: "sifir", price: 0, currency: "TRY" }, // sıfır fiyat: BELİRSİZ
         { name: "stoksuz", price: 10, currency: RATE_CCY, inStock: false }, // 10 TL ama stokta yok
@@ -118,15 +123,29 @@ describe("lowest_price: converted foreign prices", () => {
 
   it("orders TRY and converted foreign offers by the price the card shows", async () => {
     const got = await names("lowest_price");
-    const known = got.filter((x) => ["kurBir", "kurIki", "tryUc"].includes(x.name));
-    expect(known.map((x) => x.name)).toEqual(["kurBir", "kurIki", "tryUc"]);
+    const known = got.filter((x) => KNOWN.includes(x.name));
+    expect(known.map((x) => x.name)).toEqual([
+      "kurBir",
+      "kurIki",
+      "tryUc",
+      "kurEs",
+      "kur430",
+      "try500",
+    ]);
     // kartta gösterilen fiyatlar (kuruş) artan
-    expect(known.map((x) => x.price)).toEqual([10_000, 25_000, 30_000]);
+    expect(known.map((x) => x.price)).toEqual([10_000, 25_000, 30_000, 30_000, 43_000, 50_000]);
+  });
+
+  it("the currency itself is no priority: a 430 TL converted offer precedes a 500 TL TRY offer", async () => {
+    const got = (await names("lowest_price")).map((x) => x.name);
+    expect(got.indexOf("kur430")).toBeLessThan(got.indexOf("try500"));
+    // eşit tutarda (300 TL) kesin TRY teklifi yaklaşık çevrilmişin önünde; tek eşitlik bozucu bu
+    expect(got.indexOf("tryUc")).toBeLessThan(got.indexOf("kurEs"));
   });
 
   it("never ranks an unknown price (no FX rate, zero price) as cheapest", async () => {
     const got = (await names("lowest_price")).map((x) => x.name);
-    const lastKnown = Math.max(...["kurBir", "kurIki", "tryUc"].map((n) => got.indexOf(n)));
+    const lastKnown = Math.max(...KNOWN.map((n) => got.indexOf(n)));
     for (const unknown of ["kursuz", "sifir"]) {
       expect(got, unknown).toContain(unknown);
       expect(got.indexOf(unknown), unknown).toBeGreaterThan(lastKnown);
@@ -143,6 +162,6 @@ describe("lowest_price: converted foreign prices", () => {
     const match = (await names("best_match")).map((x) => x.name);
     // Aynı aday kümesi, her sıralama hepsini döndürür.
     expect([...balanced].sort()).toEqual([...match].sort());
-    expect(balanced).toHaveLength(6);
+    expect(balanced).toHaveLength(9);
   });
 });
