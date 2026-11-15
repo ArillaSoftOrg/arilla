@@ -400,3 +400,44 @@ describe("evidence rules found by the 20-call smoke test", () => {
     ).toEqual([]);
   });
 });
+
+describe("absence phrases with Turkish suffixes, store names with digits", () => {
+  it("accepts yer almamaktadır / belirtilmemiştir / bulunmamaktadır as honest absence", () => {
+    for (const text of [
+      "Listelenen kılıfların başlıklarında dayanıklılık bilgisi yer almamaktadır, kenar korumasına dair veri yok.",
+      "Başlıklarda belirli bir telefon ile uyumluluk bilgisi belirtilmemiştir ve teknik detay verilmemiştir.",
+      "Çelik kalitesine dair teknik bir veri bulunmamaktadır, bu yüzden kıyaslama yapılamıyor burada.",
+    ]) {
+      const verdict = ok([para(text, [ev("p1", "title", "Philips Hue")])]);
+      expect(verdict.rejected, text).toEqual([]);
+    }
+  });
+
+  it("accepts a digit inside a cited store name (n11)", () => {
+    const facts: ResultFact[] = [
+      {
+        id: "p1",
+        title: "Anker Power Bank",
+        brand: "Anker",
+        store: "n11",
+        price_try: 1099,
+        offer_count: 2,
+      },
+    ];
+    const verdict = validateAnswer(
+      {
+        paragraphs: [
+          {
+            text: "Anker Power Bank, n11 mağazasında 1099 TL fiyatla listeleniyor ve markası Anker olarak geçiyor.",
+            evidence: [
+              { item: "p1", field: "store", quote: "n11" },
+              { item: "p1", field: "price", quote: "1099" },
+            ],
+          },
+        ],
+      },
+      facts,
+    );
+    expect(verdict.rejected).toEqual([]);
+  });
+});

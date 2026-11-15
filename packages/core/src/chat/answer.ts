@@ -125,7 +125,7 @@ const FORBIDDEN_TOPIC_RE =
   /(?<![\p{L}\d])(?:kalite\p{L}*|performans\p{L}*|h[ıi]zl[ıi]\p{L}*|yava[sş]\p{L}*|dayan[ıi]kl[ıi]\p{L}*|dayan[ıi]m\p{L}*|garanti\p{L}*|uyumlu\p{L}*|g[uü][cç]l[uü]\p{L}*)(?![\p{L}\d])/iu;
 /** Verinin YOKLUĞUNU söyleyen cümle ("başlıkta belirtilmemiş", "bilgi yok", "karşılaştıramıyorum"). */
 const ABSENCE_RE =
-  /(?<![\p{L}\d])(?:belirtilme(?:mi[sş]|yor|di)|belirtilmedi[gğ]i|yer alm(?:ıyor|ad[ıi][gğ][ıi]|amakta)|bulunm(?:uyor|amakta|ad[ıi][gğ][ıi])|bilgi(?:si)? yok|veri(?:si)? yok|mevcut de[gğ]il|k[ıi]yaslayam[ıi]yorum|de[gğ]erlendiremiyorum|kar[sş][ıi]la[sş]t[ıi]ram[ıi]yorum|s[oö]yleyemiyorum|bilmiyorum)(?![\p{L}\d])/iu;
+  /(?<![\p{L}\d])(?:belirtilme(?:mi[sş]|yor|di)\p{L}*|yer al(?:m[ıi]yor|mad[ıi]|mamak)\p{L}*|bulunm(?:uyor|amak|ad[ıi])\p{L}*|bilgi(?:si)? yok\p{L}*|veri(?:si)? yok\p{L}*|mevcut de[gğ]il\p{L}*|k[ıi]yaslayam[ıi]yorum|de[gğ]erlendiremiyorum|kar[sş][ıi]la[sş]t[ıi]ram[ıi]yorum|s[oö]yleyemiyorum|bilmiyorum)(?![\p{L}\d])/iu;
 
 /**
  * Güçlü iddialar (üstünlük/pazarlama) HER cümlede yasak. Konu iddiaları (kalite/performans/hız/
@@ -230,7 +230,10 @@ function paragraphProblem(
   const loose = new Set([
     ...strict,
     ...evidence.flatMap((e) => numericTokens(e.quote)),
-    ...evidence.flatMap((e) => numericTokens(facts.get(e.item)?.title ?? "")),
+    ...evidence.flatMap((e) => {
+      const fact = facts.get(e.item);
+      return numericTokens(`${fact?.title ?? ""} ${fact?.brand ?? ""} ${fact?.store ?? ""}`);
+    }),
   ]);
   const words = text.split(/\s+/);
   for (const [index, word] of words.entries()) {
