@@ -259,7 +259,7 @@ describe("searchWithFallback", () => {
     expect(outcome.trace.truncated).toBe(false);
   });
 
-  it("her fallback adimina sorgu butcesi verir; exact adimina vermez (karar 0205)", async () => {
+  it("her fallback adimina sorgu butcesi verir; exact adimina vermez (karar 0206)", async () => {
     const seen: (number | undefined)[] = [];
     const provider = {
       name: "spy",
@@ -284,7 +284,7 @@ describe("searchWithFallback", () => {
     expect(seen.every((budget) => budget === undefined)).toBe(true);
   });
 
-  it("butcesi asan adim atlanir: istek olmez, sonraki adimlar surer, iz truncated der (karar 0205)", async () => {
+  it("butcesi asan adim atlanir: istek olmez, sonraki adimlar surer, iz truncated der (karar 0206)", async () => {
     const stages: boolean[] = [];
     const provider = {
       name: "slow-fuzzy",

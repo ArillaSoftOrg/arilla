@@ -1,4 +1,4 @@
-# 0205 — Fallback adımı sorgu bütçesi (lexical zaman aşımı)
+# 0206 — Fallback adımı sorgu bütçesi (lexical zaman aşımı)
 
 Tarih: 15 Kasım 2026. Bağlı: 0129 (aday kümesi), 0066 (fallback), 0190/0196 (anlamsal sunum).
 

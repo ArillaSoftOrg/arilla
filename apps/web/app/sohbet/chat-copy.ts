@@ -39,6 +39,9 @@ export const CHAT_COPY = {
   restoreFull: "Bu sohbet doldu. Yeni sohbet başlatabilirsin.",
   seeAll: "Tümünü gör",
   closeMatchesHeading: "Birebir eşleşme yok, en yakınlar",
+  incompleteTitle: "Arama süresinde tamamlanamadı.",
+  incompleteDescription:
+    "Katalog taraması bu sefer bitmedi, bu yüzden ürün olmadığını söyleyemem. Biraz sonra tekrar dene ya da aramayı başka kelimelerle yaz.",
   noResultsTitle: "Bu aramayla eşleşen ürün bulamadım.",
   noResultsInTab: "Bu sıralamada gösterecek ürün yok.",
   noResultsInTabHint: "Seçtiklerimiz sekmesinde bu aramanın sonuçları var.",

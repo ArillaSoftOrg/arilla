@@ -348,13 +348,23 @@ export async function ChatResults({
     // Seçtiklerimiz dışındaki bir sekme boşsa (örn. fırsat sıralaması fiyat istatistiği ister)
     // sekmeler kalır ve neden söylenir; sonuç "yok" denmez.
     const otherTab = sort !== "secilen";
+    // Karar 0206: bütçeyle kesilen arama "yok" denmez.
+    const incomplete = outcome.trace.truncated && !otherTab;
     const emptyBlock = (
       <>
         <h3 id={headingId} className={styles.resultsHeading}>
-          {otherTab ? CHAT_COPY.noResultsInTab : CHAT_COPY.noResultsTitle}
+          {incomplete
+            ? CHAT_COPY.incompleteTitle
+            : otherTab
+              ? CHAT_COPY.noResultsInTab
+              : CHAT_COPY.noResultsTitle}
         </h3>
         <p className={styles.resultsNote}>
-          {otherTab ? CHAT_COPY.noResultsInTabHint : CHAT_COPY.noResultsDescription}
+          {incomplete
+            ? CHAT_COPY.incompleteDescription
+            : otherTab
+              ? CHAT_COPY.noResultsInTabHint
+              : CHAT_COPY.noResultsDescription}
         </p>
         {noteBlock}
       </>
@@ -365,7 +375,7 @@ export async function ChatResults({
     return (
       <section
         className={styles.results}
-        data-search-mode="empty"
+        data-search-mode={incomplete ? "incomplete" : "empty"}
         {...(waitForWeb
           ? { "aria-label": CHAT_COPY.resultsRegion }
           : { "aria-labelledby": headingId })}

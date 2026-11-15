@@ -49,7 +49,7 @@ const VERIFY_WINDOW = 96;
 export const FALLBACK_TIME_BUDGET_MS = 1500;
 
 /**
- * Tek bir fallback adiminin sorgu butcesi (ms, karar 0205). Milyonluk katalogda bulanik adim
+ * Tek bir fallback adiminin sorgu butcesi (ms, karar 0206). Milyonluk katalogda bulanik adim
  * (`<<%`) eslesmesi olmayan kelimede tum aday bitmap'ini tek tek denetler (olculdu: 4M satirda
  * 1,2 sn/dal, satir sayisiyla dogrusal); butce asilinca adim atlanir, istek surer.
  */

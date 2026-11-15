@@ -48,7 +48,7 @@ function isTimeout(error: unknown): boolean {
 }
 
 /**
- * Adim butcesi (karar 0205): adim kendi savepoint'inde `statement_timeout = budgetMs` ile calisir.
+ * Adim butcesi (karar 0206): adim kendi savepoint'inde `statement_timeout = budgetMs` ile calisir.
  * Asilirsa savepoint geri alinir (dis islem saglam kalir, onceki sinir geri gelir) ve bos sayfa doner;
  * boylece yavas bir istege bagli adim (bulanik arama) isteginin tamamini oldurmez. Basarida onceki
  * sinir elle geri konur (SET LOCAL savepoint'ten sonra da surer).
