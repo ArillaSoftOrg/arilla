@@ -270,6 +270,47 @@ export function validateAnswer(
   return { answer: kept.length > 0 ? { paragraphs: kept } : null, rejected };
 }
 
+/** Tanı (değerlendirme/denetim): her ham paragraf, kendi red nedeni ve delilsiz sayılarıyla. */
+export interface ParagraphInspection {
+  paragraph: AnswerParagraph;
+  /** `null` = geçti. */
+  problem: string | null;
+  /** `unevidenced_number` için metinde olup hiçbir alıntıda bulunmayan sayı belirteçleri. */
+  unevidencedNumbers: string[];
+}
+
+/**
+ * Doğrulama kararını DEĞİŞTİRMEZ; `validateAnswer` ile aynı kuralları uygular ama atılan paragrafın
+ * ham metnini ve nedenini korur. Yalnız ölçüm/denetim araçları için (kullanıcıya gösterilmez).
+ */
+export function inspectAnswer(
+  raw: unknown,
+  facts: readonly ResultFact[],
+  context: { question?: string } = {},
+): ParagraphInspection[] | null {
+  const parsed = parseAnswer(raw);
+  if (parsed === null) return null;
+  const byId = new Map(facts.map((fact) => [fact.id, fact]));
+  const userNumbers = new Set(numericTokens(context.question ?? ""));
+  return parsed.paragraphs.map((paragraph) => {
+    const problem = paragraphProblem(paragraph, byId, userNumbers);
+    const cited = paragraph.evidence.slice(0, ANSWER_MAX_EVIDENCE);
+    const allowed = new Set([
+      ...userNumbers,
+      ...cited.flatMap((e) => numericTokens(e.quote)),
+      ...cited.flatMap((e) => numericTokens(byId.get(e.item)?.title ?? "")),
+    ]);
+    const unevidencedNumbers =
+      problem === "unevidenced_number"
+        ? paragraph.text
+            .split(/\s+/)
+            .flatMap((word) => (/\d/.test(word) ? numericTokens(word) : []))
+            .filter((token) => !allowed.has(token))
+        : [];
+    return { paragraph, problem, unevidencedNumbers };
+  });
+}
+
 /** Kullanıcıya gösterilen metin: doğrulanan paragraflar boş satırla ayrılır. */
 export function answerText(answer: ChatAnswer): string {
   return answer.paragraphs.map((p) => p.text).join("\n\n");
