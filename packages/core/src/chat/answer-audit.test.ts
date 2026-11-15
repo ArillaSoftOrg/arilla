@@ -146,15 +146,20 @@ describe("labelled pilot set (134 human-reviewed answers)", () => {
     expect(ids("correct", (kept, shown) => kept !== shown)).toEqual(["backpack-01"]);
   });
 
-  it("KNOWN GAP: four false 'no title mentions X' answers still pass; word rules cannot verify absence", () => {
+  it("KNOWN GAP: two false 'no title mentions X' answers still pass; word rules cannot verify absence", () => {
     // Başlıkta bilgi varken "hiçbirinde yok" diyen cevaplar. Düzeltmek için başlıktan çıkarılmış
     // yapılandırılmış öznitelik gerekir (Faz 8). Bu test açık kalan riski görünür tutar; kapanırsa
     // liste kısalır ve test bilinçli olarak güncellenir.
-    expect(ids("wrong", (kept, shown) => kept === shown)).toEqual([
-      "desk_lamp-04",
-      "fidget-04",
-      "powerbank-06",
-      "women_fashion-04",
-    ]);
+    // `powerbank-06` (iPhone 16) ve `women_fashion-04` (Cotton) karar 0213 ile yakalandı.
+    expect(ids("wrong", (kept, shown) => kept === shown)).toEqual(["desk_lamp-04", "fidget-04"]);
+  });
+});
+
+describe("prompt carries the price and comparison rules (effect unmeasured until a model run)", () => {
+  it("states approximate-price, date, shipping/tax and comparison rules", () => {
+    expect(CHAT_INSTRUCTIONS).toMatch(/price_approx true ise/);
+    expect(CHAT_INSTRUCTIONS).toMatch(/yoksa hiçbir tarih söyleme/);
+    expect(CHAT_INSTRUCTIONS).toMatch(/Kargo, vergi, gümrük ve toplam maliyet/);
+    expect(CHAT_INSTRUCTIONS).toMatch(/yalnız fiyat sıralaması verme/);
   });
 });
