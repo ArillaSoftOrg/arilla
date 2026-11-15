@@ -62,7 +62,8 @@ export function fuseForIndex(
       mode: result.mode,
       entries: result.ranked.map((e) => ({
         productId: e.productId,
-        source: e.source,
+        // `auxiliary` (dogrulanmis yardimci sorgu, E4b) sunumda metin sonucudur.
+        source: e.source === "auxiliary" ? "text" : e.source,
         similarity: e.similarity,
       })),
     };
