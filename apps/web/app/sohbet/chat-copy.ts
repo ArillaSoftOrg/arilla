@@ -42,6 +42,7 @@ export const CHAT_COPY = {
   noResultsTitle: "Bu aramayla eşleşen ürün bulamadım.",
   noResultsInTab: "Bu sıralamada gösterecek ürün yok.",
   noResultsInTabHint: "Seçtiklerimiz sekmesinde bu aramanın sonuçları var.",
+  noResultsInTabHintV2: "Önerilenler sekmesinde bu aramanın sonuçları var.",
   noResultsDescription:
     "Aşağıya renk, marka ya da bütçeni yazarsan birlikte daraltalım; bir ayrıntıyı gevşetmeyi ya da farklı kelimelerle yazmayı da deneyebilirsin.",
   resultsUnavailable: "Sonuçlar şu anda yüklenemedi. Biraz sonra tekrar dener misin?",
