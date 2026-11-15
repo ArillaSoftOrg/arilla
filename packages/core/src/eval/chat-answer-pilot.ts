@@ -6,7 +6,12 @@
  * denetim sayfasi (JSON + Markdown) ve denetim sonucu ozeti. Gercek modele YALNIZ betik, acik
  * `--real` ve iki tavanla gider; bu modul hicbir saglayiciyi kendisi cagirmaz.
  */
-import { looksLikeResultQuestion, type ResultFact } from "../chat/answer.ts";
+import {
+  inspectAnswer,
+  looksLikeResultQuestion,
+  type ParagraphInspection,
+  type ResultFact,
+} from "../chat/answer.ts";
 import { emptyIntent } from "../chat/intent.ts";
 import { type ChatInterpreter, type InterpretRequest, interpretTurn } from "../chat/interpreter.ts";
 import type { LlmCall } from "../llm/client.ts";
@@ -316,6 +321,13 @@ export interface CaseRecord {
   /** Kullaniciya gosterilecek metin (`message`); search/clarify'da modelin tek cumlesi. */
   shownText: string | null;
   paragraphs: { text: string; evidence: { item: string; field: string; quote: string }[] }[];
+  /** Modelin HAM paragraflari (atilanlar dahil), red nedeni ve delilsiz sayilarla. Kullaniciya gitmez. */
+  rawParagraphs: {
+    text: string;
+    evidence: { item: string; field: string; quote: string }[];
+    problem: string | null;
+    unevidencedNumbers: string[];
+  }[];
   latencyMs: number | null;
   attempts: number;
   inputTokens: number;
@@ -433,6 +445,7 @@ function baseRecord(
     fallbackUsed: false,
     shownText: null,
     paragraphs: [],
+    rawParagraphs: [],
     latencyMs: null,
     attempts: 0,
     inputTokens: 0,
@@ -449,17 +462,29 @@ async function runOne(
   request: InterpretRequest,
 ): Promise<{
   outcome: Awaited<ReturnType<typeof interpretTurn>>;
+  /** Modelin ham `answer` nesnesi (yakalanamadiysa undefined). */
+  rawAnswer: unknown;
   latencyMs: number;
   usage: TokenUsage & { attempts: number };
   micros: number;
 }> {
   const start = deps.now();
-  const outcome = await interpretTurn(deps.interpreter, request);
+  let rawAnswer: unknown;
+  const capturing: ChatInterpreter = {
+    modelVersion: deps.interpreter.modelVersion,
+    async interpret(req, options) {
+      const result = await deps.interpreter.interpret(req, options);
+      const value = result.value as { answer?: unknown } | null;
+      rawAnswer = value && typeof value === "object" ? value.answer : undefined;
+      return result;
+    },
+  };
+  const outcome = await interpretTurn(capturing, request);
   const latencyMs = Math.round(deps.now() - start);
   const usage = sumCalls(outcome.calls);
   const micros = costUsdMicros(usage, deps.rule);
   deps.tracker.record(usage.attempts, micros);
-  return { outcome, latencyMs, usage, micros };
+  return { outcome, rawAnswer, latencyMs, usage, micros };
 }
 
 /** Vakalari sirayla kosar (paralel yok: gecikme olcumu ve tavan kesinligi icin). */
@@ -486,7 +511,7 @@ export async function runPilot(cases: readonly PilotCase[], deps: RunDeps): Prom
         records.push(record);
         continue;
       }
-      const { outcome, latencyMs, usage, micros } = await runOne(deps, request);
+      const { outcome, rawAnswer, latencyMs, usage, micros } = await runOne(deps, request);
       record.latencyMs = latencyMs;
       record.attempts = usage.attempts;
       record.inputTokens = usage.inputTokens;
@@ -511,6 +536,13 @@ export async function runPilot(cases: readonly PilotCase[], deps: RunDeps): Prom
           record.validated = answer.validated === true;
           record.rejected = answer.rejected ?? [];
           record.paragraphs = answer.paragraphs ?? [];
+          const inspected: ParagraphInspection[] | null = inspectAnswer(rawAnswer, facts);
+          record.rawParagraphs = (inspected ?? []).map((item) => ({
+            text: item.paragraph.text,
+            evidence: item.paragraph.evidence,
+            problem: item.problem,
+            unevidencedNumbers: item.unevidencedNumbers,
+          }));
           record.fallbackUsed = !record.validated;
         }
       }
@@ -832,6 +864,11 @@ export function renderMarkdown(report: AuditReport): string {
     for (const [i, p] of r.paragraphs.entries()) {
       lines.push(
         `  - P${i + 1}: ${cell(p.text)} · delil: ${p.evidence.map((e) => `${e.item}.${e.field}="${cell(e.quote)}"`).join("; ") || "-"}`,
+      );
+    }
+    for (const [i, p] of r.rawParagraphs.entries()) {
+      lines.push(
+        `  - HAM P${i + 1} [${p.problem ?? "geçti"}${p.unevidencedNumbers.length ? ` sayı: ${p.unevidencedNumbers.join(",")}` : ""}]: ${cell(p.text)} · delil: ${p.evidence.map((e) => `${e.item}.${e.field}="${cell(e.quote)}"`).join("; ") || "-"}`,
       );
     }
     lines.push(

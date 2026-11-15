@@ -160,6 +160,7 @@ describe("yuzdelik ve toplu olcum", () => {
     fallbackUsed: false,
     shownText: "t",
     paragraphs: [],
+    rawParagraphs: [],
     latencyMs: 1000,
     attempts: 1,
     inputTokens: 4000,
@@ -462,5 +463,34 @@ describe("kuru kosu (sahte model) uctan uca", () => {
     const subset = PILOT_CASES.filter((c) => c.expect === "not_routed");
     const result = await runPilot(subset, deps({ ignoreTrigger: true }).deps);
     expect(result.records.every((r) => r.status === "ran")).toBe(true);
+  });
+});
+
+describe("raw paragraph capture (rejected paragraphs stay auditable)", () => {
+  it("inspectAnswer reports the reason and the unevidenced numbers without changing the verdict", async () => {
+    const { inspectAnswer, validateAnswer } = await import("../chat/answer.ts");
+    const facts = [
+      {
+        id: "p1",
+        title: "Power Bank 10000mAh 22.5W",
+        brand: null,
+        store: null,
+        price_try: null,
+        offer_count: 2,
+      },
+    ];
+    const raw = {
+      paragraphs: [
+        {
+          text: "Bu ürün 10000mAh kapasiteli ve 22.5W çıkış veriyor, ayrıca 3 teklif var.",
+          evidence: [{ item: "p1", field: "title", quote: "10000mAh" }],
+        },
+      ],
+    };
+    const inspected = inspectAnswer(raw, facts);
+    expect(inspected?.[0]?.problem).toBe("unevidenced_number");
+    expect(inspected?.[0]?.unevidencedNumbers).toEqual(["225", "3"]);
+    expect(validateAnswer(raw, facts).answer).toBeNull();
+    expect(inspectAnswer("x", facts)).toBeNull();
   });
 });
