@@ -86,6 +86,8 @@ export interface PilotOptions {
   ids: string[] | null;
   types: string[] | null;
   ignoreTrigger: boolean;
+  /** Karar 0213: AliExpress urunlerine sentetik yaklasik TL fiyat + kur tarihi ver. */
+  approxPrices: boolean;
   repeat: number;
   outDir: string | null;
   summarize: string | null;
@@ -104,7 +106,7 @@ const VALUE_FLAGS = new Set([
   "--out",
   "--summarize",
 ]);
-const BOOL_FLAGS = new Set(["--real", "--dry-run", "--ignore-trigger"]);
+const BOOL_FLAGS = new Set(["--real", "--dry-run", "--ignore-trigger", "--approx-prices"]);
 
 function positiveInt(raw: string | undefined): number | null {
   if (raw === undefined || !/^\d{1,6}$/.test(raw)) return null;
@@ -197,6 +199,7 @@ export function parseArgs(argv: readonly string[]): ParseResult {
       ids: list("--ids"),
       types: list("--types"),
       ignoreTrigger: flags.has("--ignore-trigger"),
+      approxPrices: flags.has("--approx-prices"),
       repeat,
       outDir: values.get("--out") ?? null,
       summarize: values.get("--summarize") ?? null,
@@ -257,8 +260,12 @@ export class CapTracker {
 // ---------------------------------------------------------------------------
 
 /** Modele giden istegin ayni bicimi: iki kullanici mesaji + saklanan niyet + (varsa) gercekler. */
-export function buildRequest(testCase: PilotCase, withFacts: boolean): InterpretRequest {
-  const facts = withFacts ? factsForCase(testCase) : [];
+export function buildRequest(
+  testCase: PilotCase,
+  withFacts: boolean,
+  approxPrices = false,
+): InterpretRequest {
+  const facts = withFacts ? factsForCase(testCase, { approxPrices }) : [];
   return {
     messages: [
       { role: "user", kind: "text", text: testCase.query },
@@ -388,7 +395,9 @@ export function autoFlags(
 
 export interface RunDeps {
   interpreter: ChatInterpreter;
-  options: Pick<PilotOptions, "ignoreTrigger" | "baseline" | "repeat">;
+  options: Pick<PilotOptions, "ignoreTrigger" | "baseline" | "repeat"> & {
+    approxPrices?: boolean;
+  };
   tracker: CapTracker;
   rule: LlmPriceRule;
   /** `performance.now()` benzeri; testlerde enjekte edilir. */
@@ -497,7 +506,7 @@ export async function runPilot(cases: readonly PilotCase[], deps: RunDeps): Prom
     for (const testCase of cases) {
       const routed = looksLikeResultQuestion(testCase.question);
       const record = baseRecord(deps.runId, testCase, repeat, routed);
-      const facts = factsForCase(testCase);
+      const facts = factsForCase(testCase, { approxPrices: deps.options.approxPrices });
       const callModel = deps.options.ignoreTrigger || routed;
       if (!callModel) {
         record.status = "skipped_not_routed";
@@ -505,7 +514,7 @@ export async function runPilot(cases: readonly PilotCase[], deps: RunDeps): Prom
         records.push(record);
         continue;
       }
-      const request = buildRequest(testCase, true);
+      const request = buildRequest(testCase, true, deps.options.approxPrices);
       if (!deps.tracker.allow(estimateTokens(requestChars(request)))) {
         record.status = "skipped_cap";
         records.push(record);

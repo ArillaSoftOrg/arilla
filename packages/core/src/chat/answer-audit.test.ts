@@ -163,3 +163,11 @@ describe("prompt carries the price and comparison rules (effect unmeasured until
     expect(CHAT_INSTRUCTIONS).toMatch(/yalnız fiyat sıralaması verme/);
   });
 });
+
+describe("prompt rules found by the approximate-price run (effect unmeasured)", () => {
+  it("tells the model to compare ALL prices for superlatives and not to claim freshness", () => {
+    expect(CHAT_INSTRUCTIONS).toMatch(/TÜM ürünleri \(yaklaşık olanlar dahil\)/);
+    expect(CHAT_INSTRUCTIONS).toMatch(/"güncel" deme/);
+    expect(CHAT_INSTRUCTIONS).toMatch(/bunların bilinmediğini açıkça söyle/);
+  });
+});

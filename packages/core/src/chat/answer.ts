@@ -103,7 +103,7 @@ export function toResultFacts(items: readonly FactSourceItem[]): ResultFact[] {
  * normal akışa (arama/netleştirme) düşer.
  */
 const RESULT_QUESTION_RE =
-  /(?<![\p{L}\d])(?:hangisi|hangileri|fark(?:lar[ıi])?|kar[sş][ıi]la[sş]t[ıi]r\p{L}*|a[cç][ıi]kla\p{L}*|anlat\p{L}*|[oö]ner\p{L}*|tavsiye\p{L}*|daha iyi|daha uygun|aras[ıi]nda|bunlar\p{L}*|bu [uü]r[uü]nler\p{L}*)(?![\p{L}\d])/iu;
+  /(?<![\p{L}\d])(?:hangisi|hangileri|fark(?:lar[ıi])?|kar[sş][ıi]la[sş]t[ıi]r\p{L}*|a[cç][ıi]kla\p{L}*|anlat\p{L}*|[oö]ner\p{L}*|tavsiye\p{L}*|daha iyi|daha uygun|aras[ıi]nda|bunlar\p{L}*|bu [uü]r[uü]nler\p{L}*|bu fiyat\p{L}*|fiyat\p{L}* g[oö]re s[ıi]rala\p{L}*|hangi ma[gğ]aza\p{L}*|kargo\p{L}*)(?![\p{L}\d])/iu;
 
 export function looksLikeResultQuestion(text: string): boolean {
   const trimmed = text.trim();
@@ -143,10 +143,10 @@ function digitsOf(text: string): string {
 const FORBIDDEN_STRONG_RE =
   /(?<![\p{L}\d])(?:en iyi|m[uü]kemmel\p{L}*|harika\p{L}*|ucuz\p{L}*|sat[ıi]n al\p{L}*|dupe|tavsiye ederim|kesinlikle|m[uü]thi[sş])(?![\p{L}\d])/iu;
 const FORBIDDEN_TOPIC_RE =
-  /(?<![\p{L}\d])(?:kalite\p{L}*|performans\p{L}*|h[ıi]zl[ıi]\p{L}*|yava[sş]\p{L}*|dayan[ıi]kl[ıi]\p{L}*|dayan[ıi]m\p{L}*|garanti\p{L}*|uyumlu\p{L}*|g[uü][cç]l[uü]\p{L}*|teknolojik\p{L}*|imkan\p{L}*|tasarlan\p{L}*|y[oö]nelik|ama[cç]l[ıi]|kullan[ıi]ma uygun|ideal\p{L}*|geli[sş]mi[sş]\p{L}*|kapsaml[ıi]\p{L}*|pratik|hitap|geni[sş] (?:[oö]zellik|depolama|kapasite|alan)\p{L}*|[oö]zellik set\p{L}*|kargo\p{L}*|vergi\p{L}*|kdv|g[uü]mr[uü]k\p{L}*|toplam (?:maliyet|tutar|bedel)\p{L}*|[uü]cretsiz\p{L}*)(?![\p{L}\d])/iu;
+  /(?<![\p{L}\d])(?:kalite\p{L}*|performans\p{L}*|h[ıi]zl[ıi]\p{L}*|yava[sş]\p{L}*|dayan[ıi]kl[ıi]\p{L}*|dayan[ıi]m\p{L}*|garanti\p{L}*|uyumlu\p{L}*|g[uü][cç]l[uü]\p{L}*|teknolojik\p{L}*|imkan\p{L}*|tasarlan\p{L}*|y[oö]nelik|ama[cç]l[ıi]|kullan[ıi]ma uygun|ideal\p{L}*|geli[sş]mi[sş]\p{L}*|kapsaml[ıi]\p{L}*|pratik|hitap|geni[sş] (?:[oö]zellik|depolama|kapasite|alan)\p{L}*|[oö]zellik set\p{L}*|kargo\p{L}*|vergi\p{L}*|kdv|g[uü]mr[uü]k\p{L}*|toplam (?:maliyet|tutar|bedel)\p{L}*|[uü]cretsiz\p{L}*|g[uü]ncel\p{L}*)(?![\p{L}\d])/iu;
 /** Verinin YOKLUĞUNU söyleyen cümle ("başlıkta belirtilmemiş", "bilgi yok", "karşılaştıramıyorum"). */
 const ABSENCE_RE =
-  /(?<![\p{L}\d])(?:belirtilme(?:mi[sş]|yor|di)\p{L}*|(?:verilme|payla[sş][ıi]lma|sunulma|ifade edilme)(?:mi[sş]|yor|di)\p{L}*|yer al(?:m[ıi]yor|mad[ıi]|mamak)\p{L}*|bulunm(?:uyor|amak|ad[ıi])\p{L}*|bilgi(?:si)? yok\p{L}*|veri(?:si)? yok\p{L}*|mevcut de[gğ]il\p{L}*|k[ıi]yaslayam[ıi]yorum|de[gğ]erlendiremiyorum|kar[sş][ıi]la[sş]t[ıi]ram[ıi]yorum|s[oö]yleyemiyorum|bilmiyorum)(?![\p{L}\d])/iu;
+  /(?<![\p{L}\d])(?:belirtilme(?:mi[sş]|yor|di)\p{L}*|(?:verilme|payla[sş][ıi]lma|sunulma|ifade edilme)(?:mi[sş]|yor|di)\p{L}*|yer al(?:m[ıi]yor|mad[ıi]|mamak)\p{L}*|bulunm(?:uyor|amak|ad[ıi])\p{L}*|bilgi(?:si)? yok\p{L}*|veri(?:si)? yok\p{L}*|mevcut de[gğ]il\p{L}*|k[ıi]yaslayam[ıi]yorum|de[gğ]erlendiremiyorum|kar[sş][ıi]la[sş]t[ıi]ram[ıi]yorum|s[oö]yleyemiyorum|bilmiyorum|olmayabil\p{L}*|bilinmiyor)(?![\p{L}\d])/iu;
 
 /**
  * İnsan denetimi (15 Kas 2026 pilotu, 134 cevap) ile doğrulanan çıkarım kalıpları; her biri etiketli
@@ -160,7 +160,7 @@ const ABSENCE_RE =
  * Konu iddiaları gibi, yalnız verinin yokluğunu söyleyen yan cümlede serbesttir.
  */
 const FORBIDDEN_INFERENCE_RE =
-  /(?<![\p{L}\d])(?:ar[ıi]yorsan\p{L}*|istersen\p{L}*|d[uü][sş][uü]n[uü]yorsan\p{L}*|ihtiya[cç]\p{L}* varsa|daha (?!uygun fiyat|d[uü][sş][uü]k|y[uü]ksek|pahal[ıi]|fazla|az(?![\p{L}\d])|[cç]ok(?![\p{L}\d]))\p{L}+|i[cç]in [uü]retil\p{L}*|[oö]zel [uü]retil\p{L}*|geli[sş]tiril\p{L}*|gereksinim\p{L}*|ki[sş]iselle[sş]tir\p{L}*|yard[ıi]mc[ıi] ol\p{L}*|deneyim\p{L}*|segment\p{L}*|klasik bir se[cç]enek|de[gğ]erlendirebilece\p{L}*|\p{L}{3,}[ae]bilen)(?![\p{L}\d])/iu;
+  /(?<![\p{L}\d])(?:ar[ıi]yorsan\p{L}*|istersen\p{L}*|istiyorsan\p{L}*|d[uü][sş][uü]n[uü]yorsan\p{L}*|ihtiya[cç]\p{L}* varsa|daha (?!uygun fiyat|d[uü][sş][uü]k|y[uü]ksek|pahal[ıi]|fazla|az(?![\p{L}\d])|[cç]ok(?![\p{L}\d]))\p{L}+|i[cç]in [uü]retil\p{L}*|[oö]zel [uü]retil\p{L}*|geli[sş]tiril\p{L}*|gereksinim\p{L}*|ki[sş]iselle[sş]tir\p{L}*|yard[ıi]mc[ıi] ol\p{L}*|deneyim\p{L}*|segment\p{L}*|klasik bir se[cç]enek|de[gğ]erlendirebilece\p{L}*|\p{L}{3,}[ae]bilen)(?![\p{L}\d])/iu;
 /**
  * Modele verilmeyen kaynaklar: yalnız başlık, marka, mağaza, fiyat ve teklif sayısı verilir. "Ürün
  * açıklamalarında … yok" demek, okunmamış bir kaynak hakkında iddiadır; yokluk cümlesinde de yasak.
@@ -207,6 +207,38 @@ function foldedWords(text: string): string[] {
  * varken "pamuklu yok", "iPhone … 16" varken "iPhone 16 ifadesi yok"). İki dar sinyal: (1) malzeme
  * sözlüğündeki bir terim, (2) iki+ haneli sayı (model/seri numarası). Kısmi kapsamlı cümleye uygulanmaz.
  */
+const LOWEST_CLAIM_RE =
+  /(?<![\p{L}\d])en (?:uygun fiyatl\p{L}*|d[uü][sş][uü]k(?: fiyatl\p{L}*)?|ucuz\p{L}*)(?![\p{L}\d])/iu;
+const HIGHEST_CLAIM_RE =
+  /(?<![\p{L}\d])en (?:y[uü]ksek(?: fiyatl\p{L}*)?|pahal[ıi]\p{L}*)(?![\p{L}\d])/iu;
+
+/**
+ * "En uygun fiyatlı / en düşük / en yüksek" iddiası, cümledeki fiyatlardan biri gerçeklerdeki gerçek
+ * en düşük/en yüksek fiyat DEĞİLSE yanlıştır (ör. 1099 TL'ye "en uygun" derken listede 149 TL var).
+ * Yalnız kapsamsız cümleye uygulanır: bir mağaza adı ya da "mağaza" sözcüğü geçen cümle (kapsamlı
+ * iddia: "Trendyol'daki ürünler arasında en düşük") ve cümlede hiç gerçek fiyat yoksa denetlenmez.
+ */
+function wrongSuperlative(text: string, facts: readonly ResultFact[]): boolean {
+  const prices = facts.map((fact) => fact.price_try).filter((p): p is number => p !== null);
+  if (prices.length < 2) return false;
+  const min = Math.min(...prices);
+  const max = Math.max(...prices);
+  const stores = facts
+    .map((fact) => fact.store?.toLocaleLowerCase("tr-TR"))
+    .filter((store): store is string => Boolean(store));
+  for (const clause of text.split(/(?<=[.!?;])\s+/)) {
+    const low = clause.toLocaleLowerCase("tr-TR");
+    if (low.includes("mağaza") || stores.some((store) => low.includes(store))) continue;
+    const quoted = [...new Set(numericTokens(clause).map(Number))].filter((n) =>
+      prices.includes(n),
+    );
+    if (quoted.length === 0) continue;
+    if (LOWEST_CLAIM_RE.test(low) && !quoted.includes(min)) return true;
+    if (HIGHEST_CLAIM_RE.test(low) && !quoted.includes(max)) return true;
+  }
+  return false;
+}
+
 function falseAbsence(text: string, facts: readonly ResultFact[]): boolean {
   if (facts.length === 0) return false;
   const titleWords = facts.map((fact) => foldedWords(fact.title));
@@ -237,7 +269,9 @@ function falseAbsence(text: string, facts: readonly ResultFact[]): boolean {
  * dayanıklılık/garanti/uyumluluk) yalnız verinin yokluğunu söyleyen cümlede serbest: "başlıkta
  * dayanıklılık bilgisi belirtilmemiş" dürüst cevaptır; olumlu iddia olarak yazılırsa yasak.
  */
-function forbiddenClaim(text: string): boolean {
+function forbiddenClaim(rawText: string): boolean {
+  // Türkçe küçük harf: "İhtiyacınız" -> "ihtiyacınız" (normal /i bayrağı İ'yi eşlemez).
+  const text = rawText.toLocaleLowerCase("tr-TR");
   if (FORBIDDEN_STRONG_RE.test(text) || NONEXISTENT_SOURCE_RE.test(text)) return true;
   return text
     .split(/(?<=[.!?;,])\s+|\s+(?:ancak|ama|fakat|oysa)\s+/i)
@@ -335,6 +369,7 @@ function paragraphProblem(
   );
   if (citesApproxPrice && !APPROX_WORD_RE.test(text)) return "approx_price_unlabelled";
   if (falseAbsence(text, allFacts)) return "false_absence";
+  if (wrongSuperlative(text, allFacts)) return "wrong_superlative";
   // Rakamlı her sözcük bu paragrafın bir alıntısında geçmeli (uydurma sayı/özellik engeli): sayı
   // BELİRTEÇLERİ eşleşir (alt dize değil): "12" metinde, alıntıda yalnız "1299" varsa reddedilir.
   // Fiyat/teklif iddiaları ("849 TL") yalnız o alıntılarla ya da kullanıcının kendi sayısıyla
