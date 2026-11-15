@@ -1,4 +1,4 @@
-"""Kaynak markasi -> mevcut marka baglama (karar 0206): saf kararlar, veritabani yok."""
+"""Kaynak markasi -> mevcut marka baglama (karar 0209): saf kararlar, veritabani yok."""
 
 from __future__ import annotations
 

@@ -1,4 +1,4 @@
-# 0206 — Kaynak markasını (`offer.brand_raw`) mevcut markaya bağlama
+# 0209 — Kaynak markasını (`offer.brand_raw`) mevcut markaya bağlama
 
 **Tarih:** 15 Kasım 2026
 **Durum:** Önerildi (PR). Üretimde çalıştırma ayrı, açık bir operasyon kararıdır; bu PR üretimde HİÇBİR veri yazmaz.

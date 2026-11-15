@@ -1,4 +1,4 @@
-"""Yapilandirilmis kaynak markasini (`offer.brand_raw`) mevcut `brand` satirina baglar (karar 0206).
+"""Yapilandirilmis kaynak markasini (`offer.brand_raw`) mevcut `brand` satirina baglar (karar 0209).
 
 Yalniz markayi baglar; kategoriye, `product_classification`a, slug/fiyat/yayin durumuna
 dokunmaz. Kural DETERMINISTIKTIR:

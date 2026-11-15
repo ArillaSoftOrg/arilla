@@ -221,7 +221,7 @@ def main(argv: list[str] | None = None) -> int:
 
     p_lb = sub.add_parser(
         "link-brands",
-        help="kaynak markasini (offer.brand_raw) mevcut brand satirina baglar (karar 0206)",
+        help="kaynak markasini (offer.brand_raw) mevcut brand satirina baglar (karar 0209)",
     )
     p_lb.add_argument("--merchant", required=True, help="kaynak (merchant slug)")
     p_lb.add_argument("--batch", type=int, default=brand_link_mod.DEFAULT_BATCH)
