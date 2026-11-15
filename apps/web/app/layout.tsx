@@ -1,5 +1,5 @@
 import type { Metadata, Viewport } from "next";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { preload } from "react-dom";
 import "./globals.css";
 import { readAppUrl } from "@arilla/core";
@@ -79,12 +79,16 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           {children}
           {ga4Id ? (
             <ConsentGate category="analytics">
-              <Ga4Client measurementId={ga4Id} />
+              <Suspense fallback={null}>
+                <Ga4Client measurementId={ga4Id} />
+              </Suspense>
             </ConsentGate>
           ) : null}
           {umami ? (
             <ConsentGate category="analytics">
-              <UmamiClient scriptUrl={umami.scriptUrl} websiteId={umami.websiteId} />
+              <Suspense fallback={null}>
+                <UmamiClient scriptUrl={umami.scriptUrl} websiteId={umami.websiteId} />
+              </Suspense>
             </ConsentGate>
           ) : null}
         </ConsentProvider>

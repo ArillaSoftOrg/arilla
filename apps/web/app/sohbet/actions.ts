@@ -36,7 +36,7 @@ import type { PublicError } from "@arilla/core/errors";
 import { getDatabase } from "@arilla/db";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
-import { homeConversationHref, homeSearchHref } from "../home-chat-mode.ts";
+import { homeConversationHref, homeGuestHref, homeSearchHref } from "../home-chat-mode.ts";
 import { actionError, errorFromLlmCode, SESSION_EXPIRED } from "../lib/action-error.ts";
 import { verifySession } from "../lib/dal.ts";
 
@@ -53,9 +53,9 @@ function plainSearchHref(text: string): string {
   return text ? homeSearchHref(text) : "/";
 }
 
-/** Anonim ana sayfa aramasi: sorguyu misafir sohbet kabugunda sonuc anina tasir. */
+/** Anonim ana sayfa aramasi: sorguyu ana sayfadaki misafir sohbet kabugunda sonuc anina tasir (karar 0204). */
 function gatedSearchHref(text: string): string {
-  return `/sohbet/misafir?${new URLSearchParams({ q: text }).toString()}`;
+  return homeGuestHref(text);
 }
 
 /**

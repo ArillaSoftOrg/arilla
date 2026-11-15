@@ -14,8 +14,10 @@ Ayrı bir sohbet sayfası yoktur. Sohbet ve arama turu ana sayfada (`/`) açıl�
   (`startConversationAction` → `/?s=<id>`); sohbet kabuğu (`chrome="chat"`, footer'sız) yumuşak giriş animasyonuyla açılır.
 - `/sohbet` (kök) 404. `/sohbet/<uuid>` 308 ile `/?s=<uuid>` (eski bağlantılar; `sirala`/`ac` korunur).
   `/sohbet/yeni` ana sayfaya gider (yeni sekme aktarımı artık kullanılmaz; ana sayfa aynı sekmede çalışır).
-- `/sohbet/link`, `/sohbet/misafir`, `/sohbet/gorsel/[id]` bu aşamada AYNEN kalır; `/ara` → `/` (308),
-  `/ara/link` → `/sohbet/link`.
+- `/?q=<sorgu>&g=1[&n=..]`: misafir sohbeti (girişsiz ana sayfa gönderimi; eski `/sohbet/misafir`). İş mantığı
+  (netleştirme soruları, 6 sonuç, sonuç anında giriş kapısı, girişliyse konuşma başlatma) `GuestChatView`e taşındı,
+  değişmedi. `/sohbet/misafir?q=&n=` 308 ile bu adrese gider. Giriş gerektiren her şey (konuşma `?s=`) eski kapıda.
+- `/sohbet/link`, `/sohbet/gorsel/[id]` bu aşamada AYNEN kalır; `/ara` → `/` (308), `/ara/link` → `/sohbet/link`.
 
 ## Gerekçe
 
@@ -27,7 +29,9 @@ Durum URL'de olduğu için yenileme, geri/ileri ve giriş sonrası dönüş çal
 
 `/?s=` ve `/?q=` dizinlenmez: sayfa `robots: noindex, nofollow`, canonical `/`; `X-Robots-Tag: noindex, nofollow`
 başlığı bu sorgu parametreleriyle (`next.config` `headers` `has: query`); `robots.txt`'te `Disallow: /*?s=`, `/*?q=`.
-Parametresiz `/` indekslenir ve değişmez. Konuşma kimliği GA4/Umami yolunda zaten yoktur (sorgu parametresi atılır).
+Parametresiz `/` indekslenir ve değişmez. Ölçüm: GA4/Umami yolu `sanitizePage` ile sabit şablona iner: `/?s=<id>` → `/sohbet/[id]`, `/?q=…` (misafir dahil) → `/sohbet`
+(`pageArea` = `chat`); parametresiz `/` = `home`. Yalnızca parametrenin VARLIĞINA bakılır; konuşma kimliği, sorgu metni ve `n`
+adımları hiçbir analitik servise gitmez. İstemci, `/` üzerindeki `s`/`q` değişimini de sayfa görüntüleme sayar.
 
 ## Bakım kipi ve anonim oturum
 

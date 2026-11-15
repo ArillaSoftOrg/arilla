@@ -137,3 +137,24 @@ describe("gtag yapılandırması", () => {
     expect(ga4ConfigParams(false).cookie_flags).toBe("SameSite=Lax");
   });
 });
+
+describe("ana sayfa + sohbet tek yüzey ölçümü (karar 0204)", () => {
+  const origin = "https://manicepte.com";
+  it("/?s= ve /?q= şablona iner; kimlik ve sorgu metni hiçbir yoldan çıkmaz", () => {
+    const id = "8c1f0d2e-1234-4abc-9def-001122334455";
+    const conv = sanitizePage(`${origin}/?s=${id}&sirala=firsat`, origin);
+    expect(conv?.path).toBe("/sohbet/[id]");
+    expect(conv?.location).toBe(`${origin}/sohbet/[id]`);
+    const tour = sanitizePage(`${origin}/?q=kad%C4%B1n+terlik&g=1&n=t~gizli`, origin);
+    expect(tour?.path).toBe("/sohbet");
+    expect(JSON.stringify(tour)).not.toMatch(/terlik|gizli|8c1f0d2e/);
+  });
+
+  it("parametresiz / ve boş q ana sayfa kalır; UTM yine korunur", () => {
+    expect(sanitizePage(`${origin}/`, origin)?.path).toBe("/");
+    expect(sanitizePage(`${origin}/?q=%20`, origin)?.path).toBe("/");
+    expect(sanitizePage(`${origin}/?utm_source=x&s=${"a"}`, origin)?.location).toBe(
+      `${origin}/sohbet/[id]?utm_source=x`,
+    );
+  });
+});

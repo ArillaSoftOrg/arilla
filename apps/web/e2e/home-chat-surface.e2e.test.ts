@@ -239,6 +239,22 @@ describe.skipIf(!CHROME)("ana sayfa ve sohbet tek yüzey (karar 0204)", () => {
     await page.goto(`${BASE}/?s=${existingId}`);
     await until(page, async () => (await pathname(page)) === "/giris", "girişe yönlendirme");
     expect(decodeURIComponent(await search(page))).toContain(`next=/?s=${existingId}`);
+
+    // Anonim ana sayfa gonderimi: ayri /sohbet/misafir sayfasi yok, ayni yuzeyde misafir sohbeti.
+    await submitFromHero(page, "kablosuz kulaklik");
+    await until(page, async () => (await search(page)).includes("g=1"), "misafir sohbet adresi");
+    expect(await pathname(page)).toBe("/");
+    expect(await hasHero(page)).toBe(false);
+    await until(
+      page,
+      async () => (await bodyText(page)).includes("kablosuz kulaklik"),
+      "misafir sohbetinde kullanici mesaji",
+    );
+    expect(await search(page)).toContain("q=kablosuz+kulaklik");
+    // Eski misafir adresi ayni yuzeye tasinir.
+    await page.goto(`${BASE}/sohbet/misafir?q=ceket`);
+    await until(page, async () => (await search(page)).includes("g=1"), "eski misafir adresi");
+    expect(await pathname(page)).toBe("/");
   }
 
   it("noindex: /?s= ve /?q= başlık ve meta ile dizinlenmez; parametresiz / dizinlenir", async () => {

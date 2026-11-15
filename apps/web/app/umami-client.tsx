@@ -8,7 +8,7 @@ import {
 } from "@arilla/core/ga4-measurement";
 import { classifyLinkClick, engagementBucket, pageArea } from "@arilla/core/umami-events";
 import type { UmamiEventName } from "@arilla/core/umami-tracker";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 /**
@@ -111,6 +111,9 @@ function sendEvent(name: UmamiEventName, data: Record<string, string>, page: San
 
 export function UmamiClient({ scriptUrl, websiteId }: { scriptUrl: string; websiteId: string }) {
   const pathname = usePathname();
+  // Karar 0204: `/` üzerindeki sohbet durumu (`s`/`q`) adres değişimidir; yalnızca varlığı izlenir, değer okunmaz.
+  const searchParams = useSearchParams();
+  const surface = `${searchParams.has("s")}${searchParams.has("q")}`;
   const lastSent = useRef<string | null>(null);
 
   useEffect(() => {
@@ -149,7 +152,7 @@ export function UmamiClient({ scriptUrl, websiteId }: { scriptUrl: string; websi
     whenReady((umami) => {
       umami.track((props) => ({ ...props, url, title: page.title, referrer }));
     });
-  }, [pathname]);
+  }, [pathname, surface]);
 
   // Karar 0173: sayfada GÖRÜNÜR kalınan süre, sayfa başına en fazla bir kez; sayfadan
   // çıkarken (rota değişimi), sekme gizlenince ya da sayfa kapanırken. Kesin süre değil
@@ -179,7 +182,7 @@ export function UmamiClient({ scriptUrl, websiteId }: { scriptUrl: string; websi
       window.removeEventListener("pagehide", flush);
       flush();
     };
-  }, [pathname]);
+  }, [pathname, surface]);
 
   // Karar 0173: ürün sayfası ve mağaza çıkışı bağlantı tıklamaları (orta tık dahil).
   // Gezinmeyi engellemez; olay `keepalive` ile gider.

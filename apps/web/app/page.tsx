@@ -44,6 +44,7 @@ import { PublicSiteShell, SubpageShell } from "./public-site-shell.tsx";
 import { SITE_BRAND } from "./site-config.ts";
 import { startConversationAction } from "./sohbet/actions.ts";
 import { ConversationView } from "./sohbet/conversation-view.tsx";
+import { GuestChatView } from "./sohbet/guest-chat-view.tsx";
 import { TrendCardGrid } from "./trendler/trend-cards.tsx";
 import { TREND_COPY } from "./trendler/trend-copy.ts";
 
@@ -192,6 +193,22 @@ export default async function HomePage({
             conversationId={mode.conversationId}
             sirala={mode.sirala}
             ac={mode.ac}
+          />
+        </div>
+      </SubpageShell>
+    );
+  }
+  if (mode.kind === "guest") {
+    // Misafir sohbeti (eski `/sohbet/misafir`, karar 0204): aynı yüzeyde, `/?q=&g=1[&n=..]`.
+    const rawQuery = Array.isArray(params.q) ? params.q[0] : params.q;
+    const rawSteps = Array.isArray(params.n) ? params.n : params.n ? [params.n] : [];
+    return (
+      <SubpageShell chrome="chat">
+        <div className={transition.enter}>
+          <GuestChatView
+            query={(rawQuery ?? "").trim().slice(0, 500)}
+            encodedSteps={rawSteps}
+            signedIn={user !== null}
           />
         </div>
       </SubpageShell>

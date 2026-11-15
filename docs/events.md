@@ -91,6 +91,8 @@ vermişse gönderilir; `user_activity_event` sınıfından ve GA4'ten ayrıdır.
 | `product_opened` | `area` (tıklamanın yapıldığı sayfanın alanı) | Karar 0173. Aynı kökenli `/urun/:slug` bağlantısına tıklama (orta tık dahil). Ürün kimliği/slug'ı GÖNDERİLMEZ; hangi ürünün açıldığı zaten sayfa görüntülemesinde arındırılmış yol olarak vardır |
 | `merchant_exit_clicked` | `area`, `surface` (`/git/:offerId?surface=` değeri; yalnızca `CLICK_SURFACES` listesinden, değilse `other`) | Karar 0173. Mağaza çıkış bağlantısına tıklama. Teklif/mağaza/fiyat GÖNDERİLMEZ. Attribution kaynağı `click` tablosudur (kural 8); bu olay onun yerine geçmez, `click` de davranışsal analitiğe kaynak olmaz (0049 §5) |
 
+Ana sayfa + sohbet tek yüzeyi (karar 0204): `/?s=<id>` yol olarak `/sohbet/[id]`, `/?q=…` (misafir dahil) `/sohbet` gider (alan `chat`); konuşma kimliği, sorgu metni ve adımlar hiçbir olayda yoktur. GA4 aynı süzgeci kullanır.
+
 Tüm Umami olaylarında adres, sayfa görüntülemesiyle AYNI arındırılmış yoldur (Umami'nin
 kendi `location.href`'i kullanılmaz; betikte ayrıca `data-exclude-search`). Olay verisi
 yalnızca bu tablodaki sabit sözlüklerden gelir; serbest metin, kimlik, IP gönderilmez.

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   homeConversationHref,
+  homeGuestHref,
   homeMode,
   homeSearchHref,
   isPrivateHomeMode,
@@ -58,6 +59,24 @@ describe("adres uretimi", () => {
     );
     expect(homeSearchHref("rahat yürüyüş ayakkabısı")).toBe(
       "/?q=rahat+y%C3%BCr%C3%BCy%C3%BC%C5%9F+ayakkab%C4%B1s%C4%B1",
+    );
+  });
+});
+
+describe("misafir sohbeti (karar 0204)", () => {
+  it("q + g=1 misafir kipidir; sohbet kapaliysa arama turune, g tek basina ana sayfaya duser", () => {
+    expect(homeMode({ q: "terlik", g: "1" }, true)).toEqual({ kind: "guest" });
+    expect(homeMode({ q: "terlik", g: "1" }, false)).toEqual({ kind: "search" });
+    expect(homeMode({ q: "terlik", g: "0" }, true)).toEqual({ kind: "search" });
+    expect(homeMode({ g: "1" }, true)).toEqual({ kind: "home" });
+    expect(homeMode({ s: ID, q: "x", g: "1" }, true).kind).toBe("conversation");
+  });
+
+  it("ozeldir; adres adimlari korur", () => {
+    expect(isPrivateHomeMode({ kind: "guest" })).toBe(true);
+    expect(homeGuestHref("terlik")).toBe("/?q=terlik&g=1");
+    expect(homeGuestHref("kadın terlik", ["a~1", "t~renk"])).toBe(
+      "/?q=kad%C4%B1n+terlik&g=1&n=a%7E1&n=t%7Erenk",
     );
   });
 });

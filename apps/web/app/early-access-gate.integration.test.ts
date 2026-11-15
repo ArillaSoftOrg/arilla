@@ -166,20 +166,7 @@ const PRODUCT_PAGES: { name: string; call: () => Promise<unknown> }[] = [
     call: async () =>
       (await import("./sohbet/link/page.tsx")).default({ searchParams: Promise.resolve({}) }),
   },
-  {
-    // Misafir sohbet (bayrak acik): urun kapisi diger /sohbet sayfalari gibi uygulanir.
-    name: "/sohbet/misafir",
-    call: async () => {
-      vi.stubEnv("CHAT_DISCOVERY_ENABLED", "true");
-      try {
-        return await (await import("./sohbet/misafir/page.tsx")).default({
-          searchParams: Promise.resolve({ q: "kulaklik" }),
-        });
-      } finally {
-        vi.unstubAllEnvs();
-      }
-    },
-  },
+  // Misafir sohbeti (`/?q=&g=1`, karar 0204) ana sayfa kapisindan gecer; `/sohbet/misafir` yalniz yonlendirmedir.
   {
     name: "/urun/[slug] meta",
     call: async () =>

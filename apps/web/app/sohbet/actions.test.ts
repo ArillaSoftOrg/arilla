@@ -139,7 +139,7 @@ describe("startConversationAction (JS'siz yol)", () => {
     form.set("q", "rahat yürüyüş ayakkabısı");
 
     await expect(startConversationAction(form)).rejects.toThrow(
-      "REDIRECT:/sohbet/misafir?q=rahat+y%C3%BCr%C3%BCy%C3%BC%C5%9F+ayakkab%C4%B1s%C4%B1",
+      "REDIRECT:/?q=rahat+y%C3%BCr%C3%BCy%C3%BC%C5%9F+ayakkab%C4%B1s%C4%B1&g=1",
     );
     expect(mocks.createConversation).not.toHaveBeenCalled();
   });

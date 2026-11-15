@@ -3,6 +3,7 @@
  *
  * - `/?s=<uuid>`  mevcut konuşma (girişli kullanıcı),
  * - `/?q=<sorgu>` arama turu (eski `/sohbet?q=`),
+ * - `/?q=<sorgu>&g=1[&n=..]` misafir sohbeti (girişsiz; eski `/sohbet/misafir`),
  * - diğer her şey: bugünkü ana sayfa.
  *
  * Saf fonksiyonlar: sunucu sayfası, proxy ve testler aynı kuralı kullanır.
@@ -13,6 +14,7 @@ export type HomeSearchParams = Record<string, string | string[] | undefined>;
 export type HomeMode =
   | { kind: "home" }
   | { kind: "search" }
+  | { kind: "guest" }
   | { kind: "conversation"; conversationId: string; sirala?: string; ac?: string }
   | { kind: "not_found" };
 
@@ -40,7 +42,9 @@ export function homeMode(params: HomeSearchParams, chatEnabled: boolean): HomeMo
     };
   }
   const q = first(params.q);
-  if (q !== undefined && q.trim() !== "") return { kind: "search" };
+  if (q !== undefined && q.trim() !== "") {
+    return chatEnabled && first(params.g) === "1" ? { kind: "guest" } : { kind: "search" };
+  }
   return { kind: "home" };
 }
 
@@ -63,4 +67,11 @@ export function homeConversationHref(
 /** `/?q=<sorgu>` arama turu adresi. */
 export function homeSearchHref(query: string): string {
   return `/?${new URLSearchParams({ q: query }).toString()}`;
+}
+
+/** `/?q=<sorgu>&g=1&n=..` misafir sohbeti (adımlar `encodeInput` ile). */
+export function homeGuestHref(query: string, steps: readonly string[] = []): string {
+  const params = new URLSearchParams({ q: query, g: "1" });
+  for (const step of steps) params.append("n", step);
+  return `/?${params.toString()}`;
 }

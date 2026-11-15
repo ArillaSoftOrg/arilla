@@ -10,7 +10,7 @@ import {
   sanitizePage,
   sanitizeReferrer,
 } from "@arilla/core/ga4-measurement";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useEffect, useRef } from "react";
 
 type Gtag = (...args: unknown[]) => void;
@@ -58,6 +58,9 @@ export function deleteGa4Cookies(measurementId: string, doc: Document = document
  */
 export function Ga4Client({ measurementId }: { measurementId: string }) {
   const pathname = usePathname();
+  // Karar 0204: `/` üzerindeki sohbet durumu (`s`/`q`) adres değişimidir; yalnızca varlığı izlenir, değer okunmaz.
+  const searchParams = useSearchParams();
+  const surface = `${searchParams.has("s")}${searchParams.has("q")}`;
   const configured = useRef(false);
   const lastSent = useRef<string | null>(null);
 
@@ -100,7 +103,7 @@ export function Ga4Client({ measurementId }: { measurementId: string }) {
       page_referrer: referrer,
       page_title: page.title,
     });
-  }, [measurementId, pathname]);
+  }, [measurementId, pathname, surface]);
 
   useEffect(() => {
     return () => {
