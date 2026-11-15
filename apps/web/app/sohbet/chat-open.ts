@@ -10,6 +10,9 @@ export const OLDER_BLOCK_RESULT_LIMIT = 6;
 export const COMMENTARY_HEAD_COUNT = 4;
 /** Yeni blokta ilk görünen kart sayısı; devamı "Tüm N sonucu gör" ile. */
 export const REVEAL_INITIAL_COUNT = 6;
+/** Alternatifler şeridi (karar 0202): en az bu kadar gerçek alternatif yoksa şerit çizilmez; en çok bu kadar gösterilir. */
+export const ALTERNATIVES_MIN = 3;
+export const ALTERNATIVES_MAX = 8;
 /** Katalog + internet kartlarının sekme başına üst sınırı. */
 export const CHAT_TAB_ITEM_CAP = 30;
 

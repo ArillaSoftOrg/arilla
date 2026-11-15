@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import {
   apiUsage,
   chatAttachment,
+  chatExplanationFeedback,
   chatMessage,
   chatResultFeedback,
   conversation,
@@ -136,6 +137,8 @@ export type ChatMessageView =
       source: "model" | "fallback" | null;
       /** 0055: sonuc blogune verilen oy; `null` = oy yok. */
       helpful: boolean | null;
+      /** Karar 0202: degerlendirme metnine verilen AYRI oy; `null`/yok = oy yok (ya da tablo yok). */
+      explanationHelpful?: boolean | null;
       /** Karar 0090: link mesajinin yuku (`payload.link`); yalnizca link `notice`larinda. */
       link?: ChatLinkPayload;
       imageSummary?: StoredImageSummary | null;
@@ -185,6 +188,7 @@ function sourceOf(payload: Record<string, unknown> | null): "model" | "fallback"
 function toView(
   row: typeof chatMessage.$inferSelect,
   helpful: boolean | null = null,
+  explanationHelpful: boolean | null = null,
 ): ChatMessageView {
   const payload = row.payload;
   if (row.role === "user") {
@@ -219,6 +223,7 @@ function toView(
     intent: parseStoredIntent(payload?.intent),
     source: sourceOf(payload),
     helpful,
+    ...(explanationHelpful === null ? {} : { explanationHelpful }),
     ...(link ? { link } : {}),
     ...withSummary(payload),
   };
@@ -228,8 +233,11 @@ function buildView(
   row: typeof conversation.$inferSelect,
   rows: readonly (typeof chatMessage.$inferSelect)[],
   helpfulById: ReadonlyMap<number, boolean> = new Map(),
+  explanationById: ReadonlyMap<number, boolean> = new Map(),
 ): ConversationView {
-  const messages = rows.map((message) => toView(message, helpfulById.get(message.id) ?? null));
+  const messages = rows.map((message) =>
+    toView(message, helpfulById.get(message.id) ?? null, explanationById.get(message.id) ?? null),
+  );
   return {
     id: row.id,
     title: row.title,
@@ -260,7 +268,7 @@ export async function loadConversation(
     .where(and(eq(conversation.id, input.conversationId), eq(conversation.userId, input.userId)));
   if (!row) return null;
   // Mesajlar ve oylar birbirine bagimli degil: tek tur.
-  const [rows, votes] = await Promise.all([
+  const [rows, votes, explanationVotes] = await Promise.all([
     loadMessageRows(db, row.id),
     db
       .select({ messageId: chatResultFeedback.messageId, helpful: chatResultFeedback.helpful })
@@ -271,8 +279,25 @@ export async function loadConversation(
         if (isMissingTable(error)) return [];
         throw error;
       }),
+    // Karar 0202: degerlendirme oyu; migration 0116 yokken (kod once dagitildiysa) oy yok sayilir.
+    db
+      .select({
+        messageId: chatExplanationFeedback.messageId,
+        helpful: chatExplanationFeedback.helpful,
+      })
+      .from(chatExplanationFeedback)
+      .where(eq(chatExplanationFeedback.conversationId, row.id))
+      .catch((error: unknown) => {
+        if (isMissingTable(error)) return [];
+        throw error;
+      }),
   ]);
-  return buildView(row, rows, new Map(votes.map((vote) => [vote.messageId, vote.helpful])));
+  return buildView(
+    row,
+    rows,
+    new Map(votes.map((vote) => [vote.messageId, vote.helpful])),
+    new Map(explanationVotes.map((vote) => [vote.messageId, vote.helpful])),
+  );
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;

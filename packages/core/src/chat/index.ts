@@ -1,5 +1,6 @@
 export * from "./config.ts";
 export * from "./contract.ts";
+export * from "./explanation-feedback.ts";
 export * from "./feedback.ts";
 export * from "./image-consent.ts";
 export * from "./image-context.ts";

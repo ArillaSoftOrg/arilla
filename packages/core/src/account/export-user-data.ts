@@ -16,6 +16,7 @@ import {
   bonusAccount,
   bonusLedger,
   chatAttachment,
+  chatExplanationFeedback,
   chatMessage,
   chatResultFeedback,
   click,
@@ -191,6 +192,14 @@ export interface UserDataExport {
       attachmentId?: string;
       /** Karar 0079: kullanıcının bu yanıta verdiği oy; yalnızca oy varsa bulunur. */
       feedback?: {
+        helpful: boolean;
+        reasons: string[];
+        comment: string | null;
+        createdAt: Date;
+        updatedAt: Date;
+      };
+      /** Karar 0202: degerlendirme metnine verilen ayri oy; yalnizca oy varsa bulunur. */
+      explanationFeedback?: {
         helpful: boolean;
         reasons: string[];
         comment: string | null;
@@ -515,6 +524,24 @@ async function exportConversations(
           ).map((vote) => [vote.messageId, vote]),
         )
       : new Map<number, typeof chatResultFeedback.$inferSelect>();
+    // Karar 0202: ikinci oy tablosu; migration 0116 yoksa (kod once dagitildiysa) bos.
+    const explanationVotes = withFeedback
+      ? new Map(
+          (
+            await db
+              .select()
+              .from(chatExplanationFeedback)
+              .where(eq(chatExplanationFeedback.conversationId, chat.id))
+              .catch((error: unknown) => {
+                const code =
+                  (error as { cause?: { code?: string } } | null)?.cause?.code ??
+                  (error as { code?: string } | null)?.code;
+                if (code === "42P01") return [];
+                throw error;
+              })
+          ).map((vote) => [vote.messageId, vote]),
+        )
+      : new Map<number, typeof chatExplanationFeedback.$inferSelect>();
     const attachments = await exportAttachments(db, chat.id, rows);
     out.push({
       publicId: chat.id,
@@ -537,6 +564,17 @@ async function exportConversations(
                 comment: votes.get(m.id)?.comment ?? null,
                 createdAt: votes.get(m.id)?.createdAt as Date,
                 updatedAt: votes.get(m.id)?.updatedAt as Date,
+              },
+            }
+          : {}),
+        ...(explanationVotes.has(m.id)
+          ? {
+              explanationFeedback: {
+                helpful: explanationVotes.get(m.id)?.helpful ?? false,
+                reasons: explanationVotes.get(m.id)?.reasons ?? [],
+                comment: explanationVotes.get(m.id)?.comment ?? null,
+                createdAt: explanationVotes.get(m.id)?.createdAt as Date,
+                updatedAt: explanationVotes.get(m.id)?.updatedAt as Date,
               },
             }
           : {}),

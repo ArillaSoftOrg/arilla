@@ -12,7 +12,11 @@ export type Anchor =
 
 export type ColorNorm = "black" | "white" | "beige" | "ecru" | (string & {});
 
-export type SortMode = "balanced" | "best_deal" | "closest_match";
+/**
+ * `lowest_price` / `best_match` (karar 0202): yalnız METİN aramada, sohbet sekmeleri için.
+ * `closest_match` ÇAPA ürüne benzerliktir (metin aramasında yoktur); `best_match` ondan farklıdır.
+ */
+export type SortMode = "balanced" | "best_deal" | "closest_match" | "lowest_price" | "best_match";
 
 /**
  * Kategori filtresinin kaynagi (karar 0190). `category_path` ile birlikte tasinir.

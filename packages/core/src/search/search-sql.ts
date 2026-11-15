@@ -20,6 +20,7 @@ import {
   balancedScoreExpr,
   balancedScoreFactors,
   categoryHintFactor,
+  relevanceScoreExpr,
 } from "./ranking.ts";
 import type { ForeignPrice } from "./result-types.ts";
 import { accessoryTitleDemotionPattern } from "./semantic/accessory-guard.ts";
@@ -38,7 +39,11 @@ import {
 } from "./text-match.ts";
 import type { QueryFilters, QueryObject } from "./types.ts";
 
-export type TextSort = "balanced" | "best_deal";
+/**
+ * Metin sıralamaları. `lowest_price` (en düşük doğrulanmış fiyat) ve `best_match` (yalnız alaka,
+ * fiyat çarpanı yok) karar 0202'dir; ek değerlerdir, `balanced`/`best_deal` davranışı değişmez.
+ */
+export type TextSort = "balanced" | "best_deal" | "lowest_price" | "best_match";
 
 export function merchantIdsOf(filters: QueryFilters): number[] | null {
   return filters.merchant_ids && filters.merchant_ids.length > 0 ? filters.merchant_ids : null;
@@ -395,9 +400,13 @@ export function scoredCtes(
   ] as const;
   // Karar 0190: tahmin edilen kategori yalniz carpan; yol guvenli bicimde degilse uygulanmaz.
   const hint = categoryConstraint(query.filters).softPath;
-  const score = sql`(${balancedScoreExpr(...inputs)} * ${categoryHintFactor(
-    hint !== null && isSafeCategoryLiteral(hint) ? hint : null,
-  )})`;
+  const hintFactor = categoryHintFactor(hint !== null && isSafeCategoryLiteral(hint) ? hint : null);
+  // `best_match`: fiyat çarpanı yok; diğerlerinde dengeli skor (karar 0202).
+  const baseScore =
+    sort === "best_match"
+      ? relevanceScoreExpr(inputs[0], inputs[1], inputs[2])
+      : balancedScoreExpr(...inputs);
+  const score = sql`(${baseScore} * ${hintFactor})`;
   let extra = sql``;
   if (explain) {
     const f = balancedScoreFactors(...inputs);
@@ -417,6 +426,8 @@ export function scoredCtes(
              pps.current_percentile, pps.list_price_inflated, p.offer_count,
              ${BEST_OFFER_ORIGIN_COLUMNS},
              ${score} AS score,
+             -- Karar 0202: fiyat sıralaması yalnız TRY tekliflerde karşılaştırılabilir; yurt dışı teklif NULL (sona).
+             (CASE WHEN bo.is_foreign THEN NULL ELSE bo.current_price END) AS sort_price,
              ${accessoryRankColumn(accessoryPattern)} AS accessory_rank${extra}
       FROM ${text.products}
       JOIN best_offer bo ON bo.product_id = p.id
@@ -439,7 +450,12 @@ function accessoryRankColumn(pattern: string | null): SQL {
 
 /** Son siralama; `row_number()` ile tanida da ayni ifade kullanilir. */
 export function finalOrder(sort: TextSort): SQL {
-  return sort === "best_deal"
-    ? sql`s.accessory_rank ASC, s.current_percentile ASC NULLS LAST, s.id ASC`
-    : sql`s.accessory_rank ASC, s.score DESC, s.id ASC`;
+  if (sort === "best_deal") {
+    return sql`s.accessory_rank ASC, s.current_percentile ASC NULLS LAST, s.id ASC`;
+  }
+  if (sort === "lowest_price") {
+    // Karar 0202: ana ürün kademesi, stokta olanlar önce, sonra en düşük TRY fiyatı (aynı fiyatta skor).
+    return sql`s.accessory_rank ASC, (NOT s.in_stock) ASC, s.sort_price ASC NULLS LAST, s.score DESC, s.id ASC`;
+  }
+  return sql`s.accessory_rank ASC, s.score DESC, s.id ASC`;
 }

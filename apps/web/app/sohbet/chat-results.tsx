@@ -3,6 +3,7 @@ import {
   CHAT_RESULT_LIMIT,
   createChatTimer,
   type ForeignPrice,
+  findAlternatives,
   IntentSearchTimeoutError,
   intentSearchText,
   isAliExpressImageVariantsEnabled,
@@ -13,13 +14,16 @@ import {
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ProductCard, VisuallyHidden } from "@arilla/ui";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { cardPriceProps, resultCountLabel } from "../lib/search/search-results.tsx";
 import { WebGridItems, WebOnlyResults } from "../lib/search/web-search-section.tsx";
 import { startWebSearch } from "../lib/search/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
+import { ExplanationFeedback } from "./chat-explanation-feedback.tsx";
 import { ResultFeedback } from "./chat-feedback-client.tsx";
 import {
+  ALTERNATIVES_MAX,
+  ALTERNATIVES_MIN,
   COMMENTARY_HEAD_COUNT,
   OLDER_BLOCK_RESULT_LIMIT,
   REVEAL_INITIAL_COUNT,
@@ -54,6 +58,18 @@ interface GridItem {
 const CHAT_GRID_IMAGE_SIZES =
   "(min-width: 1152px) 323px, (min-width: 1024px) calc((100vw - 182px) / 3), (min-width: 720px) calc((100vw - 166px) / 3), calc(50vw - 48px)";
 
+/**
+ * Kart fiyatı (`cardPriceProps`). Karar 0202 (`CHAT_UX_V2`): fiyatı olmayan ürünün kartında "—"
+ * yerine "Fiyat bilgisi yok" yazar (fiyat uydurulmaz).
+ */
+function priceProps(item: GridItem, uxV2: boolean) {
+  const props = cardPriceProps(item);
+  if (uxV2 && props.minPrice === null && !props.priceLabel) {
+    return { ...props, priceLabel: CHAT_COPY.priceMissing };
+  }
+  return props;
+}
+
 /** Konuşma içi ürün kartları: arama turuyla aynı `ProductCard`, konteynere göre akan ızgara. */
 export function ChatResultGrid({
   items,
@@ -84,7 +100,7 @@ export function ChatResultGrid({
         imageSizes={CHAT_GRID_IMAGE_SIZES}
         aliexpressVariants={aliexpressVariants}
         action={<ChatCardActions product={chatToolProduct(item)} />}
-        {...cardPriceProps(item)}
+        {...priceProps(item, reveal)}
       />
     </li>
   ));
@@ -123,12 +139,77 @@ export function ChatResultGrid({
 }
 
 /** Karar 0201: modelsiz, doğrulanmış verilerden hesaplanan kısa değerlendirme; yoksa hiçbir şey. */
-function CommentarySection({ items, seed }: { items: readonly GridItem[]; seed: string }) {
+function CommentarySection({
+  items,
+  seed,
+  conversationId,
+  messageSeq,
+  explanationHelpful,
+}: {
+  items: readonly GridItem[];
+  seed: string;
+  conversationId: string;
+  messageSeq: number;
+  /** Karar 0202: değerlendirmeye verilmiş ayrı oy; yoksa `null`. */
+  explanationHelpful: boolean | null;
+}) {
   const commentary = buildResultCommentary(items, { seed });
   if (!commentary) return null;
   return (
-    <section className={styles.commentary} aria-label={CHAT_COPY.commentaryLabel}>
-      <p>{commentary.sentences.join(" ")}</p>
+    <>
+      <section className={styles.commentary} aria-label={CHAT_COPY.commentaryLabel}>
+        <p>{commentary.sentences.join(" ")}</p>
+      </section>
+      <ExplanationFeedback
+        conversationId={conversationId}
+        messageSeq={messageSeq}
+        initial={explanationHelpful}
+      />
+    </>
+  );
+}
+
+/**
+ * "Benzer seçenekler" şeridi (karar 0202): ilk sonucun `similarity_edge` komşuları, sayfadaki
+ * ürünlerle çakışanlar çıkarılır; en az 3 gerçek alternatif yoksa HİÇBİR ŞEY çizilmez. Yatay
+ * kaydırılır, ana sonuçlarla karışmaz. Hata/boş: sessizce yok (sonuçlar etkilenmez).
+ */
+async function AlternativesStrip({
+  anchorProductId,
+  shownIds,
+}: {
+  anchorProductId: number;
+  shownIds: ReadonlySet<number>;
+}) {
+  let found: Awaited<ReturnType<typeof findAlternatives>> = [];
+  try {
+    found = await findAlternatives(getDatabase(), anchorProductId, { limit: 12 });
+  } catch {
+    return null;
+  }
+  const items = found.filter((item) => !shownIds.has(item.productId)).slice(0, ALTERNATIVES_MAX);
+  if (items.length < ALTERNATIVES_MIN) return null;
+  const aliexpressVariants = isAliExpressImageVariantsEnabled();
+  return (
+    <section className={styles.altSection} aria-label={CHAT_COPY.alternativesLabel}>
+      <h4 className={styles.altHeading}>{CHAT_COPY.alternativesLabel}</h4>
+      {/* biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür. */}
+      <ul className={styles.altStrip} role="list">
+        {items.map((item) => (
+          <li key={item.productId} className={styles.altItem}>
+            <ProductCard
+              href={`/urun/${item.slug}`}
+              title={item.title}
+              brand={item.brandName}
+              imageUrl={item.primaryImageUrl}
+              imageLoading="lazy"
+              imageSizes="152px"
+              aliexpressVariants={aliexpressVariants}
+              {...cardPriceProps(item)}
+            />
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -184,6 +265,7 @@ export async function ChatResults({
   messageSeq,
   sort,
   helpful,
+  explanationHelpful = null,
   uxV2 = false,
   compact = false,
 }: {
@@ -195,6 +277,8 @@ export async function ChatResults({
   messageSeq: number;
   sort: ChatSortKey;
   helpful: boolean | null;
+  /** Karar 0202: değerlendirme metnine verilen ayrı oy. */
+  explanationHelpful?: boolean | null;
   /** Karar 0200 (`CHAT_UX_V2`): özet satırı + kademeli gösterim; kapalıyken bugünkü düzen. */
   uxV2?: boolean;
   /** Karar 0200: kullanıcının açtığı ESKİ blok: az kart, sekme/internet/oy yok. */
@@ -214,7 +298,7 @@ export async function ChatResults({
     result = await timer.time("search", () =>
       searchByIntent(getDatabase(), intent, {
         pageSize: compact ? OLDER_BLOCK_RESULT_LIMIT : CHAT_RESULT_LIMIT,
-        sort: sortModeFor(sort),
+        sort: sortModeFor(sort, uxV2),
         // Karar 0178: gölge olcum yalniz varsayilan sekmede (sekme degisimi ikinci kez olcmez).
         semanticShadow: sort === "secilen",
       }),
@@ -279,7 +363,7 @@ export async function ChatResults({
           : { "aria-labelledby": headingId })}
       >
         {otherTab ? (
-          <ResultTabs conversationId={conversationId} active={sort} countLabel={null} />
+          <ResultTabs conversationId={conversationId} active={sort} countLabel={null} uxV2={uxV2} />
         ) : null}
         {waitForWeb ? (
           <WebOnlyResults promise={webSearch} variant="chat" catalog={[]} empty={emptyBlock} />
@@ -308,6 +392,7 @@ export async function ChatResults({
               conversationId={conversationId}
               active={sort}
               countLabel={!uxV2 && countKnown ? resultCountLabel(outcome.items.length) : null}
+              uxV2={uxV2}
             />
           )}
         </>
@@ -319,7 +404,23 @@ export async function ChatResults({
         reveal={uxV2 && !compact && !isFallback}
         commentary={
           uxV2 && !compact && !isFallback ? (
-            <CommentarySection items={outcome.items} seed={intent.query} />
+            <>
+              <CommentarySection
+                items={outcome.items}
+                seed={intent.query}
+                conversationId={conversationId}
+                messageSeq={messageSeq}
+                explanationHelpful={explanationHelpful}
+              />
+              {outcome.items[0] ? (
+                <Suspense fallback={null}>
+                  <AlternativesStrip
+                    anchorProductId={outcome.items[0].productId}
+                    shownIds={new Set(outcome.items.map((item) => item.productId))}
+                  />
+                </Suspense>
+              ) : null}
+            </>
           ) : null
         }
         extra={
@@ -338,7 +439,12 @@ export async function ChatResults({
         }
       />
       {compact ? null : (
-        <ResultFeedback conversationId={conversationId} messageSeq={messageSeq} initial={helpful} />
+        <ResultFeedback
+          conversationId={conversationId}
+          messageSeq={messageSeq}
+          initial={helpful}
+          question={uxV2 ? CHAT_COPY.resultsFeedbackQuestion : undefined}
+        />
       )}
     </section>
   );

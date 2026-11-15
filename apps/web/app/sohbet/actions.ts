@@ -17,6 +17,7 @@ import {
   isChatDiscoveryEnabled,
   isChatImageEnabled,
   isChatLinkEnabled,
+  isChatUxV2Enabled,
   isRedisUnavailableError,
   isUuid,
   isValidRequestKey,
@@ -27,6 +28,7 @@ import {
   processPendingTurnDetailed,
   recordChatImageConsent,
   restoreSearch,
+  setExplanationFeedback,
   setResultFeedback,
   submitUserMessage,
 } from "@arilla/core";
@@ -430,6 +432,41 @@ export async function submitResultFeedbackAction(
   }
   return {
     status: await setResultFeedback(getDatabase(), {
+      userId: user.id,
+      conversationId,
+      messageSeq: Number(messageSeq),
+      helpful,
+      reasons: details?.reasons,
+      comment: details?.comment,
+    }),
+  };
+}
+
+/**
+ * Değerlendirme metnine verilen AYRI oy (karar 0202). Ürün sonuçlarının oyuyla aynı oturum,
+ * özellik ve oran sınırı; sahiplik ve doğrulama çekirdekte. Analitik olayı üretmez.
+ */
+export async function submitExplanationFeedbackAction(
+  conversationId: string,
+  messageSeq: number,
+  helpful: boolean,
+  details?: { reasons?: string[]; comment?: string },
+): Promise<{ status: "saved" | "not_found" | "invalid" | "unavailable" | "rate_limited" }> {
+  const user = await verifySession();
+  if (!isChatDiscoveryEnabled() || !isChatUxV2Enabled() || !user || !canAccessProduct(user)) {
+    return { status: "unavailable" };
+  }
+  if (typeof conversationId !== "string" || typeof helpful !== "boolean") {
+    return { status: "invalid" };
+  }
+  try {
+    if (!(await consumeChatFeedbackQuota(user.id))) return { status: "rate_limited" };
+  } catch (error) {
+    if (isRedisUnavailableError(error)) return { status: "unavailable" };
+    throw error;
+  }
+  return {
+    status: await setExplanationFeedback(getDatabase(), {
       userId: user.id,
       conversationId,
       messageSeq: Number(messageSeq),

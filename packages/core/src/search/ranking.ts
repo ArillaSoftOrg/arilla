@@ -56,6 +56,21 @@ export function balancedScoreFactors(
 }
 
 /**
+ * "En iyi eşleşmeler" skoru (karar 0202): dengeli skorun FİYAT çarpanı OLMADAN hali
+ * (alaka x mağaza güveni x stok). Fiyat sıralamayı etkilemez; en alakalı ürün önde olur.
+ */
+export function relevanceScoreExpr(relevance: SQL, trustScore: SQL, inStock: SQL): SQL {
+  const f = balancedScoreFactors(relevance, trustScore, inStock, sql`NULL`);
+  return sql`(
+    (
+      ${f.relevance}
+      * ${f.trust}
+      * ${f.stock}
+    )::double precision
+  )`;
+}
+
+/**
  * Sonuc `::double precision`e cast edilir: aksi halde Postgres'in `numeric`
  * ciktisi node-postgres tarafindan (hassasiyet kaybini onlemek icin) JS
  * string'i olarak donuyor - biz burada tam JS number istiyoruz.

@@ -1902,6 +1902,24 @@ CREATE INDEX IF NOT EXISTS chat_result_feedback_created_idx
 CREATE INDEX IF NOT EXISTS chat_result_feedback_helpful_created_idx
     ON chat_result_feedback (helpful, created_at DESC);
 
+-- 0116 (karar 0202): degerlendirme metni icin AYRI oy; chat_result_feedback degismez.
+-- Tam metin: migrations/0116_chat_explanation_feedback.sql.
+CREATE TABLE IF NOT EXISTS chat_explanation_feedback (
+    message_id       BIGINT      PRIMARY KEY REFERENCES chat_message(id) ON DELETE CASCADE,
+    conversation_id  UUID        NOT NULL REFERENCES conversation(id) ON DELETE CASCADE,
+    helpful          BOOLEAN     NOT NULL,
+    reasons          TEXT[]      NOT NULL DEFAULT '{}',
+    comment          TEXT,
+    model_version    TEXT,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+-- CHECK: reasons izinli kodlar (<=3), comment 1..500, olumlu oyda reasons bos ve comment NULL.
+CREATE INDEX IF NOT EXISTS chat_explanation_feedback_conversation_idx
+    ON chat_explanation_feedback (conversation_id);
+CREATE INDEX IF NOT EXISTS chat_explanation_feedback_helpful_created_idx
+    ON chat_explanation_feedback (helpful, created_at DESC);
+
 
 -- ---------------------------------------------------------------------------
 -- AI DEGERLENDIRME VE HATA VERI SETI — 0060 (docs/decisions/0096)

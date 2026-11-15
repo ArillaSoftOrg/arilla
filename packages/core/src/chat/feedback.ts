@@ -86,10 +86,38 @@ export interface FeedbackCommentPurgeResult {
 }
 
 /** Eski serbest metin yorumlari NULL'a ceker. Parti parti; `updated_at` degismez. */
+/** Karar 0202: yorum temizligi iki oy tablosunda da (ayni 90 gun). Tablo yoksa 0. */
+const COMMENT_TABLES = ["chat_result_feedback", "chat_explanation_feedback"] as const;
+
 export async function purgeExpiredFeedbackComments(
   db: Database,
   now: Date = new Date(),
   options: { batchSize?: number; maxBatches?: number } = {},
+): Promise<FeedbackCommentPurgeResult> {
+  let cleared = 0;
+  let truncated = false;
+  for (const table of COMMENT_TABLES) {
+    try {
+      const part = await purgeTableComments(db, table, now, options);
+      cleared += part.cleared;
+      truncated ||= part.truncated;
+    } catch (error) {
+      // 0116 henuz yoksa ikinci tablo atlanir; birinci tablonun hatasi yukari gider.
+      const code =
+        (error as { cause?: { code?: string } } | null)?.cause?.code ??
+        (error as { code?: string } | null)?.code;
+      if (table === "chat_explanation_feedback" && code === "42P01") continue;
+      throw error;
+    }
+  }
+  return { cleared, truncated };
+}
+
+async function purgeTableComments(
+  db: Database,
+  table: (typeof COMMENT_TABLES)[number],
+  now: Date,
+  options: { batchSize?: number; maxBatches?: number },
 ): Promise<FeedbackCommentPurgeResult> {
   const batchSize = options.batchSize ?? 2_000;
   const maxBatches = options.maxBatches ?? 20;
@@ -97,9 +125,9 @@ export async function purgeExpiredFeedbackComments(
   let cleared = 0;
   for (let batch = 0; batch < maxBatches; batch++) {
     const result = await db.execute(sql`
-      UPDATE chat_result_feedback SET comment = NULL
+      UPDATE ${sql.raw(table)} SET comment = NULL
        WHERE message_id IN (
-         SELECT message_id FROM chat_result_feedback
+         SELECT message_id FROM ${sql.raw(table)}
           WHERE comment IS NOT NULL AND updated_at < ${cutoff.toISOString()}::timestamptz
           ORDER BY updated_at
           LIMIT ${batchSize}

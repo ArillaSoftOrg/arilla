@@ -16,11 +16,19 @@ import styles from "./sohbet.module.css";
 /** Konuşmada ürün bloğu gösterilen en son arama sayısı; öncekiler yalnızca özet. */
 export const RESULT_BLOCKS_SHOWN = 1;
 
-function ResultsFallback({ conversationId, sort }: { conversationId: string; sort: ChatSortKey }) {
+function ResultsFallback({
+  conversationId,
+  sort,
+  uxV2 = false,
+}: {
+  conversationId: string;
+  sort: ChatSortKey;
+  uxV2?: boolean;
+}) {
   return (
     <div className={styles.results} aria-busy="true">
       <ChatPendingRow label={CHAT_COPY.resultsLoading} />
-      <ResultTabs conversationId={conversationId} active={sort} countLabel={null} />
+      <ResultTabs conversationId={conversationId} active={sort} countLabel={null} uxV2={uxV2} />
       <div className={styles.resultGrid} aria-hidden="true">
         {Array.from({ length: 6 }, (_, i) => (
           // biome-ignore lint/suspicious/noArrayIndexKey: sabit sayıda, sırasız iskelet kartı.
@@ -93,7 +101,7 @@ export function ChatThread({
 
         const resultsId = `sohbet-sonuc-${message.seq}`;
         const intent = message.kind === "search" ? message.intent : null;
-        const sort = intent ? parseSortKey(sortParam, intent) : "secilen";
+        const sort = intent ? parseSortKey(sortParam, intent, uxV2) : "secilen";
         return (
           <li key={message.id} className={`${styles.row} ${styles.rowAssistant}`}>
             <VisuallyHidden as="span">{CHAT_COPY.assistantLabel}: </VisuallyHidden>
@@ -161,7 +169,9 @@ export function ChatThread({
                   {shown.has(message.seq) ? (
                     <Suspense
                       key={sort}
-                      fallback={<ResultsFallback conversationId={conversationId} sort={sort} />}
+                      fallback={
+                        <ResultsFallback conversationId={conversationId} sort={sort} uxV2={uxV2} />
+                      }
                     >
                       <ChatResults
                         intent={intent}
@@ -171,6 +181,9 @@ export function ChatThread({
                         messageSeq={message.seq}
                         sort={sort}
                         helpful={message.kind === "search" ? message.helpful : null}
+                        explanationHelpful={
+                          message.kind === "search" ? (message.explanationHelpful ?? null) : null
+                        }
                         uxV2={uxV2}
                       />
                     </Suspense>

@@ -279,10 +279,16 @@ export const ADMIN_SUBSYSTEMS: readonly SubsystemCoverage[] = [
   {
     id: "chat_feedback",
     label: "Sohbet yanıt oyu, neden ve yorum",
-    tables: ["chat_result_feedback"],
+    tables: ["chat_result_feedback", "chat_explanation_feedback"],
     status: "visible",
     adminPaths: ["/yonetim/ai-geri-bildirim"],
-    gaps: [],
+    // Karar 0202: degerlendirme oyu (0116) toplanir, yonetim kartı henuz yok.
+    gaps: [
+      {
+        signal: "Degerlendirme metnine verilen oylar ve nedenleri (chat_explanation_feedback)",
+        status: "data_no_ui",
+      },
+    ],
     privacy:
       "Sohbet metni gösterilmez; her liste/ayrıntı görüntülemesi denetime yazılır, yorum 90 gün (0079).",
   },
