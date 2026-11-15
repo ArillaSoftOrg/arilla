@@ -1,3 +1,4 @@
+import { randomInt } from "node:crypto";
 import {
   canAccessProduct,
   getDiscoverySlots,
@@ -17,6 +18,11 @@ import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { ComingSoonLanding } from "./coming-soon-landing.tsx";
 import { toDiscoveryItems } from "./discovery-adapter.ts";
 import styles from "./home.module.css";
+import {
+  DEFAULT_HOME_CATEGORY,
+  homeCategoryOption,
+  selectHomeCategoryImages,
+} from "./home-category-config.ts";
 import { HOME_COPY } from "./home-copy.ts";
 import { homeSectionLinks } from "./home-footer-groups.ts";
 import { loadRecentProducts } from "./home-recent-products.ts";
@@ -146,6 +152,11 @@ export default async function HomePage() {
     loadHomeTrends(),
   ]);
   const discoveryItems = toDiscoveryItems(items);
+  const imageVariantSeed = randomInt(0, 0x1_0000_0000);
+  const initialImages = selectHomeCategoryImages(
+    homeCategoryOption(DEFAULT_HOME_CATEGORY),
+    imageVariantSeed,
+  );
 
   return (
     <PublicSiteShell
@@ -156,8 +167,15 @@ export default async function HomePage() {
       <link
         rel="preload"
         as="image"
-        href="/görsel/optimized/parfum-lacivert-sis.webp"
+        href={initialImages.mobile}
         media="(max-width: 639.98px)"
+        fetchPriority="high"
+      />
+      <link
+        rel="preload"
+        as="image"
+        href={initialImages.desktop}
+        media="(min-width: 640px)"
         fetchPriority="high"
       />
       <div className={styles.page}>
@@ -168,6 +186,7 @@ export default async function HomePage() {
             imageChat={imageChat}
             imageEntryAvailable={imageEntryAvailable}
             imageConsent={imageConsent}
+            imageVariantSeed={imageVariantSeed}
             recentProducts={recentProducts}
             searchClassName={styles.searchScreen}
             beforeSearch={

@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  ImageIcon,
   PlusIcon,
   SearchComposer,
   type SearchComposerAttachment,
@@ -9,6 +8,7 @@ import {
 } from "@arilla/ui";
 import { type ReactNode, useId, useRef, useState } from "react";
 import { FloatingHomeComposer } from "./floating-composer-client.tsx";
+import { selectHomeCategoryImages } from "./home-category-config.ts";
 import {
   DEFAULT_HOME_CATEGORY,
   HOME_CATEGORY_OPTIONS,
@@ -20,13 +20,6 @@ import { HOME_COPY } from "./home-copy.ts";
 import { IMAGE_CHAT_COPY } from "./home-image-chat.ts";
 import styles from "./home-search-composer.module.css";
 import { LoginGateModal } from "./login-gate-modal-client.tsx";
-
-/** Kisa etiket gorunur; tiklaninca kutuya tam sorgu yazilir. */
-const SUGGESTIONS = [
-  { label: "Beyaz spor ayakkabı", query: "Günlük beyaz spor ayakkabı" },
-  { label: "Çalışma masası", query: "Küçük bir çalışma masası" },
-  { label: "Kablosuz kulaklık", query: "Kablosuz kulaklık" },
-] as const;
 
 const TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=";
 
@@ -57,6 +50,7 @@ export function HomeSearchComposer({
   beforeSearch,
   searchClassName,
   afterSearch,
+  imageVariantSeed = 0,
 }: {
   /** Ilk ekrandaki baslik; arama davranisindan bagimsiz sunum. */
   beforeSearch?: ReactNode;
@@ -90,6 +84,8 @@ export function HomeSearchComposer({
   imageEntryAvailable?: boolean;
   /** Karar 0101: gecerli acik riza var mi (yoksa dosya secilince bilgilendirme sorulur). */
   imageConsent?: boolean;
+  /** Sunucuda ziyaret başına üretilir; kategori görselleri ziyaret boyunca sabit kalır. */
+  imageVariantSeed?: number;
 }) {
   const submission = useHomeComposerSubmission({ chatInNewTab, imageChat, imageConsent });
   const { chatError, staged, sending, stageFile, removeStaged, startInNewTab, startImageMessage } =
@@ -100,6 +96,7 @@ export function HomeSearchComposer({
   const [imageFailed, setImageFailed] = useState(false);
   const category =
     HOME_CATEGORY_OPTIONS.find((option) => option.id === categoryId) ?? HOME_CATEGORY_OPTIONS[0];
+  const categoryImages = selectHomeCategoryImages(category, imageVariantSeed);
 
   const attachment: SearchComposerAttachment | null =
     imageChat && staged
@@ -121,32 +118,8 @@ export function HomeSearchComposer({
     input.focus();
   }
 
-  const desktopSuggestions = (
-    <fieldset
-      className={`${styles.suggestions} ${styles.desktopSuggestions}`}
-      aria-label="Örnek aramalar"
-    >
-      <legend className={styles.suggestionsLabel}>Örnek aramalar</legend>
-      <div className={styles.suggestionsRow}>
-        {SUGGESTIONS.map(({ label, query }) => (
-          <button
-            className={styles.suggestion}
-            type="button"
-            key={query}
-            disabled={sending}
-            onClick={() => fillSuggestion(query)}
-          >
-            {label}
-          </button>
-        ))}
-      </div>
-    </fieldset>
-  );
-  const mobileSuggestions = (
-    <fieldset
-      className={`${styles.suggestions} ${styles.mobileSuggestions}`}
-      aria-label={`${category.label} için örnek aramalar`}
-    >
+  const categorySuggestions = (
+    <fieldset className={styles.suggestions} aria-label={`${category.label} için örnek aramalar`}>
       <legend className={styles.suggestionsLabel}>{category.label} için örnek aramalar</legend>
       <div className={styles.suggestionsRow}>
         {category.suggestions.map(({ label, query }) => (
@@ -163,16 +136,7 @@ export function HomeSearchComposer({
       </div>
     </fieldset>
   );
-  const responsivePhotoIcon = (
-    <>
-      <span className={styles.desktopPhotoIcon} aria-hidden="true">
-        <ImageIcon />
-      </span>
-      <span className={styles.mobilePhotoIcon} aria-hidden="true">
-        <PlusIcon />
-      </span>
-    </>
-  );
+  const photoIcon = <PlusIcon />;
 
   return (
     <>
@@ -206,14 +170,18 @@ export function HomeSearchComposer({
               <picture className={styles.heroPicture}>
                 <source
                   media="(max-width: 639.98px)"
-                  srcSet={imageFailed ? undefined : category.imageSrc}
+                  srcSet={imageFailed ? undefined : categoryImages.mobile}
+                />
+                <source
+                  media="(min-width: 640px)"
+                  srcSet={imageFailed ? undefined : categoryImages.desktop}
                 />
                 <img
                   className={styles.heroImage}
-                  src={TRANSPARENT_PIXEL}
+                  src={imageFailed ? TRANSPARENT_PIXEL : categoryImages.desktop}
                   alt=""
-                  width="900"
-                  height="1599"
+                  width="1600"
+                  height="900"
                   loading="eager"
                   fetchPriority="high"
                   onError={() => setImageFailed(true)}
@@ -232,12 +200,7 @@ export function HomeSearchComposer({
               </div>
             </div>
           }
-          composerFooter={
-            <>
-              {desktopSuggestions}
-              {mobileSuggestions}
-            </>
-          }
+          composerFooter={categorySuggestions}
           searchClassName={[searchClassName, styles.categorySearch].filter(Boolean).join(" ")}
           afterSearch={afterSearch}
           statusMessage={chatError}
@@ -250,7 +213,7 @@ export function HomeSearchComposer({
                   label: staged ? IMAGE_CHAT_COPY.replaceLabel : IMAGE_CHAT_COPY.uploadLabel,
                   onFileSelected: stageFile,
                   disabled: sending,
-                  icon: responsivePhotoIcon,
+                  icon: photoIcon,
                 }
               : undefined
           }
@@ -259,7 +222,7 @@ export function HomeSearchComposer({
               ? {
                   label: IMAGE_CHAT_COPY.uploadLabel,
                   onClick: submission.openLogin,
-                  icon: responsivePhotoIcon,
+                  icon: photoIcon,
                 }
               : undefined
           }

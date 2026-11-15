@@ -7,56 +7,14 @@ import {
   useRef,
   useState,
 } from "react";
+import { HOME_CATEGORY_OPTIONS, type HomeCategoryId } from "./home-category-config.ts";
 import styles from "./home-search-composer.module.css";
 
-export type HomeCategoryId = "mobilya" | "moda" | "parfum";
-
-export interface HomeCategorySuggestion {
-  label: string;
-  query: string;
-}
-
-export interface HomeCategoryOption {
-  id: HomeCategoryId;
-  label: string;
-  imageSrc: string;
-  suggestions: readonly HomeCategorySuggestion[];
-}
-
-export const DEFAULT_HOME_CATEGORY: HomeCategoryId = "parfum";
-
-export const HOME_CATEGORY_OPTIONS = [
-  {
-    id: "mobilya",
-    label: "Mobilya",
-    imageSrc: "/görsel/optimized/mobilya-koltuk-kosesi.webp",
-    suggestions: [
-      { label: "Berjer koltuk", query: "Modern bir berjer koltuk" },
-      { label: "Çalışma masası", query: "Küçük bir çalışma masası" },
-      { label: "Minimal kitaplık", query: "Minimal bir kitaplık" },
-    ],
-  },
-  {
-    id: "moda",
-    label: "Moda",
-    imageSrc: "/görsel/optimized/moda-siyah-canta.webp",
-    suggestions: [
-      { label: "Siyah omuz çantası", query: "Zarif siyah bir omuz çantası" },
-      { label: "Beyaz spor ayakkabı", query: "Günlük beyaz spor ayakkabı" },
-      { label: "Keten gömlek", query: "Rahat kesim keten gömlek" },
-    ],
-  },
-  {
-    id: "parfum",
-    label: "Parfüm",
-    imageSrc: "/görsel/optimized/parfum-lacivert-sis.webp",
-    suggestions: [
-      { label: "Kalıcı odunsu parfüm", query: "Kalıcı odunsu bir parfüm" },
-      { label: "Günlük ferah koku", query: "Günlük kullanıma uygun ferah bir koku" },
-      { label: "Sonbahar parfümü", query: "Sonbahar için sıcak bir parfüm" },
-    ],
-  },
-] as const satisfies readonly HomeCategoryOption[];
+export {
+  DEFAULT_HOME_CATEGORY,
+  HOME_CATEGORY_OPTIONS,
+  type HomeCategoryId,
+} from "./home-category-config.ts";
 
 function optionIndex(id: HomeCategoryId): number {
   return Math.max(

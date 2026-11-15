@@ -64,8 +64,6 @@
   cursor: wait;
 }
 
-.mobileSuggestions,
-.mobilePhotoIcon,
 .heroPicture,
 .heroOverlay,
 .categoryPicker {
@@ -77,11 +75,10 @@
   display: contents;
 }
 
-.desktopPhotoIcon {
-  display: inline-flex;
-}
-
-@media (max-width: 639.98px) {
+/* Ana AI sahnesi mobil ve masaustunde ayni bilesen hiyerarsisini kullanir.
+   Gorseller simdilik yalniz telefonda istenir; masaustunde kategori gradient'i
+   sonraki arka plan gorselleri icin duzenin yerini korur. */
+@media (min-width: 0px) {
   .categoryScene {
     min-width: 0;
   }
@@ -269,7 +266,9 @@
     justify-self: center;
     width: 100%;
     max-width: 398px;
+    padding: var(--space-4) var(--space-4) var(--space-2) var(--space-5);
     border-color: color-mix(in srgb, var(--on-media) 62%, transparent);
+    border-radius: 24px;
     background: var(--surface-raised);
     box-shadow: 0 18px 54px color-mix(in srgb, var(--feature-bg) 28%, transparent);
     backdrop-filter: blur(18px);
@@ -284,18 +283,8 @@
     transform: rotate(-90deg);
   }
 
-  .categorySearch [data-photo-label],
-  .desktopPhotoIcon,
-  .desktopSuggestions {
+  .categorySearch [data-photo-label] {
     display: none;
-  }
-
-  .mobilePhotoIcon {
-    display: inline-flex;
-  }
-
-  .mobileSuggestions {
-    display: grid;
   }
 
   .suggestionsRow {
@@ -314,6 +303,13 @@
 
   .suggestion:hover {
     background: color-mix(in srgb, var(--on-media) 88%, transparent);
+  }
+}
+
+@media (min-width: 640px) {
+  .categoryScene .categorySearch {
+    width: 100vw;
+    margin-inline: calc(50% - 50vw);
   }
 }
 
