@@ -260,3 +260,17 @@ describe("isChatAnswerEnabled", () => {
     ).toBe(false);
   });
 });
+
+describe("forbidden claims survive Turkish suffixes", () => {
+  it("rejects suffixed forms such as hızlıca, dayanıklılığı, kalitesi", () => {
+    for (const text of [
+      "Bu set lastik patlaklarını hızlıca onarmak amacıyla tasarlanmış ve listede yer alıyor.",
+      "Philips ürününün dayanıklılığı yüksek görünüyor ve Hepsiburada listesinde yer alıyor.",
+      "Xiaomi ürününün kalitesi Trendyol listesinde öne çıkıyor ve markası belirtilmiş durumda.",
+    ]) {
+      const verdict = ok([para(text, [ev("p1", "brand", "Philips")])]);
+      expect(verdict.answer, text).toBeNull();
+      expect(verdict.rejected[0], text).toBe("forbidden_claim");
+    }
+  });
+});

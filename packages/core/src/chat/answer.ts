@@ -120,7 +120,7 @@ function digitsOf(text: string): string {
 
 /** Doğrulanamayan kalite/performans/uyumluluk/pazarlama iddiaları (cümle metninde). */
 const FORBIDDEN_CLAIM_RE =
-  /(?<![\p{L}\d])(?:en iyi|m[uü]kemmel|harika|kaliteli|kalite|performans\p{L}*|h[ıi]zl[ıi]|yava[sş]|dayan[ıi]kl[ıi]|garanti\p{L}*|uyumlu\p{L}*|ucuz\p{L}*|sat[ıi]n al\p{L}*|dupe|tavsiye ederim|kesinlikle|m[uü]thi[sş]|g[uü][cç]l[uü])(?![\p{L}\d])/iu;
+  /(?<![\p{L}\d])(?:en iyi|m[uü]kemmel\p{L}*|harika\p{L}*|kalite\p{L}*|performans\p{L}*|h[ıi]zl[ıi]\p{L}*|yava[sş]\p{L}*|dayan[ıi]kl[ıi]\p{L}*|dayan[ıi]m\p{L}*|garanti\p{L}*|uyumlu\p{L}*|ucuz\p{L}*|sat[ıi]n al\p{L}*|dupe|tavsiye ederim|kesinlikle|m[uü]thi[sş]|g[uü][cç]l[uü])(?![\p{L}\d])/iu;
 
 const ALL_CAPS_RE = /(?<![\p{L}])[A-ZÇĞİÖŞÜ]{5,}(?![\p{L}])/u;
 
