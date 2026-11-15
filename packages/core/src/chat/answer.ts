@@ -128,15 +128,38 @@ const ABSENCE_RE =
   /(?<![\p{L}\d])(?:belirtilme(?:mi[sş]|yor|di)\p{L}*|(?:verilme|payla[sş][ıi]lma|sunulma|ifade edilme)(?:mi[sş]|yor|di)\p{L}*|yer al(?:m[ıi]yor|mad[ıi]|mamak)\p{L}*|bulunm(?:uyor|amak|ad[ıi])\p{L}*|bilgi(?:si)? yok\p{L}*|veri(?:si)? yok\p{L}*|mevcut de[gğ]il\p{L}*|k[ıi]yaslayam[ıi]yorum|de[gğ]erlendiremiyorum|kar[sş][ıi]la[sş]t[ıi]ram[ıi]yorum|s[oö]yleyemiyorum|bilmiyorum)(?![\p{L}\d])/iu;
 
 /**
+ * İnsan denetimi (15 Kas 2026 pilotu, 134 cevap) ile doğrulanan çıkarım kalıpları; her biri etiketli
+ * kümede doğru cevap kaybettirmeden kritik hata yakaladı (karar 0212):
+ * - ihtiyaç varsayan çerçeve: "daha hafif bir çözüm arıyorsanız", "… istersen", "… ihtiyacınız varsa"
+ * - fiyat dışı karşılaştırma: "daha hafif/sade/…" (fiyat, teklif ve sayı karşılaştırması serbest)
+ * - üretim amacı/etki: "… için üretilmiş", "özel üretilmiş", "geliştirilmiştir", "gereksinimlerini
+ *   karşılamak", "yardımcı olabilir", "kişiselleştirmek", "oyun deneyimi"
+ * - yetenek: "eşleşebilen", "yönetebilen" (başlıkta yazmayan işlev)
+ * - öznel sınıflama: "orta segment", "klasik bir seçenek", "değerlendirebileceğiniz"
+ * Konu iddiaları gibi, yalnız verinin yokluğunu söyleyen yan cümlede serbesttir.
+ */
+const FORBIDDEN_INFERENCE_RE =
+  /(?<![\p{L}\d])(?:ar[ıi]yorsan\p{L}*|istersen\p{L}*|d[uü][sş][uü]n[uü]yorsan\p{L}*|ihtiya[cç]\p{L}* varsa|daha (?!uygun fiyat|d[uü][sş][uü]k|y[uü]ksek|pahal[ıi]|fazla|az(?![\p{L}\d])|[cç]ok(?![\p{L}\d]))\p{L}+|i[cç]in [uü]retil\p{L}*|[oö]zel [uü]retil\p{L}*|geli[sş]tiril\p{L}*|gereksinim\p{L}*|ki[sş]iselle[sş]tir\p{L}*|yard[ıi]mc[ıi] ol\p{L}*|deneyim\p{L}*|segment\p{L}*|klasik bir se[cç]enek|de[gğ]erlendirebilece\p{L}*|\p{L}{3,}[ae]bilen)(?![\p{L}\d])/iu;
+/**
+ * Modele verilmeyen kaynaklar: yalnız başlık, marka, mağaza, fiyat ve teklif sayısı verilir. "Ürün
+ * açıklamalarında … yok" demek, okunmamış bir kaynak hakkında iddiadır; yokluk cümlesinde de yasak.
+ */
+const NONEXISTENT_SOURCE_RE = /(?<![\p{L}\d])a[cç][ıi]klama(?:lar)?[ıi]nda(?![\p{L}\d])/iu;
+
+/**
  * Güçlü iddialar (üstünlük/pazarlama) HER cümlede yasak. Konu iddiaları (kalite/performans/hız/
  * dayanıklılık/garanti/uyumluluk) yalnız verinin yokluğunu söyleyen cümlede serbest: "başlıkta
  * dayanıklılık bilgisi belirtilmemiş" dürüst cevaptır; olumlu iddia olarak yazılırsa yasak.
  */
 function forbiddenClaim(text: string): boolean {
-  if (FORBIDDEN_STRONG_RE.test(text)) return true;
+  if (FORBIDDEN_STRONG_RE.test(text) || NONEXISTENT_SOURCE_RE.test(text)) return true;
   return text
     .split(/(?<=[.!?;,])\s+|\s+(?:ancak|ama|fakat|oysa)\s+/i)
-    .some((clause) => FORBIDDEN_TOPIC_RE.test(clause) && !ABSENCE_RE.test(clause));
+    .some(
+      (clause) =>
+        (FORBIDDEN_TOPIC_RE.test(clause) || FORBIDDEN_INFERENCE_RE.test(clause)) &&
+        !ABSENCE_RE.test(clause),
+    );
 }
 
 const ALL_CAPS_RE = /(?<![\p{L}])[A-ZÇĞİÖŞÜ]{5,}(?![\p{L}])/u;

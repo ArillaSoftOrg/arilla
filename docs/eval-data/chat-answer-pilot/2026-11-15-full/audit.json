@@ -219,8 +219,8 @@
       "costUsdMicros": 1577,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "\"Daha hafif\" iddiası için ağırlık verisi yok; 5000mAh kapasite daha hafif olduğunu kanıtlamaz."
       }
     },
     {
@@ -320,8 +320,8 @@
       "costUsdMicros": 1100,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Spor ifadesinin yalnız bir kulaklık başlığında bulunduğu gözlemi doğru; gerçek spor performansı iddiası yok."
       }
     },
     {
@@ -421,8 +421,8 @@
       "costUsdMicros": 1142,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "iPhone 15 uyumlu seçenekler sayılıyor, ancak \"hangisi daha uygun\" sorusuna belirgin seçim veya kıstas sunulmuyor."
       }
     },
     {
@@ -512,8 +512,8 @@
       "costUsdMicros": 1063,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "Adidas Samba modellerinin günlük kullanımda \"klasik seçenek\" olarak öne çıktığına dair tabloda kanıt yok."
       }
     },
     {
@@ -583,8 +583,8 @@
       "costUsdMicros": 1044,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Laptop, kapasite, waterproof ve USB ifadeleri ilgili ürün başlığında var; kullanım başarısı test edilmiş değil."
       }
     },
     {
@@ -716,8 +716,8 @@
       "costUsdMicros": 1310,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "Eveline spreyinin \"daha hafif\" olduğuna dair koku yoğunluğu/performansı verisi yok."
       }
     },
     {
@@ -802,8 +802,8 @@
       "costUsdMicros": 1127,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "Apple Watch için \"daha kapsamlı özellikler\" karşılaştırması tabloda desteklenmiyor."
       }
     },
     {
@@ -891,8 +891,8 @@
       "costUsdMicros": 1046,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Çalışma masası için hangisinin daha uygun olduğu belirtilmiyor; iki ürünün fiyatları veriliyor."
       }
     },
     {
@@ -960,8 +960,8 @@
       "costUsdMicros": 970,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "Yavru kedilerin beslenme gereksinimlerini karşıladığı iddiası içerik/besin yeterliliği olmadan kesin sunulmuş."
       }
     },
     {
@@ -1150,8 +1150,8 @@
       "costUsdMicros": 985,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Çocuğa hediye için uygunluk/yaş güvenliği değerlendirilmeden fiyat ve teklif sayısı sunuluyor."
       }
     },
     {
@@ -1251,8 +1251,8 @@
       "costUsdMicros": 1113,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Ev tamiratı için hangi setin uygun olduğu belirtilmiyor; yalnız fiyat ve teklif sayısı var."
       }
     },
     {
@@ -1340,8 +1340,8 @@
       "costUsdMicros": 1054,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Yaz tatili için öneri yapılmıyor; sadece pantolon/elbise fiyat ve teklif sayıları listeleniyor."
       }
     },
     {
@@ -1441,8 +1441,8 @@
       "costUsdMicros": 1112,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "4–5 aylık bebek için beden/uygunluk seçimi yapılmıyor; yalnız fiyatlar listeleniyor; beden yaşa tek başına bağlanamaz."
       }
     },
     {
@@ -1542,8 +1542,8 @@
       "costUsdMicros": 1114,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Kuru cilt için hangi ürünün uygun olduğu açıklanmıyor; yalnız fiyatlar veriliyor."
       }
     },
     {
@@ -1611,8 +1611,8 @@
       "costUsdMicros": 948,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Salon için hangi ürünün uygun olduğu belirlenmiyor; halı ve yolluğun fiyatları listeleniyor."
       }
     },
     {
@@ -1700,8 +1700,8 @@
       "costUsdMicros": 1033,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "PS5 için uygun ürün seçilmiyor; alakasız mekanik klavye ile yalnız fiyat/teklif bilgisi sıralanıyor."
       }
     },
     {
@@ -1801,8 +1801,8 @@
       "costUsdMicros": 1160,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Hediye için seçim veya kıstas verilmiyor; yalnız kolyelerin fiyat ve teklif sayıları listeleniyor."
       }
     },
     {
@@ -1954,8 +1954,8 @@
       "costUsdMicros": 1620,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -2075,8 +2075,8 @@
       "costUsdMicros": 1206,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -2196,8 +2196,8 @@
       "costUsdMicros": 1226,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -2302,8 +2302,8 @@
       "costUsdMicros": 1363,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Üç Adidas modelinin farkları sorulurken yalnız çocuk modeli anlatılıyor; gerçek karşılaştırma yok."
       }
     },
     {
@@ -2425,8 +2425,8 @@
       "costUsdMicros": 1227,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -2568,8 +2568,8 @@
       "costUsdMicros": 1347,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Fiyatların ürün başlığında değil, tabloda ayrıca sunulduğu ayrımı kullanıcı tarafından gözden geçirilebilir."
       }
     },
     {
@@ -2689,8 +2689,8 @@
       "costUsdMicros": 1286,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "Akıllı saatlerin \"geniş özellik setleri\", klasik saatlerin \"daha sade yapı\" iddiaları listelenen veriyle kanıtlanmıyor."
       }
     },
     {
@@ -2790,8 +2790,8 @@
       "costUsdMicros": 1095,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -2931,8 +2931,8 @@
       "costUsdMicros": 1441,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -3072,8 +3072,8 @@
       "costUsdMicros": 1337,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "AliExpress fiyat hücreleri boş; \"başlıkta fiyat yok\" sözü doğrulanıyor, ancak fiyatın platformda hiç olmadığı anlamına gelmez."
       }
     },
     {
@@ -3141,8 +3141,8 @@
       "costUsdMicros": 973,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -3272,8 +3272,8 @@
       "costUsdMicros": 1323,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -3361,8 +3361,8 @@
       "costUsdMicros": 1066,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -3450,8 +3450,8 @@
       "costUsdMicros": 1061,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -3571,8 +3571,8 @@
       "costUsdMicros": 1230,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -3672,8 +3672,8 @@
       "costUsdMicros": 1151,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -3761,8 +3761,8 @@
       "costUsdMicros": 1097,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -3869,8 +3869,8 @@
       "costUsdMicros": 1445,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "\"Oyun deneyimini kişiselleştirmek\" ve taşıma için \"özel üretilmiş\" gibi amaç/etki çıkarımları başlık ötesine geçiyor."
       }
     },
     {
@@ -4002,8 +4002,8 @@
       "costUsdMicros": 1336,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -4120,8 +4120,8 @@
       "costUsdMicros": 1309,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -4211,8 +4211,8 @@
       "costUsdMicros": 1038,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "En düşük fiyat, yalnız gösterilen ve fiyatı bilinen ürünler içindir; fiyatı boş diğerleri karşılaştırılamaz."
       }
     },
     {
@@ -4312,8 +4312,8 @@
       "costUsdMicros": 1154,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "En ucuzluk yalnız fiyatı bilinen ürünler için doğrulanabilir."
       }
     },
     {
@@ -4381,8 +4381,8 @@
       "costUsdMicros": 935,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -4452,8 +4452,8 @@
       "costUsdMicros": 1043,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "28 L kapasite doğrulanıyor; bunun okul/iş için \"geniş depolama\" sağladığına dair ölçüt yok."
       }
     },
     {
@@ -4531,8 +4531,8 @@
       "costUsdMicros": 983,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "En ucuz ürün vücut spreyi; parfüm ile farklı ürün sınıfı olduğunun kullanıcı tarafından değerlendirilmesi gerekir."
       }
     },
     {
@@ -4652,8 +4652,8 @@
       "costUsdMicros": 1245,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -4721,8 +4721,8 @@
       "costUsdMicros": 1090,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Fiyatlar doğru; yanıt en düşük olanı açıkça vurgulamıyor fakat sıralama anlaşılır."
       }
     },
     {
@@ -4834,8 +4834,8 @@
       "costUsdMicros": 1340,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "Besleyicinin beslenme takibi yapabildiği başlıkta kanıtlanmıyor; kamera ve otomatik işlev bunu doğrulamaz."
       }
     },
     {
@@ -4970,8 +4970,8 @@
       "costUsdMicros": 1136,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -5029,8 +5029,8 @@
       "costUsdMicros": 853,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -5118,8 +5118,8 @@
       "costUsdMicros": 1070,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -5239,8 +5239,8 @@
       "costUsdMicros": 1269,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "\"Pratik tercih\", \"daha sade ve kombinlenebilir\" gibi öznel üstünlükler ürün kayıtlarında yok."
       }
     },
     {
@@ -5371,8 +5371,8 @@
       "costUsdMicros": 929,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -5440,8 +5440,8 @@
       "costUsdMicros": 961,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Soru hangisinin daha ucuz olduğunu soruyor; iki fiyatı söylüyor fakat daha düşük fiyatlı yolluğu açıkça belirlemiyor."
       }
     },
     {
@@ -5509,8 +5509,8 @@
       "costUsdMicros": 930,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "En ucuz olan Wraith klavye açıkça belirtilmiyor, sadece iki fiyat sıralanıyor; ayrıca PS5 aksesuar niyetiyle uyumu belirsiz."
       }
     },
     {
@@ -5578,8 +5578,8 @@
       "costUsdMicros": 1089,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -5647,8 +5647,8 @@
       "costUsdMicros": 985,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "624 TL gösterilen fiyatı bilinen modeller arasında minimum; fiyatı boş ürünler var."
       }
     },
     {
@@ -5730,8 +5730,8 @@
         "decline_case_answered_review"
       ],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -5857,8 +5857,8 @@
       "costUsdMicros": 936,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -5968,8 +5968,8 @@
       "costUsdMicros": 1119,
       "autoFlags": ["forbidden_pattern:litre", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "28 L doğrulanıyor; diğerleri için ağırlık bilgisi yok."
       }
     },
     {
@@ -6082,8 +6082,8 @@
       "costUsdMicros": 1040,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -6151,8 +6151,8 @@
       "costUsdMicros": 942,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "wrong",
+        "notes": "Başlıklarda 9W, \"ayarlanabilir ışık\", dimming gibi teknik ayrıntılar mevcutken \"herhangi bir detay yok\" deniyor."
       }
     },
     {
@@ -6234,8 +6234,8 @@
         "decline_case_answered_review"
       ],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "\"Açıklamalarında\" veri olmadığına ilişkin kanıt sunulmamış; yalnız başlık/ürün gerçekleri var."
       }
     },
     {
@@ -6293,8 +6293,8 @@
       "costUsdMicros": 938,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Mazda 3 ifadesi güneşlik başlığında var; fiziksel uyumluluk doğrulanmış değil."
       }
     },
     {
@@ -6372,8 +6372,8 @@
       "costUsdMicros": 1039,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -6461,8 +6461,8 @@
       "costUsdMicros": 1095,
       "autoFlags": ["forbidden_pattern:güvenli", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "wrong",
+        "notes": "Pop It başlığında \"silikon\", diğer başlıklarda \"TPR\" gibi malzeme ifadeleri varken hiçbirinde materyal içeriği yok deniyor."
       }
     },
     {
@@ -6544,8 +6544,8 @@
         "decline_case_answered_review"
       ],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -6633,8 +6633,8 @@
       "costUsdMicros": 1078,
       "autoFlags": ["forbidden_pattern:pamuklu kumaş", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "wrong",
+        "notes": "p6 ürün başlığında açıkça \"Cotton\" yazıyor; hiçbir ürünün başlığında pamuklu özelliği bulunmadığı yanlış."
       }
     },
     {
@@ -6726,8 +6726,8 @@
         "decline_case_answered_review"
       ],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -6785,8 +6785,8 @@
       "costUsdMicros": 893,
       "autoFlags": ["forbidden_pattern:kırışıklık", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "\"Anti Wrinkle\" başlık iddiası olarak aktarılıyor; klinik etkinlik kanıtı sunulmuyor."
       }
     },
     {
@@ -6854,8 +6854,8 @@
       "costUsdMicros": 983,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -6947,8 +6947,8 @@
         "decline_case_answered_review"
       ],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünür başlıklarda Slim ve Xbox uyumluluğu açıklanmıyor; PS5/PS4/Xbox analog kapak başlığı bağlamsal olarak kontrol edilmeli."
       }
     },
     {
@@ -7016,8 +7016,8 @@
       "costUsdMicros": 920,
       "autoFlags": ["forbidden_pattern:kararmaz", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -7095,8 +7095,8 @@
       "costUsdMicros": 1062,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -7174,8 +7174,8 @@
       "costUsdMicros": 1059,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -7296,8 +7296,8 @@
       "costUsdMicros": 901,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Nike başlığında koşu ifadesi var; gerçek konfor veya performans üstünlüğü iddia edilmiyor."
       }
     },
     {
@@ -7429,8 +7429,8 @@
         "decline_case_answered_review"
       ],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -7488,8 +7488,8 @@
       "costUsdMicros": 896,
       "autoFlags": ["forbidden_pattern:bildirim", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "Apple Watch iPhone eşleşmesi ve bildirim yönetimi, sunulan ürün gerçekleri tablosunda bulunmuyor."
       }
     },
     {
@@ -7569,8 +7569,8 @@
       "costUsdMicros": 1021,
       "autoFlags": ["forbidden_pattern:google home", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -7638,8 +7638,8 @@
       "costUsdMicros": 922,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "3 LT ve Wi-Fi + Bluetooth bilgisi başlıkta var; programlama ayrıntısı yanıtlanmadı ancak uydurulmadı."
       }
     },
     {
@@ -7697,8 +7697,8 @@
       "costUsdMicros": 924,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -7780,8 +7780,8 @@
         "decline_case_answered_review"
       ],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -7869,8 +7869,8 @@
       "costUsdMicros": 1065,
       "autoFlags": ["forbidden_pattern:yaş", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -7990,8 +7990,8 @@
       "costUsdMicros": 1046,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -8079,8 +8079,8 @@
       "costUsdMicros": 1113,
       "autoFlags": ["forbidden_pattern:sızdırmaz", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -8168,8 +8168,8 @@
       "costUsdMicros": 1067,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Parfüm/paraben içeriği sorusuna yanıt verilmiyor veya verinin eksikliği belirtilmiyor; ilgisiz fiyat dökümü var."
       }
     },
     {
@@ -8227,8 +8227,8 @@
       "costUsdMicros": 910,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -8296,8 +8296,8 @@
       "costUsdMicros": 937,
       "autoFlags": ["forbidden_pattern:gecikme", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -8369,8 +8369,8 @@
         "decline_case_answered_review"
       ],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -8438,8 +8438,8 @@
       "costUsdMicros": 953,
       "autoFlags": ["forbidden_pattern:kesin", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "wrong",
+        "notes": "Woyax başlığında \"iPhone ...16...\" ifadesi varken hiçbir ürünün başlığında iPhone 16 uyumluluğu yok deniyor. Başlık iddiası gerçek uyumu kanıtlamaz."
       }
     },
     {
@@ -8527,8 +8527,8 @@
       "costUsdMicros": 1046,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -8648,8 +8648,8 @@
       "costUsdMicros": 1217,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -8739,8 +8739,8 @@
       "costUsdMicros": 1064,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -8808,8 +8808,8 @@
       "costUsdMicros": 919,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -8939,8 +8939,8 @@
       "costUsdMicros": 1246,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Hediye için bir parfüm önerilmiyor; fiyat ve teklif adetleri sıralanıyor."
       }
     },
     {
@@ -9008,8 +9008,8 @@
       "costUsdMicros": 914,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "En ucuzluk yalnız fiyatı bilinen ürünlerle sınırlı; AliExpress ürün fiyatları boş."
       }
     },
     {
@@ -9099,8 +9099,8 @@
       "costUsdMicros": 1039,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "799 TL Xiaomi masa lambası bütçede; 469 TL IKEA ürünü masa lambası değil sarkıt/abajur başlığı olduğundan uygun masa lambası alternatifi sayılmaz."
       }
     },
     {
@@ -9188,8 +9188,8 @@
       "costUsdMicros": 1102,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -9269,8 +9269,8 @@
       "costUsdMicros": 1147,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "En ucuzluk yalnız fiyatı bilinen ürünler için geçerli."
       }
     },
     {
@@ -9348,8 +9348,8 @@
       "costUsdMicros": 1008,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "En ucuzluk yalnız fiyatı bilinen ürünler için geçerli."
       }
     },
     {
@@ -9479,8 +9479,8 @@
       "costUsdMicros": 1290,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "Oyuncakların sınav stresini giderdiği ve farklı duyusal özellikler sağladığı etki iddiaları doğrulanmıyor."
       }
     },
     {
@@ -9548,8 +9548,8 @@
       "costUsdMicros": 918,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -9617,8 +9617,8 @@
       "costUsdMicros": 952,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -9706,8 +9706,8 @@
       "costUsdMicros": 1040,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -9807,8 +9807,8 @@
       "costUsdMicros": 1116,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -9908,8 +9908,8 @@
       "costUsdMicros": 1140,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "Küçük oda için yolluğun daha uygun olduğu ölçü/boyut dışında oda yerleşim bilgisi olmadan söyleniyor; bağlamsal çıkarım."
       }
     },
     {
@@ -10019,8 +10019,8 @@
       "costUsdMicros": 1203,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "wrong",
+        "notes": "Wraith mekanik oyuncu klavyesi \"taşıma veya düzenleme\" ekipmanı değildir; ürün amacı yanlış bağlanmış."
       }
     },
     {
@@ -10088,8 +10088,8 @@
       "costUsdMicros": 931,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -10157,8 +10157,8 @@
       "costUsdMicros": 985,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -10236,8 +10236,8 @@
       "costUsdMicros": 1078,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -10337,8 +10337,8 @@
       "costUsdMicros": 1202,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -10426,8 +10426,8 @@
       "costUsdMicros": 1054,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -10544,8 +10544,8 @@
       "costUsdMicros": 1320,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -10623,8 +10623,8 @@
       "costUsdMicros": 1010,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -10744,8 +10744,8 @@
       "costUsdMicros": 1076,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -10845,8 +10845,8 @@
       "costUsdMicros": 1109,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -10934,8 +10934,8 @@
       "costUsdMicros": 1069,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -11035,8 +11035,8 @@
       "costUsdMicros": 1142,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Piknik için bir ürün önerilmiyor; yalnız üç termosun fiyatları listeleniyor."
       }
     },
     {
@@ -11166,8 +11166,8 @@
       "costUsdMicros": 1289,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -11315,8 +11315,8 @@
       "costUsdMicros": 1110,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -11384,8 +11384,8 @@
       "costUsdMicros": 925,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -11453,8 +11453,8 @@
       "costUsdMicros": 919,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -11542,8 +11542,8 @@
       "costUsdMicros": 1088,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -11621,8 +11621,8 @@
       "costUsdMicros": 969,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -11710,8 +11710,8 @@
       "costUsdMicros": 1042,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -11866,8 +11866,8 @@
       "costUsdMicros": 1210,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -11952,8 +11952,8 @@
       "costUsdMicros": 1160,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "unevidenced_claim",
+        "notes": "Spigen ürününün \"orta segment\" olduğu fiyat/ürün tablosunda tanımlanmamış öznel sınıflama."
       }
     },
     {
@@ -12097,8 +12097,8 @@
       "costUsdMicros": 1436,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "\"Hangisi daha iyi\" sorusuna yanıt veya açık sınırlılık yok; fiyat karşılaştırmasıyla yetiniliyor."
       }
     },
     {
@@ -12253,8 +12253,8 @@
       "costUsdMicros": 988,
       "autoFlags": ["forbidden_pattern:indirim", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Stok/indirim bilgisinin başlıkta bulunmadığı dürüstçe açıklanıyor."
       }
     },
     {
@@ -12336,8 +12336,8 @@
         "decline_case_answered_review"
       ],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -12437,8 +12437,8 @@
       "costUsdMicros": 1129,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -12548,8 +12548,8 @@
       "costUsdMicros": 1159,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "off_intent",
+        "notes": "Kullanıcının İstanbul hava durumu sorusu yanıtsız bırakılmış; ürünlerle ilgili ilgisiz karşılaştırma sunuluyor."
       }
     },
     {
@@ -12659,8 +12659,8 @@
       "costUsdMicros": 1299,
       "autoFlags": [],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Bilinen tek fiyat 89 TL; fiyatları bilinmeyenler sıralanamıyor."
       }
     },
     {
@@ -12738,8 +12738,8 @@
       "costUsdMicros": 1034,
       "autoFlags": ["forbidden_pattern:garanti", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -12817,8 +12817,8 @@
       "costUsdMicros": 1012,
       "autoFlags": ["forbidden_pattern:iade", "decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -12891,8 +12891,8 @@
         "decline_case_answered_review"
       ],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
@@ -13075,8 +13075,8 @@
       "costUsdMicros": 1039,
       "autoFlags": ["decline_case_answered_review"],
       "review": {
-        "verdict": null,
-        "notes": ""
+        "verdict": "correct",
+        "notes": "Görünen cevap, karşılaştırma paketindeki ürün başlığı/fiyat/mağaza/teklif verileriyle uyumlu; ek kanıt gerektiren iddia saptanmadı."
       }
     },
     {
