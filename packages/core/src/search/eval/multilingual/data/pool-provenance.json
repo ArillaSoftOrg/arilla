@@ -1,0 +1,2059 @@
+{
+  "schema": "ml-eval-provenance/1",
+  "warning": "KOR ETIKETLEME ICIN ACMAYIN: hangi sistemin hangi urunu getirdigini gosterir.",
+  "docs": [
+    {
+      "doc_id": "e4:125211",
+      "catalog_snapshot": "e4",
+      "product_id": 125211,
+      "title": "Colorful Striped Grid Large Capacity Luggage Bag for Boy and Girls Best Gifts 2D Cartoon Travel Duffels Hand Bag for Children",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0384",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 1,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:140329",
+      "catalog_snapshot": "e4",
+      "product_id": 140329,
+      "title": "Cartoon Cat Head Large Capacity Luggage Bag for Boy and Girls Best Gifts 2D Flat Cartoon Travel Duffels Hand Bag for Children",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0391",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 1,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:142255",
+      "catalog_snapshot": "e4",
+      "product_id": 142255,
+      "title": "14 Inches High Quality Carry On Short Trip Luggage Travel Bags Mini Suitcase Women Suitcases",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-e4b.csv",
+      "source_item_ref": "B017",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:123103",
+      "catalog_snapshot": "e4",
+      "product_id": 123103,
+      "title": "Large Capacity Kids Backpacks for Boy Travel Lightweight Cute Backpack Casual Simple Cartoon Backpack School Bag Mochila Рюкзак",
+      "doc_lang_guess": "ru",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0381",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:122040",
+      "catalog_snapshot": "e4",
+      "product_id": 122040,
+      "title": "Leisure Children Backpacks for Boy Versatile Large Capacity Waterproof Travel Backpack Cute Backpack Sports Bag Designer Bag Sac",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0396",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 1,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:127298",
+      "catalog_snapshot": "e4",
+      "product_id": 127298,
+      "title": "Large Capacity Kids Backpacks for Boy Trendy Simple Cute Backpack Versatile Travel Backpack Cartoon Backpack School Bag Mochila",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0389",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:139813",
+      "catalog_snapshot": "e4",
+      "product_id": 139813,
+      "title": "Avanshare Ram Memory DDR3 DDR4 DDR5 32GB 16GB 8GB 4GB 1333 1600 2400 2666 3200 5600MHz For All Desktop Motherboards Intel AMD",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0431",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:140035",
+      "catalog_snapshot": "e4",
+      "product_id": 140035,
+      "title": "Avanshare Ram Memory DDR5 DDR4 DDR3 DDR3L 4GB 8GB 16GB 32GB 1333 1600 2400 2666 3200 5600MHz Sodimm Laptop Notebook Computers",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0440",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:143665",
+      "catalog_snapshot": "e4",
+      "product_id": 143665,
+      "title": "FLASHARK USB-C USB 3.2 Gen 1 32GB flash drive data storage, suitable for PC laptops and desktops (2 pieces)",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0442",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:134458",
+      "catalog_snapshot": "e4",
+      "product_id": 134458,
+      "title": "DM PD059 USB Flash Drive 32GB OTG Metal USB 3.0 Pen Drive Key 64GB Type C High Speed Pendrive Mini Flash Drive Memory Stick",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0438",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:129973",
+      "catalog_snapshot": "e4",
+      "product_id": 129973,
+      "title": "DM USB Flash drive USB3.2 high speed PD245 32GB 64GB 128G Metal Flash Drive",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0439",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:134843",
+      "catalog_snapshot": "e4",
+      "product_id": 134843,
+      "title": "KODAK USB3.2 Type C Flash Drive 256GB 128GB 32GB Pendrive High Speed Dual Memory Stick For Smartphone Laptop",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0432",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:52651",
+      "catalog_snapshot": "e4",
+      "product_id": 52651,
+      "title": "Love And Deepspace Artisan Keycaps Qin Che Qi Yu Shen Xinghui Cute Cat Ear Anime Keycaps For Mechanical Keyboard Otaku Game Fans",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1270",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:27273",
+      "catalog_snapshot": "e4",
+      "product_id": 27273,
+      "title": "*N21R Compact Wired Keyboard for Laptops - Mini External Keyboard with USB Connection, Ideal for Home and Office Use B",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0544",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:49745",
+      "catalog_snapshot": "e4",
+      "product_id": 49745,
+      "title": "Pokémon Snorlax Keycap Resin Translucent Cartoon Mechanical Keyboard Cross-axis Game Peripheral E-sports Accessories Gift",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1271",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:9351",
+      "catalog_snapshot": "e4",
+      "product_id": 9351,
+      "title": "Suitable for 58mm Coffee Handle Without Base Modification Base",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1277",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:14651",
+      "catalog_snapshot": "e4",
+      "product_id": 14651,
+      "title": "Makita DJV182Z 340W Brushless Jigsaw 18V Without Battery with Saw Blade Cordless Barrel Handle Portable Carpenter Power Tool",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1293",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:136497",
+      "catalog_snapshot": "e4",
+      "product_id": 136497,
+      "title": "Non Embroidered Quilted Craft Travel Handbag, Women's Leisure Shopping Handbag",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1288",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:110559",
+      "catalog_snapshot": "e4",
+      "product_id": 110559,
+      "title": "Winter Baby Snow Boots Leather Thick Plush Warm Waterproof Shoes for Toddler Kids EU 16-26 Fashion Little Girls Boys Warmth",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1101",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:71666",
+      "catalog_snapshot": "e4",
+      "product_id": 71666,
+      "title": "Children Shoe Girl Snow Boot Winter New Boots Fashion Princess Cotton Shoe Thickened Casual Boot Flat Bottomed Bare Boot Botas",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-cplus.csv",
+      "source_item_ref": "C083",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:108825",
+      "catalog_snapshot": "e4",
+      "product_id": 108825,
+      "title": "Kids Winter Fashion Sports Boots Warm Comfortable Non Slip Outdoor Shoes",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1108",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:72127",
+      "catalog_snapshot": "e4",
+      "product_id": 72127,
+      "title": "Zip Kids Knee High Non-Slip Plush Long Snow Boots for Girls High Leather Boots Winter Fashion Sports Boot Princess Shoes",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-cplus.csv",
+      "source_item_ref": "C084",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:71862",
+      "catalog_snapshot": "e4",
+      "product_id": 71862,
+      "title": "Faux Fur Winter Boots For Children Cute Cartoon Kid's Plush Boots Ergonomics Toddler Warm Boots For Boys Girls Fashion Snow Boot",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-cplus.csv",
+      "source_item_ref": "C085",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:78014",
+      "catalog_snapshot": "e4",
+      "product_id": 78014,
+      "title": "A Pair of Classic, Simple, Versatile Autumn and Winter Children's Boots",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1107",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:68929",
+      "catalog_snapshot": "e4",
+      "product_id": 68929,
+      "title": "18 Teeth Motor for 18V DCD771 DCD771C2 DCD771KS TYPE1 TYPE10 N279939 N362741 N440316 drill screw driver",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0797",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:3774",
+      "catalog_snapshot": "e4",
+      "product_id": 3774,
+      "title": "N196034 Chuck Replace for DCD796 DCD797 DCD792 DCD791 DCD790 DCD795 DCD771 DCD777 DCD734 DCD776 DCD778/7771 DC988K/984KN",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-hedefli.csv",
+      "source_item_ref": "H040",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:34426",
+      "catalog_snapshot": "e4",
+      "product_id": 34426,
+      "title": "Switch N868642 Replace For DEWALT DCD771 DCD771C2 TYPE1 N279942 N335379 N337101",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0795",
+      "retrieved_by_systems": ["hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:2388",
+      "catalog_snapshot": "e4",
+      "product_id": 2388,
+      "title": "housing shell for MAKITA DDF481 DF481D hp481d DHP481 XPH07 XFD07Z XFD07M 187921-4",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0796",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:65965",
+      "catalog_snapshot": "e4",
+      "product_id": 65965,
+      "title": "SPINDLE SA FOR DCD999 DCD999H2T DCD999N DCD999NT DCD999T1 DCD999X1 DCD999XILRT",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0792",
+      "retrieved_by_systems": ["hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:36600",
+      "catalog_snapshot": "e4",
+      "product_id": 36600,
+      "title": "Housing set for Makita DTD171",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0787",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:34199",
+      "catalog_snapshot": "e4",
+      "product_id": 34199,
+      "title": "Baby Stroller Seat Pad Insert Soft Stroller Cushion Head Neck Baby Car Seat Cushion Mat Kids Cart Mattress Mat Stroller accessor",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-e4b.csv",
+      "source_item_ref": "B011",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:34078",
+      "catalog_snapshot": "e4",
+      "product_id": 34078,
+      "title": "Solid Color Baby Stroller Cushion Baby Seat Cushion Seat Liner Pushchair Car Mat Pram Cushion Car Seat Trolley Mattress",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-cplus.csv",
+      "source_item_ref": "C049",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:33920",
+      "catalog_snapshot": "e4",
+      "product_id": 33920,
+      "title": "Baby Stroller Cushion Soft and Comfortable Double-side Cotton Cushion Cute Cartoon Rabbit Infant Cushion With Pillow",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-hedefli.csv",
+      "source_item_ref": "H014",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:83539",
+      "catalog_snapshot": "e4",
+      "product_id": 83539,
+      "title": "FuRyu Noodle Stopper Figure PUELLA MAGI MADOKA MAGICA Akemi Homura Pajamas Ornaments Gift",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0277",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:2770818",
+      "catalog_snapshot": "e4",
+      "product_id": 2770818,
+      "title": "IKEA Antılop Mavi-Beyaz Destek Minderi Kılıfı",
+      "doc_lang_guess": "tr",
+      "pool_origin": "e4/insan-kontrol-cplus.csv",
+      "source_item_ref": "C052",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:98151",
+      "catalog_snapshot": "e4",
+      "product_id": 98151,
+      "title": "Japanese Flying Mouse Momoka yiji Usagi Cartoon Summer Pajamas Short-sleeved Shorts Home Clothes Set Girl Birthday Gift",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0282",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:55672",
+      "catalog_snapshot": "e4",
+      "product_id": 55672,
+      "title": "For Siemens/Bosch/Gagner, dishwasher filters, accessories",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1323",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:73",
+      "catalog_snapshot": "e4",
+      "product_id": 73,
+      "title": "4.72 Inch Apple Slicer and Corer, Stainless Steel with 12 Blades, Anti-Slip Handle, Dishwasher Safe",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-hedefli.csv",
+      "source_item_ref": "H067",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:70",
+      "catalog_snapshot": "e4",
+      "product_id": 70,
+      "title": "Stainless Steel Serving Plate Crumpled Rectangular Serving Plate Tableware Dishwasher Safe Dish Decorative for Hosts",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-hedefli.csv",
+      "source_item_ref": "H068",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:33151",
+      "catalog_snapshot": "e4",
+      "product_id": 33151,
+      "title": "Upgraded hand press bag buckle machine garment sewing manual buckle machine",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1320",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:31928",
+      "catalog_snapshot": "e4",
+      "product_id": 31928,
+      "title": "non-stick Sandwich Maker Fast Heating Toaster Home Breakfast Making Machine Kitchen Electric Baking Pan Roast Meat Omelette",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1325",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:59380",
+      "catalog_snapshot": "e4",
+      "product_id": 59380,
+      "title": "Coffee shop milk frother, household, milk mixer, hand-held hair",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1317",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:10801",
+      "catalog_snapshot": "e4",
+      "product_id": 10801,
+      "title": "Plastic Dumpling Mold for Making Russian Pelmeni and Ukrainian Varenyky - Perfect for Siberian Meat Dumplings",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-e4b.csv",
+      "source_item_ref": "B022",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:11822",
+      "catalog_snapshot": "e4",
+      "product_id": 11822,
+      "title": "Kitchen Rolling Dough Dumpling Mold Pressing Dumpling Skin Tool Noodle Press Home Manual Baking Pastry Machine",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-e4b.csv",
+      "source_item_ref": "B019",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:21258",
+      "catalog_snapshot": "e4",
+      "product_id": 21258,
+      "title": "New Rolling Dumpling Maker Mold Press Baking Tool Dough Press Dumpling Making Dumpling Mold Kitchen Use",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-e4b.csv",
+      "source_item_ref": "B021",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:2769690",
+      "catalog_snapshot": "e4",
+      "product_id": 2769690,
+      "title": "Paşabahçe Borcam Baton Kek Kalıbı 59104 310 mm x 124 mm Ölçülerinde Şeffaf Malzeme İle Üretilmiştir",
+      "doc_lang_guess": "tr",
+      "pool_origin": "e4/insan-kontrol-cplus.csv",
+      "source_item_ref": "C075",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:38546",
+      "catalog_snapshot": "e4",
+      "product_id": 38546,
+      "title": "1pc Cute cartoon panda pattern mug, machine washable, suitable for everyday office use.",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-hedefli.csv",
+      "source_item_ref": "H057",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:25887",
+      "catalog_snapshot": "e4",
+      "product_id": 25887,
+      "title": "Hand Press Sweet Green Rice Balls Skin Molds Non-stick Labor-saving Dumpling Skin Wrapper Mold Efficient Creative",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-e4b.csv",
+      "source_item_ref": "B020",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:129670",
+      "catalog_snapshot": "e4",
+      "product_id": 129670,
+      "title": "UnionSine HDD Portable External Hard Drive 250gb/320gb/500gb/750gb/1tb USB3.0 Storage Compatible for PC, Mac, Desktop,MacBook",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0470",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:130400",
+      "catalog_snapshot": "e4",
+      "product_id": 130400,
+      "title": "USB 3.0/Type-C HDD External Expansion Storage 1TB 750/500/320/250/160G For PC Mac Laptop Office PS4 PS5 Xbox One Gaming Devices",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0462",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:134957",
+      "catalog_snapshot": "e4",
+      "product_id": 134957,
+      "title": "ORICO 1TB External SSD Up to 150MB/S Hanging Hole Design Portable Solid State Drive Storage PSSD for Tablets Laptops C15",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0472",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 2,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:133706",
+      "catalog_snapshot": "e4",
+      "product_id": 133706,
+      "title": "1pc High Speed Hard Drive Disk SSD 2.5in 512GB Hdd SSD SATA3 Internal Solid State Drive Hard Disk Upgrade Laptop Disk Hard Drive",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0471",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:131734",
+      "catalog_snapshot": "e4",
+      "product_id": 131734,
+      "title": "HGST Desktop Hard Drive 3.5-Inch Built-In Mechanical Hard Drive SATA3 6Gb/S Hitachi HDD 500GB 1TB 2TB 5700-7200 RPM Buffer",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0469",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:137695",
+      "catalog_snapshot": "e4",
+      "product_id": 137695,
+      "title": "2TB Fast Portable Hard Drive External SSD Hard Disk USB Type-C High-Speed Storage for Laptop/Mac/PC",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0466",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 1,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:22740",
+      "catalog_snapshot": "e4",
+      "product_id": 22740,
+      "title": "Battery Charger Replacement Lithium Battery Charger DCB206 DCB205 DCB204 DCB203 DCB120 for Dewalt 20V Battery Pins",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1199",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:25149",
+      "catalog_snapshot": "e4",
+      "product_id": 25149,
+      "title": "New Design Premium New Battery Professionaltection Board Accessories For 18V 2.0-3.0-4.0-5.0-6.0 Ah Battery Replacements Good",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1196",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:357",
+      "catalog_snapshot": "e4",
+      "product_id": 357,
+      "title": "30W Solar Charger System IP65 Car Battery Solar Panel Charging Kit 18V Solar Battery Charger Board For Car RV Boat Motorcycle",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1206",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:253",
+      "catalog_snapshot": "e4",
+      "product_id": 253,
+      "title": "【THANKSGIVING DAY】BAD11007 Enclosure Wire Junction Box Instrument Shell Battery Case Model Outdoor Distribution Instrument",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1202",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:62005",
+      "catalog_snapshot": "e4",
+      "product_id": 62005,
+      "title": "Battery Module 8.0V Emergency Battery 84102447710",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1208",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:665",
+      "catalog_snapshot": "e4",
+      "product_id": 665,
+      "title": "REMA Forklift Power Male and Female Plug DC 150V 80A 160A 320A High Current Battery Charging Connector Industrial Plug",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1203",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:52121",
+      "catalog_snapshot": "e4",
+      "product_id": 52121,
+      "title": "10/20 Pcs Battery Holder for Dewalt 20V Power Tools Li-ion Battery Wall Mount Battery Storage Rack for Work Van Shelf Toolbox",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0777",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:38070",
+      "catalog_snapshot": "e4",
+      "product_id": 38070,
+      "title": "For Dewalt 20V Series Battery Dock for Walls, Workshops Portable Cordless Storage Rack-4 Battery Version Battery Holder",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0778",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:25320",
+      "catalog_snapshot": "e4",
+      "product_id": 25320,
+      "title": "5PackTool Mount for Dewalt for Milwaukee 18V 20V Drill Tools Battery Holder Battery Mount Dock Holder Fixing Seat",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0781",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:23933",
+      "catalog_snapshot": "e4",
+      "product_id": 23933,
+      "title": "For OZITO/DeWalt/Makita/Milwaukee /Bosch 18/20V Battery for DIY Equipment ModificationTools XT60 Female Holder Battery Adapter f",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0775",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:27242",
+      "catalog_snapshot": "e4",
+      "product_id": 27242,
+      "title": "DCB112 20V MAX Battery Charger Replacement for Dewalt 12V-20V Battery Battery Charger",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0768",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:38021",
+      "catalog_snapshot": "e4",
+      "product_id": 38021,
+      "title": "For DEWALT 18V 20V DCB Battery To DEVON 20V Lithium Tool Adapter Converter Replacement",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0776",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e3a:27",
+      "catalog_snapshot": "e3a",
+      "product_id": 27,
+      "title": "Brand New EB-BT725ABU 7040mAh Replacement Tablet Battery For Samsung Galaxy Tab S5e T725C T720 SM-T720 SM-T725+Tools",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0363",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:46",
+      "catalog_snapshot": "e3a",
+      "product_id": 46,
+      "title": "Headset Acoustic Tube Earpiece Mic for Motorola MTX XTS HT1000 XTS5000 XTS2500 MTS2000 MT2000 GP900 Walkie Talkie Two Way Radio",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0002",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:1",
+      "catalog_snapshot": "e3a",
+      "product_id": 1,
+      "title": "Children Simulation Music Phone Toy Sensory Board Fine Motor Skills Baby Musical Phone Toy for Baby Toddlers Infants Girls Boys",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0144",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:14",
+      "catalog_snapshot": "e3a",
+      "product_id": 14,
+      "title": "Suitable for full iPhone series, 2pcs lens protector + 2pcs screen protector, HD drop-proof easy-install tempered glass.",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0486",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:4",
+      "catalog_snapshot": "e3a",
+      "product_id": 4,
+      "title": "WiFi Visual Doorbell Smart Wireless Video Camera Home Security Intercom System Remote Monitor For House Door Phone",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0167",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:23",
+      "catalog_snapshot": "e3a",
+      "product_id": 23,
+      "title": "Phone Bracket Magnetic Rear View Mirror Bracket Magnetic Car Phone Holder Adjustable Rear View Mirror Bracket Telescopic Rod",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0446",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:137729",
+      "catalog_snapshot": "e4",
+      "product_id": 137729,
+      "title": "SanDisk Ultra Flair USB3.0 Flash Drive CZ73 High Speed Memory Stick 16GB 32GB 64GB 128GB 256GB 512GB U Disk For Computer PC",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1184",
+      "retrieved_by_systems": ["hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:135420",
+      "catalog_snapshot": "e4",
+      "product_id": 135420,
+      "title": "Add Space For Microsoft Surface Book2/3 15inch BaseQi Microsd Card Reader Memory Adapter Minidrive Complete Hidden",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1188",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:152354",
+      "catalog_snapshot": "e4",
+      "product_id": 152354,
+      "title": "Walram Memoria Ram DDR3 8GB 4GB 1600MHz Internal Computer Ram DDR4 2666MHz 3200MHz 16GB 32GB Udimm Memory For PC Desktop",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1190",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:135563",
+      "catalog_snapshot": "e4",
+      "product_id": 135563,
+      "title": "GUDGA MSATA SSD SATA3 6Gbps Internal Solid State Disk 128GB 256GB 512GB 1TB Mini Hard Drive Upgrade For Laptop Desktop Computer",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1179",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 2,
+        "conf": "düşük"
+      }
+    },
+    {
+      "doc_id": "e4:2770468",
+      "catalog_snapshot": "e4",
+      "product_id": 2770468,
+      "title": "IKEA Försıktig Çocuk Basamağı Banyo Mutfak Yükseltme Taburesi",
+      "doc_lang_guess": "tr",
+      "pool_origin": "e4/insan-kontrol-cplus.csv",
+      "source_item_ref": "C088",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:132998",
+      "catalog_snapshot": "e4",
+      "product_id": 132998,
+      "title": "Personalized USB 3.0 Flash Drive 512GB 256GB 128GB Pendrive 64GB 32GB U Stick For Computer Laptop Notebook",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I1181",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:95543",
+      "catalog_snapshot": "e4",
+      "product_id": 95543,
+      "title": "Women's Summer New Large Size Slip-On Wedge Heel Sandals Thick Bottom Heightening Side Open Mouth Shoes Leather Uppers 36-43",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-e4b.csv",
+      "source_item_ref": "B005",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:101511",
+      "catalog_snapshot": "e4",
+      "product_id": 101511,
+      "title": "Women Suede Mid Heel Mules With Chunky Heels High heels Closed Toe Wedge Vintage Sandals New Summer Fashion Slipper Slides Women",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-cplus.csv",
+      "source_item_ref": "C008",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:93773",
+      "catalog_snapshot": "e4",
+      "product_id": 93773,
+      "title": "Sandals women's shoes summer versatile comfortable casual mesh women's shoes platform wedge heel large size mother shoes women",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-e4b.csv",
+      "source_item_ref": "B001",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:140274",
+      "catalog_snapshot": "e4",
+      "product_id": 140274,
+      "title": "Fashionable Lady's Leopard Print Tote Bag Large Capacity Travel Bag Weekender Overnight Bag with Shoe Compartment",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0095",
+      "retrieved_by_systems": ["hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:138656",
+      "catalog_snapshot": "e4",
+      "product_id": 138656,
+      "title": "Women Large Nylon Travel Bag Duffle Handbag Bow Embroidered Shoulder Weekender Luggage Crossbody Tote for Ladies Trip Daily",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0094",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:134611",
+      "catalog_snapshot": "e4",
+      "product_id": 134611,
+      "title": "Bag women's head layer PU bucket bag hand bag texture handbag",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0098",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:40031",
+      "catalog_snapshot": "e4",
+      "product_id": 40031,
+      "title": "Bluetooth Hub USB 5.0 Converter Wired Keyboard&Mouse to Wireless Hub Adapter Support 8 Devices for Tablet,Laptop,Mobile",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0557",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:28726",
+      "catalog_snapshot": "e4",
+      "product_id": 28726,
+      "title": "Stable- 28 Keys Numeric Keypad, Dual Modes Portable Keyboard, Waterproof Key Wired Slim Silent Keyboard, for Laptop, Computer",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0548",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:50336",
+      "catalog_snapshot": "e4",
+      "product_id": 50336,
+      "title": "Kawaii Miffy Keycaps Cute Rabbit Key Caps Mechanical Keyboard Suitable Cross Axis MAO Profile Gaming Office PC Gamer Gift",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0553",
+      "retrieved_by_systems": ["hybrid"],
+      "ai_preliminary": {
+        "score": 1,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:35041",
+      "catalog_snapshot": "e4",
+      "product_id": 35041,
+      "title": "Suitable for The Connection Pipe Accessories of The Two-way Solenoid Valve of The Kalamei Fully Automatic Coffee Machine",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0558",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:17435",
+      "catalog_snapshot": "e4",
+      "product_id": 17435,
+      "title": "JKL5CF 380V 12 step power factor controller power factory relay for intelligent power capacitor",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0551",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:41421",
+      "catalog_snapshot": "e4",
+      "product_id": 41421,
+      "title": "Stainless Steel Ice Bucket Rack Portable Desktop Beverage Cooler Holder Stand for Home Bar Party Event Wine Bucket Holder",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0684",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:56046",
+      "catalog_snapshot": "e4",
+      "product_id": 56046,
+      "title": "Ice Container with Stand Elegant 5-Liter Ice Container with Stand Three-Legged Beverage Cooler Rust-Resistant Space-Saving",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0687",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:146814",
+      "catalog_snapshot": "e4",
+      "product_id": 146814,
+      "title": "LAPTOP CPU COOLER FAN FOR HP 250 G8 / 255 G8 / 255 G9 / 250 G9 Notebook PC Laptop Fan",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0688",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:16070",
+      "catalog_snapshot": "e4",
+      "product_id": 16070,
+      "title": "Stainless Steel Kitchen Trivet Stand 4Pcs Insulating Mat Cooling Rack Set Heat Resistant Pot Holder For Tabletop Protection",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0683",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:4415",
+      "catalog_snapshot": "e4",
+      "product_id": 4415,
+      "title": "Baking Stand for Cakes Bakeware Chiffon Inverted Cooling Rack Pan Supplies Holder",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0693",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:154010",
+      "catalog_snapshot": "e4",
+      "product_id": 154010,
+      "title": "12032 AD2524UB 24V Blower Cooling fan laptop",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0691",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e3a:134",
+      "catalog_snapshot": "e3a",
+      "product_id": 134,
+      "title": "Premium Dust Bag Accessory for Deebot For T30 PRO For T30 Max For T30 DDX14 Enhance Your Vacuum Cleaner Performance",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0083",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:159",
+      "catalog_snapshot": "e3a",
+      "product_id": 159,
+      "title": "B29C-Indoor Security Wifi Camera 1080P CCTV For Home/Baby/Pet Monitoring Motion Detection Night Vision APP Control",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0035",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:16",
+      "catalog_snapshot": "e3a",
+      "product_id": 16,
+      "title": "100PCS Cartoon Anime Crayon Shin Chan Stickers Kids Toys for Car Laptop Phone Stationery Decor Decals Waterproof Cute Sticker",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0017",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:127",
+      "catalog_snapshot": "e3a",
+      "product_id": 127,
+      "title": "Nidec High-power Brushless Vacuum Cleaner Motor 24V 250W High-speed Turbine Brushless Fan PWM Speed Regulation",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0437",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:117",
+      "catalog_snapshot": "e3a",
+      "product_id": 117,
+      "title": "Nozzle Seal Plate For Bambu Lab X2D 3D Printer Prevent Oozing Nozzle Block Spare Replacement Parts",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0206",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:115099",
+      "catalog_snapshot": "e4",
+      "product_id": 115099,
+      "title": "winter children boots snow boots cute fashion school wear for boys and girls",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0022",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:119680",
+      "catalog_snapshot": "e4",
+      "product_id": 119680,
+      "title": "Children Snow Boots Girls Fashion Warm Plush Winter Boots Boys Wearable Soft Sole Snow Boots Size 15-30",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0024",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:120855",
+      "catalog_snapshot": "e4",
+      "product_id": 120855,
+      "title": "Cheerful Mario Winter children snow boots Cartoon baby outdoor cotton shoes",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0040",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:71741",
+      "catalog_snapshot": "e4",
+      "product_id": 71741,
+      "title": "Toddler Girls Glitter Rain Boots Waterproof Non-Slip Kids Rain Shoes Comfortable Children's Waterproof Footwear Shiny Water Boot",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0039",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 1,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:125713",
+      "catalog_snapshot": "e4",
+      "product_id": 125713,
+      "title": "Winter Child SnowBoot2025Autumn New Brand Child Flat Bottom ShortBoot Simple Girls Anti Slip Warm Cotton Boots Girl Fashion Boot",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0035",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 2,
+        "conf": "düşük"
+      }
+    },
+    {
+      "doc_id": "e4:71940",
+      "catalog_snapshot": "e4",
+      "product_id": 71940,
+      "title": "Children's New Football Shoes Broken Nails Long Nails Student Game Soccer Boot for Kids",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0026",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 1,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:47515",
+      "catalog_snapshot": "e4",
+      "product_id": 47515,
+      "title": "Pocket‑Size Foldable Flexible Bluetooth Keyboard Mouse Combo Mini Wireless Portable Keypad for TV Tablet Laptop",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0525",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 2,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:117795",
+      "catalog_snapshot": "e4",
+      "product_id": 117795,
+      "title": "Cartoon Chiikawa Hachiware series wireless mouse Mute cute Usagi Anime peripheral mouse Office and gaming Gift for a friend",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0538",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:109162",
+      "catalog_snapshot": "e4",
+      "product_id": 109162,
+      "title": "2026 Beauty Sanrio Hello Kitty Transparent Wireless Mouse Cute Girly DIY Decor Silent Office Mouse For Laptop Notebook Computer",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0526",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:51168",
+      "catalog_snapshot": "e4",
+      "product_id": 51168,
+      "title": "DBZ Dragon Ball Cell Large E-sports Mouse Pad Smooth Flexible Rubber Gamer PC Computer Keyboard for CSGO Kawaii Mosuepad",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0531",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:154727",
+      "catalog_snapshot": "e4",
+      "product_id": 154727,
+      "title": "Teensy 2.0 development board mega32u4 keyboard and mouse",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0533",
+      "retrieved_by_systems": ["hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:60857",
+      "catalog_snapshot": "e4",
+      "product_id": 60857,
+      "title": "Cartoon Kawaii Miffy New Wireless Transparent Mouse Magnetic Attraction Beyond Standby Portable Practical Durable Convenient",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0527",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e3a:57",
+      "catalog_snapshot": "e3a",
+      "product_id": 57,
+      "title": "U Shape Gold Buckle Double Leather Waist Cincher, Women Adjustable Decorative Belt For Blazer Overcoat",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0125",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:176",
+      "catalog_snapshot": "e3a",
+      "product_id": 176,
+      "title": "50Pcs Makeup Sub Container Flat Lids Easy Stack Protection from Sunlight Face Cream Container Face Cream Sub Bottle",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0013",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:121",
+      "catalog_snapshot": "e3a",
+      "product_id": 121,
+      "title": "2 Piece Women Sets New Arrival Plus Size Summer Autumn Matching Sets Solid Color Top And Shorts Suits Outfits Oversized Clothing",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0239",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:199",
+      "catalog_snapshot": "e3a",
+      "product_id": 199,
+      "title": "100% in Stock Original Sega Fave Yumemirize Sousou No Frieren Übel Roomwear Model Decoration Garage Kit Anime Figure Gift",
+      "doc_lang_guess": "de",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0350",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:125",
+      "catalog_snapshot": "e3a",
+      "product_id": 125,
+      "title": "New Cute Deer Spotted Lolita Handbag Autumn Winter Fluffy Plush Underarm Bag Girls Fashion Commuter Shopping Shoulder Bag",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0460",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:52",
+      "catalog_snapshot": "e3a",
+      "product_id": 52,
+      "title": "A53M-NRF52832 Beacon Ibeacon Bluetooth Tag BLE 5.0 Beacon With Accelerometer Indoor Low Power Bluetooth AOA Beacon",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0284",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:3603",
+      "catalog_snapshot": "e4",
+      "product_id": 3603,
+      "title": "Ceramic Spice Jar Set Seasoning Pot Sugar Salt Pepper Jar Lid Spoon Kitchen Condiment Organizer Holder Spice Jars",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-hedefli.csv",
+      "source_item_ref": "H053",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:3894",
+      "catalog_snapshot": "e4",
+      "product_id": 3894,
+      "title": "Transparent Seasoning Six Grid Seasoning Box Six Piece Set Kitchen Supplies Plastic Bottle Salt MSG Seasoning Jar Storage Box",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/insan-kontrol-hedefli.csv",
+      "source_item_ref": "H054",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:50798",
+      "catalog_snapshot": "e4",
+      "product_id": 50798,
+      "title": "Cartoon Cat Print Ceramic Dinnerware Set High-Value Bowl Plate Chopsticks Spoon Combo Kawaii Tableware Kit for Women Home Gift",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0939",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:64058",
+      "catalog_snapshot": "e4",
+      "product_id": 64058,
+      "title": "TAITO packaged queen gold shadow homewear scenery peripheral chassis collection ornament gift spot",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0932",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:35",
+      "catalog_snapshot": "e4",
+      "product_id": 35,
+      "title": "3 Pieces Book Shaped Cutting Board Set Thickened Wooden Chopping Board Set with Holder Acacia Wood Cutting Boards for Kitchen",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0943",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:69319",
+      "catalog_snapshot": "e4",
+      "product_id": 69319,
+      "title": "Wave Shape Ceramic Coffee Cup Saucer Set White Porcelain Mug for Espresso Latte Tea Home Bar Office Cafe Decor Drinking Set",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0942",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "yüksek"
+      }
+    },
+    {
+      "doc_id": "e4:71801",
+      "catalog_snapshot": "e4",
+      "product_id": 71801,
+      "title": "Cute Green Plush Slippers with Dinosaur cartoon Pattern, Suitable for Toddlers, Boys and Girls, Indoor Home Shoes, Slip-On Desig",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0103",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:69241",
+      "catalog_snapshot": "e4",
+      "product_id": 69241,
+      "title": "Sanrio Hello Kitty Strawberry Plush Autumn Winter Warm Slippers Girls Daily Home Slippers TPR Anti Slip Sole Cute House Slippers",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0121",
+      "retrieved_by_systems": ["lexical"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:52132",
+      "catalog_snapshot": "e4",
+      "product_id": 52132,
+      "title": "New Snoopy Girls Cotton Slippers Kawaii Fashion Plush Warm Indoor Home Winter Warm Anti Slip Sweet Comfort Cotton Shoes Gifts",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0120",
+      "retrieved_by_systems": ["lexical", "hybrid"],
+      "ai_preliminary": {
+        "score": 3,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:5761",
+      "catalog_snapshot": "e4",
+      "product_id": 5761,
+      "title": "HOME USE-A Resin Polishing Tools Kit,Electric Resin Drill Kit,Rotary Pen with Bits & Deburring Tool for Keychain Making,Jewelry",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0116",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:27345",
+      "catalog_snapshot": "e4",
+      "product_id": 27345,
+      "title": "Tablecloth Holiday Theme Plaid Checkered Pattern Fabric Blend Ruffled Hem for Dining Table 140x140cm 140x200cm",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0117",
+      "retrieved_by_systems": ["dense"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:47646",
+      "catalog_snapshot": "e4",
+      "product_id": 47646,
+      "title": "BAEJORIA Handmade Polyester-linen Tea Tweezer Luxury Slack Tongs Tea Clip Household For Toast Bread Pickles Cha Equipment Gift",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0102",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:94680",
+      "catalog_snapshot": "e4",
+      "product_id": 94680,
+      "title": "Bandai Gundam Universe RED GUNDAM Action Figure Mobile Suit Gundam GQuuuuuuX Anime Figure Collectible Model Toy Gift",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0228",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 1,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:80077",
+      "catalog_snapshot": "e4",
+      "product_id": 80077,
+      "title": "BANDAI Original Gundam GQuuuuuuX Amate Yuzuriha/MACHU Flight Suit Action Figure Desktop Ornaments Model Christmas Gift",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0233",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e4:83438",
+      "catalog_snapshot": "e4",
+      "product_id": 83438,
+      "title": "Bandai Original Genuine Figure Gundam Model",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0232",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 2,
+        "conf": "düşük"
+      }
+    },
+    {
+      "doc_id": "e4:2769882",
+      "catalog_snapshot": "e4",
+      "product_id": 2769882,
+      "title": "La Roche-Posay La Roche Posay Yağlı Ciltler için Parlama Karşıtı Güneş Bakım Kiti",
+      "doc_lang_guess": "tr",
+      "pool_origin": "e4/insan-kontrol-cplus.csv",
+      "source_item_ref": "C044",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:2769815",
+      "catalog_snapshot": "e4",
+      "product_id": 2769815,
+      "title": "Fufizu Evcil Hayvan Pati Izi Seti Toksik Olmayan Mürekkepsiz Baskı Kiti Kedi ve Köpek İçin Güvenli",
+      "doc_lang_guess": "tr",
+      "pool_origin": "e4/insan-kontrol-cplus.csv",
+      "source_item_ref": "C045",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e4:133380",
+      "catalog_snapshot": "e4",
+      "product_id": 133380,
+      "title": "mobile suit gundams Merch Pen Box Large Capacity Kids Pen Case Gift",
+      "doc_lang_guess": "en",
+      "pool_origin": "e4/etiketleme-kor.csv",
+      "source_item_ref": "I0235",
+      "retrieved_by_systems": ["dense", "hybrid"],
+      "ai_preliminary": {
+        "score": 0,
+        "conf": "orta"
+      }
+    },
+    {
+      "doc_id": "e3a:45",
+      "catalog_snapshot": "e3a",
+      "product_id": 45,
+      "title": "Replacement Ear Pads for Poly Voyager Surround 80 UC Bluetooth Headset Effective Noise Isolation and Easy Installation Process",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0292",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:181",
+      "catalog_snapshot": "e3a",
+      "product_id": 181,
+      "title": "3 pçs/set relógios femininos moda pequeno mostrador liga elástica relógio de quartzo meninas reloj mujer (sem caixa)",
+      "doc_lang_guess": "pt",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0407",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:120",
+      "catalog_snapshot": "e3a",
+      "product_id": 120,
+      "title": "Livestrong Nose Bridge Pads for Rudy Project Rydon Sunglasses Glasses Adjustable Rubber Non-Slip Replacement Spare Part",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0151",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:72",
+      "catalog_snapshot": "e3a",
+      "product_id": 72,
+      "title": "New Design Premium Real Cowhide Men Belt Luxury Personalized Student Couple Woven Casual Buckle Layer Hand Fashion Jeans Hollow",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0502",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:29",
+      "catalog_snapshot": "e3a",
+      "product_id": 29,
+      "title": "1-10Pcs WS2812B 8x8 8x32 16x16 Pixel Panel LED Module WS2811 5V IP68 RGB Rope Dream Color 50LEDs RF Bluetooth Music WIFI Adapter",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0332",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:9",
+      "catalog_snapshot": "e3a",
+      "product_id": 9,
+      "title": "A53M-Memory Foam Ear Earpads Replacement Cooling Gel For Sony WH-1000XM6 Headphones Headset Earpads",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0086",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:139",
+      "catalog_snapshot": "e3a",
+      "product_id": 139,
+      "title": "Type C Adapter For Logitech G Pro Wireless / GPW GPX Superlight/G703/G903 Mouse Charging Converter Micro USB to USB C Connecto",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0489",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:24",
+      "catalog_snapshot": "e3a",
+      "product_id": 24,
+      "title": "High Quality BLP959 Phone Battery 3.87V 5000mAh For OPPO RENO 8T Brand New Replacement Battery",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0115",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:107",
+      "catalog_snapshot": "e3a",
+      "product_id": 107,
+      "title": "New Desktop Aluminum Profile Handbrake Support Simulator Fixture Stand Suitable for Magura HGP, Logitech G27, and Leovo A7",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0122",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:43",
+      "catalog_snapshot": "e3a",
+      "product_id": 43,
+      "title": "2026 3.7V 1S3P 18650 10500mAh battery with SM/XH2.54/3p/XH2.0/JST connector, with BMS protection plate, headlight, speaker",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0198",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:36",
+      "catalog_snapshot": "e3a",
+      "product_id": 36,
+      "title": "1-10PCS 401230 110mAh 3.7V Lithium Polymer Replacement Battery for GPS Sat Nav Bluetooth Speaker LED Driving Recorder",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0492",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:123",
+      "catalog_snapshot": "e3a",
+      "product_id": 123,
+      "title": "587B Gaming Mouse Scroll Wheel Pulley Mice Repair Replacement for M170 M171",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0003",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:168",
+      "catalog_snapshot": "e3a",
+      "product_id": 168,
+      "title": "1pcs S08K S10K S12M SDQCR07 SDQCL07 SDQCR07 SDQCL07 Internal Turning Tool Holder Boring Bar CNC Lathe Cutter Cutting DCMT",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0369",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:50",
+      "catalog_snapshot": "e3a",
+      "product_id": 50,
+      "title": "2PCS 38.5core Coil Speaker Accessory 38.5mm 16ohm Bass KSV Voice Coil Imported 1-layer",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0459",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:150",
+      "catalog_snapshot": "e3a",
+      "product_id": 150,
+      "title": "1set 2 players Zero Delay Arcade USB Encoder PC to Joystick Arcade Rocker Circuit Board Control Panel For MAME Gaming",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0304",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:148",
+      "catalog_snapshot": "e3a",
+      "product_id": 148,
+      "title": "2Pcs Waterproof Clear Notebook Protectors Clear Book Sleeves For Cover Book Transparent Lightweight",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0051",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:160",
+      "catalog_snapshot": "e3a",
+      "product_id": 160,
+      "title": "Notebook Blank Page Painting Paper Book Journal Notepad Memo Pads Supplies",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0026",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:137",
+      "catalog_snapshot": "e3a",
+      "product_id": 137,
+      "title": "Excavator Parts for Vio15/17/20/30/35/55/80/85 Excavator Kit Joystick Handle Rubber Dust Cover-joystick High Quality",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0412",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:35",
+      "catalog_snapshot": "e3a",
+      "product_id": 35,
+      "title": "B29C-DC7-24V TYPE-C AIR780E-4G 4-Channel Relay Module Bluetooth Wifi Development Board With Case AIR780E",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0521",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:30",
+      "catalog_snapshot": "e3a",
+      "product_id": 30,
+      "title": "Smart Valve Controller Automatic Gas Water Heater Valve Controller Home Remote Control Manipulator Work Bluetooth-Compatible",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0266",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:40",
+      "catalog_snapshot": "e3a",
+      "product_id": 40,
+      "title": "LED Flashlight Smart Watch Bluetooth Call Outdoor Waterproof 100+ Sports Modes Heart Rate Health Monitor Sports Smartwatch HW12",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0112",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:60",
+      "catalog_snapshot": "e3a",
+      "product_id": 60,
+      "title": "Women Belt Adjustable Length Imitation Leather Belt Jeans Dresses Shirts Sweaters Waistband Versatile Solid Color Waist Belts 95",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0326",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:165",
+      "catalog_snapshot": "e3a",
+      "product_id": 165,
+      "title": "NNSX Sexy Fox Tail Horse Anal Plug Vibrator Mouth Gag Cosplay Sex Toy For Couples Adult SM 10 Modes Vibrating Erotic Accessories",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0434",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:113",
+      "catalog_snapshot": "e3a",
+      "product_id": 113,
+      "title": "Baby Boy Boutique Clothes Cotton Spring Autumn Baby Jumpsuit Long Sleeve Cute Animal Print Infant Girl Rompers",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0433",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    },
+    {
+      "doc_id": "e3a:26",
+      "catalog_snapshot": "e3a",
+      "product_id": 26,
+      "title": "Cute Three Brown Dachshund Protection Cover for Apple 18W/20W Compatible For iPhones 13/14/15/16/17 Europe Charger Protector",
+      "doc_lang_guess": "en",
+      "pool_origin": "e3a-etiket-gereken.csv",
+      "source_item_ref": "E3A-0113",
+      "retrieved_by_systems": [],
+      "ai_preliminary": null
+    }
+  ]
+}
