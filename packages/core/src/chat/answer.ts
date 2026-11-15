@@ -122,7 +122,7 @@ function digitsOf(text: string): string {
 const FORBIDDEN_STRONG_RE =
   /(?<![\p{L}\d])(?:en iyi|m[uü]kemmel\p{L}*|harika\p{L}*|ucuz\p{L}*|sat[ıi]n al\p{L}*|dupe|tavsiye ederim|kesinlikle|m[uü]thi[sş])(?![\p{L}\d])/iu;
 const FORBIDDEN_TOPIC_RE =
-  /(?<![\p{L}\d])(?:kalite\p{L}*|performans\p{L}*|h[ıi]zl[ıi]\p{L}*|yava[sş]\p{L}*|dayan[ıi]kl[ıi]\p{L}*|dayan[ıi]m\p{L}*|garanti\p{L}*|uyumlu\p{L}*|g[uü][cç]l[uü]\p{L}*)(?![\p{L}\d])/iu;
+  /(?<![\p{L}\d])(?:kalite\p{L}*|performans\p{L}*|h[ıi]zl[ıi]\p{L}*|yava[sş]\p{L}*|dayan[ıi]kl[ıi]\p{L}*|dayan[ıi]m\p{L}*|garanti\p{L}*|uyumlu\p{L}*|g[uü][cç]l[uü]\p{L}*|teknolojik\p{L}*|imkan\p{L}*|tasarlan\p{L}*|y[oö]nelik|ama[cç]l[ıi]|kullan[ıi]ma uygun|ideal\p{L}*|geli[sş]mi[sş]\p{L}*)(?![\p{L}\d])/iu;
 /** Verinin YOKLUĞUNU söyleyen cümle ("başlıkta belirtilmemiş", "bilgi yok", "karşılaştıramıyorum"). */
 const ABSENCE_RE =
   /(?<![\p{L}\d])(?:belirtilme(?:mi[sş]|yor|di)\p{L}*|yer al(?:m[ıi]yor|mad[ıi]|mamak)\p{L}*|bulunm(?:uyor|amak|ad[ıi])\p{L}*|bilgi(?:si)? yok\p{L}*|veri(?:si)? yok\p{L}*|mevcut de[gğ]il\p{L}*|k[ıi]yaslayam[ıi]yorum|de[gğ]erlendiremiyorum|kar[sş][ıi]la[sş]t[ıi]ram[ıi]yorum|s[oö]yleyemiyorum|bilmiyorum)(?![\p{L}\d])/iu;
@@ -207,6 +207,8 @@ function paragraphProblem(
   const { text } = paragraph;
   if (text.length < PARAGRAPH_MIN || text.length > PARAGRAPH_MAX) return "length";
   if (forbiddenClaim(text)) return "forbidden_claim";
+  // Ürün kimlikleri (p1..p8) yalnız model ile sunucu arasındadır; kullanıcıya görünmez.
+  if (/(?<![\p{L}\d])p[1-8](?![\p{L}\d])/u.test(text)) return "internal_id";
   if (ALL_CAPS_RE.test(text)) return "all_caps";
   if (/https?:\/\/|www\./i.test(text)) return "url";
   const evidence = paragraph.evidence.slice(0, ANSWER_MAX_EVIDENCE);

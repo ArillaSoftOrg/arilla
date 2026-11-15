@@ -325,7 +325,7 @@ describe("evidence rules found by the 20-call smoke test", () => {
       {
         paragraphs: [
           {
-            text: "Xiaomi Mi Power Bank 3 modeli 10000mAh kapasiteli ve 849 TL fiyatla listeleniyor (p1).",
+            text: "Xiaomi Mi Power Bank 3 modeli 10000mAh kapasiteli ve 849 TL fiyatla listeleniyor.",
             evidence: [
               { item: "p1", field: "title", quote: "Power Bank 3" },
               { item: "p1", field: "price", quote: "849" },
@@ -378,9 +378,8 @@ describe("evidence rules found by the 20-call smoke test", () => {
     expect(verdict.rejected).toEqual(["unevidenced_number"]);
   });
 
-  it("allows the user's own number to be echoed, and ignores item ids like (p2)", () => {
-    const text =
-      "1000 TL bütçenizin altında Philips Hue ürünü (p1) 624 TL fiyatla listeleniyor burada.";
+  it("allows the user's own number to be echoed", () => {
+    const text = "1000 TL bütçenizin altında Philips Hue ürünü 624 TL fiyatla listeleniyor burada.";
     const evidence = [ev("p1", "price", "624")];
     const facts: ResultFact[] = [
       {
@@ -438,6 +437,40 @@ describe("absence phrases with Turkish suffixes, store names with digits", () =>
       },
       facts,
     );
+    expect(verdict.rejected).toEqual([]);
+  });
+});
+
+describe("internal ids and soft characterizations (full-pilot prerequisites)", () => {
+  it("rejects internal item ids shown to the user", () => {
+    const verdict = ok([
+      para(
+        "Listelenen ürünlerden p5 numaralı Philips kılıf başlıkta iPhone 15 ifadesini taşıyor.",
+        [ev("p1", "brand", "Philips")],
+      ),
+    ]);
+    expect(verdict.rejected).toEqual(["internal_id"]);
+  });
+
+  it("rejects unevidenced purpose/audience/advancement characterizations", () => {
+    for (const text of [
+      "Xiaomi daha fazla teknolojik imkan sunan bir seçenek olarak listelenmiş durumda burada.",
+      "Philips Hue günlük kullanıma yönelik tasarımlardan biri olarak listede yer alıyor.",
+      "Philips Hue genel kullanım amaçlı tasarlanmış bir ürün olarak listelenmiş durumda burada.",
+      "Philips Hue bu liste içindeki en gelişmiş ve ideal seçenek olarak görünüyor burada.",
+    ]) {
+      const verdict = ok([para(text, [ev("p1", "brand", "Philips")])]);
+      expect(verdict.answer, text).toBeNull();
+      expect(verdict.rejected[0], text).toBe("forbidden_claim");
+    }
+  });
+
+  it("still allows saying such information is absent", () => {
+    const verdict = ok([
+      para("Başlıklarda ürünlerin hangi kullanıma yönelik tasarlandığı belirtilmemiş durumda.", [
+        ev("p1", "brand", "Philips"),
+      ]),
+    ]);
     expect(verdict.rejected).toEqual([]);
   });
 });
