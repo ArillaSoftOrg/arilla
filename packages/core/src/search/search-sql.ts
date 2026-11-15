@@ -426,8 +426,10 @@ export function scoredCtes(
              pps.current_percentile, pps.list_price_inflated, p.offer_count,
              ${BEST_OFFER_ORIGIN_COLUMNS},
              ${score} AS score,
-             -- Karar 0202: fiyat sıralaması yalnız TRY tekliflerde karşılaştırılabilir; yurt dışı teklif NULL (sona).
-             (CASE WHEN bo.is_foreign THEN NULL ELSE bo.current_price END) AS sort_price,
+             -- Karar 0205: fiyat sıralaması kartta gösterilen tutardır (current_price: TRY ya da TCMB
+             -- kuruyla çevrilmiş yaklaşık TL; kur eskiyse/yoksa NULL). Belirsiz fiyat (kur yok, sıfır ya da
+             -- negatif) NULL kalır ve sona gider; hiçbir koşulda en ucuz sayılmaz.
+             (CASE WHEN bo.current_price > 0 THEN bo.current_price END) AS sort_price,
              ${accessoryRankColumn(accessoryPattern)} AS accessory_rank${extra}
       FROM ${text.products}
       JOIN best_offer bo ON bo.product_id = p.id
@@ -454,8 +456,9 @@ export function finalOrder(sort: TextSort): SQL {
     return sql`s.accessory_rank ASC, s.current_percentile ASC NULLS LAST, s.id ASC`;
   }
   if (sort === "lowest_price") {
-    // Karar 0202: ana ürün kademesi, stokta olanlar önce, sonra en düşük TRY fiyatı (aynı fiyatta skor).
-    return sql`s.accessory_rank ASC, (NOT s.in_stock) ASC, s.sort_price ASC NULLS LAST, s.score DESC, s.id ASC`;
+    // Karar 0202/0205: ana ürün kademesi, stokta olanlar önce, sonra kartta gösterilen en düşük TL
+    // fiyatı (belirsiz fiyat sonda); aynı fiyatta kesin TRY teklifi yaklaşık çevrilmişin önünde, sonra skor.
+    return sql`s.accessory_rank ASC, (NOT s.in_stock) ASC, s.sort_price ASC NULLS LAST, s.is_foreign ASC NULLS LAST, s.score DESC, s.id ASC`;
   }
   return sql`s.accessory_rank ASC, s.score DESC, s.id ASC`;
 }
