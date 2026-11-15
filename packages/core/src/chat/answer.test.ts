@@ -474,3 +474,23 @@ describe("internal ids and soft characterizations (full-pilot prerequisites)", (
     expect(verdict.rejected).toEqual([]);
   });
 });
+
+describe("full-pilot findings: more soft characterizations, more absence verbs", () => {
+  it("rejects capability-set / practicality wording; accepts 'verilmemiş' as absence", () => {
+    for (const text of [
+      "Apple Watch SE 9499 TL fiyatıyla daha kapsamlı özellikler sunan bir model olarak listelenmiş.",
+      "Xiaomi saatleri geniş özellik setleri ve farklı mağaza teklifleriyle listede yer alıyor burada.",
+      "Günlük kombinlerde pratik bir tercih olan elbise Trendyol listesinde yer alıyor burada.",
+    ]) {
+      const verdict = ok([para(text, [ev("p1", "brand", "Philips")])]);
+      expect(verdict.rejected[0], text).toBe("forbidden_claim");
+    }
+    const absent = ok([
+      para(
+        "Ürünlerin başlıklarında düşmeye karşı dayanıklılık bilgisi verilmemiş durumda burada.",
+        [ev("p1", "brand", "Philips")],
+      ),
+    ]);
+    expect(absent.rejected).toEqual([]);
+  });
+});
