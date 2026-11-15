@@ -2,7 +2,12 @@ import { HomeHeader, ProductCard } from "@arilla/ui";
 import { createElement } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
-import { homeFooterGroups, personalNavLinks, SUBPAGE_SECTION_LINKS } from "./home-footer-groups.ts";
+import {
+  homeFooterGroups,
+  legalFooterGroup,
+  personalNavLinks,
+  SUBPAGE_SECTION_LINKS,
+} from "./home-footer-groups.ts";
 
 const base = {
   brandLabel: "ManiCepte",
@@ -103,21 +108,26 @@ describe("ProductCard action", () => {
   });
 });
 
-describe("footer Hesap grubu", () => {
-  function accountLinks(signedIn: boolean) {
-    const group = homeFooterGroups(SUBPAGE_SECTION_LINKS, signedIn).find(
-      (g) => g.title === "Hesap",
-    );
-    return group?.links.map((l) => `${l.label} ${l.href}`) ?? [];
-  }
-
-  it("oturum açıkken Hesabım + kişisel sayfalar; oturum yokken yalnızca Giriş yap", () => {
-    expect(accountLinks(true)).toEqual([
-      "Hesabım /hesap",
-      "Kaydettiklerim /kaydettiklerim",
-      "Alarmlarım /alarmlar",
-      "Geçmişim /gecmis",
+describe("footer bilgi mimarisi", () => {
+  it("hesap tekrarini kaldirir; urun, sirket ve yardim gruplarini korur", () => {
+    const groups = homeFooterGroups(SUBPAGE_SECTION_LINKS);
+    expect(groups.map((group) => group.title)).toEqual([
+      "Ürün",
+      "Şirket",
+      "İş Ortaklıkları",
+      "Yardım",
     ]);
-    expect(accountLinks(false)).toEqual(["Giriş yap /giris"]);
+    expect(groups.flatMap((group) => group.links).map((link) => link.href)).not.toContain("/hesap");
+  });
+
+  it("tum yasal hedefleri acik adlariyla ayri alt listede tutar", () => {
+    expect(legalFooterGroup().links.map((link) => link.label)).toEqual([
+      "Gizlilik",
+      "KVKK Aydınlatma",
+      "Çerez Politikası",
+      "Kullanım Koşulları",
+      "Affiliate Açıklaması",
+      "Şirket Bilgileri",
+    ]);
   });
 });

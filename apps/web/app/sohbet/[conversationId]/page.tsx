@@ -1,7 +1,9 @@
 import {
   hasChatImageConsent,
+  isChatAnswerEnabled,
   isChatDiscoveryEnabled,
   isChatImageEnabled,
+  isChatUxV2Enabled,
   loadConversation,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
@@ -26,7 +28,7 @@ export default async function ConversationPage({
   searchParams,
 }: {
   params: Promise<{ conversationId: string }>;
-  searchParams: Promise<{ sirala?: string }>;
+  searchParams: Promise<{ sirala?: string; ac?: string }>;
 }) {
   const user = await requireProductUser();
   if (!isChatDiscoveryEnabled()) notFound();
@@ -41,6 +43,7 @@ export default async function ConversationPage({
     last?.role === "assistant" && last.kind === "clarify" ? view.pendingQuestion : null;
   const lastUser = [...view.messages].reverse().find((m) => m.role === "user" && m.kind === "text");
 
+  const query = await searchParams;
   const imageEnabled = isChatImageEnabled();
   const imageConsent = imageEnabled && (await hasChatImageConsent(getDatabase(), user.id));
 
@@ -57,7 +60,10 @@ export default async function ConversationPage({
       <ChatThread
         messages={view.messages}
         conversationId={view.id}
-        sortParam={(await searchParams).sirala}
+        sortParam={query.sirala}
+        uxV2={isChatUxV2Enabled()}
+        answerEnabled={isChatAnswerEnabled(user.id)}
+        openParam={query.ac}
       />
     </ChatInteractive>
   );

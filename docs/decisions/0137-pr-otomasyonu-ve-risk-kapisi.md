@@ -1,5 +1,7 @@
 # 0137 — PR otomasyonu: merge queue, deterministik risk kapısı, dağıtım durumu
 
+> **Geçersiz kılındı (2026-11-14): karar 0198.** PR/merge queue/`pr policy`/`risk-approved` kaldırıldı; doğrudan main'e push.
+
 Tarih: 2026-10-18
 
 ## Karar

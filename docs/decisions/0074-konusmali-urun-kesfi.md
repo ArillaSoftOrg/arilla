@@ -128,3 +128,11 @@ süzgeci (`interpretation-eligibility`) kullanıcı mesajına uygulanır: eşle�
 - **Analitik.** Bu iterasyonda HİÇ olay gönderilmez (kural 13: `docs/events.md`
   tanımsız olay yasak). `chat_message_sent` vb. istenirse önce events.md'ye eklenir;
   mesaj metni yüke girmez.
+
+## Genişletme notu (karar 0199, 15 Kasım 2026)
+
+"Yama anlamları" bölümündeki kural (kategori değişince marka, renk, fiyat kalır) **bozulmadı**: model
+`relation` alanını vermediği sürece aynen geçerlidir ve `hardening.test.ts` onu korur. Karar 0199,
+modele isteğe bağlı `relation` (`refine` / `new_independent` / `new_related`) ve `carry` alanları
+ekleyerek 0074'ün tanımadığı "ilişkili yeni arama" ile "bağımsız yeni arama"yı ayırır; `carry`
+yalnız kullanıcı ifadesiyle desteklenen alanları taşır. Ayrıntı ve koşullar: 0199.

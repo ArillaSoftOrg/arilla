@@ -22,6 +22,7 @@ const DEALS_COPY = {
   emptyBody:
     "Fiyatı gerçekten düşen ürünler her gün yeniden belirlenir. Bu arada aradığın ürünü arayabilir veya keşfedilen ürünlere göz atabilirsin.", // deals.empty_body
   emptySearchAction: "Ürün ara", // deals.empty_search_action
+  allOffersAction: "Tüm mağaza tekliflerini gör",
   savingsPercent: (percent: number) => `%${percent} daha uygun`, // deals.savings_percent
   savingsAmount: (amount: string) => `${amount} tasarruf`, // deals.savings_amount
 } as const;
@@ -43,6 +44,11 @@ export default async function FirsatlarPage() {
       <header className={styles.intro}>
         <h1 className={styles.title}>{DEALS_COPY.title}</h1>
         <p className={styles.lead}>{DEALS_COPY.lead}</p>
+        <div className={actions.actions}>
+          <a href="/teklifler" className={actions.secondary}>
+            {DEALS_COPY.allOffersAction}
+          </a>
+        </div>
       </header>
 
       {deals.length === 0 ? (

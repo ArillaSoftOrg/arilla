@@ -1,7 +1,4 @@
 import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
-import { createElement } from "react";
-import { COOKIE_PREFERENCES_HREF } from "./consent-copy.ts";
-import { CookiePreferencesLink } from "./cookie-consent-client.tsx";
 import { FEEDBACK_COPY } from "./geri-bildirim/feedback-copy.ts";
 import { HOME_COPY } from "./home-copy.ts";
 
@@ -52,31 +49,26 @@ export function personalNavLinks(): readonly HomeHeaderNavItem[] {
  * docs/pages.md "/" Faz 5-6: footer navigasyon verisi. YALNIZCA gercekten
  * var olan route'lar - apps/web/app/ altinda dogrudan denetlendi:
  * /kesfet, /firsatlar, /giris, /kaydettiklerim, /alarmlar, /gecmis,
- * /gizlilik, /kosullar, /cerez, /trendler (hepsinin page.tsx'i mevcut).
+ * /gizlilik, /kosullar, /cerez, /trendler, /markalar-icin,
+ * /icerik-ureticileri (hepsinin page.tsx'i mevcut).
  * Faz 6: /gizlilik ve /kosullar TASLAK sayfalar (bkz. docs/kvkk.md "Faz 6
  * notu") - yine de gercekten var olan, calisan route'lar oldugundan dead
  * link degil.
  *
  * Faz 8.1: /iletisim eklendi (gecici public e-posta, site-config.ts).
- * Ayri bir "Destek" grubu yok - tek link, Bilgi grubunda.
+ * SSS, iletisim ve geri bildirim ust bolumdeki "Yardim" grubundadir.
  *
- * Karar 0038: "Bilgi" grubu "Yasal" oldu - yedi yasal baglanti + Iletisim.
- * Karar 0045: Iletisim'in yanina /geri-bildirim (urun kapali da acik).
+ * Karar 0038: "Bilgi" grubu "Yasal" oldu. Bu grup artik ana kolonlarda
+ * degil, footer'in altindaki kucuk yasal listede acik adlariyla gosterilir.
+ * Karar 0045: /geri-bildirim urun kapali da acik ve Yardim grubundadir.
  * /kvkk-aydinlatma, /affiliate-aciklamasi, /sirket-bilgileri gercek
- * route'lar. "Cerez Tercihleri" bir sayfa degil, paneli acan istemci
- * linkidir (JS'siz /cerez#tercihler'e duser).
+ * route'lar. Cerez tercihleri ayrica listelenmez; /cerez sayfasindan
+ * yonetilir.
  *
  * Faz 7-8: bolum linkleri cagirandan gelir (`homeSectionLinks` veya
  * `SUBPAGE_SECTION_LINKS`) - header ile ayni hedefler.
  */
-export function homeFooterGroups(
-  links: SiteSectionLinks,
-  /**
-   * Oturum aciksa Hesabım + kisisel sayfalar; oturum yoksa yalnizca
-   * "Giriş yap" (ozel sayfalara baglanti verilmez).
-   */
-  signedIn = false,
-): readonly FooterGroup[] {
+export function homeFooterGroups(links: SiteSectionLinks): readonly FooterGroup[] {
   return [
     {
       title: HOME_COPY.footerProductGroupTitle,
@@ -86,14 +78,9 @@ export function homeFooterGroups(
         { label: HOME_COPY.navDeals, href: "/firsatlar" },
       ],
     },
-    {
-      title: HOME_COPY.footerAccountGroupTitle,
-      links: signedIn
-        ? [{ label: HOME_COPY.navAccount, href: "/hesap" }, ...personalNavLinks()]
-        : [{ label: HOME_COPY.loginLabel, href: "/giris" }],
-    },
     companyFooterGroup(),
-    legalFooterGroup(),
+    partnershipFooterGroup(),
+    helpFooterGroup(),
   ];
 }
 
@@ -104,13 +91,36 @@ function companyFooterGroup(): FooterGroup {
     links: [
       { label: HOME_COPY.navAbout, href: "/hakkinda" },
       { label: HOME_COPY.navBlog, href: "/blog" },
-      { label: HOME_COPY.navPartners, href: "/ortakliklar" },
     ],
   };
 }
 
-/** Yasal bağlantılar: ürün kapalıyken de açık kalan tek grup. */
-function legalFooterGroup(): FooterGroup {
+/** Ticari ve stratejik is birligi girisleri; icerikleri asamali acilir. */
+function partnershipFooterGroup(): FooterGroup {
+  return {
+    title: HOME_COPY.footerPartnershipGroupTitle,
+    links: [
+      { label: HOME_COPY.navBrands, href: "/markalar-icin" },
+      { label: HOME_COPY.navStores, href: "/ortakliklar" },
+      { label: HOME_COPY.navCreators, href: "/icerik-ureticileri" },
+    ],
+  };
+}
+
+/** Footer'in ust bolumundeki urun destegi ve geri bildirim hedefleri. */
+function helpFooterGroup(): FooterGroup {
+  return {
+    title: HOME_COPY.footerHelpGroupTitle,
+    links: [
+      { label: HOME_COPY.navFaq, href: "/sss" },
+      { label: HOME_COPY.navContact, href: "/iletisim" },
+      { label: FEEDBACK_COPY.navLabel, href: "/geri-bildirim" },
+    ],
+  };
+}
+
+/** Tum yasal baglantilar footer'in altindaki kucuk, acik listede kalir. */
+export function legalFooterGroup(): FooterGroup {
   return {
     title: HOME_COPY.footerLegalGroupTitle,
     links: [
@@ -120,22 +130,13 @@ function legalFooterGroup(): FooterGroup {
       { label: HOME_COPY.navTerms, href: "/kosullar" },
       { label: HOME_COPY.navAffiliate, href: "/affiliate-aciklamasi" },
       { label: HOME_COPY.navCompany, href: "/sirket-bilgileri" },
-      {
-        label: HOME_COPY.navCookiePreferences,
-        href: COOKIE_PREFERENCES_HREF,
-        render: ({ className, children }) =>
-          createElement(CookiePreferencesLink, { className, children }),
-      },
-      { label: HOME_COPY.navFaq, href: "/sss" },
-      { label: HOME_COPY.navContact, href: "/iletisim" },
-      { label: FEEDBACK_COPY.navLabel, href: "/geri-bildirim" },
     ],
   };
 }
 
 /**
- * Lansman öncesi (ürün kapalı, P2): ürün ve hesap bağlantıları yerine tek
- * erken erişim bağlantısı + yasal grup. Kapalı ürün sayfalarına link yok.
+ * Lansman öncesi (ürün kapalı, P2): ürün bağlantıları yerine tek erken
+ * erişim bağlantısı + şirket/yardım grupları. Yasal liste ortak alt alandadır.
  */
 export function earlyAccessFooterGroups(
   entries: readonly { label: string; href: string }[],
@@ -143,7 +144,8 @@ export function earlyAccessFooterGroups(
   return [
     { title: HOME_COPY.footerAccountGroupTitle, links: entries },
     companyFooterGroup(),
-    legalFooterGroup(),
+    partnershipFooterGroup(),
+    helpFooterGroup(),
   ];
 }
 
@@ -151,7 +153,6 @@ export function earlyAccessFooterGroups(
 export function compactEarlyAccessFooterGroups(
   entries: readonly { label: string; href: string }[],
 ): readonly FooterGroup[] {
-  const legal = legalFooterGroup();
   return [
     { title: HOME_COPY.footerAccountGroupTitle, links: entries },
     {
@@ -160,14 +161,6 @@ export function compactEarlyAccessFooterGroups(
         { label: HOME_COPY.navAbout, href: "/hakkinda" },
         { label: HOME_COPY.navContact, href: "/iletisim" },
       ],
-    },
-    {
-      title: HOME_COPY.footerLegalGroupTitle,
-      links: legal.links.filter((link) =>
-        ["/gizlilik", "/kvkk-aydinlatma", "/cerez", "/kosullar", "/sirket-bilgileri"].includes(
-          link.href,
-        ),
-      ),
     },
   ];
 }

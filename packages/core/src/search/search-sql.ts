@@ -20,10 +20,13 @@ import {
   balancedScoreExpr,
   balancedScoreFactors,
   categoryHintFactor,
+  relevanceScoreExpr,
 } from "./ranking.ts";
 import type { ForeignPrice } from "./result-types.ts";
+import { accessoryTitleDemotionPattern } from "./semantic/accessory-guard.ts";
 import { isSafeCategoryLiteral } from "./semantic/strategy.ts";
 import {
+  accessoryHeadMatch,
   candidateCtes,
   foldedDocumentExpr,
   matchTokens,
@@ -36,7 +39,11 @@ import {
 } from "./text-match.ts";
 import type { QueryFilters, QueryObject } from "./types.ts";
 
-export type TextSort = "balanced" | "best_deal";
+/**
+ * Metin sıralamaları. `lowest_price` (en düşük doğrulanmış fiyat) ve `best_match` (yalnız alaka,
+ * fiyat çarpanı yok) karar 0202'dir; ek değerlerdir, `balanced`/`best_deal` davranışı değişmez.
+ */
+export type TextSort = "balanced" | "best_deal" | "lowest_price" | "best_match";
 
 export function merchantIdsOf(filters: QueryFilters): number[] | null {
   return filters.merchant_ids && filters.merchant_ids.length > 0 ? filters.merchant_ids : null;
@@ -283,6 +290,7 @@ export function textMatch(
     fuzzy,
     lookups,
     excludedTitlePattern: productTitleExclusionPattern(query.text),
+    demotedTitlePattern: accessoryTitleDemotionPattern(query.text, query.product_role),
     requiredTitlePatterns: productTitleRequiredPatterns(query.text),
   });
   const products = sql`cand ca JOIN product p ON p.id = ca.id`;
@@ -353,6 +361,8 @@ export function scoredCtes(
   const merchantIds = merchantIdsOf(query.filters);
   const inStockOnly = query.filters.in_stock_only ?? false;
   const text = textMatch(query, tokenThreshold, candidateLimit, sort === "best_deal", lookups);
+  // Karar 0197: ana urun sorgusunda aksesuar basligi siralamada ayri bir kademe olarak alta iner (fiyat/skor onu one cikarmaz).
+  const accessoryPattern = accessoryTitleDemotionPattern(query.text, query.product_role);
   // "En iyi fiyat" sekmesi de ayni metin kapisindan gecer: alakasiz ama
   // indirimli bir urun bu sekmede de one cikmamali.
   if (sort === "best_deal") {
@@ -366,7 +376,8 @@ export function scoredCtes(
              bo.current_price, bo.in_stock, bo.trust_score,
              pps.current_percentile, pps.list_price_inflated, p.offer_count,
              ${BEST_OFFER_ORIGIN_COLUMNS},
-             (100 - COALESCE(pps.current_percentile, 100))::double precision AS score${extra}
+             (100 - COALESCE(pps.current_percentile, 100))::double precision AS score,
+             ${accessoryRankColumn(accessoryPattern)} AS accessory_rank${extra}
       FROM ${text.products}
       JOIN best_offer bo ON bo.product_id = p.id
       JOIN product_price_stats pps ON pps.product_id = p.id
@@ -389,9 +400,13 @@ export function scoredCtes(
   ] as const;
   // Karar 0190: tahmin edilen kategori yalniz carpan; yol guvenli bicimde degilse uygulanmaz.
   const hint = categoryConstraint(query.filters).softPath;
-  const score = sql`(${balancedScoreExpr(...inputs)} * ${categoryHintFactor(
-    hint !== null && isSafeCategoryLiteral(hint) ? hint : null,
-  )})`;
+  const hintFactor = categoryHintFactor(hint !== null && isSafeCategoryLiteral(hint) ? hint : null);
+  // `best_match`: fiyat çarpanı yok; diğerlerinde dengeli skor (karar 0202).
+  const baseScore =
+    sort === "best_match"
+      ? relevanceScoreExpr(inputs[0], inputs[1], inputs[2])
+      : balancedScoreExpr(...inputs);
+  const score = sql`(${baseScore} * ${hintFactor})`;
   let extra = sql``;
   if (explain) {
     const f = balancedScoreFactors(...inputs);
@@ -410,7 +425,12 @@ export function scoredCtes(
              bo.current_price, bo.in_stock, bo.trust_score,
              pps.current_percentile, pps.list_price_inflated, p.offer_count,
              ${BEST_OFFER_ORIGIN_COLUMNS},
-             ${score} AS score${extra}
+             ${score} AS score,
+             -- Karar 0205: fiyat sıralaması kartta gösterilen tutardır (current_price: TRY ya da TCMB
+             -- kuruyla çevrilmiş yaklaşık TL; kur eskiyse/yoksa NULL). Belirsiz fiyat (kur yok, sıfır ya da
+             -- negatif) NULL kalır ve sona gider; hiçbir koşulda en ucuz sayılmaz.
+             (CASE WHEN bo.current_price > 0 THEN bo.current_price END) AS sort_price,
+             ${accessoryRankColumn(accessoryPattern)} AS accessory_rank${extra}
       FROM ${text.products}
       JOIN best_offer bo ON bo.product_id = p.id
       LEFT JOIN product_price_stats pps ON pps.product_id = p.id
@@ -423,9 +443,22 @@ export function scoredCtes(
   `;
 }
 
+/** 1 = aksesuar gibi gorunen baslik (yalniz ana urun sorgusunda), 0 = diger. */
+function accessoryRankColumn(pattern: string | null): SQL {
+  return pattern === null
+    ? sql`0::int`
+    : sql`(CASE WHEN ${accessoryHeadMatch(pattern)} THEN 1 ELSE 0 END)::int`;
+}
+
 /** Son siralama; `row_number()` ile tanida da ayni ifade kullanilir. */
 export function finalOrder(sort: TextSort): SQL {
-  return sort === "best_deal"
-    ? sql`s.current_percentile ASC NULLS LAST, s.id ASC`
-    : sql`s.score DESC, s.id ASC`;
+  if (sort === "best_deal") {
+    return sql`s.accessory_rank ASC, s.current_percentile ASC NULLS LAST, s.id ASC`;
+  }
+  if (sort === "lowest_price") {
+    // Karar 0202/0205: ana ürün kademesi, stokta olanlar önce, sonra kartta gösterilen en düşük TL
+    // fiyatı (belirsiz fiyat sonda); aynı fiyatta kesin TRY teklifi yaklaşık çevrilmişin önünde, sonra skor.
+    return sql`s.accessory_rank ASC, (NOT s.in_stock) ASC, s.sort_price ASC NULLS LAST, s.is_foreign ASC NULLS LAST, s.score DESC, s.id ASC`;
+  }
+  return sql`s.accessory_rank ASC, s.score DESC, s.id ASC`;
 }

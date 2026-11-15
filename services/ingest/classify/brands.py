@@ -499,5 +499,6 @@ def clean_source_brand(raw: str | None, *, merchant_name: str | None = None) -> 
     letters = [c for c in name if c.isalpha()]
     if len(letters) > 4 and all(c.isupper() for c in letters):
         # "XIAOMI" -> "Xiaomi"; kisa kisaltmalar ("JBL", "LG") korunur.
-        return " ".join(part.capitalize() for part in name.split())
+        # Turkce "I" buyuk harfi "i" + birlestirici nokta (U+0307) uretmesin.
+        return " ".join(part.capitalize() for part in name.split()).replace("̇", "")
     return name

@@ -57,49 +57,46 @@ Mevcut adlar korunur; yeni roller için yeni ad eklenir. Tek kaynak
 
 | Rol | Belirteç | Açık | Koyu |
 | --- | --- | --- | --- |
-| Sayfa zemini | `--paper` | `#FAF8F5` | `#0E0F11` |
-| İnce/ikincil yüzey | `--surface` | `#F3F0EB` | `#17191C` |
+| Sayfa zemini | `--paper` | `#FCFCFC` | `#0E0F11` |
+| İnce/ikincil yüzey | `--surface` | `#F4F4F4` | `#17191C` |
 | Yükseltilmiş yüzey | `--surface-raised` | `#FFFFFF` | `#1E2125` |
-| Yüzey hover | `--surface-hover` | `#EBE7E0` | `#262A2F` |
-| Birincil metin | `--ink` | `#16181D` | `#F2F3F4` |
-| İkincil metin | `--ink-secondary` | `#44423E` | `#C9CDD1` |
-| Soluk metin (meta) | `--ink-muted` | `#67635D` | `#9BA0A6` |
-| Kenarlık (ayırıcı) | `--line` | `#E6E1D9` | `#2A2E33` |
-| Güçlü kenarlık (kontrol sınırı) | `--line-strong` | `#86817A` | `#737982` |
-| Birincil eylem zemini | `--accent` | `#16181D` | `#F2F3F4` |
+| Yüzey hover | `--surface-hover` | `#EBEBEB` | `#262A2F` |
+| Birincil metin | `--ink` | `#0D0D0D` | `#F2F3F4` |
+| İkincil metin | `--ink-secondary` | `#404040` | `#C9CDD1` |
+| Soluk metin (meta) | `--ink-muted` | `#636363` | `#9BA0A6` |
+| Kenarlık (ayırıcı) | `--line` | `#E5E5E5` | `#2A2E33` |
+| Güçlü kenarlık (kontrol sınırı) | `--line-strong` | `#858585` | `#737982` |
+| Birincil eylem zemini | `--accent` | `#0D0D0D` | `#F2F3F4` |
 | Birincil eylem metni | `--accent-foreground` | `#FFFFFF` | `#16181D` |
-| Birincil eylem hover | `--accent-hover` | `#2E3138` | `#D6D9DC` |
-| Odak halkası | `--focus-ring-color` | `#16181D` | `#F2F3F4` |
+| Birincil eylem hover | `--accent-hover` | `#2B2B2B` | `#D6D9DC` |
+| Odak halkası | `--focus-ring-color` | `#0D0D0D` | `#F2F3F4` |
 | Tasarruf / başarı | `--save` | `#1F6F4A` | `#4FBF8B` |
 | `--save` üstü metin | `--on-save` | `#FFFFFF` | `#0E0F11` |
 | Uyarı | `--warning` | `#8A5300` | `#E2A64A` |
 | Hata / yıkıcı | `--alert` | `#A8321F` | `#E5705C` |
 | Modal örtüsü | `--scrim` | `rgba(14,15,17,.45)` | `rgba(0,0,0,.6)` |
-| Kullanım kartı zeminleri | `--tint-aqua` / `--tint-mist` / `--tint-warm` | `#DFF7F8` / `#EEF6FB` / `#F3EEE8` | `#132C30` / `#172530` / `#26221D` |
+| Kullanım kartı zeminleri | `--tint-aqua` / `--tint-mist` / `--tint-warm` | `#F6F6F6` / `#F2F2F2` / `#EFEFEF` | `#1B1E21` / `#212428` / `#262A2F` |
 | Görsel üstü örtü / işaret | `--media-scrim` / `--on-media` | `rgba(14,15,17,.38)` / `#FFFFFF` | aynı |
 | Ana eylem kutusu gölgesi | `--shadow-hero` / `--shadow-hero-focus` | yumuşak geniş yayılım | aynı |
-| Footer zemini | `--footer-canvas` | `#EDF0EC` | `#111513` |
+| Footer zemini | `--footer-canvas` | `#F4F4F4` | `#17191C` |
 | Footer kelime işareti | `--footer-wordmark-top` / `--footer-wordmark-bottom` / `--footer-wordmark-glow` | `rgba(134,204,92,.5)` → `#8FD13A`, parıltı `rgba(183,245,47,.22)` | `rgba(183,245,47,.45)` → `#B7F52F`, parıltı `rgba(183,245,47,.12)` |
 
-**Editoryal roller** (`/blog`, `/hakkinda`, `/ortakliklar`): bu sayfalar sıcak
-zemin ve koyu teal bölüm kullanır; roller de anlamsaldır, sayfaya özgü renk
-yoktur.
+**Koyu vurgu bölümü** (`/ortakliklar` "üç adım", karar 0192): editoryal sayfalar
+ana yüzey belirteçlerini (`--paper`, `--surface`, `--surface-raised`) kullanır; tek
+renkli blok iki temada da antrasit zemin + marka limonu vurgudur. `--warm-*` ve
+`--teal-*` belirteçleri kullanılmadığı için kaldırıldı (0192).
 
 | Rol | Belirteç | Açık | Koyu |
 | --- | --- | --- | --- |
-| Editoryal sayfa zemini | `--warm-page` | `#EFEBE0` | `#121110` |
-| Editoryal kart zemini | `--warm-card` | `#FFFBF2` | `#1D1B18` |
-| Koyu vurgu bölümü zemini | `--feature-bg` | `#134E66` | `#0F3A49` |
+| Koyu vurgu bölümü zemini | `--feature-bg` | `#17191C` | `#1E2125` |
 | `--feature-bg` üstü metin | `--feature-ink` | `#FFFFFF` | `#FFFFFF` |
-| `--feature-bg` üstü soluk metin | `--feature-ink-muted` | `#CFE9EF` | `#CFE9EF` |
-| `--feature-bg` üstü vurgu | `--feature-accent` | `#2BD3EE` | `#2BD3EE` |
-| `--feature-bg` üstü ayırıcı | `--feature-line` | `#3B7185` | `#3B7185` |
-| Teal vurgu metni | `--teal-ink` | `#0A7185` | `#5FD6EA` |
-| Teal vurgu yüzeyi | `--teal-soft` | `#DFF6FA` | `#12323B` |
+| `--feature-bg` üstü soluk metin | `--feature-ink-muted` | `#C9CDD1` | `#C9CDD1` |
+| `--feature-bg` üstü vurgu | `--feature-accent` | `#B7F52F` | `#B7F52F` |
+| `--feature-bg` üstü ayırıcı | `--feature-line` | `#3A3F45` | `#3A3F45` |
 
-Hesaplanmış kontrast: `--teal-ink` / `--teal-soft` 5.04:1 (açık), 7.96:1
-(koyu); `--feature-ink-muted` ve `--feature-accent`, `--feature-bg` üzerinde
-7.17:1 ve 5.05:1; `--ink-muted` / `--warm-card` 5.78:1. `--feature-*` ailesi
+Hesaplanmış kontrast: `--feature-bg` üzerinde `--feature-ink` 17.61:1 / 16.16:1,
+`--feature-ink-muted` 11.02:1 / 10.11:1, `--feature-accent` (limon) 13.52:1 / 12.40:1
+(açık / koyu). `--feature-line` dekoratif ayırıcıdır (~1.5–1.7:1). `--feature-*` ailesi
 iki temada da koyu bir zemin üzerindedir, bu yüzden metin değerleri iki temada
 aynıdır.
 
@@ -115,18 +112,18 @@ karar 0025).
 - Metin rolleri (`--ink`, `--ink-secondary`, `--ink-muted`, `--save`,
   `--warning`, `--alert`) `--paper`, `--surface` ve `--surface-raised`
   üzerinde en az **4.5:1** sağlar. En düşük değer: açık temada `--ink-muted`
-  / `--surface` = 5.25:1 (karar 0092 sıcak paleti; `--surface-hover` üzerinde
-  4.84:1). Kullanım kartı zeminlerinde (`--tint-*`) metin ≥ 5.9:1.
+  / `--surface` = 5.46:1 (karar 0191 nötr palet; `--surface-hover` üzerinde
+  5.04:1). Kullanım kartı zeminlerinde (`--tint-*`) `--ink-muted` ≥ 5.22:1.
 - `--line-strong` bu üç zeminde ve `--surface-hover` üzerinde en az **3:1**
-  sağlar (en düşük: açık tema `--surface-hover` üzerinde 3.14:1, koyu tema
+  sağlar (en düşük: açık tema `--surface-hover` üzerinde 3.10:1, koyu tema
   `--surface-hover` üzerinde 3.29:1). Etkileşimli kontrolün sınırını tek
   başına belirten her kenarlık (`input`, ikincil buton, chip) bunu kullanır
   (WCAG 1.4.11) — kontrol hover'da `--surface-hover` dolgusu alsa da.
 - `--line` (~1.1–1.4:1) yalnızca **dekoratif** ayırıcı ve statik yüzey
   kenarı içindir; bir kontrolün bulunabilirliği ona bağlı olamaz.
 - `--accent-foreground` / `--accent-hover` ≥ 12:1.
-- Footer dekoru (karar 0093): metnin arkasında yalnızca iki parıltı; en kötü
-  üst üste bindiğinde `--ink-muted` açık temada 4.81:1, koyu temada 4.90:1;
+- Footer dekoru (karar 0093, zemin 0192): metnin arkasında tek parıltı katmanı;
+  en yoğun noktasında `--ink-muted` açık temada 5.20:1, koyu temada 5.01:1;
   `--ink-secondary` ≥ 8:1. Kelime işareti ve parlaması metnin altındaki
   metinsiz alanda, kontrast ölçülmez.
 

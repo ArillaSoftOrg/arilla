@@ -87,8 +87,6 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: pnpm -r typecheck
-      - name: PR politikası birim testleri (karar 0137)
-        run: node --test scripts/pr-policy.test.mjs
       # Değişen dosyalar KESİN: PR'ın getirdiği her dosya biome'dan geçmeli.
       - name: lint (değişen dosyalar)
         run: |

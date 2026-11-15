@@ -4,18 +4,18 @@ import {
   EARLY_ACCESS_PATH,
   EARLY_ACCESS_SIGNUP_PATH,
 } from "@arilla/core";
-import type { FooterGroup, HomeHeaderNavItem } from "@arilla/ui";
+import type { FooterGroup, HomeHeaderAppearance, HomeHeaderNavItem } from "@arilla/ui";
 import { Container, HomeHeader, SiteFooter, SkipLink } from "@arilla/ui";
 import type { ReactNode } from "react";
 import { logoutAction } from "./cikis-actions.ts";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { EARLY_ACCESS_COPY } from "./early-access-copy.ts";
-import { EditorialFooter } from "./editorial-footer.tsx";
 import { HOME_COPY } from "./home-copy.ts";
 import {
   compactEarlyAccessFooterGroups,
   earlyAccessFooterGroups,
   homeFooterGroups,
+  legalFooterGroup,
   personalNavLinks,
   type SiteSectionLinks,
   SUBPAGE_SECTION_LINKS,
@@ -67,6 +67,7 @@ export async function PublicSiteShell({
   compactFooter = false,
   footerVariant = "default",
   footerClassName,
+  headerAppearance = "default",
   children,
 }: {
   links: SiteSectionLinks;
@@ -84,9 +85,13 @@ export async function PublicSiteShell({
   showFooterSocial?: boolean;
   /** Keeps the prelaunch landing footer concise without affecting other routes. */
   compactFooter?: boolean;
+  /** Yalnizca header davranisi (prelaunch: hesap/admin baglantisi menude). Footer her
+   *  sayfada ayni standart SiteFooter'dir (karar 0193). */
   footerVariant?: "default" | "prelaunch";
   /** Yalnizca bu sayfanin standart footer'i icin duzen sinifi. */
   footerClassName?: string;
+  /** Ana sayfanin mobil fotograf hero'su icin ust cubuk sunumu. */
+  headerAppearance?: HomeHeaderAppearance;
   children: ReactNode;
 }) {
   const isChat = chrome === "chat";
@@ -110,7 +115,7 @@ export async function PublicSiteShell({
   // sade bir footer bağlantısı. Aynı giriş akışı; yetki girişten sonra
   // sunucuda rolden okunur. Girişli normal kullanıcı zaten yetkisizdir.
   const footerSource = productAccess
-    ? homeFooterGroups(links, user !== null)
+    ? homeFooterGroups(links)
     : (compactFooter ? compactEarlyAccessFooterGroups : earlyAccessFooterGroups)(
         user
           ? [{ label: EARLY_ACCESS_COPY.navStatus, href: EARLY_ACCESS_PATH }]
@@ -123,6 +128,11 @@ export async function PublicSiteShell({
     ...group,
     links: markCurrent(group.links, currentPath),
   }));
+  const legalGroup = legalFooterGroup();
+  const footerLegalGroup: FooterGroup = {
+    ...legalGroup,
+    links: markCurrent(legalGroup.links, currentPath),
+  };
   const socialLinks = configuredSocialLinks().map((social) => ({
     label: social.label,
     href: social.href,
@@ -137,10 +147,10 @@ export async function PublicSiteShell({
       <HomeHeader
         brandLabel={SITE_BRAND}
         brandStatusLabel={HOME_COPY.betaLabel}
-        brandLogoSrc="/brand/manicepte-logo.png"
         navItems={navItems}
         navAriaLabel="Ana gezinme"
         variant={isChat ? "chat" : "site"}
+        appearance={headerAppearance}
         accountHref={accountHref}
         accountLabel={accountLabel}
         loginHref={loginHref}
@@ -182,36 +192,19 @@ export async function PublicSiteShell({
           </Container>
         )}
       </main>
-      {isChat ? null : fullBleed ? (
-        <EditorialFooter
-          brandLabel={SITE_BRAND}
-          groups={footerGroups}
-          affiliateNotice={HOME_COPY.affiliateNotice}
-          affiliateLink={{ label: HOME_COPY.affiliateNoticeLink, href: "/affiliate-aciklamasi" }}
-          priceDisclaimer={HOME_COPY.priceDisclaimer}
-          copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
-          legalLinks={[
-            { label: HOME_COPY.navPrivacy, href: "/gizlilik" },
-            { label: HOME_COPY.navTerms, href: "/kosullar" },
-          ]}
-        />
-      ) : (
+      {/* Tek footer (karar 0193): her public sayfa ayni SiteFooter'i kullanir. */}
+      {isChat ? null : (
         <SiteFooter
           className={footerClassName}
           brandLabel={SITE_BRAND}
-          brandLogoSrc="/icon4.png"
-          brandDescription={
-            productAccess ? HOME_COPY.heroSubtitle : COMING_SOON_COPY.footerDescription
-          }
           groups={footerGroups}
+          legalGroup={footerLegalGroup}
           socialGroup={
             showFooterSocial
               ? { title: HOME_COPY.footerSocialGroupTitle, links: socialLinks }
               : undefined
           }
-          priceDisclaimer={HOME_COPY.priceDisclaimer}
           copyrightLabel={`© ${new Date().getFullYear()} ${SITE_BRAND}`}
-          variant={footerVariant}
         />
       )}
     </div>

@@ -7,8 +7,10 @@
  * "siyah olsun", "Nike olsun", "2500 TL altı" onceki aramayi sifirlamaz.
  */
 import {
+  type CarryableField,
   CHAT_LIMITS,
   cleanText,
+  type IntentRelation,
   REMOVABLE_FIELDS,
   type RemovableField,
   type SearchIntent,
@@ -50,6 +52,48 @@ function clearField(intent: SearchIntent, field: RemovableField): void {
   }
 }
 
+/**
+ * Yamanin etkin iliskisi (karar 0199). `relation` yoksa eski sozlesme: `reset` bagimsiz yeni
+ * arama, aksi halde daraltma. `new_related` acikca verildiyse `reset` onu bagimsiza cevirmez.
+ */
+export function effectiveRelation(patch: SearchIntentPatch): IntentRelation {
+  if (patch.relation === "new_related") return "new_related";
+  if (patch.reset || patch.relation === "new_independent") return "new_independent";
+  return "refine";
+}
+
+function carryField(next: SearchIntent, from: SearchIntent, field: CarryableField): void {
+  switch (field) {
+    case "brand":
+    case "size":
+    case "priceMin":
+    case "priceMax":
+    case "sort":
+      next[field] = from[field] as never;
+      return;
+    case "excludeBrands":
+    case "colors":
+      next[field] = [...from[field]];
+      return;
+    case "attributes":
+      next.attributes = { ...from.attributes };
+      return;
+  }
+}
+
+/** Niyette bu alan dolu mu? (`carry` yalnizca dolu alanlari tasiyabilir.) */
+export function hasIntentField(intent: SearchIntent, field: CarryableField): boolean {
+  switch (field) {
+    case "excludeBrands":
+    case "colors":
+      return intent[field].length > 0;
+    case "attributes":
+      return Object.keys(intent.attributes).length > 0;
+    default:
+      return intent[field] !== null;
+  }
+}
+
 /** Alt sinir ust siniri asarsa yamanin DOKUNMADIGI taraf dusurulur (yeni beyan kazanir). */
 function reconcilePrices(intent: SearchIntent, patch: SearchIntentPatch): void {
   const { priceMin, priceMax } = intent;
@@ -67,7 +111,8 @@ export function mergeSearchIntent(
   current: SearchIntent | null,
   patch: SearchIntentPatch,
 ): SearchIntent | null {
-  const base = patch.reset || current === null ? null : current;
+  const relation = effectiveRelation(patch);
+  const base = relation !== "refine" || current === null ? null : current;
   const categoryChanged =
     base !== null &&
     patch.category !== undefined &&
@@ -85,6 +130,12 @@ export function mergeSearchIntent(
       }
     : emptyIntent(query);
   next.query = query;
+
+  // Karar 0199: iliskili yeni aramada yalnizca ACIKCA surdurulen (`carry`) eski kisitlar gelir;
+  // asagida yamadaki yeni degerler bunlarin USTUNE yazilir (acik yeni deger eskisinden oncelikli).
+  if (relation === "new_related" && current !== null) {
+    for (const field of patch.carry ?? []) carryField(next, current, field);
+  }
 
   // Kisit temizligi: `clear` hepsini, kategori degisimi yalnizca kategoriye bagli olanlari
   // (beden, nitelikler) siler. Marka, fiyat ve renk kullanicinin kendi tercihidir, kalir.
@@ -131,6 +182,66 @@ export function mergeSearchIntent(
 
   reconcilePrices(next, patch);
   return next;
+}
+
+const TOPIC_STEM_CHARS = 5;
+
+/** Turkce harfleri katlayip ilk 5 karaktere indirgenmis sozcukler ("telefonlar" ~ "telefon"). */
+function foldTopic(text: string): string {
+  return text
+    .toLocaleLowerCase("tr-TR")
+    .replace(/ı/g, "i")
+    .replace(/ş/g, "s")
+    .replace(/ç/g, "c")
+    .replace(/ğ/g, "g")
+    .replace(/ö/g, "o")
+    .replace(/ü/g, "u");
+}
+
+/**
+ * Konu sozcukleri: sorgu + kategori, MARKA sozcukleri haric ("samsung telefon" ile "samsung
+ * tablet" ayni konu sayilmaz; marka konu degil kisittir).
+ */
+function topicTokens(intent: SearchIntent): Set<string> {
+  const brandStems = new Set(
+    foldTopic(intent.brand ?? "")
+      .split(/[^a-z0-9]+/)
+      .filter((word) => word.length >= 3)
+      .map((word) => word.slice(0, TOPIC_STEM_CHARS)),
+  );
+  const out = new Set<string>();
+  for (const word of foldTopic(`${intent.query} ${intent.category ?? ""}`).split(/[^a-z0-9]+/)) {
+    const stem = word.slice(0, TOPIC_STEM_CHARS);
+    if (word.length >= 3 && !brandStems.has(stem)) out.add(stem);
+  }
+  return out;
+}
+
+function sharesTopic(a: SearchIntent, b: SearchIntent): boolean {
+  const left = topicTokens(a);
+  for (const token of topicTokens(b)) if (left.has(token)) return true;
+  return false;
+}
+
+/**
+ * Konusmada ONCEKI konularin son niyetleri (en yeni ilk, en cok `max`): "onceki telefonlara don".
+ * Yalniz modele baglam olarak verilir; hicbir filtre bu fonksiyonun sonucuyla otomatik uygulanmaz.
+ * Sozcuk ortusmesi burada yalnizca ayni konunun surumlerini teke indirmek icindir.
+ */
+export function previousTopicIntents(
+  history: ReadonlyArray<SearchIntent | null>,
+  current: SearchIntent | null,
+  max = 3,
+): SearchIntent[] {
+  const out: SearchIntent[] = [];
+  for (let i = history.length - 1; i >= 0 && out.length < max; i--) {
+    const intent = history[i];
+    if (!intent) continue;
+    if (current && sharesTopic(intent, current)) continue;
+    if (out.some((kept) => sharesTopic(kept, intent))) continue;
+    out.push(intent);
+  }
+  return out;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

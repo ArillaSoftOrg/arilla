@@ -97,26 +97,25 @@ beforeEach(() => {
 });
 
 describe("urun acik ana sayfa bilgi mimarisi", () => {
-  it("ilk arama alaninda robot/baslik vardir; yardim baglantisi bu alanin disindadir", async () => {
+  it("ilk arama alaninda baslik vardir; robot kaldirilmistir", async () => {
     const html = renderToStaticMarkup(await HomePage());
     const hero = html.slice(html.indexOf("<section"), html.indexOf("</section>"));
     expect(hero).toContain(HOME_COPY.heroTitleLead);
     expect(hero).toContain(HOME_COPY.heroTitleAccent);
     expect(hero).not.toContain(HOME_COPY.heroSubtitle);
-    expect(hero).toContain("robot-welcome.png");
+    expect(hero).not.toContain("robot-welcome.png");
     expect(hero).not.toContain("robot-research.png");
-    expect(hero).toContain("robot-how-it-works-point-v1.png");
-    expect(hero).toContain('href="/nasil-calisir"');
+    expect(html).not.toContain("robot-how-it-works-point-v1.png");
+    expect(html).not.toContain('href="/nasil-calisir"');
+    expect(html).not.toContain("ilk kez mi");
     expect(hero).not.toContain("Yakında");
-    expect(hero).toContain(HOME_COPY.howItWorksAction);
-    expect(html.indexOf(HOME_COPY.howItWorksAction)).toBeGreaterThan(html.indexOf("</search>"));
     expect(html).not.toContain('id="nasil-calisir"');
   });
 
   it("hero -> trendler -> kesfet sirasini ve gercek koleksiyon linkini korur", async () => {
     state.trends = [{ id: 1, title: "Çalışma alanı", slug: "calisma-alani", featured: true }];
     const html = renderToStaticMarkup(await HomePage());
-    expect(html.indexOf(HOME_COPY.howItWorksAction)).toBeLessThan(html.indexOf('id="trendler"'));
+    expect(html.indexOf("</section>")).toBeLessThan(html.indexOf('id="trendler"'));
     expect(html.indexOf('id="trendler"')).toBeLessThan(html.indexOf('id="kesfet"'));
     expect(html).toContain('href="/trendler/calisma-alani"');
     expect(html).toContain("Şu sıralar öne çıkanlar");
@@ -124,11 +123,11 @@ describe("urun acik ana sayfa bilgi mimarisi", () => {
     expect(html.match(/<section\b/g)).toHaveLength(3);
   });
 
-  it("trend verisi bosken ornek kart yerine acik bir bos durum gosterir", async () => {
+  it("trend verisi bosken bolumu kullanicidan gizler", async () => {
     const html = renderToStaticMarkup(await HomePage());
-    expect(html).toContain('id="trendler"');
-    expect(html).toContain(HOME_COPY.trendsEmptyTitle);
-    expect(html).toContain(HOME_COPY.trendsEmptyDescription);
+    expect(html).not.toContain('id="trendler"');
+    expect(html).not.toContain(HOME_COPY.trendsEmptyTitle);
+    expect(html).not.toContain(HOME_COPY.trendsEmptyDescription);
     expect(html).not.toContain(DEMO_HOMEPAGE_TRENDS[0]?.title);
     expect(html).not.toContain(HOME_COPY.trendsSubtitle);
     expect(html).not.toContain('href="/trendler"');
@@ -139,7 +138,8 @@ describe("urun acik ana sayfa bilgi mimarisi", () => {
     const warning = vi.spyOn(console, "warn").mockImplementation(() => {});
     try {
       const html = renderToStaticMarkup(await HomePage());
-      expect(html).toContain(HOME_COPY.trendsEmptyTitle);
+      expect(html).not.toContain('id="trendler"');
+      expect(html).not.toContain(HOME_COPY.trendsEmptyTitle);
       expect(html).toContain('aria-label="Ürün ara"');
       expect(html).toContain('id="kesfet"');
       expect(html).not.toContain(DEMO_HOMEPAGE_TRENDS[0]?.title);

@@ -47,6 +47,29 @@ export const REMOVABLE_FIELDS = [
 ] as const;
 export type RemovableField = (typeof REMOVABLE_FIELDS)[number];
 
+/**
+ * Yeni mesajin onceki aramayla iliskisi (karar 0199). Yok ise eski sozlesme gecerlidir
+ * (`reset` = bagimsiz yeni arama, aksi halde daraltma; karar 0074).
+ * - `refine`: ayni aramanin daraltilmasi.
+ * - `new_independent`: baska bir urun konusu; onceki kisitlarin hicbiri tasinmaz.
+ * - `new_related`: baska urun ama konusma suruyor ("ayni butceyle mont", "buna uygun sarj
+ *   cihazi"); yalnizca `carry` ile ACIKCA surdurulen kisitlar tasinir.
+ */
+export const INTENT_RELATIONS = ["refine", "new_independent", "new_related"] as const;
+export type IntentRelation = (typeof INTENT_RELATIONS)[number];
+
+/** `carry` ile tasinabilen alanlar (kategori ve sorgu hicbir zaman tasinmaz). */
+export const CARRYABLE_FIELDS = REMOVABLE_FIELDS.filter(
+  (field): field is Exclude<RemovableField, "category"> => field !== "category",
+);
+export type CarryableField = (typeof CARRYABLE_FIELDS)[number];
+
+/** Gecerli bir secenek `value`su: kullanici "onceki tercihleri koru" ya da "sifirdan ara" dedi. */
+export const CARRY_FILTERS_VALUE = "carry_filters";
+export const FRESH_SEARCH_VALUE = "fresh_search";
+/** Iliski sorusunun kimligi (`ClarifyQuestion.id`). */
+export const RELATION_QUESTION_ID = "carry_filters";
+
 export type SortPreference = "cheapest" | "balanced";
 
 /** Normalize edilmis, birlestirilmis arama niyeti. Fiyatlar TL (tam sayi); adapter kurusa cevirir. */
@@ -80,6 +103,10 @@ export interface SearchIntentPatch {
   attributes?: Record<string, string>;
   sort?: SortPreference;
   remove: RemovableField[];
+  /** Karar 0199. Yoksa eski davranis (geriye uyumluluk). */
+  relation?: IntentRelation;
+  /** Yalniz `new_related`: onceki niyetten tasinacak alanlar (sunucu kullanici metniyle dogrular). */
+  carry?: CarryableField[];
 }
 
 export interface ClarifyOption {
@@ -102,7 +129,9 @@ export interface ClarifyQuestion {
  */
 export type ModelTurn =
   | { action: "clarify"; message: string; question: ClarifyQuestion; imageSummary?: string }
-  | { action: "search"; message: string; intent: SearchIntentPatch; imageSummary?: string };
+  | { action: "search"; message: string; intent: SearchIntentPatch; imageSummary?: string }
+  /** Karar 0203: ham cevap; icerigi `validateAnswer` dogrular, o gecmeden kullaniciya gitmez. */
+  | { action: "answer"; message: string; answer: Record<string, unknown>; imageSummary?: string };
 
 export type ModelTurnRejection =
   | "not_object"
@@ -229,6 +258,19 @@ function parseIntentPatch(raw: unknown): SearchIntentPatch | null {
       }
     }
   }
+  // Karar 0199: gecersiz `relation`/`carry` yamayi REDDETMEZ; alan yok sayilir (eski davranis).
+  if (INTENT_RELATIONS.includes(raw.relation as IntentRelation)) {
+    patch.relation = raw.relation as IntentRelation;
+  }
+  if (Array.isArray(raw.carry)) {
+    const carry: CarryableField[] = [];
+    for (const item of raw.carry) {
+      if (CARRYABLE_FIELDS.includes(item as CarryableField) && !carry.includes(item)) {
+        carry.push(item as CarryableField);
+      }
+    }
+    if (carry.length > 0) patch.carry = carry;
+  }
   return patch;
 }
 
@@ -285,7 +327,67 @@ export function parseModelTurn(raw: unknown): ParsedModelTurn {
     if (intent === null) return { ok: false, reason: "bad_intent" };
     return { ok: true, turn: { action: "search", message, intent, ...imageSummary } };
   }
+  // Karar 0203: sonuc cevabi. Ham `answer` burada yalnizca bicim olarak gecer; icerigi
+  // `validateAnswer` (answer.ts) urun gerceklerine karsi dogrular. Gerceksiz tur kabul edilmez
+  // (`interpretTurn`).
+  if (raw.action === "answer") {
+    if (!isRecord(raw.answer)) return { ok: false, reason: "bad_intent" };
+    return {
+      ok: true,
+      turn: { action: "answer", message: message ?? "", answer: raw.answer, ...imageSummary },
+    };
+  }
   return { ok: false, reason: "bad_action" };
+}
+
+const ANSWER_FIELDS = ["title", "price", "brand", "store", "offer_count"] as const;
+
+/**
+ * `answer: true` (karar 0203; yalniz urun gerceklerinin verildigi turlar): `answer` eylemi ve
+ * `answer` alani eklenir. Verilmezse sema ve davranis oncekiyle AYNIDIR.
+ */
+export function buildModelTurnSchema(
+  options: { imageSummary?: boolean; answer?: boolean } = {},
+): Record<string, unknown> {
+  const schema = buildBaseModelTurnSchema(options);
+  if (!options.answer) return schema;
+  const properties = schema.properties as Record<string, Record<string, unknown>>;
+  (properties.action as { enum: string[] }).enum = ["clarify", "search", "answer"];
+  properties.answer = {
+    type: ["object", "null"],
+    additionalProperties: false,
+    required: ["paragraphs"],
+    properties: {
+      paragraphs: {
+        type: "array",
+        maxItems: 3,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["text", "evidence"],
+          properties: {
+            text: { type: "string", maxLength: 400 },
+            evidence: {
+              type: "array",
+              maxItems: 4,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["item", "field", "quote"],
+                properties: {
+                  item: { type: "string", maxLength: 4 },
+                  field: { type: "string", enum: [...ANSWER_FIELDS] },
+                  quote: { type: "string", maxLength: 100 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+  (schema.required as string[]).push("answer");
+  return schema;
 }
 
 /**
@@ -293,7 +395,7 @@ export function parseModelTurn(raw: unknown): ParsedModelTurn {
  * `imageSummary: true` (yalnizca gorselli turlar, karar 0091) `image_summary` alanini
  * ekler; metin turlarinin semasi ve davranisi degismez.
  */
-export function buildModelTurnSchema(
+function buildBaseModelTurnSchema(
   options: { imageSummary?: boolean } = {},
 ): Record<string, unknown> {
   const nullableString = (maxLength: number) => ({ type: ["string", "null"], maxLength });
@@ -347,6 +449,8 @@ export function buildModelTurnSchema(
           "attributes",
           "sort",
           "remove",
+          "relation",
+          "carry",
         ],
         properties: {
           reset: { type: "boolean" },
@@ -378,6 +482,8 @@ export function buildModelTurnSchema(
           },
           sort: { type: ["string", "null"], enum: ["cheapest", "balanced", null] },
           remove: { type: "array", items: { type: "string", enum: [...REMOVABLE_FIELDS] } },
+          relation: { type: ["string", "null"], enum: [...INTENT_RELATIONS, null] },
+          carry: { type: "array", items: { type: "string", enum: [...CARRYABLE_FIELDS] } },
         },
       },
       ...(options.imageSummary ? { image_summary: nullableString(IMAGE_SUMMARY_MAX) } : {}),

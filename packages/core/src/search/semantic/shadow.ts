@@ -10,15 +10,15 @@
  */
 import { apiUsage, type Database, semanticShadowEvent } from "@arilla/db";
 import { and, count, eq, gte, sql } from "drizzle-orm";
-import { costMicrosPerThousandTokens } from "../../embedding/embed-uploaded-image.ts";
 import { queryContentIneligibility } from "../interpretation-eligibility.ts";
 import { normalizeQueryText } from "../normalize.ts";
 import { foldForMatch } from "../text-match.ts";
 import type { QueryFilters } from "../types.ts";
 import { looksLikeAccessory, queryWantsAccessory } from "./accessory-guard.ts";
-import { type IndexResolution, resolveSemanticIndex, type SemanticIndex } from "./active-index.ts";
+import { type IndexResolution, resolveSemanticIndex } from "./active-index.ts";
 import {
   DEFAULT_SEMANTIC_GATE,
+  SEMANTIC_QUERY_OPERATION,
   SHADOW_MAX_IN_FLIGHT,
   semanticModelVersion,
   semanticSearchMode,
@@ -27,7 +27,8 @@ import {
 } from "./config.ts";
 import { fuseResults, gateSemantic } from "./fusion.ts";
 import { requiredTypePattern } from "./product-type.ts";
-import { createJinaQueryEmbedder, type QueryEmbedder } from "./query-embedder.ts";
+import type { QueryEmbedder } from "./query-embedder.ts";
+import { createQueryEmbedderForIndex } from "./query-embedder-factory.ts";
 import {
   findSemanticCandidates,
   type SemanticCandidate,
@@ -35,7 +36,7 @@ import {
 } from "./semantic-candidates.ts";
 
 /** `api_usage.operation`. */
-export const SEMANTIC_QUERY_OPERATION = "semantic_query_embedding";
+export { SEMANTIC_QUERY_OPERATION };
 
 /** Karsilastirmanin kesildigi sira (kullanicinin gordugu ilk ekran). */
 export const SHADOW_TOP_N = 10;
@@ -138,8 +139,6 @@ function reportShadowError(
   }
 }
 
-type Env = Readonly<Record<string, string | undefined>>;
-
 function emptyMetrics(
   outcome: ShadowOutcome,
   modelVersion: string,
@@ -164,26 +163,6 @@ function emptyMetrics(
     knnMs: null,
     cacheHit: null,
   };
-}
-
-function defaultEmbedder(db: Database, env: Env, index: SemanticIndex): QueryEmbedder | null {
-  const apiKey = env.JINA_API_KEY?.trim();
-  if (!apiKey) return null;
-  return createJinaQueryEmbedder(apiKey, index.modelVersion, {
-    dimensions: index.dimensions,
-    task: index.queryTask,
-    onUsage: async (usage) => {
-      await db.insert(apiUsage).values({
-        sessionId: null,
-        userId: null,
-        operation: SEMANTIC_QUERY_OPERATION,
-        modelVersion: usage.modelVersion,
-        units: usage.tokens,
-        costMicros: Math.round((usage.tokens * costMicrosPerThousandTokens(env)) / 1000),
-        cacheHit: usage.cacheHit,
-      });
-    },
-  });
 }
 
 async function defaultUsedToday(db: Database): Promise<number> {
@@ -312,8 +291,14 @@ export async function measureSemanticShadow(
     const index = resolved.index;
     model = index.modelVersion;
 
-    const embedder = deps.embedder === undefined ? defaultEmbedder(db, env, index) : deps.embedder;
-    if (!embedder) return save(emptyMetrics("no_vector", model, textCount, topN, "no_api_key"));
+    const choice =
+      deps.embedder === undefined
+        ? createQueryEmbedderForIndex(db, env, index)
+        : { embedder: deps.embedder, reason: null };
+    const embedder = choice.embedder;
+    if (!embedder) {
+      return save(emptyMetrics("no_vector", model, textCount, topN, choice.reason ?? "no_api_key"));
+    }
 
     const usedToday = await (deps.usedToday ?? defaultUsedToday)(db);
     if (usedToday >= shadowDailyCap(env))

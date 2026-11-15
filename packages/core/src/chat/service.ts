@@ -16,6 +16,7 @@ import { createHash } from "node:crypto";
 import {
   apiUsage,
   chatAttachment,
+  chatExplanationFeedback,
   chatMessage,
   chatResultFeedback,
   conversation,
@@ -43,7 +44,14 @@ import {
 } from "../quota/redis-windows.ts";
 import { isRedisUnavailableError } from "../redis/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
+import { parseQueryText } from "../search/parse-query.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
+import {
+  looksLikeResultQuestion,
+  RESULT_FACT_LIMIT,
+  type ResultFact,
+  toResultFacts,
+} from "./answer.ts";
 import {
   CHAT_CLIENT_OPTIONS,
   CHAT_DAILY_CALL_CAP,
@@ -53,6 +61,7 @@ import {
   chatMessageLimits,
   chatTurnRunLimits,
   chatTurnsPerHour,
+  isChatAnswerEnabled,
   isChatImageEnabled,
   isChatLinkEnabled,
   MAX_USER_MESSAGES_PER_CONVERSATION,
@@ -70,12 +79,12 @@ import {
   decideContextImage,
   type ImageContextDecision,
 } from "./image-context.ts";
-import { mergeSearchIntent, parseStoredIntent } from "./intent.ts";
+import { mergeSearchIntent, parseStoredIntent, previousTopicIntents } from "./intent.ts";
 import {
   CHAT_CONTEXT_MESSAGES,
   type ChatImageInput,
   type ChatInterpreter,
-  fallbackTurn,
+  fallbackTurnAfterNewTopic,
   type InterpretRequest,
   interpretTurn,
   type TranscriptMessage,
@@ -83,6 +92,7 @@ import {
 } from "./interpreter.ts";
 import { type ChatLinkPayload, parseChatLinkPayload } from "./link.ts";
 import { planLinkTurn } from "./link-turn.ts";
+import { searchByIntent } from "./search-adapter.ts";
 import { type ChatTimings, createChatTimer, logChatTimings } from "./timing.ts";
 
 export type ChatInputRequest =
@@ -135,6 +145,8 @@ export type ChatMessageView =
       source: "model" | "fallback" | null;
       /** 0055: sonuc blogune verilen oy; `null` = oy yok. */
       helpful: boolean | null;
+      /** Karar 0202: degerlendirme metnine verilen AYRI oy; `null`/yok = oy yok (ya da tablo yok). */
+      explanationHelpful?: boolean | null;
       /** Karar 0090: link mesajinin yuku (`payload.link`); yalnizca link `notice`larinda. */
       link?: ChatLinkPayload;
       imageSummary?: StoredImageSummary | null;
@@ -184,6 +196,7 @@ function sourceOf(payload: Record<string, unknown> | null): "model" | "fallback"
 function toView(
   row: typeof chatMessage.$inferSelect,
   helpful: boolean | null = null,
+  explanationHelpful: boolean | null = null,
 ): ChatMessageView {
   const payload = row.payload;
   if (row.role === "user") {
@@ -218,6 +231,7 @@ function toView(
     intent: parseStoredIntent(payload?.intent),
     source: sourceOf(payload),
     helpful,
+    ...(explanationHelpful === null ? {} : { explanationHelpful }),
     ...(link ? { link } : {}),
     ...withSummary(payload),
   };
@@ -227,8 +241,11 @@ function buildView(
   row: typeof conversation.$inferSelect,
   rows: readonly (typeof chatMessage.$inferSelect)[],
   helpfulById: ReadonlyMap<number, boolean> = new Map(),
+  explanationById: ReadonlyMap<number, boolean> = new Map(),
 ): ConversationView {
-  const messages = rows.map((message) => toView(message, helpfulById.get(message.id) ?? null));
+  const messages = rows.map((message) =>
+    toView(message, helpfulById.get(message.id) ?? null, explanationById.get(message.id) ?? null),
+  );
   return {
     id: row.id,
     title: row.title,
@@ -259,7 +276,7 @@ export async function loadConversation(
     .where(and(eq(conversation.id, input.conversationId), eq(conversation.userId, input.userId)));
   if (!row) return null;
   // Mesajlar ve oylar birbirine bagimli degil: tek tur.
-  const [rows, votes] = await Promise.all([
+  const [rows, votes, explanationVotes] = await Promise.all([
     loadMessageRows(db, row.id),
     db
       .select({ messageId: chatResultFeedback.messageId, helpful: chatResultFeedback.helpful })
@@ -270,8 +287,25 @@ export async function loadConversation(
         if (isMissingTable(error)) return [];
         throw error;
       }),
+    // Karar 0202: degerlendirme oyu; migration 0116 yokken (kod once dagitildiysa) oy yok sayilir.
+    db
+      .select({
+        messageId: chatExplanationFeedback.messageId,
+        helpful: chatExplanationFeedback.helpful,
+      })
+      .from(chatExplanationFeedback)
+      .where(eq(chatExplanationFeedback.conversationId, row.id))
+      .catch((error: unknown) => {
+        if (isMissingTable(error)) return [];
+        throw error;
+      }),
   ]);
-  return buildView(row, rows, new Map(votes.map((vote) => [vote.messageId, vote.helpful])));
+  return buildView(
+    row,
+    rows,
+    new Map(votes.map((vote) => [vote.messageId, vote.helpful])),
+    new Map(explanationVotes.map((vote) => [vote.messageId, vote.helpful])),
+  );
 }
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -688,6 +722,136 @@ async function submitInTx(
   return { status: "queued", seq };
 }
 
+export type RestoreSearchResult =
+  | { status: "restored"; seq: number }
+  /** Secilen arama zaten konusmanin gecerli aramasi: yeni tur acilmaz (tekrar tiklama). */
+  | { status: "already_current" }
+  | { status: "duplicate" }
+  | { status: "busy" }
+  | { status: "rate_limited" }
+  | { status: "conversation_full" }
+  | { status: "invalid_input" }
+  | { status: "not_found" };
+
+/** Geri donus turunun asistan metni; model cagrilmaz (sabit, kullaniciya Turkce). */
+export const RESTORE_ASSISTANT_TEXT =
+  "Önceki aramana döndüm; aşağıda aynı ayrıntılarla yeniden arıyorum.";
+
+/**
+ * "Bu aramaya don" (karar 0199): konusmanin ESKI bir arama mesajinin SAKLI niyeti yeni bir tur
+ * olarak yeniden aranir. Eski mesajlar degismez (yalnizca ekleme): yeni kullanici mesaji +
+ * yeni asistan arama mesaji yazilir, `current_search_intent` o niyete doner. Model cagrilmaz;
+ * niyet istemciden gelmez, yalnizca sahibin kendi konusmasindan okunur.
+ *
+ * Sahiplik `user_id` ile satir kilidi altinda; sira (`seq`) ayni kilit altinda ardisik yazilir.
+ * Kota bir kullanici mesaji kadardir (normal mesajla ayni havuz).
+ */
+export async function restoreSearch(
+  db: Database,
+  input: { userId: number; conversationId: string; messageSeq: number; requestKey?: string },
+  quotaOptions: ChatQuotaOptions = {},
+): Promise<RestoreSearchResult> {
+  if (!isUuid(input.conversationId)) return { status: "not_found" };
+  if (!Number.isInteger(input.messageSeq) || input.messageSeq < 1) {
+    return { status: "invalid_input" };
+  }
+  const requestKey = requestKeyOrNull(input.requestKey);
+  let consumed = false;
+  try {
+    return await db.transaction(async (tx): Promise<RestoreSearchResult> => {
+      const [row] = await tx
+        .select()
+        .from(conversation)
+        .where(
+          and(eq(conversation.id, input.conversationId), eq(conversation.userId, input.userId)),
+        )
+        .for("update");
+      if (!row) return { status: "not_found" };
+
+      if (requestKey !== null && (await requestKeyExists(tx, row.id, requestKey))) {
+        return { status: "duplicate" };
+      }
+      const [last] = await tx
+        .select({ role: chatMessage.role })
+        .from(chatMessage)
+        .where(and(eq(chatMessage.conversationId, row.id), eq(chatMessage.seq, row.messageCount)));
+      const leaseActive = row.processingUntil !== null && row.processingUntil > new Date();
+      if (last?.role === "user" || leaseActive) return { status: "busy" };
+
+      const [target] = await tx
+        .select({ payload: chatMessage.payload })
+        .from(chatMessage)
+        .where(
+          and(
+            eq(chatMessage.conversationId, row.id),
+            eq(chatMessage.seq, input.messageSeq),
+            eq(chatMessage.role, "assistant"),
+            eq(chatMessage.kind, "search"),
+          ),
+        );
+      const intent = parseStoredIntent(
+        (target?.payload as Record<string, unknown> | null | undefined)?.intent,
+      );
+      if (!target || !intent) return { status: "not_found" };
+
+      const current = parseStoredIntent(row.currentSearchIntent);
+      if (current && JSON.stringify(current) === JSON.stringify(intent)) {
+        return { status: "already_current" };
+      }
+
+      const userMessages = await tx.execute(sql`
+        SELECT count(*)::int AS n FROM chat_message
+         WHERE conversation_id = ${row.id} AND role = 'user'
+      `);
+      if (
+        ((userMessages.rows[0] as { n?: number } | undefined)?.n ?? 0) >=
+        MAX_USER_MESSAGES_PER_CONVERSATION
+      ) {
+        return { status: "conversation_full" };
+      }
+
+      const quota = await consumeChatMessageQuota(tx, input.userId, quotaOptions);
+      if (!quota.allowed) return { status: "rate_limited" };
+      if (quota.consumed) consumed = true;
+
+      const userSeq = row.messageCount + 1;
+      const assistantSeq = userSeq + 1;
+      await tx.insert(chatMessage).values({
+        conversationId: row.id,
+        seq: userSeq,
+        role: "user",
+        kind: "text",
+        content: `Önceki aramaya dön: ${intent.query}`.slice(0, USER_MESSAGE_MAX),
+        payload: { restoredFromSeq: input.messageSeq },
+        clientRequestId: requestKey,
+      });
+      await tx.insert(chatMessage).values({
+        conversationId: row.id,
+        seq: assistantSeq,
+        role: "assistant",
+        kind: "search",
+        content: RESTORE_ASSISTANT_TEXT,
+        payload: { intent, source: null, restoredFromSeq: input.messageSeq },
+      });
+      await tx
+        .update(conversation)
+        .set({
+          currentSearchIntent: intent as unknown as Record<string, unknown>,
+          pendingQuestion: null,
+          messageCount: assistantSeq,
+          processingUntil: null,
+          lastMessageAt: sql`now()`,
+          updatedAt: sql`now()`,
+        })
+        .where(eq(conversation.id, row.id));
+      return { status: "restored", seq: assistantSeq };
+    });
+  } catch (error) {
+    if (consumed) await releaseChatMessageQuota(input.userId, quotaOptions);
+    throw error;
+  }
+}
+
 async function requestKeyExists(
   db: Executor,
   conversationId: string,
@@ -711,7 +875,7 @@ async function requestKeyExists(
 // ---------------------------------------------------------------------------
 
 export type ProcessTurnResult =
-  | { status: "answered"; source: "model" | "fallback"; action: "clarify" | "search" }
+  | { status: "answered"; source: "model" | "fallback"; action: "clarify" | "search" | "answer" }
   /** Baska bir tur bu sohbeti isliyor; cagiran biraz sonra tekrar bakar. */
   | { status: "busy" }
   /** Cevaplanmamis kullanici mesaji yok. */
@@ -778,9 +942,16 @@ function toInterpretRequest(
     const summary = summaries.get(message.attachmentId);
     return summary ? { ...base, imageSummary: summary } : base;
   });
+  const previousIntents = previousTopicIntents(
+    view.messages.map((message) =>
+      message.role === "assistant" && message.kind === "search" ? message.intent : null,
+    ),
+    view.currentIntent,
+  );
   return {
     messages,
     currentIntent: view.currentIntent,
+    ...(previousIntents.length > 0 ? { previousIntents } : {}),
     pendingQuestion: pending ? { id: pending.id, title: pending.title } : null,
     clarifyCount: countTrailingClarifications(view.messages),
     input,
@@ -893,10 +1064,27 @@ async function chatProviderBudget(
   }
 }
 
+/**
+ * Karar 0203: sayfanin gosterdigi aramanin (saklı niyet, varsayilan siralama) ilk <=8 urunu. Model
+ * cagrisi YOK; hata/zaman asimi/yakin-sonuc modunda bos doner (cevap gerceksiz verilmez).
+ */
+async function loadResultFacts(db: Database, intent: SearchIntent): Promise<ResultFact[]> {
+  try {
+    const result = await searchByIntent(db, intent, {
+      pageSize: RESULT_FACT_LIMIT,
+      sort: "balanced",
+    });
+    if (result.outcome.mode !== "results") return [];
+    return toResultFacts(result.outcome.items);
+  } catch {
+    return [];
+  }
+}
+
 /** Yazilan cevabin istemcide hemen gosterilebilen on izlemesi (kalici kayit sunucudadir). */
 export interface AssistantPreview {
   seq: number;
-  kind: "clarify" | "search";
+  kind: "clarify" | "search" | "answer";
   content: string;
 }
 
@@ -1011,7 +1199,7 @@ async function runPendingTurn(
 
   try {
     // Birbirine bagimli degil, tek tur: mesajlar, gunluk tavan, sozluk isitma (aramadan once).
-    const [rows, providerBudget] = await Promise.all([
+    const [rows, providerBudget, lexicon] = await Promise.all([
       timer.time("load_context", () => loadMessageRows(db, claimed.id)),
       timer.time("provider_limit", () => chatProviderBudget(db, input.budget)),
       timer.time("lexicon", () => loadLexiconCached(db)).catch(() => undefined),
@@ -1059,7 +1247,27 @@ async function runPendingTurn(
       await releaseLease(db, input.conversationId);
       return { status: "idle" };
     }
-    const request: InterpretRequest = maybeRequest;
+    // Yedek yol icin "baska ana alan" sinyali: mevcut merkezi sozluk (karar 0133), yeni sozluk yok.
+    const requestWithoutFacts: InterpretRequest = lexicon
+      ? {
+          ...maybeRequest,
+          categoryOf: (text) => {
+            const path = parseQueryText(text, lexicon).filters.category_path;
+            return typeof path === "string" && path !== "" ? path : null;
+          },
+        }
+      : maybeRequest;
+    // Karar 0203: sonuc cevabi pilotu. Yalniz bayrak + izinli kullanici + mevcut niyet + sonuc sorusu
+    // gibi bir mesaj varsa katalogdan en cok 8 urun gercegi okunur (aksi halde ek sorgu YOK).
+    const resultFacts =
+      isChatAnswerEnabled(input.userId) &&
+      requestWithoutFacts.input.kind === "text" &&
+      view.currentIntent !== null &&
+      looksLikeResultQuestion(requestWithoutFacts.input.text)
+        ? await loadResultFacts(db, view.currentIntent)
+        : [];
+    const request: InterpretRequest =
+      resultFacts.length > 0 ? { ...requestWithoutFacts, resultFacts } : requestWithoutFacts;
     const lastSeq = view.messages.at(-1)?.seq ?? 0;
     // Kilit/islem YOK: kira yalnizca bir satir isaretidir; model cagrisi DB'yi tutmaz.
     let modelAllowed = providerBudget.modelAllowed;
@@ -1179,7 +1387,7 @@ async function runPendingTurn(
             merged = mergeSearchIntent(view.currentIntent, turn.intent);
             if (merged === null) {
               // Dogrulayici bunu zaten yakalar; son savunma.
-              turn = fallbackTurn(request);
+              turn = fallbackTurnAfterNewTopic(request, turn.intent);
               source = "fallback";
               merged =
                 turn.action === "search"
@@ -1219,6 +1427,31 @@ async function runPendingTurn(
               .where(eq(conversation.id, row.id));
             setPreview({ seq, kind: "clarify", content: turn.message });
             return { status: "answered", source, action: "clarify" };
+          }
+
+          if (turn.action === "answer") {
+            // Karar 0203: sonuc cevabi. Arama bloğu/niyet DEGISMEZ (`current_search_intent` aynen kalir);
+            // cevap (dogrulanan paragraflar + alintilar ya da modelsiz ozet) sohbet mesajidir (kural 3).
+            await tx.insert(chatMessage).values({
+              conversationId: row.id,
+              seq,
+              role: "assistant",
+              kind: "notice",
+              content: turn.message.slice(0, 2000) || "-",
+              payload: { answer: turn.answer, source },
+            });
+            await tx
+              .update(conversation)
+              .set({
+                pendingQuestion: null,
+                messageCount: seq,
+                processingUntil: null,
+                lastMessageAt: sql`now()`,
+                updatedAt: sql`now()`,
+              })
+              .where(eq(conversation.id, row.id));
+            setPreview({ seq, kind: "answer", content: turn.message });
+            return { status: "answered", source, action: "answer" };
           }
 
           await tx.insert(chatMessage).values({
@@ -1304,7 +1537,7 @@ export async function getTurnStatus(
       state: "answered",
       preview: {
         seq: row.seq,
-        kind: row.kind === "clarify" ? "clarify" : "search",
+        kind: row.kind === "clarify" ? "clarify" : row.kind === "notice" ? "answer" : "search",
         content: row.content ?? "",
       },
     };

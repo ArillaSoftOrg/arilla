@@ -21,6 +21,8 @@ export interface SearchComposerPhoto {
   label: string;
   onFileSelected: (file: File) => void;
   disabled?: boolean;
+  /** Istege bagli sunum ikonu; verilmezse mevcut resim ikonu kullanilir. */
+  icon?: ReactNode;
 }
 
 /**
@@ -105,6 +107,8 @@ export interface SearchComposerProps {
   busyMessage?: string | null;
   /** Arama bolgesinin basinda istege bagli baslik/gorsel. */
   beforeSearch?: ReactNode;
+  /** Formun icinde, eylemlerin altinda istege bagli ikincil kontroller. */
+  composerFooter?: ReactNode;
   /** Yalnizca ana arama bolgesinin duzeni; son bakilanlari kapsamaz. */
   searchClassName?: string;
   /** Arama ve durum mesajlarindan sonra, son bakilanlardan once istege bagli icerik. */
@@ -166,6 +170,7 @@ export function SearchComposer({
   statusMessage,
   busyMessage,
   beforeSearch,
+  composerFooter,
   searchClassName,
   afterSearch,
   recentProducts,
@@ -357,13 +362,13 @@ export function SearchComposer({
                 )}
               >
                 {leadingAction.icon ?? <PlusIcon />}
-                {showPhotoLabel ? leadingAction.label : null}
+                {showPhotoLabel ? <span data-photo-label="">{leadingAction.label}</span> : null}
               </Button>
             ) : photo ? (
               <PhotoUploadButton
                 id={photoButtonId}
                 iconOnly={!showPhotoLabel}
-                icon={<ImageIcon />}
+                icon={photo.icon ?? <ImageIcon />}
                 label={photo.label}
                 onFileSelected={photo.onFileSelected}
                 disabled={photo.disabled || attachment?.pending}
@@ -385,6 +390,7 @@ export function SearchComposer({
               <ArrowRightIcon />
             </Button>
           </div>
+          {composerFooter}
         </form>
       </search>
 

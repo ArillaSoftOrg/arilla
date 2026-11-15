@@ -325,7 +325,52 @@ describe("fallbackTurn", () => {
     );
     expect(patch.priceMax).toBe(2500);
     expect(patch.sort).toBe("cheapest");
-    expect(patch.query).toBe("spor ayakkabı olsun");
+    expect(patch.query).toBe("spor ayakkabı");
+  });
+
+  it("filler words and the cheaper suffix do not leak into the query", () => {
+    const refine = (text: string, current = "iphone 15") =>
+      searchPatch(
+        request({
+          currentIntent: emptyIntent(current),
+          messages: [{ role: "user", kind: "text", text }],
+          input: { kind: "text", text },
+        }),
+      );
+    expect(refine("256 GB olanlar").query).toBe("iphone 15 256 gb");
+    expect(refine("daha ucuzları", "samsung telefon")).toMatchObject({
+      query: "samsung telefon",
+      sort: "cheapest",
+    });
+    expect(refine("şarjlı olanlar göster", "masa lambası").query).toBe("masa lambası şarjlı");
+  });
+
+  it("a budget answer becomes price fields and does not accumulate in the query", () => {
+    const text = "bütçem en az 20000 tl olsun. bütçem en fazla 60000 tl olsun.";
+    const patch = searchPatch(
+      request({
+        messages: [
+          { role: "user", kind: "text", text: "iphone 15" },
+          { role: "assistant", kind: "clarify", text: "Bütçen?" },
+          { role: "user", kind: "text", text },
+        ],
+        input: { kind: "text", text },
+      }),
+    );
+    expect(patch.query).toBe("iphone 15");
+    expect(patch.priceMin).toBe(20000);
+    expect(patch.priceMax).toBe(60000);
+  });
+
+  it("does not repeat words already in the query", () => {
+    const patch = searchPatch(
+      request({
+        currentIntent: emptyIntent("iphone 15 256 gb"),
+        messages: [{ role: "user", kind: "text", text: "256 gb" }],
+        input: { kind: "text", text: "256 gb" },
+      }),
+    );
+    expect(patch.query).toBe("iphone 15 256 gb");
   });
 
   it("is never empty and never exceeds the query limit", () => {

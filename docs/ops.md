@@ -476,23 +476,17 @@ Taban imajlara `apt-get/apk upgrade` uygulanır (yayınlanmış güvenlik yamala
 hazır ikili yerine güncel Go ile kaynaktan derlenir (hazır ikili eski Go standart
 kütüphanesiyle HIGH Trivy bulgusu veriyordu).
 
-### PR otomasyonu (karar 0137): merge queue + `pr policy`
+### Dağıtım akışı (karar 0198; 0137'nin PR kapısı kaldırıldı)
 
 ```
-PR aç → ci + security-checks + pr-policy (risk, bağımlılık, onay)
-   düşük risk:  gh pr merge <n> --auto --squash → merge queue (main ucu + PR, tam CI) → main
-   yüksek risk: insan inceler, `risk-approved` etiketi ekler (yeni push düşürür) → auto-merge
-main'e push → ci → build-push → deploy → commit durumu `deploy/vps-production`
+main'e doğrudan push → ci → build-push → deploy → commit durumu `deploy/vps-production`
 ```
 
-- Zorunlu kontroller: `ci ok`, `pr policy`, `private-keys` (+ eski dört iş adı). Kırmızı kontrol
-  atlanamaz; kural setinde bypass yoktur.
-- Çakışma: `merge-conflict` etiketi + yorum; elle çözülür. Bağımlılık: PR gövdesinde `Depends on #N`.
-- Tek seferlik ayar (karar 0137 PR'ı main'e girdikten sonra): `bash scripts/github-settings.sh`
-  (gösterir) → `bash scripts/github-settings.sh --apply` (merge queue + zorunlu kontroller +
-  auto-merge/update-branch ayarı). İsteğe bağlı depo değişkeni `RISK_APPROVERS`.
-- Kuyruk takılırsa: auto-merge'ü kapat (`gh pr merge <n> --disable-auto`), nedeni `merge group`
-  koşusunda. Merge queue'yu kapatmak: kural setinden `merge_queue` kuralını kaldır.
+- main kural seti yalnız silmeyi ve force-push'u (`non_fast_forward`) yasaklar; PR, merge queue,
+  zorunlu kontrol ve `pr policy` yoktur. CI kırmızıysa `ci → build-push → deploy` zinciri dağıtımı
+  durdurur ama commit main'de kalır: düzeltme için yeni commit atılır.
+- Kural setini yeniden uygulamak: `bash scripts/github-settings.sh --apply`.
+
 
 ### Otomatik dağıtım (faz 6): `.github/workflows/deploy.yml` + `infra/vps/bin/arilla-deploy`
 
@@ -540,10 +534,17 @@ altında saklanır) ya da `workflow_dispatch` (`build_run_id` + `allow_older`).
 Kuralların özeti:
 - **Saklama:** Başarılı deploy'ların doğrulanmış en yeni **2** dökümü korunur.
 - **Korunanlar:** Başarısız, yarım kalmış ya da metadatası olmayan döküm asla aday olmaz; insan kararı gerekir.
-- **Otomatik silme yoktur:** Deploy yalnızca rapor yazar (`dokum:` satırları).
+- **Otomatik temizlik (karar 0194):** Yalnızca başarılı migration deploy'unun sonunda, deploy kilidi altında
+  `auto-prune` çalışır. Önce yeni döküm tam okunur; okunamazsa hiçbir şey silinmez. Ardından en yeni 2 doğrulanmış
+  döküm dışındaki başarılı dökümler silinir. Sonuç deploy günlüğünde `dokum: otomatik temizlik: ...` satırıdır.
+  Hata deploy'u bozmaz, `UYARI` yazar. Kapatmak için: `sudo touch /opt/arilla/state/dump-auto-prune.off`.
 - **Disk denetimi:** Bekleyen migration varsa, dosyalar kurulmadan önce boş disk denetlenir:
   `son döküm × 1,15 + 30 GiB taban` (`ARILLA_DUMP_RESERVE_BYTES`). Yetmezse deploy çıkış 2 ile durur ve
   hiçbir şey değişmez.
+- **Katalog eşiği (karar 0188):** Dökümden sonra boş alan otomatik katalog hattının başlangıç eşiğinin
+  (70 GiB) altına düşecekse deploy yine çıkış 2 ile durur (`KATALOG ESIGI`). Aksi halde yayın sessizce
+  dururdu. Önce yer açılır (`report` → `verify --full` → `prune --confirm`). Yayının duracağını bilerek
+  devam etmek için deploy'a `ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE=1` verilir.
 - **Doğrulama sınırı:** "Tam veri okuması" (`pg_restore -f /dev/null`) arşivin her veri bloğunu açar. Gerçek bir
   PostgreSQL'e geri yükleme **kanıtı değildir**.
 
@@ -2316,6 +2317,8 @@ hattın durduğunu yalnızca bu kural gösterir.
   yeniden 70 GiB'in altına indirir.
 - Sonuç: Her migration'lı deploy'dan sonra `report` → doğrulama → `prune --confirm` turu aynı gün
   yapılmalıdır. Aksi halde otomatik yayın yeniden durur ve bu kural UYARI verir.
+- 14 Kasım güncellemesi (karar 0194): Bu tur artık başarılı migration deploy'unun sonunda otomatik
+  yapılıyor. Elle tur yalnızca otomatik temizlik `UYARI` verdiğinde gerekir.
 
 ## Bootstrap kataloğu (geçici, yalnızca yerel)
 
@@ -3097,6 +3100,91 @@ python -m enrich.pilot --model e5-small-int8-0bcc8ca76950 --model-dir DIR \
 Model dizini `classify suggest model build` ile üretilir ve SHA-256 ile doğrulanır (karar 0155).
 Yerel model `enrich.products --model <id> --model-dir DIR --execute` ile kendi tablosuna
 (`product_text_embedding_d384`) yazar; `pilot` durumundaki model yalnız yerel veritabanında çalışır.
+
+### BGE-M3 vektörlerini kalıcı tabloya alma (karar 0195) — insan onayı gerekir
+
+Kapsam: `enrich.offline_embed` kontrol noktalarını `product_text_embedding_d1024` tablosuna alır.
+Embedding üretmez, model çağırmaz, `embedding_index` satırı ya da HNSW kurmaz, anlamsal aramayı AÇMAZ.
+Ön koşul: migration 0114 uygulanmış (deploy hattı). Üretimde ilk çalıştırma ayrı, insan onaylı bir
+operasyondur; **onay olmadan `--allow-remote` kullanılmaz.**
+
+1. **Kontrol (salt okunur, her yerde güvenli):**
+   `python -m enrich.vector_import plan --ckpt <dizin> --model bge-m3-5617a9f6`
+   Beklenen: `incompatible` yok; `stale`/`missing` sıfır ya da açıklanabilir. Veritabanına yazmaz.
+2. **Ön denetim (elle):** KVM 4 disk tabanı (`df`, yedek/WAL arşiv gecikmesi; tahmini ek alan
+   ≈2,7 KB/satır + WAL ≈3,1 KB/satır), sessiz pencere (yedek/gece besleme dışı), `STOP` dosyası yok.
+3. **Çalıştırma (onaydan sonra):**
+   `python -m enrich.vector_import run --ckpt <dizin> --model bge-m3-5617a9f6 --execute
+   --allow-remote --batch 250 --sleep-ms 20` (gerekirse `--max-rows` ile önce küçük bir dilim).
+   WAL geri basıncı koşuyu kendisi durdurur (`partial / wal_backpressure`); tekrar çalıştırmak
+   kaldığı yerden devam eder. Durdurma: `<dizin>/STOP` dosyası ya da SIGTERM (dilim biter, çıkar).
+4. **Sonuç:** `job_run.job = enrich_vector_import`, `detail.outcome`: `completed` / `no_input`
+   (`up_to_date`) / `partial` (`wal_backpressure`, `interrupted`, `item_errors`,
+   `consecutive_errors`) / `failed` (`incompatible_checkpoint`) / `skipped_locked`. Çıkış kodu 0174'e göre.
+5. **Doğrulama (salt okunur):** `python -m enrich.vector_import verify --ckpt <dizin> --model
+   bge-m3-5617a9f6 --sample 3000` — tablo ve kontrol noktası vektörleri eşit olmalı.
+6. **Geri dönüş:** `DELETE FROM product_text_embedding_d1024 WHERE model_version =
+   'bge-m3-5617a9f6'` (başka tablo buna bağlı değil); Jina verisi etkilenmez.
+
+Yerel ölçüm (158.000 gerçek vektör): 120 sn, WAL 488 MB, tablo 429 MB, PostgreSQL CPU tepe %23, bellek
+tepe 490 MiB; ikinci koşu 32 sn ve sıfır yazım. HNSW ayrı ve sonradan kurulur (karar 0195 §3).
+
+### BGE-M3 sorgu servisi ve anlamsal sunum (karar 0196) — varsayılan KAPALI
+
+Kod hazır, hiçbir şey kendiliğine açılmaz. Açılış sırası (her adım insan onaylı):
+
+1. **Veri:** migration 0114 + `enrich.vector_import` (yukarıdaki bölüm); `verify` temiz.
+2. **Sorgu servisi:** toplu iş servisinden AYRI bir TEI (`embed-query`, `infra/embed/bge-m3-5617a9f6.env`
+   ile aynı model dizini ve `--pooling=cls`), web ile aynı Docker ağında. Web'e
+   `EMBED_BGE_M3_QUERY_URL=http://embed-query:8080` (yerel/özel ağ ya da HTTPS). Servis, resmî
+   referansın altın vektörleriyle kanaryadan geçmeden gerçek sorgu vektörü üretilmez: ilk istekler
+   metin aramasıyla döner, kanarya arka planda geçince devreye girer. Durum: süreç içi `canaryStatus()`.
+3. **HNSW:** ayrı `concurrent` migration PR'ı, `ef_construction = 200` (karar 0195/0196 ölçümü).
+   Kurulumda `maintenance_work_mem` yüksek ve gerekirse `max_parallel_maintenance_workers=0`
+   (paylaşımlı bellek /dev/shm küçükse paralel kurulum başarısız olur). Kurulumdan sonra ısıt:
+   `SELECT pg_prewarm('<indeks adı>')` (soğuk indekste ilk sorgular 400 ms SQL süresini aşıp metin
+   aramasına düşer; ölçüldü).
+4. **Kayıt defteri ve etkinleştirme:** model durumu/`license_verified` insan-hukuk onayı; `enrich.index
+   register/shadow/activate`.
+5. **Mod:** `SEMANTIC_SEARCH_MODE=shadow` ile gözlem, sonra `on`. Geri alma: tek bayrak.
+
+Sağlık: `GET {url}/health` (TEI). Devre kesici art arda hatada otomatik bekler; servis düşerse arama
+metin sonucuyla (birebir aynı) devam eder (80/80 ölçüldü). Anahtar/adres/sorgu günlüğe yazılmaz.
+
+#### BGE-M3 sorgu servisi — üretim kurulumu ve kalıcılık (karar 0207)
+
+15 Kasım 2026'dan beri üretimde kurulu ve `SEMANTIC_SEARCH_MODE=on`. Deploy hattının DIŞINDADIR:
+
+- **Servis:** `infra/compose.embed-query.yml` → VPS `/opt/arilla/compose.embed-query.yml` (elle kopya; depoda
+  değişince kopyalanır). Proje adı `arilla-embed-query`: `arilla` projesinin deploy'u (`up -d`, orphan
+  temizliği) ona dokunmaz. `restart: unless-stopped` → sunucu/Docker yeniden başlayınca kendiliğinden kalkar.
+  Ağ: `arilla_data` (internal); `ports:` yok. Web `http://embed-query:8080` ile erişir.
+- **Model:** `/opt/arilla/models/bge-m3-5617a9f6` (kalıcı disk, sahip 10001, salt okunur; ~2,2 GB). RAM diski
+  (`/dev/shm`) KALICI DEĞİLDİR. Dizin, kaynak `pytorch_model.bin`den (pickle) TÜRETİLMİŞ `model.safetensors` içerir;
+  türetme kaydı depoda: `infra/embed/bge-m3-5617a9f6.derived-manifest.json` (kaynak `BAAI/bge-m3` @
+  `5617a9f61b028005a4858fdac845db406aefb181`, dönüştürücü `torch 2.8.0+cpu` `torch.load(weights_only=True)` +
+  `safetensors 0.6.2`, eşitlik denetimi bit düzeyinde, her dosyanın SHA-256'sı).
+  **Yeniden kurulum:** (1) tercih edilen: mevcut dizinin kopyası (`/opt/arilla/models/bge-m3-5617a9f6`; sunucu dışı
+  yedek YOKTUR, bkz. aşağı); (2) yoksa: sabit revizyonu `hf download BAAI/bge-m3 --revision 5617a9f6…` ile yalıtılmış
+  bir ortama indir, yukarıdaki sürümlerle `torch.load(weights_only=True)` → `safetensors.torch.save_file` ile
+  `model.safetensors` üret, tüm dosyaları manifestteki SHA-256'larla karşılaştır (`model.safetensors` =
+  `dfb18973…8602`); hash tutmazsa dizini KULLANMA. Bu dönüştürme betiği depoda DEĞİLDİR ve elle yeniden üretimi
+  doğrulanmadı (yalnız manifest vardır); sahip 10001, salt okunur, ardından `compose.embed-query.yml` ile
+  başlat. **Açık risk:** modelin sunucu dışı yedeği yoktur; disk kaybında yukarıdaki yol tek seçenektir.
+- **Web ortamı** (`/opt/arilla/env/web.env`, depoda YOK; gizli değer içermez): `EMBED_BGE_M3_QUERY_URL=http://embed-query:8080`,
+  `SEMANTIC_EMBEDDING_MODEL=bge-m3-5617a9f6`, `SEMANTIC_INDEX_VERSION=1`, `SEMANTIC_SEARCH_MODE=on`.
+  `web.env` deploy'larda değişmez; web yeniden oluşturulunca (`up -d --no-deps web`) aynen okunur.
+- **Doğrulama (kanarya):** servis açılışında/sonrasında web süreci altın vektörlerle kanaryayı kendisi geçirir;
+  elle: altın metinleri `POST /v1/embeddings` ile gönder, kosinüs ≥ 0,9994 olmalı (15 Kas: min 0,999981).
+- **Geri alma:** `web.env`'de `SEMANTIC_SEARCH_MODE=shadow` (ya da `off`) + `docker compose --env-file /opt/arilla/compose.env
+  -f /opt/arilla/compose.prod.yml up -d --no-deps web`. Servisi durdurmak da güvenlidir: arama metin sonucuna
+  birebir düşer. Bellek: ~2,8 GiB (tavan 4 GiB); Postgres ile birlikte host 16 GB içinde ~5 GB pay kalır.
+- **Kayıt defteri ile ilişki:** `model_registry.json` `state`/`license_verified` alanlarını YALNIZ Python tarafı
+  denetler (`registry.py`, `enrich.index`); TS sunumu `QUERYABLE_INDEXES` + ortam değişkenlerine bakar. Bu yüzden
+  env ile açmak o kapıyı atlar (karar 0207 §Tutarsızlık). `enrich.index activate` yapılmadı; `embedding_index`
+  aktif satırı hâlâ Jina'dır (env önceliklidir). Kayıt defterini değiştirmek insan/hukuk onayıdır.
+- **Eski toplu iş servisi** (`e4-bge-tei`, E4 üretimi): iş bitti, durduruldu (silinmedi); checkpoint ve model
+  dosyaları korunur.
 
 ### Embedding CPU servisi, havuzlama ve kanarya (karar 0186) — varsayılan KAPALI
 

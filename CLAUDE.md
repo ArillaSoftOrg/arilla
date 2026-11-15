@@ -42,11 +42,23 @@ tamamı anlamını yitirir.
      açıkken, metin süzgecinden geçen sorgu için, kısa zaman aşımıyla, günlük
      tavanla; sonuç `query_interpretation`'a yazılır ve yeniden kullanılır,
      hata deterministik aramaya düşer, model ürün/fiyat üretmez.
+     Karar 0208 (`QUERY_INTENT_V2_ALT_TERMS`, varsayılan kapalı): aynı tek IntentV2 çağrısının
+     şemasına en fazla 3 doğrulanmış alternatif arama terimi eklenir (ek çağrı yok); yalnız
+     metin kapısının slotlarına eş anlamlı olarak girer, sıralamaya/vektöre/filtreye karışmaz,
+     orijinal sorgu aynen kalır, hata ya da eksik alanda eski davranış.
    - Konuşmalı keşif (`/sohbet`, karar 0074): oturumlu kullanıcının kendi mesajı
      başına tek Gemini çağrısı; `ChatInterpreter` arkasında, katı şemalı,
      `CHAT_DISCOVERY_ENABLED=true` bayrağıyla (varsayılan kapalı), her çağrı
      `api_usage`'a yazılır, kullanıcı başına saatlik tavanı vardır ve arama turu
      bütçesinden ayrıdır; model yalnızca niyet çıkarır — ürün, fiyat, SQL üretmez.
+     Karar 0203 (`CHAT_RESULT_ANSWER`, varsayılan kapalı, kullanıcı izin listesiyle
+     pilot) bu cümleyi tek noktada genişletir: kullanıcı gösterilen sonuçlar hakkında
+     soru sorduğunda AYNI tek çağrının girdisine o turda katalogdan okunan en çok 8
+     ürünün doğrulanmış alanları (başlık, marka, mağaza, fiyat, teklif sayısı) eklenebilir;
+     model bu gerçeklerden, her paragrafı sunucuda doğrulanan alıntıyla (delil) desteklenen
+     kısa bir cevap yazabilir. Ürün, fiyat, teknik özellik ya da performans/kalite iddiası
+     üretmez; doğrulanamayan cevap atılıp modelsiz özete düşülür; ek çağrı yoktur, cevap
+     sohbet mesajı olarak saklanır (kural 3).
    - Sohbet görsel eki (karar 0078, 0091): `/sohbet` mesajına (ilk mesaj ya da
      sohbet içi sonraki mesaj) eklenen, önceden işlenmiş (≤512 px, EXIF'siz)
      görsel, aynı tek Gemini çağrısına çok kipli girdi olarak eklenir; yalnızca
@@ -169,21 +181,20 @@ tamamı anlamını yitirir.
   şimdilik zorunlu değil. **Eşleştirme mantığı için regresyon test seti
   zorunludur** — eşik değiştiğinde neyin bozulduğu başka türlü görülemez.
 
-## PR protokolü (Claude Code)
+## Dağıtım protokolü (Claude Code)
 
-Ayrıntı: `docs/decisions/0137`. Görev bitince:
+Ayrıntı: `docs/decisions/0198`. Kullanıcı her değişikliği Claude Code ile birlikte inceler; ayrı bir
+onay kapısı (PR, `risk-approved`, auto-merge, merge queue) yoktur. Varsayılan akış doğrudan `main`'e
+push'tur; `main`'e her push otomatik üretim dağıtımıdır. Görev bitince:
 
-1. İlgili testleri yerelde çalıştır; sonucu olduğu gibi raporla.
-2. `main`'den açılmış ayrı dalda commit + push; PR aç. Başka PR'a bağlıysa gövdeye
-   `Depends on #N` yaz.
-3. CI'ı izle: `gh pr checks <n> --watch`. Kırmızı kontrolü atlama, yeniden koşturup geçirmeye
-   çalışma; nedenini düzelt ya da raporla.
-4. `pr policy` düşük risk diyorsa: `gh pr merge <n> --auto --squash` (merge queue sıraya alır).
-   Yüksek riskse auto-merge açma; neyin incelenmesi gerektiğini kullanıcıya yaz.
-5. **`risk-approved` etiketini asla ekleme**, dal korumasını/kural setini gevşetme, `--admin`
-   ile birleştirme, çakışmayı inceleyip anlamadan çözme.
-6. Oturum sürerken birleşmeyi ve `deploy/vps-production` durumunu izle; manuel müdahale
-   gerektiren her şeyi (onay, çakışma, kırmızı kontrol, başarısız dağıtım) açıkça bildir.
+1. İlgili testleri yerelde çalıştır; sonucu olduğu gibi raporla. Push'tan önce `tsc` ve Biome temiz olmalı.
+2. Değişikliği `main` üzerinde commit et ve `git push origin main` ile doğrudan gönder. Kullanıcı
+   açıkça PR isterse ya da değişiklik riskliyse (şema/migration, auth, yıkıcı SQL) ayrı dal + PR açılabilir;
+   bu durumda da onay etiketi yoktur.
+3. Push sonrası CI ve `deploy/vps-production` durumunu izle (`gh run watch` / commit durumları). Kırmızı
+   kontrolü atlama, yeniden koşturup geçirmeye çalışma; nedenini düzelt ya da raporla.
+4. Silme ve force-push main'de yasaktır (kural seti); `--force` kullanma, geçmişi yeniden yazma.
+5. Manuel müdahale gerektiren her şeyi (kırmızı CI, başarısız dağıtım, çakışma) açıkça bildir.
 
 ## Tema ve tipografi
 

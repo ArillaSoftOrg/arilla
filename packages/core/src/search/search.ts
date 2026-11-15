@@ -225,8 +225,12 @@ export async function search(
       throw new UnsupportedSortForIntentError(query.intent, query.sort);
     }
     result = await searchByClosestMatch(db, query, query.anchor.id, kinds, limit, offset);
-  } else if (query.sort === "best_deal") {
-    result = await searchByText(db, query, "best_deal", limit, offset, pagination.tokenThreshold);
+  } else if (
+    query.sort === "best_deal" ||
+    query.sort === "lowest_price" ||
+    query.sort === "best_match"
+  ) {
+    result = await searchByText(db, query, query.sort, limit, offset, pagination.tokenThreshold);
   } else {
     result = await searchByText(db, query, "balanced", limit, offset, pagination.tokenThreshold);
   }

@@ -60,9 +60,13 @@ interface WebItemsProps {
   /** Veritabani sonuclari: yinelenen teklifi atmak ve ayni urunun katalog gorselini bulmak icin. */
   catalog: readonly CatalogImageCandidate[];
   variant?: WebViewVariant;
+  /** Karar 0200: en fazla bu kadar internet kartı (katalog + internet toplamı sınırı); `0` = hiç. */
+  limit?: number;
 }
 
-async function WebItems({ promise, catalog, variant = "ara" }: WebItemsProps) {
+async function WebItems({ promise, catalog, variant = "ara", limit }: WebItemsProps) {
+  // Sınır dolduysa internet sonucu hiç beklenmez/çizilmez (katalog sonuçları etkilenmez).
+  if (limit !== undefined && limit <= 0) return null;
   const result = await loadWebGroups(promise, catalog);
   // Katalog sonuclari yerinde kalir; hata izgaranin sonunda tek satir olarak gorunur.
   if (result.kind === "error") {
@@ -75,7 +79,7 @@ async function WebItems({ promise, catalog, variant = "ara" }: WebItemsProps) {
   if (result.kind === "none" || result.kind === "limited") return null;
   return (
     <WebResultItems
-      groups={result.groups}
+      groups={limit === undefined ? result.groups : result.groups.slice(0, limit)}
       suggestionsHtml={result.suggestionsHtml}
       variant={variant}
     />
@@ -87,10 +91,12 @@ async function WebItems({ promise, catalog, variant = "ara" }: WebItemsProps) {
  * internet kartlari geldikce ayni izgaranin sonuna eklenir; mevcut kartlar
  * yer degistirmez, siralama sonradan bozulmaz.
  */
-export function WebGridItems({ promise, catalog, variant = "ara" }: WebItemsProps) {
+export function WebGridItems({ promise, catalog, variant = "ara", limit }: WebItemsProps) {
+  // Sınır doluysa bekleme iskeleti de gösterilmez.
+  if (limit !== undefined && limit <= 0) return null;
   return (
     <Suspense fallback={<WebPendingItems variant={variant} />}>
-      <WebItems promise={promise} catalog={catalog} variant={variant} />
+      <WebItems promise={promise} catalog={catalog} variant={variant} limit={limit} />
     </Suspense>
   );
 }

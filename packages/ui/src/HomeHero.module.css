@@ -34,22 +34,6 @@
   display: block;
 }
 
-@media (min-width: 1024px) {
-  .hero {
-    gap: var(--space-10);
-  }
-
-  .title {
-    display: block;
-    font-size: 2.5rem;
-  }
-
-  .titleLead,
-  .titleAccent {
-    display: inline;
-  }
-}
-
 /* minmax(0, 1fr): chip satiri gibi nowrap icerik kolonu viewport'tan genis
    acmasin. */
 .action {

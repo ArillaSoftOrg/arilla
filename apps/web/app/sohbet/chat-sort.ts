@@ -18,15 +18,28 @@ export const CLOSEST_MATCH_SUPPORTED = false;
 
 export const CHAT_SORT_PARAM = "sirala";
 
-export function parseSortKey(raw: string | undefined, intent: SearchIntent): ChatSortKey {
+/**
+ * `uxV2` (karar 0202, `CHAT_UX_V2`): sekmeler Önerilenler / En Uygun Fiyat / En İyi Eşleşmeler;
+ * `firsat` = `lowest_price`, `eslesme` = `best_match` (yalnız alaka). Kapalıyken bugünkü eşleme.
+ */
+export function parseSortKey(
+  raw: string | undefined,
+  intent: SearchIntent,
+  uxV2 = false,
+): ChatSortKey {
   if (raw === "firsat") return "firsat";
   if (raw === "secilen") return "secilen";
-  if (raw === "eslesme" && CLOSEST_MATCH_SUPPORTED) return "eslesme";
+  if (raw === "eslesme" && (uxV2 || CLOSEST_MATCH_SUPPORTED)) return "eslesme";
   // Açık tercih yoksa niyetin "daha uygun fiyatlı" isteği fırsat sekmesini açar.
   return intent.sort === "cheapest" ? "firsat" : "secilen";
 }
 
-export function sortModeFor(key: ChatSortKey): SortMode {
+export function sortModeFor(key: ChatSortKey, uxV2 = false): SortMode {
+  if (uxV2) {
+    if (key === "firsat") return "lowest_price";
+    if (key === "eslesme") return "best_match";
+    return "balanced";
+  }
   if (key === "firsat") return "best_deal";
   if (key === "eslesme") return "closest_match";
   return "balanced";

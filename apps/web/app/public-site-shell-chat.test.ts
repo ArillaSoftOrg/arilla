@@ -116,14 +116,39 @@ describe("kabuk: sohbet chrome", () => {
   );
 
   it(
-    "chat: footer yok (SiteFooter ve EditorialFooter), header sohbet varyantı",
+    "chat: footer yok (SiteFooter), header sohbet varyantı",
     async () => {
       const parts = await shellParts("chat");
       const names = parts.map(typeName);
       expect(names).not.toContain("SiteFooter");
-      expect(names).not.toContain("EditorialFooter");
       const header = parts.find((part) => typeName(part) === "HomeHeader") as Element;
       expect(header.props.variant).toBe("chat");
+    },
+    SLOW,
+  );
+});
+
+describe("tek footer (karar 0193)", () => {
+  it.each([
+    { fullBleed: true, footerVariant: "default" },
+    { fullBleed: false, footerVariant: "prelaunch" },
+  ] as const)(
+    "fullBleed=$fullBleed, footerVariant=$footerVariant: standart SiteFooter",
+    async ({ fullBleed, footerVariant }) => {
+      const { PublicSiteShell } = await import("./public-site-shell.tsx");
+      const { SUBPAGE_SECTION_LINKS } = await import("./home-footer-groups.ts");
+      const tree = (await PublicSiteShell({
+        links: SUBPAGE_SECTION_LINKS,
+        fullBleed,
+        footerVariant,
+        children: null,
+      })) as Element;
+      const parts = (tree.props.children as unknown[]).flat().filter(Boolean) as Element[];
+      const footers = parts.filter((part) => /Footer$/.test(typeName(part) ?? ""));
+      expect(footers.map(typeName)).toEqual(["SiteFooter"]);
+      const footer = footers[0] as Element;
+      expect(footer.props.variant).toBeUndefined();
+      expect(footer.props.socialGroup).toBeDefined();
     },
     SLOW,
   );

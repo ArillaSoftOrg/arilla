@@ -9,6 +9,13 @@ const TABS: { key: ChatSortKey; label: string }[] = [
   { key: "eslesme", label: CHAT_COPY.tabMatches },
 ];
 
+/** Karar 0202 (`CHAT_UX_V2`): gerçekten farklı üç sıralama. */
+const TABS_V2: { key: ChatSortKey; label: string }[] = [
+  { key: "secilen", label: CHAT_COPY.tabSelectedV2 },
+  { key: "firsat", label: CHAT_COPY.tabLowestPrice },
+  { key: "eslesme", label: CHAT_COPY.tabBestMatch },
+];
+
 /**
  * Seçtiklerimiz / En iyi fırsatlar / En iyi eşleşmeler + sağda sonuç sayısı.
  * Sekmeler düz bağlantıdır: aynı sohbet, aynı niyet, yalnızca `?sirala=` değişir; model
@@ -18,18 +25,21 @@ export function ResultTabs({
   conversationId,
   active,
   countLabel,
+  uxV2 = false,
 }: {
   conversationId: string;
   active: ChatSortKey;
   /** "75 sonuç"; yakın sonuç ya da yüklenirken boş. */
   countLabel: string | null;
+  /** Karar 0202: v2 sekme adları ve alaka sekmesi açık. */
+  uxV2?: boolean;
 }) {
   return (
     <div className={styles.tabsRow}>
       <nav aria-label={CHAT_COPY.tabsLabel}>
         <ul className={styles.tabs}>
-          {TABS.map((tab) => {
-            const disabled = tab.key === "eslesme" && !CLOSEST_MATCH_SUPPORTED;
+          {(uxV2 ? TABS_V2 : TABS).map((tab) => {
+            const disabled = tab.key === "eslesme" && !uxV2 && !CLOSEST_MATCH_SUPPORTED;
             const isActive = tab.key === active;
             if (disabled) {
               return (

@@ -88,6 +88,8 @@ const QUERIES = process.env.PROBE_QUERIES
       .filter(Boolean)
   : DEFAULT_QUERIES;
 const ROUNDS = Math.max(1, Math.floor(num("PROBE_ROUNDS", 2)));
+/** `PROBE_SORTS=1` (fiyat monotonlugu karttaki cevrilmis TL fiyatina gore, yurt disi dahil; karar 0205): ayrica sohbet sekmelerinin (balanced / lowest_price / best_match) ilk turda karsilastirmasi (karar 0202). */
+const SORT_COMPARE = process.env.PROBE_SORTS === "1";
 const DELAY_MS = num("PROBE_DELAY_MS", 1000);
 const MERCHANT = env("PROBE_MERCHANT", "aliexpress");
 const SAMPLE_PCT = Math.min(10, Math.max(0.01, num("PROBE_SAMPLE_PCT", 1)));
@@ -284,6 +286,73 @@ interface QueryResult {
   };
   sohbet: { ms: number; error?: string; items?: number; droppedForPrice?: number };
   links?: LinkCheck[];
+  sorts?: SortComparison;
+}
+
+const SORT_PROBES = ["balanced", "lowest_price", "best_match"] as const;
+/** Ana urun sorgusunda ust sirada istenmeyen aksesuar basligi (yaklasik; kademe SQL tarafindadir). */
+const ACCESSORY_HINT_RE =
+  /k[ıi]l[ıi]f|ekran koruyucu|screen protector|kablo|cable|adapt[öo]r|charger|[şs]arj (aleti|cihaz)|aksesuar|yedek par[çc]a/i;
+
+interface SortRun {
+  ms: number;
+  error?: string;
+  count: number;
+  ids: number[];
+  top: { title: string; price: number | null }[];
+  accessoryInTop10: number;
+  /** Ilk 10 icinde aksesuar OLMAYAN, TRY, stoklu urunlerde fiyat artan mi? Hesaplanamazsa `null`. */
+  priceMonotoneTop10: boolean | null;
+}
+
+interface SortComparison {
+  runs: Record<(typeof SORT_PROBES)[number], SortRun>;
+  /** Ilk 10 kimlik kumesinin Jaccard ortusmesi. */
+  overlapTop10: { balancedVsPrice: number; balancedVsMatch: number; priceVsMatch: number };
+}
+
+function jaccard(a: readonly number[], b: readonly number[]): number {
+  const left = new Set(a);
+  const right = new Set(b);
+  const union = new Set([...left, ...right]).size;
+  if (union === 0) return 1;
+  let inter = 0;
+  for (const x of left) if (right.has(x)) inter++;
+  return Math.round((inter / union) * 100) / 100;
+}
+
+async function compareSorts(db: Database, query: string): Promise<SortComparison> {
+  const runs = {} as SortComparison["runs"];
+  for (const sort of SORT_PROBES) {
+    const r = await timed(() => searchByIntent(db, emptyIntent(query), { sort }));
+    const items = r.value?.outcome.items ?? [];
+    const top10 = items.slice(0, 10);
+    const main = top10.filter(
+      (i) => !ACCESSORY_HINT_RE.test(i.title) && i.minPrice !== null && i.inStock !== false,
+    );
+    const prices = main.map((i) => i.minPrice as number);
+    runs[sort] = {
+      ms: r.ms,
+      ...(r.error ? { error: r.error } : {}),
+      count: items.length,
+      ids: top10.map((i) => i.productId),
+      top: items.slice(0, 5).map((i) => ({ title: i.title.slice(0, 70), price: i.minPrice })),
+      accessoryInTop10: top10.filter((i) => ACCESSORY_HINT_RE.test(i.title)).length,
+      priceMonotoneTop10:
+        prices.length < 2
+          ? null
+          : prices.every((p, idx) => idx === 0 || p >= (prices[idx - 1] as number)),
+    };
+    await sleep(DELAY_MS);
+  }
+  return {
+    runs,
+    overlapTop10: {
+      balancedVsPrice: jaccard(runs.balanced.ids, runs.lowest_price.ids),
+      balancedVsMatch: jaccard(runs.balanced.ids, runs.best_match.ids),
+      priceVsMatch: jaccard(runs.lowest_price.ids, runs.best_match.ids),
+    },
+  };
 }
 
 async function catalogGaps(db: Database, merchantId: number) {
@@ -449,6 +518,7 @@ async function main(): Promise<number> {
       });
       await sleep(DELAY_MS);
       const chat = await timed(() => searchByIntent(db, emptyIntent(query)));
+      const sortCompare = SORT_COMPARE && round === 1 ? await compareSorts(db, query) : undefined;
       const outcome = ara.value;
       const result: QueryResult = {
         query,
@@ -469,6 +539,7 @@ async function main(): Promise<number> {
           droppedForPrice: chat.value?.droppedForPrice,
         },
       };
+      if (sortCompare) result.sorts = sortCompare;
       if (round === 1 && outcome && outcome.items.length > 0) {
         result.links = [];
         for (const item of outcome.items.slice(0, LINK_CHECKS_PER_QUERY)) {
@@ -490,6 +561,12 @@ async function main(): Promise<number> {
           `sohbet ${String(chat.ms).padStart(5)}ms ${chat.error ?? `${result.sohbet.items ?? 0} urun`}`,
         ].join(" | "),
       );
+      if (sortCompare) {
+        const { runs, overlapTop10: o } = sortCompare;
+        console.log(
+          `   sekmeler | ortusme b-p ${o.balancedVsPrice} b-m ${o.balancedVsMatch} p-m ${o.priceVsMatch} | aksesuar@10 b ${runs.balanced.accessoryInTop10} p ${runs.lowest_price.accessoryInTop10} m ${runs.best_match.accessoryInTop10} | fiyat monoton(p) ${runs.lowest_price.priceMonotoneTop10} | ms b ${runs.balanced.ms} p ${runs.lowest_price.ms} m ${runs.best_match.ms}`,
+        );
+      }
       await sleep(DELAY_MS);
     }
   }
@@ -501,7 +578,48 @@ async function main(): Promise<number> {
   const zero = warm
     .filter((r) => !r.ara.error && (r.ara.cards?.items ?? 0) === 0)
     .map((r) => r.query);
+  const sortRows = results.flatMap((r) => (r.sorts ? [r.sorts] : []));
+  const avg = (xs: number[]) =>
+    xs.length ? Math.round((xs.reduce((a, b) => a + b, 0) / xs.length) * 100) / 100 : null;
+  const sortSummary =
+    sortRows.length === 0
+      ? null
+      : {
+          queries: sortRows.length,
+          overlapAvg: {
+            balancedVsPrice: avg(sortRows.map((x) => x.overlapTop10.balancedVsPrice)),
+            balancedVsMatch: avg(sortRows.map((x) => x.overlapTop10.balancedVsMatch)),
+            priceVsMatch: avg(sortRows.map((x) => x.overlapTop10.priceVsMatch)),
+          },
+          priceNotMonotone: sortRows.filter((x) => x.runs.lowest_price.priceMonotoneTop10 === false)
+            .length,
+          accessoryQueries: Object.fromEntries(
+            SORT_PROBES.map((k) => [
+              k,
+              sortRows.filter((x) => x.runs[k].accessoryInTop10 > 0).length,
+            ]),
+          ),
+          ms: Object.fromEntries(
+            SORT_PROBES.map((k) => [
+              k,
+              {
+                p50: percentile(
+                  sortRows.map((x) => x.runs[k].ms),
+                  0.5,
+                ),
+                p95: percentile(
+                  sortRows.map((x) => x.runs[k].ms),
+                  0.95,
+                ),
+              },
+            ]),
+          ),
+          errors: sortRows.flatMap((x) =>
+            SORT_PROBES.filter((k) => x.runs[k].error).map((k) => `${k}: ${x.runs[k].error}`),
+          ),
+        };
   const summary = {
+    sorts: sortSummary,
     araMs: {
       p50: percentile(araMs, 0.5),
       p95: percentile(araMs, 0.95),
@@ -551,6 +669,7 @@ async function main(): Promise<number> {
     `sohbet   p50 ${summary.sohbetMs.p50} ms, p95 ${summary.sohbetMs.p95} ms, en kotu ${summary.sohbetMs.max} ms`,
   );
   console.log(`hata: ${summary.errors.length ? summary.errors.join("; ") : "yok"}`);
+  if (summary.sorts) console.log(`sekmeler: ${JSON.stringify(summary.sorts)}`);
   console.log(`sonucsuz sorgu: ${zero.length ? zero.join(", ") : "yok"}`);
   console.log(
     `en yavas: ${summary.slowest.map((x) => `${x.query} (t${x.round}) ${x.araMs}/${x.sohbetMs} ms`).join("; ")}`,

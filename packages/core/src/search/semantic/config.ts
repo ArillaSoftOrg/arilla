@@ -34,6 +34,9 @@ export function isValidModelVersion(value: string): boolean {
   return MODEL_VERSION_PATTERN.test(value);
 }
 
+/** `api_usage.operation` (kural 9): golge olcum ve sunumun sorgu embedding cagrilari. */
+export const SEMANTIC_QUERY_OPERATION = "semantic_query_embedding";
+
 /** Sorgu embedding'i: kisa zaman asimi, tek deneme, hata -> olcu "no_vector". */
 export const SEMANTIC_QUERY_TIMEOUT_MS = 1_500;
 

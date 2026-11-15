@@ -1,5 +1,6 @@
 export * from "./config.ts";
 export * from "./contract.ts";
+export * from "./explanation-feedback.ts";
 export * from "./feedback.ts";
 export * from "./image-consent.ts";
 export * from "./image-context.ts";
@@ -9,6 +10,8 @@ export * from "./link.ts";
 export * from "./link-preference-text.ts";
 export * from "./link-turn.ts";
 export * from "./link-view.ts";
+export * from "./result-commentary.ts";
+export * from "./result-summary.ts";
 export * from "./search-adapter.ts";
 export * from "./service.ts";
 export * from "./submission.ts";

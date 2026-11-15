@@ -31,7 +31,9 @@ const STATIC_PAGES = [
   "/sirket-bilgileri",
   "/hakkinda",
   "/blog",
+  "/markalar-icin",
   "/ortakliklar",
+  "/icerik-ureticileri",
 ];
 
 /**

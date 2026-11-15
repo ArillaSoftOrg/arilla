@@ -143,6 +143,184 @@
   overflow-wrap: anywhere;
 }
 
+/* Sonuc ozeti (karar 0200): tek satir, arama simgesi + sayilar. */
+.summary {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}
+
+.summaryIcon {
+  flex: none;
+  inline-size: 1em;
+  block-size: 1em;
+}
+
+/* Yeni yanit dugmesi (karar 0201): okurken zorla kaydirma yok; dugme mesaj kutusunun ustunde. */
+.newReply {
+  position: fixed;
+  inset-inline: 0;
+  margin-inline: auto;
+  inline-size: max-content;
+  bottom: calc(var(--kb-inset, 0px) + 6rem + env(safe-area-inset-bottom, 0px));
+  z-index: var(--z-sticky);
+  min-height: var(--size-touch-target);
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised, var(--paper));
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 0.15);
+  cursor: pointer;
+}
+
+.newReply:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-ring-offset);
+}
+
+/* Alternatifler seridi (karar 0202): kompakt, yatay kaydirilir, ana sonuclarla karismaz. */
+.altSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  min-width: 0;
+}
+
+.altHeading {
+  margin: 0;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  color: var(--ink-secondary);
+}
+
+.altStrip {
+  display: flex;
+  gap: var(--space-3);
+  margin: 0;
+  padding: 0 0 var(--space-2);
+  list-style: none;
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  overscroll-behavior-x: contain;
+}
+
+.altItem {
+  flex: 0 0 9.5rem;
+  min-width: 0;
+  scroll-snap-align: start;
+}
+
+/* Degerlendirme oyunun neden secenekleri (karar 0202). */
+.explainReasons {
+  margin: 0;
+  padding: 0;
+  border: 0;
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.explainReasons [aria-pressed="true"] {
+  border-color: var(--ink);
+  font-weight: var(--font-weight-semibold);
+}
+
+/* Sonuc degerlendirmesi (karar 0201): ilk kartlardan sonra kisa, olgusal metin. */
+.commentary {
+  margin: 0;
+  padding: var(--space-3) var(--space-4);
+  border-inline-start: 3px solid var(--line);
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+  line-height: var(--line-height-normal);
+}
+
+/* Kademeli gosterim: kapaliyken liste yumusakca soluklasir, alta genis yuvarlak dugme gelir. */
+.revealCollapsed {
+  position: relative;
+}
+
+.revealCollapsed::after {
+  content: "";
+  position: absolute;
+  inset-inline: 0;
+  inset-block-end: 0;
+  block-size: 6rem;
+  background: linear-gradient(to bottom, transparent, var(--surface, var(--bg)));
+  pointer-events: none;
+}
+
+.revealButton {
+  inline-size: 100%;
+  min-height: var(--size-touch-target);
+  padding: var(--space-2) var(--space-5);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.revealButton:focus-visible,
+.olderToggle:focus-visible {
+  outline: 2px solid var(--focus-ring, currentColor);
+  outline-offset: 2px;
+}
+
+/* Eski arama blogu: ozet + ac/kapa baglantisi. */
+.olderToggle {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--size-touch-target);
+  color: var(--ink);
+  font-size: var(--text-small);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+/* "Bu aramaya don": eski arama blogunun altinda kucuk, ikincil bir dugme. */
+.restore {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.restoreButton {
+  padding: var(--space-1) var(--space-3);
+  border: var(--border-width) solid var(--line-strong);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--ink-primary);
+  font: inherit;
+  font-size: var(--text-small);
+  cursor: pointer;
+}
+
+.restoreButton:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.restoreNote {
+  color: var(--ink-secondary);
+  font-size: var(--text-small);
+}
+
 /* Urun sonuclari: konteynere gore akan izgara (sutun sayisi viewport'a degil
    sohbet sutununun genisligine bagli). */
 .results {
@@ -477,7 +655,7 @@ a.tabActive:hover {
 .composer {
   margin-block-start: auto;
   position: sticky;
-  bottom: 0;
+  bottom: var(--kb-inset, 0px);
   z-index: var(--z-sticky);
   display: flex;
   align-items: flex-end;

@@ -145,6 +145,26 @@ export const productTextEmbeddingD384 = pgTable(
   ],
 );
 
+/** 0114 (karar 0195): 1024 boyutlu modellerin (BGE-M3) urun metin vektoru; embedding STORAGE PLAIN. */
+export const productTextEmbeddingD1024 = pgTable(
+  "product_text_embedding_d1024",
+  {
+    productId: bigint("product_id", { mode: "number" })
+      .notNull()
+      .references(() => product.id, { onDelete: "cascade" }),
+    modelVersion: text("model_version").notNull(),
+    textVersion: smallint("text_version").notNull(),
+    contentHash: bytea("content_hash").notNull(),
+    sourceHash: bytea("source_hash").notNull(),
+    embedding: halfvec("embedding", { dimensions: 1024 }).notNull(),
+    embeddedAt: timestamp("embedded_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.productId, table.modelVersion] }),
+    index("product_text_embedding_d1024_hash_idx").on(table.modelVersion, table.contentHash),
+  ],
+);
+
 /**
  * 0108 (karar 0178): anlamsal arama golge olcumu. Yalniz sayisal olculer; sorgu metni, ozeti,
  * kullanici/oturum ve urun kimligi yok. Yazan `packages/core` `search/semantic/shadow.ts`.

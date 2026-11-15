@@ -90,7 +90,9 @@ CHARS_PER_TOKEN = DEFAULT_SPEC.chars_per_token
 
 #: Vektor tablosu ve boyutu kayit defterindeki aileden gelir (karar 0180/0181). Tablo adi SQL'e
 #: yalnizca bu kumeden girer (kullanici girdisi degil).
-TABLES = frozenset({"product_text_embedding", "product_text_embedding_d384"})
+TABLES = frozenset(
+    {"product_text_embedding", "product_text_embedding_d384", "product_text_embedding_d1024"}
+)
 #: Karar 0179 veri seti yalniz saglayici (API) vektorlerini ve `halfvec(768)`i tasir.
 ARCHIVE_TABLE = "product_text_embedding"
 

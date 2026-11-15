@@ -12,7 +12,11 @@ export type Anchor =
 
 export type ColorNorm = "black" | "white" | "beige" | "ecru" | (string & {});
 
-export type SortMode = "balanced" | "best_deal" | "closest_match";
+/**
+ * `lowest_price` / `best_match` (karar 0202): yalnız METİN aramada, sohbet sekmeleri için.
+ * `closest_match` ÇAPA ürüne benzerliktir (metin aramasında yoktur); `best_match` ondan farklıdır.
+ */
+export type SortMode = "balanced" | "best_deal" | "closest_match" | "lowest_price" | "best_match";
 
 /**
  * Kategori filtresinin kaynagi (karar 0190). `category_path` ile birlikte tasinir.
@@ -59,4 +63,9 @@ export interface QueryObject {
    * yoktur — o zaman `unparsed` tokenlarindan uretilir.
    */
   text_slots?: string[][];
+  /**
+   * Dogrulanmis IntentV2 rolu (karar 0197): yalniz siralama; onbellege yazilmaz, `applyIntentPlan` ekler.
+   * `accessory`/`part` ise ana urun aksesuar kademesi uygulanmaz.
+   */
+  product_role?: "main" | "accessory" | "part";
 }

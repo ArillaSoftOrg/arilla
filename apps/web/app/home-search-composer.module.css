@@ -1,20 +1,22 @@
 .suggestions {
   display: grid;
   min-width: 0;
-  gap: var(--space-2);
-  margin-block: var(--space-5);
+  margin-block: var(--space-1) 0;
   margin-inline: 0;
-  padding: 0;
+  padding: var(--space-3) 0 0;
   border: 0;
+  border-block-start: var(--border-width) solid var(--line);
 }
 
 .suggestionsLabel {
-  width: 100%;
+  position: absolute;
+  width: 1px;
+  height: 1px;
   padding: 0;
-  margin: 0;
-  text-align: center;
-  color: var(--ink-muted);
-  font-size: var(--text-small);
+  margin: -1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
 }
 
 .suggestionsRow {
@@ -62,12 +64,267 @@
   cursor: wait;
 }
 
-@media (max-width: 639.98px) {
-  .suggestionsLabel {
-    text-align: left;
+.heroPicture,
+.heroOverlay,
+.categoryPicker {
+  display: none;
+}
+
+.mobileIntro,
+.heroHeading {
+  display: contents;
+}
+
+/* Ana AI sahnesi mobil ve masaustunde ayni bilesen hiyerarsisini kullanir.
+   Gorseller simdilik yalniz telefonda istenir; masaustunde kategori gradient'i
+   sonraki arka plan gorselleri icin duzenin yerini korur. */
+@media (min-width: 0px) {
+  .categoryScene {
+    min-width: 0;
+  }
+
+  .categoryScene .categorySearch {
+    position: relative;
+    isolation: isolate;
+    align-content: start;
+    gap: var(--space-4);
+    width: calc(100% + (2 * var(--gutter)));
+    max-width: none;
+    min-height: 100svh;
+    margin-inline: calc(-1 * var(--gutter));
+    padding: clamp(6rem, 18svh, 9rem) var(--gutter) var(--space-8);
+    overflow: hidden;
+  }
+
+  .categoryScene[data-home-category="mobilya"] .categorySearch {
+    background: linear-gradient(180deg, var(--tint-warm), var(--footer-canvas));
+  }
+
+  .categoryScene[data-home-category="moda"] .categorySearch {
+    background: linear-gradient(180deg, var(--feature-bg), var(--ink-secondary));
+  }
+
+  .categoryScene[data-home-category="parfum"] .categorySearch {
+    background: linear-gradient(180deg, var(--feature-bg), var(--surface));
+  }
+
+  .heroPicture,
+  .heroOverlay {
+    position: absolute;
+    inset: 0;
+    z-index: -2;
+    display: block;
+    pointer-events: none;
+  }
+
+  .heroPicture {
+    overflow: hidden;
+  }
+
+  .heroImage {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+  }
+
+  .categoryScene[data-home-category="mobilya"] .heroImage {
+    object-position: 52% 100%;
+  }
+
+  .categoryScene[data-home-category="moda"] .heroImage,
+  .categoryScene[data-home-category="parfum"] .heroImage {
+    object-position: 50% 100%;
+  }
+
+  .categoryScene[data-image-failed="true"] .heroPicture {
+    display: none;
+  }
+
+  .heroOverlay {
+    z-index: -1;
+    background: linear-gradient(
+      180deg,
+      color-mix(in srgb, var(--feature-bg) 72%, transparent) 0%,
+      color-mix(in srgb, var(--feature-bg) 48%, transparent) 42%,
+      color-mix(in srgb, var(--feature-bg) 8%, transparent) 72%,
+      color-mix(in srgb, var(--feature-bg) 22%, transparent) 100%
+    );
+  }
+
+  .heroHeading {
+    --ink: var(--on-media);
+    position: relative;
+    z-index: var(--z-dropdown);
+    display: grid;
+    justify-items: center;
+    gap: var(--space-2);
+    min-width: 0;
+    color: var(--on-media);
+    text-align: center;
+    text-shadow: 0 2px 22px var(--media-scrim);
+  }
+
+  .categoryPicker {
+    position: relative;
+    display: block;
+    z-index: calc(var(--z-raised) + 1);
+  }
+
+  .categoryTrigger {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2);
+    min-height: var(--size-touch-target);
+    padding: 0 var(--space-1) var(--space-1);
+    border: 0;
+    border-block-end: 2px solid color-mix(in srgb, var(--on-media) 78%, transparent);
+    background: transparent;
+    color: var(--on-media);
+    font: inherit;
+    font-size: var(--text-body-lg);
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+  }
+
+  .categoryTrigger:focus-visible,
+  .categoryOption:focus-visible {
+    outline: 2px solid var(--on-media);
+    outline-offset: var(--focus-ring-offset);
+  }
+
+  .categoryChevron {
+    width: 9px;
+    height: 9px;
+    border-inline-end: 2px solid currentColor;
+    border-block-end: 2px solid currentColor;
+    transform: translateY(-2px) rotate(45deg);
+  }
+
+  .categoryTrigger[aria-expanded="true"] .categoryChevron {
+    transform: translateY(2px) rotate(225deg);
+  }
+
+  .categoryListbox {
+    position: absolute;
+    inset-block-start: calc(100% + var(--space-2));
+    inset-inline-start: 50%;
+    z-index: var(--z-dropdown);
+    display: grid;
+    width: min(220px, calc(100vw - (2 * var(--gutter))));
+    padding: var(--space-2);
+    border: var(--border-width) solid color-mix(in srgb, var(--on-media) 28%, transparent);
+    border-radius: var(--radius-lg);
+    background: color-mix(in srgb, var(--feature-bg) 78%, transparent);
+    box-shadow: var(--shadow-md);
+    backdrop-filter: blur(18px);
+    transform: translateX(-50%);
+  }
+
+  .categoryOption {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-4);
+    min-height: var(--size-touch-target);
+    padding-inline: var(--space-3);
+    border: 0;
+    border-radius: var(--radius-md);
+    background: transparent;
+    color: color-mix(in srgb, var(--on-media) 82%, transparent);
+    font: inherit;
+    font-size: var(--text-body);
+    font-weight: var(--font-weight-medium);
+    text-align: start;
+    cursor: pointer;
+  }
+
+  .categoryOption:hover,
+  .categoryOption[aria-selected="true"] {
+    background: color-mix(in srgb, var(--on-media) 14%, transparent);
+    color: var(--on-media);
+  }
+
+  .categoryCheck {
+    flex: 0 0 auto;
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .categorySearch > form[data-variant="default"] {
+    --paper: var(--on-media);
+    --surface: color-mix(in srgb, var(--on-media) 92%, var(--feature-bg));
+    --surface-raised: color-mix(in srgb, var(--on-media) 94%, transparent);
+    --surface-hover: color-mix(in srgb, var(--on-brand) 8%, var(--on-media));
+    --ink: var(--on-brand);
+    --ink-secondary: color-mix(in srgb, var(--on-brand) 76%, transparent);
+    --ink-muted: color-mix(in srgb, var(--on-brand) 56%, transparent);
+    --line: color-mix(in srgb, var(--on-brand) 14%, transparent);
+    --line-strong: color-mix(in srgb, var(--on-brand) 48%, transparent);
+    position: relative;
+    z-index: var(--z-raised);
+    justify-self: center;
+    width: 100%;
+    max-width: 398px;
+    padding: var(--space-4) var(--space-4) var(--space-2) var(--space-5);
+    border-color: color-mix(in srgb, var(--on-media) 62%, transparent);
+    border-radius: 24px;
+    background: var(--surface-raised);
+    box-shadow: 0 18px 54px color-mix(in srgb, var(--feature-bg) 28%, transparent);
+    backdrop-filter: blur(18px);
+  }
+
+  .categorySearch > form[data-variant="default"]:focus-within {
+    border-color: color-mix(in srgb, var(--on-media) 88%, transparent);
+    box-shadow: 0 20px 58px color-mix(in srgb, var(--feature-bg) 36%, transparent);
+  }
+
+  .categorySearch > form[data-variant="default"] button[type="submit"] svg {
+    transform: rotate(-90deg);
+  }
+
+  .categorySearch [data-photo-label] {
+    display: none;
   }
 
   .suggestionsRow {
     justify-content: flex-start;
+    margin-inline: calc(-1 * var(--space-2));
+    padding-inline: var(--space-2);
+    scroll-padding-inline: var(--space-2);
+  }
+
+  .suggestion {
+    border-color: color-mix(in srgb, var(--on-brand) 13%, transparent);
+    background: color-mix(in srgb, var(--on-media) 68%, transparent);
+    color: color-mix(in srgb, var(--on-brand) 74%, transparent);
+    backdrop-filter: blur(10px);
+  }
+
+  .suggestion:hover {
+    background: color-mix(in srgb, var(--on-media) 88%, transparent);
+  }
+}
+
+@media (min-width: 640px) {
+  .categoryScene .categorySearch {
+    width: 100vw;
+    margin-inline: calc(50% - 50vw);
+  }
+}
+
+@media (max-width: 359.98px) {
+  .categoryScene .categorySearch {
+    gap: var(--space-3);
+    padding-block-start: 5.5rem;
+    padding-block-end: var(--space-6);
+  }
+
+  .categoryTrigger {
+    font-size: var(--text-body);
+  }
+
+  .categorySearch > form[data-variant="default"] {
+    border-radius: var(--radius-lg);
   }
 }

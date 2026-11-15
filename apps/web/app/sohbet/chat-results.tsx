@@ -1,24 +1,38 @@
 import {
+  buildResultCommentary,
   CHAT_RESULT_LIMIT,
   createChatTimer,
   type ForeignPrice,
+  findAlternatives,
   IntentSearchTimeoutError,
   intentSearchText,
   isAliExpressImageVariantsEnabled,
   logChatTimings,
   type SearchIntent,
   searchByIntent,
+  summarizeResults,
 } from "@arilla/core";
 import { getDatabase } from "@arilla/db";
 import { ProductCard, VisuallyHidden } from "@arilla/ui";
-import type { ReactNode } from "react";
+import { type ReactNode, Suspense } from "react";
 import { cardPriceProps, resultCountLabel } from "../lib/search/search-results.tsx";
 import { WebGridItems, WebOnlyResults } from "../lib/search/web-search-section.tsx";
 import { startWebSearch } from "../lib/search/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
+import { ExplainChip } from "./chat-explain-chip.tsx";
+import { ExplanationFeedback } from "./chat-explanation-feedback.tsx";
 import { ResultFeedback } from "./chat-feedback-client.tsx";
+import {
+  ALTERNATIVES_MAX,
+  ALTERNATIVES_MIN,
+  COMMENTARY_HEAD_COUNT,
+  OLDER_BLOCK_RESULT_LIMIT,
+  REVEAL_INITIAL_COUNT,
+  webCardLimit,
+} from "./chat-open.ts";
 import { ChatCardActions } from "./chat-product-cards.tsx";
 import { chatToolProduct } from "./chat-product-display.ts";
+import { ChatResultReveal } from "./chat-reveal.tsx";
 import { araSortParam, type ChatSortKey, sortModeFor } from "./chat-sort.ts";
 import { ResultTabs } from "./chat-tabs.tsx";
 import styles from "./sohbet.module.css";
@@ -45,39 +59,185 @@ interface GridItem {
 const CHAT_GRID_IMAGE_SIZES =
   "(min-width: 1152px) 323px, (min-width: 1024px) calc((100vw - 182px) / 3), (min-width: 720px) calc((100vw - 166px) / 3), calc(50vw - 48px)";
 
+/**
+ * Kart fiyatı (`cardPriceProps`). Karar 0202 (`CHAT_UX_V2`): fiyatı olmayan ürünün kartında "—"
+ * yerine "Fiyat bilgisi yok" yazar (fiyat uydurulmaz).
+ */
+function priceProps(item: GridItem, uxV2: boolean) {
+  const props = cardPriceProps(item);
+  if (uxV2 && props.minPrice === null && !props.priceLabel) {
+    return { ...props, priceLabel: CHAT_COPY.priceMissing };
+  }
+  return props;
+}
+
 /** Konuşma içi ürün kartları: arama turuyla aynı `ProductCard`, konteynere göre akan ızgara. */
 export function ChatResultGrid({
   items,
   labelledBy,
   extra,
+  reveal = false,
+  commentary = null,
 }: {
   items: readonly GridItem[];
   labelledBy: string;
+  /** Karar 0201: ilk kartlardan sonra gösterilen değerlendirme bölümü (yalnız `reveal` iken). */
+  commentary?: ReactNode;
   /** Aynı ızgaranın sonuna eklenen `<li>`ler (karar 0106: internet kartları). */
   extra?: ReactNode;
+  /** Karar 0200 (`CHAT_UX_V2`): ilk kartlar görünür, devamı "Tüm N sonucu gör" ile açılır. */
+  reveal?: boolean;
 }) {
   // Karar 0167: bayrak istek başına sunucuda okunur (varsayılan kapalı).
   const aliexpressVariants = isAliExpressImageVariantsEnabled();
+  const cards = items.map((item, index) => (
+    <li key={item.productId} className={styles.resultItem}>
+      <ProductCard
+        href={`/urun/${item.slug}`}
+        title={item.title}
+        brand={item.brandName}
+        imageUrl={item.primaryImageUrl}
+        imageLoading={index < 4 ? "eager" : "lazy"}
+        imageSizes={CHAT_GRID_IMAGE_SIZES}
+        aliexpressVariants={aliexpressVariants}
+        action={<ChatCardActions product={chatToolProduct(item)} />}
+        {...priceProps(item, reveal)}
+      />
+    </li>
+  ));
+  if (reveal) {
+    // Karar 0200/0201: ilk 4 kart, hemen altında olgusal değerlendirme, devamı kademeli.
+    const head = cards.slice(0, COMMENTARY_HEAD_COUNT);
+    const rest = cards.slice(COMMENTARY_HEAD_COUNT);
+    return (
+      <>
+        {/* biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür. */}
+        <ul className={styles.resultGrid} role="list" aria-labelledby={labelledBy}>
+          {head}
+          {rest.length === 0 ? extra : null}
+        </ul>
+        {commentary}
+        {rest.length > 0 ? (
+          <ChatResultReveal
+            labelledBy={labelledBy}
+            extra={extra}
+            initialCount={REVEAL_INITIAL_COUNT - COMMENTARY_HEAD_COUNT}
+            totalCount={items.length}
+          >
+            {rest}
+          </ChatResultReveal>
+        ) : null}
+      </>
+    );
+  }
   return (
     // biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür.
     <ul className={styles.resultGrid} role="list" aria-labelledby={labelledBy}>
-      {items.map((item, index) => (
-        <li key={item.productId} className={styles.resultItem}>
-          <ProductCard
-            href={`/urun/${item.slug}`}
-            title={item.title}
-            brand={item.brandName}
-            imageUrl={item.primaryImageUrl}
-            imageLoading={index < 4 ? "eager" : "lazy"}
-            imageSizes={CHAT_GRID_IMAGE_SIZES}
-            aliexpressVariants={aliexpressVariants}
-            action={<ChatCardActions product={chatToolProduct(item)} />}
-            {...cardPriceProps(item)}
-          />
-        </li>
-      ))}
+      {cards}
       {extra}
     </ul>
+  );
+}
+
+/** Karar 0201: modelsiz, doğrulanmış verilerden hesaplanan kısa değerlendirme; yoksa hiçbir şey. */
+function CommentarySection({
+  items,
+  seed,
+  conversationId,
+  messageSeq,
+  explanationHelpful,
+  answerEnabled,
+}: {
+  items: readonly GridItem[];
+  seed: string;
+  /** Karar 0203: kullanıcı sonuç cevabı pilotunda; "Farkları açıkla" çipi gösterilir. */
+  answerEnabled: boolean;
+  conversationId: string;
+  messageSeq: number;
+  /** Karar 0202: değerlendirmeye verilmiş ayrı oy; yoksa `null`. */
+  explanationHelpful: boolean | null;
+}) {
+  const commentary = buildResultCommentary(items, { seed });
+  if (!commentary) return null;
+  return (
+    <>
+      <section className={styles.commentary} aria-label={CHAT_COPY.commentaryLabel}>
+        <p>{commentary.sentences.join(" ")}</p>
+      </section>
+      {answerEnabled ? <ExplainChip /> : null}
+      <ExplanationFeedback
+        conversationId={conversationId}
+        messageSeq={messageSeq}
+        initial={explanationHelpful}
+      />
+    </>
+  );
+}
+
+/**
+ * "Benzer seçenekler" şeridi (karar 0202): ilk sonucun `similarity_edge` komşuları, sayfadaki
+ * ürünlerle çakışanlar çıkarılır; en az 3 gerçek alternatif yoksa HİÇBİR ŞEY çizilmez. Yatay
+ * kaydırılır, ana sonuçlarla karışmaz. Hata/boş: sessizce yok (sonuçlar etkilenmez).
+ */
+async function AlternativesStrip({
+  anchorProductId,
+  shownIds,
+}: {
+  anchorProductId: number;
+  shownIds: ReadonlySet<number>;
+}) {
+  let found: Awaited<ReturnType<typeof findAlternatives>> = [];
+  try {
+    found = await findAlternatives(getDatabase(), anchorProductId, { limit: 12 });
+  } catch {
+    return null;
+  }
+  const items = found.filter((item) => !shownIds.has(item.productId)).slice(0, ALTERNATIVES_MAX);
+  if (items.length < ALTERNATIVES_MIN) return null;
+  const aliexpressVariants = isAliExpressImageVariantsEnabled();
+  return (
+    <section className={styles.altSection} aria-label={CHAT_COPY.alternativesLabel}>
+      <h4 className={styles.altHeading}>{CHAT_COPY.alternativesLabel}</h4>
+      {/* biome-ignore lint/a11y/noRedundantRoles: list-style: none WebKit/VoiceOver'da liste rolünü düşürür. */}
+      <ul className={styles.altStrip} role="list">
+        {items.map((item) => (
+          <li key={item.productId} className={styles.altItem}>
+            <ProductCard
+              href={`/urun/${item.slug}`}
+              title={item.title}
+              brand={item.brandName}
+              imageUrl={item.primaryImageUrl}
+              imageLoading="lazy"
+              imageSizes="152px"
+              aliexpressVariants={aliexpressVariants}
+              {...cardPriceProps(item)}
+            />
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+/** Sonuç özeti (karar 0200): "12 mağazadan 20 ürün"; sayılar gösterilen katalog kartlarından. */
+function SummaryLine({ items }: { items: readonly GridItem[] }) {
+  const { storeCount, productCount } = summarizeResults(items);
+  return (
+    <p className={styles.summary} role="status" aria-label={CHAT_COPY.summaryLabel}>
+      <svg
+        className={styles.summaryIcon}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2"
+        strokeLinecap="round"
+        aria-hidden="true"
+      >
+        <circle cx="11" cy="11" r="7" />
+        <path d="m20 20-3.5-3.5" />
+      </svg>
+      <span>{CHAT_COPY.summary(storeCount, productCount)}</span>
+    </p>
   );
 }
 
@@ -110,6 +270,10 @@ export async function ChatResults({
   messageSeq,
   sort,
   helpful,
+  explanationHelpful = null,
+  answerEnabled = false,
+  uxV2 = false,
+  compact = false,
 }: {
   intent: SearchIntent;
   headingId: string;
@@ -119,19 +283,30 @@ export async function ChatResults({
   messageSeq: number;
   sort: ChatSortKey;
   helpful: boolean | null;
+  /** Karar 0202: değerlendirme metnine verilen ayrı oy. */
+  explanationHelpful?: boolean | null;
+  /** Karar 0203: sonuç cevabı pilotundaki kullanıcı. */
+  answerEnabled?: boolean;
+  /** Karar 0200 (`CHAT_UX_V2`): özet satırı + kademeli gösterim; kapalıyken bugünkü düzen. */
+  uxV2?: boolean;
+  /** Karar 0200: kullanıcının açtığı ESKİ blok: az kart, sekme/internet/oy yok. */
+  compact?: boolean;
 }) {
   // Karar 0102: internet araması katalog aramasıyla paralel başlar. Sorgu, modelin
   // çıkardığı niyetin metinsel hâlidir (görsel eki de buna iner; görselin kendisi
-  // gitmez). Yalnızca varsayılan sekmede; sekme değişimi yeniden aramaz.
+  // gitmez). Yalnızca varsayılan sekmede; sekme değişimi yeniden aramaz. Açılan eski blokta
+  // internet araması yoktur (ek model çağrısı/maliyet).
   const webSearch =
-    sort === "secilen" ? startWebSearch({ kind: "text", text: intentSearchText(intent) }) : null;
+    sort === "secilen" && !compact
+      ? startWebSearch({ kind: "text", text: intentSearchText(intent) })
+      : null;
   let result: Awaited<ReturnType<typeof searchByIntent>>;
   const timer = createChatTimer();
   try {
     result = await timer.time("search", () =>
       searchByIntent(getDatabase(), intent, {
-        pageSize: CHAT_RESULT_LIMIT,
-        sort: sortModeFor(sort),
+        pageSize: compact ? OLDER_BLOCK_RESULT_LIMIT : CHAT_RESULT_LIMIT,
+        sort: sortModeFor(sort, uxV2),
         // Karar 0178: gölge olcum yalniz varsayilan sekmede (sekme degisimi ikinci kez olcmez).
         semanticShadow: sort === "secilen",
       }),
@@ -179,7 +354,11 @@ export async function ChatResults({
           {otherTab ? CHAT_COPY.noResultsInTab : CHAT_COPY.noResultsTitle}
         </h3>
         <p className={styles.resultsNote}>
-          {otherTab ? CHAT_COPY.noResultsInTabHint : CHAT_COPY.noResultsDescription}
+          {otherTab
+            ? uxV2
+              ? CHAT_COPY.noResultsInTabHintV2
+              : CHAT_COPY.noResultsInTabHint
+            : CHAT_COPY.noResultsDescription}
         </p>
         {noteBlock}
       </>
@@ -196,7 +375,7 @@ export async function ChatResults({
           : { "aria-labelledby": headingId })}
       >
         {otherTab ? (
-          <ResultTabs conversationId={conversationId} active={sort} countLabel={null} />
+          <ResultTabs conversationId={conversationId} active={sort} countLabel={null} uxV2={uxV2} />
         ) : null}
         {waitForWeb ? (
           <WebOnlyResults promise={webSearch} variant="chat" catalog={[]} empty={emptyBlock} />
@@ -210,7 +389,6 @@ export async function ChatResults({
   const isFallback = outcome.mode === "fallback";
   // Kart fiyatı filtre fiyatından ayrıştıysa elenen kartlar sayıyı bozar: sayı gizlenir.
   const countKnown = !isFallback && droppedForPrice === 0;
-  const total = countKnown ? outcome.total : outcome.items.length;
   return (
     <section className={styles.results} data-search-mode={outcome.mode} aria-labelledby={headingId}>
       <VisuallyHidden as="h3" id={headingId}>
@@ -219,21 +397,52 @@ export async function ChatResults({
       {isFallback ? (
         <p className={styles.resultsHeading}>{CHAT_COPY.closeMatchesHeading}</p>
       ) : (
-        <ResultTabs
-          conversationId={conversationId}
-          active={sort}
-          countLabel={countKnown ? resultCountLabel(total, outcome.totalCapped === true) : null}
-        />
+        <>
+          {uxV2 ? <SummaryLine items={outcome.items} /> : null}
+          {compact ? null : (
+            <ResultTabs
+              conversationId={conversationId}
+              active={sort}
+              countLabel={!uxV2 && countKnown ? resultCountLabel(outcome.items.length) : null}
+              uxV2={uxV2}
+            />
+          )}
+        </>
       )}
       {noteBlock}
       <ChatResultGrid
         items={outcome.items}
         labelledBy={headingId}
+        reveal={uxV2 && !compact && !isFallback}
+        commentary={
+          uxV2 && !compact && !isFallback ? (
+            <>
+              <CommentarySection
+                items={outcome.items}
+                seed={intent.query}
+                conversationId={conversationId}
+                messageSeq={messageSeq}
+                explanationHelpful={explanationHelpful}
+                answerEnabled={answerEnabled}
+              />
+              {outcome.items[0] ? (
+                <Suspense fallback={null}>
+                  <AlternativesStrip
+                    anchorProductId={outcome.items[0].productId}
+                    shownIds={new Set(outcome.items.map((item) => item.productId))}
+                  />
+                </Suspense>
+              ) : null}
+            </>
+          ) : null
+        }
         extra={
           webSearch && !isFallback ? (
             <WebGridItems
               promise={webSearch}
               variant="chat"
+              // Karar 0200: katalog + internet kartları sekme başına en fazla 30.
+              limit={uxV2 ? webCardLimit(outcome.items.length) : undefined}
               catalog={outcome.items.map((item) => ({
                 title: item.title,
                 imageUrl: item.primaryImageUrl,
@@ -242,11 +451,13 @@ export async function ChatResults({
           ) : null
         }
       />
-      <ResultFeedback conversationId={conversationId} messageSeq={messageSeq} initial={helpful} />
-      {isFallback ? null : (
-        <a className={styles.seeAll} href={fullResultsHref(intent, sort)}>
-          {countKnown ? CHAT_COPY.seeAllCount(total) : CHAT_COPY.seeAll}
-        </a>
+      {compact ? null : (
+        <ResultFeedback
+          conversationId={conversationId}
+          messageSeq={messageSeq}
+          initial={helpful}
+          question={uxV2 ? CHAT_COPY.resultsFeedbackQuestion : undefined}
+        />
       )}
     </section>
   );

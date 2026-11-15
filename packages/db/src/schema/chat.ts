@@ -68,6 +68,21 @@ export const chatResultFeedback = pgTable("chat_result_feedback", {
 });
 
 /**
+ * 0116 (karar 0202): degerlendirme metni icin AYRI oy; `chat_result_feedback` degismez.
+ * Mesaj basina tek satir; neden kodlari `inaccurate | unclear | irrelevant | other`.
+ */
+export const chatExplanationFeedback = pgTable("chat_explanation_feedback", {
+  messageId: bigint("message_id", { mode: "number" }).primaryKey(),
+  conversationId: uuid("conversation_id").notNull(),
+  helpful: boolean("helpful").notNull(),
+  reasons: text("reasons").array().notNull().default(sql`'{}'`),
+  comment: text("comment"),
+  modelVersion: text("model_version"),
+  createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  updatedAt: timestamp("updated_at", { withTimezone: true }).notNull().defaultNow(),
+});
+
+/**
  * 0057 (karar 0078): ilk mesaja eklenen on islenmis urun fotografi. Mesaj
  * `payload.attachmentId` ile baglanir. Sohbetle birlikte silinir; yalnizca sahibine sunulur.
  */

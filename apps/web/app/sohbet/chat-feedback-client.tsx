@@ -21,10 +21,13 @@ export function ResultFeedback({
   conversationId,
   messageSeq,
   initial,
+  question = CHAT_COPY.feedbackQuestion,
 }: {
   conversationId: string;
   messageSeq: number;
   initial: boolean | null;
+  /** Karar 0202 (`CHAT_UX_V2`): "Bu ürünler ihtiyacına uygun mu?"; yoksa bugünkü soru. */
+  question?: string;
 }) {
   const [value, setValue] = useState<boolean | null>(initial);
   const [failed, setFailed] = useState<string | null>(null);
@@ -97,9 +100,9 @@ export function ResultFeedback({
 
   return (
     <fieldset className={styles.feedback}>
-      <legend className={styles.srOnly}>{CHAT_COPY.feedbackQuestion}</legend>
+      <legend className={styles.srOnly}>{question}</legend>
       <p className={styles.feedbackQuestion} aria-hidden="true">
-        {CHAT_COPY.feedbackQuestion}
+        {question}
       </p>
       <div className={styles.feedbackButtons}>
         <button

@@ -112,6 +112,64 @@ class CapacityTest(Base):
         self.assertIn("Migration BASLATILMADI", err.getvalue())
 
 
+class CatalogGateTest(Base):
+    """Karar 0188: dokumden sonra bos alan katalog esiginin altina dusecekse deploy durur."""
+
+    def setUp(self):
+        super().setUp()
+        self.make(1, b"x" * 1000, status=None)  # tahmin = 1150 bayt
+
+    def test_gate_blocks_when_dump_would_cross_catalog_threshold(self):
+        self.free = 73 * pmd.GiB  # 13 Kasim: 73 GiB bos, yeni dokum ~11 GB
+        res = self.d.capacity(db_bytes=1, reserve=0, catalog_gate=73 * pmd.GiB)
+        self.assertFalse(res["catalog_gate_ok"])
+        self.assertFalse(res["ok"])
+
+    def test_gate_ok_with_room(self):
+        self.free = 90 * pmd.GiB
+        res = self.d.capacity(db_bytes=1, reserve=0)
+        self.assertTrue(res["catalog_gate_ok"])
+        self.assertTrue(res["ok"])
+
+    def test_explicit_override_allows_but_reports(self):
+        self.free = pmd.CATALOG_GATE_GIB * pmd.GiB
+        res = self.d.capacity(db_bytes=1, reserve=0, allow_below_gate=True)
+        self.assertFalse(res["catalog_gate_ok"])
+        self.assertTrue(res["ok"])
+
+    def _cli(self, allow: bool):
+        self.free = pmd.CATALOG_GATE_GIB * pmd.GiB
+        err = io.StringIO()
+        os.environ["ARILLA_DUMP_RESERVE_BYTES"] = "0"
+        # CLI gercek diski okur: esik her makinede asilsin diye cok buyuk (yalniz test ayari).
+        os.environ["ARILLA_CATALOG_GATE_BYTES"] = str(1 << 60)
+        if allow:
+            os.environ["ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE"] = "1"
+        try:
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(err):
+                rc = pmd.main(["--root", str(self.root), "capacity", "--db-bytes", "1000"])
+        finally:
+            os.environ.pop("ARILLA_DUMP_RESERVE_BYTES", None)
+            os.environ.pop("ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE", None)
+            os.environ.pop("ARILLA_CATALOG_GATE_BYTES", None)
+        return rc, err.getvalue()
+
+    def test_cli_gate_exit_2_with_message(self):
+        rc, err = self._cli(allow=False)
+        self.assertEqual(rc, 2)
+        self.assertIn("KATALOG ESIGI", err)
+        self.assertIn("Migration BASLATILMADI", err)
+
+    def test_cli_gate_override_exit_0_and_warns(self):
+        rc, err = self._cli(allow=True)
+        self.assertEqual(rc, 0)
+        self.assertIn("bilincli devam", err)
+
+    def test_gate_matches_catalog_guard(self):
+        guard = (Path(__file__).resolve().parent / "catalog-auto-guard").read_text(encoding="utf-8")
+        self.assertIn(f"START_FREE_GB=${{START_FREE_GB:-{pmd.CATALOG_GATE_GIB}}}", guard)
+
+
 class LifecycleTest(Base):
     def test_good_dump_metadata(self):
         path = self.make(3, status="created", full=None)
@@ -271,6 +329,73 @@ class PruneTest(Base):
         self.assertTrue(target.exists())
 
 
+class AutoPruneTest(Base):
+    """Karar 0194: basarili migration deploy'unun sonunda, deploy kilidi altinda otomatik temizlik."""
+
+    def setUp(self):
+        super().setUp()
+        self.make(1)
+        self.make(2)
+        self.new = self.make(3, full=None)  # deploy'un yeni dokumu: success, henuz tam okunmamis
+        self.lock = open(self.root / ".deploy.lock", "a")
+        fcntl.flock(self.lock, fcntl.LOCK_EX | fcntl.LOCK_NB)  # arilla-deploy kilidi tutuyor
+
+    def tearDown(self):
+        self.lock.close()
+        super().tearDown()
+
+    def full_reads(self):
+        return [Path(s).name for c, s in self.fake.calls if c[:2] == ["docker", "run"] and "/dev/null" in c]
+
+    def test_new_dump_read_then_oldest_deleted_newest_two_kept(self):
+        rep = self.d.auto_prune(self.new)
+        self.assertEqual(rep["deleted"], [self.name(1)])
+        self.assertEqual([p.name for p in self.d.files()], [self.name(2), self.name(3)])
+        # yeni dokum bir kez, onceki korunan bir kez tam okunur; silinecek aday yalniz SHA-256 ile denetlenir
+        self.assertEqual(sorted(self.full_reads()), [self.name(2), self.name(3)])
+        audit = [json.loads(x) for x in (self.root / "state" / "pre-migrate-prune.log").read_text().splitlines()]
+        self.assertTrue(audit[0]["actor"].startswith("auto-prune"))
+        self.assertEqual(audit[0]["kept"], [self.name(2), self.name(3)])
+
+    def test_unreadable_new_dump_deletes_nothing(self):
+        meta = self.d.read_meta(self.new)
+        self.new.write_bytes(b"CORRUPT" * 10)
+        meta["sha256"], meta["size"] = pmd.Dumps.sha256(self.new), self.new.stat().st_size
+        self.d.write_meta(self.new, meta)
+        with self.assertRaises(RuntimeError):
+            self.d.auto_prune(self.new)
+        self.assertEqual(len(self.d.files()), 3)
+
+    def test_changed_candidate_stops(self):
+        (self.root / "backups" / self.name(1)).write_bytes(b"degisti" * 10)
+        with self.assertRaises(RuntimeError):
+            self.d.auto_prune(self.new)
+        self.assertEqual(len(self.d.files()), 3)
+
+    def test_not_success_or_disabled_skips(self):
+        self.d.set_status(self.new, "migrated")
+        self.assertIn("basarili degil", self.d.auto_prune(self.new)["skipped"])
+        self.d.set_status(self.new, "success")
+        (self.root / "state").mkdir(exist_ok=True)
+        (self.root / "state" / "dump-auto-prune.off").touch()
+        self.assertIn("kapali", self.d.auto_prune(self.new)["skipped"])
+        self.assertEqual(len(self.d.files()), 3)
+        self.assertEqual(self.full_reads(), [])
+
+    def test_refuses_without_deploy_lock(self):
+        self.lock.close()
+        with self.assertRaises(RuntimeError) as ctx:
+            self.d.auto_prune(self.new)
+        self.assertIn("kilidi altinda", str(ctx.exception))
+        self.assertEqual(len(self.d.files()), 3)
+
+    def test_failed_dump_never_deleted(self):
+        self.make(0, status="failed")
+        rep = self.d.auto_prune(self.new)
+        self.assertEqual(rep["deleted"], [self.name(1)])
+        self.assertIn(self.name(0), [p.name for p in self.d.files()])
+
+
 class AdoptTest(Base):
     def test_adopt_from_deploy_log(self):
         old = self.root / "backups" / self.name(8)
@@ -305,7 +430,7 @@ class HealthcheckTest(unittest.TestCase):
         self.assertIsNone(hc.pre_migrate_check([], now))
         ok = hc.pre_migrate_check([dict(base, full_read_ok=True)], now)
         self.assertEqual(ok.level, hc.OK)
-        self.assertIn("yalniz prune --confirm", ok.message)
+        self.assertIn("prune --confirm", ok.message)
         self.assertEqual(hc.pre_migrate_check([dict(base, full_read_ok=False)], now).level, hc.CRIT)
         old = dict(base, full_read_ok=None, created_at=(now - timedelta(days=9)).isoformat())
         self.assertEqual(hc.pre_migrate_check([old], now).level, hc.WARN)

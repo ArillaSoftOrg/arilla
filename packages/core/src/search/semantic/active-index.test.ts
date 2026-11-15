@@ -27,6 +27,7 @@ interface RegistryModel {
   index_family: string;
   state: string;
   online_query: boolean;
+  endpoint?: { url_env: string; served_model: string };
 }
 
 interface RegistryFile {
@@ -50,10 +51,20 @@ describe("kayit defteri paritesi (Python model_registry.json)", () => {
       const model = registry.models.find((m) => m.id === index.modelVersion);
       expect(model, index.modelVersion).toBeDefined();
       if (!model) continue;
-      expect(model.provider).toBe("jina");
+      // Saglayici paritesi: TS `jina` ya da `remote_http` (kendi servisimiz, karar 0196).
+      expect(model.provider).toBe(index.provider ?? "jina");
       expect(model.roles).toContain("product_text");
       expect(model.dimensions).toBe(index.dimensions);
-      expect(model.tasks.query).toBe(index.queryTask);
+      if (model.provider === "jina") {
+        expect(model.tasks.query).toBe(index.queryTask);
+      } else {
+        // Servisin bildirdigi model adi iki tarafta ayni olmali (uzay korumasi).
+        expect(index.endpoint?.servedModel).toBe(model.endpoint?.served_model);
+        // Sorgu servisi AYRI bir adres/anahtar kullanir; toplu is adresiyle karismaz.
+        expect(index.endpoint?.urlEnv).not.toBe(model.endpoint?.url_env);
+        expect(index.endpoint?.urlEnv).toMatch(/^EMBED_[A-Z0-9_]+_QUERY_URL$/);
+        expect(index.endpoint?.tokenEnv).toMatch(/^EMBED_[A-Z0-9_]+_QUERY_TOKEN$/);
+      }
       expect(registry.index_families[model.index_family]?.table).toBe(index.table);
       expect(registry.index_families[model.index_family]?.dimensions).toBe(index.dimensions);
     }
