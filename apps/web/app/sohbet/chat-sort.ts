@@ -1,4 +1,10 @@
-import type { SearchIntent, SortMode } from "@arilla/core";
+import {
+  type ChatViewTab,
+  resolveViewTab,
+  type SearchIntent,
+  type SortMode,
+  sortModeForTab,
+} from "@arilla/core";
 
 /**
  * Sohbet sonuç sekmeleri, mevcut arama sıralamalarına bağlanır (karar 0075);
@@ -12,7 +18,7 @@ import type { SearchIntent, SortMode } from "@arilla/core";
  * yoktur ve `search()` `UnsupportedSortForIntentError` atar. `/ara` da bu sekmeyi
  * metin aramasında devre dışı gösterir ("Bu arama için kullanılamıyor"); sohbet de aynısını yapar.
  */
-export type ChatSortKey = "secilen" | "firsat" | "eslesme";
+export type ChatSortKey = ChatViewTab;
 
 export const CLOSEST_MATCH_SUPPORTED = false;
 
@@ -27,25 +33,25 @@ export function parseSortKey(
   intent: SearchIntent,
   uxV2 = false,
 ): ChatSortKey {
-  if (raw === "firsat") return "firsat";
-  if (raw === "secilen") return "secilen";
-  if (raw === "eslesme" && (uxV2 || CLOSEST_MATCH_SUPPORTED)) return "eslesme";
-  // Açık tercih yoksa niyetin "daha uygun fiyatlı" isteği fırsat sekmesini açar.
-  return intent.sort === "cheapest" ? "firsat" : "secilen";
+  // Karar 0211: eşleme çekirdektedir (cevap gerçekleri de aynı kuralla sekmeyi çözer).
+  return resolveViewTab(raw, intent, { uxV2, closestMatchSupported: CLOSEST_MATCH_SUPPORTED });
 }
 
 export function sortModeFor(key: ChatSortKey, uxV2 = false): SortMode {
-  if (uxV2) {
-    if (key === "firsat") return "lowest_price";
-    if (key === "eslesme") return "best_match";
-    return "balanced";
-  }
-  if (key === "firsat") return "best_deal";
-  if (key === "eslesme") return "closest_match";
-  return "balanced";
+  return sortModeForTab(key, uxV2);
 }
 
 /** Arama turu (`/sohbet?q=`) bağlantısındaki `sort` değeri (varsayılan yazılmaz). */
 export function araSortParam(key: ChatSortKey): "best_deal" | null {
   return key === "firsat" ? "best_deal" : null;
+}
+
+/** Karar 0211: sonuç cevabının dayandığı sekmenin adı (v2 adları / mevcut adlar). */
+export function answerBasisLabel(
+  key: ChatSortKey,
+  uxV2: boolean,
+  copy: { selected: string; deals: string; matches: string; v2: [string, string, string] },
+): string {
+  if (uxV2) return key === "firsat" ? copy.v2[1] : key === "eslesme" ? copy.v2[2] : copy.v2[0];
+  return key === "firsat" ? copy.deals : key === "eslesme" ? copy.matches : copy.selected;
 }

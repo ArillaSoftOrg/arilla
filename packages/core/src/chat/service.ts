@@ -46,6 +46,7 @@ import { isRedisUnavailableError } from "../redis/client.ts";
 import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { parseQueryText } from "../search/parse-query.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
+import type { SortMode } from "../search/types.ts";
 import {
   looksLikeResultQuestion,
   RESULT_FACT_LIMIT,
@@ -64,6 +65,7 @@ import {
   isChatAnswerEnabled,
   isChatImageEnabled,
   isChatLinkEnabled,
+  isChatUxV2Enabled,
   MAX_USER_MESSAGES_PER_CONVERSATION,
   USER_MESSAGE_MAX,
 } from "./config.ts";
@@ -94,6 +96,7 @@ import { type ChatLinkPayload, parseChatLinkPayload } from "./link.ts";
 import { planLinkTurn } from "./link-turn.ts";
 import { searchByIntent } from "./search-adapter.ts";
 import { type ChatTimings, createChatTimer, logChatTimings } from "./timing.ts";
+import { type ChatViewTab, factSortFor, parseViewTab, resolveViewTab } from "./view-tab.ts";
 
 export type ChatInputRequest =
   | { kind: "text"; text: string }
@@ -124,6 +127,8 @@ export type ChatMessageView =
       value: string | null;
       /** Karar 0078: mesaja eklenen gorselin kimligi (`/sohbet/gorsel/[id]`); yoksa `null`. */
       attachmentId?: string | null;
+      /** Karar 0211: mesaj gonderilirken aktif olan sonuc sekmesi (ham `?sirala=`); yoksa tanimsiz. */
+      viewTab?: ChatViewTab;
     }
   | {
       id: number;
@@ -149,6 +154,8 @@ export type ChatMessageView =
       explanationHelpful?: boolean | null;
       /** Karar 0090: link mesajinin yuku (`payload.link`); yalnizca link `notice`larinda. */
       link?: ChatLinkPayload;
+      /** Karar 0211: sonuc cevabi (`notice`) hangi sekmenin siralamasindaki urunlere gore yazildi. */
+      answerTab?: ChatViewTab;
       imageSummary?: StoredImageSummary | null;
     };
 
@@ -208,6 +215,9 @@ function toView(
       content: payload?.imageOnly === true ? "" : row.content,
       value: typeof payload?.value === "string" ? payload.value : null,
       attachmentId: attachmentIdOf(payload),
+      ...(parseViewTab(payload?.viewTab)
+        ? { viewTab: parseViewTab(payload?.viewTab) as ChatViewTab }
+        : {}),
     };
   }
   if (row.kind === "clarify") {
@@ -233,6 +243,9 @@ function toView(
     helpful,
     ...(explanationHelpful === null ? {} : { explanationHelpful }),
     ...(link ? { link } : {}),
+    ...(row.kind === "notice" && parseViewTab(payload?.answerTab)
+      ? { answerTab: parseViewTab(payload?.answerTab) as ChatViewTab }
+      : {}),
     ...withSummary(payload),
   };
 }
@@ -571,6 +584,11 @@ export async function submitUserMessage(
      * metin bos olabilir (yalniz fotograf). Ek, mesajla TEK islemde yazilir.
      */
     attachment?: ChatAttachmentInput;
+    /**
+     * Karar 0211: mesaj gonderilirken aktif olan sonuc sekmesi (`?sirala=`). Yalniz `text`
+     * istegiyle ve gecerliyse kullanici mesajinin payload'ina yazilir; bozuk deger sessizce atilir.
+     */
+    viewTab?: ChatViewTab | null;
   },
   quotaOptions: ChatQuotaOptions = {},
 ): Promise<SubmitMessageResult> {
@@ -604,6 +622,7 @@ async function submitInTx(
     conversationId: string;
     request: ChatInputRequest;
     attachment?: ChatAttachmentInput;
+    viewTab?: ChatViewTab | null;
   },
   requestKey: string | null,
   quotaOptions: ChatQuotaOptions,
@@ -662,6 +681,8 @@ async function submitInTx(
     content = text ?? IMAGE_ONLY_CONTENT;
     imageOnly = text === null;
     if (pending) payload = { answersQuestion: pending.id };
+    const viewTab = parseViewTab(input.viewTab);
+    if (viewTab) payload = { ...(payload ?? {}), viewTab };
   } else if (request.kind === "option") {
     // Gecerli secenek sunucuda dogrulanir: istemci etiket ya da deger uyduramaz.
     const option =
@@ -1068,12 +1089,13 @@ async function chatProviderBudget(
  * Karar 0203: sayfanin gosterdigi aramanin (saklı niyet, varsayilan siralama) ilk <=8 urunu. Model
  * cagrisi YOK; hata/zaman asimi/yakin-sonuc modunda bos doner (cevap gerceksiz verilmez).
  */
-async function loadResultFacts(db: Database, intent: SearchIntent): Promise<ResultFact[]> {
+async function loadResultFacts(
+  db: Database,
+  intent: SearchIntent,
+  sort: SortMode,
+): Promise<ResultFact[]> {
   try {
-    const result = await searchByIntent(db, intent, {
-      pageSize: RESULT_FACT_LIMIT,
-      sort: "balanced",
-    });
+    const result = await searchByIntent(db, intent, { pageSize: RESULT_FACT_LIMIT, sort });
     if (result.outcome.mode !== "results") return [];
     return toResultFacts(result.outcome.items);
   } catch {
@@ -1188,6 +1210,7 @@ async function runPendingTurn(
   // (beklenmeyen hata): ayirma oldugu gibi kalir, eksik sayilmaz.
   let budget: ChatProviderBudget | null = null;
   let attempts: number | null = 0;
+  let answerTab: ChatViewTab = "secilen";
   let settled = false;
   const settleBudget = async () => {
     if (settled || !budget?.reservation || attempts === null) return;
@@ -1259,12 +1282,21 @@ async function runPendingTurn(
       : maybeRequest;
     // Karar 0203: sonuc cevabi pilotu. Yalniz bayrak + izinli kullanici + mevcut niyet + sonuc sorusu
     // gibi bir mesaj varsa katalogdan en cok 8 urun gercegi okunur (aksi halde ek sorgu YOK).
+    // Karar 0211: gercekler kullanicinin mesaji gonderdigi andaki AKTIF sekmenin siralamasiyla
+    // okunur; cevapta anilan urunler ekrandaki kartlarla ayni olur.
+    const uxV2 = isChatUxV2Enabled();
+    const lastUserMessage = [...view.messages].reverse().find((m) => m.role === "user");
+    answerTab = resolveViewTab(
+      lastUserMessage?.role === "user" ? (lastUserMessage.viewTab ?? null) : null,
+      view.currentIntent ?? { sort: null },
+      { uxV2 },
+    );
     const resultFacts =
       isChatAnswerEnabled(input.userId) &&
       requestWithoutFacts.input.kind === "text" &&
       view.currentIntent !== null &&
       looksLikeResultQuestion(requestWithoutFacts.input.text)
-        ? await loadResultFacts(db, view.currentIntent)
+        ? await loadResultFacts(db, view.currentIntent, factSortFor(answerTab, uxV2))
         : [];
     const request: InterpretRequest =
       resultFacts.length > 0 ? { ...requestWithoutFacts, resultFacts } : requestWithoutFacts;
@@ -1438,7 +1470,8 @@ async function runPendingTurn(
               role: "assistant",
               kind: "notice",
               content: turn.message.slice(0, 2000) || "-",
-              payload: { answer: turn.answer, source },
+              // Karar 0211: cevabin hangi sekmenin sirasina gore yazildigi (sekme degisince etiket).
+              payload: { answer: turn.answer, source, answerTab },
             });
             await tx
               .update(conversation)

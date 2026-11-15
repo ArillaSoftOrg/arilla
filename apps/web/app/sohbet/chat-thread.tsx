@@ -9,7 +9,7 @@ import { openBlocksHref, parseOpenSeqs, toggleOpenSeqs } from "./chat-open.ts";
 import { RestoreSearchButton } from "./chat-restore-client.tsx";
 import { ChatResults } from "./chat-results.tsx";
 import { ChatPendingRow, ChatUserRow } from "./chat-shell-parts.tsx";
-import { type ChatSortKey, parseSortKey } from "./chat-sort.ts";
+import { answerBasisLabel, type ChatSortKey, parseSortKey } from "./chat-sort.ts";
 import { ResultTabs } from "./chat-tabs.tsx";
 import styles from "./sohbet.module.css";
 
@@ -38,6 +38,13 @@ function ResultsFallback({
     </div>
   );
 }
+
+const TAB_COPY = {
+  selected: CHAT_COPY.tabSelected,
+  deals: CHAT_COPY.tabDeals,
+  matches: CHAT_COPY.tabMatches,
+  v2: [CHAT_COPY.tabSelectedV2, CHAT_COPY.tabLowestPrice, CHAT_COPY.tabBestMatch],
+} as const satisfies Parameters<typeof answerBasisLabel>[2];
 
 /**
  * Sunucuda çizilen konuşma geçmişi: kullanıcı sağda, asistan solda, arama
@@ -110,6 +117,12 @@ export function ChatThread({
             <VisuallyHidden as="span">{CHAT_COPY.assistantLabel}: </VisuallyHidden>
             <div className={styles.assistantBody}>
               <p className={`${styles.bubble} ${styles.bubbleAssistant}`}>{message.content}</p>
+              {message.kind === "notice" && message.answerTab ? (
+                <p className={styles.resultsNote}>
+                  {answerBasisLabel(message.answerTab, uxV2, TAB_COPY)}{" "}
+                  {CHAT_COPY.answerBasisSuffix}
+                </p>
+              ) : null}
               {intent ? (
                 <>
                   {shown.has(message.seq) ? (

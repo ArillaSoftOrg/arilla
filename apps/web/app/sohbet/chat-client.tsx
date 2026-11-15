@@ -9,7 +9,7 @@ import {
   resolveComposerSubmit,
   VisuallyHidden,
 } from "@arilla/ui";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   type FormEvent,
   type KeyboardEvent,
@@ -115,6 +115,7 @@ export function ChatInteractive({
   children,
 }: Props) {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const [draft, setDraft] = useState("");
   const [customOpen, setCustomOpen] = useState(false);
   const [custom, setCustom] = useState("");
@@ -300,9 +301,21 @@ export function ChatInteractive({
         if (image) {
           const photo = new FormData();
           photo.set("photo", image.file);
-          ({ status, error: info } = await sendMessageAction(conversationId, request, key, photo));
+          ({ status, error: info } = await sendMessageAction(
+            conversationId,
+            request,
+            key,
+            photo,
+            searchParams.get("sirala"),
+          ));
         } else {
-          ({ status, error: info } = await sendMessageAction(conversationId, request, key));
+          ({ status, error: info } = await sendMessageAction(
+            conversationId,
+            request,
+            key,
+            undefined,
+            searchParams.get("sirala"),
+          ));
         }
       } catch (thrown) {
         // Taslak ve gorsel yerinde kalir; ayni anahtarla yeniden gonderim guvenlidir.
