@@ -1,44 +1,56 @@
 # Faz 7 pilot koşusu (15 Kasım 2026): denetim kayıtları
 
-Karar 0203 sonuç cevabı pilotunun tam koşusu. **Hiçbir insan kararı yoktur**: `audit.json` içindeki 155
-kaydın hepsinde `review.verdict` boştur. Bu klasördeki "otomatik" sonuçlar insan onayı DEĞİLDİR.
+Karar 0203 sonuç cevabı pilotunun tam koşusu ve insan denetimi sonucu (karar 0212).
+
+## Denetim sonucu
+
+Doğrulayıcının kabul ettiği 134 cevabın tamamı denetlendi. Kararlar bir AI ön taslağından başladı;
+kullanıcı her kararı ürün kanıtlarıyla karşılaştırıp onayladı (15 Kasım 2026).
+
+| Karar | Sayı | Oran |
+|---|---|---|
+| `correct` | 96 | %71,6 |
+| `unevidenced_claim` | 15 | %11,2 |
+| `wrong` | 5 | %3,7 |
+| `off_intent` | 18 | %13,4 |
+
+Kritik (`unevidenced_claim` + `wrong`) **20**. Karar 0203 çıkış ölçütü (≥100 denetlenen cevapta kritik 0)
+**karşılanmadı**. Kök nedenler ve yapılan düzeltmeler: `docs/decisions/0212-…`.
+
+## Dosyalar
 
 | Dosya | İçerik |
 |---|---|
-| `audit.json` | Ham koşu kaydı (155 vaka, 147 çalıştı, 156 çağrı, ~$0,166). Her kayıtta modelin ham paragrafları, red nedenleri, otomatik bayraklar, boş `review`. |
-| `audit.md` | Aynı kaydın okunur hâli (koşuyu üreten aracın çıktısı). |
-| `review-pack.md` | **İnsan denetimi için:** 134 kabul edilmiş cevap; her biri için ürün gerçekleri tablosu, gösterilen cevap, delil alıntıları, görülmemesi gereken iddialar, otomatik sonuçlar ve boş karar alanı. |
-| `review-sheet.csv` | Aynı 134 cevabın tablosu; `human_verdict` ve `human_notes` sütunları BOŞ. |
+| `audit.json` | Koşu kaydı (155 vaka, 147 çalıştı, 156 çağrı, ~$0,166) ve 134 kabul edilmiş cevabın insan kararı (`review.verdict`, `review.notes`). Denetimden önceki hâli git geçmişindedir (`ffca89de`). |
+| `audit.md` | Koşu kaydının okunur hâli (koşuyu üreten aracın çıktısı; karar içermez). |
+| `review-pack.md` | Denetim paketi: her cevap için ürün gerçekleri tablosu, gösterilen cevap, delil alıntıları, otomatik sonuçlar. |
+| `review-sheet.csv` | Boş denetim tablosu (şablon). |
+| `review-sheet.reviewed.csv` | Onaylanmış 134 karar ve gerekçe; `audit.json`'a bu dosyadan işlendi. |
 
 API anahtarı ya da başka gizli veri içermez (dosyalar bu amaçla tarandı; vakalar sentetik ürün
-gerçekleridir).
+gerçekleridir). "Otomatik" sütunlar doğrulayıcı ve bayrak sonuçlarıdır; insan kararı değildir.
 
-## Koşunun sınırları
+## Sınırlar
 
-- Cevaplar, koşu anındaki doğrulayıcıyla kabul edildi. Sonradan sıkılaştırılan doğrulayıcı (bkz. karar
-  0203 ve `1b349bd2`) aynı ham çıktıyı yeniden doğruladığında 3 cevabı reddeder: `backpack-01`,
-  `watch-01`, `backpack-03` (yumuşak nitelik iddiaları). Paketteki `auto_current_validator` sütunu bunu
-  gösterir; bu cevaplar kullanıcıya gitmeyecek olsa da denetimde yine incelenmelidir.
-- Ürün gerçekleri sentetiktir (katalog biçimini taklit eder, bkz. `packages/core/src/eval/chat-answer-pilot-cases.ts`).
-- Sekme tutarlılığı (karar 0211) bu koşudan SONRA düzeltildi; koşu sabit gerçek kümeleriyle yapıldı.
+- Ürün gerçekleri sentetiktir (katalog biçimini taklit eder, bkz.
+  `packages/core/src/eval/chat-answer-pilot-cases.ts`). Üretim kataloğunda tekliflerin neredeyse tamamı
+  yurt dışı fiyatlıdır ve modele TL fiyat gitmez; bu koşu o durumu yalnız kısmen temsil eder.
+- Cevaplar koşu anındaki doğrulayıcıyla kabul edildi. Karar 0212 sonrası doğrulayıcı aynı ham çıktıyı
+  yeniden doğruladığında kritik 20 cevabın 10'unu tamamen reddeder, 6'sının sorunlu paragrafını atar;
+  4 yanlış yokluk cevabı hâlâ geçer (bilinen açık). Kalan metinler yeniden denetlenmedi.
+- Sekme tutarlılığı (karar 0211) bu koşudan sonra düzeltildi; koşu sabit gerçek kümeleriyle yapıldı.
 
-## İnsan denetimi için adımlar
+## Komutlar (ücretli çağrı yok)
 
-1. `review-pack.md`'yi açın; her cevapta yalnız **ürün gerçekleri tablosuna** bakarak karar verin
-   (`correct`, `unevidenced_claim`, `wrong`, `off_intent`). Kritik = `unevidenced_claim` + `wrong`.
-2. Kararları `review-sheet.csv` içindeki `human_verdict` sütununa (ve istenirse `human_notes`) yazın.
-   Hedef: ≥100 cevap denetlenmiş, kritik 0.
-3. Tabloyu denetim kaydına işleyin (geçersiz karar ya da bilinmeyen vaka varsa hiçbir şey yazılmaz):
+```
+# doldurulmuş tabloyu kayda işle (geçersiz karar ya da bilinmeyen vaka varsa hiçbir şey yazılmaz)
+pnpm --filter @arilla/core eval:chat-answer-review \
+  --apply docs/eval-data/chat-answer-pilot/2026-11-15-full/review-sheet.reviewed.csv \
+  --audit docs/eval-data/chat-answer-pilot/2026-11-15-full/audit.json
 
-   ```
-   pnpm --filter @arilla/core eval:chat-answer-review \
-     --apply docs/eval-data/chat-answer-pilot/2026-11-15-full/review-sheet.csv \
-     --audit docs/eval-data/chat-answer-pilot/2026-11-15-full/audit.json
-   ```
-4. Özeti alın (ücretli çağrı YOK):
+# özet
+pnpm --filter @arilla/core eval:chat-answer --summarize docs/eval-data/chat-answer-pilot/2026-11-15-full/audit.json
+```
 
-   ```
-   pnpm --filter @arilla/core eval:chat-answer --summarize docs/eval-data/chat-answer-pilot/2026-11-15-full/audit.json
-   ```
-5. Sonucu `CHAT_RESULT_ANSWER` kararına (karar 0203 çıkış kriterleri) taşıyın. Bayrak, denetim ve
-   sekme tutarlılığı doğrulanmadan prod'da açılmaz.
+`--apply` kaydı iki boşluk girintiyle yazar; işledikten sonra `npx biome format --write <audit.json>`
+çalıştırın (CI biçim denetimi).
