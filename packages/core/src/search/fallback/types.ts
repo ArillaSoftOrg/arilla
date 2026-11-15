@@ -24,9 +24,16 @@ export interface SearchQuery {
   offset: number;
   /** Yazim hatasina tolerans: saglayici kendi bulanik eslesme mekanizmasini kullanir. */
   fuzzy: boolean;
+  /**
+   * Bu adimin sorgu butcesi (ms). Verilirse saglayici adimi kendi savepoint'inde bu sinirla
+   * calistirir; asilirsa HATA FIRLATMAZ, bos sayfa ve `timedOut` doner (istegin kalani surer).
+   */
+  budgetMs?: number | undefined;
 }
 
 export interface ProviderPage {
+  /** `budgetMs` asildi: adim atlandi, `items` bos. */
+  timedOut?: boolean;
   items: SearchResultItem[];
   /** Saglayicinin bildirdigi toplam (sayfalamadan once). */
   total: number;
