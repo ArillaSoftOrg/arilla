@@ -35,6 +35,16 @@ aramıyor).
 
 ## Sınırlar
 
+- **Katalog genelinde en ucuz ürün GARANTİSİ YOKTUR.** Fiyat sıralaması aday kümesi seçildikten SONRA
+  uygulanır: aday dalları `SELECT p.id FROM product p WHERE ... LIMIT 1000` biçimindedir ve `ORDER BY`
+  içermez (karar 0129; yaygın bir baş isim yüz binlerce ürünle eşleşir). Eşleşme 1000'i aşarsa
+  (`totalCapped`, arayüzde "1.000+") sıralama yalnız bu, fiziksel sırayla gelen 1000 aday içindedir;
+  eşleşen en ucuz ürün aday kümesine hiç girmemiş olabilir. Eşleşme 1000 ya da daha azsa sıralama
+  tamdır. Düzeltmek için aday dallarının fiyata göre sıralı çekilmesi (ör. `product.min_price`
+  indeksi) gerekir; ayrı iş, ölçüm ve sorgu planı testi ister.
+- **Para birimi öncelik değildir:** sıralama anahtarı yalnız TL tutarıdır (430 TL'ye çevrilen USD
+  teklif 500 TL'lik TRY teklifin önündedir; test edilir). Para birimi tek yerde devreye girer: aynı
+  tutarda kesin TRY teklifi yaklaşık çevrilmişin önündedir.
 - Kur boşluğu (örn. dokuz günlük bayram tatili): `MAX_RATE_AGE_DAYS=4` aşılırsa yurt dışı fiyatlar NULL
   olur, sekme yine alakaya düşer (yanlış sıralamadan iyi). Kur işinin sağlığı ayrıca izlenmeli.
 - Fiyat sıralaması yalnız metin kapısından geçen adaylar arasındadır; kapı gevşek eşleşmelere izin
