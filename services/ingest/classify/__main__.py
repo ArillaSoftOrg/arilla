@@ -40,10 +40,13 @@ import json
 import logging
 import signal
 import sys
+from collections.abc import Iterator
+from contextlib import contextmanager
 from pathlib import Path
 
 import psycopg
 
+from classify import brand_link as brand_link_mod
 from classify import compare as compare_mod
 from classify import lexicon as lexicon_mod
 from classify import parent_apply as parent_mod
@@ -60,6 +63,11 @@ def _request_stop(_signum: int, _frame: object) -> None:
     global _stop
     _stop = True
     print("\ndurdurma istendi: mevcut parti bitince cikilacak", file=sys.stderr)
+
+
+@contextmanager
+def _nullcontext() -> Iterator[None]:
+    yield None
 
 
 def _should_stop() -> bool:
@@ -209,6 +217,23 @@ def main(argv: list[str] | None = None) -> int:
     wal.add_argument("--wal-max-pause-s", type=float, default=3600.0, help="en uzun duraklama")
     wal.add_argument(
         "--wal-failing-grace-s", type=float, default=900.0, help="arsiv hatasi toleransi"
+    )
+
+    p_lb = sub.add_parser(
+        "link-brands",
+        help="kaynak markasini (offer.brand_raw) mevcut brand satirina baglar (karar 0206)",
+    )
+    p_lb.add_argument("--merchant", required=True, help="kaynak (merchant slug)")
+    p_lb.add_argument("--batch", type=int, default=brand_link_mod.DEFAULT_BATCH)
+    p_lb.add_argument("--top", type=int, default=30)
+    p_lb.add_argument("--confirm", action="store_true", help="yaz (yalniz yerel veritabani)")
+    p_lb.add_argument(
+        "--local-only", action="store_true", help="yerel veritabani oldugunu onayla (uretimde YOK)"
+    )
+    p_lb.add_argument(
+        "--create-missing",
+        action="store_true",
+        help="eslesmeyen temiz markalar icin brand satiri ac (varsayilan: ACMA; ayri onay)",
     )
 
     sub.add_parser("status")
@@ -415,6 +440,40 @@ def main(argv: list[str] | None = None) -> int:
             return EXIT_WAL_BACKPRESSURE
         return 0
 
+    if args.command == "link-brands":
+        if args.confirm and not args.local_only:
+            print("yazmak icin --confirm ve --local-only birlikte gerekli", file=sys.stderr)
+            return 2
+        try:
+            with job_run.track("classify_link_brands") if args.confirm else _nullcontext() as run:
+                with connect() as conn:
+                    counts = brand_link_mod.link_brands(
+                        conn,
+                        merchant_slug=args.merchant,
+                        create_missing=args.create_missing,
+                        dry_run=not args.confirm,
+                        batch_size=args.batch,
+                    )
+                if run is not None:
+                    run.detail.update(
+                        merchant=args.merchant,
+                        scanned=counts.scanned,
+                        linked=counts.linked,
+                        created_brands=counts.created_brands,
+                        skipped=dict(counts.skipped),
+                    )
+        except (brand_link_mod.NotLocalError, LookupError) as error:
+            print(f"durdu: {error}", file=sys.stderr)
+            return EXIT_ABORTED
+        mode = "YAZILDI" if args.confirm else "olcum (yazilmadi)"
+        print(
+            f"{mode}: taranan {counts.scanned} baglanan {counts.linked} "
+            f"yeni_marka {counts.created_brands} atlanan {dict(counts.skipped)}"
+        )
+        for name, n in counts.unmatched.most_common(args.top):
+            print(f"  eslesmeyen {n:>6}  {name}")
+        return 0
+
     if args.command == "parents-report":
         with connect() as conn:
             try:
@@ -527,7 +586,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "compare":
-
         with connect() as conn:
             result = compare_mod.compare(
                 conn,
@@ -576,7 +634,6 @@ def main(argv: list[str] | None = None) -> int:
         return 0
 
     if args.command == "evaluate":
-
         from classify import evaluate as ev
 
         rows = ev.read_labels(Path(args.labels))
