@@ -1,0 +1,1043 @@
+{
+  "schema": "ml-eval-queries/1",
+  "intents": [
+    {
+      "intent_id": "I01",
+      "intent_type": "category",
+      "description": "cabin-size suitcase",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q21", "D01", "E01"],
+      "expected_hint": {
+        "title_regex": "carry.?on|cabin|suitcase|luggage",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 1
+    },
+    {
+      "intent_id": "I02",
+      "intent_type": "technical",
+      "description": "DDR5 32GB RAM module",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q24"],
+      "expected_hint": {
+        "title_regex": "ddr5.*32 ?gb|32 ?gb.*ddr5",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 1
+    },
+    {
+      "intent_id": "I03",
+      "intent_type": "negation",
+      "description": "gaming keyboard that is NOT wireless",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q74"],
+      "expected_hint": {
+        "title_regex": "keyboard",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 1
+    },
+    {
+      "intent_id": "I04",
+      "intent_type": "natural_language",
+      "description": "warm winter boots for a child",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q64"],
+      "expected_hint": {
+        "title_regex": "(snow|winter|warm|fur).*boot|boot.*(warm|fur|winter)",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 1
+    },
+    {
+      "intent_id": "I05",
+      "intent_type": "model_number",
+      "description": "drill chuck for DeWalt DCD771",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q44"],
+      "expected_hint": {
+        "title_regex": "dcd771|chuck",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 1
+    },
+    {
+      "intent_id": "I06",
+      "intent_type": "accessory_part",
+      "description": "seat liner/cushion for a stroller",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q15", "D02", "E02"],
+      "expected_hint": {
+        "title_regex": "stroller (insert|cushion|pad|mat)",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 1
+    },
+    {
+      "intent_id": "I07",
+      "intent_type": "absent_expected",
+      "description": "dishwasher (appliance probably absent from catalog)",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q76"],
+      "expected_hint": {
+        "title_regex": "dishwasher",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 1
+    },
+    {
+      "intent_id": "I08",
+      "intent_type": "category",
+      "description": "dumpling (manti) mold",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q55", "D03", "E03"],
+      "expected_hint": {
+        "title_regex": "dumpling mold|dumpling mould",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 2
+    },
+    {
+      "intent_id": "I09",
+      "intent_type": "technical",
+      "description": "1TB external hard drive",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q26"],
+      "expected_hint": {
+        "title_regex": "(1 ?tb).*(external|hard (drive|disk))|external.*1 ?tb",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 2
+    },
+    {
+      "intent_id": "I10",
+      "intent_type": "natural_language",
+      "description": "spare battery for a cordless drill",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q70"],
+      "expected_hint": {
+        "title_regex": "battery.*(drill|tool|makita|dewalt|18v|20v)|(18v|20v).*battery",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 2
+    },
+    {
+      "intent_id": "I11",
+      "intent_type": "model_number",
+      "description": "battery holder for DeWalt 20V",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q43", "D06", "E08"],
+      "expected_hint": {
+        "title_regex": "dewalt|dcb",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 2
+    },
+    {
+      "intent_id": "I12",
+      "intent_type": "category",
+      "description": "phone case",
+      "origin": "e3a",
+      "origin_query_ids": ["Q002", "Q001"],
+      "expected_hint": {
+        "title_regex": "(phone|iphone|galaxy|samsung|xiaomi).*(case|cover)|(case|cover).*(phone|iphone|galaxy)",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 2
+    },
+    {
+      "intent_id": "I13",
+      "intent_type": "natural_language",
+      "description": "wants to upgrade computer memory",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q69"],
+      "expected_hint": {
+        "title_regex": "ram|memory|ddr",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 2
+    },
+    {
+      "intent_id": "I14",
+      "intent_type": "category",
+      "description": "women's wedge-heel slippers",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q05", "D04"],
+      "expected_hint": {
+        "title_regex": "wedge (slipper|sandal)|slipper.*wedge|wedge.*(heel|slipper)",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 3
+    },
+    {
+      "intent_id": "I15",
+      "intent_type": "technical",
+      "description": "wired keyboard",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q31"],
+      "expected_hint": {
+        "title_regex": "wired keyboard|keyboard.*wired|usb keyboard",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 3
+    },
+    {
+      "intent_id": "I16",
+      "intent_type": "accessory_part",
+      "description": "cooling stand for laptop",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q38"],
+      "expected_hint": {
+        "title_regex": "cooling pad|laptop stand|cooler",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 3
+    },
+    {
+      "intent_id": "I17",
+      "intent_type": "category",
+      "description": "camera drone",
+      "origin": "e3a",
+      "origin_query_ids": ["Q038", "Q037"],
+      "expected_hint": {
+        "title_regex": "drone",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 3
+    },
+    {
+      "intent_id": "I18",
+      "intent_type": "category",
+      "description": "children's snow boots",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q02"],
+      "expected_hint": {
+        "title_regex": "snow boot",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 3
+    },
+    {
+      "intent_id": "I19",
+      "intent_type": "technical",
+      "description": "wireless mouse",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q30"],
+      "expected_hint": {
+        "title_regex": "wireless mouse|mouse.*wireless",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 3
+    },
+    {
+      "intent_id": "I20",
+      "intent_type": "category",
+      "description": "baby diapers",
+      "origin": "e3a",
+      "origin_query_ids": ["Q030", "Q029"],
+      "expected_hint": {
+        "title_regex": "diaper|nappy|nappies",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 3
+    },
+    {
+      "intent_id": "I21",
+      "intent_type": "category",
+      "description": "spice jar set",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q53", "D14", "E12"],
+      "expected_hint": {
+        "title_regex": "spice jar|seasoning (bottle|jar)",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 4
+    },
+    {
+      "intent_id": "I22",
+      "intent_type": "category",
+      "description": "plush indoor slippers",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q06", "D10"],
+      "expected_hint": {
+        "title_regex": "(plush|fluffy|furry).*slipper|slipper.*(plush|fluffy)",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 4
+    },
+    {
+      "intent_id": "I23",
+      "intent_type": "category",
+      "description": "Gundam plastic model kit",
+      "origin": "e4-eval",
+      "origin_query_ids": ["Q12", "D12"],
+      "expected_hint": {
+        "title_regex": "gundam|model kit|mobile suit",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 4
+    },
+    {
+      "intent_id": "I24",
+      "intent_type": "category",
+      "description": "wireless earbuds/headphones",
+      "origin": "e3a",
+      "origin_query_ids": ["Q004", "Q003"],
+      "expected_hint": {
+        "title_regex": "(wireless|bluetooth|tws).*(earbud|earphone|headphone|headset)|(earbud|earphone|headphone|headset).*(wireless|bluetooth|tws)",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 4
+    },
+    {
+      "intent_id": "I25",
+      "intent_type": "accessory_part",
+      "description": "replacement laptop battery",
+      "origin": "e3a",
+      "origin_query_ids": ["Q012", "Q011"],
+      "expected_hint": {
+        "title_regex": "(laptop|notebook).*battery|battery.*(laptop|notebook)",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 4
+    },
+    {
+      "intent_id": "I26",
+      "intent_type": "accessory_part",
+      "description": "replacement laptop keyboard",
+      "origin": "e3a",
+      "origin_query_ids": ["Q010", "Q009"],
+      "expected_hint": {
+        "title_regex": "keyboard",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 4
+    },
+    {
+      "intent_id": "I27",
+      "intent_type": "category",
+      "description": "bluetooth speaker",
+      "origin": "e3a",
+      "origin_query_ids": ["Q008", "Q007"],
+      "expected_hint": {
+        "title_regex": "speaker",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 4
+    },
+    {
+      "intent_id": "I28",
+      "intent_type": "category",
+      "description": "cat food",
+      "origin": "e3a",
+      "origin_query_ids": ["Q032", "Q031"],
+      "expected_hint": {
+        "title_regex": "cat food|cat.*(food|treat)",
+        "flags": "i",
+        "note": "yalniz ipucu; etiket degildir, metrikte kullanilmaz"
+      },
+      "slice": 4
+    }
+  ],
+  "queries": [
+    {
+      "query_id": "ML-I01-tr",
+      "intent_id": "I01",
+      "query_lang": "tr",
+      "text": "kabin boy valiz",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I01-en",
+      "intent_id": "I01",
+      "query_lang": "en",
+      "text": "cabin size carry-on suitcase",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I01-de",
+      "intent_id": "I01",
+      "query_lang": "de",
+      "text": "Handgepäck Koffer Kabinengröße",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I02-tr",
+      "intent_id": "I02",
+      "query_lang": "tr",
+      "text": "DDR5 32GB bellek",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I02-en",
+      "intent_id": "I02",
+      "query_lang": "en",
+      "text": "DDR5 32GB memory",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I02-de",
+      "intent_id": "I02",
+      "query_lang": "de",
+      "text": "DDR5 32GB Arbeitsspeicher",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I03-tr",
+      "intent_id": "I03",
+      "query_lang": "tr",
+      "text": "kablosuz olmayan oyun klavyesi",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I03-en",
+      "intent_id": "I03",
+      "query_lang": "en",
+      "text": "non-wireless gaming keyboard",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I03-de",
+      "intent_id": "I03",
+      "query_lang": "de",
+      "text": "Gaming-Tastatur, nicht kabellos",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I04-tr",
+      "intent_id": "I04",
+      "query_lang": "tr",
+      "text": "kışın çocuğumun ayağını sıcak tutacak bot",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I04-en",
+      "intent_id": "I04",
+      "query_lang": "en",
+      "text": "boots that keep my child's feet warm in winter",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I04-de",
+      "intent_id": "I04",
+      "query_lang": "de",
+      "text": "Stiefel, die die Füße meines Kindes im Winter warm halten",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I05-tr",
+      "intent_id": "I05",
+      "query_lang": "tr",
+      "text": "DCD771 matkap mandreni",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I05-en",
+      "intent_id": "I05",
+      "query_lang": "en",
+      "text": "drill chuck for DCD771",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I05-de",
+      "intent_id": "I05",
+      "query_lang": "de",
+      "text": "Bohrfutter für DCD771",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I06-tr",
+      "intent_id": "I06",
+      "query_lang": "tr",
+      "text": "puset minderi",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I06-en",
+      "intent_id": "I06",
+      "query_lang": "en",
+      "text": "stroller seat cushion",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I06-de",
+      "intent_id": "I06",
+      "query_lang": "de",
+      "text": "Sitzauflage für Kinderwagen",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I07-tr",
+      "intent_id": "I07",
+      "query_lang": "tr",
+      "text": "bulaşık makinesi",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I07-en",
+      "intent_id": "I07",
+      "query_lang": "en",
+      "text": "dishwasher",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I07-de",
+      "intent_id": "I07",
+      "query_lang": "de",
+      "text": "Geschirrspüler",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I08-tr",
+      "intent_id": "I08",
+      "query_lang": "tr",
+      "text": "mantı kalıbı",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I08-en",
+      "intent_id": "I08",
+      "query_lang": "en",
+      "text": "dumpling mold",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I08-de",
+      "intent_id": "I08",
+      "query_lang": "de",
+      "text": "Teigtaschen Form",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I09-tr",
+      "intent_id": "I09",
+      "query_lang": "tr",
+      "text": "1TB harici hard disk",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I09-en",
+      "intent_id": "I09",
+      "query_lang": "en",
+      "text": "1TB external hard drive",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I09-de",
+      "intent_id": "I09",
+      "query_lang": "de",
+      "text": "externe Festplatte 1TB",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I10-tr",
+      "intent_id": "I10",
+      "query_lang": "tr",
+      "text": "matkabımın pili bitti yedek batarya",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I10-en",
+      "intent_id": "I10",
+      "query_lang": "en",
+      "text": "my drill battery died, I need a spare battery",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I10-de",
+      "intent_id": "I10",
+      "query_lang": "de",
+      "text": "Der Akku meiner Bohrmaschine ist leer, ich brauche einen Ersatzakku",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I11-tr",
+      "intent_id": "I11",
+      "query_lang": "tr",
+      "text": "DeWalt 20V batarya tutucu",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I11-en",
+      "intent_id": "I11",
+      "query_lang": "en",
+      "text": "DeWalt 20V battery holder",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I11-de",
+      "intent_id": "I11",
+      "query_lang": "de",
+      "text": "DeWalt 20V Akku Halterung",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I12-tr",
+      "intent_id": "I12",
+      "query_lang": "tr",
+      "text": "telefon kılıfı",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I12-en",
+      "intent_id": "I12",
+      "query_lang": "en",
+      "text": "phone case",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I12-de",
+      "intent_id": "I12",
+      "query_lang": "de",
+      "text": "Handyhülle",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I13-tr",
+      "intent_id": "I13",
+      "query_lang": "tr",
+      "text": "bilgisayarımın belleğini artırmak istiyorum",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I13-en",
+      "intent_id": "I13",
+      "query_lang": "en",
+      "text": "I want to increase my computer's memory",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I13-de",
+      "intent_id": "I13",
+      "query_lang": "de",
+      "text": "Ich möchte den Arbeitsspeicher meines Computers erweitern",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I14-tr",
+      "intent_id": "I14",
+      "query_lang": "tr",
+      "text": "kadın dolgu topuk terlik",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I14-en",
+      "intent_id": "I14",
+      "query_lang": "en",
+      "text": "women's wedge heel slippers",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I14-de",
+      "intent_id": "I14",
+      "query_lang": "de",
+      "text": "Damen Hausschuhe mit Keilabsatz",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I15-tr",
+      "intent_id": "I15",
+      "query_lang": "tr",
+      "text": "kablolu klavye",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I15-en",
+      "intent_id": "I15",
+      "query_lang": "en",
+      "text": "wired keyboard",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I15-de",
+      "intent_id": "I15",
+      "query_lang": "de",
+      "text": "kabelgebundene Tastatur",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I16-tr",
+      "intent_id": "I16",
+      "query_lang": "tr",
+      "text": "laptop soğutucu stand",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I16-en",
+      "intent_id": "I16",
+      "query_lang": "en",
+      "text": "laptop cooling stand",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I16-de",
+      "intent_id": "I16",
+      "query_lang": "de",
+      "text": "Laptop Kühler Ständer",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I17-tr",
+      "intent_id": "I17",
+      "query_lang": "tr",
+      "text": "kameralı drone",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I17-en",
+      "intent_id": "I17",
+      "query_lang": "en",
+      "text": "drone with camera",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I17-de",
+      "intent_id": "I17",
+      "query_lang": "de",
+      "text": "Drohne mit Kamera",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I18-tr",
+      "intent_id": "I18",
+      "query_lang": "tr",
+      "text": "çocuk kar botu",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I18-en",
+      "intent_id": "I18",
+      "query_lang": "en",
+      "text": "kids snow boots",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I18-de",
+      "intent_id": "I18",
+      "query_lang": "de",
+      "text": "Kinder Schneestiefel",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I19-tr",
+      "intent_id": "I19",
+      "query_lang": "tr",
+      "text": "kablosuz mouse",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I19-en",
+      "intent_id": "I19",
+      "query_lang": "en",
+      "text": "wireless mouse",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I19-de",
+      "intent_id": "I19",
+      "query_lang": "de",
+      "text": "kabellose Maus",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I20-tr",
+      "intent_id": "I20",
+      "query_lang": "tr",
+      "text": "bebek bezi",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I20-en",
+      "intent_id": "I20",
+      "query_lang": "en",
+      "text": "baby diaper",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I20-de",
+      "intent_id": "I20",
+      "query_lang": "de",
+      "text": "Babywindeln",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I21-tr",
+      "intent_id": "I21",
+      "query_lang": "tr",
+      "text": "baharat kavanozu seti",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I21-en",
+      "intent_id": "I21",
+      "query_lang": "en",
+      "text": "spice jar set",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I21-de",
+      "intent_id": "I21",
+      "query_lang": "de",
+      "text": "Gewürzgläser Set",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I22-tr",
+      "intent_id": "I22",
+      "query_lang": "tr",
+      "text": "ev terliği peluş",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I22-en",
+      "intent_id": "I22",
+      "query_lang": "en",
+      "text": "plush house slippers",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I22-de",
+      "intent_id": "I22",
+      "query_lang": "de",
+      "text": "Plüsch Hausschuhe",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I23-tr",
+      "intent_id": "I23",
+      "query_lang": "tr",
+      "text": "gundam maket kiti",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I23-en",
+      "intent_id": "I23",
+      "query_lang": "en",
+      "text": "Gundam model kit",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I23-de",
+      "intent_id": "I23",
+      "query_lang": "de",
+      "text": "Gundam Modellbausatz",
+      "text_source": "existing_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I24-tr",
+      "intent_id": "I24",
+      "query_lang": "tr",
+      "text": "kablosuz kulaklık",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I24-en",
+      "intent_id": "I24",
+      "query_lang": "en",
+      "text": "wireless earbuds",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I24-de",
+      "intent_id": "I24",
+      "query_lang": "de",
+      "text": "kabellose Ohrhörer",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I25-tr",
+      "intent_id": "I25",
+      "query_lang": "tr",
+      "text": "dizüstü bilgisayar pili",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I25-en",
+      "intent_id": "I25",
+      "query_lang": "en",
+      "text": "laptop battery",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I25-de",
+      "intent_id": "I25",
+      "query_lang": "de",
+      "text": "Laptop Akku",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I26-tr",
+      "intent_id": "I26",
+      "query_lang": "tr",
+      "text": "dizüstü klavye",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I26-en",
+      "intent_id": "I26",
+      "query_lang": "en",
+      "text": "laptop keyboard",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I26-de",
+      "intent_id": "I26",
+      "query_lang": "de",
+      "text": "Laptop Tastatur",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I27-tr",
+      "intent_id": "I27",
+      "query_lang": "tr",
+      "text": "bluetooth hoparlör",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I27-en",
+      "intent_id": "I27",
+      "query_lang": "en",
+      "text": "bluetooth speaker",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I27-de",
+      "intent_id": "I27",
+      "query_lang": "de",
+      "text": "Bluetooth Lautsprecher",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    },
+    {
+      "query_id": "ML-I28-tr",
+      "intent_id": "I28",
+      "query_lang": "tr",
+      "text": "kedi maması",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I28-en",
+      "intent_id": "I28",
+      "query_lang": "en",
+      "text": "cat food",
+      "text_source": "original",
+      "translation_status": "source_text"
+    },
+    {
+      "query_id": "ML-I28-de",
+      "intent_id": "I28",
+      "query_lang": "de",
+      "text": "Katzenfutter",
+      "text_source": "manual_draft",
+      "translation_status": "draft_unverified"
+    }
+  ]
+}
