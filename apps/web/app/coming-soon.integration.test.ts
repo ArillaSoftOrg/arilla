@@ -236,7 +236,7 @@ describe("mod", () => {
     const page = await HomePage();
     expect(typeName(page)).not.toBe("ComingSoonLanding");
     const { generateMetadata } = await import("./page.tsx");
-    expect(generateMetadata()).toEqual({ alternates: { canonical: "/" } });
+    expect(await generateMetadata()).toEqual({ alternates: { canonical: "/" } });
   });
 
   it("bayrak kapalı kalmak için ayar istemez; bilinmeyen değer de kapalıdır", async () => {

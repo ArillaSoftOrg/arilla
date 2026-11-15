@@ -164,7 +164,9 @@ const PRODUCT_PAGES: { name: string; call: () => Promise<unknown> }[] = [
   {
     name: "/sohbet/link",
     call: async () =>
-      (await import("./sohbet/link/page.tsx")).default({ searchParams: Promise.resolve({}) }),
+      (await import("./sohbet/link/page.tsx")).default({
+        searchParams: Promise.resolve({ url: "https://magaza.example/u" }),
+      }),
   },
   // Misafir sohbeti (`/?q=&g=1`, karar 0204) ana sayfa kapisindan gecer; `/sohbet/misafir` yalniz yonlendirmedir.
   {
