@@ -138,7 +138,7 @@ def test_disk_thresholds_default_to_the_publish_watchdog_values(
 ) -> None:
     monkeypatch.delenv("CATALOG_AUTO_START_FREE_GB", raising=False)
     monkeypatch.delenv("CATALOG_AUTO_RESERVE_FREE_GB", raising=False)
-    assert auto_mod.disk_thresholds_from_env() == (70, 40)
+    assert auto_mod.disk_thresholds_from_env() == (auto_mod.START_FREE_GB, 40)
     monkeypatch.setenv("CATALOG_AUTO_START_FREE_GB", "5")
     monkeypatch.setenv("CATALOG_AUTO_RESERVE_FREE_GB", "oops")
     assert auto_mod.disk_thresholds_from_env() == (5, 40)  # bozuk deger varsayilana duser

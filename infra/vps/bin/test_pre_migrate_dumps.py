@@ -113,7 +113,7 @@ class CapacityTest(Base):
 
 
 class CatalogGateTest(Base):
-    """Karar 0188: dokumden sonra bos alan katalog esiginin (70 GiB) altina dusecekse deploy durur."""
+    """Karar 0188: dokumden sonra bos alan katalog esiginin altina dusecekse deploy durur."""
 
     def setUp(self):
         super().setUp()
@@ -132,13 +132,13 @@ class CatalogGateTest(Base):
         self.assertTrue(res["ok"])
 
     def test_explicit_override_allows_but_reports(self):
-        self.free = 70 * pmd.GiB
+        self.free = pmd.CATALOG_GATE_GIB * pmd.GiB
         res = self.d.capacity(db_bytes=1, reserve=0, allow_below_gate=True)
         self.assertFalse(res["catalog_gate_ok"])
         self.assertTrue(res["ok"])
 
     def _cli(self, allow: bool):
-        self.free = 70 * pmd.GiB
+        self.free = pmd.CATALOG_GATE_GIB * pmd.GiB
         err = io.StringIO()
         os.environ["ARILLA_DUMP_RESERVE_BYTES"] = "0"
         # CLI gercek diski okur: esik her makinede asilsin diye cok buyuk (yalniz test ayari).
