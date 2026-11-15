@@ -1,5 +1,5 @@
 /**
- * IntentV2 alternatif arama terimleri (docs/decisions/0208).
+ * IntentV2 alternatif arama terimleri (docs/decisions/0210).
  *
  * Model, sorgudaki bir kelime/ifade icin en fazla 3 es anlamli arama terimi onerebilir
  * (kaynak dil Turkce; hedef dil serbest, katalog Ingilizce agirlikli oldugundan genelde
