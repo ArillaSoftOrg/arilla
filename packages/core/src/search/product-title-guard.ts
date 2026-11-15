@@ -10,6 +10,11 @@ const BATTERY_PART =
 const BATTERY_REQUEST =
   /\b(kulakli[kg]\w*|headphones?|headsets?) (batarya\w*|pili|batter(y|ies))\b/;
 
+/** Metinde belirgin aksesuar/yedek parca kelimesi var mi (katlanmis metin; IntentV2 alternatif terim korumasi). */
+export function mentionsAccessoryWord(foldedText: string): boolean {
+  return new RegExp(ACCESSORY).test(foldedText);
+}
+
 function wantsAccessory(query: string): boolean {
   return new RegExp(ACCESSORY).test(query) || BATTERY_REQUEST.test(query);
 }
