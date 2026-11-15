@@ -866,7 +866,7 @@ export async function interpretTurn(
     // cikmistir ve normal yedek yol calisir.
     const facts = filteredRequest.resultFacts ?? [];
     if (facts.length === 0) return fallback("bad_action");
-    const verdict = validateAnswer(turn.answer, facts);
+    const verdict = validateAnswer(turn.answer, facts, { question: inputText(request.input) });
     const usable = verdict.answer !== null;
     turn = {
       action: "answer",

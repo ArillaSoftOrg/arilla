@@ -274,3 +274,129 @@ describe("forbidden claims survive Turkish suffixes", () => {
     }
   });
 });
+
+describe("evidence rules found by the 20-call smoke test", () => {
+  const title = (text: string, quote: string) => ok([para(text, [ev("p1", "title", quote)])]);
+
+  it("accepts honest absence statements that name a topic word", () => {
+    const verdict = title(
+      "Listelediğim ürünlerin başlıklarında dayanıklılık veya kalite bilgisi belirtilmemiş durumda.",
+      "Philips Hue",
+    );
+    expect(verdict.rejected).toEqual([]);
+    expect(verdict.answer).not.toBeNull();
+  });
+
+  it("still rejects a positive topic claim, and strong claims even inside an absence sentence", () => {
+    expect(
+      title(
+        "Philips Hue çok dayanıklı bir üründür, ancak pil bilgisi belirtilmemiş durumda burada.",
+        "Philips Hue",
+      ).rejected,
+    ).toEqual(["forbidden_claim"]);
+    expect(
+      title(
+        "Philips Hue en iyi seçenek olmasına rağmen pil bilgisi belirtilmemiş durumda.",
+        "Philips Hue",
+      ).rejected,
+    ).toEqual(["forbidden_claim"]);
+  });
+
+  it("accepts numbers that are part of the cited item's title, not numbers from other items", () => {
+    const facts: ResultFact[] = [
+      {
+        id: "p1",
+        title: "Xiaomi Mi Power Bank 3 10000mAh",
+        brand: null,
+        store: null,
+        price_try: 849,
+        offer_count: 4,
+      },
+      {
+        id: "p2",
+        title: "Anker 313 Power Bank",
+        brand: null,
+        store: null,
+        price_try: 1099,
+        offer_count: 2,
+      },
+    ];
+    const good = validateAnswer(
+      {
+        paragraphs: [
+          {
+            text: "Xiaomi Mi Power Bank 3 modeli 10000mAh kapasiteli ve 849 TL fiyatla listeleniyor (p1).",
+            evidence: [
+              { item: "p1", field: "title", quote: "Power Bank 3" },
+              { item: "p1", field: "price", quote: "849" },
+            ],
+          },
+        ],
+      },
+      facts,
+    );
+    expect(good.rejected).toEqual([]);
+    const wrongItem = validateAnswer(
+      {
+        paragraphs: [
+          {
+            text: "Xiaomi modeli 313 numaralı seri olarak 849 TL fiyatla listeleniyor burada.",
+            evidence: [
+              { item: "p1", field: "title", quote: "Power Bank 3" },
+              { item: "p1", field: "price", quote: "849" },
+            ],
+          },
+        ],
+      },
+      facts,
+    );
+    expect(wrongItem.rejected).toEqual(["unevidenced_number"]);
+  });
+
+  it("a money amount needs a price quote: a number found only in a title is not a price", () => {
+    const facts: ResultFact[] = [
+      {
+        id: "p1",
+        title: "Power Bank 5000mAh",
+        brand: null,
+        store: null,
+        price_try: 624,
+        offer_count: 1,
+      },
+    ];
+    const verdict = validateAnswer(
+      {
+        paragraphs: [
+          {
+            text: "Power Bank 5000 TL fiyatla listeleniyor ve başlığında kapasite yer alıyor burada.",
+            evidence: [{ item: "p1", field: "title", quote: "Power Bank 5000mAh" }],
+          },
+        ],
+      },
+      facts,
+    );
+    expect(verdict.rejected).toEqual(["unevidenced_number"]);
+  });
+
+  it("allows the user's own number to be echoed, and ignores item ids like (p2)", () => {
+    const text =
+      "1000 TL bütçenizin altında Philips Hue ürünü (p1) 624 TL fiyatla listeleniyor burada.";
+    const evidence = [ev("p1", "price", "624")];
+    const facts: ResultFact[] = [
+      {
+        id: "p1",
+        title: "Philips Hue",
+        brand: "Philips",
+        store: null,
+        price_try: 624,
+        offer_count: 1,
+      },
+    ];
+    expect(validateAnswer({ paragraphs: [para(text, evidence)] }, facts).answer).toBeNull();
+    expect(
+      validateAnswer({ paragraphs: [para(text, evidence)] }, facts, {
+        question: "Bütçem 1000 TL, hangisini önerirsin?",
+      }).rejected,
+    ).toEqual([]);
+  });
+});
