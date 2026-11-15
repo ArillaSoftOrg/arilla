@@ -150,6 +150,13 @@ export const KNOWN_JOBS: Readonly<Record<string, KnownJob>> = {
     kind: "pipeline",
     overdueAfterMs: null,
   },
+  // Karar 0209: kaynak markasını mevcut markaya bağlar; yalnız yerel, elle başlatılır.
+  classify_link_brands: {
+    label: "Kaynak markasını bağlama",
+    how: "python -m classify link-brands --confirm --local-only",
+    kind: "pipeline",
+    overdueAfterMs: null,
+  },
   // Gece katalog hatti (infra/vps/systemd/arilla-catalog-pipeline): resolve, sonra kenarlar.
   resolve: {
     label: "Eşleştirme",

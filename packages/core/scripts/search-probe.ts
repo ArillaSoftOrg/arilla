@@ -88,7 +88,7 @@ const QUERIES = process.env.PROBE_QUERIES
       .filter(Boolean)
   : DEFAULT_QUERIES;
 const ROUNDS = Math.max(1, Math.floor(num("PROBE_ROUNDS", 2)));
-/** `PROBE_SORTS=1`: ayrica sohbet sekmelerinin (balanced / lowest_price / best_match) ilk turda karsilastirmasi (karar 0202). */
+/** `PROBE_SORTS=1` (fiyat monotonlugu karttaki cevrilmis TL fiyatina gore, yurt disi dahil; karar 0205): ayrica sohbet sekmelerinin (balanced / lowest_price / best_match) ilk turda karsilastirmasi (karar 0202). */
 const SORT_COMPARE = process.env.PROBE_SORTS === "1";
 const DELAY_MS = num("PROBE_DELAY_MS", 1000);
 const MERCHANT = env("PROBE_MERCHANT", "aliexpress");
@@ -328,11 +328,7 @@ async function compareSorts(db: Database, query: string): Promise<SortComparison
     const items = r.value?.outcome.items ?? [];
     const top10 = items.slice(0, 10);
     const main = top10.filter(
-      (i) =>
-        !ACCESSORY_HINT_RE.test(i.title) &&
-        !i.foreignPrice &&
-        i.minPrice !== null &&
-        i.inStock !== false,
+      (i) => !ACCESSORY_HINT_RE.test(i.title) && i.minPrice !== null && i.inStock !== false,
     );
     const prices = main.map((i) => i.minPrice as number);
     runs[sort] = {

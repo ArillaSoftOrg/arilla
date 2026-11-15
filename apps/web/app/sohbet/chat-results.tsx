@@ -354,7 +354,11 @@ export async function ChatResults({
           {otherTab ? CHAT_COPY.noResultsInTab : CHAT_COPY.noResultsTitle}
         </h3>
         <p className={styles.resultsNote}>
-          {otherTab ? CHAT_COPY.noResultsInTabHint : CHAT_COPY.noResultsDescription}
+          {otherTab
+            ? uxV2
+              ? CHAT_COPY.noResultsInTabHintV2
+              : CHAT_COPY.noResultsInTabHint
+            : CHAT_COPY.noResultsDescription}
         </p>
         {noteBlock}
       </>

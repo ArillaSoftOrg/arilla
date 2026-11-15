@@ -21,6 +21,7 @@ import { priceAmountsInText } from "../clarification/price-language.ts";
 import { CATALOG_PRODUCT_TYPES } from "../clarification/product-types.ts";
 import type { LexiconEntry } from "../search/lexicon.ts";
 import { foldForMatch } from "../search/text-match.ts";
+import { type AlternativeTerm, validateAlternativeTerms } from "./alternative-terms.ts";
 import { oppositeOf, resolveAttributeValue } from "./antonyms.ts";
 import { intentCategoryFor } from "./category-map.ts";
 import {
@@ -110,6 +111,11 @@ export interface ValidatedIntentV2 {
   /** Dogrulama sonucundan turetilir; modelin beyani degildir. */
   confidence: "high" | "medium" | "low";
   rejectedCount: number;
+  /**
+   * Karar 0208: dogrulanmis alternatif arama terimleri (en fazla 3). Yalniz metin kapisinin aday
+   * bulmasinda kullanilir; eski kayitlarda ve cekirdek reddedilince bos.
+   */
+  alternativeTerms: AlternativeTerm[];
 }
 
 export interface ValidateContext {
@@ -178,6 +184,7 @@ export function validateIntentV2(raw: unknown, ctx: ValidateContext): ValidatedI
     downgraded: false,
     confidence: "low",
     rejectedCount: 1,
+    alternativeTerms: [],
   };
   if (!isRecord(raw) || raw.schema_version !== INTENT_SCHEMA_VERSION) return empty;
 
@@ -624,6 +631,9 @@ export function validateIntentV2(raw: unknown, ctx: ValidateContext): ValidatedI
     downgraded: coreRejected,
     confidence,
     rejectedCount,
+    alternativeTerms: coreRejected
+      ? []
+      : validateAlternativeTerms(raw, { queryText: query.raw, lexicon: ctx.lexicon }),
   };
 }
 
