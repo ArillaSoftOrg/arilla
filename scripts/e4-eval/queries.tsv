@@ -1,0 +1,81 @@
+id	query	group	presence_regex	note
+Q01	spor ayakkabı	kategori/E3-a	sneaker|running shoe|sport shoe	E3-a Q016
+Q02	çocuk kar botu	kategori	snow boot
+Q03	kız çocuk prenses ayakkabısı	kategori	princess shoe|girls.*(heel|princess)
+Q04	erkek bebek ilk adım ayakkabısı	kategori	first walker|toddler shoe|baby shoe
+Q05	kadın dolgu topuk terlik	kategori	wedge slipper|wedge sandal
+Q06	ev terliği peluş	kategori	(plush|fluffy|furry).*slipper|slipper.*(plush|fluffy)
+Q07	deri okul ayakkabısı	kategori	school shoe|oxford
+Q08	su geçirmez yürüyüş botu	kategori	(waterproof|hiking).*boot
+Q09	topuklu sandalet	kategori	heel.*sandal|sandal.*heel
+Q10	oyuncak araba	kategori/E3-a	toy car|diecast|car toy	E3-a Q022
+Q11	anime aksiyon figürü	kategori	action figure
+Q12	gundam maket kiti	kategori	gundam|model kit|mobile suit
+Q13	sürpriz kutu blind box	kategori	blind box
+Q14	peluş kedi oyuncak	kategori	plush.*cat|cat.*plush
+Q15	puset minderi	kategori	stroller (insert|cushion|pad|mat)
+Q16	bebek kundak battaniyesi	kategori	swaddle
+Q17	bebek bezi	katalogda yok?/E3-a	diaper	E3-a Q030
+Q18	seyahat çantası	kategori	duffel|travel bag|weekender
+Q19	plaj çantası	kategori	beach (tote|bag)
+Q20	sırt çantası okul	kategori	backpack|school bag
+Q21	kabin boy valiz	kategori	carry.?on|cabin|suitcase|luggage
+Q22	spor salonu çantası	kategori	gym bag|sport.*bag|duffel
+Q23	16GB DDR4 RAM	teknik/RAM	ddr4.*16 ?gb|16 ?gb.*ddr4
+Q24	DDR5 32GB bellek	teknik/RAM	ddr5.*32 ?gb|32 ?gb.*ddr5
+Q25	8GB DDR3 laptop ram	teknik/RAM	ddr3.*8 ?gb|8 ?gb.*ddr3|so.?dimm
+Q26	1TB harici hard disk	teknik/depolama	(1 ?tb).*(external|hard (drive|disk))|external.*1 ?tb
+Q27	512GB SSD	teknik/depolama	512 ?gb.*ssd|ssd.*512 ?gb
+Q28	NVMe M.2 SSD 1TB	teknik/depolama	nvme|m\.2
+Q29	USB 3.0 flash bellek 64GB	teknik/depolama	(usb|flash).*64 ?gb|64 ?gb.*(usb|flash)
+Q30	kablosuz mouse	kablolu-kablosuz	wireless mouse|mouse.*wireless
+Q31	kablolu klavye	kablolu-kablosuz	wired keyboard|keyboard.*wired|usb keyboard
+Q32	kablosuz kulaklık	kablolu-kablosuz/E3-a	wireless (earbud|headphone|earphone)|bluetooth (earbud|headphone|earphone)	E3-a Q004
+Q33	kablolu kulaklık mikrofonlu	kablolu-kablosuz	wired (earphone|headphone|headset)|headset.*mic
+Q34	bluetooth hoparlör	kablolu-kablosuz/E3-a	bluetooth speaker|speaker.*bluetooth	E3-a Q008
+Q35	dizüstü klavye	aksesuar-parca/E3-a	laptop keyboard|keyboard for (hp|dell|lenovo|asus|acer)	E3-a Q010
+Q36	laptop	ana-urun	laptop|notebook
+Q37	laptop çantası	aksesuar	laptop (bag|sleeve|backpack)
+Q38	laptop soğutucu stand	aksesuar	cooling pad|laptop stand
+Q39	işlemci soğutucu fan	parca	cpu (cooler|radiator)|radiator.*fan|tower.*fan
+Q40	ekran kontrol kartı	parca/model	controller board|driver board
+Q41	HT170EX1 kontrol kartı	model-numarasi	ht170ex1
+Q42	Makita BL1830 batarya adaptörü	model-numarasi	bl18(30|60|50)
+Q43	DeWalt 20V batarya tutucu	model-numarasi	dewalt|dcb
+Q44	DCD771 matkap mandreni	model-numarasi	dcd771|chuck
+Q45	Parkside Lidl batarya dönüştürücü	model-numarasi	parkside|lidl
+Q46	matkap için kablo sıyırıcı	aksesuar-parca	wire stripper
+Q47	kırık vida çıkarıcı uç seti	alet	screw extractor
+Q48	teleskopik mıknatıslı alıcı	alet	magnetic pick.?up
+Q49	dremel esnek şaft	aksesuar-parca	flex(ible)? shaft
+Q50	kahve demleme filtre standı	mutfak	pour over|dripper
+Q51	sifon kahve makinesi	mutfak	siphon
+Q52	seramik makarna tabağı	mutfak	pasta plate|ceramic plate
+Q53	baharat kavanozu seti	mutfak	spice jar|seasoning (bottle|jar)
+Q54	çelik beslenme kutusu	mutfak	lunch box|bento
+Q55	mantı kalıbı	mutfak	dumpling mold|dumpling mould
+Q56	ekşi maya kavanozu	mutfak	sourdough
+Q57	köpek temalı kupa	mutfak	dog.*mug|mug.*dog
+Q58	koaksiyel kablo N tipi	elektrik	coaxial|n.?type
+Q59	sıkma kablo pabucu seti	elektrik	ferrule|crimp terminal
+Q60	güneş paneli montaj braketi	elektrik	solar panel (mount|bracket)
+Q61	su geçirmez araç konnektörü	elektrik/oto	waterproof connector
+Q62	forklift fren ana merkezi	oto/parca	forklift
+Q63	akvaryum pompası xiaomi	model/parca	aquarium.*pump|pump.*aquarium
+Q64	kışın çocuğumun ayağını sıcak tutacak bot	dogal-dil	(snow|winter|warm|fur).*boot|boot.*(warm|fur|winter)
+Q65	hafta sonu kısa seyahat için büyük çanta	dogal-dil	duffel|weekender|travel bag
+Q66	anime seven arkadaşıma hediye	dogal-dil	anime
+Q67	bebeğin arabada başını destekleyen yastık	dogal-dil	(head|neck).*support|car seat (insert|pillow)
+Q68	evde akşamları giyilecek sıcak terlik	dogal-dil	(warm|plush|fluffy|fur).*slipper
+Q69	bilgisayarımın belleğini artırmak istiyorum	dogal-dil	ram|memory|ddr
+Q70	matkabımın pili bitti yedek batarya	dogal-dil	battery.*(drill|tool|makita|dewalt|18v|20v)|(18v|20v).*battery
+Q71	500 TL altı çocuk ayakkabısı	fiyat	kids.*shoe|children.*shoe|girls.*shoe|boys.*shoe	TRY fiyat yok: fiyat filtresi test edilemez
+Q72	ucuz sırt çantası 300 TL'ye kadar	fiyat	backpack	TRY fiyat yok
+Q73	deri olmayan çocuk botu	olumsuzluk	boot	olumsuzluk: deri haric
+Q74	kablosuz olmayan oyun klavyesi	olumsuzluk	keyboard	olumsuzluk: kablosuz haric
+Q75	iphone 15 pro max	katalogda-yok?	iphone 15
+Q76	bulaşık makinesi	katalogda-yok?	dishwasher
+Q77	erkek takım elbise	katalogda-yok?	(men|man).*suit
+Q78	kedi maması	katalogda-yok?/E3-a	cat food	E3-a Q032
+Q79	akıllı saat	katalogda-yok?/E3-a	smart ?watch	E3-a Q034
+Q80	robot süpürge	katalogda-yok?/E3-a	robot vacuum	E3-a Q024

@@ -1,0 +1,41 @@
+id	query	group	presence_regex	note
+U01	çocuk yağmur botu	kategori	rain boot	gorulmemis kontrol
+U02	erkek spor terlik	kategori	slipper|slide	gorulmemis kontrol
+U03	bebek patik	kategori	baby (shoe|bootie|sock)|crib shoe	gorulmemis kontrol
+U04	kız çocuk sandalet	kategori	girls?.*sandal	gorulmemis kontrol
+U05	kışlık kadın bot	kategori	women.*(boot|snow)	gorulmemis kontrol
+U06	ortopedik çocuk ayakkabısı	kategori	orthopedic	gorulmemis kontrol
+U07	ışıklı çocuk ayakkabısı	kategori	led|light up	gorulmemis kontrol
+U08	naruto aksiyon figürü	kategori	naruto	gorulmemis kontrol
+U09	yapı blokları oyuncak	kategori	building block	gorulmemis kontrol
+U10	peluş oyuncak ayı	kategori	teddy|plush bear	gorulmemis kontrol
+U11	uzaktan kumandalı araba	kategori	rc car|remote control car	gorulmemis kontrol
+U12	emzik klipsi	kategori	pacifier clip	gorulmemis kontrol
+U13	oto koltuğu minderi	kategori	car seat (cushion|insert|pad)	gorulmemis kontrol
+U14	15.6 inç laptop sırt çantası	aksesuar	laptop backpack	gorulmemis kontrol
+U15	su geçirmez spor çanta	kategori	waterproof.*bag	gorulmemis kontrol
+U16	kadın omuz çantası	kategori	shoulder bag	gorulmemis kontrol
+U17	tekerlekli okul çantası	kategori	(trolley|wheel).*(school )?bag|rolling backpack	gorulmemis kontrol
+U18	DDR4 8GB laptop ram	teknik/RAM	ddr4.*8 ?gb|8 ?gb.*ddr4	gorulmemis kontrol
+U19	2TB harici disk	teknik/depolama	2 ?tb	gorulmemis kontrol
+U20	USB C hub	teknik	usb.?c hub|type.?c hub	gorulmemis kontrol
+U21	mikrofonlu bluetooth kulaklık	kablolu-kablosuz	bluetooth.*(headset|earphone|headphone)	gorulmemis kontrol
+U22	mekanik klavye	kategori	mechanical keyboard	gorulmemis kontrol
+U23	oyuncu mouse pad	aksesuar	mouse ?pad	gorulmemis kontrol
+U24	SSD 256GB SATA	teknik/depolama	256 ?gb.*ssd|ssd.*256	gorulmemis kontrol
+U25	Makita 18V şarj aleti	model-numarasi	makita.*charger|charger.*makita	gorulmemis kontrol
+U26	matkap ucu seti	alet	drill bit	gorulmemis kontrol
+U27	hassas tornavida seti	alet	precision screwdriver	gorulmemis kontrol
+U28	lehim makinesi	alet	soldering	gorulmemis kontrol
+U29	seramik kahve fincanı	mutfak	ceramic.*(cup|mug)	gorulmemis kontrol
+U30	paslanmaz çelik termos	mutfak	thermos|vacuum flask	gorulmemis kontrol
+U31	silikon buz kalıbı	mutfak	ice (cube )?(mold|tray)	gorulmemis kontrol
+U32	dijital mutfak tartısı	mutfak	kitchen scale	gorulmemis kontrol
+U33	manuel kahve öğütücü	mutfak	coffee grinder	gorulmemis kontrol
+U34	akülü matkap için 18V yedek batarya	dogal-dil	18v.*battery	gorulmemis kontrol
+U35	bilgisayarım çok ısınıyor soğutmak için bir şey lazım	dogal-dil	cooler|cooling	gorulmemis kontrol
+U36	yürümeye yeni başlayan bebeğim için kaymayan ayakkabı	dogal-dil	toddler.*(non.?slip|anti.?slip)	gorulmemis kontrol
+U37	metal olmayan saklama kabı	olumsuzluk	storage (box|container)	gorulmemis kontrol
+U38	kablosuz olmayan mouse	olumsuzluk	mouse	gorulmemis kontrol
+U39	Samsung Galaxy S24 kılıf	model-numarasi	s24	gorulmemis kontrol
+U40	çamaşır makinesi	katalogda-yok?	washing machine	gorulmemis kontrol

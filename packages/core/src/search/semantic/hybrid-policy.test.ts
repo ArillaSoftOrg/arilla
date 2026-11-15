@@ -12,6 +12,7 @@ import {
   type PolicyTextItem,
   rejectReason,
   specTokens,
+  withIntentSignals,
 } from "./hybrid-policy.ts";
 
 const LEXICON: LexiconEntry[] = [
@@ -167,5 +168,132 @@ describe("kosullu siralama", () => {
       buildCandidateCheck("DDR5 32GB bellek", LEXICON),
     );
     expect(res.ranked[0]?.source).toBe("both");
+  });
+});
+
+describe("lexical guveni (tur, teknik kod, uyum) ve IntentV2 sinyalleri", () => {
+  const base = { ...BGE_M3_HYBRID_POLICY, strongMaxGapToDense: null };
+
+  it("bas isim turune uymayan lexical cogunluk 'guclu' sayilmaz", () => {
+    const items = [1, 2, 3, 4].map((i) => text(i, `Mechanical Keyboard Keycap Set ${i}`));
+    items.push(text(5, "Wired USB Keyboard Slim"));
+    const check = buildCandidateCheck("kablolu klavye", LEXICON);
+    expect(conditionalHybrid(items, [], check, base).mode).toBe("lexical_strong");
+    const wrong = [1, 2, 3, 4].map((i) => text(i, `Toy Car Model Diecast ${i}`));
+    const strict = { ...base, minLexTypeShare: 0.5 };
+    expect(conditionalHybrid(wrong, [], check, strict).mode).toBe("blend");
+  });
+
+  it("ture/teknik koda uymayan lexical sonuc silinmez, asagi tasinir", () => {
+    const items = [text(1, "USB Flash Drive 32GB"), text(2, "DDR5 32GB Ram Memory")];
+    const res = conditionalHybrid(items, [], buildCandidateCheck("DDR5 32GB bellek", LEXICON), {
+      ...base,
+      lexSpecMissingFactor: 0.3,
+    });
+    expect(res.ranked.map((e) => e.productId)).toEqual([2, 1]);
+  });
+
+  it("lexical-anlamsal uyumu yeterliyse eslesme duzeyi dusuk olsa da guclu sayilir", () => {
+    const items = [1, 2, 3].map((i) => text(i, `Snow Boots Kids ${i}`, "related", 0.6));
+    const cands = [1, 2, 3].map((i) => cand(i, `Snow Boots Kids ${i}`, 0.62));
+    const check = buildCandidateCheck("çocuk kar botu", LEXICON);
+    expect(conditionalHybrid(items, cands, check, base).mode).toBe("blend");
+    expect(conditionalHybrid(items, cands, check, { ...base, strongMinAgreement: 2 }).mode).toBe(
+      "lexical_strong",
+    );
+  });
+
+  it("IntentV2: yalniz ham sorguda kaniti olan oznitelik ve rol kullanilir", () => {
+    const check = buildCandidateCheck("oyun klavyesi", LEXICON);
+    const intent = {
+      criteria: [
+        {
+          field: "attribute",
+          key: "connectivity",
+          value: "kablosuz",
+          canonical: "wireless",
+          strength: "excluded",
+          source: "explicit",
+          mode: "X",
+          reason: "explicit_text_only",
+        },
+        {
+          field: "attribute",
+          key: "connectivity",
+          value: "kablolu",
+          canonical: "wired",
+          strength: "preferred",
+          source: "inferred",
+          mode: "R",
+          reason: "inferred",
+        },
+      ],
+      role: "part",
+      budget: null,
+      ambiguous: [],
+      clarification: null,
+      downgraded: false,
+      confidence: "high",
+    } as unknown as Parameters<typeof withIntentSignals>[1];
+    const merged = withIntentSignals(check, intent);
+    expect([...merged.negated]).toEqual(expect.arrayContaining(["wireless", "bluetooth"]));
+    // cikarimla gelen 'kablolu' kural olmaz: karsiti (wireless) reddedilmez listesine EKLENMEZ
+    expect(merged.opposite.has("wired")).toBe(false);
+    expect(merged.accessoryGuard).toBe(false);
+    expect(rejectReason("Wireless Gaming Keyboard RGB", merged)).toBe("negated");
+  });
+});
+
+describe("yardimci (dogrulanmis yazim) lexical sonuclari — E4b C+ v3", () => {
+  const check = buildCandidateCheck("kablolu klavye", LEXICON);
+  const raw = [
+    text(1, "Wired USB Keyboard Office"),
+    text(2, "Wired Gaming Keyboard RGB"),
+    text(3, "Kablolu Klavye Türkçe Q"),
+    text(4, "Wired Keyboard Slim", "close"),
+  ];
+  const cands = [
+    cand(10, "USB Wired Mechanical Keyboard", 0.62),
+    cand(11, "Wired Keyboard Mouse Set", 0.6),
+  ];
+
+  it("verilmezse sonuc birebir aynidir", () => {
+    expect(conditionalHybrid(raw, cands, check, BGE_M3_HYBRID_POLICY, [])).toEqual(
+      conditionalHybrid(raw, cands, check),
+    );
+  });
+
+  it("hicbir ham lexical sonucun onune gecmez; ham sira ve guclu lexical karari degismez", () => {
+    const aux = [
+      text(20, "Kablolu Oyuncu Klavyesi", "exact", 0.9),
+      text(21, "Kablolu Klavye Mouse Seti", "exact", 0.9),
+    ];
+    const base = conditionalHybrid(raw, cands, check);
+    const res = conditionalHybrid(raw, cands, check, BGE_M3_HYBRID_POLICY, aux);
+    expect(res.mode).toBe(base.mode);
+    const ids = res.ranked.map((e) => e.productId);
+    const lastRaw = Math.max(...raw.map((r) => ids.indexOf(r.productId)));
+    expect(ids.indexOf(20)).toBeGreaterThan(lastRaw);
+    expect(ids.indexOf(21)).toBeGreaterThan(lastRaw);
+    expect(res.ranked.find((e) => e.productId === 20)?.source).toBe("auxiliary");
+    expect(ids.filter((id) => id <= 4)).toEqual(
+      base.ranked.map((e) => e.productId).filter((id) => id <= 4),
+    );
+  });
+
+  it("aday temizliginden gecmeyen yardimci urun alinmaz (karsit ozellik, gurultu)", () => {
+    const aux = [text(30, "Wireless Bluetooth Keyboard"), text(31, "price difference link")];
+    const res = conditionalHybrid(raw, cands, check, BGE_M3_HYBRID_POLICY, aux);
+    expect(res.ranked.map((e) => e.productId)).not.toContain(30);
+    expect(res.ranked.map((e) => e.productId)).not.toContain(31);
+  });
+
+  it("ham lexical bosken ana liste bos kalir; yardimcilar onerilerin arkasina eklenir", () => {
+    const res = conditionalHybrid([], cands, check, BGE_M3_HYBRID_POLICY, [
+      text(40, "Kablolu Klavye Türkçe Q Layout"),
+    ]);
+    expect(res.mode).toBe("suggestions_only");
+    expect(res.ranked).toEqual([]);
+    expect(res.suggestions.at(-1)?.productId).toBe(40);
   });
 });

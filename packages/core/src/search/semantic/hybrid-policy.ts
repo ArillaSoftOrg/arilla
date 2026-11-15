@@ -19,9 +19,11 @@
  *   lexical sonucu asagi tasir; lexical sonuc kumesini daraltmaz.
  */
 import { ATTRIBUTE_VALUES, oppositeOf } from "../../intent/antonyms.ts";
+import type { ValidatedIntentV2 } from "../../intent/validate.ts";
 import type { LexiconEntry } from "../lexicon.ts";
 import { foldForMatch } from "../text-match.ts";
 import { looksLikeAccessory, queryWantsAccessory } from "./accessory-guard.ts";
+import { requiredTypePattern } from "./product-type.ts";
 
 export type LexicalTier = "exact" | "close" | "related" | null;
 
@@ -73,6 +75,21 @@ export interface HybridPolicy {
    * `fuseForQuery` ile ayni deger, 0,3; silinmez, asagi tasinir).
    */
   accessoryTextFactor: number;
+  /**
+   * Lexical guveni (E4-b): sorgunun bas isim turu biliniyorsa (`product-type.ts`, mevcut kapali
+   * tablo) lexical sonuclarin en az bu orani o ture uymali; yoksa lexical "guclu" sayilmaz.
+   * null: kullanilmaz.
+   */
+  minLexTypeShare: number | null;
+  /** Ture uymayan LEXICAL sonucun carpani (silinmez; 1 = kapali). */
+  lexTypeMismatchFactor: number;
+  /** Sorgudaki model/teknik kodu tasimayan LEXICAL sonucun carpani (1 = kapali). */
+  lexSpecMissingFactor: number;
+  /**
+   * Lexical ve anlamsal listede ortak urun sayisi bu degere ulasirsa lexical, eslesme duzeyinden
+   * bagimsiz "guclu" sayilir (iki bagimsiz yontemin uyumu). null: kullanilmaz.
+   */
+  strongMinAgreement: number | null;
   rrfK: number;
 }
 
@@ -91,6 +108,10 @@ export const BGE_M3_HYBRID_POLICY: HybridPolicy = {
   emptyMinTop: null,
   negatedTextFactor: 0.2,
   accessoryTextFactor: 0.3,
+  minLexTypeShare: null,
+  lexTypeMismatchFactor: 1,
+  lexSpecMissingFactor: 1,
+  strongMinAgreement: null,
   rrfK: 60,
 };
 
@@ -111,7 +132,8 @@ export type RejectReason =
 export interface HybridEntry {
   productId: number;
   title: string;
-  source: "text" | "semantic" | "both";
+  /** `auxiliary`: dogrulanmis yardimci sorgunun lexical sonucu (ham metnin degil). */
+  source: "text" | "semantic" | "both" | "auxiliary";
   score: number;
   similarity: number | null;
 }
@@ -213,6 +235,8 @@ export interface CandidateCheck {
   opposite: ReadonlySet<string>;
   /** Sorgu aksesuar istemiyor: aksesuar gorunumlu anlamsal aday eklenmez (mevcut koruma). */
   accessoryGuard: boolean;
+  /** Sorgunun bas isim turu (mevcut kapali tablo); basliga uygulanan regex govdesi ya da null. */
+  typePattern: string | null;
 }
 
 export function buildCandidateCheck(
@@ -225,6 +249,42 @@ export function buildCandidateCheck(
     negated,
     opposite: oppositeTerms(queryText, negated),
     accessoryGuard: !queryWantsAccessory(queryText),
+    typePattern: requiredTypePattern(queryText),
+  };
+}
+
+/**
+ * Dogrulanmis IntentV2 yorumundan (validate.ts) YALNIZ ham sorguda kaniti olan (`source:
+ * "explicit"`) sinyalleri ekler; modelin beyani ya da cikarimi kural olmaz:
+ * - `excluded` kapali oznitelik -> olumsuzlanan terimler (ornek kablosuz -> wireless, bluetooth);
+ * - `required`/`preferred` kapali oznitelik -> karsitinin terimleri reddedilir;
+ * - rol `accessory`/`part` -> aksesuar korumasi kapanir (kullanici parca/aksesuar istiyor).
+ * Kategori ve bas isim burada KULLANILMAZ: kategori kaynagi sozlesmesi (karar 0190) degismez.
+ */
+export function withIntentSignals(
+  check: CandidateCheck,
+  intent: ValidatedIntentV2,
+): CandidateCheck {
+  const negated = new Set(check.negated);
+  const opposite = new Set(check.opposite);
+  for (const c of intent.criteria) {
+    if (c.field !== "attribute" || c.source !== "explicit" || !c.canonical) continue;
+    const def = ATTRIBUTE_VALUES.find((d) => d.id === c.canonical && (!c.key || d.key === c.key));
+    if (!def) continue;
+    if (c.strength === "excluded") {
+      for (const t of def.terms) negated.add(foldForMatch(t));
+    } else if (c.strength === "required" || c.strength === "preferred") {
+      const other = oppositeOf(def);
+      if (other) for (const t of other.terms) opposite.add(foldForMatch(t));
+    }
+  }
+  for (const t of negated) opposite.delete(t);
+  const roleIsPart = intent.role === "accessory" || intent.role === "part";
+  return {
+    ...check,
+    negated,
+    opposite,
+    accessoryGuard: check.accessoryGuard && !roleIsPart,
   };
 }
 
@@ -243,6 +303,14 @@ export function rejectReason(title: string, check: CandidateCheck): RejectReason
 
 // --- siralama -----------------------------------------------------------------------------
 
+function safeRegex(body: string): RegExp | null {
+  try {
+    return new RegExp(body);
+  } catch {
+    return null;
+  }
+}
+
 function median(values: number[]): number | null {
   if (values.length === 0) return null;
   const s = [...values].sort((a, b) => a - b);
@@ -250,11 +318,65 @@ function median(values: number[]): number | null {
   return s.length % 2 ? (s[mid] ?? null) : ((s[mid - 1] ?? 0) + (s[mid] ?? 0)) / 2;
 }
 
+/**
+ * `auxiliaryText` (E4b C+): dogrulanmis yardimci sorgularin (baska dilde yazim) lexical sonuclari.
+ * Kullanicinin kendi metni DEGILDIR; bu yuzden:
+ * - guclu lexical karari, kosinus ortancasi, tur/teknik denetimleri YALNIZ ham `text` uzerinden yapilir;
+ * - her yardimci urun ham lexical sonuclarin hepsinin ARKASINA eklenir (hicbirinin onune gecemez);
+ * - aday temizliginden (`rejectReason`) gecmeyen yardimci urun alinmaz;
+ * - kesin filtreye donusmez; verilmezse sonuc onceki davranisla birebir aynidir.
+ */
 export function conditionalHybrid(
   text: readonly PolicyTextItem[],
   candidates: readonly PolicyCandidate[],
   check: CandidateCheck,
   policy: HybridPolicy = BGE_M3_HYBRID_POLICY,
+  auxiliaryText: readonly PolicyTextItem[] = [],
+): HybridResult {
+  const res = rawHybrid(text, candidates, check, policy);
+  if (auxiliaryText.length === 0) return res;
+  const present = new Set([
+    ...text.map((t) => t.productId),
+    ...res.ranked.map((e) => e.productId),
+    ...res.suggestions.map((c) => c.productId),
+  ]);
+  const auxiliary = dedupe(auxiliaryText).filter(
+    (t) => !present.has(t.productId) && rejectReason(t.title, check) === null,
+  );
+  if (auxiliary.length === 0) return res;
+  if (res.ranked.length === 0) {
+    // Ham lexical bos: ana liste bos kalir (mevcut kural); yardimcilar onerilerin ARKASINA.
+    const extra = auxiliary.map((t) => ({
+      productId: t.productId,
+      title: t.title,
+      similarity: t.similarity ?? 0,
+    }));
+    return { ...res, suggestions: [...res.suggestions, ...extra] };
+  }
+  // Son ham lexical sonucun hemen arkasina: hicbir ham lexical sonucun onune gecmez; ondan sonra
+  // gelen anlamsal-yalniz urunler bir asagi kayar.
+  let lastText = -1;
+  res.ranked.forEach((e, i) => {
+    if (e.source !== "semantic") lastText = i;
+  });
+  const head = res.ranked.slice(0, lastText + 1);
+  const tail = res.ranked.slice(lastText + 1);
+  const floor = head.at(-1)?.score ?? 0;
+  const inserted: HybridEntry[] = auxiliary.map((t, i) => ({
+    productId: t.productId,
+    title: t.title,
+    source: "auxiliary",
+    score: floor * (1 - (i + 1) * 1e-6),
+    similarity: t.similarity,
+  }));
+  return { ...res, ranked: [...head, ...inserted, ...tail] };
+}
+
+function rawHybrid(
+  text: readonly PolicyTextItem[],
+  candidates: readonly PolicyCandidate[],
+  check: CandidateCheck,
+  policy: HybridPolicy,
 ): HybridResult {
   const textIds = new Set(text.map((t) => t.productId));
   const rejected: Partial<Record<RejectReason, number>> = {};
@@ -304,9 +426,18 @@ export function conditionalHybrid(
   const negatedText = (t: PolicyTextItem) =>
     [...check.negated].some((n) => containsPhrase(foldForMatch(t.title), n));
   const accessoryText = (t: PolicyTextItem) => check.accessoryGuard && looksLikeAccessory(t.title);
+  const typeRe = check.typePattern ? safeRegex(check.typePattern) : null;
+  const typeOk = (t: PolicyTextItem) => typeRe === null || typeRe.test(foldForMatch(t.title));
+  const specOk = (t: PolicyTextItem) => {
+    if (check.specs.length === 0) return true;
+    const flat = compact(t.title);
+    return check.specs.every((s) => flat.includes(s));
+  };
   const textFactor = (t: PolicyTextItem) =>
     (negatedText(t) ? policy.negatedTextFactor : 1) *
-    (accessoryText(t) ? policy.accessoryTextFactor : 1);
+    (accessoryText(t) ? policy.accessoryTextFactor : 1) *
+    (typeOk(t) ? 1 : policy.lexTypeMismatchFactor) *
+    (specOk(t) ? 1 : policy.lexSpecMissingFactor);
   // Olumsuzlanan ozelligi ya da aksesuar gorunumu olan lexical sonuc silinmez, asagi tasinir.
   const orderedText = [
     ...text.filter((t) => textFactor(t) === 1),
@@ -320,7 +451,14 @@ export function conditionalHybrid(
     policy.strongMaxGapToDense === null ||
     best === undefined ||
     (lexMedianAll !== null && lexMedianAll >= best - policy.strongMaxGapToDense);
-  const strong = exactCount >= policy.strongMinExact && nearDense;
+  const typeShare =
+    typeRe === null || text.length === 0 ? null : text.filter(typeOk).length / text.length;
+  const typeConsistent =
+    policy.minLexTypeShare === null || typeShare === null || typeShare >= policy.minLexTypeShare;
+  const agreement = text.filter((t) => confirmations.has(t.productId)).length;
+  const strong =
+    (exactCount >= policy.strongMinExact && nearDense && typeConsistent) ||
+    (policy.strongMinAgreement !== null && agreement >= policy.strongMinAgreement);
 
   if (strong) {
     const keep = orderedText.slice(0, policy.strongKeep);
@@ -346,6 +484,11 @@ export function conditionalHybrid(
     suggestions: [],
     rejected,
   };
+}
+
+function dedupe(items: readonly PolicyTextItem[]): PolicyTextItem[] {
+  const seen = new Set<number>();
+  return items.filter((t) => !seen.has(t.productId) && Boolean(seen.add(t.productId)));
 }
 
 function rrf(
