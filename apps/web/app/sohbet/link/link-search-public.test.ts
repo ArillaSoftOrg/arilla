@@ -59,9 +59,9 @@ describe("link araması açık", () => {
     expect(loading.type).not.toBe(LinkSearchComingSoon);
   });
 
-  it("adres yoksa arama turuna (/sohbet) yönlenir; arka uca gidilmez", async () => {
+  it("adres yoksa ana sayfaya (/) yönlenir; arka uca gidilmez", async () => {
     const page = (await import("./page.tsx")).default;
-    await expect(page({ searchParams: Promise.resolve({}) })).rejects.toThrow("redirect:/sohbet");
+    await expect(page({ searchParams: Promise.resolve({}) })).rejects.toThrow("redirect:/");
     expect(access.calls).toBe(1);
     expect(backend.getLinkSearchState).not.toHaveBeenCalled();
   });

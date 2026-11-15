@@ -1,18 +1,9 @@
-import { isChatDiscoveryEnabled } from "@arilla/core";
-import { notFound } from "next/navigation";
-import { requireProductUser } from "../../lib/dal.ts";
-import { ChatBootstrap } from "../chat-bootstrap-client.tsx";
-
-/** `startChatBootstrapAction` yanit sonrasi `after()` ile ilk turu calistirir; sure bu rotaya baglidir. */
-export const maxDuration = 60;
+import { redirect } from "next/navigation";
 
 /**
- * `/sohbet/yeni`: ana sayfadan acilan sekmenin ILK gorunen icerigi (about:blank
- * degil). Gercek sohbet kabugunu cizer, kullanici mesajini iyimser gosterir,
- * sohbeti olusturup bu girisi `/sohbet/[id]` ile degistirir (history girisi yok).
+ * Eski "yeni sekmede sohbet" kabuğu (karar 0091, 0204'te kaldırıldı): ana sayfa mesajı aynı
+ * sekmede gönderir. Eski sekme/yer imi ana sayfaya düşer.
  */
-export default async function NewChatPage() {
-  await requireProductUser();
-  if (!isChatDiscoveryEnabled()) notFound();
-  return <ChatBootstrap />;
+export default function LegacyNewChatPage() {
+  redirect("/");
 }

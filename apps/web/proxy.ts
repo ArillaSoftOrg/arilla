@@ -100,9 +100,13 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.next({ request: { headers: forwarded } });
   }
 
+  // Karar 0204: ana sayfada acilan sohbet/arama turu (`/?s=`, `/?q=`) bakim ilkesinde eski `/sohbet`
+  // yuzeyi sayilir; parametresiz `/` degismez.
+  const chatSurface = pathname === "/" && (searchParams.has("q") || searchParams.has("s"));
+  const policyPath = chatSurface ? "/sohbet" : pathname;
   if (!bypassMaintenance(pathname)) {
     const status = await readSystemStatus();
-    if (status && isBlocked(status, pathname)) {
+    if (status && isBlocked(status, policyPath)) {
       // RSC and action responses must not be mistaken for an HTML payload.
       if (
         request.method !== "GET" ||
@@ -132,7 +136,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
     return NextResponse.redirect(new URL("/", request.url));
   }
 
-  if (pathname === "/sohbet") {
+  if (pathname === "/" || pathname === "/sohbet") {
     const q = searchParams.get("q");
     if (q && isLinkSearchInput(q)) {
       return NextResponse.redirect(new URL(canonicalLinkSearchHref(q), request.url));
@@ -161,7 +165,7 @@ export async function proxy(request: NextRequest): Promise<NextResponse> {
 
   // Eksik ya da kanonik UUID olmayan değer yenisiyle değiştirilir.
   if (
-    pathname.startsWith("/sohbet") &&
+    (pathname.startsWith("/sohbet") || chatSurface) &&
     !validAnonymousSessionId(request.cookies.get(ANONYMOUS_SESSION_COOKIE)?.value)
   ) {
     const response = NextResponse.next();

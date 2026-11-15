@@ -141,6 +141,18 @@ export function sanitizeUtmValue(value: string): string | null {
   return trimmed;
 }
 
+/**
+ * Ana sayfa + sohbet tek yüzey (karar 0204): `/` üzerindeki sohbet durumu adreste `s`/`q` ile taşınır.
+ * Ölçüme yalnızca sabit şablon gider: `/?s=<id>` -> `/sohbet/[id]`, `/?q=...` -> `/sohbet`. Parametrenin
+ * DEĞERİ (konuşma kimliği, sorgu metni) hiçbir yoldan çıkmaz; yalnızca varlığına bakılır.
+ */
+export function homeChatSurfacePath(path: string, params: URLSearchParams): string | null {
+  if (path !== "/") return null;
+  if (params.has("s")) return "/sohbet/[id]";
+  if (params.has("q") && (params.get("q") ?? "").trim() !== "") return "/sohbet";
+  return null;
+}
+
 export interface SanitizedPage {
   /** GA4'ün `page_location`'ı: köken + arındırılmış yol + yalnızca güvenli UTM. */
   location: string;
@@ -158,8 +170,9 @@ export function sanitizePage(href: string, origin: string): SanitizedPage | null
     return null;
   }
   if (url.origin !== new URL(origin).origin) return null;
-  const path = sanitizePagePath(url.pathname);
-  if (path === null) return null;
+  const basePath = sanitizePagePath(url.pathname);
+  if (basePath === null) return null;
+  const path = homeChatSurfacePath(basePath, url.searchParams) ?? basePath;
   const kept = new URLSearchParams();
   for (const name of UTM_PARAMS) {
     const value = url.searchParams.get(name);

@@ -174,6 +174,9 @@ export function securityHeaderRoutes(options: SecurityHeaderOptions) {
     { source: "/yonetim/:path*", headers: adminHeaders(options) },
     { source: COLLECTION_PAGE_PATH, headers: collectionHeaders(options) },
     { source: "/giris/:path*", headers: PRIVATE_EXTRA_HEADERS },
+    // Karar 0204: ana sayfada acilan ozel konusma (`/?s=`) ve arama turu (`/?q=`) dizinlenmez.
+    { source: "/", has: [{ type: "query" as const, key: "s" }], headers: PRIVATE_EXTRA_HEADERS },
+    { source: "/", has: [{ type: "query" as const, key: "q" }], headers: PRIVATE_EXTRA_HEADERS },
     { source: "/sohbet", headers: PRIVATE_EXTRA_HEADERS },
     { source: "/sohbet/:path*", headers: PRIVATE_EXTRA_HEADERS },
     { source: "/hesap", headers: PRIVATE_EXTRA_HEADERS },

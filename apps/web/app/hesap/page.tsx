@@ -15,7 +15,7 @@ export const metadata: Metadata = {
 };
 
 /** Ürün aramasının gerçek giriş rotası (`apps/web/app/ara`): metin kutusu + fotoğraf/bağlantı eylemleri. */
-const NEW_SEARCH_HREF = "/sohbet";
+const NEW_SEARCH_HREF = "/";
 const RECENTS_LIMIT = 8;
 
 /**

@@ -20,10 +20,10 @@ export function GuestComposer({
     event?.preventDefault();
     const text = draft.trim().slice(0, CHAT_MESSAGE_MAX);
     if (locked || !text) return;
-    const params = new URLSearchParams({ q: query });
+    const params = new URLSearchParams({ q: query, g: "1" });
     for (const step of steps) params.append("n", step);
     params.append("n", `t~${text}`);
-    router.push(`/sohbet/misafir?${params.toString()}`);
+    router.push(`/?${params.toString()}`);
   }
 
   function onKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {

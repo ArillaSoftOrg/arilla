@@ -236,7 +236,7 @@ describe("mod", () => {
     const page = await HomePage();
     expect(typeName(page)).not.toBe("ComingSoonLanding");
     const { generateMetadata } = await import("./page.tsx");
-    expect(generateMetadata()).toEqual({ alternates: { canonical: "/" } });
+    expect(await generateMetadata()).toEqual({ alternates: { canonical: "/" } });
   });
 
   it("bayrak kapalı kalmak için ayar istemez; bilinmeyen değer de kapalıdır", async () => {
@@ -305,7 +305,7 @@ describe("landing içeriği", () => {
 
   it("kök metadata: yakında başlığı, kanonik /", async () => {
     const { generateMetadata } = await import("./page.tsx");
-    const meta = generateMetadata();
+    const meta = await generateMetadata();
     expect(meta.title).toBe("ManiCepte – Yakında");
     expect(meta.alternates?.canonical).toBe("/");
     expect(String(meta.description)).toContain("Erken erişim listesine katıl");

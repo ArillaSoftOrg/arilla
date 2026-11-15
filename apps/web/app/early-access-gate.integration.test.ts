@@ -159,31 +159,16 @@ afterAll(async () => {
 const PRODUCT_PAGES: { name: string; call: () => Promise<unknown> }[] = [
   { name: "/kesfet", call: async () => (await import("./kesfet/page.tsx")).default() },
   { name: "/firsatlar", call: async () => (await import("./firsatlar/page.tsx")).default() },
-  {
-    // Karar 0176: tek arama yuzeyi (eski /ara).
-    name: "/sohbet",
-    call: async () =>
-      (await import("./sohbet/page.tsx")).default({ searchParams: Promise.resolve({}) }),
-  },
+  // Karar 0204: arama turu/sohbet ana sayfada (`/?q=`, `/?s=`); urun kapaliyken `/` landing'dir
+  // (yonlendirme degil), `/sohbet` koku yoktur. Landing davranisi coming-soon.integration.test.ts'te.
   {
     name: "/sohbet/link",
     call: async () =>
-      (await import("./sohbet/link/page.tsx")).default({ searchParams: Promise.resolve({}) }),
+      (await import("./sohbet/link/page.tsx")).default({
+        searchParams: Promise.resolve({ url: "https://magaza.example/u" }),
+      }),
   },
-  {
-    // Misafir sohbet (bayrak acik): urun kapisi diger /sohbet sayfalari gibi uygulanir.
-    name: "/sohbet/misafir",
-    call: async () => {
-      vi.stubEnv("CHAT_DISCOVERY_ENABLED", "true");
-      try {
-        return await (await import("./sohbet/misafir/page.tsx")).default({
-          searchParams: Promise.resolve({ q: "kulaklik" }),
-        });
-      } finally {
-        vi.unstubAllEnvs();
-      }
-    },
-  },
+  // Misafir sohbeti (`/?q=&g=1`, karar 0204) ana sayfa kapisindan gecer; `/sohbet/misafir` yalniz yonlendirmedir.
   {
     name: "/urun/[slug] meta",
     call: async () =>

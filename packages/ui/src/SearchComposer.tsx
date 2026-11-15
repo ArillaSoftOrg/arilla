@@ -157,7 +157,7 @@ export interface SearchComposerProps {
  * girdi odaginda kutu `--focus-ring` tasir (girdinin kendi outline'i yok).
  */
 export function SearchComposer({
-  action = "/sohbet",
+  action = "/",
   name = "q",
   defaultValue,
   placeholder,

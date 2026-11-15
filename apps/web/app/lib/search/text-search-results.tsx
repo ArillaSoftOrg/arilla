@@ -276,7 +276,7 @@ export async function TextSearchResults({
             intro="Hangisini arıyorsun?"
             candidates={candidateCategories.map((id) => ({
               label: `Kategori ${id}`,
-              href: `/sohbet?q=${encodeURIComponent(query)}&kategori=${id}`,
+              href: `/?q=${encodeURIComponent(query)}&kategori=${id}`,
             }))}
             otherLabel="Başka bir şey"
             otherPlaceholder="Ne arıyorsun?"

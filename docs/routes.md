@@ -29,7 +29,7 @@ Duvar rotaya göre değişir. Genel bir kural değil, rota bazlı bir politikad�
 | --- | --- |
 | `/urun/`, `/kategori/`, `/alternatif/`, `/trend/`, `/trendler`, `/firsatlar` | **Yok.** Arama motorundan gelinen sayfalar |
 | `/@handle` ve creator koleksiyonları | **Yok.** Büyüme döngüsünün ilk halkası |
-| `/sohbet` — arama turu, sohbet ve görsel (karar 0176; `/ara` 308 ile buraya) | **Var.** İlk 2-3 sorgu serbest, sonrasında modal |
+| `/?q=`, `/?s=` — arama turu ve sohbet ana sayfada (karar 0176, 0204; `/ara` 308 ile `/`; `/sohbet` 404) | **Var.** İlk 2-3 sorgu serbest, sonrasında modal |
 | Kaydetme, alarm, geçmiş, beden profili | **Var.** Zaten hesap gerektiren şeyler |
 
 Modal sonuçların üstüne gelir, sonuçlar arkada durur. İçerik HTML'de kaldığı
@@ -47,9 +47,10 @@ Modal metni kaydolmayı engel değil kazanç olarak sunar: "Hesabın yok mu?
 
 ```
 /                          Ana sayfa. Arama kutusu + görsel yükleme.
-/sohbet?q=...              Arama turu (karar 0176; eski /ara?q= 308). Netleştirme çubuğu burada.
+/?q=...                    Arama turu (karar 0176, 0204; eski /ara?q= ve /sohbet?q=). Netleştirme çubuğu burada.
 /ara/gorsel                Eski görsel arama sonucu; karar 0091: kalıcı olarak `/`ye yönlendirilir (görsel artık sohbet mesajının ekidir)
-/sohbet/[id]              Konuşmalı keşif (karar 0074). Giriş gerekli, noindex; CHAT_DISCOVERY_ENABLED kapalıyken 404; CHAT_LINK_ENABLED ile mesajdaki ürün linki sohbette çözülür (karar 0090)
+/?q=...&g=1[&n=..]        Misafir sohbeti (girişsiz ana sayfa gönderimi, karar 0204; /sohbet/misafir 308 ile buraya). noindex
+/?s=<id>                  Konuşmalı keşif (karar 0074, 0204; /sohbet/<id> 308 ile buraya). Giriş gerekli, noindex; CHAT_DISCOVERY_ENABLED kapalıyken 404; CHAT_LINK_ENABLED ile mesajdaki ürün linki sohbette çözülür (karar 0090)
 /urun/<slug>               Ürün sayfası: karşılaştırma, fiyat geçmişi, alternatifler
 /git/<clickId>             Merchant'a çıkış. 302. Attribution burada yazılır.
 ```
@@ -253,7 +254,7 @@ iyileştirir, sürüm çıkmaya gerek kalmaz.
 
 Önek yalnızca bir **kısayoldur** (docs/decisions/0035): dış adres geri
 kurulur ve kanonik link araması adresine yönlendirilir. Arama kutusuna
-yapıştırılan link (`/sohbet?q=https://...` (eski `/ara?q=`) ya da ana sayfa kutusunun kodlu
+yapıştırılan link (`/?q=https://...` (eski `/ara?q=`) ya da ana sayfa kutusunun kodlu
 `/https%3A%2F%2F...` biçimi) de aynı adrese gelir:
 
 ```
