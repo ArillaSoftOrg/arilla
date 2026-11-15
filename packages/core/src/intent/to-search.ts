@@ -18,8 +18,9 @@
  * (dogrulayici onu `compatible_with` alaninda tutar).
  */
 
-import { foldForMatch } from "../search/text-match.ts";
+import { foldForMatch, matchTokens } from "../search/text-match.ts";
 import type { QueryFilters, QueryObject } from "../search/types.ts";
+import { type AlternativeTerm, mergeAlternativeTerms } from "./alternative-terms.ts";
 import type { IntentRole } from "./contract.ts";
 import type { Criterion, ValidatedIntentV2 } from "./validate.ts";
 
@@ -38,6 +39,11 @@ export interface RankHints {
   excluded: string[];
   /** Duzeltmeden kabul edilen (R) marka; filtre degil. */
   brands: string[];
+  /**
+   * Karar 0208: dogrulanmis alternatif arama terimleri. YALNIZ metin kapisinin slotlarina es
+   * anlamli olarak eklenir (`applyIntentPlan`); siralama/vektor/filtre girdisi degildir.
+   */
+  altTerms?: AlternativeTerm[];
 }
 
 export interface IntentSearchPlan {
@@ -62,6 +68,7 @@ export function toSearchPlan(intent: ValidatedIntentV2): IntentSearchPlan {
     preferred: [],
     excluded: [],
     brands: [],
+    altTerms: intent.downgraded ? [] : intent.alternativeTerms,
   };
   const display: Criterion[] = [];
 
@@ -159,9 +166,21 @@ export function applyIntentPlan(base: QueryObject, plan: IntentSearchPlan): Quer
     ]);
   }
   const role = plan.hints.role;
-  return role === null
-    ? { ...base, filters: merged }
-    : { ...base, filters: merged, product_role: role };
+  const withRole: QueryObject =
+    role === null ? { ...base, filters: merged } : { ...base, filters: merged, product_role: role };
+  return withAlternativeTerms(withRole, plan.hints.altTerms ?? []);
+}
+
+/**
+ * Karar 0208: alternatif terimleri mevcut slotlara es anlamli ekler; orijinal alternatifler ve
+ * slot sirasi aynen kalir. Eklenecek terim yoksa sorgu nesnesi AYNEN doner.
+ */
+function withAlternativeTerms(query: QueryObject, terms: readonly AlternativeTerm[]): QueryObject {
+  if (terms.length === 0) return query;
+  const slots = query.text_slots ?? matchTokens(query.unparsed).map((token) => [token]);
+  if (slots.length === 0) return query;
+  const merged = mergeAlternativeTerms(slots, terms);
+  return merged.added.length === 0 ? query : { ...query, text_slots: merged.slots };
 }
 
 /** Uyumluluk kademesi (§4.3): 1 ust, 2 genel, 3 baska model. Dislama yok. */

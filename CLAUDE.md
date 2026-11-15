@@ -42,6 +42,10 @@ tamamı anlamını yitirir.
      açıkken, metin süzgecinden geçen sorgu için, kısa zaman aşımıyla, günlük
      tavanla; sonuç `query_interpretation`'a yazılır ve yeniden kullanılır,
      hata deterministik aramaya düşer, model ürün/fiyat üretmez.
+     Karar 0208 (`QUERY_INTENT_V2_ALT_TERMS`, varsayılan kapalı): aynı tek IntentV2 çağrısının
+     şemasına en fazla 3 doğrulanmış alternatif arama terimi eklenir (ek çağrı yok); yalnız
+     metin kapısının slotlarına eş anlamlı olarak girer, sıralamaya/vektöre/filtreye karışmaz,
+     orijinal sorgu aynen kalır, hata ya da eksik alanda eski davranış.
    - Konuşmalı keşif (`/sohbet`, karar 0074): oturumlu kullanıcının kendi mesajı
      başına tek Gemini çağrısı; `ChatInterpreter` arkasında, katı şemalı,
      `CHAT_DISCOVERY_ENABLED=true` bayrağıyla (varsayılan kapalı), her çağrı
