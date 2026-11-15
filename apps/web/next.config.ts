@@ -71,11 +71,11 @@ const nextConfig: NextConfig = {
     return [
       { source: "/kullanim-kosullari", destination: "/kosullar", permanent: true },
       { source: "/cerez-politikasi", destination: "/cerez", permanent: true },
-      // Karar 0176: tek arama yuzeyi /sohbet. Sorgu parametreleri (q, sort, sayfa, n,
+      // Karar 0176, 0204: arama turu ana sayfada (`/?q=`). Sorgu parametreleri (q, sort, sayfa, n,
       // yanit, uyari, url) Next yonlendirmesinde aynen tasinir.
       { source: "/ara/gorsel", destination: "/", permanent: true },
       { source: "/ara/link", destination: "/sohbet/link", permanent: true },
-      { source: "/ara", destination: "/sohbet", permanent: true },
+      { source: "/ara", destination: "/", permanent: true },
     ];
   },
   // Karar 0050: CSP, çerçeveleme yasağı ve diğer güvenlik başlıkları tek merkezde.

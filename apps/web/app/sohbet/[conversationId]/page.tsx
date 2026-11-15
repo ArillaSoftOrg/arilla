@@ -1,68 +1,26 @@
-import {
-  hasChatImageConsent,
-  isChatDiscoveryEnabled,
-  isChatImageEnabled,
-  isChatUxV2Enabled,
-  loadConversation,
-} from "@arilla/core";
-import { getDatabase } from "@arilla/db";
-import { notFound } from "next/navigation";
-import { requireProductUser } from "../../lib/dal.ts";
-import { ChatInteractive } from "../chat-client.tsx";
-import { ChatThread } from "../chat-thread.tsx";
+import { isUuid } from "@arilla/core";
+import { notFound, permanentRedirect } from "next/navigation";
+import { homeConversationHref } from "../../home-chat-mode.ts";
 
 /**
- * Sayfadaki sunucu eylemlerinin (`runTurnAction`: model çağrısı, en çok 3 deneme
- * x 15 sn + bekleme) zaman aşımı. Bkz. docs/decisions/0059 istemci ayarları.
+ * Eski konuşma adresi (karar 0204): `/sohbet/<uuid>` -> `/?s=<uuid>` (308). Sıralama (`sirala`)
+ * ve açık kart (`ac`) parametreleri korunur. Konuşma ana sayfada çizilir; bu rota yalnız
+ * eski bağlantıları taşır. UUID olmayan değer 404.
  */
-export const maxDuration = 60;
-
-/**
- * `/sohbet/[conversationId]`: kullanıcının kendi sohbeti. Sahiplik sorguda
- * (`user_id`) denetlenir; başkasının ya da olmayan sohbet 404'tür (varlığı
- * sızdırılmaz). Özellik kapalıysa yine 404.
- */
-export default async function ConversationPage({
+export default async function LegacyConversationPage({
   params,
   searchParams,
 }: {
   params: Promise<{ conversationId: string }>;
   searchParams: Promise<{ sirala?: string; ac?: string }>;
 }) {
-  const user = await requireProductUser();
-  if (!isChatDiscoveryEnabled()) notFound();
-
   const { conversationId } = await params;
-  const view = await loadConversation(getDatabase(), { userId: user.id, conversationId });
-  if (!view) notFound();
-
-  const last = view.messages.at(-1);
-  // Yalnızca son mesaj açık soruysa etkileşimli kart gösterilir.
-  const question =
-    last?.role === "assistant" && last.kind === "clarify" ? view.pendingQuestion : null;
-  const lastUser = [...view.messages].reverse().find((m) => m.role === "user" && m.kind === "text");
-
+  if (!isUuid(conversationId)) notFound();
   const query = await searchParams;
-  const imageEnabled = isChatImageEnabled();
-  const imageConsent = imageEnabled && (await hasChatImageConsent(getDatabase(), user.id));
-
-  return (
-    <ChatInteractive
-      conversationId={view.id}
-      awaitingReply={view.awaitingReply}
-      imageEnabled={imageEnabled}
-      imageConsent={imageConsent}
-      question={question}
-      lastUserText={lastUser?.content ?? view.title}
-      lastSeq={last?.seq ?? 0}
-    >
-      <ChatThread
-        messages={view.messages}
-        conversationId={view.id}
-        sortParam={query.sirala}
-        uxV2={isChatUxV2Enabled()}
-        openParam={query.ac}
-      />
-    </ChatInteractive>
+  permanentRedirect(
+    homeConversationHref(conversationId, {
+      sirala: typeof query.sirala === "string" ? query.sirala : undefined,
+      ac: typeof query.ac === "string" ? query.ac : undefined,
+    }),
   );
 }

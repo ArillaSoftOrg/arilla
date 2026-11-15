@@ -36,6 +36,7 @@ import type { PublicError } from "@arilla/core/errors";
 import { getDatabase } from "@arilla/db";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
+import { homeConversationHref, homeSearchHref } from "../home-chat-mode.ts";
 import { actionError, errorFromLlmCode, SESSION_EXPIRED } from "../lib/action-error.ts";
 import { verifySession } from "../lib/dal.ts";
 
@@ -47,9 +48,9 @@ import { verifySession } from "../lib/dal.ts";
  * tasir: mesaj metni, model yaniti ya da hata ayrintisi istemciye donmez.
  */
 
-/** Kutudaki metni arama turuna (`/sohbet?q=`, karar 0176) cevirir: sohbet kapaliysa/yapilamiyorsa. */
+/** Kutudaki metni arama turuna (`/?q=`, karar 0176, 0204) cevirir: sohbet kapaliysa/yapilamiyorsa. */
 function plainSearchHref(text: string): string {
-  return text ? `/sohbet?${new URLSearchParams({ q: text }).toString()}` : "/";
+  return text ? homeSearchHref(text) : "/";
 }
 
 /** Anonim ana sayfa aramasi: sorguyu misafir sohbet kabugunda sonuc anina tasir. */
@@ -89,7 +90,7 @@ function implicitRequestKey(userId: number, text: string, now: number = Date.now
   return `auto-${digest.slice(0, 40)}`;
 }
 
-/** Ana sayfa kutusu: sohbet olusturur, ilk mesaji kaydeder, `/sohbet/[id]`ye yonlendirir. */
+/** Ana sayfa kutusu: sohbet olusturur, ilk mesaji kaydeder, ayni sayfada `/?s=<id>`ye gecer (karar 0204). */
 export async function startConversationAction(formData: FormData): Promise<void> {
   const raw = formData.get("q");
   const text = typeof raw === "string" ? raw.trim().slice(0, 500) : "";
@@ -112,7 +113,7 @@ export async function startConversationAction(formData: FormData): Promise<void>
   // Saatlik tavan ya da gecersiz girdi: kullanici yine de arayabilir (yapay zekasiz yol).
   if (created.status !== "created") redirect(plainSearchHref(text));
   scheduleInitialTurn(db, user.id, created.conversationId);
-  redirect(`/sohbet/${created.conversationId}`);
+  redirect(homeConversationHref(created.conversationId));
 }
 
 export type SendMessageStatus =
@@ -282,9 +283,9 @@ export async function getTurnStatusAction(
 }
 
 export type NewTabChatResult =
-  /** Sohbet olustu; yeni sekme `/sohbet/[id]`ye gider. */
+  /** Sohbet olustu; ana sayfa `/?s=<id>`ye gecer (karar 0204). */
   | { status: "created"; href: string }
-  /** Sohbet kullanilamiyor ya da tavan: yeni sekme arama turuna (`/sohbet?q=`, yapay zekasiz) gider. */
+  /** Sohbet kullanilamiyor ya da tavan: ana sayfa arama turuna (`/?q=`, yapay zekasiz) gider. */
   | { status: "fallback"; href: string }
   | { status: "error" }
   /**
@@ -402,7 +403,7 @@ export async function startChatBootstrapAction(input: unknown): Promise<NewTabCh
   }
   const { conversationId } = created;
   scheduleInitialTurn(db, user.id, conversationId);
-  return { status: "created", href: `/sohbet/${conversationId}` };
+  return { status: "created", href: homeConversationHref(conversationId) };
 }
 
 /**

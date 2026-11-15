@@ -1,14 +1,9 @@
-import { type AramaSearchParams, SearchPage } from "../lib/search/search-page.tsx";
+import { notFound } from "next/navigation";
 
 /**
- * Tek arama yuzeyi (karar 0176): `/sohbet?q=` "arama turu"dur - eski `/ara` akisinin
- * aynisi (0002 duvari, IntentV2, kademeli arama, siralama, sayfalama, internet aramasi).
- * Oturumlu takip konusmasi `/sohbet/[id]`'dedir; `/ara` adresleri buraya 308 ile yonlenir.
+ * `/sohbet` kök adresi yoktur (karar 0204): sohbet ve arama turu ana sayfada (`/?s=`, `/?q=`).
+ * `/sohbet/link`, `/sohbet/misafir` ve `/sohbet/gorsel/[id]` ayrı yüzeyler olarak kalır.
  */
-export default function SohbetSearchPage({
-  searchParams,
-}: {
-  searchParams: Promise<AramaSearchParams>;
-}) {
-  return SearchPage({ searchParams });
+export default function RemovedSohbetRoot() {
+  notFound();
 }

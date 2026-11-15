@@ -24,6 +24,9 @@ export default function robots(): MetadataRoute.Robots {
         "/hesap",
         "/ara",
         "/sohbet",
+        // Karar 0204: ana sayfada acilan ozel konusma ve arama turu taranmaz (parametresiz `/` taranir).
+        "/*?s=",
+        "/*?q=",
         "/kaydettiklerim",
         "/alarmlar",
         "/giris/",

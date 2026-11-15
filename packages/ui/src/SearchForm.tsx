@@ -2,7 +2,7 @@ import { Button } from "./Button.tsx";
 import styles from "./SearchForm.module.css";
 
 export interface SearchFormProps {
-  /** docs/routes.md: "/sohbet?q=..." (karar 0176) */
+  /** docs/routes.md: "/?q=..." (karar 0176, 0204) */
   action?: string;
   name?: string;
   defaultValue?: string;
@@ -20,7 +20,7 @@ export interface SearchFormProps {
  * kenarliksiz girdi ve notr birincil eylem.
  */
 export function SearchForm({
-  action = "/sohbet",
+  action = "/",
   name = "q",
   defaultValue,
   placeholder,

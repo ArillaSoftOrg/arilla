@@ -11,9 +11,11 @@ import {
   type TrendSummary,
   todaySlotDate,
 } from "@arilla/core";
+import { loginPathWithNext } from "@arilla/core/auth-redirect";
 import { getDatabase } from "@arilla/db";
 import { DiscoveryGrid, EmptyState, HomeHero, Section } from "@arilla/ui";
 import type { Metadata } from "next";
+import { notFound, redirect } from "next/navigation";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
 import { ComingSoonLanding } from "./coming-soon-landing.tsx";
 import { toDiscoveryItems } from "./discovery-adapter.ts";
@@ -23,6 +25,13 @@ import {
   homeCategoryOption,
   selectHomeCategoryImages,
 } from "./home-category-config.ts";
+import {
+  type HomeSearchParams,
+  homeConversationHref,
+  homeMode,
+  isPrivateHomeMode,
+} from "./home-chat-mode.ts";
+import transition from "./home-chat-transition.module.css";
 import { HOME_COPY } from "./home-copy.ts";
 import { homeSectionLinks } from "./home-footer-groups.ts";
 import { loadRecentProducts } from "./home-recent-products.ts";
@@ -30,9 +39,11 @@ import { HomeSearchComposer } from "./home-search-composer-client.tsx";
 import { HomeSectionHeading } from "./home-section-heading.tsx";
 import { verifySession } from "./lib/dal.ts";
 import { loadCachedEarlyAccessProgress } from "./lib/early-access-progress.ts";
-import { PublicSiteShell } from "./public-site-shell.tsx";
+import { type AramaSearchParams, SearchPage } from "./lib/search/search-page.tsx";
+import { PublicSiteShell, SubpageShell } from "./public-site-shell.tsx";
 import { SITE_BRAND } from "./site-config.ts";
 import { startConversationAction } from "./sohbet/actions.ts";
+import { ConversationView } from "./sohbet/conversation-view.tsx";
 import { TrendCardGrid } from "./trendler/trend-cards.tsx";
 import { TREND_COPY } from "./trendler/trend-copy.ts";
 
@@ -42,8 +53,20 @@ import { TREND_COPY } from "./trendler/trend-copy.ts";
  * kapalıyken (karar 0043) marka sayfası "yakında"dır; açılınca kök
  * layout'un varsayılanları kendiliğinden geri gelir.
  */
-export function generateMetadata(): Metadata {
+export async function generateMetadata({
+  searchParams = Promise.resolve({}),
+}: {
+  searchParams?: Promise<HomeSearchParams>;
+} = {}): Promise<Metadata> {
   if (isProductOpen()) {
+    // Karar 0204: `/?s=` (özel konuşma) ve `/?q=` (arama turu) dizinlenmez; kanonik adres her zaman `/`.
+    if (isPrivateHomeMode(homeMode(await searchParams, isChatDiscoveryEnabled()))) {
+      return {
+        title: "Sohbet",
+        robots: { index: false, follow: false },
+        alternates: { canonical: "/" },
+      };
+    }
     return { alternates: { canonical: "/" } };
   }
   return {
@@ -124,7 +147,18 @@ async function loadHomeTrends(): Promise<TrendSummary[]> {
   }
 }
 
-export default async function HomePage() {
+/**
+ * Sayfadaki sunucu eylemlerinin (`runTurnAction`: model çağrısı, en çok 3 deneme x 15 sn + bekleme)
+ * ve `startChatBootstrapAction`ın `after()` işinin zaman aşımı. Sohbet artık ana sayfada çalışır
+ * (karar 0204); eski `/sohbet/*` rotasındaki ayar buraya taşındı.
+ */
+export const maxDuration = 60;
+
+export default async function HomePage({
+  searchParams = Promise.resolve({}),
+}: {
+  searchParams?: Promise<HomeSearchParams>;
+} = {}) {
   const user = await verifySession();
   if (!canAccessProduct(user)) {
     // Lansman öncesi (karar 0043): yalnızca tanıtım. Keşif sorgusu, arama
@@ -138,6 +172,41 @@ export default async function HomePage() {
   }
 
   const chatEnabled = isChatDiscoveryEnabled();
+  const params = await searchParams;
+  const mode = homeMode(params, chatEnabled);
+  if (mode.kind === "not_found") notFound();
+  if (mode.kind === "conversation") {
+    // Konuşma özeldir: girişsiz ziyaretçi giriş sonrası aynı konuşmaya döner (`next` yalnız kendi yolumuz).
+    if (!user) {
+      redirect(
+        loginPathWithNext(
+          homeConversationHref(mode.conversationId, { sirala: mode.sirala, ac: mode.ac }),
+        ),
+      );
+    }
+    return (
+      <SubpageShell chrome="chat">
+        <div className={transition.enter}>
+          <ConversationView
+            userId={user.id}
+            conversationId={mode.conversationId}
+            sirala={mode.sirala}
+            ac={mode.ac}
+          />
+        </div>
+      </SubpageShell>
+    );
+  }
+  if (mode.kind === "search") {
+    // Arama turu (eski `/sohbet?q=`, karar 0176): aynı SearchPage, ana sayfada.
+    return (
+      <SubpageShell chrome="chat">
+        <div className={transition.enter}>
+          {await SearchPage({ searchParams: Promise.resolve(params as AramaSearchParams) })}
+        </div>
+      </SubpageShell>
+    );
+  }
   const imageFeatureEnabled = chatEnabled && isChatImageEnabled();
   // Misafir ilk ekranda fotoğraf girişini görebilmeli; tıklama mevcut giriş
   // kapısına gider. Oturumlu kullanıcıda dosya seçici yalnızca sunucu özelliği
@@ -182,7 +251,7 @@ export default async function HomePage() {
         <Section spacing="none" aria-labelledby="anasayfa-baslik" className={styles.hero}>
           <HomeSearchComposer
             startChat={chatEnabled ? startConversationAction : undefined}
-            chatInNewTab={chatEnabled && user !== null}
+            chatInNewTab={false}
             imageChat={imageChat}
             imageEntryAvailable={imageEntryAvailable}
             imageConsent={imageConsent}

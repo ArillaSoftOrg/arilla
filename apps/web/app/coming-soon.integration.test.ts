@@ -305,7 +305,7 @@ describe("landing içeriği", () => {
 
   it("kök metadata: yakında başlığı, kanonik /", async () => {
     const { generateMetadata } = await import("./page.tsx");
-    const meta = generateMetadata();
+    const meta = await generateMetadata();
     expect(meta.title).toBe("ManiCepte – Yakında");
     expect(meta.alternates?.canonical).toBe("/");
     expect(String(meta.description)).toContain("Erken erişim listesine katıl");

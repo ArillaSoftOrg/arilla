@@ -113,7 +113,7 @@ function aramaHref({
   if (sort && sort !== "balanced") params.set("sort", sort);
   if (page && page > 1) params.set("sayfa", String(page));
   if (notice) params.set("uyari", notice);
-  return `/sohbet?${params.toString()}${focus ? FOCUS_FRAGMENT : ""}`;
+  return `/?${params.toString()}${focus ? FOCUS_FRAGMENT : ""}`;
 }
 
 /**
@@ -177,7 +177,7 @@ function replyNotice(
       actions: [
         {
           label: "Yeni arama olarak kullan",
-          href: `/sohbet?${new URLSearchParams({ q: reply.text }).toString()}`,
+          href: `/?${new URLSearchParams({ q: reply.text }).toString()}`,
         },
         { label: "Değiştir", href: `#${inputId}` },
       ],
@@ -354,7 +354,7 @@ export async function SearchPage({ searchParams }: { searchParams: Promise<Arama
                 freeText={{
                   label: "Ya da kendi cümlenle yaz",
                   placeholder: "Kısaca yaz",
-                  action: `/sohbet${FOCUS_FRAGMENT}`,
+                  action: `/${FOCUS_FRAGMENT}`,
                   inputName: "yanit",
                   submitLabel: "Gönder",
                   hiddenFields: conversationFields,
@@ -396,7 +396,7 @@ export async function SearchPage({ searchParams }: { searchParams: Promise<Arama
                 label="Aramayı daralt"
                 placeholder="Ek tercih yaz"
                 submitLabel="Uygula"
-                action={`/sohbet${FOCUS_FRAGMENT}`}
+                action={`/${FOCUS_FRAGMENT}`}
                 inputName="yanit"
                 hiddenFields={conversationFields}
                 defaultValue={unrecognizedText}

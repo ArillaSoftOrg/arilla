@@ -159,12 +159,8 @@ afterAll(async () => {
 const PRODUCT_PAGES: { name: string; call: () => Promise<unknown> }[] = [
   { name: "/kesfet", call: async () => (await import("./kesfet/page.tsx")).default() },
   { name: "/firsatlar", call: async () => (await import("./firsatlar/page.tsx")).default() },
-  {
-    // Karar 0176: tek arama yuzeyi (eski /ara).
-    name: "/sohbet",
-    call: async () =>
-      (await import("./sohbet/page.tsx")).default({ searchParams: Promise.resolve({}) }),
-  },
+  // Karar 0204: arama turu/sohbet ana sayfada (`/?q=`, `/?s=`); urun kapaliyken `/` landing'dir
+  // (yonlendirme degil), `/sohbet` koku yoktur. Landing davranisi coming-soon.integration.test.ts'te.
   {
     name: "/sohbet/link",
     call: async () =>

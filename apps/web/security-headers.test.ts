@@ -234,3 +234,18 @@ describe("katalog toplama CSP'si (karar 0117)", () => {
     expect(csp("/yonetim/:path*")).not.toContain("hepsiburada");
   });
 });
+
+describe("ana sayfada sohbet/arama turu dizinlenmez (karar 0204)", () => {
+  it("/?s= ve /?q= icin X-Robots-Tag noindex; parametresiz / bu basligi almaz", () => {
+    const routes = securityHeaderRoutes(PROD);
+    const keyed = routes.filter(
+      (r) => r.source === "/" && "has" in r && (r as { has?: unknown[] }).has !== undefined,
+    );
+    const keys = keyed.map((r) => (r as { has: { key: string }[] }).has[0]?.key).sort();
+    expect(keys).toEqual(["q", "s"]);
+    for (const route of keyed) {
+      expect(route.headers).toContainEqual({ key: "X-Robots-Tag", value: "noindex, nofollow" });
+    }
+    expect(routes.filter((r) => r.source === "/" && !("has" in r))).toHaveLength(0);
+  });
+});

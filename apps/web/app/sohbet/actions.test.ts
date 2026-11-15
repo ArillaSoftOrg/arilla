@@ -59,7 +59,7 @@ beforeEach(() => {
 describe("startChatBootstrapAction", () => {
   it("sohbeti tek kez olusturur, kimligi hemen doner, ilk turu after() ile planlar", async () => {
     const result = await startChatBootstrapAction("beyaz sneaker");
-    expect(result).toEqual({ status: "created", href: `/sohbet/${ID}` });
+    expect(result).toEqual({ status: "created", href: `/?s=${ID}` });
     expect(mocks.createConversation).toHaveBeenCalledTimes(1);
     // Istemci anahtari yoksa cift gonderim korumasi icin ortuk anahtar eklenir.
     expect(mocks.createConversation).toHaveBeenCalledWith(
@@ -92,7 +92,7 @@ describe("startChatBootstrapAction", () => {
     });
     expect(await startChatBootstrapAction("merhaba")).toEqual({
       status: "created",
-      href: `/sohbet/${ID}`,
+      href: `/?s=${ID}`,
     });
     expect(mocks.after).not.toHaveBeenCalled();
   });
@@ -103,11 +103,11 @@ describe("startChatBootstrapAction", () => {
     expect(mocks.after).not.toHaveBeenCalled();
   });
 
-  it("saatlik tavan, ozellik kapali ya da oturumsuz: yapay zekasiz arama turu (/sohbet?q=, karar 0176), sohbet yok", async () => {
+  it("saatlik tavan, ozellik kapali ya da oturumsuz: yapay zekasiz arama turu (/?q=, karar 0176, 0204), sohbet yok", async () => {
     mocks.createConversation.mockResolvedValue({ status: "rate_limited" });
     expect(await startChatBootstrapAction("masa lambası")).toEqual({
       status: "fallback",
-      href: "/sohbet?q=masa+lambas%C4%B1",
+      href: "/?q=masa+lambas%C4%B1",
     });
     mocks.enabled.mockReturnValue(false);
     expect((await startChatBootstrapAction("x")).status).toBe("fallback");
@@ -129,7 +129,7 @@ describe("startConversationAction (JS'siz yol)", () => {
   it("sohbeti olusturur, ilk turu after() ile planlar ve yonlendirir", async () => {
     const form = new FormData();
     form.set("q", "merhaba");
-    await expect(startConversationAction(form)).rejects.toThrow(`REDIRECT:/sohbet/${ID}`);
+    await expect(startConversationAction(form)).rejects.toThrow(`REDIRECT:/?s=${ID}`);
     expect(mocks.after).toHaveBeenCalledTimes(1);
   });
 
