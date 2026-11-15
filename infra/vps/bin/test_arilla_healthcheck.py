@@ -290,7 +290,7 @@ class CatalogAutoFreshnessTest(unittest.TestCase):
     def test_low_disk_warns_early(self):
         c = self.check(ca_state(5), free_gib=55)
         self.assertEqual(c.level, hc.WARN)
-        self.assertIn("55 GiB < 70 GiB", c.message)
+        self.assertIn(f"55 GiB < {hc.CATALOG_AUTO_START_FREE_GIB} GiB", c.message)
         self.assertIn("DUSURULMEZ", c.message)
 
     def test_boundary_exactly_threshold_is_ok(self):

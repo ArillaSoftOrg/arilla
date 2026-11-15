@@ -15,7 +15,7 @@ Sekme adları (v2): **Önerilenler / En Uygun Fiyat / En İyi Eşleşmeler**. UR
 | Sekme | `SortMode` | Sıralama |
 |---|---|---|
 | Önerilenler | `balanced` | değişmez (alaka x güven x stok x fiyat yüzdeliği, aksesuar kademesi) |
-| En Uygun Fiyat | `lowest_price` (yeni) | ana ürün kademesi, stokta olanlar önce, sonra en düşük **TRY** fiyatı (yurt dışı teklif karşılaştırılamaz, sona), eşitlikte skor |
+| En Uygun Fiyat | `lowest_price` (yeni) | ana ürün kademesi, stokta olanlar önce, sonra en düşük **TRY** fiyatı (yurt dışı teklif karşılaştırılamaz, sona), eşitlikte skor. **Karar 0205 bunu değiştirdi:** kartta gösterilen kurla çevrilmiş TL fiyatı |
 | En İyi Eşleşmeler | `best_match` (yeni) | dengeli skorun **fiyat çarpanı olmadan** hali (alaka x güven x stok), aksesuar kademesi korunur |
 
 - `closest_match` ÇAPA ürüne benzerliktir (metin aramasında yoktur, `UnsupportedSortForIntentError`);

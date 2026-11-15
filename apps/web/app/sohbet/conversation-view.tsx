@@ -1,5 +1,6 @@
 import {
   hasChatImageConsent,
+  isChatAnswerEnabled,
   isChatDiscoveryEnabled,
   isChatImageEnabled,
   isChatUxV2Enabled,
@@ -56,6 +57,7 @@ export async function ConversationView({
         conversationId={view.id}
         sortParam={sirala}
         uxV2={isChatUxV2Enabled()}
+        answerEnabled={isChatAnswerEnabled(userId)}
         openParam={ac}
       />
     </ChatInteractive>

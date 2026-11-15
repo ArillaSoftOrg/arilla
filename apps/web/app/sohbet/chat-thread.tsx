@@ -49,6 +49,7 @@ export function ChatThread({
   conversationId,
   sortParam,
   uxV2 = false,
+  answerEnabled = false,
   openParam,
 }: {
   messages: readonly ChatMessageView[];
@@ -57,6 +58,8 @@ export function ChatThread({
   sortParam?: string;
   /** Karar 0200 (`CHAT_UX_V2`): eski bloklar açılıp kapanabilir, yeni blok özet + kademeli gösterim. */
   uxV2?: boolean;
+  /** Karar 0203: kullanıcı sonuç cevabı pilotunda ("Farkları açıkla" çipi). */
+  answerEnabled?: boolean;
   /** `?ac=` ham değeri: açılan eski arama mesajı sıraları (en çok 2). */
   openParam?: string;
 }) {
@@ -185,6 +188,7 @@ export function ChatThread({
                           message.kind === "search" ? (message.explanationHelpful ?? null) : null
                         }
                         uxV2={uxV2}
+                        answerEnabled={answerEnabled}
                       />
                     </Suspense>
                   ) : null}

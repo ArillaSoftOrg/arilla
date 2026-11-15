@@ -95,6 +95,8 @@ export const CHAT_COPY = {
       : `${stores.toLocaleString("tr-TR")} mağazadan ${products.toLocaleString("tr-TR")} ürün`,
   newReply: "Yeni yanıt ↓",
   priceMissing: "Fiyat bilgisi yok",
+  explainChip: "Farkları açıkla",
+  explainChipMessage: "Bu ürünlerin farkları neler, hangisi daha uygun?",
   alternativesLabel: "Benzer seçenekler",
   commentaryLabel: "Değerlendirme",
   summaryLabel: "Sonuç özeti",

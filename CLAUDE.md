@@ -47,6 +47,14 @@ tamamı anlamını yitirir.
      `CHAT_DISCOVERY_ENABLED=true` bayrağıyla (varsayılan kapalı), her çağrı
      `api_usage`'a yazılır, kullanıcı başına saatlik tavanı vardır ve arama turu
      bütçesinden ayrıdır; model yalnızca niyet çıkarır — ürün, fiyat, SQL üretmez.
+     Karar 0203 (`CHAT_RESULT_ANSWER`, varsayılan kapalı, kullanıcı izin listesiyle
+     pilot) bu cümleyi tek noktada genişletir: kullanıcı gösterilen sonuçlar hakkında
+     soru sorduğunda AYNI tek çağrının girdisine o turda katalogdan okunan en çok 8
+     ürünün doğrulanmış alanları (başlık, marka, mağaza, fiyat, teklif sayısı) eklenebilir;
+     model bu gerçeklerden, her paragrafı sunucuda doğrulanan alıntıyla (delil) desteklenen
+     kısa bir cevap yazabilir. Ürün, fiyat, teknik özellik ya da performans/kalite iddiası
+     üretmez; doğrulanamayan cevap atılıp modelsiz özete düşülür; ek çağrı yoktur, cevap
+     sohbet mesajı olarak saklanır (kural 3).
    - Sohbet görsel eki (karar 0078, 0091): sohbet mesajına (ilk mesaj ya da
      sohbet içi sonraki mesaj) eklenen, önceden işlenmiş (≤512 px, EXIF'siz)
      görsel, aynı tek Gemini çağrısına çok kipli girdi olarak eklenir; yalnızca
