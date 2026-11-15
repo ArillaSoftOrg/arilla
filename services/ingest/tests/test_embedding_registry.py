@@ -84,8 +84,12 @@ def test_pilot_and_unverified_models_rejected_in_production() -> None:
 
 
 def test_disabled_model_never_selectable() -> None:
+    # BGE-M3 lisansi dogrulandi ve `shadow`a alindi; devre disi davranisi sahte bir kayitla denenir.
+    raw = _raw()
+    _model(raw, "bge-m3-5617a9f6")["state"] = "disabled"
+    reg = parse_registry(raw)
     with pytest.raises(RegistryError, match="devre disi"):
-        select_model("product_text", requested="bge-m3-5617a9f6", env={}, allow_pilot=True)
+        select_model("product_text", requested="bge-m3-5617a9f6", env={}, allow_pilot=True, reg=reg)
 
 
 def test_unknown_model_and_wrong_role_rejected() -> None:

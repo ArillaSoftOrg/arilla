@@ -43,3 +43,10 @@ registry durumunu okuyan bir kapı eklemek ayrı karardır.
 - Servisi `compose.prod.yml`'ye eklemek: 2,8 GiB'lik kalıcı servis her deploy'un `up -d` döngüsüne girer;
   ayrı proje daha az riskli.
 - Registry'yi onaysız değiştirmek.
+
+## Güncelleme — 15 Kasım 2026: lisans doğrulandı, registry `shadow`
+
+Lisans (MIT, ticari kullanıma uygun) insan tarafından doğrulandı. `model_registry.json`: `license_verified=true`,
+`state=shadow` (üretim işlerinde seçilebilir; varsayılan değil). Bu, registry ile canlı sunum (`on`, env)
+arasındaki tutarsızlığın registry tarafını kapatır. `enrich.index register/activate` (veritabanında aktif
+indeksin Jina'dan BGE-M3'e geçmesi) AYRI bir üretim adımıdır ve ayrıca onay ister; yapılmadı.
