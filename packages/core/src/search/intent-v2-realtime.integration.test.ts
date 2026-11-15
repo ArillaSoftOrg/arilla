@@ -9,7 +9,12 @@ import type { LlmCallOptions, LlmClient, LlmJsonRequest } from "../llm/client.ts
 import { LlmError } from "../llm/client.ts";
 import type { ProviderBudgetHooks } from "../quota/provider-budget.ts";
 import { getTestDb, withOwnerClient } from "../test-db.ts";
-import { applyIntentV2, intentV2Mode, resolveIntentV2 } from "./intent-v2-realtime.ts";
+import {
+  applyIntentV2,
+  intentV2AltTermsEnabled,
+  intentV2Mode,
+  resolveIntentV2,
+} from "./intent-v2-realtime.ts";
 import type { LexiconEntry } from "./lexicon.ts";
 import { normalizeQueryText } from "./normalize.ts";
 import { REALTIME_INTERPRETATION_OPERATION } from "./realtime-interpretation.ts";
@@ -234,5 +239,125 @@ describe("resolveIntentV2 / applyIntentV2 (gercek Postgres)", () => {
     });
     expect(out).toMatchObject({ source: "none", skip: "ineligible" });
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("alternatif arama terimleri (karar 0208)", () => {
+  const ALT_ENV = {
+    GEMINI_API_KEY: "k",
+    GEMINI_REALTIME_ENABLED: "true",
+    QUERY_INTENT_V2: "on",
+    QUERY_INTENT_V2_ALT_TERMS: "true",
+  };
+  const altReply = (terms: unknown) => ({
+    ...excludedBrandReply(""),
+    alternative_terms: terms,
+  });
+
+  it("bayrak: varsayilan kapali; yalniz IntentV2 etkinken acilabilir", () => {
+    expect(intentV2AltTermsEnabled({})).toBe(false);
+    expect(intentV2AltTermsEnabled({ QUERY_INTENT_V2_ALT_TERMS: "true" })).toBe(false);
+    expect(intentV2AltTermsEnabled({ ...ALT_ENV })).toBe(true);
+    expect(intentV2AltTermsEnabled({ ...ALT_ENV, QUERY_INTENT_V2_ALT_TERMS: "no" })).toBe(false);
+  });
+
+  it("acik: ayni tek cagri semaya alan ekler, ham cikti saklanir, slot genisler, filtre/siralama ayni", async () => {
+    const text = `altacik ${TAG} xiaomi hariç uzun akıllı saat`;
+    let schemaSeen: string[] = [];
+    const calls: string[] = [];
+    const client: LlmClient = {
+      modelVersion: MODEL,
+      async generateJson(request: LlmJsonRequest, options?: LlmCallOptions) {
+        calls.push(request.systemInstruction);
+        schemaSeen = (request.schema as { required: string[] }).required;
+        options?.onCall?.({ modelVersion: MODEL, httpStatus: 200, usage: USAGE });
+        return {
+          value: altReply([
+            { text: "Smart Watch", lang: "en", for_text: "saat" },
+            { text: "phone case", lang: "en", for_text: "saat" },
+            { text: "https://x.com", lang: null, for_text: "saat" },
+          ]),
+          usage: USAGE,
+          modelVersion: MODEL,
+        };
+      },
+    };
+    const parsed: QueryObject = {
+      ...parsedOf(),
+      unparsed: normalizeQueryText(text),
+      text_slots: normalizeQueryText(text)
+        .split(" ")
+        .map((token) => [token]),
+    };
+    const out = await applyIntentV2(getTestDb(), text, parsed, {
+      ...base,
+      client,
+      altTerms: true,
+    });
+    expect(calls).toHaveLength(1);
+    expect(schemaSeen).toContain("alternative_terms");
+    expect(calls[0]).toContain("alternative_terms");
+    expect(out.applied).toBe(true);
+    const slots = out.parsed.text_slots ?? [];
+    expect(slots.at(-1)).toEqual(["saat", "smart watch"]);
+    expect(slots.slice(0, -1)).toEqual((parsed.text_slots ?? []).slice(0, -1));
+    expect(out.parsed.unparsed).toBe(parsed.unparsed);
+    expect(out.parsed.text).toBe(parsed.text);
+    const stored = await rows(normalizeQueryText(text));
+    expect(stored.qi[0].interpretation.alternative_terms).toHaveLength(3);
+    // Ikinci istek saklanan ham cikti ile (model cagrisi yok).
+    const again = await applyIntentV2(getTestDb(), text, parsed, {
+      ...base,
+      client,
+      altTerms: true,
+    });
+    expect(calls).toHaveLength(1);
+    expect(again.source).toBe("stored");
+    expect(again.parsed.text_slots?.at(-1)).toEqual(["saat", "smart watch"]);
+  });
+
+  it("kapali: sema/talimat eski, terim uygulanmaz; saklanan terimli kayit da yok sayilir", async () => {
+    const text = q("altkapali");
+    let required: string[] = [];
+    const client: LlmClient = {
+      modelVersion: MODEL,
+      async generateJson(request: LlmJsonRequest, options?: LlmCallOptions) {
+        required = (request.schema as { required: string[] }).required;
+        options?.onCall?.({ modelVersion: MODEL, httpStatus: 200, usage: USAGE });
+        // Model alani yine de gonderse bile (bayrak kapali) uygulanmaz.
+        return {
+          value: altReply([{ text: "smart watch", lang: "en", for_text: "saat" }]),
+          usage: USAGE,
+          modelVersion: MODEL,
+        };
+      },
+    };
+    const parsed: QueryObject = {
+      ...parsedOf(),
+      unparsed: normalizeQueryText(text),
+      text_slots: normalizeQueryText(text)
+        .split(" ")
+        .map((token) => [token]),
+    };
+    const out = await applyIntentV2(getTestDb(), text, parsed, {
+      ...base,
+      client,
+      altTerms: false,
+    });
+    expect(required).not.toContain("alternative_terms");
+    expect(out.parsed.text_slots).toBe(parsed.text_slots);
+  });
+
+  it("hata: saglayici hatasinda sorgu aynen; bozuk alan eski davranisa duser", async () => {
+    const text = q("altbozuk");
+    const { client } = fakeClient(() => ({ kind: "value", value: altReply("bozuk") }));
+    const parsed: QueryObject = {
+      ...parsedOf(),
+      unparsed: normalizeQueryText(text),
+      text_slots: [["saat"]],
+    };
+    const out = await applyIntentV2(getTestDb(), text, parsed, { ...base, client, altTerms: true });
+    expect(out.parsed.text_slots).toBe(parsed.text_slots);
+    expect(out.parsed.filters.brand_exclude).toEqual(["xiaomi"]);
   });
 });

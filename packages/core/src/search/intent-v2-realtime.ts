@@ -29,8 +29,9 @@ import {
   buildIntentV2Input,
   buildIntentV2JsonSchema,
   INTENT_SCHEMA_VERSION,
-  INTENT_V2_INSTRUCTIONS,
+  type IntentV2ContractOptions,
   intentV2ContractHash,
+  intentV2Instructions,
 } from "../intent/contract.ts";
 import { analyzeLocally } from "../intent/local-analysis.ts";
 import { fromRawQuery } from "../intent/normalized-query-adapter.ts";
@@ -76,6 +77,18 @@ export function intentV2Mode(env: Env = process.env): IntentV2Mode {
 }
 
 export const INTENT_V2_MAX_OUTPUT_TOKENS = 512;
+/** Alternatif terim alani acikken ek cikti payi (karar 0208). */
+export const INTENT_V2_ALT_TERMS_EXTRA_TOKENS = 128;
+
+/**
+ * Karar 0208: `QUERY_INTENT_V2_ALT_TERMS=true` (varsayilan kapali). Yalniz IntentV2 etkinken anlamli;
+ * ayni tek Gemini cagrisinin semasina alan ekler, ek cagri yapmaz.
+ */
+export function intentV2AltTermsEnabled(env: Env = process.env): boolean {
+  if (intentV2Mode(env) === "off") return false;
+  const value = env.QUERY_INTENT_V2_ALT_TERMS?.trim().toLowerCase();
+  return value === "true" || value === "1" || value === "on";
+}
 
 export type IntentV2Skip =
   | "disabled"
@@ -104,6 +117,8 @@ export interface IntentV2Options {
   consume?: QuotaConsumer;
   budget?: ProviderBudgetHooks;
   singleFlight?: SingleFlight;
+  /** Testler icin; varsayilan `QUERY_INTENT_V2_ALT_TERMS` bayragi (karar 0208). */
+  altTerms?: boolean;
   /** Testler icin; varsayilan surec ici sozluk onbellegi. */
   lexicon?: readonly LexiconEntry[];
 }
@@ -141,6 +156,7 @@ async function readStored(
   db: Database,
   queryNorm: string,
   modelVersion: string,
+  contract: IntentV2ContractOptions,
 ): Promise<{ status: string; interpretation: unknown } | null> {
   const rows = await db
     .select({
@@ -151,7 +167,7 @@ async function readStored(
     .where(
       and(
         eq(queryInterpretation.queryNorm, queryNorm),
-        eq(queryInterpretation.taxonomyHash, intentV2ContractHash()),
+        eq(queryInterpretation.taxonomyHash, intentV2ContractHash(contract)),
         eq(queryInterpretation.modelVersion, modelVersion),
       ),
     )
@@ -168,6 +184,7 @@ async function persist(
     calls: LlmCall[];
     raw: unknown;
     failure: Error | null;
+    contract: IntentV2ContractOptions;
   },
 ): Promise<void> {
   let lastUsageId: number | null = null;
@@ -196,7 +213,7 @@ async function persist(
       .insert(queryInterpretation)
       .values({
         queryNorm: input.queryNorm,
-        taxonomyHash: intentV2ContractHash(),
+        taxonomyHash: intentV2ContractHash(input.contract),
         modelVersion: input.modelVersion,
         status: valid ? "accepted" : "invalid",
         interpretation: valid ? (input.raw as Record<string, unknown>) : null,
@@ -217,10 +234,14 @@ function planFrom(
   raw: unknown,
   query: string,
   lexicon: readonly LexiconEntry[],
+  contract: IntentV2ContractOptions,
 ): IntentSearchPlan | null {
   if (!isRawIntent(raw)) return null;
   const validated = validateIntentV2(raw, { query: fromRawQuery(query), lexicon });
-  return toSearchPlan(validated);
+  const plan = toSearchPlan(validated);
+  // Bayrak kapaliyken (ya da kapatildiktan sonra) saklanan terimler uygulanmaz.
+  if (!contract.altTerms) plan.hints.altTerms = [];
+  return plan;
 }
 
 export async function resolveIntentV2(
@@ -251,19 +272,24 @@ export async function resolveIntentV2(
   }
   if (client === null) return { source: "none", skip: "disabled", reasons: [] };
 
+  const contract: IntentV2ContractOptions = {
+    altTerms: options.altTerms ?? intentV2AltTermsEnabled(env),
+  };
   const flight = options.singleFlight ?? redisSingleFlight;
   const flightKey = createHash("sha256")
-    .update(`v2\n${queryNorm}\n${intentV2ContractHash()}\n${client.modelVersion}`)
+    .update(`v2\n${queryNorm}\n${intentV2ContractHash(contract)}\n${client.modelVersion}`)
     .digest("hex")
     .slice(0, 40);
   let flightHeld = false;
 
   try {
     const lexicon = options.lexicon ?? (await loadLexiconCached(db));
-    const stored = await readStored(db, queryNorm, client.modelVersion);
+    const stored = await readStored(db, queryNorm, client.modelVersion, contract);
     if (stored !== null) {
       const plan =
-        stored.status === "accepted" ? planFrom(stored.interpretation, query, lexicon) : null;
+        stored.status === "accepted"
+          ? planFrom(stored.interpretation, query, lexicon, contract)
+          : null;
       return plan
         ? { source: "stored", plan, reasons: ["cache_hit"] }
         : { source: "none", skip: "already_interpreted", reasons: ["cache_hit"] };
@@ -328,10 +354,12 @@ export async function resolveIntentV2(
       try {
         const result = await client.generateJson(
           {
-            systemInstruction: INTENT_V2_INSTRUCTIONS,
+            systemInstruction: intentV2Instructions(contract),
             input: buildIntentV2Input(query),
-            schema: buildIntentV2JsonSchema(),
-            maxOutputTokens: INTENT_V2_MAX_OUTPUT_TOKENS,
+            schema: buildIntentV2JsonSchema(undefined, contract),
+            maxOutputTokens:
+              INTENT_V2_MAX_OUTPUT_TOKENS +
+              (contract.altTerms ? INTENT_V2_ALT_TERMS_EXTRA_TOKENS : 0),
           },
           { onCall: (call) => calls.push(call) },
         );
@@ -350,7 +378,14 @@ export async function resolveIntentV2(
 
     for (let attempt = 1; attempt <= 2; attempt++) {
       try {
-        await persist(db, { queryNorm, modelVersion: client.modelVersion, calls, raw, failure });
+        await persist(db, {
+          queryNorm,
+          modelVersion: client.modelVersion,
+          calls,
+          raw,
+          failure,
+          contract,
+        });
         break;
       } catch (error) {
         if (attempt === 2) logCode("persist", error);
@@ -364,7 +399,7 @@ export async function resolveIntentV2(
       );
       return { source: "none", skip: "provider_error", reasons: route.reasons };
     }
-    const plan = planFrom(raw, query, lexicon);
+    const plan = planFrom(raw, query, lexicon, contract);
     return plan
       ? { source: "realtime", plan, reasons: route.reasons }
       : { source: "none", skip: "invalid", reasons: route.reasons };
@@ -399,13 +434,19 @@ export async function applyIntentV2(
     return { parsed, mode, applied: false, source: "none", hardFilters: 0 };
   }
   const hardFilters = Object.keys(resolution.plan.filters).length;
-  // Rol ipucu da (karar 0197) uygulanir: H filtresi olmasa bile siralamayi etkiler.
-  if (mode === "shadow" || (hardFilters === 0 && resolution.plan.hints.role === null)) {
+  // Rol ipucu (karar 0197) ve alternatif terimler (karar 0208) H filtresi olmasa bile uygulanir.
+  if (
+    mode === "shadow" ||
+    (hardFilters === 0 &&
+      resolution.plan.hints.role === null &&
+      (resolution.plan.hints.altTerms ?? []).length === 0)
+  ) {
     return { parsed, mode, applied: false, source: resolution.source, hardFilters };
   }
   const merged = applyIntentPlan(parsed, resolution.plan);
   const applied =
     JSON.stringify(merged.filters) !== JSON.stringify(parsed.filters) ||
-    merged.product_role !== parsed.product_role;
+    merged.product_role !== parsed.product_role ||
+    merged.text_slots !== parsed.text_slots;
   return { parsed: merged, mode, applied, source: resolution.source, hardFilters };
 }

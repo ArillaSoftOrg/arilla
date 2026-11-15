@@ -1,0 +1,61 @@
+{
+  "schema": "ml-eval-languages/1",
+  "note": "Dil kaydi. Yeni dil eklemek = burada bir satir + queries.json'a sorgu satirlari + (varsa) aday satirlari; kod degismez. status: active = veride kullaniliyor, open = acik, eklenebilir (henuz veri yok).",
+  "languages": [
+    {
+      "tag": "tr",
+      "name": "Turkish",
+      "status": "active"
+    },
+    {
+      "tag": "en",
+      "name": "English",
+      "status": "active"
+    },
+    {
+      "tag": "de",
+      "name": "German",
+      "status": "active"
+    },
+    {
+      "tag": "fr",
+      "name": "French",
+      "status": "open"
+    },
+    {
+      "tag": "es",
+      "name": "Spanish",
+      "status": "open"
+    },
+    {
+      "tag": "ar",
+      "name": "Arabic",
+      "status": "open"
+    },
+    {
+      "tag": "ru",
+      "name": "Russian",
+      "status": "open"
+    },
+    {
+      "tag": "nl",
+      "name": "Dutch",
+      "status": "open"
+    },
+    {
+      "tag": "it",
+      "name": "Italian",
+      "status": "open"
+    },
+    {
+      "tag": "pt",
+      "name": "Portuguese",
+      "status": "open"
+    },
+    {
+      "tag": "und",
+      "name": "Undetermined (doc language only)",
+      "status": "active"
+    }
+  ]
+}
