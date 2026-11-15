@@ -82,7 +82,7 @@ THRESHOLDS = {
 #: `catalog_build.auto.START_FREE_GB` ile AYNIDIR (GiB); test_arilla_healthcheck esitligi denetler.
 CATALOG_AUTO_TIMER = "arilla-catalog-auto.timer"
 CATALOG_AUTO_JOB = "catalog_auto"
-CATALOG_AUTO_START_FREE_GIB = 64
+CATALOG_AUTO_START_FREE_GIB = 70
 
 #: Sonucu `job_run`'dan siniflandirilan birimler -> o birimin yazdigi isler (karar 0174).
 PIPELINE_JOBS = {"arilla-catalog-pipeline.service": ("resolve", "similarity_edges")}

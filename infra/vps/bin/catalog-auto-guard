@@ -8,7 +8,7 @@ export PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 export LC_ALL=C
 
 ROOT=${ARILLA_ROOT:-/opt/arilla}
-START_FREE_GB=${START_FREE_GB:-64}
+START_FREE_GB=${START_FREE_GB:-70}
 
 for unit in arilla-feeds-daily arilla-catalog-pipeline arilla-backup-full arilla-backup-diff \
   arilla-backup-verify arilla-backup-verify-all arilla-restore-test; do

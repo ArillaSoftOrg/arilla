@@ -52,10 +52,7 @@ FIRST_RATIO = 0.20
 #: Otomatik katalog hattinin baslangic esigi (GiB; catalog-auto-guard START_FREE_GB, karar 0164).
 #: Dokumden sonra bos alan bunun altina dusecekse migration deploy'u DURUR (karar 0188): yayin sessizce
 #: durmasin, karar deploy aninda verilsin. Bilincli istisna: ARILLA_DEPLOY_ALLOW_BELOW_CATALOG_GATE=1.
-# Gecici operasyonel istisna: 0116 migration'i icin kapasite tabani saglaniyor,
-# ancak mevcut katalog esigi deploy'u durduruyor. Migration tamamlanir tamamlanmaz
-# bu deger 70'e geri alinacak; kalici politika degisikligi degildir.
-CATALOG_GATE_GIB = 64
+CATALOG_GATE_GIB = 70
 STATUSES = ("dumping", "created", "migrated", "success", "failed", "dump_failed")
 
 Runner = Callable[..., tuple[int, str]]

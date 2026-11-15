@@ -62,7 +62,7 @@ PUBLISH_BATCH=${PUBLISH_BATCH:-500}
 
 # --- Esikler (VPS: 6 GB postgres, max_connections 60) -------------------------------------
 DISK_RESERVE_GB=${DISK_RESERVE_GB:-40}  # bos alan bunun altina inerse KESIN DUR
-START_FREE_GB=${START_FREE_GB:-64}      # gecici 0116 migration penceresi; ardindan 70'e donulecek
+START_FREE_GB=${START_FREE_GB:-70}      # baslamak icin: rezerv + tahmini buyume + pay
 ARCHIVE_FAIL_S=${ARCHIVE_FAIL_S:-900}   # arsiv bu kadar sure basarisizsa KESIN DUR
 MEM_PAUSE_MB=${MEM_PAUSE_MB:-1500}      # MemAvailable
 MEM_RESUME_MB=${MEM_RESUME_MB:-2500}

@@ -69,7 +69,7 @@ EXIT_BUSY = 4
 
 #: Gunluk yedek (`arilla-backup-*`, 01:30 UTC) cevresi; WAL arsivi ve G/C bu surede korunur.
 BACKUP_WINDOW_UTC = (dtime(1, 20), dtime(2, 5))
-START_FREE_GB = 64
+START_FREE_GB = 70
 RESERVE_FREE_GB = 40
 CHECK_EVERY_SECONDS = 15.0
 GIB = 1 << 30
