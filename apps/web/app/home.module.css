@@ -70,6 +70,14 @@
   }
 }
 
+@media (min-width: 640px) {
+  /* Desktop hero tam genislikte kalir; kategori sahnesinin negatif gutter'i
+     viewport birimi kullanmadan tasma ve yatay scrollbar olusturmaz. */
+  .searchScreen {
+    max-width: none;
+  }
+}
+
 /* Header'daki anchor'lar (#trendler, #kesfet, #nasil-calisir) basligi
    ekran kenarina yapistirmasin. */
 .anchored {

@@ -307,9 +307,14 @@
 }
 
 @media (min-width: 640px) {
-  .categoryScene .categorySearch {
-    width: 100vw;
-    margin-inline: calc(50% - 50vw);
+  .categorySearch > form[data-variant="default"] {
+    max-width: min(720px, calc(100vw - (2 * var(--gutter))));
+  }
+}
+
+@media (min-width: 1024px) {
+  .categorySearch > form[data-variant="default"] {
+    max-width: min(960px, calc(100vw - (2 * var(--gutter))));
   }
 }
 
