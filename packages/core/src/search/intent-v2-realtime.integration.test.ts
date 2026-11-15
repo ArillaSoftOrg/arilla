@@ -242,7 +242,7 @@ describe("resolveIntentV2 / applyIntentV2 (gercek Postgres)", () => {
   });
 });
 
-describe("alternatif arama terimleri (karar 0208)", () => {
+describe("alternatif arama terimleri (karar 0210)", () => {
   const ALT_ENV = {
     GEMINI_API_KEY: "k",
     GEMINI_REALTIME_ENABLED: "true",

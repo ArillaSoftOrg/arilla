@@ -1,4 +1,4 @@
-# 0208 — IntentV2: en fazla 3 doğrulanmış alternatif arama terimi (yalnız aday bulma)
+# 0210 — IntentV2: en fazla 3 doğrulanmış alternatif arama terimi (yalnız aday bulma)
 
 **Tarih:** 15 Kasım 2026 · **Durum:** kabul edildi, yerelde (birleşmedi) · **İlgili:** 0062, 0171, 0197
 · **Bayrak:** `QUERY_INTENT_V2_ALT_TERMS` (varsayılan KAPALI; yalnız `QUERY_INTENT_V2` etkinken anlamlı)

@@ -40,7 +40,7 @@ export interface RankHints {
   /** Duzeltmeden kabul edilen (R) marka; filtre degil. */
   brands: string[];
   /**
-   * Karar 0208: dogrulanmis alternatif arama terimleri. YALNIZ metin kapisinin slotlarina es
+   * karar 0210: dogrulanmis alternatif arama terimleri. YALNIZ metin kapisinin slotlarina es
    * anlamli olarak eklenir (`applyIntentPlan`); siralama/vektor/filtre girdisi degildir.
    */
   altTerms?: AlternativeTerm[];
@@ -172,7 +172,7 @@ export function applyIntentPlan(base: QueryObject, plan: IntentSearchPlan): Quer
 }
 
 /**
- * Karar 0208: alternatif terimleri mevcut slotlara es anlamli ekler; orijinal alternatifler ve
+ * karar 0210: alternatif terimleri mevcut slotlara es anlamli ekler; orijinal alternatifler ve
  * slot sirasi aynen kalir. Eklenecek terim yoksa sorgu nesnesi AYNEN doner.
  */
 function withAlternativeTerms(query: QueryObject, terms: readonly AlternativeTerm[]): QueryObject {
