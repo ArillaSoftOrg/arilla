@@ -1,0 +1,87 @@
+# BGE-M3 SORGU servisi (karar 0196, 0203). Toplu is servisi (compose.embed.yml) DEGILDIR.
+#
+# Uretimde AYRI bir compose projesi olarak calisir; compose.prod.yml'ye ve deploy hattina GIRMEZ:
+#   - proje adi `arilla-embed-query` oldugu icin `arilla` projesinin deploy'u (`up -d`, orphan temizligi)
+#     bu konteynere dokunmaz;
+#   - `restart: unless-stopped`: sunucu/Docker yeniden basladiginda kendiliginden kalkar;
+#   - web, `arilla_data` aginda `http://embed-query:8080` adresiyle erisir (internal ag: internete
+#     cikis yok, `ports:` yok, host'a acilmaz).
+#
+# Kurulum / yeniden olusturma (VPS, sudo):
+#   sudo docker compose -f /opt/arilla/compose.embed-query.yml config -q
+#   sudo docker compose -f /opt/arilla/compose.embed-query.yml up -d
+#   (dosya bu depodaki infra/compose.embed-query.yml'in kopyasidir; depoda degisince elle kopyalanir)
+#
+# Onkosullar (elle, bir kez; docs/ops.md "BGE-M3 sorgu servisi - uretim kurulumu"):
+#   - Model dizini /opt/arilla/models/bge-m3-5617a9f6 (safetensors, SHA-256 `derived-manifest.json` ile
+#     dogrulanir; sahip 10001, salt okunur). Dizin yoksa servis baslamaz (model INDIRILMEZ).
+#   - `arilla_data` agi (compose.prod.yml'deki `data`) mevcut olmali: `docker network ls`.
+#   - Web ortami (/opt/arilla/env/web.env, depoda YOK): EMBED_BGE_M3_QUERY_URL, SEMANTIC_EMBEDDING_MODEL,
+#     SEMANTIC_INDEX_VERSION, SEMANTIC_SEARCH_MODE. Gizli deger yok; yetkilendirme agdan.
+#
+# Kurmak modeli kayit defterinde ETKINLESTIRMEZ; sunum ortam degiskenleriyle acilir (0203).
+name: arilla-embed-query
+
+services:
+  embed-query:
+    # cpu-1.9.4 (2026-09-15), digest'e sabit: etiket sonradan degisse de ayni imaj.
+    image: ghcr.io/huggingface/text-embeddings-inference:cpu-1.9.4@sha256:2538ea1c9640d3763b15af668039d24172d063b42337b0c27796fc2be180c78d
+    command:
+      - --model-id=/models/bge-m3-5617a9f6
+      - --served-model-name=BAAI/bge-m3
+      - --pooling=cls
+      - --hostname=0.0.0.0
+      - --port=8080
+      - --max-concurrent-requests=64
+      - --max-batch-tokens=2048
+      - --max-client-batch-size=32
+      - --tokenization-workers=1
+      - --auto-truncate=true
+      - --payload-limit=2000000
+      - --json-output
+      - --disable-spans
+    environment:
+      HF_HUB_OFFLINE: "1"
+      # Indirme denemesi kapali yerel porta gider (ag bozulsa bile disari cikmaz).
+      HF_ENDPOINT: "http://127.0.0.1:9"
+      HF_HUB_DISABLE_TELEMETRY: "1"
+      HUGGINGFACE_HUB_CACHE: /tmp/hf
+      OMP_NUM_THREADS: "2"
+      MKL_NUM_THREADS: "2"
+      RAYON_NUM_THREADS: "2"
+    volumes:
+      - type: bind
+        source: /opt/arilla/models
+        target: /models
+        read_only: true
+    networks: [data]
+    restart: unless-stopped
+    user: "10001:10001"
+    read_only: true
+    tmpfs:
+      - /tmp:size=256m
+    cap_drop: [ALL]
+    security_opt:
+      - no-new-privileges:true
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "--max-time", "5", "http://127.0.0.1:8080/health"]
+      interval: 30s
+      timeout: 6s
+      retries: 3
+      start_period: 180s
+    # Olculen kararli bellek ~2,8 GiB; 4 GiB tavan yukleme tepesine pay birakir.
+    cpus: 2.0
+    mem_limit: 4g
+    memswap_limit: 4g
+    pids_limit: 256
+    stop_grace_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  data:
+    external: true
+    name: arilla_data
