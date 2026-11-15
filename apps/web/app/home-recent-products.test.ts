@@ -117,13 +117,13 @@ describe("ana sayfa 'Alışverişe devam et' bölümü", () => {
 });
 
 describe("ana sayfa fotograf aksiyonu", () => {
-  it("misafire gorunur etiket sunar, dosya secimi yerine mevcut giris kapisini korur", () => {
+  it("misafire gorunur etiket sunar, giris kapisini korur ve ikinci fixed kutu cizmez", () => {
     const html = renderToStaticMarkup(
       createElement(HomeSearchComposer, { imageEntryAvailable: true }),
     );
     expect(html).toContain('data-photo-label="">Fotoğraf yükle</span>');
     expect(html).not.toContain('type="file"');
-    expect(html).toContain('aria-label="Fotoğraf eklemek için ana arama kutusuna git"');
+    expect(html).not.toContain('aria-label="Fotoğraf eklemek için ana arama kutusuna git"');
   });
 
   it("fotograf acikken gorunur etiket ve mevcut dosya secimi birlikte kalir", () => {

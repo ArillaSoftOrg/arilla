@@ -7,7 +7,6 @@ import {
   type SearchComposerRecentProduct,
 } from "@arilla/ui";
 import { type ReactNode, useId, useRef, useState } from "react";
-import { FloatingHomeComposer } from "./floating-composer-client.tsx";
 import { selectHomeCategoryImages } from "./home-category-config.ts";
 import {
   DEFAULT_HOME_CATEGORY,
@@ -32,9 +31,9 @@ const TRANSPARENT_PIXEL = "data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAA
  * Gorsel secmek hicbir sey gondermez; kutuda onizleme olur. Eski gorsel arama sayfasina hicbir
  * kosulda dusulmez: gorsel ekleme dugmesi yalnizca `imageChat` aciksa vardir.
  *
- * Karar 0093: gonderim durumu ve akislari `useHomeComposerSubmission`da TEK
- * ornektir; ana kutu ve yuzen hizli arama ayni ornegi kullanir (ortak kilit,
- * giris modali, hazirlanan gorsel, hata).
+ * Gonderim durumu ve akislari `useHomeComposerSubmission`da TEK ornektir.
+ * Ana kutu hero icinde sticky davranir; sayfa boyunca gorunumu kaplayan ikinci
+ * bir fixed composer cizilmez.
  *
  * autoFocus YOK: ilk odak SkipLink'te kalir ve mobilde klavye kendiliginden
  * acilmaz (docs/pages.md "Otomatik odaklanır" maddesi erisilebilirlik
@@ -154,40 +153,40 @@ export function HomeSearchComposer({
         data-home-category={category.id}
         data-image-failed={imageFailed ? "true" : undefined}
       >
-        <SearchComposer
-          action={startChat}
-          onSubmitText={onSubmitText}
-          placeholder={HOME_COPY.searchPlaceholder}
-          inputLabel={HOME_COPY.searchInputLabel}
-          submitLabel={HOME_COPY.searchSubmitLabel}
-          routeProductLinks
-          recentProducts={recentProducts}
-          offerCountLabel={(count) => `${count} mağaza`}
-          recentPriceLabel={HOME_COPY.recentPriceLabel}
-          chipsTitle={HOME_COPY.searchIdeasTitle}
-          beforeSearch={
-            <div className={styles.mobileIntro}>
-              <picture className={styles.heroPicture}>
-                <source
-                  media="(max-width: 639.98px)"
-                  srcSet={imageFailed ? undefined : categoryImages.mobile}
-                />
-                <source
-                  media="(min-width: 640px)"
-                  srcSet={imageFailed ? undefined : categoryImages.desktop}
-                />
-                <img
-                  className={styles.heroImage}
-                  src={imageFailed ? TRANSPARENT_PIXEL : categoryImages.desktop}
-                  alt=""
-                  width="1600"
-                  height="900"
-                  loading="eager"
-                  fetchPriority="high"
-                  onError={() => setImageFailed(true)}
-                />
-              </picture>
-              <span className={styles.heroOverlay} aria-hidden="true" />
+        <picture className={styles.heroPicture}>
+          <source
+            media="(max-width: 639.98px)"
+            srcSet={imageFailed ? undefined : categoryImages.mobile}
+          />
+          <source
+            media="(min-width: 640px)"
+            srcSet={imageFailed ? undefined : categoryImages.desktop}
+          />
+          <img
+            className={styles.heroImage}
+            src={imageFailed ? TRANSPARENT_PIXEL : categoryImages.desktop}
+            alt=""
+            width="1600"
+            height="900"
+            loading="eager"
+            fetchPriority="high"
+            onError={() => setImageFailed(true)}
+          />
+        </picture>
+        <span className={styles.heroOverlay} aria-hidden="true" />
+        <div className={styles.composerStage}>
+          <SearchComposer
+            action={startChat}
+            onSubmitText={onSubmitText}
+            placeholder={HOME_COPY.searchPlaceholder}
+            inputLabel={HOME_COPY.searchInputLabel}
+            submitLabel={HOME_COPY.searchSubmitLabel}
+            routeProductLinks
+            recentProducts={recentProducts}
+            offerCountLabel={(count) => `${count} mağaza`}
+            recentPriceLabel={HOME_COPY.recentPriceLabel}
+            chipsTitle={HOME_COPY.searchIdeasTitle}
+            beforeSearch={
               <div className={styles.heroHeading}>
                 {beforeSearch}
                 <HomeCategoryPicker
@@ -198,46 +197,38 @@ export function HomeSearchComposer({
                   }}
                 />
               </div>
-            </div>
-          }
-          composerFooter={categorySuggestions}
-          searchClassName={[searchClassName, styles.categorySearch].filter(Boolean).join(" ")}
-          afterSearch={afterSearch}
-          statusMessage={chatError}
-          busyMessage={sending ? IMAGE_CHAT_COPY.sending : null}
-          photoButtonId={photoButtonId}
-          showPhotoLabel
-          photo={
-            imageChat
-              ? {
-                  label: staged ? IMAGE_CHAT_COPY.replaceLabel : IMAGE_CHAT_COPY.uploadLabel,
-                  onFileSelected: stageFile,
-                  disabled: sending,
-                  icon: photoIcon,
-                }
-              : undefined
-          }
-          leadingAction={
-            imageEntryAvailable && !imageChat
-              ? {
-                  label: IMAGE_CHAT_COPY.uploadLabel,
-                  onClick: submission.openLogin,
-                  icon: photoIcon,
-                }
-              : undefined
-          }
-          attachment={attachment}
-        />
+            }
+            composerFooter={categorySuggestions}
+            searchClassName={[searchClassName, styles.categorySearch].filter(Boolean).join(" ")}
+            searchContentClassName={styles.categoryContent}
+            afterSearch={afterSearch}
+            statusMessage={chatError}
+            busyMessage={sending ? IMAGE_CHAT_COPY.sending : null}
+            photoButtonId={photoButtonId}
+            showPhotoLabel
+            photo={
+              imageChat
+                ? {
+                    label: staged ? IMAGE_CHAT_COPY.replaceLabel : IMAGE_CHAT_COPY.uploadLabel,
+                    onFileSelected: stageFile,
+                    disabled: sending,
+                    icon: photoIcon,
+                  }
+                : undefined
+            }
+            leadingAction={
+              imageEntryAvailable && !imageChat
+                ? {
+                    label: IMAGE_CHAT_COPY.uploadLabel,
+                    onClick: submission.openLogin,
+                    icon: photoIcon,
+                  }
+                : undefined
+            }
+            attachment={attachment}
+          />
+        </div>
       </div>
-      <FloatingHomeComposer
-        mainRef={mainRef}
-        mainPhotoButtonId={photoButtonId}
-        action={startChat}
-        onSubmitText={onSubmitText}
-        attachment={attachment}
-        statusMessage={chatError}
-        showAttach={imageChat || imageEntryAvailable}
-      />
     </>
   );
 }

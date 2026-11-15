@@ -70,7 +70,6 @@
   display: none;
 }
 
-.mobileIntro,
 .heroHeading {
   display: contents;
 }
@@ -80,31 +79,48 @@
    sonraki arka plan gorselleri icin duzenin yerini korur. */
 @media (min-width: 0px) {
   .categoryScene {
+    position: relative;
+    isolation: isolate;
+    width: calc(100% + (2 * var(--gutter)));
     min-width: 0;
+    min-height: calc(100svh + 4rem);
+    margin-inline: calc(-1 * var(--gutter));
+    overflow: visible;
+  }
+
+  .composerStage,
+  .composerStage > div {
+    min-height: inherit;
   }
 
   .categoryScene .categorySearch {
-    position: relative;
+    --hero-top: 22svh;
     isolation: isolate;
-    align-content: start;
-    gap: var(--space-4);
-    width: calc(100% + (2 * var(--gutter)));
+    width: 100%;
     max-width: none;
-    min-height: 100svh;
-    margin-inline: calc(-1 * var(--gutter));
-    padding: clamp(6rem, 18svh, 9rem) var(--gutter) var(--space-8);
-    overflow: hidden;
+    min-height: inherit;
+    margin-inline: 0;
   }
 
-  .categoryScene[data-home-category="mobilya"] .categorySearch {
+  .categoryContent {
+    position: sticky;
+    inset-block-start: var(--hero-top);
+    display: grid;
+    justify-items: center;
+    gap: var(--space-4);
+    width: 100%;
+    padding-inline: var(--gutter);
+  }
+
+  .categoryScene[data-home-category="mobilya"] {
     background: linear-gradient(180deg, var(--tint-warm), var(--footer-canvas));
   }
 
-  .categoryScene[data-home-category="moda"] .categorySearch {
+  .categoryScene[data-home-category="moda"] {
     background: linear-gradient(180deg, var(--feature-bg), var(--ink-secondary));
   }
 
-  .categoryScene[data-home-category="parfum"] .categorySearch {
+  .categoryScene[data-home-category="parfum"] {
     background: linear-gradient(180deg, var(--feature-bg), var(--surface));
   }
 
@@ -251,7 +267,7 @@
     font-weight: var(--font-weight-semibold);
   }
 
-  .categorySearch > form[data-variant="default"] {
+  .categoryContent > form[data-variant="default"] {
     --paper: var(--on-media);
     --surface: color-mix(in srgb, var(--on-media) 92%, var(--feature-bg));
     --surface-raised: color-mix(in srgb, var(--on-media) 94%, transparent);
@@ -274,12 +290,12 @@
     backdrop-filter: blur(18px);
   }
 
-  .categorySearch > form[data-variant="default"]:focus-within {
+  .categoryContent > form[data-variant="default"]:focus-within {
     border-color: color-mix(in srgb, var(--on-media) 88%, transparent);
     box-shadow: 0 20px 58px color-mix(in srgb, var(--feature-bg) 36%, transparent);
   }
 
-  .categorySearch > form[data-variant="default"] button[type="submit"] svg {
+  .categoryContent > form[data-variant="default"] button[type="submit"] svg {
     transform: rotate(-90deg);
   }
 
@@ -307,29 +323,47 @@
 }
 
 @media (min-width: 640px) {
-  .categorySearch > form[data-variant="default"] {
+  .categoryScene .categorySearch {
+    --hero-top: 22vh;
+  }
+
+  .categoryContent > form[data-variant="default"] {
     max-width: min(720px, calc(100vw - (2 * var(--gutter))));
   }
 }
 
 @media (min-width: 1024px) {
-  .categorySearch > form[data-variant="default"] {
+  .categoryContent > form[data-variant="default"] {
     max-width: min(960px, calc(100vw - (2 * var(--gutter))));
+  }
+}
+
+@media (min-width: 1600px) and (min-height: 950px) {
+  .categoryScene .categorySearch {
+    --hero-top: 25vh;
+  }
+}
+
+@media (min-width: 2100px) and (min-height: 1150px) {
+  .categoryScene .categorySearch {
+    --hero-top: 28vh;
   }
 }
 
 @media (max-width: 359.98px) {
   .categoryScene .categorySearch {
+    --hero-top: clamp(6.5rem, 22svh, 8rem);
+  }
+
+  .categoryContent {
     gap: var(--space-3);
-    padding-block-start: 5.5rem;
-    padding-block-end: var(--space-6);
   }
 
   .categoryTrigger {
     font-size: var(--text-body);
   }
 
-  .categorySearch > form[data-variant="default"] {
+  .categoryContent > form[data-variant="default"] {
     border-radius: var(--radius-lg);
   }
 }

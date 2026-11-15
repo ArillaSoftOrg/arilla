@@ -111,6 +111,8 @@ export interface SearchComposerProps {
   composerFooter?: ReactNode;
   /** Yalnizca ana arama bolgesinin duzeni; son bakilanlari kapsamaz. */
   searchClassName?: string;
+  /** Baslik ve formu ortak bir yerlesim/sticky katmaninda toplamak icin. */
+  searchContentClassName?: string;
   /** Arama ve durum mesajlarindan sonra, son bakilanlardan once istege bagli icerik. */
   afterSearch?: ReactNode;
   /** "Alışverişe devam et": son görüntülenen ürünler (aynı `ProductCard`, hesap sayfasıyla ortak). */
@@ -172,6 +174,7 @@ export function SearchComposer({
   beforeSearch,
   composerFooter,
   searchClassName,
+  searchContentClassName,
   afterSearch,
   recentProducts,
   recentPriceLabel,
@@ -301,97 +304,99 @@ export function SearchComposer({
   return (
     <div className={styles.wrapper}>
       <search aria-label={landmarkLabel} className={searchClassName}>
-        {beforeSearch}
-        <form
-          ref={formRef}
-          action={action}
-          method={typeof action === "string" ? "get" : undefined}
-          onSubmit={handleSubmit}
-          className={variant === "mini" ? `${styles.box} ${styles.boxMini}` : styles.box}
-          data-variant={variant}
-          aria-busy={busyMessage || attachment?.pending ? true : undefined}
-        >
-          {attachment ? (
-            <div className={styles.attachment}>
-              <img
-                className={styles.attachmentImage}
-                src={attachment.previewUrl}
-                alt={attachment.alt}
-              />
-              <button
-                type="button"
-                className={styles.attachmentRemove}
-                aria-label={attachment.removeLabel}
-                disabled={attachment.pending}
-                onClick={attachment.onRemove}
-              >
-                <CloseIcon />
-              </button>
-            </div>
-          ) : null}
-          <textarea
-            ref={inputRef}
-            id={inputId}
-            rows={1}
-            name={name}
-            defaultValue={defaultValue}
-            placeholder={placeholder}
-            aria-label={inputLabel ?? placeholder}
-            autoComplete="off"
-            enterKeyHint={attachment ? "send" : "search"}
-            readOnly={attachment?.pending}
-            onKeyDown={handleKeyDown}
-            onInput={handleInput}
-            // biome-ignore lint/a11y/noAutofocus: opt-in prop, sadece ana sayfada true.
-            autoFocus={autoFocus}
-            className={styles.input}
-          />
-          {/* Alt satir: ek solda, gonder sagda (fotograf kapaliyken de sagda kalir). */}
-          <div className={styles.actions}>
-            {leadingAction ? (
-              <Button
-                id={photoButtonId}
-                type="button"
-                variant="ghost"
-                aria-label={leadingAction.label}
-                disabled={leadingAction.disabled}
-                onClick={leadingAction.onClick}
-                className={joinClassNames(
-                  styles.photoButton,
-                  showPhotoLabel && styles.photoButtonLabeled,
-                )}
-              >
-                {leadingAction.icon ?? <PlusIcon />}
-                {showPhotoLabel ? <span data-photo-label="">{leadingAction.label}</span> : null}
-              </Button>
-            ) : photo ? (
-              <PhotoUploadButton
-                id={photoButtonId}
-                iconOnly={!showPhotoLabel}
-                icon={photo.icon ?? <ImageIcon />}
-                label={photo.label}
-                onFileSelected={photo.onFileSelected}
-                disabled={photo.disabled || attachment?.pending}
-                variant="ghost"
-                className={joinClassNames(
-                  styles.photoButton,
-                  showPhotoLabel && styles.photoButtonLabeled,
-                )}
-              />
+        <div className={searchContentClassName ?? styles.searchContent}>
+          {beforeSearch}
+          <form
+            ref={formRef}
+            action={action}
+            method={typeof action === "string" ? "get" : undefined}
+            onSubmit={handleSubmit}
+            className={variant === "mini" ? `${styles.box} ${styles.boxMini}` : styles.box}
+            data-variant={variant}
+            aria-busy={busyMessage || attachment?.pending ? true : undefined}
+          >
+            {attachment ? (
+              <div className={styles.attachment}>
+                <img
+                  className={styles.attachmentImage}
+                  src={attachment.previewUrl}
+                  alt={attachment.alt}
+                />
+                <button
+                  type="button"
+                  className={styles.attachmentRemove}
+                  aria-label={attachment.removeLabel}
+                  disabled={attachment.pending}
+                  onClick={attachment.onRemove}
+                >
+                  <CloseIcon />
+                </button>
+              </div>
             ) : null}
-            <Button
-              type="submit"
-              variant="accent"
-              aria-label={submitLabel}
-              disabled={attachment?.pending}
-              className={styles.submit}
-            >
-              <span className={styles.submitLabel}>{submitLabel}</span>
-              <ArrowRightIcon />
-            </Button>
-          </div>
-          {composerFooter}
-        </form>
+            <textarea
+              ref={inputRef}
+              id={inputId}
+              rows={1}
+              name={name}
+              defaultValue={defaultValue}
+              placeholder={placeholder}
+              aria-label={inputLabel ?? placeholder}
+              autoComplete="off"
+              enterKeyHint={attachment ? "send" : "search"}
+              readOnly={attachment?.pending}
+              onKeyDown={handleKeyDown}
+              onInput={handleInput}
+              // biome-ignore lint/a11y/noAutofocus: opt-in prop, sadece ana sayfada true.
+              autoFocus={autoFocus}
+              className={styles.input}
+            />
+            {/* Alt satir: ek solda, gonder sagda (fotograf kapaliyken de sagda kalir). */}
+            <div className={styles.actions}>
+              {leadingAction ? (
+                <Button
+                  id={photoButtonId}
+                  type="button"
+                  variant="ghost"
+                  aria-label={leadingAction.label}
+                  disabled={leadingAction.disabled}
+                  onClick={leadingAction.onClick}
+                  className={joinClassNames(
+                    styles.photoButton,
+                    showPhotoLabel && styles.photoButtonLabeled,
+                  )}
+                >
+                  {leadingAction.icon ?? <PlusIcon />}
+                  {showPhotoLabel ? <span data-photo-label="">{leadingAction.label}</span> : null}
+                </Button>
+              ) : photo ? (
+                <PhotoUploadButton
+                  id={photoButtonId}
+                  iconOnly={!showPhotoLabel}
+                  icon={photo.icon ?? <ImageIcon />}
+                  label={photo.label}
+                  onFileSelected={photo.onFileSelected}
+                  disabled={photo.disabled || attachment?.pending}
+                  variant="ghost"
+                  className={joinClassNames(
+                    styles.photoButton,
+                    showPhotoLabel && styles.photoButtonLabeled,
+                  )}
+                />
+              ) : null}
+              <Button
+                type="submit"
+                variant="accent"
+                aria-label={submitLabel}
+                disabled={attachment?.pending}
+                className={styles.submit}
+              >
+                <span className={styles.submitLabel}>{submitLabel}</span>
+                <ArrowRightIcon />
+              </Button>
+            </div>
+            {composerFooter}
+          </form>
+        </div>
       </search>
 
       {statusMessage ? (

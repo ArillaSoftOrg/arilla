@@ -6,6 +6,12 @@
   gap: var(--space-3);
 }
 
+/* Varsayilan durumda ek DOM katmani yerlesimi degistirmez. Ana sayfa gibi
+   ozellestirilmis sahneler baslik + formu ortak bir sticky blok yapabilir. */
+.searchContent {
+  display: contents;
+}
+
 /* design.md "Kutu modeli": arama kutusu --radius-lg; kontrol siniri
    --line-strong (>= 3:1); dinlenmede --shadow-xs, vurguluyken --shadow-sm.
    Kompakt AI kutusu: ustte metin (gerektiginde buyur), altta kontrol satiri
