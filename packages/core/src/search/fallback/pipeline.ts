@@ -48,6 +48,13 @@ const VERIFY_WINDOW = 96;
  */
 export const FALLBACK_TIME_BUDGET_MS = 1500;
 
+/**
+ * Tek bir fallback adiminin sorgu butcesi (ms, karar 0206). Milyonluk katalogda bulanik adim
+ * (`<<%`) eslesmesi olmayan kelimede tum aday bitmap'ini tek tek denetler (olculdu: 4M satirda
+ * 1,2 sn/dal, satir sayisiyla dogrusal); butce asilinca adim atlanir, istek surer.
+ */
+export const FALLBACK_STAGE_BUDGET_MS = 1000;
+
 /** Kisit gevsetmenin puan bedeli ve en iyi katman tavani. */
 const CONSTRAINT_PENALTY: Partial<Record<Relaxation, number>> = {
   color: 0.1,
@@ -72,6 +79,8 @@ export interface FallbackSearchOptions {
   clock?: () => number;
   /** Fallback adimlari icin toplam sure butcesi (ms); varsayilan `FALLBACK_TIME_BUDGET_MS`. */
   timeBudgetMs?: number;
+  /** Tek adimin sorgu butcesi (ms); varsayilan `FALLBACK_STAGE_BUDGET_MS`; 0 = butce yok (eski davranis). */
+  stageBudgetMs?: number;
 }
 
 const TIER_RANK: Record<MatchTier, number> = { exact: 0, close: 1, related: 2 };
@@ -133,6 +142,7 @@ export async function searchWithFallback(
   const stagesTried: SearchStageId[] = [];
   let truncated = false;
   const budget = options.timeBudgetMs ?? FALLBACK_TIME_BUDGET_MS;
+  const stageBudget = options.stageBudgetMs ?? FALLBACK_STAGE_BUDGET_MS;
 
   const finish = (
     mode: FallbackSearchOutcome["mode"],
@@ -283,7 +293,11 @@ export async function searchWithFallback(
     }
     stagesTried.push(stage.id);
     lastStage = stage.id;
-    const page = await provider.search(stage.query);
+    const page = await provider.search({
+      ...stage.query,
+      ...(stageBudget > 0 ? { budgetMs: stageBudget } : {}),
+    });
+    if (page.timedOut) truncated = true;
     for (const item of page.items) consider(item, stage.id, stage.relaxed, stage.tokens);
 
     const exact = exactEntries();

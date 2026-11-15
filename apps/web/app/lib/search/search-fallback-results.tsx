@@ -46,13 +46,18 @@ export function SearchFallbackResults({
 }
 
 /** Eşiği geçen hiçbir ürün yok: alakasız ürün göstermek yerine dürüstçe boş. */
-export function SearchNoResults() {
+/** Karar 0206: katalog taramasi suresinde bitmediyse "urun yok" DENMEZ; bos sonuc gercek olmayabilir. */
+export const INCOMPLETE_TITLE = "Arama süresinde tamamlanamadı.";
+export const INCOMPLETE_DESCRIPTION =
+  "Katalog taraması bu sefer bitmedi, bu yüzden ürün olmadığını söyleyemem. Biraz sonra tekrar dene ya da aramayı başka kelimelerle yaz.";
+
+export function SearchNoResults({ incomplete = false }: { incomplete?: boolean } = {}) {
   return (
-    <section className={styles.section} data-search-mode="empty">
+    <section className={styles.section} data-search-mode={incomplete ? "incomplete" : "empty"}>
       <EmptyState
         className={styles.emptyPanel}
-        title={NO_RESULT_TITLE}
-        description={NO_RESULT_DESCRIPTION}
+        title={incomplete ? INCOMPLETE_TITLE : NO_RESULT_TITLE}
+        description={incomplete ? INCOMPLETE_DESCRIPTION : NO_RESULT_DESCRIPTION}
         headingLevel={2}
       />
     </section>

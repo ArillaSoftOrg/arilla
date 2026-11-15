@@ -258,4 +258,50 @@ describe("searchWithFallback", () => {
     expect(outcome.trace.stagesTried).toContain("fuzzy");
     expect(outcome.trace.truncated).toBe(false);
   });
+
+  it("her fallback adimina sorgu butcesi verir; exact adimina vermez (karar 0206)", async () => {
+    const seen: (number | undefined)[] = [];
+    const provider = {
+      name: "spy",
+      async search(query: { budgetMs?: number | undefined }) {
+        seen.push(query.budgetMs);
+        return { items: [], total: 0 };
+      },
+    };
+    await searchWithFallback(
+      provider,
+      { parsed: parsed("beyaz spor ayakkabı"), sort: "balanced", page: 1, pageSize: 6 },
+      { stageBudgetMs: 321 },
+    );
+    expect(seen[0]).toBeUndefined();
+    expect(seen.slice(1).every((budget) => budget === 321)).toBe(true);
+    seen.length = 0;
+    await searchWithFallback(
+      provider,
+      { parsed: parsed("beyaz spor ayakkabı"), sort: "balanced", page: 1, pageSize: 6 },
+      { stageBudgetMs: 0 },
+    );
+    expect(seen.every((budget) => budget === undefined)).toBe(true);
+  });
+
+  it("butcesi asan adim atlanir: istek olmez, sonraki adimlar surer, iz truncated der (karar 0206)", async () => {
+    const stages: boolean[] = [];
+    const provider = {
+      name: "slow-fuzzy",
+      async search(query: { fuzzy: boolean; budgetMs?: number | undefined }) {
+        stages.push(query.fuzzy);
+        if (query.fuzzy) return { items: [], total: 0, timedOut: true };
+        return { items: [], total: 0 };
+      },
+    };
+    const outcome = await searchWithFallback(
+      provider,
+      { parsed: parsed("beyaz spor ayakkabı"), sort: "balanced", page: 1, pageSize: 6 },
+      {},
+    );
+    expect(stages).toContain(true);
+    expect(stages.length).toBeGreaterThan(2); // bulanik adimdan SONRA da adim denendi
+    expect(outcome.trace.truncated).toBe(true);
+    expect(outcome.mode).toBe("empty");
+  });
 });

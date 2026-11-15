@@ -40,6 +40,51 @@ function toQueryObject(query: SearchQuery): QueryObject {
  */
 export const TEXT_SEARCH_TIMEOUT_MS = 5_000;
 
+function isTimeout(error: unknown): boolean {
+  const code =
+    (error as { code?: string; cause?: { code?: string } } | null)?.cause?.code ??
+    (error as { code?: string } | null)?.code;
+  return code === "57014";
+}
+
+/**
+ * Adim butcesi (karar 0206): adim kendi savepoint'inde `statement_timeout = budgetMs` ile calisir.
+ * Asilirsa savepoint geri alinir (dis islem saglam kalir, onceki sinir geri gelir) ve bos sayfa doner;
+ * boylece yavas bir istege bagli adim (bulanik arama) isteginin tamamini oldurmez. Basarida onceki
+ * sinir elle geri konur (SET LOCAL savepoint'ten sonra da surer).
+ */
+async function searchWithinBudget(
+  db: Database,
+  query: SearchQuery,
+  queryObject: QueryObject,
+  page: { limit: number; offset: number },
+): Promise<ProviderPage> {
+  const budget = String(Math.max(1, Math.floor(query.budgetMs ?? 1)));
+  try {
+    return await db.transaction(async (tx) => {
+      const previous = await tx.execute<{ v: string }>(
+        sql`SELECT current_setting('statement_timeout') AS v`,
+      );
+      await tx.execute(sql`SELECT set_config('statement_timeout', ${budget}, true)`);
+      if (query.fuzzy) {
+        await tx.execute(
+          sql`SELECT set_config('pg_trgm.strict_word_similarity_threshold', ${String(FUZZY_TOKEN_THRESHOLD)}, true)`,
+        );
+      }
+      const result = await search(tx as unknown as Database, queryObject, {
+        ...page,
+        ...(query.fuzzy ? { tokenThreshold: FUZZY_TOKEN_THRESHOLD } : {}),
+      });
+      const prior = previous.rows[0]?.v ?? "0";
+      await tx.execute(sql`SELECT set_config('statement_timeout', ${prior}, true)`);
+      return { items: result.items, total: result.total, totalCapped: result.totalCapped };
+    });
+  } catch (error) {
+    if (isTimeout(error)) return { items: [], total: 0, timedOut: true };
+    throw error;
+  }
+}
+
 export interface PostgresSearchProviderOptions {
   /** Verilirse her adim kendi isleminde `statement_timeout` ile sinirlanir. */
   statementTimeoutMs?: number;
@@ -58,6 +103,7 @@ export function createPostgresSearchProvider(
     async search(query: SearchQuery): Promise<ProviderPage> {
       const queryObject = toQueryObject(query);
       const page = { limit: query.limit, offset: query.offset };
+      if (query.budgetMs !== undefined) return searchWithinBudget(db, query, queryObject, page);
       if (!query.fuzzy && timeoutMs === null) {
         const result = await search(db, queryObject, page);
         return { items: result.items, total: result.total, totalCapped: result.totalCapped };

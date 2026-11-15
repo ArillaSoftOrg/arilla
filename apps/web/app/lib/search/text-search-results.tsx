@@ -295,9 +295,13 @@ export async function TextSearchResults({
         <SearchFallbackResults items={items} extra={webItems} />
       ) : outcome.mode === "empty" ? (
         webSearch && page === 1 ? (
-          <WebOnlyResults promise={webSearch} catalog={[]} empty={<SearchNoResults />} />
+          <WebOnlyResults
+            promise={webSearch}
+            catalog={[]}
+            empty={<SearchNoResults incomplete={outcome.trace.truncated} />}
+          />
         ) : (
-          <SearchNoResults />
+          <SearchNoResults incomplete={outcome.trace.truncated} />
         )
       ) : (
         <ResultGrid items={items} extra={webItems} />
