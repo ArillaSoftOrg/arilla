@@ -138,12 +138,14 @@ def test_online_query_is_required_boolean() -> None:
 def test_only_models_with_a_live_query_path_are_marked_online() -> None:
     """Canli sorgu vektoru TS'de uretilir: Jina istemcisi ve BGE-M3 sorgu servisi (karar 0182/0196).
 
-    BGE-M3 `online_query=true` ama model `disabled`: kayit defteri bayragi yalniz TS'nin sorgu yolu
-    oldugunu soyler, etkinlestirmez (`enrich.index activate` ayrica insan onayi ister).
+    BGE-M3 `online_query=true`: bayrak yalniz TS'nin sorgu yolu oldugunu soyler.
+    Lisans insan tarafindan dogrulandi (15 Kas 2026) ve model `shadow`: uretim islerinde secilebilir,
+    ama `enrich.index activate` (aktif indeks) ayrica ve ayri bir insan onayidir.
     """
     online = {m.id for m in registry().models.values() if m.online_query}
     assert online == {"jina-clip-v2", "jina-embeddings-v3", "bge-m3-5617a9f6"}
-    assert not registry().get("bge-m3-5617a9f6").production_ready
+    bge = registry().get("bge-m3-5617a9f6")
+    assert bge.license_verified and bge.state == "shadow" and bge.production_ready
 
 
 def test_candidates_are_pinned_and_not_selectable_in_production() -> None:
@@ -152,8 +154,9 @@ def test_candidates_are_pinned_and_not_selectable_in_production() -> None:
     assert qwen.source == {"repo": SERVED, "revision": "97b0c614be4d77ee51c0cef4e5f07c00f9eb65b3"}
     assert QWEN.endswith(qwen.source["revision"][:8])
     assert bge.source["revision"] == "5617a9f61b028005a4858fdac845db406aefb181"
+    assert qwen.state == "disabled" and not qwen.production_ready
+    assert bge.state == "shadow" and bge.license_verified and bge.production_ready
     for spec in (qwen, bge):
-        assert spec.state == "disabled" and not spec.production_ready
         assert spec.dimensions == 1024
         # Depolama tablosu var (migration 0114, karar 0195) ama model `disabled`: uretimde
         # secilemez.
