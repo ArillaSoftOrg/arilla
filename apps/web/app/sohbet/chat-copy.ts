@@ -101,6 +101,7 @@ export const CHAT_COPY = {
   priceMissing: "Fiyat bilgisi yok",
   explainChip: "Farkları açıkla",
   explainChipMessage: "Bu ürünlerin farkları neler, hangisi daha uygun?",
+  answerBasisSuffix: "sekmesindeki ilk 8 ürüne göre yazıldı",
   alternativesLabel: "Benzer seçenekler",
   commentaryLabel: "Değerlendirme",
   summaryLabel: "Sonuç özeti",

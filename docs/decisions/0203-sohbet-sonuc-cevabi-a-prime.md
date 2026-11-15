@@ -58,5 +58,6 @@ en çok +1 sn; token maliyeti/tur ölçülür.
 - Ürün gerçekleri tur anında yeniden okunur: fiyat/sıra kullanıcının gördüğüyle birebir aynı
   olmayabilir (sonuçlar saklanmaz; mesajlar değiştirilemez). Cevap yalnız bu turdaki doğrulanmış
   gerçeklere dayanır, geçmiş görünümü iddia etmez.
-- Sekme (sıralama) tercihi sunucuya gitmediği için gerçekler varsayılan (Önerilenler) sıralamadır.
+- ~~Sekme tercihi sunucuya gitmediği için gerçekler varsayılan sıralamadır.~~ Karar 0211 ile
+  düzeltildi: gerçekler mesajın gönderildiği andaki aktif sekmenin sıralamasıyla okunur.
 - Gerçek model ile kalite ölçümü pilotta yapılır; bu karar kalite iddiası taşımaz.

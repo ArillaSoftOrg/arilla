@@ -54,7 +54,8 @@
     "web-search:smoke": "node --experimental-transform-types --no-warnings scripts/web-search-smoke.ts",
     "gemini:image-smoke": "node --experimental-transform-types --no-warnings scripts/gemini-image-smoke.ts",
     "gemini:smoke": "node --experimental-transform-types --no-warnings scripts/gemini-smoke.ts",
-    "eval:chat-answer": "node --experimental-transform-types --no-warnings scripts/chat-answer-eval.ts"
+    "eval:chat-answer": "node --experimental-transform-types --no-warnings scripts/chat-answer-eval.ts",
+    "eval:chat-answer-review": "node --experimental-transform-types --no-warnings scripts/chat-answer-review-pack.ts"
   },
   "dependencies": {
     "@arilla/db": "workspace:*",

@@ -23,6 +23,7 @@ import {
   isValidRequestKey,
   loadConversation,
   logChatTimings,
+  parseViewTab,
   prepareChatImage,
   processPendingTurn,
   processPendingTurnDetailed,
@@ -164,6 +165,7 @@ export async function sendMessageAction(
   request: unknown,
   requestKey: string,
   photo?: FormData,
+  viewTab?: unknown,
 ): Promise<{ status: SendMessageStatus; error?: PublicError }> {
   const user = await verifySession();
   // Oturum yok/bitti: kullanici girdisi istemcide durur, yeniden giris istenir.
@@ -196,6 +198,7 @@ export async function sendMessageAction(
       request: parsed,
       requestKey: typeof requestKey === "string" ? requestKey : undefined,
       ...(attachment ? { attachment } : {}),
+      ...(parseViewTab(viewTab) ? { viewTab: parseViewTab(viewTab) } : {}),
     });
   } catch (error) {
     // Neden sunucuda siniflanir ve loglanir; istemciye yalnizca kod + referans doner.

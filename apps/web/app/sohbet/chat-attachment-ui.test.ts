@@ -5,6 +5,7 @@ import { describe, expect, it, vi } from "vitest";
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: () => {}, replace: () => {}, refresh: () => {} }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("./actions.ts", () => ({
   startChatBootstrapAction: vi.fn(),

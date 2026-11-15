@@ -16,3 +16,4 @@ export * from "./search-adapter.ts";
 export * from "./service.ts";
 export * from "./submission.ts";
 export * from "./timing.ts";
+export * from "./view-tab.ts";

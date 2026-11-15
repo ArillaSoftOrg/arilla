@@ -233,6 +233,16 @@ describe("sendMessageAction: sohbet içinden görsel aynı konuşmaya eklenir", 
     expect(mocks.prepareChatImage).not.toHaveBeenCalled();
   });
 
+  it("karar 0211: geçerli sekme mesajla birlikte kaydedilir, bozuk ya da eksik sekme hiç eklenmez", async () => {
+    await sendMessageAction(ID, TEXT, KEY, undefined, "firsat");
+    expect(mocks.submitUserMessage.mock.calls[0]?.[1]).toMatchObject({ viewTab: "firsat" });
+    for (const bad of [null, undefined, "", "SIRALA", 5, "balanced"]) {
+      mocks.submitUserMessage.mockClear();
+      await sendMessageAction(ID, TEXT, KEY, undefined, bad);
+      expect(mocks.submitUserMessage.mock.calls[0]?.[1]).not.toHaveProperty("viewTab");
+    }
+  });
+
   it("CHAT_IMAGE_ENABLED kapalıysa görsel işlenmez ve mesaj yazılmaz", async () => {
     mocks.imageEnabled.mockReturnValue(false);
     expect(await sendMessageAction(ID, TEXT, KEY, photo())).toEqual({ status: "unavailable" });
