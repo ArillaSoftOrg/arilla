@@ -139,7 +139,7 @@ def test_only_models_with_a_live_query_path_are_marked_online() -> None:
     """Canli sorgu vektoru TS'de uretilir: Jina istemcisi ve BGE-M3 sorgu servisi (karar 0182/0196).
 
     BGE-M3 `online_query=true`: bayrak yalniz TS'nin sorgu yolu oldugunu soyler.
-    Lisans insan tarafindan dogrulandi (15 Kas 2026) ve model `shadow`: uretim islerinde secilebilir,
+    Lisans insan tarafindan dogrulandi (15 Kas 2026), model `shadow`: uretim islerinde secilebilir,
     ama `enrich.index activate` (aktif indeks) ayrica ve ayri bir insan onayidir.
     """
     online = {m.id for m in registry().models.values() if m.online_query}
