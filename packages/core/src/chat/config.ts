@@ -32,6 +32,20 @@ export function isChatUxV2Enabled(env: Env = process.env): boolean {
 }
 
 /**
+ * Sonuc cevabi pilotu (karar 0203). `CHAT_RESULT_ANSWER=true` VE kullanici `CHAT_RESULT_ANSWER_USERS`
+ * listesinde (virgulle ayrilmis kimlikler; `*` = herkes, yalniz pilot sonrasi onayla) ise acik.
+ * Liste bos/yoksa kapali: bayrak tek basina kimseye acmaz.
+ */
+export function isChatAnswerEnabled(userId: number, env: Env = process.env): boolean {
+  if (!isChatDiscoveryEnabled(env) || env.CHAT_RESULT_ANSWER?.trim() !== "true") return false;
+  const list = (env.CHAT_RESULT_ANSWER_USERS ?? "")
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
+  return list.includes("*") || list.includes(String(userId));
+}
+
+/**
  * Sohbet gorsel eki (karar 0078). `CHAT_IMAGE_ENABLED=true` verilmedikce kapali;
  * hukuk onayi gelmeden acilmaz. Sohbetin kendisi de acik olmalidir.
  */

@@ -129,7 +129,9 @@ export interface ClarifyQuestion {
  */
 export type ModelTurn =
   | { action: "clarify"; message: string; question: ClarifyQuestion; imageSummary?: string }
-  | { action: "search"; message: string; intent: SearchIntentPatch; imageSummary?: string };
+  | { action: "search"; message: string; intent: SearchIntentPatch; imageSummary?: string }
+  /** Karar 0203: ham cevap; icerigi `validateAnswer` dogrular, o gecmeden kullaniciya gitmez. */
+  | { action: "answer"; message: string; answer: Record<string, unknown>; imageSummary?: string };
 
 export type ModelTurnRejection =
   | "not_object"
@@ -325,7 +327,67 @@ export function parseModelTurn(raw: unknown): ParsedModelTurn {
     if (intent === null) return { ok: false, reason: "bad_intent" };
     return { ok: true, turn: { action: "search", message, intent, ...imageSummary } };
   }
+  // Karar 0203: sonuc cevabi. Ham `answer` burada yalnizca bicim olarak gecer; icerigi
+  // `validateAnswer` (answer.ts) urun gerceklerine karsi dogrular. Gerceksiz tur kabul edilmez
+  // (`interpretTurn`).
+  if (raw.action === "answer") {
+    if (!isRecord(raw.answer)) return { ok: false, reason: "bad_intent" };
+    return {
+      ok: true,
+      turn: { action: "answer", message: message ?? "", answer: raw.answer, ...imageSummary },
+    };
+  }
   return { ok: false, reason: "bad_action" };
+}
+
+const ANSWER_FIELDS = ["title", "price", "brand", "store", "offer_count"] as const;
+
+/**
+ * `answer: true` (karar 0203; yalniz urun gerceklerinin verildigi turlar): `answer` eylemi ve
+ * `answer` alani eklenir. Verilmezse sema ve davranis oncekiyle AYNIDIR.
+ */
+export function buildModelTurnSchema(
+  options: { imageSummary?: boolean; answer?: boolean } = {},
+): Record<string, unknown> {
+  const schema = buildBaseModelTurnSchema(options);
+  if (!options.answer) return schema;
+  const properties = schema.properties as Record<string, Record<string, unknown>>;
+  (properties.action as { enum: string[] }).enum = ["clarify", "search", "answer"];
+  properties.answer = {
+    type: ["object", "null"],
+    additionalProperties: false,
+    required: ["paragraphs"],
+    properties: {
+      paragraphs: {
+        type: "array",
+        maxItems: 3,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["text", "evidence"],
+          properties: {
+            text: { type: "string", maxLength: 400 },
+            evidence: {
+              type: "array",
+              maxItems: 4,
+              items: {
+                type: "object",
+                additionalProperties: false,
+                required: ["item", "field", "quote"],
+                properties: {
+                  item: { type: "string", maxLength: 4 },
+                  field: { type: "string", enum: [...ANSWER_FIELDS] },
+                  quote: { type: "string", maxLength: 100 },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  };
+  (schema.required as string[]).push("answer");
+  return schema;
 }
 
 /**
@@ -333,7 +395,7 @@ export function parseModelTurn(raw: unknown): ParsedModelTurn {
  * `imageSummary: true` (yalnizca gorselli turlar, karar 0091) `image_summary` alanini
  * ekler; metin turlarinin semasi ve davranisi degismez.
  */
-export function buildModelTurnSchema(
+function buildBaseModelTurnSchema(
   options: { imageSummary?: boolean } = {},
 ): Record<string, unknown> {
   const nullableString = (maxLength: number) => ({ type: ["string", "null"], maxLength });

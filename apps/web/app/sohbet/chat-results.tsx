@@ -19,6 +19,7 @@ import { cardPriceProps, resultCountLabel } from "../lib/search/search-results.t
 import { WebGridItems, WebOnlyResults } from "../lib/search/web-search-section.tsx";
 import { startWebSearch } from "../lib/search/web-search-start.ts";
 import { CHAT_COPY, relaxationLabel } from "./chat-copy.ts";
+import { ExplainChip } from "./chat-explain-chip.tsx";
 import { ExplanationFeedback } from "./chat-explanation-feedback.tsx";
 import { ResultFeedback } from "./chat-feedback-client.tsx";
 import {
@@ -145,9 +146,12 @@ function CommentarySection({
   conversationId,
   messageSeq,
   explanationHelpful,
+  answerEnabled,
 }: {
   items: readonly GridItem[];
   seed: string;
+  /** Karar 0203: kullanıcı sonuç cevabı pilotunda; "Farkları açıkla" çipi gösterilir. */
+  answerEnabled: boolean;
   conversationId: string;
   messageSeq: number;
   /** Karar 0202: değerlendirmeye verilmiş ayrı oy; yoksa `null`. */
@@ -160,6 +164,7 @@ function CommentarySection({
       <section className={styles.commentary} aria-label={CHAT_COPY.commentaryLabel}>
         <p>{commentary.sentences.join(" ")}</p>
       </section>
+      {answerEnabled ? <ExplainChip /> : null}
       <ExplanationFeedback
         conversationId={conversationId}
         messageSeq={messageSeq}
@@ -266,6 +271,7 @@ export async function ChatResults({
   sort,
   helpful,
   explanationHelpful = null,
+  answerEnabled = false,
   uxV2 = false,
   compact = false,
 }: {
@@ -279,6 +285,8 @@ export async function ChatResults({
   helpful: boolean | null;
   /** Karar 0202: değerlendirme metnine verilen ayrı oy. */
   explanationHelpful?: boolean | null;
+  /** Karar 0203: sonuç cevabı pilotundaki kullanıcı. */
+  answerEnabled?: boolean;
   /** Karar 0200 (`CHAT_UX_V2`): özet satırı + kademeli gösterim; kapalıyken bugünkü düzen. */
   uxV2?: boolean;
   /** Karar 0200: kullanıcının açtığı ESKİ blok: az kart, sekme/internet/oy yok. */
@@ -411,6 +419,7 @@ export async function ChatResults({
                 conversationId={conversationId}
                 messageSeq={messageSeq}
                 explanationHelpful={explanationHelpful}
+                answerEnabled={answerEnabled}
               />
               {outcome.items[0] ? (
                 <Suspense fallback={null}>

@@ -47,6 +47,12 @@ import { loadLexiconCached } from "../search/lexicon-cache.ts";
 import { parseQueryText } from "../search/parse-query.ts";
 import { providerCallsToday } from "../search/query-interpretation.ts";
 import {
+  looksLikeResultQuestion,
+  RESULT_FACT_LIMIT,
+  type ResultFact,
+  toResultFacts,
+} from "./answer.ts";
+import {
   CHAT_CLIENT_OPTIONS,
   CHAT_DAILY_CALL_CAP,
   CHAT_LEASE_SECONDS,
@@ -55,6 +61,7 @@ import {
   chatMessageLimits,
   chatTurnRunLimits,
   chatTurnsPerHour,
+  isChatAnswerEnabled,
   isChatImageEnabled,
   isChatLinkEnabled,
   MAX_USER_MESSAGES_PER_CONVERSATION,
@@ -85,6 +92,7 @@ import {
 } from "./interpreter.ts";
 import { type ChatLinkPayload, parseChatLinkPayload } from "./link.ts";
 import { planLinkTurn } from "./link-turn.ts";
+import { searchByIntent } from "./search-adapter.ts";
 import { type ChatTimings, createChatTimer, logChatTimings } from "./timing.ts";
 
 export type ChatInputRequest =
@@ -867,7 +875,7 @@ async function requestKeyExists(
 // ---------------------------------------------------------------------------
 
 export type ProcessTurnResult =
-  | { status: "answered"; source: "model" | "fallback"; action: "clarify" | "search" }
+  | { status: "answered"; source: "model" | "fallback"; action: "clarify" | "search" | "answer" }
   /** Baska bir tur bu sohbeti isliyor; cagiran biraz sonra tekrar bakar. */
   | { status: "busy" }
   /** Cevaplanmamis kullanici mesaji yok. */
@@ -1056,10 +1064,27 @@ async function chatProviderBudget(
   }
 }
 
+/**
+ * Karar 0203: sayfanin gosterdigi aramanin (saklı niyet, varsayilan siralama) ilk <=8 urunu. Model
+ * cagrisi YOK; hata/zaman asimi/yakin-sonuc modunda bos doner (cevap gerceksiz verilmez).
+ */
+async function loadResultFacts(db: Database, intent: SearchIntent): Promise<ResultFact[]> {
+  try {
+    const result = await searchByIntent(db, intent, {
+      pageSize: RESULT_FACT_LIMIT,
+      sort: "balanced",
+    });
+    if (result.outcome.mode !== "results") return [];
+    return toResultFacts(result.outcome.items);
+  } catch {
+    return [];
+  }
+}
+
 /** Yazilan cevabin istemcide hemen gosterilebilen on izlemesi (kalici kayit sunucudadir). */
 export interface AssistantPreview {
   seq: number;
-  kind: "clarify" | "search";
+  kind: "clarify" | "search" | "answer";
   content: string;
 }
 
@@ -1223,7 +1248,7 @@ async function runPendingTurn(
       return { status: "idle" };
     }
     // Yedek yol icin "baska ana alan" sinyali: mevcut merkezi sozluk (karar 0133), yeni sozluk yok.
-    const request: InterpretRequest = lexicon
+    const requestWithoutFacts: InterpretRequest = lexicon
       ? {
           ...maybeRequest,
           categoryOf: (text) => {
@@ -1232,6 +1257,17 @@ async function runPendingTurn(
           },
         }
       : maybeRequest;
+    // Karar 0203: sonuc cevabi pilotu. Yalniz bayrak + izinli kullanici + mevcut niyet + sonuc sorusu
+    // gibi bir mesaj varsa katalogdan en cok 8 urun gercegi okunur (aksi halde ek sorgu YOK).
+    const resultFacts =
+      isChatAnswerEnabled(input.userId) &&
+      requestWithoutFacts.input.kind === "text" &&
+      view.currentIntent !== null &&
+      looksLikeResultQuestion(requestWithoutFacts.input.text)
+        ? await loadResultFacts(db, view.currentIntent)
+        : [];
+    const request: InterpretRequest =
+      resultFacts.length > 0 ? { ...requestWithoutFacts, resultFacts } : requestWithoutFacts;
     const lastSeq = view.messages.at(-1)?.seq ?? 0;
     // Kilit/islem YOK: kira yalnizca bir satir isaretidir; model cagrisi DB'yi tutmaz.
     let modelAllowed = providerBudget.modelAllowed;
@@ -1393,6 +1429,31 @@ async function runPendingTurn(
             return { status: "answered", source, action: "clarify" };
           }
 
+          if (turn.action === "answer") {
+            // Karar 0203: sonuc cevabi. Arama bloğu/niyet DEGISMEZ (`current_search_intent` aynen kalir);
+            // cevap (dogrulanan paragraflar + alintilar ya da modelsiz ozet) sohbet mesajidir (kural 3).
+            await tx.insert(chatMessage).values({
+              conversationId: row.id,
+              seq,
+              role: "assistant",
+              kind: "notice",
+              content: turn.message.slice(0, 2000) || "-",
+              payload: { answer: turn.answer, source },
+            });
+            await tx
+              .update(conversation)
+              .set({
+                pendingQuestion: null,
+                messageCount: seq,
+                processingUntil: null,
+                lastMessageAt: sql`now()`,
+                updatedAt: sql`now()`,
+              })
+              .where(eq(conversation.id, row.id));
+            setPreview({ seq, kind: "answer", content: turn.message });
+            return { status: "answered", source, action: "answer" };
+          }
+
           await tx.insert(chatMessage).values({
             conversationId: row.id,
             seq,
@@ -1476,7 +1537,7 @@ export async function getTurnStatus(
       state: "answered",
       preview: {
         seq: row.seq,
-        kind: row.kind === "clarify" ? "clarify" : "search",
+        kind: row.kind === "clarify" ? "clarify" : row.kind === "notice" ? "answer" : "search",
         content: row.content ?? "",
       },
     };
