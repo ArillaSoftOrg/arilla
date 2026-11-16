@@ -17,7 +17,11 @@ düşer; altı kelimelik sorgu tek adımda tek kelimeye iner.
    `head_only`. Tür bilinmiyorsa eski davranış (doğrudan son kelime).
 3. **Tür-doğru son çare** (`head_only`, `essential`): süre bütçesi dolsa da, hiç sonuç yokken, kendi adım bütçesiyle
    (0206) çalışır; ara adımlar onu aç bırakmaz.
-4. `RESOLVER_VERSION` 5: eski çözümleme satırları bir kez yeniden ayrıştırılır (slot sırası değişti).
+4. **Sessiz olmayan yakın sonuç:** exact adımından gelen, eksik tokenı olan yakın sonuç (`tier != exact`) artık
+   eksik tokenları `relaxed` olarak taşır (`token:<kelime>`). Baş isim doğru seçilince "kırmızı sneaker" gibi sorgularda
+   siyah/beyaz sneaker aday olur; bu sonucun "kırmızı"yı gevşettiği kullanıcıya söylenmeli (CI testi: "a relaxed
+   search reports what it relaxed").
+5. `RESOLVER_VERSION` 5: eski çözümleme satırları bir kez yeniden ayrıştırılır (slot sırası değişti).
 
 ## Ölçüm (yerel e4-evaldb 160 bin ürün; üretim salt-okunur sonda)
 - "ince uzun saplı mutfak spatulası silikon": boş → 12 ilgili spatula/silikon sonucu.

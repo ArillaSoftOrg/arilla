@@ -213,6 +213,11 @@ export async function searchWithFallback(
     stageTokens: readonly QueryToken[] = analysis.tokens,
   ): void => {
     const grade = gradeItem(analysis.tokens, item);
+    // Model dogrulamasindan gelen yakin sonuc (exact adimi, eksik token): "sessiz" olmasin. Eksik tokenlar
+    // gevsetilen sayilir (karar 0214: urun turunu koruyan baş isim secimi bu sonuclari adaya sokar).
+    if (relaxed.length === 0 && grade.tier !== "exact" && grade.missing.length > 0) {
+      relaxed = grade.missing.map((word): Relaxation => `token:${word}`);
+    }
     let graded = grade.tier;
     const gradedScore = grade.score;
     let floored = false;
