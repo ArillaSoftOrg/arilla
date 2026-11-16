@@ -401,7 +401,7 @@ bulundur.
 | Sahte indirim notu | ürün sayfası | Nötr olgu sunumu |
 | Alternatif şeridi | ürün sayfası | Yatay kaydırma, 4-6 ürün |
 | Giriş modali | `/ara`, 2-3 sorgu sonrası | Sonuçlar arkada kalır |
-| Keşfet ızgarası | `/kesfet` | Masonry, fotoğraf hakim |
+| Keşfet ızgarası | `/kesfet` | Sıra-koruyan masonry (4/3/2 sütun), 22 px kart, yarı saydam alt bilgi katmanı (karar 0216) |
 | Trend kartı | `/trend` | Kapak, başlık, ürün önizlemeleri |
 | Sponsor rozeti | trend ve sonuçlar | Zorunlu, gizlenemez |
 | Creator başlığı | `/@handle` | Avatar, isim, koleksiyon sayısı, takip |

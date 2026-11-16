@@ -51,6 +51,7 @@ export const HOME_COPY = {
   kesfetEmptyDescription:
     "Bu sırada aradığın ürünü yazarak ya da fotoğrafını yükleyerek başlayabilirsin.", // empty.discovery_description
   kesfetEmptyAction: "Aramaya başla", // empty.discovery_action
+  kesfetLoading: "Keşfet yükleniyor.", // discover.loading
   offerCountLabel: "mağaza", // product.offer_count_suffix
   footerProductGroupTitle: "Ürün", // footer.product_group_title
   footerAccountGroupTitle: "Hesap", // footer.account_group_title

@@ -385,6 +385,7 @@ Fiyat geçmişi grafiği TL teklifi yoksa yurt dışı teklifin kendi para birim
 | `discover.description` | Farklı kategorilerden bugün öne çıkan ürünler. |
 | `discover.curated_title` | Bugün öne çıkanlar |
 | `discover.organic_title` | Kullanıcıların bulduğu |
+| `discover.loading` | Keşfet yükleniyor. |
 
 ## Giriş
 

@@ -4,12 +4,6 @@
   padding-block-start: 0;
 }
 
-/* Bos durum sayfa basliginin altinda, ortalanmis panel. */
-.empty {
-  border-radius: var(--radius-lg);
-  background: var(--surface);
-}
-
 .page {
   min-width: 0;
   color: var(--ink);
@@ -26,8 +20,11 @@
   border-bottom: var(--border-width) solid var(--line);
   margin-bottom: var(--space-8);
 }
+/* Bos durum sayfa basliginin altinda, ortalanmis panel (yeni kart yarıçapıyla uyumlu). */
 .empty {
   margin-top: var(--space-8);
   padding-block: var(--space-12);
   border: var(--border-width) solid var(--line);
+  border-radius: 22px;
+  background: var(--surface);
 }
