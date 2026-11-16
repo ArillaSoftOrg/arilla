@@ -12,6 +12,7 @@
  *   kategoriye cikar); gevsetme sorguyu capasiz birakacaksa o adim uretilmez.
  * - Her adim hangi seyi gevsettigini `relaxed` ile tasir (yalnizca dahili).
  */
+import { headTypeToken } from "../semantic/product-type.ts";
 import type { QueryFilters } from "../types.ts";
 import { isSpecToken, type QueryToken, slotsOf } from "./analyze.ts";
 import type { Relaxation, SearchQuery, SearchStageId } from "./types.ts";
@@ -22,6 +23,8 @@ export interface PlannedStage {
   tokens: QueryToken[];
   query: SearchQuery;
   relaxed: Relaxation[];
+  /** Bkz. `TokenStep.essential`. */
+  essential?: boolean;
 }
 
 /** Bir sorgu icin en fazla bu kadar saglayici cagrisi (zero-result yolu). */
@@ -50,6 +53,12 @@ interface TokenStep {
   id: SearchStageId;
   tokens: QueryToken[];
   relaxed: Relaxation[];
+  /**
+   * Guvenilir urun turunu koruyan son care adimi (karar 0214): sure butcesi dolsa da, hic sonuc yokken
+   * calisir (kendi adim butcesi `FALLBACK_STAGE_BUDGET_MS` gecerli). Aksi halde ara adimlar butceyi
+   * tuketir ve tur-dogru adim hic denenmez.
+   */
+  essential?: boolean;
 }
 
 /**
@@ -58,7 +67,10 @@ interface TokenStep {
  * Model kodu olmayan sorgularda (Turkce isim tamlamasi, bas isim sonda)
  * yalnizca bas isimle denenir.
  */
-export function tokenLadder(tokens: readonly QueryToken[]): TokenStep[] {
+export function tokenLadder(
+  tokens: readonly QueryToken[],
+  typeToken: string | null = null,
+): TokenStep[] {
   const steps: TokenStep[] = [];
   const current = [...tokens];
   const relaxed: Relaxation[] = [];
@@ -82,11 +94,64 @@ export function tokenLadder(tokens: readonly QueryToken[]): TokenStep[] {
   } else if (steps.length === 0 && current.length > 1) {
     const head = current[current.length - 1] as QueryToken;
     if (head.kind === "word" && head.value.length >= 4) {
+      // Bas isim guvenilir bir urun turuyse (karar 0214) nitelikler asamali birakilir: tur ve ona en
+      // yakin niteleyiciler en son gider. 6 kelimeden dogrudan tek kelimeye dusulmez.
+      const typed = typeToken !== null && head.value.split(" ").includes(typeToken);
+      if (typed && current.length > 2) {
+        for (const size of qualifierSizes(current.length)) {
+          const kept = nearestToHead(current, size);
+          const dropped = current.filter((token) => !kept.includes(token));
+          steps.push({
+            id: "qualifier_relaxed",
+            tokens: kept,
+            relaxed: dropped.map((token): Relaxation => `token:${token.value}`),
+          });
+        }
+      }
       const dropped = current.slice(0, -1).map((token): Relaxation => `token:${token.value}`);
-      steps.push({ id: "head_only", tokens: [head], relaxed: dropped });
+      steps.push({
+        id: "head_only",
+        tokens: [head],
+        relaxed: dropped,
+        ...(typed ? { essential: true } : {}),
+      });
     }
   }
   return steps;
+}
+
+/**
+ * Tur + niteleyici adimlarinin belirtec sayilari (tur dahil, 1 haric): 3-4 -> [2], 5 -> [3, 2],
+ * 6 -> [4, 2]. Her adim bir saglayici cagrisidir (`MAX_STAGES`, sure butcesi): en fazla iki ara adim.
+ */
+function qualifierSizes(length: number): number[] {
+  const sizes = new Set<number>();
+  if (length >= 5) sizes.add(Math.ceil((length * 2) / 3));
+  sizes.add(2);
+  return [...sizes].filter((size) => size >= 2 && size < length).sort((a, b) => b - a);
+}
+
+/**
+ * Tur (listenin sonundaki bas isim) ve ona orijinal sorguda EN YAKIN `size - 1` niteleyici; sol
+ * komsu once ("dikey supurge hafif" -> "dikey supurge": Turkcede niteleyici basin onunde durur).
+ * Sira korunur. Orijinal sira bilinmiyorsa (`pos` yok) sondan sayilir.
+ */
+function nearestToHead(tokens: readonly QueryToken[], size: number): QueryToken[] {
+  const head = tokens[tokens.length - 1] as QueryToken;
+  const headPos = head.pos ?? tokens.length - 1;
+  const position = (token: QueryToken, index: number) => token.pos ?? index;
+  const others = tokens
+    .slice(0, -1)
+    .map((token, index) => ({ token, at: position(token, index) }))
+    .sort((a, b) => {
+      const da = Math.abs(a.at - headPos);
+      const db = Math.abs(b.at - headPos);
+      if (da !== db) return da - db;
+      return a.at < headPos ? -1 : 1; // esit uzaklikta sol komsu once
+    })
+    .slice(0, size - 1)
+    .map((entry) => entry.token);
+  return [...tokens.filter((token) => others.includes(token)), head];
 }
 
 interface ConstraintStep {
@@ -190,9 +255,10 @@ export function planFallbackStages(input: StagePlanInput): PlannedStage[] {
   if (input.hasAliasExpansion) add(make("alias", tokens, slotsOf(tokens), filters, ["alias"]));
   if (input.canFuzzy) add(make("fuzzy", tokens, input.baseSlots, filters, ["typo"], true));
 
-  const tokenSteps = tokenLadder(tokens);
+  const tokenSteps = tokenLadder(tokens, headTypeToken(input.text));
   for (const step of tokenSteps) {
-    add(make(step.id, step.tokens, slotsOf(step.tokens), filters, step.relaxed));
+    const planned = make(step.id, step.tokens, slotsOf(step.tokens), filters, step.relaxed);
+    add(step.essential ? { ...planned, essential: true } : planned);
   }
 
   const constraintSteps = constraintLadder(filters, tokens);

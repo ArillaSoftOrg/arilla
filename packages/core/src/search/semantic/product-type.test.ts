@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { foldForMatch } from "../text-match.ts";
-import { requiredTypePattern } from "./product-type.ts";
+import { headTypeToken, requiredTypePattern } from "./product-type.ts";
 
 const matches = (query: string, title: string): boolean | null => {
   const pattern = requiredTypePattern(query);
@@ -35,5 +35,26 @@ describe("urun turu zorunlulugu", () => {
   it("telefon kilifi: bas isim 'kilif' (telefon degil)", () => {
     expect(matches("telefon kılıfı", "Shockproof Case For iPhone 15")).toBe(true);
     expect(matches("telefon kılıfı", "Android Smartphone 5G 256GB")).toBe(false);
+  });
+});
+
+describe("headTypeToken (karar 0214)", () => {
+  it("sonda olmayan urun turunu bulur: dikey supurge hafif -> supurge", () => {
+    expect(headTypeToken("dikey süpürge hafif")).toBe("supurge");
+    expect(headTypeToken("kablosuz kulaklık")).toBe("kulaklik");
+    expect(headTypeToken("kadın dolgu topuk terlik")).toBe("terlik");
+  });
+
+  it("sifat ekli govde tur sayilmaz: sarjli supurge -> supurge; sarj aleti -> sarj", () => {
+    expect(headTypeToken("kablosuz dikey süpürge hafif şarjlı")).toBe("supurge");
+    expect(headTypeToken("şarjlı")).toBeNull();
+    expect(headTypeToken("hızlı şarj aleti")).toBe("sarj");
+    // Zorunlu tur deseni (anlamsal kapi) degismedi: sifat eki orada da govdeyle eslesir.
+    expect(requiredTypePattern("şarjlı")).not.toBeNull();
+  });
+
+  it("tur bilinmiyorsa ya da bos ise null", () => {
+    expect(headTypeToken("zorbalux hafif")).toBeNull();
+    expect(headTypeToken("")).toBeNull();
   });
 });

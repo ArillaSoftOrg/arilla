@@ -2,6 +2,7 @@ import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
+import { headTypeToken } from "../semantic/product-type.ts";
 import { analyzeQuery, wordsOf } from "./analyze.ts";
 import { editDistance, gradeItem, wordSimilarity } from "./grade.ts";
 import { constraintLadder, planFallbackStages, tokenLadder } from "./stages.ts";
@@ -127,5 +128,56 @@ describe("no model call (CLAUDE.md kural 1)", () => {
       expect(source, file).not.toMatch(/\bfetch\s*\(/);
       expect(source, file).not.toMatch(/GEMINI|getLlmClient/);
     }
+  });
+});
+
+describe("urun turunu koruyan asamali gevsetme (karar 0214)", () => {
+  const tokensOf = (text: string) => analyzeQuery(parsed(text)).tokens;
+  const typeOf = (text: string) => headTypeToken(text);
+
+  it("dikey supurge hafif: tur sona alinir, tur kalirken niteleyiciler asamali birakilir", () => {
+    const tokens = tokensOf("dikey süpürge hafif");
+    expect(tokens.map((token) => token.value)).toEqual(["dikey", "hafif", "supurge"]);
+    const steps = tokenLadder(tokens, typeOf("dikey süpürge hafif"));
+    expect(steps.map((step) => [step.id, step.tokens.map((t) => t.value)])).toEqual([
+      ["qualifier_relaxed", ["dikey", "supurge"]],
+      ["head_only", ["supurge"]],
+    ]);
+  });
+
+  it("alti kelimeden dogrudan tek kelimeye dusmez", () => {
+    const text = "siyah kablosuz hafif dikey sarjli süpürge";
+    const steps = tokenLadder(tokensOf(text), typeOf(text));
+    expect(steps.map((step) => [step.id, step.tokens.length])).toEqual([
+      ["qualifier_relaxed", 4],
+      ["qualifier_relaxed", 2],
+      ["head_only", 1],
+    ]);
+    // Tur ve ona en yakin niteleyici en son birakilir.
+    expect(steps[1]?.tokens.map((t) => t.value)).toEqual(["sarjli", "supurge"]);
+    expect(steps[2]?.tokens.map((t) => t.value)).toEqual(["supurge"]);
+  });
+
+  it("urun turu bilinmeyen sorguda eski davranis: dogrudan son kelime", () => {
+    const text = "zorbalux mavi parlak hafif ince";
+    const steps = tokenLadder(tokensOf(text), typeOf(text));
+    expect(steps.map((step) => step.id)).toEqual(["head_only"]);
+    expect(steps[0]?.tokens.map((t) => t.value)).toEqual(["ince"]);
+  });
+
+  it("model sorgusu degismez: iphone 17 pro max", () => {
+    const text = "iphone 17 pro max";
+    const steps = tokenLadder(tokensOf(text), typeOf(text));
+    expect(steps.map((step) => [step.id, step.tokens.map((t) => t.value)])).toEqual([
+      ["variant_relaxed", ["iphone", "17", "pro"]],
+      ["variant_relaxed", ["iphone", "17"]],
+      ["family", ["iphone"]],
+    ]);
+  });
+
+  it("tur sondaysa ve iki kelimeyse ara adim yok", () => {
+    const text = "kablosuz kulaklik";
+    const steps = tokenLadder(tokensOf(text), typeOf(text));
+    expect(steps.map((step) => step.id)).toEqual(["head_only"]);
   });
 });

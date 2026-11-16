@@ -213,6 +213,11 @@ export async function searchWithFallback(
     stageTokens: readonly QueryToken[] = analysis.tokens,
   ): void => {
     const grade = gradeItem(analysis.tokens, item);
+    // Model dogrulamasindan gelen yakin sonuc (exact adimi, eksik token): "sessiz" olmasin. Eksik tokenlar
+    // gevsetilen sayilir (karar 0214: urun turunu koruyan baş isim secimi bu sonuclari adaya sokar).
+    if (relaxed.length === 0 && grade.tier !== "exact" && grade.missing.length > 0) {
+      relaxed = grade.missing.map((word): Relaxation => `token:${word}`);
+    }
     let graded = grade.tier;
     const gradedScore = grade.score;
     let floored = false;
@@ -289,7 +294,8 @@ export async function searchWithFallback(
   for (const stage of stages) {
     if (clock() - fallbackStartedAt > budget) {
       truncated = true;
-      break;
+      // Tur-dogru son care adimi, hic sonuc yokken butce dolsa da denenir (karar 0214); digerleri atlanir.
+      if (!(stage.essential && pool.size === 0)) continue;
     }
     stagesTried.push(stage.id);
     lastStage = stage.id;
