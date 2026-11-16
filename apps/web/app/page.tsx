@@ -13,7 +13,7 @@ import {
 } from "@arilla/core";
 import { loginPathWithNext } from "@arilla/core/auth-redirect";
 import { getDatabase } from "@arilla/db";
-import { DiscoveryGrid, EmptyState, HomeHero, Section } from "@arilla/ui";
+import { Container, DiscoveryGrid, EmptyState, HomeHero, Section } from "@arilla/ui";
 import type { Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { COMING_SOON_COPY } from "./coming-soon-copy.ts";
@@ -249,6 +249,7 @@ export default async function HomePage({
       links={homeSectionLinks("#kesfet")}
       footerClassName={styles.homeFooter}
       headerAppearance="mobileHeroOverlay"
+      fullBleed
     >
       <link
         rel="preload"
@@ -287,38 +288,42 @@ export default async function HomePage({
 
         {homeTrends.length > 0 ? (
           <Section id="trendler" aria-labelledby="trendler-baslik" className={styles.anchored}>
-            <HomeSectionHeading
-              id="trendler-baslik"
-              title={HOME_COPY.trendsTitle}
-              description={HOME_COPY.trendsSubtitle}
-            />
-            <div className={styles.trendsViewport}>
-              <TrendCardGrid trends={homeTrends} eagerFirst labelledBy="trendler-baslik" />
-            </div>
-            <p className={styles.trendsMore}>
-              <a href="/trendler" className={styles.trendsMoreLink}>
-                {TREND_COPY.homeAllLink}
-              </a>
-            </p>
+            <Container size="wide">
+              <HomeSectionHeading
+                id="trendler-baslik"
+                title={HOME_COPY.trendsTitle}
+                description={HOME_COPY.trendsSubtitle}
+              />
+              <div className={styles.trendsViewport}>
+                <TrendCardGrid trends={homeTrends} eagerFirst labelledBy="trendler-baslik" />
+              </div>
+              <p className={styles.trendsMore}>
+                <a href="/trendler" className={styles.trendsMoreLink}>
+                  {TREND_COPY.homeAllLink}
+                </a>
+              </p>
+            </Container>
           </Section>
         ) : null}
 
         <Section id="kesfet" aria-labelledby="kesfet-baslik" className={styles.anchored}>
-          <HomeSectionHeading
-            id="kesfet-baslik"
-            title={HOME_COPY.discoveryTitle}
-            description={HOME_COPY.discoverySubtitle}
-          />
-          {discoveryItems.length > 0 ? (
-            <DiscoveryGrid items={discoveryItems} labelledBy="kesfet-baslik" />
-          ) : (
-            <EmptyState
-              tone="compact"
-              title={HOME_COPY.kesfetEmptyTitle}
-              description={HOME_COPY.kesfetEmptyDescription}
-              className={styles.homeEmpty}
+          <Container size="wide">
+            <HomeSectionHeading
+              id="kesfet-baslik"
+              title={HOME_COPY.discoveryTitle}
+              description={HOME_COPY.discoverySubtitle}
             />
-          )}
+            {discoveryItems.length > 0 ? (
+              <DiscoveryGrid items={discoveryItems} labelledBy="kesfet-baslik" />
+            ) : (
+              <EmptyState
+                tone="compact"
+                title={HOME_COPY.kesfetEmptyTitle}
+                description={HOME_COPY.kesfetEmptyDescription}
+                className={styles.homeEmpty}
+              />
+            )}
+          </Container>
         </Section>
       </div>
     </PublicSiteShell>

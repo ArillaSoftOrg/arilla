@@ -883,7 +883,15 @@
   z-index: var(--z-dropdown);
   width: 100%;
   padding-block-start: env(safe-area-inset-top, 0px);
-  background: transparent;
+  border: 0;
+  box-shadow: none;
+  /* Duz serit degil: ustte ~%27 koyu, asagi dogru seffafa inen gradyan; alt sinir yok. */
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--media-scrim) 72%, transparent) 0%,
+    color-mix(in srgb, var(--media-scrim) 30%, transparent) 70%,
+    transparent 100%
+  );
 }
 
 .header[data-appearance="mobileHeroOverlay"] .menuButton,
@@ -899,6 +907,34 @@
 .header[data-appearance="mobileHeroOverlay"] .utility:hover {
   color: var(--on-media);
   background: color-mix(in srgb, var(--on-media) 14%, transparent);
+}
+
+.header[data-appearance="mobileHeroOverlay"] .menuButton:focus-visible,
+.header[data-appearance="mobileHeroOverlay"] .brand:focus-visible,
+.header[data-appearance="mobileHeroOverlay"] .navLink:focus-visible,
+.header[data-appearance="mobileHeroOverlay"] .utility:focus-visible,
+.header[data-appearance="mobileHeroOverlay"] .account:focus-visible,
+.header[data-appearance="mobileHeroOverlay"] .accountAvatar:focus-visible,
+.header[data-appearance="mobileHeroOverlay"] .themeSlot button:focus-visible {
+  outline: 2px solid var(--on-media);
+  outline-offset: 3px;
+}
+
+/* .nav yatay kaydirilabilir (overflow-x:auto) ve baglanti yuksekligi nav kadar:
+   dis halka kirpilir; bu yuzden nav baglantilarinda halka iceri cizilir. */
+.header[data-appearance="mobileHeroOverlay"] .navLink:focus-visible {
+  outline-offset: -3px;
+  border-radius: var(--radius-sm);
+}
+
+.header[data-appearance="mobileHeroOverlay"] .themeSlot button {
+  border-color: color-mix(in srgb, var(--on-media) 42%, transparent);
+  color: var(--on-media);
+}
+
+.header[data-appearance="mobileHeroOverlay"] .themeSlot button:hover {
+  background: color-mix(in srgb, var(--on-media) 18%, transparent);
+  color: var(--on-media);
 }
 
 .header[data-appearance="mobileHeroOverlay"] .brandStatus {
